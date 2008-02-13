@@ -51,6 +51,14 @@ static char *tilde_expansion(char *str);
 static char *nvstrcat(const char *str, ...);
 
 /*
+ * verbosity, controls output of errors, warnings and other
+ * information (used by msg.c).
+ */
+
+int __verbosity = VERBOSITY_DEFAULT;
+
+
+/*
  * print_version() - print version information
  */
 
@@ -109,6 +117,17 @@ static const NVGetoptOption __options[] = {
       "Load the configuration file, send the values specified therein to "
       "the X server, and exit.  This mode of operation is useful to place "
       "in your .xinitrc file, for example." },
+
+    { "no-config", 'n', 0, NULL,
+      "Do not load the configuration file.  This mode of operation is useful "
+      "if nvidia-settings has difficulties starting due to problems with "
+      "applying settings in the configuration file." },
+
+    { "verbose", 'V', NVGETOPT_HAS_ARGUMENT, NULL,
+      "Controls how much information is printed.  Valid values are 'errors' "
+      "(print error messages), 'warnings' (print error and warning messages), "
+      "and 'all' (print error, warning and other informational messages).  By "
+      "default, only errors are printed." },
 
     { "assign", 'a', NVGETOPT_HAS_ARGUMENT, print_assign_help, NULL },
 
@@ -292,8 +311,24 @@ Options *parse_command_line(int argc, char *argv[], char *dpy)
         switch (c) {
         case 'v': print_version(); exit(0); break;
         case 'h': print_help(); exit(0); break;
-        case 'l': op->load = 1; break;
+        case 'l': op->only_load = 1; break;
+        case 'n': op->no_load = 1; break;
         case 'c': op->ctrl_display = strval; break;
+        case 'V':
+            __verbosity = VERBOSITY_DEFAULT;
+            if (nv_strcasecmp(strval, "errors") == NV_TRUE) {
+                __verbosity = VERBOSITY_ERROR;
+            } else if (nv_strcasecmp(strval, "warnings") == NV_TRUE) {
+                __verbosity = VERBOSITY_WARNING;
+            } else if (nv_strcasecmp(strval, "all") == NV_TRUE) {
+                __verbosity = VERBOSITY_ALL;
+            } else {
+                nv_error_msg("Invalid verbosity level '%s'.  Please run "
+                             "`%s --help` for usage information.\n",
+                             strval, argv[0]);
+                exit(0);
+            }
+            break;
         case 'a':
             n = op->num_assignments;
             op->assignments = realloc(op->assignments, sizeof(char *) * (n+1));

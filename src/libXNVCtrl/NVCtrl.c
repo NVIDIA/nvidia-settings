@@ -1199,6 +1199,82 @@ Bool XNVCTRLQueryBinaryData (
                                         attribute, ptr, len);
 }
 
+Bool XNVCTRLStringOperation (
+    Display *dpy,
+    int target_type,
+    int target_id,
+    unsigned int display_mask,
+    unsigned int attribute,
+    char *pIn,
+    char **ppOut
+) {
+    XExtDisplayInfo *info = find_display(dpy);
+    xnvCtrlStringOperationReq *req;
+    xnvCtrlStringOperationReply rep;
+    Bool ret;
+    int inSize, outSize, length, slop;
+
+    if (!XextHasExtension(info))
+        return False;
+    
+    if (!ppOut)
+        return False;
+
+    *ppOut = NULL;
+    
+    XNVCTRLCheckExtension(dpy, info, False);
+    XNVCTRLCheckTargetData(dpy, info, &target_type, &target_id);
+    
+    if (pIn) {
+        inSize = strlen(pIn) + 1;
+    } else {
+        inSize = 0;
+    }
+    
+    LockDisplay(dpy);
+    GetReq(nvCtrlStringOperation, req);
+    
+    req->reqType = info->codes->major_opcode;
+    req->nvReqType = X_nvCtrlStringOperation;
+    req->target_type = target_type;
+    req->target_id = target_id;
+    req->display_mask = display_mask;
+    req->attribute = attribute;
+
+    req->length += ((inSize + 3) & ~3) >> 2;
+    req->num_bytes = inSize;
+    
+    if (pIn) {
+        Data(dpy, pIn, inSize);
+    }
+    
+    if (!_XReply (dpy, (xReply *) &rep, 0, False)) {
+        UnlockDisplay(dpy);
+        SyncHandle();
+        return False;
+    }
+    
+    length = rep.length;
+    outSize = rep.num_bytes;
+    slop = outSize & 3;
+
+    if (outSize) *ppOut = (char *) Xmalloc(outSize);
+    
+    if (!*ppOut) {
+        _XEatData(dpy, length);
+    } else {
+        _XRead(dpy, (char *) *ppOut, outSize);
+        if (slop) _XEatData(dpy, 4-slop);
+    }
+    
+    ret = rep.ret;
+    
+    UnlockDisplay(dpy);
+    SyncHandle();
+    
+    return ret;
+}
+
 
 static Bool wire_to_event (Display *dpy, XEvent *host, xEvent *wire)
 {

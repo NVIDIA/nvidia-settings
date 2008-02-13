@@ -661,6 +661,25 @@ Bool XNVCTRLQueryTargetBinaryData (
 
 
 /*
+ * XNVCTRLStringOperation -
+ *
+ * Takes a string as input and returns a Xmalloc'ed string as output.
+ * Returns True on success and False on failure.
+ */
+
+Bool XNVCTRLStringOperation (
+    Display *dpy,
+    int target_type,
+    int target_id,
+    unsigned int display_mask,
+    unsigned int attribute,
+    char *pIn,
+    char **ppOut
+);
+
+
+
+/*
  * XNVCtrlSelectNotify -
  *
  * This enables/disables receiving of NV-CONTROL events.  The type

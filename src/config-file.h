@@ -43,8 +43,11 @@
 
 typedef struct {
     unsigned int booleans;
+    char *locale;
 } ConfigProperties;
 
+
+void init_config_properties(ConfigProperties *conf);
 
 int nv_read_config_file(const char *, const char *,
                         ParsedAttribute *, ConfigProperties *);

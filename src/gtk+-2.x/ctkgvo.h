@@ -57,11 +57,35 @@ typedef struct _CtkGvoClass  CtkGvoClass;
 typedef struct _CtkGvoBanner CtkGvoBanner;
 
 
+#define GVO_BANNER_LEFT 0
+#define GVO_BANNER_VID1_GREEN 1
+#define GVO_BANNER_VID1_GREY 2
+#define GVO_BANNER_VID1_RED 3
+#define GVO_BANNER_VID1_YELLOW 4
+#define GVO_BANNER_VID2_GREEN 5
+#define GVO_BANNER_VID2_GREY 6
+#define GVO_BANNER_VID2_RED 7
+#define GVO_BANNER_VID2_YELLOW 8
+#define GVO_BANNER_SDI_SYNC_GREEN 9
+#define GVO_BANNER_SDI_SYNC_GREY 10
+#define GVO_BANNER_SDI_SYNC_RED 11
+#define GVO_BANNER_SDI_SYNC_YELLOW 12
+#define GVO_BANNER_COMP_SYNC_GREEN 13
+#define GVO_BANNER_COMP_SYNC_GREY 14
+#define GVO_BANNER_COMP_SYNC_RED 15
+#define GVO_BANNER_COMP_SYNC_YELLOW 16
+#define GVO_BANNER_RIGHT 17
+
+#define GVO_BANNER_COUNT 18
+
+
 struct _CtkGvoBanner
 {
+    GtkWidget *imgs[GVO_BANNER_COUNT];
+
     GtkWidget *table;
-    
-    GtkWidget *slots[4];
+
+    GtkWidget *slots[6];
 
     struct {
         guint8 vid1;
@@ -143,6 +167,8 @@ GtkWidget*     ctk_gvo_new         (NvCtrlAttributeHandle *,
 void           ctk_gvo_select      (GtkWidget *);
 void           ctk_gvo_unselect    (GtkWidget *);
 GtkTextBuffer* ctk_gvo_create_help (GtkTextTagTable *);
+void           ctk_gvo_pack_banner_slot (CtkGvoBanner *, gint slot, gint new);
+gint           ctk_gvo_probe       (gpointer data);
 
 
 G_END_DECLS

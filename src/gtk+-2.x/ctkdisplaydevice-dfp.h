@@ -60,15 +60,25 @@ struct _CtkDisplayDeviceDfp
 
     NvCtrlAttributeHandle *handle;
     CtkConfig *ctk_config;
+    CtkEvent *ctk_event;
     GtkWidget *image_sliders;
     GtkWidget *reset_button;
+    GtkWidget *edid_box;
+    GtkWidget *edid;
 
+    GtkWidget *txt_chip_location;
+    GtkWidget *txt_link;
+    GtkWidget *txt_signal;
+
+    GtkWidget *scaling_frame;
     GtkWidget *scaling_buttons[NV_CTRL_FLATPANEL_SCALING_ASPECT_SCALED+1];
+
+    GtkWidget *dithering_frame;
     GtkWidget *dithering_buttons[NV_CTRL_FLATPANEL_DITHERING_DISABLED+1];
     
     unsigned int display_device_mask;
+    gboolean display_enabled;
     unsigned int active_attributes;
-    gboolean edid_available;
 
     char *name;
 };

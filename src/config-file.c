@@ -46,6 +46,7 @@
 #include <ctype.h>
 #include <stdlib.h>
 #include <time.h>
+#include <locale.h>
 
 #include "NvCtrlAttributes.h"
 
@@ -79,9 +80,8 @@ static void save_gui_parsed_attributes(ParsedAttributeWrapper *w,
 static float get_color_value(int attr,
                              float c[3], float b[3], float g[3]);
 
-static int parse_config_properties(const char *line, ConfigProperties *conf);
-
-static void init_config_properties(ConfigProperties *conf);
+static int parse_config_property(const char *file, const char *line,
+                                 ConfigProperties *conf);
 
 static void write_config_properties(FILE *stream, ConfigProperties *conf);
 
@@ -97,6 +97,9 @@ static void write_config_properties(FILE *stream, ConfigProperties *conf);
  * message is printed to stderr, NV_FALSE is returned, and nothing is
  * sent to the X server.
  *
+ * NOTE: The conf->locale should have already been setup by calling
+ *       init_config_properties() prior to calling this function.
+ *
  * XXX should we do any sort of versioning to handle compatibility
  * problems in the future?
  */
@@ -106,13 +109,9 @@ int nv_read_config_file(const char *file, const char *display_name,
 {
     int fd, ret, length;
     struct stat stat_buf;
-    char *buf;
+    char *buf, *locale;
     ParsedAttributeWrapper *w = NULL;
     
-    /* initialize the ConfigProperties */
-
-    init_config_properties(conf);
-
     /* open the file */
 
     fd = open(file, O_RDONLY);
@@ -149,18 +148,27 @@ int nv_read_config_file(const char *file, const char *display_name,
                      file, strerror(errno));
         return NV_FALSE;
     }
-    
-    /* parse the actual text in the file */
+
+
+    /* 
+     * save the current locale, parse the actual text in the file
+     * and restore the saved locale (could be changed).
+     */
+
+    locale = strdup(conf->locale);
 
     w = parse_config_file(buf, file, length, conf);
+
+    setlocale(LC_ALL, locale);
+    free(locale);
+
+    /* unmap and close the file */
 
     if (munmap (buf, stat_buf.st_size) == -1) {
         nv_error_msg("Unable to unmap file '%s' after reading (%s).",
                      file, strerror(errno));
         return NV_FALSE;
     }
-
-    /* close the file */
 
     close(fd);
     
@@ -479,7 +487,7 @@ static ParsedAttributeWrapper *parse_config_file(char *buf, const char *file,
 
             /* first, see if this line is a config property */
 
-            if (!parse_config_properties(tmp, conf)) {
+            if (!parse_config_property(file, tmp, conf)) {
                 
                 w = realloc(w, sizeof(ParsedAttributeWrapper) * (n+1));
             
@@ -674,9 +682,10 @@ ConfigPropertiesTableEntry configPropertyTable[] = {
  * property, return NV_FALSE.
  */
 
-static int parse_config_properties(const char *line, ConfigProperties *conf)
+static int parse_config_property(const char *file, const char *line, ConfigProperties *conf)
 {
     char *no_spaces, *s;
+    char *locale;
     ConfigPropertiesTableEntry *t;
     int ret = NV_FALSE;
     unsigned int flag;
@@ -691,23 +700,34 @@ static int parse_config_properties(const char *line, ConfigProperties *conf)
 
     *s = '\0';
     
-    for (t = configPropertyTable, flag = 0; t->name; t++) {
-        if (nv_strcasecmp(no_spaces, t->name)) {
-            flag = t->flag;
-            break;
+    if (nv_strcasecmp(no_spaces, "RcFileLocale")) {
+        locale = ++s;
+        if (setlocale(LC_ALL, locale) == NULL) {
+            nv_warning_msg("Error parsing configuration file '%s': could "
+                           "not set the specified locale '%s'.",
+                           file, locale);
+            ret = NV_TRUE;
+            goto done;
         }
-    }
-
-    if (!flag) goto done;
-
-    s++;
-
-    if (nv_strcasecmp(s, "yes")) {
-        conf->booleans |= flag;
-    } else if (nv_strcasecmp(s, "no")) {
-        conf->booleans &= ~flag;
     } else {
-        goto done;
+        for (t = configPropertyTable, flag = 0; t->name; t++) {
+            if (nv_strcasecmp(no_spaces, t->name)) {
+                flag = t->flag;
+                break;
+            }
+        }
+
+        if (!flag) goto done;
+
+        s++;
+
+        if (nv_strcasecmp(s, "yes")) {
+            conf->booleans |= flag;
+        } else if (nv_strcasecmp(s, "no")) {
+            conf->booleans &= ~flag;
+        } else {
+            goto done;
+        }
     }
     
     ret = NV_TRUE;
@@ -735,6 +755,8 @@ static void write_config_properties(FILE *stream, ConfigProperties *conf)
     fprintf(stream, "# ConfigProperties:\n");
     fprintf(stream, "\n");
 
+    fprintf(stream, "RcFileLocale = %s\n", conf->locale);
+
     for (t = configPropertyTable; t->name; t++) {
         fprintf(stream, "%s = %s\n", t->name,
                 (t->flag & conf->booleans) ? "Yes" : "No");
@@ -748,7 +770,7 @@ static void write_config_properties(FILE *stream, ConfigProperties *conf)
  * structure.
  */
 
-static void init_config_properties(ConfigProperties *conf)
+void init_config_properties(ConfigProperties *conf)
 {
     memset(conf, 0, sizeof(ConfigProperties));
 
@@ -757,5 +779,7 @@ static void init_config_properties(ConfigProperties *conf)
          CONFIG_PROPERTIES_DISPLAY_STATUS_BAR |
          CONFIG_PROPERTIES_SLIDER_TEXT_ENTRIES |
          CONFIG_PROPERTIES_SHOW_QUIT_DIALOG);
+
+    conf->locale = strdup(setlocale(LC_ALL, NULL));
 
 } /* init_config_properties() */

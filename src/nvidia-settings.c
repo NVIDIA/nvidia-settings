@@ -39,9 +39,11 @@ int main(int argc, char **argv)
     ConfigProperties conf;
     ParsedAttribute *p;
     CtrlHandles *h;
-    NvCtrlAttributeHandle **handles;
+    NvCtrlAttributeHandle **screen_handles = NULL;
+    NvCtrlAttributeHandle **gpu_handles = NULL;
+    NvCtrlAttributeHandle **vcsc_handles = NULL;
     Options *op;
-    int ret, i, num_handles;
+    int ret, i, num_screen_handles, num_gpu_handles, num_vcsc_handles;
     
     /*
      * initialize the ui
@@ -69,16 +71,24 @@ int main(int argc, char **argv)
 
     p = nv_parsed_attribute_init();
 
+    /* initialize the ConfigProperties */
+
+    init_config_properties(&conf);
+
     /* upload the data from the config file */
     
-    ret = nv_read_config_file(op->config, op->ctrl_display, p, &conf);
+    if (!op->no_load) {
+        ret = nv_read_config_file(op->config, op->ctrl_display, p, &conf);
+    } else {
+        ret = 1;
+    }
 
     /*
      * if the user requested that we only load the config file, then
      * exit now
      */
     
-    if (op->load) {
+    if (op->only_load) {
         return ret ? 0 : 1;
     }
 
@@ -91,25 +101,58 @@ int main(int argc, char **argv)
     }
 
     /*
-     * pull the screens' handles out of the CtrlHandles so that we can
+     * pull the screen and gpu handles out of the CtrlHandles so that we can
      * pass them to the gui
      */
     
-    num_handles = h->targets[X_SCREEN_TARGET].n;
-    
-    if (num_handles) {
-        handles = malloc(num_handles * sizeof(NvCtrlAttributeHandle *));
-        
-        for (i = 0; i < num_handles; i++) {
-            handles[i] = h->targets[X_SCREEN_TARGET].t[i].h;
+    num_screen_handles = h->targets[X_SCREEN_TARGET].n;
+
+    if (num_screen_handles) {
+        screen_handles =
+            malloc(num_screen_handles * sizeof(NvCtrlAttributeHandle *));
+        if (screen_handles) {
+            for (i = 0; i < num_screen_handles; i++) {
+                screen_handles[i] = h->targets[X_SCREEN_TARGET].t[i].h;
+            }
+        } else {
+            num_screen_handles = 0;
         }
-    } else {
-        handles = NULL;
+    }
+
+    num_gpu_handles = h->targets[GPU_TARGET].n;
+
+    if (num_gpu_handles) {
+        gpu_handles =
+            malloc(num_gpu_handles * sizeof(NvCtrlAttributeHandle *));
+        if (gpu_handles) {
+            for (i = 0; i < num_gpu_handles; i++) {
+                gpu_handles[i] = h->targets[GPU_TARGET].t[i].h;
+            }
+        } else {
+            num_gpu_handles = 0;
+        }
+    }
+
+    num_vcsc_handles = h->targets[VCSC_TARGET].n;
+
+    if (num_vcsc_handles) {
+        vcsc_handles =
+            malloc(num_vcsc_handles * sizeof(NvCtrlAttributeHandle *));
+        if (vcsc_handles) {
+            for (i = 0; i < num_vcsc_handles; i++) {
+                vcsc_handles[i] = h->targets[VCSC_TARGET].t[i].h;
+            }
+        } else {
+            num_vcsc_handles = 0;
+        }
     }
     
     /* pass control to the gui */
 
-    ctk_main(handles, num_handles, p, &conf);
+    ctk_main(screen_handles, num_screen_handles,
+             gpu_handles, num_gpu_handles,
+             vcsc_handles, num_vcsc_handles,
+             p, &conf);
     
     /* write the configuration file */
 
@@ -117,7 +160,8 @@ int main(int argc, char **argv)
 
     /* cleanup */
 
-    if (handles) free(handles);
+    if (screen_handles) free(screen_handles);
+    if (gpu_handles) free(gpu_handles);
     nv_free_ctrl_handles(h);
     nv_parsed_attribute_free(p);
 

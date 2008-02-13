@@ -42,9 +42,14 @@ char *ctk_get_display(void)
     return gdk_get_display();
 }
 
-void ctk_main(NvCtrlAttributeHandle **attribute_handles,
-              int num_screens, ParsedAttribute *p, ConfigProperties *conf)
+void ctk_main(NvCtrlAttributeHandle **screen_handles, int num_screen_handles,
+              NvCtrlAttributeHandle **gpu_handles, int num_gpu_handles,
+              NvCtrlAttributeHandle **vcsc_handles, int num_vcsc_handles,
+              ParsedAttribute *p, ConfigProperties *conf)
 {
-    ctk_window_new(attribute_handles, num_screens, p, conf);
+    ctk_window_new(screen_handles, num_screen_handles,
+                   gpu_handles, num_gpu_handles,
+                   vcsc_handles, num_vcsc_handles,
+                   p, conf);
     gtk_main();
 }

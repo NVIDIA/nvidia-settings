@@ -714,6 +714,7 @@ void ctk_config_add_timer(CtkConfig *ctk_config,
                           gpointer data)
 {
     GtkTreeIter iter;
+    gchar *s = g_strdup(descr);
 
     /* Timer defaults to user enabled/owner disabled */
 
@@ -722,7 +723,7 @@ void ctk_config_add_timer(CtkConfig *ctk_config,
                        USER_ENABLE_COLUMN, TRUE,
                        OWNER_ENABLE_COLUMN, FALSE,
                        TIME_INTERVAL_COLUMN, interval,
-                       DESCRIPTION_COLUMN, descr,
+                       DESCRIPTION_COLUMN, s,
                        FUNCTION_COLUMN, function,
                        DATA_COLUMN, data, -1);
 
@@ -746,6 +747,7 @@ void ctk_config_remove_timer(CtkConfig *ctk_config, GSourceFunc function)
     guint handle;
     gboolean user_enabled;
     gboolean owner_enabled;
+    gchar *descr;
     
     
     model = GTK_TREE_MODEL(ctk_config->list_store);
@@ -756,6 +758,7 @@ void ctk_config_remove_timer(CtkConfig *ctk_config, GSourceFunc function)
                            FUNCTION_COLUMN, &func,
                            USER_ENABLE_COLUMN, &user_enabled,
                            OWNER_ENABLE_COLUMN, &owner_enabled,
+                           DESCRIPTION_COLUMN, &descr,
                            HANDLE_COLUMN, &handle, -1);
         if (func == function) {
 
@@ -764,6 +767,7 @@ void ctk_config_remove_timer(CtkConfig *ctk_config, GSourceFunc function)
             if (user_enabled && owner_enabled) {
                 g_source_remove(handle);
             }
+            g_free(descr);
             gtk_list_store_remove(ctk_config->list_store, &iter);
             break;
         }
@@ -780,7 +784,7 @@ void ctk_config_remove_timer(CtkConfig *ctk_config, GSourceFunc function)
     }
 }
 
-void ctk_config_start_timer(CtkConfig *ctk_config, GSourceFunc function)
+void ctk_config_start_timer(CtkConfig *ctk_config, GSourceFunc function, gpointer data)
 {
     GtkTreeModel *model;
     GtkTreeIter iter;
@@ -790,7 +794,7 @@ void ctk_config_start_timer(CtkConfig *ctk_config, GSourceFunc function)
     guint interval;
     gboolean user_enabled;
     gboolean owner_enabled;
-    gpointer data;
+    gpointer model_data;
 
     model = GTK_TREE_MODEL(ctk_config->list_store);
 
@@ -801,10 +805,10 @@ void ctk_config_start_timer(CtkConfig *ctk_config, GSourceFunc function)
                            OWNER_ENABLE_COLUMN, &owner_enabled,
                            HANDLE_COLUMN, &handle,
                            FUNCTION_COLUMN, &func,
-                           DATA_COLUMN, &data,
+                           DATA_COLUMN, &model_data,
                            TIME_INTERVAL_COLUMN, &interval,
                            -1);
-        if (func == function) {
+        if ((func == function) && (model_data == data)) {
 
             /* Start the timer if is enabled by the user and
                it is not already running. */
@@ -822,7 +826,7 @@ void ctk_config_start_timer(CtkConfig *ctk_config, GSourceFunc function)
     }
 }
 
-void ctk_config_stop_timer(CtkConfig *ctk_config, GSourceFunc function)
+void ctk_config_stop_timer(CtkConfig *ctk_config, GSourceFunc function, gpointer data)
 {
     GtkTreeModel *model;
     GtkTreeIter iter;
@@ -832,7 +836,7 @@ void ctk_config_stop_timer(CtkConfig *ctk_config, GSourceFunc function)
     guint interval;
     gboolean user_enabled;
     gboolean owner_enabled;
-    gpointer data;
+    gpointer model_data;
 
     model = GTK_TREE_MODEL(ctk_config->list_store);
 
@@ -843,10 +847,10 @@ void ctk_config_stop_timer(CtkConfig *ctk_config, GSourceFunc function)
                            OWNER_ENABLE_COLUMN, &owner_enabled,
                            HANDLE_COLUMN, &handle,
                            FUNCTION_COLUMN, &func,
-                           DATA_COLUMN, &data,
+                           DATA_COLUMN, &model_data,
                            TIME_INTERVAL_COLUMN, &interval,
                            -1);
-        if (func == function) {
+        if ((func == function) && (model_data == data)) {
 
             /* Remove the timer if was running. */
 

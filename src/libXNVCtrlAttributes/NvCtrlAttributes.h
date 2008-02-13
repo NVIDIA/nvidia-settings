@@ -265,6 +265,14 @@ int NvCtrlGetScreenWidth(NvCtrlAttributeHandle *handle);
 int NvCtrlGetScreenHeight(NvCtrlAttributeHandle *handle);
 int NvCtrlGetEventBase(NvCtrlAttributeHandle *handle);
 int NvCtrlGetXrandrEventBase(NvCtrlAttributeHandle *handle);
+char *NvCtrlGetServerVendor(NvCtrlAttributeHandle *handle);
+int NvCtrlGetVendorRelease(NvCtrlAttributeHandle *handle);
+int NvCtrlGetProtocolVersion(NvCtrlAttributeHandle *handle);
+int NvCtrlGetProtocolRevision(NvCtrlAttributeHandle *handle);
+int NvCtrlGetScreenCount(NvCtrlAttributeHandle *handle);
+int NvCtrlGetScreenWidthMM(NvCtrlAttributeHandle *handle);
+int NvCtrlGetScreenHeightMM(NvCtrlAttributeHandle *handle);
+int NvCtrlGetScreenPlanes(NvCtrlAttributeHandle *handle);
 
 ReturnStatus NvCtrlGetColorAttributes (NvCtrlAttributeHandle *handle,
                                        float contrast[3],
@@ -390,6 +398,18 @@ NvCtrlGetBinaryAttribute(NvCtrlAttributeHandle *handle,
                          unsigned char **data, int *len);
 
 /*
+ * NvCtrlStringOperation() - Performs the string operation associated
+ * with the specified attribute, where valid values are the
+ * NV_CTRL_STRING_OPERATION_* #defines in NVCtrl.h. If 'ptrOut'
+ * is specified, (string) result information is returned.
+ */
+
+ReturnStatus
+NvCtrlStringOperation(NvCtrlAttributeHandle *handle,
+                      unsigned int display_mask, int attr,
+                      char *ptrIn, char **ptrOut);
+
+/*
  * NvCtrl[SG]etGvoColorConversion() - get and set the color conversion
  * matrix and offset used in the Graphics to Video Out (GVO)
  * extension.  These should only be used if the NV_CTRL_GVO_SUPPORTED
@@ -415,5 +435,9 @@ void NvCtrlAttributeClose(NvCtrlAttributeHandle *handle);
 ReturnStatus
 NvCtrlXrandrSetScreenMode (NvCtrlAttributeHandle *handle,
                            int width, int height, int refresh);
+
+ReturnStatus
+NvCtrlXrandrGetScreenMode (NvCtrlAttributeHandle *handle,
+                           int *width, int *height, int *refresh);
 
 #endif /* __NVCTRL_ATTRIBUTES__ */

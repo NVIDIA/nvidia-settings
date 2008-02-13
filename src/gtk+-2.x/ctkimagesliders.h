@@ -58,16 +58,16 @@ struct _CtkImageSliders
     GtkVBox parent;
     
     NvCtrlAttributeHandle *handle;
-    CtkConfig *ctk_config;
-    GtkWidget *reset_button;
-    
-    GtkObject *dvc_adjustment;
-    GtkObject *image_sharpening_adjustment;
-
+    unsigned int display_device_mask;
     char *name;
 
-    unsigned int display_device_mask;
-    unsigned int active_attributes;
+    CtkConfig *ctk_config;
+    CtkEvent *ctk_event;
+    GtkWidget *reset_button;
+    
+    GtkWidget *frame;
+    GtkWidget *digital_vibrance;
+    GtkWidget *image_sharpening;
 };
 
 struct _CtkImageSlidersClass
@@ -84,9 +84,11 @@ GtkWidget*  ctk_image_sliders_new       (NvCtrlAttributeHandle *,
 
 void ctk_image_sliders_reset(CtkImageSliders *);
 
-gboolean add_image_sliders_help(CtkImageSliders *ctk_image_sliders,
-                                GtkTextBuffer *b,
-                                GtkTextIter *i);
+void ctk_image_sliders_setup(CtkImageSliders *ctk_image_sliders);
+
+void add_image_sliders_help(CtkImageSliders *ctk_image_sliders,
+                            GtkTextBuffer *b,
+                            GtkTextIter *i);
 
 G_END_DECLS
 

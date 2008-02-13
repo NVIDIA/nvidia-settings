@@ -26,10 +26,11 @@
 #
 
 EXTRA_DIST += \
+	Makefile.inc \
 	blue_xpm.h \
 	green_xpm.h \
-	mini_xpm.h \
 	red_xpm.h \
-	rgb_xpm.h \
-	x11_xpm.h
+	rgb_xpm.h
 
+dist_list::
+	@ echo $(SRC) $(EXTRA_DIST)

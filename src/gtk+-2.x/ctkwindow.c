@@ -32,6 +32,7 @@
 #include <gtk/gtk.h>
 #include <gdk/gdkkeysyms.h>
 #include <stdio.h>
+#include <stdlib.h>
 
 #include "ctkwindow.h"
 
@@ -40,7 +41,8 @@
 #include "ctkgvo-csc.h"
 #include "ctkconfig.h"
 
-#include "ctkdevice.h"
+#include "ctkscreen.h"
+#include "ctkgpu.h"
 #include "ctkcolorcorrection.h"
 #include "ctkxvideo.h"
 #include "ctkrandr.h"
@@ -50,11 +52,14 @@
 #include "ctkmultisample.h"
 #include "ctkthermal.h"
 #include "ctkclocks.h"
+#include "ctkvcsc.h"
 
-#include "ctkdisplaydevice.h"
 #include "ctkdisplaydevice-crt.h"
 #include "ctkdisplaydevice-tv.h"
 #include "ctkdisplaydevice-dfp.h"
+
+#include "ctkdisplayconfig.h"
+#include "ctkserver.h"
 
 #include "ctkhelp.h"
 #include "ctkevent.h"
@@ -71,6 +76,20 @@ enum {
     CTK_WINDOW_UNSELECT_WIDGET_FUNC_COLUMN,
     CTK_WINDOW_NUM_COLUMNS
 };
+
+
+typedef struct {
+    CtkWindow *window;
+    CtkEvent *event;
+    NvCtrlAttributeHandle *gpu_handle;
+    GtkTextTagTable *tag_table;
+
+    GtkTreeIter parent_iter;
+
+    GtkTreeIter *display_iters;
+    int num_displays;
+
+} UpdateDisplaysData;
 
 
 typedef void (*config_file_attributes_func_t)(GtkWidget *, ParsedAttribute *);
@@ -94,11 +113,14 @@ static void save_settings_and_exit(CtkWindow *);
 
 static void add_special_config_file_attributes(CtkWindow *ctk_window);
 
-static void add_display_devices(GtkWidget *widget, GtkTextBuffer *help,
-                                CtkWindow *ctk_window, GtkTreeIter *iter,
+static void add_display_devices(CtkWindow *ctk_window, GtkTreeIter *iter,
                                 NvCtrlAttributeHandle *handle,
                                 CtkEvent *ctk_event,
-                                GtkTextTagTable *tag_table);
+                                GtkTextTagTable *tag_table,
+                                UpdateDisplaysData *data);
+
+static void update_display_devices(GtkObject *object, gpointer arg1,
+                                   gpointer user_data);
 
 
 static GObjectClass *parent_class;
@@ -173,7 +195,7 @@ static void ctk_window_real_destroy(GtkObject *object)
 
 
 /*
- * close_button_clicked() - called when the 
+ * close_button_clicked() - called when the "Quit" button is clicked.
  */
 
 static void close_button_clicked(GtkButton *button, gpointer user_data)
@@ -262,11 +284,11 @@ static void tree_selection_changed(GtkTreeSelection *selection,
 
     /* Call the unselect func for the existing widget, if any */
 
-    if ( ctk_window->widget ) {
+    if (ctk_window->widget) {
         gtk_tree_model_get(model, &(ctk_window->iter),
                            CTK_WINDOW_UNSELECT_WIDGET_FUNC_COLUMN,
                            &unselect_func, -1);
-        if ( unselect_func ) {
+        if (unselect_func) {
             (*unselect_func)(ctk_window->widget);
         }
     }
@@ -345,7 +367,12 @@ static gboolean tree_view_key_event(GtkWidget *tree_view, GdkEvent *event,
  * ctk_window_new() - create a new CtkWindow widget
  */
 
-GtkWidget *ctk_window_new(NvCtrlAttributeHandle **handles, gint num_handles,
+GtkWidget *ctk_window_new(NvCtrlAttributeHandle **screen_handles,
+                          gint num_screen_handles,
+                          NvCtrlAttributeHandle **gpu_handles,
+                          gint num_gpu_handles,
+                          NvCtrlAttributeHandle **vcsc_handles,
+                          gint num_vcsc_handles,
                           ParsedAttribute *p, ConfigProperties *conf)
 {
     GObject *object;
@@ -380,8 +407,6 @@ GtkWidget *ctk_window_new(NvCtrlAttributeHandle **handles, gint num_handles,
     ctk_window = CTK_WINDOW(object);
     gtk_container_set_border_width(GTK_CONTAINER(ctk_window), CTK_WINDOW_PAD);
 
-    ctk_window->handles = handles;
-    ctk_window->num_handles = num_handles;
     ctk_window->attribute_list = p;
     
     /* create the config object */
@@ -523,21 +548,70 @@ GtkWidget *ctk_window_new(NvCtrlAttributeHandle **handles, gint num_handles,
     ctk_window->page_viewer = hbox;
     ctk_window->page = NULL;
 
+
+    /* X Server info & configuration */
+
+    if (num_screen_handles) {
+
+        NvCtrlAttributeHandle *screen_handle = NULL;
+        GtkWidget *child;
+        int i;
+
+        /*
+         * XXX For now, just use the first handle in the list
+         *     to communicate with the X server for these two
+         *     pages.
+         */
+
+        for (i = 0 ; i < num_screen_handles; i++) {
+            if (screen_handles[i]) {
+                screen_handle = screen_handles[i];
+                break;
+            }
+        }
+        if (screen_handle) {
+
+            /* X Server information */
+            
+            child = ctk_server_new(screen_handle, ctk_config);
+            add_page(child,
+                     ctk_server_create_help(tag_table,
+                                            CTK_SERVER(child)),
+                     ctk_window, NULL, NULL, "X Server Information",
+                     NULL, NULL, NULL);
+
+            /* X Server Display Configuration */
+
+            child = ctk_display_config_new(screen_handle, ctk_config);
+            if (child) {
+                add_page(child,
+                         ctk_display_config_create_help(tag_table,
+                                                        CTK_DISPLAY_CONFIG(child)),
+                         ctk_window, NULL, NULL,
+                         "X Server Display Configuration",
+                         NULL, NULL, NULL);
+            }
+        }
+    }
+
+
     /* add the per-screen entries into the tree model */
 
-    for (i = 0; i < num_handles; i++) {
+    for (i = 0; i < num_screen_handles; i++) {
 
         GtkTreeIter iter;
         gchar *screen_name;
         GtkWidget *child;
+        NvCtrlAttributeHandle *screen_handle = screen_handles[i];
 
-        if (!handles[i]) continue;
+        if (!screen_handle) continue;
 
         /* create the object for receiving NV-CONTROL events */
 
-        ctk_event = CTK_EVENT(ctk_event_new(handles[i]));
+        ctk_event = CTK_EVENT(ctk_event_new(screen_handle));
         
-        screen_name = NvCtrlGetDisplayName(handles[i]);
+        screen_name = g_strdup_printf("X Screen %d",
+                                      NvCtrlGetTargetId(screen_handle));
 
         /* create the screen entry */
 
@@ -545,22 +619,24 @@ GtkWidget *ctk_window_new(NvCtrlAttributeHandle **handles, gint num_handles,
         gtk_tree_store_set(ctk_window->tree_store, &iter,
                            CTK_WINDOW_LABEL_COLUMN, screen_name, -1);
 
-        /* device information */
+        /* Screen information */
 
-        child = ctk_device_new(handles[i]);
+        screen_name = NvCtrlGetDisplayName(screen_handle);
+
+        child = ctk_screen_new(screen_handle, ctk_event);
         gtk_object_ref(GTK_OBJECT(child));
         gtk_tree_store_set(ctk_window->tree_store, &iter,
                            CTK_WINDOW_WIDGET_COLUMN, child, -1);
         gtk_tree_store_set(ctk_window->tree_store, &iter,
                            CTK_WINDOW_HELP_COLUMN, 
-                           ctk_device_create_help(tag_table, screen_name), -1);
+                           ctk_screen_create_help(tag_table, screen_name), -1);
         gtk_tree_store_set(ctk_window->tree_store, &iter,
                            CTK_WINDOW_CONFIG_FILE_ATTRIBUTES_FUNC_COLUMN,
                            NULL, -1);
 
         /* color correction */
 
-        child = ctk_color_correction_new(handles[i], ctk_config,
+        child = ctk_color_correction_new(screen_handle, ctk_config,
                                          ctk_window->attribute_list,
                                          ctk_event);
         if (child) {
@@ -571,7 +647,7 @@ GtkWidget *ctk_window_new(NvCtrlAttributeHandle **handles, gint num_handles,
 
         /* xvideo settings  */
 
-        child = ctk_xvideo_new(handles[i], ctk_config, ctk_event);
+        child = ctk_xvideo_new(screen_handle, ctk_config, ctk_event);
         if (child) {
             help = ctk_xvideo_create_help(tag_table, CTK_XVIDEO(child));
             add_page(child, help, ctk_window, &iter, NULL,
@@ -580,7 +656,7 @@ GtkWidget *ctk_window_new(NvCtrlAttributeHandle **handles, gint num_handles,
 
         /* randr settings */
 
-        child = ctk_randr_new(handles[i], ctk_config, ctk_event);
+        child = ctk_randr_new(screen_handle, ctk_config, ctk_event);
         if (child) {
             help = ctk_randr_create_help(tag_table, CTK_RANDR(child));
             add_page(child, help, ctk_window, &iter, NULL,
@@ -589,7 +665,7 @@ GtkWidget *ctk_window_new(NvCtrlAttributeHandle **handles, gint num_handles,
 
         /* cursor shadow */
 
-        child = ctk_cursor_shadow_new(handles[i], ctk_config, ctk_event);
+        child = ctk_cursor_shadow_new(screen_handle, ctk_config, ctk_event);
         if (child) {
             help = ctk_cursor_shadow_create_help(tag_table,
                                                  CTK_CURSOR_SHADOW(child));
@@ -599,7 +675,7 @@ GtkWidget *ctk_window_new(NvCtrlAttributeHandle **handles, gint num_handles,
 
         /* opengl settings */
 
-        child = ctk_opengl_new(handles[i], ctk_config, ctk_event);
+        child = ctk_opengl_new(screen_handle, ctk_config, ctk_event);
         if (child) {
             help = ctk_opengl_create_help(tag_table, CTK_OPENGL(child));
             add_page(child, help, ctk_window, &iter, NULL, "OpenGL Settings",
@@ -609,7 +685,7 @@ GtkWidget *ctk_window_new(NvCtrlAttributeHandle **handles, gint num_handles,
 
         /* GLX Information */
 
-        child = ctk_glx_new(handles[i], ctk_config, ctk_event);
+        child = ctk_glx_new(screen_handle, ctk_config, ctk_event);
         if (child) {
             help = ctk_glx_create_help(tag_table, CTK_GLX(child));
             add_page(child, help, ctk_window, &iter, NULL,
@@ -619,7 +695,7 @@ GtkWidget *ctk_window_new(NvCtrlAttributeHandle **handles, gint num_handles,
 
         /* multisample settings */
 
-        child = ctk_multisample_new(handles[i], ctk_config, ctk_event);
+        child = ctk_multisample_new(screen_handle, ctk_config, ctk_event);
         if (child) {
             help = ctk_multisample_create_help(tag_table,
                                                CTK_MULTISAMPLE(child));
@@ -627,20 +703,12 @@ GtkWidget *ctk_window_new(NvCtrlAttributeHandle **handles, gint num_handles,
                      "Antialiasing Settings", NULL, NULL, NULL);
         }
 
-        /* thermal information */
-
-        child = ctk_thermal_new(handles[i], ctk_config);
-        if (child) {
-            help = ctk_thermal_create_help(tag_table, CTK_THERMAL(child));
-            add_page(child, help, ctk_window, &iter, NULL, "Thermal Monitor",
-                     NULL, ctk_thermal_start_timer, ctk_thermal_stop_timer);
-        }
-        
         /* gvo (Graphics To Video Out) */
         
-        child = ctk_gvo_new(handles[i], GTK_WIDGET(ctk_window),
+        child = ctk_gvo_new(screen_handle, GTK_WIDGET(ctk_window),
                             ctk_config, ctk_event);
         if (child) {
+            GtkWidget *gvo_parent = child;
             GtkTreeIter child_iter;
             help = ctk_gvo_create_help(tag_table);
             add_page(child, help, ctk_window, &iter, &child_iter,
@@ -649,17 +717,78 @@ GtkWidget *ctk_window_new(NvCtrlAttributeHandle **handles, gint num_handles,
 
             /* add GVO sub-pages */
 
-            child = ctk_gvo_csc_new(handles[i],
-                                    ctk_config, ctk_event);
+            child = ctk_gvo_csc_new(screen_handle, ctk_config, ctk_event,
+                                    CTK_GVO(gvo_parent));
             if (child) {
                 add_page(child, NULL, ctk_window, &child_iter, NULL,
-                         "Color Space Conversion", NULL, NULL, NULL);
+                         "Color Space Conversion", NULL,
+                         ctk_gvo_csc_select, ctk_gvo_csc_unselect);
             }
         }
+    }
 
+    /* add the per-gpu entries into the tree model */
+
+    for (i = 0; i < num_gpu_handles; i++) {
+        
+        GtkTreeIter iter;
+        gchar *gpu_product_name;
+        gchar *gpu_name;
+        GtkWidget *child;
+        ReturnStatus ret;
+        NvCtrlAttributeHandle *gpu_handle = gpu_handles[i];
+        UpdateDisplaysData *data;
+
+
+        if (!gpu_handle) continue;
+
+        /* create the gpu entry name */
+
+        ret = NvCtrlGetStringDisplayAttribute(gpu_handle, 0,
+                                              NV_CTRL_STRING_PRODUCT_NAME,
+                                              &gpu_product_name);
+        if (ret == NvCtrlSuccess && gpu_product_name) {
+            gpu_name = g_strdup_printf("GPU %d - (%s)",
+                                       NvCtrlGetTargetId(gpu_handle),
+                                       gpu_product_name);
+        } else {
+            gpu_name =  g_strdup_printf("GPU %d - (Unknown)",
+                                        NvCtrlGetTargetId(gpu_handle));
+        }
+        if (!gpu_name) continue;
+
+        /* create the object for receiving NV-CONTROL events */
+
+        ctk_event = CTK_EVENT(ctk_event_new(gpu_handle));
+       
+        /* create the gpu entry */
+
+        gtk_tree_store_append(ctk_window->tree_store, &iter, NULL);
+        gtk_tree_store_set(ctk_window->tree_store, &iter,
+                           CTK_WINDOW_LABEL_COLUMN, gpu_name, -1);
+        child = ctk_gpu_new(gpu_handle, screen_handles, ctk_event);
+        gtk_object_ref(GTK_OBJECT(child));
+        gtk_tree_store_set(ctk_window->tree_store, &iter,
+                           CTK_WINDOW_WIDGET_COLUMN, child, -1);
+        gtk_tree_store_set(ctk_window->tree_store, &iter,
+                           CTK_WINDOW_HELP_COLUMN, 
+                           ctk_gpu_create_help(tag_table), -1);
+        gtk_tree_store_set(ctk_window->tree_store, &iter,
+                           CTK_WINDOW_CONFIG_FILE_ATTRIBUTES_FUNC_COLUMN,
+                           NULL, -1);
+
+        /* thermal information */
+
+        child = ctk_thermal_new(gpu_handle, ctk_config);
+        if (child) {
+            help = ctk_thermal_create_help(tag_table, CTK_THERMAL(child));
+            add_page(child, help, ctk_window, &iter, NULL, "Thermal Monitor",
+                     NULL, ctk_thermal_start_timer, ctk_thermal_stop_timer);
+        }
+        
         /* clocks (GPU overclocking) */
 
-        child = ctk_clocks_new(handles[i], ctk_config, ctk_event);
+        child = ctk_clocks_new(gpu_handle, ctk_config, ctk_event);
         if (child) {
             help = ctk_clocks_create_help(tag_table, CTK_CLOCKS(child));
             add_page(child, help, ctk_window, &iter, NULL, "Clock Frequencies",
@@ -667,14 +796,69 @@ GtkWidget *ctk_window_new(NvCtrlAttributeHandle **handles, gint num_handles,
         }
 
         /* display devices */
+        data = (UpdateDisplaysData *)calloc(1, sizeof(UpdateDisplaysData));
+        data->window = ctk_window;
+        data->event = ctk_event;
+        data->gpu_handle = gpu_handle;
+        data->parent_iter = iter;
+        data->tag_table = tag_table;
         
-        child = ctk_display_device_new(handles[i], ctk_config, ctk_event);
-        if (child) {
-            help = ctk_display_device_create_help(tag_table,
-                                                  CTK_DISPLAY_DEVICE(child));
-            add_display_devices(child, help, ctk_window,
-                                &iter, handles[i], ctk_event, tag_table);
+        g_signal_connect(G_OBJECT(ctk_event),
+                         CTK_EVENT_NAME(NV_CTRL_PROBE_DISPLAYS),
+                         G_CALLBACK(update_display_devices),
+                         (gpointer) data);            
+        
+        add_display_devices(ctk_window, &iter, gpu_handle, ctk_event,
+                            tag_table, data);
+    }
+
+    /* add the per-vcsc (e.g. Quadro Plex) entries into the tree model */
+
+    for (i = 0; i < num_vcsc_handles; i++) {
+        
+        GtkTreeIter iter;
+        gchar *vcsc_product_name;
+        gchar *vcsc_name;
+        GtkWidget *child;
+        ReturnStatus ret;
+        NvCtrlAttributeHandle *vcsc_handle = vcsc_handles[i];
+
+        if (!vcsc_handle) continue;
+
+        /* create the vcsc entry name */
+
+        ret = NvCtrlGetStringDisplayAttribute(vcsc_handle, 0,
+                                              NV_CTRL_STRING_VCSC_PRODUCT_NAME,
+                                              &vcsc_product_name);
+        if (ret == NvCtrlSuccess && vcsc_product_name) {
+            vcsc_name = g_strdup_printf("VCSC %d - (%s)",
+                                        NvCtrlGetTargetId(vcsc_handle),
+                                        vcsc_product_name);
+        } else {
+            vcsc_name =  g_strdup_printf("VCSC %d - (Unknown)",
+                                        NvCtrlGetTargetId(vcsc_handle));
         }
+        if (!vcsc_name) continue;
+        
+        /* create the object for receiving NV-CONTROL events */
+        
+        ctk_event = CTK_EVENT(ctk_event_new(vcsc_handle));
+        
+        /* create the vcsc entry */
+
+        gtk_tree_store_append(ctk_window->tree_store, &iter, NULL);
+        gtk_tree_store_set(ctk_window->tree_store, &iter,
+                           CTK_WINDOW_LABEL_COLUMN, vcsc_name, -1);
+        child = ctk_vcsc_new(vcsc_handle, ctk_config);
+        gtk_object_ref(GTK_OBJECT(child));
+        gtk_tree_store_set(ctk_window->tree_store, &iter,
+                           CTK_WINDOW_WIDGET_COLUMN, child, -1);
+        gtk_tree_store_set(ctk_window->tree_store, &iter,
+                           CTK_WINDOW_HELP_COLUMN, 
+                           ctk_gpu_create_help(tag_table), -1);
+        gtk_tree_store_set(ctk_window->tree_store, &iter,
+                           CTK_WINDOW_CONFIG_FILE_ATTRIBUTES_FUNC_COLUMN,
+                           NULL, -1);
     }
 
     /*
@@ -682,10 +866,13 @@ GtkWidget *ctk_window_new(NvCtrlAttributeHandle **handles, gint num_handles,
      * frame lock
      */
 
-    for (i = 0; i < num_handles; i++) {
-        if (!handles[i]) continue;
+    for (i = 0; i < num_screen_handles; i++) {
+
+        NvCtrlAttributeHandle *screen_handle = screen_handles[i];
+
+        if (!screen_handle) continue;
         
-        widget = ctk_framelock_new(handles[i], GTK_WIDGET(ctk_window),
+        widget = ctk_framelock_new(screen_handle, GTK_WIDGET(ctk_window),
                                    ctk_config, ctk_window->attribute_list);
         if (!widget) continue;
 
@@ -905,52 +1092,56 @@ static void add_special_config_file_attributes(CtkWindow *ctk_window)
  * add_display_devices() - add the display device pages
  */
 
-static void add_display_devices(GtkWidget *widget, GtkTextBuffer *help,
-                                CtkWindow *ctk_window, GtkTreeIter *iter,
+static void add_display_devices(CtkWindow *ctk_window, GtkTreeIter *iter,
                                 NvCtrlAttributeHandle *handle,
                                 CtkEvent *ctk_event,
-                                GtkTextTagTable *tag_table)
+                                GtkTextTagTable *tag_table,
+                                UpdateDisplaysData *data)
 {
-    GtkTreeIter child_iter;
+    GtkWidget *widget;
+    GtkTextBuffer *help;
     ReturnStatus ret;
-    int i, enabled, n, mask;
+    int i, connected, n, mask;
     char *name;
+    char *type;
+    gchar *title;
     
-    if (!widget) {
-        return;
-    }
     
-    /* retrieve the enabled display device mask */
+    /* retrieve the connected display device mask */
 
-    ret = NvCtrlGetAttribute(handle, NV_CTRL_ENABLED_DISPLAYS, &enabled);
+    ret = NvCtrlGetAttribute(handle, NV_CTRL_CONNECTED_DISPLAYS, &connected);
     if (ret != NvCtrlSuccess) {
         return;
     }
 
-    /* count how many display devices are enabled */
+    /* count how many display devices are connected */
 
     for (i = 0, n = 0; i < 24; i++) {
-        if (enabled & (1 << i)) n++;
+        if (connected & (1 << i)) n++;
     }
     if (n == 0) {
         return;
-    } else if (n == 1) {
-        name = "Display Device";
-    } else {
-        name = "Display Devices";
     }
     
-    add_page(widget, help, ctk_window, iter, &child_iter, name,
-             NULL, NULL, NULL);
+
+    if (data->display_iters) {
+        free(data->display_iters);
+    }
+    data->display_iters =
+        (GtkTreeIter *)calloc(1, n * sizeof(GtkTreeIter));
+    data->num_displays = 0;
+    if (!data->display_iters) return;
+
 
     /*
-     * create pages for each of the display devices driven by this X
-     * screen.
+     * create pages for each of the display devices driven by this handle.
      */
 
     for (i = 0; i < 24; i++) {
         mask = (1 << i);
-        if (!(mask & enabled)) continue;
+        if (!(mask & connected)) continue;
+
+        type = display_device_mask_to_display_device_name(mask);
         
         ret =
             NvCtrlGetStringDisplayAttribute(handle, mask,
@@ -958,13 +1149,17 @@ static void add_display_devices(GtkWidget *widget, GtkTextBuffer *help,
                                             &name);
         
         if ((ret != NvCtrlSuccess) || (!name)) {
-            name = "Unknown";
+            title = g_strdup_printf("%s - (Unknown)", type);
+        } else {
+            title = g_strdup_printf("%s - (%s)", type, name);
+            XFree(name);
         }
+        free(type);
         
         if (mask & CTK_DISPLAY_DEVICE_CRT_MASK) {
             
             widget = ctk_display_device_crt_new
-                (handle, ctk_window->ctk_config, ctk_event, mask, name);
+                (handle, ctk_window->ctk_config, ctk_event, mask, title);
             
             help = ctk_display_device_crt_create_help
                 (tag_table, CTK_DISPLAY_DEVICE_CRT(widget));
@@ -972,7 +1167,7 @@ static void add_display_devices(GtkWidget *widget, GtkTextBuffer *help,
         } else if (mask & CTK_DISPLAY_DEVICE_TV_MASK) {
             
             widget = ctk_display_device_tv_new
-                (handle, ctk_window->ctk_config, ctk_event, mask, name);
+                (handle, ctk_window->ctk_config, ctk_event, mask, title);
             
             help = ctk_display_device_tv_create_help
                 (tag_table, CTK_DISPLAY_DEVICE_TV(widget));
@@ -980,18 +1175,88 @@ static void add_display_devices(GtkWidget *widget, GtkTextBuffer *help,
         } else if (mask & CTK_DISPLAY_DEVICE_DFP_MASK) {
             
             widget = ctk_display_device_dfp_new
-                (handle, ctk_window->ctk_config, ctk_event, mask, name);
+                (handle, ctk_window->ctk_config, ctk_event, mask, title);
             
             help = ctk_display_device_dfp_create_help
                 (tag_table, CTK_DISPLAY_DEVICE_DFP(widget));
             
         } else {
+            g_free(title);
             continue;
         }
 
-        add_page(widget, help, ctk_window, &child_iter,
-                 NULL, name, NULL, NULL, NULL);
+        add_page(widget, help, ctk_window, iter,
+                 &(data->display_iters[data->num_displays]), title,
+                 NULL, NULL, NULL);
+        g_free(title);
+        data->num_displays++;
     }
 } /* add_display_devices() */
 
-                         
+
+
+/*
+ * update_display_devices() - Callback handler for the NV_CTRL_PROBE_DISPLAYS
+ * NV-CONTROL event.  Updates the list of display devices connected to the
+ * GPU for which the event happened.
+ *
+ */
+
+static void update_display_devices(GtkObject *object, gpointer arg1,
+                                   gpointer user_data)
+{
+    UpdateDisplaysData *data = (UpdateDisplaysData *) user_data;
+
+    CtkWindow *ctk_window = data->window;
+    CtkEvent *ctk_event = data->event;
+    NvCtrlAttributeHandle *gpu_handle = data->gpu_handle;
+    GtkTreeIter parent_iter = data->parent_iter;
+    GtkTextTagTable *tag_table = data->tag_table;
+    GtkTreePath* parent_path;
+    gboolean parent_expanded;
+    GtkTreeSelection *tree_selection =
+        gtk_tree_view_get_selection(ctk_window->treeview);
+
+
+    /* Keep track if the parent row is expanded */
+    parent_path =
+        gtk_tree_model_get_path(GTK_TREE_MODEL(ctk_window->tree_store),
+                                &parent_iter);
+    parent_expanded = 
+        gtk_tree_view_row_expanded(ctk_window->treeview, parent_path);
+
+
+    /* Remove previous display devices */
+    while (data->num_displays) {
+
+        GtkTreeIter *iter = &(data->display_iters[data->num_displays -1]);
+        GtkWidget *widget;
+
+        /* Select the parent (GPU) iter if we're removing the selected page */
+        if (gtk_tree_selection_iter_is_selected(tree_selection, iter)) {
+            gtk_tree_selection_select_iter(tree_selection, &parent_iter);
+        }
+
+        /* unref the page so we don't leak memory */
+        gtk_tree_model_get(GTK_TREE_MODEL(ctk_window->tree_store), iter,
+                           CTK_WINDOW_WIDGET_COLUMN, &widget, -1);
+        g_object_unref(widget);
+
+        /* XXX Call a widget-specific cleanup function? */
+
+        /* Remove the entry */
+        gtk_tree_store_remove(ctk_window->tree_store, iter);
+
+        data->num_displays--;
+    }
+    
+    /* Add back all the connected display devices */
+    add_display_devices(ctk_window, &parent_iter, gpu_handle, ctk_event,
+                        tag_table, data);
+
+    /* Expand the GPU entry if it used to be */
+    if (parent_expanded) {
+        gtk_tree_view_expand_row(ctk_window->treeview, parent_path, TRUE);
+    }
+
+} /* update_display_devices() */

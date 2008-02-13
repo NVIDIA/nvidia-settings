@@ -58,7 +58,7 @@
 /* minimum required version for the NV-CONTROL extension */
 
 #define NV_MINMAJOR 1
-#define NV_MINMINOR 9
+#define NV_MINMINOR 11
 
 /* minimum required version for the XF86VidMode extension */
 
@@ -205,6 +205,10 @@ NvCtrlXrandrSetAttribute (NvCtrlAttributePrivateHandle *, int, int);
 ReturnStatus
 NvCtrlXrandrSetScreenMagicMode (NvCtrlAttributePrivateHandle *, int, int, int);
 
+ReturnStatus
+NvCtrlXrandrGetScreenMagicMode (NvCtrlAttributePrivateHandle *, int *, int *,
+                                int *);
+
 
 /* Generic attribute functions */
 
@@ -235,6 +239,12 @@ ReturnStatus
 NvCtrlNvControlGetBinaryAttribute(NvCtrlAttributePrivateHandle *h,
                                   unsigned int display_mask, int attr,
                                   unsigned char **data, int *len);
+
+ReturnStatus
+NvCtrlNvControlStringOperation (NvCtrlAttributePrivateHandle *h,
+                                unsigned int display_mask, int attr,
+                                char *ptrIn, char **ptrOut);
+
 ReturnStatus
 NvCtrlXvGetAttribute (NvCtrlAttributePrivateHandle *, int, int *);
 

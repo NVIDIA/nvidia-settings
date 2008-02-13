@@ -30,6 +30,7 @@ SRC += \
 	image.c
 
 EXTRA_DIST += \
+	Makefile.inc \
 	HOWTO-ADD-IMAGES \
 	antialiasing_banner.h \
 	big_banner_bsd.h \
@@ -86,4 +87,8 @@ EXTRA_DIST += \
 	led_grey.h \
 	rj45_input.h \
 	rj45_output.h \
-	rj45_unused.h
+	rj45_unused.h \
+	blank_banner.h
+
+dist_list::
+	@ echo $(SRC) $(EXTRA_DIST)

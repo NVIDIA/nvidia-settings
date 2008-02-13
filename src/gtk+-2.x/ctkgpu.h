@@ -22,54 +22,62 @@
  *
  */
 
-#ifndef __CTK_DEVICE_H__
-#define __CTK_DEVICE_H__
+#ifndef __CTK_GPU_H__
+#define __CTK_GPU_H__
 
 #include <gtk/gtk.h>
+
+#include "ctkevent.h"
 
 #include "NvCtrlAttributes.h"
 
 G_BEGIN_DECLS
 
-#define CTK_TYPE_DEVICE (ctk_device_get_type())
+#define CTK_TYPE_GPU (ctk_gpu_get_type())
 
-#define CTK_DEVICE(obj) \
-    (G_TYPE_CHECK_INSTANCE_CAST ((obj), CTK_TYPE_DEVICE, CtkDevice))
+#define CTK_GPU(obj) \
+    (G_TYPE_CHECK_INSTANCE_CAST ((obj), CTK_TYPE_GPU, CtkGpu))
 
-#define CTK_DEVICE_CLASS(klass) \
-    (G_TYPE_CHECK_CLASS_CAST ((klass), CTK_TYPE_DEVICE, CtkDeviceClass))
+#define CTK_GPU_CLASS(klass) \
+    (G_TYPE_CHECK_CLASS_CAST ((klass), CTK_TYPE_GPU, CtkGpuClass))
 
-#define CTK_IS_DEVICE(obj) \
-    (G_TYPE_CHECK_INSTANCE_TYPE ((obj), CTK_TYPE_DEVICE))
+#define CTK_IS_GPU(obj) \
+    (G_TYPE_CHECK_INSTANCE_TYPE ((obj), CTK_TYPE_GPU))
 
-#define CTK_IS_DEVICE_CLASS(class) \
-    (G_TYPE_CHECK_CLASS_TYPE ((klass), CTK_TYPE_DEVICE))
+#define CTK_IS_GPU_CLASS(class) \
+    (G_TYPE_CHECK_CLASS_TYPE ((klass), CTK_TYPE_GPU))
 
-#define CTK_DEVICE_GET_CLASS(obj) \
-    (G_TYPE_INSTANCE_GET_CLASS ((obj), CTK_TYPE_DEVICE, CtkDeviceClass))
+#define CTK_GPU_GET_CLASS(obj) \
+    (G_TYPE_INSTANCE_GET_CLASS ((obj), CTK_TYPE_GPU, CtkGpuClass))
 
 
-typedef struct _CtkDevice       CtkDevice;
-typedef struct _CtkDeviceClass  CtkDeviceClass;
+typedef struct _CtkGpu       CtkGpu;
+typedef struct _CtkGpuClass  CtkGpuClass;
 
-struct _CtkDevice
+struct _CtkGpu
 {
     GtkVBox parent;
 
     NvCtrlAttributeHandle *handle;
+
+    GtkWidget *displays;
 };
 
-struct _CtkDeviceClass
+struct _CtkGpuClass
 {
     GtkVBoxClass parent_class;
 };
 
-GType       ctk_device_get_type (void) G_GNUC_CONST;
-GtkWidget*  ctk_device_new      (NvCtrlAttributeHandle *handle);
+GType       ctk_gpu_get_type (void) G_GNUC_CONST;
+GtkWidget*  ctk_gpu_new      (NvCtrlAttributeHandle *handle,
+                              NvCtrlAttributeHandle **screen_handles,
+                              CtkEvent *ctk_event);
 
-GtkTextBuffer *ctk_device_create_help(GtkTextTagTable *, const gchar *);
+GtkTextBuffer *ctk_gpu_create_help(GtkTextTagTable *);
+
+
 
 G_END_DECLS
 
-#endif /* __CTK_DEVICE_H__ */
+#endif /* __CTK_GPU_H__ */
 

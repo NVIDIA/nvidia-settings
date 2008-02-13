@@ -291,11 +291,15 @@ GtkWidget* ctk_thermal_new(NvCtrlAttributeHandle *handle,
 
     /* Register a timer callback to update the temperatures */
 
+    s = g_strdup_printf("Thermal Monitor (GPU %d)",
+                        NvCtrlGetTargetId(handle));
+    
     ctk_config_add_timer(ctk_thermal->ctk_config,
                          DEFAULT_UPDATE_THERMAL_INFO_TIME_INTERVAL,
-                         "Thermal Monitor",
+                         s,
                          (GSourceFunc) update_thermal_info,
                          (gpointer) ctk_thermal);
+    g_free(s);
 
     update_thermal_info(ctk_thermal);
     gtk_widget_show_all(GTK_WIDGET(ctk_thermal));
@@ -341,7 +345,8 @@ void ctk_thermal_start_timer(GtkWidget *widget)
     /* Start the thermal timer */
 
     ctk_config_start_timer(ctk_thermal->ctk_config,
-                           (GSourceFunc) update_thermal_info);
+                           (GSourceFunc) update_thermal_info,
+                           (gpointer) ctk_thermal);
 }
 
 void ctk_thermal_stop_timer(GtkWidget *widget)
@@ -351,5 +356,6 @@ void ctk_thermal_stop_timer(GtkWidget *widget)
     /* Stop the thermal timer */
 
     ctk_config_stop_timer(ctk_thermal->ctk_config,
-                          (GSourceFunc) update_thermal_info);
+                          (GSourceFunc) update_thermal_info,
+                          (gpointer) ctk_thermal);
 }

@@ -101,8 +101,8 @@ GtkTextBuffer *ctk_config_create_help     (GtkTextTagTable *);
 void ctk_config_add_timer(CtkConfig *, guint, gchar *, GSourceFunc, gpointer);
 void ctk_config_remove_timer(CtkConfig *, GSourceFunc);
 
-void ctk_config_start_timer(CtkConfig *, GSourceFunc);
-void ctk_config_stop_timer(CtkConfig *, GSourceFunc);
+void ctk_config_start_timer(CtkConfig *, GSourceFunc, gpointer);
+void ctk_config_stop_timer(CtkConfig *, GSourceFunc, gpointer);
 
 gboolean ctk_config_slider_text_entry_shown(CtkConfig *);
 

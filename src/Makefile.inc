@@ -36,6 +36,7 @@ SRC += \
 	glxinfo.c
 
 EXTRA_DIST += \
+	Makefile.inc \
 	command-line.h \
 	config-file.h \
 	msg.h \
@@ -43,3 +44,6 @@ EXTRA_DIST += \
 	query-assign.h \
 	nvgetopt.h \
 	glxinfo.h
+
+dist_list::
+	@ echo $(SRC) $(EXTRA_DIST)

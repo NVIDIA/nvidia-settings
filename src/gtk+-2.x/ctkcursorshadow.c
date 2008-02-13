@@ -849,13 +849,10 @@ static void init_color_selector(CtkCursorShadow *ctk_cursor_shadow)
     GtkWidget *window;
     GtkWidget *vbox;
     GtkWidget *hbox;
-    GtkWidget *frame;
-    GtkWidget *image;
+    GtkWidget *banner;
     GtkWidget *hseparator;
     GtkWidget *button;
     GtkWidget *alignment;
-    const nv_image_t *img;
-    guint8 *image_buffer = NULL;
     guint ret;
 
     /* create the color selector window */
@@ -866,7 +863,7 @@ static void init_color_selector(CtkCursorShadow *ctk_cursor_shadow)
 
     /* create a vbox to pack all the window contents in */
 
-    vbox = gtk_vbox_new(FALSE, 5);
+    vbox = gtk_vbox_new(FALSE, 10);
     gtk_container_add(GTK_CONTAINER(window), vbox);
     
     /* add a banner */
@@ -874,22 +871,8 @@ static void init_color_selector(CtkCursorShadow *ctk_cursor_shadow)
     hbox = gtk_hbox_new(FALSE, 0);
     gtk_box_pack_start(GTK_BOX(vbox), hbox, FALSE, FALSE, 0);
 
-    frame = gtk_frame_new(NULL);
-    gtk_box_pack_start(GTK_BOX(hbox), frame, FALSE, FALSE, 0);
-
-    gtk_frame_set_shadow_type(GTK_FRAME(frame), GTK_SHADOW_IN);
-
-    img = &cursor_banner_image;
-
-    image_buffer = decompress_image_data(img);
-
-    image = gtk_image_new_from_pixbuf
-        (gdk_pixbuf_new_from_data(image_buffer, GDK_COLORSPACE_RGB,
-                                  FALSE, 8, img->width, img->height,
-                                  img->width * img->bytes_per_pixel,
-                                  free_decompressed_image, NULL));
-    
-    gtk_container_add(GTK_CONTAINER(frame), image);
+    banner = ctk_banner_image_new(&cursor_banner_image);
+    gtk_box_pack_start(GTK_BOX(hbox), banner, TRUE, TRUE, 0);
     
     /* create the color selector */
 

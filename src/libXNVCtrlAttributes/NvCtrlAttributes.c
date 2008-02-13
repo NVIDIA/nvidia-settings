@@ -299,6 +299,163 @@ int NvCtrlGetXrandrEventBase(NvCtrlAttributeHandle *handle)
 } /* NvCtrlGetXrandrEventBase() */
 
 
+/*
+ * NvCtrlGetServerVendor() - return the server vendor
+ * information string associated with this
+ * NvCtrlAttributeHandle.
+ */
+
+char *NvCtrlGetServerVendor(NvCtrlAttributeHandle *handle)
+{
+    NvCtrlAttributePrivateHandle *h;
+
+    if (!handle) return NULL;
+
+    h = (NvCtrlAttributePrivateHandle *) handle;
+
+    if (!h->dpy) return NULL;
+    return ServerVendor(h->dpy);
+
+} /* NvCtrlGetServerVendor() */
+
+
+/*
+ * NvCtrlGetVendorRelease() - return the server vendor
+ * release number associated with this NvCtrlAttributeHandle.
+ */
+
+int NvCtrlGetVendorRelease(NvCtrlAttributeHandle *handle)
+{
+    NvCtrlAttributePrivateHandle *h;
+
+    if (!handle) return -1;
+
+    h = (NvCtrlAttributePrivateHandle *) handle;
+
+    if (!h->dpy) return -1;
+    return VendorRelease(h->dpy);
+
+} /* NvCtrlGetVendorRelease() */
+
+
+/*
+ * NvCtrlGetScreenCount() - return the number of (logical)
+ * X Screens associated with this NvCtrlAttributeHandle.
+ */
+
+int NvCtrlGetScreenCount(NvCtrlAttributeHandle *handle)
+{
+    NvCtrlAttributePrivateHandle *h;
+
+    if (!handle) return -1;
+
+    h = (NvCtrlAttributePrivateHandle *) handle;
+
+    if (!h->dpy) return -1;
+    return ScreenCount(h->dpy);
+
+} /* NvCtrlGetScreenCount() */
+
+
+/*
+ * NvCtrlGetProtocolVersion() - Returns the majoy version
+ * number of the X protocol (server).
+ */
+
+int NvCtrlGetProtocolVersion(NvCtrlAttributeHandle *handle)
+{
+    NvCtrlAttributePrivateHandle *h;
+
+    if (!handle) return -1;
+
+    h = (NvCtrlAttributePrivateHandle *) handle;
+
+    if (!h->dpy) return -1;
+    return ProtocolVersion(h->dpy);
+
+} /* NvCtrlGetProtocolVersion() */
+
+
+/*
+ * NvCtrlGetProtocolRevision() - Returns the revision number
+ * of the X protocol (server).
+ */
+
+int NvCtrlGetProtocolRevision(NvCtrlAttributeHandle *handle)
+{
+    NvCtrlAttributePrivateHandle *h;
+
+    if (!handle) return -1;
+
+    h = (NvCtrlAttributePrivateHandle *) handle;
+
+    if (!h->dpy) return -1;
+    return ProtocolRevision(h->dpy);
+
+} /* NvCtrlGetProtocolRevision() */
+
+
+/*
+ * NvCtrlGetScreenWidthMM() - return the width (in Millimeters) of the
+ * screen associated with this NvCtrlAttributeHandle.
+ */
+
+int NvCtrlGetScreenWidthMM(NvCtrlAttributeHandle *handle)
+{
+    NvCtrlAttributePrivateHandle *h;
+
+    if (!handle) return -1;
+
+    h = (NvCtrlAttributePrivateHandle *) handle;
+
+    if (h->target_type != NV_CTRL_TARGET_TYPE_X_SCREEN) return -1;
+
+    return DisplayWidthMM(h->dpy, h->target_id);
+    
+} /* NvCtrlGetScreenWidthMM() */
+
+
+/*
+ * NvCtrlGetScreenHeightMM() - return the height (in Millimeters) of the
+ * screen associated with this NvCtrlAttributeHandle.
+ */
+
+int NvCtrlGetScreenHeightMM(NvCtrlAttributeHandle *handle)
+{
+    NvCtrlAttributePrivateHandle *h;
+
+    if (!handle) return -1;
+
+    h = (NvCtrlAttributePrivateHandle *) handle;
+
+    if (h->target_type != NV_CTRL_TARGET_TYPE_X_SCREEN) return -1;
+
+    return DisplayHeightMM(h->dpy, h->target_id);
+    
+} /* NvCtrlGetScreenHeightMM() */
+
+
+/*
+ * NvCtrlGetScreenPlanes() - return the number of planes (the depth)
+ * of the screen associated with this NvCtrlAttributeHandle.
+ */
+
+int NvCtrlGetScreenPlanes(NvCtrlAttributeHandle *handle)
+{
+    NvCtrlAttributePrivateHandle *h;
+
+    if (!handle) return -1;
+
+    h = (NvCtrlAttributePrivateHandle *) handle;
+
+    if (h->target_type != NV_CTRL_TARGET_TYPE_X_SCREEN) return -1;
+
+    return DisplayPlanes(h->dpy, h->target_id);
+    
+} /* NvCtrlGetScreenPlanes() */
+
+
+
 ReturnStatus NvCtrlQueryTargetCount(NvCtrlAttributeHandle *handle,
                                     int target_type,
                                     int *val)
@@ -550,6 +707,26 @@ NvCtrlGetBinaryAttribute(NvCtrlAttributeHandle *handle,
 } /* NvCtrlGetBinaryAttribute() */
 
 
+ReturnStatus
+NvCtrlStringOperation(NvCtrlAttributeHandle *handle,
+                      unsigned int display_mask, int attr,
+                      char *ptrIn, char **ptrOut)
+{
+    NvCtrlAttributePrivateHandle *h;
+    
+    h = (NvCtrlAttributePrivateHandle *) handle;
+    
+    if ((attr >= 0) && (attr <= NV_CTRL_STRING_OPERATION_LAST_ATTRIBUTE)) {
+        if (!h->nv) return NvCtrlMissingExtension;
+        return NvCtrlNvControlStringOperation(h, display_mask, attr, ptrIn,
+                                              ptrOut);
+    }
+
+    return NvCtrlNoAttribute;
+
+} /* NvCtrlStringOperation() */
+
+
 char *NvCtrlAttributesStrError(ReturnStatus status)
 {
     switch (status) {
@@ -610,3 +787,12 @@ NvCtrlXrandrSetScreenMode (NvCtrlAttributeHandle *handle,
     return NvCtrlXrandrSetScreenMagicMode
         ((NvCtrlAttributePrivateHandle *)handle, width, height, refresh);
 } /* NvCtrlXrandrSetScreenMode() */
+
+
+ReturnStatus
+NvCtrlXrandrGetScreenMode (NvCtrlAttributeHandle *handle,
+                           int *width, int *height, int *refresh)
+{
+    return NvCtrlXrandrGetScreenMagicMode
+        ((NvCtrlAttributePrivateHandle *)handle, width, height, refresh);
+} /* NvCtrlXrandrGetScreenMode() */

@@ -174,7 +174,7 @@ NvCtrlNvControlGetStringAttribute (NvCtrlAttributePrivateHandle *h,
 
     return NvCtrlNoAttribute;
 
-} /* NvCtrlGetStringAttribute() */
+} /* NvCtrlNvControlGetStringAttribute() */
 
 
 ReturnStatus
@@ -232,6 +232,26 @@ NvCtrlNvControlGetBinaryAttribute(NvCtrlAttributePrivateHandle *h,
     }
     
 } /* NvCtrlNvControlGetBinaryAttribute() */
+
+
+ReturnStatus
+NvCtrlNvControlStringOperation(NvCtrlAttributePrivateHandle *h,
+                               unsigned int display_mask, int attr,
+                               char *ptrIn, char **ptrOut)
+{
+    if (attr <= NV_CTRL_STRING_OPERATION_LAST_ATTRIBUTE) {
+        if (XNVCTRLStringOperation (h->dpy, h->target_type,
+                                    h->target_id, display_mask,
+                                    attr, ptrIn, ptrOut)) {
+            return NvCtrlSuccess;
+        } else {
+            return NvCtrlAttributeNotAvailable;
+        }
+    }
+
+    return NvCtrlNoAttribute;
+
+} /* NvCtrlNvControlStringOperation() */
 
 
 ReturnStatus

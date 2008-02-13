@@ -356,6 +356,11 @@ static int process_attribute_queries(int num, char **queries,
             continue;
         }
 
+        if (nv_strcasecmp(queries[query], "vcscs")) {
+            query_all_targets(display_name, VCSC_TARGET);
+            continue;
+        }
+
         
         /* call the parser to parse queries[query] */
 
@@ -673,12 +678,58 @@ static void print_valid_values(char *name, uint32 flags,
         
     if (n == 0) sprintf(c, "None");
     
-    nv_msg(INDENT, "'%s' can use the following target types: %s",
+    nv_msg(INDENT, "'%s' can use the following target types: %s.",
            name, str);
    
 #undef INDENT
 
 } /* print_valid_values() */
+
+
+
+/*
+ * print_queried_value() - print the attribute value that we queried
+ * from NV-CONTROL
+ */
+
+static void print_queried_value(CtrlHandleTarget *t,
+                                NVCTRLAttributeValidValuesRec *v,
+                                int val,
+                                uint32 flags,
+                                char *name,
+                                uint32 mask,
+                                const char *indent)
+{
+    char d_str[64], val_str[64], *tmp_d_str;
+
+    /* assign val_str */
+    
+    if (flags & NV_PARSER_TYPE_100Hz) {
+        snprintf(val_str, 64, "%.2f Hz", ((float) val) / 100.0);
+    } else if (v->type == ATTRIBUTE_TYPE_BITMASK) {
+        snprintf(val_str, 64, "0x%08x", val);
+    } else if (flags & NV_PARSER_TYPE_PACKED_ATTRIBUTE) {
+        snprintf(val_str, 64, "%d,%d", val >> 16, val & 0xffff);
+    } else {
+        snprintf(val_str, 64, "%d", val);
+    }
+
+    /* append the display device name, if necessary */
+
+    if (v->permissions & ATTRIBUTE_TYPE_DISPLAY) {
+        tmp_d_str = display_device_mask_to_display_device_name(mask);
+        snprintf(d_str, 64, "; display device: %s", tmp_d_str);
+        free(tmp_d_str);
+    } else {
+        d_str[0] = '\0';
+    }
+    
+    /* print the string */
+
+    nv_msg(indent,  "Attribute '%s' (%s%s): %s.",
+           name, t->name, d_str, val_str);
+    
+} /* print_queried_value() */
 
 
 
@@ -698,24 +749,9 @@ static int query_all(const char *display_name)
     uint32 mask;
     ReturnStatus status;
     AttributeTableEntry *a;
-    char *tmp_d_str;
-    const char *fmt, *fmt_display;
     NVCTRLAttributeValidValuesRec valid;
     CtrlHandles *h;
     CtrlHandleTarget *t;
-
-    static const char *__fmt_str_int =
-        "Attribute '%s' (screen: %s): %d.";
-    static const char *__fmt_str_int_display =
-        "Attribute '%s' (screen: %s; display: %s): %d.";
-    static const char *__fmt_str_hex =
-        "Attribute '%s' (screen: %s): 0x%08x.";
-    static const char *__fmt_str_hex_display =
-        "Attribute '%s' (screen: %s; display: %s): 0x%08x.";
-    static const char *__fmt_str_packed_int =
-        "Attribute '%s' (screen: %s): %d,%d.";
-    static const char *__fmt_str_packed_int_display =
-        "Attribute '%s' (screen: %s; display: %s): %d,%d.";
     
     h = nv_alloc_ctrl_handles(display_name);
 
@@ -777,54 +813,19 @@ static int query_all(const char *display_name)
                                  NvCtrlAttributesStrError(status));
                     goto exit_bit_loop;
                 }
+
+                print_queried_value(t, &valid, val, a->flags,
+                                    a->name, mask, INDENT);
                 
-                if (valid.type == ATTRIBUTE_TYPE_BITMASK) {
-                    fmt = __fmt_str_hex;
-                    fmt_display = __fmt_str_hex_display;
-                } else if (a->flags & NV_PARSER_TYPE_PACKED_ATTRIBUTE) {
-                    fmt = __fmt_str_packed_int;
-                    fmt_display = __fmt_str_packed_int_display;
-                } else {
-                    fmt = __fmt_str_int;
-                    fmt_display = __fmt_str_int_display;
-                }
-
+                print_valid_values(a->name, a->flags, valid);
+                
+                nv_msg(NULL,"");
+                
                 if (valid.permissions & ATTRIBUTE_TYPE_DISPLAY) {
-                    
-                    tmp_d_str =
-                        display_device_mask_to_display_device_name(mask);
-                    
-                    if (a->flags & NV_PARSER_TYPE_PACKED_ATTRIBUTE) {
-                        nv_msg(INDENT, fmt_display, a->name,
-                               t->name, tmp_d_str,
-                               val >> 16, val & 0xffff);
-                    } else {
-                        nv_msg(INDENT, fmt_display, a->name,
-                               t->name, tmp_d_str, val);
-                    }
-                    
-                    free(tmp_d_str);
-
-                    print_valid_values(a->name, a->flags, valid);
-
-                    nv_msg(NULL,"");
-
                     continue;
-
-                } else {
-                    if (a->flags & NV_PARSER_TYPE_PACKED_ATTRIBUTE) {
-                        nv_msg(INDENT, fmt, a->name, t->name,
-                               val >> 16, val & 0xffff);
-                    } else {
-                        nv_msg(INDENT, fmt, a->name, t->name, val);
-                    }
-
-                    print_valid_values(a->name, a->flags, valid);
-
-                    nv_msg(NULL,"");
-
-                    /* fall through to exit_bit_loop */
                 }
+                
+                /* fall through to exit_bit_loop */
                 
             exit_bit_loop:
 
@@ -917,6 +918,13 @@ static int query_all_targets(const char *display_name, const int target_index)
 
             product_name = malloc(32);
             snprintf(product_name, 32, "G-Sync %d", i);
+            
+        } else if (target_index == VCSC_TARGET) {
+
+            status = NvCtrlGetStringAttribute
+                (t->h, NV_CTRL_STRING_VCSC_PRODUCT_NAME, &product_name);
+            
+            if (status != NvCtrlSuccess) product_name = strdup("Unknown");
             
         } else {
 
@@ -1023,14 +1031,9 @@ static int process_parsed_attribute_internal(CtrlHandleTarget *t,
                          NvCtrlAttributesStrError(status));
             return NV_FALSE;
         } else {
-            if (a->flags & NV_PARSER_TYPE_PACKED_ATTRIBUTE) {
-                nv_msg("  ", "Attribute '%s' (%s%s): %d,%d.",
-                       a->name, t->name, str,
-                       a->val >> 16, a->val & 0xffff);
-            } else {
-                nv_msg("  ", "Attribute '%s' (%s%s): %d.",
-                       a->name, t->name, str, a->val);
-            }
+
+            print_queried_value(t, &valid, a->val, a->flags, a->name, d, "  ");
+
             print_valid_values(a->name, a->flags, valid);
         }
     }

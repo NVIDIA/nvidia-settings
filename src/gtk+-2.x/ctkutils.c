@@ -29,14 +29,18 @@
 
 GtkWidget *add_table_row(GtkWidget *table,
                          const gint row,
-                         const gint value_alignment,
+                         const gfloat name_xalign, // 0 = left, 1 = right
+                         const gfloat name_yalign, // 0 = top, 1 = bottom
                          const gchar *name,
+                         const gfloat value_xalign,
+                         const gfloat value_yalign,
                          const gchar *value)
 {
     GtkWidget *label;
 
     label = gtk_label_new(name);
-    gtk_misc_set_alignment(GTK_MISC(label), 0, 0.5);
+    gtk_label_set_selectable(GTK_LABEL(label), TRUE);
+    gtk_misc_set_alignment(GTK_MISC(label), name_xalign, name_yalign);
     gtk_table_attach(GTK_TABLE(table), label, 0, 1, row, row + 1,
                      GTK_FILL, GTK_EXPAND | GTK_FILL, 0, 0);
 
@@ -44,7 +48,8 @@ GtkWidget *add_table_row(GtkWidget *table,
         label = gtk_label_new("Unknown");
     else
         label = gtk_label_new(value);
-    gtk_misc_set_alignment(GTK_MISC(label), value_alignment, 0.5);
+    gtk_label_set_selectable(GTK_LABEL(label), TRUE);
+    gtk_misc_set_alignment(GTK_MISC(label), value_xalign, value_yalign);
     gtk_table_attach(GTK_TABLE(table), label, 1, 2, row, row + 1,
                      GTK_FILL, GTK_EXPAND | GTK_FILL, 0, 0);
 

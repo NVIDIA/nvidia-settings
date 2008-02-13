@@ -29,6 +29,12 @@
 
 #define DEFAULT_RC_FILE "~/.nvidia-settings-rc"
 
+#define VERBOSITY_ERROR    0 /* errors only */
+#define VERBOSITY_WARNING  1 /* errors and warnings */
+#define VERBOSITY_ALL      2 /* errors, warnings and other info */
+
+#define VERBOSITY_DEFAULT  VERBOSITY_ERROR
+
 /*
  * Options structure -- stores the parameters specified on the
  * commandline.
@@ -69,11 +75,17 @@ typedef struct {
                           * array.
                           */
     
-    int load;            /*
+    int only_load;       /*
                           * If true, just read the configuration file,
                           * send the attributes to the X server, and
                           * exit.
                           */
+
+    int no_load;         /*
+                          * If true, do not load the configuration file.
+                          * The attributes are not sent to the X Server.
+                          */
+
 } Options;
 
 

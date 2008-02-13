@@ -27,6 +27,7 @@
 
 #include "ctkevent.h"
 #include "ctkconfig.h"
+#include "ctkgvo.h"
 
 G_BEGIN_DECLS
 
@@ -61,6 +62,9 @@ struct _CtkGvoCsc
     NvCtrlAttributeHandle *handle;
     CtkConfig *ctk_config;
 
+    CtkGvo *gvo_parent;
+    GtkWidget *banner_frame;
+
     float matrix[3][3]; // [row][column]
     float offset[3];
     float scale[3];
@@ -90,10 +94,13 @@ struct _CtkGvoCscClass
 
 GType       ctk_gvo_csc_get_type  (void) G_GNUC_CONST;
 GtkWidget*  ctk_gvo_csc_new       (NvCtrlAttributeHandle *,
-                                   CtkConfig *, CtkEvent *);
+                                   CtkConfig *, CtkEvent *, CtkGvo *);
 
 //GtkTextBuffer *ctk_gvo_csc_create_help(GtkTextTagTable *,
 //                                       CtkGvoCsc *);
+
+void ctk_gvo_csc_select(GtkWidget *);
+void ctk_gvo_csc_unselect(GtkWidget *);
 
 G_END_DECLS
 

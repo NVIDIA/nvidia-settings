@@ -137,6 +137,7 @@ static Bool open_libgl(void)
     if ( !__libGL ) {
         __libGL = (__libGLInfo *) calloc(1, sizeof(__libGLInfo));
         if ( !__libGL ) {
+            error_str = "Could not allocate memory.";
             goto fail;
         }
     }
@@ -152,6 +153,7 @@ static Bool open_libgl(void)
     /* We are the first to open the library */
     __libGL->handle = dlopen("libGL.so.1", RTLD_LAZY);
     if ( !__libGL->handle ) {
+        error_str = dlerror();
         goto fail;
     }
 

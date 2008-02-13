@@ -42,17 +42,26 @@
 #include "msg.h"
 #include "parse.h"
 
+/* Make sure we are compiling with XRandR version 1.1 or greater */
+#define MIN_RANDR_MAJOR 1
+#define MIN_RANDR_MINOR 1
+#if (RANDR_MAJOR < MIN_RANDR_MAJOR) || ((RANDR_MAJOR == MIN_RANDR_MAJOR) && (RANDR_MINOR < MIN_RANDR_MINOR))
+#error XRandR version 1.1 or greater is required.
+#endif
 
 typedef struct __libXrandrInfoRec {
 
     /* libXrandr.so library handle */
     void *handle;
     int   ref_count; /* # users of the library */
-
-
+    
+    
     /* XRandR functions used */
     Bool (* XRRQueryExtension)
          (Display *dpy, int *event_base, int *error_base);
+         
+    Status (* XRRQueryVersion)
+         (Display *dpy, int *major_versionp, int *minor_versionp);
 
     void (* XRRSelectInput)
          (Display *dpy, Window window, int mask);
@@ -62,6 +71,9 @@ typedef struct __libXrandrInfoRec {
          
     SizeID (* XRRConfigCurrentConfiguration)
          (XRRScreenConfiguration *config, Rotation *rotation);
+
+    short (* XRRConfigCurrentRate)
+         (XRRScreenConfiguration *config);    
          
     Rotation (* XRRConfigRotations)
          (XRRScreenConfiguration *config, Rotation *rotation);
@@ -104,6 +116,7 @@ static Bool open_libxrandr(void)
     if ( !__libXrandr ) {
         __libXrandr = (__libXrandrInfo *) calloc(1, sizeof(__libXrandrInfo));
         if ( !__libXrandr ) {
+            error_str = "Could not allocate memory.";
             goto fail;
         }
     }
@@ -118,6 +131,7 @@ static Bool open_libxrandr(void)
     /* We are the first to open the library */
     __libXrandr->handle = dlopen("libXrandr.so.2", RTLD_LAZY);
     if ( !__libXrandr->handle ) {
+        error_str = dlerror();
         goto fail;
     }
 
@@ -125,6 +139,10 @@ static Bool open_libxrandr(void)
     /* Resolve XRandR functions */
     __libXrandr->XRRQueryExtension =
         NV_DLSYM(__libXrandr->handle, "XRRQueryExtension");
+    if ((error_str = dlerror()) != NULL) goto fail;
+
+    __libXrandr->XRRQueryVersion =
+        NV_DLSYM(__libXrandr->handle, "XRRQueryVersion");
     if ((error_str = dlerror()) != NULL) goto fail;
 
     __libXrandr->XRRSelectInput =
@@ -137,6 +155,10 @@ static Bool open_libxrandr(void)
 
     __libXrandr->XRRConfigCurrentConfiguration =
         NV_DLSYM(__libXrandr->handle, "XRRConfigCurrentConfiguration");
+    if ((error_str = dlerror()) != NULL) goto fail;
+
+    __libXrandr->XRRConfigCurrentRate =
+        NV_DLSYM(__libXrandr->handle, "XRRConfigCurrentRate");
     if ((error_str = dlerror()) != NULL) goto fail;
 
     __libXrandr->XRRConfigRotations =
@@ -249,6 +271,8 @@ NvCtrlInitXrandrAttributes (NvCtrlAttributePrivateHandle *h)
     NvCtrlXrandrAttributes * xrandr = NULL;
     XRRScreenConfiguration *sc;
     Rotation rotation, rotations;
+    int ver_major;
+    int ver_minor;
 
 
     /* Check parameters */
@@ -285,6 +309,15 @@ NvCtrlInitXrandrAttributes (NvCtrlAttributePrivateHandle *h)
         goto fail;
     }
 
+    /* Verify server version of the XRandR extension */
+    if ( !__libXrandr->XRRQueryVersion(h->dpy, &(ver_major), &(ver_minor)) ||
+         ((ver_major < MIN_RANDR_MAJOR) ||
+          ((ver_major == MIN_RANDR_MAJOR) &&
+           (ver_minor < MIN_RANDR_MINOR)))) {
+        XSync(h->dpy, False);
+        XSetErrorHandler(old_error_handler);
+        goto fail;
+    }
    
     /* Register to receive XRandR events */
     __libXrandr->XRRSelectInput(h->dpy, RootWindow(h->dpy, h->target_id),
@@ -564,3 +597,58 @@ NvCtrlXrandrSetScreenMagicMode (NvCtrlAttributePrivateHandle *h,
     return NvCtrlError;
 
 } /* NvCtrlXrandrSetScreenMagicMode */
+
+
+
+/******************************************************************************
+ *
+ * Gets XRandR size and refresh rate.
+ *
+ ****/
+
+ReturnStatus
+NvCtrlXrandrGetScreenMagicMode (NvCtrlAttributePrivateHandle *h,
+                                int *width, int *height, int *magic_ref_rate)
+{
+    XRRScreenConfiguration *sc;
+    Rotation cur_rotation;
+    int nsizes;
+    XRRScreenSize *sizes;
+    int cur_size;
+    short cur_rate;
+
+
+    /* Validate */
+    if ( !h || !h->dpy || h->target_type != NV_CTRL_TARGET_TYPE_X_SCREEN ) {
+        return NvCtrlBadHandle;
+    }
+
+    if ( !h->xrandr || !__libXrandr ) {
+        return NvCtrlMissingExtension;
+    }
+
+
+    /* Get current screen configuration information */
+    sc = __libXrandr->XRRGetScreenInfo(h->dpy, RootWindow(h->dpy,
+                                                          h->target_id));
+    if ( !sc ) {
+        return NvCtrlError;
+    }
+    cur_size = __libXrandr->XRRConfigCurrentConfiguration(sc, &cur_rotation);
+    cur_rate = __libXrandr->XRRConfigCurrentRate(sc);
+    sizes    = __libXrandr->XRRConfigSizes(sc, &nsizes);
+    if (cur_size >= nsizes) {
+        __libXrandr->XRRFreeScreenConfigInfo(sc);
+        return NvCtrlError;
+    }
+
+
+    /* Get the width & height from the size information */
+    *width = sizes[cur_size].width;
+    *height = sizes[cur_size].height;
+    *magic_ref_rate = (int)cur_rate;
+    
+    __libXrandr->XRRFreeScreenConfigInfo(sc);
+    return NvCtrlSuccess;
+
+} /* NvCtrlXrandrGetScreenMagicMode */

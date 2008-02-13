@@ -52,6 +52,7 @@
 #define NV_PARSER_TYPE_VALUE_IS_DISPLAY (1<<22)
 #define NV_PARSER_TYPE_NO_QUERY_ALL     (1<<23)
 #define NV_PARSER_TYPE_NO_ZERO_VALUE    (1<<24)
+#define NV_PARSER_TYPE_100Hz            (1<<25)
 
 #define NV_PARSER_ASSIGNMENT 0
 #define NV_PARSER_QUERY 1
@@ -138,7 +139,8 @@ extern AttributeTableEntry attributeTable[];
 #define X_SCREEN_TARGET  0
 #define GPU_TARGET       1
 #define FRAMELOCK_TARGET 2
-#define MAX_TARGET_TYPES 3
+#define VCSC_TARGET      3
+#define MAX_TARGET_TYPES 4
 
 
 

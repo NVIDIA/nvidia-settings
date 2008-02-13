@@ -23,6 +23,7 @@
  */
 
 #include "msg.h"
+#include "command-line.h"
 
 #include <stdio.h>
 #include <stdarg.h>
@@ -34,6 +35,8 @@
 #if defined(__sun)
 #include <sys/termios.h>
 #endif
+
+extern int __verbosity;
 
 static void format(FILE*, const char*, char *);
 static int get_terminal_width(void);
@@ -49,10 +52,14 @@ do {                                            \
 /*
  * nv_error_msg() - print an error message, nicely formatted using the
  * format() function.
+ *
+ * This function should be used for all errors.
  */
 
 void nv_error_msg(const char *fmt, ...)
 {
+    if (__verbosity < VERBOSITY_ERROR) return;
+
     fprintf(stderr, "\n");
  
     NV_FORMAT(stderr, "ERROR: ", fmt);
@@ -66,10 +73,14 @@ void nv_error_msg(const char *fmt, ...)
 /*
  * nv_warning_msg() - print a warning message, nicely formatted using
  * the format() function.
+ *
+ * This function should be used for all warnings.
  */
 
 void nv_warning_msg(const char *fmt, ...)
 {
+    if (__verbosity < VERBOSITY_WARNING) return;
+
     fprintf(stdout, "\n");
 
     NV_FORMAT(stdout, "WARNING: ", fmt);
@@ -81,8 +92,28 @@ void nv_warning_msg(const char *fmt, ...)
 
 
 /*
+ * nv_info_msg() - print an info message, nicely formatted using
+ * the format() function.
+ *
+ * This function should be used to display verbose information.
+ */
+
+void nv_info_msg(const char *prefix, const char *fmt, ...)
+{
+    if (__verbosity < VERBOSITY_ALL) return;
+
+    NV_FORMAT(stdout, prefix, fmt);
+    
+} /* nv_info_msg() */
+
+
+
+/*
  * nv_msg() - print a message, nicely formatted using the format()
  * function.
+ *
+ * This function should be used to display messages independent
+ * of the verbosity level.
  */
 
 void nv_msg(const char *prefix, const char *fmt, ...)
@@ -159,7 +190,7 @@ static void format(FILE *stream, const char *prefix,
             
             if (b <= a) {
                 b = a;
-                while (!isspace(*b)) b++;
+                while (*b && !isspace(*b)) b++;
             }
         }
 

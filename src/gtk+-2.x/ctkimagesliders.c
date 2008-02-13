@@ -34,22 +34,27 @@
 
 #define FRAME_PADDING 5
 
-static void
-dvc_adjustment_value_changed(GtkAdjustment *, gpointer);
+static const char *__digital_vibrance_help = "The Digital Vibrance slider "
+"alters the level of Digital Vibrance for this display device.";
 
-static void dvc_update_slider(CtkImageSliders *ctk_image_sliders, gint value);
+static const char *__image_sharpening_help = "The Image Sharpening slider "
+"alters the level of Image Sharpening for this display device.";
 
-static void dvc_update_received(GtkObject *, gpointer arg1, gpointer);
 
-static void
-image_sharpening_adjustment_value_changed(GtkAdjustment *, gpointer);
+static GtkWidget * add_scale(CtkConfig *ctk_config,
+                             int attribute,
+                             char *name,
+                             const char *help,
+                             gint value_type,
+                             gpointer callback_data);
 
-static void
-image_sharpening_update_slider(CtkImageSliders *ctk_image_sliders, gint value);
+static void setup_scale(CtkImageSliders *ctk_image_sliders,
+                        int attribute, GtkWidget *scale);
 
-static void image_sharpening_update_received(GtkObject *, gpointer arg1,
-                                             gpointer);
+static void scale_value_changed(GtkAdjustment *adjustment,
+                                     gpointer user_data);
 
+static void scale_value_received(GtkObject *, gpointer arg1, gpointer);
 
 
 GType ctk_image_sliders_get_type(void)
@@ -89,40 +94,7 @@ GtkWidget* ctk_image_sliders_new(NvCtrlAttributeHandle *handle,
     
     GtkWidget *frame;
     GtkWidget *vbox;
-    GtkWidget *scale;
-    GtkWidget *widget;
-
-    ReturnStatus ret0, ret1, ret2, ret3;
     
-    NVCTRLAttributeValidValuesRec dvc_valid, sharp_valid;
-    
-    int dvc, sharp;
-
-    /*
-     * retrieve the valid values and current value for DVC and Image
-     * Sharpening; if we were unable to query any of those, then
-     * return NULL.
-     */
-    
-    ret0 = NvCtrlGetValidDisplayAttributeValues(handle, display_device_mask,
-                                                NV_CTRL_DIGITAL_VIBRANCE,
-                                                &dvc_valid);
-    
-    ret1 = NvCtrlGetDisplayAttribute(handle, display_device_mask,
-                                     NV_CTRL_DIGITAL_VIBRANCE,
-                                     &dvc);
-    
-    ret2 = NvCtrlGetValidDisplayAttributeValues(handle, display_device_mask,
-                                                NV_CTRL_IMAGE_SHARPENING,
-                                                &sharp_valid);
-    
-    ret3 = NvCtrlGetDisplayAttribute(handle, display_device_mask,
-                                     NV_CTRL_IMAGE_SHARPENING,
-                                     &sharp);
-    
-    if ((ret0 != NvCtrlSuccess) && (ret1 != NvCtrlSuccess) &&
-        (ret2 != NvCtrlSuccess) && (ret3 != NvCtrlSuccess)) return NULL;
-
     /*
      * now that we know that we will have atleast one attribute,
      * create the object
@@ -133,6 +105,7 @@ GtkWidget* ctk_image_sliders_new(NvCtrlAttributeHandle *handle,
     ctk_image_sliders = CTK_IMAGE_SLIDERS(object);
     ctk_image_sliders->handle = handle;
     ctk_image_sliders->ctk_config = ctk_config;
+    ctk_image_sliders->ctk_event = ctk_event;
     ctk_image_sliders->reset_button = reset_button;
     ctk_image_sliders->display_device_mask = display_device_mask;
     ctk_image_sliders->name = name;
@@ -144,86 +117,158 @@ GtkWidget* ctk_image_sliders_new(NvCtrlAttributeHandle *handle,
     gtk_container_set_border_width(GTK_CONTAINER(vbox), FRAME_PADDING);
     gtk_container_add(GTK_CONTAINER(frame), vbox);
     gtk_box_pack_start(GTK_BOX(object), frame, FALSE, FALSE, 0);
+    ctk_image_sliders->frame = frame;
     
-
-    /* DVC */
+    /* Digital Vibrance */
     
-    if ((ret0 == NvCtrlSuccess) && (ret1 == NvCtrlSuccess)) {
-        
-        ctk_image_sliders->dvc_adjustment =
-            gtk_adjustment_new(dvc,
-                               dvc_valid.u.range.min,
-                               dvc_valid.u.range.max,
-                               1, 5, 0);
+    ctk_image_sliders->digital_vibrance =
+        add_scale(ctk_config,
+                  NV_CTRL_DIGITAL_VIBRANCE, "Digital Vibrance",
+                  __digital_vibrance_help, G_TYPE_DOUBLE, ctk_image_sliders);
 
-        g_signal_connect(G_OBJECT(ctk_image_sliders->dvc_adjustment),
-                         "value_changed",
-                         G_CALLBACK(dvc_adjustment_value_changed),
-                         (gpointer) ctk_image_sliders);
+    g_signal_connect(G_OBJECT(ctk_event),
+                     CTK_EVENT_NAME(NV_CTRL_DIGITAL_VIBRANCE),
+                     G_CALLBACK(scale_value_received),
+                     (gpointer) ctk_image_sliders);
 
-        g_signal_connect(G_OBJECT(ctk_event),
-                         CTK_EVENT_NAME(NV_CTRL_DIGITAL_VIBRANCE),
-                         G_CALLBACK(dvc_update_received),
-                         (gpointer) ctk_image_sliders);
+    gtk_box_pack_start(GTK_BOX(vbox), ctk_image_sliders->digital_vibrance,
+                       TRUE, TRUE, 0);
 
-        scale = ctk_scale_new
-            (GTK_ADJUSTMENT(ctk_image_sliders->dvc_adjustment),
-             "Digital Vibrance", ctk_config, G_TYPE_DOUBLE);
-        
-        gtk_box_pack_start(GTK_BOX(vbox), scale, TRUE, TRUE, 0);
-    
-        widget = CTK_SCALE(scale)->gtk_scale;
-
-        ctk_config_set_tooltip(ctk_config, widget,
-                               "The Digital Vibrance slider alters the level "
-                               "of Digital Vibrance for this display device.");
-    } else {
-        ctk_image_sliders->dvc_adjustment = NULL;
-    }
-    
-    
     /* Image Sharpening */
+    
+    ctk_image_sliders->image_sharpening =
+        add_scale(ctk_config,
+                  NV_CTRL_IMAGE_SHARPENING, "Image Sharpening",
+                  __image_sharpening_help, G_TYPE_DOUBLE, ctk_image_sliders);
 
-    if ((ret2 == NvCtrlSuccess) && (ret3 == NvCtrlSuccess)) {
-        
-        ctk_image_sliders->image_sharpening_adjustment =
-            gtk_adjustment_new(sharp,
-                               sharp_valid.u.range.min,
-                               sharp_valid.u.range.max,
-                               1, 5, 0); 
-        
-        g_signal_connect
-            (G_OBJECT(ctk_image_sliders->image_sharpening_adjustment),
-             "value_changed",
-             G_CALLBACK(image_sharpening_adjustment_value_changed),
-             (gpointer) ctk_image_sliders);
-        
-        g_signal_connect(G_OBJECT(ctk_event),
-                         CTK_EVENT_NAME(NV_CTRL_IMAGE_SHARPENING),
-                         G_CALLBACK(image_sharpening_update_received),
-                         (gpointer) ctk_image_sliders);
+    g_signal_connect(G_OBJECT(ctk_event),
+                     CTK_EVENT_NAME(NV_CTRL_IMAGE_SHARPENING),
+                     G_CALLBACK(scale_value_received),
+                     (gpointer) ctk_image_sliders);
 
-        scale = ctk_scale_new
-            (GTK_ADJUSTMENT(ctk_image_sliders->image_sharpening_adjustment),
-             "Image Sharpening", ctk_config, G_TYPE_DOUBLE);
-        
-        gtk_box_pack_start(GTK_BOX(vbox), scale, TRUE, TRUE, 0);
-        
-        widget = CTK_SCALE(scale)->gtk_scale;
-        
-        ctk_config_set_tooltip(ctk_config, widget,
-                               "The Image Sharpening slider alters the level "
-                               "of Image Sharpening for this display device.");
-    } else {
-        ctk_image_sliders->image_sharpening_adjustment = NULL;
-    }
-
+    gtk_box_pack_start(GTK_BOX(vbox), ctk_image_sliders->image_sharpening,
+                       TRUE, TRUE, 0);
 
     gtk_widget_show_all(GTK_WIDGET(object));
+
+    /* update the GUI */
+
+    ctk_image_sliders_setup(ctk_image_sliders);
 
     return GTK_WIDGET(object);
     
 } /* ctk_image_sliders_new() */
+
+
+
+/*
+ * Returns whether or not the scale is active
+ */
+
+static gint get_scale_active(CtkScale *scale)
+{
+    GtkAdjustment *adj = scale->gtk_adjustment;
+
+    return
+        GPOINTER_TO_INT(g_object_get_data(G_OBJECT(adj), "attribute active"));
+
+} /* get_scale_active() */
+
+
+
+/*
+ * add_scale() - if the specified attribute exists and we can
+ * query its valid values, create a new scale widget
+ */
+
+static GtkWidget * add_scale(CtkConfig *ctk_config,
+                             int attribute,
+                             char *name,
+                             const char *help,
+                             gint value_type,
+                             gpointer callback_data)
+{
+    GtkObject *adj;
+    GtkWidget *scale;
+
+   
+    adj = gtk_adjustment_new(0, 0, 10, 1, 1, 0);
+        
+    g_object_set_data(G_OBJECT(adj), "attribute",
+                      GINT_TO_POINTER(attribute));
+
+    g_object_set_data(G_OBJECT(adj), "attribute name", name);
+    
+    g_object_set_data(G_OBJECT(adj), "attribute active",
+                      GINT_TO_POINTER(0));
+
+    g_signal_connect(G_OBJECT(adj), "value_changed",
+                     G_CALLBACK(scale_value_changed),
+                     (gpointer) callback_data);
+        
+    scale = ctk_scale_new(GTK_ADJUSTMENT(adj), name, ctk_config, value_type);
+        
+    if (help) {
+        ctk_config_set_tooltip(ctk_config, CTK_SCALE_TOOLTIP_WIDGET(scale),
+                               help);
+    }
+    
+    return scale;
+
+} /* add_scale() */
+
+
+
+/*
+ * post_scale_value_changed() - helper function for
+ * scale_value_changed() and value_changed(); this does whatever
+ * work is necessary after the adjustment has been updated --
+ * currently, this just means posting a statusbar message.
+ */
+
+static void post_scale_value_changed(GtkAdjustment *adjustment,
+                                          CtkImageSliders *ctk_image_sliders,
+                                          gint value)
+{
+    char *name = g_object_get_data(G_OBJECT(adjustment), "attribute name");
+    
+    gtk_widget_set_sensitive(ctk_image_sliders->reset_button, TRUE);
+
+    ctk_config_statusbar_message(ctk_image_sliders->ctk_config,
+                                 "%s set to %d.", name, value);
+    
+} /* post_scale_value_changed() */
+
+
+
+/*
+ * scale_value_changed() - callback when any of the adjustments
+ * in the CtkImageSliders are changed: get the new value from the
+ * adjustment, send it to the X server, and do any post-adjustment
+ * work.
+ */
+
+static void scale_value_changed(GtkAdjustment *adjustment,
+                                     gpointer user_data)
+{
+    CtkImageSliders *ctk_image_sliders =
+        CTK_IMAGE_SLIDERS(user_data);
+    
+    gint value;
+    gint attribute;
+    
+    value = (gint) gtk_adjustment_get_value(adjustment);
+    
+    user_data = g_object_get_data(G_OBJECT(adjustment), "attribute");
+    attribute = GPOINTER_TO_INT(user_data);
+    
+    NvCtrlSetDisplayAttribute(ctk_image_sliders->handle,
+                              ctk_image_sliders->display_device_mask,
+                              attribute, (int) value);
+    
+    post_scale_value_changed(adjustment, ctk_image_sliders, value);
+    
+} /* scale_value_changed() */
 
 
 
@@ -235,207 +280,46 @@ void ctk_image_sliders_reset(CtkImageSliders *ctk_image_sliders)
 {
     if (!ctk_image_sliders) return;
 
-    if (ctk_image_sliders->dvc_adjustment) {
-        
+    if (get_scale_active(CTK_SCALE(ctk_image_sliders->digital_vibrance))) {
         NvCtrlSetDisplayAttribute(ctk_image_sliders->handle,
                                   ctk_image_sliders->display_device_mask,
                                   NV_CTRL_DIGITAL_VIBRANCE,
                                   0);
-
-        dvc_update_slider(ctk_image_sliders, 0);
     }
 
-    if (ctk_image_sliders->image_sharpening_adjustment) {
-        
+    if (get_scale_active(CTK_SCALE(ctk_image_sliders->image_sharpening))) {
         NvCtrlSetDisplayAttribute(ctk_image_sliders->handle,
                                   ctk_image_sliders->display_device_mask,
                                   NV_CTRL_IMAGE_SHARPENING,
                                   0);
-        
-        image_sharpening_update_slider(ctk_image_sliders, 0);
     }
+
+    ctk_image_sliders_setup(ctk_image_sliders);
     
 } /* ctk_image_sliders_reset() */
 
 
 
 /*
- * post_dvc_update() - helper function for
- * dvc_adjustment_value_changed() and dvc_update_received(); this does
- * whatever work is necessary after the the DVC adjustment widget is
- * updated -- currently, this is just posting a statusbar message.
+ * scale_value_received() - callback function for changed image settings; this
+ * is called when we receive an event indicating that another
+ * NV-CONTROL client changed any of the settings that we care about.
  */
 
-static void post_dvc_update(CtkImageSliders *ctk_image_sliders, int value)
+static void scale_value_received(GtkObject *object, gpointer arg1,
+                                 gpointer user_data)
 {
-    ctk_config_statusbar_message(ctk_image_sliders->ctk_config,
-                                 "Digital Vibrance for %s set to %d.",
-                                 ctk_image_sliders->name, value);
+    CtkEventStruct *event_struct;
+    CtkImageSliders *ctk_image_sliders =
+        CTK_IMAGE_SLIDERS(user_data);
     
-} /* post_dvc_update() */
-
-
-
-/*
- * dvc_adjustment_value_changed() - update the DVC value with the
- * current value of the adjustment widget.
- */
-
-static void dvc_adjustment_value_changed(GtkAdjustment *adjustment,
-                                         gpointer user_data)
-{
-    CtkImageSliders *ctk_image_sliders;
-    int value;
+    GtkAdjustment *adj;
+    GtkWidget *scale;
+    gint val;
     
-    ctk_image_sliders = CTK_IMAGE_SLIDERS(user_data);
-    
-    value = (int) gtk_adjustment_get_value(adjustment);
-    
-    NvCtrlSetDisplayAttribute(ctk_image_sliders->handle,
-                              ctk_image_sliders->display_device_mask,
-                              NV_CTRL_DIGITAL_VIBRANCE,
-                              value);
-    
-    post_dvc_update(ctk_image_sliders, value);
 
-} /* dvc_adjustment_value_changed() */
+    event_struct = (CtkEventStruct *) arg1;
 
-
-
-/*
- * dvc_update_slider() - update the slider with the specified value
- */
-
-static void dvc_update_slider(CtkImageSliders *ctk_image_sliders, gint value)
-{
-    GtkAdjustment *adjustment =
-        GTK_ADJUSTMENT(ctk_image_sliders->dvc_adjustment);
-    
-    g_signal_handlers_block_by_func(G_OBJECT(adjustment),
-                                    G_CALLBACK(dvc_adjustment_value_changed),
-                                    (gpointer) ctk_image_sliders);
-    
-    gtk_adjustment_set_value(adjustment, value);
-    
-    g_signal_handlers_unblock_by_func(G_OBJECT(adjustment),
-                                      G_CALLBACK(dvc_adjustment_value_changed),
-                                      (gpointer) ctk_image_sliders);
-    
-} /* dvc_update_slider() */
-
-
-
-/*
- * dvc_update_received() - callback function for when the
- * NV_CTRL_DIGITAL_VIBRANCE attribute is changed by another NV-CONTROL
- * client.
- */
-
-static void dvc_update_received(GtkObject *object,
-                                gpointer arg1, gpointer user_data)
-{
-    CtkEventStruct *event_struct = (CtkEventStruct *) arg1;
-    CtkImageSliders *ctk_image_sliders = CTK_IMAGE_SLIDERS(user_data);
-    
-    /* if the event is not for this display device, return */
-    
-    if (!(event_struct->display_mask &
-          ctk_image_sliders->display_device_mask)) {
-        return;
-    }
-    
-    dvc_update_slider(ctk_image_sliders, event_struct->value);
-
-    post_dvc_update(ctk_image_sliders, event_struct->value);
-    
-} /* dvc_update_received() */
-
-
-
-/*
- * post_image_sharpening_update() - helper function for
- * image_sharpening_adjustment_value_changed() and
- * image_sharpening_update_received(); this does whatever work is
- * necessary after the the image sharpening adjustment widget is
- * updated -- currently, this is just posting a statusbar message.
- */
-
-static void
-post_image_sharpening_update(CtkImageSliders *ctk_image_sliders, gint value)
-{
-    ctk_config_statusbar_message(ctk_image_sliders->ctk_config,
-                                 "Image Sharpening for %s set to %d.",
-                                 ctk_image_sliders->name, value);
-    
-} /* post_image_sharpening_update() */
-
-
-
-/*
- * image_sharpening_adjustment_value_changed() - 
- */
-
-static void
-image_sharpening_adjustment_value_changed(GtkAdjustment *adjustment,
-                                          gpointer user_data)
-{
-    CtkImageSliders *ctk_image_sliders;
-    int value;
-    
-    ctk_image_sliders = CTK_IMAGE_SLIDERS(user_data);
-    
-    value = (int) gtk_adjustment_get_value(adjustment);
-    
-    NvCtrlSetDisplayAttribute(ctk_image_sliders->handle,
-                              ctk_image_sliders->display_device_mask,
-                              NV_CTRL_IMAGE_SHARPENING,
-                              value);
-    
-    post_image_sharpening_update(ctk_image_sliders, value);
-    
-} /* image_sharpening_adjustment_value_changed() */
-
-
-
-/*
- * image_sharpening_update_slider() - update the slider with the
- * specified value
- */
-
-static void image_sharpening_update_slider(CtkImageSliders *ctk_image_sliders,
-                                           gint value)
-{
-    GtkAdjustment *adjustment =
-        GTK_ADJUSTMENT(ctk_image_sliders->image_sharpening_adjustment);
-
-    g_signal_handlers_block_by_func
-        (G_OBJECT(adjustment),
-         G_CALLBACK(image_sharpening_adjustment_value_changed),
-         (gpointer) ctk_image_sliders);
-    
-    gtk_adjustment_set_value(adjustment, value);
-    
-    g_signal_handlers_unblock_by_func
-        (G_OBJECT(adjustment),
-         G_CALLBACK(image_sharpening_adjustment_value_changed),
-         (gpointer) ctk_image_sliders);
-    
-} /* image_sharpening_update_slider() */
-
-
-
-/*
- * image_sharpening_update_received() - callback function for when the
- * NV_CTRL_IMAGE_SHARPENING attribute is change by another NV-CONTROL
- * client.
- */
-
-static void image_sharpening_update_received(GtkObject *object,
-                                             gpointer arg1, gpointer user_data)
-{
-    CtkEventStruct *event_struct = (CtkEventStruct *) arg1;
-    CtkImageSliders *ctk_image_sliders = CTK_IMAGE_SLIDERS(user_data);
-    
     /* if the event is not for this display device, return */
 
     if (!(event_struct->display_mask &
@@ -443,11 +327,37 @@ static void image_sharpening_update_received(GtkObject *object,
         return;
     }
     
-    image_sharpening_update_slider(ctk_image_sliders, event_struct->value);
-
-    post_image_sharpening_update(ctk_image_sliders, event_struct->value);
+    switch (event_struct->attribute) {
+    case NV_CTRL_DIGITAL_VIBRANCE:
+        scale = ctk_image_sliders->digital_vibrance;
+        break;
+    case NV_CTRL_IMAGE_SHARPENING:
+        scale = ctk_image_sliders->image_sharpening;
+        break;
+    default:
+        return;
+    }
     
-} /* image_sharpening_update_received() */
+    adj = CTK_SCALE(scale)->gtk_adjustment;
+    val = gtk_adjustment_get_value(GTK_ADJUSTMENT(adj));
+
+    if (val != event_struct->value) {
+        
+        val = event_struct->value;
+
+        g_signal_handlers_block_by_func(adj, scale_value_changed,
+                                        ctk_image_sliders);
+        
+        gtk_adjustment_set_value(GTK_ADJUSTMENT(adj), val);
+        
+        post_scale_value_changed(GTK_ADJUSTMENT(adj),
+                                 ctk_image_sliders, val);
+        
+        g_signal_handlers_unblock_by_func(adj, scale_value_changed,
+                                          ctk_image_sliders);
+    }
+
+} /* scale_value_received() */
 
 
 
@@ -455,30 +365,111 @@ static void image_sharpening_update_received(GtkObject *object,
  * add_image_sliders_help() - 
  */
 
-gboolean add_image_sliders_help(CtkImageSliders *ctk_image_sliders,
-                                GtkTextBuffer *b,
-                                GtkTextIter *i)
+void add_image_sliders_help(CtkImageSliders *ctk_image_sliders,
+                            GtkTextBuffer *b,
+                            GtkTextIter *i)
 {
-    gboolean ret = FALSE;    
-
-    if (ctk_image_sliders->dvc_adjustment) {
-        ctk_help_heading(b, i, "Digital Vibrance");
-        ctk_help_para(b, i, "Digital Vibrance, a mechanism for "
-                      "controlling color separation and intensity, boosts "
-                      "the color saturation of an image so that all images "
-                      "including 2D, 3D, and video appear brighter and "
-                      "crisper (even on flat panels) in your applications.");
-        ret = TRUE;
-    }
-
-    if (ctk_image_sliders->image_sharpening_adjustment) {
-        ctk_help_heading(b, i, "Image Sharpening");
-        ctk_help_para(b, i, "Use the Image Sharpening slider to adjust the "
-                      "sharpness of the image quality by amplifying high "
-                      "frequency content.");
-        ret = TRUE;
-    }
-
-    return ret;
+    ctk_help_heading(b, i, "Digital Vibrance");
+    ctk_help_para(b, i, "Digital Vibrance, a mechanism for "
+                  "controlling color separation and intensity, boosts "
+                  "the color saturation of an image so that all images "
+                  "including 2D, 3D, and video appear brighter and "
+                  "crisper (even on flat panels) in your applications.");
+    
+    ctk_help_heading(b, i, "Image Sharpening");
+    ctk_help_para(b, i, "Use the Image Sharpening slider to adjust the "
+                  "sharpness of the image quality by amplifying high "
+                  "frequency content.");
     
 } /* add_image_sliders_help() */
+
+
+
+/* Update GUI state of the scale to reflect current settings
+ * on the X Driver.
+ */
+
+static void setup_scale(CtkImageSliders *ctk_image_sliders,
+                        int attribute,
+                        GtkWidget *scale)
+{
+    ReturnStatus ret0, ret1;
+    NVCTRLAttributeValidValuesRec valid;
+    NvCtrlAttributeHandle *handle = ctk_image_sliders->handle;
+    unsigned int mask = ctk_image_sliders->display_device_mask;
+    int val;
+    GtkAdjustment *adj = CTK_SCALE(scale)->gtk_adjustment;
+    
+
+    /* Read settings from X server */
+    ret0 = NvCtrlGetValidDisplayAttributeValues(handle, mask,
+                                                attribute, &valid);
+    
+    ret1 = NvCtrlGetDisplayAttribute(handle, mask, attribute, &val);
+    
+    if ((ret0 == NvCtrlSuccess) && (ret1 == NvCtrlSuccess) &&
+        (valid.type == ATTRIBUTE_TYPE_RANGE)) {
+
+        g_signal_handlers_block_by_func(adj, scale_value_changed,
+                                        ctk_image_sliders);
+
+        adj->lower = valid.u.range.min;
+        adj->upper = valid.u.range.max;
+        gtk_adjustment_changed(GTK_ADJUSTMENT(adj));
+
+        gtk_adjustment_set_value(GTK_ADJUSTMENT(adj), val);
+
+        g_signal_handlers_unblock_by_func(adj, scale_value_changed,
+                                          ctk_image_sliders);
+
+        g_object_set_data(G_OBJECT(adj), "attribute active",
+                      GINT_TO_POINTER(1));
+
+        gtk_widget_set_sensitive(scale, TRUE);
+        gtk_widget_show(scale);
+    } else {
+        g_object_set_data(G_OBJECT(adj), "attribute active",
+                      GINT_TO_POINTER(0));
+
+        gtk_widget_set_sensitive(scale, FALSE);
+        gtk_widget_hide(scale);
+    }
+
+} /* setup_scale() */
+
+
+
+/*
+ * Updates the page to reflect the current configuration of
+ * the display device.
+ */
+void ctk_image_sliders_setup(CtkImageSliders *ctk_image_sliders)
+{
+    int active;
+
+
+    if (!ctk_image_sliders) return;
+
+    /* Update sliders */
+    
+    /* NV_CTRL_DIGITAL_VIBRANCE */
+    
+    setup_scale(ctk_image_sliders, NV_CTRL_DIGITAL_VIBRANCE,
+                ctk_image_sliders->digital_vibrance);
+    
+    /* NV_CTRL_IMAGE_SHARPENING */
+    
+    setup_scale(ctk_image_sliders, NV_CTRL_IMAGE_SHARPENING,
+                ctk_image_sliders->image_sharpening);
+
+    active =
+        get_scale_active(CTK_SCALE(ctk_image_sliders->digital_vibrance)) ||
+        get_scale_active(CTK_SCALE(ctk_image_sliders->image_sharpening));
+    
+    if (!active) {
+        gtk_widget_hide(ctk_image_sliders->frame);
+    } else {
+        gtk_widget_show(ctk_image_sliders->frame);
+    }
+
+} /* ctk_image_sliders_setup() */

@@ -34,5 +34,9 @@ SRC += \
 	NvCtrlAttributesXrandr.c
 
 EXTRA_DIST += \
+	Makefile.inc \
 	NvCtrlAttributes.h \
 	NvCtrlAttributesPrivate.h
+
+dist_list::
+	@ echo $(SRC) $(EXTRA_DIST)

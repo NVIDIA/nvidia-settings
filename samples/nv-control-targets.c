@@ -89,6 +89,7 @@ int main(int argc, char *argv[])
     int major, minor;
 
     int num_gpus, num_screens, num_gsyncs;
+    int num_vcscs;
     int gpu, screen;
     int display_devices, mask;
     int *pData;
@@ -169,6 +170,20 @@ int main(int argc, char *argv[])
         return 1;
     }
     printf("  number of Frame Lock Devices: %d\n", num_gsyncs);
+
+
+    /* Get the number of Visual Computing System Controller devices in
+     * the system
+     */
+
+    ret = XNVCTRLQueryTargetCount(dpy, NV_CTRL_TARGET_TYPE_VCSC,
+                                  &num_vcscs);
+    if (!ret) {
+        fprintf(stderr, "Failed to query number of VCSCs\n");
+        return 1;
+    }
+    printf("  number of Visual Computing System Controllers: %d\n",
+           num_vcscs);
 
 
     /* display information about all GPUs */

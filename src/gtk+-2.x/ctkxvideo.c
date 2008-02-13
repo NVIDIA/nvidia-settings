@@ -22,6 +22,7 @@
  *
  */
 
+#include <stdlib.h>
 #include <gtk/gtk.h>
 #include "NvCtrlAttributes.h"
 
@@ -473,6 +474,8 @@ GtkWidget* ctk_xvideo_new(NvCtrlAttributeHandle *handle,
             GtkWidget *radio[24], *prev_radio;
             int i, n, current = -1, mask;
             char *name;
+            char *type;
+            gchar *name_str;
         
             frame = gtk_frame_new("Sync to this display device");
             gtk_box_pack_start(GTK_BOX(object), frame, FALSE, FALSE, 0);
@@ -487,7 +490,7 @@ GtkWidget* ctk_xvideo_new(NvCtrlAttributeHandle *handle,
         
                 mask = 1 << i;
                 if (!(enabled & mask)) continue;
-        
+
                 /* get the name of the display device */
         
                 ret = NvCtrlGetStringDisplayAttribute(handle, mask,
@@ -497,6 +500,14 @@ GtkWidget* ctk_xvideo_new(NvCtrlAttributeHandle *handle,
                 if ((ret != NvCtrlSuccess) || (!name)) {
                     name = g_strdup("Unknown");
                 }
+
+                /* get the display device type */
+
+                type = display_device_mask_to_display_device_name(mask);
+
+                name_str = g_strdup_printf("%s (%s)", name, type);
+                XFree(name);
+                free(type);
                 
                 if (n==0) {
                     prev_radio = NULL;
@@ -504,7 +515,8 @@ GtkWidget* ctk_xvideo_new(NvCtrlAttributeHandle *handle,
                     prev_radio = radio[n-1];
                 } 
                 radio[n] = xv_sync_to_display_radio_button_add(ctk_xvideo, vbox,
-                            prev_radio, name, mask, n);
+                            prev_radio, name_str, mask, n);
+                g_free(name_str);
                                  
                 ctk_config_set_tooltip(ctk_config, radio[n], 
                                        __xv_sync_to_display_help);    

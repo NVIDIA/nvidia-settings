@@ -32,6 +32,7 @@
 
 #include "image.h"
 #include "ctkimage.h"
+#include "ctkbanner.h"
 
 
 /*
@@ -108,14 +109,14 @@ GtkWidget* ctk_banner_image_new(const nv_image_t *img)
     GtkWidget *frame;
 
 
-    image = ctk_image_new(img);
+    image = ctk_banner_new(img);
 
     if (!image) return NULL;
 
     hbox = gtk_hbox_new(FALSE, 0);
     frame = gtk_frame_new(NULL);
 
-    gtk_box_pack_start(GTK_BOX(hbox), frame, FALSE, FALSE, 0);
+    gtk_box_pack_start(GTK_BOX(hbox), frame, TRUE, TRUE, 0);
     gtk_frame_set_shadow_type(GTK_FRAME(frame), GTK_SHADOW_IN);
     gtk_container_add(GTK_CONTAINER(frame), image);
 

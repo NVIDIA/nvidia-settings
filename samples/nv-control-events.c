@@ -42,7 +42,7 @@ int main(void)
     Display *dpy;
     Bool ret;
     int event_base, error_base;
-    int num_screens, num_gpus, num_framelocks, i;
+    int num_screens, num_gpus, num_framelocks, num_vcscs, i;
     int sources;
     XEvent event;
     XNVCtrlAttributeChangedEvent *nvevent;
@@ -97,6 +97,17 @@ int main(void)
     if (ret != True) {
         fprintf(stderr, "Failed to query the number of G-Sync devices on "
                 "'%s'.\n",
+                XDisplayName(NULL));
+        return 1;
+    }
+
+    /* Query number of VCSC (Visual Computing System Controllers) devices */
+
+    ret = XNVCTRLQueryTargetCount(dpy, NV_CTRL_TARGET_TYPE_VCSC,
+                                  &num_vcscs);
+    if (ret != True) {
+        fprintf(stderr, "Failed to query the number of Visual Computing "
+                "System Controllers devices on '%s'.\n",
                 XDisplayName(NULL));
         return 1;
     }
@@ -217,6 +228,24 @@ int main(void)
         sources++;
     }
 
+    /* Register to receive on all VCSC targets */
+
+    for (i = 0; i < num_vcscs; i++ ) {
+
+        ret = XNVCtrlSelectTargetNotify(dpy, NV_CTRL_TARGET_TYPE_VCSC,
+                                        i, TARGET_ATTRIBUTE_CHANGED_EVENT,
+                                        True);
+        if (ret != True) {
+            printf("- Unable to register to receive NV-CONTROL VCSC "
+                   "target events for VCSC %d on '%s'.\n",
+                   i, XDisplayName(NULL));
+            continue;
+        }
+        
+        printf("+ Listening to TARGET_ATTRIBUTE_CHANGE_EVENTs on VCSC "
+               "%d.\n", i);
+        sources++;
+    }
 
     /* 
      * Report the number of sources (things that we have registered to
@@ -292,6 +321,7 @@ static const char *target2str(int n)
     case NV_CTRL_TARGET_TYPE_X_SCREEN:  return "X Screen"; break;
     case NV_CTRL_TARGET_TYPE_GPU:       return "GPU"; break;
     case NV_CTRL_TARGET_TYPE_FRAMELOCK: return "Frame Lock"; break;
+    case NV_CTRL_TARGET_TYPE_VCSC:      return "VCSC"; break;
     default:
         return "Unknown";
     }
@@ -356,6 +386,7 @@ static const char *attr2str(int n)
     case NV_CTRL_GPU_2D_CLOCK_FREQS:               return "gpu 2d clock frequencies"; break;
     case NV_CTRL_GPU_3D_CLOCK_FREQS:               return "gpu 3d clock frequencies"; break;
     case NV_CTRL_GPU_OPTIMAL_CLOCK_FREQS:          return "gpu optimal clock frequencies"; break;
+    case NV_CTRL_GPU_OPTIMAL_CLOCK_FREQS_DETECTION: return "gpu optimal clock frequency detection"; break;
     case NV_CTRL_GPU_OPTIMAL_CLOCK_FREQS_DETECTION_STATE: return "gpu optimal clock frequency detection state"; break;
         
         /* XXX DDCCI stuff */

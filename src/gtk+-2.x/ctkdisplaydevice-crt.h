@@ -60,12 +60,15 @@ struct _CtkDisplayDeviceCrt
 
     NvCtrlAttributeHandle *handle;
     CtkConfig *ctk_config;
+    CtkEvent *ctk_event;
     GtkWidget *image_sliders;
     GtkWidget *reset_button;
+    
+    GtkWidget *edid_box;
+    GtkWidget *edid;
 
     unsigned int display_device_mask;
-    unsigned int active_attributes;
-    gboolean edid_available;
+    gboolean display_enabled;
 
     char *name;
 };

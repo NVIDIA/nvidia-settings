@@ -18,6 +18,7 @@
 #define NV_CTRL_TARGET_TYPE_X_SCREEN   0
 #define NV_CTRL_TARGET_TYPE_GPU        1
 #define NV_CTRL_TARGET_TYPE_FRAMELOCK  2
+#define NV_CTRL_TARGET_TYPE_VCSC       3 /* Visual Computing System Controller */
 
 
 /**************************************************************************/
@@ -55,6 +56,13 @@
  *
  * F: The attribute may be queried using an NV_CTRL_TARGET_TYPE_FRAMELOCK
  *    target type via XNVCTRLQueryTargetAttribute().
+ *
+ * X: When Xinerama is enabled, this attribute is kept consistent across
+ *    all Physical X Screens;  Assignment of this attribute will be
+ *    broadcast by the NVIDIA X Driver to all X Screens.
+ *
+ * V: The attribute may be queried using an NV_CTRL_TARGET_TYPE_VCSC
+ *    target type via XNVCTRLQueryTargetXXXAttribute().
  * 
  * NOTE: Unless mentioned otherwise, all attributes may be queried using
  *       an NV_CTRL_TARGET_TYPE_X_SCREEN target type via 
@@ -93,7 +101,7 @@
  *    ratio correct)
  */
 
-#define NV_CTRL_FLATPANEL_SCALING                               2  /* RWD */
+#define NV_CTRL_FLATPANEL_SCALING                               2  /* RWDG */
 #define NV_CTRL_FLATPANEL_SCALING_DEFAULT                       0
 #define NV_CTRL_FLATPANEL_SCALING_NATIVE                        1
 #define NV_CTRL_FLATPANEL_SCALING_SCALED                        2
@@ -110,7 +118,7 @@
  * 2: disabled (the driver will never dither)
  */
 
-#define NV_CTRL_FLATPANEL_DITHERING                             3  /* RWD */
+#define NV_CTRL_FLATPANEL_DITHERING                             3  /* RWDG */
 #define NV_CTRL_FLATPANEL_DITHERING_DEFAULT                     0
 #define NV_CTRL_FLATPANEL_DITHERING_ENABLED                     1
 #define NV_CTRL_FLATPANEL_DITHERING_DISABLED                    2
@@ -121,7 +129,7 @@
  * specified display device.
  */
 
-#define NV_CTRL_DIGITAL_VIBRANCE                                4  /* RWD */
+#define NV_CTRL_DIGITAL_VIBRANCE                                4  /* RWDG */
 
 
 /*
@@ -129,7 +137,7 @@
  * driving the specified X screen is connected to the computer.
  */
 
-#define NV_CTRL_BUS_TYPE                                        5  /* R-- */
+#define NV_CTRL_BUS_TYPE                                        5  /* R--G */
 #define NV_CTRL_BUS_TYPE_AGP                                    0
 #define NV_CTRL_BUS_TYPE_PCI                                    1
 #define NV_CTRL_BUS_TYPE_PCI_EXPRESS                            2
@@ -137,11 +145,16 @@
 
 
 /*
- * NV_CTRL_VIDEO_RAM - returns the amount of video ram on the GPU
- * driving the specified X screen.
+ * NV_CTRL_VIDEO_RAM - returns the total amount of memory available
+ * to the specified GPU (or the GPU driving the specified X
+ * screen).  Note: if the GPU supports TurboCache(TM), the value
+ * reported may exceed the amount of video memory installed on the
+ * GPU.  The value reported for integrated GPUs may likewise exceed
+ * the amount of dedicated system memory set aside by the system
+ * BIOS for use by the integrated GPU.
  */
 
-#define NV_CTRL_VIDEO_RAM                                       6  /* R-- */
+#define NV_CTRL_VIDEO_RAM                                       6  /* R--G */
 
 
 /*
@@ -149,7 +162,7 @@
  * driving the specified X screen.
  */
 
-#define NV_CTRL_IRQ                                             7  /* R-- */
+#define NV_CTRL_IRQ                                             7  /* R--G */
 
 
 /*
@@ -157,7 +170,7 @@
  * the X server is running.
  */
 
-#define NV_CTRL_OPERATING_SYSTEM                                8  /* R-- */
+#define NV_CTRL_OPERATING_SYSTEM                                8  /* R--G */
 #define NV_CTRL_OPERATING_SYSTEM_LINUX                          0
 #define NV_CTRL_OPERATING_SYSTEM_FREEBSD                        1
 #define NV_CTRL_OPERATING_SYSTEM_SUNOS                          2
@@ -169,7 +182,7 @@
  * after this setting is applied.
  */
 
-#define NV_CTRL_SYNC_TO_VBLANK                                  9  /* RW- */
+#define NV_CTRL_SYNC_TO_VBLANK                                  9  /* RW-X */
 #define NV_CTRL_SYNC_TO_VBLANK_OFF                              0
 #define NV_CTRL_SYNC_TO_VBLANK_ON                               1
 
@@ -182,7 +195,7 @@
  * clients that are started after this setting is applied.
  */
 
-#define NV_CTRL_LOG_ANISO                                       10 /* RW- */
+#define NV_CTRL_LOG_ANISO                                       10 /* RW-X */
 
 
 /*
@@ -203,7 +216,7 @@
  * after this setting is applied.
  */
 
-#define NV_CTRL_FSAA_MODE                                       11 /* RW- */
+#define NV_CTRL_FSAA_MODE                                       11 /* RW-X */
 #define NV_CTRL_FSAA_MODE_NONE                                  0
 #define NV_CTRL_FSAA_MODE_2x                                    1
 #define NV_CTRL_FSAA_MODE_2x_5t                                 2
@@ -223,7 +236,7 @@
  * started after this setting is applied.
  */
 
-#define NV_CTRL_TEXTURE_SHARPEN                                 12 /* RW- */
+#define NV_CTRL_TEXTURE_SHARPEN                                 12 /* RW-X */
 #define NV_CTRL_TEXTURE_SHARPEN_OFF                             0
 #define NV_CTRL_TEXTURE_SHARPEN_ON                              1
 
@@ -566,7 +579,7 @@
  * after this setting is applied.
  */
 
-#define NV_CTRL_FORCE_GENERIC_CPU                               37 /* RW- */
+#define NV_CTRL_FORCE_GENERIC_CPU                               37 /* RW-X */
 #define NV_CTRL_FORCE_GENERIC_CPU_DISABLE                        0
 #define NV_CTRL_FORCE_GENERIC_CPU_ENABLE                         1
 
@@ -580,7 +593,7 @@
  * applied.
  */
 
-#define NV_CTRL_OPENGL_AA_LINE_GAMMA                            38 /* RW- */
+#define NV_CTRL_OPENGL_AA_LINE_GAMMA                            38 /* RW-X */
 #define NV_CTRL_OPENGL_AA_LINE_GAMMA_DISABLE                     0
 #define NV_CTRL_OPENGL_AA_LINE_GAMMA_ENABLE                      1
 
@@ -606,7 +619,7 @@
  * can this be enabled dynamically?
  */
 
-#define NV_CTRL_FLIPPING_ALLOWED                                40 /* RW- */
+#define NV_CTRL_FLIPPING_ALLOWED                                40 /* RW-X */
 #define NV_CTRL_FLIPPING_ALLOWED_FALSE                           0
 #define NV_CTRL_FLIPPING_ALLOWED_TRUE                            1
 
@@ -631,7 +644,7 @@
  * GPUS, or incorrect texture clamping in certain applications.
  */
 
-#define NV_CTRL_TEXTURE_CLAMPING                                42  /* RW- */
+#define NV_CTRL_TEXTURE_CLAMPING                                42  /* RW-X */
 #define NV_CTRL_TEXTURE_CLAMPING_EDGE                            0
 #define NV_CTRL_TEXTURE_CLAMPING_SPEC                            1
 
@@ -658,7 +671,7 @@
  * NV_CTRL_FSAA_MODE
  */
 
-#define NV_CTRL_FSAA_APPLICATION_CONTROLLED                     50  /* RW- */
+#define NV_CTRL_FSAA_APPLICATION_CONTROLLED                     50  /* RW-X */
 #define NV_CTRL_FSAA_APPLICATION_CONTROLLED_ENABLED              1
 #define NV_CTRL_FSAA_APPLICATION_CONTROLLED_DISABLED             0
 
@@ -670,7 +683,7 @@
  * NV_CTRL_LOG_ANISO
  */
 
-#define NV_CTRL_LOG_ANISO_APPLICATION_CONTROLLED                51  /* RW- */
+#define NV_CTRL_LOG_ANISO_APPLICATION_CONTROLLED                51  /* RW-X */
 #define NV_CTRL_LOG_ANISO_APPLICATION_CONTROLLED_ENABLED         1
 #define NV_CTRL_LOG_ANISO_APPLICATION_CONTROLLED_DISABLED        0
 
@@ -682,7 +695,7 @@
  * newer.
  */
 
-#define NV_CTRL_IMAGE_SHARPENING                                52  /* RWD */
+#define NV_CTRL_IMAGE_SHARPENING                                52  /* RWDG */
 
 
 /*
@@ -690,7 +703,7 @@
  * display device.
  */
 
-#define NV_CTRL_TV_OVERSCAN                                     53  /* RWD */
+#define NV_CTRL_TV_OVERSCAN                                     53  /* RWDG */
 
 
 /*
@@ -698,7 +711,7 @@
  * the specified display device.
  */
 
-#define NV_CTRL_TV_FLICKER_FILTER                               54  /* RWD */
+#define NV_CTRL_TV_FLICKER_FILTER                               54  /* RWDG */
 
 
 /*
@@ -706,7 +719,7 @@
  * specified display device.
  */
 
-#define NV_CTRL_TV_BRIGHTNESS                                   55  /* RWD */
+#define NV_CTRL_TV_BRIGHTNESS                                   55  /* RWDG */
 
 
 /*
@@ -714,7 +727,7 @@
  * device.
  */
 
-#define NV_CTRL_TV_HUE                                          56  /* RWD */
+#define NV_CTRL_TV_HUE                                          56  /* RWDG */
 
 
 /*
@@ -722,7 +735,7 @@
  * display device.
  */
 
-#define NV_CTRL_TV_CONTRAST                                     57  /* RWD */
+#define NV_CTRL_TV_CONTRAST                                     57  /* RWDG */
 
 
 /*
@@ -730,7 +743,7 @@
  * specified display device.
  */
 
-#define NV_CTRL_TV_SATURATION                                   58  /* RWD */
+#define NV_CTRL_TV_SATURATION                                   58  /* RWDG */
 
 
 /*
@@ -740,7 +753,7 @@
  * the TV attributes be queried to retrieve their new values.
  */
 
-#define NV_CTRL_TV_RESET_SETTINGS                               59  /* -WD */
+#define NV_CTRL_TV_RESET_SETTINGS                               59  /* -WDG */
 
 
 /*
@@ -748,7 +761,7 @@
  * of the GPU driving the X screen.
  */
 
-#define NV_CTRL_GPU_CORE_TEMPERATURE                            60  /* R-- */
+#define NV_CTRL_GPU_CORE_TEMPERATURE                            60  /* R--G */
 
 
 /*
@@ -761,9 +774,9 @@
  * GPU is throttled to prevent overheating.
  */
 
-#define NV_CTRL_GPU_CORE_THRESHOLD                              61  /* R-- */
-#define NV_CTRL_GPU_DEFAULT_CORE_THRESHOLD                      62  /* R-- */
-#define NV_CTRL_GPU_MAX_CORE_THRESHOLD                          63  /* R-- */
+#define NV_CTRL_GPU_CORE_THRESHOLD                              61  /* R--G */
+#define NV_CTRL_GPU_DEFAULT_CORE_THRESHOLD                      62  /* R--G */
+#define NV_CTRL_GPU_MAX_CORE_THRESHOLD                          63  /* R--G */
 
 
 /*
@@ -771,7 +784,7 @@
  * immediate neighbourhood of the GPU driving the X screen.
  */
 
-#define NV_CTRL_AMBIENT_TEMPERATURE                             64  /* R-- */
+#define NV_CTRL_AMBIENT_TEMPERATURE                             64  /* R--G */
 
 
 /*
@@ -952,16 +965,16 @@
 #define NV_CTRL_GVO_VIDEO_FORMAT_1080PSF_30_00_SMPTE274         26
 #define NV_CTRL_GVO_VIDEO_FORMAT_1080PSF_24_00_SMPTE274         27
 #define NV_CTRL_GVO_VIDEO_FORMAT_1080PSF_23_98_SMPTE274         28
-#define NV_CTRL_GVO_VIDEO_FORMAT_1080P_30_00_SMPTE372           29
-#define NV_CTRL_GVO_VIDEO_FORMAT_1080P_29_97_SMPTE372           30
-#define NV_CTRL_GVO_VIDEO_FORMAT_1080I_30_00_SMPTE372           31
-#define NV_CTRL_GVO_VIDEO_FORMAT_1080I_29_97_SMPTE372           32
-#define NV_CTRL_GVO_VIDEO_FORMAT_1080P_25_00_SMPTE372           33
-#define NV_CTRL_GVO_VIDEO_FORMAT_1080I_25_00_SMPTE372           34
-#define NV_CTRL_GVO_VIDEO_FORMAT_1080P_24_00_SMPTE372           35
-#define NV_CTRL_GVO_VIDEO_FORMAT_1080P_23_98_SMPTE372           36
-#define NV_CTRL_GVO_VIDEO_FORMAT_1080I_24_00_SMPTE372           37
-#define NV_CTRL_GVO_VIDEO_FORMAT_1080I_23_98_SMPTE372           38
+#define NV_CTRL_GVO_VIDEO_FORMAT_2048P_30_00_SMPTE372           29
+#define NV_CTRL_GVO_VIDEO_FORMAT_2048P_29_97_SMPTE372           30
+#define NV_CTRL_GVO_VIDEO_FORMAT_2048I_60_00_SMPTE372           31
+#define NV_CTRL_GVO_VIDEO_FORMAT_2048I_59_94_SMPTE372           32
+#define NV_CTRL_GVO_VIDEO_FORMAT_2048P_25_00_SMPTE372           33
+#define NV_CTRL_GVO_VIDEO_FORMAT_2048I_50_00_SMPTE372           34
+#define NV_CTRL_GVO_VIDEO_FORMAT_2048P_24_00_SMPTE372           35
+#define NV_CTRL_GVO_VIDEO_FORMAT_2048P_23_98_SMPTE372           36
+#define NV_CTRL_GVO_VIDEO_FORMAT_2048I_48_00_SMPTE372           37
+#define NV_CTRL_GVO_VIDEO_FORMAT_2048I_47_96_SMPTE372           38
 
 /*
  * NV_CTRL_GVO_INPUT_VIDEO_FORMAT - indicates the input video format
@@ -1186,7 +1199,7 @@
  * has been enabled in the X server (by the user).
  */
 
-#define NV_CTRL_GPU_OVERCLOCKING_STATE                          88  /* RW- */
+#define NV_CTRL_GPU_OVERCLOCKING_STATE                          88  /* RW-G */
 #define NV_CTRL_GPU_OVERCLOCKING_STATE_NONE                     0
 #define NV_CTRL_GPU_OVERCLOCKING_STATE_MANUAL                   1
 
@@ -1205,8 +1218,8 @@
  * attribute after the set to determine success or failure.
  */
 
-#define NV_CTRL_GPU_2D_CLOCK_FREQS                              89  /* RW- */
-#define NV_CTRL_GPU_3D_CLOCK_FREQS                              90  /* RW- */
+#define NV_CTRL_GPU_2D_CLOCK_FREQS                              89  /* RW-G */
+#define NV_CTRL_GPU_3D_CLOCK_FREQS                              90  /* RW-G */
 
 
 /*
@@ -1214,8 +1227,8 @@
  * and GPU core clocks of the device driving the X screen.
  */
 
-#define NV_CTRL_GPU_DEFAULT_2D_CLOCK_FREQS                      91  /* R-- */
-#define NV_CTRL_GPU_DEFAULT_3D_CLOCK_FREQS                      92  /* R-- */
+#define NV_CTRL_GPU_DEFAULT_2D_CLOCK_FREQS                      91  /* R--G */
+#define NV_CTRL_GPU_DEFAULT_3D_CLOCK_FREQS                      92  /* R--G */
 
 
 /*
@@ -1223,7 +1236,7 @@
  * clocks of the graphics device driving the X screen.
  */
 
-#define NV_CTRL_GPU_CURRENT_CLOCK_FREQS                         93  /* R-- */
+#define NV_CTRL_GPU_CURRENT_CLOCK_FREQS                         93  /* R--G */
 
 
 /*
@@ -1237,7 +1250,7 @@
  * optimal clock detection process is unavailable.
  */
 
-#define NV_CTRL_GPU_OPTIMAL_CLOCK_FREQS                         94  /* R-- */
+#define NV_CTRL_GPU_OPTIMAL_CLOCK_FREQS                         94  /* R--G */
 #define NV_CTRL_GPU_OPTIMAL_CLOCK_FREQS_INVALID                  0
 
 
@@ -1255,7 +1268,7 @@
  * optimal clock detection process is unavailable.
  */
 
-#define NV_CTRL_GPU_OPTIMAL_CLOCK_FREQS_DETECTION               95  /* -W- */
+#define NV_CTRL_GPU_OPTIMAL_CLOCK_FREQS_DETECTION               95  /* -W-G */
 #define NV_CTRL_GPU_OPTIMAL_CLOCK_FREQS_DETECTION_START          0
 #define NV_CTRL_GPU_OPTIMAL_CLOCK_FREQS_DETECTION_CANCEL         1
 
@@ -1270,7 +1283,7 @@
  * optimal clock detection process is unavailable.
  */
 
-#define NV_CTRL_GPU_OPTIMAL_CLOCK_FREQS_DETECTION_STATE         96  /* R-- */
+#define NV_CTRL_GPU_OPTIMAL_CLOCK_FREQS_DETECTION_STATE         96  /* R--G */
 #define NV_CTRL_GPU_OPTIMAL_CLOCK_FREQS_DETECTION_STATE_IDLE     0
 #define NV_CTRL_GPU_OPTIMAL_CLOCK_FREQS_DETECTION_STATE_BUSY     1
 
@@ -2543,7 +2556,6 @@
  * stereo drawable is visible.
  */
 
-
 #define NV_CTRL_FORCE_STEREO                                    220 /* RW- */
 #define NV_CTRL_FORCE_STEREO_FALSE                              0
 #define NV_CTRL_FORCE_STEREO_TRUE                               1
@@ -2556,7 +2568,7 @@
  * after this setting is applied.
  */
 
-#define NV_CTRL_IMAGE_SETTINGS                                  221 /* RW- */
+#define NV_CTRL_IMAGE_SETTINGS                                  221 /* RW-X */
 #define NV_CTRL_IMAGE_SETTINGS_HIGH_QUALITY                     0
 #define NV_CTRL_IMAGE_SETTINGS_QUALITY                          1
 #define NV_CTRL_IMAGE_SETTINGS_PERFORMANCE                      2
@@ -2567,8 +2579,7 @@
  * NV_CTRL_XINERAMA - return whether xinerama is enabled
  */
 
-
-#define NV_CTRL_XINERAMA                                        222 /* RW- */
+#define NV_CTRL_XINERAMA                                        222 /* R--G */
 #define NV_CTRL_XINERAMA_OFF                                    0
 #define NV_CTRL_XINERAMA_ON                                     1
 
@@ -2589,19 +2600,19 @@
  * returns the width of the physical link.
  */
 
-#define NV_CTRL_BUS_RATE                                         224  /* R-- */
+#define NV_CTRL_BUS_RATE                                         224  /* R--G */
 
 /*
  * NV_CTRL_SHOW_SLI_HUD - when TRUE, OpenGL will draw information about the
  * current SLI mode.
  */
 
-#define NV_CTRL_SHOW_SLI_HUD                                     225  /* RW- */
+#define NV_CTRL_SHOW_SLI_HUD                                     225  /* RW-X */
 #define NV_CTRL_SHOW_SLI_HUD_FALSE                               0
 #define NV_CTRL_SHOW_SLI_HUD_TRUE                                1
 
 /*
- * NV_CTRL_XV_SYNC_TO_DISPLAY - this control is valid when twinview and 
+ * NV_CTRL_XV_SYNC_TO_DISPLAY - this control is valid when TwinView and 
  * XVideo Sync To VBlank are enabled.
  * It controls which display device will be synched to.
  */
@@ -2739,10 +2750,99 @@
  * specified display device.
  */
 
-#define NV_CTRL_CURRENT_SCANLINE                                 237 /* R-D */
+#define NV_CTRL_CURRENT_SCANLINE                                 237 /* R-DG */
 
 
-#define NV_CTRL_LAST_ATTRIBUTE NV_CTRL_CURRENT_SCANLINE
+/*
+ * NV_CTRL_INITIAL_PIXMAP_PLACEMENT - Controls where X pixmaps are initially
+ * created.
+ *
+ * NV_CTRL_INITIAL_PIXMAP_PLACEMENT_FORCE_SYSMEM causes to pixmaps to stay in
+ * system memory.
+ * NV_CTRL_INITIAL_PIXMAP_PLACEMENT_SYSMEM creates pixmaps in system memory
+ * initially, but allows them to migrate to video memory.
+ * NV_CTRL_INITIAL_PIXMAP_PLACEMENT_VIDMEM creates pixmaps in video memory
+ * when enough resources are available.
+ */
+
+#define NV_CTRL_INITIAL_PIXMAP_PLACEMENT                         238 /* RW- */
+#define NV_CTRL_INITIAL_PIXMAP_PLACEMENT_FORCE_SYSMEM            0
+#define NV_CTRL_INITIAL_PIXMAP_PLACEMENT_SYSMEM                  1
+#define NV_CTRL_INITIAL_PIXMAP_PLACEMENT_VIDMEM                  2
+
+
+/*
+ * NV_CTRL_PCI_BUS - Returns the PCI bus number the GPU is using.
+ */
+
+#define NV_CTRL_PCI_BUS                                          239 /* R--G */
+
+
+/*
+ * NV_CTRL_PCI_DEVICE - Returns the PCI device number the GPU is using.
+ */
+
+#define NV_CTRL_PCI_DEVICE                                       240 /* R--G */
+
+
+/*
+ * NV_CTRL_PCI_FUNCTION - Returns the PCI function number the GPU is using.
+ */
+
+#define NV_CTRL_PCI_FUNCTION                                     241 /* R--G */
+
+
+/*
+ * NV_CTRL_FRAMELOCK_FPGA_REVISION - Querys the FPGA revision of the
+ * Frame Lock device.
+ *
+ * This attribute must be queried through XNVCTRLQueryTargetAttribute()
+ * using a NV_CTRL_TARGET_TYPE_FRAMELOCK target.
+ */
+
+#define NV_CTRL_FRAMELOCK_FPGA_REVISION                          242 /* R--F */
+
+
+/*
+ * NV_CTRL_MAX_SCREEN_{WIDTH,HEIGHT} - the maximum allowable size, in
+ * pixels, of either the specified X screen (if the target_type of the
+ * query is an X screen), or any X screen on the specified GPU (if the
+ * target_type of the query is a GPU).
+ */
+
+#define NV_CTRL_MAX_SCREEN_WIDTH                                 243 /* R--G */
+#define NV_CTRL_MAX_SCREEN_HEIGHT                                244 /* R--G */
+
+
+/*
+ * NV_CTRL_MAX_DISPLAYS - the maximum number of display devices that
+ * can be driven simultaneously on a GPU (e.g., that can be used in a
+ * MetaMode at once).  Note that this does not indicate the maximum
+ * number of bits that can be set in NV_CTRL_CONNECTED_DISPLAYS,
+ * because more display devices can be connected than are actively in
+ * use.
+ */
+
+#define NV_CTRL_MAX_DISPLAYS                                     245 /* R--G */
+
+
+/*
+ * NV_CTRL_DYNAMIC_TWINVIEW - Returns whether or not the screen
+ * supports dynamic twinview.
+ */
+
+#define NV_CTRL_DYNAMIC_TWINVIEW                                 246 /* R-- */
+
+
+/*
+ * NV_CTRL_MULTIGPU_DISPLAY_OWNER - Returns the GPU ID of the GPU
+ * that has the display device(s) used for showing the X Screen.
+ */
+
+#define NV_CTRL_MULTIGPU_DISPLAY_OWNER                           247 /* R-- */
+
+
+#define NV_CTRL_LAST_ATTRIBUTE NV_CTRL_MULTIGPU_DISPLAY_OWNER
 
 
 /**************************************************************************/
@@ -2781,7 +2881,7 @@
  * which the specified X screen is running.
  */
 
-#define NV_CTRL_STRING_VBIOS_VERSION                            1  /* R-- */
+#define NV_CTRL_STRING_VBIOS_VERSION                            1  /* R--G */
 
 
 /*
@@ -2789,7 +2889,7 @@
  * NVIDIA driver version number for the NVIDIA X driver in use.
  */
 
-#define NV_CTRL_STRING_NVIDIA_DRIVER_VERSION                    3  /* R-- */
+#define NV_CTRL_STRING_NVIDIA_DRIVER_VERSION                    3  /* R--G */
 
 
 /*
@@ -2808,7 +2908,7 @@
  * specified display device; only valid if the display device is a TV.
  */
 
-#define NV_CTRL_STRING_TV_ENCODER_NAME                          5  /* R-D */
+#define NV_CTRL_STRING_TV_ENCODER_NAME                          5  /* R-DG */
 
 
 /* NV_CTRL_STRING_DDCCI_MISC_TRANSMIT_DISPLAY_DESCRIPTOR -
@@ -2841,35 +2941,44 @@
 
 
 /* 
- * NV_CTRL_STRING_CURRENT_MODELINE - Return the modeline currently
+ * NV_CTRL_STRING_CURRENT_MODELINE - Return the ModeLine currently
  * being used by the specified display device.
  *
  * This attribute may be queried through XNVCTRLQueryTargetStringAttribute()
- * using a NV_CTRL_TARGET_TYPE_GPU or NV_CTRL_TARGET_TYPE_X_SCREEN target.
+ * using an NV_CTRL_TARGET_TYPE_GPU or NV_CTRL_TARGET_TYPE_X_SCREEN target.
+ *
+ * The ModeLine string may be prepended with a comma-separated list of
+ * "token=value" pairs, separated from the ModeLine string by "::".
+ * This "token=value" syntax is the same as that used in
+ * NV_CTRL_BINARY_DATA_MODELINES
  */
 
 #define NV_CTRL_STRING_CURRENT_MODELINE                         9   /* R-DG */
 
 
 /* 
- * NV_CTRL_STRING_ADD_MODELINE - Adds a modeline to the specified
- * display device.  The modeline is not added if validation fails.
+ * NV_CTRL_STRING_ADD_MODELINE - Adds a ModeLine to the specified
+ * display device.  The ModeLine is not added if validation fails.
  *
- * This attribute may be queried through XNVCTRLQueryTargetStringAttribute()
- * using a NV_CTRL_TARGET_TYPE_GPU or NV_CTRL_TARGET_TYPE_X_SCREEN target.
+ * The ModeLine string should have the same syntax as a ModeLine in
+ * the X configuration file; e.g.,
+ *
+ * "1600x1200"  229.5  1600 1664 1856 2160  1200 1201 1204 1250  +HSync +VSync
  */
 
 #define NV_CTRL_STRING_ADD_MODELINE                            10   /* -WDG */
 
 
 /*
- * NV_CTRL_STRING_DELETE_MODLEINE - Deletes an existing modeline
+ * NV_CTRL_STRING_DELETE_MODELINE - Deletes an existing ModeLine
  * from the specified display device.  The currently selected
- * modeline cannot be deleted.  (This also means you cannot delete
- * the last modeline.)
+ * ModeLine cannot be deleted.  (This also means you cannot delete
+ * the last ModeLine.)
  *
- * This attribute may be queried through XNVCTRLQueryTargetStringAttribute()
- * using a NV_CTRL_TARGET_TYPE_GPU or NV_CTRL_TARGET_TYPE_X_SCREEN target.
+ * The ModeLine string should have the same syntax as a ModeLine in
+ * the X configuration file; e.g.,
+ *
+ * "1600x1200"  229.5  1600 1664 1856 2160  1200 1201 1204 1250  +HSync +VSync
  */
 
 #define NV_CTRL_STRING_DELETE_MODELINE                         11   /* -WDG */
@@ -2877,36 +2986,244 @@
 
 /* 
  * NV_CTRL_STRING_CURRENT_METAMODE - Returns the metamode currently
- * being used by the specified X screen.
+ * being used by the specified X screen.  The MetaMode string has the
+ * same syntax as the MetaMode X configuration option, as documented
+ * in the NVIDIA driver README.
+ *
+ * The returned string may be prepended with a comma-separated list of
+ * "token=value" pairs, separated from the MetaMode string by "::".
+ * This "token=value" syntax is the same as that used in
+ * NV_CTRL_BINARY_DATA_METAMODES.
  */
 
 #define NV_CTRL_STRING_CURRENT_METAMODE                        12   /* R--- */
 
 
 /* 
- * NV_CTRL_STRING_ADD_METAMODE - Adds a metamode to the specified
- * X Screen (or GPU).  All modelines referenced in the metamode
- * must already exist for each display device (as returned by the
- * NV_CTRL_BINARY_DATA_MODELINES attribute)
+ * NV_CTRL_STRING_ADD_METAMODE - Adds a MetaMode to the specified
+ * X Screen.
  *
- * TwinView must be enabled on the X Screen/GPU to access this attribute.
+ * It is recommended to not use this attribute, but instead use
+ * NV_CTRL_STRING_OPERATION_ADD_METAMODE.
  */
 
 #define NV_CTRL_STRING_ADD_METAMODE                            13   /* -W-- */
 
 
 /*
- * NV_CTRL_STRING_DELETE_METAMODE - Deletes an existing metamode
- * from the specified X Screen (or GPU).  The currently selected
- * metamode cannot be deleted.  (This also means you cannot delete
- * the last metamode.)
- *
- * TwinView must be enabled on the X Screen/GPU to access this attribute.
+ * NV_CTRL_STRING_DELETE_METAMODE - Deletes an existing MetaMode from
+ * the specified X Screen.  The currently selected MetaMode cannot be
+ * deleted.  (This also means you cannot delete the last MetaMode).
+ * The MetaMode string should have the same syntax as the MetaMode X
+ * configuration option, as documented in the NVIDIA driver README.
  */
 
 #define NV_CTRL_STRING_DELETE_METAMODE                         14   /* -WD-- */
 
-#define NV_CTRL_STRING_LAST_ATTRIBUTE NV_CTRL_STRING_DELETE_METAMODE
+
+/*
+ * NV_CTRL_STRING_VCSC_PRODUCT_NAME - Querys the product name of the
+ * VCSC device.
+ *
+ * This attribute must be queried through XNVCTRLQueryTargetStringAttribute()
+ * using a NV_CTRL_TARGET_TYPE_VCSC target.
+ */
+
+#define NV_CTRL_STRING_VCSC_PRODUCT_NAME                       15   /* R---V */
+
+
+/*
+ * NV_CTRL_STRING_VCSC_PRODUCT_ID - Querys the product ID of the VCSC device.
+ *
+ * This attribute must be queried through XNVCTRLQueryTargetStringAttribute()
+ * using a NV_CTRL_TARGET_TYPE_VCSC target.
+ */
+
+#define NV_CTRL_STRING_VCSC_PRODUCT_ID                         16   /* R---V */
+
+
+/*
+ * NV_CTRL_STRING_VCSC_SERIAL_NUMBER - Querys the unique serial number
+ * of the VCSC device.
+ *
+ * This attribute must be queried through XNVCTRLQueryTargetStringAttribute()
+ * using a NV_CTRL_TARGET_TYPE_VCSC target.
+ */
+
+#define NV_CTRL_STRING_VCSC_SERIAL_NUMBER                      17   /* R---V */
+
+
+/*
+ * NV_CTRL_STRING_VCSC_BUILD_DATE - Querys the date of the VCSC device.
+ * the returned string is in the following format: "Week.Year"
+ *
+ * This attribute must be queried through XNVCTRLQueryTargetStringAttribute()
+ * using a NV_CTRL_TARGET_TYPE_VCSC target.
+ */
+
+#define NV_CTRL_STRING_VCSC_BUILD_DATE                         18   /* R---V */
+
+
+/*
+ * NV_CTRL_STRING_VCSC_FIRMWARE_VERSION - Querys the firmware version
+ * of the VCSC device.
+ *
+ * This attribute must be queried through XNVCTRLQueryTargetStringAttribute()
+ * using a NV_CTRL_TARGET_TYPE_VCSC target.
+ */
+
+#define NV_CTRL_STRING_VCSC_FIRMWARE_VERSION                   19   /* R---V */
+
+
+/*
+ * NV_CTRL_STRING_VCSC_FIRMWARE_REVISION - Querys the firmware revision
+ * of the VCSC device.
+ *
+ * This attribute must be queried through XNVCTRLQueryTargetStringAttribute()
+ * using a NV_CTRL_TARGET_TYPE_VCSC target.
+ */
+
+#define NV_CTRL_STRING_VCSC_FIRMWARE_REVISION                  20   /* R---V */
+
+
+/*
+ * NV_CTRL_STRING_VCSC_HARDWARE_VERSION - Querys the hardware version
+ * of the VCSC device.
+ *
+ * This attribute must be queried through XNVCTRLQueryTargetStringAttribute()
+ * using a NV_CTRL_TARGET_TYPE_VCSC target.
+ */
+
+#define NV_CTRL_STRING_VCSC_HARDWARE_VERSION                   21   /* R---V */
+
+
+/*
+ * NV_CTRL_STRING_VCSC_HARDWARE_REVISION - Querys the hardware revision
+ * of the VCSC device.
+ *
+ * This attribute must be queried through XNVCTRLQueryTargetStringAttribute()
+ * using a NV_CTRL_TARGET_TYPE_VCSC target.
+ */
+
+#define NV_CTRL_STRING_VCSC_HARDWARE_REVISION                  22   /* R---V */
+
+
+/* 
+ * NV_CTRL_STRING_MOVE_METAMODE - Moves a MetaMode to the specified
+ * index location.  The MetaMode must already exist in the X Screen's
+ * list of MetaModes (as returned by the NV_CTRL_BINARY_DATA_METAMODES
+ * attribute).  If the index is larger than the number of MetaModes in
+ * the list, the MetaMode is moved to the end of the list.  The
+ * MetaMode string should have the same syntax as the MetaMode X
+ * configuration option, as documented in the NVIDIA driver README.
+
+ * The MetaMode string must be prepended with a comma-separated list
+ * of "token=value" pairs, separated from the MetaMode string by "::".
+ * Currently, the only valid token is "index", which indicates where
+ * in the MetaMode list the MetaMode should be moved to.
+ *
+ * Other tokens may be added in the future.
+ *
+ * E.g.,
+ *  "index=5 :: CRT-0: 1024x768 @1024x768 +0+0"
+ */
+
+#define NV_CTRL_STRING_MOVE_METAMODE                           23   /* -W-- */
+
+
+
+/*
+ * NV_CTRL_STRING_VALID_HORIZ_SYNC_RANGES - returns the valid
+ * horizontal sync ranges used to perform mode validation for the
+ * specified display device.  The ranges are in the same format as the
+ * "HorizSync" X config option:
+ *
+ *   "horizsync-range may be a comma separated list of either discrete
+ *   values or ranges of values.  A range of values is two values
+ *   separated by a dash."
+ *
+ * The values are in kHz.
+ *
+ * Additionally, the string may be prepended with a comma-separated
+ * list of "token=value" pairs, separated from the HorizSync string by
+ * "::".  Valid tokens:
+ *
+ *    Token     Value
+ *   "source"  "edid"     - HorizSync is from the display device's EDID
+ *             "xconfig"  - HorizSync is from the "HorizSync" entry in
+ *                          the Monitor section of the X config file
+ *             "option"   - HorizSync is from the "HorizSync" NVIDIA X
+ *                          config option
+ *             "twinview" - HorizSync is from the "SecondMonitorHorizSync"
+ *                          NVIDIA X config option
+ *             "builtin"  - HorizSync is from NVIDIA X driver builtin
+ *                          default values
+ *
+ * Additional tokens and/or values may be added in the future.
+ *
+ * Example: "source=edid :: 30.000-62.000"
+ */
+
+#define NV_CTRL_STRING_VALID_HORIZ_SYNC_RANGES                 24   /* R-DG */
+
+
+/*
+ * NV_CTRL_STRING_VALID_VERT_REFRESH_RANGES - returns the valid
+ * vertical refresh ranges used to perform mode validation for the
+ * specified display device.  The ranges are in the same format as the
+ * "VertRefresh" X config option:
+ *
+ *   "vertrefresh-range may be a comma separated list of either discrete
+ *    values or ranges of values.  A range of values is two values
+ *    separated by a dash."
+ *
+ * The values are in Hz.
+ *
+ * Additionally, the string may be prepended with a comma-separated
+ * list of "token=value" pairs, separated from the VertRefresh string by
+ * "::".  Valid tokens:
+ *
+ *    Token     Value
+ *   "source"  "edid"     - VertRefresh is from the display device's EDID
+ *             "xconfig"  - VertRefresh is from the "VertRefresh" entry in
+ *                          the Monitor section of the X config file
+ *             "option"   - VertRefresh is from the "VertRefresh" NVIDIA X
+ *                          config option
+ *             "twinview" - VertRefresh is from the "SecondMonitorVertRefresh"
+ *                          NVIDIA X config option
+ *             "builtin"  - VertRefresh is from NVIDIA X driver builtin
+ *                          default values
+ *
+ * Additional tokens and/or values may be added in the future.
+ *
+ * Example: "source=edid :: 50.000-75.000"
+ */
+
+#define NV_CTRL_STRING_VALID_VERT_REFRESH_RANGES               25   /* R-DG */
+
+
+/*
+ * NV_CTRL_STRING_XINERAMA_SCREEN_INFO - returns the physical X Screen's
+ * initial position and size (in absolute coordinates) within the Xinerama
+ * desktop as the "token=value" string:  "x=#, y=#, width=#, height=#"
+ *
+ * Querying this attribute returns FALSE if NV_CTRL_XINERAMA is not
+ * NV_CTRL_XINERAMA_ON.
+ */
+
+#define NV_CTRL_STRING_XINERAMA_SCREEN_INFO                    26   /* R--- */
+
+
+/*
+ * NV_CTRL_STRING_TWINVIEW_XINERAMA_INFO_ORDER - used to specify the
+ * order that display devices will be returned via Xinerama when
+ * TwinViewXineramaInfo is enabled.  Follows the same syntax as the
+ * TwinViewXineramaInfoOrder X config option.
+ */
+
+#define NV_CTRL_STRING_TWINVIEW_XINERAMA_INFO_ORDER            27   /* RW-- */
+
+#define NV_CTRL_STRING_LAST_ATTRIBUTE NV_CTRL_STRING_TWINVIEW_XINERAMA_INFO_ORDER
 
 
 /**************************************************************************/
@@ -2939,13 +3256,43 @@
 
 /* 
  * NV_CTRL_BINARY_DATA_MODELINES - Returns a display device's supported
- * modelines.  Modelines are returned in a buffer, separated by a single
- * \0 and terminated by two consecuitive \0's like so:
+ * ModeLines.  ModeLines are returned in a buffer, separated by a single
+ * '\0' and terminated by two consecutive '\0' s like so:
  *
- *  "Modeline 1\0Modeline 2\0Modeline 3\0Last Modeline\0\0"
+ *  "ModeLine 1\0ModeLine 2\0ModeLine 3\0Last ModeLine\0\0"
  *
  * This attribute may be queried through XNVCTRLQueryTargetBinaryData()
  * using a NV_CTRL_TARGET_TYPE_GPU or NV_CTRL_TARGET_TYPE_X_SCREEN target.
+ *
+ * Each ModeLine string may be prepended with a comma-separated list
+ * of "token=value" pairs, separated from the ModeLine string with a
+ * "::".  Valid tokens:
+ *
+ *    Token    Value
+ *   "source" "xserver"    - the ModeLine is from the core X server
+ *            "xconfig"    - the ModeLine was specified in the X config file
+ *            "builtin"    - the NVIDIA driver provided this builtin ModeLine
+ *            "vesa"       - this is a VESA standard ModeLine
+ *            "edid"       - the ModeLine was in the display device's EDID
+ *            "nv-control" - the ModeLine was specified via NV-CONTROL
+ *            
+ *   "xconfig-name"        - for ModeLines that were specified in the X config
+ *                           file, this is the name the X config file
+ *                           gave for the ModeLine.
+ *
+ * Note that a ModeLine can have several sources; the "source" token
+ * can appear multiple times in the "token=value" pairs list.
+ * Additional source values may be specified in the future.
+ *
+ * Additional tokens may be added in the future, so it is recommended
+ * that any token parser processing the returned string from
+ * NV_CTRL_BINARY_DATA_MODELINES be implemented to gracefully ignore
+ * unrecognized tokens.
+ *
+ * E.g.,
+ *
+ * "source=xserver, source=vesa, source=edid :: "1024x768_70"  75.0  1024 1048 1184 1328  768 771 777 806  -HSync -VSync"
+ * "source=xconfig, xconfig-name=1600x1200_60.00 :: "1600x1200_60_0"  161.0  1600 1704 1880 2160  1200 1201 1204 1242  -HSync +VSync"
  */
 
 #define NV_CTRL_BINARY_DATA_MODELINES                           1   /* R-DG */
@@ -2953,10 +3300,47 @@
 
 /* 
  * NV_CTRL_BINARY_DATA_METAMODES - Returns an X Screen's supported
- * metamodes.  Metamodes are returned in a buffer separated by a single
- * \0 and terminated by two consecuitive \0's like so:
+ * MetaModes.  MetaModes are returned in a buffer separated by a
+ * single '\0' and terminated by two consecutive '\0' s like so:
  *
  *  "MetaMode 1\0MetaMode 2\0MetaMode 3\0Last MetaMode\0\0"
+ *
+ * The MetaMode string should have the same syntax as the MetaMode X
+ * configuration option, as documented in the NVIDIA driver README.
+
+ * Each MetaMode string may be prepended with a comma-separated list
+ * of "token=value" pairs, separated from the MetaMode string with
+ * "::".  Currently, valid tokens are:
+ *
+ *    Token        Value
+ *   "id"         <number>     - the id of this MetaMode; this is stored in
+ *                               the Vertical Refresh field, as viewed
+ *                               by the XRandR and XF86VidMode X *
+ *                               extensions.
+ *
+ *   "switchable" "yes"/"no"   - whether this MetaMode may be switched to via
+ *                               ctrl-alt-+/-; Implicit MetaModes (see
+ *                               the "IncludeImplicitMetaModes" X
+ *                               config option), for example, are not
+ *                               normally made available through
+ *                               ctrl-alt-+/-.
+ *
+ *   "source"     "xconfig"    - the MetaMode was specified in the X
+ *                               config file.
+ *                "implicit"   - the MetaMode was implicitly added; see the
+ *                               "IncludeImplicitMetaModes" X config option
+ *                               for details.
+ *                "nv-control" - the MetaMode was added via the NV-CONTROL X
+ *                               extension to the currently running X server.
+ *
+ * Additional tokens may be added in the future, so it is recommended
+ * that any token parser processing the returned string from
+ * NV_CTRL_BINARY_DATA_METAMODES be implemented to gracefully ignore
+ * unrecognized tokens.
+ *
+ * E.g.,
+ *
+ *   "id=50, switchable=yes, source=xconfig :: CRT-0: 1024x768 @1024x768 +0+0"
  */
 
 #define NV_CTRL_BINARY_DATA_METAMODES                           2   /* R-D- */
@@ -2978,6 +3362,7 @@
 
 #define NV_CTRL_BINARY_DATA_XSCREENS_USING_GPU                  3   /* R-DG */
 
+
 /*
  * NV_CTRL_BINARY_DATA_GPUS_USED_BY_XSCREEN - Returns the list of GPUs
  * currently in use by the given X screen.
@@ -2989,6 +3374,7 @@
  */
 
 #define NV_CTRL_BINARY_DATA_GPUS_USED_BY_XSCREEN                4   /* R--- */
+
 
 /*
  * NV_CTRL_BINARY_DATA_GPUS_USING_FRAMELOCK - Returns the list of
@@ -3006,8 +3392,153 @@
 
 #define NV_CTRL_BINARY_DATA_GPUS_USING_FRAMELOCK                5   /* R-DF */
 
+
+/*
+ * NV_CTRL_BINARY_DATA_DISPLAY_VIEWPORT - Returns the Display Device's
+ * viewport box into the given X Screen (in X Screen coordinates.)
+ *
+ * The format of the returned data is:
+ *
+ *     4       CARD32 Offset X
+ *     4       CARD32 Offset Y
+ *     4       CARD32 Width
+ *     4       CARD32 Height
+ */
+
+#define NV_CTRL_BINARY_DATA_DISPLAY_VIEWPORT                    6   /* R-DG */
+
+
 #define NV_CTRL_BINARY_DATA_LAST_ATTRIBUTE \
-    NV_CTRL_BINARY_DATA_GPUS_USING_FRAMELOCK
+    NV_CTRL_BINARY_DATA_DISPLAY_VIEWPORT
+
+
+/**************************************************************************/
+
+/*
+ * String Operation Attributes:
+ *
+ * These attributes are used with the XNVCTRLStringOperation()
+ * function; a string is specified as input, and a string is returned
+ * as output.
+ *
+ * Unless otherwise noted, all attributes can be operated upon using
+ * an NV_CTRL_TARGET_TYPE_X_SCREEN target.
+ */
+
+
+/*
+ * NV_CTRL_STRING_OPERATION_ADD_METAMODE - provide a MetaMode string
+ * as input, and returns a string containing comma-separated list of
+ * "token=value" pairs as output.  Currently, the only output token is
+ * "id", which indicates the id that was assigned to the MetaMode.
+ *
+ * All ModeLines referenced in the MetaMode must already exist for
+ * each display device (as returned by the
+ * NV_CTRL_BINARY_DATA_MODELINES attribute).
+ *
+ * The MetaMode string should have the same syntax as the MetaMode X
+ * configuration option, as documented in the NVIDIA driver README.
+ *
+ * The input string can optionally be prepended with a string of
+ * comma-separated "token=value" pairs, separated from the MetaMode
+ * string by "::".  Currently, the only valid token is "index" which
+ * indicates the insertion index for the MetaMode.
+ *
+ * E.g.,
+ *
+ * Input: "index=5 :: 1600x1200+0+0, 1600x1200+1600+0"
+ * Output: "id=58"
+ *
+ * which causes the MetaMode to be inserted at position 5 in the
+ * MetaMode list (all entries after 5 will be shifted down one slot in
+ * the list), and the X server's containing mode stores 58 as the
+ * VRefresh, so that the MetaMode can be uniquely identifed through
+ * XRandR and XF86VidMode.
+ */
+
+#define NV_CTRL_STRING_OPERATION_ADD_METAMODE                  0
+
+
+/*
+ * NV_CTRL_STRING_OPERATION_GTF_MODELINE - provide as input a string
+ * of comma-separated "token=value" pairs, and returns a ModeLine
+ * string, computed using the GTF formula using the parameters from
+ * the input string.  Valid tokens for the input string are "width",
+ * "height", and "refreshrate".
+ *
+ * E.g.,
+ *
+ * Input: "width=1600, height=1200, refreshrate=60"
+ * Output: "160.96  1600 1704 1880 2160  1200 1201 1204 1242  -HSync +VSync"
+ *
+ * This operation does not have any impact on any display device's
+ * modePool, and the ModeLine is not validated; it is simply intended
+ * for generating ModeLines.
+ */
+
+#define NV_CTRL_STRING_OPERATION_GTF_MODELINE                  1
+
+
+/*
+ * NV_CTRL_STRING_OPERATION_CVT_MODELINE - provide as input a string
+ * of comma-separated "token=value" pairs, and returns a ModeLine
+ * string, computed using the CVT formula using the parameters from
+ * the input string.  Valid tokens for the input string are "width",
+ * "height", "refreshrate", and "reduced-blanking".  The
+ * "reduced-blanking" argument can be "0" or "1", to enable or disable
+ * use of reduced blanking for the CVT formula.
+ *
+ * E.g.,
+ *
+ * Input: "width=1600, height=1200, refreshrate=60, reduced-blanking=1"
+ * Output: "130.25  1600 1648 1680 1760  1200 1203 1207 1235  +HSync -VSync"
+ *
+ * This operation does not have any impact on any display device's
+ * modePool, and the ModeLine is not validated; it is simply intended
+ * for generating ModeLines.
+ */
+
+#define NV_CTRL_STRING_OPERATION_CVT_MODELINE                  2
+
+
+/*
+ * NV_CTRL_STRING_OPERATION_BUILD_MODEPOOL - build a ModePool for the
+ * specified display device on the specified target (either an X
+ * screen or a GPU).  This is typically used to generate a ModePool
+ * for a display device on a GPU on which no X screens are present.
+ *
+ * Currently, a display device's ModePool is static for the life of
+ * the X server, so XNVCTRLStringOperation will return FALSE if
+ * requested to build a ModePool on a display device that already has
+ * a ModePool.
+ *
+ * The string input to BUILD_MODEPOOL may be NULL.  If it is not NULL,
+ * then it is interpreted as a double-semicolon ("::") separated list
+ * of "option=value" pairs, where the options and the syntax of their
+ * values are the X configuration options that impact the behavior of
+ * modePool construction; namely:
+ *
+ *    "ModeValidation"
+ *    "HorizSync"
+ *    "VertRefresh"
+ *    "FlatPanelProperties"
+ *    "TVStandard"
+ *    "ExactModeTimingsDVI"
+ *    "UseEdidFreqs"
+ *
+ * An example input string might look like:
+ *
+ *   "ModeValidation=NoVesaModes :: HorizSync=50-110 :: VertRefresh=50-150"
+ *
+ * This request currently does not return a string.
+ */
+
+#define NV_CTRL_STRING_OPERATION_BUILD_MODEPOOL                3 /* DG */
+
+
+#define NV_CTRL_STRING_OPERATION_LAST_ATTRIBUTE \
+    NV_CTRL_STRING_OPERATION_BUILD_MODEPOOL
+
 
 
 /**************************************************************************/
@@ -3049,6 +3580,9 @@
  * ATTRIBUTE_TYPE_GPU       - Attribute is valid for GPU target types.
  * ATTRIBUTE_TYPE_FRAMELOCK - Attribute is valid for Frame Lock target types.
  * ATTRIBUTE_TYPE_X_SCREEN  - Attribute is valid for X Screen target types.
+ * ATTRIBUTE_TYPE_XINERAMA  - Attribute will be made consistent for all
+ *                            X Screens when the Xinerama extension is enabled.
+ *
  *
  * See 'Key to Integer Attribute "Permissions"' at the top of this
  * file for a description of what these permission bits mean.
@@ -3067,6 +3601,8 @@
 #define ATTRIBUTE_TYPE_GPU        0x08
 #define ATTRIBUTE_TYPE_FRAMELOCK  0x10
 #define ATTRIBUTE_TYPE_X_SCREEN   0x20
+#define ATTRIBUTE_TYPE_XINERAMA   0x40
+#define ATTRIBUTE_TYPE_VCSC       0x80
 
 typedef struct _NVCTRLAttributeValidValues {
     int type;

@@ -172,9 +172,6 @@ struct _nvDisplayDataRec {
     GtkWidget *rate_text;
     guint      rate;
 
-    GtkWidget *timing_label;
-    GtkWidget *timing_hbox; /* LED */
-
     GtkWidget *stereo_label;
     GtkWidget *stereo_hbox; /* LED */
 };
@@ -186,6 +183,9 @@ struct _nvGPUDataRec {
     guint      server_mask;
     guint      clients_mask;
     gboolean   enabled; /* Sync enabled */
+
+    GtkWidget *timing_label;
+    GtkWidget *timing_hbox; /* LED */
 
     /* Signal Handler IDs */
     gulong     signal_ids[NUM_GPU_SIGNALS];
@@ -221,7 +221,10 @@ struct _nvFrameLockDataRec {
     GtkWidget *port1_label;
     GtkWidget *port1_hbox; /* IMAGE */
     guint      port1_ethernet_error;
-    
+
+    GtkWidget *revision_label;
+    GtkWidget *revision_text;
+
     GtkWidget *extra_info_hbox;
 };
 
@@ -1360,6 +1363,7 @@ static void do_select_gpu_data(nvGPUDataPtr data, gint select)
         return;
     }
     SELECT_WIDGET(data->label, select);
+    SELECT_WIDGET(data->timing_label, select);
 }
 
 
@@ -1380,7 +1384,6 @@ static void do_select_display_data(nvDisplayDataPtr data, gint select)
     SELECT_WIDGET(data->client_label, select);
     SELECT_WIDGET(data->rate_label, select);
     SELECT_WIDGET(data->rate_text, select);
-    SELECT_WIDGET(data->timing_label, select);
     SELECT_WIDGET(data->stereo_label, select);
 }
 
@@ -1924,6 +1927,15 @@ static nvListEntryPtr list_entry_new_with_framelock(nvFrameLockDataPtr data)
     gtk_box_pack_start(GTK_BOX(data->extra_info_hbox), data->delay_text,
                        FALSE, FALSE, 0);
 
+    vseparator = gtk_vseparator_new();
+    gtk_box_pack_start(GTK_BOX(data->extra_info_hbox), vseparator,
+                       FALSE, FALSE, 0);
+
+    gtk_box_pack_start(GTK_BOX(data->extra_info_hbox), data->revision_label,
+                       FALSE, FALSE, 0);
+    gtk_box_pack_start(GTK_BOX(data->extra_info_hbox), data->revision_text,
+                       FALSE, FALSE, 0);
+
     return entry;
 }
 
@@ -1948,6 +1960,21 @@ static nvListEntryPtr list_entry_new_with_gpu(nvGPUDataPtr data)
     
     gtk_box_pack_start(GTK_BOX(entry->data_hbox), data->label,
                        FALSE, FALSE, 5);
+
+    {
+        GtkWidget *frame;
+        GtkWidget *hbox;
+
+        hbox = gtk_hbox_new(FALSE, 5);
+
+        frame = gtk_frame_new(NULL);
+        gtk_box_pack_end(GTK_BOX(entry->data_hbox), frame, FALSE, FALSE, 0);
+        gtk_container_set_border_width(GTK_CONTAINER(hbox), 2);
+        gtk_container_add(GTK_CONTAINER(frame), hbox);
+
+        gtk_box_pack_start(GTK_BOX(hbox), data->timing_label, FALSE, FALSE, 0);
+        gtk_box_pack_start(GTK_BOX(hbox), data->timing_hbox, FALSE, FALSE, 0);
+    }
 
     return entry;
 }
@@ -2006,12 +2033,6 @@ static nvListEntryPtr list_entry_new_with_display(nvDisplayDataPtr data)
         vseparator = gtk_vseparator_new();
         gtk_box_pack_start(GTK_BOX(hbox), vseparator, FALSE, FALSE, 0);
 
-        gtk_box_pack_start(GTK_BOX(hbox), data->timing_label, FALSE, FALSE, 0);
-        gtk_box_pack_start(GTK_BOX(hbox), data->timing_hbox, FALSE, FALSE, 0);
-        
-        vseparator = gtk_vseparator_new();
-        gtk_box_pack_start(GTK_BOX(hbox), vseparator, FALSE, FALSE, 0);
-        
         gtk_box_pack_start(GTK_BOX(hbox), data->stereo_label, FALSE, FALSE, 0);
         gtk_box_pack_start(GTK_BOX(hbox), data->stereo_hbox, FALSE, FALSE, 0);
     }
@@ -3042,7 +3063,43 @@ void list_entry_update_framelock_status(CtkFramelock *ctk_framelock,
 void list_entry_update_gpu_status(CtkFramelock *ctk_framelock,
                                   nvListEntryPtr entry)
 {
-    /* Do nothing */
+    nvGPUDataPtr data = (nvGPUDataPtr)(entry->data);
+    gboolean framelock_enabled;
+    gboolean has_server;
+    gboolean has_client;
+    gboolean use_house_sync;
+    gint house = 0;
+
+    framelock_enabled = ctk_framelock->framelock_enabled;
+
+    use_house_sync = gtk_toggle_button_get_active
+        (GTK_TOGGLE_BUTTON(ctk_framelock->use_house_sync));
+
+    if (entry->parent && entry->parent->data) {
+        nvFrameLockDataPtr framelock_data =
+            (nvFrameLockDataPtr)(entry->parent->data);
+
+        NvCtrlGetAttribute(framelock_data->handle, NV_CTRL_FRAMELOCK_HOUSE_STATUS,
+                           &house);
+    }
+
+    has_client = data->clients_mask;
+    has_server = data->server_mask;
+
+    /* Check Timing Sync */
+    if (!framelock_enabled ||
+        (!has_server && !has_client) ||
+        (has_server && (use_house_sync || !house))) {
+        gtk_widget_set_sensitive(data->timing_label, FALSE);
+        update_image(data->timing_hbox, ctk_framelock->led_grey);
+    } else {
+        gint timing;
+        NvCtrlGetAttribute(data->handle, NV_CTRL_FRAMELOCK_TIMING, &timing);
+        gtk_widget_set_sensitive(data->timing_label, TRUE);
+        update_image(data->timing_hbox,
+                     timing ? ctk_framelock->led_green :
+                     ctk_framelock->led_red);
+    }
 }
 
 
@@ -3077,26 +3134,6 @@ void list_entry_update_display_status(CtkFramelock *ctk_framelock,
         (GTK_TOGGLE_BUTTON(data->client_checkbox));
 
     gpu_is_server = (gpu_server_entry && (gpu_server_entry == entry->parent));
-
-    /* Check Timing Sync.  Due to a current restriction, timing information
-     * is unavailable on client display devices that are driven by the same
-     * gpu that is driving the server display device while "use house sync"
-     * is off (gpu is using the internal timings of the server display
-     * device).
-     */
-    if (!framelock_enabled ||
-        (!is_server && !is_client) ||
-        (gpu_is_server && !use_house_sync)) {
-        gtk_widget_set_sensitive(data->timing_label, FALSE);
-        update_image(data->timing_hbox, ctk_framelock->led_grey);
-    } else {
-        gint timing;
-        NvCtrlGetAttribute(data->handle, NV_CTRL_FRAMELOCK_TIMING, &timing);
-        gtk_widget_set_sensitive(data->timing_label, TRUE);
-        update_image(data->timing_hbox,
-                     timing ? ctk_framelock->led_green :
-                     ctk_framelock->led_red);
-    }
 
     /* Check Stereo Sync.  If frame lock is disabled or this display device
      * is neither a client/server or the display device is a server and the
@@ -3775,7 +3812,7 @@ GtkWidget* ctk_framelock_new(NvCtrlAttributeHandle *handle,
 
     ret = NvCtrlQueryTargetCount(handle,
                                  NV_CTRL_TARGET_TYPE_FRAMELOCK,
-                                 &num_framelocks);
+                                 (int *)&num_framelocks);
     if (ret != NvCtrlSuccess) return NULL;
     if (!num_framelocks) return NULL;
 
@@ -4297,7 +4334,7 @@ static unsigned int add_display_devices(CtkFramelock *ctk_framelock,
     /* Query list of devices on this GPU. */
     ret = NvCtrlGetAttribute(gpu_data->handle,
                              NV_CTRL_ENABLED_DISPLAYS,
-                             &enabled_displays);
+                             (int *)&enabled_displays);
     if (ret != NvCtrlSuccess || !enabled_displays) {
         goto fail;
     }
@@ -4305,7 +4342,7 @@ static unsigned int add_display_devices(CtkFramelock *ctk_framelock,
     /* Query master device */
     ret = NvCtrlGetAttribute(gpu_data->handle,
                              NV_CTRL_FRAMELOCK_MASTER,
-                             &master_mask);
+                             (int *)&master_mask);
     if (ret != NvCtrlSuccess) {
         goto fail;
     }
@@ -4313,7 +4350,7 @@ static unsigned int add_display_devices(CtkFramelock *ctk_framelock,
     /* Query slave devices */
     ret = NvCtrlGetAttribute(gpu_data->handle,
                              NV_CTRL_FRAMELOCK_SLAVES,
-                             &slaves_mask);
+                             (int *)&slaves_mask);
     if (ret != NvCtrlSuccess) {
         goto fail;
     }
@@ -4370,7 +4407,7 @@ static unsigned int add_display_devices(CtkFramelock *ctk_framelock,
             ret = NvCtrlGetDisplayAttribute(gpu_data->handle,
                                             display_mask,
                                             NV_CTRL_REFRESH_RATE,
-                                            &(display_data->rate));
+                                            (int *)&(display_data->rate));
             if (ret != NvCtrlSuccess) {
                 goto fail;
             }
@@ -4393,9 +4430,6 @@ static unsigned int add_display_devices(CtkFramelock *ctk_framelock,
             fvalue = ((float)(display_data->rate)) / 100.0f;
             snprintf(str, 32, "%.2f Hz", fvalue);
             display_data->rate_text       = gtk_label_new(str);
-            
-            display_data->timing_label    = gtk_label_new("Timing:");
-            display_data->timing_hbox     = gtk_hbox_new(FALSE, 0);
 
             display_data->stereo_label    = gtk_label_new("Stereo:");
             display_data->stereo_hbox     = gtk_hbox_new(FALSE, 0);
@@ -4536,6 +4570,9 @@ static unsigned int add_gpu_devices(CtkFramelock *ctk_framelock,
                                 NV_CTRL_ATTRIBUTES_NV_CONTROL_SUBSYSTEM);
         gpu_data->label = gtk_label_new("");
 
+        gpu_data->timing_label = gtk_label_new("Timing:");
+        gpu_data->timing_hbox = gtk_hbox_new(FALSE, 0);
+
         /* Create the GPU list entry */
         entry = list_entry_new_with_gpu(gpu_data);
         
@@ -4610,32 +4647,10 @@ static unsigned int add_framelock_devices(CtkFramelock *ctk_framelock,
 
 
     /* Get number of G-Sync devices on this server */
-    /* XXX If we check for FRAMELOCK_SUPPORTED here, we
-     *     might get a false negative since another
-     *     X screen on the same server could support
-     *     frame lock.
-     */
-
-    /* does this NV-CONTROL handle support frame lock? */
-    /*
-    NvCtrlGetAttribute(h, NV_CTRL_FRAMELOCK, &value);
-    if (value != NV_CTRL_FRAMELOCK_SUPPORTED) {
-        if (error_dialog) {
-            error_msg(ctk_framelock, "<span weight=\"bold\" "
-                      "size=\"larger\">Unable "
-                      "to add X screen to frame lock group</span>\n\n"
-                      "This X Screen does not support frame lock.");
-        } else {
-            nv_error_msg("Unable to add X screen to frame lock group; "
-                         "this X Screen does not support frame lock.");
-        }
-        NvCtrlAttributeClose(h);
-        return NULL;
-    }*/
 
     ret = NvCtrlQueryTargetCount(handle,
                                  NV_CTRL_TARGET_TYPE_FRAMELOCK,
-                                 &num_framelocks);
+                                 (int *)&num_framelocks);
     if (ret != NvCtrlSuccess) {
         goto fail;
     }
@@ -4643,6 +4658,8 @@ static unsigned int add_framelock_devices(CtkFramelock *ctk_framelock,
     /* Add frame lock devices found */
     for (framelock_id = 0; framelock_id < num_framelocks; framelock_id++) {
         int gpus_added = 0;
+        int val;
+        char *revision_str = NULL;
 
         /* Create the frame lock data structure */
         framelock_data =
@@ -4657,6 +4674,17 @@ static unsigned int add_framelock_devices(CtkFramelock *ctk_framelock,
                                 NV_CTRL_TARGET_TYPE_FRAMELOCK,
                                 framelock_id,
                                 NV_CTRL_ATTRIBUTES_NV_CONTROL_SUBSYSTEM);
+
+        /* Get the framelock revision information */
+        
+        ret = NvCtrlGetAttribute(framelock_data->handle,
+                                 NV_CTRL_FRAMELOCK_FPGA_REVISION,
+                                 &val);
+        if (ret != NvCtrlSuccess) {
+            goto fail;
+        }
+        revision_str = g_strdup_printf("%d", val);
+
 
         framelock_data->label = gtk_label_new("");
         
@@ -4677,6 +4705,10 @@ static unsigned int add_framelock_devices(CtkFramelock *ctk_framelock,
 
         framelock_data->port1_label = gtk_label_new("Port 1:");
         framelock_data->port1_hbox = gtk_hbox_new(FALSE, 0);
+
+        framelock_data->revision_label = gtk_label_new("FPGA Revision:");
+        framelock_data->revision_text = gtk_label_new(revision_str);
+        g_free(revision_str);
 
         framelock_data->extra_info_hbox = gtk_hbox_new(FALSE, 5);
 
@@ -5114,6 +5146,9 @@ GtkTextBuffer *ctk_framelock_create_help(GtkTextTagTable *table)
     ctk_help_para(b, &i, "GPU Device entries display the GPU name and number "
                   "of a GPU connected to a G-Sync device.  Display devices "
                   "driven by the GPU will be listed under this entry.");
+    ctk_help_para(b, &i, "Timing LED: This indicates that the GPU "
+                  "is synchronized with the incoming timing signal from the "
+                  "G-Sync device");
 
     ctk_help_heading(b, &i, "Display Device Entry Information");
     ctk_help_para(b, &i, "Display Device entries display information and "
@@ -5123,8 +5158,6 @@ GtkTextBuffer *ctk_framelock_create_help(GtkTextTagTable *table)
                   "The following options are available:");
     ctk_help_para(b, &i, __server_checkbox_help);
     ctk_help_para(b, &i, __client_checkbox_help);
-    ctk_help_para(b, &i, "Timing LED: This indicates that the display device "
-                  "is synchronized with the incoming timing signal.");
     ctk_help_para(b, &i, "Stereo LED: This indicates whether or not the "
                   "display device is sync'ed to the stereo signal coming from "
                   "the G-Sync device.  This LED is only available to display "
@@ -5217,10 +5250,12 @@ void ctk_framelock_select(GtkWidget *w)
     /* Start the frame lock timers */
 
     ctk_config_start_timer(ctk_framelock->ctk_config,
-                           (GSourceFunc) update_framelock_status);
+                           (GSourceFunc) update_framelock_status,
+                           (gpointer) ctk_framelock);
 
     ctk_config_start_timer(ctk_framelock->ctk_config,
-                           (GSourceFunc) check_for_ethernet);
+                           (GSourceFunc) check_for_ethernet,
+                           (gpointer) ctk_framelock);
 }
 
 
@@ -5238,8 +5273,10 @@ void ctk_framelock_unselect(GtkWidget *w)
     /* Stop the frame lock timers */
 
     ctk_config_stop_timer(ctk_framelock->ctk_config,
-                          (GSourceFunc) update_framelock_status);
+                          (GSourceFunc) update_framelock_status,
+                          (gpointer) ctk_framelock);
 
     ctk_config_stop_timer(ctk_framelock->ctk_config,
-                          (GSourceFunc) check_for_ethernet);
+                          (GSourceFunc) check_for_ethernet,
+                          (gpointer) ctk_framelock);
 }

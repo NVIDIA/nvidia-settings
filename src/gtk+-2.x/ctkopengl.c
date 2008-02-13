@@ -151,10 +151,74 @@ GtkWidget* ctk_opengl_new(NvCtrlAttributeHandle *handle,
     GtkWidget *vbox;
     GtkWidget *check_button;
     GtkWidget *scale;
-    gint force_generic_cpu_value, aa_line_gamma_value, val;
-    ReturnStatus ret;
 
-    NVCTRLAttributeValidValuesRec valid;
+    gint sync_to_vblank;
+    gint flipping_allowed;
+    gint force_stereo;
+    gint xinerama_stereo;
+    NVCTRLAttributeValidValuesRec image_settings_valid;
+    gint image_settings_value;
+    gint aa_line_gamma;
+    gint force_generic_cpu;
+    gint show_sli_hud;
+
+    ReturnStatus ret_sync_to_vblank;
+    ReturnStatus ret_flipping_allowed;
+    ReturnStatus ret_force_stereo;
+    ReturnStatus ret_xinerama_stereo;
+    ReturnStatus ret_image_settings;
+    ReturnStatus ret_aa_line_gama;
+    ReturnStatus ret_force_generic_cpu;
+    ReturnStatus ret_show_sli_hud;
+
+    /* Query OpenGL settings */
+
+    ret_sync_to_vblank =
+        NvCtrlGetAttribute(handle, NV_CTRL_SYNC_TO_VBLANK, &sync_to_vblank);
+
+    ret_flipping_allowed =
+        NvCtrlGetAttribute(handle, NV_CTRL_FLIPPING_ALLOWED,
+                           &flipping_allowed);
+
+    ret_force_stereo =
+        NvCtrlGetAttribute(handle, NV_CTRL_FORCE_STEREO, &force_stereo);
+
+    ret_xinerama_stereo =
+        NvCtrlGetAttribute(handle, NV_CTRL_XINERAMA_STEREO, &xinerama_stereo);
+
+    ret_image_settings =
+        NvCtrlGetValidAttributeValues(handle, NV_CTRL_IMAGE_SETTINGS,
+                                      &image_settings_valid);
+    if ((ret_image_settings == NvCtrlSuccess) &&
+        (image_settings_valid.type == ATTRIBUTE_TYPE_RANGE)) {
+        ret_image_settings =
+            NvCtrlGetAttribute(handle, NV_CTRL_IMAGE_SETTINGS,
+                               &image_settings_value);
+    } else {
+        ret_image_settings = NvCtrlError;
+    }
+
+    ret_aa_line_gama = NvCtrlGetAttribute(handle, NV_CTRL_OPENGL_AA_LINE_GAMMA,
+                                          &aa_line_gamma);
+
+    ret_force_generic_cpu = NvCtrlGetAttribute(handle,
+                                               NV_CTRL_FORCE_GENERIC_CPU,
+                                               &force_generic_cpu);
+
+    ret_show_sli_hud = NvCtrlGetAttribute(handle, NV_CTRL_SHOW_SLI_HUD,
+                                          &show_sli_hud);
+
+    /* There are no OpenGL settings to change (OpenGL disabled?) */
+    if ((ret_sync_to_vblank != NvCtrlSuccess) &&
+        (ret_flipping_allowed != NvCtrlSuccess) &&
+        (ret_force_stereo != NvCtrlSuccess) &&
+        (ret_xinerama_stereo != NvCtrlSuccess) &&
+        (ret_image_settings != NvCtrlSuccess) &&
+        (ret_aa_line_gama != NvCtrlSuccess) &&
+        (ret_force_generic_cpu != NvCtrlSuccess) &&
+        (ret_show_sli_hud != NvCtrlSuccess)) {
+        return NULL;
+    }
 
     object = g_object_new(CTK_TYPE_OPENGL, NULL);
 
@@ -197,15 +261,15 @@ GtkWidget* ctk_opengl_new(NvCtrlAttributeHandle *handle,
      * retrace.
      */
 
-    ret = NvCtrlGetAttribute(handle, NV_CTRL_SYNC_TO_VBLANK, &val);
-    if (ret == NvCtrlSuccess) {
+    if (ret_sync_to_vblank == NvCtrlSuccess) {
 
         label = gtk_label_new("Sync to VBlank");
 
         check_button = gtk_check_button_new();
         gtk_container_add(GTK_CONTAINER(check_button), label);
 
-        gtk_toggle_button_set_active(GTK_TOGGLE_BUTTON(check_button), val);
+        gtk_toggle_button_set_active(GTK_TOGGLE_BUTTON(check_button),
+                                     sync_to_vblank);
 
         gtk_box_pack_start(GTK_BOX(vbox), check_button, FALSE, FALSE, 0);
 
@@ -229,15 +293,15 @@ GtkWidget* ctk_opengl_new(NvCtrlAttributeHandle *handle,
      * allow flipping
      */
 
-    ret = NvCtrlGetAttribute(handle, NV_CTRL_FLIPPING_ALLOWED, &val);
-    if (ret == NvCtrlSuccess) {
+    if (ret_flipping_allowed == NvCtrlSuccess) {
 
         label = gtk_label_new("Allow Flipping");
         
         check_button = gtk_check_button_new();
         gtk_container_add(GTK_CONTAINER(check_button), label);
         
-        gtk_toggle_button_set_active(GTK_TOGGLE_BUTTON(check_button), val);
+        gtk_toggle_button_set_active(GTK_TOGGLE_BUTTON(check_button),
+                                     flipping_allowed);
 
         gtk_box_pack_start(GTK_BOX(vbox), check_button, FALSE, FALSE, 0);
 
@@ -259,15 +323,15 @@ GtkWidget* ctk_opengl_new(NvCtrlAttributeHandle *handle,
         ctk_opengl->allow_flipping_button = check_button;
     }
     
-    ret = NvCtrlGetAttribute(handle, NV_CTRL_FORCE_STEREO, &val);
-    if (ret == NvCtrlSuccess) {
+    if (ret_force_stereo == NvCtrlSuccess) {
 
         label = gtk_label_new("Force Stereo Flipping");
     
         check_button = gtk_check_button_new();
         gtk_container_add(GTK_CONTAINER(check_button), label);
     
-        gtk_toggle_button_set_active(GTK_TOGGLE_BUTTON(check_button), val);
+        gtk_toggle_button_set_active(GTK_TOGGLE_BUTTON(check_button),
+                                     force_stereo);
 
         gtk_box_pack_start(GTK_BOX(vbox), check_button, FALSE, FALSE, 0);
 
@@ -286,15 +350,15 @@ GtkWidget* ctk_opengl_new(NvCtrlAttributeHandle *handle,
         ctk_opengl->force_stereo_button = check_button;
     }
         
-    ret = NvCtrlGetAttribute(handle, NV_CTRL_XINERAMA_STEREO, &val);
-    if (ret == NvCtrlSuccess) {
+    if (ret_xinerama_stereo == NvCtrlSuccess) {
 
         label = gtk_label_new("Allow Xinerama Stereo Flipping");
  
         check_button = gtk_check_button_new();
         gtk_container_add(GTK_CONTAINER(check_button), label);
  
-        gtk_toggle_button_set_active(GTK_TOGGLE_BUTTON(check_button), val);
+        gtk_toggle_button_set_active(GTK_TOGGLE_BUTTON(check_button),
+                                     xinerama_stereo);
 
         gtk_box_pack_start(GTK_BOX(vbox), check_button, FALSE, FALSE, 0);
 
@@ -317,10 +381,7 @@ GtkWidget* ctk_opengl_new(NvCtrlAttributeHandle *handle,
      * Image Quality settings.
      */
 
-    ret = NvCtrlGetValidAttributeValues(handle, NV_CTRL_IMAGE_SETTINGS, &valid);
-
-    if ((ret == NvCtrlSuccess) && (valid.type == ATTRIBUTE_TYPE_RANGE) &&
-        (NvCtrlGetAttribute(handle, NV_CTRL_IMAGE_SETTINGS, &val) == NvCtrlSuccess)) {
+    if (ret_image_settings == NvCtrlSuccess) {
 
         frame = gtk_frame_new("Image Settings");
         gtk_box_pack_start(GTK_BOX(vbox), frame, FALSE, FALSE, 3);
@@ -329,8 +390,9 @@ GtkWidget* ctk_opengl_new(NvCtrlAttributeHandle *handle,
         gtk_container_set_border_width(GTK_CONTAINER(hbox), FRAME_PADDING);
         gtk_container_add(GTK_CONTAINER(frame), hbox);
 
-        scale = gtk_hscale_new_with_range(valid.u.range.min, valid.u.range.max, 1);
-        gtk_range_set_value(GTK_RANGE(scale), val);
+        scale = gtk_hscale_new_with_range(image_settings_valid.u.range.min,
+                                          image_settings_valid.u.range.max, 1);
+        gtk_range_set_value(GTK_RANGE(scale), image_settings_value);
 
         gtk_scale_set_draw_value(GTK_SCALE(scale), TRUE);
         gtk_scale_set_value_pos(GTK_SCALE(scale), GTK_POS_TOP);
@@ -377,18 +439,14 @@ GtkWidget* ctk_opengl_new(NvCtrlAttributeHandle *handle,
      * NV_CTRL_OPENGL_AA_LINE_GAMMA
      */
 
-    ret = NvCtrlGetAttribute(ctk_opengl->handle,
-                             NV_CTRL_OPENGL_AA_LINE_GAMMA,
-                             &aa_line_gamma_value);
-
-    if (ret == NvCtrlSuccess) {
+    if (ret_aa_line_gama == NvCtrlSuccess) {
         label = gtk_label_new("Enable gamma correction for antialiased lines");
 
         check_button = gtk_check_button_new();
         gtk_container_add(GTK_CONTAINER(check_button), label);
 
         gtk_toggle_button_set_active(GTK_TOGGLE_BUTTON(check_button),
-                                     aa_line_gamma_value ==
+                                     aa_line_gamma ==
                                      NV_CTRL_OPENGL_AA_LINE_GAMMA_ENABLE);
         
         gtk_box_pack_start(GTK_BOX(vbox), check_button, FALSE, FALSE, 0);
@@ -416,18 +474,14 @@ GtkWidget* ctk_opengl_new(NvCtrlAttributeHandle *handle,
      * Force Generic CPU
      */
 
-    ret = NvCtrlGetAttribute(ctk_opengl->handle,
-                             NV_CTRL_FORCE_GENERIC_CPU,
-                             &force_generic_cpu_value);
-    
-    if (ret == NvCtrlSuccess) {
+    if (ret_force_generic_cpu == NvCtrlSuccess) {
         label = gtk_label_new("Disable use of enhanced CPU instruction sets");
 
         check_button = gtk_check_button_new();
         gtk_container_add(GTK_CONTAINER(check_button), label);
 
         gtk_toggle_button_set_active(GTK_TOGGLE_BUTTON(check_button),
-                                     force_generic_cpu_value ==
+                                     force_generic_cpu ==
                                      NV_CTRL_FORCE_GENERIC_CPU_ENABLE);
 
         gtk_box_pack_start(GTK_BOX(vbox), check_button, FALSE, FALSE, 0);
@@ -448,15 +502,15 @@ GtkWidget* ctk_opengl_new(NvCtrlAttributeHandle *handle,
         ctk_opengl->force_generic_cpu_button = check_button;
     }
 
-    ret = NvCtrlGetAttribute(handle, NV_CTRL_SHOW_SLI_HUD, &val);
-    if (ret == NvCtrlSuccess) {
+    if (ret_show_sli_hud == NvCtrlSuccess) {
 
         label = gtk_label_new("Enable SLI Heads-Up-Display");
 
         check_button = gtk_check_button_new();
         gtk_container_add(GTK_CONTAINER(check_button), label);
 
-        gtk_toggle_button_set_active(GTK_TOGGLE_BUTTON(check_button), val);
+        gtk_toggle_button_set_active(GTK_TOGGLE_BUTTON(check_button),
+                                     show_sli_hud);
 
         gtk_box_pack_start(GTK_BOX(vbox), check_button, FALSE, FALSE, 0);
 

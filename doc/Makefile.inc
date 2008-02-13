@@ -26,6 +26,7 @@
 #
 
 EXTRA_DIST += \
+	Makefile.inc \
 	NV-CONTROL-API.txt \
 	FRAMELOCK.txt \
 	nvidia-settings-user-guide.txt \
@@ -37,3 +38,6 @@ doc/nvidia-settings.1: nvidia-settings.1.m4
 	$(M4) -D__HEADER__=$(AUTO_TEXT) \
 	      -D__BUILD_OS__=$(BUILD_OS) \
 	      $< > $@
+
+dist_list::
+	@ echo $(SRC) $(EXTRA_DIST)

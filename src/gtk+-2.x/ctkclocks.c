@@ -692,11 +692,6 @@ GtkWidget* ctk_clocks_new(NvCtrlAttributeHandle *handle,
                      CTK_EVENT_NAME(NV_CTRL_GPU_OPTIMAL_CLOCK_FREQS),
                      G_CALLBACK(clocks_received),
                      (gpointer) ctk_object);
-    
-    g_signal_connect(G_OBJECT(ctk_event),
-                     CTK_EVENT_NAME(NV_CTRL_GPU_OPTIMAL_CLOCK_FREQS),
-                     G_CALLBACK(clocks_received),
-                     (gpointer) ctk_object);
 
     g_signal_connect(G_OBJECT(ctk_event),
                      CTK_EVENT_NAME(NV_CTRL_GPU_OPTIMAL_CLOCK_FREQS_DETECTION_STATE),
@@ -1150,6 +1145,10 @@ static void sync_gui_to_modify_clocks(CtkClocks *ctk_object, int which_clocks)
                         GET_GPU_CLOCK(clk_ranges.u.range.min),
                         GET_GPU_CLOCK(clk_ranges.u.range.max));
 
+    g_signal_handlers_unblock_by_func(G_OBJECT(gtk_adjustment_gpu),
+                                      G_CALLBACK(adjustment_value_changed),
+                                      (gpointer) ctk_object);
+
     gtk_range = GTK_RANGE(CTK_SCALE(ctk_object->mem_clk_scale)->gtk_scale);
     gtk_adjustment_mem = GTK_ADJUSTMENT(gtk_range->adjustment);
 
@@ -1165,11 +1164,6 @@ static void sync_gui_to_modify_clocks(CtkClocks *ctk_object, int which_clocks)
     g_signal_handlers_unblock_by_func(G_OBJECT(gtk_adjustment_mem),
                                       G_CALLBACK(adjustment_value_changed),
                                       (gpointer) ctk_object);
-
-    g_signal_handlers_unblock_by_func(G_OBJECT(gtk_adjustment_gpu),
-                                      G_CALLBACK(adjustment_value_changed),
-                                      (gpointer) ctk_object);
-
 
     /* Update the gui sensitivity */
     

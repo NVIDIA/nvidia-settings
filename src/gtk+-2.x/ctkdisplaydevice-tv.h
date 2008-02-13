@@ -57,25 +57,30 @@ typedef struct _CtkDisplayDeviceTvClass  CtkDisplayDeviceTvClass;
 struct _CtkDisplayDeviceTv
 {
     GtkVBox parent;
+    CtkConfig *ctk_config;
+    CtkEvent *ctk_event;
 
     NvCtrlAttributeHandle *handle;
-    CtkConfig *ctk_config;
-    GtkWidget *image_sliders;
-    GtkWidget *reset_button;
-
-    GtkObject *overscan;
-    GtkObject *flicker_filter;
-    
-    GtkObject *brightness;
-    GtkObject *hue;
-    GtkObject *contrast;
-    GtkObject *saturation;
-    
     unsigned int display_device_mask;
-    unsigned int active_attributes;
-    gboolean edid_available;
-
+    gboolean display_enabled;
     char *name;
+
+    GtkWidget *info_frame;
+    GtkWidget *txt_encoder_name;
+
+    GtkWidget *overscan;
+    GtkWidget *flicker_filter;
+    
+    GtkWidget *brightness;
+    GtkWidget *hue;
+    GtkWidget *contrast;
+    GtkWidget *saturation;
+ 
+    GtkWidget *image_sliders;
+
+    GtkWidget *edid_box;
+    GtkWidget *edid;
+    GtkWidget *reset_button;
 };
 
 struct _CtkDisplayDeviceTvClass

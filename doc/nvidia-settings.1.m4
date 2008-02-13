@@ -9,11 +9,13 @@ __HEADER__
 \\$2 \(la \\$1 \(ra\\$3
 ..
 .if \n[.g] .mso www.tmac
-.TH nvidia-settings 1 2006-03-17 "nvidia-settings 1.0"
+.TH nvidia\-settings 1 2006-03-17 "nvidia\-settings 1.0"
 .SH NAME
 nvidia\-settings \- configure the NVIDIA graphics driver
 .SH SYNOPSIS
 .BI "nvidia\-settings [" "options" "]"
+.br
+.BI "nvidia\-settings [" "options" "] \-\-no\-config"
 .br
 .BI "nvidia\-settings [" "options" "] \-\-load\-config\-only"
 .br
@@ -22,7 +24,9 @@ nvidia\-settings \- configure the NVIDIA graphics driver
 .BI "nvidia\-settings [" "options" "] \-\-glxinfo"
 .PP
 Options:
-.BI "[-vh] [\-\-config=" configfile "] [\-c " ctrl-display ]
+.BI "[-vh] [\-\-config=" configfile "] [\-c " ctrl-display "]"
+.br
+.I "         \fB[\-\-verbose=\fP{\fIerrors \fP|\fI warnings \fP|\fI all\fP}\fB]"
 .PP
 .I attr
 has the form:
@@ -59,7 +63,7 @@ Print usage information and exit.
 Use the configuration file
 .I config
 rather than the default
-.I ~/.nvidia-settings-rc
+.I ~/.nvidia\-settings\-rc
 .TP
 .BI "\-c, \-\-ctrl\-display=" ctrl-display
 Control the specified X display.
@@ -71,9 +75,34 @@ If that is not given, then the
 .I $DISPLAY
 environment variable is used.
 .TP
+.B \-n, \-\-no\-config
+Do not load the configuration file.
+This mode of operation is useful if
+.B nvidia\-settings
+has difficulties starting due to problems with applying settings in the configuration file.
+.TP
 .B \-l, \-\-load\-config\-only
 Load the configuration file, send the values specified therein to the X server, and exit.
 This mode of operation is useful to place in your .xinitrc file, for example.
+.TP
+.BI "\-V, \-\-verbose=" verbosity
+Controls how much information is printed.
+By default, the verbosity is 
+.B errors
+and only error messages are printed.
+.br
+
+.I verbosity
+can be one of the following values:
+.ti +5
+.B errors
+- Print errors.
+.ti +5
+.B warnings
+- Print errors and warnings.
+.ti +5
+.B all
+- Print errors, warnings, and other information.
 .TP
 .BI "\-a, \-\-assign=" assign
 The
@@ -164,7 +193,7 @@ Print GLX Information for the X display and exit.
 .SS Contents
 1.	Layout of the nvidia\-settings GUI
 .br
-2.	How OpenGL Interacts with nvidia-settings
+2.	How OpenGL Interacts with nvidia\-settings
 .br
 3.	Loading Settings Automatically
 .br
@@ -188,7 +217,7 @@ GUI.
 .PP
 The category list is organized in a tree: each X screen contains the relevant subcategories beneath it.
 Similarly, the Display Devices category for a screen contains all the enabled display devices beneath it.
-Besides each X screen, the other top level category is "nvidia-settings Configuration", which configures behavior of the
+Besides each X screen, the other top level category is "nvidia\-settings Configuration", which configures behavior of the
 .B nvidia\-settings
 application itself.
 .PP
@@ -214,7 +243,7 @@ Notable exceptions are OpenGL options which are only read by OpenGL when an Open
 Details about the options on each page of
 .B nvidia\-settings
 are available in the help window.
-.SS 2. How OpenGL Interacts with nvidia-settings
+.SS 2. How OpenGL Interacts with nvidia\-settings
 .PP
 When an OpenGL application starts, it downloads the current values from the X driver, and then reads the environment (see
 .I APPENDIX E: OPENGL ENVIRONMENT VARIABLE SETTINGS
@@ -256,7 +285,7 @@ After you have run
 once and have generated a configuration file, you can then run:
 .sp
 .ti +5
-nvidia-settings --load-config-only
+nvidia\-settings \-\-load\-config\-only
 .sp
 at any time in the future to upload these settings to the X server again.
 For example, you might place the above command in your
@@ -577,7 +606,8 @@ graphical interface.
 .TP
 .B nvidia\-settings \-\-load\-config\-only
 Loads the settings stored in
-.I ~/.nvidia-settings-rc
+.I ~/.nvidia\-settings\-rc
+and exits.
 .TP
 .B nvidia\-settings \-\-query FSAA
 Query the value of the full-screen antialiasing setting.

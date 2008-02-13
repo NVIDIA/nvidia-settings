@@ -40,10 +40,8 @@ SRC += \
 	ctkwindow.c \
 	ctkopengl.c \
 	ctkglx.c \
-	ctkdevice.c \
 	ctkhelp.c \
 	ctkimagesliders.c \
-	ctkdisplaydevice.c \
 	ctkdisplaydevice-crt.c \
 	ctkdisplaydevice-tv.c \
 	ctkdisplaydevice-dfp.c \
@@ -55,10 +53,18 @@ SRC += \
 	ctkclocks.c \
 	ctkutils.c \
 	ctkedid.c \
-	ctkimage.c
+	ctkimage.c \
+	ctkserver.c \
+	ctkdisplaylayout.c \
+	ctkdisplayconfig.c \
+	ctkscreen.c \
+	ctkgpu.c \
+	ctkbanner.c \
+	ctkvcsc.c
 
 
 EXTRA_DIST += \
+	Makefile.inc \
 	ctkxvideo.h \
 	ctkcursorshadow.h \
 	ctkui.h \
@@ -73,10 +79,8 @@ EXTRA_DIST += \
 	ctkwindow.h \
 	ctkopengl.h \
 	ctkglx.h \
-	ctkdevice.h \
 	ctkhelp.h \
 	ctkimagesliders.h \
-	ctkdisplaydevice.h \
 	ctkdisplaydevice-crt.h \
 	ctkdisplaydevice-tv.h \
 	ctkdisplaydevice-dfp.h \
@@ -89,4 +93,14 @@ EXTRA_DIST += \
 	ctkclocks.h \
 	ctkutils.h \
 	ctkedid.h \
-	ctkimage.h
+	ctkimage.h \
+	ctkserver.h \
+	ctkdisplaylayout.h \
+	ctkdisplayconfig.h \
+	ctkscreen.h \
+	ctkgpu.h \
+	ctkbanner.h \
+	ctkvcsc.h
+
+dist_list::
+	@ echo $(SRC) $(EXTRA_DIST)

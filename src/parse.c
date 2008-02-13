@@ -59,7 +59,7 @@ static char *nv_strndup(char *s, int n);
 #define D NV_PARSER_TYPE_VALUE_IS_DISPLAY
 #define A NV_PARSER_TYPE_NO_QUERY_ALL
 #define Z NV_PARSER_TYPE_NO_ZERO_VALUE
-
+#define H NV_PARSER_TYPE_100Hz
 
 AttributeTableEntry attributeTable[] = {
    
@@ -87,6 +87,7 @@ AttributeTableEntry attributeTable[] = {
     { "TwinView",              NV_CTRL_TWINVIEW,                    0     },
     { "ConnectedDisplays",     NV_CTRL_CONNECTED_DISPLAYS,          0     },
     { "EnabledDisplays",       NV_CTRL_ENABLED_DISPLAYS,            0     },
+    { "AssociatedDisplays",    NV_CTRL_ASSOCIATED_DISPLAY_DEVICES,  N|D   },
     { "ProbeDisplays",         NV_CTRL_PROBE_DISPLAYS,              A     },
     { "ForceGenericCpu",       NV_CTRL_FORCE_GENERIC_CPU,           0     },
     { "GammaCorrectedAALines", NV_CTRL_OPENGL_AA_LINE_GAMMA,        0     },
@@ -100,7 +101,13 @@ AttributeTableEntry attributeTable[] = {
     { "CursorShadowBlue",      NV_CTRL_CURSOR_SHADOW_BLUE,          0     },
     { "FSAAAppControlled",     NV_CTRL_FSAA_APPLICATION_CONTROLLED, 0     },
     { "LogAnisoAppControlled", NV_CTRL_LOG_ANISO_APPLICATION_CONTROLLED,0 },
-    { "RefreshRate",           NV_CTRL_REFRESH_RATE,                0     },
+    { "RefreshRate",           NV_CTRL_REFRESH_RATE,                N|H   },
+    { "InitialPixmapPlacement",NV_CTRL_INITIAL_PIXMAP_PLACEMENT,    N     },
+    { "PCIBus",                NV_CTRL_PCI_BUS,                     N     },
+    { "PCIDevice",             NV_CTRL_PCI_DEVICE,                  N     },
+    { "PCIFunc",               NV_CTRL_PCI_FUNCTION,                N     },
+    { "DynamicTwinview",       NV_CTRL_DYNAMIC_TWINVIEW,            N     },
+    { "MultiGpuDisplayOwner",  NV_CTRL_MULTIGPU_DISPLAY_OWNER,      N     },
 
     { "FrameLockMaster",       NV_CTRL_FRAMELOCK_MASTER,            N|F|G|D },
     { "FrameLockSlaves",       NV_CTRL_FRAMELOCK_SLAVES,            N|F|G|D },
@@ -121,6 +128,7 @@ AttributeTableEntry attributeTable[] = {
     { "FrameLockSyncRate",     NV_CTRL_FRAMELOCK_SYNC_RATE,         N|F|G },
     { "FrameLockTiming",       NV_CTRL_FRAMELOCK_TIMING,            N|F|G },
     { "FrameLockMasterable",   NV_CTRL_FRAMELOCK_MASTERABLE,        N|F|G },
+    { "FrameLockFPGARevision", NV_CTRL_FRAMELOCK_FPGA_REVISION,     N|F|G },
 
     { "Brightness",            BRIGHTNESS_VALUE|ALL_CHANNELS,       N|C|G },
     { "RedBrightness",         BRIGHTNESS_VALUE|RED_CHANNEL,        C|G   },
@@ -170,7 +178,8 @@ AttributeTableEntry attributeTable[] = {
 #undef P
 #undef D
 #undef A
-
+#undef Z
+#undef H
 
 /*
  * When new integer attributes are added to NVCtrl.h, an entry should
@@ -179,7 +188,7 @@ AttributeTableEntry attributeTable[] = {
  * about.
  */
 
-#if NV_CTRL_LAST_ATTRIBUTE != NV_CTRL_REFRESH_RATE
+#if NV_CTRL_LAST_ATTRIBUTE != NV_CTRL_MULTIGPU_DISPLAY_OWNER
 #warning "Have you forgotten to add a new integer attribute to attributeTable?"
 #endif
 
@@ -212,7 +221,14 @@ TargetTypeEntry targetTypeTable[] = {
       NV_CTRL_TARGET_TYPE_FRAMELOCK, /* nvctrl */
       ATTRIBUTE_TYPE_FRAMELOCK,      /* permission_bit */
       NV_FALSE },                    /* uses_display_devices */
-    
+
+    { "VCSC",                        /* name */
+      "vcsc",                        /* parsed_name */
+      VCSC_TARGET,                   /* target_index */
+      NV_CTRL_TARGET_TYPE_VCSC,      /* nvctrl */
+      ATTRIBUTE_TYPE_VCSC,           /* permission_bit */
+      NV_FALSE },                    /* uses_display_devices */
+
     { NULL, NULL, 0, 0, 0 },
 };
 
@@ -330,7 +346,7 @@ int nv_parse_attribute_string(const char *str, int query, ParsedAttribute *a)
             a->val |= strtol((tmp + 1), &tmp, 10) & 0xffff;
         } else {
             /* all other attributes are integer */
-            a->val = strtol(s, &tmp, 10);
+            a->val = strtol(s, &tmp, 0);
         }
          
         if (tmp && (s != tmp)) a->flags |= NV_PARSER_HAS_VAL;

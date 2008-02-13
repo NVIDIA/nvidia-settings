@@ -27,7 +27,6 @@
 
 #include <string.h>
 
-#include "crt_banner.h"
 #include "ctkimage.h"
 
 #include "ctkgvo-csc.h"
@@ -70,8 +69,6 @@
 
 /*
  * TODO: ability to save/restore CSC to/from file.
- *
- * TODO: should use the same banner used on the front SDI page
  */
 
 
@@ -167,11 +164,11 @@ GType ctk_gvo_csc_get_type(void)
 
 GtkWidget* ctk_gvo_csc_new(NvCtrlAttributeHandle *handle,
                            CtkConfig *ctk_config,
-                           CtkEvent *ctk_event)
+                           CtkEvent *ctk_event,
+                           CtkGvo *gvo_parent)
 {
     GObject *object;
     CtkGvoCsc *ctk_gvo_csc;
-    GtkWidget *banner;
     GtkWidget *frame;
     GtkWidget *hbox, *hbox2;
     GtkWidget *vbox, *vbox2;
@@ -217,13 +214,21 @@ GtkWidget* ctk_gvo_csc_new(NvCtrlAttributeHandle *handle,
     ctk_gvo_csc = CTK_GVO_CSC(object);
     ctk_gvo_csc->handle = handle;
     ctk_gvo_csc->ctk_config = ctk_config;
+    ctk_gvo_csc->gvo_parent = gvo_parent;
     
     gtk_box_set_spacing(GTK_BOX(object), 10);
     
     /* banner */
     
-    banner = ctk_banner_image_new(&crt_banner_image);
-    gtk_box_pack_start(GTK_BOX(object), banner, FALSE, FALSE, 0);
+    hbox = gtk_hbox_new(FALSE, 0);
+    gtk_box_pack_start(GTK_BOX(object), hbox, FALSE, FALSE, 0);
+    
+    frame = gtk_frame_new(NULL);
+    gtk_box_pack_start(GTK_BOX(hbox), frame, FALSE, FALSE, 0);
+    
+    gtk_frame_set_shadow_type(GTK_FRAME(frame), GTK_SHADOW_IN);
+
+    ctk_gvo_csc->banner_frame = frame;
     
     /* checkbox to enable override of HW CSC */
     
@@ -1045,3 +1050,42 @@ static GtkWidget *build_opengl_only_msg(void)
     return frame;
     
 } /* build_opengl_only_msg() */
+
+
+
+void ctk_gvo_csc_select(GtkWidget *widget)
+{
+    CtkGvoCsc *ctk_gvo_csc = CTK_GVO_CSC(widget);
+    CtkGvo *ctk_gvo = ctk_gvo_csc->gvo_parent;
+
+    /* Grab the GVO parent banner table */
+
+    gtk_container_add(GTK_CONTAINER(ctk_gvo_csc->banner_frame),
+                      ctk_gvo->banner.table);
+
+    /* Set lastest LED state of this GVO device */
+
+    ctk_gvo_pack_banner_slot(&ctk_gvo->banner, 1, ctk_gvo->banner.img.vid1);
+    ctk_gvo_pack_banner_slot(&ctk_gvo->banner, 2, ctk_gvo->banner.img.vid2);
+    ctk_gvo_pack_banner_slot(&ctk_gvo->banner, 3, ctk_gvo->banner.img.sdi);
+    ctk_gvo_pack_banner_slot(&ctk_gvo->banner, 4, ctk_gvo->banner.img.comp);
+
+    ctk_config_start_timer(ctk_gvo->ctk_config, (GSourceFunc) ctk_gvo_probe,
+                           (gpointer) ctk_gvo);
+}
+
+
+
+void ctk_gvo_csc_unselect(GtkWidget *widget)
+{
+    CtkGvoCsc *ctk_gvo_csc = CTK_GVO_CSC(widget);
+    CtkGvo *ctk_gvo = ctk_gvo_csc->gvo_parent;
+
+    /* Return the GVO parent banner table */
+
+    gtk_container_remove(GTK_CONTAINER(ctk_gvo_csc->banner_frame),
+                         ctk_gvo->banner.table);
+
+    ctk_config_stop_timer(ctk_gvo->ctk_config, (GSourceFunc) ctk_gvo_probe,
+                          (gpointer) ctk_gvo);
+}

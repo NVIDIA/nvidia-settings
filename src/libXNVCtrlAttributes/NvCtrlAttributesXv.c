@@ -79,6 +79,7 @@ static Bool open_libxv(void)
     if ( !__libXv ) {
         __libXv = (__libXvInfo *) calloc(1, sizeof(__libXvInfo));
         if ( !__libXv ) {
+            error_str = "Could not allocate memory.";
             goto fail;
         }
     }
@@ -94,6 +95,7 @@ static Bool open_libxv(void)
     /* We are the first to open the library */
     __libXv->handle = dlopen("libXv.so.1", RTLD_LAZY);
     if ( __libXv->handle == NULL ) {
+        error_str = dlerror();
         goto fail;
     }
 

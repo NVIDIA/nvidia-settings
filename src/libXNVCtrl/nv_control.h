@@ -6,7 +6,7 @@
 #define NV_CONTROL_NAME "NV-CONTROL"
 
 #define NV_CONTROL_MAJOR 1
-#define NV_CONTROL_MINOR 10
+#define NV_CONTROL_MINOR 12
 
 #define X_nvCtrlQueryExtension                      0
 #define X_nvCtrlIsNv                                1
@@ -33,7 +33,8 @@
 #define X_nvCtrlQueryGvoColorConversion             22
 #define X_nvCtrlSelectTargetNotify                  23
 #define X_nvCtrlQueryTargetCount                    24
-#define X_nvCtrlLastRequest  (X_nvCtrlQueryTargetCount + 1)
+#define X_nvCtrlStringOperation                     25
+#define X_nvCtrlLastRequest  (X_nvCtrlStringOperation + 1)
 
 
 /* Define 32 bit floats */
@@ -607,6 +608,32 @@ typedef struct {
     CARD16 onoff B16;
 } xnvCtrlSelectNotifyReq;
 #define sz_xnvCtrlSelectNotifyReq 12
+
+typedef struct {
+    CARD8 reqType;
+    CARD8 nvReqType;
+    CARD16 length B16;
+    CARD16 target_id B16;    /* X screen number or GPU number */
+    CARD16 target_type B16;  /* X screen or GPU */
+    CARD32 display_mask B32;
+    CARD32 attribute B32;
+    CARD32 num_bytes B32; /* Length of string */
+} xnvCtrlStringOperationReq;
+#define sz_xnvCtrlStringOperationReq 20
+
+typedef struct {
+    BYTE type;   /* X_Reply */
+    CARD8 padb1;
+    CARD16 sequenceNumber B16;
+    CARD32 length B32;
+    CARD32 ret B32;
+    CARD32 num_bytes B32; /* Length of string */
+    CARD32 padl4 B32;
+    CARD32 padl5 B32;
+    CARD32 padl6 B32;
+    CARD32 padl7 B32;
+} xnvCtrlStringOperationReply;
+#define sz_xnvCtrlStringOperationReply 32
 
 typedef struct {
     union {

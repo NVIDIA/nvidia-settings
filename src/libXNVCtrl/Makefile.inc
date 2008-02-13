@@ -26,6 +26,7 @@
 #
 
 EXTRA_DIST += \
+	Makefile.inc \
 	NVCtrl.h \
 	NVCtrlLib.h \
 	libXNVCtrl.a \
@@ -33,3 +34,6 @@ EXTRA_DIST += \
         nv_control.h \
         README.LIBXNVCTRL \
         Imakefile
+
+dist_list::
+	@ echo $(SRC) $(EXTRA_DIST)

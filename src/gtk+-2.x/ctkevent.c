@@ -219,10 +219,21 @@ static void ctk_event_class_init(CtkEventClass *ctk_event_class)
     MAKE_SIGNAL(NV_CTRL_XV_SYNC_TO_DISPLAY);
     MAKE_SIGNAL(NV_CTRL_GVO_OVERRIDE_HW_CSC);
     MAKE_SIGNAL(NV_CTRL_GVO_COMPOSITE_TERMINATION);
+    MAKE_SIGNAL(NV_CTRL_ASSOCIATED_DISPLAY_DEVICES);
     MAKE_SIGNAL(NV_CTRL_FRAMELOCK_SLAVES);
     MAKE_SIGNAL(NV_CTRL_FRAMELOCK_MASTERABLE);
     MAKE_SIGNAL(NV_CTRL_PROBE_DISPLAYS);
     MAKE_SIGNAL(NV_CTRL_REFRESH_RATE);
+    MAKE_SIGNAL(NV_CTRL_INITIAL_PIXMAP_PLACEMENT);
+    MAKE_SIGNAL(NV_CTRL_PCI_BUS);
+    MAKE_SIGNAL(NV_CTRL_PCI_DEVICE);
+    MAKE_SIGNAL(NV_CTRL_PCI_FUNCTION);
+    MAKE_SIGNAL(NV_CTRL_FRAMELOCK_FPGA_REVISION);
+    MAKE_SIGNAL(NV_CTRL_MAX_SCREEN_WIDTH);
+    MAKE_SIGNAL(NV_CTRL_MAX_SCREEN_HEIGHT);
+    MAKE_SIGNAL(NV_CTRL_MAX_DISPLAYS);
+    MAKE_SIGNAL(NV_CTRL_DYNAMIC_TWINVIEW);
+    MAKE_SIGNAL(NV_CTRL_MULTIGPU_DISPLAY_OWNER);
 
 #undef MAKE_SIGNAL
     
@@ -233,7 +244,7 @@ static void ctk_event_class_init(CtkEventClass *ctk_event_class)
      * knows about.
      */
 
-#if NV_CTRL_LAST_ATTRIBUTE != NV_CTRL_REFRESH_RATE
+#if NV_CTRL_LAST_ATTRIBUTE != NV_CTRL_MULTIGPU_DISPLAY_OWNER
 #warning "There are attributes that do not emit signals!"
 #endif
 
@@ -347,7 +358,7 @@ static void ctk_event_register_source(CtkEvent *ctk_event)
 
 
 
-GtkObject *ctk_event_new (NvCtrlAttributeHandle *handle)
+GtkObject *ctk_event_new(NvCtrlAttributeHandle *handle)
 {
     GObject *object;
     CtkEvent *ctk_event;
@@ -368,6 +379,7 @@ GtkObject *ctk_event_new (NvCtrlAttributeHandle *handle)
 } /* ctk_event_new() */
 
 
+
 static gboolean ctk_event_prepare(GSource *source, gint *timeout)
 {
     *timeout = -1;
@@ -380,6 +392,8 @@ static gboolean ctk_event_prepare(GSource *source, gint *timeout)
     return FALSE;
 }
 
+
+
 static gboolean ctk_event_check(GSource *source)
 {
     CtkEventSource *event_source = (CtkEventSource *) source;
@@ -391,6 +405,26 @@ static gboolean ctk_event_check(GSource *source)
      */
     return XPending(event_source->dpy);
 }
+
+
+
+static int get_screen_of_root(Display *dpy, Window root)
+{
+    int screen = -1;
+
+    /* Find the screen the window belongs to */
+    screen = XScreenCount(dpy);
+
+    while (screen > 0) {
+        screen--;
+        if (root == RootWindow(dpy, screen)) {
+            break;
+        }
+    }
+    
+    return screen;
+}
+
 
 
 #define CTK_EVENT_BROADCAST(ES, SIG, PTR, TYPE, ID)   \
@@ -494,16 +528,8 @@ static gboolean ctk_event_dispatch(GSource *source,
         int screen;
         
         /* Find the screen the window belongs to */
-        screen = XScreenCount(xrandrevent->display);
-        screen--;
-        while (screen > 0) {
-            if (xrandrevent->root ==
-                RootWindow(xrandrevent->display, screen)) {
-                break;
-            }
-            screen--;
-        }
-        if (screen > 0) {
+        screen = get_screen_of_root(xrandrevent->display, xrandrevent->root);
+        if (screen >= 0) {
             CTK_EVENT_BROADCAST(event_source,
                                 signal_RRScreenChangeNotify,
                                 &event,
@@ -515,3 +541,44 @@ static gboolean ctk_event_dispatch(GSource *source,
     return TRUE;
 
 } /* ctk_event_dispatch() */
+
+
+
+/* ctk_event_emit() - Emits signal(s) on a registered ctk_event object.
+ * This function is primarly used to simulate NV-CONTROL events such
+ * that various parts of nvidia-settings can communicate (internally)
+ */
+void ctk_event_emit(CtkEvent *ctk_event,
+                    unsigned int mask, int attrib, int value)
+{
+    CtkEventStruct event;
+    CtkEventSource *source;
+    Display *dpy = NvCtrlGetDisplayPtr(ctk_event->handle);
+
+
+    if (attrib > NV_CTRL_LAST_ATTRIBUTE) return;
+
+
+    /* Find the event source */
+    source = event_sources;
+    while (source) {
+        if (source->dpy == dpy) {
+            break;
+        }
+        source = source->next;
+    }
+    if (!source) return;
+
+
+    /* Broadcast event to all relavent ctk_event objects */
+    event.attribute = attrib;
+    event.value = value;
+    event.display_mask = mask;
+
+    CTK_EVENT_BROADCAST(source,
+                        signals[attrib],
+                        &event,
+                        NvCtrlGetTargetType(ctk_event->handle),
+                        NvCtrlGetTargetId(ctk_event->handle));
+
+} /* ctk_event_emit() */

@@ -33,6 +33,7 @@
 #include "glx_banner.h"
 #include "ctkimage.h"
 #include "ctkglx.h"
+#include "ctkutils.h"
 #include "ctkconfig.h"
 #include "ctkhelp.h"
 
@@ -149,32 +150,6 @@ GType ctk_glx_get_type(void)
 
     return ctk_glx_type;
 } /* ctk_glx_get_type() */
-
-
-static void add_table_row(GtkWidget *table,
-                          const gint row,
-                          const gint value_alignment,
-                          const gchar *name,
-                          const gchar *value)
-{
-    GtkWidget *label;
-
-
-    label = gtk_label_new(name);
-    gtk_misc_set_alignment(GTK_MISC(label), 0.0f, 0.0f);
-    gtk_label_set_selectable(GTK_LABEL(label), TRUE);
-
-    gtk_table_attach(GTK_TABLE(table), label, 0, 1, row, row + 1,
-                     GTK_FILL, GTK_EXPAND | GTK_FILL, 0, 0);
-
-    label = gtk_label_new(value);
-    gtk_label_set_line_wrap(GTK_LABEL(label), TRUE);
-    gtk_misc_set_alignment(GTK_MISC(label), value_alignment, 0.0f);
-    gtk_label_set_selectable(GTK_LABEL(label), TRUE);
-
-    gtk_table_attach(GTK_TABLE(table), label, 1, 2, row, row + 1,
-                     GTK_FILL, GTK_EXPAND | GTK_FILL, 0, 0);
-} /* add_table_row() */
 
 
 static void dummy_button_signal(GtkWidget *widget,
@@ -452,10 +427,10 @@ GtkWidget* ctk_glx_new(NvCtrlAttributeHandle *handle,
 
     /* Failure (no GLX) */
  fail_glx_not_supported:
-    label = gtk_label_new("The OpenGL extension 'GLX' is not supported by\n"
-                          "the X server or there was a problem retrieving\n"
-                          "GLX information from the X server."
-                          );
+    label =
+        gtk_label_new("GLX not available: either the GLX extension is not\n"
+                      "available on this X server, or there was a problem\n"
+                      "retrieving GLX information from the X server.");
     gtk_label_set_selectable(GTK_LABEL(label), TRUE);
 
     gtk_container_add(GTK_CONTAINER(ctk_glx), label);
@@ -601,9 +576,12 @@ void ctk_glx_probe_info(GtkWidget *widget)
     table = gtk_table_new(2, 2, FALSE);
     gtk_table_set_row_spacings(GTK_TABLE(table), 3);
     gtk_table_set_col_spacings(GTK_TABLE(table), 15);
-    add_table_row(table, 0, 0, "Direct Rendering:", direct_rendering);
-    add_table_row(table, 1, 0, "GLX Extensions:",
-                  glx_extensions?glx_extensions:"");
+    add_table_row(table, 0,
+                  0, 0, "Direct Rendering:",
+                  0, 0,  direct_rendering);
+    add_table_row(table, 1,
+                  0, 0, "GLX Extensions:",
+                  0, 0,  glx_extensions);
     gtk_box_pack_start(GTK_BOX(vbox), hbox, FALSE, FALSE, 0);
     gtk_box_pack_start(GTK_BOX(hbox), hbox2, FALSE, FALSE, 5);
     gtk_box_pack_start(GTK_BOX(hbox), table, FALSE, FALSE, 0);
@@ -622,12 +600,15 @@ void ctk_glx_probe_info(GtkWidget *widget)
     table = gtk_table_new(3, 2, FALSE);
     gtk_table_set_row_spacings(GTK_TABLE(table), 3);
     gtk_table_set_col_spacings(GTK_TABLE(table), 15);
-    add_table_row(table, 0, 0, "Vendor:",
-                  server_vendor?server_vendor:"");
-    add_table_row(table, 1, 0, "Version:",
-                  server_version?server_version:"");
-    add_table_row(table, 2, 0, "Extensions:",
-                  server_extensions?server_extensions:"");
+    add_table_row(table, 0,
+                  0, 0, "Vendor:",
+                  0, 0, server_vendor);
+    add_table_row(table, 1,
+                  0, 0, "Version:",
+                  0, 0, server_version);
+    add_table_row(table, 2,
+                  0, 0, "Extensions:",
+                  0, 0, server_extensions);
     gtk_box_pack_start(GTK_BOX(vbox), hbox, FALSE, FALSE, 0);
     gtk_box_pack_start(GTK_BOX(hbox), hbox2, FALSE, FALSE, 5);
     gtk_box_pack_start(GTK_BOX(hbox), table, FALSE, FALSE, 0);
@@ -646,12 +627,15 @@ void ctk_glx_probe_info(GtkWidget *widget)
     table = gtk_table_new(3, 2, FALSE);
     gtk_table_set_row_spacings(GTK_TABLE(table), 3);
     gtk_table_set_col_spacings(GTK_TABLE(table), 15);
-    add_table_row(table, 0, 0, "Vendor:",
-                  client_vendor?client_vendor:"");
-    add_table_row(table, 1, 0, "Version:",
-                  client_version?client_version:"");
-    add_table_row(table, 2, 0, "Extensions:",
-                  client_extensions?client_extensions:"");
+    add_table_row(table, 0,
+                  0, 0, "Vendor:",
+                  0, 0, client_vendor);
+    add_table_row(table, 1,
+                  0, 0, "Version:",
+                  0, 0, client_version);
+    add_table_row(table, 2,
+                  0, 0, "Extensions:",
+                  0, 0, client_extensions);
     gtk_box_pack_start(GTK_BOX(vbox), hbox, FALSE, FALSE, 0);
     gtk_box_pack_start(GTK_BOX(hbox), hbox2, FALSE, FALSE, 5);
     gtk_box_pack_start(GTK_BOX(hbox), table, FALSE, FALSE, 0);
@@ -671,10 +655,18 @@ void ctk_glx_probe_info(GtkWidget *widget)
     vbox2 = gtk_vbox_new(FALSE, 0);
     gtk_table_set_row_spacings(GTK_TABLE(table), 3);
     gtk_table_set_col_spacings(GTK_TABLE(table), 15);
-    add_table_row(table, 0, 0, "Vendor:", opengl_vendor);
-    add_table_row(table, 1, 0, "Renderer:", opengl_renderer);
-    add_table_row(table, 2, 0, "Version:", opengl_version);
-    add_table_row(table, 3, 0, "Extensions:", opengl_extensions);
+    add_table_row(table, 0,
+                  0, 0, "Vendor:",
+                  0, 0, opengl_vendor);
+    add_table_row(table, 1,
+                  0, 0, "Renderer:",
+                  0, 0, opengl_renderer);
+    add_table_row(table, 2,
+                  0, 0, "Version:",
+                  0, 0, opengl_version);
+    add_table_row(table, 3,
+                  0, 0, "Extensions:",
+                  0, 0, opengl_extensions);
     gtk_box_pack_start(GTK_BOX(vbox), hbox, FALSE, FALSE, 0);
     gtk_box_pack_start(GTK_BOX(hbox), hbox2, FALSE, FALSE, 5);
     gtk_box_pack_start(GTK_BOX(hbox), table, FALSE, FALSE, 0);

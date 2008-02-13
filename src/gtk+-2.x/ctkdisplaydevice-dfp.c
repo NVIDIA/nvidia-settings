@@ -37,6 +37,9 @@
 #include "ctkutils.h"
 
 
+static void ctk_display_device_dfp_class_init(CtkDisplayDeviceDfpClass *);
+static void ctk_display_device_dfp_finalize(GObject *);
+
 static GtkWidget *make_scaling_radio_button(CtkDisplayDeviceDfp
                                             *ctk_display_device_dfp,
                                             GtkWidget *vbox,
@@ -69,12 +72,23 @@ dfp_dithering_update_radio_buttons(CtkDisplayDeviceDfp *ctk_display_device_dfp,
 static void dfp_update_received(GtkObject *object, gpointer arg1,
                                 gpointer user_data);
 
+static void dfp_info_setup(CtkDisplayDeviceDfp *ctk_display_device_dfp);
+
+static void dfp_scaling_setup(CtkDisplayDeviceDfp *ctk_display_device_dfp);
+
+static void dfp_dithering_setup(CtkDisplayDeviceDfp *ctk_display_device_dfp);
+
+static void ctk_display_device_dfp_setup(CtkDisplayDeviceDfp
+                                         *ctk_display_device_dfp);
+
+static void enabled_displays_received(GtkObject *object, gpointer arg1,
+                                      gpointer user_data);
+
 
 #define FRAME_PADDING 5
 
 #define __SCALING (1<<0)
 #define __DITHERING (1<<1)
-#define __INFO (1<<2)
 
 
 static const char *__scaling_help =
@@ -103,8 +117,8 @@ GType ctk_display_device_dfp_get_type(void)
             sizeof (CtkDisplayDeviceDfpClass),
             NULL, /* base_init */
             NULL, /* base_finalize */
-            NULL, /* class_init, */
-            NULL, /* class_finalize */
+            (GClassInitFunc) ctk_display_device_dfp_class_init,
+            NULL, /* class_finalize, */
             NULL, /* class_data */
             sizeof (CtkDisplayDeviceDfp),
             0, /* n_preallocs */
@@ -118,11 +132,26 @@ GType ctk_display_device_dfp_get_type(void)
     return ctk_display_device_dfp_type;
 }
 
+static void ctk_display_device_dfp_class_init(
+    CtkDisplayDeviceDfpClass *ctk_display_device_dfp_class
+)
+{
+    GObjectClass *gobject_class = (GObjectClass *)ctk_display_device_dfp_class;
+    gobject_class->finalize = ctk_display_device_dfp_finalize;
+}
+
+static void ctk_display_device_dfp_finalize(
+    GObject *object
+)
+{
+    CtkDisplayDeviceDfp *ctk_display_device_dfp = CTK_DISPLAY_DEVICE_DFP(object);
+    g_free(ctk_display_device_dfp->name);
+}
 
 
 /*
  * ctk_display_device_dfp_new() - constructor for the DFP display
- * device page
+ * device page.
  */
 
 GtkWidget* ctk_display_device_dfp_new(NvCtrlAttributeHandle *handle,
@@ -136,7 +165,6 @@ GtkWidget* ctk_display_device_dfp_new(NvCtrlAttributeHandle *handle,
     GtkWidget *banner;
     GtkWidget *frame;
     GtkWidget *hbox, *vbox, *tmpbox;
-    GtkWidget *label;
     GtkWidget *eventbox;
 
     GtkWidget *radio0;
@@ -144,13 +172,8 @@ GtkWidget* ctk_display_device_dfp_new(NvCtrlAttributeHandle *handle,
     GtkWidget *radio2;
     GtkWidget *radio3;
     GtkWidget *alignment;
-    GtkWidget *edid;
     
     GtkWidget *table;
-    
-    ReturnStatus ret;
-    
-    gint val, i;
 
     object = g_object_new(CTK_TYPE_DISPLAY_DEVICE_DFP, NULL);
 
@@ -158,7 +181,7 @@ GtkWidget* ctk_display_device_dfp_new(NvCtrlAttributeHandle *handle,
     ctk_display_device_dfp->handle = handle;
     ctk_display_device_dfp->ctk_config = ctk_config;
     ctk_display_device_dfp->display_device_mask = display_device_mask;
-    ctk_display_device_dfp->name = name;
+    ctk_display_device_dfp->name = g_strdup(name);
 
     gtk_box_set_spacing(GTK_BOX(object), 10);
 
@@ -173,13 +196,8 @@ GtkWidget* ctk_display_device_dfp_new(NvCtrlAttributeHandle *handle,
      * sensitivity), though we pack it at the bottom of the page
      */
 
-    label = gtk_label_new("Reset Hardware Defaults");
-    hbox = gtk_hbox_new(FALSE, 0);
-    ctk_display_device_dfp->reset_button = gtk_button_new();
-    
-    gtk_box_pack_start(GTK_BOX(hbox), label, FALSE, FALSE, 15);
-    gtk_container_add(GTK_CONTAINER(ctk_display_device_dfp->reset_button),
-                      hbox);
+    ctk_display_device_dfp->reset_button =
+        gtk_button_new_with_label("Reset Hardware Defaults");
 
     alignment = gtk_alignment_new(1, 1, 0, 0);
     gtk_container_add(GTK_CONTAINER(alignment),
@@ -200,176 +218,116 @@ GtkWidget* ctk_display_device_dfp_new(NvCtrlAttributeHandle *handle,
     gtk_box_pack_start(GTK_BOX(object), hbox, FALSE, FALSE, FRAME_PADDING);
 
     /* DFP info */
-    ret = NvCtrlGetDisplayAttribute(handle, display_device_mask,
-                                    NV_CTRL_FLATPANEL_CHIP_LOCATION, &val);
-    if (ret == NvCtrlSuccess) {
-        char *chip_location, *link, *signal;
-        gint tmp;
-        
-        /* NV_CTRL_FLATPANEL_CHIP_LOCATION */
-        ret = NvCtrlGetDisplayAttribute(handle, display_device_mask, 
-                                        NV_CTRL_FLATPANEL_CHIP_LOCATION, &tmp);
-        chip_location = NULL;
-        if (ret == NvCtrlSuccess) {
-            if (tmp == NV_CTRL_FLATPANEL_CHIP_LOCATION_INTERNAL) chip_location = "Internal";
-            if (tmp == NV_CTRL_FLATPANEL_CHIP_LOCATION_EXTERNAL) chip_location = "External";
-        }
-         
-        ret = NvCtrlGetDisplayAttribute(handle, display_device_mask, 
-                                        NV_CTRL_FLATPANEL_LINK, &tmp);
-        link = NULL;
-        if (ret == NvCtrlSuccess) {
-            if (tmp == NV_CTRL_FLATPANEL_LINK_SINGLE) link = "Single";
-            if (tmp == NV_CTRL_FLATPANEL_LINK_DUAL) link = "Dual";
-        }
-        
-        ret = NvCtrlGetDisplayAttribute(handle, display_device_mask, 
-                                        NV_CTRL_FLATPANEL_SIGNAL, &tmp);
-        signal = NULL;
-        if (ret == NvCtrlSuccess) {
-            if (tmp == NV_CTRL_FLATPANEL_SIGNAL_LVDS) signal = "LVDS";
-            if (tmp == NV_CTRL_FLATPANEL_SIGNAL_TMDS) signal = "TMDS";
-        }
-          
-        frame = gtk_frame_new("Flat Panel Information");
-        gtk_box_pack_start(GTK_BOX(hbox), frame, FALSE, FALSE, 0);
-        
-        table = gtk_table_new(3, 2, FALSE);
 
-        /*
-         * insert a vbox between the frame and the table, so that the
-         * table doesn't expand to fill all of the space within the
-         * frame
-         */
-
-        tmpbox = gtk_vbox_new(FALSE, 0);
-        gtk_box_pack_start(GTK_BOX(tmpbox), table, FALSE, FALSE, 0);
-
-        gtk_container_add(GTK_CONTAINER(frame), tmpbox);
-        
-        gtk_table_set_row_spacings(GTK_TABLE(table), 3);
-        gtk_table_set_col_spacings(GTK_TABLE(table), 15);
-
-        gtk_container_set_border_width(GTK_CONTAINER(table), 5);
-
+    frame = gtk_frame_new("Flat Panel Information");
+    gtk_box_pack_start(GTK_BOX(hbox), frame, FALSE, FALSE, 0);
     
-        add_table_row(table, 0, 0, "Chip location:", chip_location);
-        add_table_row(table, 1, 0, "DVI connection link:", link);
-        add_table_row(table, 2, 0, "Signal:", signal);
-        
-        ctk_display_device_dfp->active_attributes |= __INFO;
-    }
-    else
-        ctk_display_device_dfp->active_attributes &= ~__INFO;
+    table = gtk_table_new(3, 2, FALSE);
+    
+    /*
+     * insert a vbox between the frame and the table, so that the
+     * table doesn't expand to fill all of the space within the
+     * frame
+     */
+    
+    tmpbox = gtk_vbox_new(FALSE, 0);
+    gtk_box_pack_start(GTK_BOX(tmpbox), table, FALSE, FALSE, 0);
+    
+    gtk_container_add(GTK_CONTAINER(frame), tmpbox);
+    
+    gtk_table_set_row_spacings(GTK_TABLE(table), 3);
+    gtk_table_set_col_spacings(GTK_TABLE(table), 15);
+    
+    gtk_container_set_border_width(GTK_CONTAINER(table), 5);
+    
+    ctk_display_device_dfp->txt_chip_location = 
+        add_table_row(table, 0,
+                      0, 0.5, "Chip location:",
+                      0, 0.5,  "");
+
+    ctk_display_device_dfp->txt_link = 
+        add_table_row(table, 1,
+                      0, 0.5, "DVI connection link:",
+                      0, 0.5,  "");
+
+    ctk_display_device_dfp->txt_signal = 
+        add_table_row(table, 2,
+                      0, 0.5, "Signal:",
+                      0, 0.5,  "");
     
     /* FlatPanel Scaling */
     
-    ret = NvCtrlGetDisplayAttribute(handle, display_device_mask,
-                                    NV_CTRL_FLATPANEL_SCALING, &val);
-
-    if (ret == NvCtrlSuccess) {
-        frame = gtk_frame_new("FlatPanel Scaling");
-        eventbox = gtk_event_box_new();
-        gtk_container_add(GTK_CONTAINER(eventbox), frame);
-        gtk_box_pack_start(GTK_BOX(hbox), eventbox, FALSE, FALSE, 0);
+    frame = gtk_frame_new("FlatPanel Scaling");
+    eventbox = gtk_event_box_new();
+    gtk_container_add(GTK_CONTAINER(eventbox), frame);
+    gtk_box_pack_start(GTK_BOX(hbox), eventbox, FALSE, FALSE, 0);
+    ctk_display_device_dfp->scaling_frame = frame;
     
-        ctk_config_set_tooltip(ctk_config, eventbox, __scaling_help);
-
-        vbox = gtk_vbox_new(FALSE, FRAME_PADDING);
-        gtk_container_set_border_width(GTK_CONTAINER(vbox), FRAME_PADDING);
-        gtk_container_add(GTK_CONTAINER(frame), vbox);
-        
-        
-        radio0 = make_scaling_radio_button
-            (ctk_display_device_dfp, vbox, NULL, "Default",
-             NV_CTRL_FLATPANEL_SCALING_DEFAULT);
-        
-        radio1 = make_scaling_radio_button
-            (ctk_display_device_dfp, vbox, radio0, "Scaled",
-             NV_CTRL_FLATPANEL_SCALING_SCALED);
-        
-        radio2 = make_scaling_radio_button
-            (ctk_display_device_dfp, vbox, radio1, "Centered",
-             NV_CTRL_FLATPANEL_SCALING_CENTERED);
-        
-        radio3 = make_scaling_radio_button
-            (ctk_display_device_dfp, vbox, radio2, "Fixed Aspect Ratio Scaled",
-             NV_CTRL_FLATPANEL_SCALING_ASPECT_SCALED);
-        
-        /*
-         * XXX TODO: determine when we should advertise Monitor
-         * Scaling (aka "Native" scaling)
-         */
-        
-        ctk_display_device_dfp->scaling_buttons
-            [NV_CTRL_FLATPANEL_SCALING_NATIVE] = NULL;
-        
-        
-        dfp_scaling_update_radio_buttons(ctk_display_device_dfp, val);
-        
-        g_signal_connect(G_OBJECT(ctk_event),
-                         CTK_EVENT_NAME(NV_CTRL_FLATPANEL_SCALING),
-                         G_CALLBACK(dfp_update_received),
-                         (gpointer) ctk_display_device_dfp);
-        
-        ctk_display_device_dfp->active_attributes |= __SCALING;
-        
-    } else {
-        
-        for (i = 0; i < NV_CTRL_FLATPANEL_SCALING_ASPECT_SCALED+1; i++) {
-            ctk_display_device_dfp->scaling_buttons[i] = NULL;
-        }
-        
-        ctk_display_device_dfp->active_attributes &= ~__SCALING;
-    }
+    ctk_config_set_tooltip(ctk_config, eventbox, __scaling_help);
+    
+    vbox = gtk_vbox_new(FALSE, FRAME_PADDING);
+    gtk_container_set_border_width(GTK_CONTAINER(vbox), FRAME_PADDING);
+    gtk_container_add(GTK_CONTAINER(frame), vbox);
+    
+    radio0 = make_scaling_radio_button
+        (ctk_display_device_dfp, vbox, NULL, "Default",
+         NV_CTRL_FLATPANEL_SCALING_DEFAULT);
+    
+    radio1 = make_scaling_radio_button
+        (ctk_display_device_dfp, vbox, radio0, "Scaled",
+         NV_CTRL_FLATPANEL_SCALING_SCALED);
+    
+    radio2 = make_scaling_radio_button
+        (ctk_display_device_dfp, vbox, radio1, "Centered",
+         NV_CTRL_FLATPANEL_SCALING_CENTERED);
+    
+    radio3 = make_scaling_radio_button
+        (ctk_display_device_dfp, vbox, radio2, "Fixed Aspect Ratio Scaled",
+         NV_CTRL_FLATPANEL_SCALING_ASPECT_SCALED);
+    
+    /*
+     * XXX TODO: determine when we should advertise Monitor
+     * Scaling (aka "Native" scaling)
+     */
+    
+    ctk_display_device_dfp->scaling_buttons
+        [NV_CTRL_FLATPANEL_SCALING_NATIVE] = NULL;
+    
+    g_signal_connect(G_OBJECT(ctk_event),
+                     CTK_EVENT_NAME(NV_CTRL_FLATPANEL_SCALING),
+                     G_CALLBACK(dfp_update_received),
+                     (gpointer) ctk_display_device_dfp);
 
     /* FlatPanel Dithering */
 
-    ret = NvCtrlGetDisplayAttribute(handle, display_device_mask,
-                                    NV_CTRL_FLATPANEL_DITHERING, &val);
-
-    if (ret == NvCtrlSuccess) {
-        frame = gtk_frame_new("FlatPanel Dithering");
-        eventbox = gtk_event_box_new();
-        gtk_container_add(GTK_CONTAINER(eventbox), frame);
-        gtk_box_pack_start(GTK_BOX(hbox), eventbox, TRUE, TRUE, 0);
+    frame = gtk_frame_new("FlatPanel Dithering");
+    eventbox = gtk_event_box_new();
+    gtk_container_add(GTK_CONTAINER(eventbox), frame);
+    gtk_box_pack_start(GTK_BOX(hbox), eventbox, TRUE, TRUE, 0);
+    ctk_display_device_dfp->dithering_frame = frame;
     
-        ctk_config_set_tooltip(ctk_config, eventbox, __dithering_help);
-
-        vbox = gtk_vbox_new(FALSE, FRAME_PADDING);
-        gtk_container_set_border_width(GTK_CONTAINER(vbox), FRAME_PADDING);
-        gtk_container_add(GTK_CONTAINER(frame), vbox);
+    ctk_config_set_tooltip(ctk_config, eventbox, __dithering_help);
     
+    vbox = gtk_vbox_new(FALSE, FRAME_PADDING);
+    gtk_container_set_border_width(GTK_CONTAINER(vbox), FRAME_PADDING);
+    gtk_container_add(GTK_CONTAINER(frame), vbox);
     
-        radio0 = make_dithering_radio_button
-            (ctk_display_device_dfp, vbox, NULL, "Default",
-             NV_CTRL_FLATPANEL_DITHERING_DEFAULT);
-
-        radio1 = make_dithering_radio_button
-            (ctk_display_device_dfp, vbox, radio0, "Enabled",
-             NV_CTRL_FLATPANEL_DITHERING_ENABLED);
-
-        radio2 = make_dithering_radio_button
-            (ctk_display_device_dfp, vbox, radio1, "Disabled",
-             NV_CTRL_FLATPANEL_DITHERING_DISABLED);
-
-        dfp_dithering_update_radio_buttons(ctk_display_device_dfp, val);
-        
-        g_signal_connect(G_OBJECT(ctk_event),
-                         CTK_EVENT_NAME(NV_CTRL_FLATPANEL_DITHERING),
-                         G_CALLBACK(dfp_update_received),
-                         (gpointer) ctk_display_device_dfp);
-        
-        ctk_display_device_dfp->active_attributes |= __DITHERING;
-
-    } else {
-
-        for (i = 0; i < NV_CTRL_FLATPANEL_DITHERING_DISABLED+1; i++) {
-            ctk_display_device_dfp->dithering_buttons[i] = NULL;
-        }
-        
-        ctk_display_device_dfp->active_attributes &= ~__DITHERING;
-    }
+    radio0 = make_dithering_radio_button
+        (ctk_display_device_dfp, vbox, NULL, "Default",
+         NV_CTRL_FLATPANEL_DITHERING_DEFAULT);
+    
+    radio1 = make_dithering_radio_button
+        (ctk_display_device_dfp, vbox, radio0, "Enabled",
+         NV_CTRL_FLATPANEL_DITHERING_ENABLED);
+    
+    radio2 = make_dithering_radio_button
+        (ctk_display_device_dfp, vbox, radio1, "Disabled",
+         NV_CTRL_FLATPANEL_DITHERING_DISABLED);
+    
+    g_signal_connect(G_OBJECT(ctk_event),
+                     CTK_EVENT_NAME(NV_CTRL_FLATPANEL_DITHERING),
+                     G_CALLBACK(dfp_update_received),
+                     (gpointer) ctk_display_device_dfp);
 
     /* pack the image sliders */
     
@@ -385,19 +343,24 @@ GtkWidget* ctk_display_device_dfp_new(NvCtrlAttributeHandle *handle,
 
     /* pack the EDID button */
 
-    edid = ctk_edid_new(handle, ctk_config, ctk_event,
-                        ctk_display_device_dfp->reset_button,
-                        display_device_mask, name);
-    if (edid) {
-        gtk_box_pack_start(GTK_BOX(object), edid, FALSE, FALSE, 0);
-        ctk_display_device_dfp->edid_available = TRUE;
-    } else {
-        ctk_display_device_dfp->edid_available = FALSE;
-    }
+    hbox = gtk_hbox_new(FALSE, 0);
+    gtk_box_pack_start(GTK_BOX(object), hbox, FALSE, FALSE, 0);
+    ctk_display_device_dfp->edid_box = hbox;
     
     /* show the page */
 
     gtk_widget_show_all(GTK_WIDGET(object));
+
+    /* Update the GUI */
+
+    ctk_display_device_dfp_setup(ctk_display_device_dfp);
+    
+    /* handle enable/disable events on the display device */
+
+    g_signal_connect(G_OBJECT(ctk_event),
+                     CTK_EVENT_NAME(NV_CTRL_ENABLED_DISPLAYS),
+                     G_CALLBACK(enabled_displays_received),
+                     (gpointer) ctk_display_device_dfp);
 
     return GTK_WIDGET(object);
 
@@ -613,10 +576,8 @@ static void reset_button_clicked(GtkButton *button, gpointer user_data)
 
     gint value;
     
-    if (ctk_display_device_dfp->image_sliders) {
-        ctk_image_sliders_reset
-            (CTK_IMAGE_SLIDERS(ctk_display_device_dfp->image_sliders));
-    }
+    ctk_image_sliders_reset
+        (CTK_IMAGE_SLIDERS(ctk_display_device_dfp->image_sliders));
  
     /*
      * if scaling is active, send the default scaling value to the
@@ -650,6 +611,10 @@ static void reset_button_clicked(GtkButton *button, gpointer user_data)
         dfp_dithering_update_radio_buttons(ctk_display_device_dfp, value);
     }
     
+    /* Update the reset button */
+
+    gtk_widget_set_sensitive(ctk_display_device_dfp->reset_button, FALSE);
+
     /* status bar message */
 
     ctk_config_statusbar_message(ctk_display_device_dfp->ctk_config,
@@ -758,7 +723,7 @@ dfp_dithering_update_radio_buttons(CtkDisplayDeviceDfp *ctk_display_device_dfp,
 
 
 /*
- * dfp_dithering_update_received() - callback function for changed DFP
+ * dfp_update_received() - callback function for changed DFP
  * settings; this is called when we receive an event indicating that
  * another NV-CONTROL client changed any of the settings that we care
  * about.
@@ -794,7 +759,7 @@ static void dfp_update_received(GtkObject *object, gpointer arg1,
         break;
     }
     
-} /* dfp_dithering_update_received() */
+} /* dfp_update_received() */
 
 
 
@@ -809,7 +774,6 @@ GtkTextBuffer *ctk_display_device_dfp_create_help(GtkTextTagTable *table,
 {
     GtkTextIter i;
     GtkTextBuffer *b;
-    gboolean ret = FALSE;
     
     b = gtk_text_buffer_new(table);
     
@@ -817,82 +781,275 @@ GtkTextBuffer *ctk_display_device_dfp_create_help(GtkTextTagTable *table,
     
     ctk_help_title(b, &i, "%s Help", ctk_display_device_dfp->name);
     
-    if (ctk_display_device_dfp->active_attributes & __INFO) {
-        ctk_help_heading(b, &i, "FlatPanel Information");
-        ctk_help_para(b, &i, __info_help);
+    ctk_help_heading(b, &i, "FlatPanel Information");
+    ctk_help_para(b, &i, __info_help);
         
-        ctk_help_term(b, &i, "Chip Location");
-        ctk_help_para(b, &i, "Report whether the flatpanel is driven by "
-                      "the on-chip controller (internal), or a "
-                      " separate controller chip elsewhere on the "
-                      "graphics board (external)");
+    ctk_help_term(b, &i, "Chip Location");
+    ctk_help_para(b, &i, "Report whether the flatpanel is driven by "
+                  "the on-chip controller (internal), or a "
+                  " separate controller chip elsewhere on the "
+                  "graphics board (external)");
                       
-        ctk_help_term(b, &i, "Link");
-        ctk_help_para(b, &i, "Report whether the specified display device "
-                      "is driven by a single link or dual link DVI "
-                      "connection.");
-        
-        ctk_help_term(b, &i, "Signal");
-        ctk_help_para(b, &i, "Report whether the flatpanel is driven by "
-                       "an LVDS or TMDS signal");
-        
-        ret = TRUE;
-    }
+    ctk_help_term(b, &i, "Link");
+    ctk_help_para(b, &i, "Report whether the specified display device "
+                  "is driven by a single link or dual link DVI "
+                  "connection.");
     
-    if (ctk_display_device_dfp->active_attributes & __SCALING) {
-        ctk_help_heading(b, &i, "FlatPanel Scaling");
-        ctk_help_para(b, &i, __scaling_help);
-        
-        ctk_help_term(b, &i, "Default");
-        ctk_help_para(b, &i, "The driver will choose what scaling state is "
-                      "best.");
-        
-        ctk_help_term(b, &i, "Scaled");
-        ctk_help_para(b, &i, "The image will be expanded to fit the entire "
-                      "FlatPanel.");
-
-        ctk_help_term(b, &i, "Centered");
-        ctk_help_para(b, &i, "The image will only occupy the number of pixels "
-                      "needed and be centered on the FlatPanel.");
-
-        ctk_help_term(b, &i, "Fixed Aspect Ratio Scaled");
-        ctk_help_para(b, &i, "The image will be expanded (like when Scaled), "
-                      "but the image will retain the original aspect ratio.");
-        ret = TRUE;
-    }
+    ctk_help_term(b, &i, "Signal");
+    ctk_help_para(b, &i, "Report whether the flatpanel is driven by "
+                  "an LVDS or TMDS signal");
     
-    if (ctk_display_device_dfp->active_attributes & __DITHERING) {
-        ctk_help_heading(b, &i, "FlatPanel Dithering");
-        ctk_help_para(b, &i, __dithering_help);
-        
-        ctk_help_term(b, &i, "Default");
-        ctk_help_para(b, &i, "The driver will choose when to dither.");
-
-        ctk_help_term(b, &i, "Enabled");
-        ctk_help_para(b, &i, "Force dithering on.");
-
-        ctk_help_term(b, &i, "Disabled");
-        ctk_help_para(b, &i, "Force dithering off.");
-        
-        ret = TRUE;
-    }
-
-    if (ctk_display_device_dfp->image_sliders) {
-        ret |= add_image_sliders_help
-            (CTK_IMAGE_SLIDERS(ctk_display_device_dfp->image_sliders), b, &i);
-    }
+    ctk_help_heading(b, &i, "FlatPanel Scaling");
+    ctk_help_para(b, &i, __scaling_help);
     
-    if (ctk_display_device_dfp->edid_available) {
+    ctk_help_term(b, &i, "Default");
+    ctk_help_para(b, &i, "The driver will choose what scaling state is "
+                  "best.");
+    
+    ctk_help_term(b, &i, "Scaled");
+    ctk_help_para(b, &i, "The image will be expanded to fit the entire "
+                  "FlatPanel.");
+    
+    ctk_help_term(b, &i, "Centered");
+    ctk_help_para(b, &i, "The image will only occupy the number of pixels "
+                  "needed and be centered on the FlatPanel.");
+    
+    ctk_help_term(b, &i, "Fixed Aspect Ratio Scaled");
+    ctk_help_para(b, &i, "The image will be expanded (like when Scaled), "
+                  "but the image will retain the original aspect ratio.");
+    
+    ctk_help_heading(b, &i, "FlatPanel Dithering");
+    ctk_help_para(b, &i, __dithering_help);
+    
+    ctk_help_term(b, &i, "Default");
+    ctk_help_para(b, &i, "The driver will choose when to dither.");
+    
+    ctk_help_term(b, &i, "Enabled");
+    ctk_help_para(b, &i, "Force dithering on.");
+    
+    ctk_help_term(b, &i, "Disabled");
+    ctk_help_para(b, &i, "Force dithering off.");
+
+    add_image_sliders_help
+        (CTK_IMAGE_SLIDERS(ctk_display_device_dfp->image_sliders), b, &i);
+    
+    if (ctk_display_device_dfp->edid) {
         add_acquire_edid_help(b, &i);
     }
 
-    if (!ret) {
-        ctk_help_para(b, &i, "There are no configurable options available "
-                      "for %s.", ctk_display_device_dfp->name);
-    }
-    
     ctk_help_finish(b);
     
     return b;
     
 } /* ctk_display_device_dfp_create_help() */
+
+
+
+/*
+ * dfp_info_setup() -
+ *
+ *
+ */
+static void dfp_info_setup(CtkDisplayDeviceDfp *ctk_display_device_dfp)
+{
+    ReturnStatus ret;
+    gint val;
+    char *chip_location, *link, *signal;
+
+    chip_location = link = signal = "Unknown";
+
+    /* Chip location */
+
+    ret =
+        NvCtrlGetDisplayAttribute(ctk_display_device_dfp->handle,
+                                  ctk_display_device_dfp->display_device_mask,
+                                  NV_CTRL_FLATPANEL_CHIP_LOCATION, &val);
+    if (ret == NvCtrlSuccess) {
+        if (val == NV_CTRL_FLATPANEL_CHIP_LOCATION_INTERNAL)
+            chip_location = "Internal";
+        if (val == NV_CTRL_FLATPANEL_CHIP_LOCATION_EXTERNAL)
+            chip_location = "External";
+    }
+    gtk_label_set_text
+        (GTK_LABEL(ctk_display_device_dfp->txt_chip_location), chip_location);
+
+    /* Link */
+
+    ret =
+        NvCtrlGetDisplayAttribute(ctk_display_device_dfp->handle,
+                                  ctk_display_device_dfp->display_device_mask,
+                                  NV_CTRL_FLATPANEL_LINK, &val);
+    if (ret == NvCtrlSuccess) {
+        if (val == NV_CTRL_FLATPANEL_LINK_SINGLE) link = "Single";
+        if (val == NV_CTRL_FLATPANEL_LINK_DUAL) link = "Dual";
+    }
+    gtk_label_set_text
+        (GTK_LABEL(ctk_display_device_dfp->txt_link), link);
+
+    /* Signal */
+
+    ret =
+        NvCtrlGetDisplayAttribute(ctk_display_device_dfp->handle,
+                                  ctk_display_device_dfp->display_device_mask,
+                                  NV_CTRL_FLATPANEL_SIGNAL, &val);
+    if (ret == NvCtrlSuccess) {
+        if (val == NV_CTRL_FLATPANEL_SIGNAL_LVDS) signal = "LVDS";
+        if (val == NV_CTRL_FLATPANEL_SIGNAL_TMDS) signal = "TMDS";
+    }
+    gtk_label_set_text
+        (GTK_LABEL(ctk_display_device_dfp->txt_signal), signal);
+
+} /* dfp_info_setup() */
+
+
+
+/*
+ * dfp_scaling_setup() - Update GUI to reflect X server settings of
+ * DFP Scaling.
+ */
+static void dfp_scaling_setup(CtkDisplayDeviceDfp *ctk_display_device_dfp)
+{
+    ReturnStatus ret;
+    int val;
+
+    ret =
+        NvCtrlGetDisplayAttribute(ctk_display_device_dfp->handle,
+                                  ctk_display_device_dfp->display_device_mask,
+                                  NV_CTRL_FLATPANEL_SCALING, &val);
+    if (ret != NvCtrlSuccess) {
+        gtk_widget_set_sensitive(ctk_display_device_dfp->scaling_frame, FALSE);
+        gtk_widget_hide(ctk_display_device_dfp->scaling_frame);
+        ctk_display_device_dfp->active_attributes &= ~__SCALING;
+        return;
+    }
+
+    gtk_widget_show(ctk_display_device_dfp->scaling_frame);
+    ctk_display_device_dfp->active_attributes |= __SCALING;
+
+    gtk_widget_set_sensitive(ctk_display_device_dfp->scaling_frame, TRUE);
+
+    dfp_scaling_update_radio_buttons(ctk_display_device_dfp, val);
+
+} /* dfp_scaling_setup() */
+
+
+
+/*
+ * dfp_dithering_setup() - Update GUI to reflect X server settings
+ * of DFP Dithering.
+ */
+static void dfp_dithering_setup(CtkDisplayDeviceDfp *ctk_display_device_dfp)
+{
+    ReturnStatus ret;
+    int val;
+
+    ret =
+        NvCtrlGetDisplayAttribute(ctk_display_device_dfp->handle,
+                                  ctk_display_device_dfp->display_device_mask,
+                                  NV_CTRL_FLATPANEL_DITHERING, &val);
+    if (ret != NvCtrlSuccess) {
+        gtk_widget_set_sensitive(ctk_display_device_dfp->dithering_frame,
+                                 FALSE);
+        gtk_widget_hide(ctk_display_device_dfp->dithering_frame);
+        ctk_display_device_dfp->active_attributes &= ~__DITHERING;
+        return;
+    }
+
+    gtk_widget_show(ctk_display_device_dfp->dithering_frame);
+    ctk_display_device_dfp->active_attributes |= __DITHERING;
+
+    gtk_widget_set_sensitive(ctk_display_device_dfp->dithering_frame, TRUE);
+
+    dfp_dithering_update_radio_buttons(ctk_display_device_dfp, val);
+
+} /* dfp_dithering_setup() */
+
+
+
+/*
+ * Updates the display device page to reflect the current
+ * configuration of the display device.
+ */
+static void ctk_display_device_dfp_setup(CtkDisplayDeviceDfp
+                                         *ctk_display_device_dfp)
+{
+    ReturnStatus ret;
+    unsigned int enabled_displays;
+
+
+    /* Is display enabled? */
+
+    ret = NvCtrlGetAttribute(ctk_display_device_dfp->handle,
+                             NV_CTRL_ENABLED_DISPLAYS,
+                             (int *)&enabled_displays);
+
+    ctk_display_device_dfp->display_enabled =
+        (ret == NvCtrlSuccess &&
+         (enabled_displays & (ctk_display_device_dfp->display_device_mask)));
+
+
+    /* Update DFP-specific settings */
+
+    dfp_info_setup(ctk_display_device_dfp);
+
+    dfp_scaling_setup(ctk_display_device_dfp);
+
+    dfp_dithering_setup(ctk_display_device_dfp);
+
+
+    /* Update the image sliders */
+
+    ctk_image_sliders_setup
+        (CTK_IMAGE_SLIDERS(ctk_display_device_dfp->image_sliders));
+
+
+    /* update acquire EDID button */
+    
+    if (ctk_display_device_dfp->edid) {
+            GList *list;
+            
+            list = gtk_container_get_children
+                (GTK_CONTAINER(ctk_display_device_dfp->edid_box));
+            if (list) {
+                gtk_container_remove
+                    (GTK_CONTAINER(ctk_display_device_dfp->edid_box),
+                     (GtkWidget *)(list->data));
+                g_list_free(list);
+            }
+    }
+
+    ctk_display_device_dfp->edid =
+        ctk_edid_new(ctk_display_device_dfp->handle,
+                     ctk_display_device_dfp->ctk_config,
+                     ctk_display_device_dfp->ctk_event,
+                     ctk_display_device_dfp->reset_button,
+                     ctk_display_device_dfp->display_device_mask,
+                     ctk_display_device_dfp->name);
+
+    if (ctk_display_device_dfp->edid) {
+        gtk_box_pack_start(GTK_BOX(ctk_display_device_dfp->edid_box),
+                           ctk_display_device_dfp->edid, TRUE, TRUE, 0);
+    }
+
+
+    /* update the reset button */
+
+    gtk_widget_set_sensitive(ctk_display_device_dfp->reset_button, FALSE);
+
+} /* ctk_display_device_dfp_setup() */
+
+
+
+/*
+ * When the list of enabled displays on the GPU changes,
+ * this page should disable/enable access based on whether
+ * or not the display device is enabled.
+ */
+static void enabled_displays_received(GtkObject *object, gpointer arg1,
+                                      gpointer user_data)
+{
+    CtkDisplayDeviceDfp *ctk_object = CTK_DISPLAY_DEVICE_DFP(user_data);
+
+    ctk_display_device_dfp_setup(ctk_object);
+
+} /* enabled_displays_received() */

@@ -53,15 +53,17 @@ G_BEGIN_DECLS
     (G_TYPE_INSTANCE_GET_CLASS ((obj), CTK_TYPE_WINDOW, CtkWindowClass))
 
 
+#define CTK_DISPLAY_DEVICE_CRT_MASK 0x000000FF
+#define CTK_DISPLAY_DEVICE_TV_MASK  0x0000FF00
+#define CTK_DISPLAY_DEVICE_DFP_MASK 0x00FF0000
+
+
 typedef struct _CtkWindow       CtkWindow;
 typedef struct _CtkWindowClass  CtkWindowClass;
 
 struct _CtkWindow
 {
     GtkWindow               parent;
-
-    NvCtrlAttributeHandle **handles;
-    gint                    num_handles;
 
     GtkTreeStore           *tree_store;
     GtkTreeView            *treeview;
@@ -90,6 +92,8 @@ struct _CtkWindowClass
 
 GType       ctk_window_get_type  (void) G_GNUC_CONST;
 GtkWidget*  ctk_window_new       (NvCtrlAttributeHandle**, gint,
+                                  NvCtrlAttributeHandle**, gint,
+                                  NvCtrlAttributeHandle**, gint,
                                   ParsedAttribute *, ConfigProperties *conf);
 
 G_END_DECLS
