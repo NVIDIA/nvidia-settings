@@ -35,6 +35,8 @@
 
 /* local helper functions */
 
+static int nv_parse_display_and_target(char *start, char *end,
+                                       ParsedAttribute *a);
 static char **nv_strtok(char *s, char c, int *n);
 static void nv_free_strtoks(char **s, int n);
 static int ctoi(const char c);
@@ -48,12 +50,16 @@ static char *nv_strndup(char *s, int n);
  * attribute.
  */
 
-#define F NV_PARSER_TYPE_FRAMELOCK 
+#define F NV_PARSER_TYPE_FRAMELOCK
 #define C NV_PARSER_TYPE_COLOR_ATTRIBUTE
 #define N NV_PARSER_TYPE_NO_CONFIG_WRITE
 #define G NV_PARSER_TYPE_GUI_ATTRIUBUTE
 #define V NV_PARSER_TYPE_XVIDEO_ATTRIBUTE
 #define P NV_PARSER_TYPE_PACKED_ATTRIBUTE
+#define D NV_PARSER_TYPE_VALUE_IS_DISPLAY
+#define A NV_PARSER_TYPE_NO_QUERY_ALL
+#define Z NV_PARSER_TYPE_NO_ZERO_VALUE
+
 
 AttributeTableEntry attributeTable[] = {
    
@@ -81,6 +87,7 @@ AttributeTableEntry attributeTable[] = {
     { "TwinView",              NV_CTRL_TWINVIEW,                    0     },
     { "ConnectedDisplays",     NV_CTRL_CONNECTED_DISPLAYS,          0     },
     { "EnabledDisplays",       NV_CTRL_ENABLED_DISPLAYS,            0     },
+    { "ProbeDisplays",         NV_CTRL_PROBE_DISPLAYS,              A     },
     { "ForceGenericCpu",       NV_CTRL_FORCE_GENERIC_CPU,           0     },
     { "GammaCorrectedAALines", NV_CTRL_OPENGL_AA_LINE_GAMMA,        0     },
     { "ShowSLIHUD",            NV_CTRL_SHOW_SLI_HUD,                0     },
@@ -93,12 +100,28 @@ AttributeTableEntry attributeTable[] = {
     { "CursorShadowBlue",      NV_CTRL_CURSOR_SHADOW_BLUE,          0     },
     { "FSAAAppControlled",     NV_CTRL_FSAA_APPLICATION_CONTROLLED, 0     },
     { "LogAnisoAppControlled", NV_CTRL_LOG_ANISO_APPLICATION_CONTROLLED,0 },
-    { "FrameLockMaster",       NV_CTRL_FRAMELOCK_MASTER,            N|F|G },
-    { "FrameLockPolarity",     NV_CTRL_FRAMELOCK_POLARITY,          N|F|G },
+    { "RefreshRate",           NV_CTRL_REFRESH_RATE,                0     },
+
+    { "FrameLockMaster",       NV_CTRL_FRAMELOCK_MASTER,            N|F|G|D },
+    { "FrameLockSlaves",       NV_CTRL_FRAMELOCK_SLAVES,            N|F|G|D },
+    { "FramelockUseHouseSync", NV_CTRL_USE_HOUSE_SYNC,              N|F|G   },
+    { "FrameLockSyncInterval", NV_CTRL_FRAMELOCK_SYNC_INTERVAL,     N|F|G   },
+    { "FrameLockPolarity",     NV_CTRL_FRAMELOCK_POLARITY,          N|F|G   },
+    { "FrameLockVideoMode",    NV_CTRL_FRAMELOCK_VIDEO_MODE,        N|F|G   },
     { "FrameLockSyncDelay",    NV_CTRL_FRAMELOCK_SYNC_DELAY,        N|F|G },
     { "FrameLockEnable",       NV_CTRL_FRAMELOCK_SYNC,              N|F|G },
-    { "FrameLockSyncInterval", NV_CTRL_FRAMELOCK_SYNC_INTERVAL,     N|F|G },
-    { "FrameLockHouseFormat",  NV_CTRL_FRAMELOCK_VIDEO_MODE,        N|F|G },
+    { "FrameLockAvailable",    NV_CTRL_FRAMELOCK,                   N|F|G },
+    { "FrameLockPort0Status",  NV_CTRL_FRAMELOCK_PORT0_STATUS,      N|F|G },
+    { "FrameLockPort1Status",  NV_CTRL_FRAMELOCK_PORT1_STATUS,      N|F|G },
+    { "FrameLockHouseStatus",  NV_CTRL_FRAMELOCK_HOUSE_STATUS,      N|F|G },
+    { "FrameLockSyncReady",    NV_CTRL_FRAMELOCK_SYNC_READY,        N|F|G },
+    { "FrameLockStereoSync",   NV_CTRL_FRAMELOCK_STEREO_SYNC,       N|F|G },
+    { "FrameLockTestSignal",   NV_CTRL_FRAMELOCK_TEST_SIGNAL,       N|F|G },
+    { "FrameLockEthDetected",  NV_CTRL_FRAMELOCK_ETHERNET_DETECTED, N|F|G },
+    { "FrameLockSyncRate",     NV_CTRL_FRAMELOCK_SYNC_RATE,         N|F|G },
+    { "FrameLockTiming",       NV_CTRL_FRAMELOCK_TIMING,            N|F|G },
+    { "FrameLockMasterable",   NV_CTRL_FRAMELOCK_MASTERABLE,        N|F|G },
+
     { "Brightness",            BRIGHTNESS_VALUE|ALL_CHANNELS,       N|C|G },
     { "RedBrightness",         BRIGHTNESS_VALUE|RED_CHANNEL,        C|G   },
     { "GreenBrightness",       BRIGHTNESS_VALUE|GREEN_CHANNEL,      C|G   },
@@ -119,7 +142,6 @@ AttributeTableEntry attributeTable[] = {
     { "TVSaturation",          NV_CTRL_TV_SATURATION,               0     },
     { "GPUCoreTemp",           NV_CTRL_GPU_CORE_TEMPERATURE,        N     },
     { "GPUAmbientTemp",        NV_CTRL_AMBIENT_TEMPERATURE,         N     },
-    { "FramelockUseHouseSync", NV_CTRL_USE_HOUSE_SYNC,              0     },
     { "OpenGLImageSettings",   NV_CTRL_IMAGE_SETTINGS,              0     },
 
     { "XVideoOverlaySaturation",   NV_CTRL_ATTR_XV_OVERLAY_SATURATION,     V },
@@ -128,7 +150,7 @@ AttributeTableEntry attributeTable[] = {
     { "XVideoOverlayHue",          NV_CTRL_ATTR_XV_OVERLAY_HUE,            V },
     { "XVideoTextureSyncToVBlank", NV_CTRL_ATTR_XV_TEXTURE_SYNC_TO_VBLANK, V },
     { "XVideoBlitterSyncToVBlank", NV_CTRL_ATTR_XV_BLITTER_SYNC_TO_VBLANK, V },
-    { "XVideoSyncToDisplay",       NV_CTRL_XV_SYNC_TO_DISPLAY,             0 },
+    { "XVideoSyncToDisplay",       NV_CTRL_XV_SYNC_TO_DISPLAY,           D|Z },
     
     { "GPUOverclockingState",   NV_CTRL_GPU_OVERCLOCKING_STATE,     N   },
     { "GPUDefault2DClockFreqs", NV_CTRL_GPU_DEFAULT_2D_CLOCK_FREQS, N|P },
@@ -146,6 +168,9 @@ AttributeTableEntry attributeTable[] = {
 #undef G
 #undef V
 #undef P
+#undef D
+#undef A
+
 
 /*
  * When new integer attributes are added to NVCtrl.h, an entry should
@@ -154,9 +179,43 @@ AttributeTableEntry attributeTable[] = {
  * about.
  */
 
-#if NV_CTRL_LAST_ATTRIBUTE != NV_CTRL_XV_SYNC_TO_DISPLAY
+#if NV_CTRL_LAST_ATTRIBUTE != NV_CTRL_REFRESH_RATE
 #warning "Have you forgotten to add a new integer attribute to attributeTable?"
 #endif
+
+
+
+/*
+ * targetTypeTable[] - this table stores an association of the values
+ * for each attribute target type.
+ */
+
+TargetTypeEntry targetTypeTable[] = {
+
+    { "X Screen",                    /* name */
+      "screen",                      /* parsed_name */
+      X_SCREEN_TARGET,               /* target_index */
+      NV_CTRL_TARGET_TYPE_X_SCREEN,  /* nvctrl */
+      ATTRIBUTE_TYPE_X_SCREEN,       /* permission_bit */
+      NV_TRUE },                     /* uses_display_devices */
+    
+    { "GPU",                         /* name */
+      "gpu",                         /* parsed_name */
+      GPU_TARGET,                    /* target_index */
+      NV_CTRL_TARGET_TYPE_GPU,       /* nvctrl */
+      ATTRIBUTE_TYPE_GPU,            /* permission_bit */
+      NV_TRUE },                     /* uses_display_devices */
+    
+    { "Frame Lock Device",           /* name */
+      "framelock",                   /* parsed_name */
+      FRAMELOCK_TARGET,              /* target_index */
+      NV_CTRL_TARGET_TYPE_FRAMELOCK, /* nvctrl */
+      ATTRIBUTE_TYPE_FRAMELOCK,      /* permission_bit */
+      NV_FALSE },                    /* uses_display_devices */
+    
+    { NULL, NULL, 0, 0, 0 },
+};
+
 
 
 /*
@@ -168,7 +227,7 @@ int nv_parse_attribute_string(const char *str, int query, ParsedAttribute *a)
     char *s, *tmp, *name, *start, *display_device_name, *no_spaces = NULL;
     char tmpname[NV_PARSER_MAX_NAME_LEN];
     AttributeTableEntry *t;
-    int len, digits_only;
+    int len, ret;
 
 #define stop(x) { if (no_spaces) free(no_spaces); return (x); }
     
@@ -192,38 +251,16 @@ int nv_parse_attribute_string(const char *str, int query, ParsedAttribute *a)
 
     /*
      * If we found a DISPLAY_NAME_SEPARATOR, and there is some text
-     * before it, it is either a screen number (if all characters
-     * between no_spaces and s are digits), or a display name.
+     * before it, parse that text as an X Display name, X screen,
+     * and/or a target specification.
      */
 
     if ((s) && (s != no_spaces)) {
         
-        /* are all characters numeric? */
+        ret = nv_parse_display_and_target(no_spaces, s, a);
 
-        digits_only = NV_TRUE;
-        a->screen = 0;
-        for (tmp = no_spaces; tmp != s; tmp++) {
-            if (!isdigit(*tmp)) {
-                digits_only = NV_FALSE;
-                a->screen = 0;
-            }
-            a->screen *= 10;
-            a->screen += ctoi(*tmp);
-        }
-
-        if (digits_only) {
-            a->display = NULL;
-            a->flags |= NV_PARSER_HAS_X_SCREEN;
-        } else {
-            a->display = nv_strndup(no_spaces, s - no_spaces);
-            a->flags |= NV_PARSER_HAS_X_DISPLAY;
-            
-            /*
-             * this will attempt to parse out any screen number from the
-             * display name
-             */
-            
-            nv_assign_default_display(a, NULL);
+        if (ret != NV_PARSER_STATUS_SUCCESS) {
+            stop(ret);
         }
     }
     
@@ -313,6 +350,188 @@ int nv_parse_attribute_string(const char *str, int query, ParsedAttribute *a)
 
 
 /*
+ * nv_parse_display_and_target() - helper function for
+ * nv_parse_attribute_string() to parse all the text before the
+ * DISPLAY_NAME_SEPARATOR.  This text is expected to be an X Display
+ * name, just an X screen, and/or a target specification.
+ */
+
+static int nv_parse_display_and_target(char *start,
+                                       char *end, /* exclusive */
+                                       ParsedAttribute *a)
+{
+    int digits_only, i, target_type, target_id, len;
+    char *tmp, *s, *pOpen, *pClose, *colon;
+
+    /*
+     * are all characters numeric? compute the target_id integer as we
+     * scan the string to check
+     */
+    
+    digits_only = NV_TRUE;
+    target_id = 0;
+    
+    for (s = start; s < end; s++) {
+        if (!isdigit(*s)) {
+            digits_only = NV_FALSE;
+            break;
+        }
+        target_id = (target_id * 10) + ctoi(*s);
+    }
+
+    /*
+     * if all characters are numeric, assume the target type is
+     * X_SCREEN, and build the target_id; we have no X Display name in
+     * this case.
+     */
+    
+    if (digits_only) {
+        a->display = NULL;
+        a->flags &= ~NV_PARSER_HAS_X_DISPLAY;
+        a->flags |= NV_PARSER_HAS_TARGET;
+        a->target_id = target_id;
+        a->target_type = NV_CTRL_TARGET_TYPE_X_SCREEN;
+        
+        /* we are done */
+        
+        return NV_PARSER_STATUS_SUCCESS;
+    }
+    
+    /*
+     * if we get here, then there are non-digit characters; look for a
+     * pair of brackets, and treat the contents as a target
+     * specification.
+     */
+    
+    pOpen = pClose = NULL;
+
+    for (s = start; s < end; s++) {
+        if (*s == '[') pOpen = s;
+        if (*s == ']') pClose = s;
+    }
+
+    if (pOpen && pClose && (pClose > pOpen) && ((pClose - pOpen) > 1)) {
+
+        /*
+         * we have a pair of brackets and something inside the
+         * brackets, pull that into a temporary string.
+         */
+
+        len = pClose - pOpen - 1;
+
+        tmp = nv_strndup(pOpen + 1, len);
+
+        /* find the colon within the temp string */
+
+        colon = strchr(tmp, ':');
+        
+        /* no colon? give up */
+
+        if (!colon) {
+            free(tmp);
+            return NV_PARSER_STATUS_TARGET_SPEC_NO_COLON;
+        }
+        
+        /*
+         * check that what is between the opening bracket and the
+         * colon is a target type name
+         */
+
+        *colon = '\0';
+        target_type = -1;
+
+        for (i = 0; targetTypeTable[i].name; i++) {
+            if (nv_strcasecmp(tmp, targetTypeTable[i].parsed_name)) {
+                target_type = targetTypeTable[i].nvctrl;
+                break;
+            }
+        }
+        
+        *colon = ':';
+        
+        /* if we did not find a matching target name, give up */
+        
+        if (target_type == -1) {
+            free(tmp);
+            return NV_PARSER_STATUS_TARGET_SPEC_BAD_TARGET;
+        }
+        
+        /*
+         * check that we have something between the colon and the end
+         * of the temp string
+         */
+
+        if ((colon + 1 - tmp) >= len) {
+            free(tmp);
+            return NV_PARSER_STATUS_TARGET_SPEC_NO_TARGET_ID;
+        }
+
+        /*
+         * everything after the colon should be numeric; assign it to
+         * the target_id
+         */
+        
+        target_id = 0;
+
+        for (s = colon + 1; *s; s++) {
+            if (!isdigit(*s)) {
+                free(tmp);
+                return NV_PARSER_STATUS_TARGET_SPEC_BAD_TARGET_ID;
+            }
+            target_id = (target_id * 10) + ctoi(*s);
+        }
+        
+        a->target_type = target_type;
+        a->target_id = target_id;
+        
+        a->flags |= NV_PARSER_HAS_TARGET;
+
+        /* we're finally done with the temp string */
+
+        free(tmp);
+        
+        /*
+         * check that there is no stray text between the closing
+         * bracket and the end of our parsable string
+         */
+
+        if ((end - pClose) > 1) {
+            return NV_PARSER_STATUS_TARGET_SPEC_TRAILING_GARBAGE;
+        }
+        
+        /*
+         * make end now point at the start of the bracketed target
+         * info for the X Display name processing below
+         */
+        
+        end = pOpen;
+    }
+    
+
+    /* treat everything between start and end as an X Display name */
+    
+    if (start < end) {
+
+        a->display = nv_strndup(start, end - start);
+        a->flags |= NV_PARSER_HAS_X_DISPLAY;
+            
+        /*
+         * this will attempt to parse out any screen number from the
+         * display name
+         */
+    
+        nv_assign_default_display(a, NULL);
+    }
+    
+    /* done */
+
+    return NV_PARSER_STATUS_SUCCESS;
+    
+} /* nv_parse_display_and_target() */
+
+
+
+/*
  * nv_parse_strerror() - given the error status returned by
  * nv_parse_attribute_string(), return a string describing the
  * error.
@@ -343,6 +562,17 @@ char *nv_parse_strerror(int status)
         return "Unrecognized attribute name"; break;
     case NV_PARSER_STATUS_MISSING_COMMA:
         return "Missing comma in packed integer value"; break;
+    case NV_PARSER_STATUS_TARGET_SPEC_NO_COLON:
+        return "No colon in target specification"; break;
+    case NV_PARSER_STATUS_TARGET_SPEC_BAD_TARGET:
+        return "Bad target in target specification"; break;
+    case NV_PARSER_STATUS_TARGET_SPEC_NO_TARGET_ID:
+        return "No target ID in target specification"; break;
+    case NV_PARSER_STATUS_TARGET_SPEC_BAD_TARGET_ID:
+        return "Bad target ID in target specification"; break;
+    case NV_PARSER_STATUS_TARGET_SPEC_TRAILING_GARBAGE:
+        return "Trailing garbage after target specification"; break;
+        
     default:
         return "Unknown error"; break;
     }
@@ -477,9 +707,8 @@ uint32 display_device_name_to_display_device_mask(const char *str)
 /*
  * display_device_mask_to_display_name() - construct a string
  * describing the given display device mask.  The returned pointer
- * points to a global character buffer, so subsequent calls to
- * display_device_mask_to_display_device_name() will clobber the
- * contents.
+ * points to a newly allocated string, so callers to this function
+ * are responsible for freeing the memory.
  */
 
 #define DISPLAY_DEVICE_STRING_LEN 256
@@ -587,6 +816,7 @@ uint32 expand_display_device_mask_wildcards(const uint32 d, const uint32 e)
 void nv_assign_default_display(ParsedAttribute *a, const char *display)
 {
     char *colon, *dot, *s;
+    int digits_only;
 
     if (!(a->flags & NV_PARSER_HAS_X_DISPLAY)) {
         if (display) a->display = strdup(display);
@@ -594,18 +824,33 @@ void nv_assign_default_display(ParsedAttribute *a, const char *display)
         a->flags |= NV_PARSER_HAS_X_DISPLAY;
     }
 
-    if (!(a->flags & NV_PARSER_HAS_X_SCREEN) && a->display) {
+    if (!(a->flags & NV_PARSER_HAS_TARGET) && a->display) {
         colon = strchr(a->display, ':');
         if (colon) {
             dot = strchr(colon, '.');
             if (dot) {
-                a->screen = 0;
-                s = dot + 1;
-                while (*s && isdigit(*s)) {
-                    a->screen *= 10;
-                    a->screen += ctoi(*s);
-                    a->flags |= NV_PARSER_HAS_X_SCREEN;
-                    s++;
+                
+                /*
+                 * if all characters afer the '.' are digits,
+                 * interpret it as a screen number.
+                 */
+
+                digits_only = NV_FALSE;
+                a->target_id = 0;
+
+                for (s = dot + 1; *s; s++) {
+                    if (isdigit(*s)) {
+                        digits_only = NV_TRUE;
+                        a->target_id = (a->target_id * 10) + ctoi(*s);
+                    } else {
+                        digits_only = NV_FALSE;
+                        break;
+                    }
+                }
+
+                if (digits_only) {
+                    a->target_type = NV_CTRL_TARGET_TYPE_X_SCREEN;
+                    a->flags |= NV_PARSER_HAS_TARGET;
                 }
             }
         }
@@ -651,7 +896,8 @@ void nv_parsed_attribute_add(ParsedAttribute *head, ParsedAttribute *a)
     if (a->display) t->display = strdup(a->display);
     else t->display = NULL;
     
-    t->screen              = a->screen;
+    t->target_type         = a->target_type;
+    t->target_id           = a->target_id;
     t->attr                = a->attr;
     t->val                 = a->val;
     t->fval                = a->fval;
@@ -717,6 +963,15 @@ char *nv_get_attribute_name(const int attr)
 } /* nv_get_attribute_name() */
 
 
+
+/*
+ * nv_standardize_screen_name() - standardize the X Display name, by
+ * inserting the hostname (if necessary), and using the specified
+ * screen number.  If 'screen' is -1, use the screen number already in
+ * the string.  If 'screen' is -2, do not put a screen number in the
+ * Display name.
+ */
+
 char *nv_standardize_screen_name(const char *orig, int screen)
 {
     char *display_name, *screen_name, *colon, *dot, *tmp;
@@ -775,15 +1030,24 @@ char *nv_standardize_screen_name(const char *orig, int screen)
     
     dot = strchr(colon, '.');
     if (dot) *dot = '\0';
+
+    /*
+     * if the screen parameter is -2, then do not write out a screen
+     * number.
+     */
     
-    len = strlen(display_name) + 8;
-    screen_name = malloc(len);
-    snprintf(screen_name, len, "%s.%d", display_name, screen);
-    
-    free(display_name);
+    if (screen == -2) {
+        screen_name = display_name;
+    } else {
+        len = strlen(display_name) + 8;
+        screen_name = malloc(len);
+        snprintf(screen_name, len, "%s.%d", display_name, screen);
+        free(display_name);
+    }
     
     return (screen_name);
-}
+
+} /* nv_standardize_screen_name() */
 
 
 

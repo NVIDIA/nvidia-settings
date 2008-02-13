@@ -37,25 +37,33 @@
 
 
 /*
- * The CtrlHandles struct contains an array of NvCtrlAttributeHandle's
- * (one per X screen on this X server), as well as the number of X
- * screens, an array of enabled display devices for each screen, and a
- * string description of each screen.
+ * The CtrlHandles struct contains an array of target types for an X
+ * server.  For each target type, we store the number of those targets
+ * on this X server.  Per target, we store a NvCtrlAttributeHandle, a
+ * bitmask of what display devices are enabled on that target, and a
+ * string description of that target.
  */
 
 typedef struct {
-    char *display;
-    Display *dpy;
-    int num_screens;
-    NvCtrlAttributeHandle **h;
-    uint32 *d;
-    char **screen_names;
+    NvCtrlAttributeHandle *h; /* handle for this target */
+    uint32 d;                 /* display device mask for this target */
+    char *name;               /* name for this target */
+} CtrlHandleTarget;
+
+typedef struct {
+    int n;                    /* number of targets */
+    CtrlHandleTarget *t;      /* dynamically allocated array of targets */
+} CtrlHandleTargets;
+
+typedef struct {
+    char *display;            /* string for XOpenDisplay */
+    Display *dpy;             /* X display connection */
+    CtrlHandleTargets targets[MAX_TARGET_TYPES];
 } CtrlHandles;
 
 
 int nv_process_assignments_and_queries(Options *op);
 
-uint32 *nv_get_enabled_display_devices(int, NvCtrlAttributeHandle**);
 CtrlHandles *nv_alloc_ctrl_handles(const char *display);
 void nv_free_ctrl_handles(CtrlHandles *h);
 

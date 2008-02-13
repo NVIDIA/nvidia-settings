@@ -33,7 +33,7 @@
 
 #include "msg.h"
 
-static NvCtrlXvAttribute *getXvAttribute (NvCtrlXvAttributes *,
+static NvCtrlXvAttribute *getXvAttribute (NvCtrlAttributePrivateHandle *,
                                           XvPortID, const char *);
 
 static Bool checkAdaptor(NvCtrlAttributePrivateHandle *h,
@@ -44,6 +44,123 @@ static unsigned int getXvPort(NvCtrlAttributePrivateHandle *h,
 
 static NvCtrlXvAttribute *getXvAttributePtr(NvCtrlAttributePrivateHandle *h,
                                             unsigned int attribute);
+
+typedef struct __libXvInfoRec {
+
+    /* libXv.so library handle */
+    void *handle;
+    int   ref_count; /* # users of the library */
+
+    /* libXv functions used */
+    int           (* XvGetPortAttribute)    (Display *, XvPortID, Atom, int *);
+    int           (* XvSetPortAttribute)    (Display *, XvPortID, Atom, int);
+    XvAttribute * (* XvQueryPortAttributes) (Display *, XvPortID, int *);
+    int           (* XvQueryExtension)      (Display *, unsigned int *,
+                                             unsigned int *, unsigned int *,
+                                             unsigned int *, unsigned int *);
+    int           (* XvQueryAdaptors)       (Display *, Window, unsigned int *,
+                                             XvAdaptorInfo **);
+} __libXvInfo;
+
+static __libXvInfo *__libXv = NULL;
+
+
+
+/*
+ * Opens libXv for usage
+ */
+
+static Bool open_libxv(void)
+{
+    const char *error_str = NULL;
+
+
+    /* Initialize bookkeeping structure */
+    if ( !__libXv ) {
+        __libXv = (__libXvInfo *) calloc(1, sizeof(__libXvInfo));
+        if ( !__libXv ) {
+            goto fail;
+        }
+    }
+    
+
+    /* Library was already opened */
+    if ( __libXv->handle ) {
+        __libXv->ref_count++;
+        return True;
+    }
+
+
+    /* We are the first to open the library */
+    __libXv->handle = dlopen("libXv.so.1", RTLD_LAZY);
+    if ( __libXv->handle == NULL ) {
+        goto fail;
+    }
+
+
+    /* Resolve Xv functions */
+    __libXv->XvQueryExtension =
+        NV_DLSYM(__libXv->handle, "XvQueryExtension");
+    if ((error_str = dlerror()) != NULL) goto fail;
+    
+    __libXv->XvQueryAdaptors =
+        NV_DLSYM(__libXv->handle, "XvQueryAdaptors");
+    if ((error_str = dlerror()) != NULL) goto fail;
+    
+    __libXv->XvGetPortAttribute =
+        NV_DLSYM(__libXv->handle, "XvGetPortAttribute");
+    if ((error_str = dlerror()) != NULL) goto fail;
+
+    __libXv->XvSetPortAttribute =
+        NV_DLSYM(__libXv->handle, "XvSetPortAttribute");
+    if ((error_str = dlerror()) != NULL) goto fail;
+    
+    __libXv->XvQueryPortAttributes =
+        NV_DLSYM(__libXv->handle, "XvQueryPortAttributes");
+    if ((error_str = dlerror()) != NULL) goto fail;
+
+
+    /* Up the ref count */
+    __libXv->ref_count++;
+
+    return True;
+
+
+ fail:
+    if ( error_str ) {
+        nv_error_msg("libXv setup error : %s\n", error_str);
+    }
+    if ( __libXv ) {
+        if ( __libXv->handle ) {
+            dlclose(__libXv->handle);
+            __libXv->handle = NULL;
+        }
+        free(__libXv);
+        __libXv = NULL;
+    }
+    return False;
+    
+} /* open_libxv() */
+
+
+
+/*
+ * Closes libXv when it is no longer used.
+ */
+
+static void close_libxv(void)
+{
+    if ( __libXv && __libXv->handle && __libXv->ref_count ) {
+        __libXv->ref_count--;
+        if ( __libXv->ref_count == 0 ) {
+            dlclose(__libXv->handle);
+            __libXv->handle = NULL;
+            free(__libXv);
+            __libXv = NULL;
+        }
+    }
+} /* close_libxv() */
+
 
 
 /*
@@ -60,19 +177,26 @@ NvCtrlXvAttributes * NvCtrlInitXvAttributes(NvCtrlAttributePrivateHandle *h)
 {
     NvCtrlXvAttributes *xv = NULL;
     XvAdaptorInfo *ainfo;
-    unsigned int ver, rev, req, event, error, nadaptors;
+    unsigned int ver, rev, req, event_base, error_base, nadaptors;
     int ret, i;
-    Display *dpy;
     const char *error_str = NULL;
     const char *warn_str = NULL;
     
 
     /* Check parameters */
-    if (h == NULL || h->dpy == NULL) {
+    if ( !h || !h->dpy || h->target_type != NV_CTRL_TARGET_TYPE_X_SCREEN ) {
         goto fail;
     }
 
-    dpy = h->dpy;
+
+    /* Open libXv.so.1 */
+    if ( !open_libxv() ) {
+        warn_str = "Failed to open libXv.so.1: this library "
+            "is not present in your system or is not in your "
+            "LD_LIBRARY_PATH.";
+        goto fail;
+    }
+
 
     /* Allocate the attributes structure */
     xv = (NvCtrlXvAttributes *)
@@ -83,48 +207,17 @@ NvCtrlXvAttributes * NvCtrlInitXvAttributes(NvCtrlAttributePrivateHandle *h)
     }
 
 
-    /* Link the libXv lib */
-    xv->libXv = dlopen("libXv.so.1", RTLD_LAZY);
-
-    if (xv->libXv == NULL) {
-        warn_str = "Failed to open libXv.so.1: this library "
-            "is not present in your system or is not in your "
-            "LD_LIBRARY_PATH.";
-        goto fail;
-    }
-
-
-    /* Resolve Xv functions needed */
-    xv->XvQueryExtension = NV_DLSYM(xv->libXv, "XvQueryExtension");
-    if ((error_str = dlerror()) != NULL) goto fail;
-    
-    xv->XvQueryAdaptors = NV_DLSYM(xv->libXv, "XvQueryAdaptors");
-    if ((error_str = dlerror()) != NULL) goto fail;
-    
-    xv->XvGetPortAttribute = NV_DLSYM(xv->libXv, "XvGetPortAttribute");
-    if ((error_str = dlerror()) != NULL) goto fail;
-
-    xv->XvSetPortAttribute = NV_DLSYM(xv->libXv, "XvSetPortAttribute");
-    if ((error_str = dlerror()) != NULL) goto fail;
-
-    xv->XvQueryPortAttributes = NV_DLSYM(xv->libXv, "XvQueryPortAttributes");
-    if ((error_str = dlerror()) != NULL) goto fail;
-
-
-    /* Duplicate the display connection and verify Xv extension exists */
-    xv->dpy = XOpenDisplay( XDisplayString(h->dpy) );
-    if ( xv->dpy == NULL ) {
-        goto fail;
-    }
-    ret = xv->XvQueryExtension(xv->dpy, &ver, &rev, &req, &event, &error);
+    /* Verify server support of Xv extension */
+    ret = __libXv->XvQueryExtension(h->dpy, &ver, &rev, &req,
+                                    &event_base, &error_base);
     if (ret != Success) goto fail;
     
     /* XXX do we have a minimum Xv version? */
 
 
     /* Get the list of adaptors */
-    ret = xv->XvQueryAdaptors(xv->dpy, RootWindow(dpy, h->screen),
-                              &nadaptors, &ainfo);
+    ret = __libXv->XvQueryAdaptors(h->dpy, RootWindow(h->dpy, h->target_id),
+                                   &nadaptors, &ainfo);
 
     if (ret != Success || !nadaptors || !ainfo) goto fail;
     
@@ -143,15 +236,15 @@ NvCtrlXvAttributes * NvCtrlInitXvAttributes(NvCtrlAttributePrivateHandle *h)
             }
         
             attrs->port = ainfo[i].base_id;
-            attrs->saturation = getXvAttribute(xv, attrs->port,
+            attrs->saturation = getXvAttribute(h, attrs->port,
                                                "XV_SATURATION");
-            attrs->contrast   = getXvAttribute(xv, attrs->port,
+            attrs->contrast   = getXvAttribute(h, attrs->port,
                                                "XV_CONTRAST");
-            attrs->brightness = getXvAttribute(xv, attrs->port,
+            attrs->brightness = getXvAttribute(h, attrs->port,
                                                "XV_BRIGHTNESS");
-            attrs->hue        = getXvAttribute(xv, attrs->port,
+            attrs->hue        = getXvAttribute(h, attrs->port,
                                                "XV_HUE");
-            attrs->defaults   = getXvAttribute(xv, attrs->port,
+            attrs->defaults   = getXvAttribute(h, attrs->port,
                                                "XV_SET_DEFAULTS");
         
             if (!attrs->saturation ||
@@ -186,9 +279,9 @@ NvCtrlXvAttributes * NvCtrlInitXvAttributes(NvCtrlAttributePrivateHandle *h)
             }
 
             attrs->port = ainfo[i].base_id;
-            attrs->sync_to_vblank = getXvAttribute(xv, attrs->port,
+            attrs->sync_to_vblank = getXvAttribute(h, attrs->port,
                                                    "XV_SYNC_TO_VBLANK");
-            attrs->defaults       = getXvAttribute(xv, attrs->port,
+            attrs->defaults       = getXvAttribute(h, attrs->port,
                                                    "XV_SET_DEFAULTS");
             if (!attrs->sync_to_vblank ||
                 !attrs->defaults) {
@@ -216,9 +309,9 @@ NvCtrlXvAttributes * NvCtrlInitXvAttributes(NvCtrlAttributePrivateHandle *h)
             }
 
             attrs->port = ainfo[i].base_id;
-            attrs->sync_to_vblank = getXvAttribute(xv, attrs->port,
+            attrs->sync_to_vblank = getXvAttribute(h, attrs->port,
                                                    "XV_SYNC_TO_VBLANK");
-            attrs->defaults       = getXvAttribute(xv, attrs->port,
+            attrs->defaults       = getXvAttribute(h, attrs->port,
                                                    "XV_SET_DEFAULTS");
             if (!attrs->sync_to_vblank ||
                 !attrs->defaults) {
@@ -247,13 +340,16 @@ NvCtrlXvAttributes * NvCtrlInitXvAttributes(NvCtrlAttributePrivateHandle *h)
         nv_warning_msg("libXv setup warning: %s\n", warn_str);
     }
     if (xv != NULL) {
-        if ( xv->dpy != NULL ) {
-            XCloseDisplay(xv->dpy);
+        if (xv->overlay) {
+            free(xv->overlay);
         }
-        if (xv->libXv) {
-            dlclose(xv->libXv);
+        if (xv->texture) {
+            free(xv->texture);
         }
-        free (xv);
+        if (xv->blitter) {
+            free(xv->blitter);
+        }
+        free(xv);
     }
 
     return NULL;
@@ -261,7 +357,6 @@ NvCtrlXvAttributes * NvCtrlInitXvAttributes(NvCtrlAttributePrivateHandle *h)
 } /* NvCtrlInitXvAttributes() */
 
                       
-
 
 ReturnStatus NvCtrlXvGetAttribute(NvCtrlAttributePrivateHandle *h,
                                   int attr, int *val)
@@ -288,7 +383,7 @@ ReturnStatus NvCtrlXvGetAttribute(NvCtrlAttributePrivateHandle *h,
 
     /* finally, query the value */
     
-    if (h->xv->XvGetPortAttribute(h->xv->dpy, port, a->atom, val) != Success) {
+    if (__libXv->XvGetPortAttribute(h->dpy, port, a->atom, val) != Success) {
         return NvCtrlError;
     }
     
@@ -320,11 +415,11 @@ ReturnStatus NvCtrlXvSetAttribute(NvCtrlAttributePrivateHandle *h,
     
     /* finally, set the value */
     
-    if (h->xv->XvSetPortAttribute(h->xv->dpy, port, a->atom, val) != Success) {
+    if (__libXv->XvSetPortAttribute(h->dpy, port, a->atom, val) != Success) {
         return NvCtrlError;
     }
     
-    XFlush(h->xv->dpy);
+    XFlush(h->dpy);
 
     return NvCtrlSuccess; 
     
@@ -367,7 +462,7 @@ NvCtrlXvGetValidAttributeValues(NvCtrlAttributePrivateHandle *h, int attr,
  * NvCtrlXvAttribute struct if successful, otherwise return NULL.
  */
 
-static NvCtrlXvAttribute *getXvAttribute(NvCtrlXvAttributes *xv,
+static NvCtrlXvAttribute *getXvAttribute(NvCtrlAttributePrivateHandle *h,
                                          XvPortID port,
                                          const char *name)
 {
@@ -375,7 +470,7 @@ static NvCtrlXvAttribute *getXvAttribute(NvCtrlXvAttributes *xv,
     XvAttribute *attributes = NULL;
     int i, n;
     
-    attributes = xv->XvQueryPortAttributes(xv->dpy, port, &n);
+    attributes = __libXv->XvQueryPortAttributes(h->dpy, port, &n);
 
     if (!attributes || !n) goto failed;
     
@@ -386,7 +481,7 @@ static NvCtrlXvAttribute *getXvAttribute(NvCtrlXvAttributes *xv,
         attr->range.type = ATTRIBUTE_TYPE_RANGE;
         attr->range.u.range.min = attributes[i].min_value;
         attr->range.u.range.max = attributes[i].max_value;
-        attr->atom = XInternAtom(xv->dpy, name, True);
+        attr->atom = XInternAtom(h->dpy, name, True);
         if (attr->atom == None) goto failed;
         
         if (! (attributes[i].flags & XvSettable)) goto failed;
@@ -397,6 +492,10 @@ static NvCtrlXvAttribute *getXvAttribute(NvCtrlXvAttributes *xv,
             attr->range.permissions |= ATTRIBUTE_TYPE_READ;
         }
         
+        /* All Xv attributes are controlled with X screen target type */
+
+        attr->range.permissions |= ATTRIBUTE_TYPE_X_SCREEN;
+
         break;
     }
 
@@ -530,23 +629,16 @@ static NvCtrlXvAttribute *getXvAttributePtr(NvCtrlAttributePrivateHandle *h,
 
 /*
  * Frees and relinquishes any resource used by the Xv Attributes
- *
  */
 
 void
 NvCtrlXvAttributesClose (NvCtrlAttributePrivateHandle *h)
 {
-    if (h == NULL || h->xv == NULL) {
+    if (!h || !h->xv) {
         return;
     }
 
-    if (h->xv->dpy) {
-        XCloseDisplay(h->xv->dpy);
-    }
-
-    if (h->xv->libXv) {
-        dlclose(h->xv->libXv);
-    }
+    close_libxv();
 
     if (h->xv->overlay) {
         free(h->xv->overlay);

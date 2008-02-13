@@ -20,8 +20,19 @@ Sample applications:
                      shows how to handle multiple display devices.
 
     nv-control-events: demonstrates how to register to receive and
-                     interpret NV-CONTROL events.
-
+                       interpret NV-CONTROL events.
 
     nv-ddcci-client: demonstrates how to use the implementation of the 
                      DDC/CI interface with the NV-CONTROL X extension.
+
+    nv-control-dpy: demonstrates how to configure display devices
+                    using the NV-CONTROL X extension.
+
+    nv-control-targets: demonstrates how to query various attributes
+                        from varying target types (GPUs, X Screens,
+                        Frame Lock Boards) using the XNVCTRL target
+                        functions.
+
+    nv-control-framelock: demonstrates how to query frame lock related
+                          attributes.  Also demonstrates how to enable/
+                          disable frame lock.

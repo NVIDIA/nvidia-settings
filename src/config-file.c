@@ -66,6 +66,7 @@ typedef struct {
 
 static ParsedAttributeWrapper *parse_config_file(char *buf,
                                                  const char *file,
+                                                 const int length,
                                                  ConfigProperties *);
 
 static int process_config_file_attributes(const char *file,
@@ -103,7 +104,7 @@ static void write_config_properties(FILE *stream, ConfigProperties *conf);
 int nv_read_config_file(const char *file, const char *display_name,
                         ParsedAttribute *p, ConfigProperties *conf)
 {
-    int fd, ret;
+    int fd, ret, length;
     struct stat stat_buf;
     char *buf;
     ParsedAttributeWrapper *w = NULL;
@@ -138,9 +139,11 @@ int nv_read_config_file(const char *file, const char *display_name,
         return NV_TRUE;
     }
 
+    length = stat_buf.st_size;
+
     /* map the file into memory */
 
-    buf = mmap(0, stat_buf.st_size, PROT_READ, MAP_SHARED, fd, 0);
+    buf = mmap(0, length, PROT_READ, MAP_SHARED, fd, 0);
     if (buf == (void *) -1) {
         nv_error_msg("Unable to mmap file '%s' for reading (%s).",
                      file, strerror(errno));
@@ -149,7 +152,7 @@ int nv_read_config_file(const char *file, const char *display_name,
     
     /* parse the actual text in the file */
 
-    w = parse_config_file(buf, file, conf);
+    w = parse_config_file(buf, file, length, conf);
 
     if (munmap (buf, stat_buf.st_size) == -1) {
         nv_error_msg("Unable to unmap file '%s' after reading (%s).",
@@ -203,6 +206,7 @@ int nv_write_config_file(const char *filename, CtrlHandles *h,
     ReturnStatus status;
     NVCTRLAttributeValidValuesRec valid;
     uint32 mask;
+    CtrlHandleTarget *t;
     char *tmp_d_str, *tmp, *prefix, scratch[4];
 
     stream = fopen(filename, "w");
@@ -235,12 +239,19 @@ int nv_write_config_file(const char *filename, CtrlHandles *h,
     fprintf(stream, "\n");
     fprintf(stream, "# Attributes:\n");
     fprintf(stream, "\n");
+
+    /*
+     * Note: we only save writable attributes addressable by X screen
+     * (i.e., we don't look at other target types, yet).
+     */
     
-    for (screen = 0; screen < h->num_screens; screen++) {
+    for (screen = 0; screen < h->targets[X_SCREEN_TARGET].n; screen++) {
+
+        t = &h->targets[X_SCREEN_TARGET].t[screen];
 
         /* skip it if we don't have a handle for this screen */
 
-        if (!h->h[screen]) continue;
+        if (!t->h) continue;
 
         /*
          * construct the prefix that will be printed in the config
@@ -250,7 +261,7 @@ int nv_write_config_file(const char *filename, CtrlHandles *h,
 
         if (conf->booleans &
             CONFIG_PROPERTIES_INCLUDE_DISPLAY_NAME_IN_CONFIG_FILE) {
-            prefix = h->screen_names[screen];
+            prefix = t->name;
         } else {
             snprintf(scratch, 4, "%d", screen);
             prefix = scratch;
@@ -276,7 +287,7 @@ int nv_write_config_file(const char *filename, CtrlHandles *h,
             
             if (a->flags & NV_PARSER_TYPE_COLOR_ATTRIBUTE) {
                 float c[3], b[3], g[3];
-                status = NvCtrlGetColorAttributes(h->h[screen], c, b, g);
+                status = NvCtrlGetColorAttributes(t->h, c, b, g);
                 if (status != NvCtrlSuccess) continue;
                 fprintf(stream, "%s%c%s=%f\n",
                         prefix, DISPLAY_NAME_SEPARATOR, a->name,
@@ -288,19 +299,17 @@ int nv_write_config_file(const char *filename, CtrlHandles *h,
                 
                 mask = 1 << bit;
                 
-                if ((h->d[screen] & mask) == 0x0) continue;
+                if ((t->d & mask) == 0x0) continue;
 
-                status =
-                    NvCtrlGetValidDisplayAttributeValues(h->h[screen], mask,
-                                                         a->attr, &valid);
+                status = NvCtrlGetValidDisplayAttributeValues
+                    (t->h, mask, a->attr, &valid);
 
                 if (status != NvCtrlSuccess) goto exit_bit_loop;
                 
                 if ((valid.permissions & ATTRIBUTE_TYPE_WRITE) == 0x0)
                     goto exit_bit_loop;
                 
-                status = NvCtrlGetDisplayAttribute(h->h[screen], mask,
-                                                   a->attr, &val);
+                status = NvCtrlGetDisplayAttribute(t->h, mask, a->attr, &val);
                 
                 if (status != NvCtrlSuccess) goto exit_bit_loop;
                 
@@ -344,28 +353,56 @@ int nv_write_config_file(const char *filename, CtrlHandles *h,
      */
 
     while (p) {
-        
+        char target_str[64];
+
         if (!p->next) {
             p = p->next;
             continue;
         }
 
         tmp = nv_get_attribute_name(p->attr);
-        if (!tmp) continue;
+        if (!tmp) {
+            nv_error_msg("Failure to save unknown attribute %d.", p->attr);
+            p = p->next;
+            continue;
+        }
 
+        /*
+         * if the parsed attribute has a target specification, and a
+         * target type other than an X screen, include a target
+         * specification in what we write to the .rc file.
+         */
+        
+        target_str[0] = '\0';
+        
+        if ((p->flags & NV_PARSER_HAS_TARGET) &&
+            (p->target_type != NV_CTRL_TARGET_TYPE_X_SCREEN)) {
+            
+            int j;
+            
+            /* Find the target name of the target type */
+            for (j = 0; targetTypeTable[j].name; j++) {
+                if (targetTypeTable[j].nvctrl == p->target_type) {
+                    snprintf(target_str, 64, "[%s:%d]",
+                             targetTypeTable[j].parsed_name, p->target_id);
+                    break;
+                }
+            }
+        }
+        
         if (p->display_device_mask) {
-
+            
             tmp_d_str = display_device_mask_to_display_device_name
                 (p->display_device_mask);
-                
-            fprintf(stream, "%s%c%s[%s]=%d\n", p->display,
+            
+            fprintf(stream, "%s%s%c%s[%s]=%d\n", p->display, target_str,
                     DISPLAY_NAME_SEPARATOR, tmp, tmp_d_str, p->val);
             
             free(tmp_d_str);
             
         } else {
                 
-            fprintf(stream, "%s%c%s=%d\n", p->display,
+            fprintf(stream, "%s%s%c%s=%d\n", p->display, target_str,
                     DISPLAY_NAME_SEPARATOR, tmp, p->val);
         }
         
@@ -399,6 +436,7 @@ int nv_write_config_file(const char *filename, CtrlHandles *h,
  */
 
 static ParsedAttributeWrapper *parse_config_file(char *buf, const char *file,
+                                                 const int length,
                                                  ConfigProperties *conf)
 {
     int line, has_data, len, n, ret;
@@ -415,7 +453,10 @@ static ParsedAttributeWrapper *parse_config_file(char *buf, const char *file,
         comment = NULL;
         has_data = NV_FALSE;;
         
-        while((*c != '\n') && (*c != '\0') && (*c != EOF)) {
+        while (((c - buf) < length) &&
+               (*c != '\n') &&
+               (*c != '\0') &&
+               (*c != EOF)) {
             if (comment) { c++; continue; }
             if (*c == '#') { comment = c; continue; }
             if (!isspace(*c)) has_data = NV_TRUE;
@@ -457,7 +498,7 @@ static ParsedAttributeWrapper *parse_config_file(char *buf, const char *file,
             }
         }
 
-        if ((*c == '\0') || (*c == EOF)) cur = NULL;
+        if (((c - buf) >= length) || (*c == '\0') || (*c == EOF)) cur = NULL;
         else cur = c + 1;
         
         line++;
@@ -540,10 +581,11 @@ static int process_config_file_attributes(const char *file,
                                           "on line %d of configuration file "
                                           "'%s'", w[i].line, file);
         /*
-         * We do not fail if processing the attribute failed.
-         * If the GPU or the X config changed (for example stereo is disabled), 
-         * some attributes written in the config file may not be advertised by 
-         * the the NVCTRL extension (for example the control to force stereo)
+         * We do not fail if processing the attribute failed.  If the
+         * GPU or the X config changed (for example stereo is
+         * disabled), some attributes written in the config file may
+         * not be advertised by the the NVCTRL extension (for example
+         * the control to force stereo)
          */
     }
     

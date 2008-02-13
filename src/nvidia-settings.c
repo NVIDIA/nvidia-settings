@@ -39,8 +39,9 @@ int main(int argc, char **argv)
     ConfigProperties conf;
     ParsedAttribute *p;
     CtrlHandles *h;
+    NvCtrlAttributeHandle **handles;
     Options *op;
-    int ret;
+    int ret, i, num_handles;
     
     /*
      * initialize the ui
@@ -89,16 +90,34 @@ int main(int argc, char **argv)
         return 1;
     }
 
+    /*
+     * pull the screens' handles out of the CtrlHandles so that we can
+     * pass them to the gui
+     */
+    
+    num_handles = h->targets[X_SCREEN_TARGET].n;
+    
+    if (num_handles) {
+        handles = malloc(num_handles * sizeof(NvCtrlAttributeHandle *));
+        
+        for (i = 0; i < num_handles; i++) {
+            handles[i] = h->targets[X_SCREEN_TARGET].t[i].h;
+        }
+    } else {
+        handles = NULL;
+    }
+    
     /* pass control to the gui */
 
-    ctk_main(h->h, h->num_screens, p, &conf);
-
+    ctk_main(handles, num_handles, p, &conf);
+    
     /* write the configuration file */
 
     nv_write_config_file(op->config, h, p, &conf);
 
     /* cleanup */
 
+    if (handles) free(handles);
     nv_free_ctrl_handles(h);
     nv_parsed_attribute_free(p);
 

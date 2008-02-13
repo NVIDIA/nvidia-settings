@@ -42,7 +42,7 @@ ifndef CC
 endif
 
 ifndef CFLAGS
-  CFLAGS = -Wall -fpedantic
+  CFLAGS = -Wall 
 endif
 
 ifndef LDFLAGS
@@ -68,7 +68,14 @@ ALL_CFLAGS = $(CFLAGS) -I $(LIBXNVCTRL_DIR) -I $(X11R6_INC_DIR)
 ALL_LDFLAGS = $(LDFLAGS) -L $(LIBXNVCTRL_DIR) -L $(X11R6_LIB_DIR) \
 	-lXNVCtrl -lXext -lX11
 
-SAMPLES = nv-control-info nv-control-dvc nv-control-events nv-ddcci-client
+SAMPLES = \
+	nv-control-info \
+	nv-control-dvc \
+	nv-control-events \
+	nv-ddcci-client \
+	nv-control-dpy \
+	nv-control-targets \
+	nv-control-framelock
 
 all: $(SAMPLES)
 

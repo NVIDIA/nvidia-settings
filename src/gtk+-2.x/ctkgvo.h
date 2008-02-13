@@ -111,7 +111,7 @@ struct _CtkGvo
     gint output_video_format;
     gint output_data_format;
 
-    gint valid_putput_video_format_mask;
+    gint valid_output_video_format_mask[2];
     gint input_video_format_detect_timer;
 
     GdkCursor *wait_cursor;

@@ -82,6 +82,12 @@ NvCtrlInitVidModeAttributes(NvCtrlAttributePrivateHandle *h)
     NvCtrlVidModeAttributes *vm = NULL;
     int ret, event, ver, rev, i;
     
+
+    /* Check parameters */
+    if (!h || !h->dpy || h->target_type != NV_CTRL_TARGET_TYPE_X_SCREEN) {
+        goto failed;
+    }
+
 #if defined(X_XF86VidModeGetGammaRampSize)
 
     ret = XF86VidModeQueryExtension(h->dpy, &event, &vidModeErrorBase);
@@ -110,7 +116,7 @@ NvCtrlInitVidModeAttributes(NvCtrlAttributePrivateHandle *h)
     
     prev_error_handler = XSetErrorHandler(vidModeErrorHandler);
     
-    ret = XF86VidModeGetGammaRampSize(h->dpy, h->screen, &vm->n);
+    ret = XF86VidModeGetGammaRampSize(h->dpy, h->target_id, &vm->n);
     
     /* check if XF86VidModeGetGammaRampSize was blocked */
     
@@ -124,7 +130,7 @@ NvCtrlInitVidModeAttributes(NvCtrlAttributePrivateHandle *h)
     vm->lut[GREEN] = (unsigned short *) malloc(sizeof(unsigned short) * vm->n);
     vm->lut[BLUE]  = (unsigned short *) malloc(sizeof(unsigned short) * vm->n);
     
-    ret = XF86VidModeGetGammaRamp(h->dpy, h->screen, vm->n, vm->lut[RED],
+    ret = XF86VidModeGetGammaRamp(h->dpy, h->target_id, vm->n, vm->lut[RED],
                                   vm->lut[GREEN], vm->lut[BLUE]);
     
     /* check if XF86VidModeGetGammaRamp was blocked */
@@ -144,7 +150,7 @@ NvCtrlInitVidModeAttributes(NvCtrlAttributePrivateHandle *h)
      * It's terrible that we have to do this.
      */
     
-    ret = XF86VidModeSetGammaRamp(h->dpy, h->screen, vm->n,
+    ret = XF86VidModeSetGammaRamp(h->dpy, h->target_id, vm->n,
                                   vm->lut[RED],
                                   vm->lut[GREEN],
                                   vm->lut[BLUE]);
@@ -271,7 +277,10 @@ ReturnStatus NvCtrlSetColorAttributes(NvCtrlAttributeHandle *handle,
 
     h = (NvCtrlAttributePrivateHandle *) handle;
 
-    if (!h || !h->dpy) return NvCtrlBadHandle;
+    /* Check parameters */
+    if (!h || !h->dpy || h->target_type != NV_CTRL_TARGET_TYPE_X_SCREEN) {
+        return NvCtrlBadHandle;
+    }
     if (!h->vm) return NvCtrlMissingExtension;
 
     /* clamp input, but only the input specified in the bitmask */
@@ -322,7 +331,7 @@ ReturnStatus NvCtrlSetColorAttributes(NvCtrlAttributeHandle *handle,
         }
     }
     
-    ret = XF86VidModeSetGammaRamp(h->dpy, h->screen, h->vm->n,
+    ret = XF86VidModeSetGammaRamp(h->dpy, h->target_id, h->vm->n,
                                   h->vm->lut[RED],
                                   h->vm->lut[GREEN],
                                   h->vm->lut[BLUE]);
@@ -349,7 +358,10 @@ ReturnStatus NvCtrlGetColorRamp(NvCtrlAttributeHandle *handle,
 
     h = (NvCtrlAttributePrivateHandle *) handle;
 
-    if (!h || !h->dpy) return NvCtrlBadHandle;
+    /* Check parameters */
+    if (!h || !h->dpy || h->target_type != NV_CTRL_TARGET_TYPE_X_SCREEN) {
+        return NvCtrlBadHandle;
+    }
     if (!h->vm) return NvCtrlMissingExtension;
 
     *n = h->vm->n;

@@ -78,6 +78,9 @@ struct _CtkWindow
 
     GtkTreeIter             iter;
     GtkWidget              *widget;
+
+    GtkTextTagTable        *help_tag_table;
+    GtkTextBuffer          *help_text_buffer;
 };
 
 struct _CtkWindowClass

@@ -252,12 +252,15 @@ typedef struct GLXFBConfigAttrRec {
 
 
 
-NvCtrlAttributeHandle *NvCtrlAttributeInit(Display *dpy, int screen,
+NvCtrlAttributeHandle *NvCtrlAttributeInit(Display *dpy, int target_type,
+                                           int target_id,
                                            unsigned int subsystems);
 
 char *NvCtrlGetDisplayName(NvCtrlAttributeHandle *handle);
 Display *NvCtrlGetDisplayPtr(NvCtrlAttributeHandle *handle);
 int NvCtrlGetScreen(NvCtrlAttributeHandle *handle);
+int NvCtrlGetTargetType(NvCtrlAttributeHandle *handle);
+int NvCtrlGetTargetId(NvCtrlAttributeHandle *handle);
 int NvCtrlGetScreenWidth(NvCtrlAttributeHandle *handle);
 int NvCtrlGetScreenHeight(NvCtrlAttributeHandle *handle);
 int NvCtrlGetEventBase(NvCtrlAttributeHandle *handle);
@@ -286,6 +289,14 @@ ReturnStatus NvCtrlGetColorRamp (NvCtrlAttributeHandle *handle,
                                  unsigned short **lut,
                                  int *n);
 
+/*
+ * NvCtrlQueryTargetCount() - query the number of targets available
+ * on the server of the given target type.  This is used, for example
+ * to return the number of GPUs the server knows about.
+ */
+ReturnStatus NvCtrlQueryTargetCount(NvCtrlAttributeHandle *handle,
+                                    int target_type,
+                                    int *val);
 
 /*
  * NvCtrlGetAttribute()/NvCtrlSetAttribute() - these get and set
@@ -326,12 +337,21 @@ ReturnStatus NvCtrlGetValidAttributeValues (NvCtrlAttributeHandle *handle,
 /*
  * NvCtrlGetStringAttribute() - get the string associated with the
  * specified attribute, where valid values are the NV_CTRL_STRING_
- * #defines in NVCtrl.h.  These strings are read-only (thus there is
- * no parallel Set function).
+ * #defines in NVCtrl.h.
  */
 
 ReturnStatus NvCtrlGetStringAttribute (NvCtrlAttributeHandle *handle,
                                        int attr, char **ptr);
+
+/*
+ * NvCtrlSetStringAttribute() - Set the string associated with the
+ * specified attribute, where valid values are the NV_CTRL_STRING_
+ * #defines in NVCtrl.h that have the 'W' (Write) flag set.  If 'ret'
+ * is specified, (integer) result information is returned.
+ */
+
+ReturnStatus NvCtrlSetStringAttribute (NvCtrlAttributeHandle *handle,
+                                       int attr, char *ptr, int *ret);
 
 /*
  * The following four functions are identical to the above five,
@@ -360,12 +380,40 @@ NvCtrlGetStringDisplayAttribute (NvCtrlAttributeHandle *handle,
                                  int attr, char **ptr);
 
 ReturnStatus
+NvCtrlSetStringDisplayAttribute (NvCtrlAttributeHandle *handle,
+                                 unsigned int display_mask,
+                                 int attr, char *ptr, int *ret);
+
+ReturnStatus
 NvCtrlGetBinaryAttribute(NvCtrlAttributeHandle *handle,
                          unsigned int display_mask, int attr,
                          unsigned char **data, int *len);
 
+/*
+ * NvCtrl[SG]etGvoColorConversion() - get and set the color conversion
+ * matrix and offset used in the Graphics to Video Out (GVO)
+ * extension.  These should only be used if the NV_CTRL_GVO_SUPPORTED
+ * attribute is TRUE.
+ */
+
+ReturnStatus
+NvCtrlSetGvoColorConversion(NvCtrlAttributeHandle *handle,
+                            float colorMatrix[3][3],
+                            float colorOffset[3],
+                            float colorScale[3]);
+
+ReturnStatus
+NvCtrlGetGvoColorConversion(NvCtrlAttributeHandle *handle,
+                            float colorMatrix[3][3],
+                            float colorOffset[3],
+                            float colorScale[3]);
+
 char *NvCtrlAttributesStrError (ReturnStatus status);
 
 void NvCtrlAttributeClose(NvCtrlAttributeHandle *handle);
+
+ReturnStatus
+NvCtrlXrandrSetScreenMode (NvCtrlAttributeHandle *handle,
+                           int width, int height, int refresh);
 
 #endif /* __NVCTRL_ATTRIBUTES__ */

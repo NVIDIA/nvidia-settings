@@ -79,4 +79,11 @@ EXTRA_DIST += \
 	rotation_orientation_horiz.h \
 	rotation_orientation_vert_flipped.h \
 	rotation_orientation_vert.h \
-        clocks_banner.h
+        clocks_banner.h \
+	bnc_cable.h \
+	led_green.h \
+	led_red.h \
+	led_grey.h \
+	rj45_input.h \
+	rj45_output.h \
+	rj45_unused.h

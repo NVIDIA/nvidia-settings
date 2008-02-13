@@ -247,6 +247,7 @@ void print_glxinfo(const char *display_name)
 {
     int              screen;
     CtrlHandles     *h;
+    CtrlHandleTarget *t;
     ReturnStatus     status = NvCtrlSuccess;
 
     char            *direct_rendering  = NULL;
@@ -266,27 +267,28 @@ void print_glxinfo(const char *display_name)
 
     char            *formated_ext_str  = NULL;
 
-
     h = nv_alloc_ctrl_handles(display_name);
     if ( h == NULL ) {
         return;
     }
 
     /* Print information for each screen */
-    for (screen = 0; screen < h->num_screens; screen++) {
+    for (screen = 0; screen < h->targets[X_SCREEN_TARGET].n; screen++) {
+
+        t = &h->targets[X_SCREEN_TARGET].t[screen];
 
         /* No screen, move on */
-        if ( !h->h[screen] ) continue;
+        if ( !t->h ) continue;
 
-        nv_msg(NULL, "GLX Information for %s:", h->screen_names[screen]);
+        nv_msg(NULL, "GLX Information for %s:", t->name);
 
         /* Get GLX information */
-        status = NvCtrlGetStringAttribute(h->h[screen],
+        status = NvCtrlGetStringAttribute(t->h,
                                           NV_CTRL_STRING_GLX_DIRECT_RENDERING,
                                           &direct_rendering);
         if ( status != NvCtrlSuccess &&
              status != NvCtrlNoAttribute ) { goto finish; }
-        status = NvCtrlGetStringAttribute(h->h[screen],
+        status = NvCtrlGetStringAttribute(t->h,
                                           NV_CTRL_STRING_GLX_GLX_EXTENSIONS,
                                           &glx_extensions);
         if ( status != NvCtrlSuccess &&
@@ -299,17 +301,17 @@ void print_glxinfo(const char *display_name)
             }
         }
         /* Get server GLX information */
-        status = NvCtrlGetStringAttribute(h->h[screen],
+        status = NvCtrlGetStringAttribute(t->h,
                                           NV_CTRL_STRING_GLX_SERVER_VENDOR,
                                           &server_vendor);
         if ( status != NvCtrlSuccess &&
              status != NvCtrlNoAttribute ) { goto finish; }
-        status = NvCtrlGetStringAttribute(h->h[screen],
+        status = NvCtrlGetStringAttribute(t->h,
                                           NV_CTRL_STRING_GLX_SERVER_VERSION,
                                           &server_version);
         if ( status != NvCtrlSuccess &&
              status != NvCtrlNoAttribute ) { goto finish; }
-        status = NvCtrlGetStringAttribute(h->h[screen],
+        status = NvCtrlGetStringAttribute(t->h,
                                           NV_CTRL_STRING_GLX_SERVER_EXTENSIONS,
                                           &server_extensions);
         if ( status != NvCtrlSuccess &&
@@ -322,17 +324,17 @@ void print_glxinfo(const char *display_name)
             }
         }
         /* Get client GLX information */
-        status = NvCtrlGetStringAttribute(h->h[screen],
+        status = NvCtrlGetStringAttribute(t->h,
                                           NV_CTRL_STRING_GLX_CLIENT_VENDOR,
                                           &client_vendor);
         if ( status != NvCtrlSuccess &&
              status != NvCtrlNoAttribute ) { goto finish; }
-        status = NvCtrlGetStringAttribute(h->h[screen],
+        status = NvCtrlGetStringAttribute(t->h,
                                           NV_CTRL_STRING_GLX_CLIENT_VERSION,
                                           &client_version);
         if ( status != NvCtrlSuccess &&
              status != NvCtrlNoAttribute ) { goto finish; }
-        status = NvCtrlGetStringAttribute(h->h[screen],
+        status = NvCtrlGetStringAttribute(t->h,
                                           NV_CTRL_STRING_GLX_CLIENT_EXTENSIONS,
                                           &client_extensions);
         if ( status != NvCtrlSuccess &&
@@ -345,22 +347,22 @@ void print_glxinfo(const char *display_name)
             }
         }
         /* Get OpenGL information */
-        status = NvCtrlGetStringAttribute(h->h[screen],
+        status = NvCtrlGetStringAttribute(t->h,
                                           NV_CTRL_STRING_GLX_OPENGL_VENDOR,
                                           &opengl_vendor);
         if ( status != NvCtrlSuccess &&
              status != NvCtrlNoAttribute ) { goto finish; }
-        status = NvCtrlGetStringAttribute(h->h[screen],
+        status = NvCtrlGetStringAttribute(t->h,
                                           NV_CTRL_STRING_GLX_OPENGL_RENDERER,
                                           &opengl_renderer);
         if ( status != NvCtrlSuccess &&
              status != NvCtrlNoAttribute ) { goto finish; }
-        status = NvCtrlGetStringAttribute(h->h[screen],
+        status = NvCtrlGetStringAttribute(t->h,
                                           NV_CTRL_STRING_GLX_OPENGL_VERSION,
                                           &opengl_version);
         if ( status != NvCtrlSuccess &&
              status != NvCtrlNoAttribute ) { goto finish; }
-        status = NvCtrlGetStringAttribute(h->h[screen],
+        status = NvCtrlGetStringAttribute(t->h,
                                           NV_CTRL_STRING_GLX_OPENGL_EXTENSIONS,
                                           &opengl_extensions);
         if ( status != NvCtrlSuccess &&
@@ -374,7 +376,7 @@ void print_glxinfo(const char *display_name)
         }
 
         /* Get FBConfig information */
-        status = NvCtrlGetVoidAttribute(h->h[screen],
+        status = NvCtrlGetVoidAttribute(t->h,
                                         NV_CTRL_ATTR_GLX_FBCONFIG_ATTRIBS,
                                         (void *)(&fbconfig_attribs));
         if ( status != NvCtrlSuccess &&

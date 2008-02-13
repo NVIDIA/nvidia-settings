@@ -31,6 +31,7 @@
 #include "green_xpm.h"
 #include "blue_xpm.h"
 #include "color_correction_banner.h"
+#include "ctkimage.h"
 
 #include "ctkcurve.h"
 #include "ctkscale.h"
@@ -160,8 +161,8 @@ GtkWidget* ctk_color_correction_new(NvCtrlAttributeHandle *handle,
 
     GtkWidget *menu;
     GtkWidget *image;
+    GtkWidget *banner;
     GtkWidget *label;
-    GtkWidget *frame;
     GtkWidget *scale;
     GtkWidget *curve;
     GtkWidget *menu_item;
@@ -177,9 +178,6 @@ GtkWidget* ctk_color_correction_new(NvCtrlAttributeHandle *handle,
     GtkWidget *eventbox;
     ReturnStatus ret;
     gint val;
-
-    guint8 *image_buffer = NULL;
-    const nv_image_t *img;
 
     /* check if the VidMode extension is present */
 
@@ -203,26 +201,8 @@ GtkWidget* ctk_color_correction_new(NvCtrlAttributeHandle *handle,
      * purposes.
      */
 
-    alignment = gtk_alignment_new(0, 0, 0, 0);
-    gtk_box_pack_start(GTK_BOX(ctk_color_correction),
-                       alignment, FALSE, FALSE, 0);
-
-    frame = gtk_frame_new(NULL);
-    gtk_frame_set_shadow_type(GTK_FRAME(frame), GTK_SHADOW_IN);
-    gtk_container_add(GTK_CONTAINER(alignment), frame);
-
-    img = &color_correction_banner_image;
-
-    image_buffer = decompress_image_data(img);
-
-    image = gtk_image_new_from_pixbuf
-        (gdk_pixbuf_new_from_data(image_buffer, GDK_COLORSPACE_RGB,
-                                  FALSE, 8, img->width, img->height,
-                                  img->width * img->bytes_per_pixel,
-                                  free_decompressed_image, NULL));
-
-    gtk_container_add(GTK_CONTAINER(frame), image);
-
+    banner = ctk_banner_image_new(&color_correction_banner_image);
+    gtk_box_pack_start(GTK_BOX(ctk_color_correction), banner, FALSE, FALSE, 0);
 
     /* create the main hbox and the two main vboxes*/
 

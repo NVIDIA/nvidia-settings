@@ -26,6 +26,7 @@
 #include <NvCtrlAttributes.h>
 
 #include "opengl_banner.h"
+#include "ctkimage.h"
 
 #include "ctkopengl.h"
 
@@ -143,7 +144,7 @@ GtkWidget* ctk_opengl_new(NvCtrlAttributeHandle *handle,
     GObject *object;
     CtkOpenGL *ctk_opengl;
     GtkWidget *label;
-    GtkWidget *image;
+    GtkWidget *banner;
     GtkWidget *frame;
     GtkWidget *hseparator;
     GtkWidget *hbox;
@@ -155,9 +156,6 @@ GtkWidget* ctk_opengl_new(NvCtrlAttributeHandle *handle,
 
     NVCTRLAttributeValidValuesRec valid;
 
-    guint8 *image_buffer = NULL;
-    const nv_image_t *img;    
-
     object = g_object_new(CTK_TYPE_OPENGL, NULL);
 
     ctk_opengl = CTK_OPENGL(object);
@@ -167,26 +165,8 @@ GtkWidget* ctk_opengl_new(NvCtrlAttributeHandle *handle,
 
     gtk_box_set_spacing(GTK_BOX(object), 10);
 
-
-    hbox = gtk_hbox_new(FALSE, 0);
-    gtk_box_pack_start(GTK_BOX(object), hbox, FALSE, FALSE, 0);
-
-    frame = gtk_frame_new(NULL);
-    gtk_box_pack_start(GTK_BOX(hbox), frame, FALSE, FALSE, 0);
-
-    gtk_frame_set_shadow_type(GTK_FRAME(frame), GTK_SHADOW_IN);
-    
-    img = &opengl_banner_image;
-
-    image_buffer = decompress_image_data(img);
-
-    image = gtk_image_new_from_pixbuf
-        (gdk_pixbuf_new_from_data(image_buffer, GDK_COLORSPACE_RGB,
-                                  FALSE, 8, img->width, img->height,
-                                  img->width * img->bytes_per_pixel,
-                                  free_decompressed_image, NULL));
-
-    gtk_container_add(GTK_CONTAINER(frame), image);
+    banner = ctk_banner_image_new(&opengl_banner_image);
+    gtk_box_pack_start(GTK_BOX(object), banner, FALSE, FALSE, 0);
 
 
     /*

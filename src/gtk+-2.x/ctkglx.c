@@ -31,6 +31,7 @@
 #include "glxinfo.h" /* xxx_abbrev functions */
 
 #include "glx_banner.h"
+#include "ctkimage.h"
 #include "ctkglx.h"
 #include "ctkconfig.h"
 #include "ctkhelp.h"
@@ -198,20 +199,15 @@ GtkWidget* ctk_glx_new(NvCtrlAttributeHandle *handle,
     GObject *object;
     CtkGLX *ctk_glx;
     GtkWidget *label;
-    GtkWidget *image;
-    GtkWidget *frame;
+    GtkWidget *banner;
     GtkWidget *hseparator;
     GtkWidget *hbox;
     GtkWidget *vbox, *vbox2;
-    GtkWidget *alignment;
     GtkWidget *table;
     GtkWidget *scrollWin;
     GtkWidget *event;    /* For setting the background color to white */
 
     ReturnStatus ret;
-
-    guint8 *image_buffer = NULL;
-    const nv_image_t *img;    
 
     char * glx_info_str = NULL;               /* Test if GLX supported */
     GLXFBConfigAttr *fbconfig_attribs = NULL; /* FBConfig data */
@@ -256,21 +252,10 @@ GtkWidget* ctk_glx_new(NvCtrlAttributeHandle *handle,
     gtk_box_set_spacing(GTK_BOX(ctk_glx), 10);
 
     /* Image banner */
-    alignment = gtk_alignment_new(0, 0, 0, 0);
-    frame = gtk_frame_new(NULL);
-    img = &glx_banner_image;
-    image_buffer = decompress_image_data(img);
-    image = gtk_image_new_from_pixbuf
-        (gdk_pixbuf_new_from_data(image_buffer, GDK_COLORSPACE_RGB,
-                                  FALSE, 8, img->width, img->height,
-                                  img->width * img->bytes_per_pixel,
-                                  free_decompressed_image, NULL));
-    gtk_frame_set_shadow_type(GTK_FRAME(frame), GTK_SHADOW_IN);
-    gtk_container_add(GTK_CONTAINER(frame), image);
-    gtk_container_add(GTK_CONTAINER(alignment), frame);
-    gtk_box_pack_start(GTK_BOX(ctk_glx), alignment, FALSE, FALSE, 0);
 
-    
+    banner = ctk_banner_image_new(&glx_banner_image);
+    gtk_box_pack_start(GTK_BOX(ctk_glx), banner, FALSE, FALSE, 0);
+
     /* Determine if GLX is supported */
     ret = NvCtrlGetStringAttribute(ctk_glx->handle,
                                    NV_CTRL_STRING_GLX_SERVER_VENDOR,
@@ -296,6 +281,7 @@ GtkWidget* ctk_glx_new(NvCtrlAttributeHandle *handle,
                                           event);
     gtk_box_pack_start(GTK_BOX(hbox), vbox, TRUE, TRUE, 5);
     ctk_glx->glxinfo_vpane = vbox;
+    gtk_widget_set_size_request(scrollWin, -1, 200);
 
 
     /* GLX 1.3 supports frame buffer configurations */
@@ -324,6 +310,7 @@ GtkWidget* ctk_glx_new(NvCtrlAttributeHandle *handle,
                                     GTK_POLICY_AUTOMATIC, GTK_POLICY_ALWAYS);
     gtk_box_pack_start(GTK_BOX(ctk_glx), GTK_WIDGET(vbox), TRUE, TRUE, 0);
     gtk_box_pack_start(GTK_BOX(vbox), scrollWin, TRUE, TRUE, 0);
+    gtk_widget_set_size_request(scrollWin, -1, 200);
 
     /*
      * NODE: Because clists have a hard time displaying tooltips in their

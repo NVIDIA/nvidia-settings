@@ -50,10 +50,6 @@ ifndef CC
   CC = gcc
 endif
 
-ifndef CFLAGS
-  CFLAGS = -Wall
-endif
-
 ifndef PKG_CONFIG
   PKG_CONFIG = pkg-config
 endif
@@ -70,16 +66,20 @@ ifndef X11R6_INC_DIR
   X11R6_INC_DIR = /usr/X11R6/include
 endif
 
+# define local variables
+
+LOCAL_CFLAGS = -Wall
+
 # the NVDEBUG environment variable controls whether we build debug or retail
 
 ifeq ($(NVDEBUG),1)
   STRIP = true
-  CFLAGS += -g -DDEBUG
+  LOCAL_CFLAGS += -g -DDEBUG
 else
   ifndef STRIP
     STRIP = strip
   endif
-  CFLAGS += -O
+  LOCAL_CFLAGS += -O -DNDEBUG
 endif
 
 # default prefix
@@ -137,7 +137,7 @@ SRCDIRS := $(addprefix $(CURDIR)/, $(RELATIVE_SRCDIRS))
 
 INC_FLAGS := $(addprefix -I , $(RELATIVE_SRCDIRS))
 
-ALL_CFLAGS = $(CFLAGS) $(X11R6_CFLAGS) $(GTK_CFLAGS) $(INC_FLAGS)
+ALL_CFLAGS = $(CFLAGS) $(LOCAL_CFLAGS) $(X11R6_CFLAGS) $(GTK_CFLAGS) $(INC_FLAGS)
 ALL_LDFLAGS = $(LD_RUN_FLAG) $(LDFLAGS) $(GTK_LDFLAGS) $(X11R6_LIBS)
 
 CPPFLAGS = $(ALL_CFLAGS)
@@ -156,8 +156,16 @@ MANPAGE = nvidia-settings.1
 
 # Define the files in the SAMPLES directory
 
-SAMPLES = Makefile README nv-control-dvc.c nv-control-info.c \
-	nv-control-events.c nv-ddcci-client.c
+SAMPLES = \
+	Makefile \
+	nv-control-dpy.c \
+	nv-control-dvc.c \
+	nv-control-events.c \
+	nv-control-info.c \
+	nv-control-targets.c \
+	nv-ddcci-client.c \
+	nv-control-framelock.c \
+	README
 
 # initialize SRC and EXTRA_DIST, then include each of the subdirectory
 # Makefiles so that they can append to SRC and EXTRA_DIST

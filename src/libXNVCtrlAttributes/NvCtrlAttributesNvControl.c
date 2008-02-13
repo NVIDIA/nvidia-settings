@@ -63,18 +63,20 @@ NvCtrlInitNvControlAttributes (NvCtrlAttributePrivateHandle *h)
         return NULL;
     }
     
-    ret = XNVCTRLIsNvScreen (h->dpy, h->screen);
-    if (ret != True) {
-        nv_warning_msg("NV-CONTROL extension not present on screen %d "
-                       "of this Display.", h->screen);
-        return NULL;
+    if (h->target_type == NV_CTRL_TARGET_TYPE_X_SCREEN) {
+        ret = XNVCTRLIsNvScreen (h->dpy, h->target_id);
+        if (ret != True) {
+            nv_warning_msg("NV-CONTROL extension not present on screen %d "
+                           "of this Display.", h->target_id);
+            return NULL;
+        }
     }
     
     nv = (NvCtrlNvControlAttributes *)
         calloc(1, sizeof (NvCtrlNvControlAttributes));
 
-    ret = XNVCtrlSelectNotify(h->dpy, h->screen,
-                              ATTRIBUTE_CHANGED_EVENT, True);
+    ret = XNVCtrlSelectTargetNotify(h->dpy, h->target_type, h->target_id,
+                                    TARGET_ATTRIBUTE_CHANGED_EVENT, True);
     if (ret != True) {
         nv_warning_msg("Unable to select attribute changed NV-CONTROL "
                        "events.");
@@ -90,13 +92,24 @@ NvCtrlInitNvControlAttributes (NvCtrlAttributePrivateHandle *h)
 } /* NvCtrlInitNvControlAttributes() */
 
 
+ReturnStatus NvCtrlNvControlQueryTargetCount(NvCtrlAttributePrivateHandle *h,
+                                             int target_type, int *val)
+{
+    int ret;
+
+    ret = XNVCTRLQueryTargetCount(h->dpy, target_type, val);
+    return (ret) ? NvCtrlSuccess : NvCtrlError;
+
+} /* NvCtrlNvControlQueryTargetCount() */
+
+
 ReturnStatus NvCtrlNvControlGetAttribute (NvCtrlAttributePrivateHandle *h,
                                           unsigned int display_mask,
                                           int attr, int *val)
 {
     if (attr <= NV_CTRL_LAST_ATTRIBUTE) {
-        if (XNVCTRLQueryAttribute (h->dpy, h->screen, display_mask,
-                                   attr, val)) {
+        if (XNVCTRLQueryTargetAttribute (h->dpy, h->target_type, h->target_id,
+                                         display_mask, attr, val)) {
             return NvCtrlSuccess;
         } else {
             return NvCtrlAttributeNotAvailable;
@@ -105,7 +118,7 @@ ReturnStatus NvCtrlNvControlGetAttribute (NvCtrlAttributePrivateHandle *h,
      
     return NvCtrlNoAttribute;
     
-} /* NvCtrlGetAttribute() */
+} /* NvCtrlNvControlGetAttribute() */
 
 
 ReturnStatus NvCtrlNvControlSetAttribute (NvCtrlAttributePrivateHandle *h,
@@ -113,14 +126,15 @@ ReturnStatus NvCtrlNvControlSetAttribute (NvCtrlAttributePrivateHandle *h,
                                           int attr, int val)
 {
     if (attr <= NV_CTRL_LAST_ATTRIBUTE) {
-        XNVCTRLSetAttribute (h->dpy, h->screen, display_mask, attr, val);
+        XNVCTRLSetTargetAttribute (h->dpy, h->target_type, h->target_id,
+                                   display_mask, attr, val);
         XFlush (h->dpy);
         return NvCtrlSuccess;
     }
       
     return NvCtrlNoAttribute;
 
-} /* NvCtrlGetAttribute() */
+} /* NvCtrlNvControlSetAttribute() */
 
 
 ReturnStatus NvCtrlNvControlGetValidAttributeValues
@@ -129,8 +143,9 @@ ReturnStatus NvCtrlNvControlGetValidAttributeValues
                                int attr, NVCTRLAttributeValidValuesRec *val)
 {
     if (attr <= NV_CTRL_LAST_ATTRIBUTE) {
-        if (XNVCTRLQueryValidAttributeValues (h->dpy, h->screen,
-                                              display_mask, attr, val)) {
+        if (XNVCTRLQueryValidTargetAttributeValues (h->dpy, h->target_type,
+                                                    h->target_id, display_mask,
+                                                    attr, val)) {
             return NvCtrlSuccess;
         } else {
             return NvCtrlAttributeNotAvailable;
@@ -148,8 +163,9 @@ NvCtrlNvControlGetStringAttribute (NvCtrlAttributePrivateHandle *h,
                                    int attr, char **ptr)
 {
     if (attr <= NV_CTRL_STRING_LAST_ATTRIBUTE) {
-        if (XNVCTRLQueryStringAttribute (h->dpy, h->screen,
-                                         display_mask, attr, ptr)) {
+        if (XNVCTRLQueryTargetStringAttribute (h->dpy, h->target_type,
+                                               h->target_id, display_mask,
+                                               attr, ptr)) {
             return NvCtrlSuccess;
         } else {
             return NvCtrlAttributeNotAvailable;
@@ -162,6 +178,36 @@ NvCtrlNvControlGetStringAttribute (NvCtrlAttributePrivateHandle *h,
 
 
 ReturnStatus
+NvCtrlNvControlSetStringAttribute (NvCtrlAttributePrivateHandle *h,
+                                   unsigned int display_mask,
+                                   int attr, char *ptr, int *ret)
+{
+    int tmp_int; /* Temp storage if ret is not specified */
+
+    if (h->target_type != NV_CTRL_TARGET_TYPE_X_SCREEN) {
+        return NvCtrlBadHandle;
+    }
+
+    if (attr <= NV_CTRL_LAST_ATTRIBUTE) {
+        if ( !ret ) {
+            ret = &tmp_int;
+        }
+        *ret =
+            XNVCTRLSetStringAttribute (h->dpy, h->target_id, display_mask,
+                                       attr, ptr);
+        if ( *ret ) {
+            return NvCtrlSuccess;
+        } else {
+            return NvCtrlAttributeNotAvailable;
+        }
+    }
+      
+    return NvCtrlNoAttribute;
+
+} /* NvCtrlNvControlSetStringAttribute() */
+
+
+ReturnStatus
 NvCtrlNvControlGetBinaryAttribute(NvCtrlAttributePrivateHandle *h,
                                   unsigned int display_mask, int attr,
                                   unsigned char **data, int *len)
@@ -171,15 +217,14 @@ NvCtrlNvControlGetBinaryAttribute(NvCtrlAttributePrivateHandle *h,
     if (!h->nv) return NvCtrlMissingExtension;
     
     /* the X_nvCtrlQueryBinaryData opcode was added in 1.7 */
-    
+
     if ((h->nv->major_version < 1) ||
         ((h->nv->major_version == 1) && (h->nv->minor_version < 7))) {
         return NvCtrlNoAttribute;
     }
     
-    bret = XNVCTRLQueryBinaryData(h->dpy, h->screen, display_mask,
-                                  attr, data, len);
-    
+    bret = XNVCTRLQueryTargetBinaryData (h->dpy, h->target_type, h->target_id,
+                                         display_mask, attr, data, len);
     if (!bret) {
         return NvCtrlError;
     } else {
@@ -187,3 +232,61 @@ NvCtrlNvControlGetBinaryAttribute(NvCtrlAttributePrivateHandle *h,
     }
     
 } /* NvCtrlNvControlGetBinaryAttribute() */
+
+
+ReturnStatus
+NvCtrlSetGvoColorConversion(NvCtrlAttributeHandle *handle,
+                            float colorMatrix[3][3],
+                            float colorOffset[3],
+                            float colorScale[3])
+{
+    NvCtrlAttributePrivateHandle *h;
+
+    if (!handle) return NvCtrlBadHandle;
+
+    h = (NvCtrlAttributePrivateHandle *) handle;
+
+    if (!h->nv) return NvCtrlMissingExtension;
+    
+    if (h->target_type != NV_CTRL_TARGET_TYPE_X_SCREEN) return NvCtrlBadHandle;
+    
+    XNVCTRLSetGvoColorConversion(h->dpy,
+                                 h->target_id,
+                                 colorMatrix,
+                                 colorOffset,
+                                 colorScale);
+    
+    return NvCtrlSuccess;
+    
+} /* NvCtrlNvControlSetGvoColorConversion() */
+
+
+ReturnStatus
+NvCtrlGetGvoColorConversion(NvCtrlAttributeHandle *handle,
+                            float colorMatrix[3][3],
+                            float colorOffset[3],
+                            float colorScale[3])
+{
+    NvCtrlAttributePrivateHandle *h;
+    Bool bRet;
+    
+    if (!handle) return NvCtrlBadHandle;
+
+    h = (NvCtrlAttributePrivateHandle *) handle;
+
+    if (!h->nv) return NvCtrlMissingExtension;
+    
+    if (h->target_type != NV_CTRL_TARGET_TYPE_X_SCREEN) return NvCtrlBadHandle;
+
+    bRet = XNVCTRLQueryGvoColorConversion(h->dpy,
+                                          h->target_id,
+                                          colorMatrix,
+                                          colorOffset,
+                                          colorScale);
+    if (!bRet) {
+        return NvCtrlError;
+    } else {
+        return NvCtrlSuccess;
+    }
+
+} /* NvCtrlNvControlGetGvoColorConversion() */

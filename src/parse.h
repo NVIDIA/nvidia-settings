@@ -35,7 +35,7 @@
  */
 
 #define NV_PARSER_HAS_X_DISPLAY         (1<<0)
-#define NV_PARSER_HAS_X_SCREEN          (1<<2)
+#define NV_PARSER_HAS_TARGET            (1<<2)
 #define NV_PARSER_HAS_DISPLAY_DEVICE    (1<<3)
 #define NV_PARSER_HAS_VAL               (1<<4)
 
@@ -49,6 +49,9 @@
 #define NV_PARSER_TYPE_GUI_ATTRIUBUTE   (1<<19)
 #define NV_PARSER_TYPE_XVIDEO_ATTRIBUTE (1<<20)
 #define NV_PARSER_TYPE_PACKED_ATTRIBUTE (1<<21)
+#define NV_PARSER_TYPE_VALUE_IS_DISPLAY (1<<22)
+#define NV_PARSER_TYPE_NO_QUERY_ALL     (1<<23)
+#define NV_PARSER_TYPE_NO_ZERO_VALUE    (1<<24)
 
 #define NV_PARSER_ASSIGNMENT 0
 #define NV_PARSER_QUERY 1
@@ -62,17 +65,23 @@
  * error codes returned by nv_parse_attribute_string().
  */
 
-#define NV_PARSER_STATUS_SUCCESS                0
-#define NV_PARSER_STATUS_BAD_ARGUMENT           1
-#define NV_PARSER_STATUS_EMPTY_STRING           2
-#define NV_PARSER_STATUS_ATTR_NAME_TOO_LONG     3
-#define NV_PARSER_STATUS_ATTR_NAME_MISSING      4
-#define NV_PARSER_STATUS_BAD_DISPLAY_DEVICE     5
-#define NV_PARSER_STATUS_MISSING_EQUAL_SIGN     6
-#define NV_PARSER_STATUS_NO_VALUE               7
-#define NV_PARSER_STATUS_TRAILING_GARBAGE       8
-#define NV_PARSER_STATUS_UNKNOWN_ATTR_NAME      9
-#define NV_PARSER_STATUS_MISSING_COMMA          10
+#define NV_PARSER_STATUS_SUCCESS                             0
+#define NV_PARSER_STATUS_BAD_ARGUMENT                        1
+#define NV_PARSER_STATUS_EMPTY_STRING                        2
+#define NV_PARSER_STATUS_ATTR_NAME_TOO_LONG                  3
+#define NV_PARSER_STATUS_ATTR_NAME_MISSING                   4
+#define NV_PARSER_STATUS_BAD_DISPLAY_DEVICE                  5
+#define NV_PARSER_STATUS_MISSING_EQUAL_SIGN                  6
+#define NV_PARSER_STATUS_NO_VALUE                            7
+#define NV_PARSER_STATUS_TRAILING_GARBAGE                    8
+#define NV_PARSER_STATUS_UNKNOWN_ATTR_NAME                   9
+#define NV_PARSER_STATUS_MISSING_COMMA                      10
+#define NV_PARSER_STATUS_TARGET_SPEC_NO_COLON               11
+#define NV_PARSER_STATUS_TARGET_SPEC_BAD_TARGET             12
+#define NV_PARSER_STATUS_TARGET_SPEC_NO_TARGET_ID           13
+#define NV_PARSER_STATUS_TARGET_SPEC_BAD_TARGET_ID          14
+#define NV_PARSER_STATUS_TARGET_SPEC_TRAILING_GARBAGE       15
+
 
 /*
  * define useful types
@@ -96,13 +105,14 @@ typedef struct _AttributeTableEntry {
 
 /*
  * ParsedAttribute - struct filled out by
- * nv_ParseAttributeString().
+ * nv_parse_attribute_string().
  */
 
 typedef struct _ParsedAttribute {
     char *display;
     char *name;
-    int screen;
+    int target_type;
+    int target_id;
     int attr;
     int val;
     float fval; /* XXX put in a union with val? */
@@ -119,6 +129,45 @@ typedef struct _ParsedAttribute {
 
 extern AttributeTableEntry attributeTable[];
 
+
+/*
+ * Indices into CtrlHandles->targets[] array; stored in
+ * TargetTypeEntry.target_index.
+ */
+
+#define X_SCREEN_TARGET  0
+#define GPU_TARGET       1
+#define FRAMELOCK_TARGET 2
+#define MAX_TARGET_TYPES 3
+
+
+
+/*
+ * TargetTypeEntry - an array of these structures defines the values
+ * associated with each target type.
+ */
+
+typedef struct {
+    char *name;        /* string describing the TargetType */
+    char *parsed_name; /* name used by parser */
+    int target_index;  /* index into the CtrlHandles->targets[] array */
+    int nvctrl;        /* NV-CONTROL target type value (NV_CTRL_TARGET_TYPE) */
+    
+    /* flag set in NVCTRLAttributeValidValuesRec.permissions */
+    unsigned int permission_bit;
+    
+    /* whether this target type is aware of display devices */
+    int uses_display_devices;
+    
+} TargetTypeEntry;
+
+
+/*
+ * TargetType table; defined in parse.c
+ */
+
+extern TargetTypeEntry targetTypeTable[];
+
 /*
  * nv_parse_attribute_string() - this function parses an attribute
  * string, the syntax for which is:
@@ -132,6 +181,17 @@ extern AttributeTableEntry attributeTable[];
  *
  * {screen}/ may be specified by itself (ie: without the
  * "{host}:{display}." part).
+ *
+ * Additionally, instead of specifying a screen, a target
+ * specification (target type and id) may be given in brackets:
+ *
+ *     [{target-type}:{target-id}]/{attribute name}...
+ *
+ * This can be used in place of "{screen}" when it is used by itself
+ * on the left of the "/"; or, it can take the place of ".{screen}"
+ * when used along with an X Display name:
+ *
+ *     {host}:{display}[{target-type}:{target-id}]/{attribute name}...
  *
  * {attribute name} should be a string without any whitespace (a case
  * insensitive compare will be done to find a match in the

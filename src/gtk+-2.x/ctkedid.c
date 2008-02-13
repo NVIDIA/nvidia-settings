@@ -172,7 +172,7 @@ static void button_clicked(GtkButton *button, gpointer user_data)
                                    &data, &len);
     if (ret != NvCtrlSuccess) {
         ctk_config_statusbar_message(ctk_edid->ctk_config,
-                                     "No EDID available for %s.\n",
+                                     "No EDID available for %s.",
                                      ctk_edid->name);
     } else {
 
@@ -248,7 +248,7 @@ static gboolean write_edid_to_file(CtkConfig *ctk_config, const gchar *filename,
     close(fd);
     
     ctk_config_statusbar_message(ctk_config,
-                                 "EDID written to %s.\n", filename);
+                                 "EDID written to %s.", filename);
     return TRUE;
     
  fail:

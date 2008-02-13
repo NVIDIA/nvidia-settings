@@ -61,47 +61,65 @@ struct _CtkFramelock
     GtkVBox                parent;
 
     NvCtrlAttributeHandle *attribute_handle;
+    CtkConfig             *ctk_config;
     
     GtkWindow             *parent_window;
 
+    GdkCursor             *wait_cursor;
+
+
+    /* Device tree & buttons */
+    gpointer               tree;
+    GtkWidget             *add_devices_button;
+    GtkWidget             *remove_devices_button;
+    GtkWidget             *short_labels_button;
+    GtkWidget             *extra_info_button;
+
+    /* House sync */
     GtkWidget             *house_sync_frame;
-    GtkWidget             *use_house_sync_button;
-    GtkWidget             *sync_interval_entry;
+    GtkWidget             *house_sync_hbox;
+    GtkWidget             *use_house_sync;
     GtkWidget             *sync_interval_frame;
+    GtkWidget             *sync_interval_entry;
+    GtkWidget             *sync_edge_frame;
+    GtkWidget             *sync_edge_combo;
+    GtkWidget             *video_mode_frame;
+    GtkWidget             *video_mode_combo;
+    GtkWidget             *video_mode_detect;
 
-    GtkWidget             *house_format_combo;
-    GtkWidget             *house_format_frame;
-    GtkWidget             *house_format_detect;
     gint                   current_detect_format;
-    guint                  house_format_detect_timer;
+    guint                  video_mode_detect_timer;
 
-    GtkWidget             *add_x_screen_dialog;
-    GtkWidget             *add_x_screen_entry;
+    /* Dialogs */
+    GtkWidget             *add_devices_dialog;
+    GtkWidget             *add_devices_entry;
 
-    GtkWidget             *remove_x_screen_dialog;
-    GtkWidget             *remove_x_screen_label;
-    GtkTreeIter            remove_x_screen_iter;
+    GtkWidget             *remove_devices_dialog;
+    GtkWidget             *remove_devices_label;
+    GtkTreeIter            remove_devices_iter;
 
     GtkWidget             *error_msg_dialog;
     GtkWidget             *error_msg_label;
 
-    GtkListStore          *list_store;
-    GtkTreeView           *treeview;
+    /* Buttons */
 
-    GtkWidget             *add_x_screen_button;
-    GtkWidget             *remove_x_screen_button;
     GtkWidget             *test_link_button;
-    GtkWidget             *enable_syncing;
+    gboolean               test_link_enabled;
 
     GtkWidget             *sync_state_button;
     GtkWidget             *enable_syncing_label;
     GtkWidget             *disable_syncing_label;
-
-    CtkConfig             *ctk_config;
-
-    GdkCursor             *wait_cursor;
-
+    GtkWidget             *selected_syncing_label;
     gboolean               framelock_enabled;
+
+    /* Images */
+    GtkWidget             *led_grey;
+    GtkWidget             *led_green;
+    GtkWidget             *led_red;
+
+    GtkWidget             *rj45_input;
+    GtkWidget             *rj45_output;
+    GtkWidget             *rj45_unused;
 };
 
 struct _CtkFramelockClass

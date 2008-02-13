@@ -198,34 +198,44 @@ typedef struct {
 } FormatDetails;
 
 static const FormatName videoFormatNames[] = {
-    { NV_CTRL_GVO_VIDEO_FORMAT_480I_59_94_SMPTE259_NTSC, "480i    59.94  Hz  (SMPTE259) NTSC"},
-    { NV_CTRL_GVO_VIDEO_FORMAT_576I_50_00_SMPTE259_PAL,  "576i    50.00  Hz  (SMPTE259) PAL"},
-    { NV_CTRL_GVO_VIDEO_FORMAT_720P_23_98_SMPTE296,      "720p    23.98  Hz  (SMPTE296)"    },
-    { NV_CTRL_GVO_VIDEO_FORMAT_720P_24_00_SMPTE296,      "720p    24.00  Hz  (SMPTE296)"    },
-    { NV_CTRL_GVO_VIDEO_FORMAT_720P_25_00_SMPTE296,      "720p    25.00  Hz  (SMPTE296)"    },
-    { NV_CTRL_GVO_VIDEO_FORMAT_720P_29_97_SMPTE296,      "720p    29.97  Hz  (SMPTE296)"    },
-    { NV_CTRL_GVO_VIDEO_FORMAT_720P_30_00_SMPTE296,      "720p    30.00  Hz  (SMPTE296)"    },
-    { NV_CTRL_GVO_VIDEO_FORMAT_720P_50_00_SMPTE296,      "720p    50.00  Hz  (SMPTE296)"    },
-    { NV_CTRL_GVO_VIDEO_FORMAT_720P_59_94_SMPTE296,      "720p    59.94  Hz  (SMPTE296)"    },
-    { NV_CTRL_GVO_VIDEO_FORMAT_720P_60_00_SMPTE296,      "720p    60.00  Hz  (SMPTE296)"    },
-    { NV_CTRL_GVO_VIDEO_FORMAT_1035I_59_94_SMPTE260,     "1035i   59.94  Hz  (SMPTE260)"    },
-    { NV_CTRL_GVO_VIDEO_FORMAT_1035I_60_00_SMPTE260,     "1035i   60.00  Hz  (SMPTE260)"    },
-    { NV_CTRL_GVO_VIDEO_FORMAT_1080I_50_00_SMPTE295,     "1080i   50.00  Hz  (SMPTE295)"    },
-    { NV_CTRL_GVO_VIDEO_FORMAT_1080I_50_00_SMPTE274,     "1080i   50.00  Hz  (SMPTE274)"    },
-    { NV_CTRL_GVO_VIDEO_FORMAT_1080I_59_94_SMPTE274,     "1080i   59.94  Hz  (SMPTE274)"    },
-    { NV_CTRL_GVO_VIDEO_FORMAT_1080I_60_00_SMPTE274,     "1080i   60.00  Hz  (SMPTE274)"    },
-    { NV_CTRL_GVO_VIDEO_FORMAT_1080P_23_976_SMPTE274,    "1080p   23.976 Hz  (SMPTE274)"    },
-    { NV_CTRL_GVO_VIDEO_FORMAT_1080P_24_00_SMPTE274,     "1080p   24.00  Hz  (SMPTE274)"    },
-    { NV_CTRL_GVO_VIDEO_FORMAT_1080P_25_00_SMPTE274,     "1080p   25.00  Hz  (SMPTE274)"    },
-    { NV_CTRL_GVO_VIDEO_FORMAT_1080P_29_97_SMPTE274,     "1080p   29.97  Hz  (SMPTE274)"    },
-    { NV_CTRL_GVO_VIDEO_FORMAT_1080P_30_00_SMPTE274,     "1080p   30.00  Hz  (SMPTE274)"    },
-    { NV_CTRL_GVO_VIDEO_FORMAT_1080I_47_96_SMPTE274,     "1080i   47.96  Hz  (SMPTE274)"    },
-    { NV_CTRL_GVO_VIDEO_FORMAT_1080I_48_00_SMPTE274,     "1080i   48.00  Hz  (SMPTE274)"    },
-    { NV_CTRL_GVO_VIDEO_FORMAT_1080PSF_25_00_SMPTE274,   "1080PsF 25.00  Hz  (SMPTE274)"    },
-    { NV_CTRL_GVO_VIDEO_FORMAT_1080PSF_29_97_SMPTE274,   "1080PsF 29.97  Hz  (SMPTE274)"    },
-    { NV_CTRL_GVO_VIDEO_FORMAT_1080PSF_30_00_SMPTE274,   "1080PsF 30.00  Hz  (SMPTE274)"    },
-    { NV_CTRL_GVO_VIDEO_FORMAT_1080PSF_24_00_SMPTE274,   "1080PsF 24.00  Hz  (SMPTE274)"    },
-    { NV_CTRL_GVO_VIDEO_FORMAT_1080PSF_23_98_SMPTE274,   "1080PsF 23.98  Hz  (SMPTE274)"    },
+    { NV_CTRL_GVO_VIDEO_FORMAT_480I_59_94_SMPTE259_NTSC, "720  x 480i    59.94  Hz  (SMPTE259) NTSC"},
+    { NV_CTRL_GVO_VIDEO_FORMAT_576I_50_00_SMPTE259_PAL,  "720  x 576i    50.00  Hz  (SMPTE259) PAL"},
+    { NV_CTRL_GVO_VIDEO_FORMAT_720P_23_98_SMPTE296,      "1280 x 720p    23.98  Hz  (SMPTE296)"    },
+    { NV_CTRL_GVO_VIDEO_FORMAT_720P_24_00_SMPTE296,      "1280 x 720p    24.00  Hz  (SMPTE296)"    },
+    { NV_CTRL_GVO_VIDEO_FORMAT_720P_25_00_SMPTE296,      "1280 x 720p    25.00  Hz  (SMPTE296)"    },
+    { NV_CTRL_GVO_VIDEO_FORMAT_720P_29_97_SMPTE296,      "1280 x 720p    29.97  Hz  (SMPTE296)"    },
+    { NV_CTRL_GVO_VIDEO_FORMAT_720P_30_00_SMPTE296,      "1280 x 720p    30.00  Hz  (SMPTE296)"    },
+    { NV_CTRL_GVO_VIDEO_FORMAT_720P_50_00_SMPTE296,      "1280 x 720p    50.00  Hz  (SMPTE296)"    },
+    { NV_CTRL_GVO_VIDEO_FORMAT_720P_59_94_SMPTE296,      "1280 x 720p    59.94  Hz  (SMPTE296)"    },
+    { NV_CTRL_GVO_VIDEO_FORMAT_720P_60_00_SMPTE296,      "1280 x 720p    60.00  Hz  (SMPTE296)"    },
+    { NV_CTRL_GVO_VIDEO_FORMAT_1035I_59_94_SMPTE260,     "1920 x 1035i   59.94  Hz  (SMPTE260)"    },
+    { NV_CTRL_GVO_VIDEO_FORMAT_1035I_60_00_SMPTE260,     "1920 x 1035i   60.00  Hz  (SMPTE260)"    },
+    { NV_CTRL_GVO_VIDEO_FORMAT_1080I_47_96_SMPTE274,     "1920 x 1080i   47.96  Hz  (SMPTE274)"    },
+    { NV_CTRL_GVO_VIDEO_FORMAT_1080I_48_00_SMPTE274,     "1920 x 1080i   48.00  Hz  (SMPTE274)"    },
+    { NV_CTRL_GVO_VIDEO_FORMAT_1080I_50_00_SMPTE295,     "1920 x 1080i   50.00  Hz  (SMPTE295)"    },
+    { NV_CTRL_GVO_VIDEO_FORMAT_1080I_50_00_SMPTE274,     "1920 x 1080i   50.00  Hz  (SMPTE274)"    },
+    { NV_CTRL_GVO_VIDEO_FORMAT_1080I_59_94_SMPTE274,     "1920 x 1080i   59.94  Hz  (SMPTE274)"    },
+    { NV_CTRL_GVO_VIDEO_FORMAT_1080I_60_00_SMPTE274,     "1920 x 1080i   60.00  Hz  (SMPTE274)"    },
+    { NV_CTRL_GVO_VIDEO_FORMAT_1080P_23_976_SMPTE274,    "1920 x 1080p   23.976 Hz  (SMPTE274)"    },
+    { NV_CTRL_GVO_VIDEO_FORMAT_1080P_24_00_SMPTE274,     "1920 x 1080p   24.00  Hz  (SMPTE274)"    },
+    { NV_CTRL_GVO_VIDEO_FORMAT_1080P_25_00_SMPTE274,     "1920 x 1080p   25.00  Hz  (SMPTE274)"    },
+    { NV_CTRL_GVO_VIDEO_FORMAT_1080P_29_97_SMPTE274,     "1920 x 1080p   29.97  Hz  (SMPTE274)"    },
+    { NV_CTRL_GVO_VIDEO_FORMAT_1080P_30_00_SMPTE274,     "1920 x 1080p   30.00  Hz  (SMPTE274)"    },
+    { NV_CTRL_GVO_VIDEO_FORMAT_1080PSF_23_98_SMPTE274,   "1920 x 1080PsF 23.98  Hz  (SMPTE274)"    },
+    { NV_CTRL_GVO_VIDEO_FORMAT_1080PSF_24_00_SMPTE274,   "1920 x 1080PsF 24.00  Hz  (SMPTE274)"    },
+    { NV_CTRL_GVO_VIDEO_FORMAT_1080PSF_25_00_SMPTE274,   "1920 x 1080PsF 25.00  Hz  (SMPTE274)"    },
+    { NV_CTRL_GVO_VIDEO_FORMAT_1080PSF_29_97_SMPTE274,   "1920 x 1080PsF 29.97  Hz  (SMPTE274)"    },
+    { NV_CTRL_GVO_VIDEO_FORMAT_1080PSF_30_00_SMPTE274,   "1920 x 1080PsF 30.00  Hz  (SMPTE274)"    },
+    { NV_CTRL_GVO_VIDEO_FORMAT_1080I_23_98_SMPTE372,     "2048 x 1080i   23.98  Hz  (SMPTE372)"    },
+    { NV_CTRL_GVO_VIDEO_FORMAT_1080I_24_00_SMPTE372,     "2048 x 1080i   24.00  Hz  (SMPTE372)"    },
+    { NV_CTRL_GVO_VIDEO_FORMAT_1080I_25_00_SMPTE372,     "2048 x 1080i   25.00  Hz  (SMPTE372)"    },
+    { NV_CTRL_GVO_VIDEO_FORMAT_1080I_29_97_SMPTE372,     "2048 x 1080i   29.97  Hz  (SMPTE372)"    },
+    { NV_CTRL_GVO_VIDEO_FORMAT_1080I_30_00_SMPTE372,     "2048 x 1080i   30.00  Hz  (SMPTE372)"    },
+    { NV_CTRL_GVO_VIDEO_FORMAT_1080P_23_98_SMPTE372,     "2048 x 1080p   23.98  Hz  (SMPTE372)"    },
+    { NV_CTRL_GVO_VIDEO_FORMAT_1080P_24_00_SMPTE372,     "2048 x 1080p   24.00  Hz  (SMPTE372)"    },
+    { NV_CTRL_GVO_VIDEO_FORMAT_1080P_25_00_SMPTE372,     "2048 x 1080p   25.00  Hz  (SMPTE372)"    },
+    { NV_CTRL_GVO_VIDEO_FORMAT_1080P_29_97_SMPTE372,     "2048 x 1080p   29.97  Hz  (SMPTE372)"    },
+    { NV_CTRL_GVO_VIDEO_FORMAT_1080P_30_00_SMPTE372,     "2048 x 1080p   30.00  Hz  (SMPTE372)"    },
     { -1, NULL },
 };
 
@@ -243,6 +253,8 @@ static FormatDetails videoFormatDetails[] = {
     { NV_CTRL_GVO_VIDEO_FORMAT_720P_60_00_SMPTE296,      0, 0, 0 },
     { NV_CTRL_GVO_VIDEO_FORMAT_1035I_59_94_SMPTE260,     0, 0, 0 },
     { NV_CTRL_GVO_VIDEO_FORMAT_1035I_60_00_SMPTE260,     0, 0, 0 },
+    { NV_CTRL_GVO_VIDEO_FORMAT_1080I_47_96_SMPTE274,     0, 0, 0 },
+    { NV_CTRL_GVO_VIDEO_FORMAT_1080I_48_00_SMPTE274,     0, 0, 0 },
     { NV_CTRL_GVO_VIDEO_FORMAT_1080I_50_00_SMPTE295,     0, 0, 0 },
     { NV_CTRL_GVO_VIDEO_FORMAT_1080I_50_00_SMPTE274,     0, 0, 0 },
     { NV_CTRL_GVO_VIDEO_FORMAT_1080I_59_94_SMPTE274,     0, 0, 0 },
@@ -252,13 +264,21 @@ static FormatDetails videoFormatDetails[] = {
     { NV_CTRL_GVO_VIDEO_FORMAT_1080P_25_00_SMPTE274,     0, 0, 0 },
     { NV_CTRL_GVO_VIDEO_FORMAT_1080P_29_97_SMPTE274,     0, 0, 0 },
     { NV_CTRL_GVO_VIDEO_FORMAT_1080P_30_00_SMPTE274,     0, 0, 0 },
-    { NV_CTRL_GVO_VIDEO_FORMAT_1080I_47_96_SMPTE274,     0, 0, 0 },
-    { NV_CTRL_GVO_VIDEO_FORMAT_1080I_48_00_SMPTE274,     0, 0, 0 },
+    { NV_CTRL_GVO_VIDEO_FORMAT_1080PSF_23_98_SMPTE274,   0, 0, 0 },
+    { NV_CTRL_GVO_VIDEO_FORMAT_1080PSF_24_00_SMPTE274,   0, 0, 0 },
     { NV_CTRL_GVO_VIDEO_FORMAT_1080PSF_25_00_SMPTE274,   0, 0, 0 },
     { NV_CTRL_GVO_VIDEO_FORMAT_1080PSF_29_97_SMPTE274,   0, 0, 0 },
     { NV_CTRL_GVO_VIDEO_FORMAT_1080PSF_30_00_SMPTE274,   0, 0, 0 },
-    { NV_CTRL_GVO_VIDEO_FORMAT_1080PSF_24_00_SMPTE274,   0, 0, 0 },
-    { NV_CTRL_GVO_VIDEO_FORMAT_1080PSF_23_98_SMPTE274,   0, 0, 0 },
+    { NV_CTRL_GVO_VIDEO_FORMAT_1080I_23_98_SMPTE372,     0, 0, 0 },
+    { NV_CTRL_GVO_VIDEO_FORMAT_1080I_24_00_SMPTE372,     0, 0, 0 },
+    { NV_CTRL_GVO_VIDEO_FORMAT_1080I_25_00_SMPTE372,     0, 0, 0 },
+    { NV_CTRL_GVO_VIDEO_FORMAT_1080I_29_97_SMPTE372,     0, 0, 0 },
+    { NV_CTRL_GVO_VIDEO_FORMAT_1080I_30_00_SMPTE372,     0, 0, 0 },
+    { NV_CTRL_GVO_VIDEO_FORMAT_1080P_23_98_SMPTE372,     0, 0, 0 },
+    { NV_CTRL_GVO_VIDEO_FORMAT_1080P_24_00_SMPTE372,     0, 0, 0 },
+    { NV_CTRL_GVO_VIDEO_FORMAT_1080P_25_00_SMPTE372,     0, 0, 0 },
+    { NV_CTRL_GVO_VIDEO_FORMAT_1080P_29_97_SMPTE372,     0, 0, 0 },
+    { NV_CTRL_GVO_VIDEO_FORMAT_1080P_30_00_SMPTE372,     0, 0, 0 },
     { -1, -1, -1, -1 },
 };
 
@@ -316,7 +336,7 @@ GtkWidget* ctk_gvo_new(NvCtrlAttributeHandle *handle,
     CtkGvo *ctk_gvo;
     GtkWidget *hbox, *alignment, *button, *label;
     ReturnStatus ret;
-    gchar scratch[64], *firmware;
+    gchar scratch[64], *firmware, *string;
     gint val, i, width, height, n;
     
     GtkWidget *frame, *table, *menu;
@@ -378,15 +398,32 @@ GtkWidget* ctk_gvo_new(NvCtrlAttributeHandle *handle,
     gtk_container_set_border_width(GTK_CONTAINER(table), 5);
     gtk_container_add(GTK_CONTAINER(frame), table);
     
-    /* NV_CTRL_GVO_FIRMWARE_VERSION */
-
-    ret = NvCtrlGetAttribute(handle, NV_CTRL_GVO_FIRMWARE_VERSION, &val);
+    /* GVO_FIRMWARE_VERSION */
     
-    if (ret == NvCtrlSuccess) {
-        snprintf(scratch, 64, "1.%02d", val);
-        firmware = strdup(scratch);
+    string = NULL;
+    
+    ret = NvCtrlGetStringAttribute(handle,
+                                   NV_CTRL_STRING_GVO_FIRMWARE_VERSION, 
+                                   &string);
+    
+    if ((ret == NvCtrlSuccess) && (string)) {
+        firmware = strdup(string);
     } else {
-        firmware = strdup("???");
+        
+        /*
+         * NV_CTRL_STRING_GVO_FIRMWARE_VERSION was added later, so
+         * older X servers may not know about it; fallback to
+         * NV_CTRL_GVO_FIRMWARE_VERSION
+         */
+        
+        ret = NvCtrlGetAttribute(handle, NV_CTRL_GVO_FIRMWARE_VERSION, &val);
+        
+        if (ret == NvCtrlSuccess) {
+            snprintf(scratch, 64, "1.%02d", val);
+            firmware = strdup(scratch);
+        } else {
+            firmware = strdup("???");
+        }
     }
     
     add_table_row(table, 0, 0, "Firmware Version:", firmware);
@@ -1246,7 +1283,11 @@ static void output_video_format_changed(CtkDropDownMenu *menu,
     
     value = ctk_drop_down_menu_get_current_value(menu);
     
-    if (!(ctk_gvo->valid_putput_video_format_mask & (1 << value))) {
+    if (((value < 32) &&
+         !(ctk_gvo->valid_output_video_format_mask[0] & (1 << value))) ||
+        ((value >= 32) &&
+         !(ctk_gvo->valid_output_video_format_mask[1] & (1 << (value - 32))))){
+        
         ctk_config_statusbar_message(ctk_gvo->ctk_config, "Invalid "
                                      "Output Video Format: %s; ignoring.",
                                      get_video_format_name(value));
@@ -1419,7 +1460,7 @@ static void update_output_video_format_menu(CtkGvo *ctk_gvo)
 {
     ReturnStatus ret;
     NVCTRLAttributeValidValuesRec valid;
-    gint bitmask, i, refresh_rate;
+    gint bitmask, bitmask2, i, refresh_rate;
     gboolean sensitive, current_not_available = FALSE;
 
     /* retrieve the currently available values */
@@ -1436,6 +1477,20 @@ static void update_output_video_format_menu(CtkGvo *ctk_gvo)
         bitmask = valid.u.bits.ints;
     }
     
+    /* retrieve additional available values */
+
+    ret = NvCtrlGetValidAttributeValues(ctk_gvo->handle,
+                                        NV_CTRL_GVO_OUTPUT_VIDEO_FORMAT2,
+                                        &valid);
+
+    /* if we failed to get the available values; assume none are valid */
+    
+    if ((ret != NvCtrlSuccess) || (valid.type != ATTRIBUTE_TYPE_INT_BITS)) {
+        bitmask2 = 0;
+    } else {
+        bitmask2 = valid.u.bits.ints;
+    }
+
     /* 
      * if the SyncMode is genlock or framelock, trim the bitmask
      * accordingly: if GENLOCK, then the only bit allowed is the bit
@@ -1446,7 +1501,14 @@ static void update_output_video_format_menu(CtkGvo *ctk_gvo)
     
     if ((ctk_gvo->sync_mode == NV_CTRL_GVO_SYNC_MODE_GENLOCK) &&
         (ctk_gvo->input_video_format != NV_CTRL_GVO_VIDEO_FORMAT_NONE)) {
-        bitmask &= (1 << ctk_gvo->input_video_format);
+
+        if (ctk_gvo->input_video_format < 32) {
+            bitmask &= (1 << ctk_gvo->input_video_format);
+            bitmask2 = 0;
+        } else {
+            bitmask = 0;
+            bitmask2 &= (1 << (ctk_gvo->input_video_format - 32));
+        }
     }
     
     if ((ctk_gvo->sync_mode == NV_CTRL_GVO_SYNC_MODE_FRAMELOCK) &&
@@ -1463,7 +1525,12 @@ static void update_output_video_format_menu(CtkGvo *ctk_gvo)
         
         for (i = 0; videoFormatDetails[i].format != -1; i++) {
             if (videoFormatDetails[i].rate != refresh_rate) {
-                bitmask &= ~(1 << videoFormatDetails[i].format);
+                
+                if (videoFormatDetails[i].format < 32) {
+                    bitmask &= ~(1 << videoFormatDetails[i].format);
+                } else {
+                    bitmask2 &= ~(1 << (videoFormatDetails[i].format - 32));
+                }
             }
         }
     }
@@ -1474,7 +1541,10 @@ static void update_output_video_format_menu(CtkGvo *ctk_gvo)
      */
 
     for (i = 0; videoFormatNames[i].name; i++) {
-        if ((1 << videoFormatNames[i].format) & bitmask) {
+        if (((videoFormatNames[i].format < 32) &&
+             ((1 << videoFormatNames[i].format) & bitmask)) ||
+            ((videoFormatNames[i].format >= 32) &&
+             (((1 << (videoFormatNames[i].format - 32)) & bitmask2)))) {
             sensitive = TRUE;
         } else {
             sensitive = FALSE;
@@ -1499,7 +1569,10 @@ static void update_output_video_format_menu(CtkGvo *ctk_gvo)
     
     if (current_not_available && bitmask) {
         for (i = 0; videoFormatNames[i].name; i++) {
-            if ((1 << videoFormatNames[i].format) & bitmask) {
+            if (((videoFormatNames[i].format < 32) &&
+                 ((1 << videoFormatNames[i].format) & bitmask)) ||
+                ((videoFormatNames[i].format >= 32) &&
+                 ((1 << (videoFormatNames[i].format - 32)) & bitmask2))) {
                 
                 NvCtrlSetAttribute(ctk_gvo->handle,
                                    NV_CTRL_GVO_OUTPUT_VIDEO_FORMAT,
@@ -1520,7 +1593,8 @@ static void update_output_video_format_menu(CtkGvo *ctk_gvo)
      * cache the bitmask
      */
 
-    ctk_gvo->valid_putput_video_format_mask = bitmask;
+    ctk_gvo->valid_output_video_format_mask[0] = bitmask;
+    ctk_gvo->valid_output_video_format_mask[1] = bitmask2;
     
 } /* update_output_video_format_menu() */
 

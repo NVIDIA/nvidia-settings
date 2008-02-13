@@ -130,9 +130,41 @@ Bool XNVCTRLIsNvScreen (
 }
 
 
-void XNVCTRLSetAttribute (
+Bool XNVCTRLQueryTargetCount (
     Display *dpy,
-    int screen,
+    int target_type,
+    int *value
+){
+    XExtDisplayInfo *info = find_display (dpy);
+    xnvCtrlQueryTargetCountReply  rep;
+    xnvCtrlQueryTargetCountReq   *req;
+
+    if(!XextHasExtension(info))
+        return False;
+
+    XNVCTRLCheckExtension (dpy, info, False);
+
+    LockDisplay (dpy);
+    GetReq (nvCtrlQueryTargetCount, req);
+    req->reqType = info->codes->major_opcode;
+    req->nvReqType = X_nvCtrlQueryTargetCount;
+    req->target_type = target_type;
+    if (!_XReply (dpy, (xReply *) &rep, 0, xTrue)) {
+        UnlockDisplay (dpy);
+        SyncHandle ();
+        return False;
+    }
+    if (value) *value = rep.count;
+    UnlockDisplay (dpy);
+    SyncHandle ();
+    return True;
+}
+
+
+void XNVCTRLSetTargetAttribute (
+    Display *dpy,
+    int target_type,
+    int target_id,
     unsigned int display_mask,
     unsigned int attribute,
     int value
@@ -146,13 +178,26 @@ void XNVCTRLSetAttribute (
     GetReq (nvCtrlSetAttribute, req);
     req->reqType = info->codes->major_opcode;
     req->nvReqType = X_nvCtrlSetAttribute;
-    req->screen = screen;
+    req->target_type = target_type;
+    req->target_id = target_id;
     req->display_mask = display_mask;
     req->attribute = attribute;
     req->value = value;
     UnlockDisplay (dpy);
     SyncHandle ();
 }
+
+void XNVCTRLSetAttribute (
+    Display *dpy,
+    int screen,
+    unsigned int display_mask,
+    unsigned int attribute,
+    int value
+){
+    XNVCTRLSetTargetAttribute (dpy, NV_CTRL_TARGET_TYPE_X_SCREEN, screen,
+                               display_mask, attribute, value);
+}
+
 
 Bool XNVCTRLSetAttributeAndGetStatus (
     Display *dpy,
@@ -193,9 +238,10 @@ Bool XNVCTRLSetAttributeAndGetStatus (
 
 
 
-Bool XNVCTRLQueryAttribute (
+Bool XNVCTRLQueryTargetAttribute (
     Display *dpy,
-    int screen,
+    int target_type,
+    int target_id,
     unsigned int display_mask,
     unsigned int attribute,
     int *value
@@ -214,7 +260,8 @@ Bool XNVCTRLQueryAttribute (
     GetReq (nvCtrlQueryAttribute, req);
     req->reqType = info->codes->major_opcode;
     req->nvReqType = X_nvCtrlQueryAttribute;
-    req->screen = screen;
+    req->target_type = target_type;
+    req->target_id = target_id;
     req->display_mask = display_mask;
     req->attribute = attribute;
     if (!_XReply (dpy, (xReply *) &rep, 0, xTrue)) {
@@ -229,10 +276,22 @@ Bool XNVCTRLQueryAttribute (
     return exists;
 }
 
-
-Bool XNVCTRLQueryStringAttribute (
+Bool XNVCTRLQueryAttribute (
     Display *dpy,
     int screen,
+    unsigned int display_mask,
+    unsigned int attribute,
+    int *value
+){
+    return XNVCTRLQueryTargetAttribute(dpy, NV_CTRL_TARGET_TYPE_X_SCREEN,
+                                       screen, display_mask, attribute, value);
+}
+
+
+Bool XNVCTRLQueryTargetStringAttribute (
+    Display *dpy,
+    int target_type,
+    int target_id,
     unsigned int display_mask,
     unsigned int attribute,
     char **ptr
@@ -254,7 +313,8 @@ Bool XNVCTRLQueryStringAttribute (
     GetReq (nvCtrlQueryStringAttribute, req);
     req->reqType = info->codes->major_opcode;
     req->nvReqType = X_nvCtrlQueryStringAttribute;
-    req->screen = screen;
+    req->target_type = target_type;
+    req->target_id = target_id;
     req->display_mask = display_mask;
     req->attribute = attribute;
     if (!_XReply (dpy, (xReply *) &rep, 0, False)) {
@@ -279,6 +339,18 @@ Bool XNVCTRLQueryStringAttribute (
     UnlockDisplay (dpy);
     SyncHandle ();
     return exists;
+}
+
+Bool XNVCTRLQueryStringAttribute (
+    Display *dpy,
+    int screen,
+    unsigned int display_mask,
+    unsigned int attribute,
+    char **ptr
+){
+    return XNVCTRLQueryTargetStringAttribute(dpy, NV_CTRL_TARGET_TYPE_X_SCREEN,
+                                             screen, display_mask,
+                                             attribute, ptr);
 }
 
 
@@ -326,9 +398,10 @@ Bool XNVCTRLSetStringAttribute (
 }
 
 
-Bool XNVCTRLQueryValidAttributeValues (
+Bool XNVCTRLQueryValidTargetAttributeValues (
     Display *dpy,
-    int screen,
+    int target_type,
+    int target_id,
     unsigned int display_mask,
     unsigned int attribute,                                 
     NVCTRLAttributeValidValuesRec *values
@@ -349,7 +422,8 @@ Bool XNVCTRLQueryValidAttributeValues (
     GetReq (nvCtrlQueryValidAttributeValues, req);
     req->reqType = info->codes->major_opcode;
     req->nvReqType = X_nvCtrlQueryValidAttributeValues;
-    req->screen = screen;
+    req->target_type = target_type;
+    req->target_id = target_id;
     req->display_mask = display_mask;
     req->attribute = attribute;
     if (!_XReply (dpy, (xReply *) &rep, 0, xTrue)) {
@@ -372,13 +446,26 @@ Bool XNVCTRLQueryValidAttributeValues (
     return exists;
 }
 
+Bool XNVCTRLQueryValidAttributeValues (
+    Display *dpy,
+    int screen,
+    unsigned int display_mask,
+    unsigned int attribute,                                 
+    NVCTRLAttributeValidValuesRec *values
+){
+    return XNVCTRLQueryValidTargetAttributeValues(dpy,
+                                                  NV_CTRL_TARGET_TYPE_X_SCREEN,
+                                                  screen, display_mask,
+                                                  attribute, values);
+}
 
 
 void XNVCTRLSetGvoColorConversion (
     Display *dpy,
     int screen,
     float colorMatrix[3][3],
-    float colorOffset[3]
+    float colorOffset[3],
+    float colorScale[3]
 ){
     XExtDisplayInfo *info = find_display (dpy);
     xnvCtrlSetGvoColorConversionReq *req;
@@ -390,18 +477,27 @@ void XNVCTRLSetGvoColorConversion (
     req->reqType = info->codes->major_opcode;
     req->nvReqType = X_nvCtrlSetGvoColorConversion;
     req->screen = screen;
-    req->row1_col1 = colorMatrix[0][0];
-    req->row1_col2 = colorMatrix[0][1];
-    req->row1_col3 = colorMatrix[0][2];
-    req->row1_col4 = colorOffset[0];
-    req->row2_col1 = colorMatrix[1][0];
-    req->row2_col2 = colorMatrix[1][1];
-    req->row2_col3 = colorMatrix[1][2];
-    req->row2_col4 = colorOffset[1];
-    req->row3_col1 = colorMatrix[2][0];
-    req->row3_col2 = colorMatrix[2][1];
-    req->row3_col3 = colorMatrix[2][2];
-    req->row3_col4 = colorOffset[2];
+
+    req->cscMatrix_y_r = colorMatrix[0][0];
+    req->cscMatrix_y_g = colorMatrix[0][1];
+    req->cscMatrix_y_b = colorMatrix[0][2];
+
+    req->cscMatrix_cr_r = colorMatrix[1][0];
+    req->cscMatrix_cr_g = colorMatrix[1][1];
+    req->cscMatrix_cr_b = colorMatrix[1][2];
+
+    req->cscMatrix_cb_r = colorMatrix[2][0];
+    req->cscMatrix_cb_g = colorMatrix[2][1];
+    req->cscMatrix_cb_b = colorMatrix[2][2];
+
+    req->cscOffset_y  = colorOffset[0];
+    req->cscOffset_cr = colorOffset[1];
+    req->cscOffset_cb = colorOffset[2];
+
+    req->cscScale_y  = colorScale[0];
+    req->cscScale_cr = colorScale[1];
+    req->cscScale_cb = colorScale[2];
+
     UnlockDisplay (dpy);
     SyncHandle ();
 }
@@ -411,13 +507,13 @@ Bool XNVCTRLQueryGvoColorConversion (
     Display *dpy,
     int screen,
     float colorMatrix[3][3],
-    float colorOffset[3]
+    float colorOffset[3],
+    float colorScale[3]
 ){
     XExtDisplayInfo *info = find_display (dpy);
     xnvCtrlQueryGvoColorConversionReply rep;
     xnvCtrlQueryGvoColorConversionReq *req;
-    float buf[3][4];
-
+    
     if(!XextHasExtension(info))
         return False;
 
@@ -436,22 +532,40 @@ Bool XNVCTRLQueryGvoColorConversion (
         return False;
     }
 
-    _XRead(dpy, (char *)(&buf), 48);
+    _XRead(dpy, (char *)(colorMatrix), 36);
+    _XRead(dpy, (char *)(colorOffset), 12);
+    _XRead(dpy, (char *)(colorScale), 12);
 
-    colorMatrix[0][0] = buf[0][0];
-    colorMatrix[0][1] = buf[0][1];
-    colorMatrix[0][2] = buf[0][2];
-    colorMatrix[1][0] = buf[1][0];
-    colorMatrix[1][1] = buf[1][1];
-    colorMatrix[1][2] = buf[1][2];
-    colorMatrix[2][0] = buf[2][0];
-    colorMatrix[2][1] = buf[2][1];
-    colorMatrix[2][2] = buf[2][2];
-    
-    colorOffset[0] = buf[0][3];
-    colorOffset[1] = buf[1][3];
-    colorOffset[2] = buf[2][3];
+    UnlockDisplay (dpy);
+    SyncHandle ();
 
+    return True;
+}
+
+
+Bool XNVCtrlSelectTargetNotify (
+    Display *dpy,
+    int target_type,
+    int target_id,
+    int notify_type,
+    Bool onoff
+){
+    XExtDisplayInfo *info = find_display (dpy);
+    xnvCtrlSelectTargetNotifyReq *req;
+
+    if(!XextHasExtension (info))
+        return False;
+
+    XNVCTRLCheckExtension (dpy, info, False);
+
+    LockDisplay (dpy);
+    GetReq (nvCtrlSelectTargetNotify, req);
+    req->reqType = info->codes->major_opcode;
+    req->nvReqType = X_nvCtrlSelectTargetNotify;
+    req->target_type = target_type;
+    req->target_id = target_id;
+    req->notifyType = notify_type;
+    req->onoff = onoff;
     UnlockDisplay (dpy);
     SyncHandle ();
 
@@ -860,7 +974,6 @@ Bool NVCTRLQueryDDCCICapabilities (
     int length, numbytes, slop;
     char *ptr, *p;
     int len1, len2, len3, len4, len5;
-    int step;
      
     *nvctrl_vcp_supported=*nvctrl_vcp_possible_values=*possible_values_offset=*possible_values_size=*nvctrl_string_vcp_supported=NULL;
    
@@ -974,9 +1087,10 @@ Bool XNVCTRLQueryDDCCITimingReport (
     return exists;
 }
 
-Bool XNVCTRLQueryBinaryData (
+Bool XNVCTRLQueryTargetBinaryData (
     Display *dpy,
-    int screen,
+    int target_type,
+    int target_id,
     unsigned int display_mask,
     unsigned int attribute,
     unsigned char **ptr,
@@ -999,7 +1113,8 @@ Bool XNVCTRLQueryBinaryData (
     GetReq (nvCtrlQueryBinaryData, req);
     req->reqType = info->codes->major_opcode;
     req->nvReqType = X_nvCtrlQueryBinaryData;
-    req->screen = screen;
+    req->target_type = target_type;
+    req->target_id = target_id;
     req->display_mask = display_mask;
     req->attribute = attribute;
     if (!_XReply (dpy, (xReply *) &rep, 0, False)) {
@@ -1027,16 +1142,34 @@ Bool XNVCTRLQueryBinaryData (
     return exists;
 }
 
+Bool XNVCTRLQueryBinaryData (
+    Display *dpy,
+    int screen,
+    unsigned int display_mask,
+    unsigned int attribute,
+    unsigned char **ptr,
+    int *len
+){
+    return XNVCTRLQueryTargetBinaryData(dpy, NV_CTRL_TARGET_TYPE_X_SCREEN,
+                                        screen, display_mask,
+                                        attribute, ptr, len);
+}
+
+
 static Bool wire_to_event (Display *dpy, XEvent *host, xEvent *wire)
 {
     XExtDisplayInfo *info = find_display (dpy);
-    XNVCtrlEvent *re = (XNVCtrlEvent *) host;
-    xnvctrlEvent *event = (xnvctrlEvent *) wire;
+    XNVCtrlEvent *re;
+    xnvctrlEvent *event;
+    XNVCtrlEventTarget *reTarget;
+    xnvctrlEventTarget *eventTarget;
 
     XNVCTRLCheckExtension (dpy, info, False);
     
-    switch ((event->u.u.type & 0x7F) - info->codes->first_event) {
+    switch ((wire->u.u.type & 0x7F) - info->codes->first_event) {
     case ATTRIBUTE_CHANGED_EVENT:
+        re = (XNVCtrlEvent *) host;
+        event = (xnvctrlEvent *) wire;
         re->attribute_changed.type = event->u.u.type & 0x7F;
         re->attribute_changed.serial = 
             _XSetLastRequestRead(dpy, (xGenericReply*) event);
@@ -1048,6 +1181,28 @@ static Bool wire_to_event (Display *dpy, XEvent *host, xEvent *wire)
             event->u.attribute_changed.display_mask;
         re->attribute_changed.attribute = event->u.attribute_changed.attribute;
         re->attribute_changed.value = event->u.attribute_changed.value;
+        break;
+    case TARGET_ATTRIBUTE_CHANGED_EVENT:
+        reTarget = (XNVCtrlEventTarget *) host;
+        eventTarget = (xnvctrlEventTarget *) wire;
+        reTarget->attribute_changed.type = eventTarget->u.u.type & 0x7F;
+        reTarget->attribute_changed.serial = 
+            _XSetLastRequestRead(dpy, (xGenericReply*) eventTarget);
+        reTarget->attribute_changed.send_event =
+            ((eventTarget->u.u.type & 0x80) != 0);
+        reTarget->attribute_changed.display = dpy;
+        reTarget->attribute_changed.time =
+            eventTarget->u.attribute_changed.time;
+        reTarget->attribute_changed.target_type =
+            eventTarget->u.attribute_changed.target_type;
+        reTarget->attribute_changed.target_id =
+            eventTarget->u.attribute_changed.target_id;
+        reTarget->attribute_changed.display_mask =
+            eventTarget->u.attribute_changed.display_mask;
+        reTarget->attribute_changed.attribute =
+            eventTarget->u.attribute_changed.attribute;
+        reTarget->attribute_changed.value =
+            eventTarget->u.attribute_changed.value;
         break;
     default:
         return False;

@@ -24,14 +24,12 @@
 
 /*
  *  XRandR backend
- *
- *    Currently only rotation is supported.
- *
  */
 
 #include <sys/utsname.h>
 
 #include <stdlib.h> /* 64 bit malloc */
+#include <assert.h>
 
 #include <dlfcn.h> /* To dynamically load libXrandr.so.2 */
 #include <X11/Xlib.h>
@@ -45,57 +43,197 @@
 #include "parse.h"
 
 
+typedef struct __libXrandrInfoRec {
+
+    /* libXrandr.so library handle */
+    void *handle;
+    int   ref_count; /* # users of the library */
+
+
+    /* XRandR functions used */
+    Bool (* XRRQueryExtension)
+         (Display *dpy, int *event_base, int *error_base);
+
+    void (* XRRSelectInput)
+         (Display *dpy, Window window, int mask);
+         
+    XRRScreenConfiguration * (* XRRGetScreenInfo)
+         (Display *dpy, Drawable draw);
+         
+    SizeID (* XRRConfigCurrentConfiguration)
+         (XRRScreenConfiguration *config, Rotation *rotation);
+         
+    Rotation (* XRRConfigRotations)
+         (XRRScreenConfiguration *config, Rotation *rotation);
+     
+    XRRScreenSize * (* XRRConfigSizes)
+         (XRRScreenConfiguration *config, int *nsizes);
+    
+    short * (* XRRConfigRates)
+         (XRRScreenConfiguration *config, int size_index, int *nrates);
+
+    Status (* XRRSetScreenConfig)
+         (Display *dpy, XRRScreenConfiguration *config, Drawable draw,
+          int size_index, Rotation rotation, Time timestamp);
+
+    Status (* XRRSetScreenConfigAndRate)
+         (Display *dpy, XRRScreenConfiguration *config, Drawable draw,
+          int size_index, Rotation rotation, short rate, Time timestamp);
+
+    void (* XRRFreeScreenConfigInfo)
+         (XRRScreenConfiguration *);
+
+} __libXrandrInfo;
+
+static __libXrandrInfo *__libXrandr = NULL;
+
+
 
 /******************************************************************************
  *
- *   Sets the requested rotation orientation.
+ * Opens libXrandr for usage
  *
  ****/
 
-static ReturnStatus
-set_rotation(NvCtrlAttributePrivateHandle *h, Rotation rotation)
+static Bool open_libxrandr(void)
 {
-    XRRScreenConfiguration *sc;
-    Rotation cur_rotation;
-    SizeID cur_size;
-    Status status;
+    const char *error_str = NULL;
 
 
-    /* Check orientation is supported */
-    if ( !( h->xrandr->rotations & rotation ) ) {
-        return NvCtrlBadArgument;
+    /* Initialize bookkeeping structure */
+    if ( !__libXrandr ) {
+        __libXrandr = (__libXrandrInfo *) calloc(1, sizeof(__libXrandrInfo));
+        if ( !__libXrandr ) {
+            goto fail;
+        }
+    }
+    
+    /* Library was already opened */
+    if ( __libXrandr->handle ) {
+        __libXrandr->ref_count++;
+        return True;
     }
 
-    /* Get current size & orientation */
-    sc = h->xrandr->XRRGetScreenInfo(h->xrandr->dpy,
-                                     RootWindow(h->xrandr->dpy, h->screen));
-    if ( !sc ) {
-        return NvCtrlError;
-    }
-    cur_size = h->xrandr->XRRConfigCurrentConfiguration(sc, &cur_rotation);
 
-    status = h->xrandr->XRRSetScreenConfig (h->xrandr->dpy, sc,
-                                            RootWindow(h->xrandr->dpy,
-                                                       h->screen),
-                                            cur_size, rotation, CurrentTime);
-    h->xrandr->XRRFreeScreenConfigInfo(sc);
-
-    if ( status != Success ) {
-        return NvCtrlError;
+    /* We are the first to open the library */
+    __libXrandr->handle = dlopen("libXrandr.so.2", RTLD_LAZY);
+    if ( !__libXrandr->handle ) {
+        goto fail;
     }
 
-    return NvCtrlSuccess;
 
-} /* set_rotation() */
+    /* Resolve XRandR functions */
+    __libXrandr->XRRQueryExtension =
+        NV_DLSYM(__libXrandr->handle, "XRRQueryExtension");
+    if ((error_str = dlerror()) != NULL) goto fail;
 
+    __libXrandr->XRRSelectInput =
+        NV_DLSYM(__libXrandr->handle, "XRRSelectInput");
+    if ((error_str = dlerror()) != NULL) goto fail;
+
+    __libXrandr->XRRGetScreenInfo =
+        NV_DLSYM(__libXrandr->handle, "XRRGetScreenInfo");
+    if ((error_str = dlerror()) != NULL) goto fail;
+
+    __libXrandr->XRRConfigCurrentConfiguration =
+        NV_DLSYM(__libXrandr->handle, "XRRConfigCurrentConfiguration");
+    if ((error_str = dlerror()) != NULL) goto fail;
+
+    __libXrandr->XRRConfigRotations =
+        NV_DLSYM(__libXrandr->handle, "XRRConfigRotations");
+    if ((error_str = dlerror()) != NULL) goto fail;
+
+    __libXrandr->XRRConfigSizes =
+        NV_DLSYM(__libXrandr->handle, "XRRConfigSizes");
+    if ((error_str = dlerror()) != NULL) goto fail;
+
+    __libXrandr->XRRConfigRates =
+        NV_DLSYM(__libXrandr->handle, "XRRConfigRates");
+    if ((error_str = dlerror()) != NULL) goto fail;
+
+    __libXrandr->XRRSetScreenConfig =
+        NV_DLSYM(__libXrandr->handle, "XRRSetScreenConfig");
+    if ((error_str = dlerror()) != NULL) goto fail;
+
+    __libXrandr->XRRSetScreenConfigAndRate =
+        NV_DLSYM(__libXrandr->handle, "XRRSetScreenConfigAndRate");
+    if ((error_str = dlerror()) != NULL) goto fail;
+
+    __libXrandr->XRRFreeScreenConfigInfo =
+        NV_DLSYM(__libXrandr->handle, "XRRFreeScreenConfigInfo");
+    if ((error_str = dlerror()) != NULL) goto fail;
+
+
+    /* Up the ref count */
+    __libXrandr->ref_count++;
+
+    return True;
+
+
+    /* Handle failures  */
+ fail:
+    if ( error_str ) {
+        nv_error_msg("libXrandr setup error : %s\n", error_str);
+    }
+    if ( __libXrandr ) {
+        if ( __libXrandr->handle ) {
+            dlclose(__libXrandr->handle);
+            __libXrandr->handle = NULL;
+        }
+        free(__libXrandr);
+        __libXrandr = NULL;
+    }
+    return False;
+    
+} /* open_libxrandr() */
+
+
+
+/******************************************************************************
+ *
+ * Closes libXrandr when it is no longer being used.
+ *
+ ****/
+
+static void close_libxrandr(void)
+{
+    if ( __libXrandr && __libXrandr->handle && __libXrandr->ref_count ) {
+        __libXrandr->ref_count--;
+    
+#if !defined(NV_BSD) /* WAR for FreeBSD static TLS data bug */
+        if ( __libXrandr->ref_count == 0 ) {
+            dlclose(__libXrandr->handle);
+            __libXrandr->handle = NULL;
+            free(__libXrandr);
+            __libXrandr = NULL;
+        }
+#endif
+    }
+
+} /* close_libxrandr() */
+
+
+
+/******************************************************************************
+ *
+ * Some XR&R functions fails on XFree86 4.3.0 with BadImplementation if the
+ * screen resolution is not the one the server started with.  We work around
+ * that by temporarily installing an error handler, trying the call, and then
+ * disabling the rotation page if it fails.
+ *
+ ****/
 
 static int errors = 0;
+static int (*old_error_handler)(Display *, XErrorEvent *);
+
 static int
 error_handler (Display *dpy, XErrorEvent *err)
 {
     errors++;
     return 0;
-}
+
+} /* error_handler() */
+
 
 
 /******************************************************************************
@@ -108,133 +246,72 @@ error_handler (Display *dpy, XErrorEvent *err)
 NvCtrlXrandrAttributes *
 NvCtrlInitXrandrAttributes (NvCtrlAttributePrivateHandle *h)
 {
-    NvCtrlXrandrAttributes *xrandr = NULL;
-    const char *error = NULL; /* libXrandr error string */
-    Bool ret;
-    Rotation rotation;
-    XRRScreenSize *sizes;
-    int (*oldErrorHandler)(Display *, XErrorEvent *);
+    NvCtrlXrandrAttributes * xrandr = NULL;
+    XRRScreenConfiguration *sc;
+    Rotation rotation, rotations;
 
 
-    /* Check parameter */
-    if ( h == NULL || h->dpy == NULL ) {
+    /* Check parameters */
+    if ( !h || !h->dpy || h->target_type != NV_CTRL_TARGET_TYPE_X_SCREEN ) {
         goto fail;
     }
 
 
-    /* Allocate attributes structure */
-    xrandr = (NvCtrlXrandrAttributes *)
-        calloc(1, sizeof (NvCtrlXrandrAttributes));
-    if ( xrandr == NULL ) {
-        error = "Out of memory.";
-        goto fail;
-    }
-
-
-    /* Link the libXrandr lib */
-    xrandr->libXrandr = dlopen("libXrandr.so.2", RTLD_LAZY);
-    if ( xrandr->libXrandr == NULL ) {
+    /* Open libXrandr.so.2 */
+    if ( !open_libxrandr() ) {
         /* Silently fail */
         goto fail;
     }
 
 
-    /* Resolve XRandR functions */
-    xrandr->XRRQueryExtension = NV_DLSYM(xrandr->libXrandr,
-                                      "XRRQueryExtension");
-    if ((error = dlerror()) != NULL) goto fail;
-
-    xrandr->XRRSelectInput = NV_DLSYM(xrandr->libXrandr, "XRRSelectInput");
-    if ((error = dlerror()) != NULL) goto fail;
-
-    xrandr->XRRConfigCurrentConfiguration = NV_DLSYM(xrandr->libXrandr,
-                                                  "XRRConfigCurrentConfiguration");
-    if ((error = dlerror()) != NULL) goto fail;
-
-    xrandr->XRRGetScreenInfo = NV_DLSYM(xrandr->libXrandr,
-                                     "XRRGetScreenInfo");
-    if ((error = dlerror()) != NULL) goto fail;
-
-    xrandr->XRRConfigRotations = NV_DLSYM(xrandr->libXrandr, "XRRConfigRotations");
-    if ((error = dlerror()) != NULL) goto fail;
-
-    xrandr->XRRFreeScreenConfigInfo = NV_DLSYM(xrandr->libXrandr,
-                                            "XRRFreeScreenConfigInfo");
-    if ((error = dlerror()) != NULL) goto fail;
-
-    xrandr->XRRSetScreenConfig = NV_DLSYM(xrandr->libXrandr,
-                                       "XRRSetScreenConfig");
-    if ((error = dlerror()) != NULL) goto fail;
-
-    xrandr->XRRRotations = NV_DLSYM(xrandr->libXrandr, "XRRRotations");
-    if ((error = dlerror()) != NULL) goto fail;
-
-    xrandr->XRRSizes = NV_DLSYM(xrandr->libXrandr, "XRRSizes");
-    if ((error = dlerror()) != NULL) goto fail;
-
-
-    /* Duplicate the display connection */
-
-    xrandr->dpy = XOpenDisplay(XDisplayString(h->dpy));
-    if ( xrandr->dpy == NULL )
+    /* Create storage for XRandR attributes */
+    xrandr =
+        (NvCtrlXrandrAttributes *) calloc(1, sizeof(NvCtrlXrandrAttributes));
+    if ( !xrandr ) {
         goto fail;
+    }
+    
 
-    /* Verify rotation is supported */
-    ret = xrandr->XRRQueryExtension(xrandr->dpy, &xrandr->event_base,
-                                    &xrandr->error_base);
-    if ( !ret ) goto fail;
-
-    /*
-     * XRRRotations fails on XFree86 4.3.0 with BadImplementation if the screen
-     * resolution is not the one the server started with.  We work around that
-     * by temporarily installing an error handler, trying the call, and then
-     * disabling the rotation page if it fails.
-     */
-    XSync(xrandr->dpy, False);
+    XSync(h->dpy, False);
     errors = 0;
-    oldErrorHandler = XSetErrorHandler(error_handler);
-
-    xrandr->rotations = xrandr->XRRRotations(xrandr->dpy, h->screen,
-                                             &rotation);
-    sizes             = xrandr->XRRSizes(xrandr->dpy, h->screen,
-                                         &(xrandr->nsizes));
-
-    XSync(xrandr->dpy, False);
-    XSetErrorHandler(oldErrorHandler);
-
-    if ( errors > 0 ) goto fail;
-
-    /* Must support more than one rotation orientation */
-    if ( (xrandr->rotations == 1) || (xrandr->rotations == 2) ||
-         (xrandr->rotations == 4) || (xrandr->rotations == 8) ) {
+    old_error_handler = XSetErrorHandler(error_handler);
+    
+    /* Verify server support of XRandR extension */
+    if ( !__libXrandr->XRRQueryExtension(h->dpy,
+                                         &(xrandr->event_base),
+                                         &(xrandr->error_base)) ) {
+        XSync(h->dpy, False);
+        XSetErrorHandler(old_error_handler);
         goto fail;
     }
 
-    
-    /* Register to recieve XRandR events */
-    xrandr->XRRSelectInput(xrandr->dpy, RootWindow(xrandr->dpy, h->screen),
-                           RRScreenChangeNotifyMask);   
+   
+    /* Register to receive XRandR events */
+    __libXrandr->XRRSelectInput(h->dpy, RootWindow(h->dpy, h->target_id),
+                                RRScreenChangeNotifyMask);
 
-    //    xrandr->rotations = 1;
+
+    /* Try calling a couple functions that are known to fail */
+    sc = __libXrandr->XRRGetScreenInfo(h->dpy, RootWindow(h->dpy, h->target_id));
+    if ( sc ) {
+        rotations = __libXrandr->XRRConfigRotations(sc, &rotation);
+        __libXrandr->XRRFreeScreenConfigInfo(sc);
+    } else {
+        errors++;
+    }
+
+    XSync(h->dpy, False);
+    XSetErrorHandler(old_error_handler);
+    if ( errors > 0 ) {
+        goto fail;
+    }
 
     return xrandr;
-    
 
-    /* Handle failures */
  fail:
-    if ( error != NULL ) {
-        nv_error_msg("libXrandr setup error : %s\n", error);
-    }
-    if ( xrandr != NULL ) {
-        if ( xrandr->dpy != NULL ) {
-            XCloseDisplay(xrandr->dpy);
-        }
-        if ( xrandr->libXrandr != NULL ) {
-            dlclose(xrandr->libXrandr);
-        }
+    if ( xrandr ) {
         free(xrandr);
     }
-
     return NULL;
 
 } /* NvCtrlInitXrandrAttributes() */
@@ -251,16 +328,12 @@ NvCtrlInitXrandrAttributes (NvCtrlAttributePrivateHandle *h)
 void
 NvCtrlXrandrAttributesClose (NvCtrlAttributePrivateHandle *h)
 {
-    if ( h == NULL || h->xrandr == NULL ) {
+    /* Check parameters */
+    if ( !h || !h->xrandr || h->target_type != NV_CTRL_TARGET_TYPE_X_SCREEN ) {
         return;
     }
 
-    if ( h->xrandr->dpy ) {
-        XCloseDisplay(h->xrandr->dpy);
-    }
-    if ( h->xrandr->libXrandr != NULL ) {
-        dlclose( h->xrandr->libXrandr );
-    }
+    close_libxrandr();
 
     free(h->xrandr);
     h->xrandr = NULL;
@@ -280,39 +353,49 @@ NvCtrlXrandrGetAttribute (NvCtrlAttributePrivateHandle *h,
                           int attr, int *val)
 {
     XRRScreenConfiguration *sc;
-    Rotation rotation;
+    Rotation rotation, rotations;
 
 
-    /* Validate Arguments */
-    if ( h == NULL ) {
+    /* Validate */
+    if ( !h || !h->dpy || h->target_type != NV_CTRL_TARGET_TYPE_X_SCREEN ) {
         return NvCtrlBadHandle;
     }
-    if ( h->xrandr == NULL ) {
+    if ( !h->xrandr || !__libXrandr ) {
         return NvCtrlMissingExtension;
     }
-    if ( val == NULL ) {
+    if ( !val ) {
         return NvCtrlBadArgument;
     }
+
+
+    /* Get current screen configuration information */
+    sc = __libXrandr->XRRGetScreenInfo(h->dpy, RootWindow(h->dpy,
+                                                          h->target_id));
+    if ( !sc ) {
+        return NvCtrlError;
+    }
+    rotations = __libXrandr->XRRConfigRotations(sc, &rotation);
+    __libXrandr->XRRFreeScreenConfigInfo(sc);
 
 
     /* Fetch right attribute */
     switch ( attr ) {
 
     case NV_CTRL_ATTR_XRANDR_ROTATION_SUPPORTED:
-        *val = ( (h->xrandr!=NULL)?1:0 );
+        /* For rotation to be supported, there must
+         * be at least 2 orientations
+         */
+        *val = ( rotations != 1 && rotations != 2 &&
+                 rotations != 4 && rotations != 8 ) ? 1 : 0;
         break;
 
     case NV_CTRL_ATTR_XRANDR_ROTATIONS:
-        *val = h->xrandr->rotations;
+        /* Return the available rotations */
+        *val = rotations;
         break;
 
     case NV_CTRL_ATTR_XRANDR_ROTATION:
-        sc = h->xrandr->XRRGetScreenInfo(h->xrandr->dpy,
-                                         RootWindow(h->xrandr->dpy,
-                                                    h->screen));
-        h->xrandr->XRRConfigRotations(sc, &rotation);
-        h->xrandr->XRRFreeScreenConfigInfo(sc);
-
+        /* Return the current rotation */
         *val = (int)rotation;
         break;
 
@@ -320,6 +403,7 @@ NvCtrlXrandrGetAttribute (NvCtrlAttributePrivateHandle *h,
         return NvCtrlNoAttribute;
         break;
     } /* Done fetching attribute */
+
 
     return NvCtrlSuccess;
 
@@ -333,15 +417,54 @@ NvCtrlXrandrGetAttribute (NvCtrlAttributePrivateHandle *h,
  *
  ****/
 
+static ReturnStatus
+set_rotation(NvCtrlAttributePrivateHandle *h, Rotation rotation)
+{
+    XRRScreenConfiguration *sc;
+    Rotation cur_rotation, rotations;
+    SizeID cur_size;
+    Status ret;
+
+
+    assert(h->target_type == NV_CTRL_TARGET_TYPE_X_SCREEN);
+
+    /* Get current screen configuration information */
+    sc = __libXrandr->XRRGetScreenInfo(h->dpy, RootWindow(h->dpy,
+                                                          h->target_id));
+    if ( !sc ) {
+        return NvCtrlError;
+    }
+    cur_size = __libXrandr->XRRConfigCurrentConfiguration(sc, &cur_rotation);
+    rotations = __libXrandr->XRRConfigRotations(sc, &cur_rotation);
+
+
+    /* Check orientation we want is supported */
+    if ( !(rotations & rotation) ) {
+        __libXrandr->XRRFreeScreenConfigInfo(sc);
+        return NvCtrlBadArgument;
+    }
+
+
+    /* Set the orientation */
+    ret = __libXrandr->XRRSetScreenConfig(h->dpy, sc,
+                                          RootWindow(h->dpy, h->target_id),
+                                          cur_size, rotation, CurrentTime);
+    __libXrandr->XRRFreeScreenConfigInfo(sc);
+    
+    return ( ret == Success )?NvCtrlSuccess:NvCtrlError;
+
+} /* set_rotation() */
+
+
 ReturnStatus
 NvCtrlXrandrSetAttribute (NvCtrlAttributePrivateHandle *h,
                           int attr, int val)
 {
-    /* Validate Arguments */
-    if ( h == NULL ) {
+    /* Validate */
+    if ( !h || !h->dpy || h->target_type != NV_CTRL_TARGET_TYPE_X_SCREEN ) {
         return NvCtrlBadHandle;
     }
-    if ( h->xrandr == NULL ) {
+    if ( !h->xrandr || !__libXrandr ) {
         return NvCtrlMissingExtension;
     }
 
@@ -358,14 +481,86 @@ NvCtrlXrandrSetAttribute (NvCtrlAttributePrivateHandle *h,
         break;
 
     case NV_CTRL_ATTR_XRANDR_ROTATION:
-        return set_rotation(h, (Rotation) val);
+        return set_rotation(h, (Rotation)val);
         break;
 
     default:
         return NvCtrlNoAttribute;
         break;
-    } /* Done setting attribute */
+    }
 
     return NvCtrlSuccess;
 
 } /* NvCtrlXrandrSetAttribute */
+
+
+
+/******************************************************************************
+ *
+ * Sets XRandR size and refresh rate.
+ *
+ ****/
+
+ReturnStatus
+NvCtrlXrandrSetScreenMagicMode (NvCtrlAttributePrivateHandle *h,
+                                int width, int height, int magic_ref_rate)
+{
+    XRRScreenConfiguration *sc;
+    Rotation cur_rotation;
+    int nsizes;
+    XRRScreenSize *sizes;
+    int nrates;
+    short *rates;
+    Status ret;
+
+
+    /* Validate */
+    if ( !h || !h->dpy || h->target_type != NV_CTRL_TARGET_TYPE_X_SCREEN ) {
+        return NvCtrlBadHandle;
+    }
+
+    if ( !h->xrandr || !__libXrandr ) {
+        return NvCtrlMissingExtension;
+    }
+
+
+    /* Get current screen configuration information */
+    sc = __libXrandr->XRRGetScreenInfo(h->dpy, RootWindow(h->dpy,
+                                                          h->target_id));
+    if ( !sc ) {
+        return NvCtrlError;
+    }
+    __libXrandr->XRRConfigRotations(sc, &cur_rotation);
+
+
+    /* Look for size that has matching refresh rate */
+    sizes = __libXrandr->XRRConfigSizes(sc, &nsizes);
+    while ( --nsizes >= 0 ) {
+
+        /* Must match in size */
+        if ( sizes[nsizes].width  != width ||
+             sizes[nsizes].height != height ) {
+            continue;
+        }
+
+        rates = __libXrandr->XRRConfigRates(sc, nsizes, &nrates);
+        while ( --nrates >= 0 ) {
+
+            /* Set the mode if we found the rate */
+            if ( *rates == magic_ref_rate ) {
+                ret = __libXrandr->XRRSetScreenConfigAndRate
+                    (h->dpy, sc, RootWindow(h->dpy, h->target_id), nsizes,
+                     cur_rotation, magic_ref_rate, CurrentTime);
+                
+                __libXrandr->XRRFreeScreenConfigInfo(sc);
+                return (ret == Success)?NvCtrlSuccess:NvCtrlError;
+            }
+            rates++;
+        }
+    }
+    
+    /* If we are here, then we could not find the correct mode to set */
+    __libXrandr->XRRFreeScreenConfigInfo(sc);
+    return NvCtrlError;
+
+} /* NvCtrlXrandrSetScreenMagicMode */

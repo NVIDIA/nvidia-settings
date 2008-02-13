@@ -28,6 +28,7 @@
 #include <gdk/gdkx.h>
 
 #include "clocks_banner.h"
+#include "ctkimage.h"
 
 #include "ctkclocks.h"
 
@@ -283,6 +284,7 @@ GtkWidget* ctk_clocks_new(NvCtrlAttributeHandle *handle,
     GtkWidget *label;   
 
     GtkWidget *frame;
+    GtkWidget *banner;
     GtkWidget *hbox;
     GtkWidget *vbox;
 
@@ -616,29 +618,8 @@ GtkWidget* ctk_clocks_new(NvCtrlAttributeHandle *handle,
 
     gtk_box_set_spacing(GTK_BOX(ctk_object), 10);
 
-
-    { /* Banner image */
-        const nv_image_t *image_data   = &clocks_banner_image;
-        guint8           *image_buffer = decompress_image_data(image_data);
-        GdkPixbuf        *image_pixbuf = 
-            gdk_pixbuf_new_from_data(image_buffer, GDK_COLORSPACE_RGB,
-                                     FALSE, 8, image_data->width,
-                                     image_data->height,
-                                     image_data->width * image_data->bytes_per_pixel,
-                                     free_decompressed_image, NULL);
-        GtkWidget *image = gtk_image_new_from_pixbuf(image_pixbuf);
-
-        frame = gtk_frame_new(NULL);
-
-        hbox = gtk_hbox_new(FALSE, 0);
-
-        gtk_box_pack_start(GTK_BOX(object), hbox, FALSE, FALSE, 0);
-        
-        gtk_frame_set_shadow_type(GTK_FRAME(frame), GTK_SHADOW_IN);
-        gtk_box_pack_start(GTK_BOX(hbox), frame, FALSE, FALSE, 0);
-        
-        gtk_container_add(GTK_CONTAINER(frame), image);
-    }
+    banner = ctk_banner_image_new(&clocks_banner_image);
+    gtk_box_pack_start(GTK_BOX(object), banner, FALSE, FALSE, 0);
 
     /* Add Overclocking checkbox */
 

@@ -145,15 +145,41 @@ static void print_assign_help(void)
            "implied following the same rule as the --ctrl-display option.  "
            "If the X screen is not specified, then the assignment is made to "
            "all X screens.  Note that the '/' is only required when {DISPLAY} "
-           "is present.  The [{display devices}] portion is also optional; "
+           "is present.");
+
+    nv_msg(NULL, "");
+
+    nv_msg(BIGTAB, "{DISPLAY} can additionally include a target "
+           "specification to direct an assignment to something other than "
+           "an X screen.  A target specification is contained within brackets "
+           "and consists of a target type name, a colon, and the "
+           "target id.  The target type name can be one of \"screen\", "
+           "\"gpu\", or \"framelock\"; the target id is the index into the "
+           "list of targets (for that target type).  The target specification "
+           "can be used in {DISPLAY} wherever an X screen can be used, "
+           "following the syntax {host}:{display}[{target_type}:"
+           "{target_id}].  See the output of `nvidia-settings -q all` for "
+           "information on which target types can be used with which "
+           "attributes.  See the output of `nvidia-settings -q screens "
+           "-q gpus -q framelocks` for lists of targets for each "
+           "target type.");
+    
+    nv_msg(NULL, "");
+
+    nv_msg(BIGTAB, "The [{display devices}] portion is also optional; "
            "if it is not specified, then the attribute is assigned to all "
-           "display devices.  Some examples:");
+           "display devices.");
+
+    nv_msg(NULL, "");
+ 
+    nv_msg(BIGTAB, "Some examples:");
     
     nv_msg(NULL, "");
     
     nv_msg(BIGTAB TAB, "-a FSAA=5");
     nv_msg(BIGTAB TAB, "-a localhost:0.0/DigitalVibrance[CRT-0]=0");
     nv_msg(BIGTAB TAB, "--assign=\"SyncToVBlank=1\"");
+    nv_msg(BIGTAB TAB, "-a [gpu:0]/DigitalVibrance[DFP-1]=63");
     
 } /* print_assign_help() */
 
@@ -177,7 +203,10 @@ static void print_query_help(void)
     nv_msg(BIGTAB, "This queries the current value of the attribute "
            "{attribute name} on the X Display {DISPLAY}.  The format is "
            "the same as that for the '--assign' option, without "
-           "'={value}'.  Specify '-q all' to query all attributes.");
+           "'={value}'.  Specify '-q screens', '-q gpus', or '-q framelocks' "
+           "to query a list of X screens, GPUs, or Frame Lock devices, "
+           "respectively, that are present on the X Display {DISPLAY}.  "
+           "Specify '-q all' to query all attributes.");
 
 } /* print_query_help() */
 

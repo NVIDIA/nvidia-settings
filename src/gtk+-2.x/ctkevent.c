@@ -51,7 +51,8 @@ static gboolean ctk_event_dispatch(GSource *, GSourceFunc, gpointer);
 /* List of who to contact on dpy events */
 typedef struct __CtkEventNodeRec {
     CtkEvent *ctk_event;
-    int screen;    
+    int target_type;
+    int target_id;
     struct __CtkEventNodeRec *next;
 } CtkEventNode;
 
@@ -216,6 +217,12 @@ static void ctk_event_class_init(CtkEventClass *ctk_event_class)
     MAKE_SIGNAL(NV_CTRL_BUS_RATE);
     MAKE_SIGNAL(NV_CTRL_SHOW_SLI_HUD);
     MAKE_SIGNAL(NV_CTRL_XV_SYNC_TO_DISPLAY);
+    MAKE_SIGNAL(NV_CTRL_GVO_OVERRIDE_HW_CSC);
+    MAKE_SIGNAL(NV_CTRL_GVO_COMPOSITE_TERMINATION);
+    MAKE_SIGNAL(NV_CTRL_FRAMELOCK_SLAVES);
+    MAKE_SIGNAL(NV_CTRL_FRAMELOCK_MASTERABLE);
+    MAKE_SIGNAL(NV_CTRL_PROBE_DISPLAYS);
+    MAKE_SIGNAL(NV_CTRL_REFRESH_RATE);
 
 #undef MAKE_SIGNAL
     
@@ -226,7 +233,7 @@ static void ctk_event_class_init(CtkEventClass *ctk_event_class)
      * knows about.
      */
 
-#if NV_CTRL_LAST_ATTRIBUTE != NV_CTRL_XV_SYNC_TO_DISPLAY
+#if NV_CTRL_LAST_ATTRIBUTE != NV_CTRL_REFRESH_RATE
 #warning "There are attributes that do not emit signals!"
 #endif
 
@@ -254,7 +261,7 @@ static void ctk_event_class_init(CtkEventClass *ctk_event_class)
  * is received, the dispatching function should then
  * emit a signal to every CtkEvent object that
  * requests event notification from the dpy for the
- * given X screen.
+ * given target type/id (X screen, GPU etc).
  */
 static void ctk_event_register_source(CtkEvent *ctk_event)
 {
@@ -318,11 +325,25 @@ static void ctk_event_register_source(CtkEvent *ctk_event)
         return;
     }
     event_node->ctk_event = ctk_event;
-    event_node->screen = NvCtrlGetScreen(ctk_event->handle);
+    event_node->target_type = NvCtrlGetTargetType(ctk_event->handle);
+    event_node->target_id = NvCtrlGetTargetId(ctk_event->handle);
     event_node->next = event_source->ctk_events;
     event_source->ctk_events = event_node;
+    /*
+     * This next bit of code is to make sure that the randr_event_base
+     * for this event source is valid in the case where a NON X Screen
+     * target type handle is used to create the initial event source
+     * (Resulting in randr_event_base being == -1), followed by an
+     * X Screen target type handle registering itself to receive
+     * XRandR events on the existing dpy/event source.
+     */
+    if (event_source->randr_event_base == -1 &&
+        event_node->target_type == NV_CTRL_TARGET_TYPE_X_SCREEN) {
+        event_source->randr_event_base =
+            NvCtrlGetXrandrEventBase(ctk_event->handle);
+    }
 
-} /* ctk_event_create_source() */
+} /* ctk_event_register_source() */
 
 
 
@@ -372,15 +393,16 @@ static gboolean ctk_event_check(GSource *source)
 }
 
 
-#define CTK_EVENT_BROADCAST(ES, SIG, PTR, SCR)         \
-do {                                                   \
-    CtkEventNode *e = (ES)->ctk_events;                \
-    while  (e) {                                       \
-        if (e->screen == (SCR)) {                      \
-            g_signal_emit(e->ctk_event, SIG, 0, PTR);  \
-        }                                              \
-        e = e->next;                                   \
-    }                                                  \
+#define CTK_EVENT_BROADCAST(ES, SIG, PTR, TYPE, ID)   \
+do {                                                  \
+    CtkEventNode *e = (ES)->ctk_events;               \
+    while  (e) {                                      \
+        if (e->target_type == (TYPE) &&               \
+            e->target_id == (ID)) {                   \
+            g_signal_emit(e->ctk_event, SIG, 0, PTR); \
+        }                                             \
+        e = e->next;                                  \
+    }                                                 \
 } while (0)
 
 static gboolean ctk_event_dispatch(GSource *source,
@@ -397,7 +419,7 @@ static gboolean ctk_event_dispatch(GSource *source,
      */
     
     XNextEvent(event_source->dpy, &event);
-    
+
     /* 
      * Handle the ATTRIBUTE_CHANGED_EVENT NV-CONTROL event
      */
@@ -417,26 +439,60 @@ static gboolean ctk_event_dispatch(GSource *source,
             event_struct.display_mask = nvctrlevent->display_mask;
 
             /*
-             * XXX Is emitting a signal like this really the "correct"
-             * way of dispatching the event?
+             * XXX Is emitting a signal with g_signal_emit() really
+             * the "correct" way of dispatching the event?
              */
 
             CTK_EVENT_BROADCAST(event_source,
                                 signals[nvctrlevent->attribute],
                                 &event_struct,
+                                NV_CTRL_TARGET_TYPE_X_SCREEN,
                                 nvctrlevent->screen);
+        }
+    }
+
+    /* 
+     * Handle the TARGET_ATTRIBUTE_CHANGED_EVENT NV-CONTROL event
+     */
+
+    if (event.type == (event_source->event_base
+                       +TARGET_ATTRIBUTE_CHANGED_EVENT)) {
+        XNVCtrlAttributeChangedEventTarget *nvctrlevent =
+            (XNVCtrlAttributeChangedEventTarget *) &event;
+
+        /* make sure the attribute is in our signal array */
+
+        if ((nvctrlevent->attribute >= 0) &&
+            (nvctrlevent->attribute <= NV_CTRL_LAST_ATTRIBUTE) &&
+            (signals[nvctrlevent->attribute] != 0)) {
+            
+            event_struct.attribute    = nvctrlevent->attribute;
+            event_struct.value        = nvctrlevent->value;
+            event_struct.display_mask = nvctrlevent->display_mask;
+
+            /*
+             * XXX Is emitting a signal with g_signal_emit() really
+             * the "correct" way of dispatching the event?
+             */
+
+            CTK_EVENT_BROADCAST(event_source,
+                                signals[nvctrlevent->attribute],
+                                &event_struct,
+                                nvctrlevent->target_type,
+                                nvctrlevent->target_id);
         }
     }
 
     /*
      * Also handle XRandR events.
      */
-    if (event.type ==
+    if (event_source->randr_event_base != -1 &&
+        event.type ==
         (event_source->randr_event_base + RRScreenChangeNotify)) {
         XRRScreenChangeNotifyEvent *xrandrevent =
             (XRRScreenChangeNotifyEvent *)&event;
         int screen;
-
+        
         /* Find the screen the window belongs to */
         screen = XScreenCount(xrandrevent->display);
         screen--;
@@ -451,6 +507,7 @@ static gboolean ctk_event_dispatch(GSource *source,
             CTK_EVENT_BROADCAST(event_source,
                                 signal_RRScreenChangeNotify,
                                 &event,
+                                NV_CTRL_TARGET_TYPE_X_SCREEN,
                                 screen);
         }
     }

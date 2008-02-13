@@ -58,7 +58,7 @@
 /* minimum required version for the NV-CONTROL extension */
 
 #define NV_MINMAJOR 1
-#define NV_MINMINOR 6
+#define NV_MINMINOR 9
 
 /* minimum required version for the XF86VidMode extension */
 
@@ -85,7 +85,6 @@ typedef struct __NvCtrlXvOverlayAttributes NvCtrlXvOverlayAttributes;
 typedef struct __NvCtrlXvTextureAttributes NvCtrlXvTextureAttributes;
 typedef struct __NvCtrlXvBlitterAttributes NvCtrlXvBlitterAttributes;
 typedef struct __NvCtrlXvAttribute NvCtrlXvAttribute;
-typedef struct __NvCtrlGlxAttributes NvCtrlGlxAttributes;
 typedef struct __NvCtrlXrandrAttributes NvCtrlXrandrAttributes;
 
 struct __NvCtrlNvControlAttributes {
@@ -131,110 +130,28 @@ struct __NvCtrlXvBlitterAttributes {
 };
 
 struct __NvCtrlXvAttributes {
-
-    /* libXv.so library handle */
-    void *libXv;
-
-    /* Private display connection for the Xv ext. */
-    Display *dpy;
-
-    /* libXv functions */
-    int (* XvGetPortAttribute) (Display *, XvPortID, Atom, int *);
-
-    int (* XvSetPortAttribute) (Display *, XvPortID, Atom, int);
-
-    XvAttribute* (* XvQueryPortAttributes) (Display *, XvPortID, int *);
-
-    int (* XvQueryExtension) (Display *, unsigned int *, unsigned int *,
-                              unsigned int *, unsigned int *, unsigned int *);
-    
-    int (* XvQueryAdaptors) (Display *, Window, unsigned int *,
-                             XvAdaptorInfo **);
-
-
     NvCtrlXvOverlayAttributes *overlay; /* XVideo info (overlay) */
     NvCtrlXvTextureAttributes *texture; /* XVideo info (texture) */
     NvCtrlXvBlitterAttributes *blitter; /* XVideo info (blitter) */
 };
 
-struct __NvCtrlGlxAttributes {
-
-    /* Private display connection for the GLX information ext. */
-    Display *dpy;
-
-    /* libGL.so library handle */
-    void *libGL; 
- 
-    /* OpenGL functions used */
-    const GLubyte * (* glGetString)              (GLenum);
-
-    /* GLX functions used */
-    const char *    (* glXQueryServerString)     (Display *, int, int);
-    const char *    (* glXGetClientString)       (Display *, int);
-    const char *    (* glXQueryExtensionsString) (Display *, int);
-
-    Bool            (* glXIsDirect)              (Display *, GLXContext);
-    Bool            (* glXMakeCurrent)           (Display *, GLXDrawable,
-                                                  GLXContext);
-    GLXContext      (* glXCreateContext)         (Display *, XVisualInfo *,
-                                                  GLXContext, Bool);
-    void            (* glXDestroyContext)        (Display *, GLXContext);
-    XVisualInfo *   (* glXChooseVisual)          (Display *, int, int *);
-#ifdef GLX_VERSION_1_3
-    GLXFBConfig *   (* glXGetFBConfigs)          (Display *, int, int *);
-    int             (* glXGetFBConfigAttrib)     (Display *, GLXFBConfig,
-                                                  int, int *);
-    XVisualInfo *   (* glXGetVisualFromFBConfig) (Display *, GLXFBConfig);
-#endif /* GLX_VERSION_1_3 */
-};
-
 struct __NvCtrlXrandrAttributes {
-
-    /* Private display connection for the XRandR information ext. */
-    Display *dpy;
-
-    /* libXrandr.so library handle */
-    void     *libXrandr;
-    int       event_base; /* XRandR extension event base */
-    int       error_base;
-    Rotation  rotations; /* Valid rotations */
-    int       nsizes;    /* Valid sizes */
-   
-    /* XRandR functions used */
-    Bool  (* XRRQueryExtension) (Display *dpy,
-                                 int *event_base,
-                                 int *error_base);
-    void  (* XRRSelectInput)    (Display *dpy, Window window,
-                                 int mask);
-
-    SizeID (* XRRConfigCurrentConfiguration) (XRRScreenConfiguration *config, 
-                                              Rotation *rotation);
-
-    XRRScreenConfiguration * (* XRRGetScreenInfo) (Display *dpy, Drawable draw);
-
-    Rotation (* XRRConfigRotations) (XRRScreenConfiguration *config, 
-                                     Rotation *rotation);
-
-    void   (* XRRFreeScreenConfigInfo)  (XRRScreenConfiguration *);
-    
-    Rotation       (* XRRRotations)  (Display *dpy, int screen, Rotation *current_rotation);
-    XRRScreenSize *(* XRRSizes)  (Display *dpy, int screen, int *nsizes); 
-
-    Status (* XRRSetScreenConfig) (Display *dpy, 
-                                   XRRScreenConfiguration *config,
-                                   Drawable draw,
-                                   int size_index,
-                                   Rotation rotation,
-                                   Time timestamp);
+    int event_base;
+    int error_base;
 };
 
 struct __NvCtrlAttributePrivateHandle {
     Display *dpy;                   /* display connection */
-    int screen;                     /* the screen that this handle controls */
+    int target_type;                /* Type of target this handle conrols */
+    int target_id;                  /* screen num, gpu num (etc) of target */
+
+    /* Common attributes */
     NvCtrlNvControlAttributes *nv;  /* NV-CONTROL extension info */
+
+    /* Screen-specific attributes */
     NvCtrlVidModeAttributes *vm;    /* XF86VidMode extension info */
     NvCtrlXvAttributes *xv;         /* XVideo info */
-    NvCtrlGlxAttributes *glx;       /* GLX extension info */
+    Bool glx;                       /* GLX extension available */
     NvCtrlXrandrAttributes *xrandr; /* XRandR extension info */
 };
 
@@ -256,7 +173,7 @@ NvCtrlXvAttributesClose (NvCtrlAttributePrivateHandle *);
 
 /* GLX extension attribute functions */
 
-NvCtrlGlxAttributes *
+Bool
 NvCtrlInitGlxAttributes (NvCtrlAttributePrivateHandle *);
 
 void
@@ -285,8 +202,14 @@ NvCtrlXrandrGetAttribute (NvCtrlAttributePrivateHandle *, int, int *);
 ReturnStatus
 NvCtrlXrandrSetAttribute (NvCtrlAttributePrivateHandle *, int, int);
 
+ReturnStatus
+NvCtrlXrandrSetScreenMagicMode (NvCtrlAttributePrivateHandle *, int, int, int);
+
 
 /* Generic attribute functions */
+
+ReturnStatus
+NvCtrlNvControlQueryTargetCount(NvCtrlAttributePrivateHandle *, int, int *);
 
 ReturnStatus
 NvCtrlNvControlGetAttribute (NvCtrlAttributePrivateHandle *, unsigned int,
@@ -303,6 +226,10 @@ NvCtrlNvControlGetValidAttributeValues (NvCtrlAttributePrivateHandle *,
 ReturnStatus
 NvCtrlNvControlGetStringAttribute (NvCtrlAttributePrivateHandle *,
                                    unsigned int, int, char **);
+
+ReturnStatus
+NvCtrlNvControlSetStringAttribute (NvCtrlAttributePrivateHandle *,
+                                   unsigned int, int, char *, int *);
 
 ReturnStatus
 NvCtrlNvControlGetBinaryAttribute(NvCtrlAttributePrivateHandle *h,

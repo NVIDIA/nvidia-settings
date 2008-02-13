@@ -1,14 +1,36 @@
 #ifndef __NVCTRL_H
 #define __NVCTRL_H
 
+
 /**************************************************************************/
+
 /*
- * Integer attributes; these are settable/gettable via
- * XNVCTRLSetAttribute() and XNVCTRLQueryAttribute, respectively.
+ * Attribute Targets
+ *
+ * Targets define attribute groups.  For example, some attributes are only
+ * valid to set on a GPU, others are only valid when talking about an
+ * X Screen.  Target types are then what is used to identify the target
+ * group of the attribute you wish to set/query.
+ *
+ * Here are the supported target types:
+ */
+
+#define NV_CTRL_TARGET_TYPE_X_SCREEN   0
+#define NV_CTRL_TARGET_TYPE_GPU        1
+#define NV_CTRL_TARGET_TYPE_FRAMELOCK  2
+
+
+/**************************************************************************/
+
+/*
+ * Attributes
+ *
  * Some attributes may only be read; some may require a display_mask
- * argument.  This information is encoded in the "permission" comment
- * after each attribute #define, and can be queried at run time with
- * XNVCTRLQueryValidAttributeValues().
+ * argument and others may be valid only for specific target types.
+ * This information is encoded in the "permission" comment after each
+ * attribute #define, and can be queried at run time with
+ * XNVCTRLQueryValidAttributeValues() and/or
+ * XNVCTRLQueryValidTargetAttributeValues()
  *
  * Key to Integer Attribute "Permissions":
  *
@@ -27,10 +49,36 @@
  *    should be used as the display_mask when dealing with attributes
  *    designated with "D" below.  For attributes that do not require the
  *    display mask, the argument is ignored.
+ *
+ * G: The attribute may be queried using an NV_CTRL_TARGET_TYPE_GPU
+ *    target type via XNVCTRLQueryTargetAttribute().
+ *
+ * F: The attribute may be queried using an NV_CTRL_TARGET_TYPE_FRAMELOCK
+ *    target type via XNVCTRLQueryTargetAttribute().
+ * 
+ * NOTE: Unless mentioned otherwise, all attributes may be queried using
+ *       an NV_CTRL_TARGET_TYPE_X_SCREEN target type via 
+ *       XNVCTRLQueryTargetAttribute().
  */
 
 
 /**************************************************************************/
+
+/*
+ * Integer attributes:
+ *
+ * Integer attributes can be queried through the XNVCTRLQueryAttribute() and
+ * XNVCTRLQueryTargetAttribute() function calls.
+ * 
+ * Integer attributes can be set through the XNVCTRLSetAttribute() and
+ * XNVCTRLSetTargetAttribute() function calls.
+ *
+ * Unless otherwise noted, all integer attributes can be queried/set
+ * using an NV_CTRL_TARGET_TYPE_X_SCREEN target.  Attributes that cannot
+ * take an NV_CTRL_TARGET_TYPE_X_SCREEN also cannot be queried/set through
+ * XNVCTRLQueryAttribute()/XNVCTRLSetAttribute() (Since these assume
+ * an X Screen target).
+ */
 
 
 /*
@@ -233,136 +281,191 @@
 
 
 /*
- * NV_CTRL_CONNECTED_DISPLAYS - returns a display mask indicating what
- * display devices are connected to the GPU driving the specified X
- * screen.
+ * NV_CTRL_CONNECTED_DISPLAYS - returns a display mask indicating the last
+ * cached state of the display devices connected to the GPU or GPU driving
+ * the specified X screen.
+ *
+ * This attribute may be queried through XNVCTRLQueryTargetAttribute()
+ * using a NV_CTRL_TARGET_TYPE_GPU or NV_CTRL_TARGET_TYPE_X_SCREEN target.
  */
 
-#define NV_CTRL_CONNECTED_DISPLAYS                              19 /* R-- */
+#define NV_CTRL_CONNECTED_DISPLAYS                              19 /* R--G */
 
 
 /*
  * NV_CTRL_ENABLED_DISPLAYS - returns a display mask indicating what
- * display devices are enabled for use on the specified X screen.
+ * display devices are enabled for use on the specified X screen or
+ * GPU.
+ *
+ * This attribute may be queried through XNVCTRLQueryTargetAttribute()
+ * using a NV_CTRL_TARGET_TYPE_GPU or NV_CTRL_TARGET_TYPE_X_SCREEN target.
  */
 
-#define NV_CTRL_ENABLED_DISPLAYS                                20 /* R-- */
+#define NV_CTRL_ENABLED_DISPLAYS                                20 /* R--G */
 
 /**************************************************************************/
 /*
- * Integer attributes specific to configuring FrameLock on boards that
+ * Integer attributes specific to configuring Frame Lock on boards that
  * support it.
  */
 
 
 /*
- * NV_CTRL_FRAMELOCK - returns whether this X screen supports
- * FrameLock.  All of the other FrameLock attributes are only
+ * NV_CTRL_FRAMELOCK - returns whether the underlying GPU supports
+ * Frame Lock.  All of the other frame lock attributes are only
  * applicable if NV_CTRL_FRAMELOCK is _SUPPORTED.
+ *
+ * This attribute may be queried through XNVCTRLQueryTargetAttribute()
+ * using a NV_CTRL_TARGET_TYPE_GPU or NV_CTRL_TARGET_TYPE_X_SCREEN target.
  */
 
-#define NV_CTRL_FRAMELOCK                                       21 /* R-- */
+#define NV_CTRL_FRAMELOCK                                       21 /* R--G */
 #define NV_CTRL_FRAMELOCK_NOT_SUPPORTED                         0
 #define NV_CTRL_FRAMELOCK_SUPPORTED                             1
 
 
 /*
- * NV_CTRL_FRAMELOCK_MASTER - get/set whether this X screen is the
- * FrameLock master for the entire sync group.  Note that only one
- * node in the sync group should be configured as the master.
+ * NV_CTRL_FRAMELOCK_MASTER - get/set which display device to use
+ * as the frame lock master for the entire sync group.  Note that only
+ * one node in the sync group should be configured as the master.
+ *
+ * This attribute can only be queried through XNVCTRLQueryTargetAttribute()
+ * using a NV_CTRL_TARGET_TYPE_GPU target.  This attribute cannot be
+ * queried using a NV_CTRL_TARGET_TYPE_X_SCREEN.
  */
 
-#define NV_CTRL_FRAMELOCK_MASTER                                22 /* RW- */
+#define NV_CTRL_FRAMELOCK_MASTER                                22 /* RW-G */
+
+/* These are deprecated.  NV_CTRL_FRAMELOCK_MASTER now takes and
+   returns a display mask as value. */
 #define NV_CTRL_FRAMELOCK_MASTER_FALSE                          0
 #define NV_CTRL_FRAMELOCK_MASTER_TRUE                           1
 
 
 /*
  * NV_CTRL_FRAMELOCK_POLARITY - sync either to the rising edge of the
- * framelock pulse, or both the rising and falling edges of the
- * framelock pulse.
+ * frame lock pulse, the falling edge of the frame lock pulse or both.
+ *
+ * This attribute may be queried through XNVCTRLQueryTargetAttribute()
+ * using a NV_CTRL_TARGET_TYPE_FRAMELOCK or NV_CTRL_TARGET_TYPE_X_SCREEN
+ * target.
  */
 
-#define NV_CTRL_FRAMELOCK_POLARITY                              23 /* RW- */
+#define NV_CTRL_FRAMELOCK_POLARITY                              23 /* RW-F */
 #define NV_CTRL_FRAMELOCK_POLARITY_RISING_EDGE                  0x1
 #define NV_CTRL_FRAMELOCK_POLARITY_FALLING_EDGE                 0x2
 #define NV_CTRL_FRAMELOCK_POLARITY_BOTH_EDGES                   0x3
 
 
 /*
- * NV_CTRL_FRAMELOCK_SYNC_DELAY - delay between the framelock pulse
+ * NV_CTRL_FRAMELOCK_SYNC_DELAY - delay between the frame lock pulse
  * and the GPU sync.  This is an 11 bit value which is multipled by
  * 7.81 to determine the sync delay in microseconds.
+ *
+ * This attribute may be queried through XNVCTRLQueryTargetAttribute()
+ * using a NV_CTRL_TARGET_TYPE_FRAMELOCK or NV_CTRL_TARGET_TYPE_X_SCREEN
+ * target.
  */
 
-#define NV_CTRL_FRAMELOCK_SYNC_DELAY                            24 /* RW- */
+#define NV_CTRL_FRAMELOCK_SYNC_DELAY                            24 /* RW-F */
 #define NV_CTRL_FRAMELOCK_SYNC_DELAY_MAX                        2047
 #define NV_CTRL_FRAMELOCK_SYNC_DELAY_FACTOR                     7.81
 
+
 /*
  * NV_CTRL_FRAMELOCK_SYNC_INTERVAL - how many house sync pulses
- * between the FrameLock sync generation (0 == sync every house sync);
+ * between the frame lock sync generation (0 == sync every house sync);
  * this only applies to the master when receiving house sync.
+ *
+ * This attribute may be queried through XNVCTRLQueryTargetAttribute()
+ * using a NV_CTRL_TARGET_TYPE_FRAMELOCK or NV_CTRL_TARGET_TYPE_X_SCREEN
+ * target.
  */
 
-#define NV_CTRL_FRAMELOCK_SYNC_INTERVAL                         25 /* RW- */
+#define NV_CTRL_FRAMELOCK_SYNC_INTERVAL                         25 /* RW-F */
 
 
 /*
  * NV_CTRL_FRAMELOCK_PORT0_STATUS - status of the rj45 port0.
+ *
+ * This attribute may be queried through XNVCTRLQueryTargetAttribute()
+ * using a NV_CTRL_TARGET_TYPE_FRAMELOCK or NV_CTRL_TARGET_TYPE_X_SCREEN
+ * target.
  */
 
-#define NV_CTRL_FRAMELOCK_PORT0_STATUS                          26 /* R-- */
+#define NV_CTRL_FRAMELOCK_PORT0_STATUS                          26 /* R--F */
 #define NV_CTRL_FRAMELOCK_PORT0_STATUS_INPUT                    0
 #define NV_CTRL_FRAMELOCK_PORT0_STATUS_OUTPUT                   1
 
 
 /*
  * NV_CTRL_FRAMELOCK_PORT1_STATUS - status of the rj45 port1.
+ *
+ * This attribute may be queried through XNVCTRLQueryTargetAttribute()
+ * using a NV_CTRL_TARGET_TYPE_FRAMELOCK or NV_CTRL_TARGET_TYPE_X_SCREEN
+ * target.
  */
 
-#define NV_CTRL_FRAMELOCK_PORT1_STATUS                          27 /* R-- */
+#define NV_CTRL_FRAMELOCK_PORT1_STATUS                          27 /* R--F */
 #define NV_CTRL_FRAMELOCK_PORT1_STATUS_INPUT                    0
 #define NV_CTRL_FRAMELOCK_PORT1_STATUS_OUTPUT                   1
 
 
 /*
- * NV_CTRL_FRAMELOCK_HOUSE_STATUS - status of the house input (the BNC
- * connector).
+ * NV_CTRL_FRAMELOCK_HOUSE_STATUS - returns whether or not the house
+ * sync signal was detected on the BNC connector of the frame lock
+ * board.
+ *
+ * This attribute may be queried through XNVCTRLQueryTargetAttribute()
+ * using a NV_CTRL_TARGET_TYPE_FRAMELOCK or NV_CTRL_TARGET_TYPE_X_SCREEN
+ * target.
  */
 
-#define NV_CTRL_FRAMELOCK_HOUSE_STATUS                          28 /* R-- */
+#define NV_CTRL_FRAMELOCK_HOUSE_STATUS                          28 /* R--F */
 #define NV_CTRL_FRAMELOCK_HOUSE_STATUS_NOT_DETECTED             0
 #define NV_CTRL_FRAMELOCK_HOUSE_STATUS_DETECTED                 1
 
 
 /*
- * NV_CTRL_FRAMELOCK_SYNC - enable/disable the syncing of the
- * specified display devices to the FrameLock pulse.
+ * NV_CTRL_FRAMELOCK_SYNC - enable/disable the syncing of display
+ * devices to the frame lock pulse as specified by previous calls to
+ * NV_CTRL_FRAMELOCK_MASTER and NV_CTRL_FRAMELOCK_SLAVES.
+ *
+ * This attribute can only be queried through XNVCTRLQueryTargetAttribute()
+ * using a NV_CTRL_TARGET_TYPE_GPU target.  This attribute cannot be
+ * queried using a NV_CTRL_TARGET_TYPE_X_SCREEN.
  */
 
-#define NV_CTRL_FRAMELOCK_SYNC                                  29 /* RWD */
+#define NV_CTRL_FRAMELOCK_SYNC                                  29 /* RW-G */
 #define NV_CTRL_FRAMELOCK_SYNC_DISABLE                          0
 #define NV_CTRL_FRAMELOCK_SYNC_ENABLE                           1
 
 
 /*
- * NV_CTRL_FRAMELOCK_SYNC_READY - reports whether a slave FrameLock
+ * NV_CTRL_FRAMELOCK_SYNC_READY - reports whether a slave frame lock
  * board is receiving sync (regardless of whether or not any display
  * devices are using the sync).
+ *
+ * This attribute may be queried through XNVCTRLQueryTargetAttribute()
+ * using a NV_CTRL_TARGET_TYPE_FRAMELOCK or NV_CTRL_TARGET_TYPE_X_SCREEN
+ * target.
  */
 
-#define NV_CTRL_FRAMELOCK_SYNC_READY                            30 /* R-- */
+#define NV_CTRL_FRAMELOCK_SYNC_READY                            30 /* R--F */
 #define NV_CTRL_FRAMELOCK_SYNC_READY_FALSE                      0
 #define NV_CTRL_FRAMELOCK_SYNC_READY_TRUE                       1
 
 
 /*
  * NV_CTRL_FRAMELOCK_STEREO_SYNC - this indicates that the GPU stereo
- * signal is in sync with the framelock stereo signal.
+ * signal is in sync with the frame lock stereo signal.
+ *
+ * This attribute may be queried through XNVCTRLQueryTargetAttribute()
+ * using a NV_CTRL_TARGET_TYPE_GPU or NV_CTRL_TARGET_TYPE_X_SCREEN
+ * target.
  */
 
-#define NV_CTRL_FRAMELOCK_STEREO_SYNC                           31 /* R-- */
+#define NV_CTRL_FRAMELOCK_STEREO_SYNC                           31 /* R--G */
 #define NV_CTRL_FRAMELOCK_STEREO_SYNC_FALSE                     0
 #define NV_CTRL_FRAMELOCK_STEREO_SYNC_TRUE                      1
 
@@ -378,16 +481,19 @@
  * returned by the glXQueryFrameCountNV() function in the
  * GLX_NV_swap_group extension).  Note: for best accuracy of the
  * Universal Frame Count, it is recommended to toggle the TEST_SIGNAL
- * on and off after enabling FrameLock.
+ * on and off after enabling frame lock.
+ *
+ * This attribute may be queried through XNVCTRLQueryTargetAttribute()
+ * using a NV_CTRL_TARGET_TYPE_GPU or NV_CTRL_TARGET_TYPE_X_SCREEN target.
  */
 
-#define NV_CTRL_FRAMELOCK_TEST_SIGNAL                           32 /* RW- */
+#define NV_CTRL_FRAMELOCK_TEST_SIGNAL                           32 /* RW-G */
 #define NV_CTRL_FRAMELOCK_TEST_SIGNAL_DISABLE                   0
 #define NV_CTRL_FRAMELOCK_TEST_SIGNAL_ENABLE                    1
 
 
 /*
- * NV_CTRL_FRAMELOCK_ETHERNET_DETECTED - The FrameLock boards are
+ * NV_CTRL_FRAMELOCK_ETHERNET_DETECTED - The frame lock boards are
  * cabled together using regular cat5 cable, connecting to rj45 ports
  * on the backplane of the card.  There is some concern that users may
  * think these are ethernet ports and connect them to a
@@ -395,22 +501,31 @@
  * prevent damage (either to itself or to the router).
  * NV_CTRL_FRAMELOCK_ETHERNET_DETECTED may be called to find out if
  * ethernet is connected to one of the rj45 ports.  An appropriate
- * error message should then be displayed.  The _PORT0 and PORT1
+ * error message should then be displayed.  The _PORT0 and _PORT1
  * values may be or'ed together.
+ *
+ * This attribute may be queried through XNVCTRLQueryTargetAttribute()
+ * using a NV_CTRL_TARGET_TYPE_FRAMELOCK or NV_CTRL_TARGET_TYPE_X_SCREEN
+ * target.
  */
 
-#define NV_CTRL_FRAMELOCK_ETHERNET_DETECTED                     33 /* R-- */
+#define NV_CTRL_FRAMELOCK_ETHERNET_DETECTED                     33 /* R--F */
 #define NV_CTRL_FRAMELOCK_ETHERNET_DETECTED_NONE                0
 #define NV_CTRL_FRAMELOCK_ETHERNET_DETECTED_PORT0               0x1
 #define NV_CTRL_FRAMELOCK_ETHERNET_DETECTED_PORT1               0x2
 
 
 /*
- * NV_CTRL_FRAMELOCK_VIDEO_MODE - get/set the video mode of the house
- * input.
+ * NV_CTRL_FRAMELOCK_VIDEO_MODE - get/set what video mode is used
+ * to interperate the house sync signal.  This should only be set
+ * on the master.
+ *
+ * This attribute may be queried through XNVCTRLQueryTargetAttribute()
+ * using a NV_CTRL_TARGET_TYPE_FRAMELOCK or NV_CTRL_TARGET_TYPE_X_SCREEN
+ * target.
  */
 
-#define NV_CTRL_FRAMELOCK_VIDEO_MODE                            34 /* RW- */
+#define NV_CTRL_FRAMELOCK_VIDEO_MODE                            34 /* RW-F */
 #define NV_CTRL_FRAMELOCK_VIDEO_MODE_NONE                       0
 #define NV_CTRL_FRAMELOCK_VIDEO_MODE_TTL                        1
 #define NV_CTRL_FRAMELOCK_VIDEO_MODE_NTSCPALSECAM               2
@@ -429,10 +544,14 @@
 
 /*
  * NV_CTRL_FRAMELOCK_SYNC_RATE - this is the refresh rate that the
- * framelock board is sending to the GPU, in milliHz.
+ * frame lock board is sending to the GPU, in milliHz.
+ *
+ * This attribute may be queried through XNVCTRLQueryTargetAttribute()
+ * using a NV_CTRL_TARGET_TYPE_FRAMELOCK or NV_CTRL_TARGET_TYPE_X_SCREEN
+ * target.
  */
 
-#define NV_CTRL_FRAMELOCK_SYNC_RATE                             35 /* R-- */
+#define NV_CTRL_FRAMELOCK_SYNC_RATE                             35 /* R--F */
 
 
 
@@ -467,11 +586,17 @@
 
 
 /*
- * NV_CTRL_FRAMELOCK_TIMING - this is TRUE when the framelock board is
- * receiving timing input.
+ * NV_CTRL_FRAMELOCK_TIMING - this is TRUE when the gpu is both receiving
+ * and locked to an input timing signal. Timing information may come from
+ * the following places: Another frame lock device that is set to master, 
+ * the house sync signal, or the GPU's internal timing from a display
+ * device.
+ *
+ * This attribute may be queried through XNVCTRLQueryTargetAttribute()
+ * using a NV_CTRL_TARGET_TYPE_GPU or NV_CTRL_TARGET_TYPE_X_SCREEN target.
  */
 
-#define NV_CTRL_FRAMELOCK_TIMING                                39 /* RW- */
+#define NV_CTRL_FRAMELOCK_TIMING                                39 /* R--G */
 #define NV_CTRL_FRAMELOCK_TIMING_FALSE                           0
 #define NV_CTRL_FRAMELOCK_TIMING_TRUE                            1
 
@@ -702,6 +827,9 @@
  *
  * - specify the NV_CTRL_GVO_DATA_FORMAT
  *
+ * - specify any custom Color Space Conversion (CSC) matrix, offset,
+ * and scale with XNVCTRLSetGvoColorConversion().
+ *
  * - if using the GLX_NV_video_out extension to display one or more
  * pbuffers, call glXGetVideoDeviceNV() to lock the GVO output for use
  * by the GLX client; then bind the pbuffer(s) to the GVO output with
@@ -750,8 +878,8 @@
  * genlocking locks at hsync.  This requires that the output video
  * format exactly match the incoming sync video format.
  *
- * FRAMELOCK - the GVO output is framelocked to an incoming sync
- * signal; framelocking locks at vsync.  This requires that the output
+ * FRAMELOCK - the GVO output is frame locked to an incoming sync
+ * signal; frame locking locks at vsync.  This requires that the output
  * video format have the same refresh rate as the incoming sync video
  * format.
  */
@@ -780,6 +908,15 @@
  * format.  Note that the valid video formats will vary depending on
  * the NV_CTRL_GVO_SYNC_MODE and the incoming sync video format.  See
  * the definition of NV_CTRL_GVO_SYNC_MODE.
+ *
+ * Note that when querying the ValidValues for this data type, the
+ * values are reported as bits within a bitmask
+ * (ATTRIBUTE_TYPE_INT_BITS); unfortunately, there are more valid
+ * value bits than will fit in a single 32-bit value.  To solve this,
+ * query the ValidValues for NV_CTRL_GVO_OUTPUT_VIDEO_FORMAT to check
+ * which of the first 31 VIDEO_FORMATS are valid, then query the
+ * ValidValues for NV_CTRL_GVO_OUTPUT_VIDEO_FORMAT2 to check which of
+ * the VIDEO_FORMATS with value 32 and higher are valid.
  */
 
 #define NV_CTRL_GVO_OUTPUT_VIDEO_FORMAT                         70  /* RW- */
@@ -815,7 +952,16 @@
 #define NV_CTRL_GVO_VIDEO_FORMAT_1080PSF_30_00_SMPTE274         26
 #define NV_CTRL_GVO_VIDEO_FORMAT_1080PSF_24_00_SMPTE274         27
 #define NV_CTRL_GVO_VIDEO_FORMAT_1080PSF_23_98_SMPTE274         28
-
+#define NV_CTRL_GVO_VIDEO_FORMAT_1080P_30_00_SMPTE372           29
+#define NV_CTRL_GVO_VIDEO_FORMAT_1080P_29_97_SMPTE372           30
+#define NV_CTRL_GVO_VIDEO_FORMAT_1080I_30_00_SMPTE372           31
+#define NV_CTRL_GVO_VIDEO_FORMAT_1080I_29_97_SMPTE372           32
+#define NV_CTRL_GVO_VIDEO_FORMAT_1080P_25_00_SMPTE372           33
+#define NV_CTRL_GVO_VIDEO_FORMAT_1080I_25_00_SMPTE372           34
+#define NV_CTRL_GVO_VIDEO_FORMAT_1080P_24_00_SMPTE372           35
+#define NV_CTRL_GVO_VIDEO_FORMAT_1080P_23_98_SMPTE372           36
+#define NV_CTRL_GVO_VIDEO_FORMAT_1080I_24_00_SMPTE372           37
+#define NV_CTRL_GVO_VIDEO_FORMAT_1080I_23_98_SMPTE372           38
 
 /*
  * NV_CTRL_GVO_INPUT_VIDEO_FORMAT - indicates the input video format
@@ -850,6 +996,8 @@
 #define NV_CTRL_GVO_DATA_FORMAT_DUAL_Y8CR8CB8_TO_DUAL_YCRCB422  14
 #define NV_CTRL_GVO_DATA_FORMAT_R10G10B10_TO_YCRCB422           15
 #define NV_CTRL_GVO_DATA_FORMAT_R10G10B10_TO_YCRCB444           16
+#define NV_CTRL_GVO_DATA_FORMAT_Y12CR12CB12_TO_YCRCB444         17
+#define NV_CTRL_GVO_DATA_FORMAT_R12G12B12_TO_YCRCB444           18
 
 
 /*
@@ -916,7 +1064,8 @@
 
 /*
  * NV_CTRL_GVO_FPGA_VERSION - indicates the version of the Firmware on
- * the GVO device.  XXX would this be better as a string attribute?
+ * the GVO device.  Deprecated; use
+ * NV_CTRL_STRING_GVO_FIRMWARE_VERSION instead.
  */
 
 #define NV_CTRL_GVO_FIRMWARE_VERSION                            78  /* R-- */
@@ -944,7 +1093,7 @@
  * NV_CTRL_GVO_INPUT_VIDEO_FORMAT_REACQUIRE - must be set for a period
  * of about 2 seconds for the new InputVideoFormat to be properly
  * locked to.  In nvidia-settings, we do a reacquire whenever genlock
- * or framelock mode is entered into, when the user clicks the
+ * or frame lock mode is entered into, when the user clicks the
  * "detect" button.  This value can be written, but always reads back
  * _FALSE.
  */
@@ -979,7 +1128,7 @@
  *
  * XNVCTRLQueryAttribute (dpy,
  *                        screen, 
- *                        NV_CTRL_GVO_VIDEO_FORMAT_480I_59_94_SMPTE259_NTSC
+ *                        NV_CTRL_GVO_VIDEO_FORMAT_480I_59_94_SMPTE259_NTSC,
  *                        NV_CTRL_GVO_VIDEO_FORMAT_WIDTH,
  *                        &value);
  *
@@ -1003,14 +1152,6 @@
 #define NV_CTRL_GVO_X_SCREEN_PAN_X                              86  /* RW- */
 #define NV_CTRL_GVO_X_SCREEN_PAN_Y                              87  /* RW- */
 
-
-/*
- * XXX Still to do: GVO Color Conversion
- */
-
-/*
- * XXX what sync error attributes do we need to expose?
- */
 
 /*
  * NV_CTRL_GPU_OVERCLOCKING_STATE - query the current or set a new
@@ -2316,7 +2457,7 @@
  * This attribute is only available for flatpanels.
  */
 
-#define NV_CTRL_FLATPANEL_CHIP_LOCATION                         215/* R-D */
+#define NV_CTRL_FLATPANEL_CHIP_LOCATION                         215/* R-DG */
 #define NV_CTRL_FLATPANEL_CHIP_LOCATION_INTERNAL                  0
 #define NV_CTRL_FLATPANEL_CHIP_LOCATION_EXTERNAL                  1
 
@@ -2326,7 +2467,7 @@
  * This attribute is only available for flatpanels.
  */
 
-#define NV_CTRL_FLATPANEL_LINK                                  216/* R-D */
+#define NV_CTRL_FLATPANEL_LINK                                  216/* R-DG */
 #define NV_CTRL_FLATPANEL_LINK_SINGLE                             0
 #define NV_CTRL_FLATPANEL_LINK_DUAL                               1
 
@@ -2336,27 +2477,37 @@
  * attribute is only available for flatpanels.
  */
 
-#define NV_CTRL_FLATPANEL_SIGNAL                                217/* R-D */
+#define NV_CTRL_FLATPANEL_SIGNAL                                217/* R-DG */
 #define NV_CTRL_FLATPANEL_SIGNAL_LVDS                             0
 #define NV_CTRL_FLATPANEL_SIGNAL_TMDS                             1
 
 
 /*
- * NV_CTRL_USE_HOUSE_SYNC - when TRUE, framelock will sync to the house
- * sync
+ * NV_CTRL_USE_HOUSE_SYNC - when TRUE, the server (master) frame lock
+ * device will propagate the incoming house sync signal as the outgoing
+ * frame lock sync signal.  If the frame lock device cannot detect a
+ * frame lock sync signal, it will default to using the internal timings
+ * from the GPU connected to the primary connector.
  *
+ * This attribute may be queried through XNVCTRLQueryTargetAttribute()
+ * using a NV_CTRL_TARGET_TYPE_FRAMELOCK or NV_CTRL_TARGET_TYPE_X_SCREEN
+ * target.
  */
 
-#define NV_CTRL_USE_HOUSE_SYNC                                  218/* RW- */
+#define NV_CTRL_USE_HOUSE_SYNC                                  218/* RW-F */
 #define NV_CTRL_USE_HOUSE_SYNC_FALSE                            0
 #define NV_CTRL_USE_HOUSE_SYNC_TRUE                             1
 
 /*
  * NV_CTRL_EDID_AVAILABLE - report if an EDID is available for the
  * specified display device.
+ *
+ * This attribute may also be queried through XNVCTRLQueryTargetAttribute()
+ * using a NV_CTRL_TARGET_TYPE_GPU or NV_CTRL_TARGET_TYPE_X_SCREEN
+ * target.
  */
 
-#define NV_CTRL_EDID_AVAILABLE                                  219 /* R-D */
+#define NV_CTRL_EDID_AVAILABLE                                  219 /* R-DG */
 #define NV_CTRL_EDID_AVAILABLE_FALSE                            0
 #define NV_CTRL_EDID_AVAILABLE_TRUE                             1
 
@@ -2407,7 +2558,6 @@
 #define NV_CTRL_XINERAMA_STEREO_FALSE                            0
 #define NV_CTRL_XINERAMA_STEREO_TRUE                             1
 
-
 /*
  * NV_CTRL_BUS_RATE - if the bus type of the GPU driving the specified
  * screen is AGP, then NV_CTRL_BUS_RATE returns the configured AGP
@@ -2434,24 +2584,150 @@
 
 #define NV_CTRL_XV_SYNC_TO_DISPLAY                               226  /* RW- */
 
+/*
+ * NV_CTRL_GVO_OUTPUT_VIDEO_FORMAT2 - this attribute is only intended
+ * to be used to query the ValidValues for
+ * NV_CTRL_GVO_OUTPUT_VIDEO_FORMAT above the first 31 VIDEO_FORMATS.
+ * See NV_CTRL_GVO_OUTPUT_VIDEO_FORMAT for details.
+ */
 
-/**************************************************************************/
-#define NV_CTRL_LAST_ATTRIBUTE NV_CTRL_XV_SYNC_TO_DISPLAY
+#define NV_CTRL_GVO_OUTPUT_VIDEO_FORMAT2                         227  /* --- */
 
-/**************************************************************************/
+/*
+ * Override the SDI hardware's Color Space Conversion with the values
+ * controlled through XNVCTRLSetGvoColorConversion() and
+ * XNVCTRLGetGvoColorConversion().  If this attribute is FALSE, then
+ * the values specified through XNVCTRLSetGvoColorConversion() are
+ * ignored.
+ */
+
+#define NV_CTRL_GVO_OVERRIDE_HW_CSC                              228  /* RW- */
+#define NV_CTRL_GVO_OVERRIDE_HW_CSC_FALSE                        0
+#define NV_CTRL_GVO_OVERRIDE_HW_CSC_TRUE                         1
 
 
 /*
+ * NV_CTRL_GVO_CAPABILITIES - this read-only attribute describes GVO
+ * capabilities that differ between NVIDIA SDI products.  This value
+ * is a bitmask where each bit indicates whether that capability is
+ * available.
  *
- * String Attributes:
+ * APPLY_CSC_IMMEDIATELY - whether the CSC matrix, offset, and scale
+ * specified through XNVCTRLSetGvoColorConversion() will take affect
+ * immediately, or only after SDI output is disabled and enabled
+ * again.
+ *
+ * APPLY_CSC_TO_X_SCREEN - whether the CSC matrix, offset, and scale
+ * specified through XNVCTRLSetGvoColorConversion() will also apply
+ * to GVO output of an X screen, or only to OpenGL GVO output, as
+ * enabled through the GLX_NV_video_out extension.
  */
+
+#define NV_CTRL_GVO_CAPABILITIES                                 229  /* R-- */
+#define NV_CTRL_GVO_CAPABILITIES_APPLY_CSC_IMMEDIATELY           0x1
+#define NV_CTRL_GVO_CAPABILITIES_APPLY_CSC_TO_X_SCREEN           0x2
+
+
+/*
+ * NV_CTRL_GVO_COMPOSITE_TERMINATION - enable or disable 75 ohm
+ * termination of the SDI composite input signal.
+ */
+
+#define NV_CTRL_GVO_COMPOSITE_TERMINATION                        230  /* RW- */
+#define NV_CTRL_GVO_COMPOSITE_TERMINATION_ENABLE                   1
+#define NV_CTRL_GVO_COMPOSITE_TERMINATION_DISABLE                  0
+
+
+/*
+ * NV_CTRL_ASSOCIATED_DISPLAY_DEVICES - display device mask indicating
+ * which display devices are "associated" with the specified X screen
+ * (ie: are available to the X screen for displaying the X screen).
+ */
+ 
+#define NV_CTRL_ASSOCIATED_DISPLAY_DEVICES                       231 /* RW- */
+
+/*
+ * NV_CTRL_FRAMELOCK_SLAVES - get/set whether the display device(s)
+ * given should listen or ignore the master's sync signal.
+ *
+ * This attribute can only be queried through XNVCTRLQueryTargetAttribute()
+ * using a NV_CTRL_TARGET_TYPE_GPU target.  This attribute cannot be
+ * queried using a NV_CTRL_TARGET_TYPE_X_SCREEN.
+ */
+
+#define NV_CTRL_FRAMELOCK_SLAVES                                 232 /* RW-G */
+
+/*
+ * NV_CTRL_FRAMELOCK_MASTERABLE - Can this Display Device be set
+ * as the master of the frame lock group.  Returns MASTERABLE_TRUE if
+ * the GPU driving the display device is connected to the "primary"
+ * connector on the frame lock board.
+ *
+ * This attribute can only be queried through XNVCTRLQueryTargetAttribute()
+ * using a NV_CTRL_TARGET_TYPE_GPU target.  This attribute cannot be
+ * queried using a NV_CTRL_TARGET_TYPE_X_SCREEN.
+ */
+
+#define NV_CTRL_FRAMELOCK_MASTERABLE                             233 /* R-DG */
+#define NV_CTRL_FRAMELOCK_MASTERABLE_FALSE                       0
+#define NV_CTRL_FRAMELOCK_MASTERABLE_TRUE                        1
+
+
+/*
+ * NV_CTRL_PROBE_DISPLAYS - re-probes the hardware to detect what
+ * display devices are connected to the GPU or GPU driving the
+ * specified X screen.  Returns a display mask.
+ *
+ * This attribute may be queried through XNVCTRLQueryTargetAttribute()
+ * using a NV_CTRL_TARGET_TYPE_GPU or NV_CTRL_TARGET_TYPE_X_SCREEN target.
+ */
+
+#define NV_CTRL_PROBE_DISPLAYS                                   234 /* R--G */
+
+
+/*
+ * NV_CTRL_REFRESH_RATE - Returns the refresh rate of the specified
+ * display device in 100 * Hz (ie. to get the refresh rate in Hz, divide
+ * the returned value by 100.)
+ *
+ * This attribute may be queried through XNVCTRLQueryTargetAttribute()
+ * using a NV_CTRL_TARGET_TYPE_GPU or NV_CTRL_TARGET_TYPE_X_SCREEN target.
+ */
+
+#define NV_CTRL_REFRESH_RATE                                    235 /* R-DG */
+
+#define NV_CTRL_LAST_ATTRIBUTE NV_CTRL_REFRESH_RATE
+
+
+/**************************************************************************/
+
+/*
+ * String Attributes:
+ *
+ * String attributes can be queryied through the XNVCTRLQueryStringAttribute()
+ * and XNVCTRLQueryTargetStringAttribute() function calls.
+ * 
+ * String attributes can be set through the XNVCTRLSetStringAttribute()
+ * function call.  (There are currently no string attributes that can be
+ * set on non-X Screen targets.)
+ *
+ * Unless otherwise noted, all string attributes can be queried/set using an
+ * NV_CTRL_TARGET_TYPE_X_SCREEN target.  Attributes that cannot take an
+ * NV_CTRL_TARGET_TYPE_X_SCREEN target also cannot be queried/set through
+ * XNVCTRLQueryStringAttribute()/XNVCTRLSetStringAttribute() (Since
+ * these assume an X Screen target).
+ */
+
 
 /*
  * NV_CTRL_STRING_PRODUCT_NAME - the GPU product name on which the
  * specified X screen is running.
+ *
+ * This attribute may be queried through XNVCTRLQueryTargetStringAttribute()
+ * using a NV_CTRL_TARGET_TYPE_GPU or NV_CTRL_TARGET_TYPE_X_SCREEN target.
  */
 
-#define NV_CTRL_STRING_PRODUCT_NAME                             0  /* R-- */
+#define NV_CTRL_STRING_PRODUCT_NAME                             0  /* R--G */
 
 
 /*
@@ -2473,9 +2749,12 @@
 /*
  * NV_CTRL_STRING_DISPLAY_DEVICE_NAME - name of the display device
  * specified in the display_mask argument.
+ *
+ * This attribute may be queried through XNVCTRLQueryTargetStringAttribute()
+ * using a NV_CTRL_TARGET_TYPE_GPU or NV_CTRL_TARGET_TYPE_X_SCREEN target.
  */
 
-#define NV_CTRL_STRING_DISPLAY_DEVICE_NAME                      4  /* R-D */
+#define NV_CTRL_STRING_DISPLAY_DEVICE_NAME                      4  /* R-DG */
 
 
 /*
@@ -2494,6 +2773,7 @@
  * length, the descriptor shall be truncated with the excess bytes
  * being discarded.
  */
+
 #define NV_CTRL_STRING_DDCCI_MISC_TRANSMIT_DISPLAY_DESCRIPTOR   6  /* RWD */
 
 
@@ -2508,22 +2788,184 @@
  * moving to right along each line and then starting at left end of the
  * next line.
  */
+
 #define NV_CTRL_STRING_DDCCI_MISC_AUXILIARY_DISPLAY_DATA        7  /* -WD */
 
-#define NV_CTRL_STRING_LAST_ATTRIBUTE NV_CTRL_STRING_DDCCI_MISC_AUXILIARY_DISPLAY_DATA
+#define NV_CTRL_STRING_GVO_FIRMWARE_VERSION                     8  /* R-- */
+
+
+/* 
+ * NV_CTRL_STRING_CURRENT_MODELINE - Return the modeline currently
+ * being used by the specified display device.
+ *
+ * This attribute may be queried through XNVCTRLQueryTargetStringAttribute()
+ * using a NV_CTRL_TARGET_TYPE_GPU or NV_CTRL_TARGET_TYPE_X_SCREEN target.
+ */
+
+#define NV_CTRL_STRING_CURRENT_MODELINE                         9   /* R-DG */
+
+
+/* 
+ * NV_CTRL_STRING_ADD_MODELINE - Adds a modeline to the specified
+ * display device.  The modeline is not added if validation fails.
+ *
+ * This attribute may be queried through XNVCTRLQueryTargetStringAttribute()
+ * using a NV_CTRL_TARGET_TYPE_GPU or NV_CTRL_TARGET_TYPE_X_SCREEN target.
+ */
+
+#define NV_CTRL_STRING_ADD_MODELINE                            10   /* -WDG */
+
+
+/*
+ * NV_CTRL_STRING_DELETE_MODLEINE - Deletes an existing modeline
+ * from the specified display device.  The currently selected
+ * modeline cannot be deleted.  (This also means you cannot delete
+ * the last modeline.)
+ *
+ * This attribute may be queried through XNVCTRLQueryTargetStringAttribute()
+ * using a NV_CTRL_TARGET_TYPE_GPU or NV_CTRL_TARGET_TYPE_X_SCREEN target.
+ */
+
+#define NV_CTRL_STRING_DELETE_MODELINE                         11   /* -WDG */
+
+
+/* 
+ * NV_CTRL_STRING_CURRENT_METAMODE - Returns the metamode currently
+ * being used by the specified X screen.
+ */
+
+#define NV_CTRL_STRING_CURRENT_METAMODE                        12   /* R--- */
+
+
+/* 
+ * NV_CTRL_STRING_ADD_METAMODE - Adds a metamode to the specified
+ * X Screen (or GPU).  All modelines referenced in the metamode
+ * must already exist for each display device (as returned by the
+ * NV_CTRL_BINARY_DATA_MODELINES attribute)
+ *
+ * TwinView must be enabled on the X Screen/GPU to access this attribute.
+ */
+
+#define NV_CTRL_STRING_ADD_METAMODE                            13   /* -W-- */
+
+
+/*
+ * NV_CTRL_STRING_DELETE_METAMODE - Deletes an existing metamode
+ * from the specified X Screen (or GPU).  The currently selected
+ * metamode cannot be deleted.  (This also means you cannot delete
+ * the last metamode.)
+ *
+ * TwinView must be enabled on the X Screen/GPU to access this attribute.
+ */
+
+#define NV_CTRL_STRING_DELETE_METAMODE                         14   /* -WD-- */
+
+#define NV_CTRL_STRING_LAST_ATTRIBUTE NV_CTRL_STRING_DELETE_METAMODE
 
 
 /**************************************************************************/
 
 /*
  * Binary Data Attributes:
+ *
+ * Binary data attributes can be queryied through the XNVCTRLQueryBinaryData()
+ * and XNVCTRLQueryTargetBinaryData() function calls.
+ * 
+ * There are currently no binary data attributes that can be set.
+ *
+ * Unless otherwise noted, all Binary data attributes can be queried
+ * using an NV_CTRL_TARGET_TYPE_X_SCREEN target.  Attributes that cannot take
+ * an NV_CTRL_TARGET_TYPE_X_SCREEN target also cannot be queried through
+ * XNVCTRLQueryBinaryData() (Since an X Screen target is assumed).
  */
 
-#define NV_CTRL_BINARY_DATA_EDID                                0  /* R-D */
 
-#define NV_CTRL_BINARY_DATA_LAST_ATTRIBUTE NV_CTRL_BINARY_DATA_EDID
+/*
+ * NV_CTRL_BINARY_DATA_EDID - Returns a display device's EDID information
+ * data.
+ *
+ * This attribute may be queried through XNVCTRLQueryTargetBinaryData()
+ * using a NV_CTRL_TARGET_TYPE_GPU or NV_CTRL_TARGET_TYPE_X_SCREEN target.
+ */
+
+#define NV_CTRL_BINARY_DATA_EDID                                0  /* R-DG */
+
+
+/* 
+ * NV_CTRL_BINARY_DATA_MODELINES - Returns a display device's supported
+ * modelines.  Modelines are returned in a buffer, separated by a single
+ * \0 and terminated by two consecuitive \0's like so:
+ *
+ *  "Modeline 1\0Modeline 2\0Modeline 3\0Last Modeline\0\0"
+ *
+ * This attribute may be queried through XNVCTRLQueryTargetBinaryData()
+ * using a NV_CTRL_TARGET_TYPE_GPU or NV_CTRL_TARGET_TYPE_X_SCREEN target.
+ */
+
+#define NV_CTRL_BINARY_DATA_MODELINES                           1   /* R-DG */
+
+
+/* 
+ * NV_CTRL_BINARY_DATA_METAMODES - Returns an X Screen's supported
+ * metamodes.  Metamodes are returned in a buffer separated by a single
+ * \0 and terminated by two consecuitive \0's like so:
+ *
+ *  "MetaMode 1\0MetaMode 2\0MetaMode 3\0Last MetaMode\0\0"
+ */
+
+#define NV_CTRL_BINARY_DATA_METAMODES                           2   /* R-D- */
+
+
+/*
+ * NV_CTRL_BINARY_DATA_XSCREENS_USING_GPU - Returns the list of X
+ * screens currently driven by the given GPU.
+ *
+ * The format of the returned data is:
+ *
+ *     4       CARD32 number of screens
+ *     4 * n   CARD32 screen indices
+ *
+ * This attribute can only be queried through XNVCTRLQueryTargetBinaryData()
+ * using a NV_CTRL_TARGET_TYPE_GPU target.  This attribute cannot be
+ * queried using a NV_CTRL_TARGET_TYPE_X_SCREEN.
+ */
+
+#define NV_CTRL_BINARY_DATA_XSCREENS_USING_GPU                  3   /* R-DG */
+
+/*
+ * NV_CTRL_BINARY_DATA_GPUS_USED_BY_XSCREEN - Returns the list of GPUs
+ * currently in use by the given X screen.
+ *
+ * The format of the returned data is:
+ *
+ *     4       CARD32 number of GPUs
+ *     4 * n   CARD32 GPU indices
+ */
+
+#define NV_CTRL_BINARY_DATA_GPUS_USED_BY_XSCREEN                4   /* R--- */
+
+/*
+ * NV_CTRL_BINARY_DATA_GPUS_USING_FRAMELOCK - Returns the list of
+ * GPUs currently connected to the given frame lock board.
+ *
+ * The format of the returned data is:
+ *
+ *     4       CARD32 number of GPUs
+ *     4 * n   CARD32 GPU indices
+ *
+ * This attribute can only be queried through XNVCTRLQueryTargetBinaryData()
+ * using a NV_CTRL_TARGET_TYPE_FRAMELOCK target.  This attribute cannot be
+ * queried using a NV_CTRL_TARGET_TYPE_X_SCREEN.
+ */
+
+#define NV_CTRL_BINARY_DATA_GPUS_USING_FRAMELOCK                5   /* R-DF */
+
+#define NV_CTRL_BINARY_DATA_LAST_ATTRIBUTE \
+    NV_CTRL_BINARY_DATA_GPUS_USING_FRAMELOCK
+
 
 /**************************************************************************/
+
 /*
  * CTRLAttributeValidValuesRec -
  *
@@ -2555,12 +2997,15 @@
  * The permissions field of NVCTRLAttributeValidValuesRec is a bitmask
  * that may contain:
  *
- * ATTRIBUTE_TYPE_READ
- * ATTRIBUTE_TYPE_WRITE
- * ATTRIBUTE_TYPE_DISPLAY
+ * ATTRIBUTE_TYPE_READ      - Attribute may be read (queried.)
+ * ATTRIBUTE_TYPE_WRITE     - Attribute may be written to (set.)
+ * ATTRIBUTE_TYPE_DISPLAY   - Attribute requires a display mask.
+ * ATTRIBUTE_TYPE_GPU       - Attribute is valid for GPU target types.
+ * ATTRIBUTE_TYPE_FRAMELOCK - Attribute is valid for Frame Lock target types.
+ * ATTRIBUTE_TYPE_X_SCREEN  - Attribute is valid for X Screen target types.
  *
  * See 'Key to Integer Attribute "Permissions"' at the top of this
- * file for a description of what these three permission bits mean.
+ * file for a description of what these permission bits mean.
  */
 
 #define ATTRIBUTE_TYPE_UNKNOWN   0
@@ -2570,9 +3015,12 @@
 #define ATTRIBUTE_TYPE_RANGE     4
 #define ATTRIBUTE_TYPE_INT_BITS  5
 
-#define ATTRIBUTE_TYPE_READ      0x1
-#define ATTRIBUTE_TYPE_WRITE     0x2
-#define ATTRIBUTE_TYPE_DISPLAY   0x4
+#define ATTRIBUTE_TYPE_READ       0x01
+#define ATTRIBUTE_TYPE_WRITE      0x02
+#define ATTRIBUTE_TYPE_DISPLAY    0x04
+#define ATTRIBUTE_TYPE_GPU        0x08
+#define ATTRIBUTE_TYPE_FRAMELOCK  0x10
+#define ATTRIBUTE_TYPE_X_SCREEN   0x20
 
 typedef struct _NVCTRLAttributeValidValues {
     int type;
@@ -2589,8 +3037,19 @@ typedef struct _NVCTRLAttributeValidValues {
 } NVCTRLAttributeValidValuesRec;
 
 
+/**************************************************************************/
 
-#define ATTRIBUTE_CHANGED_EVENT 0
+/*
+ * NV-CONTROL X event notification.
+ *
+ * To receive X event notifications dealing with NV-CONTROL, you should
+ * call XNVCtrlSelectNotify() with one of the following set as the type
+ * of event to receive (see NVCtrlLib.h for more information):
+ */
+
+#define ATTRIBUTE_CHANGED_EVENT        0
+#define TARGET_ATTRIBUTE_CHANGED_EVENT 1
+
 
 
 #endif /* __NVCTRL_H */

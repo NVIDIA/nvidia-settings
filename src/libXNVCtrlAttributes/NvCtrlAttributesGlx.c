@@ -36,15 +36,48 @@
 #include <stdlib.h>
 #include <string.h>
 #include <stdio.h>
+#include <assert.h>
 
 #include <sys/utsname.h>
 
 #include <dlfcn.h>  /* To dynamically load libGL.so */
 #include <GL/glx.h> /* GLX #defines */
 
-#if defined(NV_BSD)
-static void *__libGL_handle = NULL;
-#endif
+
+typedef struct __libGLInfoRec {
+
+    /* libGL.so library handle */
+    void *handle;
+    int   ref_count; /* # users of the library */
+
+    /* OpenGL functions used */
+    const GLubyte * (* glGetString)              (GLenum);
+
+    /* GLX functions used */
+    Bool            (* glXQueryExtension)        (Display *, int *, int *);
+    const char *    (* glXQueryServerString)     (Display *, int, int);
+    const char *    (* glXGetClientString)       (Display *, int);
+    const char *    (* glXQueryExtensionsString) (Display *, int);
+
+    Bool            (* glXIsDirect)              (Display *, GLXContext);
+    Bool            (* glXMakeCurrent)           (Display *, GLXDrawable,
+                                                  GLXContext);
+    GLXContext      (* glXCreateContext)         (Display *, XVisualInfo *,
+                                                  GLXContext, Bool);
+    void            (* glXDestroyContext)        (Display *, GLXContext);
+    XVisualInfo *   (* glXChooseVisual)          (Display *, int, int *);
+#ifdef GLX_VERSION_1_3
+    GLXFBConfig *   (* glXGetFBConfigs)          (Display *, int, int *);
+    int             (* glXGetFBConfigAttrib)     (Display *, GLXFBConfig,
+                                                  int, int *);
+    XVisualInfo *   (* glXGetVisualFromFBConfig) (Display *, GLXFBConfig);
+#endif /* GLX_VERSION_1_3 */
+
+} __libGLInfo;
+
+static __libGLInfo *__libGL = NULL;
+
+
 
 /****
  *
@@ -91,6 +124,142 @@ static void *__libGL_handle = NULL;
 
 /******************************************************************************
  *
+ * Opens libGL for usage
+ *
+ ****/
+
+static Bool open_libgl(void)
+{
+    const char *error_str = NULL;
+
+
+    /* Initialize bookkeeping structure */
+    if ( !__libGL ) {
+        __libGL = (__libGLInfo *) calloc(1, sizeof(__libGLInfo));
+        if ( !__libGL ) {
+            goto fail;
+        }
+    }
+    
+
+    /* Library was already opened */
+    if ( __libGL->handle ) {
+        __libGL->ref_count++;
+        return True;
+    }
+
+
+    /* We are the first to open the library */
+    __libGL->handle = dlopen("libGL.so.1", RTLD_LAZY);
+    if ( !__libGL->handle ) {
+        goto fail;
+    }
+
+
+    /* Resolve GLX functions */
+    __libGL->glGetString =
+        NV_DLSYM(__libGL->handle, "glGetString");
+    if ((error_str = dlerror()) != NULL) goto fail;
+
+    __libGL->glXQueryExtension =
+        NV_DLSYM(__libGL->handle, "glXQueryExtension");
+    if ((error_str = dlerror()) != NULL) goto fail;
+
+    __libGL->glXQueryServerString =
+        NV_DLSYM(__libGL->handle, "glXQueryServerString");
+    if ((error_str = dlerror()) != NULL) goto fail;
+
+    __libGL->glXGetClientString =
+        NV_DLSYM(__libGL->handle, "glXGetClientString");
+    if ((error_str = dlerror()) != NULL) goto fail;
+
+    __libGL->glXQueryExtensionsString =
+        NV_DLSYM(__libGL->handle, "glXQueryExtensionsString");
+    if ((error_str = dlerror()) != NULL) goto fail;
+
+    __libGL->glXIsDirect =
+        NV_DLSYM(__libGL->handle, "glXIsDirect");
+    if ((error_str = dlerror()) != NULL) goto fail;
+
+    __libGL->glXMakeCurrent =
+        NV_DLSYM(__libGL->handle, "glXMakeCurrent");
+    if ((error_str = dlerror()) != NULL) goto fail;
+
+    __libGL->glXCreateContext =
+        NV_DLSYM(__libGL->handle, "glXCreateContext");
+    if ((error_str = dlerror()) != NULL) goto fail;
+
+    __libGL->glXDestroyContext =
+        NV_DLSYM(__libGL->handle, "glXDestroyContext");
+    if ((error_str = dlerror()) != NULL) goto fail;
+
+    __libGL->glXChooseVisual =
+        NV_DLSYM(__libGL->handle, "glXChooseVisual");
+    if ((error_str = dlerror()) != NULL) goto fail;
+
+#ifdef GLX_VERSION_1_3
+    __libGL->glXGetFBConfigs =
+        NV_DLSYM(__libGL->handle, "glXGetFBConfigs");
+    if ((error_str = dlerror()) != NULL) goto fail;
+
+    __libGL->glXGetFBConfigAttrib =
+        NV_DLSYM(__libGL->handle, "glXGetFBConfigAttrib");
+    if ((error_str = dlerror()) != NULL) goto fail;
+
+    __libGL->glXGetVisualFromFBConfig =
+        NV_DLSYM(__libGL->handle, "glXGetVisualFromFBConfig");
+    if ((error_str = dlerror()) != NULL) goto fail;
+#endif /* GLX_VERSION_1_3 */
+
+
+    /* Up the ref count */
+    __libGL->ref_count++;
+
+    return True;
+
+
+    /* Handle failures */
+ fail:
+    if ( error_str ) {
+        nv_error_msg("libGL setup error : %s\n", error_str);
+    }
+    if ( __libGL ) {
+        if ( __libGL->handle ) {
+            dlclose(__libGL->handle);
+            __libGL->handle = NULL;
+        }
+        free(__libGL);
+        __libGL = NULL;
+    }
+    return False;
+    
+} /* open_libgL() */
+
+
+
+/******************************************************************************
+ *
+ * Closes libGL - 
+ *
+ ****/
+
+static void close_libgl(void)
+{
+    if ( __libGL && __libGL->handle && __libGL->ref_count ) {
+        __libGL->ref_count--;
+        if ( __libGL->ref_count == 0 ) {
+            dlclose(__libGL->handle);
+            __libGL->handle = NULL;
+            free(__libGL);
+            __libGL = NULL;
+        }
+    }
+} /* close_libgl() */
+
+
+
+/******************************************************************************
+ *
  * NvCtrlInitGlxAttributes()
  *
  * Initializes the NvCtrlGlxAttributes Extension by linking the libGL.so.1 and
@@ -101,124 +270,34 @@ static void *__libGL_handle = NULL;
  *
  ****/
 
-NvCtrlGlxAttributes *
+Bool
 NvCtrlInitGlxAttributes (NvCtrlAttributePrivateHandle *h)
 {
-    NvCtrlGlxAttributes * glx   = NULL;
-    const char          * error = NULL; /* libGL error string */
-
-    /* For querying server about glx extension */
-    int errorBase;
-    int eventBase;
-    Bool                 (* glXQueryExtension) (Display *, int *, int *);
+    int event_base;
+    int error_base;
 
 
-
-    /* Check parameter */
-    if ( h == NULL || h->dpy == NULL ) {
-        goto fail;
+    /* Check parameters */
+    if ( !h || !h->dpy || h->target_type != NV_CTRL_TARGET_TYPE_X_SCREEN ) {
+        return False;
     }
 
 
-    /* Allocate for the GlxAttributes struct */
-    glx = (NvCtrlGlxAttributes *)
-        calloc(1, sizeof (NvCtrlGlxAttributes));
-    if ( glx == NULL ) {
-        error = "Out of memory.";
-        goto fail;
+    /* Open libGL.so.1 */
+    if ( !open_libgl() ) {
+        return False;
     }
 
 
-#if defined(NV_BSD)
-    /*
-     * XXX In current versions of FreeBSD, static TLS data
-     * allocated for the initial dlopen() doesn't appear
-     * to be free()'d on dlclose(); this results in failures
-     * on subsequent attempts to open libGL.so.
-     */
-    if (__libGL_handle == NULL) {
-        __libGL_handle = dlopen("libGL.so.1", RTLD_LAZY);
-    }
-    glx->libGL = __libGL_handle;
-#else
-    /* Link the libGL lib */
-    glx->libGL = dlopen("libGL.so.1", RTLD_LAZY);
-#endif
-    if ( glx->libGL == NULL ) {
-        /* Silently fail */
-        goto fail;
+    /* Verify server support of GLX extension */
+    if ( !__libGL->glXQueryExtension(h->dpy,
+                                     &(error_base),
+                                     &(event_base)) ) {
+        return False;
     }
 
-    /* Make sure GLX is supported by the server */
-    glXQueryExtension = NV_DLSYM(glx->libGL, "glXQueryExtension");
-    glx->dpy          = XOpenDisplay( XDisplayString(h->dpy) );
-    if ( glx->dpy == NULL ) {
-        goto fail;
-    }
-    if ( !glXQueryExtension(glx->dpy, &errorBase, &eventBase) ) {
-        goto fail;
-    }
+    return True;
 
-
-    /* Resolve GLX functions */
-    glx->glGetString              = NV_DLSYM(glx->libGL,
-                                          "glGetString");
-    if ((error = dlerror()) != NULL) goto fail;
-    glx->glXQueryExtensionsString = NV_DLSYM(glx->libGL,
-                                          "glXQueryExtensionsString");
-    if ((error = dlerror()) != NULL) goto fail;
-    glx->glXQueryServerString     = NV_DLSYM(glx->libGL,
-                                          "glXQueryServerString");
-    if ((error = dlerror()) != NULL) goto fail;
-    glx->glXGetClientString       = NV_DLSYM(glx->libGL,
-                                          "glXGetClientString");
-    if ((error = dlerror()) != NULL) goto fail;
-    glx->glXIsDirect              = NV_DLSYM(glx->libGL,
-                                          "glXIsDirect");
-    if ((error = dlerror()) != NULL) goto fail;
-    glx->glXMakeCurrent           = NV_DLSYM(glx->libGL,
-                                          "glXMakeCurrent");
-    if ((error = dlerror()) != NULL) goto fail;
-    glx->glXCreateContext         = NV_DLSYM(glx->libGL,
-                                          "glXCreateContext");
-    if ((error = dlerror()) != NULL) goto fail;
-    glx->glXDestroyContext        = NV_DLSYM(glx->libGL,
-                                          "glXDestroyContext");
-    if ((error = dlerror()) != NULL) goto fail;
-    glx->glXChooseVisual          = NV_DLSYM(glx->libGL,
-                                          "glXChooseVisual");
-    if ((error = dlerror()) != NULL) goto fail;
-#ifdef GLX_VERSION_1_3
-    glx->glXGetFBConfigs          = NV_DLSYM(glx->libGL,
-                                          "glXGetFBConfigs");
-    if ((error = dlerror()) != NULL) goto fail;
-    glx->glXGetFBConfigAttrib     = NV_DLSYM(glx->libGL,
-                                          "glXGetFBConfigAttrib");
-    if ((error = dlerror()) != NULL) goto fail;
-    glx->glXGetVisualFromFBConfig = NV_DLSYM(glx->libGL,
-                                          "glXGetVisualFromFBConfig");
-    if ((error = dlerror()) != NULL) goto fail;
-#endif /* GLX_VERSION_1_3 */
-
-
-    return glx;
-    
-
-    /* Handle failures */
- fail:
-    if ( error != NULL ) {
-        nv_error_msg("libGL setup error : %s\n", error);
-    }
-    if ( glx != NULL ) {
-        if ( glx->dpy != NULL ) {
-            XCloseDisplay(glx->dpy);
-        }
-        if ( glx->libGL != NULL ) {
-            dlclose(glx->libGL);
-        }
-        free(glx);
-    }
-    return NULL;
 } /* NvCtrlInitGlxAttributes() */
 
 
@@ -235,22 +314,13 @@ NvCtrlInitGlxAttributes (NvCtrlAttributePrivateHandle *h)
 void
 NvCtrlGlxAttributesClose (NvCtrlAttributePrivateHandle *h)
 {
-    if ( h == NULL || h->glx == NULL ) {
+    if ( !h || !h->glx ) {
         return;
     }
+ 
+    close_libgl();
 
-    if ( h->glx->dpy != NULL ) {
-        XCloseDisplay( h->glx->dpy );
-    }
-
-#if !defined(NV_BSD)
-    if ( h->glx->libGL != NULL ) {
-        dlclose( h->glx->libGL );
-    }
-#endif
-
-    free(h->glx);
-    h->glx = NULL;
+    h->glx = False;
 
 } /* NvCtrlGlxAttributesClose() */
 
@@ -287,20 +357,18 @@ get_fbconfig_attribs(NvCtrlAttributePrivateHandle *h)
 
 
 
-    /* Some sanity */
-    if ( h == NULL || h->dpy == NULL || h->glx == NULL ) {
-        goto fail;
-    }
+    assert(h->target_type == NV_CTRL_TARGET_TYPE_X_SCREEN);
+
 
     /* Get all fbconfigs for the display/screen */
-    fbconfigs = (* (h->glx->glXGetFBConfigs))( h->glx->dpy, h->screen,
-                                               &nfbconfigs);
+    fbconfigs = (* (__libGL->glXGetFBConfigs)) (h->dpy, h->target_id,
+                                                &nfbconfigs);
     if ( fbconfigs == NULL || nfbconfigs == 0 ) {
         goto fail;
     }
 
     /* Allocate to hold the fbconfig attributes */
-    fbcas = calloc(nfbconfigs + 1, sizeof (GLXFBConfigAttr));
+    fbcas = calloc(nfbconfigs + 1, sizeof(GLXFBConfigAttr));
     if ( fbcas == NULL ) {
         goto fail;        
     }
@@ -309,8 +377,8 @@ get_fbconfig_attribs(NvCtrlAttributePrivateHandle *h)
     for ( i = 0; i < nfbconfigs; i++ ) {
 
         /* Get related visual id if any */
-        visinfo = (* (h->glx->glXGetVisualFromFBConfig)) (h->glx->dpy,
-                                                          fbconfigs[i]);
+        visinfo = (* (__libGL->glXGetVisualFromFBConfig)) (h->dpy,
+                                                           fbconfigs[i]);
         if ( visinfo ) {
             fbcas[i].visual_id = visinfo->visualid;
             XFree(visinfo);
@@ -318,137 +386,137 @@ get_fbconfig_attribs(NvCtrlAttributePrivateHandle *h)
             fbcas[i].visual_id = 0;           
         }
 
-        ret = (* (h->glx->glXGetFBConfigAttrib)) (h->glx->dpy,
+        ret = (* (__libGL->glXGetFBConfigAttrib))(h->dpy,
                                                   fbconfigs[i],
                                                   GLX_FBCONFIG_ID,
                                                   &(fbcas[i].fbconfig_id));
         if ( ret != Success ) goto fail;
-        ret = (* (h->glx->glXGetFBConfigAttrib)) (h->glx->dpy, fbconfigs[i],
+        ret = (* (__libGL->glXGetFBConfigAttrib))(h->dpy, fbconfigs[i],
                                                   GLX_BUFFER_SIZE,
                                                   &(fbcas[i].buffer_size));
         if ( ret != Success ) goto fail;
-        ret = (* (h->glx->glXGetFBConfigAttrib)) (h->glx->dpy, fbconfigs[i],
+        ret = (* (__libGL->glXGetFBConfigAttrib))(h->dpy, fbconfigs[i],
                                                   GLX_LEVEL,
                                                   &(fbcas[i].level));
         if ( ret != Success ) goto fail;
-        ret = (* (h->glx->glXGetFBConfigAttrib)) (h->glx->dpy, fbconfigs[i],
+        ret = (* (__libGL->glXGetFBConfigAttrib))(h->dpy, fbconfigs[i],
                                                   GLX_DOUBLEBUFFER,
                                                   &(fbcas[i].doublebuffer));
         if ( ret != Success ) goto fail;
-        ret = (* (h->glx->glXGetFBConfigAttrib)) (h->glx->dpy, fbconfigs[i],
+        ret = (* (__libGL->glXGetFBConfigAttrib))(h->dpy, fbconfigs[i],
                                                   GLX_STEREO,
                                                   &(fbcas[i].stereo));
         if ( ret != Success ) goto fail;
-        ret = (* (h->glx->glXGetFBConfigAttrib)) (h->glx->dpy, fbconfigs[i],
+        ret = (* (__libGL->glXGetFBConfigAttrib))(h->dpy, fbconfigs[i],
                                                   GLX_AUX_BUFFERS,
                                                   &(fbcas[i].aux_buffers));
         if ( ret != Success ) goto fail;
-        ret = (* (h->glx->glXGetFBConfigAttrib)) (h->glx->dpy, fbconfigs[i],
+        ret = (* (__libGL->glXGetFBConfigAttrib))(h->dpy, fbconfigs[i],
                                                   GLX_RED_SIZE,
                                                   &(fbcas[i].red_size));
         if ( ret != Success ) goto fail;
-        ret = (* (h->glx->glXGetFBConfigAttrib)) (h->glx->dpy, fbconfigs[i],
+        ret = (* (__libGL->glXGetFBConfigAttrib))(h->dpy, fbconfigs[i],
                                                   GLX_GREEN_SIZE,
                                                   &(fbcas[i].green_size));
         if ( ret != Success ) goto fail;
-        ret = (* (h->glx->glXGetFBConfigAttrib)) (h->glx->dpy, fbconfigs[i],
+        ret = (* (__libGL->glXGetFBConfigAttrib))(h->dpy, fbconfigs[i],
                                                   GLX_BLUE_SIZE,
                                                   &(fbcas[i].blue_size));
         if ( ret != Success ) goto fail;
-        ret = (* (h->glx->glXGetFBConfigAttrib)) (h->glx->dpy, fbconfigs[i],
+        ret = (* (__libGL->glXGetFBConfigAttrib))(h->dpy, fbconfigs[i],
                                                   GLX_ALPHA_SIZE,
                                                   &(fbcas[i].alpha_size));
         if ( ret != Success ) goto fail;
-        ret = (* (h->glx->glXGetFBConfigAttrib)) (h->glx->dpy, fbconfigs[i],
+        ret = (* (__libGL->glXGetFBConfigAttrib))(h->dpy, fbconfigs[i],
                                                   GLX_DEPTH_SIZE,
                                                   &(fbcas[i].depth_size));
         if ( ret != Success ) goto fail;
-        ret = (* (h->glx->glXGetFBConfigAttrib)) (h->glx->dpy, fbconfigs[i],
+        ret = (* (__libGL->glXGetFBConfigAttrib))(h->dpy, fbconfigs[i],
                                                   GLX_STENCIL_SIZE,
                                                   &(fbcas[i].stencil_size));
         if ( ret != Success ) goto fail;
-        ret = (* (h->glx->glXGetFBConfigAttrib)) (h->glx->dpy, fbconfigs[i],
+        ret = (* (__libGL->glXGetFBConfigAttrib))(h->dpy, fbconfigs[i],
                                                   GLX_ACCUM_RED_SIZE,
                                                   &(fbcas[i].accum_red_size));
         if ( ret != Success ) goto fail;
-        ret = (* (h->glx->glXGetFBConfigAttrib)) (h->glx->dpy, fbconfigs[i],
+        ret = (* (__libGL->glXGetFBConfigAttrib))(h->dpy, fbconfigs[i],
                                                   GLX_ACCUM_GREEN_SIZE,
                                                   &(fbcas[i].accum_green_size));
         if ( ret != Success ) goto fail;
-        ret = (* (h->glx->glXGetFBConfigAttrib)) (h->glx->dpy, fbconfigs[i],
+        ret = (* (__libGL->glXGetFBConfigAttrib))(h->dpy, fbconfigs[i],
                                                   GLX_ACCUM_BLUE_SIZE,
                                                   &(fbcas[i].accum_blue_size));
         if ( ret != Success ) goto fail;
-        ret = (* (h->glx->glXGetFBConfigAttrib)) (h->glx->dpy, fbconfigs[i],
+        ret = (* (__libGL->glXGetFBConfigAttrib))(h->dpy, fbconfigs[i],
                                                   GLX_ACCUM_ALPHA_SIZE,
                                                   &(fbcas[i].accum_alpha_size));
         if ( ret != Success ) goto fail;
-        ret = (* (h->glx->glXGetFBConfigAttrib)) (h->glx->dpy, fbconfigs[i],
+        ret = (* (__libGL->glXGetFBConfigAttrib))(h->dpy, fbconfigs[i],
                                                   GLX_RENDER_TYPE,
                                                   &(fbcas[i].render_type));
         if ( ret != Success ) goto fail;
-        ret = (* (h->glx->glXGetFBConfigAttrib)) (h->glx->dpy, fbconfigs[i],
+        ret = (* (__libGL->glXGetFBConfigAttrib))(h->dpy, fbconfigs[i],
                                                   GLX_DRAWABLE_TYPE,
                                                   &(fbcas[i].drawable_type));
         if ( ret != Success ) goto fail;
-        ret = (* (h->glx->glXGetFBConfigAttrib)) (h->glx->dpy, fbconfigs[i],
+        ret = (* (__libGL->glXGetFBConfigAttrib))(h->dpy, fbconfigs[i],
                                                   GLX_X_RENDERABLE,
                                                   &(fbcas[i].x_renderable));
         if ( ret != Success ) goto fail;
-        ret = (* (h->glx->glXGetFBConfigAttrib)) (h->glx->dpy, fbconfigs[i],
+        ret = (* (__libGL->glXGetFBConfigAttrib))(h->dpy, fbconfigs[i],
                                                   GLX_X_VISUAL_TYPE,
                                                   &(fbcas[i].x_visual_type));
         if ( ret != Success ) goto fail;
-        ret = (* (h->glx->glXGetFBConfigAttrib)) (h->glx->dpy, fbconfigs[i],
+        ret = (* (__libGL->glXGetFBConfigAttrib))(h->dpy, fbconfigs[i],
                                                   GLX_CONFIG_CAVEAT,
                                                   &(fbcas[i].config_caveat));
         if ( ret != Success ) goto fail;
-        ret = (* (h->glx->glXGetFBConfigAttrib)) (h->glx->dpy, fbconfigs[i],
+        ret = (* (__libGL->glXGetFBConfigAttrib))(h->dpy, fbconfigs[i],
                                                   GLX_TRANSPARENT_TYPE,
                                                   &(fbcas[i].transparent_type));
         if ( ret != Success ) goto fail;
-        ret = (* (h->glx->glXGetFBConfigAttrib)) (h->glx->dpy, fbconfigs[i],
+        ret = (* (__libGL->glXGetFBConfigAttrib))(h->dpy, fbconfigs[i],
                                                   GLX_TRANSPARENT_INDEX_VALUE,
                                                   &(fbcas[i].transparent_index_value));
         if ( ret != Success ) goto fail;
-        ret = (* (h->glx->glXGetFBConfigAttrib)) (h->glx->dpy, fbconfigs[i],
+        ret = (* (__libGL->glXGetFBConfigAttrib))(h->dpy, fbconfigs[i],
                                                   GLX_TRANSPARENT_RED_VALUE,
                                                   &(fbcas[i].transparent_red_value));
         if ( ret != Success ) goto fail;
-        ret = (* (h->glx->glXGetFBConfigAttrib)) (h->glx->dpy, fbconfigs[i],
+        ret = (* (__libGL->glXGetFBConfigAttrib))(h->dpy, fbconfigs[i],
                                                   GLX_TRANSPARENT_GREEN_VALUE,
                                                   &(fbcas[i].transparent_green_value));
         if ( ret != Success ) goto fail;
-        ret = (* (h->glx->glXGetFBConfigAttrib)) (h->glx->dpy, fbconfigs[i],
+        ret = (* (__libGL->glXGetFBConfigAttrib))(h->dpy, fbconfigs[i],
                                                   GLX_TRANSPARENT_BLUE_VALUE,
                                                   &(fbcas[i].transparent_blue_value));
         if ( ret != Success ) goto fail;
-        ret = (* (h->glx->glXGetFBConfigAttrib)) (h->glx->dpy, fbconfigs[i],
+        ret = (* (__libGL->glXGetFBConfigAttrib))(h->dpy, fbconfigs[i],
                                                   GLX_TRANSPARENT_ALPHA_VALUE,
                                                   &(fbcas[i].transparent_alpha_value));
         if ( ret != Success ) goto fail;
-        ret = (* (h->glx->glXGetFBConfigAttrib)) (h->glx->dpy, fbconfigs[i],
+        ret = (* (__libGL->glXGetFBConfigAttrib))(h->dpy, fbconfigs[i],
                                                   GLX_MAX_PBUFFER_WIDTH,
                                                   &(fbcas[i].pbuffer_width));
         if ( ret != Success ) goto fail;
-        ret = (* (h->glx->glXGetFBConfigAttrib)) (h->glx->dpy, fbconfigs[i],
+        ret = (* (__libGL->glXGetFBConfigAttrib))(h->dpy, fbconfigs[i],
                                                   GLX_MAX_PBUFFER_HEIGHT,
                                                   &(fbcas[i].pbuffer_height));
         if ( ret != Success ) goto fail;
-        ret = (* (h->glx->glXGetFBConfigAttrib)) (h->glx->dpy, fbconfigs[i],
+        ret = (* (__libGL->glXGetFBConfigAttrib))(h->dpy, fbconfigs[i],
                                                   GLX_MAX_PBUFFER_PIXELS,
                                                   &(fbcas[i].pbuffer_max));
         if ( ret != Success ) goto fail;
 
 #if defined(GLX_SAMPLES_ARB) && defined (GLX_SAMPLE_BUFFERS_ARB)
         fbcas[i].multi_sample_valid = 1;
-        ret = (* (h->glx->glXGetFBConfigAttrib)) (h->glx->dpy, fbconfigs[i],
+        ret = (* (__libGL->glXGetFBConfigAttrib))(h->dpy, fbconfigs[i],
                                                   GLX_SAMPLES_ARB,
                                                   &(fbcas[i].multi_samples));
         if ( ret != Success ) {
             fbcas[i].multi_sample_valid = 0;
         } else {
-            ret = (* (h->glx->glXGetFBConfigAttrib)) (h->glx->dpy,
+            ret = (* (__libGL->glXGetFBConfigAttrib))(h->dpy,
                                                       fbconfigs[i],
                                                       GLX_SAMPLE_BUFFERS_ARB,
                                                       &(fbcas[i].multi_sample_buffers));
@@ -470,10 +538,10 @@ get_fbconfig_attribs(NvCtrlAttributePrivateHandle *h)
 
     /* Handle failures */
  fail:
-    if ( fbcas != NULL ) {
+    if ( fbcas ) {
         free(fbcas);
     }
-    if ( fbconfigs != NULL ) {
+    if ( fbconfigs ) {
         XFree(fbconfigs);
     }
 
@@ -500,8 +568,14 @@ NvCtrlGlxGetVoidAttribute (NvCtrlAttributePrivateHandle *h,
     GLXFBConfigAttr * fbconfig_attribs = NULL;
 
 
-    /* Validate Arguments */
-    if (h == NULL || ptr == NULL) {
+    /* Validate */
+    if ( !h || !h->dpy || h->target_type != NV_CTRL_TARGET_TYPE_X_SCREEN ) {
+        return NvCtrlBadHandle;
+    }
+    if ( !h->glx || !__libGL ) {
+        return NvCtrlMissingExtension;
+    }
+    if ( !ptr ) {
         return NvCtrlBadArgument;
     }
 
@@ -555,28 +629,26 @@ NvCtrlGlxGetVoidAttribute (NvCtrlAttributePrivateHandle *h,
 /* Macros to set up/tear down a rendering context */
 
 #define GET_CONTEXT() \
-  \
-  root    = RootWindow(h->glx->dpy, h->screen); \
-  visinfo = h->glx->glXChooseVisual(h->glx->dpy, h->screen, \
+  root    = RootWindow(h->dpy, h->target_id); \
+  visinfo = __libGL->glXChooseVisual(h->dpy, h->target_id, \
                                     &(attribListSgl[0])); \
   win_attr.background_pixel = 0; \
   win_attr.border_pixel     = 0; \
-  win_attr.colormap         = XCreateColormap(h->glx->dpy, root, \
+  win_attr.colormap         = XCreateColormap(h->dpy, root, \
                                               visinfo->visual, AllocNone); \
-  win_attr.event_mask       = StructureNotifyMask | ExposureMask; \
+  win_attr.event_mask       = 0; \
   mask                      = CWBackPixel | CWBorderPixel | CWColormap | \
                               CWEventMask; \
-  win  = XCreateWindow(h->glx->dpy, root, 0, 0, width, height, \
+  win  = XCreateWindow(h->dpy, root, 0, 0, width, height, \
                        0, visinfo->depth, InputOutput, \
                        visinfo->visual, mask, &win_attr); \
-  ctx  = h->glx->glXCreateContext(h->glx->dpy, visinfo, NULL, True ); \
-  if ( ctx ) { h->glx->glXMakeCurrent(h->glx->dpy, win, ctx); }
+  ctx  = __libGL->glXCreateContext(h->dpy, visinfo, NULL, True ); \
+  if ( ctx ) { __libGL->glXMakeCurrent(h->dpy, win, ctx); }
 
 #define CLEAN_CONTEXT() \
-  \
   if ( visinfo )   { XFree(visinfo); } \
-  if ( ctx )       { h->glx->glXDestroyContext(h->glx->dpy, ctx); } \
-  if ( win )       { XDestroyWindow(h->glx->dpy, win); }
+  if ( ctx )       { __libGL->glXDestroyContext(h->dpy, ctx); } \
+  if ( win )       { XDestroyWindow(h->dpy, win); }
 
 
 ReturnStatus
@@ -602,67 +674,68 @@ NvCtrlGlxGetStringAttribute (NvCtrlAttributePrivateHandle *h,
                                    GLX_BLUE_SIZE, 1,
                                    None };
     
-    
-    /* Validate Arguments */
-    if (h == NULL || ptr == NULL) {
+    /* Validate */
+    if ( !h || !h->dpy || h->target_type != NV_CTRL_TARGET_TYPE_X_SCREEN ) {
+        return NvCtrlBadHandle;
+    }
+    if ( !h->glx || !__libGL ) {
+        return NvCtrlMissingExtension;
+    }
+    if ( !ptr ) {
         return NvCtrlBadArgument;
     }
 
-    /* Make sure extension was initialized */
-    if ( h->glx == NULL ) {
-        return NvCtrlError;
-    }
 
     /* Get the right string */
     switch (attr) {
         
     case NV_CTRL_STRING_GLX_DIRECT_RENDERING:
         GET_CONTEXT();
-        str = (  (* (h->glx->glXIsDirect))(h->glx->dpy, ctx)  ) ? "Yes" : "No";
+        str = (  (* (__libGL->glXIsDirect))(h->dpy, ctx)  ) ? "Yes" : "No";
         CLEAN_CONTEXT();
         break;
     case NV_CTRL_STRING_GLX_GLX_EXTENSIONS:
-        str = (* (h->glx->glXQueryExtensionsString))(h->glx->dpy, h->screen);
+        str = (* (__libGL->glXQueryExtensionsString))(h->dpy, h->target_id);
         break;
     case NV_CTRL_STRING_GLX_SERVER_VENDOR:
-        str = (* (h->glx->glXQueryServerString))(h->glx->dpy, h->screen,
-                                                 GLX_VENDOR);
+        str = (* (__libGL->glXQueryServerString))(h->dpy, h->target_id,
+                                                  GLX_VENDOR);
         break;
     case NV_CTRL_STRING_GLX_SERVER_VERSION:
-        str = (* (h->glx->glXQueryServerString))(h->glx->dpy, h->screen,
-                                                 GLX_VERSION);
+        str = (* (__libGL->glXQueryServerString))(h->dpy, h->target_id,
+                                                  GLX_VERSION);
         break;
     case NV_CTRL_STRING_GLX_SERVER_EXTENSIONS:
-        str = (* (h->glx->glXQueryServerString))(h->glx->dpy, h->screen,
-                                                 GLX_EXTENSIONS);
+        str = (* (__libGL->glXQueryServerString))(h->dpy, h->target_id,
+                                                  GLX_EXTENSIONS);
         break;
     case NV_CTRL_STRING_GLX_CLIENT_VENDOR:
-        str = (* (h->glx->glXGetClientString))(h->glx->dpy, GLX_VENDOR);
+        str = (* (__libGL->glXGetClientString))(h->dpy, GLX_VENDOR);
         break;
     case NV_CTRL_STRING_GLX_CLIENT_VERSION:
-        str = (* (h->glx->glXGetClientString))(h->glx->dpy, GLX_VERSION);
+        str = (* (__libGL->glXGetClientString))(h->dpy, GLX_VERSION);
         break;
     case NV_CTRL_STRING_GLX_CLIENT_EXTENSIONS:
-        str = (* (h->glx->glXGetClientString))(h->glx->dpy, GLX_EXTENSIONS);
+        str = (* (__libGL->glXGetClientString))(h->dpy, GLX_EXTENSIONS);
         break;
     case NV_CTRL_STRING_GLX_OPENGL_VENDOR:
         GET_CONTEXT();
-        str = (const char *) (* (h->glx->glGetString))(GL_VENDOR);
+        str = (const char *) (* (__libGL->glGetString))(GL_VENDOR);
         CLEAN_CONTEXT();
         break;
     case NV_CTRL_STRING_GLX_OPENGL_RENDERER:
         GET_CONTEXT();
-        str = (const char *) (* (h->glx->glGetString))(GL_RENDERER);
+        str = (const char *) (* (__libGL->glGetString))(GL_RENDERER);
         CLEAN_CONTEXT();
         break;
     case NV_CTRL_STRING_GLX_OPENGL_VERSION:
         GET_CONTEXT();
-        str = (const char *) (* (h->glx->glGetString))(GL_VERSION);
+        str = (const char *) (* (__libGL->glGetString))(GL_VERSION);
         CLEAN_CONTEXT();
         break;
     case NV_CTRL_STRING_GLX_OPENGL_EXTENSIONS:
         GET_CONTEXT();
-        str = (const char *) (* (h->glx->glGetString))(GL_EXTENSIONS);
+        str = (const char *) (* (__libGL->glGetString))(GL_EXTENSIONS);
         CLEAN_CONTEXT();
         break;
         
@@ -673,8 +746,7 @@ NvCtrlGlxGetStringAttribute (NvCtrlAttributePrivateHandle *h,
 
 
     /* Copy the string and return it */
-    if ( str == NULL ||
-         (*ptr = strdup(str)) == NULL ) {
+    if ( !str || (*ptr = strdup(str)) == NULL ) {
         return NvCtrlError;           
     }
 

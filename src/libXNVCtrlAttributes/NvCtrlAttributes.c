@@ -45,7 +45,8 @@
  * NvCtrlAttributeInit() - XXX not sure how to handle errors
  */
 
-NvCtrlAttributeHandle *NvCtrlAttributeInit(Display *dpy, int screen,
+NvCtrlAttributeHandle *NvCtrlAttributeInit(Display *dpy, int target_type,
+                                           int target_id,
                                            unsigned int subsystems)
 {
     NvCtrlAttributePrivateHandle *h = NULL;
@@ -59,8 +60,9 @@ NvCtrlAttributeHandle *NvCtrlAttributeInit(Display *dpy, int screen,
     /* initialize the display and screen to the parameter values */
 
     h->dpy = dpy;
-    h->screen = screen;
-       
+    h->target_type = target_type;
+    h->target_id = target_id;
+
     /* initialize the NV-CONTROL attributes; give up if this fails */
 
     if (subsystems & NV_CTRL_ATTRIBUTES_NV_CONTROL_SUBSYSTEM) {
@@ -69,40 +71,49 @@ NvCtrlAttributeHandle *NvCtrlAttributeInit(Display *dpy, int screen,
     }
 
     /*
-     * initialize the XF86VidMode attributes; it is OK if this
-     * fails
+     * initialize X Screen specific attributes for X Screen
+     * target types.
      */
 
-    if (subsystems & NV_CTRL_ATTRIBUTES_XF86VIDMODE_SUBSYSTEM) {
-        h->vm = NvCtrlInitVidModeAttributes(h);
-    }
+    if (target_type == NV_CTRL_TARGET_TYPE_X_SCREEN) {
 
-    /*
-     * initialize the XVideo extension and attributes; it is OK if
-     * this fails
-     */
+        /*
+         * initialize the XF86VidMode attributes; it is OK if this
+         * fails
+         */
+        
+        if (subsystems & NV_CTRL_ATTRIBUTES_XF86VIDMODE_SUBSYSTEM) {
+            h->vm = NvCtrlInitVidModeAttributes(h);
+        }
+        
+        /*
+         * initialize the XVideo extension and attributes; it is OK if
+         * this fails
+         */
+        
+        if (subsystems & NV_CTRL_ATTRIBUTES_XVIDEO_SUBSYSTEM) {
+            h->xv = NvCtrlInitXvAttributes(h);
+        }
+        
+        /*
+         * initialize the GLX extension and attributes; it is OK if
+         * this fails
+         */
+        
+        if (subsystems & NV_CTRL_ATTRIBUTES_GLX_SUBSYSTEM) {
+            h->glx = NvCtrlInitGlxAttributes(h);
+        }
+        
+        /*
+         * initialize the XRandR extension and attributes; it is OK if
+         * this fails
+         */
+        
+        if (subsystems & NV_CTRL_ATTRIBUTES_XRANDR_SUBSYSTEM) {
+            h->xrandr = NvCtrlInitXrandrAttributes(h);
+        }
 
-    if (subsystems & NV_CTRL_ATTRIBUTES_XVIDEO_SUBSYSTEM) {
-        h->xv = NvCtrlInitXvAttributes(h);
-    }
-
-    /*
-     * initialize the GLX extension and attributes; it is OK if
-     * this fails
-     */
-
-    if (subsystems & NV_CTRL_ATTRIBUTES_GLX_SUBSYSTEM) {
-        h->glx = NvCtrlInitGlxAttributes(h);
-    }
-
-    /*
-     * initialize the XRandR extension and attributes; it is OK if
-     * this fails
-     */
-
-    if (subsystems & NV_CTRL_ATTRIBUTES_XRANDR_SUBSYSTEM) {
-        h->xrandr = NvCtrlInitXrandrAttributes(h);
-    }
+    } /* X Screen target type attribute subsystems */
   
     return (NvCtrlAttributeHandle *) h;
 
@@ -135,8 +146,13 @@ char *NvCtrlGetDisplayName(NvCtrlAttributeHandle *handle)
     h = (NvCtrlAttributePrivateHandle *) handle;
     
     display_name = DisplayString(h->dpy);
+
+    if (h->target_type != NV_CTRL_TARGET_TYPE_X_SCREEN) {
+        /* Return the display name and # without a screen number */
+        return nv_standardize_screen_name(display_name, -2);
+    }
     
-    return nv_standardize_screen_name(display_name, h->screen);
+    return nv_standardize_screen_name(display_name, h->target_id);
     
 } /* NvCtrlGetDisplayName() */
 
@@ -171,10 +187,48 @@ int NvCtrlGetScreen(NvCtrlAttributeHandle *handle)
     if (!handle) return -1;
 
     h = (NvCtrlAttributePrivateHandle *) handle;
+
+    if (h->target_type != NV_CTRL_TARGET_TYPE_X_SCREEN) return -1;
     
-    return h->screen;
+    return h->target_id;
 
 } /* NvCtrlGetScreen() */
+
+
+/*
+ * NvCtrlGetTargetType() - returns the target type associated with this
+ * NvCtrlAttributeHandle.
+ */
+
+int NvCtrlGetTargetType(NvCtrlAttributeHandle *handle)
+{
+    NvCtrlAttributePrivateHandle *h;
+
+    if (!handle) return -1;
+
+    h = (NvCtrlAttributePrivateHandle *) handle;
+
+    return h->target_type;
+
+} /* NvCtrlGetTargetType() */
+
+
+/*
+ * NvCtrlGetTargetId() - returns the target id number associated with this
+ * NvCtrlAttributeHandle.
+ */
+
+int NvCtrlGetTargetId(NvCtrlAttributeHandle *handle)
+{
+    NvCtrlAttributePrivateHandle *h;
+
+    if (!handle) return -1;
+
+    h = (NvCtrlAttributePrivateHandle *) handle;
+
+    return h->target_id;
+
+} /* NvCtrlGetTargetId() */
 
 
 /*
@@ -190,7 +244,9 @@ int NvCtrlGetScreenWidth(NvCtrlAttributeHandle *handle)
 
     h = (NvCtrlAttributePrivateHandle *) handle;
 
-    return DisplayWidth(h->dpy, h->screen);
+    if (h->target_type != NV_CTRL_TARGET_TYPE_X_SCREEN) return -1;
+
+    return DisplayWidth(h->dpy, h->target_id);
     
 } /* NvCtrlGetScreenWidth() */
 
@@ -208,7 +264,9 @@ int NvCtrlGetScreenHeight(NvCtrlAttributeHandle *handle)
 
     h = (NvCtrlAttributePrivateHandle *) handle;
 
-    return DisplayHeight(h->dpy, h->screen);
+    if (h->target_type != NV_CTRL_TARGET_TYPE_X_SCREEN) return -1;
+
+    return DisplayHeight(h->dpy, h->target_id);
     
 } /* NvCtrlGetScreenHeight() */
 
@@ -240,6 +298,18 @@ int NvCtrlGetXrandrEventBase(NvCtrlAttributeHandle *handle)
     
 } /* NvCtrlGetXrandrEventBase() */
 
+
+ReturnStatus NvCtrlQueryTargetCount(NvCtrlAttributeHandle *handle,
+                                    int target_type,
+                                    int *val)
+{
+    NvCtrlAttributePrivateHandle *h;
+
+    h = (NvCtrlAttributePrivateHandle *) handle;
+    if (!h) return NvCtrlBadArgument;
+    return NvCtrlNvControlQueryTargetCount(handle, target_type, val);
+
+} /* NvCtrlQueryTargetCount() */
 
 ReturnStatus NvCtrlGetAttribute(NvCtrlAttributeHandle *handle,
                                 int attr, int *val)
@@ -285,6 +355,15 @@ ReturnStatus NvCtrlGetStringAttribute(NvCtrlAttributeHandle *handle,
     return NvCtrlGetStringDisplayAttribute(handle, 0, attr, ptr);
 
 } /* NvCtrlGetStringAttribute() */
+
+
+ReturnStatus NvCtrlSetStringAttribute(NvCtrlAttributeHandle *handle,
+                                      int attr, char *ptr, int *ret)
+{
+    if (!handle) return NvCtrlBadArgument;
+    return NvCtrlSetStringDisplayAttribute(handle, 0, attr, ptr, ret);
+
+} /* NvCtrlSetStringAttribute() */
 
 
 ReturnStatus
@@ -438,6 +517,26 @@ NvCtrlGetStringDisplayAttribute(NvCtrlAttributeHandle *handle,
 
 
 ReturnStatus
+NvCtrlSetStringDisplayAttribute(NvCtrlAttributeHandle *handle,
+                                unsigned int display_mask,
+                                int attr, char *ptr, int *ret)
+{
+    NvCtrlAttributePrivateHandle *h;
+
+    h = (NvCtrlAttributePrivateHandle *) handle;
+
+    if ((attr >= 0) && (attr <= NV_CTRL_STRING_LAST_ATTRIBUTE)) {
+        if (!h->nv) return NvCtrlMissingExtension;
+        return NvCtrlNvControlSetStringAttribute(h, display_mask, attr,
+                                                 ptr, ret);
+    }
+
+    return NvCtrlNoAttribute;
+
+} /* NvCtrlSetStringDisplayAttribute() */
+
+
+ReturnStatus
 NvCtrlGetBinaryAttribute(NvCtrlAttributeHandle *handle,
                          unsigned int display_mask, int attr,
                          unsigned char **data, int *len)
@@ -502,3 +601,12 @@ void NvCtrlAttributeClose(NvCtrlAttributeHandle *handle)
 
     free(h);
 } /* NvCtrlAttributeClose() */
+
+
+ReturnStatus
+NvCtrlXrandrSetScreenMode (NvCtrlAttributeHandle *handle,
+                           int width, int height, int refresh)
+{
+    return NvCtrlXrandrSetScreenMagicMode
+        ((NvCtrlAttributePrivateHandle *)handle, width, height, refresh);
+} /* NvCtrlXrandrSetScreenMode() */

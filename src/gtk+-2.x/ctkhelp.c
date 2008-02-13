@@ -32,7 +32,6 @@
 
 #include <stdlib.h>
 
-static GtkTextTagTable *create_tag_table(void);
 static GtkTextBuffer *create_default_help(CtkHelp *ctk_help);
 static void close_button_clicked(GtkButton *button, gpointer user_data);
 static gboolean window_destroy(GtkWidget *widget, GdkEvent *event,
@@ -66,7 +65,7 @@ GType ctk_help_get_type(
     return ctk_help_type;
 }
 
-GtkWidget* ctk_help_new(GtkWidget *toggle_button)
+GtkWidget* ctk_help_new(GtkWidget *toggle_button, GtkTextTagTable *tag_table)
 {
     GObject *object;
     CtkHelp *ctk_help;
@@ -145,9 +144,9 @@ GtkWidget* ctk_help_new(GtkWidget *toggle_button)
     g_object_set(G_OBJECT(ctk_help->text_viewer),
                  "pixels-inside-wrap", 10, NULL);
 
-    /* create the tag table */
+    /* save the tag table */
 
-    ctk_help->tag_table = create_tag_table();
+    ctk_help->tag_table = tag_table;
 
     /* create the default help text */
     
@@ -247,7 +246,7 @@ static GtkTextBuffer *create_default_help(CtkHelp *ctk_help)
 }
 
 
-static GtkTextTagTable *create_tag_table(void)
+GtkTextTagTable *ctk_help_create_tag_table(void)
 {
     GtkTextTagTable *table;
     GtkTextTag *tag;

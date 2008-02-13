@@ -37,6 +37,7 @@
 
 #include "ctkframelock.h"
 #include "ctkgvo.h"
+#include "ctkgvo-csc.h"
 #include "ctkconfig.h"
 
 #include "ctkdevice.h"
@@ -205,8 +206,17 @@ static void help_button_toggled(GtkToggleButton *button, gpointer user_data)
 
     enabled = gtk_toggle_button_get_active(button);
 
-    if (enabled) gtk_widget_show_all(ctk_window->ctk_help);
-    else gtk_widget_hide_all(ctk_window->ctk_help);
+    if (enabled) {
+        if (ctk_window->ctk_help == NULL) {
+            ctk_window->ctk_help = ctk_help_new(GTK_WIDGET(button),
+                    ctk_window->help_tag_table);
+            ctk_help_set_page(CTK_HELP(ctk_window->ctk_help),
+                    ctk_window->help_text_buffer);
+        }
+        gtk_widget_show_all(ctk_window->ctk_help);
+    } else {
+        gtk_widget_hide_all(ctk_window->ctk_help);
+    }
 
 } /* help_button_toggled() */
 
@@ -275,7 +285,9 @@ static void tree_selection_changed(GtkTreeSelection *selection,
 
     /* update the help page */
 
-    ctk_help_set_page(CTK_HELP(ctk_window->ctk_help), help);
+    if (ctk_window->ctk_help != NULL)
+        ctk_help_set_page(CTK_HELP(ctk_window->ctk_help), help);
+    ctk_window->help_text_buffer = help;
 
     /* Keep track of the selected widget */
 
@@ -416,9 +428,10 @@ GtkWidget *ctk_window_new(NvCtrlAttributeHandle **handles, gint num_handles,
     g_signal_connect(G_OBJECT(toggle_button), "toggled",
                      G_CALLBACK(help_button_toggled),
                      (gpointer) ctk_window);
-    
-    ctk_window->ctk_help = ctk_help_new(toggle_button);
-    tag_table = CTK_HELP(ctk_window->ctk_help)->tag_table;
+
+    ctk_window->ctk_help = NULL;
+    tag_table = ctk_help_create_tag_table();
+    ctk_window->help_tag_table = tag_table;
     
     ctk_config_set_tooltip(ctk_config, toggle_button, "The Help button "
                            "toggles the display of a help window which "
@@ -628,10 +641,20 @@ GtkWidget *ctk_window_new(NvCtrlAttributeHandle **handles, gint num_handles,
         child = ctk_gvo_new(handles[i], GTK_WIDGET(ctk_window),
                             ctk_config, ctk_event);
         if (child) {
+            GtkTreeIter child_iter;
             help = ctk_gvo_create_help(tag_table);
-            add_page(child, help, ctk_window, &iter, NULL,
+            add_page(child, help, ctk_window, &iter, &child_iter,
                      "Graphics to Video Out", NULL,
                      ctk_gvo_select, ctk_gvo_unselect);
+
+            /* add GVO sub-pages */
+
+            child = ctk_gvo_csc_new(handles[i],
+                                    ctk_config, ctk_event);
+            if (child) {
+                add_page(child, NULL, ctk_window, &child_iter, NULL,
+                         "Color Space Conversion", NULL, NULL, NULL);
+            }
         }
 
         /* clocks (GPU overclocking) */
@@ -655,8 +678,8 @@ GtkWidget *ctk_window_new(NvCtrlAttributeHandle **handles, gint num_handles,
     }
 
     /*
-     * add the framelock page, if any of the X screens support
-     * framelock
+     * add the frame lock page, if any of the X screens support
+     * frame lock
      */
 
     for (i = 0; i < num_handles; i++) {
@@ -667,7 +690,7 @@ GtkWidget *ctk_window_new(NvCtrlAttributeHandle **handles, gint num_handles,
         if (!widget) continue;
 
         add_page(widget, ctk_framelock_create_help(tag_table),
-                 ctk_window, NULL, NULL, "FrameLock",
+                 ctk_window, NULL, NULL, "Frame Lock",
                  ctk_framelock_config_file_attributes,
                  ctk_framelock_select,
                  ctk_framelock_unselect);

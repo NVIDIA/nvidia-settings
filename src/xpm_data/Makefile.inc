@@ -28,12 +28,8 @@
 EXTRA_DIST += \
 	blue_xpm.h \
 	green_xpm.h \
-	led_green.h \
-	led_grey.h \
-	led_red.h \
 	mini_xpm.h \
 	red_xpm.h \
 	rgb_xpm.h \
-	rj45_input.h \
-	rj45_output.h \
 	x11_xpm.h
+

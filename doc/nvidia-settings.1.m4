@@ -1,7 +1,7 @@
 changequote([[[, ]]])dnl
 dnl Solaris man chokes on three-letter macros.
 ifelse(__BUILD_OS__,SunOS,[[[define(__URL__,UR)]]],[[[define(__URL__,URL)]]])dnl
-.\" Copyright (C) 2005 NVIDIA Corporation.
+.\" Copyright (C) 2006 NVIDIA Corporation.
 __HEADER__
 .\" Define the .__URL__ macro and then override it with the www.tmac package if it
 .\" exists.
@@ -9,7 +9,7 @@ __HEADER__
 \\$2 \(la \\$1 \(ra\\$3
 ..
 .if \n[.g] .mso www.tmac
-.TH nvidia-settings 1 2005-12-01 "nvidia-settings 1.0"
+.TH nvidia-settings 1 2006-03-17 "nvidia-settings 1.0"
 .SH NAME
 nvidia\-settings \- configure the NVIDIA graphics driver
 .SH SYNOPSIS
@@ -92,13 +92,43 @@ This assigns the attribute {attribute name} to the value {value} on the X Displa
 option.
 If the X screen is not specified, then the assignment is made to all X screens.
 Note that the '/' is only required when {DISPLAY} is present.
+.sp
+.br
+{DISPLAY} can additionally include a target specification to direct an assignment to something other than an X screen.
+A target specification is contained within brackets and consists of a target type name, a colon, and the target id.
+The target type name can be one of
+.B screen,
+.B gpu,
+or
+.B framelock;
+the target id is the index into the list of targets (for that target type).
+The target specification can be used in {DISPLAY} wherever an X screen can be used, following the syntax {host}:{display}[{target_type}:{target_id}].
+See the output of
+.nf
+
+        nvidia-settings --query all
+
+.fi
+for information on which target types can be used with which attributes.
+See the output of
+.nf
+
+        nvidia-settings -q screens -q gpus -q framelocks
+
+.fi
+for lists of targets for each target type.
+.br
+.sp
 The [{display devices}] portion is also optional; if it is not specified, then the attribute is assigned to all display devices.
+.br
+.sp
 Some examples:
 .nf
 
         -a FSAA=5
         -a localhost:0.0/DigitalVibrance[CRT-0]=0
         --assign="SyncToVBlank=1"
+        -a [gpu:0]/DigitalVibrance[DFP-1]=63
 
 .fi
 .TP
@@ -114,12 +144,18 @@ commandline option is of the form:
 
 .fi
 This queries the current value of the attribute {attribute name} on the X Display {DISPLAY}.
-The format is the same as that for the
+The syntax is the same as that for the
 .B \-\-assign
 option, without
 .B ={value}.
 Specify
-.B \-q all'
+.B \-q screens,
+.B \-q gpus,
+or
+.B \-q framelocks
+to query a list of X screens, GPUs, or Frame Lock devices, respectively, that are present on the X Display {DISPLAY}.
+Specify
+.B \-q all
 to query all attributes.
 .TP
 .B \-g, \-\-glxinfo
@@ -288,14 +324,14 @@ option can be used to query the current value of attributes.
 This will also report the valid values for the attribute.
 You can run
 .B nvidia\-settings \-\-query all
-for a complete list of available attributes, what the current value is, and what values are valid for the attribute.
+for a complete list of available attributes, what the current value is, what values are valid for the attribute, and through which target types (e.g., X screens, GPUs) the attributes can be addressed.
 Additionally, individual attributes may be specified like this:
 .nf
 
         nvidia-settings --query CursorShadow
 
 .fi
-Attributes that may differ per display device (for example DigitalVibrance can be set independently on each display device when in TwinView) can be appended with a "display device name" within brackets; e.g.:
+Attributes that may differ per display device (for example, DigitalVibrance can be set independently on each display device when in TwinView) can be appended with a "display device name" within brackets; e.g.:
 .nf
 
         nvidia-settings --query DigitalVibrance[CRT-0]
@@ -307,7 +343,7 @@ An attribute name may be prepended with an X Display name and a forward slash
 to indicate a different X Display; e.g.:
 .nf
 
-        nvidia-settings --query 192.168.1.33:0.0/DigitalVibrance[DFP-1]
+        nvidia-settings --query localhost:0.0/DigitalVibrance[DFP-1]
 
 .fi
 An attribute name may also just be prepended with the screen number and a forward slash:
@@ -318,6 +354,53 @@ An attribute name may also just be prepended with the screen number and a forwar
 .fi
 in which case the default X Display will be used, but you can indicate to which X screen to direct the query (if your X server has multiple X screens).
 If no X screen is specified, then the attribute value will be queried for all X screens.
+.PP
+Attributes can be addressed through "target types".
+A target type indicates the object that is queried when you query an attribute.
+The default target type is an X screen, but other possible target types are GPUs and Frame Lock devices.
+.PP
+Target types give you different granularities with which to perform queries and assignments.
+Since X screens can span multiple GPUs (in the case of Xinerama, or SLI), and multiple X screens can exist on the same GPU, it is sometimes useful to address attributes by GPU rather than X screen.
+.PP
+A target specification is contained within brackets and consists of a target type name, a colon, and the target id.
+The target type name can be one of
+.B screen,
+.B gpu,
+or
+.B framelock;
+the target id is the index into the list of targets (for that target type).
+Target specifications can be used wherever an X screen is used in query and assignment commands; the target specification can be used either by itself on the left side of the forward slash, or as part of an X Display name.
+.PP
+For example, the following queries address X screen 0 on the localhost:
+.nf
+
+        nvidia-settings --query 0/VideoRam
+        nvidia-settings --query localhost:0.0/VideoRam
+        nvidia-settings --query [screen:0]/VideoRam
+        nvidia-settings --query localhost:0[screen:0]/VideoRam
+
+.fi
+To address GPU 0 instead, you can use either of:
+.nf
+
+        nvidia-settings --query [gpu:0]/VideoRam
+        nvidia-settings --query localhost:0[gpu:0]/VideoRam
+
+.fi
+See the output of
+.nf
+
+        nvidia-settings --query all
+
+.fi
+for what targets types can be used with each attribute.
+See the output of
+.nf
+
+        nvidia-settings --query screens --query gpus --query framelocks
+
+.fi
+for lists of targets for each target type.
 .PP
 The
 .B \-\-assign
@@ -333,7 +416,7 @@ For example:
 
         nvidia-settings --assign FSAA=2
         nvidia-settings --assign 0/DigitalVibrance[CRT-1]=9
-
+        nvidia-settings --assign [gpu:0]/DigitalVibrance=0
 .fi
 .PP
 Multiple queries and assignments may be specified on the commandline for a single invocation of
@@ -509,4 +592,4 @@ NVIDIA Corporation
 .BR nvidia\-xconfig (1)ifelse(__BUILD_OS__,Linux,[[[,
 .BR nvidia\-installer (1)]]])
 .SH COPYRIGHT
-Copyright \(co 2005 NVIDIA Corporation.
+Copyright \(co 2006 NVIDIA Corporation.

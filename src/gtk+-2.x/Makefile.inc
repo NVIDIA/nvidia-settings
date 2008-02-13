@@ -49,11 +49,13 @@ SRC += \
 	ctkdisplaydevice-dfp.c \
 	ctkthermal.c \
 	ctkgvo.c \
+	ctkgvo-csc.c \
 	ctkdropdownmenu.c \
 	ctkrandr.c \
 	ctkclocks.c \
 	ctkutils.c \
-	ctkedid.c
+	ctkedid.c \
+	ctkimage.c
 
 
 EXTRA_DIST += \
@@ -81,8 +83,10 @@ EXTRA_DIST += \
 	ctkconstants.h \
 	ctkthermal.h \
 	ctkgvo.h \
+	ctkgvo-csc.h \
 	ctkdropdownmenu.h \
 	ctkrandr.h \
 	ctkclocks.h \
 	ctkutils.h \
-	ctkedid.h
+	ctkedid.h \
+	ctkimage.h
