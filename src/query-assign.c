@@ -1280,10 +1280,18 @@ int nv_process_parsed_attribute(ParsedAttribute *a, CtrlHandles *h,
                     (a->display_device_mask);
                 tmp_d_str1 = display_device_mask_to_display_device_name(t->d);
 
-                nv_error_msg("Invalid display device %s specified "
-                             "%s (the currently enabled display devices "
-                             "are %s on %s).",
-                             tmp_d_str0, whence, tmp_d_str1, t->name);
+                if (tmp_d_str1 && (*tmp_d_str1 != '\0')) {
+                    nv_error_msg("Invalid display device %s specified "
+                                 "%s (the currently enabled display devices "
+                                 "are %s on %s).",
+                                 tmp_d_str0, whence, tmp_d_str1, t->name);
+                } else {
+                    nv_error_msg("Invalid display device %s specified "
+                                 "%s (there are currently no enabled display "
+                                 "devices on %s).",
+                                 tmp_d_str0, whence, t->name);
+                }
+
                 free(tmp_d_str0);
                 free(tmp_d_str1);
                 
@@ -1384,7 +1392,8 @@ int nv_process_parsed_attribute(ParsedAttribute *a, CtrlHandles *h,
          *
          * Also, when setting frame lock attributes on non-frame lock targets,
          * make sure frame lock is disabled.  (Of course, don't check this for
-         * the "enable frame lock" attribute.)
+         * the "enable frame lock" attribute, and special case the "Test
+         * Signal" attribute.)
          */
 
         if ((a->flags & NV_PARSER_TYPE_FRAMELOCK) &&
@@ -1409,7 +1418,7 @@ int nv_process_parsed_attribute(ParsedAttribute *a, CtrlHandles *h,
                 continue;
             }
 
-            /* Don't assign if frame lock is enabled */
+            /* Do assignments based on the frame lock sync status */
 
             if (assign && (a->attr != NV_CTRL_FRAMELOCK_SYNC)) {
                 int enabled;
@@ -1424,8 +1433,16 @@ int nv_process_parsed_attribute(ParsedAttribute *a, CtrlHandles *h,
                                  NvCtrlAttributesStrError(status));
                     continue;
                 }
-                
-                if (enabled != NV_CTRL_FRAMELOCK_SYNC_DISABLE) {
+
+                if (a->attr == NV_CTRL_FRAMELOCK_TEST_SIGNAL) {
+                    if (enabled != NV_CTRL_FRAMELOCK_SYNC_ENABLE) {
+                        nv_error_msg("The attribute '%s' specified %s cannot "
+                                     "be assigned;  frame lock sync is "
+                                     "currently disabled on %s.",
+                                     a->name, whence, t->name);
+                        continue;
+                    }
+                } else if (enabled != NV_CTRL_FRAMELOCK_SYNC_DISABLE) {
                     nv_error_msg("The attribute '%s' specified %s cannot be "
                                  "assigned;  frame lock sync is currently "
                                  "enabled on %s.",
@@ -1442,7 +1459,8 @@ int nv_process_parsed_attribute(ParsedAttribute *a, CtrlHandles *h,
             mask = (1 << bit);
 
             if (((mask & display_devices) == 0x0) &&
-                (targetTypeTable[target_type_index].uses_display_devices)) {
+                (targetTypeTable[target_type_index].uses_display_devices) &&
+                (t->d)) {
                 continue;
             }
             
@@ -1480,12 +1498,14 @@ int nv_process_parsed_attribute(ParsedAttribute *a, CtrlHandles *h,
             
             /*
              * if this attribute is not per-display device, or this
-             * target does not know about display devices, then once
-             * through this loop is enough.
+             * target does not know about display devices, or this target
+             * does not have display devices, then once through this loop
+             * is enough.
              */
             
             if ((!(valid.permissions & ATTRIBUTE_TYPE_DISPLAY)) ||
-                (!(targetTypeTable[target_type_index].uses_display_devices))) {
+                (!(targetTypeTable[target_type_index].uses_display_devices)) ||
+                (!(t->d))) {
                 break;
             }
 

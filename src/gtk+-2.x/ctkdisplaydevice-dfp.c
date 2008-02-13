@@ -421,7 +421,7 @@ GtkWidget* ctk_display_device_dfp_new(NvCtrlAttributeHandle *handle,
                      (gpointer) ctk_display_device_dfp);
     
     radio0 = make_scaling_radio_button
-        (ctk_display_device_dfp, vbox, NULL, "Streched",
+        (ctk_display_device_dfp, vbox, NULL, "Stretched",
          NV_CTRL_GPU_SCALING_METHOD_STRETCHED);
     
     radio1 = make_scaling_radio_button

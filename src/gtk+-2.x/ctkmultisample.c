@@ -154,6 +154,7 @@ static const char *__texture_sharpening_help =
 #define __FSAA_8xQ        (1 << (__FSAA + NV_CTRL_FSAA_MODE_8xQ))
 #define __FSAA_16xS       (1 << (__FSAA + NV_CTRL_FSAA_MODE_16xS))
 #define __FSAA_16xQ       (1 << (__FSAA + NV_CTRL_FSAA_MODE_16xQ))
+#define __FSAA_32xS       (1 << (__FSAA + NV_CTRL_FSAA_MODE_32xS))
 #define __FSAA_ENHANCE    (1 << (__FSAA + NV_CTRL_FSAA_MODE_MAX +1))
 
 #define FRAME_PADDING 5
@@ -629,7 +630,8 @@ static const gchar *get_multisample_mode_name(gint multisample_mode)
         "8xS",                 /* FSAA_MODE_8xS   */
         "8xQ",                 /* FSAA_MODE_8xQ   */
         "16xS",                /* FSAA_MODE_16xS  */
-        "16xQ"                 /* FSAA_MODE_16xQ  */
+        "16xQ",                /* FSAA_MODE_16xQ  */
+        "32xS"                 /* FSAA_MODE_32xS  */
     };
     
     if ((multisample_mode < NV_CTRL_FSAA_MODE_NONE) ||
@@ -1324,7 +1326,7 @@ GtkTextBuffer *ctk_multisample_create_help(GtkTextTagTable *table,
             ctk_help_para(b, &i, "Enhance Application Settings will make "
                           "applications that are requesting some type of "
                           "antialiasing to use the mode selected by the "
-                          "slider .");
+                          "slider.");
         } else {
             ctk_help_para(b, &i, __aa_override_app_help);
         }
@@ -1406,6 +1408,34 @@ GtkTextBuffer *ctk_multisample_create_help(GtkTextTagTable *table,
             ctk_help_para(b, &i, "This enables antialiasing using the 16x "
                           "mode.  This mode offers better image quality than "
                           "the 8x mode.");
+        }
+
+        if (ctk_multisample->active_attributes & __FSAA_8xQ) {
+            ctk_help_term(b, &i, "8xQ");
+            ctk_help_para(b, &i, "This enables antialiasing using the 8xQ "
+                          "mode.  This mode offers better image quality than "
+                          "the 8x mode.");
+        }
+
+        if (ctk_multisample->active_attributes & __FSAA_16xS) {
+            ctk_help_term(b, &i, "16xS");
+            ctk_help_para(b, &i, "This enables antialiasing using the 16xS "
+                          "mode.  This mode offers better image quality than "
+                          "the 16x mode.");
+        }
+
+        if (ctk_multisample->active_attributes & __FSAA_16xQ) {
+            ctk_help_term(b, &i, "16xQ");
+            ctk_help_para(b, &i, "This enables antialiasing using the 16xQ "
+                          "mode.  This mode offers better image quality than "
+                          "the 16x mode.");
+        }
+
+        if (ctk_multisample->active_attributes & __FSAA_32xS) {
+            ctk_help_term(b, &i, "32xS");
+            ctk_help_para(b, &i, "This enables antialiasing using the 32xS "
+                          "mode.  This mode offers better image quality than "
+                          "the 16x mode.");
         }
     }
 

@@ -1370,6 +1370,8 @@ static int generate_xconf_metamode_str(CtkDisplayConfig *ctk_object,
     int metamode_idx;
     nvMetaModePtr metamode;
     int len = 0;
+    int start_width;
+    int start_height;
 
     int vendrel = NvCtrlGetVendorRelease(ctk_object->handle);
     char *vendstr = NvCtrlGetServerVendor(ctk_object->handle);
@@ -1398,6 +1400,11 @@ static int generate_xconf_metamode_str(CtkDisplayConfig *ctk_object,
         metamode_strs = get_screen_metamode_str(screen,
                                                 screen->cur_metamode_idx, 1);
         len = strlen(metamode_strs);
+        start_width = screen->cur_metamode->edim[W];
+        start_height = screen->cur_metamode->edim[H];
+    } else {
+        start_width = screen->metamodes->edim[W];
+        start_height = screen->metamodes->edim[H];        
     }
 
     for (metamode_idx = 0, metamode = screen->metamodes;
@@ -1414,6 +1421,17 @@ static int generate_xconf_metamode_str(CtkDisplayConfig *ctk_object,
             (metamode_idx == screen->cur_metamode_idx))
             continue;
 
+        /* XXX In basic mode, only write out metamodes that are smaller than
+         *     the starting (selected) metamode.  This is to work around
+         *     a bug in XRandR where starting with a root window that is
+         *     smaller that the bounding box of all the metamodes will result
+         *     in an unwanted panning domain being setup for the first mode.
+         */
+        if ((!ctk_object->advanced_mode) &&
+            ((metamode->edim[W] > start_width) ||
+             (metamode->edim[H] > start_height)))
+            continue;
+        
         metamode_str = get_screen_metamode_str(screen, metamode_idx, 1);
 
         if (!metamode_str) continue;
@@ -7893,7 +7911,7 @@ static void preprocess_metamodes(nvScreenPtr screen, char *metamode_strs)
          metamode;
          metamode = metamode->next, metamode_idx++) {
 
-        /* Generate the metamore's string */
+        /* Generate the metamode's string */
         free(metamode->string);
         metamode->string = get_screen_metamode_str(screen, metamode_idx, 0);
         if (!metamode->string) continue;

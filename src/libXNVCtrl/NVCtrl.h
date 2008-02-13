@@ -233,7 +233,8 @@
 #define NV_CTRL_FSAA_MODE_8xQ                                  10
 #define NV_CTRL_FSAA_MODE_16xS                                 11
 #define NV_CTRL_FSAA_MODE_16xQ                                 12
-#define NV_CTRL_FSAA_MODE_MAX NV_CTRL_FSAA_MODE_16xQ
+#define NV_CTRL_FSAA_MODE_32xS                                 13
+#define NV_CTRL_FSAA_MODE_MAX NV_CTRL_FSAA_MODE_32xS
 
 
 /*
@@ -623,9 +624,6 @@
  * NV_CTRL_FLIPPING_ALLOWED - when TRUE, OpenGL will swap by flipping
  * when possible; when FALSE, OpenGL will alway swap by blitting.  XXX
  * can this be enabled dynamically?
- *
- * This attribute will not be available when flipping is not possible, such
- * as when the NoFlip X config file option is enabled.
  */
 
 #define NV_CTRL_FLIPPING_ALLOWED                                40 /* RW-X */
