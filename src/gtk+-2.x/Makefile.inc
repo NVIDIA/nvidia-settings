@@ -46,7 +46,9 @@ SRC += \
 	ctkdisplaydevice-crt.c \
 	ctkdisplaydevice-tv.c \
 	ctkdisplaydevice-dfp.c \
-	ctkthermal.c
+	ctkthermal.c \
+	ctkgvo.c \
+	ctkdropdownmenu.c
 
 
 EXTRA_DIST += \
@@ -71,4 +73,7 @@ EXTRA_DIST += \
 	ctkdisplaydevice-tv.h \
 	ctkdisplaydevice-dfp.h \
 	ctkconstants.h \
-	ctkthermal.h
+	ctkthermal.h \
+	ctkgvo.h \
+	ctkdropdownmenu.h
+

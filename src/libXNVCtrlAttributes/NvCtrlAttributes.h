@@ -153,6 +153,9 @@ NvCtrlAttributeHandle *NvCtrlAttributeInit(Display *dpy, int screen,
 
 char *NvCtrlGetDisplayName(NvCtrlAttributeHandle *handle);
 Display *NvCtrlGetDisplayPtr(NvCtrlAttributeHandle *handle);
+int NvCtrlGetScreen(NvCtrlAttributeHandle *handle);
+int NvCtrlGetScreenWidth(NvCtrlAttributeHandle *handle);
+int NvCtrlGetScreenHeight(NvCtrlAttributeHandle *handle);
 int NvCtrlGetEventBase(NvCtrlAttributeHandle *handle);
 
 ReturnStatus NvCtrlGetColorAttributes (NvCtrlAttributeHandle *handle,

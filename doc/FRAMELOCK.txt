@@ -1,0 +1,62 @@
+
+This is a (very) brief summary of some of things that need to be
+done to write a FrameLock NV-CONTROL client.
+
+Please see the sample NV-CONTROL clients in the "samples" directory
+for basic examples of how to set integer attributes.  See the
+file ctkframelock.c for a much more involved example of how the
+nvidia-settings utility programs the FrameLock attributes.
+
+The constants referenced below are defined in NVCtrl.h.  Please see the
+comments in that file for an explanation of each attribute.  It may
+also be instructive to grep ctkframelock.c to see how each attribute
+is used.
+
+Basic steps:
+
+    - Open a Display connection to each X Screen you want to control
+      in your FrameLock cluster.  Please make sure you have
+      priviledges to establish the X connection.
+
+    - Query the NV_CTRL_FRAMELOCK attribute to determine if FrameLock
+      is supported on each X screen.
+
+    - Set NV_CTRL_FRAMELOCK_MASTER to NV_CTRL_FRAMELOCK_MASTER_TRUE on
+      one node in the cluster; set it to NV_CTRL_FRAMELOCK_MASTER_FALSE
+      to every other node in the cluster.
+
+    - Set NV_CTRL_FRAMELOCK_POLARITY for each slave node in the cluster;
+      most likely you want NV_CTRL_FRAMELOCK_POLARITY_RISING_EDGE.
+
+    - Set NV_CTRL_FRAMELOCK_SYNC_DELAY as appropriate for each node.
+      Most likely you want 0.
+
+    - Set NV_CTRL_FRAMELOCK_SYNC_INTERVAL as appropriate if you
+      are using house sync.  Most likely, you just want 0.
+
+    - Set NV_CTRL_FRAMELOCK_SYNC to NV_CTRL_FRAMELOCK_SYNC_ENABLE on
+      each X screen to enable FrameLock.
+
+    - (optional) set NV_CTRL_FRAMELOCK_TEST_SIGNAL to
+      NV_CTRL_FRAMELOCK_TEST_SIGNAL_ENABLE followed immediately by
+      NV_CTRL_FRAMELOCK_TEST_SIGNAL_DISABLE.  This guarantees
+      accuracy of the Universal Frame Count (as returned by
+      glXQueryFrameCountNV()).
+
+    - When you are done, set NV_CTRL_FRAMELOCK_SYNC to
+      NV_CTRL_FRAMELOCK_SYNC_DISABLE on each X screen to disable FrameLock.
+
+During operation, you can also query any of these on each X screen:
+
+    NV_CTRL_FRAMELOCK_PORT0_STATUS
+    NV_CTRL_FRAMELOCK_PORT1_STATUS
+    NV_CTRL_FRAMELOCK_HOUSE_STATUS
+    NV_CTRL_FRAMELOCK_SYNC_READY
+    NV_CTRL_FRAMELOCK_STEREO_SYNC
+    NV_CTRL_FRAMELOCK_ETHERNET_DETECTED
+    NV_CTRL_FRAMELOCK_SYNC_RATE
+    NV_CTRL_FRAMELOCK_TIMING
+
+(nvidia-settings registers a gtk+ timeout function and queries the
+state of these on each X screen every few seconds).
+

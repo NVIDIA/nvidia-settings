@@ -36,6 +36,7 @@
 #include "ctkwindow.h"
 
 #include "ctkframelock.h"
+#include "ctkgvo.h"
 #include "ctkconfig.h"
 
 #include "ctkdevice.h"
@@ -560,6 +561,15 @@ GtkWidget *ctk_window_new(NvCtrlAttributeHandle **handles, gint num_handles,
             add_page(child, help, ctk_window, &iter, "Thermal Monitor", NULL);
         }
         
+        /* gvo (Graphics To Video Out) */
+        
+        child = ctk_gvo_new(handles[i], ctk_config);
+        if (child) {
+            help = ctk_gvo_create_help(tag_table);
+            add_page(child, help, ctk_window, &iter,
+                     "Graphics to Video Out", NULL);
+        }
+
         /* display devices */
         
         child = ctk_display_device_new(handles[i], ctk_config, ctk_event);

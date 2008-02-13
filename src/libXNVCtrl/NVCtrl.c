@@ -1,3 +1,13 @@
+/*
+ * Make sure that XTHREADS is defined, so that the
+ * LockDisplay/UnlockDisplay macros are expanded properly and the
+ * libXNVCtrl library properly protects the Display connection.
+ */
+
+#if !defined(XTHREADS)
+#define XTHREADS
+#endif /* XTHREADS */
+
 #define NEED_EVENTS
 #define NEED_REPLIES
 #include <X11/Xlibint.h>

@@ -147,6 +147,7 @@
  * NV_CTRL_FSAA_MODE_4x_9t  "4x Gaussian Multisampling"
  * NV_CTRL_FSAA_MODE_8x     "2x Bilinear Multisampling by 4x Supersampling"
  * NV_CTRL_FSAA_MODE_16x    "4x Bilinear Multisampling by 4x Supersampling"
+ * NV_CTRL_FSAA_MODE_8xS    "4x Multisampling by 2x Supersampling"
  *
  * This setting is only applied to OpenGL clients that are started
  * after this setting is applied.
@@ -162,6 +163,8 @@
 #define NV_CTRL_FSAA_MODE_4x_9t                                 6
 #define NV_CTRL_FSAA_MODE_8x                                    7
 #define NV_CTRL_FSAA_MODE_16x                                   8
+#define NV_CTRL_FSAA_MODE_8xS                                   9
+#define NV_CTRL_FSAA_MODE_MAX NV_CTRL_FSAA_MODE_8xS
 
 
 /*
@@ -650,7 +653,6 @@
  * if this screen does not support PBUFFER_SCANOUT, then all other
  * PBUFFER_SCANOUT attributes are unavailable.
  */
-
 #define NV_CTRL_PBUFFER_SCANOUT_SUPPORTED                       65  /* R-- */
 #define NV_CTRL_PBUFFER_SCANOUT_FALSE                           0
 #define NV_CTRL_PBUFFER_SCANOUT_TRUE                            1
@@ -661,7 +663,342 @@
  */
 #define NV_CTRL_PBUFFER_SCANOUT_XID                             66  /* RW- */
 
-#define NV_CTRL_LAST_ATTRIBUTE NV_CTRL_PBUFFER_SCANOUT_XID
+/**************************************************************************/
+/*
+ * The NV_CTRL_GVO_* integer attributes are used to configure GVO
+ * (Graphics to Video Out).  This functionality is available, for
+ * example, on the Quadro FX 4000 SDI graphics board.
+ *
+ * Here is a normal usage pattern for the GVO attributes:
+ *
+ * - query NV_CTRL_GVO_SUPPORTED to determine if the X screen supports GV0.
+ *
+ * - specify NV_CTRL_GVO_SYNC_MODE (one of FREE_RUNNING, GENLOCK, or
+ *   FRAMELOCK)
+ * 
+ * - Use NV_CTRL_GVO_COMPOSITE_SYNC_INPUT_DETECTED and
+ *   NV_CTRL_GVO_SDI_SYNC_INPUT_DETECTED to detect what input syncs are
+ *   present.
+ * 
+ *         (If no analog sync is detected but it is known
+ *           that a thought to be valid bi-level or tri-level
+ *         sync is connected set
+ *         NV_CTRL_GVO_COMPOSITE_SYNC_INPUT_DETECT_MODE
+ *         appropriately and retest with
+ *         NV_CTRL_GVO_COMPOSITE_SYNC_INPUT_DETECTED).
+ *
+ * - specify NV_CTRL_GVO_SYNC_SOURCE, if appropriate
+ *
+ * - if syncing to input sync, query the NV_CTRL_GVO_INPUT_VIDEO_FORMAT
+ * 
+ * - query the valid NV_CTRL_GVO_OUTPUT_VIDEO_FORMAT values; the valid
+ *   values will be a function of what is specified for
+ *   NV_CTRL_GVO_SYNC_MODE and what INPUT_VIDEO_FORMAT mode is
+ *   detected.
+ *
+ * - specify the NV_CTRL_GVO_DATA_FORMAT
+ *
+ * - if using the GLX_NV_video_out extension to display one or more
+ * pbuffers, call glXGetVideoDeviceNV() to lock the GVO output for use
+ * by the GLX client; then bind the pbuffer(s) to the GVO output with
+ * glXBindVideoImageNV() and send pbuffers to the GVO output with
+ * glXSendPbufferToVideoNV(); see the GLX_NV_video_out spec for more
+ * details.
+ *
+ * - if, rather than using the GLX_NV_video_out extension to display
+ * GLX pbuffers on the GVO output, you wish display the X screen on
+ * the GVO output, set NV_CTRL_GVO_DISPLAY_X_SCREEN to
+ * NV_CTRL_GVO_DISPLAY_X_SCREEN_ENABLE.
+ *
+ * Note that setting most GVO attributes only causes the value to be
+ * cached in the X server.  The values will be flushed to the hardware
+ * either when NV_CTRL_GVO_DISPLAY_X_SCREEN is enabled, or when a GLX
+ * pbuffer is bound to the GVO output (with glXBindVideoImageNV()).
+ *
+ * Note that GLX_NV_video_out and NV_CTRL_GVO_DISPLAY_X_SCREEN are
+ * mutually exclusive.  If NV_CTRL_GVO_DISPLAY_X_SCREEN is enabled,
+ * then glXGetVideoDeviceNV will fail.  Similarly, if a GLX client has
+ * locked the GVO output (via glXGetVideoDeviceNV), then
+ * NV_CTRL_GVO_DISPLAY_X_SCREEN will fail.  The NV_CTRL_GVO_LOCKED
+ * event will be sent when a GLX client locks the GVO output.
+ *
+ */
+
+
+/*
+ * NV_CTRL_GVO_SUPPORTED - returns whether this X screen supports GVO;
+ * if this screen does not support GVO output, then all other GVO
+ * attributes are unavailable.
+ */
+
+#define NV_CTRL_GVO_SUPPORTED                                   67  /* R-- */
+#define NV_CTRL_GVO_SUPPORTED_FALSE                             0
+#define NV_CTRL_GVO_SUPPORTED_TRUE                              1
+
+
+/*
+ * NV_CTRL_GVO_SYNC_MODE - selects the GVO sync mode; possible values
+ * are:
+ *
+ * FREE_RUNNING - GVO does not sync to any external signal
+ *
+ * GENLOCK - the GVO output is genlocked to an incoming sync signal;
+ * genlocking locks at hsync.  This requires that the output video
+ * format exactly match the incoming sync video format.
+ *
+ * FRAMELOCK - the GVO output is framelocked to an incoming sync
+ * signal; framelocking locks at vsync.  This requires that the output
+ * video format have the same refresh rate as the incoming sync video
+ * format.
+ */
+
+#define NV_CTRL_GVO_SYNC_MODE                                   68  /* RW- */
+#define NV_CTRL_GVO_SYNC_MODE_FREE_RUNNING                      0
+#define NV_CTRL_GVO_SYNC_MODE_GENLOCK                           1
+#define NV_CTRL_GVO_SYNC_MODE_FRAMELOCK                         2
+
+
+/*
+ * NV_CTRL_GVO_SYNC_SOURCE - if NV_CTRL_GVO_SYNC_MODE is set to either
+ * GENLOCK or FRAMELOCK, this controls which sync source is used as
+ * the incoming sync signal (either Composite or SDI).  If
+ * NV_CTRL_GVO_SYNC_MODE is FREE_RUNNING, this attribute has no
+ * effect.
+ */
+
+#define NV_CTRL_GVO_SYNC_SOURCE                                 69  /* RW- */
+#define NV_CTRL_GVO_SYNC_SOURCE_COMPOSITE                       0
+#define NV_CTRL_GVO_SYNC_SOURCE_SDI                             1
+
+
+/*
+ * NV_CTRL_GVO_OUTPUT_VIDEO_FORMAT - specifies the output video
+ * format.  Note that the valid video formats will vary depending on
+ * the NV_CTRL_GVO_SYNC_MODE and the incoming sync video format.  See
+ * the definition of NV_CTRL_GVO_SYNC_MODE.
+ */
+
+#define NV_CTRL_GVO_OUTPUT_VIDEO_FORMAT                         70  /* RW- */
+
+#define NV_CTRL_GVO_VIDEO_FORMAT_NONE                           0
+#define NV_CTRL_GVO_VIDEO_FORMAT_480I_59_94_SMPTE259_NTSC       1
+#define NV_CTRL_GVO_VIDEO_FORMAT_576I_50_00_SMPTE259_PAL        2
+#define NV_CTRL_GVO_VIDEO_FORMAT_720P_59_94_SMPTE296            3
+#define NV_CTRL_GVO_VIDEO_FORMAT_720P_60_00_SMPTE296            4
+#define NV_CTRL_GVO_VIDEO_FORMAT_1035I_59_94_SMPTE260           5
+#define NV_CTRL_GVO_VIDEO_FORMAT_1035I_60_00_SMPTE260           6
+#define NV_CTRL_GVO_VIDEO_FORMAT_1080I_50_00_SMPTE295           7
+#define NV_CTRL_GVO_VIDEO_FORMAT_1080I_50_00_SMPTE274           8
+#define NV_CTRL_GVO_VIDEO_FORMAT_1080I_59_94_SMPTE274           9
+#define NV_CTRL_GVO_VIDEO_FORMAT_1080I_60_00_SMPTE274           10
+#define NV_CTRL_GVO_VIDEO_FORMAT_1080P_23_976_SMPTE274          11
+#define NV_CTRL_GVO_VIDEO_FORMAT_1080P_24_00_SMPTE274           12
+#define NV_CTRL_GVO_VIDEO_FORMAT_1080P_25_00_SMPTE274           13
+#define NV_CTRL_GVO_VIDEO_FORMAT_1080P_29_97_SMPTE274           14
+#define NV_CTRL_GVO_VIDEO_FORMAT_1080P_30_00_SMPTE274           15
+
+
+/*
+ * NV_CTRL_GVO_INPUT_VIDEO_FORMAT - indicates the input video format
+ * detected; the possible values are the NV_CTRL_GVO_VIDEO_FORMAT
+ * constants.
+ */
+
+#define NV_CTRL_GVO_INPUT_VIDEO_FORMAT                          71  /* R-- */
+
+
+/*
+ * NV_CTRL_GVO_DATA_FORMAT - This controls how the data in the source
+ * (either the X screen or the GLX pbuffer) is interpretted and
+ * displayed.
+ */
+
+#define NV_CTRL_GVO_DATA_FORMAT                                 72  /* RW- */
+#define NV_CTRL_GVO_DATA_FORMAT_R8G8B8_TO_YCRCB444              0
+#define NV_CTRL_GVO_DATA_FORMAT_R8G8B8A8_TO_YCRCBA4444          1
+#define NV_CTRL_GVO_DATA_FORMAT_R8G8B8Z10_TO_YCRCBZ4444         2
+#define NV_CTRL_GVO_DATA_FORMAT_R8G8B8_TO_YCRCB422              3
+#define NV_CTRL_GVO_DATA_FORMAT_R8G8B8A8_TO_YCRCBA4224          4
+#define NV_CTRL_GVO_DATA_FORMAT_R8G8B8Z10_TO_YCRCBZ4224         5
+#define NV_CTRL_GVO_DATA_FORMAT_R8G8B8_TO_RGB444                6
+#define NV_CTRL_GVO_DATA_FORMAT_R8G8B8A8_TO_RGBA4444            7
+#define NV_CTRL_GVO_DATA_FORMAT_R8G8B8Z10_TO_RGBZ4444           8
+#define NV_CTRL_GVO_DATA_FORMAT_Y10CR10CB10_TO_YCRCB444         9
+#define NV_CTRL_GVO_DATA_FORMAT_Y10CR8CB8_TO_YCRCB444           10
+#define NV_CTRL_GVO_DATA_FORMAT_Y10CR8CB8A10_TO_YCRCBA4444      11
+#define NV_CTRL_GVO_DATA_FORMAT_Y10CR8CB8Z10_TO_YCRCBZ4444      12
+#define NV_CTRL_GVO_DATA_FORMAT_DUAL_R8G8B8_TO_DUAL_YCRCB422    13
+#define NV_CTRL_GVO_DATA_FORMAT_DUAL_Y8CR8CB8_TO_DUAL_YCRCB422  14
+
+
+/*
+ * NV_CTRL_GVO_DISPLAY_X_SCREEN - enable/disable GVO output of the X
+ * screen.  At this point, all the GVO attributes that have been
+ * cached in the X server are flushed to the hardware and GVO is
+ * enabled.  Note that this attribute can fail to be set if a GLX
+ * client has locked the GVO output (via glXGetVideoDeviceNV).  Note
+ * that due to the inherit race conditions in this locking strategy,
+ * NV_CTRL_GVO_DISPLAY_X_SCREEN can fail unexpectantly.  In the
+ * failing situation, X will not return an X error.  Instead, you
+ * should query the value of NV_CTRL_GVO_DISPLAY_X_SCREEN after
+ * setting it to confirm that the setting was applied.
+ */
+
+#define NV_CTRL_GVO_DISPLAY_X_SCREEN                            73  /* RW- */
+#define NV_CTRL_GVO_DISPLAY_X_SCREEN_ENABLE                     1
+#define NV_CTRL_GVO_DISPLAY_X_SCREEN_DISABLE                    0
+
+
+/*
+ * NV_CTRL_GVO_COMPOSITE_SYNC_INPUT_DETECTED - indicates whether
+ * Composite Sync input is detected.
+ */
+
+#define NV_CTRL_GVO_COMPOSITE_SYNC_INPUT_DETECTED               74  /* R-- */
+#define NV_CTRL_GVO_COMPOSITE_SYNC_INPUT_DETECTED_FALSE         0
+#define NV_CTRL_GVO_COMPOSITE_SYNC_INPUT_DETECTED_TRUE          1
+
+
+/*
+ * NV_CTRL_GVO_COMPOSITE_SYNC_INPUT_DETECT_MODE - get/set the
+ * Composite Sync input detect mode.  XXX is this needed?
+ */
+
+#define NV_CTRL_GVO_COMPOSITE_SYNC_INPUT_DETECT_MODE            75  /* RW- */
+#define NV_CTRL_GVO_COMPOSITE_SYNC_INPUT_DETECT_MODE_AUTO       0
+#define NV_CTRL_GVO_COMPOSITE_SYNC_INPUT_DETECT_MODE_BI_LEVEL   1
+#define NV_CTRL_GVO_COMPOSITE_SYNC_INPUT_DETECT_MODE_TRI_LEVEL  2
+
+
+/*
+ * NV_CTRL_GVO_SYNC_INPUT_DETECTED - indicates whether SDI Sync input
+ * is detected, and what type.
+ */
+
+#define NV_CTRL_GVO_SDI_SYNC_INPUT_DETECTED                     76  /* R-- */
+#define NV_CTRL_GVO_SDI_SYNC_INPUT_DETECTED_NONE                0
+#define NV_CTRL_GVO_SDI_SYNC_INPUT_DETECTED_HD                  1
+#define NV_CTRL_GVO_SDI_SYNC_INPUT_DETECTED_SD                  2
+
+
+/*
+ * NV_CTRL_GVO_VIDEO_OUTPUTS - indicates which GVO video output
+ * connectors are currently outputing data.
+ */
+
+#define NV_CTRL_GVO_VIDEO_OUTPUTS                               77  /* R-- */
+#define NV_CTRL_GVO_VIDEO_OUTPUTS_NONE                          0
+#define NV_CTRL_GVO_VIDEO_OUTPUTS_VIDEO1                        1
+#define NV_CTRL_GVO_VIDEO_OUTPUTS_VIDEO2                        2
+#define NV_CTRL_GVO_VIDEO_OUTPUTS_VIDEO_BOTH                    3
+
+
+/*
+ * NV_CTRL_GVO_FPGA_VERSION - indicates the version of the Firmware on
+ * the GVO device.  XXX would this be better as a string attribute?
+ */
+
+#define NV_CTRL_GVO_FIRMWARE_VERSION                            78  /* R-- */
+
+
+/*
+ * NV_CTRL_GVO_SYNC_DELAY_PIXELS - controls the delay between the
+ * input sync and the output sync in numbers of pixels from hsync;
+ * this is a 12 bit value.
+ */
+
+#define NV_CTRL_GVO_SYNC_DELAY_PIXELS                           79  /* RW- */
+
+
+/*
+ * NV_CTRL_GVO_SYNC_DELAY_LINES - controls the delay between the input
+ * sync and the output sync in numbers of lines from vsync; this is a
+ * 12 bit value.
+ */
+
+#define NV_CTRL_GVO_SYNC_DELAY_LINES                            80  /* RW- */
+
+
+/*
+ * NV_CTRL_GVO_INPUT_VIDEO_FORMAT_REACQUIRE - must be set for a period
+ * of about 2 seconds for the new InputVideoFormat to be properly
+ * locked to.  In nvidia-settings, we do a reacquire whenever genlock
+ * or framelock mode is entered into, when the user clicks the
+ * "detect" button.  This value can be written, but always reads back
+ * _FALSE.
+ */
+
+#define NV_CTRL_GVO_INPUT_VIDEO_FORMAT_REACQUIRE                81  /* -W- */
+#define NV_CTRL_GVO_INPUT_VIDEO_FORMAT_REACQUIRE_FALSE          0
+#define NV_CTRL_GVO_INPUT_VIDEO_FORMAT_REACQUIRE_TRUE           1
+
+
+/*
+ * NV_CTRL_GVO_LOCKED - indicates that GVO configurability is locked;
+ * this occurs when the GLX_NV_video_out function calls
+ * glXGetVideoDeviceNV().  All GVO output resources are locked until
+ * either glXReleaseVideoDeviceNV() is called or the X Display used
+ * when calling glXGetVideoDeviceNV() is closed.
+ *
+ * When GVO is locked; all GVO NV-CONTROL attributes are read only.
+ */
+
+#define NV_CTRL_GVO_GLX_LOCKED                                  82  /* R-- */
+#define NV_CTRL_GVO_GLX_LOCKED_FALSE                            0
+#define NV_CTRL_GVO_GLX_LOCKED_TRUE                             1
+
+
+
+/*
+ * NV_CTRL_GVO_VIDEO_FORMAT_{WIDTH,HEIGHT,REFRESH_RATE} - query the
+ * width, height, and refresh rate for the specified
+ * NV_CTRL_GVO_VIDEO_FORMAT_*.  So that this can be queried with
+ * existing interfaces, XNVCTRLQueryAttribute() should be used, and
+ * the video format specified in the display_mask field; eg:
+ *
+ * XNVCTRLQueryAttribute (dpy,
+ *                        screen, 
+ *                        NV_CTRL_GVO_VIDEO_FORMAT_480I_59_94_SMPTE259_NTSC
+ *                        NV_CTRL_GVO_VIDEO_FORMAT_WIDTH,
+ *                        &value);
+ *
+ * Note that Refresh Rate is in 1/1000 Hertz values
+ */
+
+#define NV_CTRL_GVO_VIDEO_FORMAT_WIDTH                          83  /* R-- */
+#define NV_CTRL_GVO_VIDEO_FORMAT_HEIGHT                         84  /* R-- */
+#define NV_CTRL_GVO_VIDEO_FORMAT_REFRESH_RATE                   85  /* R-- */
+
+
+/*
+ * NV_CTRL_GVO_X_SCREEN_PAN_[XY] - when GVO output of the X screen is
+ * enabled, the pan x/y attributes control which portion of the X
+ * screen is displayed by GVO.  These attributes can be updated while
+ * GVO output is enabled, or before enabling GVO output.  The pan
+ * values will be clamped so that GVO output is not panned beyond the
+ * end of the X screen.
+ */
+
+#define NV_CTRL_GVO_X_SCREEN_PAN_X                              86  /* RW- */
+#define NV_CTRL_GVO_X_SCREEN_PAN_Y                              87  /* RW- */
+
+
+/*
+ * XXX Still to do: GVO Color Conversion
+ */
+
+/*
+ * XXX what sync error attributes do we need to expose?
+ */
+
+
+/**************************************************************************/
+
+
+#define NV_CTRL_LAST_ATTRIBUTE NV_CTRL_GVO_X_SCREEN_PAN_Y
+
+
+
 
 /**************************************************************************/
 

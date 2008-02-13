@@ -37,11 +37,12 @@
 
 /* local prototypes */
 
-static gint build_fsaa_translation_table(CtkMultisample *ctk_multisample,
+static void build_fsaa_translation_table(CtkMultisample *ctk_multisample,
                                          NVCTRLAttributeValidValuesRec valid);
 
 static int map_nv_ctrl_fsaa_value_to_slider(CtkMultisample *ctk_multisample,
                                             int value);
+
 
 static gchar *format_fsaa_value(GtkScale *scale, gdouble arg1,
                                 gpointer user_data);
@@ -140,7 +141,7 @@ static const char *__texture_sharpening_help =
 #define __FSAA_4x_9t      (1 << (__FSAA + NV_CTRL_FSAA_MODE_4x_9t))
 #define __FSAA_8x         (1 << (__FSAA + NV_CTRL_FSAA_MODE_8x))
 #define __FSAA_16x        (1 << (__FSAA + NV_CTRL_FSAA_MODE_16x))
-
+#define __FSAA_8xS        (1 << (__FSAA + NV_CTRL_FSAA_MODE_8xS))
 
 #define FRAME_PADDING 5
 
@@ -191,7 +192,7 @@ GtkWidget *ctk_multisample_new(NvCtrlAttributeHandle *handle,
     guint8 *image_buffer = NULL;
     const nv_image_t *img;
 
-    gint val, app_control, override, n, i;
+    gint val, app_control, override, i;
     
     NVCTRLAttributeValidValuesRec valid;
 
@@ -234,12 +235,10 @@ GtkWidget *ctk_multisample_new(NvCtrlAttributeHandle *handle,
     
     if (ret == NvCtrlSuccess) {
         
-        n = build_fsaa_translation_table(ctk_multisample, valid);
+        build_fsaa_translation_table(ctk_multisample, valid);
         
-        ctk_multisample->fsaa_translation_table_size = n;
-
         ret = NvCtrlGetAttribute(handle, NV_CTRL_FSAA_MODE, &val);
-
+        
         val = map_nv_ctrl_fsaa_value_to_slider(ctk_multisample, val);
 
         ret0 = NvCtrlGetAttribute(handle,
@@ -254,7 +253,8 @@ GtkWidget *ctk_multisample_new(NvCtrlAttributeHandle *handle,
 
         override = !app_control;
 
-        if ((ret == NvCtrlSuccess) && (ret0 == NvCtrlSuccess) && (n > 1)) {
+        if ((ret == NvCtrlSuccess) && (ret0 == NvCtrlSuccess) &&
+            (ctk_multisample->fsaa_translation_table_size > 1)) {
             
             /* create "Antialiasing Settings" frame */
             
@@ -294,7 +294,8 @@ GtkWidget *ctk_multisample_new(NvCtrlAttributeHandle *handle,
 
             /* Antialiasing scale */
 
-            scale = gtk_hscale_new_with_range(0, n - 1, 1);
+            scale = gtk_hscale_new_with_range
+                (0, ctk_multisample->fsaa_translation_table_size - 1, 1);
             gtk_range_set_value(GTK_RANGE(scale), val);
             
             gtk_scale_set_draw_value(GTK_SCALE(scale), TRUE);
@@ -323,7 +324,7 @@ GtkWidget *ctk_multisample_new(NvCtrlAttributeHandle *handle,
             gtk_widget_set_sensitive(GTK_WIDGET(ctk_multisample->fsaa_scale),
                                      override);
 
-            for (i = 0; i < n; i++)
+            for (i = 0; i < ctk_multisample->fsaa_translation_table_size; i++)
                 ctk_multisample->active_attributes |=
                     (1 << (__FSAA+ctk_multisample->fsaa_translation_table[i]));
         }
@@ -489,27 +490,52 @@ GtkWidget *ctk_multisample_new(NvCtrlAttributeHandle *handle,
  * FSAA_MODE attribute, scan through the bits.ints field (which has
  * bits set to indicate which integer attributes are valid for the
  * attribute), assigning fsaa_translation_table[] as appropriate.
+ * fsaa_translation_table[] will map from slider value to
+ * NV_CTRL_FSAA_MODE value.
  */
 
-static gint build_fsaa_translation_table(CtkMultisample *ctk_multisample,
+static void build_fsaa_translation_table(CtkMultisample *ctk_multisample,
                                          NVCTRLAttributeValidValuesRec valid)
 {
     gint i, n = 0;
+    gint index_8xs = -1;
+    gint index_16x = -1;
     gint mask = valid.u.bits.ints;
 
-    memset(ctk_multisample->fsaa_translation_table, 0,
-           sizeof(gint) * (NV_CTRL_FSAA_MODE_16x + 1));
+    ctk_multisample->fsaa_translation_table_size = 0;
 
-    if (valid.type != ATTRIBUTE_TYPE_INT_BITS) return 0;
+    memset(ctk_multisample->fsaa_translation_table, 0,
+           sizeof(gint) * (NV_CTRL_FSAA_MODE_MAX + 1));
+
+    if (valid.type != ATTRIBUTE_TYPE_INT_BITS) return;
     
-    for (i = 0; i < (NV_CTRL_FSAA_MODE_16x + 1); i++) {
+    for (i = 0; i <= NV_CTRL_FSAA_MODE_MAX; i++) {
         if (mask & (1 << i)) {
             ctk_multisample->fsaa_translation_table[n] = i;
+
+            /* index_8xs and index_16x are needed below */
+
+            if (i == NV_CTRL_FSAA_MODE_8xS) index_8xs = n;
+            if (i == NV_CTRL_FSAA_MODE_16x) index_16x = n;
+            
             n++;
         }
     }
     
-    return n;
+    /*
+     * XXX 8xS was added to the NV_CTRL_FSAA_MODE list after 16x, but
+     * should appear before it in the slider.  If both were added to
+     * the fsaa_translation_table[], then swap their positions.
+     */
+
+    if ((index_8xs != -1) && (index_16x != -1)) {
+        ctk_multisample->fsaa_translation_table[index_8xs] =
+            NV_CTRL_FSAA_MODE_16x;
+        ctk_multisample->fsaa_translation_table[index_16x] =
+            NV_CTRL_FSAA_MODE_8xS;
+    }
+    
+    ctk_multisample->fsaa_translation_table_size = n;
 
 } /* build_fsaa_translation_table() */
 
@@ -552,7 +578,7 @@ static gchar *format_fsaa_value(GtkScale *scale, gdouble arg1,
     ctk_multisample = CTK_MULTISAMPLE(user_data);
 
     val = arg1;
-    if (val > NV_CTRL_FSAA_MODE_16x) val = NV_CTRL_FSAA_MODE_16x;
+    if (val > NV_CTRL_FSAA_MODE_MAX) val = NV_CTRL_FSAA_MODE_MAX;
     if (val < 0) val = 0;
     val = ctk_multisample->fsaa_translation_table[val];
     
@@ -579,11 +605,12 @@ static const gchar *get_multisample_mode_name(gint multisample_mode)
         "4x Bilinear",         /* FSAA_MODE_4x    */
         "4x, 9-tap Gaussian",  /* FSAA_MODE_4x_9t */
         "8x",                  /* FSAA_MODE_8x    */
-        "16x"                  /* FSAA_MODE_16x   */
+        "16x",                 /* FSAA_MODE_16x   */
+        "8xS"                  /* FSAA_MODE_8xS   */
     };
     
     if ((multisample_mode < NV_CTRL_FSAA_MODE_NONE) ||
-        (multisample_mode > NV_CTRL_FSAA_MODE_16x)) {
+        (multisample_mode > NV_CTRL_FSAA_MODE_MAX)) {
         return "Unknown Multisampling";
     }
     
@@ -702,7 +729,7 @@ static void fsaa_value_changed(GtkRange *range, gpointer user_data)
     ctk_multisample = CTK_MULTISAMPLE(user_data); 
 
     val = gtk_range_get_value(range);
-    if (val > NV_CTRL_FSAA_MODE_16x) val = NV_CTRL_FSAA_MODE_16x;
+    if (val > NV_CTRL_FSAA_MODE_MAX) val = NV_CTRL_FSAA_MODE_MAX;
     if (val < 0) val = 0;
     val = ctk_multisample->fsaa_translation_table[val];
 
@@ -1114,6 +1141,14 @@ GtkTextBuffer *ctk_multisample_create_help(GtkTextTagTable *table,
             ctk_help_para(b, &i, "This enables antialiasing using the 8x "
                           "mode.  This mode offers better image quality than "
                           "the 4x mode.");
+        }
+
+        if (ctk_multisample->active_attributes & __FSAA_8xS) {
+            ctk_help_term(b, &i, "8xS");
+            ctk_help_para(b, &i, "This enables antialiasing using the 8xS "
+                          "mode.  This mode offers better image quality than "
+                          "the 4x mode; 8xS is only available on Geforce "
+                          "(non-Quadro) FX or better GPUs.");
         }
 
         if (ctk_multisample->active_attributes & __FSAA_16x) {

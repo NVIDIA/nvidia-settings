@@ -48,4 +48,22 @@ EXTRA_DIST += \
 	cursor_banner.h \
         crt.h \
         tv.h \
-        dfp.h
+        dfp.h \
+        gvo_banner_comp_sync_green.h \
+        gvo_banner_comp_sync_grey.h \
+        gvo_banner_comp_sync_red.h \
+        gvo_banner_comp_sync_yellow.h \
+        gvo_banner_left.h \
+        gvo_banner_right.h \
+        gvo_banner_sdi_sync_green.h \
+        gvo_banner_sdi_sync_grey.h \
+        gvo_banner_sdi_sync_red.h \
+        gvo_banner_sdi_sync_yellow.h \
+        gvo_banner_vid1_green.h \
+        gvo_banner_vid1_grey.h \
+        gvo_banner_vid1_red.h \
+        gvo_banner_vid1_yellow.h \
+        gvo_banner_vid2_green.h \
+        gvo_banner_vid2_grey.h \
+        gvo_banner_vid2_red.h \
+        gvo_banner_vid2_yellow.h

@@ -141,6 +141,60 @@ Display *NvCtrlGetDisplayPtr(NvCtrlAttributeHandle *handle)
 } /* NvCtrlDisplayPtr() */
 
 
+/*
+ * NvCtrlGetScreen() - returns the screen number associated with this
+ * NvCtrlAttributeHandle.
+ */
+
+int NvCtrlGetScreen(NvCtrlAttributeHandle *handle)
+{
+    NvCtrlAttributePrivateHandle *h;
+
+    if (!handle) return -1;
+
+    h = (NvCtrlAttributePrivateHandle *) handle;
+    
+    return h->screen;
+
+} /* NvCtrlGetScreen() */
+
+
+/*
+ * NvCtrlGetScreenWidth() - return the width of the screen associated
+ * with this NvCtrlAttributeHandle.
+ */
+
+int NvCtrlGetScreenWidth(NvCtrlAttributeHandle *handle)
+{
+    NvCtrlAttributePrivateHandle *h;
+
+    if (!handle) return -1;
+
+    h = (NvCtrlAttributePrivateHandle *) handle;
+
+    return DisplayWidth(h->dpy, h->screen);
+    
+} /* NvCtrlGetScreenWidth() */
+
+
+/*
+ * NvCtrlGetScreenHeight() - return the height of the screen
+ * associated with this NvCtrlAttributeHandle.
+ */
+
+int NvCtrlGetScreenHeight(NvCtrlAttributeHandle *handle)
+{
+    NvCtrlAttributePrivateHandle *h;
+
+    if (!handle) return -1;
+
+    h = (NvCtrlAttributePrivateHandle *) handle;
+
+    return DisplayHeight(h->dpy, h->screen);
+    
+} /* NvCtrlGetScreenHeight() */
+
+
 int NvCtrlGetEventBase(NvCtrlAttributeHandle *handle)
 {
     NvCtrlAttributePrivateHandle *h;
