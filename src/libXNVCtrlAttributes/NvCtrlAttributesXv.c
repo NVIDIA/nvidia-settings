@@ -272,7 +272,7 @@ NvCtrlXvAttributes * NvCtrlInitXvAttributes(NvCtrlAttributePrivateHandle *h)
         if (strcmp(ainfo[i].name, "NV17 Video Texture") == 0) {
             
             NvCtrlXvTextureAttributes *attrs;
-
+            
             attrs = (NvCtrlXvTextureAttributes *)
                 malloc(sizeof(NvCtrlXvTextureAttributes));
             if ( !attrs ) {
@@ -283,6 +283,10 @@ NvCtrlXvAttributes * NvCtrlInitXvAttributes(NvCtrlAttributePrivateHandle *h)
             attrs->port = ainfo[i].base_id;
             attrs->sync_to_vblank = getXvAttribute(h, attrs->port,
                                                    "XV_SYNC_TO_VBLANK");
+            attrs->contrast       = getXvAttribute(h, attrs->port,
+                                                   "XV_CONTRAST");
+            attrs->brightness     = getXvAttribute(h, attrs->port,
+                                                   "XV_BRIGHTNESS");
             attrs->defaults       = getXvAttribute(h, attrs->port,
                                                    "XV_SET_DEFAULTS");
             if (!attrs->sync_to_vblank ||
@@ -551,21 +555,23 @@ static NvCtrlXvAttribute *getXvAttribute(NvCtrlAttributePrivateHandle *h,
 static Bool checkAdaptor(NvCtrlAttributePrivateHandle *h,
                          unsigned int attribute)
 {
+    
     switch(attribute) {
         
     case NV_CTRL_ATTR_XV_OVERLAY_SATURATION:
     case NV_CTRL_ATTR_XV_OVERLAY_CONTRAST:
     case NV_CTRL_ATTR_XV_OVERLAY_BRIGHTNESS:
     case NV_CTRL_ATTR_XV_OVERLAY_HUE:
-    case NV_CTRL_ATTR_XV_OVERLAY_SET_DEFAULTS:
+    case NV_CTRL_ATTR_XV_OVERLAY_SET_DEFAULTS:    
         if (h && h->xv && h->xv->overlay) return True;
         else return False;
-        
+    
     case NV_CTRL_ATTR_XV_TEXTURE_SYNC_TO_VBLANK:
+    case NV_CTRL_ATTR_XV_TEXTURE_CONTRAST:
+    case NV_CTRL_ATTR_XV_TEXTURE_BRIGHTNESS:
     case NV_CTRL_ATTR_XV_TEXTURE_SET_DEFAULTS:
         if (h && h->xv && h->xv->texture) return True;
         else return False;
-        
     case NV_CTRL_ATTR_XV_BLITTER_SYNC_TO_VBLANK:
     case NV_CTRL_ATTR_XV_BLITTER_SET_DEFAULTS:
         if (h && h->xv && h->xv->blitter) return True;
@@ -598,6 +604,8 @@ static unsigned int getXvPort(NvCtrlAttributePrivateHandle *h,
         return h->xv->overlay->port;
         
     case NV_CTRL_ATTR_XV_TEXTURE_SYNC_TO_VBLANK:
+    case NV_CTRL_ATTR_XV_TEXTURE_CONTRAST:
+    case NV_CTRL_ATTR_XV_TEXTURE_BRIGHTNESS:
     case NV_CTRL_ATTR_XV_TEXTURE_SET_DEFAULTS:
         return h->xv->texture->port;
         
@@ -639,12 +647,18 @@ static NvCtrlXvAttribute *getXvAttributePtr(NvCtrlAttributePrivateHandle *h,
     case NV_CTRL_ATTR_XV_TEXTURE_SYNC_TO_VBLANK:
         return h->xv->texture->sync_to_vblank;
         
+    case NV_CTRL_ATTR_XV_TEXTURE_CONTRAST:
+        return h->xv->texture->contrast;
+    
+    case NV_CTRL_ATTR_XV_TEXTURE_BRIGHTNESS:
+        return h->xv->texture->brightness;
+
     case NV_CTRL_ATTR_XV_BLITTER_SYNC_TO_VBLANK:
         return h->xv->blitter->sync_to_vblank;
         
     case NV_CTRL_ATTR_XV_OVERLAY_SET_DEFAULTS:
         return h->xv->overlay->defaults;
-        
+    
     case NV_CTRL_ATTR_XV_TEXTURE_SET_DEFAULTS:
         return h->xv->texture->defaults;
 

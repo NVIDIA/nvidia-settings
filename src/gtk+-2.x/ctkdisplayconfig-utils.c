@@ -1747,7 +1747,7 @@ static int gpu_add_screen_from_server(nvGpuPtr gpu, int screen_id,
         *err_str = g_strdup_printf("Dynamic TwinView is disabled on "
                                    "screen %d.",
                                    screen_id);
-        nv_error_msg(*err_str);
+        nv_warning_msg(*err_str);
         goto fail;
     }
 

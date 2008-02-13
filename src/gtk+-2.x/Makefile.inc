@@ -61,7 +61,8 @@ SRC += \
 	ctkgpu.c \
 	ctkbanner.c \
 	ctkvcsc.c \
-	ctkdisplayconfig-utils.c
+	ctkdisplayconfig-utils.c \
+	ctkpowersavings.c
 
 
 EXTRA_DIST += \
@@ -102,7 +103,8 @@ EXTRA_DIST += \
 	ctkgpu.h \
 	ctkbanner.h \
 	ctkvcsc.h \
-	ctkdisplayconfig-utils.h
+	ctkdisplayconfig-utils.h \
+	ctkpowersavings.h
 
 dist_list::
 	@ echo $(SRC) $(EXTRA_DIST)

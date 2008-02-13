@@ -53,6 +53,7 @@
 #include "ctkthermal.h"
 #include "ctkclocks.h"
 #include "ctkvcsc.h"
+#include "ctkpowersavings.h"
 
 #include "ctkdisplaydevice-crt.h"
 #include "ctkdisplaydevice-tv.h"
@@ -776,6 +777,15 @@ GtkWidget *ctk_window_new(NvCtrlAttributeHandle **screen_handles,
         gtk_tree_store_set(ctk_window->tree_store, &iter,
                            CTK_WINDOW_CONFIG_FILE_ATTRIBUTES_FUNC_COLUMN,
                            NULL, -1);
+
+        /* power savings */
+
+        child = ctk_power_savings_new(gpu_handle, ctk_config, ctk_event);
+        if (child) {
+            help = ctk_power_savings_create_help(tag_table, CTK_POWER_SAVINGS(child));
+            add_page(child, help, ctk_window, &iter, NULL,
+                     "Power Savings Settings", NULL, NULL, NULL);
+        }
 
         /* thermal information */
 

@@ -60,6 +60,7 @@ static char *nv_strndup(char *s, int n);
 #define A NV_PARSER_TYPE_NO_QUERY_ALL
 #define Z NV_PARSER_TYPE_NO_ZERO_VALUE
 #define H NV_PARSER_TYPE_100Hz
+#define K NV_PARSER_TYPE_1000Hz
 #define S NV_PARSER_TYPE_STRING_ATTRIBUTE
 
 AttributeTableEntry attributeTable[] = {
@@ -83,6 +84,7 @@ AttributeTableEntry attributeTable[] = {
     { "TextureSharpen",        NV_CTRL_TEXTURE_SHARPEN,             0     },
     { "Ubb",                   NV_CTRL_UBB,                         0     },
     { "Overlay",               NV_CTRL_OVERLAY,                     0     },
+    { "HWOverlay",             NV_CTRL_HWOVERLAY,                   0     },
     { "Stereo",                NV_CTRL_STEREO,                      0     },
     { "TwinView",              NV_CTRL_TWINVIEW,                    0     },
     { "ConnectedDisplays",     NV_CTRL_CONNECTED_DISPLAYS,          0     },
@@ -102,6 +104,7 @@ AttributeTableEntry attributeTable[] = {
     { "FSAAAppControlled",     NV_CTRL_FSAA_APPLICATION_CONTROLLED, 0     },
     { "LogAnisoAppControlled", NV_CTRL_LOG_ANISO_APPLICATION_CONTROLLED,0 },
     { "RefreshRate",           NV_CTRL_REFRESH_RATE,                N|H   },
+    { "RefreshRate3",          NV_CTRL_REFRESH_RATE_3,              N|K   },
     { "InitialPixmapPlacement",NV_CTRL_INITIAL_PIXMAP_PLACEMENT,    N     },
     { "PCIBus",                NV_CTRL_PCI_BUS,                     N     },
     { "PCIDevice",             NV_CTRL_PCI_DEVICE,                  N     },
@@ -116,6 +119,7 @@ AttributeTableEntry attributeTable[] = {
     { "GPUScalingActive",      NV_CTRL_GPU_SCALING_ACTIVE,          N     },
     { "DFPScalingActive",      NV_CTRL_DFP_SCALING_ACTIVE,          N     },
     { "FSAAAppEnhanced",       NV_CTRL_FSAA_APPLICATION_ENHANCED,   0     },
+    { "OnDemandVBlankInterrupts", NV_CTRL_ONDEMAND_VBLANK_INTERRUPTS, 0   },
 
     { "FrameLockMaster",       NV_CTRL_FRAMELOCK_MASTER,            N|F|G|D },
     { "FrameLockSlaves",       NV_CTRL_FRAMELOCK_SLAVES,            N|F|G|D },
@@ -188,6 +192,8 @@ AttributeTableEntry attributeTable[] = {
     { "XVideoOverlayContrast",     NV_CTRL_ATTR_XV_OVERLAY_CONTRAST,       V },
     { "XVideoOverlayBrightness",   NV_CTRL_ATTR_XV_OVERLAY_BRIGHTNESS,     V },
     { "XVideoOverlayHue",          NV_CTRL_ATTR_XV_OVERLAY_HUE,            V },
+    { "XVideoTextureBrightness",   NV_CTRL_ATTR_XV_TEXTURE_BRIGHTNESS,     V },
+    { "XVideoTextureContrast",     NV_CTRL_ATTR_XV_TEXTURE_CONTRAST,       V },
     { "XVideoTextureSyncToVBlank", NV_CTRL_ATTR_XV_TEXTURE_SYNC_TO_VBLANK, V },
     { "XVideoBlitterSyncToVBlank", NV_CTRL_ATTR_XV_BLITTER_SYNC_TO_VBLANK, V },
     { "XVideoSyncToDisplay",       NV_CTRL_XV_SYNC_TO_DISPLAY,           D|Z },
@@ -207,6 +213,7 @@ AttributeTableEntry attributeTable[] = {
     { "XRandRVersion",          NV_CTRL_STRING_XRANDR_VERSION,           S|N },
     { "XF86VidModeVersion",     NV_CTRL_STRING_XF86VIDMODE_VERSION,      S|N },
     { "XvVersion",              NV_CTRL_STRING_XV_VERSION,               S|N },
+    { "SLIMode",                NV_CTRL_STRING_SLI_MODE,                 S|N },
     
     { NULL,                    0,                                   0     }
 };
@@ -221,6 +228,7 @@ AttributeTableEntry attributeTable[] = {
 #undef A
 #undef Z
 #undef H
+#undef K
 #undef S
 
 /*
@@ -230,7 +238,7 @@ AttributeTableEntry attributeTable[] = {
  * about.
  */
 
-#if NV_CTRL_LAST_ATTRIBUTE != NV_CTRL_GVO_LOCK_OWNER
+#if NV_CTRL_LAST_ATTRIBUTE != NV_CTRL_ONDEMAND_VBLANK_INTERRUPTS
 #warning "Have you forgotten to add a new integer attribute to attributeTable?"
 #endif
 

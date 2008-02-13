@@ -900,10 +900,11 @@ GtkWidget* ctk_display_config_new(NvCtrlAttributeHandle *handle,
         gchar *str;
 
         if (!err_str) {
-            str = g_strdup("Failed to load X Server Display Configuration.");
+            str = g_strdup("Unable to load X Server Display "
+                           "Configuration page.");
         } else {
-            str = g_strdup_printf("Error while loading X Server Display "
-                                  "Configuration:\n\n%s", err_str);
+            str = g_strdup_printf("Unable to load X Server Display "
+                                  "Configuration page:\n\n%s", err_str);
             g_free(err_str);
         }
 

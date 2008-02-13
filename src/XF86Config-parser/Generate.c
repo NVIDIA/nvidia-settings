@@ -515,17 +515,10 @@ add_device(XConfigPtr config, int bus, int slot, char *boardname, int count)
 XConfigDisplayPtr xconfigAddDisplay(XConfigDisplayPtr head, const int depth)
 {
     XConfigDisplayPtr display;
-    XConfigModePtr mode = NULL;
-    
-    mode = xconfigAddMode(mode, "640x480");
-    mode = xconfigAddMode(mode, "800x600");
-    mode = xconfigAddMode(mode, "1024x768");
-    mode = xconfigAddMode(mode, "1280x1024");
-    mode = xconfigAddMode(mode, "1600x1200");
-    
+
     display = xconfigAlloc(sizeof(XConfigDisplayRec));
     display->depth = depth;
-    display->modes = mode;
+    display->modes = NULL;
     display->frameX0 = -1;
     display->frameY0 = -1;
     display->black.red = -1;

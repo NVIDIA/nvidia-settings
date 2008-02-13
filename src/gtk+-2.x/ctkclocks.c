@@ -292,6 +292,7 @@ GtkWidget* ctk_clocks_new(NvCtrlAttributeHandle *handle,
     int value;
     int clocks_2D;
     NVCTRLAttributeValidValuesRec ranges_2D;
+    NVCTRLAttributeValidValuesRec range_detection;
     int clocks_3D;
     NVCTRLAttributeValidValuesRec ranges_3D;
 
@@ -318,9 +319,9 @@ GtkWidget* ctk_clocks_new(NvCtrlAttributeHandle *handle,
     /* Check if overclocking is busy */
     
     if ( overclocking_enabled ) {
-        ret = NvCtrlGetAttribute(handle,
+        ret = NvCtrlGetValidAttributeValues(handle,
                                  NV_CTRL_GPU_OPTIMAL_CLOCK_FREQS_DETECTION,
-                                 &value);
+                                 &range_detection);
         if ( ret == NvCtrlSuccess ) {
             ret = NvCtrlGetAttribute(handle,
                                      NV_CTRL_GPU_OPTIMAL_CLOCK_FREQS_DETECTION_STATE,

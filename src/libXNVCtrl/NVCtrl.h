@@ -2804,12 +2804,15 @@
  * initially, but allows them to migrate to video memory.
  * NV_CTRL_INITIAL_PIXMAP_PLACEMENT_VIDMEM creates pixmaps in video memory
  * when enough resources are available.
+ * NV_CTRL_INITIAL_PIXMAP_PLACEMENT_GPU_SYSMEM creates pixmaps in GPU accessible
+ * system memory when enough resources are available.
  */
 
 #define NV_CTRL_INITIAL_PIXMAP_PLACEMENT                         238 /* RW- */
 #define NV_CTRL_INITIAL_PIXMAP_PLACEMENT_FORCE_SYSMEM            0
 #define NV_CTRL_INITIAL_PIXMAP_PLACEMENT_SYSMEM                  1
 #define NV_CTRL_INITIAL_PIXMAP_PLACEMENT_VIDMEM                  2
+#define NV_CTRL_INITIAL_PIXMAP_PLACEMENT_GPU_SYSMEM              4
 
 
 /*
@@ -3059,7 +3062,41 @@
 #define NV_CTRL_GVO_LOCK_OWNER_X_SCREEN                           3
 
 
-#define NV_CTRL_LAST_ATTRIBUTE NV_CTRL_GVO_LOCK_OWNER
+/*
+ * NV_CTRL_HWOVERLAY - when a workstation overlay is in use, reports
+ * whether the hardware overlay is used, or if the overlay is emulated.
+ */
+
+#define NV_CTRL_HWOVERLAY                                       258 /* R-- */
+#define NV_CTRL_HWOVERLAY_FALSE                                   0
+#define NV_CTRL_HWOVERLAY_TRUE                                    1
+
+
+/*
+ * NV_CTRL_REFRESH_RATE_3 - Returns the refresh rate of the specified
+ * display device in 1000 * Hz (ie. to get the refresh rate in Hz, divide
+ * the returned value by 1000.)
+ *
+ * This attribute may be queried through XNVCTRLQueryTargetAttribute()
+ * using a NV_CTRL_TARGET_TYPE_GPU or NV_CTRL_TARGET_TYPE_X_SCREEN target.
+ */
+
+#define NV_CTRL_REFRESH_RATE_3                                  260 /* R-DG */
+
+
+/*
+ * NV_CTRL_ONDEMAND_VBLANK_INTERRUPTS - if the OnDemandVBlankInterrupts
+ * X driver option is set to true, this attribute can be used to
+ * determine if on-demand VBlank interrupt control is enabled on the
+ * specified GPU, as well as to enable or disable this feature.
+ */
+
+#define NV_CTRL_ONDEMAND_VBLANK_INTERRUPTS                      261 /* RW-G */
+#define NV_CTRL_ONDEMAND_VBLANK_INTERRUPTS_OFF                    0
+#define NV_CTRL_ONDEMAND_VBLANK_INTERRUPTS_ON                     1
+
+
+#define NV_CTRL_LAST_ATTRIBUTE  NV_CTRL_ONDEMAND_VBLANK_INTERRUPTS
 
 
 /**************************************************************************/
@@ -3445,8 +3482,23 @@
 
 #define NV_CTRL_STRING_TWINVIEW_XINERAMA_INFO_ORDER            27   /* RW-- */
 
+
+/*
+ * NV_CTRL_STRING_SLI_MODE - returns a string describing the current
+ * SLI mode, if any, or FALSE if SLI is not currently enabled.
+ *
+ * This string should be used for informational purposes only, and
+ * should not be used to distinguish between SLI modes, other than to
+ * recognize when SLI is disabled (FALSE is returned) or
+ * enabled (the returned string is non-NULL and describes the current
+ * SLI configuration).
+ */
+
+#define NV_CTRL_STRING_SLI_MODE                                28   /* R---*/
+
+
 #define NV_CTRL_STRING_LAST_ATTRIBUTE \
-        NV_CTRL_STRING_TWINVIEW_XINERAMA_INFO_ORDER
+        NV_CTRL_STRING_SLI_MODE
 
 
 /**************************************************************************/

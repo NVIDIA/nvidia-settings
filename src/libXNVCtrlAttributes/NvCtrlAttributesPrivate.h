@@ -122,6 +122,8 @@ struct __NvCtrlXvOverlayAttributes {
 struct __NvCtrlXvTextureAttributes {
     unsigned int port;
     NvCtrlXvAttribute *sync_to_vblank;
+    NvCtrlXvAttribute *contrast;
+    NvCtrlXvAttribute *brightness;
     NvCtrlXvAttribute *defaults;
 };
 

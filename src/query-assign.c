@@ -755,6 +755,8 @@ static void print_queried_value(CtrlHandleTarget *t,
     
     if (flags & NV_PARSER_TYPE_100Hz) {
         snprintf(val_str, 64, "%.2f Hz", ((float) val) / 100.0);
+    } else if (flags & NV_PARSER_TYPE_1000Hz) {
+        snprintf(val_str, 64, "%.3f Hz", ((float) val) / 1000.0);
     } else if (v->type == ATTRIBUTE_TYPE_BITMASK) {
         snprintf(val_str, 64, "0x%08x", val);
     } else if (flags & NV_PARSER_TYPE_PACKED_ATTRIBUTE) {

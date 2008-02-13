@@ -56,6 +56,15 @@ static const char *__xv_texture_sync_to_vblank_help =
 "the vertical retrace of your display device "
 "for the Texture Xv Adaptor.";
 
+static const char *__xv_texture_contrast_help =
+"The Video Texture Contrast slider controls "
+"the contrast level for the Texture Xv Adaptor.";
+
+static const char *__xv_texture_brightness_help =
+"The Video Texture Brightness slider controls "
+"the brightness level for the Texture Xv Adaptor.";
+
+
 static const char *__xv_blitter_sync_to_vblank_help =
 "The Video Blitter Sync To VBlank checkbox "
 "toggles syncing XvPutVideo(3X) and XvPutStill(3X) to "
@@ -144,8 +153,10 @@ static void xv_sync_to_display_radio_button_enabled_add(CtkXVideo *ctk_xvideo,
 #define __XV_OVERLAY_BRIGHTNESS     (1 << 3)
 #define __XV_OVERLAY_HUE            (1 << 4)
 #define __XV_TEXTURE_SYNC_TO_VBLANK (1 << 5)
-#define __XV_BLITTER_SYNC_TO_VBLANK (1 << 6)
-#define __XV_SYNC_TO_DISPLAY        (1 << 7)
+#define __XV_TEXTURE_CONTRAST       (1 << 6)
+#define __XV_TEXTURE_BRIGHTNESS     (1 << 7)
+#define __XV_BLITTER_SYNC_TO_VBLANK (1 << 8)
+#define __XV_SYNC_TO_DISPLAY        (1 << 9)
 
 
 
@@ -573,6 +584,19 @@ GtkWidget* ctk_xvideo_new(NvCtrlAttributeHandle *handle,
                                 __xv_texture_sync_to_vblank_help,
                                 NV_CTRL_ATTR_XV_TEXTURE_SYNC_TO_VBLANK,
                                 __XV_TEXTURE_SYNC_TO_VBLANK);
+        
+        ctk_xvideo->texture_brightness =
+            create_slider(ctk_xvideo, vbox, button, "Brightness",
+                          __xv_texture_brightness_help,
+                          NV_CTRL_ATTR_XV_TEXTURE_BRIGHTNESS,
+                          __XV_TEXTURE_BRIGHTNESS);
+        
+        ctk_xvideo->texture_contrast =
+            create_slider(ctk_xvideo, vbox, button, "Contrast",
+                          __xv_texture_contrast_help,
+                          NV_CTRL_ATTR_XV_TEXTURE_CONTRAST,
+                          __XV_TEXTURE_CONTRAST);
+    
     }
     
     /* XVideo Blitter */
@@ -706,11 +730,14 @@ static GtkWidget *create_slider(CtkXVideo *ctk_xvideo,
     GtkWidget *scale, *widget;
     gint min, max, val, step_incr, page_incr;
     NVCTRLAttributeValidValuesRec range;
+    ReturnStatus ret;
     
     /* get the attribute value */
 
-    NvCtrlGetAttribute(ctk_xvideo->handle, attribute, &val);
-
+    ret = NvCtrlGetAttribute(ctk_xvideo->handle, attribute, &val);
+    
+    if (ret != NvCtrlSuccess) return NULL;
+    
     /* get the range for the attribute */
 
     NvCtrlGetValidAttributeValues(ctk_xvideo->handle, attribute, &range);
@@ -811,6 +838,9 @@ static void slider_changed(GtkAdjustment *adjustment, gpointer user_data)
     case NV_CTRL_ATTR_XV_OVERLAY_CONTRAST:   str = "Overlay Contrast";   break;
     case NV_CTRL_ATTR_XV_OVERLAY_BRIGHTNESS: str = "Overlay Brightness"; break;
     case NV_CTRL_ATTR_XV_OVERLAY_HUE:        str = "Overlay Hue";        break;
+    case NV_CTRL_ATTR_XV_TEXTURE_CONTRAST:   str = "Texture Contrast";   break;
+    case NV_CTRL_ATTR_XV_TEXTURE_BRIGHTNESS: str = "Texture Brightness"; break;
+
     default:
         return;
     }
@@ -1006,6 +1036,12 @@ static void reset_defaults(GtkButton *button, gpointer user_data)
     reset_check_button(ctk_xvideo, ctk_xvideo->texture_sync_to_blank,
                        NV_CTRL_ATTR_XV_TEXTURE_SYNC_TO_VBLANK);
     
+    reset_slider(ctk_xvideo, ctk_xvideo->texture_contrast,
+                 NV_CTRL_ATTR_XV_TEXTURE_CONTRAST);
+    
+    reset_slider(ctk_xvideo, ctk_xvideo->texture_brightness,
+                 NV_CTRL_ATTR_XV_TEXTURE_BRIGHTNESS);
+    
     reset_check_button(ctk_xvideo, ctk_xvideo->blitter_sync_to_blank,
                        NV_CTRL_ATTR_XV_BLITTER_SYNC_TO_VBLANK);
     
@@ -1056,7 +1092,17 @@ GtkTextBuffer *ctk_xvideo_create_help(GtkTextTagTable *table,
         ctk_help_heading(b, &i, "Video Texture Sync To VBlank");
         ctk_help_para(b, &i, __xv_texture_sync_to_vblank_help);
     }
-
+    
+    if (ctk_xvideo->active_attributes & __XV_TEXTURE_CONTRAST) {
+        ctk_help_heading(b, &i, "Video Texture Contrast");
+        ctk_help_para(b, &i, __xv_texture_contrast_help);
+    }
+    
+    if (ctk_xvideo->active_attributes & __XV_TEXTURE_BRIGHTNESS) {   
+        ctk_help_heading(b, &i, "Video Texture Brightness");
+        ctk_help_para(b, &i, __xv_texture_brightness_help);
+    }
+   
     if (ctk_xvideo->active_attributes & __XV_BLITTER_SYNC_TO_VBLANK) {
         ctk_help_heading(b, &i, "Video Blitter Sync To VBlank");
         ctk_help_para(b, &i, __xv_blitter_sync_to_vblank_help);
