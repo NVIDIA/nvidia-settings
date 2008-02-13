@@ -25,7 +25,6 @@
 #include <gtk/gtk.h>
 #include <NvCtrlAttributes.h>
 
-#include "dfp_banner.h"
 #include "ctkimage.h"
 
 #include "ctkdisplaydevice-dfp.h"
@@ -61,8 +60,8 @@ static void dfp_dithering_changed(GtkWidget *widget, gpointer user_data);
 static void reset_button_clicked(GtkButton *button, gpointer user_data);
 
 static void
-dfp_scaling_update_radio_buttons(CtkDisplayDeviceDfp *ctk_display_device_dfp,
-                                 gint value);
+dfp_scaling_update_buttons(CtkDisplayDeviceDfp *ctk_display_device_dfp,
+                           gint value);
 
 
 static void
@@ -84,6 +83,9 @@ static void ctk_display_device_dfp_setup(CtkDisplayDeviceDfp
 static void enabled_displays_received(GtkObject *object, gpointer arg1,
                                       gpointer user_data);
 
+static void info_update_received(GtkObject *object, gpointer arg1,
+                                 gpointer user_data);
+
 
 #define FRAME_PADDING 5
 
@@ -91,21 +93,58 @@ static void enabled_displays_received(GtkObject *object, gpointer arg1,
 #define __DITHERING (1<<1)
 
 
+#define GET_SCALING_TARGET(V) ((V) >> 16)
+#define GET_SCALING_METHOD(V) ((V) & 0xFFFF)
+#define MAKE_SCALING_VALUE(T, M)    (((T) << 16) | ((M) & 0xFFFF))
+
+
 static const char *__scaling_help =
-"A FlatPanel usually has a single 'native' "
+"A flat panel usually has a single 'native' "
 "resolution.  If you are using a resolution that is "
-"smaller than the FlatPanel's native resolution, then "
-"FlatPanel Scaling can adjust how the image is "
-"displayed on the FlatPanel.";
+"smaller than the flat panel's native resolution, then "
+"Flat Panel Scaling can adjust how the image is "
+"displayed on the flat panel.";
 
 static const char *__dithering_help =
 "Some GeForce2 GPUs required dithering to "
-"properly display on a flatpanel; this option allows "
+"properly display on a flat panel; this option allows "
 "you to control the dithering behavior.";
 
 static const char *__info_help = 
 "This section describes basic informations about the "
 "DVI connection to the digital flat panel.";
+
+static const char * __native_res_help =
+"The Native Resolution is the width and height in pixels that the flat "
+"panel uses to display the image.  All other resolutions must be scaled "
+"to this resolution by the GPU and/or the DFP's built-in scaler.";
+
+static const char * __best_fit_res_help =
+"The Best Fit Resolution is a resolution supported by the DFP that "
+"closely matches the frontend resolution.  The Best Fit Resolution "
+"is used as the Backend Resolution when you want to let the DFP do "
+"the scaling from the Frontend Resolution to the Native Resolution.";
+
+static const char * __frontend_res_help =
+"The Frontend Resolution is the current resolution of the image in pixels.";
+
+static const char * __backend_res_help =
+"The Backend Resolution is the resolution that the GPU is driving to "
+"the DFP.  If the Backend Resolution is different than the Frontend "
+"Resolution, then the GPU will scale the image from the Frontend "
+"Resolution to the Backend Resolution.  If the Backend Resolution "
+"is different than the Native Resolution, then the DFP will scale "
+"the image from the Backend Resolution to the Native Resolution.  "
+"Backend Resolution is either the Native Resolution or the Best "
+"Fit Resolution.";
+
+static const char * __force_gpu_scaling_help =
+"When set, the driver will make the GPU scale the "
+"frontend (current) mode to the flat panel's native "
+"resolution.  If disabled, the GPU will only scale (if "
+"needed) to the best fitting resolution reported in the flat "
+"panel's EDID; the flat panel will then scale the image to "
+"its native resolution.";
 
 
 GType ctk_display_device_dfp_get_type(void)
@@ -167,10 +206,10 @@ GtkWidget* ctk_display_device_dfp_new(NvCtrlAttributeHandle *handle,
     GtkWidget *hbox, *vbox, *tmpbox;
     GtkWidget *eventbox;
 
+    GtkWidget *button;
     GtkWidget *radio0;
     GtkWidget *radio1;
     GtkWidget *radio2;
-    GtkWidget *radio3;
     GtkWidget *alignment;
     
     GtkWidget *table;
@@ -187,7 +226,7 @@ GtkWidget* ctk_display_device_dfp_new(NvCtrlAttributeHandle *handle,
 
     /* banner */
 
-    banner = ctk_banner_image_new(&dfp_banner_image);
+    banner = ctk_banner_image_new(BANNER_ARTWORK_DFP);
     gtk_box_pack_start(GTK_BOX(object), banner, FALSE, FALSE, 0);
     
     /*
@@ -222,85 +261,185 @@ GtkWidget* ctk_display_device_dfp_new(NvCtrlAttributeHandle *handle,
     frame = gtk_frame_new("Flat Panel Information");
     gtk_box_pack_start(GTK_BOX(hbox), frame, FALSE, FALSE, 0);
     
-    table = gtk_table_new(3, 2, FALSE);
-    
     /*
-     * insert a vbox between the frame and the table, so that the
-     * table doesn't expand to fill all of the space within the
+     * insert a vbox between the frame and the widgets, so that the
+     * widgets don't expand to fill all of the space within the
      * frame
      */
     
-    tmpbox = gtk_vbox_new(FALSE, 0);
-    gtk_box_pack_start(GTK_BOX(tmpbox), table, FALSE, FALSE, 0);
-    
+    tmpbox = gtk_vbox_new(FALSE, 5);
     gtk_container_add(GTK_CONTAINER(frame), tmpbox);
     
-    gtk_table_set_row_spacings(GTK_TABLE(table), 3);
-    gtk_table_set_col_spacings(GTK_TABLE(table), 15);
-    
-    gtk_container_set_border_width(GTK_CONTAINER(table), 5);
-    
-    ctk_display_device_dfp->txt_chip_location = 
-        add_table_row(table, 0,
-                      0, 0.5, "Chip location:",
-                      0, 0.5,  "");
+    /* Make the txt widgets that will get updated */
+    ctk_display_device_dfp->txt_chip_location = gtk_label_new("");
+    ctk_display_device_dfp->txt_link = gtk_label_new("");
+    ctk_display_device_dfp->txt_signal = gtk_label_new("");
+    ctk_display_device_dfp->txt_native_resolution = gtk_label_new("");
+    ctk_display_device_dfp->txt_best_fit_resolution = gtk_label_new("");
+    ctk_display_device_dfp->txt_frontend_resolution = gtk_label_new("");
+    ctk_display_device_dfp->txt_backend_resolution = gtk_label_new("");
 
-    ctk_display_device_dfp->txt_link = 
-        add_table_row(table, 1,
-                      0, 0.5, "DVI connection link:",
-                      0, 0.5,  "");
+    /* Add information widget lines */
+    {
+        typedef struct {
+            GtkWidget *label;
+            GtkWidget *txt;
+            const gchar *tooltip;
+        } TextLineInfo;
 
-    ctk_display_device_dfp->txt_signal = 
-        add_table_row(table, 2,
-                      0, 0.5, "Signal:",
-                      0, 0.5,  "");
+        TextLineInfo lines[] = {
+            {
+                gtk_label_new("Chip location:"),
+                ctk_display_device_dfp->txt_chip_location,
+                NULL
+            },
+            {
+                gtk_label_new("DVI connection link:"),
+                ctk_display_device_dfp->txt_link,
+                NULL
+            },
+            {
+                gtk_label_new("Signal:"),
+                ctk_display_device_dfp->txt_signal,
+                NULL,
+            },
+            {
+                gtk_label_new("Native Resolution:"),
+                ctk_display_device_dfp->txt_native_resolution,
+                __native_res_help,
+            },
+            {
+                gtk_label_new("Best Fit Resolution:"),
+                ctk_display_device_dfp->txt_best_fit_resolution,
+                __best_fit_res_help,
+            },
+            {
+                gtk_label_new("Frontend Resolution:"),
+                ctk_display_device_dfp->txt_frontend_resolution,
+                __frontend_res_help,
+            },
+            {
+                gtk_label_new("Backend Resolution:"),
+                ctk_display_device_dfp->txt_backend_resolution,
+                __backend_res_help,
+            },
+            { NULL, NULL, NULL }
+        };
+        int i;
+
+        GtkRequisition req;
+        int max_width;
+
+        /* Compute max width of lables and setup text alignments */
+        max_width = 0;
+        for (i = 0; lines[i].label; i++) {
+            gtk_misc_set_alignment(GTK_MISC(lines[i].label), 0.0f, 0.5f);
+            gtk_misc_set_alignment(GTK_MISC(lines[i].txt), 0.0f, 0.5f);
+
+            gtk_widget_size_request(lines[i].label, &req);
+            if (max_width < req.width) {
+                max_width = req.width;
+            }
+        }
+
+        /* Pack labels */
+        for (i = 0; lines[i].label; i++) {
+            GtkWidget *tmphbox;
+
+            /* Add separators */
+            if (i == 3 || i == 5) {
+                GtkWidget *separator = gtk_hseparator_new();
+                gtk_box_pack_start(GTK_BOX(tmpbox), separator,
+                                   FALSE, FALSE, 0);
+            }
+
+            /* Set the label's width */
+            gtk_widget_set_size_request(lines[i].label, max_width, -1);
+
+            /* add the widgets for this line */
+            tmphbox = gtk_hbox_new(FALSE, 5);
+            gtk_box_pack_start(GTK_BOX(tmphbox), lines[i].label,
+                               FALSE, TRUE, 5);
+            gtk_box_pack_start(GTK_BOX(tmphbox), lines[i].txt,
+                               FALSE, TRUE, 5);
+
+            /* Include tooltips */
+            if (!lines[i].tooltip) {
+                gtk_box_pack_start(GTK_BOX(tmpbox), tmphbox, FALSE, FALSE, 0);
+            } else {
+                eventbox = gtk_event_box_new();
+                gtk_container_add(GTK_CONTAINER(eventbox), tmphbox);
+                ctk_config_set_tooltip(ctk_config, eventbox, lines[i].tooltip);
+                gtk_box_pack_start(GTK_BOX(tmpbox), eventbox, FALSE, FALSE, 0);
+            }
+        }
+    }
+
     
-    /* FlatPanel Scaling */
+    /* Flat Panel Scaling */
     
-    frame = gtk_frame_new("FlatPanel Scaling");
+    frame = gtk_frame_new("Flat Panel Scaling");
     eventbox = gtk_event_box_new();
     gtk_container_add(GTK_CONTAINER(eventbox), frame);
     gtk_box_pack_start(GTK_BOX(hbox), eventbox, FALSE, FALSE, 0);
     ctk_display_device_dfp->scaling_frame = frame;
     
     ctk_config_set_tooltip(ctk_config, eventbox, __scaling_help);
-    
+
     vbox = gtk_vbox_new(FALSE, FRAME_PADDING);
     gtk_container_set_border_width(GTK_CONTAINER(vbox), FRAME_PADDING);
     gtk_container_add(GTK_CONTAINER(frame), vbox);
+
+    button = gtk_check_button_new_with_label("Force Full GPU Scaling");
+    ctk_display_device_dfp->scaling_gpu_button = button;
+    ctk_config_set_tooltip(ctk_config, button, __force_gpu_scaling_help);
+
+    gtk_box_pack_start(GTK_BOX(vbox), button, FALSE, FALSE, 0);
+
+    table = gtk_table_new(1, 2, FALSE);
+    gtk_table_set_row_spacings(GTK_TABLE(table), 6);
+    gtk_table_set_col_spacings(GTK_TABLE(table), 15);
+    
+    gtk_container_set_border_width(GTK_CONTAINER(table), 5);
+    
+    ctk_display_device_dfp->txt_scaling = 
+        add_table_row(table, 0,
+                      0, 0.5, "Scaling:",
+                      0, 0.5,  "");
+
+    gtk_box_pack_start(GTK_BOX(vbox), table, FALSE, FALSE, 0);
+
+    frame = gtk_frame_new("GPU Scaling Method");
+    gtk_box_pack_start(GTK_BOX(vbox), frame, FALSE, FALSE, 0);
+    vbox = gtk_vbox_new(FALSE, FRAME_PADDING);
+    gtk_container_set_border_width(GTK_CONTAINER(vbox), FRAME_PADDING);
+    gtk_container_add(GTK_CONTAINER(frame), vbox);
+    ctk_display_device_dfp->scaling_method_frame = frame;
+
+    g_signal_connect(G_OBJECT(button), "toggled",
+                     G_CALLBACK(dfp_scaling_changed),
+                     (gpointer) ctk_display_device_dfp);
     
     radio0 = make_scaling_radio_button
-        (ctk_display_device_dfp, vbox, NULL, "Default",
-         NV_CTRL_FLATPANEL_SCALING_DEFAULT);
+        (ctk_display_device_dfp, vbox, NULL, "Streched",
+         NV_CTRL_GPU_SCALING_METHOD_STRETCHED);
     
     radio1 = make_scaling_radio_button
-        (ctk_display_device_dfp, vbox, radio0, "Scaled",
-         NV_CTRL_FLATPANEL_SCALING_SCALED);
+        (ctk_display_device_dfp, vbox, radio0, "Centered",
+         NV_CTRL_GPU_SCALING_METHOD_CENTERED);
     
     radio2 = make_scaling_radio_button
-        (ctk_display_device_dfp, vbox, radio1, "Centered",
-         NV_CTRL_FLATPANEL_SCALING_CENTERED);
-    
-    radio3 = make_scaling_radio_button
-        (ctk_display_device_dfp, vbox, radio2, "Fixed Aspect Ratio Scaled",
-         NV_CTRL_FLATPANEL_SCALING_ASPECT_SCALED);
-    
-    /*
-     * XXX TODO: determine when we should advertise Monitor
-     * Scaling (aka "Native" scaling)
-     */
-    
-    ctk_display_device_dfp->scaling_buttons
-        [NV_CTRL_FLATPANEL_SCALING_NATIVE] = NULL;
+        (ctk_display_device_dfp, vbox, radio1, "Aspect Ratio Scaled",
+         NV_CTRL_GPU_SCALING_METHOD_ASPECT_SCALED);
     
     g_signal_connect(G_OBJECT(ctk_event),
-                     CTK_EVENT_NAME(NV_CTRL_FLATPANEL_SCALING),
+                     CTK_EVENT_NAME(NV_CTRL_GPU_SCALING),
                      G_CALLBACK(dfp_update_received),
                      (gpointer) ctk_display_device_dfp);
 
-    /* FlatPanel Dithering */
+    /* Flat Panel Dithering */
 
-    frame = gtk_frame_new("FlatPanel Dithering");
+    frame = gtk_frame_new("Flat Panel Dithering");
     eventbox = gtk_event_box_new();
     gtk_container_add(GTK_CONTAINER(eventbox), frame);
     gtk_box_pack_start(GTK_BOX(hbox), eventbox, TRUE, TRUE, 0);
@@ -362,6 +501,31 @@ GtkWidget* ctk_display_device_dfp_new(NvCtrlAttributeHandle *handle,
                      G_CALLBACK(enabled_displays_received),
                      (gpointer) ctk_display_device_dfp);
 
+    g_signal_connect(G_OBJECT(ctk_event),
+                     CTK_EVENT_NAME(NV_CTRL_GPU_SCALING_ACTIVE),
+                     G_CALLBACK(info_update_received),
+                     (gpointer) ctk_display_device_dfp);
+
+    g_signal_connect(G_OBJECT(ctk_event),
+                     CTK_EVENT_NAME(NV_CTRL_DFP_SCALING_ACTIVE),
+                     G_CALLBACK(info_update_received),
+                     (gpointer) ctk_display_device_dfp);
+
+    g_signal_connect(G_OBJECT(ctk_event),
+                     CTK_EVENT_NAME(NV_CTRL_FRONTEND_RESOLUTION),
+                     G_CALLBACK(info_update_received),
+                     (gpointer) ctk_display_device_dfp);
+
+    g_signal_connect(G_OBJECT(ctk_event),
+                     CTK_EVENT_NAME(NV_CTRL_FLATPANEL_BEST_FIT_RESOLUTION),
+                     G_CALLBACK(info_update_received),
+                     (gpointer) ctk_display_device_dfp);
+
+    g_signal_connect(G_OBJECT(ctk_event),
+                     CTK_EVENT_NAME(NV_CTRL_BACKEND_RESOLUTION),
+                     G_CALLBACK(info_update_received),
+                     (gpointer) ctk_display_device_dfp);
+
     return GTK_WIDGET(object);
 
 } /* ctk_display_device_dfp_new() */
@@ -398,7 +562,7 @@ static GtkWidget *make_scaling_radio_button(CtkDisplayDeviceDfp
                      G_CALLBACK(dfp_scaling_changed),
                      (gpointer) ctk_display_device_dfp);
 
-    ctk_display_device_dfp->scaling_buttons[value] = radio;
+    ctk_display_device_dfp->scaling_method_buttons[value -1] = radio;
 
     return radio;
     
@@ -455,20 +619,31 @@ static void
 post_dfp_scaling_update(CtkDisplayDeviceDfp *ctk_display_device_dfp,
                         gint value)
 {
-    static const char *scaling_string_table[] = {
-        "Default",        /* NV_CTRL_FLATPANEL_SCALING_DEFAULT */
-        "Monitor Scaled", /* NV_CTRL_FLATPANEL_SCALING_NATIVE */
-        "Scaled",         /* NV_CTRL_FLATPANEL_SCALING_SCALED */
-        "Centered",       /* NV_CTRL_FLATPANEL_SCALING_CENTERED */
-        "Aspect Scaled"   /* NV_CTRL_FLATPANEL_SCALING_ASPECT_SCALED */
+    int scaling_target = GET_SCALING_TARGET(value);
+    int scaling_method = GET_SCALING_METHOD(value);
+    
+    static const char *scaling_target_string_table[] = {
+        "Best Fit", /* NV_CTRL_GPU_SCALING_TARGET_FLATPANEL_BEST_FIT */
+        "Native",   /* NV_CTRL_GPU_SCALING_TARGET_FLATPANEL_NATIVE */
     };
-        
-    if (value > NV_CTRL_FLATPANEL_SCALING_ASPECT_SCALED) return;
+
+    static const char *scaling_method_string_table[] = {
+        "Stretched",           /* NV_CTRL_GPU_SCALING_METHOD_STRETCHED */
+        "Centered",            /* NV_CTRL_GPU_SCALING_METHOD_CENTERED */
+        "Aspect Ratio Scaled"  /* NV_CTRL_GPU_SCALING_METHOD_ASPECT_SCALED */
+    };
+
+    if ((scaling_target < NV_CTRL_GPU_SCALING_TARGET_FLATPANEL_BEST_FIT) ||
+        (scaling_target > NV_CTRL_GPU_SCALING_TARGET_FLATPANEL_NATIVE)) return;
+
+    if ((scaling_method < NV_CTRL_GPU_SCALING_METHOD_STRETCHED) ||
+        (scaling_method > NV_CTRL_GPU_SCALING_METHOD_ASPECT_SCALED)) return;
     
     ctk_config_statusbar_message(ctk_display_device_dfp->ctk_config,
-                                 "Set FlatPanel Scaling for %s to %s.",
+                                 "Set Flat Panel Scaling for %s to %s %s.",
                                  ctk_display_device_dfp->name,
-                                 scaling_string_table[value]);
+                                 scaling_method_string_table[scaling_method -1],
+                                 scaling_target_string_table[scaling_target -1]);
     
 } /* post_dfp_scaling_update() */
 
@@ -476,8 +651,7 @@ post_dfp_scaling_update(CtkDisplayDeviceDfp *ctk_display_device_dfp,
 
 /*
  * dfp_scaling_changed() - callback function for changes to the
- * scaling radio button group; if the specified radio button is
- * active, send updated state to the server
+ * scaling target and method buttons.
  */
 
 static void dfp_scaling_changed(GtkWidget *widget, gpointer user_data)
@@ -485,21 +659,54 @@ static void dfp_scaling_changed(GtkWidget *widget, gpointer user_data)
     CtkDisplayDeviceDfp *ctk_display_device_dfp =
         CTK_DISPLAY_DEVICE_DFP(user_data);
     gboolean enabled;
+    int scaling_target;
+    int scaling_method;
     gint value;
+    int i;
+    GtkWidget *radio;
 
-    enabled = gtk_toggle_button_get_active(GTK_TOGGLE_BUTTON(widget));
+    /* Get the scaling target */
+
+    enabled = gtk_toggle_button_get_active
+        (GTK_TOGGLE_BUTTON(ctk_display_device_dfp->scaling_gpu_button));
 
     if (enabled) {
-
-        user_data = g_object_get_data(G_OBJECT(widget), "scaling_value");
-        value = GPOINTER_TO_INT(user_data);
-        
-        NvCtrlSetDisplayAttribute(ctk_display_device_dfp->handle,
-                                  ctk_display_device_dfp->display_device_mask,
-                                  NV_CTRL_FLATPANEL_SCALING, value);
-        
-        post_dfp_scaling_update(ctk_display_device_dfp, value);
+        scaling_target = NV_CTRL_GPU_SCALING_TARGET_FLATPANEL_NATIVE;
+    } else {
+        scaling_target = NV_CTRL_GPU_SCALING_TARGET_FLATPANEL_BEST_FIT;
     }
+
+    /* Get the scaling method */
+
+    scaling_method = NV_CTRL_GPU_SCALING_METHOD_INVALID;
+
+    for (i = 0; i < NV_CTRL_GPU_SCALING_METHOD_ASPECT_SCALED; i++) {
+        radio = ctk_display_device_dfp->scaling_method_buttons[i];
+        
+        if (!radio) continue;
+
+        enabled = gtk_toggle_button_get_active(GTK_TOGGLE_BUTTON(radio));
+
+        if (enabled) {
+            user_data = g_object_get_data(G_OBJECT(radio), "scaling_value");
+            scaling_method = GPOINTER_TO_INT(user_data);
+            break;
+        }
+    }
+
+    if (scaling_method == NV_CTRL_GPU_SCALING_METHOD_INVALID) {
+        return;
+    }
+    
+    value = MAKE_SCALING_VALUE(scaling_target, scaling_method);
+        
+    NvCtrlSetDisplayAttribute(ctk_display_device_dfp->handle,
+                              ctk_display_device_dfp->display_device_mask,
+                              NV_CTRL_GPU_SCALING, value);
+    
+    gtk_widget_set_sensitive(ctk_display_device_dfp->reset_button, TRUE);
+
+    post_dfp_scaling_update(ctk_display_device_dfp, value);
 
 } /* dfp_scaling_changed() */
 
@@ -525,7 +732,7 @@ post_dfp_dithering_update(CtkDisplayDeviceDfp *ctk_display_device_dfp,
     if (value > NV_CTRL_FLATPANEL_DITHERING_DISABLED) return;
     
     ctk_config_statusbar_message(ctk_display_device_dfp->ctk_config,
-                                 "Set FlatPanel Dithering for %s to %s.",
+                                 "Set Flat Panel Dithering for %s to %s.",
                                  ctk_display_device_dfp->name,
                                  dithering_string_table[value]);
     
@@ -586,13 +793,15 @@ static void reset_button_clicked(GtkButton *button, gpointer user_data)
    
     if (ctk_display_device_dfp->active_attributes & __SCALING) {
         
-        value = NV_CTRL_FLATPANEL_SCALING_DEFAULT;
+        value =
+            MAKE_SCALING_VALUE(NV_CTRL_GPU_SCALING_TARGET_FLATPANEL_BEST_FIT,
+                               NV_CTRL_GPU_SCALING_METHOD_STRETCHED);
 
         NvCtrlSetDisplayAttribute(ctk_display_device_dfp->handle,
                                   ctk_display_device_dfp->display_device_mask,
-                                  NV_CTRL_FLATPANEL_SCALING, value);
+                                  NV_CTRL_GPU_SCALING, value);
 
-        dfp_scaling_update_radio_buttons(ctk_display_device_dfp, value);
+        dfp_scaling_update_buttons(ctk_display_device_dfp, value);
     }
     
     /*
@@ -626,51 +835,78 @@ static void reset_button_clicked(GtkButton *button, gpointer user_data)
 
 
 /*
- * dfp_scaling_update_radio_buttons() - update the scaling radio
- * button group, making the specified scaling value active.
+ * dfp_scaling_update_buttons() - update the GUI state of the scaling button
+ * group, making the specified scaling value active.
  */
 
 static void
-dfp_scaling_update_radio_buttons(CtkDisplayDeviceDfp *ctk_display_device_dfp,
-                                 gint value)
+dfp_scaling_update_buttons(CtkDisplayDeviceDfp *ctk_display_device_dfp,
+                           gint value)
 {
     GtkWidget *b, *button = NULL;
+    int scaling_target = GET_SCALING_TARGET(value);
+    int scaling_method = GET_SCALING_METHOD(value);
+    gboolean enabled;
     int i;
 
-    if ((value < NV_CTRL_FLATPANEL_SCALING_DEFAULT) ||
-        (value > NV_CTRL_FLATPANEL_SCALING_ASPECT_SCALED)) return;
+    if ((scaling_target < NV_CTRL_GPU_SCALING_TARGET_FLATPANEL_BEST_FIT) ||
+        (scaling_target > NV_CTRL_GPU_SCALING_TARGET_FLATPANEL_NATIVE))
+        return;
 
-    button = ctk_display_device_dfp->scaling_buttons[value];
+    if ((scaling_method < NV_CTRL_GPU_SCALING_METHOD_STRETCHED) ||
+        (scaling_method > NV_CTRL_GPU_SCALING_METHOD_ASPECT_SCALED))
+        return;
+
+    if (scaling_target == NV_CTRL_GPU_SCALING_TARGET_FLATPANEL_NATIVE) {
+        enabled = TRUE;
+    } else {
+        enabled = FALSE;
+    }
+
+    button = ctk_display_device_dfp->scaling_method_buttons[scaling_method -1];
     
     if (!button) return;
 
     /* turn off signal handling for all the scaling buttons */
 
-    for (i = 0; i < 5; i++) {
-        b = ctk_display_device_dfp->scaling_buttons[i];
+    for (i = 0; i < NV_CTRL_GPU_SCALING_METHOD_ASPECT_SCALED; i++) {
+        b = ctk_display_device_dfp->scaling_method_buttons[i];
         if (!b) continue;
 
         g_signal_handlers_block_by_func
             (G_OBJECT(b), G_CALLBACK(dfp_scaling_changed),
              (gpointer) ctk_display_device_dfp);
     }
-    
+
+    g_signal_handlers_block_by_func
+        (G_OBJECT(ctk_display_device_dfp->scaling_gpu_button),
+         G_CALLBACK(dfp_scaling_changed),
+         (gpointer) ctk_display_device_dfp);
+
     /* set the appropriate button active */
 
     gtk_toggle_button_set_active(GTK_TOGGLE_BUTTON(button), TRUE);
+    gtk_toggle_button_set_active
+        (GTK_TOGGLE_BUTTON(ctk_display_device_dfp->scaling_gpu_button),
+         enabled);
     
     /* turn on signal handling for all the scaling buttons */
 
-    for (i = 0; i < 5; i++) {
-        b = ctk_display_device_dfp->scaling_buttons[i];
+    for (i = 0; i < NV_CTRL_GPU_SCALING_METHOD_ASPECT_SCALED; i++) {
+        b = ctk_display_device_dfp->scaling_method_buttons[i];
         if (!b) continue;
 
         g_signal_handlers_unblock_by_func
             (G_OBJECT(b), G_CALLBACK(dfp_scaling_changed),
              (gpointer) ctk_display_device_dfp);
     }
-    
-} /* dfp_scaling_update_radio_buttons() */
+
+    g_signal_handlers_unblock_by_func
+        (G_OBJECT(ctk_display_device_dfp->scaling_gpu_button),
+         G_CALLBACK(dfp_scaling_changed),
+         (gpointer) ctk_display_device_dfp);
+
+} /* dfp_scaling_update_buttons() */
 
 
 
@@ -744,9 +980,9 @@ static void dfp_update_received(GtkObject *object, gpointer arg1,
     }
     
     switch (event_struct->attribute) {
-    case NV_CTRL_FLATPANEL_SCALING:
-        dfp_scaling_update_radio_buttons(ctk_display_device_dfp,
-                                         event_struct->value);
+    case NV_CTRL_GPU_SCALING:
+        dfp_scaling_update_buttons(ctk_display_device_dfp,
+                                   event_struct->value);
         post_dfp_scaling_update(ctk_display_device_dfp, event_struct->value);
         break;
         
@@ -781,11 +1017,11 @@ GtkTextBuffer *ctk_display_device_dfp_create_help(GtkTextTagTable *table,
     
     ctk_help_title(b, &i, "%s Help", ctk_display_device_dfp->name);
     
-    ctk_help_heading(b, &i, "FlatPanel Information");
+    ctk_help_heading(b, &i, "Flat Panel Information");
     ctk_help_para(b, &i, __info_help);
         
     ctk_help_term(b, &i, "Chip Location");
-    ctk_help_para(b, &i, "Report whether the flatpanel is driven by "
+    ctk_help_para(b, &i, "Report whether the flat panel is driven by "
                   "the on-chip controller (internal), or a "
                   " separate controller chip elsewhere on the "
                   "graphics board (external)");
@@ -796,29 +1032,45 @@ GtkTextBuffer *ctk_display_device_dfp_create_help(GtkTextTagTable *table,
                   "connection.");
     
     ctk_help_term(b, &i, "Signal");
-    ctk_help_para(b, &i, "Report whether the flatpanel is driven by "
+    ctk_help_para(b, &i, "Report whether the flat panel is driven by "
                   "an LVDS or TMDS signal");
-    
-    ctk_help_heading(b, &i, "FlatPanel Scaling");
+
+    ctk_help_term(b, &i, "Native Resolution");
+    ctk_help_para(b, &i, __native_res_help);
+
+    ctk_help_term(b, &i, "Best Fit Resolution");
+    ctk_help_para(b, &i, __best_fit_res_help);
+
+    ctk_help_term(b, &i, "Frontend Resolution");
+    ctk_help_para(b, &i, __frontend_res_help);
+
+    ctk_help_term(b, &i, "Backend Resolution");
+    ctk_help_para(b, &i, __backend_res_help);
+
+    ctk_help_heading(b, &i, "Flat Panel Scaling");
     ctk_help_para(b, &i, __scaling_help);
     
-    ctk_help_term(b, &i, "Default");
-    ctk_help_para(b, &i, "The driver will choose what scaling state is "
-                  "best.");
+    ctk_help_term(b, &i, "Force Full GPU Scaling");
+    ctk_help_para(b, &i, __force_gpu_scaling_help);
     
-    ctk_help_term(b, &i, "Scaled");
+    ctk_help_term(b, &i, "Scaling");
+    ctk_help_para(b, &i, "Reports whether the GPU and/or DFP are actively "
+                  "scaling the current resolution.");
+    
+    ctk_help_term(b, &i, "Stretched");
     ctk_help_para(b, &i, "The image will be expanded to fit the entire "
-                  "FlatPanel.");
+                  "flat panel.");
     
     ctk_help_term(b, &i, "Centered");
     ctk_help_para(b, &i, "The image will only occupy the number of pixels "
-                  "needed and be centered on the FlatPanel.");
+                  "needed and be centered on the flat panel.");
     
-    ctk_help_term(b, &i, "Fixed Aspect Ratio Scaled");
-    ctk_help_para(b, &i, "The image will be expanded (like when Scaled), "
-                  "but the image will retain the original aspect ratio.");
+    ctk_help_term(b, &i, "Aspect Ratio Scaled");
+    ctk_help_para(b, &i, "The image will be scaled (retaining the original "
+                  "aspect ratio) to expand and fit as much of the entire "
+                  "flat panel as possible.");
     
-    ctk_help_heading(b, &i, "FlatPanel Dithering");
+    ctk_help_heading(b, &i, "Flat Panel Dithering");
     ctk_help_para(b, &i, __dithering_help);
     
     ctk_help_term(b, &i, "Default");
@@ -853,10 +1105,12 @@ GtkTextBuffer *ctk_display_device_dfp_create_help(GtkTextTagTable *table,
 static void dfp_info_setup(CtkDisplayDeviceDfp *ctk_display_device_dfp)
 {
     ReturnStatus ret;
-    gint val;
+    gint val, gpu_scaling, dfp_scaling;
     char *chip_location, *link, *signal;
+    char *scaling;
 
     chip_location = link = signal = "Unknown";
+    scaling = "Unknown";
 
     /* Chip location */
 
@@ -899,6 +1153,120 @@ static void dfp_info_setup(CtkDisplayDeviceDfp *ctk_display_device_dfp)
     gtk_label_set_text
         (GTK_LABEL(ctk_display_device_dfp->txt_signal), signal);
 
+    /* Native Resolution */
+
+    ret =
+        NvCtrlGetDisplayAttribute(ctk_display_device_dfp->handle,
+                                  ctk_display_device_dfp->display_device_mask,
+                                  NV_CTRL_FLATPANEL_NATIVE_RESOLUTION, &val);
+    if (ret == NvCtrlSuccess) {
+        gchar *resolution =
+            g_strdup_printf("%dx%d", (val >> 16), (val & 0xFFFF));
+        gtk_label_set_text
+            (GTK_LABEL(ctk_display_device_dfp->txt_native_resolution),
+             resolution);
+        g_free(resolution);
+    } else {
+        gtk_label_set_text
+            (GTK_LABEL(ctk_display_device_dfp->txt_native_resolution),
+             "Unknown");
+    }
+
+    /* Frontend Resolution */
+
+    ret =
+        NvCtrlGetDisplayAttribute(ctk_display_device_dfp->handle,
+                                  ctk_display_device_dfp->display_device_mask,
+                                  NV_CTRL_FRONTEND_RESOLUTION, &val);
+    if (ret == NvCtrlSuccess) {
+        gchar *resolution =
+            g_strdup_printf("%dx%d", (val >> 16), (val & 0xFFFF));
+        gtk_label_set_text
+            (GTK_LABEL(ctk_display_device_dfp->txt_frontend_resolution),
+             resolution);
+        g_free(resolution);
+    } else {
+        gtk_label_set_text
+            (GTK_LABEL(ctk_display_device_dfp->txt_frontend_resolution),
+             "Unknown");
+    }
+
+    /* Best Fit Resolution */
+
+    ret =
+        NvCtrlGetDisplayAttribute(ctk_display_device_dfp->handle,
+                                  ctk_display_device_dfp->display_device_mask,
+                                  NV_CTRL_FLATPANEL_BEST_FIT_RESOLUTION, &val);
+    if (ret == NvCtrlSuccess) {
+        gchar *resolution =
+            g_strdup_printf("%dx%d", (val >> 16), (val & 0xFFFF));
+        gtk_label_set_text
+            (GTK_LABEL(ctk_display_device_dfp->txt_best_fit_resolution),
+             resolution);
+        g_free(resolution);
+    } else {
+        gtk_label_set_text
+            (GTK_LABEL(ctk_display_device_dfp->txt_best_fit_resolution),
+             "Unknown");
+    }
+
+    /* Backend Resolution */
+
+    ret =
+        NvCtrlGetDisplayAttribute(ctk_display_device_dfp->handle,
+                                  ctk_display_device_dfp->display_device_mask,
+                                  NV_CTRL_BACKEND_RESOLUTION, &val);
+    if (ret == NvCtrlSuccess) {
+        gchar *resolution =
+            g_strdup_printf("%dx%d", (val >> 16), (val & 0xFFFF));
+        gtk_label_set_text
+            (GTK_LABEL(ctk_display_device_dfp->txt_backend_resolution),
+             resolution);
+        g_free(resolution);
+    } else {
+        gtk_label_set_text
+            (GTK_LABEL(ctk_display_device_dfp->txt_backend_resolution),
+             "Unknown");
+    }
+
+    /* GPU/DFP Scaling */
+
+    ret =
+        NvCtrlGetDisplayAttribute(ctk_display_device_dfp->handle,
+                                  ctk_display_device_dfp->display_device_mask,
+                                  NV_CTRL_GPU_SCALING_ACTIVE,
+                                  &gpu_scaling);
+    if (ret == NvCtrlSuccess) {
+        ret = NvCtrlGetDisplayAttribute
+            (ctk_display_device_dfp->handle,
+             ctk_display_device_dfp->display_device_mask,
+             NV_CTRL_DFP_SCALING_ACTIVE, &dfp_scaling);
+    }
+    if (ret != NvCtrlSuccess) {
+        scaling = "Unknown";
+    } else {
+        if (gpu_scaling && dfp_scaling) {
+            scaling = "GPU & DFP";
+        } else if (gpu_scaling) {
+            scaling = "GPU";
+        } else if (dfp_scaling) {
+            scaling = "DFP";
+        } else {
+            scaling = "None";
+        }
+    }
+
+    if (gpu_scaling) {
+        gtk_widget_set_sensitive(ctk_display_device_dfp->scaling_method_frame,
+                                 TRUE);
+    } else {
+        gtk_widget_set_sensitive(ctk_display_device_dfp->scaling_method_frame,
+                                 FALSE);
+    }
+
+    gtk_label_set_text
+        (GTK_LABEL(ctk_display_device_dfp->txt_scaling), scaling);
+
 } /* dfp_info_setup() */
 
 
@@ -915,7 +1283,7 @@ static void dfp_scaling_setup(CtkDisplayDeviceDfp *ctk_display_device_dfp)
     ret =
         NvCtrlGetDisplayAttribute(ctk_display_device_dfp->handle,
                                   ctk_display_device_dfp->display_device_mask,
-                                  NV_CTRL_FLATPANEL_SCALING, &val);
+                                  NV_CTRL_GPU_SCALING, &val);
     if (ret != NvCtrlSuccess) {
         gtk_widget_set_sensitive(ctk_display_device_dfp->scaling_frame, FALSE);
         gtk_widget_hide(ctk_display_device_dfp->scaling_frame);
@@ -928,7 +1296,7 @@ static void dfp_scaling_setup(CtkDisplayDeviceDfp *ctk_display_device_dfp)
 
     gtk_widget_set_sensitive(ctk_display_device_dfp->scaling_frame, TRUE);
 
-    dfp_scaling_update_radio_buttons(ctk_display_device_dfp, val);
+    dfp_scaling_update_buttons(ctk_display_device_dfp, val);
 
 } /* dfp_scaling_setup() */
 
@@ -1053,3 +1421,23 @@ static void enabled_displays_received(GtkObject *object, gpointer arg1,
     ctk_display_device_dfp_setup(ctk_object);
 
 } /* enabled_displays_received() */
+
+
+/*
+ * When DFP/GPU scaling activation and/or resolution changes occur,
+ * we should update the GUI to reflect the current state.
+ */
+static void info_update_received(GtkObject *object, gpointer arg1,
+                                 gpointer user_data)
+{
+    CtkDisplayDeviceDfp *ctk_object = CTK_DISPLAY_DEVICE_DFP(user_data);
+    CtkEventStruct *event_struct = (CtkEventStruct *) arg1;
+
+    /* if the event is not for this display device, return */
+
+    if (!(event_struct->display_mask & ctk_object->display_device_mask)) {
+        return;
+    }
+
+    dfp_info_setup(ctk_object);
+}

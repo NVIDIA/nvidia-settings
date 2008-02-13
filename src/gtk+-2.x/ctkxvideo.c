@@ -26,7 +26,6 @@
 #include <gtk/gtk.h>
 #include "NvCtrlAttributes.h"
 
-#include "xvideo_banner.h"
 #include "ctkimage.h"
 
 #include "ctkxvideo.h"
@@ -383,7 +382,7 @@ GtkWidget* ctk_xvideo_new(NvCtrlAttributeHandle *handle,
     
     /* Video film banner */
     
-    banner = ctk_banner_image_new(&xvideo_banner_image);
+    banner = ctk_banner_image_new(BANNER_ARTWORK_XVIDEO);
     gtk_box_pack_start(GTK_BOX(object), banner, FALSE, FALSE, 0);
 
     

@@ -30,7 +30,6 @@
 #include "red_xpm.h"
 #include "green_xpm.h"
 #include "blue_xpm.h"
-#include "color_correction_banner.h"
 #include "ctkimage.h"
 
 #include "ctkcurve.h"
@@ -201,7 +200,7 @@ GtkWidget* ctk_color_correction_new(NvCtrlAttributeHandle *handle,
      * purposes.
      */
 
-    banner = ctk_banner_image_new(&color_correction_banner_image);
+    banner = ctk_banner_image_new(BANNER_ARTWORK_COLOR);
     gtk_box_pack_start(GTK_BOX(ctk_color_correction), banner, FALSE, FALSE, 0);
 
     /* create the main hbox and the two main vboxes*/

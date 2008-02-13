@@ -159,7 +159,7 @@ int nv_read_config_file(const char *file, const char *display_name,
 
     w = parse_config_file(buf, file, length, conf);
 
-    setlocale(LC_ALL, locale);
+    setlocale(LC_NUMERIC, locale);
     free(locale);
 
     /* unmap and close the file */
@@ -702,7 +702,7 @@ static int parse_config_property(const char *file, const char *line, ConfigPrope
     
     if (nv_strcasecmp(no_spaces, "RcFileLocale")) {
         locale = ++s;
-        if (setlocale(LC_ALL, locale) == NULL) {
+        if (setlocale(LC_NUMERIC, locale) == NULL) {
             nv_warning_msg("Error parsing configuration file '%s': could "
                            "not set the specified locale '%s'.",
                            file, locale);
@@ -780,6 +780,6 @@ void init_config_properties(ConfigProperties *conf)
          CONFIG_PROPERTIES_SLIDER_TEXT_ENTRIES |
          CONFIG_PROPERTIES_SHOW_QUIT_DIALOG);
 
-    conf->locale = strdup(setlocale(LC_ALL, NULL));
+    conf->locale = strdup(setlocale(LC_NUMERIC, NULL));
 
 } /* init_config_properties() */

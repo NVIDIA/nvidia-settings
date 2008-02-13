@@ -137,6 +137,35 @@ ReturnStatus NvCtrlNvControlSetAttribute (NvCtrlAttributePrivateHandle *h,
 } /* NvCtrlNvControlSetAttribute() */
 
 
+ReturnStatus
+NvCtrlNvControlSetAttributeWithReply(NvCtrlAttributePrivateHandle *h,
+                                     unsigned int display_mask,
+                                     int attr, int val)
+{
+    Bool bRet;
+
+    /* XNVCTRLSetAttributeAndGetStatus() only works on X screens */
+    
+    if (h->target_type != NV_CTRL_TARGET_TYPE_X_SCREEN) {
+        return NvCtrlError;
+    }
+
+    if (attr <= NV_CTRL_LAST_ATTRIBUTE) {
+        bRet = XNVCTRLSetAttributeAndGetStatus(h->dpy, h->target_id,
+                                               display_mask, attr, val);
+        if (bRet) {
+            return NvCtrlSuccess;
+        } else {
+            return NvCtrlError;
+        }
+    }
+    
+    return NvCtrlNoAttribute;
+    
+} /* NvCtrlNvControlSetAttributeWithReply() */
+
+
+
 ReturnStatus NvCtrlNvControlGetValidAttributeValues
                               (NvCtrlAttributePrivateHandle *h,
                                unsigned int display_mask,

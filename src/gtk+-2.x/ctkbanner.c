@@ -20,12 +20,51 @@
  *           59 Temple Place - Suite 330
  *           Boston, MA 02111-1307, USA
  *
+ *
+ * This source file implements the banner widget.
  */
 
 #include <gtk/gtk.h>
+#include <stdio.h>
 
 #include "image.h"
 #include "ctkbanner.h"
+
+#include <gdk-pixbuf/gdk-pixdata.h>
+
+/* pixdata headers */
+
+#include "background_pixdata.h"
+#include "background_tall_pixdata.h"
+#include "logo_pixdata.h"
+#include "logo_tall_pixdata.h"
+
+#include "antialias_pixdata.h"
+#include "bsd_pixdata.h"
+#include "clock_pixdata.h"
+#include "color_pixdata.h"
+#include "config_pixdata.h"
+#include "crt_pixdata.h"
+#include "cursor_shadow_pixdata.h"
+#include "dfp_pixdata.h"
+#include "display_config_pixdata.h"
+#include "framelock_pixdata.h"
+#include "glx_pixdata.h"
+#include "gpu_pixdata.h"
+#include "help_pixdata.h"
+#include "opengl_pixdata.h"
+#include "penguin_pixdata.h"
+#include "rotation_pixdata.h"
+#include "sdi_pixdata.h"
+#include "solaris_pixdata.h"
+#include "thermal_pixdata.h"
+#include "tv_pixdata.h"
+#include "vcsc_pixdata.h"
+#include "x_pixdata.h"
+#include "xvideo_pixdata.h"
+
+
+
 
 static void
 ctk_banner_class_init    (CtkBannerClass *);
@@ -43,6 +82,14 @@ static gboolean
 ctk_banner_configure_event  (GtkWidget *, GdkEventConfigure *);
 
 static GObjectClass *parent_class;
+
+
+/* global shared copy of background and logo images */
+
+static PBuf Background = { 0, 0, NULL };
+static PBuf TallBackground = { 0, 0, NULL };
+static PBuf Logo = { 0, 0, NULL };
+static PBuf TallLogo = { 0, 0, NULL };
 
 
 GType ctk_banner_get_type(
@@ -96,13 +143,17 @@ static void ctk_banner_finalize(
 {
     CtkBanner *ctk_banner = CTK_BANNER(object);
 
-    g_object_unref(ctk_banner->gdk_img_pixbuf);
-    g_object_unref(ctk_banner->gdk_img_fill_pixbuf);
+    if (ctk_banner->back.pixbuf)
+        g_object_unref(ctk_banner->back.pixbuf);
 
-    if (ctk_banner->gdk_pixbuf)
-        g_object_unref(ctk_banner->gdk_pixbuf);
+    if (ctk_banner->artwork.pixbuf)
+        g_object_unref(ctk_banner->artwork.pixbuf);
 
-    free_decompressed_image(ctk_banner->image_data, NULL);
+    if (ctk_banner->logo->pixbuf)
+        g_object_unref(ctk_banner->logo->pixbuf);
+
+    if (ctk_banner->background->pixbuf)
+        g_object_unref(ctk_banner->background->pixbuf);
 }
 
 static gboolean ctk_banner_expose_event(
@@ -111,15 +162,35 @@ static gboolean ctk_banner_expose_event(
 )
 {
     CtkBanner *ctk_banner = CTK_BANNER(widget);
+    GdkRectangle *rects;
+    int n_rects;
+    int i;
 
-    gdk_draw_pixbuf(widget->window,
-                    widget->style->fg_gc[GTK_STATE_NORMAL],
-                    ctk_banner->gdk_pixbuf,
-                    0, 0, 0, 0, -1, -1,
-                    GDK_RGB_DITHER_NORMAL, 0, 0);
+    /* copy the backing pixbuf into the exposed portion of the window */
+
+    gdk_region_get_rectangles(event->region, &rects, &n_rects);
+
+    for (i = 0; i < n_rects; i++) {
+        gdk_draw_pixbuf(widget->window,
+                        widget->style->fg_gc[GTK_STATE_NORMAL],
+                        ctk_banner->back.pixbuf,
+                        rects[i].x, rects[i].y,
+                        rects[i].x, rects[i].y,
+                        rects[i].width, rects[i].height,
+                        GDK_RGB_DITHER_NORMAL, 0, 0);
+    }
+
+    g_free(rects);
 
     return FALSE;
 }
+
+
+
+/*
+ * ctk_banner_configure_event() - the banner was configured; composite
+ * the backing pixbuf image
+ */
 
 static gboolean ctk_banner_configure_event(
     GtkWidget *widget,
@@ -127,50 +198,125 @@ static gboolean ctk_banner_configure_event(
 )
 {
     CtkBanner *ctk_banner = CTK_BANNER(widget);
-    gboolean has_alpha = FALSE;
+    
+    int x, y, w, h, needed_w, needed_h;
+    
+    /* free the pixbuf we already have one */
 
-    if ((event->width < ctk_banner->img->width) ||
-            (event->height < ctk_banner->img->height))
-        return FALSE;
+    if (ctk_banner->back.pixbuf)
+        g_object_unref(ctk_banner->back.pixbuf);
+    
+    /* allocate a backing pixbuf the size of the new window */
+    
+    ctk_banner->back.pixbuf =
+        gdk_pixbuf_new(GDK_COLORSPACE_RGB, // colorSpace
+                       FALSE, // has_alpha (no alpha needed for backing pixbuf)
+                       gdk_pixbuf_get_bits_per_sample
+                       (ctk_banner->background->pixbuf),
+                       event->width,
+                       event->height);  
+    
+    ctk_banner->back.w = gdk_pixbuf_get_width(ctk_banner->back.pixbuf);
+    ctk_banner->back.h = gdk_pixbuf_get_height(ctk_banner->back.pixbuf);
+    
+    /* clear the backing pixbuf to black */
 
-    if (ctk_banner->gdk_pixbuf)
-        g_object_unref(ctk_banner->gdk_pixbuf);
+    gdk_pixbuf_fill(ctk_banner->back.pixbuf, 0x00000000);
 
-    /* RGBA */
-    if (ctk_banner->img->bytes_per_pixel == 4)
-        has_alpha = TRUE;
+    /* copy the base image into the backing pixbuf */
 
-    ctk_banner->gdk_pixbuf =
-        gdk_pixbuf_new(GDK_COLORSPACE_RGB, has_alpha, 8,
-                       MAX(event->width, ctk_banner->img->width),
-                       MAX(event->height, ctk_banner->img->height));
+    w = MIN(ctk_banner->background->w, ctk_banner->back.w);
+    h = MIN(ctk_banner->background->h, ctk_banner->back.h);
+    
 
-    gdk_pixbuf_copy_area(ctk_banner->gdk_img_pixbuf,
-                         0, 0, ctk_banner->img->fill_column_index,
-                         ctk_banner->img->height,
-                         ctk_banner->gdk_pixbuf,
-                         0, 0);
+    gdk_pixbuf_copy_area(ctk_banner->background->pixbuf,  // src
+                         0,                               // src_x
+                         0,                               // src_y
+                         w,                               // width
+                         h,                               // height
+                         ctk_banner->back.pixbuf,         // dest
+                         0,                               // dest_x
+                         0);                              // dest_y
 
-    gdk_pixbuf_scale(ctk_banner->gdk_img_fill_pixbuf,
-                     ctk_banner->gdk_pixbuf,
-                     ctk_banner->img->fill_column_index, 0,
-                     MAX((event->width - ctk_banner->img->width), 1),
-                     ctk_banner->img->height, 0.0f, 0.0f,
-                     (ctk_banner->img->fill_column_index +
-                      MAX((event->width - ctk_banner->img->width), 1)),
-                     1.0f, GDK_INTERP_NEAREST);
+    /*
+     * composite the logo into the backing pixbuf; positioned in the
+     * upper right corner of the backing pixbuf.  We should only do
+     * this, though, if the backing pixbuf is large enough to contain
+     * the logo
+     */
+    
+    needed_w = ctk_banner->logo->w + ctk_banner->logo_pad_x;
+    needed_h = ctk_banner->logo->h + ctk_banner->logo_pad_y;
+    
+    if ((ctk_banner->back.w >= needed_w) &&
+        (ctk_banner->back.h >= needed_h)) {
+        
+        w = ctk_banner->logo->w;
+        h = ctk_banner->logo->h;
+        
+        x = ctk_banner->back.w - w;
+        y = 0;
+        
+        ctk_banner->logo_x = x - ctk_banner->logo_pad_x;
+        ctk_banner->logo_y = y + ctk_banner->logo_pad_y;
 
-    gdk_pixbuf_copy_area(ctk_banner->gdk_img_pixbuf,
-                         ctk_banner->img->fill_column_index, 0,
-                         ctk_banner->img->fill_column_index,
-                         ctk_banner->img->height,
-                         ctk_banner->gdk_pixbuf,
-                         (gdk_pixbuf_get_width(ctk_banner->gdk_pixbuf) -
-                          ctk_banner->img->fill_column_index),
-                         0);
+        gdk_pixbuf_composite(ctk_banner->logo->pixbuf,  // src
+                             ctk_banner->back.pixbuf,   // dest
+                             ctk_banner->logo_x,        // dest_x
+                             ctk_banner->logo_y,        // dest_y
+                             w,                         // dest_width
+                             h,                         // dest_height
+                             ctk_banner->logo_x,        // offset_x
+                             ctk_banner->logo_y,        // offset_y
+                             1.0,                       // scale_x
+                             1.0,                       // scale_y
+                             GDK_INTERP_BILINEAR,       // interp_type
+                             255);                      // overall_alpha
+    }
+    
+    /*
+     * composite the artwork into the lower left corner of the backing
+     * pixbuf
+     */
+   
+    needed_w = ctk_banner->artwork.w + ctk_banner->artwork_pad_x;
+    needed_h = ctk_banner->artwork.h;
 
+    if ((ctk_banner->back.w >= needed_w) &&
+        (ctk_banner->back.h >= needed_h)) {
+        
+        w = ctk_banner->artwork.w;
+        h = ctk_banner->artwork.h;
+        
+        x = 0;
+        y = ctk_banner->back.h - h;
+
+        ctk_banner->artwork_x = x + ctk_banner->artwork_pad_x;
+        ctk_banner->artwork_y = y;
+
+        gdk_pixbuf_composite(ctk_banner->artwork.pixbuf,    // src
+                             ctk_banner->back.pixbuf,       // dest
+                             ctk_banner->artwork_x,         // dest_x
+                             ctk_banner->artwork_y,         // dest_y
+                             w,                             // dest_width
+                             h,                             // dest_height
+                             ctk_banner->artwork_x,         // offset_x
+                             ctk_banner->artwork_y,         // offset_y
+                             1.0,                           // scale_x
+                             1.0,                           // scale_y
+                             GDK_INTERP_BILINEAR,           // interp_type
+                             255);                          // overall_alpha
+
+        /* Do any user-specific compositing */
+
+        if (ctk_banner->callback_func) {
+            ctk_banner->callback_func(ctk_banner, ctk_banner->callback_data);
+        }
+    }
+    
     return FALSE;
 }
+
 
 static void ctk_banner_size_request(
     GtkWidget *widget,
@@ -179,50 +325,166 @@ static void ctk_banner_size_request(
 {
     CtkBanner *ctk_banner = CTK_BANNER(widget);
 
-    requisition->width  = ctk_banner->img->width;
-    requisition->height = ctk_banner->img->height;
+    requisition->width = MAX(400,
+                             ctk_banner->logo->w +
+                             ctk_banner->artwork.w +
+                             ctk_banner->logo_pad_x +
+                             ctk_banner->artwork_pad_x);
+    
+    requisition->height = ctk_banner->background->h;
 }
 
-GtkWidget* ctk_banner_new(const nv_image_t *img)
+
+
+/*
+ * select_artwork() - given a BannerArtworkType, lookup the pixdata
+ * and other related data
+ */
+
+static gboolean select_artwork(BannerArtworkType artwork,
+                               gboolean *tall,
+                               int *pad_x,
+                               const GdkPixdata **pixdata)
+{
+    static const struct {
+        BannerArtworkType artwork;
+        gboolean tall;
+        int pad_x;
+        const GdkPixdata *pixdata;
+    } ArtworkTable[] = {
+        /* artwork                       tall  pad_x pixdata */
+        { BANNER_ARTWORK_ANTIALIAS,      FALSE, 16, &antialias_pixdata      },
+        { BANNER_ARTWORK_BSD,            TRUE,  16, &bsd_pixdata            },
+        { BANNER_ARTWORK_CLOCK,          FALSE, 16, &clock_pixdata          },
+        { BANNER_ARTWORK_COLOR,          FALSE, 16, &color_pixdata          },
+        { BANNER_ARTWORK_CONFIG,         FALSE, 16, &config_pixdata         },
+        { BANNER_ARTWORK_CRT,            FALSE, 16, &crt_pixdata            },
+        { BANNER_ARTWORK_CURSOR_SHADOW,  FALSE, 16, &cursor_shadow_pixdata  },
+        { BANNER_ARTWORK_DFP,            FALSE, 16, &dfp_pixdata            },
+        { BANNER_ARTWORK_DISPLAY_CONFIG, FALSE, 16, &display_config_pixdata },
+        { BANNER_ARTWORK_FRAMELOCK,      FALSE, 16, &framelock_pixdata      },
+        { BANNER_ARTWORK_GLX,            FALSE, 16, &glx_pixdata            },
+        { BANNER_ARTWORK_GPU,            FALSE, 16, &gpu_pixdata            },
+        { BANNER_ARTWORK_HELP,           FALSE, 16, &help_pixdata           },
+        { BANNER_ARTWORK_OPENGL,         FALSE, 16, &opengl_pixdata         },
+        { BANNER_ARTWORK_PENGUIN,        TRUE,  16, &penguin_pixdata        },
+        { BANNER_ARTWORK_ROTATION,       FALSE, 16, &rotation_pixdata       },
+        { BANNER_ARTWORK_SDI,            FALSE, 16, &sdi_pixdata            },
+        { BANNER_ARTWORK_SOLARIS,        TRUE,  16, &solaris_pixdata        },
+        { BANNER_ARTWORK_THERMAL,        FALSE, 16, &thermal_pixdata        },
+        { BANNER_ARTWORK_TV,             FALSE, 16, &tv_pixdata             },
+        { BANNER_ARTWORK_VCSC,           FALSE, 16, &vcsc_pixdata           },
+        { BANNER_ARTWORK_X,              FALSE, 16, &x_pixdata              },
+        { BANNER_ARTWORK_XVIDEO,         FALSE, 16, &xvideo_pixdata         },
+        { BANNER_ARTWORK_INVALID,        FALSE, 16, NULL                    },
+    };
+
+    int i;
+
+    for (i = 0; ArtworkTable[i].artwork != BANNER_ARTWORK_INVALID; i++) {
+        if (ArtworkTable[i].artwork == artwork) {
+            *tall = ArtworkTable[i].tall;
+            *pad_x = ArtworkTable[i].pad_x;
+            *pixdata = ArtworkTable[i].pixdata;
+            return TRUE;
+        }
+    }
+    
+    return FALSE;
+}
+
+
+
+/*
+ * ctk_banner_new() - allocate new banner object; open and read in
+ * pixbufs that we will need later.
+ */
+
+GtkWidget* ctk_banner_new(BannerArtworkType artwork)
 {
     GObject *object;
     CtkBanner *ctk_banner;
-    guint8 *image_data;
-    gboolean has_alpha = FALSE;
+    const GdkPixdata *pixdata;
+    int tall, pad_x;
 
-    if (!img->fill_column_index) return NULL;
-
-    image_data = decompress_image_data(img);
-    if (!image_data) return NULL;
-
+    if (!select_artwork(artwork, &tall, &pad_x, &pixdata)) {
+        return NULL;
+    }
+    
     object = g_object_new(CTK_TYPE_BANNER, NULL);
-
+    
     ctk_banner = CTK_BANNER(object);
+    
+    ctk_banner->back.pixbuf = NULL;
+    ctk_banner->artwork.pixbuf = NULL;
+    
+    ctk_banner->artwork_pad_x = pad_x;
+    
+    /* load the global images */
 
-    ctk_banner->image_data = image_data;
+    if (!Background.pixbuf) {
+        Background.pixbuf =
+            gdk_pixbuf_from_pixdata(&background_pixdata, TRUE, NULL);
+        Background.w = gdk_pixbuf_get_width(Background.pixbuf);
+        Background.h = gdk_pixbuf_get_height(Background.pixbuf);
+    }
 
-    ctk_banner->img = img;
-    ctk_banner->gdk_pixbuf = NULL;
-
-    /* RGBA */
-    if (ctk_banner->img->bytes_per_pixel == 4)
-        has_alpha = TRUE;
-
-    ctk_banner->gdk_img_pixbuf =
-        gdk_pixbuf_new_from_data(image_data, GDK_COLORSPACE_RGB,
-                                 has_alpha, 8, img->width, img->height,
-                                 img->width * img->bytes_per_pixel,
-                                 NULL, NULL);
-
-    ctk_banner->gdk_img_fill_pixbuf =
-        gdk_pixbuf_new(GDK_COLORSPACE_RGB, has_alpha, 8,
-                       1, ctk_banner->img->height);
-
-    gdk_pixbuf_copy_area(ctk_banner->gdk_img_pixbuf, 
-                         ctk_banner->img->fill_column_index, 0, 1,
-                         ctk_banner->img->height,
-                         ctk_banner->gdk_img_fill_pixbuf,
-                         0, 0);
-
+    if (!TallBackground.pixbuf) {
+        TallBackground.pixbuf =
+            gdk_pixbuf_from_pixdata(&background_tall_pixdata, TRUE, NULL);
+        TallBackground.w = gdk_pixbuf_get_width(TallBackground.pixbuf);
+        TallBackground.h = gdk_pixbuf_get_height(TallBackground.pixbuf);
+    }
+    
+    if (!Logo.pixbuf) {
+        Logo.pixbuf = gdk_pixbuf_from_pixdata(&logo_pixdata, TRUE, NULL);
+        Logo.w = gdk_pixbuf_get_width(Logo.pixbuf);
+        Logo.h = gdk_pixbuf_get_height(Logo.pixbuf);
+    }
+    
+    if (!TallLogo.pixbuf) {
+        TallLogo.pixbuf =
+            gdk_pixbuf_from_pixdata(&logo_tall_pixdata, TRUE, NULL);
+        TallLogo.w = gdk_pixbuf_get_width(TallLogo.pixbuf);
+        TallLogo.h = gdk_pixbuf_get_height(TallLogo.pixbuf);
+    }
+    
+    
+    /*
+     * assign fields based on whether the artwork is tall; XXX these
+     * may need to be tweaked
+     */
+    
+    if (tall) {
+        ctk_banner->logo_pad_x = 11;
+        ctk_banner->logo_pad_y = 0;
+        ctk_banner->background = &TallBackground;
+        ctk_banner->logo = &TallLogo;
+    } else {
+        ctk_banner->logo_pad_x = 10;
+        ctk_banner->logo_pad_y = 10;
+        ctk_banner->background = &Background;
+        ctk_banner->logo = &Logo;
+    }
+    
+    
+    /* load the artwork pixbuf */
+    
+    ctk_banner->artwork.pixbuf = gdk_pixbuf_from_pixdata(pixdata, TRUE, NULL);
+    ctk_banner->artwork.w =
+        gdk_pixbuf_get_width(ctk_banner->artwork.pixbuf);
+    ctk_banner->artwork.h =
+        gdk_pixbuf_get_height(ctk_banner->artwork.pixbuf);
+    
     return GTK_WIDGET(object);
+}
+
+
+
+void ctk_banner_set_composite_callback (CtkBanner *ctk_banner,
+                                        ctk_banner_composite_callback func,
+                                        void *data)
+{
+    ctk_banner->callback_func = func;
+    ctk_banner->callback_data = data;
 }

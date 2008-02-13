@@ -63,7 +63,7 @@ struct _CtkGvoCsc
     CtkConfig *ctk_config;
 
     CtkGvo *gvo_parent;
-    GtkWidget *banner_frame;
+    GtkWidget *banner_box;
 
     float matrix[3][3]; // [row][column]
     float offset[3];

@@ -28,7 +28,6 @@
 #include <stdio.h>
 #include <stdlib.h>
 
-#include "thermal_banner.h"
 #include "ctkimage.h"
 
 #include "ctkgpu.h"
@@ -320,7 +319,7 @@ GtkWidget* ctk_gpu_new(
 
     /* banner */
 
-    banner = ctk_banner_image_new(&thermal_banner_image);
+    banner = ctk_banner_image_new(BANNER_ARTWORK_GPU);
     gtk_box_pack_start(GTK_BOX(ctk_gpu), banner, FALSE, FALSE, 0);
         
     /*

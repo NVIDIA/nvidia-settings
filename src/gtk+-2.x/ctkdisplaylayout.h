@@ -153,11 +153,11 @@ typedef struct nvModeLineRec {
 
 
 
-/* Mode (A particular configuration for a display within an X Screen) */
+/* Mode (A particular configuration for a display within an X screen) */
 typedef struct nvModeRec {
     struct nvModeRec *next;
 
-    /* Defines a single mode for a dispay device as part of an X Screen's
+    /* Defines a single mode for a dispay device as part of an X screen's
      * metamode.
      *
      * "WxH_Hz +x+y @WxH"
@@ -186,7 +186,7 @@ typedef struct nvDisplayRec {
     XConfigMonitorPtr    conf_monitor;
 
     struct nvGpuRec    *gpu;            /* GPU the display belongs to */
-    struct nvScreenRec *screen;         /* X Screen the display is tied to */
+    struct nvScreenRec *screen;         /* X screen the display is tied to */
 
     unsigned int        device_mask;    /* Bit mask to identify the display */
     char               *name;           /* Display name (from NV-CONTROL) */
@@ -202,7 +202,7 @@ typedef struct nvDisplayRec {
 
 
 
-/* MetaMode (A particular configuration for an X Screen) */
+/* MetaMode (A particular configuration for an X screen) */
 typedef struct nvMetaModeRec {
     struct nvMetaModeRec *next;
 
@@ -228,7 +228,7 @@ typedef struct nvScreenRec {
     XConfigScreenPtr conf_screen;
     XConfigDevicePtr conf_device;
 
-    /* An X Screen may have one or more displays connected to it
+    /* An X screen may have one or more displays connected to it
      * if TwinView is on.
      *
      * Fathers all displays (and their modes).  From this
@@ -237,7 +237,7 @@ typedef struct nvScreenRec {
      * "AAA,BBB,CCC ; DDD,EEE,FFF ; GGG,HHH,III"
      */
 
-    NvCtrlAttributeHandle *handle;  /* NV-CONTROL handle to X Screen */
+    NvCtrlAttributeHandle *handle;  /* NV-CONTROL handle to X screen */
     CtkEvent *ctk_event;
     int scrnum;
 
@@ -245,7 +245,7 @@ typedef struct nvScreenRec {
 
     int depth; /* Depth of the screen */
 
-    unsigned int displays_mask; /* Display devices on this X Screen */
+    unsigned int displays_mask; /* Display devices on this X screen */
     int num_displays; /* # of displays using this screen */
 
     nvMetaModePtr metamodes;     /* List of metamodes */
@@ -307,7 +307,7 @@ typedef struct nvLayoutRec {
     int num_gpus;
 
     // Used for drawing the layout.
-    int dim[4]; /* Bounding box of All X Screens (Absolute coords) */
+    int dim[4]; /* Bounding box of All X screens (Absolute coords) */
 
     int xinerama_enabled;
 
@@ -373,6 +373,8 @@ typedef struct _CtkDisplayLayout
     int        button1;
     int        button2;
     int        button3;
+    int        mouse_x;
+    int        mouse_y;
     int        last_mouse_x;
     int        last_mouse_y;
 

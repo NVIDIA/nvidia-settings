@@ -27,8 +27,6 @@
 
 #include "NvCtrlAttributes.h"
 
-#include "antialiasing_banner.h"
-
 #include "ctkmultisample.h"
 
 #include "ctkconfig.h"
@@ -212,7 +210,7 @@ GtkWidget *ctk_multisample_new(NvCtrlAttributeHandle *handle,
     hbox = gtk_hbox_new(FALSE, 0);
     gtk_box_pack_start(GTK_BOX(object), hbox, FALSE, FALSE, 0);
 
-    banner = ctk_banner_image_new(&antialiasing_banner_image);
+    banner = ctk_banner_image_new(BANNER_ARTWORK_ANTIALIAS);
     gtk_box_pack_start(GTK_BOX(hbox), banner, TRUE, TRUE, 0);
 
     /* FSAA slider */

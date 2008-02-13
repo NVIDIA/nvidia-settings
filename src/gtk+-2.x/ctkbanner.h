@@ -50,17 +50,38 @@ G_BEGIN_DECLS
 typedef struct _CtkBanner       CtkBanner;
 typedef struct _CtkBannerClass  CtkBannerClass;
 
+typedef void (* ctk_banner_composite_callback) (CtkBanner *, void *);
+
+typedef struct {
+    int w, h;
+    GdkPixbuf *pixbuf;
+} PBuf;
+
 struct _CtkBanner
 {
     GtkDrawingArea parent;
-
+    
     const nv_image_t *img;
-
+    
     guint8 *image_data;
 
-    GdkPixbuf *gdk_img_pixbuf;
-    GdkPixbuf *gdk_img_fill_pixbuf;
-    GdkPixbuf *gdk_pixbuf;
+    PBuf back;
+    PBuf artwork;
+    int artwork_x; /* Position within banner where artwork is drawn */
+    int artwork_y;
+
+    ctk_banner_composite_callback callback_func;
+    void * callback_data;
+
+    PBuf *background;
+    PBuf *logo;
+    int logo_x; /* Position within banner where logo is drawn */
+    int logo_y;
+
+    int logo_pad_x;
+    int logo_pad_y;
+    
+    int artwork_pad_x;
 };
 
 struct _CtkBannerClass
@@ -69,7 +90,11 @@ struct _CtkBannerClass
 };
 
 GType       ctk_banner_get_type     (void) G_GNUC_CONST;
-GtkWidget*  ctk_banner_new          (const nv_image_t *);
+GtkWidget*  ctk_banner_new          (BannerArtworkType);
+
+void        ctk_banner_set_composite_callback (CtkBanner *,
+                                               ctk_banner_composite_callback,
+                                               void *);
 
 G_END_DECLS
 

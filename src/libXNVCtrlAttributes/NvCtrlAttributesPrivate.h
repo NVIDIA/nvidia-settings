@@ -224,6 +224,10 @@ NvCtrlNvControlSetAttribute (NvCtrlAttributePrivateHandle *, unsigned int,
                              int, int);
 
 ReturnStatus
+NvCtrlNvControlSetAttributeWithReply (NvCtrlAttributePrivateHandle *,
+                                      unsigned int, int, int);
+
+ReturnStatus
 NvCtrlNvControlGetValidAttributeValues (NvCtrlAttributePrivateHandle *,
                                         unsigned int, int,
                                         NVCTRLAttributeValidValuesRec *);

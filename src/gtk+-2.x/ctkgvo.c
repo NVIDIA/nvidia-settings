@@ -31,36 +31,14 @@
 #include "ctkgvo.h"
 #include "ctkdropdownmenu.h"
 #include "ctkutils.h"
-
-#include "gvo_banner_left.h"
-
-#include "gvo_banner_vid1_green.h"
-#include "gvo_banner_vid1_grey.h"
-#include "gvo_banner_vid1_red.h"
-#include "gvo_banner_vid1_yellow.h"
-
-#include "gvo_banner_vid2_green.h"
-#include "gvo_banner_vid2_grey.h"
-#include "gvo_banner_vid2_red.h"
-#include "gvo_banner_vid2_yellow.h"
-
-#include "gvo_banner_sdi_sync_green.h"
-#include "gvo_banner_sdi_sync_grey.h"
-#include "gvo_banner_sdi_sync_red.h"
-#include "gvo_banner_sdi_sync_yellow.h"
-
-#include "gvo_banner_comp_sync_green.h"
-#include "gvo_banner_comp_sync_grey.h"
-#include "gvo_banner_comp_sync_red.h"
-#include "gvo_banner_comp_sync_yellow.h"
-
-#include "gvo_banner_right.h"
+#include "ctkimage.h"
+#include "ctkbanner.h"
 
 #include "msg.h"
 
 /* local prototypes */
 
-static void init_gvo_banner(CtkGvoBanner *banner);
+static void init_gvo_banner(CtkGvo *ctk_gvo, CtkGvoBanner *banner);
 static gboolean update_gvo_banner(gpointer data);
 
 static void update_gvo_banner_video_output(CtkGvoBanner *banner,
@@ -102,7 +80,7 @@ static void init_output_video_format_menu(CtkGvo *ctk_gvo);
 static void init_output_data_format_menu(CtkGvo *ctk_gvo);
 
 
-static void create_toggle_sdi_output_button(CtkGvo *ctk_gvo);
+static void create_toggle_sdi_output_button(CtkGvo *ctk_gvo, gboolean enabled);
 
 static void toggle_sdi_output_button(GtkWidget *button, gpointer user_data);
 
@@ -150,6 +128,9 @@ static void register_for_gvo_events(CtkGvo *ctk_gvo);
 static void gvo_event_received(GtkObject *object,
                                gpointer arg1,
                                gpointer user_data);
+
+static void composite_callback(CtkBanner *banner, void *data);
+
 
 GType ctk_gvo_get_type(void)
 {
@@ -371,16 +352,12 @@ GtkWidget* ctk_gvo_new(NvCtrlAttributeHandle *handle,
     
     hbox = gtk_hbox_new(FALSE, 0);
     gtk_box_pack_start(GTK_BOX(object), hbox, FALSE, FALSE, 0);
-    
-    frame = gtk_frame_new(NULL);
-    gtk_box_pack_start(GTK_BOX(hbox), frame, FALSE, FALSE, 0);
-    
-    gtk_frame_set_shadow_type(GTK_FRAME(frame), GTK_SHADOW_IN);
 
-    ctk_gvo->banner_frame = frame;
+    ctk_gvo->banner_box = hbox;
 
-    init_gvo_banner(&ctk_gvo->banner);
-    
+    init_gvo_banner(ctk_gvo, &ctk_gvo->banner);
+
+
     /*
      * General information
      */
@@ -774,7 +751,12 @@ GtkWidget* ctk_gvo_new(NvCtrlAttributeHandle *handle,
      * "Enable SDI Output" button
      */
 
-    create_toggle_sdi_output_button(ctk_gvo);
+    ret = NvCtrlGetAttribute(handle, NV_CTRL_GVO_DISPLAY_X_SCREEN, &val);
+    if (ret != NvCtrlSuccess) val = 0;
+
+    create_toggle_sdi_output_button(ctk_gvo, val);
+    
+    post_toggle_sdi_output_button(ctk_gvo, val);
 
     alignment = gtk_alignment_new(1, 1, 0, 0);
     gtk_container_add(GTK_CONTAINER(alignment),
@@ -832,52 +814,90 @@ GtkWidget* ctk_gvo_new(NvCtrlAttributeHandle *handle,
 #define GVO_LED_COMP_SYNC_NONE     0
 #define GVO_LED_COMP_SYNC_SYNC     1
 
+#define LED_GREY    0
+#define LED_GREEN   1
+#define LED_YELLOW  2
+#define LED_RED     3
 
-/* XXX we can get rid of a bunch of these images */
+/* Position of LEDs relative to the SDI image. */
 
-static const nv_image_t *__gvo_banner_imgs[GVO_BANNER_COUNT] = {
-    &gvo_banner_left_image,
-    &gvo_banner_vid1_green_image,
-    &gvo_banner_vid1_grey_image,
-    &gvo_banner_vid1_red_image,
-    &gvo_banner_vid1_yellow_image,
-    &gvo_banner_vid2_green_image,
-    &gvo_banner_vid2_grey_image,
-    &gvo_banner_vid2_red_image,
-    &gvo_banner_vid2_yellow_image,
-    &gvo_banner_sdi_sync_green_image,
-    &gvo_banner_sdi_sync_grey_image,
-    &gvo_banner_sdi_sync_red_image,
-    &gvo_banner_sdi_sync_yellow_image,
-    &gvo_banner_comp_sync_green_image,
-    &gvo_banner_comp_sync_grey_image,
-    &gvo_banner_comp_sync_red_image,
-    &gvo_banner_comp_sync_yellow_image,
-    &gvo_banner_right_image,
-};
+static int __led_pos_x[] = { 74, 101, 128, 156 }; // From sdi.png
+static int __led_pos_y   = 36;                    // From sdi.png
+
 
 
 /*
- * ctk_gvo_pack_banner_slot() - update slot 'slot' in the banner with the
- * image specified by 'new'
+ * draw_led() - Updates the LED to the given color in the banner's
+ * backing pixbuf.
  */
 
-void ctk_gvo_pack_banner_slot(CtkGvoBanner *banner, gint slot, gint new)
-{
-    GList *list;
+static void draw_led(CtkBanner *ctk_banner, int led, int color) {
+    
+    /* Which LED to draw */
+    int dst_x = ctk_banner->artwork_x +__led_pos_x[led];
+    int dst_y = ctk_banner->artwork_y +__led_pos_y;
 
-    /* Remove last image, if any */
-    list = gtk_container_get_children(GTK_CONTAINER(banner->slots[slot]));
-    if (list) {
-        gtk_container_remove(GTK_CONTAINER(banner->slots[slot]),
-                             (GtkWidget *)(list->data));
-        g_list_free(list);
+    /* Offset LED color into LED position */
+    int offset_x = ctk_banner->artwork_x +__led_pos_x[led] -__led_pos_x[color];
+    int offset_y = ctk_banner->artwork_y;
+
+    gdk_pixbuf_composite(ctk_banner->artwork.pixbuf,    // src
+                         ctk_banner->back.pixbuf,       // dest
+                         dst_x,                         // dest_x
+                         dst_y,                         // dest_y
+                         10,                            // dest_width
+                         10,                            // dest_height
+                         offset_x,                      // offset_x
+                         offset_y,                      // offset_y
+                         1.0,                           // scale_x
+                         1.0,                           // scale_y
+                         GDK_INTERP_BILINEAR,           // interp_type
+                         255);                          // overall_alpha
+}
+
+
+
+/*
+ * composite_callback() - Draws all the LEDs to the banner.
+ */
+static void composite_callback(CtkBanner *ctk_banner, void *data)
+{
+    CtkGvo *ctk_gvo = (CtkGvo *) data;
+    int i;
+
+    /* Grab the latest banner widget */
+    ctk_gvo->banner.ctk_banner = GTK_WIDGET(ctk_banner);
+
+    /* Draw the current state */
+    for (i = 0; i < 4; i++) {
+        draw_led(ctk_banner, i, ctk_gvo->banner.img[i]);
     }
-    
-    gtk_box_pack_start(GTK_BOX(banner->slots[slot]), banner->imgs[new],
-                       TRUE, TRUE, 0);
-    
-} /* ctk_gvo_pack_banner_slot() */
+}
+
+
+
+/*
+ * update_led() - Updates the state of an LED and causes and expose event.
+ */
+
+static void update_led(CtkGvoBanner *banner, int led, int color)
+{
+    GtkWidget *ctk_banner = banner->ctk_banner;
+    GdkRectangle rec = {0, __led_pos_y,  10,10};
+
+    /* Update the state of the LED */
+    banner->img[led] = color;
+
+    /* Draw the LED and tell gdk to draw it to the window */
+    if (ctk_banner && ctk_banner->window) {
+
+        draw_led(CTK_BANNER(ctk_banner), led, color);
+
+        rec.x = CTK_BANNER(ctk_banner)->artwork_x + __led_pos_x[led];
+        rec.y = CTK_BANNER(ctk_banner)->artwork_y + __led_pos_y;
+        gdk_window_invalidate_rect(ctk_banner->window, &rec, TRUE);
+    }
+}
 
 
 
@@ -885,79 +905,31 @@ void ctk_gvo_pack_banner_slot(CtkGvoBanner *banner, gint slot, gint new)
  * init_gvo_banner() - initialize the GVO banner
  */
 
-static void init_gvo_banner(CtkGvoBanner *banner)
+static void init_gvo_banner(CtkGvo *ctk_gvo, CtkGvoBanner *banner)
 {
-    int i;
-    const nv_image_t *img;
-    guint8 *image_buffer = NULL;
-    
-    /* Create the banner table */
-    
-    banner->table = gtk_table_new(1, 6, FALSE);
-    gtk_object_ref(GTK_OBJECT(banner->table));
-    
-    gtk_table_set_row_spacings(GTK_TABLE(banner->table), 0);
-    gtk_table_set_col_spacings(GTK_TABLE(banner->table), 0);
-    
-    /* Create the banner images */
-        
-    for (i = 0; i < GVO_BANNER_COUNT; i++) {
-        
-        if (banner->imgs[i]) continue;
-        
-        img = __gvo_banner_imgs[i];
-        
-        image_buffer = decompress_image_data(img);
-        
-        banner->imgs[i] = gtk_image_new_from_pixbuf
-            (gdk_pixbuf_new_from_data(image_buffer, GDK_COLORSPACE_RGB,
-                                      FALSE, 8, img->width, img->height,
-                                      img->width * img->bytes_per_pixel,
-                                      free_decompressed_image, NULL));
-        
-        /*
-         * XXX increment the reference count, so that when we do
-         * gtk_container_remove() later, it doesn't get destroyed
-         */
-        
-        gtk_object_ref(GTK_OBJECT(banner->imgs[i]));
+    /* Create the banner image */
+    banner->widget = ctk_banner_image_new_with_callback(BANNER_ARTWORK_SDI,
+                                                        composite_callback,
+                                                        ctk_gvo);
+    g_object_ref(banner->widget);
 
-        
-        gtk_widget_show(banner->imgs[i]);
-    }
-    
-
-    /*
-     * fill in the banner table containers for the LED images
-     * that will get swapped in and out.
-     */
-    
-    for (i = 0; i < 6; i++) {
-        banner->slots[i] = gtk_hbox_new(FALSE, 0);
-        gtk_object_ref(GTK_OBJECT(banner->slots[i]));
-        gtk_table_attach(GTK_TABLE(banner->table), banner->slots[i],
-                         i+1, i+2, 0, 1, GTK_FILL, GTK_FILL, 0, 0);
-    }
-
+    banner->ctk_banner = NULL;
 
     /*
      * initialize LED state
      */
 
-    banner->state.vid1 = GVO_LED_VID_OUT_NOT_IN_USE;
-    banner->state.vid2 = GVO_LED_VID_OUT_NOT_IN_USE;
-    banner->state.sdi  = GVO_LED_SDI_SYNC_NONE;
-    banner->state.comp = GVO_LED_COMP_SYNC_NONE;
+    banner->state[GVO_BANNER_VID1] = GVO_LED_VID_OUT_NOT_IN_USE;
+    banner->state[GVO_BANNER_VID2] = GVO_LED_VID_OUT_NOT_IN_USE;
+    banner->state[GVO_BANNER_SDI]  = GVO_LED_SDI_SYNC_NONE;
+    banner->state[GVO_BANNER_COMP] = GVO_LED_COMP_SYNC_NONE;
 
-    banner->img.vid1 = GVO_BANNER_VID1_GREY;
-    banner->img.vid2 = GVO_BANNER_VID2_GREY;
-    banner->img.sdi  = GVO_BANNER_SDI_SYNC_GREY;
-    banner->img.comp = GVO_BANNER_COMP_SYNC_GREY;
+    banner->img[GVO_BANNER_VID1] = LED_GREY;
+    banner->img[GVO_BANNER_VID2] = LED_GREY;
+    banner->img[GVO_BANNER_SDI]  = LED_GREY;
+    banner->img[GVO_BANNER_COMP] = LED_GREY;
 
-    ctk_gvo_pack_banner_slot(banner, 0, GVO_BANNER_LEFT);
-    ctk_gvo_pack_banner_slot(banner, 5, GVO_BANNER_RIGHT);
-
-    gtk_widget_show_all(GTK_WIDGET(banner->table));
+    gtk_widget_show_all(GTK_WIDGET(banner->widget));
 
 } /* init_gvo_banner() */
 
@@ -989,108 +961,97 @@ static gboolean update_gvo_banner(gpointer data)
 
     /* Vid 1 out */
 
-    old = banner->img.vid1;
+    old = banner->img[GVO_BANNER_VID1];
     
-    if (banner->state.vid1 == GVO_LED_VID_OUT_HD_MODE) {
-        new = (old == GVO_BANNER_VID1_GREY) ?
-            GVO_BANNER_VID1_GREEN: GVO_BANNER_VID1_GREY;
-        flashing = (new == GVO_BANNER_VID1_GREY) ? 2 : 1;
-    } else if (banner->state.vid1 == GVO_LED_VID_OUT_SD_MODE) {
-        new = (old == GVO_BANNER_VID1_GREY) ?
-            GVO_BANNER_VID1_YELLOW: GVO_BANNER_VID1_GREY;
-        flashing = (new == GVO_BANNER_VID1_GREY) ? 2 : 1;
+    if (banner->state[GVO_BANNER_VID1] == GVO_LED_VID_OUT_HD_MODE) {
+        new = (old == LED_GREY) ? LED_GREEN: LED_GREY;
+        flashing = (new == LED_GREY) ? 2 : 1;
+
+    } else if (banner->state[GVO_BANNER_VID1] == GVO_LED_VID_OUT_SD_MODE) {
+        new = (old == LED_GREY) ? LED_YELLOW: LED_GREY;
+        flashing = (new == LED_GREY) ? 2 : 1;
+
     } else {
-        new = GVO_BANNER_VID1_GREY;
+        new = LED_GREY;
     }
     
     if (old != new) {
-        ctk_gvo_pack_banner_slot(banner, 1, new);
-        banner->img.vid1 = new;
+        update_led(banner, GVO_BANNER_VID1, new);
     }
 
-    /* Vid 1 out */
+    /* Vid 2 out */
 
-    old = banner->img.vid2;
+    old = banner->img[GVO_BANNER_VID2];
     
-    if (banner->state.vid2 == GVO_LED_VID_OUT_HD_MODE) {
+    if (banner->state[GVO_BANNER_VID2] == GVO_LED_VID_OUT_HD_MODE) {
         if (flashing) {
-            new = (flashing == 1) ?
-                GVO_BANNER_VID2_GREEN: GVO_BANNER_VID2_GREY;
+            new = (flashing == 1) ? LED_GREEN: LED_GREY;
         } else {
-            new = (old == GVO_BANNER_VID2_GREY) ?
-                GVO_BANNER_VID2_GREEN: GVO_BANNER_VID2_GREY;
-            flashing = (new == GVO_BANNER_VID2_GREY) ? 2 : 1;
+            new = (old == LED_GREY) ? LED_GREEN: LED_GREY;
+            flashing = (new == LED_GREY) ? 2 : 1;
         }
-    } else if (banner->state.vid2 == GVO_LED_VID_OUT_SD_MODE) {
+    } else if (banner->state[GVO_BANNER_VID2] == GVO_LED_VID_OUT_SD_MODE) {
         if (flashing) {
-            new = (flashing == 1) ?
-                GVO_BANNER_VID2_YELLOW: GVO_BANNER_VID2_GREY;
+            new = (flashing == 1) ? LED_YELLOW: LED_GREY;
         } else {
-            new = (old == GVO_BANNER_VID2_GREY) ?
-                GVO_BANNER_VID2_YELLOW: GVO_BANNER_VID2_GREY;
-            flashing = (new == GVO_BANNER_VID2_GREY) ? 2 : 1;
+            new = (old == LED_GREY) ? LED_YELLOW: LED_GREY;
+            flashing = (new == LED_GREY) ? 2 : 1;
         }
     } else {
-        new = GVO_BANNER_VID2_GREY;
+        new = LED_GREY;
     }
     
     if (old != new) {
-        ctk_gvo_pack_banner_slot(banner, 2, new);
-        banner->img.vid2 = new;
+        update_led(banner, GVO_BANNER_VID2, new);
     }
     
     /* SDI sync */
     
-    old = banner->img.sdi;
+    old = banner->img[GVO_BANNER_SDI];
     
-    if (banner->state.sdi == GVO_LED_SDI_SYNC_HD) {
+    if (banner->state[GVO_BANNER_SDI] == GVO_LED_SDI_SYNC_HD) {
         if (flashing) {
-            new = (flashing == 1) ?
-                GVO_BANNER_SDI_SYNC_GREEN : GVO_BANNER_SDI_SYNC_GREY;
+            new = (flashing == 1) ? LED_GREEN : LED_GREY;
         } else {
-            new = (banner->img.sdi == GVO_BANNER_SDI_SYNC_GREY) ?
-                GVO_BANNER_SDI_SYNC_GREEN : GVO_BANNER_SDI_SYNC_GREY;
-            flashing = (new == GVO_BANNER_SDI_SYNC_GREY) ? 2 : 1;
+            new = (banner->img[GVO_BANNER_SDI] == LED_GREY) ?
+                LED_GREEN : LED_GREY;
+            flashing = (new == LED_GREY) ? 2 : 1;
         }
-    } else if (banner->state.sdi == GVO_LED_SDI_SYNC_SD) {
+    } else if (banner->state[GVO_BANNER_SDI] == GVO_LED_SDI_SYNC_SD) {
         if (flashing) {
-            new = (flashing == 1) ?
-                GVO_BANNER_SDI_SYNC_YELLOW : GVO_BANNER_SDI_SYNC_GREY;
+            new = (flashing == 1) ? LED_YELLOW : LED_GREY;
         } else {
-            new = (banner->img.sdi == GVO_BANNER_SDI_SYNC_GREY) ?
-                GVO_BANNER_SDI_SYNC_YELLOW : GVO_BANNER_SDI_SYNC_GREY;
-            flashing = (new == GVO_BANNER_SDI_SYNC_GREY) ? 2 : 1;
+            new = (banner->img[GVO_BANNER_SDI] == LED_GREY) ?
+                LED_YELLOW : LED_GREY;
+            flashing = (new == LED_GREY) ? 2 : 1;
         }
-    } else if (banner->state.sdi == GVO_LED_SDI_SYNC_ERROR) {
-        new = GVO_BANNER_SDI_SYNC_YELLOW;
+    } else if (banner->state[GVO_BANNER_SDI] == GVO_LED_SDI_SYNC_ERROR) {
+        new = LED_YELLOW;
     } else {
-        new = GVO_BANNER_SDI_SYNC_GREY;
+        new = LED_GREY;
     }
     
     if (old != new) {
-        ctk_gvo_pack_banner_slot(banner, 3, new);
-        banner->img.sdi = new;
+        update_led(banner, GVO_BANNER_SDI, new);
     }
 
     /* COMP sync */
     
-    old = banner->img.comp;
+    old = banner->img[GVO_BANNER_COMP];
     
-    if (banner->state.comp == GVO_LED_COMP_SYNC_SYNC) {
+    if (banner->state[GVO_BANNER_COMP] == GVO_LED_COMP_SYNC_SYNC) {
         if (flashing) {
-            new = (flashing == 1) ?
-                GVO_BANNER_COMP_SYNC_GREEN : GVO_BANNER_COMP_SYNC_GREY;
+            new = (flashing == 1) ? LED_GREEN : LED_GREY;
         } else {
-            new = (banner->img.comp == GVO_BANNER_COMP_SYNC_GREY) ?
-                GVO_BANNER_COMP_SYNC_GREEN : GVO_BANNER_COMP_SYNC_GREY;
+            new = (banner->img[GVO_BANNER_COMP] == LED_GREY) ?
+                LED_GREEN : LED_GREY;
         }
     } else {
-        new = GVO_BANNER_COMP_SYNC_GREY;
+        new = LED_GREY;
     }
     
     if (old != new) {
-        ctk_gvo_pack_banner_slot(banner, 4, new);
-        banner->img.comp = new;
+        update_led(banner, GVO_BANNER_COMP, new);
     }
 
     return TRUE;
@@ -1109,21 +1070,21 @@ static void update_gvo_banner_video_output(CtkGvoBanner *banner,
                                            gint output_data_format)
 {
     if (output_video_format == NV_CTRL_GVO_VIDEO_FORMAT_NONE) {
-        banner->state.vid1 = GVO_LED_VID_OUT_NOT_IN_USE;
-        banner->state.vid2 = GVO_LED_VID_OUT_NOT_IN_USE;
+        banner->state[GVO_BANNER_VID1] = GVO_LED_VID_OUT_NOT_IN_USE;
+        banner->state[GVO_BANNER_VID2] = GVO_LED_VID_OUT_NOT_IN_USE;
     } else if ((output_video_format ==
                 NV_CTRL_GVO_VIDEO_FORMAT_480I_59_94_SMPTE259_NTSC) ||
                (output_video_format ==
                 NV_CTRL_GVO_VIDEO_FORMAT_576I_50_00_SMPTE259_PAL)) {
-        banner->state.vid1 = GVO_LED_VID_OUT_SD_MODE;
-        banner->state.vid2 = GVO_LED_VID_OUT_SD_MODE;
+        banner->state[GVO_BANNER_VID1] = GVO_LED_VID_OUT_SD_MODE;
+        banner->state[GVO_BANNER_VID2] = GVO_LED_VID_OUT_SD_MODE;
     } else {
-        banner->state.vid1 = GVO_LED_VID_OUT_HD_MODE;
-        banner->state.vid2 = GVO_LED_VID_OUT_HD_MODE;
+        banner->state[GVO_BANNER_VID1] = GVO_LED_VID_OUT_HD_MODE;
+        banner->state[GVO_BANNER_VID2] = GVO_LED_VID_OUT_HD_MODE;
     }
     
     if (output_data_format == NV_CTRL_GVO_DATA_FORMAT_R8G8B8_TO_YCRCB422) {
-        banner->state.vid2 = GVO_LED_VID_OUT_NOT_IN_USE;
+        banner->state[GVO_BANNER_VID2] = GVO_LED_VID_OUT_NOT_IN_USE;
     }
 } /* update_gvo_banner_video_output() */
 
@@ -1138,14 +1099,14 @@ static void update_gvo_banner_video_input(CtkGvoBanner *banner,
                                           gint sdi, gint comp)
 {
     if (sdi == NV_CTRL_GVO_SDI_SYNC_INPUT_DETECTED_HD) {
-        banner->state.sdi = GVO_LED_SDI_SYNC_HD;
+        banner->state[GVO_BANNER_SDI] = GVO_LED_SDI_SYNC_HD;
     } else if (sdi == NV_CTRL_GVO_SDI_SYNC_INPUT_DETECTED_SD) {
-        banner->state.sdi = GVO_LED_SDI_SYNC_SD;
+        banner->state[GVO_BANNER_SDI] = GVO_LED_SDI_SYNC_SD;
     } else {
-        banner->state.sdi = GVO_LED_SDI_SYNC_NONE;
+        banner->state[GVO_BANNER_SDI] = GVO_LED_SDI_SYNC_NONE;
     }
     
-    banner->state.comp = comp ?
+    banner->state[GVO_BANNER_COMP] = comp ?
         GVO_LED_COMP_SYNC_SYNC : GVO_LED_COMP_SYNC_NONE;
     
 } /* update_gvo_banner_video_input() */
@@ -1720,7 +1681,7 @@ static void init_output_data_format_menu(CtkGvo *ctk_gvo)
  * create_toggle_sdi_output_button() - 
  */
 
-static void create_toggle_sdi_output_button(CtkGvo *ctk_gvo)
+static void create_toggle_sdi_output_button(CtkGvo *ctk_gvo, gboolean enabled)
 {
     GtkWidget *label;
     GtkWidget *hbox, *hbox2;
@@ -1787,14 +1748,17 @@ static void create_toggle_sdi_output_button(CtkGvo *ctk_gvo)
     
     ctk_gvo->disable_sdi_output_label = hbox2;
     
-    /* start with SDI Output disabled */
+    /* Set the initial SDI Output state */
     
-    gtk_container_add(GTK_CONTAINER(button), ctk_gvo->enable_sdi_output_label);
+    gtk_container_add(GTK_CONTAINER(button),
+                      enabled ? ctk_gvo->disable_sdi_output_label :
+                      ctk_gvo->enable_sdi_output_label);
     
+    gtk_toggle_button_set_active(GTK_TOGGLE_BUTTON(button), enabled);
 
     ctk_gvo->toggle_sdi_output_button = button;
 
-    ctk_gvo->sdi_output_enabled = FALSE;
+    ctk_gvo->sdi_output_enabled = enabled;
 
     g_signal_connect(G_OBJECT(button), "toggled",
                      G_CALLBACK(toggle_sdi_output_button),
@@ -1861,11 +1825,22 @@ static void toggle_sdi_output_button(GtkWidget *button, gpointer user_data)
 static void post_toggle_sdi_output_button(CtkGvo *ctk_gvo, gboolean enabled)
 {
     gint w, h;
+    GList *children;
+    GList *child;
+
+    children = gtk_container_get_children
+        (GTK_CONTAINER(ctk_gvo->toggle_sdi_output_button));
+
+    for (child = children; child; child = child->next) {
+        gtk_container_remove
+            (GTK_CONTAINER(ctk_gvo->toggle_sdi_output_button),
+             (GtkWidget *) child->data);
+    }
+
+    g_list_free(children);
     
+
     if (enabled) {
-        gtk_container_remove(GTK_CONTAINER(ctk_gvo->toggle_sdi_output_button),
-                             ctk_gvo->enable_sdi_output_label);
-        
         gtk_container_add(GTK_CONTAINER(ctk_gvo->toggle_sdi_output_button),
                           ctk_gvo->disable_sdi_output_label);
 
@@ -1877,9 +1852,6 @@ static void post_toggle_sdi_output_button(CtkGvo *ctk_gvo, gboolean enabled)
         update_gvo_current_info(ctk_gvo, w, h, CURRENT_SDI_STATE_IN_USE_BY_X);
         
     } else {
-        gtk_container_remove(GTK_CONTAINER(ctk_gvo->toggle_sdi_output_button),
-                             ctk_gvo->disable_sdi_output_label);
-        
         gtk_container_add(GTK_CONTAINER(ctk_gvo->toggle_sdi_output_button),
                           ctk_gvo->enable_sdi_output_label);
         
@@ -2722,15 +2694,10 @@ void ctk_gvo_select(GtkWidget *widget)
 {
     CtkGvo *ctk_gvo = CTK_GVO(widget);
 
-    gtk_container_add(GTK_CONTAINER(ctk_gvo->banner_frame),
-                      ctk_gvo->banner.table);
+    /* Greb the GVO parent banner */
 
-    /* Set lastest LED state of this GVO device */
-
-    ctk_gvo_pack_banner_slot(&ctk_gvo->banner, 1, ctk_gvo->banner.img.vid1);
-    ctk_gvo_pack_banner_slot(&ctk_gvo->banner, 2, ctk_gvo->banner.img.vid2);
-    ctk_gvo_pack_banner_slot(&ctk_gvo->banner, 3, ctk_gvo->banner.img.sdi);
-    ctk_gvo_pack_banner_slot(&ctk_gvo->banner, 4, ctk_gvo->banner.img.comp);
+    gtk_container_add(GTK_CONTAINER(ctk_gvo->banner_box),
+                      ctk_gvo->banner.widget);
 
     ctk_config_start_timer(ctk_gvo->ctk_config, (GSourceFunc) ctk_gvo_probe,
                            (gpointer) ctk_gvo);
@@ -2742,8 +2709,10 @@ void ctk_gvo_unselect(GtkWidget *widget)
 {
     CtkGvo *ctk_gvo = CTK_GVO(widget);
 
-    gtk_container_remove(GTK_CONTAINER(ctk_gvo->banner_frame),
-                         ctk_gvo->banner.table);
+    /* Return the GVO parent banner */
+
+    gtk_container_remove(GTK_CONTAINER(ctk_gvo->banner_box),
+                         ctk_gvo->banner.widget);
 
     ctk_config_stop_timer(ctk_gvo->ctk_config, (GSourceFunc) ctk_gvo_probe,
                           (gpointer) ctk_gvo);

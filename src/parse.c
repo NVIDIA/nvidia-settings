@@ -65,7 +65,6 @@ AttributeTableEntry attributeTable[] = {
    
     /* name                    constant                             flags */
  
-    { "FlatpanelScaling",      NV_CTRL_FLATPANEL_SCALING,           0     },
     { "FlatpanelDithering",    NV_CTRL_FLATPANEL_DITHERING,         0     },
     { "DigitalVibrance",       NV_CTRL_DIGITAL_VIBRANCE,            0     },
     { "ImageSharpening",       NV_CTRL_IMAGE_SHARPENING,            0     },
@@ -108,6 +107,13 @@ AttributeTableEntry attributeTable[] = {
     { "PCIFunc",               NV_CTRL_PCI_FUNCTION,                N     },
     { "DynamicTwinview",       NV_CTRL_DYNAMIC_TWINVIEW,            N     },
     { "MultiGpuDisplayOwner",  NV_CTRL_MULTIGPU_DISPLAY_OWNER,      N     },
+    { "GPUScaling",            NV_CTRL_GPU_SCALING,                 P     },
+    { "FrontendResolution",    NV_CTRL_FRONTEND_RESOLUTION,         N|P   },
+    { "BackendResolution",     NV_CTRL_BACKEND_RESOLUTION,          N|P   },
+    { "FlatpanelNativeResolution",  NV_CTRL_FLATPANEL_NATIVE_RESOLUTION,   N|P },
+    { "FlatpanelBestFitResolution", NV_CTRL_FLATPANEL_BEST_FIT_RESOLUTION, N|P },
+    { "GPUScalingActive",      NV_CTRL_GPU_SCALING_ACTIVE,          N },
+    { "DFPScalingActive",      NV_CTRL_DFP_SCALING_ACTIVE,          N },
 
     { "FrameLockMaster",       NV_CTRL_FRAMELOCK_MASTER,            N|F|G|D },
     { "FrameLockSlaves",       NV_CTRL_FRAMELOCK_SLAVES,            N|F|G|D },
@@ -188,7 +194,7 @@ AttributeTableEntry attributeTable[] = {
  * about.
  */
 
-#if NV_CTRL_LAST_ATTRIBUTE != NV_CTRL_MULTIGPU_DISPLAY_OWNER
+#if NV_CTRL_LAST_ATTRIBUTE != NV_CTRL_DFP_SCALING_ACTIVE
 #warning "Have you forgotten to add a new integer attribute to attributeTable?"
 #endif
 
@@ -340,10 +346,15 @@ int nv_parse_attribute_string(const char *str, int query, ParsedAttribute *a)
             /* color attributes are floating point */
             a->fval = strtod(s, &tmp);
         } else if (a->flags & NV_PARSER_TYPE_PACKED_ATTRIBUTE) {
-            /* two 16-bit integers, separated by ',' */
-            a->val = (strtol(s, &tmp, 10) & 0xffff) << 16;
-            if (!tmp || (*tmp != ',')) stop(NV_PARSER_STATUS_MISSING_COMMA);
-            a->val |= strtol((tmp + 1), &tmp, 10) & 0xffff;
+            /*
+             * Either a single 32-bit integer or two 16-bit
+             * integers, separated by ','.
+             */
+            a->val = strtol(s, &tmp, 10);
+            if (tmp && *tmp == ',') {
+                a->val = (a->val & 0xffff) << 16;
+                a->val |= strtol((tmp + 1), &tmp, 10) & 0xffff;
+            }
         } else {
             /* all other attributes are integer */
             a->val = strtol(s, &tmp, 0);

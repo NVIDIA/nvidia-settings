@@ -42,7 +42,6 @@
 
 #include "NvCtrlAttributes.h"
 
-#include "cursor_banner.h"
 #include "ctkimage.h"
 
 #include "ctkcursorshadow.h"
@@ -236,7 +235,7 @@ GtkWidget* ctk_cursor_shadow_new(NvCtrlAttributeHandle *handle,
 
     /* banner */
 
-    banner = ctk_banner_image_new(&cursor_banner_image);
+    banner = ctk_banner_image_new(BANNER_ARTWORK_CURSOR_SHADOW);
     gtk_box_pack_start(GTK_BOX(ctk_cursor_shadow), banner, FALSE, FALSE, 0);
 
     /* vbox */
@@ -871,7 +870,7 @@ static void init_color_selector(CtkCursorShadow *ctk_cursor_shadow)
     hbox = gtk_hbox_new(FALSE, 0);
     gtk_box_pack_start(GTK_BOX(vbox), hbox, FALSE, FALSE, 0);
 
-    banner = ctk_banner_image_new(&cursor_banner_image);
+    banner = ctk_banner_image_new(BANNER_ARTWORK_CURSOR_SHADOW);
     gtk_box_pack_start(GTK_BOX(hbox), banner, TRUE, TRUE, 0);
     
     /* create the color selector */

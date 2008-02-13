@@ -29,9 +29,6 @@
 #include <gdk/gdkx.h>
 #include <X11/Xlib.h>
 
-#include "big_banner_penguin.h"
-#include "big_banner_bsd.h"
-#include "big_banner_sun.h"
 #include "ctkimage.h"
 
 #include "ctkserver.h"
@@ -356,13 +353,13 @@ GtkWidget* ctk_server_new(NvCtrlAttributeHandle *handle,
     /* banner */
 
     if (os_val == NV_CTRL_OPERATING_SYSTEM_LINUX) {
-        banner = ctk_banner_image_new(&big_banner_penguin_image);
+        banner = ctk_banner_image_new(BANNER_ARTWORK_PENGUIN);
     } else if (os_val == NV_CTRL_OPERATING_SYSTEM_FREEBSD) {
-        banner = ctk_banner_image_new(&big_banner_bsd_image);
+        banner = ctk_banner_image_new(BANNER_ARTWORK_BSD);
     } else if (os_val == NV_CTRL_OPERATING_SYSTEM_SUNOS) {
-        banner = ctk_banner_image_new(&big_banner_sun_image);
+        banner = ctk_banner_image_new(BANNER_ARTWORK_SOLARIS);
     } else {
-        banner = ctk_banner_image_new(&big_banner_penguin_image);
+        banner = ctk_banner_image_new(BANNER_ARTWORK_PENGUIN);
     }
     gtk_box_pack_start(GTK_BOX(ctk_object), banner, FALSE, FALSE, 0);
 
@@ -429,6 +426,41 @@ GtkWidget* ctk_server_new(NvCtrlAttributeHandle *handle,
     /* separator */
     add_table_row(table, 10,
                   0, 0,   "X Screens:",             0, 0, num_screens);
+
+
+    /* print special trademark text for FreeBSD */
+    
+    if (os_val == NV_CTRL_OPERATING_SYSTEM_FREEBSD) {
+
+        hseparator = gtk_hseparator_new();
+        gtk_box_pack_start(GTK_BOX(vbox), hseparator, FALSE, FALSE, 0);
+        
+        label = gtk_label_new(NULL);
+
+        gtk_label_set_markup(GTK_LABEL(label),
+                             "<span style=\"italic\" size=\"small\">"
+                             "\n"
+                             "The mark FreeBSD is a registered trademark "
+                             "of The FreeBSD Foundation and is used by "
+                             "NVIDIA with the permission of The FreeBSD "
+                             "Foundation."
+                             "\n\n"
+                             "The FreeBSD Logo is a trademark of The "
+                             "FreeBSD Foundation and is used by NVIDIA "
+                             "with the permission of The FreeBSD "
+                             "Foundation."
+                             "\n"
+                             "</span>");
+        
+        gtk_label_set_selectable(GTK_LABEL(label), TRUE);
+        gtk_label_set_line_wrap(GTK_LABEL(label), TRUE);
+        
+        hbox = gtk_hbox_new(FALSE, 0);
+        gtk_box_pack_start(GTK_BOX(vbox), hbox, FALSE, FALSE, 0);
+        
+        gtk_box_pack_start(GTK_BOX(hbox), label, FALSE, FALSE, 0);
+    }
+    
 
     g_free(display_name);
     g_free(os);

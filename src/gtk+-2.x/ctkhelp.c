@@ -28,7 +28,6 @@
 #include "msg.h"
 #include "ctkconstants.h"
 
-#include "help_banner.h"
 #include "ctkimage.h"
 
 #include <stdlib.h>
@@ -100,7 +99,7 @@ GtkWidget* ctk_help_new(GtkWidget *toggle_button, GtkTextTagTable *tag_table)
     hbox = gtk_hbox_new(FALSE, 0);
     gtk_box_pack_start(GTK_BOX(vbox), hbox, FALSE, FALSE, 0);
 
-    banner = ctk_banner_image_new(&help_banner_image);
+    banner = ctk_banner_image_new(BANNER_ARTWORK_HELP);
     gtk_box_pack_start(GTK_BOX(hbox), banner, TRUE, TRUE, 0);
     
     /* create the scroll window to hold the text viewer */

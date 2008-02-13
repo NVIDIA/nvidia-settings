@@ -27,7 +27,6 @@
 #include <gtk/gtk.h>
 #include <gdk/gdkx.h>
 
-#include "clocks_banner.h"
 #include "ctkimage.h"
 
 #include "ctkclocks.h"
@@ -618,7 +617,7 @@ GtkWidget* ctk_clocks_new(NvCtrlAttributeHandle *handle,
 
     gtk_box_set_spacing(GTK_BOX(ctk_object), 10);
 
-    banner = ctk_banner_image_new(&clocks_banner_image);
+    banner = ctk_banner_image_new(BANNER_ARTWORK_CLOCK);
     gtk_box_pack_start(GTK_BOX(object), banner, FALSE, FALSE, 0);
 
     /* Add Overclocking checkbox */

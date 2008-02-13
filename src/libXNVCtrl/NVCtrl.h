@@ -90,7 +90,7 @@
 
 
 /*
- * NV_CTRL_FLATPANEL_SCALING - the current flatpanel scaling state;
+ * NV_CTRL_FLATPANEL_SCALING - the current flat panel scaling state;
  * possible values are:
  *
  * 0: default (the driver will use whatever state is current)
@@ -99,6 +99,9 @@
  * 3: centered (the driver will center the image)
  * 4: aspect scaled (scale with the GPU's scaler, but keep the aspect
  *    ratio correct)
+ *
+ * USAGE NOTE: This attribute has been deprecated in favor of the new
+ *             NV_CTRL_FLATPANEL_GPU_SCALING attribute.
  */
 
 #define NV_CTRL_FLATPANEL_SCALING                               2  /* RWDG */
@@ -110,7 +113,7 @@
 
 
 /*
- * NV_CTRL_FLATPANEL_DITHERING - the current flatpanel dithering
+ * NV_CTRL_FLATPANEL_DITHERING - the current flat panel dithering
  * state; possible values are:
  *
  * 0: default  (the driver will decide when to dither)
@@ -2489,9 +2492,9 @@
 
 /*
  * NV_CTRL_FLATPANEL_CHIP_LOCATION - for the specified display device,
- * report whether the flatpanel is driven by the on-chip controller,
+ * report whether the flat panel is driven by the on-chip controller,
  * or a separate controller chip elsewhere on the graphics board.
- * This attribute is only available for flatpanels.
+ * This attribute is only available for flat panels.
  */
 
 #define NV_CTRL_FLATPANEL_CHIP_LOCATION                         215/* R-DG */
@@ -2501,7 +2504,7 @@
 /*
  * NV_CTRL_FLATPANEL_LINK - report whether the specified display
  * device is driven by a single link or dual link DVI connection.
- * This attribute is only available for flatpanels.
+ * This attribute is only available for flat panels.
  */
 
 #define NV_CTRL_FLATPANEL_LINK                                  216/* R-DG */
@@ -2510,8 +2513,8 @@
 
 /*
  * NV_CTRL_FLATPANEL_SIGNAL - for the specified display device, report
- * whether the flatpanel is driven by an LVDS or TMDS signal.  This
- * attribute is only available for flatpanels.
+ * whether the flat panel is driven by an LVDS or TMDS signal.  This
+ * attribute is only available for flat panels.
  */
 
 #define NV_CTRL_FLATPANEL_SIGNAL                                217/* R-DG */
@@ -2842,7 +2845,122 @@
 #define NV_CTRL_MULTIGPU_DISPLAY_OWNER                           247 /* R-- */
 
 
-#define NV_CTRL_LAST_ATTRIBUTE NV_CTRL_MULTIGPU_DISPLAY_OWNER
+/* 
+ * NV_CTRL_GPU_SCALING - Controls what the GPU scales to and how.
+ * This attribute is a packed integer; the scaling target (native/best fit)
+ * is packed in the upper 16-bits and the scaling method is packed in the
+ * lower 16-bits.
+ *
+ * 'Best fit' scaling will make the GPU scale the frontend (current) mode to
+ * the closest larger resolution in the flat panel's EDID and allow the
+ * flat panel to do its own scaling to the native resolution.
+ *
+ * 'Native' scaling will make the GPU scale the frontend (current) mode to
+ * the flat panel's native resolution, thus disabling any internal scaling
+ * the flat panel might have.
+ */
+
+#define NV_CTRL_GPU_SCALING                                      248 /* RWDG */
+
+#define NV_CTRL_GPU_SCALING_TARGET_INVALID                       0
+#define NV_CTRL_GPU_SCALING_TARGET_FLATPANEL_BEST_FIT            1
+#define NV_CTRL_GPU_SCALING_TARGET_FLATPANEL_NATIVE              2
+
+#define NV_CTRL_GPU_SCALING_METHOD_INVALID                       0
+#define NV_CTRL_GPU_SCALING_METHOD_STRETCHED                     1
+#define NV_CTRL_GPU_SCALING_METHOD_CENTERED                      2
+#define NV_CTRL_GPU_SCALING_METHOD_ASPECT_SCALED                 3
+
+
+/*
+ * NV_CTRL_FRONTEND_RESOLUTION - Returns the dimensions of the frontend
+ * (current) resolution as determined by the NVIDIA X Driver.
+ *
+ * This attribute is a packed integer; the width is packed in the upper
+ * 16-bits and the height is packed in the lower 16-bits.
+ */
+
+#define NV_CTRL_FRONTEND_RESOLUTION                              249 /* R-DG */
+
+
+/*
+ * NV_CTRL_BACKEND_RESOLUTION - Returns the dimensions of the
+ * backend resolution as determined by the NVIDIA X Driver.  
+ *
+ * The backend resolution is the resolution (supported by the display
+ * device) the GPU is set to scale to.  If this resolution matches the
+ * frontend resolution, GPU scaling will not be needed/used.
+ *
+ * This attribute is a packed integer; the width is packed in the upper
+ * 16-bits and the height is packed in the lower 16-bits.
+ */
+
+#define NV_CTRL_BACKEND_RESOLUTION                               250 /* R-DG */
+
+
+/*
+ * NV_CTRL_NATIVE_RESOLUTION - Returns the dimensions of the
+ * native resolution of the flat panel as determined by the
+ * NVIDIA X Driver.
+ *
+ * The native resolution is the resolution at which a flat panel
+ * must display any image.  All other resolutions must be scaled to this
+ * resolution through GPU scaling or the DFP's native scaling capabilities 
+ * in order to be displayed.
+ *
+ * This attribute is only valid for flat panel (DFP) display devices.
+ *
+ * This attribute is a packed integer; the width is packed in the upper
+ * 16-bits and the height is packed in the lower 16-bits.
+ */
+
+#define NV_CTRL_FLATPANEL_NATIVE_RESOLUTION                      251 /* R-DG */
+
+
+/*
+ * NV_CTRL_FLATPANEL_BEST_FIT_RESOLUTION - Returns the dimensions of the
+ * resolution, selected by the X driver, from the DFP's EDID that most
+ * closely matches the frontend resolution of the current mode.  The best
+ * fit resolution is selected on a per-mode basis.
+ * NV_CTRL_GPU_SCALING_TARGET is used to select between
+ * NV_CTRL_FLATPANEL_BEST_FIT_RESOLUTION and NV_CTRL_NATIVE_RESOLUTION.
+ *
+ * This attribute is only valid for flat panel (DFP) display devices.
+ *
+ * This attribute is a packed integer; the width is packed in the upper
+ * 16-bits and the height is packed in the lower 16-bits.
+ */
+
+#define NV_CTRL_FLATPANEL_BEST_FIT_RESOLUTION                    252 /* R-DG */
+
+
+/*
+ * NV_CTRL_GPU_SCALING_ACTIVE - Returns the current state of
+ * GPU scaling.  GPU scaling is mode-specific (meaning it may vary
+ * depending on which mode is currently set).  GPU scaling is active if
+ * the frontend timing (current resolution) is different than the target
+ * resolution.  The target resolution is either the native resolution of
+ * the flat panel or the best fit resolution supported by the flat panel.
+ * What (and how) the GPU should scale to is controlled through the
+ * NV_CTRL_GPU_SCALING attribute.
+ */
+
+#define NV_CTRL_GPU_SCALING_ACTIVE                               253 /* R-DG */
+
+
+/*
+ * NV_CTRL_FLATPANEL_DFP_SCALING_ACTIVE - Returns the current state of
+ * DFP scaling.  DFP scaling is mode-specific (meaning it may vary
+ * depending on which mode is currently set).  DFP scaling is active if
+ * the GPU is set to scale to the best fit resolution (NV_CTRL_GPU_SCALING
+ * is set to NV_CTRL_GPU_SCALING_TARGET_FLATPANEL_BEST_FIT) and the best fit
+ * and native resolutions are different.
+ */
+
+#define NV_CTRL_DFP_SCALING_ACTIVE                               254 /* R-DG */
+
+
+#define NV_CTRL_LAST_ATTRIBUTE NV_CTRL_DFP_SCALING_ACTIVE
 
 
 /**************************************************************************/

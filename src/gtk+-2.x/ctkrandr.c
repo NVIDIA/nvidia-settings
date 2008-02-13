@@ -29,7 +29,6 @@
 #include <X11/extensions/Xrandr.h>
 
 #include "ctkimage.h"
-#include "rotation_banner.h" /* Images */
 #include "rotation_orientation_horiz.h"
 #include "rotation_orientation_horiz_flipped.h"
 #include "rotation_orientation_vert.h"
@@ -484,7 +483,7 @@ GtkWidget* ctk_randr_new(NvCtrlAttributeHandle *handle,
 
 
     { /* Banner image */
-        GtkWidget *banner = ctk_banner_image_new(&rotation_banner_image);
+        GtkWidget *banner = ctk_banner_image_new(BANNER_ARTWORK_ROTATION);
         gtk_box_pack_start(GTK_BOX(object), banner, FALSE, FALSE, 0);
     }
 

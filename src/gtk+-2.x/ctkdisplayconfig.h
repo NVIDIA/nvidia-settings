@@ -167,7 +167,7 @@ typedef struct _CtkDisplayConfig
     /* Buttons */
     GtkWidget *btn_apply;
     gboolean apply_possible; /* True if all modifications are applicable */
-    int cur_screen_pos[2]; /* Keep track of the selected X Screen's position */
+    int cur_screen_pos[2]; /* Keep track of the selected X screen's position */
 
     GtkWidget *btn_save;
     GtkWidget *btn_probe;

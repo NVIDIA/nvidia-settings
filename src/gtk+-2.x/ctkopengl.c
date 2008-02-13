@@ -25,7 +25,6 @@
 #include <gtk/gtk.h>
 #include <NvCtrlAttributes.h>
 
-#include "opengl_banner.h"
 #include "ctkimage.h"
 
 #include "ctkopengl.h"
@@ -229,7 +228,7 @@ GtkWidget* ctk_opengl_new(NvCtrlAttributeHandle *handle,
 
     gtk_box_set_spacing(GTK_BOX(object), 10);
 
-    banner = ctk_banner_image_new(&opengl_banner_image);
+    banner = ctk_banner_image_new(BANNER_ARTWORK_OPENGL);
     gtk_box_pack_start(GTK_BOX(object), banner, FALSE, FALSE, 0);
 
 

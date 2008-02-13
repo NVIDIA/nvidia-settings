@@ -25,7 +25,6 @@
 #include <gtk/gtk.h>
 #include <NvCtrlAttributes.h>
 
-#include "crt_banner.h"
 #include "ctkimage.h"
 
 #include "ctkdisplaydevice-crt.h"
@@ -117,7 +116,7 @@ GtkWidget* ctk_display_device_crt_new(NvCtrlAttributeHandle *handle,
     
     /* banner */
 
-    banner = ctk_banner_image_new(&crt_banner_image);
+    banner = ctk_banner_image_new(BANNER_ARTWORK_CRT);
     gtk_box_pack_start(GTK_BOX(object), banner, FALSE, FALSE, 0);
 
     /*

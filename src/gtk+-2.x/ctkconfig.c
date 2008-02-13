@@ -31,7 +31,6 @@
 #include "ctkconfig.h"
 #include "ctkhelp.h"
 
-#include "configuration_banner.h"
 #include "ctkimage.h"
 
 #include <stdarg.h>
@@ -157,7 +156,7 @@ GtkWidget* ctk_config_new(ConfigProperties *conf)
 
     /* banner */
 
-    banner = ctk_banner_image_new(&configuration_banner_image);
+    banner = ctk_banner_image_new(BANNER_ARTWORK_CONFIG);
     gtk_box_pack_start(GTK_BOX(ctk_config), banner, FALSE, FALSE, 0);
     
     /* "nvidia-settings Configuration" */

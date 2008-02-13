@@ -32,55 +32,15 @@ SRC += \
 EXTRA_DIST += \
 	Makefile.inc \
 	HOWTO-ADD-IMAGES \
-	antialiasing_banner.h \
-	big_banner_bsd.h \
-	big_banner_penguin.h \
-	big_banner_sun.h \
-	color_correction_banner.h \
-	configuration_banner.h \
-	frame_lock_banner.h \
-	help_banner.h \
 	image.h \
-	opengl_banner.h \
-	thermal_banner.h \
-	xvideo_banner.h \
-	display_device_banner.h \
-	crt_banner.h \
-	dfp_banner.h \
-	tv_banner.h \
-	cursor_banner.h \
-        crt.h \
-        tv.h \
-        dfp.h \
-        gvo_banner_comp_sync_green.h \
-        gvo_banner_comp_sync_grey.h \
-        gvo_banner_comp_sync_red.h \
-        gvo_banner_comp_sync_yellow.h \
-        gvo_banner_left.h \
-        gvo_banner_right.h \
-        gvo_banner_sdi_sync_green.h \
-        gvo_banner_sdi_sync_grey.h \
-        gvo_banner_sdi_sync_red.h \
-        gvo_banner_sdi_sync_yellow.h \
-        gvo_banner_vid1_green.h \
-        gvo_banner_vid1_grey.h \
-        gvo_banner_vid1_red.h \
-        gvo_banner_vid1_yellow.h \
-        gvo_banner_vid2_green.h \
-        gvo_banner_vid2_grey.h \
-        gvo_banner_vid2_red.h \
-        gvo_banner_vid2_yellow.h \
-	glx_banner.h \
 	rotate_left_off.h \
 	rotate_left_on.h \
 	rotate_right_off.h \
 	rotate_right_on.h \
-	rotation_banner.h \
 	rotation_orientation_horiz_flipped.h \
 	rotation_orientation_horiz.h \
 	rotation_orientation_vert_flipped.h \
 	rotation_orientation_vert.h \
-        clocks_banner.h \
 	bnc_cable.h \
 	led_green.h \
 	led_red.h \
@@ -88,7 +48,33 @@ EXTRA_DIST += \
 	rj45_input.h \
 	rj45_output.h \
 	rj45_unused.h \
-	blank_banner.h
+	crt_pixdata.h \
+	dfp_pixdata.h \
+	tv_pixdata.h \
+	background_pixdata.h \
+	logo_pixdata.h \
+	antialias_pixdata.h \
+	thermal_pixdata.h \
+	x_pixdata.h \
+	background_tall_pixdata.h \
+	bsd_pixdata.h \
+	clock_pixdata.h \
+	color_pixdata.h \
+	config_pixdata.h \
+	cursor_shadow_pixdata.h \
+	display_config_pixdata.h \
+	framelock_pixdata.h \
+	glx_pixdata.h \
+	gpu_pixdata.h \
+	help_pixdata.h \
+	logo_tall_pixdata.h \
+	opengl_pixdata.h \
+	penguin_pixdata.h \
+	rotation_pixdata.h \
+	sdi_pixdata.h \
+	solaris_pixdata.h \
+	vcsc_pixdata.h \
+	xvideo_pixdata.h
 
 dist_list::
 	@ echo $(SRC) $(EXTRA_DIST)

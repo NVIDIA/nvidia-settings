@@ -99,19 +99,23 @@ GtkWidget *ctk_image_dupe(GtkImage *image)
 
 
 /*
- * CTK banner image widget creation
+ * CTK composited banner image widget creation
  *
  */
-GtkWidget* ctk_banner_image_new(const nv_image_t *img)
+GtkWidget*  ctk_banner_image_new_with_callback(BannerArtworkType artwork,
+                                               ctk_banner_composite_callback callback,
+                                               void *data)
 {
     GtkWidget *image;
     GtkWidget *hbox;
     GtkWidget *frame;
 
 
-    image = ctk_banner_new(img);
+    image = ctk_banner_new(artwork);
 
     if (!image) return NULL;
+
+    ctk_banner_set_composite_callback(CTK_BANNER(image), callback, data);
 
     hbox = gtk_hbox_new(FALSE, 0);
     frame = gtk_frame_new(NULL);
@@ -122,4 +126,10 @@ GtkWidget* ctk_banner_image_new(const nv_image_t *img)
 
 
     return hbox;
+}
+
+
+GtkWidget* ctk_banner_image_new(BannerArtworkType artwork)
+{
+    return ctk_banner_image_new_with_callback(artwork, NULL, NULL);
 }

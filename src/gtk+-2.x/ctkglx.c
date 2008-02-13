@@ -30,7 +30,6 @@
 
 #include "glxinfo.h" /* xxx_abbrev functions */
 
-#include "glx_banner.h"
 #include "ctkimage.h"
 #include "ctkglx.h"
 #include "ctkutils.h"
@@ -228,7 +227,7 @@ GtkWidget* ctk_glx_new(NvCtrlAttributeHandle *handle,
 
     /* Image banner */
 
-    banner = ctk_banner_image_new(&glx_banner_image);
+    banner = ctk_banner_image_new(BANNER_ARTWORK_GLX);
     gtk_box_pack_start(GTK_BOX(ctk_glx), banner, FALSE, FALSE, 0);
 
     /* Determine if GLX is supported */

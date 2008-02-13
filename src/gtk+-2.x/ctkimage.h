@@ -27,13 +27,17 @@
 
 #include "image.h"
 #include "ctkconfig.h"
+#include "ctkbanner.h"
 
 G_BEGIN_DECLS
 
 GtkWidget*  ctk_image_new          (const nv_image_t *);
 GtkWidget*  ctk_image_new_from_xpm (const char **);
 GtkWidget*  ctk_image_dupe         (GtkImage *image);
-GtkWidget*  ctk_banner_image_new   (const nv_image_t *);
+GtkWidget*  ctk_banner_image_new   (BannerArtworkType artwork);
+GtkWidget*  ctk_banner_image_new_with_callback (BannerArtworkType artwork,
+                                                ctk_banner_composite_callback,
+                                                void *);
 
 G_END_DECLS
 

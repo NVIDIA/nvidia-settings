@@ -36,4 +36,37 @@ typedef struct {
 unsigned char *decompress_image_data(const nv_image_t *img);
 void free_decompressed_image(unsigned char *buf, void *ptr);
 
+
+/*
+ * enum for the banner artwork
+ */
+
+typedef enum {
+    BANNER_ARTWORK_ANTIALIAS,
+    BANNER_ARTWORK_BSD,
+    BANNER_ARTWORK_CLOCK,
+    BANNER_ARTWORK_COLOR,
+    BANNER_ARTWORK_CONFIG,
+    BANNER_ARTWORK_CRT,
+    BANNER_ARTWORK_CURSOR_SHADOW,
+    BANNER_ARTWORK_DFP,
+    BANNER_ARTWORK_DISPLAY_CONFIG,
+    BANNER_ARTWORK_FRAMELOCK,
+    BANNER_ARTWORK_GLX,
+    BANNER_ARTWORK_GPU,
+    BANNER_ARTWORK_HELP,
+    BANNER_ARTWORK_OPENGL,
+    BANNER_ARTWORK_PENGUIN,
+    BANNER_ARTWORK_ROTATION,
+    BANNER_ARTWORK_SDI,
+    BANNER_ARTWORK_SOLARIS,
+    BANNER_ARTWORK_THERMAL,
+    BANNER_ARTWORK_TV,
+    BANNER_ARTWORK_VCSC,
+    BANNER_ARTWORK_X,
+    BANNER_ARTWORK_XVIDEO,
+    BANNER_ARTWORK_INVALID,
+} BannerArtworkType;
+
+
 #endif /* __IMAGE_H__ */

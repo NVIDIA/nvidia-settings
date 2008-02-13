@@ -67,7 +67,6 @@ struct _CtkFramelock
 
     GdkCursor             *wait_cursor;
 
-
     /* Device tree & buttons */
     gpointer               tree;
     GtkWidget             *add_devices_button;
@@ -101,8 +100,13 @@ struct _CtkFramelock
     GtkWidget             *error_msg_dialog;
     GtkWidget             *error_msg_label;
 
-    /* Buttons */
+    GtkWidget             *enable_confirm_dialog;
+    GtkWidget             *enable_confirm_text;
+    GtkWidget             *enable_confirm_cancel_button;
+    guint                  enable_confirm_timer;
+    int                    enable_confirm_countdown;
 
+    /* Buttons */
     GtkWidget             *test_link_button;
     gboolean               test_link_enabled;
 

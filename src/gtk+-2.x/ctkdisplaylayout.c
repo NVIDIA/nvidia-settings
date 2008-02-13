@@ -345,6 +345,55 @@ static int point_in_dim(int *dim, int x, int y)
 
 
 
+/** get_point_relative_position() ************************************
+ *
+ * Determines the relative position of a point to the given dimensions
+ * of a box.
+ *
+ **/
+
+static int get_point_relative_position(int *dim, int x, int y)
+{
+    float m1, b1;
+    float m2, b2;
+    float l1, l2;
+
+
+    /* Point insize dim */
+    if ((x >= dim[X]) && (x <= dim[X] + dim[W]) &&
+        (y >= dim[Y]) && (y <= dim[Y] + dim[H])) {
+        return CONF_ADJ_RELATIVE;
+    }
+    
+    /* Compute cross lines of dimensions */
+    m1 = ((float) dim[H]) / ((float) dim[W]);
+    b1 = ((float) dim[Y]) - (m1 * ((float) dim[X]));
+    
+    m2 = -m1;
+    b2 = ((float) dim[Y]) + ((float) dim[H]) - (m2 * ((float) dim[X]));
+    
+    /* Compute where point is relative to cross lines */
+    l1 = m1 * ((float) x) + b1 - ((float) y);
+    l2 = m2 * ((float) x) + b2 - ((float) y);
+    
+    if (l1 > 0.0f) {
+        if (l2 > 0.0f) { 
+            return CONF_ADJ_ABOVE;
+        } else {
+            return CONF_ADJ_RIGHTOF;
+        }
+    } else {
+        if (l2 > 0.0f) { 
+            return CONF_ADJ_LEFTOF;
+        } else {
+            return CONF_ADJ_BELOW;
+        }
+    }
+
+} /* get_point_relative_position() */
+
+
+
 /** offset functions *************************************************
  *
  * Offsetting functions
@@ -649,7 +698,7 @@ static void resolve_layout(nvLayoutPtr layout)
         }
     }
 
-    /* Next, resolve X Screen relationships */
+    /* Next, resolve X screen relationships */
     for (gpu = layout->gpus; gpu; gpu = gpu->next) {
         for (screen = gpu->screens; screen; screen = screen->next) {
             resolve_screen_in_layout(screen);
@@ -665,7 +714,7 @@ static void resolve_layout(nvLayoutPtr layout)
  * Calculates the dimensions of a metamode.
  *
  * - Calculates the smallest bounding box that can hold the given
- *   metamode of the X Screen.
+ *   metamode of the X screen.
  *
  **/
 
@@ -744,10 +793,10 @@ static void calc_metamode(nvScreenPtr screen, nvMetaModePtr metamode)
 
 /** calc_screen() ****************************************************
  *
- * Calculates the dimensions of an X Screen
+ * Calculates the dimensions of an X screen
  *
  * - Calculates the smallest bounding box that can hold all of the
- *   metamodes of the X Screen.
+ *   metamodes of the X screen.
  *
  **/
 
@@ -799,7 +848,7 @@ static void calc_screen(nvScreenPtr screen)
  * Calculates the dimensions (width & height) of the layout.  This is
  * the smallest bounding box that holds all the gpu's X screen's
  * display device's (current) modes in the layout.  (Bounding box of
- * all the current metamodes of all X Screens.)
+ * all the current metamodes of all X screens.)
  *
  * As a side effect, all other screen/metamode dimensions are
  * calculated.
@@ -813,7 +862,7 @@ static void calc_layout(nvLayoutPtr layout)
     nvDisplayPtr display;
     int init = 1;
     int *dim;
-    int x;
+    int x, y;
 
 
     if (!layout) return;
@@ -856,14 +905,15 @@ static void calc_layout(nvLayoutPtr layout)
 
     /* Position disabled display devices off to the top right */
     x = dim[W] + dim[X];
+    y = dim[Y];
     for (gpu = layout->gpus; gpu; gpu = gpu->next) {
         for (display = gpu->displays; display; display = display->next) {
             if (display->screen) continue;
 
             display->cur_mode->dim[X] = x;
             display->cur_mode->pan[X] = x;
-            display->cur_mode->dim[Y] = 0;
-            display->cur_mode->pan[Y] = 0;
+            display->cur_mode->dim[Y] = y;
+            display->cur_mode->pan[Y] = y;
 
             x += display->cur_mode->dim[W];
             dim[W] += display->cur_mode->dim[W];
@@ -1474,12 +1524,36 @@ static int move_selected(CtkDisplayLayout *ctk_object, int x, int y, int snap)
 
     /* Get the dimensions of the display to move */
     display = get_selected(ctk_object);
-    if (!display ||
-        !display->screen ||
-        !display->cur_mode ||
-        display->cur_mode->position_type != CONF_ADJ_ABSOLUTE) {
+    if (!display || !display->screen || !display->cur_mode) {
         return 0;
     }
+
+
+    /* Process TwinView relative position moves */
+    if (display->cur_mode->position_type != CONF_ADJ_ABSOLUTE) {
+        nvDisplayPtr other = display->cur_mode->relative_to;
+        int p_x;
+        int p_y;
+
+        if (!other) return 0;
+
+        p_x = (ctk_object->mouse_x - ctk_object->img_dim[X]) /
+            ctk_object->scale;
+
+        p_y = (ctk_object->mouse_y - ctk_object->img_dim[Y]) /
+            ctk_object->scale;
+
+        display->cur_mode->position_type =
+            get_point_relative_position(other->cur_mode->dim, p_x, p_y);
+
+        dim = display->cur_mode->dim;
+        post_snap_display_pos[X] = dim[X];
+        post_snap_display_pos[Y] = dim[Y];
+
+        goto finish;
+    }
+
+
     gpu = display->gpu;
     screen = display->screen;
     dim = display->cur_mode->dim;
@@ -1614,8 +1688,29 @@ static int move_selected(CtkDisplayLayout *ctk_object, int x, int y, int snap)
                 }
             }
         }
+
+
+    /* Process X Screen Relative screen position moves */
+    } else if (display->screen->num_displays == 1) {
+        nvScreenPtr other = display->screen->relative_to;
+        int p_x;
+        int p_y;
+        int type;
+        
+        p_x = (ctk_object->mouse_x - ctk_object->img_dim[X]) /
+            ctk_object->scale;
+        
+        p_y = (ctk_object->mouse_y - ctk_object->img_dim[Y]) /
+            ctk_object->scale;
+        
+        type = get_point_relative_position(other->cur_metamode->dim, p_x, p_y);
+        if (type != CONF_ADJ_RELATIVE) {
+            display->screen->position_type = type;
+        }
     }
 
+
+ finish:
 
     /* Recalculate layout dimensions and scaling */
     calc_layout(layout);
@@ -3491,6 +3586,9 @@ motion_event_callback(GtkWidget *widget, GdkEventMotion *event, gpointer data)
         ctk_object->last_mouse_y == event->y) {
         return TRUE;
     }
+
+    ctk_object->mouse_x = event->x;
+    ctk_object->mouse_y = event->y;
 
 
     /* Mouse moved, allow user to reselect the current display */

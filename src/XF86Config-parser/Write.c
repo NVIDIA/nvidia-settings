@@ -64,10 +64,13 @@
 #include <sys/wait.h>
 #include <signal.h>
 #include <errno.h>
+#include <locale.h>
+
 
 int xconfigWriteConfigFile (const char *filename, XConfigPtr cptr)
 {
     FILE *cf;
+    char *locale;
     
     if ((cf = fopen(filename, "w")) == NULL)
     {
@@ -76,6 +79,20 @@ int xconfigWriteConfigFile (const char *filename, XConfigPtr cptr)
         return FALSE;
     }
 
+    /*
+     * read the current locale and then set the standard "C" locale,
+     * so that the X configuration writer does not use locale-specific
+     * formatting.  After writing the configuration file, we restore
+     * the original locale.
+     */
+
+    locale = setlocale(LC_ALL, NULL);
+    
+    if (locale) locale = strdup(locale);
+
+    setlocale(LC_ALL, "C");
+    
+    
     if (cptr->comment)
         fprintf (cf, "%s\n", cptr->comment);
 
@@ -110,5 +127,13 @@ int xconfigWriteConfigFile (const char *filename, XConfigPtr cptr)
     xconfigPrintExtensionsSection (cf, cptr->extensions);
 
     fclose(cf);
+
+    /* restore the original locale */
+
+    if (locale) {
+        setlocale(LC_ALL, locale);
+        free(locale);
+    }
+
     return TRUE;
 }

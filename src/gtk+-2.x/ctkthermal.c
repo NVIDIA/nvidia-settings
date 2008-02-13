@@ -28,7 +28,6 @@
 #include "ctkhelp.h"
 #include "ctkthermal.h"
 #include "ctkgauge.h"
-#include "thermal_banner.h"
 #include "ctkimage.h"
 
 #define FRAME_PADDING 10
@@ -174,7 +173,7 @@ GtkWidget* ctk_thermal_new(NvCtrlAttributeHandle *handle,
 
     /* banner */
 
-    banner = ctk_banner_image_new(&thermal_banner_image);
+    banner = ctk_banner_image_new(BANNER_ARTWORK_THERMAL);
     gtk_box_pack_start(GTK_BOX(object), banner, FALSE, FALSE, 0);
 
 

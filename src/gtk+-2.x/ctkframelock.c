@@ -35,7 +35,6 @@
 #include "ctkevent.h"
 
 #include "ctkimage.h"
-#include "frame_lock_banner.h"
 
 #include "led_green.h"
 #include "led_red.h"
@@ -54,6 +53,13 @@
 #define DEFAULT_UPDATE_STATUS_TIME_INTERVAL       1000
 #define DEFAULT_TEST_LINK_TIME_INTERVAL           2000
 #define DEFAULT_CHECK_FOR_ETHERNET_TIME_INTERVAL  10000
+
+#define DEFAULT_ENABLE_CONFIRM_TIMEOUT 30 /* When enabling Frame Lock when
+                                           * no server is specified, this
+                                           * is the number of seconds the
+                                           * user has to confirm that
+                                           * everything is ok.
+                                           */
 
 #define POLARITY_RISING   0x1
 #define POLARITY_FALLING  0x2
@@ -316,6 +322,7 @@ static gint add_devices(CtkFramelock *, const gchar *, gboolean);
 
 static GtkWidget *create_add_devices_dialog(CtkFramelock *);
 static GtkWidget *create_remove_devices_dialog(CtkFramelock *);
+static GtkWidget *create_enable_confirm_dialog(CtkFramelock *);
 
 static void add_devices_response(GtkWidget *, gint, gpointer);
 static void add_devices_repond_ok(GtkWidget *, gpointer);
@@ -649,6 +656,51 @@ static GtkWidget *create_remove_devices_dialog(CtkFramelock *ctk_framelock)
 
 
 
+/** create_enable_confirm_dialog() ***********************************
+ *
+ * Creates the dialog that will confirm with the user when Frame Lock
+ * is enabled without a server device specified.
+ *
+ */
+static GtkWidget *create_enable_confirm_dialog(CtkFramelock *ctk_framelock)
+{
+    GtkWidget *dialog;
+    GtkWidget *hbox;
+
+    /* Display ModeSwitch confirmation dialog */
+    dialog = gtk_dialog_new_with_buttons
+        ("Confirm ModeSwitch",
+         GTK_WINDOW(gtk_widget_get_parent(GTK_WIDGET(ctk_framelock))),
+         GTK_DIALOG_MODAL | GTK_DIALOG_DESTROY_WITH_PARENT
+         | GTK_DIALOG_NO_SEPARATOR,
+         GTK_STOCK_OK,
+         GTK_RESPONSE_ACCEPT,
+         NULL);
+
+    ctk_framelock->enable_confirm_cancel_button =
+        gtk_dialog_add_button(GTK_DIALOG(dialog),
+                              GTK_STOCK_CANCEL,
+                              GTK_RESPONSE_REJECT);
+
+    gtk_window_set_resizable(GTK_WINDOW(dialog), FALSE);
+
+    /* Display confirm dialog text (Dynamically generated) */
+    ctk_framelock->enable_confirm_text = gtk_label_new("");
+
+    /* Add the text to the dialog */
+    hbox = gtk_hbox_new(TRUE, 0);
+    gtk_box_pack_start(GTK_BOX(hbox), ctk_framelock->enable_confirm_text,
+                       TRUE, TRUE, 20);
+    gtk_box_pack_start(GTK_BOX(GTK_DIALOG(dialog)->vbox), hbox,
+                       TRUE, TRUE, 20);
+    gtk_widget_show_all(GTK_DIALOG(dialog)->vbox);
+
+    return dialog;
+}
+
+
+
+
 /************************************************************************/
 
 /*
@@ -876,7 +928,8 @@ static gchar *get_entry_label(nvListEntryPtr entry, gboolean simple)
  * Sets the correct label for the given entry.
  *
  */
-static void update_entry_label(CtkFramelock *ctk_framelock, nvListEntryPtr entry)
+static void update_entry_label(CtkFramelock *ctk_framelock,
+                               nvListEntryPtr entry)
 {
     char *str = NULL;
     gboolean simple;
@@ -1409,7 +1462,8 @@ static void list_entry_set_select(nvListEntryPtr entry, gint selected)
         state = GTK_STATE_SELECTED;
         if (entry->tree->selected_entry) {
             /* Unselect previous entry */
-            list_entry_set_select((nvListEntryPtr)(entry->tree->selected_entry), False);
+            list_entry_set_select
+                ((nvListEntryPtr) entry->tree->selected_entry, False);
         }
         entry->tree->selected_entry = (void *)entry;
     } else {
@@ -1623,32 +1677,35 @@ static void list_entry_free(nvListEntryPtr entry)
     */
 
     /* Remove signal callbacks */
-    if (entry->data_type == ENTRY_DATA_GPU) {
 
-        nvGPUDataPtr data = (nvGPUDataPtr) entry->data;
-        
-        for (i = 0; i < NUM_GPU_SIGNALS; i++) {
-            if (g_signal_handler_is_connected(G_OBJECT(entry->ctk_event),
-                                              data->signal_ids[i])) {
-                g_signal_handler_disconnect(G_OBJECT(entry->ctk_event),
-                                            data->signal_ids[i]);
+    if (entry->ctk_event) {
+        if (entry->data_type == ENTRY_DATA_GPU) {
+            
+            nvGPUDataPtr data = (nvGPUDataPtr) entry->data;
+            
+            for (i = 0; i < NUM_GPU_SIGNALS; i++) {
+                if (g_signal_handler_is_connected(G_OBJECT(entry->ctk_event),
+                                                  data->signal_ids[i])) {
+                    g_signal_handler_disconnect(G_OBJECT(entry->ctk_event),
+                                                data->signal_ids[i]);
+                }
+            }
+            
+        } else if (entry->data_type == ENTRY_DATA_FRAMELOCK) {
+            
+            nvFrameLockDataPtr data = (nvFrameLockDataPtr) entry->data;
+            
+            for (i = 0; i < NUM_FRAMELOCK_SIGNALS; i++) {
+                if (g_signal_handler_is_connected(G_OBJECT(entry->ctk_event),
+                                                  data->signal_ids[i])) {
+                    g_signal_handler_disconnect(G_OBJECT(entry->ctk_event),
+                                                data->signal_ids[i]);
+                }
             }
         }
 
-    } else if (entry->data_type == ENTRY_DATA_FRAMELOCK) {
-
-        nvFrameLockDataPtr data = (nvFrameLockDataPtr) entry->data;
-
-        for (i = 0; i < NUM_FRAMELOCK_SIGNALS; i++) {
-            if (g_signal_handler_is_connected(G_OBJECT(entry->ctk_event),
-                                              data->signal_ids[i])) {
-                g_signal_handler_disconnect(G_OBJECT(entry->ctk_event),
-                                            data->signal_ids[i]);
-            }
-        }
+        /* XXX We should probably free/destroy the ctk_event objects here */
     }
-
-    /* XXX We should probably free/destroy the ctk_event objects here */
 
     free(entry);
 }
@@ -1875,7 +1932,8 @@ static nvListEntryPtr list_entry_new_with_framelock(nvFrameLockDataPtr data)
 
     /* Pack the data's widgets into the list entry data hbox */
     
-    gtk_box_pack_start(GTK_BOX(entry->data_hbox), data->label, FALSE, FALSE, 5);
+    gtk_box_pack_start(GTK_BOX(entry->data_hbox), data->label,
+                       FALSE, FALSE, 5);
 
     hbox = gtk_hbox_new(FALSE, 5);
     padding = gtk_hbox_new(FALSE, 0);
@@ -2190,13 +2248,16 @@ static nvListEntryPtr find_server_by_name(nvListTreePtr tree,
 
         switch (entry->data_type) {
         case ENTRY_DATA_FRAMELOCK:
-            name = NvCtrlGetDisplayName(((nvFrameLockDataPtr)(entry->data))->handle);
+            name = NvCtrlGetDisplayName
+                (((nvFrameLockDataPtr)(entry->data))->handle);
             break;
         case ENTRY_DATA_GPU:
-            name = NvCtrlGetDisplayName(((nvGPUDataPtr)(entry->data))->handle);
+            name = NvCtrlGetDisplayName
+                (((nvGPUDataPtr)(entry->data))->handle);
             break;
         case ENTRY_DATA_DISPLAY:
-            name = NvCtrlGetDisplayName(((nvDisplayDataPtr)(entry->data))->handle);
+            name = NvCtrlGetDisplayName
+                (((nvDisplayDataPtr)(entry->data))->handle);
             break;
         default:
             name = NULL;
@@ -2526,6 +2587,88 @@ static gboolean set_enable_sync_clients(nvListEntryPtr entry_list,
 
 
 
+/** update_enable_confirm_text() *************************************
+ *
+ * Generates the text used in the confirmation dialog.
+ *
+ **/
+static void update_enable_confirm_text(CtkFramelock *ctk_framelock)
+{
+    gchar *str;
+    str = g_strdup_printf("Frame Lock has been enabled but no server\n"
+                          "device was selected.  Would you like to keep\n"
+                          "the current settings?\n"
+                          "\n"
+                          "Disabling Frame Lock in %d seconds...",
+                          ctk_framelock->enable_confirm_countdown);
+    gtk_label_set_text(GTK_LABEL(ctk_framelock->enable_confirm_text), str);
+    g_free(str);
+}
+
+
+
+/** do_enable_confirm_countdown() ************************************
+ *
+ * Timeout callback for reverting enabling of Frame Lock.
+ *
+ **/
+static gboolean do_enable_confirm_countdown(gpointer *user_data)
+{
+    CtkFramelock *ctk_framelock = (CtkFramelock *) user_data;
+
+    ctk_framelock->enable_confirm_countdown--;
+    if (ctk_framelock->enable_confirm_countdown > 0) {
+        update_enable_confirm_text(ctk_framelock);
+        return True;
+    }
+
+    /* Force dialog to cancel */
+    gtk_dialog_response(GTK_DIALOG(ctk_framelock->enable_confirm_dialog),
+                        GTK_RESPONSE_REJECT);
+
+    return False;
+}
+
+
+
+/** confirm_serverless_framelock() ***********************************
+ *
+ * Confirms with the user that Frame Lock has been enabled properly
+ * in the case where no server was found in the configuration.
+ *
+ */
+static Bool confirm_serverless_framelock(CtkFramelock *ctk_framelock)
+{ 
+    gint result;
+
+
+    /* Start the countdown timer */
+    ctk_framelock->enable_confirm_countdown = DEFAULT_ENABLE_CONFIRM_TIMEOUT;
+    update_enable_confirm_text(ctk_framelock);
+    ctk_framelock->enable_confirm_timer =
+        g_timeout_add(1000,
+                      (GSourceFunc)do_enable_confirm_countdown,
+                      (gpointer)(ctk_framelock));
+
+    /* Show the confirm dialog */
+    gtk_window_set_transient_for
+        (GTK_WINDOW(ctk_framelock->enable_confirm_dialog),
+         GTK_WINDOW(gtk_widget_get_toplevel(GTK_WIDGET(ctk_framelock))));
+    gtk_widget_show_all(ctk_framelock->enable_confirm_dialog);
+    gtk_widget_grab_focus(ctk_framelock->enable_confirm_cancel_button);
+
+    result =
+        gtk_dialog_run(GTK_DIALOG(ctk_framelock->enable_confirm_dialog));
+    gtk_widget_hide(ctk_framelock->enable_confirm_dialog);
+
+    /* Kill the timer */
+    g_source_remove(ctk_framelock->enable_confirm_timer);
+
+    return (result == GTK_RESPONSE_ACCEPT);
+}
+
+
+
 /** toggle_sync_enable() *********************************************
  *
  * Callback function when a user toggles the 'Enable Frame Lock'
@@ -2539,6 +2682,7 @@ static void toggle_sync_enable(GtkWidget *button, gpointer data)
     gboolean enabled;
     gboolean something_enabled;
     gboolean framelock_enabled = FALSE;
+    gboolean server_enabled = FALSE;
     nvListTreePtr tree = (nvListTreePtr) ctk_framelock->tree;
     nvListEntryPtr entry;
 
@@ -2551,13 +2695,14 @@ static void toggle_sync_enable(GtkWidget *button, gpointer data)
     if (enabled) {
         something_enabled = set_enable_sync_server(tree, val);
         framelock_enabled = (framelock_enabled || something_enabled);
+        server_enabled = something_enabled;
     }
 
     /* Enable/Disable slaves */
     something_enabled = set_enable_sync_clients(tree->entries, val);
     framelock_enabled = (framelock_enabled || something_enabled);
 
-    /* If we are disabling frame lock, disable the master first */
+    /* If we are disabling frame lock, disable the master last */
     if (!enabled) {
         something_enabled = set_enable_sync_server(tree, val);
         framelock_enabled = (framelock_enabled || something_enabled);
@@ -2578,6 +2723,26 @@ static void toggle_sync_enable(GtkWidget *button, gpointer data)
         NvCtrlSetAttribute(data->handle,
                            NV_CTRL_FRAMELOCK_TEST_SIGNAL,
                            NV_CTRL_FRAMELOCK_TEST_SIGNAL_DISABLE);
+    }
+
+    /* If frame lock was enabled but there was no server
+     * specified, we should confirm with the user that
+     * all is well since this may result in losing signal
+     * on the client devices.
+     */
+
+    if (framelock_enabled && !server_enabled) {
+
+        /* If confirmation fails, disable frame lock */
+        if (!confirm_serverless_framelock(ctk_framelock)) {
+
+            set_enable_sync_clients(tree->entries,
+                                    NV_CTRL_FRAMELOCK_SYNC_DISABLE);
+
+            set_enable_sync_server(tree, NV_CTRL_FRAMELOCK_SYNC_DISABLE);
+
+            framelock_enabled = FALSE;
+        }
     }
 
     ctk_framelock->framelock_enabled = framelock_enabled;
@@ -2719,9 +2884,10 @@ static void toggle_test_link(GtkWidget *button, gpointer data)
     gtk_toggle_button_set_active
         (GTK_TOGGLE_BUTTON(ctk_framelock->test_link_button), enabled);
     
-    g_signal_handlers_unblock_by_func(G_OBJECT(ctk_framelock->test_link_button),
-                                      G_CALLBACK(toggle_test_link),
-                                      (gpointer) ctk_framelock);
+    g_signal_handlers_unblock_by_func
+        (G_OBJECT(ctk_framelock->test_link_button),
+         G_CALLBACK(toggle_test_link),
+         (gpointer) ctk_framelock);
 }    
 
 
@@ -2936,7 +3102,8 @@ static gboolean detect_video_mode_timer(gpointer user_data)
  * this?
  *
  */
-static void toggle_detect_video_mode(GtkToggleButton *button, gpointer user_data)
+static void toggle_detect_video_mode(GtkToggleButton *button,
+                                     gpointer user_data)
 {
     CtkFramelock *ctk_framelock = CTK_FRAMELOCK(user_data);
     nvListTreePtr tree = (nvListTreePtr)(ctk_framelock->tree);
@@ -3079,7 +3246,8 @@ void list_entry_update_gpu_status(CtkFramelock *ctk_framelock,
         nvFrameLockDataPtr framelock_data =
             (nvFrameLockDataPtr)(entry->parent->data);
 
-        NvCtrlGetAttribute(framelock_data->handle, NV_CTRL_FRAMELOCK_HOUSE_STATUS,
+        NvCtrlGetAttribute(framelock_data->handle,
+                           NV_CTRL_FRAMELOCK_HOUSE_STATUS,
                            &house);
     }
 
@@ -3281,20 +3449,31 @@ static void update_house_sync_controls(CtkFramelock *ctk_framelock)
     nvListEntryPtr entry;
     gboolean enabled;
     gboolean use_house;
-    gboolean sensitive;
+    ReturnStatus ret;
+    nvFrameLockDataPtr data;
+
 
     entry = get_framelock_server_entry((nvListTreePtr)(ctk_framelock->tree));
-    enabled = ctk_framelock->framelock_enabled;
+
+    /* No server selected, can't set house sync settings */
+    if (!entry) {
+         gtk_widget_set_sensitive(ctk_framelock->use_house_sync, FALSE);
+         gtk_widget_set_sensitive(ctk_framelock->house_sync_frame, FALSE);
+         return;
+    }
+
 
     /* Get the current use house sync state from the X Server */
-    if (entry) {
-        nvFrameLockDataPtr data = (nvFrameLockDataPtr)(entry->data); 
+    data = (nvFrameLockDataPtr)(entry->data); 
 
-        NvCtrlGetAttribute(data->handle, NV_CTRL_USE_HOUSE_SYNC, &use_house);
-    } else {
-        use_house = FALSE;
+    ret = NvCtrlGetAttribute(data->handle, NV_CTRL_USE_HOUSE_SYNC, &use_house);
+    if (ret != NvCtrlSuccess) {
+        use_house = TRUE; /* Can't toggle, attribute always on. */
     }
-    
+
+    gtk_widget_set_sensitive(ctk_framelock->use_house_sync,
+                             (ret == NvCtrlSuccess));
+
     g_signal_handlers_block_by_func
         (G_OBJECT(ctk_framelock->use_house_sync),
          G_CALLBACK(toggle_use_house_sync),
@@ -3308,18 +3487,23 @@ static void update_house_sync_controls(CtkFramelock *ctk_framelock)
          G_CALLBACK(toggle_use_house_sync),
          (gpointer) ctk_framelock);
 
-    sensitive = (entry && !enabled);
-    gtk_widget_set_sensitive(ctk_framelock->house_sync_frame, sensitive);
-    sensitive = (entry && !enabled && use_house);
-    gtk_widget_set_sensitive(ctk_framelock->house_sync_hbox, sensitive);
 
-    if (entry && sensitive) {
+    enabled = ctk_framelock->framelock_enabled;
+    gtk_widget_set_sensitive(ctk_framelock->house_sync_frame, !enabled);
+
+    if (enabled || !use_house) {
+        gtk_widget_set_sensitive(ctk_framelock->house_sync_hbox, FALSE);
+    } else {
         gint sync_interval;
         gint sync_edge;
         gint house_format;
         gchar str[32];
 
-        nvFrameLockDataPtr data = (nvFrameLockDataPtr)(entry->data);
+        nvFrameLockDataPtr data;
+        
+        gtk_widget_set_sensitive(ctk_framelock->house_sync_hbox, TRUE);
+
+        data = (nvFrameLockDataPtr)(entry->data);
 
         /* Query current house sync settings from master frame lock device */
         
@@ -3520,8 +3704,9 @@ static void gpu_state_received(GtkObject *object,
              G_CALLBACK(toggle_sync_enable),
              (gpointer) ctk_framelock);
 
-        gtk_toggle_button_set_active(GTK_TOGGLE_BUTTON(ctk_framelock->sync_state_button),
-                                     ctk_framelock->framelock_enabled ? 1 : 0);
+        gtk_toggle_button_set_active
+            (GTK_TOGGLE_BUTTON(ctk_framelock->sync_state_button),
+             ctk_framelock->framelock_enabled ? 1 : 0);
 
         g_signal_handlers_unblock_by_func
             (G_OBJECT(ctk_framelock->sync_state_button),
@@ -3842,6 +4027,9 @@ GtkWidget* ctk_framelock_new(NvCtrlAttributeHandle *handle,
     ctk_framelock->error_msg_dialog =
         create_error_msg_dialog(ctk_framelock);
 
+    ctk_framelock->enable_confirm_dialog =
+        create_enable_confirm_dialog(ctk_framelock);
+
     /* create buttons */
 
     button = my_button_new_with_label("Add Devices...", 15, 0);
@@ -3940,12 +4128,15 @@ GtkWidget* ctk_framelock_new(NvCtrlAttributeHandle *handle,
 
     combo = gtk_combo_new();
     glist = NULL;
-    glist = g_list_append(glist,
-                          syncEdgeStrings[NV_CTRL_FRAMELOCK_POLARITY_RISING_EDGE]);
-    glist = g_list_append(glist,
-                          syncEdgeStrings[NV_CTRL_FRAMELOCK_POLARITY_FALLING_EDGE]);
-    glist = g_list_append(glist,
-                          syncEdgeStrings[NV_CTRL_FRAMELOCK_POLARITY_BOTH_EDGES]);
+    glist = g_list_append
+        (glist,
+         syncEdgeStrings[NV_CTRL_FRAMELOCK_POLARITY_RISING_EDGE]);
+    glist = g_list_append
+        (glist,
+         syncEdgeStrings[NV_CTRL_FRAMELOCK_POLARITY_FALLING_EDGE]);
+    glist = g_list_append
+        (glist,
+         syncEdgeStrings[NV_CTRL_FRAMELOCK_POLARITY_BOTH_EDGES]);
 
     gtk_combo_set_popdown_strings(GTK_COMBO(combo), glist);
     gtk_editable_set_editable(GTK_EDITABLE(GTK_COMBO(combo)->entry), FALSE);
@@ -3986,7 +4177,7 @@ GtkWidget* ctk_framelock_new(NvCtrlAttributeHandle *handle,
 
     /* banner */
 
-    banner = ctk_banner_image_new(&frame_lock_banner_image);
+    banner = ctk_banner_image_new(BANNER_ARTWORK_FRAMELOCK);
     gtk_box_pack_start(GTK_BOX(ctk_framelock), banner, FALSE, FALSE, 0);
 
     /* G-Sync Frame */
@@ -4324,7 +4515,8 @@ static unsigned int add_display_devices(CtkFramelock *ctk_framelock,
         goto fail;
     }
 
-    server_entry = get_display_server_entry((nvListTreePtr)(ctk_framelock->tree));
+    server_entry =
+        get_display_server_entry((nvListTreePtr)(ctk_framelock->tree));
     if (server_entry) {
         server_data  = (nvDisplayDataPtr)(server_entry->data);
     }

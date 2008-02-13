@@ -1,20 +1,8 @@
 
 If I have a png, how do I build it into nvidia-settings?
 
-    - Open the file in gimp:
-    - make sure the image is in RGB mode (check IMAGE-> Mode -> RGB)
-    - select the filetype as C-Source, and name the file <something>.h
-    - click OK, on the subsequent option page, select the following:
-
-        [ ] Save Comment to File
-        [*] Use Glib Types (guint8*)
-        [ ] Use Macros instead of Struct
-        [*] use 1 Byte Run-Length-Encoding
-        [ ] Save alpha Channel (RGBA/RGB)
-
-        Opacity: 100.0
- 
-    - modify the header file, removing the struct declaration,
-      following the convention in other header files, like
-      big_banner_penguin.h.
+    - run `gdk-pixbuf-csource --struct --name=foo_pixdata foo.png > foo_pixdata.h`
+    - add to the BannerArtworkType enum in image.h
+    - include foo_pixdata.h in ctkbanner.c
+    - add an entry to the ArtworkTable[] in ctkbanner.c:select_artwork()
 

@@ -30,7 +30,6 @@
 #include <X11/Xlib.h>
 
 #include "ctkimage.h"
-#include "frame_lock_banner.h"
 
 #include "ctkvcsc.h"
 #include "ctkevent.h"
@@ -157,7 +156,7 @@ GtkWidget* ctk_vcsc_new(NvCtrlAttributeHandle *handle,
 
     /* banner */
 
-    banner = ctk_banner_image_new(&frame_lock_banner_image);
+    banner = ctk_banner_image_new(BANNER_ARTWORK_VCSC);
     gtk_box_pack_start(GTK_BOX(ctk_object), banner, FALSE, FALSE, 0);
 
     /*

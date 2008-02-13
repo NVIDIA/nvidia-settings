@@ -29,7 +29,6 @@
 #include <gtk/gtk.h>
 #include <NvCtrlAttributes.h>
 
-#include "tv_banner.h"
 #include "ctkimage.h"
 
 #include "ctkdisplaydevice-tv.h"
@@ -159,7 +158,7 @@ GtkWidget* ctk_display_device_tv_new(NvCtrlAttributeHandle *handle,
     
     /* banner */
 
-    banner = ctk_banner_image_new(&tv_banner_image);
+    banner = ctk_banner_image_new(BANNER_ARTWORK_TV);
     gtk_box_pack_start(GTK_BOX(object), banner, FALSE, FALSE, 0);
 
     /* Information */

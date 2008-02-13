@@ -604,6 +604,25 @@ NvCtrlSetDisplayAttribute(NvCtrlAttributeHandle *handle,
 
 
 ReturnStatus
+NvCtrlSetDisplayAttributeWithReply(NvCtrlAttributeHandle *handle,
+                                   unsigned int display_mask,
+                                   int attr, int val)
+{
+    NvCtrlAttributePrivateHandle *h;
+    
+    h = (NvCtrlAttributePrivateHandle *) handle;
+    
+    if ((attr >= 0) && (attr <= NV_CTRL_LAST_ATTRIBUTE)) {
+        if (!h->nv) return NvCtrlMissingExtension;
+        return NvCtrlNvControlSetAttributeWithReply(h, display_mask,
+                                                    attr, val);
+    }
+    
+    return NvCtrlNoAttribute;
+}
+
+
+ReturnStatus
 NvCtrlGetVoidDisplayAttribute(NvCtrlAttributeHandle *handle,
                               unsigned int display_mask, int attr, void **ptr)
 {

@@ -222,13 +222,8 @@ GtkWidget* ctk_gvo_csc_new(NvCtrlAttributeHandle *handle,
     
     hbox = gtk_hbox_new(FALSE, 0);
     gtk_box_pack_start(GTK_BOX(object), hbox, FALSE, FALSE, 0);
-    
-    frame = gtk_frame_new(NULL);
-    gtk_box_pack_start(GTK_BOX(hbox), frame, FALSE, FALSE, 0);
-    
-    gtk_frame_set_shadow_type(GTK_FRAME(frame), GTK_SHADOW_IN);
 
-    ctk_gvo_csc->banner_frame = frame;
+    ctk_gvo_csc->banner_box = hbox;
     
     /* checkbox to enable override of HW CSC */
     
@@ -1058,17 +1053,10 @@ void ctk_gvo_csc_select(GtkWidget *widget)
     CtkGvoCsc *ctk_gvo_csc = CTK_GVO_CSC(widget);
     CtkGvo *ctk_gvo = ctk_gvo_csc->gvo_parent;
 
-    /* Grab the GVO parent banner table */
+    /* Grab the GVO parent banner */
 
-    gtk_container_add(GTK_CONTAINER(ctk_gvo_csc->banner_frame),
-                      ctk_gvo->banner.table);
-
-    /* Set lastest LED state of this GVO device */
-
-    ctk_gvo_pack_banner_slot(&ctk_gvo->banner, 1, ctk_gvo->banner.img.vid1);
-    ctk_gvo_pack_banner_slot(&ctk_gvo->banner, 2, ctk_gvo->banner.img.vid2);
-    ctk_gvo_pack_banner_slot(&ctk_gvo->banner, 3, ctk_gvo->banner.img.sdi);
-    ctk_gvo_pack_banner_slot(&ctk_gvo->banner, 4, ctk_gvo->banner.img.comp);
+    gtk_container_add(GTK_CONTAINER(ctk_gvo_csc->banner_box),
+                      ctk_gvo->banner.widget);
 
     ctk_config_start_timer(ctk_gvo->ctk_config, (GSourceFunc) ctk_gvo_probe,
                            (gpointer) ctk_gvo);
@@ -1081,10 +1069,10 @@ void ctk_gvo_csc_unselect(GtkWidget *widget)
     CtkGvoCsc *ctk_gvo_csc = CTK_GVO_CSC(widget);
     CtkGvo *ctk_gvo = ctk_gvo_csc->gvo_parent;
 
-    /* Return the GVO parent banner table */
+    /* Return the GVO parent banner */
 
-    gtk_container_remove(GTK_CONTAINER(ctk_gvo_csc->banner_frame),
-                         ctk_gvo->banner.table);
+    gtk_container_remove(GTK_CONTAINER(ctk_gvo_csc->banner_box),
+                         ctk_gvo->banner.widget);
 
     ctk_config_stop_timer(ctk_gvo->ctk_config, (GSourceFunc) ctk_gvo_probe,
                           (gpointer) ctk_gvo);

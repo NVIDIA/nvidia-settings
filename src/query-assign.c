@@ -534,9 +534,21 @@ static int validate_value(CtrlHandleTarget *t, ParsedAttribute *a, uint32 d,
         }
         break;
     case ATTRIBUTE_TYPE_INT_BITS:
-        if ((a->val > 31) || (a->val < 0) ||
-            ((valid.u.bits.ints & (1<<a->val)) == 0)) {
-            bad_val = NV_TRUE;
+        if (a->flags & NV_PARSER_TYPE_PACKED_ATTRIBUTE) {
+            unsigned int u, l;
+
+             u = (((unsigned int) a->val) >> 16);
+             l = (a->val & 0xffff);
+
+             if ((u > 15) || ((valid.u.bits.ints & (1 << u << 16)) == 0) ||
+                 (l > 15) || ((valid.u.bits.ints & (1 << l)) == 0)) {
+                bad_val = NV_TRUE;
+            }
+        } else {
+            if ((a->val > 31) || (a->val < 0) ||
+                ((valid.u.bits.ints & (1<<a->val)) == 0)) {
+                bad_val = NV_TRUE;
+            }
         }
         break;
     default:
@@ -586,9 +598,12 @@ static int validate_value(CtrlHandleTarget *t, ParsedAttribute *a, uint32 d,
 static void print_valid_values(char *name, uint32 flags,
                                NVCTRLAttributeValidValuesRec valid)
 {
-    int bit, first, last, i, n;
+    int bit, print_bit, last, last2, i, n;
     char str[256];
     char *c;
+    char str2[256];
+    char *c2; 
+    char **at;
 
 #define INDENT "    "
 
@@ -624,34 +639,53 @@ static void print_valid_values(char *name, uint32 flags,
         break;
 
     case ATTRIBUTE_TYPE_INT_BITS:
-        first = last = -1;
+        last = last2 = -1;
 
-        /* scan through the bitmask once to get first and last */
+        /* scan through the bitmask once to get the last valid bits */
 
         for (bit = 0; bit < 32; bit++) {
             if (valid.u.bits.ints & (1 << bit)) {
-                if (first == -1) first = bit;
-                last = bit;
+                if ((bit > 15) && (flags & NV_PARSER_TYPE_PACKED_ATTRIBUTE)) {
+                    last2 = bit;
+                } else {
+                    last = bit;
+                }
             }
         }
 
         /* now, scan through the bitmask again, building the string */
 
         str[0] = '\0';
+        str2[0] = '\0';
         c = str;
+        c2 = str2;
         for (bit = 0; bit < 32; bit++) {
+            
+            if ((bit > 15) && (flags & NV_PARSER_TYPE_PACKED_ATTRIBUTE)) {
+                print_bit = bit - 16;
+                at = &c2;
+            } else {
+                print_bit = bit;
+                at = &c;
+            }
+
             if (valid.u.bits.ints & (1 << bit)) {
-                if (bit == first) {
-                    c += sprintf (c, "%d", bit);
-                } else if (bit == last) {
-                    c += sprintf (c, " and %d", bit);
+                if (*at == str || *at == str2) {
+                    *at += sprintf(*at, "%d", print_bit);
+                } else if (bit == last || bit == last2) {
+                    *at += sprintf(*at, " and %d", print_bit);
                 } else {
-                    c += sprintf (c, ", %d", bit);
+                    *at += sprintf(*at, ", %d", print_bit);
                 }
             }
         }
-        
-        nv_msg(INDENT, "Valid values for '%s' are: %s.", name, str);
+
+        if (flags & NV_PARSER_TYPE_PACKED_ATTRIBUTE) {
+            nv_msg(INDENT, "Valid values for '%s' are: [%s], [%s].", name, str,
+                   str2);
+        } else {
+            nv_msg(INDENT, "Valid values for '%s' are: %s.", name, str);
+        }
         break;
     }
 

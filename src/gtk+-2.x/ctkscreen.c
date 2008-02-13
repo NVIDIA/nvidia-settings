@@ -32,10 +32,6 @@
 #include <X11/extensions/Xrandr.h>
 
 
-#include "big_banner_penguin.h"
-#include "big_banner_bsd.h"
-#include "big_banner_sun.h"
-
 #include "image.h"
 
 #include "ctkscreen.h"
@@ -194,7 +190,6 @@ GtkWidget* ctk_screen_new(NvCtrlAttributeHandle *handle,
     gchar *displays;
 
     double xres, yres;
-    gint os_val;
 
     unsigned int display_devices;
 
@@ -281,11 +276,6 @@ GtkWidget* ctk_screen_new(NvCtrlAttributeHandle *handle,
         displays = make_display_device_list(handle, display_devices);
     }
         
-    /* NV_CTRL_OPERATING_SYSTEM */
-
-    os_val = NV_CTRL_OPERATING_SYSTEM_LINUX;
-    ret = NvCtrlGetAttribute(handle, NV_CTRL_OPERATING_SYSTEM, &os_val);
-
 
     /* now, create the object */
     
@@ -302,15 +292,7 @@ GtkWidget* ctk_screen_new(NvCtrlAttributeHandle *handle,
 
     /* banner */
 
-    if (os_val == NV_CTRL_OPERATING_SYSTEM_LINUX) {
-        banner = ctk_banner_image_new(&big_banner_penguin_image);
-    } else if (os_val == NV_CTRL_OPERATING_SYSTEM_FREEBSD) {
-        banner = ctk_banner_image_new(&big_banner_bsd_image);
-    } else if (os_val == NV_CTRL_OPERATING_SYSTEM_SUNOS) {
-        banner = ctk_banner_image_new(&big_banner_sun_image);
-    } else {
-        banner = ctk_banner_image_new(&big_banner_penguin_image);
-    }
+    banner = ctk_banner_image_new(BANNER_ARTWORK_X);
     gtk_box_pack_start(GTK_BOX(ctk_screen), banner, FALSE, FALSE, 0);
         
     /*
