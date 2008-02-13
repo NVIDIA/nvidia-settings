@@ -284,4 +284,28 @@ char *nv_get_attribute_name(const int attr);
 
 char *nv_standardize_screen_name(const char *display_name, int screen);
 
+
+
+/* General parsing functions */
+
+const char *parse_skip_whitespace(const char *str);
+void parse_chop_whitespace(char *str);
+const char *parse_skip_integer(const char *str);
+const char *parse_read_integer(const char *str, int *num);
+const char *parse_read_integer_pair(const char *str,
+                                    const char separator, int *a, int *b);
+const char *parse_read_name(const char *str, char **name, char term);
+const char *parse_read_display_name(const char *str, unsigned int *mask);
+int parse_read_float_range(char *str, float *min, float *max);
+
+
+/* Token parsing functions */
+
+typedef void (* apply_token_func)(char *token, char *value, void *data);
+
+int parse_token_value_pairs(const char *str, apply_token_func func,
+                            void *data);
+
+
+
 #endif /* __PARSE_H__ */

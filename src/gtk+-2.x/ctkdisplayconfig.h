@@ -152,12 +152,13 @@ typedef struct _CtkDisplayConfig
     guint display_confirm_timer;
     int display_confirm_countdown; /* Timeout to reset display config */
 
-    GtkWidget *dlg_xconfig_save; /* Save X config dialog */
-    GtkWidget *scr_xconfig_save;   
-    GtkWidget *txt_xconfig_save; /* Text file... */
-    GtkTextBuffer *buf_xconfig_save; /* Text file... */
-    GtkWidget *btn_xconfig_preview; /* Show/Hide button */
-    GtkWidget *box_xconfig_save; /* Show/Hide this box */
+    GtkWidget *dlg_xconfig_save;     /* Save X config dialog */
+    GtkWidget *scr_xconfig_save;     /* Scroll window */
+    GtkWidget *txt_xconfig_save;     /* Text view of file contents */
+    GtkTextBuffer *buf_xconfig_save; /* Text buffer (Actual) file contents */
+    GtkWidget *btn_xconfig_merge;    /* Merge with existing X config */
+    GtkWidget *btn_xconfig_preview;  /* Show/Hide button */
+    GtkWidget *box_xconfig_save;     /* Show/Hide this box */
  
     GtkWidget *dlg_xconfig_file; /* File save dialog */
     GtkWidget *btn_xconfig_file;

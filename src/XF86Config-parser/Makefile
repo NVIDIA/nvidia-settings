@@ -17,7 +17,8 @@ SRC = \
 	Write.c \
 	Util.c \
 	Extensions.c \
-	Generate.c
+	Generate.c \
+	Merge.c
 
 OBJS = $(SRC:%.c=%.o)
 DEPS = $(SRC:%.c=%.d)

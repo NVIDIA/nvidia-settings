@@ -60,7 +60,8 @@ SRC += \
 	ctkscreen.c \
 	ctkgpu.c \
 	ctkbanner.c \
-	ctkvcsc.c
+	ctkvcsc.c \
+	ctkdisplayconfig-utils.c
 
 
 EXTRA_DIST += \
@@ -100,7 +101,8 @@ EXTRA_DIST += \
 	ctkscreen.h \
 	ctkgpu.h \
 	ctkbanner.h \
-	ctkvcsc.h
+	ctkvcsc.h \
+	ctkdisplayconfig-utils.h
 
 dist_list::
 	@ echo $(SRC) $(EXTRA_DIST)

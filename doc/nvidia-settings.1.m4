@@ -85,6 +85,10 @@ has difficulties starting due to problems with applying settings in the configur
 Load the configuration file, send the values specified therein to the X server, and exit.
 This mode of operation is useful to place in your .xinitrc file, for example.
 .TP
+.B \-r, \-\-rewrite\-config\-file
+Write the current X server configuration to the configuration file, and exit without starting 
+a grpahical user interface.See Examples section.
+.TP
 .BI "\-V, \-\-verbose=" verbosity
 Controls how much information is printed.
 By default, the verbosity is 
@@ -608,6 +612,11 @@ graphical interface.
 Loads the settings stored in
 .I ~/.nvidia\-settings\-rc
 and exits.
+.TP
+.B nvidia\-settings \-\-rewrite\-config\-file
+Writes the current X server configuration to 
+.I ~/.nvidia\-settings\-rc
+file and exits.
 .TP
 .B nvidia\-settings \-\-query FSAA
 Query the value of the full-screen antialiasing setting.

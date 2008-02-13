@@ -21,7 +21,7 @@
  *           Boston, MA 02111-1307, USA
  *
  */
- 
+
 #ifndef __CTK_UTILS_H__
 #define __CTK_UTILS_H__
 
@@ -33,7 +33,13 @@ G_BEGIN_DECLS
 GtkWidget *add_table_row(GtkWidget *, const gint,
                          const gfloat, const gfloat, const gchar *,
                          const gfloat, const gfloat, const gchar *);
-                   
+
+GtkWidget * ctk_get_parent_window(GtkWidget *child);
+
+void ctk_display_error_msg(GtkWidget *parent, gchar *msg);
+
+void ctk_display_warning_msg(GtkWidget *parent, gchar *msg);
+
 G_END_DECLS
 
 #endif /* __CTK_UTILS_H__ */

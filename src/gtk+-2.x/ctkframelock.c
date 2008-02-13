@@ -82,14 +82,15 @@ enum
  * that entry.
  */
 
-#define NUM_GPU_SIGNALS 4
+#define NUM_GPU_SIGNALS 5
 
 const char *__GPUSignals[NUM_GPU_SIGNALS] = 
     {
         CTK_EVENT_NAME(NV_CTRL_FRAMELOCK_MASTER),
         CTK_EVENT_NAME(NV_CTRL_FRAMELOCK_SLAVES),
         CTK_EVENT_NAME(NV_CTRL_FRAMELOCK_SYNC),
-        CTK_EVENT_NAME(NV_CTRL_FRAMELOCK_TEST_SIGNAL)
+        CTK_EVENT_NAME(NV_CTRL_FRAMELOCK_TEST_SIGNAL),
+        CTK_EVENT_NAME(NV_CTRL_REFRESH_RATE)
     };
 
 /*
@@ -119,24 +120,29 @@ typedef struct _nvFrameLockDataRec nvFrameLockDataRec, *nvFrameLockDataPtr;
 
 struct _nvListEntryRec {
     
-    nvListTreePtr  tree;
+    nvListTreePtr tree;
 
-    GtkWidget *vbox;           /* Holds all entry widgets and children */
+    GtkWidget *vbox; /* Holds all entry widgets and children */
 
-    GtkWidget *vp;             /* Viewport used to set selected color */
-    GtkWidget *parent_hbox;    /* Holds expander button and data */
-    GtkWidget *button;         /* Expander button */
+    GtkWidget *ebox; /* Event box for this entry's stuff */
+    GtkWidget *hbox; /* Box inside ebox */
+
+    GtkWidget *title_hbox;            /* This entry's title data */
+    GtkWidget *padding_hbox;          /* Padding to denote nested hierarchy */
+    GtkWidget *expander_hbox;
+    GtkWidget *expander_button_image; /* Expander button widgets */
+    GtkWidget *expander_button;
+    GtkWidget *expander_vbox;         /* To align the button */
     gboolean   expanded;
-    GtkWidget *button_image;
+    GtkWidget *label_hbox;
 
-    GtkWidget *data_hbox;      /* Holds entry data (after expander button) */
+    GtkWidget *data_hbox;
 
-    GtkWidget *child_hbox;     /* Holds padding and children */
-    GtkWidget *child_vbox;
+    GtkWidget *child_vbox; /* Holds child entries */
 
-    gpointer   data;           /* Data (used to render entry) */
+    gpointer   data;      /* Data (used to render entry) */
     gint       data_type;
-    CtkEvent  *ctk_event;      /* For receiving events on the entry */
+    CtkEvent  *ctk_event; /* For receiving events on the entry */
 
     nvListEntryPtr parent;
     nvListEntryPtr children;
@@ -1145,7 +1151,7 @@ static void list_entry_update_framelock_controls(CtkFramelock *ctk_framelock,
  *
  */
 static void list_entry_update_display_controls(CtkFramelock *ctk_framelock,
-                                                 nvListEntryPtr entry)
+                                               nvListEntryPtr entry)
 {
     nvDisplayDataPtr data = (nvDisplayDataPtr)(entry->data);
     gboolean framelock_enabled = ctk_framelock->framelock_enabled;
@@ -1196,16 +1202,22 @@ static void list_entry_update_display_controls(CtkFramelock *ctk_framelock,
      */
     sensitive = (!server_data || data->rate == server_data->rate);
     gtk_widget_set_sensitive(data->rate_label, sensitive);
-    gtk_widget_set_sensitive(data->rate_text, sensitive);        
+    gtk_widget_set_sensitive(data->rate_text, sensitive);
+    gtk_widget_set_sensitive(data->label, sensitive);
 
-    /* Remove display device from clients list */
+    ctk_config_set_tooltip(entry->tree->ctk_framelock->ctk_config, entry->ebox,
+                           sensitive ? NULL : "This display device cannot be "
+                           "included in the frame lock group since it has a "
+                           "different refresh rate than that of the server.");
+
+    /* Remove display device from the GPU's clients list */
     if (!sensitive && gtk_toggle_button_get_active
         (GTK_TOGGLE_BUTTON(data->client_checkbox))) {
-            gtk_toggle_button_set_active
-                (GTK_TOGGLE_BUTTON(data->client_checkbox),
-                 FALSE);
-            ((nvGPUDataPtr)(entry->parent->data))->clients_mask &=
-                data->device_mask;
+        gtk_toggle_button_set_active
+            (GTK_TOGGLE_BUTTON(data->client_checkbox),
+             FALSE);
+        ((nvGPUDataPtr)(entry->parent->data))->clients_mask &=
+            data->device_mask;
     }
 }
 
@@ -1240,6 +1252,34 @@ static void list_entry_update_controls(CtkFramelock *ctk_framelock,
 
 
 
+/** any_gpu_has_selection() ******************************************
+ *
+ * Returns TRUE if any of the gpus have a server/client selected
+ *
+ */
+static gboolean any_gpu_has_selection(nvListEntryPtr entry)
+{
+    if (!entry) return FALSE;
+
+    if (entry->data_type == ENTRY_DATA_GPU &&
+        (((nvGPUDataPtr)(entry->data))->server_mask ||
+         ((nvGPUDataPtr)(entry->data))->clients_mask)) {
+        return TRUE;
+    }
+
+    if (any_gpu_has_selection(entry->children)) {
+        return TRUE;
+    }
+
+    if (any_gpu_has_selection(entry->next_sibling)) {
+        return TRUE;
+    }
+
+    return FALSE;
+}
+
+
+
 /** update_framelock_controls() **************************************
  *
  * Enable/disable access to various GUI controls on the frame lock
@@ -1252,6 +1292,7 @@ static void update_framelock_controls(CtkFramelock *ctk_framelock)
 {
     nvListTreePtr tree;
     gboolean enabled;
+    gboolean something_selected;
 
 
     tree = (nvListTreePtr)(ctk_framelock->tree);
@@ -1269,8 +1310,11 @@ static void update_framelock_controls(CtkFramelock *ctk_framelock)
          G_CALLBACK(toggle_sync_enable),
          (gpointer) ctk_framelock);
     
+    something_selected =
+        any_gpu_has_selection(((nvListTreePtr)ctk_framelock->tree)->entries);
+
     gtk_widget_set_sensitive(ctk_framelock->sync_state_button,
-                             tree->nentries);
+                             tree->nentries && something_selected);
 
     gtk_container_remove
         (GTK_CONTAINER(ctk_framelock->sync_state_button),
@@ -1458,6 +1502,7 @@ static void list_entry_set_select(nvListEntryPtr entry, gint selected)
 
 
     /* Do the selection */
+
     if (selected) {
         state = GTK_STATE_SELECTED;
         if (entry->tree->selected_entry) {
@@ -1471,9 +1516,10 @@ static void list_entry_set_select(nvListEntryPtr entry, gint selected)
         entry->tree->selected_entry = NULL;
     }
 
+
     /* Update the state of the entry's widgets */
-    
-    SELECT_WIDGET(entry->vp, state);
+   
+    SELECT_WIDGET(entry->ebox, state);
 
     if (!entry->data) {
         return;
@@ -1531,29 +1577,31 @@ static void expander_button_clicked(GtkWidget *widget, gpointer user_data)
 
     if (entry->expanded) {
         /* Collapse */
-        gtk_container_remove(GTK_CONTAINER(entry->button),
-                             entry->button_image);
-        entry->button_image =
+        gtk_container_remove(GTK_CONTAINER(entry->expander_button),
+                             entry->expander_button_image);
+        entry->expander_button_image =
             gtk_image_new_from_stock(GTK_STOCK_ADD,
                                      GTK_ICON_SIZE_SMALL_TOOLBAR);
-        gtk_widget_set_size_request(entry->button, 20, 20);
+        gtk_widget_set_size_request(entry->expander_button, 20, 20);
         
-        gtk_container_add(GTK_CONTAINER(entry->button), entry->button_image);
-        gtk_widget_show_all(entry->button);
-        gtk_widget_hide(entry->child_hbox);
+        gtk_container_add(GTK_CONTAINER(entry->expander_button),
+                          entry->expander_button_image);
+        gtk_widget_show_all(entry->expander_button);
+        gtk_widget_hide(entry->child_vbox);
         
     } else {
         /* Expand */
-        gtk_container_remove(GTK_CONTAINER(entry->button),
-                             entry->button_image);
-        entry->button_image =
+        gtk_container_remove(GTK_CONTAINER(entry->expander_button),
+                             entry->expander_button_image);
+        entry->expander_button_image =
             gtk_image_new_from_stock(GTK_STOCK_REMOVE,
                                      GTK_ICON_SIZE_SMALL_TOOLBAR);
-        gtk_widget_set_size_request(entry->button, 20, 20);
+        gtk_widget_set_size_request(entry->expander_button, 20, 20);
 
-        gtk_container_add(GTK_CONTAINER(entry->button), entry->button_image);
-        gtk_widget_show_all(entry->button);
-        gtk_widget_show(entry->child_hbox);
+        gtk_container_add(GTK_CONTAINER(entry->expander_button),
+                          entry->expander_button_image);
+        gtk_widget_show_all(entry->expander_button);
+        gtk_widget_show(entry->child_vbox);
     }
 
     entry->expanded = !(entry->expanded);
@@ -1570,23 +1618,27 @@ static void expander_button_clicked(GtkWidget *widget, gpointer user_data)
  */
 static void list_entry_add_expander_button(nvListEntryPtr entry)
 {
-    if (!entry || entry->button) {
+    if (!entry || entry->expander_button) {
         return;
     }
-
-    entry->button = gtk_button_new();
-    entry->button_image =
+    
+    entry->expander_vbox = gtk_vbox_new(FALSE, 0);
+    entry->expander_button = gtk_button_new();
+    entry->expander_button_image =
         gtk_image_new_from_stock(GTK_STOCK_REMOVE,
                                  GTK_ICON_SIZE_SMALL_TOOLBAR);
-    gtk_widget_set_size_request(entry->button, 20, 20);    
+    gtk_widget_set_size_request(entry->expander_button, 20, 20);    
     entry->expanded = True;
     
-    g_signal_connect(G_OBJECT(entry->button), "clicked",
+    g_signal_connect(G_OBJECT(entry->expander_button), "clicked",
                      G_CALLBACK(expander_button_clicked),
                      (gpointer) entry);
-
-    gtk_container_add(GTK_CONTAINER(entry->button), entry->button_image);
-    gtk_box_pack_start(GTK_BOX(entry->parent_hbox), entry->button,
+    
+    gtk_container_add(GTK_CONTAINER(entry->expander_button),
+                      entry->expander_button_image);
+    gtk_box_pack_start(GTK_BOX(entry->expander_vbox), entry->expander_button,
+                       TRUE, FALSE, 0);
+    gtk_box_pack_start(GTK_BOX(entry->expander_hbox), entry->expander_vbox,
                        FALSE, FALSE, 0);
 }
 
@@ -1603,12 +1655,13 @@ static void list_entry_add_expander_button(nvListEntryPtr entry)
  */
 static void list_entry_remove_expander_button(nvListEntryPtr entry)
 {
-    if (!entry || !entry->button) {
+    if (!entry || !entry->expander_button) {
         return;
     }
 
-    gtk_container_remove(GTK_CONTAINER(entry->parent_hbox), entry->button);
-    entry->button = NULL;
+    gtk_container_remove(GTK_CONTAINER(entry->expander_hbox),
+                         entry->expander_vbox);
+    entry->expander_button = NULL;
 }
 
 
@@ -1628,27 +1681,37 @@ static nvListEntryPtr list_entry_new(void)
         return NULL;
     }
 
-    /* Create the box that holds everything */
+    /* Create the vertical box that holds this entry and its children */
     entry->vbox = gtk_vbox_new(FALSE, 0);
 
-    /* Create the top row that holds the entry data */
+    /* Create the (top) row that holds this entry's data */
+    entry->ebox = gtk_event_box_new();
+    entry->hbox = gtk_hbox_new(FALSE, 15);
+    entry->title_hbox = gtk_hbox_new(FALSE, 0);
+    entry->padding_hbox = gtk_hbox_new(FALSE, 0);
+    entry->expander_hbox = gtk_hbox_new(FALSE, 0);
+    entry->label_hbox = gtk_hbox_new(FALSE, 0);
+    entry->data_hbox = gtk_hbox_new(FALSE, 0);
 
-    entry->parent_hbox = gtk_hbox_new(FALSE, 0);
-    entry->data_hbox   = gtk_hbox_new(FALSE, 0);
+    gtk_box_pack_start(GTK_BOX(entry->title_hbox), entry->padding_hbox,
+                       FALSE, FALSE, 0);
+    gtk_box_pack_start(GTK_BOX(entry->title_hbox), entry->expander_hbox,
+                       FALSE, FALSE, 0);
+    gtk_box_pack_start(GTK_BOX(entry->title_hbox), entry->label_hbox,
+                       FALSE, FALSE, 0);
 
-    entry->vp  = gtk_event_box_new();
-    SELECT_WIDGET(entry->vp, GTK_STATE_NORMAL);
-    gtk_container_add(GTK_CONTAINER(entry->vp),
-                      GTK_WIDGET(entry->parent_hbox));
+    gtk_box_pack_start(GTK_BOX(entry->hbox), entry->title_hbox,
+                       FALSE, FALSE, 0);
+    gtk_box_pack_start(GTK_BOX(entry->hbox), entry->data_hbox,
+                       FALSE, FALSE, 0);
+    gtk_container_add(GTK_CONTAINER(entry->ebox), GTK_WIDGET(entry->hbox));
+    gtk_box_pack_start(GTK_BOX(entry->vbox), entry->ebox, TRUE, TRUE, 0);
 
-    gtk_widget_set_events(entry->vp, GDK_BUTTON_PRESS_MASK);
-    g_signal_connect(G_OBJECT(entry->vp), "button_press_event",
+    SELECT_WIDGET(entry->ebox, GTK_STATE_NORMAL);
+    gtk_widget_set_events(entry->ebox, GDK_BUTTON_PRESS_MASK);
+    g_signal_connect(G_OBJECT(entry->ebox), "button_press_event",
                      G_CALLBACK(list_entry_clicked),
-                     (gpointer) entry);
-
-    gtk_box_pack_end(GTK_BOX(entry->parent_hbox), entry->data_hbox,
-                     TRUE, TRUE, 0);
-    gtk_box_pack_start(GTK_BOX(entry->vbox), entry->vp, TRUE, TRUE, 0);
+                     (gpointer)entry);
 
     return entry;
 }
@@ -1671,9 +1734,9 @@ static void list_entry_free(nvListEntryPtr entry)
 
     /* XXX DON"T Need these?
     gtk_widget_destroy(entry->vbox);
-    gtk_widget_destroy(entry->parent_hbox);
+    gtk_widget_destroy(entry->title_hbox);
     gtk_widget_destroy(entry->data_hbox);
-    gtk_widget_destroy(entry->vp);
+    gtk_widget_destroy(entry->ebox);
     */
 
     /* Remove signal callbacks */
@@ -1747,30 +1810,18 @@ static void list_entry_add_child(nvListEntryPtr parent, nvListEntryPtr child)
 
     parent->nchildren++;
     if (parent->nchildren == 1) {
-        GtkWidget *padding;
-        
         /* Create the child box */
 
-        parent->child_hbox = gtk_hbox_new(FALSE, 0);
-        padding            = gtk_hbox_new(FALSE, 0);
-        parent->child_vbox = gtk_vbox_new(FALSE, 5);
-        
-        gtk_widget_set_size_request(padding, 25, -1);
-        
-        gtk_box_pack_start(GTK_BOX(parent->child_hbox),
-                           padding, FALSE, FALSE, 0);
-        gtk_box_pack_start(GTK_BOX(parent->child_hbox),
-                           parent->child_vbox, TRUE, TRUE, 0);
+        parent->child_vbox = gtk_vbox_new(FALSE, 0);
+
         gtk_box_pack_start(GTK_BOX(parent->vbox),
-                           parent->child_hbox, FALSE, FALSE, 0);
-        gtk_widget_show(parent->child_hbox);
+                           parent->child_vbox, FALSE, FALSE, 0);
         gtk_widget_show(parent->child_vbox);
-        gtk_widget_show(padding);
 
         /* Create the expansion button */
 
         list_entry_add_expander_button(parent);
-        gtk_widget_show(parent->button);
+        gtk_widget_show(parent->expander_button);
     }
 
     /* Pack the child into the parent's child box */
@@ -1879,8 +1930,7 @@ static void list_entry_unparent(nvListEntryPtr child)
 
     parent->nchildren--;
     if (parent->nchildren == 0) {
-        gtk_container_remove(GTK_CONTAINER(parent->vbox), parent->child_hbox);
-        parent->child_hbox = NULL;
+        gtk_container_remove(GTK_CONTAINER(parent->vbox), parent->child_vbox);
         parent->child_vbox = NULL;
         list_entry_remove_expander_button(parent);
     }
@@ -1918,12 +1968,15 @@ static void list_entry_remove_children(nvListEntryPtr entry)
  */
 static nvListEntryPtr list_entry_new_with_framelock(nvFrameLockDataPtr data)
 {
-    nvListEntryPtr entry = list_entry_new();
+    nvListEntryPtr entry;
+
     GtkWidget *frame;
     GtkWidget *hbox;
     GtkWidget *vseparator;
     GtkWidget *padding;
 
+
+    entry = list_entry_new();
     if (!entry) {
         return NULL;
     }
@@ -1932,21 +1985,20 @@ static nvListEntryPtr list_entry_new_with_framelock(nvFrameLockDataPtr data)
 
     /* Pack the data's widgets into the list entry data hbox */
     
-    gtk_box_pack_start(GTK_BOX(entry->data_hbox), data->label,
+    gtk_box_pack_start(GTK_BOX(entry->label_hbox), data->label,
                        FALSE, FALSE, 5);
 
+    frame = gtk_frame_new(NULL);
     hbox = gtk_hbox_new(FALSE, 5);
     padding = gtk_hbox_new(FALSE, 0);
-    
-    frame = gtk_frame_new(NULL);
-    gtk_box_pack_end(GTK_BOX(entry->data_hbox), frame, FALSE, FALSE, 0);
-    gtk_box_pack_end(GTK_BOX(entry->data_hbox), padding, FALSE, FALSE, 10);
-    
+
     gtk_container_set_border_width(GTK_CONTAINER(hbox), 2);
+    
+    gtk_box_pack_end(GTK_BOX(entry->data_hbox), frame, FALSE, FALSE, 0);
     gtk_container_add(GTK_CONTAINER(frame), hbox);
     
-    gtk_box_pack_start(GTK_BOX(hbox), data->receiving_label, FALSE, FALSE, 0);
     gtk_box_pack_start(GTK_BOX(hbox), data->receiving_hbox, FALSE, FALSE, 0);
+    gtk_box_pack_start(GTK_BOX(hbox), data->receiving_label, FALSE, FALSE, 0);
 
     vseparator = gtk_vseparator_new();
     gtk_box_pack_start(GTK_BOX(hbox), vseparator, FALSE, FALSE, 0);
@@ -1957,20 +2009,20 @@ static nvListEntryPtr list_entry_new_with_framelock(nvFrameLockDataPtr data)
     vseparator = gtk_vseparator_new();
     gtk_box_pack_start(GTK_BOX(hbox), vseparator, FALSE, FALSE, 0);
     
-    gtk_box_pack_start(GTK_BOX(hbox), data->house_label, FALSE, FALSE, 0);
     gtk_box_pack_start(GTK_BOX(hbox), data->house_hbox, FALSE, FALSE, 0);
+    gtk_box_pack_start(GTK_BOX(hbox), data->house_label, FALSE, FALSE, 0);
 
     vseparator = gtk_vseparator_new();
     gtk_box_pack_start(GTK_BOX(hbox), vseparator, FALSE, FALSE, 0);
     
-    gtk_box_pack_start(GTK_BOX(hbox), data->port0_label, FALSE, FALSE, 0);
     gtk_box_pack_start(GTK_BOX(hbox), data->port0_hbox, FALSE, FALSE, 0);
+    gtk_box_pack_start(GTK_BOX(hbox), data->port0_label, FALSE, FALSE, 0);
 
     vseparator = gtk_vseparator_new();
     gtk_box_pack_start(GTK_BOX(hbox), vseparator, FALSE, FALSE, 0);
     
-    gtk_box_pack_start(GTK_BOX(hbox), data->port1_label, FALSE, FALSE, 0);
     gtk_box_pack_start(GTK_BOX(hbox), data->port1_hbox, FALSE, FALSE, 0);
+    gtk_box_pack_start(GTK_BOX(hbox), data->port1_label, FALSE, FALSE, 0);
 
     /* Extra Info Section */
 
@@ -1994,6 +2046,8 @@ static nvListEntryPtr list_entry_new_with_framelock(nvFrameLockDataPtr data)
     gtk_box_pack_start(GTK_BOX(data->extra_info_hbox), data->revision_text,
                        FALSE, FALSE, 0);
 
+    gtk_box_pack_end(GTK_BOX(hbox), padding, FALSE, FALSE, 0);
+
     return entry;
 }
 
@@ -2006,8 +2060,14 @@ static nvListEntryPtr list_entry_new_with_framelock(nvFrameLockDataPtr data)
  */
 static nvListEntryPtr list_entry_new_with_gpu(nvGPUDataPtr data)
 {
-    nvListEntryPtr entry = list_entry_new();
+    nvListEntryPtr entry;
 
+    GtkWidget *frame;
+    GtkWidget *hbox;
+    GtkWidget *padding;
+
+
+    entry = list_entry_new();
     if (!entry) {
         return NULL;
     }
@@ -2016,23 +2076,22 @@ static nvListEntryPtr list_entry_new_with_gpu(nvGPUDataPtr data)
 
     /* Pack the data's widgets into the list entry data hbox */
     
-    gtk_box_pack_start(GTK_BOX(entry->data_hbox), data->label,
+    gtk_box_pack_start(GTK_BOX(entry->label_hbox), data->label,
                        FALSE, FALSE, 5);
 
-    {
-        GtkWidget *frame;
-        GtkWidget *hbox;
-
-        hbox = gtk_hbox_new(FALSE, 5);
-
-        frame = gtk_frame_new(NULL);
-        gtk_box_pack_end(GTK_BOX(entry->data_hbox), frame, FALSE, FALSE, 0);
-        gtk_container_set_border_width(GTK_CONTAINER(hbox), 2);
-        gtk_container_add(GTK_CONTAINER(frame), hbox);
-
-        gtk_box_pack_start(GTK_BOX(hbox), data->timing_label, FALSE, FALSE, 0);
-        gtk_box_pack_start(GTK_BOX(hbox), data->timing_hbox, FALSE, FALSE, 0);
-    }
+    frame = gtk_frame_new(NULL);
+    hbox = gtk_hbox_new(FALSE, 5);
+    padding = gtk_hbox_new(FALSE, 0);
+    
+    gtk_container_set_border_width(GTK_CONTAINER(hbox), 2);
+    
+    gtk_box_pack_end(GTK_BOX(entry->data_hbox), frame, FALSE, FALSE, 0);
+    gtk_container_add(GTK_CONTAINER(frame), hbox);
+    
+    gtk_box_pack_start(GTK_BOX(hbox), data->timing_hbox, FALSE, FALSE, 0);
+    gtk_box_pack_start(GTK_BOX(hbox), data->timing_label, FALSE, FALSE, 0);
+    
+    gtk_box_pack_end(GTK_BOX(hbox), padding, FALSE, FALSE, 0);
 
     return entry;
 }
@@ -2046,8 +2105,15 @@ static nvListEntryPtr list_entry_new_with_gpu(nvGPUDataPtr data)
  */
 static nvListEntryPtr list_entry_new_with_display(nvDisplayDataPtr data)
 {
-    nvListEntryPtr entry = list_entry_new();
+    nvListEntryPtr entry;
 
+    GtkWidget *frame;
+    GtkWidget *hbox;
+    GtkWidget *vseparator;
+    GtkWidget *padding;
+
+
+    entry = list_entry_new();
     if (!entry) {
         return NULL;
     }
@@ -2056,44 +2122,40 @@ static nvListEntryPtr list_entry_new_with_display(nvDisplayDataPtr data)
 
    /* Pack the data's widgets into the list entry data hbox */
     
-    gtk_box_pack_start(GTK_BOX(entry->data_hbox), data->label,
+    gtk_box_pack_start(GTK_BOX(entry->label_hbox), data->label,
                        FALSE, FALSE, 5);
 
-    {
-        GtkWidget *frame;
-        GtkWidget *hbox;
-        GtkWidget *vseparator;
+    frame = gtk_frame_new(NULL);
+    hbox = gtk_hbox_new(FALSE, 5);
+    padding = gtk_hbox_new(FALSE, 0);
 
-        hbox = gtk_hbox_new(FALSE, 5);
+    gtk_container_set_border_width(GTK_CONTAINER(hbox), 2);
 
-        frame = gtk_frame_new(NULL);
-        gtk_box_pack_end(GTK_BOX(entry->data_hbox), frame, FALSE, FALSE, 0);
-        gtk_container_set_border_width(GTK_CONTAINER(hbox), 2);
-        gtk_container_add(GTK_CONTAINER(frame), hbox);
-
-        gtk_box_pack_start(GTK_BOX(hbox), data->server_checkbox,
-                           FALSE, FALSE, 0);
-        gtk_box_pack_start(GTK_BOX(hbox), data->server_label, FALSE, FALSE, 0);
-
-        vseparator = gtk_vseparator_new();
-        gtk_box_pack_start(GTK_BOX(hbox), vseparator, FALSE, FALSE, 0);
-        
-        gtk_box_pack_start(GTK_BOX(hbox), data->client_checkbox,
-                           FALSE, FALSE, 0);
-        gtk_box_pack_start(GTK_BOX(hbox), data->client_label, FALSE, FALSE, 0);
-
-        vseparator = gtk_vseparator_new();
-        gtk_box_pack_start(GTK_BOX(hbox), vseparator, FALSE, FALSE, 0);
-
-        gtk_box_pack_start(GTK_BOX(hbox), data->rate_label, FALSE, FALSE, 0);
-        gtk_box_pack_start(GTK_BOX(hbox), data->rate_text, FALSE, FALSE, 0);
-
-        vseparator = gtk_vseparator_new();
-        gtk_box_pack_start(GTK_BOX(hbox), vseparator, FALSE, FALSE, 0);
-
-        gtk_box_pack_start(GTK_BOX(hbox), data->stereo_label, FALSE, FALSE, 0);
-        gtk_box_pack_start(GTK_BOX(hbox), data->stereo_hbox, FALSE, FALSE, 0);
-    }
+    gtk_box_pack_end(GTK_BOX(entry->data_hbox), frame, FALSE, FALSE, 0);
+    gtk_container_add(GTK_CONTAINER(frame), hbox);
+    
+    gtk_box_pack_start(GTK_BOX(hbox), data->stereo_hbox, FALSE, FALSE, 0);
+    gtk_box_pack_start(GTK_BOX(hbox), data->stereo_label, FALSE, FALSE, 0);
+    
+    vseparator = gtk_vseparator_new();
+    gtk_box_pack_start(GTK_BOX(hbox), vseparator, FALSE, FALSE, 0);
+    
+    gtk_box_pack_start(GTK_BOX(hbox), data->rate_label, FALSE, FALSE, 0);
+    gtk_box_pack_start(GTK_BOX(hbox), data->rate_text, FALSE, FALSE, 0);
+    
+    vseparator = gtk_vseparator_new();
+    gtk_box_pack_start(GTK_BOX(hbox), vseparator, FALSE, FALSE, 0);
+    
+    gtk_box_pack_start(GTK_BOX(hbox), data->server_checkbox, FALSE, FALSE, 0);
+    gtk_box_pack_start(GTK_BOX(hbox), data->server_label, FALSE, FALSE, 0);
+    
+    vseparator = gtk_vseparator_new();
+    gtk_box_pack_start(GTK_BOX(hbox), vseparator, FALSE, FALSE, 0);
+    
+    gtk_box_pack_start(GTK_BOX(hbox), data->client_checkbox, FALSE, FALSE, 0);
+    gtk_box_pack_start(GTK_BOX(hbox), data->client_label, FALSE, FALSE, 0);
+    
+    gtk_box_pack_end(GTK_BOX(hbox), padding, FALSE, FALSE, 0);
 
     return entry;
 }
@@ -2226,6 +2288,76 @@ static void list_tree_remove_entry(nvListTreePtr tree, nvListEntryPtr entry)
     if (parent && !parent->children) {
         list_tree_remove_entry(tree, parent);
     }
+}
+
+
+
+/** list_entry_setup_title() *****************************************
+ *
+ * Returns the max width
+ *
+ */
+static int list_entry_setup_title(nvListEntryPtr entry, int depth)
+{
+    int max_width;
+    int width;
+    GtkRequisition req;
+
+    if (!entry) return FALSE;
+
+    /* Setup this entry's padding */
+    gtk_widget_set_size_request(entry->padding_hbox, depth * 25, -1);
+
+    /* Calculate this entry's width */
+    gtk_widget_size_request(entry->title_hbox, &req);
+    max_width = req.width;
+
+    width = list_entry_setup_title(entry->children, depth +1);
+    max_width = (width > max_width) ? width : max_width;
+
+    width = list_entry_setup_title(entry->next_sibling, depth);
+    max_width = (width > max_width) ? width : max_width;
+
+    return max_width;
+}
+
+
+
+/** list_entry_set_title() *******************************************
+ *
+ * Sets the width of the titles
+ *
+ */
+static void list_entry_set_title(nvListEntryPtr entry, int width)
+{
+    if (!entry) return;
+
+    /* Set this entry's title width */
+    gtk_widget_set_size_request(entry->title_hbox, width, -1);
+
+    list_entry_set_title(entry->children, width);
+    list_entry_set_title(entry->next_sibling, width);
+}
+
+
+
+/** list_tree_align_titles() *****************************************
+ *
+ * - Aligns the titles and sets up the padding of all the tree's
+ *   entries.
+ *
+ */
+static void list_tree_align_titles(nvListTreePtr tree)
+{
+    int max_width;
+
+    /* Setup the left padding and calculate the max width
+     * of the tree entries
+     */
+    max_width = list_entry_setup_title(tree->entries, 0);
+
+    /* Make sure all entry titles are the same width */
+    list_entry_set_title(tree->entries, max_width);
 }
 
 
@@ -2385,8 +2517,8 @@ static void toggle_use_house_sync(GtkWidget *widget, gpointer user_data)
     NvCtrlGetAttribute(data->handle, NV_CTRL_USE_HOUSE_SYNC, &enabled);
 
     ctk_config_statusbar_message(ctk_framelock->ctk_config,
-                                 "%s use of House Sync Signal.",
-                                 enabled?"Enabled":"Disabled");
+                                 "%s use of house sync signal.",
+                                 (enabled ? "Enabled" : "Disabled"));
 }
 
 
@@ -2411,8 +2543,8 @@ static void toggle_extra_info(GtkWidget *widget, gpointer data)
     update_framelock_status(ctk_framelock);
 
     ctk_config_statusbar_message(ctk_framelock->ctk_config,
-                                 " extra information.",
-                                 enabled?"Showing":"Hiding");
+                                 "%s extra information.",
+                                 (enabled ? "Showing" : "Hiding"));
 }
 
 
@@ -2440,16 +2572,23 @@ static void toggle_server(GtkWidget *widget, gpointer data)
     entry->tree->server_entry = (server_checked ? entry : NULL);
     gpu_data->server_mask = (server_checked ? display_data->device_mask : 0);
 
-    /* Update GUI state */
-    update_framelock_controls(entry->tree->ctk_framelock);
+    /* Update X server state, making sure FrameLock sync is disabled */
+    NvCtrlSetAttribute(gpu_data->handle, NV_CTRL_FRAMELOCK_SYNC,
+                       NV_CTRL_FRAMELOCK_SYNC_DISABLE);
 
-    /* Update server state */
     NvCtrlSetAttribute(gpu_data->handle, NV_CTRL_FRAMELOCK_MASTER,
                        gpu_data->server_mask);
 
+    gpu_data->enabled = FALSE;
+    entry->tree->ctk_framelock->framelock_enabled = 
+        any_gpu_enabled(entry->tree->entries);
+
+    /* Update GUI state */
+    update_framelock_controls(entry->tree->ctk_framelock);
+
     ctk_config_statusbar_message(entry->tree->ctk_framelock->ctk_config,
-                                 " frame lock server device.",
-                                 server_checked?"Selected":"Unselected");
+                                 "%s frame lock server device.",
+                                 (server_checked ? "Selected" : "Unselected"));
 }
 
 
@@ -2480,16 +2619,23 @@ static void toggle_client(GtkWidget *widget, gpointer data)
         gpu_data->clients_mask &= ~(display_data->device_mask);
     }
 
-    /* Update GUI state */
-    update_framelock_controls(entry->tree->ctk_framelock);
+    /* Update X server state, make sure FrameLock Sync is disabled */
+    NvCtrlSetAttribute(gpu_data->handle, NV_CTRL_FRAMELOCK_SYNC,
+                       NV_CTRL_FRAMELOCK_SYNC_DISABLE);
 
-    /* Update server state */
     NvCtrlSetAttribute(gpu_data->handle, NV_CTRL_FRAMELOCK_SLAVES,
                        gpu_data->clients_mask);
 
+    gpu_data->enabled = FALSE;
+    entry->tree->ctk_framelock->framelock_enabled = 
+        any_gpu_enabled(entry->tree->entries);
+
+    /* Update GUI state */
+    update_framelock_controls(entry->tree->ctk_framelock);
+
     ctk_config_statusbar_message(entry->tree->ctk_framelock->ctk_config,
-                                 " frame lock client device.",
-                                 client_checked?"Selected":"Unselected");
+                                 "%s frame lock client device.",
+                                 (client_checked ? "Selected" : "Unselected"));
 }
 
 
@@ -2752,8 +2898,8 @@ static void toggle_sync_enable(GtkWidget *button, gpointer data)
     update_framelock_status(ctk_framelock);
 
     ctk_config_statusbar_message(ctk_framelock->ctk_config,
-                                 "Frame lock %s.",
-                                 enabled ? "enabled" : "disabled");
+                                 "Frame Lock %s.",
+                                 (enabled ? "enabled" : "disabled"));
 }
 
 
@@ -2808,7 +2954,7 @@ static gint test_link_done(gpointer data)
          (gpointer) ctk_framelock);
 
     ctk_config_statusbar_message(ctk_framelock->ctk_config,
-                                 "Test Link complete.");
+                                 "Test link complete.");
 
     return FALSE;
 }
@@ -2865,7 +3011,7 @@ static void toggle_test_link(GtkWidget *button, gpointer data)
                        NV_CTRL_FRAMELOCK_TEST_SIGNAL_ENABLE);
     
     ctk_config_statusbar_message(ctk_framelock->ctk_config,
-                                 "Test Link started.");
+                                 "Test link started.");
 
     /* register the "done" function */
 
@@ -3016,10 +3162,10 @@ static gboolean detect_video_mode_timer(gpointer user_data)
 
         update_house_sync_controls(ctk_framelock);
 
-        ctk_config_statusbar_message(ctk_framelock->ctk_config,
-                                     "House Sync format detected as %s.",
-                                     houseFormatStrings
-                                     [ctk_framelock->current_detect_format]);
+        ctk_config_statusbar_message
+            (ctk_framelock->ctk_config,
+             "House sync format detected as %s.",
+             houseFormatStrings[ctk_framelock->current_detect_format]);
         goto done;
     }
 
@@ -3157,9 +3303,9 @@ void list_entry_update_framelock_status(CtkFramelock *ctk_framelock,
     gboolean use_house_sync;
     gboolean framelock_enabled;
     gboolean is_server;
+    ReturnStatus ret;
     
     
-    NvCtrlGetAttribute(data->handle, NV_CTRL_FRAMELOCK_SYNC_RATE, &rate);
     NvCtrlGetAttribute(data->handle, NV_CTRL_FRAMELOCK_SYNC_DELAY, &delay);
     NvCtrlGetAttribute(data->handle, NV_CTRL_FRAMELOCK_HOUSE_STATUS, &house);
     NvCtrlGetAttribute(data->handle, NV_CTRL_FRAMELOCK_PORT0_STATUS, &port0);
@@ -3189,8 +3335,15 @@ void list_entry_update_framelock_status(CtkFramelock *ctk_framelock,
     /* Sync Rate */
     gtk_widget_set_sensitive(data->rate_label, framelock_enabled);
     gtk_widget_set_sensitive(data->rate_text, framelock_enabled);
-    fvalue = (float) rate / 1000.0;
-    snprintf(str, 32, "%.2f Hz", fvalue); // 6.2f 
+
+    ret =
+        NvCtrlGetAttribute(data->handle, NV_CTRL_FRAMELOCK_SYNC_RATE_4, &rate);
+    if (ret == NvCtrlSuccess) {
+        snprintf(str, 32, "%d.%.4d Hz", (rate / 10000), (rate % 10000));
+    } else {
+        NvCtrlGetAttribute(data->handle, NV_CTRL_FRAMELOCK_SYNC_RATE, &rate);
+        snprintf(str, 32, "%d.%.3d Hz", (rate / 1000), (rate % 1000));
+    }
     gtk_label_set_text(GTK_LABEL(data->rate_text), str);
     
     /* Sync Delay (Skew) */
@@ -3419,7 +3572,7 @@ static gboolean check_for_ethernet(gpointer user_data)
     if (error_data) {
         if (first_error) {
             error_msg(ctk_framelock, "<span weight=\"bold\" "
-                      "size=\"larger\">Frame lock RJ45 error</span>\n\n"
+                      "size=\"larger\">Frame Lock RJ45 error</span>\n\n"
                       "Either an Ethernet LAN cable is connected to the "
                       "frame lock board on X Server '%s' or the linked "
                       "PC is not turned on.  Either disconnect the LAN "
@@ -3590,6 +3743,13 @@ static void gpu_state_received(GtkObject *object,
              * X Server we are unsetting it.
              */
             if (display_entry->parent != gpu_entry) {
+                nvGPUDataPtr gpu_data =
+                    (nvGPUDataPtr)(display_entry->parent->data);
+
+                NvCtrlSetAttribute(gpu_data->handle, NV_CTRL_FRAMELOCK_SYNC,
+                                   NV_CTRL_FRAMELOCK_SYNC_DISABLE);
+                gpu_data->enabled = FALSE;
+                
                 NvCtrlSetAttribute(display_data->handle,
                                    NV_CTRL_FRAMELOCK_MASTER, 0);
             }
@@ -3602,7 +3762,7 @@ static void gpu_state_received(GtkObject *object,
         if (display_entry) {
             display_data = (nvDisplayDataPtr)(display_entry->data);
 
-            /* Clear the server checkbox */
+            /* Set the server checkbox */
             g_signal_handlers_block_by_func
                 (G_OBJECT(display_data->server_checkbox),
                  G_CALLBACK(toggle_server),
@@ -3620,6 +3780,10 @@ static void gpu_state_received(GtkObject *object,
         }
         
         gpu_data->server_mask = event->value;
+
+        /* See if anything was disabled */
+        ctk_framelock->framelock_enabled =
+            any_gpu_enabled(gpu_entry->tree->entries);
 
         update_framelock_controls(gpu_entry->tree->ctk_framelock);
         break;
@@ -3687,6 +3851,10 @@ static void gpu_state_received(GtkObject *object,
         /* Save the client state */
         gpu_data->clients_mask = event->value;
 
+        /* See if anything was disabled */
+        ctk_framelock->framelock_enabled =
+            any_gpu_enabled(gpu_entry->tree->entries);
+
         update_framelock_controls(gpu_entry->tree->ctk_framelock);
         break;
         
@@ -3753,9 +3921,30 @@ static void gpu_state_received(GtkObject *object,
              (gpointer) ctk_framelock);
 
         ctk_config_statusbar_message(ctk_framelock->ctk_config,
-                                     ctk_framelock->test_link_enabled ?
-                                     "Test Link started." :
-                                     "Test Link complete.");
+                                     (ctk_framelock->test_link_enabled ?
+                                      "Test link started." :
+                                      "Test link complete."));
+        break;
+
+
+    case NV_CTRL_REFRESH_RATE:
+        /* Update the display device's refresh rate */
+        display_entry = get_display_on_gpu(gpu_entry, event->display_mask);
+        if (display_entry && display_entry->data) {
+            float fvalue;
+            char str[32];
+
+            display_data =
+                (nvDisplayDataPtr)(display_entry->data);
+
+            display_data->rate = event->value;
+            fvalue = ((float)(display_data->rate)) / 100.0f;
+            snprintf(str, 32, "%.2f Hz", fvalue);
+            gtk_label_set_text(GTK_LABEL(display_data->rate_text), str);   
+        }
+        
+        /* Make sure the framelock controls are in a consistent state */
+        update_framelock_controls(ctk_framelock);
         break;
 
 
@@ -4202,7 +4391,7 @@ GtkWidget* ctk_framelock_new(NvCtrlAttributeHandle *handle,
     vp = gtk_viewport_new(NULL, NULL);
     SELECT_WIDGET(vp, GTK_STATE_NORMAL);
     gtk_container_add(GTK_CONTAINER(sw), GTK_WIDGET(vp));
-    /** XXX **/gtk_widget_set_size_request(sw, 850, 200);/** XXX **/
+    /** XXX **/gtk_widget_set_size_request(sw, -1, 200);/** XXX **/
 
     /* add the custom tree & buttons */
 
@@ -4427,7 +4616,7 @@ static void add_devices_response(GtkWidget *button, gint response,
     /* Update status bar */
 
     ctk_config_statusbar_message(ctk_framelock->ctk_config,
-                                 "Added X Server '%s'", display_name);
+                                 "Added X server '%s'.", display_name);
 }
 
 
@@ -4551,7 +4740,10 @@ static unsigned int add_display_devices(CtkFramelock *ctk_framelock,
      * as master, unset this entry and make it a slave. */
     if (server_entry && master_mask) {
 
-        /* XXXvm What if this GPU has Sync enabled? */
+        /* Ensure FrameLock sync is disabled before setting server/clients */
+        NvCtrlSetAttribute(gpu_data->handle, NV_CTRL_FRAMELOCK_SYNC,
+                           NV_CTRL_FRAMELOCK_SYNC_DISABLE);
+        gpu_data->enabled = FALSE;
 
         ret = NvCtrlSetAttribute(gpu_data->handle,
                                  NV_CTRL_FRAMELOCK_MASTER, 0);
@@ -4623,7 +4815,7 @@ static unsigned int add_display_devices(CtkFramelock *ctk_framelock,
             snprintf(str, 32, "%.2f Hz", fvalue);
             display_data->rate_text       = gtk_label_new(str);
 
-            display_data->stereo_label    = gtk_label_new("Stereo:");
+            display_data->stereo_label    = gtk_label_new("Stereo");
             display_data->stereo_hbox     = gtk_hbox_new(FALSE, 0);
 
             /* Create the display entry */
@@ -4762,7 +4954,7 @@ static unsigned int add_gpu_devices(CtkFramelock *ctk_framelock,
                                 NV_CTRL_ATTRIBUTES_NV_CONTROL_SUBSYSTEM);
         gpu_data->label = gtk_label_new("");
 
-        gpu_data->timing_label = gtk_label_new("Timing:");
+        gpu_data->timing_label = gtk_label_new("Timing");
         gpu_data->timing_hbox = gtk_hbox_new(FALSE, 0);
 
         /* Create the GPU list entry */
@@ -4782,11 +4974,10 @@ static unsigned int add_gpu_devices(CtkFramelock *ctk_framelock,
              * frame lock is enabled.  This should happen if we are
              * adding a gpu that has FRAMELOCK_SYNC set to enable.
              */
-            if (!ctk_framelock->framelock_enabled) {
-                NvCtrlGetAttribute(gpu_data->handle,
-                                   NV_CTRL_FRAMELOCK_SYNC,
-                                   &(ctk_framelock->framelock_enabled));
-            }
+            NvCtrlGetAttribute(gpu_data->handle,
+                               NV_CTRL_FRAMELOCK_SYNC,
+                               &(gpu_data->enabled));
+            ctk_framelock->framelock_enabled |= gpu_data->enabled;
 
             entry->ctk_event = CTK_EVENT(ctk_event_new(gpu_data->handle));
 
@@ -4860,7 +5051,7 @@ static unsigned int add_framelock_devices(CtkFramelock *ctk_framelock,
             goto fail;
         }
 
-        /* Create the frame lock handle and label */
+        /* Create the frame lock handle */
         framelock_data->handle =
             NvCtrlAttributeInit(NvCtrlGetDisplayPtr(handle),
                                 NV_CTRL_TARGET_TYPE_FRAMELOCK,
@@ -4868,7 +5059,6 @@ static unsigned int add_framelock_devices(CtkFramelock *ctk_framelock,
                                 NV_CTRL_ATTRIBUTES_NV_CONTROL_SUBSYSTEM);
 
         /* Get the framelock revision information */
-        
         ret = NvCtrlGetAttribute(framelock_data->handle,
                                  NV_CTRL_FRAMELOCK_FPGA_REVISION,
                                  &val);
@@ -4877,10 +5067,10 @@ static unsigned int add_framelock_devices(CtkFramelock *ctk_framelock,
         }
         revision_str = g_strdup_printf("%d", val);
 
-
+        /* Create the frame lock widgets */
         framelock_data->label = gtk_label_new("");
         
-        framelock_data->receiving_label = gtk_label_new("Receiving:");
+        framelock_data->receiving_label = gtk_label_new("Receiving");
         framelock_data->receiving_hbox = gtk_hbox_new(FALSE, 0);
 
         framelock_data->rate_label = gtk_label_new("Rate:");
@@ -4889,13 +5079,13 @@ static unsigned int add_framelock_devices(CtkFramelock *ctk_framelock,
         framelock_data->delay_label = gtk_label_new("Delay:");
         framelock_data->delay_text = gtk_label_new("");
 
-        framelock_data->house_label = gtk_label_new("House:");
+        framelock_data->house_label = gtk_label_new("House");
         framelock_data->house_hbox = gtk_hbox_new(FALSE, 0);
 
-        framelock_data->port0_label = gtk_label_new("Port 0:");
+        framelock_data->port0_label = gtk_label_new("Port 0");
         framelock_data->port0_hbox = gtk_hbox_new(FALSE, 0);
 
-        framelock_data->port1_label = gtk_label_new("Port 1:");
+        framelock_data->port1_label = gtk_label_new("Port 1");
         framelock_data->port1_hbox = gtk_hbox_new(FALSE, 0);
 
         framelock_data->revision_label = gtk_label_new("FPGA Revision:");
@@ -5079,6 +5269,11 @@ static gint add_devices(CtkFramelock *ctk_framelock,
         }
         goto done;
     }
+
+
+    /* Align the list entry titles */
+    list_tree_align_titles((nvListTreePtr)(ctk_framelock->tree));
+
 
     /* Fall through */
  done:
@@ -5324,8 +5519,8 @@ GtkTextBuffer *ctk_framelock_create_help(GtkTextTagTable *table)
                   "frame lock board is receiving.");
     ctk_help_para(b, &i, "House LED: This indicates whether the frame lock "
                   "board is receiving synchronization from the house (BNC) "
-                  "connector.  This LED mirrors the status of the LED on the "
-                  "backplane of the frame lock board.");
+                  "connector.  This LED mirrors the status of the BNC LED on "
+                  "the backplane of the frame lock board.");
     ctk_help_para(b, &i, "Port0, Port1 Images: These indicate the status of "
                   "the RJ45 ports on the backplane of the frame lock board.  "
                   "Green LEDs indicate that the port is configured for "

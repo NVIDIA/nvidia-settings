@@ -34,7 +34,7 @@
 #include "ctkconfig.h"
 #include "ctkhelp.h"
 #include "ctkutils.h"
-
+#include <stdio.h>
 
 static void ctk_display_device_dfp_class_init(CtkDisplayDeviceDfpClass *);
 static void ctk_display_device_dfp_finalize(GObject *);
@@ -46,16 +46,7 @@ static GtkWidget *make_scaling_radio_button(CtkDisplayDeviceDfp
                                             char *label,
                                             gint value);
 
-static GtkWidget *make_dithering_radio_button(CtkDisplayDeviceDfp
-                                              *ctk_display_device_dfp,
-                                              GtkWidget *vbox,
-                                              GtkWidget *prev_radio,
-                                              char *label,
-                                              gint value);
-
 static void dfp_scaling_changed(GtkWidget *widget, gpointer user_data);
-
-static void dfp_dithering_changed(GtkWidget *widget, gpointer user_data);
 
 static void reset_button_clicked(GtkButton *button, gpointer user_data);
 
@@ -64,18 +55,12 @@ dfp_scaling_update_buttons(CtkDisplayDeviceDfp *ctk_display_device_dfp,
                            gint value);
 
 
-static void
-dfp_dithering_update_radio_buttons(CtkDisplayDeviceDfp *ctk_display_device_dfp,
-                                   gint value);
-
 static void dfp_update_received(GtkObject *object, gpointer arg1,
                                 gpointer user_data);
 
 static void dfp_info_setup(CtkDisplayDeviceDfp *ctk_display_device_dfp);
 
 static void dfp_scaling_setup(CtkDisplayDeviceDfp *ctk_display_device_dfp);
-
-static void dfp_dithering_setup(CtkDisplayDeviceDfp *ctk_display_device_dfp);
 
 static void ctk_display_device_dfp_setup(CtkDisplayDeviceDfp
                                          *ctk_display_device_dfp);
@@ -90,7 +75,6 @@ static void info_update_received(GtkObject *object, gpointer arg1,
 #define FRAME_PADDING 5
 
 #define __SCALING (1<<0)
-#define __DITHERING (1<<1)
 
 
 #define GET_SCALING_TARGET(V) ((V) >> 16)
@@ -105,11 +89,6 @@ static const char *__scaling_help =
 "displayed on the flat panel.  This setting will only take effect "
 "when GPU scaling is active (This occurs when the frontend and "
 "backend resolutions of the current mode are different.)";
-
-static const char *__dithering_help =
-"Some GeForce2 GPUs required dithering to "
-"properly display on a flat panel; this option allows "
-"you to control the dithering behavior.";
 
 static const char *__info_help = 
 "This section describes basic informations about the "
@@ -128,6 +107,10 @@ static const char * __best_fit_res_help =
 
 static const char * __frontend_res_help =
 "The Frontend Resolution is the current resolution of the image in pixels.";
+
+static const char * __refresh_rate_help =
+"The refresh rate displays the rate at which the screen is currently "
+"refreshing the image.";
 
 static const char * __backend_res_help =
 "The Backend Resolution is the resolution that the GPU is driving to "
@@ -252,7 +235,7 @@ GtkWidget* ctk_display_device_dfp_new(NvCtrlAttributeHandle *handle,
                            "The Reset Hardware Defaults button restores "
                            "the DFP settings to their default values.");
 
-    /* create the hbox to store dfp info, scaling and dithering */
+    /* create the hbox to store dfp info, scaling */
 
     hbox = gtk_hbox_new(FALSE, FRAME_PADDING);
     gtk_box_pack_start(GTK_BOX(object), hbox, FALSE, FALSE, FRAME_PADDING);
@@ -279,6 +262,7 @@ GtkWidget* ctk_display_device_dfp_new(NvCtrlAttributeHandle *handle,
     ctk_display_device_dfp->txt_best_fit_resolution = gtk_label_new("");
     ctk_display_device_dfp->txt_frontend_resolution = gtk_label_new("");
     ctk_display_device_dfp->txt_backend_resolution = gtk_label_new("");
+    ctk_display_device_dfp->txt_refresh_rate = gtk_label_new("");
 
     /* Add information widget lines */
     {
@@ -302,7 +286,7 @@ GtkWidget* ctk_display_device_dfp_new(NvCtrlAttributeHandle *handle,
             {
                 gtk_label_new("Signal:"),
                 ctk_display_device_dfp->txt_signal,
-                NULL,
+                NULL
             },
             {
                 gtk_label_new("Native Resolution:"),
@@ -323,6 +307,11 @@ GtkWidget* ctk_display_device_dfp_new(NvCtrlAttributeHandle *handle,
                 gtk_label_new("Backend Resolution:"),
                 ctk_display_device_dfp->txt_backend_resolution,
                 __backend_res_help,
+            },
+            {
+                gtk_label_new("Refresh Rate:"),
+                ctk_display_device_dfp->txt_refresh_rate,
+                __refresh_rate_help,
             },
             { NULL, NULL, NULL }
         };
@@ -348,7 +337,7 @@ GtkWidget* ctk_display_device_dfp_new(NvCtrlAttributeHandle *handle,
             GtkWidget *tmphbox;
 
             /* Add separators */
-            if (i == 3 || i == 5) {
+            if (i == 3 || i == 5 || i == 7) {
                 GtkWidget *separator = gtk_hseparator_new();
                 gtk_box_pack_start(GTK_BOX(tmpbox), separator,
                                    FALSE, FALSE, 0);
@@ -437,37 +426,6 @@ GtkWidget* ctk_display_device_dfp_new(NvCtrlAttributeHandle *handle,
                      G_CALLBACK(dfp_update_received),
                      (gpointer) ctk_display_device_dfp);
 
-    /* Flat Panel Dithering */
-
-    frame = gtk_frame_new("Flat Panel Dithering");
-    eventbox = gtk_event_box_new();
-    gtk_container_add(GTK_CONTAINER(eventbox), frame);
-    gtk_box_pack_start(GTK_BOX(hbox), eventbox, TRUE, TRUE, 0);
-    ctk_display_device_dfp->dithering_frame = frame;
-    
-    ctk_config_set_tooltip(ctk_config, eventbox, __dithering_help);
-    
-    vbox = gtk_vbox_new(FALSE, FRAME_PADDING);
-    gtk_container_set_border_width(GTK_CONTAINER(vbox), FRAME_PADDING);
-    gtk_container_add(GTK_CONTAINER(frame), vbox);
-    
-    radio0 = make_dithering_radio_button
-        (ctk_display_device_dfp, vbox, NULL, "Default",
-         NV_CTRL_FLATPANEL_DITHERING_DEFAULT);
-    
-    radio1 = make_dithering_radio_button
-        (ctk_display_device_dfp, vbox, radio0, "Enabled",
-         NV_CTRL_FLATPANEL_DITHERING_ENABLED);
-    
-    radio2 = make_dithering_radio_button
-        (ctk_display_device_dfp, vbox, radio1, "Disabled",
-         NV_CTRL_FLATPANEL_DITHERING_DISABLED);
-    
-    g_signal_connect(G_OBJECT(ctk_event),
-                     CTK_EVENT_NAME(NV_CTRL_FLATPANEL_DITHERING),
-                     G_CALLBACK(dfp_update_received),
-                     (gpointer) ctk_display_device_dfp);
-
     /* pack the image sliders */
     
     ctk_display_device_dfp->image_sliders =
@@ -525,6 +483,10 @@ GtkWidget* ctk_display_device_dfp_new(NvCtrlAttributeHandle *handle,
                      CTK_EVENT_NAME(NV_CTRL_BACKEND_RESOLUTION),
                      G_CALLBACK(info_update_received),
                      (gpointer) ctk_display_device_dfp);
+    g_signal_connect(G_OBJECT(ctk_event),
+                     CTK_EVENT_NAME(NV_CTRL_REFRESH_RATE),
+                     G_CALLBACK(info_update_received),
+                     (gpointer) ctk_display_device_dfp);
 
     return GTK_WIDGET(object);
 
@@ -567,44 +529,6 @@ static GtkWidget *make_scaling_radio_button(CtkDisplayDeviceDfp
     return radio;
     
 } /* make_scaling_radio_button() */
-
-
-
-/*
- * make_dithering_radio_button() - create a radio button and plug it
- * into the dithering radio group.
- */
-
-static GtkWidget *make_dithering_radio_button(CtkDisplayDeviceDfp
-                                              *ctk_display_device_dfp,
-                                              GtkWidget *vbox,
-                                              GtkWidget *prev_radio,
-                                              char *label,
-                                              gint value)
-{
-    GtkWidget *radio;
-
-    if (prev_radio) {
-        radio = gtk_radio_button_new_with_label_from_widget
-            (GTK_RADIO_BUTTON(prev_radio), label);
-    } else {
-        radio = gtk_radio_button_new_with_label(NULL, label);
-    }
-
-    gtk_box_pack_start(GTK_BOX(vbox), radio, FALSE, FALSE, 0);
-    
-    g_object_set_data(G_OBJECT(radio), "dithering_value",
-                      GINT_TO_POINTER(value));
-   
-    g_signal_connect(G_OBJECT(radio), "toggled",
-                     G_CALLBACK(dfp_dithering_changed),
-                     (gpointer) ctk_display_device_dfp);
-
-    ctk_display_device_dfp->dithering_buttons[value] = radio;
-
-    return radio;
-    
-} /* make_dithering_radio_button() */
 
 
 
@@ -713,66 +637,6 @@ static void dfp_scaling_changed(GtkWidget *widget, gpointer user_data)
 
 
 /*
- * post_dfp_dithering_update() - helper function for
- * dfp_dithering_changed() and dfp_update_received(); this does
- * whatever work is necessary after dithering has been updated --
- * currently, this just means posting a statusbar message.
- */
-
-static void
-post_dfp_dithering_update(CtkDisplayDeviceDfp *ctk_display_device_dfp,
-                          gint value)
-{
-    static const char *dithering_string_table[] = {
-        "Default", /* NV_CTRL_FLATPANEL_DITHERING_DEFAULT */
-        "Enabled", /* NV_CTRL_FLATPANEL_DITHERING_ENABLED */
-        "Disabled" /* NV_CTRL_FLATPANEL_DITHERING_DISABLED */
-    };
-
-    if (value > NV_CTRL_FLATPANEL_DITHERING_DISABLED) return;
-    
-    ctk_config_statusbar_message(ctk_display_device_dfp->ctk_config,
-                                 "Set Flat Panel Dithering for %s to %s.",
-                                 ctk_display_device_dfp->name,
-                                 dithering_string_table[value]);
-    
-} /* post_dfp_dithering_update() */
-
-
-
-/*
- * dfp_dithering_changed() - callback function for changes to the
- * dithering radio button group; if the specified radio button is
- * active, send updated state to the server
- */
-
-static void dfp_dithering_changed(GtkWidget *widget, gpointer user_data)
-{
-    CtkDisplayDeviceDfp *ctk_display_device_dfp =
-        CTK_DISPLAY_DEVICE_DFP(user_data);
-    
-    gboolean enabled;
-    gint value;
-    
-    enabled = gtk_toggle_button_get_active(GTK_TOGGLE_BUTTON(widget));
-    
-    if (enabled) {
-        
-        user_data = g_object_get_data(G_OBJECT(widget), "dithering_value");
-        value = GPOINTER_TO_INT(user_data);
-        
-        NvCtrlSetDisplayAttribute(ctk_display_device_dfp->handle,
-                                  ctk_display_device_dfp->display_device_mask,
-                                  NV_CTRL_FLATPANEL_DITHERING, value);
-        
-        post_dfp_dithering_update(ctk_display_device_dfp, value);
-    }
-    
-} /* dfp_dithering_changed() */
-
-
-
-/*
  * reset_button_clicked() - callback when the reset button is clicked
  */
 
@@ -802,22 +666,6 @@ static void reset_button_clicked(GtkButton *button, gpointer user_data)
                                   NV_CTRL_GPU_SCALING, value);
 
         dfp_scaling_update_buttons(ctk_display_device_dfp, value);
-    }
-    
-    /*
-     * if dithering is active, send the default dithering value to the
-     * server and update the radio button group
-     */
-    
-    if (ctk_display_device_dfp->active_attributes & __DITHERING) {
-    
-        value = NV_CTRL_FLATPANEL_DITHERING_DEFAULT;
-
-        NvCtrlSetDisplayAttribute(ctk_display_device_dfp->handle,
-                                  ctk_display_device_dfp->display_device_mask,
-                                  NV_CTRL_FLATPANEL_DITHERING, value);
-
-        dfp_dithering_update_radio_buttons(ctk_display_device_dfp, value);
     }
     
     /* Update the reset button */
@@ -911,54 +759,6 @@ dfp_scaling_update_buttons(CtkDisplayDeviceDfp *ctk_display_device_dfp,
 
 
 /*
- * dfp_dithering_update_radio_buttons() - update the dithering radio
- * button group, making the specified dithering value active.
- */
-
-static void
-dfp_dithering_update_radio_buttons(CtkDisplayDeviceDfp *ctk_display_device_dfp,
-                                   gint value)
-{
-    GtkWidget *b, *button = NULL;
-    int i;
-
-    if ((value < NV_CTRL_FLATPANEL_DITHERING_DEFAULT) ||
-        (value > NV_CTRL_FLATPANEL_DITHERING_DISABLED)) return;
-
-    button = ctk_display_device_dfp->dithering_buttons[value];
-    
-    if (!button) return;
-    
-    /* turn off signal handling for all the dithering buttons */
-
-    for (i = 0; i < 3; i++) {
-        b = ctk_display_device_dfp->dithering_buttons[i];
-        if (!b) continue;
-        
-        g_signal_handlers_block_by_func
-            (G_OBJECT(b), G_CALLBACK(dfp_dithering_changed),
-             (gpointer) ctk_display_device_dfp);
-    }
-    
-    /* set the appropriate button active */
-
-    gtk_toggle_button_set_active(GTK_TOGGLE_BUTTON(button), TRUE);
-
-    /* turn on signal handling for all the dithering buttons */
-
-    for (i = 0; i < 3; i++) {
-        b = ctk_display_device_dfp->dithering_buttons[i];
-        if (!b) continue;
-        
-        g_signal_handlers_unblock_by_func
-            (G_OBJECT(b), G_CALLBACK(dfp_dithering_changed),
-             (gpointer) ctk_display_device_dfp);
-    }
-} /* dfp_dithering_update_radio_buttons() */
-
-
-
-/*
  * dfp_update_received() - callback function for changed DFP
  * settings; this is called when we receive an event indicating that
  * another NV-CONTROL client changed any of the settings that we care
@@ -986,11 +786,6 @@ static void dfp_update_received(GtkObject *object, gpointer arg1,
         post_dfp_scaling_update(ctk_display_device_dfp, event_struct->value);
         break;
         
-    case NV_CTRL_FLATPANEL_DITHERING:
-        dfp_dithering_update_radio_buttons(ctk_display_device_dfp,
-                                           event_struct->value);
-        post_dfp_dithering_update(ctk_display_device_dfp, event_struct->value);
-        break;
     default:
         break;
     }
@@ -1046,6 +841,9 @@ GtkTextBuffer *ctk_display_device_dfp_create_help(GtkTextTagTable *table,
 
     ctk_help_term(b, &i, "Backend Resolution");
     ctk_help_para(b, &i, __backend_res_help);
+    
+    ctk_help_term(b, &i, "Refresh Rate");
+    ctk_help_para(b, &i, __refresh_rate_help);
 
     ctk_help_heading(b, &i, "Flat Panel Scaling");
     ctk_help_para(b, &i, __scaling_help);
@@ -1069,18 +867,6 @@ GtkTextBuffer *ctk_display_device_dfp_create_help(GtkTextTagTable *table,
     ctk_help_para(b, &i, "The image will be scaled (retaining the original "
                   "aspect ratio) to expand and fit as much of the entire "
                   "flat panel as possible.");
-    
-    ctk_help_heading(b, &i, "Flat Panel Dithering");
-    ctk_help_para(b, &i, __dithering_help);
-    
-    ctk_help_term(b, &i, "Default");
-    ctk_help_para(b, &i, "The driver will choose when to dither.");
-    
-    ctk_help_term(b, &i, "Enabled");
-    ctk_help_para(b, &i, "Force dithering on.");
-    
-    ctk_help_term(b, &i, "Disabled");
-    ctk_help_para(b, &i, "Force dithering off.");
 
     add_image_sliders_help
         (CTK_IMAGE_SLIDERS(ctk_display_device_dfp->image_sliders), b, &i);
@@ -1228,6 +1014,25 @@ static void dfp_info_setup(CtkDisplayDeviceDfp *ctk_display_device_dfp)
             (GTK_LABEL(ctk_display_device_dfp->txt_backend_resolution),
              "Unknown");
     }
+    /* Refresh Rate */
+     
+    ret =
+        NvCtrlGetDisplayAttribute(ctk_display_device_dfp->handle,
+                                  ctk_display_device_dfp->display_device_mask,
+                                  NV_CTRL_REFRESH_RATE, &val);
+    if (ret == NvCtrlSuccess) {
+        char str[32];
+        float fvalue = ((float)(val)) / 100.0f;
+        snprintf(str, 32, "%.2f Hz", fvalue);
+        gtk_label_set_text
+            (GTK_LABEL(ctk_display_device_dfp->txt_refresh_rate),
+             str);
+    } else {
+        gtk_label_set_text
+            (GTK_LABEL(ctk_display_device_dfp->txt_refresh_rate),
+             "Unknown");
+   
+    }
 
     /* GPU/DFP Scaling */
 
@@ -1295,38 +1100,6 @@ static void dfp_scaling_setup(CtkDisplayDeviceDfp *ctk_display_device_dfp)
 
 
 /*
- * dfp_dithering_setup() - Update GUI to reflect X server settings
- * of DFP Dithering.
- */
-static void dfp_dithering_setup(CtkDisplayDeviceDfp *ctk_display_device_dfp)
-{
-    ReturnStatus ret;
-    int val;
-
-    ret =
-        NvCtrlGetDisplayAttribute(ctk_display_device_dfp->handle,
-                                  ctk_display_device_dfp->display_device_mask,
-                                  NV_CTRL_FLATPANEL_DITHERING, &val);
-    if (ret != NvCtrlSuccess) {
-        gtk_widget_set_sensitive(ctk_display_device_dfp->dithering_frame,
-                                 FALSE);
-        gtk_widget_hide(ctk_display_device_dfp->dithering_frame);
-        ctk_display_device_dfp->active_attributes &= ~__DITHERING;
-        return;
-    }
-
-    gtk_widget_show(ctk_display_device_dfp->dithering_frame);
-    ctk_display_device_dfp->active_attributes |= __DITHERING;
-
-    gtk_widget_set_sensitive(ctk_display_device_dfp->dithering_frame, TRUE);
-
-    dfp_dithering_update_radio_buttons(ctk_display_device_dfp, val);
-
-} /* dfp_dithering_setup() */
-
-
-
-/*
  * Updates the display device page to reflect the current
  * configuration of the display device.
  */
@@ -1353,8 +1126,6 @@ static void ctk_display_device_dfp_setup(CtkDisplayDeviceDfp
     dfp_info_setup(ctk_display_device_dfp);
 
     dfp_scaling_setup(ctk_display_device_dfp);
-
-    dfp_dithering_setup(ctk_display_device_dfp);
 
 
     /* Update the image sliders */

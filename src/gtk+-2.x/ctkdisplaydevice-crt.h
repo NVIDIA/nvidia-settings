@@ -63,6 +63,7 @@ struct _CtkDisplayDeviceCrt
     CtkEvent *ctk_event;
     GtkWidget *image_sliders;
     GtkWidget *reset_button;
+    GtkWidget *txt_refresh_rate;
     
     GtkWidget *edid_box;
     GtkWidget *edid;

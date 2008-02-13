@@ -1,0 +1,712 @@
+/* 
+ * 
+ * Copyright (c) 1997  Metro Link Incorporated
+ * 
+ * Permission is hereby granted, free of charge, to any person obtaining a
+ * copy of this software and associated documentation files (the "Software"), 
+ * to deal in the Software without restriction, including without limitation
+ * the rights to use, copy, modify, merge, publish, distribute, sublicense,
+ * and/or sell copies of the Software, and to permit persons to whom the
+ * Software is furnished to do so, subject to the following conditions:
+ * 
+ * The above copyright notice and this permission notice shall be included in
+ * all copies or substantial portions of the Software.
+ * 
+ * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+ * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+ * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.  IN NO EVENT SHALL
+ * THE X CONSORTIUM BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY,
+ * WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF
+ * OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+ * SOFTWARE.
+ * 
+ * Except as contained in this notice, the name of the Metro Link shall not be
+ * used in advertising or otherwise to promote the sale, use or other dealings
+ * in this Software without prior written authorization from Metro Link.
+ * 
+ */
+
+#include "xf86Parser.h"
+#include "xf86tokens.h"
+#include "Configint.h"
+
+
+
+/*
+ * xconfigAddRemovedOptionComment() - Makes a note in the comment
+ * string "existing_comments" that a particular option has been
+ * removed.
+ *
+ */
+static void xconfigAddRemovedOptionComment(char **existing_comments,
+                                           XConfigOptionPtr option)
+{
+    int len;
+    char *str;
+
+    if (!option || !existing_comments)
+        return;
+
+    len = 32 + strlen(xconfigOptionName(option)) +
+        strlen(xconfigOptionValue(option));
+
+    str = (char *)malloc(len);
+
+    if (str) {
+        snprintf(str, len, "# Removed Option \"%s\" \"%s\"",
+                xconfigOptionName(option),
+                xconfigOptionValue(option));
+        *existing_comments = xconfigAddComment(*existing_comments, str);
+    }
+
+} /* xconfigAddRemovedOptionComment() */
+
+
+
+/*
+ * xconfigRemoveNamedOption() - Removes the named option from an option
+ * list and (if specified) adds a comment to an existing comments string
+ *
+ */
+static void xconfigRemoveNamedOption(XConfigOptionPtr *head, char *name,
+                                     char **comments)
+{
+    XConfigOptionPtr option;
+
+    option = xconfigFindOption(*head, name);
+    if (option) {
+        if (comments) {
+            xconfigAddRemovedOptionComment(comments, option);
+        }
+        *head = xconfigRemoveOption(*head, option);
+    }
+
+} /* xconfigRemoveNamedOption() */
+
+
+
+/*
+ * xconfigMergeOption() - Merge option "name" from option source
+ * list "srcHead" to option destination list "dstHead".
+ *
+ * Merging here means:
+ *
+ * If the option is not in the source config, remove it from the dest
+ * config.
+ *
+ * If the option is in the source config, make sure the dest config
+ * contains the option with the same value as the source config.
+ *
+ * if "comments" is given, a comment will be added to note when
+ * an option has been removed/replaced.
+ *
+ */
+static void xconfigMergeOption(XConfigOptionPtr *dstHead,
+                               XConfigOptionPtr *srcHead,
+                               const char *name, char **comments)
+{
+    XConfigOptionPtr srcOption = xconfigFindOption(*srcHead, name);
+    XConfigOptionPtr dstOption = xconfigFindOption(*dstHead, name);
+    
+    if (!srcOption) {
+        if (dstOption) {
+            *dstHead = xconfigRemoveOption(*dstHead, dstOption);
+        }
+    } else {
+        if (!dstOption || strcmp(xconfigOptionValue(srcOption),
+                                 xconfigOptionValue(dstOption))) {
+
+            if (dstOption && comments) {
+                xconfigAddRemovedOptionComment(comments, dstOption);
+            }
+            *dstHead = xconfigAddNewOption
+                (*dstHead, xconfigStrdup(name),
+                 xconfigStrdup(xconfigOptionValue(srcOption)));
+        }
+    }
+
+} /* xconfigMergeOption() */
+
+
+
+/*
+ * xconfigMergeFlags() - Updates the destination's list of server flag
+ * options with the options found in the source config.
+ *
+ * Optons in the destination are either added or updated.  Options that
+ * are found in the destination config and not in the source config are
+ * not modified.
+ *
+ * Returns 1 if the merge was successful and 0 if not.
+ */
+static int xconfigMergeFlags(XConfigPtr dstConfig, XConfigPtr srcConfig)
+{
+    if (srcConfig->flags) {
+        XConfigOptionPtr option;
+        
+        /* Flag section was not found, create a new one */
+        if (!dstConfig->flags) {
+            dstConfig->flags =
+                (XConfigFlagsPtr) calloc(1, sizeof(XConfigFlagsRec));
+            if (!dstConfig->flags) return 0;
+        }
+        
+        option = srcConfig->flags->options;
+        while (option) {
+            xconfigMergeOption(&(dstConfig->flags->options),
+                               &(srcConfig->flags->options),
+                               xconfigOptionName(option),
+                               &(dstConfig->flags->comment));
+            option = option->next;
+        }
+    }
+    
+    return 1;
+
+} /* xconfigMergeFlags() */
+
+
+
+/*
+ * xconfigMergeMonitors() - Updates information in the destination monitor
+ * with that of the source monitor.
+ *
+ */
+static void xconfigMergeMonitors(XConfigMonitorPtr dstMonitor,
+                                 XConfigMonitorPtr srcMonitor)
+{
+    int i;
+
+
+    /* Update vendor */
+    
+    free(dstMonitor->vendor);
+    dstMonitor->vendor = xconfigStrdup(srcMonitor->vendor);
+    
+    /* Update modelname */
+    
+    free(dstMonitor->modelname);
+    dstMonitor->modelname = xconfigStrdup(srcMonitor->modelname);
+    
+    /* Update horizontal sync */
+    
+    dstMonitor->n_hsync = srcMonitor->n_hsync;
+    for (i = 0; i < srcMonitor->n_hsync; i++) {
+        dstMonitor->hsync[i].lo = srcMonitor->hsync[i].lo;
+        dstMonitor->hsync[i].hi = srcMonitor->hsync[i].hi;
+    }
+    
+    /* Update vertical sync */
+    
+    dstMonitor->n_vrefresh = srcMonitor->n_vrefresh;
+    for (i = 0; i < srcMonitor->n_hsync; i++) {
+        dstMonitor->vrefresh[i].lo = srcMonitor->vrefresh[i].lo;
+        dstMonitor->vrefresh[i].hi = srcMonitor->vrefresh[i].hi;
+    }
+    
+    /* XXX Remove the destination monitor's "UseModes" references to
+     *     avoid having the wrong modelines tied to the new monitor.
+     */
+    xconfigFreeModesLinkList(dstMonitor->modes_sections);
+    dstMonitor->modes_sections = NULL;
+
+} /* xconfigMergeMonitors() */
+
+
+
+/*
+ * xconfigMergeAllMonitors() - This function ensures that all monitors in
+ * the source config appear in the destination config by adding and/or
+ * updating the "appropriate" destination monitor sections.
+ *
+ */
+static int xconfigMergeAllMonitors(XConfigPtr dstConfig, XConfigPtr srcConfig)
+{
+    XConfigMonitorPtr dstMonitor;
+    XConfigMonitorPtr srcMonitor;
+
+
+    /* Make sure all monitors in the src config are also in the dst config */
+
+    for (srcMonitor = srcConfig->monitors;
+         srcMonitor;
+         srcMonitor = srcMonitor->next) {
+
+        dstMonitor =
+            xconfigFindMonitor(srcMonitor->identifier, dstConfig->monitors);
+
+        /* Monitor section was not found, create a new one and add it */
+        if (!dstMonitor) {
+            dstMonitor =
+                (XConfigMonitorPtr) calloc(1, sizeof(XConfigMonitorRec));
+            if (!dstMonitor) return 0;
+
+            dstMonitor->identifier = xconfigStrdup(srcMonitor->identifier);
+
+            dstConfig->monitors = (XConfigMonitorPtr)
+                xconfigAddListItem((GenericListPtr)dstConfig->monitors,
+                                   (GenericListPtr)dstMonitor);
+        }
+
+        /* Do the merge */
+        xconfigMergeMonitors(dstMonitor, srcMonitor);
+    }
+
+    return 1;
+
+} /* xconfigMergeAllMonitors() */
+
+
+
+/*
+ * xconfigMergeDevices() - Updates information in the destination device
+ * with that of the source device.
+ *
+ */
+static void xconfigMergeDevices(XConfigDevicePtr dstDevice,
+                                XConfigDevicePtr srcDevice)
+{
+    // XXX Zero out the device section?
+
+    /* Update driver */
+    
+    free(dstDevice->driver);
+    dstDevice->driver = xconfigStrdup(srcDevice->driver);
+    
+    /* Update vendor */
+    
+    free(dstDevice->vendor);
+    dstDevice->vendor = xconfigStrdup(srcDevice->vendor);
+    
+    /* Update bus ID */
+    
+    free(dstDevice->busid);
+    dstDevice->busid = xconfigStrdup(srcDevice->busid);
+    
+    /* Update board */
+    
+    free(dstDevice->board);
+    dstDevice->board = xconfigStrdup(srcDevice->board);
+    
+    /* Update chip info */
+    
+    dstDevice->chipid = srcDevice->chipid;
+    dstDevice->chiprev = srcDevice->chiprev;
+
+    /* Update IRQ */
+
+    dstDevice->irq = srcDevice->irq;
+    
+    /* Update screen */
+    
+    dstDevice->screen = srcDevice->screen;
+
+} /* xconfigMergeDevices() */
+
+
+
+/*
+ * xconfigMergeAllDevices() - This function ensures that all devices in
+ * the source config appear in the destination config by adding and/or
+ * updating the "appropriate" destination device sections.
+ *
+ */
+static int xconfigMergeAllDevices(XConfigPtr dstConfig, XConfigPtr srcConfig)
+{
+    XConfigDevicePtr dstDevice;
+    XConfigDevicePtr srcDevice;
+
+
+    /* Make sure all monitors in the src config are also in the dst config */
+
+    for (srcDevice = srcConfig->devices;
+         srcDevice;
+         srcDevice = srcDevice->next) {
+
+        dstDevice =
+            xconfigFindDevice(srcDevice->identifier, dstConfig->devices);
+        
+        /* Device section was not found, create a new one and add it */
+        if (!dstDevice) {
+            dstDevice =
+                (XConfigDevicePtr) calloc(1, sizeof(XConfigDeviceRec));
+            if (!dstDevice) return 0;
+
+            dstDevice->identifier = xconfigStrdup(srcDevice->identifier);
+
+            dstConfig->devices = (XConfigDevicePtr)
+                xconfigAddListItem((GenericListPtr)dstConfig->devices,
+                                   (GenericListPtr)dstDevice);
+        }
+
+        /* Do the merge */
+        xconfigMergeDevices(dstDevice, srcDevice);
+    }
+
+    return 1;
+
+} /* xconfigMergeAllDevices() */
+
+
+
+/*
+ * xconfigMergeDriverOptions() - Update the (Screen) driver options
+ * of the destination config with information from the source config.
+ *
+ * - Assumes the source options are all found in the srcScreen->options.
+ * - Updates only those options listed in the srcScreen->options.
+ *
+ */
+static int xconfigMergeDriverOptions(XConfigScreenPtr dstScreen,
+                                     XConfigScreenPtr srcScreen)
+{
+    XConfigOptionPtr option;
+    XConfigDisplayPtr display;
+
+    option = srcScreen->options;
+    while (option) {
+        char *name = xconfigOptionName(option);
+
+        /* Remove the option from all non-screen option lists */
+        
+        if (dstScreen->device) {
+            xconfigRemoveNamedOption(&(dstScreen->device->options), name,
+                                     &(dstScreen->device->comment));
+        }
+        if (dstScreen->monitor) {
+            xconfigRemoveNamedOption(&(dstScreen->monitor->options), name,
+                                     &(dstScreen->monitor->comment));
+        }       
+        for (display = dstScreen->displays; display; display = display->next) {
+            xconfigRemoveNamedOption(&(display->options), name,
+                                     &(display->comment));
+        }
+
+        /* Update/Add the option to the screen's option list */
+        {
+            // XXX Only add a comment if the value changed.
+            XConfigOptionPtr old =
+                xconfigFindOption(dstScreen->options, name);
+
+            if (!old || !strcmp(xconfigOptionValue(option),
+                                xconfigOptionValue(old))) {
+                xconfigRemoveNamedOption(&(dstScreen->options), name,
+                                         NULL);
+            } else {
+                xconfigRemoveNamedOption(&(dstScreen->options), name,
+                                         &(dstScreen->comment));
+            }
+        }
+
+        /* Add the option to the screen->options list */
+
+        dstScreen->options =
+            xconfigAddNewOption(dstScreen->options,
+                                xconfigStrdup(name),
+                                xconfigStrdup(xconfigOptionValue(option)));
+        
+        option = option->next;
+    }
+
+    return 1;
+
+} /* xconfigMergeDriverOptions() */
+
+
+
+/*
+ * xconfigMergeDisplays() - Duplicates display information from the
+ * source screen to the destination screen.
+ *
+ */
+static int xconfigMergeDisplays(XConfigScreenPtr dstScreen,
+                                XConfigScreenPtr srcScreen)
+{
+    XConfigDisplayPtr dstDisplay;
+    XConfigDisplayPtr srcDisplay;
+    XConfigOptionPtr srcOption;
+    XConfigModePtr srcMode, dstMode, lastDstMode;
+
+    /* Free all the displays in the destination screen */
+
+    xconfigFreeDisplayList(dstScreen->displays);
+
+    /* Copy all te displays */
+    
+    for (srcDisplay = srcScreen->displays;
+         srcDisplay;
+         srcDisplay = srcDisplay->next) {
+
+        /* Create a new display */
+
+        dstDisplay = xconfigAlloc(sizeof(XConfigDisplayRec));
+        if (!dstDisplay) return 0;
+
+        /* Copy display fields */
+
+        dstDisplay->frameX0 = srcDisplay->frameX0;
+        dstDisplay->frameY0 = srcDisplay->frameY0;
+        dstDisplay->virtualX = srcDisplay->virtualX;
+        dstDisplay->virtualY = srcDisplay->virtualY;
+        dstDisplay->depth = srcDisplay->depth;
+        dstDisplay->bpp = srcDisplay->bpp;
+        dstDisplay->visual = xconfigStrdup(srcDisplay->visual);
+        dstDisplay->weight = srcDisplay->weight;
+        dstDisplay->black = srcDisplay->black;
+        dstDisplay->white = srcDisplay->white;
+        dstDisplay->comment = xconfigStrdup(srcDisplay->comment);
+
+        /* Copy options over */
+
+        srcOption = srcDisplay->options;
+        while (srcOption) {
+            xconfigMergeOption(&(dstDisplay->options),
+                               &(srcDisplay->options),
+                               xconfigOptionName(srcOption),
+                               NULL);
+            srcOption = srcOption->next;
+        }
+
+        /* Copy modes over */
+
+        lastDstMode = NULL;
+        srcMode = srcDisplay->modes;
+        while (srcMode) {
+
+            /* Copy the mode */
+
+            dstMode = xconfigAddMode(NULL, srcMode->mode_name);
+
+            /* Add mode at the end of the list */
+
+            if ( !lastDstMode ) {
+                dstDisplay->modes = dstMode;
+            } else {
+                lastDstMode->next = dstMode;
+            }
+            lastDstMode = dstMode;
+
+            srcMode = srcMode->next;
+        }
+    }
+
+    return 1;
+
+} /* xconfigMergeDisplays() */
+
+
+
+/*
+ * xconfigMergeScreens() - Updates information in the destination screen
+ * with that of the source screen.
+ *
+ * NOTE: This assumes the Monitor and Device sections have already been
+ *       merged.
+ *
+ */
+static void xconfigMergeScreens(XConfigScreenPtr dstScreen,
+                                XConfigPtr dstConfig,
+                                XConfigScreenPtr srcScreen,
+                                XConfigPtr srcConfig)
+{
+    /* Use the right device */
+    
+    free(dstScreen->device_name);
+    dstScreen->device_name = xconfigStrdup(srcScreen->device_name);
+    dstScreen->device =
+        xconfigFindDevice(dstScreen->device_name, dstConfig->devices);
+    
+
+    /* Use the right monitor */
+    
+    free(dstScreen->monitor_name);
+    dstScreen->monitor_name = xconfigStrdup(srcScreen->monitor_name);
+    dstScreen->monitor =
+        xconfigFindMonitor(dstScreen->monitor_name, dstConfig->monitors);
+    
+
+    /* Update the right default depth */
+    
+    dstScreen->defaultdepth = srcScreen->defaultdepth;
+    
+
+    /* Copy over the display section */
+    
+    xconfigMergeDisplays(dstScreen, srcScreen);
+   
+
+    /* Update the screen's driver options */
+
+    xconfigMergeDriverOptions(dstScreen, srcScreen);
+
+} /* xconfigMergeScreens() */
+
+
+
+/*
+ * xconfigMergeAllScreens() - This function ensures that all screens in
+ * the source config appear in the destination config by adding and/or
+ * updating the "appropriate" destination screen sections.
+ *
+ */
+static int xconfigMergeAllScreens(XConfigPtr dstConfig, XConfigPtr srcConfig)
+{
+    XConfigScreenPtr srcScreen;
+    XConfigScreenPtr dstScreen;
+
+
+    /* Make sure all src screens are in the dst config */
+
+    for (srcScreen = srcConfig->screens;
+         srcScreen;
+         srcScreen = srcScreen->next) {
+
+        dstScreen =
+            xconfigFindScreen(srcScreen->identifier, dstConfig->screens);
+
+        /* Screen section was not found, create a new one and add it */
+        if (!dstScreen) {
+            dstScreen =
+                (XConfigScreenPtr) calloc(1, sizeof(XConfigScreenRec));
+            if (!dstScreen) return 0;
+
+            dstScreen->identifier = xconfigStrdup(srcScreen->identifier);
+
+            dstConfig->screens = (XConfigScreenPtr)
+                xconfigAddListItem((GenericListPtr)dstConfig->screens,
+                                   (GenericListPtr)dstScreen);
+        }
+
+        /* Do the merge */
+        xconfigMergeScreens(dstScreen, dstConfig, srcScreen, srcConfig);
+    }
+
+    return 1;
+
+} /* xconfigMergeAllScreens() */
+
+
+
+/*
+ * xconfigMergeLayout() - Updates information in the destination's first
+ * layout with that of the source's first layout.
+ *
+ */
+static int xconfigMergeLayout(XConfigPtr dstConfig, XConfigPtr srcConfig)
+{
+    XConfigLayoutPtr srcLayout = srcConfig->layouts;
+    XConfigLayoutPtr dstLayout = dstConfig->layouts;
+
+    XConfigAdjacencyPtr srcAdj;
+    XConfigAdjacencyPtr dstAdj;
+    XConfigAdjacencyPtr lastDstAdj;
+
+    /* Clear the destination's adjacency list */
+
+    xconfigFreeAdjacencyList(dstLayout->adjacencies);
+    
+    /* Copy adjacencies over */
+    
+    lastDstAdj = NULL;
+    srcAdj = srcLayout->adjacencies;
+    while (srcAdj) {
+        
+        /* Copy the adjacency */
+        
+        dstAdj =
+            (XConfigAdjacencyPtr) calloc(1, sizeof(XConfigAdjacencyRec));
+
+        dstAdj->scrnum = srcAdj->scrnum;
+        dstAdj->screen_name = xconfigStrdup(srcAdj->screen_name);
+        dstAdj->top_name = xconfigStrdup(srcAdj->top_name);
+        dstAdj->bottom_name = xconfigStrdup(srcAdj->bottom_name);
+        dstAdj->left_name = xconfigStrdup(srcAdj->left_name);
+        dstAdj->right_name = xconfigStrdup(srcAdj->right_name);
+        dstAdj->where = srcAdj->where;
+        dstAdj->x = srcAdj->x;
+        dstAdj->y = srcAdj->y;
+        dstAdj->refscreen = xconfigStrdup(srcAdj->refscreen);
+
+        dstAdj->screen =
+            xconfigFindScreen(dstAdj->screen_name, dstConfig->screens);
+        dstAdj->top =
+            xconfigFindScreen(dstAdj->top_name, dstConfig->screens);
+        dstAdj->bottom =
+            xconfigFindScreen(dstAdj->bottom_name, dstConfig->screens);
+        dstAdj->left =
+            xconfigFindScreen(dstAdj->left_name, dstConfig->screens);
+        dstAdj->right =
+            xconfigFindScreen(dstAdj->right_name, dstConfig->screens);
+
+        /* Add adjacency at the end of the list */
+        
+        if ( !lastDstAdj ) {
+            dstLayout->adjacencies = dstAdj;
+        } else {
+            lastDstAdj->next = dstAdj;
+        }
+        lastDstAdj = dstAdj;
+        
+        srcAdj = srcAdj->next;
+    }
+
+    return 1;
+
+} /* xconfigMergeLayout() */
+
+
+
+/*
+ * xconfigMergeConfigs() - Merges the source X configuration with the
+ * destination X configuration.
+ *
+ * NOTE: This function is currently only used for merging X config files
+ *       for display configuration reasons.  As such, the merge assumes
+ *       that the dst config file is the target config file and that
+ *       mostly, only new display configuration information should be
+ *       copied from the source X config to the destination X config.
+ *
+ */
+int xconfigMergeConfigs(XConfigPtr dstConfig, XConfigPtr srcConfig)
+{
+    /* Make sure the X config is falid */
+    // make_xconfig_usable(dstConfig);
+
+
+    /* Merge the server flag (Xinerama) section */
+
+    if (!xconfigMergeFlags(dstConfig, srcConfig)) {
+        return 0;
+    }
+
+
+    /* Merge the monitor sections */
+
+    if (!xconfigMergeAllMonitors(dstConfig, srcConfig)) {
+        return 0;
+    }
+
+
+    /* Merge the device sections */
+
+    if (!xconfigMergeAllDevices(dstConfig, srcConfig)) {
+        return 0;
+    }
+
+
+    /* Merge the screen sections */
+
+    if (!xconfigMergeAllScreens(dstConfig, srcConfig)) {
+        return 0;
+    }
+
+
+    /* Merge the first layout */
+    
+    if (!xconfigMergeLayout(dstConfig, srcConfig)) {
+        return 0;
+    }
+
+    return 1;
+
+} /* xconfigMergeConfigs() */

@@ -37,6 +37,8 @@
 #include "msg.h"
 #include "query-assign.h"
 
+extern int __verbosity;
+
 /* local prototypes */
 
 static int process_attribute_queries(int, char**, const char *);
@@ -92,7 +94,7 @@ CtrlHandles *nv_alloc_ctrl_handles(const char *display)
     ReturnStatus status;
     CtrlHandles *h, *pQueryHandle = NULL;
     NvCtrlAttributeHandle *handle;
-    int target, i, j, val, d, len;
+    int target, i, j, val, d, c, len;
     char *tmp;
 
     /* allocate the CtrlHandles struct */
@@ -234,11 +236,23 @@ CtrlHandles *nv_alloc_ctrl_handles(const char *display)
                                  NvCtrlAttributesStrError(status));
                     d = 0;
                 }
+                
+                status = NvCtrlGetAttribute(handle,
+                                            NV_CTRL_CONNECTED_DISPLAYS, &c);
+        
+                if (status != NvCtrlSuccess) {
+                    nv_error_msg("Error querying connected displays on "
+                                 "%s %d (%s).", targetTypeTable[j].name, i,
+                                 NvCtrlAttributesStrError(status));
+                    c = 0;
+                }
             } else {
                 d = 0;
+                c = 0;
             }
              
             h->targets[target].t[i].d = d;
+            h->targets[target].t[i].c = c;
 
             /*
              * store this handle so that we can use it to query other
@@ -341,7 +355,8 @@ static int process_attribute_queries(int num, char **queries,
 
         /* special case the target type queries */
         
-        if (nv_strcasecmp(queries[query], "screens")) {
+        if (nv_strcasecmp(queries[query], "screens") ||
+            nv_strcasecmp(queries[query], "xscreens")) {
             query_all_targets(display_name, X_SCREEN_TARGET);
             continue;
         }
@@ -882,6 +897,192 @@ static int query_all(const char *display_name)
 
 
 /*
+ * print_target_display_connections() - Print a list of all the
+ * display devices connected to the given target (GPU/X Screen)
+ */
+
+static int print_target_display_connections(CtrlHandleTarget *t)
+{
+    unsigned int bit;
+    char *tmp_d_str, *name;
+    ReturnStatus status;
+    int plural;
+
+    if (t->c == 0) {
+        nv_msg("      ", "Is not connected to any display devices.");
+        nv_msg(NULL, "");
+        return NV_TRUE;
+    }
+
+    plural = (t->c & (t->c - 1)); /* Is more than one bit set? */
+
+    nv_msg("      ", "Is connected to the following display device%s:",
+           plural ? "s" : "");
+
+    for (bit = 1; bit; bit <<= 1) {
+        if (!(bit & t->c)) continue;
+        
+        status =
+            NvCtrlGetStringDisplayAttribute(t->h, bit,
+                                            NV_CTRL_STRING_DISPLAY_DEVICE_NAME,
+                                            &name);
+        if (status != NvCtrlSuccess) name = strdup("Unknown");
+        
+        tmp_d_str = display_device_mask_to_display_device_name(bit);
+        nv_msg("        ", "%s (%s: 0x%0.8X)", name, tmp_d_str, bit);
+        
+        free(name);
+        free(tmp_d_str);
+    }
+    nv_msg(NULL, "");
+
+    return NV_TRUE;
+
+} /* print_target_display_connections() */
+
+
+
+/*
+ * get_vcsc_name() Returns the VCSC product name of the given
+ * VCSC target.
+ */
+
+static char * get_vcsc_name(NvCtrlAttributeHandle *h)
+{
+    char *product_name;
+    ReturnStatus status;
+
+    status = NvCtrlGetStringAttribute(h, NV_CTRL_STRING_VCSC_PRODUCT_NAME,
+                                      &product_name);
+    
+    if (status != NvCtrlSuccess) return strdup("Unknown");
+    
+    return product_name;
+
+} /* get_vcsc_name() */
+
+
+
+/*
+ * get_gpu_name() Returns the GPU product name of the given
+ * GPU target.
+ */
+
+static char * get_gpu_name(NvCtrlAttributeHandle *h)
+{
+    char *product_name;
+    ReturnStatus status;
+
+    status = NvCtrlGetStringAttribute(h, NV_CTRL_STRING_PRODUCT_NAME,
+                                      &product_name);
+    
+    if (status != NvCtrlSuccess) return strdup("Unknown");
+    
+    return product_name;
+
+} /* get_gpu_name() */
+
+
+
+/*
+ * print_target_connections() Prints a list of all targets connected
+ * to a given target using print_func if the connected targets require
+ * special handling.
+ */
+
+static int print_target_connections(CtrlHandles *h,
+                                    CtrlHandleTarget *t,
+                                    unsigned int attrib,
+                                    unsigned int target_index)
+{
+    int *pData;
+    int len, i;
+    ReturnStatus status;
+    char *product_name;
+    char *target_name;
+
+
+    /* Query the connected targets */
+
+    status =
+        NvCtrlGetBinaryAttribute(t->h, 0, attrib,
+                                 (unsigned char **) &pData,
+                                 &len);
+    if (status != NvCtrlSuccess) return NV_FALSE;
+
+    if (pData[0] == 0) {
+        nv_msg("      ", "Is not connected to any %s.",
+               targetTypeTable[target_index].name);
+        nv_msg(NULL, "");
+
+        XFree(pData);
+        return NV_TRUE;
+    }
+
+    nv_msg("      ", "Is connected to the following %s%s:",
+           targetTypeTable[target_index].name,
+           ((pData[0] > 1) ? "s" : ""));
+
+
+    /* List the connected targets */
+
+    for (i = 1; i <= pData[0]; i++) {
+        
+        if (pData[i] >= 0 &&
+            pData[i] < h->targets[target_index].n) {
+
+            target_name = h->targets[target_index].t[ pData[i] ].name;
+
+            switch (target_index) {
+            case GPU_TARGET:
+                product_name =
+                    get_gpu_name(h->targets[target_index].t[ pData[i] ].h);
+                break;
+                
+            case VCSC_TARGET:
+                product_name =
+                    get_vcsc_name(h->targets[target_index].t[ pData[i] ].h);
+                break;
+                
+            case FRAMELOCK_TARGET:
+            case X_SCREEN_TARGET:
+            default:
+                product_name = NULL;
+                break;
+            }
+
+        } else {
+            target_name = NULL;
+            product_name = NULL;
+        }
+
+        if (!target_name) {
+            nv_msg("        ", "[?] Unknown %s",
+                   targetTypeTable[target_index].name);
+
+        } else if (product_name) {
+            nv_msg("        ", "[%d] %s (%s)",
+                   pData[i], target_name, product_name);
+
+        } else {
+            nv_msg("        ", "[%d] %s (%s %d)",
+                   pData[i], target_name,
+                   targetTypeTable[target_index].name,
+                   pData[i]);
+        }
+
+        free(product_name);
+    }
+    nv_msg(NULL, "");
+
+    XFree(pData);
+    return NV_TRUE;
+
+} /* print_target_connections() */
+
+
+
+/*
  * query_all_targets() - print a list of all the targets (of the
  * specified type) accessible via the Display connection.
  */
@@ -987,6 +1188,48 @@ static int query_all_targets(const char *display_name, const int target_index)
         nv_msg(NULL, "");
         
         free(product_name);
+
+        /* Print connectivity information */
+        if (__verbosity >= VERBOSITY_ALL) {
+            if (targetTypeTable[table_index].uses_display_devices) {
+                print_target_display_connections(t);
+            }
+
+            switch (target_index) {
+            case GPU_TARGET:
+                print_target_connections
+                    (h, t, NV_CTRL_BINARY_DATA_XSCREENS_USING_GPU,
+                     X_SCREEN_TARGET);
+                print_target_connections
+                    (h, t, NV_CTRL_BINARY_DATA_FRAMELOCKS_USED_BY_GPU,
+                     FRAMELOCK_TARGET);
+                print_target_connections
+                    (h, t, NV_CTRL_BINARY_DATA_VCSCS_USED_BY_GPU,
+                     VCSC_TARGET);
+                break;
+
+            case X_SCREEN_TARGET:
+                print_target_connections
+                    (h, t, NV_CTRL_BINARY_DATA_GPUS_USED_BY_XSCREEN,
+                     GPU_TARGET);
+                break;
+
+            case FRAMELOCK_TARGET:
+                print_target_connections
+                    (h, t, NV_CTRL_BINARY_DATA_GPUS_USING_FRAMELOCK,
+                     GPU_TARGET);
+                break;
+
+            case VCSC_TARGET:
+                print_target_connections
+                    (h, t, NV_CTRL_BINARY_DATA_GPUS_USING_VCSC,
+                     GPU_TARGET);
+                break;
+
+            default:
+                break;
+            }
+        }
     }
     
     nv_free_ctrl_handles(h);
@@ -1443,10 +1686,10 @@ int nv_process_parsed_attribute(ParsedAttribute *a, CtrlHandles *h,
                         continue;
                     }
                 } else if (enabled != NV_CTRL_FRAMELOCK_SYNC_DISABLE) {
-                    nv_error_msg("The attribute '%s' specified %s cannot be "
-                                 "assigned;  frame lock sync is currently "
-                                 "enabled on %s.",
-                                 a->name, whence, t->name);
+                    nv_warning_msg("The attribute '%s' specified %s cannot be "
+                                   "assigned;  frame lock sync is currently "
+                                   "enabled on %s.",
+                                   a->name, whence, t->name);
                     continue;
                 }
             }

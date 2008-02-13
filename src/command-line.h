@@ -86,6 +86,11 @@ typedef struct {
                           * The attributes are not sent to the X Server.
                           */
 
+    int rewrite;         /*
+                          * If true, write the X server configuration
+                          * to the configuration file and exit.
+                          */
+
 } Options;
 
 

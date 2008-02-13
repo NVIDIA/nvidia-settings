@@ -119,6 +119,8 @@
  * 0: default  (the driver will decide when to dither)
  * 1: enabled  (the driver will always dither when possible)
  * 2: disabled (the driver will never dither)
+ *
+ * USAGE NOTE: This attribute had been deprecated.
  */
 
 #define NV_CTRL_FLATPANEL_DITHERING                             3  /* RWDG */
@@ -1223,6 +1225,11 @@
  * unless NV_CTRL_GPU_OVERCLOCKING_STATE is set to _MANUAL.  Since
  * the target clocks may be rejected, the requester should read this
  * attribute after the set to determine success or failure.
+ *
+ * NV_CTRL_GPU_{2,3}D_CLOCK_FREQS are "packed" integer attributes; the
+ * GPU clock is stored in the upper 16 bits of the integer, and the
+ * memory clock is stored in the lower 16 bits of the integer.  All
+ * clock values are in MHz.
  */
 
 #define NV_CTRL_GPU_2D_CLOCK_FREQS                              89  /* RW-G */
@@ -1232,6 +1239,11 @@
 /*
  * NV_CTRL_GPU_DEFAULT_{2,3}D_CLOCK_FREQS - query the default memory
  * and GPU core clocks of the device driving the X screen.
+ *
+ * NV_CTRL_GPU_DEFAULT_{2,3}D_CLOCK_FREQS are "packed" integer
+ * attributes; the GPU clock is stored in the upper 16 bits of the
+ * integer, and the memory clock is stored in the lower 16 bits of the
+ * integer.  All clock values are in MHz.
  */
 
 #define NV_CTRL_GPU_DEFAULT_2D_CLOCK_FREQS                      91  /* R--G */
@@ -1241,6 +1253,11 @@
 /*
  * NV_CTRL_GPU_CURRENT_CLOCK_FREQS - query the current GPU and memory
  * clocks of the graphics device driving the X screen.
+ *
+ * NV_CTRL_GPU_CURRENT_CLOCK_FREQS is a "packed" integer attribute;
+ * the GPU clock is stored in the upper 16 bits of the integer, and
+ * the memory clock is stored in the lower 16 bits of the integer.
+ * All clock values are in MHz.  All clock values are in MHz.
  */
 
 #define NV_CTRL_GPU_CURRENT_CLOCK_FREQS                         93  /* R--G */
@@ -2663,11 +2680,16 @@
  * specified through XNVCTRLSetGvoColorConversion() will also apply
  * to GVO output of an X screen, or only to OpenGL GVO output, as
  * enabled through the GLX_NV_video_out extension.
+ *
+ * COMPOSITE_TERMINATION - whether the 75 ohm termination of the
+ * SDI composite input signal can be programmed through the
+ * NV_CTRL_GVO_COMPOSITE_TERMINATION attribute.
  */
 
 #define NV_CTRL_GVO_CAPABILITIES                                 229  /* R-- */
 #define NV_CTRL_GVO_CAPABILITIES_APPLY_CSC_IMMEDIATELY           0x1
 #define NV_CTRL_GVO_CAPABILITIES_APPLY_CSC_TO_X_SCREEN           0x2
+#define NV_CTRL_GVO_CAPABILITIES_COMPOSITE_TERMINATION           0x4
 
 
 /*
@@ -2980,7 +3002,19 @@
 #define NV_CTRL_FSAA_APPLICATION_ENHANCED_ENABLED                 1
 #define NV_CTRL_FSAA_APPLICATION_ENHANCED_DISABLED                0
 
-#define NV_CTRL_LAST_ATTRIBUTE NV_CTRL_FSAA_APPLICATION_ENHANCED
+
+/*
+ * NV_CTRL_FRAMELOCK_SYNC_RATE_4 - This is the refresh rate that the
+ * frame lock board is sending to the GPU with 4 digits of precision.
+ *
+ * This attribute may be queried through XNVCTRLQueryTargetAttribute()
+ * using a NV_CTRL_TARGET_TYPE_FRAMELOCK.
+ */
+
+#define NV_CTRL_FRAMELOCK_SYNC_RATE_4                           256 /* R--F */
+
+
+#define NV_CTRL_LAST_ATTRIBUTE NV_CTRL_FRAMELOCK_SYNC_RATE_4
 
 
 /**************************************************************************/
@@ -3269,7 +3303,6 @@
 #define NV_CTRL_STRING_MOVE_METAMODE                           23   /* -W-- */
 
 
-
 /*
  * NV_CTRL_STRING_VALID_HORIZ_SYNC_RANGES - returns the valid
  * horizontal sync ranges used to perform mode validation for the
@@ -3361,7 +3394,8 @@
 
 #define NV_CTRL_STRING_TWINVIEW_XINERAMA_INFO_ORDER            27   /* RW-- */
 
-#define NV_CTRL_STRING_LAST_ATTRIBUTE NV_CTRL_STRING_TWINVIEW_XINERAMA_INFO_ORDER
+#define NV_CTRL_STRING_LAST_ATTRIBUTE \
+        NV_CTRL_STRING_TWINVIEW_XINERAMA_INFO_ORDER
 
 
 /**************************************************************************/
@@ -3546,8 +3580,59 @@
 #define NV_CTRL_BINARY_DATA_DISPLAY_VIEWPORT                    6   /* R-DG */
 
 
+/*
+ * NV_CTRL_BINARY_DATA_FRAMELOCKS_USED_BY_GPU - Returns the list of
+ * Framelock devices currently connected to the given GPU.
+ *
+ * The format of the returned data is:
+ *
+ *     4       CARD32 number of Framelocks
+ *     4 * n   CARD32 Framelock indices
+ *
+ * This attribute can only be queried through XNVCTRLQueryTargetBinaryData()
+ * using a NV_CTRL_TARGET_TYPE_GPU target.  This attribute cannot be
+ * queried using a NV_CTRL_TARGET_TYPE_X_SCREEN.
+ */
+
+#define NV_CTRL_BINARY_DATA_FRAMELOCKS_USED_BY_GPU              7   /* R-DG */
+
+
+/*
+ * NV_CTRL_BINARY_DATA_GPUS_USING_VCSC - Returns the list of
+ * GPU devices connected to the given VCSC.
+ *
+ * The format of the returned data is:
+ *
+ *     4       CARD32 number of GPUs
+ *     4 * n   CARD32 GPU indices
+ *
+ * This attribute can only be queried through XNVCTRLQueryTargetBinaryData()
+ * using a NV_CTRL_TARGET_TYPE_VCSC target.  This attribute cannot be
+ * queried using a NV_CTRL_TARGET_TYPE_X_SCREEN and cannot be queried using
+ * a  NV_CTRL_TARGET_TYPE_X_GPU
+ */
+
+#define NV_CTRL_BINARY_DATA_GPUS_USING_VCSC                    8   /* R-DV */
+
+
+/*
+ * NV_CTRL_BINARY_DATA_VCSCS_USED_BY_GPU - Returns the VCSC device
+ * that is controlling the given GPU.
+ *
+ * The format of the returned data is:
+ *
+ *     4       CARD32 number of VCSCs (always 1)
+ *     4 * n   CARD32 VCSC indices
+ *
+ * This attribute can only be queried through XNVCTRLQueryTargetBinaryData()
+ * using a NV_CTRL_TARGET_TYPE_GPU target.  This attribute cannot be
+ * queried using a NV_CTRL_TARGET_TYPE_X_SCREEN
+ */
+
+#define NV_CTRL_BINARY_DATA_VCSCS_USED_BY_GPU                  9   /* R-DG */
+
 #define NV_CTRL_BINARY_DATA_LAST_ATTRIBUTE \
-    NV_CTRL_BINARY_DATA_DISPLAY_VIEWPORT
+        NV_CTRL_BINARY_DATA_VCSCS_USED_BY_GPU
 
 
 /**************************************************************************/
@@ -3675,7 +3760,7 @@
 
 
 #define NV_CTRL_STRING_OPERATION_LAST_ATTRIBUTE \
-    NV_CTRL_STRING_OPERATION_BUILD_MODEPOOL
+        NV_CTRL_STRING_OPERATION_BUILD_MODEPOOL
 
 
 

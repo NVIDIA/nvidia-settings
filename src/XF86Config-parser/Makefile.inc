@@ -35,6 +35,7 @@ SRC += \
 	Input.c \
 	Keyboard.c \
 	Layout.c \
+	Merge.c \
 	Module.c \
 	Monitor.c \
 	Pointer.c \

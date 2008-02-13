@@ -47,6 +47,7 @@
 typedef struct {
     NvCtrlAttributeHandle *h; /* handle for this target */
     uint32 d;                 /* display device mask for this target */
+    uint32 c;                 /* Connected display device mask for target */
     char *name;               /* name for this target */
 } CtrlHandleTarget;
 

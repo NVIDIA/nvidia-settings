@@ -55,8 +55,6 @@
 #include "parse.h"
 #include "msg.h"
 
-#define MAX_CONFIG_FILE_LINE_LEN 256
-
 
 typedef struct {
     ParsedAttribute a;
@@ -447,14 +445,16 @@ static ParsedAttributeWrapper *parse_config_file(char *buf, const char *file,
                                                  const int length,
                                                  ConfigProperties *conf)
 {
-    int line, has_data, len, n, ret;
-    char *cur, *c, *comment, tmp[MAX_CONFIG_FILE_LINE_LEN];
+    int line, has_data, current_tmp_len, len, n, ret;
+    char *cur, *c, *comment, *tmp;
     ParsedAttributeWrapper *w;
     
     cur = buf;
     line = 1;
+    current_tmp_len = 0;
     n = 0;
     w = NULL;
+    tmp = NULL;
 
     while (cur) {
         c = cur;
@@ -470,16 +470,19 @@ static ParsedAttributeWrapper *parse_config_file(char *buf, const char *file,
             if (!isspace(*c)) has_data = NV_TRUE;
             c++;
         }
-
+        
         if (has_data) {
             if (!comment) comment = c;
             len = comment - cur;
-            if (len >= MAX_CONFIG_FILE_LINE_LEN) {
-                nv_error_msg("Error parsing configuration file '%s' on "
-                             "line %d: line length exceeds maximum "
-                             "length of %d.",
-                             file, line, MAX_CONFIG_FILE_LINE_LEN);
-                goto failed;
+            
+            /* grow the tmp buffer if it's too small */
+            
+            if (len >= current_tmp_len) {
+                current_tmp_len = len + 1;
+                if (tmp) {
+                    free(tmp);
+                }
+                tmp = malloc(sizeof(char) * current_tmp_len);
             }
 
             strncpy (tmp, cur, len);
@@ -511,7 +514,7 @@ static ParsedAttributeWrapper *parse_config_file(char *buf, const char *file,
         
         line++;
     }
-
+    free(tmp);
     /* mark the end of the array */
 
     w = realloc(w, sizeof(ParsedAttributeWrapper) * (n+1));
@@ -521,6 +524,7 @@ static ParsedAttributeWrapper *parse_config_file(char *buf, const char *file,
 
  failed:
     if (w) free(w);
+    free(tmp);
     return NULL;
 
 } /* parse_config_file() */

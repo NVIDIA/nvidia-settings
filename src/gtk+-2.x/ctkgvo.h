@@ -86,6 +86,8 @@ struct _CtkGvo
     GtkWidget *output_video_format_menu;
     GtkWidget *output_data_format_menu;
 
+    GtkWidget *composite_termination_button;
+
     GtkWidget *enable_sdi_output_label;
     GtkWidget *disable_sdi_output_label;
     GtkWidget *toggle_sdi_output_button;

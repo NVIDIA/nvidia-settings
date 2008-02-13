@@ -833,6 +833,20 @@ xconfigFreeModeLineList (XConfigModeLinePtr ptr)
     }
 }
 
+void
+xconfigFreeModesLinkList (XConfigModesLinkPtr ptr)
+{
+    XConfigModesLinkPtr prev;
+
+    while (ptr)
+    {
+        TEST_FREE (ptr->modes_name);
+        prev = ptr;
+        ptr = ptr->next;
+        free (prev);
+    }
+}
+
 XConfigMonitorPtr
 xconfigFindMonitor (const char *ident, XConfigMonitorPtr p)
 {

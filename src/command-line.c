@@ -123,6 +123,10 @@ static const NVGetoptOption __options[] = {
       "if nvidia-settings has difficulties starting due to problems with "
       "applying settings in the configuration file." },
 
+    { "rewrite-config-file", 'r', 0, NULL,
+      "Write the X server configuration to the configuration file, and exit, "
+      "without starting the graphical user interface." },
+
     { "verbose", 'V', NVGETOPT_HAS_ARGUMENT, NULL,
       "Controls how much information is printed.  Valid values are 'errors' "
       "(print error messages), 'warnings' (print error and warning messages), "
@@ -313,6 +317,7 @@ Options *parse_command_line(int argc, char *argv[], char *dpy)
         case 'h': print_help(); exit(0); break;
         case 'l': op->only_load = 1; break;
         case 'n': op->no_load = 1; break;
+        case 'r': op->rewrite = 1; break;
         case 'c': op->ctrl_display = strval; break;
         case 'V':
             __verbosity = VERBOSITY_DEFAULT;

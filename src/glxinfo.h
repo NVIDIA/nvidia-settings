@@ -33,6 +33,7 @@
 #else
 const char * render_type_abbrev(int rend_type);
 const char * transparent_type_abbrev(int trans_type);
+const char * x_visual_type_abbrev(int x_visual_type);
 const char * caveat_abbrev(int caveat);
 #endif
 

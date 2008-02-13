@@ -96,7 +96,14 @@ static void update_input_video_format_text_entry(CtkGvo *ctk_gvo);
 
 static void init_input_video_format_text_entry(CtkGvo *ctk_gvo);
 
+static void init_composite_termination(CtkGvo *ctk_gvo);
+
 static int max_input_video_format_text_entry_length(void);
+
+static void post_toggle_composite_termination(CtkGvo *gvo, gboolean enabled);
+
+static void toggle_composite_termination(GtkWidget *button,
+                                         CtkGvo *ctk_gvo);
 
 static void detect_input(GtkToggleButton *togglebutton, CtkGvo *ctk_gvo);
 static gint detect_input_done(gpointer data);
@@ -316,7 +323,7 @@ GtkWidget* ctk_gvo_new(NvCtrlAttributeHandle *handle,
     GtkWidget *hbox, *alignment, *button, *label;
     ReturnStatus ret;
     gchar scratch[64], *firmware, *string;
-    gint val, i, width, height, n;
+    gint val, i, width, height, n, caps;
     
     GtkWidget *frame, *table, *menu;
     
@@ -331,6 +338,11 @@ GtkWidget* ctk_gvo_new(NvCtrlAttributeHandle *handle,
         /* GVO not available */
         return NULL;
     }
+
+    /* Get this GVO device's capabilities */
+    
+    ret = NvCtrlGetAttribute(handle, NV_CTRL_GVO_CAPABILITIES, &caps);
+    if (ret != NvCtrlSuccess) return NULL;
     
     /* create the CtkGvo object */
     
@@ -509,6 +521,29 @@ GtkWidget* ctk_gvo_new(NvCtrlAttributeHandle *handle,
     g_signal_connect(G_OBJECT(button), "toggled",
                      G_CALLBACK(detect_input), ctk_gvo);
 
+    /* Composite Termination */
+
+    if (caps & NV_CTRL_GVO_CAPABILITIES_COMPOSITE_TERMINATION) {
+        
+        button =
+            gtk_check_button_new_with_label("Enable Composite Termination");
+        
+        alignment = gtk_alignment_new(1, 1, 0, 0);
+        
+        gtk_container_add(GTK_CONTAINER(alignment), button);
+        gtk_table_attach(GTK_TABLE(table), alignment,
+                         1, 2, 4, 5, GTK_FILL | GTK_EXPAND, GTK_FILL,
+                         TABLE_PADDING, TABLE_PADDING);
+        
+        ctk_gvo->composite_termination_button = button;
+        
+        init_composite_termination(ctk_gvo);
+        
+        g_signal_connect(G_OBJECT(button), "toggled",
+                         G_CALLBACK(toggle_composite_termination), ctk_gvo);
+    } else {
+        ctk_gvo->composite_termination_button = NULL;
+    }
 
     /*
      * Output options
@@ -1817,7 +1852,7 @@ static void toggle_sdi_output_button(GtkWidget *button, gpointer user_data)
         return;
     }
     
-    post_toggle_sdi_output_button(ctk_gvo, enabled);    
+    post_toggle_sdi_output_button(ctk_gvo, enabled);
 
 } /* toggle_sdi_output_button() */
 
@@ -1977,6 +2012,31 @@ static void init_input_video_format_text_entry(CtkGvo *ctk_gvo)
 
 
 /*
+ * init_composite_termination() - 
+ */
+
+static void init_composite_termination(CtkGvo *ctk_gvo)
+{
+    ReturnStatus ret;
+    gint val;
+
+    if (!ctk_gvo->composite_termination_button) return;
+
+    ret = NvCtrlGetAttribute(ctk_gvo->handle,
+                             NV_CTRL_GVO_COMPOSITE_TERMINATION, &val);
+    if (ret != NvCtrlSuccess) {
+        val = NV_CTRL_GVO_COMPOSITE_TERMINATION_DISABLE;
+    }
+    
+    gtk_toggle_button_set_active
+        (GTK_TOGGLE_BUTTON(ctk_gvo->composite_termination_button),
+         (val == NV_CTRL_GVO_COMPOSITE_TERMINATION_ENABLE));
+
+} /* init_composite_termination() */
+
+
+
+/*
  * max_input_video_format_text_entry_length()
  */
 
@@ -1992,6 +2052,47 @@ static int max_input_video_format_text_entry_length(void)
     return max;
 
 } /* max_input_video_format_text_entry_length() */
+
+
+
+/*
+ * post_toggle_composite_termination() - Call this function after
+ * the composite termination attribute has changed.
+ */
+
+static void post_toggle_composite_termination(CtkGvo *ctk_gvo,
+                                              gboolean enabled)
+{
+    /* update the statusbar */
+    
+    ctk_config_statusbar_message(ctk_gvo->ctk_config,
+                                 "Composite Termination %s.",
+                                 enabled ? "Enabled" : "Disabled");
+
+} /* post_toggle_composite_termination() */
+
+
+
+/*
+ * toggle_composite_termination() - Called when the user clicks
+ * on the "Enable Composite Termination" check button.
+ */
+
+static void toggle_composite_termination(GtkWidget *button,
+                                         CtkGvo *ctk_gvo)
+{
+    gboolean enabled;
+    
+    enabled = gtk_toggle_button_get_active(GTK_TOGGLE_BUTTON(button));
+
+    NvCtrlSetAttribute(ctk_gvo->handle,
+                       NV_CTRL_GVO_COMPOSITE_TERMINATION,
+                       enabled ? NV_CTRL_GVO_COMPOSITE_TERMINATION_ENABLE :
+                       NV_CTRL_GVO_COMPOSITE_TERMINATION_DISABLE);
+
+    post_toggle_composite_termination(ctk_gvo, enabled);
+
+} /* toggle_composite_termination() */
 
 
 
@@ -2524,6 +2625,11 @@ static void register_for_gvo_events(CtkGvo *ctk_gvo)
                      CTK_EVENT_NAME(NV_CTRL_GVO_DISPLAY_X_SCREEN),
                      G_CALLBACK(gvo_event_received),
                      (gpointer) ctk_gvo);
+
+    g_signal_connect(G_OBJECT(ctk_gvo->ctk_event),
+                     CTK_EVENT_NAME(NV_CTRL_GVO_COMPOSITE_TERMINATION),
+                     G_CALLBACK(gvo_event_received),
+                     (gpointer) ctk_gvo);
 }
 
 
@@ -2679,6 +2785,26 @@ static void gvo_event_received(GtkObject *object,
             g_signal_handlers_unblock_by_func
                 (G_OBJECT(widget),
                  G_CALLBACK(toggle_sdi_output_button),
+                 ctk_gvo);
+        }
+        break;
+
+    case NV_CTRL_GVO_COMPOSITE_TERMINATION:
+        widget = ctk_gvo->composite_termination_button;
+
+        if (widget) {
+            g_signal_handlers_block_by_func
+                (G_OBJECT(widget),
+                 G_CALLBACK(toggle_composite_termination),
+                 ctk_gvo);
+            
+            gtk_toggle_button_set_active(GTK_TOGGLE_BUTTON(widget), value);
+            
+            post_toggle_composite_termination(ctk_gvo, value);
+            
+            g_signal_handlers_unblock_by_func
+                (G_OBJECT(widget),
+                 G_CALLBACK(toggle_composite_termination),
                  ctk_gvo);
         }
         break;

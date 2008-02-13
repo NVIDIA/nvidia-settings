@@ -40,7 +40,7 @@
 
 
 /* Number of FBConfigs attributes reported in gui */
-#define NUM_FBCONFIG_ATTRIBS  30
+#define NUM_FBCONFIG_ATTRIBS  31
 
 
 /* FBConfig tooltips */
@@ -48,6 +48,11 @@ static const char * __fid_help  =
   "fid (Frame buffer ID) - Frame Buffer Configuration ID.";
 static const char * __vid_help  =
   "vid (XVisual ID) -  ID of the associated X Visual.";
+static const char * __vt_help  =
+  "vt (XVisual Type) -  Type of the associated X Visual. "
+  "Possible X visual types are 'tc', 'dc', 'pc', 'sc', 'gs', 'sg', '.' "
+  "which means TrueColor, DirectColor, PseudoColor, StaticColor, GrayScale, "
+  "StaticGray and None, respectively.";
 static const char * __bfs_help =
   "bfs (buffer size) - Number of bits per color in the color buffer.";
 static const char * __lvl_help =
@@ -167,6 +172,12 @@ static void dummy_button_signal(GtkWidget *widget,
  *       signal is thrown.  This will result in calling the
  *       ctk_glx_probe_info() function.
  */
+
+typedef struct WidgetSizeRec {
+    GtkWidget *widget;
+    int width;
+} WidgetSize;
+
 GtkWidget* ctk_glx_new(NvCtrlAttributeHandle *handle,
                        CtkConfig *ctk_config, CtkEvent *ctk_event)
 {
@@ -175,20 +186,24 @@ GtkWidget* ctk_glx_new(NvCtrlAttributeHandle *handle,
     GtkWidget *label;
     GtkWidget *banner;
     GtkWidget *hseparator;
-    GtkWidget *hbox;
+    GtkWidget *hbox, *hbox1;
     GtkWidget *vbox, *vbox2;
-    GtkWidget *table;
     GtkWidget *scrollWin;
     GtkWidget *event;    /* For setting the background color to white */
-
+    GtkWidget *data_table, *header_table;
+    GtkWidget *data_viewport, *full_viewport;
+    GtkWidget *vscrollbar, *hscrollbar, *vpan;
+    GtkRequisition req;
     ReturnStatus ret;
 
     char * glx_info_str = NULL;               /* Test if GLX supported */
     GLXFBConfigAttr *fbconfig_attribs = NULL; /* FBConfig data */
     int i;                                    /* Iterator */
+    int num_fbconfigs = 0;
+    char *err_str = NULL;
 
     gchar *fbconfig_titles[NUM_FBCONFIG_ATTRIBS] = {
-        "fid",  "vid",  "bfs",  "lvl",
+        "fid",  "vid",  "vt", "bfs",  "lvl",
         "bf",   "db",   "st",
         "rs",   "gs",   "bs",   "as",
         "aux",  "dpt",  "stn",
@@ -199,8 +214,10 @@ GtkWidget* ctk_glx_new(NvCtrlAttributeHandle *handle,
         "trt",  "trr",  "trg",  "trb",  "tra",  "tri"
     };
 
+    WidgetSize fbconfig_header_sizes[NUM_FBCONFIG_ATTRIBS];
+
     const char *fbconfig_tooltips[NUM_FBCONFIG_ATTRIBS] = {
-        __fid_help, __vid_help, __bfs_help, __lvl_help,
+        __fid_help, __vid_help, __vt_help, __bfs_help, __lvl_help,
         __bf_help,  __db_help,  __st_help,
         __rs_help,  __gs_help,  __bs_help,  __as_help,
         __aux_help, __dpt_help, __stn_help,
@@ -236,7 +253,8 @@ GtkWidget* ctk_glx_new(NvCtrlAttributeHandle *handle,
                                    &glx_info_str);
     free(glx_info_str);
     if ( ret != NvCtrlSuccess ) {
-        goto fail_glx_not_supported;
+        err_str = "Fail to query the GLX server vendor.";
+        goto fail;
     }
 
 
@@ -247,7 +265,6 @@ GtkWidget* ctk_glx_new(NvCtrlAttributeHandle *handle,
     event = gtk_event_box_new();
     gtk_scrolled_window_set_policy(GTK_SCROLLED_WINDOW(scrollWin),
                                    GTK_POLICY_NEVER, GTK_POLICY_ALWAYS);
-    gtk_box_pack_start(GTK_BOX(ctk_glx), scrollWin, TRUE, TRUE, 0);
     gtk_widget_modify_fg(event, GTK_STATE_NORMAL, &(event->style->text[GTK_STATE_NORMAL]));
     gtk_widget_modify_bg(event, GTK_STATE_NORMAL, &(event->style->base[GTK_STATE_NORMAL]));
     gtk_container_add(GTK_CONTAINER(event), hbox);
@@ -255,7 +272,7 @@ GtkWidget* ctk_glx_new(NvCtrlAttributeHandle *handle,
                                           event);
     gtk_box_pack_start(GTK_BOX(hbox), vbox, TRUE, TRUE, 5);
     ctk_glx->glxinfo_vpane = vbox;
-    gtk_widget_set_size_request(scrollWin, -1, 200);
+    gtk_widget_set_size_request(scrollWin, -1, 50);
 
 
     /* GLX 1.3 supports frame buffer configurations */
@@ -265,60 +282,108 @@ GtkWidget* ctk_glx_new(NvCtrlAttributeHandle *handle,
     ret = NvCtrlGetVoidAttribute(handle, NV_CTRL_ATTR_GLX_FBCONFIG_ATTRIBS,
                                  (void *)(&fbconfig_attribs));
     if ( ret != NvCtrlSuccess ) {
-        goto fail_glx_not_supported;
+        err_str = "Failed to query list of GLX frame buffer configurations.";
+        goto fail;
     }
 
+    /* Count the number of fbconfigs */
+    if ( fbconfig_attribs ) {
+        for (num_fbconfigs = 0;
+             fbconfig_attribs[num_fbconfigs].fbconfig_id != 0;
+             num_fbconfigs++);
+    }
+    if ( ! num_fbconfigs ) {
+        err_str = "No frame buffer configurations found.";
+        
+        goto fail;
+    }
+
+
     /* Create clist in a scroll box */
-    hbox       = gtk_hbox_new(FALSE, 0);
+    hbox1      = gtk_hbox_new(FALSE, 0);
     label      = gtk_label_new("Frame Buffer Configurations");
     hseparator = gtk_hseparator_new();
-    gtk_box_pack_start(GTK_BOX(ctk_glx), hbox, FALSE, FALSE, 0);
-    gtk_box_pack_start(GTK_BOX(hbox), label, FALSE, FALSE, 0);
-    gtk_box_pack_start(GTK_BOX(hbox), hseparator, TRUE, TRUE, 5);
+    gtk_box_pack_start(GTK_BOX(hbox1), label, FALSE, FALSE, 0);
+    gtk_box_pack_start(GTK_BOX(hbox1), hseparator, TRUE, TRUE, 5);
 
     hbox      = gtk_hbox_new(FALSE, 0);
     vbox      = gtk_vbox_new(FALSE, 10);
     vbox2     = gtk_vbox_new(FALSE, 10);
-    scrollWin = gtk_scrolled_window_new(NULL, NULL);
-    gtk_scrolled_window_set_policy( GTK_SCROLLED_WINDOW(scrollWin),
-                                    GTK_POLICY_AUTOMATIC, GTK_POLICY_ALWAYS);
-    gtk_box_pack_start(GTK_BOX(ctk_glx), GTK_WIDGET(vbox), TRUE, TRUE, 0);
-    gtk_box_pack_start(GTK_BOX(vbox), scrollWin, TRUE, TRUE, 0);
-    gtk_widget_set_size_request(scrollWin, -1, 200);
+    vpan      = gtk_vpaned_new();
 
+    data_viewport = gtk_viewport_new(NULL, NULL);
+    gtk_widget_set_size_request(data_viewport, 400, 50);
+    vscrollbar = gtk_vscrollbar_new(gtk_viewport_get_vadjustment
+                                        (GTK_VIEWPORT(data_viewport)));
+    
+    full_viewport = gtk_viewport_new(NULL, NULL);
+    gtk_widget_set_size_request(full_viewport, 400, 50);
+    hscrollbar = gtk_hscrollbar_new(gtk_viewport_get_hadjustment
+                                     (GTK_VIEWPORT(full_viewport)));
     /*
      * NODE: Because clists have a hard time displaying tooltips in their
      *       column labels/buttons, we make the fbconfig table using a
      *       table widget.
      */
 
-    /* Count number of rows */
-    i = 1;
-    if ( fbconfig_attribs ) {
-        while ( fbconfig_attribs[i].fbconfig_id != 0 ) { i++; }
-    }
+    /* Create the header table */
 
-    table = gtk_table_new(i, NUM_FBCONFIG_ATTRIBS, FALSE);
-    event = gtk_event_box_new();
-
-    gtk_widget_modify_fg(table, GTK_STATE_NORMAL, &(table->style->text[GTK_STATE_NORMAL]));
-    gtk_widget_modify_bg(table, GTK_STATE_NORMAL, &(table->style->base[GTK_STATE_NORMAL]));
-    gtk_container_add (GTK_CONTAINER(event), table);
-    gtk_widget_modify_fg(event, GTK_STATE_NORMAL, &(event->style->text[GTK_STATE_NORMAL]));
-    gtk_widget_modify_bg(event, GTK_STATE_NORMAL, &(event->style->base[GTK_STATE_NORMAL]));
-    gtk_scrolled_window_add_with_viewport(GTK_SCROLLED_WINDOW(scrollWin),
-                                          event);
+    header_table = gtk_table_new(num_fbconfigs, NUM_FBCONFIG_ATTRIBS, FALSE);
     
-    /* Generate table headings */
     for ( i = 0; i < NUM_FBCONFIG_ATTRIBS; i++ ) {
         GtkWidget * btn  = gtk_button_new_with_label(fbconfig_titles[i]);
         g_signal_connect(G_OBJECT(btn), "clicked",
                          G_CALLBACK(dummy_button_signal),
                          (gpointer) ctk_glx);
         ctk_config_set_tooltip(ctk_config, btn, fbconfig_tooltips[i]);
-        gtk_table_attach(GTK_TABLE(table), btn,  i, i+1,  0, 1,
+        gtk_table_attach(GTK_TABLE(header_table), btn,  i, i+1, 0, 1,
                          GTK_FILL|GTK_EXPAND, GTK_FILL|GTK_EXPAND, 0, 0);
+        
+        fbconfig_header_sizes[i].widget = btn;
+        gtk_widget_size_request(btn, &req);
+        fbconfig_header_sizes[i].width = req.width;
     }
+    
+    /* Create the data table */
+
+    data_table = gtk_table_new(num_fbconfigs, NUM_FBCONFIG_ATTRIBS, FALSE);
+    event = gtk_event_box_new();
+    
+    gtk_widget_modify_fg(data_table, GTK_STATE_NORMAL, 
+                         &(data_table->style->text[GTK_STATE_NORMAL]));
+    gtk_widget_modify_bg(data_table, GTK_STATE_NORMAL, 
+                         &(data_table->style->base[GTK_STATE_NORMAL]));
+    gtk_container_add (GTK_CONTAINER(event), data_table);
+    gtk_widget_modify_fg(event, GTK_STATE_NORMAL, 
+                         &(event->style->text[GTK_STATE_NORMAL]));
+    gtk_widget_modify_bg(event, GTK_STATE_NORMAL, 
+                         &(event->style->base[GTK_STATE_NORMAL]));
+    gtk_container_add(GTK_CONTAINER(data_viewport), event);
+
+    /* Pack the fbconfig header and data tables */
+
+    vbox = gtk_vbox_new(FALSE, 0);
+    gtk_box_pack_start(GTK_BOX(vbox), header_table, FALSE, FALSE, 0);
+    gtk_box_pack_start(GTK_BOX(vbox), data_viewport, TRUE, TRUE, 0);
+    gtk_container_add (GTK_CONTAINER(full_viewport), vbox);
+
+    vbox = gtk_vbox_new(FALSE, 0);
+    gtk_box_pack_start(GTK_BOX(vbox), full_viewport, TRUE, TRUE, 0);
+    gtk_box_pack_start(GTK_BOX(vbox), hscrollbar, FALSE, FALSE, 0);
+    
+    hbox = gtk_hbox_new(FALSE, 0);
+    gtk_box_pack_start(GTK_BOX(hbox), vbox, TRUE, TRUE, 0);
+    gtk_box_pack_start(GTK_BOX(hbox), vscrollbar, FALSE, FALSE, 0);
+    
+    vbox = gtk_vbox_new(FALSE, 0);
+    gtk_box_pack_start(GTK_BOX(vbox), hbox1, FALSE, FALSE, 5);
+    gtk_box_pack_start(GTK_BOX(vbox), hbox, TRUE, TRUE, 0);
+    
+    gtk_paned_pack1 (GTK_PANED (vpan), scrollWin, TRUE, FALSE);
+    gtk_paned_pack2 (GTK_PANED (vpan), vbox, TRUE, FALSE);
+    gtk_box_pack_start(GTK_BOX(ctk_glx), vpan, TRUE, TRUE, 0);
+    
+    /* Fill the data table */
 
     if ( fbconfig_attribs ) {
 
@@ -341,6 +406,8 @@ GtkWidget* ctk_glx_new(NvCtrlAttributeHandle *handle,
             } else {
                 sprintf((char *) (&(str[cell++])),".");
             }
+            snprintf((char *) (&(str[cell++])), 16, "%s",
+                     x_visual_type_abbrev(fbconfig_attribs[i].x_visual_type));
             snprintf((char *) (&(str[cell++])), 16, "%3d",
                      fbconfig_attribs[i].buffer_size);
             snprintf((char *) (&(str[cell++])), 16, "%2d",
@@ -402,10 +469,27 @@ GtkWidget* ctk_glx_new(NvCtrlAttributeHandle *handle,
             /* Populate row cells */
             for ( cell = 0; cell < NUM_FBCONFIG_ATTRIBS ; cell++) {
                 GtkWidget * label = gtk_label_new( str[cell] );
-                gtk_table_attach(GTK_TABLE(table), label,
+                gtk_label_set_justify( GTK_LABEL(label), GTK_JUSTIFY_CENTER);
+                gtk_table_attach(GTK_TABLE(data_table), label,
                                  cell, cell+1, 
                                  i+1, i+2,
-                                 GTK_EXPAND, GTK_EXPAND, 3, 2);
+                                 GTK_EXPAND, GTK_EXPAND, 0, 0);
+
+                /* Make sure the table headers are the same width
+                 * as their table data column
+                 */
+                gtk_widget_size_request(label, &req);
+                
+                if ( fbconfig_header_sizes[cell].width > req.width ) {
+                    gtk_widget_set_size_request(label,
+                                                fbconfig_header_sizes[cell].width,
+                                                -1);
+                } else if ( fbconfig_header_sizes[cell].width < req.width ) {
+                    fbconfig_header_sizes[cell].width = req.width + 6;
+                    gtk_widget_set_size_request(fbconfig_header_sizes[cell].widget,
+                                                fbconfig_header_sizes[cell].width,
+                                                -1);
+                }
             }
             i++;
 
@@ -425,18 +509,17 @@ GtkWidget* ctk_glx_new(NvCtrlAttributeHandle *handle,
 
 
     /* Failure (no GLX) */
- fail_glx_not_supported:
-    label =
-        gtk_label_new("GLX not available: either the GLX extension is not\n"
-                      "available on this X server, or there was a problem\n"
-                      "retrieving GLX information from the X server.");
-    gtk_label_set_selectable(GTK_LABEL(label), TRUE);
+ fail:
+    if (err_str) {
+        label = gtk_label_new(err_str);
+        gtk_label_set_selectable(GTK_LABEL(label), TRUE);
 
-    gtk_container_add(GTK_CONTAINER(ctk_glx), label);
+        gtk_container_add(GTK_CONTAINER(ctk_glx), label);
+    }
 
     /* Free memory that may have been allocated */
     free(fbconfig_attribs);
-
+    
     gtk_widget_show_all(GTK_WIDGET(object));
     return GTK_WIDGET(object);
 
@@ -776,6 +859,7 @@ GtkTextBuffer *ctk_glx_create_help(GtkTextTagTable *table,
                   "\t%s\n\n"
                   "\t%s\n\n"
                   "\t%s\n\n"
+                  "\t%s\n\n"
 
                   "\t%s\n\n"
                   "\t%s\n\n"
@@ -801,6 +885,7 @@ GtkTextBuffer *ctk_glx_create_help(GtkTextTagTable *table,
 
                   __fid_help,
                   __vid_help,
+                  __vt_help,
                   __bfs_help,
                   __lvl_help,
                   __bf_help,

@@ -75,7 +75,8 @@ struct _CtkDisplayDeviceTv
     GtkWidget *hue;
     GtkWidget *contrast;
     GtkWidget *saturation;
- 
+    GtkWidget *txt_refresh_rate;
+
     GtkWidget *image_sliders;
 
     GtkWidget *edid_box;

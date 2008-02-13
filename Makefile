@@ -201,11 +201,20 @@ $(OBJS_DIR)/%.o: %.c
 	@ mkdir -p $(OBJS_DIR)
 	$(CC) -c $(ALL_CFLAGS) $< -o $@
 
+# to generate the dependency files, use the compiler's "-MM" option to
+# generate output of the form "foo.o : foo.c foo.h"; then, use sed to
+# replace the target with "$(OBJS_DIR)/foo.o $(DEPS_DIR)/foo.d", and
+# wrap the prerequisites with $(wildcard ...); the wildcard function
+# serves as an existence filter, so that files that are later removed
+# from the build do not cause stale references.
+
 $(DEPS_DIR)/%.d: %.c
 	@ mkdir -p $(DEPS_DIR)
 	@ set -e; b=`basename $* .c` ; \
 	$(CC) -MM $(CPPFLAGS) $< \
-	| sed "s%\\($$b\\)\\.o[ :]*%$(OBJS_DIR)/\\1.o $(DEPS_DIR)/\\1.d : %g" > $@; \
+	| sed \
+	-e "s%\\($$b\\)\\.o[ :]*%$(OBJS_DIR)/\\1.o $(DEPS_DIR)/\\1.d : $$\(wildcard %g" \
+	-e "s,\([^\\]\)$$,\1)," > $@; \
 	[ -s $@ ] || rm -f $@
 
 $(STAMP_C): $(filter-out $(OBJS_DIR)/$(STAMP_C:.c=.o), $(OBJS))

@@ -38,7 +38,7 @@
 #include "ctkconfig.h"
 #include "ctkhelp.h"
 #include "ctkscale.h"
-
+#include <stdio.h>
 #define FRAME_PADDING 5
 
 
@@ -60,6 +60,11 @@ static const char* __tv_contrast_help = "The TV Brightness slider adjusts "
 static const char* __tv_saturation_help = "The TV Brightness slider adjusts "
 "the saturation of the TV image.";
 
+static const char* __tv_refresh_rate_help = "The refresh rate displays the "
+"rate at which the screen is currently refreshing the image.";
+
+static const char* __tv_encoder_name_help = "The TV Encoder name displays "
+"the name of TV Encoder.";
 
 /* local prototypes */
 
@@ -80,8 +85,12 @@ static void value_received(GtkObject *object, gpointer arg1,
 static void ctk_display_device_tv_setup(CtkDisplayDeviceTv
                                         *ctk_display_device_tv);
 
+static void tv_info_setup(CtkDisplayDeviceTv *ctk_display_device_tv);
+
 static void enabled_displays_received(GtkObject *object, gpointer arg1,
                                       gpointer user_data);
+static void info_update_received(GtkObject *object, gpointer arg1,
+                                 gpointer user_data);
 
 
 GType ctk_display_device_tv_get_type(void)
@@ -140,8 +149,9 @@ GtkWidget* ctk_display_device_tv_new(NvCtrlAttributeHandle *handle,
     CtkDisplayDeviceTv *ctk_display_device_tv;
     GtkWidget *banner;
     GtkWidget *frame;
+    GtkWidget *eventbox;
+    GtkWidget *tmpbox;
     GtkWidget *hbox;
-    GtkWidget *label;
     GtkWidget *alignment;
 
     
@@ -171,13 +181,89 @@ GtkWidget* ctk_display_device_tv_new(NvCtrlAttributeHandle *handle,
     gtk_container_set_border_width(GTK_CONTAINER(hbox), FRAME_PADDING);
     gtk_container_add(GTK_CONTAINER(frame), hbox);
     
-    label = gtk_label_new("TV Encoder: ");
-    gtk_box_pack_start(GTK_BOX(hbox), label, FALSE, FALSE, 0);
+    tmpbox = gtk_vbox_new(FALSE, 5);
+    gtk_container_add(GTK_CONTAINER(hbox), tmpbox);
     
-    label = gtk_label_new("");
-    gtk_box_pack_start(GTK_BOX(hbox), label, FALSE, FALSE, 0);
-    ctk_display_device_tv->txt_encoder_name = label;
+    ctk_display_device_tv->txt_encoder_name = gtk_label_new("");
+    ctk_display_device_tv->txt_refresh_rate = gtk_label_new("");
+    
+    /* pack the Refresh Rate Label */
+    {
+        typedef struct {
+            GtkWidget *label;
+            GtkWidget *txt;
+            const gchar *tooltip;
+        } TextLineInfo;
 
+        TextLineInfo lines[] = {
+            {
+                gtk_label_new("TV Encoder:"),
+                ctk_display_device_tv->txt_encoder_name,
+                __tv_encoder_name_help,
+            },
+            {
+                gtk_label_new("TV Refresh Rate:"),
+                ctk_display_device_tv->txt_refresh_rate,
+                __tv_refresh_rate_help,
+            },
+            { NULL, NULL, NULL }
+        };
+        
+        int i;
+        GtkRequisition req;
+        int max_width;
+
+        /* Compute max width of lables and setup text alignments */
+        max_width = 0;
+        for (i = 0; lines[i].label; i++) {
+            gtk_misc_set_alignment(GTK_MISC(lines[i].label), 0.0f, 0.5f);
+            gtk_misc_set_alignment(GTK_MISC(lines[i].txt), 0.0f, 0.5f);
+            gtk_widget_size_request(lines[i].label, &req);
+            
+            if (max_width < req.width) {
+                max_width = req.width;
+            }
+        }
+
+        /* Pack labels */
+        for (i = 0; lines[i].label; i++) {
+            GtkWidget *tmphbox;
+
+            /* Add separators */
+            
+            if (i == 1) {
+                GtkWidget *separator = gtk_hseparator_new();
+                gtk_box_pack_start(GTK_BOX(tmpbox), separator,
+                                   FALSE, FALSE, 0);
+            }
+            /* Set the label's width */
+            gtk_widget_set_size_request(lines[i].label, max_width, -1);
+            /* add the widgets for this line */
+            tmphbox = gtk_hbox_new(FALSE, 5);
+            gtk_box_pack_start(GTK_BOX(tmphbox), lines[i].label,
+                               FALSE, TRUE, 5);
+            gtk_box_pack_start(GTK_BOX(tmphbox), lines[i].txt,
+                               FALSE, TRUE, 5);
+
+            /* Include tooltips */
+            if (!lines[i].tooltip) {
+                gtk_box_pack_start(GTK_BOX(tmpbox), tmphbox, FALSE, FALSE, 0);
+            } else {
+                eventbox = gtk_event_box_new();
+                gtk_container_add(GTK_CONTAINER(eventbox), tmphbox);
+                ctk_config_set_tooltip(ctk_config, eventbox, lines[i].tooltip);
+                gtk_box_pack_start(GTK_BOX(tmpbox), eventbox, FALSE, FALSE, 0);
+            }
+        }
+    }
+    
+    /* NV_CTRL_REFRESH_RATE */
+    
+    g_signal_connect(G_OBJECT(ctk_event),
+                     CTK_EVENT_NAME(NV_CTRL_REFRESH_RATE),
+                     G_CALLBACK(info_update_received),
+                     (gpointer) ctk_display_device_tv);
+    
 
     /* NV_CTRL_TV_OVERSCAN */
 
@@ -629,7 +715,13 @@ GtkTextBuffer *ctk_display_device_tv_create_help(GtkTextTagTable *table,
     
     ctk_help_heading(b, &i, "TV Saturation");
     ctk_help_para(b, &i, __tv_saturation_help);
-
+    
+    ctk_help_heading(b, &i, "TV Encoder name");
+    ctk_help_para(b, &i, __tv_encoder_name_help);
+    
+    ctk_help_heading(b, &i, "TV Refresh rate");
+    ctk_help_para(b, &i, __tv_refresh_rate_help);
+    
     add_image_sliders_help
         (CTK_IMAGE_SLIDERS(ctk_display_device_tv->image_sliders), b, &i);
 
@@ -642,7 +734,6 @@ GtkTextBuffer *ctk_display_device_tv_create_help(GtkTextTagTable *table,
     return b;
     
 } /* ctk_display_device_tv_create_help() */
-
 
 
 /* Update GUI state of the scale to reflect current settings
@@ -708,7 +799,6 @@ static void ctk_display_device_tv_setup(CtkDisplayDeviceTv
                                         *ctk_display_device_tv)
 {
     ReturnStatus ret;
-    char *str;
     unsigned int enabled_displays;
 
 
@@ -723,24 +813,9 @@ static void ctk_display_device_tv_setup(CtkDisplayDeviceTv
          (enabled_displays & (ctk_display_device_tv->display_device_mask)));
 
 
-    /* Information Frame */
+    /* Update Information Frame */
     
-    /* NV_CTRL_STRING_TV_ENCODER_NAME */
-
-    ret = NvCtrlGetStringDisplayAttribute
-        (ctk_display_device_tv->handle,
-         ctk_display_device_tv->display_device_mask,
-         NV_CTRL_STRING_TV_ENCODER_NAME,
-         &str);
-    if (ret == NvCtrlSuccess) {
-        gtk_label_set_text(GTK_LABEL(ctk_display_device_tv->txt_encoder_name),
-                           str);
-        gtk_widget_show(ctk_display_device_tv->info_frame);
-        XFree(str);
-    } else {
-        gtk_widget_hide(ctk_display_device_tv->info_frame);
-    }
-    
+    tv_info_setup(ctk_display_device_tv);
 
     /* Update sliders */
     
@@ -783,16 +858,15 @@ static void ctk_display_device_tv_setup(CtkDisplayDeviceTv
     /* update acquire EDID button */
     
     if (ctk_display_device_tv->edid) {
-            GList *list;
-            
-            list = gtk_container_get_children
+        GList *list;
+        list = gtk_container_get_children
                 (GTK_CONTAINER(ctk_display_device_tv->edid_box));
-            if (list) {
-                gtk_container_remove
+        if (list) {
+            gtk_container_remove
                     (GTK_CONTAINER(ctk_display_device_tv->edid_box),
                      (GtkWidget *)(list->data));
-                g_list_free(list);
-            }
+            g_list_free(list);
+        }
     }
 
     ctk_display_device_tv->edid =
@@ -815,7 +889,45 @@ static void ctk_display_device_tv_setup(CtkDisplayDeviceTv
 
 } /* ctk_display_device_tv_setup() */
 
-
+static void tv_info_setup(CtkDisplayDeviceTv *ctk_display_device_tv)
+{
+    ReturnStatus ret;
+    int val;
+    char *str;
+    
+    /* NV_CTRL_STRING_TV_ENCODER_NAME */
+    
+    ret = NvCtrlGetStringDisplayAttribute
+          (ctk_display_device_tv->handle,
+          ctk_display_device_tv->display_device_mask,
+          NV_CTRL_STRING_TV_ENCODER_NAME,
+          &str);
+    if (ret == NvCtrlSuccess) {
+        gtk_label_set_text(GTK_LABEL(ctk_display_device_tv->txt_encoder_name),
+                           str);
+        gtk_widget_show(ctk_display_device_tv->info_frame);
+    } else {
+        gtk_widget_hide(ctk_display_device_tv->info_frame);
+    }
+    
+    /* NV_CTRL_REFRESH_RATE */
+    
+    ret = NvCtrlGetDisplayAttribute
+          (ctk_display_device_tv->handle,
+          ctk_display_device_tv->display_device_mask,
+          NV_CTRL_REFRESH_RATE,
+          &val);
+    if (ret == NvCtrlSuccess) {
+        float fvalue = ((float)(val)) / 100.0f;
+        snprintf(str, 32, "%.2f Hz", fvalue);
+        gtk_label_set_text(GTK_LABEL(ctk_display_device_tv->txt_refresh_rate),
+                       str);
+    } else {
+        gtk_label_set_text
+                 (GTK_LABEL(ctk_display_device_tv->txt_refresh_rate),
+                  "Unknown");
+    }
+}
 
 /*
  * When the list of enabled displays on the GPU changes,
@@ -830,3 +942,22 @@ static void enabled_displays_received(GtkObject *object, gpointer arg1,
     ctk_display_device_tv_setup(ctk_object);
 
 } /* enabled_displays_received() */
+
+/*
+ * When GPU scaling activation and/or TV resolution changes occur,
+ * we should update the GUI to reflect the current state.
+ */
+static void info_update_received(GtkObject *object, gpointer arg1,
+                                 gpointer user_data)
+{
+    CtkDisplayDeviceTv *ctk_object = CTK_DISPLAY_DEVICE_TV(user_data);
+    CtkEventStruct *event_struct = (CtkEventStruct *) arg1;
+
+    /* if the event is not for this display device, return */
+
+    if (!(event_struct->display_mask & ctk_object->display_device_mask)) {
+        return;
+    }
+
+    tv_info_setup(ctk_object);
+}

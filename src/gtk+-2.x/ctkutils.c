@@ -24,7 +24,9 @@
  
 #include <gtk/gtk.h>
 #include "ctkutils.h"
-#include <stdlib.h>
+#include "msg.h"
+
+
 
 
 GtkWidget *add_table_row(GtkWidget *table,
@@ -55,4 +57,87 @@ GtkWidget *add_table_row(GtkWidget *table,
 
     return label;
 }
+
+
+
+/** ctk_get_parent_window() ******************************************
+ *
+ * Returns the parent window of a widget, if one exists
+ *
+ **/
+GtkWidget * ctk_get_parent_window(GtkWidget *child)
+{
+    GtkWidget *parent = gtk_widget_get_parent(child);
     
+
+    while (parent && !GTK_IS_WINDOW(parent)) {
+        GtkWidget *last = parent;
+
+        parent = gtk_widget_get_parent(last);
+        if (!parent || parent == last) {
+            /* GTK Error, can't find parent window! */
+            parent = NULL;
+            break;
+        }
+    }
+
+    return parent;
+    
+} /* ctk_get_parent_window() */
+
+
+
+
+/** ctk_display_error_msg() ******************************************
+ *
+ * Displays an error message.
+ *
+ **/
+void ctk_display_error_msg(GtkWidget *parent, gchar * msg)
+{
+    GtkWidget *dlg;
+    
+    if (msg) {
+        nv_error_msg(msg);
+
+        if (parent) {
+            dlg = gtk_message_dialog_new
+            (GTK_WINDOW(parent),
+             GTK_DIALOG_DESTROY_WITH_PARENT,
+             GTK_MESSAGE_ERROR,
+             GTK_BUTTONS_OK,
+             msg);
+            gtk_dialog_run(GTK_DIALOG(dlg));
+            gtk_widget_destroy(dlg);
+        }
+    }
+
+} /* ctk_display_error_msg() */
+
+
+
+/** ctk_display_warning_msg() ****************************************
+ *
+ * Displays a warning message.
+ *
+ **/
+void ctk_display_warning_msg(GtkWidget *parent, gchar * msg)
+{
+    GtkWidget *dlg;
+    
+    if (msg) {
+        nv_warning_msg(msg);
+
+        if (parent) {
+            dlg = gtk_message_dialog_new
+            (GTK_WINDOW(parent),
+             GTK_DIALOG_DESTROY_WITH_PARENT,
+             GTK_MESSAGE_WARNING,
+             GTK_BUTTONS_OK,
+             msg);
+            gtk_dialog_run(GTK_DIALOG(dlg));
+            gtk_widget_destroy(dlg);
+        }
+    }
+
+} /* ctk_display_warning_msg() */

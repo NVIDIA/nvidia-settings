@@ -133,6 +133,7 @@ AttributeTableEntry attributeTable[] = {
     { "FrameLockTestSignal",   NV_CTRL_FRAMELOCK_TEST_SIGNAL,       N|F|G },
     { "FrameLockEthDetected",  NV_CTRL_FRAMELOCK_ETHERNET_DETECTED, N|F|G },
     { "FrameLockSyncRate",     NV_CTRL_FRAMELOCK_SYNC_RATE,         N|F|G },
+    { "FrameLockSyncRate4",    NV_CTRL_FRAMELOCK_SYNC_RATE_4,       N|F|G },
     { "FrameLockTiming",       NV_CTRL_FRAMELOCK_TIMING,            N|F|G },
     { "FrameLockMasterable",   NV_CTRL_FRAMELOCK_MASTERABLE,        N|F|G },
     { "FrameLockFPGARevision", NV_CTRL_FRAMELOCK_FPGA_REVISION,     N|F|G },
@@ -195,7 +196,7 @@ AttributeTableEntry attributeTable[] = {
  * about.
  */
 
-#if NV_CTRL_LAST_ATTRIBUTE != NV_CTRL_FSAA_APPLICATION_ENHANCED
+#if NV_CTRL_LAST_ATTRIBUTE != NV_CTRL_FRAMELOCK_SYNC_RATE_4
 #warning "Have you forgotten to add a new integer attribute to attributeTable?"
 #endif
 
@@ -1228,3 +1229,242 @@ static char *nv_strndup(char *s, int n)
     return (m);
     
 } /* nv_strndup() */
+
+
+
+/** parse_skip_whitespace() ******************************************
+ *
+ * Returns a pointer to the start of non-whitespace chars in string 'str'
+ *
+ **/
+const char *parse_skip_whitespace(const char *str)
+{
+    while (*str &&
+           (*str == ' '  || *str == '\t' ||
+            *str == '\n' || *str == '\r')) {
+        str++;
+    }
+    return str;
+
+} /* parse_skip_whitespace() */
+
+
+
+/** parse_chop_whitespace() ******************************************
+ *
+ * Removes all trailing whitespace chars from the given string 'str'
+ *
+ ***/
+void parse_chop_whitespace(char *str)
+{
+    char *tmp = str + strlen(str) -1;
+    
+    while (tmp >= str &&
+           (*tmp == ' '  || *tmp == '\t' ||
+            *tmp == '\n' || *tmp == '\r')) {
+        *tmp = '\0';
+        tmp--;
+    }
+
+} /* parse_chop_whitespace() */
+
+
+
+/** parse_skip_integer() *********************************************
+ *
+ * Returns a pointer to the location just after any integer in string 'str'
+ *
+ **/
+const char *parse_skip_integer(const char *str)
+{
+    if (*str == '-' || *str == '+') {
+        str++;
+    }
+    while (*str && *str >= '0' && *str <= '9') {
+        str++;
+    }
+    return str;
+
+} /* parse_skip_integer() */
+
+
+
+/** parse_read_integer() *********************************************
+ *
+ * Reads an integer from string str and returns a pointer
+ *
+ **/
+const char *parse_read_integer(const char *str, int *num)
+{
+    str = parse_skip_whitespace(str);
+    *num = atoi(str);
+    str = parse_skip_integer(str);
+    return parse_skip_whitespace(str);
+
+} /* parse_read_integer() */
+
+
+
+/** parse_read_integer_pair() ****************************************
+ *
+ * Reads two integers separated by 'separator' and returns a pointer
+ * to the location in 'str' where parsing finished. (After the two
+ * integers).  NULL is returned on failure.
+ *
+ **/
+const char *parse_read_integer_pair(const char *str,
+                                    char separator, int *a, int *b)
+ {
+    str = parse_read_integer(str, a);
+    if (!str) return NULL;
+
+    if (separator) {
+        if (*str != separator) return NULL;
+        str++;
+    }
+    return parse_read_integer(str, b);
+
+} /* parse_read_integer_pair() */
+
+
+
+/** parse_read_name() ************************************************
+ *
+ * Skips whitespace and copies characters up to and excluding the
+ * terminating character 'term'.  The location where parsing stopped
+ * is returned, or NULL on failure.
+ *
+ **/
+const char *parse_read_name(const char *str, char **name, char term)
+{
+    const char *tmp;
+
+    str = parse_skip_whitespace(str);
+    tmp = str;
+    while (*str && *str != term) {
+        str++;
+    }
+    *name = (char *)calloc(1, str -tmp +1);
+    if (!(*name)) {
+        return NULL;
+    }
+    strncpy(*name, tmp, str -tmp);
+    if (*str == term) {
+        str++;
+    }
+    return parse_skip_whitespace(str);
+
+} /* parse_read_name() */
+
+
+
+/** parse_read_display_name() ****************************************
+ *
+ * Convert a 'CRT-1' style display device name into a device_mask
+ * '0x00000002' bitmask.  The location where parsing stopped is returned
+ * or NULL if an error occured.
+ *
+ **/
+const char *parse_read_display_name(const char *str, unsigned int *mask)
+{
+    if (!str || !mask) {
+        return NULL;
+    }
+
+    str = parse_skip_whitespace(str);
+    if (!strncmp(str, "CRT-", 4)) {
+        *mask = 1 << (atoi(str+4));
+
+    } else if (!strncmp(str, "TV-", 3)) {
+        *mask = (1 << (atoi(str+3))) << 8;
+
+    } else if (!strncmp(str, "DFP-", 4)) {
+        *mask = (1 << (atoi(str+4))) << 16;
+
+    } else {
+        return NULL;
+    }
+
+    while (*str && *str != ':') {
+        str++;
+    }
+    if (*str == ':') {
+        str++;
+    }
+
+    return parse_skip_whitespace(str);
+
+} /* parse_read_display_name() */
+
+
+
+/** parse_read_float_range() *****************************************
+ *
+ * Reads the maximun/minimum information from a string in the
+ * following format:
+ *     "MIN-MAX"
+ * or
+ *     "MIN"
+ *
+ **/
+int parse_read_float_range(char *str, float *min, float *max)
+{
+    if (!str) return 0;
+
+    str = (char *)parse_skip_whitespace(str);
+    *min = atof(str);
+    str = strstr(str, "-");
+    if (!str) {
+        *max = *min;
+        return 1;
+    }
+    str++;
+    *max = atof(str);
+    
+    return 1;
+
+} /* parse_read_float_range() */
+
+
+
+/** parse_token_value_pairs() ****************************************
+ *
+ * Parses the given string for "token=value, token=value, ..." pairs
+ * and dispatches the handeling of tokens to the given function with
+ * the given data as an extra argument.
+ *
+ **/
+int parse_token_value_pairs(const char *str, apply_token_func func,
+                            void *data)
+{
+    char *token;
+    char *value;
+
+
+    if (str) {
+
+        /* Parse each token */
+        while (*str) {
+            
+            /* Read the token */
+            str = parse_read_name(str, &token, '=');
+            if (!str) return 0;
+            
+            /* Read the value */
+            str = parse_read_name(str, &value, ',');
+            if (!str) return 0;
+            
+            /* Remove trailing whitespace */
+            parse_chop_whitespace(token);
+            parse_chop_whitespace(value);
+            
+            func(token, value, data);
+            
+            free(token);
+            free(value);
+        }
+    }
+
+    return 1;
+
+} /* parse_token_value_pairs() */

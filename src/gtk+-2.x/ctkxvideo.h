@@ -66,8 +66,8 @@ struct _CtkXVideo
     GtkWidget *texture_sync_to_blank;
     GtkWidget *blitter_sync_to_blank;
     GtkWidget *xv_sync_to_display_buttons[24];
-    
-    unsigned int active_attributes;   
+    GtkWidget *xv_sync_to_display_button_box;
+    unsigned int active_attributes;
 };
 
 struct _CtkXVideoClass

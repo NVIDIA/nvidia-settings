@@ -41,18 +41,20 @@
 #include <X11/Xproto.h>
 
 #include "msg.h"
+#include "parse.h"
+
+#include "ctkutils.h"
 
 #include "ctkimage.h"
 #include "ctkevent.h"
 #include "ctkhelp.h"
 #include "ctkdisplayconfig.h"
 #include "ctkdisplaylayout.h"
+#include "ctkdisplayconfig-utils.h"
 
 
 void layout_selected_callback(nvLayoutPtr layout, void *data);
 void layout_modified_callback(nvLayoutPtr layout, void *data);
-
-static GtkWidget * get_window_parent(GtkWidget *child);
 
 static void setup_layout_frame(CtkDisplayConfig *ctk_object);
 
@@ -84,6 +86,9 @@ static void screen_metamode_delete_clicked(GtkWidget *widget, gpointer user_data
 
 static void xconfig_preview_clicked(GtkWidget *widget, gpointer user_data);
 static void xconfig_file_clicked(GtkWidget *widget, gpointer user_data);
+static void xconfig_merge_toggled(GtkWidget *widget, gpointer user_data);
+static void xconfig_file_activate(GtkWidget *widget, gpointer user_data);
+static gboolean update_xconfig_save_buffer(CtkDisplayConfig *ctk_object);
 
 static void xinerama_state_toggled(GtkWidget *widget, gpointer user_data);
 static void apply_clicked(GtkWidget *widget, gpointer user_data);
@@ -92,6 +97,9 @@ static void probe_clicked(GtkWidget *widget, gpointer user_data);
 static void advanced_clicked(GtkWidget *widget, gpointer user_data);
 static void reset_clicked(GtkWidget *widget, gpointer user_data);
 static void validation_details_clicked(GtkWidget *widget, gpointer user_data);
+
+static int generateXConfig(CtkDisplayConfig *ctk_object, XConfigPtr *pConfig);
+static void update_banner(XConfigPtr config);
 
 
 
@@ -110,9 +118,6 @@ static void validation_details_clicked(GtkWidget *widget, gpointer user_data);
 
 #define GTK_RESPONSE_USER_DISPLAY_ENABLE_TWINVIEW 1
 #define GTK_RESPONSE_USER_DISPLAY_ENABLE_XSCREEN  2
-
-typedef void (* apply_token_func)(char *token, char *value,
-                                  void *data);
 
 typedef struct SwitchModeCallbackInfoRec {
     CtkDisplayConfig *ctk_object;
@@ -241,196 +246,6 @@ static const char * __save_button_help =
 /*** F U N C T I O N S *******************************************************/
 
 
-/** get_display_type_str() *******************************************
- *
- * Returns the type name of a display (CRT, CRT-1, DFP ..)
- *
- * If 'generic' is set to 1, then a generic version of the name is
- * returned.
- *
- **/
-
-static gchar *get_display_type_str(unsigned int device_mask, int be_generic)
-{
-    unsigned int  bit = 0;
-    int           num;
-    gchar        *name = NULL;
-    gchar        *type_name;
-
-
-    /* Get the generic type name of the display */
-    if (device_mask & 0x000000FF) {
-        name = g_strdup("CRT");
-        bit  = (device_mask & 0x000000FF);
-
-    } else if (device_mask & 0x0000FF00) {
-        name = g_strdup("TV");
-        bit  = (device_mask & 0x0000FF00) >> 8;
-
-    } else if (device_mask & 0x00FF0000) {
-        name = g_strdup("DFP");
-        bit  = (device_mask & 0x00FF0000) >> 16;
-    }
-
-    if (be_generic || !name) {
-        return name;
-    }
-
-
-    /* Add the specific display number to the name */
-    num = 0;
-    while (bit) {
-        num++;
-        bit >>= 1;
-    }
-    if (num) {
-        num--;
-    }
-
-    type_name = g_strdup_printf("%s-%d", name, num);
-    g_free(name);
-
-    return type_name;
-
-} /* get_display_type_str() */
-
-
-
-/** get_mode_str() ***************************************************
- *
- * Returns the mode string of a mode:
- *
- * "mode_name @WxH +X+Y"
- *
- **/
-
-static gchar * get_mode_str(nvModePtr mode, int be_generic)
-{
-    gchar *mode_str;
-    gchar *tmp;
-
-    
-    /* Make sure the mode has everything it needs to be displayed */
-    if (!mode || !mode->display || !mode->display->gpu || !mode->metamode) {
-        return NULL;
-    }
-
-
-    /* Don't display dummy modes */
-    if (be_generic && mode->dummy && !mode->modeline) {
-        return NULL;
-    }
-
-
-    /* Only one display, be very generic (no 'CRT:' in metamode) */
-    if (be_generic && mode->display->gpu->num_displays == 1) {
-        mode_str = g_strdup("");
-
-    /* If there's more than one CRT/DFP/TV, we can't be generic. */
-    } else {
-        int generic = be_generic;
-
-        if ((mode->display->device_mask & 0x000000FF) &&
-            (mode->display->device_mask !=
-             (mode->display->gpu->connected_displays & 0x000000FF))) {
-            generic = 0;
-        }
-        if ((mode->display->device_mask & 0x0000FF00) &&
-            (mode->display->device_mask !=
-             (mode->display->gpu->connected_displays & 0x0000FF00))) {
-            generic = 0;
-        }
-        if ((mode->display->device_mask & 0x00FF0000) &&
-            (mode->display->device_mask !=
-             (mode->display->gpu->connected_displays & 0x00FF0000))) {
-            generic = 0;
-        }
-
-        /* Get the display type */
-        tmp = get_display_type_str(mode->display->device_mask, generic);
-        mode_str = g_strconcat(tmp, ": ", NULL);
-        g_free(tmp);
-    }
-
-
-    /* NULL mode */
-    if (!mode->modeline) {
-        tmp = g_strconcat(mode_str, "NULL", NULL);
-        g_free(mode_str);
-        return tmp;
-    }
-
-
-    /* Mode name */
-    tmp = g_strconcat(mode_str, mode->modeline->data.identifier, NULL);
-    g_free(mode_str);
-    mode_str = tmp;
-
-
-    /* Panning domain */
-    if (!be_generic || (mode->pan[W] != mode->dim[W] ||
-                        mode->pan[H] != mode->dim[H])) {
-        tmp = g_strdup_printf("%s @%dx%d",
-                              mode_str, mode->pan[W], mode->pan[H]);
-        g_free(mode_str);
-        mode_str = tmp;
-    }
-
-
-    /* Offset */
-
-    /*
-     * XXX Later, we'll want to allow the user to select how
-     *     the metamodes are generated:
-     * 
-     *   Programability:
-     *     make mode->dim relative to screen->dim
-     *
-     *   Coherency:
-     *     make mode->dim relative to mode->metamode->edim
-     *
-     *
-     * XXX Also, we may want to take in consideration the
-     *     TwinViewOrientation when writing out position
-     *     information.
-     */
-
-    tmp = g_strdup_printf("%s +%d+%d",
-                          mode_str,
-                          /* Make mode position relative */
-                          mode->dim[X] - mode->metamode->edim[X],
-                          mode->dim[Y] - mode->metamode->edim[Y]);
-    g_free(mode_str);
-    mode_str = tmp;
-
-
-    return mode_str;
-
-} /* get_mode_str() */
-
-
-
-/** get_display_from_gpu() *******************************************
- *
- * Returns the display with the matching device_mask
- *
- **/
- 
-static nvDisplayPtr get_display_from_gpu(nvGpuPtr gpu,
-                                         unsigned int device_mask)
-{
-    nvDisplayPtr display;
-
-    for (display = gpu->displays; display; display = display->next) {
-        if (display->device_mask == device_mask) return display;
-    }
-    
-    return NULL;
-
-} /* get_display_from_gpu() */
-
-
-
 /** get_cur_screen_pos() *********************************************
  *
  * Grabs a copy of the currently selected screen position.
@@ -477,80 +292,6 @@ static void check_screen_pos_changed(CtkDisplayConfig *ctk_object)
 } /* check_screen_pos_changed() */
 
 
-/** find_closest_mode_with_modeline() ********************************
- *
- * Helper function that returns the mode index of the display's mode
- * that best matches the given modeline.
- *
- * A best match is:
- *
- * - The modelines are the same.
- * - The modelines match in width & height.
- *
- **/
-
-static int find_closest_mode_with_modeline(nvDisplayPtr display,
-                                           nvModeLinePtr modeline)
-{
-    nvModePtr mode;
-    int mode_idx;
-    int match_idx = -1;
-    
-    mode_idx = 0;
-    for (mode = display->modes; mode; mode = mode->next) {
-        if (mode->modeline->data.vdisplay == modeline->data.vdisplay &&
-            mode->modeline->data.hdisplay == modeline->data.hdisplay) {
-            match_idx = mode_idx;
-        }
-        if (mode->modeline == modeline) break;
-        mode_idx++;
-    }
-
-    return match_idx;
-
-} /* find_closest_mode_with_modeline() */
-
-
-
-/** get_a_screen() ***************************************************
- *
- * Returns a screen from the layout.  if 'preferred_gpu' is set,
- * screens from that gpu are preferred.  The screen with the lowest
- * number is returned.
- *
- **/
-
-static nvScreenPtr get_a_screen(nvLayoutPtr layout, nvGpuPtr preferred_gpu)
-{
-    nvGpuPtr gpu;
-    nvScreenPtr screen = NULL;
-    nvScreenPtr other;
-    
-    if (!layout) return NULL;
-
-    if (preferred_gpu && preferred_gpu->screens) {
-        gpu = preferred_gpu;
-    } else {
-        preferred_gpu = NULL;
-        gpu = layout->gpus;
-    }
-
-    for (; gpu; gpu = gpu->next) {
-        for (other = gpu->screens; other; other = other->next) {
-            if (!screen || screen->scrnum > other->scrnum) {
-                screen = other;
-            }
-        }
-
-        /* We found a preferred screen */
-        if (gpu == preferred_gpu) break;
-    }
-
-    return screen;
-
-} /* get_a_screen() */
-
-
 
 /** consolidate_xinerama() *******************************************
  *
@@ -570,7 +311,7 @@ static void consolidate_xinerama(CtkDisplayConfig *ctk_object,
 
     /* If no screen was given, pick one */
     if (!screen) {
-        screen = get_a_screen(layout, NULL);
+        screen = layout_get_a_screen(layout, NULL);
     }
     if (!screen) return;
 
@@ -583,653 +324,6 @@ static void consolidate_xinerama(CtkDisplayConfig *ctk_object,
     }
 
 } /* consolidate_xinerama() */
-
-
-
-/** Parsing Tools ****************************************************
- *
- * Some tools for parsing strings
- *
- */
-
-static const char *skip_whitespace(const char *str)
-{
-    while (*str &&
-           (*str == ' '  || *str == '\t' ||
-            *str == '\n' || *str == '\r')) {
-        str++;
-    }
-    return str;
-}
-
-static void chop_whitespace(char *str)
-{
-    char *tmp = str + strlen(str) -1;
-    
-    while (tmp >= str &&
-           (*tmp == ' '  || *tmp == '\t' ||
-            *tmp == '\n' || *tmp == '\r')) {
-        *tmp = '\0';
-        tmp++;
-    }
-}
-
-static const char *skip_integer(const char *str)
-{
-    if (*str == '-' || *str == '+') {
-        str++;
-    }
-    while (*str && *str >= '0' && *str <= '9') {
-        str++;
-    }
-    return str;
-}
-
-static const char *read_integer(const char *str, int *num)
-{
-    str = skip_whitespace(str);
-    *num = atoi(str);
-    str = skip_integer(str);
-    return skip_whitespace(str);
-}
-
-static const char *read_pair(const char *str, char separator, int *a, int *b)
-{
-    str = read_integer(str, a);
-    if (!str) return NULL;
-    if (separator) {
-        if (*str != separator) return NULL;
-        str++;
-    }
-    return read_integer(str, b);
-}
-
-static const char *read_name(const char *str, char **name, char term)
-{
-    const char *tmp;
-
-    str = skip_whitespace(str);
-    tmp = str;
-    while (*str && *str != term) {
-        str++;
-    }
-    *name = (char *)calloc(1, str -tmp +1);
-    if (!(*name)) {
-        return NULL;
-    }
-    strncpy(*name, tmp, str -tmp);
-    if (*str == term) {
-        str++;
-    }
-    return skip_whitespace(str);
-}
-
-/* Convert 'CRT-1' display device type names into a device_mask
- * '0x00000002' bitmask
- */
-static const char *read_display_name(const char *str, unsigned int *bit)
-{
-    if (!str || !bit) {
-        return NULL;
-    }
-
-    str = skip_whitespace(str);
-    if (!strncmp(str, "CRT-", 4)) {
-        *bit = 1 << (atoi(str+4));
-
-    } else if (!strncmp(str, "TV-", 3)) {
-        *bit = (1 << (atoi(str+3))) << 8;
-
-    } else if (!strncmp(str, "DFP-", 4)) {
-        *bit = (1 << (atoi(str+4))) << 16;
-
-    } else {
-        return NULL;
-    }
-
-    while (*str && *str != ':') {
-        str++;
-    }
-    if (*str == ':') {
-        str++;
-    }
-
-    return skip_whitespace(str);
-}
-
-/*
- * read_float_range()
- *
- * Reads the maximun/minimum information from a string in the
- * following format:
- *     "MIN-MAX"
- * or
- *     "MIN"
- */
-
-static int read_float_range(char *str, float *min, float *max)
-{
-    if (!str) return 0;
-
-    str = (char *)skip_whitespace(str);
-    *min = atof(str);
-    str = strstr(str, "-");
-    if (!str) {
-        *max = *min;
-        return 1;
-    }
-    str++;
-    *max = atof(str);
-    
-    return 1;
-}
-
-
-
-/** apply_modeline_token() *******************************************
- *
- * Modifies the modeline structure given with the token/value pair
- * given.
- *
- **/
-
-static void apply_modeline_token(char *token, char *value, void *data)
-{
-    nvModeLinePtr modeline = (nvModeLinePtr) data;
-
-    if (!modeline || !token || !strlen(token)) {
-        return;
-    }
-
-    /* Modeline source */
-    if (!strcasecmp("source", token)) {
-        if (!value || !strlen(value)) {
-            nv_warning_msg("Modeline 'source' token requires a value!");
-        } else if (!strcasecmp("xserver", value)) {
-            modeline->source |=  MODELINE_SOURCE_XSERVER;
-        } else if (!strcasecmp("xconfig", value)) {
-            modeline->source |=  MODELINE_SOURCE_XCONFIG;
-        } else if (!strcasecmp("builtin", value)) {
-            modeline->source |=  MODELINE_SOURCE_BUILTIN;
-        } else if (!strcasecmp("vesa", value)) {
-            modeline->source |=  MODELINE_SOURCE_VESA;
-        } else if (!strcasecmp("edid", value)) {
-            modeline->source |=  MODELINE_SOURCE_EDID;
-        } else if (!strcasecmp("nv-control", value)) {
-            modeline->source |=  MODELINE_SOURCE_NVCONTROL;
-        } else {
-            nv_warning_msg("Unknown modeline source '%s'", value);
-        }
-
-    /* X config name */
-    } else if (!strcasecmp("xconfig-name", token)) {
-        if (!value || !strlen(value)) {
-            nv_warning_msg("Modeline 'xconfig-name' token requires a value!");
-        } else {
-            if (modeline->xconfig_name) {
-                free(modeline->xconfig_name);
-            }
-            modeline->xconfig_name = g_strdup(value);
-        }
-
-    /* Unknown token */
-    } else {
-        nv_warning_msg("Unknown modeline token value pair: %s=%s",
-                       token, value);
-    }
-
-} /* apply_modeline_token() */
-
-
-
-/** apply_metamode_token() *******************************************
- *
- * Modifies the metamode structure given with the token/value pair
- * given.
- *
- **/
-
-static void apply_metamode_token(char *token, char *value, void *data)
-{
-    nvMetaModePtr metamode = (nvMetaModePtr) data;
-    
-    if (!metamode || !token || !strlen(token)) {
-        return;
-    }
-
-    /* Metamode ID */
-    if (!strcasecmp("id", token)) {
-        if (!value || !strlen(value)) {
-            nv_warning_msg("MetaMode 'id' token requires a value!");
-        } else {
-            metamode->id = atoi(value);
-        }
-
-    /* Modeline Source */
-    } else if (!strcasecmp("source", token)) {
-        if (!value || !strlen(value)) {
-            nv_warning_msg("MetaMode 'source' token requires a value!");
-        } else if (!strcasecmp("xconfig", value)) {
-            metamode->source |= METAMODE_SOURCE_XCONFIG;
-        } else if (!strcasecmp("implicit", value)) {
-            metamode->source |= METAMODE_SOURCE_IMPLICIT;
-        } else if (!strcasecmp("nv-control", value)) {
-            metamode->source |= METAMODE_SOURCE_NVCONTROL;
-        } else {
-            nv_warning_msg("Unknown MetaMode source '%s'", value);
-        }
-
-    /* Switchable */
-    } else if (!strcasecmp("switchable", token)) {
-        if (!value || !strlen(value)) {
-            nv_warning_msg("MetaMode 'switchable' token requires a value!");
-        } else {
-            if (!strcasecmp(value, "yes")) {
-                metamode->switchable = TRUE;
-            } else {
-                metamode->switchable = FALSE;
-            }
-        }
-
-    /* Unknown token */
-    } else {
-        nv_warning_msg("Unknown MetaMode token value pair: %s=%s",
-                       token, value);
-    }
-
-} /* apply_metamode_token */
-
-
-
-/** apply_monitor_token() ********************************************
- *
- * Returns the source string of a refresh/sync range.
- *
- **/
-
-static void apply_monitor_token(char *token, char *value, void *data)
-{
-    char **source = (char **)data;
-    
-    if (!source || !token || !strlen(token)) {
-        return;
-    }
-
-    /* Metamode ID */
-    if (!strcasecmp("source", token)) {
-        if (*source) free(*source);
-        *source = strdup(value);
-
-    /* Unknown token */
-    } else {
-        nv_warning_msg("Unknown monitor range token value pair: %s=%s",
-                       token, value);
-    }
-
-} /* apply_monitor_token() */
-
-
-
-/** apply_screen_info_token() ****************************************
- *
- * Modifies the ScreenInfo structure (pointed to by data) with
- * information from the token-value pair given.  Currently accepts
- * position and width/height data.
- *
- **/
-
-typedef struct _ScreenInfo {
-    int x;
-    int y;
-    int width;
-    int height;
-} ScreenInfo;
-
-static void apply_screen_info_token(char *token, char *value, void *data)
-{
-    ScreenInfo *screen_info = (ScreenInfo *)data;
-    
-    if (!screen_info || !token || !strlen(token)) {
-        return;
-    }
-
-    /* X */
-    if (!strcasecmp("x", token)) {
-        screen_info->x = atoi(value);
-
-    /* Y */
-    } else if (!strcasecmp("y", token)) {
-        screen_info->y = atoi(value);
-
-    /* Width */
-    } else if (!strcasecmp("width", token)) {
-        screen_info->width = atoi(value);
-
-    /* Height */
-    } else if (!strcasecmp("height", token)) {
-        screen_info->height = atoi(value);
-
-    /* Unknown token */
-    } else {
-        nv_warning_msg("Unknown screen info token value pair: %s=%s",
-                       token, value);
-    }
-
-} /* apply_screen_info_token() */
-
-
-
-/** parse_tokens() ***************************************************
- *
- * Parses the given tring for "token=value, token=value, ..." pairs
- * and dispatches the handeling of tokens to the given function with
- * the given data as an extra argument.
- *
- **/
-
-static Bool parse_tokens(const char *str, apply_token_func func, void *data)
-{
-    char *token;
-    char *value;
-
-
-    if (str) {
-
-        /* Parse each token */
-        while (*str) {
-            
-            /* Read the token */
-            str = read_name(str, &token, '=');
-            if (!str) return FALSE;
-            
-            /* Read the value */
-            str = read_name(str, &value, ',');
-            if (!str) return FALSE;
-            
-            /* Remove trailing whitespace */
-            chop_whitespace(token);
-            chop_whitespace(value);
-            
-            func(token, value, data);
-            
-            free(token);
-            free(value);
-        }
-    }
-
-    return TRUE;
-
-} /* parse_tokens() */
-
-
-
-/** parse_modeline() *************************************************
- *
- * Converts a modeline string to an X config modeline structure that
- * the XF86Parser backend can read.
- *
- *
- * Modeline strings have this format:
- *
- *   "mode_name"  dot_clock  timings  flags
- *
- **/
-
-nvModeLinePtr parse_modeline(const char *modeline_str)
-{
-    nvModeLinePtr modeline = NULL;
-    const char *str = modeline_str;
-    char *tmp;
-    char *tokens;
-
-
-    if (!str) return NULL;
-
-    modeline = (nvModeLinePtr)calloc(1, sizeof(nvModeLine));
-    if (!modeline) return NULL;
-
-    /* Parse the modeline tokens */
-    tmp = strstr(str, "::");
-    if (tmp) {
-        tokens = strdup(str);
-        tokens[ tmp-str ] = '\0';
-        str = tmp +2;
-        parse_tokens(tokens, apply_modeline_token, (void *)modeline);
-        free(tokens);
-    }
-
-    /* Read the mode name */
-    str = skip_whitespace(str);
-    if (!str || *str != '"') goto fail;
-    str++;
-    str = read_name(str, &(modeline->data.identifier), '"');
-    if (!str) goto fail;
-
-    /* Read dot clock */
-    {
-        int digits = 100;
-
-        str = read_integer(str, &(modeline->data.clock));
-        modeline->data.clock *= 1000;
-        if (*str == '.') {
-            str++;
-            while (digits &&
-                   *str &&
-                   *str != ' '  && *str != '\t' &&
-                   *str != '\n' && *str != '\r') {
-
-                modeline->data.clock += digits * (*str - '0');
-                digits /= 10;
-                str++;
-            }
-        }
-        str = skip_whitespace(str);
-    }
-
-    str = read_integer(str, &(modeline->data.hdisplay));
-    str = read_integer(str, &(modeline->data.hsyncstart));
-    str = read_integer(str, &(modeline->data.hsyncend));
-    str = read_integer(str, &(modeline->data.htotal));
-    str = read_integer(str, &(modeline->data.vdisplay));
-    str = read_integer(str, &(modeline->data.vsyncstart));
-    str = read_integer(str, &(modeline->data.vsyncend));
-    str = read_integer(str, &(modeline->data.vtotal));
-
-
-    /* Parse modeline flags */
-    while ((str = read_name(str, &tmp, ' ')) && strlen(tmp)) {
-        
-        if (!xconfigNameCompare(tmp, "+hsync")) {
-            modeline->data.flags |= XCONFIG_MODE_PHSYNC;
-        }
-        else if (!xconfigNameCompare(tmp, "-hsync")) {
-            modeline->data.flags |= XCONFIG_MODE_NHSYNC;
-        }
-        else if (!xconfigNameCompare(tmp, "+vsync")) {
-            modeline->data.flags |= XCONFIG_MODE_PVSYNC;
-        }
-        else if (!xconfigNameCompare(tmp, "-vsync")) {
-            modeline->data.flags |= XCONFIG_MODE_NVSYNC;
-        }
-        else if (!xconfigNameCompare(tmp, "interlace")) {
-            modeline->data.flags |= XCONFIG_MODE_INTERLACE;
-        }
-        else if (!xconfigNameCompare(tmp, "doublescan")) {
-            modeline->data.flags |= XCONFIG_MODE_DBLSCAN;
-        }
-        else if (!xconfigNameCompare(tmp, "composite")) {
-            modeline->data.flags |= XCONFIG_MODE_CSYNC;
-        }
-        else if (!xconfigNameCompare(tmp, "+csync")) {
-            modeline->data.flags |= XCONFIG_MODE_PCSYNC;
-        }
-        else if (!xconfigNameCompare(tmp, "-csync")) {
-            modeline->data.flags |= XCONFIG_MODE_NCSYNC;
-        }
-        else if (!xconfigNameCompare(tmp, "hskew")) {
-            str = read_integer(str, &(modeline->data.hskew));
-            if (!str) {
-                free(tmp);
-                goto fail;
-            }
-            modeline->data.flags |= XCONFIG_MODE_HSKEW;
-        }
-        else if (!xconfigNameCompare(tmp, "bcast")) {
-            modeline->data.flags |= XCONFIG_MODE_BCAST;
-        }
-        else if (!xconfigNameCompare(tmp, "CUSTOM")) {
-            modeline->data.flags |= XCONFIG_MODE_CUSTOM;
-        }
-        else if (!xconfigNameCompare(tmp, "vscan")) {
-            str = read_integer(str, &(modeline->data.vscan));
-            if (!str) {
-                free(tmp);
-                goto fail;
-            }
-            modeline->data.flags |= XCONFIG_MODE_VSCAN;
-        }
-        else {
-            nv_warning_msg("Invalid modeline keyword '%s' in modeline '%s'",
-                           tmp, modeline_str);
-            goto fail;
-        }
-        free(tmp);
-    }
-
-    return modeline;
-
-
-    /* Handle failures */
- fail:
-    free(modeline);
-    return NULL;
-
-} /* parse_modeline() */
-
-
-
-/** parse_mode() *****************************************************
- *
- * Makes a mode structure from the mode string given.
- *
- *
- * Currently supported mode syntax:
- *
- *   "mode_name" +X+Y @WxH
- *
- **/
-
-nvModePtr parse_mode(nvDisplayPtr display, const char *mode_str)
-{
-    nvModePtr   mode;
-    char       *mode_name; /* Modeline reference name */
-    const char *str = mode_str;
-
-
-
-    if (!str || !display || !display->modelines) return NULL;
-
-
-    /* Allocate a Mode structure */
-    mode = (nvModePtr)calloc(1, sizeof(nvMode));
-    if (!mode) return NULL;
-
-    mode->display = display;
-
-
-    /* Read the mode name */
-    str = read_name(str, &mode_name, ' ');
-    if (!str || !mode_name) goto fail;
-
-
-    /* Match the mode name to one of the modelines */
-    mode->modeline = display->modelines;
-    while (mode->modeline) {
-        if (!strcmp(mode_name, mode->modeline->data.identifier)) {
-            break;
-        }
-        mode->modeline = mode->modeline->next;
-    }
-    free(mode_name);
-
-
-    /* If we can't find a matching modeline, show device as off
-     * using the width & height of whatever the first modeline is.
-     * XXX Hopefully this is the default width/height.
-     */
-    if (!mode->modeline) {
-        if (strcmp(mode_str, "NULL")) {
-            nv_warning_msg("Mode name '%s' does not match any modelines for "
-                           "display device '%s' in modeline '%s'.",
-                           mode_name, display->name, mode_str);
-        }
-        mode->dim[W] = display->modelines->data.hdisplay;
-        mode->dim[H] = display->modelines->data.vdisplay;
-        mode->pan[W] = mode->dim[W];
-        mode->pan[H] = mode->dim[H];
-        return mode;
-    }
-
-
-    /* Setup default size and panning of display */
-    mode->dim[W] = mode->modeline->data.hdisplay;
-    mode->dim[H] = mode->modeline->data.vdisplay;
-    mode->pan[W] = mode->dim[W];
-    mode->pan[H] = mode->dim[H];
-
-
-    /* Read mode information */
-    while (*str) {
-
-        /* Read panning */
-        if (*str == '@') {
-            str++;
-            str = read_pair(str, 'x',
-                            &(mode->pan[W]), &(mode->pan[H]));
-        }
-
-        /* Read position */
-        else if (*str == '+') {
-            str++;
-            str = read_pair(str, 0,
-                            &(mode->dim[X]), &(mode->dim[Y]));
-        }
-        
-        /* Mode parse error - Ack! */
-        else {
-            str = NULL;
-        }
-
-        /* Catch errors */
-        if (!str) goto fail;
-    }
-    
-        
-    /* These are the same for now */
-    mode->pan[X] = mode->dim[X];
-    mode->pan[Y] = mode->dim[Y];
-
-
-    /* Panning can't be smaller than dimensions */
-    if (mode->pan[W] < mode->dim[W]) {
-        mode->pan[W] = mode->dim[W];
-    }
-    if (mode->pan[W] < mode->dim[W]) {
-        mode->pan[W] = mode->dim[W];
-    }
-
-    return mode;
-
-
-    /* Handle failures */
- fail:
-    if (mode) {
-        free(mode);
-    }
-    
-    return NULL;
-
-} /* parse_mode() */
 
 
 
@@ -1282,76 +376,6 @@ void xconfigPrint(MsgType t, const char *msg)
 
 
 
-/* Layout save/write functions ***************************************/
-
-
-/** get_display_mode_str() *******************************************
- *
- * Returns the mode string of the display's 'mode_idx''s
- * mode.
- *
- **/
-static gchar *get_display_mode_str(nvDisplayPtr display, int mode_idx,
-                                   int be_generic)
-{
-    nvModePtr mode = display->modes;
-
-    while (mode && mode_idx) {
-        mode = mode->next;
-        mode_idx--;
-    }
-    
-    if (mode) {
-        return get_mode_str(mode, be_generic);
-    }
-
-    return NULL;
-
-} /* get_display_mode_str() */
-
-
-
-/** get_screen_metamode_str() ****************************************
- *
- * Returns a screen's metamode string for the given metamode index
- * as:
- *
- * "mode1_1, mode1_2, mode1_3 ... "
- *
- **/
-
-static gchar *get_screen_metamode_str(nvScreenPtr screen, int metamode_idx,
-                                     int be_generic)
-{
-    nvDisplayPtr display;
-
-    gchar *metamode_str = NULL;
-    gchar *mode_str;
-    gchar *tmp;
-
-    for (display = screen->gpu->displays; display; display = display->next) {
-
-        if (display->screen != screen) continue; /* Display not in screen */
-    
-        mode_str = get_display_mode_str(display, metamode_idx, be_generic);
-        if (!mode_str) continue;
-
-        if (!metamode_str) {
-            metamode_str = mode_str;
-        } else {
-            tmp = g_strdup_printf("%s, %s", metamode_str, mode_str);
-            g_free(mode_str);
-            g_free(metamode_str);
-            metamode_str = tmp;
-        }
-    }
-
-    return metamode_str;
-
-} /* get_screen_metamode_str() */
-
-
-
 /** generate_xconf_metamode_str() ************************************
  *
  * Returns the metamode strings of a screen:
@@ -1397,7 +421,7 @@ static int generate_xconf_metamode_str(CtkDisplayConfig *ctk_object,
      * in this mode.
      */
     if (!ctk_object->advanced_mode) {
-        metamode_strs = get_screen_metamode_str(screen,
+        metamode_strs = screen_get_metamode_str(screen,
                                                 screen->cur_metamode_idx, 1);
         len = strlen(metamode_strs);
         start_width = screen->cur_metamode->edim[W];
@@ -1432,7 +456,7 @@ static int generate_xconf_metamode_str(CtkDisplayConfig *ctk_object,
              (metamode->edim[H] > start_height)))
             continue;
         
-        metamode_str = get_screen_metamode_str(screen, metamode_idx, 1);
+        metamode_str = screen_get_metamode_str(screen, metamode_idx, 1);
 
         if (!metamode_str) continue;
         
@@ -1457,7 +481,7 @@ static int generate_xconf_metamode_str(CtkDisplayConfig *ctk_object,
                  "X server.",
                  metamode_idx);
             
-            parent = get_window_parent(GTK_WIDGET(ctk_object));
+            parent = ctk_get_parent_window(GTK_WIDGET(ctk_object));
             if (!parent) {
                 nv_warning_msg(msg);
                 g_free(msg);
@@ -1510,1334 +534,6 @@ static int generate_xconf_metamode_str(CtkDisplayConfig *ctk_object,
 
 } /* generate_xconf_metamode_str() */
 
-
-
-
-/* Metamode functions ************************************************/
-
-
-/** remove_modes_from_display() **************************************
- *
- * Removes all modes currently referenced by this screen, also
- * freeing any memory used.
- *
- **/
-
-static void remove_modes_from_display(nvDisplayPtr display)
-{
-    nvModePtr mode;
-
-    if (display) {
-        while (display->modes) {
-            mode = display->modes;
-            display->modes = mode->next;
-            free(mode);
-        }
-        display->num_modes = 0;
-        display->cur_mode = NULL;
-    }
-
-} /* remove_modes_from_display() */
-
-
-
-/** add_metamode_to_screen() *****************************************
- *
- * Parses a metamode string and adds the appropreate modes to the
- * screen's display devices (at the end of the list)
- *
- */
-
-static Bool add_metamode_to_screen(nvScreenPtr screen, char *metamode_str,
-                                   gchar **err_str)
-{
-    char *mode_str;
-    char *str = NULL;
-    char *tmp;
-    char *tokens;
-    nvMetaModePtr metamode;
-
-
-    if (!screen || !screen->gpu || !metamode_str) goto fail;
-
-
-    metamode = (nvMetaModePtr)calloc(1, sizeof(nvMetaMode));
-    if (!metamode) goto fail;
-
-
-    /* Copy the string so we can split it up */
-    str = strdup(metamode_str);
-    if (!str) goto fail;
-    
-
-    /* Read the MetaMode ID */
-    tmp = strstr(str, "::");
-    if (tmp) {
-        tokens = strdup(str);
-        tokens[ tmp-str ] = '\0';
-        tmp += 2;
-        parse_tokens(tokens, apply_metamode_token, (void *)metamode);
-        free(tokens);
-    } else {
-        /* No tokens?  Try the old "ID: METAMODE_STR" syntax */
-        tmp = (char *)read_integer(str, &(metamode->id));
-        metamode->source = METAMODE_SOURCE_NVCONTROL;
-        if (*tmp == ':') {
-            tmp++;
-        }
-    }
-
-
-    /* Add the metamode at the end of the screen's metamode list */
-    screen->metamodes =
-        (nvMetaModePtr)xconfigAddListItem((GenericListPtr)screen->metamodes,
-                                          (GenericListPtr)metamode);
-
-
-    /* Split up the metamode into separate modes */
-    for (mode_str = strtok(tmp, ",");
-         mode_str;
-         mode_str = strtok(NULL, ",")) {
-        
-        nvModePtr     mode;
-        unsigned int  device_mask;
-        nvDisplayPtr  display;
-        const char *orig_mode_str = skip_whitespace(mode_str);
-
-
-        /* Parse the display device bitmask from the name */
-        mode_str = (char *)read_display_name(mode_str, &device_mask);
-        if (!mode_str) {
-            *err_str = g_strdup_printf("Failed to read a display device name "
-                                       "on screen %d (on GPU-%d)\nwhile "
-                                       "parsing metamode:\n\n'%s'",
-                                       screen->scrnum,
-                                       NvCtrlGetTargetId(screen->gpu->handle),
-                                       orig_mode_str);
-            nv_error_msg(*err_str);
-            goto fail;
-        }
-
-
-        /* Match device bitmask to an existing display */
-        display = get_display_from_gpu(screen->gpu, device_mask);
-        if (!display) {
-            *err_str = g_strdup_printf("Failed to find display device 0x%08x "
-                                       "on screen %d (on GPU-%d)\nwhile "
-                                       "parsing metamode:\n\n'%s'",
-                                       device_mask,
-                                       screen->scrnum,
-                                       NvCtrlGetTargetId(screen->gpu->handle),
-                                       orig_mode_str);
-            nv_error_msg(*err_str);
-            goto fail;
-        }
-
-
-        /* Parse the mode */
-        mode = parse_mode(display, mode_str);
-        if (!mode) {
-            *err_str = g_strdup_printf("Failed to parse mode '%s'\non "
-                                       "screen %d (on GPU-%d)\nfrom "
-                                       "metamode:\n\n'%s'",
-                                       mode_str, screen->scrnum,
-                                       NvCtrlGetTargetId(screen->gpu->handle),
-                                       orig_mode_str);
-            nv_error_msg(*err_str);
-            goto fail;
-        }
-
-
-        /* Make the mode part of the metamode */
-        mode->metamode = metamode;
-
-
-        /* Make the display part of the screen */
-        display->screen = screen;
-
-
-        /* Set the panning offset */
-        mode->pan[X] = mode->dim[X];
-        mode->pan[Y] = mode->dim[Y];
-        
-
-        /* Add the mode at the end of the display's mode list */
-        display->modes =
-            (nvModePtr)xconfigAddListItem((GenericListPtr)display->modes,
-                                          (GenericListPtr)mode);
-        display->num_modes++;
-        
-    } /* Done parsing a single metamode */
-
-    free(str);
-    return TRUE;
-
-
-    /* Failure case */
- fail:
-    
-    /* XXX We should probably track which modes were added and remove
-     *     them at this point.  For now, just assume the caller will
-     *     remove all the modes and bail.
-     */
-
-    free(str);
-    return FALSE;
-
-} /* add_metamode_to_screen() */
-
-
-
-/** check_screen_metamodes() *****************************************
- *
- * Makes sure all displays associated with the screen have the right
- * number of mode entries.
- *
- **/
-
-static Bool check_screen_metamodes(nvScreenPtr screen)
-{
-    nvDisplayPtr display;
-    nvMetaModePtr metamode;
-    nvModePtr mode;
-    nvModePtr last_mode = NULL;
-
-
-    for (display = screen->gpu->displays; display; display = display->next) {
-
-        if (display->screen != screen) continue;
-
-        if (display->num_modes == screen->num_metamodes) continue;
-
-        mode = display->modes;
-        metamode = screen->metamodes;
-        while (mode && metamode) {
-            mode = mode->next;
-            metamode = metamode->next;
-            if (mode) {
-                last_mode = mode;
-            }
-        }
-
-        /* Each display must have as many modes as it's screen has metamodes */
-        while (metamode) {
-
-            /* Create a dumy mode */
-            mode = parse_mode(display, "NULL");
-            mode->dummy = 1;
-            mode->metamode = metamode;
-
-            /* Duplicate position information of the last mode */
-            if (last_mode) {
-                mode->dim[X] = last_mode->dim[X];
-                mode->dim[Y] = last_mode->dim[Y];
-                mode->pan[X] = last_mode->pan[X];
-                mode->pan[Y] = last_mode->pan[Y];
-                mode->position_type = last_mode->position_type;
-                mode->relative_to = last_mode->relative_to;
-            }
-
-            /* Add the mode at the end of display's mode list */
-            display->modes =
-                (nvModePtr)xconfigAddListItem((GenericListPtr)display->modes,
-                                              (GenericListPtr)mode);
-            display->num_modes++;
-
-            metamode = metamode->next;
-        }
-
-        /* XXX Shouldn't need to remove extra modes.
-        while (mode) {
-        }
-        */
-    }
-
-    return TRUE;
-
-} /* check_screen_metamodes() */
-
-
-
-/** assign_dummy_metamode_positions() ********************************
- *
- * Assign the initial (top left) position of dummy modes to
- * match the top left of the first non-dummy mode
- *
- */
-
-static void assign_dummy_metamode_positions(nvScreenPtr screen)
-{
-    nvDisplayPtr display;
-    nvModePtr ok_mode;
-    nvModePtr mode;
-    
-
-    for (display = screen->gpu->displays; display; display = display->next) {
-        if (display->screen != screen) continue;
-        
-        /* Get the first non-dummy mode */
-        for (ok_mode = display->modes; ok_mode; ok_mode = ok_mode->next) {
-            if (!ok_mode->dummy) break;
-        }
-
-        if (ok_mode) {
-            for (mode = display->modes; mode; mode = mode->next) {
-                if (!mode->dummy) continue;
-                mode->dim[X] = ok_mode->dim[X];
-                mode->pan[X] = ok_mode->dim[X];
-                mode->dim[Y] = ok_mode->dim[Y];
-                mode->pan[Y] = ok_mode->dim[Y];
-            }
-        }
-    }
-    
-} /* assign_dummy_metamode_positions() */
-
-
-
-/** remove_metamodes_from_screen() ***********************************
- *
- * Removes all metamodes currently referenced by this screen, also
- * freeing any memory used.
- *
- **/
-
-static void remove_metamodes_from_screen(nvScreenPtr screen)
-{
-    nvGpuPtr gpu;
-    nvDisplayPtr display;
-    nvMetaModePtr metamode;
-
-    if (screen) {
-        gpu = screen->gpu;
-
-        /* Remove the modes from this screen's displays */
-        if (gpu) {
-            for (display = gpu->displays; display; display = display->next) {
-
-                if (display->screen != screen) continue;
-
-                remove_modes_from_display(display);
-            }
-        }
-
-        /* Clear the screen's metamode list */
-        while (screen->metamodes) {
-            metamode = screen->metamodes;
-            screen->metamodes = metamode->next;
-            free(metamode->string);
-            free(metamode);
-        }
-        screen->num_metamodes = 0;
-        screen->cur_metamode = NULL;
-        screen->cur_metamode_idx = -1;
-    }
-        
-} /* remove_metamodes_from_screen() */
-
-
-
-/** add_metamodes_to_screen() ****************************************
- *
- * Adds all the appropreate modes on all display devices of this
- * screen by parsing all the metamode strings.
- *
- */
-
-static Bool add_metamodes_to_screen(nvScreenPtr screen, gchar **err_str)
-{
-    nvDisplayPtr display;
-
-    char *metamode_strs = NULL;  /* Screen's list metamode strings */
-    char *cur_metamode_str;      /* Current metamode */
-
-    char *str;                   /* Temp pointer for parsing */
-    int len;
-    ReturnStatus ret;
-    int i;
-
-
-
-    /* Get the list of metamodes for the screen */
-    ret = NvCtrlGetBinaryAttribute(screen->handle, 0,
-                                   NV_CTRL_BINARY_DATA_METAMODES,
-                                   (unsigned char **)&metamode_strs,
-                                   &len);
-    if (ret != NvCtrlSuccess) {
-        *err_str = g_strdup_printf("Failed to query list of metamodes on\n"
-                                   "screen %d (on GPU-%d).",
-                                   screen->scrnum,
-                                   NvCtrlGetTargetId(screen->gpu->handle));
-        nv_error_msg(*err_str);
-        goto fail;
-    }
-
-
-    /* Get the current metamode for the screen */
-    ret = NvCtrlGetStringAttribute(screen->handle,
-                                   NV_CTRL_STRING_CURRENT_METAMODE,
-                                   &cur_metamode_str);
-    if (ret != NvCtrlSuccess) {
-        *err_str = g_strdup_printf("Failed to query current metamode of\n"
-                                   "screen %d (on GPU-%d).",
-                                   screen->scrnum,
-                                   NvCtrlGetTargetId(screen->gpu->handle));
-        nv_error_msg(*err_str);
-        goto fail;
-    }
-
-
-    /* Remove any existing modes on all displays */
-    remove_metamodes_from_screen(screen);
-
-
-    /* Parse each mode in the metamode strings */
-    str = metamode_strs;
-    while (str && strlen(str)) {
-
-        /* Add the individual metamodes to the screen,
-         * This populates the display device's mode list.
-         */
-        if (!add_metamode_to_screen(screen, str, err_str)) {
-            nv_warning_msg("Failed to add metamode '%s' to screen %d (on "
-                           "GPU-%d).",
-                           str, screen->scrnum,
-                           NvCtrlGetTargetId(screen->gpu->handle));
-            goto fail;
-        }
-        
-        /* Keep track of the current metamode */
-        if (!strcmp(str, cur_metamode_str)) {
-            screen->cur_metamode_idx = screen->num_metamodes;
-        }
-
-        /* Keep count of the metamode */
-        screen->num_metamodes++;
-
-        /* Make sure each display device gets a mode */
-        check_screen_metamodes(screen);
-
-        /* Go to the next metamode */
-        str += strlen(str) +1;
-    }
-    XFree(metamode_strs);
-
-
-    /* Assign the top left position of dummy modes */
-    assign_dummy_metamode_positions(screen);
-
-
-    /* Make the screen point at the current metamode */
-    screen->cur_metamode = screen->metamodes;
-    for (i = 0; i < screen->cur_metamode_idx; i++) {
-        screen->cur_metamode = screen->cur_metamode->next;
-    }
-    
-
-    /* Make each display within the screen point to the current mode.
-     * Also, count the number of displays on the screen
-     */
-    screen->num_displays = 0;
-    for (display = screen->gpu->displays; display; display = display->next) {
-        
-        if (display->screen != screen) continue; /* Display not in screen */
-
-        screen->num_displays++;
-        screen->displays_mask |= display->device_mask;
-
-        display->cur_mode = display->modes;
-        for (i = 0; i < screen->cur_metamode_idx; i++) {
-            display->cur_mode = display->cur_mode->next;
-        }
-    }
-
-    return TRUE;
-
-
-    /* Failure case */
- fail:
-    
-    /* Remove modes we may have added */
-    remove_metamodes_from_screen(screen);
-
-    XFree(metamode_strs);
-    return FALSE;    
-
-} /* add_metamodes_to_screen() */
-
-
-
-/* Screen functions **************************************************/
-
-
-/** remove_display_from_screen() *************************************
- *
- * Removes a display device from the screen
- *
- */
-static void remove_display_from_screen(nvDisplayPtr display)
-{
-    nvGpuPtr gpu;
-    nvScreenPtr screen;
-    nvDisplayPtr other;
-    nvModePtr mode;
-
-
-    if (display && display->screen) {
-        screen = display->screen;
-        gpu = display->gpu;
-
-        /* Make any display relative to this one use absolute position */
-        for (other = gpu->displays; other; other = other->next) {
-
-            if (other == display) continue;
-            if (other->screen != screen) continue;
-
-            for (mode = other->modes; mode; mode = mode->next) {
-                if (mode->relative_to == display) {
-                    mode->position_type = CONF_ADJ_ABSOLUTE;
-                    mode->relative_to = NULL;
-                }
-            }
-        }
-
-        /* Remove the display from the screen */
-        screen->displays_mask &= ~(display->device_mask);
-        screen->num_displays--;
-
-        /* Clean up old references to the screen in the display */
-        remove_modes_from_display(display);
-        display->screen = NULL;
-    }
-
-} /* remove_display_from_screen() */
-
-
-
-/** remove_displays_from_screen() ************************************
- *
- * Removes all displays currently pointing at this screen, also
- * freeing any memory used.
- *
- **/
-
-void remove_displays_from_screen(nvScreenPtr screen)
-{
-    nvGpuPtr gpu;
-    nvDisplayPtr display;
-
-    if (screen && screen->gpu) {
-        gpu = screen->gpu;
-        
-        for (display = gpu->displays; display; display = display->next) {
-            
-            if (display->screen != screen) continue;
-            
-            remove_display_from_screen(display);
-        }
-    }
-
-} /* remove_displays_from_screen() */
-
-
-
-/** free_screen() ****************************************************
- *
- * Frees memory used by a screen structure
- *
- */
-static void free_screen(nvScreenPtr screen)
-{
-    if (screen) {
-
-        remove_metamodes_from_screen(screen);
-        remove_displays_from_screen(screen);
-
-        if (screen->handle) {
-            NvCtrlAttributeClose(screen->handle);
-        }
-
-        free(screen);
-    }
-
-} /* free_screens() */
-
-
-
-/** add_screen_to_gpu() **********************************************
- *
- * Adds screen 'screen_id' that is connected to the gpu.
- *
- */
-static int add_screen_to_gpu(nvGpuPtr gpu, int screen_id, gchar **err_str)
-{
-    Display *display;
-    nvScreenPtr screen;
-    int val;
-    ReturnStatus ret;
-
-
-    /* Create the screen structure */
-    screen = (nvScreenPtr)calloc(1, sizeof(nvScreen));
-    if (!screen) goto fail;
-
-    screen->gpu = gpu;
-    screen->scrnum = screen_id;
-
-
-    /* Make an NV-CONTROL handle to talk to the screen */
-    display = NvCtrlGetDisplayPtr(gpu->handle);
-    screen->handle =
-        NvCtrlAttributeInit(display,
-                            NV_CTRL_TARGET_TYPE_X_SCREEN,
-                            screen_id,
-                            NV_CTRL_ATTRIBUTES_NV_CONTROL_SUBSYSTEM |
-                            NV_CTRL_ATTRIBUTES_XRANDR_SUBSYSTEM);
-    if (!screen->handle) {
-        *err_str = g_strdup_printf("Failed to create NV-CONTROL handle for\n"
-                                   "screen %d (on GPU-%d).",
-                                   screen_id, NvCtrlGetTargetId(gpu->handle));
-        nv_error_msg(*err_str);
-        goto fail;
-    }
-
-
-    /* Make sure this screen supports dynamic twinview */
-    ret = NvCtrlGetAttribute(screen->handle, NV_CTRL_DYNAMIC_TWINVIEW,
-                             &val);
-    if (ret != NvCtrlSuccess || !val) {
-        *err_str = g_strdup_printf("Dynamic TwinView is disabled on "
-                                   "screen %d.",
-                                   screen_id);
-        nv_error_msg(*err_str);
-        goto fail;
-    }
-
-
-    /* The display owner GPU gets the screen(s) */
-    ret = NvCtrlGetAttribute(screen->handle, NV_CTRL_MULTIGPU_DISPLAY_OWNER,
-                             &val);
-    if (ret != NvCtrlSuccess || val != NvCtrlGetTargetId(gpu->handle)) {
-        free_screen(screen);
-        return TRUE;
-    }
-
-
-    /* Listen to NV-CONTROL events on this screen handle */
-    screen->ctk_event = CTK_EVENT(ctk_event_new(screen->handle));
-
-
-    /* Query the depth of the screen */
-    screen->depth = NvCtrlGetScreenPlanes(screen->handle);
-
-
-    /* Parse the screen's metamodes (ties displays on the gpu to the screen) */
-    if (!add_metamodes_to_screen(screen, err_str)) {
-        nv_warning_msg("Failed to add metamodes to screen %d (on GPU-%d).",
-                       screen_id, NvCtrlGetTargetId(gpu->handle));
-        goto fail;
-    }
-
-
-    /* Add the screen at the end of the gpu's screen list */
-    gpu->screens =
-        (nvScreenPtr)xconfigAddListItem((GenericListPtr)gpu->screens,
-                                        (GenericListPtr)screen);
-    gpu->num_screens++;
-    return TRUE;
-
-
- fail:
-    free_screen(screen);
-    return FALSE;
-
-} /* add_screen_to_gpu() */
-
-
-
-/** remove_screen_from_gpu() *****************************************
- *
- * Removes a screen from a gpu.
- *
- */
-static void remove_screen_from_gpu(nvScreenPtr screen)
-{
-    nvGpuPtr gpu;
-    nvScreenPtr other;
-
-    if (!screen || !screen->gpu) return;
-
-    /* Remove the screen from the GPU */
-    gpu = screen->gpu;
-    
-    gpu->screens =
-        (nvScreenPtr)xconfigRemoveListItem((GenericListPtr)gpu->screens,
-                                               (GenericListPtr)screen);
-    gpu->num_screens--;
-
-    /* Make sure other screens in the layout aren't relative
-     * to this screen
-     */
-    for (gpu = screen->gpu->layout->gpus; gpu; gpu = gpu->next) {
-        for (other = gpu->screens; other; other = other->next) {
-            if (other->relative_to == screen) {
-                other->position_type = CONF_ADJ_ABSOLUTE;
-                other->relative_to = NULL;
-            }
-        }
-    }
-
-    screen->gpu = NULL;
-
-    /* XXX May want to remove metamodes here */
-    /* XXX May want to remove displays here */
-
-} /* remove_screen_from_gpu() */
-
-
-
-/** remove_screens_from_gpu() ****************************************
- *
- * Removes all screens from a gpu.
- *
- */
-static void remove_screens_from_gpu(nvGpuPtr gpu)
-{
-    nvScreenPtr screen;
-
-    if (gpu) {
-        while (gpu->screens) {
-            screen = gpu->screens;
-            gpu->screens = screen->next;
-            free_screen(screen);
-        }
-        gpu->num_screens = 0;
-    }
-
-} /* remove_screens_from_gpu() */
-
-
-
-/** add_screens_to_gpu() *********************************************
- *
- * Queries the list of screens on the gpu.
- *
- */
-static Bool add_screens_to_gpu(nvGpuPtr gpu, gchar **err_str)
-{
-    ReturnStatus ret;
-    int *pData;
-    int len;
-    int i;
-
-
-    /* Clean up the GPU list */
-    remove_screens_from_gpu(gpu);
-
-
-    /* Query the list of X screens this GPU is driving */
-    ret = NvCtrlGetBinaryAttribute(gpu->handle, 0,
-                                   NV_CTRL_BINARY_DATA_XSCREENS_USING_GPU,
-                                   (unsigned char **)(&pData), &len);
-    if (ret != NvCtrlSuccess) {
-        *err_str = g_strdup_printf("Failed to query list of screens driven\n"
-                                   "by GPU-%d '%s'.",
-                                   NvCtrlGetTargetId(gpu->handle), gpu->name);
-        nv_error_msg(*err_str);
-        goto fail;
-    }
-
-
-    /* Add each X screen */
-    for (i = 1; i <= pData[0]; i++) {
-        if (!add_screen_to_gpu(gpu, pData[i], err_str)) {
-            nv_warning_msg("Failed to add screen %d to GPU-%d '%s'.",
-                           pData[i], NvCtrlGetTargetId(gpu->handle),
-                           gpu->name);
-            goto fail;
-        }
-    }
-
-    return TRUE;
-
-
-    /* Failure case */
- fail:
-    remove_screens_from_gpu(gpu);
-    return FALSE;
-
-} /* add_screens_to_gpu() */
-
-
-
-/* Display device functions ******************************************/
-
-
-/** remove_modelines_from_display() **********************************
- *
- * Clears the display device's modeline list.
- *
- **/
-
-static void remove_modelines_from_display(nvDisplayPtr display)
-{
-    nvModeLinePtr modeline;
-    
-    if (display) {
-        while (display->modelines) {
-            modeline = display->modelines;
-            display->modelines = display->modelines->next;
-            free(modeline);
-        }
-        display->num_modelines = 0;
-    }
-
-} /* remove_modelines_from_display() */
-
-
-
-/** add_modelines_to_display() ***************************************
- *
- * Queries the display's current modepool (modelines list).
- *
- **/
-
-static Bool add_modelines_to_display(nvDisplayPtr display, gchar **err_str)
-{
-    nvModeLinePtr modeline;
-    char *modeline_strs = NULL;
-    char *str;
-    int len;
-    ReturnStatus ret;
-
-
-    /* Free any old mode lines */
-    remove_modelines_from_display(display);
-
-
-    /* Get the validated modelines for the display */
-    ret = NvCtrlGetBinaryAttribute(display->gpu->handle,
-                                   display->device_mask,
-                                   NV_CTRL_BINARY_DATA_MODELINES,
-                                   (unsigned char **)&modeline_strs, &len);
-    if (ret != NvCtrlSuccess) {
-        *err_str = g_strdup_printf("Failed to query modelines of display "
-                                   "device 0x%08x '%s'\nconnected to "
-                                   "GPU-%d '%s'.",
-                                   display->device_mask, display->name,
-                                   NvCtrlGetTargetId(display->gpu->handle),
-                                   display->gpu->name);
-        nv_error_msg(*err_str);
-        goto fail;
-    }
-
-
-    /* Parse each modeline */
-    str = modeline_strs;
-    while (strlen(str)) {
-
-        modeline = parse_modeline(str);
-        if (!modeline) {
-            *err_str = g_strdup_printf("Failed to parse the following "
-                                       "modeline of display device\n"
-                                       "0x%08x '%s' connected to GPU-%d "
-                                       "'%s':\n\n%s",
-                                       display->device_mask,
-                                       display->name,
-                                       NvCtrlGetTargetId(display->gpu->handle),
-                                       display->gpu->name,
-                                       str);
-            nv_error_msg(*err_str);
-            goto fail;
-        }
-        
-        /* Add the modeline at the end of the display's modeline list */
-        display->modelines = (nvModeLinePtr)xconfigAddListItem
-            ((GenericListPtr)display->modelines, (GenericListPtr)modeline);
-        display->num_modelines++;
-
-        /* Get next modeline string */
-        str += strlen(str) +1;
-    }
-
-    XFree(modeline_strs);
-    return TRUE;
-
-
-    /* Handle the failure case */
- fail:
-    remove_modelines_from_display(display);
-    XFree(modeline_strs);
-    return FALSE;
-
-} /* add_modelines_to_display() */
-
-
-
-/** free_display() ***************************************************
- *
- * Frees memory used by a display
- *
- */
-static void free_display(nvDisplayPtr display)
-{
-    if (display) {
-        remove_modes_from_display(display);
-        remove_modelines_from_display(display);
-        XFree(display->name);
-        free(display);
-    }
-
-} /* free_display(display) */
-
-
-
-/** add_display_to_gpu() *********************************************
- *
- *  Adds the display with the device mask given to the GPU structure.
- *
- */
-static nvDisplayPtr add_display_to_gpu(nvGpuPtr gpu, unsigned int device_mask,
-                                       gchar **err_str)
-{
-    ReturnStatus ret;
-    nvDisplayPtr display = NULL;
-
-    
-    /* Create the display structure */
-    display = (nvDisplayPtr)calloc(1, sizeof(nvDisplay));
-    if (!display) goto fail;
-
-
-    /* Init the display structure */
-    display->gpu = gpu;
-    display->device_mask = device_mask;
-
-    
-    /* Query the display information */
-    ret = NvCtrlGetStringDisplayAttribute(gpu->handle,
-                                          device_mask,
-                                          NV_CTRL_STRING_DISPLAY_DEVICE_NAME,
-                                          &(display->name));
-    if (ret != NvCtrlSuccess) {
-        *err_str = g_strdup_printf("Failed to query name of display device\n"
-                                   "0x%08x connected to GPU-%d '%s'.",
-                                   device_mask, NvCtrlGetTargetId(gpu->handle),
-                                   gpu->name);
-        nv_error_msg(*err_str);
-        goto fail;
-    }
-
-
-    /* Query the modelines for the display device */
-    if (!add_modelines_to_display(display, err_str)) {
-        nv_warning_msg("Failed to add modelines to display device 0x%08x "
-                       "'%s'\nconnected to GPU-%d '%s'.",
-                       device_mask, display->name,
-                       NvCtrlGetTargetId(gpu->handle), gpu->name);
-        goto fail;
-    }
-
-
-    /* Add the display at the end of gpu's display list */
-    gpu->displays =
-        (nvDisplayPtr)xconfigAddListItem((GenericListPtr)gpu->displays,
-                                         (GenericListPtr)display);
-    gpu->connected_displays |= device_mask;
-    gpu->num_displays++;
-    return display;
-
-
-    /* Failure case */
- fail:
-    free_display(display);
-    return NULL;
-
-} /* add_display_to_gpu() */
-
-
-
-/** remove_display_from_gpu() ****************************************
- *
- * Removes a display from the gpu
- *
- */
-static void remove_display_from_gpu(nvDisplayPtr display)
-{
-    nvGpuPtr gpu;
-    nvScreenPtr screen;
-    
-
-    if (display && display->gpu) {
-        gpu = display->gpu;
-        screen = display->screen;
-
-        /* Remove the display from the screen it may be in */
-        if (screen) {
-            remove_display_from_screen(display);
-
-            /* If the screen is empty, remove it too */
-            if (!screen->num_displays) {
-                remove_screen_from_gpu(screen);
-                free_screen(screen);
-            }
-        }
-
-        /* Remove the display from the gpu */
-        gpu->displays =
-            (nvDisplayPtr)xconfigRemoveListItem((GenericListPtr)gpu->displays,
-                                                (GenericListPtr)display);
-        gpu->connected_displays &= ~(display->device_mask);
-        gpu->num_displays--;
-    }
-
-} /* remove_display_from_gpu() */
-
-
-
-/** remove_displays_from_gpu() ***************************************
- *
- * Removes all displays from the gpu
- *
- */
-static void remove_displays_from_gpu(nvGpuPtr gpu)
-{
-    nvDisplayPtr display;
-
-    if (gpu) {
-        while (gpu->displays) {
-            display = gpu->displays;
-            remove_display_from_screen(display);
-            gpu->displays = display->next;
-            free_display(display);
-        }
-        gpu->num_displays = 0;
-    }
-
-} /* remove_displays_from_gpu() */
-
-
-
-/** add_displays_to_gpu() ********************************************
- *
- * Adds the display devices connected on the GPU to the GPU structure
- *
- */
-static Bool add_displays_to_gpu(nvGpuPtr gpu, gchar **err_str)
-{
-    unsigned int mask;
-
-
-    /* Clean up the GPU list */
-    remove_displays_from_gpu(gpu);
-
-
-    /* Add each connected display */
-    for (mask = 1; mask; mask <<= 1) {
-
-        if (!(mask & (gpu->connected_displays))) continue;
-        
-        if (!add_display_to_gpu(gpu, mask, err_str)) {
-            nv_warning_msg("Failed to add display device 0x%08x to GPU-%d "
-                           "'%s'.",
-                           mask, NvCtrlGetTargetId(gpu->handle), gpu->name);
-            goto fail;
-        }
-    }
-
-    return TRUE;
-
-
-    /* Failure case */
- fail:
-    remove_displays_from_gpu(gpu);
-    return FALSE;
-
-} /* add_displays_to_gpu() */
-
-
-
-/* GPU functions *****************************************************/
-
-
-/** add_screenless_modes_to_displays() *******************************
- *
- * Adds fake modes to display devices that have no screens so we
- * can show them on the layout page.
- *
- */
-static Bool add_screenless_modes_to_displays(nvGpuPtr gpu)
-{
-    nvDisplayPtr display;
-    nvModePtr mode;
-
-    for (display = gpu->displays; display; display = display->next) {
-        if (display->screen) continue;
-
-        /* Create a fake mode */
-        mode = (nvModePtr)calloc(1, sizeof(nvMode));
-        if (!mode) return FALSE;
-
-        mode->display = display;
-        mode->dummy = 1;
-
-        mode->dim[W] = 800;
-        mode->dim[H] = 600;
-        mode->pan[W] = mode->dim[W];
-        mode->pan[H] = mode->dim[H];
-
-        /* Add the mode to the display */
-        display->modes = mode;
-        display->cur_mode = mode;
-        display->num_modes = 1;
-    }
-
-    return TRUE;
-
-} /* add_screenless_modes_to_displays() */
-
-
-
-/** free_gpu() *******************************************************
- *
- * Frees memory used by the gpu.
- *
- **/
-static void free_gpu(nvGpuPtr gpu)
-{
-    if (gpu) {
-        remove_screens_from_gpu(gpu);
-        remove_displays_from_gpu(gpu);
-        XFree(gpu->name);
-        if (gpu->handle) {
-            NvCtrlAttributeClose(gpu->handle);
-        }
-        free(gpu);
-    }
-
-} /* free_gpu() */
-
-
-
-/** add_gpu_to_layout() **********************************************
- *
- * Adds a GPU to the layout structure.
- *
- **/
-static Bool add_gpu_to_layout(nvLayoutPtr layout, unsigned int gpu_id,
-                              gchar **err_str)
-{
-    ReturnStatus ret;
-    Display *dpy;
-    nvGpuPtr gpu = NULL;
-
-    
-    /* Create the GPU structure */
-    gpu = (nvGpuPtr)calloc(1, sizeof(nvGpu));
-    if (!gpu) goto fail;
-
-    
-    /* Make an NV-CONTROL handle to talk to the GPU */
-    dpy = NvCtrlGetDisplayPtr(layout->handle);
-    gpu->layout = layout;
-    gpu->handle = NvCtrlAttributeInit(dpy, NV_CTRL_TARGET_TYPE_GPU, gpu_id,
-                                      NV_CTRL_ATTRIBUTES_NV_CONTROL_SUBSYSTEM);
-    if (!gpu->handle) {
-        *err_str = g_strdup_printf("Failed to create NV-CONTROL handle for "
-                                   "GPU-%d.", gpu_id);
-        nv_error_msg(*err_str);
-        goto fail;
-    }
-
-    gpu->ctk_event = CTK_EVENT(ctk_event_new(gpu->handle));
-
-
-    /* Query the GPU information */
-    ret = NvCtrlGetStringAttribute(gpu->handle, NV_CTRL_STRING_PRODUCT_NAME,
-                                   &gpu->name);
-    if (ret != NvCtrlSuccess) {
-        *err_str = g_strdup_printf("Failed to query GPU name of GPU-%d.",
-                                   gpu_id);
-        nv_error_msg(*err_str);
-        goto fail;
-    }
-
-    ret = NvCtrlGetAttribute(gpu->handle, NV_CTRL_CONNECTED_DISPLAYS,
-                             (int *)&(gpu->connected_displays));
-    if (ret != NvCtrlSuccess) {
-        *err_str = g_strdup_printf("Failed to query connected display "
-                                   "devices on GPU-%d '%s'.",
-                                   gpu_id, gpu->name);
-        nv_error_msg(*err_str);
-        goto fail;
-    }
-
-    ret = NvCtrlGetAttribute(gpu->handle, NV_CTRL_PCI_BUS,
-                             (int *)&(gpu->pci_bus));
-    if (ret != NvCtrlSuccess) {
-        *err_str = g_strdup_printf("Failed to query PCI BUS on GPU-%d '%s'.",
-                                   gpu_id, gpu->name);
-        nv_error_msg(*err_str);
-        goto fail;
-    }
-
-    ret = NvCtrlGetAttribute(gpu->handle, NV_CTRL_PCI_DEVICE,
-                             (int *)&(gpu->pci_device));
-    if (ret != NvCtrlSuccess) {
-        *err_str = g_strdup_printf("Failed to query PCI DEVICE on "
-                                   "GPU-%d '%s'.", gpu_id, gpu->name);
-        nv_error_msg(*err_str);
-        goto fail;
-    }
-
-    ret = NvCtrlGetAttribute(gpu->handle, NV_CTRL_PCI_FUNCTION,
-                             (int *)&(gpu->pci_func));
-    if (ret != NvCtrlSuccess) {
-        *err_str = g_strdup_printf("Failed to query PCI FUNCTION on "
-                                   "GPU-%d '%s'.", gpu_id, gpu->name);
-        nv_error_msg(*err_str);
-        goto fail;
-    }
-
-    ret = NvCtrlGetAttribute(gpu->handle, NV_CTRL_MAX_SCREEN_WIDTH,
-                             (int *)&(gpu->max_width));
-    if (ret != NvCtrlSuccess) {
-        *err_str = g_strdup_printf("Failed to query MAX SCREEN WIDTH on "
-                                   "GPU-%d '%s'.", gpu_id, gpu->name);
-        nv_error_msg(*err_str);
-        goto fail;
-    }
-
-    ret = NvCtrlGetAttribute(gpu->handle, NV_CTRL_MAX_SCREEN_HEIGHT,
-                             (int *)&(gpu->max_height));
-    if (ret != NvCtrlSuccess) {
-        *err_str = g_strdup_printf("Failed to query MAX SCREEN HEIGHT on "
-                                   "GPU-%d '%s'.", gpu_id, gpu->name);
-        nv_error_msg(*err_str);
-        goto fail;
-    }
-
-    ret = NvCtrlGetAttribute(gpu->handle, NV_CTRL_MAX_DISPLAYS,
-                             (int *)&(gpu->max_displays));
-    if (ret != NvCtrlSuccess) {
-        *err_str = g_strdup_printf("Failed to query MAX DISPLAYS on "
-                                   "GPU-%d '%s'.", gpu_id, gpu->name);
-        nv_error_msg(*err_str);
-        goto fail;
-    }
-
-
-    /* Add the display devices to the GPU */
-    if (!add_displays_to_gpu(gpu, err_str)) {
-        nv_warning_msg("Failed to add displays to GPU-%d '%s'.",
-                       gpu_id, gpu->name);
-        goto fail;
-    }
-
-
-    /* Add the X screens to the GPU */
-    if (!add_screens_to_gpu(gpu, err_str)) {
-        nv_warning_msg("Failed to add screens to GPU-%d '%s'.",
-                       gpu_id, gpu->name);
-        goto fail;
-    }
-    
-
-    /* Add fake modes to screenless display devices */
-    if (!add_screenless_modes_to_displays(gpu)) {
-        nv_warning_msg("Failed to add screenless modes to GPU-%d '%s'.",
-                       gpu_id, gpu->name);
-        goto fail;
-    }
-
-
-    /* Add the GPU at the end of the layout's GPU list */
-    layout->gpus = (nvGpuPtr)xconfigAddListItem((GenericListPtr)layout->gpus,
-                                                (GenericListPtr)gpu);
-    layout->num_gpus++;
-    return TRUE;
-
-
-    /* Failure case */
- fail:
-    free_gpu(gpu);
-    return FALSE;
-
-} /* add_gpu_to_layout() */
-
-
-
-/** remove_gpus_from_layout() ****************************************
- *
- * Removes all GPUs from the layout structure.
- *
- **/
-static void remove_gpus_from_layout(nvLayoutPtr layout)
-{
-    nvGpuPtr gpu;
-
-    if (layout) {
-        while (layout->gpus) {
-            gpu = layout->gpus;
-            layout->gpus = gpu->next;
-            free_gpu(gpu);
-        }
-        layout->num_gpus = 0;
-    }
-
-} /* remove_gpus_from_layout() */
-
-
-
-/** add_gpus_to_layout() *********************************************
- *
- * Adds the GPUs found on the server to the layout structure.
- *
- **/
-
-static int add_gpus_to_layout(nvLayoutPtr layout, gchar **err_str)
-{
-    ReturnStatus ret;
-    int ngpus;
-    int i;
-
-
-    /* Clean up the GPU list */
-    remove_gpus_from_layout(layout);
-
-
-    /* Query the number of GPUs on the server */
-    ret = NvCtrlQueryTargetCount(layout->handle, NV_CTRL_TARGET_TYPE_GPU,
-                                 &ngpus);
-    if (ret != NvCtrlSuccess || !ngpus) {
-        *err_str = g_strdup("Failed to query number of GPUs (or no GPUs "
-                            "found) in the system.");
-        nv_error_msg(*err_str);
-        goto fail;
-    }
-
-
-    /* Add each GPU */
-    for (i = 0; i < ngpus; i++) {
-        if (!add_gpu_to_layout(layout, i, err_str)) {
-            nv_warning_msg("Failed to add GPU-%d to layout.", i);
-            goto fail;
-        }
-    }
-
-    return layout->num_gpus;
-
-
-    /* Failure case */
- fail:
-    remove_gpus_from_layout(layout);
-    return 0;
-
-} /* add_gpus_to_layout() */
-
-
-
-/* Layout functions **************************************************/
 
 
 /** assign_screen_positions() ****************************************
@@ -2895,8 +591,8 @@ static void assign_screen_positions(CtkDisplayConfig *ctk_object)
                 screen_parsed_info.width = -1;
                 screen_parsed_info.height = -1;
 
-                parse_tokens(screen_info, apply_screen_info_token,
-                             &screen_parsed_info);
+                parse_token_value_pairs(screen_info, apply_screen_info_token,
+                                        &screen_parsed_info);
 
                 if (screen_parsed_info.x >= 0 &&
                     screen_parsed_info.y >= 0 &&
@@ -2924,58 +620,6 @@ static void assign_screen_positions(CtkDisplayConfig *ctk_object)
 
 } /* assign_screen_positions() */
 
-
-
-/** load_server_layout() *********************************************
- *
- * Loads layout information from the X server.
- *
- **/
-
-nvLayoutPtr load_server_layout(NvCtrlAttributeHandle *handle, gchar **err_str)
-{
-    nvLayoutPtr layout;
-    ReturnStatus ret;
-
-
-    /* Allocate the layout structure */
-    layout = (nvLayoutPtr)calloc(1, sizeof(nvLayout));
-    if (!layout) goto fail;
-
-
-    /* Cache the handle for talking to the X server */
-    layout->handle = handle;
-    
-
-    /* Is Xinerma enabled? */
-    ret = NvCtrlGetAttribute(handle, NV_CTRL_XINERAMA,
-                             &layout->xinerama_enabled);
-    if (ret != NvCtrlSuccess) {
-        *err_str = g_strdup("Failed to query status of Xinerama.");
-        nv_error_msg(*err_str);
-        goto fail;
-    }
-
-
-    /* Add GPUs to the layout */
-    if (!add_gpus_to_layout(layout, err_str)) {
-        nv_warning_msg("Failed to add GPU(s) to layout for display "
-                       "configuration page.");
-        goto fail;
-    }
-
-    return layout;
-
-
-    /* Failure case */
- fail:
-    if (layout) {
-        remove_gpus_from_layout(layout);
-        free(layout);
-    }
-    return NULL;
-
-} /* load_server_layout() */
 
 
 
@@ -3162,7 +806,7 @@ GtkWidget * create_validation_apply_dialog(CtkDisplayConfig *ctk_object)
     str = g_strdup_printf("The current settings cannot be completely applied\n"
                           "due to one or more of the following reasons:\n"
                           "\n"
-                          "%s The location an X screen has changed.\n"
+                          "%s The location of an X screen has changed.\n"
                           "%s The location type of an X screen has changed.\n"
                           "%s The color depth of an X screen has changed.\n"
                           "%s An X screen has been added or removed.\n"
@@ -3249,7 +893,7 @@ GtkWidget* ctk_display_config_new(NvCtrlAttributeHandle *handle,
      */
     
     /* Load the layout structure from the X server */
-    ctk_object->layout = load_server_layout(handle, &err_str);
+    ctk_object->layout = layout_load_from_server(handle, &err_str);
 
     /* If we failed to load, tell the user why */
     if (err_str || !ctk_object->layout) {
@@ -3603,6 +1247,9 @@ GtkWidget* ctk_display_config_new(NvCtrlAttributeHandle *handle,
 
     ctk_object->txt_xconfig_file = gtk_entry_new();
     gtk_widget_set_size_request(ctk_object->txt_xconfig_file, 300, -1);
+    g_signal_connect(G_OBJECT(ctk_object->txt_xconfig_file), "activate",
+                     G_CALLBACK(xconfig_file_activate),
+                     (gpointer) ctk_object);
 
     ctk_object->btn_xconfig_file = gtk_button_new_with_label("Browse...");
     g_signal_connect(G_OBJECT(ctk_object->btn_xconfig_file), "clicked",
@@ -3611,6 +1258,13 @@ GtkWidget* ctk_display_config_new(NvCtrlAttributeHandle *handle,
     ctk_object->dlg_xconfig_file = gtk_file_selection_new
         ("Please select the X configuration file");
     
+    ctk_object->btn_xconfig_merge =
+        gtk_check_button_new_with_label("Merge with existing file.");
+    gtk_toggle_button_set_active
+        (GTK_TOGGLE_BUTTON(ctk_object->btn_xconfig_merge), TRUE);
+    g_signal_connect(G_OBJECT(ctk_object->btn_xconfig_merge), "toggled",
+                     G_CALLBACK(xconfig_merge_toggled),
+                     (gpointer) ctk_object);
 
 
     /* Apply button */
@@ -3994,6 +1648,12 @@ GtkWidget* ctk_display_config_new(NvCtrlAttributeHandle *handle,
              hbox,
              FALSE, FALSE, 5);
 
+        /* Merge checkbox */
+        gtk_box_pack_start
+            (GTK_BOX(GTK_DIALOG(ctk_object->dlg_xconfig_save)->vbox),
+             ctk_object->btn_xconfig_merge,
+             FALSE, FALSE, 5);
+
         gtk_widget_show_all(GTK_DIALOG(ctk_object->dlg_xconfig_save)->vbox);
     }
 
@@ -4122,34 +1782,6 @@ GtkTextBuffer *ctk_display_config_create_help(GtkTextTagTable *table,
 
 
 /* Widget setup & helper functions ***********************************/
-
-
-/** get_window_parent() **********************************************
- *
- * Returns the parent window of a widget, if one exists
- *
- **/
-
-static GtkWidget * get_window_parent(GtkWidget *child)
-{
-    GtkWidget *parent = gtk_widget_get_parent(child);
-    
-
-    while (parent && !GTK_IS_WINDOW(parent)) {
-        GtkWidget *last = parent;
-
-        parent = gtk_widget_get_parent(last);
-        if (!parent || parent == last) {
-            /* GTK Error, can't find parent window! */
-            parent = NULL;
-            break;
-        }
-    }
-
-    return parent;
-    
-} /* get_window_parent() */
-
 
 
 /** setup_layout_frame() *********************************************
@@ -4956,7 +2588,7 @@ static void setup_display_frame(CtkDisplayConfig *ctk_object)
     
 
     /* Setup the display name */
-    type = get_display_type_str(display->device_mask, 0);
+    type = display_get_type_str(display->device_mask, 0);
     str = g_strdup_printf("%s (%s)", display->name, type);
     g_free(type);
     gtk_label_set_text(GTK_LABEL(ctk_object->txt_display_model), str);
@@ -5498,10 +3130,10 @@ static gint validation_remove_dupe_metamodes(CtkDisplayConfig *ctk_object,
     /* Verify each metamode with the metamodes that come before it */
     for (i = 1; i < screen->num_metamodes; i++) {
 
-        metamode_str = get_screen_metamode_str(screen, i, 0);
+        metamode_str = screen_get_metamode_str(screen, i, 0);
         for (j = 0; j < i; j++) {
             char *tmp;
-            tmp = get_screen_metamode_str(screen, j, 0);
+            tmp = screen_get_metamode_str(screen, j, 0);
             
             /* Remove duplicates */
             if (!strcmp(metamode_str, tmp)) {
@@ -5675,9 +3307,9 @@ static gchar * validate_screen(nvScreenPtr screen)
         
 
         /* Verify that the metamode is unique */
-        metamode_str = get_screen_metamode_str(screen, i, 0);
+        metamode_str = screen_get_metamode_str(screen, i, 0);
         for (j = 0; j < i; j++) {
-            char *tmp = get_screen_metamode_str(screen, j, 0);
+            char *tmp = screen_get_metamode_str(screen, j, 0);
 
             /* Make sure the metamode is unique */
             if (!strcmp(metamode_str, tmp)) {
@@ -5748,7 +3380,7 @@ static int validate_layout(CtkDisplayConfig *ctk_object, int validation_type)
          */
         if (num_absolute > 1) {
             GtkWidget *dlg;
-            GtkWidget *parent = get_window_parent(GTK_WIDGET(ctk_object));
+            GtkWidget *parent = ctk_get_parent_window(GTK_WIDGET(ctk_object));
 
             if (parent) {
                 dlg = gtk_message_dialog_new
@@ -6043,7 +3675,7 @@ void do_enable_display_for_xscreen(CtkDisplayConfig *ctk_object,
     screen->scrnum = scrnum;
     screen->gpu = display->gpu;
     
-    other = get_a_screen(layout, display->gpu);
+    other = layout_get_a_screen(layout, display->gpu);
     screen->depth = other ? other->depth : 24;
 
     screen->displays_mask = display->device_mask;
@@ -6192,7 +3824,7 @@ static void do_enable_display_for_twinview(CtkDisplayConfig *ctk_object,
                                   "display devices.",
                                   display->name, screen->scrnum);
             
-            parent = get_window_parent(GTK_WIDGET(ctk_object));
+            parent = ctk_get_parent_window(GTK_WIDGET(ctk_object));
             
             if (parent) {
                 dlg = gtk_message_dialog_new
@@ -6224,7 +3856,7 @@ static void do_enable_display_for_twinview(CtkDisplayConfig *ctk_object,
     prepare_gpu_for_twinview(ctk_object, gpu);
 
     /* Fix up the display's metamode list */
-    remove_modes_from_display(display);
+    display_remove_modes(display);
     
     for (metamode = screen->metamodes; metamode; metamode = metamode->next) {
 
@@ -6246,7 +3878,7 @@ static void do_enable_display_for_twinview(CtkDisplayConfig *ctk_object,
 
 
         /* Create the nvidia-auto-select mode fo the display */
-        mode = parse_mode(display, "nvidia-auto-select");
+        mode = mode_parse(display, "nvidia-auto-select");
         mode->metamode = metamode;
 
 
@@ -6510,7 +4142,7 @@ static void do_configure_display_for_twinview(CtkDisplayConfig *ctk_object,
         /* Add dummy modes */
         while (metamode) {
 
-            mode = parse_mode(display, "NULL");
+            mode = mode_parse(display, "NULL");
             mode->dummy = 1;
             mode->metamode = metamode;
 
@@ -6654,7 +4286,7 @@ void do_disable_display(CtkDisplayConfig *ctk_object, nvDisplayPtr display)
     nvGpuPtr gpu = display->gpu;
     nvScreenPtr screen = display->screen;
     gchar *str;
-    gchar *type = get_display_type_str(display->device_mask, 0);
+    gchar *type = display_get_type_str(display->device_mask, 0);
 
 
     /* Setup the remove display dialog */
@@ -6683,19 +4315,18 @@ void do_disable_display(CtkDisplayConfig *ctk_object, nvDisplayPtr display)
     if (do_query_remove_display(ctk_object, display)) {
 
         /* Remove display from the X screen */
-        remove_display_from_screen(display);
+        screen_remove_display(display);
         
         /* If the screen is empty, remove it */
         if (!screen->num_displays) {
-            remove_screen_from_gpu(screen);
-            free_screen(screen);
+            gpu_remove_and_free_screen(screen);
 
             /* Make sure screen numbers are consistent */
             renumber_xscreens(ctk_object->layout);
         }
 
         /* Add the fake mode to the display */
-        add_screenless_modes_to_displays(display->gpu);
+        gpu_add_screenless_modes_to_displays(display->gpu);
     }
 
 } /* do_disable_display() */
@@ -6848,7 +4479,7 @@ static void display_config_clicked(GtkWidget *widget, gpointer user_data)
                                   NV_CTRL_STRING_OPERATION_BUILD_MODEPOOL,
                                   "", &tokens);
             update = TRUE;
-            if (!add_modelines_to_display(display, &err_str)) {
+            if (!display_add_modelines_from_server(display, &err_str)) {
                 nv_warning_msg(err_str);
                 g_free(err_str);
                 return;
@@ -6949,7 +4580,8 @@ static void display_refresh_changed(GtkWidget *widget, gpointer user_data)
      * to change which metamode is being used.
      */
     if (!ctk_object->advanced_mode && (display->screen->num_displays == 1)) {
-        int metamode_idx = find_closest_mode_with_modeline(display, modeline);
+        int metamode_idx =
+            display_find_closest_mode_matching_modeline(display, modeline);
 
         /* Select the new metamode */
         if (metamode_idx >= 0) {
@@ -7006,7 +4638,8 @@ static void display_resolution_changed(GtkWidget *widget, gpointer user_data)
      * to change which metamode is being used.
      */
     if (!ctk_object->advanced_mode && (display->screen->num_displays == 1)) {
-        int metamode_idx = find_closest_mode_with_modeline(display, modeline);
+        int metamode_idx =
+            display_find_closest_mode_matching_modeline(display, modeline);
 
         /* Select the new metamode */
         if (metamode_idx >= 0) {
@@ -7176,7 +4809,7 @@ static void display_position_offset_activate(GtkWidget *widget,
     if (!display) return;
     
     /* Parse user input */
-    str = read_pair(str, 0, &x, &y);
+    str = parse_read_integer_pair(str, 0, &x, &y);
     if (!str) {
         /* Reset the display position */
         setup_display_position_offset(ctk_object);
@@ -7218,7 +4851,7 @@ static void display_panning_activate(GtkWidget *widget, gpointer user_data)
         return;
     }
     
-    str = read_pair(str, 'x', &x, &y);
+    str = parse_read_integer_pair(str, 'x', &x, &y);
     if (!str) {
         /* Reset the display panning */
         setup_display_panning(ctk_object);
@@ -7402,7 +5035,7 @@ static void screen_position_offset_activate(GtkWidget *widget,
     
 
     /* Parse user input */
-    str = read_pair(str, 0, &x, &y);
+    str = parse_read_integer_pair(str, 0, &x, &y);
     if (!str) {
         /* Reset the display position */
         setup_screen_position_offset(ctk_object);
@@ -7449,7 +5082,7 @@ static void screen_metamode_clicked(GtkWidget *widget, gpointer user_data)
     for (i = 0; i < screen->num_metamodes; i++) {
         
         /* Setup the menu item text */
-        tmp = get_screen_metamode_str(screen, i, 1);
+        tmp = screen_get_metamode_str(screen, i, 1);
         str = g_strdup_printf("%d - \"%s\"", i+1, tmp);
         menu_item = gtk_menu_item_new_with_label(str);
         g_free(str);
@@ -7684,7 +5317,7 @@ static Bool switch_to_current_metamode(CtkDisplayConfig *ctk_object,
     
     /* Find the parent window for displaying dialogs */
 
-    parent = get_window_parent(GTK_WIDGET(ctk_object));
+    parent = ctk_get_parent_window(GTK_WIDGET(ctk_object));
     if (!parent) goto fail;
 
 
@@ -7867,7 +5500,7 @@ static char *find_metamode_string(char *metamode_str, char *metamode_strs)
         /* Skip tokens if any */
         str = strstr(m, "::");
         if (str) {
-            str = (char *)skip_whitespace(str +2);
+            str = (char *)parse_skip_whitespace(str +2);
         } else {
             str = m;
         }
@@ -7913,7 +5546,7 @@ static void preprocess_metamodes(nvScreenPtr screen, char *metamode_strs)
 
         /* Generate the metamode's string */
         free(metamode->string);
-        metamode->string = get_screen_metamode_str(screen, metamode_idx, 0);
+        metamode->string = screen_get_metamode_str(screen, metamode_idx, 0);
         if (!metamode->string) continue;
         
         /* Look for the metamode string in metamode_strs */
@@ -7926,7 +5559,8 @@ static void preprocess_metamodes(nvScreenPtr screen, char *metamode_strs)
                 char *tmp = strstr(tokens, "::");
                 if (tmp) {
                     *tmp = '\0';
-                    parse_tokens(tokens, apply_metamode_token, metamode);
+                    parse_token_value_pairs(tokens, apply_metamode_token,
+                                            metamode);
                 }
                 free(tokens);
             }
@@ -7950,7 +5584,8 @@ static void preprocess_metamodes(nvScreenPtr screen, char *metamode_strs)
         /* Grab the metamode ID from the returned tokens */
         if (ret == NvCtrlSuccess) {
             if (tokens) {
-                parse_tokens(tokens, apply_metamode_token, metamode);
+                parse_token_value_pairs(tokens, apply_metamode_token,
+                                        metamode);
                 free(tokens);
             }
             nv_info_msg(TAB, "Added   > %s", metamode->string);
@@ -7982,7 +5617,7 @@ static void order_metamodes(nvScreenPtr screen)
          metamode;
          metamode = metamode->next, metamode_idx++) {
 
-        metamode_str = get_screen_metamode_str(screen, metamode_idx,
+        metamode_str = screen_get_metamode_str(screen, metamode_idx,
                                                0);
         if (!metamode_str) continue;
         
@@ -8029,7 +5664,7 @@ static void postprocess_metamodes(nvScreenPtr screen, char *metamode_strs)
         str = strstr(metamode_str, "::");
         if (!str) continue;
 
-        str = (char *)skip_whitespace(str +2);
+        str = (char *)parse_skip_whitespace(str +2);
 
 
         /* Delete the metamode */
@@ -8107,7 +5742,7 @@ static int update_screen_metamodes(CtkDisplayConfig *ctk_object,
     /* Skip tokens */
     metamode_str = strstr(cur_metamode_str, "::");
     if (metamode_str) {
-        metamode_str = (char *)skip_whitespace(metamode_str +2);
+        metamode_str = (char *)parse_skip_whitespace(metamode_str +2);
     } else {
         metamode_str = cur_metamode_str;
     }
@@ -8246,12 +5881,30 @@ static void xconfig_file_clicked(GtkWidget *widget, gpointer user_data)
 
         gtk_entry_set_text(GTK_ENTRY(ctk_object->txt_xconfig_file),
                            filename);
+
+        update_xconfig_save_buffer(ctk_object);
         break;
     default:
         return;
     }
 
 } /* xconfig_file_clicked() */
+
+
+
+/** xconfig_file_activate() ******************************************
+ *
+ * Called when the user selects a new X config filename.
+ *
+ **/
+
+static void xconfig_file_activate(GtkWidget *widget, gpointer user_data)
+{
+    CtkDisplayConfig *ctk_object = CTK_DISPLAY_CONFIG(user_data);
+
+    update_xconfig_save_buffer(ctk_object);
+
+} /* xconfig_file_activate() */
 
 
 
@@ -8283,6 +5936,200 @@ static void xconfig_preview_clicked(GtkWidget *widget, gpointer user_data)
     }
 
 } /* xconfig_preview_clicked() */
+
+
+
+/**  update_xconfig_save_buffer() ************************************
+ *
+ * Updates the "preview" buffer to hold the right contents based on
+ * how the user wants the X config file to be generated (and what is
+ * possible.)
+ *
+ * Also updates the state of the "Merge" checkbox in the case where
+ * the named file can/cannot be parsed as a valid X config file.
+ *
+ */
+static gboolean update_xconfig_save_buffer(CtkDisplayConfig *ctk_object)
+{
+    gchar *filename;
+    XConfigPtr config = NULL;
+    XConfigPtr mergeConfig = NULL;
+    XConfigError error;
+    gint result;
+
+    char *tmp_filename;
+    int tmp_fd;
+    struct stat st;
+    void *buf;
+    GtkTextIter buf_start, buf_end;
+
+    gboolean merge;
+    gboolean mergable = TRUE;
+
+    gchar *err_msg = NULL;
+
+
+    /* Get how the user wants to generate the X config file */
+    merge = gtk_toggle_button_get_active
+        (GTK_TOGGLE_BUTTON(ctk_object->btn_xconfig_merge));
+
+    filename = (gchar *)gtk_entry_get_text
+        (GTK_ENTRY(ctk_object->txt_xconfig_file));
+
+
+    /* Find out if the file is mergable */
+    if (!filename) {
+        mergable = FALSE;
+    } else {
+        /* Must be able to open the file */
+        tmp_filename = (char *)xconfigOpenConfigFile(filename, NULL);
+        if (!tmp_filename || strcmp(tmp_filename, filename)) {
+            gchar *msg =
+                g_strdup_printf("Failed to open existing X config file '%s'!",
+                                filename);
+            ctk_display_warning_msg
+                (ctk_get_parent_window(GTK_WIDGET(ctk_object)),
+                 msg);
+            g_free(msg);
+
+            xconfigCloseConfigFile();
+            mergable = FALSE;
+
+        } else {
+
+        /* Must be able to parse the file as an X config file */
+            error = xconfigReadConfigFile(&mergeConfig);
+            if (error) {
+                /* If we failed to parse the config file, we should not
+                 * allow a merge.
+                 */
+                gchar *msg =
+                    g_strdup_printf("Failed to parse existing X config file "
+                                    "'%s'!", filename);
+                ctk_display_warning_msg
+                    (ctk_get_parent_window(GTK_WIDGET(ctk_object)),
+                     msg);
+                g_free(msg);
+
+                xconfigCloseConfigFile();
+                mergeConfig = NULL;
+                mergable = FALSE;
+            }
+        }
+
+        /* If we're not actualy doing a merge, close the file */
+        if (!merge && mergeConfig) {
+            xconfigFreeConfig(mergeConfig);
+            xconfigCloseConfigFile();
+            mergeConfig = NULL;
+        }
+    }
+
+    merge = (merge && mergable);
+
+
+    /* Report merge problems */
+    g_signal_handlers_block_by_func
+        (G_OBJECT(ctk_object->btn_xconfig_merge),
+         G_CALLBACK(xconfig_merge_toggled), (gpointer) ctk_object);
+    
+    gtk_toggle_button_set_active
+        (GTK_TOGGLE_BUTTON(ctk_object->btn_xconfig_merge), merge);
+    
+    g_signal_handlers_unblock_by_func
+        (G_OBJECT(ctk_object->btn_xconfig_merge),
+         G_CALLBACK(xconfig_merge_toggled), (gpointer) ctk_object);
+    
+    gtk_widget_set_sensitive(ctk_object->btn_xconfig_merge, mergable);
+
+
+    /* Generate an X config structure from our layout */
+    result = generateXConfig(ctk_object, &config);
+    if ((result != XCONFIG_GEN_OK) || !config) {
+        err_msg = g_strdup("Failed to generate an X config file!");
+        goto fail;
+    }
+
+
+    /* Merge the two X config structures */
+    if (mergeConfig) {
+        result = xconfigMergeConfigs(mergeConfig, config);
+        xconfigFreeConfig(config);
+        xconfigCloseConfigFile();
+        config = mergeConfig;
+        if (!result) {
+            xconfigFreeConfig(mergeConfig);
+            err_msg = g_strdup_printf("Failed to merge current configuration "
+                                      "with existing X config file '%s'!",
+                                      filename);
+            goto fail;
+        }
+    }
+
+
+    /* Update the X config banner */
+    update_banner(config);
+
+
+    /* Setup the X config file preview buffer by writing to a temp file */
+    tmp_filename = g_strdup_printf("/tmp/.xconfig.tmp.XXXXXX");
+    tmp_fd = mkstemp(tmp_filename);
+    if (!tmp_fd) {
+        err_msg = g_strdup_printf("Failed to create temp X config file '%s' "
+                                  "for display.",
+                                  tmp_filename);
+        g_free(tmp_filename);
+        goto fail;
+    }
+    xconfigWriteConfigFile(tmp_filename, config);
+    xconfigFreeConfig(config);
+
+    lseek(tmp_fd, 0, SEEK_SET);
+    fstat(tmp_fd, &st);
+    buf = mmap(0, st.st_size, PROT_READ, MAP_PRIVATE, tmp_fd, 0);
+
+    /* Clear the GTK buffer */
+    gtk_text_buffer_get_bounds
+        (GTK_TEXT_BUFFER(ctk_object->buf_xconfig_save), &buf_start,
+         &buf_end);
+    gtk_text_buffer_delete
+        (GTK_TEXT_BUFFER(ctk_object->buf_xconfig_save), &buf_start,
+         &buf_end);
+
+    /* Set the new GTK buffer contents */
+    gtk_text_buffer_set_text(GTK_TEXT_BUFFER(ctk_object->buf_xconfig_save),
+                             buf, st.st_size);
+    munmap(buf, st.st_size);
+    close(tmp_fd);
+    remove(tmp_filename);
+    g_free(tmp_filename);
+
+    return TRUE;
+
+ fail:
+    if (err_msg) {
+        ctk_display_error_msg(ctk_get_parent_window(GTK_WIDGET(ctk_object)),
+                              err_msg);
+        g_free(err_msg);
+    }
+    return FALSE;
+
+} /* update_xconfig_save_buffer() */
+
+
+
+/** xconfig_merge_toggled() ******************************************
+ *
+ * Called when the user clicks on the "Merge" button of the X config
+ * save dialog.
+ *
+ **/
+
+static void xconfig_merge_toggled(GtkWidget *widget, gpointer user_data)
+{
+    update_xconfig_save_buffer((CtkDisplayConfig *)user_data);
+
+} /* xconfig_merge_toggled() */
 
 
 
@@ -8411,7 +6258,7 @@ static Bool add_monitor_to_xconfig(nvDisplayPtr display, XConfigPtr config,
         tmp += 2;
     }
     
-    if (!read_float_range(tmp, &min, &max)) {
+    if (!parse_read_float_range(tmp, &min, &max)) {
         nv_error_msg("Unable to determine valid horizontal sync ranges "
                      "for display device '%s' (GPU: %s)!",
                      display->name, display->gpu->name);
@@ -8422,7 +6269,8 @@ static Bool add_monitor_to_xconfig(nvDisplayPtr display, XConfigPtr config,
     monitor->hsync[0].lo = min;
     monitor->hsync[0].hi = max;
     
-    parse_tokens(range_str, apply_monitor_token, (void *)(&h_source));
+    parse_token_value_pairs(range_str, apply_monitor_token,
+                            (void *)(&h_source));
     free(range_str);
     range_str = NULL;
 
@@ -8447,7 +6295,7 @@ static Bool add_monitor_to_xconfig(nvDisplayPtr display, XConfigPtr config,
         tmp += 2;
     }
     
-    if (!read_float_range(tmp, &min, &max)) {
+    if (!parse_read_float_range(tmp, &min, &max)) {
         nv_error_msg("Unable to determine valid vertical refresh ranges "
                      "for display device '%s' (GPU: %s)!",
                      display->name, display->gpu->name);
@@ -8458,7 +6306,8 @@ static Bool add_monitor_to_xconfig(nvDisplayPtr display, XConfigPtr config,
     monitor->vrefresh[0].lo = min;
     monitor->vrefresh[0].hi = max;
 
-    parse_tokens(range_str, apply_monitor_token, (void *)(&v_source));
+    parse_token_value_pairs(range_str, apply_monitor_token,
+                            (void *)(&v_source));
     free(range_str);
     range_str = NULL;
 
@@ -8659,13 +6508,11 @@ static int add_screen_to_xconfig(CtkDisplayConfig *ctk_object,
         add_modelines_to_monitor(display->conf_monitor, other->modes);
     }
 
-    /* Add the TwinView option for multi monitor setups */
-    if (screen->num_displays > 1) {
-        conf_screen->options =
-            xconfigAddNewOption(conf_screen->options,
-                                xconfigStrdup("TwinView"),
-                                xconfigStrdup("1"));
-    }
+    /* Set the TwinView option */
+    conf_screen->options = xconfigAddNewOption
+        (conf_screen->options,
+         xconfigStrdup("TwinView"),
+         xconfigStrdup( (screen->num_displays > 1) ? "1" : "0" ));
 
 
     /* XXX Setup any other twinview options ... */
@@ -8679,7 +6526,7 @@ static int add_screen_to_xconfig(CtkDisplayConfig *ctk_object,
      * whatever the currently selected metamode is
      */
     if (!metamode_strs) {
-        metamode_strs = get_screen_metamode_str(screen,
+        metamode_strs = screen_get_metamode_str(screen,
                                                 screen->cur_metamode_idx, 1);
     }
 
@@ -9154,11 +7001,13 @@ static void update_banner(XConfigPtr config)
  *
  **/
 
-static int save_xconfig_file(gchar *filename, char *buf, mode_t mode)
+static int save_xconfig_file(CtkDisplayConfig *ctk_object,
+                             gchar *filename, char *buf, mode_t mode)
 {
     gchar *backup_filename = NULL;
     FILE *fp = NULL;
     size_t size;
+    gchar *err_msg = NULL;
 
     int ret = 0;
 
@@ -9179,16 +7028,20 @@ static int save_xconfig_file(gchar *filename, char *buf, mode_t mode)
         if (access(backup_filename, F_OK) == 0) {
 
             if (unlink(backup_filename) != 0) {
-                nv_error_msg("Unable to create backup file '%s'.",
-                             backup_filename);
+                err_msg =
+                    g_strdup_printf("Unable to remove old X config backup "
+                                    "file '%s'.",
+                                    backup_filename);
                 goto done;
             }
         }
 
         /* Make the current x config file the backup */
         if (rename(filename, backup_filename)) {
-            nv_error_msg("Unable to create backup file '%s'.",
-                         backup_filename);
+                err_msg =
+                    g_strdup_printf("Unable to create new X config backup "
+                                    "file '%s'.",
+                                    backup_filename);
             goto done;            
         }
     }
@@ -9196,8 +7049,9 @@ static int save_xconfig_file(gchar *filename, char *buf, mode_t mode)
     /* Write out the X config file */
     fp = fopen(filename, "w");
     if (!fp) {
-        nv_error_msg("Unable to open file '%s' for writing.",
-                     filename);
+        err_msg =
+            g_strdup_printf("Unable to open X config file '%s' for writing.",
+                            filename);
         goto done;
     }
     fprintf(fp, "%s", buf);
@@ -9205,6 +7059,12 @@ static int save_xconfig_file(gchar *filename, char *buf, mode_t mode)
     ret = 1;
     
  done:
+    /* Display any errors that might have occured */
+    if (err_msg) {
+        ctk_display_error_msg(ctk_get_parent_window(GTK_WIDGET(ctk_object)),
+                              err_msg);
+        g_free(err_msg);
+    }
 
     if (fp) fclose(fp);
     g_free(backup_filename);
@@ -9224,13 +7084,10 @@ static void save_clicked(GtkWidget *widget, gpointer user_data)
 {
     CtkDisplayConfig *ctk_object = CTK_DISPLAY_CONFIG(user_data);
     gint result;
+    gboolean created;
 
     gchar *filename;
-    XConfigPtr config = NULL;    
 
-    char *tmp_filename;
-    int tmp_fd;
-    struct stat st;
     void *buf;
     GtkTextIter buf_start, buf_end;
 
@@ -9256,40 +7113,12 @@ static void save_clicked(GtkWidget *widget, gpointer user_data)
                        ctk_object->layout->filename);
 
 
-    /* Generate an X config file from the layout */
-    result = generateXConfig(ctk_object, &config);
-
-    if ((result != XCONFIG_GEN_OK) || !config) {
-        if (result == XCONFIG_GEN_ERROR) {
-            nv_error_msg("Failed to generate an X config file!");
-        }
+    /* Generate the X config file save buffer */
+    created = update_xconfig_save_buffer(ctk_object);
+    if (!created) {
         return;
     }
 
-    /* Update the X config banner */
-    update_banner(config);
-
-    /* Setup the X config file preview buffer by writing to a temp file */
-    tmp_filename = g_strdup_printf("/tmp/.xconfig.tmp.XXXXXX");
-    tmp_fd = mkstemp(tmp_filename);
-    if (!tmp_fd) {
-        nv_error_msg("Failed to create temp file for displaying X config!");
-        g_free(tmp_filename);
-        return;
-    }
-    xconfigWriteConfigFile(tmp_filename, config);
-    xconfigFreeConfig(config);
-
-    lseek(tmp_fd, 0, SEEK_SET);
-    fstat(tmp_fd, &st);
-    buf = mmap(0, st.st_size, PROT_READ, MAP_PRIVATE, tmp_fd, 0);
-    gtk_text_buffer_set_text(GTK_TEXT_BUFFER(ctk_object->buf_xconfig_save),
-                             buf, st.st_size);
-    munmap(buf, st.st_size);
-    close(tmp_fd);
-    remove(tmp_filename);
-    g_free(tmp_filename);
-    
 
     /* Confirm the save */
     gtk_window_set_transient_for
@@ -9337,7 +7166,7 @@ static void save_clicked(GtkWidget *widget, gpointer user_data)
 
         /* Save the X config file */
         nv_info_msg("", "Writing X config file '%s'", filename);
-        save_xconfig_file(filename, (char *)buf, 0644);
+        save_xconfig_file(ctk_object, filename, (char *)buf, 0644);
         g_free(buf);
         break;
         
@@ -9433,7 +7262,7 @@ static void probe_clicked(GtkWidget *widget, gpointer user_data)
             if ((gpu->connected_displays & mask) &&
                 !(probed_displays & mask)) {
 
-                display = get_display_from_gpu(gpu, mask);
+                display = gpu_get_display(gpu, mask);
                 if (!display) continue; /* XXX ack. */
 
                 /* The selected display is being removed */
@@ -9442,7 +7271,7 @@ static void probe_clicked(GtkWidget *widget, gpointer user_data)
                 }
                     
                 /* Setup the remove display dialog */
-                type = get_display_type_str(display->device_mask, 0);
+                type = display_get_type_str(display->device_mask, 0);
                 str = g_strdup_printf("The display device %s (%s) on GPU-%d "
                                       "(%s) has been\nunplugged.  Would you "
                                       "like to remove this display from the "
@@ -9467,8 +7296,7 @@ static void probe_clicked(GtkWidget *widget, gpointer user_data)
                 if (do_query_remove_display(ctk_object, display)) {
                     
                     /* Remove display from the GPU */
-                    remove_display_from_gpu(display);
-                    free_display(display);
+                    gpu_remove_and_free_display(display);
                     
                     /* Let display layout widget know about change */
                     ctk_display_layout_update_display_count
@@ -9482,12 +7310,12 @@ static void probe_clicked(GtkWidget *widget, gpointer user_data)
             } else if (!(gpu->connected_displays & mask) &&
                        (probed_displays & mask)) {
                 gchar *err_str = NULL;
-                display = add_display_to_gpu(gpu, mask, &err_str);
+                display = gpu_add_display_from_server(gpu, mask, &err_str);
                 if (err_str) {
                     nv_warning_msg(err_str);
                     g_free(err_str);
                 }
-                add_screenless_modes_to_displays(gpu);
+                gpu_add_screenless_modes_to_displays(gpu);
                 ctk_display_layout_update_display_count
                     (CTK_DISPLAY_LAYOUT(ctk_object->obj_layout),
                      selected_display);
@@ -9544,7 +7372,7 @@ static void reset_clicked(GtkWidget *widget, gpointer user_data)
 
 
     /* Load the current layout */
-    layout = load_server_layout(ctk_object->handle, &err_str);
+    layout = layout_load_from_server(ctk_object->handle, &err_str);
 
 
     /* Handle errors loading the new layout */
@@ -9556,10 +7384,7 @@ static void reset_clicked(GtkWidget *widget, gpointer user_data)
 
 
     /* Free the existing layout */
-    if (ctk_object->layout) {
-        remove_gpus_from_layout(ctk_object->layout);
-        free(ctk_object->layout);
-    }
+    layout_free(ctk_object->layout);
 
 
     /* Setup the new layout */

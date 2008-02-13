@@ -6,7 +6,7 @@
 #define NV_CONTROL_NAME "NV-CONTROL"
 
 #define NV_CONTROL_MAJOR 1
-#define NV_CONTROL_MINOR 12
+#define NV_CONTROL_MINOR 13
 
 #define X_nvCtrlQueryExtension                      0
 #define X_nvCtrlIsNv                                1

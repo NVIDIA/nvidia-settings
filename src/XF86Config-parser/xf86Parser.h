@@ -652,6 +652,8 @@ void xconfigFreeVideoPortList(XConfigVideoPortPtr ptr);
 void xconfigFreeBuffersList (XConfigBuffersPtr ptr);
 void xconfigFreeDRI(XConfigDRIPtr ptr);
 void xconfigFreeExtensions(XConfigExtensionsPtr ptr);
+void xconfigFreeModesLinkList(XConfigModesLinkPtr ptr);
+
 
 
 /*
@@ -733,5 +735,14 @@ void xconfigGeneratePrintPossibleKeyboards(void);
 
 int xconfigCheckCoreInputDevices(GenerateOptions *gop,
                                  XConfigPtr config, XConfigLayoutPtr layout);
+
+
+/*
+ * X config tools
+ */
+
+int xconfigMergeConfigs(XConfigPtr dstConfig, XConfigPtr srcConfig);
+
+
 
 #endif /* _xf86Parser_h_ */

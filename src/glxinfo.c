@@ -137,6 +137,28 @@ transparent_type_abbrev(int trans_type)
 
 
 const char *
+x_visual_type_abbrev(int x_visual_type)
+{
+    switch (x_visual_type) {
+       case GLX_TRUE_COLOR:
+           return "tc";
+       case GLX_DIRECT_COLOR:
+           return "dc";
+       case GLX_PSEUDO_COLOR:
+           return "pc";
+       case GLX_STATIC_COLOR:
+           return "sc";
+       case GLX_GRAY_SCALE:
+           return "gs";
+       case GLX_STATIC_GRAY:
+           return "sg";
+       default:
+           return ".";
+    }
+}
+
+
+const char *
 caveat_abbrev(int caveat)
 {
    if (caveat == GLX_NONE_EXT || caveat == 0)
@@ -160,12 +182,12 @@ print_fbconfig_attribs(GLXFBConfigAttr *fbca)
         return;
     }
 
-    printf("-fc- -vi- buf lv rgb d s colorbuffer ax dp st "
+    printf("-fc- -vi- vt buf lv rgb d s colorbuffer ax dp st "
            "accumbuffer -ms- cav -----pbuffer----- ---transparent----\n");
-    printf(" id   id  siz l  ci  b t r  g  b  a  bf th en "
-           "r  g  b  a  ns b eat widt hght max-pxs typ r  g  b  a  i\n");
+    printf(" id   id     siz l  ci  b t  r  g  b  a bf th en "
+           " r  g  b  a ns b eat widt hght max-pxs typ  r  g  b  a  i\n");
     printf("----------------------------------------------"
-           "---------------------------------------------------------\n");
+           "------------------------------------------------------------\n");
 
     i = 0;
     while ( fbca[i].fbconfig_id != 0 ) {
@@ -176,7 +198,8 @@ print_fbconfig_attribs(GLXFBConfigAttr *fbca)
         } else {
             printf("   . ");
         }
-        printf("%3d %2d %3.3s %1c %1c ",
+        printf("%2.2s %3d %2d %3.3s %1c %1c ",
+               x_visual_type_abbrev(fbca[i].x_visual_type),
                fbca[i].buffer_size,
                fbca[i].level,
                render_type_abbrev(fbca[i].render_type),

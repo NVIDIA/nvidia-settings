@@ -75,6 +75,23 @@ int main(int argc, char **argv)
 
     init_config_properties(&conf);
 
+    /*
+     * Rewrite the X server settings to configuration file
+     * and exit, without starting a Graphical User Interface.
+     */
+
+    if (op->rewrite) {
+        nv_parsed_attribute_clean(p);
+        h = nv_alloc_ctrl_handles(op->ctrl_display);
+        if(!h || !h->dpy) return 1;
+        ret = nv_write_config_file(op->config, h, p, &conf);
+        nv_free_ctrl_handles(h);
+        nv_parsed_attribute_free(p);
+        free(op);
+        op = NULL;
+        return ret ? 0 : 1;
+    }
+
     /* upload the data from the config file */
     
     if (!op->no_load) {
