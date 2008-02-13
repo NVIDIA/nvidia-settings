@@ -37,6 +37,8 @@
 #include <X11/Xlib.h>
 #include <X11/extensions/Xrandr.h> /* Xrandr */
 
+#define NV_DLSYM(handle, symbol) ({ dlerror(); dlsym(handle, symbol); })
+
 #include "NvCtrlAttributes.h"
 #include "NvCtrlAttributesPrivate.h"
 #include "NVCtrlLib.h"
@@ -129,36 +131,36 @@ NvCtrlInitXrandrAttributes (NvCtrlAttributePrivateHandle *h)
 
 
     /* Resolve XRandR functions */
-    xrandr->XRRQueryExtension = dlsym(xrandr->libXrandr,
+    xrandr->XRRQueryExtension = NV_DLSYM(xrandr->libXrandr,
                                       "XRRQueryExtension");
     if ((error = dlerror()) != NULL) goto fail;
 
-    xrandr->XRRSelectInput = dlsym(xrandr->libXrandr, "XRRSelectInput");
+    xrandr->XRRSelectInput = NV_DLSYM(xrandr->libXrandr, "XRRSelectInput");
     if ((error = dlerror()) != NULL) goto fail;
 
-    xrandr->XRRConfigCurrentConfiguration = dlsym(xrandr->libXrandr,
+    xrandr->XRRConfigCurrentConfiguration = NV_DLSYM(xrandr->libXrandr,
                                                   "XRRConfigCurrentConfiguration");
     if ((error = dlerror()) != NULL) goto fail;
 
-    xrandr->XRRGetScreenInfo = dlsym(xrandr->libXrandr,
+    xrandr->XRRGetScreenInfo = NV_DLSYM(xrandr->libXrandr,
                                      "XRRGetScreenInfo");
     if ((error = dlerror()) != NULL) goto fail;
 
-    xrandr->XRRConfigRotations = dlsym(xrandr->libXrandr, "XRRConfigRotations");
+    xrandr->XRRConfigRotations = NV_DLSYM(xrandr->libXrandr, "XRRConfigRotations");
     if ((error = dlerror()) != NULL) goto fail;
 
-    xrandr->XRRFreeScreenConfigInfo = dlsym(xrandr->libXrandr,
+    xrandr->XRRFreeScreenConfigInfo = NV_DLSYM(xrandr->libXrandr,
                                             "XRRFreeScreenConfigInfo");
     if ((error = dlerror()) != NULL) goto fail;
 
-    xrandr->XRRSetScreenConfig = dlsym(xrandr->libXrandr,
+    xrandr->XRRSetScreenConfig = NV_DLSYM(xrandr->libXrandr,
                                        "XRRSetScreenConfig");
     if ((error = dlerror()) != NULL) goto fail;
 
-    xrandr->XRRRotations = dlsym(xrandr->libXrandr, "XRRRotations");
+    xrandr->XRRRotations = NV_DLSYM(xrandr->libXrandr, "XRRRotations");
     if ((error = dlerror()) != NULL) goto fail;
 
-    xrandr->XRRSizes = dlsym(xrandr->libXrandr, "XRRSizes");
+    xrandr->XRRSizes = NV_DLSYM(xrandr->libXrandr, "XRRSizes");
     if ((error = dlerror()) != NULL) goto fail;
 
 

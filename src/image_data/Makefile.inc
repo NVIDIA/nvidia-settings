@@ -66,4 +66,15 @@ EXTRA_DIST += \
         gvo_banner_vid2_green.h \
         gvo_banner_vid2_grey.h \
         gvo_banner_vid2_red.h \
-        gvo_banner_vid2_yellow.h
+        gvo_banner_vid2_yellow.h \
+	glx_banner.h \
+	rotate_left_off.h \
+	rotate_left_on.h \
+	rotate_right_off.h \
+	rotate_right_on.h \
+	rotation_banner.h \
+	rotation_orientation_horiz_flipped.h \
+	rotation_orientation_horiz.h \
+	rotation_orientation_vert_flipped.h \
+	rotation_orientation_vert.h
+	

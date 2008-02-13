@@ -35,19 +35,25 @@
 
 static gboolean update_thermal_info(gpointer);
 
+static const char *__core_threshold_help =
+"The Core Slowdown Threshold Temperature is the temperature "
+"at which the NVIDIA Accelerated Graphics driver will throttle "
+"the GPU to prevent damage, in \xc2\xb0"
+/* split for g_utf8_validate() */ "C.";
+
 static const char *__core_temp_help =
 "The Core Temperature is the Graphics Processing Unit's "
-"(GPU) current core temperature in \xc2\xb0"
+"(GPU) current core temperature, in \xc2\xb0"
 /* split for g_utf8_validate() */ "C.";
 
 static const char *__ambient_temp_help =
 "The Ambient Temperature is the current temperature in the "
-"GPU's immediate neighbourhood.";
+"GPU's immediate neighbourhood, in \xc2\xb0"
+/* split for g_utf8_validate() */ "C.";
 
 static const char *__temp_level_help =
-"This is a graphical representation of "
-"the current GPU core temperature relative "
-"to the maximum operating temperature.";
+"This is a graphical representation of the current GPU core "
+"temperature relative to the Core Slowdown Threshold.";
 
 GType ctk_thermal_get_type(void)
 {
@@ -119,12 +125,13 @@ GtkWidget* ctk_thermal_new(NvCtrlAttributeHandle *handle,
     GtkWidget *gauge;
     GtkWidget *hbox, *hbox2, *vbox, *table;
     GtkWidget *frame, *image, *label;
-    GtkWidget *eventbox;
+    GtkWidget *eventbox, *entry;
     ReturnStatus ret;
     
     gint core, upper;
     guint8 *image_buffer = NULL;
     const nv_image_t *img;
+    gchar *s;
 
 
     /* make sure we have a handle */
@@ -188,11 +195,41 @@ GtkWidget* ctk_thermal_new(NvCtrlAttributeHandle *handle,
     vbox = gtk_vbox_new(FALSE, 0);
     gtk_box_pack_start(GTK_BOX(hbox), vbox, FALSE, FALSE, 0);
 
-    table = gtk_table_new(2, 2, FALSE);
-    gtk_box_pack_end(GTK_BOX(vbox), table, FALSE, FALSE, 0);
+
+    /* GPU Core Treshold Temperature */
+
+    frame = gtk_frame_new("Slowdown Threshold");
+    gtk_box_pack_start(GTK_BOX(vbox), frame, FALSE, FALSE, 0);
+
+    hbox2 = gtk_hbox_new(FALSE, 0);
+    gtk_container_set_border_width(GTK_CONTAINER(hbox2), FRAME_PADDING);
+    gtk_container_add(GTK_CONTAINER(frame), hbox2);
+
+    label = gtk_label_new("Degrees: ");
+    gtk_box_pack_start(GTK_BOX(hbox2), label, FALSE, FALSE, 0);
+
+    eventbox = gtk_event_box_new();
+    gtk_box_pack_start(GTK_BOX(hbox2), eventbox, FALSE, FALSE, 0);
+
+    entry = gtk_entry_new_with_max_length(5);
+    gtk_container_add(GTK_CONTAINER(eventbox), entry);
+    gtk_widget_set_sensitive(entry, FALSE);
+    gtk_entry_set_width_chars(GTK_ENTRY(entry), 5);
+
+    s = g_strdup_printf(" %d ", upper);
+    gtk_entry_set_text(GTK_ENTRY(entry), s);
+    g_free(s);
+
+    ctk_config_set_tooltip(ctk_config, eventbox, __core_threshold_help);
+
+    label = gtk_label_new(" C");
+    gtk_box_pack_start(GTK_BOX(hbox2), label, FALSE, FALSE, 0);
 
 
     /* GPU Core Temperature */
+
+    table = gtk_table_new(2, 2, FALSE);
+    gtk_box_pack_end(GTK_BOX(vbox), table, FALSE, FALSE, 0);
 
     hbox2 = gtk_hbox_new(FALSE, 0);
     gtk_table_attach(GTK_TABLE(table), hbox2, 0, 1, 0, 1,
@@ -281,6 +318,9 @@ GtkTextBuffer *ctk_thermal_create_help(GtkTextTagTable *table)
 
     ctk_help_title(b, &i, "Thermal Monitor Help");
     
+    ctk_help_heading(b, &i, "Slowdown Threshold");
+    ctk_help_para(b, &i, __core_threshold_help);
+
     ctk_help_heading(b, &i, "Core Temperature");
     ctk_help_para(b, &i, __core_temp_help);
 

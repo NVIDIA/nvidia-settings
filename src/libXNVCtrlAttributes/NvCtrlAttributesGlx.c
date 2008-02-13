@@ -42,6 +42,12 @@
 #include <dlfcn.h>  /* To dynamically load libGL.so */
 #include <GL/glx.h> /* GLX #defines */
 
+#if defined(NV_BSD)
+static void *__handle = NULL;
+#endif
+
+#define NV_DLSYM(handle, symbol) ({ dlerror(); dlsym(handle, symbol); })
+
 /****
  *
  * Provides a way to communicate GLX settings.
@@ -125,15 +131,26 @@ NvCtrlInitGlxAttributes (NvCtrlAttributePrivateHandle *h)
     }
 
 
+#if defined(NV_BSD)
+    /*
+     * XXX In current versions of FreeBSD, static TLS data
+     * allocated for the initial dlopen() doesn't appear
+     * to be free()'d on dlclose(); this results in failures
+     * on subsequent attempts to open libGL.so.
+     */
+    if (__handle == NULL)
+        glx->libGL = __handle = dlopen("libGL.so.1", RTLD_LAZY);
+#else
     /* Link the libGL lib */
     glx->libGL = dlopen("libGL.so.1", RTLD_LAZY);
+#endif
     if ( glx->libGL == NULL ) {
         /* Silently fail */
         goto fail;
     }
 
     /* Make sure GLX is supported by the server */
-    glXQueryExtension = dlsym(glx->libGL, "glXQueryExtension");
+    glXQueryExtension = NV_DLSYM(glx->libGL, "glXQueryExtension");
     glx->dpy          = XOpenDisplay( XDisplayString(h->dpy) );
     if ( glx->dpy == NULL ) {
         goto fail;
@@ -144,41 +161,41 @@ NvCtrlInitGlxAttributes (NvCtrlAttributePrivateHandle *h)
 
 
     /* Resolve GLX functions */
-    glx->glGetString              = dlsym(glx->libGL,
+    glx->glGetString              = NV_DLSYM(glx->libGL,
                                           "glGetString");
     if ((error = dlerror()) != NULL) goto fail;
-    glx->glXQueryExtensionsString = dlsym(glx->libGL,
+    glx->glXQueryExtensionsString = NV_DLSYM(glx->libGL,
                                           "glXQueryExtensionsString");
     if ((error = dlerror()) != NULL) goto fail;
-    glx->glXQueryServerString     = dlsym(glx->libGL,
+    glx->glXQueryServerString     = NV_DLSYM(glx->libGL,
                                           "glXQueryServerString");
     if ((error = dlerror()) != NULL) goto fail;
-    glx->glXGetClientString       = dlsym(glx->libGL,
+    glx->glXGetClientString       = NV_DLSYM(glx->libGL,
                                           "glXGetClientString");
     if ((error = dlerror()) != NULL) goto fail;
-    glx->glXIsDirect              = dlsym(glx->libGL,
+    glx->glXIsDirect              = NV_DLSYM(glx->libGL,
                                           "glXIsDirect");
     if ((error = dlerror()) != NULL) goto fail;
-    glx->glXMakeCurrent           = dlsym(glx->libGL,
+    glx->glXMakeCurrent           = NV_DLSYM(glx->libGL,
                                           "glXMakeCurrent");
     if ((error = dlerror()) != NULL) goto fail;
-    glx->glXCreateContext         = dlsym(glx->libGL,
+    glx->glXCreateContext         = NV_DLSYM(glx->libGL,
                                           "glXCreateContext");
     if ((error = dlerror()) != NULL) goto fail;
-    glx->glXDestroyContext        = dlsym(glx->libGL,
+    glx->glXDestroyContext        = NV_DLSYM(glx->libGL,
                                           "glXDestroyContext");
     if ((error = dlerror()) != NULL) goto fail;
-    glx->glXChooseVisual          = dlsym(glx->libGL,
+    glx->glXChooseVisual          = NV_DLSYM(glx->libGL,
                                           "glXChooseVisual");
     if ((error = dlerror()) != NULL) goto fail;
 #ifdef GLX_VERSION_1_3
-    glx->glXGetFBConfigs          = dlsym(glx->libGL,
+    glx->glXGetFBConfigs          = NV_DLSYM(glx->libGL,
                                           "glXGetFBConfigs");
     if ((error = dlerror()) != NULL) goto fail;
-    glx->glXGetFBConfigAttrib     = dlsym(glx->libGL,
+    glx->glXGetFBConfigAttrib     = NV_DLSYM(glx->libGL,
                                           "glXGetFBConfigAttrib");
     if ((error = dlerror()) != NULL) goto fail;
-    glx->glXGetVisualFromFBConfig = dlsym(glx->libGL,
+    glx->glXGetVisualFromFBConfig = NV_DLSYM(glx->libGL,
                                           "glXGetVisualFromFBConfig");
     if ((error = dlerror()) != NULL) goto fail;
 #endif /* GLX_VERSION_1_3 */
@@ -226,9 +243,11 @@ NvCtrlGlxAttributesClose (NvCtrlAttributePrivateHandle *h)
         XCloseDisplay( h->glx->dpy );
     }
 
+#if defined(NV_BSD)
     if ( h->glx->libGL != NULL ) {
         dlclose( h->glx->libGL );
     }
+#endif
 
     free(h->glx);
     h->glx = NULL;

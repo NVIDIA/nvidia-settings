@@ -643,8 +643,7 @@ static void time_interval_edited(GtkCellRendererText *cell,
     interval = strtol(new_text, (char **)NULL, 10);
     
     if ((interval == 0) ||
-        (interval == LONG_MAX) ||
-        (interval == LONG_MIN)) return;
+        (interval == UINT_MAX)) return;
 
     if (interval > MAX_TIME_INTERVAL) interval = MAX_TIME_INTERVAL;
     if (interval < MIN_TIME_INTERVAL) interval = MIN_TIME_INTERVAL;
