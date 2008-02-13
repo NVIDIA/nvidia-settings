@@ -18,6 +18,9 @@
 #include "NVCtrlLib.h"
 #include "nv_control.h"
 
+#define NVCTRL_EXT_NEED_CHECK          (XPointer)(~0)
+#define NVCTRL_EXT_NEED_NOTHING        (XPointer)(0)
+#define NVCTRL_EXT_NEED_TARGET_SWAP    (XPointer)(1)
 
 static XExtensionInfo _nvctrl_ext_info_data;
 static XExtensionInfo *nvctrl_ext_info = &_nvctrl_ext_info_data;
@@ -47,9 +50,45 @@ static /* const */ XExtensionHooks nvctrl_extension_hooks = {
 static XEXT_GENERATE_FIND_DISPLAY (find_display, nvctrl_ext_info,
                                    nvctrl_extension_name, 
                                    &nvctrl_extension_hooks,
-                                   NV_CONTROL_EVENTS, NULL)
+                                   NV_CONTROL_EVENTS, NVCTRL_EXT_NEED_CHECK)
 
 static XEXT_GENERATE_CLOSE_DISPLAY (close_display, nvctrl_ext_info)
+
+/*
+ * NV-CONTROL versions 1.8 and 1.9 pack the target_type and target_id
+ * fields in reversed order.  In order to talk to one of these servers,
+ * we need to swap these fields.
+ */
+static void XNVCTRLCheckTargetData(Display *dpy, XExtDisplayInfo *info,
+                                   int *target_type, int *target_id)
+{
+    /* Find out what the server's NV-CONTROL version is and
+     * setup for swapping if we need to.
+     */
+    if (info->data == NVCTRL_EXT_NEED_CHECK) {
+        int major, minor;
+
+        if (XNVCTRLQueryVersion(dpy, &major, &minor)) {
+            if (major == 1 &&
+                (minor == 8 || minor == 9)) {
+                info->data = NVCTRL_EXT_NEED_TARGET_SWAP;
+            } else {
+                info->data = NVCTRL_EXT_NEED_NOTHING;
+            }
+        } else {
+            info->data = NVCTRL_EXT_NEED_NOTHING;
+        }
+    }
+
+    /* We need to swap the target_type and target_id */
+    if (info->data == NVCTRL_EXT_NEED_TARGET_SWAP) {
+        int tmp;
+        tmp = *target_type;
+        *target_type = *target_id;
+        *target_id = tmp;
+    }
+}
+
 
 Bool XNVCTRLQueryExtension (
     Display *dpy,
@@ -173,6 +212,7 @@ void XNVCTRLSetTargetAttribute (
     xnvCtrlSetAttributeReq *req;
 
     XNVCTRLSimpleCheckExtension (dpy, info);
+    XNVCTRLCheckTargetData(dpy, info, &target_type, &target_id);
 
     LockDisplay (dpy);
     GetReq (nvCtrlSetAttribute, req);
@@ -255,6 +295,7 @@ Bool XNVCTRLQueryTargetAttribute (
         return False;
 
     XNVCTRLCheckExtension (dpy, info, False);
+    XNVCTRLCheckTargetData(dpy, info, &target_type, &target_id);
 
     LockDisplay (dpy);
     GetReq (nvCtrlQueryAttribute, req);
@@ -308,6 +349,7 @@ Bool XNVCTRLQueryTargetStringAttribute (
         return False;
 
     XNVCTRLCheckExtension (dpy, info, False);
+    XNVCTRLCheckTargetData(dpy, info, &target_type, &target_id);
 
     LockDisplay (dpy);
     GetReq (nvCtrlQueryStringAttribute, req);
@@ -417,6 +459,7 @@ Bool XNVCTRLQueryValidTargetAttributeValues (
         return False;
 
     XNVCTRLCheckExtension (dpy, info, False);
+    XNVCTRLCheckTargetData(dpy, info, &target_type, &target_id);
 
     LockDisplay (dpy);
     GetReq (nvCtrlQueryValidAttributeValues, req);
@@ -1108,6 +1151,7 @@ Bool XNVCTRLQueryTargetBinaryData (
         return False;
 
     XNVCTRLCheckExtension (dpy, info, False);
+    XNVCTRLCheckTargetData(dpy, info, &target_type, &target_id);
 
     LockDisplay (dpy);
     GetReq (nvCtrlQueryBinaryData, req);

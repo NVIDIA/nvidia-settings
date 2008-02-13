@@ -286,7 +286,7 @@ static FormatDetails videoFormatDetails[] = {
 static const FormatName dataFormatNames[] = {
     { NV_CTRL_GVO_DATA_FORMAT_R8G8B8_TO_YCRCB444, "RGB -> YCrCb (4:4:4)" },
     { NV_CTRL_GVO_DATA_FORMAT_R8G8B8_TO_YCRCB422, "RGB -> YCrCb (4:2:2)" },
-    { NV_CTRL_GVO_DATA_FORMAT_R8G8B8_TO_RGB444,   "RGB (4:4:4)" },
+    { NV_CTRL_GVO_DATA_FORMAT_X8X8X8_444_PASSTHRU,"RGB (4:4:4)" },
     { -1, NULL },
 };
 

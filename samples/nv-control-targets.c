@@ -213,7 +213,7 @@ int main(int argc, char *argv[])
         /* Enabled Display Devices on GPU */
 
         ret = XNVCTRLQueryTargetAttribute(dpy,
-                                          NV_CTRL_TARGET_TYPE_X_SCREEN,
+                                          NV_CTRL_TARGET_TYPE_GPU,
                                           gpu, // target_id
                                           0, // display_mask
                                           NV_CTRL_ENABLED_DISPLAYS,

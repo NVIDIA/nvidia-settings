@@ -976,6 +976,13 @@
  * NV_CTRL_GVO_DATA_FORMAT - This controls how the data in the source
  * (either the X screen or the GLX pbuffer) is interpretted and
  * displayed.
+ *
+ * Note: some of the below DATA_FORMATS have been renamed.  For
+ * example, R8G8B8_TO_RGB444 has been renamed to X8X8X8_444_PASSTHRU.
+ * This is to more accurately reflect DATA_FORMATS where the
+ * per-channel data could be either RGB or YCrCb -- the point is that
+ * the driver and GVO hardware do not perform any implicit color space
+ * conversion on the data; it is passed through to the SDI out.
  */
 
 #define NV_CTRL_GVO_DATA_FORMAT                                 72  /* RW- */
@@ -985,20 +992,37 @@
 #define NV_CTRL_GVO_DATA_FORMAT_R8G8B8_TO_YCRCB422              3
 #define NV_CTRL_GVO_DATA_FORMAT_R8G8B8A8_TO_YCRCBA4224          4
 #define NV_CTRL_GVO_DATA_FORMAT_R8G8B8Z10_TO_YCRCBZ4224         5
-#define NV_CTRL_GVO_DATA_FORMAT_R8G8B8_TO_RGB444                6
-#define NV_CTRL_GVO_DATA_FORMAT_R8G8B8A8_TO_RGBA4444            7
-#define NV_CTRL_GVO_DATA_FORMAT_R8G8B8Z10_TO_RGBZ4444           8
-#define NV_CTRL_GVO_DATA_FORMAT_Y10CR10CB10_TO_YCRCB444         9
-#define NV_CTRL_GVO_DATA_FORMAT_Y10CR8CB8_TO_YCRCB444           10
-#define NV_CTRL_GVO_DATA_FORMAT_Y10CR8CB8A10_TO_YCRCBA4444      11
-#define NV_CTRL_GVO_DATA_FORMAT_Y10CR8CB8Z10_TO_YCRCBZ4444      12
+#define NV_CTRL_GVO_DATA_FORMAT_R8G8B8_TO_RGB444                6 // renamed
+#define NV_CTRL_GVO_DATA_FORMAT_X8X8X8_444_PASSTHRU             6
+#define NV_CTRL_GVO_DATA_FORMAT_R8G8B8A8_TO_RGBA4444            7 // renamed
+#define NV_CTRL_GVO_DATA_FORMAT_X8X8X8A8_4444_PASSTHRU          7
+#define NV_CTRL_GVO_DATA_FORMAT_R8G8B8Z10_TO_RGBZ4444           8 // renamed
+#define NV_CTRL_GVO_DATA_FORMAT_X8X8X8Z8_4444_PASSTHRU          8
+#define NV_CTRL_GVO_DATA_FORMAT_Y10CR10CB10_TO_YCRCB444         9 // renamed
+#define NV_CTRL_GVO_DATA_FORMAT_X10X10X10_444_PASSTHRU          9
+#define NV_CTRL_GVO_DATA_FORMAT_Y10CR8CB8_TO_YCRCB444           10 // renamed
+#define NV_CTRL_GVO_DATA_FORMAT_X10X8X8_444_PASSTHRU            10
+#define NV_CTRL_GVO_DATA_FORMAT_Y10CR8CB8A10_TO_YCRCBA4444      11 // renamed
+#define NV_CTRL_GVO_DATA_FORMAT_X10X8X8A10_4444_PASSTHRU        11
+#define NV_CTRL_GVO_DATA_FORMAT_Y10CR8CB8Z10_TO_YCRCBZ4444      12 // renamed
+#define NV_CTRL_GVO_DATA_FORMAT_X10X8X8Z10_4444_PASSTHRU        12
 #define NV_CTRL_GVO_DATA_FORMAT_DUAL_R8G8B8_TO_DUAL_YCRCB422    13
-#define NV_CTRL_GVO_DATA_FORMAT_DUAL_Y8CR8CB8_TO_DUAL_YCRCB422  14
+#define NV_CTRL_GVO_DATA_FORMAT_DUAL_Y8CR8CB8_TO_DUAL_YCRCB422  14 // renamed
+#define NV_CTRL_GVO_DATA_FORMAT_DUAL_X8X8X8_TO_DUAL_422_PASSTHRU 14
 #define NV_CTRL_GVO_DATA_FORMAT_R10G10B10_TO_YCRCB422           15
 #define NV_CTRL_GVO_DATA_FORMAT_R10G10B10_TO_YCRCB444           16
-#define NV_CTRL_GVO_DATA_FORMAT_Y12CR12CB12_TO_YCRCB444         17
+#define NV_CTRL_GVO_DATA_FORMAT_Y12CR12CB12_TO_YCRCB444         17 // renamed
+#define NV_CTRL_GVO_DATA_FORMAT_X12X12X12_444_PASSTHRU          17
 #define NV_CTRL_GVO_DATA_FORMAT_R12G12B12_TO_YCRCB444           18
-
+#define NV_CTRL_GVO_DATA_FORMAT_X8X8X8_422_PASSTHRU             19
+#define NV_CTRL_GVO_DATA_FORMAT_X8X8X8A8_4224_PASSTHRU          20
+#define NV_CTRL_GVO_DATA_FORMAT_X8X8X8Z8_4224_PASSTHRU          21
+#define NV_CTRL_GVO_DATA_FORMAT_X10X10X10_422_PASSTHRU          22
+#define NV_CTRL_GVO_DATA_FORMAT_X10X8X8_422_PASSTHRU            23
+#define NV_CTRL_GVO_DATA_FORMAT_X10X8X8A10_4224_PASSTHRU        24
+#define NV_CTRL_GVO_DATA_FORMAT_X10X8X8Z10_4224_PASSTHRU        25
+#define NV_CTRL_GVO_DATA_FORMAT_X12X12X12_422_PASSTHRU          26
+#define NV_CTRL_GVO_DATA_FORMAT_R12G12B12_TO_YCRCB422           27
 
 /*
  * NV_CTRL_GVO_DISPLAY_X_SCREEN - enable/disable GVO output of the X
@@ -2696,7 +2720,29 @@
 
 #define NV_CTRL_REFRESH_RATE                                    235 /* R-DG */
 
-#define NV_CTRL_LAST_ATTRIBUTE NV_CTRL_REFRESH_RATE
+
+/*
+ * NV_CTRL_GVO_FLIP_QUEUE_SIZE - The Graphics to Video Out interface
+ * exposed through NV-CONTROL and the GLX_NV_video_out extension uses
+ * an internal flip queue when pbuffers are sent to the video device
+ * (via glXSendPbufferToVideoNV()).  The NV_CTRL_GVO_FLIP_QUEUE_SIZE
+ * can be used to query and assign the flip queue size.  This
+ * attribute is applied to GLX when glXGetVideoDeviceNV() is called by
+ * the application.
+ */
+
+#define NV_CTRL_GVO_FLIP_QUEUE_SIZE                             236 /* RW- */
+
+
+/*
+ * NV_CTRL_CURRENT_SCANLINE - query the current scanline for the
+ * specified display device.
+ */
+
+#define NV_CTRL_CURRENT_SCANLINE                                 237 /* R-D */
+
+
+#define NV_CTRL_LAST_ATTRIBUTE NV_CTRL_CURRENT_SCANLINE
 
 
 /**************************************************************************/

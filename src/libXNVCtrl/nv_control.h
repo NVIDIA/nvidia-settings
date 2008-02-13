@@ -6,7 +6,7 @@
 #define NV_CONTROL_NAME "NV-CONTROL"
 
 #define NV_CONTROL_MAJOR 1
-#define NV_CONTROL_MINOR 9
+#define NV_CONTROL_MINOR 10
 
 #define X_nvCtrlQueryExtension                      0
 #define X_nvCtrlIsNv                                1
@@ -113,8 +113,8 @@ typedef struct {
     CARD8 reqType;
     CARD8 nvReqType;
     CARD16 length B16;
-    CARD16 target_type B16;  /* X screen or GPU */
     CARD16 target_id B16;    /* X screen number or GPU number */
+    CARD16 target_type B16;  /* X screen or GPU */
     CARD32 display_mask B32;
     CARD32 attribute B32;
 } xnvCtrlQueryAttributeReq;
@@ -138,8 +138,8 @@ typedef struct {
     CARD8 reqType;
     CARD8 nvReqType;
     CARD16 length B16;
-    CARD16 target_type B16;
     CARD16 target_id B16;
+    CARD16 target_type B16;
     CARD32 display_mask B32;
     CARD32 attribute B32;
     INT32 value B32;
@@ -175,8 +175,8 @@ typedef struct {
     CARD8 reqType;
     CARD8 nvReqType;
     CARD16 length B16;
-    CARD16 target_type B16;  /* X screen or GPU */
     CARD16 target_id B16;    /* X screen number or GPU number */
+    CARD16 target_type B16;  /* X screen or GPU */
     CARD32 display_mask B32;
     CARD32 attribute B32;
 } xnvCtrlQueryStringAttributeReq;
@@ -226,8 +226,8 @@ typedef struct {
     CARD8 reqType;
     CARD8 nvReqType;
     CARD16 length B16;
-    CARD16 target_type B16;  /* X screen or GPU */
     CARD16 target_id B16;    /* X screen number or GPU number */
+    CARD16 target_type B16;  /* X screen or GPU */
     CARD32 display_mask B32;
     CARD32 attribute B32;
 } xnvCtrlQueryValidAttributeValuesReq;
@@ -576,8 +576,8 @@ typedef struct {
     CARD8 reqType;
     CARD8 nvReqType;
     CARD16 length B16;
-    CARD16 target_type B16;  /* X screen or GPU */
     CARD16 target_id B16;    /* X screen number or GPU number */
+    CARD16 target_type B16;  /* X screen or GPU */
     CARD32 display_mask B32;
     CARD32 attribute B32;
 } xnvCtrlQueryBinaryDataReq;
@@ -631,11 +631,20 @@ typedef struct {
 } xnvctrlEvent;
 
 
+/*
+ * Leave target_type before target_id for the
+ * xnvCtrlSelectTargetNotifyReq and xnvctrlEventTarget
+ * structures, even though other request protocol structures
+ * store target_id in the bottom 16-bits of the second DWORD of the
+ * structures.  The event-related structures were added in version
+ * 1.8, and so there is no prior version with which to maintain
+ * compatibility.
+ */
 typedef struct {
     CARD8 reqType;
     CARD8 nvReqType;
     CARD16 length B16;
-    CARD16 target_type B16;
+    CARD16 target_type B16; /* Don't swap these */
     CARD16 target_id B16;
     CARD16 notifyType B16;
     CARD16 onoff B16;
@@ -654,7 +663,7 @@ typedef struct {
             BYTE detail;
             CARD16 sequenceNumber B16;
             CARD32 time B32;
-            CARD16 target_type B16;
+            CARD16 target_type B16; /* Don't swap these */
             CARD16 target_id B16;
             CARD32 display_mask B32;
             CARD32 attribute B32;

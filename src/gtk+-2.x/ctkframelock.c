@@ -69,6 +69,39 @@ enum
     ENTRY_DATA_DISPLAY
 };
 
+/*
+ * These signals get hooked up (to the gpu_state_received() function)
+ * for all frame lock devices that are included in the list.  When the
+ * frame lock device entry is removed, these signals also get removed for
+ * that entry.
+ */
+
+#define NUM_GPU_SIGNALS 4
+
+const char *__GPUSignals[NUM_GPU_SIGNALS] = 
+    {
+        CTK_EVENT_NAME(NV_CTRL_FRAMELOCK_MASTER),
+        CTK_EVENT_NAME(NV_CTRL_FRAMELOCK_SLAVES),
+        CTK_EVENT_NAME(NV_CTRL_FRAMELOCK_SYNC),
+        CTK_EVENT_NAME(NV_CTRL_FRAMELOCK_TEST_SIGNAL)
+    };
+
+/*
+ * These signals get hooked up (to the framelock_state_received() function)
+ * for all frame lock devices that are included in the list.  When the
+ * frame lock device entry is removed, these signals also get removed for
+ * that entry.
+ */
+
+#define NUM_FRAMELOCK_SIGNALS 4
+
+const char *__FrameLockSignals[NUM_FRAMELOCK_SIGNALS] =
+    {
+        CTK_EVENT_NAME(NV_CTRL_USE_HOUSE_SYNC),
+        CTK_EVENT_NAME(NV_CTRL_FRAMELOCK_SYNC_INTERVAL),
+        CTK_EVENT_NAME(NV_CTRL_FRAMELOCK_POLARITY),
+        CTK_EVENT_NAME(NV_CTRL_FRAMELOCK_VIDEO_MODE)
+    };
 
 typedef struct _nvListTreeRec      nvListTreeRec, *nvListTreePtr;
 typedef struct _nvListEntryRec     nvListEntryRec, *nvListEntryPtr;
@@ -154,12 +187,18 @@ struct _nvGPUDataRec {
     guint      clients_mask;
     gboolean   enabled; /* Sync enabled */
 
+    /* Signal Handler IDs */
+    gulong     signal_ids[NUM_GPU_SIGNALS];
+
     GtkWidget *label;
 };
 
 struct _nvFrameLockDataRec {
 
     gpointer   handle; /* NV-CONTROL Frame Lock Target */
+
+    /* Signal Handler IDs */
+    gulong     signal_ids[NUM_FRAMELOCK_SIGNALS];
 
     GtkWidget *label;
 
@@ -1566,6 +1605,9 @@ static nvListEntryPtr list_entry_new(void)
  */
 static void list_entry_free(nvListEntryPtr entry)
 {
+    int i;
+
+
     if (!entry) {
         return;
     }
@@ -1576,6 +1618,34 @@ static void list_entry_free(nvListEntryPtr entry)
     gtk_widget_destroy(entry->data_hbox);
     gtk_widget_destroy(entry->vp);
     */
+
+    /* Remove signal callbacks */
+    if (entry->data_type == ENTRY_DATA_GPU) {
+
+        nvGPUDataPtr data = (nvGPUDataPtr) entry->data;
+        
+        for (i = 0; i < NUM_GPU_SIGNALS; i++) {
+            if (g_signal_handler_is_connected(G_OBJECT(entry->ctk_event),
+                                              data->signal_ids[i])) {
+                g_signal_handler_disconnect(G_OBJECT(entry->ctk_event),
+                                            data->signal_ids[i]);
+            }
+        }
+
+    } else if (entry->data_type == ENTRY_DATA_FRAMELOCK) {
+
+        nvFrameLockDataPtr data = (nvFrameLockDataPtr) entry->data;
+
+        for (i = 0; i < NUM_FRAMELOCK_SIGNALS; i++) {
+            if (g_signal_handler_is_connected(G_OBJECT(entry->ctk_event),
+                                              data->signal_ids[i])) {
+                g_signal_handler_disconnect(G_OBJECT(entry->ctk_event),
+                                            data->signal_ids[i]);
+            }
+        }
+    }
+
+    /* XXX We should probably free/destroy the ctk_event objects here */
 
     free(entry);
 }
@@ -1670,7 +1740,7 @@ static void list_entry_associate(nvListEntryPtr entry, nvListTreePtr tree)
     }
     
     /* Remove references to the entry from the old tree */
-    if (entry->tree && entry->tree != tree) {
+    if (entry->tree && (entry->tree != tree)) {
 
         /* Unselect ourself */
         if (entry == entry->tree->selected_entry) {
@@ -1683,10 +1753,13 @@ static void list_entry_associate(nvListEntryPtr entry, nvListTreePtr tree)
         }
     }
 
-    /* Associate entry's children to the new tree */
+    /* Associate entry to the new tree */
     entry->tree = tree;
+
+    /* Associate entry's children to the new tree */
     child = entry->children;
     while ( child ) {
+
         list_entry_associate(child, tree);
         child = child->next_sibling;
     }
@@ -3270,7 +3343,6 @@ static void gpu_state_received(GtkObject *object,
     gboolean sensitive;
     gboolean checked;
 
-
     switch (event->attribute) {
     case NV_CTRL_FRAMELOCK_MASTER:
 
@@ -4473,6 +4545,8 @@ static unsigned int add_gpu_devices(CtkFramelock *ctk_framelock,
         /* Add Displays tied to this GPU */
         displays_added = add_display_devices(ctk_framelock, entry);
         if (displays_added) {
+            int i;
+
             list_entry_add_child(framelock_entry, entry);
 
             /* Check to see if we should reflect in the GUI that
@@ -4486,26 +4560,14 @@ static unsigned int add_gpu_devices(CtkFramelock *ctk_framelock,
             }
 
             entry->ctk_event = CTK_EVENT(ctk_event_new(gpu_data->handle));
-            
-            g_signal_connect(G_OBJECT(entry->ctk_event),
-                             CTK_EVENT_NAME(NV_CTRL_FRAMELOCK_MASTER),
-                             G_CALLBACK(gpu_state_received),
-                             (gpointer) entry);
-            
-            g_signal_connect(G_OBJECT(entry->ctk_event),
-                             CTK_EVENT_NAME(NV_CTRL_FRAMELOCK_SLAVES),
-                             G_CALLBACK(gpu_state_received),
-                             (gpointer) entry);
 
-            g_signal_connect(G_OBJECT(entry->ctk_event),
-                             CTK_EVENT_NAME(NV_CTRL_FRAMELOCK_SYNC),
-                             G_CALLBACK(gpu_state_received),
-                             (gpointer) entry);
-
-            g_signal_connect(G_OBJECT(entry->ctk_event),
-                             CTK_EVENT_NAME(NV_CTRL_FRAMELOCK_TEST_SIGNAL),
-                             G_CALLBACK(gpu_state_received),
-                             (gpointer) entry);
+            for (i = 0; i < NUM_GPU_SIGNALS; i++) {
+                gpu_data->signal_ids[i] =
+                    g_signal_connect(G_OBJECT(entry->ctk_event),
+                                     __GPUSignals[i],
+                                     G_CALLBACK(gpu_state_received),
+                                     (gpointer) entry);
+            }
             
             gpus_added++;
         } else {
@@ -4627,31 +4689,21 @@ static unsigned int add_framelock_devices(CtkFramelock *ctk_framelock,
         /* Add GPUs tied to this G-Sync */
         gpus_added = add_gpu_devices(ctk_framelock, entry);
         if (gpus_added) {
+            int i;
+
             list_tree_add_entry((nvListTreePtr)(ctk_framelock->tree),
                                 entry);
             
             entry->ctk_event =
                 CTK_EVENT(ctk_event_new(framelock_data->handle));
 
-            g_signal_connect(G_OBJECT(entry->ctk_event),
-                             CTK_EVENT_NAME(NV_CTRL_USE_HOUSE_SYNC),
-                             G_CALLBACK(framelock_state_received),
-                             (gpointer) entry);
-
-            g_signal_connect(G_OBJECT(entry->ctk_event),
-                             CTK_EVENT_NAME(NV_CTRL_FRAMELOCK_SYNC_INTERVAL),
-                             G_CALLBACK(framelock_state_received),
-                             (gpointer) entry);
-
-            g_signal_connect(G_OBJECT(entry->ctk_event),
-                             CTK_EVENT_NAME(NV_CTRL_FRAMELOCK_POLARITY),
-                             G_CALLBACK(framelock_state_received),
-                             (gpointer) entry);
-
-            g_signal_connect(G_OBJECT(entry->ctk_event),
-                             CTK_EVENT_NAME(NV_CTRL_FRAMELOCK_VIDEO_MODE),
-                             G_CALLBACK(framelock_state_received),
-                             (gpointer) entry);
+            for (i = 0; i < NUM_FRAMELOCK_SIGNALS; i++) {
+                framelock_data->signal_ids[i] =
+                    g_signal_connect(G_OBJECT(entry->ctk_event),
+                                     __FrameLockSignals[i],
+                                     G_CALLBACK(framelock_state_received),
+                                     (gpointer) entry);
+            }
 
             framelocks_added++;
         } else {
