@@ -75,6 +75,9 @@ struct _CtkWindow
     GtkWidget              *quit_dialog;
 
     ParsedAttribute        *attribute_list;
+
+    GtkTextTagTable        *help_tag_table;
+    GtkTextBuffer          *help_text_buffer;
 };
 
 struct _CtkWindowClass

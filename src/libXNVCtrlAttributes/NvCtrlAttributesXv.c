@@ -283,8 +283,7 @@ static NvCtrlXvAttribute *getXvAttribute(Display *dpy, XvPortID port,
 {
     NvCtrlXvAttribute *attr = NULL;
     XvAttribute *attributes = NULL;
-    unsigned int n;
-    int i;
+    int i, n;
     
     attributes = XvQueryPortAttributes(dpy, port, &n);
 

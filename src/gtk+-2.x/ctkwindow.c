@@ -198,8 +198,17 @@ static void help_button_toggled(GtkToggleButton *button, gpointer user_data)
 
     enabled = gtk_toggle_button_get_active(button);
 
-    if (enabled) gtk_widget_show_all(ctk_window->ctk_help);
-    else gtk_widget_hide_all(ctk_window->ctk_help);
+    if (enabled) {
+        if (ctk_window->ctk_help == NULL) {
+            ctk_window->ctk_help = ctk_help_new(GTK_WIDGET(button),
+                    ctk_window->help_tag_table);
+            ctk_help_set_page(CTK_HELP(ctk_window->ctk_help),
+                    ctk_window->help_text_buffer);
+        }
+        gtk_widget_show_all(ctk_window->ctk_help);
+    } else {
+        gtk_widget_hide_all(ctk_window->ctk_help);
+    }
 
 } /* help_button_toggled() */
 
@@ -246,7 +255,9 @@ static void tree_selection_changed(GtkTreeSelection *selection,
 
     /* update the help page */
 
-    ctk_help_set_page(CTK_HELP(ctk_window->ctk_help), help);
+    if (ctk_window->ctk_help != NULL)
+        ctk_help_set_page(CTK_HELP(ctk_window->ctk_help), help);
+    ctk_window->help_text_buffer = help;
     
 } /* tree_selection_changed() */
 
@@ -382,9 +393,10 @@ GtkWidget *ctk_window_new(NvCtrlAttributeHandle **handles, gint num_handles,
     g_signal_connect(G_OBJECT(toggle_button), "toggled",
                      G_CALLBACK(help_button_toggled),
                      (gpointer) ctk_window);
-    
-    ctk_window->ctk_help = ctk_help_new(toggle_button);
-    tag_table = CTK_HELP(ctk_window->ctk_help)->tag_table;
+
+    ctk_window->ctk_help = NULL;
+    tag_table = ctk_help_create_tag_table();
+    ctk_window->help_tag_table = tag_table;
     
     ctk_config_set_tooltip(ctk_config, toggle_button, "The Help button "
                            "toggles the display of a help window which "

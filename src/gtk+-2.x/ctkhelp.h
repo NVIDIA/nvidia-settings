@@ -67,9 +67,10 @@ struct _CtkHelpClass
     GtkWindowClass parent_class;
 };
 
-GType            ctk_help_get_type     (void) G_GNUC_CONST;
-GtkWidget       *ctk_help_new          (GtkWidget *);
-void             ctk_help_set_page     (CtkHelp *, GtkTextBuffer *);
+GType             ctk_help_get_type          (void) G_GNUC_CONST;
+GtkWidget        *ctk_help_new               (GtkWidget *, GtkTextTagTable *);
+void              ctk_help_set_page          (CtkHelp *, GtkTextBuffer *);
+GtkTextTagTable  *ctk_help_create_tag_table  (void);
 
 void ctk_help_title   (GtkTextBuffer *, GtkTextIter *, const gchar *, ...);
 void ctk_help_para    (GtkTextBuffer *, GtkTextIter *, const gchar *, ...);

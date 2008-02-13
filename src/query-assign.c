@@ -96,10 +96,9 @@ int nv_process_assignments_and_queries(Options *op)
 uint32 *nv_get_enabled_display_devices(int n, NvCtrlAttributeHandle **h)
 {
     ReturnStatus status;
-    uint32 *d;
-    int screen;
+    int *d, screen;
     
-    d = malloc(sizeof(uint32) * n);
+    d = malloc(sizeof(int) * n);
     
     for (screen = 0; screen < n; screen++) {
         if (!h[screen]) {
@@ -118,7 +117,7 @@ uint32 *nv_get_enabled_display_devices(int n, NvCtrlAttributeHandle **h)
         }
     }
 
-    return d;
+    return (uint32 *)d;
 
 } /* nv_get_enabled_display_devices() */
 

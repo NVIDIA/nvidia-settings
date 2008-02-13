@@ -39,6 +39,7 @@
 SHELL = /bin/sh
 INSTALL = install -m 755
 BUILD_OS := $(shell uname)
+BUILD_ARCH := $(shell uname -m)
 
 ifndef CC
   CC = gcc
@@ -53,7 +54,11 @@ ifndef PKG_CONFIG
 endif
 
 ifndef X11R6_LIB_DIR
-  X11R6_LIB_DIR = /usr/X11R6/lib
+  ifeq ($(BUILD_OS)-$(BUILD_ARCH),Linux-x86_64)
+    X11R6_LIB_DIR = /usr/X11R6/lib64
+  else
+    X11R6_LIB_DIR = /usr/X11R6/lib
+  endif
 endif
 
 ifndef X11R6_INC_DIR
@@ -173,7 +178,7 @@ default: all
 all: $(NVIDIA_SETTINGS)
 
 install: $(NVIDIA_SETTINGS)
-	$(STRIP) $<
+	$(STRIP) $(NVIDIA_SETTINGS)
 	$(INSTALL) $< $(bindir)/$<
 
 $(OBJS_DIR)/%.o: %.c

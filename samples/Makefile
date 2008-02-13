@@ -34,6 +34,9 @@
 # X11R6_INC_DIR = /usr/X11R6/include
 # X11R6_LIB_DIR = /usr/X11R6/lib/
 
+BUILD_OS := $(shell uname)
+BUILD_ARCH := $(shell uname -m)
+
 ifndef CC
   CC = gcc
 endif
@@ -51,7 +54,11 @@ ifndef X11R6_INC_DIR
 endif
 
 ifndef X11R6_LIB_DIR
-  X11R6_LIB_DIR = /usr/X11R6/lib/
+  ifeq ($(BUILD_OS)-$(BUILD_ARCH),Linux-x86_64)
+    X11R6_LIB_DIR = /usr/X11R6/lib64
+  else
+    X11R6_LIB_DIR = /usr/X11R6/lib
+  endif
 endif
 
 LIBXNVCTRL_DIR = ../src/libXNVCtrl

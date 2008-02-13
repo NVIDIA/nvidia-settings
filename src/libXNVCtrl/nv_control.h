@@ -224,7 +224,7 @@ typedef struct {
             BYTE type;
             BYTE detail;
             CARD16 sequenceNumber B16;
-            Time time B32;
+            CARD32 time B32;
             CARD32 screen B32;
             CARD32 display_mask B32;
             CARD32 attribute B32;

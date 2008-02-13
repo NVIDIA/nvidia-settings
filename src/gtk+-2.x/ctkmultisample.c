@@ -653,12 +653,27 @@ static void post_fsaa_app_override_toggled(CtkMultisample *ctk_multisample,
 static void fsaa_app_override_toggled(GtkWidget *widget, gpointer user_data)
 {
     CtkMultisample *ctk_multisample = CTK_MULTISAMPLE(user_data);
+    GtkRange *range = GTK_RANGE(ctk_multisample->fsaa_scale);
     gboolean override;
 
     override = gtk_toggle_button_get_active(GTK_TOGGLE_BUTTON(widget));
 
     NvCtrlSetAttribute(ctk_multisample->handle,
                        NV_CTRL_FSAA_APPLICATION_CONTROLLED, !override);
+    if (!override) {
+        NvCtrlSetAttribute(ctk_multisample->handle,
+                           NV_CTRL_FSAA_MODE, NV_CTRL_FSAA_MODE_NONE);
+
+        g_signal_handlers_block_by_func(G_OBJECT(range),
+                                        G_CALLBACK(fsaa_value_changed),
+                                        (gpointer) ctk_multisample);
+
+        gtk_range_set_value(range, NV_CTRL_FSAA_MODE_NONE);
+
+        g_signal_handlers_unblock_by_func(G_OBJECT(range),
+                                          G_CALLBACK(fsaa_value_changed),
+                                          (gpointer) ctk_multisample);
+    }
 
     post_fsaa_app_override_toggled(ctk_multisample, override);
 
@@ -809,12 +824,27 @@ static void log_aniso_app_override_toggled(GtkWidget *widget,
                                            gpointer user_data)
 {
     CtkMultisample *ctk_multisample = CTK_MULTISAMPLE(user_data);
+    GtkRange *range = GTK_RANGE(ctk_multisample->log_aniso_scale);
     gboolean override;
 
     override = gtk_toggle_button_get_active(GTK_TOGGLE_BUTTON(widget));
 
     NvCtrlSetAttribute(ctk_multisample->handle,
                        NV_CTRL_LOG_ANISO_APPLICATION_CONTROLLED, !override);
+    if (!override) {
+        NvCtrlSetAttribute(ctk_multisample->handle,
+                           NV_CTRL_LOG_ANISO, 0 /* default(?) */);
+
+        g_signal_handlers_block_by_func(G_OBJECT(range),
+                                        G_CALLBACK(log_aniso_value_changed),
+                                        (gpointer) ctk_multisample);
+
+        gtk_range_set_value(range, 0);
+
+        g_signal_handlers_unblock_by_func(G_OBJECT(range),
+                                          G_CALLBACK(log_aniso_value_changed),
+                                          (gpointer) ctk_multisample);
+    }
 
     post_log_aniso_app_override_toggled(ctk_multisample, override);
 

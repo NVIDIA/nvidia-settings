@@ -42,7 +42,7 @@ do {                                                                 \
     __bpp = (bpp);                                                   \
     __ip = (image_buf);                                              \
     __il = __ip + (size) * __bpp;                                    \
-    __rd = (rle_data);                                               \
+    __rd = (unsigned char *)(rle_data);                              \
                                                                      \
     if (__bpp > 3) { /* RGBA */                                      \
         while (__ip < __il) {                                        \

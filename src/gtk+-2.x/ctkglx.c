@@ -73,16 +73,16 @@ static const char * __st_help =
   "st (Stereo buffer) - 'y' if the configuration has left and right color "
   "buffers that are rendered to in stereo.  '-' if this is not supported";
 static const char * __rs_help =
-  "rs (Red size) - Number of bits used for ammount of red per color. "
+  "rs (Red size) - Number of bits per color used for red. "
   "(Undefined for configurations that use color indexing.)";
 static const char * __gs_help =
-  "gs (Green size - Number of bits used for ammount of green per color. "
+  "gs (Green size - Number of bits per color used for green. "
   "(Undefined for configurations that use color indexing.)";
 static const char * __bs_help =
-  "bs (Blue size - Number of bits used for ammount of blue per color. "
+  "bs (Blue size - Number of bits per color used for blue. "
   "(Undefined for configurations that use color indexing.)";
 static const char * __as_help =
-  "as (Alpha size - Number of bits used for ammount of alpha per color. "
+  "as (Alpha size - Number of bits per color used for alpha. "
   "(Undefined for configurations that use color indexing.)";
 static const char * __aux_help =
   "aux (Auxillary buffers) - Number of available auxiliary color butters.";
@@ -91,17 +91,17 @@ static const char * __dpt_help =
 static const char * __stn_help =
   "stn (Stencil size) - Number of bits per element in the stencil buffer.";
 static const char * __acr_help =
-  "acr (Accumulator red size) - Number of bits used for ammount of red per "
-  "color in the accumulator buffer.";
+  "acr (Accumulator red size) - Number of bits per color used for red "
+  "in the accumulator buffer.";
 static const char * __acg_help =
-  "acg (Accumulator green size) - Number of bits used for ammount of green "
-  "per color in the accumulator buffer.";
+  "acg (Accumulator green size) - Number of bits per color used for green "
+  "in the accumulator buffer.";
 static const char * __acb_help =
-  "acb (Accumulator blue size) - Number of bits used for ammount of blue per "
-  "color in the accumulator buffer.";
+  "acb (Accumulator blue size) - Number of bits per color used for blue "
+  "in the accumulator buffer.";
 static const char * __aca_help =
-  "aca (Accumulator alpha size) - Number of bits used for ammount of alpha "
-  "per color in the accumulator buffer.";
+  "aca (Accumulator alpha size) - Number of bits per color used for alpha "
+  "in the accumulator buffer.";
 static const char * __ms_help =
   "ms (Multisample samples) - Number of samples per multisample.";
 static const char * __mb_help =
