@@ -1325,7 +1325,7 @@ GtkTextBuffer *ctk_multisample_create_help(GtkTextTagTable *table,
                           "the slider.");
             ctk_help_para(b, &i, "Enhance Application Settings will make "
                           "applications that are requesting some type of "
-                          "antialiasing to use the mode selected by the "
+                          "antialiasing mode use the mode selected by the "
                           "slider.");
         } else {
             ctk_help_para(b, &i, __aa_override_app_help);

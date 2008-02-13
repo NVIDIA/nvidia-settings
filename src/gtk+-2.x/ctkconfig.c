@@ -36,6 +36,7 @@
 #include <stdarg.h>
 #include <stdlib.h>
 #include <stdio.h>
+#include <string.h>
 
 static const char *__tooltip_help =
 "When ToolTips are enabled, descriptions will be displayed next to options "
@@ -470,6 +471,12 @@ GtkTextBuffer *ctk_config_create_help(GtkTextTagTable *table)
 #define MAX_TIME_INTERVAL (60 * 1000)
 #define MIN_TIME_INTERVAL (100)
 
+static void enabled_renderer_func(GtkTreeViewColumn*, GtkCellRenderer*,
+                                  GtkTreeModel*, GtkTreeIter*, gpointer);
+
+static void description_renderer_func(GtkTreeViewColumn*, GtkCellRenderer*,
+                                      GtkTreeModel*, GtkTreeIter*, gpointer);
+
 static void time_interval_renderer_func(GtkTreeViewColumn*, GtkCellRenderer*,
                                         GtkTreeModel*, GtkTreeIter*, gpointer);
 
@@ -481,9 +488,8 @@ static void timer_enable_toggled(GtkCellRendererToggle*, gchar*, gpointer);
 
 
 enum {
-    USER_ENABLE_COLUMN = 0,
-    TIME_INTERVAL_COLUMN,
-    DESCRIPTION_COLUMN,
+
+    TIMER_CONFIG_COLUMN = 0,
     FUNCTION_COLUMN,
     DATA_COLUMN,
     HANDLE_COLUMN,
@@ -509,9 +515,7 @@ static GtkWidget *create_timer_list(CtkConfig *ctk_config)
 
     ctk_config->list_store =
         gtk_list_store_new(NUM_COLUMNS,
-                           G_TYPE_BOOLEAN,  /* USER_ENABLE_COLUMN */
-                           G_TYPE_UINT,     /* TIME_INTERVAL_COLUMN */
-                           G_TYPE_STRING,   /* DESCRIPTION_COLUMN */
+                           G_TYPE_POINTER,  /* TIMER_CONFIG_COLUMN */
                            G_TYPE_POINTER,  /* FUNCTION_COLUMN */
                            G_TYPE_POINTER,  /* DATA_COLUMN */
                            G_TYPE_UINT,     /* HANDLE_COLUMN */
@@ -529,29 +533,41 @@ static GtkWidget *create_timer_list(CtkConfig *ctk_config)
     g_signal_connect(renderer, "toggled",
                      G_CALLBACK(timer_enable_toggled), ctk_config);
     column = gtk_tree_view_column_new_with_attributes("Enabled", renderer,
-                                                      "active", USER_ENABLE_COLUMN,
                                                       NULL);
     
     gtk_tree_view_append_column(GTK_TREE_VIEW(treeview), column);
     gtk_tree_view_column_set_resizable(column, FALSE);
+
+    gtk_tree_view_column_set_cell_data_func(column,
+                                            renderer,
+                                            enabled_renderer_func,
+                                            GINT_TO_POINTER
+                                            (TIMER_CONFIG_COLUMN),
+                                            NULL);
 
     /* Description */
     
     renderer = gtk_cell_renderer_text_new();
     column = gtk_tree_view_column_new_with_attributes("Description",
                                                       renderer,
-                                                      "text",
-                                                      DESCRIPTION_COLUMN,
                                                       NULL);
     
     gtk_tree_view_append_column(GTK_TREE_VIEW(treeview), column);
     gtk_tree_view_column_set_resizable(column, TRUE);
+
+    gtk_tree_view_column_set_cell_data_func(column,
+                                            renderer,
+                                            description_renderer_func,
+                                            GINT_TO_POINTER
+                                            (TIMER_CONFIG_COLUMN),
+                                            NULL);
     
     /* Time interval */
 
     renderer = gtk_cell_renderer_text_new();
-    column = gtk_tree_view_column_new_with_attributes
-        ("Time Interval", renderer, "editable", TRUE, NULL);
+    column = gtk_tree_view_column_new_with_attributes("Time Interval",
+                                                      renderer,
+                                                      NULL);
 
     g_signal_connect(renderer, "edited",
                      G_CALLBACK(time_interval_edited), ctk_config);
@@ -560,7 +576,7 @@ static GtkWidget *create_timer_list(CtkConfig *ctk_config)
                                             renderer,
                                             time_interval_renderer_func,
                                             GINT_TO_POINTER
-                                            (TIME_INTERVAL_COLUMN),
+                                            (TIMER_CONFIG_COLUMN),
                                             NULL);
     
     gtk_tree_view_append_column(GTK_TREE_VIEW(treeview), column);
@@ -589,6 +605,40 @@ static GtkWidget *create_timer_list(CtkConfig *ctk_config)
 } /* create_timer_list() */
 
 
+static void enabled_renderer_func(GtkTreeViewColumn *tree_column,
+                                  GtkCellRenderer   *cell,
+                                  GtkTreeModel      *model,
+                                  GtkTreeIter       *iter,
+                                  gpointer           data)
+{
+    gint column;
+    TimerConfigProperty *timer_config;
+    gboolean value;
+
+    column = GPOINTER_TO_INT(data);
+    gtk_tree_model_get(model, iter, column, &timer_config, -1);
+
+    value = timer_config->user_enabled;
+    g_object_set(GTK_CELL_RENDERER(cell), "active", value, NULL);
+}
+
+static void description_renderer_func(GtkTreeViewColumn *tree_column,
+                                      GtkCellRenderer   *cell,
+                                      GtkTreeModel      *model,
+                                      GtkTreeIter       *iter,
+                                      gpointer           data)
+{
+    gint column;
+    TimerConfigProperty *timer_config;
+    gchar *value;
+
+    column = GPOINTER_TO_INT(data);
+    gtk_tree_model_get(model, iter, column, &timer_config, -1);
+
+    value = timer_config->description;
+    g_object_set(GTK_CELL_RENDERER(cell), "text", value, NULL);
+}
+
 static void time_interval_renderer_func(GtkTreeViewColumn *tree_column,
                                         GtkCellRenderer   *cell,
                                         GtkTreeModel      *model,
@@ -596,14 +646,17 @@ static void time_interval_renderer_func(GtkTreeViewColumn *tree_column,
                                         gpointer           data)
 {
     gint column = GPOINTER_TO_INT(data);
+    TimerConfigProperty *timer_config;
     guint value;
     gchar str[32];
     
-    gtk_tree_model_get(model, iter, column, &value, -1);
+    gtk_tree_model_get(model, iter, column, &timer_config, -1);
+    value = timer_config->interval;
 
     snprintf(str, 32, "%d ms", value);
     
     g_object_set(GTK_CELL_RENDERER(cell), "text", str, NULL);
+    g_object_set(GTK_CELL_RENDERER(cell), "editable", TRUE, NULL);
 }
 
 
@@ -621,7 +674,7 @@ static void time_interval_edited(GtkCellRendererText *cell,
     GSourceFunc function;
     gpointer data;
     guint interval;
-    gboolean user_enabled;
+    TimerConfigProperty *timer_config;
     gboolean owner_enabled;
 
     interval = strtol(new_text, (char **)NULL, 10);
@@ -636,20 +689,19 @@ static void time_interval_edited(GtkCellRendererText *cell,
     gtk_tree_model_get_iter(model, &iter, path);
     gtk_tree_path_free(path);
 
-    gtk_list_store_set(ctk_config->list_store, &iter,
-                       TIME_INTERVAL_COLUMN, interval, -1);
-    
     gtk_tree_model_get(model, &iter,
-                       USER_ENABLE_COLUMN, &user_enabled,
+                       TIMER_CONFIG_COLUMN, &timer_config,
                        OWNER_ENABLE_COLUMN, &owner_enabled,
                        HANDLE_COLUMN, &handle,
                        FUNCTION_COLUMN, &function,
                        DATA_COLUMN, &data,
                        -1);
+
+    timer_config->interval = interval;
     
     /* Restart the timer if it is already running */
 
-    if (user_enabled && owner_enabled) {
+    if (timer_config->user_enabled && owner_enabled) {
         
         g_source_remove(handle);
         
@@ -671,8 +723,7 @@ static void timer_enable_toggled(GtkCellRendererToggle *cell,
     guint handle;
     GSourceFunc function;
     gpointer data;
-    guint interval;
-    gboolean user_enabled;
+    TimerConfigProperty *timer_config;
     gboolean owner_enabled;
     
     path = gtk_tree_path_new_from_string(path_string);
@@ -680,30 +731,26 @@ static void timer_enable_toggled(GtkCellRendererToggle *cell,
     gtk_tree_path_free(path);
 
     gtk_tree_model_get(model, &iter,
-                       USER_ENABLE_COLUMN, &user_enabled,
+                       TIMER_CONFIG_COLUMN, &timer_config,
                        OWNER_ENABLE_COLUMN, &owner_enabled,
                        HANDLE_COLUMN, &handle,
                        FUNCTION_COLUMN, &function,
                        DATA_COLUMN, &data,
-                       TIME_INTERVAL_COLUMN, &interval,
                        -1);
 
-    user_enabled ^= 1;
+    timer_config->user_enabled ^= 1;
 
     /* Start/stop the timer only when the owner widget has enabled it */
 
     if (owner_enabled) {
-        if (user_enabled) {
-            handle = g_timeout_add(interval, function, data);
+        if (timer_config->user_enabled) {
+            handle = g_timeout_add(timer_config->interval, function, data);
             gtk_list_store_set(ctk_config->list_store, &iter,
                                HANDLE_COLUMN, handle, -1);
         } else {
             g_source_remove(handle);
         }
     }
-
-    gtk_list_store_set(ctk_config->list_store, &iter,
-                       USER_ENABLE_COLUMN, user_enabled, -1);
 }
 
 void ctk_config_add_timer(CtkConfig *ctk_config,
@@ -713,16 +760,38 @@ void ctk_config_add_timer(CtkConfig *ctk_config,
                           gpointer data)
 {
     GtkTreeIter iter;
-    gchar *s = g_strdup(descr);
+    ConfigProperties *conf = ctk_config->conf;
+    TimerConfigProperty *timer_config;
+
+    if (strchr(descr, '_') || strchr(descr, ','))
+        return;
+
+    timer_config = conf->timers;
+    while (timer_config != NULL) {
+        if (strcmp(timer_config->description, descr) == 0)
+            break;
+        timer_config = timer_config->next;
+    }
+
+    if (timer_config == NULL) {
+        timer_config = g_malloc(sizeof(TimerConfigProperty));
+        if (timer_config == NULL)
+            return;
+
+        timer_config->description = g_strdup(descr);
+        timer_config->user_enabled = TRUE;
+        timer_config->interval = interval;
+
+        timer_config->next = conf->timers;
+        conf->timers = timer_config;
+    }
 
     /* Timer defaults to user enabled/owner disabled */
 
     gtk_list_store_append(ctk_config->list_store, &iter);
     gtk_list_store_set(ctk_config->list_store, &iter,
-                       USER_ENABLE_COLUMN, TRUE,
+                       TIMER_CONFIG_COLUMN, timer_config,
                        OWNER_ENABLE_COLUMN, FALSE,
-                       TIME_INTERVAL_COLUMN, interval,
-                       DESCRIPTION_COLUMN, s,
                        FUNCTION_COLUMN, function,
                        DATA_COLUMN, data, -1);
 
@@ -744,29 +813,26 @@ void ctk_config_remove_timer(CtkConfig *ctk_config, GSourceFunc function)
     GSourceFunc func;
     gboolean valid;
     guint handle;
-    gboolean user_enabled;
+    TimerConfigProperty *timer_config;
     gboolean owner_enabled;
-    gchar *descr;
-    
     
     model = GTK_TREE_MODEL(ctk_config->list_store);
 
     valid = gtk_tree_model_get_iter_first(model, &iter);
     while (valid) {
         gtk_tree_model_get(model, &iter,
+                           TIMER_CONFIG_COLUMN, &timer_config,
                            FUNCTION_COLUMN, &func,
-                           USER_ENABLE_COLUMN, &user_enabled,
                            OWNER_ENABLE_COLUMN, &owner_enabled,
-                           DESCRIPTION_COLUMN, &descr,
                            HANDLE_COLUMN, &handle, -1);
         if (func == function) {
 
             /* Remove the timer if it was running */
 
-            if (user_enabled && owner_enabled) {
+            if (timer_config->user_enabled && owner_enabled) {
                 g_source_remove(handle);
             }
-            g_free(descr);
+
             gtk_list_store_remove(ctk_config->list_store, &iter);
             break;
         }
@@ -790,8 +856,7 @@ void ctk_config_start_timer(CtkConfig *ctk_config, GSourceFunc function, gpointe
     GSourceFunc func;
     gboolean valid;
     guint handle;
-    guint interval;
-    gboolean user_enabled;
+    TimerConfigProperty *timer_config;
     gboolean owner_enabled;
     gpointer model_data;
 
@@ -800,20 +865,19 @@ void ctk_config_start_timer(CtkConfig *ctk_config, GSourceFunc function, gpointe
     valid = gtk_tree_model_get_iter_first(model, &iter);
     while (valid) {
         gtk_tree_model_get(model, &iter,
-                           USER_ENABLE_COLUMN, &user_enabled,
+                           TIMER_CONFIG_COLUMN, &timer_config,
                            OWNER_ENABLE_COLUMN, &owner_enabled,
                            HANDLE_COLUMN, &handle,
                            FUNCTION_COLUMN, &func,
                            DATA_COLUMN, &model_data,
-                           TIME_INTERVAL_COLUMN, &interval,
                            -1);
         if ((func == function) && (model_data == data)) {
 
             /* Start the timer if is enabled by the user and
                it is not already running. */
             
-            if (user_enabled && !owner_enabled) {
-                handle = g_timeout_add(interval, function, data);
+            if (timer_config->user_enabled && !owner_enabled) {
+                handle = g_timeout_add(timer_config->interval, function, data);
                 gtk_list_store_set(ctk_config->list_store, &iter,
                                    HANDLE_COLUMN, handle, -1);
             }
@@ -832,8 +896,7 @@ void ctk_config_stop_timer(CtkConfig *ctk_config, GSourceFunc function, gpointer
     GSourceFunc func;
     gboolean valid;
     guint handle;
-    guint interval;
-    gboolean user_enabled;
+    TimerConfigProperty *timer_config;
     gboolean owner_enabled;
     gpointer model_data;
 
@@ -842,18 +905,17 @@ void ctk_config_stop_timer(CtkConfig *ctk_config, GSourceFunc function, gpointer
     valid = gtk_tree_model_get_iter_first(model, &iter);
     while (valid) {
         gtk_tree_model_get(model, &iter,
-                           USER_ENABLE_COLUMN, &user_enabled,
+                           TIMER_CONFIG_COLUMN, &timer_config,
                            OWNER_ENABLE_COLUMN, &owner_enabled,
                            HANDLE_COLUMN, &handle,
                            FUNCTION_COLUMN, &func,
                            DATA_COLUMN, &model_data,
-                           TIME_INTERVAL_COLUMN, &interval,
                            -1);
         if ((func == function) && (model_data == data)) {
 
             /* Remove the timer if was running. */
 
-            if (user_enabled && owner_enabled) {
+            if (timer_config->user_enabled && owner_enabled) {
                 g_source_remove(handle);
             }
             gtk_list_store_set(ctk_config->list_store, &iter,

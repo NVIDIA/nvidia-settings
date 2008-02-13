@@ -255,7 +255,7 @@ static void ctk_event_class_init(CtkEventClass *ctk_event_class)
      * knows about.
      */
 
-#if NV_CTRL_LAST_ATTRIBUTE != NV_CTRL_NOTEBOOK_INTERNAL_LCD
+#if NV_CTRL_LAST_ATTRIBUTE != NV_CTRL_DEPTH_30_ALLOWED
 #warning "There are attributes that do not emit signals!"
 #endif
 

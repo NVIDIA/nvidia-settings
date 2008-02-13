@@ -707,6 +707,9 @@ static int parse_config_property(const char *file, const char *line, ConfigPrope
     char *no_spaces, *s;
     char *locale;
     ConfigPropertiesTableEntry *t;
+    char *timer, *token;
+    TimerConfigProperty *c = NULL;
+    int interval;
     int ret = NV_FALSE;
     unsigned int flag;
     
@@ -726,9 +729,53 @@ static int parse_config_property(const char *file, const char *line, ConfigPrope
             nv_warning_msg("Error parsing configuration file '%s': could "
                            "not set the specified locale '%s'.",
                            file, locale);
+        }
+    } else if (nv_strcasecmp(no_spaces, "Timer")) {
+        timer = ++s;
+
+        token = strtok(timer, ",");
+        if (!token)
+            goto done;
+
+        c = malloc(sizeof(TimerConfigProperty));
+        if (!c) {
+            nv_warning_msg("Error parsing configuration file '%s': could "
+                           "not allocate memory for timer '%s'.",
+                           file, timer);
             ret = NV_TRUE;
             goto done;
         }
+
+        c->description = replace_characters(token, '_', ' ');
+        if (!c->description) {
+            nv_warning_msg("Error parsing configuration file '%s': could "
+                           "not allocate memory for timer '%s'.",
+                           file, timer);
+            ret = NV_TRUE;
+            goto done;
+        }
+
+        token = strtok(NULL, ",");
+        if (!token)
+            goto done;
+
+        if (nv_strcasecmp(token, "Yes")) {
+            c->user_enabled = 1;
+        } else if (nv_strcasecmp(token, "No")) {
+            c->user_enabled = 0;
+        } else {
+            goto done;
+        }
+
+        token = strtok(NULL, ",");
+        if (!token)
+            goto done;
+
+        parse_read_integer(token, &interval);
+        c->interval = interval;
+
+        c->next = conf->timers;
+        conf->timers = c;
     } else {
         for (t = configPropertyTable, flag = 0; t->name; t++) {
             if (nv_strcasecmp(no_spaces, t->name)) {
@@ -754,6 +801,12 @@ static int parse_config_property(const char *file, const char *line, ConfigPrope
 
  done:
 
+    if ((ret != NV_TRUE) && c) {
+        if (c->description)
+            free(c->description);
+        free(c);
+    }
+
     if (no_spaces) free(no_spaces);
     return ret;
     
@@ -770,6 +823,8 @@ static int parse_config_property(const char *file, const char *line, ConfigPrope
 static void write_config_properties(FILE *stream, ConfigProperties *conf, char *locale)
 {
     ConfigPropertiesTableEntry *t;
+    TimerConfigProperty *c;
+    char *description;
 
     fprintf(stream, "\n");
     fprintf(stream, "# ConfigProperties:\n");
@@ -780,6 +835,16 @@ static void write_config_properties(FILE *stream, ConfigProperties *conf, char *
     for (t = configPropertyTable; t->name; t++) {
         fprintf(stream, "%s = %s\n", t->name,
                 (t->flag & conf->booleans) ? "Yes" : "No");
+    }
+
+    for (c = conf->timers; (c != NULL); c = c->next) {
+        description = replace_characters(c->description, ' ', '_');
+        if (!description)
+            continue;
+        fprintf(stream, "Timer = %s,%s,%u\n",
+                description, c->user_enabled ? "Yes" : "No",
+                c->interval);
+        free(description);
     }
 } /* write_config_properties()*/
 

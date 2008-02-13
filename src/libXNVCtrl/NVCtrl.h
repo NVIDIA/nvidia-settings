@@ -3157,8 +3157,14 @@
 
 #define NV_CTRL_NOTEBOOK_INTERNAL_LCD                           278 /* R-- */
 
+/*
+ * NV_CTRL_DEPTH_30_ALLOWED - returns whether the NVIDIA X driver supports
+ * depth 30 on the specified X screen or GPU.
+ */
 
-#define NV_CTRL_LAST_ATTRIBUTE NV_CTRL_NOTEBOOK_INTERNAL_LCD
+#define NV_CTRL_DEPTH_30_ALLOWED                                279 /* R--G */
+
+#define NV_CTRL_LAST_ATTRIBUTE NV_CTRL_DEPTH_30_ALLOWED
 
 /**************************************************************************/
 

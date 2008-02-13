@@ -68,6 +68,8 @@ typedef struct _CtkDisplayConfig
     GtkWidget *chk_xinerama_enabled;
     GtkWidget *chk_primary_display;
 
+    GtkWidget *notebook; /* Tabbed notebook for display and X screen pages */
+
 
     /* Display - Info */
     GtkWidget *display_page;
@@ -124,8 +126,8 @@ typedef struct _CtkDisplayConfig
     GtkWidget *btn_screen_metamode;
     GtkWidget *btn_screen_metamode_add;
     GtkWidget *btn_screen_metamode_delete;
-
-
+    
+    char *screen_depth_table;
     /* Dialogs */
     GtkWidget *dlg_display_config;
     GtkWidget *rad_display_config_disabled;

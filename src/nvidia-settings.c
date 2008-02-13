@@ -44,21 +44,37 @@ int main(int argc, char **argv)
     NvCtrlAttributeHandle **vcsc_handles = NULL;
     Options *op;
     int ret, i, num_screen_handles, num_gpu_handles, num_vcsc_handles;
-    
+    char *dpy = NULL;
+    int gui = 0;
+
     /*
      * initialize the ui
      *
      * XXX it would be nice if we didn't do this up front, since we
      * may not even use the gui, but we want the toolkit to have a
-     * chance to parse the commandline before we do... we should
-     * investigate gtk_init_check().
+     * chance to parse the commandline before we do...
+     *
+     * gui flag used to decide if ctk should be used or not, as
+     * the user might just use control the display from a remote console
+     * but for some reason cannot initialize the gtk gui. - TY 2005-05-27
      */
-    
-    ctk_init(&argc, &argv);
+
+    if (ctk_init_check(&argc, &argv)) {
+        dpy = ctk_get_display();
+        gui = 1;
+    }
     
     /* parse the commandline */
     
-    op = parse_command_line(argc, argv, ctk_get_display());
+    op = parse_command_line(argc, argv, dpy);
+
+    /* quit here if we don't have a ctrl_display - TY 2005-05-27 */
+
+    if (op->ctrl_display == NULL) {
+        nv_error_msg("The control display is undefined; please run "
+                     "`%s --help` for usage information.\n", argv[0]);
+        return 1;
+    }
 
     /* process any query or assignment commandline options */
 
@@ -107,6 +123,17 @@ int main(int argc, char **argv)
     
     if (op->only_load) {
         return ret ? 0 : 1;
+    }
+
+    /*
+     * past this point, we need to be able to create a gui; fail if
+     * the gui isn't available; TY 2005-05-27
+     */
+
+    if (gui == 0) {
+        nv_error_msg("Unable to create nvidia-settings GUI; please run "
+                     "`%s --help` for usage information.\n", argv[0]);
+        return 1;
     }
 
     /* allocate the CtrlHandles for this X screen */

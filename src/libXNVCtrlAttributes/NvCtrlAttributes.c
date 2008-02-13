@@ -550,7 +550,9 @@ NvCtrlGetDisplayAttribute(NvCtrlAttributeHandle *handle,
         return NvCtrlSuccess;
     }
     
-    if ((attr >= 0) && (attr <= NV_CTRL_LAST_ATTRIBUTE)) {
+    if (((attr >= 0) && (attr <= NV_CTRL_LAST_ATTRIBUTE)) ||
+        ((attr >= NV_CTRL_ATTR_NV_BASE) &&
+         (attr <= NV_CTRL_ATTR_NV_LAST_ATTRIBUTE))) {
         if (!h->nv) return NvCtrlMissingExtension;
         return NvCtrlNvControlGetAttribute(h, display_mask, attr, val);
     }

@@ -4159,6 +4159,7 @@ GtkWidget* ctk_framelock_new(NvCtrlAttributeHandle *handle,
 
     ReturnStatus ret;
     unsigned int num_framelocks;
+    gchar *string;
 
     GtkWidget *frame;
     GtkWidget *padding;
@@ -4536,17 +4537,27 @@ GtkWidget* ctk_framelock_new(NvCtrlAttributeHandle *handle,
 
     /* register a timer callback to update the status of the page */
 
+    string = g_strdup_printf("Frame Lock Connection Status (Screen %u)",
+                             NvCtrlGetTargetId(handle));
+
     ctk_config_add_timer(ctk_config, DEFAULT_UPDATE_STATUS_TIME_INTERVAL,
-                         "Frame Lock Connection Status",
+                         string,
                          (GSourceFunc) update_framelock_status,
                          (gpointer) ctk_framelock);
+
+    g_free(string);
     
     /* register a timer callback to check the rj45 ports */
 
+    string = g_strdup_printf("Frame Lock RJ45 Check (Screen %u)",
+                             NvCtrlGetTargetId(handle));
+
     ctk_config_add_timer(ctk_config, DEFAULT_CHECK_FOR_ETHERNET_TIME_INTERVAL,
-                         "Frame Lock RJ45 Check",
+                         string,
                          (GSourceFunc) check_for_ethernet,
                          (gpointer) ctk_framelock);
+
+    g_free(string);
 
     return GTK_WIDGET(object);
     

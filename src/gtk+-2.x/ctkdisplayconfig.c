@@ -134,7 +134,7 @@ typedef struct SwitchModeCallbackInfoRec {
 #define VALIDATE_APPLY 0
 #define VALIDATE_SAVE  1
 
-
+#define SCREEN_DEPTH_COUNT 4
 
 
 /*** G L O B A L S ***********************************************************/
@@ -302,6 +302,28 @@ static void check_screen_pos_changed(CtkDisplayConfig *ctk_object)
 
 
 
+/** layout_supports_depth_30() ***************************************
+ *
+ * Returns TRUE if all the GPUs in the layout that have screens
+ * support depth 30.
+ *
+ **/
+
+static gboolean layout_supports_depth_30(nvLayoutPtr layout)
+{
+    nvGpuPtr gpu;
+
+    for (gpu = layout->gpus; gpu; gpu = gpu->next) {
+        if ((gpu->num_screens) && (!gpu->allow_depth_30)) {
+            return FALSE;
+        }
+    }
+    return TRUE;
+
+} /* layout_supports_depth_30() */
+
+
+
 /** consolidate_xinerama() *******************************************
  *
  * Ensures that all X screens have the same depth if Xinerama is
@@ -324,7 +346,16 @@ static void consolidate_xinerama(CtkDisplayConfig *ctk_object,
     }
     if (!screen) return;
 
-    /* If Xinerama is enabled, all screens must have the same bpp. */
+    /**
+     * Make sure all screens support depth 30, and if not,
+     * we should set depth 24.
+     **/
+
+    if ((screen->depth == 30) && (layout_supports_depth_30(layout) == FALSE)) {
+        screen->depth = 24;
+    }
+
+    /* If Xinerama is enabled, all screens must have the same depth. */
     for (gpu = screen->gpu->layout->gpus; gpu; gpu = gpu->next) {
         for (other = gpu->screens; other; other = other->next) {
             if (other == screen) continue;
@@ -846,19 +877,21 @@ static void screen_primary_display_toggled(GtkWidget *widget,
                                            gpointer user_data)
 {
     CtkDisplayConfig *ctk_object = CTK_DISPLAY_CONFIG(user_data);
-    gint enabled;
+    gint enabled = gtk_toggle_button_get_active(GTK_TOGGLE_BUTTON(widget));
     nvDisplayPtr display = ctk_display_layout_get_selected_display
         (CTK_DISPLAY_LAYOUT(ctk_object->obj_layout));
     nvScreenPtr screen = display->screen;
-    enabled = gtk_toggle_button_get_active(GTK_TOGGLE_BUTTON(widget));
     
     if (enabled) {
         screen->primaryDisplay = display;
     }
 
-    //Make the apply button sensitive to user input
+    /* Make the apply button sensitive to user input */
     gtk_widget_set_sensitive(ctk_object->btn_apply, True);
+
 } /* screen_primary_display_toggled() */
+
+
 
 /** ctk_display_config_new() *****************************************
  *
@@ -875,7 +908,6 @@ GtkWidget* ctk_display_config_new(NvCtrlAttributeHandle *handle,
     GtkWidget *banner;
     GtkWidget *frame;
     GtkWidget *notebook;
-    GtkWidget *tab_label;
     GtkWidget *hbox;
     GtkWidget *hbox2;
     GtkWidget *vbox;
@@ -1378,19 +1410,13 @@ GtkWidget* ctk_display_config_new(NvCtrlAttributeHandle *handle,
     
 
     /* Panel for the notebook sections */
-    vbox = gtk_vbox_new(FALSE, 5);
-    gtk_box_pack_start(GTK_BOX(ctk_object), vbox, FALSE, FALSE, 5);
+    notebook = gtk_notebook_new();
+    ctk_object->notebook = notebook;
+    gtk_box_pack_start(GTK_BOX(ctk_object), notebook, FALSE, FALSE, 0);
 
 
-    { /* Display section */
+    { /* Display page */
         GtkWidget *longest_hbox;
-
-        /* Create the display page */
-        tab_label = gtk_label_new("Display");
-        notebook = gtk_notebook_new();
-        hbox  = gtk_hbox_new(FALSE, 5);
-        gtk_box_pack_start(GTK_BOX(hbox), notebook, TRUE, TRUE, 5);
-        gtk_box_pack_start(GTK_BOX(vbox), hbox, FALSE, FALSE, 0);
         
         /* Generate the major vbox for the display section */
         vbox = gtk_vbox_new(FALSE, 5);
@@ -1484,8 +1510,8 @@ GtkWidget* ctk_display_config_new(NvCtrlAttributeHandle *handle,
         hbox = gtk_hbox_new(FALSE, 5);
         gtk_box_pack_start(GTK_BOX(vbox), hbox, FALSE, TRUE, 0);
         ctk_object->chk_primary_display =
-            gtk_check_button_new_with_label("Make this Primary Display "
-                                            "for X Screen");
+            gtk_check_button_new_with_label("Make this the primary display "
+                                            "for the X screen");
         ctk_config_set_tooltip(ctk_config, ctk_object->chk_primary_display,
                                __dpy_primary_help);
         g_signal_connect(G_OBJECT(ctk_object->chk_primary_display), "toggled",
@@ -1496,14 +1522,17 @@ GtkWidget* ctk_display_config_new(NvCtrlAttributeHandle *handle,
         gtk_widget_set_size_request(label, req.width, -1);
         gtk_box_pack_start(GTK_BOX(hbox), ctk_object->chk_primary_display,
                            TRUE, TRUE, 0);
-        gtk_notebook_append_page(GTK_NOTEBOOK(notebook), vbox, tab_label);
+
+        /* Up the object ref count to make sure that the page and its widgets
+         * do not get freed if/when the page is removed from the notebook.
+         */
+        g_object_ref(ctk_object->display_page);
+        gtk_widget_show_all(ctk_object->display_page);
+
     } /* Display sub-section */
     
 
-    { /* X screen */
-
-        /* Create the X screen page */
-        tab_label = gtk_label_new("X Screen");
+    { /* X screen page */
 
         /* Generate the major vbox for the display section */
         vbox = gtk_vbox_new(FALSE, 5);
@@ -1564,7 +1593,12 @@ GtkWidget* ctk_display_config_new(NvCtrlAttributeHandle *handle,
                            TRUE, TRUE, 0);
         ctk_object->box_screen_metamode = hbox;
 
-        gtk_notebook_append_page(GTK_NOTEBOOK(notebook), vbox, tab_label);
+        /* Up the object ref count to make sure that the page and its widgets
+         * do not get freed if/when the page is removed from the notebook.
+         */
+        g_object_ref(ctk_object->screen_page);
+        gtk_widget_show_all(ctk_object->screen_page);
+
     } /* X screen sub-section */
     
  
@@ -2744,12 +2778,20 @@ static void setup_display_page(CtkDisplayConfig *ctk_object)
 {
     nvDisplayPtr display = ctk_display_layout_get_selected_display
         (CTK_DISPLAY_LAYOUT(ctk_object->obj_layout));
+    gint page_num;
+    GtkWidget *tab_label;
 
 
-    /* If no display is selected or there is no screen, hide the frame */
+    page_num = gtk_notebook_page_num(GTK_NOTEBOOK(ctk_object->notebook),
+                                     ctk_object->display_page);
+
+    /* If no display is selected, remove the display page */
     if (!display) {
         gtk_widget_set_sensitive(ctk_object->display_page, False);
-        gtk_widget_hide(ctk_object->display_page);
+        if (page_num >= 0) {
+            gtk_notebook_remove_page(GTK_NOTEBOOK(ctk_object->notebook),
+                                     page_num);
+        }
         return;
     }
 
@@ -2781,10 +2823,17 @@ static void setup_display_page(CtkDisplayConfig *ctk_object)
     /* Setup panning */
     setup_display_panning(ctk_object);
 
+
     /* Setup first display */
     setup_primary_display(ctk_object);
 
-    gtk_widget_show(ctk_object->display_page);
+
+    /* Make sure the page has been added to the notebook */
+    if (page_num < 0) {
+        tab_label = gtk_label_new("Display");
+        gtk_notebook_prepend_page(GTK_NOTEBOOK(ctk_object->notebook),
+                                  ctk_object->display_page, tab_label);
+    }
 
 } /* setup_display_page() */
 
@@ -2801,6 +2850,9 @@ static void setup_screen_depth_dropdown(CtkDisplayConfig *ctk_object)
 {
     GtkWidget *menu;
     GtkWidget *menu_item;
+    int cur_idx;
+    int screen_depth_table_len = 0;
+    gboolean add_depth_30_option;
     nvDisplayPtr display = ctk_display_layout_get_selected_display
         (CTK_DISPLAY_LAYOUT(ctk_object->obj_layout));
     
@@ -2808,18 +2860,44 @@ static void setup_screen_depth_dropdown(CtkDisplayConfig *ctk_object)
         gtk_widget_hide(ctk_object->box_screen_depth);
         return;
     }
+    if (ctk_object->screen_depth_table) {
+        free(ctk_object->screen_depth_table);
+    }
+    ctk_object->screen_depth_table =
+        (char *) malloc(sizeof(char) * SCREEN_DEPTH_COUNT);
 
+    menu  = gtk_menu_new();
 
-    menu      = gtk_menu_new();
-    menu_item = gtk_menu_item_new_with_label("Millions of Colors (32 bpp)");
+    /* If Xinerama is enabled, only allow depth 30 if all
+     * gpu/screens have support for depth 30.
+     */
+
+    if (ctk_object->layout->xinerama_enabled) {
+        add_depth_30_option = layout_supports_depth_30(display->gpu->layout);
+    } else {
+        add_depth_30_option = display->gpu->allow_depth_30;
+    }
+
+    if (add_depth_30_option) {
+        menu_item = gtk_menu_item_new_with_label
+            ("1.1 Billion Colors (Depth 30) - Experimental");
+        gtk_menu_shell_append(GTK_MENU_SHELL(menu), menu_item);
+        gtk_widget_show(menu_item);
+        ctk_object->screen_depth_table[screen_depth_table_len++] = 30;
+    }
+    menu_item = gtk_menu_item_new_with_label("16.7 Million Colors (Depth 24)");
     gtk_menu_shell_append(GTK_MENU_SHELL(menu), menu_item);
     gtk_widget_show(menu_item);
-    menu_item = gtk_menu_item_new_with_label("Thousands of Colors (16 bpp)");
+    ctk_object->screen_depth_table[screen_depth_table_len++] = 24;
+
+    menu_item = gtk_menu_item_new_with_label("65,536 Colors (Depth 16)");
     gtk_menu_shell_append(GTK_MENU_SHELL(menu), menu_item);
     gtk_widget_show(menu_item);
-    menu_item = gtk_menu_item_new_with_label("256 Colors (8 bpp)");
+    ctk_object->screen_depth_table[screen_depth_table_len++] = 16;
+    menu_item = gtk_menu_item_new_with_label("256 Colors (Depth 8)");
     gtk_menu_shell_append(GTK_MENU_SHELL(menu), menu_item);
     gtk_widget_show(menu_item);
+    ctk_object->screen_depth_table[screen_depth_table_len++] = 8;
 
     g_signal_handlers_block_by_func(G_OBJECT(ctk_object->mnu_screen_depth),
                                     G_CALLBACK(screen_depth_changed),
@@ -2827,16 +2905,12 @@ static void setup_screen_depth_dropdown(CtkDisplayConfig *ctk_object)
 
     gtk_option_menu_set_menu
         (GTK_OPTION_MENU(ctk_object->mnu_screen_depth), menu);
-
-    if (display->screen->depth == 24) {
-        gtk_option_menu_set_history
-            (GTK_OPTION_MENU(ctk_object->mnu_screen_depth), 0);
-    } else if (display->screen->depth == 16) {
-        gtk_option_menu_set_history
-            (GTK_OPTION_MENU(ctk_object->mnu_screen_depth), 1);
-    } else {
-        gtk_option_menu_set_history
-            (GTK_OPTION_MENU(ctk_object->mnu_screen_depth), 2);
+    
+    for (cur_idx = 0; cur_idx < SCREEN_DEPTH_COUNT; cur_idx++) {
+        if (display->screen->depth == ctk_object->screen_depth_table[cur_idx]) {
+            gtk_option_menu_set_history
+                (GTK_OPTION_MENU(ctk_object->mnu_screen_depth), cur_idx);
+        }
     }
 
     g_signal_handlers_unblock_by_func(G_OBJECT(ctk_object->mnu_screen_depth),
@@ -3134,12 +3208,21 @@ static void setup_screen_page(CtkDisplayConfig *ctk_object)
     nvDisplayPtr display = ctk_display_layout_get_selected_display
         (CTK_DISPLAY_LAYOUT(ctk_object->obj_layout));
     gchar *tmp;
+    gint page_num;
+    GtkWidget *tab_label;
 
 
-    /* If there is no display or no screen selected, hide the frame */
+    page_num = gtk_notebook_page_num(GTK_NOTEBOOK(ctk_object->notebook),
+                                     ctk_object->screen_page);
+
+
+    /* If there is no display or no screen selected, remove the screen page */
     if (!display || !display->screen) {
         gtk_widget_set_sensitive(ctk_object->screen_page, False);
-        gtk_widget_hide(ctk_object->screen_page);
+        if (page_num >= 0) {
+            gtk_notebook_remove_page(GTK_NOTEBOOK(ctk_object->notebook),
+                                     page_num);
+        }
         return;
     }
 
@@ -3166,8 +3249,13 @@ static void setup_screen_page(CtkDisplayConfig *ctk_object)
     setup_screen_metamode(ctk_object);
 
 
-    gtk_widget_show(ctk_object->screen_page);
-
+    /* Make sure the page has been added to the notebook */
+    if (page_num < 0) {
+        tab_label = gtk_label_new("X Screen");
+        gtk_notebook_append_page(GTK_NOTEBOOK(ctk_object->notebook),
+                                 ctk_object->screen_page, tab_label);
+    }
+    
 } /* setup_screen_page() */
 
 
@@ -4847,6 +4935,8 @@ static void display_resolution_changed(GtkWidget *widget, gpointer user_data)
 
 } /* display_resolution_changed() */
 
+
+
 /** display_modelname_changed() *****************************
  *
  * Called when user selectes a new display from display modelname dropdown.
@@ -4868,7 +4958,10 @@ static void display_modelname_changed(GtkWidget *widget, gpointer user_data)
     /* Reconfigure GUI to display information about the selected display. */
     setup_display_page(ctk_object);
     setup_screen_page(ctk_object);
+
 } /* display_modelname_changed() */
+
+
 
 /** display_position_type_changed() **********************************
  *
@@ -5071,17 +5164,31 @@ static void screen_depth_changed(GtkWidget *widget, gpointer user_data)
 {
     CtkDisplayConfig *ctk_object = CTK_DISPLAY_CONFIG(user_data);
     gint idx = gtk_option_menu_get_history(GTK_OPTION_MENU(widget));
-    int depth = 8;
+    int depth;
     nvScreenPtr screen = ctk_display_layout_get_selected_screen
         (CTK_DISPLAY_LAYOUT(ctk_object->obj_layout));
-        
+
     if (!screen) return;
 
-    /* Set the new default depth of the screen */
-    if (idx == 0) {
-        depth = 24;
-    } else if (idx == 1) {
-        depth = 16;
+    depth = ctk_object->screen_depth_table[idx];
+
+    if (depth == 30) {
+        GtkWidget *dlg;
+        GtkWidget *parent = ctk_get_parent_window(GTK_WIDGET(ctk_object));
+        dlg = gtk_message_dialog_new (GTK_WINDOW(parent),
+                                      GTK_DIALOG_MODAL,
+                                      GTK_MESSAGE_WARNING,
+                                      GTK_BUTTONS_OK,
+                                      "Note that Depth 30 requires recent X "
+                                      "server updates for correct operation.  "
+                                      "Also, some X applications may not work "
+                                      "correctly with depth 30.\n\n"
+                                      "Please see the Chapter \"Configuring "
+                                      "Depth 30 Displays\" "
+                                      "in the README for details.");
+        gtk_dialog_run(GTK_DIALOG(dlg));
+        gtk_widget_destroy (dlg);
+
     }
     ctk_display_layout_set_screen_depth
         (CTK_DISPLAY_LAYOUT(ctk_object->obj_layout), screen, depth);
@@ -5418,7 +5525,7 @@ static void xinerama_state_toggled(GtkWidget *widget, gpointer user_data)
     /* Can't dynamically enable Xinerama */
     ctk_object->apply_possible = FALSE;
 
-    /* Make sure all screens have the same bpp when Xinerama is enabled */
+    /* Make sure all screens have the same depth when Xinerama is enabled */
     consolidate_xinerama(ctk_object, NULL);
     setup_screen_page(ctk_object);
 

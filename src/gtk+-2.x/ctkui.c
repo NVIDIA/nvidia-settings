@@ -32,9 +32,9 @@
  * that nvidia-settings.c doesn't need to include gtk+
  */
 
-void ctk_init(int *argc, char **argv[])
+int ctk_init_check(int *argc, char **argv[])
 {
-    gtk_init(argc, argv);
+    return gtk_init_check(argc, argv);
 }
 
 char *ctk_get_display(void)

@@ -41,9 +41,17 @@
 #define CONFIG_PROPERTIES_INCLUDE_DISPLAY_NAME_IN_CONFIG_FILE (1<<3)
 #define CONFIG_PROPERTIES_SHOW_QUIT_DIALOG                    (1<<4)
 
+typedef struct _TimerConfigProperty {
+    char *description;
+    unsigned int user_enabled;
+    unsigned int interval;
+    struct _TimerConfigProperty *next;
+} TimerConfigProperty;
+
 typedef struct {
     unsigned int booleans;
     char *locale;
+    TimerConfigProperty *timers;
 } ConfigProperties;
 
 

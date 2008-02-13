@@ -124,10 +124,18 @@ G_BEGIN_DECLS
 (!strcmp(( m )->data.identifier, "nvidia-auto-select"))
 
 
-/* Calculates the vertical refresh rate of the modeline in Hz */
-#define GET_MODELINE_REFRESH_RATE(m)                         \
-(((double)((m)->data.clock) * 1000) /                        \
- ((double)((m)->data.htotal) * (double)((m)->data.vtotal)))
+/* Calculates the vertical refresh rate of the modeline in Hz; if the
+ * divide by two for double scan modes (if the double scan modeline
+ * isn't broken; i.e., already has a correct vtotal), and multiply by
+ * two for interlaced modes (so that we report the field rate, rather
+ * than the frame rate)
+ */
+#define GET_MODELINE_REFRESH_RATE(m)                           \
+((((double)((m)->data.clock) * 1000) /                         \
+  ((double)((m)->data.htotal) * (double)((m)->data.vtotal))) * \
+ ((((m)->data.flags & V_DBLSCAN) &&                            \
+   !(m)->broken_doublescan_modelines) ? 0.5 : 1.0) *           \
+ (((m)->data.flags & V_INTERLACE) ? 2.0 : 1.0))
 
 
 /* Calculates the horizontal refresh rate (sync) of the modeline in kHz */
@@ -148,7 +156,14 @@ typedef struct nvModeLineRec {
     /* Extra information */
     unsigned int source;
     char *xconfig_name;
-    
+
+    /* older versions of the NV-CONTROL protocol reported doublescan
+     * modeline values with doubled vsyncstart, vsyncend, and vtotal;
+     * track whether this X server has this bug, so we know how to
+     * compute the refresh rate from the modeline
+     */
+    int broken_doublescan_modelines;
+
 } nvModeLine, *nvModeLinePtr;
 
 
@@ -279,6 +294,7 @@ typedef struct nvGpuRec {
     int max_width;
     int max_height;
     int max_displays;
+    Bool allow_depth_30;
 
     char *name;  /* Name of the GPU */
 

@@ -94,6 +94,7 @@ AttributeTableEntry attributeTable[] = {
     { "SwitchToDisplays",      NV_CTRL_SWITCH_TO_DISPLAYS,          D|N|W },
     { "AssociatedDisplays",    NV_CTRL_ASSOCIATED_DISPLAY_DEVICES,  N|D   },
     { "ProbeDisplays",         NV_CTRL_PROBE_DISPLAYS,              A     },
+    { "Depth30Allowed",        NV_CTRL_DEPTH_30_ALLOWED,            N     },
     { "ForceGenericCpu",       NV_CTRL_FORCE_GENERIC_CPU,           0     },
     { "GammaCorrectedAALines", NV_CTRL_OPENGL_AA_LINE_GAMMA,        0     },
     { "ShowSLIHUD",            NV_CTRL_SHOW_SLI_HUD,                0     },
@@ -244,7 +245,7 @@ AttributeTableEntry attributeTable[] = {
  * about.
  */
 
-#if NV_CTRL_LAST_ATTRIBUTE != NV_CTRL_NOTEBOOK_INTERNAL_LCD
+#if NV_CTRL_LAST_ATTRIBUTE != NV_CTRL_DEPTH_30_ALLOWED
 #warning "Have you forgotten to add a new integer attribute to attributeTable?"
 #endif
 
@@ -1174,6 +1175,40 @@ char *remove_spaces(const char *o)
     return (no_spaces);
 
 } /* remove_spaces() */
+
+
+
+/*
+ * allocate an output string and copy the input string to this
+ * output string, replacing any occurances of the character
+ * 'c' with the character 'r'.
+ */
+
+char *replace_characters(const char *o, const char c, const char r)
+{
+    int len;
+    char *m, *out;
+
+    if (!o)
+        return NULL;
+
+    len = strlen(o);
+
+    out = malloc(len + 1);
+    m = out;
+
+    while (*o != '\0') {
+        *m++ = (*o == c) ? r : *o;
+        o++;
+    }
+    *m = '\0';
+
+    len = (m - out + 1);
+    out = realloc(out, len);
+
+    return out;
+
+} /* replace_characters() */
 
 
 

@@ -741,8 +741,8 @@ Bool display_add_modelines_from_server(nvDisplayPtr display, gchar **err_str)
     char *modeline_strs = NULL;
     char *str;
     int len;
-    ReturnStatus ret;
-
+    ReturnStatus ret, ret1;
+    int major = 0, minor = 0;
 
     /* Free any old mode lines */
     display_remove_modelines(display);
@@ -783,7 +783,27 @@ Bool display_add_modelines_from_server(nvDisplayPtr display, gchar **err_str)
             nv_error_msg(*err_str);
             goto fail;
         }
-        
+
+        /*
+         * check the version of the NV-CONTROL protocol -- versions <=
+         * 1.13 had a bug in how they reported double scan modelines
+         * (vsyncstart, vsyncend, and vtotal were doubled); determine
+         * if this X server has this bug, so that we can use
+         * broken_doublescan_modelines to correctly compute the
+         * refresh rate.
+         */
+        modeline->broken_doublescan_modelines = 1;
+
+        ret = NvCtrlGetAttribute(display->gpu->handle,
+                                 NV_CTRL_ATTR_NV_MAJOR_VERSION, &major);
+        ret1 = NvCtrlGetAttribute(display->gpu->handle,
+                                  NV_CTRL_ATTR_NV_MINOR_VERSION, &minor);
+
+        if ((ret == NvCtrlSuccess) && (ret1 == NvCtrlSuccess) &&
+            ((major > 1) || ((major == 1) && (minor > 13)))) {
+            modeline->broken_doublescan_modelines = 0;
+        }
+
         /* Add the modeline at the end of the display's modeline list */
         display->modelines = (nvModeLinePtr)xconfigAddListItem
             ((GenericListPtr)display->modelines, (GenericListPtr)modeline);
@@ -2072,6 +2092,12 @@ static Bool layout_add_gpu_from_server(nvLayoutPtr layout, unsigned int gpu_id,
         goto fail;
     }
 
+    ret = NvCtrlGetAttribute(gpu->handle, NV_CTRL_DEPTH_30_ALLOWED,
+                             &(gpu->allow_depth_30));
+
+    if (ret != NvCtrlSuccess) {
+        gpu->allow_depth_30 = FALSE;
+    }
 
     /* Add the display devices to the GPU */
     if (!gpu_add_displays_from_server(gpu, err_str)) {

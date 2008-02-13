@@ -806,11 +806,16 @@ GtkWidget* ctk_gvo_new(NvCtrlAttributeHandle *handle,
     g_timeout_add(UPDATE_GVO_BANNER_TIME_INTERVAL, update_gvo_banner,
                   &ctk_gvo->banner);
 
+    string = g_strdup_printf("Graphics To Video Probe (Screen %u)",
+                             NvCtrlGetTargetId(handle));
+
     ctk_config_add_timer(ctk_gvo->ctk_config,
                          DEFAULT_GVO_PROBE_TIME_INTERVAL,
-                         "Graphics To Video Probe",
+                         string,
                          (GSourceFunc) ctk_gvo_probe,
                          (gpointer) ctk_gvo);
+
+    g_free(string);
 
     
     register_for_gvo_events(ctk_gvo);

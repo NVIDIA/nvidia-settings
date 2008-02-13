@@ -116,7 +116,22 @@ ReturnStatus NvCtrlNvControlGetAttribute (NvCtrlAttributePrivateHandle *h,
             return NvCtrlAttributeNotAvailable;
         }
     }
-     
+
+    if ((attr >= NV_CTRL_ATTR_NV_BASE) &&
+        (attr <= NV_CTRL_ATTR_NV_LAST_ATTRIBUTE)) {
+
+        if (!h->nv) return NvCtrlMissingExtension;
+
+        switch (attr) {
+        case NV_CTRL_ATTR_NV_MAJOR_VERSION:
+            *val = h->nv->major_version;
+            return NvCtrlSuccess;
+        case NV_CTRL_ATTR_NV_MINOR_VERSION:
+            *val = h->nv->minor_version;
+            return NvCtrlSuccess;
+        }
+    }
+
     return NvCtrlNoAttribute;
     
 } /* NvCtrlNvControlGetAttribute() */

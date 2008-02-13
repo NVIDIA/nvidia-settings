@@ -244,6 +244,7 @@ int nv_strcasecmp(const char *, const char *);
 
 
 char *remove_spaces(const char *o);
+char *replace_characters(const char *o, const char c, const char r);
 
 /*
  * diaplay_mask/display_name conversions: the NV-CONTROL X extension
