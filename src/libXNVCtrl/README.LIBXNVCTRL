@@ -1,0 +1,37 @@
+
+LIBXNVCTRL README
+
+The libXNVCtrl.a library is a small archive that provides the NV-CONTROL
+API defined in NVCtrlLib.h.  This library is provided as a binary because
+it is generally difficult to build an X library, unless you have an X
+server source tree available.  However, everything necessary to build
+this library is provided in this directory should you wish to
+recompile it.  The files are:
+
+    Imakefile - the input file to imake for use in generating an
+        appropriate Makefile
+
+    Makefile.inc - the file that defines what files will be included
+        in the nvidia-settings source package
+
+    nv_control.h - header file that defines the actual NV-CONTROL
+        protocol
+
+    NVCtrl.c - libXNVCtrl.a source file
+
+    NVCtrl.h - header file that defines the integer attributes
+        available to the NV-CONTROL X extension
+
+    NVCtrlLib.h - header file that defines the NV-CONTROL API
+
+
+To build libXNVCtrl.a, perform the following steps:
+
+    $ xmkmf
+    $ make clean
+    $ make
+
+This does require that you have a properly configured xmkmf (ie: from
+an X server source tree).
+
+

@@ -1,0 +1,26 @@
+XCOMM Imakefile for libXNVCtrl.a
+
+#define DoNormalLib NormalLibXrandr
+#define LibName XNVCtrl
+#define IncSubdir X11
+#define IncSubSubdir extensions
+
+#include <Threads.tmpl>
+
+#if Malloc0ReturnsNull
+ALLOC_DEFINES = -DMALLOC_0_RETURNS_NULL
+#endif
+
+
+      DEFINES = $(ALLOC_DEFINES)
+     INCLUDES = -I$(XLIBSRC) -I$(EXTINCSRC)
+         SRCS = NVCtrl.c
+         OBJS = NVCtrl.o
+     LINTLIBS = $(LINTXLIB)
+
+HEADERS = NVCtrlLib.h NVCtrl.h
+
+#include <Library.tmpl>
+
+DependTarget()
+

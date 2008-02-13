@@ -1,0 +1,25 @@
+/* XPM */
+static const char * green_xpm[] = {
+"16 16 5 1",
+"  c black",
+". c #008000",
+"X c green",
+"o c white",
+"O c None",
+"OOOOOOOOOOOOOOOO",
+"OOOOOOO.OOOOOOOO",
+"OOOOOO.X OOOOOOO",
+"OOOOO.oXX OOOOOO",
+"OOOO.ooXXX OOOOO",
+"OOO.oooXXXX OOOO",
+"OO.ooooXXXXX OOO",
+"O.XXXXXX..... OO",
+"OO.XXXX..... OOO",
+"OOO.XXX.... OOOO",
+"OOOO.XX... OOOOO",
+"OOOOO.X.. OOOOOO",
+"OOOOOO.. OOOOOOO",
+"OOOOOOO OOOOOOOO",
+"OOOOOOOOOOOOOOOO",
+"OOOOOOOOOOOOOOOO"
+};
