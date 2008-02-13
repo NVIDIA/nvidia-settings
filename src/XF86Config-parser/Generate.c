@@ -405,8 +405,6 @@ static void add_modules(GenerateOptions *gop, XConfigPtr config)
                                    XCONFIG_LOAD_MODULE, NULL, FALSE);
     l = xconfigAddNewLoadDirective(l, xconfigStrdup("bitstream"),
                                    XCONFIG_LOAD_MODULE, NULL, FALSE);
-    l = xconfigAddNewLoadDirective(l, xconfigStrdup("xtsol"),
-                                   XCONFIG_LOAD_MODULE, NULL, FALSE);
 #else
     l = xconfigAddNewLoadDirective(l, xconfigStrdup("freetype"),
                                    XCONFIG_LOAD_MODULE, NULL, FALSE);

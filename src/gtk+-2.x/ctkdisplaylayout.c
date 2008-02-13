@@ -1516,7 +1516,7 @@ static int move_selected(CtkDisplayLayout *ctk_object, int x, int y, int snap)
     nvScreenPtr screen;
     int *pan;
     int *dim;
-    int orig_pos[2];
+    int orig_pos[2] = { 0, 0 };
     int post_snap_display_pos[2];
     int orig_mm_pos[2];
     int snap_dim[4];
@@ -3161,13 +3161,14 @@ void ctk_display_layout_set_display_position(CtkDisplayLayout *ctk_object,
     clear_layout(ctk_object);
 
 
-    /* XXX When configuring a relative position, make sure
+    /* XXX When transitioning from absolute to relative, make sure
      * all displays that are relative to us become absolute.
      * This is to avoid relationship loops.  Eventually, we'll want
      * to be able to handle weird loops since X does this.
      */
 
-    if (position_type != CONF_ADJ_ABSOLUTE) {
+    if (display->cur_mode->position_type == CONF_ADJ_ABSOLUTE &&
+        position_type != CONF_ADJ_ABSOLUTE) {
         
         nvDisplayPtr other;
 
@@ -3186,19 +3187,8 @@ void ctk_display_layout_set_display_position(CtkDisplayLayout *ctk_object,
 
 
     /* Set the new positioning type */
-    if (ctk_object->advanced_mode) {
-        display->cur_mode->position_type = position_type;
-        display->cur_mode->relative_to = relative_to;
-
-    } else {
-        nvModePtr mode;
-            
-        for (mode = display->modes; mode; mode = mode->next) {
-            mode->position_type = position_type;
-            mode->relative_to = relative_to;
-        }
-    }
-    
+    display->cur_mode->position_type = position_type;
+    display->cur_mode->relative_to = relative_to;
 
     switch (position_type) {
     case CONF_ADJ_ABSOLUTE:
@@ -3379,13 +3369,14 @@ void ctk_display_layout_set_screen_position(CtkDisplayLayout *ctk_object,
     }
 
 
-    /* XXX When configuring a relative position, make sure
+    /* XXX When transitioning from absolute to relative, make sure
      * all screens that are relative to us become absolute.
      * This is to avoid relationship loops.  Eventually, we'll want
      * to be able to handle weird loops since X does this.
      */
 
-    if (position_type != CONF_ADJ_ABSOLUTE) {
+    if (screen->position_type == CONF_ADJ_ABSOLUTE &&
+        position_type != CONF_ADJ_ABSOLUTE) {
         
         nvScreenPtr other;
 

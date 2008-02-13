@@ -230,11 +230,7 @@
 #define NV_CTRL_FSAA_MODE_8x                                    7
 #define NV_CTRL_FSAA_MODE_16x                                   8
 #define NV_CTRL_FSAA_MODE_8xS                                   9
-#define NV_CTRL_FSAA_MODE_8xQ                                  10
-#define NV_CTRL_FSAA_MODE_16xS                                 11
-#define NV_CTRL_FSAA_MODE_16xQ                                 12
-#define NV_CTRL_FSAA_MODE_32xS                                 13
-#define NV_CTRL_FSAA_MODE_MAX NV_CTRL_FSAA_MODE_32xS
+#define NV_CTRL_FSAA_MODE_MAX NV_CTRL_FSAA_MODE_8xS
 
 
 /*
@@ -2809,6 +2805,7 @@
 
 #define NV_CTRL_FRAMELOCK_FPGA_REVISION                          242 /* R--F */
 
+
 /*
  * NV_CTRL_MAX_SCREEN_{WIDTH,HEIGHT} - the maximum allowable size, in
  * pixels, of either the specified X screen (if the target_type of the
@@ -2963,36 +2960,7 @@
 #define NV_CTRL_DFP_SCALING_ACTIVE                               254 /* R-DG */
 
 
-/*
- * NV_CTRL_FSAA_APPLICATION_ENHANCED - Controls how the NV_CTRL_FSAA_MODE
- * is applied when NV_CTRL_FSAA_APPLICATION_CONTROLLED is set to
- * NV_CTRL_APPLICATION_CONTROLLED_DISABLED.  When
- * NV_CTRL_FSAA_APPLICATION_ENHANCED is _DISABLED, OpenGL applications will
- * be forced to use the FSAA mode specified by NV_CTRL_FSAA_MODE.  when set
- * to _ENABLED, only those applications that have selected a multisample
- * FBConfig will be made to use the NV_CTRL_FSAA_MODE specified.
- *
- * This attribute is ignored when NV_CTRL_FSAA_APPLICATION_CONTROLLED is
- * set to NV_CTRL_FSAA_APPLICATION_CONTROLLED_ENABLED.
- */
-
-#define NV_CTRL_FSAA_APPLICATION_ENHANCED                       255  /* RW-X */
-#define NV_CTRL_FSAA_APPLICATION_ENHANCED_ENABLED                 1
-#define NV_CTRL_FSAA_APPLICATION_ENHANCED_DISABLED                0
-
-
-/*
- * NV_CTRL_FRAMELOCK_SYNC_RATE_4 - This is the refresh rate that the
- * frame lock board is sending to the GPU with 4 digits of precision.
- *
- * This attribute may be queried through XNVCTRLQueryTargetAttribute()
- * using a NV_CTRL_TARGET_TYPE_FRAMELOCK.
- */
-
-#define NV_CTRL_FRAMELOCK_SYNC_RATE_4                           256 /* R--F */
-
-
-#define NV_CTRL_LAST_ATTRIBUTE NV_CTRL_FRAMELOCK_SYNC_RATE_4
+#define NV_CTRL_LAST_ATTRIBUTE NV_CTRL_DFP_SCALING_ACTIVE
 
 
 /**************************************************************************/

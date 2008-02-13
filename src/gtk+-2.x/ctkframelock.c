@@ -3157,9 +3157,9 @@ void list_entry_update_framelock_status(CtkFramelock *ctk_framelock,
     gboolean use_house_sync;
     gboolean framelock_enabled;
     gboolean is_server;
-    ReturnStatus ret;
     
     
+    NvCtrlGetAttribute(data->handle, NV_CTRL_FRAMELOCK_SYNC_RATE, &rate);
     NvCtrlGetAttribute(data->handle, NV_CTRL_FRAMELOCK_SYNC_DELAY, &delay);
     NvCtrlGetAttribute(data->handle, NV_CTRL_FRAMELOCK_HOUSE_STATUS, &house);
     NvCtrlGetAttribute(data->handle, NV_CTRL_FRAMELOCK_PORT0_STATUS, &port0);
@@ -3189,15 +3189,8 @@ void list_entry_update_framelock_status(CtkFramelock *ctk_framelock,
     /* Sync Rate */
     gtk_widget_set_sensitive(data->rate_label, framelock_enabled);
     gtk_widget_set_sensitive(data->rate_text, framelock_enabled);
-
-    ret =
-        NvCtrlGetAttribute(data->handle, NV_CTRL_FRAMELOCK_SYNC_RATE_4, &rate);
-    if (ret == NvCtrlSuccess) {
-        snprintf(str, 32, "%d.%.4d Hz", (rate / 10000), (rate % 10000));
-    } else {
-        NvCtrlGetAttribute(data->handle, NV_CTRL_FRAMELOCK_SYNC_RATE, &rate);
-        snprintf(str, 32, "%d.%.3d Hz", (rate / 1000), (rate % 1000));
-    }
+    fvalue = (float) rate / 1000.0;
+    snprintf(str, 32, "%.2f Hz", fvalue); // 6.2f 
     gtk_label_set_text(GTK_LABEL(data->rate_text), str);
     
     /* Sync Delay (Skew) */
@@ -4882,7 +4875,7 @@ static unsigned int add_framelock_devices(CtkFramelock *ctk_framelock,
         if (ret != NvCtrlSuccess) {
             goto fail;
         }
-        revision_str = g_strdup_printf("0x%X", val);
+        revision_str = g_strdup_printf("%d", val);
 
 
         framelock_data->label = gtk_label_new("");

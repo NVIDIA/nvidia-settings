@@ -60,7 +60,6 @@ struct _CtkMultisample
     CtkConfig *ctk_config;
 
     GtkWidget *fsaa_app_override_check_button;
-    GtkWidget *fsaa_menu;
     GtkWidget *fsaa_scale;
     GtkWidget *log_aniso_app_override_check_button;
     GtkWidget *log_aniso_scale;

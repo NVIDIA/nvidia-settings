@@ -84,7 +84,6 @@ struct _CtkClocks
     Bool clocks_moved;           /* The clock sliders were moved by the user */
 
     Bool overclocking_enabled;   /* Overclocking is enabled */
-    Bool auto_detection_available;  /* Optimal clock detection is available */
     Bool probing_optimal;        /* Optimal clocks being probed */
 };
 

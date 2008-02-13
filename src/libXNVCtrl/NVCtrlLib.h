@@ -3,10 +3,6 @@
 
 #include "NVCtrl.h"
 
-#if defined __cplusplus
-extern "C" {
-#endif 
-
 /*
  *  XNVCTRLQueryExtension -
  *
@@ -773,8 +769,5 @@ typedef union {
     long pad[24];
 } XNVCtrlEventTarget;
 
-#if defined __cplusplus
-} /* extern "C" */
-#endif 
 
 #endif /* __NVCTRLLIB_H */

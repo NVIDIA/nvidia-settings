@@ -112,9 +112,8 @@ AttributeTableEntry attributeTable[] = {
     { "BackendResolution",     NV_CTRL_BACKEND_RESOLUTION,          N|P   },
     { "FlatpanelNativeResolution",  NV_CTRL_FLATPANEL_NATIVE_RESOLUTION,   N|P },
     { "FlatpanelBestFitResolution", NV_CTRL_FLATPANEL_BEST_FIT_RESOLUTION, N|P },
-    { "GPUScalingActive",      NV_CTRL_GPU_SCALING_ACTIVE,          N     },
-    { "DFPScalingActive",      NV_CTRL_DFP_SCALING_ACTIVE,          N     },
-    { "FSAAAppEnhanced",       NV_CTRL_FSAA_APPLICATION_ENHANCED,   0     },
+    { "GPUScalingActive",      NV_CTRL_GPU_SCALING_ACTIVE,          N },
+    { "DFPScalingActive",      NV_CTRL_DFP_SCALING_ACTIVE,          N },
 
     { "FrameLockMaster",       NV_CTRL_FRAMELOCK_MASTER,            N|F|G|D },
     { "FrameLockSlaves",       NV_CTRL_FRAMELOCK_SLAVES,            N|F|G|D },
@@ -133,7 +132,6 @@ AttributeTableEntry attributeTable[] = {
     { "FrameLockTestSignal",   NV_CTRL_FRAMELOCK_TEST_SIGNAL,       N|F|G },
     { "FrameLockEthDetected",  NV_CTRL_FRAMELOCK_ETHERNET_DETECTED, N|F|G },
     { "FrameLockSyncRate",     NV_CTRL_FRAMELOCK_SYNC_RATE,         N|F|G },
-    { "FrameLockSyncRate4",    NV_CTRL_FRAMELOCK_SYNC_RATE_4,       N|F|G },
     { "FrameLockTiming",       NV_CTRL_FRAMELOCK_TIMING,            N|F|G },
     { "FrameLockMasterable",   NV_CTRL_FRAMELOCK_MASTERABLE,        N|F|G },
     { "FrameLockFPGARevision", NV_CTRL_FRAMELOCK_FPGA_REVISION,     N|F|G },
@@ -196,7 +194,7 @@ AttributeTableEntry attributeTable[] = {
  * about.
  */
 
-#if NV_CTRL_LAST_ATTRIBUTE != NV_CTRL_FRAMELOCK_SYNC_RATE_4
+#if NV_CTRL_LAST_ATTRIBUTE != NV_CTRL_DFP_SCALING_ACTIVE
 #warning "Have you forgotten to add a new integer attribute to attributeTable?"
 #endif
 
