@@ -53,6 +53,7 @@ static char *nv_strndup(char *s, int n);
 #define N NV_PARSER_TYPE_NO_CONFIG_WRITE
 #define G NV_PARSER_TYPE_GUI_ATTRIUBUTE
 #define V NV_PARSER_TYPE_XVIDEO_ATTRIBUTE
+#define P NV_PARSER_TYPE_PACKED_ATTRIBUTE
 
 AttributeTableEntry attributeTable[] = {
    
@@ -123,6 +124,13 @@ AttributeTableEntry attributeTable[] = {
     { "XVideoTextureSyncToVBlank", NV_CTRL_ATTR_XV_TEXTURE_SYNC_TO_VBLANK, V },
     { "XVideoBlitterSyncToVBlank", NV_CTRL_ATTR_XV_BLITTER_SYNC_TO_VBLANK, V },
 
+    { "GPUOverclockingState",   NV_CTRL_GPU_OVERCLOCKING_STATE,     N   },
+    { "GPUDefault2DClockFreqs", NV_CTRL_GPU_DEFAULT_2D_CLOCK_FREQS, N|P },
+    { "GPUDefault3DClockFreqs", NV_CTRL_GPU_DEFAULT_3D_CLOCK_FREQS, N|P },
+    { "GPU2DClockFreqs",        NV_CTRL_GPU_2D_CLOCK_FREQS,         N|P },
+    { "GPU3DClockFreqs",        NV_CTRL_GPU_3D_CLOCK_FREQS,         N|P },
+    { "GPUCurrentClockFreqs",   NV_CTRL_GPU_CURRENT_CLOCK_FREQS,    N|P },
+
     { NULL,                    0,                                   0     }
 };
 
@@ -131,6 +139,7 @@ AttributeTableEntry attributeTable[] = {
 #undef N
 #undef G
 #undef V
+#undef P
 
 /*
  * nv_parse_attribute_string() - see comments in parse.h
@@ -259,6 +268,11 @@ int nv_parse_attribute_string(const char *str, int query, ParsedAttribute *a)
         if (a->flags & NV_PARSER_TYPE_COLOR_ATTRIBUTE) {
             /* color attributes are floating point */
             a->fval = strtod(s, &tmp);
+        } else if (a->flags & NV_PARSER_TYPE_PACKED_ATTRIBUTE) {
+            /* two 16-bit integers, separated by ',' */
+            a->val = (strtol(s, &tmp, 10) & 0xffff) << 16;
+            if (!tmp || (*tmp != ',')) stop(NV_PARSER_STATUS_MISSING_COMMA);
+            a->val |= strtol((tmp + 1), &tmp, 10) & 0xffff;
         } else {
             /* all other attributes are integer */
             a->val = strtol(s, &tmp, 10);
@@ -309,6 +323,8 @@ char *nv_parse_strerror(int status)
         return "Trailing garbage"; break;
     case NV_PARSER_STATUS_UNKNOWN_ATTR_NAME :
         return "Unrecognized attribute name"; break;
+    case NV_PARSER_STATUS_MISSING_COMMA:
+        return "Missing comma in packed integer value"; break;
     default:
         return "Unknown error"; break;
     }

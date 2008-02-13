@@ -45,7 +45,7 @@ static int process_attribute_assignments(int, char**, const char *);
 
 static int query_all(const char *);
 
-static void print_valid_values(char *, NVCTRLAttributeValidValuesRec);
+static void print_valid_values(char *, uint32, NVCTRLAttributeValidValuesRec);
 
 static int validate_value(CtrlHandles *h, ParsedAttribute *a, uint32 d,
                           int screen, char *whence);
@@ -395,8 +395,15 @@ static int validate_value(CtrlHandles *h, ParsedAttribute *a, uint32 d,
         }
         break;
     case ATTRIBUTE_TYPE_RANGE:
-        if ((a->val < valid.u.range.min) || (a->val > valid.u.range.max)) {
-            bad_val = NV_TRUE;
+        if (a->flags & NV_PARSER_TYPE_PACKED_ATTRIBUTE) {
+            if (((a->val >> 16) < (valid.u.range.min >> 16)) ||
+                ((a->val >> 16) > (valid.u.range.max >> 16)) ||
+                ((a->val & 0xffff) < (valid.u.range.min & 0xffff)) ||
+                ((a->val & 0xffff) > (valid.u.range.max & 0xffff)))
+                bad_val = NV_TRUE;
+        } else {
+            if ((a->val < valid.u.range.min) || (a->val > valid.u.range.max))
+                bad_val = NV_TRUE;
         }
         break;
     case ATTRIBUTE_TYPE_INT_BITS:
@@ -411,11 +418,19 @@ static int validate_value(CtrlHandles *h, ParsedAttribute *a, uint32 d,
     }
 
     if (bad_val) {
-        nv_warning_msg("The value %d for attribute '%s' (%s%s) "
-                       "specified %s is invalid.",
-                       a->val, a->name, h->screen_names[screen],
-                       d_str, whence);
-        print_valid_values(a->name, valid);
+        if (a->flags & NV_PARSER_TYPE_PACKED_ATTRIBUTE) {
+            nv_warning_msg("The value pair %d,%d for attribute '%s' (%s%s) "
+                           "specified %s is invalid.",
+                           a->val >> 16, a->val & 0xffff,
+                           a->name, h->screen_names[screen],
+                           d_str, whence);
+        } else {
+            nv_warning_msg("The value %d for attribute '%s' (%s%s) "
+                           "specified %s is invalid.",
+                           a->val, a->name, h->screen_names[screen],
+                           d_str, whence);
+        }
+        print_valid_values(a->name, a->flags, valid);
         return NV_FALSE;
     }
     return NV_TRUE;
@@ -429,7 +444,8 @@ static int validate_value(CtrlHandles *h, ParsedAttribute *a, uint32 d,
  * attribute.
  */
 
-static void print_valid_values(char *name, NVCTRLAttributeValidValuesRec valid)
+static void print_valid_values(char *name, uint32 flags,
+                               NVCTRLAttributeValidValuesRec valid)
 {
     int bit, first, last;
     char str[256];
@@ -439,7 +455,11 @@ static void print_valid_values(char *name, NVCTRLAttributeValidValuesRec valid)
 
     switch (valid.type) {
     case ATTRIBUTE_TYPE_INTEGER:
-        nv_msg(INDENT, "'%s' is an integer attribute.", name);
+        if (flags & NV_PARSER_TYPE_PACKED_ATTRIBUTE) {
+            nv_msg(INDENT, "'%s' is a packed integer attribute.", name);
+        } else {
+            nv_msg(INDENT, "'%s' is an integer attribute.", name);
+        }
         break;
         
     case ATTRIBUTE_TYPE_BITMASK:
@@ -452,9 +472,16 @@ static void print_valid_values(char *name, NVCTRLAttributeValidValuesRec valid)
         break;
         
     case ATTRIBUTE_TYPE_RANGE:
-        nv_msg(INDENT, "The valid values for '%s' are in the range "
-               "%d - %d (inclusive).", name,
-               valid.u.range.min, valid.u.range.max);
+        if (flags & NV_PARSER_TYPE_PACKED_ATTRIBUTE) {
+            nv_msg(INDENT, "The valid values for '%s' are in the ranges "
+                   "%d - %d, %d - %d (inclusive).", name,
+                   valid.u.range.min >> 16, valid.u.range.max >> 16,
+                   valid.u.range.min & 0xffff, valid.u.range.max & 0xffff);
+        } else {
+            nv_msg(INDENT, "The valid values for '%s' are in the range "
+                   "%d - %d (inclusive).", name,
+                   valid.u.range.min, valid.u.range.max);
+        }
         break;
 
     case ATTRIBUTE_TYPE_INT_BITS:
@@ -532,6 +559,10 @@ static int query_all(const char *display_name)
         "Attribute '%s' (screen: %s): 0x%08x.";
     static const char *__fmt_str_hex_display =
         "Attribute '%s' (screen: %s; display: %s): 0x%08x.";
+    static const char *__fmt_str_packed_int =
+        "Attribute '%s' (screen: %s): %d,%d.";
+    static const char *__fmt_str_packed_int_display =
+        "Attribute '%s' (screen: %s; display: %s): %d,%d.";
     
     h = nv_alloc_ctrl_handles(display_name);
 
@@ -586,6 +617,9 @@ static int query_all(const char *display_name)
                 if (valid.type == ATTRIBUTE_TYPE_BITMASK) {
                     fmt = __fmt_str_hex;
                     fmt_display = __fmt_str_hex_display;
+                } else if (a->flags & NV_PARSER_TYPE_PACKED_ATTRIBUTE) {
+                    fmt = __fmt_str_packed_int;
+                    fmt_display = __fmt_str_packed_int_display;
                 } else {
                     fmt = __fmt_str_int;
                     fmt_display = __fmt_str_int_display;
@@ -596,19 +630,30 @@ static int query_all(const char *display_name)
                     tmp_d_str =
                         display_device_mask_to_display_device_name(mask);
                     
-                    nv_msg(INDENT, fmt_display, a->name,
-                           h->screen_names[screen], tmp_d_str, val);
+                    if (a->flags & NV_PARSER_TYPE_PACKED_ATTRIBUTE) {
+                        nv_msg(INDENT, fmt_display, a->name,
+                               h->screen_names[screen], tmp_d_str,
+                               val >> 16, val & 0xffff);
+                    } else {
+                        nv_msg(INDENT, fmt_display, a->name,
+                               h->screen_names[screen], tmp_d_str, val);
+                    }
                     
                     free(tmp_d_str);
 
-                    print_valid_values(a->name, valid);
+                    print_valid_values(a->name, a->flags, valid);
 
                     continue;
 
                 } else {
-                    nv_msg(INDENT, fmt, a->name, h->screen_names[screen], val);
+                    if (a->flags & NV_PARSER_TYPE_PACKED_ATTRIBUTE) {
+                        nv_msg(INDENT, fmt, a->name, h->screen_names[screen],
+                               val >> 16, val & 0xffff);
+                    } else {
+                        nv_msg(INDENT, fmt, a->name, h->screen_names[screen],val);
+                    }
 
-                    print_valid_values(a->name, valid);
+                    print_valid_values(a->name, a->flags, valid);
 
                     /* fall through to exit_bit_loop */
                 }
@@ -674,8 +719,14 @@ static int process_parsed_attribute_internal(CtrlHandles *h,
         }
         
         if (verbose) {
-            nv_msg("  ", "Attribute '%s' (%s%s) assigned value %d.",
-                   a->name, h->screen_names[screen], str, a->val);
+            if (a->flags & NV_PARSER_TYPE_PACKED_ATTRIBUTE) {
+                nv_msg("  ", "Attribute '%s' (%s%s) assigned value %d,%d.",
+                       a->name, h->screen_names[screen], str,
+                       a->val >> 16, a->val & 0xffff);
+            } else {
+                nv_msg("  ", "Attribute '%s' (%s%s) assigned value %d.",
+                       a->name, h->screen_names[screen], str, a->val);
+            }
         }
 
     } else { /* query */
@@ -694,9 +745,15 @@ static int process_parsed_attribute_internal(CtrlHandles *h,
                          NvCtrlAttributesStrError(status));
             return NV_FALSE;
         } else {
-            nv_msg("  ", "Attribute '%s' (%s%s): %d.",
-                   a->name, h->screen_names[screen], str, a->val);
-            print_valid_values(a->name, valid);
+            if (a->flags & NV_PARSER_TYPE_PACKED_ATTRIBUTE) {
+                nv_msg("  ", "Attribute '%s' (%s%s): %d,%d.",
+                       a->name, h->screen_names[screen], str,
+                       a->val >> 16, a->val & 0xffff);
+            } else {
+                nv_msg("  ", "Attribute '%s' (%s%s): %d.",
+                       a->name, h->screen_names[screen], str, a->val);
+            }
+            print_valid_values(a->name, a->flags, valid);
         }
     }
 

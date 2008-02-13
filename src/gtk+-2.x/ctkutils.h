@@ -30,8 +30,8 @@
 
 G_BEGIN_DECLS
 
-void add_table_row(GtkWidget *, const gint, const gint, const gchar *, 
-                   const gchar *);
+GtkWidget *add_table_row(GtkWidget *, const gint, const gint, const gchar *, 
+                         const gchar *);
                    
 G_END_DECLS
 

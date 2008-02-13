@@ -81,7 +81,7 @@ static void ctk_window_class_init(CtkWindowClass *);
 static void ctk_window_real_destroy(GtkObject *);
 
 static void add_page(GtkWidget *, GtkTextBuffer *, CtkWindow *,
-                     GtkTreeIter *, const gchar *,
+                     GtkTreeIter *, GtkTreeIter *, const gchar *,
                      config_file_attributes_func_t func,
                      select_widget_func_t load_func,
                      unselect_widget_func_t unload_func);
@@ -552,7 +552,7 @@ GtkWidget *ctk_window_new(NvCtrlAttributeHandle **handles, gint num_handles,
                                          ctk_event);
         if (child) {
             help = ctk_color_correction_create_help(tag_table);
-            add_page(child, help, ctk_window, &iter,
+            add_page(child, help, ctk_window, &iter, NULL,
                      "X Server Color Correction", NULL, NULL, NULL);
         }
 
@@ -561,7 +561,7 @@ GtkWidget *ctk_window_new(NvCtrlAttributeHandle **handles, gint num_handles,
         child = ctk_xvideo_new(handles[i], ctk_config);
         if (child) {
             help = ctk_xvideo_create_help(tag_table, CTK_XVIDEO(child));
-            add_page(child, help, ctk_window, &iter,
+            add_page(child, help, ctk_window, &iter, NULL,
                      "X Server XVideo Settings", NULL, NULL, NULL);
         }
 
@@ -570,7 +570,7 @@ GtkWidget *ctk_window_new(NvCtrlAttributeHandle **handles, gint num_handles,
         child = ctk_randr_new(handles[i], ctk_config, ctk_event);
         if (child) {
             help = ctk_randr_create_help(tag_table, CTK_RANDR(child));
-            add_page(child, help, ctk_window, &iter,
+            add_page(child, help, ctk_window, &iter, NULL,
                      "Rotation Settings", NULL, NULL, NULL);
         }
 
@@ -580,7 +580,7 @@ GtkWidget *ctk_window_new(NvCtrlAttributeHandle **handles, gint num_handles,
         if (child) {
             help = ctk_cursor_shadow_create_help(tag_table,
                                                  CTK_CURSOR_SHADOW(child));
-            add_page(child, help, ctk_window, &iter, "Cursor Shadow",
+            add_page(child, help, ctk_window, &iter, NULL, "Cursor Shadow",
                      NULL, NULL, NULL);
         }
 
@@ -589,7 +589,7 @@ GtkWidget *ctk_window_new(NvCtrlAttributeHandle **handles, gint num_handles,
         child = ctk_opengl_new(handles[i], ctk_config, ctk_event);
         if (child) {
             help = ctk_opengl_create_help(tag_table, CTK_OPENGL(child));
-            add_page(child, help, ctk_window, &iter, "OpenGL Settings",
+            add_page(child, help, ctk_window, &iter, NULL, "OpenGL Settings",
                      NULL, NULL, NULL);
         }
 
@@ -599,8 +599,8 @@ GtkWidget *ctk_window_new(NvCtrlAttributeHandle **handles, gint num_handles,
         child = ctk_glx_new(handles[i], ctk_config, ctk_event);
         if (child) {
             help = ctk_glx_create_help(tag_table, CTK_GLX(child));
-            add_page(child, help, ctk_window, &iter, "OpenGL/GLX Information",
-                     NULL, ctk_glx_probe_info, NULL);
+            add_page(child, help, ctk_window, &iter, NULL,
+                     "OpenGL/GLX Information", NULL, ctk_glx_probe_info, NULL);
         }
 
 
@@ -610,8 +610,8 @@ GtkWidget *ctk_window_new(NvCtrlAttributeHandle **handles, gint num_handles,
         if (child) {
             help = ctk_multisample_create_help(tag_table,
                                                CTK_MULTISAMPLE(child));
-            add_page(child, help, ctk_window, &iter, "Antialiasing Settings",
-                     NULL, NULL, NULL);
+            add_page(child, help, ctk_window, &iter, NULL,
+                     "Antialiasing Settings", NULL, NULL, NULL);
         }
 
         /* thermal information */
@@ -619,17 +619,19 @@ GtkWidget *ctk_window_new(NvCtrlAttributeHandle **handles, gint num_handles,
         child = ctk_thermal_new(handles[i], ctk_config);
         if (child) {
             help = ctk_thermal_create_help(tag_table, CTK_THERMAL(child));
-            add_page(child, help, ctk_window, &iter, "Thermal Monitor",
+            add_page(child, help, ctk_window, &iter, NULL, "Thermal Monitor",
                      NULL, ctk_thermal_start_timer, ctk_thermal_stop_timer);
         }
         
         /* gvo (Graphics To Video Out) */
         
-        child = ctk_gvo_new(handles[i], ctk_config);
+        child = ctk_gvo_new(handles[i], GTK_WIDGET(ctk_window),
+                            ctk_config, ctk_event);
         if (child) {
             help = ctk_gvo_create_help(tag_table);
-            add_page(child, help, ctk_window, &iter, "Graphics to Video Out",
-                     NULL, NULL, NULL);
+            add_page(child, help, ctk_window, &iter, NULL,
+                     "Graphics to Video Out", NULL,
+                     ctk_gvo_select, ctk_gvo_unselect);
         }
 
         /* clocks (GPU overclocking) */
@@ -637,7 +639,7 @@ GtkWidget *ctk_window_new(NvCtrlAttributeHandle **handles, gint num_handles,
         child = ctk_clocks_new(handles[i], ctk_config, ctk_event);
         if (child) {
             help = ctk_clocks_create_help(tag_table, CTK_CLOCKS(child));
-            add_page(child, help, ctk_window, &iter, "Clock Frequencies",
+            add_page(child, help, ctk_window, &iter, NULL, "Clock Frequencies",
                      NULL, ctk_clocks_select, NULL);
         }
 
@@ -665,7 +667,7 @@ GtkWidget *ctk_window_new(NvCtrlAttributeHandle **handles, gint num_handles,
         if (!widget) continue;
 
         add_page(widget, ctk_framelock_create_help(tag_table),
-                 ctk_window, NULL, "FrameLock",
+                 ctk_window, NULL, NULL, "FrameLock",
                  ctk_framelock_config_file_attributes,
                  ctk_framelock_select,
                  ctk_framelock_unselect);
@@ -676,7 +678,7 @@ GtkWidget *ctk_window_new(NvCtrlAttributeHandle **handles, gint num_handles,
 
     add_page(GTK_WIDGET(ctk_window->ctk_config),
              ctk_config_create_help(tag_table),
-             ctk_window, NULL, "nvidia-settings Configuration",
+             ctk_window, NULL, NULL, "nvidia-settings Configuration",
              NULL, NULL, NULL);
 
     /*
@@ -713,35 +715,47 @@ GtkWidget *ctk_window_new(NvCtrlAttributeHandle **handles, gint num_handles,
 
 /*
  * add_page() - add a new page to ctk_window's tree_store, using iter
- * as a parent.
+ * as a parent; the new child iter is written in pchild_iter, if
+ * provided.
  */
 
 static void add_page(GtkWidget *widget, GtkTextBuffer *help,
                      CtkWindow *ctk_window, GtkTreeIter *iter,
+                     GtkTreeIter *child_iter,
                      const gchar *label, config_file_attributes_func_t func,
                      select_widget_func_t select_func,
                      unselect_widget_func_t unselect_func)                     
 {
-    GtkTreeIter child_iter;
+    GtkTreeIter tmp_child_iter;
 
     if (!widget)
         return;
 
+    if (!child_iter) child_iter = &tmp_child_iter;
+
+    /*
+     * add another reference to the widget, so that it doesn't get
+     * destroyed the next time it gets hidden (removed from the page
+     * viewer).
+     */
+    
     gtk_object_ref(GTK_OBJECT(widget));
-    gtk_tree_store_append(ctk_window->tree_store, &child_iter, iter);
-    gtk_tree_store_set(ctk_window->tree_store, &child_iter,
+    
+    gtk_tree_store_append(ctk_window->tree_store, child_iter, iter);
+    
+    gtk_tree_store_set(ctk_window->tree_store, child_iter,
                        CTK_WINDOW_LABEL_COLUMN, label, -1);
-    gtk_tree_store_set(ctk_window->tree_store, &child_iter,
+    gtk_tree_store_set(ctk_window->tree_store, child_iter,
                        CTK_WINDOW_WIDGET_COLUMN, widget, -1);
-    gtk_tree_store_set(ctk_window->tree_store, &child_iter,
+    gtk_tree_store_set(ctk_window->tree_store, child_iter,
                        CTK_WINDOW_HELP_COLUMN, help, -1);
-    gtk_tree_store_set(ctk_window->tree_store, &child_iter,
+    gtk_tree_store_set(ctk_window->tree_store, child_iter,
                        CTK_WINDOW_CONFIG_FILE_ATTRIBUTES_FUNC_COLUMN,
                        func, -1);
-    gtk_tree_store_set(ctk_window->tree_store, &child_iter,
+    gtk_tree_store_set(ctk_window->tree_store, child_iter,
                        CTK_WINDOW_SELECT_WIDGET_FUNC_COLUMN,
                        select_func, -1);
-    gtk_tree_store_set(ctk_window->tree_store, &child_iter,
+    gtk_tree_store_set(ctk_window->tree_store, child_iter,
                        CTK_WINDOW_UNSELECT_WIDGET_FUNC_COLUMN,
                        unselect_func, -1);
 } /* add_page() */
@@ -874,7 +888,7 @@ static void add_display_devices(GtkWidget *widget, GtkTextBuffer *help,
                                 CtkEvent *ctk_event,
                                 GtkTextTagTable *tag_table)
 {
-    GtkTreeIter child_iter, grandchild_iter;
+    GtkTreeIter child_iter;
     ReturnStatus ret;
     int i, enabled, n, mask;
     char *name;
@@ -903,25 +917,8 @@ static void add_display_devices(GtkWidget *widget, GtkTextBuffer *help,
         name = "Display Devices";
     }
     
-    /*
-     * add another reference to the widget, so that it doesn't get
-     * destroyed the next time it gets hidden (removed from the page
-     * viewer).
-     */
-
-    gtk_object_ref(GTK_OBJECT(widget));
-    
-    gtk_tree_store_append(ctk_window->tree_store, &child_iter, iter);
-    
-    gtk_tree_store_set(ctk_window->tree_store, &child_iter,
-                       CTK_WINDOW_LABEL_COLUMN, name, -1);
-    gtk_tree_store_set(ctk_window->tree_store, &child_iter,
-                       CTK_WINDOW_WIDGET_COLUMN, widget, -1);
-    gtk_tree_store_set(ctk_window->tree_store, &child_iter,
-                       CTK_WINDOW_HELP_COLUMN, help, -1);
-    gtk_tree_store_set(ctk_window->tree_store, &child_iter,
-                       CTK_WINDOW_CONFIG_FILE_ATTRIBUTES_FUNC_COLUMN,
-                       NULL, -1);
+    add_page(widget, help, ctk_window, iter, &child_iter, name,
+             NULL, NULL, NULL);
 
     /*
      * create pages for each of the display devices driven by this X
@@ -969,23 +966,8 @@ static void add_display_devices(GtkWidget *widget, GtkTextBuffer *help,
             continue;
         }
 
-        gtk_object_ref(GTK_OBJECT(widget));
-        
-        gtk_tree_store_append(ctk_window->tree_store, &grandchild_iter,
-                              &child_iter);
-    
-        gtk_tree_store_set(ctk_window->tree_store, &grandchild_iter,
-                           CTK_WINDOW_LABEL_COLUMN, name, -1);
-        
-        gtk_tree_store_set(ctk_window->tree_store, &grandchild_iter,
-                           CTK_WINDOW_WIDGET_COLUMN, widget, -1);
-    
-        gtk_tree_store_set(ctk_window->tree_store, &grandchild_iter,
-                           CTK_WINDOW_HELP_COLUMN, help, -1);
-    
-        gtk_tree_store_set(ctk_window->tree_store, &grandchild_iter,
-                           CTK_WINDOW_CONFIG_FILE_ATTRIBUTES_FUNC_COLUMN,
-                           NULL, -1);
+        add_page(widget, help, ctk_window, &child_iter,
+                 NULL, name, NULL, NULL, NULL);
     }
 } /* add_display_devices() */
 

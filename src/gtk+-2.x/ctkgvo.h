@@ -27,8 +27,10 @@
 
 #include "NvCtrlAttributes.h"
 #include "ctkconfig.h"
+#include "ctkevent.h"
 
 G_BEGIN_DECLS
+
 
 #define CTK_TYPE_GVO (ctk_gvo_get_type())
 
@@ -48,8 +50,33 @@ G_BEGIN_DECLS
     (G_TYPE_INSTANCE_GET_CLASS ((obj), CTK_TYPE_GVO, CtkGvoClass))
 
 
+
 typedef struct _CtkGvo       CtkGvo;
 typedef struct _CtkGvoClass  CtkGvoClass;
+
+typedef struct _CtkGvoBanner CtkGvoBanner;
+
+
+struct _CtkGvoBanner
+{
+    GtkWidget *table;
+    
+    GtkWidget *slots[4];
+
+    struct {
+        guint8 vid1;
+        guint8 vid2;
+        guint8 sdi;
+        guint8 comp;
+    } img;
+
+    struct {
+        guint8 vid1;
+        guint8 vid2;
+        guint8 sdi;
+        guint8 comp;
+    } state;
+};
 
 
 struct _CtkGvo
@@ -57,8 +84,11 @@ struct _CtkGvo
     GtkVBox parent;
 
     NvCtrlAttributeHandle *handle;
+    GtkWidget *parent_window;
     CtkConfig *ctk_config;
-    GtkWidget *banner_table;
+    CtkEvent *ctk_event;
+
+    GtkWidget *banner_frame;
 
     GtkWidget *sync_mode_menu;
     GtkWidget *output_video_format_menu;
@@ -72,17 +102,48 @@ struct _CtkGvo
     GtkWidget *input_video_format_text_entry;
     GtkWidget *input_video_format_detect_button;
 
+    GtkWidget *current_resolution_label;
+    GtkWidget *current_state_label;
+    
+    gint sync_mode;
+    gint sync_source;
+    gint input_video_format;
+    gint output_video_format;
+    gint output_data_format;
+
+    gint valid_putput_video_format_mask;
     gint input_video_format_detect_timer;
+
+    GdkCursor *wait_cursor;
+    CtkGvoBanner banner;
+
+    GtkWidget *hsync_delay_spin_button;
+    GtkWidget *vsync_delay_spin_button;
+
+    GtkWidget *x_offset_spin_button;
+    GtkWidget *y_offset_spin_button;
+
+    gboolean sync_format_sensitive;
+    gboolean sdi_output_enabled;
+
+    gint screen_width;
+    gint screen_height;
 };
+
 
 struct _CtkGvoClass
 {
     GtkVBoxClass parent_class;
 };
 
+
 GType          ctk_gvo_get_type    (void) G_GNUC_CONST;
-GtkWidget*     ctk_gvo_new         (NvCtrlAttributeHandle *, CtkConfig *);
+GtkWidget*     ctk_gvo_new         (NvCtrlAttributeHandle *,
+                                    GtkWidget *, CtkConfig *, CtkEvent *);
+void           ctk_gvo_select      (GtkWidget *);
+void           ctk_gvo_unselect    (GtkWidget *);
 GtkTextBuffer* ctk_gvo_create_help (GtkTextTagTable *);
+
 
 G_END_DECLS
 

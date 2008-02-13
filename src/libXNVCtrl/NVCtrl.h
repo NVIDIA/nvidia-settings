@@ -687,12 +687,10 @@
  *   NV_CTRL_GVO_SDI_SYNC_INPUT_DETECTED to detect what input syncs are
  *   present.
  * 
- *         (If no analog sync is detected but it is known
- *           that a thought to be valid bi-level or tri-level
- *         sync is connected set
- *         NV_CTRL_GVO_COMPOSITE_SYNC_INPUT_DETECT_MODE
- *         appropriately and retest with
- *         NV_CTRL_GVO_COMPOSITE_SYNC_INPUT_DETECTED).
+ *  (If no analog sync is detected but it is known that a
+ *   valid bi-level or tri-level sync is connected set
+ *   NV_CTRL_GVO_COMPOSITE_SYNC_INPUT_DETECT_MODE appropriately and
+ *   retest with NV_CTRL_GVO_COMPOSITE_SYNC_INPUT_DETECTED).
  *
  * - specify NV_CTRL_GVO_SYNC_SOURCE, if appropriate
  *
