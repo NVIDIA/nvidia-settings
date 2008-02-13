@@ -643,10 +643,25 @@
 #define NV_CTRL_AMBIENT_TEMPERATURE                             64  /* R-- */
 
 
-#define NV_CTRL_LAST_ATTRIBUTE NV_CTRL_AMBIENT_TEMPERATURE
+/*
+ * NV_CTRL_PBUFFER_SCANOUT_SUPPORTED - returns whether this X screen
+ * supports scanout of FP pbuffers;
+ * 
+ * if this screen does not support PBUFFER_SCANOUT, then all other
+ * PBUFFER_SCANOUT attributes are unavailable.
+ */
 
+#define NV_CTRL_PBUFFER_SCANOUT_SUPPORTED                       65  /* R-- */
+#define NV_CTRL_PBUFFER_SCANOUT_FALSE                           0
+#define NV_CTRL_PBUFFER_SCANOUT_TRUE                            1
 
+/*
+ * NV_CTRL_PBUFFER_SCANOUT_XID indicates the XID of the pbuffer used for
+ * scanout.
+ */
+#define NV_CTRL_PBUFFER_SCANOUT_XID                             66  /* RW- */
 
+#define NV_CTRL_LAST_ATTRIBUTE NV_CTRL_PBUFFER_SCANOUT_XID
 
 /**************************************************************************/
 

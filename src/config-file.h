@@ -39,6 +39,7 @@
 #define CONFIG_PROPERTIES_DISPLAY_STATUS_BAR                  (1<<1)
 #define CONFIG_PROPERTIES_SLIDER_TEXT_ENTRIES                 (1<<2)
 #define CONFIG_PROPERTIES_INCLUDE_DISPLAY_NAME_IN_CONFIG_FILE (1<<3)
+#define CONFIG_PROPERTIES_SHOW_QUIT_DIALOG                    (1<<4)
 
 typedef struct {
     unsigned int booleans;

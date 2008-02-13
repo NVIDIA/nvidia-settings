@@ -65,6 +65,9 @@ static const char *__x_display_names_help =
 "It is normally recommended to leave this option "
 "unchecked.";
 
+static const char *__show_quit_dialog_help =
+"When this option is enabled, nvidia-settings will ask if you "
+"really want to quit when the quit button is pressed. ";
 
 static void ctk_config_class_init(CtkConfigClass *ctk_config_class);
 
@@ -72,6 +75,7 @@ static void display_status_bar_toggled(GtkWidget *, gpointer);
 static void tooltips_toggled(GtkWidget *, gpointer);
 static void slider_text_entries_toggled(GtkWidget *, gpointer);
 static void display_name_toggled(GtkWidget *widget, gpointer user_data);
+static void show_quit_dialog_toggled(GtkWidget *widget, gpointer user_data);
 
 static GtkWidget *create_timer_list(CtkConfig *);
 
@@ -269,6 +273,25 @@ GtkWidget* ctk_config_new(ConfigProperties *conf)
                      G_CALLBACK(display_name_toggled), ctk_config);
 
     ctk_config_set_tooltip(ctk_config, check_button, __x_display_names_help);
+
+    /* show quit dialog */
+
+    label = gtk_label_new("Show \"Really Quit?\" Dialog");
+
+    check_button = gtk_check_button_new();
+    gtk_container_add(GTK_CONTAINER(check_button), label);
+
+    b = !!(ctk_config->conf->booleans & CONFIG_PROPERTIES_SHOW_QUIT_DIALOG);
+
+    gtk_toggle_button_set_active(GTK_TOGGLE_BUTTON(check_button), b);
+    
+    gtk_box_pack_start(GTK_BOX(vbox), check_button, FALSE, FALSE, 0);
+
+    g_signal_connect(G_OBJECT(check_button), "toggled",
+                     G_CALLBACK(show_quit_dialog_toggled), ctk_config);
+
+    ctk_config_set_tooltip(ctk_config, check_button, __show_quit_dialog_help);
+    
     
     /* timer list */
     
@@ -397,6 +420,16 @@ static void display_name_toggled(GtkWidget *widget, gpointer user_data)
     }
 }
 
+static void show_quit_dialog_toggled(GtkWidget *widget, gpointer user_data)
+{
+    CtkConfig *ctk_config = CTK_CONFIG(user_data);
+
+    if (gtk_toggle_button_get_active(GTK_TOGGLE_BUTTON(widget))) {
+        ctk_config->conf->booleans |= CONFIG_PROPERTIES_SHOW_QUIT_DIALOG;
+    } else {
+        ctk_config->conf->booleans &= ~CONFIG_PROPERTIES_SHOW_QUIT_DIALOG;
+    }
+}
 
 
 gboolean ctk_config_slider_text_entry_shown(CtkConfig *ctk_config)
@@ -427,6 +460,9 @@ GtkTextBuffer *ctk_config_create_help(GtkTextTagTable *table)
     
     ctk_help_heading(b, &i, "Include X Display Names in the Config File");
     ctk_help_para(b, &i, __x_display_names_help);
+    
+    ctk_help_heading(b, &i, "Show \"Really Quit?\" Dialog");
+    ctk_help_para(b, &i, __show_quit_dialog_help);
     
     ctk_help_heading(b, &i, "Active Timers");
     ctk_help_para(b, &i, "Some attributes are polled periodically "

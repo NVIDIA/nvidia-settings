@@ -618,9 +618,10 @@ ConfigPropertiesTableEntry configPropertyTable[] = {
     { "SliderTextEntries", CONFIG_PROPERTIES_SLIDER_TEXT_ENTRIES },
     { "IncludeDisplayNameInConfigFile",
       CONFIG_PROPERTIES_INCLUDE_DISPLAY_NAME_IN_CONFIG_FILE },
+    { "ShowQuitDialog", CONFIG_PROPERTIES_SHOW_QUIT_DIALOG },
     { NULL, 0 }
 };
-    
+
 
     
 /*
@@ -711,6 +712,7 @@ static void init_config_properties(ConfigProperties *conf)
     conf->booleans = 
         (CONFIG_PROPERTIES_TOOLTIPS |
          CONFIG_PROPERTIES_DISPLAY_STATUS_BAR |
-         CONFIG_PROPERTIES_SLIDER_TEXT_ENTRIES);
+         CONFIG_PROPERTIES_SLIDER_TEXT_ENTRIES |
+         CONFIG_PROPERTIES_SHOW_QUIT_DIALOG);
 
 } /* init_config_properties() */

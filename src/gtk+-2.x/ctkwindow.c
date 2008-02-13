@@ -79,6 +79,7 @@ static void add_page(GtkWidget *, GtkTextBuffer *, CtkWindow *,
 static GtkWidget *create_quit_dialog(CtkWindow *ctk_window);
 
 static void quit_response(GtkWidget *, gint, gpointer);
+static void save_settings_and_exit(CtkWindow *);
 
 static void add_special_config_file_attributes(CtkWindow *ctk_window);
 
@@ -167,9 +168,15 @@ static void ctk_window_real_destroy(GtkObject *object)
 static void close_button_clicked(GtkButton *button, gpointer user_data)
 {
     CtkWindow *ctk_window = CTK_WINDOW(user_data);
+    CtkConfig *ctk_config = ctk_window->ctk_config;
 
-    gtk_widget_show_all(ctk_window->quit_dialog);
-    
+    if (ctk_config->conf->booleans & CONFIG_PROPERTIES_SHOW_QUIT_DIALOG) {
+        /* ask for confirmation */
+        gtk_widget_show_all(ctk_window->quit_dialog);
+    } else {
+        /* doesn't return */
+        save_settings_and_exit(ctk_window);
+    }
 } /* close_button_clicked() */
 
 
@@ -705,6 +712,17 @@ static GtkWidget *create_quit_dialog(CtkWindow *ctk_window)
 } /* create_quit_dialog() */
 
 
+/*
+ * save_settings_and_exit() - save settings, perform cleanups, if
+ * necessary, and terminate nvidia-settings.
+ */
+
+static void save_settings_and_exit(CtkWindow *ctk_window)
+{
+    add_special_config_file_attributes(ctk_window);
+    gtk_main_quit();
+}
+
 
 /*
  * quit_response() - handle the response from the "really quit?"
@@ -716,11 +734,10 @@ static void quit_response(GtkWidget *button, gint response, gpointer user_data)
     CtkWindow *ctk_window = CTK_WINDOW(user_data);
 
     if (response == GTK_RESPONSE_OK) {
-        add_special_config_file_attributes(ctk_window);
-        gtk_main_quit();
-        return;
+        /* doesn't return */
+        save_settings_and_exit(ctk_window);
     }
-    
+
     gtk_widget_hide_all(ctk_window->quit_dialog);
 
 } /* quit_response() */
