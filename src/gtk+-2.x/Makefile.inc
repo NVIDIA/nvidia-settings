@@ -52,7 +52,8 @@ SRC += \
 	ctkdropdownmenu.c \
 	ctkrandr.c \
 	ctkclocks.c \
-	ctkutils.c
+	ctkutils.c \
+	ctkedid.c
 
 
 EXTRA_DIST += \
@@ -83,4 +84,5 @@ EXTRA_DIST += \
 	ctkdropdownmenu.h \
 	ctkrandr.h \
 	ctkclocks.h \
-	ctkutils.h
+	ctkutils.h \
+	ctkedid.h

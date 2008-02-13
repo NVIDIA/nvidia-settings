@@ -62,7 +62,7 @@ NvCtrlXvAttributes * NvCtrlInitXvAttributes(NvCtrlAttributePrivateHandle *h)
     XvAdaptorInfo *ainfo;
     unsigned int ver, rev, req, event, error, nadaptors;
     int ret, i;
-    Display *dpy = h->dpy;
+    Display *dpy;
     const char *error_str = NULL;
     const char *warn_str = NULL;
     
@@ -72,6 +72,7 @@ NvCtrlXvAttributes * NvCtrlInitXvAttributes(NvCtrlAttributePrivateHandle *h)
         goto fail;
     }
 
+    dpy = h->dpy;
 
     /* Allocate the attributes structure */
     xv = (NvCtrlXvAttributes *)
@@ -323,7 +324,7 @@ ReturnStatus NvCtrlXvSetAttribute(NvCtrlAttributePrivateHandle *h,
         return NvCtrlError;
     }
     
-    XFlush(h->dpy);
+    XFlush(h->xv->dpy);
 
     return NvCtrlSuccess; 
     
@@ -372,8 +373,7 @@ static NvCtrlXvAttribute *getXvAttribute(NvCtrlXvAttributes *xv,
 {
     NvCtrlXvAttribute *attr = NULL;
     XvAttribute *attributes = NULL;
-    unsigned int n;
-    int i;
+    int i, n;
     
     attributes = xv->XvQueryPortAttributes(xv->dpy, port, &n);
 

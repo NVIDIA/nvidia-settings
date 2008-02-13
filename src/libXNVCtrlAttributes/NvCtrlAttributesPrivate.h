@@ -91,6 +91,8 @@ typedef struct __NvCtrlXrandrAttributes NvCtrlXrandrAttributes;
 struct __NvCtrlNvControlAttributes {
     int event_base;
     int error_base;
+    int major_version;
+    int minor_version;
 };
 
 struct __NvCtrlVidModeAttributes {
@@ -302,6 +304,10 @@ ReturnStatus
 NvCtrlNvControlGetStringAttribute (NvCtrlAttributePrivateHandle *,
                                    unsigned int, int, char **);
 
+ReturnStatus
+NvCtrlNvControlGetBinaryAttribute(NvCtrlAttributePrivateHandle *h,
+                                  unsigned int display_mask, int attr,
+                                  unsigned char **data, int *len);
 ReturnStatus
 NvCtrlXvGetAttribute (NvCtrlAttributePrivateHandle *, int, int *);
 

@@ -437,6 +437,20 @@ NvCtrlGetStringDisplayAttribute(NvCtrlAttributeHandle *handle,
 } /* NvCtrlGetStringDisplayAttribute() */
 
 
+ReturnStatus
+NvCtrlGetBinaryAttribute(NvCtrlAttributeHandle *handle,
+                         unsigned int display_mask, int attr,
+                         unsigned char **data, int *len)
+{
+    NvCtrlAttributePrivateHandle *h;
+    
+    h = (NvCtrlAttributePrivateHandle *) handle;
+
+    return NvCtrlNvControlGetBinaryAttribute(h, display_mask, attr, data, len);
+
+} /* NvCtrlGetBinaryAttribute() */
+
+
 char *NvCtrlAttributesStrError(ReturnStatus status)
 {
     switch (status) {

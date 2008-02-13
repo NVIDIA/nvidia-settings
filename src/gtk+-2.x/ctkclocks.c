@@ -279,7 +279,6 @@ GtkWidget* ctk_clocks_new(NvCtrlAttributeHandle *handle,
     GtkWidget *menu_item;
     GtkWidget *scrollWin;
     GtkWidget *event;
-    GdkColor   color;
 
     GtkWidget *label;   
 
@@ -553,8 +552,8 @@ GtkWidget* ctk_clocks_new(NvCtrlAttributeHandle *handle,
     event = gtk_event_box_new();
     ctk_object->license_window = scrollWin;
 
-    gdk_color_parse("white", &color);
-    gtk_widget_modify_bg(event, GTK_STATE_NORMAL, &color);
+    gtk_widget_modify_fg(event, GTK_STATE_NORMAL, &(event->style->text[GTK_STATE_NORMAL]));
+    gtk_widget_modify_bg(event, GTK_STATE_NORMAL, &(event->style->base[GTK_STATE_NORMAL]));
 
     gtk_label_set_line_wrap(GTK_LABEL(label), TRUE);
     gtk_label_set_use_markup(GTK_LABEL(label), TRUE);

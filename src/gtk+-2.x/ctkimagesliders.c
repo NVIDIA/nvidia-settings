@@ -452,12 +452,12 @@ static void image_sharpening_update_received(GtkObject *object,
 
 
 /*
- * add_image_sharpening_help() - 
+ * add_image_sliders_help() - 
  */
 
-gboolean add_image_sharpening_help(CtkImageSliders *ctk_image_sliders,
-                                   GtkTextBuffer *b,
-                                   GtkTextIter *i)
+gboolean add_image_sliders_help(CtkImageSliders *ctk_image_sliders,
+                                GtkTextBuffer *b,
+                                GtkTextIter *i)
 {
     gboolean ret = FALSE;    
 
@@ -481,4 +481,4 @@ gboolean add_image_sharpening_help(CtkImageSliders *ctk_image_sliders,
 
     return ret;
     
-} /* add_image_sharpening_help() */
+} /* add_image_sliders_help() */

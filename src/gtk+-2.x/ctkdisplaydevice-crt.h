@@ -65,6 +65,7 @@ struct _CtkDisplayDeviceCrt
 
     unsigned int display_device_mask;
     unsigned int active_attributes;
+    gboolean edid_available;
 
     char *name;
 };

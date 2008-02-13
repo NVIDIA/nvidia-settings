@@ -87,8 +87,7 @@ GtkWidget* ctk_device_new(
     const nv_image_t *img;
 
     char *product_name, *bus_type, *vbios_version, *video_ram, *irq;
-    char *os, *arch, *version;
-    char scratch[64];
+    char *os, *arch, *version, *bus_rate, *bus;
     ReturnStatus ret;
     gint tmp, os_val;
 
@@ -117,7 +116,25 @@ GtkWidget* ctk_device_new(
         if (tmp == NV_CTRL_BUS_TYPE_PCI_EXPRESS) bus_type = "PCI Express";
     }
     if (!bus_type) bus_type = __unknown;
-    
+
+    /* NV_CTRL_BUS_RATE */
+
+    bus_rate = NULL;
+    if (tmp == NV_CTRL_BUS_TYPE_AGP ||
+            tmp == NV_CTRL_BUS_TYPE_PCI_EXPRESS) {
+        ret = NvCtrlGetAttribute(handle, NV_CTRL_BUS_RATE, &tmp);
+        if (ret == NvCtrlSuccess) {
+            bus_rate = g_strdup_printf("%dX", tmp);
+        }
+    }
+
+    if (bus_rate != NULL) {
+        bus = g_strdup_printf("%s %s", bus_type, bus_rate);
+        g_free(bus_rate);
+    } else {
+        bus = g_strdup(bus_type);
+    }
+
     /* NV_CTRL_STRING_VBIOS_VERSION */
 
     ret = NvCtrlGetStringAttribute(handle, NV_CTRL_STRING_VBIOS_VERSION,
@@ -154,12 +171,11 @@ GtkWidget* ctk_device_new(
     arch = NULL;
     if (ret == NvCtrlSuccess) {
         if (tmp == NV_CTRL_ARCHITECTURE_X86) arch = "x86";
-        if (tmp == NV_CTRL_ARCHITECTURE_X86_64) arch = "amd64";
+        if (tmp == NV_CTRL_ARCHITECTURE_X86_64) arch = "x86_64";
         if (tmp == NV_CTRL_ARCHITECTURE_IA64) arch = "ia64";
     }
     if (!arch) arch = __unknown;
-
-    snprintf(scratch, 64, "%s-%s", os, arch);
+    os = g_strdup_printf("%s-%s", os, arch);
 
     /* NV_CTRL_STRING_NVIDIA_DRIVER_VERSION */
 
@@ -242,15 +258,18 @@ GtkWidget* ctk_device_new(
 
     
     add_table_row(table, 0, 0, "Graphics Processor:", product_name);
-    add_table_row(table, 1, 0, "Bus Type:", bus_type);
+    add_table_row(table, 1, 0, "Bus Type:", bus);
     add_table_row(table, 2, 0, "VBIOS Version:", vbios_version);
     add_table_row(table, 3, 0, "Video Memory:", video_ram);
     add_table_row(table, 4, 0, "IRQ:", irq);
-    add_table_row(table, 5, 0, "Operating System:", scratch);
+    add_table_row(table, 5, 0, "Operating System:", os);
     add_table_row(table, 6, 0, "NVIDIA Driver Version:", version);
 
-  
-   
+    g_free(bus);
+    g_free(video_ram);
+    g_free(irq);
+    g_free(os);
+
     gtk_widget_show_all(GTK_WIDGET(object));
     
     return GTK_WIDGET(object);
@@ -301,7 +320,7 @@ GtkTextBuffer *ctk_device_create_help(GtkTextTagTable *table,
                   "X driver is running; possible values are "
                   "'Linux' and 'FreeBSD'.  This also specifies the platform "
                   "on which the operating system is running, such as x86, "
-                  "amd64, or ia64");
+                  "x86_64, or ia64");
     
     ctk_help_heading(b, &i, "NVIDIA Driver Version");
     ctk_help_para(b, &i, "This is the version of the NVIDIA Accelerated "

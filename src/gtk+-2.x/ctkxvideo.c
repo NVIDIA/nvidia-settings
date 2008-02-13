@@ -61,11 +61,31 @@ static const char *__xv_blitter_sync_to_vblank_help =
 "the vertical retrace of your display device "
 "for the Blitter Xv Adaptor.";
 
+static const char *__xv_sync_to_display_help =
+"This controls which display device will be synched to when "
+"XVideo Sync To VBlank is enabled.";
+ 
 static const char *__reset_button_help =
 "The Reset Hardware Defaults button restores "
 "the XVideo settings to their default values.";
 
 
+static void xv_sync_to_display_changed(GtkWidget *widget, gpointer user_data);
+
+static GtkWidget *xv_sync_to_display_radio_button_add(CtkXVideo *ctk_xvideo,
+                                                      GtkWidget *vbox,
+                                                      GtkWidget *prev_radio,
+                                                      char *label,
+                                                      gint value,
+                                                      int index);
+
+static void
+xv_sync_to_display_update_radio_buttons(CtkXVideo *ctk_xvideo, gint value);
+
+static void xv_sync_to_display_changed(GtkWidget *widget, gpointer user_data);
+
+static void xv_sync_to_display_update_received(GtkObject *object, gpointer arg1,
+                                               gpointer user_data);
 
 static GtkWidget *create_slider(CtkXVideo *ctk_xvideo,
                                 GtkWidget *vbox,
@@ -109,6 +129,7 @@ static void reset_defaults(GtkButton *button, gpointer user_data);
 #define __XV_OVERLAY_HUE            (1 << 4)
 #define __XV_TEXTURE_SYNC_TO_VBLANK (1 << 5)
 #define __XV_BLITTER_SYNC_TO_VBLANK (1 << 6)
+#define __XV_SYNC_TO_DISPLAY        (1 << 7)
 
 
 
@@ -138,6 +159,150 @@ GType ctk_xvideo_get_type(
     return ctk_xvideo_type;
 }
 
+/*
+ * xv_sync_to_display_radio_button_add() - create a radio button and plug it
+ * into the xv_sync_display radio group.
+ */
+
+static GtkWidget *xv_sync_to_display_radio_button_add(CtkXVideo *ctk_xvideo,
+                                                       GtkWidget *vbox,
+                                                       GtkWidget *prev_radio,
+                                                       char *label,
+                                                       gint value,
+                                                       int index)
+{
+    GtkWidget *radio;
+    
+    if (prev_radio) {
+        radio = gtk_radio_button_new_with_label_from_widget
+            (GTK_RADIO_BUTTON(prev_radio), label);
+    } else {
+        radio = gtk_radio_button_new_with_label(NULL, label);
+    }
+    
+    gtk_box_pack_start(GTK_BOX(vbox), radio, FALSE, FALSE, 0);
+ 
+    g_object_set_data(G_OBJECT(radio), "xv_sync_to_display",
+                      GINT_TO_POINTER(value));
+   
+    g_signal_connect(G_OBJECT(radio), "toggled",
+                     G_CALLBACK(xv_sync_to_display_changed),
+                     (gpointer) ctk_xvideo);
+
+    ctk_xvideo->xv_sync_to_display_buttons[index] = radio;
+
+    return radio;
+    
+} /* xv_sync_to_display_radio_button_add() */
+
+
+static void
+xv_sync_to_display_update_radio_buttons(CtkXVideo *ctk_xvideo, gint value)
+{
+    GtkWidget *b, *button = NULL;
+    int i;
+
+    button = ctk_xvideo->xv_sync_to_display_buttons[value];
+    
+    if (!button) return;
+
+    /* turn off signal handling for all the sync buttons */
+
+    for (i = 0; i < 24; i++) {
+        b = ctk_xvideo->xv_sync_to_display_buttons[i];
+        if (!b) continue;
+
+        g_signal_handlers_block_by_func
+            (G_OBJECT(b), G_CALLBACK(xv_sync_to_display_changed),
+             (gpointer) ctk_xvideo);
+    }
+    
+    /* set the appropriate button active */
+
+    gtk_toggle_button_set_active(GTK_TOGGLE_BUTTON(button), TRUE);
+    
+    /* turn on signal handling for all the sync buttons */
+
+    for (i = 0; i < 24; i++) {
+        b = ctk_xvideo->xv_sync_to_display_buttons[i];
+        if (!b) continue;
+
+        g_signal_handlers_unblock_by_func
+            (G_OBJECT(b), G_CALLBACK(xv_sync_to_display_changed),
+             (gpointer) ctk_xvideo);
+    }
+    
+} /* xv_sync_to_display_update_radio_buttons() */
+
+
+/*
+ * xv_sync_to_display_changed() - callback function for changes to the
+ * sync_to_display radio button group; if the specified radio button is
+ * active, send xv_sync_to_display state to the server
+ */
+
+static void xv_sync_to_display_changed(GtkWidget *widget, gpointer user_data)
+{
+    CtkXVideo *ctk_xvideo = CTK_XVIDEO(user_data);
+    gboolean enabled;
+    gint value;
+    gchar *label;
+
+    enabled = gtk_toggle_button_get_active(GTK_TOGGLE_BUTTON(widget));
+
+    if (enabled) {
+
+        user_data = g_object_get_data(G_OBJECT(widget), "xv_sync_to_display");
+        
+        value = GPOINTER_TO_INT(user_data);
+        
+        NvCtrlSetAttribute(ctk_xvideo->handle,
+                           NV_CTRL_XV_SYNC_TO_DISPLAY, value);
+                           
+        gtk_label_get(GTK_LABEL(GTK_BIN(widget)->child), &label);
+        
+        ctk_config_statusbar_message(ctk_xvideo->ctk_config,
+                                     "XVideo application syncing to %s.",
+                                     label);
+    }
+
+} /* xv_sync_to_display_changed() */
+
+
+/*
+ * xv_sync_to_display_update_received() - callback function for changed sync
+ * to display settings; this is called when we receive an event indicating that
+ * another NV-CONTROL client changed any of the settings that we care
+ * about.
+ */
+
+static void xv_sync_to_display_update_received(GtkObject *object, gpointer arg1,
+                                            gpointer user_data)
+{
+    CtkEventStruct *event_struct = (CtkEventStruct *) arg1;
+    CtkXVideo *ctk_xvideo = CTK_XVIDEO(user_data);
+    gint i;
+    GtkWidget *b;
+    
+    switch (event_struct->attribute) {
+    case NV_CTRL_XV_SYNC_TO_DISPLAY:
+        for (i = 0; i < 24; i++) {
+            b = ctk_xvideo->xv_sync_to_display_buttons[i];
+            if (!b) continue;
+            user_data = g_object_get_data(G_OBJECT(b), "xv_sync_to_display");
+            
+            if (GPOINTER_TO_INT(user_data) == event_struct->value) {
+                xv_sync_to_display_update_radio_buttons(ctk_xvideo, i);
+                break;
+            }
+        }
+        break;
+        
+    default:
+        break;
+    }
+    
+} /* xv_sync_to_display_update_received() */
 
 
 /*
@@ -145,7 +310,8 @@ GType ctk_xvideo_get_type(
  */
 
 GtkWidget* ctk_xvideo_new(NvCtrlAttributeHandle *handle,
-                          CtkConfig *ctk_config)
+                          CtkConfig *ctk_config,
+                          CtkEvent *ctk_event)
 {
     GObject *object;
     CtkXVideo *ctk_xvideo;
@@ -160,7 +326,8 @@ GtkWidget* ctk_xvideo_new(NvCtrlAttributeHandle *handle,
     guint8 *image_buffer = NULL;
     const nv_image_t *img;
     int xv_overlay_present, xv_texture_present, xv_blitter_present;
-    
+    int sync_mask;        
+        
     ReturnStatus ret;
 
     /*
@@ -308,6 +475,73 @@ GtkWidget* ctk_xvideo_new(NvCtrlAttributeHandle *handle,
                                 __xv_blitter_sync_to_vblank_help,
                                 NV_CTRL_ATTR_XV_BLITTER_SYNC_TO_VBLANK,
                                 __XV_BLITTER_SYNC_TO_VBLANK);
+    }
+    
+    /* Sync to display selection */
+    
+    ret = NvCtrlGetAttribute(handle,
+                             NV_CTRL_XV_SYNC_TO_DISPLAY,
+                             &sync_mask);
+
+    if (ret == NvCtrlSuccess) {
+        int enabled;
+        
+        ret = NvCtrlGetAttribute(handle, NV_CTRL_ENABLED_DISPLAYS, &enabled);
+        if (ret == NvCtrlSuccess) {
+            GtkWidget *radio[24], *prev_radio;
+            int i, n, current = -1, mask;
+            char *name;
+        
+            frame = gtk_frame_new("Sync to this display device");
+            gtk_box_pack_start(GTK_BOX(object), frame, FALSE, FALSE, 0);
+        
+            vbox = gtk_vbox_new(FALSE, 5);
+            gtk_container_set_border_width(GTK_CONTAINER(vbox), FRAME_PADDING);
+            gtk_container_add(GTK_CONTAINER(frame), vbox);
+        
+            ctk_xvideo->active_attributes |= __XV_SYNC_TO_DISPLAY;
+
+            for (n=0, i = 0; i < 24; i++) {
+        
+                mask = 1 << i;
+                if (!(enabled & mask)) continue;
+        
+                /* get the name of the display device */
+        
+                ret = NvCtrlGetStringDisplayAttribute(handle, mask,
+                        NV_CTRL_STRING_DISPLAY_DEVICE_NAME,
+                        &name);
+        
+                if ((ret != NvCtrlSuccess) || (!name)) {
+                    name = g_strdup("Unknown");
+                }
+                
+                if (n==0) {
+                    prev_radio = NULL;
+                } else {
+                    prev_radio = radio[n-1];
+                } 
+                radio[n] = xv_sync_to_display_radio_button_add(ctk_xvideo, vbox,
+                            prev_radio, name, mask, n);
+                                 
+                ctk_config_set_tooltip(ctk_config, radio[n], 
+                                       __xv_sync_to_display_help);    
+            
+                if (mask == sync_mask) {
+                    current = n;
+                }
+            
+                n++;
+            }
+        
+            g_signal_connect(G_OBJECT(ctk_event),
+                             CTK_EVENT_NAME(NV_CTRL_XV_SYNC_TO_DISPLAY),
+                             G_CALLBACK(xv_sync_to_display_update_received),
+                             (gpointer) ctk_xvideo);
+                             
+            if (current != -1)
+                xv_sync_to_display_update_radio_buttons(ctk_xvideo, current);
+        }
     }
     
     /* Reset button */
@@ -665,6 +899,11 @@ GtkTextBuffer *ctk_xvideo_create_help(GtkTextTagTable *table,
     if (ctk_xvideo->active_attributes & __XV_BLITTER_SYNC_TO_VBLANK) {
         ctk_help_heading(b, &i, "Video Blitter Sync To VBlank");
         ctk_help_para(b, &i, __xv_blitter_sync_to_vblank_help);
+    }
+    
+    if (ctk_xvideo->active_attributes & __XV_SYNC_TO_DISPLAY) {
+        ctk_help_heading(b, &i, "Sync to this display device");
+        ctk_help_para(b, &i, __xv_sync_to_display_help);
     }
     
     ctk_help_heading(b, &i, "Reset Hardware Defaults");

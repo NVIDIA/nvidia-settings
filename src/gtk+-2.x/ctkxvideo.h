@@ -27,6 +27,7 @@
 
 #include "NvCtrlAttributes.h"
 #include "ctkconfig.h"
+#include "ctkevent.h"
 
 G_BEGIN_DECLS
 
@@ -64,6 +65,7 @@ struct _CtkXVideo
     GtkWidget *overlay_hue;
     GtkWidget *texture_sync_to_blank;
     GtkWidget *blitter_sync_to_blank;
+    GtkWidget *xv_sync_to_display_buttons[24];
     
     unsigned int active_attributes;   
 };
@@ -74,7 +76,8 @@ struct _CtkXVideoClass
 };
 
 GType       ctk_xvideo_get_type  (void) G_GNUC_CONST;
-GtkWidget*  ctk_xvideo_new       (NvCtrlAttributeHandle *, CtkConfig *);
+GtkWidget*  ctk_xvideo_new       (NvCtrlAttributeHandle *, CtkConfig *, 
+                                  CtkEvent *ctk_event);
 
 GtkTextBuffer *ctk_xvideo_create_help(GtkTextTagTable *, CtkXVideo *);
 

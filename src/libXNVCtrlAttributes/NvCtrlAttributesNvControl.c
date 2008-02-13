@@ -42,7 +42,7 @@ NvCtrlNvControlAttributes *
 NvCtrlInitNvControlAttributes (NvCtrlAttributePrivateHandle *h)
 {
     NvCtrlNvControlAttributes *nv;
-    int ret, ver, rev, event, error;
+    int ret, major, minor, event, error;
     
     ret = XNVCTRLQueryExtension (h->dpy, &event, &error);
     if (ret != True) {
@@ -50,16 +50,16 @@ NvCtrlInitNvControlAttributes (NvCtrlAttributePrivateHandle *h)
         return NULL;
     }
     
-    ret = XNVCTRLQueryVersion (h->dpy, &ver, &rev);
+    ret = XNVCTRLQueryVersion (h->dpy, &major, &minor);
     if (ret != True) {
         nv_error_msg("Failed to query NV-CONTROL extension version.");
         return NULL;
     }
 
-    if (ver < NV_MINMAJOR || (ver == NV_MINMAJOR && rev < NV_MINMINOR)) {
+    if (major < NV_MINMAJOR || (major == NV_MINMAJOR && minor < NV_MINMINOR)) {
         nv_error_msg("NV-CONTROL extension version %d.%d is too old; "
                      "the minimimum required version is %d.%d.",
-                     ver, rev, NV_MINMAJOR, NV_MINMINOR);
+                     major, minor, NV_MINMAJOR, NV_MINMINOR);
         return NULL;
     }
     
@@ -82,9 +82,8 @@ NvCtrlInitNvControlAttributes (NvCtrlAttributePrivateHandle *h)
 
     nv->event_base = event;
     nv->error_base = error;
-
-    /* currently don't need to store anything in
-       NvCtrlNvControlAttributes */
+    nv->major_version = major;
+    nv->minor_version = minor;
 
     return (nv);
 
@@ -160,3 +159,31 @@ NvCtrlNvControlGetStringAttribute (NvCtrlAttributePrivateHandle *h,
     return NvCtrlNoAttribute;
 
 } /* NvCtrlGetStringAttribute() */
+
+
+ReturnStatus
+NvCtrlNvControlGetBinaryAttribute(NvCtrlAttributePrivateHandle *h,
+                                  unsigned int display_mask, int attr,
+                                  unsigned char **data, int *len)
+{
+    Bool bret;
+    
+    if (!h->nv) return NvCtrlMissingExtension;
+    
+    /* the X_nvCtrlQueryBinaryData opcode was added in 1.7 */
+    
+    if ((h->nv->major_version < 1) ||
+        ((h->nv->major_version == 1) && (h->nv->minor_version < 7))) {
+        return NvCtrlNoAttribute;
+    }
+    
+    bret = XNVCTRLQueryBinaryData(h->dpy, h->screen, display_mask,
+                                  attr, data, len);
+    
+    if (!bret) {
+        return NvCtrlError;
+    } else {
+        return NvCtrlSuccess;
+    }
+    
+} /* NvCtrlNvControlGetBinaryAttribute() */

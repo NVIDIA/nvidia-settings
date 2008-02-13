@@ -6,7 +6,7 @@
 #define NV_CONTROL_NAME "NV-CONTROL"
 
 #define NV_CONTROL_MAJOR 1
-#define NV_CONTROL_MINOR 6
+#define NV_CONTROL_MINOR 7
 
 #define X_nvCtrlQueryExtension                      0
 #define X_nvCtrlIsNv                                1
@@ -28,7 +28,8 @@
 #define X_nvCtrlQueryDDCCICapabilities              17
 #define X_nvCtrlQueryDDCCITimingReport              18
 #define X_nvCtrlSetAttributeAndGetStatus            19
-#define X_nvCtrlLastRequest              (X_nvCtrlSetAttributeAndGetStatus + 1)
+#define X_nvCtrlQueryBinaryData                     20
+#define X_nvCtrlLastRequest              (X_nvCtrlQueryBinaryData + 1)
 
 
 /* Define 32 bit floats */
@@ -490,6 +491,31 @@ typedef struct {
     CARD32 pad8 B32;
 } xnvCtrlQueryDDCCITimingReportReply;
 #define sz_xnvCtrlQueryDDCCITimingReportReply 32
+
+typedef struct {
+    CARD8 reqType;
+    CARD8 nvReqType;
+    CARD16 length B16;
+    CARD32 screen B32;
+    CARD32 display_mask B32;
+    CARD32 attribute B32;
+} xnvCtrlQueryBinaryDataReq;
+#define sz_xnvCtrlQueryBinaryDataReq 16
+
+typedef struct {
+    BYTE type;
+    BYTE pad0;
+    CARD16 sequenceNumber B16;
+    CARD32 length B32;
+    CARD32 flags B32;
+    CARD32 n B32;
+    CARD32 pad4 B32;
+    CARD32 pad5 B32;
+    CARD32 pad6 B32;
+    CARD32 pad7 B32;
+} xnvCtrlQueryBinaryDataReply;
+#define sz_xnvCtrlQueryBinaryDataReply 32
+
 
 typedef struct {
     CARD8 reqType;

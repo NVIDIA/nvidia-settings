@@ -974,6 +974,59 @@ Bool XNVCTRLQueryDDCCITimingReport (
     return exists;
 }
 
+Bool XNVCTRLQueryBinaryData (
+    Display *dpy,
+    int screen,
+    unsigned int display_mask,
+    unsigned int attribute,
+    unsigned char **ptr,
+    int *len
+){
+    XExtDisplayInfo *info = find_display (dpy);
+    xnvCtrlQueryBinaryDataReply rep;
+    xnvCtrlQueryBinaryDataReq   *req;
+    Bool exists;
+    int length, numbytes, slop;
+
+    if (!ptr) return False;
+
+    if(!XextHasExtension(info))
+        return False;
+
+    XNVCTRLCheckExtension (dpy, info, False);
+
+    LockDisplay (dpy);
+    GetReq (nvCtrlQueryBinaryData, req);
+    req->reqType = info->codes->major_opcode;
+    req->nvReqType = X_nvCtrlQueryBinaryData;
+    req->screen = screen;
+    req->display_mask = display_mask;
+    req->attribute = attribute;
+    if (!_XReply (dpy, (xReply *) &rep, 0, False)) {
+        UnlockDisplay (dpy);
+        SyncHandle ();
+        return False;
+    }
+    length = rep.length;
+    numbytes = rep.n;
+    slop = numbytes & 3;
+    *ptr = (char *) Xmalloc(numbytes);
+    if (! *ptr) {
+        _XEatData(dpy, length);
+        UnlockDisplay (dpy);
+        SyncHandle ();
+        return False;
+    } else {
+        _XRead(dpy, (char *) *ptr, numbytes);
+        if (slop) _XEatData(dpy, 4-slop);
+    }
+    exists = rep.flags;
+    if (len) *len = numbytes;
+    UnlockDisplay (dpy);
+    SyncHandle ();
+    return exists;
+}
+
 static Bool wire_to_event (Display *dpy, XEvent *host, xEvent *wire)
 {
     XExtDisplayInfo *info = find_display (dpy);

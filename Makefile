@@ -37,7 +37,7 @@
 # default definitions; can be overwritten by users
 
 SHELL = /bin/sh
-INSTALL = install -m 755
+INSTALL = install
 BUILD_OS := $(shell uname)
 BUILD_ARCH := $(shell uname -m)
 
@@ -88,15 +88,25 @@ endif
 # Solaris install has a different argument syntax 
 ifeq ($(BUILD_OS),SunOS)
 ECHO=/usr/ucb/echo
-INSTALL_RULE=$(INSTALL) -f $(bindir) $(NVIDIA_SETTINGS) 
+define INSTALL_RULE
+	$(INSTALL) -m 755 -f $(bindir) $(NVIDIA_SETTINGS)
+	mkdir -p $(mandir)
+	$(INSTALL) -m 644 -f $(mandir) doc/$(MANPAGE)
+endef
 LD_RUN_FLAG=-R/usr/X11R6/lib
 else
 ECHO=echo
-INSTALL_RULE=$(INSTALL) $(NVIDIA_SETTINGS) $(bindir)/$(NVIDIA_SETTINGS)
+define INSTALL_RULE
+	$(INSTALL) -m 755 $(NVIDIA_SETTINGS) $(bindir)/$(NVIDIA_SETTINGS)
+	mkdir -p $(mandir)
+	$(INSTALL) -m 644 doc/$(MANPAGE) $(mandir)
+	gzip -9f $(mandir)/$(MANPAGE)
+endef
 endif
 
 exec_prefix = $(prefix)
 bindir = $(exec_prefix)/bin
+mandir = $(exec_prefix)/share/man/man1
 
 X11R6_CFLAGS = -I $(X11R6_INC_DIR)
 
@@ -136,6 +146,8 @@ NVIDIA_SETTINGS_DISTDIR_DIRS := \
 	$(addprefix $(NVIDIA_SETTINGS_DISTDIR)/, $(RELATIVE_SRCDIRS))
 
 STAMP_C = g_stamp.c
+
+MANPAGE = nvidia-settings.1
 
 # Define the files in the SAMPLES directory
 

@@ -847,6 +847,8 @@
 #define NV_CTRL_GVO_DATA_FORMAT_Y10CR8CB8Z10_TO_YCRCBZ4444      12
 #define NV_CTRL_GVO_DATA_FORMAT_DUAL_R8G8B8_TO_DUAL_YCRCB422    13
 #define NV_CTRL_GVO_DATA_FORMAT_DUAL_Y8CR8CB8_TO_DUAL_YCRCB422  14
+#define NV_CTRL_GVO_DATA_FORMAT_R10G10B10_TO_YCRCB422           15
+#define NV_CTRL_GVO_DATA_FORMAT_R10G10B10_TO_YCRCB444           16
 
 
 /*
@@ -2348,18 +2350,100 @@
 #define NV_CTRL_USE_HOUSE_SYNC_FALSE                            0
 #define NV_CTRL_USE_HOUSE_SYNC_TRUE                             1
 
-/**************************************************************************/
-#define NV_CTRL_LAST_ATTRIBUTE NV_CTRL_USE_HOUSE_SYNC
-
-/**************************************************************************/
-
 /*
- * String Attributes:
+ * NV_CTRL_EDID_AVAILABLE - report if an EDID is available for the
+ * specified display device.
  */
 
-#define QUERY_STRING_ERR 0
-#define QUERY_STRING_OK 1
-#define QUERY_STRING_STATIC 2
+#define NV_CTRL_EDID_AVAILABLE                                  219 /* R-D */
+#define NV_CTRL_EDID_AVAILABLE_FALSE                            0
+#define NV_CTRL_EDID_AVAILABLE_TRUE                             1
+
+/*
+ * NV_CTRL_FORCE_STEREO - when TRUE, OpenGL will force stereo flipping
+ * even when no stereo drawables are visible (if the device is configured
+ * to support it, see the "Stereo" X config option).
+ * When false, fall back to the default behavior of only flipping when a
+ * stereo drawable is visible.
+ */
+
+
+#define NV_CTRL_FORCE_STEREO                                    220 /* RW- */
+#define NV_CTRL_FORCE_STEREO_FALSE                              0
+#define NV_CTRL_FORCE_STEREO_TRUE                               1
+
+
+/*
+ * NV_CTRL_IMAGE_SETTINGS - the image quality setting for OpenGL clients.
+ *
+ * This setting is only applied to OpenGL clients that are started
+ * after this setting is applied.
+ */
+
+#define NV_CTRL_IMAGE_SETTINGS                                  221 /* RW- */
+#define NV_CTRL_IMAGE_SETTINGS_HIGH_QUALITY                     0
+#define NV_CTRL_IMAGE_SETTINGS_QUALITY                          1
+#define NV_CTRL_IMAGE_SETTINGS_PERFORMANCE                      2
+#define NV_CTRL_IMAGE_SETTINGS_HIGH_PERFORMANCE                 3
+
+
+/*
+ * NV_CTRL_XINERAMA - return whether xinerama is enabled
+ */
+
+
+#define NV_CTRL_XINERAMA                                        222 /* RW- */
+#define NV_CTRL_XINERAMA_OFF                                    0
+#define NV_CTRL_XINERAMA_ON                                     1
+
+/*
+ * NV_CTRL_XINERAMA_STEREO - when TRUE, OpenGL will allow stereo flipping
+ * on multiple X screens configured with Xinerama.
+ * When FALSE, flipping is allowed only on one X screen at a time.
+ */
+
+#define NV_CTRL_XINERAMA_STEREO                                  223 /* RW- */
+#define NV_CTRL_XINERAMA_STEREO_FALSE                            0
+#define NV_CTRL_XINERAMA_STEREO_TRUE                             1
+
+
+/*
+ * NV_CTRL_BUS_RATE - if the bus type of the GPU driving the specified
+ * screen is AGP, then NV_CTRL_BUS_RATE returns the configured AGP
+ * transfer rate.  If the bus type is PCI Express, then this attribute
+ * returns the width of the physical link.
+ */
+
+#define NV_CTRL_BUS_RATE                                         224  /* R-- */
+
+/*
+ * NV_CTRL_SHOW_SLI_HUD - when TRUE, OpenGL will draw information about the
+ * current SLI mode.
+ */
+
+#define NV_CTRL_SHOW_SLI_HUD                                     225  /* RW- */
+#define NV_CTRL_SHOW_SLI_HUD_FALSE                               0
+#define NV_CTRL_SHOW_SLI_HUD_TRUE                                1
+
+/*
+ * NV_CTRL_XV_SYNC_TO_DISPLAY - this control is valid when twinview and 
+ * XVideo Sync To VBlank are enabled.
+ * It controls which display device will be synched to.
+ */
+
+#define NV_CTRL_XV_SYNC_TO_DISPLAY                               226  /* RW- */
+
+
+/**************************************************************************/
+#define NV_CTRL_LAST_ATTRIBUTE NV_CTRL_XV_SYNC_TO_DISPLAY
+
+/**************************************************************************/
+
+
+/*
+ *
+ * String Attributes:
+ */
 
 /*
  * NV_CTRL_STRING_PRODUCT_NAME - the GPU product name on which the
@@ -2426,6 +2510,17 @@
 #define NV_CTRL_STRING_DDCCI_MISC_AUXILIARY_DISPLAY_DATA        7  /* -WD */
 
 #define NV_CTRL_STRING_LAST_ATTRIBUTE NV_CTRL_STRING_DDCCI_MISC_AUXILIARY_DISPLAY_DATA
+
+
+/**************************************************************************/
+
+/*
+ * Binary Data Attributes:
+ */
+
+#define NV_CTRL_BINARY_DATA_EDID                                0  /* R-D */
+
+#define NV_CTRL_BINARY_DATA_LAST_ATTRIBUTE NV_CTRL_BINARY_DATA_EDID
 
 /**************************************************************************/
 /*

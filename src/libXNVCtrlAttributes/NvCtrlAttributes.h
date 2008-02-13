@@ -359,25 +359,10 @@ NvCtrlGetStringDisplayAttribute (NvCtrlAttributeHandle *handle,
                                  unsigned int display_mask,
                                  int attr, char **ptr);
 
-/*
- * While some attributes should update on-the-fly, other attributes
- * should not be applied until an "Apply" button is pressed.
- *
- * To support this, NvCtrlSetAttributePending() can be called to set
- * the value of an attribute in a special cache in the backend.  These
- * cached values will not be sent to the server until
- * NvCtrlFlushPendingAttributes() is called.
- * NvCtrlCancelPendingAttributes() can be called to clear the cache
- * without sending any values to the server.
- */
-
-ReturnStatus NvCtrlSetAttributePending (NvCtrlAttributeHandle *handle,
-                                        int attr, int val);
-
-ReturnStatus NvCtrlFlushPendingAttributes (NvCtrlAttributeHandle *handle);
-
-ReturnStatus NvCtrlCancelPendingAttributes (NvCtrlAttributeHandle *handle);
-
+ReturnStatus
+NvCtrlGetBinaryAttribute(NvCtrlAttributeHandle *handle,
+                         unsigned int display_mask, int attr,
+                         unsigned char **data, int *len);
 
 char *NvCtrlAttributesStrError (ReturnStatus status);
 

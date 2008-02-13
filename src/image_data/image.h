@@ -29,7 +29,7 @@ typedef struct {
     unsigned int width;
     unsigned int height;
     unsigned int bytes_per_pixel; /* 3:RGB, 4:RGBA */ 
-    unsigned char *rle_pixel_data;
+    char *rle_pixel_data;
 } nv_image_t;
 
 unsigned char *decompress_image_data(const nv_image_t *img);

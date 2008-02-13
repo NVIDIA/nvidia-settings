@@ -30,6 +30,7 @@
 #include "ctkdisplaydevice-crt.h"
 
 #include "ctkimagesliders.h"
+#include "ctkedid.h"
 #include "ctkconfig.h"
 #include "ctkhelp.h"
 
@@ -75,11 +76,12 @@ GtkWidget* ctk_display_device_crt_new(NvCtrlAttributeHandle *handle,
     GtkWidget *hbox;
     GtkWidget *label;
     GtkWidget *alignment;
+    GtkWidget *edid;
     
     guint8 *image_buffer = NULL;
     const nv_image_t *img;
     char *s;
-    
+        
     object = g_object_new(CTK_TYPE_DISPLAY_DEVICE_CRT, NULL);
 
     ctk_display_device_crt = CTK_DISPLAY_DEVICE_CRT(object);
@@ -161,6 +163,18 @@ GtkWidget* ctk_display_device_crt_new(NvCtrlAttributeHandle *handle,
         gtk_box_pack_start(GTK_BOX(object), label, FALSE, FALSE, 0);
     }
 
+    /* pack the EDID button */
+
+    edid = ctk_edid_new(handle, ctk_config, ctk_event,
+                        ctk_display_device_crt->reset_button,
+                        display_device_mask, name);
+    if (edid) {
+        gtk_box_pack_start(GTK_BOX(object), edid, FALSE, FALSE, 0);
+        ctk_display_device_crt->edid_available = TRUE;
+    } else {
+        ctk_display_device_crt->edid_available = FALSE;
+    }
+    
     /* show the page */
 
     gtk_widget_show_all(GTK_WIDGET(object));
@@ -185,10 +199,14 @@ GtkTextBuffer *ctk_display_device_crt_create_help(GtkTextTagTable *table,
     ctk_help_title(b, &i, "%s Help", ctk_display_device_crt->name);
     
     if (ctk_display_device_crt->image_sliders) {
-        ret = add_image_sharpening_help
+        ret = add_image_sliders_help
             (CTK_IMAGE_SLIDERS(ctk_display_device_crt->image_sliders), b, &i);
     } else {
         ret = FALSE;
+    }
+
+    if (ctk_display_device_crt->edid_available) {
+        add_acquire_edid_help(b, &i);
     }
     
     if (!ret) {

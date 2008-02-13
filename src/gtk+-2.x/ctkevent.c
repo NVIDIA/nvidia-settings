@@ -26,7 +26,11 @@
  * ctkevent.c - the CtkEvent object registers a new input source (the
  * filedescriptor associated with the NV-CONTROL Display connection)
  * with the glib main loop, and emits signals when any relevant
- * NV-CONTROL events occur.
+ * NV-CONTROL events occur.  GUI elements can then register
+ * callback(s) on the CtkEvent object & Signal(s).
+ *
+ * In short:
+ *   NV-CONTROL -> event -> glib -> CtkEvent -> signal -> GUI
  */
 
 #include <gtk/gtk.h>
@@ -44,18 +48,31 @@ static gboolean ctk_event_check(GSource *);
 static gboolean ctk_event_dispatch(GSource *, GSourceFunc, gpointer);
 
 
-typedef struct {
+/* List of who to contact on dpy events */
+typedef struct __CtkEventNodeRec {
+    CtkEvent *ctk_event;
+    int screen;    
+    struct __CtkEventNodeRec *next;
+} CtkEventNode;
+
+/* dpys should have a single event source object */
+typedef struct __CtkEventSourceRec {
     GSource source;
     Display *dpy;
     GPollFD event_poll_fd;
     int event_base;
     int randr_event_base;
-    CtkEvent *ctk_event;
+
+    CtkEventNode *ctk_events;
+    struct __CtkEventSourceRec *next;
 } CtkEventSource;
 
 
 static guint signals[NV_CTRL_LAST_ATTRIBUTE + 1];
 static guint signal_RRScreenChangeNotify;
+
+/* List of event sources to track (one per dpy) */
+CtkEventSource *event_sources = NULL;
 
 
 
@@ -142,6 +159,7 @@ static void ctk_event_class_init(CtkEventClass *ctk_event_class)
     MAKE_SIGNAL(NV_CTRL_FORCE_GENERIC_CPU);
     MAKE_SIGNAL(NV_CTRL_OPENGL_AA_LINE_GAMMA);
     MAKE_SIGNAL(NV_CTRL_FLIPPING_ALLOWED);
+    MAKE_SIGNAL(NV_CTRL_FORCE_STEREO);
     MAKE_SIGNAL(NV_CTRL_ARCHITECTURE);
     MAKE_SIGNAL(NV_CTRL_TEXTURE_CLAMPING);
     MAKE_SIGNAL(NV_CTRL_CURSOR_SHADOW);
@@ -193,6 +211,11 @@ static void ctk_event_class_init(CtkEventClass *ctk_event_class)
     MAKE_SIGNAL(NV_CTRL_GPU_OPTIMAL_CLOCK_FREQS);
     MAKE_SIGNAL(NV_CTRL_GPU_OPTIMAL_CLOCK_FREQS_DETECTION_STATE);
     MAKE_SIGNAL(NV_CTRL_USE_HOUSE_SYNC);
+    MAKE_SIGNAL(NV_CTRL_IMAGE_SETTINGS);
+    MAKE_SIGNAL(NV_CTRL_XINERAMA_STEREO);
+    MAKE_SIGNAL(NV_CTRL_BUS_RATE);
+    MAKE_SIGNAL(NV_CTRL_SHOW_SLI_HUD);
+    MAKE_SIGNAL(NV_CTRL_XV_SYNC_TO_DISPLAY);
 
 #undef MAKE_SIGNAL
     
@@ -203,7 +226,7 @@ static void ctk_event_class_init(CtkEventClass *ctk_event_class)
      * knows about.
      */
 
-#if NV_CTRL_LAST_ATTRIBUTE != NV_CTRL_USE_HOUSE_SYNC
+#if NV_CTRL_LAST_ATTRIBUTE != NV_CTRL_XV_SYNC_TO_DISPLAY
 #warning "There are attributes that do not emit signals!"
 #endif
 
@@ -220,21 +243,93 @@ static void ctk_event_class_init(CtkEventClass *ctk_event_class)
 } /* ctk_event_class_init */
 
 
+
+/* - ctk_event_register_source()
+ *
+ * Keep track of event sources globally to support
+ * dispatching events on a dpy to multiple CtkEvent
+ * objects.  Since the driver only sends out one event
+ * notification per dpy (client), there should only be one
+ * event source attached per unique dpy.  When an event
+ * is received, the dispatching function should then
+ * emit a signal to every CtkEvent object that
+ * requests event notification from the dpy for the
+ * given X screen.
+ */
+static void ctk_event_register_source(CtkEvent *ctk_event)
+{
+    Display *dpy = NvCtrlGetDisplayPtr(ctk_event->handle);
+    CtkEventSource *event_source;
+    CtkEventNode *event_node;
+
+    if (!dpy) {
+        return;
+    }
+
+    /* Do we already have an event source for this dpy? */
+    event_source = event_sources;
+    while (event_source) {
+        if (event_source->dpy == dpy) {
+            break;
+        }
+        event_source = event_source->next;
+    }
+
+    /* create a new input source */
+    if (!event_source) {
+        GSource *source;
+
+        static GSourceFuncs ctk_source_funcs = {
+            ctk_event_prepare,
+            ctk_event_check,
+            ctk_event_dispatch,
+            NULL
+        };
+
+        source = g_source_new(&ctk_source_funcs, sizeof(CtkEventSource));
+        event_source = (CtkEventSource *) source;
+        if (!event_source) {
+            return;
+        }
+        
+        event_source->dpy = dpy;
+        event_source->event_poll_fd.fd = ConnectionNumber(dpy);
+        event_source->event_poll_fd.events = G_IO_IN;
+        event_source->event_base = NvCtrlGetEventBase(ctk_event->handle);
+        event_source->randr_event_base =
+            NvCtrlGetXrandrEventBase(ctk_event->handle);
+        
+        /* add the input source to the glib main loop */
+        
+        g_source_add_poll(source, &event_source->event_poll_fd);
+        g_source_attach(source, NULL);
+
+        /* add the source to the global list of sources */
+
+        event_source->next = event_sources;
+        event_sources = event_source;
+    }
+
+
+    /* Add the ctk_event object to the source's list of event objects */
+
+    event_node = (CtkEventNode *)g_malloc(sizeof(CtkEventNode));
+    if (!event_node) {
+        return;
+    }
+    event_node->ctk_event = ctk_event;
+    event_node->screen = NvCtrlGetScreen(ctk_event->handle);
+    event_node->next = event_source->ctk_events;
+    event_source->ctk_events = event_node;
+
+} /* ctk_event_create_source() */
+
+
+
 GtkObject *ctk_event_new (NvCtrlAttributeHandle *handle)
 {
     GObject *object;
     CtkEvent *ctk_event;
-
-    Display *dpy;
-    GSource *source;
-    CtkEventSource *event_source;
-
-    static GSourceFuncs ctk_source_funcs = {
-        ctk_event_prepare,
-        ctk_event_check,
-        ctk_event_dispatch,
-        NULL
-    };
 
     /* create the new object */
 
@@ -243,26 +338,9 @@ GtkObject *ctk_event_new (NvCtrlAttributeHandle *handle)
     ctk_event = CTK_EVENT(object);
     ctk_event->handle = handle;
     
-    /* get the Display connection associated with this NvCtrl handle */
+    /* Register to receive (dpy) events */
 
-    dpy = NvCtrlGetDisplayPtr(handle);
-    
-    /* create a new input source */
-
-    source = g_source_new(&ctk_source_funcs, sizeof(CtkEventSource));
-    event_source = (CtkEventSource *) source;
-    
-    event_source->dpy = dpy;
-    event_source->event_poll_fd.fd = ConnectionNumber(dpy);
-    event_source->event_poll_fd.events = G_IO_IN;
-    event_source->event_base = NvCtrlGetEventBase(handle);
-    event_source->randr_event_base = NvCtrlGetXrandrEventBase(handle);
-    event_source->ctk_event = ctk_event;
-
-    /* add the input source to the glib main loop */
-
-    g_source_add_poll(source, &event_source->event_poll_fd);
-    g_source_attach(source, NULL);
+    ctk_event_register_source(ctk_event);
     
     return GTK_OBJECT(ctk_event);
 
@@ -293,11 +371,22 @@ static gboolean ctk_event_check(GSource *source)
     return XPending(event_source->dpy);
 }
 
+
+#define CTK_EVENT_BROADCAST(ES, SIG, PTR, SCR)         \
+do {                                                   \
+    CtkEventNode *e = (ES)->ctk_events;                \
+    while  (e) {                                       \
+        if (e->screen == (SCR)) {                      \
+            g_signal_emit(e->ctk_event, SIG, 0, PTR);  \
+        }                                              \
+        e = e->next;                                   \
+    }                                                  \
+} while (0)
+
 static gboolean ctk_event_dispatch(GSource *source,
                                    GSourceFunc callback, gpointer user_data)
 {
     XEvent event;
-    XNVCtrlAttributeChangedEvent *nvctrlevent;
     CtkEventSource *event_source = (CtkEventSource *) source;
     CtkEventStruct event_struct;
 
@@ -310,13 +399,13 @@ static gboolean ctk_event_dispatch(GSource *source,
     XNextEvent(event_source->dpy, &event);
     
     /* 
-     * we currently only handle the ATTRIBUTE_CHANGED_EVENT NV-CONTROL
-     * event
+     * Handle the ATTRIBUTE_CHANGED_EVENT NV-CONTROL event
      */
 
     if (event.type == (event_source->event_base + ATTRIBUTE_CHANGED_EVENT)) {
-        nvctrlevent = (XNVCtrlAttributeChangedEvent *) &event;
-        
+        XNVCtrlAttributeChangedEvent *nvctrlevent =
+            (XNVCtrlAttributeChangedEvent *) &event;
+
         /* make sure the attribute is in our signal array */
 
         if ((nvctrlevent->attribute >= 0) &&
@@ -332,9 +421,10 @@ static gboolean ctk_event_dispatch(GSource *source,
              * way of dispatching the event?
              */
 
-            g_signal_emit(event_source->ctk_event,
-                          signals[nvctrlevent->attribute],
-                          0, &event_struct);
+            CTK_EVENT_BROADCAST(event_source,
+                                signals[nvctrlevent->attribute],
+                                &event_struct,
+                                nvctrlevent->screen);
         }
     }
 
@@ -343,8 +433,26 @@ static gboolean ctk_event_dispatch(GSource *source,
      */
     if (event.type ==
         (event_source->randr_event_base + RRScreenChangeNotify)) {
-        g_signal_emit(event_source->ctk_event, signal_RRScreenChangeNotify,
-                      0, &event);
+        XRRScreenChangeNotifyEvent *xrandrevent =
+            (XRRScreenChangeNotifyEvent *)&event;
+        int screen;
+
+        /* Find the screen the window belongs to */
+        screen = XScreenCount(xrandrevent->display);
+        screen--;
+        while (screen > 0) {
+            if (xrandrevent->root ==
+                RootWindow(xrandrevent->display, screen)) {
+                break;
+            }
+            screen--;
+        }
+        if (screen > 0) {
+            CTK_EVENT_BROADCAST(event_source,
+                                signal_RRScreenChangeNotify,
+                                &event,
+                                screen);
+        }
     }
     
     return TRUE;

@@ -428,6 +428,31 @@ Bool XNVCTRLQueryDDCCITimingReport (
 
 
 /*
+ *  XNVCTRLQueryBinaryData -
+ *
+ *  Returns True if the attribute exists.  Returns False otherwise.
+ *  If XNVCTRLQueryBinaryData returns True, *ptr will point to an
+ *  allocated block of memory containing the binary data attribute
+ *  requested.  It is the caller's responsibility to free the data
+ *  when done.  len will list the length of the binary data.
+ *
+ *  Possible errors:
+ *     BadValue - The screen doesn't exist.
+ *     BadMatch - The NVIDIA driver is not present on that screen.
+ *     BadAlloc - Insufficient resources to fulfill the request.
+ */
+
+Bool XNVCTRLQueryBinaryData (
+    Display *dpy,
+    int screen,
+    unsigned int display_mask,
+    unsigned int attribute,
+    unsigned char **ptr,
+    int *len
+);
+
+
+/*
  * XNVCtrlSelectNotify -
  *
  * This enables/disables receiving of NV-CONTROL events.  The type

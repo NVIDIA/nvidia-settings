@@ -84,9 +84,9 @@ GtkWidget*  ctk_image_sliders_new       (NvCtrlAttributeHandle *,
 
 void ctk_image_sliders_reset(CtkImageSliders *);
 
-gboolean add_image_sharpening_help(CtkImageSliders *ctk_image_sliders,
-                                   GtkTextBuffer *b,
-                                   GtkTextIter *i);
+gboolean add_image_sliders_help(CtkImageSliders *ctk_image_sliders,
+                                GtkTextBuffer *b,
+                                GtkTextIter *i);
 
 G_END_DECLS
 

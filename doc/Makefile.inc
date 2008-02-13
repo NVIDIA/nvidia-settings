@@ -28,4 +28,5 @@
 EXTRA_DIST += \
 	NV-CONTROL-API.txt \
 	FRAMELOCK.txt \
-	nvidia-settings-user-guide.txt
+	nvidia-settings-user-guide.txt \
+	nvidia-settings.1

@@ -135,6 +135,7 @@ static const char *attr2str(int n)
     case NV_CTRL_FORCE_GENERIC_CPU:                return "force generic cpu"; break;
     case NV_CTRL_OPENGL_AA_LINE_GAMMA:             return "opengl aa line gamma"; break;
     case NV_CTRL_FLIPPING_ALLOWED:                 return "flipping allowed"; break;
+    case NV_CTRL_FORCE_STEREO:                     return "force stereo"; break;
     case NV_CTRL_TEXTURE_CLAMPING:                 return "texture clamping"; break;
     case NV_CTRL_CURSOR_SHADOW:                    return "cursor shadow"; break;
     case NV_CTRL_CURSOR_SHADOW_ALPHA:              return "cursor shadow alpha"; break;

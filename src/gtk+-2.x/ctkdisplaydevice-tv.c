@@ -43,6 +43,7 @@
 #include "ctkdisplaydevice-tv.h"
 
 #include "ctkimagesliders.h"
+#include "ctkedid.h"
 #include "ctkconfig.h"
 #include "ctkhelp.h"
 #include "ctkscale.h"
@@ -141,6 +142,7 @@ GtkWidget* ctk_display_device_tv_new(NvCtrlAttributeHandle *handle,
     GtkWidget *hbox;
     GtkWidget *label;
     GtkWidget *alignment;
+    GtkWidget *edid;
     
     guint8 *image_buffer = NULL;
     const nv_image_t *img;    
@@ -302,6 +304,18 @@ GtkWidget* ctk_display_device_tv_new(NvCtrlAttributeHandle *handle,
                            "The Reset TV Hardware Defaults button restores "
                            "the TV settings to their default values.");
 
+    /* pack the EDID button */
+
+    edid = ctk_edid_new(handle, ctk_config, ctk_event,
+                        ctk_display_device_tv->reset_button,
+                        display_device_mask, name);
+    if (edid) {
+        gtk_box_pack_start(GTK_BOX(object), edid, FALSE, FALSE, 0);
+        ctk_display_device_tv->edid_available = TRUE;
+    } else {
+        ctk_display_device_tv->edid_available = FALSE;
+    }
+   
     /* finally, display the widget */
 
     gtk_widget_show_all(GTK_WIDGET(object));
@@ -636,8 +650,12 @@ GtkTextBuffer *ctk_display_device_tv_create_help(GtkTextTagTable *table,
     }
 
     if (ctk_display_device_tv->image_sliders) {
-        ret |= add_image_sharpening_help
+        ret |= add_image_sliders_help
             (CTK_IMAGE_SLIDERS(ctk_display_device_tv->image_sliders), b, &i);
+    }
+
+    if (ctk_display_device_tv->edid_available) {
+        add_acquire_edid_help(b, &i);
     }
     
     if (!ret) {

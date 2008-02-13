@@ -558,7 +558,7 @@ GtkWidget *ctk_window_new(NvCtrlAttributeHandle **handles, gint num_handles,
 
         /* xvideo settings  */
 
-        child = ctk_xvideo_new(handles[i], ctk_config);
+        child = ctk_xvideo_new(handles[i], ctk_config, ctk_event);
         if (child) {
             help = ctk_xvideo_create_help(tag_table, CTK_XVIDEO(child));
             add_page(child, help, ctk_window, &iter, NULL,

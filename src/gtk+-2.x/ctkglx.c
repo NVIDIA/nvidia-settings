@@ -66,16 +66,16 @@ static const char * __st_help =
   "st (Stereo buffer) - 'y' if the configuration has left and right color "
   "buffers that are rendered to in stereo.  '-' if this is not supported";
 static const char * __rs_help =
-  "rs (Red size) - Number of bits used for ammount of red per color. "
+  "rs (Red size) - Number of bits per color used for red. "
   "(Undefined for configurations that use color indexing.)";
 static const char * __gs_help =
-  "gs (Green size - Number of bits used for ammount of green per color. "
+  "gs (Green size - Number of bits per color used for green. "
   "(Undefined for configurations that use color indexing.)";
 static const char * __bs_help =
-  "bs (Blue size - Number of bits used for ammount of blue per color. "
+  "bs (Blue size - Number of bits per color used for blue. "
   "(Undefined for configurations that use color indexing.)";
 static const char * __as_help =
-  "as (Alpha size - Number of bits used for ammount of alpha per color. "
+  "as (Alpha size - Number of bits per color used for alpha. "
   "(Undefined for configurations that use color indexing.)";
 static const char * __aux_help =
   "aux (Auxillary buffers) - Number of available auxiliary color butters.";
@@ -84,17 +84,17 @@ static const char * __dpt_help =
 static const char * __stn_help =
   "stn (Stencil size) - Number of bits per element in the stencil buffer.";
 static const char * __acr_help =
-  "acr (Accumulator red size) - Number of bits used for ammount of red per "
-  "color in the accumulator buffer.";
+  "acr (Accumulator red size) - Number of bits per color used for red "
+  "in the accumulator buffer.";
 static const char * __acg_help =
-  "acg (Accumulator green size) - Number of bits used for ammount of green "
-  "per color in the accumulator buffer.";
+  "acg (Accumulator green size) - Number of bits per color used for green "
+  "in the accumulator buffer.";
 static const char * __acb_help =
-  "acb (Accumulator blue size) - Number of bits used for ammount of blue per "
-  "color in the accumulator buffer.";
+  "acb (Accumulator blue size) - Number of bits per color used for blue "
+  "in the accumulator buffer.";
 static const char * __aca_help =
-  "aca (Accumulator alpha size) - Number of bits used for ammount of alpha "
-  "per color in the accumulator buffer.";
+  "aca (Accumulator alpha size) - Number of bits per color used for alpha "
+  "in the accumulator buffer.";
 static const char * __ms_help =
   "ms (Multisample samples) - Number of samples per multisample.";
 static const char * __mb_help =
@@ -207,7 +207,6 @@ GtkWidget* ctk_glx_new(NvCtrlAttributeHandle *handle,
     GtkWidget *table;
     GtkWidget *scrollWin;
     GtkWidget *event;    /* For setting the background color to white */
-    GdkColor   color;
 
     ReturnStatus ret;
 
@@ -242,10 +241,6 @@ GtkWidget* ctk_glx_new(NvCtrlAttributeHandle *handle,
         __trt_help, __trr_help, __trg_help,
         __trb_help, __tra_help, __tri_help
     };
-
-
-    /* Parse a white color (for background) */
-    gdk_color_parse ("white", &color);
 
 
     /* Create the ctk glx object */
@@ -294,7 +289,8 @@ GtkWidget* ctk_glx_new(NvCtrlAttributeHandle *handle,
     gtk_scrolled_window_set_policy(GTK_SCROLLED_WINDOW(scrollWin),
                                    GTK_POLICY_NEVER, GTK_POLICY_ALWAYS);
     gtk_box_pack_start(GTK_BOX(ctk_glx), scrollWin, TRUE, TRUE, 0);
-    gtk_widget_modify_bg(event, GTK_STATE_NORMAL, &color);
+    gtk_widget_modify_fg(event, GTK_STATE_NORMAL, &(event->style->text[GTK_STATE_NORMAL]));
+    gtk_widget_modify_bg(event, GTK_STATE_NORMAL, &(event->style->base[GTK_STATE_NORMAL]));
     gtk_container_add(GTK_CONTAINER(event), hbox);
     gtk_scrolled_window_add_with_viewport(GTK_SCROLLED_WINDOW(scrollWin),
                                           event);
@@ -343,9 +339,12 @@ GtkWidget* ctk_glx_new(NvCtrlAttributeHandle *handle,
 
     table = gtk_table_new(i, NUM_FBCONFIG_ATTRIBS, FALSE);
     event = gtk_event_box_new();
-    gtk_widget_modify_bg (table, GTK_STATE_NORMAL, &color);
+
+    gtk_widget_modify_fg(table, GTK_STATE_NORMAL, &(table->style->text[GTK_STATE_NORMAL]));
+    gtk_widget_modify_bg(table, GTK_STATE_NORMAL, &(table->style->base[GTK_STATE_NORMAL]));
     gtk_container_add (GTK_CONTAINER(event), table);
-    gtk_widget_modify_bg(event, GTK_STATE_NORMAL, &color);
+    gtk_widget_modify_fg(event, GTK_STATE_NORMAL, &(event->style->text[GTK_STATE_NORMAL]));
+    gtk_widget_modify_bg(event, GTK_STATE_NORMAL, &(event->style->base[GTK_STATE_NORMAL]));
     gtk_scrolled_window_add_with_viewport(GTK_SCROLLED_WINDOW(scrollWin),
                                           event);
     
@@ -470,8 +469,6 @@ GtkWidget* ctk_glx_new(NvCtrlAttributeHandle *handle,
                           "the X server or there was a problem retrieving\n"
                           "GLX information from the X server."
                           );
-    gdk_color_parse ("#FF0000", &color);
-    gtk_widget_modify_fg(label, GTK_STATE_NORMAL, &color);
     gtk_label_set_selectable(GTK_LABEL(label), TRUE);
 
     gtk_container_add(GTK_CONTAINER(ctk_glx), label);

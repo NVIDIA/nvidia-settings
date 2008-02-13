@@ -67,14 +67,16 @@ set_rotation(NvCtrlAttributePrivateHandle *h, Rotation rotation)
     }
 
     /* Get current size & orientation */
-    sc = h->xrandr->XRRGetScreenInfo(h->xrandr->dpy, DefaultRootWindow(h->xrandr->dpy));
+    sc = h->xrandr->XRRGetScreenInfo(h->xrandr->dpy,
+                                     RootWindow(h->xrandr->dpy, h->screen));
     if ( !sc ) {
         return NvCtrlError;
     }
     cur_size = h->xrandr->XRRConfigCurrentConfiguration(sc, &cur_rotation);
 
     status = h->xrandr->XRRSetScreenConfig (h->xrandr->dpy, sc,
-                                            DefaultRootWindow(h->xrandr->dpy),
+                                            RootWindow(h->xrandr->dpy,
+                                                       h->screen),
                                             cur_size, rotation, CurrentTime);
     h->xrandr->XRRFreeScreenConfigInfo(sc);
 
@@ -86,6 +88,14 @@ set_rotation(NvCtrlAttributePrivateHandle *h, Rotation rotation)
 
 } /* set_rotation() */
 
+
+static int errors = 0;
+static int
+error_handler (Display *dpy, XErrorEvent *err)
+{
+    errors++;
+    return 0;
+}
 
 
 /******************************************************************************
@@ -103,6 +113,7 @@ NvCtrlInitXrandrAttributes (NvCtrlAttributePrivateHandle *h)
     Bool ret;
     Rotation rotation;
     XRRScreenSize *sizes;
+    int (*oldErrorHandler)(Display *, XErrorEvent *);
 
 
     /* Check parameter */
@@ -173,8 +184,25 @@ NvCtrlInitXrandrAttributes (NvCtrlAttributePrivateHandle *h)
                                     &xrandr->error_base);
     if ( !ret ) goto fail;
 
-    xrandr->rotations = xrandr->XRRRotations(xrandr->dpy, h->screen, &rotation);
-    sizes             = xrandr->XRRSizes(xrandr->dpy, h->screen, &(xrandr->nsizes));
+    /*
+     * XRRRotations fails on XFree86 4.3.0 with BadImplementation if the screen
+     * resolution is not the one the server started with.  We work around that
+     * by temporarily installing an error handler, trying the call, and then
+     * disabling the rotation page if it fails.
+     */
+    XSync(xrandr->dpy, False);
+    errors = 0;
+    oldErrorHandler = XSetErrorHandler(error_handler);
+
+    xrandr->rotations = xrandr->XRRRotations(xrandr->dpy, h->screen,
+                                             &rotation);
+    sizes             = xrandr->XRRSizes(xrandr->dpy, h->screen,
+                                         &(xrandr->nsizes));
+
+    XSync(xrandr->dpy, False);
+    XSetErrorHandler(oldErrorHandler);
+
+    if ( errors > 0 ) goto fail;
 
     /* Must support more than one rotation orientation */
     if ( (xrandr->rotations == 1) || (xrandr->rotations == 2) ||
@@ -184,7 +212,7 @@ NvCtrlInitXrandrAttributes (NvCtrlAttributePrivateHandle *h)
 
     
     /* Register to recieve XRandR events */
-    xrandr->XRRSelectInput(xrandr->dpy, DefaultRootWindow(xrandr->dpy),
+    xrandr->XRRSelectInput(xrandr->dpy, RootWindow(xrandr->dpy, h->screen),
                            RRScreenChangeNotifyMask);   
 
     //    xrandr->rotations = 1;
@@ -279,7 +307,9 @@ NvCtrlXrandrGetAttribute (NvCtrlAttributePrivateHandle *h,
         break;
 
     case NV_CTRL_ATTR_XRANDR_ROTATION:
-        sc = h->xrandr->XRRGetScreenInfo(h->xrandr->dpy, DefaultRootWindow(h->xrandr->dpy));
+        sc = h->xrandr->XRRGetScreenInfo(h->xrandr->dpy,
+                                         RootWindow(h->xrandr->dpy,
+                                                    h->screen));
         h->xrandr->XRRConfigRotations(sc, &rotation);
         h->xrandr->XRRFreeScreenConfigInfo(sc);
 

@@ -540,9 +540,10 @@ static int process_config_file_attributes(const char *file,
                                           "on line %d of configuration file "
                                           "'%s'", w[i].line, file);
         /*
-         * XXX should we fail if processing the attribute failed?  For
-         * now, we'll just keep going through the rest of the config
-         * file.
+         * We do not fail if processing the attribute failed.
+         * If the GPU or the X config changed (for example stereo is disabled), 
+         * some attributes written in the config file may not be advertised by 
+         * the the NVCTRL extension (for example the control to force stereo)
          */
     }
     

@@ -30,6 +30,7 @@
 #include "ctkdisplaydevice-dfp.h"
 
 #include "ctkimagesliders.h"
+#include "ctkedid.h"
 #include "ctkconfig.h"
 #include "ctkhelp.h"
 #include "ctkutils.h"
@@ -142,6 +143,7 @@ GtkWidget* ctk_display_device_dfp_new(NvCtrlAttributeHandle *handle,
     GtkWidget *radio2;
     GtkWidget *radio3;
     GtkWidget *alignment;
+    GtkWidget *edid;
     
     GtkWidget *table;
     
@@ -389,6 +391,18 @@ GtkWidget* ctk_display_device_dfp_new(NvCtrlAttributeHandle *handle,
                            FALSE, FALSE, 0);
     }
 
+    /* pack the EDID button */
+
+    edid = ctk_edid_new(handle, ctk_config, ctk_event,
+                        ctk_display_device_dfp->reset_button,
+                        display_device_mask, name);
+    if (edid) {
+        gtk_box_pack_start(GTK_BOX(object), edid, FALSE, FALSE, 0);
+        ctk_display_device_dfp->edid_available = TRUE;
+    } else {
+        ctk_display_device_dfp->edid_available = FALSE;
+    }
+    
     /* show the page */
 
     gtk_widget_show_all(GTK_WIDGET(object));
@@ -872,10 +886,14 @@ GtkTextBuffer *ctk_display_device_dfp_create_help(GtkTextTagTable *table,
     }
 
     if (ctk_display_device_dfp->image_sliders) {
-        ret |= add_image_sharpening_help
+        ret |= add_image_sliders_help
             (CTK_IMAGE_SLIDERS(ctk_display_device_dfp->image_sliders), b, &i);
     }
     
+    if (ctk_display_device_dfp->edid_available) {
+        add_acquire_edid_help(b, &i);
+    }
+
     if (!ret) {
         ctk_help_para(b, &i, "There are no configurable options available "
                       "for %s.", ctk_display_device_dfp->name);

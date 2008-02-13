@@ -64,11 +64,14 @@ AttributeTableEntry attributeTable[] = {
     { "DigitalVibrance",       NV_CTRL_DIGITAL_VIBRANCE,            0     },
     { "ImageSharpening",       NV_CTRL_IMAGE_SHARPENING,            0     },
     { "BusType",               NV_CTRL_BUS_TYPE,                    0     },
+    { "BusRate",               NV_CTRL_BUS_RATE,                    0     },
     { "VideoRam",              NV_CTRL_VIDEO_RAM,                   0     },
     { "Irq",                   NV_CTRL_IRQ,                         0     },
     { "OperatingSystem",       NV_CTRL_OPERATING_SYSTEM,            0     },
     { "SyncToVBlank",          NV_CTRL_SYNC_TO_VBLANK,              0     },
     { "AllowFlipping",         NV_CTRL_FLIPPING_ALLOWED,            0     },
+    { "ForceStereoFlipping",   NV_CTRL_FORCE_STEREO,                0     },
+    { "XineramaStereoFlipping",NV_CTRL_XINERAMA_STEREO,             0     },
     { "LogAniso",              NV_CTRL_LOG_ANISO,                   0     },
     { "FSAA",                  NV_CTRL_FSAA_MODE,                   0     },
     { "TextureSharpen",        NV_CTRL_TEXTURE_SHARPEN,             0     },
@@ -80,6 +83,7 @@ AttributeTableEntry attributeTable[] = {
     { "EnabledDisplays",       NV_CTRL_ENABLED_DISPLAYS,            0     },
     { "ForceGenericCpu",       NV_CTRL_FORCE_GENERIC_CPU,           0     },
     { "GammaCorrectedAALines", NV_CTRL_OPENGL_AA_LINE_GAMMA,        0     },
+    { "ShowSLIHUD",            NV_CTRL_SHOW_SLI_HUD,                0     },
     { "CursorShadow",          NV_CTRL_CURSOR_SHADOW,               0     },
     { "CursorShadowXOffset",   NV_CTRL_CURSOR_SHADOW_X_OFFSET,      0     },
     { "CursorShadowYOffset",   NV_CTRL_CURSOR_SHADOW_Y_OFFSET,      0     },
@@ -116,6 +120,7 @@ AttributeTableEntry attributeTable[] = {
     { "GPUCoreTemp",           NV_CTRL_GPU_CORE_TEMPERATURE,        N     },
     { "GPUAmbientTemp",        NV_CTRL_AMBIENT_TEMPERATURE,         N     },
     { "FramelockUseHouseSync", NV_CTRL_USE_HOUSE_SYNC,              0     },
+    { "OpenGLImageSettings",   NV_CTRL_IMAGE_SETTINGS,              0     },
 
     { "XVideoOverlaySaturation",   NV_CTRL_ATTR_XV_OVERLAY_SATURATION,     V },
     { "XVideoOverlayContrast",     NV_CTRL_ATTR_XV_OVERLAY_CONTRAST,       V },
@@ -123,7 +128,8 @@ AttributeTableEntry attributeTable[] = {
     { "XVideoOverlayHue",          NV_CTRL_ATTR_XV_OVERLAY_HUE,            V },
     { "XVideoTextureSyncToVBlank", NV_CTRL_ATTR_XV_TEXTURE_SYNC_TO_VBLANK, V },
     { "XVideoBlitterSyncToVBlank", NV_CTRL_ATTR_XV_BLITTER_SYNC_TO_VBLANK, V },
-
+    { "XVideoSyncToDisplay",       NV_CTRL_XV_SYNC_TO_DISPLAY,             0 },
+    
     { "GPUOverclockingState",   NV_CTRL_GPU_OVERCLOCKING_STATE,     N   },
     { "GPUDefault2DClockFreqs", NV_CTRL_GPU_DEFAULT_2D_CLOCK_FREQS, N|P },
     { "GPUDefault3DClockFreqs", NV_CTRL_GPU_DEFAULT_3D_CLOCK_FREQS, N|P },
@@ -140,6 +146,18 @@ AttributeTableEntry attributeTable[] = {
 #undef G
 #undef V
 #undef P
+
+/*
+ * When new integer attributes are added to NVCtrl.h, an entry should
+ * be added in the above attributeTable[].  The below #if should also
+ * be updated to indicate the last attribute that the table knows
+ * about.
+ */
+
+#if NV_CTRL_LAST_ATTRIBUTE != NV_CTRL_XV_SYNC_TO_DISPLAY
+#warning "Have you forgotten to add a new integer attribute to attributeTable?"
+#endif
+
 
 /*
  * nv_parse_attribute_string() - see comments in parse.h

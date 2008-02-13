@@ -36,12 +36,31 @@ static void vblank_sync_button_toggled   (GtkWidget *, gpointer);
 
 static void allow_flipping_button_toggled(GtkWidget *, gpointer);
 
+static void force_stereo_button_toggled (GtkWidget *, gpointer);
+
+static void xinerama_stereo_button_toggled (GtkWidget *, gpointer);
+
 static void force_generic_cpu_toggled    (GtkWidget *, gpointer);
 
 static void aa_line_gamma_toggled        (GtkWidget *, gpointer);
 
+static void show_sli_hud_button_toggled (GtkWidget *, gpointer);
+
 static void value_changed                (GtkObject *, gpointer, gpointer);
 
+static const gchar *get_image_settings_string(gint val);
+
+static gchar *format_image_settings_value(GtkScale *scale, gdouble arg1,
+                                         gpointer user_data);
+
+static void post_image_settings_value_changed(CtkOpenGL *ctk_opengl, gint val);
+
+static void image_settings_value_changed(GtkRange *range, gpointer user_data);
+
+static void image_settings_update_received(GtkObject *object,
+                                           gpointer arg1, gpointer user_data);
+
+#define FRAME_PADDING 5
 
 static const char *__sync_to_vblank_help =
 "When enabled, OpenGL applications will swap "
@@ -59,11 +78,35 @@ static const char *__force_generic_cpu_help =
 "OpenGL applications that are started after "
 "this option is set.";
 
+static const char *__image_settings_slider_help =
+"The Image Settings slider controls the image quality setting.";
+
+static const char *__force_stereo_help =
+"Enabling this option causes OpenGL to force "
+"stereo flipping even if a stereo drawable is "
+"not visible. This option is applied "
+"immediately.";
+
+static const char *__xinerama_stereo_help =
+ "Enabling this option causes OpenGL to allow "
+"stereo flipping on multiple X screens configured "
+"with Xinerama.  This option is applied immediately.";   
+
+static const char *__show_sli_hud_help =
+"Enabling this option causes OpenGL to draw "
+"information about the current SLI mode on the "
+"screen.  This option is applied to OpenGL "
+"applications that are started after this option is "
+"set.";
 
 #define __SYNC_TO_VBLANK    (1 << 1)
 #define __ALLOW_FLIPPING    (1 << 2)
 #define __AA_LINE_GAMMA     (1 << 3)
 #define __FORCE_GENERIC_CPU (1 << 4)
+#define __FORCE_STEREO      (1 << 5)
+#define __IMAGE_SETTINGS    (1 << 6)
+#define __XINERAMA_STEREO   (1 << 7)
+#define __SHOW_SLI_HUD      (1 << 8)
 
 
 
@@ -106,8 +149,11 @@ GtkWidget* ctk_opengl_new(NvCtrlAttributeHandle *handle,
     GtkWidget *hbox;
     GtkWidget *vbox;
     GtkWidget *check_button;
+    GtkWidget *scale;
     gint force_generic_cpu_value, aa_line_gamma_value, val;
     ReturnStatus ret;
+
+    NVCTRLAttributeValidValuesRec valid;
 
     guint8 *image_buffer = NULL;
     const nv_image_t *img;    
@@ -232,7 +278,103 @@ GtkWidget* ctk_opengl_new(NvCtrlAttributeHandle *handle,
         
         ctk_opengl->allow_flipping_button = check_button;
     }
+    
+    ret = NvCtrlGetAttribute(handle, NV_CTRL_FORCE_STEREO, &val);
+    if (ret == NvCtrlSuccess) {
+
+        label = gtk_label_new("Force Stereo Flipping");
+    
+        check_button = gtk_check_button_new();
+        gtk_container_add(GTK_CONTAINER(check_button), label);
+    
+        gtk_toggle_button_set_active(GTK_TOGGLE_BUTTON(check_button), val);
+
+        gtk_box_pack_start(GTK_BOX(vbox), check_button, FALSE, FALSE, 0);
+
+        g_signal_connect(G_OBJECT(check_button), "toggled",
+                     G_CALLBACK(force_stereo_button_toggled),
+                     (gpointer) ctk_opengl);
+
+        g_signal_connect(G_OBJECT(ctk_event),
+                     CTK_EVENT_NAME(NV_CTRL_FORCE_STEREO),
+                     G_CALLBACK(value_changed), (gpointer) ctk_opengl);
+
+        ctk_config_set_tooltip(ctk_config, check_button, __force_stereo_help);
+    
+        ctk_opengl->active_attributes |= __FORCE_STEREO;
+    
+        ctk_opengl->force_stereo_button = check_button;
+    }
         
+    ret = NvCtrlGetAttribute(handle, NV_CTRL_XINERAMA_STEREO, &val);
+    if (ret == NvCtrlSuccess) {
+
+        label = gtk_label_new("Allow Xinerama Stereo Flipping");
+ 
+        check_button = gtk_check_button_new();
+        gtk_container_add(GTK_CONTAINER(check_button), label);
+ 
+        gtk_toggle_button_set_active(GTK_TOGGLE_BUTTON(check_button), val);
+
+        gtk_box_pack_start(GTK_BOX(vbox), check_button, FALSE, FALSE, 0);
+
+        g_signal_connect(G_OBJECT(check_button), "toggled",
+                         G_CALLBACK(xinerama_stereo_button_toggled),
+                         (gpointer) ctk_opengl);
+
+        g_signal_connect(G_OBJECT(ctk_event),
+                         CTK_EVENT_NAME(NV_CTRL_FORCE_STEREO),
+                         G_CALLBACK(value_changed), (gpointer) ctk_opengl);
+
+        ctk_config_set_tooltip(ctk_config, check_button, __xinerama_stereo_help);
+ 
+        ctk_opengl->active_attributes |= __XINERAMA_STEREO;
+ 
+        ctk_opengl->xinerama_stereo_button = check_button;
+    }
+
+    /*
+     * Image Quality settings.
+     */
+
+    ret = NvCtrlGetValidAttributeValues(handle, NV_CTRL_IMAGE_SETTINGS, &valid);
+
+    if ((ret == NvCtrlSuccess) && (valid.type == ATTRIBUTE_TYPE_RANGE) &&
+        (NvCtrlGetAttribute(handle, NV_CTRL_IMAGE_SETTINGS, &val) == NvCtrlSuccess)) {
+
+        frame = gtk_frame_new("Image Settings");
+        gtk_box_pack_start(GTK_BOX(vbox), frame, FALSE, FALSE, 3);
+
+        hbox = gtk_hbox_new(FALSE, 0);
+        gtk_container_set_border_width(GTK_CONTAINER(hbox), FRAME_PADDING);
+        gtk_container_add(GTK_CONTAINER(frame), hbox);
+
+        scale = gtk_hscale_new_with_range(valid.u.range.min, valid.u.range.max, 1);
+        gtk_range_set_value(GTK_RANGE(scale), val);
+
+        gtk_scale_set_draw_value(GTK_SCALE(scale), TRUE);
+        gtk_scale_set_value_pos(GTK_SCALE(scale), GTK_POS_TOP);
+
+        gtk_container_add(GTK_CONTAINER(hbox), scale);
+
+        g_signal_connect(G_OBJECT(scale), "format-value",
+                         G_CALLBACK(format_image_settings_value),
+                         (gpointer) ctk_opengl);
+
+        g_signal_connect(G_OBJECT(scale), "value-changed",
+                         G_CALLBACK(image_settings_value_changed),
+                         (gpointer) ctk_opengl);
+
+        g_signal_connect(G_OBJECT(ctk_event),
+                         CTK_EVENT_NAME(NV_CTRL_IMAGE_SETTINGS),
+                         G_CALLBACK(image_settings_update_received),
+                         (gpointer) ctk_opengl);
+
+        ctk_config_set_tooltip(ctk_config, scale, __image_settings_slider_help);
+
+        ctk_opengl->active_attributes |= __IMAGE_SETTINGS;
+        ctk_opengl->image_settings_scale = scale;
+    }
 
     /*
      * Miscellaneous section:
@@ -326,6 +468,33 @@ GtkWidget* ctk_opengl_new(NvCtrlAttributeHandle *handle,
         ctk_opengl->force_generic_cpu_button = check_button;
     }
 
+    ret = NvCtrlGetAttribute(handle, NV_CTRL_SHOW_SLI_HUD, &val);
+    if (ret == NvCtrlSuccess) {
+
+        label = gtk_label_new("Enable SLI Heads-Up-Display");
+
+        check_button = gtk_check_button_new();
+        gtk_container_add(GTK_CONTAINER(check_button), label);
+
+        gtk_toggle_button_set_active(GTK_TOGGLE_BUTTON(check_button), val);
+
+        gtk_box_pack_start(GTK_BOX(vbox), check_button, FALSE, FALSE, 0);
+
+        g_signal_connect(G_OBJECT(check_button), "toggled",
+                     G_CALLBACK(show_sli_hud_button_toggled),
+                     (gpointer) ctk_opengl);
+
+        g_signal_connect(G_OBJECT(ctk_event),
+                     CTK_EVENT_NAME(NV_CTRL_SHOW_SLI_HUD),
+                     G_CALLBACK(value_changed), (gpointer) ctk_opengl);
+
+        ctk_config_set_tooltip(ctk_config, check_button, __show_sli_hud_help);
+
+        ctk_opengl->active_attributes |= __SHOW_SLI_HUD;
+
+        ctk_opengl->show_sli_hud_button = check_button;
+    }
+
 
     gtk_widget_show_all(GTK_WIDGET(object));
 
@@ -368,6 +537,57 @@ static void allow_flipping_button_toggled(GtkWidget *widget,
                                  "OpenGL Flipping %s.",
                                  enabled ? "allowed" : "prohibited");
     
+}
+
+static void force_stereo_button_toggled(GtkWidget *widget,
+                                         gpointer user_data)
+{
+    CtkOpenGL *ctk_opengl;
+    gboolean enabled;
+    
+    ctk_opengl = CTK_OPENGL(user_data);
+
+    enabled = gtk_toggle_button_get_active(GTK_TOGGLE_BUTTON(widget));
+
+    NvCtrlSetAttribute(ctk_opengl->handle, NV_CTRL_FORCE_STEREO, enabled);
+    
+    ctk_config_statusbar_message(ctk_opengl->ctk_config,
+                                 "OpenGL Stereo Flipping %s.",
+                                 enabled ? "forced" : "not forced");
+}
+
+static void show_sli_hud_button_toggled(GtkWidget *widget,
+                                           gpointer user_data)
+{
+    CtkOpenGL *ctk_opengl;
+    gboolean enabled;
+
+    ctk_opengl = CTK_OPENGL(user_data);
+
+    enabled = gtk_toggle_button_get_active(GTK_TOGGLE_BUTTON(widget));
+
+    NvCtrlSetAttribute(ctk_opengl->handle, NV_CTRL_SHOW_SLI_HUD, enabled);
+
+    ctk_config_statusbar_message(ctk_opengl->ctk_config,
+                                 "OpenGL SLI HUD %s.",
+                                 enabled ? "enabled" : "disabled");
+}
+
+static void xinerama_stereo_button_toggled(GtkWidget *widget,
+                                           gpointer user_data)
+{
+    CtkOpenGL *ctk_opengl;
+    gboolean enabled;
+    
+    ctk_opengl = CTK_OPENGL(user_data);
+
+    enabled = gtk_toggle_button_get_active(GTK_TOGGLE_BUTTON(widget));
+
+    NvCtrlSetAttribute(ctk_opengl->handle, NV_CTRL_XINERAMA_STEREO, enabled);
+    
+    ctk_config_statusbar_message(ctk_opengl->ctk_config,
+                                 "OpenGL Xinerama Stereo Flipping %s.",
+                                 enabled ? "allowed" : "not allowed");
 }
 
 static void force_generic_cpu_toggled(
@@ -449,6 +669,14 @@ static void value_changed(GtkObject *object, gpointer arg1, gpointer user_data)
         button = GTK_TOGGLE_BUTTON(ctk_opengl->allow_flipping_button);
         func = G_CALLBACK(allow_flipping_button_toggled);
         break;
+    case NV_CTRL_FORCE_STEREO:
+        button = GTK_TOGGLE_BUTTON(ctk_opengl->force_stereo_button);
+        func = G_CALLBACK(force_stereo_button_toggled);
+        break;
+    case NV_CTRL_XINERAMA_STEREO:
+        button = GTK_TOGGLE_BUTTON(ctk_opengl->xinerama_stereo_button);
+        func = G_CALLBACK(xinerama_stereo_button_toggled);
+        break;
     case NV_CTRL_OPENGL_AA_LINE_GAMMA:
         button = GTK_TOGGLE_BUTTON(ctk_opengl->aa_line_gamma_button);
         func = G_CALLBACK(aa_line_gamma_toggled);
@@ -456,6 +684,10 @@ static void value_changed(GtkObject *object, gpointer arg1, gpointer user_data)
     case NV_CTRL_FORCE_GENERIC_CPU:
         button = GTK_TOGGLE_BUTTON(ctk_opengl->force_generic_cpu_button);
         func = G_CALLBACK(force_generic_cpu_toggled);
+        break;
+    case NV_CTRL_SHOW_SLI_HUD:
+        button = GTK_TOGGLE_BUTTON(ctk_opengl->show_sli_hud_button);
+        func = G_CALLBACK(show_sli_hud_button_toggled);
         break;
     default:
         return;
@@ -471,6 +703,91 @@ static void value_changed(GtkObject *object, gpointer arg1, gpointer user_data)
     }
     
 } /* value_changed() */
+
+
+/*
+ * get_image_settings_string() - translate the NV-CONTROL image settings value
+ * to a more comprehensible string.
+ */
+
+static const gchar *get_image_settings_string(gint val)
+{
+    static const gchar *image_settings_strings[] = {
+        "High Quality", "Quality", "Performance", "High Performance"
+    };
+
+    if ((val < NV_CTRL_IMAGE_SETTINGS_HIGH_QUALITY) ||
+        (val > NV_CTRL_IMAGE_SETTINGS_HIGH_PERFORMANCE)) return "Unknown";
+
+    return image_settings_strings[val];
+
+} /* get_image_settings_string() */
+
+/*
+ * format_image_settings_value() - callback for the "format-value" signal
+ * from the image settings scale.
+ */
+
+static gchar *format_image_settings_value(GtkScale *scale, gdouble arg1,
+                                         gpointer user_data)
+{
+    return g_strdup(get_image_settings_string(arg1));
+
+} /* format_image_settings_value() */
+
+/*
+ * post_image_settings_value_changed() - helper function for
+ * image_settings_value_changed(); this does whatever work is necessary
+ * after the image settings value has changed.
+ */
+
+static void post_image_settings_value_changed(CtkOpenGL *ctk_opengl, gint val)
+{
+    ctk_config_statusbar_message(ctk_opengl->ctk_config,
+                                 "Image Settings set to %s.",
+                                 get_image_settings_string(val));
+
+} /* post_image_settings_value_changed() */
+
+/*
+ * image_settings_value_changed() - callback for the "value-changed" signal
+ * from the image settings scale.
+ */
+
+static void image_settings_value_changed(GtkRange *range, gpointer user_data)
+{
+    CtkOpenGL *ctk_opengl = CTK_OPENGL(user_data);
+    gint val = gtk_range_get_value(range);
+
+    NvCtrlSetAttribute(ctk_opengl->handle, NV_CTRL_IMAGE_SETTINGS, val);
+    post_image_settings_value_changed(ctk_opengl, val);
+
+} /* image_settings_value_changed() */
+
+/*
+ * image_settings_update_received() - this function is called when the
+ * NV_CTRL_IMAGE_SETTINGS atribute is changed by another NV-CONTROL client.
+ */
+
+static void image_settings_update_received(GtkObject *object,
+                                          gpointer arg1, gpointer user_data)
+{
+    CtkEventStruct *event_struct = (CtkEventStruct *) arg1;
+    CtkOpenGL *ctk_opengl = CTK_OPENGL(user_data);
+    GtkRange *range = GTK_RANGE(ctk_opengl->image_settings_scale);
+
+    g_signal_handlers_block_by_func(G_OBJECT(range),
+                                    G_CALLBACK(image_settings_value_changed),
+                                    (gpointer) ctk_opengl);
+
+    gtk_range_set_value(range, event_struct->value);
+    post_image_settings_value_changed(ctk_opengl, event_struct->value);
+
+    g_signal_handlers_unblock_by_func(G_OBJECT(range),
+                                      G_CALLBACK(image_settings_value_changed),
+                                      (gpointer) ctk_opengl);
+
+} /* image_settings_update_received() */
 
 
 GtkTextBuffer *ctk_opengl_create_help(GtkTextTagTable *table,
@@ -507,6 +824,49 @@ GtkTextBuffer *ctk_opengl_create_help(GtkTextTagTable *table,
                       "after the option is set.");
     }
 
+    if (ctk_opengl->active_attributes & __FORCE_STEREO) {
+        ctk_help_heading(b, &i, "Force Stereo Flipping");
+        ctk_help_para(b, &i, __force_stereo_help);
+    }
+    
+    if (ctk_opengl->active_attributes & __XINERAMA_STEREO) {
+        ctk_help_heading(b, &i, "Allow Xinerama Stereo Flipping");
+        ctk_help_para(b, &i, __xinerama_stereo_help);
+    }
+    
+    if (ctk_opengl->active_attributes & __IMAGE_SETTINGS) {
+        ctk_help_heading(b, &i, "Image Settings");
+        ctk_help_para(b, &i, "This setting gives you full control over the "
+                      "image quality in your applications.");
+        ctk_help_para(b, &i, "Several quality settings are available for "
+                      "you to choose from with the Image Settings slider.  "
+                      "Note that choosing higher image quality settings may "
+                      "result in decreased performance.");
+
+        ctk_help_term(b, &i, "High Quality");
+        ctk_help_para(b, &i, "This setting results in the best image quality "
+                      "for your applications.  It is not necessary for "
+                      "average users who run game applications, and designed "
+                      "for more advanced users to generate images that do not "
+                      "take advantage of the programming capability of the "
+                      "texture filtering hardware.");
+
+        ctk_help_term(b, &i, "Quality");
+        ctk_help_para(b, &i, "This is the default setting that results in "
+                      "optimal image quality for your applications.");
+
+        ctk_help_term(b, &i, "Performance");
+        ctk_help_para(b, &i, "This setting offers an optimal blend of image "
+                      "quality and performance.  The result is optimal "
+                      "performance and good image quality for your "
+                      "applications.");
+
+        ctk_help_term(b, &i, "High Performance");
+        ctk_help_para(b, &i, "This setting offers the highest frame rate "
+                      "possible, resulting in the best performance for your "
+                      "applications.");
+    }
+
     if (ctk_opengl->active_attributes & __AA_LINE_GAMMA) {
         ctk_help_heading(b, &i, "Enable gamma correction for "
                          "antialiased lines");
@@ -525,6 +885,30 @@ GtkTextBuffer *ctk_opengl_create_help(GtkTextTagTable *table,
         ctk_help_para(b, &i, __force_generic_cpu_help);
     }
     
+    if (ctk_opengl->active_attributes & __SHOW_SLI_HUD) {
+        ctk_help_heading(b, &i, "SLI Heads-Up-Display");
+        ctk_help_para(b, &i, "This option draws information about the current "
+                      "SLI mode on top of OpenGL windows.  Its behavior "
+                      "depends on which SLI mode is in use:");
+        ctk_help_term(b, &i, "Alternate Frame Rendering");
+        ctk_help_para(b, &i, "In AFR mode, a vertical green bar displays the "
+                      "amount of scaling currently being achieved.  A longer "
+                      "bar indicates more scaling.");
+        ctk_help_term(b, &i, "Split-Frame Rendering");
+        ctk_help_para(b, &i, "In this mode, OpenGL draws a horizontal green "
+                      "line showing where the screen is split.  Everything "
+                      "above the line is drawn on one GPU and everything "
+                      "below is drawn on the other.");
+        ctk_help_term(b, &i, "SLI Antialiasing");
+        ctk_help_para(b, &i, "In this mode, OpenGL draws a horizontal green "
+                      "line one third of the way across the screen.  Above "
+                      "this line, the images from both GPUs are blended to "
+                      "produce the currently selected SLIAA mode.  Below the "
+                      "line, the image from just one GPU is displayed without "
+                      "blending.  This allows easy comparison between the "
+                      "SLIAA and single-GPU AA modes.");
+    }
+
     ctk_help_finish(b);
 
     return b;
