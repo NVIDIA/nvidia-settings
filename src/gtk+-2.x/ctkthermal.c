@@ -28,7 +28,7 @@
 #include "ctkhelp.h"
 #include "ctkthermal.h"
 #include "ctkgauge.h"
-#include "thermal_banner.h"
+#include "ctkimage.h"
 
 #define FRAME_PADDING 10
 #define DEFAULT_UPDATE_THERMAL_INFO_TIME_INTERVAL 1000
@@ -124,13 +124,11 @@ GtkWidget* ctk_thermal_new(NvCtrlAttributeHandle *handle,
     CtkThermal *ctk_thermal;
     GtkWidget *gauge;
     GtkWidget *hbox, *hbox2, *vbox, *table;
-    GtkWidget *frame, *image, *label;
+    GtkWidget *frame, *banner, *label;
     GtkWidget *eventbox, *entry;
     ReturnStatus ret;
     
     gint core, upper;
-    guint8 *image_buffer = NULL;
-    const nv_image_t *img;
     gchar *s;
 
 
@@ -166,25 +164,8 @@ GtkWidget* ctk_thermal_new(NvCtrlAttributeHandle *handle,
 
     /* banner */
 
-    hbox = gtk_hbox_new(FALSE, 0);
-    gtk_box_pack_start(GTK_BOX(object), hbox, FALSE, FALSE, 0);
-
-    frame = gtk_frame_new(NULL);
-    gtk_box_pack_start(GTK_BOX(hbox), frame, FALSE, FALSE, 0);
-    
-    gtk_frame_set_shadow_type(GTK_FRAME(frame), GTK_SHADOW_IN);
-
-    img = &thermal_banner_image;
-
-    image_buffer = decompress_image_data(img);
-
-    image = gtk_image_new_from_pixbuf
-        (gdk_pixbuf_new_from_data(image_buffer, GDK_COLORSPACE_RGB,
-                                  FALSE, 8, img->width, img->height,
-                                  img->width * img->bytes_per_pixel,
-                                  free_decompressed_image, NULL));
-
-    gtk_container_add(GTK_CONTAINER(frame), image);
+    banner = ctk_banner_image_new(BANNER_ARTWORK_THERMAL);
+    gtk_box_pack_start(GTK_BOX(object), banner, FALSE, FALSE, 0);
 
 
     /* Thermal Information */

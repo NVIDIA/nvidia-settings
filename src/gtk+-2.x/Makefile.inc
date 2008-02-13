@@ -50,8 +50,9 @@ SRC += \
 	ctkthermal.c \
 	ctkgvo.c \
 	ctkdropdownmenu.c \
-	ctkrandr.c
-
+	ctkrandr.c \
+	ctkimage.c \
+	ctkbanner.c
 
 EXTRA_DIST += \
 	ctkxvideo.h \
@@ -79,5 +80,9 @@ EXTRA_DIST += \
 	ctkthermal.h \
 	ctkgvo.h \
 	ctkdropdownmenu.h \
-	ctkrandr.h
+	ctkrandr.h \
+	ctkimage.h \
+	ctkbanner.h
 
+dist_list::
+	@ echo $(SRC) $(EXTRA_DIST)

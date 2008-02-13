@@ -27,10 +27,7 @@
 
 #include <stdio.h>
 
-#include "big_banner_penguin.h"
-#include "big_banner_bsd.h"
-
-#include "image.h"
+#include "ctkimage.h"
 
 #include "ctkdevice.h"
 #include "ctkhelp.h"
@@ -82,8 +79,7 @@ GtkWidget* ctk_device_new(
     GtkWidget *label;
     GtkWidget *vbox;
     GtkWidget *hbox;
-    GtkWidget *frame;
-    GtkWidget *image;
+    GtkWidget *banner;
     GtkWidget *hseparator;
     GtkWidget *table;
     GtkWidget *alignment;
@@ -190,32 +186,16 @@ GtkWidget* ctk_device_new(
 
     /* banner */
 
-    alignment = gtk_alignment_new(0, 0, 0, 0);
-    gtk_box_pack_start(GTK_BOX(ctk_device), alignment, FALSE, FALSE, 0);
-
-    frame = gtk_frame_new(NULL);
-    gtk_frame_set_shadow_type(GTK_FRAME(frame), GTK_SHADOW_IN);
-    gtk_container_add(GTK_CONTAINER(alignment), frame);
-
     if (os_val == NV_CTRL_OPERATING_SYSTEM_LINUX) {
-        img = &big_banner_penguin_image;
+        banner = ctk_banner_image_new(BANNER_ARTWORK_PENGUIN);
     } else if (os_val == NV_CTRL_OPERATING_SYSTEM_FREEBSD) {
-        img = &big_banner_bsd_image;
+        banner = ctk_banner_image_new(BANNER_ARTWORK_BSD);
     } else if (os_val == NV_CTRL_OPERATING_SYSTEM_SUNOS) {
-        img = &big_banner_penguin_image; /* XXX To be replaced with Sun Logo */
+        banner = ctk_banner_image_new(BANNER_ARTWORK_SOLARIS);
     } else {
-        img = &big_banner_penguin_image; /* Should never get here */
+        banner = ctk_banner_image_new(BANNER_ARTWORK_PENGUIN);
     }
-
-    image_buffer = decompress_image_data(img);
-
-    image = gtk_image_new_from_pixbuf
-        (gdk_pixbuf_new_from_data(image_buffer, GDK_COLORSPACE_RGB,
-                                  FALSE, 8, img->width, img->height,
-                                  img->width * img->bytes_per_pixel,
-                                  free_decompressed_image, NULL));
-    
-    gtk_container_add(GTK_CONTAINER(frame), image);
+    gtk_box_pack_start(GTK_BOX(ctk_device), banner, FALSE, FALSE, 0);
         
     /*
      * Device information: TOP->MIDDLE - LEFT->RIGHT

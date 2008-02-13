@@ -31,7 +31,7 @@
 #include "ctkconfig.h"
 #include "ctkhelp.h"
 
-#include "configuration_banner.h"
+#include "ctkimage.h"
 
 #include <stdarg.h>
 #include <stdlib.h>
@@ -122,15 +122,11 @@ GtkWidget* ctk_config_new(ConfigProperties *conf)
     CtkConfig *ctk_config;
     GtkWidget *hbox;
     GtkWidget *vbox;
-    GtkWidget *frame;
-    GtkWidget *image;
+    GtkWidget *banner;
     GtkWidget *label;
     GtkWidget *hseparator;
     GtkWidget *check_button;
     gboolean b;
-
-    guint8 *image_buffer = NULL;
-    const nv_image_t *img;
 
     object = g_object_new(CTK_TYPE_CONFIG, NULL);
 
@@ -160,25 +156,8 @@ GtkWidget* ctk_config_new(ConfigProperties *conf)
 
     /* banner */
 
-    hbox = gtk_hbox_new(FALSE, 0);
-    gtk_box_pack_start(GTK_BOX(ctk_config), hbox, FALSE, FALSE, 0);
-
-    frame = gtk_frame_new(NULL);
-    gtk_box_pack_start(GTK_BOX(hbox), frame, FALSE, FALSE, 0);
-    
-    gtk_frame_set_shadow_type(GTK_FRAME(frame), GTK_SHADOW_IN);
-
-    img = &configuration_banner_image;
-
-    image_buffer = decompress_image_data(img);
-
-    image = gtk_image_new_from_pixbuf
-        (gdk_pixbuf_new_from_data(image_buffer, GDK_COLORSPACE_RGB,
-                                  FALSE, 8, img->width, img->height,
-                                  img->width * img->bytes_per_pixel,
-                                  free_decompressed_image, NULL));
-
-    gtk_container_add(GTK_CONTAINER(frame), image);
+    banner = ctk_banner_image_new(BANNER_ARTWORK_CONFIG);
+    gtk_box_pack_start(GTK_BOX(ctk_config), banner, FALSE, FALSE, 0);
     
     /* "nvidia-settings Configuration" */
 

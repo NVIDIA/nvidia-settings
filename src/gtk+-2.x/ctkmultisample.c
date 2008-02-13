@@ -27,12 +27,11 @@
 
 #include "NvCtrlAttributes.h"
 
-#include "antialiasing_banner.h"
-
 #include "ctkmultisample.h"
 
 #include "ctkconfig.h"
 #include "ctkhelp.h"
+#include "ctkimage.h"
 
 
 /* local prototypes */
@@ -184,14 +183,11 @@ GtkWidget *ctk_multisample_new(NvCtrlAttributeHandle *handle,
     GObject *object;
     CtkMultisample *ctk_multisample;
     GtkWidget *hbox, *vbox = NULL;
-    GtkWidget *image;
+    GtkWidget *banner;
     GtkWidget *frame;
     GtkWidget *check_button;
     GtkWidget *scale;
     
-    guint8 *image_buffer = NULL;
-    const nv_image_t *img;
-
     gint val, app_control, override, i;
     
     NVCTRLAttributeValidValuesRec valid;
@@ -214,21 +210,9 @@ GtkWidget *ctk_multisample_new(NvCtrlAttributeHandle *handle,
     hbox = gtk_hbox_new(FALSE, 0);
     gtk_box_pack_start(GTK_BOX(object), hbox, FALSE, FALSE, 0);
 
-    frame = gtk_frame_new(NULL);
-    gtk_frame_set_shadow_type(GTK_FRAME(frame), GTK_SHADOW_IN);
-    gtk_box_pack_start(GTK_BOX(hbox), frame, FALSE, FALSE, 0);
+    banner = ctk_banner_image_new(BANNER_ARTWORK_ANTIALIAS);
+    gtk_box_pack_start(GTK_BOX(hbox), banner, TRUE, TRUE, 0);
 
-    img = &antialiasing_banner_image;
-    image_buffer = decompress_image_data(img);
-
-    image = gtk_image_new_from_pixbuf
-        (gdk_pixbuf_new_from_data(image_buffer, GDK_COLORSPACE_RGB,
-                                  FALSE, 8, img->width, img->height,
-                                  img->width * img->bytes_per_pixel,
-                                  free_decompressed_image, NULL));
-
-    gtk_container_add(GTK_CONTAINER(frame), image);
-    
     /* FSAA slider */
 
     ret = NvCtrlGetValidAttributeValues(handle, NV_CTRL_FSAA_MODE, &valid);

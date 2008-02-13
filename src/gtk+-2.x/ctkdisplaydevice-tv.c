@@ -38,7 +38,7 @@
 #include <gtk/gtk.h>
 #include <NvCtrlAttributes.h>
 
-#include "tv_banner.h"
+#include "ctkimage.h"
 
 #include "ctkdisplaydevice-tv.h"
 
@@ -136,14 +136,11 @@ GtkWidget* ctk_display_device_tv_new(NvCtrlAttributeHandle *handle,
 {
     GObject *object;
     CtkDisplayDeviceTv *ctk_display_device_tv;
-    GtkWidget *image;
+    GtkWidget *banner;
     GtkWidget *frame;
     GtkWidget *hbox;
     GtkWidget *label;
     GtkWidget *alignment;
-    
-    guint8 *image_buffer = NULL;
-    const nv_image_t *img;    
     
     char *str;
     ReturnStatus ret;
@@ -159,27 +156,11 @@ GtkWidget* ctk_display_device_tv_new(NvCtrlAttributeHandle *handle,
     
     gtk_box_set_spacing(GTK_BOX(object), 10);
     
-    hbox = gtk_hbox_new(FALSE, 0);
-    gtk_box_pack_start(GTK_BOX(object), hbox, FALSE, FALSE, 0);
-    
     /* banner */
 
-    frame = gtk_frame_new(NULL);
-    gtk_box_pack_start(GTK_BOX(hbox), frame, FALSE, FALSE, 0);
+    banner = ctk_banner_image_new(BANNER_ARTWORK_TV);
+    gtk_box_pack_start(GTK_BOX(object), banner, FALSE, FALSE, 0);
 
-    gtk_frame_set_shadow_type(GTK_FRAME(frame), GTK_SHADOW_IN);
-    
-    img = &tv_banner_image;
-    
-    image_buffer = decompress_image_data(img);
-    
-    image = gtk_image_new_from_pixbuf
-        (gdk_pixbuf_new_from_data(image_buffer, GDK_COLORSPACE_RGB,
-                                  FALSE, 8, img->width, img->height,
-                                  img->width * img->bytes_per_pixel,
-                                  free_decompressed_image, NULL));
-
-    gtk_container_add(GTK_CONTAINER(frame), image);
 
     /* NV_CTRL_STRING_TV_ENCODER_NAME */
     

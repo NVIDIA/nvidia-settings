@@ -25,10 +25,13 @@
 #include <gtk/gtk.h>
 #include <NvCtrlAttributes.h>
 
-#include "display_device_banner.h"
-#include "crt.h"
-#include "dfp.h"
-#include "tv.h"
+#include "ctkimage.h"
+
+#include <gdk-pixbuf/gdk-pixdata.h>
+
+#include "tv_pixdata.h"
+#include "dfp_pixdata.h"
+#include "crt_pixdata.h"
 
 #include "ctkdisplaydevice.h"
 
@@ -67,6 +70,7 @@ GtkWidget* ctk_display_device_new(NvCtrlAttributeHandle *handle,
     GObject *object;
     CtkDisplayDevice *ctk_display_device;
     GtkWidget *image;
+    GtkWidget *banner;
     GtkWidget *frame;
     GtkWidget *hbox;
     GtkWidget *vbox;
@@ -74,8 +78,7 @@ GtkWidget* ctk_display_device_new(NvCtrlAttributeHandle *handle,
     GtkWidget *alignment;
     ReturnStatus ret;
     
-    guint8 *image_buffer = NULL;
-    const nv_image_t *img;    
+    const GdkPixdata *img;
     int enabled, i, mask, n;
     char *name;
 
@@ -90,25 +93,8 @@ GtkWidget* ctk_display_device_new(NvCtrlAttributeHandle *handle,
     
     /* banner */
 
-    hbox = gtk_hbox_new(FALSE, 0);
-    gtk_box_pack_start(GTK_BOX(object), hbox, FALSE, FALSE, 0);
-
-    frame = gtk_frame_new(NULL);
-    gtk_box_pack_start(GTK_BOX(hbox), frame, FALSE, FALSE, 0);
-
-    gtk_frame_set_shadow_type(GTK_FRAME(frame), GTK_SHADOW_IN);
-    
-    img = &display_device_banner_image;
-    
-    image_buffer = decompress_image_data(img);
-    
-    image = gtk_image_new_from_pixbuf
-        (gdk_pixbuf_new_from_data(image_buffer, GDK_COLORSPACE_RGB,
-                                  FALSE, 8, img->width, img->height,
-                                  img->width * img->bytes_per_pixel,
-                                  free_decompressed_image, NULL));
-
-    gtk_container_add(GTK_CONTAINER(frame), image);
+    banner = ctk_banner_image_new(BANNER_ARTWORK_DISPLAY_CONFIG);
+    gtk_box_pack_start(GTK_BOX(object), banner, FALSE, FALSE, 0);
 
     /*
      * In the future: this page will be where things like TwinView
@@ -141,7 +127,7 @@ GtkWidget* ctk_display_device_new(NvCtrlAttributeHandle *handle,
     /* create a vbox with image and label for each display device */
 
     for (n = 0, i = 0; i < 24; i++) {
-        
+
         mask = 1 << i;
         if (!(enabled & mask)) continue;
         
@@ -159,11 +145,11 @@ GtkWidget* ctk_display_device_new(NvCtrlAttributeHandle *handle,
         /* get the correct image for each display device type */
         
         if (mask & CTK_DISPLAY_DEVICE_CRT_MASK) {
-            img = &crt_image;
+            img = &crt_pixdata;
         } else if (mask & CTK_DISPLAY_DEVICE_TV_MASK) {
-            img = &tv_image;
+            img = &tv_pixdata;
         } else if (mask & CTK_DISPLAY_DEVICE_DFP_MASK) {
-            img = &dfp_image;
+            img = &dfp_pixdata;
         } else {
             continue;
         }
@@ -174,14 +160,9 @@ GtkWidget* ctk_display_device_new(NvCtrlAttributeHandle *handle,
         frame = gtk_frame_new(NULL);
         gtk_box_pack_start(GTK_BOX(vbox), frame, FALSE, FALSE, 5);
         
-        image_buffer = decompress_image_data(img);
-
-        image = gtk_image_new_from_pixbuf
-            (gdk_pixbuf_new_from_data(image_buffer, GDK_COLORSPACE_RGB,
-                                      TRUE, 8, img->width, img->height,
-                                      img->width * img->bytes_per_pixel,
-                                      free_decompressed_image, NULL));
-        
+        image = gtk_image_new_from_pixbuf(gdk_pixbuf_from_pixdata(img,
+                                                                  TRUE, NULL));
+                                  
         gtk_container_add(GTK_CONTAINER(frame), image);
         
         label = gtk_label_new(name);

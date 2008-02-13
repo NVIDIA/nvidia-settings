@@ -43,6 +43,7 @@
 
 typedef struct {
     unsigned int booleans;
+    char *locale;
 } ConfigProperties;
 
 

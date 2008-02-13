@@ -28,7 +28,7 @@
 #include <X11/Xlib.h>
 #include <X11/extensions/Xrandr.h>
 
-#include "rotation_banner.h" /* Images */
+#include "ctkimage.h"
 #include "rotation_orientation_horiz.h"
 #include "rotation_orientation_horiz_flipped.h"
 #include "rotation_orientation_vert.h"
@@ -484,26 +484,8 @@ GtkWidget* ctk_randr_new(NvCtrlAttributeHandle *handle,
 
 
     { /* Banner image */
-        GtkWidget *hbox  = gtk_hbox_new(FALSE, 0);
-        GtkWidget *frame = gtk_frame_new(NULL);
-
-        const nv_image_t *image_data   = &rotation_banner_image;
-        guint8           *image_buffer = decompress_image_data(image_data);
-        GdkPixbuf        *image_pixbuf = 
-            gdk_pixbuf_new_from_data(image_buffer, GDK_COLORSPACE_RGB,
-                                     FALSE, 8, image_data->width,
-                                     image_data->height,
-                                     image_data->width * image_data->bytes_per_pixel,
-                                     free_decompressed_image, NULL);
-        GtkWidget *image = gtk_image_new_from_pixbuf(image_pixbuf);
-
-
-        gtk_box_pack_start(GTK_BOX(object), hbox, FALSE, FALSE, 0);
-        
-        gtk_frame_set_shadow_type(GTK_FRAME(frame), GTK_SHADOW_IN);
-        gtk_box_pack_start(GTK_BOX(hbox), frame, FALSE, FALSE, 0);
-        
-        gtk_container_add(GTK_CONTAINER(frame), image);
+        GtkWidget *banner = ctk_banner_image_new(BANNER_ARTWORK_ROTATION);
+        gtk_box_pack_start(GTK_BOX(object), banner, FALSE, FALSE, 0);
     }
 
 

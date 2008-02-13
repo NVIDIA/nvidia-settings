@@ -30,6 +30,9 @@
 #include "ctkgvo.h"
 #include "ctkdropdownmenu.h"
 
+#include "ctkimage.h"
+#include "ctkbanner.h"
+
 #include "gvo_banner_left.h"
 
 #include "gvo_banner_vid1_green.h"
@@ -202,7 +205,7 @@ GtkWidget* ctk_gvo_new(NvCtrlAttributeHandle *handle,
 {
     GObject *object;
     CtkGvo *ctk_gvo;
-    GtkWidget *hbox, *alignment, *button;
+    GtkWidget *hbox, *alignment, *button, *banner;
     ReturnStatus ret;
     int val, i, screen_width, screen_height, width, height, n;
     
@@ -235,23 +238,9 @@ GtkWidget* ctk_gvo_new(NvCtrlAttributeHandle *handle,
     gtk_box_set_spacing(GTK_BOX(ctk_gvo), 10);
 
     /* banner */
-    
-    hbox = gtk_hbox_new(FALSE, 0);
-    gtk_box_pack_start(GTK_BOX(object), hbox, FALSE, FALSE, 0);
-    
-    frame = gtk_frame_new(NULL);
-    gtk_box_pack_start(GTK_BOX(hbox), frame, FALSE, FALSE, 0);
-    
-    gtk_frame_set_shadow_type(GTK_FRAME(frame), GTK_SHADOW_IN);
 
-    ctk_gvo->banner_table = gtk_table_new(1, 6, FALSE);
-    gtk_table_set_row_spacings(GTK_TABLE(ctk_gvo->banner_table), 0);
-    gtk_table_set_col_spacings(GTK_TABLE(ctk_gvo->banner_table), 0);
-
-    gtk_container_add(GTK_CONTAINER(frame), ctk_gvo->banner_table);
-
-    init_gvo_banner(ctk_gvo);
-    pack_gvo_banner(ctk_gvo);
+    banner = ctk_banner_image_new(BANNER_ARTWORK_SDI);
+    gtk_box_pack_start(GTK_BOX(object), banner, FALSE, FALSE, 0);
 
     
     /*

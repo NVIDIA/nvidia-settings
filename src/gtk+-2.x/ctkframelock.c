@@ -31,7 +31,7 @@
 #include "ctkframelock.h"
 #include "ctkhelp.h"
 
-#include "frame_lock_banner.h"
+#include "ctkimage.h"
 #include "led_green.h"
 #include "led_red.h"
 #include "led_grey.h"
@@ -242,14 +242,10 @@ GtkWidget* ctk_framelock_new(NvCtrlAttributeHandle *handle,
     GtkWidget *hbox;
     GtkWidget *hbox2;
     GtkWidget *label;
-    GtkWidget *frame;
-    GtkWidget *image;
+    GtkWidget *banner;
     GtkWidget *sw;
     GtkWidget *hseparator;
     gint value;
-
-    guint8 *image_buffer = NULL;
-    const nv_image_t *img;
 
     /* make sure we have a handle */
 
@@ -280,25 +276,8 @@ GtkWidget* ctk_framelock_new(NvCtrlAttributeHandle *handle,
 
     /* banner */
 
-    hbox = gtk_hbox_new(FALSE, 0);
-    gtk_box_pack_start(GTK_BOX(object), hbox, FALSE, FALSE, 0);
-
-    frame = gtk_frame_new(NULL);
-    gtk_box_pack_start(GTK_BOX(hbox), frame, FALSE, FALSE, 0);
-    
-    gtk_frame_set_shadow_type(GTK_FRAME(frame), GTK_SHADOW_IN);
-
-    img = &frame_lock_banner_image;
-
-    image_buffer = decompress_image_data(img);
-
-    image = gtk_image_new_from_pixbuf
-        (gdk_pixbuf_new_from_data(image_buffer, GDK_COLORSPACE_RGB,
-                                  FALSE, 8, img->width, img->height,
-                                  img->width * img->bytes_per_pixel,
-                                  free_decompressed_image, NULL));
-
-    gtk_container_add(GTK_CONTAINER(frame), image);
+    banner = ctk_banner_image_new(BANNER_ARTWORK_FRAMELOCK);
+    gtk_box_pack_start(GTK_BOX(ctk_framelock), banner, FALSE, FALSE, 0);
 
     /* scrollable list */
 

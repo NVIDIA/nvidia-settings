@@ -25,7 +25,7 @@
 #include <gtk/gtk.h>
 #include "NvCtrlAttributes.h"
 
-#include "xvideo_banner.h"
+#include "ctkimage.h"
 
 #include "ctkxvideo.h"
 #include "ctkscale.h"
@@ -149,7 +149,7 @@ GtkWidget* ctk_xvideo_new(NvCtrlAttributeHandle *handle,
 {
     GObject *object;
     CtkXVideo *ctk_xvideo;
-    GtkWidget *image;
+    GtkWidget *banner;
     GtkWidget *frame;
     GtkWidget *alignment;
     GtkWidget *hbox;
@@ -157,8 +157,6 @@ GtkWidget* ctk_xvideo_new(NvCtrlAttributeHandle *handle,
     GtkWidget *vbox;
     GtkWidget *button;
     
-    guint8 *image_buffer = NULL;
-    const nv_image_t *img;
     int xv_overlay_present, xv_texture_present, xv_blitter_present;
     
     ReturnStatus ret;
@@ -216,26 +214,9 @@ GtkWidget* ctk_xvideo_new(NvCtrlAttributeHandle *handle,
     
     /* Video film banner */
     
-    hbox = gtk_hbox_new(FALSE, 0);
-    gtk_box_pack_start(GTK_BOX(object), hbox, FALSE, FALSE, 0);
+    banner = ctk_banner_image_new(BANNER_ARTWORK_XVIDEO);
+    gtk_box_pack_start(GTK_BOX(object), banner, FALSE, FALSE, 0);
 
-    frame = gtk_frame_new(NULL);
-    gtk_box_pack_start(GTK_BOX(hbox), frame, FALSE, FALSE, 0);
-    
-    gtk_frame_set_shadow_type(GTK_FRAME(frame), GTK_SHADOW_IN);
-
-    img = &xvideo_banner_image;
-
-    image_buffer = decompress_image_data(img);
-
-    image = gtk_image_new_from_pixbuf
-        (gdk_pixbuf_new_from_data(image_buffer, GDK_COLORSPACE_RGB,
-                                  FALSE, 8, img->width, img->height,
-                                  img->width * img->bytes_per_pixel,
-                                  free_decompressed_image, NULL));
-
-    gtk_container_add(GTK_CONTAINER(frame), image);
-    
     
     /* XVideo Overlay sliders */
     
