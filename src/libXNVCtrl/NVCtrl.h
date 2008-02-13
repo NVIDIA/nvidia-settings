@@ -3056,7 +3056,7 @@
 #define NV_CTRL_GVO_LOCK_OWNER_NONE                               0
 #define NV_CTRL_GVO_LOCK_OWNER_GLX                                1
 #define NV_CTRL_GVO_LOCK_OWNER_CLONE                              2
-#define NV_CTRL_GVO_LOCK_OWNER_TWINVIEW                           3
+#define NV_CTRL_GVO_LOCK_OWNER_X_SCREEN                           3
 
 
 #define NV_CTRL_LAST_ATTRIBUTE NV_CTRL_GVO_LOCK_OWNER

@@ -260,6 +260,7 @@ GtkWidget* ctk_server_new(NvCtrlAttributeHandle *handle,
     gchar *server_version;
     gchar *vendor_str;
     gchar *vendor_ver;
+    gchar *nv_control_server_version;
     gchar *num_screens;
 
     ReturnStatus ret;
@@ -327,6 +328,13 @@ GtkWidget* ctk_server_new(NvCtrlAttributeHandle *handle,
 
     vendor_ver = get_server_vendor_version(handle);
 
+    /* NV_CTRL_STRING_NV_CONTROL_VERSION */
+
+    ret = NvCtrlGetStringAttribute(handle,
+                                   NV_CTRL_STRING_NV_CONTROL_VERSION,
+                                   &nv_control_server_version);
+    if (ret != NvCtrlSuccess) nv_control_server_version = NULL;
+    
     /* # Logical X Screens */
     
     if (xinerama_enabled) {
@@ -408,7 +416,7 @@ GtkWidget* ctk_server_new(NvCtrlAttributeHandle *handle,
     hseparator = gtk_hseparator_new();
     gtk_box_pack_start(GTK_BOX(hbox), hseparator, TRUE, TRUE, 5);
 
-    table = gtk_table_new(11, 2, FALSE);
+    table = gtk_table_new(15, 2, FALSE);
     gtk_box_pack_start(GTK_BOX(vbox), table, FALSE, FALSE, 0);
     gtk_table_set_row_spacings(GTK_TABLE(table), 3);
     gtk_table_set_col_spacings(GTK_TABLE(table), 15);
@@ -425,6 +433,9 @@ GtkWidget* ctk_server_new(NvCtrlAttributeHandle *handle,
                   0, 0.5, "Server Vendor Version:", 0, 0.5, vendor_ver);
     /* separator */
     add_table_row(table, 10,
+                  0, 0,   "NV-Control Version:",    0, 0, nv_control_server_version);
+    /* separator */
+    add_table_row(table, 14,
                   0, 0,   "X Screens:",             0, 0, num_screens);
 
 
@@ -469,6 +480,7 @@ GtkWidget* ctk_server_new(NvCtrlAttributeHandle *handle,
     g_free(server_version);
     g_free(vendor_str);
     g_free(vendor_ver);
+    XFree(nv_control_server_version);
     g_free(num_screens);
 
     gtk_widget_show_all(GTK_WIDGET(object));

@@ -117,8 +117,7 @@ static void set_gvo_sensitivity(CtkGvo *ctk_gvo,
 
 static void get_video_format_details(CtkGvo *ctk_gvo);
 
-static void update_gvo_current_info(CtkGvo *ctk_gvo, gint w, gint h,
-                                    gint state);
+static void update_gvo_current_info(CtkGvo *ctk_gvo, guint lock_owner);
 
 static void update_delay_spin_buttons(CtkGvo *ctk_gvo);
 
@@ -300,10 +299,6 @@ static const FormatName syncFormatNames[] = {
 #define SET_SENSITIVITY_EXCLUDE_ENABLE_BUTTON 0x0001
 #define SET_SENSITIVITY_EXCLUDE_DETECT_BUTTON 0x0002
 #define SET_SENSITIVITY_EXCLUDE_ROI_BUTTONS   0x0004
-
-#define CURRENT_SDI_STATE_INACTIVE 0
-#define CURRENT_SDI_STATE_IN_USE_BY_X 1
-#define CURRENT_SDI_STATE_IN_USE_BY_GLX 2
 
 #define DEFAULT_DETECT_INPUT_TIME_INTERVAL 2000
 #define UPDATE_GVO_BANNER_TIME_INTERVAL    200
@@ -1859,7 +1854,6 @@ static void toggle_sdi_output_button(GtkWidget *button, gpointer user_data)
 
 static void post_toggle_sdi_output_button(CtkGvo *ctk_gvo, gboolean enabled)
 {
-    gint w, h;
     GList *children;
     GList *child;
 
@@ -1883,8 +1877,7 @@ static void post_toggle_sdi_output_button(CtkGvo *ctk_gvo, gboolean enabled)
                                        ctk_gvo->output_video_format,
                                        ctk_gvo->output_data_format);
         
-        get_video_format_resolution(ctk_gvo->output_video_format, &w, &h);
-        update_gvo_current_info(ctk_gvo, w, h, CURRENT_SDI_STATE_IN_USE_BY_X);
+        update_gvo_current_info(ctk_gvo, NV_CTRL_GVO_LOCK_OWNER_CLONE);
         
     } else {
         gtk_container_add(GTK_CONTAINER(ctk_gvo->toggle_sdi_output_button),
@@ -1894,15 +1887,11 @@ static void post_toggle_sdi_output_button(CtkGvo *ctk_gvo, gboolean enabled)
                                        NV_CTRL_GVO_VIDEO_FORMAT_NONE,
                                        ctk_gvo->output_data_format);
         
-        update_gvo_current_info(ctk_gvo, 0, 0, CURRENT_SDI_STATE_INACTIVE);
+        update_gvo_current_info(ctk_gvo, NV_CTRL_GVO_LOCK_OWNER_NONE);
     }
     
     
     ctk_gvo->sdi_output_enabled = enabled;
-
-    set_gvo_sensitivity(ctk_gvo, !enabled,
-                        SET_SENSITIVITY_EXCLUDE_ENABLE_BUTTON |
-                        SET_SENSITIVITY_EXCLUDE_ROI_BUTTONS);
     
     ctk_config_statusbar_message(ctk_gvo->ctk_config, "SDI Output %s.",
                                  enabled ? "enabled" : "disabled");
@@ -2352,32 +2341,47 @@ static void get_video_format_details(CtkGvo *ctk_gvo)
 
 
 /*
- * update_gvo_current_info() - 
+ * update_gvo_current_info() - Updates the state information to reflect
+ * the GVO device's current state.
  */
 
-static void update_gvo_current_info(CtkGvo *ctk_gvo, gint w, gint h,
-                                    gint state)
+static void update_gvo_current_info(CtkGvo *ctk_gvo, guint lock_owner)
 {
+    int width;
+    int height;
     gchar res_string[64], state_string[64];
+    gboolean sensitive = FALSE;
+    guint flags = 0;
 
     if (!ctk_gvo->current_resolution_label) return;
     if (!ctk_gvo->current_state_label) return;
+
+    /* Get the current video format sizes */
+    get_video_format_resolution(ctk_gvo->output_video_format, &width, &height);
     
-    switch (state) {
+    switch (lock_owner) {
         
-    case CURRENT_SDI_STATE_INACTIVE:
+    case NV_CTRL_GVO_LOCK_OWNER_NONE:
         snprintf(res_string, 64, "Inactive");
         snprintf(state_string, 64, "Inactive");
+        sensitive = TRUE;
+        break;
+
+    case NV_CTRL_GVO_LOCK_OWNER_CLONE:
+        snprintf(res_string, 64, "%d x %d", width, height);
+        snprintf(state_string, 64, "In use by X (Clone mode)");
+        flags = SET_SENSITIVITY_EXCLUDE_ENABLE_BUTTON |
+            SET_SENSITIVITY_EXCLUDE_ROI_BUTTONS;
         break;
         
-    case CURRENT_SDI_STATE_IN_USE_BY_X:
-        snprintf(res_string, 64, "%d x %d", w, h);
-        snprintf(state_string, 64, "In Use by X");
+    case NV_CTRL_GVO_LOCK_OWNER_X_SCREEN:
+        snprintf(res_string, 64, "%d x %d", width, height);
+        snprintf(state_string, 64, "In use by X");
         break;
-        
-    case CURRENT_SDI_STATE_IN_USE_BY_GLX:
-        snprintf(res_string, 64, "%d x %d", w, h);
-        snprintf(state_string, 64, "In Use by GLX");
+
+    case NV_CTRL_GVO_LOCK_OWNER_GLX:
+        snprintf(res_string, 64, "%d x %d", width, height);
+        snprintf(state_string, 64, "In use by GLX");
         break;
         
     default:
@@ -2390,7 +2394,30 @@ static void update_gvo_current_info(CtkGvo *ctk_gvo, gint w, gint h,
     gtk_label_set_text(GTK_LABEL(ctk_gvo->current_state_label),
                        state_string);
 
+    set_gvo_sensitivity(ctk_gvo, sensitive, flags);
+
 } /* update_gvo_current_info() */
+
+
+
+/*
+ * query_gvo_current_info() - Queries the state of the GVO device
+ * from the X server and updates the information on the page.
+ */
+
+static void query_gvo_current_info(CtkGvo *ctk_gvo)
+{
+    ReturnStatus ret;
+    gint lock_owner;
+
+    ret = NvCtrlGetAttribute(ctk_gvo->handle,
+                             NV_CTRL_GVO_LOCK_OWNER, &lock_owner);
+
+    if (ret == NvCtrlSuccess) {
+        update_gvo_current_info(ctk_gvo, lock_owner);
+    }
+
+} /* query_gvo_current_info() */
 
 
 
@@ -2615,11 +2642,6 @@ static void register_for_gvo_events(CtkGvo *ctk_gvo)
                      CTK_EVENT_NAME(NV_CTRL_GVO_X_SCREEN_PAN_Y),
                      G_CALLBACK(gvo_event_received),
                      (gpointer) ctk_gvo);
-
-    g_signal_connect(G_OBJECT(ctk_gvo->ctk_event),
-                     CTK_EVENT_NAME(NV_CTRL_GVO_GLX_LOCKED),
-                     G_CALLBACK(gvo_event_received),
-                     (gpointer) ctk_gvo);
     
     g_signal_connect(G_OBJECT(ctk_gvo->ctk_event),
                      CTK_EVENT_NAME(NV_CTRL_GVO_DISPLAY_X_SCREEN),
@@ -2628,6 +2650,11 @@ static void register_for_gvo_events(CtkGvo *ctk_gvo)
 
     g_signal_connect(G_OBJECT(ctk_gvo->ctk_event),
                      CTK_EVENT_NAME(NV_CTRL_GVO_COMPOSITE_TERMINATION),
+                     G_CALLBACK(gvo_event_received),
+                     (gpointer) ctk_gvo);
+
+    g_signal_connect(G_OBJECT(ctk_gvo->ctk_event),
+                     CTK_EVENT_NAME(NV_CTRL_GVO_LOCK_OWNER),
                      G_CALLBACK(gvo_event_received),
                      (gpointer) ctk_gvo);
 }
@@ -2643,7 +2670,6 @@ static void gvo_event_received(GtkObject *object,
     GtkWidget *widget;    
     gint attribute = event_struct->attribute;
     gint value = event_struct->value;
-    gint w, h;
 
     switch (attribute) {
     case NV_CTRL_GVO_SYNC_MODE:
@@ -2664,6 +2690,7 @@ static void gvo_event_received(GtkObject *object,
             (CTK_DROP_DOWN_MENU(widget), value);
         
         post_output_video_format_changed(ctk_gvo, value);
+        query_gvo_current_info(ctk_gvo);
         
         g_signal_handlers_unblock_by_func
             (G_OBJECT(widget),
@@ -2746,24 +2773,16 @@ static void gvo_event_received(GtkObject *object,
                                           (gpointer) ctk_gvo);
         break;
         
-    case NV_CTRL_GVO_GLX_LOCKED:
-        if (value == NV_CTRL_GVO_GLX_LOCKED_TRUE) {
-            get_video_format_resolution(ctk_gvo->output_video_format, &w, &h);
-            update_gvo_current_info(ctk_gvo, w, h,
-                                    CURRENT_SDI_STATE_IN_USE_BY_GLX);
-            set_gvo_sensitivity(ctk_gvo, FALSE, 0);
-        } else {
-            update_gvo_current_info(ctk_gvo, 0, 0, CURRENT_SDI_STATE_INACTIVE);
-            set_gvo_sensitivity(ctk_gvo, TRUE, 0);
-        }
+    case NV_CTRL_GVO_LOCK_OWNER:
+        update_gvo_current_info(ctk_gvo, value);
         break;
 
     case NV_CTRL_GVO_DISPLAY_X_SCREEN:
         
         /*
          * XXX explicitly re-query this value, since a change may not
-         * actually have been successfully applied (if GLX already had
-         * GVO locked)
+         * actually have been successfully applied (if GLX or some other
+         * mode already had GVO locked)
          */
 
         ret = NvCtrlGetAttribute(ctk_gvo->handle,
