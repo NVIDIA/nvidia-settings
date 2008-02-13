@@ -29,8 +29,12 @@
 
 #include <stdlib.h>
 #include <string.h>
+#include <dlfcn.h>
 
-static NvCtrlXvAttribute *getXvAttribute (Display *, XvPortID, const char *);
+#include "msg.h"
+
+static NvCtrlXvAttribute *getXvAttribute (NvCtrlXvAttributes *,
+                                          XvPortID, const char *);
 
 static Bool checkAdaptor(NvCtrlAttributePrivateHandle *h,
                          unsigned int attribute);
@@ -52,28 +56,76 @@ static NvCtrlXvAttribute *getXvAttributePtr(NvCtrlAttributePrivateHandle *h,
  * otherwise.
  */
 
-void NvCtrlInitXvOverlayAttributes(NvCtrlAttributePrivateHandle *h)
+NvCtrlXvAttributes * NvCtrlInitXvAttributes(NvCtrlAttributePrivateHandle *h)
 {
+    NvCtrlXvAttributes *xv = NULL;
     XvAdaptorInfo *ainfo;
     unsigned int ver, rev, req, event, error, nadaptors;
     int ret, i;
     Display *dpy = h->dpy;
+    const char *error_str = NULL;
+    const char *warn_str = NULL;
     
-    /* clear the adaptor pointers */
 
-    h->xv_overlay = NULL;
-    h->xv_texture = NULL;
-    h->xv_blitter = NULL;
+    /* Check parameters */
+    if (h == NULL || h->dpy == NULL) {
+        goto fail;
+    }
 
-    ret = XvQueryExtension(dpy, &ver, &rev, &req, &event, &error);
-    if (ret != Success) return;
+
+    /* Allocate the attributes structure */
+    xv = (NvCtrlXvAttributes *)
+        calloc(1, sizeof (NvCtrlXvAttributes));
+    if ( xv == NULL ) {
+        error_str = "Out of memory.";
+        goto fail;
+    }
+
+
+    /* Link the libXv lib */
+    xv->libXv = dlopen("libXv.so.1", RTLD_LAZY);
+
+    if (xv->libXv == NULL) {
+        warn_str = "Failed to open libXv.so.1: this library "
+            "is not present in your system or is not in your "
+            "LD_LIBRARY_PATH.";
+        goto fail;
+    }
+
+
+    /* Resolve Xv functions needed */
+    xv->XvQueryExtension = NV_DLSYM(xv->libXv, "XvQueryExtension");
+    if ((error_str = dlerror()) != NULL) goto fail;
+    
+    xv->XvQueryAdaptors = NV_DLSYM(xv->libXv, "XvQueryAdaptors");
+    if ((error_str = dlerror()) != NULL) goto fail;
+    
+    xv->XvGetPortAttribute = NV_DLSYM(xv->libXv, "XvGetPortAttribute");
+    if ((error_str = dlerror()) != NULL) goto fail;
+
+    xv->XvSetPortAttribute = NV_DLSYM(xv->libXv, "XvSetPortAttribute");
+    if ((error_str = dlerror()) != NULL) goto fail;
+
+    xv->XvQueryPortAttributes = NV_DLSYM(xv->libXv, "XvQueryPortAttributes");
+    if ((error_str = dlerror()) != NULL) goto fail;
+
+
+    /* Duplicate the display connection and verify Xv extension exists */
+    xv->dpy = XOpenDisplay( XDisplayString(h->dpy) );
+    if ( xv->dpy == NULL ) {
+        goto fail;
+    }
+    ret = xv->XvQueryExtension(xv->dpy, &ver, &rev, &req, &event, &error);
+    if (ret != Success) goto fail;
     
     /* XXX do we have a minimum Xv version? */
-    
-    ret = XvQueryAdaptors(dpy, RootWindow(dpy, h->screen),
-                          &nadaptors, &ainfo);
 
-    if (ret != Success || !nadaptors || !ainfo) return;
+
+    /* Get the list of adaptors */
+    ret = xv->XvQueryAdaptors(xv->dpy, RootWindow(dpy, h->screen),
+                              &nadaptors, &ainfo);
+
+    if (ret != Success || !nadaptors || !ainfo) goto fail;
     
     for (i = 0; i < nadaptors; i++) {
         
@@ -84,17 +136,21 @@ void NvCtrlInitXvOverlayAttributes(NvCtrlAttributePrivateHandle *h)
             
             attrs = (NvCtrlXvOverlayAttributes *)
                 malloc(sizeof(NvCtrlXvOverlayAttributes));
+            if ( !attrs ) {
+                error_str = "Out of memory.";
+                goto fail;
+            }
         
             attrs->port = ainfo[i].base_id;
-            attrs->saturation = getXvAttribute(dpy, attrs->port,
+            attrs->saturation = getXvAttribute(xv, attrs->port,
                                                "XV_SATURATION");
-            attrs->contrast   = getXvAttribute(dpy, attrs->port,
+            attrs->contrast   = getXvAttribute(xv, attrs->port,
                                                "XV_CONTRAST");
-            attrs->brightness = getXvAttribute(dpy, attrs->port,
+            attrs->brightness = getXvAttribute(xv, attrs->port,
                                                "XV_BRIGHTNESS");
-            attrs->hue        = getXvAttribute(dpy, attrs->port,
+            attrs->hue        = getXvAttribute(xv, attrs->port,
                                                "XV_HUE");
-            attrs->defaults   = getXvAttribute(dpy, attrs->port,
+            attrs->defaults   = getXvAttribute(xv, attrs->port,
                                                "XV_SET_DEFAULTS");
         
             if (!attrs->saturation ||
@@ -113,7 +169,7 @@ void NvCtrlInitXvOverlayAttributes(NvCtrlAttributePrivateHandle *h)
                 attrs = NULL;
                 
             } else {
-                h->xv_overlay = attrs;
+                xv->overlay = attrs;
             }
         }
 
@@ -123,11 +179,15 @@ void NvCtrlInitXvOverlayAttributes(NvCtrlAttributePrivateHandle *h)
 
             attrs = (NvCtrlXvTextureAttributes *)
                 malloc(sizeof(NvCtrlXvTextureAttributes));
-            
+            if ( !attrs ) {
+                error_str = "Out of memory.";
+                goto fail;
+            }
+
             attrs->port = ainfo[i].base_id;
-            attrs->sync_to_vblank = getXvAttribute(dpy, attrs->port,
+            attrs->sync_to_vblank = getXvAttribute(xv, attrs->port,
                                                    "XV_SYNC_TO_VBLANK");
-            attrs->defaults       = getXvAttribute(dpy, attrs->port,
+            attrs->defaults       = getXvAttribute(xv, attrs->port,
                                                    "XV_SET_DEFAULTS");
             if (!attrs->sync_to_vblank ||
                 !attrs->defaults) {
@@ -139,7 +199,7 @@ void NvCtrlInitXvOverlayAttributes(NvCtrlAttributePrivateHandle *h)
                 attrs = NULL;
                 
             } else {
-                h->xv_texture = attrs;
+                xv->texture = attrs;
             }
         }
 
@@ -149,11 +209,15 @@ void NvCtrlInitXvOverlayAttributes(NvCtrlAttributePrivateHandle *h)
 
             attrs = (NvCtrlXvBlitterAttributes *)
                 malloc(sizeof(NvCtrlXvBlitterAttributes));
-            
+            if ( !attrs ) {
+                error_str = "Out of memory.";
+                goto fail;
+            }
+
             attrs->port = ainfo[i].base_id;
-            attrs->sync_to_vblank = getXvAttribute(dpy, attrs->port,
+            attrs->sync_to_vblank = getXvAttribute(xv, attrs->port,
                                                    "XV_SYNC_TO_VBLANK");
-            attrs->defaults       = getXvAttribute(dpy, attrs->port,
+            attrs->defaults       = getXvAttribute(xv, attrs->port,
                                                    "XV_SET_DEFAULTS");
             if (!attrs->sync_to_vblank ||
                 !attrs->defaults) {
@@ -165,11 +229,35 @@ void NvCtrlInitXvOverlayAttributes(NvCtrlAttributePrivateHandle *h)
                 attrs = NULL;
                 
             } else {
-                h->xv_blitter = attrs;
+                xv->blitter = attrs;
             }
         }
     }
-} /* NvCtrlInitXvOverlayAttributes() */
+
+    return xv;
+
+
+    /* Handle failures */
+ fail:
+    if (error_str) {
+        nv_error_msg("libXv setup error: %s\n", error_str);
+    }
+    if (warn_str) {
+        nv_warning_msg("libXv setup warning: %s\n", warn_str);
+    }
+    if (xv != NULL) {
+        if ( xv->dpy != NULL ) {
+            XCloseDisplay(xv->dpy);
+        }
+        if (xv->libXv) {
+            dlclose(xv->libXv);
+        }
+        free (xv);
+    }
+
+    return NULL;
+
+} /* NvCtrlInitXvAttributes() */
 
                       
 
@@ -199,7 +287,7 @@ ReturnStatus NvCtrlXvGetAttribute(NvCtrlAttributePrivateHandle *h,
 
     /* finally, query the value */
     
-    if (XvGetPortAttribute(h->dpy, port, a->atom, val) != Success) {
+    if (h->xv->XvGetPortAttribute(h->xv->dpy, port, a->atom, val) != Success) {
         return NvCtrlError;
     }
     
@@ -231,7 +319,7 @@ ReturnStatus NvCtrlXvSetAttribute(NvCtrlAttributePrivateHandle *h,
     
     /* finally, set the value */
     
-    if (XvSetPortAttribute(h->dpy, port, a->atom, val) != Success) {
+    if (h->xv->XvSetPortAttribute(h->xv->dpy, port, a->atom, val) != Success) {
         return NvCtrlError;
     }
     
@@ -278,7 +366,8 @@ NvCtrlXvGetValidAttributeValues(NvCtrlAttributePrivateHandle *h, int attr,
  * NvCtrlXvAttribute struct if successful, otherwise return NULL.
  */
 
-static NvCtrlXvAttribute *getXvAttribute(Display *dpy, XvPortID port,
+static NvCtrlXvAttribute *getXvAttribute(NvCtrlXvAttributes *xv,
+                                         XvPortID port,
                                          const char *name)
 {
     NvCtrlXvAttribute *attr = NULL;
@@ -286,7 +375,7 @@ static NvCtrlXvAttribute *getXvAttribute(Display *dpy, XvPortID port,
     unsigned int n;
     int i;
     
-    attributes = XvQueryPortAttributes(dpy, port, &n);
+    attributes = xv->XvQueryPortAttributes(xv->dpy, port, &n);
 
     if (!attributes || !n) goto failed;
     
@@ -297,7 +386,7 @@ static NvCtrlXvAttribute *getXvAttribute(Display *dpy, XvPortID port,
         attr->range.type = ATTRIBUTE_TYPE_RANGE;
         attr->range.u.range.min = attributes[i].min_value;
         attr->range.u.range.max = attributes[i].max_value;
-        attr->atom = XInternAtom(dpy, name, True);
+        attr->atom = XInternAtom(xv->dpy, name, True);
         if (attr->atom == None) goto failed;
         
         if (! (attributes[i].flags & XvSettable)) goto failed;
@@ -339,17 +428,17 @@ static Bool checkAdaptor(NvCtrlAttributePrivateHandle *h,
     case NV_CTRL_ATTR_XV_OVERLAY_BRIGHTNESS:
     case NV_CTRL_ATTR_XV_OVERLAY_HUE:
     case NV_CTRL_ATTR_XV_OVERLAY_SET_DEFAULTS:
-        if (h && h->xv_overlay) return True;
+        if (h && h->xv && h->xv->overlay) return True;
         else return False;
         
     case NV_CTRL_ATTR_XV_TEXTURE_SYNC_TO_VBLANK:
     case NV_CTRL_ATTR_XV_TEXTURE_SET_DEFAULTS:
-        if (h && h->xv_texture) return True;
+        if (h && h->xv && h->xv->texture) return True;
         else return False;
         
     case NV_CTRL_ATTR_XV_BLITTER_SYNC_TO_VBLANK:
     case NV_CTRL_ATTR_XV_BLITTER_SET_DEFAULTS:
-        if (h && h->xv_blitter) return True;
+        if (h && h->xv && h->xv->blitter) return True;
         else return False;
         
     default:
@@ -376,15 +465,15 @@ static unsigned int getXvPort(NvCtrlAttributePrivateHandle *h,
     case NV_CTRL_ATTR_XV_OVERLAY_BRIGHTNESS:
     case NV_CTRL_ATTR_XV_OVERLAY_HUE:
     case NV_CTRL_ATTR_XV_OVERLAY_SET_DEFAULTS:
-        return h->xv_overlay->port;
+        return h->xv->overlay->port;
         
     case NV_CTRL_ATTR_XV_TEXTURE_SYNC_TO_VBLANK:
     case NV_CTRL_ATTR_XV_TEXTURE_SET_DEFAULTS:
-        return h->xv_texture->port;
+        return h->xv->texture->port;
         
     case NV_CTRL_ATTR_XV_BLITTER_SYNC_TO_VBLANK:
     case NV_CTRL_ATTR_XV_BLITTER_SET_DEFAULTS:
-        return h->xv_blitter->port;
+        return h->xv->blitter->port;
         
     default:
         return 0;
@@ -406,33 +495,70 @@ static NvCtrlXvAttribute *getXvAttributePtr(NvCtrlAttributePrivateHandle *h,
     switch (attribute) {
         
     case NV_CTRL_ATTR_XV_OVERLAY_SATURATION:
-        return h->xv_overlay->saturation;
+        return h->xv->overlay->saturation;
         
     case NV_CTRL_ATTR_XV_OVERLAY_CONTRAST:
-        return h->xv_overlay->contrast;
+        return h->xv->overlay->contrast;
         
     case NV_CTRL_ATTR_XV_OVERLAY_BRIGHTNESS:
-        return h->xv_overlay->brightness;
+        return h->xv->overlay->brightness;
         
     case NV_CTRL_ATTR_XV_OVERLAY_HUE:
-        return h->xv_overlay->hue;
+        return h->xv->overlay->hue;
         
     case NV_CTRL_ATTR_XV_TEXTURE_SYNC_TO_VBLANK:
-        return h->xv_texture->sync_to_vblank;
+        return h->xv->texture->sync_to_vblank;
         
     case NV_CTRL_ATTR_XV_BLITTER_SYNC_TO_VBLANK:
-        return h->xv_blitter->sync_to_vblank;
+        return h->xv->blitter->sync_to_vblank;
         
     case NV_CTRL_ATTR_XV_OVERLAY_SET_DEFAULTS:
-        return h->xv_overlay->defaults;
+        return h->xv->overlay->defaults;
         
     case NV_CTRL_ATTR_XV_TEXTURE_SET_DEFAULTS:
-        return h->xv_texture->defaults;
+        return h->xv->texture->defaults;
 
     case NV_CTRL_ATTR_XV_BLITTER_SET_DEFAULTS:
-        return h->xv_blitter->defaults;
+        return h->xv->blitter->defaults;
 
     default:
         return NULL;
     }
 } /* getXvAttributePtr() */
+
+
+
+/*
+ * Frees and relinquishes any resource used by the Xv Attributes
+ *
+ */
+
+void
+NvCtrlXvAttributesClose (NvCtrlAttributePrivateHandle *h)
+{
+    if (h == NULL || h->xv == NULL) {
+        return;
+    }
+
+    if (h->xv->dpy) {
+        XCloseDisplay(h->xv->dpy);
+    }
+
+    if (h->xv->libXv) {
+        dlclose(h->xv->libXv);
+    }
+
+    if (h->xv->overlay) {
+        free(h->xv->overlay);
+    }
+    if (h->xv->texture) {
+        free(h->xv->texture);
+    }
+    if (h->xv->blitter) {
+        free(h->xv->blitter);
+    }
+
+    free(h->xv);
+    h->xv = NULL;
+
+} /* NvCtrlXvAttributesClose() */

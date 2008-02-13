@@ -39,13 +39,14 @@
 SHELL = /bin/sh
 INSTALL = install -m 755
 BUILD_OS := $(shell uname)
+BUILD_ARCH := $(shell uname -m)
 
 ifndef CC
   CC = gcc
 endif
 
 ifndef CFLAGS
-  CFLAGS = -Wall -fpedantic
+  CFLAGS = -Wall
 endif
 
 ifndef PKG_CONFIG
@@ -53,7 +54,11 @@ ifndef PKG_CONFIG
 endif
 
 ifndef X11R6_LIB_DIR
-  X11R6_LIB_DIR = /usr/X11R6/lib
+  ifeq ($(BUILD_OS)-$(BUILD_ARCH),Linux-x86_64)
+    X11R6_LIB_DIR = /usr/X11R6/lib64
+  else
+    X11R6_LIB_DIR = /usr/X11R6/lib
+  endif
 endif
 
 ifndef X11R6_INC_DIR
@@ -79,6 +84,17 @@ else
   prefix = /usr/local
 endif
 
+# default echo within SunOS sh does not have -n option. Use /usr/ucb/echo instead.
+# Solaris install has a different argument syntax 
+ifeq ($(BUILD_OS),SunOS)
+ECHO=/usr/ucb/echo
+INSTALL_RULE=$(INSTALL) -f $(bindir) $(NVIDIA_SETTINGS) 
+LD_RUN_FLAG=-R/usr/X11R6/lib
+else
+ECHO=echo
+INSTALL_RULE=$(INSTALL) $(NVIDIA_SETTINGS) $(bindir)/$(NVIDIA_SETTINGS)
+endif
+
 exec_prefix = $(prefix)
 bindir = $(exec_prefix)/bin
 
@@ -87,13 +103,7 @@ X11R6_CFLAGS = -I $(X11R6_INC_DIR)
 GTK_CFLAGS := $(shell $(PKG_CONFIG) --cflags gtk+-2.0)
 GTK_LDFLAGS := $(shell $(PKG_CONFIG) --libs gtk+-2.0)
 
-ifeq ($(BUILD_OS),SunOS)
-LIBXV = -lXv
-else
-LIBXV = -Wl,-Bstatic -lXv -Wl,-Bdynamic
-endif
-
-X11R6_LIBS := -L $(X11R6_LIB_DIR) -Wl,-Bstatic -lXxf86vm -Wl,-Bdynamic $(LIBXV) -lX11 -lXext
+X11R6_LIBS := -L $(X11R6_LIB_DIR) -Wl,-Bstatic -lXxf86vm -Wl,-Bdynamic -lX11 -lXext
 
 XNVCTRL_LIB := src/libXNVCtrl/libXNVCtrl.a
 
@@ -113,7 +123,7 @@ SRCDIRS := $(addprefix $(CURDIR)/, $(RELATIVE_SRCDIRS))
 INC_FLAGS := $(addprefix -I , $(RELATIVE_SRCDIRS))
 
 ALL_CFLAGS = $(CFLAGS) $(X11R6_CFLAGS) $(GTK_CFLAGS) $(INC_FLAGS)
-ALL_LDFLAGS = $(LDFLAGS) $(GTK_LDFLAGS) $(X11R6_LIBS)
+ALL_LDFLAGS = $(LD_RUN_FLAG) $(LDFLAGS) $(GTK_LDFLAGS) $(X11R6_LIBS)
 
 CPPFLAGS = $(ALL_CFLAGS)
 
@@ -129,7 +139,8 @@ STAMP_C = g_stamp.c
 
 # Define the files in the SAMPLES directory
 
-SAMPLES = Makefile README nv-control-dvc.c nv-control-info.c
+SAMPLES = Makefile README nv-control-dvc.c nv-control-info.c \
+	nv-control-events.c nv-ddcci-client.c
 
 # initialize SRC and EXTRA_DIST, then include each of the subdirectory
 # Makefiles so that they can append to SRC and EXTRA_DIST
@@ -159,13 +170,6 @@ DEPS_DIR = .deps
 OBJS := $(patsubst %.c,$(OBJS_DIR)/%.o,$(ALL_SRC))
 DEPS := $(patsubst %.c,$(DEPS_DIR)/%.d,$(SRC))
 
-# default echo within SunOS sh does not have -n option. Use /usr/ucb/echo instead.
-ifeq ($(BUILD_OS),SunOS)
-ECHO=/usr/ucb/echo
-else
-ECHO=echo
-endif
-
 # and now, the build rules:
 
 default: all
@@ -174,7 +178,7 @@ all: $(NVIDIA_SETTINGS)
 
 install: $(NVIDIA_SETTINGS)
 	$(STRIP) $<
-	$(INSTALL) $< $(bindir)/$<
+	$(INSTALL_RULE)
 
 $(OBJS_DIR)/%.o: %.c
 	@ mkdir -p $(OBJS_DIR)

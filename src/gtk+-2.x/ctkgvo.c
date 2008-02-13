@@ -169,8 +169,13 @@ static const FormatName videoFormatNames[] = {
     { NV_CTRL_GVO_VIDEO_FORMAT_1080P_25_00_SMPTE274,     "1080p   25.00  Hz  (SMPTE274)"    },
     { NV_CTRL_GVO_VIDEO_FORMAT_1080P_29_97_SMPTE274,     "1080p   29.97  Hz  (SMPTE274)"    },
     { NV_CTRL_GVO_VIDEO_FORMAT_1080P_30_00_SMPTE274,     "1080p   30.00  Hz  (SMPTE274)"    },
-    { NV_CTRL_GVO_VIDEO_FORMAT_1080I_23_98_SMPTE274,     "1080PsF 23.98  Hz  (SMPTE274)"    },
-    { NV_CTRL_GVO_VIDEO_FORMAT_1080I_24_00_SMPTE274,     "1080PsF 24.00  Hz  (SMPTE274)"    },
+    { NV_CTRL_GVO_VIDEO_FORMAT_1080I_47_96_SMPTE274,     "1080i   47.96  Hz  (SMPTE274)"    },
+    { NV_CTRL_GVO_VIDEO_FORMAT_1080I_48_00_SMPTE274,     "1080i   48.00  Hz  (SMPTE274)"    },
+    { NV_CTRL_GVO_VIDEO_FORMAT_1080PSF_25_00_SMPTE274,   "1080PsF 25.00  Hz  (SMPTE274)"    },
+    { NV_CTRL_GVO_VIDEO_FORMAT_1080PSF_29_97_SMPTE274,   "1080PsF 29.97  Hz  (SMPTE274)"    },
+    { NV_CTRL_GVO_VIDEO_FORMAT_1080PSF_30_00_SMPTE274,   "1080PsF 30.00  Hz  (SMPTE274)"    },
+    { NV_CTRL_GVO_VIDEO_FORMAT_1080PSF_24_00_SMPTE274,   "1080PsF 24.00  Hz  (SMPTE274)"    },
+    { NV_CTRL_GVO_VIDEO_FORMAT_1080PSF_23_98_SMPTE274,   "1080PsF 23.98  Hz  (SMPTE274)"    },
     { -1, NULL },
 };
 
@@ -640,16 +645,6 @@ static void output_data_format_changed(CtkDropDownMenu *menu,
 
 
 /**************************************************************************/
-
-
-
-static gboolean update_status(gpointer user_data)
-{
-    //CtkGvo *ctk_gvo = CTK_GVO(user_data);
-    
-    
-    return TRUE;
-}
 
 
 

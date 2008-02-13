@@ -37,8 +37,6 @@
 #include <X11/Xlib.h>
 #include <X11/extensions/Xrandr.h> /* Xrandr */
 
-#define NV_DLSYM(handle, symbol) ({ dlerror(); dlsym(handle, symbol); })
-
 #include "NvCtrlAttributes.h"
 #include "NvCtrlAttributesPrivate.h"
 #include "NVCtrlLib.h"
@@ -69,14 +67,14 @@ set_rotation(NvCtrlAttributePrivateHandle *h, Rotation rotation)
     }
 
     /* Get current size & orientation */
-    sc = h->xrandr->XRRGetScreenInfo(h->dpy, DefaultRootWindow(h->dpy));
+    sc = h->xrandr->XRRGetScreenInfo(h->xrandr->dpy, DefaultRootWindow(h->xrandr->dpy));
     if ( !sc ) {
         return NvCtrlError;
     }
     cur_size = h->xrandr->XRRConfigCurrentConfiguration(sc, &cur_rotation);
 
-    status = h->xrandr->XRRSetScreenConfig (h->dpy, sc,
-                                            DefaultRootWindow(h->dpy),
+    status = h->xrandr->XRRSetScreenConfig (h->xrandr->dpy, sc,
+                                            DefaultRootWindow(h->xrandr->dpy),
                                             cur_size, rotation, CurrentTime);
     h->xrandr->XRRFreeScreenConfigInfo(sc);
 
@@ -164,13 +162,19 @@ NvCtrlInitXrandrAttributes (NvCtrlAttributePrivateHandle *h)
     if ((error = dlerror()) != NULL) goto fail;
 
 
+    /* Duplicate the display connection */
+
+    xrandr->dpy = XOpenDisplay(XDisplayString(h->dpy));
+    if ( xrandr->dpy == NULL )
+        goto fail;
+
     /* Verify rotation is supported */
-    ret = xrandr->XRRQueryExtension(h->dpy, &xrandr->event_base,
+    ret = xrandr->XRRQueryExtension(xrandr->dpy, &xrandr->event_base,
                                     &xrandr->error_base);
     if ( !ret ) goto fail;
 
-    xrandr->rotations = xrandr->XRRRotations(h->dpy, h->screen, &rotation);
-    sizes             = xrandr->XRRSizes(h->dpy, h->screen, &(xrandr->nsizes));
+    xrandr->rotations = xrandr->XRRRotations(xrandr->dpy, h->screen, &rotation);
+    sizes             = xrandr->XRRSizes(xrandr->dpy, h->screen, &(xrandr->nsizes));
 
     /* Must support more than one rotation orientation */
     if ( (xrandr->rotations == 1) || (xrandr->rotations == 2) ||
@@ -180,7 +184,7 @@ NvCtrlInitXrandrAttributes (NvCtrlAttributePrivateHandle *h)
 
     
     /* Register to recieve XRandR events */
-    xrandr->XRRSelectInput(h->dpy, DefaultRootWindow(h->dpy),
+    xrandr->XRRSelectInput(xrandr->dpy, DefaultRootWindow(xrandr->dpy),
                            RRScreenChangeNotifyMask);   
 
     //    xrandr->rotations = 1;
@@ -194,6 +198,9 @@ NvCtrlInitXrandrAttributes (NvCtrlAttributePrivateHandle *h)
         nv_error_msg("libXrandr setup error : %s\n", error);
     }
     if ( xrandr != NULL ) {
+        if ( xrandr->dpy != NULL ) {
+            XCloseDisplay(xrandr->dpy);
+        }
         if ( xrandr->libXrandr != NULL ) {
             dlclose(xrandr->libXrandr);
         }
@@ -220,6 +227,9 @@ NvCtrlXrandrAttributesClose (NvCtrlAttributePrivateHandle *h)
         return;
     }
 
+    if ( h->xrandr->dpy ) {
+        XCloseDisplay(h->xrandr->dpy);
+    }
     if ( h->xrandr->libXrandr != NULL ) {
         dlclose( h->xrandr->libXrandr );
     }
@@ -269,7 +279,7 @@ NvCtrlXrandrGetAttribute (NvCtrlAttributePrivateHandle *h,
         break;
 
     case NV_CTRL_ATTR_XRANDR_ROTATION:
-        sc = h->xrandr->XRRGetScreenInfo(h->dpy, DefaultRootWindow(h->dpy));
+        sc = h->xrandr->XRRGetScreenInfo(h->xrandr->dpy, DefaultRootWindow(h->xrandr->dpy));
         h->xrandr->XRRConfigRotations(sc, &rotation);
         h->xrandr->XRRFreeScreenConfigInfo(sc);
 

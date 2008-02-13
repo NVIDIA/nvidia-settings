@@ -29,18 +29,13 @@
 
 #include "big_banner_penguin.h"
 #include "big_banner_bsd.h"
+#include "big_banner_sun.h"
 
 #include "image.h"
 
 #include "ctkdevice.h"
 #include "ctkhelp.h"
-
-static void add_table_row(GtkWidget *table,
-                          const gint row,
-                          const gint value_alignment,
-                          const gchar *name,
-                          const gchar *value);
-
+#include "ctkutils.h"
 #define N_GDK_PIXBUFS 45
 
 
@@ -202,7 +197,7 @@ GtkWidget* ctk_device_new(
     } else if (os_val == NV_CTRL_OPERATING_SYSTEM_FREEBSD) {
         img = &big_banner_bsd_image;
     } else if (os_val == NV_CTRL_OPERATING_SYSTEM_SUNOS) {
-        img = &big_banner_penguin_image; /* XXX To be replaced with Sun Logo */
+        img = &big_banner_sun_image;
     } else {
         img = &big_banner_penguin_image; /* Should never get here */
     }
@@ -261,26 +256,6 @@ GtkWidget* ctk_device_new(
     return GTK_WIDGET(object);
 }
 
-
-static void add_table_row(GtkWidget *table,
-                          const gint row,
-                          const gint value_alignment,
-                          const gchar *name,
-                          const gchar *value)
-{
-    GtkWidget *label;
-
-    label = gtk_label_new(name);
-    gtk_misc_set_alignment(GTK_MISC(label), 0, 0.5);
-    gtk_table_attach(GTK_TABLE(table), label, 0, 1, row, row + 1,
-                     GTK_FILL, GTK_EXPAND | GTK_FILL, 0, 0);
-
-    label = gtk_label_new(value);
-    gtk_misc_set_alignment(GTK_MISC(label), value_alignment, 0.5);
-    gtk_table_attach(GTK_TABLE(table), label, 1, 2, row, row + 1,
-                     GTK_FILL, GTK_EXPAND | GTK_FILL, 0, 0);
-}
-    
     
 GtkTextBuffer *ctk_device_create_help(GtkTextTagTable *table,
                                       const gchar *screen_name)

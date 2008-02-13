@@ -84,7 +84,7 @@ static void add_member_to_list_store(CtkFramelock *ctk_framelock,
 static void apply_parsed_attribute_list(CtkFramelock *ctk_framelock,
                                         ParsedAttribute *p);
 
-static GtkWidget *add_house_sync_controls(CtkFramelock *ctk_framelock);
+static GtkWidget *add_house_sync_controls(NvCtrlAttributeHandle *handle, CtkFramelock *ctk_framelock);
 static void update_house_sync_controls(CtkFramelock *ctk_framelock);
 
 static void add_columns_to_treeview(CtkFramelock *ctk_framelock);
@@ -323,7 +323,7 @@ GtkWidget* ctk_framelock_new(NvCtrlAttributeHandle *handle,
 
     /* Sync Interval and House Sync Format controls */
     
-    hbox = add_house_sync_controls(ctk_framelock);
+    hbox = add_house_sync_controls(handle, ctk_framelock);
     gtk_box_pack_start(GTK_BOX(object), hbox, FALSE, TRUE, 0);
     
     hseparator = gtk_hseparator_new();
@@ -453,6 +453,8 @@ static gchar *houseFormatStrings[] = {
     "Composite, Tri-Level", /* VIDEO_MODE_COMPOSITE_TRI_LEVEL */
     };
 
+static void use_house_sync_released(GtkToggleButton *togglebutton,
+                                             gpointer user_data);
 static void detect_house_sync_format_toggled(GtkToggleButton *togglebutton,
                                              gpointer user_data);
 
@@ -640,26 +642,136 @@ static void detect_house_sync_format_toggled(GtkToggleButton *togglebutton,
     
 } /* detect_house_sync_format_toggled() */
 
+/*
+ * When the use_house_sync button is released, check to see if we
+ * have a house signal (if applicable) then try to set the state of
+ * the hardware (i.e. P294). We do this as a release instead of a toggler
+ * because if
+ * the hardware change is not successful, we must toggle the button
+ * back, which would end up triggering toggle function from the toggle function.
+ */
+
+static void use_house_sync_released(GtkToggleButton *togglebutton,
+                                             gpointer user_data)
+{
+    
+    NvCtrlAttributeHandle *handle = NULL;
+    CtkFramelock *ctk_framelock = CTK_FRAMELOCK(user_data);
+    gboolean enabled;
+    gint val;
+        
+
+    enabled = gtk_toggle_button_get_active(togglebutton);
+    if (find_master(ctk_framelock, NULL, &handle)) 
+    {
+        if (enabled)
+        {
+            if (( NvCtrlGetAttribute(
+                handle, NV_CTRL_FRAMELOCK_HOUSE_STATUS, &val)) !=
+                NvCtrlSuccess)
+            {
+                ctk_config_statusbar_message(ctk_framelock->ctk_config,
+                        "Framelock could not determine house sync status.");
+                gtk_toggle_button_set_active(togglebutton, !enabled);
+                return;
+            }
+            else if (!val)
+            {
+                ctk_config_statusbar_message(ctk_framelock->ctk_config,
+                        "Framelock could not find house sync signal.");
+                gtk_toggle_button_set_active(togglebutton, !enabled);
+                return;
+            }
+        }
+        if (( NvCtrlSetAttribute(handle, NV_CTRL_USE_HOUSE_SYNC, enabled)) !=
+            NvCtrlSuccess) 
+        {
+            ctk_config_statusbar_message(ctk_framelock->ctk_config,
+                                "Framelock could not %sable house sync.", 
+                                enabled ? "en" : "dis");
+            gtk_toggle_button_set_active(togglebutton, !enabled);
+            return;
+        }
+    } 
+    else 
+    {
+        ctk_config_statusbar_message(ctk_framelock->ctk_config,
+                            "Framelock could not establish master.");
+        gtk_toggle_button_set_active(togglebutton, !enabled);
+        return;
+    }
+
+    gtk_widget_set_sensitive(ctk_framelock->sync_interval_frame, enabled);
+    gtk_widget_set_sensitive(ctk_framelock->house_format_frame, enabled);
+   
+    ctk_config_statusbar_message(ctk_framelock->ctk_config,
+                                "Framelock %s house sync.", 
+                                enabled ? "using" : "not using");
+    
+} /* use_house_sync_released() */
 
 
 /*
  * add_house_sync_controls() -
  */
 
-static GtkWidget *add_house_sync_controls(CtkFramelock *ctk_framelock)
+static GtkWidget *add_house_sync_controls(NvCtrlAttributeHandle *handle, CtkFramelock *ctk_framelock)
 {
+    GtkWidget *hboxroot;
     GtkWidget *hbox;
+    GtkWidget *vbox;
     GtkWidget *hbox2;
     GtkWidget *label;
+    GtkWidget *check_button;
     GList *glist;
+    gint val = 0;
+    gboolean use_house_sync_option = FALSE;
+    ReturnStatus ret;
     
+    
+    hboxroot = gtk_vbox_new(FALSE, 5);
+
+    ctk_framelock->house_sync_frame = gtk_frame_new(NULL);
+    gtk_box_pack_start(GTK_BOX(hboxroot), ctk_framelock->house_sync_frame,
+        FALSE, TRUE, 0);
+
+    vbox = gtk_vbox_new(FALSE, 5);
+    gtk_container_add(GTK_CONTAINER(ctk_framelock->house_sync_frame),vbox);
+
+    ctk_framelock->use_house_sync_button = NULL;
+
+    ret = NvCtrlGetAttribute(handle, NV_CTRL_USE_HOUSE_SYNC, &val);
+    if (ret == NvCtrlSuccess) {
+        use_house_sync_option = TRUE;
+ 
+        hbox = gtk_hbox_new(FALSE, 5);
+
+        gtk_box_pack_start(GTK_BOX(vbox), hbox, FALSE, TRUE, 5);
+
+        label = gtk_label_new("Use House Sync");
+
+        check_button = gtk_check_button_new();
+        gtk_container_add(GTK_CONTAINER(check_button), label);
+        ctk_framelock->use_house_sync_button = check_button;
+
+        gtk_toggle_button_set_active(GTK_TOGGLE_BUTTON(check_button), val);
+
+        gtk_box_pack_start(GTK_BOX(hbox), check_button, FALSE, FALSE, 5);
+  
+        // see callback definition for why we use "released"
+        g_signal_connect(G_OBJECT(check_button), "released",
+                         G_CALLBACK(use_house_sync_released),
+                         (gpointer) ctk_framelock);
+    }
+
     hbox = gtk_hbox_new(FALSE, 5);
+    gtk_box_pack_start(GTK_BOX(vbox), hbox, FALSE, TRUE, 5);
     
     /* sync interval */
 
     ctk_framelock->sync_interval_frame = gtk_frame_new(NULL);
     gtk_box_pack_start(GTK_BOX(hbox), ctk_framelock->sync_interval_frame,
-                       FALSE, TRUE, 0);
+                       FALSE, TRUE, 5);
     
     hbox2 = gtk_hbox_new(FALSE, 5);
     gtk_container_add(GTK_CONTAINER(ctk_framelock->sync_interval_frame),hbox2);
@@ -734,7 +846,14 @@ static GtkWidget *add_house_sync_controls(CtkFramelock *ctk_framelock)
                      G_CALLBACK(detect_house_sync_format_toggled),
                      ctk_framelock);
 
-    return hbox;
+    /* disable these controls until use_house_sync is selected */
+    if (use_house_sync_option)
+    {
+        gtk_widget_set_sensitive(ctk_framelock->sync_interval_frame, FALSE);
+        gtk_widget_set_sensitive(ctk_framelock->house_format_frame, FALSE);
+    }
+
+    return hboxroot;
     
 } /* add_house_sync_controls() */
 
@@ -748,7 +867,7 @@ static GtkWidget *add_house_sync_controls(CtkFramelock *ctk_framelock)
 static void update_house_sync_controls(CtkFramelock *ctk_framelock)
 {
     GtkTreeModel *model = GTK_TREE_MODEL(ctk_framelock->list_store);
-    gboolean house = FALSE, sensitive;
+    gboolean house = FALSE, sensitive, use_house;
     gint sync_interval, house_format;
     gchar str[32];
     GtkTreeIter iter;
@@ -772,8 +891,27 @@ static void update_house_sync_controls(CtkFramelock *ctk_framelock)
             (GTK_ENTRY(GTK_COMBO(ctk_framelock->house_format_combo)->entry),
              houseFormatStrings[house_format]);
     }
-    
-    if (ctk_framelock->framelock_enabled) {
+
+    use_house = TRUE;
+  
+    if (ctk_framelock->use_house_sync_button)
+    { 
+        use_house = 
+            gtk_toggle_button_get_active( 
+            GTK_TOGGLE_BUTTON(ctk_framelock->use_house_sync_button)); 
+    }
+
+    if (ctk_framelock->framelock_enabled)
+    {
+        sensitive = FALSE;
+    } else {
+        sensitive = TRUE;
+    }
+
+    // This includes the checkbutton for selecting house sync
+    gtk_widget_set_sensitive(ctk_framelock->house_sync_frame, sensitive);
+
+    if (ctk_framelock->framelock_enabled || !use_house) {
         sensitive = FALSE;
     } else {
         sensitive = TRUE;
@@ -1062,7 +1200,7 @@ static void led_renderer_func(GtkTreeViewColumn *tree_column,
     static GdkPixbuf *led_green_pixbuf = NULL;
     static GdkPixbuf *led_red_pixbuf = NULL;
     static GdkPixbuf *led_grey_pixbuf = NULL;
-    gboolean value, master, framelock_enabled;
+    gboolean value, master, framelock_enabled, use_house;
     gpointer obj;
     gint column, house = 0;
 
@@ -1079,9 +1217,15 @@ static void led_renderer_func(GtkTreeViewColumn *tree_column,
                        COLUMN_MASTER, &master, -1);
 
     framelock_enabled = FALSE;  
+    use_house = TRUE;
     if (obj) {
         CtkFramelock *ctk_framelock = CTK_FRAMELOCK(obj);
         if (ctk_framelock->framelock_enabled) framelock_enabled = TRUE;
+        if (ctk_framelock->use_house_sync_button) {
+            use_house =
+                gtk_toggle_button_get_active(
+                GTK_TOGGLE_BUTTON(ctk_framelock->use_house_sync_button));
+        }
     }
 
     gtk_tree_model_get(model, iter, COLUMN_HOUSE, &house, -1);
@@ -1091,10 +1235,12 @@ static void led_renderer_func(GtkTreeViewColumn *tree_column,
      * (otherwise, it will be red when framelock is enabled, which is
      * confusing).
      *
-     * If we are receiving house sync, then light the LED green.
+     * If we are receiving house sync, then light the LED green, unless
+     * the user has opted to not use it (e.g. p294)
      */
     
-    if ((column == COLUMN_TIMING) && master && framelock_enabled && !house) {
+    if ((column == COLUMN_TIMING) && master && framelock_enabled && 
+        (!house || !use_house)) {
         if (!led_grey_pixbuf)
             led_grey_pixbuf = gdk_pixbuf_new_from_xpm_data(led_grey_xpm);
         g_object_set(GTK_CELL_RENDERER(cell), "pixbuf", led_grey_pixbuf, NULL);
@@ -1717,7 +1863,13 @@ static void remove_x_screen(GtkWidget *button, gint response,
     model = GTK_TREE_MODEL(ctk_framelock->list_store);
     valid = gtk_tree_model_get_iter_first(model, &iter);
     if (!valid) {
+        // Nothing to house sync to
+        if (ctk_framelock->use_house_sync_button) {
+            gtk_toggle_button_set_active(GTK_TOGGLE_BUTTON(
+                ctk_framelock->use_house_sync_button), FALSE);
+        }
         gtk_widget_set_sensitive(ctk_framelock->sync_state_button, FALSE);
+        update_house_sync_controls (ctk_framelock);
     }
 }
 
@@ -2139,11 +2291,6 @@ static void toggle_sync_state_button(GtkWidget *button,
         gtk_widget_set_sensitive(ctk_framelock->remove_x_screen_button, FALSE);
         gtk_widget_set_sensitive(ctk_framelock->test_link_button, TRUE);
         
-        /* disable the house sync controls */
-
-        gtk_widget_set_sensitive(ctk_framelock->sync_interval_frame, FALSE);
-        gtk_widget_set_sensitive(ctk_framelock->house_format_frame, FALSE);
-
     } else {
         if (ctk_framelock->framelock_enabled) {
             gtk_container_remove
@@ -2162,14 +2309,11 @@ static void toggle_sync_state_button(GtkWidget *button,
 
         selection = gtk_tree_view_get_selection(ctk_framelock->treeview);
         tree_selection_changed(selection, GTK_OBJECT(ctk_framelock));
-
-        /* enable the house sync controls */
-
-        gtk_widget_set_sensitive(ctk_framelock->sync_interval_frame, TRUE);
-        gtk_widget_set_sensitive(ctk_framelock->house_format_frame, TRUE);
     }
 
     ctk_framelock->framelock_enabled = enabled;
+
+    update_house_sync_controls (ctk_framelock);
 
     ctk_config_statusbar_message(ctk_framelock->ctk_config,
                                  "FrameLock %s.",
@@ -2386,6 +2530,8 @@ static gboolean check_for_ethernet(gpointer user_data)
     gchar *display_name;
     gboolean valid;
     gint val;
+
+    static gboolean first_error = TRUE;
     
     ctk_framelock = CTK_FRAMELOCK(user_data);
     model = GTK_TREE_MODEL(ctk_framelock->list_store);
@@ -2399,22 +2545,26 @@ static gboolean check_for_ethernet(gpointer user_data)
         NvCtrlGetAttribute(handle, NV_CTRL_FRAMELOCK_ETHERNET_DETECTED, &val);
     
         if (val != NV_CTRL_FRAMELOCK_ETHERNET_DETECTED_NONE) {
-            error_msg(ctk_framelock, "<span weight=\"bold\" size=\"larger\">"
-                      "FrameLock RJ45 Error</span>\n\n"
-                      "Either an Ethernet LAN cable is connected to the "
-                      "framelock board on X Screen '%s' or the linked PC is "
-                      "not turned on. "
-                      "Either disconnect the LAN cable or turn on the linked "
-                      "PC for proper operation.",
-                      display_name);
-            
-            ctk_config_remove_timer(ctk_framelock->ctk_config,
-                                    (GSourceFunc) check_for_ethernet);
-            return FALSE;
+
+            if (first_error) {
+                error_msg(ctk_framelock, "<span weight=\"bold\" "
+                          "size=\"larger\">FrameLock RJ45 Error</span>\n\n"
+                          "Either an Ethernet LAN cable is connected to the "
+                          "framelock board on X Screen '%s' or the linked "
+                          "PC is not turned on.  Either disconnect the LAN "
+                          "cable or turn on the linked PC for proper "
+                          "operation.",
+                          display_name);
+            }
+            first_error = FALSE;
+
+            return TRUE;
         }
 
         valid = gtk_tree_model_iter_next(model, &iter);
     }
+
+    first_error = TRUE;
 
     return TRUE;
 }
@@ -2734,4 +2884,32 @@ GtkTextBuffer *ctk_framelock_create_help(GtkTextTagTable *table)
     ctk_help_finish(b);
 
     return b;
+}
+
+
+void ctk_framelock_select(GtkWidget *w)
+{
+    CtkFramelock *ctk_framelock = CTK_FRAMELOCK(w);
+
+    /* Start the framelock timers */
+
+    ctk_config_start_timer(ctk_framelock->ctk_config,
+                           (GSourceFunc) update_status);
+    
+    ctk_config_start_timer(ctk_framelock->ctk_config,
+                           (GSourceFunc) check_for_ethernet);
+}
+
+
+void ctk_framelock_unselect(GtkWidget *w)
+{
+    CtkFramelock *ctk_framelock = CTK_FRAMELOCK(w);
+
+    /* Stop the framelock timers */
+
+    ctk_config_stop_timer(ctk_framelock->ctk_config,
+                          (GSourceFunc) update_status);
+
+    ctk_config_stop_timer(ctk_framelock->ctk_config,
+                          (GSourceFunc) check_for_ethernet);
 }

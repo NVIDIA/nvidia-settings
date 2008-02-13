@@ -22,7 +22,7 @@
  *
  */
 
-#include <stdlib.h>
+#include <stdlib.h> /* malloc */
 #include <gtk/gtk.h>
 #include <gdk/gdkx.h>
 #include <X11/Xlib.h>
@@ -39,6 +39,7 @@
 #include "rotate_right_off.h"
 
 #include "ctkevent.h"
+#include "ctkhelp.h"
 #include "ctkrandr.h"
 
 
@@ -405,8 +406,6 @@ GtkWidget* ctk_randr_new(NvCtrlAttributeHandle *handle,
 {
     GObject *object;
     CtkRandR *ctk_randr;
-    GtkWidget *alignment;
-    GtkWidget *button;
 
     Bool ret;  /* NvCtrlxxx function return value */
     int  rotation_supported;

@@ -186,6 +186,17 @@ void nv_free_ctrl_handles(CtrlHandles *h)
     if (h->display) free(h->display);
 
     if (h->dpy) {
+
+        /*
+         * XXX It is unfortunate that the display connection needs
+         * to be closed before the backends have had a chance to
+         * tear down their state. If future backends need to send
+         * protocol in this case or perform similar tasks, we'll
+         * have to add e.g. NvCtrlAttributeTearDown(), which would
+         * need to be called before XCloseDisplay().
+         */
+        XCloseDisplay(h->dpy);
+        h->dpy = NULL;
         
         for (i = 0; i < h->num_screens; i++) {
             NvCtrlAttributeClose(h->h[i]);
@@ -195,8 +206,6 @@ void nv_free_ctrl_handles(CtrlHandles *h)
         if (h->d) free(h->d);
         if (h->h) free(h->h);
         if (h->screen_names) free(h->screen_names);
-        
-        XCloseDisplay(h->dpy);
     }
     
     free(h);

@@ -30,9 +30,11 @@ SRC += \
 	image.c
 
 EXTRA_DIST += \
+	HOWTO-ADD-IMAGES \
 	antialiasing_banner.h \
 	big_banner_bsd.h \
 	big_banner_penguin.h \
+	big_banner_sun.h \
 	color_correction_banner.h \
 	configuration_banner.h \
 	frame_lock_banner.h \
@@ -76,5 +78,5 @@ EXTRA_DIST += \
 	rotation_orientation_horiz_flipped.h \
 	rotation_orientation_horiz.h \
 	rotation_orientation_vert_flipped.h \
-	rotation_orientation_vert.h
-	
+	rotation_orientation_vert.h \
+        clocks_banner.h

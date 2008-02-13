@@ -26,6 +26,7 @@
 #define __MSG_H__
 
 #include <stdarg.h>
+#include <stdio.h>
 
 void  nv_error_msg(const char*, ...);
 void  nv_warning_msg(const char*, ...);

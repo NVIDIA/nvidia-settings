@@ -32,6 +32,7 @@
 #include "ctkimagesliders.h"
 #include "ctkconfig.h"
 #include "ctkhelp.h"
+#include "ctkutils.h"
 
 
 static GtkWidget *make_scaling_radio_button(CtkDisplayDeviceDfp
@@ -71,6 +72,7 @@ static void dfp_update_received(GtkObject *object, gpointer arg1,
 
 #define __SCALING (1<<0)
 #define __DITHERING (1<<1)
+#define __INFO (1<<2)
 
 
 static const char *__scaling_help =
@@ -84,6 +86,10 @@ static const char *__dithering_help =
 "Some GeForce2 GPUs required dithering to "
 "properly display on a flatpanel; this option allows "
 "you to control the dithering behavior.";
+
+static const char *__info_help = 
+"This section describes basic informations about the "
+"DVI connection to the digital flat panel.";
 
 
 GType ctk_display_device_dfp_get_type(void)
@@ -136,6 +142,8 @@ GtkWidget* ctk_display_device_dfp_new(NvCtrlAttributeHandle *handle,
     GtkWidget *radio2;
     GtkWidget *radio3;
     GtkWidget *alignment;
+    
+    GtkWidget *table;
     
     ReturnStatus ret;
     
@@ -202,11 +210,64 @@ GtkWidget* ctk_display_device_dfp_new(NvCtrlAttributeHandle *handle,
                            "The Reset Hardware Defaults button restores "
                            "the DFP settings to their default values.");
 
-    /* create the hbox to store scaling and dithering */
+    /* create the hbox to store dfp info, scaling and dithering */
 
     hbox = gtk_hbox_new(FALSE, FRAME_PADDING);
     gtk_box_pack_start(GTK_BOX(object), hbox, TRUE, TRUE, FRAME_PADDING);
 
+    /* DFP info */
+    ret = NvCtrlGetDisplayAttribute(handle, display_device_mask,
+                                    NV_CTRL_FLATPANEL_CHIP_LOCATION, &val);
+    if (ret == NvCtrlSuccess) {
+        char *chip_location, *link, *signal;
+        gint tmp;
+        
+        /* NV_CTRL_FLATPANEL_CHIP_LOCATION */
+        ret = NvCtrlGetDisplayAttribute(handle, display_device_mask, 
+                                        NV_CTRL_FLATPANEL_CHIP_LOCATION, &tmp);
+        chip_location = NULL;
+        if (ret == NvCtrlSuccess) {
+            if (tmp == NV_CTRL_FLATPANEL_CHIP_LOCATION_INTERNAL) chip_location = "Internal";
+            if (tmp == NV_CTRL_FLATPANEL_CHIP_LOCATION_EXTERNAL) chip_location = "External";
+        }
+         
+        ret = NvCtrlGetDisplayAttribute(handle, display_device_mask, 
+                                        NV_CTRL_FLATPANEL_LINK, &tmp);
+        link = NULL;
+        if (ret == NvCtrlSuccess) {
+            if (tmp == NV_CTRL_FLATPANEL_LINK_SINGLE) link = "Single";
+            if (tmp == NV_CTRL_FLATPANEL_LINK_DUAL) link = "Dual";
+        }
+        
+        ret = NvCtrlGetDisplayAttribute(handle, display_device_mask, 
+                                        NV_CTRL_FLATPANEL_SIGNAL, &tmp);
+        signal = NULL;
+        if (ret == NvCtrlSuccess) {
+            if (tmp == NV_CTRL_FLATPANEL_SIGNAL_LVDS) signal = "LVDS";
+            if (tmp == NV_CTRL_FLATPANEL_SIGNAL_TMDS) signal = "TMDS";
+        }
+          
+        frame = gtk_frame_new("Flat Panel Information");
+        gtk_box_pack_start(GTK_BOX(hbox), frame, TRUE, TRUE, 0);
+        
+        table = gtk_table_new(3, 2, FALSE);
+        gtk_container_add(GTK_CONTAINER(frame), table);
+        
+        gtk_table_set_row_spacings(GTK_TABLE(table), 3);
+        gtk_table_set_col_spacings(GTK_TABLE(table), 15);
+
+        gtk_container_set_border_width(GTK_CONTAINER(table), 5);
+
+    
+        add_table_row(table, 0, 0, "Chip location:", chip_location);
+        add_table_row(table, 1, 0, "DVI connection link:", link);
+        add_table_row(table, 2, 0, "Signal:", signal);
+        
+        ctk_display_device_dfp->active_attributes |= __INFO;
+    }
+    else
+        ctk_display_device_dfp->active_attributes &= ~__INFO;
+    
     /* FlatPanel Scaling */
     
     ret = NvCtrlGetDisplayAttribute(handle, display_device_mask,
@@ -749,6 +810,28 @@ GtkTextBuffer *ctk_display_device_dfp_create_help(GtkTextTagTable *table,
     gtk_text_buffer_get_iter_at_offset(b, &i, 0);
     
     ctk_help_title(b, &i, "%s Help", ctk_display_device_dfp->name);
+    
+    if (ctk_display_device_dfp->active_attributes & __INFO) {
+        ctk_help_heading(b, &i, "FlatPanel Information");
+        ctk_help_para(b, &i, __info_help);
+        
+        ctk_help_term(b, &i, "Chip Location");
+        ctk_help_para(b, &i, "Report whether the flatpanel is driven by "
+                      "the on-chip controller (internal), or a "
+                      " separate controller chip elsewhere on the "
+                      "graphics board (external)");
+                      
+        ctk_help_term(b, &i, "Link");
+        ctk_help_para(b, &i, "Report whether the specified display device "
+                      "is driven by a single link or dual link DVI "
+                      "connection.");
+        
+        ctk_help_term(b, &i, "Signal");
+        ctk_help_para(b, &i, "Report whether the flatpanel is driven by "
+                       "an LVDS or TMDS signal");
+        
+        ret = TRUE;
+    }
     
     if (ctk_display_device_dfp->active_attributes & __SCALING) {
         ctk_help_heading(b, &i, "FlatPanel Scaling");

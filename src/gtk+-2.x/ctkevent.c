@@ -187,7 +187,13 @@ static void ctk_event_class_init(CtkEventClass *ctk_event_class)
     MAKE_SIGNAL(NV_CTRL_GVO_VIDEO_FORMAT_REFRESH_RATE);
     MAKE_SIGNAL(NV_CTRL_GVO_X_SCREEN_PAN_X);
     MAKE_SIGNAL(NV_CTRL_GVO_X_SCREEN_PAN_Y);
-    
+    MAKE_SIGNAL(NV_CTRL_GPU_OVERCLOCKING_STATE);
+    MAKE_SIGNAL(NV_CTRL_GPU_2D_CLOCK_FREQS);
+    MAKE_SIGNAL(NV_CTRL_GPU_3D_CLOCK_FREQS);
+    MAKE_SIGNAL(NV_CTRL_GPU_OPTIMAL_CLOCK_FREQS);
+    MAKE_SIGNAL(NV_CTRL_GPU_OPTIMAL_CLOCK_FREQS_DETECTION_STATE);
+    MAKE_SIGNAL(NV_CTRL_USE_HOUSE_SYNC);
+
 #undef MAKE_SIGNAL
     
     /*
@@ -197,7 +203,7 @@ static void ctk_event_class_init(CtkEventClass *ctk_event_class)
      * knows about.
      */
 
-#if NV_CTRL_LAST_ATTRIBUTE != NV_CTRL_GVO_X_SCREEN_PAN_Y
+#if NV_CTRL_LAST_ATTRIBUTE != NV_CTRL_USE_HOUSE_SYNC
 #warning "There are attributes that do not emit signals!"
 #endif
 
@@ -279,11 +285,12 @@ static gboolean ctk_event_check(GSource *source)
 {
     CtkEventSource *event_source = (CtkEventSource *) source;
 
-    if (event_source->event_poll_fd.revents & G_IO_IN) {
-        return XPending(event_source->dpy);
-    }
-    
-    return FALSE;
+    /*
+     * XXX We could check for (event_source->event_poll_fd.revents & G_IO_IN),
+     * but doing so caused some events to be missed as they came in with only
+     * the G_IO_OUT flag set which is odd.
+     */
+    return XPending(event_source->dpy);
 }
 
 static gboolean ctk_event_dispatch(GSource *source,

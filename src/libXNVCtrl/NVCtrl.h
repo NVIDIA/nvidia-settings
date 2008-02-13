@@ -804,13 +804,20 @@
 #define NV_CTRL_GVO_VIDEO_FORMAT_1080P_29_97_SMPTE274           14
 #define NV_CTRL_GVO_VIDEO_FORMAT_1080P_30_00_SMPTE274           15
 #define NV_CTRL_GVO_VIDEO_FORMAT_720P_50_00_SMPTE296            16
-#define NV_CTRL_GVO_VIDEO_FORMAT_1080I_24_00_SMPTE274           17 
-#define NV_CTRL_GVO_VIDEO_FORMAT_1080I_23_98_SMPTE274           18
+#define NV_CTRL_GVO_VIDEO_FORMAT_1080I_24_00_SMPTE274           17 //deprecated
+#define NV_CTRL_GVO_VIDEO_FORMAT_1080I_48_00_SMPTE274           17
+#define NV_CTRL_GVO_VIDEO_FORMAT_1080I_23_98_SMPTE274           18 //deprecated
+#define NV_CTRL_GVO_VIDEO_FORMAT_1080I_47_96_SMPTE274           18
 #define NV_CTRL_GVO_VIDEO_FORMAT_720P_30_00_SMPTE296            19 
 #define NV_CTRL_GVO_VIDEO_FORMAT_720P_29_97_SMPTE296            20  
 #define NV_CTRL_GVO_VIDEO_FORMAT_720P_25_00_SMPTE296            21 
 #define NV_CTRL_GVO_VIDEO_FORMAT_720P_24_00_SMPTE296            22 
 #define NV_CTRL_GVO_VIDEO_FORMAT_720P_23_98_SMPTE296            23  
+#define NV_CTRL_GVO_VIDEO_FORMAT_1080PSF_25_00_SMPTE274         24
+#define NV_CTRL_GVO_VIDEO_FORMAT_1080PSF_29_97_SMPTE274         25
+#define NV_CTRL_GVO_VIDEO_FORMAT_1080PSF_30_00_SMPTE274         26
+#define NV_CTRL_GVO_VIDEO_FORMAT_1080PSF_24_00_SMPTE274         27
+#define NV_CTRL_GVO_VIDEO_FORMAT_1080PSF_23_98_SMPTE274         28
 
 
 /*
@@ -1006,14 +1013,1347 @@
  * XXX what sync error attributes do we need to expose?
  */
 
+/*
+ * NV_CTRL_GPU_OVERCLOCKING_STATE - query the current or set a new
+ * overclocking state; the value of this attribute controls the
+ * availability of additional overclocking attributes (see below).
+ *
+ * Note: this attribute is unavailable unless overclocking support
+ * has been enabled in the X server (by the user).
+ */
 
+#define NV_CTRL_GPU_OVERCLOCKING_STATE                          88  /* RW- */
+#define NV_CTRL_GPU_OVERCLOCKING_STATE_NONE                     0
+#define NV_CTRL_GPU_OVERCLOCKING_STATE_MANUAL                   1
+
+
+/*
+ * NV_CTRL_GPU_{2,3}D_CLOCK_FREQS - query or set the GPU and memory
+ * clocks of the device driving the X screen.  New clock frequencies
+ * are tested before being applied, and may be rejected.
+ *
+ * Note: if the target clocks are too aggressive, their testing may
+ * render the system unresponsive.
+ *
+ * Note: while this attribute can always be queried, it can't be set
+ * unless NV_CTRL_GPU_OVERCLOCKING_STATE is set to _MANUAL.  Since
+ * the target clocks may be rejected, the requester should read this
+ * attribute after the set to determine success or failure.
+ */
+
+#define NV_CTRL_GPU_2D_CLOCK_FREQS                              89  /* RW- */
+#define NV_CTRL_GPU_3D_CLOCK_FREQS                              90  /* RW- */
+
+
+/*
+ * NV_CTRL_GPU_DEFAULT_{2,3}D_CLOCK_FREQS - query the default memory
+ * and GPU core clocks of the device driving the X screen.
+ */
+
+#define NV_CTRL_GPU_DEFAULT_2D_CLOCK_FREQS                      91  /* R-- */
+#define NV_CTRL_GPU_DEFAULT_3D_CLOCK_FREQS                      92  /* R-- */
+
+
+/*
+ * NV_CTRL_GPU_CURRENT_CLOCK_FREQS - query the current GPU and memory
+ * clocks of the graphics device driving the X screen.
+ */
+
+#define NV_CTRL_GPU_CURRENT_CLOCK_FREQS                         93  /* R-- */
+
+
+/*
+ * NV_CTRL_GPU_OPTIMAL_CLOCK_FREQS - Holds the last calculated
+ * optimal 3D clock frequencies found by the
+ * NV_CTRL_GPU_OPTIMAL_CLOCK_FREQS_DETECTION process.  Querying this
+ * attribute before having probed for the optimal clocks will return
+ * NV_CTRL_GPU_OPTIMAL_CLOCK_FREQS_INVALID
+ *
+ * Note: unless NV_CTRL_GPU_OVERCLOCKING_STATE is set to _MANUAL, the
+ * optimal clock detection process is unavailable.
+ */
+
+#define NV_CTRL_GPU_OPTIMAL_CLOCK_FREQS                         94  /* R-- */
+#define NV_CTRL_GPU_OPTIMAL_CLOCK_FREQS_INVALID                  0
+
+
+/*
+ * NV_CTRL_GPU_OPTIMAL_CLOCK_FREQS_DETECTION - set to _START to
+ * initiate testing for the optimal 3D clock frequencies.  Once
+ * found, the optimal clock frequencies will be returned by the
+ * NV_CTRL_GPU_OPTIMAL_CLOCK_FREQS attribute asynchronously
+ * (using an X event, see XNVCtrlSelectNotify).
+ *
+ * To cancel an ongoing test for the optimal clocks, set the
+ * NV_CTRL_GPU_OPTIMAL_CLOCK_FREQS_DETECTION attribute to _CANCEL
+ *
+ * Note: unless NV_CTRL_GPU_OVERCLOCKING_STATE is set to _MANUAL, the
+ * optimal clock detection process is unavailable.
+ */
+
+#define NV_CTRL_GPU_OPTIMAL_CLOCK_FREQS_DETECTION               95  /* -W- */
+#define NV_CTRL_GPU_OPTIMAL_CLOCK_FREQS_DETECTION_START          0
+#define NV_CTRL_GPU_OPTIMAL_CLOCK_FREQS_DETECTION_CANCEL         1
+
+
+/*
+ * NV_CTRL_GPU_OPTIMAL_CLOCK_FREQS_DETECTION_STATE - query this
+ * variable to know if a test is currently being run to
+ * determine the optimal 3D clock frequencies.  _BUSY means a
+ * test is currently running, _IDLE means the test is not running.
+ *
+ * Note: unless NV_CTRL_GPU_OVERCLOCKING_STATE is set to _MANUAL, the
+ * optimal clock detection process is unavailable.
+ */
+
+#define NV_CTRL_GPU_OPTIMAL_CLOCK_FREQS_DETECTION_STATE         96  /* R-- */
+#define NV_CTRL_GPU_OPTIMAL_CLOCK_FREQS_DETECTION_STATE_IDLE     0
+#define NV_CTRL_GPU_OPTIMAL_CLOCK_FREQS_DETECTION_STATE_BUSY     1
+
+
+
+/*************************************************************************
+ * DDC/CI VCP codes                                                      *
+ * From the VESA Monitor Control Command Set (MCCS) Standard - Version 2 *
+ *************************************************************************/
+ 
+#define NV_CTRL_DDCCI_ON                                        1
+#define NV_CTRL_DDCCI_OFF                                       0
+
+/*************************************
+ * DDC/CI VCP CODES: GEOMETRY ADJUST *
+ *************************************/
+ 
+/* Increasing (decreasing) this value moves the image toward the right
+ * (left) side of the screen.
+ * Type: Range
+ */
+#define NV_CTRL_DDCCI_GEOMETRY_HORIZONTAL_POSITION              97 /* RWD */
+
+/* Increasing (decreasing) this value will increase (decrease) the width
+ * of the image.
+ * Type: Range
+ */
+#define NV_CTRL_DDCCI_GEOMETRY_HORIZONTAL_SIZE                  98 /* RWD */
+
+/* Increasing (decreasing) this value will cause the right and left sides
+ * of the image to become more (less) convex.
+ * Type: Range
+ */  
+#define NV_CTRL_DDCCI_GEOMETRY_HORIZONTAL_PINCUSHION            99 /* RWD */
+
+/* Increasing (decreasing) this value will move the center section of the
+ * image towards the right(left) side of the display.
+ * Type: Range
+ */  
+#define NV_CTRL_DDCCI_GEOMETRY_HORIZONTAL_PINCUSHION_BALANCE    100/* RWD */
+
+/* Increasing (decreasing) this value will shift the red pixels to the right
+ * (left) across the image and the blue pixels left (right) across the image
+ * with respect to the green pixels.
+ * Type: Range
+ */  
+#define NV_CTRL_DDCCI_GEOMETRY_HORIZONTAL_CONVERGENCE           101/* RWD */
+
+/* Increasing (decreasing) this value will increase (decrease) the
+ * density of pixels in the image center.
+ * Type: Range
+ */
+#define NV_CTRL_DDCCI_GEOMETRY_HORIZONTAL_LINEARITY             102/* RWD */
+
+/* Increasing (decreasing) this value shifts the density of pixels from
+ * the left (right) side to the right (left) side of the image.
+ * Type: Range
+ */
+#define NV_CTRL_DDCCI_GEOMETRY_HORIZONTAL_LINEARITY_BALANCE     103/* RWD */
+
+/* Increasing (decreasing) this value moves the image toward the
+ * top (bottom) edge of the display.
+ * Type: Range
+ */
+#define NV_CTRL_DDCCI_GEOMETRY_VERTICAL_POSITION                104/* RWD */
+
+/* Increasing (decreasing) this value will increase (decrease) the
+ * height of the image
+ * Type: Range
+ */
+#define NV_CTRL_DDCCI_GEOMETRY_VERTICAL_SIZE                    105/* RWD */
+
+/* Increasing (decreasing) this value will cause the top and bottom
+ * edges of the image to become more (less) convex.
+ * Type: Range
+ */
+#define NV_CTRL_DDCCI_GEOMETRY_VERTICAL_PINCUSHION              106/* RWD */
+
+/* Increasing (decreasing) this value will move the center section of
+ * the image toward the top (bottom) edge of the display.
+ * Type: Range
+ */
+#define NV_CTRL_DDCCI_GEOMETRY_VERTICAL_PINCUSHION_BALANCE      107/* RWD */
+
+/* Increasing (decreasing) this value shifts the red pixels up (down)
+ * across the image and the blue pixels down (up) across the image
+ * with respect to the green pixels.
+ * Type: Range
+ */
+#define NV_CTRL_DDCCI_GEOMETRY_VERTICAL_CONVERGENCE             108/* RWD */
+
+/* Increasing (decreasing) this value will increase (decrease) the
+ * density of scan lines in the image center.
+ * Type: Range
+ */
+#define NV_CTRL_DDCCI_GEOMETRY_VERTICAL_LINEARITY               109/* RWD */
+
+/* Increasing (decreasing) this value shifts the density of scan lines
+ * from the top (bottom) end to the bottom (top) end of the image.
+ * Type: Range
+ */
+#define NV_CTRL_DDCCI_GEOMETRY_VERTICAL_LINEARITY_BALANCE       110/* RWD */
+
+/* Increasing (decreasing) this value will increase (decrease) the
+ * degree of keystone distortion in the image.
+ * Type: Range
+ */
+#define NV_CTRL_DDCCI_GEOMETRY_KEYSTONE                         111/* RWD */
+
+/* Increasing (decreasing) this value shifts the top section of the
+ * image to the right (left) with respect to the bottom section of the
+ * image.
+ * Type: Range
+ */
+#define NV_CTRL_DDCCI_GEOMETRY_KEY_BALANCE                      112/* RWD */
+
+/* Increasing (decreasing) this value will increase (decrease) the
+ * degree of trapezoid distortion in the image.
+ * Type: Range
+ */
+#define NV_CTRL_DDCCI_GEOMETRY_TRAPEZOID                        113/* RWD */
+
+/* Increasing (decreasing) this value will increase (decrease) the
+ * ratio between the horizontal size at the top of the image and the
+ * horizontal size at the bottom of the image.
+ * Type: Range
+ */
+#define NV_CTRL_DDCCI_GEOMETRY_HORIZONTAL_TRAPEZOID             114/* RWD */
+
+/* Increasing (decreasing) this value will increase (decrease) the
+ * ratio between the vertical size at the left of the image and the
+ * vertical size at the right of the image.
+ * Type: Range
+ */
+#define NV_CTRL_DDCCI_GEOMETRY_VERTICAL_TRAPEZOID               115/* RWD */
+
+/* Increasing (decreasing) this value rotates the image (counter)
+  clockwise about the center point of the image.
+ * Type: Range
+ */
+#define NV_CTRL_DDCCI_GEOMETRY_TILT                             116/* RWD */
+
+/* Increasing (decreasing) this value will increase (decrease) the
+ * distance between the left and right sides at the top of the image.
+ * Type: Range
+ */
+#define NV_CTRL_DDCCI_GEOMETRY_TOP_CORNER                       117/* RWD */
+
+/* Increasing (decreasing) this value moves the top end of the
+ * image to the right (left).
+ * Type: Range
+ */
+#define NV_CTRL_DDCCI_GEOMETRY_TOP_CORNER_BALANCE               118/* RWD */
+
+/* Increasing (decreasing) this value will increase (decrease) the
+ * distance between the left and right sides at the bottom of the
+ * image.
+ * Type: Range
+ */
+#define NV_CTRL_DDCCI_GEOMETRY_BOTTOM_CORNER                    119/* RWD */
+
+/* Increasing (decreasing) this value moves the bottom end of the
+ * image to the right (left).
+ * Type: Range
+ */
+#define NV_CTRL_DDCCI_GEOMETRY_BOTTOM_CORNER_BALANCE            120/* RWD */
+
+
+/**************************************
+ * DDC/CI VCP CODES: PRESET SELECTION *
+ **************************************/
+
+/* Restore all factory presets including brightness / contrast,
+ * geometry, color and TV defaults.
+ * NV__CTRL_DDCCI_ON causes defaults to be restored 
+ * A value of NV_CTRL_DDCCI_OFF shall be ignored 
+ * Type: Boolean
+ */
+#define NV_CTRL_DDCCI_PRESET_RESTORE_DEFAULTS                   121/* -WD */
+
+/* Restores factory defaults for brightness and contrast adjustments.
+ * NV_CTRL_DDCCI_ON causes defaults to be restored 
+ * A value of NV_CTRL_DDCCI_OFF shall be ignored 
+ * Type: Boolean
+ */
+#define NV_CTRL_DDCCI_PRESET_RESTORE_DEFAULTS_BRIGHTNESS_CONTRAST 122/* -WD */
+
+/* Restore factory defaults for geometry adjustments.
+ * NV_CTRL_DDCCI_ON causes defaults to be restored 
+ * A value of NV_CTRL_DDCCI_OFF shall be ignored 
+ * Type: Boolean
+ */
+#define NV_CTRL_DDCCI_PRESET_RESTORE_DEFAULTS_GEOMETRY          123/* -WD */
+
+/* Restore factory defaults for color settings.
+ * NV_CTRL_DDCCI_ON causes defaults to be restored 
+ * A value of NV_CTRL_DDCCI_OFF shall be ignored 
+ * Type: Boolean
+ */
+#define NV_CTRL_DDCCI_PRESET_RESTORE_DEFAULTS_COLOR             124/* -WD */
+
+/* Restore factory defaults for TV functions.
+ * NV_CTRL_DDCCI_ON causes defaults to be restored 
+ * A value of NV_CTRL_DDCCI_OFF shall be ignored 
+ * Type: Boolean
+ */
+#define NV_CTRL_DDCCI_PRESET_RESTORE_DEFAULTS_TV                125/* -WD */
+
+/* Store / Restore the user saved values for current mode.
+ * - NV_CTRL_DDCCI_PRESET_SETTINGS_STORE_CURRENT:
+ *   Store current settings in the monitor.
+ * - NV_CTRL_DDCCI_PRESET_SETTINGS_RESTORE_FACTORY_DEFAULTS:
+ *  Restore factory defaults for current mode. If no factory
+ *  defaults then restore user values for current mode.
+ * - All other values are reserved and shall be ignored.
+ * Type: Integer
+ */
+#define NV_CTRL_DDCCI_PRESET_SETTINGS                           126/* -WD */
+#define NV_CTRL_DDCCI_PRESET_SETTINGS_STORE_CURRENT             1
+#define NV_CTRL_DDCCI_PRESET_SETTINGS_RESTORE_FACTORY_DEFAULTS  2
+
+
+/***************************************
+ * DDC/CI VCP CODES: IMAGE ADJUSTMENTS *
+ ***************************************/
+
+/* 
+ * Increasing (decreasing) this value will increase (decrease) the
+ * Brightness of the image.
+ * Type: Range
+ */
+#define NV_CTRL_DDCCI_IMAGE_BRIGHTNESS                          127/* RWD */
+
+/* 
+ * Increasing (decreasing) this value will increase (decrease) the
+ * Contrast of the image.
+ * Type: Range
+ */
+#define NV_CTRL_DDCCI_IMAGE_CONTRAST                            128/* RWD */  
+
+/* 
+ * Turn on / off an auto setup function (periodic or event driven)
+ * 0 and  3 : Shall be ignored
+ * NV_CTRL_DDCCI_IMAGE_AUTO_SETUP_TOGGLE_OFF : Turn auto setup off
+ * NV_CTRL_DDCCI_IMAGE_AUTO_SETUP_TOGGLE_ON : Turn auto setup on
+ * Type: Integer
+ */         
+#define NV_CTRL_DDCCI_IMAGE_AUTO_SETUP_TOGGLE                   129/* -WD */
+#define NV_CTRL_DDCCI_IMAGE_AUTO_SETUP_TOGGLE_OFF               1
+#define NV_CTRL_DDCCI_IMAGE_AUTO_SETUP_TOGGLE_ON                2
+
+/* 
+ * Perform autosetup function (H/V position, clock, clock phase, A/D
+ * converter, etc)
+ * NV_CTRL_OFF : Indicates that auto-setup is not active
+ * NV_CTRL_ON : Perform autosetup
+ * >=2 : Shall be ignored
+ * Type: Integer
+ */         
+#define NV_CTRL_DDCCI_IMAGE_AUTO_SETUP                          130/* RWD */
+
+/* Increasing (decreasing) this value will increase (decrease) the
+ * sampling clock frequency 
+ * Type: Range
+ */
+#define NV_CTRL_DDCCI_IMAGE_CLOCK                               131/* RWD */
+
+/* Increasing (decreasing) this value will increase (decrease) the
+ * phase shift of the sampling clock
+ * Type: Range
+ */
+#define NV_CTRL_DDCCI_IMAGE_CLOCK_PHASE                         132/* RWD */
+
+/* Allows the display to specify the minimum increment in which it
+ * can adjust the color temperature.
+ * This will be used in conjunction with 
+ * NV_CTRL_DDCCI_IMAGE_COLOR_TEMPERATURE_REQUEST, Color temperature request.
+ * Values of 0 and > 5000 are invalid and shall be ignored.
+ * Type: Integer
+ */
+#define NV_CTRL_DDCCI_IMAGE_COLOR_TEMPERATURE_INCREMENT         133/* R-D */
+
+/* Allows a specified color temperature (in °K) to be requested. If
+ * display is unable to achieve requested color temperature, then it
+ * should move to the closest possible temperature.
+ * A value of 0 shall be treated as a request for a color temperature
+ * of 3000°K. Values greater than 0 shall be used as a multiplier of
+ * the color temperature increment (read using 
+ * NV_CTRL_DDCCI_IMAGE_COLOR_TEMPERATURE_INCREMENT) and the
+ * result added to the base value of 3000°K
+ * Example:
+ * If NV_CTRL_DDCCI_IMAGE_COLOR_TEMPERATURE_INCREMENT returns a value of 
+ * 50°K and NV_CTRL_DDCCI_IMAGE_COLOR_TEMPERATURE_INCREMENT sends a
+ * value of 50 (decimal) then the display shall interpret this as a
+ * request to adjust the color temperature to 5500°K
+ * (3000 + (50 * 50))°K = 5500°K
+ * Notes:
+ * 1) Applications using this function are recommended to read the
+ * actual color temperature after using this command and taking
+ * appropriate action.
+ * 2) This control is only recommended if the display can produce a
+ * continuously (at defined increment, see VCP code 0Bh) variable
+ * color temperature.
+ * Type: Range
+ */
+#define NV_CTRL_DDCCI_IMAGE_COLOR_TEMPERATURE_REQUEST           134/* RWD */
+
+/* Select a specified color temperature.
+ * NV_CTRL_DDCCI_IMAGE_SELECT_COLOR_PRESET_SRGB : sRGB
+ * NV_CTRL_DDCCI_IMAGE_SELECT_COLOR_PRESET_NATIVE : Display native
+ * NV_CTRL_DDCCI_IMAGE_SELECT_COLOR_PRESET_4000K :  4000 K
+ * NV_CTRL_DDCCI_IMAGE_SELECT_COLOR_PRESET_5000K :  5000 K
+ * NV_CTRL_DDCCI_IMAGE_SELECT_COLOR_PRESET_6500K :  6500 K
+ * NV_CTRL_DDCCI_IMAGE_SELECT_COLOR_PRESET_7500K :  7500 K
+ * NV_CTRL_DDCCI_IMAGE_SELECT_COLOR_PRESET_8200K :  8200 K
+ * NV_CTRL_DDCCI_IMAGE_SELECT_COLOR_PRESET_9300K :  9300 K
+ * NV_CTRL_DDCCI_IMAGE_SELECT_COLOR_PRESET_10000K : 10000 K
+ * NV_CTRL_DDCCI_IMAGE_SELECT_COLOR_PRESET_USER1 :  11500 K
+ * NV_CTRL_DDCCI_IMAGE_SELECT_COLOR_PRESET_USER1 :  User 1
+ * NV_CTRL_DDCCI_IMAGE_SELECT_COLOR_PRESET_USER2 :  User 2
+ * NV_CTRL_DDCCI_IMAGE_SELECT_COLOR_PRESET_USER3 :  User 3
+ * 00 and >=0E shall be ignored
+ * Type: Integer
+ */
+#define NV_CTRL_DDCCI_IMAGE_SELECT_COLOR_PRESET                 135/* RWD */
+#define NV_CTRL_DDCCI_IMAGE_SELECT_COLOR_PRESET_SRGB            0x01
+#define NV_CTRL_DDCCI_IMAGE_SELECT_COLOR_PRESET_NATIVE          0x02
+#define NV_CTRL_DDCCI_IMAGE_SELECT_COLOR_PRESET_4000K           0x03
+#define NV_CTRL_DDCCI_IMAGE_SELECT_COLOR_PRESET_5000K           0x04
+#define NV_CTRL_DDCCI_IMAGE_SELECT_COLOR_PRESET_6500K           0x05
+#define NV_CTRL_DDCCI_IMAGE_SELECT_COLOR_PRESET_7500K           0x06
+#define NV_CTRL_DDCCI_IMAGE_SELECT_COLOR_PRESET_8200K           0x07
+#define NV_CTRL_DDCCI_IMAGE_SELECT_COLOR_PRESET_9300K           0x08
+#define NV_CTRL_DDCCI_IMAGE_SELECT_COLOR_PRESET_10000K          0x09
+#define NV_CTRL_DDCCI_IMAGE_SELECT_COLOR_PRESET_11500K          0x0A
+#define NV_CTRL_DDCCI_IMAGE_SELECT_COLOR_PRESET_USER1           0x0B
+#define NV_CTRL_DDCCI_IMAGE_SELECT_COLOR_PRESET_USER2           0x0C
+#define NV_CTRL_DDCCI_IMAGE_SELECT_COLOR_PRESET_USER3           0x0D
+
+/*
+ * Increasing (decreasing) this value will increase (decrease) the
+ * luminance of red pixels.
+ * The value returned shall be an indication of the actual red gain at
+ * the current color temperature and not be normalized.
+ * Type: Range
+ */
+#define NV_CTRL_DDCCI_IMAGE_RED_VIDEO_GAIN                      136/* RWD */
+
+/*
+ * Increasing (decreasing) this value will increase (decrease) the
+ * luminance of green pixels.
+ * The value returned shall be an indication of the actual green gain at
+ * the current color temperature and not be normalized.
+ * Type: Range
+ */
+#define NV_CTRL_DDCCI_IMAGE_GREEN_VIDEO_GAIN                    137/* RWD */
+
+/*
+ * Increasing (decreasing) this value will increase (decrease) the
+ * luminance of blue pixels.
+ * The value returned shall be an indication of the actual blue gain at
+ * the current color temperature and not be normalized.
+ * Type: Range
+ */
+#define NV_CTRL_DDCCI_IMAGE_BLUE_VIDEO_GAIN                     138/* RWD */
+
+/* Increasing (decreasing) this value will increase (decrease) the
+ * black level of red pixels.
+ * Type: Range
+ */
+#define NV_CTRL_DDCCI_IMAGE_RED_VIDEO_BLACK_LEVEL               139/* RWD */
+
+/* Increasing (decreasing) this value will increase (decrease) the
+ * black level of green pixels.
+ * Type: Range
+ */
+#define NV_CTRL_DDCCI_IMAGE_GREEN_VIDEO_BLACK_LEVEL             140/* RWD */
+
+/* Increasing (decreasing) this value will increase (decrease) the
+ * black level of blue pixels.
+ * Type: Range
+ */
+#define NV_CTRL_DDCCI_IMAGE_BLUE_VIDEO_BLACK_LEVEL              141/* RWD */
+
+/* Increasing (decreasing) this value will adjust the focus of the image.
+ * Type: Range
+ */
+#define NV_CTRL_DDCCI_IMAGE_FOCUS                               142/* RWD */
+
+/* Increasing (decreasing) this value controls the horizontal picture
+ * moiré cancellation.
+ * Type: Range
+ */
+#define NV_CTRL_DDCCI_IMAGE_HORIZONTAL_MOIRE                    143/* RWD */
+
+/* Increasing (decreasing) this value controls the vertical picture
+ * moiré cancellation.
+ * Type: Range
+ */
+#define NV_CTRL_DDCCI_IMAGE_VERTICAL_MOIRE                      144/* RWD */
+
+/* Increasing (decreasing) this value will increase (decrease) the
+ * distance to the focal plane of the image.
+ * Type: Range
+ */
+#define NV_CTRL_DDCCI_IMAGE_ADJUST_FOCAL_PLANE                  145/* RWD */
+
+/* Increasing (decreasing) this value will increase (decrease) the
+ * zoom function of the optics
+ * Type: Range
+ */
+#define NV_CTRL_DDCCI_IMAGE_ADJUST_ZOOM                         146/* RWD */
+
+/* This value will cause the picture to flip horizontally.
+ * NV_CTRL_DDCCI_ON : flip horizontally
+ * NV_CTRL_DDCCI_OFF : Shall be ignored
+ * Type: Boolean
+ */
+#define NV_CTRL_DDCCI_IMAGE_HOR_FLIP                            147/* -WD */
+
+/* This value will cause the picture to flip vertically.
+ * NV_CTRL_DDCCI_ON : flip vertically
+ * NV_CTRL_DDCCI_OFF : Shall be ignored
+ * Type: Boolean
+ */
+#define NV_CTRL_DDCCI_IMAGE_VER_FLIP                            148/* -WD */
+
+/* Changing this value will affect the scaling (input versus output)
+ * function of the display.
+ * NV_CTRL_DDCCI_IMAGE_DISPLAY_SCALING_NO_SCALING : No scaling, 1:1 relationship
+ * NV_CTRL_DDCCI_IMAGE_DISPLAY_SCALING_MAX_NO_DISTORT2 : Scale to maximum 
+ *   without AR distortion
+ * NV_CTRL_DDCCI_IMAGE_DISPLAY_SCALING_MAX_VERTICAL : Scale to maximum vertical 
+     size
+ * NV_CTRL_DDCCI_IMAGE_DISPLAY_SCALING_MAX_HORIZONTAL ; Scale to maximum 
+     horizontal size
+ * 0 and >=5 : Shall be ignored
+ * Type: Integer
+ */
+#define NV_CTRL_DDCCI_IMAGE_DISPLAY_SCALING                     149/* RWD */
+#define NV_CTRL_DDCCI_IMAGE_DISPLAY_SCALING_NO_SCALING          1
+#define NV_CTRL_DDCCI_IMAGE_DISPLAY_SCALING_MAX_NO_DISTORT      2
+#define NV_CTRL_DDCCI_IMAGE_DISPLAY_SCALING_MAX_VERTICAL        3
+#define NV_CTRL_DDCCI_IMAGE_DISPLAY_SCALING_MAX_HORIZONTAL      4
+
+/* Allows one of several image expansion algorithms to be selecte
+ * to suit different types of image and/or different personal
+ * preference.
+ * NV_CTRL_DDCCI_IMAGE_SHARPNESS_FILTER_FUNC(1) : Filter function 1
+ * NV_CTRL_DDCCI_IMAGE_SHARPNESS_FILTER_FUNC(2) : Filter function 2
+ * NV_CTRL_DDCCI_IMAGE_SHARPNESS_FILTER_FUNC(3) : Filter function 3
+ * NV_CTRL_DDCCI_IMAGE_SHARPNESS_FILTER_FUNC(4) : Filter function 4
+ * 0 and  5 shall be ignored
+ * Type: Integer
+ */
+#define NV_CTRL_DDCCI_IMAGE_SHARPNESS                           150/* RWD */
+#define NV_CTRL_DDCCI_IMAGE_SHARPNESS_FILTER_FUNC(n)            n
+
+/* Indicates the orientation of the screen.
+ * NV_CTRL_DDCCI_IMAGE_SCREEN_ORIENTATION_0        
+ *      The normal landscape mode.
+ * NV_CTRL_DDCCI_IMAGE_SCREEN_ORIENTATION_90   
+ *      Portrait mode achieved by clockwise rotation of the display 90 degrees.
+ * NV_CTRL_DDCCI_IMAGE_SCREEN_ORIENTATION_180
+ *      Landscape mode achieved by rotation of the display 180 degrees.
+ * NV_CTRL_DDCCI_IMAGE_SCREEN_ORIENTATION_270
+ *      Portrait mode achieved by clockwise rotation of the display 270 degrees.
+ * NV_CTRL_DDCCI_IMAGE_SCREEN_ORIENTATION_NA 
+ *      Indicates that the display cannot supply the current orientation
+ * Type: Integer
+ */
+#define NV_CTRL_DDCCI_IMAGE_SCREEN_ORIENTATION                  151/* R-D */
+#define NV_CTRL_DDCCI_IMAGE_SCREEN_ORIENTATION_0                0x01
+#define NV_CTRL_DDCCI_IMAGE_SCREEN_ORIENTATION_90               0x02
+#define NV_CTRL_DDCCI_IMAGE_SCREEN_ORIENTATION_180              0x03
+#define NV_CTRL_DDCCI_IMAGE_SCREEN_ORIENTATION_270              0x04
+#define NV_CTRL_DDCCI_IMAGE_SCREEN_ORIENTATION_NA               0xFF
+
+/* Selects a scan format.
+ * NV_CTRL_DDCCI_IMAGE_SCAN_FORMAT_UNDERSCAN: Underscan
+ * NV_CTRL_DDCCI_IMAGE_SCAN_FORMAT_OVERSCAN: Overscan
+ * NV_CTRL_DDCCI_IMAGE_SCAN_FORMAT_WIDESCREEN: Widescreen
+ * Type: Integer
+ */
+#define NV_CTRL_DDCCI_IMAGE_SCAN_FORMAT                         152/* RWD */
+#define NV_CTRL_DDCCI_IMAGE_SCAN_FORMAT_UNDERSCAN               1
+#define NV_CTRL_DDCCI_IMAGE_SCAN_FORMAT_OVERSCAN                2
+#define NV_CTRL_DDCCI_IMAGE_SCAN_FORMAT_WIDESCREEN              3
+#define NV_CTRL_DDCCI_IMAGE_DISPLAY_MODE                        153/* RWD */
+
+/* Display mode:
+ * NV_CTRL_DDCCI_IMAGE_DISPLAY_MODE_PRODUCTIVITY : 
+ *      Productivity (e.g. office applications)
+ * NV_CTRL_DDCCI_IMAGE_DISPLAY_MODE_MIXED : Mixed (e.g. internet)
+ * NV_CTRL_DDCCI_IMAGE_DISPLAY_MODE_ENTERTAINMENT : 
+        Entertainment (e.g. TV / movie)
+ * NV_CTRL_DDCCI_IMAGE_DISPLAY_MODE_USERDEFINED : User defined
+ * Note:
+ * The condition(s) associated with options 1, 2 and 3 are defined
+ * by the display manufacturer
+ * Type: Integer
+ */
+#define NV_CTRL_DDCCI_IMAGE_DISPLAY_MODE_PRODUCTIVITY           1
+#define NV_CTRL_DDCCI_IMAGE_DISPLAY_MODE_MIXED                  2
+#define NV_CTRL_DDCCI_IMAGE_DISPLAY_MODE_ENTERTAINMENT          3
+#define NV_CTRL_DDCCI_IMAGE_DISPLAY_MODE_USERDEFINED            4
+
+/***********************************************
+ * DDC/CI VCP CODES: WINDOWED IMAGE OPERATIONS *
+ ***********************************************/
+
+/* Defines the top left X pixel of an area of the image. Specified in
+ * co-ordinates of incoming image before any scaling etc in the display.
+ * Type: Range
+ */
+#define NV_CTRL_DDCCI_WINDOWEDIMAGE_POSITION_TOP_LEFT_X         154/* RWD */ 
+
+/* Defines the top left Y pixel of an area of the image. Specified in
+ * co-ordinates of incoming image before any scaling etc in the display.
+ * Type: Range
+ */
+#define NV_CTRL_DDCCI_WINDOWEDIMAGE_POSITION_TOP_LEFT_Y         155/* RWD */
+
+/* Defines the bottom right X pixel of an area of the image.
+ * Specified in co-ordinates of incoming image before any scaling
+ * in the display.
+ * Type: Range
+ */
+#define NV_CTRL_DDCCI_WINDOWEDIMAGE_POSITION_BOTTOM_RIGHT_X     156/* RWD */
+
+/* Defines the bottom right Y pixel of an area of the image.
+ * Specified in co-ordinates of incoming image before any scaling
+ * in the display.
+ * Type: Range
+ */
+#define NV_CTRL_DDCCI_WINDOWEDIMAGE_POSITION_BOTTOM_LEFT_X      157/* RWD */
+
+/* Window control, enables the brightness and color within a
+ * window to be different from the desktop.
+ * NV_CTRL_DDCCI_WINDOWEDIMAGE_OLD_CONTROL_TOGGLE_OFF : Off
+ * NV_CTRL_DDCCI_WINDOWEDIMAGE_OLD_CONTROL_TOGGLE_ON: On
+ * All other values are reserved.
+ * Notes:
+ * 1. This control should be used in conjunction with
+ *      NV_CTRL_DDCCI_WINDOWEDIMAGE_BACKGROUND
+ * 2. This command structure is not recommended for new designs,
+ * see NV_CTRL_DDCCI_WINDOWEDIMAGE_CONTROL_TOGGLE for alternate.
+ * Type: Integer
+ */
+#define NV_CTRL_DDCCI_WINDOWEDIMAGE_OLD_CONTROL_TOGGLE          158/* RWD */
+#define NV_CTRL_DDCCI_WINDOWEDIMAGE_OLD_CONTROL_TOGGLE_OFF      1
+#define NV_CTRL_DDCCI_WINDOWEDIMAGE_OLD_CONTROL_TOGGLE_ON       2
+
+/* Changes the contrast ratio between the area of the window and
+ * the rest of the desktop
+ * Lower (higher) values will cause the desktop brightness to
+ * decrease (increase)
+ * Notes:
+ * 1. This contropl should be used in conjunction with 
+ *  NV_CTRL_DDCCI_WINDOWEDIMAGE_OLD_CONTROL_TOGGLE
+ * 2. This command structure is not recommended for new designs,
+ * see NV_CTRL_DDCCI_WINDOWEDIMAGE_WINDOW_SELECT for alternate.
+ * Type: Range
+ */
+#define NV_CTRL_DDCCI_WINDOWEDIMAGE_BACKGROUND                  159/* RWD */
+
+/* A value of 127 shall have no effect.
+ * A value > 127 shall cause the color to shift towards yellow
+ * A value < 127 shall cause the color to shift towards magenta
+ * Type: Range 
+ */
+#define NV_CTRL_DDCCI_WINDOWEDIMAGE_6AXIS_COLOR_CONTROL_RED     160/* RWD */
+
+/* A value of 127 shall have no effect.
+ * A value > 127 shall cause the color to shift towards green
+ * A value < 127 shall cause the color to shift towards red
+ * Type: Range 
+ */
+#define NV_CTRL_DDCCI_WINDOWEDIMAGE_6AXIS_COLOR_CONTROL_YELLOW  161/* RWD */
+
+/* A value of 127 shall have no effect.
+ * A value > 127 shall cause the color to shift towards cyan
+ * A value < 127 shall cause the color to shift towards yellow
+ * Type: Range 
+ */
+#define NV_CTRL_DDCCI_WINDOWEDIMAGE_6AXIS_COLOR_CONTROL_GREEN   162/* RWD */
+
+/* A value of 127 shall have no effect.
+ * A value > 127 shall cause the color to shift towards blue
+ * A value < 127 shall cause the color to shift towards green
+ * Type: Range 
+ */
+#define NV_CTRL_DDCCI_WINDOWEDIMAGE_6AXIS_COLOR_CONTROL_CYAN    163/* RWD */
+
+/* A value of 127 shall have no effect.
+ * A value > 127 shall cause the color to shift towards magenta
+ * A value < 127 shall cause the color to shift towards cyan
+ * Type: Range 
+ */
+#define NV_CTRL_DDCCI_WINDOWEDIMAGE_6AXIS_COLOR_CONTROL_BLUE    164/* RWD */
+
+/* A value of 127 shall have no effect.
+ * A value > 127 shall cause the color to shift towards red
+ * A value < 127 shall cause the color to shift towards blue
+ * Type: Range 
+ */
+#define NV_CTRL_DDCCI_WINDOWEDIMAGE_6AXIS_COLOR_CONTROL_MAGENTA 165/* RWD */
+
+/* Turn the selected window operation on / off.
+ * Bit: NV_CTRL_DDCCI_WINDOWEDIMAGE_CONTROL_TOGGLE_DPY_IMAGE
+ *         0      Window controls have no effect on the
+ *                displayed image
+ *         1      Window controls effect the displayed image
+ *                (full image area)
+ *  Bit: NV_CTRL_DDCCI_WINDOWEDIMAGE_CONTROL_TOGGLE_WINDOW(n)
+ *         0      Window controls have no effect on the
+ *                displayed image (window n)
+ *         1      Window controls effect the displayed image
+ *                (window n)
+ *  n is between 1 and 7
+ * Note: This command structure is recommend, in conjunction with
+ * NV_CTRL_DDCCI_WINDOWEDIMAGE_WINDOW_SELECT, for all new designs.
+ * Type: Bitmask
+ */ 
+#define NV_CTRL_DDCCI_WINDOWEDIMAGE_CONTROL_TOGGLE              166/* RWD */
+#define NV_CTRL_DDCCI_WINDOWEDIMAGE_CONTROL_TOGGLE_DPY_IMAGE    1
+#define NV_CTRL_DDCCI_WINDOWEDIMAGE_CONTROL_TOGGLE_WINDOW(n)    (1<<n)
+
+/* Change the selected window as defined with 
+ * NV_CTRL_DDCCI_WINDOWEDIMAGE_CONTROL_TOGGLE
+ * When a window is selected then all commands that the display
+ * controller supports for window operations are valid, this may
+ * include but is not limited to: brightness, contrast, R/G/B gain, 6-
+ * axis color, sharpness, etc.
+ * meaning of value NV_CTRL_DDCCI_WINDOWEDIMAGE_WINDOW_SELECT_DPY_IMAGE:
+ *           Full display image area is selected except for
+ *           area(s) of active windows
+ * meaning of value NV_CTRL_DDCCI_WINDOWEDIMAGE_WINDOW_SELECT_WINDOW(n)
+ *           Window n is selected
+ * If this command is not supported then the `full image area' shall
+ * be the default.
+ * This command structure is recommend, in conjunction with 
+ * NV_CTRL_DDCCI_WINDOWEDIMAGE_CONTROL_TOGGLE, for all new designs.
+ * Type: Integer
+ */
+#define NV_CTRL_DDCCI_WINDOWEDIMAGE_WINDOW_SELECT               167/* RWD */
+#define NV_CTRL_DDCCI_WINDOWEDIMAGE_WINDOW_SELECT_DPY_IMAGE     0
+#define NV_CTRL_DDCCI_WINDOWEDIMAGE_WINDOW_SELECT_WINDOW(n)     (1<<n)
+
+
+/*************************************/
+/* DDC/CI VCP CODES: AUDIO FUNCTIONS */
+/*************************************/
+
+/* Increasing (decreasing) this value will increase (decrease) the
+ * audio volume.
+ * Type: Range
+ */
+#define NV_CTRL_DDCCI_AUDIO_SPEAKER_VOLUME                      168/* RWD */
+
+/* Increasing (decreasing) this value will increase (decrease) the
+ * microphone gain.
+ * Type: Range
+ */
+#define NV_CTRL_DDCCI_AUDIO_MICROPHONE_VOLUME                   169/* RWD */
+
+/* Increasing (decreasing) this control will cause high frequency
+ * audio to be emphasized (de-emphasised).
+ * Type: Range
+ */
+#define NV_CTRL_DDCCI_AUDIO_TV_AUDIO_TREBLE                     170/* RWD */
+
+/* Increasing (decreasing) this control will cause low frequency
+ * audio to be emphasized (de-emphasised).
+ * Type: Range
+ */
+#define NV_CTRL_DDCCI_AUDIO_TV_AUDIO_BASS                       171/* RWD */
+
+/* This control affects the left ­ right balance of audio output.
+ * Increasing (decreasing) the value will cause the balance to move
+ * to the right (left).
+ * Type: Range
+ */
+#define NV_CTRL_DDCCI_AUDIO_TV_AUDIO_BALANCE                    172/* RWD */
+
+/* This control allows one of several audio modes to be selected.
+ * NV_CTRL_DDCCI_AUDIO_TV_STEREO_MODE_SPEAKER_OFF: Display audio is disabled,
+ * NV_CTRL_DDCCI_AUDIO_TV_STEREO_MODE_SPEAKER_MONO: Both display audio channels,
+ *  use the left audio channel
+ * NV_CTRL_DDCCI_AUDIO_TV_STEREO_MODE_SPEAKER_STEREO: Incoming left and right 
+ *  audio. Channels feed separate display output audio channels.
+ * NV_CTRL_DDCCI_AUDIO_TV_STEREO_MODE_SPEAKER_STEREO_EXPANDED: As defined 
+ *  by the manufacturer.
+ * Type: Integer
+ */
+#define NV_CTRL_DDCCI_AUDIO_TV_STEREO_MODE                      173/* RWD */
+#define NV_CTRL_DDCCI_AUDIO_TV_STEREO_MODE_SPEAKER_OFF          0
+#define NV_CTRL_DDCCI_AUDIO_TV_STEREO_MODE_SPEAKER_MONO         1
+#define NV_CTRL_DDCCI_AUDIO_TV_STEREO_MODE_SPEAKER_STEREO       2
+#define NV_CTRL_DDCCI_AUDIO_TV_STEREO_MODE_SPEAKER_STEREO_EXPANDED 3
+
+
+/************************************/
+/* DDC/CI VCP CODES: DPVL Functions */
+/************************************/
+
+/* Video mode and status of a DPVL capable monitor
+ * Bit   Value                          Meaning
+ *  0      0      Raster scan mode
+ *         1      DPVL mode
+ *  1      0      Monitor is able to receive the next packet
+ *         1      Monitor is unable to accept another packet
+ *  2      0      No error detected in the last header received
+ *         1      Error detected in the last header received
+ * Other bits are reserved and shall be set to '0'.
+ * Type: Bitmask
+ */
+#define NV_CTRL_DDCCI_DPVL_MONITOR_STATUS                       174/* R-D */ 
+#define NV_CTRL_DDCCI_DPVL_MONITOR_STATUS_DPVL_MODE                     (1<<0)
+#define NV_CTRL_DDCCI_DPVL_MONITOR_STATUS_UNABLE_TO_RECEIVE_NEXT_PACKET (1<<1)
+#define NV_CTRL_DDCCI_DPVL_MONITOR_STATUS_ERROR_DETECTED_IN_LAST_HEADER (1<<2)
+
+/* Counter for the DPVL packets received (valid and invalid ones).
+ * This value counts from 0000h to FFFFh and then rolls over to 0000h.
+ * The host can reset the value to 0000h.
+ * Type: Range
+ */
+#define NV_CTRL_DDCCI_DPVL_PACKET_COUNT                         175/* RWD */
+
+/* The X origin of the monitor in the virtual screen. The support of
+ * this command indicates the multi-display support of the display. If
+ * a display supports this command, the monitor must also support
+ * Monitor Y Origin command.
+ * Type: Range; "0000h" to "FFFFh" or 0 to 65535
+ */
+#define NV_CTRL_DDCCI_DPVL_MONITOR_X_ORIGIN                     176/* RWD */
+
+/* The Y origin of the display in the virtual screen. The support of
+ * this command indicates the multi-display support of the display. If
+ * a display supports this command, the monitor must also support
+ * Monitor X Origin command.
+ * Type: Range; "0000h" to "FFFFh" or 0 to 65535
+ */
+#define NV_CTRL_DDCCI_DPVL_MONITOR_Y_ORIGIN                     177/* RWD */
+
+/* Error Counter for the DPVL header. The counter value saturates
+ * at FFFFh. Host can reset to 0000h.
+ * Type: Range
+ */
+#define NV_CTRL_DDCCI_DPVL_HEADER_ERROR_COUNT                   178/* RWD */
+
+/* CRC error Counter for the DPVL body (containing video data).
+ * The counter value saturates at FFFFh. The Host can reset to 0000h
+ * Type: Range
+ */
+#define NV_CTRL_DDCCI_DPVL_BODY_CRC_ERROR_COUNT                 179/* RWD */
+
+/* Assigned identification number for the monitor.
+ * Type: Valid range is 0000h to FFFEh, FFFFh is reserved for broadcast.
+ */
+#define NV_CTRL_DDCCI_DPVL_CLIENT_ID                            180/* RWD */
+
+/* Indicates the status of the DVI link
+ * NV_CTRL_DDCCI_DPVL_LINK_CONTROL_DISABLED: Link shutdown is disabled
+ * NV_CTRL_DDCCI_DPVL_LINK_CONTROL_ENABLED: Link shutdown is enabled
+ * Type: Boolean
+ */
+#define NV_CTRL_DDCCI_DPVL_LINK_CONTROL                         181/* RWD */
+#define NV_CTRL_DDCCI_DPVL_LINK_CONTROL_DISABLED                0
+#define NV_CTRL_DDCCI_DPVL_LINK_CONTROL_ENABLED                 1
+
+/**********************************************/
+/* DDC/CI VCP CODES:  Miscellaneous Functions */
+/**********************************************/
+
+/* Causes a CRT display to perform a degauss cycle with
+ * NV_CTRL_DDCCI_ON
+ * Type: Boolean
+ */
+#define NV_CTRL_DDCCI_MISC_DEGAUSS                              182/* -WD */
+
+/* Used to indicate that a display user control (excluding power
+ * controls) has been used to change and save (or autosave) a new value.
+ * NV_CTRL_DDCCI_MISC_NEW_CONTROL_VALUE_NO_NEW : No new control value
+ * NV_CTRL_DDCCI_MISC_NEW_CONTROL_VALUE_NO_USER_CONTROLS : A new control value 
+ *  has been saved
+ * NV_CTRL_DDCCI_MISC_NEW_CONTROL_VALUE_NO_USER_CONTROLS : No user controls are present
+ * Note:
+ * A value = NV_CTRL_DDCCI_MISC_NEW_CONTROL_VALUE_NEW should only be reset to 
+ * a value = NV_CTRL_DDCCI_MISC_NEW_CONTROL_VALUE_NO_NEW by a host write
+ * operation and not by the display
+ * Type: Integer
+ */
+#define NV_CTRL_DDCCI_MISC_NEW_CONTROL_VALUE                    183/* RWD */
+#define NV_CTRL_DDCCI_MISC_NEW_CONTROL_VALUE_NO_NEW             0x01
+#define NV_CTRL_DDCCI_MISC_NEW_CONTROL_VALUE_NEW                0x02
+#define NV_CTRL_DDCCI_MISC_NEW_CONTROL_VALUE_NO_USER_CONTROLS   0xFF
+
+/* Allows display controls to be used as soft keys
+ * NV_CTRL_DDCCI_MISC_SOFT_CONTROLS_NO_BUTTON_ACTIVE : No button active
+ * NV_CTRL_DDCCI_MISC_SOFT_CONTROLS_BUTTON(n): Button n active
+ * n is between 1 and 7.
+ * NV_CTRL_DDCCI_MISC_SOFT_CONTROLS_NONE : No controls present
+ * Note:
+ * A `button active' value should only be reset to a value = 0 by
+ * host write operation and not by the display
+ * Type: Integer
+ */
+#define NV_CTRL_DDCCI_MISC_SOFT_CONTROLS                        184/* RWD */
+#define NV_CTRL_DDCCI_MISC_SOFT_CONTROLS_NO_BUTTON_ACTIVE       0
+#define NV_CTRL_DDCCI_MISC_SOFT_CONTROLS_BUTTON(n)              n
+#define NV_CTRL_DDCCI_MISC_SOFT_CONTROLS_NONE                   0xFF
+
+/* When read this control returns the VCP code associated with
+ * the new control value reported using 02H
+ * Examples:
+ * If brightness has been changed then return value of 10h
+ * If red gain has been changed then return value of 16h.
+ * Type: Range
+ */
+#define NV_CTRL_DDCCI_MISC_ACTIVE_CONTROL                       185/* R-D */
+
+/* Used to select the active video source
+ * NV_CTRL_DDCCI_MISC_INPUT_SOURCE_ANALOG_1: Analog video (R/G/B) 1
+ * NV_CTRL_DDCCI_MISC_INPUT_SOURCE_ANALOG_2: Analog video (R/G/B) 2
+ * NV_CTRL_DDCCI_MISC_INPUT_SOURCE_DIGITAL_1: Digital video (TMDS) 1
+ * NV_CTRL_DDCCI_MISC_INPUT_SOURCE_DIGITAL_2: Digital video (TMDS) 2
+ * NV_CTRL_DDCCI_MISC_INPUT_SOURCE_COMPOSITE_1: Composite video 1
+ * NV_CTRL_DDCCI_MISC_INPUT_SOURCE_COMPOSITE_2: Composite video 2
+ * NV_CTRL_DDCCI_MISC_INPUT_SOURCE_SVIDEO_1: S-video 1
+ * NV_CTRL_DDCCI_MISC_INPUT_SOURCE_SVIDEO_2: S-video 2
+ * NV_CTRL_DDCCI_MISC_INPUT_SOURCE_TUNER_1: Tuner 1
+ * NV_CTRL_DDCCI_MISC_INPUT_SOURCE_TUNER_2: Tuner 2
+ * NV_CTRL_DDCCI_MISC_INPUT_SOURCE_TUNER_3: Tuner 3
+ * NV_CTRL_DDCCI_MISC_INPUT_SOURCE_COMPONENT_1: Component video (YPrPb/YCrCb) 1
+ * NV_CTRL_DDCCI_MISC_INPUT_SOURCE_COMPONENT_2: Component video (YPrPb/YCrCb) 2
+ * NV_CTRL_DDCCI_MISC_INPUT_SOURCE_COMPONENT_3: Component video (YPrPb/YCrCb) 3
+ * Type: Integer
+ */
+#define NV_CTRL_DDCCI_MISC_INPUT_SOURCE                         186/* RWD */
+#define NV_CTRL_DDCCI_MISC_INPUT_SOURCE_ANALOG_1                1
+#define NV_CTRL_DDCCI_MISC_INPUT_SOURCE_ANALOG_2                2
+#define NV_CTRL_DDCCI_MISC_INPUT_SOURCE_DIGITAL_1               3
+#define NV_CTRL_DDCCI_MISC_INPUT_SOURCE_DIGITAL_2               4
+#define NV_CTRL_DDCCI_MISC_INPUT_SOURCE_COMPOSITE_1             5
+#define NV_CTRL_DDCCI_MISC_INPUT_SOURCE_COMPOSITE_2             6
+#define NV_CTRL_DDCCI_MISC_INPUT_SOURCE_SVIDEO_1                7
+#define NV_CTRL_DDCCI_MISC_INPUT_SOURCE_SVIDEO_2                8
+#define NV_CTRL_DDCCI_MISC_INPUT_SOURCE_TUNER_1                 9
+#define NV_CTRL_DDCCI_MISC_INPUT_SOURCE_TUNER_2                 10
+#define NV_CTRL_DDCCI_MISC_INPUT_SOURCE_TUNER_3                 11
+#define NV_CTRL_DDCCI_MISC_INPUT_SOURCE_COMPONENT_1             12
+#define NV_CTRL_DDCCI_MISC_INPUT_SOURCE_COMPONENT_2             13
+#define NV_CTRL_DDCCI_MISC_INPUT_SOURCE_COMPONENT_3             14
+
+/* ncreasing (decreasing) this value will increase (decrease) the
+ * velocity modulation of the horizontal scan as a function of a
+ * change in the luminance level.
+ * Type: Range
+ */
+#define NV_CTRL_DDCCI_MISC_VELOCITY_SCAN_MODULATION             187/* RWD */
+
+/* Increasing this control increases the amplitude of the color
+ * difference components of the video signal.
+ * The result is an increase in the amount of pure color relative to
+ * white in the video. This control does not affect the RGB input,
+ * only the TV video inputs.
+ * Type: Range
+ */
+#define NV_CTRL_DDCCI_MISC_TV_COLOR_SATURATION                  188/* RWD */
+
+/* Used to increment / decrement between TV-channels, the exact
+ * behavior is implementation specific (e.g. increment / decrement
+ * to next numeric channel or increment / decrement to next
+ * channel with a signal)
+ * NV_CTRL_DDCCI_MISC_TV_CHANNEL_UP_DOWN_INCREMENT: Increment channel
+ * NV_CTRL_DDCCI_MISC_TV_CHANNEL_UP_DOWN_DECREMENT: Decrement channel
+ * Type: Integer
+ */
+#define NV_CTRL_DDCCI_MISC_TV_CHANNEL_UP_DOWN                   189/* -WD */
+#define NV_CTRL_DDCCI_MISC_TV_CHANNEL_UP_DOWN_INCREMENT         1
+#define NV_CTRL_DDCCI_MISC_TV_CHANNEL_UP_DOWN_DECREMENT         2
+
+/* Increasing this control increases the amplitude of the high
+ * frequency components of the video signal.
+ * This allows fine details to be accentuated. This control does not
+ * affect the RGB input, only the TV video inputs.
+ * Type: Range
+ */
+#define NV_CTRL_DDCCI_MISC_TV_SHARPNESS                         190/* RWD */
+
+/* Provides for the TV-audio to be muted or unmated.
+ * NV_CTRL_DDCCI_MISC_TV_AUDIO_MUTE_ON: Mute the audio
+ * NV_CTRL_DDCCI_MISC_TV_AUDIO_MUTE_OFF: Unmute the audio
+ * Type: Range
+ */
+#define NV_CTRL_DDCCI_MISC_TV_AUDIO_MUTE                        191/* RWD */
+#define NV_CTRL_DDCCI_MISC_TV_AUDIO_MUTE_ON                     1
+#define NV_CTRL_DDCCI_MISC_TV_AUDIO_MUTE_OFF                    2
+
+/* Increasing (decreasing) this control increases (decreases) the
+ * ratio between whites and blacks in the video.
+ * This control does not affect the RGB input, only the TV video
+ * inputs.
+ * Type: Range
+ */
+#define NV_CTRL_DDCCI_MISC_TV_CONTRAST                          192/* RWD */
+
+/* Also known as `tint'
+ * Increasing (decreasing) this control increases (decreases) the
+ * wavelength of the color component of the video signal.
+ * The result is a shift towards red (blue) in the hue of all colors.
+ * This control does not affect the RGB input, only the TV video
+ * inputs.
+ * Type: Range
+ */
+#define NV_CTRL_DDCCI_MISC_TV_HUE                               193/* RWD */
+
+/* Increasing this control increases the black level of the video,
+ * resulting in an increase of the luminance level of the video.
+ * A value of zero represents the darkest level possible.
+ * This control does not affect the RGB input, only the TV video
+ * inputs.
+ * Type: Range
+ */
+#define NV_CTRL_DDCCI_MISC_TV_BLACK_LEVEL_SHARPNESS             194/* RWD */
+
+/* Horizontal synchronization signal frequency in Hz as determined
+ * by the display.
+ * FFh: Indicates that the display cannot supply this information
+ * Type: Range
+ */
+#define NV_CTRL_DDCCI_MISC_HORIZONTAL_FREQUENCY                 195/* R-D */
+
+/* Vertical synchronization signal frequency in 0.01Hz as
+ * determined by the display.
+ * FFh: Indicates that the display cannot supply this information
+ * Type: Range
+ */
+#define NV_CTRL_DDCCI_MISC_VERTICAL_FREQUENCY                   196/* R-D */
+
+/* Select a type of LCD sub-pixel structure
+ * NV_CTRL_DDCCI_MISC_FLATPANEL_SUBPIXEL_LAYOUT_UNDEFINED:
+ *      Sub-pixel layout is not defined
+ * NV_CTRL_DDCCI_MISC_FLATPANEL_SUBPIXEL_LAYOUT_RGB_V:
+ *      Red / Green / Blue vertical stripe
+ * NV_CTRL_DDCCI_MISC_FLATPANEL_SUBPIXEL_LAYOUT_RGB_H:
+ *      Red / Green / Blue horizontal stripe
+ * NV_CTRL_DDCCI_MISC_FLATPANEL_SUBPIXEL_LAYOUT_BGR_V:
+ *      Blue / Green / Red vertical stripe
+ * NV_CTRL_DDCCI_MISC_FLATPANEL_SUBPIXEL_LAYOUT_BGR_H:
+ *      Blue/ Green / Red horizontal stripe
+ * NV_CTRL_DDCCI_MISC_FLATPANEL_SUBPIXEL_LAYOUT_QUAD_1:
+ *      Quad-pixel, a 2 x 2 sub-pixel structure with red at top
+ *      left, blue at bottom right and green at top right and
+ *      bottom left
+ * NV_CTRL_DDCCI_MISC_FLATPANEL_SUBPIXEL_LAYOUT_QUAD_2:
+ *      Quad-pixel, a 2 x 2 sub-pixel structure with red at
+ *      bottom left, blue at top right and green at top left and
+ *      bottom right
+ * NV_CTRL_DDCCI_MISC_FLATPANEL_SUBPIXEL_LAYOUT_DELTA:
+ *      Delta (triad)
+ * NV_CTRL_DDCCI_MISC_FLATPANEL_SUBPIXEL_LAYOUT_MOSAIC:
+ *      Mosaic with red, green and blue fields overlayed 
+ *      (field sequential color)
+ * Type: Integer
+ */
+#define NV_CTRL_DDCCI_MISC_FLATPANEL_SUBPIXEL_LAYOUT            197/* R-D */
+#define NV_CTRL_DDCCI_MISC_FLATPANEL_SUBPIXEL_LAYOUT_UNDEFINED  0
+#define NV_CTRL_DDCCI_MISC_FLATPANEL_SUBPIXEL_LAYOUT_RGB_V      1
+#define NV_CTRL_DDCCI_MISC_FLATPANEL_SUBPIXEL_LAYOUT_RGB_H      2
+#define NV_CTRL_DDCCI_MISC_FLATPANEL_SUBPIXEL_LAYOUT_BGR_V      3
+#define NV_CTRL_DDCCI_MISC_FLATPANEL_SUBPIXEL_LAYOUT_BGR_H      4
+#define NV_CTRL_DDCCI_MISC_FLATPANEL_SUBPIXEL_LAYOUT_QUAD_1     5
+#define NV_CTRL_DDCCI_MISC_FLATPANEL_SUBPIXEL_LAYOUT_QUAD_2     6
+#define NV_CTRL_DDCCI_MISC_FLATPANEL_SUBPIXEL_LAYOUT_DELTA      7
+#define NV_CTRL_DDCCI_MISC_FLATPANEL_SUBPIXEL_LAYOUT_MOSAIC     8
+
+/* Select the base technology type
+ * NV_CTRL_DDCCI_MISC_DISPLAY_TECHNOLOGY_TYPE_CRT_SHADOWMASK: CRT (shadowmask)
+ * NV_CTRL_DDCCI_MISC_DISPLAY_TECHNOLOGY_TYPE_CRT_APERTURE_GRILL: CRT (aperture
+ *      grill)
+ * NV_CTRL_DDCCI_MISC_DISPLAY_TECHNOLOGY_TYPE_TFT: TFT
+ * NV_CTRL_DDCCI_MISC_DISPLAY_TECHNOLOGY_TYPE_LCOS: LCoS
+ * NV_CTRL_DDCCI_MISC_DISPLAY_TECHNOLOGY_TYPE_PLASMA: Plasma
+ * NV_CTRL_DDCCI_MISC_DISPLAY_TECHNOLOGY_TYPE_OLED: OLED
+ * NV_CTRL_DDCCI_MISC_DISPLAY_TECHNOLOGY_TYPE_EL: EL
+ * NV_CTRL_DDCCI_MISC_DISPLAY_TECHNOLOGY_TYPE_MEM: MEM
+ * Type: integer
+ */
+#define NV_CTRL_DDCCI_MISC_DISPLAY_TECHNOLOGY_TYPE              198/* R-D */
+#define NV_CTRL_DDCCI_MISC_DISPLAY_TECHNOLOGY_TYPE_CRT_SHADOWMASK       1
+#define NV_CTRL_DDCCI_MISC_DISPLAY_TECHNOLOGY_TYPE_CRT_APERTURE_GRILL   2
+#define NV_CTRL_DDCCI_MISC_DISPLAY_TECHNOLOGY_TYPE_TFT                  3
+#define NV_CTRL_DDCCI_MISC_DISPLAY_TECHNOLOGY_TYPE_LCOS                 4
+#define NV_CTRL_DDCCI_MISC_DISPLAY_TECHNOLOGY_TYPE_PLASMA               5
+#define NV_CTRL_DDCCI_MISC_DISPLAY_TECHNOLOGY_TYPE_OLED                 6
+#define NV_CTRL_DDCCI_MISC_DISPLAY_TECHNOLOGY_TYPE_EL                   7
+#define NV_CTRL_DDCCI_MISC_DISPLAY_TECHNOLOGY_TYPE_MEM                  8
+
+/* Returns the current value (in hours) of `active power on' time
+ * accumulated by the display ­ a 2 byte value.
+ * "Active power on" time is defined as the period when the
+ * emissive elements(s) of the display ­ cathodes for a CRT,
+ * fluorescent lamps for a LCD, etc ­ are active.
+ * Type: Range
+ */
+#define NV_CTRL_DDCCI_MISC_DISPLAY_USAGE_TIME                   199/* R-D */
+
+/* Returns the length (in bytes) of non-volatile storage in the display
+ * available for writing a display descriptor ­ the maximum
+ * descriptor length is 256 bytes
+ * See 
+ * Type: Range
+ */
+#define NV_CTRL_DDCCI_MISC_DISPLAY_DESCRIPTOR_LENGTH            200/* R-D */
+
+/* If enabled (NV_CTRL_DDCCI_ON), the display descriptor written to the 
+ * display using XNVCTRLSetDDCCIDisplayDescriptor() shall be displayed when 
+ * no video is being received.
+ * The duration for which it is displayed is left to individual manufacturers.
+ * NV_CTRL_DDCCI_ON: Display is enabled
+ * NV_CTRL_DDCCI_OFF: The display descriptor shall not be displayed.
+ * Type: Boolean
+ */
+#define NV_CTRL_DDCCI_MISC_ENABLE_DISPLAY_OF_DISPLAY_DESCRIPTOR 201/* RWD */
+
+/* A 2 byte value used to allow an application to only operate with
+ * known products. The display manufacturer and application author
+ * agree to a code such that application will only run when a valid
+ * code is present in the display.
+ * Type: Integer
+ */
+#define NV_CTRL_DDCCI_MISC_APPLICATION_ENABLE_KEY               202/* R-D */
+
+/* This VCP code provides allows a 2 byte value identifying the
+ * firmware level installed in the display to be determined.
+ * Type: Range
+ */
+#define NV_CTRL_DDCCI_MISC_DISPLAY_FIRMWARE_LEVEL               203/* R-D */
+
+/* Indicates the current state of the display OSD
+ * NV_CTRL_DDCCI_MISC_OSD_DISABLED: OSD is disabled
+ * NV_CTRL_DDCCI_MISC_OSD_ENABLED: OSD is enabled
+ * NV_CTRL_DDCCI_MISC_OSD_CANNOT_SUPPLY: Indicates that the display cannot 
+ *  supply this information.
+ * Type: Integer
+ */
+#define NV_CTRL_DDCCI_MISC_OSD                                  204/* RWD */
+#define NV_CTRL_DDCCI_MISC_OSD_DISABLED                         1
+#define NV_CTRL_DDCCI_MISC_OSD_ENABLED                          2
+#define NV_CTRL_DDCCI_MISC_OSD_CANNOT_SUPPLY                    0xFF
+
+/* Allows the displayed OSD language to be selected.
+ * Type: Integer */
+#define NV_CTRL_DDCCI_MISC_OSD_LANGUAGE                         205/* RWD */
+#define NV_CTRL_DDCCI_MISC_OSD_LANGUAGE_CHINESE                 1
+#define NV_CTRL_DDCCI_MISC_OSD_LANGUAGE_ENGLISH                 2
+#define NV_CTRL_DDCCI_MISC_OSD_LANGUAGE_FRENCH                  3
+#define NV_CTRL_DDCCI_MISC_OSD_LANGUAGE_GERMAN                  4
+#define NV_CTRL_DDCCI_MISC_OSD_LANGUAGE_ITALIAN                 5
+#define NV_CTRL_DDCCI_MISC_OSD_LANGUAGE_JAPANESE                6
+#define NV_CTRL_DDCCI_MISC_OSD_LANGUAGE_KOREAN                  7
+#define NV_CTRL_DDCCI_MISC_OSD_LANGUAGE_PORTUGESE               8
+#define NV_CTRL_DDCCI_MISC_OSD_LANGUAGE_RUSSIAN                 9
+#define NV_CTRL_DDCCI_MISC_OSD_LANGUAGE_SPANISH                 10
+
+/* An `auxiliary display' is a small alpha-numeric display associated
+ * with the primary display and able to be accessed via the primary
+ * display.
+ * This command returns a 1 byte value that defines the number of
+ * characters and the number of rows available. The format is:
+ * Bits 0 to 5 : The number of characters / row
+ * Bits 6 to 7 : The number of rows
+ * I.e. The maximum auxiliary display size is 4 rows each with 64 characters
+ * Type: Bitmask
+ */
+#define NV_CTRL_DDCCI_MISC_AUXILIARY_DISPLAY_SIZE               206/* R-D */
+#define NV_CTRL_DDCCI_MISC_AUXILIARY_DISPLAY_SIZE_COLUMNS_MASK  0x1F
+#define NV_CTRL_DDCCI_MISC_AUXILIARY_DISPLAY_SIZE_ROWS_MASK     0x60
+
+#define NV_CTRL_DDCCI_MISC_OUTPUT_SELECT                        207/* RWD */
+
+/* Used to selects the active output.
+ * NV_CTRL_DDCCI_MISC_OUTPUT_SELECT_ANALOG_1: Analog video (R/G/B) 1
+ * NV_CTRL_DDCCI_MISC_OUTPUT_SELECT_ANALOG_2: Analog video (R/G/B) 2
+ * NV_CTRL_DDCCI_MISC_OUTPUT_SELECT_DIGITAL_1: Digital video (TMDS) 1
+ * NV_CTRL_DDCCI_MISC_OUTPUT_SELECT_DIGITAL_2: Digital video (TMDS) 2
+ * NV_CTRL_DDCCI_MISC_OUTPUT_SELECT_COMPOSITE_1: Composite video 1
+ * NV_CTRL_DDCCI_MISC_OUTPUT_SELECT_COMPOSITE_2: Composite video 2
+ * NV_CTRL_DDCCI_MISC_OUTPUT_SELECT_SVIDEO_1: S-video 1
+ * NV_CTRL_DDCCI_MISC_OUTPUT_SELECT_SVIDEO_2: S-video 2
+ * NV_CTRL_DDCCI_MISC_OUTPUT_SELECT_TUNER_1: Tuner 1
+ * NV_CTRL_DDCCI_MISC_OUTPUT_SELECT_TUNER_2: Tuner 2
+ * NV_CTRL_DDCCI_MISC_OUTPUT_SELECT_TUNER_3: Tuner 3
+ * NV_CTRL_DDCCI_MISC_OUTPUT_SELECT_COMPONENT_1: Component video (YPrPb/YCrCb) 1
+ * NV_CTRL_DDCCI_MISC_OUTPUT_SELECT_COMPONENT_2: Component video (YPrPb/YCrCb) 2
+ * NV_CTRL_DDCCI_MISC_OUTPUT_SELECT_COMPONENT_3: Component video (YPrPb/YCrCb) 3
+ * Type: Integer
+ */
+#define NV_CTRL_DDCCI_MISC_OUTPUT_SELECT_ANALOG_1               1
+#define NV_CTRL_DDCCI_MISC_OUTPUT_SELECT_ANALOG_2               2
+#define NV_CTRL_DDCCI_MISC_OUTPUT_SELECT_DIGITAL_1              3
+#define NV_CTRL_DDCCI_MISC_OUTPUT_SELECT_DIGITAL_2              4
+#define NV_CTRL_DDCCI_MISC_OUTPUT_SELECT_COMPOSITE_1            5
+#define NV_CTRL_DDCCI_MISC_OUTPUT_SELECT_COMPOSITE_2            6
+#define NV_CTRL_DDCCI_MISC_OUTPUT_SELECT_SVIDEO_1               7
+#define NV_CTRL_DDCCI_MISC_OUTPUT_SELECT_SVIDEO_2               8
+#define NV_CTRL_DDCCI_MISC_OUTPUT_SELECT_TUNER_1                9
+#define NV_CTRL_DDCCI_MISC_OUTPUT_SELECT_TUNER_2                10
+#define NV_CTRL_DDCCI_MISC_OUTPUT_SELECT_TUNER_3                11
+#define NV_CTRL_DDCCI_MISC_OUTPUT_SELECT_COMPONENT_1            12
+#define NV_CTRL_DDCCI_MISC_OUTPUT_SELECT_COMPONENT_2            13
+#define NV_CTRL_DDCCI_MISC_OUTPUT_SELECT_COMPONENT_3            14
+
+/* Used to select the video mode with respect to 2D or 3D video.
+ * Here is the meaning of the bitmask:
+ * NV_CTRL_DDCCI_MISC_STEREO_VIDEO_MODE_FIELD_SEQUENTIAL_RIGHT_FIRST:
+ *  Enable Field-Sequential Right Eye First
+ * NV_CTRL_DDCCI_MISC_STEREO_VIDEO_MODE_FIELD_SEQUENTIAL_LEFT_FIRST:
+ *  Enable Field-Sequential Left Eye First
+ * NV_CTRL_DDCCI_MISC_STEREO_VIDEO_MODE_2WAY_INTERLEAVED_RIGHT_FIRST:
+ *  Enable 2-Way Interleaved Right Eye First
+ * NV_CTRL_DDCCI_MISC_STEREO_VIDEO_MODE_2WAY_INTERLEAVED_LEFT_FIRST:
+ *  Enable 2-Way Interleaved Left Eye First
+ * NV_CTRL_DDCCI_MISC_STEREO_VIDEO_MODE_4WAY_INTERLEAVED_ODD_LINES:
+ *  Enable 4-Way Interleaved, Display Stereo Buffer 0 (even scan lines)
+ * NV_CTRL_DDCCI_MISC_STEREO_VIDEO_MODE_4WAY_INTERLEAVED_ODD_LINES:
+ *  Enable 4-Way Interleaved, Display Stereo Buffer 1 (odd scan lines)
+ * NV_CTRL_DDCCI_MISC_STEREO_VIDEO_MODE_SIDE_BY_SIDE_INTERLEAVED:
+ * Enable Side-by-Side Interleaved
+ * Note: It is permissible, during a read operation, for a display to indicate
+ * support for 2 or more stereo modes
+ * Type: Bitmask
+ */
+#define NV_CTRL_DDCCI_MISC_STEREO_VIDEO_MODE                    208/* RWD */
+#define NV_CTRL_DDCCI_MISC_STEREO_VIDEO_MODE_FIELD_SEQUENTIAL_RIGHT_FIRST (1<<6)
+#define NV_CTRL_DDCCI_MISC_STEREO_VIDEO_MODE_FIELD_SEQUENTIAL_LEFT_FIRST  (1<<5)
+#define NV_CTRL_DDCCI_MISC_STEREO_VIDEO_MODE_2WAY_INTERLEAVED_RIGHT_FIRST (1<<4)
+#define NV_CTRL_DDCCI_MISC_STEREO_VIDEO_MODE_2WAY_INTERLEAVED_LEFT_FIRST  (1<<3)
+#define NV_CTRL_DDCCI_MISC_STEREO_VIDEO_MODE_4WAY_INTERLEAVED_EVEN_LINES  (1<<2)
+#define NV_CTRL_DDCCI_MISC_STEREO_VIDEO_MODE_4WAY_INTERLEAVED_ODD_LINES   (1<<1)
+#define NV_CTRL_DDCCI_MISC_STEREO_VIDEO_MODE_SIDE_BY_SIDE_INTERLEAVED     (1<<0)
+
+/* Power Mode ­ DPMS and DPM standards are supported.
+ * Value                                    DPMS        DPM
+ * NV_CTRL_DDCCI_MISC_POWER_MODE_ON         On          On
+ * NV_CTRL_DDCCI_MISC_POWER_MODE_STANDBY    Standby     Off
+ * NV_CTRL_DDCCI_MISC_POWER_MODE_SUSPEND    Suspend     Off
+ * NV_CTRL_DDCCI_MISC_POWER_MODE_OFF        Off         Off
+ * Type: Integer
+ */
+#define NV_CTRL_DDCCI_MISC_POWER_MODE                           209/* RWD */
+#define NV_CTRL_DDCCI_MISC_POWER_MODE_ON                        1
+#define NV_CTRL_DDCCI_MISC_POWER_MODE_STANDBY                   2
+#define NV_CTRL_DDCCI_MISC_POWER_MODE_SUSPEND                   3
+#define NV_CTRL_DDCCI_MISC_POWER_MODE_OFF                       4
+
+/* Controls output of an auxiliary power output from a display to a host device.
+ * NV_CTRL_DDCCI_MISC_AUXILIARY_POWER_OUTPUT_DISABLE: 
+ *  Disable auxiliary output power
+ * NV_CTRL_DDCCI_MISC_AUXILIARY_POWER_OUTPUT_ENABLE: 
+ * Enable auxiliary output power
+ * Type: Integer
+ */
+#define NV_CTRL_DDCCI_MISC_AUXILIARY_POWER_OUTPUT               210/* RWD */
+#define NV_CTRL_DDCCI_MISC_AUXILIARY_POWER_OUTPUT_DISABLE       1
+#define NV_CTRL_DDCCI_MISC_AUXILIARY_POWER_OUTPUT_ENABLE        2
+
+/* Operation mode
+ * NV_CTRL_DDCCI_MISC_OPERATION_MODE_STANDALONE: Stand alone
+ * NV_CTRL_DDCCI_MISC_OPERATION_MODE_SLAVE: Slave (full PC control)
+ * Type: Integer
+ */
+#define NV_CTRL_DDCCI_MISC_OPERATION_MODE                       211/* -WD */
+#define NV_CTRL_DDCCI_MISC_OPERATION_MODE_STANDALONE            1
+#define NV_CTRL_DDCCI_MISC_OPERATION_MODE_SLAVE                 2
+
+/* Define the version number of VCP list recognized by the display.
+ * This is a 2 byte value, byte 1 defines the version number and
+ * byte 2 defines the revision number
+ * e.g 02 00 (hex) defines Version 2, Revision 0
+ * Type: Integer
+ */
+#define NV_CTRL_DDCCI_MISC_VCP_VERSION                          212/* R-D */
+
+/* Save the current adjustment data to EEPROM or other 
+ * non-volatile storage inside the display
+ * Returns TRUE on success
+ * Type: Boolean
+ */
+#define NV_CTRL_DDCCI_SAVE_CURRENT_SETTINGS                     213/* -WD */
+
+/* Detects if the display is DDC/CI capable
+ * Returns TRUE on success
+ * Type: Boolean
+ */ 
+#define NV_CTRL_DDCCI_CAPABLE                                   214/* R-D*/
+
+#define NV_CTRL_DDCCI_FIRST_VCP NV_CTRL_DDCCI_GEOMETRY_HORIZONTAL_POSITION
+#define NV_CTRL_DDCCI_LAST_VCP NV_CTRL_DDCCI_CAPABLE
 /**************************************************************************/
 
+/*
+ * NV_CTRL_FLATPANEL_CHIP_LOCATION - for the specified display device,
+ * report whether the flatpanel is driven by the on-chip controller,
+ * or a separate controller chip elsewhere on the graphics board.
+ * This attribute is only available for flatpanels.
+ */
 
-#define NV_CTRL_LAST_ATTRIBUTE NV_CTRL_GVO_X_SCREEN_PAN_Y
+#define NV_CTRL_FLATPANEL_CHIP_LOCATION                         215/* R-D */
+#define NV_CTRL_FLATPANEL_CHIP_LOCATION_INTERNAL                  0
+#define NV_CTRL_FLATPANEL_CHIP_LOCATION_EXTERNAL                  1
+
+/*
+ * NV_CTRL_FLATPANEL_LINK - report whether the specified display
+ * device is driven by a single link or dual link DVI connection.
+ * This attribute is only available for flatpanels.
+ */
+
+#define NV_CTRL_FLATPANEL_LINK                                  216/* R-D */
+#define NV_CTRL_FLATPANEL_LINK_SINGLE                             0
+#define NV_CTRL_FLATPANEL_LINK_DUAL                               1
+
+/*
+ * NV_CTRL_FLATPANEL_SIGNAL - for the specified display device, report
+ * whether the flatpanel is driven by an LVDS or TMDS signal.  This
+ * attribute is only available for flatpanels.
+ */
+
+#define NV_CTRL_FLATPANEL_SIGNAL                                217/* R-D */
+#define NV_CTRL_FLATPANEL_SIGNAL_LVDS                             0
+#define NV_CTRL_FLATPANEL_SIGNAL_TMDS                             1
 
 
+/*
+ * NV_CTRL_USE_HOUSE_SYNC - when TRUE, framelock will sync to the house
+ * sync
+ *
+ */
 
+#define NV_CTRL_USE_HOUSE_SYNC                                  218/* RW- */
+#define NV_CTRL_USE_HOUSE_SYNC_FALSE                            0
+#define NV_CTRL_USE_HOUSE_SYNC_TRUE                             1
+
+/**************************************************************************/
+#define NV_CTRL_LAST_ATTRIBUTE NV_CTRL_USE_HOUSE_SYNC
 
 /**************************************************************************/
 
@@ -1021,6 +2361,9 @@
  * String Attributes:
  */
 
+#define QUERY_STRING_ERR 0
+#define QUERY_STRING_OK 1
+#define QUERY_STRING_STATIC 2
 
 /*
  * NV_CTRL_STRING_PRODUCT_NAME - the GPU product name on which the
@@ -1060,10 +2403,33 @@
  */
 
 #define NV_CTRL_STRING_TV_ENCODER_NAME                          5  /* R-D */
- 
-#define NV_CTRL_STRING_LAST_ATTRIBUTE NV_CTRL_STRING_TV_ENCODER_NAME
 
 
+/* NV_CTRL_STRING_DDCCI_MISC_TRANSMIT_DISPLAY_DESCRIPTOR -
+ * Allows a display descriptor (up to maximum length defined by the
+ * display (see NV_CTRL_DDCCI_MISC_DISPLAY_DESCRIPTOR_LENGTHC2h) to be written 
+ * (read) to (from) non-volatile storage in the display.
+ * If an attempt is made to write beyond the maximum storage
+ * length, the descriptor shall be truncated with the excess bytes
+ * being discarded.
+ */
+#define NV_CTRL_STRING_DDCCI_MISC_TRANSMIT_DISPLAY_DESCRIPTOR   6  /* RWD */
+
+
+/* NV_CTRL_STRING_DDCCI_MISC_AUXILIARY_DISPLAY_DATA -
+ * An `auxiliary display' is a small alpha-numeric display associated
+ * with the primary display and able to be accessed via the primary
+ * display.
+ * This command transmits a number of bytes of alpha-numeric
+ * data to be displayed on the auxiliary display. The data shall
+ * conform to ISO 8859-2 (Latin 1) code set.
+ * The auxiliary display will be written from the top left position,
+ * moving to right along each line and then starting at left end of the
+ * next line.
+ */
+#define NV_CTRL_STRING_DDCCI_MISC_AUXILIARY_DISPLAY_DATA        7  /* -WD */
+
+#define NV_CTRL_STRING_LAST_ATTRIBUTE NV_CTRL_STRING_DDCCI_MISC_AUXILIARY_DISPLAY_DATA
 
 /**************************************************************************/
 /*

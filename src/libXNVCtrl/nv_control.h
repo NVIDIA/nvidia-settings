@@ -8,16 +8,27 @@
 #define NV_CONTROL_MAJOR 1
 #define NV_CONTROL_MINOR 6
 
-#define X_nvCtrlQueryExtension            0
-#define X_nvCtrlIsNv                      1
-#define X_nvCtrlQueryAttribute            2
-#define X_nvCtrlSetAttribute              3
-#define X_nvCtrlQueryStringAttribute      4
-#define X_nvCtrlQueryValidAttributeValues 5
-#define X_nvCtrlSelectNotify              6
-#define X_nvCtrlSetGvoColorConversion     7
-#define X_nvCtrlQueryGvoColorConversion   8
-#define X_nvCtrlLastRequest              (X_nvCtrlQueryGvoColorConversion + 1)
+#define X_nvCtrlQueryExtension                      0
+#define X_nvCtrlIsNv                                1
+#define X_nvCtrlQueryAttribute                      2
+#define X_nvCtrlSetAttribute                        3
+#define X_nvCtrlQueryStringAttribute                4
+#define X_nvCtrlQueryValidAttributeValues           5
+#define X_nvCtrlSelectNotify                        6
+#define X_nvCtrlSetGvoColorConversion               7
+#define X_nvCtrlQueryGvoColorConversion             8
+#define X_nvCtrlSetStringAttribute                  9
+#define X_nvCtrlQueryDDCCILutSize                   10
+#define X_nvCtrlQueryDDCCISinglePointLutOperation   11
+#define X_nvCtrlSetDDCCISinglePointLutOperation     12
+#define X_nvCtrlQueryDDCCIBlockLutOperation         13
+#define X_nvCtrlSetDDCCIBlockLutOperation           14
+#define X_nvCtrlSetDDCCIRemoteProcedureCall         15
+#define X_nvCtrlQueryDDCCIDisplayControllerType     16
+#define X_nvCtrlQueryDDCCICapabilities              17
+#define X_nvCtrlQueryDDCCITimingReport              18
+#define X_nvCtrlSetAttributeAndGetStatus            19
+#define X_nvCtrlLastRequest              (X_nvCtrlSetAttributeAndGetStatus + 1)
 
 
 /* Define 32 bit floats */
@@ -113,6 +124,31 @@ typedef struct {
     CARD32 screen B32;
     CARD32 display_mask B32;
     CARD32 attribute B32;
+    INT32 value B32;
+} xnvCtrlSetAttributeAndGetStatusReq;
+#define sz_xnvCtrlSetAttributeAndGetStatusReq 20
+
+typedef struct {
+    BYTE type;
+    BYTE pad0;
+    CARD16 sequenceNumber B16;
+    CARD32 length B32;
+    CARD32 flags B32;
+    CARD32 pad3 B32;
+    CARD32 pad4 B32;
+    CARD32 pad5 B32;
+    CARD32 pad6 B32;
+    CARD32 pad7 B32;
+} xnvCtrlSetAttributeAndGetStatusReply;
+#define sz_xnvCtrlSetAttributeAndGetStatusReply 32
+
+typedef struct {
+    CARD8 reqType;
+    CARD8 nvReqType;
+    CARD16 length B16;
+    CARD32 screen B32;
+    CARD32 display_mask B32;
+    CARD32 attribute B32;
 } xnvCtrlQueryStringAttributeReq;
 #define sz_xnvCtrlQueryStringAttributeReq 16
 
@@ -133,6 +169,32 @@ typedef struct {
     CARD32 pad7 B32;
 } xnvCtrlQueryStringAttributeReply;
 #define sz_xnvCtrlQueryStringAttributeReply 32
+
+
+typedef struct {
+    CARD8 reqType;
+    CARD8 nvReqType;
+    CARD16 length B16;
+    CARD32 screen B32;
+    CARD32 display_mask B32;
+    CARD32 attribute B32;
+    CARD32 num_bytes B32;
+} xnvCtrlSetStringAttributeReq;
+#define sz_xnvCtrlSetStringAttributeReq 20
+
+typedef struct {
+    BYTE type;
+    BYTE pad0;
+    CARD16 sequenceNumber B16;
+    CARD32 length B32;
+    CARD32 flags B32;
+    CARD32 pad3 B32;
+    CARD32 pad4 B32;
+    CARD32 pad5 B32;
+    CARD32 pad6 B32;
+    CARD32 pad7 B32;
+} xnvCtrlSetStringAttributeReply;
+#define sz_xnvCtrlSetStringAttributeReply 32
 
 typedef struct {
     CARD8 reqType;
@@ -203,6 +265,232 @@ typedef struct {
 } xnvCtrlQueryGvoColorConversionReply;
 #define sz_xnvCtrlQueryGvoColorConversionReply 32
 
+
+
+typedef struct {
+    CARD8 reqType;
+    CARD8 nvReqType;
+    CARD16 length B16;
+    CARD32 screen B32;
+    CARD32 display_mask B32;
+} xnvCtrlQueryDDCCILutSizeReq;
+#define sz_xnvCtrlQueryDDCCILutSizeReq 12
+
+typedef struct {
+    BYTE type;   /* X_Reply */
+    BYTE pad0;
+    CARD16 sequenceNumber B16;
+    CARD32 length B32;
+    CARD32 flags B32;
+    CARD32 pad4 B32;
+    CARD32 pad5 B32;
+    CARD32 pad6 B32;
+    CARD32 pad7 B32;
+    CARD32 pad8 B32;
+} xnvCtrlQueryDDCCILutSizeReply;
+#define sz_xnvCtrlQueryDDCCILutSizeReply 32
+
+typedef struct {
+    CARD8 reqType;
+    CARD8 nvReqType;
+    CARD16 length B16;
+    CARD32 screen B32;
+    CARD32 display_mask B32;
+    CARD32 offset B32;
+    CARD32 red_value B32;
+    CARD32 green_value B32;
+    CARD32 blue_value B32;
+} xnvCtrlSetDDCCISinglePointLutOperationReq;
+#define sz_xnvCtrlSetDDCCISinglePointLutOperationReq 28
+
+typedef struct {
+    BYTE type;   /* X_Reply */
+    BYTE pad0;
+    CARD16 sequenceNumber B16;
+    CARD32 length B32;
+    CARD32 flags B32;
+    CARD32 pad4 B32;
+    CARD32 pad5 B32;
+    CARD32 pad6 B32;
+    CARD32 pad7 B32;
+    CARD32 pad8 B32;
+} xnvCtrlSetDDCCISinglePointLutOperationReply;
+#define sz_xnvCtrlSetDDCCISinglePointLutOperationReply 32
+
+typedef struct {
+    CARD8 reqType;
+    CARD8 nvReqType;
+    CARD16 length B16;
+    CARD32 screen B32;
+    CARD32 display_mask B32;
+    CARD32 offset B32;
+} xnvCtrlQueryDDCCISinglePointLutOperationReq;
+#define sz_xnvCtrlQueryDDCCISinglePointLutOperationReq 16
+
+typedef struct {
+    BYTE type;   /* X_Reply */
+    BYTE pad0;
+    CARD16 sequenceNumber B16;
+    CARD32 length B32;
+    CARD32 flags B32;
+    CARD32 pad4 B32;
+    CARD32 pad5 B32;
+    CARD32 pad6 B32;
+    CARD32 pad7 B32;
+    CARD32 pad8 B32;
+} xnvCtrlQueryDDCCISinglePointLutOperationReply;
+#define sz_xnvCtrlQueryDDCCISinglePointLutOperationReply 32
+
+typedef struct {
+    CARD8 reqType;
+    CARD8 nvReqType;
+    CARD16 length B16;
+    CARD32 screen B32;
+    CARD32 display_mask B32;
+    CARD32 size B32;
+    CARD32 color B32;
+    CARD32 offset B32;
+} xnvCtrlQueryDDCCIBlockLutOperationReq;
+#define sz_xnvCtrlQueryDDCCIBlockLutOperationReq 24
+
+typedef struct {
+    BYTE type;   /* X_Reply */
+    BYTE pad0;
+    CARD16 sequenceNumber B16;
+    CARD32 length B32;
+    CARD32 num_bytes B32;
+    CARD32 flags B32;
+    CARD32 pad5 B32;
+    CARD32 pad6 B32;
+    CARD32 pad7 B32;
+    CARD32 pad8 B32;
+} xnvCtrlQueryDDCCIBlockLutOperationReply;
+#define sz_xnvCtrlQueryDDCCIBlockLutOperationReply 32
+
+
+typedef struct {
+    CARD8 reqType;
+    CARD8 nvReqType;
+    CARD16 length B16;
+    CARD32 screen B32;
+    CARD32 display_mask B32;
+    CARD32 color B32;
+    CARD32 offset B32;
+    CARD32 size B32;
+    CARD32 num_bytes B32;
+} xnvCtrlSetDDCCIBlockLutOperationReq;
+#define sz_xnvCtrlSetDDCCIBlockLutOperationReq 28
+
+typedef struct {
+    BYTE type;   /* X_Reply */
+    BYTE pad0;
+    CARD16 sequenceNumber B16;
+    CARD32 length B32;
+    CARD32 num_bytes B32;
+    CARD32 flags B32;
+    CARD32 pad5 B32;
+    CARD32 pad6 B32;
+    CARD32 pad7 B32;
+    CARD32 pad8 B32;
+} xnvCtrlSetDDCCIBlockLutOperationReply;
+#define sz_xnvCtrlSetDDCCIBlockLutOperationReply 32
+
+
+typedef struct {
+    CARD8 reqType;
+    CARD8 nvReqType;
+    CARD16 length B16;
+    CARD32 screen B32;
+    CARD32 display_mask B32;
+    CARD32 num_bytes B32;
+    CARD32 size B32;
+    CARD32 offset B32;
+} xnvCtrlSetDDCCIRemoteProcedureCallReq;
+#define sz_xnvCtrlSetDDCCIRemoteProcedureCallReq 24
+
+typedef struct {
+    BYTE type;   /* X_Reply */
+    BYTE pad0;
+    CARD16 sequenceNumber B16;
+    CARD32 length B32;
+    CARD32 num_bytes B32;
+    CARD32 flags B32;
+    CARD32 pad5 B32;
+    CARD32 pad6 B32;
+    CARD32 pad7 B32;
+    CARD32 pad8 B32;
+} xnvCtrlSetDDCCIRemoteProcedureCallReply;
+#define sz_xnvCtrlSetDDCCIRemoteProcedureCallReply 32
+
+typedef struct {
+    CARD8 reqType;
+    CARD8 nvReqType;
+    CARD16 length B16;
+    CARD32 screen B32;
+    CARD32 display_mask B32;
+} xnvCtrlQueryDDCCIDisplayControllerTypeReq;
+#define sz_xnvCtrlQueryDDCCIDisplayControllerTypeReq 12
+
+typedef struct {
+    BYTE type;   /* X_Reply */
+    BYTE pad0;
+    CARD16 sequenceNumber B16;
+    CARD32 length B32;
+    CARD32 controller_type B32;
+    CARD32 size B32;
+    CARD32 flags B32;
+    CARD32 pad5 B32;
+    CARD32 pad6 B32;
+    CARD32 pad7 B32;
+} xnvCtrlQueryDDCCIDisplayControllerTypeReply;
+#define sz_xnvCtrlQueryDDCCIDisplayControllerTypeReply 32
+
+typedef struct {
+    CARD8 reqType;
+    CARD8 nvReqType;
+    CARD16 length B16;
+    CARD32 screen B32;
+    CARD32 display_mask B32;
+} xnvCtrlQueryDDCCICapabilitiesReq;
+#define sz_xnvCtrlQueryDDCCICapabilitiesReq 12
+
+typedef struct {
+    BYTE type;   /* X_Reply */
+    BYTE pad0;
+    CARD16 sequenceNumber B16;
+    CARD32 length B32;
+    CARD32 num_bytes B32;
+    CARD32 flags B32;
+    CARD32 possible_val_len B32;
+    CARD32 pad6 B32;
+    CARD32 pad7 B32;
+    CARD32 pad8 B32;
+} xnvCtrlQueryDDCCICapabilitiesReply;
+#define sz_xnvCtrlQueryDDCCICapabilitiesReply 32
+
+typedef struct {
+    CARD8 reqType;
+    CARD8 nvReqType;
+    CARD16 length B16;
+    CARD32 screen B32;
+    CARD32 display_mask B32;
+} xnvCtrlQueryDDCCITimingReportReq;
+#define sz_xnvCtrlQueryDDCCITimingReportReq 12
+
+typedef struct {
+    BYTE type;   /* X_Reply */
+    BYTE pad0;
+    CARD16 sequenceNumber B16;
+    CARD32 length B32;
+    CARD32 flags B32;
+    CARD32 pad4 B32;
+    CARD32 pad5 B32;
+    CARD32 pad6 B32;
+    CARD32 pad7 B32;
+    CARD32 pad8 B32;
+} xnvCtrlQueryDDCCITimingReportReply;
+#define sz_xnvCtrlQueryDDCCITimingReportReply 32
+
 typedef struct {
     CARD8 reqType;
     CARD8 nvReqType;
@@ -224,7 +512,7 @@ typedef struct {
             BYTE type;
             BYTE detail;
             CARD16 sequenceNumber B16;
-            Time time B32;
+            CARD32 time B32;
             CARD32 screen B32;
             CARD32 display_mask B32;
             CARD32 attribute B32;

@@ -59,7 +59,7 @@ struct _CtkGLX
     CtkConfig *ctk_config;
 
     GtkWidget *glxinfo_vpane;
-    int        probe_handler_id; /* Signal handler ID */
+    Bool       glxinfo_initialized;
 };
 
 struct _CtkGLXClass
@@ -72,6 +72,9 @@ GtkWidget*  ctk_glx_new       (NvCtrlAttributeHandle *,
                                CtkConfig *, CtkEvent *);
 
 GtkTextBuffer *ctk_glx_create_help(GtkTextTagTable *, CtkGLX *);
+
+void ctk_glx_probe_info(GtkWidget *widget);
+
 
 G_END_DECLS
 

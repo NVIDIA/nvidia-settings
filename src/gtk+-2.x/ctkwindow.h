@@ -75,6 +75,9 @@ struct _CtkWindow
     GtkWidget              *quit_dialog;
 
     ParsedAttribute        *attribute_list;
+
+    GtkTreeIter             iter;
+    GtkWidget              *widget;
 };
 
 struct _CtkWindowClass

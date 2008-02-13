@@ -753,16 +753,20 @@ static void fsaa_update_received(GtkObject *object,
     CtkEventStruct *event_struct;
     CtkMultisample *ctk_multisample;
     GtkRange *range;
+    gint val;
 
     event_struct = (CtkEventStruct *) arg1;
     ctk_multisample = CTK_MULTISAMPLE(user_data);
     range = GTK_RANGE(ctk_multisample->fsaa_scale);
 
+    val = map_nv_ctrl_fsaa_value_to_slider(ctk_multisample,
+                                           event_struct->value);
+
     g_signal_handlers_block_by_func(G_OBJECT(range),
                                     G_CALLBACK(fsaa_value_changed),
                                     (gpointer) ctk_multisample);
     
-    gtk_range_set_value(range, event_struct->value);
+    gtk_range_set_value(range, val);
     
     g_signal_handlers_unblock_by_func(G_OBJECT(range),
                                       G_CALLBACK(fsaa_value_changed),

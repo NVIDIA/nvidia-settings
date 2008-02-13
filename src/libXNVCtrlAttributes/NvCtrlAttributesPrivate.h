@@ -29,6 +29,7 @@
 #include "NVCtrl.h"
 #include <GL/glx.h> /* GLX #defines */
 #include <X11/extensions/Xrandr.h> /* Xrandr */
+#include <X11/extensions/Xvlib.h> /* Xv */
 
 
 #define EXTENSION_NV_CONTROL  0x1
@@ -70,10 +71,16 @@
 #define XV_MINMINOR 0
 
 
+/* Use to resolve symbols in dynamically opened libraries */
+
+#define NV_DLSYM(handle, symbol) ({ dlerror(); dlsym(handle, symbol); })
+
+
 typedef struct __NvCtrlAttributes NvCtrlAttributes;
 typedef struct __NvCtrlVidModeAttributes NvCtrlVidModeAttributes;
 typedef struct __NvCtrlAttributePrivateHandle NvCtrlAttributePrivateHandle;
 typedef struct __NvCtrlNvControlAttributes NvCtrlNvControlAttributes;
+typedef struct __NvCtrlXvAttributes NvCtrlXvAttributes;
 typedef struct __NvCtrlXvOverlayAttributes NvCtrlXvOverlayAttributes;
 typedef struct __NvCtrlXvTextureAttributes NvCtrlXvTextureAttributes;
 typedef struct __NvCtrlXvBlitterAttributes NvCtrlXvBlitterAttributes;
@@ -121,6 +128,33 @@ struct __NvCtrlXvBlitterAttributes {
     NvCtrlXvAttribute *defaults;
 };
 
+struct __NvCtrlXvAttributes {
+
+    /* libXv.so library handle */
+    void *libXv;
+
+    /* Private display connection for the Xv ext. */
+    Display *dpy;
+
+    /* libXv functions */
+    int (* XvGetPortAttribute) (Display *, XvPortID, Atom, int *);
+
+    int (* XvSetPortAttribute) (Display *, XvPortID, Atom, int);
+
+    XvAttribute* (* XvQueryPortAttributes) (Display *, XvPortID, int *);
+
+    int (* XvQueryExtension) (Display *, unsigned int *, unsigned int *,
+                              unsigned int *, unsigned int *, unsigned int *);
+    
+    int (* XvQueryAdaptors) (Display *, Window, unsigned int *,
+                             XvAdaptorInfo **);
+
+
+    NvCtrlXvOverlayAttributes *overlay; /* XVideo info (overlay) */
+    NvCtrlXvTextureAttributes *texture; /* XVideo info (texture) */
+    NvCtrlXvBlitterAttributes *blitter; /* XVideo info (blitter) */
+};
+
 struct __NvCtrlGlxAttributes {
 
     /* Private display connection for the GLX information ext. */
@@ -153,6 +187,9 @@ struct __NvCtrlGlxAttributes {
 };
 
 struct __NvCtrlXrandrAttributes {
+
+    /* Private display connection for the XRandR information ext. */
+    Display *dpy;
 
     /* libXrandr.so library handle */
     void     *libXrandr;
@@ -190,13 +227,11 @@ struct __NvCtrlXrandrAttributes {
 };
 
 struct __NvCtrlAttributePrivateHandle {
-    Display *dpy;                  /* display connection */
-    int screen;                    /* the screen that this handle controls */
-    NvCtrlNvControlAttributes *nv; /* NV-CONTROL extension info */
-    NvCtrlVidModeAttributes *vm;   /* XF86VidMode extension info */    
-    NvCtrlXvOverlayAttributes *xv_overlay; /* XVideo info (overlay) */
-    NvCtrlXvTextureAttributes *xv_texture; /* XVideo info (texture) */
-    NvCtrlXvBlitterAttributes *xv_blitter; /* XVideo info (blitter) */
+    Display *dpy;                   /* display connection */
+    int screen;                     /* the screen that this handle controls */
+    NvCtrlNvControlAttributes *nv;  /* NV-CONTROL extension info */
+    NvCtrlVidModeAttributes *vm;    /* XF86VidMode extension info */
+    NvCtrlXvAttributes *xv;         /* XVideo info */
     NvCtrlGlxAttributes *glx;       /* GLX extension info */
     NvCtrlXrandrAttributes *xrandr; /* XRandR extension info */
 };
@@ -207,43 +242,46 @@ NvCtrlInitNvControlAttributes (NvCtrlAttributePrivateHandle *);
 NvCtrlVidModeAttributes *
 NvCtrlInitVidModeAttributes (NvCtrlAttributePrivateHandle *);
 
-void NvCtrlInitXvOverlayAttributes (NvCtrlAttributePrivateHandle *);
+
+/* Xv attribute functions */
+
+NvCtrlXvAttributes *
+NvCtrlInitXvAttributes (NvCtrlAttributePrivateHandle *);
+
+void
+NvCtrlXvAttributesClose (NvCtrlAttributePrivateHandle *);
 
 
 /* GLX extension attribute functions */
 
 NvCtrlGlxAttributes *
-NvCtrlInitGlxAttributes (NvCtrlAttributePrivateHandle *h);
+NvCtrlInitGlxAttributes (NvCtrlAttributePrivateHandle *);
 
 void
-NvCtrlGlxAttributesClose (NvCtrlAttributePrivateHandle *h);
+NvCtrlGlxAttributesClose (NvCtrlAttributePrivateHandle *);
 
 ReturnStatus
-NvCtrlGlxGetVoidAttribute (NvCtrlAttributePrivateHandle *,
-                           unsigned int,
+NvCtrlGlxGetVoidAttribute (NvCtrlAttributePrivateHandle *, unsigned int,
                            int, void **);
 
 ReturnStatus
-NvCtrlGlxGetStringAttribute (NvCtrlAttributePrivateHandle *,
-                             unsigned int,
+NvCtrlGlxGetStringAttribute (NvCtrlAttributePrivateHandle *, unsigned int,
                              int, char **);
 
 
 /* XRandR extension attribute functions */
 
 NvCtrlXrandrAttributes *
-NvCtrlInitXrandrAttributes (NvCtrlAttributePrivateHandle *h);
+NvCtrlInitXrandrAttributes (NvCtrlAttributePrivateHandle *);
 
 void
-NvCtrlXrandrAttributesClose (NvCtrlAttributePrivateHandle *h);
+NvCtrlXrandrAttributesClose (NvCtrlAttributePrivateHandle *);
 
 ReturnStatus
-NvCtrlXrandrGetAttribute (NvCtrlAttributePrivateHandle *h,
-                          int attr, int *val);
+NvCtrlXrandrGetAttribute (NvCtrlAttributePrivateHandle *, int, int *);
 
 ReturnStatus
-NvCtrlXrandrSetAttribute (NvCtrlAttributePrivateHandle *h,
-                          int attr, int val);
+NvCtrlXrandrSetAttribute (NvCtrlAttributePrivateHandle *, int, int);
 
 
 /* Generic attribute functions */

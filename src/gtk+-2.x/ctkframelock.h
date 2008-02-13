@@ -64,6 +64,8 @@ struct _CtkFramelock
     
     GtkWindow             *parent_window;
 
+    GtkWidget             *house_sync_frame;
+    GtkWidget             *use_house_sync_button;
     GtkWidget             *sync_interval_entry;
     GtkWidget             *sync_interval_frame;
 
@@ -114,6 +116,9 @@ GtkWidget*  ctk_framelock_new       (NvCtrlAttributeHandle *, GtkWidget *,
 GtkTextBuffer *ctk_framelock_create_help(GtkTextTagTable *);
 
 void ctk_framelock_config_file_attributes(GtkWidget *, ParsedAttribute *);
+
+void           ctk_framelock_select (GtkWidget *);
+void           ctk_framelock_unselect (GtkWidget *);
 
 G_END_DECLS
 

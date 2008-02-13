@@ -13,12 +13,15 @@ source package).
 Sample applications:
 
     nv-control-info: demonstrates how to query for extension
-                     presense, basic information
+                     presense, basic information.
 
     nv-control-dvc:  demonstrates how to query and assign an
                      integer attribute (NV_CTRL_DIGITAL_VIBRANCE); also
                      shows how to handle multiple display devices.
 
     nv-control-events: demonstrates how to register to receive and
-                     interpret NV-CONTROL events
+                     interpret NV-CONTROL events.
 
+
+    nv-ddcci-client: demonstrates how to use the implementation of the 
+                     DDC/CI interface with the NV-CONTROL X extension.

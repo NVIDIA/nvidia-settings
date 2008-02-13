@@ -33,12 +33,11 @@
  *
  * TODO:
  *
- * - Use color selection dialog
  * - provide mechanism for configuring ARGB cursor themes, etc...
  */
 
 
-
+#include <stdio.h>  /* sprintf */
 #include <gtk/gtk.h>
 
 #include "NvCtrlAttributes.h"
@@ -68,7 +67,7 @@ static const char *__alpha_help =
 "shadow is.";
 
 static const char *__color_selector_help =
-"The Cursor Shadow Color Selector checkbox toggles "
+"The Cursor Shadow Color Selector button toggles "
 "the Cursor Shadow Color Selector window, which allows "
 "you to select the color for the cursor shadow.";
 
@@ -146,6 +145,8 @@ static gboolean
 color_selector_window_destroy(GtkWidget *widget, GdkEvent *event,
                               gpointer user_data);
 
+static void post_color_selector_changed(CtkCursorShadow *ctk_cursor_shadow,
+                                        gint red, gint green, gint blue);
 
 static void color_selector_changed(GtkColorSelection *colorselection,
                                    gpointer user_data);
@@ -207,10 +208,13 @@ GtkWidget* ctk_cursor_shadow_new(NvCtrlAttributeHandle *handle,
     GtkWidget *vbox;
     GtkWidget *check_button;
     GtkWidget *label;
+    GdkColor   color;
     ReturnStatus ret;
     gint enabled;
     guint8 *image_buffer = NULL;
     const nv_image_t *img;
+    gint red, green, blue;
+    char str[16];
 
     /* check to see if we can support cursor shadow */
     
@@ -317,25 +321,81 @@ GtkWidget* ctk_cursor_shadow_new(NvCtrlAttributeHandle *handle,
                      (gpointer) ctk_cursor_shadow);
     
 
-    /* "Color Shadow Selector" check box */
+    /* "Color Shadow Selector" button */
     
-    ctk_cursor_shadow->color_selector_check_button =
-        gtk_check_button_new_with_label("Cursor Shadow Color Selector");
+    ctk_cursor_shadow->color_selector_button =
+        gtk_toggle_button_new();
 
-    gtk_box_pack_start(GTK_BOX(vbox),
-                       ctk_cursor_shadow->color_selector_check_button,
-                       FALSE, FALSE, 0);
+    /* Cursor Shadow Color Box */
     
+    frame = gtk_aspect_frame_new(NULL, 0, 0, 1, FALSE);
+
+    gtk_frame_set_shadow_type(GTK_FRAME(frame), GTK_SHADOW_OUT);
+
+    gtk_container_set_border_width(GTK_CONTAINER(frame), 1);
+
+
+    ctk_cursor_shadow->cursor_shadow_bg = gtk_event_box_new();
+
+    gtk_widget_set_size_request(ctk_cursor_shadow->cursor_shadow_bg, 10, 10);
+
+    /* Grab current cursor shadow color */
+
+    NvCtrlGetAttribute(ctk_cursor_shadow->handle,
+                       NV_CTRL_CURSOR_SHADOW_RED, &red);
+    
+    NvCtrlGetAttribute(ctk_cursor_shadow->handle,
+                       NV_CTRL_CURSOR_SHADOW_GREEN, &green);
+    
+    NvCtrlGetAttribute(ctk_cursor_shadow->handle,
+                       NV_CTRL_CURSOR_SHADOW_BLUE, &blue);
+    
+    sprintf(str, "#%2.2X%2.2X%2.2X", red, green, blue);
+
+    gdk_color_parse (str, &color);
+
+    gtk_widget_modify_bg(ctk_cursor_shadow->cursor_shadow_bg,
+                         GTK_STATE_NORMAL, &color);
+
+    gtk_widget_modify_bg(ctk_cursor_shadow->cursor_shadow_bg,
+                         GTK_STATE_ACTIVE, &color);
+
+    gtk_widget_modify_bg(ctk_cursor_shadow->cursor_shadow_bg,
+                         GTK_STATE_PRELIGHT, &color);
+
+    /* pack cursor color selector button */
+
+    gtk_container_add(GTK_CONTAINER(frame),
+                      ctk_cursor_shadow->cursor_shadow_bg);
+    
+    label = gtk_label_new("Cursor Shadow Color Selector");
+
+    hbox  = gtk_hbox_new(FALSE, 0);
+
+    gtk_box_pack_start( GTK_BOX(hbox), frame, TRUE, TRUE, 2);
+
+    gtk_box_pack_end( GTK_BOX(hbox), label, FALSE, FALSE, 5);
+
+    gtk_container_add(GTK_CONTAINER(ctk_cursor_shadow->color_selector_button),
+                      hbox);
+
+    hbox = gtk_hbox_new(FALSE, 5);
+    gtk_box_pack_start(GTK_BOX(hbox),
+                       ctk_cursor_shadow->color_selector_button,
+                       FALSE, FALSE, 0);
+
+    gtk_box_pack_start(GTK_BOX(vbox), hbox, FALSE, FALSE, 5);
+
     gtk_toggle_button_set_active
-        (GTK_TOGGLE_BUTTON(ctk_cursor_shadow->color_selector_check_button),
+        (GTK_TOGGLE_BUTTON(ctk_cursor_shadow->color_selector_button),
          FALSE);
     
-    g_signal_connect(G_OBJECT(ctk_cursor_shadow->color_selector_check_button),
-                     "toggled", G_CALLBACK(color_toggled),
+    g_signal_connect(G_OBJECT(ctk_cursor_shadow->color_selector_button),
+                     "clicked", G_CALLBACK(color_toggled),
                      (gpointer) ctk_cursor_shadow);
     
     ctk_config_set_tooltip(ctk_config,
-                           ctk_cursor_shadow->color_selector_check_button,
+                           ctk_cursor_shadow->color_selector_button,
                            __color_selector_help);
    
     /* Color Selector */
@@ -596,6 +656,9 @@ static void reset_defaults(GtkButton *button, gpointer user_data)
 
     gtk_color_selection_set_current_color
         (GTK_COLOR_SELECTION(ctk_cursor_shadow->color_selector), &color);
+
+    post_color_selector_changed(ctk_cursor_shadow,
+                                color.red, color.green, color.blue);
     
     g_signal_handlers_unblock_matched
         (G_OBJECT(ctk_cursor_shadow->color_selector),
@@ -716,6 +779,8 @@ static void set_cursor_shadow_sensitivity(CtkCursorShadow *ctk_cursor_shadow,
     }
     
     gtk_widget_set_sensitive(ctk_cursor_shadow->color_selector, enabled);
+
+    gtk_widget_set_sensitive(ctk_cursor_shadow->color_selector_button, enabled);
 
     /*
      * We separately track whether the reset button should be
@@ -963,7 +1028,7 @@ color_selector_close_button_clicked(GtkButton *button, gpointer user_data)
     CtkCursorShadow *ctk_cursor_shadow = CTK_CURSOR_SHADOW(user_data);
     
     gtk_toggle_button_set_active
-        (GTK_TOGGLE_BUTTON(ctk_cursor_shadow->color_selector_check_button),
+        (GTK_TOGGLE_BUTTON(ctk_cursor_shadow->color_selector_button),
          FALSE);
     
 } /* color_selector_close_button_clicked() */
@@ -977,7 +1042,7 @@ color_selector_window_destroy(GtkWidget *widget, GdkEvent *event,
     CtkCursorShadow *ctk_cursor_shadow = CTK_CURSOR_SHADOW(user_data);
     
     gtk_toggle_button_set_active
-        (GTK_TOGGLE_BUTTON(ctk_cursor_shadow->color_selector_check_button),
+        (GTK_TOGGLE_BUTTON(ctk_cursor_shadow->color_selector_button),
          FALSE);
     
     return TRUE;
@@ -1033,6 +1098,23 @@ static int get_value_and_range(CtkCursorShadow *ctk_cursor_shadow,
 static void post_color_selector_changed(CtkCursorShadow *ctk_cursor_shadow,
                                         gint red, gint green, gint blue)
 {
+    GdkColor color;
+    char     str[16];
+    sprintf(str, "#%2.2X%2.2X%2.2X", red, green, blue);
+
+
+    /* Update the color square */
+
+    gdk_color_parse(str, &color);
+    gtk_widget_modify_bg(ctk_cursor_shadow->cursor_shadow_bg,
+                         GTK_STATE_NORMAL, &color);
+
+    gtk_widget_modify_bg(ctk_cursor_shadow->cursor_shadow_bg,
+                         GTK_STATE_ACTIVE, &color);
+
+    gtk_widget_modify_bg(ctk_cursor_shadow->cursor_shadow_bg,
+                         GTK_STATE_PRELIGHT, &color);
+
     /* make the reset button sensitive */
     
     ctk_cursor_shadow->reset_button_sensitivity = TRUE;

@@ -28,21 +28,14 @@
 #include <gtk/gtk.h>
 #include <NvCtrlAttributes.h>
 
+#include "glxinfo.h" /* xxx_abbrev functions */
+
 #include "glx_banner.h"
 #include "ctkglx.h"
 #include "ctkconfig.h"
 #include "ctkhelp.h"
 
 #include <GL/glx.h> /* GLX #defines */
-
-
-
-/* Prototypes */
-
-static void ctk_glx_probe_info(GtkWidget *widget,
-                               GtkObject *old_parent,
-                               gpointer data);
-
 
 
 /* Number of FBConfigs attributes reported in gui */
@@ -208,7 +201,7 @@ GtkWidget* ctk_glx_new(NvCtrlAttributeHandle *handle,
     GtkWidget *image;
     GtkWidget *frame;
     GtkWidget *hseparator;
-    GtkWidget *hbox, *hbox2;
+    GtkWidget *hbox;
     GtkWidget *vbox, *vbox2;
     GtkWidget *alignment;
     GtkWidget *table;
@@ -286,7 +279,7 @@ GtkWidget* ctk_glx_new(NvCtrlAttributeHandle *handle,
     /* Determine if GLX is supported */
     ret = NvCtrlGetStringAttribute(ctk_glx->handle,
                                    NV_CTRL_STRING_GLX_SERVER_VENDOR,
-                                   &glx_info_str );
+                                   &glx_info_str);
     free(glx_info_str);
     if ( ret != NvCtrlSuccess ) {
         goto fail_glx_not_supported;
@@ -468,12 +461,6 @@ GtkWidget* ctk_glx_new(NvCtrlAttributeHandle *handle,
 
     gtk_widget_show_all(GTK_WIDGET(object));
 
-    /* Set to probe for GLX info when widget is swapped in */
-    ctk_glx->probe_handler_id =
-        g_signal_connect(G_OBJECT(ctk_glx), "parent-set",
-                         G_CALLBACK(ctk_glx_probe_info),
-                         (gpointer) ctk_glx);
-
     return GTK_WIDGET(object);
 
 
@@ -503,11 +490,9 @@ GtkWidget* ctk_glx_new(NvCtrlAttributeHandle *handle,
 /* Probes for GLX information and sets up the results
  * in the GLX widget.
  */
-static void ctk_glx_probe_info(GtkWidget *widget, 
-                               GtkObject *old_parent,
-                               gpointer data)
+void ctk_glx_probe_info(GtkWidget *widget)
 {
-    CtkGLX *ctk_glx = (CtkGLX *) data;
+    CtkGLX *ctk_glx = CTK_GLX(widget);
 
     ReturnStatus ret;
 
@@ -532,16 +517,13 @@ static void ctk_glx_probe_info(GtkWidget *widget,
     GtkWidget *table;
 
 
-    /* Make sure the widget was initialized */
-    if ( !ctk_glx || !ctk_glx->glxinfo_vpane || !ctk_glx->probe_handler_id ) {
+    /* Make sure the widget was initialized and that glx information
+     * has not yet been initialized.
+     */
+    if ( !ctk_glx || !ctk_glx->glxinfo_vpane ||
+         ctk_glx->glxinfo_initialized ) {
         return;
     }
-
-
-    /* Disconnect the handler */
-    g_signal_handler_disconnect(G_OBJECT(ctk_glx),
-                                ctk_glx->probe_handler_id);
-    ctk_glx->probe_handler_id = 0;
 
 
     /* Get GLX information */
@@ -718,7 +700,7 @@ static void ctk_glx_probe_info(GtkWidget *widget,
     /* Show the information */
     gtk_widget_show_all(GTK_WIDGET(ctk_glx));
 
-
+    ctk_glx->glxinfo_initialized = True;
 
     /* Fall through */
  done:

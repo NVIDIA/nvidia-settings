@@ -50,7 +50,9 @@ SRC += \
 	ctkthermal.c \
 	ctkgvo.c \
 	ctkdropdownmenu.c \
-	ctkrandr.c
+	ctkrandr.c \
+	ctkclocks.c \
+	ctkutils.c
 
 
 EXTRA_DIST += \
@@ -79,5 +81,6 @@ EXTRA_DIST += \
 	ctkthermal.h \
 	ctkgvo.h \
 	ctkdropdownmenu.h \
-	ctkrandr.h
-
+	ctkrandr.h \
+	ctkclocks.h \
+	ctkutils.h

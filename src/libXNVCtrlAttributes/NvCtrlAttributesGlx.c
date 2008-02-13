@@ -43,10 +43,8 @@
 #include <GL/glx.h> /* GLX #defines */
 
 #if defined(NV_BSD)
-static void *__handle = NULL;
+static void *__libGL_handle = NULL;
 #endif
-
-#define NV_DLSYM(handle, symbol) ({ dlerror(); dlsym(handle, symbol); })
 
 /****
  *
@@ -138,8 +136,10 @@ NvCtrlInitGlxAttributes (NvCtrlAttributePrivateHandle *h)
      * to be free()'d on dlclose(); this results in failures
      * on subsequent attempts to open libGL.so.
      */
-    if (__handle == NULL)
-        glx->libGL = __handle = dlopen("libGL.so.1", RTLD_LAZY);
+    if (__libGL_handle == NULL) {
+        __libGL_handle = dlopen("libGL.so.1", RTLD_LAZY);
+    }
+    glx->libGL = __libGL_handle;
 #else
     /* Link the libGL lib */
     glx->libGL = dlopen("libGL.so.1", RTLD_LAZY);
@@ -243,7 +243,7 @@ NvCtrlGlxAttributesClose (NvCtrlAttributePrivateHandle *h)
         XCloseDisplay( h->glx->dpy );
     }
 
-#if defined(NV_BSD)
+#if !defined(NV_BSD)
     if ( h->glx->libGL != NULL ) {
         dlclose( h->glx->libGL );
     }

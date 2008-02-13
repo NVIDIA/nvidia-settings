@@ -48,6 +48,7 @@
 #include "ctkglx.h"
 #include "ctkmultisample.h"
 #include "ctkthermal.h"
+#include "ctkclocks.h"
 
 #include "ctkdisplaydevice.h"
 #include "ctkdisplaydevice-crt.h"
@@ -65,11 +66,15 @@ enum {
     CTK_WINDOW_WIDGET_COLUMN,
     CTK_WINDOW_HELP_COLUMN,
     CTK_WINDOW_CONFIG_FILE_ATTRIBUTES_FUNC_COLUMN,
+    CTK_WINDOW_SELECT_WIDGET_FUNC_COLUMN,
+    CTK_WINDOW_UNSELECT_WIDGET_FUNC_COLUMN,
     CTK_WINDOW_NUM_COLUMNS
 };
 
 
 typedef void (*config_file_attributes_func_t)(GtkWidget *, ParsedAttribute *);
+typedef void (*select_widget_func_t)(GtkWidget *);
+typedef void (*unselect_widget_func_t)(GtkWidget *);
 
 static void ctk_window_class_init(CtkWindowClass *);
 
@@ -77,7 +82,9 @@ static void ctk_window_real_destroy(GtkObject *);
 
 static void add_page(GtkWidget *, GtkTextBuffer *, CtkWindow *,
                      GtkTreeIter *, const gchar *,
-                     config_file_attributes_func_t func);
+                     config_file_attributes_func_t func,
+                     select_widget_func_t load_func,
+                     unselect_widget_func_t unload_func);
 
 static GtkWidget *create_quit_dialog(CtkWindow *ctk_window);
 
@@ -220,12 +227,17 @@ static void tree_selection_changed(GtkTreeSelection *selection,
     GtkWidget *widget;
     GtkTextBuffer *help;
 
+    select_widget_func_t select_func;
+    unselect_widget_func_t unselect_func;
+
     if (!gtk_tree_selection_get_selected(selection, &model, &iter))
         return;
 
     gtk_tree_model_get(model, &iter, CTK_WINDOW_LABEL_COLUMN, &str, -1);
     gtk_tree_model_get(model, &iter, CTK_WINDOW_WIDGET_COLUMN, &widget, -1);
     gtk_tree_model_get(model, &iter, CTK_WINDOW_HELP_COLUMN, &help, -1);
+    gtk_tree_model_get(model, &iter, CTK_WINDOW_SELECT_WIDGET_FUNC_COLUMN,
+                       &select_func, -1);
 
     /*
      * remove the existing widget from the page viewer, if anything is
@@ -238,15 +250,37 @@ static void tree_selection_changed(GtkTreeSelection *selection,
         ctk_window->page = NULL;
     }
 
+    /* Call the unselect func for the existing widget, if any */
+
+    if ( ctk_window->widget ) {
+        gtk_tree_model_get(model, &(ctk_window->iter),
+                           CTK_WINDOW_UNSELECT_WIDGET_FUNC_COLUMN,
+                           &unselect_func, -1);
+        if ( unselect_func ) {
+            (*unselect_func)(ctk_window->widget);
+        }
+    }
+
+    /* Pack the new widget */
+
     if (widget) {
         ctk_window->page = widget;
         gtk_box_pack_start(GTK_BOX(ctk_window->page_viewer), widget,
                            TRUE, TRUE, 2);
     }
 
+    /* Call the select func for the new widget */
+
+    if (select_func) (*select_func)(widget);
+
     /* update the help page */
 
     ctk_help_set_page(CTK_HELP(ctk_window->ctk_help), help);
+
+    /* Keep track of the selected widget */
+
+    ctk_window->iter = iter;
+    ctk_window->widget = widget;
     
 } /* tree_selection_changed() */
 
@@ -426,11 +460,14 @@ GtkWidget *ctk_window_new(NvCtrlAttributeHandle **handles, gint num_handles,
 
     /* create the tree model */
 
-    ctk_window->tree_store = gtk_tree_store_new(CTK_WINDOW_NUM_COLUMNS,
-                                                G_TYPE_STRING,
-                                                G_TYPE_POINTER,
-                                                G_TYPE_POINTER,
-                                                G_TYPE_POINTER);
+    ctk_window->tree_store =
+        gtk_tree_store_new(CTK_WINDOW_NUM_COLUMNS,
+                           G_TYPE_STRING,   /* Label */
+                           G_TYPE_POINTER,  /* Main widget */
+                           G_TYPE_POINTER,  /* Help widget */
+                           G_TYPE_POINTER,  /* Config file attr func */
+                           G_TYPE_POINTER,  /* Load widget func */
+                           G_TYPE_POINTER); /* Unload widget func */
     model = GTK_TREE_MODEL(ctk_window->tree_store);
 
     /* create the tree view */
@@ -516,7 +553,7 @@ GtkWidget *ctk_window_new(NvCtrlAttributeHandle **handles, gint num_handles,
         if (child) {
             help = ctk_color_correction_create_help(tag_table);
             add_page(child, help, ctk_window, &iter,
-                     "X Server Color Correction", NULL);
+                     "X Server Color Correction", NULL, NULL, NULL);
         }
 
         /* xvideo settings  */
@@ -525,7 +562,7 @@ GtkWidget *ctk_window_new(NvCtrlAttributeHandle **handles, gint num_handles,
         if (child) {
             help = ctk_xvideo_create_help(tag_table, CTK_XVIDEO(child));
             add_page(child, help, ctk_window, &iter,
-                     "X Server XVideo Settings", NULL);
+                     "X Server XVideo Settings", NULL, NULL, NULL);
         }
 
         /* randr settings */
@@ -534,7 +571,7 @@ GtkWidget *ctk_window_new(NvCtrlAttributeHandle **handles, gint num_handles,
         if (child) {
             help = ctk_randr_create_help(tag_table, CTK_RANDR(child));
             add_page(child, help, ctk_window, &iter,
-                     "Rotation Settings", NULL);
+                     "Rotation Settings", NULL, NULL, NULL);
         }
 
         /* cursor shadow */
@@ -543,7 +580,8 @@ GtkWidget *ctk_window_new(NvCtrlAttributeHandle **handles, gint num_handles,
         if (child) {
             help = ctk_cursor_shadow_create_help(tag_table,
                                                  CTK_CURSOR_SHADOW(child));
-            add_page(child, help, ctk_window, &iter, "Cursor Shadow", NULL);
+            add_page(child, help, ctk_window, &iter, "Cursor Shadow",
+                     NULL, NULL, NULL);
         }
 
         /* opengl settings */
@@ -551,7 +589,8 @@ GtkWidget *ctk_window_new(NvCtrlAttributeHandle **handles, gint num_handles,
         child = ctk_opengl_new(handles[i], ctk_config, ctk_event);
         if (child) {
             help = ctk_opengl_create_help(tag_table, CTK_OPENGL(child));
-            add_page(child, help, ctk_window, &iter, "OpenGL Settings", NULL);
+            add_page(child, help, ctk_window, &iter, "OpenGL Settings",
+                     NULL, NULL, NULL);
         }
 
 
@@ -560,7 +599,8 @@ GtkWidget *ctk_window_new(NvCtrlAttributeHandle **handles, gint num_handles,
         child = ctk_glx_new(handles[i], ctk_config, ctk_event);
         if (child) {
             help = ctk_glx_create_help(tag_table, CTK_GLX(child));
-            add_page(child, help, ctk_window, &iter, "OpenGL/GLX Information", NULL);
+            add_page(child, help, ctk_window, &iter, "OpenGL/GLX Information",
+                     NULL, ctk_glx_probe_info, NULL);
         }
 
 
@@ -570,16 +610,17 @@ GtkWidget *ctk_window_new(NvCtrlAttributeHandle **handles, gint num_handles,
         if (child) {
             help = ctk_multisample_create_help(tag_table,
                                                CTK_MULTISAMPLE(child));
-            add_page(child, help, ctk_window, &iter,
-                     "Antialiasing Settings", NULL);
+            add_page(child, help, ctk_window, &iter, "Antialiasing Settings",
+                     NULL, NULL, NULL);
         }
 
         /* thermal information */
 
         child = ctk_thermal_new(handles[i], ctk_config);
         if (child) {
-            help = ctk_thermal_create_help(tag_table);
-            add_page(child, help, ctk_window, &iter, "Thermal Monitor", NULL);
+            help = ctk_thermal_create_help(tag_table, CTK_THERMAL(child));
+            add_page(child, help, ctk_window, &iter, "Thermal Monitor",
+                     NULL, ctk_thermal_start_timer, ctk_thermal_stop_timer);
         }
         
         /* gvo (Graphics To Video Out) */
@@ -587,8 +628,17 @@ GtkWidget *ctk_window_new(NvCtrlAttributeHandle **handles, gint num_handles,
         child = ctk_gvo_new(handles[i], ctk_config);
         if (child) {
             help = ctk_gvo_create_help(tag_table);
-            add_page(child, help, ctk_window, &iter,
-                     "Graphics to Video Out", NULL);
+            add_page(child, help, ctk_window, &iter, "Graphics to Video Out",
+                     NULL, NULL, NULL);
+        }
+
+        /* clocks (GPU overclocking) */
+
+        child = ctk_clocks_new(handles[i], ctk_config, ctk_event);
+        if (child) {
+            help = ctk_clocks_create_help(tag_table, CTK_CLOCKS(child));
+            add_page(child, help, ctk_window, &iter, "Clock Frequencies",
+                     NULL, ctk_clocks_select, NULL);
         }
 
         /* display devices */
@@ -616,7 +666,9 @@ GtkWidget *ctk_window_new(NvCtrlAttributeHandle **handles, gint num_handles,
 
         add_page(widget, ctk_framelock_create_help(tag_table),
                  ctk_window, NULL, "FrameLock",
-                 ctk_framelock_config_file_attributes);
+                 ctk_framelock_config_file_attributes,
+                 ctk_framelock_select,
+                 ctk_framelock_unselect);
         break;
     }
 
@@ -624,7 +676,8 @@ GtkWidget *ctk_window_new(NvCtrlAttributeHandle **handles, gint num_handles,
 
     add_page(GTK_WIDGET(ctk_window->ctk_config),
              ctk_config_create_help(tag_table),
-             ctk_window, NULL, "nvidia-settings Configuration", NULL);
+             ctk_window, NULL, "nvidia-settings Configuration",
+             NULL, NULL, NULL);
 
     /*
      * we're done with the current data in the parsed attribute list,
@@ -665,7 +718,9 @@ GtkWidget *ctk_window_new(NvCtrlAttributeHandle **handles, gint num_handles,
 
 static void add_page(GtkWidget *widget, GtkTextBuffer *help,
                      CtkWindow *ctk_window, GtkTreeIter *iter,
-                     const gchar *label, config_file_attributes_func_t func)
+                     const gchar *label, config_file_attributes_func_t func,
+                     select_widget_func_t select_func,
+                     unselect_widget_func_t unselect_func)                     
 {
     GtkTreeIter child_iter;
 
@@ -683,7 +738,12 @@ static void add_page(GtkWidget *widget, GtkTextBuffer *help,
     gtk_tree_store_set(ctk_window->tree_store, &child_iter,
                        CTK_WINDOW_CONFIG_FILE_ATTRIBUTES_FUNC_COLUMN,
                        func, -1);
-
+    gtk_tree_store_set(ctk_window->tree_store, &child_iter,
+                       CTK_WINDOW_SELECT_WIDGET_FUNC_COLUMN,
+                       select_func, -1);
+    gtk_tree_store_set(ctk_window->tree_store, &child_iter,
+                       CTK_WINDOW_UNSELECT_WIDGET_FUNC_COLUMN,
+                       unselect_func, -1);
 } /* add_page() */
 
 

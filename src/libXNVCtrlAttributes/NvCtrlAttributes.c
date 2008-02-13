@@ -83,7 +83,7 @@ NvCtrlAttributeHandle *NvCtrlAttributeInit(Display *dpy, int screen,
      */
 
     if (subsystems & NV_CTRL_ATTRIBUTES_XVIDEO_SUBSYSTEM) {
-        NvCtrlInitXvOverlayAttributes(h);
+        h->xv = NvCtrlInitXvAttributes(h);
     }
 
     /*
@@ -303,11 +303,11 @@ NvCtrlGetDisplayAttribute(NvCtrlAttributeHandle *handle,
           case NV_CTRL_ATTR_EXT_VM_PRESENT:
             *val = (h->vm) ? True : False; break;
           case NV_CTRL_ATTR_EXT_XV_OVERLAY_PRESENT:
-            *val = (h->xv_overlay) ? True : False; break;
+            *val = (h->xv && h->xv->overlay) ? True : False; break;
           case NV_CTRL_ATTR_EXT_XV_TEXTURE_PRESENT:
-            *val = (h->xv_texture) ? True : False; break;
+            *val = (h->xv && h->xv->texture) ? True : False; break;
           case NV_CTRL_ATTR_EXT_XV_BLITTER_PRESENT:
-            *val = (h->xv_blitter) ? True : False; break;
+            *val = (h->xv && h->xv->blitter) ? True : False; break;
           default:
             return NvCtrlNoAttribute;
         }
@@ -481,6 +481,9 @@ void NvCtrlAttributeClose(NvCtrlAttributeHandle *handle)
     }
     if ( h->xrandr ) {
         NvCtrlXrandrAttributesClose(h);   
+    }
+    if ( h->xv ) {
+        NvCtrlXvAttributesClose(h);
     }
 
     free(h);

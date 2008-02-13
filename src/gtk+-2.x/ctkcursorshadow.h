@@ -64,7 +64,8 @@ struct _CtkCursorShadow
     CtkEvent *ctk_event;
     GtkWidget *scales[3];
     GtkWidget *reset_button;
-    GtkWidget *color_selector_check_button;
+    GtkWidget *color_selector_button;
+    GtkWidget *cursor_shadow_bg;
     GtkWidget *cursor_shadow_check_button;
     GtkWidget *color_selector;
     GtkWidget *color_selector_window;

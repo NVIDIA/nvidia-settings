@@ -70,7 +70,10 @@ struct _CtkThermalClass
 
 GType          ctk_thermal_get_type    (void) G_GNUC_CONST;
 GtkWidget*     ctk_thermal_new         (NvCtrlAttributeHandle *, CtkConfig *);
-GtkTextBuffer* ctk_thermal_create_help (GtkTextTagTable *);
+GtkTextBuffer* ctk_thermal_create_help (GtkTextTagTable *, CtkThermal *);
+
+void           ctk_thermal_start_timer (GtkWidget *);
+void           ctk_thermal_stop_timer  (GtkWidget *);
 
 G_END_DECLS
 
