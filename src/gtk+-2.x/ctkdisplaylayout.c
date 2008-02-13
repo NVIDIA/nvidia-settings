@@ -3161,14 +3161,13 @@ void ctk_display_layout_set_display_position(CtkDisplayLayout *ctk_object,
     clear_layout(ctk_object);
 
 
-    /* XXX When transitioning from absolute to relative, make sure
+    /* XXX When configuring a relative position, make sure
      * all displays that are relative to us become absolute.
      * This is to avoid relationship loops.  Eventually, we'll want
      * to be able to handle weird loops since X does this.
      */
 
-    if (display->cur_mode->position_type == CONF_ADJ_ABSOLUTE &&
-        position_type != CONF_ADJ_ABSOLUTE) {
+    if (position_type != CONF_ADJ_ABSOLUTE) {
         
         nvDisplayPtr other;
 
@@ -3380,14 +3379,13 @@ void ctk_display_layout_set_screen_position(CtkDisplayLayout *ctk_object,
     }
 
 
-    /* XXX When transitioning from absolute to relative, make sure
+    /* XXX When configuring a relative position, make sure
      * all screens that are relative to us become absolute.
      * This is to avoid relationship loops.  Eventually, we'll want
      * to be able to handle weird loops since X does this.
      */
 
-    if (screen->position_type == CONF_ADJ_ABSOLUTE &&
-        position_type != CONF_ADJ_ABSOLUTE) {
+    if (position_type != CONF_ADJ_ABSOLUTE) {
         
         nvScreenPtr other;
 

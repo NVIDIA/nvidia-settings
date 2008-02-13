@@ -2980,7 +2980,19 @@
 #define NV_CTRL_FSAA_APPLICATION_ENHANCED_ENABLED                 1
 #define NV_CTRL_FSAA_APPLICATION_ENHANCED_DISABLED                0
 
-#define NV_CTRL_LAST_ATTRIBUTE NV_CTRL_FSAA_APPLICATION_ENHANCED
+
+/*
+ * NV_CTRL_FRAMELOCK_SYNC_RATE_4 - This is the refresh rate that the
+ * frame lock board is sending to the GPU with 4 digits of precision.
+ *
+ * This attribute may be queried through XNVCTRLQueryTargetAttribute()
+ * using a NV_CTRL_TARGET_TYPE_FRAMELOCK.
+ */
+
+#define NV_CTRL_FRAMELOCK_SYNC_RATE_4                           256 /* R--F */
+
+
+#define NV_CTRL_LAST_ATTRIBUTE NV_CTRL_FRAMELOCK_SYNC_RATE_4
 
 
 /**************************************************************************/

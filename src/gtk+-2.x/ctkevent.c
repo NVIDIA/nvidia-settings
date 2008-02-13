@@ -242,6 +242,7 @@ static void ctk_event_class_init(CtkEventClass *ctk_event_class)
     MAKE_SIGNAL(NV_CTRL_GPU_SCALING_ACTIVE);
     MAKE_SIGNAL(NV_CTRL_DFP_SCALING_ACTIVE);
     MAKE_SIGNAL(NV_CTRL_FSAA_APPLICATION_ENHANCED);
+    MAKE_SIGNAL(NV_CTRL_FRAMELOCK_SYNC_RATE_4);
 
 #undef MAKE_SIGNAL
     
@@ -252,7 +253,7 @@ static void ctk_event_class_init(CtkEventClass *ctk_event_class)
      * knows about.
      */
 
-#if NV_CTRL_LAST_ATTRIBUTE != NV_CTRL_FSAA_APPLICATION_ENHANCED
+#if NV_CTRL_LAST_ATTRIBUTE != NV_CTRL_FRAMELOCK_SYNC_RATE_4
 #warning "There are attributes that do not emit signals!"
 #endif
 

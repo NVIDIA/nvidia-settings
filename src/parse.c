@@ -133,6 +133,7 @@ AttributeTableEntry attributeTable[] = {
     { "FrameLockTestSignal",   NV_CTRL_FRAMELOCK_TEST_SIGNAL,       N|F|G },
     { "FrameLockEthDetected",  NV_CTRL_FRAMELOCK_ETHERNET_DETECTED, N|F|G },
     { "FrameLockSyncRate",     NV_CTRL_FRAMELOCK_SYNC_RATE,         N|F|G },
+    { "FrameLockSyncRate4",    NV_CTRL_FRAMELOCK_SYNC_RATE_4,       N|F|G },
     { "FrameLockTiming",       NV_CTRL_FRAMELOCK_TIMING,            N|F|G },
     { "FrameLockMasterable",   NV_CTRL_FRAMELOCK_MASTERABLE,        N|F|G },
     { "FrameLockFPGARevision", NV_CTRL_FRAMELOCK_FPGA_REVISION,     N|F|G },
@@ -195,7 +196,7 @@ AttributeTableEntry attributeTable[] = {
  * about.
  */
 
-#if NV_CTRL_LAST_ATTRIBUTE != NV_CTRL_FSAA_APPLICATION_ENHANCED
+#if NV_CTRL_LAST_ATTRIBUTE != NV_CTRL_FRAMELOCK_SYNC_RATE_4
 #warning "Have you forgotten to add a new integer attribute to attributeTable?"
 #endif
 
