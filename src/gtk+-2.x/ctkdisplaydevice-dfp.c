@@ -99,11 +99,12 @@ static void info_update_received(GtkObject *object, gpointer arg1,
 
 
 static const char *__scaling_help =
-"A flat panel usually has a single 'native' "
-"resolution.  If you are using a resolution that is "
-"smaller than the flat panel's native resolution, then "
-"Flat Panel Scaling can adjust how the image is "
-"displayed on the flat panel.";
+"A flat panel usually has a single 'native' resolution.  If you are "
+"using a resolution that is smaller than the flat panel's native "
+"resolution, then Flat Panel Scaling can adjust how the image is "
+"displayed on the flat panel.  This setting will only take effect "
+"when GPU scaling is active (This occurs when the frontend and "
+"backend resolutions of the current mode are different.)";
 
 static const char *__dithering_help =
 "Some GeForce2 GPUs required dithering to "
@@ -414,7 +415,6 @@ GtkWidget* ctk_display_device_dfp_new(NvCtrlAttributeHandle *handle,
     vbox = gtk_vbox_new(FALSE, FRAME_PADDING);
     gtk_container_set_border_width(GTK_CONTAINER(vbox), FRAME_PADDING);
     gtk_container_add(GTK_CONTAINER(frame), vbox);
-    ctk_display_device_dfp->scaling_method_frame = frame;
 
     g_signal_connect(G_OBJECT(button), "toggled",
                      G_CALLBACK(dfp_scaling_changed),
@@ -1254,14 +1254,6 @@ static void dfp_info_setup(CtkDisplayDeviceDfp *ctk_display_device_dfp)
         } else {
             scaling = "None";
         }
-    }
-
-    if (gpu_scaling) {
-        gtk_widget_set_sensitive(ctk_display_device_dfp->scaling_method_frame,
-                                 TRUE);
-    } else {
-        gtk_widget_set_sensitive(ctk_display_device_dfp->scaling_method_frame,
-                                 FALSE);
     }
 
     gtk_label_set_text

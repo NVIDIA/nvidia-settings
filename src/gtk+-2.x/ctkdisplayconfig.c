@@ -697,6 +697,16 @@ static const char *read_display_name(const char *str, unsigned int *bit)
     return skip_whitespace(str);
 }
 
+/*
+ * read_float_range()
+ *
+ * Reads the maximun/minimum information from a string in the
+ * following format:
+ *     "MIN-MAX"
+ * or
+ *     "MIN"
+ */
+
 static int read_float_range(char *str, float *min, float *max)
 {
     if (!str) return 0;
@@ -704,7 +714,10 @@ static int read_float_range(char *str, float *min, float *max)
     str = (char *)skip_whitespace(str);
     *min = atof(str);
     str = strstr(str, "-");
-    if (!str) return 0;
+    if (!str) {
+        *max = *min;
+        return 1;
+    }
     str++;
     *max = atof(str);
     
@@ -6556,6 +6569,7 @@ static void do_configure_display_for_twinview(CtkDisplayConfig *ctk_object,
             }
             screen->scrnum = other->scrnum;
             screen->handle = other->handle;
+            screen->ctk_event = other->ctk_event;
         } else {
             if (other->handle) {
                 NvCtrlAttributeClose(other->handle);

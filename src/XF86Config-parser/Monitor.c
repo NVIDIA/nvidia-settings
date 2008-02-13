@@ -668,9 +668,14 @@ xconfigPrintMonitorSection (FILE * cf, XConfigMonitorPtr ptr)
         }
         for (i = 0; i < ptr->n_vrefresh; i++)
         {
-            fprintf (cf, "    VertRefresh     %2.1f - %2.1f\n",
-                     ptr->vrefresh[i].lo,
-                     ptr->vrefresh[i].hi);
+            if (ptr->vrefresh[i].lo == ptr->vrefresh[i].hi) {
+                fprintf (cf, "    VertRefresh     %2.1f\n",
+                         ptr->vrefresh[i].lo);
+            } else {
+                fprintf (cf, "    VertRefresh     %2.1f - %2.1f\n",
+                         ptr->vrefresh[i].lo,
+                         ptr->vrefresh[i].hi);
+            }
         }
         if (ptr->gamma_red) {
             if (ptr->gamma_red == ptr->gamma_green

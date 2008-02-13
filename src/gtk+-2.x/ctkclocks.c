@@ -296,7 +296,8 @@ GtkWidget* ctk_clocks_new(NvCtrlAttributeHandle *handle,
     NVCTRLAttributeValidValuesRec ranges_3D;
 
     Bool overclocking_enabled;
-    Bool probing_optimal;
+    Bool auto_detection_available = FALSE;
+    Bool probing_optimal = FALSE;
     Bool can_access_2d_clocks;
     Bool can_access_3d_clocks;
    
@@ -318,13 +319,18 @@ GtkWidget* ctk_clocks_new(NvCtrlAttributeHandle *handle,
     
     if ( overclocking_enabled ) {
         ret = NvCtrlGetAttribute(handle,
-                                 NV_CTRL_GPU_OPTIMAL_CLOCK_FREQS_DETECTION_STATE,
+                                 NV_CTRL_GPU_OPTIMAL_CLOCK_FREQS_DETECTION,
                                  &value);
-        if ( ret != NvCtrlSuccess )
-            return NULL;
-        probing_optimal = (value==NV_CTRL_GPU_OPTIMAL_CLOCK_FREQS_DETECTION_STATE_BUSY);
-    } else {
-        probing_optimal = FALSE;
+        if ( ret == NvCtrlSuccess ) {
+            ret = NvCtrlGetAttribute(handle,
+                                     NV_CTRL_GPU_OPTIMAL_CLOCK_FREQS_DETECTION_STATE,
+                                     &value);
+            if ( ret != NvCtrlSuccess )
+                return NULL;
+            probing_optimal =
+                (value == NV_CTRL_GPU_OPTIMAL_CLOCK_FREQS_DETECTION_STATE_BUSY);
+            auto_detection_available = TRUE;
+        }
     }
 
     /* Can we access the 2D clocks? */
@@ -365,6 +371,7 @@ GtkWidget* ctk_clocks_new(NvCtrlAttributeHandle *handle,
     ctk_object->ctk_config           = ctk_config;
     ctk_object->license_accepted     = // = overclocking_enabled
     ctk_object->overclocking_enabled = overclocking_enabled;
+    ctk_object->auto_detection_available  = auto_detection_available;
     ctk_object->probing_optimal      = probing_optimal;
 
     /* Create the Clock menu widget */
@@ -510,7 +517,8 @@ GtkWidget* ctk_clocks_new(NvCtrlAttributeHandle *handle,
         gtk_widget_set_sensitive(ctk_object->detect_button, False);
     } else {
         gtk_widget_set_sensitive(ctk_object->detect_button,
-                                 overclocking_enabled && !probing_optimal);
+                                 overclocking_enabled &&
+                                 auto_detection_available && !probing_optimal);
     }
 
     /* Create the Reset hardware button widget */
@@ -827,9 +835,12 @@ static void sync_gui_sensitivity(CtkClocks *ctk_object)
                                __cancel_button_help);
 
     } else {
+        gboolean set_sensitive;
         gtk_button_set_label(GTK_BUTTON(ctk_object->detect_button), "Auto Detect");
-        gtk_widget_set_sensitive(ctk_object->detect_button, 
-                                 (ctk_object->clocks_being_modified == CLOCKS_3D)?enabled:False);
+        set_sensitive = ((ctk_object->auto_detection_available) &&
+                         (ctk_object->clocks_being_modified == CLOCKS_3D))
+                        ? enabled : False;
+        gtk_widget_set_sensitive(ctk_object->detect_button, set_sensitive);
         ctk_config_set_tooltip(ctk_object->ctk_config, ctk_object->detect_button,
                                __detect_button_help);
     }

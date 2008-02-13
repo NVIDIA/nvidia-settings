@@ -34,6 +34,20 @@
 
 static void vblank_sync_button_toggled   (GtkWidget *, gpointer);
 
+static void post_vblank_sync_button_toggled(CtkOpenGL *, gboolean);
+
+static void post_allow_flipping_button_toggled(CtkOpenGL *, gboolean);
+
+static void post_force_stereo_button_toggled(CtkOpenGL *, gboolean);
+
+static void post_show_sli_hud_button_toggled(CtkOpenGL *, gboolean);
+
+static void post_xinerama_stereo_button_toggled(CtkOpenGL *, gboolean);
+
+static void post_force_generic_cpu_toggled(CtkOpenGL *, gboolean);
+
+static void post_aa_line_gamma_toggled(CtkOpenGL *, gboolean);
+
 static void allow_flipping_button_toggled(GtkWidget *, gpointer);
 
 static void force_stereo_button_toggled (GtkWidget *, gpointer);
@@ -279,10 +293,10 @@ GtkWidget* ctk_opengl_new(NvCtrlAttributeHandle *handle,
         g_signal_connect(G_OBJECT(ctk_event),
                          CTK_EVENT_NAME(NV_CTRL_SYNC_TO_VBLANK),
                          G_CALLBACK(value_changed), (gpointer) ctk_opengl);
- 
+
         ctk_config_set_tooltip(ctk_config, check_button,
                                __sync_to_vblank_help);
-    
+
         ctk_opengl->active_attributes |= __SYNC_TO_VBLANK;
 
         ctk_opengl->sync_to_vblank_button = check_button;
@@ -366,7 +380,7 @@ GtkWidget* ctk_opengl_new(NvCtrlAttributeHandle *handle,
                          (gpointer) ctk_opengl);
 
         g_signal_connect(G_OBJECT(ctk_event),
-                         CTK_EVENT_NAME(NV_CTRL_FORCE_STEREO),
+                         CTK_EVENT_NAME(NV_CTRL_XINERAMA_STEREO),
                          G_CALLBACK(value_changed), (gpointer) ctk_opengl);
 
         ctk_config_set_tooltip(ctk_config, check_button, __xinerama_stereo_help);
@@ -534,6 +548,73 @@ GtkWidget* ctk_opengl_new(NvCtrlAttributeHandle *handle,
     return GTK_WIDGET(object);
 }
 
+/* 
+ * Prints status bar message
+ */
+static void post_vblank_sync_button_toggled(CtkOpenGL *ctk_opengl, 
+                                            gboolean enabled)
+{
+    ctk_config_statusbar_message(ctk_opengl->ctk_config,
+                                 "OpenGL Sync to VBlank %s.",
+                                 enabled ? "enabled" : "disabled");
+}
+
+static void post_allow_flipping_button_toggled(CtkOpenGL *ctk_opengl, 
+                                                gboolean enabled) 
+{
+    ctk_config_statusbar_message(ctk_opengl->ctk_config,
+                                 "OpenGL Flipping %s.",
+                                 enabled ? "allowed" : "not allowed");
+}
+
+static void post_force_stereo_button_toggled(CtkOpenGL *ctk_opengl, 
+                                             gboolean enabled)
+{
+    ctk_config_statusbar_message(ctk_opengl->ctk_config,
+                                 "OpenGL Stereo Flipping %s.",
+                                 enabled ? "forced" : "not forced");
+}
+
+static void post_show_sli_hud_button_toggled(CtkOpenGL *ctk_opengl, 
+                                             gboolean enabled) 
+{
+    ctk_config_statusbar_message(ctk_opengl->ctk_config,
+                                 "OpenGL SLI HUD %s.",
+                                 enabled ? "enabled" : "disabled");
+}
+
+static void post_xinerama_stereo_button_toggled(CtkOpenGL *ctk_opengl, 
+                                                gboolean enabled) 
+{
+    ctk_config_statusbar_message(ctk_opengl->ctk_config,
+                                 "OpenGL Xinerama Stereo Flipping %s.",
+                                 enabled ? "allowed" : "not allowed");
+}
+
+static void post_force_generic_cpu_toggled(CtkOpenGL *ctk_opengl,
+                                           gboolean enabled) 
+{
+    /*
+     * XXX the logic is awkward, but correct: when
+     * NV_CTRL_FORCE_GENERIC_CPU is enabled, use of enhanced CPU
+     * instructions is disabled, and vice versa.
+     */
+
+    ctk_config_statusbar_message(ctk_opengl->ctk_config,
+                                 "OpenGL use of enhanced CPU instructions %s.",
+                                 enabled ? "disabled" : "enabled");
+}
+
+static void post_aa_line_gamma_toggled(CtkOpenGL *ctk_opengl, 
+                                       gboolean enabled) 
+{
+    ctk_config_statusbar_message(ctk_opengl->ctk_config,
+                                 "OpenGL gamma correction for antialiased "
+                                 "lines %s.",
+                                 enabled ? "enabled" : "disabled");
+}
+
+
 static void vblank_sync_button_toggled(
     GtkWidget *widget,
     gpointer user_data
@@ -548,9 +629,7 @@ static void vblank_sync_button_toggled(
 
     NvCtrlSetAttribute(ctk_opengl->handle, NV_CTRL_SYNC_TO_VBLANK, enabled);
 
-    ctk_config_statusbar_message(ctk_opengl->ctk_config,
-                                 "OpenGL Sync to VBlank %s.",
-                                 enabled ? "enabled" : "disabled");
+    post_vblank_sync_button_toggled(ctk_opengl, enabled);
 }
 
 
@@ -563,12 +642,9 @@ static void allow_flipping_button_toggled(GtkWidget *widget,
     ctk_opengl = CTK_OPENGL(user_data);
 
     enabled = gtk_toggle_button_get_active(GTK_TOGGLE_BUTTON(widget));
-
-    NvCtrlSetAttribute(ctk_opengl->handle, NV_CTRL_FLIPPING_ALLOWED, enabled);
     
-    ctk_config_statusbar_message(ctk_opengl->ctk_config,
-                                 "OpenGL Flipping %s.",
-                                 enabled ? "allowed" : "prohibited");
+    NvCtrlSetAttribute(ctk_opengl->handle, NV_CTRL_FLIPPING_ALLOWED, enabled);
+    post_allow_flipping_button_toggled(ctk_opengl, enabled);
     
 }
 
@@ -583,10 +659,7 @@ static void force_stereo_button_toggled(GtkWidget *widget,
     enabled = gtk_toggle_button_get_active(GTK_TOGGLE_BUTTON(widget));
 
     NvCtrlSetAttribute(ctk_opengl->handle, NV_CTRL_FORCE_STEREO, enabled);
-    
-    ctk_config_statusbar_message(ctk_opengl->ctk_config,
-                                 "OpenGL Stereo Flipping %s.",
-                                 enabled ? "forced" : "not forced");
+    post_force_stereo_button_toggled(ctk_opengl, enabled);
 }
 
 static void show_sli_hud_button_toggled(GtkWidget *widget,
@@ -600,10 +673,7 @@ static void show_sli_hud_button_toggled(GtkWidget *widget,
     enabled = gtk_toggle_button_get_active(GTK_TOGGLE_BUTTON(widget));
 
     NvCtrlSetAttribute(ctk_opengl->handle, NV_CTRL_SHOW_SLI_HUD, enabled);
-
-    ctk_config_statusbar_message(ctk_opengl->ctk_config,
-                                 "OpenGL SLI HUD %s.",
-                                 enabled ? "enabled" : "disabled");
+    post_show_sli_hud_button_toggled(ctk_opengl, enabled); 
 }
 
 static void xinerama_stereo_button_toggled(GtkWidget *widget,
@@ -617,10 +687,7 @@ static void xinerama_stereo_button_toggled(GtkWidget *widget,
     enabled = gtk_toggle_button_get_active(GTK_TOGGLE_BUTTON(widget));
 
     NvCtrlSetAttribute(ctk_opengl->handle, NV_CTRL_XINERAMA_STEREO, enabled);
-    
-    ctk_config_statusbar_message(ctk_opengl->ctk_config,
-                                 "OpenGL Xinerama Stereo Flipping %s.",
-                                 enabled ? "allowed" : "not allowed");
+    post_xinerama_stereo_button_toggled(ctk_opengl, enabled);
 }
 
 static void force_generic_cpu_toggled(
@@ -640,16 +707,12 @@ static void force_generic_cpu_toggled(
                              NV_CTRL_FORCE_GENERIC_CPU, enabled);
 
     if (ret != NvCtrlSuccess) return;
-    
+    post_force_generic_cpu_toggled(ctk_opengl, enabled);
     /*
      * XXX the logic is awkward, but correct: when
      * NV_CTRL_FORCE_GENERIC_CPU is enabled, use of enhanced CPU
      * instructions is disabled, and vice versa.
      */
-
-    ctk_config_statusbar_message(ctk_opengl->ctk_config,
-                                 "OpenGL use of enhanced CPU instructions %s.",
-                                 enabled ? "disabled" : "enabled");
 }
 
 static void aa_line_gamma_toggled(
@@ -669,11 +732,7 @@ static void aa_line_gamma_toggled(
                              NV_CTRL_OPENGL_AA_LINE_GAMMA, enabled);
 
     if (ret != NvCtrlSuccess) return;
-
-    ctk_config_statusbar_message(ctk_opengl->ctk_config,
-                                 "OpenGL gamma correction for antialiased "
-                                 "lines %s.",
-                                 enabled ? "enabled" : "disabled");
+    post_aa_line_gamma_toggled(ctk_opengl, enabled);
 }
 
 
@@ -697,30 +756,37 @@ static void value_changed(GtkObject *object, gpointer arg1, gpointer user_data)
     case NV_CTRL_SYNC_TO_VBLANK:
         button = GTK_TOGGLE_BUTTON(ctk_opengl->sync_to_vblank_button);
         func = G_CALLBACK(vblank_sync_button_toggled);
+        post_vblank_sync_button_toggled(ctk_opengl, event_struct->value);
         break;
     case NV_CTRL_FLIPPING_ALLOWED:
         button = GTK_TOGGLE_BUTTON(ctk_opengl->allow_flipping_button);
         func = G_CALLBACK(allow_flipping_button_toggled);
+        post_allow_flipping_button_toggled(ctk_opengl, event_struct->value);
         break;
     case NV_CTRL_FORCE_STEREO:
         button = GTK_TOGGLE_BUTTON(ctk_opengl->force_stereo_button);
         func = G_CALLBACK(force_stereo_button_toggled);
+        post_force_stereo_button_toggled(ctk_opengl, event_struct->value);
         break;
     case NV_CTRL_XINERAMA_STEREO:
         button = GTK_TOGGLE_BUTTON(ctk_opengl->xinerama_stereo_button);
         func = G_CALLBACK(xinerama_stereo_button_toggled);
+        post_xinerama_stereo_button_toggled(ctk_opengl, event_struct->value);
         break;
     case NV_CTRL_OPENGL_AA_LINE_GAMMA:
         button = GTK_TOGGLE_BUTTON(ctk_opengl->aa_line_gamma_button);
         func = G_CALLBACK(aa_line_gamma_toggled);
+        post_aa_line_gamma_toggled(ctk_opengl, event_struct->value);
         break;
     case NV_CTRL_FORCE_GENERIC_CPU:
         button = GTK_TOGGLE_BUTTON(ctk_opengl->force_generic_cpu_button);
         func = G_CALLBACK(force_generic_cpu_toggled);
+        post_force_generic_cpu_toggled(ctk_opengl, event_struct->value);
         break;
     case NV_CTRL_SHOW_SLI_HUD:
         button = GTK_TOGGLE_BUTTON(ctk_opengl->show_sli_hud_button);
         func = G_CALLBACK(show_sli_hud_button_toggled);
+        post_show_sli_hud_button_toggled(ctk_opengl, event_struct->value);
         break;
     default:
         return;

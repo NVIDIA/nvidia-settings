@@ -3187,8 +3187,19 @@ void ctk_display_layout_set_display_position(CtkDisplayLayout *ctk_object,
 
 
     /* Set the new positioning type */
-    display->cur_mode->position_type = position_type;
-    display->cur_mode->relative_to = relative_to;
+    if (ctk_object->advanced_mode) {
+        display->cur_mode->position_type = position_type;
+        display->cur_mode->relative_to = relative_to;
+
+    } else {
+        nvModePtr mode;
+            
+        for (mode = display->modes; mode; mode = mode->next) {
+            mode->position_type = position_type;
+            mode->relative_to = relative_to;
+        }
+    }
+    
 
     switch (position_type) {
     case CONF_ADJ_ABSOLUTE:

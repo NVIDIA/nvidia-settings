@@ -112,8 +112,9 @@ AttributeTableEntry attributeTable[] = {
     { "BackendResolution",     NV_CTRL_BACKEND_RESOLUTION,          N|P   },
     { "FlatpanelNativeResolution",  NV_CTRL_FLATPANEL_NATIVE_RESOLUTION,   N|P },
     { "FlatpanelBestFitResolution", NV_CTRL_FLATPANEL_BEST_FIT_RESOLUTION, N|P },
-    { "GPUScalingActive",      NV_CTRL_GPU_SCALING_ACTIVE,          N },
-    { "DFPScalingActive",      NV_CTRL_DFP_SCALING_ACTIVE,          N },
+    { "GPUScalingActive",      NV_CTRL_GPU_SCALING_ACTIVE,          N     },
+    { "DFPScalingActive",      NV_CTRL_DFP_SCALING_ACTIVE,          N     },
+    { "FSAAAppEnhanced",       NV_CTRL_FSAA_APPLICATION_ENHANCED,   0     },
 
     { "FrameLockMaster",       NV_CTRL_FRAMELOCK_MASTER,            N|F|G|D },
     { "FrameLockSlaves",       NV_CTRL_FRAMELOCK_SLAVES,            N|F|G|D },
@@ -194,7 +195,7 @@ AttributeTableEntry attributeTable[] = {
  * about.
  */
 
-#if NV_CTRL_LAST_ATTRIBUTE != NV_CTRL_DFP_SCALING_ACTIVE
+#if NV_CTRL_LAST_ATTRIBUTE != NV_CTRL_FSAA_APPLICATION_ENHANCED
 #warning "Have you forgotten to add a new integer attribute to attributeTable?"
 #endif
 

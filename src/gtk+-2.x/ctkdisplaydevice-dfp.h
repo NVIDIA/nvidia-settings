@@ -78,7 +78,6 @@ struct _CtkDisplayDeviceDfp
 
     GtkWidget *scaling_frame;
     GtkWidget *scaling_gpu_button;
-    GtkWidget *scaling_method_frame;
     GtkWidget *scaling_method_buttons[NV_CTRL_GPU_SCALING_METHOD_ASPECT_SCALED];
     GtkWidget *dithering_frame;
     GtkWidget *dithering_buttons[NV_CTRL_FLATPANEL_DITHERING_DISABLED+1];

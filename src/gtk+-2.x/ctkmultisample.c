@@ -48,14 +48,19 @@ static gchar *format_fsaa_value(GtkScale *scale, gdouble arg1,
 
 static const gchar *get_multisample_mode_name(gint multisample_mode);
 
-static void post_fsaa_app_override_toggled(CtkMultisample *ctk_multisample,
-                                           gboolean override);
+static GtkWidget *create_fsaa_setting_menu(CtkMultisample *ctk_multisample,
+                                           CtkEvent *ctk_event,
+                                           gboolean override,
+                                           gboolean enhance);
 
-static void fsaa_app_override_toggled(GtkWidget *widget, gpointer user_data);
+static void fsaa_setting_checkbox_toggled(GtkWidget *widget,
+                                          gpointer user_data);
 
-static void fsaa_app_override_update_received(GtkObject *object,
-                                              gpointer arg1,
-                                              gpointer user_data);
+static void fsaa_setting_menu_changed(GtkWidget *widget, gpointer user_data);
+
+static void fsaa_setting_update_received(GtkObject *object,
+                                         gpointer arg1,
+                                         gpointer user_data);
 
 static void post_fsaa_value_changed(CtkMultisample *ctk_multisample, gint val);
 
@@ -104,6 +109,11 @@ static const char *__aa_override_app_help =
 "override any appliation antialiasing setting with the "
 "value of the slider.";
 
+static const char *__aa_menu_help =
+"The Application Antialiasing Settings Menu allows the antialiasing "
+"setting of OpenGL applications to be overriden with the value of "
+"the slider.";
+
 static const char *__aa_slider_help =
 "The Antialiasing slider controls the level of antialiasing.";
 
@@ -141,6 +151,10 @@ static const char *__texture_sharpening_help =
 #define __FSAA_8x         (1 << (__FSAA + NV_CTRL_FSAA_MODE_8x))
 #define __FSAA_16x        (1 << (__FSAA + NV_CTRL_FSAA_MODE_16x))
 #define __FSAA_8xS        (1 << (__FSAA + NV_CTRL_FSAA_MODE_8xS))
+#define __FSAA_8xQ        (1 << (__FSAA + NV_CTRL_FSAA_MODE_8xQ))
+#define __FSAA_16xS       (1 << (__FSAA + NV_CTRL_FSAA_MODE_16xS))
+#define __FSAA_16xQ       (1 << (__FSAA + NV_CTRL_FSAA_MODE_16xQ))
+#define __FSAA_ENHANCE    (1 << (__FSAA + NV_CTRL_FSAA_MODE_MAX +1))
 
 #define FRAME_PADDING 5
 
@@ -186,9 +200,10 @@ GtkWidget *ctk_multisample_new(NvCtrlAttributeHandle *handle,
     GtkWidget *banner;
     GtkWidget *frame;
     GtkWidget *check_button;
+    GtkWidget *menu;
     GtkWidget *scale;
     
-    gint val, app_control, override, i;
+    gint val, app_control, override, enhance, i;
     
     NVCTRLAttributeValidValuesRec valid;
 
@@ -251,30 +266,51 @@ GtkWidget *ctk_multisample_new(NvCtrlAttributeHandle *handle,
             gtk_container_set_border_width(GTK_CONTAINER(vbox), FRAME_PADDING);
             gtk_container_add(GTK_CONTAINER(frame), vbox);
             
-            /* "Override Application Setting" checkbox */
+            /* "Application Setting" widget */
             
-            check_button = gtk_check_button_new_with_label
-                ("Override Application Setting");
-            
-            gtk_toggle_button_set_active(GTK_TOGGLE_BUTTON(check_button),
-                                         override);
-            
-            g_signal_connect(G_OBJECT(check_button), "toggled",
-                             G_CALLBACK(fsaa_app_override_toggled),
-                             (gpointer) ctk_multisample);
-            
+            ret = NvCtrlGetAttribute(ctk_multisample->handle,
+                                     NV_CTRL_FSAA_APPLICATION_ENHANCED,
+                                     &enhance);
+
+            if (ret == NvCtrlSuccess) {
+                /* Create a menu */
+
+                ctk_multisample->active_attributes |= __FSAA_ENHANCE;
+
+                menu = create_fsaa_setting_menu(ctk_multisample, ctk_event,
+                                                override, enhance);
+                
+                ctk_multisample->fsaa_menu = menu;
+                
+                hbox = gtk_hbox_new(FALSE, 0);
+                gtk_box_pack_start(GTK_BOX(hbox), menu, FALSE, FALSE, 0);
+                gtk_box_pack_start(GTK_BOX(vbox), hbox, FALSE, FALSE, 0);
+
+            } else {
+                /* Create a checkbox */
+                
+                check_button = gtk_check_button_new_with_label
+                    ("Override Application Setting");
+                
+                gtk_toggle_button_set_active(GTK_TOGGLE_BUTTON(check_button),
+                                             override);
+                
+                g_signal_connect(G_OBJECT(check_button), "toggled",
+                                 G_CALLBACK(fsaa_setting_checkbox_toggled),
+                                 (gpointer) ctk_multisample);
+                
+                ctk_config_set_tooltip(ctk_config, check_button,
+                                       __aa_override_app_help);
+
+                gtk_box_pack_start(GTK_BOX(vbox), check_button,
+                                   FALSE, FALSE, 0);
+            }
+
             g_signal_connect(G_OBJECT(ctk_event),
                              CTK_EVENT_NAME
                              (NV_CTRL_FSAA_APPLICATION_CONTROLLED),
-                             G_CALLBACK(fsaa_app_override_update_received),
+                             G_CALLBACK(fsaa_setting_update_received),
                              (gpointer) ctk_multisample);
-            
-            ctk_config_set_tooltip(ctk_config, check_button,
-                                   __aa_override_app_help);
-
-            gtk_box_pack_start(GTK_BOX(vbox), check_button, FALSE, FALSE, 0);
-            
-            ctk_multisample->fsaa_app_override_check_button = check_button;
 
             /* Antialiasing scale */
 
@@ -590,7 +626,10 @@ static const gchar *get_multisample_mode_name(gint multisample_mode)
         "4x, 9-tap Gaussian",  /* FSAA_MODE_4x_9t */
         "8x",                  /* FSAA_MODE_8x    */
         "16x",                 /* FSAA_MODE_16x   */
-        "8xS"                  /* FSAA_MODE_8xS   */
+        "8xS",                 /* FSAA_MODE_8xS   */
+        "8xQ",                 /* FSAA_MODE_8xQ   */
+        "16xS",                /* FSAA_MODE_16xS  */
+        "16xQ"                 /* FSAA_MODE_16xQ  */
     };
     
     if ((multisample_mode < NV_CTRL_FSAA_MODE_NONE) ||
@@ -605,15 +644,81 @@ static const gchar *get_multisample_mode_name(gint multisample_mode)
 
 
 /*
- * post_fsaa_app_override_toggled() - helper function for
- * fsaa_app_override_toggled() and fsaa_app_override_update_received();
- * this does whatever work is necessary after the app control check
- * button has been toggled -- update the slider's sensitivity and post
- * a statusbar message.
+ * create_fsaa_setting_menu() - Helper function that creates the
+ * FSAA application control dropdown menu.
  */
 
-static void post_fsaa_app_override_toggled(CtkMultisample *ctk_multisample,
-                                           gboolean override)
+static GtkWidget *create_fsaa_setting_menu(CtkMultisample *ctk_multisample,
+                                           CtkEvent *ctk_event,
+                                           gboolean override, gboolean enhance)
+{
+    GtkWidget *omenu;
+    GtkWidget *menu;
+    GtkWidget *menu_item;
+    gint idx;
+
+    /* Create the menu */
+
+    omenu = gtk_option_menu_new();
+
+    menu = gtk_menu_new();
+    
+    menu_item = gtk_menu_item_new_with_label("Use Application Settings");
+    gtk_menu_shell_append(GTK_MENU_SHELL(menu), menu_item);
+    gtk_widget_show(menu_item);
+
+    menu_item = gtk_menu_item_new_with_label("Override Application Settings");
+    gtk_menu_shell_append(GTK_MENU_SHELL(menu), menu_item);
+    gtk_widget_show(menu_item);
+
+    menu_item = gtk_menu_item_new_with_label("Enhance Application Settings");
+    gtk_menu_shell_append(GTK_MENU_SHELL(menu), menu_item);
+    gtk_widget_show(menu_item);
+
+    /* Set the state of the menu */
+
+    if (!override) {
+        idx = 0;
+    } else {
+        if (!enhance) {
+            idx = 1;
+        } else {
+            idx = 2;
+        }
+    }
+
+    gtk_option_menu_set_menu(GTK_OPTION_MENU(omenu), menu);
+
+    gtk_option_menu_set_history(GTK_OPTION_MENU(omenu), idx);
+
+    ctk_config_set_tooltip(ctk_multisample->ctk_config, omenu,
+                           __aa_menu_help);
+
+    g_signal_connect(G_OBJECT(omenu), "changed",
+                     G_CALLBACK(fsaa_setting_menu_changed),
+                     (gpointer) ctk_multisample);
+
+    g_signal_connect(G_OBJECT(ctk_event),
+                     CTK_EVENT_NAME
+                     (NV_CTRL_FSAA_APPLICATION_ENHANCED),
+                     G_CALLBACK(fsaa_setting_update_received),
+                     (gpointer) ctk_multisample);
+
+    return omenu;
+
+} /* create_fsaa_setting_menu() */
+
+
+
+/*
+ * post_fsaa_setting_changed() - helper function for update_fsaa_setting()
+ * and fsaa_menu_update_received();  This does whatever work is necessary
+ * after the dropdown/checkbox has changed -- update the slider's
+ * sensitivity and post a statusbar message.
+ */
+
+static void post_fsaa_setting_changed(CtkMultisample *ctk_multisample,
+                                      gboolean override, gboolean enhance)
 {
     if (ctk_multisample->fsaa_scale) {
         gtk_widget_set_sensitive
@@ -621,29 +726,33 @@ static void post_fsaa_app_override_toggled(CtkMultisample *ctk_multisample,
     }
 
     ctk_config_statusbar_message(ctk_multisample->ctk_config,
-                                 "Application Antialiasing Override %s.",
-                                 override ? "enabled" : "disabled");
+                                 "%s Application's Antialiasing Settings.",
+                                 (!override ? "Using" :
+                                  (enhance ? "Enhancing" : "Overriding")));
 
-} /* post_fsaa_app_override_toggled() */
+} /* post_fsaa_setting_changed() */
 
 
 
 /*
- * fsaa_app_override_toggled() - called when the FSAA Application
- * override check button is toggled; update the server and set the
- * sensitivity of the fsaa slider.
+ * update_fsaa_setting() - Helper function for updating the server when the
+ * user changes the Application's Antialiasing settings.
+ *
  */
 
-static void fsaa_app_override_toggled(GtkWidget *widget, gpointer user_data)
+static void update_fsaa_setting(CtkMultisample *ctk_multisample,
+                                gboolean override, gboolean enhance)
 {
-    CtkMultisample *ctk_multisample = CTK_MULTISAMPLE(user_data);
     GtkRange *range = GTK_RANGE(ctk_multisample->fsaa_scale);
-    gboolean override;
-
-    override = gtk_toggle_button_get_active(GTK_TOGGLE_BUTTON(widget));
 
     NvCtrlSetAttribute(ctk_multisample->handle,
                        NV_CTRL_FSAA_APPLICATION_CONTROLLED, !override);
+    
+    if (ctk_multisample->active_attributes & __FSAA_ENHANCE) {
+        NvCtrlSetAttribute(ctk_multisample->handle,
+                           NV_CTRL_FSAA_APPLICATION_ENHANCED, enhance);
+    }
+
     if (!override) {
         NvCtrlSetAttribute(ctk_multisample->handle,
                            NV_CTRL_FSAA_MODE, NV_CTRL_FSAA_MODE_NONE);
@@ -659,42 +768,152 @@ static void fsaa_app_override_toggled(GtkWidget *widget, gpointer user_data)
                                           (gpointer) ctk_multisample);
     }
 
-    post_fsaa_app_override_toggled(ctk_multisample, override);
+    post_fsaa_setting_changed(ctk_multisample, override, enhance);
 
-} /* fsaa_app_override_toggled() */
+} /* update_fsaa_setting() */
 
 
 
 /*
- * fsaa_app_override_update_received() - callback function for when the
- * NV_CTRL_FSAA_APPLICATION_CONTROLLED attribute is changed by another
+ * fsaa_setting_checkbox_toggled() - called when the FSAA Application
+ * checkbox is changed; update the server and set the sensitivity of
+ * the fsaa slider.
+ */
+
+static void fsaa_setting_checkbox_toggled(GtkWidget *widget,
+                                          gpointer user_data)
+{
+    CtkMultisample *ctk_multisample = CTK_MULTISAMPLE(user_data);
+    gboolean override;
+
+    override = gtk_toggle_button_get_active(GTK_TOGGLE_BUTTON(widget));
+
+    update_fsaa_setting(ctk_multisample, override, FALSE /* enhance */ );
+
+} /* fsaa_setting_checkbox_toggled() */
+
+
+
+/*
+ * fsaa_setting_menu_changed() - called when the FSAA Application
+ * menu is changed; update the server and set the sensitivity of
+ * the fsaa slider.
+ */
+
+static void fsaa_setting_menu_changed(GtkWidget *widget, gpointer user_data)
+{
+    CtkMultisample *ctk_multisample = CTK_MULTISAMPLE(user_data);
+    gint idx;
+    gboolean override;
+    gboolean enhance;
+
+    idx = gtk_option_menu_get_history(GTK_OPTION_MENU(widget));
+
+    /* The FSAA dropdown menu is setup this way:
+     *
+     * 0 == app
+     * 1 == override
+     * 2 == enhance
+     */
+
+    override = (idx > 0) ? TRUE : FALSE;
+    enhance = (idx == 2) ? TRUE : FALSE;
+
+    update_fsaa_setting(ctk_multisample, override, enhance);
+
+} /* fsaa_setting_menu_changed() */
+
+
+
+/*
+ * fsaa_setting_update_received() - callback function for when the
+ * NV_CTRL_FSAA_APPLICATION_CONTROLLED/ENHANCE attribute is changed by another
  * NV-CONTROL client.
  */
 
-static void fsaa_app_override_update_received(GtkObject *object,
-                                              gpointer arg1,
-                                              gpointer user_data)
+static void fsaa_setting_update_received(GtkObject *object,
+                                         gpointer arg1,
+                                         gpointer user_data)
 {
     CtkEventStruct *event_struct = (CtkEventStruct *) arg1;
     CtkMultisample *ctk_multisample = CTK_MULTISAMPLE(user_data);
-    GtkWidget *check_button;
-    gboolean override = !event_struct->value;
-    
-    check_button = ctk_multisample->fsaa_app_override_check_button;
-    
-    g_signal_handlers_block_by_func(G_OBJECT(check_button),
-                                    G_CALLBACK(fsaa_app_override_toggled),
-                                    (gpointer) ctk_multisample);
-    
-    gtk_toggle_button_set_active(GTK_TOGGLE_BUTTON(check_button), override);
-    
-    post_fsaa_app_override_toggled(ctk_multisample, override);
-    
-    g_signal_handlers_unblock_by_func(G_OBJECT(check_button),
-                                      G_CALLBACK(fsaa_app_override_toggled),
-                                      (gpointer) ctk_multisample);
+    gint idx;
+    gboolean override;
+    gboolean enhance = FALSE;
 
-} /* fsaa_app_override_update_received() */
+    gint val;
+    ReturnStatus ret;
+
+
+    switch (event_struct->attribute) {
+    case NV_CTRL_FSAA_APPLICATION_CONTROLLED:
+        override = !event_struct->value;
+
+        if (!override) {
+            idx = 0;
+        } else if (ctk_multisample->active_attributes & __FSAA_ENHANCE) {
+            ret = NvCtrlGetAttribute(ctk_multisample->handle,
+                                     NV_CTRL_FSAA_APPLICATION_ENHANCED,
+                                     &val);
+            enhance = val;
+            idx = enhance ? 2 : 1;
+        } else {
+            idx = 1;
+        }
+        break;
+
+    case NV_CTRL_FSAA_APPLICATION_ENHANCED:
+        enhance = event_struct->value;
+
+        ret = NvCtrlGetAttribute(ctk_multisample->handle,
+                                 NV_CTRL_FSAA_APPLICATION_CONTROLLED,
+                                 &val);
+        override = !val; /* = !app_controlled */
+
+        if (override) {
+            idx = enhance ? 2 : 1;
+        } else {
+            idx = 0;
+        }
+        break;
+
+    default:
+        return;
+    }
+
+
+    if (ctk_multisample->fsaa_menu) {
+        /* Update the dropdown menu */
+        GtkWidget *menu = ctk_multisample->fsaa_menu;
+
+        g_signal_handlers_block_by_func
+            (G_OBJECT(menu), G_CALLBACK(fsaa_setting_menu_changed),
+             (gpointer) ctk_multisample);
+        
+        gtk_option_menu_set_history(GTK_OPTION_MENU(menu), idx);
+        
+        g_signal_handlers_unblock_by_func
+            (G_OBJECT(menu), G_CALLBACK(fsaa_setting_menu_changed),
+             (gpointer) ctk_multisample);
+    } else {
+        /* Update the checkbox */
+        GtkWidget *button = ctk_multisample->fsaa_app_override_check_button;
+
+        g_signal_handlers_block_by_func
+            (G_OBJECT(button), G_CALLBACK(fsaa_setting_checkbox_toggled),
+             (gpointer) ctk_multisample);
+    
+        gtk_toggle_button_set_active(GTK_TOGGLE_BUTTON(button), override);
+        
+        g_signal_handlers_unblock_by_func
+            (G_OBJECT(button), G_CALLBACK(fsaa_setting_checkbox_toggled),
+             (gpointer) ctk_multisample);
+    }
+
+    post_fsaa_setting_changed(ctk_multisample, override, enhance);
+        
+
+} /* fsaa_setting_update_received() */
 
 
 
@@ -1093,9 +1312,22 @@ GtkTextBuffer *ctk_multisample_create_help(GtkTextTagTable *table,
                       "environment variable overrides the value in "
                       "nvidia-settings.");
         
-        ctk_help_term(b, &i, "Override Application Setting");
+        ctk_help_term(b, &i, "Application Antialiasing Settings");
         
-        ctk_help_para(b, &i, __aa_override_app_help);
+        if (ctk_multisample->active_attributes & __FSAA_ENHANCE) {
+            ctk_help_para(b, &i, __aa_menu_help);
+            ctk_help_para(b, &i, "Use Application Settings will let applications "
+                          "choose the AA mode.");
+            ctk_help_para(b, &i, "Override Application Settings will override "
+                          "all OpenGL applications to use the mode selected by "
+                          "the slider.");
+            ctk_help_para(b, &i, "Enhance Application Settings will make "
+                          "applications that are requesting some type of "
+                          "antialiasing to use the mode selected by the "
+                          "slider .");
+        } else {
+            ctk_help_para(b, &i, __aa_override_app_help);
+        }
 
         if (ctk_multisample->active_attributes & __FSAA_NONE) {
             ctk_help_term(b, &i, "Off");

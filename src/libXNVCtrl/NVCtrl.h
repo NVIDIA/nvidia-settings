@@ -230,7 +230,10 @@
 #define NV_CTRL_FSAA_MODE_8x                                    7
 #define NV_CTRL_FSAA_MODE_16x                                   8
 #define NV_CTRL_FSAA_MODE_8xS                                   9
-#define NV_CTRL_FSAA_MODE_MAX NV_CTRL_FSAA_MODE_8xS
+#define NV_CTRL_FSAA_MODE_8xQ                                  10
+#define NV_CTRL_FSAA_MODE_16xS                                 11
+#define NV_CTRL_FSAA_MODE_16xQ                                 12
+#define NV_CTRL_FSAA_MODE_MAX NV_CTRL_FSAA_MODE_16xQ
 
 
 /*
@@ -620,6 +623,9 @@
  * NV_CTRL_FLIPPING_ALLOWED - when TRUE, OpenGL will swap by flipping
  * when possible; when FALSE, OpenGL will alway swap by blitting.  XXX
  * can this be enabled dynamically?
+ *
+ * This attribute will not be available when flipping is not possible, such
+ * as when the NoFlip X config file option is enabled.
  */
 
 #define NV_CTRL_FLIPPING_ALLOWED                                40 /* RW-X */
@@ -2805,7 +2811,6 @@
 
 #define NV_CTRL_FRAMELOCK_FPGA_REVISION                          242 /* R--F */
 
-
 /*
  * NV_CTRL_MAX_SCREEN_{WIDTH,HEIGHT} - the maximum allowable size, in
  * pixels, of either the specified X screen (if the target_type of the
@@ -2960,7 +2965,24 @@
 #define NV_CTRL_DFP_SCALING_ACTIVE                               254 /* R-DG */
 
 
-#define NV_CTRL_LAST_ATTRIBUTE NV_CTRL_DFP_SCALING_ACTIVE
+/*
+ * NV_CTRL_FSAA_APPLICATION_ENHANCED - Controls how the NV_CTRL_FSAA_MODE
+ * is applied when NV_CTRL_FSAA_APPLICATION_CONTROLLED is set to
+ * NV_CTRL_APPLICATION_CONTROLLED_DISABLED.  When
+ * NV_CTRL_FSAA_APPLICATION_ENHANCED is _DISABLED, OpenGL applications will
+ * be forced to use the FSAA mode specified by NV_CTRL_FSAA_MODE.  when set
+ * to _ENABLED, only those applications that have selected a multisample
+ * FBConfig will be made to use the NV_CTRL_FSAA_MODE specified.
+ *
+ * This attribute is ignored when NV_CTRL_FSAA_APPLICATION_CONTROLLED is
+ * set to NV_CTRL_FSAA_APPLICATION_CONTROLLED_ENABLED.
+ */
+
+#define NV_CTRL_FSAA_APPLICATION_ENHANCED                       255  /* RW-X */
+#define NV_CTRL_FSAA_APPLICATION_ENHANCED_ENABLED                 1
+#define NV_CTRL_FSAA_APPLICATION_ENHANCED_DISABLED                0
+
+#define NV_CTRL_LAST_ATTRIBUTE NV_CTRL_FSAA_APPLICATION_ENHANCED
 
 
 /**************************************************************************/
