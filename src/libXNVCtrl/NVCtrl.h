@@ -3080,8 +3080,6 @@
 
 #define NV_CTRL_NUM_GPU_ERRORS_RECOVERED                        259 /* R--- */
 
-
-
 /*
  * NV_CTRL_ONDEMAND_VBLANK_INTERRUPTS - if the OnDemandVBlankInterrupts
  * X driver option is set to true, this attribute can be used to
@@ -3114,6 +3112,13 @@
 #define NV_CTRL_GPU_CURRENT_PERFORMANCE_MODE                    263 /* R--G */
 #define NV_CTRL_GPU_CURRENT_PERFORMANCE_MODE_DESKTOP              0
 #define NV_CTRL_GPU_CURRENT_PERFORMANCE_MODE_MAXPERF              1
+
+
+/* NV_CTRL_GLYPH_CACHE - Enables RENDER Glyph Caching to VRAM */
+
+#define NV_CTRL_GLYPH_CACHE                                     264 /* RW- */
+#define NV_CTRL_GLYPH_CACHE_DISABLED                              0
+#define NV_CTRL_GLYPH_CACHE_ENABLED                               1
 
 
 /*

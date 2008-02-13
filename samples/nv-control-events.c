@@ -435,6 +435,7 @@ static const char *attr2str(int n)
     case NV_CTRL_REFRESH_RATE:                     return "refresh rate"; break;
     case NV_CTRL_CURRENT_SCANLINE:                 return "current scanline"; break;
     case NV_CTRL_INITIAL_PIXMAP_PLACEMENT:         return "initial pixmap placement"; break;
+    case NV_CTRL_GLYPH_CACHE:                      return "glyph cache"; break;
     case NV_CTRL_PCI_BUS:                          return "pci bus"; break;
     case NV_CTRL_PCI_DEVICE:                       return "pci device"; break;
     case NV_CTRL_PCI_FUNCTION:                     return "pci function"; break;

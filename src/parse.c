@@ -109,6 +109,7 @@ AttributeTableEntry attributeTable[] = {
     { "LogAnisoAppControlled", NV_CTRL_LOG_ANISO_APPLICATION_CONTROLLED,0 },
     { "RefreshRate",           NV_CTRL_REFRESH_RATE,                N|H   },
     { "InitialPixmapPlacement",NV_CTRL_INITIAL_PIXMAP_PLACEMENT,    N     },
+    { "GlyphCache",            NV_CTRL_GLYPH_CACHE,                 N     },
     { "PCIBus",                NV_CTRL_PCI_BUS,                     N     },
     { "PCIDevice",             NV_CTRL_PCI_DEVICE,                  N     },
     { "PCIFunc",               NV_CTRL_PCI_FUNCTION,                N     },
