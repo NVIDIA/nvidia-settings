@@ -2766,12 +2766,15 @@
  * initially, but allows them to migrate to video memory.
  * NV_CTRL_INITIAL_PIXMAP_PLACEMENT_VIDMEM creates pixmaps in video memory
  * when enough resources are available.
+ * NV_CTRL_INITIAL_PIXMAP_PLACEMENT_GPU_SYSMEM creates pixmaps in GPU accessible
+ * system memory when enough resources are available.
  */
 
 #define NV_CTRL_INITIAL_PIXMAP_PLACEMENT                         238 /* RW- */
 #define NV_CTRL_INITIAL_PIXMAP_PLACEMENT_FORCE_SYSMEM            0
 #define NV_CTRL_INITIAL_PIXMAP_PLACEMENT_SYSMEM                  1
 #define NV_CTRL_INITIAL_PIXMAP_PLACEMENT_VIDMEM                  2
+#define NV_CTRL_INITIAL_PIXMAP_PLACEMENT_GPU_SYSMEM              4
 
 
 /*

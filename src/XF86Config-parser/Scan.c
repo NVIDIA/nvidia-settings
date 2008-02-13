@@ -584,7 +584,6 @@ static int pathIsSafe(const char *path)
  *    %E    config file environment ($XF86CONFIG) as an absolute path
  *    %F    config file environment ($XF86CONFIG) as a relative path
  *    %G    config file environment ($XF86CONFIG) as a safe path
- *    %D    $HOME
  *    %P    projroot
  *    %M    major version number
  *    %%    %
@@ -640,7 +639,7 @@ static char *DoSubstitution(const char *template,
 {
     char *result;
     int i, l;
-    static const char *env = NULL, *home = NULL;
+    static const char *env = NULL;
     static char *hostname = NULL;
     static char majorvers[3] = "";
 
@@ -731,14 +730,6 @@ static char *DoSubstitution(const char *template,
                 } else
                     BAIL_OUT;
                 break;
-            case 'D':
-                if (!home)
-                    home = getenv("HOME");
-                if (home && pathIsAbsolute(home))
-                    APPEND_STR(home);
-                else
-                    BAIL_OUT;
-                break;
             case 'P':
                 if (projroot && pathIsAbsolute(projroot))
                     APPEND_STR(projroot);
@@ -798,7 +789,6 @@ static const char __root_configpath[] =
 "%F,"               /* $XF86CONFIG (as relative path) */
 "/etc/X11/%F,"      /* /etc/X11/$XF86CONFIG */
 "%P/etc/X11/%F,"    /* /usr/X11R6/etc/X11/$XF86CONFIG */
-"%D/%X,"            /* $HOME/XF86Config */
 "/etc/X11/%X-%M,"   /* /etc/X11/XF86Config-4 */
 "/etc/X11/%X,"      /* /etc/X11/XF86Config */
 "/etc/%X,"          /* /etc/XF86Config */

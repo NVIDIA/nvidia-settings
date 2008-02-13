@@ -29,7 +29,7 @@
 #include "parse.h"
 #include "config-file.h"
 
-void ctk_init(int *argc, char **argv[]);
+int ctk_init_check(int *argc, char **argv[]);
 
 char *ctk_get_display(void);
 
