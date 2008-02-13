@@ -5065,7 +5065,7 @@ static unsigned int add_framelock_devices(CtkFramelock *ctk_framelock,
         if (ret != NvCtrlSuccess) {
             goto fail;
         }
-        revision_str = g_strdup_printf("%d", val);
+        revision_str = g_strdup_printf("0x%X", val);
 
         /* Create the frame lock widgets */
         framelock_data->label = gtk_label_new("");

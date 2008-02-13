@@ -47,9 +47,33 @@ void ctk_main(NvCtrlAttributeHandle **screen_handles, int num_screen_handles,
               NvCtrlAttributeHandle **vcsc_handles, int num_vcsc_handles,
               ParsedAttribute *p, ConfigProperties *conf)
 {
+    int i, has_nv_control = FALSE;
+    
     ctk_window_new(screen_handles, num_screen_handles,
                    gpu_handles, num_gpu_handles,
                    vcsc_handles, num_vcsc_handles,
                    p, conf);
+    
+    for (i = 0; i < num_screen_handles; i++) {
+        if (screen_handles[i]) {
+            has_nv_control = TRUE;
+            break;
+        }
+    }
+    
+    if (!has_nv_control) {
+        GtkWidget *dlg;
+        dlg = gtk_message_dialog_new (NULL,
+                                      GTK_DIALOG_MODAL,
+                                      GTK_MESSAGE_WARNING,
+                                      GTK_BUTTONS_OK,
+                                      "You do not appear to be using the NVIDIA "
+                                      "X driver. Please edit your X configuration "
+                                      "file (just run `nvidia-xconfig` "
+                                      "as root), and restart the X server. ");
+        gtk_dialog_run(GTK_DIALOG(dlg));
+        gtk_widget_destroy (dlg);
+    }
+
     gtk_main();
 }

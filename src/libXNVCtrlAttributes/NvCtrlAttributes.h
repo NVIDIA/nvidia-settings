@@ -198,6 +198,17 @@ typedef struct GLXFBConfigAttrRec {
 } GLXFBConfigAttr;
 
 
+/*
+ * Additional NV-CONTROL string attributes for NvCtrlGetStringDisplayAttribute();
+ * these are in addition to the ones in NVCtrl.h
+ */
+
+#define NV_CTRL_STRING_NV_CONTROL_BASE            (NV_CTRL_STRING_LAST_ATTRIBUTE + 1)
+
+#define NV_CTRL_STRING_NV_CONTROL_VERSION         (NV_CTRL_STRING_NV_CONTROL_BASE)
+
+#define NV_CTRL_STRING_NV_CONTROL_LAST_ATTRIBUTE  (NV_CTRL_STRING_NV_CONTROL_VERSION)
+
 
 /*
  * Valid string attributes for NvCtrlGetStringAttribute(); these are
@@ -205,7 +216,7 @@ typedef struct GLXFBConfigAttrRec {
  */
 
 #define NV_CTRL_STRING_GLX_BASE \
-       (NV_CTRL_STRING_LAST_ATTRIBUTE + 1)
+       (NV_CTRL_STRING_NV_CONTROL_LAST_ATTRIBUTE + 1)
 
 #define NV_CTRL_STRING_GLX_DIRECT_RENDERING  (NV_CTRL_STRING_GLX_BASE +  0)
 #define NV_CTRL_STRING_GLX_GLX_EXTENSIONS    (NV_CTRL_STRING_GLX_BASE +  1)
@@ -226,6 +237,37 @@ typedef struct GLXFBConfigAttrRec {
 #define NV_CTRL_STRING_GLX_LAST_ATTRIBUTE \
        (NV_CTRL_STRING_GLX_OPENGL_EXTENSIONS)
 
+/*
+ * Additional XRANDR string attributes for NvCtrlGetStringDisplayAttribute();
+ */
+
+#define NV_CTRL_STRING_XRANDR_BASE            (NV_CTRL_STRING_GLX_LAST_ATTRIBUTE + 1)
+
+#define NV_CTRL_STRING_XRANDR_VERSION         (NV_CTRL_STRING_XRANDR_BASE)
+
+#define NV_CTRL_STRING_XRANDR_LAST_ATTRIBUTE  (NV_CTRL_STRING_XRANDR_VERSION)
+
+
+/*
+ * Additional XF86VidMode string attributes for NvCtrlGetStringDisplayAttribute();
+ */
+
+#define NV_CTRL_STRING_XF86VIDMODE_BASE            (NV_CTRL_STRING_XRANDR_LAST_ATTRIBUTE + 1)
+
+#define NV_CTRL_STRING_XF86VIDMODE_VERSION         (NV_CTRL_STRING_XF86VIDMODE_BASE)
+
+#define NV_CTRL_STRING_XF86VIDMODE_LAST_ATTRIBUTE  (NV_CTRL_STRING_XF86VIDMODE_VERSION)
+
+
+/*
+ * Additional XVideo string attributes for NvCtrlGetStringDisplayAttribute();
+ */
+
+#define NV_CTRL_STRING_XV_BASE            (NV_CTRL_STRING_XF86VIDMODE_LAST_ATTRIBUTE + 1)
+
+#define NV_CTRL_STRING_XV_VERSION         (NV_CTRL_STRING_XV_BASE)
+
+#define NV_CTRL_STRING_XV_LAST_ATTRIBUTE  (NV_CTRL_STRING_XV_VERSION)
 
 
 /*
@@ -387,6 +429,11 @@ ReturnStatus
 NvCtrlGetValidDisplayAttributeValues (NvCtrlAttributeHandle *handle,
                                       unsigned int display_mask, int attr,
                                       NVCTRLAttributeValidValuesRec *val);
+ReturnStatus
+NvCtrlGetValidStringDisplayAttributeValues (NvCtrlAttributeHandle *handle,
+                                            unsigned int display_mask, int attr,
+                                            NVCTRLAttributeValidValuesRec *val);
+
 ReturnStatus
 NvCtrlGetStringDisplayAttribute (NvCtrlAttributeHandle *handle,
                                  unsigned int display_mask,

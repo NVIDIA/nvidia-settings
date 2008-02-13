@@ -60,6 +60,7 @@ static char *nv_strndup(char *s, int n);
 #define A NV_PARSER_TYPE_NO_QUERY_ALL
 #define Z NV_PARSER_TYPE_NO_ZERO_VALUE
 #define H NV_PARSER_TYPE_100Hz
+#define S NV_PARSER_TYPE_STRING_ATTRIBUTE
 
 AttributeTableEntry attributeTable[] = {
    
@@ -138,6 +139,29 @@ AttributeTableEntry attributeTable[] = {
     { "FrameLockMasterable",   NV_CTRL_FRAMELOCK_MASTERABLE,        N|F|G },
     { "FrameLockFPGARevision", NV_CTRL_FRAMELOCK_FPGA_REVISION,     N|F|G },
 
+    { "GvoSupported",                    NV_CTRL_GVO_SUPPORTED,                        N },
+    { "GvoSyncMode",                     NV_CTRL_GVO_SYNC_MODE,                        N },
+    { "GvoSyncSource",                   NV_CTRL_GVO_SYNC_SOURCE,                      N },
+    { "GvoOutputVideoFormat",            NV_CTRL_GVO_OUTPUT_VIDEO_FORMAT,              N },
+    { "GvoInputVideoFormat",             NV_CTRL_GVO_INPUT_VIDEO_FORMAT,               N },
+    { "GvoDataFormat",                   NV_CTRL_GVO_DATA_FORMAT,                      N },
+    { "GvoDisplayXScreen",               NV_CTRL_GVO_DISPLAY_X_SCREEN,                 N },
+    { "GvoCompositeSyncInputDetected",   NV_CTRL_GVO_COMPOSITE_SYNC_INPUT_DETECTED,    N },
+    { "GvoCompositeSyncInputDetectMode", NV_CTRL_GVO_COMPOSITE_SYNC_INPUT_DETECT_MODE, N },
+    { "GvoSdiSyncInputDetected",         NV_CTRL_GVO_SDI_SYNC_INPUT_DETECTED,          N },
+    { "GvoVideoOutputs",                 NV_CTRL_GVO_VIDEO_OUTPUTS,                    N },
+    { "GvoSyncDelayPixels",              NV_CTRL_GVO_SYNC_DELAY_PIXELS,                N },
+    { "GvoSyncDelayLines",               NV_CTRL_GVO_SYNC_DELAY_LINES,                 N },
+    { "GvoGlxLocked",                    NV_CTRL_GVO_GLX_LOCKED,                       N },
+    { "GvoXScreenPanX",                  NV_CTRL_GVO_X_SCREEN_PAN_X,                   N },
+    { "GvoXScreenPanY",                  NV_CTRL_GVO_X_SCREEN_PAN_Y,                   N },
+    { "GvoOverrideHwCsc",                NV_CTRL_GVO_OVERRIDE_HW_CSC,                  N },
+    { "GvoCapabilities",                 NV_CTRL_GVO_CAPABILITIES,                     N },
+    { "GvoCompositeTermination",         NV_CTRL_GVO_COMPOSITE_TERMINATION,            N },
+    { "GvoFlipQueueSize",                NV_CTRL_GVO_FLIP_QUEUE_SIZE,                  N },
+    { "GvoFirmwareVersion",              NV_CTRL_STRING_GVO_FIRMWARE_VERSION,          S|N },
+    { "GvoLockOwner",                    NV_CTRL_GVO_LOCK_OWNER,                       N },
+
     { "Brightness",            BRIGHTNESS_VALUE|ALL_CHANNELS,       N|C|G },
     { "RedBrightness",         BRIGHTNESS_VALUE|RED_CHANNEL,        C|G   },
     { "GreenBrightness",       BRIGHTNESS_VALUE|GREEN_CHANNEL,      C|G   },
@@ -175,6 +199,15 @@ AttributeTableEntry attributeTable[] = {
     { "GPU3DClockFreqs",        NV_CTRL_GPU_3D_CLOCK_FREQS,         N|P },
     { "GPUCurrentClockFreqs",   NV_CTRL_GPU_CURRENT_CLOCK_FREQS,    N|P },
 
+    { "NvidiaDriverVersion",    NV_CTRL_STRING_NVIDIA_DRIVER_VERSION,    S|N },
+    { "NvControlVersion",       NV_CTRL_STRING_NV_CONTROL_VERSION,       S|N },
+    { "GLXServerVersion",       NV_CTRL_STRING_GLX_SERVER_VERSION,       S|N },
+    { "GLXClientVersion",       NV_CTRL_STRING_GLX_CLIENT_VERSION,       S|N },
+    { "OpenGLVersion",          NV_CTRL_STRING_GLX_OPENGL_VERSION,       S|N },
+    { "XRandRVersion",          NV_CTRL_STRING_XRANDR_VERSION,           S|N },
+    { "XF86VidModeVersion",     NV_CTRL_STRING_XF86VIDMODE_VERSION,      S|N },
+    { "XvVersion",              NV_CTRL_STRING_XV_VERSION,               S|N },
+    
     { NULL,                    0,                                   0     }
 };
 
@@ -188,6 +221,7 @@ AttributeTableEntry attributeTable[] = {
 #undef A
 #undef Z
 #undef H
+#undef S
 
 /*
  * When new integer attributes are added to NVCtrl.h, an entry should
@@ -196,7 +230,7 @@ AttributeTableEntry attributeTable[] = {
  * about.
  */
 
-#if NV_CTRL_LAST_ATTRIBUTE != NV_CTRL_FRAMELOCK_SYNC_RATE_4
+#if NV_CTRL_LAST_ATTRIBUTE != NV_CTRL_GVO_LOCK_OWNER
 #warning "Have you forgotten to add a new integer attribute to attributeTable?"
 #endif
 
@@ -356,6 +390,23 @@ int nv_parse_attribute_string(const char *str, int query, ParsedAttribute *a)
             if (tmp && *tmp == ',') {
                 a->val = (a->val & 0xffff) << 16;
                 a->val |= strtol((tmp + 1), &tmp, 10) & 0xffff;
+            }
+        } else if (a->flags & NV_PARSER_TYPE_VALUE_IS_DISPLAY) {
+            if (nv_strcasecmp(s, "alldisplays")) {
+                a->flags |= NV_PARSER_TYPE_ASSIGN_ALL_DISPLAYS;
+                tmp = s + strlen(s);
+            } else {
+                uint32 mask = 0;
+                mask = display_device_name_to_display_device_mask(s);
+                if (mask && (mask != INVALID_DISPLAY_DEVICE_MASK) &&
+                    ((mask & (DISPLAY_DEVICES_WILDCARD_CRT |
+                              DISPLAY_DEVICES_WILDCARD_TV |
+                              DISPLAY_DEVICES_WILDCARD_DFP)) == 0)) {
+                    a->val = mask;
+                    tmp = s + strlen(s);
+                } else {
+                   a->val = strtol(s, &tmp, 0);
+                }
             }
         } else {
             /* all other attributes are integer */

@@ -30,6 +30,7 @@
 #include "msg.h"
 
 #include <stdlib.h>
+#include <string.h>
 
 /*
  * NvCtrlInitNvControlAttributes() - check for the NV-CONTROL
@@ -46,7 +47,7 @@ NvCtrlInitNvControlAttributes (NvCtrlAttributePrivateHandle *h)
     
     ret = XNVCTRLQueryExtension (h->dpy, &event, &error);
     if (ret != True) {
-        nv_error_msg("NV-CONTROL extension not found on this Display.");
+        nv_warning_msg("NV-CONTROL extension not found on this Display.");
         return NULL;
     }
     
@@ -191,6 +192,21 @@ NvCtrlNvControlGetStringAttribute (NvCtrlAttributePrivateHandle *h,
                                    unsigned int display_mask,
                                    int attr, char **ptr)
 {
+    /* Validate */
+    if (!h || !h->dpy) {
+        return NvCtrlBadHandle;
+    }
+    
+    if (attr == NV_CTRL_STRING_NV_CONTROL_VERSION) {
+        char str[16];
+        if (h->target_type != NV_CTRL_TARGET_TYPE_X_SCREEN) {
+            return NvCtrlBadHandle;
+        }
+        sprintf(str, "%d.%d", h->nv->major_version, h->nv->minor_version);
+        *ptr = strdup(str);
+        return NvCtrlSuccess;
+    }
+
     if (attr <= NV_CTRL_STRING_LAST_ATTRIBUTE) {
         if (XNVCTRLQueryTargetStringAttribute (h->dpy, h->target_type,
                                                h->target_id, display_mask,

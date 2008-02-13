@@ -30,6 +30,7 @@
 #include <X11/extensions/xf86vmode.h>
 
 #include <stdlib.h>
+#include <string.h>
 #include <math.h>
 
 static unsigned short computeVal(NvCtrlAttributePrivateHandle *,
@@ -80,7 +81,7 @@ NvCtrlVidModeAttributes *
 NvCtrlInitVidModeAttributes(NvCtrlAttributePrivateHandle *h)
 {
     NvCtrlVidModeAttributes *vm = NULL;
-    int ret, event, ver, rev, i;
+    int ret, event, i;
     
 
     /* Check parameters */
@@ -93,20 +94,20 @@ NvCtrlInitVidModeAttributes(NvCtrlAttributePrivateHandle *h)
     ret = XF86VidModeQueryExtension(h->dpy, &event, &vidModeErrorBase);
     if (ret != True) goto failed;
 
-    ret = XF86VidModeQueryVersion(h->dpy, &ver, &rev);
+    vm = (NvCtrlVidModeAttributes *) malloc(sizeof(NvCtrlVidModeAttributes));
+
+    ret = XF86VidModeQueryVersion(h->dpy, &(vm->major_version), &(vm->minor_version));
     if (ret != True) goto failed;
-    
-    if (ver < VM_MINMAJOR || (ver == VM_MINMAJOR && rev < VM_MINMINOR)) {
+
+    if (vm->major_version < VM_MINMAJOR || (vm->major_version == VM_MINMAJOR && vm->minor_version < VM_MINMINOR)) {
         nv_warning_msg("The version of the XF86VidMode extension present "
                        "on this display (%d.%d) does not support updating "
                        "gamma ramps.  If you'd like to be able to adjust "
                        "gamma ramps, please update your X server such that "
                        "the version of the XF86VidMode extension is %d.%d "
-                       "or higher.", rev, ver, VM_MINMAJOR, VM_MINMINOR);
+                       "or higher.", vm->major_version, vm->minor_version, VM_MINMAJOR, VM_MINMINOR);
         goto failed;
     }
-
-    vm = (NvCtrlVidModeAttributes *) malloc(sizeof(NvCtrlVidModeAttributes));
 
     /*
      * XXX setup an error handler to catch any errors caused by the
@@ -437,3 +438,35 @@ static unsigned short computeVal(NvCtrlAttributePrivateHandle *h,
     return (unsigned short) val;
     
 } /* computeVal() */
+
+
+/*
+ * Get XF86 Video Mode String Attribute Values
+ */
+
+ReturnStatus
+NvCtrlVidModeGetStringAttribute (NvCtrlAttributePrivateHandle *h,
+                                   unsigned int display_mask,
+                                   int attr, char **ptr)
+{
+    /* Validate */
+    if ( !h || !h->dpy || h->target_type != NV_CTRL_TARGET_TYPE_X_SCREEN ) {
+        return NvCtrlBadHandle;
+    }
+
+    if ( !h->vm) {
+        return NvCtrlMissingExtension;
+    }
+
+    /* Get Video Mode major & minor versions */
+    if (attr == NV_CTRL_STRING_XF86VIDMODE_VERSION) {
+        char str[16];
+        sprintf(str, "%d.%d", h->vm->major_version, h->vm->minor_version);
+        *ptr = strdup(str);
+        return NvCtrlSuccess;
+    }
+
+    return NvCtrlNoAttribute;
+
+} /* NvCtrlVidModeGetStringAttribute() */
+

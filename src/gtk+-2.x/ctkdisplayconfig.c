@@ -4381,9 +4381,10 @@ static void display_config_clicked(GtkWidget *widget, gpointer user_data)
 
     /* We can't setup TwinView if there is only one display connected,
      * there are no existing X screens on the GPU, or this display is
-     * the only enabled device on the GPU.
+     * the only enabled device on the GPU, or when SLI is enabled.
      */
     if (display->gpu->num_displays == 1 || !display->gpu->num_screens ||
+        display->gpu->screens->sli ||
         (display->gpu->num_screens == 1 &&
          display->gpu->screens->num_displays == 1 &&
          display->screen == display->gpu->screens)) {

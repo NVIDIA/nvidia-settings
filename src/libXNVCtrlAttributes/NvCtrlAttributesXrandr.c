@@ -30,6 +30,7 @@
 
 #include <stdlib.h> /* 64 bit malloc */
 #include <assert.h>
+#include <string.h>
 
 #include <dlfcn.h> /* To dynamically load libXrandr.so.2 */
 #include <X11/Xlib.h>
@@ -271,9 +272,6 @@ NvCtrlInitXrandrAttributes (NvCtrlAttributePrivateHandle *h)
     NvCtrlXrandrAttributes * xrandr = NULL;
     XRRScreenConfiguration *sc;
     Rotation rotation, rotations;
-    int ver_major;
-    int ver_minor;
-
 
     /* Check parameters */
     if ( !h || !h->dpy || h->target_type != NV_CTRL_TARGET_TYPE_X_SCREEN ) {
@@ -309,11 +307,11 @@ NvCtrlInitXrandrAttributes (NvCtrlAttributePrivateHandle *h)
         goto fail;
     }
 
-    /* Verify server version of the XRandR extension */
-    if ( !__libXrandr->XRRQueryVersion(h->dpy, &(ver_major), &(ver_minor)) ||
-         ((ver_major < MIN_RANDR_MAJOR) ||
-          ((ver_major == MIN_RANDR_MAJOR) &&
-           (ver_minor < MIN_RANDR_MINOR)))) {
+    /* Verify server version of the XRandR extension */ 
+    if ( !__libXrandr->XRRQueryVersion(h->dpy, &(xrandr->major_version), &(xrandr->minor_version)) ||
+         ((xrandr->major_version < MIN_RANDR_MAJOR) ||
+          ((xrandr->major_version == MIN_RANDR_MAJOR) &&
+           (xrandr->minor_version < MIN_RANDR_MINOR)))) {
         XSync(h->dpy, False);
         XSetErrorHandler(old_error_handler);
         goto fail;
@@ -526,6 +524,36 @@ NvCtrlXrandrSetAttribute (NvCtrlAttributePrivateHandle *h,
 
 } /* NvCtrlXrandrSetAttribute */
 
+
+/*
+ * Get Xrandr String Attribute Values
+ */
+
+ReturnStatus
+NvCtrlXrandrGetStringAttribute (NvCtrlAttributePrivateHandle *h,
+                                unsigned int display_mask,
+                                int attr, char **ptr)
+{
+    /* Validate */
+    if ( !h || !h->dpy || h->target_type != NV_CTRL_TARGET_TYPE_X_SCREEN ) {
+        return NvCtrlBadHandle;
+    }
+
+    if ( !h->xrandr || !__libXrandr ) {
+        return NvCtrlMissingExtension;
+    }
+
+    /* Get Xrandr major & minor versions */
+    if (attr == NV_CTRL_STRING_XRANDR_VERSION) {
+        char str[16];
+        sprintf(str, "%d.%d", h->xrandr->major_version, h->xrandr->minor_version);
+        *ptr = strdup(str);
+        return NvCtrlSuccess;
+    }
+
+    return NvCtrlNoAttribute;
+
+} /* NvCtrlXrandrGetStringAttribute() */
 
 
 /******************************************************************************

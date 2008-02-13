@@ -154,7 +154,7 @@ CtrlHandles *nv_alloc_ctrl_handles(const char *display)
             }
             
             if (status != NvCtrlSuccess) {
-                nv_error_msg("Unable to determine number of NVIDIA "
+                nv_warning_msg("Unable to determine number of NVIDIA "
                              "%ss on '%s'.",
                              targetTypeTable[j].name,
                              XDisplayName(h->display));
@@ -838,35 +838,65 @@ static int query_all(const char *display_name)
 
                 if ((t->d & mask) == 0x0) continue;
                 
-                status = NvCtrlGetValidDisplayAttributeValues
-                    (t->h, mask, a->attr, &valid);
+                if (a->flags & NV_PARSER_TYPE_STRING_ATTRIBUTE) {
+                    char *tmp_str = NULL;
 
-                if (status == NvCtrlAttributeNotAvailable) goto exit_bit_loop;
+                    status = NvCtrlGetValidStringDisplayAttributeValues(t->h, mask,
+                                                                        a->attr, &valid);
+
+                    if (status == NvCtrlAttributeNotAvailable) goto exit_bit_loop;
+
+                    if (status != NvCtrlSuccess) {
+                        nv_error_msg("Error while querying valid values for "
+                                     "attribute '%s' on %s (%s).",
+                                     a->name, t->name,
+                                     NvCtrlAttributesStrError(status));
+                        goto exit_bit_loop;
+                    }
+
+                    status = NvCtrlGetStringDisplayAttribute(t->h, mask, a->attr, &tmp_str);
+
+                    if (status == NvCtrlAttributeNotAvailable) goto exit_bit_loop;
+
+                    if (status != NvCtrlSuccess) {
+                        nv_error_msg("Error while querying attribute '%s' "
+                                     "on %s (%s).", a->name, t->name,
+                                     NvCtrlAttributesStrError(status));
+                        goto exit_bit_loop;
+                    }
+
+                    nv_msg("  ",  "Attribute '%s' (%s%s): %s ", a->name, t->name, "", tmp_str);
+                    free(tmp_str);
+                    tmp_str = NULL;
+
+                } else {
+                    status = NvCtrlGetValidDisplayAttributeValues(t->h, mask, a->attr, &valid);
+
+                    if (status == NvCtrlAttributeNotAvailable) goto exit_bit_loop;
                 
-                if (status != NvCtrlSuccess) {
-                    nv_error_msg("Error while querying valid values for "
-                                 "attribute '%s' on %s (%s).",
-                                 a->name, t->name,
-                                 NvCtrlAttributesStrError(status));
-                    goto exit_bit_loop;
+                    if (status != NvCtrlSuccess) {
+                        nv_error_msg("Error while querying valid values for "
+                                     "attribute '%s' on %s (%s).",
+                                     a->name, t->name,
+                                     NvCtrlAttributesStrError(status));
+                        goto exit_bit_loop;
+                    }
+
+                    status = NvCtrlGetDisplayAttribute(t->h, mask, a->attr, &val);
+
+                    if (status == NvCtrlAttributeNotAvailable) goto exit_bit_loop;
+
+                    if (status != NvCtrlSuccess) {
+                        nv_error_msg("Error while querying attribute '%s' "
+                                     "on %s (%s).", a->name, t->name,
+                                     NvCtrlAttributesStrError(status));
+                        goto exit_bit_loop;
+                    }
+
+                    print_queried_value(t, &valid, val, a->flags, a->name, mask, INDENT);
+
+                    print_valid_values(a->name, a->flags, valid);
                 }
-
-                status = NvCtrlGetDisplayAttribute(t->h, mask, a->attr, &val);
-
-                if (status == NvCtrlAttributeNotAvailable) goto exit_bit_loop;
-
-                if (status != NvCtrlSuccess) {
-                    nv_error_msg("Error while querying attribute '%s' "
-                                 "on %s (%s).",
-                                 a->name, t->name,
-                                 NvCtrlAttributesStrError(status));
-                    goto exit_bit_loop;
-                }
-
-                print_queried_value(t, &valid, val, a->flags,
-                                    a->name, mask, INDENT);
-                
-                print_valid_values(a->name, a->flags, valid);
                 
                 nv_msg(NULL,"");
                 
@@ -1293,27 +1323,47 @@ static int process_parsed_attribute_internal(CtrlHandleTarget *t,
         }
 
     } else { /* query */
-        
-        status = NvCtrlGetDisplayAttribute(t->h, d, a->attr, &a->val);
+        if (a->flags & NV_PARSER_TYPE_STRING_ATTRIBUTE) {
+            char *tmp_str = NULL;
+            status = NvCtrlGetStringDisplayAttribute(t->h, d, a->attr, &tmp_str);
 
-        if (status == NvCtrlAttributeNotAvailable) {
-            nv_warning_msg("Error querying attribute '%s' specified %s; "
-                           "'%s' is not available on %s%s.",
-                           a->name, whence, a->name,
-                           t->name, str);
-        } else if (status != NvCtrlSuccess) {
-            nv_error_msg("Error while querying attribute '%s' "
-                         "(%s%s) specified %s (%s).",
-                         a->name, t->name, str, whence,
-                         NvCtrlAttributesStrError(status));
-            return NV_FALSE;
-        } else {
+            if (status == NvCtrlAttributeNotAvailable) {
+                nv_warning_msg("Error querying attribute '%s' specified %s; "
+                               "'%s' is not available on %s%s.",
+                               a->name, whence, a->name,
+                               t->name, str);
+            } else if (status != NvCtrlSuccess) {
+                nv_error_msg("Error while querying attribute '%s' "
+                             "(%s%s) specified %s (%s).",
+                             a->name, t->name, str, whence,
+                             NvCtrlAttributesStrError(status));
+                return NV_FALSE;
+            } else {
+                nv_msg("  ",  "Attribute '%s' (%s%s): %s", a->name, t->name, str, tmp_str);
+                free(tmp_str);  
+                tmp_str = NULL;
+            }
+        } else { 
+            status = NvCtrlGetDisplayAttribute(t->h, d, a->attr, &a->val);
 
-            print_queried_value(t, &valid, a->val, a->flags, a->name, d, "  ");
-
-            print_valid_values(a->name, a->flags, valid);
+            if (status == NvCtrlAttributeNotAvailable) {
+                nv_warning_msg("Error querying attribute '%s' specified %s; "
+                               "'%s' is not available on %s%s.",
+                               a->name, whence, a->name,
+                               t->name, str);
+            } else if (status != NvCtrlSuccess) {
+                nv_error_msg("Error while querying attribute '%s' "
+                             "(%s%s) specified %s (%s).",
+                             a->name, t->name, str, whence,
+                             NvCtrlAttributesStrError(status));
+                return NV_FALSE;
+            } else {
+                print_queried_value(t, &valid, a->val, a->flags, a->name, d, "  ");
+                
+                print_valid_values(a->name, a->flags, valid);
+            }
         }
-    }
+    } /* query */
 
     return NV_TRUE;
 
@@ -1454,7 +1504,7 @@ int nv_process_parsed_attribute(ParsedAttribute *a, CtrlHandles *h,
          */
 
         if (!h->targets[target].t[a->target_id].h) {
-            nv_error_msg("Invalid %s %d specified %s (NV-CONTROL extension "
+            nv_warning_msg("Invalid %s %d specified %s (NV-CONTROL extension "
                          "not supported on %s %d).",
                          target_type_name,
                          a->target_id, whence,
@@ -1577,6 +1627,37 @@ int nv_process_parsed_attribute(ParsedAttribute *a, CtrlHandles *h,
         }
 
         /*
+         * If we are assigning, and the value for this attribute is a
+         * display device, then we need to validate the value against
+         * the mask of enabled display devices.
+         */
+        
+        if (assign && (a->flags & NV_PARSER_TYPE_VALUE_IS_DISPLAY)) {
+            if (a->flags & NV_PARSER_TYPE_ASSIGN_ALL_DISPLAYS) {
+                a->val = t->d;
+            }
+            
+            if ((t->d & a->val) != a->val) {
+
+                tmp_d_str0 =
+                    display_device_mask_to_display_device_name(a->val);
+
+                tmp_d_str1 = display_device_mask_to_display_device_name(t->d);
+
+                nv_error_msg("The attribute '%s' specified %s cannot be "
+                             "assigned the value of %s (the currently enabled "
+                             "display devices are %s on %s).",
+                             a->name, whence, tmp_d_str0, tmp_d_str1,
+                             t->name);
+                
+                free(tmp_d_str0);
+                free(tmp_d_str1);
+                
+                continue;
+            }
+        }
+
+        /*
          * If we are assigning, and the value for this attribute is
          * not allowed to be zero, check that the value is not zero.
          */
@@ -1601,34 +1682,6 @@ int nv_process_parsed_attribute(ParsedAttribute *a, CtrlHandles *h,
             }
         }
         
-        /*
-         * If we are assigning, and the value for this attribute is a
-         * display device, then we need to validate the value against
-         * the mask of enabled display devices.
-         */
-        
-        if (assign && (a->flags & NV_PARSER_TYPE_VALUE_IS_DISPLAY)) {
-            
-            if ((t->d & a->val) != a->val) {
-
-                tmp_d_str0 =
-                    display_device_mask_to_display_device_name(a->val);
-
-                tmp_d_str1 = display_device_mask_to_display_device_name(t->d);
-
-                nv_error_msg("The attribute '%s' specified %s cannot be "
-                             "assigned the value of %s (the currently enabled "
-                             "display devices are %s on %s).",
-                             a->name, whence, tmp_d_str0, tmp_d_str1,
-                             t->name);
-                
-                free(tmp_d_str0);
-                free(tmp_d_str1);
-                
-                continue;
-            }
-        }
-
         /*
          * If we are dealing with a frame lock attribute on a non-frame lock
          * target type, make sure frame lock is available.
@@ -1706,9 +1759,13 @@ int nv_process_parsed_attribute(ParsedAttribute *a, CtrlHandles *h,
                 (t->d)) {
                 continue;
             }
-            
-            status = NvCtrlGetValidDisplayAttributeValues(t->h, mask,
-                                                          a->attr, &valid);
+
+            if (a->flags & NV_PARSER_TYPE_STRING_ATTRIBUTE) {
+                status = NvCtrlGetValidStringDisplayAttributeValues(t->h, mask, a->attr, &valid);
+            } else {
+                status = NvCtrlGetValidDisplayAttributeValues(t->h, mask, a->attr, &valid);
+            }
+
             if (status != NvCtrlSuccess) {
                 if (status == NvCtrlAttributeNotAvailable) {
                     nv_warning_msg("Attribute '%s' specified %s is not "

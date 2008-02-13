@@ -873,7 +873,7 @@
  * mutually exclusive.  If NV_CTRL_GVO_DISPLAY_X_SCREEN is enabled,
  * then glXGetVideoDeviceNV will fail.  Similarly, if a GLX client has
  * locked the GVO output (via glXGetVideoDeviceNV), then
- * NV_CTRL_GVO_DISPLAY_X_SCREEN will fail.  The NV_CTRL_GVO_LOCKED
+ * NV_CTRL_GVO_DISPLAY_X_SCREEN will fail.  The NV_CTRL_GVO_GLX_LOCKED
  * event will be sent when a GLX client locks the GVO output.
  *
  */
@@ -1048,8 +1048,8 @@
 
 /*
  * NV_CTRL_GVO_DISPLAY_X_SCREEN - enable/disable GVO output of the X
- * screen.  At this point, all the GVO attributes that have been
- * cached in the X server are flushed to the hardware and GVO is
+ * screen (in Clone mode).  At this point, all the GVO attributes that
+ * have been cached in the X server are flushed to the hardware and GVO is
  * enabled.  Note that this attribute can fail to be set if a GLX
  * client has locked the GVO output (via glXGetVideoDeviceNV).  Note
  * that due to the inherit race conditions in this locking strategy,
@@ -1057,6 +1057,11 @@
  * failing situation, X will not return an X error.  Instead, you
  * should query the value of NV_CTRL_GVO_DISPLAY_X_SCREEN after
  * setting it to confirm that the setting was applied.
+ *
+ * NOTE: This attribute is related to the NV_CTRL_GVO_LOCK_OWNER
+ *       attribute.  When NV_CTRL_GVO_DISPLAY_X_SCREEN is enabled,
+ *       the GVO device will be locked by NV_CTRL_GVO_LOCK_OWNER_CLONE.
+ *       see NV_CTRL_GVO_LOCK_OWNER for detais.
  */
 
 #define NV_CTRL_GVO_DISPLAY_X_SCREEN                            73  /* RW- */
@@ -1150,19 +1155,26 @@
 
 
 /*
- * NV_CTRL_GVO_LOCKED - indicates that GVO configurability is locked;
- * this occurs when the GLX_NV_video_out function calls
+ * NV_CTRL_GVO_GLX_LOCKED - indicates that GVO configurability is locked by
+ * GLX;  this occurs when the GLX_NV_video_out function calls
  * glXGetVideoDeviceNV().  All GVO output resources are locked until
  * either glXReleaseVideoDeviceNV() is called or the X Display used
  * when calling glXGetVideoDeviceNV() is closed.
  *
- * When GVO is locked; all GVO NV-CONTROL attributes are read only.
+ * When GVO is locked, setting of the following GVO NV-CONTROL attributes will
+ * not happen immediately and will instead be cached.  The GVO resource will
+ * need to be disabled/released and re-enabled/claimed for the values to be
+ * flushed. These attributes are:
+ *    NV_CTRL_GVO_OUTPUT_VIDEO_FORMAT
+ *    NV_CTRL_GVO_DATA_FORMAT
+ *    NV_CTRL_GVO_FLIP_QUEUE_SIZE
+ *
+ * XXX This is deprecated, please see NV_CTRL_GVO_LOCK_OWNER
  */
 
 #define NV_CTRL_GVO_GLX_LOCKED                                  82  /* R-- */
 #define NV_CTRL_GVO_GLX_LOCKED_FALSE                            0
 #define NV_CTRL_GVO_GLX_LOCKED_TRUE                             1
-
 
 
 /*
@@ -2758,7 +2770,7 @@
  * using a NV_CTRL_TARGET_TYPE_GPU or NV_CTRL_TARGET_TYPE_X_SCREEN target.
  */
 
-#define NV_CTRL_REFRESH_RATE                                    235 /* R-DG */
+#define NV_CTRL_REFRESH_RATE                                     235 /* R-DG */
 
 
 /*
@@ -2771,7 +2783,7 @@
  * the application.
  */
 
-#define NV_CTRL_GVO_FLIP_QUEUE_SIZE                             236 /* RW- */
+#define NV_CTRL_GVO_FLIP_QUEUE_SIZE                              236 /* RW- */
 
 
 /*
@@ -3014,7 +3026,40 @@
 #define NV_CTRL_FRAMELOCK_SYNC_RATE_4                           256 /* R--F */
 
 
-#define NV_CTRL_LAST_ATTRIBUTE NV_CTRL_FRAMELOCK_SYNC_RATE_4
+/*
+ * NV_CTRL_GVO_LOCK_OWNER - indicates that the GVO device is available
+ * or in use (by GLX, Clone Mode, TwinView etc).
+ *
+ * The GVO device is locked by GLX when the GLX_NV_video_out function
+ * calls glXGetVideoDeviceNV().  The GVO device is then unlocked when
+ * glXReleaseVideoDeviceNV() is called, or the X Display used when calling
+ * glXGetVideoDeviceNV() is closed.
+ *
+ * The GVO device is locked/unlocked for Clone mode use when the
+ * attribute NV_CTRL_GVO_DISPLAY_X_SCREEN is enabled/disabled.
+ *
+ * The GVO device is locked/unlocked by TwinView mode, when the GVO device is
+ * associated/unassociated to/from an X screen through the
+ * NV_CTRL_ASSOCIATED_DISPLAY_DEVICES attribute directly.
+ *
+ * When the GVO device is locked, setting of the following GVO NV-CONTROL
+ * attributes will not happen immediately and will instead be cached.  The
+ * GVO resource will need to be disabled/released and re-enabled/claimed for
+ * the values to be flushed. These attributes are:
+ *
+ *    NV_CTRL_GVO_OUTPUT_VIDEO_FORMAT
+ *    NV_CTRL_GVO_DATA_FORMAT
+ *    NV_CTRL_GVO_FLIP_QUEUE_SIZE
+ */
+
+#define NV_CTRL_GVO_LOCK_OWNER                                  257 /* R-- */
+#define NV_CTRL_GVO_LOCK_OWNER_NONE                               0
+#define NV_CTRL_GVO_LOCK_OWNER_GLX                                1
+#define NV_CTRL_GVO_LOCK_OWNER_CLONE                              2
+#define NV_CTRL_GVO_LOCK_OWNER_TWINVIEW                           3
+
+
+#define NV_CTRL_LAST_ATTRIBUTE NV_CTRL_GVO_LOCK_OWNER
 
 
 /**************************************************************************/
@@ -3108,6 +3153,12 @@
  */
 
 #define NV_CTRL_STRING_DDCCI_MISC_AUXILIARY_DISPLAY_DATA        7  /* -WD */
+
+
+/*
+ * NV_CTRL_STRING_GVO_FIRMWARE_VERSION - indicates the version of the
+ * Firmware on the GVO device.
+ */
 
 #define NV_CTRL_STRING_GVO_FIRMWARE_VERSION                     8  /* R-- */
 

@@ -261,6 +261,8 @@ typedef struct nvScreenRec {
     int x_offset;                     /* Offsets for relative positioning */
     int y_offset;
 
+    Bool sli;
+
 } nvScreen, *nvScreenPtr;
 
 

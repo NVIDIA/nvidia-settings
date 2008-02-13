@@ -97,6 +97,8 @@ struct __NvCtrlNvControlAttributes {
 struct __NvCtrlVidModeAttributes {
     int n;
     int sigbits;
+    int major_version;
+    int minor_version;
     unsigned short *lut[3];
     float brightness[3];
     float contrast[3];
@@ -130,6 +132,8 @@ struct __NvCtrlXvBlitterAttributes {
 };
 
 struct __NvCtrlXvAttributes {
+    int major_version;
+    int minor_version;
     NvCtrlXvOverlayAttributes *overlay; /* XVideo info (overlay) */
     NvCtrlXvTextureAttributes *texture; /* XVideo info (texture) */
     NvCtrlXvBlitterAttributes *blitter; /* XVideo info (blitter) */
@@ -138,6 +142,8 @@ struct __NvCtrlXvAttributes {
 struct __NvCtrlXrandrAttributes {
     int event_base;
     int error_base;
+    int major_version;
+    int minor_version;
 };
 
 struct __NvCtrlAttributePrivateHandle {
@@ -169,6 +175,20 @@ NvCtrlInitXvAttributes (NvCtrlAttributePrivateHandle *);
 
 void
 NvCtrlXvAttributesClose (NvCtrlAttributePrivateHandle *);
+
+ReturnStatus
+NvCtrlXvGetAttribute (NvCtrlAttributePrivateHandle *, int, int *);
+
+ReturnStatus
+NvCtrlXvSetAttribute (NvCtrlAttributePrivateHandle *, int, int);
+
+ReturnStatus
+NvCtrlXvGetStringAttribute (NvCtrlAttributePrivateHandle *,
+                           unsigned int, int, char **);
+
+ReturnStatus
+NvCtrlXvGetValidAttributeValues(NvCtrlAttributePrivateHandle *, int,
+                                NVCTRLAttributeValidValuesRec *);
 
 
 /* GLX extension attribute functions */
@@ -209,6 +229,17 @@ ReturnStatus
 NvCtrlXrandrGetScreenMagicMode (NvCtrlAttributePrivateHandle *, int *, int *,
                                 int *);
 
+ReturnStatus
+NvCtrlXrandrGetStringAttribute (NvCtrlAttributePrivateHandle *,
+                                unsigned int, int, char **);
+
+
+/* XF86 Video Mode extension attribute functions */
+
+ReturnStatus
+NvCtrlVidModeGetStringAttribute (NvCtrlAttributePrivateHandle *,
+                                   unsigned int, int, char **);
+
 
 /* Generic attribute functions */
 
@@ -248,15 +279,5 @@ ReturnStatus
 NvCtrlNvControlStringOperation (NvCtrlAttributePrivateHandle *h,
                                 unsigned int display_mask, int attr,
                                 char *ptrIn, char **ptrOut);
-
-ReturnStatus
-NvCtrlXvGetAttribute (NvCtrlAttributePrivateHandle *, int, int *);
-
-ReturnStatus
-NvCtrlXvSetAttribute (NvCtrlAttributePrivateHandle *, int, int);
-
-ReturnStatus
-NvCtrlXvGetValidAttributeValues (NvCtrlAttributePrivateHandle *, int,
-                                 NVCTRLAttributeValidValuesRec *);
 
 #endif /* __NVCTRL_ATTRIBUTES_PRIVATE__ */

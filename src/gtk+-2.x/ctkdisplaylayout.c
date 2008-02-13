@@ -413,19 +413,11 @@ static void offset_mode(nvModePtr mode, int x, int y)
 }
 
 /* Offset a display by offsetting the current mode */
-static void offset_display(nvDisplayPtr display, int x, int y, int full)
+static void offset_display(nvDisplayPtr display, int x, int y)
 {
-    /* XXX For now, if there is only one display, offset all
-     *     of its modes.  Later, allow the user to override
-     *     this behavior.
-     */
-    if ((display->screen && display->screen->num_displays == 1) || full) {
-        nvModePtr mode;
-        for (mode = display->modes; mode; mode = mode->next) {
-            offset_mode(mode, x, y);
-        }
-    } else if (display->cur_mode) {
-        offset_mode(display->cur_mode, x, y);
+    nvModePtr mode;
+    for (mode = display->modes; mode; mode = mode->next) {
+        offset_mode(mode, x, y);
     }
 }
 
@@ -446,7 +438,7 @@ static void offset_screen(nvScreenPtr screen, int x, int y)
 }
 
 /* Offsets the entire layout by offsetting its X screens and display devices */
-static void offset_layout(nvLayoutPtr layout, int x, int y, int full)
+static void offset_layout(nvLayoutPtr layout, int x, int y)
 {
     nvGpuPtr gpu;
     nvScreenPtr screen;
@@ -464,7 +456,7 @@ static void offset_layout(nvLayoutPtr layout, int x, int y, int full)
 
         /* Offset displays */
         for (display = gpu->displays; display; display = display->next) {
-            offset_display(display, x, y, full);
+            offset_display(display, x, y);
         }
     }
 } /* offset functions */
@@ -480,9 +472,10 @@ static void offset_layout(nvLayoutPtr layout, int x, int y, int full)
  *
  **/
 
-static int resolve_display(nvDisplayPtr display, int pos[4])
+static int resolve_display(nvDisplayPtr display, int mode_idx,
+                           int pos[4])
 {
-    nvModePtr mode = display->cur_mode;
+    nvModePtr mode = get_mode(display, mode_idx);
     int relative_pos[4];
     
     if (!mode) return 0;
@@ -501,31 +494,31 @@ static int resolve_display(nvDisplayPtr display, int pos[4])
         break;
 
     case CONF_ADJ_RIGHTOF:
-        resolve_display(mode->relative_to, relative_pos);
+        resolve_display(mode->relative_to, mode_idx, relative_pos);
         pos[X] = relative_pos[X] + relative_pos[W];
         pos[Y] = relative_pos[Y];
         break;
 
     case CONF_ADJ_LEFTOF:
-        resolve_display(mode->relative_to, relative_pos);
+        resolve_display(mode->relative_to, mode_idx, relative_pos);
         pos[X] = relative_pos[X] - pos[W];
         pos[Y] = relative_pos[Y];
         break;
 
     case CONF_ADJ_BELOW:
-        resolve_display(mode->relative_to, relative_pos);
+        resolve_display(mode->relative_to, mode_idx, relative_pos);
         pos[X] = relative_pos[X];
         pos[Y] = relative_pos[Y] + relative_pos[H];
         break;
 
     case CONF_ADJ_ABOVE:
-        resolve_display(mode->relative_to, relative_pos);
+        resolve_display(mode->relative_to, mode_idx, relative_pos);
         pos[X] = relative_pos[X];
         pos[Y] = relative_pos[Y] - pos[H];
         break;
 
     case CONF_ADJ_RELATIVE: /* Clone */
-        resolve_display(mode->relative_to, relative_pos);
+        resolve_display(mode->relative_to, mode_idx, relative_pos);
         pos[X] = relative_pos[X];
         pos[Y] = relative_pos[Y];
         break;
@@ -547,26 +540,42 @@ static int resolve_display(nvDisplayPtr display, int pos[4])
  *
  **/
 
-static void resolve_displays_in_screen(nvScreenPtr screen)
+static void resolve_displays_in_screen(nvScreenPtr screen, int all_modes)
 {
     nvDisplayPtr display;
     int pos[4];
+    int first_idx;
+    int last_idx;
+    int mode_idx;
+
+    if (all_modes) {
+        first_idx = 0;
+        last_idx = screen->num_metamodes -1;
+    } else {
+        first_idx = screen->cur_metamode_idx;
+        last_idx = first_idx;
+    }
 
     /* Resolve the current mode of each display in the screen */
     for (display = screen->gpu->displays; display; display = display->next) {
 
         if (display->screen != screen) continue;
 
-        if (resolve_display(display, pos)) {
-            display->cur_mode->dim[X] = pos[X];
-            display->cur_mode->dim[Y] = pos[Y];
-            display->cur_mode->pan[X] = pos[X];
-            display->cur_mode->pan[Y] = pos[Y];
+        for (mode_idx = first_idx; mode_idx <= last_idx; mode_idx++) {
+            if (resolve_display(display, mode_idx, pos)) {
+                nvModePtr mode = get_mode(display, mode_idx);
+                mode->dim[X] = pos[X];
+                mode->dim[Y] = pos[Y];
+                mode->pan[X] = pos[X];
+                mode->pan[Y] = pos[Y];
+            }
         }
     }
 
-    /* Get the new position of the metamode */
-    calc_metamode(screen, screen->cur_metamode);
+    /* Get the new position of the metamode(s) */
+    for (mode_idx = first_idx; mode_idx <= last_idx; mode_idx++) {
+        calc_metamode(screen, get_metamode(screen, mode_idx));
+    }
 
 } /* resolve_displays_in_screen() */
 
@@ -694,7 +703,7 @@ static void resolve_layout(nvLayoutPtr layout)
     /* First, resolve TwinView relationships */
     for (gpu = layout->gpus; gpu; gpu = gpu->next) {
         for (screen = gpu->screens; screen; screen = screen->next) {
-            resolve_displays_in_screen(screen);
+            resolve_displays_in_screen(screen, 0);
         }
     }
 
@@ -925,6 +934,37 @@ static void calc_layout(nvLayoutPtr layout)
 
 
 
+/** recenter_screen() ************************************************
+ *
+ * Makes sure that all the metamodes in the screen have the same top
+ * left corner.  This is done by offsetting metamodes back to the
+ * screen's bounding box top left corner.
+ *
+ **/
+
+static void recenter_screen(nvScreenPtr screen)
+{
+    nvDisplayPtr display;
+
+    for (display = screen->gpu->displays; display; display = display->next) {
+        nvModePtr mode;
+        
+        if (display->screen != screen) continue;
+
+        for (mode = display->modes; mode; mode = mode->next) {
+            int offset_x = (screen->dim[X] - mode->metamode->dim[X]);
+            int offset_y = (screen->dim[Y] - mode->metamode->dim[Y]);
+            offset_mode(mode, offset_x, offset_y);
+        }
+    }
+    
+    /* Recalculate the screen's dimensions */
+    calc_screen(screen);
+
+} /* recenter_screen() */
+
+
+
 /** set_screen_metamode() ********************************************
  *
  * Updates the layout structure to make the screen and each of its
@@ -952,7 +992,7 @@ static void set_screen_metamode(nvLayoutPtr layout, nvScreenPtr screen,
 
     /* Recalculate the layout dimensions */
     calc_layout(layout);
-    offset_layout(layout, -layout->dim[X], -layout->dim[Y], 1);
+    offset_layout(layout, -layout->dim[X], -layout->dim[Y]);
 
 } /* set_screen_metamode() */
 
@@ -993,6 +1033,59 @@ static void recenter_layout(nvLayoutPtr layout)
     }
 
 } /* recenter_layout() */
+
+
+
+/** reposition_screen() **********************************************
+ *
+ * Call this after the relative position of a display has changed
+ * to make sure the display's screen's absolute position does not
+ * change as a result.  (This function should be called before
+ * calling calc_layout() such that the screen's top left position
+ * can be preserved correctly.)
+ *
+ **/
+
+void reposition_screen(nvScreenPtr screen, int advanced)
+{
+    int orig_screen_x = screen->dim[X];
+    int orig_screen_y = screen->dim[Y];
+            
+    /* Resolve new relative positions.  In basic mode,
+     * relative position changes apply to all modes of a
+     * display so we should resolve all modes (since they
+     * were all changed.)
+     */
+    resolve_displays_in_screen(screen, !advanced);
+
+    /* Reestablish the screen's original position */
+    screen->dim[X] = orig_screen_x;
+    screen->dim[Y] = orig_screen_y;
+    recenter_screen(screen);
+
+} /* reposition_screen() */
+
+
+
+/** switch_screen_to_absolute() **************************************
+ *
+ * Prepair a screen for using absolute positioning.  This is needed
+ * since screens using relative positioning may not have all their
+ * metamodes's top left corner coincideat the same place.  This
+ * function makes sure that all metamodes in the screen have the
+ * same top left corner by offsetting the modes of metamodes that
+ * are offset from the screen's bounding box top left corner.
+ *
+ **/
+
+static void switch_screen_to_absolute(nvScreenPtr screen)
+{
+    screen->position_type = CONF_ADJ_ABSOLUTE;
+    screen->relative_to   = NULL;
+
+    recenter_screen(screen);
+
+} /* switch_screen_to_absolute() */
 
 
 
@@ -1516,17 +1609,37 @@ static int move_selected(CtkDisplayLayout *ctk_object, int x, int y, int snap)
     nvScreenPtr screen;
     int *pan;
     int *dim;
-    int orig_pos[2];
+    int orig_display_position_type;
+    int orig_display_pos[2] = { 0, 0 };
+    int orig_screen_position_type;
+    int orig_metamode_dim[4] = { 0, 0, 0, 0 };
     int post_snap_display_pos[2];
-    int orig_mm_pos[2];
     int snap_dim[4];
 
 
     /* Get the dimensions of the display to move */
     display = get_selected(ctk_object);
-    if (!display || !display->screen || !display->cur_mode) {
+    if (!display || !display->screen || !display->cur_mode ||
+        !display->screen->cur_metamode) {
         return 0;
     }
+
+
+    /* Keep track of original state to report changes */
+    gpu = display->gpu;
+    screen = display->screen;
+
+    orig_display_position_type = display->cur_mode->position_type;
+    dim = display->cur_mode->dim;
+    pan = display->cur_mode->pan;
+    orig_display_pos[X] = dim[X];
+    orig_display_pos[Y] = dim[Y];
+
+    orig_screen_position_type = screen->position_type;
+    orig_metamode_dim[X] = screen->cur_metamode->dim[X];
+    orig_metamode_dim[Y] = screen->cur_metamode->dim[Y];
+    orig_metamode_dim[W] = screen->cur_metamode->dim[W];
+    orig_metamode_dim[H] = screen->cur_metamode->dim[H];
 
 
     /* Process TwinView relative position moves */
@@ -1535,7 +1648,7 @@ static int move_selected(CtkDisplayLayout *ctk_object, int x, int y, int snap)
         int p_x;
         int p_y;
 
-        if (!other) return 0;
+        if (!other) return 0; // Oops?
 
         p_x = (ctk_object->mouse_x - ctk_object->img_dim[X]) /
             ctk_object->scale;
@@ -1546,22 +1659,22 @@ static int move_selected(CtkDisplayLayout *ctk_object, int x, int y, int snap)
         display->cur_mode->position_type =
             get_point_relative_position(other->cur_mode->dim, p_x, p_y);
 
-        dim = display->cur_mode->dim;
+        /* In basic mode, make the position apply to all metamodes */
+        if (!ctk_object->advanced_mode) {
+            nvModePtr mode;
+            for (mode = display->modes; mode; mode = mode->next) {
+                mode->position_type = display->cur_mode->position_type;
+            }
+        }
+
         post_snap_display_pos[X] = dim[X];
         post_snap_display_pos[Y] = dim[Y];
 
+        /* Make sure the screen position does not change */
+        reposition_screen(display->screen, ctk_object->advanced_mode);
+
         goto finish;
     }
-
-
-    gpu = display->gpu;
-    screen = display->screen;
-    dim = display->cur_mode->dim;
-    pan = display->cur_mode->pan;
-    orig_pos[X] = dim[X];
-    orig_pos[Y] = dim[Y];
-    orig_mm_pos[X] = display->screen->cur_metamode->dim[X];
-    orig_mm_pos[Y] = display->screen->cur_metamode->dim[Y];
 
 
     /* Move the display */
@@ -1614,22 +1727,24 @@ static int move_selected(CtkDisplayLayout *ctk_object, int x, int y, int snap)
 
 
     /* Prevent screen from growing too big */
-    x = screen->dim[X] + gpu->max_width - pan[W]; 
+    x = screen->cur_metamode->edim[X] + gpu->max_width - pan[W]; 
     if (dim[X] > x) {
         ctk_object->modify_dim[X] += x - dim[X];
         dim[X] = x;
     }
-    y = screen->dim[Y] + gpu->max_height -pan[H];
+    y = screen->cur_metamode->edim[Y] + gpu->max_height -pan[H];
     if (dim[Y] > y) {
         ctk_object->modify_dim[Y] += y - dim[Y];
         dim[Y] = y;
     }
-    x = screen->dim[X] + screen->dim[W] - gpu->max_width;
+    x = screen->cur_metamode->edim[X] + screen->cur_metamode->edim[W]
+        - gpu->max_width;
     if (dim[X] < x) {
         ctk_object->modify_dim[X] += x - dim[X];
         dim[X] = x;
     }
-    y = screen->dim[Y] + screen->dim[H] - gpu->max_height;
+    y = screen->cur_metamode->edim[Y] + screen->cur_metamode->edim[H]
+        - gpu->max_height;
     if (dim[Y] < y) {
         ctk_object->modify_dim[Y] += y - dim[Y];
         dim[Y] = y;
@@ -1658,11 +1773,11 @@ static int move_selected(CtkDisplayLayout *ctk_object, int x, int y, int snap)
      * metamodes since the screen's position is based on another
      * screen.
      */ 
-    if (display->screen->position_type == CONF_ADJ_ABSOLUTE) {
-        resolve_displays_in_screen(display->screen);
-        calc_metamode(display->screen, display->screen->cur_metamode);
-        x = display->screen->cur_metamode->dim[X] - orig_mm_pos[X];
-        y = display->screen->cur_metamode->dim[Y] - orig_mm_pos[Y];
+    if (screen->position_type == CONF_ADJ_ABSOLUTE) {
+        resolve_displays_in_screen(screen, 0);
+        calc_metamode(screen, screen->cur_metamode);
+        x = screen->cur_metamode->dim[X] - orig_metamode_dim[X];
+        y = screen->cur_metamode->dim[Y] - orig_metamode_dim[Y];
         
         if (x || y) {
             nvDisplayPtr other;
@@ -1671,7 +1786,7 @@ static int move_selected(CtkDisplayLayout *ctk_object, int x, int y, int snap)
             for (other = display->gpu->displays; other; other = other->next) {
                 
                 /* Other display must be in the same screen */
-                if (other->screen != display->screen) continue;
+                if (other->screen != screen) continue;
 
                 for (mode = other->modes; mode; mode = mode->next) {
 
@@ -1691,8 +1806,8 @@ static int move_selected(CtkDisplayLayout *ctk_object, int x, int y, int snap)
 
 
     /* Process X Screen Relative screen position moves */
-    } else if (display->screen->num_displays == 1) {
-        nvScreenPtr other = display->screen->relative_to;
+    } else if (screen->num_displays == 1) {
+        nvScreenPtr other = screen->relative_to;
         int p_x;
         int p_y;
         int type;
@@ -1705,7 +1820,7 @@ static int move_selected(CtkDisplayLayout *ctk_object, int x, int y, int snap)
         
         type = get_point_relative_position(other->cur_metamode->dim, p_x, p_y);
         if (type != CONF_ADJ_RELATIVE) {
-            display->screen->position_type = type;
+            screen->position_type = type;
         }
     }
 
@@ -1714,7 +1829,7 @@ static int move_selected(CtkDisplayLayout *ctk_object, int x, int y, int snap)
 
     /* Recalculate layout dimensions and scaling */
     calc_layout(layout);
-    offset_layout(layout, -layout->dim[X], -layout->dim[Y], 1);
+    offset_layout(layout, -layout->dim[X], -layout->dim[Y]);
     recenter_layout(layout);
     sync_scaling(ctk_object);
 
@@ -1728,7 +1843,14 @@ static int move_selected(CtkDisplayLayout *ctk_object, int x, int y, int snap)
 
 
     /* Did the actual position of the display device change? */
-    if ((orig_pos[X] != dim[X] || orig_pos[Y] != dim[Y])) {
+    if ((orig_display_position_type != display->cur_mode->position_type ||
+         orig_display_pos[X] != dim[X] ||
+         orig_display_pos[Y] != dim[Y] ||
+         orig_screen_position_type != screen->position_type ||
+         orig_metamode_dim[X] != screen->cur_metamode->dim[X] ||
+         orig_metamode_dim[Y] != screen->cur_metamode->dim[Y] ||
+         orig_metamode_dim[W] != screen->cur_metamode->dim[W] ||
+         orig_metamode_dim[H] != screen->cur_metamode->dim[H])) {
         return 1;
     }
 
@@ -1806,12 +1928,12 @@ static int pan_selected(CtkDisplayLayout *ctk_object, int x, int y, int snap)
 
 
     /* Panning should not cause us to exceed the maximum screen dimensions */
-    x = screen->dim[X] + gpu->max_width - pan[X];
+    x = screen->cur_metamode->edim[X] + gpu->max_width - pan[X];
     if (pan[W] > x) {
         ctk_object->modify_dim[W] += x - pan[W];
         pan[W] = x;
     }
-    y = screen->dim[Y] + gpu->max_height - pan[Y];
+    y = screen->cur_metamode->edim[Y] + gpu->max_height - pan[Y];
     if (pan[H] > y) {
         ctk_object->modify_dim[H] += y - pan[H];
         pan[H] = y;
@@ -1829,7 +1951,7 @@ static int pan_selected(CtkDisplayLayout *ctk_object, int x, int y, int snap)
 
     /* Recalculate layout dimensions and scaling */
     calc_layout(layout);
-    offset_layout(layout, -layout->dim[X], -layout->dim[Y], 1);
+    offset_layout(layout, -layout->dim[X], -layout->dim[Y]);
     recenter_layout(layout);
     sync_scaling(ctk_object);
 
@@ -2643,10 +2765,35 @@ static void draw_layout(CtkDisplayLayout *ctk_object)
                                        1, GDK_LINE_SOLID, GDK_CAP_ROUND, GDK_JOIN_ROUND);
         }
 
+
+        /* Uncomment to show bounding box of selected screen's metamodes */
+        /*
+        if (ctk_object->Zorder[0]->screen) {
+            
+            // Shows the screen dimensions used to write to the X config file
+            gdk_color_parse("#00FF00", &bg_color);
+            draw_rect(ctk_object,
+                      ctk_object->Zorder[0]->screen->dim,
+                      &(bg_color), 0);
+
+            // Shows the effective screen dimensions used in conjunction with
+            // display devices that are "off"
+            gdk_color_parse("#0000FF", &bg_color);
+            draw_rect(ctk_object,
+                      ctk_object->Zorder[0]->screen->cur_metamode->dim,
+                      &(bg_color), 0);
+
+            // Shows the current screen dimensions used for relative
+            // positioning of the screen (w/o displays that are "off")
+            gdk_color_parse("#FF00FF", &bg_color);
+            draw_rect(ctk_object,
+                      ctk_object->Zorder[0]->screen->cur_metamode->edim,
+                      &(bg_color), 0);
+        }
+        */
+
         /* Uncomment to show unsnapped dimensions */
         //gdk_color_parse("#DD4444", &bg_color);
-        //gdk_gc_set_rgb_fg_color(widget->style->fg_gc[GTK_WIDGET_STATE (widget)],
-        //                        &(bg_color));
         //draw_rect(ctk_object, ctk_object->modify_dim, &bg_color, 0);
 
         ctk_object->need_swap = 1;
@@ -2752,7 +2899,7 @@ void ctk_display_layout_redraw(CtkDisplayLayout *ctk_object)
 
     /* Recalculate layout dimensions and scaling */
     calc_layout(layout);
-    offset_layout(layout, -layout->dim[X], -layout->dim[Y], 1);
+    offset_layout(layout, -layout->dim[X], -layout->dim[Y]);
     recenter_layout(layout);
     sync_scaling(ctk_object);
     sync_modify(ctk_object);
@@ -2781,7 +2928,7 @@ void ctk_display_layout_set_layout(CtkDisplayLayout *ctk_object,
     zorder_layout(ctk_object);
     select_default_display(ctk_object);
     calc_layout(layout);
-    offset_layout(layout, -layout->dim[X], -layout->dim[Y], 1);
+    offset_layout(layout, -layout->dim[X], -layout->dim[Y]);
     recenter_layout(layout);
     sync_scaling(ctk_object);
     sync_modify(ctk_object);
@@ -3118,7 +3265,7 @@ void ctk_display_layout_set_mode_modeline(CtkDisplayLayout *ctk_object,
 
     /* Recalculate layout dimensions and scaling */
     calc_layout(layout);
-    offset_layout(layout, -layout->dim[X], -layout->dim[Y], 1);
+    offset_layout(layout, -layout->dim[X], -layout->dim[Y]);
     recenter_layout(layout);
     sync_scaling(ctk_object);
     sync_modify(ctk_object);
@@ -3192,7 +3339,7 @@ void ctk_display_layout_set_display_position(CtkDisplayLayout *ctk_object,
 
     } else {
         nvModePtr mode;
-            
+
         for (mode = display->modes; mode; mode = mode->next) {
             mode->position_type = position_type;
             mode->relative_to = relative_to;
@@ -3220,9 +3367,12 @@ void ctk_display_layout_set_display_position(CtkDisplayLayout *ctk_object,
         break;
         
     default:
+        /* Make sure the screen position does not change */
+        reposition_screen(display->screen, ctk_object->advanced_mode);
+
         /* Recalculate the layout */
         calc_layout(layout);
-        offset_layout(layout, -layout->dim[X], -layout->dim[Y], 1);
+        offset_layout(layout, -layout->dim[X], -layout->dim[Y]);
         recenter_layout(layout);
         sync_scaling(ctk_object);
         sync_modify(ctk_object);
@@ -3392,8 +3542,8 @@ void ctk_display_layout_set_screen_position(CtkDisplayLayout *ctk_object,
         for (gpu = layout->gpus; gpu; gpu = gpu->next) {
             for (other = gpu->screens; other; other = other->next) {
                 if (other->relative_to == screen) {
-                    other->position_type = CONF_ADJ_ABSOLUTE;
-                    other->relative_to = NULL;
+                    /* Make this screen use absolute positioning */
+                    switch_screen_to_absolute(other);
                 }
             }
         }
@@ -3401,9 +3551,6 @@ void ctk_display_layout_set_screen_position(CtkDisplayLayout *ctk_object,
 
 
     /* Set the new positioning type */
-    screen->relative_to = relative_to;
-    screen->position_type = position_type;
-
     switch (position_type) {
     case CONF_ADJ_ABSOLUTE:
         {
@@ -3411,18 +3558,19 @@ void ctk_display_layout_set_screen_position(CtkDisplayLayout *ctk_object,
             int x_offset = x - screen->dim[X];
             int y_offset = y - screen->dim[Y];
 
+            /* Make sure this screen use absolute positioning */
+            switch_screen_to_absolute(screen);
+
             /* Do the move by offsetting */
-            calc_screen(screen);
-            sync_modify(ctk_object);
             offset_screen(screen, x_offset, y_offset);
             for (other = screen->gpu->displays; other; other = other->next) {
                 if (other->screen != screen) continue;
-                offset_display(other, x_offset, y_offset, 1);
+                offset_display(other, x_offset, y_offset);
             }
             
             /* Recalculate the layout */
             calc_layout(layout);
-            offset_layout(layout, -layout->dim[X], -layout->dim[Y], 1);
+            offset_layout(layout, -layout->dim[X], -layout->dim[Y]);
             recenter_layout(layout);
             sync_scaling(ctk_object);
             sync_modify(ctk_object);
@@ -3445,6 +3593,10 @@ void ctk_display_layout_set_screen_position(CtkDisplayLayout *ctk_object,
         screen->y_offset = y;
  
     default:
+        /* Set the desired positioning */
+        screen->relative_to = relative_to;
+        screen->position_type = position_type;
+
         /* Other relative positioning */
 
         /* XXX Need to validate cases where displays are
@@ -3463,7 +3615,7 @@ void ctk_display_layout_set_screen_position(CtkDisplayLayout *ctk_object,
         
         /* Recalculate the layout */
         calc_layout(layout);
-        offset_layout(layout, -layout->dim[X], -layout->dim[Y], 1);
+        offset_layout(layout, -layout->dim[X], -layout->dim[Y]);
         recenter_layout(layout);
         sync_scaling(ctk_object);
         sync_modify(ctk_object);

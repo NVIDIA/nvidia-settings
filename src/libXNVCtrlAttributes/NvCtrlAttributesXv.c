@@ -179,7 +179,7 @@ NvCtrlXvAttributes * NvCtrlInitXvAttributes(NvCtrlAttributePrivateHandle *h)
 {
     NvCtrlXvAttributes *xv = NULL;
     XvAdaptorInfo *ainfo;
-    unsigned int ver, rev, req, event_base, error_base, nadaptors;
+    unsigned int req, event_base, error_base, nadaptors;
     int ret, i;
     const char *error_str = NULL;
     const char *warn_str = NULL;
@@ -210,7 +210,7 @@ NvCtrlXvAttributes * NvCtrlInitXvAttributes(NvCtrlAttributePrivateHandle *h)
 
 
     /* Verify server support of Xv extension */
-    ret = __libXv->XvQueryExtension(h->dpy, &ver, &rev, &req,
+    ret = __libXv->XvQueryExtension(h->dpy, &(xv->major_version), &(xv->minor_version), &req,
                                     &event_base, &error_base);
     if (ret != Success) goto fail;
     
@@ -427,6 +427,35 @@ ReturnStatus NvCtrlXvSetAttribute(NvCtrlAttributePrivateHandle *h,
     
 } /* NvCtrlXvSetAttribute() */
 
+
+/*
+ * Get Xv String Attribute values 
+ */
+
+ReturnStatus
+NvCtrlXvGetStringAttribute(NvCtrlAttributePrivateHandle *h,
+                           unsigned int display_mask,
+                           int attr, char **ptr)
+{
+    /* Validate */
+    if ( !h || !h->dpy || h->target_type != NV_CTRL_TARGET_TYPE_X_SCREEN ) {
+        return NvCtrlBadHandle;
+    }
+    if ( !h->xv || !__libXv ) {
+        return NvCtrlMissingExtension;
+    }
+
+    /* Get Xv major & minor versions */
+    if (attr == NV_CTRL_STRING_XV_VERSION) {
+        char str[16];
+        sprintf(str, "%d.%d", h->xv->major_version, h->xv->minor_version);
+        *ptr = strdup(str);
+        return NvCtrlSuccess;
+    }
+
+    return NvCtrlNoAttribute;
+
+} /* NvCtrlXvGetStringAttribute() */
 
 
 ReturnStatus

@@ -81,7 +81,8 @@ static float get_color_value(int attr,
 static int parse_config_property(const char *file, const char *line,
                                  ConfigProperties *conf);
 
-static void write_config_properties(FILE *stream, ConfigProperties *conf);
+static void write_config_properties(FILE *stream, ConfigProperties *conf,
+                                    char *locale);
 
 
 /*
@@ -214,6 +215,7 @@ int nv_write_config_file(const char *filename, CtrlHandles *h,
     uint32 mask;
     CtrlHandleTarget *t;
     char *tmp_d_str, *tmp, *prefix, scratch[4];
+    char *locale = "C";
 
     stream = fopen(filename, "w");
     if (!stream) {
@@ -236,9 +238,21 @@ int nv_write_config_file(const char *filename, CtrlHandles *h,
     fprintf(stream, "# Generated on %s", ctime(&now));
     fprintf(stream, "#\n");
     
+    /*
+     * set the locale to "C" before writing the configuration file to
+     * reduce the risk of locale related parsing problems.  Restore
+     * the original locale before exiting this function.
+     */
+
+    if (setlocale(LC_NUMERIC, "C") == NULL) {
+        nv_warning_msg("Error writing configuration file '%s': could "
+                       "not set the locale 'C'.", filename);
+        locale = conf->locale;
+    }
+
     /* write the values in ConfigProperties */
 
-    write_config_properties(stream, conf);
+    write_config_properties(stream, conf, locale);
 
     /* for each screen, query each attribute in the table */
 
@@ -414,6 +428,8 @@ int nv_write_config_file(const char *filename, CtrlHandles *h,
         
         p = p->next;
     }
+
+    setlocale(LC_NUMERIC, conf->locale);
 
     /* close the configuration file */
 
@@ -751,7 +767,7 @@ static int parse_config_property(const char *file, const char *line, ConfigPrope
  * each property is enabled or disabled.
  */
 
-static void write_config_properties(FILE *stream, ConfigProperties *conf)
+static void write_config_properties(FILE *stream, ConfigProperties *conf, char *locale)
 {
     ConfigPropertiesTableEntry *t;
 
@@ -759,7 +775,7 @@ static void write_config_properties(FILE *stream, ConfigProperties *conf)
     fprintf(stream, "# ConfigProperties:\n");
     fprintf(stream, "\n");
 
-    fprintf(stream, "RcFileLocale = %s\n", conf->locale);
+    fprintf(stream, "RcFileLocale = %s\n", locale);
 
     for (t = configPropertyTable; t->name; t++) {
         fprintf(stream, "%s = %s\n", t->name,

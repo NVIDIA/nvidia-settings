@@ -1711,7 +1711,7 @@ static int gpu_add_screen_from_server(nvGpuPtr gpu, int screen_id,
 {
     Display *display;
     nvScreenPtr screen;
-    int val;
+    int val, tmp;
     ReturnStatus ret;
 
 
@@ -1759,6 +1759,12 @@ static int gpu_add_screen_from_server(nvGpuPtr gpu, int screen_id,
         screen_free(screen);
         return TRUE;
     }
+
+    ret = NvCtrlGetAttribute(screen->handle,
+                             NV_CTRL_SHOW_SLI_HUD,
+                             &tmp);
+
+    screen->sli = (ret == NvCtrlSuccess);
 
 
     /* Listen to NV-CONTROL events on this screen handle */
