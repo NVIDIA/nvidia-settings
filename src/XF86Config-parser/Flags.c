@@ -123,30 +123,26 @@ xconfigParseFlagsSection (void)
                 int i = 0;
                 while (ServerFlagsTab[i].token != -1)
                 {
-                    char *tmp;
-
                     if (ServerFlagsTab[i].token == token)
                     {
+                        char buff[16];
                         char *valstr = NULL;
-                        /* can't use strdup because it calls malloc */
-                        tmp = xconfigStrdup (ServerFlagsTab[i].name);
                         if (hasvalue)
                         {
                             tokentype = xconfigGetSubToken(&(ptr->comment));
                             if (strvalue) {
                                 if (tokentype != STRING)
-                                    Error (QUOTE_MSG, tmp);
+                                    Error (QUOTE_MSG, ServerFlagsTab[i].name);
                                 valstr = val.str;
                             } else {
                                 if (tokentype != NUMBER)
-                                    Error (NUMBER_MSG, tmp);
-                                valstr = malloc(16);
-                                if (valstr)
-                                    sprintf(valstr, "%d", val.num);
+                                    Error (NUMBER_MSG, ServerFlagsTab[i].name);
+                                snprintf(buff, 16, "%d", val.num);
+                                valstr = buff;
                             }
                         }
                         ptr->options = xconfigAddNewOption
-                            (ptr->options, tmp, valstr);
+                            (ptr->options, ServerFlagsTab[i].name, valstr);
                     }
                     i++;
                 }
@@ -185,8 +181,8 @@ xconfigPrintServerFlagsSection (FILE * f, XConfigFlagsPtr flags)
     fprintf (f, "EndSection\n\n");
 }
 
-static XConfigOptionPtr
-addNewOption2 (XConfigOptionPtr head, char *name, char *val, int used)
+XConfigOptionPtr
+xconfigAddNewOption (XConfigOptionPtr head, const char *name, const char *val)
 {
     XConfigOptionPtr new, old = NULL;
 
@@ -196,24 +192,17 @@ addNewOption2 (XConfigOptionPtr head, char *name, char *val, int used)
         TEST_FREE(old->val);
         new = old;
     } else {
-        new = calloc (1, sizeof (XConfigOptionRec));
+        new = calloc(1, sizeof (XConfigOptionRec));
         new->next = NULL;
     }
-    new->name = name;
-    new->val = val;
-    new->used = used;
+    new->name = xconfigStrdup(name);
+    new->val = xconfigStrdup(val);
     
     if (old == NULL)
         return ((XConfigOptionPtr) xconfigAddListItem ((GenericListPtr) head,
                                                        (GenericListPtr) new));
     else 
         return head;
-}
-
-XConfigOptionPtr
-xconfigAddNewOption (XConfigOptionPtr head, char *name, char *val)
-{
-    return addNewOption2(head, name, val, 0);
 }
 
 void
@@ -233,11 +222,8 @@ xconfigOptionListDup (XConfigOptionPtr opt)
 
     while (opt)
     {
-        newopt = xconfigAddNewOption(newopt, xconfigStrdup(opt->name), 
-                      xconfigStrdup(opt->val));
-        newopt->used = opt->used;
-        if (opt->comment)
-            newopt->comment = xconfigStrdup(opt->comment);
+        newopt = xconfigAddNewOption(newopt, opt->name, opt->val);
+        newopt->comment = xconfigStrdup(opt->comment);
         opt = opt->next;
     }
     return newopt;
@@ -276,7 +262,7 @@ xconfigOptionValue(XConfigOptionPtr opt)
 }
 
 XConfigOptionPtr
-xconfigNewOption(char *name, char *value)
+xconfigNewOption(const char *name, const char *value)
 {
     XConfigOptionPtr opt;
 
@@ -284,10 +270,9 @@ xconfigNewOption(char *name, char *value)
     if (!opt)
         return NULL;
 
-    opt->used = 0;
-    opt->next = 0;
-    opt->name = name;
-    opt->val = value;
+    opt->name = xconfigStrdup(name);
+    opt->val = xconfigStrdup(value);
+    opt->next = NULL;
 
     return opt;
 }
@@ -386,39 +371,6 @@ xconfigFindOptionBoolean (XConfigOptionPtr list, const char *name)
         }
     }
     return 0;
-}
-
-XConfigOptionPtr
-xconfigOptionListCreate( const char **options, int count, int used )
-{
-    XConfigOptionPtr p = NULL;
-    char *t1, *t2;
-    int i;
-
-    if (count == -1)
-    {
-        for (count = 0; options[count]; count++)
-            ;
-    }
-    if( (count % 2) != 0 )
-    {
-        xconfigErrorMsg(InternalErrorMsg, "xconfigOptionListCreate: count must "
-                     "be an even number.\n");
-        return (NULL);
-    }
-    for (i = 0; i < count; i += 2)
-    {
-        /* can't use strdup because it calls malloc */
-        t1 = malloc (sizeof (char) *
-                (strlen (options[i]) + 1));
-        strcpy (t1, options[i]);
-        t2 = malloc (sizeof (char) *
-                (strlen (options[i + 1]) + 1));
-        strcpy (t2, options[i + 1]);
-        p = addNewOption2 (p, t1, t2, used);
-    }
-
-    return (p);
 }
 
 /* the 2 given lists are merged. If an option with the same name is present in

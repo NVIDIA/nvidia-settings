@@ -292,6 +292,7 @@ GtkWidget* ctk_gpu_new(
                     screens = tmp_str;
                 }
             }
+            XFree(pData);
         }
     }
 

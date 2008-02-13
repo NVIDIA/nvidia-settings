@@ -77,7 +77,7 @@ int main(int argc, char *argv[])
     screen = DefaultScreen(dpy);
 
     if (!XNVCTRLIsNvScreen(dpy, screen)) {
-        fprintf(stderr, "The NV-CONTROL X not available on screen "
+        fprintf(stderr, "The NV-CONTROL X extension is not available on screen "
                 "%d of '%s'.\n\n", screen, XDisplayName(NULL));
         return 1;
     }
@@ -207,6 +207,8 @@ int main(int argc, char *argv[])
             printf("Current Modeline for %s:\n",
                    displayDeviceNames[nDisplayDevice++]);
             printf("  %s\n\n", str);
+
+            XFree(str);
         }
     }
     
@@ -387,6 +389,8 @@ int main(int argc, char *argv[])
         }
         
         printf("current metamode: \"%s\"\n\n", str);
+
+        XFree(str);
     }
     
     
@@ -506,6 +510,7 @@ int main(int argc, char *argv[])
             if (!ret) {
                 fprintf(stderr, "Failed to query VertRefresh for %s.\n\n",
                         display_device_name(mask));
+                XFree(str0);
                 return 1;
             }
                 
@@ -655,6 +660,7 @@ int main(int argc, char *argv[])
                 printf(" %d", pData[j]);
             }
             printf("\n");
+            XFree(pData);
         }
         
 
@@ -704,6 +710,7 @@ int main(int argc, char *argv[])
                 printf(" %d", pData[j]);
             }
             printf("\n");
+            XFree(pData);
         }
         
         printf("\n");

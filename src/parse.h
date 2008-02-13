@@ -34,28 +34,28 @@
  * Flag values used in the flags field of the ParsedAttribute struct.
  */
 
-#define NV_PARSER_HAS_X_DISPLAY         (1<<0)
-#define NV_PARSER_HAS_TARGET            (1<<2)
-#define NV_PARSER_HAS_DISPLAY_DEVICE    (1<<3)
-#define NV_PARSER_HAS_VAL               (1<<4)
+#define NV_PARSER_HAS_X_DISPLAY                (1<<0)
+#define NV_PARSER_HAS_TARGET                   (1<<2)
+#define NV_PARSER_HAS_DISPLAY_DEVICE           (1<<3)
+#define NV_PARSER_HAS_VAL                      (1<<4)
 
 /*
  * Flag values used in the flags field of the AttributeTableEntry struct.
  */
 
-#define NV_PARSER_TYPE_FRAMELOCK           (1<<16)
-#define NV_PARSER_TYPE_COLOR_ATTRIBUTE     (1<<17)
-#define NV_PARSER_TYPE_NO_CONFIG_WRITE     (1<<18)
-#define NV_PARSER_TYPE_GUI_ATTRIUBUTE      (1<<19)
-#define NV_PARSER_TYPE_XVIDEO_ATTRIBUTE    (1<<20)
-#define NV_PARSER_TYPE_PACKED_ATTRIBUTE    (1<<21)
-#define NV_PARSER_TYPE_VALUE_IS_DISPLAY    (1<<22)
-#define NV_PARSER_TYPE_NO_QUERY_ALL        (1<<23)
-#define NV_PARSER_TYPE_NO_ZERO_VALUE       (1<<24)
-#define NV_PARSER_TYPE_100Hz               (1<<25)
-#define NV_PARSER_TYPE_STRING_ATTRIBUTE    (1<<26)
-#define NV_PARSER_TYPE_ASSIGN_ALL_DISPLAYS (1<<27)
-#define NV_PARSER_TYPE_1000Hz              (1<<28)
+#define NV_PARSER_TYPE_FRAMELOCK               (1<<16)
+#define NV_PARSER_TYPE_COLOR_ATTRIBUTE         (1<<17)
+#define NV_PARSER_TYPE_NO_CONFIG_WRITE         (1<<18)
+#define NV_PARSER_TYPE_GUI_ATTRIUBUTE          (1<<19)
+#define NV_PARSER_TYPE_XVIDEO_ATTRIBUTE        (1<<20)
+#define NV_PARSER_TYPE_PACKED_ATTRIBUTE        (1<<21)
+#define NV_PARSER_TYPE_VALUE_IS_DISPLAY        (1<<22)
+#define NV_PARSER_TYPE_NO_QUERY_ALL            (1<<23)
+#define NV_PARSER_TYPE_NO_ZERO_VALUE           (1<<24)
+#define NV_PARSER_TYPE_100Hz                   (1<<25)
+#define NV_PARSER_TYPE_STRING_ATTRIBUTE        (1<<26)
+#define NV_PARSER_TYPE_ASSIGN_ALL_DISPLAYS     (1<<27)
+#define NV_PARSER_TYPE_VALUE_IS_SWITCH_DISPLAY (1<<28)
 
 #define NV_PARSER_ASSIGNMENT 0
 #define NV_PARSER_QUERY 1

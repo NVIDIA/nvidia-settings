@@ -202,6 +202,8 @@ static void do_query(Display *dpy)
 
         } /* Done disabling GPUs */
 
+        XFree(data);
+
     } /* Done disabling Frame Lock Devices */
 
 } /* do_query() */
@@ -435,6 +437,8 @@ static void do_enable(Display *dpy)
 
         } /* Done enabling GPUs */
 
+        XFree(data);
+
     } /* Done enabling framelocks */
 }
 
@@ -510,6 +514,8 @@ static void do_disable(Display *dpy)
             printf("Done.\n");
 
         } /* Done disabling GPUs */
+
+        XFree(data);
 
     } /* Done disabling Frame Lock Devices */
 

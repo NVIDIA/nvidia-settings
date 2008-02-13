@@ -3062,6 +3062,7 @@
 #define NV_CTRL_GVO_LOCK_OWNER_X_SCREEN                           3
 
 
+
 /*
  * NV_CTRL_HWOVERLAY - when a workstation overlay is in use, reports
  * whether the hardware overlay is used, or if the overlay is emulated.
@@ -3071,17 +3072,14 @@
 #define NV_CTRL_HWOVERLAY_FALSE                                   0
 #define NV_CTRL_HWOVERLAY_TRUE                                    1
 
-
 /*
- * NV_CTRL_REFRESH_RATE_3 - Returns the refresh rate of the specified
- * display device in 1000 * Hz (ie. to get the refresh rate in Hz, divide
- * the returned value by 1000.)
- *
- * This attribute may be queried through XNVCTRLQueryTargetAttribute()
- * using a NV_CTRL_TARGET_TYPE_GPU or NV_CTRL_TARGET_TYPE_X_SCREEN target.
+ * NV_CTRL_NUM_GPU_ERRORS_RECOVERED - Returns the number of gpu errors
+ * occured. This attribute may be queried through XNVCTRLQueryTargetAttribute()
+ * using a NV_CTRL_TARGET_TYPE_X_SCREEN target.
  */
 
-#define NV_CTRL_REFRESH_RATE_3                                  260 /* R-DG */
+#define NV_CTRL_NUM_GPU_ERRORS_RECOVERED                        259 /* R--- */
+
 
 
 /*
@@ -3096,8 +3094,71 @@
 #define NV_CTRL_ONDEMAND_VBLANK_INTERRUPTS_ON                     1
 
 
-#define NV_CTRL_LAST_ATTRIBUTE  NV_CTRL_ONDEMAND_VBLANK_INTERRUPTS
+/*
+ * NV_CTRL_GPU_POWER_SOURCE reports the type of power source
+ * of the GPU driving the X screen.
+ */
 
+#define NV_CTRL_GPU_POWER_SOURCE                                262 /* R--G */
+#define NV_CTRL_GPU_POWER_SOURCE_AC                               0
+#define NV_CTRL_GPU_POWER_SOURCE_BATTERY                          1
+
+
+/*
+ * NV_CTRL_GPU_CURRENT_PERFORMANCE_MODE reports the current
+ * Performance mode of the GPU driving the X screen.  Running
+ * a 3D app for example, will change this performance mode,
+ * if Adaptive Clocking is enabled.
+ */
+
+#define NV_CTRL_GPU_CURRENT_PERFORMANCE_MODE                    263 /* R--G */
+#define NV_CTRL_GPU_CURRENT_PERFORMANCE_MODE_DESKTOP              0
+#define NV_CTRL_GPU_CURRENT_PERFORMANCE_MODE_MAXPERF              1
+
+
+/*
+ * NV_CTRL_GPU_CURRENT_PERFORMANCE_LEVEL reports the current
+ * Performance level of the GPU driving the X screen.  Each
+ * Performance level has associated NVClock and Mem Clock values.
+ */
+
+#define NV_CTRL_GPU_CURRENT_PERFORMANCE_LEVEL                   265 /* R--G */
+
+
+/*
+ * NV_CTRL_GPU_ADAPTIVE_CLOCK_STATE reports if Adaptive Clocking
+ * is Enabled on the GPU driving the X screen.
+ */
+
+#define NV_CTRL_GPU_ADAPTIVE_CLOCK_STATE                        266 /* R--G */
+#define NV_CTRL_GPU_ADAPTIVE_CLOCK_STATE_DISABLED                 0
+#define NV_CTRL_GPU_ADAPTIVE_CLOCK_STATE_ENABLED                  1
+
+/*
+ * NV_CTRL_SWITCH_TO_DISPLAYS takes display to which
+ * user wants to switch.
+ */
+
+#define NV_CTRL_SWITCH_TO_DISPLAYS                              276 /* -W- */
+
+/*
+ * NV_CTRL_NOTEBOOK_DISPLAY_CHANGE_LID_EVENT can be used to send event
+ * to notify open/closure of the lid.
+ */
+
+#define NV_CTRL_NOTEBOOK_DISPLAY_CHANGE_LID_EVENT               277 /* RW- */
+#define NV_CTRL_NOTEBOOK_DISPLAY_CHANGE_LID_EVENT_CLOSE           0
+#define NV_CTRL_NOTEBOOK_DISPLAY_CHANGE_LID_EVENT_OPEN            1
+
+/*
+ * NV_CTRL_NOTEBOOK_INTERNAL_LCD returns intenal LCD
+ * of Notebook.
+ */
+
+#define NV_CTRL_NOTEBOOK_INTERNAL_LCD                           278 /* R-- */
+
+
+#define NV_CTRL_LAST_ATTRIBUTE NV_CTRL_NOTEBOOK_INTERNAL_LCD
 
 /**************************************************************************/
 

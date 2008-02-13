@@ -450,7 +450,7 @@ XConfigMonitorPtr xconfigAddMonitor(XConfigPtr config, int count)
     monitor->vrefresh[0].lo = 50.0;
     monitor->vrefresh[0].hi = 150.0;
 
-    opt = xconfigAddNewOption(opt, xconfigStrdup("DPMS"), NULL);
+    opt = xconfigAddNewOption(opt, "DPMS", NULL);
 
     monitor->options = opt;
 
@@ -584,7 +584,7 @@ static void add_inputref(XConfigPtr config, XConfigLayoutPtr layout,
     inputRef->input_name = xconfigStrdup(name);
     inputRef->input = xconfigFindInput(inputRef->input_name, config->inputs);
     inputRef->options =
-        xconfigAddNewOption(NULL, xconfigStrdup(coreKeyword), NULL);
+        xconfigAddNewOption(NULL, coreKeyword, NULL);
     inputRef->next = layout->inputs;
     layout->inputs = inputRef;
 
@@ -1032,20 +1032,19 @@ int xconfigAddMouse(GenerateOptions *gop, XConfigPtr config)
 
     device_path = xconfigStrcat("/dev/", entry->device, NULL);
 
-    opt = xconfigAddNewOption(opt, xconfigStrdup("Protocol"),
-                              xconfigStrdup(entry->Xproto));
-    opt = xconfigAddNewOption(opt, xconfigStrdup("Device"), device_path);
-    opt = xconfigAddNewOption(opt, xconfigStrdup("Emulate3Buttons"),
-                              entry->emulate3 ?
-                              xconfigStrdup("yes") : xconfigStrdup("no"));
+    opt = xconfigAddNewOption(opt, "Protocol", entry->Xproto);
+    opt = xconfigAddNewOption(opt, "Device", device_path);
+    opt = xconfigAddNewOption(opt, "Emulate3Buttons",
+                              (entry->emulate3 ? "yes" : "no"));
+    TEST_FREE(device_path);
+    
     
     /*
      * This will make wheel mice work, and non-wheel mice should
      * ignore ZAxisMapping
      */
 
-    opt = xconfigAddNewOption(opt, xconfigStrdup("ZAxisMapping"),
-                              xconfigStrdup("4 5"));
+    opt = xconfigAddNewOption(opt, "ZAxisMapping", "4 5");
     
     input->options = opt;
     
@@ -1299,21 +1298,13 @@ int xconfigAddKeyboard(GenerateOptions *gop, XConfigPtr config)
      */
 
     if (entry && entry->layout)
-        opt = xconfigAddNewOption(opt,
-                                  xconfigStrdup("XkbLayout"),
-                                  xconfigStrdup(entry->layout));
+        opt = xconfigAddNewOption(opt, "XkbLayout", entry->layout);
     if (entry && entry->model)
-        opt = xconfigAddNewOption(opt,
-                                  xconfigStrdup("XkbModel"),
-                                  xconfigStrdup(entry->model));
+        opt = xconfigAddNewOption(opt, "XkbModel", entry->model);
     if (entry && entry->variant)
-        opt = xconfigAddNewOption(opt,
-                                  xconfigStrdup("XkbVariant"),
-                                  xconfigStrdup(entry->variant));
+        opt = xconfigAddNewOption(opt, "XkbVariant", entry->variant);
     if (entry && entry->options)
-        opt = xconfigAddNewOption(opt,
-                                  xconfigStrdup("XkbOptions"),
-                                  xconfigStrdup(entry->options));
+        opt = xconfigAddNewOption(opt, "XkbOptions", entry->options);
 
     input->options = opt;
     

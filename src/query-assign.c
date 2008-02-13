@@ -38,6 +38,8 @@
 #include "query-assign.h"
 
 extern int __verbosity;
+extern int __terse;
+extern int __display_device_string;
 
 /* local prototypes */
 
@@ -340,7 +342,7 @@ static int process_attribute_queries(int num, char **queries,
     
     /* print a newline before we begin */
 
-    nv_msg(NULL, "");
+    if (!__terse) nv_msg(NULL, "");
 
     /* loop over each requested query */
 
@@ -405,8 +407,7 @@ static int process_attribute_queries(int num, char **queries,
         if (ret == NV_FALSE) goto done;
         
         /* print a newline at the end */
-
-        nv_msg(NULL, "");
+        if (!__terse) nv_msg(NULL, "");
 
     } /* query */
 
@@ -620,6 +621,10 @@ static void print_valid_values(char *name, uint32 flags,
     char *c2; 
     char **at;
 
+    /* do not print any valid values information when we are in 'terse' mode */
+
+    if (__terse) return;
+
 #define INDENT "    "
 
     switch (valid.type) {
@@ -741,22 +746,32 @@ static void print_valid_values(char *name, uint32 flags,
  * from NV-CONTROL
  */
 
+typedef enum {
+    VerboseLevelTerse,
+    VerboseLevelAbbreviated,
+    VerboseLevelVerbose,
+} VerboseLevel;
+
 static void print_queried_value(CtrlHandleTarget *t,
                                 NVCTRLAttributeValidValuesRec *v,
                                 int val,
                                 uint32 flags,
                                 char *name,
                                 uint32 mask,
-                                const char *indent)
+                                const char *indent,
+                                const VerboseLevel level)
 {
     char d_str[64], val_str[64], *tmp_d_str;
 
     /* assign val_str */
-    
-    if (flags & NV_PARSER_TYPE_100Hz) {
+
+    if ((flags & NV_PARSER_TYPE_VALUE_IS_DISPLAY) &&
+        (__display_device_string)) {
+        tmp_d_str = display_device_mask_to_display_device_name(val);
+        snprintf(val_str, 64, "%s", tmp_d_str);
+        free(tmp_d_str);
+    } else if (flags & NV_PARSER_TYPE_100Hz) {
         snprintf(val_str, 64, "%.2f Hz", ((float) val) / 100.0);
-    } else if (flags & NV_PARSER_TYPE_1000Hz) {
-        snprintf(val_str, 64, "%.3f Hz", ((float) val) / 1000.0);
     } else if (v->type == ATTRIBUTE_TYPE_BITMASK) {
         snprintf(val_str, 64, "0x%08x", val);
     } else if (flags & NV_PARSER_TYPE_PACKED_ATTRIBUTE) {
@@ -774,12 +789,31 @@ static void print_queried_value(CtrlHandleTarget *t,
     } else {
         d_str[0] = '\0';
     }
-    
-    /* print the string */
 
-    nv_msg(indent,  "Attribute '%s' (%s%s): %s.",
-           name, t->name, d_str, val_str);
-    
+    /* print the value */
+
+    switch (level) {
+
+    case VerboseLevelTerse:
+        /* print value alone */
+        nv_msg(NULL, "%s", val_str);
+        break;
+
+    case VerboseLevelAbbreviated:
+        /* print the value with indentation and the attribute name */
+        nv_msg(indent, "%s: %s", name, val_str);
+        break;
+
+    case VerboseLevelVerbose:
+        /*
+         * or print the value along with other information about the
+         * attribute
+         */
+        nv_msg(indent,  "Attribute '%s' (%s%s): %s.",
+               name, t->name, d_str, val_str);
+        break;
+    }
+
 } /* print_queried_value() */
 
 
@@ -821,7 +855,8 @@ static int query_all(const char *display_name)
         if (!t->h) continue;
 
         nv_msg(NULL, "Attributes for %s:", t->name);
-        nv_msg(NULL, "");
+
+        if (!__terse) nv_msg(NULL, "");
 
         for (entry = 0; attributeTable[entry].name; entry++) {
 
@@ -867,7 +902,12 @@ static int query_all(const char *display_name)
                         goto exit_bit_loop;
                     }
 
-                    nv_msg("  ",  "Attribute '%s' (%s%s): %s ", a->name, t->name, "", tmp_str);
+                    if (__terse) {
+                        nv_msg("  ", "%s: %s", a->name, tmp_str);
+                    } else {
+                        nv_msg("  ",  "Attribute '%s' (%s%s): %s ",
+                               a->name, t->name, "", tmp_str);
+                    }
                     free(tmp_str);
                     tmp_str = NULL;
 
@@ -895,12 +935,15 @@ static int query_all(const char *display_name)
                         goto exit_bit_loop;
                     }
 
-                    print_queried_value(t, &valid, val, a->flags, a->name, mask, INDENT);
+                    print_queried_value(t, &valid, val, a->flags, a->name,
+                                        mask, INDENT, __terse ?
+                                        VerboseLevelAbbreviated :
+                                        VerboseLevelVerbose);
 
                     print_valid_values(a->name, a->flags, valid);
                 }
                 
-                nv_msg(NULL,"");
+                if (!__terse) nv_msg(NULL,"");
                 
                 if (valid.permissions & ATTRIBUTE_TYPE_DISPLAY) {
                     continue;
@@ -1341,7 +1384,13 @@ static int process_parsed_attribute_internal(CtrlHandleTarget *t,
                              NvCtrlAttributesStrError(status));
                 return NV_FALSE;
             } else {
-                nv_msg("  ",  "Attribute '%s' (%s%s): %s", a->name, t->name, str, tmp_str);
+
+                if (__terse) {
+                    nv_msg(NULL, "%s", tmp_str);
+                } else {
+                    nv_msg("  ",  "Attribute '%s' (%s%s): %s",
+                           a->name, t->name, str, tmp_str);
+                }
                 free(tmp_str);  
                 tmp_str = NULL;
             }
@@ -1360,8 +1409,9 @@ static int process_parsed_attribute_internal(CtrlHandleTarget *t,
                              NvCtrlAttributesStrError(status));
                 return NV_FALSE;
             } else {
-                print_queried_value(t, &valid, a->val, a->flags, a->name, d, "  ");
-                
+                print_queried_value(t, &valid, a->val, a->flags, a->name, d,
+                                    "  ", __terse ?
+                                    VerboseLevelTerse : VerboseLevelVerbose);
                 print_valid_values(a->name, a->flags, valid);
             }
         }
@@ -1631,26 +1681,52 @@ int nv_process_parsed_attribute(ParsedAttribute *a, CtrlHandles *h,
         /*
          * If we are assigning, and the value for this attribute is a
          * display device, then we need to validate the value against
-         * the mask of enabled display devices.
+         * either the mask of enabled display devices or the mask of
+         * connected display devices.
          */
         
         if (assign && (a->flags & NV_PARSER_TYPE_VALUE_IS_DISPLAY)) {
+            char *display_device_descriptor = NULL;
+            uint32 check_mask;
+
+            /* use the complete mask if requested */
+
             if (a->flags & NV_PARSER_TYPE_ASSIGN_ALL_DISPLAYS) {
-                a->val = t->d;
+                if (a->flags & NV_PARSER_TYPE_VALUE_IS_SWITCH_DISPLAY) {
+                    a->val = t->c;
+                } else {
+                    a->val = t->d;
+                }
             }
-            
-            if ((t->d & a->val) != a->val) {
+
+            /*
+             * if we are hotkey switching, check against all connected
+             * displays; otherwise, check agains the currently active
+             * display devices
+             */
+
+            if (a->flags & NV_PARSER_TYPE_VALUE_IS_SWITCH_DISPLAY) {
+                check_mask = t->c;
+                display_device_descriptor = "connected";
+            } else {
+                check_mask = t->d;
+                display_device_descriptor = "enabled";
+            }
+
+            if ((check_mask & a->val) != a->val) {
 
                 tmp_d_str0 =
                     display_device_mask_to_display_device_name(a->val);
 
-                tmp_d_str1 = display_device_mask_to_display_device_name(t->d);
+                tmp_d_str1 =
+                    display_device_mask_to_display_device_name(check_mask);
 
                 nv_error_msg("The attribute '%s' specified %s cannot be "
-                             "assigned the value of %s (the currently enabled "
+                             "assigned the value of %s (the currently %s "
                              "display devices are %s on %s).",
-                             a->name, whence, tmp_d_str0, tmp_d_str1,
-                             t->name);
+                             a->name, whence, tmp_d_str0,
+                             display_device_descriptor,
+                             tmp_d_str1, t->name);
                 
                 free(tmp_d_str0);
                 free(tmp_d_str1);

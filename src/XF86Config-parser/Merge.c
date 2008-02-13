@@ -120,8 +120,7 @@ static void xconfigMergeOption(XConfigOptionPtr *dstHead,
                 xconfigAddRemovedOptionComment(comments, dstOption);
             }
             *dstHead = xconfigAddNewOption
-                (*dstHead, xconfigStrdup(name),
-                 xconfigStrdup(xconfigOptionValue(srcOption)));
+                (*dstHead, name, xconfigOptionValue(srcOption));
         }
     }
 
@@ -402,8 +401,7 @@ static int xconfigMergeDriverOptions(XConfigScreenPtr dstScreen,
 
         dstScreen->options =
             xconfigAddNewOption(dstScreen->options,
-                                xconfigStrdup(name),
-                                xconfigStrdup(xconfigOptionValue(option)));
+                                name, xconfigOptionValue(option));
         
         option = option->next;
     }
@@ -424,7 +422,6 @@ static int xconfigMergeDisplays(XConfigScreenPtr dstScreen,
 {
     XConfigDisplayPtr dstDisplay;
     XConfigDisplayPtr srcDisplay;
-    XConfigOptionPtr srcOption;
     XConfigModePtr srcMode, dstMode, lastDstMode;
 
     /* Free all the displays in the destination screen */
@@ -458,14 +455,7 @@ static int xconfigMergeDisplays(XConfigScreenPtr dstScreen,
 
         /* Copy options over */
 
-        srcOption = srcDisplay->options;
-        while (srcOption) {
-            xconfigMergeOption(&(dstDisplay->options),
-                               &(srcDisplay->options),
-                               xconfigOptionName(srcOption),
-                               NULL);
-            srcOption = srcOption->next;
-        }
+        dstDisplay->options = xconfigOptionListDup(srcDisplay->options);
 
         /* Copy modes over */
 

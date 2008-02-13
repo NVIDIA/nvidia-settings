@@ -220,14 +220,26 @@ int nvgetopt(int argc, char *argv[], const NVGetoptOption *options,
             }
             if (strval) *strval = strdup(argument);
         } else {
-            argv_index++;
-            if (argv_index >= argc) {
-                fprintf(stderr, "%s: option \"%s\" requires an argument.\n",
-                        argv[0], arg);
-                goto done;
+            /*
+             * if the argument is optional, and we're either at the
+             * end of the argv list, or the next argv starts with '-',
+             * then assume there is no argument for this option
+             */
+
+            if ((o->flags & NVGETOPT_ARGUMENT_IS_OPTIONAL) &&
+                ((argv_index == (argc - 1)) ||
+                 (argv[argv_index + 1][0] == '-'))) {
+                if (strval) *strval = NULL;
+            } else {
+                argv_index++;
+                if (argv_index >= argc) {
+                    fprintf(stderr, "%s: option \"%s\" requires an argument.\n",
+                            argv[0], arg);
+                    goto done;
+                }
+                if (strval) *strval = argv[argv_index];
             }
-            if (strval) *strval = argv[argv_index];
-        } 
+        }
     }
     
     ret = o->val;

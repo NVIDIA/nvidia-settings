@@ -252,7 +252,7 @@ typedef struct nvScreenRec {
     int num_metamodes;           /* # modes per display device */
     nvMetaModePtr cur_metamode;  /* Current metamode to display */
     int cur_metamode_idx;        /* Current metamode to display */
-
+    nvDisplayPtr primaryDisplay;
     // Used for generating metamode strings.
     int dim[4]; /* Bounding box of all metamodes (Absolute coords) */
 
@@ -431,7 +431,8 @@ void ctk_display_layout_set_display_position (CtkDisplayLayout *ctk_object,
 void ctk_display_layout_set_display_panning (CtkDisplayLayout *ctk_object,
                                              nvDisplayPtr display,
                                              int width, int height);
-
+void ctk_display_layout_select_display (CtkDisplayLayout *ctk_object,
+                                        nvDisplayPtr display);
 void ctk_display_layout_update_display_count (CtkDisplayLayout *,
                                               nvDisplayPtr);
 

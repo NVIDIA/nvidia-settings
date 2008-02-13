@@ -60,8 +60,8 @@ static char *nv_strndup(char *s, int n);
 #define A NV_PARSER_TYPE_NO_QUERY_ALL
 #define Z NV_PARSER_TYPE_NO_ZERO_VALUE
 #define H NV_PARSER_TYPE_100Hz
-#define K NV_PARSER_TYPE_1000Hz
 #define S NV_PARSER_TYPE_STRING_ATTRIBUTE
+#define W NV_PARSER_TYPE_VALUE_IS_SWITCH_DISPLAY
 
 AttributeTableEntry attributeTable[] = {
    
@@ -87,8 +87,11 @@ AttributeTableEntry attributeTable[] = {
     { "HWOverlay",             NV_CTRL_HWOVERLAY,                   0     },
     { "Stereo",                NV_CTRL_STEREO,                      0     },
     { "TwinView",              NV_CTRL_TWINVIEW,                    0     },
-    { "ConnectedDisplays",     NV_CTRL_CONNECTED_DISPLAYS,          0     },
-    { "EnabledDisplays",       NV_CTRL_ENABLED_DISPLAYS,            0     },
+    { "ConnectedDisplays",     NV_CTRL_CONNECTED_DISPLAYS,          D     },
+    { "EnabledDisplays",       NV_CTRL_ENABLED_DISPLAYS,            D     },
+    { "NotebookInternalLCD",   NV_CTRL_NOTEBOOK_INTERNAL_LCD,       N|D   },
+    { "NotebookDisplayChangeLidEvent", NV_CTRL_NOTEBOOK_DISPLAY_CHANGE_LID_EVENT, N },
+    { "SwitchToDisplays",      NV_CTRL_SWITCH_TO_DISPLAYS,          D|N|W },
     { "AssociatedDisplays",    NV_CTRL_ASSOCIATED_DISPLAY_DEVICES,  N|D   },
     { "ProbeDisplays",         NV_CTRL_PROBE_DISPLAYS,              A     },
     { "ForceGenericCpu",       NV_CTRL_FORCE_GENERIC_CPU,           0     },
@@ -104,7 +107,6 @@ AttributeTableEntry attributeTable[] = {
     { "FSAAAppControlled",     NV_CTRL_FSAA_APPLICATION_CONTROLLED, 0     },
     { "LogAnisoAppControlled", NV_CTRL_LOG_ANISO_APPLICATION_CONTROLLED,0 },
     { "RefreshRate",           NV_CTRL_REFRESH_RATE,                N|H   },
-    { "RefreshRate3",          NV_CTRL_REFRESH_RATE_3,              N|K   },
     { "InitialPixmapPlacement",NV_CTRL_INITIAL_PIXMAP_PLACEMENT,    N     },
     { "PCIBus",                NV_CTRL_PCI_BUS,                     N     },
     { "PCIDevice",             NV_CTRL_PCI_DEVICE,                  N     },
@@ -119,6 +121,7 @@ AttributeTableEntry attributeTable[] = {
     { "GPUScalingActive",      NV_CTRL_GPU_SCALING_ACTIVE,          N     },
     { "DFPScalingActive",      NV_CTRL_DFP_SCALING_ACTIVE,          N     },
     { "FSAAAppEnhanced",       NV_CTRL_FSAA_APPLICATION_ENHANCED,   0     },
+    { "GPUErrors",             NV_CTRL_NUM_GPU_ERRORS_RECOVERED,    N     },
     { "OnDemandVBlankInterrupts", NV_CTRL_ONDEMAND_VBLANK_INTERRUPTS, 0   },
 
     { "FrameLockMaster",       NV_CTRL_FRAMELOCK_MASTER,            N|F|G|D },
@@ -214,7 +217,10 @@ AttributeTableEntry attributeTable[] = {
     { "XF86VidModeVersion",     NV_CTRL_STRING_XF86VIDMODE_VERSION,      S|N },
     { "XvVersion",              NV_CTRL_STRING_XV_VERSION,               S|N },
     { "SLIMode",                NV_CTRL_STRING_SLI_MODE,                 S|N },
-    
+    { "GPUCurrentPerfMode",     NV_CTRL_GPU_CURRENT_PERFORMANCE_MODE,    N },
+    { "GPUCurrentPerfLevel",    NV_CTRL_GPU_CURRENT_PERFORMANCE_LEVEL,   N },
+    { "GPUAdaptiveClockState",  NV_CTRL_GPU_ADAPTIVE_CLOCK_STATE,        N },
+    { "GPUPowerSource",         NV_CTRL_GPU_POWER_SOURCE,                N },
     { NULL,                    0,                                   0     }
 };
 
@@ -228,8 +234,8 @@ AttributeTableEntry attributeTable[] = {
 #undef A
 #undef Z
 #undef H
-#undef K
 #undef S
+#undef W
 
 /*
  * When new integer attributes are added to NVCtrl.h, an entry should
@@ -238,7 +244,7 @@ AttributeTableEntry attributeTable[] = {
  * about.
  */
 
-#if NV_CTRL_LAST_ATTRIBUTE != NV_CTRL_ONDEMAND_VBLANK_INTERRUPTS
+#if NV_CTRL_LAST_ATTRIBUTE != NV_CTRL_NOTEBOOK_INTERNAL_LCD
 #warning "Have you forgotten to add a new integer attribute to attributeTable?"
 #endif
 

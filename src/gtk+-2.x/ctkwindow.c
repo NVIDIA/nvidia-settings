@@ -51,6 +51,7 @@
 #include "ctkglx.h"
 #include "ctkmultisample.h"
 #include "ctkthermal.h"
+#include "ctkpowermizer.h"
 #include "ctkclocks.h"
 #include "ctkvcsc.h"
 #include "ctkpowersavings.h"
@@ -795,7 +796,16 @@ GtkWidget *ctk_window_new(NvCtrlAttributeHandle **screen_handles,
             add_page(child, help, ctk_window, &iter, NULL, "Thermal Monitor",
                      NULL, ctk_thermal_start_timer, ctk_thermal_stop_timer);
         }
-        
+
+        /* Powermizer information */
+        child = ctk_powermizer_new(gpu_handle, ctk_config);
+        if (child) {
+            help = ctk_powermizer_create_help(tag_table, CTK_POWERMIZER(child));
+            add_page(child, help, ctk_window, &iter, NULL, "PowerMizer",
+                     NULL, ctk_powermizer_start_timer, 
+                     ctk_powermizer_stop_timer);
+        }
+ 
         /* clocks (GPU overclocking) */
 
         child = ctk_clocks_new(gpu_handle, ctk_config, ctk_event);

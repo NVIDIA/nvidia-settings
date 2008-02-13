@@ -82,7 +82,7 @@ enum
  * that entry.
  */
 
-#define NUM_GPU_SIGNALS 6
+#define NUM_GPU_SIGNALS 5
 
 const char *__GPUSignals[NUM_GPU_SIGNALS] = 
     {
@@ -90,8 +90,7 @@ const char *__GPUSignals[NUM_GPU_SIGNALS] =
         CTK_EVENT_NAME(NV_CTRL_FRAMELOCK_SLAVES),
         CTK_EVENT_NAME(NV_CTRL_FRAMELOCK_SYNC),
         CTK_EVENT_NAME(NV_CTRL_FRAMELOCK_TEST_SIGNAL),
-        CTK_EVENT_NAME(NV_CTRL_REFRESH_RATE),
-        CTK_EVENT_NAME(NV_CTRL_REFRESH_RATE_3)
+        CTK_EVENT_NAME(NV_CTRL_REFRESH_RATE)
     };
 
 /*
@@ -184,7 +183,6 @@ struct _nvDisplayDataRec {
     GtkWidget *rate_label;
     GtkWidget *rate_text;
     guint      rate;
-    guint      rate_precision;
 
     GtkWidget *stereo_label;
     GtkWidget *stereo_hbox; /* LED */
@@ -3491,7 +3489,7 @@ void list_entry_update_display_status(CtkFramelock *ctk_framelock,
 /** list_entry_update_status() ***************************************
  *
  * Updates the (GUI) state of a list entry, its children and siblings
- * by querying the X Server.
+ * by queryin ghte X Server.
  *
  */
 void list_entry_update_status(CtkFramelock *ctk_framelock,
@@ -3938,7 +3936,6 @@ static void gpu_state_received(GtkObject *object,
 
 
     case NV_CTRL_REFRESH_RATE:
-    case NV_CTRL_REFRESH_RATE_3:
         /* Update the display device's refresh rate */
         display_entry = get_display_on_gpu(gpu_entry, event->display_mask);
         if (display_entry && display_entry->data) {
@@ -3949,18 +3946,8 @@ static void gpu_state_received(GtkObject *object,
                 (nvDisplayDataPtr)(display_entry->data);
 
             display_data->rate = event->value;
-            if (event->attribute == NV_CTRL_REFRESH_RATE_3 &&
-                display_data->rate_precision == 3) {
-                fvalue = ((float)(display_data->rate)) / 1000.0f;
-                snprintf(str, 32, "%.3f Hz", fvalue);
-            } else if (display_data->rate_precision == 2 ){
-                fvalue = ((float)(display_data->rate)) / 100.0f;
-                snprintf(str, 32, "%.2f Hz", fvalue);
-            } else {
-                // wrong signal (got 2 but support 3 or got 3 but
-                // don't support it);
-                break;
-            }
+            fvalue = ((float)(display_data->rate)) / 100.0f;
+            snprintf(str, 32, "%.2f Hz", fvalue);
             gtk_label_set_text(GTK_LABEL(display_data->rate_text), str);   
         }
         
@@ -4715,7 +4702,7 @@ static unsigned int add_display_devices(CtkFramelock *ctk_framelock,
     unsigned int master_mask;
     unsigned int slaves_mask;
     gfloat       fvalue; /* To print the refresh rate */
-    gchar        rr_str[32];
+    gchar        str[32];
     
     nvListEntryPtr   server_entry = NULL;
     nvDisplayDataPtr server_data = NULL;
@@ -4809,24 +4796,10 @@ static unsigned int add_display_devices(CtkFramelock *ctk_framelock,
                 goto fail;
             }
 
-            // If we can't get either percision, then fail
-            if (NvCtrlSuccess !=
-                (ret = NvCtrlGetDisplayAttribute(gpu_data->handle,
-                                             display_mask,
-                                             NV_CTRL_REFRESH_RATE_3,
-                                             (int *)&(display_data->rate)))) {
-                ret = NvCtrlGetDisplayAttribute(gpu_data->handle,
-                                                display_mask,
-                                                NV_CTRL_REFRESH_RATE,
-                                                (int *)&(display_data->rate));
-                fvalue = ((float)(display_data->rate)) / 100.0f;
-                snprintf(rr_str, 32, "%.2f Hz", fvalue);
-                display_data->rate_precision = 2;
-            } else {
-                fvalue = ((float)(display_data->rate)) / 1000.0f;
-                snprintf(rr_str, 32, "%.3f Hz", fvalue);
-                display_data->rate_precision = 3;
-            }
+            ret = NvCtrlGetDisplayAttribute(gpu_data->handle,
+                                            display_mask,
+                                            NV_CTRL_REFRESH_RATE,
+                                            (int *)&(display_data->rate));
             if (ret != NvCtrlSuccess) {
                 goto fail;
             }
@@ -4846,7 +4819,9 @@ static unsigned int add_display_devices(CtkFramelock *ctk_framelock,
                                    __client_checkbox_help);
             
             display_data->rate_label      = gtk_label_new("Refresh:");
-            display_data->rate_text       = gtk_label_new(rr_str);
+            fvalue = ((float)(display_data->rate)) / 100.0f;
+            snprintf(str, 32, "%.2f Hz", fvalue);
+            display_data->rate_text       = gtk_label_new(str);
 
             display_data->stereo_label    = gtk_label_new("Stereo");
             display_data->stereo_hbox     = gtk_hbox_new(FALSE, 0);
@@ -4976,6 +4951,7 @@ static unsigned int add_gpu_devices(CtkFramelock *ctk_framelock,
         /* Create the GPU data structure */
         gpu_data = (nvGPUDataPtr) calloc(1, sizeof(nvGPUDataRec));
         if (!gpu_data) {
+            XFree(data);
             goto fail;
         }
 
@@ -5028,6 +5004,8 @@ static unsigned int add_gpu_devices(CtkFramelock *ctk_framelock,
             list_entry_free(entry);
         }
     }
+
+    XFree(data);
 
     return gpus_added;
 
@@ -5098,7 +5076,7 @@ static unsigned int add_framelock_devices(CtkFramelock *ctk_framelock,
         if (ret != NvCtrlSuccess) {
             goto fail;
         }
-        revision_str = g_strdup_printf("0x%X", val);
+        revision_str = g_strdup_printf("%d", val);
 
         /* Create the frame lock widgets */
         framelock_data->label = gtk_label_new("");

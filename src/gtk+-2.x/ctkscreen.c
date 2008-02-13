@@ -46,6 +46,9 @@ void ctk_screen_event_handler(GtkWidget *widget,
 static void associated_displays_received(GtkObject *object, gpointer arg1,
                                          gpointer user_data);
 
+static void info_update_gpu_error(GtkObject *object, gpointer arg1,
+                                      gpointer user_data);
+
 GType ctk_screen_get_type(
     void
 )
@@ -188,6 +191,10 @@ GtkWidget* ctk_screen_new(NvCtrlAttributeHandle *handle,
     gchar *depth;
     gchar *gpus;
     gchar *displays;
+    gint  gpu_errors;
+        
+
+    char tmp[16];
 
     double xres, yres;
 
@@ -265,6 +272,7 @@ GtkWidget* ctk_screen_new(NvCtrlAttributeHandle *handle,
         if (!gpus) {
             gpus = g_strdup("None");
         }
+        XFree(pData);
     }
 
     /* get the list of Display Devices displaying this X screen */
@@ -275,7 +283,16 @@ GtkWidget* ctk_screen_new(NvCtrlAttributeHandle *handle,
     if (ret == NvCtrlSuccess) {
         displays = make_display_device_list(handle, display_devices);
     }
-        
+
+    /* get the number of gpu errors occurred */
+
+    gpu_errors = 0;
+    ret = NvCtrlGetDisplayAttribute(handle,
+                                    0,
+                                    NV_CTRL_NUM_GPU_ERRORS_RECOVERED,
+                                    (int *)&gpu_errors);
+
+    snprintf(tmp, 16, "%d", gpu_errors);
 
     /* now, create the object */
     
@@ -317,7 +334,7 @@ GtkWidget* ctk_screen_new(NvCtrlAttributeHandle *handle,
     hseparator = gtk_hseparator_new();
     gtk_box_pack_start(GTK_BOX(hbox), hseparator, TRUE, TRUE, 5);
 
-    table = gtk_table_new(16, 2, FALSE);
+    table = gtk_table_new(20, 2, FALSE);
     gtk_box_pack_start(GTK_BOX(vbox), table, FALSE, FALSE, 0);
     gtk_table_set_row_spacings(GTK_TABLE(table), 3);
     gtk_table_set_col_spacings(GTK_TABLE(table), 15);
@@ -335,7 +352,10 @@ GtkWidget* ctk_screen_new(NvCtrlAttributeHandle *handle,
     /* spacing */
     ctk_screen->displays =
         add_table_row(table, 15, 0, 0,   "Displays:",      0, 0, displays);
-    
+    /* gpu errors */
+    ctk_screen->gpu_errors =
+        add_table_row(table, 19, 0, 0, "Recovered GPU Errors:", 0, 0, tmp);
+
     g_free(screen_number);
     free(display_name);
     g_free(dimensions);
@@ -354,6 +374,13 @@ GtkWidget* ctk_screen_new(NvCtrlAttributeHandle *handle,
     g_signal_connect(G_OBJECT(ctk_event), "CTK_EVENT_RRScreenChangeNotify",
                      G_CALLBACK(ctk_screen_event_handler),
                      (gpointer) ctk_screen);
+
+    /* Setup widget to reflect the latest number of gpu errors */
+    g_signal_connect(G_OBJECT(ctk_event),
+                     CTK_EVENT_NAME(NV_CTRL_NUM_GPU_ERRORS_RECOVERED),
+                     G_CALLBACK(info_update_gpu_error),
+                     (gpointer) ctk_screen);
+
 
     gtk_widget_show_all(GTK_WIDGET(object));    
 
@@ -403,6 +430,16 @@ GtkTextBuffer *ctk_screen_create_help(GtkTextTagTable *table,
     ctk_help_heading(b, &i, "Display Devices");
     ctk_help_para(b, &i, "This is the list of Display Devices (CRTs, TVs etc) "
                   "enabled on this X Screen.");
+
+    ctk_help_heading(b, &i, "Recovered GPU Errors");
+    ctk_help_para(b, &i, "The GPU can encounter errors, either due to bugs in "
+                  "the NVIDIA driver, or due to corruption of the command  "
+                  "stream as it is sent from the NVIDIA X driver to the GPU. "
+                  "When the GPU encounters one of these errors, it reports it "
+                  "to the NVIDIA X driver and the NVIDIA X driver attempts to "
+                  "recover from the error. This reports how many errors the "
+                  "GPU received and the NVIDIA X driver successfully recovered "
+                  "from.");
 
     ctk_help_finish(b);
 
@@ -454,3 +491,27 @@ static void associated_displays_received(GtkObject *object, gpointer arg1,
     g_free(str);
 
 } /* associated_displays_received() */
+
+
+/*
+ * When the  number of gpu errors occured changes,
+ * update the count showed on the page.
+ */
+
+static void info_update_gpu_error(GtkObject *object, gpointer arg1,
+                                         gpointer data)
+{
+    CtkScreen *ctk_screen = (CtkScreen *) data;
+    ReturnStatus ret;
+    gint  gpu_errors = 0;
+    char tmp[16];
+
+    /* get the number of gpu errors occurred */
+    ret = NvCtrlGetDisplayAttribute(ctk_screen->handle, 0,
+                                    NV_CTRL_NUM_GPU_ERRORS_RECOVERED,
+                                    (int *)&gpu_errors);
+    if (ret == NvCtrlSuccess) {
+        snprintf(tmp, 16, "%d", gpu_errors);
+        gtk_label_set_text(GTK_LABEL(ctk_screen->gpu_errors), tmp);
+    }
+} /* info_update_gpu_error() */

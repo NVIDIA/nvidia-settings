@@ -66,12 +66,15 @@ typedef struct _CtkDisplayConfig
     GtkWidget *obj_layout;
 
     GtkWidget *chk_xinerama_enabled;
+    GtkWidget *chk_primary_display;
 
 
     /* Display - Info */
-    GtkWidget *display_frame;
+    GtkWidget *display_page;
 
-    GtkWidget *txt_display_model;
+    GtkWidget *mnu_display_model;
+    nvDisplayPtr *display_model_table; /* Lookup table for display modelname */
+    int display_model_table_len;
     GtkWidget *txt_display_gpu;
 
     GtkWidget *btn_display_config;
@@ -102,7 +105,7 @@ typedef struct _CtkDisplayConfig
 
 
     /* X Screen - Info */
-    GtkWidget *screen_frame;
+    GtkWidget *screen_page;
 
     GtkWidget *txt_screen_num;
 

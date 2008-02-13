@@ -239,9 +239,9 @@ static int getCoreInputDevice(GenerateOptions *gop,
         opt2 = xconfigFindOption(inputRef->options, coreKeyword);
 
         if (opt1 || opt2) {
-	    if (!core) {
-		core = input;
-	    } else {
+            if (!core) {
+                core = input;
+            } else {
                 if (opt1) input->options =
                               xconfigRemoveOption(input->options, opt1);
                 if (opt2) inputRef->options =
@@ -265,13 +265,13 @@ static int getCoreInputDevice(GenerateOptions *gop,
      */
 
     if (!core) {
-	for (input = config->inputs; input; input = input->next) {
-	    if (xconfigFindOption(input->options, coreKeyword)) {
+        for (input = config->inputs; input; input = input->next) {
+            if (xconfigFindOption(input->options, coreKeyword)) {
                 core = input;
                 found_msg = foundMsg0;
                 break;
-	    }
-	}
+            }
+        }
     }
     
     /*
@@ -285,16 +285,16 @@ static int getCoreInputDevice(GenerateOptions *gop,
     
     if (!core) {
         input = xconfigFindInput(implicitDriverName, config->inputs);
-	if (!input && defaultDriver0) {
-	    input = xconfigFindInputByDriver(defaultDriver0, config->inputs);
-	}
-        if (!input && defaultDriver1) {
-	    input = xconfigFindInputByDriver(defaultDriver1, config->inputs);
+        if (!input && defaultDriver0) {
+            input = xconfigFindInputByDriver(defaultDriver0, config->inputs);
         }
-	if (input) {
-	    core = input;
-	    found_msg = foundMsg1;
-	}
+        if (!input && defaultDriver1) {
+            input = xconfigFindInputByDriver(defaultDriver1, config->inputs);
+        }
+        if (input) {
+            core = input;
+            found_msg = foundMsg1;
+        }
     }
 
     /*
@@ -368,8 +368,7 @@ static int getCoreInputDevice(GenerateOptions *gop,
 
             if (!opt1 && !opt2) {
                 inputRef->options = xconfigAddNewOption(inputRef->options,
-                                                     strdup(coreKeyword),
-                                                     NULL);
+                                                        coreKeyword, NULL);
             }
             break;
         }

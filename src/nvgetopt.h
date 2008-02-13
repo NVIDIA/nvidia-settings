@@ -29,8 +29,9 @@
 #define NVGETOPT_TRUE 1
 #define NVGETOPT_INVALID 2
 
-#define NVGETOPT_HAS_ARGUMENT 0x1
-#define NVGETOPT_IS_BOOLEAN   0x2
+#define NVGETOPT_HAS_ARGUMENT         0x1
+#define NVGETOPT_IS_BOOLEAN           0x2
+#define NVGETOPT_ARGUMENT_IS_OPTIONAL 0x4
 
 typedef struct {
     const char *name;

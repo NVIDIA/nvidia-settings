@@ -56,8 +56,8 @@ static char *nvstrcat(const char *str, ...);
  */
 
 int __verbosity = VERBOSITY_DEFAULT;
-
-
+int __terse = NV_FALSE;
+int __display_device_string = NV_FALSE;
 /*
  * print_version() - print version information
  */
@@ -127,7 +127,7 @@ static const NVGetoptOption __options[] = {
       "Write the X server configuration to the configuration file, and exit, "
       "without starting the graphical user interface." },
 
-    { "verbose", 'V', NVGETOPT_HAS_ARGUMENT, NULL,
+    { "verbose", 'V', NVGETOPT_HAS_ARGUMENT|NVGETOPT_ARGUMENT_IS_OPTIONAL, NULL,
       "Controls how much information is printed.  Valid values are 'errors' "
       "(print error messages), 'warnings' (print error and warning messages), "
       "and 'all' (print error, warning and other informational messages).  By "
@@ -136,6 +136,17 @@ static const NVGetoptOption __options[] = {
     { "assign", 'a', NVGETOPT_HAS_ARGUMENT, print_assign_help, NULL },
 
     { "query", 'q', NVGETOPT_HAS_ARGUMENT, print_query_help, NULL },
+
+    { "terse", 't', 0, NULL,
+      "When querying attribute values with the '--query' commandline option, "
+      "only print the current value, rather than the more verbose description "
+      "of the attribute, its valid values, and its current value." },
+
+    { "display-device-string", 'd', 0, NULL,
+      "When printing attribute values in response to the '--query' option, "
+      "if the attribute value is a display device mask, print the value "
+      "as a list of display devices (e.g., \"CRT-0, DFP-0\"), rather than "
+      "a hexidecimal bitmask (e.g., 0x00010001)." },
 
     { "glxinfo", 'g', 0, NULL,
       "Print GLX Information for the X display and exit." },
@@ -321,7 +332,10 @@ Options *parse_command_line(int argc, char *argv[], char *dpy)
         case 'c': op->ctrl_display = strval; break;
         case 'V':
             __verbosity = VERBOSITY_DEFAULT;
-            if (nv_strcasecmp(strval, "errors") == NV_TRUE) {
+            if (!strval) {
+                /* user didn't give argument, assume "all" */
+                __verbosity = VERBOSITY_ALL;
+            } else if (nv_strcasecmp(strval, "errors") == NV_TRUE) {
                 __verbosity = VERBOSITY_ERROR;
             } else if (nv_strcasecmp(strval, "warnings") == NV_TRUE) {
                 __verbosity = VERBOSITY_WARNING;
@@ -348,6 +362,8 @@ Options *parse_command_line(int argc, char *argv[], char *dpy)
             break;
         case CONFIG_FILE_OPTION: op->config = strval; break;
         case 'g': print_glxinfo(NULL); exit(0); break;
+        case 't': __terse = NV_TRUE; break;
+        case 'd': __display_device_string = NV_TRUE; break;
         default:
             nv_error_msg("Invalid commandline, please run `%s --help` "
                          "for usage information.\n", argv[0]);

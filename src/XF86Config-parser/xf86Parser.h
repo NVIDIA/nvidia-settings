@@ -148,7 +148,6 @@ typedef struct __xconfigoptionrec {
     struct __xconfigoptionrec *next;
     char *name;
     char *val;
-    int   used;
     char *comment;
 } XConfigOptionRec, *XConfigOptionPtr;
 
@@ -675,22 +674,20 @@ XConfigLoadPtr xconfigRemoveLoadDirective(XConfigLoadPtr head,
  */
 
 XConfigOptionPtr xconfigAddNewOption(XConfigOptionPtr head,
-                                     char *name, char *val);
+                                     const char *name, const char *val);
 XConfigOptionPtr xconfigRemoveOption(XConfigOptionPtr list,
                                      XConfigOptionPtr opt);
 XConfigOptionPtr xconfigOptionListDup(XConfigOptionPtr opt);
 void             xconfigOptionListFree(XConfigOptionPtr opt);
 char            *xconfigOptionName(XConfigOptionPtr opt);
 char            *xconfigOptionValue(XConfigOptionPtr opt);
-XConfigOptionPtr xconfigNewOption(char *name, char *value);
+XConfigOptionPtr xconfigNewOption(const char *name, const char *value);
 XConfigOptionPtr xconfigNextOption(XConfigOptionPtr list);
 XConfigOptionPtr xconfigFindOption(XConfigOptionPtr list, const char *name);
 char            *xconfigFindOptionValue(XConfigOptionPtr list,
                                         const char *name);
 int              xconfigFindOptionBoolean (XConfigOptionPtr,
                                            const char *name);
-XConfigOptionPtr xconfigOptionListCreate(const char **options,
-                                         int count, int used);
 XConfigOptionPtr xconfigOptionListMerge(XConfigOptionPtr head,
                                         XConfigOptionPtr tail);
 

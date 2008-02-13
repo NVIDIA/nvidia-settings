@@ -61,6 +61,7 @@ struct _CtkScreen
 
     GtkWidget *dimensions;
     GtkWidget *displays;
+    GtkWidget *gpu_errors;
 };
 
 struct _CtkScreenClass

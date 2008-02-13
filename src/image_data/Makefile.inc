@@ -53,6 +53,7 @@ EXTRA_DIST += \
 	tv_pixdata.h \
 	background_pixdata.h \
 	logo_pixdata.h \
+	nvidia_icon_pixdata.h \
 	antialias_pixdata.h \
 	thermal_pixdata.h \
 	x_pixdata.h \

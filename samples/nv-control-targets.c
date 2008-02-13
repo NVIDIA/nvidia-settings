@@ -277,6 +277,7 @@ int main(int argc, char *argv[])
                                               &display_devices);
             if (!ret) {
                 fprintf(stderr, "Failed to query connected displays\n");
+                XFree(pData);
                 return 1;
             }
             printf("      Display Device Mask (Connected) : 0x%08x\n",
@@ -293,6 +294,7 @@ int main(int argc, char *argv[])
                                               &display_devices);
             if (!ret) {
                 fprintf(stderr, "Failed to query enabled displays\n");
+                XFree(pData);
                 return 1;
             }
             printf("      Display Device Mask (Enabled)   : 0x%08x\n",
@@ -319,6 +321,7 @@ int main(int argc, char *argv[])
                        str);
             }
         }
+        XFree(pData);
     }
 
     return 0;

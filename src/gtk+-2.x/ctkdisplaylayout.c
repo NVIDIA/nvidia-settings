@@ -3447,7 +3447,22 @@ void ctk_display_layout_set_display_panning(CtkDisplayLayout *ctk_object,
 
 } /* ctk_display_layout_set_display_panning() */
 
-
+/** ctk_display_layout_select_display() ***********************
+ *
+ * Updates the currently selected display.
+ *
+ **/
+void ctk_display_layout_select_display(CtkDisplayLayout *ctk_object,
+                                       nvDisplayPtr display)
+{
+    if (display) {
+        /* Select the new display */
+        select_display(ctk_object, display);
+    } else if (ctk_object->Zcount) {
+        /* Select the new topmost display */
+        select_display(ctk_object, ctk_object->Zorder[0]);
+    }
+} /* ctk_display_layout_select_display() */
 
 /** ctk_display_layout_update_display_count() ************************
  *
@@ -3461,14 +3476,9 @@ void ctk_display_layout_update_display_count(CtkDisplayLayout *ctk_object,
 {
     /* Update the Z order */
     zorder_layout(ctk_object);
-    if (display) {
-        /* Select the previously selected display */
-        select_display(ctk_object, display);
-    } else if (ctk_object->Zcount) {
-        /* Select the new topmost display */
-        select_display(ctk_object, ctk_object->Zorder[0]);
-    }
 
+    /* Select the previously selected display */
+    ctk_display_layout_select_display(ctk_object, display);
 } /* ctk_display_layout_update_display_count() */
 
 

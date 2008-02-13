@@ -923,6 +923,10 @@ void screen_remove_display(nvDisplayPtr display)
         screen->displays_mask &= ~(display->device_mask);
         screen->num_displays--;
 
+        if (screen->primaryDisplay == display) {
+            screen->primaryDisplay = NULL;
+        }
+
         /* Clean up old references to the screen in the display */
         display_remove_modes(display);
         display->screen = NULL;
@@ -1713,7 +1717,7 @@ static int gpu_add_screen_from_server(nvGpuPtr gpu, int screen_id,
     nvScreenPtr screen;
     int val, tmp;
     ReturnStatus ret;
-
+    gchar *primary_str = NULL;
 
     /* Create the screen structure */
     screen = (nvScreenPtr)calloc(1, sizeof(nvScreen));
@@ -1781,8 +1785,31 @@ static int gpu_add_screen_from_server(nvGpuPtr gpu, int screen_id,
                        screen_id, NvCtrlGetTargetId(gpu->handle));
         goto fail;
     }
+    
+    /* Query & parse the screen's primary display */
+    screen->primaryDisplay = NULL;
+    ret = NvCtrlGetStringDisplayAttribute
+        (screen->handle,
+         0,
+         NV_CTRL_STRING_TWINVIEW_XINERAMA_INFO_ORDER,
+         &primary_str);
 
+    if (ret == NvCtrlSuccess) {
+        nvDisplayPtr d;
+        unsigned int  device_mask;
 
+        /* Parse the device mask */
+        parse_read_display_name(primary_str, &device_mask);
+
+        /* Find the matching primary display */
+        for (d = gpu->displays; d; d = d->next) {
+            if (d->screen == screen &&
+                d->device_mask & device_mask) {
+                screen->primaryDisplay = d;
+                break;
+            }
+        }
+    }
     /* Add the screen at the end of the gpu's screen list */
     gpu->screens =
         (nvScreenPtr)xconfigAddListItem((GenericListPtr)gpu->screens,
@@ -1835,10 +1862,12 @@ static Bool gpu_add_screens_from_server(nvGpuPtr gpu, gchar **err_str)
             nv_warning_msg("Failed to add screen %d to GPU-%d '%s'.",
                            pData[i], NvCtrlGetTargetId(gpu->handle),
                            gpu->name);
+            XFree(pData);
             goto fail;
         }
     }
 
+    XFree(pData);
     return TRUE;
 
 
