@@ -352,12 +352,9 @@ static gboolean window_destroy(GtkWidget *widget, GdkEvent *event,
 void ctk_help_title(GtkTextBuffer *buffer, GtkTextIter *iter,
                     const gchar *fmt, ...)
 {
-    va_list ap;
     gchar *a, *b;
 
-    va_start(ap, fmt);
-    a = nv_build_vararg_string(fmt, ap);
-    va_end(ap);
+    NV_VSNPRINTF(a, fmt);
 
     b = g_strconcat("\n", a, "\n", NULL);
 
@@ -370,12 +367,9 @@ void ctk_help_title(GtkTextBuffer *buffer, GtkTextIter *iter,
 void ctk_help_para(GtkTextBuffer *buffer, GtkTextIter *iter,
                    const gchar *fmt, ...)
 {     
-    va_list ap;
     gchar *a, *b;
 
-    va_start(ap, fmt);
-    a = nv_build_vararg_string(fmt, ap);
-    va_end(ap);
+    NV_VSNPRINTF(a, fmt);
 
     b = g_strconcat("\n", a, "\n", NULL);
 
@@ -388,12 +382,9 @@ void ctk_help_para(GtkTextBuffer *buffer, GtkTextIter *iter,
 void ctk_help_heading(GtkTextBuffer *buffer, GtkTextIter *iter,
                       const gchar *fmt, ...)
 {
-    va_list ap;
     gchar *a, *b;
 
-    va_start(ap, fmt);
-    a = nv_build_vararg_string(fmt, ap);
-    va_end(ap);
+    NV_VSNPRINTF(a, fmt);
 
     b = g_strconcat("\n", a, "\n", NULL);
 
@@ -406,12 +397,9 @@ void ctk_help_heading(GtkTextBuffer *buffer, GtkTextIter *iter,
 void ctk_help_term(GtkTextBuffer *buffer, GtkTextIter *iter,
                    const gchar *fmt, ...)
 {
-    va_list ap;
     gchar *a, *b;
 
-    va_start(ap, fmt);
-    a = nv_build_vararg_string(fmt, ap);
-    va_end(ap);
+    NV_VSNPRINTF(a, fmt);
 
     b = g_strconcat("\n", a, NULL);
     

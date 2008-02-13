@@ -148,7 +148,8 @@ GtkWidget* ctk_device_new(
     os = NULL;
     if (ret == NvCtrlSuccess) {
         if (os_val == NV_CTRL_OPERATING_SYSTEM_LINUX) os = "Linux";
-        if (os_val == NV_CTRL_OPERATING_SYSTEM_FREEBSD) os = "FreeBSD";
+        else if (os_val == NV_CTRL_OPERATING_SYSTEM_FREEBSD) os = "FreeBSD";
+        else if (os_val == NV_CTRL_OPERATING_SYSTEM_SUNOS) os = "SunOS";
     }
     if (!os) os = __unknown;
 
@@ -198,8 +199,12 @@ GtkWidget* ctk_device_new(
 
     if (os_val == NV_CTRL_OPERATING_SYSTEM_LINUX) {
         img = &big_banner_penguin_image;
-    } else {
+    } else if (os_val == NV_CTRL_OPERATING_SYSTEM_FREEBSD) {
         img = &big_banner_bsd_image;
+    } else if (os_val == NV_CTRL_OPERATING_SYSTEM_SUNOS) {
+        img = &big_banner_penguin_image; /* XXX To be replaced with Sun Logo */
+    } else {
+        img = &big_banner_penguin_image; /* Should never get here */
     }
 
     image_buffer = decompress_image_data(img);

@@ -15,7 +15,17 @@
 #define X_nvCtrlQueryStringAttribute      4
 #define X_nvCtrlQueryValidAttributeValues 5
 #define X_nvCtrlSelectNotify              6
-#define X_nvCtrlLastRequest              (X_nvCtrlSelectNotify + 1)
+#define X_nvCtrlSetGvoColorConversion     7
+#define X_nvCtrlQueryGvoColorConversion   8
+#define X_nvCtrlLastRequest              (X_nvCtrlQueryGvoColorConversion + 1)
+
+
+/* Define 32 bit floats */
+typedef float FLOAT32;
+#ifndef F32
+#define F32
+#endif
+
 
 typedef struct {
     CARD8 reqType;
@@ -147,6 +157,51 @@ typedef struct {
     CARD32 perms B32;
 } xnvCtrlQueryValidAttributeValuesReply;
 #define sz_xnvCtrlQueryValidAttributeValuesReply 32
+
+/* Set GVO Color Conversion request */
+typedef struct {
+    CARD8 reqType;
+    CARD8 nvReqType;
+    CARD16 length B16;
+    CARD32 screen B32;
+    FLOAT32 row1_col1 F32;
+    FLOAT32 row1_col2 F32;
+    FLOAT32 row1_col3 F32;
+    FLOAT32 row1_col4 F32;
+    FLOAT32 row2_col1 F32;
+    FLOAT32 row2_col2 F32;
+    FLOAT32 row2_col3 F32;
+    FLOAT32 row2_col4 F32;
+    FLOAT32 row3_col1 F32;
+    FLOAT32 row3_col2 F32;
+    FLOAT32 row3_col3 F32;
+    FLOAT32 row3_col4 F32;
+} xnvCtrlSetGvoColorConversionReq;
+#define sz_xnvCtrlSetGvoColorConversionReq 56
+
+/* Query GVO Color Conversion request */
+typedef struct {
+    CARD8 reqType;
+    CARD8 nvReqType;
+    CARD16 length B16;
+    CARD32 screen B32;
+} xnvCtrlQueryGvoColorConversionReq;
+#define sz_xnvCtrlQueryGvoColorConversionReq 8
+
+/* Query GVO Color Conversion reply */
+typedef struct {
+    BYTE type;   /* X_Reply */
+    BYTE pad0;
+    CARD16 sequenceNumber B16;
+    CARD32 length B32;
+    CARD32 pad3 B32;
+    CARD32 pad4 B32;
+    CARD32 pad5 B32;
+    CARD32 pad6 B32;
+    CARD32 pad7 B32;
+    CARD32 pad8 B32;
+} xnvCtrlQueryGvoColorConversionReply;
+#define sz_xnvCtrlQueryGvoColorConversionReply 32
 
 typedef struct {
     CARD8 reqType;

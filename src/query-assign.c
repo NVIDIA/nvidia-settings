@@ -753,7 +753,6 @@ int nv_process_parsed_attribute(ParsedAttribute *a, CtrlHandles *h,
     int screen, start_screen, end_screen, bit, ret, val;
     char *whence, *tmp_d_str0, *tmp_d_str1;
     uint32 display_devices, mask;
-    va_list ap;
     ReturnStatus status;
     NVCTRLAttributeValidValuesRec valid;
     
@@ -761,9 +760,7 @@ int nv_process_parsed_attribute(ParsedAttribute *a, CtrlHandles *h,
 
     /* build the description */
 
-    va_start(ap, whence_fmt);
-    whence = nv_build_vararg_string(whence_fmt, ap);
-    va_end(ap);
+    NV_VSNPRINTF(whence, whence_fmt);
     
     if (!whence) whence = strdup("\0");
 

@@ -38,6 +38,7 @@
 
 SHELL = /bin/sh
 INSTALL = install -m 755
+BUILD_OS := $(shell uname)
 
 ifndef CC
   CC = gcc
@@ -51,10 +52,13 @@ ifndef PKG_CONFIG
   PKG_CONFIG = pkg-config
 endif
 
-ifndef X11R6_DIR
-  X11R6_DIR = /usr/X11R6
+ifndef X11R6_LIB_DIR
+  X11R6_LIB_DIR = /usr/X11R6/lib
 endif
 
+ifndef X11R6_INC_DIR
+  X11R6_INC_DIR = /usr/X11R6/include
+endif
 
 # the NVDEBUG environment variable controls whether we build debug or retail
 
@@ -78,15 +82,18 @@ endif
 exec_prefix = $(prefix)
 bindir = $(exec_prefix)/bin
 
-X11R6_LIB_DIR = $(X11R6_DIR)/lib
-X11R6_INC_DIR = $(X11R6_DIR)/include
-
 X11R6_CFLAGS = -I $(X11R6_INC_DIR)
 
 GTK_CFLAGS := $(shell $(PKG_CONFIG) --cflags gtk+-2.0)
 GTK_LDFLAGS := $(shell $(PKG_CONFIG) --libs gtk+-2.0)
 
-X11R6_LIBS := -L $(X11R6_LIB_DIR) -Wl,-Bstatic -lXxf86vm -lXv -Wl,-Bdynamic -lX11 -lXext
+ifeq ($(BUILD_OS),SunOS)
+LIBXV = -lXv
+else
+LIBXV = -Wl,-Bstatic -lXv -Wl,-Bdynamic
+endif
+
+X11R6_LIBS := -L $(X11R6_LIB_DIR) -Wl,-Bstatic -lXxf86vm -Wl,-Bdynamic $(LIBXV) -lX11 -lXext
 
 XNVCTRL_LIB := src/libXNVCtrl/libXNVCtrl.a
 
@@ -152,6 +159,12 @@ DEPS_DIR = .deps
 OBJS := $(patsubst %.c,$(OBJS_DIR)/%.o,$(ALL_SRC))
 DEPS := $(patsubst %.c,$(DEPS_DIR)/%.d,$(SRC))
 
+# default echo within SunOS sh does not have -n option. Use /usr/ucb/echo instead.
+ifeq ($(BUILD_OS),SunOS)
+ECHO=/usr/ucb/echo
+else
+ECHO=echo
+endif
 
 # and now, the build rules:
 
@@ -176,10 +189,10 @@ $(DEPS_DIR)/%.d: %.c
 
 $(STAMP_C): $(filter-out $(OBJS_DIR)/$(STAMP_C:.c=.o), $(OBJS))
 	@ rm -f $@
-	@ echo -n "const char NV_ID[] = \"nvidia id: " >> $@
-	@ echo -n "$(NVIDIA_SETTINGS):  " >> $@
-	@ echo -n "version $(NVIDIA_SETTINGS_VERSION)  " >> $@
-	@ echo -n "($(shell whoami)@$(shell hostname))  " >> $@
+	@ $(ECHO) -n "const char NV_ID[] = \"nvidia id: " >> $@
+	@ $(ECHO) -n "$(NVIDIA_SETTINGS):  " >> $@
+	@ $(ECHO) -n "version $(NVIDIA_SETTINGS_VERSION)  " >> $@
+	@ $(ECHO) -n "($(shell whoami)@$(shell hostname))  " >> $@
 	@ echo    "$(shell date)\";" >> $@
 	@ echo    "const char *pNV_ID = NV_ID + 11;" >> $@
 

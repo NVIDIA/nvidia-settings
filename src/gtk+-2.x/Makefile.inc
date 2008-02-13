@@ -39,6 +39,7 @@ SRC += \
 	ctkevent.c \
 	ctkwindow.c \
 	ctkopengl.c \
+	ctkglx.c \
 	ctkdevice.c \
 	ctkhelp.c \
 	ctkimagesliders.c \
@@ -48,7 +49,8 @@ SRC += \
 	ctkdisplaydevice-dfp.c \
 	ctkthermal.c \
 	ctkgvo.c \
-	ctkdropdownmenu.c
+	ctkdropdownmenu.c \
+	ctkrandr.c
 
 
 EXTRA_DIST += \
@@ -65,6 +67,7 @@ EXTRA_DIST += \
 	ctkevent.h \
 	ctkwindow.h \
 	ctkopengl.h \
+	ctkglx.h \
 	ctkdevice.h \
 	ctkhelp.h \
 	ctkimagesliders.h \
@@ -75,5 +78,6 @@ EXTRA_DIST += \
 	ctkconstants.h \
 	ctkthermal.h \
 	ctkgvo.h \
-	ctkdropdownmenu.h
+	ctkdropdownmenu.h \
+	ctkrandr.h
 

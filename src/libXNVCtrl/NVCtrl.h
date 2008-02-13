@@ -111,6 +111,7 @@
 #define NV_CTRL_OPERATING_SYSTEM                                8  /* R-- */
 #define NV_CTRL_OPERATING_SYSTEM_LINUX                          0
 #define NV_CTRL_OPERATING_SYSTEM_FREEBSD                        1
+#define NV_CTRL_OPERATING_SYSTEM_SUNOS                          2
 
 
 /*
@@ -283,6 +284,7 @@
 
 #define NV_CTRL_FRAMELOCK_POLARITY                              23 /* RW- */
 #define NV_CTRL_FRAMELOCK_POLARITY_RISING_EDGE                  0x1
+#define NV_CTRL_FRAMELOCK_POLARITY_FALLING_EDGE                 0x2
 #define NV_CTRL_FRAMELOCK_POLARITY_BOTH_EDGES                   0x3
 
 
@@ -652,6 +654,11 @@
  * 
  * if this screen does not support PBUFFER_SCANOUT, then all other
  * PBUFFER_SCANOUT attributes are unavailable.
+ *
+ * PBUFFER_SCANOUT is supported if and only if:
+ * - Twinview is configured with clone mode.  The secondary screen is used to 
+ *   scanout the pbuffer.  
+ * - The desktop is running in with 16 bits per pixel.
  */
 #define NV_CTRL_PBUFFER_SCANOUT_SUPPORTED                       65  /* R-- */
 #define NV_CTRL_PBUFFER_SCANOUT_FALSE                           0
@@ -796,6 +803,14 @@
 #define NV_CTRL_GVO_VIDEO_FORMAT_1080P_25_00_SMPTE274           13
 #define NV_CTRL_GVO_VIDEO_FORMAT_1080P_29_97_SMPTE274           14
 #define NV_CTRL_GVO_VIDEO_FORMAT_1080P_30_00_SMPTE274           15
+#define NV_CTRL_GVO_VIDEO_FORMAT_720P_50_00_SMPTE296            16
+#define NV_CTRL_GVO_VIDEO_FORMAT_1080I_24_00_SMPTE274           17 
+#define NV_CTRL_GVO_VIDEO_FORMAT_1080I_23_98_SMPTE274           18
+#define NV_CTRL_GVO_VIDEO_FORMAT_720P_30_00_SMPTE296            19 
+#define NV_CTRL_GVO_VIDEO_FORMAT_720P_29_97_SMPTE296            20  
+#define NV_CTRL_GVO_VIDEO_FORMAT_720P_25_00_SMPTE296            21 
+#define NV_CTRL_GVO_VIDEO_FORMAT_720P_24_00_SMPTE296            22 
+#define NV_CTRL_GVO_VIDEO_FORMAT_720P_23_98_SMPTE296            23  
 
 
 /*

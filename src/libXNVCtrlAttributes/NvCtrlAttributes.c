@@ -85,7 +85,25 @@ NvCtrlAttributeHandle *NvCtrlAttributeInit(Display *dpy, int screen,
     if (subsystems & NV_CTRL_ATTRIBUTES_XVIDEO_SUBSYSTEM) {
         NvCtrlInitXvOverlayAttributes(h);
     }
-    
+
+    /*
+     * initialize the GLX extension and attributes; it is OK if
+     * this fails
+     */
+
+    if (subsystems & NV_CTRL_ATTRIBUTES_GLX_SUBSYSTEM) {
+        h->glx = NvCtrlInitGlxAttributes(h);
+    }
+
+    /*
+     * initialize the XRandR extension and attributes; it is OK if
+     * this fails
+     */
+
+    if (subsystems & NV_CTRL_ATTRIBUTES_XRANDR_SUBSYSTEM) {
+        h->xrandr = NvCtrlInitXrandrAttributes(h);
+    }
+  
     return (NvCtrlAttributeHandle *) h;
 
  failed:
@@ -209,6 +227,20 @@ int NvCtrlGetEventBase(NvCtrlAttributeHandle *handle)
 } /* NvCtrlGetEventBase() */
 
 
+int NvCtrlGetXrandrEventBase(NvCtrlAttributeHandle *handle)
+{
+    NvCtrlAttributePrivateHandle *h;
+
+    if (!handle) return 0;
+
+    h = (NvCtrlAttributePrivateHandle *) handle;
+
+    if (!h->xrandr) return 0;
+    return (h->xrandr->event_base);
+    
+} /* NvCtrlGetXrandrEventBase() */
+
+
 ReturnStatus NvCtrlGetAttribute(NvCtrlAttributeHandle *handle,
                                 int attr, int *val)
 {
@@ -225,6 +257,15 @@ ReturnStatus NvCtrlSetAttribute(NvCtrlAttributeHandle *handle,
     return NvCtrlSetDisplayAttribute(handle, 0, attr, val);
 
 } /* NvCtrlSetAttribute() */
+
+
+ReturnStatus NvCtrlGetVoidAttribute(NvCtrlAttributeHandle *handle,
+                                    int attr, void **ptr)
+{
+    if (!handle) return NvCtrlBadArgument;
+    return NvCtrlGetVoidDisplayAttribute(handle, 0, attr, ptr);
+    
+} /* NvCtrlGetVoidAttribute() */
 
 
 ReturnStatus NvCtrlGetValidAttributeValues(NvCtrlAttributeHandle *handle,
@@ -283,6 +324,14 @@ NvCtrlGetDisplayAttribute(NvCtrlAttributeHandle *handle,
         
         return NvCtrlXvGetAttribute(h, attr, val);
     }
+
+    if ((attr >= NV_CTRL_ATTR_XRANDR_BASE) &&
+        (attr <= NV_CTRL_ATTR_XRANDR_LAST_ATTRIBUTE)) {
+        
+        return NvCtrlXrandrGetAttribute(h, attr, val);
+    }
+
+
     return NvCtrlNoAttribute;
     
 } /* NvCtrlGetDisplayAttribute() */
@@ -307,9 +356,34 @@ NvCtrlSetDisplayAttribute(NvCtrlAttributeHandle *handle,
         return NvCtrlXvSetAttribute(h, attr, val);
     }
     
+    if ((attr >= NV_CTRL_ATTR_XRANDR_BASE) &&
+        (attr <= NV_CTRL_ATTR_XRANDR_LAST_ATTRIBUTE)) {
+        
+        return NvCtrlXrandrSetAttribute(h, attr, val);
+    }
+
     return NvCtrlNoAttribute;
 
 } /* NvCtrlSetDisplayAttribute() */
+
+
+ReturnStatus
+NvCtrlGetVoidDisplayAttribute(NvCtrlAttributeHandle *handle,
+                              unsigned int display_mask, int attr, void **ptr)
+{
+    NvCtrlAttributePrivateHandle *h;
+
+    h = (NvCtrlAttributePrivateHandle *) handle;
+
+    if ( attr >= NV_CTRL_ATTR_GLX_BASE &&
+         attr >= NV_CTRL_ATTR_GLX_LAST_ATTRIBUTE ) {
+        if ( !(h->glx) ) return NvCtrlMissingExtension;
+        return NvCtrlGlxGetVoidAttribute(h, display_mask, attr, ptr);
+    }
+
+    return NvCtrlNoAttribute;
+
+} /* NvCtrlGetVoidDisplayAttribute() */
 
 
 ReturnStatus
@@ -347,9 +421,15 @@ NvCtrlGetStringDisplayAttribute(NvCtrlAttributeHandle *handle,
 
     h = (NvCtrlAttributePrivateHandle *) handle;
 
-    if ((attr >= 0) && (attr <= NV_CTRL_LAST_ATTRIBUTE)) {
+    if ((attr >= 0) && (attr <= NV_CTRL_STRING_LAST_ATTRIBUTE)) {
         if (!h->nv) return NvCtrlMissingExtension;
         return NvCtrlNvControlGetStringAttribute(h, display_mask, attr, ptr);
+    }
+
+    if ((attr >= NV_CTRL_STRING_GLX_BASE) &&
+        (attr <= NV_CTRL_STRING_GLX_LAST_ATTRIBUTE)) {
+        if (!h->glx) return NvCtrlMissingExtension;
+        return NvCtrlGlxGetStringAttribute(h, display_mask, attr, ptr);
     }
 
     return NvCtrlNoAttribute;
@@ -396,6 +476,12 @@ void NvCtrlAttributeClose(NvCtrlAttributeHandle *handle)
      * subsystem
      */
 
-    free(h);
+    if ( h->glx ) {
+        NvCtrlGlxAttributesClose(h);   
+    }
+    if ( h->xrandr ) {
+        NvCtrlXrandrAttributesClose(h);   
+    }
 
+    free(h);
 } /* NvCtrlAttributeClose() */

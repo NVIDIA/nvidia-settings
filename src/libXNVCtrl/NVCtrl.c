@@ -10,6 +10,7 @@
 
 #define NEED_EVENTS
 #define NEED_REPLIES
+#include <stdlib.h>
 #include <X11/Xlibint.h>
 #include <X11/Xutil.h>
 #include "Xext.h"
@@ -287,6 +288,93 @@ Bool XNVCTRLQueryValidAttributeValues (
     SyncHandle ();
     return exists;
 }
+
+
+
+void XNVCTRLSetGvoColorConversion (
+    Display *dpy,
+    int screen,
+    float colorMatrix[3][3],
+    float colorOffset[3]
+){
+    XExtDisplayInfo *info = find_display (dpy);
+    xnvCtrlSetGvoColorConversionReq *req;
+
+    XNVCTRLSimpleCheckExtension (dpy, info);
+
+    LockDisplay (dpy);
+    GetReq (nvCtrlSetGvoColorConversion, req);
+    req->reqType = info->codes->major_opcode;
+    req->nvReqType = X_nvCtrlSetGvoColorConversion;
+    req->screen = screen;
+    req->row1_col1 = colorMatrix[0][0];
+    req->row1_col2 = colorMatrix[0][1];
+    req->row1_col3 = colorMatrix[0][2];
+    req->row1_col4 = colorOffset[0];
+    req->row2_col1 = colorMatrix[1][0];
+    req->row2_col2 = colorMatrix[1][1];
+    req->row2_col3 = colorMatrix[1][2];
+    req->row2_col4 = colorOffset[1];
+    req->row3_col1 = colorMatrix[2][0];
+    req->row3_col2 = colorMatrix[2][1];
+    req->row3_col3 = colorMatrix[2][2];
+    req->row3_col4 = colorOffset[2];
+    UnlockDisplay (dpy);
+    SyncHandle ();
+}
+
+
+Bool XNVCTRLQueryGvoColorConversion (
+    Display *dpy,
+    int screen,
+    float colorMatrix[3][3],
+    float colorOffset[3]
+){
+    XExtDisplayInfo *info = find_display (dpy);
+    xnvCtrlQueryGvoColorConversionReply rep;
+    xnvCtrlQueryGvoColorConversionReq *req;
+    float buf[3][4];
+
+    if(!XextHasExtension(info))
+        return False;
+
+    XNVCTRLCheckExtension (dpy, info, False);
+
+    LockDisplay (dpy);
+
+    GetReq (nvCtrlQueryGvoColorConversion, req);
+    req->reqType = info->codes->major_opcode;
+    req->nvReqType = X_nvCtrlQueryGvoColorConversion;
+    req->screen = screen;
+
+    if (!_XReply(dpy, (xReply *) &rep, 0, xFalse)) {
+        UnlockDisplay (dpy);
+        SyncHandle ();
+        return False;
+    }
+
+    _XRead(dpy, (char *)(&buf), 48);
+
+    colorMatrix[0][0] = buf[0][0];
+    colorMatrix[0][1] = buf[0][1];
+    colorMatrix[0][2] = buf[0][2];
+    colorMatrix[1][0] = buf[1][0];
+    colorMatrix[1][1] = buf[1][1];
+    colorMatrix[1][2] = buf[1][2];
+    colorMatrix[2][0] = buf[2][0];
+    colorMatrix[2][1] = buf[2][1];
+    colorMatrix[2][2] = buf[2][2];
+    
+    colorOffset[0] = buf[0][3];
+    colorOffset[1] = buf[1][3];
+    colorOffset[2] = buf[2][3];
+
+    UnlockDisplay (dpy);
+    SyncHandle ();
+
+    return True;
+}
+
 
 Bool XNVCtrlSelectNotify (
     Display *dpy,

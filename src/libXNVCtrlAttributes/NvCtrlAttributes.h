@@ -111,7 +111,30 @@ typedef void NvCtrlAttributeHandle;
 #define NV_CTRL_ATTR_XV_NUM \
        (NV_CTRL_ATTR_XV_LAST_ATTRIBUTE - NV_CTRL_ATTR_XV_BASE + 1)
 
-#define NV_CTRL_ATTR_LAST_ATTRIBUTE (NV_CTRL_ATTR_XV_LAST_ATTRIBUTE)
+/* GLX */
+
+#define NV_CTRL_ATTR_GLX_BASE \
+       (NV_CTRL_ATTR_XV_LAST_ATTRIBUTE + 1)
+
+#define NV_CTRL_ATTR_GLX_FBCONFIG_ATTRIBS  (NV_CTRL_ATTR_GLX_BASE +  0)
+
+#define NV_CTRL_ATTR_GLX_LAST_ATTRIBUTE \
+       (NV_CTRL_ATTR_GLX_FBCONFIG_ATTRIBS)
+
+/* XRandR */
+
+#define NV_CTRL_ATTR_XRANDR_BASE \
+       (NV_CTRL_ATTR_GLX_LAST_ATTRIBUTE + 1)
+
+#define NV_CTRL_ATTR_XRANDR_ROTATION_SUPPORTED (NV_CTRL_ATTR_XRANDR_BASE +  0)
+#define NV_CTRL_ATTR_XRANDR_ROTATIONS          (NV_CTRL_ATTR_XRANDR_BASE +  1)
+#define NV_CTRL_ATTR_XRANDR_ROTATION           (NV_CTRL_ATTR_XRANDR_BASE +  2)
+
+#define NV_CTRL_ATTR_XRANDR_LAST_ATTRIBUTE \
+       (NV_CTRL_ATTR_XRANDR_ROTATION)
+
+
+#define NV_CTRL_ATTR_LAST_ATTRIBUTE (NV_CTRL_ATTR_XRANDR_LAST_ATTRIBUTE)
 
 
 typedef enum {
@@ -127,6 +150,83 @@ typedef enum {
 } ReturnStatus;
 
 
+/* GLX FBConfig attribute structure */
+
+typedef struct GLXFBConfigAttrRec {
+    int fbconfig_id;
+    int visual_id;
+
+    int buffer_size;
+    int level;
+    int doublebuffer;
+    int stereo;
+    int aux_buffers;
+
+    int red_size;
+    int green_size;
+    int blue_size;
+    int alpha_size;
+    int depth_size;
+    int stencil_size;
+
+    int accum_red_size;
+    int accum_green_size;
+    int accum_blue_size;
+    int accum_alpha_size;
+
+    int render_type;
+    int drawable_type;
+    int x_renderable;
+    int x_visual_type;
+    int config_caveat;
+
+    int transparent_type;
+    int transparent_index_value;
+    int transparent_red_value;
+    int transparent_green_value;
+    int transparent_blue_value;
+    int transparent_alpha_value;
+
+    int pbuffer_width;
+    int pbuffer_height;
+    int pbuffer_max;
+
+    int multi_sample_valid;
+    int multi_samples;
+    int multi_sample_buffers;
+    
+} GLXFBConfigAttr;
+
+
+
+/*
+ * Valid string attributes for NvCtrlGetStringAttribute(); these are
+ * in addition to the ones in NVCtrl.h
+ */
+
+#define NV_CTRL_STRING_GLX_BASE \
+       (NV_CTRL_STRING_LAST_ATTRIBUTE + 1)
+
+#define NV_CTRL_STRING_GLX_DIRECT_RENDERING  (NV_CTRL_STRING_GLX_BASE +  0)
+#define NV_CTRL_STRING_GLX_GLX_EXTENSIONS    (NV_CTRL_STRING_GLX_BASE +  1)
+
+#define NV_CTRL_STRING_GLX_SERVER_VENDOR     (NV_CTRL_STRING_GLX_BASE +  2)
+#define NV_CTRL_STRING_GLX_SERVER_VERSION    (NV_CTRL_STRING_GLX_BASE +  3)
+#define NV_CTRL_STRING_GLX_SERVER_EXTENSIONS (NV_CTRL_STRING_GLX_BASE +  4)
+
+#define NV_CTRL_STRING_GLX_CLIENT_VENDOR     (NV_CTRL_STRING_GLX_BASE +  5)
+#define NV_CTRL_STRING_GLX_CLIENT_VERSION    (NV_CTRL_STRING_GLX_BASE +  6)
+#define NV_CTRL_STRING_GLX_CLIENT_EXTENSIONS (NV_CTRL_STRING_GLX_BASE +  7)
+
+#define NV_CTRL_STRING_GLX_OPENGL_VENDOR     (NV_CTRL_STRING_GLX_BASE +  8)
+#define NV_CTRL_STRING_GLX_OPENGL_RENDERER   (NV_CTRL_STRING_GLX_BASE +  9)
+#define NV_CTRL_STRING_GLX_OPENGL_VERSION    (NV_CTRL_STRING_GLX_BASE + 10)
+#define NV_CTRL_STRING_GLX_OPENGL_EXTENSIONS (NV_CTRL_STRING_GLX_BASE + 11)
+
+#define NV_CTRL_STRING_GLX_LAST_ATTRIBUTE \
+       (NV_CTRL_STRING_GLX_OPENGL_EXTENSIONS)
+
+
 
 /*
  * NvCtrlAttributeInit() - intializes the control panel backend; this
@@ -140,10 +240,14 @@ typedef enum {
 #define NV_CTRL_ATTRIBUTES_NV_CONTROL_SUBSYSTEM   0x1
 #define NV_CTRL_ATTRIBUTES_XF86VIDMODE_SUBSYSTEM  0x2
 #define NV_CTRL_ATTRIBUTES_XVIDEO_SUBSYSTEM       0x4
+#define NV_CTRL_ATTRIBUTES_GLX_SUBSYSTEM          0x8
+#define NV_CTRL_ATTRIBUTES_XRANDR_SUBSYSTEM       0x10
 #define NV_CTRL_ATTRIBUTES_ALL_SUBSYSTEMS    \
  (NV_CTRL_ATTRIBUTES_NV_CONTROL_SUBSYSTEM  | \
   NV_CTRL_ATTRIBUTES_XF86VIDMODE_SUBSYSTEM | \
-  NV_CTRL_ATTRIBUTES_XVIDEO_SUBSYSTEM)
+  NV_CTRL_ATTRIBUTES_XVIDEO_SUBSYSTEM      | \
+  NV_CTRL_ATTRIBUTES_GLX_SUBSYSTEM         | \
+  NV_CTRL_ATTRIBUTES_XRANDR_SUBSYSTEM)
 
 
 
@@ -157,6 +261,7 @@ int NvCtrlGetScreen(NvCtrlAttributeHandle *handle);
 int NvCtrlGetScreenWidth(NvCtrlAttributeHandle *handle);
 int NvCtrlGetScreenHeight(NvCtrlAttributeHandle *handle);
 int NvCtrlGetEventBase(NvCtrlAttributeHandle *handle);
+int NvCtrlGetXrandrEventBase(NvCtrlAttributeHandle *handle);
 
 ReturnStatus NvCtrlGetColorAttributes (NvCtrlAttributeHandle *handle,
                                        float contrast[3],
@@ -198,6 +303,17 @@ ReturnStatus NvCtrlSetAttribute (NvCtrlAttributeHandle *handle,
                                  int attr, int val);
 
 /*
+ * NvCtrlGetVoidAttribute() - this function works like the
+ * Get and GetString only it returns a void pointer.  The
+ * data type pointed to is dependent on which attribute you
+ * are requesting.
+ */
+
+ReturnStatus NvCtrlGetVoidAttribute (NvCtrlAttributeHandle *handle,
+                                     int attr, void **ptr);
+
+
+/*
  * NvCtrlGetValidAttributeValues() - get the valid settable values for
  * the specified attribute.  See the description of
  * NVCTRLAttributeValidValuesRec in NVCtrl.h.
@@ -218,7 +334,7 @@ ReturnStatus NvCtrlGetStringAttribute (NvCtrlAttributeHandle *handle,
                                        int attr, char **ptr);
 
 /*
- * The following four functions are identical to the above four,
+ * The following four functions are identical to the above five,
  * except that they specify a particular display mask.
  */
 
@@ -228,6 +344,12 @@ NvCtrlGetDisplayAttribute (NvCtrlAttributeHandle *handle,
 ReturnStatus
 NvCtrlSetDisplayAttribute (NvCtrlAttributeHandle *handle,
                            unsigned int display_mask, int attr, int val);
+
+ReturnStatus
+NvCtrlGetVoidDisplayAttribute (NvCtrlAttributeHandle *handle,
+                               unsigned int display_mask,
+                               int attr, void **val);
+
 ReturnStatus
 NvCtrlGetValidDisplayAttributeValues (NvCtrlAttributeHandle *handle,
                                       unsigned int display_mask, int attr,

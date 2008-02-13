@@ -32,7 +32,8 @@ SRC += \
 	nvidia-settings.c \
 	parse.c \
 	query-assign.c \
-	nvgetopt.c
+	nvgetopt.c \
+	glxinfo.c
 
 EXTRA_DIST += \
 	command-line.h \
@@ -40,4 +41,5 @@ EXTRA_DIST += \
 	msg.h \
 	parse.h \
 	query-assign.h \
-	nvgetopt.h
+	nvgetopt.h \
+	glxinfo.h

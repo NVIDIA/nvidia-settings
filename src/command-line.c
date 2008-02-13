@@ -34,6 +34,9 @@
 #include "query-assign.h"
 #include "msg.h"
 #include "nvgetopt.h"
+#include "glxinfo.h"
+
+#include "NvCtrlAttributes.h"
 
 
 #define TAB    "  "
@@ -78,6 +81,9 @@ static void print_version(void)
  * flags - bitmask; possible values are NVGETOPT_HAS_ARGUMENT and
  * NVGETOPT_IS_BOOLEAN
  *
+ * description function - function to call to display description
+ *                        through nv_msg()
+ *
  * description - text for use by print_help() to describe the option
  */
 
@@ -107,6 +113,9 @@ static const NVGetoptOption __options[] = {
     { "assign", 'a', NVGETOPT_HAS_ARGUMENT, print_assign_help, NULL },
 
     { "query", 'q', NVGETOPT_HAS_ARGUMENT, print_query_help, NULL },
+
+    { "glxinfo", 'g', 0, NULL,
+      "Print GLX Information for the X display and exit." },
     
     { NULL,               0, 0, 0                   },
 };
@@ -216,9 +225,6 @@ void print_help(void)
 } /* print_help() */
 
 
-
-
-
 /*
  * parse_command_line() - malloc an Options structure, initialize it
  * with defaults, and fill in any pertinent data from the commandline
@@ -272,6 +278,7 @@ Options *parse_command_line(int argc, char *argv[], char *dpy)
             op->num_queries++;
             break;
         case CONFIG_FILE_OPTION: op->config = strval; break;
+        case 'g': print_glxinfo(NULL); exit(0); break;
         default:
             nv_error_msg("Invalid commandline, please run `%s --help` "
                          "for usage information.\n", argv[0]);

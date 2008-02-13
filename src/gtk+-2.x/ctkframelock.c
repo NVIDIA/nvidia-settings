@@ -1330,13 +1330,19 @@ static void polarity_toggled(GtkCellRendererToggle *cell,
 
     enabled ^= 1;
 
-    /* don't allow the user to turn off the rising edge */
-    
-    if (mask == NV_CTRL_FRAMELOCK_POLARITY_RISING_EDGE) enabled = TRUE;
-    
     if (enabled) polarity |= mask;
     else         polarity &= ~mask;
     
+
+    /* if the last bit was turned off, turn back on the other bit */
+
+    if (!polarity) {
+        if (mask == NV_CTRL_FRAMELOCK_POLARITY_RISING_EDGE)
+            polarity = NV_CTRL_FRAMELOCK_POLARITY_FALLING_EDGE;
+        if (mask == NV_CTRL_FRAMELOCK_POLARITY_FALLING_EDGE)
+            polarity = NV_CTRL_FRAMELOCK_POLARITY_RISING_EDGE;
+    }
+
     gtk_list_store_set(ctk_framelock->list_store, &iter,
                        COLUMN_POLARITY, polarity, -1);
     
@@ -1347,6 +1353,9 @@ static void polarity_toggled(GtkCellRendererToggle *cell,
     switch (polarity) {
     case NV_CTRL_FRAMELOCK_POLARITY_RISING_EDGE:
         polarity_str = "rising";
+        break;
+    case NV_CTRL_FRAMELOCK_POLARITY_FALLING_EDGE:
+        polarity_str = "falling";
         break;
     case NV_CTRL_FRAMELOCK_POLARITY_BOTH_EDGES:
         polarity_str = "rising and falling";
@@ -2224,12 +2233,9 @@ static GtkWidget *create_error_msg_dialog(CtkFramelock *ctk_framelock)
 
 static void error_msg(CtkFramelock *ctk_framelock, const gchar *fmt, ...)
 {
-    va_list ap;
     gchar *msg;
 
-    va_start(ap, fmt);
-    msg = nv_build_vararg_string(fmt, ap);
-    va_end(ap);
+    NV_VSNPRINTF(msg, fmt);
     
     gtk_label_set_line_wrap(GTK_LABEL(ctk_framelock->error_msg_label), TRUE);
     gtk_label_set_use_markup(GTK_LABEL(ctk_framelock->error_msg_label), TRUE);

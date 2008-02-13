@@ -29,7 +29,9 @@ SRC += \
 	NvCtrlAttributes.c \
 	NvCtrlAttributesNvControl.c \
 	NvCtrlAttributesVidMode.c \
-	NvCtrlAttributesXv.c
+	NvCtrlAttributesXv.c \
+	NvCtrlAttributesGlx.c \
+	NvCtrlAttributesXrandr.c
 
 EXTRA_DIST += \
 	NvCtrlAttributes.h \

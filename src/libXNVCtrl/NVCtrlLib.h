@@ -18,6 +18,7 @@ Bool XNVCTRLQueryExtension (
     int *error_basep
 );
 
+
 /*
  *  XNVCTRLQueryVersion -
  *
@@ -45,6 +46,7 @@ Bool XNVCTRLIsNvScreen (
     int screen
 );
 
+
 /*
  *  XNVCTRLSetAttribute -
  *
@@ -67,6 +69,7 @@ void XNVCTRLSetAttribute (
     int value
 );
 
+
 /*
  *  XNVCTRLQueryAttribute -
  *
@@ -82,7 +85,6 @@ void XNVCTRLSetAttribute (
  *     BadMatch - The NVIDIA driver is not present on that screen.
  */
 
-
 Bool XNVCTRLQueryAttribute (
     Display *dpy,
     int screen,
@@ -90,6 +92,7 @@ Bool XNVCTRLQueryAttribute (
     unsigned int attribute,
     int *value
 );
+
 
 /*
  *  XNVCTRLQueryStringAttribute -
@@ -113,6 +116,7 @@ Bool XNVCTRLQueryStringAttribute (
     char **ptr
 );
 
+
 /*
  * XNVCTRLQueryValidAttributeValues -
  *
@@ -129,6 +133,45 @@ Bool XNVCTRLQueryValidAttributeValues (
     unsigned int attribute,                                 
     NVCTRLAttributeValidValuesRec *values
 );
+
+
+/*
+ *  XNVCTRLSetGvoColorConversion -
+ *
+ *  Sets the color conversion matrix and color offset
+ *  that should be used for GVO (Graphic to Video Out).
+ *
+ *  Possible errors:
+ *     BadMatch - The NVIDIA driver is not present on that screen.
+ *     BadImplementation - GVO is not available on that screen.
+ */
+
+void XNVCTRLSetGvoColorConversion (
+    Display *dpy,
+    int screen,
+    float colorMatrix[3][3],
+    float colorOffset[3]
+);
+
+
+/*
+ *  XNVCTRLQueryGvoColorConversion -
+ *
+ *  Retrieves the color conversion matrix and color offset
+ *  that are currently being used for GVO (Graphic to Video Out).
+ *
+ *  Possible errors:
+ *     BadMatch - The NVIDIA driver is not present on that screen.
+ *     BadImplementation - GVO is not available on that screen.
+ */
+
+Bool XNVCTRLQueryGvoColorConversion (
+    Display *dpy,
+    int screen,
+    float colorMatrix[3][3],
+    float colorOffset[3]
+);
+
 
 /*
  * XNVCtrlSelectNotify -

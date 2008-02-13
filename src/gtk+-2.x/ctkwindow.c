@@ -42,8 +42,10 @@
 #include "ctkdevice.h"
 #include "ctkcolorcorrection.h"
 #include "ctkxvideo.h"
+#include "ctkrandr.h"
 #include "ctkcursorshadow.h"
 #include "ctkopengl.h"
+#include "ctkglx.h"
 #include "ctkmultisample.h"
 #include "ctkthermal.h"
 
@@ -526,6 +528,15 @@ GtkWidget *ctk_window_new(NvCtrlAttributeHandle **handles, gint num_handles,
                      "X Server XVideo Settings", NULL);
         }
 
+        /* randr settings */
+
+        child = ctk_randr_new(handles[i], ctk_config, ctk_event);
+        if (child) {
+            help = ctk_randr_create_help(tag_table, CTK_RANDR(child));
+            add_page(child, help, ctk_window, &iter,
+                     "Rotation Settings", NULL);
+        }
+
         /* cursor shadow */
 
         child = ctk_cursor_shadow_new(handles[i], ctk_config, ctk_event);
@@ -542,6 +553,16 @@ GtkWidget *ctk_window_new(NvCtrlAttributeHandle **handles, gint num_handles,
             help = ctk_opengl_create_help(tag_table, CTK_OPENGL(child));
             add_page(child, help, ctk_window, &iter, "OpenGL Settings", NULL);
         }
+
+
+        /* GLX Information */
+
+        child = ctk_glx_new(handles[i], ctk_config, ctk_event);
+        if (child) {
+            help = ctk_glx_create_help(tag_table, CTK_GLX(child));
+            add_page(child, help, ctk_window, &iter, "OpenGL/GLX Information", NULL);
+        }
+
 
         /* multisample settings */
 

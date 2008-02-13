@@ -30,6 +30,10 @@
  */
 
 #include <gtk/gtk.h>
+
+#include <X11/Xlib.h> /* Xrandr */
+#include <X11/extensions/Xrandr.h> /* Xrandr */
+
 #include "ctkevent.h"
 #include "NVCtrlLib.h"
 
@@ -45,11 +49,13 @@ typedef struct {
     Display *dpy;
     GPollFD event_poll_fd;
     int event_base;
+    int randr_event_base;
     CtkEvent *ctk_event;
 } CtkEventSource;
 
 
 static guint signals[NV_CTRL_LAST_ATTRIBUTE + 1];
+static guint signal_RRScreenChangeNotify;
 
 
 
@@ -76,7 +82,7 @@ GType ctk_event_get_type(void)
 
     return ctk_event_type;
     
-} /* ctk_window_get_type() */
+} /* ctk_event_get_type() */
 
 
 static void ctk_event_class_init(CtkEventClass *ctk_event_class)
@@ -195,6 +201,16 @@ static void ctk_event_class_init(CtkEventClass *ctk_event_class)
 #warning "There are attributes that do not emit signals!"
 #endif
 
+
+    /* Make XRandR signal */
+    signal_RRScreenChangeNotify =
+        g_signal_new("CTK_EVENT_RRScreenChangeNotify",
+                     G_OBJECT_CLASS_TYPE(ctk_event_class),
+                     G_SIGNAL_RUN_LAST, 0, NULL, NULL,
+                     g_cclosure_marshal_VOID__POINTER,
+                     G_TYPE_NONE, 1, G_TYPE_POINTER);
+
+
 } /* ctk_event_class_init */
 
 
@@ -234,6 +250,7 @@ GtkObject *ctk_event_new (NvCtrlAttributeHandle *handle)
     event_source->event_poll_fd.fd = ConnectionNumber(dpy);
     event_source->event_poll_fd.events = G_IO_IN;
     event_source->event_base = NvCtrlGetEventBase(handle);
+    event_source->randr_event_base = NvCtrlGetXrandrEventBase(handle);
     event_source->ctk_event = ctk_event;
 
     /* add the input source to the glib main loop */
@@ -242,7 +259,8 @@ GtkObject *ctk_event_new (NvCtrlAttributeHandle *handle)
     g_source_attach(source, NULL);
     
     return GTK_OBJECT(ctk_event);
-}
+
+} /* ctk_event_new() */
 
 
 static gboolean ctk_event_prepare(GSource *source, gint *timeout)
@@ -312,6 +330,16 @@ static gboolean ctk_event_dispatch(GSource *source,
                           0, &event_struct);
         }
     }
+
+    /*
+     * Also handle XRandR events.
+     */
+    if (event.type ==
+        (event_source->randr_event_base + RRScreenChangeNotify)) {
+        g_signal_emit(event_source->ctk_event, signal_RRScreenChangeNotify,
+                      0, &event);
+    }
     
     return TRUE;
-}
+
+} /* ctk_event_dispatch() */

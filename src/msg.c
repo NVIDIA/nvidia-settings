@@ -31,9 +31,20 @@
 #include <string.h>
 #include <unistd.h>
 #include <sys/ioctl.h>
+#if defined(__sun)
+#include <sys/termios.h>
+#endif
 
-static void format(FILE*, const char*, const char *, va_list);
+static void format(FILE*, const char*, char *);
 static int get_terminal_width(void);
+
+#define NV_FORMAT(stream, prefix, fmt)          \
+do {                                            \
+    char *buf;                                  \
+    NV_VSNPRINTF(buf, fmt);                     \
+    format(stream, prefix, buf);                \
+    free (buf);                                 \
+} while(0)
 
 /*
  * nv_error_msg() - print an error message, nicely formatted using the
@@ -42,13 +53,9 @@ static int get_terminal_width(void);
 
 void nv_error_msg(const char *fmt, ...)
 {
-    va_list ap;
-
     fprintf(stderr, "\n");
  
-    va_start(ap, fmt);
-    format(stderr, "ERROR: ", fmt, ap);
-    va_end(ap);
+    NV_FORMAT(stderr, "ERROR: ", fmt);
 
     fprintf(stderr, "\n");
 
@@ -63,13 +70,9 @@ void nv_error_msg(const char *fmt, ...)
 
 void nv_warning_msg(const char *fmt, ...)
 {
-    va_list ap;
-    
     fprintf(stdout, "\n");
 
-    va_start(ap, fmt);
-    format(stdout, "WARNING: ", fmt, ap);
-    va_end(ap);
+    NV_FORMAT(stdout, "WARNING: ", fmt);
 
     fprintf(stdout, "\n");
     
@@ -84,10 +87,7 @@ void nv_warning_msg(const char *fmt, ...)
 
 void nv_msg(const char *prefix, const char *fmt, ...)
 {
-    va_list ap;
-    va_start(ap, fmt);
-    format(stdout, prefix, fmt, ap);
-    va_end(ap);
+    NV_FORMAT(stdout, prefix, fmt);
 
 } /* nv_msg() */
 
@@ -105,69 +105,17 @@ int vsnprintf(char *str, size_t size, const char  *format,
 
 
 
-#define FMT_BUF_LEN 256
-
 /*
- * nv_build_vararg_string() - return an alloced string, assembled
- * using vsnprintf().
- */
-
-char *nv_build_vararg_string(const char *fmt, va_list ap)
-{
-    int len, finished, current_len;
-    char *buf;
-
-    finished = 0;
-    current_len = FMT_BUF_LEN;
-    buf = malloc(current_len);
-    do {
-        len = vsnprintf(buf, current_len, fmt, ap);
-        if ((len == -1) || len > current_len) {
-            
-            /*
-             * if we get in here we know that vsnprintf had to truncate the
-             * string to make it fit in the buffer... we need to extend the
-             * buffer to encompass the string.  Unfortunately, we have to deal
-             * with two different semantics of the return value from
-             * (v)snprintf:
-             *
-             * -1 when the buffer is not long enough (glibc < 2.1)
-             * 
-             * or
-             *
-             * the length the string would have been if the buffer had been
-             * large enough (glibc >= 2.1)
-             */
-            
-            if (len == -1) current_len += FMT_BUF_LEN;
-            else current_len = len+1;
-            buf = realloc(buf, current_len);
-        }
-        else finished = 1;
-        
-    } while (!finished);
-
-    return buf;
-
-} /* nv_build_vararg_string() */
-
-
-
-/*
- * format() - this takes a printf-style format string and a variable
- * list of args.  We use sprintf to generate the desired string, and
- * then format the string so that not more than 80 characters are
- * printed across.
+ * format() - formats and prints the string buf so that no more than
+ * 80 characters are printed across.
  */
 
 static void format(FILE *stream, const char *prefix,
-                   const char *fmt, va_list ap)
+                   char *buf)
 {
     int len, prefix_len, z, w, i, max_width;
-    char *buf, *line, *local_prefix, *a, *b, *c;
+    char *line, *local_prefix, *a, *b, *c;
         
-    buf = nv_build_vararg_string(fmt, ap);
-    
     max_width = get_terminal_width();
 
     /* loop until we've printed the entire string */
@@ -255,7 +203,6 @@ static void format(FILE *stream, const char *prefix,
         
     } while (z > 0);
     
-    free (buf);
     if (local_prefix) free (local_prefix);
 
 } /* format() */
