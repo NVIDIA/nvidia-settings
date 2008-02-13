@@ -33,6 +33,10 @@
 # PKG_CONFIG = pkg-config
 # X11R6_DIR = /usr/X11R6
 
+# default build target
+
+default: all
+
 
 # default definitions; can be overwritten by users
 
@@ -40,6 +44,7 @@ SHELL = /bin/sh
 INSTALL = install
 BUILD_OS := $(shell uname)
 BUILD_ARCH := $(shell uname -m)
+M4 := m4
 
 ifndef CC
   CC = gcc
@@ -184,12 +189,10 @@ DEPS := $(patsubst %.c,$(DEPS_DIR)/%.d,$(SRC))
 
 # and now, the build rules:
 
-default: all
+all: $(NVIDIA_SETTINGS) doc/$(MANPAGE)
 
-all: $(NVIDIA_SETTINGS)
-
-install: $(NVIDIA_SETTINGS)
-	$(STRIP) $<
+install: all
+	$(STRIP) $(NVIDIA_SETTINGS)
 	$(INSTALL_RULE)
 
 $(OBJS_DIR)/%.o: %.c

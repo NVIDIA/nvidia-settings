@@ -114,6 +114,7 @@ GtkWidget* ctk_device_new(
         if (tmp == NV_CTRL_BUS_TYPE_AGP) bus_type = "AGP";
         if (tmp == NV_CTRL_BUS_TYPE_PCI) bus_type = "PCI";
         if (tmp == NV_CTRL_BUS_TYPE_PCI_EXPRESS) bus_type = "PCI Express";
+        if (tmp == NV_CTRL_BUS_TYPE_INTEGRATED) bus_type = "Integrated";
     }
     if (!bus_type) bus_type = __unknown;
 
@@ -300,8 +301,8 @@ GtkTextBuffer *ctk_device_create_help(GtkTextTagTable *table,
     ctk_help_heading(b, &i, "Bus Type");
     ctk_help_para(b, &i, "This is the bus type which is "
                   "used to connect the NVIDIA GPU to the rest of "
-                  "your computer; possible values are AGP, PCI, or "
-                  "PCI Express.");
+                  "your computer; possible values are AGP, PCI, "
+                  "PCI Express and Integrated.");
     
     ctk_help_heading(b, &i, "VBIOS Version");
     ctk_help_para(b, &i, "This is the Video BIOS version.");

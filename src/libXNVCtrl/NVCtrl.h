@@ -85,6 +85,7 @@
 #define NV_CTRL_BUS_TYPE_AGP                                    0
 #define NV_CTRL_BUS_TYPE_PCI                                    1
 #define NV_CTRL_BUS_TYPE_PCI_EXPRESS                            2
+#define NV_CTRL_BUS_TYPE_INTEGRATED                             3
 
 
 /*

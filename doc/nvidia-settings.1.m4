@@ -1,10 +1,15 @@
+changequote([[[, ]]])dnl
+dnl Solaris man chokes on three-letter macros.
+ifelse(__BUILD_OS__,SunOS,[[[define(__URL__,UR)]]],[[[define(__URL__,URL)]]])dnl
 .\" Copyright (C) 2005 NVIDIA Corporation.
-.\" Define the URL macro and then load the URL package if it exists.
-.de URL
+__HEADER__
+.\" Define the .__URL__ macro and then override it with the www.tmac package if it
+.\" exists.
+.de __URL__
 \\$2 \(la \\$1 \(ra\\$3
 ..
 .if \n[.g] .mso www.tmac
-.TH nvidia-settings 1 2005-09-06 "nvidia-settings 1.0"
+.TH nvidia-settings 1 2005-12-01 "nvidia-settings 1.0"
 .SH NAME
 nvidia\-settings \- configure the NVIDIA graphics driver
 .SH SYNOPSIS
@@ -26,7 +31,7 @@ has the form:
 .SH DESCRIPTION
 The
 .B nvidia\-settings
-utility is a tool for configuring the NVIDIA Linux graphics driver.
+utility is a tool for configuring the NVIDIA graphics driver.
 It operates by communicating with the NVIDIA X driver, querying and updating state as appropriate.
 This communication is done with the NV-CONTROL X extension.
 .PP
@@ -420,11 +425,11 @@ Please see the
 .BR xauth (1)
 and
 .BR xhost (1)
-man pages, or refer to your Linux Distribution's documentation on remote X applications and security.
+man pages, or refer to your system documentation on remote X applications and security.
 You might also Google for terms such as "remote X security" or "remote X Windows", and see documents such as the Remote X Apps mini-HOWTO:
 .sp
 .ti +5
-.URL http://www.tldp.org/HOWTO/Remote-X-Apps.html
+.__URL__ http://www.tldp.org/HOWTO/Remote-X-Apps.html
 .sp
 Please also note that the remote X server to be controlled must be using the NVIDIA X driver.
 .SS 7. Licensing
@@ -434,7 +439,7 @@ is released as GPL.
 The most recent official version of the source code is available here:
 .sp
 .ti +5
-.URL ftp://download.nvidia.com/XFree86/nvidia-settings/
+.__URL__ ftp://download.nvidia.com/XFree86/nvidia-settings/
 .sp
 Note that
 .B nvidia\-settings
@@ -501,7 +506,7 @@ Aaron Plattner
 .br
 NVIDIA Corporation
 .SH "SEE ALSO"
-.BR nvidia\-xconfig (1),
-.BR nvidia\-installer (1)
+.BR nvidia\-xconfig (1)ifelse(__BUILD_OS__,Linux,[[[,
+.BR nvidia\-installer (1)]]])
 .SH COPYRIGHT
 Copyright \(co 2005 NVIDIA Corporation.

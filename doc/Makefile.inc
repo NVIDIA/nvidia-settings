@@ -29,4 +29,11 @@ EXTRA_DIST += \
 	NV-CONTROL-API.txt \
 	FRAMELOCK.txt \
 	nvidia-settings-user-guide.txt \
-	nvidia-settings.1
+	nvidia-settings.1.m4
+
+AUTO_TEXT = ".\\\" WARNING: THIS FILE IS AUTO-GENERATED!  Edit $< instead."
+
+doc/nvidia-settings.1: nvidia-settings.1.m4
+	$(M4) -D__HEADER__=$(AUTO_TEXT) \
+	      -D__BUILD_OS__=$(BUILD_OS) \
+	      $< > $@
