@@ -366,7 +366,7 @@ GtkWidget* ctk_clocks_new(NvCtrlAttributeHandle *handle,
     object = g_object_new(CTK_TYPE_CLOCKS, NULL);
     ctk_object = CTK_CLOCKS(object);
 
-    /* Cache the handke and configuration */
+    /* Cache the handle and configuration */
 
     ctk_object->handle               = handle;
     ctk_object->ctk_config           = ctk_config;
@@ -864,6 +864,8 @@ static void overclocking_state_update_gui(CtkClocks *ctk_object)
 {
     ReturnStatus ret;
     int value;
+    NVCTRLAttributeValidValuesRec range_detection;
+    gboolean probing_optimal = TRUE;
     gboolean enabled;
 
 
@@ -888,12 +890,21 @@ static void overclocking_state_update_gui(CtkClocks *ctk_object)
      */
 
     if ( enabled ) {
-        ret = NvCtrlGetAttribute(ctk_object->handle,
-                                 NV_CTRL_GPU_OPTIMAL_CLOCK_FREQS_DETECTION_STATE,
-                                 &value);
-        if ( ret == NvCtrlSuccess )
-            ctk_object->probing_optimal =
-                (value == NV_CTRL_GPU_OPTIMAL_CLOCK_FREQS_DETECTION_STATE_BUSY);
+        ret = NvCtrlGetValidAttributeValues(ctk_object->handle,
+                                 NV_CTRL_GPU_OPTIMAL_CLOCK_FREQS_DETECTION,
+                                 &range_detection);
+        if ( ret == NvCtrlSuccess ) {
+            ret = NvCtrlGetAttribute(ctk_object->handle,
+                                     NV_CTRL_GPU_OPTIMAL_CLOCK_FREQS_DETECTION_STATE,
+                                     &value);
+            if ( ret == NvCtrlSuccess ) {
+                probing_optimal =
+                    (value == NV_CTRL_GPU_OPTIMAL_CLOCK_FREQS_DETECTION_STATE_BUSY);
+            }
+            ctk_object->probing_optimal = probing_optimal;
+
+            ctk_object->auto_detection_available = TRUE;
+        }
     }
 
     /* Sync the gui to be able to modify the clocks */
