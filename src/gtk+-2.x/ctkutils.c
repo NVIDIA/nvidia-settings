@@ -141,3 +141,30 @@ void ctk_display_warning_msg(GtkWidget *parent, gchar * msg)
     }
 
 } /* ctk_display_warning_msg() */
+
+
+
+/** ctk_empty_container() ********************************************
+ *
+ * Removes all (non internal) children widgets from a container
+ *
+ * XXX It might be useful later on to allow a callback to be called
+ *     for each widget that gets removed etc.
+ *
+ **/
+
+void ctk_empty_container(GtkWidget *container)
+{
+    GList *list;
+    GList *node;
+
+    list = gtk_container_get_children(GTK_CONTAINER(container));
+    node = list;
+    while (node) {
+        gtk_container_remove(GTK_CONTAINER(container),
+                             (GtkWidget *)(node->data));
+        node = node->next;
+    }
+    g_list_free(list);
+
+} /* ctk_empty_container() */

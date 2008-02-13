@@ -3564,8 +3564,33 @@
 #define NV_CTRL_STRING_SLI_MODE                                28   /* R---*/
 
 
+/*
+ * NV_CTRL_STRING_PERFORMANCE_MODES - returns a string with all the
+ * performance modes defined for this GPU along with their associated
+ * NV Clock and Memory Clock values.
+ *
+ * Each performance modes are returned as a comma-separated list of
+ * "token=value" pairs.  Each set of performance mode tokens are separated
+ * by a ";".  Valid tokens:
+ *
+ *    Token      Value
+ *   "perf"      integer   - the Performance level
+ *   "nvClock"   integer   - the GPU clocks (in MHz) for the perf level
+ *   "memClock"  integer   - the memory clocks (in MHz) for the perf level
+ *
+ *
+ * Example:
+ *
+ *   perf=0, nvclock=500, memclock=505 ; perf=1, nvclock=650, memclock=505
+ *
+ * This attribute may be queried through XNVCTRLQueryTargetStringAttribute()
+ * using a NV_CTRL_TARGET_TYPE_GPU or NV_CTRL_TARGET_TYPE_X_SCREEN target.
+ */
+
+#define NV_CTRL_STRING_PERFORMANCE_MODES                      29   /* R--G */
+
 #define NV_CTRL_STRING_LAST_ATTRIBUTE \
-        NV_CTRL_STRING_SLI_MODE
+        NV_CTRL_STRING_PERFORMANCE_MODES
 
 
 /**************************************************************************/

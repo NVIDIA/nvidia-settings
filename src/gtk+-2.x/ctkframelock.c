@@ -30,6 +30,7 @@
 #include <string.h>
 #include <assert.h>
 
+#include "ctkutils.h"
 #include "ctkframelock.h"
 #include "ctkhelp.h"
 #include "ctkevent.h"
@@ -778,17 +779,12 @@ GtkWidget *my_toggle_button_new_with_label(const gchar *txt,
  */
 void update_image(GtkWidget *container, GtkWidget *new_image)
 {
-    GList *list;
+    ctk_empty_container(container);
 
-    list = gtk_container_get_children(GTK_CONTAINER(container));
-    if (list) {
-        gtk_container_remove(GTK_CONTAINER(container),
-                             (GtkWidget *)(list->data));
-        g_list_free(list);
-    }
     gtk_box_pack_start(GTK_BOX(container),
                        ctk_image_dupe(GTK_IMAGE(new_image)),
                        FALSE, FALSE, 0);
+
     gtk_widget_show_all(container);
 }
 

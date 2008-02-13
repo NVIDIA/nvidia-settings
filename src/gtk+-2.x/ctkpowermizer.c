@@ -22,12 +22,20 @@
  *
  */
 
+#include <stdlib.h>
+#include <string.h>
+
 #include <gtk/gtk.h>
 #include <NvCtrlAttributes.h>
 
+#include "msg.h"
+
+#include "ctkutils.h"
 #include "ctkhelp.h"
 #include "ctkpowermizer.h"
 #include "ctkimage.h"
+
+
 
 #define FRAME_PADDING 10
 #define DEFAULT_UPDATE_POWERMIZER_INFO_TIME_INTERVAL 1000
@@ -88,6 +96,152 @@ GType ctk_powermizer_get_type(void)
 
 } /* ctk_powermizer_get_type() */
 
+
+
+typedef struct {
+    gint perf_level;
+    gint nvclock;
+    gint memclock;
+} perfModeEntry, * perfModeEntryPtr;
+
+
+static void apply_perf_mode_token(char *token, char *value, void *data)
+{
+    perfModeEntryPtr pEntry = (perfModeEntryPtr) data;
+
+    if (!strcasecmp("perf", token)) {
+        pEntry->perf_level = atoi(value);
+    } else if (!strcasecmp("nvclock", token)) {
+        pEntry->nvclock = atoi(value);
+    } else if (!strcasecmp("memclock", token)) {
+        pEntry->memclock = atoi(value);
+    } else {
+        nv_warning_msg("Unknown Perf Mode token value pair: %s=%s",
+                       token, value);
+    }
+}
+
+
+static void update_perf_mode_table(CtkPowermizer *ctk_powermizer,
+                                   gint perf_level)
+{
+    GtkWidget *table;
+    GtkWidget *label;
+    char *perf_modes = NULL;
+    char *tokens;
+    char tmp_str[24];
+    perfModeEntry entry;
+    gint ret;
+    gint row_idx; /* Where to insert into the perf mode table */
+    gboolean active;
+
+    /* Since table cell management in GTK lacks, just remove and rebuild
+     * the table from scratch.
+     */
+    
+    /* Dump out the old table */
+
+    ctk_empty_container(ctk_powermizer->performance_table_hbox);
+    
+    /* Generate a new table */
+
+    table = gtk_table_new(1, 3, FALSE);
+    gtk_table_set_row_spacings(GTK_TABLE(table), 3);
+    gtk_table_set_col_spacings(GTK_TABLE(table), 15);
+    gtk_container_set_border_width(GTK_CONTAINER(table), 5);
+
+    gtk_box_pack_start(GTK_BOX(ctk_powermizer->performance_table_hbox),
+                       table, FALSE, FALSE, 0);
+    
+    label = gtk_label_new("Performance Level");
+    gtk_misc_set_alignment(GTK_MISC(label), 0.0f, 0.5f);
+    gtk_table_attach(GTK_TABLE(table), label, 0, 1, 0, 1,
+            GTK_FILL, GTK_FILL | GTK_EXPAND, 5, 0);
+
+    label = gtk_label_new("NV Clock");
+    gtk_misc_set_alignment(GTK_MISC(label), 0.0f, 0.5f);
+    gtk_table_attach(GTK_TABLE(table), label, 1, 2, 0, 1,
+            GTK_FILL, GTK_FILL | GTK_EXPAND, 5, 0);
+
+    label = gtk_label_new("Memory Clock");
+    gtk_misc_set_alignment(GTK_MISC(label), 0.0f, 0.5f);
+    gtk_table_attach(GTK_TABLE(table), label, 2, 3, 0, 1,
+            GTK_FILL, GTK_FILL | GTK_EXPAND, 5, 0);
+
+    /* Get the current list of perf levels */
+
+    ret = NvCtrlGetStringAttribute(ctk_powermizer->attribute_handle,
+                                   NV_CTRL_STRING_PERFORMANCE_MODES,
+                                   &perf_modes); 
+
+    if (ret != NvCtrlSuccess) {
+        gtk_widget_show_all(table);
+        /* Bail */
+        return;
+    }
+
+    /* Parse the perf levels and populate the table */
+
+    row_idx = 1;
+    for (tokens = strtok(perf_modes, ";");
+         tokens;
+         tokens = strtok(NULL, ";")) {
+
+        /* Invalidate perf mode entry */
+        entry.perf_level = -1;
+        entry.nvclock = -1;
+        entry.memclock = -1;
+        
+        parse_token_value_pairs(tokens, apply_perf_mode_token,
+                                &entry);
+        
+        /* Only add complete perf mode entries */
+        if ((entry.perf_level != -1) &&
+            (entry.nvclock != -1) &&
+            (entry.memclock != -1)) {
+            
+            active = (entry.perf_level == perf_level) ? TRUE : FALSE;
+
+            /* XXX Assume the perf levels are sorted by the server */
+
+            gtk_table_resize(GTK_TABLE(table), row_idx+1, 3);
+
+            g_snprintf(tmp_str, 24, "%d", entry.perf_level);
+            label = gtk_label_new(tmp_str);
+            gtk_widget_set_sensitive(label, active);
+            gtk_misc_set_alignment(GTK_MISC(label), 0.0f, 0.5f);
+            gtk_table_attach(GTK_TABLE(table), label, 0, 1, row_idx, row_idx+1,
+                             GTK_FILL, GTK_FILL | GTK_EXPAND, 5, 0);
+
+            g_snprintf(tmp_str, 24, "%d MHz", entry.nvclock);
+            label = gtk_label_new(tmp_str);
+            gtk_widget_set_sensitive(label, active);
+            gtk_misc_set_alignment(GTK_MISC(label), 0.0f, 0.5f);
+            gtk_table_attach(GTK_TABLE(table), label, 1, 2, row_idx, row_idx+1,
+                             GTK_FILL, GTK_FILL | GTK_EXPAND, 5, 0);
+
+            g_snprintf(tmp_str, 24, "%d MHz", entry.memclock);
+            label = gtk_label_new(tmp_str);
+            gtk_widget_set_sensitive(label, active);
+            gtk_misc_set_alignment(GTK_MISC(label), 0.0f, 0.5f);
+            gtk_table_attach(GTK_TABLE(table), label, 2, 3, row_idx, row_idx+1,
+                             GTK_FILL, GTK_FILL | GTK_EXPAND, 5, 0);
+
+            row_idx++;
+        } else {
+            nv_warning_msg("Incomplete Perf Mode (perf=%d, nvclock=%d,"
+                           " memclock=%d)",
+                           entry.perf_level, entry.nvclock, entry.memclock);
+        }
+    }
+
+    gtk_widget_show_all(table);
+
+    XFree(perf_modes);
+}
+
+
+
 static gboolean update_powermizer_info(gpointer user_data)
 {
     gint power_source, perf_mode, adaptive_clock, perf_level;
@@ -95,12 +249,14 @@ static gboolean update_powermizer_info(gpointer user_data)
 
     CtkPowermizer *ctk_powermizer;
     NvCtrlAttributeHandle *handle;
-    gint ret; gchar *s;
+    gint ret;
+    gchar *s;
 
     ctk_powermizer = CTK_POWERMIZER(user_data);
     handle = ctk_powermizer->attribute_handle;
 
-    ret = NvCtrlGetAttribute(handle, NV_CTRL_GPU_ADAPTIVE_CLOCK_STATE, &adaptive_clock);
+    ret = NvCtrlGetAttribute(handle, NV_CTRL_GPU_ADAPTIVE_CLOCK_STATE,
+                             &adaptive_clock);
     if (ret != NvCtrlSuccess) { 
         return FALSE;
     }
@@ -182,7 +338,10 @@ static gboolean update_powermizer_info(gpointer user_data)
     gtk_label_set_text(GTK_LABEL(ctk_powermizer->performance_mode), s);
     g_free(s);
     
+    /* update the perf table */
 
+    update_perf_mode_table(ctk_powermizer, perf_level);
+ 
     return TRUE;
 }
 
@@ -244,7 +403,7 @@ GtkWidget* ctk_powermizer_new(NvCtrlAttributeHandle *handle,
 
     /* set container properties for the CtkPowermizer widget */
 
-    gtk_box_set_spacing(GTK_BOX(ctk_powermizer), 7);
+    gtk_box_set_spacing(GTK_BOX(ctk_powermizer), 5);
 
     /* banner */
 
@@ -263,7 +422,7 @@ GtkWidget* ctk_powermizer_new(NvCtrlAttributeHandle *handle,
     hsep = gtk_hseparator_new();
     gtk_box_pack_start(GTK_BOX(hbox), hsep, TRUE, TRUE, 5);
 
-    table = gtk_table_new(15, 2, FALSE);
+    table = gtk_table_new(17, 2, FALSE);
     gtk_box_pack_start(GTK_BOX(vbox), table, FALSE, FALSE, 0);
     gtk_table_set_row_spacings(GTK_TABLE(table), 3);
     gtk_table_set_col_spacings(GTK_TABLE(table), 15);
@@ -347,11 +506,10 @@ GtkWidget* ctk_powermizer_new(NvCtrlAttributeHandle *handle,
     ctk_config_set_tooltip(ctk_config, eventbox, __power_source_help);
     ctk_powermizer->power_source = label;
 
-
     /* Performance Level */
 
     hbox2 = gtk_hbox_new(FALSE, 0);
-    gtk_table_attach(GTK_TABLE(table), hbox2, 0, 1, 13, 14,
+    gtk_table_attach(GTK_TABLE(table), hbox2, 0, 1, 14, 15,
             GTK_FILL, GTK_FILL | GTK_EXPAND, 5, 0);
 
     label = gtk_label_new("Performance Level:");
@@ -359,7 +517,7 @@ GtkWidget* ctk_powermizer_new(NvCtrlAttributeHandle *handle,
     gtk_box_pack_start(GTK_BOX(hbox2), label, FALSE, FALSE, 0);
 
     eventbox = gtk_event_box_new();
-    gtk_table_attach(GTK_TABLE(table), eventbox, 1, 2, 13, 14,
+    gtk_table_attach(GTK_TABLE(table), eventbox, 1, 2, 14, 15,
             GTK_FILL, GTK_FILL | GTK_EXPAND, 5, 0);
 
     label = gtk_label_new(NULL);
@@ -371,7 +529,7 @@ GtkWidget* ctk_powermizer_new(NvCtrlAttributeHandle *handle,
     /* Performance Mode */
 
     hbox2 = gtk_hbox_new(FALSE, 0);
-    gtk_table_attach(GTK_TABLE(table), hbox2, 0, 1, 14, 15,
+    gtk_table_attach(GTK_TABLE(table), hbox2, 0, 1, 15, 16,
             GTK_FILL, GTK_FILL | GTK_EXPAND, 5, 0);
 
     label = gtk_label_new("Performance Mode:");
@@ -379,14 +537,32 @@ GtkWidget* ctk_powermizer_new(NvCtrlAttributeHandle *handle,
     gtk_box_pack_start(GTK_BOX(hbox2), label, FALSE, FALSE, 0);
 
     eventbox = gtk_event_box_new();
-    gtk_table_attach(GTK_TABLE(table), eventbox, 1, 2, 14, 15,
+    gtk_table_attach(GTK_TABLE(table), eventbox, 1, 2, 15, 16,
             GTK_FILL, GTK_FILL | GTK_EXPAND, 5, 0);
 
     label = gtk_label_new(NULL);
     gtk_misc_set_alignment(GTK_MISC(label), 0.0, 0.5);
     gtk_container_add(GTK_CONTAINER(eventbox), label);
-    ctk_config_set_tooltip(ctk_config, eventbox, __performance_mode_short_help);
+    ctk_config_set_tooltip(ctk_config, eventbox,
+                           __performance_mode_short_help);
     ctk_powermizer->performance_mode = label;
+
+    /* Available Performance Level Title */
+
+    hbox = gtk_hbox_new(FALSE, 0);
+    gtk_box_pack_start(GTK_BOX(vbox), hbox, FALSE, FALSE, 0);
+
+    label = gtk_label_new("Performance Levels");
+    gtk_box_pack_start(GTK_BOX(hbox), label, FALSE, FALSE, 0);
+
+    hsep = gtk_hseparator_new();
+    gtk_box_pack_start(GTK_BOX(hbox), hsep, TRUE, TRUE, 5);
+
+    /* Available Performance Level Table */
+
+    hbox = gtk_hbox_new(FALSE, 0);
+    gtk_box_pack_start(GTK_BOX(vbox), hbox, FALSE, FALSE, 0);
+    ctk_powermizer->performance_table_hbox = hbox;
 
     /* Register a timer callback to update the temperatures */
 

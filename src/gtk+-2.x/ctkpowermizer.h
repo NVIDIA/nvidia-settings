@@ -64,6 +64,7 @@ struct _CtkPowermizer
     GtkWidget *power_source;
     GtkWidget *performance_level;
     GtkWidget *performance_mode;
+    GtkWidget *performance_table_hbox;
 };
 
 struct _CtkPowermizerClass

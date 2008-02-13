@@ -40,6 +40,8 @@ void ctk_display_error_msg(GtkWidget *parent, gchar *msg);
 
 void ctk_display_warning_msg(GtkWidget *parent, gchar *msg);
 
+void ctk_empty_container(GtkWidget *);
+
 G_END_DECLS
 
 #endif /* __CTK_UTILS_H__ */

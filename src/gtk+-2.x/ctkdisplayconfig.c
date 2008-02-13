@@ -6548,6 +6548,7 @@ static Bool add_monitor_to_xconfig(nvDisplayPtr display, XConfigPtr config,
     char *v_source = NULL;
     char *h_source = NULL;
     float min, max;
+    unsigned int i, j, len;
     
     monitor = (XConfigMonitorPtr)calloc(1, sizeof(XConfigMonitorRec));
     if (!monitor) goto fail;
@@ -6555,8 +6556,20 @@ static Bool add_monitor_to_xconfig(nvDisplayPtr display, XConfigPtr config,
     monitor->identifier = (char *)malloc(32);
     snprintf(monitor->identifier, 32, "Monitor%d", monitor_id);
     monitor->vendor = xconfigStrdup("Unknown");  /* XXX */
-    monitor->modelname = xconfigStrdup(display->name);
-    
+
+    /* Copy the model name string, stripping any '"' characters */
+
+    len = strlen(display->name);
+    monitor->modelname = (char *)malloc(len + 1);
+    for (i = 0, j = 0; i < len; i++, j++) {
+        if (display->name[i] == '\"') {
+            if (++i >= len)
+                break;
+        }
+        monitor->modelname[j] = display->name[i];
+    }
+    monitor->modelname[j] = '\0';
+
     /* Get the Horizontal Sync ranges from nv-control */
 
     ret = NvCtrlGetStringDisplayAttribute

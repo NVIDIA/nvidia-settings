@@ -208,6 +208,7 @@ AttributeTableEntry attributeTable[] = {
     { "GPU2DClockFreqs",        NV_CTRL_GPU_2D_CLOCK_FREQS,         N|P },
     { "GPU3DClockFreqs",        NV_CTRL_GPU_3D_CLOCK_FREQS,         N|P },
     { "GPUCurrentClockFreqs",   NV_CTRL_GPU_CURRENT_CLOCK_FREQS,    N|P },
+    { "GPUPerfModes",           NV_CTRL_STRING_PERFORMANCE_MODES,   S|N },
 
     { "NvidiaDriverVersion",    NV_CTRL_STRING_NVIDIA_DRIVER_VERSION,    S|N },
     { "NvControlVersion",       NV_CTRL_STRING_NV_CONTROL_VERSION,       S|N },
