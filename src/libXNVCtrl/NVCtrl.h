@@ -676,30 +676,28 @@
  * (Graphics to Video Out).  This functionality is available, for
  * example, on the Quadro FX 4000 SDI graphics board.
  *
- * Here is a normal usage pattern for the GVO attributes:
+ * The following is a typical usage pattern for the GVO attributes:
  *
  * - query NV_CTRL_GVO_SUPPORTED to determine if the X screen supports GV0.
  *
  * - specify NV_CTRL_GVO_SYNC_MODE (one of FREE_RUNNING, GENLOCK, or
- *   FRAMELOCK)
+ * FRAMELOCK); if you specify GENLOCK or FRAMELOCK, you should also
+ * specify NV_CTRL_GVO_SYNC_SOURCE.
  * 
  * - Use NV_CTRL_GVO_COMPOSITE_SYNC_INPUT_DETECTED and
- *   NV_CTRL_GVO_SDI_SYNC_INPUT_DETECTED to detect what input syncs are
- *   present.
+ * NV_CTRL_GVO_SDI_SYNC_INPUT_DETECTED to detect what input syncs are
+ * present.
  * 
- *  (If no analog sync is detected but it is known that a
- *   valid bi-level or tri-level sync is connected set
- *   NV_CTRL_GVO_COMPOSITE_SYNC_INPUT_DETECT_MODE appropriately and
- *   retest with NV_CTRL_GVO_COMPOSITE_SYNC_INPUT_DETECTED).
+ * (If no analog sync is detected but it is known that a valid
+ * bi-level or tri-level sync is connected set
+ * NV_CTRL_GVO_COMPOSITE_SYNC_INPUT_DETECT_MODE appropriately and
+ * retest with NV_CTRL_GVO_COMPOSITE_SYNC_INPUT_DETECTED).
  *
- * - specify NV_CTRL_GVO_SYNC_SOURCE, if appropriate
+ * - if syncing to input sync, query the
+ * NV_CTRL_GVO_INPUT_VIDEO_FORMAT attribute; note that Input video
+ * format can only be queried after SYNC_SOURCE is specified.
  *
- * - if syncing to input sync, query the NV_CTRL_GVO_INPUT_VIDEO_FORMAT
- * 
- * - query the valid NV_CTRL_GVO_OUTPUT_VIDEO_FORMAT values; the valid
- *   values will be a function of what is specified for
- *   NV_CTRL_GVO_SYNC_MODE and what INPUT_VIDEO_FORMAT mode is
- *   detected.
+ * - specify the NV_CTRL_GVO_OUTPUT_VIDEO_FORMAT
  *
  * - specify the NV_CTRL_GVO_DATA_FORMAT
  *
@@ -881,7 +879,7 @@
 
 /*
  * NV_CTRL_GVO_COMPOSITE_SYNC_INPUT_DETECT_MODE - get/set the
- * Composite Sync input detect mode.  XXX is this needed?
+ * Composite Sync input detect mode.
  */
 
 #define NV_CTRL_GVO_COMPOSITE_SYNC_INPUT_DETECT_MODE            75  /* RW- */
