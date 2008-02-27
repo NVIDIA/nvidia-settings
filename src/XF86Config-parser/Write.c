@@ -98,13 +98,17 @@ int xconfigWriteConfigFile (const char *filename, XConfigPtr cptr)
 
     xconfigPrintLayoutSection (cf, cptr->layouts);
 
-    fprintf (cf, "Section \"Files\"\n");
-    xconfigPrintFileSection (cf, cptr->files);
-    fprintf (cf, "EndSection\n\n");
+    if (cptr->files) {
+        fprintf (cf, "Section \"Files\"\n");
+        xconfigPrintFileSection (cf, cptr->files);
+        fprintf (cf, "EndSection\n\n");
+    }
 
-    fprintf (cf, "Section \"Module\"\n");
-    xconfigPrintModuleSection (cf, cptr->modules);
-    fprintf (cf, "EndSection\n\n");
+    if (cptr->modules) {
+        fprintf (cf, "Section \"Module\"\n");
+        xconfigPrintModuleSection (cf, cptr->modules);
+        fprintf (cf, "EndSection\n\n");
+    }
 
     xconfigPrintVendorSection (cf, cptr->vendors);
 

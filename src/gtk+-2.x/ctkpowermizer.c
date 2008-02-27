@@ -70,6 +70,13 @@ static const char *__memory_clock_freq_help =
 static const char *__clock_freq_help =
 "This indicates the current GPU Clock and Memory Clock frequencies.";
 
+static const char *__performance_levels_table_help =
+"This indicates the Performance Levels available for the GPU.  Each "
+"performance level is indicated by a Performance Level number, along with "
+"the GPU and Memory clocks for that level.  The currently active performance "
+"level is shown in regular text.  All other performance levels are shown in "
+"gray.";
+
 GType ctk_powermizer_get_type(void)
 {
     static GType ctk_powermizer_type = 0;
@@ -608,6 +615,10 @@ GtkTextBuffer *ctk_powermizer_create_help(GtkTextTagTable *table,
 
     ctk_help_heading(b, &i, "Performance Mode");
     ctk_help_para(b, &i, __performance_mode_help);
+    ctk_help_finish(b);
+
+    ctk_help_heading(b, &i, "Performance Levels (Table)");
+    ctk_help_para(b, &i, __performance_levels_table_help);
     ctk_help_finish(b);
 
     return b;
