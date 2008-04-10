@@ -773,6 +773,55 @@ typedef union {
     long pad[24];
 } XNVCtrlEventTarget;
 
+
+/*
+ * XNVCtrlEventTargetAvailability structure
+ */
+
+typedef struct {
+    int type;
+    unsigned long serial;
+    Bool send_event;  /* always FALSE, we don't allow send_events */
+    Display *display;
+    Time time;
+    int target_type;
+    int target_id;
+    unsigned int display_mask;
+    unsigned int attribute;
+    int value;
+    Bool availability;
+} XNVCtrlAttributeChangedEventTargetAvailability;
+
+typedef union {
+    int type;
+    XNVCtrlAttributeChangedEventTargetAvailability attribute_changed;
+    long pad[24];
+} XNVCtrlEventTargetAvailability;
+
+
+/*
+ * XNVCtrlStringEventTarget structure
+ */
+
+typedef struct {
+    int type;
+    unsigned long serial;
+    Bool send_event;  /* always FALSE, we don't allow send_events */
+    Display *display;
+    Time time;
+    int target_type;
+    int target_id;
+    unsigned int display_mask;
+    unsigned int attribute;
+} XNVCtrlStringAttributeChangedEventTarget;
+
+typedef union {
+    int type;
+    XNVCtrlStringAttributeChangedEventTarget attribute_changed;
+    long pad[24];
+} XNVCtrlStringEventTarget;
+
+
 #if defined __cplusplus
 } /* extern "C" */
 #endif 

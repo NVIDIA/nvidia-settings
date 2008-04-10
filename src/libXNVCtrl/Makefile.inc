@@ -26,14 +26,13 @@
 #
 
 EXTRA_DIST += \
+        Makefile \
 	Makefile.inc \
 	NVCtrl.h \
 	NVCtrlLib.h \
 	libXNVCtrl.a \
         NVCtrl.c \
-        nv_control.h \
-        README.LIBXNVCTRL \
-        Imakefile
+        nv_control.h
 
 dist_list::
 	@ echo $(SRC) $(EXTRA_DIST)

@@ -2,11 +2,11 @@
 #define __NVCONTROL_H
 
 #define NV_CONTROL_ERRORS 0
-#define NV_CONTROL_EVENTS 2
+#define NV_CONTROL_EVENTS 4
 #define NV_CONTROL_NAME "NV-CONTROL"
 
 #define NV_CONTROL_MAJOR 1
-#define NV_CONTROL_MINOR 14
+#define NV_CONTROL_MINOR 16
 
 #define X_nvCtrlQueryExtension                      0
 #define X_nvCtrlIsNv                                1
@@ -698,6 +698,21 @@ typedef struct {
             CARD32 pad0 B32;
             CARD32 pad1 B32;
         } attribute_changed;
+        struct {
+            BYTE type;
+            BYTE detail;
+            CARD16 sequenceNumber B16;
+            CARD32 time B32;
+            CARD16 target_type B16; /* Don't swap these */
+            CARD16 target_id B16;
+            CARD32 display_mask B32;
+            CARD32 attribute B32;
+            CARD32 value B32;
+            CARD8 availability;
+            CARD8 pad0;
+            CARD16 pad1 B16;
+            CARD32 pad2 B32;
+        } availability_changed;
     } u;
 } xnvctrlEventTarget;
 

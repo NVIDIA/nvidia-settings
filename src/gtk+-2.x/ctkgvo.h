@@ -28,6 +28,7 @@
 #include "NvCtrlAttributes.h"
 #include "ctkconfig.h"
 #include "ctkevent.h"
+#include "ctkgvo-banner.h"
 
 G_BEGIN_DECLS
 
@@ -54,22 +55,6 @@ G_BEGIN_DECLS
 typedef struct _CtkGvo       CtkGvo;
 typedef struct _CtkGvoClass  CtkGvoClass;
 
-typedef struct _CtkGvoBanner CtkGvoBanner;
-
-#define GVO_BANNER_VID1  0
-#define GVO_BANNER_VID2  1
-#define GVO_BANNER_SDI   2
-#define GVO_BANNER_COMP  3
-
-struct _CtkGvoBanner
-{
-    GtkWidget *widget;
-    GtkWidget *ctk_banner;
-
-    guint8 img[4];
-    guint state[4];
-};
-
 
 struct _CtkGvo
 {
@@ -79,49 +64,60 @@ struct _CtkGvo
     GtkWidget *parent_window;
     CtkConfig *ctk_config;
     CtkEvent *ctk_event;
+    
+    /* State */
+
+    gint caps; // Capabilities
+
+    gint lock_owner;
+
+    gint sync_mode;
+    gint input_video_format;
+
+    gint output_video_format;
+    gint valid_output_video_format_mask[2];
+    gboolean has_output_video_formats;      // XXX Show show non-valid as gray?
+    gboolean output_video_format_valid; /* If the output video format was
+                                           changed by another client to
+                                           something clone mode doesn't
+                                           support, we should ignore it,
+                                           but we should make sure that we
+                                           set the output_video_format when
+                                           we enable clone mode. */
+
+
+    gint output_data_format;
+    gboolean output_data_format_valid; /* If the output data format was
+                                          changed by another client to
+                                          something clone mode doesn't
+                                          support, we should ignore it,
+                                          but we should make sure that we
+                                          set the output_data_format when
+                                          we enable clone mode. */
+
+    gint screen_width;
+    gint screen_height;
+
+    /* Widgets */
 
     GtkWidget *banner_box;
+    GtkWidget *banner;
 
-    GtkWidget *sync_mode_menu;
-    GtkWidget *output_video_format_menu;
-    GtkWidget *output_data_format_menu;
-
-    GtkWidget *composite_termination_button;
-
-    GtkWidget *enable_sdi_output_label;
-    GtkWidget *disable_sdi_output_label;
-    GtkWidget *toggle_sdi_output_button;
-
-    GtkWidget *sync_format_menu;
-    GtkWidget *input_video_format_text_entry;
-    GtkWidget *input_video_format_detect_button;
 
     GtkWidget *current_resolution_label;
     GtkWidget *current_state_label;
-    
-    gint sync_mode;
-    gint sync_source;
-    gint input_video_format;
-    gint output_video_format;
-    gint output_data_format;
 
-    gint valid_output_video_format_mask[2];
-    gint input_video_format_detect_timer;
+    GtkWidget *clone_mode_frame;
 
-    GdkCursor *wait_cursor;
-    CtkGvoBanner banner;
-
-    GtkWidget *hsync_delay_spin_button;
-    GtkWidget *vsync_delay_spin_button;
+    GtkWidget *output_video_format_menu;
+    GtkWidget *output_data_format_menu;
 
     GtkWidget *x_offset_spin_button;
     GtkWidget *y_offset_spin_button;
 
-    gboolean sync_format_sensitive;
-    gboolean sdi_output_enabled;
-
-    gint screen_width;
-    gint screen_height;
+    GtkWidget *toggle_clone_mode_button;
+    GtkWidget *enable_clone_mode_label;
+    GtkWidget *disable_clone_mode_label;
 };
 
 
@@ -131,14 +127,34 @@ struct _CtkGvoClass
 };
 
 
+typedef struct {
+    int format;
+    const char *name;
+} GvoFormatName;
+
+typedef struct {
+    int format;
+    int rate;
+    int width;
+    int height;
+} GvoFormatDetails;
+
+
+
 GType          ctk_gvo_get_type    (void) G_GNUC_CONST;
 GtkWidget*     ctk_gvo_new         (NvCtrlAttributeHandle *,
-                                    GtkWidget *, CtkConfig *, CtkEvent *);
+                                    CtkConfig *, CtkEvent *);
 void           ctk_gvo_select      (GtkWidget *);
 void           ctk_gvo_unselect    (GtkWidget *);
 GtkTextBuffer* ctk_gvo_create_help (GtkTextTagTable *);
 void           ctk_gvo_pack_banner_slot (CtkGvoBanner *, gint slot, gint new);
 gint           ctk_gvo_probe       (gpointer data);
+
+
+
+const char *ctk_gvo_get_video_format_name(const gint format);
+const char *ctk_gvo_get_data_format_name(const gint format);
+void ctk_gvo_get_video_format_resolution(const gint format, gint *w, gint *h);
 
 
 G_END_DECLS

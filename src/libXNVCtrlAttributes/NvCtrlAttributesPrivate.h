@@ -124,6 +124,8 @@ struct __NvCtrlXvTextureAttributes {
     NvCtrlXvAttribute *sync_to_vblank;
     NvCtrlXvAttribute *contrast;
     NvCtrlXvAttribute *brightness;
+    NvCtrlXvAttribute *hue;
+    NvCtrlXvAttribute *saturation;
     NvCtrlXvAttribute *defaults;
 };
 

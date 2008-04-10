@@ -9,4 +9,4 @@ If I have a png, how do I build it into nvidia-settings?
     - add to the BannerArtworkType enum in image.h
     - include foo_pixdata.h in ctkbanner.c
     - add an entry to the ArtworkTable[] in ctkbanner.c:select_artwork()
-
+    - add an entry to the .../image_data/Makefile.inc

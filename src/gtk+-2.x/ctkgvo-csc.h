@@ -29,6 +29,7 @@
 #include "ctkconfig.h"
 #include "ctkgvo.h"
 
+
 G_BEGIN_DECLS
 
 #define CTK_TYPE_GVO_CSC (ctk_gvo_csc_get_type())
@@ -65,6 +66,8 @@ struct _CtkGvoCsc
     CtkGvo *gvo_parent;
     GtkWidget *banner_box;
 
+    int caps;
+
     float matrix[3][3]; // [row][column]
     float offset[3];
     float scale[3];
@@ -96,8 +99,7 @@ GType       ctk_gvo_csc_get_type  (void) G_GNUC_CONST;
 GtkWidget*  ctk_gvo_csc_new       (NvCtrlAttributeHandle *,
                                    CtkConfig *, CtkEvent *, CtkGvo *);
 
-//GtkTextBuffer *ctk_gvo_csc_create_help(GtkTextTagTable *,
-//                                       CtkGvoCsc *);
+GtkTextBuffer *ctk_gvo_csc_create_help(GtkTextTagTable *, CtkGvoCsc *);
 
 void ctk_gvo_csc_select(GtkWidget *);
 void ctk_gvo_csc_unselect(GtkWidget *);

@@ -44,7 +44,7 @@ char *ctk_get_display(void)
 
 void ctk_main(NvCtrlAttributeHandle **screen_handles, int num_screen_handles,
               NvCtrlAttributeHandle **gpu_handles, int num_gpu_handles,
-              NvCtrlAttributeHandle **vcsc_handles, int num_vcsc_handles,
+              NvCtrlAttributeHandle **vcs_handles, int num_vcs_handles,
               ParsedAttribute *p, ConfigProperties *conf)
 {
     int i, has_nv_control = FALSE;
@@ -53,7 +53,7 @@ void ctk_main(NvCtrlAttributeHandle **screen_handles, int num_screen_handles,
     gtk_window_set_default_icon_list(list);
     ctk_window_new(screen_handles, num_screen_handles,
                    gpu_handles, num_gpu_handles,
-                   vcsc_handles, num_vcsc_handles,
+                   vcs_handles, num_vcs_handles,
                    p, conf);
     
     for (i = 0; i < num_screen_handles; i++) {

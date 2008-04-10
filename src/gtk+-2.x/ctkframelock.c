@@ -83,7 +83,7 @@ enum
  * that entry.
  */
 
-#define NUM_GPU_SIGNALS 5
+#define NUM_GPU_SIGNALS 6
 
 const char *__GPUSignals[NUM_GPU_SIGNALS] = 
     {
@@ -91,7 +91,8 @@ const char *__GPUSignals[NUM_GPU_SIGNALS] =
         CTK_EVENT_NAME(NV_CTRL_FRAMELOCK_SLAVES),
         CTK_EVENT_NAME(NV_CTRL_FRAMELOCK_SYNC),
         CTK_EVENT_NAME(NV_CTRL_FRAMELOCK_TEST_SIGNAL),
-        CTK_EVENT_NAME(NV_CTRL_REFRESH_RATE)
+        CTK_EVENT_NAME(NV_CTRL_REFRESH_RATE),
+        CTK_EVENT_NAME(NV_CTRL_REFRESH_RATE_3)
     };
 
 /*
@@ -184,6 +185,7 @@ struct _nvDisplayDataRec {
     GtkWidget *rate_label;
     GtkWidget *rate_text;
     guint      rate;
+    guint      rate_precision;
 
     GtkWidget *stereo_label;
     GtkWidget *stereo_hbox; /* LED */
@@ -401,6 +403,11 @@ static GtkWidget *create_error_msg_dialog(CtkFramelock *ctk_framelock)
                                          GTK_RESPONSE_OK,
                                          NULL);
 
+    /* Prevent the dialog from being deleted when closed */
+    g_signal_connect(G_OBJECT(dialog), "delete-event",
+                     G_CALLBACK(gtk_widget_hide_on_delete),
+                     (gpointer) dialog);
+
     g_signal_connect_swapped(GTK_OBJECT(dialog), "response",
                              G_CALLBACK(gtk_widget_hide_all),
                              GTK_OBJECT(dialog));
@@ -547,6 +554,11 @@ static GtkWidget *create_add_devices_dialog(CtkFramelock *ctk_framelock)
                                          GTK_RESPONSE_OK,
                                          NULL);
 
+    /* Prevent the dialog from being deleted when closed */
+    g_signal_connect(G_OBJECT(dialog), "delete-event",
+                     G_CALLBACK(gtk_widget_hide_on_delete),
+                     (gpointer) dialog);
+
     g_signal_connect (GTK_OBJECT(dialog), "response",
                       G_CALLBACK(add_devices_response),
                       GTK_OBJECT(ctk_framelock));
@@ -599,7 +611,6 @@ static GtkWidget *create_add_devices_dialog(CtkFramelock *ctk_framelock)
                        TRUE, TRUE, 0);
     
     return dialog;
-
 }
 
 
@@ -630,6 +641,11 @@ static GtkWidget *create_remove_devices_dialog(CtkFramelock *ctk_framelock)
                                          GTK_STOCK_OK,
                                          GTK_RESPONSE_OK,
                                          NULL);
+
+    /* Prevent the dialog from being deleted when closed */
+    g_signal_connect(G_OBJECT(dialog), "delete-event",
+                     G_CALLBACK(gtk_widget_hide_on_delete),
+                     (gpointer) dialog);
 
     g_signal_connect(GTK_OBJECT(dialog), "response",
                      G_CALLBACK(remove_devices_response),
@@ -3470,13 +3486,29 @@ void list_entry_update_display_status(CtkFramelock *ctk_framelock,
         gtk_widget_set_sensitive(data->stereo_label, FALSE);
         update_image(data->stereo_hbox, ctk_framelock->led_grey);
     } else {
+        nvGPUDataPtr gpu_data;
+        gint timing = TRUE;
         gint stereo_sync;
-        NvCtrlGetAttribute(data->handle, NV_CTRL_FRAMELOCK_STEREO_SYNC,
-                           &stereo_sync);
+
+        /* If the display's GPU is not recieving timing, activate the
+         * stereo label but make sure to gray out the LED.
+         */
         gtk_widget_set_sensitive(data->stereo_label, TRUE);
-        update_image(data->stereo_hbox,
-                     stereo_sync ? ctk_framelock->led_green :
-                     ctk_framelock->led_red);
+
+        if (entry->parent) {
+            gpu_data = (nvGPUDataPtr)(entry->parent->data);
+            NvCtrlGetAttribute(gpu_data->handle, NV_CTRL_FRAMELOCK_TIMING,
+                               &timing);
+        }
+        if (!timing) {
+            update_image(data->stereo_hbox, ctk_framelock->led_grey);
+        } else {
+            NvCtrlGetAttribute(data->handle, NV_CTRL_FRAMELOCK_STEREO_SYNC,
+                               &stereo_sync);
+            update_image(data->stereo_hbox,
+                         stereo_sync ? ctk_framelock->led_green :
+                         ctk_framelock->led_red);
+        }
     }
 }
 
@@ -3485,7 +3517,7 @@ void list_entry_update_display_status(CtkFramelock *ctk_framelock,
 /** list_entry_update_status() ***************************************
  *
  * Updates the (GUI) state of a list entry, its children and siblings
- * by queryin ghte X Server.
+ * by querying the X Server.
  *
  */
 void list_entry_update_status(CtkFramelock *ctk_framelock,
@@ -3932,6 +3964,7 @@ static void gpu_state_received(GtkObject *object,
 
 
     case NV_CTRL_REFRESH_RATE:
+    case NV_CTRL_REFRESH_RATE_3:
         /* Update the display device's refresh rate */
         display_entry = get_display_on_gpu(gpu_entry, event->display_mask);
         if (display_entry && display_entry->data) {
@@ -3942,8 +3975,18 @@ static void gpu_state_received(GtkObject *object,
                 (nvDisplayDataPtr)(display_entry->data);
 
             display_data->rate = event->value;
-            fvalue = ((float)(display_data->rate)) / 100.0f;
-            snprintf(str, 32, "%.2f Hz", fvalue);
+            if (event->attribute == NV_CTRL_REFRESH_RATE_3 &&
+                display_data->rate_precision == 3) {
+                fvalue = ((float)(display_data->rate)) / 1000.0f;
+                snprintf(str, 32, "%.3f Hz", fvalue);
+            } else if (display_data->rate_precision == 2 ){
+                fvalue = ((float)(display_data->rate)) / 100.0f;
+                snprintf(str, 32, "%.2f Hz", fvalue);
+            } else {
+                // wrong signal (got 2 but support 3 or got 3 but
+                // don't support it);
+                break;
+            }
             gtk_label_set_text(GTK_LABEL(display_data->rate_text), str);   
         }
         
@@ -4709,7 +4752,7 @@ static unsigned int add_display_devices(CtkFramelock *ctk_framelock,
     unsigned int master_mask;
     unsigned int slaves_mask;
     gfloat       fvalue; /* To print the refresh rate */
-    gchar        str[32];
+    gchar        rr_str[32];
     
     nvListEntryPtr   server_entry = NULL;
     nvDisplayDataPtr server_data = NULL;
@@ -4803,10 +4846,24 @@ static unsigned int add_display_devices(CtkFramelock *ctk_framelock,
                 goto fail;
             }
 
-            ret = NvCtrlGetDisplayAttribute(gpu_data->handle,
-                                            display_mask,
-                                            NV_CTRL_REFRESH_RATE,
-                                            (int *)&(display_data->rate));
+            // If we can't get either percision, then fail
+            if (NvCtrlSuccess !=
+                (ret = NvCtrlGetDisplayAttribute(gpu_data->handle,
+                                             display_mask,
+                                             NV_CTRL_REFRESH_RATE_3,
+                                             (int *)&(display_data->rate)))) {
+                ret = NvCtrlGetDisplayAttribute(gpu_data->handle,
+                                                display_mask,
+                                                NV_CTRL_REFRESH_RATE,
+                                                (int *)&(display_data->rate));
+                fvalue = ((float)(display_data->rate)) / 100.0f;
+                snprintf(rr_str, 32, "%.2f Hz", fvalue);
+                display_data->rate_precision = 2;
+            } else {
+                fvalue = ((float)(display_data->rate)) / 1000.0f;
+                snprintf(rr_str, 32, "%.3f Hz", fvalue);
+                display_data->rate_precision = 3;
+            }
             if (ret != NvCtrlSuccess) {
                 goto fail;
             }
@@ -4826,9 +4883,7 @@ static unsigned int add_display_devices(CtkFramelock *ctk_framelock,
                                    __client_checkbox_help);
             
             display_data->rate_label      = gtk_label_new("Refresh:");
-            fvalue = ((float)(display_data->rate)) / 100.0f;
-            snprintf(str, 32, "%.2f Hz", fvalue);
-            display_data->rate_text       = gtk_label_new(str);
+            display_data->rate_text       = gtk_label_new(rr_str);
 
             display_data->stereo_label    = gtk_label_new("Stereo");
             display_data->stereo_hbox     = gtk_hbox_new(FALSE, 0);
@@ -5083,7 +5138,7 @@ static unsigned int add_framelock_devices(CtkFramelock *ctk_framelock,
         if (ret != NvCtrlSuccess) {
             goto fail;
         }
-        revision_str = g_strdup_printf("%d", val);
+        revision_str = g_strdup_printf("0x%X", val);
 
         /* Create the frame lock widgets */
         framelock_data->label = gtk_label_new("");
@@ -5566,7 +5621,9 @@ GtkTextBuffer *ctk_framelock_create_help(GtkTextTagTable *table)
     ctk_help_para(b, &i, "Stereo LED: This indicates whether or not the "
                   "display device is sync'ed to the stereo signal coming from "
                   "the G-Sync device.  This LED is only available to display "
-                  "devices set as clients when frame lock is enabled.");
+                  "devices set as clients when frame lock is enabled.  The "
+                  "Stereo LED is dependent on the parent GPU being in sync "
+                  "with the input timing signal.");
 
     ctk_help_heading(b, &i, "Adding Devices");
     ctk_help_para(b, &i, __add_devices_button_help);

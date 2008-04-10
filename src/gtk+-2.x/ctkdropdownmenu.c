@@ -147,6 +147,23 @@ GtkWidget* ctk_drop_down_menu_new(guint flags)
 
 
 /*
+ * ctk_drop_down_menu_reset() - Clears the internal menu
+ */
+
+void ctk_drop_down_menu_reset(CtkDropDownMenu *d)
+{
+    g_free(d->values);
+    d->values = NULL;
+
+    d->num_entries = 0;
+    
+    d->menu = gtk_menu_new();
+    
+} /* ctk_drop_down_menu_reset() */
+
+
+
+/*
  * ctk_drop_down_menu_append_item() - add a new entry to the drop down
  * menu
  */

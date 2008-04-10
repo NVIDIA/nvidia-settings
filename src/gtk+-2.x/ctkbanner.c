@@ -56,10 +56,11 @@
 #include "penguin_pixdata.h"
 #include "rotation_pixdata.h"
 #include "sdi_pixdata.h"
+#include "sdi_shared_sync_bnc_pixdata.h"
 #include "solaris_pixdata.h"
 #include "thermal_pixdata.h"
 #include "tv_pixdata.h"
-#include "vcsc_pixdata.h"
+#include "vcs_pixdata.h"
 #include "x_pixdata.h"
 #include "xvideo_pixdata.h"
 
@@ -370,10 +371,11 @@ static gboolean select_artwork(BannerArtworkType artwork,
         { BANNER_ARTWORK_PENGUIN,        TRUE,  16, &penguin_pixdata        },
         { BANNER_ARTWORK_ROTATION,       FALSE, 16, &rotation_pixdata       },
         { BANNER_ARTWORK_SDI,            FALSE, 16, &sdi_pixdata            },
+        { BANNER_ARTWORK_SDI_SHARED_SYNC_BNC, FALSE, 16, &sdi_shared_sync_bnc_pixdata },
         { BANNER_ARTWORK_SOLARIS,        TRUE,  16, &solaris_pixdata        },
         { BANNER_ARTWORK_THERMAL,        FALSE, 16, &thermal_pixdata        },
         { BANNER_ARTWORK_TV,             FALSE, 16, &tv_pixdata             },
-        { BANNER_ARTWORK_VCSC,           FALSE, 16, &vcsc_pixdata           },
+        { BANNER_ARTWORK_VCS,            FALSE, 16, &vcs_pixdata            },
         { BANNER_ARTWORK_X,              FALSE, 16, &x_pixdata              },
         { BANNER_ARTWORK_XVIDEO,         FALSE, 16, &xvideo_pixdata         },
         { BANNER_ARTWORK_INVALID,        FALSE, 16, NULL                    },

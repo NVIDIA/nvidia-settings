@@ -38,6 +38,7 @@
 
 #include "ctkframelock.h"
 #include "ctkgvo.h"
+#include "ctkgvo-sync.h"
 #include "ctkgvo-csc.h"
 #include "ctkconfig.h"
 
@@ -53,7 +54,7 @@
 #include "ctkthermal.h"
 #include "ctkpowermizer.h"
 #include "ctkclocks.h"
-#include "ctkvcsc.h"
+#include "ctkvcs.h"
 #include "ctkpowersavings.h"
 
 #include "ctkdisplaydevice-crt.h"
@@ -233,9 +234,9 @@ static void help_button_toggled(GtkToggleButton *button, gpointer user_data)
     if (enabled) {
         if (ctk_window->ctk_help == NULL) {
             ctk_window->ctk_help = ctk_help_new(GTK_WIDGET(button),
-                    ctk_window->help_tag_table);
+                                                ctk_window->help_tag_table);
             ctk_help_set_page(CTK_HELP(ctk_window->ctk_help),
-                    ctk_window->help_text_buffer);
+                              ctk_window->help_text_buffer);
         }
         gtk_widget_show_all(ctk_window->ctk_help);
     } else {
@@ -257,7 +258,6 @@ static void tree_selection_changed(GtkTreeSelection *selection,
     GtkTreeIter iter;
     CtkWindow *ctk_window = CTK_WINDOW(user_data);
     GtkTreeModel *model = GTK_TREE_MODEL(ctk_window->tree_store);
-    gchar *str;
     GtkWidget *widget;
     GtkTextBuffer *help;
 
@@ -267,7 +267,6 @@ static void tree_selection_changed(GtkTreeSelection *selection,
     if (!gtk_tree_selection_get_selected(selection, &model, &iter))
         return;
 
-    gtk_tree_model_get(model, &iter, CTK_WINDOW_LABEL_COLUMN, &str, -1);
     gtk_tree_model_get(model, &iter, CTK_WINDOW_WIDGET_COLUMN, &widget, -1);
     gtk_tree_model_get(model, &iter, CTK_WINDOW_HELP_COLUMN, &help, -1);
     gtk_tree_model_get(model, &iter, CTK_WINDOW_SELECT_WIDGET_FUNC_COLUMN,
@@ -373,8 +372,8 @@ GtkWidget *ctk_window_new(NvCtrlAttributeHandle **screen_handles,
                           gint num_screen_handles,
                           NvCtrlAttributeHandle **gpu_handles,
                           gint num_gpu_handles,
-                          NvCtrlAttributeHandle **vcsc_handles,
-                          gint num_vcsc_handles,
+                          NvCtrlAttributeHandle **vcs_handles,
+                          gint num_vcs_handles,
                           ParsedAttribute *p, ConfigProperties *conf)
 {
     GObject *object;
@@ -705,10 +704,10 @@ GtkWidget *ctk_window_new(NvCtrlAttributeHandle **screen_handles,
                      "Antialiasing Settings", NULL, NULL, NULL);
         }
 
+
         /* gvo (Graphics To Video Out) */
         
-        child = ctk_gvo_new(screen_handle, GTK_WIDGET(ctk_window),
-                            ctk_config, ctk_event);
+        child = ctk_gvo_new(screen_handle, ctk_config, ctk_event);
         if (child) {
             GtkWidget *gvo_parent = child;
             GtkTreeIter child_iter;
@@ -717,12 +716,26 @@ GtkWidget *ctk_window_new(NvCtrlAttributeHandle **screen_handles,
                      "Graphics to Video Out", NULL,
                      ctk_gvo_select, ctk_gvo_unselect);
 
-            /* add GVO sub-pages */
+            /* GVO Sync options */
+
+            child = ctk_gvo_sync_new(screen_handle,  GTK_WIDGET(ctk_window),
+                                     ctk_config, ctk_event,
+                                     CTK_GVO(gvo_parent));
+            if (child) {
+                help = ctk_gvo_sync_create_help(tag_table,
+                                                CTK_GVO_SYNC(child));
+                add_page(child, help, ctk_window, &child_iter, NULL,
+                         "Synchronization Options", NULL,
+                         ctk_gvo_sync_select, ctk_gvo_sync_unselect);
+            }
+
+            /* GVO color space conversion */
 
             child = ctk_gvo_csc_new(screen_handle, ctk_config, ctk_event,
                                     CTK_GVO(gvo_parent));
             if (child) {
-                add_page(child, NULL, ctk_window, &child_iter, NULL,
+                help = ctk_gvo_csc_create_help(tag_table, CTK_GVO_CSC(child));
+                add_page(child, help, ctk_window, &child_iter, NULL,
                          "Color Space Conversion", NULL,
                          ctk_gvo_csc_select, ctk_gvo_csc_unselect);
             }
@@ -832,50 +845,50 @@ GtkWidget *ctk_window_new(NvCtrlAttributeHandle **screen_handles,
                             tag_table, data);
     }
 
-    /* add the per-vcsc (e.g. Quadro Plex) entries into the tree model */
+    /* add the per-vcs (e.g. Quadro Plex) entries into the tree model */
 
-    for (i = 0; i < num_vcsc_handles; i++) {
+    for (i = 0; i < num_vcs_handles; i++) {
         
         GtkTreeIter iter;
-        gchar *vcsc_product_name;
-        gchar *vcsc_name;
+        gchar *vcs_product_name;
+        gchar *vcs_name;
         GtkWidget *child;
         ReturnStatus ret;
-        NvCtrlAttributeHandle *vcsc_handle = vcsc_handles[i];
+        NvCtrlAttributeHandle *vcs_handle = vcs_handles[i];
 
-        if (!vcsc_handle) continue;
+        if (!vcs_handle) continue;
 
-        /* create the vcsc entry name */
+        /* create the vcs entry name */
 
-        ret = NvCtrlGetStringDisplayAttribute(vcsc_handle, 0,
+        ret = NvCtrlGetStringDisplayAttribute(vcs_handle, 0,
                                               NV_CTRL_STRING_VCSC_PRODUCT_NAME,
-                                              &vcsc_product_name);
-        if (ret == NvCtrlSuccess && vcsc_product_name) {
-            vcsc_name = g_strdup_printf("VCSC %d - (%s)",
-                                        NvCtrlGetTargetId(vcsc_handle),
-                                        vcsc_product_name);
+                                              &vcs_product_name);
+        if (ret == NvCtrlSuccess && vcs_product_name) {
+            vcs_name = g_strdup_printf("VCS %d - (%s)",
+                                        NvCtrlGetTargetId(vcs_handle),
+                                        vcs_product_name);
         } else {
-            vcsc_name =  g_strdup_printf("VCSC %d - (Unknown)",
-                                        NvCtrlGetTargetId(vcsc_handle));
+            vcs_name =  g_strdup_printf("VCS %d - (Unknown)",
+                                        NvCtrlGetTargetId(vcs_handle));
         }
-        if (!vcsc_name) continue;
+        if (!vcs_name) continue;
         
         /* create the object for receiving NV-CONTROL events */
         
-        ctk_event = CTK_EVENT(ctk_event_new(vcsc_handle));
+        ctk_event = CTK_EVENT(ctk_event_new(vcs_handle));
         
-        /* create the vcsc entry */
+        /* create the vcs entry */
 
         gtk_tree_store_append(ctk_window->tree_store, &iter, NULL);
         gtk_tree_store_set(ctk_window->tree_store, &iter,
-                           CTK_WINDOW_LABEL_COLUMN, vcsc_name, -1);
-        child = ctk_vcsc_new(vcsc_handle, ctk_config);
+                           CTK_WINDOW_LABEL_COLUMN, vcs_name, -1);
+        child = ctk_vcs_new(vcs_handle, ctk_config);
         gtk_object_ref(GTK_OBJECT(child));
         gtk_tree_store_set(ctk_window->tree_store, &iter,
                            CTK_WINDOW_WIDGET_COLUMN, child, -1);
         gtk_tree_store_set(ctk_window->tree_store, &iter,
                            CTK_WINDOW_HELP_COLUMN, 
-                           ctk_gpu_create_help(tag_table), -1);
+                           ctk_vcs_create_help(tag_table, CTK_VCS(child)), -1);
         gtk_tree_store_set(ctk_window->tree_store, &iter,
                            CTK_WINDOW_CONFIG_FILE_ATTRIBUTES_FUNC_COLUMN,
                            NULL, -1);
@@ -1041,6 +1054,12 @@ static GtkWidget *create_quit_dialog(CtkWindow *ctk_window)
     alignment = gtk_alignment_new(0.0, 0.0, 0, 0);
     gtk_container_add(GTK_CONTAINER(alignment), label);
     gtk_box_pack_start(GTK_BOX(hbox), alignment, FALSE, FALSE, 0);
+
+    /* Prevent the dialog from being deleted when closed */
+
+    g_signal_connect(G_OBJECT(dialog), "delete-event",
+                     G_CALLBACK(gtk_widget_hide_on_delete),
+                     (gpointer) dialog);
 
     return dialog;
 

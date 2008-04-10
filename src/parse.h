@@ -56,6 +56,8 @@
 #define NV_PARSER_TYPE_STRING_ATTRIBUTE        (1<<26)
 #define NV_PARSER_TYPE_ASSIGN_ALL_DISPLAYS     (1<<27)
 #define NV_PARSER_TYPE_VALUE_IS_SWITCH_DISPLAY (1<<28)
+#define NV_PARSER_TYPE_1000Hz                  (1<<29)
+#define NV_PARSER_TYPE_SDI                     (1<<30)
 
 #define NV_PARSER_ASSIGNMENT 0
 #define NV_PARSER_QUERY 1
@@ -142,7 +144,7 @@ extern AttributeTableEntry attributeTable[];
 #define X_SCREEN_TARGET  0
 #define GPU_TARGET       1
 #define FRAMELOCK_TARGET 2
-#define VCSC_TARGET      3
+#define VCS_TARGET       3
 #define MAX_TARGET_TYPES 4
 
 

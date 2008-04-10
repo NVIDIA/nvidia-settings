@@ -41,9 +41,9 @@ int main(int argc, char **argv)
     CtrlHandles *h;
     NvCtrlAttributeHandle **screen_handles = NULL;
     NvCtrlAttributeHandle **gpu_handles = NULL;
-    NvCtrlAttributeHandle **vcsc_handles = NULL;
+    NvCtrlAttributeHandle **vcs_handles = NULL;
     Options *op;
-    int ret, i, num_screen_handles, num_gpu_handles, num_vcsc_handles;
+    int ret, i, num_screen_handles, num_gpu_handles, num_vcs_handles;
     char *dpy = NULL;
     int gui = 0;
 
@@ -177,17 +177,17 @@ int main(int argc, char **argv)
         }
     }
 
-    num_vcsc_handles = h->targets[VCSC_TARGET].n;
+    num_vcs_handles = h->targets[VCS_TARGET].n;
 
-    if (num_vcsc_handles) {
-        vcsc_handles =
-            malloc(num_vcsc_handles * sizeof(NvCtrlAttributeHandle *));
-        if (vcsc_handles) {
-            for (i = 0; i < num_vcsc_handles; i++) {
-                vcsc_handles[i] = h->targets[VCSC_TARGET].t[i].h;
+    if (num_vcs_handles) {
+        vcs_handles =
+            malloc(num_vcs_handles * sizeof(NvCtrlAttributeHandle *));
+        if (vcs_handles) {
+            for (i = 0; i < num_vcs_handles; i++) {
+                vcs_handles[i] = h->targets[VCS_TARGET].t[i].h;
             }
         } else {
-            num_vcsc_handles = 0;
+            num_vcs_handles = 0;
         }
     }
     
@@ -195,7 +195,7 @@ int main(int argc, char **argv)
 
     ctk_main(screen_handles, num_screen_handles,
              gpu_handles, num_gpu_handles,
-             vcsc_handles, num_vcsc_handles,
+             vcs_handles, num_vcs_handles,
              p, &conf);
     
     /* write the configuration file */

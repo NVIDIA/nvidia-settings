@@ -22,56 +22,56 @@
  *
  */
 
-#ifndef __CTK_VCSC_H__
-#define __CTK_VCSC_H__
+#ifndef __CTK_VCS_H__
+#define __CTK_VCS_H__
 
 #include "ctkevent.h"
 #include "ctkconfig.h"
 
 G_BEGIN_DECLS
 
-#define CTK_TYPE_VCSC (ctk_vcsc_get_type())
+#define CTK_TYPE_VCS (ctk_vcs_get_type())
 
-#define CTK_VCSC(obj) \
-    (G_TYPE_CHECK_INSTANCE_CAST ((obj), CTK_TYPE_VCSC, \
-                                 CtkVcsc))
+#define CTK_VCS(obj) \
+    (G_TYPE_CHECK_INSTANCE_CAST ((obj), CTK_TYPE_VCS, \
+                                 CtkVcs))
 
-#define CTK_VCSC_CLASS(klass) \
-    (G_TYPE_CHECK_CLASS_CAST ((klass), CTK_TYPE_VCSC, \
-                              CtkVcscClass))
+#define CTK_VCS_CLASS(klass) \
+    (G_TYPE_CHECK_CLASS_CAST ((klass), CTK_TYPE_VCS, \
+                              CtkVcsClass))
 
-#define CTK_IS_VCSC(obj) \
-    (G_TYPE_CHECK_INSTANCE_TYPE ((obj), CTK_TYPE_VCSC))
+#define CTK_IS_VCS(obj) \
+    (G_TYPE_CHECK_INSTANCE_TYPE ((obj), CTK_TYPE_VCS))
 
-#define CTK_IS_VCSC_CLASS(class) \
-    (G_TYPE_CHECK_CLASS_TYPE ((klass), CTK_TYPE_VCSC))
+#define CTK_IS_VCS_CLASS(class) \
+    (G_TYPE_CHECK_CLASS_TYPE ((klass), CTK_TYPE_VCS))
 
-#define CTK_VCSC_GET_CLASS(obj) \
-    (G_TYPE_INSTANCE_GET_CLASS ((obj), CTK_TYPE_VCSC, \
-                                CtkVcscClass))
+#define CTK_VCS_GET_CLASS(obj) \
+    (G_TYPE_INSTANCE_GET_CLASS ((obj), CTK_TYPE_VCS, \
+                                CtkVcsClass))
 
 
-typedef struct _CtkVcsc
+typedef struct _CtkVcs
 {
     GtkVBox parent;
 
     CtkConfig *ctk_config;
     NvCtrlAttributeHandle *handle;
 
-} CtkVcsc;
+} CtkVcs;
 
-typedef struct _CtkVcscClass
+typedef struct _CtkVcsClass
 {
     GtkVBoxClass parent_class;
-} CtkVcscClass;
+} CtkVcsClass;
 
 
-GType       ctk_vcsc_get_type  (void) G_GNUC_CONST;
-GtkWidget*  ctk_vcsc_new       (NvCtrlAttributeHandle *, CtkConfig *);
+GType       ctk_vcs_get_type  (void) G_GNUC_CONST;
+GtkWidget*  ctk_vcs_new       (NvCtrlAttributeHandle *, CtkConfig *);
 
-GtkTextBuffer *ctk_vcsc_create_help(GtkTextTagTable *,
-                                    CtkVcsc *);
+GtkTextBuffer *ctk_vcs_create_help(GtkTextTagTable *,
+                                    CtkVcs *);
 
 G_END_DECLS
 
-#endif /* __CTK_VCSC_H__ */
+#endif /* __CTK_VCS_H__ */

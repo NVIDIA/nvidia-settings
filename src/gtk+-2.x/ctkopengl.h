@@ -64,7 +64,6 @@ struct _CtkOpenGL
     GtkWidget *xinerama_stereo_button;
     GtkWidget *image_settings_scale;
     GtkWidget *aa_line_gamma_button;
-    GtkWidget *force_generic_cpu_button;
     GtkWidget *show_sli_hud_button;
     
     unsigned int active_attributes;

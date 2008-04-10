@@ -69,6 +69,7 @@ struct _CtkEventStruct
     gint attribute;
     gint value;
     guint display_mask;
+    gboolean availability;
 };
 
 GType       ctk_event_get_type  (void) G_GNUC_CONST;
@@ -76,6 +77,8 @@ GtkObject*  ctk_event_new       (NvCtrlAttributeHandle*);
 
 void ctk_event_emit(CtkEvent *ctk_event,
                     unsigned int mask, int attrib, int value);
+void ctk_event_emit_string(CtkEvent *ctk_event,
+                    unsigned int mask, int attrib);
 
 #define CTK_EVENT_NAME(x) ("CTK_EVENT_" #x)
 

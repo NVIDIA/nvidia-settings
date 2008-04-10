@@ -65,6 +65,8 @@ struct _CtkXVideo
     GtkWidget *overlay_hue;
     GtkWidget *texture_contrast;
     GtkWidget *texture_brightness;
+    GtkWidget *texture_hue;
+    GtkWidget *texture_saturation;
     GtkWidget *texture_sync_to_blank;
     GtkWidget *blitter_sync_to_blank;
     GtkWidget *xv_sync_to_display_buttons[24];

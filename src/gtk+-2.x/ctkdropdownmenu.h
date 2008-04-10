@@ -95,6 +95,9 @@ void       ctk_drop_down_menu_set_current_value   (CtkDropDownMenu *d,
 void       ctk_drop_down_menu_set_value_sensitive (CtkDropDownMenu *d,
                                                    gint value,
                                                    gboolean sensitive);
+void       ctk_drop_down_menu_reset               (CtkDropDownMenu *d);
+
+
 
 G_END_DECLS
 

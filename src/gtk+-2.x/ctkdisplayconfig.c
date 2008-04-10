@@ -120,6 +120,7 @@ static void update_banner(XConfigPtr config);
 #define GTK_RESPONSE_USER_DISPLAY_ENABLE_TWINVIEW 1
 #define GTK_RESPONSE_USER_DISPLAY_ENABLE_XSCREEN  2
 
+#define MIN_LAYOUT_SCREENSIZE 600
 typedef struct SwitchModeCallbackInfoRec {
     CtkDisplayConfig *ctk_object;
     int screen;
@@ -148,6 +149,9 @@ static int __position_table[] = { CONF_ADJ_ABSOLUTE,
 
 
 /* Layout tooltips */
+
+static const char * __layout_hidden_label_help =
+"To select a display, use the \"Model\" dropdown menu.";
 
 static const char * __layout_xinerama_button_help =
 "The Enable Xinerama checkbox enables the Xinerama X extension; changing "
@@ -233,9 +237,9 @@ static const char * __screen_metamode_delete_button_help =
 static const char * __apply_button_help =
 "The Apply button allows you to apply changes made to the server layout.";
 
-static const char * __probe_button_help =
-"The probe button allows you to probe for new display devices that may "
-"have been hotplugged.";
+static const char * __detect_displays_button_help =
+"The Detect Displays button allows you to probe for new display devices "
+"that may have been hotplugged.";
 
 static const char * __advanced_button_help =
 "The Advanced/Basic button toggles between a basic view, and an advanced view "
@@ -893,6 +897,30 @@ static void screen_primary_display_toggled(GtkWidget *widget,
 
 
 
+/** screen_size_changed() *****************************************
+ *
+ * Hides layout widget.
+ *
+ **/
+
+static void screen_size_changed(GdkScreen *screen,
+                                gpointer user_data)
+{
+    CtkDisplayConfig *ctk_object = CTK_DISPLAY_CONFIG(user_data);
+    gint h = gdk_screen_get_height(screen);
+
+    if ( h < MIN_LAYOUT_SCREENSIZE ) {
+        gtk_widget_hide_all(ctk_object->obj_layout);
+        gtk_widget_show(ctk_object->label_layout);
+        return;
+    }
+
+    gtk_widget_hide(ctk_object->label_layout);
+    gtk_widget_show_all(ctk_object->obj_layout);
+} /* screen_size_changed() */
+
+
+
 /** ctk_display_config_new() *****************************************
  *
  * Display Configuration widget creation.
@@ -911,8 +939,9 @@ GtkWidget* ctk_display_config_new(NvCtrlAttributeHandle *handle,
     GtkWidget *hbox;
     GtkWidget *hbox2;
     GtkWidget *vbox;
+    GdkScreen *screen;
     GtkWidget *label;
-
+    GtkWidget *eventbox;
     GtkRequisition req;
 
 
@@ -920,7 +949,7 @@ GtkWidget* ctk_display_config_new(NvCtrlAttributeHandle *handle,
     GtkWidget *menu_item;
 
     gchar *err_str = NULL;
-
+    gchar *layout_str = NULL;
 
     /*
      * Create the ctk object
@@ -1000,6 +1029,19 @@ GtkWidget* ctk_display_config_new(NvCtrlAttributeHandle *handle,
      * Create the widgets
      *
      */
+
+    /* Create label to replace layout widget */
+
+    eventbox = gtk_event_box_new();
+    layout_str = g_strdup_printf("(hidden because screen height is less than %d pixels)", MIN_LAYOUT_SCREENSIZE);
+    ctk_object->label_layout = gtk_label_new(layout_str);
+    gtk_container_add(GTK_CONTAINER(eventbox), ctk_object->label_layout);
+    ctk_config_set_tooltip(ctk_config, eventbox, __layout_hidden_label_help);
+    g_free(layout_str);
+    screen = gtk_widget_get_screen(GTK_WIDGET(ctk_object));
+    g_signal_connect(G_OBJECT(screen), "size-changed",
+                     G_CALLBACK(screen_size_changed),
+                     (gpointer) ctk_object);
 
     /* Xinerama button */
 
@@ -1342,7 +1384,7 @@ GtkWidget* ctk_display_config_new(NvCtrlAttributeHandle *handle,
     /* Probe button */
     ctk_object->btn_probe = gtk_button_new_with_label("Detect Displays");
     ctk_config_set_tooltip(ctk_config, ctk_object->btn_probe,
-                           __probe_button_help);
+                           __detect_displays_button_help);
     g_signal_connect(G_OBJECT(ctk_object->btn_probe), "clicked",
                      G_CALLBACK(probe_clicked),
                      (gpointer) ctk_object);
@@ -1385,23 +1427,16 @@ GtkWidget* ctk_display_config_new(NvCtrlAttributeHandle *handle,
 
     { /* Layout section */
 
-        frame = gtk_frame_new("Layout");
-        hbox = gtk_hbox_new(TRUE, 5); /* main panel */
-        vbox = gtk_vbox_new(TRUE, 5); /* layout panel */
-        gtk_box_pack_start(GTK_BOX(ctk_object), hbox, TRUE, TRUE, 0);
-        gtk_box_pack_start(GTK_BOX(hbox), vbox, TRUE, TRUE, 0);
-        gtk_box_pack_start(GTK_BOX(vbox), frame, TRUE, TRUE, 5);
-        gtk_widget_set_size_request(frame, -1, 200);
-
-        hbox = gtk_hbox_new(FALSE, 5); /* layout panel */
-        gtk_container_set_border_width(GTK_CONTAINER(hbox), 5);
+        frame = gtk_frame_new("Layout"); /* main panel */
+        gtk_box_pack_start(GTK_BOX(ctk_object), frame, FALSE, FALSE, 0);
         vbox = gtk_vbox_new(FALSE, 5);
-        gtk_container_add(GTK_CONTAINER(frame), hbox);
-        gtk_box_pack_start(GTK_BOX(hbox), vbox, TRUE, TRUE, 5);
+        gtk_container_set_border_width(GTK_CONTAINER(vbox), 5);
+        gtk_container_add(GTK_CONTAINER(frame), vbox);
 
         /* Pack the layout widget */
         gtk_box_pack_start(GTK_BOX(vbox), ctk_object->obj_layout,
                            TRUE, TRUE, 0);
+        gtk_box_pack_start(GTK_BOX(vbox), eventbox, TRUE, TRUE, 0);
 
         /* Xinerama checkbox */
         gtk_box_pack_start(GTK_BOX(vbox), ctk_object->chk_xinerama_enabled,
@@ -1771,6 +1806,8 @@ GtkTextBuffer *ctk_display_config_create_help(GtkTextTagTable *table,
                   "You may drag display devices around to reposition them.  "
                   "When in advanced view, the display's panning domain may "
                   "be resized by holding shift while dragging.");
+    ctk_help_heading(b, &i, "Layout Hidden Label");
+    ctk_help_para(b, &i, __layout_hidden_label_help);
     ctk_help_heading(b, &i, "Enable Xinerama");
     ctk_help_para(b, &i, "%s.  This setting is only available when multiple "
                   "X screens are present.", __layout_xinerama_button_help);
@@ -1829,10 +1866,15 @@ GtkTextBuffer *ctk_display_config_create_help(GtkTextTagTable *table,
     
     ctk_help_para(b, &i, "");
      ctk_help_heading(b, &i, "Buttons");
-    ctk_help_heading(b, &i, "Probe");
-    ctk_help_para(b, &i, __apply_button_help);
+    ctk_help_heading(b, &i, "Apply");
+    ctk_help_para(b, &i, "%s  Note that not all settings can be applied to an "
+                  "active X server; these require restarting the X server "
+                  "after saving the desired settings to the X configuration "
+                  "file.  Examples of such settings include changing the "
+                  "position of any X screen, adding/removing an X screen, and "
+                  "changing the X screen color depth.", __apply_button_help);
     ctk_help_heading(b, &i, "Detect Displays");
-    ctk_help_para(b, &i, __probe_button_help);
+    ctk_help_para(b, &i, __detect_displays_button_help);
     ctk_help_heading(b, &i, "Advanced/Basic...");
     ctk_help_para(b, &i, "%s.  The Basic view modifies the currently active "
                   "MetaMode for an X screen, while the Advanced view exposes "
@@ -1865,7 +1907,15 @@ static void setup_layout_frame(CtkDisplayConfig *ctk_object)
     nvLayoutPtr layout = ctk_object->layout;
     nvGpuPtr gpu;
     int num_screens;
+    GdkScreen *s;
 
+    /*
+     * Hide/Shows the layout widget based on the current screen size.
+     * If the screen is too small, the layout widget is hidden and a
+     * message is shown instead. 
+     */
+    s = gtk_widget_get_screen(GTK_WIDGET(ctk_object));
+    screen_size_changed(s, ctk_object);
 
     /* Only allow Xinerama when there are multiple X screens */
     num_screens = 0;
@@ -6152,6 +6202,10 @@ static void apply_clicked(GtkWidget *widget, gpointer user_data)
                     nv_error_msg("Failed to set primary display"
                                  "for screen %d (GPU:%s)", screen->scrnum,
                                  screen->gpu->name);
+                } else {
+                    /* Make sure other parts of nvidia-settings get updated */
+                    ctk_event_emit_string(screen->ctk_event, 0,
+                                   NV_CTRL_STRING_TWINVIEW_XINERAMA_INFO_ORDER);
                 }
             }
         }

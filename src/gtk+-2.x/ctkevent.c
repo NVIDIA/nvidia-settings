@@ -40,6 +40,7 @@
 
 #include "ctkevent.h"
 #include "NVCtrlLib.h"
+#include "msg.h"
 
 static void ctk_event_class_init(CtkEventClass *ctk_event_class);
 
@@ -69,6 +70,7 @@ typedef struct __CtkEventSourceRec {
 } CtkEventSource;
 
 
+static guint string_signals[NV_CTRL_STRING_LAST_ATTRIBUTE + 1];
 static guint signals[NV_CTRL_LAST_ATTRIBUTE + 1];
 static guint signal_RRScreenChangeNotify;
 
@@ -155,7 +157,6 @@ static void ctk_event_class_init(CtkEventClass *ctk_event_class)
     MAKE_SIGNAL(NV_CTRL_FRAMELOCK_ETHERNET_DETECTED);
     MAKE_SIGNAL(NV_CTRL_FRAMELOCK_VIDEO_MODE);
     MAKE_SIGNAL(NV_CTRL_FRAMELOCK_SYNC_RATE);
-    MAKE_SIGNAL(NV_CTRL_FORCE_GENERIC_CPU);
     MAKE_SIGNAL(NV_CTRL_OPENGL_AA_LINE_GAMMA);
     MAKE_SIGNAL(NV_CTRL_FLIPPING_ALLOWED);
     MAKE_SIGNAL(NV_CTRL_FORCE_STEREO);
@@ -244,7 +245,14 @@ static void ctk_event_class_init(CtkEventClass *ctk_event_class)
     MAKE_SIGNAL(NV_CTRL_FRAMELOCK_SYNC_RATE_4);
     MAKE_SIGNAL(NV_CTRL_GVO_LOCK_OWNER);
     MAKE_SIGNAL(NV_CTRL_NUM_GPU_ERRORS_RECOVERED);
+    MAKE_SIGNAL(NV_CTRL_REFRESH_RATE_3);
+    MAKE_SIGNAL(NV_CTRL_GVO_OUTPUT_VIDEO_LOCKED);
+    MAKE_SIGNAL(NV_CTRL_GVO_SYNC_LOCK_STATUS);
+    MAKE_SIGNAL(NV_CTRL_GVO_ANC_TIME_CODE_GENERATION);
     MAKE_SIGNAL(NV_CTRL_ONDEMAND_VBLANK_INTERRUPTS);
+    MAKE_SIGNAL(NV_CTRL_GVO_COMPOSITE);
+    MAKE_SIGNAL(NV_CTRL_GVO_COMPOSITE_ALPHA_KEY);
+    MAKE_SIGNAL(NV_CTRL_GVO_COMPOSITE_NUM_KEY_RANGES);
     MAKE_SIGNAL(NV_CTRL_NOTEBOOK_DISPLAY_CHANGE_LID_EVENT);
 
 #undef MAKE_SIGNAL
@@ -260,6 +268,50 @@ static void ctk_event_class_init(CtkEventClass *ctk_event_class)
 #warning "There are attributes that do not emit signals!"
 #endif
 
+    /* make signals for string attribute */
+    for (i = 0; i <= NV_CTRL_STRING_LAST_ATTRIBUTE; i++) string_signals[i] = 0;
+
+#define MAKE_STRING_SIGNAL(x)                                              \
+        string_signals[x] = g_signal_new(("CTK_EVENT_"  #x),                   \
+                                  G_OBJECT_CLASS_TYPE(ctk_event_class), \
+                                  G_SIGNAL_RUN_LAST, 0, NULL, NULL,     \
+                                  g_cclosure_marshal_VOID__POINTER,     \
+                                  G_TYPE_NONE, 1, G_TYPE_POINTER);
+
+    MAKE_STRING_SIGNAL(NV_CTRL_STRING_PRODUCT_NAME);
+    MAKE_STRING_SIGNAL(NV_CTRL_STRING_VBIOS_VERSION);
+    MAKE_STRING_SIGNAL(NV_CTRL_STRING_NVIDIA_DRIVER_VERSION);
+    MAKE_STRING_SIGNAL(NV_CTRL_STRING_DISPLAY_DEVICE_NAME);
+    MAKE_STRING_SIGNAL(NV_CTRL_STRING_TV_ENCODER_NAME);
+    MAKE_STRING_SIGNAL(NV_CTRL_STRING_DDCCI_MISC_TRANSMIT_DISPLAY_DESCRIPTOR);
+    MAKE_STRING_SIGNAL(NV_CTRL_STRING_DDCCI_MISC_AUXILIARY_DISPLAY_DATA);
+    MAKE_STRING_SIGNAL(NV_CTRL_STRING_GVO_FIRMWARE_VERSION);
+    MAKE_STRING_SIGNAL(NV_CTRL_STRING_CURRENT_MODELINE);
+    MAKE_STRING_SIGNAL(NV_CTRL_STRING_ADD_MODELINE);
+    MAKE_STRING_SIGNAL(NV_CTRL_STRING_DELETE_MODELINE);
+    MAKE_STRING_SIGNAL(NV_CTRL_STRING_CURRENT_METAMODE);
+    MAKE_STRING_SIGNAL(NV_CTRL_STRING_ADD_METAMODE);
+    MAKE_STRING_SIGNAL(NV_CTRL_STRING_DELETE_METAMODE);
+    MAKE_STRING_SIGNAL(NV_CTRL_STRING_VCSC_PRODUCT_NAME);
+    MAKE_STRING_SIGNAL(NV_CTRL_STRING_VCSC_PRODUCT_ID);
+    MAKE_STRING_SIGNAL(NV_CTRL_STRING_VCSC_SERIAL_NUMBER);
+    MAKE_STRING_SIGNAL(NV_CTRL_STRING_VCSC_BUILD_DATE);
+    MAKE_STRING_SIGNAL(NV_CTRL_STRING_VCSC_FIRMWARE_VERSION);
+    MAKE_STRING_SIGNAL(NV_CTRL_STRING_VCSC_FIRMWARE_REVISION);
+    MAKE_STRING_SIGNAL(NV_CTRL_STRING_VCSC_HARDWARE_VERSION);
+    MAKE_STRING_SIGNAL(NV_CTRL_STRING_VCSC_HARDWARE_REVISION);
+    MAKE_STRING_SIGNAL(NV_CTRL_STRING_MOVE_METAMODE);
+    MAKE_STRING_SIGNAL(NV_CTRL_STRING_VALID_HORIZ_SYNC_RANGES);
+    MAKE_STRING_SIGNAL(NV_CTRL_STRING_VALID_VERT_REFRESH_RANGES);
+    MAKE_STRING_SIGNAL(NV_CTRL_STRING_XINERAMA_SCREEN_INFO);
+    MAKE_STRING_SIGNAL(NV_CTRL_STRING_TWINVIEW_XINERAMA_INFO_ORDER);
+    MAKE_STRING_SIGNAL(NV_CTRL_STRING_SLI_MODE);
+    MAKE_STRING_SIGNAL(NV_CTRL_STRING_PERFORMANCE_MODES);
+#undef MAKE_STRING_SIGNAL
+
+#if NV_CTRL_STRING_LAST_ATTRIBUTE != NV_CTRL_STRING_PERFORMANCE_MODES
+#warning "There are attributes that do not emit signals!"
+#endif
 
     /* Make XRandR signal */
     signal_RRScreenChangeNotify =
@@ -470,7 +522,9 @@ static gboolean ctk_event_dispatch(GSource *source,
      * Handle the ATTRIBUTE_CHANGED_EVENT NV-CONTROL event
      */
 
-    if (event.type == (event_source->event_base + ATTRIBUTE_CHANGED_EVENT)) {
+    if (event_source->event_base != -1 &&
+        (event.type == (event_source->event_base + ATTRIBUTE_CHANGED_EVENT))) {
+
         XNVCtrlAttributeChangedEvent *nvctrlevent =
             (XNVCtrlAttributeChangedEvent *) &event;
 
@@ -483,6 +537,7 @@ static gboolean ctk_event_dispatch(GSource *source,
             event_struct.attribute    = nvctrlevent->attribute;
             event_struct.value        = nvctrlevent->value;
             event_struct.display_mask = nvctrlevent->display_mask;
+            event_struct.availability = TRUE;
 
             /*
              * XXX Is emitting a signal with g_signal_emit() really
@@ -495,14 +550,15 @@ static gboolean ctk_event_dispatch(GSource *source,
                                 NV_CTRL_TARGET_TYPE_X_SCREEN,
                                 nvctrlevent->screen);
         }
-    }
 
     /* 
      * Handle the TARGET_ATTRIBUTE_CHANGED_EVENT NV-CONTROL event
      */
 
-    if (event.type == (event_source->event_base
-                       +TARGET_ATTRIBUTE_CHANGED_EVENT)) {
+    } else if (event_source->event_base != -1 &&
+               (event.type == (event_source->event_base
+                               +TARGET_ATTRIBUTE_CHANGED_EVENT))) {
+
         XNVCtrlAttributeChangedEventTarget *nvctrlevent =
             (XNVCtrlAttributeChangedEventTarget *) &event;
 
@@ -515,7 +571,8 @@ static gboolean ctk_event_dispatch(GSource *source,
             event_struct.attribute    = nvctrlevent->attribute;
             event_struct.value        = nvctrlevent->value;
             event_struct.display_mask = nvctrlevent->display_mask;
-
+            event_struct.availability = TRUE;
+            
             /*
              * XXX Is emitting a signal with g_signal_emit() really
              * the "correct" way of dispatching the event?
@@ -527,14 +584,81 @@ static gboolean ctk_event_dispatch(GSource *source,
                                 nvctrlevent->target_type,
                                 nvctrlevent->target_id);
         }
-    }
+
+        /*
+         * Handle the TARGET_ATTRIBUTE_AVAILABILITY_CHANGED_EVENT 
+         * NV-CONTROL event.
+         */
+
+    } else if (event_source->event_base != -1 &&
+               (event.type == (event_source->event_base
+                               + TARGET_ATTRIBUTE_AVAILABILITY_CHANGED_EVENT))) {
+
+        XNVCtrlAttributeChangedEventTargetAvailability *nvctrlevent =
+            (XNVCtrlAttributeChangedEventTargetAvailability *) &event;
+
+        /* make sure the attribute is in our signal array */
+
+        if ((nvctrlevent->attribute >= 0) &&
+            (nvctrlevent->attribute <= NV_CTRL_LAST_ATTRIBUTE) &&
+            (signals[nvctrlevent->attribute] != 0)) {
+            
+            event_struct.attribute    = nvctrlevent->attribute;
+            event_struct.value        = nvctrlevent->value;
+            event_struct.display_mask = nvctrlevent->display_mask;
+            event_struct.availability = nvctrlevent->availability;
+            
+            /*
+             * XXX Is emitting a signal with g_signal_emit() really
+             * the "correct" way of dispatching the event?
+             */
+
+            CTK_EVENT_BROADCAST(event_source,
+                                signals[nvctrlevent->attribute],
+                                &event_struct,
+                                nvctrlevent->target_type,
+                                nvctrlevent->target_id);
+        }
+        /*
+         * Handle the TARGET_STRING_ATTRIBUTE_CHANGED_EVENT 
+         * NV-CONTROL event.
+         */
+    } else if (event_source->event_base != -1 &&
+               (event.type == (event_source->event_base
+                               + TARGET_STRING_ATTRIBUTE_CHANGED_EVENT))) {
+        XNVCtrlStringAttributeChangedEventTarget *nvctrlevent =
+            (XNVCtrlStringAttributeChangedEventTarget *) &event;
+
+        /* make sure the attribute is in our signal array */
+        
+        if ((nvctrlevent->attribute >= 0) &&
+            (nvctrlevent->attribute <= NV_CTRL_STRING_LAST_ATTRIBUTE) &&
+            (string_signals[nvctrlevent->attribute] != 0)) {
+
+            event_struct.attribute    = nvctrlevent->attribute;
+            event_struct.value        = 0;
+            event_struct.display_mask = nvctrlevent->display_mask;
+            event_struct.availability = TRUE;
+            /*
+             * XXX Is emitting a signal with g_signal_emit() really
+             * the "correct" way of dispatching the event?
+             */
+
+            CTK_EVENT_BROADCAST(event_source,
+                                string_signals[nvctrlevent->attribute],
+                                &event_struct,
+                                nvctrlevent->target_type,
+                                nvctrlevent->target_id);
+        }
 
     /*
      * Also handle XRandR events.
      */
-    if (event_source->randr_event_base != -1 &&
-        event.type ==
-        (event_source->randr_event_base + RRScreenChangeNotify)) {
+
+    } else if (event_source->randr_event_base != -1 &&
+               (event.type ==
+                (event_source->randr_event_base + RRScreenChangeNotify))) {
+        
         XRRScreenChangeNotifyEvent *xrandrevent =
             (XRRScreenChangeNotifyEvent *)&event;
         int screen;
@@ -548,6 +672,14 @@ static gboolean ctk_event_dispatch(GSource *source,
                                 NV_CTRL_TARGET_TYPE_X_SCREEN,
                                 screen);
         }
+
+    /*
+     * Trap events that get registered but are not handled
+     * properly.
+     */
+
+    } else {
+        nv_warning_msg("Unknown event type %d.", event.type);
     }
     
     return TRUE;
@@ -594,3 +726,46 @@ void ctk_event_emit(CtkEvent *ctk_event,
                         NvCtrlGetTargetId(ctk_event->handle));
 
 } /* ctk_event_emit() */
+
+
+
+/* ctk_event_emit_string() - Emits signal(s) on a registered ctk_event object.
+ * This function is primarly used to simulate NV-CONTROL events such
+ * that various parts of nvidia-settings can communicate (internally)
+ */
+void ctk_event_emit_string(CtkEvent *ctk_event,
+                    unsigned int mask, int attrib)
+{
+    CtkEventStruct event;
+    CtkEventSource *source;
+    Display *dpy = NvCtrlGetDisplayPtr(ctk_event->handle);
+
+
+    if (attrib > NV_CTRL_STRING_LAST_ATTRIBUTE) return;
+
+
+    /* Find the event source */
+    source = event_sources;
+    while (source) {
+        if (source->dpy == dpy) {
+            break;
+        }
+        source = source->next;
+    }
+    if (!source) return;
+
+
+    /* Broadcast event to all relavent ctk_event objects */
+
+    event.attribute = attrib;
+    event.value = 0;
+    event.display_mask = mask;
+
+    CTK_EVENT_BROADCAST(source,
+                        string_signals[attrib],
+                        &event,
+                        NvCtrlGetTargetType(ctk_event->handle),
+                        NvCtrlGetTargetId(ctk_event->handle));
+
+} /* ctk_event_emit_string() */
+

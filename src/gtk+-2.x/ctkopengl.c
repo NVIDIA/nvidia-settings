@@ -44,8 +44,6 @@ static void post_show_sli_hud_button_toggled(CtkOpenGL *, gboolean);
 
 static void post_xinerama_stereo_button_toggled(CtkOpenGL *, gboolean);
 
-static void post_force_generic_cpu_toggled(CtkOpenGL *, gboolean);
-
 static void post_aa_line_gamma_toggled(CtkOpenGL *, gboolean);
 
 static void allow_flipping_button_toggled(GtkWidget *, gpointer);
@@ -53,8 +51,6 @@ static void allow_flipping_button_toggled(GtkWidget *, gpointer);
 static void force_stereo_button_toggled (GtkWidget *, gpointer);
 
 static void xinerama_stereo_button_toggled (GtkWidget *, gpointer);
-
-static void force_generic_cpu_toggled    (GtkWidget *, gpointer);
 
 static void aa_line_gamma_toggled        (GtkWidget *, gpointer);
 
@@ -80,16 +76,6 @@ static const char *__sync_to_vblank_help =
 "When enabled, OpenGL applications will swap "
 "buffers during the vertical retrace; this option is "
 "applied to OpenGL applications that are started after "
-"this option is set.";
-
-static const char *__force_generic_cpu_help =
-"Enable this option to disable use of CPU "
-"specific features such as MMX, SSE, or 3DNOW!.  "
-"Use of this option may result in performance "
-"loss, but may be useful in conjunction with "
-"software such as the Valgrind memory "
-"debugger.  This option is applied to "
-"OpenGL applications that are started after "
 "this option is set.";
 
 static const char *__image_settings_slider_help =
@@ -172,7 +158,6 @@ GtkWidget* ctk_opengl_new(NvCtrlAttributeHandle *handle,
     NVCTRLAttributeValidValuesRec image_settings_valid;
     gint image_settings_value;
     gint aa_line_gamma;
-    gint force_generic_cpu;
     gint show_sli_hud;
 
     ReturnStatus ret_sync_to_vblank;
@@ -181,7 +166,6 @@ GtkWidget* ctk_opengl_new(NvCtrlAttributeHandle *handle,
     ReturnStatus ret_xinerama_stereo;
     ReturnStatus ret_image_settings;
     ReturnStatus ret_aa_line_gama;
-    ReturnStatus ret_force_generic_cpu;
     ReturnStatus ret_show_sli_hud;
 
     /* Query OpenGL settings */
@@ -213,11 +197,6 @@ GtkWidget* ctk_opengl_new(NvCtrlAttributeHandle *handle,
 
     ret_aa_line_gama = NvCtrlGetAttribute(handle, NV_CTRL_OPENGL_AA_LINE_GAMMA,
                                           &aa_line_gamma);
-
-    ret_force_generic_cpu = NvCtrlGetAttribute(handle,
-                                               NV_CTRL_FORCE_GENERIC_CPU,
-                                               &force_generic_cpu);
-
     ret_show_sli_hud = NvCtrlGetAttribute(handle, NV_CTRL_SHOW_SLI_HUD,
                                           &show_sli_hud);
 
@@ -228,7 +207,6 @@ GtkWidget* ctk_opengl_new(NvCtrlAttributeHandle *handle,
         (ret_xinerama_stereo != NvCtrlSuccess) &&
         (ret_image_settings != NvCtrlSuccess) &&
         (ret_aa_line_gama != NvCtrlSuccess) &&
-        (ret_force_generic_cpu != NvCtrlSuccess) &&
         (ret_show_sli_hud != NvCtrlSuccess)) {
         return NULL;
     }
@@ -483,38 +461,6 @@ GtkWidget* ctk_opengl_new(NvCtrlAttributeHandle *handle,
         ctk_opengl->aa_line_gamma_button = check_button;
     }
     
-    /*
-     * Force Generic CPU
-     */
-
-    if (ret_force_generic_cpu == NvCtrlSuccess) {
-        label = gtk_label_new("Disable use of enhanced CPU instruction sets");
-
-        check_button = gtk_check_button_new();
-        gtk_container_add(GTK_CONTAINER(check_button), label);
-
-        gtk_toggle_button_set_active(GTK_TOGGLE_BUTTON(check_button),
-                                     force_generic_cpu ==
-                                     NV_CTRL_FORCE_GENERIC_CPU_ENABLE);
-
-        gtk_box_pack_start(GTK_BOX(vbox), check_button, FALSE, FALSE, 0);
-
-        g_signal_connect(G_OBJECT(check_button), "toggled",
-                         G_CALLBACK(force_generic_cpu_toggled),
-                         (gpointer) ctk_opengl);
-
-        g_signal_connect(G_OBJECT(ctk_event),
-                         CTK_EVENT_NAME(NV_CTRL_FORCE_GENERIC_CPU),
-                         G_CALLBACK(value_changed), (gpointer) ctk_opengl);
-        
-        ctk_config_set_tooltip(ctk_config, check_button,
-                               __force_generic_cpu_help);
-
-        ctk_opengl->active_attributes |= __FORCE_GENERIC_CPU;
-
-        ctk_opengl->force_generic_cpu_button = check_button;
-    }
-
     if (ret_show_sli_hud == NvCtrlSuccess) {
 
         label = gtk_label_new("Enable SLI Heads-Up-Display");
@@ -589,20 +535,6 @@ static void post_xinerama_stereo_button_toggled(CtkOpenGL *ctk_opengl,
     ctk_config_statusbar_message(ctk_opengl->ctk_config,
                                  "OpenGL Xinerama Stereo Flipping %s.",
                                  enabled ? "allowed" : "not allowed");
-}
-
-static void post_force_generic_cpu_toggled(CtkOpenGL *ctk_opengl,
-                                           gboolean enabled) 
-{
-    /*
-     * XXX the logic is awkward, but correct: when
-     * NV_CTRL_FORCE_GENERIC_CPU is enabled, use of enhanced CPU
-     * instructions is disabled, and vice versa.
-     */
-
-    ctk_config_statusbar_message(ctk_opengl->ctk_config,
-                                 "OpenGL use of enhanced CPU instructions %s.",
-                                 enabled ? "disabled" : "enabled");
 }
 
 static void post_aa_line_gamma_toggled(CtkOpenGL *ctk_opengl, 
@@ -690,31 +622,6 @@ static void xinerama_stereo_button_toggled(GtkWidget *widget,
     post_xinerama_stereo_button_toggled(ctk_opengl, enabled);
 }
 
-static void force_generic_cpu_toggled(
-    GtkWidget *widget,
-    gpointer user_data
-)
-{
-    CtkOpenGL *ctk_opengl;
-    gboolean enabled;
-    ReturnStatus ret;
-    
-    ctk_opengl = CTK_OPENGL(user_data);
-
-    enabled = gtk_toggle_button_get_active(GTK_TOGGLE_BUTTON(widget));
-
-    ret = NvCtrlSetAttribute(ctk_opengl->handle,
-                             NV_CTRL_FORCE_GENERIC_CPU, enabled);
-
-    if (ret != NvCtrlSuccess) return;
-    post_force_generic_cpu_toggled(ctk_opengl, enabled);
-    /*
-     * XXX the logic is awkward, but correct: when
-     * NV_CTRL_FORCE_GENERIC_CPU is enabled, use of enhanced CPU
-     * instructions is disabled, and vice versa.
-     */
-}
-
 static void aa_line_gamma_toggled(
     GtkWidget *widget,
     gpointer user_data
@@ -777,11 +684,6 @@ static void value_changed(GtkObject *object, gpointer arg1, gpointer user_data)
         button = GTK_TOGGLE_BUTTON(ctk_opengl->aa_line_gamma_button);
         func = G_CALLBACK(aa_line_gamma_toggled);
         post_aa_line_gamma_toggled(ctk_opengl, event_struct->value);
-        break;
-    case NV_CTRL_FORCE_GENERIC_CPU:
-        button = GTK_TOGGLE_BUTTON(ctk_opengl->force_generic_cpu_button);
-        func = G_CALLBACK(force_generic_cpu_toggled);
-        post_force_generic_cpu_toggled(ctk_opengl, event_struct->value);
         break;
     case NV_CTRL_SHOW_SLI_HUD:
         button = GTK_TOGGLE_BUTTON(ctk_opengl->show_sli_hud_button);
@@ -978,12 +880,6 @@ GtkTextBuffer *ctk_opengl_create_help(GtkTextTagTable *table,
                       "this option is set.");
     }
 
-    if (ctk_opengl->active_attributes & __FORCE_GENERIC_CPU) {
-        ctk_help_heading(b, &i, "Disable use of enhanced CPU "
-                         "instruction sets");
-        ctk_help_para(b, &i, __force_generic_cpu_help);
-    }
-    
     if (ctk_opengl->active_attributes & __SHOW_SLI_HUD) {
         ctk_help_heading(b, &i, "SLI Heads-Up-Display");
         ctk_help_para(b, &i, "This option draws information about the current "

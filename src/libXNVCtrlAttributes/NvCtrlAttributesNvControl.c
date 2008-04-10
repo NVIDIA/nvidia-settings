@@ -83,6 +83,36 @@ NvCtrlInitNvControlAttributes (NvCtrlAttributePrivateHandle *h)
                        "events.");
     }
 
+    /*
+     * TARGET_ATTRIBUTE_AVAILABILITY_CHANGED_EVENT was added in NV-CONTROL
+     * 1.15
+     */
+
+    if (((major > 1) || ((major == 1) && (minor >= 15)))) {
+        ret = XNVCtrlSelectTargetNotify(h->dpy, h->target_type, h->target_id,
+                                        TARGET_ATTRIBUTE_AVAILABILITY_CHANGED_EVENT,
+                                        True);
+        if (ret != True) {
+            nv_warning_msg("Unable to select attribute changed NV-CONTROL "
+                           "events.");
+        }
+    }
+    
+    /*
+     * TARGET_STRING_ATTRIBUTE_CHANGED_EVENT was added in NV-CONTROL
+     * 1.16
+     */
+    
+    if (((major > 1) || ((major == 1) && (minor >= 16)))) {
+        ret = XNVCtrlSelectTargetNotify(h->dpy, h->target_type, h->target_id,
+                                        TARGET_STRING_ATTRIBUTE_CHANGED_EVENT,
+                                        True);
+        if (ret != True) {
+            nv_warning_msg("Unable to select attribute changed NV-CONTROL string"
+                           "events.");
+        }
+    }
+
     nv->event_base = event;
     nv->error_base = error;
     nv->major_version = major;

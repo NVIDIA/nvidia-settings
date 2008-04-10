@@ -373,8 +373,8 @@ static int process_attribute_queries(int num, char **queries,
             continue;
         }
 
-        if (nv_strcasecmp(queries[query], "vcscs")) {
-            query_all_targets(display_name, VCSC_TARGET);
+        if (nv_strcasecmp(queries[query], "vcs")) {
+            query_all_targets(display_name, VCS_TARGET);
             continue;
         }
 
@@ -772,6 +772,8 @@ static void print_queried_value(CtrlHandleTarget *t,
         free(tmp_d_str);
     } else if (flags & NV_PARSER_TYPE_100Hz) {
         snprintf(val_str, 64, "%.2f Hz", ((float) val) / 100.0);
+    } else if (flags & NV_PARSER_TYPE_1000Hz) {
+        snprintf(val_str, 64, "%.3f Hz", ((float) val) / 1000.0);
     } else if (v->type == ATTRIBUTE_TYPE_BITMASK) {
         snprintf(val_str, 64, "0x%08x", val);
     } else if (flags & NV_PARSER_TYPE_PACKED_ATTRIBUTE) {
@@ -1018,11 +1020,11 @@ static int print_target_display_connections(CtrlHandleTarget *t)
 
 
 /*
- * get_vcsc_name() Returns the VCSC product name of the given
- * VCSC target.
+ * get_vcs_name() Returns the VCS product name of the given
+ * VCS target.
  */
 
-static char * get_vcsc_name(NvCtrlAttributeHandle *h)
+static char * get_vcs_name(NvCtrlAttributeHandle *h)
 {
     char *product_name;
     ReturnStatus status;
@@ -1034,7 +1036,7 @@ static char * get_vcsc_name(NvCtrlAttributeHandle *h)
     
     return product_name;
 
-} /* get_vcsc_name() */
+} /* get_vcs_name() */
 
 
 
@@ -1114,9 +1116,9 @@ static int print_target_connections(CtrlHandles *h,
                     get_gpu_name(h->targets[target_index].t[ pData[i] ].h);
                 break;
                 
-            case VCSC_TARGET:
+            case VCS_TARGET:
                 product_name =
-                    get_vcsc_name(h->targets[target_index].t[ pData[i] ].h);
+                    get_vcs_name(h->targets[target_index].t[ pData[i] ].h);
                 break;
                 
             case FRAMELOCK_TARGET:
@@ -1229,7 +1231,7 @@ static int query_all_targets(const char *display_name, const int target_index)
             product_name = malloc(32);
             snprintf(product_name, 32, "G-Sync %d", i);
             
-        } else if (target_index == VCSC_TARGET) {
+        } else if (target_index == VCS_TARGET) {
 
             status = NvCtrlGetStringAttribute
                 (t->h, NV_CTRL_STRING_VCSC_PRODUCT_NAME, &product_name);
@@ -1280,7 +1282,7 @@ static int query_all_targets(const char *display_name, const int target_index)
                      FRAMELOCK_TARGET);
                 print_target_connections
                     (h, t, NV_CTRL_BINARY_DATA_VCSCS_USED_BY_GPU,
-                     VCSC_TARGET);
+                     VCS_TARGET);
                 break;
 
             case X_SCREEN_TARGET:
@@ -1295,7 +1297,7 @@ static int query_all_targets(const char *display_name, const int target_index)
                      GPU_TARGET);
                 break;
 
-            case VCSC_TARGET:
+            case VCS_TARGET:
                 print_target_connections
                     (h, t, NV_CTRL_BINARY_DATA_GPUS_USING_VCSC,
                      GPU_TARGET);
@@ -1777,7 +1779,7 @@ int nv_process_parsed_attribute(ParsedAttribute *a, CtrlHandles *h,
             status = NvCtrlGetAttribute(t->h, NV_CTRL_FRAMELOCK, &available);
             if (status != NvCtrlSuccess) {
                 nv_error_msg("The attribute '%s' specified %s cannot be "
-                             "%s;  error querying frame lock availablity on "
+                             "%s; error querying frame lock availablity on "
                              "%s (%s).",
                              a->name, whence, assign ? "assigned" : "queried",
                              t->name, NvCtrlAttributesStrError(status));
@@ -1785,7 +1787,7 @@ int nv_process_parsed_attribute(ParsedAttribute *a, CtrlHandles *h,
             }
                 
             if (available != NV_CTRL_FRAMELOCK_SUPPORTED) {
-                nv_error_msg("The attribute '%s' specified %s cannot be %s;  "
+                nv_error_msg("The attribute '%s' specified %s cannot be %s; "
                              "frame lock is not supported/available on %s.",
                              a->name, whence, assign ? "assigned" : "queried",
                              t->name);
@@ -1801,7 +1803,7 @@ int nv_process_parsed_attribute(ParsedAttribute *a, CtrlHandles *h,
                                             &enabled);
                 if (status != NvCtrlSuccess) {
                     nv_error_msg("The attribute '%s' specified %s cannot be "
-                                 "assigned;  error querying frame lock sync "
+                                 "assigned; error querying frame lock sync "
                                  "status on %s (%s).",
                                  a->name, whence, t->name,
                                  NvCtrlAttributesStrError(status));
@@ -1811,18 +1813,46 @@ int nv_process_parsed_attribute(ParsedAttribute *a, CtrlHandles *h,
                 if (a->attr == NV_CTRL_FRAMELOCK_TEST_SIGNAL) {
                     if (enabled != NV_CTRL_FRAMELOCK_SYNC_ENABLE) {
                         nv_error_msg("The attribute '%s' specified %s cannot "
-                                     "be assigned;  frame lock sync is "
+                                     "be assigned; frame lock sync is "
                                      "currently disabled on %s.",
                                      a->name, whence, t->name);
                         continue;
                     }
                 } else if (enabled != NV_CTRL_FRAMELOCK_SYNC_DISABLE) {
                     nv_warning_msg("The attribute '%s' specified %s cannot be "
-                                   "assigned;  frame lock sync is currently "
+                                   "assigned; frame lock sync is currently "
                                    "enabled on %s.",
                                    a->name, whence, t->name);
                     continue;
                 }
+            }
+        }
+
+        /*
+         * To properly handle SDI (GVO) attributes, we just need to make
+         * sure that GVO is supported by the handle.
+         */
+
+        if (a->flags & NV_PARSER_TYPE_SDI) {
+            int available;
+
+            status = NvCtrlGetAttribute(t->h, NV_CTRL_GVO_SUPPORTED,
+                                        &available);
+            if (status != NvCtrlSuccess) {
+                nv_error_msg("The attribute '%s' specified %s cannot be "
+                             "%s; error querying SDI availablity on "
+                             "%s (%s).",
+                             a->name, whence, assign ? "assigned" : "queried",
+                             t->name, NvCtrlAttributesStrError(status));
+                continue;
+            }
+
+            if (available != NV_CTRL_GVO_SUPPORTED_TRUE) {
+                nv_error_msg("The attribute '%s' specified %s cannot be %s; "
+                             "SDI is not supported/available on %s.",
+                             a->name, whence, assign ? "assigned" : "queried",
+                             t->name);
+                continue;
             }
         }
 

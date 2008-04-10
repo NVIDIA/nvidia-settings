@@ -60,7 +60,9 @@ static char *nv_strndup(char *s, int n);
 #define A NV_PARSER_TYPE_NO_QUERY_ALL
 #define Z NV_PARSER_TYPE_NO_ZERO_VALUE
 #define H NV_PARSER_TYPE_100Hz
+#define K NV_PARSER_TYPE_1000Hz
 #define S NV_PARSER_TYPE_STRING_ATTRIBUTE
+#define I NV_PARSER_TYPE_SDI
 #define W NV_PARSER_TYPE_VALUE_IS_SWITCH_DISPLAY
 
 AttributeTableEntry attributeTable[] = {
@@ -95,7 +97,7 @@ AttributeTableEntry attributeTable[] = {
     { "AssociatedDisplays",    NV_CTRL_ASSOCIATED_DISPLAY_DEVICES,  N|D   },
     { "ProbeDisplays",         NV_CTRL_PROBE_DISPLAYS,              A     },
     { "Depth30Allowed",        NV_CTRL_DEPTH_30_ALLOWED,            N     },
-    { "ForceGenericCpu",       NV_CTRL_FORCE_GENERIC_CPU,           0     },
+    { "ForceGenericCpu",       NV_CTRL_FORCE_GENERIC_CPU,           N     },
     { "GammaCorrectedAALines", NV_CTRL_OPENGL_AA_LINE_GAMMA,        0     },
     { "ShowSLIHUD",            NV_CTRL_SHOW_SLI_HUD,                0     },
     { "CursorShadow",          NV_CTRL_CURSOR_SHADOW,               0     },
@@ -108,6 +110,7 @@ AttributeTableEntry attributeTable[] = {
     { "FSAAAppControlled",     NV_CTRL_FSAA_APPLICATION_CONTROLLED, 0     },
     { "LogAnisoAppControlled", NV_CTRL_LOG_ANISO_APPLICATION_CONTROLLED,0 },
     { "RefreshRate",           NV_CTRL_REFRESH_RATE,                N|H   },
+    { "RefreshRate3",          NV_CTRL_REFRESH_RATE_3,              N|K   },
     { "InitialPixmapPlacement",NV_CTRL_INITIAL_PIXMAP_PLACEMENT,    N     },
     { "GlyphCache",            NV_CTRL_GLYPH_CACHE,                 N     },
     { "PCIBus",                NV_CTRL_PCI_BUS,                     N     },
@@ -148,28 +151,34 @@ AttributeTableEntry attributeTable[] = {
     { "FrameLockMasterable",   NV_CTRL_FRAMELOCK_MASTERABLE,        N|F|G },
     { "FrameLockFPGARevision", NV_CTRL_FRAMELOCK_FPGA_REVISION,     N|F|G },
 
-    { "GvoSupported",                    NV_CTRL_GVO_SUPPORTED,                        N },
-    { "GvoSyncMode",                     NV_CTRL_GVO_SYNC_MODE,                        N },
-    { "GvoSyncSource",                   NV_CTRL_GVO_SYNC_SOURCE,                      N },
-    { "GvoOutputVideoFormat",            NV_CTRL_GVO_OUTPUT_VIDEO_FORMAT,              N },
-    { "GvoInputVideoFormat",             NV_CTRL_GVO_INPUT_VIDEO_FORMAT,               N },
-    { "GvoDataFormat",                   NV_CTRL_GVO_DATA_FORMAT,                      N },
-    { "GvoDisplayXScreen",               NV_CTRL_GVO_DISPLAY_X_SCREEN,                 N },
-    { "GvoCompositeSyncInputDetected",   NV_CTRL_GVO_COMPOSITE_SYNC_INPUT_DETECTED,    N },
-    { "GvoCompositeSyncInputDetectMode", NV_CTRL_GVO_COMPOSITE_SYNC_INPUT_DETECT_MODE, N },
-    { "GvoSdiSyncInputDetected",         NV_CTRL_GVO_SDI_SYNC_INPUT_DETECTED,          N },
-    { "GvoVideoOutputs",                 NV_CTRL_GVO_VIDEO_OUTPUTS,                    N },
-    { "GvoSyncDelayPixels",              NV_CTRL_GVO_SYNC_DELAY_PIXELS,                N },
-    { "GvoSyncDelayLines",               NV_CTRL_GVO_SYNC_DELAY_LINES,                 N },
-    { "GvoGlxLocked",                    NV_CTRL_GVO_GLX_LOCKED,                       N },
-    { "GvoXScreenPanX",                  NV_CTRL_GVO_X_SCREEN_PAN_X,                   N },
-    { "GvoXScreenPanY",                  NV_CTRL_GVO_X_SCREEN_PAN_Y,                   N },
-    { "GvoOverrideHwCsc",                NV_CTRL_GVO_OVERRIDE_HW_CSC,                  N },
-    { "GvoCapabilities",                 NV_CTRL_GVO_CAPABILITIES,                     N },
-    { "GvoCompositeTermination",         NV_CTRL_GVO_COMPOSITE_TERMINATION,            N },
-    { "GvoFlipQueueSize",                NV_CTRL_GVO_FLIP_QUEUE_SIZE,                  N },
-    { "GvoFirmwareVersion",              NV_CTRL_STRING_GVO_FIRMWARE_VERSION,          S|N },
-    { "GvoLockOwner",                    NV_CTRL_GVO_LOCK_OWNER,                       N },
+    { "GvoSupported",                    NV_CTRL_GVO_SUPPORTED,                        I|N },
+    { "GvoSyncMode",                     NV_CTRL_GVO_SYNC_MODE,                        I },
+    { "GvoSyncSource",                   NV_CTRL_GVO_SYNC_SOURCE,                      I },
+    { "GvoOutputVideoFormat",            NV_CTRL_GVO_OUTPUT_VIDEO_FORMAT,              I },
+    { "GvoInputVideoFormat",             NV_CTRL_GVO_INPUT_VIDEO_FORMAT,               I|N },
+    { "GvoDataFormat",                   NV_CTRL_GVO_DATA_FORMAT,                      I },
+    { "GvoDisplayXScreen",               NV_CTRL_GVO_DISPLAY_X_SCREEN,                 I|N },
+    { "GvoCompositeSyncInputDetected",   NV_CTRL_GVO_COMPOSITE_SYNC_INPUT_DETECTED,    I|N },
+    { "GvoCompositeSyncInputDetectMode", NV_CTRL_GVO_COMPOSITE_SYNC_INPUT_DETECT_MODE, I|N },
+    { "GvoSdiSyncInputDetected",         NV_CTRL_GVO_SDI_SYNC_INPUT_DETECTED,          I|N },
+    { "GvoVideoOutputs",                 NV_CTRL_GVO_VIDEO_OUTPUTS,                    I|N },
+    { "GvoSyncDelayPixels",              NV_CTRL_GVO_SYNC_DELAY_PIXELS,                I },
+    { "GvoSyncDelayLines",               NV_CTRL_GVO_SYNC_DELAY_LINES,                 I },
+    { "GvoGlxLocked",                    NV_CTRL_GVO_GLX_LOCKED,                       I|N },
+    { "GvoXScreenPanX",                  NV_CTRL_GVO_X_SCREEN_PAN_X,                   I },
+    { "GvoXScreenPanY",                  NV_CTRL_GVO_X_SCREEN_PAN_Y,                   I },
+    { "GvoOverrideHwCsc",                NV_CTRL_GVO_OVERRIDE_HW_CSC,                  I },
+    { "GvoCapabilities",                 NV_CTRL_GVO_CAPABILITIES,                     I|N },
+    { "GvoCompositeTermination",         NV_CTRL_GVO_COMPOSITE_TERMINATION,            I },
+    { "GvoFlipQueueSize",                NV_CTRL_GVO_FLIP_QUEUE_SIZE,                  I },
+    { "GvoFirmwareVersion",              NV_CTRL_STRING_GVO_FIRMWARE_VERSION,          I|S|N },
+    { "GvoLockOwner",                    NV_CTRL_GVO_LOCK_OWNER,                       I|N },
+    { "GvoOutputVideoLocked",            NV_CTRL_GVO_OUTPUT_VIDEO_LOCKED,              I|N },
+    { "GvoSyncLockStatus",               NV_CTRL_GVO_SYNC_LOCK_STATUS,                 I|N },
+    { "GvoANCTimeCodeGeneration",        NV_CTRL_GVO_ANC_TIME_CODE_GENERATION,         I },
+    { "GvoComposite",                    NV_CTRL_GVO_COMPOSITE,                        I },
+    { "GvoCompositeAlphaKey",            NV_CTRL_GVO_COMPOSITE_ALPHA_KEY,              I },
+    { "GvoCompositeNumKeyRanges",        NV_CTRL_GVO_COMPOSITE_NUM_KEY_RANGES,         I|N },
 
     { "Brightness",            BRIGHTNESS_VALUE|ALL_CHANNELS,       N|C|G },
     { "RedBrightness",         BRIGHTNESS_VALUE|RED_CHANNEL,        C|G   },
@@ -199,6 +208,8 @@ AttributeTableEntry attributeTable[] = {
     { "XVideoOverlayHue",          NV_CTRL_ATTR_XV_OVERLAY_HUE,            V },
     { "XVideoTextureBrightness",   NV_CTRL_ATTR_XV_TEXTURE_BRIGHTNESS,     V },
     { "XVideoTextureContrast",     NV_CTRL_ATTR_XV_TEXTURE_CONTRAST,       V },
+    { "XVideoTextureHue",          NV_CTRL_ATTR_XV_TEXTURE_HUE,            V },
+    { "XVideoTextureSaturation",   NV_CTRL_ATTR_XV_TEXTURE_SATURATION,     V },
     { "XVideoTextureSyncToVBlank", NV_CTRL_ATTR_XV_TEXTURE_SYNC_TO_VBLANK, V },
     { "XVideoBlitterSyncToVBlank", NV_CTRL_ATTR_XV_BLITTER_SYNC_TO_VBLANK, V },
     { "XVideoSyncToDisplay",       NV_CTRL_XV_SYNC_TO_DISPLAY,           D|Z },
@@ -237,7 +248,9 @@ AttributeTableEntry attributeTable[] = {
 #undef A
 #undef Z
 #undef H
+#undef K
 #undef S
+#undef I
 #undef W
 
 /*
@@ -281,9 +294,9 @@ TargetTypeEntry targetTypeTable[] = {
       ATTRIBUTE_TYPE_FRAMELOCK,      /* permission_bit */
       NV_FALSE },                    /* uses_display_devices */
 
-    { "VCSC",                        /* name */
-      "vcsc",                        /* parsed_name */
-      VCSC_TARGET,                   /* target_index */
+    { "VCS",                         /* name */
+      "vcs",                         /* parsed_name */
+      VCS_TARGET,                    /* target_index */
       NV_CTRL_TARGET_TYPE_VCSC,      /* nvctrl */
       ATTRIBUTE_TYPE_VCSC,           /* permission_bit */
       NV_FALSE },                    /* uses_display_devices */

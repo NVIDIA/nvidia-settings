@@ -74,8 +74,9 @@ EXTRA_DIST += \
 	rotation_pixdata.h \
 	sdi_pixdata.h \
 	solaris_pixdata.h \
-	vcsc_pixdata.h \
-	xvideo_pixdata.h
+	vcs_pixdata.h \
+	xvideo_pixdata.h \
+	sdi_shared_sync_bnc_pixdata.h
 
 dist_list::
 	@ echo $(SRC) $(EXTRA_DIST)

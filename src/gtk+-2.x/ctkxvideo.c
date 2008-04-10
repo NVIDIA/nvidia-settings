@@ -64,6 +64,13 @@ static const char *__xv_texture_brightness_help =
 "The Video Texture Brightness slider controls "
 "the brightness level for the Texture Xv Adaptor.";
 
+static const char *__xv_texture_hue_help =
+"The Video Texture Hue slider controls "
+"the hue level for the Texture Xv Adaptor.";
+
+static const char *__xv_texture_saturation_help =
+"The Video Texture Saturation slider controls "
+"the saturation level for the Texture Xv Adaptor.";
 
 static const char *__xv_blitter_sync_to_vblank_help =
 "The Video Blitter Sync To VBlank checkbox "
@@ -155,8 +162,10 @@ static void xv_sync_to_display_radio_button_enabled_add(CtkXVideo *ctk_xvideo,
 #define __XV_TEXTURE_SYNC_TO_VBLANK (1 << 5)
 #define __XV_TEXTURE_CONTRAST       (1 << 6)
 #define __XV_TEXTURE_BRIGHTNESS     (1 << 7)
-#define __XV_BLITTER_SYNC_TO_VBLANK (1 << 8)
-#define __XV_SYNC_TO_DISPLAY        (1 << 9)
+#define __XV_TEXTURE_SATURATION     (1 << 8)
+#define __XV_TEXTURE_HUE            (1 << 9)
+#define __XV_BLITTER_SYNC_TO_VBLANK (1 << 10)
+#define __XV_SYNC_TO_DISPLAY        (1 << 11)
 
 
 
@@ -596,6 +605,18 @@ GtkWidget* ctk_xvideo_new(NvCtrlAttributeHandle *handle,
                           __xv_texture_contrast_help,
                           NV_CTRL_ATTR_XV_TEXTURE_CONTRAST,
                           __XV_TEXTURE_CONTRAST);
+
+        ctk_xvideo->texture_hue =
+            create_slider(ctk_xvideo, vbox, button, "Hue",
+                          __xv_texture_hue_help,
+                          NV_CTRL_ATTR_XV_TEXTURE_HUE,
+                          __XV_TEXTURE_HUE);
+        
+        ctk_xvideo->texture_saturation =
+            create_slider(ctk_xvideo, vbox, button, "Saturation",
+                          __xv_texture_saturation_help,
+                          NV_CTRL_ATTR_XV_TEXTURE_SATURATION,
+                          __XV_TEXTURE_SATURATION);
     
     }
     
@@ -607,20 +628,22 @@ GtkWidget* ctk_xvideo_new(NvCtrlAttributeHandle *handle,
         gtk_box_pack_start(GTK_BOX(object), frame, FALSE, FALSE, 0);
         
         vbox = gtk_vbox_new(FALSE, 5);
-        ctk_xvideo->xv_sync_to_display_button_box = vbox;
         gtk_container_set_border_width(GTK_CONTAINER(vbox), FRAME_PADDING);
         gtk_container_add(GTK_CONTAINER(frame), vbox);
         
         ctk_xvideo->blitter_sync_to_blank =
             create_check_button(ctk_xvideo,
-                                ctk_xvideo->xv_sync_to_display_button_box,
-                                button, 
-                                "Sync to VBlank on display device",
+                                vbox,
+                                button,
+                                "Sync to VBlank",
                                 __xv_blitter_sync_to_vblank_help,
                                 NV_CTRL_ATTR_XV_BLITTER_SYNC_TO_VBLANK,
                                 __XV_BLITTER_SYNC_TO_VBLANK);
-  
-        /* Sync to display selection */
+
+    }
+
+    /* Sync to display selection */
+    if (xv_texture_present || xv_blitter_present) {
         ret = NvCtrlGetAttribute(handle,
                                  NV_CTRL_XV_SYNC_TO_DISPLAY,
                                  &sync_mask);
@@ -635,19 +658,25 @@ GtkWidget* ctk_xvideo_new(NvCtrlAttributeHandle *handle,
                 int i, n, current = -1, mask;
                 char *name, *type;
                 gchar *name_str;
+                frame = gtk_frame_new("Sync to this display device");
+                gtk_box_pack_start(GTK_BOX(object), frame, FALSE, FALSE, 0);
 
+                vbox = gtk_vbox_new(FALSE, 5);
+                gtk_container_set_border_width(GTK_CONTAINER(vbox), FRAME_PADDING);
+                gtk_container_add(GTK_CONTAINER(frame), vbox);
+                ctk_xvideo->xv_sync_to_display_button_box = vbox;
 
                 for (n=0, i = 0; i < 24; i++) {
-        
+
                     mask = 1 << i;
                     if (!(enabled & mask)) continue;
 
                     /* get the name of the display device */
-        
+
                     ret = NvCtrlGetStringDisplayAttribute(handle, mask,
-                                     NV_CTRL_STRING_DISPLAY_DEVICE_NAME,
-                                     &name);
-        
+                                              NV_CTRL_STRING_DISPLAY_DEVICE_NAME,
+                                              &name);
+
                     if ((ret != NvCtrlSuccess) || (!name)) {
                         name = g_strdup("Unknown");
                     }
@@ -659,27 +688,28 @@ GtkWidget* ctk_xvideo_new(NvCtrlAttributeHandle *handle,
                     name_str = g_strdup_printf("%s (%s)", name, type);
                     XFree(name);
                     free(type);
-                
+
                     if (n==0) {
                         prev_radio = NULL;
                     } else {
-                          prev_radio = radio[n-1];
-                      } 
+                        prev_radio = radio[n-1];
+                    } 
                     radio[n] = xv_sync_to_display_radio_button_add(ctk_xvideo, 
-                                                   prev_radio, name_str,
-                                                   mask, n);
+                                                                   prev_radio,
+                                                                   name_str,
+                                                                   mask, n);
                     g_free(name_str);
                     ctk_config_set_tooltip(ctk_config, radio[n],
                                            __xv_sync_to_display_help);    
-            
+
                     if (mask == sync_mask) {
                         current = n;
                     }
-            
+
                     n++;
                     ctk_xvideo->active_attributes |= __XV_SYNC_TO_DISPLAY;
                 }
-               
+
                 g_signal_connect(G_OBJECT(ctk_event),
                                  CTK_EVENT_NAME(NV_CTRL_XV_SYNC_TO_DISPLAY),
                                  G_CALLBACK(xv_sync_to_display_update_received),
@@ -689,10 +719,10 @@ GtkWidget* ctk_xvideo_new(NvCtrlAttributeHandle *handle,
                                  G_CALLBACK(nv_ctrl_enabled_displays),
                                  (gpointer) ctk_xvideo);
                 sensitize_radio_buttons(ctk_xvideo);
-                             
+
                 if (current != -1)
                     xv_sync_to_display_update_radio_buttons(ctk_xvideo, current);
-               
+
             }
         }
     }
@@ -840,6 +870,8 @@ static void slider_changed(GtkAdjustment *adjustment, gpointer user_data)
     case NV_CTRL_ATTR_XV_OVERLAY_HUE:        str = "Overlay Hue";        break;
     case NV_CTRL_ATTR_XV_TEXTURE_CONTRAST:   str = "Texture Contrast";   break;
     case NV_CTRL_ATTR_XV_TEXTURE_BRIGHTNESS: str = "Texture Brightness"; break;
+    case NV_CTRL_ATTR_XV_TEXTURE_HUE:        str = "Texture Hue";        break;
+    case NV_CTRL_ATTR_XV_TEXTURE_SATURATION: str = "Texture Saturation"; break;
 
     default:
         return;
@@ -923,14 +955,13 @@ static void check_button_toggled(GtkWidget *widget, gpointer user_data)
     switch (attribute) {
     case NV_CTRL_ATTR_XV_TEXTURE_SYNC_TO_VBLANK:
         str = "Texture Sync To VBlank"; break;
-    case NV_CTRL_ATTR_XV_BLITTER_SYNC_TO_VBLANK: {
-        str = "Blitter Sync To VBlank";
-        sensitize_radio_buttons(ctk_xvideo);
-        break;
-    }
+    case NV_CTRL_ATTR_XV_BLITTER_SYNC_TO_VBLANK:
+        str = "Blitter Sync To VBlank"; break;
+
     default:
         return;
     }
+    sensitize_radio_buttons(ctk_xvideo);
     post_check_button_toggled(ctk_xvideo, str, enabled);
 } /* check_button_toggled() */
 
@@ -952,11 +983,18 @@ static void sensitize_radio_buttons(CtkXVideo *ctk_xvideo)
     int i;
     gboolean enabled;
 
-    if (!ctk_xvideo->blitter_sync_to_blank) return;
+    if (!ctk_xvideo->blitter_sync_to_blank &&
+        !ctk_xvideo->texture_sync_to_blank) return;
 
-    enabled = gtk_toggle_button_get_active
-        (GTK_TOGGLE_BUTTON(ctk_xvideo->blitter_sync_to_blank));
-
+    enabled = FALSE;
+    if (ctk_xvideo->blitter_sync_to_blank) {
+        enabled |= gtk_toggle_button_get_active
+            (GTK_TOGGLE_BUTTON(ctk_xvideo->blitter_sync_to_blank));
+    }
+    if (ctk_xvideo->texture_sync_to_blank) {
+        enabled |= gtk_toggle_button_get_active
+            (GTK_TOGGLE_BUTTON(ctk_xvideo->texture_sync_to_blank));
+    }
     for (i = 0; i < 24; i++) {
         GtkWidget *b = ctk_xvideo->xv_sync_to_display_buttons[i];
         if (!b) continue;
@@ -1041,7 +1079,14 @@ static void reset_defaults(GtkButton *button, gpointer user_data)
     
     reset_slider(ctk_xvideo, ctk_xvideo->texture_brightness,
                  NV_CTRL_ATTR_XV_TEXTURE_BRIGHTNESS);
-    
+
+    reset_slider(ctk_xvideo, ctk_xvideo->texture_hue,
+                 NV_CTRL_ATTR_XV_TEXTURE_HUE);
+
+    reset_slider(ctk_xvideo, ctk_xvideo->texture_saturation,
+                 NV_CTRL_ATTR_XV_TEXTURE_SATURATION);
+
+
     reset_check_button(ctk_xvideo, ctk_xvideo->blitter_sync_to_blank,
                        NV_CTRL_ATTR_XV_BLITTER_SYNC_TO_VBLANK);
     
@@ -1102,7 +1147,17 @@ GtkTextBuffer *ctk_xvideo_create_help(GtkTextTagTable *table,
         ctk_help_heading(b, &i, "Video Texture Brightness");
         ctk_help_para(b, &i, __xv_texture_brightness_help);
     }
-   
+
+    if (ctk_xvideo->active_attributes & __XV_TEXTURE_HUE) {
+        ctk_help_heading(b, &i, "Video Texture Hue");
+        ctk_help_para(b, &i, __xv_texture_hue_help);
+    }
+    
+    if (ctk_xvideo->active_attributes & __XV_TEXTURE_SATURATION) {
+        ctk_help_heading(b, &i, "Video Texture Saturation");
+        ctk_help_para(b, &i, __xv_texture_saturation_help);
+    }
+
     if (ctk_xvideo->active_attributes & __XV_BLITTER_SYNC_TO_VBLANK) {
         ctk_help_heading(b, &i, "Video Blitter Sync To VBlank");
         ctk_help_para(b, &i, __xv_blitter_sync_to_vblank_help);

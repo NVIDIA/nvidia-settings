@@ -18,7 +18,7 @@
 #define NV_CTRL_TARGET_TYPE_X_SCREEN   0
 #define NV_CTRL_TARGET_TYPE_GPU        1
 #define NV_CTRL_TARGET_TYPE_FRAMELOCK  2
-#define NV_CTRL_TARGET_TYPE_VCSC       3 /* Visual Computing System Controller */
+#define NV_CTRL_TARGET_TYPE_VCSC       3 /* Visual Computing System */
 
 
 /**************************************************************************/
@@ -586,6 +586,9 @@
  * conjunction with software such as the Valgrind memory debugger.
  * This setting is only applied to OpenGL clients that are started
  * after this setting is applied.
+ *
+ * USAGE NOTE: This attribute is deprecated. CPU compatibility is now
+ *             checked each time during initialization.
  */
 
 #define NV_CTRL_FORCE_GENERIC_CPU                               37 /* RW-X */
@@ -944,7 +947,8 @@
 #define NV_CTRL_GVO_OUTPUT_VIDEO_FORMAT                         70  /* RW- */
 
 #define NV_CTRL_GVO_VIDEO_FORMAT_NONE                           0
-#define NV_CTRL_GVO_VIDEO_FORMAT_480I_59_94_SMPTE259_NTSC       1
+#define NV_CTRL_GVO_VIDEO_FORMAT_480I_59_94_SMPTE259_NTSC       1 //deprecated
+#define NV_CTRL_GVO_VIDEO_FORMAT_487I_59_94_SMPTE259_NTSC       1
 #define NV_CTRL_GVO_VIDEO_FORMAT_576I_50_00_SMPTE259_PAL        2
 #define NV_CTRL_GVO_VIDEO_FORMAT_720P_59_94_SMPTE296            3
 #define NV_CTRL_GVO_VIDEO_FORMAT_720P_60_00_SMPTE296            4
@@ -1186,7 +1190,7 @@
  *
  * XNVCTRLQueryAttribute (dpy,
  *                        screen, 
- *                        NV_CTRL_GVO_VIDEO_FORMAT_480I_59_94_SMPTE259_NTSC,
+ *                        NV_CTRL_GVO_VIDEO_FORMAT_487I_59_94_SMPTE259_NTSC,
  *                        NV_CTRL_GVO_VIDEO_FORMAT_WIDTH,
  *                        &value);
  *
@@ -2696,12 +2700,22 @@
  * COMPOSITE_TERMINATION - whether the 75 ohm termination of the
  * SDI composite input signal can be programmed through the
  * NV_CTRL_GVO_COMPOSITE_TERMINATION attribute.
+ *
+ * SHARED_SYNC_BNC - whether the SDI device has a single BNC
+ * connector used for both (SDI & Composite) incoming signals.
+ *
+ * MULTIRATE_SYNC - whether the SDI device supports synchronization
+ * of input and output video modes that match in being odd or even
+ * modes (ie, AA.00 Hz modes can be synched to other BB.00 Hz modes and
+ * AA.XX Hz can match to BB.YY Hz where .XX and .YY are not .00)
  */
 
 #define NV_CTRL_GVO_CAPABILITIES                                 229  /* R-- */
-#define NV_CTRL_GVO_CAPABILITIES_APPLY_CSC_IMMEDIATELY           0x1
-#define NV_CTRL_GVO_CAPABILITIES_APPLY_CSC_TO_X_SCREEN           0x2
-#define NV_CTRL_GVO_CAPABILITIES_COMPOSITE_TERMINATION           0x4
+#define NV_CTRL_GVO_CAPABILITIES_APPLY_CSC_IMMEDIATELY           0x00000001
+#define NV_CTRL_GVO_CAPABILITIES_APPLY_CSC_TO_X_SCREEN           0x00000002
+#define NV_CTRL_GVO_CAPABILITIES_COMPOSITE_TERMINATION           0x00000004
+#define NV_CTRL_GVO_CAPABILITIES_SHARED_SYNC_BNC                 0x00000008
+#define NV_CTRL_GVO_CAPABILITIES_MULTIRATE_SYNC                  0x00000010
 
 
 /*
@@ -2939,7 +2953,7 @@
 
 
 /*
- * NV_CTRL_NATIVE_RESOLUTION - Returns the dimensions of the
+ * NV_CTRL_FLATPANEL_NATIVE_RESOLUTION - Returns the dimensions of the
  * native resolution of the flat panel as determined by the
  * NVIDIA X Driver.
  *
@@ -2989,7 +3003,7 @@
 
 
 /*
- * NV_CTRL_FLATPANEL_DFP_SCALING_ACTIVE - Returns the current state of
+ * NV_CTRL_DFP_SCALING_ACTIVE - Returns the current state of
  * DFP scaling.  DFP scaling is mode-specific (meaning it may vary
  * depending on which mode is currently set).  DFP scaling is active if
  * the GPU is set to scale to the best fit resolution (NV_CTRL_GPU_SCALING
@@ -3062,7 +3076,6 @@
 #define NV_CTRL_GVO_LOCK_OWNER_X_SCREEN                           3
 
 
-
 /*
  * NV_CTRL_HWOVERLAY - when a workstation overlay is in use, reports
  * whether the hardware overlay is used, or if the overlay is emulated.
@@ -3079,6 +3092,19 @@
  */
 
 #define NV_CTRL_NUM_GPU_ERRORS_RECOVERED                        259 /* R--- */
+
+
+/*
+ * NV_CTRL_REFRESH_RATE_3 - Returns the refresh rate of the specified
+ * display device in 1000 * Hz (ie. to get the refresh rate in Hz, divide
+ * the returned value by 1000.)
+ *
+ * This attribute may be queried through XNVCTRLQueryTargetAttribute()
+ * using a NV_CTRL_TARGET_TYPE_GPU or NV_CTRL_TARGET_TYPE_X_SCREEN target.
+ */
+
+#define NV_CTRL_REFRESH_RATE_3                                  260 /* R-DG */
+
 
 /*
  * NV_CTRL_ONDEMAND_VBLANK_INTERRUPTS - if the OnDemandVBlankInterrupts
@@ -3138,6 +3164,123 @@
 #define NV_CTRL_GPU_ADAPTIVE_CLOCK_STATE                        266 /* R--G */
 #define NV_CTRL_GPU_ADAPTIVE_CLOCK_STATE_DISABLED                 0
 #define NV_CTRL_GPU_ADAPTIVE_CLOCK_STATE_ENABLED                  1
+
+
+/*
+ * NV_CTRL_GVO_OUTPUT_VIDEO_LOCKED - Returns whether or not the GVO output
+ * video is locked to the GPU.
+ */
+
+#define NV_CTRL_GVO_OUTPUT_VIDEO_LOCKED                         267 /* R--- */
+#define NV_CTRL_GVO_OUTPUT_VIDEO_LOCKED_FALSE                     0
+#define NV_CTRL_GVO_OUTPUT_VIDEO_LOCKED_TRUE                      1
+
+
+/*
+ * NV_CTRL_GVO_SYNC_LOCK_STATUS - Returns whether or not the GVO device
+ * is locked to the input ref signal.  If the sync mode is set to
+ * NV_CTRL_GVO_SYNC_MODE_GENLOCK, then this returns the genlock
+ * sync status, and if the sync mode is set to NV_CTRL_GVO_SYNC_MODE_FRAMELOCK,
+ * then this reports the frame lock status.
+ */
+
+#define NV_CTRL_GVO_SYNC_LOCK_STATUS                            268 /* R--- */
+#define NV_CTRL_GVO_SYNC_LOCK_STATUS_UNLOCKED                     0
+#define NV_CTRL_GVO_SYNC_LOCK_STATUS_LOCKED                       1
+
+
+/*
+ * NV_CTRL_GVO_ANC_TIME_CODE_GENERATION - Allows SDI device to generate
+ * time codes in the ANC region of the SDI video output stream.
+ */
+
+#define NV_CTRL_GVO_ANC_TIME_CODE_GENERATION                    269 /* RW-- */
+#define NV_CTRL_GVO_ANC_TIME_CODE_GENERATION_DISABLE              0
+#define NV_CTRL_GVO_ANC_TIME_CODE_GENERATION_ENABLE               1
+
+
+/*
+ * NV_CTRL_GVO_COMPOSITE - Enables/Disables SDI compositing.  This attribute
+ * is only available when an SDI input source is detected and is in genlock
+ * mode.
+ */
+
+#define NV_CTRL_GVO_COMPOSITE                                   270 /* RW-- */
+#define NV_CTRL_GVO_COMPOSITE_DISABLE                             0
+#define NV_CTRL_GVO_COMPOSITE_ENABLE                              1
+
+
+/*
+ * NV_CTRL_GVO_COMPOSITE_ALPHA_KEY - When compositing is enabled, this
+ * enables/disables alpha blending.
+ */
+
+#define NV_CTRL_GVO_COMPOSITE_ALPHA_KEY                         271 /* RW-- */
+#define NV_CTRL_GVO_COMPOSITE_ALPHA_KEY_DISABLE                   0
+#define NV_CTRL_GVO_COMPOSITE_ALPHA_KEY_ENABLE                    1
+
+
+/*
+ * NV_CTRL_GVO_COMPOSITE_LUMA_KEY_RANGE - Set the values of a luma
+ * channel range.  This is a packed int that has the following format
+ * (in order of high-bits to low bits):
+ *
+ * Range # (11 bits), (Enabled 1 bit), min value (10 bits), max value (10 bits)
+ *
+ * To query the current values, pass the range # throught he display_mask
+ * variable.
+ */
+
+#define NV_CTRL_GVO_COMPOSITE_LUMA_KEY_RANGE                    272 /* RW-- */
+
+#define NV_CTRL_GVO_COMPOSITE_MAKE_RANGE(range, enable, min, max) \
+    ((((min) & 0x3FF)   <<  0) |  \
+     (((max) & 0x3FF)   << 10) |  \
+     (((enable) & 0x1)  << 20) |  \
+     (((range) & 0x7FF) << 21))
+
+#define NV_CTRL_GVO_COMPOSITE_GET_RANGE(val, range, enable, min, max) \
+    (min)    = ((val) >> 0)  & 0x3FF; \
+    (max)    = ((val) >> 10) & 0x3FF; \
+    (enable) = ((val) >> 20) & 0x1;   \
+    (range)  = ((val) >> 21) & 0x7FF;
+
+
+/*
+ * NV_CTRL_GVO_COMPOSITE_CR_KEY_RANGE - Set the values of a CR
+ * channel range.  This is a packed int that has the following format
+ * (in order of high-bits to low bits):
+ *
+ * Range # (11 bits), (Enabled 1 bit), min value (10 bits), max value (10 bits)
+ *
+ * To query the current values, pass the range # throught he display_mask
+ * variable.
+ */
+
+#define NV_CTRL_GVO_COMPOSITE_CR_KEY_RANGE                      273 /* RW-- */
+
+
+/*
+ * NV_CTRL_GVO_COMPOSITE_CB_KEY_RANGE - Set the values of a CB
+ * channel range.  This is a packed int that has the following format
+ * (in order of high-bits to low bits):
+ *
+ * Range # (11 bits), (Enabled 1 bit), min value (10 bits), max value (10 bits)
+ *
+ * To query the current values, pass the range # throught he display_mask
+ * variable.
+ */
+
+#define NV_CTRL_GVO_COMPOSITE_CB_KEY_RANGE                      274 /* RW-- */
+
+
+/*
+ * NV_CTRL_GVO_COMPOSITE_NUM_KEY_RANGES - Returns the number of ranges
+ * available for each channel (Y/Luma, Cr, and Cb.)
+ */
+
+#define NV_CTRL_GVO_COMPOSITE_NUM_KEY_RANGES                    275 /* R--- */
+
 
 /*
  * NV_CTRL_SWITCH_TO_DISPLAYS takes display to which
@@ -3376,7 +3519,7 @@
 
 /*
  * NV_CTRL_STRING_VCSC_SERIAL_NUMBER - Querys the unique serial number
- * of the VCSC device.
+ * of the VCS device.
  *
  * This attribute must be queried through XNVCTRLQueryTargetStringAttribute()
  * using a NV_CTRL_TARGET_TYPE_VCSC target.
@@ -3386,7 +3529,7 @@
 
 
 /*
- * NV_CTRL_STRING_VCSC_BUILD_DATE - Querys the date of the VCSC device.
+ * NV_CTRL_STRING_VCSC_BUILD_DATE - Querys the date of the VCS device.
  * the returned string is in the following format: "Week.Year"
  *
  * This attribute must be queried through XNVCTRLQueryTargetStringAttribute()
@@ -3398,7 +3541,7 @@
 
 /*
  * NV_CTRL_STRING_VCSC_FIRMWARE_VERSION - Querys the firmware version
- * of the VCSC device.
+ * of the VCS device.
  *
  * This attribute must be queried through XNVCTRLQueryTargetStringAttribute()
  * using a NV_CTRL_TARGET_TYPE_VCSC target.
@@ -3409,10 +3552,10 @@
 
 /*
  * NV_CTRL_STRING_VCSC_FIRMWARE_REVISION - Querys the firmware revision
- * of the VCSC device.
+ * of the VCS device.
  *
  * This attribute must be queried through XNVCTRLQueryTargetStringAttribute()
- * using a NV_CTRL_TARGET_TYPE_VCSC target.
+ * using a NV_CTRL_TARGET_TYPE_VCS target.
  */
 
 #define NV_CTRL_STRING_VCSC_FIRMWARE_REVISION                  20   /* R---V */
@@ -3420,7 +3563,7 @@
 
 /*
  * NV_CTRL_STRING_VCSC_HARDWARE_VERSION - Querys the hardware version
- * of the VCSC device.
+ * of the VCS device.
  *
  * This attribute must be queried through XNVCTRLQueryTargetStringAttribute()
  * using a NV_CTRL_TARGET_TYPE_VCSC target.
@@ -3431,7 +3574,7 @@
 
 /*
  * NV_CTRL_STRING_VCSC_HARDWARE_REVISION - Querys the hardware revision
- * of the VCSC device.
+ * of the VCS device.
  *
  * This attribute must be queried through XNVCTRLQueryTargetStringAttribute()
  * using a NV_CTRL_TARGET_TYPE_VCSC target.
@@ -3799,7 +3942,7 @@
 
 /*
  * NV_CTRL_BINARY_DATA_GPUS_USING_VCSC - Returns the list of
- * GPU devices connected to the given VCSC.
+ * GPU devices connected to the given VCS.
  *
  * The format of the returned data is:
  *
@@ -3821,8 +3964,8 @@
  *
  * The format of the returned data is:
  *
- *     4       CARD32 number of VCSCs (always 1)
- *     4 * n   CARD32 VCSC indices
+ *     4       CARD32 number of VCS (always 1)
+ *     4 * n   CARD32 VCS indices
  *
  * This attribute can only be queried through XNVCTRLQueryTargetBinaryData()
  * using a NV_CTRL_TARGET_TYPE_GPU target.  This attribute cannot be
@@ -4052,9 +4195,10 @@ typedef struct _NVCTRLAttributeValidValues {
  * of event to receive (see NVCtrlLib.h for more information):
  */
 
-#define ATTRIBUTE_CHANGED_EVENT        0
-#define TARGET_ATTRIBUTE_CHANGED_EVENT 1
-
+#define ATTRIBUTE_CHANGED_EVENT                     0
+#define TARGET_ATTRIBUTE_CHANGED_EVENT              1
+#define TARGET_ATTRIBUTE_AVAILABILITY_CHANGED_EVENT 2
+#define TARGET_STRING_ATTRIBUTE_CHANGED_EVENT       3
 
 
 #endif /* __NVCTRL_H */

@@ -64,12 +64,12 @@ typedef struct _CtkDisplayConfig
     /* Layout */
     nvLayoutPtr layout;
     GtkWidget *obj_layout;
+    GtkWidget *label_layout;
 
     GtkWidget *chk_xinerama_enabled;
     GtkWidget *chk_primary_display;
 
     GtkWidget *notebook; /* Tabbed notebook for display and X screen pages */
-
 
     /* Display - Info */
     GtkWidget *display_page;

@@ -121,6 +121,7 @@ GTK_LDFLAGS := $(shell $(PKG_CONFIG) --libs gtk+-2.0)
 X11_LIBS := $(X11_LIB_DIRS) -Wl,-Bstatic -lXxf86vm -Wl,-Bdynamic -lX11 -lXext
 
 XNVCTRL_LIB := src/libXNVCtrl/libXNVCtrl.a
+XNVCTRL_DIR := src/libXNVCtrl
 
 XF86PARSER_LIB := src/XF86Config-parser/libXF86Config-parser.a
 XF86PARSER_DIR := src/XF86Config-parser
@@ -234,12 +235,15 @@ $(STAMP_C): $(filter-out $(OBJS_DIR)/$(STAMP_C:.c=.o), $(OBJS))
 $(XF86PARSER_LIB):
 	$(MAKE) NV_CFLAGS='$(NV_CFLAGS)' -C $(XF86PARSER_DIR)
 
+$(XNVCTRL_LIB):
+	$(MAKE) CFLAGS='$(ALL_CFLAGS)' LDFLAGS='$(ALL_LDFLAGS)' -C $(XNVCTRL_DIR)
+
 $(NVIDIA_SETTINGS): $(OBJS) $(XNVCTRL_LIB) $(XF86PARSER_LIB)
 	$(CC) $(OBJS) $(ALL_CFLAGS) $(ALL_LDFLAGS) $(XNVCTRL_LIB) $(XF86PARSER_LIB) -o $@
 
 .PHONY: $(XF86PARSER_LIB) dist clean clobber
 
-dist:
+dist: $(XNVCTRL_LIB)
 	@ if [ -d $(NVIDIA_SETTINGS_DISTDIR) ]; then \
 		chmod 755 $(NVIDIA_SETTINGS_DISTDIR); \
 	fi
@@ -262,7 +266,7 @@ dist:
 	rm -rf $(NVIDIA_SETTINGS_DISTDIR)
 
 clean clobber:
-	rm -rf $(OBJS_DIR) $(DEPS_DIR) $(STAMP_C) $(NVIDIA_SETTINGS)
+	rm -rf $(OBJS_DIR) $(DEPS_DIR) $(STAMP_C) $(NVIDIA_SETTINGS) $(XNVCTRL_LIB)
 	find . -name "*~" -exec rm -f \{\} \;
 
 -include $(DEPS)

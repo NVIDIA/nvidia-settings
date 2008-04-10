@@ -42,7 +42,7 @@ int main(void)
     Display *dpy;
     Bool ret;
     int event_base, error_base;
-    int num_screens, num_gpus, num_framelocks, num_vcscs, i;
+    int num_screens, num_gpus, num_framelocks, num_vcs, i;
     int sources;
     XEvent event;
     XNVCtrlAttributeChangedEvent *nvevent;
@@ -101,13 +101,13 @@ int main(void)
         return 1;
     }
 
-    /* Query number of VCSC (Visual Computing System Controllers) devices */
+    /* Query number of VCS (Visual Computing System) devices */
 
     ret = XNVCTRLQueryTargetCount(dpy, NV_CTRL_TARGET_TYPE_VCSC,
-                                  &num_vcscs);
+                                  &num_vcs);
     if (ret != True) {
         fprintf(stderr, "Failed to query the number of Visual Computing "
-                "System Controllers devices on '%s'.\n",
+                "System devices on '%s'.\n",
                 XDisplayName(NULL));
         return 1;
     }
@@ -228,21 +228,21 @@ int main(void)
         sources++;
     }
 
-    /* Register to receive on all VCSC targets */
+    /* Register to receive on all VCS targets */
 
-    for (i = 0; i < num_vcscs; i++ ) {
+    for (i = 0; i < num_vcs; i++ ) {
 
         ret = XNVCtrlSelectTargetNotify(dpy, NV_CTRL_TARGET_TYPE_VCSC,
                                         i, TARGET_ATTRIBUTE_CHANGED_EVENT,
                                         True);
         if (ret != True) {
-            printf("- Unable to register to receive NV-CONTROL VCSC "
-                   "target events for VCSC %d on '%s'.\n",
+            printf("- Unable to register to receive NV-CONTROL VCS "
+                   "target events for VCS %d on '%s'.\n",
                    i, XDisplayName(NULL));
             continue;
         }
         
-        printf("+ Listening to TARGET_ATTRIBUTE_CHANGE_EVENTs on VCSC "
+        printf("+ Listening to TARGET_ATTRIBUTE_CHANGE_EVENTs on VCS "
                "%d.\n", i);
         sources++;
     }
@@ -321,7 +321,7 @@ static const char *target2str(int n)
     case NV_CTRL_TARGET_TYPE_X_SCREEN:  return "X Screen"; break;
     case NV_CTRL_TARGET_TYPE_GPU:       return "GPU"; break;
     case NV_CTRL_TARGET_TYPE_FRAMELOCK: return "Frame Lock"; break;
-    case NV_CTRL_TARGET_TYPE_VCSC:      return "VCSC"; break;
+    case NV_CTRL_TARGET_TYPE_VCSC:      return "VCS"; break;
     default:
         return "Unknown";
     }
@@ -360,7 +360,6 @@ static const char *attr2str(int n)
     case NV_CTRL_FRAMELOCK_TEST_SIGNAL:            return "frame lock test signal"; break;
     case NV_CTRL_FRAMELOCK_ETHERNET_DETECTED:      return "frame lock ethernet detected"; break;
     case NV_CTRL_FRAMELOCK_VIDEO_MODE:             return "frame lock video mode"; break;
-    case NV_CTRL_FORCE_GENERIC_CPU:                return "force generic cpu"; break;
     case NV_CTRL_OPENGL_AA_LINE_GAMMA:             return "opengl aa line gamma"; break;
     case NV_CTRL_FLIPPING_ALLOWED:                 return "flipping allowed"; break;
     case NV_CTRL_TEXTURE_CLAMPING:                 return "texture clamping"; break;

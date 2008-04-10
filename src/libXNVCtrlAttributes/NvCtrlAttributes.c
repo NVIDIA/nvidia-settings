@@ -275,11 +275,11 @@ int NvCtrlGetEventBase(NvCtrlAttributeHandle *handle)
 {
     NvCtrlAttributePrivateHandle *h;
 
-    if (!handle) return 0;
+    if (!handle) return -1;
 
     h = (NvCtrlAttributePrivateHandle *) handle;
 
-    if (!h->nv) return 0;
+    if (!h->nv) return -1;
     return (h->nv->event_base);
     
 } /* NvCtrlGetEventBase() */
@@ -289,11 +289,11 @@ int NvCtrlGetXrandrEventBase(NvCtrlAttributeHandle *handle)
 {
     NvCtrlAttributePrivateHandle *h;
 
-    if (!handle) return 0;
+    if (!handle) return -1;
 
     h = (NvCtrlAttributePrivateHandle *) handle;
 
-    if (!h->xrandr) return 0;
+    if (!h->xrandr) return -1;
     return (h->xrandr->event_base);
     
 } /* NvCtrlGetXrandrEventBase() */

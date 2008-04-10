@@ -537,15 +537,19 @@ GtkWidget* ctk_randr_new(NvCtrlAttributeHandle *handle,
         }
 
         { /* Rotation orientation image */
+            GtkWidget *frame = gtk_frame_new(NULL);
             GtkWidget *img_box = gtk_hbox_new(TRUE, 0);
-            
-            gtk_widget_set_size_request(img_box, 120, 120);
-            
+            GtkWidget *hbox = gtk_hbox_new(TRUE, 0);
+            GtkWidget *vbox = gtk_vbox_new(TRUE, 0);
+
             gtk_box_pack_start(GTK_BOX(img_box),
                                GTK_WIDGET(ctk_randr->orientation_image),
                                FALSE, FALSE, 0);
-
-            gtk_box_pack_start(GTK_BOX(hControlBox), img_box, FALSE, FALSE, 0);
+            gtk_container_add(GTK_CONTAINER(frame), img_box);
+            gtk_box_pack_start(GTK_BOX(vbox), frame, FALSE, FALSE, 0);
+            gtk_box_pack_start(GTK_BOX(hbox), vbox, FALSE, FALSE, 0);
+            gtk_widget_set_size_request(hbox, 130, 130);
+            gtk_box_pack_start(GTK_BOX(hControlBox), hbox, FALSE, FALSE, 0);
         }
 
         { /* Rotate right button */

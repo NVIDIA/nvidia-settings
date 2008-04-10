@@ -31,47 +31,47 @@
 
 #include "ctkimage.h"
 
-#include "ctkvcsc.h"
+#include "ctkvcs.h"
 #include "ctkevent.h"
 #include "ctkhelp.h"
 #include "ctkutils.h"
 
 
-GType ctk_vcsc_get_type(void)
+GType ctk_vcs_get_type(void)
 {
-    static GType ctk_vcsc_type = 0;
+    static GType ctk_vcs_type = 0;
 
-    if (!ctk_vcsc_type) {
-        static const GTypeInfo ctk_vcsc_info = {
-            sizeof (CtkVcscClass),
+    if (!ctk_vcs_type) {
+        static const GTypeInfo ctk_vcs_info = {
+            sizeof (CtkVcsClass),
             NULL, /* base_init */
             NULL, /* base_finalize */
             NULL, /* class_init */
             NULL, /* class_finalize */
             NULL, /* class_data */
-            sizeof(CtkVcsc),
+            sizeof(CtkVcs),
             0, /* n_preallocs */
             NULL, /* instance_init */
         };
 
-        ctk_vcsc_type = g_type_register_static
-            (GTK_TYPE_VBOX, "CtkVcsc", &ctk_vcsc_info, 0);
+        ctk_vcs_type = g_type_register_static
+            (GTK_TYPE_VBOX, "CtkVcs", &ctk_vcs_info, 0);
     }
 
-    return ctk_vcsc_type;
+    return ctk_vcs_type;
 }
 
 
 
 /*
- * CTK VCSC (Visual Computing System Controller) widget creation
+ * CTK VCS (Visual Computing System) widget creation
  *
  */
-GtkWidget* ctk_vcsc_new(NvCtrlAttributeHandle *handle,
+GtkWidget* ctk_vcs_new(NvCtrlAttributeHandle *handle,
                         CtkConfig *ctk_config)
 {
     GObject *object;
-    CtkVcsc *ctk_object;
+    CtkVcs *ctk_object;
     GtkWidget *label;
     GtkWidget *vbox;
     GtkWidget *hbox;
@@ -143,8 +143,8 @@ GtkWidget* ctk_vcsc_new(NvCtrlAttributeHandle *handle,
 
     /* now, create the object */
     
-    object = g_object_new(CTK_TYPE_VCSC, NULL);
-    ctk_object = CTK_VCSC(object);
+    object = g_object_new(CTK_TYPE_VCS, NULL);
+    ctk_object = CTK_VCS(object);
 
     /* cache the attribute handle */
 
@@ -156,7 +156,7 @@ GtkWidget* ctk_vcsc_new(NvCtrlAttributeHandle *handle,
 
     /* banner */
 
-    banner = ctk_banner_image_new(BANNER_ARTWORK_VCSC);
+    banner = ctk_banner_image_new(BANNER_ARTWORK_VCS);
     gtk_box_pack_start(GTK_BOX(ctk_object), banner, FALSE, FALSE, 0);
 
     /*
@@ -170,7 +170,7 @@ GtkWidget* ctk_vcsc_new(NvCtrlAttributeHandle *handle,
     hbox = gtk_hbox_new(FALSE, 0);
     gtk_box_pack_start(GTK_BOX(vbox), hbox, FALSE, FALSE, 0);
 
-    label = gtk_label_new("VCSC Information");
+    label = gtk_label_new("VCS Information");
     gtk_box_pack_start(GTK_BOX(hbox), label, FALSE, FALSE, 0);
 
     hseparator = gtk_hseparator_new();
@@ -212,10 +212,10 @@ GtkWidget* ctk_vcsc_new(NvCtrlAttributeHandle *handle,
 
 
 /*
- * VCSC help screen
+ * VCS help screen
  */
-GtkTextBuffer *ctk_vcsc_create_help(GtkTextTagTable *table,
-                                    CtkVcsc *ctk_object)
+GtkTextBuffer *ctk_vcs_create_help(GtkTextTagTable *table,
+                                    CtkVcs *ctk_object)
 {
     GtkTextIter i;
     GtkTextBuffer *b;
@@ -224,28 +224,27 @@ GtkTextBuffer *ctk_vcsc_create_help(GtkTextTagTable *table,
     
     gtk_text_buffer_get_iter_at_offset(b, &i, 0);
 
-    ctk_help_title(b, &i, "VCSC (Visual Computing System Controller) Help");
+    ctk_help_title(b, &i, "VCS (Visual Computing System) Help");
 
     ctk_help_heading(b, &i, "Product Name");
-    ctk_help_para(b, &i, "This is the product name of the VCSC system.");
+    ctk_help_para(b, &i, "This is the product name of the VCS.");
     
     ctk_help_heading(b, &i, "Serial Number");
-    ctk_help_para(b, &i, "This is the unique serial number of the VCSC "
-                  "system.");
+    ctk_help_para(b, &i, "This is the unique serial number of the VCS.");
 
     ctk_help_heading(b, &i, "Build Date");
-    ctk_help_para(b, &i, "This is the date the VCSC system was build, "
+    ctk_help_para(b, &i, "This is the date the VCS was build, "
                   "shown in a 'week.year' format");
 
     ctk_help_heading(b, &i, "Product ID");
-    ctk_help_para(b, &i, "This identifies the VCSC configuration.");
+    ctk_help_para(b, &i, "This identifies the VCS configuration.");
 
     ctk_help_heading(b, &i, "Firmware Version");
     ctk_help_para(b, &i, "This is the firmware version currently running on "
-                  "the VCSC system.");
+                  "the VCS.");
 
     ctk_help_heading(b, &i, "Hardware Version");
-    ctk_help_para(b, &i, "This is the hardware version of the VCSC system.");
+    ctk_help_para(b, &i, "This is the hardware version of the VCS.");
 
     ctk_help_finish(b);
 

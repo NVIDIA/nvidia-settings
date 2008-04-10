@@ -61,8 +61,10 @@ SRC += \
 	ctkscreen.c \
 	ctkgpu.c \
 	ctkbanner.c \
-	ctkvcsc.c \
+	ctkvcs.c \
 	ctkdisplayconfig-utils.c \
+	ctkgvo-banner.c \
+	ctkgvo-sync.c \
 	ctkpowersavings.c
 
 
@@ -104,8 +106,11 @@ EXTRA_DIST += \
 	ctkscreen.h \
 	ctkgpu.h \
 	ctkbanner.h \
-	ctkvcsc.h \
+	ctkvcs.h \
 	ctkdisplayconfig-utils.h \
+	ctkpowersavings.h \
+	ctkgvo-banner.h \
+	ctkgvo-sync.h \
 	ctkpowersavings.h
 
 dist_list::

@@ -333,6 +333,13 @@ static void scale_value_received(GtkObject *object, gpointer arg1,
         break;
     case NV_CTRL_IMAGE_SHARPENING:
         scale = ctk_image_sliders->image_sharpening;
+        if (event_struct->availability == FALSE) {
+            gtk_widget_set_sensitive(scale, FALSE);
+            gtk_widget_hide(scale);
+        } else if (event_struct->availability == TRUE) {
+            gtk_widget_set_sensitive(scale, TRUE);
+            gtk_widget_show(scale);
+        }
         break;
     default:
         return;

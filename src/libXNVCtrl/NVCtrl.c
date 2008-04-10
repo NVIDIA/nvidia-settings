@@ -1283,6 +1283,8 @@ static Bool wire_to_event (Display *dpy, XEvent *host, xEvent *wire)
     xnvctrlEvent *event;
     XNVCtrlEventTarget *reTarget;
     xnvctrlEventTarget *eventTarget;
+    XNVCtrlEventTargetAvailability *reTargetAvailability;
+    XNVCtrlStringEventTarget *reTargetString;
 
     XNVCTRLCheckExtension (dpy, info, False);
     
@@ -1291,7 +1293,7 @@ static Bool wire_to_event (Display *dpy, XEvent *host, xEvent *wire)
         re = (XNVCtrlEvent *) host;
         event = (xnvctrlEvent *) wire;
         re->attribute_changed.type = event->u.u.type & 0x7F;
-        re->attribute_changed.serial = 
+        re->attribute_changed.serial =
             _XSetLastRequestRead(dpy, (xGenericReply*) event);
         re->attribute_changed.send_event = ((event->u.u.type & 0x80) != 0);
         re->attribute_changed.display = dpy;
@@ -1306,7 +1308,7 @@ static Bool wire_to_event (Display *dpy, XEvent *host, xEvent *wire)
         reTarget = (XNVCtrlEventTarget *) host;
         eventTarget = (xnvctrlEventTarget *) wire;
         reTarget->attribute_changed.type = eventTarget->u.u.type & 0x7F;
-        reTarget->attribute_changed.serial = 
+        reTarget->attribute_changed.serial =
             _XSetLastRequestRead(dpy, (xGenericReply*) eventTarget);
         reTarget->attribute_changed.send_event =
             ((eventTarget->u.u.type & 0x80) != 0);
@@ -1324,6 +1326,52 @@ static Bool wire_to_event (Display *dpy, XEvent *host, xEvent *wire)
         reTarget->attribute_changed.value =
             eventTarget->u.attribute_changed.value;
         break;
+    case TARGET_ATTRIBUTE_AVAILABILITY_CHANGED_EVENT:
+        reTargetAvailability = (XNVCtrlEventTargetAvailability *) host;
+        eventTarget = (xnvctrlEventTarget *) wire;
+        reTargetAvailability->attribute_changed.type =
+            eventTarget->u.u.type & 0x7F;
+        reTargetAvailability->attribute_changed.serial =
+            _XSetLastRequestRead(dpy, (xGenericReply*) eventTarget);
+        reTargetAvailability->attribute_changed.send_event =
+            ((eventTarget->u.u.type & 0x80) != 0);
+        reTargetAvailability->attribute_changed.display = dpy;
+        reTargetAvailability->attribute_changed.time =
+            eventTarget->u.availability_changed.time;
+        reTargetAvailability->attribute_changed.target_type =
+            eventTarget->u.availability_changed.target_type;
+        reTargetAvailability->attribute_changed.target_id =
+            eventTarget->u.availability_changed.target_id;
+        reTargetAvailability->attribute_changed.display_mask =
+            eventTarget->u.availability_changed.display_mask;
+        reTargetAvailability->attribute_changed.attribute =
+            eventTarget->u.availability_changed.attribute;
+        reTargetAvailability->attribute_changed.availability =
+            eventTarget->u.availability_changed.availability;
+        reTargetAvailability->attribute_changed.value =
+            eventTarget->u.availability_changed.value;
+        break;
+    case TARGET_STRING_ATTRIBUTE_CHANGED_EVENT:
+        reTargetString = (XNVCtrlStringEventTarget *) host;
+        eventTarget = (xnvctrlEventTarget *) wire;
+        reTargetString->attribute_changed.type = eventTarget->u.u.type & 0x7F;
+        reTargetString->attribute_changed.serial =
+            _XSetLastRequestRead(dpy, (xGenericReply*) eventTarget);
+        reTargetString->attribute_changed.send_event =
+            ((eventTarget->u.u.type & 0x80) != 0);
+        reTargetString->attribute_changed.display = dpy;
+        reTargetString->attribute_changed.time =
+            eventTarget->u.attribute_changed.time;
+        reTargetString->attribute_changed.target_type =
+            eventTarget->u.attribute_changed.target_type;
+        reTargetString->attribute_changed.target_id =
+            eventTarget->u.attribute_changed.target_id;
+        reTargetString->attribute_changed.display_mask =
+            eventTarget->u.attribute_changed.display_mask;
+        reTargetString->attribute_changed.attribute =
+            eventTarget->u.attribute_changed.attribute;
+        break;
+
     default:
         return False;
     }

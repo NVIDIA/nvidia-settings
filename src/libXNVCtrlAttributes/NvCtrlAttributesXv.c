@@ -287,6 +287,10 @@ NvCtrlXvAttributes * NvCtrlInitXvAttributes(NvCtrlAttributePrivateHandle *h)
                                                    "XV_CONTRAST");
             attrs->brightness     = getXvAttribute(h, attrs->port,
                                                    "XV_BRIGHTNESS");
+            attrs->saturation     = getXvAttribute(h, attrs->port,
+                                                   "XV_SATURATION");
+            attrs->hue            = getXvAttribute(h, attrs->port,
+                                                   "XV_HUE");
             attrs->defaults       = getXvAttribute(h, attrs->port,
                                                    "XV_SET_DEFAULTS");
             if (!attrs->sync_to_vblank ||
@@ -569,6 +573,8 @@ static Bool checkAdaptor(NvCtrlAttributePrivateHandle *h,
     case NV_CTRL_ATTR_XV_TEXTURE_SYNC_TO_VBLANK:
     case NV_CTRL_ATTR_XV_TEXTURE_CONTRAST:
     case NV_CTRL_ATTR_XV_TEXTURE_BRIGHTNESS:
+    case NV_CTRL_ATTR_XV_TEXTURE_HUE:
+    case NV_CTRL_ATTR_XV_TEXTURE_SATURATION:
     case NV_CTRL_ATTR_XV_TEXTURE_SET_DEFAULTS:
         if (h && h->xv && h->xv->texture) return True;
         else return False;
@@ -606,6 +612,8 @@ static unsigned int getXvPort(NvCtrlAttributePrivateHandle *h,
     case NV_CTRL_ATTR_XV_TEXTURE_SYNC_TO_VBLANK:
     case NV_CTRL_ATTR_XV_TEXTURE_CONTRAST:
     case NV_CTRL_ATTR_XV_TEXTURE_BRIGHTNESS:
+    case NV_CTRL_ATTR_XV_TEXTURE_HUE:
+    case NV_CTRL_ATTR_XV_TEXTURE_SATURATION:
     case NV_CTRL_ATTR_XV_TEXTURE_SET_DEFAULTS:
         return h->xv->texture->port;
         
@@ -652,6 +660,12 @@ static NvCtrlXvAttribute *getXvAttributePtr(NvCtrlAttributePrivateHandle *h,
     
     case NV_CTRL_ATTR_XV_TEXTURE_BRIGHTNESS:
         return h->xv->texture->brightness;
+
+    case NV_CTRL_ATTR_XV_TEXTURE_HUE:
+        return h->xv->texture->hue;
+    
+    case NV_CTRL_ATTR_XV_TEXTURE_SATURATION:
+        return h->xv->texture->saturation;
 
     case NV_CTRL_ATTR_XV_BLITTER_SYNC_TO_VBLANK:
         return h->xv->blitter->sync_to_vblank;
