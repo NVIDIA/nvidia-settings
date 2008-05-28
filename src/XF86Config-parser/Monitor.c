@@ -132,9 +132,9 @@ xconfigParseModeLine (void)
     ptr->identifier = val.str;
 
     /* DotClock */
-    if (xconfigGetSubToken (&(ptr->comment)) != NUMBER)
+    if ((xconfigGetSubToken (&(ptr->comment)) != NUMBER) || !val.str)
         Error ("ModeLine dotclock expected", NULL);
-    ptr->clock = (int) (val.realnum * 1000.0 + 0.5);
+    ptr->clock = xconfigStrdup(val.str);
 
     /* HDisplay */
     if (xconfigGetSubToken (&(ptr->comment)) != NUMBER)
@@ -264,9 +264,9 @@ xconfigParseVerboseMode (void)
             ptr->comment = xconfigAddComment(ptr->comment, val.str);
             break;
         case DOTCLOCK:
-            if ((token = xconfigGetSubToken (&(ptr->comment))) != NUMBER)
+            if ((xconfigGetSubToken (&(ptr->comment)) != NUMBER) || !val.str)
                 Error (NUMBER_MSG, "DotClock");
-            ptr->clock = (int) (val.realnum * 1000.0 + 0.5);
+            ptr->clock = xconfigStrdup(val.str);
             had_dotclock = 1;
             break;
         case HTIMINGS:
@@ -692,8 +692,8 @@ xconfigPrintMonitorSection (FILE * cf, XConfigMonitorPtr ptr)
         }
         for (mlptr = ptr->modelines; mlptr; mlptr = mlptr->next)
         {
-            fprintf (cf, "    ModeLine       \"%s\" %2.1f ",
-                     mlptr->identifier, mlptr->clock / 1000.0);
+            fprintf (cf, "    ModeLine       \"%s\" %s ",
+                     mlptr->identifier, mlptr->clock);
             fprintf (cf, "%d %d %d %d %d %d %d %d",
                      mlptr->hdisplay, mlptr->hsyncstart,
                      mlptr->hsyncend, mlptr->htotal,
@@ -743,8 +743,8 @@ xconfigPrintModesSection (FILE * cf, XConfigModesPtr ptr)
             fprintf (cf, "    Identifier         \"%s\"\n", ptr->identifier);
         for (mlptr = ptr->modelines; mlptr; mlptr = mlptr->next)
         {
-            fprintf (cf, "    ModeLine     \"%s\" %2.1f ",
-                     mlptr->identifier, mlptr->clock / 1000.0);
+            fprintf (cf, "    ModeLine     \"%s\" %s ",
+                     mlptr->identifier, mlptr->clock);
             fprintf (cf, "%d %d %d %d %d %d %d %d",
                      mlptr->hdisplay, mlptr->hsyncstart,
                      mlptr->hsyncend, mlptr->htotal,
@@ -827,6 +827,7 @@ xconfigFreeModeLineList (XConfigModeLinePtr ptr)
     {
         TEST_FREE (ptr->identifier);
         TEST_FREE (ptr->comment);
+        TEST_FREE (ptr->clock);
         prev = ptr;
         ptr = ptr->next;
         free (prev);

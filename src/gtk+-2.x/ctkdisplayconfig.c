@@ -71,6 +71,8 @@ static void display_position_offset_activate(GtkWidget *widget, gpointer user_da
 static void display_position_relative_changed(GtkWidget *widget, gpointer user_data);
 
 static void display_panning_activate(GtkWidget *widget, gpointer user_data);
+static gboolean display_panning_focus_out(GtkWidget *widget, GdkEvent *event,
+                                          gpointer user_data);
 
 static void setup_screen_page(CtkDisplayConfig *ctk_object);
 
@@ -1187,7 +1189,9 @@ GtkWidget* ctk_display_config_new(NvCtrlAttributeHandle *handle,
     g_signal_connect(G_OBJECT(ctk_object->txt_display_panning), "activate",
                      G_CALLBACK(display_panning_activate),
                      (gpointer) ctk_object);
-
+    g_signal_connect(G_OBJECT(ctk_object->txt_display_panning), "focus-out-event",
+                     G_CALLBACK(display_panning_focus_out),
+                     (gpointer) ctk_object);
 
     /* X screen number */
     ctk_object->txt_screen_num = gtk_label_new("");
@@ -2043,7 +2047,7 @@ static void setup_display_refresh_dropdown(CtkDisplayConfig *ctk_object)
     }
     modelines    = display->modelines;
     cur_modeline = display->cur_mode->modeline;
-    cur_rate     = GET_MODELINE_REFRESH_RATE(cur_modeline);
+    cur_rate     = cur_modeline->refresh_rate;
 
 
     /* Create the menu index -> modeline pointer lookup table */
@@ -2096,7 +2100,7 @@ static void setup_display_refresh_dropdown(CtkDisplayConfig *ctk_object)
             continue;
         }
 
-        modeline_rate = GET_MODELINE_REFRESH_RATE(modeline);
+        modeline_rate = modeline->refresh_rate;
         is_doublescan = (modeline->data.flags & V_DBLSCAN);
         is_interlaced = (modeline->data.flags & V_INTERLACE);
 
@@ -2107,7 +2111,7 @@ static void setup_display_refresh_dropdown(CtkDisplayConfig *ctk_object)
         count_ref = 0; /* # modelines with similar refresh rates */
         num_ref = 0;   /* Modeline # in a group of similar refresh rates */
         for (m = modelines; m; m = m->next) {
-            float m_rate = GET_MODELINE_REFRESH_RATE(m);
+            float m_rate = m->refresh_rate;
             gchar *tmp = g_strdup_printf("%.0f Hz", m_rate);
             
             if (!IS_NVIDIA_DEFAULT_MODE(m) &&
@@ -2184,8 +2188,8 @@ static void setup_display_refresh_dropdown(CtkDisplayConfig *ctk_object)
             if (modeline->data.hdisplay == cur_modeline->data.hdisplay &&
                 modeline->data.vdisplay == cur_modeline->data.vdisplay) {
                 
-                float prev_rate = GET_MODELINE_REFRESH_RATE(ctk_object->refresh_table[cur_idx]);
-                float rate      = GET_MODELINE_REFRESH_RATE(modeline); 
+                float prev_rate = ctk_object->refresh_table[cur_idx]->refresh_rate;
+                float rate      = modeline->refresh_rate;
                 
                 if (ctk_object->refresh_table[cur_idx]->data.hdisplay != cur_modeline->data.hdisplay ||
                     ctk_object->refresh_table[cur_idx]->data.vdisplay != cur_modeline->data.vdisplay) {
@@ -5201,6 +5205,24 @@ static void display_panning_activate(GtkWidget *widget, gpointer user_data)
         (CTK_DISPLAY_LAYOUT(ctk_object->obj_layout), display, x, y);
 
 } /* display_panning_activate() */
+
+
+
+/** display_panning_focus_out() **************************************
+ *
+ * Called when user leaves the panning entry
+ *
+ **/
+
+static gboolean display_panning_focus_out(GtkWidget *widget, GdkEvent *event,
+                                          gpointer user_data)
+{
+    display_panning_activate(widget, user_data);
+
+    return FALSE;
+
+} /* display_panning_focus_out() */
+
 
 
 

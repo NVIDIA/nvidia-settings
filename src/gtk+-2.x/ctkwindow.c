@@ -392,6 +392,7 @@ GtkWidget *ctk_window_new(NvCtrlAttributeHandle **screen_handles,
     GtkCellRenderer *renderer;
     GtkTreeSelection *selection;
     GtkTreeModel *model;
+    GtkTreeIter iter;
     GtkTextTagTable *tag_table;
 
     GtkTextBuffer *help;
@@ -600,7 +601,6 @@ GtkWidget *ctk_window_new(NvCtrlAttributeHandle **screen_handles,
 
     for (i = 0; i < num_screen_handles; i++) {
 
-        GtkTreeIter iter;
         gchar *screen_name;
         GtkWidget *child;
         NvCtrlAttributeHandle *screen_handle = screen_handles[i];
@@ -746,7 +746,6 @@ GtkWidget *ctk_window_new(NvCtrlAttributeHandle **screen_handles,
 
     for (i = 0; i < num_gpu_handles; i++) {
         
-        GtkTreeIter iter;
         gchar *gpu_product_name;
         gchar *gpu_name;
         GtkWidget *child;
@@ -849,7 +848,6 @@ GtkWidget *ctk_window_new(NvCtrlAttributeHandle **screen_handles,
 
     for (i = 0; i < num_vcs_handles; i++) {
         
-        GtkTreeIter iter;
         gchar *vcs_product_name;
         gchar *vcs_name;
         GtkWidget *child;
@@ -943,6 +941,12 @@ GtkWidget *ctk_window_new(NvCtrlAttributeHandle **screen_handles,
     gtk_widget_show_all(GTK_WIDGET(ctk_window->treeview));
     gtk_tree_view_expand_all(ctk_window->treeview);
     gtk_tree_view_columns_autosize(ctk_window->treeview);
+
+    /* Make sure the first item is selected */
+    if ( gtk_tree_model_get_iter_first(model, &iter) ) {
+        gtk_tree_selection_select_iter(selection, &iter);
+    }
+
 
     /* set the window title */
     

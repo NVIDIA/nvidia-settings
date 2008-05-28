@@ -1449,22 +1449,35 @@ const char *parse_read_integer_pair(const char *str,
  * terminating character 'term'.  The location where parsing stopped
  * is returned, or NULL on failure.
  *
+ * The 'term' value 0 is used to indicate that any whitespace should
+ * be treated as a terminator.
+ *
  **/
+
+static int name_terminated(const char ch, const char term)
+{
+    if (term == 0) {
+        return (ch == ' '  || ch == '\t' || ch == '\n' || ch == '\r');
+    } else {
+        return (ch == term);
+    }
+}
+
 const char *parse_read_name(const char *str, char **name, char term)
 {
     const char *tmp;
 
     str = parse_skip_whitespace(str);
     tmp = str;
-    while (*str && *str != term) {
+    while (*str && !name_terminated(*str, term))
         str++;
-    }
+
     *name = (char *)calloc(1, str -tmp +1);
     if (!(*name)) {
         return NULL;
     }
     strncpy(*name, tmp, str -tmp);
-    if (*str == term) {
+    if (name_terminated(*str, term)) {
         str++;
     }
     return parse_skip_whitespace(str);

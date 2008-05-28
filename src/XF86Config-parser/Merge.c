@@ -43,21 +43,29 @@ static void xconfigAddRemovedOptionComment(char **existing_comments,
 {
     int len;
     char *str;
+    char *name, *value;
 
     if (!option || !existing_comments)
         return;
 
-    len = 32 + strlen(xconfigOptionName(option)) +
-        strlen(xconfigOptionValue(option));
+    name = xconfigOptionName(option);
+    value = xconfigOptionValue(option);
 
-    str = (char *)malloc(len);
+    if (!name) return;
 
-    if (str) {
-        snprintf(str, len, "# Removed Option \"%s\" \"%s\"",
-                xconfigOptionName(option),
-                xconfigOptionValue(option));
-        *existing_comments = xconfigAddComment(*existing_comments, str);
+    if (value) {
+        len = 32 + strlen(name) + strlen(value);
+        str = malloc(len);
+        if (!str) return;
+        snprintf(str, len, "# Removed Option \"%s\" \"%s\"", name, value);
+    } else {
+        len = 32 + strlen(name);
+        str = malloc(len);
+        if (!str) return;
+        snprintf(str, len, "# Removed Option \"%s\"", name);
     }
+
+    *existing_comments = xconfigAddComment(*existing_comments, str);
 
 } /* xconfigAddRemovedOptionComment() */
 
@@ -86,6 +94,36 @@ static void xconfigRemoveNamedOption(XConfigOptionPtr *head, char *name,
 
 
 /*
+ * xconfigOptionValuesDiffer() - return '1' if the option values for
+ * option0 and option1 are different; return '0' if the option values
+ * are the same.
+ */
+
+static int xconfigOptionValuesDiffer(XConfigOptionPtr option0,
+                                     XConfigOptionPtr option1)
+{
+    char *value0, *value1;
+
+    value0 = value1 = NULL;
+
+    if (!option0 && !option1) return 0;
+    if (!option0 &&  option1) return 1;
+    if ( option0 && !option1) return 1;
+
+    value0 = xconfigOptionValue(option0);
+    value1 = xconfigOptionValue(option1);
+
+    if (!value0 && !value1) return 0;
+    if (!value0 &&  value1) return 1;
+    if ( value0 && !value1) return 1;
+
+    return (strcmp(value0, value1) != 0);
+
+} /* xconfigOptionValuesDiffer() */
+
+
+
+/*
  * xconfigMergeOption() - Merge option "name" from option source
  * list "srcHead" to option destination list "dstHead".
  *
@@ -107,20 +145,35 @@ static void xconfigMergeOption(XConfigOptionPtr *dstHead,
 {
     XConfigOptionPtr srcOption = xconfigFindOption(*srcHead, name);
     XConfigOptionPtr dstOption = xconfigFindOption(*dstHead, name);
-    
-    if (!srcOption) {
-        if (dstOption) {
-            *dstHead = xconfigRemoveOption(*dstHead, dstOption);
-        }
-    } else {
-        if (!dstOption || strcmp(xconfigOptionValue(srcOption),
-                                 xconfigOptionValue(dstOption))) {
 
-            if (dstOption && comments) {
+    char *srcValue = NULL;
+
+    if (srcOption) srcValue = xconfigOptionValue(srcOption);
+
+    if (!srcOption && dstOption) {
+
+        /* option does not exist in src, but exists in dst: remove from dst */
+        *dstHead = xconfigRemoveOption(*dstHead, dstOption);
+
+    } else if (srcOption && !dstOption) {
+
+        /* option exists in src but not in dst: add to dst */
+        *dstHead = xconfigAddNewOption(*dstHead, name, srcValue);
+
+    } else if (srcOption && dstOption) {
+
+        /*
+         * option exists in src and in dst; if the option values are
+         * different, replace the dst's option value with src's option
+         * value; note that xconfigAddNewOption() will remove the old
+         * option first, if necessary
+         */
+
+        if (xconfigOptionValuesDiffer(srcOption, dstOption)) {
+            if (comments) {
                 xconfigAddRemovedOptionComment(comments, dstOption);
             }
-            *dstHead = xconfigAddNewOption
-                (*dstHead, name, xconfigOptionValue(srcOption));
+            *dstHead = xconfigAddNewOption(*dstHead, name, srcValue);
         }
     }
 
@@ -387,13 +440,12 @@ static int xconfigMergeDriverOptions(XConfigScreenPtr dstScreen,
             XConfigOptionPtr old =
                 xconfigFindOption(dstScreen->options, name);
 
-            if (!old || !strcmp(xconfigOptionValue(option),
-                                xconfigOptionValue(old))) {
-                xconfigRemoveNamedOption(&(dstScreen->options), name,
-                                         NULL);
-            } else {
+            if (old && xconfigOptionValuesDiffer(option, old)) {
                 xconfigRemoveNamedOption(&(dstScreen->options), name,
                                          &(dstScreen->comment));
+            } else {
+                xconfigRemoveNamedOption(&(dstScreen->options), name,
+                                         NULL);
             }
         }
 

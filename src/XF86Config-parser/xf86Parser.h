@@ -216,7 +216,7 @@ typedef struct {
 typedef struct __xconfigconfmodelinerec {
     struct __xconfigconfmodelinerec *next;
     char *identifier;
-    int clock;
+    char *clock; /* stored in MHz */
     int hdisplay;
     int hsyncstart;
     int hsyncend;

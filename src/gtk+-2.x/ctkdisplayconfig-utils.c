@@ -238,13 +238,14 @@ void apply_screen_info_token(char *token, char *value, void *data)
  *   "mode_name"  dot_clock  timings  flags
  *
  **/
-static nvModeLinePtr modeline_parse(const char *modeline_str)
+static nvModeLinePtr modeline_parse(const char *modeline_str,
+                                    const int broken_doublescan_modelines)
 {
     nvModeLinePtr modeline = NULL;
     const char *str = modeline_str;
     char *tmp;
-    char *tokens;
-
+    char *tokens, *nptr;
+    double pclk, htotal, vtotal, factor;
 
     if (!str) return NULL;
 
@@ -270,25 +271,11 @@ static nvModeLinePtr modeline_parse(const char *modeline_str)
     if (!str) goto fail;
 
     /* Read dot clock */
-    {
-        int digits = 100;
 
-        str = parse_read_integer(str, &(modeline->data.clock));
-        modeline->data.clock *= 1000;
-        if (*str == '.') {
-            str++;
-            while (digits &&
-                   *str &&
-                   *str != ' '  && *str != '\t' &&
-                   *str != '\n' && *str != '\r') {
+    str = parse_read_name(str, &(modeline->data.clock), 0);
+    if (!str) goto fail;
 
-                modeline->data.clock += digits * (*str - '0');
-                digits /= 10;
-                str++;
-            }
-        }
-        str = parse_skip_whitespace(str);
-    }
+    /* Read the mode timings */
 
     str = parse_read_integer(str, &(modeline->data.hdisplay));
     str = parse_read_integer(str, &(modeline->data.hsyncstart));
@@ -301,7 +288,7 @@ static nvModeLinePtr modeline_parse(const char *modeline_str)
 
 
     /* Parse modeline flags */
-    while ((str = parse_read_name(str, &tmp, ' ')) && strlen(tmp)) {
+    while ((str = parse_read_name(str, &tmp, 0)) && strlen(tmp)) {
         
         if (!xconfigNameCompare(tmp, "+hsync")) {
             modeline->data.flags |= XCONFIG_MODE_PHSYNC;
@@ -360,6 +347,40 @@ static nvModeLinePtr modeline_parse(const char *modeline_str)
         free(tmp);
     }
 
+
+    /*
+     * Calculate the vertical refresh rate of the modeline in Hz;
+     * divide by two for double scan modes (if the double scan
+     * modeline isn't broken; i.e., already has a correct vtotal), and
+     * multiply by two for interlaced modes (so that we report the
+     * field rate, rather than the frame rate)
+     */
+
+    htotal = (double) modeline->data.htotal;
+    vtotal = (double) modeline->data.vtotal;
+
+    pclk = strtod(modeline->data.clock, &nptr);
+
+    if ((pclk == 0.0) || !nptr || *nptr != '\0' || ((htotal * vtotal) == 0)) {
+        nv_warning_msg("Failed to compute the refresh rate "
+                       "for the modeline '%s'", str);
+        goto fail;
+    }
+
+    modeline->refresh_rate = (pclk * 1000000.0) / (htotal * vtotal);
+
+    factor = 1.0;
+
+    if ((modeline->data.flags & V_DBLSCAN) && !broken_doublescan_modelines) {
+        factor *= 0.5;
+    }
+
+    if (modeline->data.flags & V_INTERLACE) {
+        factor *= 2.0;
+    }
+
+    modeline->refresh_rate *= factor;
+
     return modeline;
 
 
@@ -407,7 +428,7 @@ nvModePtr mode_parse(nvDisplayPtr display, const char *mode_str)
 
 
     /* Read the mode name */
-    str = parse_read_name(str, &mode_name, ' ');
+    str = parse_read_name(str, &mode_name, 0);
     if (!str || !mode_name) goto fail;
 
 
@@ -720,6 +741,7 @@ static void display_remove_modelines(nvDisplayPtr display)
     if (display) {
         while (display->modelines) {
             modeline = display->modelines;
+            free(modeline->data.clock);
             display->modelines = display->modelines->next;
             free(modeline);
         }
@@ -743,6 +765,28 @@ Bool display_add_modelines_from_server(nvDisplayPtr display, gchar **err_str)
     int len;
     ReturnStatus ret, ret1;
     int major = 0, minor = 0;
+    int broken_doublescan_modelines;
+
+    /*
+     * check the version of the NV-CONTROL protocol -- versions <=
+     * 1.13 had a bug in how they reported double scan modelines
+     * (vsyncstart, vsyncend, and vtotal were doubled); determine
+     * if this X server has this bug, so that we can use
+     * broken_doublescan_modelines to correctly compute the
+     * refresh rate.
+     */
+    broken_doublescan_modelines = 1;
+
+    ret = NvCtrlGetAttribute(display->gpu->handle,
+                             NV_CTRL_ATTR_NV_MAJOR_VERSION, &major);
+    ret1 = NvCtrlGetAttribute(display->gpu->handle,
+                              NV_CTRL_ATTR_NV_MINOR_VERSION, &minor);
+
+    if ((ret == NvCtrlSuccess) && (ret1 == NvCtrlSuccess) &&
+        ((major > 1) || ((major == 1) && (minor > 13)))) {
+        broken_doublescan_modelines = 0;
+    }
+
 
     /* Free any old mode lines */
     display_remove_modelines(display);
@@ -769,7 +813,7 @@ Bool display_add_modelines_from_server(nvDisplayPtr display, gchar **err_str)
     str = modeline_strs;
     while (strlen(str)) {
 
-        modeline = modeline_parse(str);
+        modeline = modeline_parse(str, broken_doublescan_modelines);
         if (!modeline) {
             *err_str = g_strdup_printf("Failed to parse the following "
                                        "modeline of display device\n"
@@ -782,26 +826,6 @@ Bool display_add_modelines_from_server(nvDisplayPtr display, gchar **err_str)
                                        str);
             nv_error_msg(*err_str);
             goto fail;
-        }
-
-        /*
-         * check the version of the NV-CONTROL protocol -- versions <=
-         * 1.13 had a bug in how they reported double scan modelines
-         * (vsyncstart, vsyncend, and vtotal were doubled); determine
-         * if this X server has this bug, so that we can use
-         * broken_doublescan_modelines to correctly compute the
-         * refresh rate.
-         */
-        modeline->broken_doublescan_modelines = 1;
-
-        ret = NvCtrlGetAttribute(display->gpu->handle,
-                                 NV_CTRL_ATTR_NV_MAJOR_VERSION, &major);
-        ret1 = NvCtrlGetAttribute(display->gpu->handle,
-                                  NV_CTRL_ATTR_NV_MINOR_VERSION, &minor);
-
-        if ((ret == NvCtrlSuccess) && (ret1 == NvCtrlSuccess) &&
-            ((major > 1) || ((major == 1) && (minor > 13)))) {
-            modeline->broken_doublescan_modelines = 0;
         }
 
         /* Add the modeline at the end of the display's modeline list */

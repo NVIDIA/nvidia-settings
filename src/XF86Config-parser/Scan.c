@@ -422,6 +422,7 @@ again:
             configRBuf[i] = '\0';
             val.num = xconfigStrToUL (configRBuf);
             val.realnum = atof (configRBuf);
+            val.str = configRBuf;
             return (NUMBER);
         }
 
