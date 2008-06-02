@@ -24,6 +24,7 @@
  
 #include <stdlib.h>
 #include <string.h>
+#include <locale.h>
 
 #include <gtk/gtk.h>
 
@@ -243,7 +244,7 @@ static nvModeLinePtr modeline_parse(const char *modeline_str,
 {
     nvModeLinePtr modeline = NULL;
     const char *str = modeline_str;
-    char *tmp;
+    char *tmp, *old_locale;
     char *tokens, *nptr;
     double pclk, htotal, vtotal, factor;
 
@@ -251,6 +252,16 @@ static nvModeLinePtr modeline_parse(const char *modeline_str,
 
     modeline = (nvModeLinePtr)calloc(1, sizeof(nvModeLine));
     if (!modeline) return NULL;
+
+    /* Make sure strtod uses . instead of , as the decimal separator */
+    old_locale = setlocale(LC_NUMERIC, NULL);
+
+    if (old_locale)
+        old_locale = strdup(old_locale);
+
+    if (!old_locale || !setlocale(LC_NUMERIC, "C"))
+        nv_warning_msg("Error parsing server modeline '%s': could not "
+                       "set the locale 'C'.", modeline_str);
 
     /* Parse the modeline tokens */
     tmp = strstr(str, "::");
@@ -381,12 +392,25 @@ static nvModeLinePtr modeline_parse(const char *modeline_str,
 
     modeline->refresh_rate *= factor;
 
+    /* Restore the locale */
+    if (old_locale) {
+        setlocale(LC_NUMERIC, old_locale);
+        free(old_locale);
+    }
+
     return modeline;
 
 
     /* Handle failures */
  fail:
     free(modeline);
+
+    /* Restore the locale */
+    if (old_locale) {
+        setlocale(LC_NUMERIC, old_locale);
+        free(old_locale);
+    }
+
     return NULL;
 
 } /* modeline_parse() */
