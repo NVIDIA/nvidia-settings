@@ -282,12 +282,10 @@ static nvModeLinePtr modeline_parse(const char *modeline_str,
     if (!str) goto fail;
 
     /* Read dot clock */
-
     str = parse_read_name(str, &(modeline->data.clock), 0);
     if (!str) goto fail;
 
     /* Read the mode timings */
-
     str = parse_read_integer(str, &(modeline->data.hdisplay));
     str = parse_read_integer(str, &(modeline->data.hsyncstart));
     str = parse_read_integer(str, &(modeline->data.hsyncend));
@@ -765,8 +763,11 @@ static void display_remove_modelines(nvDisplayPtr display)
     if (display) {
         while (display->modelines) {
             modeline = display->modelines;
-            free(modeline->data.clock);
             display->modelines = display->modelines->next;
+            free(modeline->xconfig_name);
+            free(modeline->data.identifier);
+            free(modeline->data.comment);
+            free(modeline->data.clock);
             free(modeline);
         }
         display->num_modelines = 0;

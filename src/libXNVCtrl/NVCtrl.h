@@ -1130,6 +1130,9 @@
  * NV_CTRL_GVO_SYNC_DELAY_PIXELS - controls the delay between the
  * input sync and the output sync in numbers of pixels from hsync;
  * this is a 12 bit value.
+ *
+ * If the NV_CTRL_GVO_CAPABILITIES_ADVANCE_SYNC_SKEW bit is set,
+ * then setting this value will set an advance instead of a delay.
  */
 
 #define NV_CTRL_GVO_SYNC_DELAY_PIXELS                           79  /* RW- */
@@ -1139,6 +1142,9 @@
  * NV_CTRL_GVO_SYNC_DELAY_LINES - controls the delay between the input
  * sync and the output sync in numbers of lines from vsync; this is a
  * 12 bit value.
+ *
+ * If the NV_CTRL_GVO_CAPABILITIES_ADVANCE_SYNC_SKEW bit is set,
+ * then setting this value will set an advance instead of a delay.
  */
 
 #define NV_CTRL_GVO_SYNC_DELAY_LINES                            80  /* RW- */
@@ -2716,6 +2722,7 @@
 #define NV_CTRL_GVO_CAPABILITIES_COMPOSITE_TERMINATION           0x00000004
 #define NV_CTRL_GVO_CAPABILITIES_SHARED_SYNC_BNC                 0x00000008
 #define NV_CTRL_GVO_CAPABILITIES_MULTIRATE_SYNC                  0x00000010
+#define NV_CTRL_GVO_CAPABILITIES_ADVANCE_SYNC_SKEW               0x00000020
 
 
 /*

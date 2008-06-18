@@ -6547,13 +6547,19 @@ static XConfigModeLinePtr makeXConfigModeline(nvModeLinePtr modeline)
     *xconf_modeline = modeline->data;
 
     if (modeline->xconfig_name) {
-        xconf_modeline->identifier = strdup(modeline->xconfig_name);
+        xconf_modeline->identifier = xconfigStrdup(modeline->xconfig_name);
+
     } else if (modeline->data.identifier) {
-        xconf_modeline->identifier = strdup(modeline->data.identifier);
+        xconf_modeline->identifier = xconfigStrdup(modeline->data.identifier);
+
+    }
+
+    if (modeline->data.clock) {
+        xconf_modeline->clock = xconfigStrdup(modeline->data.clock);
     }
     
     if (modeline->data.comment) {
-        xconf_modeline->comment = strdup(modeline->data.comment);
+        xconf_modeline->comment = xconfigStrdup(modeline->data.comment);
     }
 
     return xconf_modeline;
