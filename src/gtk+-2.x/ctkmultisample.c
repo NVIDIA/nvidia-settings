@@ -31,7 +31,7 @@
 
 #include "ctkconfig.h"
 #include "ctkhelp.h"
-#include "ctkimage.h"
+#include "ctkbanner.h"
 
 
 /* local prototypes */
@@ -305,8 +305,6 @@ GtkWidget *ctk_multisample_new(NvCtrlAttributeHandle *handle,
 
                 gtk_box_pack_start(GTK_BOX(vbox), check_button,
                                    FALSE, FALSE, 0);
-
-                ctk_multisample->fsaa_app_override_check_button = check_button;
             }
 
             g_signal_connect(G_OBJECT(ctk_event),

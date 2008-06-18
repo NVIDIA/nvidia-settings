@@ -30,7 +30,7 @@
 
 #include "glxinfo.h" /* xxx_abbrev functions */
 
-#include "ctkimage.h"
+#include "ctkbanner.h"
 #include "ctkglx.h"
 #include "ctkutils.h"
 #include "ctkconfig.h"
@@ -40,7 +40,7 @@
 
 
 /* Number of FBConfigs attributes reported in gui */
-#define NUM_FBCONFIG_ATTRIBS  31
+#define NUM_FBCONFIG_ATTRIBS  32
 
 
 /* FBConfig tooltips */
@@ -101,8 +101,10 @@ static const char * __acb_help =
 static const char * __aca_help =
   "aca (Accumulator alpha size) - Number of bits per color used for alpha "
   "in the accumulator buffer.";
-static const char * __ms_help =
-  "ms (Multisample samples) - Number of samples per multisample.";
+static const char * __mvs_help =
+  "mvs (Multisample coverage samples) - Number of coverage samples per multisample.";
+static const char * __mcs_help =
+  "mcs (Multisample color samples) - Number of color samples per multisample.";
 static const char * __mb_help =
   "mb (Multisample buffer count) - Number of multisample buffers.";
 static const char * __cav_help =
@@ -208,7 +210,7 @@ GtkWidget* ctk_glx_new(NvCtrlAttributeHandle *handle,
         "rs",   "gs",   "bs",   "as",
         "aux",  "dpt",  "stn",
         "acr",  "acg",  "acb",  "aca",
-        "ms",   "mb",
+        "mvs",  "mcs",  "mb",
         "cav",
         "pbw",  "pbh",  "pbp",
         "trt",  "trr",  "trg",  "trb",  "tra",  "tri"
@@ -222,7 +224,7 @@ GtkWidget* ctk_glx_new(NvCtrlAttributeHandle *handle,
         __rs_help,  __gs_help,  __bs_help,  __as_help,
         __aux_help, __dpt_help, __stn_help,
         __acr_help, __acg_help, __acb_help, __aca_help,
-        __ms_help,  __mb_help,
+        __mvs_help, __mcs_help, __mb_help,
         __cav_help,
         __pbw_help, __pbh_help, __pbp_help,
         __trt_help, __trr_help, __trg_help,
@@ -440,8 +442,20 @@ GtkWidget* ctk_glx_new(NvCtrlAttributeHandle *handle,
                      fbconfig_attribs[i].accum_blue_size);
             snprintf((char *) (&(str[cell++])), 16, "%2d",
                      fbconfig_attribs[i].accum_alpha_size);
-            snprintf((char *) (&(str[cell++])), 16, "%2d",
-                     fbconfig_attribs[i].multi_samples);
+            if (fbconfig_attribs[i].multi_sample_valid) {
+                snprintf((char *) (&(str[cell++])), 16, "%2d",
+                         fbconfig_attribs[i].multi_samples);
+                if (fbconfig_attribs[i].multi_sample_coverage_valid) {
+                    snprintf((char *) (&(str[cell++])), 16, "%2d",
+                             fbconfig_attribs[i].multi_samples_color);
+                } else {
+                    snprintf((char *) (&(str[cell++])), 16, "%2d",
+                             fbconfig_attribs[i].multi_samples);
+                }
+            } else {
+                snprintf((char *) (&(str[cell++])), 16, " 0");
+                snprintf((char *) (&(str[cell++])), 16, " 0");
+            }
             snprintf((char *) (&(str[cell++])), 16, "%1d",
                      fbconfig_attribs[i].multi_sample_buffers);
             snprintf((char *) (&(str[cell++])), 16, "%s",
@@ -903,7 +917,8 @@ GtkTextBuffer *ctk_glx_create_help(GtkTextTagTable *table,
                   __acg_help,
                   __acb_help,
                   __aca_help,
-                  __ms_help,
+                  __mvs_help,
+                  __mcs_help,
                   __mb_help,
 
                   __cav_help,

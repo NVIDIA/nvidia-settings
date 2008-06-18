@@ -25,22 +25,23 @@
 #include <stdlib.h> /* malloc */
 #include <gtk/gtk.h>
 #include <gdk/gdkx.h>
+#include <gdk-pixbuf/gdk-pixdata.h>
+
 #include <X11/Xlib.h>
 #include <X11/extensions/Xrandr.h>
-
-#include "ctkimage.h"
-#include "rotation_orientation_horiz.h"
-#include "rotation_orientation_horiz_flipped.h"
-#include "rotation_orientation_vert.h"
-#include "rotation_orientation_vert_flipped.h"
-#include "rotate_left_on.h"
-#include "rotate_left_off.h"
-#include "rotate_right_on.h"
-#include "rotate_right_off.h"
 
 #include "ctkevent.h"
 #include "ctkhelp.h"
 #include "ctkrandr.h"
+#include "ctkbanner.h"
+
+#include "rotation_orientation_horz_pixdata.h"
+#include "rotation_orientation_vert_pixdata.h"
+
+#include "rotate_left_on_pixdata.h"
+#include "rotate_left_off_pixdata.h"
+#include "rotate_right_on_pixdata.h"
+#include "rotate_right_off_pixdata.h"
 
 
 GType ctk_randr_get_type(void)
@@ -96,19 +97,57 @@ static char *get_rotation_string(int rotation)
 
 
 /*
- * Helper function used to load a pixbuf from an nv_image dump
+ * Helper function to flip the contents of a pixbuf
+ * horizontally.  This is used to perform a 180 degree
+ * rotation + vertical flip.
  */
-static GdkPixbuf * load_pixbuf_from_nvimage(const nv_image_t *img)
-{
-    guint8 *image_buffer = decompress_image_data(img);
-    if ( !image_buffer )
-        return NULL;
 
-    return gdk_pixbuf_new_from_data(image_buffer, GDK_COLORSPACE_RGB,
-                                    FALSE, 8, img->width, img->height,
-                                    img->width * img->bytes_per_pixel,
-                                    free_decompressed_image, NULL);
-}
+static void horz_flip_pixbuf(GdkPixbuf *pixbuf)
+{
+    guchar *pixels;
+    int width;
+    int height;
+    int rowstride;       // # bytes per row
+    int bits_per_sample; // # bits per color sample
+    int n_channels;      // # color samples per component
+
+    guchar *row;
+    guchar *head;
+    guchar *tail;
+    int x, y, c;
+    int component_size;
+
+    /* Get pixbuf information */
+    pixels = gdk_pixbuf_get_pixels(pixbuf);
+    width = gdk_pixbuf_get_width(pixbuf);
+    height = gdk_pixbuf_get_height(pixbuf);
+    rowstride = gdk_pixbuf_get_rowstride(pixbuf);
+    bits_per_sample = gdk_pixbuf_get_bits_per_sample(pixbuf);
+    n_channels = gdk_pixbuf_get_n_channels(pixbuf);
+
+    /* Compute the number of bytes per component (RGB/RGBA) */
+    component_size = n_channels * (bits_per_sample / 8);
+
+    /* Swap all components in all rows */
+    for (y = 0; y < height; y++) {
+
+        row = pixels + (y * rowstride);
+        head = row;
+        tail = row + (width - 1) * (component_size);
+
+        for (x = 0; x < width/2; x++) {
+
+            for (c = 0; c < component_size; c++) {
+                guchar h = head[c];
+                head[c] = tail[c];
+                tail[c] = h;
+            }
+            head += component_size;
+            tail -= component_size;
+        }
+    }
+ 
+} /* horz_flip_pixbuf() */
 
 
 
@@ -118,82 +157,50 @@ static GdkPixbuf * load_pixbuf_from_nvimage(const nv_image_t *img)
  */
 static GdkPixbuf *load_orientation_image_pixbuf(Rotation rotation)
 {
-    const nv_image_t *img_data;
-    int rotate_img_data;
-    guint8 *img_buffer;
-    guint8 *img_buffer_tmp;
+    const GdkPixdata *pixdata;
     GdkPixbuf *pixbuf;
+    gboolean tweak_img; /* Rotate and flip image */
 
 
     /* Figure out which image and rotation to use */
     switch ( rotation ) {
     case RR_Rotate_0: /* Normal */
-        img_data = &rotation_orientation_horiz_image;
-        rotate_img_data = 0;
+        pixdata = &rotation_orientation_horz_pixdata;
+        tweak_img = FALSE;
         break;
     case RR_Rotate_90: /* Left */
-        img_data = &rotation_orientation_vert_flipped_image;
-        rotate_img_data = 1;
+        pixdata = &rotation_orientation_vert_pixdata;
+        tweak_img = TRUE;
         break;
     case RR_Rotate_180: /* Inverted */
-        img_data = &rotation_orientation_horiz_flipped_image;
-        rotate_img_data = 1;
+        pixdata = &rotation_orientation_horz_pixdata;
+        tweak_img = TRUE;
         break;
     case RR_Rotate_270: /* Right */
-        img_data = &rotation_orientation_vert_image;
-        rotate_img_data = 0;
+        pixdata = &rotation_orientation_vert_pixdata;
+        tweak_img = FALSE;
         break;
     default: /* Unknown */
-        img_data = &rotation_orientation_horiz_image;
-        rotate_img_data = 0;
+        pixdata = &rotation_orientation_horz_pixdata;
+        tweak_img = FALSE;
         break;
     }
 
-    /* Load image */
-    img_buffer = decompress_image_data(img_data);
-    if ( !img_buffer ) {
+
+    /* Generate the pixbuf from the pixdata */
+    pixbuf = gdk_pixbuf_from_pixdata(pixdata, TRUE, NULL);
+    if (!pixbuf) {
         return NULL;
     }
 
-    /* Image data needs to be rotated */
-    if ( rotate_img_data ) {
-        unsigned char *src;
-        unsigned char *dst;
-        unsigned int bppt, w, h; /* Used to rotate image */
 
+    /* Image requires 180 degree rotation + vertical flip,
+     * this is the same as a horizontal flip.
+     */
+    if (tweak_img) {
+        horz_flip_pixbuf(pixbuf);
+    }
 
-        img_buffer_tmp = img_buffer;
-        
-        img_buffer = (guint8 *) malloc( img_data->width * img_data->height *
-                                          img_data->bytes_per_pixel );
-        if ( !img_buffer ) {
-            free(img_buffer_tmp);
-            return NULL;
-        }
-
-        /* GTK 2.2 doesn't support this, so we do it ourselves. */
-        dst = (unsigned char *)img_buffer;
-        src = (unsigned char *)img_buffer_tmp;
-        src += (img_data->width * img_data->height -1) *
-               img_data->bytes_per_pixel;
-
-        for (h = 0; h < img_data->height; h++ ) {
-            for (w = 0; w < img_data->width; w++ ) {
-                for (bppt = 0; bppt < img_data->bytes_per_pixel; bppt++ ) {
-                    dst[bppt] = src[bppt];
-                }
-                dst += img_data->bytes_per_pixel;
-                src -= img_data->bytes_per_pixel;
-            }
-        }
-
-        free(img_buffer_tmp);
-    } /* Done - rotating image */
-
-    pixbuf = gdk_pixbuf_new_from_data(img_buffer, GDK_COLORSPACE_RGB, FALSE,
-                                      8, img_data->width, img_data->height,
-                                      img_data->width * img_data->bytes_per_pixel,
-                                      free_decompressed_image, NULL);
     return pixbuf;
  
 } /* load_orientation_image_pixbuf() */
@@ -463,16 +470,20 @@ GtkWidget* ctk_randr_new(NvCtrlAttributeHandle *handle,
 
     /* Preload button pixbufs & images */
     ctk_randr->button_pixbufs[CTKRANDR_BTN_ROTATE_LEFT_OFF] =
-        load_pixbuf_from_nvimage(&rotate_left_off_image);
+        gdk_pixbuf_from_pixdata(&rotate_left_off_pixdata,
+                                TRUE, NULL);
 
     ctk_randr->button_pixbufs[CTKRANDR_BTN_ROTATE_LEFT_ON] =
-        load_pixbuf_from_nvimage(&rotate_left_on_image);
+        gdk_pixbuf_from_pixdata(&rotate_left_on_pixdata,
+                                TRUE, NULL);
 
     ctk_randr->button_pixbufs[CTKRANDR_BTN_ROTATE_RIGHT_OFF] =
-        load_pixbuf_from_nvimage(&rotate_right_off_image);
+        gdk_pixbuf_from_pixdata(&rotate_right_off_pixdata,
+                                TRUE, NULL);
 
     ctk_randr->button_pixbufs[CTKRANDR_BTN_ROTATE_RIGHT_ON] =
-        load_pixbuf_from_nvimage(&rotate_right_on_image);
+        gdk_pixbuf_from_pixdata(&rotate_right_on_pixdata,
+                                TRUE, NULL);
 
     ctk_randr->rotate_left_button_image =
         GTK_IMAGE(gtk_image_new_from_pixbuf(ctk_randr->button_pixbufs[CTKRANDR_BTN_ROTATE_LEFT_OFF]) );

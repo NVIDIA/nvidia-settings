@@ -2,11 +2,11 @@
 #define __NVCONTROL_H
 
 #define NV_CONTROL_ERRORS 0
-#define NV_CONTROL_EVENTS 4
+#define NV_CONTROL_EVENTS 5
 #define NV_CONTROL_NAME "NV-CONTROL"
 
 #define NV_CONTROL_MAJOR 1
-#define NV_CONTROL_MINOR 16
+#define NV_CONTROL_MINOR 17
 
 #define X_nvCtrlQueryExtension                      0
 #define X_nvCtrlIsNv                                1

@@ -31,13 +31,12 @@
 #include <X11/Xlib.h>
 #include <X11/extensions/Xrandr.h>
 
-
-#include "image.h"
+#include "parse.h"
 
 #include "ctkscreen.h"
 #include "ctkhelp.h"
 #include "ctkutils.h"
-#include "ctkimage.h"
+#include "ctkbanner.h"
 
 void ctk_screen_event_handler(GtkWidget *widget,
                               XRRScreenChangeNotifyEvent *ev,

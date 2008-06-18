@@ -27,7 +27,7 @@
 
 #include <string.h>
 
-#include "ctkimage.h"
+#include "ctkbanner.h"
 
 #include "ctkgvo-csc.h"
 

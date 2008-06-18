@@ -30,7 +30,7 @@
 #include "red_xpm.h"
 #include "green_xpm.h"
 #include "blue_xpm.h"
-#include "ctkimage.h"
+#include "ctkbanner.h"
 
 #include "ctkcurve.h"
 #include "ctkscale.h"

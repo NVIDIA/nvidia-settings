@@ -53,12 +53,19 @@ void apply_screen_info_token(char *token, char *value, void *data);
 
 nvModePtr mode_parse(nvDisplayPtr display, const char *mode_str);
 
+/* ModeLine functions */
+
+Bool modelines_match(nvModeLinePtr modeline1, nvModeLinePtr modeline2);
+void modeline_free(nvModeLinePtr m);
+
+
 
 /* Display functions */
 
 gchar * display_get_type_str(unsigned int device_mask, int be_generic);
 int display_find_closest_mode_matching_modeline(nvDisplayPtr display,
                                                 nvModeLinePtr modeline);
+Bool display_has_modeline(nvDisplayPtr display, nvModeLinePtr modeline);
 Bool display_add_modelines_from_server(nvDisplayPtr display, gchar **err_str);
 void display_remove_modes(nvDisplayPtr display);
 

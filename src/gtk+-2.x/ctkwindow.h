@@ -94,7 +94,10 @@ GType       ctk_window_get_type  (void) G_GNUC_CONST;
 GtkWidget*  ctk_window_new       (NvCtrlAttributeHandle**, gint,
                                   NvCtrlAttributeHandle**, gint,
                                   NvCtrlAttributeHandle**, gint,
-                                  ParsedAttribute *, ConfigProperties *conf);
+                                  ParsedAttribute *, ConfigProperties *conf,
+                                  CtrlHandles *pCtrlHandles);
+
+void add_special_config_file_attributes(CtkWindow *ctk_window);
 
 G_END_DECLS
 

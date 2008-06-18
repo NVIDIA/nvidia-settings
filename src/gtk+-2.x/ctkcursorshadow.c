@@ -42,7 +42,7 @@
 
 #include "NvCtrlAttributes.h"
 
-#include "ctkimage.h"
+#include "ctkbanner.h"
 
 #include "ctkcursorshadow.h"
 #include "ctkscale.h"

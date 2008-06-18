@@ -2545,24 +2545,26 @@
 #define NV_CTRL_FLATPANEL_CHIP_LOCATION_EXTERNAL                  1
 
 /*
- * NV_CTRL_FLATPANEL_LINK - report whether the specified display
- * device is driven by a single link or dual link DVI connection.
+ * NV_CTRL_FLATPANEL_LINK - report the number of links for a DVI connection, or
+ * the main link's active lane count for DisplayPort.
  * This attribute is only available for flat panels.
  */
 
 #define NV_CTRL_FLATPANEL_LINK                                  216/* R-DG */
 #define NV_CTRL_FLATPANEL_LINK_SINGLE                             0
 #define NV_CTRL_FLATPANEL_LINK_DUAL                               1
+#define NV_CTRL_FLATPANEL_LINK_QUAD                               3
 
 /*
  * NV_CTRL_FLATPANEL_SIGNAL - for the specified display device, report
- * whether the flat panel is driven by an LVDS or TMDS signal.  This
- * attribute is only available for flat panels.
+ * whether the flat panel is driven by an LVDS, TMDS, or DisplayPort signal.
+ * This attribute is only available for flat panels.
  */
 
 #define NV_CTRL_FLATPANEL_SIGNAL                                217/* R-DG */
 #define NV_CTRL_FLATPANEL_SIGNAL_LVDS                             0
 #define NV_CTRL_FLATPANEL_SIGNAL_TMDS                             1
+#define NV_CTRL_FLATPANEL_SIGNAL_DISPLAYPORT                      2
 
 
 /*
@@ -3319,7 +3321,18 @@
 
 #define NV_CTRL_DEPTH_30_ALLOWED                                279 /* R--G */
 
-#define NV_CTRL_LAST_ATTRIBUTE NV_CTRL_DEPTH_30_ALLOWED
+/*
+ * NV_CTRL_DISPLAYPORT_LINK_RATE - returns the negotiated lane bandwidth of the
+ * DisplayPort main link.
+ * This attribute is only available for DisplayPort flat panels.
+ */
+
+#define NV_CTRL_DISPLAYPORT_LINK_RATE                           291 /* R-DG */
+#define NV_CTRL_DISPLAYPORT_LINK_RATE_DISABLED                  0x0
+#define NV_CTRL_DISPLAYPORT_LINK_RATE_1_62GBPS                  0x6
+#define NV_CTRL_DISPLAYPORT_LINK_RATE_2_70GBPS                  0xA
+
+#define NV_CTRL_LAST_ATTRIBUTE NV_CTRL_DISPLAYPORT_LINK_RATE
 
 /**************************************************************************/
 
@@ -4206,6 +4219,7 @@ typedef struct _NVCTRLAttributeValidValues {
 #define TARGET_ATTRIBUTE_CHANGED_EVENT              1
 #define TARGET_ATTRIBUTE_AVAILABILITY_CHANGED_EVENT 2
 #define TARGET_STRING_ATTRIBUTE_CHANGED_EVENT       3
+#define TARGET_BINARY_ATTRIBUTE_CHANGED_EVENT       4
 
 
 #endif /* __NVCTRL_H */

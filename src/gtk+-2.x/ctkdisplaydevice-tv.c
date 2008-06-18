@@ -29,7 +29,7 @@
 #include <gtk/gtk.h>
 #include <NvCtrlAttributes.h>
 
-#include "ctkimage.h"
+#include "ctkbanner.h"
 
 #include "ctkdisplaydevice-tv.h"
 

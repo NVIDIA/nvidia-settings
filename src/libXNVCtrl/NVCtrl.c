@@ -1285,6 +1285,7 @@ static Bool wire_to_event (Display *dpy, XEvent *host, xEvent *wire)
     xnvctrlEventTarget *eventTarget;
     XNVCtrlEventTargetAvailability *reTargetAvailability;
     XNVCtrlStringEventTarget *reTargetString;
+    XNVCtrlBinaryEventTarget *reTargetBinary;
 
     XNVCTRLCheckExtension (dpy, info, False);
     
@@ -1369,6 +1370,26 @@ static Bool wire_to_event (Display *dpy, XEvent *host, xEvent *wire)
         reTargetString->attribute_changed.display_mask =
             eventTarget->u.attribute_changed.display_mask;
         reTargetString->attribute_changed.attribute =
+            eventTarget->u.attribute_changed.attribute;
+        break;
+    case TARGET_BINARY_ATTRIBUTE_CHANGED_EVENT:
+        reTargetBinary = (XNVCtrlBinaryEventTarget *) host;
+        eventTarget = (xnvctrlEventTarget *) wire;
+        reTargetBinary->attribute_changed.type = eventTarget->u.u.type & 0x7F;
+        reTargetBinary->attribute_changed.serial =
+            _XSetLastRequestRead(dpy, (xGenericReply*) eventTarget);
+        reTargetBinary->attribute_changed.send_event =
+            ((eventTarget->u.u.type & 0x80) != 0);
+        reTargetBinary->attribute_changed.display = dpy;
+        reTargetBinary->attribute_changed.time =
+            eventTarget->u.attribute_changed.time;
+        reTargetBinary->attribute_changed.target_type =
+            eventTarget->u.attribute_changed.target_type;
+        reTargetBinary->attribute_changed.target_id =
+            eventTarget->u.attribute_changed.target_id;
+        reTargetBinary->attribute_changed.display_mask =
+            eventTarget->u.attribute_changed.display_mask;
+        reTargetBinary->attribute_changed.attribute =
             eventTarget->u.attribute_changed.attribute;
         break;
 

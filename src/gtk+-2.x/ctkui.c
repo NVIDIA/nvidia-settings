@@ -45,7 +45,8 @@ char *ctk_get_display(void)
 void ctk_main(NvCtrlAttributeHandle **screen_handles, int num_screen_handles,
               NvCtrlAttributeHandle **gpu_handles, int num_gpu_handles,
               NvCtrlAttributeHandle **vcs_handles, int num_vcs_handles,
-              ParsedAttribute *p, ConfigProperties *conf)
+              ParsedAttribute *p, ConfigProperties *conf,
+              CtrlHandles *pCtrlHandles)
 {
     int i, has_nv_control = FALSE;
     GList *list = NULL;
@@ -54,8 +55,7 @@ void ctk_main(NvCtrlAttributeHandle **screen_handles, int num_screen_handles,
     ctk_window_new(screen_handles, num_screen_handles,
                    gpu_handles, num_gpu_handles,
                    vcs_handles, num_vcs_handles,
-                   p, conf);
-    
+                   p, conf, pCtrlHandles);
     for (i = 0; i < num_screen_handles; i++) {
         if (screen_handles[i]) {
             has_nv_control = TRUE;

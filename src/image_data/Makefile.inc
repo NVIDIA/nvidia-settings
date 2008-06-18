@@ -26,57 +26,53 @@
 # distribution
 #
 
-SRC += \
-	image.c
-
 EXTRA_DIST += \
-	Makefile.inc \
-	HOWTO-ADD-IMAGES \
-	image.h \
-	rotate_left_off.h \
-	rotate_left_on.h \
-	rotate_right_off.h \
-	rotate_right_on.h \
-	rotation_orientation_horiz_flipped.h \
-	rotation_orientation_horiz.h \
-	rotation_orientation_vert_flipped.h \
-	rotation_orientation_vert.h \
-	bnc_cable.h \
-	led_green.h \
-	led_red.h \
-	led_grey.h \
-	rj45_input.h \
-	rj45_output.h \
-	rj45_unused.h \
-	crt_pixdata.h \
-	dfp_pixdata.h \
-	tv_pixdata.h \
-	background_pixdata.h \
-	logo_pixdata.h \
-	nvidia_icon_pixdata.h \
 	antialias_pixdata.h \
-	thermal_pixdata.h \
-	x_pixdata.h \
+	background_pixdata.h \
 	background_tall_pixdata.h \
+	bnc_cable_pixdata.h \
 	bsd_pixdata.h \
 	clock_pixdata.h \
 	color_pixdata.h \
 	config_pixdata.h \
+	crt_pixdata.h \
 	cursor_shadow_pixdata.h \
+	dfp_pixdata.h \
 	display_config_pixdata.h \
 	framelock_pixdata.h \
 	glx_pixdata.h \
 	gpu_pixdata.h \
 	help_pixdata.h \
+	HOWTO-ADD-IMAGES \
+	led_green_pixdata.h \
+	led_grey_pixdata.h \
+	led_red_pixdata.h \
+	logo_pixdata.h \
 	logo_tall_pixdata.h \
+	Makefile.inc \
+	nvidia_icon_pixdata.h \
 	opengl_pixdata.h \
 	penguin_pixdata.h \
+	png_to_c_header.sh \
+	rj45_input_pixdata.h \
+	rj45_output_pixdata.h \
+	rj45_unused_pixdata.h \
+	rotate_left_off_pixdata.h \
+	rotate_left_on_pixdata.h \
+	rotate_right_off_pixdata.h \
+	rotate_right_on_pixdata.h \
+	rotation_orientation_horz_pixdata.h \
+	rotation_orientation_vert_pixdata.h \
 	rotation_pixdata.h \
 	sdi_pixdata.h \
+	sdi_shared_sync_bnc_pixdata.h \
+	slimm_pixdata.h \
 	solaris_pixdata.h \
+	thermal_pixdata.h \
+	tv_pixdata.h \
 	vcs_pixdata.h \
-	xvideo_pixdata.h \
-	sdi_shared_sync_bnc_pixdata.h
+	x_pixdata.h \
+	xvideo_pixdata.h
 
 dist_list::
 	@ echo $(SRC) $(EXTRA_DIST)

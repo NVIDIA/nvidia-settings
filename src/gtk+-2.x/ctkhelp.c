@@ -28,7 +28,7 @@
 #include "msg.h"
 #include "ctkconstants.h"
 
-#include "ctkimage.h"
+#include "ctkbanner.h"
 
 #include <stdlib.h>
 

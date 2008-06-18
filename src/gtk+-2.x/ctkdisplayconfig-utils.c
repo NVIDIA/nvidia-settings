@@ -751,6 +751,93 @@ int display_find_closest_mode_matching_modeline(nvDisplayPtr display,
 
 
 
+/** modeline_free() *************************************
+ *
+ * Helper function that frees an nvModeLinePtr and
+ * associated memory.
+ *
+ **/
+void modeline_free(nvModeLinePtr m)
+{
+    if (m->xconfig_name) {
+        free(m->xconfig_name);
+    }
+
+    if (m->data.identifier) {
+        free(m->data.identifier);
+    }
+
+    if (m->data.comment) {
+        free(m->data.comment);
+    }
+
+    if (m->data.clock) {
+        free(m->data.clock);
+    }
+
+    free(m);
+}
+
+
+
+/** modelines_match() *************************************
+ *
+ * Helper function that returns True or False based on whether
+ * the modeline arguments match each other.
+ *
+ **/
+Bool modelines_match(nvModeLinePtr modeline1,
+                     nvModeLinePtr modeline2)
+{
+    if (!modeline1 || !modeline2) {
+        return FALSE;
+    }
+
+    if (!g_ascii_strcasecmp(modeline1->data.clock, modeline2->data.clock) &&
+        modeline1->data.hdisplay == modeline2->data.hdisplay &&
+        modeline1->data.hsyncstart == modeline2->data.hsyncstart &&
+        modeline1->data.hsyncend == modeline2->data.hsyncend &&
+        modeline1->data.htotal == modeline2->data.htotal &&
+        modeline1->data.vdisplay == modeline2->data.vdisplay &&
+        modeline1->data.vsyncstart == modeline2->data.vsyncstart &&
+        modeline1->data.vsyncend == modeline2->data.vsyncend &&
+        modeline1->data.vtotal == modeline2->data.vtotal &&
+        modeline1->data.vscan == modeline2->data.vscan &&
+        modeline1->data.flags == modeline2->data.flags &&
+        modeline1->data.hskew == modeline2->data.hskew &&
+        !g_ascii_strcasecmp(modeline1->data.identifier, 
+                            modeline2->data.identifier)) {
+            return TRUE;
+    } else {
+        return FALSE;
+    }
+} /* modelines_match() */
+
+
+
+/** display_has_modeline() *******************************************
+ *
+ * Helper function that returns TRUE or FALSE based on whether
+ * the display passed as argument supports the given modeline.
+ *
+ **/
+Bool display_has_modeline(nvDisplayPtr display,
+                          nvModeLinePtr modeline)
+{
+    nvModeLinePtr m;
+
+    for (m = display->modelines; m; m = m->next) {
+         if (modelines_match(m, modeline)) {
+            return TRUE;
+        }
+    }
+
+    return FALSE;
+
+} /* display_has_modeline() */
+
+
+
 /** display_remove_modelines() ***************************************
  *
  * Clears the display device's modeline list.
@@ -764,11 +851,7 @@ static void display_remove_modelines(nvDisplayPtr display)
         while (display->modelines) {
             modeline = display->modelines;
             display->modelines = display->modelines->next;
-            free(modeline->xconfig_name);
-            free(modeline->data.identifier);
-            free(modeline->data.comment);
-            free(modeline->data.clock);
-            free(modeline);
+            modeline_free(modeline);
         }
         display->num_modelines = 0;
     }

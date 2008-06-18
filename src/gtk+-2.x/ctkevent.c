@@ -69,7 +69,7 @@ typedef struct __CtkEventSourceRec {
     struct __CtkEventSourceRec *next;
 } CtkEventSource;
 
-
+static guint binary_signals[NV_CTRL_BINARY_DATA_LAST_ATTRIBUTE + 1];
 static guint string_signals[NV_CTRL_STRING_LAST_ATTRIBUTE + 1];
 static guint signals[NV_CTRL_LAST_ATTRIBUTE + 1];
 static guint signal_RRScreenChangeNotify;
@@ -254,6 +254,7 @@ static void ctk_event_class_init(CtkEventClass *ctk_event_class)
     MAKE_SIGNAL(NV_CTRL_GVO_COMPOSITE_ALPHA_KEY);
     MAKE_SIGNAL(NV_CTRL_GVO_COMPOSITE_NUM_KEY_RANGES);
     MAKE_SIGNAL(NV_CTRL_NOTEBOOK_DISPLAY_CHANGE_LID_EVENT);
+    MAKE_SIGNAL(NV_CTRL_DISPLAYPORT_LINK_RATE);
 
 #undef MAKE_SIGNAL
     
@@ -264,7 +265,7 @@ static void ctk_event_class_init(CtkEventClass *ctk_event_class)
      * knows about.
      */
 
-#if NV_CTRL_LAST_ATTRIBUTE != NV_CTRL_DEPTH_30_ALLOWED
+#if NV_CTRL_LAST_ATTRIBUTE != NV_CTRL_DISPLAYPORT_LINK_RATE
 #warning "There are attributes that do not emit signals!"
 #endif
 
@@ -310,6 +311,32 @@ static void ctk_event_class_init(CtkEventClass *ctk_event_class)
 #undef MAKE_STRING_SIGNAL
 
 #if NV_CTRL_STRING_LAST_ATTRIBUTE != NV_CTRL_STRING_PERFORMANCE_MODES
+#warning "There are attributes that do not emit signals!"
+#endif
+    
+    
+    /* make signals for binary attribute */
+    for (i = 0; i <= NV_CTRL_BINARY_DATA_LAST_ATTRIBUTE; i++) binary_signals[i] = 0;
+
+#define MAKE_BINARY_SIGNAL(x)                                              \
+    binary_signals[x] = g_signal_new(("CTK_EVENT_"  #x),                   \
+                                     G_OBJECT_CLASS_TYPE(ctk_event_class), \
+                                     G_SIGNAL_RUN_LAST, 0, NULL, NULL,     \
+                                     g_cclosure_marshal_VOID__POINTER,     \
+                                     G_TYPE_NONE, 1, G_TYPE_POINTER);
+
+    MAKE_BINARY_SIGNAL(NV_CTRL_BINARY_DATA_MODELINES);
+    MAKE_BINARY_SIGNAL(NV_CTRL_BINARY_DATA_XSCREENS_USING_GPU);
+    MAKE_BINARY_SIGNAL(NV_CTRL_BINARY_DATA_GPUS_USED_BY_XSCREEN);
+    MAKE_BINARY_SIGNAL(NV_CTRL_BINARY_DATA_GPUS_USING_FRAMELOCK);
+    MAKE_BINARY_SIGNAL(NV_CTRL_BINARY_DATA_DISPLAY_VIEWPORT);
+    MAKE_BINARY_SIGNAL(NV_CTRL_BINARY_DATA_FRAMELOCKS_USED_BY_GPU);
+    MAKE_BINARY_SIGNAL(NV_CTRL_BINARY_DATA_GPUS_USING_VCSC);
+    MAKE_BINARY_SIGNAL(NV_CTRL_BINARY_DATA_VCSCS_USED_BY_GPU);
+
+#undef MAKE_BINARY_SIGNAL
+    
+#if NV_CTRL_BINARY_DATA_LAST_ATTRIBUTE != NV_CTRL_BINARY_DATA_VCSCS_USED_BY_GPU
 #warning "There are attributes that do not emit signals!"
 #endif
 
@@ -586,7 +613,7 @@ static gboolean ctk_event_dispatch(GSource *source,
         }
 
         /*
-         * Handle the TARGET_ATTRIBUTE_AVAILABILITY_CHANGED_EVENT 
+         * Handle the TARGET_ATTRIBUTE_AVAILABILITY_CHANGED_EVENT
          * NV-CONTROL event.
          */
 
@@ -620,7 +647,7 @@ static gboolean ctk_event_dispatch(GSource *source,
                                 nvctrlevent->target_id);
         }
         /*
-         * Handle the TARGET_STRING_ATTRIBUTE_CHANGED_EVENT 
+         * Handle the TARGET_STRING_ATTRIBUTE_CHANGED_EVENT
          * NV-CONTROL event.
          */
     } else if (event_source->event_base != -1 &&
@@ -641,7 +668,7 @@ static gboolean ctk_event_dispatch(GSource *source,
             event_struct.availability = TRUE;
             /*
              * XXX Is emitting a signal with g_signal_emit() really
-             * the "correct" way of dispatching the event?
+             * the "correct" way of dispatching the event
              */
 
             CTK_EVENT_BROADCAST(event_source,
@@ -650,10 +677,41 @@ static gboolean ctk_event_dispatch(GSource *source,
                                 nvctrlevent->target_type,
                                 nvctrlevent->target_id);
         }
+         /*
+          * Handle the TARGET_BINARY_ATTRIBUTE_CHANGED_EVENT
+          * NV-CONTROL event.
+          */
+    } else if (event_source->event_base != -1 &&
+               (event.type == (event_source->event_base
+                               + TARGET_BINARY_ATTRIBUTE_CHANGED_EVENT))) {
+        XNVCtrlBinaryAttributeChangedEventTarget *nvctrlevent =
+            (XNVCtrlBinaryAttributeChangedEventTarget *) &event;
 
-    /*
-     * Also handle XRandR events.
-     */
+        /* make sure the attribute is in our signal array */
+        if ((nvctrlevent->attribute >= 0) &&
+            (nvctrlevent->attribute <= NV_CTRL_BINARY_DATA_LAST_ATTRIBUTE) &&
+            (binary_signals[nvctrlevent->attribute] != 0)) {
+
+            event_struct.attribute    = nvctrlevent->attribute;
+            event_struct.value        = 0;
+            event_struct.display_mask = nvctrlevent->display_mask;
+            event_struct.availability = TRUE;
+            /*
+             * XXX Is emitting a signal with g_signal_emit() really
+             * the "correct" way of dispatching the event
+             */
+
+            CTK_EVENT_BROADCAST(event_source,
+                                binary_signals[nvctrlevent->attribute],
+                                &event_struct,
+                                nvctrlevent->target_type,
+                                nvctrlevent->target_id);
+        }
+
+
+        /*
+         * Also handle XRandR events.
+         */
 
     } else if (event_source->randr_event_base != -1 &&
                (event.type ==

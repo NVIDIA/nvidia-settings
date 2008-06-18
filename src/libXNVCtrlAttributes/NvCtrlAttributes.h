@@ -208,6 +208,8 @@ typedef struct GLXFBConfigAttrRec {
     int multi_sample_valid;
     int multi_samples;
     int multi_sample_buffers;
+    int multi_sample_coverage_valid;
+    int multi_samples_color;
     
 } GLXFBConfigAttr;
 

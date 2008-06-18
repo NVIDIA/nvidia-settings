@@ -1,12 +1,23 @@
 
 If I have a png, how do I build it into nvidia-settings?
 
-    - run `gdk-pixbuf-csource --struct --name=foo_pixdata foo.png > foo_pixdata.h`
-    - convert the pixel_data array embedded in the foo_pixdata structure
-      to a stand-alone guint8 array (see existing images as a reference), add
-      it to the top of the header file and reference it in the structure.
-      *** TODO: this should be automated or folded into the first step somehow. ***
-    - add to the BannerArtworkType enum in image.h
+    - make sure you have the gdk-pixbuf-csource binary somewhere
+      in your path.
+
+    - run './png_to_c_header.sh foo.png' This will generate the foo_pixdata.h
+      header file that can then be included in the nvidia-settings source code.
+
+    - add a foo_pixdata.h entry to the .../image_data/Makefile.inc
+
+    (Also follow these next steps if this image is to be used in the banner)
+
+    - add to the BannerArtworkType enum in ctkbanner.h
+
     - include foo_pixdata.h in ctkbanner.c
+
     - add an entry to the ArtworkTable[] in ctkbanner.c:select_artwork()
-    - add an entry to the .../image_data/Makefile.inc
+
+
+NOTE: Regenerating all images can be done like so:
+
+	for file in `ls *.png`; do ./png_to_c_header.sh $file; done

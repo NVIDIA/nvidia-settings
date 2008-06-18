@@ -526,6 +526,18 @@ get_fbconfig_attribs(NvCtrlAttributePrivateHandle *h)
                 fbcas[i].multi_sample_valid = 0;
             }
         }
+#if defined(GLX_COLOR_SAMPLES_NV)
+        fbcas[i].multi_sample_coverage_valid = 1;
+        ret = (* (__libGL->glXGetFBConfigAttrib))(h->dpy, fbconfigs[i],
+                                                  GLX_COLOR_SAMPLES_NV,
+                                                  &(fbcas[i].multi_samples_color));
+
+        if ( ret != Success ) {
+            fbcas[i].multi_sample_coverage_valid = 0;
+        }
+#else
+        fbcas[i].multi_sample_coverage_valid = 0;
+#endif
 #else
 #warning Multisample extension not found, will not print multisample information!
         fbcas[i].multi_sample_valid = 0;

@@ -34,7 +34,6 @@
 #include "ctkgvo.h"
 #include "ctkdropdownmenu.h"
 #include "ctkutils.h"
-#include "ctkimage.h"
 #include "ctkbanner.h"
 
 #include "ctkgvo-banner.h"

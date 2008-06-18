@@ -38,7 +38,6 @@
 #include "ctkhelp.h"
 #include "ctkgvo-banner.h"
 #include "ctkutils.h"
-#include "ctkimage.h"
 #include "ctkbanner.h"
 
 #include "msg.h"

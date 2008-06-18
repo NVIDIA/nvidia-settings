@@ -22,8 +22,9 @@
  *
  */
 
-
 #include <gtk/gtk.h>
+#include <gdk-pixbuf/gdk-pixdata.h>
+
 #include <NvCtrlAttributes.h>
 #include <stdlib.h>
 #include <stdio.h>
@@ -31,21 +32,20 @@
 #include <assert.h>
 
 #include "ctkutils.h"
+#include "ctkbanner.h"
 #include "ctkframelock.h"
 #include "ctkhelp.h"
 #include "ctkevent.h"
 
-#include "ctkimage.h"
+#include "led_green_pixdata.h"
+#include "led_red_pixdata.h"
+#include "led_grey_pixdata.h"
 
-#include "led_green.h"
-#include "led_red.h"
-#include "led_grey.h"
+#include "rj45_input_pixdata.h"
+#include "rj45_output_pixdata.h"
+#include "rj45_unused_pixdata.h"
 
-#include "rj45_input.h"
-#include "rj45_output.h"
-#include "rj45_unused.h"
-
-#include "bnc_cable.h"
+#include "bnc_cable_pixdata.h"
 
 #include "parse.h"
 #include "msg.h"
@@ -793,12 +793,12 @@ GtkWidget *my_toggle_button_new_with_label(const gchar *txt,
  * Updates the container to hold a duplicate of the given image.
  *
  */
-void update_image(GtkWidget *container, GtkWidget *new_image)
+void update_image(GtkWidget *container, GdkPixbuf *new_pixbuf)
 {
     ctk_empty_container(container);
 
     gtk_box_pack_start(GTK_BOX(container),
-                       ctk_image_dupe(GTK_IMAGE(new_image)),
+                       gtk_image_new_from_pixbuf(new_pixbuf),
                        FALSE, FALSE, 0);
 
     gtk_widget_show_all(container);
@@ -3333,15 +3333,15 @@ void list_entry_update_framelock_status(CtkFramelock *ctk_framelock,
     /* Receiving Sync */
     if (!framelock_enabled || (is_server && !use_house_sync)) {
         gtk_widget_set_sensitive(data->receiving_label, FALSE);
-        update_image(data->receiving_hbox, ctk_framelock->led_grey);
+        update_image(data->receiving_hbox, ctk_framelock->led_grey_pixbuf);
     } else {
         gint receiving;
         NvCtrlGetAttribute(data->handle, NV_CTRL_FRAMELOCK_SYNC_READY,
                            &receiving);
         gtk_widget_set_sensitive(data->receiving_label, TRUE);
         update_image(data->receiving_hbox,
-                     receiving ? ctk_framelock->led_green :
-                     ctk_framelock->led_red);
+                     (receiving ? ctk_framelock->led_green_pixbuf :
+                      ctk_framelock->led_red_pixbuf));
     }
 
     /* Sync Rate */
@@ -3367,20 +3367,23 @@ void list_entry_update_framelock_status(CtkFramelock *ctk_framelock,
 
     /* House Sync and Ports are always active */
     update_image(data->house_hbox,
-                 house?ctk_framelock->led_green:ctk_framelock->led_red);
+                 (house ? ctk_framelock->led_green_pixbuf :
+                  ctk_framelock->led_red_pixbuf));
     if ( !data->port0_ethernet_error ) {
         update_image(data->port0_hbox,
-                     (port0==NV_CTRL_FRAMELOCK_PORT0_STATUS_INPUT)?
-                     ctk_framelock->rj45_input:ctk_framelock->rj45_output);
+                     ((port0==NV_CTRL_FRAMELOCK_PORT0_STATUS_INPUT) ?
+                      ctk_framelock->rj45_input_pixbuf :
+                      ctk_framelock->rj45_output_pixbuf));
     } else {
-        update_image(data->port0_hbox, ctk_framelock->rj45_unused);
+        update_image(data->port0_hbox, ctk_framelock->rj45_unused_pixbuf);
     }
     if ( !data->port1_ethernet_error ) {
         update_image(data->port1_hbox,
-                     (port1==NV_CTRL_FRAMELOCK_PORT0_STATUS_INPUT)?
-                     ctk_framelock->rj45_input:ctk_framelock->rj45_output);
+                     ((port1==NV_CTRL_FRAMELOCK_PORT0_STATUS_INPUT) ?
+                      ctk_framelock->rj45_input_pixbuf :
+                      ctk_framelock->rj45_output_pixbuf));
     } else {
-        update_image(data->port1_hbox, ctk_framelock->rj45_unused);
+        update_image(data->port1_hbox, ctk_framelock->rj45_unused_pixbuf);
     }
 }
 
@@ -3432,14 +3435,14 @@ void list_entry_update_gpu_status(CtkFramelock *ctk_framelock,
         (has_server && !use_house_sync) ||  // GPU always drives sync.
         (has_server && !house)) {           // No house so GPU drives sync.
         gtk_widget_set_sensitive(data->timing_label, FALSE);
-        update_image(data->timing_hbox, ctk_framelock->led_grey);
+        update_image(data->timing_hbox, ctk_framelock->led_grey_pixbuf);
     } else {
         gint timing;
         NvCtrlGetAttribute(data->handle, NV_CTRL_FRAMELOCK_TIMING, &timing);
         gtk_widget_set_sensitive(data->timing_label, TRUE);
         update_image(data->timing_hbox,
-                     timing ? ctk_framelock->led_green :
-                     ctk_framelock->led_red);
+                     (timing ? ctk_framelock->led_green_pixbuf :
+                      ctk_framelock->led_red_pixbuf));
     }
 }
 
@@ -3484,7 +3487,7 @@ void list_entry_update_display_status(CtkFramelock *ctk_framelock,
         (!is_server && !is_client) ||
         (is_server && gpu_is_server && !use_house_sync)) {
         gtk_widget_set_sensitive(data->stereo_label, FALSE);
-        update_image(data->stereo_hbox, ctk_framelock->led_grey);
+        update_image(data->stereo_hbox, ctk_framelock->led_grey_pixbuf);
     } else {
         nvGPUDataPtr gpu_data;
         gint timing = TRUE;
@@ -3501,13 +3504,13 @@ void list_entry_update_display_status(CtkFramelock *ctk_framelock,
                                &timing);
         }
         if (!timing) {
-            update_image(data->stereo_hbox, ctk_framelock->led_grey);
+            update_image(data->stereo_hbox, ctk_framelock->led_grey_pixbuf);
         } else {
             NvCtrlGetAttribute(data->handle, NV_CTRL_FRAMELOCK_STEREO_SYNC,
                                &stereo_sync);
             update_image(data->stereo_hbox,
-                         stereo_sync ? ctk_framelock->led_green :
-                         ctk_framelock->led_red);
+                         (stereo_sync ? ctk_framelock->led_green_pixbuf :
+                          ctk_framelock->led_red_pixbuf));
         }
     }
 }
@@ -4387,21 +4390,27 @@ GtkWidget* ctk_framelock_new(NvCtrlAttributeHandle *handle,
 
     /* Cache images */
 
-    ctk_framelock->led_grey  = ctk_image_new(&led_grey);
-    ctk_framelock->led_green = ctk_image_new(&led_green);
-    ctk_framelock->led_red   = ctk_image_new(&led_red);
+    ctk_framelock->led_grey_pixbuf =
+        gdk_pixbuf_from_pixdata(&led_grey_pixdata, TRUE, NULL);
+    ctk_framelock->led_green_pixbuf =
+        gdk_pixbuf_from_pixdata(&led_green_pixdata, TRUE, NULL);
+    ctk_framelock->led_red_pixbuf =
+        gdk_pixbuf_from_pixdata(&led_red_pixdata, TRUE, NULL);
 
-    ctk_framelock->rj45_input  = ctk_image_new(&rj45_input);
-    ctk_framelock->rj45_output = ctk_image_new(&rj45_output);
-    ctk_framelock->rj45_unused = ctk_image_new(&rj45_unused);
+    ctk_framelock->rj45_input_pixbuf =
+        gdk_pixbuf_from_pixdata(&rj45_input_pixdata, TRUE, NULL);
+    ctk_framelock->rj45_output_pixbuf =
+        gdk_pixbuf_from_pixdata(&rj45_output_pixdata, TRUE, NULL);
+    ctk_framelock->rj45_unused_pixbuf =
+        gdk_pixbuf_from_pixdata(&rj45_unused_pixdata, TRUE, NULL);
 
-    g_object_ref(ctk_framelock->led_grey);
-    g_object_ref(ctk_framelock->led_green);
-    g_object_ref(ctk_framelock->led_red);
+    g_object_ref(ctk_framelock->led_grey_pixbuf);
+    g_object_ref(ctk_framelock->led_green_pixbuf);
+    g_object_ref(ctk_framelock->led_red_pixbuf);
 
-    g_object_ref(ctk_framelock->rj45_input);
-    g_object_ref(ctk_framelock->rj45_output);
-    g_object_ref(ctk_framelock->rj45_unused);
+    g_object_ref(ctk_framelock->rj45_input_pixbuf);
+    g_object_ref(ctk_framelock->rj45_output_pixbuf);
+    g_object_ref(ctk_framelock->rj45_unused_pixbuf);
 
     /* create the custom tree */
 
@@ -4473,7 +4482,8 @@ GtkWidget* ctk_framelock_new(NvCtrlAttributeHandle *handle,
     gtk_container_add(GTK_CONTAINER(frame), padding);
 
     /* add house sync BNC connector image */
-    image = ctk_image_new(&bnc_cable);
+    image = gtk_image_new_from_pixbuf
+         (gdk_pixbuf_from_pixdata(&bnc_cable_pixdata, TRUE, NULL));
     hbox = gtk_hbox_new(FALSE, 0);
     gtk_box_pack_end(GTK_BOX(hbox), image, FALSE, FALSE, 0);
 

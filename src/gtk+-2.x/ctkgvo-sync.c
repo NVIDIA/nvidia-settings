@@ -27,7 +27,7 @@
 
 #include <string.h>
 
-#include "ctkimage.h"
+#include "ctkbanner.h"
 
 #include "ctkgvo.h"
 #include "ctkgvo-sync.h"
@@ -1058,9 +1058,9 @@ static void update_delay_spin_buttons_range(CtkGvoSync *ctk_gvo_sync)
                                         &w, &h);
 
     gtk_spin_button_set_range
-        (GTK_SPIN_BUTTON(ctk_gvo_sync->hsync_delay_spin_button), 0, w);
+        (GTK_SPIN_BUTTON(ctk_gvo_sync->hsync_delay_spin_button), 0, 2*w);
     gtk_spin_button_set_range
-        (GTK_SPIN_BUTTON(ctk_gvo_sync->vsync_delay_spin_button), 0, h);
+        (GTK_SPIN_BUTTON(ctk_gvo_sync->vsync_delay_spin_button), 0, 2*h);
 
 } /* update_delay_spin_buttons_range() */
 

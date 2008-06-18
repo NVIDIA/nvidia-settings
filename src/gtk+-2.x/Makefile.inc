@@ -54,11 +54,11 @@ SRC += \
 	ctkclocks.c \
 	ctkutils.c \
 	ctkedid.c \
-	ctkimage.c \
 	ctkserver.c \
 	ctkdisplaylayout.c \
 	ctkdisplayconfig.c \
 	ctkscreen.c \
+	ctkslimm.c \
 	ctkgpu.c \
 	ctkbanner.c \
 	ctkvcs.c \
@@ -99,11 +99,11 @@ EXTRA_DIST += \
 	ctkclocks.h \
 	ctkutils.h \
 	ctkedid.h \
-	ctkimage.h \
 	ctkserver.h \
 	ctkdisplaylayout.h \
 	ctkdisplayconfig.h \
 	ctkscreen.h \
+	ctkslimm.h \
 	ctkgpu.h \
 	ctkbanner.h \
 	ctkvcs.h \

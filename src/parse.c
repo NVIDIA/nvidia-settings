@@ -260,7 +260,7 @@ AttributeTableEntry attributeTable[] = {
  * about.
  */
 
-#if NV_CTRL_LAST_ATTRIBUTE != NV_CTRL_DEPTH_30_ALLOWED
+#if NV_CTRL_LAST_ATTRIBUTE != NV_CTRL_DISPLAYPORT_LINK_RATE
 #warning "Have you forgotten to add a new integer attribute to attributeTable?"
 #endif
 

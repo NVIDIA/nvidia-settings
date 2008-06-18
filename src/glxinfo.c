@@ -183,11 +183,11 @@ print_fbconfig_attribs(GLXFBConfigAttr *fbca)
     }
 
     printf("-fc- -vi- vt buf lv rgb d s colorbuffer ax dp st "
-           "accumbuffer -ms- cav -----pbuffer----- ---transparent----\n");
+           "accumbuffer ---ms---- cav -----pbuffer----- ---transparent----\n");
     printf(" id   id     siz l  ci  b t  r  g  b  a bf th en "
-           " r  g  b  a ns b eat widt hght max-pxs typ  r  g  b  a  i\n");
-    printf("----------------------------------------------"
-           "------------------------------------------------------------\n");
+           " r  g  b  a mvs mcs b eat widt hght max-pxs typ  r  g  b  a  i\n");
+    printf("-------------------------------------------------"
+           "--------------------------------------------------------------\n");
 
     i = 0;
     while ( fbca[i].fbconfig_id != 0 ) {
@@ -222,12 +222,25 @@ print_fbconfig_attribs(GLXFBConfigAttr *fbca)
                fbca[i].accum_alpha_size
                );
         if ( fbca[i].multi_sample_valid == 1 ) {
-            printf("%2d %1d ",
-                   fbca[i].multi_samples,
+            printf("%3d ",
+                   fbca[i].multi_samples
+                   );
+
+            if ( fbca[i].multi_sample_coverage_valid == 1 ) {
+                printf("%3d ",
+                       fbca[i].multi_samples_color
+                       );
+            } else {
+                printf("%3d ",
+                       fbca[i].multi_samples
+                       );
+            }
+            printf("%1d ",
                    fbca[i].multi_sample_buffers
                    );
+
         } else {
-            printf(" . . ");
+            printf("  .   . . ");
         }
         printf("%3.3s %4x %4x %7x %3.3s %2d %2d %2d %2d %2d\n",
                caveat_abbrev(fbca[i].config_caveat),

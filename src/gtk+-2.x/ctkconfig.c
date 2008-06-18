@@ -30,8 +30,9 @@
 
 #include "ctkconfig.h"
 #include "ctkhelp.h"
-
-#include "ctkimage.h"
+#include "ctkwindow.h"
+#include "ctkutils.h"
+#include "ctkbanner.h"
 
 #include <stdarg.h>
 #include <stdlib.h>
@@ -70,6 +71,12 @@ static const char *__show_quit_dialog_help =
 "When this option is enabled, nvidia-settings will ask if you "
 "really want to quit when the quit button is pressed. ";
 
+static const char *__save_current_config_help =
+"When nvidia-settings exits, it saves the current X server "
+"configuration to a configuration file (\"~/.nvidia-settings-rc\", "
+"by default). Use this button to save the current X server "
+"configuration immediately, optionally to a different file.";
+
 static void ctk_config_class_init(CtkConfigClass *ctk_config_class);
 
 static void display_status_bar_toggled(GtkWidget *, gpointer);
@@ -77,6 +84,7 @@ static void tooltips_toggled(GtkWidget *, gpointer);
 static void slider_text_entries_toggled(GtkWidget *, gpointer);
 static void display_name_toggled(GtkWidget *widget, gpointer user_data);
 static void show_quit_dialog_toggled(GtkWidget *widget, gpointer user_data);
+static void save_rc_clicked(GtkWidget *widget, gpointer user_data);
 
 static GtkWidget *create_timer_list(CtkConfig *);
 
@@ -117,7 +125,7 @@ static void ctk_config_class_init(CtkConfigClass *ctk_config_class)
                               G_TYPE_NONE, 0);
 }
 
-GtkWidget* ctk_config_new(ConfigProperties *conf)
+GtkWidget* ctk_config_new(ConfigProperties *conf, CtrlHandles *pCtrlHandles)
 {
     GObject *object;
     CtkConfig *ctk_config;
@@ -127,6 +135,7 @@ GtkWidget* ctk_config_new(ConfigProperties *conf)
     GtkWidget *label;
     GtkWidget *hseparator;
     GtkWidget *check_button;
+    GtkWidget *alignment;
     gboolean b;
 
     object = g_object_new(CTK_TYPE_CONFIG, NULL);
@@ -134,6 +143,7 @@ GtkWidget* ctk_config_new(ConfigProperties *conf)
     ctk_config = CTK_CONFIG(object);
 
     ctk_config->conf = conf;
+    ctk_config->pCtrlHandles = pCtrlHandles;
 
     gtk_box_set_spacing(GTK_BOX(ctk_config), 10);
     
@@ -282,12 +292,70 @@ GtkWidget* ctk_config_new(ConfigProperties *conf)
 
     gtk_box_pack_start(GTK_BOX(ctk_config), ctk_config->timer_list_box,
                        TRUE, TRUE, 0); 
-    
+
+
+    /* "Save Current Configuration" button */
+
+    label = gtk_label_new("Save Current Configuration");
+    hbox  = gtk_hbox_new(FALSE, 0);
+    ctk_config->button_save_rc = gtk_button_new();
+    alignment = gtk_alignment_new(1, 1, 0, 0);
+
+    gtk_box_pack_start(GTK_BOX(hbox), label, FALSE, FALSE, 15);
+    gtk_container_add(GTK_CONTAINER(ctk_config->button_save_rc), hbox);
+    gtk_container_add(GTK_CONTAINER(alignment), ctk_config->button_save_rc);
+    gtk_box_pack_start(GTK_BOX(ctk_config), alignment, TRUE, TRUE, 0);
+
+    /* Create the file selector for rc file */
+    ctk_config->rc_file_selector =
+        gtk_file_selection_new ("Please select a file to save to");
+
+    g_signal_connect(G_OBJECT(ctk_config->button_save_rc), "clicked",
+                     G_CALLBACK(save_rc_clicked),
+                     (gpointer) ctk_config);
+
+    gtk_file_selection_set_filename
+        (GTK_FILE_SELECTION(ctk_config->rc_file_selector), DEFAULT_RC_FILE);
+
+    ctk_config_set_tooltip(ctk_config, ctk_config->button_save_rc,
+                           __save_current_config_help);
+
     gtk_widget_show_all(GTK_WIDGET(ctk_config));
 
     return GTK_WIDGET(ctk_config);
 }
 
+/*
+ * save_rc_clicked() - called when "Save Current Configuration" button
+ * is clicked.
+ */
+
+static void save_rc_clicked(GtkWidget *widget, gpointer user_data)
+{
+    gint result;
+    gchar *rc_filename = NULL;
+    CtkConfig *ctk_config = CTK_CONFIG(user_data);
+    CtkWindow *ctk_window =
+        CTK_WINDOW(ctk_get_parent_window(GTK_WIDGET(ctk_config)));
+
+    result = gtk_dialog_run(GTK_DIALOG(ctk_config->rc_file_selector));
+    gtk_widget_hide(ctk_config->rc_file_selector);
+
+    switch (result) {
+    case GTK_RESPONSE_ACCEPT:
+    case GTK_RESPONSE_OK:
+        rc_filename = (gchar *)gtk_file_selection_get_filename
+                          (GTK_FILE_SELECTION(ctk_config->rc_file_selector));
+        break;
+    default:
+        return;
+    }
+
+    /* write the configuration file */
+    add_special_config_file_attributes(ctk_window);
+    nv_write_config_file(rc_filename, ctk_config->pCtrlHandles,
+                         ctk_window->attribute_list, ctk_config->conf);
+}
 
 
 void ctk_config_statusbar_message(CtkConfig *ctk_config, const char *fmt, ...)

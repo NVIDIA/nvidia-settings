@@ -43,6 +43,7 @@
 #include "ctkconfig.h"
 
 #include "ctkscreen.h"
+#include "ctkslimm.h"
 #include "ctkgpu.h"
 #include "ctkcolorcorrection.h"
 #include "ctkxvideo.h"
@@ -113,8 +114,6 @@ static GtkWidget *create_quit_dialog(CtkWindow *ctk_window);
 
 static void quit_response(GtkWidget *, gint, gpointer);
 static void save_settings_and_exit(CtkWindow *);
-
-static void add_special_config_file_attributes(CtkWindow *ctk_window);
 
 static void add_display_devices(CtkWindow *ctk_window, GtkTreeIter *iter,
                                 NvCtrlAttributeHandle *handle,
@@ -374,7 +373,8 @@ GtkWidget *ctk_window_new(NvCtrlAttributeHandle **screen_handles,
                           gint num_gpu_handles,
                           NvCtrlAttributeHandle **vcs_handles,
                           gint num_vcs_handles,
-                          ParsedAttribute *p, ConfigProperties *conf)
+                          ParsedAttribute *p, ConfigProperties *conf,
+                          CtrlHandles *pCtrlHandles)
 {
     GObject *object;
     CtkWindow *ctk_window;
@@ -413,7 +413,7 @@ GtkWidget *ctk_window_new(NvCtrlAttributeHandle **screen_handles,
     
     /* create the config object */
 
-    ctk_window->ctk_config = CTK_CONFIG(ctk_config_new(conf));
+    ctk_window->ctk_config = CTK_CONFIG(ctk_config_new(conf, pCtrlHandles));
     ctk_config = ctk_window->ctk_config;
     
     /* create the quit dialog */
@@ -634,6 +634,17 @@ GtkWidget *ctk_window_new(NvCtrlAttributeHandle **screen_handles,
         gtk_tree_store_set(ctk_window->tree_store, &iter,
                            CTK_WINDOW_CONFIG_FILE_ATTRIBUTES_FUNC_COLUMN,
                            NULL, -1);
+
+        if (num_vcs_handles) {
+            /* SLI Mosaic Mode information */
+
+            child = ctk_slimm_new(screen_handle, ctk_event, ctk_config);
+            if (child) {
+                help = ctk_slimm_create_help(tag_table, "SLI Mosaic Mode Settings");
+                add_page(child, help, ctk_window, &iter, NULL,
+                         "SLI Mosaic Mode Settings", NULL, NULL, NULL);
+            }
+        }
 
         /* color correction */
 
@@ -1107,7 +1118,7 @@ static void quit_response(GtkWidget *button, gint response, gpointer user_data)
  * saved to the config file.
  */
 
-static void add_special_config_file_attributes(CtkWindow *ctk_window)
+void add_special_config_file_attributes(CtkWindow *ctk_window)
 {
     GtkTreeModel *model = GTK_TREE_MODEL(ctk_window->tree_store);
     GtkTreeIter   iter;

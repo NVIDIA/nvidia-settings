@@ -113,6 +113,20 @@ NvCtrlInitNvControlAttributes (NvCtrlAttributePrivateHandle *h)
         }
     }
 
+    /*
+     * TARGET_BINARY_ATTRIBUTE_CHANGED_EVENT was added in NV-CONTROL
+     * 1.17
+     */
+    if (((major > 1) || ((major == 1) && (minor >= 17)))) {
+        ret = XNVCtrlSelectTargetNotify(h->dpy, h->target_type, h->target_id,
+                                        TARGET_BINARY_ATTRIBUTE_CHANGED_EVENT,
+                                        True);
+        if (ret != True) {
+            nv_warning_msg("Unable to select attribute changed NV-CONTROL binary"
+                           "events.");
+        }
+    }
+
     nv->event_base = event;
     nv->error_base = error;
     nv->major_version = major;

@@ -28,7 +28,7 @@
 #include "ctkhelp.h"
 #include "ctkthermal.h"
 #include "ctkgauge.h"
-#include "ctkimage.h"
+#include "ctkbanner.h"
 
 #define FRAME_PADDING 10
 #define DEFAULT_UPDATE_THERMAL_INFO_TIME_INTERVAL 1000

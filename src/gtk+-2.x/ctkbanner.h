@@ -25,8 +25,6 @@
 #ifndef __CTK_BANNER_H__
 #define __CTK_BANNER_H__
 
-#include "image.h"
-
 G_BEGIN_DECLS
 
 #define CTK_TYPE_BANNER (ctk_banner_get_type())
@@ -46,6 +44,39 @@ G_BEGIN_DECLS
 #define CTK_BANNER_GET_CLASS(obj) \
     (G_TYPE_INSTANCE_GET_CLASS ((obj), CTK_TYPE_BANNER, CtkBannerClass))
 
+/*
+ * enum for the banner artwork
+ */
+
+typedef enum {
+    BANNER_ARTWORK_ANTIALIAS,
+    BANNER_ARTWORK_BSD,
+    BANNER_ARTWORK_CLOCK,
+    BANNER_ARTWORK_COLOR,
+    BANNER_ARTWORK_CONFIG,
+    BANNER_ARTWORK_CRT,
+    BANNER_ARTWORK_CURSOR_SHADOW,
+    BANNER_ARTWORK_DFP,
+    BANNER_ARTWORK_DISPLAY_CONFIG,
+    BANNER_ARTWORK_FRAMELOCK,
+    BANNER_ARTWORK_GLX,
+    BANNER_ARTWORK_GPU,
+    BANNER_ARTWORK_HELP,
+    BANNER_ARTWORK_OPENGL,
+    BANNER_ARTWORK_PENGUIN,
+    BANNER_ARTWORK_ROTATION,
+    BANNER_ARTWORK_SDI,
+    BANNER_ARTWORK_SDI_SHARED_SYNC_BNC,
+    BANNER_ARTWORK_SLIMM,
+    BANNER_ARTWORK_SOLARIS,
+    BANNER_ARTWORK_THERMAL,
+    BANNER_ARTWORK_TV,
+    BANNER_ARTWORK_VCS,
+    BANNER_ARTWORK_X,
+    BANNER_ARTWORK_XVIDEO,
+    BANNER_ARTWORK_INVALID
+} BannerArtworkType;
+
 
 typedef struct _CtkBanner       CtkBanner;
 typedef struct _CtkBannerClass  CtkBannerClass;
@@ -60,8 +91,6 @@ typedef struct {
 struct _CtkBanner
 {
     GtkDrawingArea parent;
-    
-    const nv_image_t *img;
     
     guint8 *image_data;
 
@@ -95,6 +124,13 @@ GtkWidget*  ctk_banner_new          (BannerArtworkType);
 void        ctk_banner_set_composite_callback (CtkBanner *,
                                                ctk_banner_composite_callback,
                                                void *);
+
+GtkWidget*  ctk_banner_image_new   (BannerArtworkType artwork);
+
+GtkWidget*  ctk_banner_image_new_with_callback (BannerArtworkType artwork,
+                                                ctk_banner_composite_callback,
+                                                void *);
+
 
 G_END_DECLS
 

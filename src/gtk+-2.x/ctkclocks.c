@@ -27,7 +27,7 @@
 #include <gtk/gtk.h>
 #include <gdk/gdkx.h>
 
-#include "ctkimage.h"
+#include "ctkbanner.h"
 
 #include "ctkclocks.h"
 

@@ -37,6 +37,8 @@ void ctk_main(NvCtrlAttributeHandle **, int,
               NvCtrlAttributeHandle **, int,
               NvCtrlAttributeHandle **, int,
               ParsedAttribute*,
-              ConfigProperties*);
+              ConfigProperties*,
+              CtrlHandles*);
+
 
 #endif /* __CTK_UI_H__ */

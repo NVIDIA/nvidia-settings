@@ -45,7 +45,7 @@
 
 #include "ctkutils.h"
 
-#include "ctkimage.h"
+#include "ctkbanner.h"
 #include "ctkevent.h"
 #include "ctkhelp.h"
 #include "ctkdisplayconfig.h"
@@ -952,6 +952,25 @@ GtkWidget* ctk_display_config_new(NvCtrlAttributeHandle *handle,
 
     gchar *err_str = NULL;
     gchar *layout_str = NULL;
+    gchar *sli_mode = NULL;
+    ReturnStatus ret;
+
+    /*
+     * Get SLI Mode.  If SLI Mode is "Mosaic", do not
+     * load this page
+     *
+     */
+    ret = NvCtrlGetStringAttribute(handle,
+                                   NV_CTRL_STRING_SLI_MODE,
+                                   &sli_mode);
+    if (ret == NvCtrlSuccess && !g_ascii_strcasecmp(sli_mode, "Mosaic")) {
+        XFree(sli_mode);
+        return NULL;
+    }
+
+    if (sli_mode) {
+        XFree(sli_mode);
+    }
 
     /*
      * Create the ctk object

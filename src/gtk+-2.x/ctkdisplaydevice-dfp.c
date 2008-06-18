@@ -25,7 +25,7 @@
 #include <gtk/gtk.h>
 #include <NvCtrlAttributes.h>
 
-#include "ctkimage.h"
+#include "ctkbanner.h"
 
 #include "ctkdisplaydevice-dfp.h"
 
@@ -279,7 +279,7 @@ GtkWidget* ctk_display_device_dfp_new(NvCtrlAttributeHandle *handle,
                 NULL
             },
             {
-                gtk_label_new("DVI connection link:"),
+                gtk_label_new("Connection link:"),
                 ctk_display_device_dfp->txt_link,
                 NULL
             },
@@ -828,7 +828,7 @@ GtkTextBuffer *ctk_display_device_dfp_create_help(GtkTextTagTable *table,
     
     ctk_help_term(b, &i, "Signal");
     ctk_help_para(b, &i, "Report whether the flat panel is driven by "
-                  "an LVDS or TMDS signal");
+                  "an LVDS, TMDS, or DisplayPort signal");
 
     ctk_help_term(b, &i, "Native Resolution");
     ctk_help_para(b, &i, __native_res_help);
@@ -891,9 +891,10 @@ GtkTextBuffer *ctk_display_device_dfp_create_help(GtkTextTagTable *table,
 static void dfp_info_setup(CtkDisplayDeviceDfp *ctk_display_device_dfp)
 {
     ReturnStatus ret;
-    gint val, gpu_scaling, dfp_scaling;
+    gint val, signal_type, gpu_scaling, dfp_scaling;
     char *chip_location, *link, *signal;
     char *scaling;
+    char tmp[32];
 
     chip_location = link = signal = "Unknown";
     scaling = "Unknown";
@@ -905,26 +906,17 @@ static void dfp_info_setup(CtkDisplayDeviceDfp *ctk_display_device_dfp)
                                   ctk_display_device_dfp->display_device_mask,
                                   NV_CTRL_FLATPANEL_CHIP_LOCATION, &val);
     if (ret == NvCtrlSuccess) {
-        if (val == NV_CTRL_FLATPANEL_CHIP_LOCATION_INTERNAL)
+        switch (val) {
+        case NV_CTRL_FLATPANEL_CHIP_LOCATION_INTERNAL:
             chip_location = "Internal";
-        if (val == NV_CTRL_FLATPANEL_CHIP_LOCATION_EXTERNAL)
+            break;
+        case NV_CTRL_FLATPANEL_CHIP_LOCATION_EXTERNAL:
             chip_location = "External";
+            break;
+        }
     }
     gtk_label_set_text
         (GTK_LABEL(ctk_display_device_dfp->txt_chip_location), chip_location);
-
-    /* Link */
-
-    ret =
-        NvCtrlGetDisplayAttribute(ctk_display_device_dfp->handle,
-                                  ctk_display_device_dfp->display_device_mask,
-                                  NV_CTRL_FLATPANEL_LINK, &val);
-    if (ret == NvCtrlSuccess) {
-        if (val == NV_CTRL_FLATPANEL_LINK_SINGLE) link = "Single";
-        if (val == NV_CTRL_FLATPANEL_LINK_DUAL) link = "Dual";
-    }
-    gtk_label_set_text
-        (GTK_LABEL(ctk_display_device_dfp->txt_link), link);
 
     /* Signal */
 
@@ -933,11 +925,73 @@ static void dfp_info_setup(CtkDisplayDeviceDfp *ctk_display_device_dfp)
                                   ctk_display_device_dfp->display_device_mask,
                                   NV_CTRL_FLATPANEL_SIGNAL, &val);
     if (ret == NvCtrlSuccess) {
-        if (val == NV_CTRL_FLATPANEL_SIGNAL_LVDS) signal = "LVDS";
-        if (val == NV_CTRL_FLATPANEL_SIGNAL_TMDS) signal = "TMDS";
+        switch (val) {
+        case NV_CTRL_FLATPANEL_SIGNAL_LVDS:
+            signal = "LVDS";
+            break;
+        case NV_CTRL_FLATPANEL_SIGNAL_TMDS:
+            signal = "TMDS";
+            break;
+        case NV_CTRL_FLATPANEL_SIGNAL_DISPLAYPORT:
+            signal = "DisplayPort";
+            break;
+        }
     }
     gtk_label_set_text
         (GTK_LABEL(ctk_display_device_dfp->txt_signal), signal);
+    signal_type = val;
+
+    /* Link */
+
+    ret =
+        NvCtrlGetDisplayAttribute(ctk_display_device_dfp->handle,
+                                  ctk_display_device_dfp->display_device_mask,
+                                  NV_CTRL_FLATPANEL_LINK, &val);
+    if (ret == NvCtrlSuccess) {
+        if (signal_type == NV_CTRL_FLATPANEL_SIGNAL_DISPLAYPORT) {
+            int lanes;
+
+            lanes = val + 1;
+
+            ret =
+                NvCtrlGetDisplayAttribute(ctk_display_device_dfp->handle,
+                                          ctk_display_device_dfp->display_device_mask,
+                                          NV_CTRL_DISPLAYPORT_LINK_RATE, &val);
+            if (ret == NvCtrlSuccess && val == NV_CTRL_DISPLAYPORT_LINK_RATE_DISABLED) {
+                link = "Disabled";
+            } else {
+                char *bw = "unknown bandwidth";
+
+                if (ret == NvCtrlSuccess) {
+                    switch (val) {
+                    case NV_CTRL_DISPLAYPORT_LINK_RATE_1_62GBPS:
+                        bw = "1.62 Gbps";
+                        break;
+                    case NV_CTRL_DISPLAYPORT_LINK_RATE_2_70GBPS:
+                        bw = "2.70 Gbps";
+                        break;
+                    }
+                }
+
+                snprintf(tmp, 32, "%d lane%s @ %s", lanes, lanes == 1 ? "" : "s",
+                         bw);
+                link = tmp;
+            }
+        } else {
+            // LVDS or TMDS
+            switch(val) {
+            case NV_CTRL_FLATPANEL_LINK_SINGLE:
+                link = "Single";
+                break;
+            case NV_CTRL_FLATPANEL_LINK_DUAL:
+                link = "Dual";
+                break;
+            }
+        }
+    }
+    gtk_label_set_text
+        (GTK_LABEL(ctk_display_device_dfp->txt_link), link);
+
 
     /* Native Resolution */
 

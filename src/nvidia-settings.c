@@ -196,7 +196,7 @@ int main(int argc, char **argv)
     ctk_main(screen_handles, num_screen_handles,
              gpu_handles, num_gpu_handles,
              vcs_handles, num_vcs_handles,
-             p, &conf);
+             p, &conf, h);
     
     /* write the configuration file */
 

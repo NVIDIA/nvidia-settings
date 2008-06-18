@@ -29,7 +29,7 @@
 #include <gdk/gdkx.h>
 #include <X11/Xlib.h>
 
-#include "ctkimage.h"
+#include "ctkbanner.h"
 
 #include "ctkserver.h"
 #include "ctkevent.h"

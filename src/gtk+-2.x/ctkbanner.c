@@ -25,12 +25,10 @@
  */
 
 #include <gtk/gtk.h>
+#include <gdk-pixbuf/gdk-pixdata.h>
 #include <stdio.h>
 
-#include "image.h"
 #include "ctkbanner.h"
-
-#include <gdk-pixbuf/gdk-pixdata.h>
 
 /* pixdata headers */
 
@@ -57,13 +55,13 @@
 #include "rotation_pixdata.h"
 #include "sdi_pixdata.h"
 #include "sdi_shared_sync_bnc_pixdata.h"
+#include "slimm_pixdata.h"
 #include "solaris_pixdata.h"
 #include "thermal_pixdata.h"
 #include "tv_pixdata.h"
 #include "vcs_pixdata.h"
 #include "x_pixdata.h"
 #include "xvideo_pixdata.h"
-
 
 
 
@@ -372,6 +370,7 @@ static gboolean select_artwork(BannerArtworkType artwork,
         { BANNER_ARTWORK_ROTATION,       FALSE, 16, &rotation_pixdata       },
         { BANNER_ARTWORK_SDI,            FALSE, 16, &sdi_pixdata            },
         { BANNER_ARTWORK_SDI_SHARED_SYNC_BNC, FALSE, 16, &sdi_shared_sync_bnc_pixdata },
+        { BANNER_ARTWORK_SLIMM,          FALSE, 16, &slimm_pixdata          },
         { BANNER_ARTWORK_SOLARIS,        TRUE,  16, &solaris_pixdata        },
         { BANNER_ARTWORK_THERMAL,        FALSE, 16, &thermal_pixdata        },
         { BANNER_ARTWORK_TV,             FALSE, 16, &tv_pixdata             },
@@ -489,4 +488,43 @@ void ctk_banner_set_composite_callback (CtkBanner *ctk_banner,
 {
     ctk_banner->callback_func = func;
     ctk_banner->callback_data = data;
+}
+
+
+
+/*
+ * CTK composited banner image widget creation
+ *
+ */
+GtkWidget* ctk_banner_image_new_with_callback(BannerArtworkType artwork,
+                                              ctk_banner_composite_callback callback,
+                                              void *data)
+{
+    GtkWidget *image;
+    GtkWidget *hbox;
+    GtkWidget *frame;
+
+
+    image = ctk_banner_new(artwork);
+
+    if (!image) return NULL;
+
+    ctk_banner_set_composite_callback(CTK_BANNER(image), callback, data);
+
+    hbox = gtk_hbox_new(FALSE, 0);
+    frame = gtk_frame_new(NULL);
+
+    gtk_box_pack_start(GTK_BOX(hbox), frame, TRUE, TRUE, 0);
+    gtk_frame_set_shadow_type(GTK_FRAME(frame), GTK_SHADOW_IN);
+    gtk_container_add(GTK_CONTAINER(frame), image);
+
+
+    return hbox;
+}
+
+
+
+GtkWidget* ctk_banner_image_new(BannerArtworkType artwork)
+{
+    return ctk_banner_image_new_with_callback(artwork, NULL, NULL);
 }

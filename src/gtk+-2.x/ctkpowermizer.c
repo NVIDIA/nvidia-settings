@@ -33,7 +33,7 @@
 #include "ctkutils.h"
 #include "ctkhelp.h"
 #include "ctkpowermizer.h"
-#include "ctkimage.h"
+#include "ctkbanner.h"
 
 
 

@@ -28,7 +28,9 @@
 #include <stdio.h>
 #include <stdlib.h>
 
-#include "ctkimage.h"
+#include "parse.h"
+
+#include "ctkbanner.h"
 
 #include "ctkgpu.h"
 #include "ctkhelp.h"

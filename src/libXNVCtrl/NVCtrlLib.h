@@ -822,6 +822,29 @@ typedef union {
 } XNVCtrlStringEventTarget;
 
 
+
+/*
+ * XNVCtrlBinaryEventTarget structure
+ */
+
+typedef struct {
+    int type;
+    unsigned long serial;
+    Bool send_event;  /* always FALSE, we don't allow send_events */
+    Display *display;
+    Time time;
+    int target_type;
+    int target_id;
+    unsigned int display_mask;
+    unsigned int attribute;
+} XNVCtrlBinaryAttributeChangedEventTarget;
+
+typedef union {
+    int type;
+    XNVCtrlBinaryAttributeChangedEventTarget attribute_changed;
+    long pad[24];
+} XNVCtrlBinaryEventTarget;
+
 #if defined __cplusplus
 } /* extern "C" */
 #endif 

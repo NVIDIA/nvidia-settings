@@ -117,13 +117,13 @@ struct _CtkFramelock
     gboolean               framelock_enabled;
 
     /* Images */
-    GtkWidget             *led_grey;
-    GtkWidget             *led_green;
-    GtkWidget             *led_red;
+    GdkPixbuf             *led_grey_pixbuf;
+    GdkPixbuf             *led_green_pixbuf;
+    GdkPixbuf             *led_red_pixbuf;
 
-    GtkWidget             *rj45_input;
-    GtkWidget             *rj45_output;
-    GtkWidget             *rj45_unused;
+    GdkPixbuf             *rj45_input_pixbuf;
+    GdkPixbuf             *rj45_output_pixbuf;
+    GdkPixbuf             *rj45_unused_pixbuf;
 };
 
 struct _CtkFramelockClass
