@@ -479,6 +479,7 @@ static int xconfigMergeDisplays(XConfigScreenPtr dstScreen,
     /* Free all the displays in the destination screen */
 
     xconfigFreeDisplayList(dstScreen->displays);
+    dstScreen->displays = NULL;
 
     /* Copy all te displays */
     
@@ -530,6 +531,10 @@ static int xconfigMergeDisplays(XConfigScreenPtr dstScreen,
 
             srcMode = srcMode->next;
         }
+
+        dstScreen->displays =
+            (XConfigDisplayPtr)xconfigAddListItem((GenericListPtr)(dstScreen->displays),
+                                                  (GenericListPtr)dstDisplay);
     }
 
     return 1;
