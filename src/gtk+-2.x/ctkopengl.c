@@ -924,7 +924,7 @@ static void post_slider_value_changed(CtkOpenGL *ctk_opengl, gint val)
 {
     ctk_config_statusbar_message(ctk_opengl->ctk_config,
                                  "OpenGL anti-aliased lines edge smoothness "
-                                 "changed to %d\%.",
+                                 "changed to %d%%.",
                                  val);
 
 } /* post_slider_value_changed() */
