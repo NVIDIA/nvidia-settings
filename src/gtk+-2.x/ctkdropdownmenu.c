@@ -134,11 +134,16 @@ GtkWidget* ctk_drop_down_menu_new(guint flags)
     d->values = NULL;
     d->num_entries = 0;
     
-    d->menu = gtk_menu_new();
     d->option_menu = gtk_option_menu_new();
-    
+    d->menu = gtk_menu_new();
+
+    gtk_option_menu_set_menu(GTK_OPTION_MENU(d->option_menu), d->menu);
+
     gtk_box_set_spacing(GTK_BOX(d), 0);
     gtk_box_pack_start(GTK_BOX(d), d->option_menu, FALSE, FALSE, 0);
+
+    g_signal_connect(G_OBJECT(d->option_menu), "changed",
+                     G_CALLBACK(changed), (gpointer) d);
 
     return GTK_WIDGET(d);
     
@@ -158,6 +163,8 @@ void ctk_drop_down_menu_reset(CtkDropDownMenu *d)
     d->num_entries = 0;
     
     d->menu = gtk_menu_new();
+
+    gtk_option_menu_set_menu(GTK_OPTION_MENU(d->option_menu), d->menu);
     
 } /* ctk_drop_down_menu_reset() */
 
@@ -168,9 +175,9 @@ void ctk_drop_down_menu_reset(CtkDropDownMenu *d)
  * menu
  */
 
-void ctk_drop_down_menu_append_item(CtkDropDownMenu *d,
-                                    const gchar *name,
-                                    const gint value)
+GtkWidget *ctk_drop_down_menu_append_item(CtkDropDownMenu *d,
+                                          const gchar *name,
+                                          const gint value)
 {
     GtkWidget *menu_item, *label, *alignment;
     gchar *str;
@@ -197,26 +204,10 @@ void ctk_drop_down_menu_append_item(CtkDropDownMenu *d,
     d->values[d->num_entries].value = value;
     
     d->num_entries++;
+
+    return label;
     
 } /* ctk_drop_down_menu_append_item() */
-
-
-
-/*
- * ctk_drop_down_menu_finalize() - to be called once all menu entries
- * have been added.
- */
-
-void ctk_drop_down_menu_finalize(CtkDropDownMenu *d)
-{
-    gtk_option_menu_set_menu(GTK_OPTION_MENU(d->option_menu), d->menu);
-
-    g_signal_connect(G_OBJECT(d->option_menu), "changed",
-                     G_CALLBACK(changed), (gpointer) d);
-
-    gtk_widget_show_all(GTK_WIDGET(d));
-
-} /* ctk_drop_down_menu_finalize() */
 
 
 

@@ -28,6 +28,7 @@
 #include "ctkbanner.h"
 
 #include "ctkopengl.h"
+#include "ctkscale.h"
 
 #include "ctkconfig.h"
 #include "ctkhelp.h"
@@ -44,6 +45,8 @@ static void post_show_sli_hud_button_toggled(CtkOpenGL *, gboolean);
 
 static void post_xinerama_stereo_button_toggled(CtkOpenGL *, gboolean);
 
+static void post_stereo_eyes_exchange_button_toggled(CtkOpenGL *, gboolean);
+
 static void post_aa_line_gamma_toggled(CtkOpenGL *, gboolean);
 
 static void allow_flipping_button_toggled(GtkWidget *, gpointer);
@@ -51,6 +54,8 @@ static void allow_flipping_button_toggled(GtkWidget *, gpointer);
 static void force_stereo_button_toggled (GtkWidget *, gpointer);
 
 static void xinerama_stereo_button_toggled (GtkWidget *, gpointer);
+
+static void stereo_eyes_exchange_button_toggled (GtkWidget *, gpointer);
 
 static void aa_line_gamma_toggled        (GtkWidget *, gpointer);
 
@@ -63,12 +68,26 @@ static const gchar *get_image_settings_string(gint val);
 static gchar *format_image_settings_value(GtkScale *scale, gdouble arg1,
                                          gpointer user_data);
 
+static void post_slider_value_changed(CtkOpenGL *ctk_opengl, gint val);
+
+static void aa_line_gamma_update_received(GtkObject *object,
+                                         gpointer arg1, gpointer user_data);
+
 static void post_image_settings_value_changed(CtkOpenGL *ctk_opengl, gint val);
 
 static void image_settings_value_changed(GtkRange *range, gpointer user_data);
 
 static void image_settings_update_received(GtkObject *object,
                                            gpointer arg1, gpointer user_data);
+
+static GtkWidget *create_slider(CtkOpenGL *ctk_opengl,
+                                GtkWidget *vbox,
+                                const gchar *name,
+                                const char *help,
+                                gint attribute,
+                                unsigned int bit);
+
+static void slider_changed(GtkAdjustment *adjustment, gpointer user_data);
 
 #define FRAME_PADDING 5
 
@@ -77,6 +96,17 @@ static const char *__sync_to_vblank_help =
 "buffers during the vertical retrace; this option is "
 "applied to OpenGL applications that are started after "
 "this option is set.";
+
+static const char *__aa_line_gamma_checkbox_help =
+"Enable the antialiased lines gamma correction checkbox to make the "
+"gamma correction slider active.";
+
+static const char *__aa_line_gamma_slider_help =
+"This option allows Gamma-corrected "
+"antialiased lines to consider variances in the color "
+"display capabilities of output devices when rendering "
+"smooth lines. This option is applied to OpenGL applications "
+"that are started after this option is set.";
 
 static const char *__image_settings_slider_help =
 "The Image Settings slider controls the image quality setting.";
@@ -90,7 +120,7 @@ static const char *__force_stereo_help =
 static const char *__xinerama_stereo_help =
  "Enabling this option causes OpenGL to allow "
 "stereo flipping on multiple X screens configured "
-"with Xinerama.  This option is applied immediately.";   
+"with Xinerama.  This option is applied immediately.";
 
 static const char *__show_sli_hud_help =
 "Enabling this option causes OpenGL to draw "
@@ -99,14 +129,21 @@ static const char *__show_sli_hud_help =
 "applications that are started after this option is "
 "set.";
 
-#define __SYNC_TO_VBLANK    (1 << 1)
-#define __ALLOW_FLIPPING    (1 << 2)
-#define __AA_LINE_GAMMA     (1 << 3)
-#define __FORCE_GENERIC_CPU (1 << 4)
-#define __FORCE_STEREO      (1 << 5)
-#define __IMAGE_SETTINGS    (1 << 6)
-#define __XINERAMA_STEREO   (1 << 7)
-#define __SHOW_SLI_HUD      (1 << 8)
+static const char *__stereo_eyes_exchange_help =
+"Enabling this option causes OpenGL to draw the left "
+"eye image in the right eye and vice versa for stereo "
+"drawables.  This option is applied immediately.";
+
+#define __SYNC_TO_VBLANK      (1 << 1)
+#define __ALLOW_FLIPPING      (1 << 2)
+#define __AA_LINE_GAMMA_VALUE (1 << 3)
+#define __AA_LINE_GAMMA       (1 << 4)
+#define __FORCE_GENERIC_CPU   (1 << 5)
+#define __FORCE_STEREO        (1 << 6)
+#define __IMAGE_SETTINGS      (1 << 7)
+#define __XINERAMA_STEREO     (1 << 8)
+#define __SHOW_SLI_HUD        (1 << 9)
+#define __STEREO_EYES_EXCHANGE (1 << 9)
 
 
 
@@ -150,11 +187,13 @@ GtkWidget* ctk_opengl_new(NvCtrlAttributeHandle *handle,
     GtkWidget *vbox;
     GtkWidget *check_button;
     GtkWidget *scale;
+    GtkObject *adjustment;
 
     gint sync_to_vblank;
     gint flipping_allowed;
     gint force_stereo;
     gint xinerama_stereo;
+    gint stereo_eyes_exchange;
     NVCTRLAttributeValidValuesRec image_settings_valid;
     gint image_settings_value;
     gint aa_line_gamma;
@@ -164,8 +203,9 @@ GtkWidget* ctk_opengl_new(NvCtrlAttributeHandle *handle,
     ReturnStatus ret_flipping_allowed;
     ReturnStatus ret_force_stereo;
     ReturnStatus ret_xinerama_stereo;
+    ReturnStatus ret_stereo_eyes_exchange;
     ReturnStatus ret_image_settings;
-    ReturnStatus ret_aa_line_gama;
+    ReturnStatus ret_aa_line_gamma;
     ReturnStatus ret_show_sli_hud;
 
     /* Query OpenGL settings */
@@ -183,6 +223,10 @@ GtkWidget* ctk_opengl_new(NvCtrlAttributeHandle *handle,
     ret_xinerama_stereo =
         NvCtrlGetAttribute(handle, NV_CTRL_XINERAMA_STEREO, &xinerama_stereo);
 
+    ret_stereo_eyes_exchange =
+        NvCtrlGetAttribute(handle, NV_CTRL_STEREO_EYES_EXCHANGE,
+                           &stereo_eyes_exchange);
+
     ret_image_settings =
         NvCtrlGetValidAttributeValues(handle, NV_CTRL_IMAGE_SETTINGS,
                                       &image_settings_valid);
@@ -195,8 +239,8 @@ GtkWidget* ctk_opengl_new(NvCtrlAttributeHandle *handle,
         ret_image_settings = NvCtrlError;
     }
 
-    ret_aa_line_gama = NvCtrlGetAttribute(handle, NV_CTRL_OPENGL_AA_LINE_GAMMA,
-                                          &aa_line_gamma);
+    ret_aa_line_gamma = NvCtrlGetAttribute(handle, NV_CTRL_OPENGL_AA_LINE_GAMMA,
+                                           &aa_line_gamma);
     ret_show_sli_hud = NvCtrlGetAttribute(handle, NV_CTRL_SHOW_SLI_HUD,
                                           &show_sli_hud);
 
@@ -205,8 +249,9 @@ GtkWidget* ctk_opengl_new(NvCtrlAttributeHandle *handle,
         (ret_flipping_allowed != NvCtrlSuccess) &&
         (ret_force_stereo != NvCtrlSuccess) &&
         (ret_xinerama_stereo != NvCtrlSuccess) &&
+        (ret_stereo_eyes_exchange != NvCtrlSuccess) &&
         (ret_image_settings != NvCtrlSuccess) &&
-        (ret_aa_line_gama != NvCtrlSuccess) &&
+        (ret_aa_line_gamma != NvCtrlSuccess) &&
         (ret_show_sli_hud != NvCtrlSuccess)) {
         return NULL;
     }
@@ -368,6 +413,34 @@ GtkWidget* ctk_opengl_new(NvCtrlAttributeHandle *handle,
         ctk_opengl->xinerama_stereo_button = check_button;
     }
 
+    if (ret_stereo_eyes_exchange == NvCtrlSuccess) {
+
+        label = gtk_label_new("Exchange Stereo Eyes");
+    
+        check_button = gtk_check_button_new();
+        gtk_container_add(GTK_CONTAINER(check_button), label);
+    
+        gtk_toggle_button_set_active(GTK_TOGGLE_BUTTON(check_button),
+                                     stereo_eyes_exchange);
+
+        gtk_box_pack_start(GTK_BOX(vbox), check_button, FALSE, FALSE, 0);
+
+        g_signal_connect(G_OBJECT(check_button), "toggled",
+                     G_CALLBACK(stereo_eyes_exchange_button_toggled),
+                     (gpointer) ctk_opengl);
+
+        g_signal_connect(G_OBJECT(ctk_event),
+                     CTK_EVENT_NAME(NV_CTRL_STEREO_EYES_EXCHANGE),
+                     G_CALLBACK(value_changed), (gpointer) ctk_opengl);
+
+        ctk_config_set_tooltip(ctk_config, check_button,
+                               __stereo_eyes_exchange_help);
+    
+        ctk_opengl->active_attributes |= __STEREO_EYES_EXCHANGE;
+    
+        ctk_opengl->stereo_eyes_exchange_button = check_button;
+    }
+
     /*
      * Image Quality settings.
      */
@@ -381,9 +454,13 @@ GtkWidget* ctk_opengl_new(NvCtrlAttributeHandle *handle,
         gtk_container_set_border_width(GTK_CONTAINER(hbox), FRAME_PADDING);
         gtk_container_add(GTK_CONTAINER(frame), hbox);
 
-        scale = gtk_hscale_new_with_range(image_settings_valid.u.range.min,
-                                          image_settings_valid.u.range.max, 1);
-        gtk_range_set_value(GTK_RANGE(scale), image_settings_value);
+        /* create the slider */
+        adjustment = gtk_adjustment_new(image_settings_value,
+                                        image_settings_valid.u.range.min,
+                                        image_settings_valid.u.range.max,
+                                        1, 1, 0.0);
+        scale = gtk_hscale_new(GTK_ADJUSTMENT(adjustment));
+        gtk_adjustment_set_value(GTK_ADJUSTMENT(adjustment), image_settings_value);
 
         gtk_scale_set_draw_value(GTK_SCALE(scale), TRUE);
         gtk_scale_set_value_pos(GTK_SCALE(scale), GTK_POS_TOP);
@@ -430,7 +507,7 @@ GtkWidget* ctk_opengl_new(NvCtrlAttributeHandle *handle,
      * NV_CTRL_OPENGL_AA_LINE_GAMMA
      */
 
-    if (ret_aa_line_gama == NvCtrlSuccess) {
+    if (ret_aa_line_gamma == NvCtrlSuccess) {
         label = gtk_label_new("Enable gamma correction for antialiased lines");
 
         check_button = gtk_check_button_new();
@@ -451,14 +528,26 @@ GtkWidget* ctk_opengl_new(NvCtrlAttributeHandle *handle,
                          G_CALLBACK(value_changed), (gpointer) ctk_opengl);
         
         ctk_config_set_tooltip(ctk_opengl->ctk_config,
-                               check_button, "Allow Gamma-corrected "
-                               "antialiased lines to consider variances in "
-                               "the color display capabilities of output "
-                               "devices when rendering smooth lines");
-
-        ctk_opengl->active_attributes |= __AA_LINE_GAMMA;
-
+                               check_button, __aa_line_gamma_checkbox_help);
+        
         ctk_opengl->aa_line_gamma_button = check_button;
+        ctk_opengl->active_attributes |= __AA_LINE_GAMMA;
+        
+        ctk_opengl->aa_line_gamma_scale =
+            create_slider(ctk_opengl, vbox, "Gamma correction",
+                          __aa_line_gamma_slider_help,
+                          NV_CTRL_OPENGL_AA_LINE_GAMMA_VALUE,
+                          __AA_LINE_GAMMA_VALUE);
+        
+        g_signal_connect(G_OBJECT(ctk_event),
+                         CTK_EVENT_NAME(NV_CTRL_OPENGL_AA_LINE_GAMMA_VALUE),
+                         G_CALLBACK(aa_line_gamma_update_received),
+                         (gpointer) ctk_opengl);
+
+        if (ctk_opengl->aa_line_gamma_scale)
+            gtk_widget_set_sensitive(ctk_opengl->aa_line_gamma_scale,
+                                     gtk_toggle_button_get_active
+                                     (GTK_TOGGLE_BUTTON(check_button)));
     }
     
     if (ret_show_sli_hud == NvCtrlSuccess) {
@@ -535,6 +624,14 @@ static void post_xinerama_stereo_button_toggled(CtkOpenGL *ctk_opengl,
     ctk_config_statusbar_message(ctk_opengl->ctk_config,
                                  "OpenGL Xinerama Stereo Flipping %s.",
                                  enabled ? "allowed" : "not allowed");
+}
+
+static void post_stereo_eyes_exchange_button_toggled(CtkOpenGL *ctk_opengl, 
+                                                     gboolean enabled)
+{
+    ctk_config_statusbar_message(ctk_opengl->ctk_config,
+                                 "OpenGL Stereo Eyes Exchanged %s.",
+                                 enabled ? "enabled" : "disabled");
 }
 
 static void post_aa_line_gamma_toggled(CtkOpenGL *ctk_opengl, 
@@ -622,6 +719,22 @@ static void xinerama_stereo_button_toggled(GtkWidget *widget,
     post_xinerama_stereo_button_toggled(ctk_opengl, enabled);
 }
 
+static void stereo_eyes_exchange_button_toggled(GtkWidget *widget,
+                                                gpointer user_data)
+{
+    CtkOpenGL *ctk_opengl;
+    gboolean enabled;
+    
+    ctk_opengl = CTK_OPENGL(user_data);
+
+    enabled = gtk_toggle_button_get_active(GTK_TOGGLE_BUTTON(widget));
+
+    NvCtrlSetAttribute(ctk_opengl->handle, NV_CTRL_STEREO_EYES_EXCHANGE,
+                       enabled);
+
+    post_stereo_eyes_exchange_button_toggled(ctk_opengl, enabled);
+}
+
 static void aa_line_gamma_toggled(
     GtkWidget *widget,
     gpointer user_data
@@ -639,6 +752,8 @@ static void aa_line_gamma_toggled(
                              NV_CTRL_OPENGL_AA_LINE_GAMMA, enabled);
 
     if (ret != NvCtrlSuccess) return;
+    if (ctk_opengl->aa_line_gamma_scale)
+        gtk_widget_set_sensitive(ctk_opengl->aa_line_gamma_scale, enabled);
     post_aa_line_gamma_toggled(ctk_opengl, enabled);
 }
 
@@ -680,10 +795,18 @@ static void value_changed(GtkObject *object, gpointer arg1, gpointer user_data)
         func = G_CALLBACK(xinerama_stereo_button_toggled);
         post_xinerama_stereo_button_toggled(ctk_opengl, event_struct->value);
         break;
+    case NV_CTRL_STEREO_EYES_EXCHANGE:
+        button = GTK_TOGGLE_BUTTON(ctk_opengl->stereo_eyes_exchange_button);
+        func = G_CALLBACK(stereo_eyes_exchange_button_toggled);
+        post_stereo_eyes_exchange_button_toggled(ctk_opengl,
+                                                 event_struct->value);
+        break;
     case NV_CTRL_OPENGL_AA_LINE_GAMMA:
         button = GTK_TOGGLE_BUTTON(ctk_opengl->aa_line_gamma_button);
         func = G_CALLBACK(aa_line_gamma_toggled);
         post_aa_line_gamma_toggled(ctk_opengl, event_struct->value);
+        gtk_widget_set_sensitive(ctk_opengl->aa_line_gamma_scale,
+                                 event_struct->value);
         break;
     case NV_CTRL_SHOW_SLI_HUD:
         button = GTK_TOGGLE_BUTTON(ctk_opengl->show_sli_hud_button);
@@ -791,6 +914,122 @@ static void image_settings_update_received(GtkObject *object,
 } /* image_settings_update_received() */
 
 
+/*
+ * post_slider_value_changed() - helper function for
+ * aa_line_gamma_value_changed(); this does whatever work is necessary
+ * after the aa line gamma value has changed.
+ */
+
+static void post_slider_value_changed(CtkOpenGL *ctk_opengl, gint val)
+{
+    ctk_config_statusbar_message(ctk_opengl->ctk_config,
+                                 "OpenGL anti-aliased lines edge smoothness "
+                                 "changed to %d\%.",
+                                 val);
+
+} /* post_slider_value_changed() */
+
+
+/*
+ * slider_changed() -
+ */
+
+static void slider_changed(GtkAdjustment *adjustment, gpointer user_data)
+{
+    CtkOpenGL *ctk_opengl = CTK_OPENGL(user_data);
+    gint attribute, value;
+    user_data = g_object_get_data(G_OBJECT(adjustment), "opengl_attribute");
+    attribute = GPOINTER_TO_INT(user_data);
+    value = (gint) adjustment->value;
+    NvCtrlSetAttribute(ctk_opengl->handle, attribute, value);
+    post_slider_value_changed(ctk_opengl, value);
+} /* slider_changed() */
+
+
+/*
+ * aa_line_gamma_update_received() - this function is called when the
+ * NV_CTRL_OPENGL_AA_LINE_GAMMA_VALUE atribute is changed by another NV-CONTROL
+ * client.
+ */
+
+static void aa_line_gamma_update_received(GtkObject *object,
+                                         gpointer arg1, gpointer user_data)
+{
+    CtkEventStruct *event_struct = (CtkEventStruct *) arg1;
+    CtkOpenGL *ctk_opengl = CTK_OPENGL(user_data);
+    CtkScale *scale = CTK_SCALE(ctk_opengl->aa_line_gamma_scale);
+    GtkAdjustment *adjustment;
+    adjustment = GTK_ADJUSTMENT(scale->gtk_adjustment);
+    g_signal_handlers_block_by_func(G_OBJECT(adjustment),
+                                    G_CALLBACK(slider_changed),
+                                    (gpointer) ctk_opengl);
+
+    gtk_adjustment_set_value(GTK_ADJUSTMENT(adjustment),
+                             (gint)event_struct->value);
+    post_slider_value_changed(ctk_opengl, event_struct->value);
+
+    g_signal_handlers_unblock_by_func(G_OBJECT(adjustment),
+                                      G_CALLBACK(slider_changed),
+                                      (gpointer) ctk_opengl);
+
+} /* aa_line_gamma_update_received() */
+
+
+
+static GtkWidget *create_slider(CtkOpenGL *ctk_opengl,
+                                GtkWidget *vbox,
+                                const gchar *name,
+                                const char *help,
+                                gint attribute,
+                                unsigned int bit)
+{
+    GtkObject *adjustment;
+    GtkWidget *scale, *widget;
+    gint min, max, val, step_incr, page_incr;
+    NVCTRLAttributeValidValuesRec range;
+    ReturnStatus ret;
+    /* get the attribute value */
+
+    ret = NvCtrlGetAttribute(ctk_opengl->handle, attribute, &val);
+    if (ret != NvCtrlSuccess) return NULL;
+    /* get the range for the attribute */
+
+    NvCtrlGetValidAttributeValues(ctk_opengl->handle, attribute, &range);
+
+    if (range.type != ATTRIBUTE_TYPE_RANGE) return NULL;
+    min = range.u.range.min;
+    max = range.u.range.max;
+
+    step_incr = ((max) - (min))/10;
+    if (step_incr <= 0) step_incr = 1;
+    page_incr = ((max) - (min))/25;
+    if (page_incr <= 0) page_incr = 1;
+
+    /* create the slider */
+    adjustment = gtk_adjustment_new(val, min, max,
+                                    step_incr, page_incr, 0.0);
+
+    g_object_set_data(G_OBJECT(adjustment), "opengl_attribute",
+                      GINT_TO_POINTER(attribute));
+
+    g_signal_connect(G_OBJECT(adjustment), "value_changed",
+                     G_CALLBACK(slider_changed),
+                     (gpointer) ctk_opengl);
+
+    scale = ctk_scale_new(GTK_ADJUSTMENT(adjustment), name,
+                          ctk_opengl->ctk_config, G_TYPE_INT);
+
+    gtk_box_pack_start(GTK_BOX(vbox), scale, TRUE, TRUE, 0);
+
+    ctk_opengl->active_attributes |= bit;
+
+    widget = CTK_SCALE(scale)->gtk_scale;
+    ctk_config_set_tooltip(ctk_opengl->ctk_config, widget, help);
+
+    return scale;
+} /* create_slider() */
+
+
 GtkTextBuffer *ctk_opengl_create_help(GtkTextTagTable *table,
                                       CtkOpenGL *ctk_opengl)
 {
@@ -835,6 +1074,11 @@ GtkTextBuffer *ctk_opengl_create_help(GtkTextTagTable *table,
         ctk_help_para(b, &i, __xinerama_stereo_help);
     }
     
+    if (ctk_opengl->active_attributes & __STEREO_EYES_EXCHANGE) {
+        ctk_help_heading(b, &i, "Exchange Stereo Eyes");
+        ctk_help_para(b, &i, __stereo_eyes_exchange_help);
+    }
+    
     if (ctk_opengl->active_attributes & __IMAGE_SETTINGS) {
         ctk_help_heading(b, &i, "Image Settings");
         ctk_help_para(b, &i, "This setting gives you full control over the "
@@ -871,13 +1115,13 @@ GtkTextBuffer *ctk_opengl_create_help(GtkTextTagTable *table,
     if (ctk_opengl->active_attributes & __AA_LINE_GAMMA) {
         ctk_help_heading(b, &i, "Enable gamma correction for "
                          "antialiased lines");
-        ctk_help_para(b, &i, "Enabling this option allows Gamma-corrected "
-                      "antialiased lines to consider variances in the color "
-                      "display capabilities of output devices when rendering "
-                      "smooth lines.  This option is available only on "
-                      "Quadro FX or newer NVIDIA GPUs.  This option is "
-                      "applied to OpenGL applications that are started after "
-                      "this option is set.");
+        ctk_help_para(b, &i, __aa_line_gamma_checkbox_help );
+    }
+
+    if (ctk_opengl->active_attributes & __AA_LINE_GAMMA_VALUE) {
+        ctk_help_heading(b, &i, "Set gamma correction for "
+                         "antialiased lines");
+        ctk_help_para(b, &i, __aa_line_gamma_slider_help);
     }
 
     if (ctk_opengl->active_attributes & __SHOW_SLI_HUD) {

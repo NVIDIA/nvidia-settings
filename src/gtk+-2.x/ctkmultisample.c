@@ -203,6 +203,8 @@ GtkWidget *ctk_multisample_new(NvCtrlAttributeHandle *handle,
     GtkWidget *check_button;
     GtkWidget *menu;
     GtkWidget *scale;
+    GtkObject *adjustment;
+    gint min, max;
     
     gint val, app_control, override, enhance, i;
     
@@ -305,6 +307,8 @@ GtkWidget *ctk_multisample_new(NvCtrlAttributeHandle *handle,
 
                 gtk_box_pack_start(GTK_BOX(vbox), check_button,
                                    FALSE, FALSE, 0);
+
+                ctk_multisample->fsaa_app_override_check_button = check_button;
             }
 
             g_signal_connect(G_OBJECT(ctk_event),
@@ -315,9 +319,13 @@ GtkWidget *ctk_multisample_new(NvCtrlAttributeHandle *handle,
 
             /* Antialiasing scale */
 
-            scale = gtk_hscale_new_with_range
-                (0, ctk_multisample->fsaa_translation_table_size - 1, 1);
-            gtk_range_set_value(GTK_RANGE(scale), val);
+            min = 0;
+            max = ctk_multisample->fsaa_translation_table_size - 1;
+
+            /* create the slider */
+            adjustment = gtk_adjustment_new(val, min, max, 1, 1, 0.0);
+            scale = gtk_hscale_new(GTK_ADJUSTMENT(adjustment));
+            gtk_adjustment_set_value(GTK_ADJUSTMENT(adjustment), val);
             
             gtk_scale_set_draw_value(GTK_SCALE(scale), TRUE);
             gtk_scale_set_value_pos(GTK_SCALE(scale), GTK_POS_TOP);
@@ -414,9 +422,13 @@ GtkWidget *ctk_multisample_new(NvCtrlAttributeHandle *handle,
             
             /* Aniso scale */
 
-            scale = gtk_hscale_new_with_range(valid.u.range.min,
-                                              valid.u.range.max, 1);
-            gtk_range_set_value(GTK_RANGE(scale), val);
+            min = valid.u.range.min;
+            max = valid.u.range.max;
+
+            /* create the slider */
+            adjustment = gtk_adjustment_new(val, min, max, 1, 1, 0.0);
+            scale = gtk_hscale_new(GTK_ADJUSTMENT(adjustment));
+            gtk_adjustment_set_value(GTK_ADJUSTMENT(adjustment), val);
 
             gtk_scale_set_draw_value(GTK_SCALE(scale), TRUE);
             gtk_scale_set_value_pos(GTK_SCALE(scale), GTK_POS_TOP);

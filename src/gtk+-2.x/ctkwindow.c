@@ -387,6 +387,9 @@ GtkWidget *ctk_window_new(NvCtrlAttributeHandle **screen_handles,
     GtkWidget *toggle_button;
     GtkWidget *statusbar;
     GtkWidget *eventbox;
+    GtkWidget *label;
+    GtkRequisition req;
+    gint width;
 
     GtkTreeViewColumn *column;
     GtkCellRenderer *renderer;
@@ -591,7 +594,8 @@ GtkWidget *ctk_window_new(NvCtrlAttributeHandle **screen_handles,
                                                         CTK_DISPLAY_CONFIG(child)),
                          ctk_window, NULL, NULL,
                          "X Server Display Configuration",
-                         NULL, NULL, NULL);
+                         NULL, ctk_display_config_selected,
+                         ctk_display_config_unselected);
             }
         }
     }
@@ -965,6 +969,31 @@ GtkWidget *ctk_window_new(NvCtrlAttributeHandle **screen_handles,
     
     gtk_widget_show_all(GTK_WIDGET(object));
 
+
+    /* Set the minimum width of the tree view window to be something
+     * reasonable.  To do that, check the size of a label widget
+     * with a reasonably long string and limit the tree view scroll
+     * window's initial width to not extent past this.
+     */
+
+    label = gtk_label_new("XXXXXX Server Display ConfigurationXXXX");
+    gtk_widget_size_request(label, &req);
+    width = req.width;
+    gtk_widget_destroy(label);
+
+    /* Get the width of the tree view scroll window */
+    gtk_widget_size_request(sw, &req);
+
+    /* If the scroll window is too wide, make it slimmer and
+     * allow users to scroll horizontally (also allow resizing).
+     */
+    if ( width < req.width ) {
+        gtk_widget_set_size_request(sw, width, -1);
+        gtk_scrolled_window_set_policy(GTK_SCROLLED_WINDOW(sw),
+                                       GTK_POLICY_AUTOMATIC,
+                                       GTK_POLICY_AUTOMATIC);
+    }
+
     return GTK_WIDGET(object);
 
 } /* ctk_window_new() */
@@ -1291,15 +1320,14 @@ static void update_display_devices(GtkObject *object, gpointer arg1,
             gtk_tree_selection_select_iter(tree_selection, &parent_iter);
         }
 
-        /* unref the page so we don't leak memory */
+        /* Remove the entry */
         gtk_tree_model_get(GTK_TREE_MODEL(ctk_window->tree_store), iter,
                            CTK_WINDOW_WIDGET_COLUMN, &widget, -1);
-        g_object_unref(widget);
-
-        /* XXX Call a widget-specific cleanup function? */
-
-        /* Remove the entry */
+       
         gtk_tree_store_remove(ctk_window->tree_store, iter);
+
+        /* unref the page so we don't leak memory */
+        g_object_unref(GTK_OBJECT(widget)); 
 
         data->num_displays--;
     }

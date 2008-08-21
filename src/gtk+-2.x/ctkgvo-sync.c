@@ -84,7 +84,6 @@ static void update_gvo_sync_sensitivity(CtkGvoSync *ctk_gvo_sync);
 static void update_input_video_format_text_entry(CtkGvoSync *ctk_gvo_sync);
 static void post_composite_termination_toggled(CtkGvoSync *ctk_gvo_sync,
                                                gboolean enabled);
-static void update_delay_spin_buttons_range(CtkGvoSync *ctk_gvo_sync);
 
 
 static void detect_input_toggled(GtkToggleButton *togglebutton,
@@ -335,7 +334,8 @@ GtkWidget* ctk_gvo_sync_new(NvCtrlAttributeHandle *handle,
 
     GtkWidget *table, *menu;
 
-    gint val, i, width, height;
+    gint val, i;
+    NVCTRLAttributeValidValuesRec valid;
     ReturnStatus ret;
     gint row;
 
@@ -531,9 +531,6 @@ GtkWidget* ctk_gvo_sync_new(NvCtrlAttributeHandle *handle,
     gtk_misc_set_alignment(GTK_MISC(label), 0, 0.5);
     gtk_table_attach(GTK_TABLE(table), label, 0, 1, row, row+1,
                      GTK_FILL, GTK_FILL, TABLE_PADDING, TABLE_PADDING);
-    
-    ret = NvCtrlGetAttribute(handle, NV_CTRL_GVO_SYNC_DELAY_PIXELS, &val);
-    if (ret != NvCtrlSuccess) val = 0;
 
     ctk_gvo_sync->sync_lock_status_text = gtk_label_new("");
 
@@ -551,116 +548,114 @@ GtkWidget* ctk_gvo_sync_new(NvCtrlAttributeHandle *handle,
 
 
     /*
-     * Synchronization Delay/Advance
+     * Synchronization Skew (Delay/Advance)
      */
-    
-    ctk_gvo_get_video_format_resolution(ctk_gvo_sync->input_video_format,
-                                        &width, &height);
 
     /* NV_CTRL_GVO_SYNC_DELAY_PIXELS */
 
-    if ( ctk_gvo_sync->caps && NV_CTRL_GVO_CAPABILITIES_ADVANCE_SYNC_SKEW ) {
-        label = gtk_label_new("HSync Advance:");
-    } else {
-        label = gtk_label_new("HSync Delay:");
-    }
+    ret = NvCtrlGetValidAttributeValues(handle, NV_CTRL_GVO_SYNC_DELAY_PIXELS,
+                                        &valid);
 
-    gtk_misc_set_alignment(GTK_MISC(label), 0, 0.5);
-    gtk_table_attach(GTK_TABLE(table), label, 0, 1, row, row+1,
-                     GTK_FILL, GTK_FILL, TABLE_PADDING, TABLE_PADDING);
+    if ((ret == NvCtrlSuccess) && (valid.type == ATTRIBUTE_TYPE_RANGE)) {
+        ret = NvCtrlGetAttribute(handle, NV_CTRL_GVO_SYNC_DELAY_PIXELS, &val);
+        if (ret != NvCtrlSuccess) val = 0;
+
+        if (ctk_gvo_sync->caps & NV_CTRL_GVO_CAPABILITIES_ADVANCE_SYNC_SKEW) {
+            label = gtk_label_new("HSync Advance:");
+            help_text = __hsync_advance_help;
+        } else {
+            label = gtk_label_new("HSync Delay:");
+            help_text = __hsync_delay_help;
+        }
+
+        gtk_misc_set_alignment(GTK_MISC(label), 0, 0.5);
+        gtk_table_attach(GTK_TABLE(table), label, 0, 1, row, row+1,
+                         GTK_FILL, GTK_FILL, TABLE_PADDING, TABLE_PADDING);
+
+        ctk_gvo_sync->hsync_delay_spin_button =
+            gtk_spin_button_new_with_range(valid.u.range.min,
+                                           valid.u.range.max, 1);
+
+        ctk_config_set_tooltip(ctk_config,
+                               ctk_gvo_sync->hsync_delay_spin_button,
+                               help_text);
+
+        gtk_spin_button_set_value
+            (GTK_SPIN_BUTTON(ctk_gvo_sync->hsync_delay_spin_button), val);
     
-    ret = NvCtrlGetAttribute(handle, NV_CTRL_GVO_SYNC_DELAY_PIXELS, &val);
-    if (ret != NvCtrlSuccess) val = 0;
+        g_signal_connect(G_OBJECT(ctk_gvo_sync->hsync_delay_spin_button),
+                         "value-changed",
+                         G_CALLBACK(hsync_delay_changed), ctk_gvo_sync);
 
-    if (width < 1) width = 1;
-
-    if ( ctk_gvo_sync->caps && NV_CTRL_GVO_CAPABILITIES_ADVANCE_SYNC_SKEW ) {
-        width = INT_MAX;
-        help_text = __hsync_advance_help;
-    } else {
-        help_text = __hsync_delay_help;
-    }
-
-    ctk_gvo_sync->hsync_delay_spin_button =
-        gtk_spin_button_new_with_range(0.0, width, 1);
-
-    ctk_config_set_tooltip(ctk_config,
+        hbox = gtk_hbox_new(FALSE, 5);
+        gtk_box_pack_start(GTK_BOX(hbox),
                            ctk_gvo_sync->hsync_delay_spin_button,
-                           help_text);
+                           FALSE, FALSE, 0);
 
-    gtk_spin_button_set_value
-        (GTK_SPIN_BUTTON(ctk_gvo_sync->hsync_delay_spin_button), val);
-    
-    g_signal_connect(G_OBJECT(ctk_gvo_sync->hsync_delay_spin_button),
-                     "value-changed",
-                     G_CALLBACK(hsync_delay_changed), ctk_gvo_sync);
+        label = gtk_label_new("(pixels)");
+        gtk_misc_set_alignment(GTK_MISC(label), 0, 0.5);
+        gtk_box_pack_start(GTK_BOX(hbox), label,
+                           FALSE, FALSE, 0);
 
-    hbox = gtk_hbox_new(FALSE, 5);
-    gtk_box_pack_start(GTK_BOX(hbox), ctk_gvo_sync->hsync_delay_spin_button,
-                       FALSE, FALSE, 0);
-
-    label = gtk_label_new("(pixels)");
-    gtk_misc_set_alignment(GTK_MISC(label), 0, 0.5);
-    gtk_box_pack_start(GTK_BOX(hbox), label,
-                       FALSE, FALSE, 0);
-
-    gtk_table_attach(GTK_TABLE(table), hbox,
-                     1, 2, row, row+1,
-                     GTK_FILL /*| GTK_EXPAND*/, GTK_FILL,
-                     TABLE_PADDING, TABLE_PADDING);
-    row++;
+        gtk_table_attach(GTK_TABLE(table), hbox,
+                         1, 2, row, row+1,
+                         GTK_FILL /*| GTK_EXPAND*/, GTK_FILL,
+                         TABLE_PADDING, TABLE_PADDING);
+        row++;
+    }
 
     /* NV_CTRL_GVO_SYNC_DELAY_LINES */
     
-    if ( ctk_gvo_sync->caps && NV_CTRL_GVO_CAPABILITIES_ADVANCE_SYNC_SKEW ) {
-        label = gtk_label_new("VSync Advance:");
-    } else {
-        label = gtk_label_new("VSync Delay:");
-    }
-    gtk_misc_set_alignment(GTK_MISC(label), 0, 0.5);
-    gtk_table_attach(GTK_TABLE(table), label, 0, 1, row, row+1,
-                     GTK_FILL, GTK_FILL, TABLE_PADDING, TABLE_PADDING);
+    ret = NvCtrlGetValidAttributeValues(handle, NV_CTRL_GVO_SYNC_DELAY_LINES,
+                                        &valid);
 
-    ret = NvCtrlGetAttribute(handle, NV_CTRL_GVO_SYNC_DELAY_LINES, &val);
-    if (ret != NvCtrlSuccess) val = 0;
-    
-    if (height < 1) height = 1;
+    if ((ret == NvCtrlSuccess) && (valid.type == ATTRIBUTE_TYPE_RANGE)) {
+        ret = NvCtrlGetAttribute(handle, NV_CTRL_GVO_SYNC_DELAY_LINES, &val);
+        if (ret != NvCtrlSuccess) val = 0;
 
-    if ( ctk_gvo_sync->caps && NV_CTRL_GVO_CAPABILITIES_ADVANCE_SYNC_SKEW ) {
-        height = INT_MAX;
-        help_text = __vsync_advance_help;
-    } else {
-        help_text = __vsync_delay_help;
-    }
+        if (ctk_gvo_sync->caps & NV_CTRL_GVO_CAPABILITIES_ADVANCE_SYNC_SKEW) {
+            label = gtk_label_new("VSync Advance:");
+            help_text = __vsync_advance_help;
+        } else {
+            label = gtk_label_new("VSync Delay:");
+            help_text = __vsync_delay_help;
+        }
 
-    ctk_gvo_sync->vsync_delay_spin_button =
-        gtk_spin_button_new_with_range(0.0, height, 1);
-   
-    ctk_config_set_tooltip(ctk_config,
+        gtk_misc_set_alignment(GTK_MISC(label), 0, 0.5);
+        gtk_table_attach(GTK_TABLE(table), label, 0, 1, row, row+1,
+                         GTK_FILL, GTK_FILL, TABLE_PADDING, TABLE_PADDING);
+
+        ctk_gvo_sync->vsync_delay_spin_button =
+            gtk_spin_button_new_with_range(valid.u.range.min,
+                                           valid.u.range.max, 1);
+
+        ctk_config_set_tooltip(ctk_config,
+                               ctk_gvo_sync->vsync_delay_spin_button,
+                               help_text);
+
+        gtk_spin_button_set_value
+            (GTK_SPIN_BUTTON(ctk_gvo_sync->vsync_delay_spin_button), val);
+        
+        g_signal_connect(G_OBJECT(ctk_gvo_sync->vsync_delay_spin_button),
+                         "value-changed",
+                         G_CALLBACK(vsync_delay_changed), ctk_gvo_sync);
+
+        hbox = gtk_hbox_new(FALSE, 5);
+        gtk_box_pack_start(GTK_BOX(hbox),
                            ctk_gvo_sync->vsync_delay_spin_button,
-                           help_text);
-    gtk_spin_button_set_value
-        (GTK_SPIN_BUTTON(ctk_gvo_sync->vsync_delay_spin_button), val);
-    
-    g_signal_connect(G_OBJECT(ctk_gvo_sync->vsync_delay_spin_button),
-                     "value-changed",
-                     G_CALLBACK(vsync_delay_changed), ctk_gvo_sync);
+                           FALSE, FALSE, 0);
 
-    hbox = gtk_hbox_new(FALSE, 5);
-    gtk_box_pack_start(GTK_BOX(hbox), ctk_gvo_sync->vsync_delay_spin_button,
-                       FALSE, FALSE, 0);
+        label = gtk_label_new("(lines)");
+        gtk_misc_set_alignment(GTK_MISC(label), 0, 0.5);
+        gtk_box_pack_start(GTK_BOX(hbox), label,
+                           FALSE, FALSE, 0);
 
-    label = gtk_label_new("(lines)");
-    gtk_misc_set_alignment(GTK_MISC(label), 0, 0.5);
-    gtk_box_pack_start(GTK_BOX(hbox), label,
-                       FALSE, FALSE, 0);
-
-    gtk_table_attach(GTK_TABLE(table), hbox,
-                     1, 2, row, row+1,
-                     GTK_FILL /*| GTK_EXPAND*/, GTK_FILL,
-                     TABLE_PADDING, TABLE_PADDING);
-    row++;
-
+        gtk_table_attach(GTK_TABLE(table), hbox,
+                         1, 2, row, row+1,
+                         GTK_FILL /*| GTK_EXPAND*/, GTK_FILL,
+                         TABLE_PADDING, TABLE_PADDING);
+        row++;
+    }
 
     /* create the watch cursor (for use when the "Detect" button is toggled" */
     
@@ -716,7 +711,7 @@ static GtkWidget *start_menu(const gchar *name, GtkWidget *table,
 
 static void finish_menu(GtkWidget *menu, GtkWidget *table, const gint row)
 {
-    ctk_drop_down_menu_finalize(CTK_DROP_DOWN_MENU(menu));
+    gtk_widget_show_all(menu);
 
     gtk_table_attach(GTK_TABLE(table), menu, 1, 2, row, row+1,
                      GTK_FILL | GTK_EXPAND, GTK_FILL,
@@ -930,8 +925,14 @@ static void update_gvo_sync_sensitivity(CtkGvoSync *ctk_gvo_sync)
 
     sensitive = (sensitive && sync_signal_detected(ctk_gvo_sync));
 
-    gtk_widget_set_sensitive(ctk_gvo_sync->hsync_delay_spin_button, sensitive);
-    gtk_widget_set_sensitive(ctk_gvo_sync->vsync_delay_spin_button, sensitive);
+    if (ctk_gvo_sync->hsync_delay_spin_button) {
+        gtk_widget_set_sensitive(ctk_gvo_sync->hsync_delay_spin_button,
+                                 sensitive);
+    }
+    if (ctk_gvo_sync->vsync_delay_spin_button) {
+        gtk_widget_set_sensitive(ctk_gvo_sync->vsync_delay_spin_button,
+                                 sensitive);
+    }
 
 } /* update_gvo_sync_sensitivity() */
 
@@ -1037,32 +1038,6 @@ static void post_sync_format_menu_changed(CtkGvoSync *ctk_gvo_sync)
                                  "Sync Format set to \"%s\".", name);
 
 } /* post_sync_format_menu_changed() */
-
-
-
-/*
- * update_delay_spin_buttons_range() - Updates the range of the
- * delay spin buttons.
- */
-
-static void update_delay_spin_buttons_range(CtkGvoSync *ctk_gvo_sync)
-{
-    gint w, h;
-    
-    if ( ctk_gvo_sync->caps && NV_CTRL_GVO_CAPABILITIES_ADVANCE_SYNC_SKEW ) {
-        // No need to reset max values
-        return;
-    }
-
-    ctk_gvo_get_video_format_resolution(ctk_gvo_sync->input_video_format,
-                                        &w, &h);
-
-    gtk_spin_button_set_range
-        (GTK_SPIN_BUTTON(ctk_gvo_sync->hsync_delay_spin_button), 0, 2*w);
-    gtk_spin_button_set_range
-        (GTK_SPIN_BUTTON(ctk_gvo_sync->vsync_delay_spin_button), 0, 2*h);
-
-} /* update_delay_spin_buttons_range() */
 
 
 
@@ -1359,30 +1334,34 @@ static void gvo_sync_event_received(GtkObject *object,
 
     case NV_CTRL_GVO_SYNC_DELAY_PIXELS:
         widget = ctk_gvo_sync->hsync_delay_spin_button;
+
+        if (widget) {
+            g_signal_handlers_block_by_func(G_OBJECT(widget),
+                                            G_CALLBACK(hsync_delay_changed),
+                                            (gpointer) ctk_gvo_sync);
         
-        g_signal_handlers_block_by_func(G_OBJECT(widget),
-                                        G_CALLBACK(hsync_delay_changed),
-                                        (gpointer) ctk_gvo_sync);
+            gtk_spin_button_set_value(GTK_SPIN_BUTTON(widget), value);
         
-        gtk_spin_button_set_value(GTK_SPIN_BUTTON(widget), value);
-        
-        g_signal_handlers_unblock_by_func(G_OBJECT(widget),
-                                          G_CALLBACK(hsync_delay_changed),
-                                          (gpointer) ctk_gvo_sync);
+            g_signal_handlers_unblock_by_func(G_OBJECT(widget),
+                                              G_CALLBACK(hsync_delay_changed),
+                                              (gpointer) ctk_gvo_sync);
+        }
         break;
         
     case NV_CTRL_GVO_SYNC_DELAY_LINES:
         widget = ctk_gvo_sync->vsync_delay_spin_button;
         
-        g_signal_handlers_block_by_func(G_OBJECT(widget),
-                                        G_CALLBACK(vsync_delay_changed),
-                                        (gpointer) ctk_gvo_sync);
+        if (widget) {
+            g_signal_handlers_block_by_func(G_OBJECT(widget),
+                                            G_CALLBACK(vsync_delay_changed),
+                                            (gpointer) ctk_gvo_sync);
         
-        gtk_spin_button_set_value(GTK_SPIN_BUTTON(widget), value);
-        
-        g_signal_handlers_unblock_by_func(G_OBJECT(widget),
-                                          G_CALLBACK(vsync_delay_changed),
-                                          (gpointer) ctk_gvo_sync);
+            gtk_spin_button_set_value(GTK_SPIN_BUTTON(widget), value);
+            
+            g_signal_handlers_unblock_by_func(G_OBJECT(widget),
+                                              G_CALLBACK(vsync_delay_changed),
+                                              (gpointer) ctk_gvo_sync);
+        }
         break;
 
     case NV_CTRL_GVO_COMPOSITE_TERMINATION:
@@ -1457,8 +1436,6 @@ static gint gvo_sync_probe_callback(gpointer data)
     update_input_video_format_text_entry(ctk_gvo_sync);
 
     update_sync_lock_status_text(ctk_gvo_sync);
-
-    update_delay_spin_buttons_range(ctk_gvo_sync);
 
     update_gvo_sync_sensitivity(ctk_gvo_sync);
 
@@ -1539,7 +1516,7 @@ GtkTextBuffer* ctk_gvo_sync_create_help(GtkTextTagTable *table,
     ctk_help_heading(b, &i, "Sync Status");
     ctk_help_para(b, &i, __sync_status_help);
 
-    if ( ctk_gvo_sync->caps && NV_CTRL_GVO_CAPABILITIES_ADVANCE_SYNC_SKEW ) {
+    if ( ctk_gvo_sync->caps & NV_CTRL_GVO_CAPABILITIES_ADVANCE_SYNC_SKEW ) {
         ctk_help_heading(b, &i, "HSync Advance");
         ctk_help_para(b, &i, __hsync_advance_help);
         ctk_help_heading(b, &i, "VSync Advance");

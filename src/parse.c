@@ -88,6 +88,7 @@ AttributeTableEntry attributeTable[] = {
     { "Overlay",               NV_CTRL_OVERLAY,                     0     },
     { "HWOverlay",             NV_CTRL_HWOVERLAY,                   0     },
     { "Stereo",                NV_CTRL_STEREO,                      0     },
+    { "StereoEyesExchange",    NV_CTRL_STEREO_EYES_EXCHANGE,        0     },
     { "TwinView",              NV_CTRL_TWINVIEW,                    0     },
     { "ConnectedDisplays",     NV_CTRL_CONNECTED_DISPLAYS,          D     },
     { "EnabledDisplays",       NV_CTRL_ENABLED_DISPLAYS,            D     },
@@ -97,7 +98,9 @@ AttributeTableEntry attributeTable[] = {
     { "AssociatedDisplays",    NV_CTRL_ASSOCIATED_DISPLAY_DEVICES,  N|D   },
     { "ProbeDisplays",         NV_CTRL_PROBE_DISPLAYS,              A     },
     { "Depth30Allowed",        NV_CTRL_DEPTH_30_ALLOWED,            N     },
+    { "NoScanout",             NV_CTRL_NO_SCANOUT,                  N     },
     { "ForceGenericCpu",       NV_CTRL_FORCE_GENERIC_CPU,           N     },
+    { "GammaCorrectedAALinesValue", NV_CTRL_OPENGL_AA_LINE_GAMMA_VALUE, 0 },
     { "GammaCorrectedAALines", NV_CTRL_OPENGL_AA_LINE_GAMMA,        0     },
     { "ShowSLIHUD",            NV_CTRL_SHOW_SLI_HUD,                0     },
     { "CursorShadow",          NV_CTRL_CURSOR_SHADOW,               0     },
@@ -260,7 +263,7 @@ AttributeTableEntry attributeTable[] = {
  * about.
  */
 
-#if NV_CTRL_LAST_ATTRIBUTE != NV_CTRL_DISPLAYPORT_LINK_RATE
+#if NV_CTRL_LAST_ATTRIBUTE != NV_CTRL_GVO_CSC_CHANGED_EVENT
 #warning "Have you forgotten to add a new integer attribute to attributeTable?"
 #endif
 
@@ -318,7 +321,6 @@ int nv_parse_attribute_string(const char *str, int query, ParsedAttribute *a)
     int len, ret;
 
 #define stop(x) { if (no_spaces) free(no_spaces); return (x); }
-    
     if (!a) stop(NV_PARSER_STATUS_BAD_ARGUMENT);
 
     /* clear the ParsedAttribute struct */
@@ -415,11 +417,14 @@ int nv_parse_attribute_string(const char *str, int query, ParsedAttribute *a)
             /*
              * Either a single 32-bit integer or two 16-bit
              * integers, separated by ','.
+             * Passing base as 0 allows packed values to be specified 
+             * in hex (Bug 377242)
              */
-            a->val = strtol(s, &tmp, 10);
+            a->val = strtol(s, &tmp, 0);
+            
             if (tmp && *tmp == ',') {
                 a->val = (a->val & 0xffff) << 16;
-                a->val |= strtol((tmp + 1), &tmp, 10) & 0xffff;
+                a->val |= strtol((tmp + 1), &tmp, 0) & 0xffff;
             }
         } else if (a->flags & NV_PARSER_TYPE_VALUE_IS_DISPLAY) {
             if (nv_strcasecmp(s, "alldisplays")) {

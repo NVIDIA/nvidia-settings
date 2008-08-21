@@ -131,6 +131,13 @@ static void ctk_display_device_tv_finalize(
 {
     CtkDisplayDeviceTv *ctk_display_device_tv = CTK_DISPLAY_DEVICE_TV(object);
     g_free(ctk_display_device_tv->name);
+    g_signal_handlers_disconnect_matched(ctk_display_device_tv->ctk_event,
+                                         G_SIGNAL_MATCH_DATA,
+                                         0,
+                                         0,
+                                         NULL,
+                                         NULL,
+                                         (gpointer) ctk_display_device_tv);
 }
 
 
@@ -156,6 +163,7 @@ GtkWidget* ctk_display_device_tv_new(NvCtrlAttributeHandle *handle,
 
     
     object = g_object_new(CTK_TYPE_DISPLAY_DEVICE_TV, NULL);
+    if (!object) return NULL;
     
     ctk_display_device_tv = CTK_DISPLAY_DEVICE_TV(object);
     ctk_display_device_tv->handle = handle;

@@ -3322,6 +3322,23 @@
 #define NV_CTRL_DEPTH_30_ALLOWED                                279 /* R--G */
 
 /*
+ * NV_CTRL_MODE_SET_EVENT This attribute is sent as an event
+ * when hotkey, ctrl-alt-+/- or randr event occurs.  Note that
+ * This attribute cannot be set or queried and is meant to
+ * be received by clients that wish to be notified of when
+ * mode set events occur.
+ */
+
+#define NV_CTRL_MODE_SET_EVENT                                  280 /* --- */
+
+/*
+ * NV_CTRL_OPENGL_AA_LINE_GAMMA_VALUE - the gamma value used by
+ * OpenGL when NV_CTRL_OPENGL_AA_LINE_GAMMA is enabled
+ */
+
+#define NV_CTRL_OPENGL_AA_LINE_GAMMA_VALUE                      281 /* RW-X */
+
+/*
  * NV_CTRL_DISPLAYPORT_LINK_RATE - returns the negotiated lane bandwidth of the
  * DisplayPort main link.
  * This attribute is only available for DisplayPort flat panels.
@@ -3332,7 +3349,35 @@
 #define NV_CTRL_DISPLAYPORT_LINK_RATE_1_62GBPS                  0x6
 #define NV_CTRL_DISPLAYPORT_LINK_RATE_2_70GBPS                  0xA
 
-#define NV_CTRL_LAST_ATTRIBUTE NV_CTRL_DISPLAYPORT_LINK_RATE
+/*
+ * NV_CTRL_STEREO_EYES_EXCHANGE - Controls whether or not the left and right
+ * eyes of a stereo image are flipped.
+ */
+
+#define NV_CTRL_STEREO_EYES_EXCHANGE                            292  /* RW-X */
+#define NV_CTRL_STEREO_EYES_EXCHANGE_OFF                          0
+#define NV_CTRL_STEREO_EYES_EXCHANGE_ON                           1
+
+/*
+ * NV_CTRL_NO_SCANOUT - returns whether the special "NoScanout" mode is
+ * enabled on the specified X screen or GPU; for details on this mode,
+ * see the description of the "none" value for the "UseDisplayDevice"
+ * X configuration option in the NVIDIA driver README.
+ */
+
+#define NV_CTRL_NO_SCANOUT                                      293 /* R--G */
+#define NV_CTRL_NO_SCANOUT_DISABLED                             0
+#define NV_CTRL_NO_SCANOUT_ENABLED                              1
+
+/*
+ * NV_CTRL_GVO_CSC_CHANGED_EVENT This attribute is sent as an event
+ * when the color space conversion matrix has been altered by another
+ * client.
+ */
+
+#define NV_CTRL_GVO_CSC_CHANGED_EVENT                           294 /* --- */
+
+#define NV_CTRL_LAST_ATTRIBUTE NV_CTRL_GVO_CSC_CHANGED_EVENT
 
 /**************************************************************************/
 

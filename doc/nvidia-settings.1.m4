@@ -578,12 +578,6 @@ There are many things still to be added to
 some of which include:
 .TP
 -
-configurability of TwinView (NVIDIA is planning to implement this)
-.TP
--
-configurability of multiple X screens (NVIDIA is planning to implement this)
-.TP
--
 different toolkits?
 The GUI for
 .B nvidia\-settings

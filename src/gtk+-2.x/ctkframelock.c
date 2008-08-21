@@ -696,13 +696,13 @@ static GtkWidget *create_enable_confirm_dialog(CtkFramelock *ctk_framelock)
          GTK_WINDOW(gtk_widget_get_parent(GTK_WIDGET(ctk_framelock))),
          GTK_DIALOG_MODAL | GTK_DIALOG_DESTROY_WITH_PARENT
          | GTK_DIALOG_NO_SEPARATOR,
-         GTK_STOCK_OK,
+         GTK_STOCK_YES,
          GTK_RESPONSE_ACCEPT,
          NULL);
 
     ctk_framelock->enable_confirm_cancel_button =
         gtk_dialog_add_button(GTK_DIALOG(dialog),
-                              GTK_STOCK_CANCEL,
+                              GTK_STOCK_NO,
                               GTK_RESPONSE_REJECT);
 
     gtk_window_set_resizable(GTK_WINDOW(dialog), FALSE);
@@ -2755,7 +2755,7 @@ static void update_enable_confirm_text(CtkFramelock *ctk_framelock)
     gchar *str;
     str = g_strdup_printf("Frame Lock has been enabled but no server\n"
                           "device was selected.  Would you like to keep\n"
-                          "the current settings?\n"
+                          "Frame Lock enabled on the selected devices?\n"
                           "\n"
                           "Disabling Frame Lock in %d seconds...",
                           ctk_framelock->enable_confirm_countdown);

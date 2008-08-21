@@ -62,6 +62,7 @@ struct _CtkGvoCsc
 
     NvCtrlAttributeHandle *handle;
     CtkConfig *ctk_config;
+    CtkEvent *ctk_event;
 
     CtkGvo *gvo_parent;
     GtkWidget *banner_box;

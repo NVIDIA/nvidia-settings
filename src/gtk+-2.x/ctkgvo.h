@@ -75,25 +75,9 @@ struct _CtkGvo
     gint input_video_format;
 
     gint output_video_format;
-    gint valid_output_video_format_mask[2];
-    gboolean has_output_video_formats;      // XXX Show show non-valid as gray?
-    gboolean output_video_format_valid; /* If the output video format was
-                                           changed by another client to
-                                           something clone mode doesn't
-                                           support, we should ignore it,
-                                           but we should make sure that we
-                                           set the output_video_format when
-                                           we enable clone mode. */
-
-
+    guint valid_output_video_format_mask[2];
+    
     gint output_data_format;
-    gboolean output_data_format_valid; /* If the output data format was
-                                          changed by another client to
-                                          something clone mode doesn't
-                                          support, we should ignore it,
-                                          but we should make sure that we
-                                          set the output_data_format when
-                                          we enable clone mode. */
 
     gint screen_width;
     gint screen_height;

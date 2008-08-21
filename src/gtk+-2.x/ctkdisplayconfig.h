@@ -60,6 +60,7 @@ typedef struct _CtkDisplayConfig
     NvCtrlAttributeHandle *handle;
     CtkConfig *ctk_config;
 
+    gboolean page_selected; /* Is the display config page selected in the UI */
 
     /* Layout */
     nvLayoutPtr layout;
@@ -173,6 +174,12 @@ typedef struct _CtkDisplayConfig
     /* Buttons */
     GtkWidget *btn_apply;
     gboolean apply_possible; /* True if all modifications are applicable */
+
+    gboolean reset_required; /* Reser required to apply */
+    gboolean forced_reset_allowed; /* OK to reset layout w/o user input */
+    gboolean notify_user_of_reset; /* User was notified of reset requirement */
+    gboolean ignore_reset_events; /* Ignore reset-causing events */
+
     int cur_screen_pos[2]; /* Keep track of the selected X screen's position */
 
     GtkWidget *btn_save;
@@ -197,6 +204,10 @@ GtkWidget*  ctk_display_config_new       (NvCtrlAttributeHandle *,
 
 GtkTextBuffer *ctk_display_config_create_help(GtkTextTagTable *,
                                               CtkDisplayConfig *);
+
+void ctk_display_config_selected(GtkWidget *);
+void ctk_display_config_unselected(GtkWidget *);
+
 
 G_END_DECLS
 

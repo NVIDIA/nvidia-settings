@@ -62,8 +62,10 @@ struct _CtkOpenGL
     GtkWidget *allow_flipping_button;
     GtkWidget *force_stereo_button;
     GtkWidget *xinerama_stereo_button;
+    GtkWidget *stereo_eyes_exchange_button;
     GtkWidget *image_settings_scale;
     GtkWidget *aa_line_gamma_button;
+    GtkWidget *aa_line_gamma_scale;
     GtkWidget *show_sli_hud_button;
     
     unsigned int active_attributes;

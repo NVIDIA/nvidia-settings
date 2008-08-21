@@ -33,7 +33,8 @@ SRC += \
 	parse.c \
 	query-assign.c \
 	nvgetopt.c \
-	glxinfo.c
+	glxinfo.c \
+	lscf.c
 
 EXTRA_DIST += \
 	Makefile.inc \
@@ -43,7 +44,8 @@ EXTRA_DIST += \
 	parse.h \
 	query-assign.h \
 	nvgetopt.h \
-	glxinfo.h
+	glxinfo.h \
+	lscf.h
 
 dist_list::
 	@ echo $(SRC) $(EXTRA_DIST)

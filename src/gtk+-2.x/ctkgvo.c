@@ -106,13 +106,12 @@ static void finish_menu(GtkWidget *menu, GtkWidget *table, const gint row);
 
 
 static void fill_output_video_format_menu(CtkGvo *ctk_gvo);
-static void trim_output_video_format_menu(CtkGvo *ctk_gvo);
 static void output_video_format_ui_changed(CtkDropDownMenu *menu,
                                            gpointer user_data);
 static void post_output_video_format_changed(CtkGvo *ctk_gvo);
 
 
-static void validate_output_data_format(CtkGvo *ctk_gvo);
+static void fill_output_data_format_menu(CtkGvo *ctk_gvo);
 static void output_data_format_ui_changed(CtkDropDownMenu *menu,
                                           gpointer user_data);
 static void post_output_data_format_changed(CtkGvo *ctk_gvo);
@@ -232,45 +231,45 @@ static GvoFormatDetails videoFormatDetails[] = {
 
 
 static const GvoFormatName dataFormatNames[] = {
-    { NV_CTRL_GVO_DATA_FORMAT_R8G8B8_TO_YCRCB444, "RGB -> YCrCb (4:4:4)" },
-    { NV_CTRL_GVO_DATA_FORMAT_R8G8B8_TO_YCRCB422, "RGB -> YCrCb (4:2:2)" },
-    { NV_CTRL_GVO_DATA_FORMAT_X8X8X8_444_PASSTHRU,"RGB (4:4:4)" },
+
+    /* Valid for Clone Mode */
+    { NV_CTRL_GVO_DATA_FORMAT_R8G8B8_TO_YCRCB444,               "RGB -> YCrCb (4:4:4)" },
+    { NV_CTRL_GVO_DATA_FORMAT_R8G8B8_TO_YCRCB422,               "RGB -> YCrCb (4:2:2)" },
+    { NV_CTRL_GVO_DATA_FORMAT_X8X8X8_444_PASSTHRU,              "RGB (4:4:4)" },
+
+    /* Invalid for Clone Mode usage */
+    { NV_CTRL_GVO_DATA_FORMAT_R8G8B8A8_TO_YCRCBA4444,           "RGBA -> YCrCbA (4:4:4:4)" },
+    { NV_CTRL_GVO_DATA_FORMAT_R8G8B8Z10_TO_YCRCBZ4444,          "RGBZ -> YCrCbZ (4:4:4:4)" },
+    { NV_CTRL_GVO_DATA_FORMAT_R8G8B8A8_TO_YCRCBA4224,           "RGBA -> YCrCbA (4:2:2:4)" },
+    { NV_CTRL_GVO_DATA_FORMAT_R8G8B8Z10_TO_YCRCBZ4224,          "RGBZ -> YCrCbZ (4:2:2:4)" },
+    { NV_CTRL_GVO_DATA_FORMAT_X8X8X8A8_4444_PASSTHRU,           "RGBA (4:4:4:4)" },
+    { NV_CTRL_GVO_DATA_FORMAT_X8X8X8Z8_4444_PASSTHRU,           "RGBZ (4:4:4:4)" },
+    { NV_CTRL_GVO_DATA_FORMAT_X10X10X10_444_PASSTHRU,           "RGBA (4:4:4)" },
+    { NV_CTRL_GVO_DATA_FORMAT_X10X8X8_444_PASSTHRU,             "RGB (4:4:4)" },
+    { NV_CTRL_GVO_DATA_FORMAT_X10X8X8A10_4444_PASSTHRU,         "RGBA (4:4:4:4)" },
+    { NV_CTRL_GVO_DATA_FORMAT_X10X8X8Z10_4444_PASSTHRU,         "RGBZ (4:4:4:4)" },
+    { NV_CTRL_GVO_DATA_FORMAT_DUAL_R8G8B8_TO_DUAL_YCRCB422,     "Dual RGB -> Dual YCrCb (4:2:2)" },
+    { NV_CTRL_GVO_DATA_FORMAT_DUAL_X8X8X8_TO_DUAL_422_PASSTHRU, "Dual RGB (4:2:2)" },
+    { NV_CTRL_GVO_DATA_FORMAT_R10G10B10_TO_YCRCB422,            "RGB -> YCrCb (4:2:2)" },
+    { NV_CTRL_GVO_DATA_FORMAT_R10G10B10_TO_YCRCB444,            "RGB -> YCrCb (4:4:4)" },
+    { NV_CTRL_GVO_DATA_FORMAT_X12X12X12_444_PASSTHRU,           "RGB (4:4:4)" },
+    { NV_CTRL_GVO_DATA_FORMAT_R12G12B12_TO_YCRCB444,            "RGB -> YCrCb (4:4:4)" },
+    { NV_CTRL_GVO_DATA_FORMAT_X8X8X8_422_PASSTHRU,              "RGB (4:2:2)" },
+    { NV_CTRL_GVO_DATA_FORMAT_X8X8X8A8_4224_PASSTHRU,           "RGB (4:2:2:4)" },
+    { NV_CTRL_GVO_DATA_FORMAT_X8X8X8Z8_4224_PASSTHRU,           "RGB (4:2:2:4)" },
+    { NV_CTRL_GVO_DATA_FORMAT_X10X10X10_422_PASSTHRU,           "RGB (4:2:2)" },
+    { NV_CTRL_GVO_DATA_FORMAT_X10X8X8_422_PASSTHRU,             "RGB (4:2:2)" },
+    { NV_CTRL_GVO_DATA_FORMAT_X10X8X8A10_4224_PASSTHRU,         "RGBA (4:2:2:4)" },
+    { NV_CTRL_GVO_DATA_FORMAT_X10X8X8Z10_4224_PASSTHRU,         "RGBZ (4:2:2:4)" },
+    { NV_CTRL_GVO_DATA_FORMAT_X12X12X12_422_PASSTHRU,           "RGB (4:2:2)" },
+    { NV_CTRL_GVO_DATA_FORMAT_R12G12B12_TO_YCRCB422,            "RGB -> YCrCb (4:2:2)" },
+
     { -1, NULL },
 };
 
 
 
 /**** Utility Functions ******************************************************/
-
-
-/*
- * get_first_available_output_video_format() - returns the first available
- * output video format from the dropdown menu.  This is needed since when
- * Frame Lock/Genlock are enabled, the default case of 487i may not be
- * appropriate.
- */
-
-static gint get_first_available_output_video_format(CtkGvo *ctk_gvo)
-{
-    CtkDropDownMenu *dmenu =
-        CTK_DROP_DOWN_MENU(ctk_gvo->output_video_format_menu);
-    int i;
-
-    /* look through the output video format dropdown for the first
-     * available selection.
-     */
-    for (i = 0; i < dmenu->num_entries; i++) {
-        if (GTK_WIDGET_IS_SENSITIVE(dmenu->values[i].menu_item)) {
-            return dmenu->values[i].value;
-        }
-    }
-
-    /* There are no available video formats?  Fallback to 487i. */
-
-    return NV_CTRL_GVO_VIDEO_FORMAT_487I_59_94_SMPTE259_NTSC;
-
-} /* get_first_available_output_video_format() */
-
 
 
 /*
@@ -290,6 +289,131 @@ const char *ctk_gvo_get_video_format_name(const gint format)
     return "Unknown";
     
 } /* ctk_gvo_get_video_format_name() */
+
+
+
+/*
+ * ctk_gvo_get_video_format_resolution() - return the width and height of the
+ * given video format
+ */
+
+void ctk_gvo_get_video_format_resolution(const gint format, gint *w, gint *h)
+{
+    gint i;
+    
+    *w = *h = 0;
+
+    for (i = 0; videoFormatDetails[i].format != -1; i++) {
+        if (videoFormatDetails[i].format == format) {
+            *w = videoFormatDetails[i].width;
+            *h = videoFormatDetails[i].height;
+            return;
+        }
+    }
+} /* ctk_gvo_get_video_format_resolution() */
+
+
+
+/*
+ * ctk_gvo_get_video_format_refresh() - return the refresh rate of the
+ * given video format
+ */
+
+void ctk_gvo_get_video_format_refresh(const gint format, gint *r)
+{
+    gint i;
+    
+    *r = 0;
+
+    for (i = 0; videoFormatDetails[i].format != -1; i++) {
+        if (videoFormatDetails[i].format == format) {
+            *r = videoFormatDetails[i].rate;
+            return;
+        }
+    }
+} /* ctk_gvo_get_video_format_refresh() */
+
+
+
+/*
+ * ctk_gvo_video_format_valid() - returns a bitmask indicating whether or not
+ * the currently selected  video format is valid for clone mode based on the
+ * current X screen resolution and current sync method.  Returns a bitmask
+ * indicating possible valid/invalid state of the mode.
+ */
+
+#define GVO_VIDEO_FORMAT_INVALID            0x00000000
+#define GVO_VIDEO_FORMAT_MODE_VALID         0x00000001
+#define GVO_VIDEO_FORMAT_RESOLUTION_VALID   0x00000002
+#define GVO_VIDEO_FORMAT_REFRESH_VALID      0x00000004
+
+#define GVO_VIDEO_FORMAT_VALID          \
+ (GVO_VIDEO_FORMAT_MODE_VALID |         \
+  GVO_VIDEO_FORMAT_RESOLUTION_VALID |   \
+  GVO_VIDEO_FORMAT_REFRESH_VALID)
+
+guint ctk_gvo_video_format_valid(CtkGvo *ctk_gvo, const gint format)
+{
+    gint width, height, refresh_rate, input_refresh_rate;
+    guint valid = GVO_VIDEO_FORMAT_VALID;
+
+
+    /* Keep track of whether we'll need to re-set the video format
+     * when enabling clone mode.
+     */
+
+    /* Check to make sure the format size <= current screen size */
+    ctk_gvo_get_video_format_resolution(format, &width, &height);
+
+    /* Make sure the resolution fits */
+    if ((width > ctk_gvo->screen_width) || (height > ctk_gvo->screen_height)) {
+        valid &= ~(GVO_VIDEO_FORMAT_RESOLUTION_VALID);
+    }
+    
+    /* Check that format is supported */
+    if (((format < 32) &&
+         !((1 << format) & ctk_gvo->valid_output_video_format_mask[0])) ||
+        ((format >= 32) &&
+         !((1 << (format -32)) & ctk_gvo->valid_output_video_format_mask[1]))) {
+        valid &= ~(GVO_VIDEO_FORMAT_MODE_VALID);
+    }
+
+    /* Check that formats match if Genlock is enabled */
+    else if ((ctk_gvo->sync_mode == NV_CTRL_GVO_SYNC_MODE_GENLOCK) &&
+             (ctk_gvo->input_video_format != NV_CTRL_GVO_VIDEO_FORMAT_NONE) &&
+             (ctk_gvo->input_video_format != format)) {
+        valid &= ~(GVO_VIDEO_FORMAT_REFRESH_VALID);
+    }
+
+
+    /* Check that format refresh rates match if Frame Lock is enabled */
+    else if ((ctk_gvo->sync_mode == NV_CTRL_GVO_SYNC_MODE_FRAMELOCK) &&
+             (ctk_gvo->input_video_format != NV_CTRL_GVO_VIDEO_FORMAT_NONE)) {
+        
+        /* Get the refresh rate */
+        ctk_gvo_get_video_format_refresh(format, &refresh_rate);
+
+        /* Get the current input refresh rate */
+        ctk_gvo_get_video_format_refresh(ctk_gvo->input_video_format,
+                                         &input_refresh_rate);
+        
+        /* Check that the refresh rates are the same, or, for those
+         * GVO devices that support multi-rate synchronization, check
+         * that the fractional part of the rates are either both zero
+         * or both non-zero.
+         */
+
+        if ((refresh_rate != input_refresh_rate) &&
+            (!(ctk_gvo->caps & NV_CTRL_GVO_CAPABILITIES_MULTIRATE_SYNC) ||
+             (((refresh_rate % 1000) ? TRUE : FALSE) !=
+              ((input_refresh_rate % 1000) ? TRUE : FALSE)))) {
+             valid &= ~(GVO_VIDEO_FORMAT_REFRESH_VALID);
+        }
+    }
+
+    return valid;
+
+} /* ctk_gvo_video_format_valid() */
 
 
 
@@ -314,24 +438,24 @@ const char *ctk_gvo_get_data_format_name(const gint format)
 
 
 /*
- * ctk_gvo_get_video_format_resolution() - return the width and height of the
- * given video format
+ * ctk_gvo_data_format_valid() - return whether or not the given data
+ * format is valid for clone mode.
  */
 
-void ctk_gvo_get_video_format_resolution(const gint format, gint *w, gint *h)
+gboolean ctk_gvo_data_format_valid(const gint format)
 {
     gint i;
     
-    *w = *h = 0;
-
-    for (i = 0; videoFormatDetails[i].format != -1; i++) {
-        if (videoFormatDetails[i].format == format) {
-            *w = videoFormatDetails[i].width;
-            *h = videoFormatDetails[i].height;
-            return;
+    for (i = 0; dataFormatNames[i].name; i++) {
+        if (dataFormatNames[i].format == format) {
+            /* Only the first three formats are valid */
+            return (i < 3) ? TRUE : FALSE;
         }
     }
-} /* ctk_gvo_get_video_format_resolution() */
+
+    return FALSE;
+
+} /* ctk_gvo_data_format_valid() */
 
 
 
@@ -367,271 +491,6 @@ GType ctk_gvo_get_type(void)
 
 
 
-/*
- * trim_output_video_format_menu() - given the current
- * OUTPUT_VIDEO_FORMAT and SYNC_MODE, set the sensitivity of each menu
- * entry and possibly update which of the output video mode dropdown
- * entries is currently selected.
- */
-
-static void trim_output_video_format_menu(CtkGvo *ctk_gvo)
-{
-    ReturnStatus ret;
-    NVCTRLAttributeValidValuesRec valid;
-    gint bitmask, bitmask2, i, refresh_rate;
-    gboolean sensitive, current_available;
-
-    /* retrieve the currently available values */
-
-    ret = NvCtrlGetValidAttributeValues(ctk_gvo->handle,
-                                        NV_CTRL_GVO_OUTPUT_VIDEO_FORMAT,
-                                        &valid);
-
-    /* if we failed to get the available values; assume none are valid */
-
-    if ((ret != NvCtrlSuccess) || (valid.type != ATTRIBUTE_TYPE_INT_BITS)) {
-        bitmask = 0;
-    } else {
-        bitmask = valid.u.bits.ints;
-    }
-    
-    /* retrieve additional available values */
-
-    ret = NvCtrlGetValidAttributeValues(ctk_gvo->handle,
-                                        NV_CTRL_GVO_OUTPUT_VIDEO_FORMAT2,
-                                        &valid);
-
-    /* if we failed to get the available values; assume none are valid */
-    
-    if ((ret != NvCtrlSuccess) || (valid.type != ATTRIBUTE_TYPE_INT_BITS)) {
-        bitmask2 = 0;
-    } else {
-        bitmask2 = valid.u.bits.ints;
-    }
-
-    /* 
-     * if the SyncMode is genlock or framelock, trim the bitmask
-     * accordingly: if GENLOCK, then the only bit allowed is the bit
-     * that corresponds to the exact input mode; if FRAMELOCK, then
-     * only modes with the same refresh rate as the input mode are
-     * allowed.
-     */
-    
-    if ((ctk_gvo->sync_mode == NV_CTRL_GVO_SYNC_MODE_GENLOCK) &&
-        (ctk_gvo->input_video_format != NV_CTRL_GVO_VIDEO_FORMAT_NONE)) {
-
-        if (ctk_gvo->input_video_format < 32) {
-            bitmask &= (1 << ctk_gvo->input_video_format);
-            bitmask2 = 0;
-        } else {
-            bitmask = 0;
-            bitmask2 &= (1 << (ctk_gvo->input_video_format - 32));
-        }
-    }
-    
-    if ((ctk_gvo->sync_mode == NV_CTRL_GVO_SYNC_MODE_FRAMELOCK) &&
-        (ctk_gvo->input_video_format != NV_CTRL_GVO_VIDEO_FORMAT_NONE)) {
-
-        refresh_rate = 0;
-
-        /* Get the current input refresh rate */
-        for (i = 0; videoFormatDetails[i].format != -1; i++) {
-            if (videoFormatDetails[i].format == ctk_gvo->input_video_format) {
-                refresh_rate = videoFormatDetails[i].rate;
-                break;
-            }
-        }
-        
-        /* Mask out refresh rates that don't match */
-        for (i = 0; videoFormatDetails[i].format != -1; i++) {
-            gboolean match = FALSE;
-
-            if (videoFormatDetails[i].rate == refresh_rate) {
-                match = TRUE;
-
-            } else if (ctk_gvo->caps &
-                       NV_CTRL_GVO_CAPABILITIES_MULTIRATE_SYNC) {
-
-                /* Some GVO devices support multi-rate synchronization.
-                 * For these devices, we just need to check that the 
-                 * fractional part of the rate are either both zero or
-                 * both non-zero.
-                 */
-                if (((videoFormatDetails[i].rate % 1000) ? TRUE : FALSE) ==
-                    ((refresh_rate % 1000) ? TRUE : FALSE)) {
-                    match = TRUE;
-                }
-            } else {
-                match = FALSE;
-            }
-
-            if (!match) {
-                if (videoFormatDetails[i].format < 32) {
-                    bitmask &= ~(1 << videoFormatDetails[i].format);
-                } else {
-                    bitmask2 &= ~(1 << (videoFormatDetails[i].format - 32));
-                }
-            }
-        }
-    }
-
-    /*
-     * loop over each video format; if that format is set in the
-     * bitmask, then it is available
-     */
-
-    current_available = FALSE;
-    for (i = 0; videoFormatNames[i].name; i++) {
-        if (((videoFormatNames[i].format < 32) &&
-             ((1 << videoFormatNames[i].format) & bitmask)) ||
-            ((videoFormatNames[i].format >= 32) &&
-             (((1 << (videoFormatNames[i].format - 32)) & bitmask2)))) {
-            sensitive = TRUE;
-        } else {
-            sensitive = FALSE;
-        }
-
-        ctk_drop_down_menu_set_value_sensitive
-            (CTK_DROP_DOWN_MENU(ctk_gvo->output_video_format_menu),
-             videoFormatNames[i].format, sensitive);
-
-        /* if the current video is not sensitive, take note */
-        
-        if ((ctk_gvo->output_video_format == videoFormatNames[i].format) &&
-            sensitive) {
-            current_available = TRUE;
-        }
-    }
-    
-    /*
-     * if the current video is not available, then make the first
-     * available format current
-     */
-    
-    if (!current_available && bitmask) {
-
-        for (i = 0; videoFormatNames[i].name; i++) {
-            if (((videoFormatNames[i].format < 32) &&
-                 ((1 << videoFormatNames[i].format) & bitmask)) ||
-                ((videoFormatNames[i].format >= 32) &&
-                 ((1 << (videoFormatNames[i].format - 32)) & bitmask2))) {
-                
-                /* Invalidate the format so it gets set when clone mode is
-                 * enabled.
-                 */
-                ctk_gvo->output_video_format_valid = FALSE;
-
-                g_signal_handlers_block_by_func
-                    (G_OBJECT(ctk_gvo->output_video_format_menu),
-                     G_CALLBACK(output_video_format_ui_changed),
-                     (gpointer) ctk_gvo);
-
-                ctk_drop_down_menu_set_current_value
-                    (CTK_DROP_DOWN_MENU(ctk_gvo->output_video_format_menu),
-                     videoFormatNames[i].format);
-
-                g_signal_handlers_unblock_by_func
-                    (G_OBJECT(ctk_gvo->output_video_format_menu),
-                     G_CALLBACK(output_video_format_ui_changed),
-                     (gpointer) ctk_gvo);
-                break;
-            }
-        }
-    }
-
-    /*
-     * cache the bitmask
-     */
-
-    ctk_gvo->valid_output_video_format_mask[0] = bitmask;
-    ctk_gvo->valid_output_video_format_mask[1] = bitmask2;
-    
-} /* trim_output_video_format_menu() */
-
-
-
-/*
- * validate_output_video_format() - Keep tabs on the output
- * video format.  If some other client sets the output video format to
- * something clone mode can't do, we'll just need to make sure that
- * we re-set the output video format when the user selects to enable
- * clone mode.
- *
- * NOTE: The gtk signal handler for the video format menu should not
- *       be enabled while calling this function.
- */
-
-static void validate_output_video_format(CtkGvo *ctk_gvo)
-{
-    gint bitmask, bitmask2;
-    gint width, height;
-    gint format = ctk_gvo->output_video_format;
-
-    /* Keep track of whether we'll need to re-set the video format
-     * when enabling clone mode.
-     */
-
-    /* Check to make sure the format size <= current screen size */
-    ctk_gvo_get_video_format_resolution(format, &width, &height);
-
-    /* Don't expose modes bigger than the current X Screen size */
-    if ((width > ctk_gvo->screen_width) ||
-        (height > ctk_gvo->screen_height)) {
-        /* Format is invalid due to screen size limitations */
-        ctk_gvo->output_video_format_valid = FALSE;
-        return;
-    }
-
-    /* Check to make sure genlock/framelock requirements are ment */
-    bitmask = ctk_gvo->valid_output_video_format_mask[0];
-    bitmask2 = ctk_gvo->valid_output_video_format_mask[1];
-
-    if (((format < 32) && !((1 << format) & bitmask)) ||
-        ((format >= 32) && !((1 << (format - 32)) & bitmask2))) {
-        /* Format is invalid due to genlock/framelock requirements */
-        ctk_gvo->output_video_format_valid = FALSE;
-        return;
-    }
-
-    /* If we got this far, then the format is valid. */
-    ctk_gvo->output_video_format_valid = TRUE;
-
-} /* validate_output_video_format() */
-
-
-
-/*
- * validate_output_data_format() - Keep tabs on the output
- * data format.  If some other client sets the output data format to
- * something clone mode can't do, we'll just need to make sure that
- * we re-set the output data format when the user selects to enable
- * clone mode.
- *
- * NOTE: The gtk signal handler for the data format menu should not
- *       be enabled while calling this function.
- */
-
-static void validate_output_data_format(CtkGvo *ctk_gvo)
-{
-    int i;
-
-    /* Keep track of whether we'll need to re-set the data format
-     * when enabling clone mode.
-     */
-    for (i = 0; dataFormatNames[i].name; i++) {
-        if (ctk_gvo->output_data_format == dataFormatNames[i].format) {
-            /* Value is OK */
-            ctk_gvo->output_data_format_valid = TRUE;
-            return;
-        }
-    }
-
-    ctk_gvo->output_data_format_valid = FALSE;
-
-} /* validate_output_data_format() */
-
-
-
 /**** Creation Functions *****************************************************/
 
 /*
@@ -647,7 +506,7 @@ GtkWidget* ctk_gvo_new(NvCtrlAttributeHandle *handle,
     GtkWidget *hbox, *vbox, *alignment, *label;
     ReturnStatus ret;
     gchar scratch[64], *firmware, *string;
-    gint val, i, width, height;
+    gint val, width, height;
     
     GtkWidget *frame, *table, *menu;
     
@@ -776,18 +635,10 @@ GtkWidget* ctk_gvo_new(NvCtrlAttributeHandle *handle,
     fill_output_video_format_menu(ctk_gvo);
 
     finish_menu(menu, table, 0);
-    
-    /* Make sure that the video format selected is valid for clone mode */
-
-    validate_output_video_format(ctk_gvo);
-    if (ctk_gvo->output_video_format_valid) {
-        val = ctk_gvo->output_video_format;
-    } else {
-        val = get_first_available_output_video_format(ctk_gvo);
-    }
 
     ctk_drop_down_menu_set_current_value
-        (CTK_DROP_DOWN_MENU(ctk_gvo->output_video_format_menu), val);
+        (CTK_DROP_DOWN_MENU(ctk_gvo->output_video_format_menu),
+         ctk_gvo->output_video_format);
 
     g_signal_connect(G_OBJECT(ctk_gvo->output_video_format_menu),
                      "changed", G_CALLBACK(output_video_format_ui_changed),
@@ -799,26 +650,14 @@ GtkWidget* ctk_gvo_new(NvCtrlAttributeHandle *handle,
     ctk_gvo->output_data_format_menu = menu;
     ctk_config_set_tooltip(ctk_config, CTK_DROP_DOWN_MENU(menu)->option_menu,
                            __clone_mode_data_format_help);
-    
-    for (i = 0; dataFormatNames[i].name; i++) {
-        ctk_drop_down_menu_append_item(CTK_DROP_DOWN_MENU(menu),
-                                       dataFormatNames[i].name,
-                                       dataFormatNames[i].format);
-    }
+
+    fill_output_data_format_menu(ctk_gvo);
     
     finish_menu(menu, table, 1);
 
-    /* Make sure that the data format selected is valid for clone mode */
-
-    validate_output_data_format(ctk_gvo);
-    if (ctk_gvo->output_data_format_valid) {
-        val = ctk_gvo->output_data_format;
-    } else {
-        val = DEFAULT_OUTPUT_DATA_FORMAT;
-    }
-    
     ctk_drop_down_menu_set_current_value
-        (CTK_DROP_DOWN_MENU(ctk_gvo->output_data_format_menu), val);
+        (CTK_DROP_DOWN_MENU(ctk_gvo->output_data_format_menu),
+         ctk_gvo->output_data_format);
 
     g_signal_connect(G_OBJECT(ctk_gvo->output_data_format_menu),
                      "changed", G_CALLBACK(output_data_format_ui_changed),
@@ -1075,7 +914,7 @@ static GtkWidget *start_menu(const gchar *name, GtkWidget *table,
 
 static void finish_menu(GtkWidget *menu, GtkWidget *table, const gint row)
 {
-    ctk_drop_down_menu_finalize(CTK_DROP_DOWN_MENU(menu));
+    gtk_widget_show_all(menu);
 
     gtk_table_attach(GTK_TABLE(table), menu, 1, 2, row, row+1,
                      GTK_FILL | GTK_EXPAND, GTK_FILL,
@@ -1092,10 +931,17 @@ static void finish_menu(GtkWidget *menu, GtkWidget *table, const gint row)
 static void fill_output_video_format_menu(CtkGvo *ctk_gvo)
 {
     int i;
-    int width, height;
     CtkDropDownMenu *dmenu =
         CTK_DROP_DOWN_MENU(ctk_gvo->output_video_format_menu);
+    GtkWidget *label;
+    guint valid;
+    gint num_valid_entries = 0;
+    gchar *str;
+    gchar *tmp;
    
+
+    ctk_drop_down_menu_reset(CTK_DROP_DOWN_MENU(dmenu));
+
     for (i = 0; videoFormatNames[i].name; i++) {
         
         /* 
@@ -1108,41 +954,184 @@ static void fill_output_video_format_menu(CtkGvo *ctk_gvo)
             return;
         }
         
-        /* check that the current X screen can support the width and height */
-        
-        width = videoFormatDetails[i].width;
-        height = videoFormatDetails[i].height;
+        valid = ctk_gvo_video_format_valid(ctk_gvo,
+                                           videoFormatNames[i].format);
 
-        /* Don't expose modes bigger than the current X Screen size */
-        if ((width > ctk_gvo->screen_width) ||
-            (height > ctk_gvo->screen_height)) {
+        /* Mode must be supported */
+        if (!(valid & GVO_VIDEO_FORMAT_MODE_VALID)) {
             continue;
         }
 
-        ctk_drop_down_menu_append_item(dmenu,
-                                       videoFormatNames[i].name,
-                                       videoFormatNames[i].format);
+        /* Resolution must fit (or this is the selected mode) */
+        if (!(valid & GVO_VIDEO_FORMAT_RESOLUTION_VALID) &&
+            (ctk_gvo->output_video_format != videoFormatNames[i].format)) {
+            continue;
+        }
+
+        if (valid == GVO_VIDEO_FORMAT_VALID) {
+            str = (gchar *)videoFormatNames[i].name;
+        } else {
+            str = g_strconcat(videoFormatNames[i].name, " -", NULL);
+
+            if (!(valid & GVO_VIDEO_FORMAT_RESOLUTION_VALID)) {
+                tmp = g_strconcat(str, " Resolution mismatch", NULL);
+                g_free(str);
+                str = tmp;
+            }
+            if (!(valid & GVO_VIDEO_FORMAT_REFRESH_VALID)) {
+                if (!(valid & GVO_VIDEO_FORMAT_RESOLUTION_VALID)) {
+                    tmp = g_strconcat(str, ",", NULL);
+                    g_free(str);
+                    str = tmp;
+                }
+                tmp = g_strconcat(str, " Refresh mismatch", NULL);
+                g_free(str);
+                str = tmp;
+            }
+        }
+
+        label = ctk_drop_down_menu_append_item(dmenu, str,
+                                               videoFormatNames[i].format);
+        if (str != videoFormatNames[i].name) {
+            g_free(str);
+        }
+            
+        /* Gray out entry if it is not valid */
+        gtk_widget_set_sensitive(label, (valid == GVO_VIDEO_FORMAT_VALID));
+
+        if (valid == GVO_VIDEO_FORMAT_VALID) {
+            num_valid_entries++;
+        }
     }
     
-    ctk_gvo->has_output_video_formats =
-        ((dmenu->num_entries > 0) ? TRUE : FALSE);
-
-    if (!ctk_gvo->has_output_video_formats) {
-        nv_warning_msg("No GVO video formats will fit the current X screen of "
-                       "%d x %d; please create an X screen of atleast "
-                       "720 x 487; not exposing GVO page.\n",
+    /* Show special menu if there are no valid entries */
+    if (num_valid_entries <= 0) {
+        nv_warning_msg("There are currently no GVO video formats valid for "
+                       "use with Clone Mode.  Please make sure that the X "
+                       "screen resolution (currently %d x %d) is at least "
+                       "720 x 487.\n",
                        ctk_gvo->screen_width, ctk_gvo->screen_height);
 
-        ctk_drop_down_menu_append_item
-            (dmenu,
-             "*** X Screen is smaller than 720x487 ***",
-             0);
+        ctk_drop_down_menu_reset(CTK_DROP_DOWN_MENU(dmenu));
+        label = ctk_drop_down_menu_append_item(dmenu,
+                                               "*** X screen is smaller than "
+                                               "720x487 ***",
+                                               ctk_gvo->output_video_format);
+        gtk_widget_set_sensitive(label, FALSE);
     }
 
-    /* Trim output video format based on sync mode */
-    trim_output_video_format_menu(ctk_gvo);
-
 } /* fill_output_video_format_menu() */
+
+
+
+/*
+ * rebuild_output_video_format_menu() - Reconsutrcts the output data format
+ * menu.
+ */
+
+static void rebuild_output_video_format_menu(CtkGvo *ctk_gvo)
+{
+    CtkDropDownMenu *dmenu =
+        CTK_DROP_DOWN_MENU(ctk_gvo->output_video_format_menu);
+
+    g_signal_handlers_block_by_func
+        (G_OBJECT(dmenu),
+         G_CALLBACK(output_video_format_ui_changed),
+         (gpointer) ctk_gvo);
+
+    fill_output_video_format_menu(ctk_gvo);
+   
+    ctk_drop_down_menu_set_current_value
+        (CTK_DROP_DOWN_MENU(ctk_gvo->output_video_format_menu),
+         ctk_gvo->output_video_format);
+
+    gtk_widget_show_all(GTK_WIDGET(dmenu));
+
+    g_signal_handlers_unblock_by_func
+        (G_OBJECT(dmenu),
+         G_CALLBACK(output_video_format_ui_changed),
+         (gpointer) ctk_gvo);
+
+    update_gvo_sensitivity(ctk_gvo);
+
+} /* rebuild_output_video_format_menu() */
+
+
+
+/*
+ * fill_output_data_format_menu() - Populates the output data format menu.
+ */
+
+static void fill_output_data_format_menu(CtkGvo *ctk_gvo)
+{
+    int i;
+    CtkDropDownMenu *dmenu =
+        CTK_DROP_DOWN_MENU(ctk_gvo->output_data_format_menu);
+    GtkWidget *label;
+    gboolean valid;
+    gchar *str;
+   
+    ctk_drop_down_menu_reset(CTK_DROP_DOWN_MENU(dmenu));
+
+    for (i = 0; dataFormatNames[i].name; i++) {
+        valid = ctk_gvo_data_format_valid(dataFormatNames[i].format);
+        if (!valid &&
+            (ctk_gvo->output_data_format != dataFormatNames[i].format)) {
+            continue;
+        }
+
+        if (valid) {
+            str = (gchar *)dataFormatNames[i].name;
+        } else {
+            str = g_strconcat(dataFormatNames[i].name,
+                              " - Invalid for Clone Mode", NULL);
+        }
+
+        label = ctk_drop_down_menu_append_item(dmenu, str,
+                                               dataFormatNames[i].format);
+        if (str != dataFormatNames[i].name) {
+            g_free(str);
+        }
+
+        gtk_widget_set_sensitive(label, (valid ? TRUE : FALSE));
+    }
+
+} /* fill_output_data_format_menu() */
+
+
+
+/*
+ * rebuild_output_data_format_menu() - Reconsutrcts the output data format
+ * menu.
+ */
+
+static void rebuild_output_data_format_menu(CtkGvo *ctk_gvo)
+{
+    CtkDropDownMenu *dmenu =
+        CTK_DROP_DOWN_MENU(ctk_gvo->output_data_format_menu);
+
+    g_signal_handlers_block_by_func
+        (G_OBJECT(dmenu),
+         G_CALLBACK(output_data_format_ui_changed),
+         (gpointer) ctk_gvo);
+
+    fill_output_data_format_menu(ctk_gvo);
+   
+    ctk_drop_down_menu_set_current_value
+        (CTK_DROP_DOWN_MENU(ctk_gvo->output_data_format_menu),
+         ctk_gvo->output_data_format);
+
+    gtk_widget_show_all(GTK_WIDGET(dmenu));
+
+    g_signal_handlers_unblock_by_func
+        (G_OBJECT(dmenu),
+         G_CALLBACK(output_data_format_ui_changed),
+         (gpointer) ctk_gvo);
+
+    update_gvo_sensitivity(ctk_gvo);
+
+} /* rebuild_output_data_format_menu() */
+
 
 
 
@@ -1157,6 +1146,7 @@ static gboolean query_init_gvo_state(CtkGvo *ctk_gvo)
 {
     gint val;
     ReturnStatus ret;
+    NVCTRLAttributeValidValuesRec valid;
 
 
     /* Check if this screen supports GVO */
@@ -1202,6 +1192,27 @@ static gboolean query_init_gvo_state(CtkGvo *ctk_gvo)
         val = DEFAULT_OUTPUT_VIDEO_FORMAT;
     }
     ctk_gvo->output_video_format = val;
+    
+    /* Valid output video formats */
+
+    ret = NvCtrlGetValidAttributeValues(ctk_gvo->handle,
+                                        NV_CTRL_GVO_OUTPUT_VIDEO_FORMAT,
+                                        &valid);
+    if ((ret != NvCtrlSuccess) || (valid.type != ATTRIBUTE_TYPE_INT_BITS)) {
+        ctk_gvo->valid_output_video_format_mask[0] = 0;
+    } else {
+        ctk_gvo->valid_output_video_format_mask[0] = valid.u.bits.ints;
+    }
+    
+    ret = NvCtrlGetValidAttributeValues(ctk_gvo->handle,
+                                        NV_CTRL_GVO_OUTPUT_VIDEO_FORMAT2,
+                                        &valid);
+    
+    if ((ret != NvCtrlSuccess) || (valid.type != ATTRIBUTE_TYPE_INT_BITS)) {
+        ctk_gvo->valid_output_video_format_mask[1] = 0;
+    } else {
+        ctk_gvo->valid_output_video_format_mask[1] = valid.u.bits.ints;
+    }
 
     /* Output data format */
 
@@ -1323,13 +1334,30 @@ static void output_video_format_ui_changed(CtkDropDownMenu *menu,
                                            gpointer user_data)
 {
     CtkGvo *ctk_gvo = CTK_GVO(user_data);
+    guint was_valid;
+
+    was_valid = ctk_gvo_video_format_valid(ctk_gvo,
+                                           ctk_gvo->output_video_format);
 
     ctk_gvo->output_video_format = ctk_drop_down_menu_get_current_value(menu);
-    ctk_gvo->output_video_format_valid = TRUE;
+
+    if (ctk_gvo_video_format_valid(ctk_gvo, ctk_gvo->output_video_format) !=
+        GVO_VIDEO_FORMAT_VALID) {
+        /* Video format is invalid, don't set it */
+        update_gvo_sensitivity(ctk_gvo);
+        return;
+    }
 
     NvCtrlSetAttribute(ctk_gvo->handle,
                        NV_CTRL_GVO_OUTPUT_VIDEO_FORMAT,
                        ctk_gvo->output_video_format);
+
+    /* Rebuild menu to remove previously invalid entry */
+    if (was_valid != GVO_VIDEO_FORMAT_VALID) {
+        rebuild_output_video_format_menu(ctk_gvo);
+    }
+
+    update_gvo_sensitivity(ctk_gvo);
 
     post_output_video_format_changed(ctk_gvo);
     
@@ -1346,13 +1374,29 @@ static void output_data_format_ui_changed(CtkDropDownMenu *menu,
                                           gpointer user_data)
 {
     CtkGvo *ctk_gvo = CTK_GVO(user_data);
-    
+    gboolean was_valid;
+
+
+    was_valid = ctk_gvo_data_format_valid(ctk_gvo->output_data_format);
+
     ctk_gvo->output_data_format = ctk_drop_down_menu_get_current_value(menu);
-    ctk_gvo->output_data_format_valid = TRUE;
+
+    if (!ctk_gvo_data_format_valid(ctk_gvo->output_data_format)) {
+        /* Data format is invalid, don't set it */
+        update_gvo_sensitivity(ctk_gvo);
+        return;
+    }
     
     NvCtrlSetAttribute(ctk_gvo->handle, NV_CTRL_GVO_DATA_FORMAT,
                        ctk_gvo->output_data_format);
-    
+
+    /* Rebuild menu to remove previously invalid entry */
+    if (!was_valid) {
+        rebuild_output_data_format_menu(ctk_gvo);
+    }
+
+    update_gvo_sensitivity(ctk_gvo);
+
     post_output_data_format_changed(ctk_gvo);
     
 } /* output_data_format_ui_changed() */
@@ -1408,39 +1452,11 @@ static void clone_mode_button_ui_toggled(GtkWidget *button, gpointer user_data)
     gint val;
 
     enabled = gtk_toggle_button_get_active(GTK_TOGGLE_BUTTON(button));
-    
-
-    /*
-     * When enabling clone mode, we must make sure that the output
-     * video format and output data format are something clone mode
-     * can support.
-     */
-
-    if (enabled) {
-        if (!ctk_gvo->output_video_format_valid) {
-            val = ctk_drop_down_menu_get_current_value
-                (CTK_DROP_DOWN_MENU(ctk_gvo->output_video_format_menu));
-            ctk_gvo->output_video_format = val;
-            ctk_gvo->output_video_format_valid = TRUE;
-            NvCtrlSetAttribute(ctk_gvo->handle,
-                               NV_CTRL_GVO_OUTPUT_VIDEO_FORMAT,
-                               ctk_gvo->output_video_format);
-        }
-        if (!ctk_gvo->output_data_format_valid) {
-            val = ctk_drop_down_menu_get_current_value
-                (CTK_DROP_DOWN_MENU(ctk_gvo->output_data_format_menu));
-            ctk_gvo->output_data_format = val;
-            ctk_gvo->output_data_format_valid = TRUE;
-            NvCtrlSetAttribute(ctk_gvo->handle,
-                               NV_CTRL_GVO_DATA_FORMAT,
-                               val);
-        }
-    }
 
     if (enabled) val = NV_CTRL_GVO_DISPLAY_X_SCREEN_ENABLE;
     else         val = NV_CTRL_GVO_DISPLAY_X_SCREEN_DISABLE;
     NvCtrlSetAttribute(ctk_gvo->handle, NV_CTRL_GVO_DISPLAY_X_SCREEN, val);
-    
+
     /*
      * XXX NV_CTRL_GVO_DISPLAY_X_SCREEN can silently fail if GLX
      * locked GVO output for use by pbuffer(s).  Check that the
@@ -1662,6 +1678,8 @@ static void update_offset_spin_button_ranges(CtkGvo *ctk_gvo)
 static void update_gvo_sensitivity(CtkGvo *ctk_gvo)
 {
     gboolean sensitive;
+    guint video_format_valid;
+    gboolean data_format_valid;
 
     sensitive = ((ctk_gvo->lock_owner == NV_CTRL_GVO_LOCK_OWNER_NONE) ||
                  (ctk_gvo->lock_owner == NV_CTRL_GVO_LOCK_OWNER_CLONE));
@@ -1673,17 +1691,23 @@ static void update_gvo_sensitivity(CtkGvo *ctk_gvo)
         /* Video & data formats */
         
         sensitive = (ctk_gvo->lock_owner == NV_CTRL_GVO_LOCK_OWNER_NONE);
+        gtk_widget_set_sensitive(ctk_gvo->output_video_format_menu, sensitive);
         gtk_widget_set_sensitive(ctk_gvo->output_data_format_menu, sensitive);
         
-        sensitive = (sensitive && ctk_gvo->has_output_video_formats);
-        gtk_widget_set_sensitive(ctk_gvo->output_video_format_menu, sensitive);
-
         /* Enable/Disable clone mode button */
 
+        video_format_valid =
+            ctk_gvo_video_format_valid(ctk_gvo, ctk_gvo->output_video_format);
+
+        data_format_valid =
+            ctk_gvo_data_format_valid(ctk_gvo->output_data_format);
+
         sensitive = 
+            (ctk_gvo->lock_owner == NV_CTRL_GVO_LOCK_OWNER_CLONE) ||
             ((ctk_gvo->lock_owner == NV_CTRL_GVO_LOCK_OWNER_NONE) &&
-             ctk_gvo->has_output_video_formats) ||
-            (ctk_gvo->lock_owner == NV_CTRL_GVO_LOCK_OWNER_CLONE);
+             (video_format_valid == GVO_VIDEO_FORMAT_VALID) &&
+             data_format_valid);
+            
         gtk_widget_set_sensitive(ctk_gvo->toggle_clone_mode_button, sensitive);
     }
 
@@ -1694,7 +1718,7 @@ static void update_gvo_sensitivity(CtkGvo *ctk_gvo)
 /**** Event Handlers *********************************************************/
 
 /*
- * gvo_event_received(() - Handles GVO NV-CONTROL events.
+ * gvo_event_received() - Handles GVO NV-CONTROL events.
  */
 
 static void gvo_event_received(GtkObject *object,
@@ -1714,53 +1738,21 @@ static void gvo_event_received(GtkObject *object,
     case NV_CTRL_GVO_OUTPUT_VIDEO_FORMAT:
         widget = ctk_gvo->output_video_format_menu;
         
-        g_signal_handlers_block_by_func
-            (G_OBJECT(widget),
-             G_CALLBACK(output_video_format_ui_changed),
-             (gpointer) ctk_gvo);
-        
         ctk_gvo->output_video_format = value;
-        validate_output_video_format(ctk_gvo);
-       
-        /* Update the dropdown with a reasonable value */
-        if (!ctk_gvo->output_video_format_valid) {
-            value = get_first_available_output_video_format(ctk_gvo);
-        }
-        ctk_drop_down_menu_set_current_value
-            (CTK_DROP_DOWN_MENU(widget), value);
+
+        rebuild_output_video_format_menu(ctk_gvo);
 
         post_output_video_format_changed(ctk_gvo);
-
-        g_signal_handlers_unblock_by_func
-            (G_OBJECT(widget),
-             G_CALLBACK(output_video_format_ui_changed),
-             (gpointer) ctk_gvo);
         break;
         
     case NV_CTRL_GVO_DATA_FORMAT:
         widget = ctk_gvo->output_data_format_menu;
-        
-        g_signal_handlers_block_by_func
-            (G_OBJECT(widget),
-             G_CALLBACK(output_data_format_ui_changed),
-             (gpointer) ctk_gvo);
 
         ctk_gvo->output_data_format = value;
-        validate_output_data_format(ctk_gvo);
-       
-        /* Update the dropdown with a reasonable value */
-        if (!ctk_gvo->output_data_format_valid) {
-            value = DEFAULT_OUTPUT_DATA_FORMAT;
-        }
-        ctk_drop_down_menu_set_current_value
-            (CTK_DROP_DOWN_MENU(widget), value);
+
+        rebuild_output_data_format_menu(ctk_gvo);
 
         post_output_data_format_changed(ctk_gvo);
-
-        g_signal_handlers_unblock_by_func
-            (G_OBJECT(widget),
-             G_CALLBACK(output_data_format_ui_changed),
-             (gpointer) ctk_gvo);
         break;
  
     case NV_CTRL_GVO_X_SCREEN_PAN_X:
@@ -1825,59 +1817,17 @@ static void screen_changed_handler(GtkWidget *widget,
                                    gpointer data)
 {
     CtkGvo *ctk_gvo = CTK_GVO(data);
-    CtkDropDownMenu *dmenu;
-    gint val;
 
     /* Cache the new screen dimensions */
 
     ctk_gvo->screen_width = ev->width;
     ctk_gvo->screen_height = ev->height;
 
-    /* Update the output video format drop down menu and reset the list */
-
-    dmenu = CTK_DROP_DOWN_MENU(ctk_gvo->output_video_format_menu);
-
-    /* Get the currently selected value */
-
-    val = ctk_drop_down_menu_get_current_value
-        (CTK_DROP_DOWN_MENU(ctk_gvo->output_video_format_menu));
-
-    /* Reset the drop down menu */
-
-    ctk_drop_down_menu_reset(dmenu);
-    
-    /* Fill the menu with the new valid video modes */
-
-    fill_output_video_format_menu(ctk_gvo);
-
-    /* Finalize and load the menu */
-
-    g_signal_handlers_block_by_func
-        (G_OBJECT(ctk_gvo->output_video_format_menu),
-         G_CALLBACK(output_video_format_ui_changed),
-         (gpointer) ctk_gvo);
-
-    ctk_drop_down_menu_finalize(dmenu);
-    
-    /* Set best valid output video format value possible.
-     * Revalidate here since the screen change could cause
-     * the current output video mode to now be valid.
-     */
-    
-    validate_output_video_format(ctk_gvo);
-    if (ctk_gvo->output_video_format_valid) {
-        val = ctk_gvo->output_video_format;
-    }
-
-    ctk_drop_down_menu_set_current_value
-        (CTK_DROP_DOWN_MENU(ctk_gvo->output_video_format_menu), val);
-
-    g_signal_handlers_unblock_by_func
-        (G_OBJECT(ctk_gvo->output_video_format_menu),
-         G_CALLBACK(output_video_format_ui_changed),
-         (gpointer) ctk_gvo);    
-
     /* Update UI */
+
+    rebuild_output_video_format_menu(ctk_gvo);
+
+    rebuild_output_data_format_menu(ctk_gvo);
 
     update_gvo_current_info(ctk_gvo);
 
@@ -1925,7 +1875,7 @@ gint ctk_gvo_probe_callback(gpointer data)
         
         /* update the available output video formats */
         
-        trim_output_video_format_menu(ctk_gvo);    
+        rebuild_output_video_format_menu(ctk_gvo);    
     }
 
     return TRUE;
@@ -2009,7 +1959,12 @@ GtkTextBuffer* ctk_gvo_create_help(GtkTextTagTable *table)
                   "Free-Running (see Synchronization Options page for more "
                   "information).", __clone_mode_video_format_help);
     ctk_help_heading(b, &i, "Data Format");
-    ctk_help_para(b, &i, __clone_mode_data_format_help);
+    ctk_help_para(b, &i, "%s Note that other NV-CONTROL clients are still "
+                  "able to select a data format that is not supported with "
+                  "clone mode.  In this case, the current data format will "
+                  "be shown as \"Invalid for Clone Mode\" and you will need "
+                  "to select a valid data format in order to enable Clone "
+                  "Mode.", __clone_mode_data_format_help);
     ctk_help_heading(b, &i, "X Offset");
     ctk_help_para(b, &i, __clone_mode_x_offset_help);
     ctk_help_heading(b, &i, "Y Offset");

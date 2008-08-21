@@ -64,6 +64,11 @@ struct _CtkColorCorrection
     GtkObject *brightness_adjustment;
     GtkObject *contrast_adjustment;
     GtkObject *gamma_adjustment;
+    GtkWidget *confirm_button;
+    gint confirm_countdown;
+    guint confirm_timer;
+    gfloat cur_val[3][3];  // as [attribute][channel]
+    gfloat prev_val[3][3]; // as [attribute][channel]
     guint enabled_display_devices;
 };
 

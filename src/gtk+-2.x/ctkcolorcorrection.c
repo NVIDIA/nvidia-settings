@@ -51,6 +51,13 @@ static const char *__active_color_help = "The Active Color Channel drop-down "
 static const char *__resest_button_help = "The Reset Hardware Defaults "
 "button restores the color correction settings to their default values.";
 
+static const char *__confirm_button_help = "Some color correction settings "
+"can yield an unusable display "
+"(e.g., making the display unreadably dark or light).  When you "
+"change the color correction values, the '10 Seconds to Confirm' "
+"button will count down to zero.  If you have not clicked the "
+"button by then to accept the changes, it will restore your previous values.";
+
 static const char *__color_curve_help = "The color curve graph changes to "
 "reflect your adjustments made with the Brightness, Constrast, and Gamma "
 "sliders.";
@@ -62,23 +69,34 @@ static void
 set_button_sensitive        (GtkButton *);
 
 static void
-button_clicked              (GtkButton *, gpointer);
+reset_button_clicked        (GtkButton *, gpointer);
+
+static void
+set_color_state           (CtkColorCorrection *, gint, gint, gfloat, gboolean);
+
+static void
+confirm_button_clicked      (GtkButton *, gpointer);
 
 static void
 adjustment_value_changed    (GtkAdjustment *, gpointer);
-
 
 static gfloat
 get_attribute_channel_value (CtkColorCorrection *, gint, gint);
 
 static void
-set_attribute_channel_value (CtkColorCorrection *, gint, gint, gfloat);
+flush_attribute_channel_values (CtkColorCorrection *, gint, gint, gfloat);
 
 static void
 ctk_color_correction_class_init(CtkColorCorrectionClass *);
 
 static void
 apply_parsed_attribute_list(CtkColorCorrection *, ParsedAttribute *);
+
+static gboolean
+do_confirm_countdown (gpointer);
+
+static void
+update_confirm_text  (CtkColorCorrection *);
 
 enum {
     CHANGED,
@@ -87,6 +105,15 @@ enum {
 
 static guint signals[LAST_SIGNAL] = { 0 };
 
+#define RED        RED_CHANNEL_INDEX
+#define GREEN      GREEN_CHANNEL_INDEX
+#define BLUE       BLUE_CHANNEL_INDEX
+
+#define CONTRAST   (CONTRAST_INDEX - CONTRAST_INDEX)
+#define BRIGHTNESS (BRIGHTNESS_INDEX - CONTRAST_INDEX)
+#define GAMMA      (GAMMA_INDEX - CONTRAST_INDEX)
+
+#define DEFAULT_CONFIRM_COLORCORRECTION_TIMEOUT 10
 
 #define CREATE_COLOR_ADJUSTMENT(adj, attr, min, max)          \
 {                                                             \
@@ -171,7 +198,7 @@ GtkWidget* ctk_color_correction_new(NvCtrlAttributeHandle *handle,
     GtkWidget *rightvbox;
     GtkWidget *hbox;
     GtkWidget *vbox;
-    GtkWidget *button;
+    GtkWidget *button, *confirm_button;
     GtkWidget *widget;
     GtkWidget *hsep;
     GtkWidget *eventbox;
@@ -183,12 +210,20 @@ GtkWidget* ctk_color_correction_new(NvCtrlAttributeHandle *handle,
     ret = NvCtrlGetAttribute(handle, NV_CTRL_ATTR_EXT_VM_PRESENT, &val);
     if ((ret != NvCtrlSuccess) || (val == FALSE)) return NULL;
     
+    /* check if the noScanout mode enabled */
+
+    ret = NvCtrlGetAttribute(handle, NV_CTRL_NO_SCANOUT, &val);
+    if ((ret == NvCtrlSuccess) && (val == NV_CTRL_NO_SCANOUT_ENABLED))
+        return NULL;
+    
     object = g_object_new(CTK_TYPE_COLOR_CORRECTION, NULL);
 
     ctk_color_correction = CTK_COLOR_CORRECTION(object);
     ctk_color_correction->handle = handle;
     ctk_color_correction->ctk_config = ctk_config;
-
+    ctk_color_correction->confirm_timer = 0;
+    ctk_color_correction->confirm_countdown =
+        DEFAULT_CONFIRM_COLORCORRECTION_TIMEOUT;
     apply_parsed_attribute_list(ctk_color_correction, p);
 
     gtk_box_set_spacing(GTK_BOX(ctk_color_correction), 10);
@@ -327,16 +362,24 @@ GtkWidget* ctk_color_correction_new(NvCtrlAttributeHandle *handle,
      * settings to their respective default values (for all channels).
      */
 
-    label = gtk_label_new("Reset Hardware Defaults");
     hbox = gtk_hbox_new(FALSE, 0);
-    button = gtk_button_new();
+    button = gtk_button_new_with_label("Reset Hardware Defaults");
+    gtk_box_pack_end(GTK_BOX(hbox), button, FALSE, FALSE, 0);
     
-    gtk_box_pack_start(GTK_BOX(hbox), label, FALSE, FALSE, 15);
-    gtk_container_add(GTK_CONTAINER(button), hbox);
+    confirm_button = gtk_button_new_with_label("Confirm Current Changes");
+    gtk_box_pack_end(GTK_BOX(hbox), confirm_button, FALSE, FALSE, 5);
+    gtk_widget_set_sensitive(confirm_button, FALSE);
     
-    g_signal_connect(G_OBJECT(button), "clicked", G_CALLBACK(button_clicked),
+    g_signal_connect(G_OBJECT(button), "clicked", G_CALLBACK(reset_button_clicked),
                      (gpointer) ctk_color_correction);
 
+    g_signal_connect(G_OBJECT(confirm_button), "clicked",
+                     G_CALLBACK(confirm_button_clicked),
+                     (gpointer) ctk_color_correction);
+
+    ctk_color_correction->confirm_button = confirm_button;
+    gtk_widget_set_size_request(confirm_button, 160, -1);
+    ctk_config_set_tooltip(ctk_config, confirm_button, __confirm_button_help);
     ctk_config_set_tooltip(ctk_config, button, __resest_button_help);
 
     /*
@@ -450,7 +493,7 @@ GtkWidget* ctk_color_correction_new(NvCtrlAttributeHandle *handle,
      */
 
     alignment = gtk_alignment_new(1, 1, 0, 0);
-    gtk_container_add(GTK_CONTAINER(alignment), button);
+    gtk_container_add(GTK_CONTAINER(alignment), hbox);
     gtk_box_pack_start(GTK_BOX(object), alignment, TRUE, TRUE, 0);
 
     /* finally, show the widget */
@@ -535,21 +578,89 @@ static void set_button_sensitive(
     gtk_widget_set_sensitive (GTK_WIDGET (button), TRUE);
 }
 
-static void button_clicked(
+
+
+/** set_color_state() *******************
+ *
+ * Stores color state to cur_val[attribute][channel]
+ * and prev_val[attribute][channel].
+ *
+ **/
+
+static void set_color_state(CtkColorCorrection *ctk_color_correction,
+    gint attribute_idx, gint channel_idx,
+    gfloat value, gboolean all
+)
+{
+    if ( channel_idx != ALL_CHANNELS ) {
+        ctk_color_correction->cur_val
+            [attribute_idx][channel_idx] = value;
+        if ( all ) {
+            ctk_color_correction->prev_val
+                [attribute_idx][channel_idx] = value;
+        }
+    } else {
+        gint ch;
+        for ( ch = RED; ch <= BLUE; ch++ ) {
+            set_color_state(ctk_color_correction, attribute_idx, ch, value, all);
+        }
+    }
+} /* set_color_state() */
+
+
+
+/** confirm_button_clicked() *************
+ *
+ * Callback function which stores current values to previous value when user
+ * clicks Confirm button.
+ *
+ **/
+
+static void confirm_button_clicked(
+   GtkButton *button,
+   gpointer user_data
+)
+{
+    CtkColorCorrection *ctk_color_correction = CTK_COLOR_CORRECTION(user_data);
+
+    /* Store cur_val[attribute][channel] to prev_val[attribute][channel]. */
+    memcpy (ctk_color_correction->prev_val, ctk_color_correction->cur_val,
+            sizeof(ctk_color_correction->cur_val));
+    
+    /* kill the timer */
+    g_source_remove(ctk_color_correction->confirm_timer);
+    ctk_color_correction->confirm_timer = 0;
+    
+    /* Reset confirm button text */
+    gtk_button_set_label(GTK_BUTTON(ctk_color_correction->confirm_button),
+                         "Confirm Current Changes");
+    
+    gtk_widget_set_sensitive(ctk_color_correction->confirm_button, FALSE);
+} /* confirm_button_clicked() */
+        
+
+
+static void reset_button_clicked(
     GtkButton *button,
     gpointer user_data
 )
 {
     CtkColorCorrection *ctk_color_correction;
-    gfloat c[3] = {CONTRAST_DEFAULT,   CONTRAST_DEFAULT,   CONTRAST_DEFAULT};
-    gfloat b[3] = {BRIGHTNESS_DEFAULT, BRIGHTNESS_DEFAULT, BRIGHTNESS_DEFAULT};
-    gfloat g[3] = {GAMMA_DEFAULT,      GAMMA_DEFAULT,      GAMMA_DEFAULT};
     GtkOptionMenu *option_menu;
-        
     ctk_color_correction = CTK_COLOR_CORRECTION(user_data);
+    /* Set default values */
+    set_color_state(ctk_color_correction, CONTRAST, ALL_CHANNELS,
+                    CONTRAST_DEFAULT, TRUE);
+    set_color_state(ctk_color_correction, BRIGHTNESS, ALL_CHANNELS,
+                    BRIGHTNESS_DEFAULT, TRUE);
+    set_color_state(ctk_color_correction, GAMMA, ALL_CHANNELS,
+                    GAMMA_DEFAULT, TRUE);
 
-    NvCtrlSetColorAttributes(ctk_color_correction->handle, c, b, g,
-                             ALL_CHANNELS | ALL_VALUES);
+    NvCtrlSetColorAttributes(ctk_color_correction->handle,
+                             ctk_color_correction->cur_val[CONTRAST],
+                             ctk_color_correction->cur_val[BRIGHTNESS],
+                             ctk_color_correction->cur_val[GAMMA],
+                             ALL_VALUES | ALL_CHANNELS); 
     
     option_menu = GTK_OPTION_MENU(ctk_color_correction->option_menu);
     
@@ -568,7 +679,16 @@ static void button_clicked(
     ctk_config_statusbar_message(ctk_color_correction->ctk_config,
                                  "Reset color correction hardware defaults.");
 
+    gtk_widget_set_sensitive(GTK_WIDGET(ctk_color_correction->confirm_button),
+                             FALSE);
     gtk_widget_set_sensitive(GTK_WIDGET(button), FALSE);
+    /* kill the timer */
+    g_source_remove(ctk_color_correction->confirm_timer);
+    ctk_color_correction->confirm_timer = 0;
+    
+    /* Reset confirm button text */
+    gtk_button_set_label(GTK_BUTTON(ctk_color_correction->confirm_button),
+                         "Confirm Current Changes");
 }
 
 static void adjustment_value_changed(
@@ -578,6 +698,7 @@ static void adjustment_value_changed(
 {
     CtkColorCorrection *ctk_color_correction;
     gint attribute, channel;
+    gint attribute_idx, channel_idx;
     gfloat value;
     gchar *channel_str, *attribute_str;
 
@@ -591,28 +712,67 @@ static void adjustment_value_changed(
     channel = GPOINTER_TO_INT(user_data);
 
     value = gtk_adjustment_get_value(adjustment);
+    
+    /* start timer for confirming changes */
+    ctk_color_correction->confirm_countdown =
+        DEFAULT_CONFIRM_COLORCORRECTION_TIMEOUT;
+    update_confirm_text(ctk_color_correction);
 
-    set_attribute_channel_value(ctk_color_correction,
-                                attribute, channel, value);
+    if (ctk_color_correction->confirm_timer == 0) {
+        ctk_color_correction->confirm_timer =
+            g_timeout_add(1000,
+                          (GSourceFunc)do_confirm_countdown,
+                          (gpointer) (ctk_color_correction));
+    }
 
     switch (attribute) {
-      case CONTRAST_VALUE:   attribute_str = "contrast";   break;
-      case BRIGHTNESS_VALUE: attribute_str = "brightness"; break;
-      case GAMMA_VALUE:      attribute_str = "gamma";      break;
-      default:               attribute_str = "unknown";    break;
+    case CONTRAST_VALUE:
+        attribute_idx = CONTRAST;
+        attribute_str = "contrast";
+        break;
+    case BRIGHTNESS_VALUE:
+        attribute_idx = BRIGHTNESS;
+        attribute_str = "brightness";
+        break;
+    case GAMMA_VALUE:
+        attribute_idx = GAMMA;
+        attribute_str = "gamma";
+        break;
+    default:
+        return;
     }
 
     switch (channel) {
-      case RED_CHANNEL:   channel_str = "red ";   break;
-      case GREEN_CHANNEL: channel_str = "green "; break;
-      case BLUE_CHANNEL:  channel_str = "blue ";  break;
-      case ALL_CHANNELS:  /* fall through */
-      default:            channel_str = "";       break;
+    case RED_CHANNEL:
+        channel_idx = RED;
+        channel_str = "red ";
+        break;
+    case GREEN_CHANNEL:
+        channel_idx = GREEN;
+        channel_str = "green ";
+        break;
+    case BLUE_CHANNEL:
+        channel_idx = BLUE;
+        channel_str = "blue ";
+        break;
+    case ALL_CHANNELS:
+        channel_idx = ALL_CHANNELS;
+        channel_str = "";
+        break;
+    default:
+        return;
     }
 
+    set_color_state(ctk_color_correction, attribute_idx, channel_idx,
+                    value, FALSE);
+    
+    flush_attribute_channel_values(ctk_color_correction,
+                                attribute, channel, value);
+    
     ctk_config_statusbar_message(ctk_color_correction->ctk_config,
                                  "Set %s%s to %f.",
                                  channel_str, attribute_str, value);
+    gtk_widget_set_sensitive(ctk_color_correction->confirm_button, TRUE);
 }
 
 
@@ -652,7 +812,7 @@ static gfloat get_attribute_channel_value(CtkColorCorrection
     }
 }
 
-static void set_attribute_channel_value(
+static void flush_attribute_channel_values(
     CtkColorCorrection *ctk_color_correction,
     gint attribute,
     gint channel,
@@ -660,70 +820,88 @@ static void set_attribute_channel_value(
 )
 {
     NvCtrlAttributeHandle *handle = ctk_color_correction->handle;
-    gfloat v[3];
     
-    v[0] = v[1] = v[2] = value;
-    
-    NvCtrlSetColorAttributes(handle, v, v, v, attribute | channel);
+    NvCtrlSetColorAttributes(handle,
+                             ctk_color_correction->cur_val[CONTRAST],
+                             ctk_color_correction->cur_val[BRIGHTNESS],
+                             ctk_color_correction->cur_val[GAMMA],
+                             attribute | channel);
     
     g_signal_emit(ctk_color_correction, signals[CHANGED], 0);
 }
 
-
-#define RED   RED_CHANNEL_INDEX
-#define GREEN GREEN_CHANNEL_INDEX
-#define BLUE  BLUE_CHANNEL_INDEX
 
 static void apply_parsed_attribute_list(
     CtkColorCorrection *ctk_color_correction,
     ParsedAttribute *p
 )
 {
-    float c[3], b[3], g[3];
-    char *this_display_name, *display_name;
+    int target_type, target_id;
     unsigned int attr = 0;
     
-    this_display_name = NvCtrlGetDisplayName(ctk_color_correction->handle);
-    
-    c[0] = c[1] = c[2] = CONTRAST_DEFAULT;
-    b[0] = b[1] = b[2] = BRIGHTNESS_DEFAULT;
-    g[0] = g[1] = g[2] = GAMMA_DEFAULT;
-    
-    while (p) {
+    set_color_state(ctk_color_correction, CONTRAST, ALL_CHANNELS,
+                    CONTRAST_DEFAULT, TRUE);
+    set_color_state(ctk_color_correction, BRIGHTNESS, ALL_CHANNELS,
+                    BRIGHTNESS_DEFAULT, TRUE);
+    set_color_state(ctk_color_correction, GAMMA, ALL_CHANNELS,
+                    GAMMA_DEFAULT, TRUE);
 
-        display_name = NULL;
+    target_type = NvCtrlGetTargetType(ctk_color_correction->handle);
+    target_id = NvCtrlGetTargetId(ctk_color_correction->handle);
+
+    while (p) {
 
         if (!p->next) goto next_attribute;
         
         if (!(p->flags & NV_PARSER_TYPE_COLOR_ATTRIBUTE)) goto next_attribute;
         
         /*
-         * if this parsed attribute's display name does not match the
-         * current display name, then ignore
+         * if this parsed attribute's target_type, target_id does not match the
+         * current target_type and target_id then ignore
          */
         
-        display_name = nv_standardize_screen_name(p->display, -1);
-        
-        if (strcmp(display_name, this_display_name) != 0) goto next_attribute;
+        if ((p->target_type != target_type) ||
+            (p->target_id != target_id)) goto next_attribute;
         
         switch (p->attr & (ALL_VALUES | ALL_CHANNELS)) {
-        case (CONTRAST_VALUE | RED_CHANNEL):     c[RED]   = p->fval; break;
-        case (CONTRAST_VALUE | GREEN_CHANNEL):   c[GREEN] = p->fval; break;
-        case (CONTRAST_VALUE | BLUE_CHANNEL):    c[BLUE]  = p->fval; break;
+        case (CONTRAST_VALUE | RED_CHANNEL):
+            set_color_state(ctk_color_correction, CONTRAST,
+                            RED, p->fval, TRUE); break;
+        case (CONTRAST_VALUE | GREEN_CHANNEL):
+            set_color_state(ctk_color_correction, CONTRAST,
+                            GREEN, p->fval, TRUE); break;
+        case (CONTRAST_VALUE | BLUE_CHANNEL):
+            set_color_state(ctk_color_correction, CONTRAST,
+                            BLUE, p->fval, TRUE); break;
         case (CONTRAST_VALUE | ALL_CHANNELS):
-            c[RED] = c[GREEN] = c[BLUE] = p->fval; break;
-                                  
-        case (BRIGHTNESS_VALUE | RED_CHANNEL):   b[RED]   = p->fval; break;
-        case (BRIGHTNESS_VALUE | GREEN_CHANNEL): b[GREEN] = p->fval; break;
-        case (BRIGHTNESS_VALUE | BLUE_CHANNEL):  b[BLUE]  = p->fval; break;
+            set_color_state(ctk_color_correction, CONTRAST,
+                            ALL_CHANNELS, p->fval, TRUE); break;
+
+        case (BRIGHTNESS_VALUE | RED_CHANNEL):
+            set_color_state(ctk_color_correction, BRIGHTNESS,
+                            RED, p->fval, TRUE); break;
+        case (BRIGHTNESS_VALUE | GREEN_CHANNEL):
+            set_color_state(ctk_color_correction, BRIGHTNESS,
+                            GREEN, p->fval, TRUE); break;
+        case (BRIGHTNESS_VALUE | BLUE_CHANNEL):
+            set_color_state(ctk_color_correction, BRIGHTNESS,
+                            BLUE, p->fval, TRUE); break;
         case (BRIGHTNESS_VALUE | ALL_CHANNELS):
-            b[RED] = b[GREEN] = b[BLUE] = p->fval; break;
-            
-        case (GAMMA_VALUE | RED_CHANNEL):        g[RED]   = p->fval; break;
-        case (GAMMA_VALUE | GREEN_CHANNEL):      g[GREEN] = p->fval; break;
-        case (GAMMA_VALUE | BLUE_CHANNEL):       g[BLUE]  = p->fval; break;
+            set_color_state(ctk_color_correction, BRIGHTNESS,
+                            ALL_CHANNELS, p->fval, TRUE); break;
+
+        case (GAMMA_VALUE | RED_CHANNEL):
+            set_color_state(ctk_color_correction, GAMMA,
+                            RED, p->fval, TRUE); break;
+        case (GAMMA_VALUE | GREEN_CHANNEL):
+            set_color_state(ctk_color_correction, GAMMA,
+                            GREEN, p->fval, TRUE); break;
+        case (GAMMA_VALUE | BLUE_CHANNEL):
+            set_color_state(ctk_color_correction, GAMMA,
+                            BLUE, p->fval, TRUE); break;
         case (GAMMA_VALUE | ALL_CHANNELS):
-            g[RED] = g[GREEN] = g[BLUE] = p->fval; break;
+            set_color_state(ctk_color_correction, GAMMA,
+                            ALL_CHANNELS, p->fval, TRUE); break;
 
         default:
             goto next_attribute;
@@ -733,19 +911,95 @@ static void apply_parsed_attribute_list(
         
     next_attribute:
         
-        if (display_name) free(display_name);
-        
         p = p->next;
     }
 
-    free(this_display_name);
-
     if (attr) {
-        NvCtrlSetColorAttributes(ctk_color_correction->handle, c, b, g, attr);
+        NvCtrlSetColorAttributes(ctk_color_correction->handle,
+                                 ctk_color_correction->cur_val[CONTRAST],
+                                 ctk_color_correction->cur_val[BRIGHTNESS],
+                                 ctk_color_correction->cur_val[GAMMA],
+                                 attr);
     }
     
 } /* apply_parsed_attribute_list() */
 
+/** update_confirm_text() ************************************
+ *
+ * Generates the text used to lable confirmation button.
+ *
+ **/
+
+static void update_confirm_text(CtkColorCorrection *ctk_color_correction)
+{
+    gchar *str;
+    str = g_strdup_printf("%d Seconds to Confirm",
+                          ctk_color_correction->confirm_countdown);
+    gtk_button_set_label(GTK_BUTTON(ctk_color_correction->confirm_button),
+                         str);
+    g_free(str);
+} /* update_confirm_text() */
+
+/** do_confirm_countdown() ***********************************
+ *
+ * timeout callback for reverting color correction slider changes if user not
+ * confirm changes.
+ *
+ **/
+
+static gboolean do_confirm_countdown(gpointer data)
+{
+    gint attr, ch;
+    CtkColorCorrection *ctk_color_correction = (CtkColorCorrection *)(data);
+    unsigned int active_attributes_channels = 0;
+    GtkOptionMenu *option_menu =
+        GTK_OPTION_MENU(ctk_color_correction->option_menu);
+
+    ctk_color_correction->confirm_countdown--;
+    if (ctk_color_correction->confirm_countdown > 0) {
+        update_confirm_text(ctk_color_correction);
+        return True;
+    }
+
+    /* Countdown timed out, reset color settings to previous state */
+    for (attr = CONTRAST_INDEX; attr <= GAMMA_INDEX; attr++) {
+        for (ch = RED; ch <= BLUE; ch++) {
+            /* Check for attribute channel value change. */
+            if (ctk_color_correction->cur_val[attr - CONTRAST_INDEX][ch] !=
+                ctk_color_correction->prev_val[attr - CONTRAST_INDEX][ch]) {
+                ctk_color_correction->cur_val[attr - CONTRAST_INDEX][ch] =
+                    ctk_color_correction->prev_val[attr - CONTRAST_INDEX][ch];
+                active_attributes_channels |= (1 << attr) | (1 << ch);
+            }
+        }
+    }
+    if (active_attributes_channels) {
+        NvCtrlSetColorAttributes(ctk_color_correction->handle,
+                                 ctk_color_correction->cur_val[CONTRAST],
+                                 ctk_color_correction->cur_val[BRIGHTNESS],
+                                 ctk_color_correction->cur_val[GAMMA],
+                                 active_attributes_channels);
+        g_signal_emit(ctk_color_correction, signals[CHANGED], 0);
+    }
+    
+    /* Refresh color correction page for current selected channel. */
+    option_menu_changed(option_menu, (gpointer)(ctk_color_correction));
+    
+    /* Reset confirm button text */
+    gtk_button_set_label(GTK_BUTTON(ctk_color_correction->confirm_button),
+                         "Confirm Current Changes");
+    
+    /* Update status bar message */
+    ctk_config_statusbar_message(ctk_color_correction->ctk_config,
+                                 "Reverted color correction changes, due to "
+                                 "confirmation timeout.");
+                                
+    
+    ctk_color_correction->confirm_timer = 0;
+    gtk_widget_set_sensitive(ctk_color_correction->confirm_button, FALSE);
+    return False;
+
+} /* do_confirm_countdown() */
 
 
 GtkTextBuffer *ctk_color_correction_create_help(GtkTextTagTable *table)
@@ -784,6 +1038,9 @@ GtkTextBuffer *ctk_color_correction_create_help(GtkTextTagTable *table)
     ctk_help_para(b, &i, "Note that the X Server Color Correction page uses "
                   "the XF86VidMode extension to manipulate the X screen's "
                   "color ramps.");
+    
+    ctk_help_heading(b, &i, "Confirm Current Changes");
+    ctk_help_para(b, &i, __confirm_button_help);
     
     ctk_help_heading(b, &i, "Reset Hardware Defaults");
     ctk_help_para(b, &i, __resest_button_help);

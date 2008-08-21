@@ -85,10 +85,9 @@ struct _CtkDropDownMenuClass
 
 GType      ctk_drop_down_menu_get_type            (void) G_GNUC_CONST;
 GtkWidget* ctk_drop_down_menu_new                 (guint flags);
-void       ctk_drop_down_menu_append_item         (CtkDropDownMenu *d,
+GtkWidget* ctk_drop_down_menu_append_item         (CtkDropDownMenu *d,
                                                    const gchar *name,
                                                    const gint value);
-void       ctk_drop_down_menu_finalize            (CtkDropDownMenu *d);
 gint       ctk_drop_down_menu_get_current_value   (CtkDropDownMenu *d);
 void       ctk_drop_down_menu_set_current_value   (CtkDropDownMenu *d,
                                                    gint value);

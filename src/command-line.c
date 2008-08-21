@@ -73,7 +73,7 @@ static void print_version(void)
     nv_msg(TAB, "This program is used to configure the "
             "NVIDIA Linux graphics driver.");
     nv_msg(NULL, "");
-    nv_msg(TAB, "Copyright (C) 2004 NVIDIA Corporation.");
+    nv_msg(TAB, "Copyright (C) 2004 - 2008 NVIDIA Corporation.");
     nv_msg(NULL, "");
     
 } /* print_version() */

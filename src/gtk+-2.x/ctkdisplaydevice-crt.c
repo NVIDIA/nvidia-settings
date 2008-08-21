@@ -92,6 +92,13 @@ static void ctk_display_device_crt_finalize(
 {
     CtkDisplayDeviceCrt *ctk_display_device_crt = CTK_DISPLAY_DEVICE_CRT(object);
     g_free(ctk_display_device_crt->name);
+    g_signal_handlers_disconnect_matched(ctk_display_device_crt->ctk_event,
+                                         G_SIGNAL_MATCH_DATA,
+                                         0,
+                                         0,
+                                         NULL,
+                                         NULL,
+                                         (gpointer) ctk_display_device_crt);
 }
 
 /*
@@ -115,6 +122,7 @@ GtkWidget* ctk_display_device_crt_new(NvCtrlAttributeHandle *handle,
     GtkWidget *alignment;
 
     object = g_object_new(CTK_TYPE_DISPLAY_DEVICE_CRT, NULL);
+    if (!object) return NULL;
 
     ctk_display_device_crt = CTK_DISPLAY_DEVICE_CRT(object);
     ctk_display_device_crt->handle = handle;

@@ -2372,7 +2372,8 @@ GtkWidget* ctk_display_layout_new(NvCtrlAttributeHandle *handle,
     pango_font_description_set_family(font_description, "Sans");
     pango_font_description_set_weight(font_description, PANGO_WEIGHT_BOLD);
 
-    pango_layout_set_font_description(ctk_object->pango_layout, font_description);
+    pango_layout_set_font_description(ctk_object->pango_layout,
+                                      font_description);
 
 
     /* Setup colors */
@@ -2404,23 +2405,28 @@ GtkWidget* ctk_display_layout_new(NvCtrlAttributeHandle *handle,
                           GDK_POINTER_MOTION_MASK);
 
     g_signal_connect (G_OBJECT (tmp), "expose_event",  
-                      G_CALLBACK (expose_event_callback), (gpointer)(ctk_object));
+                      G_CALLBACK (expose_event_callback),
+                      (gpointer)(ctk_object));
 
     g_signal_connect (G_OBJECT (tmp), "configure_event",  
-                      G_CALLBACK (configure_event_callback), (gpointer)(ctk_object));
+                      G_CALLBACK (configure_event_callback),
+                      (gpointer)(ctk_object));
 
     g_signal_connect (G_OBJECT (tmp), "motion_notify_event",  
-                      G_CALLBACK (motion_event_callback), (gpointer)(ctk_object));
+                      G_CALLBACK (motion_event_callback),
+                      (gpointer)(ctk_object));
 
     g_signal_connect (G_OBJECT (tmp), "button_press_event",  
-                      G_CALLBACK (button_press_event_callback), (gpointer)(ctk_object));
+                      G_CALLBACK (button_press_event_callback),
+                      (gpointer)(ctk_object));
 
     g_signal_connect (G_OBJECT (tmp), "button_release_event",  
-                      G_CALLBACK (button_release_event_callback), (gpointer)(ctk_object));
+                      G_CALLBACK (button_release_event_callback),
+                      (gpointer)(ctk_object));
 
     GTK_WIDGET_SET_FLAGS(tmp, GTK_DOUBLE_BUFFERED);
 
-    ctk_object->drawing_area  = tmp;
+    ctk_object->drawing_area = tmp;
     gtk_widget_set_size_request(tmp, width, height);
 
 
@@ -2445,6 +2451,26 @@ GtkWidget* ctk_display_layout_new(NvCtrlAttributeHandle *handle,
 
 
 
+/** get_widget_fg_gc() ***********************************************
+ *
+ * Returns the foreground graphics context of the given widget.  If
+ * this function returns NULL, then drawing on this widget is not
+ * currently possible and should be avoided.
+ *
+ **/
+
+static GdkGC *get_widget_fg_gc(GtkWidget *widget)
+{
+    GtkStyle *style = gtk_widget_get_style(widget);
+
+    if (!style) return NULL;
+
+    return style->fg_gc[GTK_WIDGET_STATE(widget)];
+
+} /* get_widget_fg_gc() */
+
+
+
 /** do_swap() ********************************************************
  *
  * Preforms a swap from the back buffer if one is needed.
@@ -2453,10 +2479,13 @@ GtkWidget* ctk_display_layout_new(NvCtrlAttributeHandle *handle,
 
 static void do_swap(CtkDisplayLayout *ctk_object)
 {
-    if (ctk_object->need_swap) {
+    GtkWidget *drawing_area = ctk_object->drawing_area;
+    GdkGC *fg_gc = get_widget_fg_gc(drawing_area);
 
-        gdk_draw_pixmap(ctk_object->drawing_area->window,
-                        ctk_object->drawing_area->style->fg_gc[GTK_WIDGET_STATE(ctk_object->drawing_area)],
+    if (ctk_object->need_swap && drawing_area->window && fg_gc) {
+
+        gdk_draw_pixmap(drawing_area->window,
+                        fg_gc,
                         ctk_object->pixmap,
                         0,0,
                         0,0,
@@ -2482,16 +2511,18 @@ static void draw_rect(CtkDisplayLayout *ctk_object,
                       GdkColor *color,
                       int fill)
 {
+    GtkWidget *drawing_area = ctk_object->drawing_area;
+    GdkGC *fg_gc = get_widget_fg_gc(drawing_area);
+
     int w = (int)(ctk_object->scale * (dim[X] + dim[W])) - (int)(ctk_object->scale * (dim[X]));
     int h = (int)(ctk_object->scale * (dim[Y] + dim[H])) - (int)(ctk_object->scale * (dim[Y]));
 
     /* Setup color to use */
-    gdk_gc_set_rgb_fg_color(ctk_object->drawing_area->style->fg_gc[GTK_WIDGET_STATE (ctk_object->drawing_area)],
-                            color);
+    gdk_gc_set_rgb_fg_color(fg_gc, color);
 
     /* Draw the rectangle */
     gdk_draw_rectangle(ctk_object->pixmap,
-                       ctk_object->drawing_area->style->fg_gc[GTK_WIDGET_STATE (ctk_object->drawing_area)],
+                       fg_gc,
                        fill,
                        ctk_object->img_dim[X] + ctk_object->scale * dim[X],
                        ctk_object->img_dim[Y] + ctk_object->scale * dim[Y],
@@ -2517,8 +2548,8 @@ static void draw_rect_strs(CtkDisplayLayout *ctk_object,
                            const char *str_1,
                            const char *str_2)
 {
-    GdkGC *gdk_gc;
-    GtkWidget *drawing_area;
+    GtkWidget *drawing_area = ctk_object->drawing_area;
+    GdkGC *fg_gc = get_widget_fg_gc(drawing_area);
     char *str;
 
     int txt_w;
@@ -2528,9 +2559,6 @@ static void draw_rect_strs(CtkDisplayLayout *ctk_object,
 
     int draw_1 = 0;
     int draw_2 = 0;
-
-    drawing_area = ctk_object->drawing_area;
-    gdk_gc = drawing_area->style->fg_gc[GTK_WIDGET_STATE(drawing_area)];
 
     if (str_1) {
         pango_layout_set_text(ctk_object->pango_layout, str_1, -1);
@@ -2572,9 +2600,10 @@ static void draw_rect_strs(CtkDisplayLayout *ctk_object,
         txt_y1 = ctk_object->scale*(dim[Y] + dim[H] / 2) - (txt_h / 2);
 
         /* Write name */
-        gdk_gc_set_rgb_fg_color(gdk_gc, color);
+        gdk_gc_set_rgb_fg_color(fg_gc, color);
 
-        gdk_draw_layout(ctk_object->pixmap, gdk_gc,
+        gdk_draw_layout(ctk_object->pixmap,
+                        fg_gc,
                         ctk_object->img_dim[X] + txt_x1,
                         ctk_object->img_dim[Y] + txt_y1,
                         ctk_object->pango_layout);
@@ -2590,9 +2619,10 @@ static void draw_rect_strs(CtkDisplayLayout *ctk_object,
         txt_y2 = ctk_object->scale*(dim[Y] + dim[H] / 2) - (txt_h / 2);
 
         /* Write dimensions */
-        gdk_gc_set_rgb_fg_color(gdk_gc, color);
+        gdk_gc_set_rgb_fg_color(fg_gc, color);
 
-        gdk_draw_layout(ctk_object->pixmap, gdk_gc,
+        gdk_draw_layout(ctk_object->pixmap,
+                        fg_gc,
                         ctk_object->img_dim[X] + txt_x2,
                         ctk_object->img_dim[Y] + txt_y2,
                         ctk_object->pango_layout);
@@ -2610,9 +2640,10 @@ static void draw_rect_strs(CtkDisplayLayout *ctk_object,
         txt_y = ctk_object->scale*(dim[Y] + dim[H] / 2) - (txt_h / 2);
 
         /* Write both */
-        gdk_gc_set_rgb_fg_color(gdk_gc, color);
+        gdk_gc_set_rgb_fg_color(fg_gc, color);
 
-        gdk_draw_layout(ctk_object->pixmap, gdk_gc,
+        gdk_draw_layout(ctk_object->pixmap,
+                        fg_gc,
                         ctk_object->img_dim[X] + txt_x,
                         ctk_object->img_dim[Y] + txt_y,
                         ctk_object->pango_layout);
@@ -2634,27 +2665,29 @@ static void draw_display(CtkDisplayLayout *ctk_object,
                          nvDisplayPtr display)
 {
     nvModePtr mode;
-    int color;
+    int base_color_idx;
+    int color_idx;
     char *tmp_str;
 
     if (!display || !(display->cur_mode)) {
         return;
     }
 
-    mode  = display->cur_mode;
-    color = NUM_COLORS_PER_PALETTE * NvCtrlGetTargetId(display->gpu->handle);
+    mode = display->cur_mode;
+    base_color_idx =
+        NUM_COLORS_PER_PALETTE * NvCtrlGetTargetId(display->gpu->handle);
 
 
     /* Draw panning */
-    draw_rect(ctk_object, mode->pan,
-              &(ctk_object->color_palettes[color +((mode->modeline)?BG_PAN_ON:BG_PAN_OFF)]),
+    color_idx = base_color_idx + ((mode->modeline) ? BG_PAN_ON : BG_PAN_OFF);
+    draw_rect(ctk_object, mode->pan, &(ctk_object->color_palettes[color_idx]),
               1);
     draw_rect(ctk_object, mode->pan, &(ctk_object->fg_color), 0);
     
 
     /* Draw viewport */
-    draw_rect(ctk_object, mode->dim,
-              &(ctk_object->color_palettes[color +((mode->modeline)?BG_SCR_ON:BG_SCR_OFF)]),
+    color_idx = base_color_idx + ((mode->modeline) ? BG_SCR_ON : BG_SCR_OFF);
+    draw_rect(ctk_object, mode->dim, &(ctk_object->color_palettes[color_idx]),
               1);
     draw_rect(ctk_object, mode->dim, &(ctk_object->fg_color), 0);
 
@@ -2686,21 +2719,22 @@ static void draw_display(CtkDisplayLayout *ctk_object,
 
 static void draw_layout(CtkDisplayLayout *ctk_object)
 {
-    int z;
+    GtkWidget *drawing_area = ctk_object->drawing_area;
+    GdkGC *fg_gc = get_widget_fg_gc(drawing_area);
+    
     GdkColor bg_color; /* Background color */
     GdkColor bd_color; /* Border color */
     nvGpuPtr gpu;
     nvScreenPtr screen;
+    int z;
 
 
     /* Draw the metamode's effective size */
     gdk_color_parse("#888888", &bg_color);
     gdk_color_parse("#777777", &bd_color);
 
-    gdk_gc_set_line_attributes
-        (ctk_object->drawing_area->style->fg_gc[GTK_WIDGET_STATE(ctk_object->drawing_area)],
-         1, GDK_LINE_ON_OFF_DASH, GDK_CAP_NOT_LAST,
-         GDK_JOIN_ROUND);
+    gdk_gc_set_line_attributes(fg_gc, 1, GDK_LINE_ON_OFF_DASH,
+                               GDK_CAP_NOT_LAST, GDK_JOIN_ROUND);
 
     for (gpu = ctk_object->layout->gpus; gpu; gpu = gpu->next) {
         for (screen = gpu->screens; screen; screen = screen->next) {
@@ -2710,10 +2744,8 @@ static void draw_layout(CtkDisplayLayout *ctk_object)
          }
     }
 
-    gdk_gc_set_line_attributes
-        (ctk_object->drawing_area->style->fg_gc[GTK_WIDGET_STATE(ctk_object->drawing_area)],
-         1, GDK_LINE_SOLID, GDK_CAP_NOT_LAST,
-         GDK_JOIN_ROUND);
+    gdk_gc_set_line_attributes(fg_gc, 1, GDK_LINE_SOLID, GDK_CAP_NOT_LAST,
+                               GDK_JOIN_ROUND);
 
 
     /* Draw display devices from back to front */
@@ -2725,7 +2757,6 @@ static void draw_layout(CtkDisplayLayout *ctk_object)
 
     /* Hilite the selected display device */
     if (ctk_object->Zselected && ctk_object->Zcount) {
-        GtkWidget *widget = ctk_object->drawing_area;
         int w, h;
         int size; /* Hilite line size */
         int offset; /* Hilite box offset */
@@ -2738,8 +2769,7 @@ static void draw_layout(CtkDisplayLayout *ctk_object)
         h  = (int)(ctk_object->scale * (dim[Y] + dim[H])) - (int)(ctk_object->scale * (dim[Y]));
 
         /* Setup color to use */
-        gdk_gc_set_rgb_fg_color(widget->style->fg_gc[GTK_WIDGET_STATE (widget)],
-                                &(ctk_object->select_color));
+        gdk_gc_set_rgb_fg_color(fg_gc, &(ctk_object->select_color));
 
         /* If dislay is too small, just color the whole thing */
         size = 3;
@@ -2750,19 +2780,19 @@ static void draw_layout(CtkDisplayLayout *ctk_object)
             draw_rect(ctk_object, dim, &(ctk_object->fg_color), 0);
 
         } else {
-            gdk_gc_set_line_attributes(widget->style->fg_gc[GTK_WIDGET_STATE (widget)],
-                                       size, GDK_LINE_SOLID, GDK_CAP_ROUND, GDK_JOIN_ROUND);
+            gdk_gc_set_line_attributes(fg_gc, size, GDK_LINE_SOLID,
+                                       GDK_CAP_ROUND, GDK_JOIN_ROUND);
 
             gdk_draw_rectangle(ctk_object->pixmap,
-                               widget->style->fg_gc[GTK_WIDGET_STATE (widget)],
+                               fg_gc,
                                0,
                                ctk_object->img_dim[X] +(ctk_object->scale * dim[X]) +offset,
                                ctk_object->img_dim[Y] +(ctk_object->scale * dim[Y]) +offset,
                                w -(2 * offset),
                                h -(2 * offset));
             
-            gdk_gc_set_line_attributes(widget->style->fg_gc[GTK_WIDGET_STATE (widget)],
-                                       1, GDK_LINE_SOLID, GDK_CAP_ROUND, GDK_JOIN_ROUND);
+            gdk_gc_set_line_attributes(fg_gc, 1, GDK_LINE_SOLID, GDK_CAP_ROUND,
+                                       GDK_JOIN_ROUND);
         }
 
 
@@ -2811,46 +2841,44 @@ static void draw_layout(CtkDisplayLayout *ctk_object)
 
 static void clear_layout(CtkDisplayLayout *ctk_object)
 {
-    GtkWidget *widget = ctk_object->drawing_area;
+    GtkWidget *drawing_area = ctk_object->drawing_area;
+    GdkGC *fg_gc = get_widget_fg_gc(drawing_area);
     GdkColor color;
 
 
-    
     /* Clear to background color */
-    gdk_gc_set_rgb_fg_color(widget->style->fg_gc[GTK_WIDGET_STATE (widget)],
-                            &(ctk_object->bg_color));
+    gdk_gc_set_rgb_fg_color(fg_gc, &(ctk_object->bg_color));
+
     gdk_draw_rectangle(ctk_object->pixmap,
-                       widget->style->fg_gc[GTK_WIDGET_STATE (widget)],
+                       fg_gc,
                        TRUE,
                        2,
                        2,
-                       widget->allocation.width  -4,
-                       widget->allocation.height -4);
+                       drawing_area->allocation.width  -4,
+                       drawing_area->allocation.height -4);
 
 
     /* Add white trim */
     gdk_color_parse("white", &color);
-    gdk_gc_set_rgb_fg_color(widget->style->fg_gc[GTK_WIDGET_STATE (widget)],
-                            &color);
+    gdk_gc_set_rgb_fg_color(fg_gc, &color);
     gdk_draw_rectangle(ctk_object->pixmap,
-                       widget->style->fg_gc[GTK_WIDGET_STATE (widget)],
+                       fg_gc,
                        FALSE,
                        1,
                        1,
-                       widget->allocation.width  -3,
-                       widget->allocation.height -3);
+                       drawing_area->allocation.width  -3,
+                       drawing_area->allocation.height -3);
 
 
     /* Add layout border */
-    gdk_gc_set_rgb_fg_color(widget->style->fg_gc[GTK_WIDGET_STATE (widget)],
-                            &(ctk_object->fg_color));
+    gdk_gc_set_rgb_fg_color(fg_gc, &(ctk_object->fg_color));
     gdk_draw_rectangle(ctk_object->pixmap,
-                       widget->style->fg_gc[GTK_WIDGET_STATE (widget)],
+                       fg_gc,
                        FALSE,
                        0,
                        0,
-                       widget->allocation.width  -1,
-                       widget->allocation.height -1);
+                       drawing_area->allocation.width  -1,
+                       drawing_area->allocation.height -1);
 
     ctk_object->need_swap = 1;
 
@@ -2866,21 +2894,20 @@ static void clear_layout(CtkDisplayLayout *ctk_object)
 
 static void draw_all(CtkDisplayLayout *ctk_object)
 {
-    GdkGCValues  old_gc_values;
-    GtkWidget   *widget = ctk_object->drawing_area;
-    
+    GtkWidget *drawing_area = ctk_object->drawing_area;
+    GdkGC *fg_gc = get_widget_fg_gc(drawing_area);
+    GdkGCValues old_gc_values;
+
+    if (!fg_gc) return;
 
     /* Redraw everything */
-    gdk_gc_get_values(widget->style->fg_gc[GTK_WIDGET_STATE (widget)],
-                      &old_gc_values);
+    gdk_gc_get_values(fg_gc, &old_gc_values);
 
     clear_layout(ctk_object);
 
     draw_layout(ctk_object);
 
-    gdk_gc_set_values(widget->style->fg_gc[GTK_WIDGET_STATE (widget)],
-                      &old_gc_values,
-                      GDK_GC_FOREGROUND);
+    gdk_gc_set_values(fg_gc, &old_gc_values, GDK_GC_FOREGROUND);
 
 } /* draw_all() */
 
@@ -3290,6 +3317,8 @@ void ctk_display_layout_set_display_position(CtkDisplayLayout *ctk_object,
                                              nvDisplayPtr relative_to,
                                              int x, int y)
 {
+    GtkWidget *drawing_area = ctk_object->drawing_area;
+    GdkGC *fg_gc = get_widget_fg_gc(drawing_area);
     GdkGCValues old_gc_values;
     int modified = 0;
     nvLayoutPtr layout = ctk_object->layout;
@@ -3301,11 +3330,11 @@ void ctk_display_layout_set_display_position(CtkDisplayLayout *ctk_object,
 
 
     /* Backup the foreground color and clear the layout */
-    gdk_gc_get_values
-        (ctk_object->drawing_area->style->fg_gc[GTK_WIDGET_STATE(ctk_object->drawing_area)],
-         &old_gc_values);
-
-    clear_layout(ctk_object);
+    if (fg_gc) {
+        gdk_gc_get_values(fg_gc, &old_gc_values);
+        
+        clear_layout(ctk_object);
+    }
 
 
     /* XXX When configuring a relative position, make sure
@@ -3381,13 +3410,13 @@ void ctk_display_layout_set_display_position(CtkDisplayLayout *ctk_object,
 
     
     /* Redraw the layout and reset the foreground color */
-    draw_layout(ctk_object);
+    if (fg_gc) {
+        draw_layout(ctk_object);
 
-    gdk_gc_set_values
-        (ctk_object->drawing_area->style->fg_gc[GTK_WIDGET_STATE(ctk_object->drawing_area)],
-         &old_gc_values, GDK_GC_FOREGROUND);
-
-    do_swap(ctk_object);
+        gdk_gc_set_values(fg_gc, &old_gc_values, GDK_GC_FOREGROUND);
+        
+        do_swap(ctk_object);
+    }
 
 } /* ctk_display_layout_set_display_position() */
 
@@ -3403,6 +3432,8 @@ void ctk_display_layout_set_display_panning(CtkDisplayLayout *ctk_object,
                                             nvDisplayPtr display,
                                             int width, int height)
 {
+    GtkWidget *drawing_area = ctk_object->drawing_area;
+    GdkGC *fg_gc = get_widget_fg_gc(drawing_area);
     GdkGCValues old_gc_values;
     int modified = 0;
 
@@ -3411,10 +3442,11 @@ void ctk_display_layout_set_display_panning(CtkDisplayLayout *ctk_object,
 
 
     /* Backup the foreground color */
-    gdk_gc_get_values(ctk_object->drawing_area->style->fg_gc[GTK_WIDGET_STATE(ctk_object->drawing_area)],
-                      &old_gc_values);
+    if (fg_gc) {
+        gdk_gc_get_values(fg_gc, &old_gc_values);
 
-    clear_layout(ctk_object);
+        clear_layout(ctk_object);
+    }
 
 
     /* Change the panning */
@@ -3434,24 +3466,26 @@ void ctk_display_layout_set_display_panning(CtkDisplayLayout *ctk_object,
                                       ctk_object->modified_callback_data);
     }
     
-    draw_layout(ctk_object);
 
+    /* Redraw layout and reset the foreground color */
+    if (fg_gc) {
+        draw_layout(ctk_object);
 
-    /* Reset the foreground color */
-    gdk_gc_set_values(ctk_object->drawing_area->style->fg_gc[GTK_WIDGET_STATE(ctk_object->drawing_area)],
-                      &old_gc_values,
-                      GDK_GC_FOREGROUND);
+        gdk_gc_set_values(fg_gc, &old_gc_values, GDK_GC_FOREGROUND);
 
-    do_swap(ctk_object);
-
+        do_swap(ctk_object);
+    }
 
 } /* ctk_display_layout_set_display_panning() */
+
+
 
 /** ctk_display_layout_select_display() ***********************
  *
  * Updates the currently selected display.
  *
  **/
+
 void ctk_display_layout_select_display(CtkDisplayLayout *ctk_object,
                                        nvDisplayPtr display)
 {
@@ -3462,7 +3496,10 @@ void ctk_display_layout_select_display(CtkDisplayLayout *ctk_object,
         /* Select the new topmost display */
         select_display(ctk_object, ctk_object->Zorder[0]);
     }
+
 } /* ctk_display_layout_select_display() */
+
+
 
 /** ctk_display_layout_update_display_count() ************************
  *
@@ -3479,6 +3516,7 @@ void ctk_display_layout_update_display_count(CtkDisplayLayout *ctk_object,
 
     /* Select the previously selected display */
     ctk_display_layout_select_display(ctk_object, display);
+
 } /* ctk_display_layout_update_display_count() */
 
 
@@ -3514,27 +3552,22 @@ void ctk_display_layout_set_screen_position(CtkDisplayLayout *ctk_object,
                                             nvScreenPtr relative_to,
                                             int x, int y)
 {
+    GtkWidget *drawing_area = ctk_object->drawing_area;
+    GdkGC *fg_gc = get_widget_fg_gc(drawing_area);
     GdkGCValues old_gc_values;
     int modified = 0;
     nvLayoutPtr layout = ctk_object->layout;
     nvGpuPtr gpu;
-    int draw;
+
 
     if (!screen) return;
 
     if (position_type != CONF_ADJ_ABSOLUTE && !relative_to) return;
 
 
-    /* If there is no GC for the drawing area, don't draw */
-    draw = ctk_object->drawing_area->style->fg_gc[GTK_WIDGET_STATE(ctk_object->drawing_area)] ?
-        1 : 0;
-
-
     /* Backup the foreground color and clear the layout */
-    if (draw) {
-        gdk_gc_get_values
-            (ctk_object->drawing_area->style->fg_gc[GTK_WIDGET_STATE(ctk_object->drawing_area)],
-             &old_gc_values);
+    if (fg_gc) {
+        gdk_gc_get_values(fg_gc, &old_gc_values);
         clear_layout(ctk_object);
     }
 
@@ -3634,12 +3667,10 @@ void ctk_display_layout_set_screen_position(CtkDisplayLayout *ctk_object,
 
 
     /* Redraw the layout and reset the foreground color */
-    if (draw) {
+    if (fg_gc) {
         draw_layout(ctk_object);
         
-        gdk_gc_set_values
-            (ctk_object->drawing_area->style->fg_gc[GTK_WIDGET_STATE(ctk_object->drawing_area)],
-             &old_gc_values, GDK_GC_FOREGROUND);
+        gdk_gc_set_values(fg_gc, &old_gc_values, GDK_GC_FOREGROUND);
         
         do_swap(ctk_object);
     }
@@ -3742,14 +3773,16 @@ static gboolean
 motion_event_callback(GtkWidget *widget, GdkEventMotion *event, gpointer data)
 {
     CtkDisplayLayout *ctk_object = CTK_DISPLAY_LAYOUT(data);
-    GdkGCValues       old_gc_values;
+    GtkWidget *drawing_area = ctk_object->drawing_area;
+    GdkGC *fg_gc = get_widget_fg_gc(drawing_area);
+    GdkGCValues old_gc_values;
 
     static int init = 1;
     static int __modify_panning;
 
     if (init) {
         init = 0;
-        __modify_panning = (event->state & ShiftMask)?1:0;
+        __modify_panning = (event->state & ShiftMask) ? 1 : 0;
     }
 
 
@@ -3767,8 +3800,7 @@ motion_event_callback(GtkWidget *widget, GdkEventMotion *event, gpointer data)
 
 
     /* Backup the foreground color */
-    gdk_gc_get_values(widget->style->fg_gc[GTK_WIDGET_STATE (widget)],
-                      &old_gc_values);
+    gdk_gc_get_values(fg_gc, &old_gc_values);
 
 
     /* Modify screen layout */
@@ -3783,8 +3815,8 @@ motion_event_callback(GtkWidget *widget, GdkEventMotion *event, gpointer data)
         clear_layout(ctk_object);
 
         /* Swap between panning and moving  */
-        if (__modify_panning != (event->state & ShiftMask)?1:0) {
-            __modify_panning = (event->state & ShiftMask)?1:0;
+        if (__modify_panning != ((event->state & ShiftMask) ? 1 : 0)) {
+            __modify_panning = ((event->state & ShiftMask) ? 1 : 0);
             sync_modify(ctk_object);
         }
         if (!(event->state & ShiftMask) || !ctk_object->advanced_mode) {
@@ -3799,7 +3831,6 @@ motion_event_callback(GtkWidget *widget, GdkEventMotion *event, gpointer data)
         }
 
         draw_layout(ctk_object);
-
 
 
     /* Update the tooltip under the mouse */
@@ -3823,9 +3854,7 @@ motion_event_callback(GtkWidget *widget, GdkEventMotion *event, gpointer data)
 
 
     /* Reset the foreground color */
-    gdk_gc_set_values(widget->style->fg_gc[GTK_WIDGET_STATE (widget)],
-                      &old_gc_values,
-                      GDK_GC_FOREGROUND);
+    gdk_gc_set_values(fg_gc, &old_gc_values, GDK_GC_FOREGROUND);
     
 
     /* Refresh GUI */
@@ -3900,9 +3929,9 @@ button_press_event_callback(GtkWidget *widget, GdkEventButton *event,
             time = event->time;
         }
 
-        
         /* Redraw everything */
         draw_all(ctk_object);
+
         break;
 
     default:

@@ -28,13 +28,13 @@
 #include <string.h>
 
 #include "ctkbanner.h"
+#include "ctkconfig.h"
+#include "ctkhelp.h"
+#include "ctkdropdownmenu.h"
 
 #include "ctkgvo-csc.h"
 
-#include "ctkconfig.h"
-#include "ctkhelp.h"
-
-#include "ctkdropdownmenu.h"
+#include "msg.h"
 
 /*
  * The CtkGvoCsc widget is used to provide a way for configuring
@@ -110,6 +110,10 @@ static void set_apply_button_senstive       (CtkGvoCsc *ctk_gvo_csc);
 
 static void apply_csc_values                (CtkGvoCsc *ctk_gvo_csc);
 
+static void gvo_csc_event_received          (GtkObject *object,
+                                             gpointer arg1,
+                                             gpointer user_data);
+
 static GtkWidget *build_opengl_only_msg     (void);
 
 /*
@@ -137,8 +141,9 @@ static const char * __override_help =
 "custom CSC.";
 
 static const char * __initialize_help =
-"The Initialize Color Space Conversion dropdown allows you to select between "
-"some standard CSC configurations.";
+"The Initialize Color Space Conversion drop down menu, when selected, "
+"populates the Color Space Conversion Matrix, Offset, and Scale with the "
+"values from the selected standard.";
 
 static const char * __csc_help =
 "The color space conversion matrix defines the paramaters used for "
@@ -236,6 +241,7 @@ GtkWidget* ctk_gvo_csc_new(NvCtrlAttributeHandle *handle,
     ctk_gvo_csc = CTK_GVO_CSC(object);
     ctk_gvo_csc->handle = handle;
     ctk_gvo_csc->ctk_config = ctk_config;
+    ctk_gvo_csc->ctk_event = ctk_event;
     ctk_gvo_csc->gvo_parent = gvo_parent;
     ctk_gvo_csc->caps = caps;
     
@@ -355,8 +361,7 @@ GtkWidget* ctk_gvo_csc_new(NvCtrlAttributeHandle *handle,
          CSC_STANDARD_IDENTITY_STRING,
          CSC_STANDARD_IDENTITY);
     
-    ctk_drop_down_menu_finalize
-        (CTK_DROP_DOWN_MENU(ctk_gvo_csc->initializeDropDown));
+    gtk_widget_show_all(ctk_gvo_csc->initializeDropDown);
     
     gtk_box_pack_start(GTK_BOX(hbox),
                        ctk_gvo_csc->initializeDropDown,
@@ -364,6 +369,10 @@ GtkWidget* ctk_gvo_csc_new(NvCtrlAttributeHandle *handle,
                        FALSE,                   // fill
                        5);                      // padding    
     
+    ctk_drop_down_menu_set_current_value
+        (CTK_DROP_DOWN_MENU(ctk_gvo_csc->initializeDropDown),
+         CSC_STANDARD_ITU_601);
+
     
     g_signal_connect(G_OBJECT(ctk_gvo_csc->initializeDropDown), "changed",
                      G_CALLBACK(initialize_csc_dropdown_changed),
@@ -645,6 +654,18 @@ GtkWidget* ctk_gvo_csc_new(NvCtrlAttributeHandle *handle,
     
     override_state_toggled(ctk_gvo_csc, override);
     
+    /* Listen to server events */
+
+    g_signal_connect(G_OBJECT(ctk_gvo_csc->ctk_event),
+                     CTK_EVENT_NAME(NV_CTRL_GVO_CSC_CHANGED_EVENT),
+                     G_CALLBACK(gvo_csc_event_received),
+                     (gpointer) ctk_gvo_csc);
+
+    g_signal_connect(G_OBJECT(ctk_gvo_csc->ctk_event),
+                     CTK_EVENT_NAME(NV_CTRL_GVO_OVERRIDE_HW_CSC),
+                     G_CALLBACK(gvo_csc_event_received),
+                     (gpointer) ctk_gvo_csc);    
+
     /* show the page */
 
     gtk_widget_show_all(GTK_WIDGET(object));
@@ -1014,6 +1035,114 @@ static void apply_csc_values(CtkGvoCsc *ctk_gvo_csc)
                        NV_CTRL_GVO_OVERRIDE_HW_CSC_TRUE);
 
 } /* apply_csc_values() */
+
+
+
+/*
+ * GVO CSC event handler.
+ */
+
+static void gvo_csc_event_received(GtkObject *object,
+                                   gpointer arg1,
+                                   gpointer user_data)
+{
+    CtkEventStruct *event_struct = (CtkEventStruct *) arg1;
+    CtkGvoCsc *ctk_gvo_csc = CTK_GVO_CSC(user_data);
+    GtkWidget *widget;
+    gint attribute = event_struct->attribute;
+    gint value = event_struct->value;
+    ReturnStatus ret;    
+
+    float newCSCMatrix[3][3];
+    float newCSCOffset[3];
+    float newCSCScale[3];
+    int row, column;
+
+
+    switch (attribute) {
+
+    case NV_CTRL_GVO_CSC_CHANGED_EVENT:
+
+        /* Re-query the GVO CSC matrix */
+
+        ret = NvCtrlGetGvoColorConversion(ctk_gvo_csc->handle,
+                                          newCSCMatrix,
+                                          newCSCOffset,
+                                          newCSCScale);
+        if (ret == NvCtrlSuccess) {
+
+            for (row = 0; row < 3; row++) {
+                for (column = 0; column < 3; column++) {
+                    g_signal_handlers_block_by_func
+                        (G_OBJECT(ctk_gvo_csc->matrixWidget[row][column]),
+                         G_CALLBACK(spin_button_value_changed),
+                         (gpointer) ctk_gvo_csc);
+                    ctk_gvo_csc->matrix[row][column] = newCSCMatrix[row][column];
+                    gtk_spin_button_set_value
+                        (GTK_SPIN_BUTTON(ctk_gvo_csc->matrixWidget[row][column]),
+                         ctk_gvo_csc->matrix[row][column]);
+                    g_signal_handlers_unblock_by_func
+                        (G_OBJECT(ctk_gvo_csc->matrixWidget[row][column]),
+                         G_CALLBACK(spin_button_value_changed),
+                         (gpointer) ctk_gvo_csc);
+                }
+                
+                g_signal_handlers_block_by_func
+                    (G_OBJECT(ctk_gvo_csc->offsetWidget[row]),
+                     G_CALLBACK(spin_button_value_changed),
+                     (gpointer) ctk_gvo_csc);
+                ctk_gvo_csc->offset[row] = newCSCOffset[row];
+                gtk_spin_button_set_value
+                    (GTK_SPIN_BUTTON(ctk_gvo_csc->offsetWidget[row]),
+                     ctk_gvo_csc->offset[row]);
+                g_signal_handlers_unblock_by_func
+                    (G_OBJECT(ctk_gvo_csc->offsetWidget[row]),
+                     G_CALLBACK(spin_button_value_changed),
+                     (gpointer) ctk_gvo_csc);                
+
+                g_signal_handlers_block_by_func
+                    (G_OBJECT(ctk_gvo_csc->scaleWidget[row]),
+                     G_CALLBACK(spin_button_value_changed),
+                     (gpointer) ctk_gvo_csc);
+                ctk_gvo_csc->scale[row] = newCSCScale[row];
+                gtk_spin_button_set_value
+                    (GTK_SPIN_BUTTON(ctk_gvo_csc->scaleWidget[row]),
+                     ctk_gvo_csc->scale[row]);
+                g_signal_handlers_unblock_by_func
+                    (G_OBJECT(ctk_gvo_csc->scaleWidget[row]),
+                     G_CALLBACK(spin_button_value_changed),
+                     (gpointer) ctk_gvo_csc);
+            }
+        }
+
+        gtk_widget_set_sensitive(ctk_gvo_csc->applyButton, FALSE);
+        break;
+
+    case NV_CTRL_GVO_OVERRIDE_HW_CSC:
+        widget = ctk_gvo_csc->overrideButton;
+
+        g_signal_handlers_block_by_func(G_OBJECT(widget),
+                                        G_CALLBACK(override_button_toggled),
+                                        (gpointer) ctk_gvo_csc);
+
+        gtk_toggle_button_set_active(GTK_TOGGLE_BUTTON(widget), value);
+        override_state_toggled(ctk_gvo_csc, value);
+
+        gtk_widget_set_sensitive(ctk_gvo_csc->applyButton, FALSE);
+
+        g_signal_handlers_unblock_by_func(G_OBJECT(widget),
+                                          G_CALLBACK(override_button_toggled),
+                                          (gpointer) ctk_gvo_csc);
+        break;
+
+    default:
+        nv_error_msg("Unhandled GVO CSC event received: %d\n",
+                     attribute);
+        break;
+    }
+
+} /* gvo_csc_event_recieved() */
+
 
 
 /*

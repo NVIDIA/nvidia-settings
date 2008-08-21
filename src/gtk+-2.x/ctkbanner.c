@@ -429,6 +429,7 @@ GtkWidget* ctk_banner_new(BannerArtworkType artwork)
         Background.w = gdk_pixbuf_get_width(Background.pixbuf);
         Background.h = gdk_pixbuf_get_height(Background.pixbuf);
     }
+    g_object_ref(Background.pixbuf);
 
     if (!TallBackground.pixbuf) {
         TallBackground.pixbuf =
@@ -436,12 +437,14 @@ GtkWidget* ctk_banner_new(BannerArtworkType artwork)
         TallBackground.w = gdk_pixbuf_get_width(TallBackground.pixbuf);
         TallBackground.h = gdk_pixbuf_get_height(TallBackground.pixbuf);
     }
+    g_object_ref(TallBackground.pixbuf);
     
     if (!Logo.pixbuf) {
         Logo.pixbuf = gdk_pixbuf_from_pixdata(&logo_pixdata, TRUE, NULL);
         Logo.w = gdk_pixbuf_get_width(Logo.pixbuf);
         Logo.h = gdk_pixbuf_get_height(Logo.pixbuf);
     }
+    g_object_ref(Logo.pixbuf);
     
     if (!TallLogo.pixbuf) {
         TallLogo.pixbuf =
@@ -449,8 +452,8 @@ GtkWidget* ctk_banner_new(BannerArtworkType artwork)
         TallLogo.w = gdk_pixbuf_get_width(TallLogo.pixbuf);
         TallLogo.h = gdk_pixbuf_get_height(TallLogo.pixbuf);
     }
-    
-    
+    g_object_ref(TallLogo.pixbuf);
+
     /*
      * assign fields based on whether the artwork is tall; XXX these
      * may need to be tweaked

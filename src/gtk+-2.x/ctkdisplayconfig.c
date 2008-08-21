@@ -42,6 +42,7 @@
 
 #include "msg.h"
 #include "parse.h"
+#include "lscf.h"
 
 #include "ctkutils.h"
 
@@ -103,7 +104,11 @@ static void validation_details_clicked(GtkWidget *widget, gpointer user_data);
 
 static int generateXConfig(CtkDisplayConfig *ctk_object, XConfigPtr *pConfig);
 static void update_banner(XConfigPtr config);
-
+static void display_config_attribute_changed(GtkObject *object, gpointer arg1,
+                                           gpointer user_data);
+static void reset_layout(CtkDisplayConfig *ctk_object);
+static gboolean force_layout_reset(gpointer user_data);
+static void user_changed_attributes(CtkDisplayConfig *ctk_object);
 
 
 
@@ -327,6 +332,116 @@ static gboolean layout_supports_depth_30(nvLayoutPtr layout)
     return TRUE;
 
 } /* layout_supports_depth_30() */
+
+
+
+/** register_layout_events() *****************************************
+ *
+ * Registers to display-configuration related events relating to all
+ * parts of the given layout structure.
+ *
+ **/
+
+static void register_layout_events(CtkDisplayConfig *ctk_object)
+{
+    nvLayoutPtr layout = ctk_object->layout;
+    nvScreenPtr screen;
+    nvGpuPtr gpu;
+    
+
+    /* Register all Screen/Gpu events. */
+
+    for (gpu = layout->gpus; gpu; gpu = gpu->next) {
+
+        if (!gpu->handle) continue;
+
+        g_signal_connect(G_OBJECT(gpu->ctk_event),
+                         CTK_EVENT_NAME(NV_CTRL_PROBE_DISPLAYS),
+                         G_CALLBACK(display_config_attribute_changed),
+                         (gpointer) ctk_object);
+
+        g_signal_connect(G_OBJECT(gpu->ctk_event),
+                         CTK_EVENT_NAME(NV_CTRL_MODE_SET_EVENT),
+                         G_CALLBACK(display_config_attribute_changed),
+                         (gpointer) ctk_object);
+
+        for (screen = gpu->screens; screen; screen = screen->next) {
+
+            if (!screen->handle) continue;
+            
+            g_signal_connect(G_OBJECT(screen->ctk_event),
+                             CTK_EVENT_NAME(NV_CTRL_STRING_TWINVIEW_XINERAMA_INFO_ORDER),
+                             G_CALLBACK(display_config_attribute_changed),
+                             (gpointer) ctk_object);
+
+            g_signal_connect(G_OBJECT(screen->ctk_event),
+                             CTK_EVENT_NAME(NV_CTRL_ASSOCIATED_DISPLAY_DEVICES),
+                             G_CALLBACK(display_config_attribute_changed),
+                             (gpointer) ctk_object);
+
+            g_signal_connect(G_OBJECT(screen->ctk_event),
+                             CTK_EVENT_NAME(NV_CTRL_STRING_MOVE_METAMODE),
+                             G_CALLBACK(display_config_attribute_changed),
+                             (gpointer) ctk_object);
+
+            g_signal_connect(G_OBJECT(screen->ctk_event),
+                             CTK_EVENT_NAME(NV_CTRL_STRING_DELETE_METAMODE),
+                             G_CALLBACK(display_config_attribute_changed),
+                             (gpointer) ctk_object);
+        }
+    }
+
+} /* register_layout_events() */
+
+
+
+/** unregister_layout_events() *****************************************
+ *
+ * Unregisters display-configuration related events relating to all
+ * parts of the given layout structure as registered by 
+
+ * Unregisters all Screen/Gpu events.
+ *
+ **/
+
+static void unregister_layout_events(CtkDisplayConfig *ctk_object)
+{
+    nvLayoutPtr layout = ctk_object->layout;
+    nvScreenPtr screen;
+    nvGpuPtr gpu;
+    
+
+    /* Unregister all Screen/Gpu events. */
+
+    for (gpu = layout->gpus; gpu; gpu = gpu->next) {
+
+        if (!gpu->handle) continue;
+
+        /* Unregister all GPU events for this GPU */
+        g_signal_handlers_disconnect_matched(G_OBJECT(gpu->ctk_event),
+                                             G_SIGNAL_MATCH_FUNC | G_SIGNAL_MATCH_DATA,
+                                             0, // Signal ID
+                                             0, // Signal Detail
+                                             NULL, // Closure
+                                             G_CALLBACK(display_config_attribute_changed),
+                                             (gpointer) ctk_object);
+
+        for (screen = gpu->screens; screen; screen = screen->next) {
+
+            if (!screen->handle) continue;
+  
+            /* Unregister all screen events for this screen */
+            g_signal_handlers_disconnect_matched(G_OBJECT(screen->ctk_event),
+                                                 G_SIGNAL_MATCH_FUNC | G_SIGNAL_MATCH_DATA,
+                                                 0, // Signal ID
+                                                 0, // Signal Detail
+                                                 NULL, // Closure
+                                                 G_CALLBACK(display_config_attribute_changed),
+                                                 (gpointer) ctk_object);
+        }
+    }
+
+} /* unregister_layout_events() */
 
 
 
@@ -879,6 +994,17 @@ GtkWidget * create_validation_apply_dialog(CtkDisplayConfig *ctk_object)
 } /* create_validation_apply_dialog() */
 
 
+
+static void user_changed_attributes(CtkDisplayConfig *ctk_object)
+{
+    if (ctk_object->forced_reset_allowed) {
+        gtk_widget_set_sensitive(ctk_object->btn_apply, True);
+        ctk_object->forced_reset_allowed = FALSE;
+    }
+} /* user_changed_attributes() */
+
+
+
 static void screen_primary_display_toggled(GtkWidget *widget,
                                            gpointer user_data)
 {
@@ -892,9 +1018,7 @@ static void screen_primary_display_toggled(GtkWidget *widget,
         screen->primaryDisplay = display;
     }
 
-    /* Make the apply button sensitive to user input */
-    gtk_widget_set_sensitive(ctk_object->btn_apply, True);
-
+    user_changed_attributes(ctk_object);
 } /* screen_primary_display_toggled() */
 
 
@@ -984,6 +1108,12 @@ GtkWidget* ctk_display_config_new(NvCtrlAttributeHandle *handle,
     ctk_object->ctk_config = ctk_config;
 
     ctk_object->apply_possible = TRUE;
+
+    ctk_object->reset_required = FALSE;
+    ctk_object->forced_reset_allowed = TRUE;
+    ctk_object->notify_user_of_reset = TRUE;
+    ctk_object->ignore_reset_events = FALSE;
+
     ctk_object->advanced_mode = FALSE;
 
     /* Set container properties of the object & pack the banner */
@@ -1025,6 +1155,9 @@ GtkWidget* ctk_display_config_new(NvCtrlAttributeHandle *handle,
 
         return GTK_WIDGET(ctk_object);
     }
+
+    /* Register all Screen/Gpu events. */
+    register_layout_events(ctk_object);
 
     /* Create the layout widget */
     ctk_object->obj_layout = ctk_display_layout_new(handle, ctk_config,
@@ -2305,7 +2438,6 @@ static void setup_display_resolution_dropdown(CtkDisplayConfig *ctk_object)
     
     cur_modeline = display->cur_mode->modeline;
 
-
     /* Create the modeline lookup table for the dropdown */
     if (ctk_object->resolution_table) {
         free(ctk_object->resolution_table);
@@ -2433,11 +2565,14 @@ static void setup_display_resolution_dropdown(CtkDisplayConfig *ctk_object)
 
 } /* setup_display_resolution_dropdown() */
 
+
+
 /** generate_display_modelname_dropdown() ********************************
  *
  * Generate display modelname dropdown menu.
  *
  **/
+
 static GtkWidget* generate_display_modelname_dropdown
               (CtkDisplayConfig *ctk_object, int *cur_idx)
 {
@@ -2489,14 +2624,19 @@ static GtkWidget* generate_display_modelname_dropdown
                 [ctk_object->display_model_table_len++] = display;
         }
     }
+
     return menu;
+
 } /* generate_display_modelname_dropdown() */
+
+
 
 /** setup_display_modelname_dropdown() **************************
  *
  * Setup display modelname dropdown menu.
  *
  **/
+
 static void setup_display_modelname_dropdown(CtkDisplayConfig *ctk_object)
 {
     GtkWidget *menu;
@@ -2531,11 +2671,12 @@ static void setup_display_modelname_dropdown(CtkDisplayConfig *ctk_object)
     gtk_option_menu_set_history
         (GTK_OPTION_MENU(ctk_object->mnu_display_model), cur_idx);
 
-
     g_signal_handlers_unblock_by_func
         (G_OBJECT(ctk_object->mnu_display_model),
          G_CALLBACK(display_modelname_changed), (gpointer) ctk_object);
+
 } /* setup_display_modelname_dropdown() */
+
 
 
 /** setup_display_position_type() ************************************
@@ -2795,7 +2936,10 @@ static void setup_primary_display(CtkDisplayConfig *ctk_object)
         (G_OBJECT(ctk_object->chk_primary_display),
          G_CALLBACK(screen_primary_display_toggled),
          (gpointer) ctk_object);
+
 }  /* setup_primary_display() */
+
+
 
 /** setup_display_panning() ******************************************
  *
@@ -3885,7 +4029,7 @@ void layout_modified_callback(nvLayoutPtr layout, void *data)
     /* If the positioning of the X screen changes, we cannot apply */
     check_screen_pos_changed(ctk_object);
 
-    gtk_widget_set_sensitive(ctk_object->btn_apply, True);
+    user_changed_attributes(ctk_object);
 
 } /* layout_modified_callback()  */
 
@@ -4176,9 +4320,19 @@ static void do_enable_display_for_twinview(CtkDisplayConfig *ctk_object,
             return;
             
         } else {
+            g_signal_handlers_block_by_func
+                (G_OBJECT(screen->ctk_event),
+                 G_CALLBACK(display_config_attribute_changed),
+                 (gpointer) ctk_object);
+            
             /* Make sure other parts of nvidia-settings get updated */
             ctk_event_emit(screen->ctk_event, 0,
                            NV_CTRL_ASSOCIATED_DISPLAY_DEVICES, new_mask);
+            
+            g_signal_handlers_unblock_by_func
+                (G_OBJECT(screen->ctk_event),
+                 G_CALLBACK(display_config_attribute_changed),
+                         (gpointer) ctk_object);
         }
     }
     
@@ -4883,8 +5037,8 @@ static void display_config_clicked(GtkWidget *widget, gpointer user_data)
         setup_layout_frame(ctk_object);
         setup_display_page(ctk_object);
         setup_screen_page(ctk_object);
-        
-        gtk_widget_set_sensitive(ctk_object->btn_apply, True);
+
+        user_changed_attributes(ctk_object);
     }
 
 } /* display_config_clicked() */
@@ -4937,7 +5091,7 @@ static void display_refresh_changed(GtkWidget *widget, gpointer user_data)
     /* Update the modename */
     setup_display_modename(ctk_object);
 
-    gtk_widget_set_sensitive(ctk_object->btn_apply, True);
+    user_changed_attributes(ctk_object);
 
 } /* display_refresh_changed() */
 
@@ -5004,7 +5158,7 @@ static void display_resolution_changed(GtkWidget *widget, gpointer user_data)
     setup_display_panning(ctk_object);
 
 
-    gtk_widget_set_sensitive(ctk_object->btn_apply, True);
+    user_changed_attributes(ctk_object);
 
 } /* display_resolution_changed() */
 
@@ -5092,8 +5246,7 @@ static void display_position_type_changed(GtkWidget *widget,
 
     setup_display_position_offset(ctk_object);
 
-    gtk_widget_set_sensitive(ctk_object->btn_apply, True);
-
+    user_changed_attributes(ctk_object);
 } /* display_position_type_changed() */
 
 
@@ -5146,7 +5299,7 @@ static void display_position_relative_changed(GtkWidget *widget,
     /* Update the GUI */
     setup_display_position_offset(ctk_object);
 
-    gtk_widget_set_sensitive(ctk_object->btn_apply, True);
+    user_changed_attributes(ctk_object);
 
 } /* display_position_relative_changed() */
 
@@ -5188,7 +5341,7 @@ static void display_position_offset_activate(GtkWidget *widget,
         (CTK_DISPLAY_LAYOUT(ctk_object->obj_layout),
          display, CONF_ADJ_ABSOLUTE, NULL, x, y);
 
-    gtk_widget_set_sensitive(ctk_object->btn_apply, True);
+    user_changed_attributes(ctk_object);
 
 } /* display_position_offset_activate() */
 
@@ -5283,13 +5436,15 @@ static void screen_depth_changed(GtkWidget *widget, gpointer user_data)
     }
     ctk_display_layout_set_screen_depth
         (CTK_DISPLAY_LAYOUT(ctk_object->obj_layout), screen, depth);
+    /* Update default screen depth in SMF using libscf functions */
+    update_scf_depth(depth);
 
     consolidate_xinerama(ctk_object, screen);
 
     /* Can't apply screen depth changes */
     ctk_object->apply_possible = FALSE;
 
-    gtk_widget_set_sensitive(ctk_object->btn_apply, True);
+    user_changed_attributes(ctk_object);
 
 } /* screen_depth_changed() */
 
@@ -5350,7 +5505,7 @@ static void screen_position_type_changed(GtkWidget *widget,
 
     setup_screen_position_offset(ctk_object);
 
-    gtk_widget_set_sensitive(ctk_object->btn_apply, True);
+    user_changed_attributes(ctk_object);
 
 } /* screen_position_type_changed() */
 
@@ -5404,7 +5559,7 @@ static void screen_position_relative_changed(GtkWidget *widget,
     /* Update the GUI */
     setup_screen_position_offset(ctk_object);
 
-    gtk_widget_set_sensitive(ctk_object->btn_apply, True);
+    user_changed_attributes(ctk_object);
 
 } /* screen_position_relative_changed() */
 
@@ -5446,7 +5601,7 @@ static void screen_position_offset_activate(GtkWidget *widget,
         (CTK_DISPLAY_LAYOUT(ctk_object->obj_layout),
          screen, screen->position_type, screen->relative_to, x, y);
 
-    gtk_widget_set_sensitive(ctk_object->btn_apply, True);
+    user_changed_attributes(ctk_object);
 
 } /* screen_position_offset_activate() */
 
@@ -5533,7 +5688,7 @@ static void screen_metamode_activate(GtkWidget *widget, gpointer user_data)
     /* Sync the display frame */
     setup_display_page(ctk_object);
 
-    gtk_widget_set_sensitive(ctk_object->btn_apply, True);
+    user_changed_attributes(ctk_object);
 
 } /* screen_metamode_activate() */
 
@@ -5563,7 +5718,7 @@ static void screen_metamode_add_clicked(GtkWidget *widget, gpointer user_data)
     setup_display_page(ctk_object);
     setup_screen_page(ctk_object);
 
-    gtk_widget_set_sensitive(ctk_object->btn_apply, True);
+    user_changed_attributes(ctk_object);
 
 } /* screen_metamode_add_clicked() */
 
@@ -5593,7 +5748,7 @@ static void screen_metamode_delete_clicked(GtkWidget *widget,
     setup_display_page(ctk_object);
     setup_screen_page(ctk_object);
 
-    gtk_widget_set_sensitive(ctk_object->btn_apply, True);
+    user_changed_attributes(ctk_object);
 
 } /* screen_metamode_delete_clicked() */
 
@@ -5620,9 +5775,8 @@ static void xinerama_state_toggled(GtkWidget *widget, gpointer user_data)
     consolidate_xinerama(ctk_object, NULL);
     setup_screen_page(ctk_object);
 
-    /* Make the apply button sensitive to user input */
-    gtk_widget_set_sensitive(ctk_object->btn_apply, True);
-
+    user_changed_attributes(ctk_object);
+    
 } /* xinerama_state_toggled() */
 
 
@@ -6148,7 +6302,9 @@ static int update_screen_metamodes(CtkDisplayConfig *ctk_object,
     /* If we need to switch metamodes, do so now */
 
     if (strcmp(screen->cur_metamode->string, metamode_str)) {
+
         if (switch_to_current_metamode(ctk_object, screen)) {
+
             ctk_config_statusbar_message(ctk_object->ctk_config,
                                          "Switched to MetaMode %dx%d.",
                                          screen->cur_metamode->edim[W],
@@ -6186,7 +6342,7 @@ static void apply_clicked(GtkWidget *widget, gpointer user_data)
     CtkDisplayConfig *ctk_object = CTK_DISPLAY_CONFIG(user_data);
     nvGpuPtr gpu;
     ReturnStatus ret;
-    int clear_apply = 1;
+    gboolean clear_apply = TRUE;
 
 
     /* Make sure we can apply */
@@ -6198,6 +6354,9 @@ static void apply_clicked(GtkWidget *widget, gpointer user_data)
     if (!validate_layout(ctk_object, VALIDATE_APPLY)) {
         return;
     }
+
+    /* Temporarily unregister events */
+    unregister_layout_events(ctk_object);
 
     /* Update all GPUs */
     for (gpu = ctk_object->layout->gpus; gpu; gpu = gpu->next) {
@@ -6232,7 +6391,8 @@ static void apply_clicked(GtkWidget *widget, gpointer user_data)
             
             if (screen->primaryDisplay) {
                 gchar *primary_str =
-                   display_get_type_str(screen->primaryDisplay->device_mask, 0);
+                    display_get_type_str(screen->primaryDisplay->device_mask,
+                                         0);
 
                 ret = NvCtrlSetStringAttribute(screen->handle,
                                  NV_CTRL_STRING_TWINVIEW_XINERAMA_INFO_ORDER,
@@ -6255,7 +6415,20 @@ static void apply_clicked(GtkWidget *widget, gpointer user_data)
     /* Clear the apply button if all went well */
     if (clear_apply) {
         gtk_widget_set_sensitive(widget, False);
+        ctk_object->forced_reset_allowed = TRUE;
     }
+
+    /* XXX Run the GTK main loop to flush any pending layout events
+     * that should be ignored.  This is done because the GTK main loop
+     * seems to only ignore the first blocked event received when it
+     * finally runs.
+     */
+    while (gtk_events_pending()) {
+        gtk_main_iteration_do(FALSE);
+    }
+
+    /* re-register to receive events */
+    register_layout_events(ctk_object);
 
 } /* apply_clicked() */
 
@@ -6393,7 +6566,7 @@ static gboolean update_xconfig_save_buffer(CtkDisplayConfig *ctk_object)
 
 
     /* Find out if the file is mergable */
-    if (!filename) {
+    if (!filename || (filename[0] == '\0')) {
         mergable = FALSE;
     } else {
         /* Must be able to open the file */
@@ -6805,7 +6978,7 @@ static XConfigDevicePtr add_device_to_xconfig(nvGpuPtr gpu, XConfigPtr config,
 
     /* Fill out the device information */
     device->identifier = (char *)malloc(32);
-    snprintf(device->identifier, 32, "Videocard%d", device_id);
+    snprintf(device->identifier, 32, "Device%d", device_id);
 
     device->driver = xconfigStrdup("nvidia");
     device->vendor = xconfigStrdup("NVIDIA Corporation");
@@ -7679,11 +7852,15 @@ static void probe_clicked(GtkWidget *widget, gpointer user_data)
     gchar *type;
     gchar *str;
 
-
     /* Probe each GPU for display changes */
     for (gpu = ctk_object->layout->gpus; gpu; gpu = gpu->next) {
+
         if (!gpu->handle) continue;
-        
+
+        g_signal_handlers_block_by_func
+            (G_OBJECT(gpu->ctk_event),
+             G_CALLBACK(display_config_attribute_changed),
+             (gpointer) ctk_object);
 
         /* Do the probe */
         ret = NvCtrlGetAttribute(gpu->handle, NV_CTRL_PROBE_DISPLAYS,
@@ -7691,6 +7868,12 @@ static void probe_clicked(GtkWidget *widget, gpointer user_data)
         if (ret != NvCtrlSuccess) {
             nv_error_msg("Failed to probe for display devices on GPU-%d '%s'.",
                          NvCtrlGetTargetId(gpu->handle), gpu->name);
+
+            g_signal_handlers_unblock_by_func
+                (G_OBJECT(gpu->ctk_event),
+                 G_CALLBACK(display_config_attribute_changed),
+                 (gpointer) ctk_object);
+
             continue;
         }
 
@@ -7745,8 +7928,7 @@ static void probe_clicked(GtkWidget *widget, gpointer user_data)
                     ctk_display_layout_update_display_count
                         (CTK_DISPLAY_LAYOUT(ctk_object->obj_layout), NULL);
 
-                    /* Activate the apply button */
-                    gtk_widget_set_sensitive(ctk_object->btn_apply, True);
+                    user_changed_attributes(ctk_object);
                 }
 
             /* Add new displays as 'disabled' */
@@ -7764,6 +7946,11 @@ static void probe_clicked(GtkWidget *widget, gpointer user_data)
                      selected_display);
             }
         }
+
+        g_signal_handlers_unblock_by_func
+            (G_OBJECT(gpu->ctk_event),
+             G_CALLBACK(display_config_attribute_changed),
+             (gpointer) ctk_object);
     }
 
 
@@ -7778,6 +7965,68 @@ static void probe_clicked(GtkWidget *widget, gpointer user_data)
 
 
 
+/** reset_layout() *************************************************
+ *
+ * Load current X server settings.
+ *
+ **/
+
+static void reset_layout(CtkDisplayConfig *ctk_object) 
+{
+    gchar *err_str = NULL;
+    nvLayoutPtr layout;
+    /* Load the current layout */
+    layout = layout_load_from_server(ctk_object->handle, &err_str);
+
+
+    /* Handle errors loading the new layout */
+    if (!layout || err_str) {
+        nv_error_msg(err_str);
+        g_free(err_str);
+        return;
+    }
+
+
+    /* Free existing layout */
+    unregister_layout_events(ctk_object);
+    layout_free(ctk_object->layout);
+
+
+    /* Setup the new layout */
+    ctk_object->layout = layout;
+    ctk_display_layout_set_layout((CtkDisplayLayout *)(ctk_object->obj_layout),
+                                  ctk_object->layout);
+
+    register_layout_events(ctk_object);
+
+
+    /* Make sure all X screens have the same depth if Xinerama is enabled */
+    consolidate_xinerama(ctk_object, NULL);
+
+    /* Make sure X screens have some kind of position */
+    assign_screen_positions(ctk_object);
+
+
+    /* Setup the GUI */
+    setup_layout_frame(ctk_object);
+    setup_display_page(ctk_object);
+    setup_screen_page(ctk_object);
+
+    /* Get new position */
+    get_cur_screen_pos(ctk_object);
+
+    /* Clear the apply button */
+    ctk_object->apply_possible = TRUE;
+    gtk_widget_set_sensitive(ctk_object->btn_apply, FALSE);
+
+    ctk_object->forced_reset_allowed = TRUE; /* OK to reset w/o user input */
+    ctk_object->notify_user_of_reset = TRUE; /* Notify user of new changes */
+    ctk_object->reset_required = FALSE; /* No reset required to apply */
+
+} /* reset_layout() */
+
+
+
 /** reset_clicked() **************************************************
  *
  * Called when user clicks on the "Reset" button.
@@ -7787,9 +8036,7 @@ static void probe_clicked(GtkWidget *widget, gpointer user_data)
 static void reset_clicked(GtkWidget *widget, gpointer user_data)
 {
     CtkDisplayConfig *ctk_object = CTK_DISPLAY_CONFIG(user_data);
-    nvLayoutPtr layout;
     gint result;
-    gchar *err_str = NULL;
 
 
     /* Show the confirm dialog */
@@ -7813,48 +8060,168 @@ static void reset_clicked(GtkWidget *widget, gpointer user_data)
         return;
     }
 
-
-    /* Load the current layout */
-    layout = layout_load_from_server(ctk_object->handle, &err_str);
-
-
-    /* Handle errors loading the new layout */
-    if (!layout || err_str) {
-        nv_error_msg(err_str);
-        g_free(err_str);
-        return;
-    }   
-
-
-    /* Free the existing layout */
-    layout_free(ctk_object->layout);
-
-
-    /* Setup the new layout */
-    ctk_object->layout = layout;
-    ctk_display_layout_set_layout((CtkDisplayLayout *)(ctk_object->obj_layout),
-                                  ctk_object->layout);
-
-    /* Make sure all X screens have the same depth if Xinerama is enabled */
-    consolidate_xinerama(ctk_object, NULL);
-
-    /* Make sure X screens have some kind of position */
-    assign_screen_positions(ctk_object);
-
-
-    /* Setup the GUI */
-    setup_layout_frame(ctk_object);
-    setup_display_page(ctk_object);
-    setup_screen_page(ctk_object);
-
-    /* Get new position */
-    get_cur_screen_pos(ctk_object);
-
-    /* Clear the apply button */
-    ctk_object->apply_possible = TRUE;
-    gtk_widget_set_sensitive(ctk_object->btn_apply, FALSE);
+    reset_layout(ctk_object);
 
 } /* reset_clicked() */
+
+
+
+/** force_layout_reset() ******************************************
+ *
+ * Pop up dialog box to user when the layout needs to be reloaded
+ * due to changes made to the server layout by another client.
+ *
+ **/
+
+static gboolean force_layout_reset(gpointer user_data)
+{
+    gint result;
+    GtkWidget *parent;
+    GtkWidget *dlg;
+    CtkDisplayConfig *ctk_object = (CtkDisplayConfig *) user_data;
+
+    if ((ctk_object->forced_reset_allowed) ) {
+        /* It is OK to force a reset of the layout since no
+         * changes have been made.
+         */
+        reset_layout(ctk_object);
+        goto done;
+    }
+
+    /* It is not OK to force a reset of the layout since the user
+     * may have changed some settings.  The user will need to
+     * reset the layout manually.
+     */
+
+    ctk_object->reset_required = TRUE;
+
+    /* If the X server display configuration page is not currently
+     * selected, we will need to notify the user once they get
+     * back to it.
+     */
+    if (!ctk_object->page_selected) goto done;
+
+    /* Notify the user of the required reset if they haven't
+     * already been notified.
+     */
+    if (!ctk_object->notify_user_of_reset) goto done;
+
+    parent = ctk_get_parent_window(GTK_WIDGET(ctk_object));
+
+    dlg = gtk_message_dialog_new 
+        (GTK_WINDOW(parent),
+         GTK_DIALOG_DESTROY_WITH_PARENT,
+         GTK_MESSAGE_WARNING,
+         GTK_BUTTONS_NONE,
+         "Your current changes to the X server display configuration may no "
+         "longer be applied due to changes made to the running X server.\n\n"
+         "You may either reload the current X server settings and lose any "
+         "configuration setup in this page, or select \"Cancel\" and save "
+         "your changes to the X configuration file (requires restarting X "
+         "to take effect.)\n\n"
+         "If you select \"Cancel\", you will only be allowed to apply "
+         "settings once you have reset the configuration.");
+
+    gtk_dialog_add_buttons(GTK_DIALOG(dlg),
+                           "Reload current X server settings",
+                           GTK_RESPONSE_YES,
+                           "Cancel", GTK_RESPONSE_CANCEL,
+                           NULL);
+
+    result = gtk_dialog_run(GTK_DIALOG(dlg));
+    switch (result) {
+    case GTK_RESPONSE_YES:
+        reset_layout(ctk_object);
+        break;
+    case GTK_RESPONSE_CANCEL:
+        /* Fall through */
+    default:
+        /* User does not want to reset the layout, don't allow them
+         * to apply their changes (but allow them to save their changes)
+         * until they have reloaded the layout manually.
+         */
+        ctk_object->notify_user_of_reset = FALSE;
+        gtk_widget_set_sensitive(ctk_object->btn_apply, False);
+        break;
+    }
+    gtk_widget_destroy(dlg);
+
+done:
+    ctk_object->ignore_reset_events = FALSE;
+    return FALSE;
+
+} /* force_layout_reset() */
+
+
+
+/** display_config_attribute_changed() *******************************
+ *
+ * Callback function for all display config page related events
+ * change.
+ *
+ * Display configuration changes usually involve multiple related
+ * events in succession.  To avoid reloading the layout for every
+ * event, we register the force_layout_reset() function (once per
+ * block of events) to be called when the app becomes idle (which
+ * will happen once there are no more pending events) using
+ * g_idle_add().  Once force_layout_reset() is called, it will
+ * unresgister itself by returning FALSE.
+ *
+ **/
+
+static void display_config_attribute_changed(GtkObject *object, gpointer arg1,
+                                             gpointer user_data)
+{
+    CtkDisplayConfig *ctk_object = (CtkDisplayConfig *) user_data;
+
+    if (ctk_object->ignore_reset_events) return;
+
+    ctk_object->ignore_reset_events = TRUE;
+
+    /* queue force_layout_reset() to be called once all other pending
+     * events are consumed.
+     */
+    g_idle_add(force_layout_reset, (gpointer)ctk_object);
+
+} /* display_config_attribute_changed() */
+
+
+
+/** ctk_display_config_unselected() **********************************
+ *
+ * Called when display config page is unselected.
+ *
+ **/
+
+void  ctk_display_config_unselected(GtkWidget *widget) {
+    CtkDisplayConfig *ctk_object = CTK_DISPLAY_CONFIG(widget);
+
+    ctk_object->page_selected = FALSE;
+
+} /* ctk_display_config_unselected() */
+
+
+
+/** ctk_display_config_selected() ***********************************
+ *
+ * Called when display config page is selected.
+ *
+ **/
+
+void ctk_display_config_selected(GtkWidget *widget) {
+    CtkDisplayConfig *ctk_object=CTK_DISPLAY_CONFIG(widget);
+
+    ctk_object->page_selected = TRUE;
+
+    /* Handle case where a layout reset is required but we could
+     * not notify the user since the X server display configuration
+     * page was not selected
+     */
+    if (ctk_object->reset_required) {
+        force_layout_reset(ctk_object);
+    }
+
+} /* ctk_display_config_selected() */
 
 
 
