@@ -866,3 +866,38 @@ NvCtrlXrandrGetScreenMode (NvCtrlAttributeHandle *handle,
     return NvCtrlXrandrGetScreenMagicMode
         ((NvCtrlAttributePrivateHandle *)handle, width, height, refresh);
 } /* NvCtrlXrandrGetScreenMode() */
+
+
+/*
+ * NvCtrlGetMultisampleModeName() - lookup a string desribing the
+ * NV-CONTROL constant.
+*/
+
+const char *NvCtrlGetMultisampleModeName(int multisample_mode)
+{
+    static const char *mode_names[] = {
+
+        "Off",                 /* FSAA_MODE_NONE  */
+        "2x (2xMS)",           /* FSAA_MODE_2x    */
+        "2x Quincunx",         /* FSAA_MODE_2x_5t */
+        "1.5 x 1.5",           /* FSAA_MODE_15x15 */
+        "2 x 2 Supersampling", /* FSAA_MODE_2x2   */
+        "4x (4xMS)",           /* FSAA_MODE_4x    */
+        "4x, 9-tap Gaussian",  /* FSAA_MODE_4x_9t */
+        "8x (4xMS, 4xCS)",     /* FSAA_MODE_8x    */
+        "16x (4xMS, 12xCS)",   /* FSAA_MODE_16x   */
+        "8x (4xSS, 2xMS)",     /* FSAA_MODE_8xS   */
+        "8x (8xMS)",           /* FSAA_MODE_8xQ   */
+        "16x (4xSS, 4xMS)",    /* FSAA_MODE_16xS  */
+        "16x (8xMS, 8xCS)",    /* FSAA_MODE_16xQ  */
+        "32x (4xSS, 8xMS)"     /* FSAA_MODE_32xS  */
+    };
+
+    if ((multisample_mode < NV_CTRL_FSAA_MODE_NONE) ||
+        (multisample_mode > NV_CTRL_FSAA_MODE_MAX)) {
+        return "Unknown Multisampling";
+    }
+
+    return mode_names[multisample_mode];
+
+} /* NvCtrlGetMultisampleModeName  */

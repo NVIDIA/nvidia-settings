@@ -182,6 +182,7 @@ AttributeTableEntry attributeTable[] = {
     { "GvoComposite",                    NV_CTRL_GVO_COMPOSITE,                        I },
     { "GvoCompositeAlphaKey",            NV_CTRL_GVO_COMPOSITE_ALPHA_KEY,              I },
     { "GvoCompositeNumKeyRanges",        NV_CTRL_GVO_COMPOSITE_NUM_KEY_RANGES,         I|N },
+    { "GvoSyncToDisplay",                NV_CTRL_GVO_SYNC_TO_DISPLAY,                  I|N },
 
     { "Brightness",            BRIGHTNESS_VALUE|ALL_CHANNELS,       N|C|G },
     { "RedBrightness",         BRIGHTNESS_VALUE|RED_CHANNEL,        C|G   },
@@ -263,7 +264,7 @@ AttributeTableEntry attributeTable[] = {
  * about.
  */
 
-#if NV_CTRL_LAST_ATTRIBUTE != NV_CTRL_GVO_CSC_CHANGED_EVENT
+#if NV_CTRL_LAST_ATTRIBUTE != NV_CTRL_GVO_SYNC_TO_DISPLAY
 #warning "Have you forgotten to add a new integer attribute to attributeTable?"
 #endif
 

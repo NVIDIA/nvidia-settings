@@ -46,8 +46,6 @@ static int map_nv_ctrl_fsaa_value_to_slider(CtkMultisample *ctk_multisample,
 static gchar *format_fsaa_value(GtkScale *scale, gdouble arg1,
                                 gpointer user_data);
 
-static const gchar *get_multisample_mode_name(gint multisample_mode);
-
 static GtkWidget *create_fsaa_setting_menu(CtkMultisample *ctk_multisample,
                                            CtkEvent *ctk_event,
                                            gboolean override,
@@ -615,45 +613,9 @@ static gchar *format_fsaa_value(GtkScale *scale, gdouble arg1,
     if (val < 0) val = 0;
     val = ctk_multisample->fsaa_translation_table[val];
     
-    return g_strdup(get_multisample_mode_name(val));
+    return g_strdup(NvCtrlGetMultisampleModeName(val));
 
 } /* format_fsaa_value() */
-
-
-
-/*
- * get_multisample_mode_name() - lookup a string desribing the
- * NV-CONTROL constant.
- */
-
-static const gchar *get_multisample_mode_name(gint multisample_mode)
-{
-    static const gchar *mode_names[] = {
-        
-        "Off",                 /* FSAA_MODE_NONE  */
-        "2x Bilinear",         /* FSAA_MODE_2x    */
-        "2x Quincunx",         /* FSAA_MODE_2x_5t */
-        "1.5 x 1.5",           /* FSAA_MODE_15x15 */
-        "2 x 2 Supersampling", /* FSAA_MODE_2x2   */
-        "4x Bilinear",         /* FSAA_MODE_4x    */
-        "4x, 9-tap Gaussian",  /* FSAA_MODE_4x_9t */
-        "8x",                  /* FSAA_MODE_8x    */
-        "16x",                 /* FSAA_MODE_16x   */
-        "8xS",                 /* FSAA_MODE_8xS   */
-        "8xQ",                 /* FSAA_MODE_8xQ   */
-        "16xS",                /* FSAA_MODE_16xS  */
-        "16xQ",                /* FSAA_MODE_16xQ  */
-        "32xS"                 /* FSAA_MODE_32xS  */
-    };
-    
-    if ((multisample_mode < NV_CTRL_FSAA_MODE_NONE) ||
-        (multisample_mode > NV_CTRL_FSAA_MODE_MAX)) {
-        return "Unknown Multisampling";
-    }
-    
-    return mode_names[multisample_mode];
-    
-} /* get_multisample_mode_name() */
 
 
 
@@ -942,7 +904,7 @@ static void post_fsaa_value_changed(CtkMultisample *ctk_multisample, gint val)
 {
     ctk_config_statusbar_message(ctk_multisample->ctk_config,
                                  "Antialiasing set to %s.",
-                                 get_multisample_mode_name(val));
+                                 NvCtrlGetMultisampleModeName(val));
     
 } /* post_fsaa_value_changed() */
 
@@ -1352,8 +1314,8 @@ GtkTextBuffer *ctk_multisample_create_help(GtkTextTagTable *table,
         }
         
         if (ctk_multisample->active_attributes & __FSAA_2x) {
-            ctk_help_term(b, &i, "2x Bilinear");
-            ctk_help_para(b, &i, "This enables antialiasing using the 2x "
+            ctk_help_term(b, &i, "2x (2xMS)");
+            ctk_help_para(b, &i, "This enables antialiasing using the 2x (2xMS)"
                           "Bilinear mode.  This mode offers improved image "
                           "quality and high performance in OpenGL "
                           "applications.");
@@ -1385,8 +1347,8 @@ GtkTextBuffer *ctk_multisample_create_help(GtkTextTagTable *table,
         }
 
         if (ctk_multisample->active_attributes & __FSAA_4x) {
-            ctk_help_term(b, &i, "4x Bilinear");
-            ctk_help_para(b, &i, "This enables antialiasing using the 4x "
+            ctk_help_term(b, &i, "4x (4xMS)");
+            ctk_help_para(b, &i, "This enables antialiasing using the 4x (4xMS)"
                           "Bilinearmode. This mode offers higher image "
                           "quality at the expense of some performance in "
                           "OpenGL applications.");
@@ -1401,53 +1363,53 @@ GtkTextBuffer *ctk_multisample_create_help(GtkTextTagTable *table,
         }
 
         if (ctk_multisample->active_attributes & __FSAA_8x) {
-            ctk_help_term(b, &i, "8x");
+            ctk_help_term(b, &i, "8x (4xMS, 4xCS)");
             ctk_help_para(b, &i, "This enables antialiasing using the 8x "
-                          "mode.  This mode offers better image quality than "
-                          "the 4x mode.");
+                          "(4xMS, 4xCS) mode.  This mode offers better image "
+                          "quality than the 4x mode.");
         }
 
         if (ctk_multisample->active_attributes & __FSAA_8xS) {
-            ctk_help_term(b, &i, "8xS");
-            ctk_help_para(b, &i, "This enables antialiasing using the 8xS "
-                          "mode.  This mode offers better image quality than "
-                          "the 4x mode; 8xS is only available on Geforce "
-                          "(non-Quadro) FX or better GPUs.");
+            ctk_help_term(b, &i, "8x (4xSS, 2xMS)");
+            ctk_help_para(b, &i, "This enables antialiasing using the 8x "
+                          "(4xSS, 2xMS) mode.  This mode offers better image "
+                          "quality than the 4x mode; 8xS is only available on "
+                          "Geforce (non-Quadro) FX or better GPUs.");
         }
 
         if (ctk_multisample->active_attributes & __FSAA_16x) {
-            ctk_help_term(b, &i, "16x");
+            ctk_help_term(b, &i, "16x (4xMS, 12xCS)");
             ctk_help_para(b, &i, "This enables antialiasing using the 16x "
-                          "mode.  This mode offers better image quality than "
-                          "the 8x mode.");
+                          "(4xMS, 12xCS) mode.  This mode offers better image "
+                          "quality than the 8x mode.");
         }
 
         if (ctk_multisample->active_attributes & __FSAA_8xQ) {
-            ctk_help_term(b, &i, "8xQ");
-            ctk_help_para(b, &i, "This enables antialiasing using the 8xQ "
-                          "mode.  This mode offers better image quality than "
-                          "the 8x mode.");
+            ctk_help_term(b, &i, "8x (8xMS)");
+            ctk_help_para(b, &i, "This enables antialiasing using the 8x (8xMS) "
+                          "mode.  This mode offers better image "
+                          "quality than the 8x mode.");
         }
 
         if (ctk_multisample->active_attributes & __FSAA_16xS) {
-            ctk_help_term(b, &i, "16xS");
-            ctk_help_para(b, &i, "This enables antialiasing using the 16xS "
-                          "mode.  This mode offers better image quality than "
-                          "the 16x mode.");
+            ctk_help_term(b, &i, "16x (4xSS, 4xMS)");
+            ctk_help_para(b, &i, "This enables antialiasing using the 16x "
+                          "(4xSS, 4xMS) mode.  This mode offers better image "
+                          "quality than the 16x mode.");
         }
 
         if (ctk_multisample->active_attributes & __FSAA_16xQ) {
-            ctk_help_term(b, &i, "16xQ");
-            ctk_help_para(b, &i, "This enables antialiasing using the 16xQ "
-                          "mode.  This mode offers better image quality than "
-                          "the 16x mode.");
+            ctk_help_term(b, &i, "16x (8xMS, 8xCS)");
+            ctk_help_para(b, &i, "This enables antialiasing using the 16x "
+                          "(8xMS, 8xCS) mode.  This mode offers better image "
+                          "quality than the 16x mode.");
         }
 
         if (ctk_multisample->active_attributes & __FSAA_32xS) {
-            ctk_help_term(b, &i, "32xS");
-            ctk_help_para(b, &i, "This enables antialiasing using the 32xS "
-                          "mode.  This mode offers better image quality than "
-                          "the 16x mode.");
+            ctk_help_term(b, &i, "32x (4xSS, 8xMS)");
+            ctk_help_para(b, &i, "This enables antialiasing using the 32x "
+                          "(4xSS, 8xMS) mode.  This mode offers better image "
+                          "quality than the 16x mode.");
         }
     }
 

@@ -270,7 +270,7 @@ static void ctk_event_class_init(CtkEventClass *ctk_event_class)
      * knows about.
      */
 
-#if NV_CTRL_LAST_ATTRIBUTE != NV_CTRL_GVO_CSC_CHANGED_EVENT
+#if NV_CTRL_LAST_ATTRIBUTE != NV_CTRL_GVO_SYNC_TO_DISPLAY
 #warning "There are attributes that do not emit signals!"
 #endif
 

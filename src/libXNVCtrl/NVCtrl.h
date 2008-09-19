@@ -2827,6 +2827,8 @@
  * initially, but allows them to migrate to video memory.
  * NV_CTRL_INITIAL_PIXMAP_PLACEMENT_VIDMEM creates pixmaps in video memory
  * when enough resources are available.
+ * NV_CTRL_INITIAL_PIXMAP_PLACEMENT_RESERVED is currently reserved for future
+ * use.  Behavior is undefined.
  * NV_CTRL_INITIAL_PIXMAP_PLACEMENT_GPU_SYSMEM creates pixmaps in GPU accessible
  * system memory when enough resources are available.
  */
@@ -2835,6 +2837,7 @@
 #define NV_CTRL_INITIAL_PIXMAP_PLACEMENT_FORCE_SYSMEM            0
 #define NV_CTRL_INITIAL_PIXMAP_PLACEMENT_SYSMEM                  1
 #define NV_CTRL_INITIAL_PIXMAP_PLACEMENT_VIDMEM                  2
+#define NV_CTRL_INITIAL_PIXMAP_PLACEMENT_RESERVED                3
 #define NV_CTRL_INITIAL_PIXMAP_PLACEMENT_GPU_SYSMEM              4
 
 
@@ -3377,7 +3380,19 @@
 
 #define NV_CTRL_GVO_CSC_CHANGED_EVENT                           294 /* --- */
 
-#define NV_CTRL_LAST_ATTRIBUTE NV_CTRL_GVO_CSC_CHANGED_EVENT
+/*
+ * NV_CTRL_GVO_SYNC_TO_DISPLAY This attribute controls whether or not
+ * the non-SDI display device will be sync'ed to the SDI display device
+ * (when configured in TwinView, Clone Mode or when using the SDI device
+ * with OpenGL).
+ */
+
+#define NV_CTRL_GVO_SYNC_TO_DISPLAY                             296 /* --- */
+#define NV_CTRL_GVO_SYNC_TO_DISPLAY_DISABLE                     0
+#define NV_CTRL_GVO_SYNC_TO_DISPLAY_ENABLE                      1
+
+
+#define NV_CTRL_LAST_ATTRIBUTE  NV_CTRL_GVO_SYNC_TO_DISPLAY
 
 /**************************************************************************/
 

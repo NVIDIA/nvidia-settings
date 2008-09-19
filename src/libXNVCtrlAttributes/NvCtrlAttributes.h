@@ -496,6 +496,8 @@ NvCtrlGetGvoColorConversion(NvCtrlAttributeHandle *handle,
                             float colorOffset[3],
                             float colorScale[3]);
 
+const char *NvCtrlGetMultisampleModeName(int multisample_mode);
+
 char *NvCtrlAttributesStrError (ReturnStatus status);
 
 void NvCtrlAttributeClose(NvCtrlAttributeHandle *handle);

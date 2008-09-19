@@ -50,7 +50,12 @@ static int process_attribute_assignments(int, char**, const char *);
 static int query_all(const char *);
 static int query_all_targets(const char *display_name, const int target_index);
 
-static void print_valid_values(char *, uint32, NVCTRLAttributeValidValuesRec);
+static void print_valid_values(char *, int, uint32, NVCTRLAttributeValidValuesRec);
+
+static void print_additional_info(const char *name,
+                                  int attr,
+                                  NVCTRLAttributeValidValuesRec valid,
+                                  const char *indent);
 
 static int validate_value(CtrlHandleTarget *t, ParsedAttribute *a, uint32 d,
                           int target_type, char *whence);
@@ -597,7 +602,7 @@ static int validate_value(CtrlHandleTarget *t, ParsedAttribute *a, uint32 d,
                            a->val, a->name, t->name,
                            d_str, whence);
         }
-        print_valid_values(a->name, a->flags, valid);
+        print_valid_values(a->name, a->attr, a->flags, valid);
         return NV_FALSE;
     }
     return NV_TRUE;
@@ -611,7 +616,7 @@ static int validate_value(CtrlHandleTarget *t, ParsedAttribute *a, uint32 d,
  * attribute.
  */
 
-static void print_valid_values(char *name, uint32 flags,
+static void print_valid_values(char *name, int attr, uint32 flags,
                                NVCTRLAttributeValidValuesRec valid)
 {
     int bit, print_bit, last, last2, i, n;
@@ -735,6 +740,9 @@ static void print_valid_values(char *name, uint32 flags,
     nv_msg(INDENT, "'%s' can use the following target types: %s.",
            name, str);
    
+    if (__verbosity >= VERBOSITY_ALL)
+        print_additional_info(name, attr, valid, INDENT);
+
 #undef INDENT
 
 } /* print_valid_values() */
@@ -817,6 +825,61 @@ static void print_queried_value(CtrlHandleTarget *t,
     }
 
 } /* print_queried_value() */
+
+
+
+/*
+ * print_additional_fsaa_info() - print the currently available fsaa
+ * modes with their corresponding names
+ */
+
+static void print_additional_fsaa_info(const char *name,
+                                       unsigned int valid_fsaa_modes,
+                                       const char *indent)
+{
+    int bit;
+
+#define MORE_INDENT "      "
+
+    nv_msg(indent, "\nNames for valid '%s' values:\n", name);
+
+    for (bit = 0; bit < 32; bit++) {
+        /* FSAA is not a packed attribute */
+        if (valid_fsaa_modes & (1 << bit)) {
+            nv_msg(MORE_INDENT, "%2u - %s\n", 
+                   bit, NvCtrlGetMultisampleModeName(bit));
+        }
+    }
+
+#undef MORE_INDENT
+
+}
+
+
+
+/*
+ * print_additional_info() - after printing the main information about
+ * a queried attribute, we may want to add some more when in verbose mode.
+ * This function is designed to handle this. Add a new 'case' here when
+ * you want to print this additional information for a specific attr.
+ */
+
+static void print_additional_info(const char *name,
+                                  int attr,
+                                  NVCTRLAttributeValidValuesRec valid,
+                                  const char *indent)
+{
+    switch (attr) {
+
+    case NV_CTRL_FSAA_MODE:
+        print_additional_fsaa_info(name, valid.u.bits.ints, indent);
+        break;
+
+    // add more here
+
+    }
+
+}
 
 
 
@@ -942,7 +1005,7 @@ static int query_all(const char *display_name)
                                         VerboseLevelAbbreviated :
                                         VerboseLevelVerbose);
 
-                    print_valid_values(a->name, a->flags, valid);
+                    print_valid_values(a->name, a->attr, a->flags, valid);
                 }
                 
                 if (!__terse) nv_msg(NULL,"");
@@ -1414,7 +1477,7 @@ static int process_parsed_attribute_internal(CtrlHandleTarget *t,
                 print_queried_value(t, &valid, a->val, a->flags, a->name, d,
                                     "  ", __terse ?
                                     VerboseLevelTerse : VerboseLevelVerbose);
-                print_valid_values(a->name, a->flags, valid);
+                print_valid_values(a->name, a->attr, a->flags, valid);
             }
         }
     } /* query */
