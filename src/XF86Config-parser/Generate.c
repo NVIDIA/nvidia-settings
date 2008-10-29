@@ -48,7 +48,6 @@
 
 static int is_file(const char *filename);
 
-static void add_files(GenerateOptions *gop, XConfigPtr config);
 static void add_font_path(GenerateOptions *gop, XConfigPtr config);
 static void add_modules(GenerateOptions *gop, XConfigPtr config);
 
@@ -72,7 +71,7 @@ XConfigPtr xconfigGenerate(GenerateOptions *gop)
 
     /* add files, fonts, and modules */
 
-    add_files(gop, config);
+    config->files = xconfigAlloc(sizeof(XConfigFilesRec));
     add_font_path(gop, config);
     add_modules(gop, config);
 
@@ -252,22 +251,6 @@ static char *find_libdir(GenerateOptions *gop)
     
 } /* find_libdir() */
 
-
-
-/*
- * add_files() - 
- */
-
-static void add_files(GenerateOptions *gop, XConfigPtr config)
-{
-    char *libdir = find_libdir(gop);
-
-    config->files = xconfigAlloc(sizeof(XConfigFilesRec));
-    config->files->rgbpath = xconfigStrcat(libdir, "/X11/rgb", NULL);
-    
-    free(libdir);
-
-} /* add_files() */
 
 
 /*
