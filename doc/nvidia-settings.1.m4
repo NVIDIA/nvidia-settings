@@ -27,6 +27,8 @@ Options:
 .BI "[-vh] [\-\-config=" configfile "] [\-c " ctrl-display "]"
 .br
 .I "         \fB[\-\-verbose=\fP{\fIerrors \fP|\fI warnings \fP|\fI all\fP}\fB]"
+.br
+.I "         \fB[\-\-describe=\fP{\fIall \fP|\fI list \fP|\fI attribute_name\fP}\fB]"
 .PP
 .I attr
 has the form:
@@ -193,6 +195,9 @@ to query all attributes.
 .TP
 .B \-g, \-\-glxinfo
 Print GLX Information for the X display and exit.
+.TP
+.B \-e, \-\-describe
+Prints information about a particular attribute.  Specify 'all' to list the descriptions of all attributes.  Specify 'list' to list the attribute names without a descriptions.
 .SH "USER GUIDE"
 .SS Contents
 1.	Layout of the nvidia\-settings GUI

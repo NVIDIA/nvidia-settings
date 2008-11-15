@@ -139,19 +139,22 @@ xconfigPrintInputSection (FILE * cf, XConfigInputPtr ptr)
 }
 
 void
-xconfigFreeInputList (XConfigInputPtr ptr)
+xconfigFreeInputList (XConfigInputPtr *ptr)
 {
     XConfigInputPtr prev;
 
-    while (ptr)
-    {
-        TEST_FREE (ptr->identifier);
-        TEST_FREE (ptr->driver);
-        TEST_FREE (ptr->comment);
-        xconfigOptionListFree (ptr->options);
+    if (ptr == NULL || *ptr == NULL)
+        return;
 
-        prev = ptr;
-        ptr = ptr->next;
+    while (*ptr)
+    {
+        TEST_FREE ((*ptr)->identifier);
+        TEST_FREE ((*ptr)->driver);
+        TEST_FREE ((*ptr)->comment);
+        xconfigFreeOptionList (&((*ptr)->options));
+
+        prev = *ptr;
+        *ptr = (*ptr)->next;
         free (prev);
     }
 }
@@ -242,10 +245,12 @@ static int getCoreInputDevice(GenerateOptions *gop,
             if (!core) {
                 core = input;
             } else {
-                if (opt1) input->options =
-                              xconfigRemoveOption(input->options, opt1);
-                if (opt2) inputRef->options =
-                              xconfigRemoveOption(inputRef->options, opt2);
+                if (opt1) {
+                    xconfigRemoveOption(&input->options, opt1);
+                }
+                if (opt2) {
+                    xconfigRemoveOption(&inputRef->options, opt2);
+                }
                 xconfigErrorMsg(WarnMsg, "Duplicate %s devices; removing %s "
                              "attribute from \"%s\"\n",
                              coreKeyword, coreKeyword, input->identifier);
@@ -367,8 +372,7 @@ static int getCoreInputDevice(GenerateOptions *gop,
             opt2 = xconfigFindOption(inputRef->options, coreKeyword);
 
             if (!opt1 && !opt2) {
-                inputRef->options = xconfigAddNewOption(inputRef->options,
-                                                        coreKeyword, NULL);
+                xconfigAddNewOption(&inputRef->options, coreKeyword, NULL);
             }
             break;
         }

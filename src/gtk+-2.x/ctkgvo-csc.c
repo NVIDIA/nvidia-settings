@@ -759,6 +759,8 @@ static void make_entry(CtkGvoCsc *ctk_gvo_csc,
                                   0.001,                // climb rate
                                   6);                   // number of digits
     
+    gtk_spin_button_set_numeric(GTK_SPIN_BUTTON(*widget), TRUE);
+
     g_signal_connect(G_OBJECT(*widget),
                      "value-changed",
                      G_CALLBACK(spin_button_value_changed),

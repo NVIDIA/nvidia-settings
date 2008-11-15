@@ -91,12 +91,13 @@ xconfigPrintExtensionsSection (FILE * cf, XConfigExtensionsPtr ptr)
 }
 
 void
-xconfigFreeExtensions (XConfigExtensionsPtr ptr)
+xconfigFreeExtensions (XConfigExtensionsPtr *ptr)
 {
-    if (ptr == NULL)
+    if (ptr == NULL || *ptr == NULL)
         return;
 
-    xconfigOptionListFree (ptr->options);
-    TEST_FREE (ptr->comment);
-    free (ptr);
+    xconfigFreeOptionList (&((*ptr)->options));
+    TEST_FREE ((*ptr)->comment);
+    free (*ptr);
+    *ptr = NULL;
 }

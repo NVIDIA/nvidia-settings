@@ -560,9 +560,8 @@ VertDone:
                 mptr->next = NULL;
                 mptr->modes_name = val.str;
                 mptr->modes = NULL;
-                ptr->modes_sections = (XConfigModesLinkPtr)
-                    xconfigAddListItem((GenericListPtr)ptr->modes_sections,
-                            (GenericListPtr)mptr);
+                xconfigAddListItem((GenericListPtr *)(&ptr->modes_sections),
+                                   (GenericListPtr)mptr);
             }
             break;
         case EOF_TOKEN:
@@ -571,7 +570,7 @@ VertDone:
         default:
             xconfigErrorMsg(ParseErrorMsg, INVALID_KEYWORD_MSG,
                          xconfigTokenString());
-            CLEANUP (ptr);
+            CLEANUP (&ptr);
             return NULL;
             break;
         }
@@ -619,7 +618,7 @@ xconfigParseModesSection (void)
         default:
             xconfigErrorMsg(ParseErrorMsg, INVALID_KEYWORD_MSG,
                          xconfigTokenString());
-            CLEANUP (ptr);
+            CLEANUP (&ptr);
             return NULL;
             break;
         }
@@ -785,65 +784,78 @@ xconfigPrintModesSection (FILE * cf, XConfigModesPtr ptr)
 }
 
 void
-xconfigFreeMonitorList (XConfigMonitorPtr ptr)
+xconfigFreeMonitorList (XConfigMonitorPtr *ptr)
 {
     XConfigMonitorPtr prev;
 
-    while (ptr)
+    if (ptr == NULL || *ptr == NULL)
+        return;
+
+    while (*ptr)
     {
-        TEST_FREE (ptr->identifier);
-        TEST_FREE (ptr->vendor);
-        TEST_FREE (ptr->modelname);
-        TEST_FREE (ptr->comment);
-        xconfigOptionListFree (ptr->options);
-        xconfigFreeModeLineList (ptr->modelines);
-        prev = ptr;
-        ptr = ptr->next;
+        TEST_FREE ((*ptr)->identifier);
+        TEST_FREE ((*ptr)->vendor);
+        TEST_FREE ((*ptr)->modelname);
+        TEST_FREE ((*ptr)->comment);
+        xconfigFreeOptionList (&((*ptr)->options));
+        xconfigFreeModeLineList (&((*ptr)->modelines));
+        prev = *ptr;
+        *ptr = (*ptr)->next;
         free (prev);
     }
 }
 
 void
-xconfigFreeModesList (XConfigModesPtr ptr)
+xconfigFreeModesList (XConfigModesPtr *ptr)
 {
     XConfigModesPtr prev;
 
-    while (ptr)
+    if (ptr == NULL || *ptr == NULL)
+        return;
+
+    while (*ptr)
     {
-        TEST_FREE (ptr->identifier);
-        TEST_FREE (ptr->comment);
-        xconfigFreeModeLineList (ptr->modelines);
-        prev = ptr;
-        ptr = ptr->next;
+        TEST_FREE ((*ptr)->identifier);
+        TEST_FREE ((*ptr)->comment);
+        xconfigFreeModeLineList (&((*ptr)->modelines));
+        prev = *ptr;
+        *ptr = (*ptr)->next;
         free (prev);
     }
 }
 
 void
-xconfigFreeModeLineList (XConfigModeLinePtr ptr)
+xconfigFreeModeLineList (XConfigModeLinePtr *ptr)
 {
     XConfigModeLinePtr prev;
-    while (ptr)
+
+    if (ptr == NULL || *ptr == NULL)
+        return;
+
+    while (*ptr)
     {
-        TEST_FREE (ptr->identifier);
-        TEST_FREE (ptr->comment);
-        TEST_FREE (ptr->clock);
-        prev = ptr;
-        ptr = ptr->next;
+        TEST_FREE ((*ptr)->identifier);
+        TEST_FREE ((*ptr)->comment);
+        TEST_FREE ((*ptr)->clock);
+        prev = *ptr;
+        *ptr = (*ptr)->next;
         free (prev);
     }
 }
 
 void
-xconfigFreeModesLinkList (XConfigModesLinkPtr ptr)
+xconfigFreeModesLinkList (XConfigModesLinkPtr *ptr)
 {
     XConfigModesLinkPtr prev;
 
-    while (ptr)
+    if (ptr == NULL || *ptr == NULL)
+        return;
+
+    while (*ptr)
     {
-        TEST_FREE (ptr->modes_name);
-        prev = ptr;
-        ptr = ptr->next;
+        TEST_FREE ((*ptr)->modes_name);
+        prev = *ptr;
+        *ptr = (*ptr)->next;
         free (prev);
     }
 }

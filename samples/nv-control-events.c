@@ -27,6 +27,10 @@
  */
 
 #include <stdio.h>
+#include <stdlib.h>
+#include <string.h>
+#include <ctype.h>
+
 
 #include <X11/Xlib.h>
 
@@ -133,7 +137,7 @@ int main(void)
          * the NVIDIA driver.
          */
         if (!XNVCTRLIsNvScreen(dpy, i)) {
-            printf("- The NV-CONTROL X not available on screen "
+            printf("- The NV-CONTROL X not available on X screen "
                    "%d of '%s'.\n", i, XDisplayName(NULL));
             continue;
         }
@@ -145,7 +149,7 @@ int main(void)
             continue;
         }
         
-        printf("+ Listening to ATTRIBUTE_CHANGE_EVENTs on screen %d.\n", i);
+        printf("+ Listening to ATTRIBUTE_CHANGE_EVENTs on X screen %d.\n", i);
         sources++;
     }
     printf("\n");
@@ -169,7 +173,7 @@ int main(void)
          * the NVIDIA driver.
          */
         if (!XNVCTRLIsNvScreen(dpy, i)) {
-            printf("- The NV-CONTROL X not available on screen "
+            printf("- The NV-CONTROL X not available on X screen "
                    "%d of '%s'.\n", i, XDisplayName(NULL));
             continue;
         }
@@ -184,7 +188,7 @@ int main(void)
             continue;
         }
         
-        printf("+ Listening to TARGET_ATTRIBUTE_CHANGE_EVENTs on X Screen "
+        printf("+ Listening to TARGET_ATTRIBUTE_CHANGE_EVENTs on X screen "
                "%d.\n", i);
         sources++;
     }
@@ -260,6 +264,7 @@ int main(void)
      */
 
     while (True) {
+        char target_str[256];
 
         /* block for the next event */
 
@@ -279,12 +284,20 @@ int main(void)
             nvevent = (XNVCtrlAttributeChangedEvent *) &event;
             
             /* print out the event information */
-            
-            printf("received NV-CONTROL event [attribute: %d (%s)  "
-                   "value: %d]\n",
+            snprintf(target_str, 256, "%s-%-3d", 
+                     target2str(NV_CTRL_TARGET_TYPE_X_SCREEN),
+                     nvevent->screen);
+
+            printf("ATTRIBUTE_CHANGED_EVENTS:         Target: %15s   "
+                   "Display Mask: 0x%08x   "
+                   "Attribute: (%3d) %-32s   Value: %d (0x%08x)\n",
+                   target_str,
+                   nvevent->display_mask,
                    nvevent->attribute,
                    attr2str(nvevent->attribute),
-                   nvevent->value);
+                   nvevent->value,
+                   nvevent->value
+                   );
 
         /* Handle TARGET_ATTRIBUTE_CHANGED_EVENTS */
         } else if (event.type ==
@@ -294,15 +307,20 @@ int main(void)
             nveventtarget = (XNVCtrlAttributeChangedEventTarget *) &event;
             
             /* print out the event information */
-            
-            printf("received NV-CONTROL target event [target: %d (%s)  "
-                   "id: %d ] [attribute: %d (%s)  value: %d]\n",
-                   nveventtarget->target_type,
-                   target2str(nveventtarget->target_type),
-                   nveventtarget->target_id,
+            snprintf(target_str, 256, "%s-%-3d",
+                     target2str(nveventtarget->target_type),
+                     nveventtarget->target_id);
+
+            printf("TARGET_ATTRIBUTE_CHANGED_EVENTS:  Target: %15s   "
+                   "Display Mask: 0x%08x   "
+                   "Attribute: (%3d) %-32s   Value: %d (0x%08x)\n",
+                   target_str,
+                   nveventtarget->display_mask,
                    nveventtarget->attribute,
                    attr2str(nveventtarget->attribute),
-                   nveventtarget->value);
+                   nveventtarget->value,
+                   nveventtarget->value
+                   );
         }
     }
 
@@ -316,144 +334,219 @@ int main(void)
  */
 static const char *target2str(int n)
 {
+    static char unknown[24];
+
     switch (n) {
     case NV_CTRL_TARGET_TYPE_X_SCREEN:  return "X Screen"; break;
     case NV_CTRL_TARGET_TYPE_GPU:       return "GPU"; break;
     case NV_CTRL_TARGET_TYPE_FRAMELOCK: return "Frame Lock"; break;
     case NV_CTRL_TARGET_TYPE_VCSC:      return "VCS"; break;
     default:
-        return "Unknown";
+        snprintf(unknown, 24, "Unknown (%d)", n);
+        return unknown;
     }
 }
 
 
+// Used to convert the NV-CONTROL #defines to human readable text.
+#define MAKE_ENTRY(ATTRIBUTE) { ATTRIBUTE, #ATTRIBUTE, NULL }
 
+typedef struct {
+    int num;
+    char *str;
+    char *name;
+} AttrEntry;
 
-/*
- * attr2str() - translate an attribute integer into a string
- */
+static AttrEntry attr_table[];
 
 static const char *attr2str(int n)
 {
-    switch (n) {
-    case NV_CTRL_FLATPANEL_SCALING:                return "flatpanel scaling"; break;
-    case NV_CTRL_FLATPANEL_DITHERING:              return "flatpanel dithering"; break;
-    case NV_CTRL_DIGITAL_VIBRANCE:                 return "digital vibrance"; break;
-    case NV_CTRL_SYNC_TO_VBLANK:                   return "sync to vblank"; break;
-    case NV_CTRL_LOG_ANISO:                        return "log aniso"; break;
-    case NV_CTRL_FSAA_MODE:                        return "fsaa mode"; break;
-    case NV_CTRL_TEXTURE_SHARPEN:                  return "texture sharpen"; break;
-    case NV_CTRL_EMULATE:                          return "OpenGL software emulation"; break;
-    case NV_CTRL_CONNECTED_DISPLAYS:               return "connected displays"; break;
-    case NV_CTRL_ENABLED_DISPLAYS:                 return "enabled displays"; break;
-    case NV_CTRL_FRAMELOCK_MASTER:                 return "frame lock master"; break;
-    case NV_CTRL_FRAMELOCK_POLARITY:               return "frame lock sync edge"; break;
-    case NV_CTRL_FRAMELOCK_SYNC_DELAY:             return "frame lock sync delay"; break;
-    case NV_CTRL_FRAMELOCK_SYNC_INTERVAL:          return "frame lock sync interval"; break;
-    case NV_CTRL_FRAMELOCK_PORT0_STATUS:           return "frame lock port 0 status"; break;
-    case NV_CTRL_FRAMELOCK_PORT1_STATUS:           return "frame lock port 1 status"; break;
-    case NV_CTRL_FRAMELOCK_HOUSE_STATUS:           return "frame lock house status"; break;
-    case NV_CTRL_FRAMELOCK_SYNC:                   return "frame lock sync"; break;
-    case NV_CTRL_FRAMELOCK_SYNC_READY:             return "frame lock sync ready"; break;
-    case NV_CTRL_FRAMELOCK_STEREO_SYNC:            return "frame lock stereo sync"; break;
-    case NV_CTRL_FRAMELOCK_TEST_SIGNAL:            return "frame lock test signal"; break;
-    case NV_CTRL_FRAMELOCK_ETHERNET_DETECTED:      return "frame lock ethernet detected"; break;
-    case NV_CTRL_FRAMELOCK_VIDEO_MODE:             return "frame lock video mode"; break;
-    case NV_CTRL_OPENGL_AA_LINE_GAMMA:             return "opengl aa line gamma"; break;
-    case NV_CTRL_FLIPPING_ALLOWED:                 return "flipping allowed"; break;
-    case NV_CTRL_TEXTURE_CLAMPING:                 return "texture clamping"; break;
-    case NV_CTRL_CURSOR_SHADOW:                    return "cursor shadow"; break;
-    case NV_CTRL_CURSOR_SHADOW_ALPHA:              return "cursor shadow alpha"; break;
-    case NV_CTRL_CURSOR_SHADOW_RED:                return "cursor shadow red"; break;
-    case NV_CTRL_CURSOR_SHADOW_GREEN:              return "cursor shadow green"; break;
-    case NV_CTRL_CURSOR_SHADOW_BLUE:               return "cursor shadow blue"; break;
-    case NV_CTRL_CURSOR_SHADOW_X_OFFSET:           return "cursor shadow x offset"; break;
-    case NV_CTRL_CURSOR_SHADOW_Y_OFFSET:           return "cursor shadow y offset"; break;
-    case NV_CTRL_FSAA_APPLICATION_CONTROLLED:      return "fsaa application controlled"; break;
-    case NV_CTRL_LOG_ANISO_APPLICATION_CONTROLLED: return "log aniso application controlled"; break;
-    case NV_CTRL_IMAGE_SHARPENING:                 return "image sharpening"; break;
-    case NV_CTRL_TV_OVERSCAN:                      return "tv overscan"; break;
-    case NV_CTRL_TV_FLICKER_FILTER:                return "tv flicker filter"; break;
-    case NV_CTRL_TV_BRIGHTNESS:                    return "tv brightness"; break;
-    case NV_CTRL_TV_HUE:                           return "tv hue"; break;
-    case NV_CTRL_TV_CONTRAST:                      return "tv contrast"; break;
-    case NV_CTRL_TV_SATURATION:                    return "tv saturation"; break;
-    case NV_CTRL_TV_RESET_SETTINGS:                return "tv reset settings"; break;
-    case NV_CTRL_GPU_CORE_TEMPERATURE:             return "gpu core temperature"; break;
-    case NV_CTRL_GPU_CORE_THRESHOLD:               return "gpu core threshold"; break;
-    case NV_CTRL_GPU_DEFAULT_CORE_THRESHOLD:       return "gpu default core threshold"; break;
-    case NV_CTRL_GPU_MAX_CORE_THRESHOLD:           return "gpu max core_threshold"; break;
-    case NV_CTRL_AMBIENT_TEMPERATURE:              return "ambient temperature"; break;
-    case NV_CTRL_PBUFFER_SCANOUT_XID:              return "scanout pbuffer xid"; break;
+    AttrEntry *entry;
 
-    case NV_CTRL_GVO_SUPPORTED:                         return "x screen supports gvo"; break;
-    case NV_CTRL_GVO_SYNC_MODE:                         return "gvo sync mode"; break;
-    case NV_CTRL_GVO_SYNC_SOURCE:                       return "gvo sync source"; break;
-    case NV_CTRL_GVO_OUTPUT_VIDEO_FORMAT:               return "gvo output video format"; break;
-    case NV_CTRL_GVO_DISPLAY_X_SCREEN:                  return "gvo clone mode"; break;
-    case NV_CTRL_GVO_COMPOSITE_SYNC_INPUT_DETECTED:     return "gvo composite sync input is detected"; break;
-    case NV_CTRL_GVO_COMPOSITE_SYNC_INPUT_DETECT_MODE:  return "gvo composite sync input detect mode"; break;
-    case NV_CTRL_GVO_SDI_SYNC_INPUT_DETECTED:           return "gvo sync input detected"; break;
-    case NV_CTRL_GVO_VIDEO_OUTPUTS:                     return "gvo video outputs"; break;
-    case NV_CTRL_GVO_FIRMWARE_VERSION:                  return "gvo firmware version"; break;
-    case NV_CTRL_GVO_SYNC_DELAY_PIXELS:                 return "gvo sync delay pixels"; break;
-    case NV_CTRL_GVO_SYNC_DELAY_LINES:                  return "gvo sync delay lines"; break;
-    case NV_CTRL_GVO_INPUT_VIDEO_FORMAT_REACQUIRE:      return "gvo input video format reacquire"; break;
-    case NV_CTRL_GVO_GLX_LOCKED:                        return "gvo glx locked"; break;
-    case NV_CTRL_GVO_X_SCREEN_PAN_X:                    return "gvo x screen pan x"; break;
-    case NV_CTRL_GVO_X_SCREEN_PAN_Y:                    return "gvo x screen pan y"; break;
-    case NV_CTRL_GVO_OVERRIDE_HW_CSC:                   return "gvo override hw csc"; break;
-    case NV_CTRL_GVO_CAPABILITIES:                      return "gvo capabilities"; break;
-    case NV_CTRL_GVO_COMPOSITE_TERMINATION:             return "gvo composite termination"; break;
-    case NV_CTRL_GVO_FLIP_QUEUE_SIZE:                   return "gvo flip queue size"; break;
-    case NV_CTRL_GVO_LOCK_OWNER:                        return "gvo lock owner"; break;
-        
-    case NV_CTRL_GPU_OVERCLOCKING_STATE:           return "overclocking state"; break;
-    case NV_CTRL_GPU_2D_CLOCK_FREQS:               return "gpu 2d clock frequencies"; break;
-    case NV_CTRL_GPU_3D_CLOCK_FREQS:               return "gpu 3d clock frequencies"; break;
-    case NV_CTRL_GPU_OPTIMAL_CLOCK_FREQS:          return "gpu optimal clock frequencies"; break;
-    case NV_CTRL_GPU_OPTIMAL_CLOCK_FREQS_DETECTION: return "gpu optimal clock frequency detection"; break;
-    case NV_CTRL_GPU_OPTIMAL_CLOCK_FREQS_DETECTION_STATE: return "gpu optimal clock frequency detection state"; break;
-        
-        /* XXX DDCCI stuff */
-
-    case NV_CTRL_USE_HOUSE_SYNC:                   return "use house sync"; break;
-    case NV_CTRL_FORCE_STEREO:                     return "force stereo"; break;
-    case NV_CTRL_IMAGE_SETTINGS:                   return "image settings"; break;
-    case NV_CTRL_XINERAMA:                         return "xinerama"; break;
-    case NV_CTRL_XINERAMA_STEREO:                  return "xinerama stereo"; break;
-    case NV_CTRL_SHOW_SLI_HUD:                     return "show sli hud"; break;
-    case NV_CTRL_XV_SYNC_TO_DISPLAY:               return "xv sync to display"; break;
-
-    case NV_CTRL_ASSOCIATED_DISPLAY_DEVICES:       return "associated_display_devices"; break;
-    case NV_CTRL_FRAMELOCK_SLAVES:                 return "frame lock slaves"; break;
-    case NV_CTRL_FRAMELOCK_MASTERABLE:             return "frame lock masterable"; break;
-    case NV_CTRL_PROBE_DISPLAYS:                   return "probed displays"; break;
-
-    case NV_CTRL_REFRESH_RATE:                     return "refresh rate"; break;
-    case NV_CTRL_CURRENT_SCANLINE:                 return "current scanline"; break;
-    case NV_CTRL_INITIAL_PIXMAP_PLACEMENT:         return "initial pixmap placement"; break;
-    case NV_CTRL_GLYPH_CACHE:                      return "glyph cache"; break;
-    case NV_CTRL_PCI_BUS:                          return "pci bus"; break;
-    case NV_CTRL_PCI_DEVICE:                       return "pci device"; break;
-    case NV_CTRL_PCI_FUNCTION:                     return "pci function"; break;
-    case NV_CTRL_FRAMELOCK_FPGA_REVISION:          return "framelock fpga revision"; break;
-    case NV_CTRL_MAX_SCREEN_WIDTH:                 return "max screen width"; break;
-    case NV_CTRL_MAX_SCREEN_HEIGHT:                return "max screen height"; break;
-    case NV_CTRL_MAX_DISPLAYS:                     return "max displays"; break;
-    case NV_CTRL_DYNAMIC_TWINVIEW:                 return "dynamic twinview"; break;
-    case NV_CTRL_MULTIGPU_DISPLAY_OWNER:           return "multigpu display owner"; break;
-    case NV_CTRL_GPU_SCALING:                      return "gpu scaling"; break;
-    case NV_CTRL_FRONTEND_RESOLUTION:              return "frontend resolution"; break;
-    case NV_CTRL_BACKEND_RESOLUTION:               return "backend resolution"; break;
-    case NV_CTRL_FLATPANEL_NATIVE_RESOLUTION:      return "flatpanel native resolution"; break;
-    case NV_CTRL_FLATPANEL_BEST_FIT_RESOLUTION:    return "flatpanel best fit resolution"; break;
-    case NV_CTRL_GPU_SCALING_ACTIVE:               return "gpu scaling active"; break;
-    case NV_CTRL_DFP_SCALING_ACTIVE:               return "dfp scaling active"; break;
-    case NV_CTRL_FSAA_APPLICATION_ENHANCED:        return "fsaa application enhanced"; break;
-    case NV_CTRL_FRAMELOCK_SYNC_RATE_4:            return "framelock sync rate (4)"; break;
-
-    default:
-        return "Unknown";
+    entry = attr_table;
+    while (entry->str) {
+        if (entry->num == n) {
+            if (!entry->name) {
+                int len;
+                entry->name = strdup(entry->str + 8);
+                for (len = 0; len < strlen(entry->name); len++) {
+                    entry->name[len] = tolower(entry->name[len]);
+                }
+            }
+            return entry->name;
+        }
+        entry++;
     }
-} /* attr2str() */
+
+    return NULL;
+}
+
+// Attribute -> String table, generated using:
+//
+// grep 'define.*\/\*' NVCtrl.h | sed 's/.*define \([^ ]*\).*/    MAKE_ENTRY(\1),/' > DATA | head DATA
+//
+static AttrEntry attr_table[] = {
+    MAKE_ENTRY(NV_CTRL_FLATPANEL_SCALING),
+    MAKE_ENTRY(NV_CTRL_FLATPANEL_DITHERING),
+    MAKE_ENTRY(NV_CTRL_DIGITAL_VIBRANCE),
+    MAKE_ENTRY(NV_CTRL_BUS_TYPE),
+    MAKE_ENTRY(NV_CTRL_VIDEO_RAM),
+    MAKE_ENTRY(NV_CTRL_IRQ),
+    MAKE_ENTRY(NV_CTRL_OPERATING_SYSTEM),
+    MAKE_ENTRY(NV_CTRL_SYNC_TO_VBLANK),
+    MAKE_ENTRY(NV_CTRL_LOG_ANISO),
+    MAKE_ENTRY(NV_CTRL_FSAA_MODE),
+    MAKE_ENTRY(NV_CTRL_TEXTURE_SHARPEN),
+    MAKE_ENTRY(NV_CTRL_UBB),
+    MAKE_ENTRY(NV_CTRL_OVERLAY),
+    MAKE_ENTRY(NV_CTRL_STEREO),
+    MAKE_ENTRY(NV_CTRL_EMULATE),
+    MAKE_ENTRY(NV_CTRL_TWINVIEW),
+    MAKE_ENTRY(NV_CTRL_CONNECTED_DISPLAYS),
+    MAKE_ENTRY(NV_CTRL_ENABLED_DISPLAYS),
+    MAKE_ENTRY(NV_CTRL_FRAMELOCK),
+    MAKE_ENTRY(NV_CTRL_FRAMELOCK_MASTER),
+    MAKE_ENTRY(NV_CTRL_FRAMELOCK_POLARITY),
+    MAKE_ENTRY(NV_CTRL_FRAMELOCK_SYNC_DELAY),
+    MAKE_ENTRY(NV_CTRL_FRAMELOCK_SYNC_INTERVAL),
+    MAKE_ENTRY(NV_CTRL_FRAMELOCK_PORT0_STATUS),
+    MAKE_ENTRY(NV_CTRL_FRAMELOCK_PORT1_STATUS),
+    MAKE_ENTRY(NV_CTRL_FRAMELOCK_HOUSE_STATUS),
+    MAKE_ENTRY(NV_CTRL_FRAMELOCK_SYNC),
+    MAKE_ENTRY(NV_CTRL_FRAMELOCK_SYNC_READY),
+    MAKE_ENTRY(NV_CTRL_FRAMELOCK_STEREO_SYNC),
+    MAKE_ENTRY(NV_CTRL_FRAMELOCK_TEST_SIGNAL),
+    MAKE_ENTRY(NV_CTRL_FRAMELOCK_ETHERNET_DETECTED),
+    MAKE_ENTRY(NV_CTRL_FRAMELOCK_VIDEO_MODE),
+    MAKE_ENTRY(NV_CTRL_FRAMELOCK_SYNC_RATE),
+    MAKE_ENTRY(NV_CTRL_FORCE_GENERIC_CPU),
+    MAKE_ENTRY(NV_CTRL_OPENGL_AA_LINE_GAMMA),
+    MAKE_ENTRY(NV_CTRL_FRAMELOCK_TIMING),
+    MAKE_ENTRY(NV_CTRL_FLIPPING_ALLOWED),
+    MAKE_ENTRY(NV_CTRL_ARCHITECTURE),
+    MAKE_ENTRY(NV_CTRL_TEXTURE_CLAMPING),
+    MAKE_ENTRY(NV_CTRL_CURSOR_SHADOW),
+    MAKE_ENTRY(NV_CTRL_CURSOR_SHADOW_ALPHA),
+    MAKE_ENTRY(NV_CTRL_CURSOR_SHADOW_RED),
+    MAKE_ENTRY(NV_CTRL_CURSOR_SHADOW_GREEN),
+    MAKE_ENTRY(NV_CTRL_CURSOR_SHADOW_BLUE),
+    MAKE_ENTRY(NV_CTRL_CURSOR_SHADOW_X_OFFSET),
+    MAKE_ENTRY(NV_CTRL_CURSOR_SHADOW_Y_OFFSET),
+    MAKE_ENTRY(NV_CTRL_FSAA_APPLICATION_CONTROLLED),
+    MAKE_ENTRY(NV_CTRL_LOG_ANISO_APPLICATION_CONTROLLED),
+    MAKE_ENTRY(NV_CTRL_IMAGE_SHARPENING),
+    MAKE_ENTRY(NV_CTRL_TV_OVERSCAN),
+    MAKE_ENTRY(NV_CTRL_TV_FLICKER_FILTER),
+    MAKE_ENTRY(NV_CTRL_TV_BRIGHTNESS),
+    MAKE_ENTRY(NV_CTRL_TV_HUE),
+    MAKE_ENTRY(NV_CTRL_TV_CONTRAST),
+    MAKE_ENTRY(NV_CTRL_TV_SATURATION),
+    MAKE_ENTRY(NV_CTRL_TV_RESET_SETTINGS),
+    MAKE_ENTRY(NV_CTRL_GPU_CORE_TEMPERATURE),
+    MAKE_ENTRY(NV_CTRL_GPU_CORE_THRESHOLD),
+    MAKE_ENTRY(NV_CTRL_GPU_DEFAULT_CORE_THRESHOLD),
+    MAKE_ENTRY(NV_CTRL_GPU_MAX_CORE_THRESHOLD),
+    MAKE_ENTRY(NV_CTRL_AMBIENT_TEMPERATURE),
+    MAKE_ENTRY(NV_CTRL_PBUFFER_SCANOUT_SUPPORTED),
+    MAKE_ENTRY(NV_CTRL_PBUFFER_SCANOUT_XID),
+    MAKE_ENTRY(NV_CTRL_GVO_SUPPORTED),
+    MAKE_ENTRY(NV_CTRL_GVO_SYNC_MODE),
+    MAKE_ENTRY(NV_CTRL_GVO_SYNC_SOURCE),
+    MAKE_ENTRY(NV_CTRL_GVO_OUTPUT_VIDEO_FORMAT),
+    MAKE_ENTRY(NV_CTRL_GVO_INPUT_VIDEO_FORMAT),
+    MAKE_ENTRY(NV_CTRL_GVO_DATA_FORMAT),
+    MAKE_ENTRY(NV_CTRL_GVO_DISPLAY_X_SCREEN),
+    MAKE_ENTRY(NV_CTRL_GVO_COMPOSITE_SYNC_INPUT_DETECTED),
+    MAKE_ENTRY(NV_CTRL_GVO_COMPOSITE_SYNC_INPUT_DETECT_MODE),
+    MAKE_ENTRY(NV_CTRL_GVO_SDI_SYNC_INPUT_DETECTED),
+    MAKE_ENTRY(NV_CTRL_GVO_VIDEO_OUTPUTS),
+    MAKE_ENTRY(NV_CTRL_GVO_FIRMWARE_VERSION),
+    MAKE_ENTRY(NV_CTRL_GVO_SYNC_DELAY_PIXELS),
+    MAKE_ENTRY(NV_CTRL_GVO_SYNC_DELAY_LINES),
+    MAKE_ENTRY(NV_CTRL_GVO_INPUT_VIDEO_FORMAT_REACQUIRE),
+    MAKE_ENTRY(NV_CTRL_GVO_GLX_LOCKED),
+    MAKE_ENTRY(NV_CTRL_GVO_VIDEO_FORMAT_WIDTH),
+    MAKE_ENTRY(NV_CTRL_GVO_VIDEO_FORMAT_HEIGHT),
+    MAKE_ENTRY(NV_CTRL_GVO_VIDEO_FORMAT_REFRESH_RATE),
+    MAKE_ENTRY(NV_CTRL_GVO_X_SCREEN_PAN_X),
+    MAKE_ENTRY(NV_CTRL_GVO_X_SCREEN_PAN_Y),
+    MAKE_ENTRY(NV_CTRL_GPU_OVERCLOCKING_STATE),
+    MAKE_ENTRY(NV_CTRL_GPU_2D_CLOCK_FREQS),
+    MAKE_ENTRY(NV_CTRL_GPU_3D_CLOCK_FREQS),
+    MAKE_ENTRY(NV_CTRL_GPU_DEFAULT_2D_CLOCK_FREQS),
+    MAKE_ENTRY(NV_CTRL_GPU_DEFAULT_3D_CLOCK_FREQS),
+    MAKE_ENTRY(NV_CTRL_GPU_CURRENT_CLOCK_FREQS),
+    MAKE_ENTRY(NV_CTRL_GPU_OPTIMAL_CLOCK_FREQS),
+    MAKE_ENTRY(NV_CTRL_GPU_OPTIMAL_CLOCK_FREQS_DETECTION),
+    MAKE_ENTRY(NV_CTRL_GPU_OPTIMAL_CLOCK_FREQS_DETECTION_STATE),
+    MAKE_ENTRY(NV_CTRL_FLATPANEL_CHIP_LOCATION),
+    MAKE_ENTRY(NV_CTRL_FLATPANEL_LINK),
+    MAKE_ENTRY(NV_CTRL_FLATPANEL_SIGNAL),
+    MAKE_ENTRY(NV_CTRL_USE_HOUSE_SYNC),
+    MAKE_ENTRY(NV_CTRL_EDID_AVAILABLE),
+    MAKE_ENTRY(NV_CTRL_FORCE_STEREO),
+    MAKE_ENTRY(NV_CTRL_IMAGE_SETTINGS),
+    MAKE_ENTRY(NV_CTRL_XINERAMA),
+    MAKE_ENTRY(NV_CTRL_XINERAMA_STEREO),
+    MAKE_ENTRY(NV_CTRL_BUS_RATE),
+    MAKE_ENTRY(NV_CTRL_SHOW_SLI_HUD),
+    MAKE_ENTRY(NV_CTRL_XV_SYNC_TO_DISPLAY),
+    MAKE_ENTRY(NV_CTRL_GVO_OUTPUT_VIDEO_FORMAT2),
+    MAKE_ENTRY(NV_CTRL_GVO_OVERRIDE_HW_CSC),
+    MAKE_ENTRY(NV_CTRL_GVO_CAPABILITIES),
+    MAKE_ENTRY(NV_CTRL_GVO_COMPOSITE_TERMINATION),
+    MAKE_ENTRY(NV_CTRL_ASSOCIATED_DISPLAY_DEVICES),
+    MAKE_ENTRY(NV_CTRL_FRAMELOCK_SLAVES),
+    MAKE_ENTRY(NV_CTRL_FRAMELOCK_MASTERABLE),
+    MAKE_ENTRY(NV_CTRL_PROBE_DISPLAYS),
+    MAKE_ENTRY(NV_CTRL_REFRESH_RATE),
+    MAKE_ENTRY(NV_CTRL_GVO_FLIP_QUEUE_SIZE),
+    MAKE_ENTRY(NV_CTRL_CURRENT_SCANLINE),
+    MAKE_ENTRY(NV_CTRL_INITIAL_PIXMAP_PLACEMENT),
+    MAKE_ENTRY(NV_CTRL_PCI_BUS),
+    MAKE_ENTRY(NV_CTRL_PCI_DEVICE),
+    MAKE_ENTRY(NV_CTRL_PCI_FUNCTION),
+    MAKE_ENTRY(NV_CTRL_FRAMELOCK_FPGA_REVISION),
+    MAKE_ENTRY(NV_CTRL_MAX_SCREEN_WIDTH),
+    MAKE_ENTRY(NV_CTRL_MAX_SCREEN_HEIGHT),
+    MAKE_ENTRY(NV_CTRL_MAX_DISPLAYS),
+    MAKE_ENTRY(NV_CTRL_DYNAMIC_TWINVIEW),
+    MAKE_ENTRY(NV_CTRL_MULTIGPU_DISPLAY_OWNER),
+    MAKE_ENTRY(NV_CTRL_GPU_SCALING),
+    MAKE_ENTRY(NV_CTRL_FRONTEND_RESOLUTION),
+    MAKE_ENTRY(NV_CTRL_BACKEND_RESOLUTION),
+    MAKE_ENTRY(NV_CTRL_FLATPANEL_NATIVE_RESOLUTION),
+    MAKE_ENTRY(NV_CTRL_FLATPANEL_BEST_FIT_RESOLUTION),
+    MAKE_ENTRY(NV_CTRL_GPU_SCALING_ACTIVE),
+    MAKE_ENTRY(NV_CTRL_DFP_SCALING_ACTIVE),
+    MAKE_ENTRY(NV_CTRL_FSAA_APPLICATION_ENHANCED),
+    MAKE_ENTRY(NV_CTRL_FRAMELOCK_SYNC_RATE_4),
+    MAKE_ENTRY(NV_CTRL_GVO_LOCK_OWNER),
+    MAKE_ENTRY(NV_CTRL_HWOVERLAY),
+    MAKE_ENTRY(NV_CTRL_NUM_GPU_ERRORS_RECOVERED),
+    MAKE_ENTRY(NV_CTRL_REFRESH_RATE_3),
+    MAKE_ENTRY(NV_CTRL_ONDEMAND_VBLANK_INTERRUPTS),
+    MAKE_ENTRY(NV_CTRL_GPU_POWER_SOURCE),
+    MAKE_ENTRY(NV_CTRL_GPU_CURRENT_PERFORMANCE_MODE),
+    MAKE_ENTRY(NV_CTRL_GLYPH_CACHE),
+    MAKE_ENTRY(NV_CTRL_GPU_CURRENT_PERFORMANCE_LEVEL),
+    MAKE_ENTRY(NV_CTRL_GPU_ADAPTIVE_CLOCK_STATE),
+    MAKE_ENTRY(NV_CTRL_GVO_OUTPUT_VIDEO_LOCKED),
+    MAKE_ENTRY(NV_CTRL_GVO_SYNC_LOCK_STATUS),
+    MAKE_ENTRY(NV_CTRL_GVO_ANC_TIME_CODE_GENERATION),
+    MAKE_ENTRY(NV_CTRL_GVO_COMPOSITE),
+    MAKE_ENTRY(NV_CTRL_GVO_COMPOSITE_ALPHA_KEY),
+    MAKE_ENTRY(NV_CTRL_GVO_COMPOSITE_LUMA_KEY_RANGE),
+    MAKE_ENTRY(NV_CTRL_GVO_COMPOSITE_CR_KEY_RANGE),
+    MAKE_ENTRY(NV_CTRL_GVO_COMPOSITE_CB_KEY_RANGE),
+    MAKE_ENTRY(NV_CTRL_GVO_COMPOSITE_NUM_KEY_RANGES),
+    MAKE_ENTRY(NV_CTRL_SWITCH_TO_DISPLAYS),
+    MAKE_ENTRY(NV_CTRL_NOTEBOOK_DISPLAY_CHANGE_LID_EVENT),
+    MAKE_ENTRY(NV_CTRL_NOTEBOOK_INTERNAL_LCD),
+    MAKE_ENTRY(NV_CTRL_DEPTH_30_ALLOWED),
+    MAKE_ENTRY(NV_CTRL_MODE_SET_EVENT),
+    MAKE_ENTRY(NV_CTRL_OPENGL_AA_LINE_GAMMA_VALUE),
+    MAKE_ENTRY(NV_CTRL_DISPLAYPORT_LINK_RATE),
+    MAKE_ENTRY(NV_CTRL_STEREO_EYES_EXCHANGE),
+    { -1, NULL, NULL }
+};

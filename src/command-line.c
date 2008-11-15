@@ -46,6 +46,7 @@
 
 static void print_assign_help(void);
 static void print_query_help(void);
+static void print_attribute_help(char *attr);
 static void print_help(void);
 static char *tilde_expansion(char *str);
 static char *nvstrcat(const char *str, ...);
@@ -151,6 +152,11 @@ static const NVGetoptOption __options[] = {
     { "glxinfo", 'g', 0, NULL,
       "Print GLX Information for the X display and exit." },
     
+    { "describe", 'e', NVGETOPT_HAS_ARGUMENT, NULL,
+      "Prints information about a particular attribute.  Specify 'all' to "
+      "list the descriptions of all attributes.  Specify 'list' to list the "
+      "attribute names without a descriptions." },
+
     { NULL,               0, 0, 0                   },
 };
 
@@ -243,6 +249,81 @@ static void print_query_help(void)
            "Specify '-q all' to query all attributes.");
 
 } /* print_query_help() */
+
+
+
+/*
+ * print_attribute_help() - print information about the specified attribute.
+ */
+
+static void print_attribute_help(char *attr)
+{
+    AttributeTableEntry *entry;
+    int found = 0;
+    int list_all = 0;
+    int show_desc = 1;
+
+
+    if (!strcasecmp(attr, "all")) {
+        list_all = 1;
+
+    } else if (!strcasecmp(attr, "list")) {
+        list_all = 1;
+        show_desc = 0;
+    }
+
+    nv_msg(NULL, "");
+
+    for (entry = attributeTable; entry->name; entry++) {
+
+        if (list_all || !strcasecmp(attr, entry->name)) {
+
+            if (show_desc) {
+                nv_msg(NULL, "Attribute '%s':", entry->name);
+
+                if (entry->flags & NV_PARSER_TYPE_FRAMELOCK)
+                    nv_msg(NULL, "  - Is Frame Lock attribute.");
+                if (entry->flags & NV_PARSER_TYPE_NO_CONFIG_WRITE)
+                    nv_msg(NULL, "  - Attribute is not written to the rc file.");
+                if (entry->flags & NV_PARSER_TYPE_GUI_ATTRIBUTE)
+                    nv_msg(NULL, "  - Is GUI attribute.");
+                if (entry->flags & NV_PARSER_TYPE_XVIDEO_ATTRIBUTE)
+                    nv_msg(NULL, "  - Is X Video attribute.");
+                if (entry->flags & NV_PARSER_TYPE_PACKED_ATTRIBUTE)
+                    nv_msg(NULL, "  - Attribute value is packed integer.");
+                if (entry->flags & NV_PARSER_TYPE_VALUE_IS_DISPLAY)
+                    nv_msg(NULL, "  - Attribute value is a display mask.");
+                if (entry->flags & NV_PARSER_TYPE_NO_QUERY_ALL)
+                    nv_msg(NULL, "  - Attribute not queried in 'query all'.");
+                if (entry->flags & NV_PARSER_TYPE_NO_ZERO_VALUE)
+                    nv_msg(NULL, "  - Attribute cannot be zero.");
+                if (entry->flags & NV_PARSER_TYPE_100Hz)
+                    nv_msg(NULL, "  - Attribute value is in units of Centihertz (1/100Hz).");
+                if (entry->flags & NV_PARSER_TYPE_1000Hz)
+                    nv_msg(NULL, "  - Attribute value is in units of Milihertz (1/1000 Hz).");
+                if (entry->flags & NV_PARSER_TYPE_STRING_ATTRIBUTE)
+                    nv_msg(NULL, "  - Attribute value is string.");
+                if (entry->flags & NV_PARSER_TYPE_SDI)
+                    nv_msg(NULL, "  - Is SDI attribute.");
+                if (entry->flags & NV_PARSER_TYPE_VALUE_IS_SWITCH_DISPLAY)
+                    nv_msg(NULL, "  - Attribute value is switch display.");
+
+                nv_msg(TAB, entry->desc);
+                nv_msg(NULL, "");
+            } else {
+                nv_msg(NULL, "%s", entry->name);
+            }
+
+            found = 1;
+            if (!list_all) break;
+        }
+    }
+
+    if (!found && !list_all) {
+        nv_error_msg("Unrecognized attribute name '%s'.\n", attr);
+    }
+
+} /* print_attribute_help() */
 
 
 
@@ -364,6 +445,7 @@ Options *parse_command_line(int argc, char *argv[], char *dpy)
         case 'g': print_glxinfo(NULL); exit(0); break;
         case 't': __terse = NV_TRUE; break;
         case 'd': __display_device_string = NV_TRUE; break;
+        case 'e': print_attribute_help(strval); exit(0); break;
         default:
             nv_error_msg("Invalid commandline, please run `%s --help` "
                          "for usage information.\n", argv[0]);

@@ -329,25 +329,28 @@ xconfigPrintDeviceSection (FILE * cf, XConfigDevicePtr ptr)
 }
 
 void
-xconfigFreeDeviceList (XConfigDevicePtr ptr)
+xconfigFreeDeviceList (XConfigDevicePtr *ptr)
 {
     XConfigDevicePtr prev;
 
-    while (ptr)
-    {
-        TEST_FREE (ptr->identifier);
-        TEST_FREE (ptr->vendor);
-        TEST_FREE (ptr->board);
-        TEST_FREE (ptr->chipset);
-        TEST_FREE (ptr->card);
-        TEST_FREE (ptr->driver);
-        TEST_FREE (ptr->ramdac);
-        TEST_FREE (ptr->clockchip);
-        TEST_FREE (ptr->comment);
-        xconfigOptionListFree (ptr->options);
+    if (ptr == NULL || *ptr == NULL)
+        return;
 
-        prev = ptr;
-        ptr = ptr->next;
+    while (*ptr)
+    {
+        TEST_FREE ((*ptr)->identifier);
+        TEST_FREE ((*ptr)->vendor);
+        TEST_FREE ((*ptr)->board);
+        TEST_FREE ((*ptr)->chipset);
+        TEST_FREE ((*ptr)->card);
+        TEST_FREE ((*ptr)->driver);
+        TEST_FREE ((*ptr)->ramdac);
+        TEST_FREE ((*ptr)->clockchip);
+        TEST_FREE ((*ptr)->comment);
+        xconfigFreeOptionList (&((*ptr)->options));
+
+        prev = *ptr;
+        *ptr = (*ptr)->next;
         free (prev);
     }
 }

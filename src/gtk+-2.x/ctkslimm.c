@@ -59,8 +59,8 @@ static Bool other_displays_have_modeline(nvLayoutPtr layout,
 
 
 typedef struct GridConfigRec {
-    int x;
-    int y;
+    int rows;
+    int columns;
 }GridConfig;
 
 /** 
@@ -111,13 +111,13 @@ static void remove_slimm_options(CtkSLIMM *ctk_object)
     XConfigPtr configptr = NULL;
     gchar *filename;
     gchar *msg;
-    XConfigOptionPtr tmp = NULL;
 
     filename = (gchar *)xconfigOpenConfigFile(NULL, NULL);
  
     if (!filename) {
         msg = g_strdup_printf("Failed to open X config file!");
-        ctk_display_warning_msg(ctk_get_parent_window(GTK_WIDGET(ctk_object)), msg);
+        ctk_display_warning_msg(ctk_get_parent_window(GTK_WIDGET(ctk_object)),
+                                msg);
         g_free(msg);
         xconfigCloseConfigFile();
         return;
@@ -126,28 +126,23 @@ static void remove_slimm_options(CtkSLIMM *ctk_object)
     if (xconfigReadConfigFile(&configptr) != XCONFIG_RETURN_SUCCESS) {
         msg = g_strdup_printf("Failed to read X config file '%s'!",
                                      filename);
-        ctk_display_warning_msg(ctk_get_parent_window(GTK_WIDGET(ctk_object)), msg);
+        ctk_display_warning_msg(ctk_get_parent_window(GTK_WIDGET(ctk_object)),
+                                msg);
         g_free(msg);
         xconfigCloseConfigFile();
         return;
     }
 
     /* Remove SLI Mosaic Option */
-    tmp = xconfigFindOption(configptr->layouts->adjacencies->screen->options, "SLI");
-    if (tmp != NULL) {
-        configptr->layouts->adjacencies->screen->options = 
-        xconfigRemoveOption(configptr->layouts->adjacencies->screen->options, tmp);
-    }
+    xconfigRemoveNamedOption(&configptr->layouts->adjacencies->screen->options,
+                             "SLI", NULL);
 
     /* Remove MetaMode Option */
-    tmp = xconfigFindOption(configptr->layouts->adjacencies->screen->options, "MetaModes");
-    if (tmp != NULL) {
-        configptr->layouts->adjacencies->screen->options = 
-        xconfigRemoveOption(configptr->layouts->adjacencies->screen->options, tmp);
-    }
+    xconfigRemoveNamedOption(&configptr->layouts->adjacencies->screen->options,
+                             "MetaModes", NULL);
 
     xconfigWriteConfigFile(filename, configptr);
-    xconfigFreeConfig(configptr);
+    xconfigFreeConfig(&configptr);
     xconfigCloseConfigFile();
 }
 
@@ -182,14 +177,10 @@ static void write_slimm_options(CtkSLIMM *ctk_object, gchar *metamode_str)
         return;
     }
 
-    adj = configptr->layouts->adjacencies;
-
-    if (adj->next) {
-        /* There are additional screens!  Remove them all from Layout */
-        adj = adj->next;
-        while ((adj = (XConfigAdjacencyPtr) 
-                xconfigRemoveListItem((GenericListPtr)configptr->layouts->adjacencies,
-                (GenericListPtr)adj)));
+    /* Remove all but the first adjacency from the layout */
+    while ((adj = configptr->layouts->adjacencies->next) != NULL) {
+        xconfigRemoveListItem((GenericListPtr *)(&configptr->layouts->adjacencies),
+                              (GenericListPtr)adj);
     }
 
     /* 
@@ -200,19 +191,15 @@ static void write_slimm_options(CtkSLIMM *ctk_object, gchar *metamode_str)
     configptr->layouts->adjacencies->screen->device->screen = -1;
 
     /* Write out SLI Mosaic Option */
-    configptr->layouts->adjacencies->screen->options = 
-    xconfigAddNewOption(configptr->layouts->adjacencies->screen->options, 
-                        "SLI", 
-                        "Mosaic");
+    xconfigAddNewOption(&configptr->layouts->adjacencies->screen->options, 
+                        "SLI", "Mosaic");
 
     /* Write out MetaMode Option */
-    configptr->layouts->adjacencies->screen->options = 
-    xconfigAddNewOption(configptr->layouts->adjacencies->screen->options, 
-                        "MetaModes", 
-                        metamode_str);
+    xconfigAddNewOption(&configptr->layouts->adjacencies->screen->options, 
+                        "MetaModes", metamode_str);
 
     xconfigWriteConfigFile(tmp_filename, configptr);
-    xconfigFreeConfig(configptr);
+    xconfigFreeConfig(&configptr);
     xconfigCloseConfigFile();
 }
 
@@ -240,8 +227,8 @@ static void save_xconfig_button_clicked(GtkWidget *widget, gpointer user_data)
 
         /* Get grid configuration values from index */
     
-        x_displays = gridConfigs[idx].x;
-        y_displays = gridConfigs[idx].y;
+        x_displays = gridConfigs[idx].columns;
+        y_displays = gridConfigs[idx].rows;
 
 
         h_overlap = gtk_spin_button_get_value_as_int(GTK_SPIN_BUTTON(ctk_object->spbtn_hedge_overlap));
@@ -318,7 +305,10 @@ static void display_resolution_changed(GtkWidget *widget, gpointer user_data)
     modeline = ctk_object->resolution_table[idx];
 
     /* Ignore selecting same resolution */
-    if (ctk_object->cur_modeline == modeline) {
+    if (ctk_object->cur_modeline == modeline ||
+        (ctk_object->cur_modeline && modeline &&
+         ctk_object->cur_modeline->data.hdisplay == modeline->data.hdisplay &&
+         ctk_object->cur_modeline->data.vdisplay == modeline->data.vdisplay)) {
         return;
     }
 
@@ -326,11 +316,11 @@ static void display_resolution_changed(GtkWidget *widget, gpointer user_data)
     ctk_object->cur_modeline = modeline;
 
     /* Adjust H and V overlap maximums and redraw total size label */
-    gtk_spin_button_set_range(GTK_SPIN_BUTTON(ctk_object->spbtn_hedge_overlap), 
+    gtk_spin_button_set_range(GTK_SPIN_BUTTON(ctk_object->spbtn_hedge_overlap),
                               -modeline->data.hdisplay,
                               modeline->data.hdisplay);
 
-    gtk_spin_button_set_range(GTK_SPIN_BUTTON(ctk_object->spbtn_vedge_overlap), 
+    gtk_spin_button_set_range(GTK_SPIN_BUTTON(ctk_object->spbtn_vedge_overlap),
                               -modeline->data.vdisplay,
                               modeline->data.vdisplay);
 
@@ -394,8 +384,13 @@ static void setup_total_size_label(CtkSLIMM *ctk_object)
     idx = gtk_option_menu_get_history(GTK_OPTION_MENU(ctk_object->mnu_display_config));
 
     /* Get grid configuration values from index */
-    x_displays = gridConfigs[idx].x;
-    y_displays = gridConfigs[idx].y;
+    x_displays = gridConfigs[idx].columns;
+    y_displays = gridConfigs[idx].rows;
+
+    gtk_widget_set_sensitive(ctk_object->spbtn_hedge_overlap,
+                             x_displays > 1 ? True : False);
+    gtk_widget_set_sensitive(ctk_object->spbtn_vedge_overlap,
+                             y_displays > 1 ? True : False);
 
     h_overlap = gtk_spin_button_get_value_as_int(GTK_SPIN_BUTTON(ctk_object->spbtn_hedge_overlap));
     v_overlap = gtk_spin_button_get_value_as_int(GTK_SPIN_BUTTON(ctk_object->spbtn_vedge_overlap));
@@ -435,7 +430,7 @@ static void setup_display_refresh_dropdown(CtkSLIMM *ctk_object)
     }
 
 
-    cur_rate     = ctk_object->cur_modeline->refresh_rate;
+    cur_rate = ctk_object->cur_modeline->refresh_rate;
 
 
     /* Create the menu index -> modeline pointer lookup table */
@@ -527,7 +522,6 @@ static void setup_display_refresh_dropdown(CtkSLIMM *ctk_object)
         }
         
 
-
         /* Keep track of the selected modeline */
         if (ctk_object->cur_modeline == modeline) {
             cur_idx = ctk_object->refresh_table_len;
@@ -536,14 +530,14 @@ static void setup_display_refresh_dropdown(CtkSLIMM *ctk_object)
         } else if (ctk_object->refresh_table_len &&
                    ctk_object->refresh_table[cur_idx] != ctk_object->cur_modeline) {
 
-            /* Found a better resolution */
+            /* Resolution must match */
             if (modeline->data.hdisplay == ctk_object->cur_modeline->data.hdisplay &&
                 modeline->data.vdisplay == ctk_object->cur_modeline->data.vdisplay) {
 
                 float prev_rate = ctk_object->refresh_table[cur_idx]->refresh_rate;
-                float rate      = modeline->refresh_rate;
+                float rate = modeline->refresh_rate;
 
-
+                /* Found better resolution */
                 if (ctk_object->refresh_table[cur_idx]->data.hdisplay != 
                     ctk_object->cur_modeline->data.hdisplay ||
                     ctk_object->refresh_table[cur_idx]->data.vdisplay != 
@@ -571,6 +565,8 @@ static void setup_display_refresh_dropdown(CtkSLIMM *ctk_object)
     g_signal_handlers_block_by_func
         (G_OBJECT(ctk_object->mnu_display_refresh),
          G_CALLBACK(display_refresh_changed), (gpointer) ctk_object);
+
+    ctk_object->cur_modeline = ctk_object->refresh_table[cur_idx];
 
     gtk_option_menu_set_menu(GTK_OPTION_MENU(ctk_object->mnu_display_refresh), menu);
     gtk_option_menu_set_history(GTK_OPTION_MENU(ctk_object->mnu_display_refresh), cur_idx);
@@ -951,7 +947,7 @@ GtkWidget* ctk_slimm_new(NvCtrlAttributeHandle *handle,
     gtk_box_pack_start(GTK_BOX(vbox), hbox, FALSE, FALSE, 0); 
  
     hbox = gtk_hbox_new(FALSE, 0);
-    label = gtk_label_new("Display Configuration");
+    label = gtk_label_new("Display Configuration (rows x columns)");
     hseparator = gtk_hseparator_new();
     gtk_widget_show(hseparator);
     gtk_box_pack_start(GTK_BOX(hbox), label, FALSE, FALSE, 10);
@@ -966,10 +962,10 @@ GtkWidget* ctk_slimm_new(NvCtrlAttributeHandle *handle,
     ctk_slimm->mnu_display_config = optionmenu;
     menu = gtk_menu_new();
 
-    for (iter = 0; gridConfigs[iter].x && gridConfigs[iter].y; iter++) {        
+    for (iter = 0; gridConfigs[iter].columns && gridConfigs[iter].rows; iter++) {        
         tmp = g_strdup_printf("%d x %d grid",
-                              gridConfigs[iter].x,
-                              gridConfigs[iter].y);
+                              gridConfigs[iter].columns,
+                              gridConfigs[iter].rows);
 
         menuitem = gtk_menu_item_new_with_label(tmp);
         gtk_menu_shell_append(GTK_MENU_SHELL(menu), menuitem);
@@ -1181,7 +1177,8 @@ GtkTextBuffer *ctk_slimm_create_help(GtkTextTagTable *table,
     
     ctk_help_heading(b, &i, "Display Configuration");
     ctk_help_para(b, &i, "This drop down menu allows selection of the display grid "
-                  "configuration for SLI Mosaic Mode.");
+                  "configuration for SLI Mosaic Mode; the possible configurations "
+                  "are described as rows x columns.");
     
     ctk_help_heading(b, &i, "Resolution");
     ctk_help_para(b, &i, "This drop down menu allows selection of the resolution to "

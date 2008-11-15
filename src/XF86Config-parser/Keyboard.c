@@ -126,9 +126,7 @@ xconfigParseKeyboardSection (void)
             case KPROTOCOL:
                 if (xconfigGetSubToken (&(ptr->comment)) != STRING)
                     Error (QUOTE_MSG, "Protocol");
-                ptr->options = xconfigAddNewOption(ptr->options,
-                                                   xconfigStrdup("Protocol"),
-                                                   val.str);
+                xconfigAddNewOption(&ptr->options, "Protocol", val.str);
                 break;
             case AUTOREPEAT:
                 if (xconfigGetSubToken (&(ptr->comment)) != NUMBER)
@@ -142,9 +140,7 @@ xconfigParseKeyboardSection (void)
                 sprintf(s, "%s %s", s1, s2);
                 free(s1);
                 free(s2);
-                ptr->options =
-                    xconfigAddNewOption(ptr->options,
-                                        xconfigStrdup("AutoRepeat"), s);
+                xconfigAddNewOption(&ptr->options, "AutoRepeat", s);
                 break;
             case XLEDS:
                 if (xconfigGetSubToken (&(ptr->comment)) != NUMBER)
@@ -178,7 +174,7 @@ xconfigParseKeyboardSection (void)
                 {
                 case EOF_TOKEN:
                     xconfigErrorMsg(ParseErrorMsg, UNEXPECTED_EOF_MSG);
-                    CLEANUP (ptr);
+                    CLEANUP (&ptr);
                     return (NULL);
                     break;
                     
@@ -197,93 +193,65 @@ xconfigParseKeyboardSection (void)
                                 MOVED_TO_FLAGS_MSG, "VTSysReq");
                 break;
             case XKBDISABLE:
-                ptr->options = xconfigAddNewOption(ptr->options,
-                                                   xconfigStrdup("XkbDisable"),
-                                                   NULL);
+                xconfigAddNewOption(&ptr->options, "XkbDisable", NULL);
                 break;
             case XKBKEYMAP:
                 if (xconfigGetSubToken (&(ptr->comment)) != STRING)
                     Error (QUOTE_MSG, "XKBKeymap");
-                ptr->options = xconfigAddNewOption(ptr->options,
-                                                   xconfigStrdup("XkbKeymap"),
-                                                   val.str);
+                xconfigAddNewOption(&ptr->options, "XkbKeymap", val.str);
                 break;
             case XKBCOMPAT:
                 if (xconfigGetSubToken (&(ptr->comment)) != STRING)
                     Error (QUOTE_MSG, "XKBCompat");
-                ptr->options = xconfigAddNewOption(ptr->options,
-                                                   xconfigStrdup("XkbCompat"),
-                                                   val.str);
+                xconfigAddNewOption(&ptr->options, "XkbCompat", val.str);
                 break;
             case XKBTYPES:
                 if (xconfigGetSubToken (&(ptr->comment)) != STRING)
                     Error (QUOTE_MSG, "XKBTypes");
-                ptr->options = xconfigAddNewOption(ptr->options,
-                                                   xconfigStrdup("XkbTypes"),
-                                                   val.str);
+                xconfigAddNewOption(&ptr->options, "XkbTypes", val.str);
                 break;
             case XKBKEYCODES:
                 if (xconfigGetSubToken (&(ptr->comment)) != STRING)
                     Error (QUOTE_MSG, "XKBKeycodes");
-                ptr->options =
-                    xconfigAddNewOption(ptr->options,
-                                        xconfigStrdup("XkbKeycodes"),
-                                        val.str);
+                xconfigAddNewOption(&ptr->options, "XkbKeycodes", val.str);
                 break;
             case XKBGEOMETRY:
                 if (xconfigGetSubToken (&(ptr->comment)) != STRING)
                     Error (QUOTE_MSG, "XKBGeometry");
-                ptr->options =
-                    xconfigAddNewOption(ptr->options,
-                                        xconfigStrdup("XkbGeometry"),
-                                        val.str);
+                xconfigAddNewOption(&ptr->options, "XkbGeometry", val.str);
                 break;
             case XKBSYMBOLS:
                 if (xconfigGetSubToken (&(ptr->comment)) != STRING)
                     Error (QUOTE_MSG, "XKBSymbols");
-                ptr->options = xconfigAddNewOption(ptr->options,
-                                                   xconfigStrdup("XkbSymbols"),
-                                                   val.str);
+                xconfigAddNewOption(&ptr->options, "XkbSymbols", val.str);
                 break;
             case XKBRULES:
                 if (xconfigGetSubToken (&(ptr->comment)) != STRING)
                     Error (QUOTE_MSG, "XKBRules");
-                ptr->options = xconfigAddNewOption(ptr->options,
-                                                   xconfigStrdup("XkbRules"),
-                                                   val.str);
+                xconfigAddNewOption(&ptr->options, "XkbRules", val.str);
                 break;
             case XKBMODEL:
                 if (xconfigGetSubToken (&(ptr->comment)) != STRING)
                     Error (QUOTE_MSG, "XKBModel");
-                ptr->options = xconfigAddNewOption(ptr->options,
-                                                   xconfigStrdup("XkbModel"),
-                                                   val.str);
+                xconfigAddNewOption(&ptr->options, "XkbModel", val.str);
                 break;
             case XKBLAYOUT:
                 if (xconfigGetSubToken (&(ptr->comment)) != STRING)
                     Error (QUOTE_MSG, "XKBLayout");
-                ptr->options = xconfigAddNewOption(ptr->options,
-                                                   xconfigStrdup("XkbLayout"),
-                                                   val.str);
+                xconfigAddNewOption(&ptr->options, "XkbLayout", val.str);
                 break;
             case XKBVARIANT:
                 if (xconfigGetSubToken (&(ptr->comment)) != STRING)
                     Error (QUOTE_MSG, "XKBVariant");
-                ptr->options = xconfigAddNewOption(ptr->options,
-                                                   xconfigStrdup("XkbVariant"),
-                                                   val.str);
+                xconfigAddNewOption(&ptr->options, "XkbVariant", val.str);
                 break;
             case XKBOPTIONS:
                 if (xconfigGetSubToken (&(ptr->comment)) != STRING)
                     Error (QUOTE_MSG, "XKBOptions");
-                ptr->options = xconfigAddNewOption(ptr->options,
-                                                   xconfigStrdup("XkbOptions"),
-                                                   val.str);
+                xconfigAddNewOption(&ptr->options, "XkbOptions", val.str);
                 break;
             case PANIX106:
-                ptr->options = xconfigAddNewOption(ptr->options,
-                                                   xconfigStrdup("Panix106"),
-                                                   NULL);
+                xconfigAddNewOption(&ptr->options, "Panix106", NULL);
                 break;
             case EOF_TOKEN:
                 Error (UNEXPECTED_EOF_MSG, NULL);
@@ -296,8 +264,7 @@ xconfigParseKeyboardSection (void)
     
     ptr->identifier = xconfigStrdup(CONF_IMPLICIT_KEYBOARD);
     ptr->driver = xconfigStrdup("keyboard");
-    ptr->options = xconfigAddNewOption(ptr->options,
-                                       xconfigStrdup("CoreKeyboard"), NULL);
+    xconfigAddNewOption(&ptr->options, "CoreKeyboard", NULL);
     
     return ptr;
 }

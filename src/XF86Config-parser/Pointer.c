@@ -110,69 +110,59 @@ xconfigParsePointerSection (void)
         case PROTOCOL:
             if (xconfigGetSubToken (&(ptr->comment)) != STRING)
                 Error (QUOTE_MSG, "Protocol");
-            ptr->options = xconfigAddNewOption(ptr->options,
-                                            "Protocol", val.str);
+            xconfigAddNewOption(&ptr->options, "Protocol", val.str);
             break;
         case PDEVICE:
             if (xconfigGetSubToken (&(ptr->comment)) != STRING)
                 Error (QUOTE_MSG, "Device");
-            ptr->options = xconfigAddNewOption(ptr->options,
-                                            "Device", val.str);
+            xconfigAddNewOption(&ptr->options, "Device", val.str);
             break;
         case EMULATE3:
-            ptr->options =
-                xconfigAddNewOption(ptr->options, "Emulate3Buttons", NULL);
+            xconfigAddNewOption(&ptr->options, "Emulate3Buttons", NULL);
             break;
         case EM3TIMEOUT:
             if (xconfigGetSubToken (&(ptr->comment)) != NUMBER || val.num < 0)
                 Error (POSITIVE_INT_MSG, "Emulate3Timeout");
             s = xconfigULongToString(val.num);
-            ptr->options =
-                xconfigAddNewOption(ptr->options, "Emulate3Timeout", s);
+            xconfigAddNewOption(&ptr->options, "Emulate3Timeout", s);
             TEST_FREE(s);
             break;
         case CHORDMIDDLE:
-            ptr->options = xconfigAddNewOption(ptr->options, "ChordMiddle",
-                                               NULL);
+            xconfigAddNewOption(&ptr->options, "ChordMiddle", NULL);
             break;
         case PBUTTONS:
             if (xconfigGetSubToken (&(ptr->comment)) != NUMBER || val.num < 0)
                 Error (POSITIVE_INT_MSG, "Buttons");
             s = xconfigULongToString(val.num);
-            ptr->options = xconfigAddNewOption(ptr->options, "Buttons", s);
+            xconfigAddNewOption(&ptr->options, "Buttons", s);
             TEST_FREE(s);
             break;
         case BAUDRATE:
             if (xconfigGetSubToken (&(ptr->comment)) != NUMBER || val.num < 0)
                 Error (POSITIVE_INT_MSG, "BaudRate");
             s = xconfigULongToString(val.num);
-            ptr->options =
-                xconfigAddNewOption(ptr->options, "BaudRate", s);
+            xconfigAddNewOption(&ptr->options, "BaudRate", s);
             TEST_FREE(s);
             break;
         case SAMPLERATE:
             if (xconfigGetSubToken (&(ptr->comment)) != NUMBER || val.num < 0)
                 Error (POSITIVE_INT_MSG, "SampleRate");
             s = xconfigULongToString(val.num);
-            ptr->options =
-                xconfigAddNewOption(ptr->options, "SampleRate", s);
+            xconfigAddNewOption(&ptr->options, "SampleRate", s);
             TEST_FREE(s);
             break;
         case PRESOLUTION:
             if (xconfigGetSubToken (&(ptr->comment)) != NUMBER || val.num < 0)
                 Error (POSITIVE_INT_MSG, "Resolution");
             s = xconfigULongToString(val.num);
-            ptr->options =
-                xconfigAddNewOption(ptr->options, "Resolution", s);
+            xconfigAddNewOption(&ptr->options, "Resolution", s);
             TEST_FREE(s);
             break;
         case CLEARDTR:
-            ptr->options =
-                xconfigAddNewOption(ptr->options, "ClearDTR", NULL);
+            xconfigAddNewOption(&ptr->options, "ClearDTR", NULL);
             break;
         case CLEARRTS:
-            ptr->options =
-                xconfigAddNewOption(ptr->options, "ClearRTS", NULL);
+            xconfigAddNewOption(&ptr->options, "ClearRTS", NULL);
             break;
         case ZAXISMAPPING:
             switch (xconfigGetToken(ZMapTab)) {
@@ -200,8 +190,7 @@ xconfigParsePointerSection (void)
                 Error (ZAXISMAPPING_MSG, NULL);
                 break;
             }
-            ptr->options =
-                xconfigAddNewOption(ptr->options, "ZAxisMapping", s);
+            xconfigAddNewOption(&ptr->options, "ZAxisMapping", s);
             TEST_FREE(s);
             break;
         case ALWAYSCORE:
@@ -217,7 +206,7 @@ xconfigParsePointerSection (void)
 
     ptr->identifier = xconfigStrdup(CONF_IMPLICIT_POINTER);
     ptr->driver = xconfigStrdup("mouse");
-    ptr->options = xconfigAddNewOption(ptr->options, "CorePointer", NULL);
+    xconfigAddNewOption(&ptr->options, "CorePointer", NULL);
 
     return ptr;
 }

@@ -42,22 +42,16 @@ char *ctk_get_display(void)
     return gdk_get_display();
 }
 
-void ctk_main(NvCtrlAttributeHandle **screen_handles, int num_screen_handles,
-              NvCtrlAttributeHandle **gpu_handles, int num_gpu_handles,
-              NvCtrlAttributeHandle **vcs_handles, int num_vcs_handles,
-              ParsedAttribute *p, ConfigProperties *conf,
-              CtrlHandles *pCtrlHandles)
+void ctk_main(ParsedAttribute *p, ConfigProperties *conf,
+              CtrlHandles *h)
 {
     int i, has_nv_control = FALSE;
     GList *list = NULL;
     list = g_list_append (list, gdk_pixbuf_from_pixdata(&nvidia_icon_pixdata, TRUE, NULL));
     gtk_window_set_default_icon_list(list);
-    ctk_window_new(screen_handles, num_screen_handles,
-                   gpu_handles, num_gpu_handles,
-                   vcs_handles, num_vcs_handles,
-                   p, conf, pCtrlHandles);
-    for (i = 0; i < num_screen_handles; i++) {
-        if (screen_handles[i]) {
+    ctk_window_new(p, conf, h);
+    for (i = 0; i < h->targets[X_SCREEN_TARGET].n; i++) {
+        if (h->targets[X_SCREEN_TARGET].t[i].h) {
             has_nv_control = TRUE;
             break;
         }

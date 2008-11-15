@@ -83,7 +83,7 @@ enum
  * that entry.
  */
 
-#define NUM_GPU_SIGNALS 6
+#define NUM_GPU_SIGNALS 7
 
 const char *__GPUSignals[NUM_GPU_SIGNALS] = 
     {
@@ -92,7 +92,8 @@ const char *__GPUSignals[NUM_GPU_SIGNALS] =
         CTK_EVENT_NAME(NV_CTRL_FRAMELOCK_SYNC),
         CTK_EVENT_NAME(NV_CTRL_FRAMELOCK_TEST_SIGNAL),
         CTK_EVENT_NAME(NV_CTRL_REFRESH_RATE),
-        CTK_EVENT_NAME(NV_CTRL_REFRESH_RATE_3)
+        CTK_EVENT_NAME(NV_CTRL_REFRESH_RATE_3),
+        CTK_EVENT_NAME(NV_CTRL_FRAMELOCK_SLAVEABLE)
     };
 
 /*
@@ -178,6 +179,7 @@ struct _nvDisplayDataRec {
     GtkWidget *server_label;
     GtkWidget *server_checkbox;
     gboolean   masterable;
+    gboolean   slaveable;
 
     GtkWidget *client_label;
     GtkWidget *client_checkbox;
@@ -1156,6 +1158,40 @@ static void list_entry_update_framelock_controls(CtkFramelock *ctk_framelock,
 
 
 
+/** list_entry_update_gpu_controls() *********************************
+ *
+ * Updates a GPU list entry's GUI controls based on the current
+ * frame lock status.
+ *
+ */
+static void list_entry_update_gpu_controls(CtkFramelock *ctk_framelock,
+                                           nvListEntryPtr entry)
+{
+    nvGPUDataPtr data = (nvGPUDataPtr)(entry->data);
+    unsigned int slaveables;
+    nvDisplayDataPtr display_data;
+    nvListEntryPtr child;
+    ReturnStatus ret;
+    
+
+    ret = NvCtrlGetDisplayAttribute(data->handle,
+                                    ~0, /* Query all displays */
+                                    NV_CTRL_FRAMELOCK_SLAVEABLE,
+                                    &slaveables);
+
+    /* Update the slaveable flag of the GPU's display devices */
+    child = entry->children;
+    while (child) {
+        display_data = (nvDisplayDataPtr)(child->data);
+        /* Assume device is slaveable if slaveable query fails. */
+        display_data->slaveable = ((ret != NvCtrlSuccess) ||
+                                   (display_data->device_mask & slaveables));
+        child = child->next_sibling;
+    }
+}
+
+
+
 /** list_entry_update_display_controls() *****************************
  *
  * Updates a display device list entry's GUI controls based on
@@ -1188,7 +1224,7 @@ static void list_entry_update_display_controls(CtkFramelock *ctk_framelock,
     client_checked = gtk_toggle_button_get_active
         (GTK_TOGGLE_BUTTON(data->client_checkbox));
     
-    /* Server Checkbox is unavailable when framelock is disabled,
+    /* Server Checkbox is unavailable when framelock is enabled,
      * this display is set as client, this display cannot be master
      * (display is driven by GPU that is connected through a
      * secondary connector.), or another server is already selected.
@@ -1201,18 +1237,23 @@ static void list_entry_update_display_controls(CtkFramelock *ctk_framelock,
     gtk_widget_set_sensitive(data->server_checkbox, sensitive);
     
     /* When a server is selected, this display can only become a
-     * client if its refresh rate matches that of the client.
+     * client if its refresh rate matches that of the client,
+     * and the X server reports that it can frame lock this client
+     * correctly.
      */
     sensitive = (!framelock_enabled &&
                  !server_checked &&
+                 data->slaveable &&
                  (!server_data || data->rate == server_data->rate));
     gtk_widget_set_sensitive(data->client_label, sensitive);
     gtk_widget_set_sensitive(data->client_checkbox, sensitive);
 
     /* Gray out the display device's refresh rate when it is not
-     * the same as the current server's.
+     * the same as the current server's, or the X server tells us
+     * the client cannot be frame locked.
      */
-    sensitive = (!server_data || data->rate == server_data->rate);
+    sensitive = ((!server_data || data->rate == server_data->rate) &&
+                 data->slaveable);
     gtk_widget_set_sensitive(data->rate_label, sensitive);
     gtk_widget_set_sensitive(data->rate_text, sensitive);
     gtk_widget_set_sensitive(data->label, sensitive);
@@ -1247,17 +1288,23 @@ static void list_entry_update_controls(CtkFramelock *ctk_framelock,
 {
     if (!entry) return;
 
-    list_entry_update_controls(ctk_framelock, entry->children);
-
     if (entry->data_type == ENTRY_DATA_FRAMELOCK) {
         list_entry_update_framelock_controls(ctk_framelock, entry);
         
     } else if (entry->data_type == ENTRY_DATA_GPU) {
-        /* Do nothing */
+        list_entry_update_gpu_controls(ctk_framelock, entry);
         
     } else if (entry->data_type == ENTRY_DATA_DISPLAY) {
         list_entry_update_display_controls(ctk_framelock, entry);
     }
+
+    /*
+     * It is important that we recurse into children _after_ processing the
+     * current node, since display entries may depend on data updated in GPU
+     * entries (display entries are children of GPU entries).
+     */
+
+    list_entry_update_controls(ctk_framelock, entry->children);
 
     list_entry_update_controls(ctk_framelock, entry->next_sibling);
 }
@@ -3994,6 +4041,12 @@ static void gpu_state_received(GtkObject *object,
         }
         
         /* Make sure the framelock controls are in a consistent state */
+        update_framelock_controls(ctk_framelock);
+        break;
+
+
+    case NV_CTRL_FRAMELOCK_SLAVEABLE:
+        /* Update slaveable relationships in the GUI */
         update_framelock_controls(ctk_framelock);
         break;
 

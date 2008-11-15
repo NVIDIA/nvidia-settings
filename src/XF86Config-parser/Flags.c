@@ -141,8 +141,8 @@ xconfigParseFlagsSection (void)
                                 valstr = buff;
                             }
                         }
-                        ptr->options = xconfigAddNewOption
-                            (ptr->options, ServerFlagsTab[i].name, valstr);
+                        xconfigAddNewOption(&ptr->options,
+                                            ServerFlagsTab[i].name, valstr);
                     }
                     i++;
                 }
@@ -181,13 +181,16 @@ xconfigPrintServerFlagsSection (FILE * f, XConfigFlagsPtr flags)
     fprintf (f, "EndSection\n\n");
 }
 
-XConfigOptionPtr
-xconfigAddNewOption (XConfigOptionPtr head, const char *name, const char *val)
+void
+xconfigAddNewOption (XConfigOptionPtr *pHead, const char *name,
+                     const char *val)
 {
-    XConfigOptionPtr new, old = NULL;
+    XConfigOptionPtr new;
+    XConfigOptionPtr old = NULL;
 
     /* Don't allow duplicates */
-    if (head != NULL && (old = xconfigFindOption(head, name)) != NULL) {
+    if (*pHead != NULL &&
+        ((old = xconfigFindOption(*pHead, name)) != NULL)) {
         TEST_FREE(old->name);
         TEST_FREE(old->val);
         new = old;
@@ -198,21 +201,21 @@ xconfigAddNewOption (XConfigOptionPtr head, const char *name, const char *val)
     new->name = xconfigStrdup(name);
     new->val = xconfigStrdup(val);
     
-    if (old == NULL)
-        return ((XConfigOptionPtr) xconfigAddListItem ((GenericListPtr) head,
-                                                       (GenericListPtr) new));
-    else 
-        return head;
+    if (old == NULL) {
+        xconfigAddListItem((GenericListPtr *)(pHead), (GenericListPtr)new);
+    }
 }
 
 void
-xconfigFreeFlags (XConfigFlagsPtr flags)
+xconfigFreeFlags (XConfigFlagsPtr *flags)
 {
-    if (flags == NULL)
+    if (flags == NULL || *flags == NULL)
         return;
-    xconfigOptionListFree (flags->options);
-    TEST_FREE(flags->comment);
-    free (flags);
+
+    xconfigFreeOptionList (&((*flags)->options));
+    TEST_FREE((*flags)->comment);
+    free (*flags);
+    *flags = NULL;
 }
 
 XConfigOptionPtr
@@ -220,27 +223,31 @@ xconfigOptionListDup (XConfigOptionPtr opt)
 {
     XConfigOptionPtr newopt = NULL;
 
-    while (opt)
-    {
-        newopt = xconfigAddNewOption(newopt, opt->name, opt->val);
-        newopt->comment = xconfigStrdup(opt->comment);
+    while (opt) {
+        xconfigAddNewOption(&newopt, opt->name, opt->val);
+        if (newopt) {
+            newopt->comment = xconfigStrdup(opt->comment);
+        }
         opt = opt->next;
     }
     return newopt;
 }
 
 void
-xconfigOptionListFree (XConfigOptionPtr opt)
+xconfigFreeOptionList (XConfigOptionPtr *opt)
 {
     XConfigOptionPtr prev;
 
-    while (opt)
+    if (opt == NULL || *opt == NULL)
+        return;
+
+    while (*opt)
     {
-        TEST_FREE (opt->name);
-        TEST_FREE (opt->val);
-        TEST_FREE (opt->comment);
-        prev = opt;
-        opt = opt->next;
+        TEST_FREE ((*opt)->name);
+        TEST_FREE ((*opt)->val);
+        TEST_FREE ((*opt)->comment);
+        prev = *opt;
+        *opt = (*opt)->next;
         free (prev);
     }
 }
@@ -277,28 +284,15 @@ xconfigNewOption(const char *name, const char *value)
     return opt;
 }
 
-XConfigOptionPtr
-xconfigRemoveOption(XConfigOptionPtr list, XConfigOptionPtr opt)
+void
+xconfigRemoveOption(XConfigOptionPtr *pHead, XConfigOptionPtr opt)
 {
-    XConfigOptionPtr prev = NULL;
-    XConfigOptionPtr p = list;
+    xconfigRemoveListItem((GenericListPtr *)pHead, (GenericListPtr)opt);
 
-    while (p) {
-        if (p == opt) {
-            if (prev) prev->next = opt->next;
-            if (list == opt) list = opt->next;
-
-            TEST_FREE(opt->name);
-            TEST_FREE(opt->val);
-            TEST_FREE(opt->comment);
-            free(opt);
-            break;
-        }
-        prev = p;
-        p = p->next;
-    }
-
-    return list;
+    TEST_FREE(opt->name);
+    TEST_FREE(opt->val);
+    TEST_FREE(opt->comment);
+    free(opt);
 }
 
 XConfigOptionPtr
@@ -397,7 +391,7 @@ xconfigOptionListMerge (XConfigOptionPtr head, XConfigOptionPtr tail)
                 ap->next = a->next;
             a->next = b->next;
             b->next = NULL;
-            xconfigOptionListFree (b);
+            xconfigFreeOptionList (&b);
             b = a->next;
             bp = a;
             a = tail;
@@ -482,11 +476,11 @@ xconfigParseOption(XConfigOptionPtr head)
     else
         cnew = option;
     
-    if (old == NULL)
-        return ((XConfigOptionPtr)xconfigAddListItem((GenericListPtr)head,
-                                               (GenericListPtr)cnew));
+    if (old == NULL) {
+        xconfigAddListItem((GenericListPtr *)(&head), (GenericListPtr)cnew);
+    }
 
-    return (head);
+    return head;
 }
 
 void

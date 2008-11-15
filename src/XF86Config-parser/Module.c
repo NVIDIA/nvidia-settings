@@ -114,8 +114,8 @@ xconfigParseModuleSubSection (XConfigLoadPtr head, char *name)
 
     }
 
-    return ((XConfigLoadPtr) xconfigAddListItem ((GenericListPtr) head,
-                                           (GenericListPtr) ptr));
+    xconfigAddListItem((GenericListPtr *)(&head), (GenericListPtr)ptr);
+    return head;
 }
 
 XConfigModulePtr
@@ -134,16 +134,14 @@ xconfigParseModuleSection (void)
         case LOAD:
             if (xconfigGetSubToken (&(ptr->comment)) != STRING)
                 Error (QUOTE_MSG, "Load");
-            ptr->loads =
-                xconfigAddNewLoadDirective (ptr->loads, val.str,
-                                         XCONFIG_LOAD_MODULE, NULL, TRUE);
+            xconfigAddNewLoadDirective (&ptr->loads, val.str,
+                                        XCONFIG_LOAD_MODULE, NULL, TRUE);
             break;
         case LOAD_DRIVER:
             if (xconfigGetSubToken (&(ptr->comment)) != STRING)
                 Error (QUOTE_MSG, "LoadDriver");
-            ptr->loads =
-                xconfigAddNewLoadDirective (ptr->loads, val.str,
-                                         XCONFIG_LOAD_DRIVER, NULL, TRUE);
+            xconfigAddNewLoadDirective (&ptr->loads, val.str,
+                                        XCONFIG_LOAD_DRIVER, NULL, TRUE);
             break;
         case SUBSECTION:
             if (xconfigGetSubToken (&(ptr->comment)) != STRING)
@@ -212,8 +210,8 @@ xconfigPrintModuleSection (FILE * cf, XConfigModulePtr ptr)
     }
 }
 
-XConfigLoadPtr
-xconfigAddNewLoadDirective (XConfigLoadPtr head, char *name, int type,
+void
+xconfigAddNewLoadDirective (XConfigLoadPtr *pHead, char *name, int type,
                             XConfigOptionPtr opts, int do_token)
 {
     XConfigLoadPtr new;
@@ -226,49 +224,37 @@ xconfigAddNewLoadDirective (XConfigLoadPtr head, char *name, int type,
     new->next = NULL;
 
     if (do_token) {
-        if ((token = xconfigGetToken(NULL)) == COMMENT)
+        if ((token = xconfigGetToken(NULL)) == COMMENT) {
             new->comment = xconfigAddComment(new->comment, val.str);
-        else
+        } else {
             xconfigUnGetToken(token);
-    }
-
-    return ((XConfigLoadPtr) xconfigAddListItem ((GenericListPtr) head,
-                                           (GenericListPtr) new));
-}
-
-XConfigLoadPtr
-xconfigRemoveLoadDirective(XConfigLoadPtr head, XConfigLoadPtr load)
-{
-    XConfigLoadPtr prev = NULL;
-    XConfigLoadPtr l = head;
-
-    while (l) {
-        if (l == load) {
-            if (prev) prev->next = load->next;
-            if (head == load) head = load->next;
-            TEST_FREE(load->name);
-            TEST_FREE(load->comment);
-            xconfigOptionListFree(load->opt);
-            free(load);
-            break;
         }
-        
-        prev = l;
-        l = l->next;
     }
 
-    return head;
+    xconfigAddListItem((GenericListPtr *)pHead, (GenericListPtr)new);
 }
 
 void
-xconfigFreeModules (XConfigModulePtr ptr)
+xconfigRemoveLoadDirective(XConfigLoadPtr *pHead, XConfigLoadPtr load)
+{
+     xconfigRemoveListItem((GenericListPtr *)pHead, (GenericListPtr)load);
+
+    TEST_FREE(load->name);
+    TEST_FREE(load->comment);
+    xconfigFreeOptionList(&(load->opt));
+    free(load);
+}
+
+void
+xconfigFreeModules (XConfigModulePtr *ptr)
 {
     XConfigLoadPtr lptr;
     XConfigLoadPtr prev;
 
-    if (ptr == NULL)
+    if (ptr == NULL || *ptr == NULL)
         return;
-    lptr = ptr->loads;
+
+    lptr = (*ptr)->loads;
     while (lptr)
     {
         TEST_FREE (lptr->name);
@@ -277,6 +263,7 @@ xconfigFreeModules (XConfigModulePtr ptr)
         lptr = lptr->next;
         free (prev);
     }
-    TEST_FREE (ptr->comment);
-    free (ptr);
+    TEST_FREE ((*ptr)->comment);
+    free (*ptr);
+    *ptr = NULL;
 }

@@ -39,11 +39,8 @@ int main(int argc, char **argv)
     ConfigProperties conf;
     ParsedAttribute *p;
     CtrlHandles *h;
-    NvCtrlAttributeHandle **screen_handles = NULL;
-    NvCtrlAttributeHandle **gpu_handles = NULL;
-    NvCtrlAttributeHandle **vcs_handles = NULL;
     Options *op;
-    int ret, i, num_screen_handles, num_gpu_handles, num_vcs_handles;
+    int ret;
     char *dpy = NULL;
     int gui = 0;
 
@@ -144,59 +141,9 @@ int main(int argc, char **argv)
         return 1;
     }
 
-    /*
-     * pull the screen and gpu handles out of the CtrlHandles so that we can
-     * pass them to the gui
-     */
-    
-    num_screen_handles = h->targets[X_SCREEN_TARGET].n;
-
-    if (num_screen_handles) {
-        screen_handles =
-            malloc(num_screen_handles * sizeof(NvCtrlAttributeHandle *));
-        if (screen_handles) {
-            for (i = 0; i < num_screen_handles; i++) {
-                screen_handles[i] = h->targets[X_SCREEN_TARGET].t[i].h;
-            }
-        } else {
-            num_screen_handles = 0;
-        }
-    }
-
-    num_gpu_handles = h->targets[GPU_TARGET].n;
-
-    if (num_gpu_handles) {
-        gpu_handles =
-            malloc(num_gpu_handles * sizeof(NvCtrlAttributeHandle *));
-        if (gpu_handles) {
-            for (i = 0; i < num_gpu_handles; i++) {
-                gpu_handles[i] = h->targets[GPU_TARGET].t[i].h;
-            }
-        } else {
-            num_gpu_handles = 0;
-        }
-    }
-
-    num_vcs_handles = h->targets[VCS_TARGET].n;
-
-    if (num_vcs_handles) {
-        vcs_handles =
-            malloc(num_vcs_handles * sizeof(NvCtrlAttributeHandle *));
-        if (vcs_handles) {
-            for (i = 0; i < num_vcs_handles; i++) {
-                vcs_handles[i] = h->targets[VCS_TARGET].t[i].h;
-            }
-        } else {
-            num_vcs_handles = 0;
-        }
-    }
-    
     /* pass control to the gui */
 
-    ctk_main(screen_handles, num_screen_handles,
-             gpu_handles, num_gpu_handles,
-             vcs_handles, num_vcs_handles,
-             p, &conf, h);
+    ctk_main(p, &conf, h);
     
     /* write the configuration file */
 
@@ -204,8 +151,6 @@ int main(int argc, char **argv)
 
     /* cleanup */
 
-    if (screen_handles) free(screen_handles);
-    if (gpu_handles) free(gpu_handles);
     nv_free_ctrl_handles(h);
     nv_parsed_attribute_free(p);
 

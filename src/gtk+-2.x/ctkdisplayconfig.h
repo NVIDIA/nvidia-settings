@@ -189,6 +189,8 @@ typedef struct _CtkDisplayConfig
     gboolean   advanced_mode;  /* True if we are in advanced mode */
 
     GtkWidget *btn_reset;
+    
+    int last_resolution_idx;
 
 } CtkDisplayConfig;
 

@@ -46,7 +46,7 @@
 #define NV_PARSER_TYPE_FRAMELOCK               (1<<16)
 #define NV_PARSER_TYPE_COLOR_ATTRIBUTE         (1<<17)
 #define NV_PARSER_TYPE_NO_CONFIG_WRITE         (1<<18)
-#define NV_PARSER_TYPE_GUI_ATTRIUBUTE          (1<<19)
+#define NV_PARSER_TYPE_GUI_ATTRIBUTE           (1<<19)
 #define NV_PARSER_TYPE_XVIDEO_ATTRIBUTE        (1<<20)
 #define NV_PARSER_TYPE_PACKED_ATTRIBUTE        (1<<21)
 #define NV_PARSER_TYPE_VALUE_IS_DISPLAY        (1<<22)
@@ -106,6 +106,7 @@ typedef struct _AttributeTableEntry {
     char *name;
     int attr;
     uint32 flags;
+    char *desc;
 } AttributeTableEntry;
 
 
@@ -303,7 +304,7 @@ const char *parse_read_integer_pair(const char *str,
 const char *parse_read_name(const char *str, char **name, char term);
 const char *parse_read_display_name(const char *str, unsigned int *mask);
 int parse_read_float_range(char *str, float *min, float *max);
-
+int count_number_of_bits(unsigned int mask);
 
 /* Token parsing functions */
 

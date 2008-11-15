@@ -97,24 +97,23 @@ LexRec, *LexPtr;
 #define HANDLE_LIST(field,func,type)                                    \
 {                                                                       \
     type p = func();                                                    \
-    if (p == NULL)                                                      \
-    {                                                                   \
-        CLEANUP (ptr);                                                  \
+    if (p == NULL) {                                                    \
+        CLEANUP (&ptr);                                                 \
         return (NULL);                                                  \
     } else {                                                            \
-        ptr->field = (type)                                             \
-            xconfigAddListItem((GenericListPtr) ptr->field,                \
-                            (GenericListPtr) p);                        \
+        xconfigAddListItem((GenericListPtr*)(&ptr->field),              \
+                           (GenericListPtr) p);                         \
     }                                                                   \
 }
 
 
-#define Error(a,b)                         \
-    do {                                   \
+#define Error(a,b)                            \
+    do {                                      \
         xconfigErrorMsg(ParseErrorMsg, a, b); \
-        CLEANUP (ptr);                     \
-        return NULL;                       \
-    } while (0)                            \
+        CLEANUP (&ptr);                       \
+        return NULL;                          \
+    } while (0)
+
 
 /* 
  * These are defines for error messages to promote consistency.

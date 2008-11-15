@@ -233,39 +233,45 @@ xconfigPrintVideoAdaptorSection (FILE * cf, XConfigVideoAdaptorPtr ptr)
 }
 
 void
-xconfigFreeVideoAdaptorList (XConfigVideoAdaptorPtr ptr)
+xconfigFreeVideoAdaptorList (XConfigVideoAdaptorPtr *ptr)
 {
     XConfigVideoAdaptorPtr prev;
 
-    while (ptr)
+    if (ptr == NULL || *ptr == NULL)
+        return;
+
+    while (*ptr)
     {
-        TEST_FREE (ptr->identifier);
-        TEST_FREE (ptr->vendor);
-        TEST_FREE (ptr->board);
-        TEST_FREE (ptr->busid);
-        TEST_FREE (ptr->driver);
-        TEST_FREE (ptr->fwdref);
-        TEST_FREE (ptr->comment);
-        xconfigFreeVideoPortList (ptr->ports);
-        xconfigOptionListFree (ptr->options);
-        prev = ptr;
-        ptr = ptr->next;
+        TEST_FREE ((*ptr)->identifier);
+        TEST_FREE ((*ptr)->vendor);
+        TEST_FREE ((*ptr)->board);
+        TEST_FREE ((*ptr)->busid);
+        TEST_FREE ((*ptr)->driver);
+        TEST_FREE ((*ptr)->fwdref);
+        TEST_FREE ((*ptr)->comment);
+        xconfigFreeVideoPortList (&((*ptr)->ports));
+        xconfigFreeOptionList (&((*ptr)->options));
+        prev = *ptr;
+        *ptr = (*ptr)->next;
         free (prev);
     }
 }
 
 void
-xconfigFreeVideoPortList (XConfigVideoPortPtr ptr)
+xconfigFreeVideoPortList (XConfigVideoPortPtr *ptr)
 {
     XConfigVideoPortPtr prev;
 
-    while (ptr)
+    if (ptr == NULL || *ptr == NULL)
+        return;
+
+    while (*ptr)
     {
-        TEST_FREE (ptr->identifier);
-        TEST_FREE (ptr->comment);
-        xconfigOptionListFree (ptr->options);
-        prev = ptr;
-        ptr = ptr->next;
+        TEST_FREE ((*ptr)->identifier);
+        TEST_FREE ((*ptr)->comment);
+        xconfigFreeOptionList (&((*ptr)->options));
+        prev = *ptr;
+        *ptr = (*ptr)->next;
         free (prev);
     }
 }

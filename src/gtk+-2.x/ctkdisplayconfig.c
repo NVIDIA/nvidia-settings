@@ -1116,6 +1116,8 @@ GtkWidget* ctk_display_config_new(NvCtrlAttributeHandle *handle,
 
     ctk_object->advanced_mode = FALSE;
 
+    ctk_object->last_resolution_idx = -1;
+
     /* Set container properties of the object & pack the banner */
     gtk_box_set_spacing(GTK_BOX(ctk_object), 5);
 
@@ -2233,7 +2235,6 @@ static void setup_display_refresh_dropdown(CtkDisplayConfig *ctk_object)
     auto_modeline = NULL;
     for (modeline = modelines; modeline; modeline = modeline->next) {
 
-        float modeline_rate;
         nvModeLinePtr m;
         int count_ref; /* # modelines with similar refresh rates */ 
         int num_ref;   /* Modeline # in a group of similar refresh rates */
@@ -2252,12 +2253,11 @@ static void setup_display_refresh_dropdown(CtkDisplayConfig *ctk_object)
             continue;
         }
 
-        modeline_rate = modeline->refresh_rate;
         is_doublescan = (modeline->data.flags & V_DBLSCAN);
         is_interlaced = (modeline->data.flags & V_INTERLACE);
 
-        name = g_strdup_printf("%.0f Hz", modeline_rate);
-
+        name = g_strdup_printf("%0.*f Hz", (display->is_sdi ? 3 : 0),
+                               modeline->refresh_rate);
 
         /* Get a unique number for this modeline */
         count_ref = 0; /* # modelines with similar refresh rates */
@@ -2273,7 +2273,9 @@ static void setup_display_refresh_dropdown(CtkDisplayConfig *ctk_object)
                 m != auto_modeline) {
 
                 count_ref++;
-                /* Modelines with similar refresh rates get a unique # (num_ref) */
+                /* Modelines with similar refresh rates get a
+                 * unique # (num_ref)
+                 */
                 if (m == modeline) {
                     num_ref = count_ref; /* This modeline's # */
                 }
@@ -2282,7 +2284,7 @@ static void setup_display_refresh_dropdown(CtkDisplayConfig *ctk_object)
         }
 
         /* Is default refresh rate for resolution */
-        if (!ctk_object->refresh_table_len) {
+        if (!ctk_object->refresh_table_len && !display->is_sdi) {
             auto_modeline = modeline;
             g_free(name);
             name = g_strdup("Auto");
@@ -2341,7 +2343,7 @@ static void setup_display_refresh_dropdown(CtkDisplayConfig *ctk_object)
                 modeline->data.vdisplay == cur_modeline->data.vdisplay) {
                 
                 float prev_rate = ctk_object->refresh_table[cur_idx]->refresh_rate;
-                float rate      = modeline->refresh_rate;
+                float rate = modeline->refresh_rate;
                 
                 if (ctk_object->refresh_table[cur_idx]->data.hdisplay != cur_modeline->data.hdisplay ||
                     ctk_object->refresh_table[cur_idx]->data.vdisplay != cur_modeline->data.vdisplay) {
@@ -4176,9 +4178,8 @@ void do_enable_display_for_xscreen(CtkDisplayConfig *ctk_object,
 
     /* Add the screen at the end of the gpu's screen list */
     gpu = display->gpu;
-    gpu->screens =
-        (nvScreenPtr)xconfigAddListItem((GenericListPtr)gpu->screens,
-                                        (GenericListPtr)screen);
+    xconfigAddListItem((GenericListPtr *)(&gpu->screens),
+                       (GenericListPtr)screen);
     gpu->num_screens++;
 
 
@@ -4390,9 +4391,8 @@ static void do_enable_display_for_twinview(CtkDisplayConfig *ctk_object,
 
 
         /* Add the mode at the end of the display's mode list */
-        display->modes =
-            (nvModePtr)xconfigAddListItem((GenericListPtr)display->modes,
-                                          (GenericListPtr)mode);
+        xconfigAddListItem((GenericListPtr *)(&display->modes),
+                           (GenericListPtr)mode);
         display->num_modes++;
     }
 
@@ -4477,9 +4477,8 @@ static void do_configure_display_for_xscreen(CtkDisplayConfig *ctk_object,
             }
 
             /* Append the metamode */
-            new_screen->metamodes =
-                (nvMetaModePtr)xconfigAddListItem((GenericListPtr)new_screen->metamodes,
-                                                  (GenericListPtr)metamode);
+            xconfigAddListItem((GenericListPtr *)(&new_screen->metamodes),
+                               (GenericListPtr)metamode);
             new_screen->num_metamodes++;
         }
 
@@ -4495,9 +4494,8 @@ static void do_configure_display_for_xscreen(CtkDisplayConfig *ctk_object,
         }
         
         /* Append the screen to the gpu */
-        gpu->screens =
-            (nvScreenPtr)xconfigAddListItem((GenericListPtr)gpu->screens,
-                                            (GenericListPtr)new_screen);
+        xconfigAddListItem((GenericListPtr *)(&gpu->screens),
+                           (GenericListPtr)new_screen);
         gpu->num_screens++;
 
         /* Earlier display devices get first dibs on low screen numbers */
@@ -4574,9 +4572,8 @@ static void do_configure_display_for_twinview(CtkDisplayConfig *ctk_object,
             metamode->source = METAMODE_SOURCE_NVCONTROL;
             
             /* Add the metamode at the end of the screen's metamode list */
-            screen->metamodes =
-                (nvMetaModePtr)xconfigAddListItem((GenericListPtr)screen->metamodes,
-                                                  (GenericListPtr)metamode);
+            xconfigAddListItem((GenericListPtr *)(&screen->metamodes),
+                               (GenericListPtr)metamode);
             screen->num_metamodes++;
         }
     }
@@ -4650,9 +4647,8 @@ static void do_configure_display_for_twinview(CtkDisplayConfig *ctk_object,
             }
             
             /* Add the mode at the end of display's mode list */
-            display->modes =
-                (nvModePtr)xconfigAddListItem((GenericListPtr)display->modes,
-                                              (GenericListPtr)mode);
+            xconfigAddListItem((GenericListPtr *)(&display->modes),
+                               (GenericListPtr)mode);
             display->num_modes++;
             metamode = metamode->next;
         }
@@ -5107,6 +5103,7 @@ static void display_resolution_changed(GtkWidget *widget, gpointer user_data)
 {
     CtkDisplayConfig *ctk_object = CTK_DISPLAY_CONFIG(user_data);
     gint idx;
+    gint last_idx;
     nvModeLinePtr modeline;
     nvDisplayPtr display;
 
@@ -5118,8 +5115,12 @@ static void display_resolution_changed(GtkWidget *widget, gpointer user_data)
         (CTK_DISPLAY_LAYOUT(ctk_object->obj_layout));
 
 
+    /* cache the selected index */
+    last_idx = ctk_object->last_resolution_idx;
+    ctk_object->last_resolution_idx = idx;
+    
     /* Ignore selecting same resolution */
-    if (display->cur_mode->modeline == modeline) {
+    if (idx == last_idx) {
         return;
     }
 
@@ -6607,9 +6608,8 @@ static gboolean update_xconfig_save_buffer(CtkDisplayConfig *ctk_object)
 
         /* If we're not actualy doing a merge, close the file */
         if (!merge && mergeConfig) {
-            xconfigFreeConfig(mergeConfig);
+            xconfigFreeConfig(&mergeConfig);
             xconfigCloseConfigFile();
-            mergeConfig = NULL;
         }
     }
 
@@ -6642,16 +6642,16 @@ static gboolean update_xconfig_save_buffer(CtkDisplayConfig *ctk_object)
     /* Merge the two X config structures */
     if (mergeConfig) {
         result = xconfigMergeConfigs(mergeConfig, config);
-        xconfigFreeConfig(config);
+        xconfigFreeConfig(&config);
         xconfigCloseConfigFile();
-        config = mergeConfig;
         if (!result) {
-            xconfigFreeConfig(mergeConfig);
+            xconfigFreeConfig(&mergeConfig);
             err_msg = g_strdup_printf("Failed to merge current configuration "
                                       "with existing X config file '%s'!",
                                       filename);
             goto fail;
         }
+        config = mergeConfig;
     }
 
 
@@ -6670,7 +6670,7 @@ static gboolean update_xconfig_save_buffer(CtkDisplayConfig *ctk_object)
         goto fail;
     }
     xconfigWriteConfigFile(tmp_filename, config);
-    xconfigFreeConfig(config);
+    xconfigFreeConfig(&config);
 
     lseek(tmp_fd, 0, SEEK_SET);
     fstat(tmp_fd, &st);
@@ -6795,9 +6795,8 @@ static Bool add_modelines_to_monitor(XConfigMonitorPtr monitor,
         if (!modeline) continue;
 
         /* Append to the end of the modeline list */
-        monitor->modelines =
-            (XConfigModeLinePtr)xconfigAddListItem((GenericListPtr)monitor->modelines,
-                                                   (GenericListPtr)modeline);
+        xconfigAddListItem((GenericListPtr *)(&monitor->modelines),
+                           (GenericListPtr)modeline);
     }
 
     return TRUE;
@@ -6929,7 +6928,7 @@ static Bool add_monitor_to_xconfig(nvDisplayPtr display, XConfigPtr config,
 
     /* Add other options */
 
-    opt = xconfigAddNewOption(opt, "DPMS", NULL);
+    xconfigAddNewOption(&opt, "DPMS", NULL);
     monitor->options = opt;
 
     /* Add modelines used by this display */
@@ -6938,9 +6937,8 @@ static Bool add_monitor_to_xconfig(nvDisplayPtr display, XConfigPtr config,
 
     /* Append the monitor to the end of the monitor list */
 
-    config->monitors =
-        (XConfigMonitorPtr)xconfigAddListItem((GenericListPtr)config->monitors,
-                                              (GenericListPtr)monitor);
+    xconfigAddListItem((GenericListPtr *)(&config->monitors),
+                       (GenericListPtr)monitor);
 
     display->conf_monitor = monitor;
     return TRUE;
@@ -6951,7 +6949,7 @@ static Bool add_monitor_to_xconfig(nvDisplayPtr display, XConfigPtr config,
     free(h_source);
     free(v_source);
     if (monitor) {
-        xconfigFreeMonitorList(monitor);
+        xconfigFreeMonitorList(&monitor);
     }
     return FALSE;
 
@@ -6997,15 +6995,14 @@ static XConfigDevicePtr add_device_to_xconfig(nvGpuPtr gpu, XConfigPtr config,
     
 
     /* Append to the end of the device list */
-    config->devices =
-        (XConfigDevicePtr)xconfigAddListItem((GenericListPtr)config->devices,
-                                             (GenericListPtr)device);
+    xconfigAddListItem((GenericListPtr *)(&config->devices),
+                       (GenericListPtr)device);
 
     return device;
 
  fail:
     if (device) {
-        xconfigFreeDeviceList(device);
+        xconfigFreeDeviceList(&device);
     }
     return NULL;
 
@@ -7023,12 +7020,11 @@ static Bool add_display_to_screen(nvScreenPtr screen,
                                   XConfigScreenPtr conf_screen)
 {
     /* Clear the display list */
-    xconfigFreeDisplayList(conf_screen->displays);
-    conf_screen->displays = NULL;
+    xconfigFreeDisplayList(&conf_screen->displays);
 
 
     /* Add a single display subsection for the default depth */
-    conf_screen->displays = xconfigAddDisplay(NULL, conf_screen->defaultdepth);
+    xconfigAddDisplay(&conf_screen->displays, conf_screen->defaultdepth);
     if (!conf_screen->displays) goto fail;
 
 
@@ -7041,8 +7037,7 @@ static Bool add_display_to_screen(nvScreenPtr screen,
     return TRUE;
 
  fail:
-    xconfigFreeDisplayList(conf_screen->displays);
-    conf_screen->displays = NULL;
+    xconfigFreeDisplayList(&conf_screen->displays);
 
     return FALSE;
     
@@ -7116,11 +7111,8 @@ static int add_screen_to_xconfig(CtkDisplayConfig *ctk_object,
     }
 
     /* Set the TwinView option */
-    conf_screen->options = xconfigAddNewOption(conf_screen->options,
-                                               "TwinView",
-                                               ((screen->num_displays > 1) ?
-                                                "1" : "0" ));
-
+    xconfigAddNewOption(&conf_screen->options, "TwinView",
+                        ((screen->num_displays > 1) ? "1" : "0" ));
 
     /* Set the TwinviewXineramaInfoOrder option */
 
@@ -7128,9 +7120,8 @@ static int add_screen_to_xconfig(CtkDisplayConfig *ctk_object,
         gchar *primary_str =
            display_get_type_str(screen->primaryDisplay->device_mask, 0);
 
-        conf_screen->options = xconfigAddNewOption(conf_screen->options,
-                                                   "TwinViewXineramaInfoOrder",
-                                                   primary_str);
+        xconfigAddNewOption(&conf_screen->options, "TwinViewXineramaInfoOrder",
+                            primary_str);
         g_free(primary_str);
     }
 
@@ -7147,9 +7138,7 @@ static int add_screen_to_xconfig(CtkDisplayConfig *ctk_object,
     }
 
     if (metamode_strs) {
-        conf_screen->options =
-            xconfigAddNewOption(conf_screen->options, "metamodes",
-                                metamode_strs);
+        xconfigAddNewOption(&conf_screen->options, "metamodes", metamode_strs);
         free(metamode_strs);
     }
     
@@ -7167,9 +7156,8 @@ static int add_screen_to_xconfig(CtkDisplayConfig *ctk_object,
 
 
     /* Append to the end of the screen list */
-    config->screens =
-        (XConfigScreenPtr)xconfigAddListItem((GenericListPtr)config->screens,
-                                             (GenericListPtr)conf_screen);
+    xconfigAddListItem((GenericListPtr *)(&config->screens),
+                       (GenericListPtr)conf_screen);
     
     screen->conf_screen = conf_screen;
 
@@ -7182,7 +7170,7 @@ static int add_screen_to_xconfig(CtkDisplayConfig *ctk_object,
     ret = XCONFIG_GEN_ERROR;
  bail:
     if (conf_screen) {
-        xconfigFreeScreenList(conf_screen);
+        xconfigFreeScreenList(&conf_screen);
     }
     return ret;
 
@@ -7206,12 +7194,9 @@ static int add_screens_to_xconfig(CtkDisplayConfig *ctk_object,
 
 
     /* Clear the screen list */
-    xconfigFreeMonitorList(config->monitors);
-    config->monitors = NULL;
-    xconfigFreeDeviceList(config->devices);
-    config->devices = NULL;
-    xconfigFreeScreenList(config->screens);
-    config->screens = NULL;
+    xconfigFreeMonitorList(&config->monitors);
+    xconfigFreeDeviceList(&config->devices);
+    xconfigFreeScreenList(&config->screens);
 
     /* Don't print the bus ID in the case where we have a single
      * GPU driving a single X screen
@@ -7267,12 +7252,9 @@ static int add_screens_to_xconfig(CtkDisplayConfig *ctk_object,
  fail:
     ret = XCONFIG_GEN_ERROR;
  bail:
-    xconfigFreeMonitorList(config->monitors);
-    config->monitors = NULL;
-    xconfigFreeDeviceList(config->devices);
-    config->devices = NULL;
-    xconfigFreeScreenList(config->screens);
-    config->screens = NULL;    
+    xconfigFreeMonitorList(&config->monitors);
+    xconfigFreeDeviceList(&config->devices);
+    xconfigFreeScreenList(&config->screens);
     return ret;
 
 } /* add_screens_to_xconfig() */
@@ -7310,9 +7292,8 @@ static Bool add_adjacency_to_xconfig(nvScreenPtr screen, XConfigPtr config)
     }
 
     /* Append to the end of the screen list */
-    conf_layout->adjacencies =
-        (XConfigAdjacencyPtr)xconfigAddListItem((GenericListPtr)conf_layout->adjacencies,
-                                                (GenericListPtr)adj);
+    xconfigAddListItem((GenericListPtr *)(&conf_layout->adjacencies),
+                       (GenericListPtr)adj);
 
     return TRUE;
 
@@ -7343,8 +7324,7 @@ static Bool add_layout_to_xconfig(nvLayoutPtr layout, XConfigPtr config)
 
 
     /* Clean up the adjacencies */
-    xconfigFreeAdjacencyList(conf_layout->adjacencies);
-    conf_layout->adjacencies = NULL;
+    xconfigFreeAdjacencyList(&conf_layout->adjacencies);
 
     
     /* Assign the adjacencies (in order) */
@@ -7369,10 +7349,8 @@ static Bool add_layout_to_xconfig(nvLayoutPtr layout, XConfigPtr config)
         config->flags = (XConfigFlagsPtr) calloc(1, sizeof(XConfigFlagsRec));
         if (!config->flags) goto fail;
     }
-    config->flags->options =
-        xconfigAddNewOption(config->flags->options,
-                            "Xinerama",
-                            (layout->xinerama_enabled ? "1" : "0"));
+    xconfigAddNewOption(&config->flags->options, "Xinerama",
+                        (layout->xinerama_enabled ? "1" : "0"));
 
     layout->conf_layout = conf_layout;
     return TRUE;
@@ -7478,7 +7456,7 @@ static int generateXConfig(CtkDisplayConfig *ctk_object, XConfigPtr *pConfig)
     ret = XCONFIG_GEN_ERROR;
  bail:
     if (config) {
-        xconfigFreeConfig(config);
+        xconfigFreeConfig(&config);
     }
     return ret;
 

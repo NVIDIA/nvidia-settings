@@ -2107,10 +2107,11 @@ static char *get_display_tooltip(CtkDisplayLayout *ctk_object,
         /* Display has mode/modeline */
         } else {
             float ref = display->cur_mode->modeline->refresh_rate;
-            tip = g_strdup_printf("%s : %dx%d @ %.0f Hz",
+            tip = g_strdup_printf("%s : %dx%d @ %.*f Hz",
                                   display->name,
                                   display->cur_mode->modeline->data.hdisplay,
                                   display->cur_mode->modeline->data.vdisplay,
+                                  (display->is_sdi ? 3 : 0),
                                   ref);
         }
         
@@ -2136,11 +2137,12 @@ static char *get_display_tooltip(CtkDisplayLayout *ctk_object,
             /* Display has mode/modeline */
         } else {
             float ref = display->cur_mode->modeline->refresh_rate;
-            tip = g_strdup_printf("%s : %dx%d @ %.0f Hz (Screen: %d) "
+            tip = g_strdup_printf("%s : %dx%d @ %.*f Hz (Screen: %d) "
                                   "(GPU: %s)",
                                   display->name,
                                   display->cur_mode->modeline->data.hdisplay,
                                   display->cur_mode->modeline->data.vdisplay,
+                                  (display->is_sdi ? 3 : 0),
                                   ref,
                                   display->screen->scrnum,
                                   display->gpu->name);

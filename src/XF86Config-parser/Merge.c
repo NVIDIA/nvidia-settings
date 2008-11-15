@@ -76,17 +76,17 @@ static void xconfigAddRemovedOptionComment(char **existing_comments,
  * list and (if specified) adds a comment to an existing comments string
  *
  */
-static void xconfigRemoveNamedOption(XConfigOptionPtr *head, char *name,
-                                     char **comments)
+void xconfigRemoveNamedOption(XConfigOptionPtr *pHead, const char *name,
+                              char **comments)
 {
     XConfigOptionPtr option;
 
-    option = xconfigFindOption(*head, name);
+    option = xconfigFindOption(*pHead, name);
     if (option) {
         if (comments) {
             xconfigAddRemovedOptionComment(comments, option);
         }
-        *head = xconfigRemoveOption(*head, option);
+        xconfigRemoveOption(pHead, option);
     }
 
 } /* xconfigRemoveNamedOption() */
@@ -153,12 +153,12 @@ static void xconfigMergeOption(XConfigOptionPtr *dstHead,
     if (!srcOption && dstOption) {
 
         /* option does not exist in src, but exists in dst: remove from dst */
-        *dstHead = xconfigRemoveOption(*dstHead, dstOption);
+        xconfigRemoveOption(dstHead, dstOption);
 
     } else if (srcOption && !dstOption) {
 
         /* option exists in src but not in dst: add to dst */
-        *dstHead = xconfigAddNewOption(*dstHead, name, srcValue);
+        xconfigAddNewOption(dstHead, name, srcValue);
 
     } else if (srcOption && dstOption) {
 
@@ -173,7 +173,7 @@ static void xconfigMergeOption(XConfigOptionPtr *dstHead,
             if (comments) {
                 xconfigAddRemovedOptionComment(comments, dstOption);
             }
-            *dstHead = xconfigAddNewOption(*dstHead, name, srcValue);
+            xconfigAddNewOption(dstHead, name, srcValue);
         }
     }
 
@@ -259,8 +259,7 @@ static void xconfigMergeMonitors(XConfigMonitorPtr dstMonitor,
     /* XXX Remove the destination monitor's "UseModes" references to
      *     avoid having the wrong modelines tied to the new monitor.
      */
-    xconfigFreeModesLinkList(dstMonitor->modes_sections);
-    dstMonitor->modes_sections = NULL;
+    xconfigFreeModesLinkList(&dstMonitor->modes_sections);
 
 } /* xconfigMergeMonitors() */
 
@@ -295,9 +294,8 @@ static int xconfigMergeAllMonitors(XConfigPtr dstConfig, XConfigPtr srcConfig)
 
             dstMonitor->identifier = xconfigStrdup(srcMonitor->identifier);
 
-            dstConfig->monitors = (XConfigMonitorPtr)
-                xconfigAddListItem((GenericListPtr)dstConfig->monitors,
-                                   (GenericListPtr)dstMonitor);
+            xconfigAddListItem((GenericListPtr *)(&dstConfig->monitors),
+                               (GenericListPtr)dstMonitor);
         }
 
         /* Do the merge */
@@ -386,9 +384,8 @@ static int xconfigMergeAllDevices(XConfigPtr dstConfig, XConfigPtr srcConfig)
 
             dstDevice->identifier = xconfigStrdup(srcDevice->identifier);
 
-            dstConfig->devices = (XConfigDevicePtr)
-                xconfigAddListItem((GenericListPtr)dstConfig->devices,
-                                   (GenericListPtr)dstDevice);
+            xconfigAddListItem((GenericListPtr *)(&dstConfig->devices),
+                               (GenericListPtr)dstDevice);
         }
 
         /* Do the merge */
@@ -451,9 +448,8 @@ static int xconfigMergeDriverOptions(XConfigScreenPtr dstScreen,
 
         /* Add the option to the screen->options list */
 
-        dstScreen->options =
-            xconfigAddNewOption(dstScreen->options,
-                                name, xconfigOptionValue(option));
+        xconfigAddNewOption(&dstScreen->options,
+                            name, xconfigOptionValue(option));
         
         option = option->next;
     }
@@ -478,8 +474,7 @@ static int xconfigMergeDisplays(XConfigScreenPtr dstScreen,
 
     /* Free all the displays in the destination screen */
 
-    xconfigFreeDisplayList(dstScreen->displays);
-    dstScreen->displays = NULL;
+    xconfigFreeDisplayList(&dstScreen->displays);
 
     /* Copy all te displays */
     
@@ -514,11 +509,12 @@ static int xconfigMergeDisplays(XConfigScreenPtr dstScreen,
 
         lastDstMode = NULL;
         srcMode = srcDisplay->modes;
+        dstMode = NULL;
         while (srcMode) {
 
             /* Copy the mode */
-
-            dstMode = xconfigAddMode(NULL, srcMode->mode_name);
+            
+            xconfigAddMode(&dstMode, srcMode->mode_name);
 
             /* Add mode at the end of the list */
 
@@ -532,9 +528,8 @@ static int xconfigMergeDisplays(XConfigScreenPtr dstScreen,
             srcMode = srcMode->next;
         }
 
-        dstScreen->displays =
-            (XConfigDisplayPtr)xconfigAddListItem((GenericListPtr)(dstScreen->displays),
-                                                  (GenericListPtr)dstDisplay);
+        xconfigAddListItem((GenericListPtr *)(&dstScreen->displays),
+                           (GenericListPtr)dstDisplay);
     }
 
     return 1;
@@ -619,9 +614,8 @@ static int xconfigMergeAllScreens(XConfigPtr dstConfig, XConfigPtr srcConfig)
 
             dstScreen->identifier = xconfigStrdup(srcScreen->identifier);
 
-            dstConfig->screens = (XConfigScreenPtr)
-                xconfigAddListItem((GenericListPtr)dstConfig->screens,
-                                   (GenericListPtr)dstScreen);
+            xconfigAddListItem((GenericListPtr *)(&dstConfig->screens),
+                               (GenericListPtr)dstScreen);
         }
 
         /* Do the merge */
@@ -650,7 +644,7 @@ static int xconfigMergeLayout(XConfigPtr dstConfig, XConfigPtr srcConfig)
 
     /* Clear the destination's adjacency list */
 
-    xconfigFreeAdjacencyList(dstLayout->adjacencies);
+    xconfigFreeAdjacencyList(&dstLayout->adjacencies);
     
     /* Copy adjacencies over */
     

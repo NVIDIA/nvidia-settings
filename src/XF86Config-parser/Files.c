@@ -265,17 +265,18 @@ xconfigPrintFileSection (FILE * cf, XConfigFilesPtr ptr)
 }
 
 void
-xconfigFreeFiles (XConfigFilesPtr p)
+xconfigFreeFiles (XConfigFilesPtr *p)
 {
-    if (p == NULL)
+    if (p == NULL || *p == NULL)
         return;
 
-    TEST_FREE (p->logfile);
-    TEST_FREE (p->rgbpath);
-    TEST_FREE (p->modulepath);
-    TEST_FREE (p->inputdevs);
-    TEST_FREE (p->fontpath);
-    TEST_FREE (p->comment);
+    TEST_FREE ((*p)->logfile);
+    TEST_FREE ((*p)->rgbpath);
+    TEST_FREE ((*p)->modulepath);
+    TEST_FREE ((*p)->inputdevs);
+    TEST_FREE ((*p)->fontpath);
+    TEST_FREE ((*p)->comment);
 
-    free (p);
+    free (*p);
+    *p = NULL;
 }

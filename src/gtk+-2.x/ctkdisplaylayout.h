@@ -186,6 +186,7 @@ typedef struct nvDisplayRec {
 
     unsigned int        device_mask;    /* Bit mask to identify the display */
     char               *name;           /* Display name (from NV-CONTROL) */
+    Bool                is_sdi;         /* Is an SDI display */
 
     nvModeLinePtr       modelines;      /* Modelines validated by X */
     int                 num_modelines;
@@ -263,6 +264,15 @@ typedef struct nvScreenRec {
 
 
 
+/* GVO Mode information */
+typedef struct GvoModeDataRec {
+    unsigned int id; /* NV-CONTROL ID */
+    char *name;
+    unsigned int rate; /* Refresh rate */
+} GvoModeData;
+
+
+
 /* GPU (Device) */
 typedef struct nvGpuRec {
     struct nvGpuRec *next;
@@ -285,6 +295,9 @@ typedef struct nvGpuRec {
     int pci_device;
     int pci_func;
     
+    GvoModeData *gvo_mode_data; /* Information about GVO modes available */
+    unsigned int num_gvo_modes;
+
     nvScreenPtr screens;  /* List of screens this GPU drives */
     int num_screens;
 

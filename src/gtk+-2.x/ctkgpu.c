@@ -123,7 +123,7 @@ static gchar *make_display_device_list(NvCtrlAttributeHandle *handle,
 
 GtkWidget* ctk_gpu_new(
     NvCtrlAttributeHandle *handle,
-    NvCtrlAttributeHandle **screen_handles,
+    CtrlHandleTarget *t,
     CtkEvent *ctk_event
 )
 {
@@ -284,7 +284,7 @@ GtkWidget* ctk_gpu_new(
 
             } else if (pData[0] > 0) {
 
-                ret = NvCtrlGetAttribute(screen_handles[pData[1]],
+                ret = NvCtrlGetAttribute(t[pData[1]].h,
                                          NV_CTRL_SHOW_SLI_HUD,
                                          &tmp);
 

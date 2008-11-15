@@ -336,9 +336,15 @@ static void scale_value_received(GtkObject *object, gpointer arg1,
         if (event_struct->availability == FALSE) {
             gtk_widget_set_sensitive(scale, FALSE);
             gtk_widget_hide(scale);
+            g_object_set_data(G_OBJECT(CTK_SCALE(scale)->gtk_adjustment),
+                              "attribute active",
+                              GINT_TO_POINTER(0));
         } else if (event_struct->availability == TRUE) {
             gtk_widget_set_sensitive(scale, TRUE);
             gtk_widget_show(scale);
+            g_object_set_data(G_OBJECT(CTK_SCALE(scale)->gtk_adjustment),
+                              "attribute active",
+                              GINT_TO_POINTER(1));
         }
         break;
     default:

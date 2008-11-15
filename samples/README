@@ -22,9 +22,6 @@ Sample applications:
     nv-control-events: demonstrates how to register to receive and
                        interpret NV-CONTROL events.
 
-    nv-ddcci-client: demonstrates how to use the implementation of the 
-                     DDC/CI interface with the NV-CONTROL X extension.
-
     nv-control-dpy: demonstrates how to configure display devices
                     using the NV-CONTROL X extension.
 

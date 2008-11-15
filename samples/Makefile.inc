@@ -32,7 +32,6 @@ EXTRA_DIST += \
 	nv-control-dpy.c \
 	nv-control-info.c \
 	nv-control-events.c \
-	nv-ddcci-client.c \
 	nv-control-targets.c \
         nv-control-framelock.c
 

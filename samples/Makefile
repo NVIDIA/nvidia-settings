@@ -71,7 +71,6 @@ SAMPLES = \
 	nv-control-info \
 	nv-control-dvc \
 	nv-control-events \
-	nv-ddcci-client \
 	nv-control-dpy \
 	nv-control-targets \
 	nv-control-framelock

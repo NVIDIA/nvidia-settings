@@ -938,7 +938,13 @@ static int query_all(const char *display_name)
             for (bit = 0; bit < 24; bit++) {
                 mask = 1 << bit;
 
-                if ((t->d & mask) == 0x0) continue;
+                /*
+                 * if this bit is not present in the screens's enabled
+                 * display device mask (and the X screen has enabled
+                 * display devices), skip to the next bit
+                 */
+
+                if (((t->d & mask) == 0x0) && (t->d)) continue;
                 
                 if (a->flags & NV_PARSER_TYPE_STRING_ATTRIBUTE) {
                     char *tmp_str = NULL;

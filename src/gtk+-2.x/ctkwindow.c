@@ -367,14 +367,8 @@ static gboolean tree_view_key_event(GtkWidget *tree_view, GdkEvent *event,
  * ctk_window_new() - create a new CtkWindow widget
  */
 
-GtkWidget *ctk_window_new(NvCtrlAttributeHandle **screen_handles,
-                          gint num_screen_handles,
-                          NvCtrlAttributeHandle **gpu_handles,
-                          gint num_gpu_handles,
-                          NvCtrlAttributeHandle **vcs_handles,
-                          gint num_vcs_handles,
-                          ParsedAttribute *p, ConfigProperties *conf,
-                          CtrlHandles *pCtrlHandles)
+GtkWidget *ctk_window_new(ParsedAttribute *p, ConfigProperties *conf,
+                          CtrlHandles *h)
 {
     GObject *object;
     CtkWindow *ctk_window;
@@ -416,7 +410,7 @@ GtkWidget *ctk_window_new(NvCtrlAttributeHandle **screen_handles,
     
     /* create the config object */
 
-    ctk_window->ctk_config = CTK_CONFIG(ctk_config_new(conf, pCtrlHandles));
+    ctk_window->ctk_config = CTK_CONFIG(ctk_config_new(conf, h));
     ctk_config = ctk_window->ctk_config;
     
     /* create the quit dialog */
@@ -556,7 +550,7 @@ GtkWidget *ctk_window_new(NvCtrlAttributeHandle **screen_handles,
 
     /* X Server info & configuration */
 
-    if (num_screen_handles) {
+    if (h->targets[X_SCREEN_TARGET].n) {
 
         NvCtrlAttributeHandle *screen_handle = NULL;
         GtkWidget *child;
@@ -568,9 +562,9 @@ GtkWidget *ctk_window_new(NvCtrlAttributeHandle **screen_handles,
          *     pages.
          */
 
-        for (i = 0 ; i < num_screen_handles; i++) {
-            if (screen_handles[i]) {
-                screen_handle = screen_handles[i];
+        for (i = 0 ; i < h->targets[X_SCREEN_TARGET].n; i++) {
+            if (h->targets[X_SCREEN_TARGET].t[i].h) {
+                screen_handle = h->targets[X_SCREEN_TARGET].t[i].h;
                 break;
             }
         }
@@ -603,11 +597,11 @@ GtkWidget *ctk_window_new(NvCtrlAttributeHandle **screen_handles,
 
     /* add the per-screen entries into the tree model */
 
-    for (i = 0; i < num_screen_handles; i++) {
+    for (i = 0; i < h->targets[X_SCREEN_TARGET].n; i++) {
 
         gchar *screen_name;
         GtkWidget *child;
-        NvCtrlAttributeHandle *screen_handle = screen_handles[i];
+        NvCtrlAttributeHandle *screen_handle = h->targets[X_SCREEN_TARGET].t[i].h;
 
         if (!screen_handle) continue;
 
@@ -639,7 +633,7 @@ GtkWidget *ctk_window_new(NvCtrlAttributeHandle **screen_handles,
                            CTK_WINDOW_CONFIG_FILE_ATTRIBUTES_FUNC_COLUMN,
                            NULL, -1);
 
-        if (num_vcs_handles) {
+        if (h->targets[VCS_TARGET].n) {
             /* SLI Mosaic Mode information */
 
             child = ctk_slimm_new(screen_handle, ctk_event, ctk_config);
@@ -759,13 +753,13 @@ GtkWidget *ctk_window_new(NvCtrlAttributeHandle **screen_handles,
 
     /* add the per-gpu entries into the tree model */
 
-    for (i = 0; i < num_gpu_handles; i++) {
+    for (i = 0; i < h->targets[GPU_TARGET].n; i++) {
         
         gchar *gpu_product_name;
         gchar *gpu_name;
         GtkWidget *child;
         ReturnStatus ret;
-        NvCtrlAttributeHandle *gpu_handle = gpu_handles[i];
+        NvCtrlAttributeHandle *gpu_handle = h->targets[GPU_TARGET].t[i].h;
         UpdateDisplaysData *data;
 
 
@@ -795,7 +789,7 @@ GtkWidget *ctk_window_new(NvCtrlAttributeHandle **screen_handles,
         gtk_tree_store_append(ctk_window->tree_store, &iter, NULL);
         gtk_tree_store_set(ctk_window->tree_store, &iter,
                            CTK_WINDOW_LABEL_COLUMN, gpu_name, -1);
-        child = ctk_gpu_new(gpu_handle, screen_handles, ctk_event);
+        child = ctk_gpu_new(gpu_handle, h->targets[X_SCREEN_TARGET].t, ctk_event);
         gtk_object_ref(GTK_OBJECT(child));
         gtk_tree_store_set(ctk_window->tree_store, &iter,
                            CTK_WINDOW_WIDGET_COLUMN, child, -1);
@@ -861,13 +855,13 @@ GtkWidget *ctk_window_new(NvCtrlAttributeHandle **screen_handles,
 
     /* add the per-vcs (e.g. Quadro Plex) entries into the tree model */
 
-    for (i = 0; i < num_vcs_handles; i++) {
+    for (i = 0; i < h->targets[VCS_TARGET].n; i++) {
         
         gchar *vcs_product_name;
         gchar *vcs_name;
         GtkWidget *child;
         ReturnStatus ret;
-        NvCtrlAttributeHandle *vcs_handle = vcs_handles[i];
+        NvCtrlAttributeHandle *vcs_handle = h->targets[VCS_TARGET].t[i].h;
 
         if (!vcs_handle) continue;
 
@@ -905,6 +899,13 @@ GtkWidget *ctk_window_new(NvCtrlAttributeHandle **screen_handles,
         gtk_tree_store_set(ctk_window->tree_store, &iter,
                            CTK_WINDOW_CONFIG_FILE_ATTRIBUTES_FUNC_COLUMN,
                            NULL, -1);
+        gtk_tree_store_set(ctk_window->tree_store, &iter,
+                           CTK_WINDOW_SELECT_WIDGET_FUNC_COLUMN,
+                           ctk_vcs_start_timer, -1);
+        gtk_tree_store_set(ctk_window->tree_store, &iter,
+                           CTK_WINDOW_UNSELECT_WIDGET_FUNC_COLUMN,
+                           ctk_vcs_stop_timer, -1);
+
     }
 
     /*
@@ -912,9 +913,9 @@ GtkWidget *ctk_window_new(NvCtrlAttributeHandle **screen_handles,
      * frame lock
      */
 
-    for (i = 0; i < num_screen_handles; i++) {
+    for (i = 0; i < h->targets[X_SCREEN_TARGET].n; i++) {
 
-        NvCtrlAttributeHandle *screen_handle = screen_handles[i];
+        NvCtrlAttributeHandle *screen_handle = h->targets[X_SCREEN_TARGET].t[i].h;
 
         if (!screen_handle) continue;
         

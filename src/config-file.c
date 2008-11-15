@@ -318,8 +318,14 @@ int nv_write_config_file(const char *filename, CtrlHandles *h,
             for (bit = 0; bit < 24; bit++) {
                 
                 mask = 1 << bit;
-                
-                if ((t->d & mask) == 0x0) continue;
+
+                /*
+                 * if this bit is not present in the screens's enabled
+                 * display device mask (and the X screen has enabled
+                 * display devices), skip to the next bit
+                 */
+
+                if (((t->d & mask) == 0x0) && (t->d)) continue;
 
                 status = NvCtrlGetValidDisplayAttributeValues
                     (t->h, mask, a->attr, &valid);
@@ -644,7 +650,7 @@ static void save_gui_parsed_attributes(ParsedAttributeWrapper *w,
     int i;
 
     for (i = 0; w[i].line != -1; i++) {
-        if (w[i].a.flags & NV_PARSER_TYPE_GUI_ATTRIUBUTE) {
+        if (w[i].a.flags & NV_PARSER_TYPE_GUI_ATTRIBUTE) {
             nv_parsed_attribute_add(p, &w[i].a);            
         }
     }

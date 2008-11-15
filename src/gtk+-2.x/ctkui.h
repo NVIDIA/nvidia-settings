@@ -33,10 +33,7 @@ int ctk_init_check(int *argc, char **argv[]);
 
 char *ctk_get_display(void);
 
-void ctk_main(NvCtrlAttributeHandle **, int,
-              NvCtrlAttributeHandle **, int,
-              NvCtrlAttributeHandle **, int,
-              ParsedAttribute*,
+void ctk_main(ParsedAttribute*,
               ConfigProperties*,
               CtrlHandles*);
 

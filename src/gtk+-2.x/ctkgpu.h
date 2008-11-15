@@ -26,6 +26,7 @@
 #define __CTK_GPU_H__
 
 #include <gtk/gtk.h>
+#include <query-assign.h>
 
 #include "ctkevent.h"
 
@@ -70,7 +71,7 @@ struct _CtkGpuClass
 
 GType       ctk_gpu_get_type (void) G_GNUC_CONST;
 GtkWidget*  ctk_gpu_new      (NvCtrlAttributeHandle *handle,
-                              NvCtrlAttributeHandle **screen_handles,
+                              CtrlHandleTarget *t,
                               CtkEvent *ctk_event);
 
 GtkTextBuffer *ctk_gpu_create_help(GtkTextTagTable *);

@@ -604,7 +604,7 @@ int xconfigSanitizeConfig(XConfigPtr p, const char *screenName,
 void xconfigCloseConfigFile(void);
 int xconfigWriteConfigFile(const char *, XConfigPtr);
 
-void xconfigFreeConfig(XConfigPtr p);
+void xconfigFreeConfig(XConfigPtr *p);
 
 /*
  * Functions for searching for entries in lists
@@ -629,29 +629,30 @@ XConfigVideoAdaptorPtr xconfigFindVideoAdaptor(const char *ident,
  * Functions for freeing lists
  */
 
-void xconfigFreeDeviceList(XConfigDevicePtr ptr);
-void xconfigFreeFiles(XConfigFilesPtr p);
-void xconfigFreeFlags(XConfigFlagsPtr flags);
-void xconfigFreeInputList(XConfigInputPtr ptr);
-void xconfigFreeLayoutList(XConfigLayoutPtr ptr);
-void xconfigFreeAdjacencyList(XConfigAdjacencyPtr ptr);
-void xconfigFreeInputrefList(XConfigInputrefPtr ptr);
-void xconfigFreeModules(XConfigModulePtr ptr);
-void xconfigFreeMonitorList(XConfigMonitorPtr ptr);
-void xconfigFreeModesList(XConfigModesPtr ptr);
-void xconfigFreeModeLineList(XConfigModeLinePtr ptr);
-void xconfigFreeScreenList(XConfigScreenPtr ptr);
-void xconfigFreeAdaptorLinkList(XConfigAdaptorLinkPtr ptr);
-void xconfigFreeDisplayList(XConfigDisplayPtr ptr);
-void xconfigFreeModeList(XConfigModePtr ptr);
-void xconfigFreeVendorList(XConfigVendorPtr p);
-void xconfigFreeVendorSubList(XConfigVendSubPtr ptr);
-void xconfigFreeVideoAdaptorList(XConfigVideoAdaptorPtr ptr);
-void xconfigFreeVideoPortList(XConfigVideoPortPtr ptr);
-void xconfigFreeBuffersList (XConfigBuffersPtr ptr);
-void xconfigFreeDRI(XConfigDRIPtr ptr);
-void xconfigFreeExtensions(XConfigExtensionsPtr ptr);
-void xconfigFreeModesLinkList(XConfigModesLinkPtr ptr);
+void xconfigFreeDeviceList(XConfigDevicePtr *ptr);
+void xconfigFreeFiles(XConfigFilesPtr *p);
+void xconfigFreeFlags(XConfigFlagsPtr *flags);
+void xconfigFreeInputList(XConfigInputPtr *ptr);
+void xconfigFreeLayoutList(XConfigLayoutPtr *ptr);
+void xconfigFreeAdjacencyList(XConfigAdjacencyPtr *ptr);
+void xconfigFreeInputrefList(XConfigInputrefPtr *ptr);
+void xconfigFreeModules(XConfigModulePtr *ptr);
+void xconfigFreeMonitorList(XConfigMonitorPtr *ptr);
+void xconfigFreeModesList(XConfigModesPtr *ptr);
+void xconfigFreeModeLineList(XConfigModeLinePtr *ptr);
+void xconfigFreeOptionList(XConfigOptionPtr *opt);
+void xconfigFreeScreenList(XConfigScreenPtr *ptr);
+void xconfigFreeAdaptorLinkList(XConfigAdaptorLinkPtr *ptr);
+void xconfigFreeDisplayList(XConfigDisplayPtr *ptr);
+void xconfigFreeModeList(XConfigModePtr *ptr);
+void xconfigFreeVendorList(XConfigVendorPtr *p);
+void xconfigFreeVendorSubList(XConfigVendSubPtr *ptr);
+void xconfigFreeVideoAdaptorList(XConfigVideoAdaptorPtr *ptr);
+void xconfigFreeVideoPortList(XConfigVideoPortPtr *ptr);
+void xconfigFreeBuffersList (XConfigBuffersPtr *ptr);
+void xconfigFreeDRI(XConfigDRIPtr *ptr);
+void xconfigFreeExtensions(XConfigExtensionsPtr *ptr);
+void xconfigFreeModesLinkList(XConfigModesLinkPtr *ptr);
 
 
 
@@ -659,26 +660,26 @@ void xconfigFreeModesLinkList(XConfigModesLinkPtr ptr);
  * item/list manipulation
  */
 
-GenericListPtr xconfigAddListItem(GenericListPtr head, GenericListPtr c_new);
-GenericListPtr xconfigRemoveListItem(GenericListPtr list, GenericListPtr item);
+void xconfigAddListItem(GenericListPtr *pHead, GenericListPtr c_new);
+void xconfigRemoveListItem(GenericListPtr *pHead, GenericListPtr item);
 int xconfigItemNotSublist(GenericListPtr list_1, GenericListPtr list_2);
 char *xconfigAddComment(char *cur, char *add);
-XConfigLoadPtr xconfigAddNewLoadDirective(XConfigLoadPtr head,
-                                          char *name, int type,
-                                          XConfigOptionPtr opts, int do_token);
-XConfigLoadPtr xconfigRemoveLoadDirective(XConfigLoadPtr head,
-                                          XConfigLoadPtr load);
+void xconfigAddNewLoadDirective(XConfigLoadPtr *pHead,
+                                char *name, int type,
+                                XConfigOptionPtr opts, int do_token);
+void xconfigRemoveLoadDirective(XConfigLoadPtr *pHead, XConfigLoadPtr load);
 
 /*
  * Functions for manipulating Options
  */
 
-XConfigOptionPtr xconfigAddNewOption(XConfigOptionPtr head,
-                                     const char *name, const char *val);
-XConfigOptionPtr xconfigRemoveOption(XConfigOptionPtr list,
-                                     XConfigOptionPtr opt);
+void xconfigAddNewOption(XConfigOptionPtr *pHead,
+                         const char *name, const char *val);
+void xconfigRemoveOption(XConfigOptionPtr *pHead, XConfigOptionPtr opt);
+void xconfigRemoveNamedOption(XConfigOptionPtr *head, const char *name,
+                              char **comments);
+
 XConfigOptionPtr xconfigOptionListDup(XConfigOptionPtr opt);
-void             xconfigOptionListFree(XConfigOptionPtr opt);
 char            *xconfigOptionName(XConfigOptionPtr opt);
 char            *xconfigOptionValue(XConfigOptionPtr opt);
 XConfigOptionPtr xconfigNewOption(const char *name, const char *value);
@@ -705,15 +706,10 @@ void xconfigPrintOptionList(FILE *fp, XConfigOptionPtr list, int tabs);
 int xconfigParsePciBusString(const char *busID,
                              int *bus, int *device, int *func);
 
-XConfigDisplayPtr
-xconfigAddDisplay(XConfigDisplayPtr head, const int depth);
+void xconfigAddDisplay(XConfigDisplayPtr *pHead, const int depth);
 
-XConfigModePtr
-xconfigAddMode(XConfigModePtr head, const char *name);
-
-XConfigModePtr
-xconfigRemoveMode(XConfigModePtr head, const char *name);
-
+void xconfigAddMode(XConfigModePtr *pHead, const char *name);
+void xconfigRemoveMode(XConfigModePtr *pHead, const char *name);
 
 XConfigPtr xconfigGenerate(GenerateOptions *gop);
 

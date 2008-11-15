@@ -68,9 +68,9 @@ static XConfigSymTabRec TopLevelTab[] =
 
 #define CLEANUP xconfigFreeConfig
 
-#define READ_HANDLE_RETURN(f,func)      \
-    if ((ptr->f=func) == NULL) {        \
-        xconfigFreeConfig(ptr);            \
+#define READ_HANDLE_RETURN(f,func)         \
+    if ((ptr->f=func) == NULL) {           \
+        xconfigFreeConfig(&ptr);           \
         return XCONFIG_RETURN_PARSE_ERROR; \
     }
 
@@ -78,21 +78,20 @@ static XConfigSymTabRec TopLevelTab[] =
 {                                                                       \
     type p = func();                                                    \
     if (p == NULL) {                                                    \
-        xconfigFreeConfig(ptr);                                            \
-        return XCONFIG_RETURN_PARSE_ERROR;                                 \
+        xconfigFreeConfig(&ptr);                                        \
+        return XCONFIG_RETURN_PARSE_ERROR;                              \
     } else {                                                            \
-        ptr->field = (type)                                             \
-            xconfigAddListItem((GenericListPtr) ptr->field,                \
-                            (GenericListPtr) p);                        \
+        xconfigAddListItem((GenericListPtr *)(&ptr->field),             \
+                           (GenericListPtr) p);                         \
     }                                                                   \
 }
 
-#define READ_ERROR(a,b)                    \
-    do {                                   \
+#define READ_ERROR(a,b)                       \
+    do {                                      \
         xconfigErrorMsg(ParseErrorMsg, a, b); \
-        xconfigFreeConfig(ptr);               \
+        xconfigFreeConfig(&ptr);              \
         return XCONFIG_RETURN_PARSE_ERROR;    \
-    } while (0)                            \
+    } while (0)
 
 
 
@@ -121,7 +120,7 @@ XConfigError xconfigReadConfigFile(XConfigPtr *configPtr)
         case SECTION:
             if (xconfigGetSubToken(&(ptr->comment)) != STRING) {
                 xconfigErrorMsg(ParseErrorMsg, QUOTE_MSG, "Section");
-                xconfigFreeConfig(ptr);
+                xconfigFreeConfig(&ptr);
                 return XCONFIG_RETURN_PARSE_ERROR;
             }
             
@@ -248,7 +247,7 @@ XConfigError xconfigReadConfigFile(XConfigPtr *configPtr)
         *configPtr = ptr;
         return XCONFIG_RETURN_SUCCESS;
     } else {
-        xconfigFreeConfig(ptr);
+        xconfigFreeConfig(&ptr);
         return XCONFIG_RETURN_VALIDATION_ERROR;
     }
 }
@@ -300,56 +299,47 @@ int xconfigSanitizeConfig(XConfigPtr p,
 /* 
  * adds an item to the end of the linked list. Any record whose first field
  * is a GenericListRec can be cast to this type and used with this function.
- * A pointer to the head of the list is returned to handle the addition of
- * the first item.
  */
-GenericListPtr
-xconfigAddListItem (GenericListPtr head, GenericListPtr new)
+void xconfigAddListItem (GenericListPtr *pHead, GenericListPtr new)
 {
-    GenericListPtr p = head;
+    GenericListPtr p = *pHead;
     GenericListPtr last = NULL;
 
-    while (p)
-    {
+    while (p) {
         last = p;
         p = p->next;
     }
 
-    if (last)
-    {
+    if (last) {
         last->next = new;
-        return (head);
+    } else {
+        *pHead = new;
     }
-    else
-        return (new);
 }
 
 
 /*
- * removes an item from the linked list. Any record whose first field
- * is a GenericListRec can be cast to this type and used with this function.
- * A pointer to the head of the list is returned to handle the removal of
- * the first item.
+ * removes an item from the linked list (but does not delete it). Any record
+ * whose first field is a GenericListRec can be cast to this type and used
+ * with this function.
  */
-GenericListPtr
-xconfigRemoveListItem (GenericListPtr head, GenericListPtr item)
+void xconfigRemoveListItem (GenericListPtr *pHead, GenericListPtr item)
 {
-    GenericListPtr cur = head;
+    GenericListPtr cur = *pHead;
     GenericListPtr prev = NULL;
 
-    while (cur)
-    {
-        if (cur == item)
-        {
-            if (prev) prev->next = item->next;
-            if (head == item) head = item->next;
-            break;
+    while (cur) {
+        if (cur == item) {
+            if (prev) {
+                prev->next = item->next;
+            } else {
+                *pHead = item->next;
+            }
+            return;
         }
         prev = cur;
         cur  = cur->next;
     }
-    
-    return head;
 }
 
 
@@ -378,24 +368,25 @@ xconfigItemNotSublist(GenericListPtr list_1, GenericListPtr list_2)
 }
 
 void
-xconfigFreeConfig (XConfigPtr p)
+xconfigFreeConfig (XConfigPtr *p)
 {
-    if (p == NULL)
+    if (p == NULL || *p == NULL)
         return;
 
-    xconfigFreeFiles (p->files);
-    xconfigFreeModules (p->modules);
-    xconfigFreeFlags (p->flags);
-    xconfigFreeMonitorList (p->monitors);
-    xconfigFreeModesList (p->modes);
-    xconfigFreeVideoAdaptorList (p->videoadaptors);
-    xconfigFreeDeviceList (p->devices);
-    xconfigFreeScreenList (p->screens);
-    xconfigFreeLayoutList (p->layouts);
-    xconfigFreeInputList (p->inputs);
-    xconfigFreeVendorList (p->vendors);
-    xconfigFreeDRI (p->dri);
-    TEST_FREE(p->comment);
+    xconfigFreeFiles (&((*p)->files));
+    xconfigFreeModules (&((*p)->modules));
+    xconfigFreeFlags (&((*p)->flags));
+    xconfigFreeMonitorList (&((*p)->monitors));
+    xconfigFreeModesList (&((*p)->modes));
+    xconfigFreeVideoAdaptorList (&((*p)->videoadaptors));
+    xconfigFreeDeviceList (&((*p)->devices));
+    xconfigFreeScreenList (&((*p)->screens));
+    xconfigFreeLayoutList (&((*p)->layouts));
+    xconfigFreeInputList (&((*p)->inputs));
+    xconfigFreeVendorList (&((*p)->vendors));
+    xconfigFreeDRI (&((*p)->dri));
+    TEST_FREE((*p)->comment);
 
-    free (p);
+    free (*p);
+    *p = NULL;
 }

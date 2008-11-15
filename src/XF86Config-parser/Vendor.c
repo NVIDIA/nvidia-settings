@@ -203,30 +203,35 @@ xconfigPrintVendorSection (FILE * cf, XConfigVendorPtr ptr)
 }
 
 void
-xconfigFreeVendorList (XConfigVendorPtr p)
+xconfigFreeVendorList (XConfigVendorPtr *p)
 {
-    if (p == NULL)
+    if (p == NULL || *p == NULL)
         return;
-    xconfigFreeVendorSubList (p->subs);
-    TEST_FREE (p->identifier);
-    TEST_FREE (p->comment);
-    xconfigOptionListFree (p->options);
-    free (p);
+
+    xconfigFreeVendorSubList (&((*p)->subs));
+    TEST_FREE ((*p)->identifier);
+    TEST_FREE ((*p)->comment);
+    xconfigFreeOptionList (&((*p)->options));
+    free (*p);
+    *p = NULL;
 }
 
 void
-xconfigFreeVendorSubList (XConfigVendSubPtr ptr)
+xconfigFreeVendorSubList (XConfigVendSubPtr *ptr)
 {
     XConfigVendSubPtr prev;
 
-    while (ptr)
+    if (ptr == NULL || *ptr == NULL)
+        return;
+
+    while (*ptr)
     {
-        TEST_FREE (ptr->identifier);
-        TEST_FREE (ptr->name);
-        TEST_FREE (ptr->comment);
-        xconfigOptionListFree (ptr->options);
-        prev = ptr;
-        ptr = ptr->next;
+        TEST_FREE ((*ptr)->identifier);
+        TEST_FREE ((*ptr)->name);
+        TEST_FREE ((*ptr)->comment);
+        xconfigFreeOptionList (&((*ptr)->options));
+        prev = *ptr;
+        *ptr = (*ptr)->next;
         free (prev);
     }
 }

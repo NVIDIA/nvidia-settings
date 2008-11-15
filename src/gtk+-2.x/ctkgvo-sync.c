@@ -1319,6 +1319,19 @@ static void gvo_sync_event_received(GtkObject *object,
     switch (attribute) {
     case NV_CTRL_GVO_SYNC_MODE:
         ctk_gvo_sync->sync_mode = value;
+        widget = ctk_gvo_sync->sync_mode_menu;
+        
+        g_signal_handlers_block_by_func(G_OBJECT(widget),
+                                        G_CALLBACK(sync_mode_changed),
+                                        (gpointer) ctk_gvo_sync);
+
+        ctk_drop_down_menu_set_current_value
+            (CTK_DROP_DOWN_MENU(widget), value);
+        
+        g_signal_handlers_unblock_by_func(G_OBJECT(widget),
+                                          G_CALLBACK(sync_mode_changed),
+                                          (gpointer) ctk_gvo_sync);
+            
         post_sync_mode_menu_changed(ctk_gvo_sync, value);
         break;
 

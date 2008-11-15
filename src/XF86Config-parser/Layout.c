@@ -121,9 +121,8 @@ xconfigParseLayoutSection (void)
                 if (xconfigGetSubToken (&(ptr->comment)) != STRING)
                     Error (INACTIVE_MSG, NULL);
                 iptr->device_name = val.str;
-                ptr->inactives = (XConfigInactivePtr)
-                    xconfigAddListItem((GenericListPtr) ptr->inactives,
-                                    (GenericListPtr) iptr);
+                xconfigAddListItem((GenericListPtr *)(&ptr->inactives),
+                                   (GenericListPtr) iptr);
             }
             break;
         case SCREEN:
@@ -240,9 +239,8 @@ xconfigParseLayoutSection (void)
                     aptr->right_name = val.str;
 
                 }
-                ptr->adjacencies = (XConfigAdjacencyPtr)
-                    xconfigAddListItem((GenericListPtr) ptr->adjacencies,
-                                    (GenericListPtr) aptr);
+                xconfigAddListItem((GenericListPtr *)(&ptr->adjacencies),
+                                   (GenericListPtr) aptr);
             }
             break;
         case INPUTDEVICE:
@@ -252,18 +250,15 @@ xconfigParseLayoutSection (void)
                 iptr = calloc (1, sizeof (XConfigInputrefRec));
                 iptr->next = NULL;
                 iptr->options = NULL;
-                if (xconfigGetSubToken (&(ptr->comment)) != STRING)
+                if (xconfigGetSubToken(&(ptr->comment)) != STRING)
                     Error (INPUTDEV_MSG, NULL);
                 iptr->input_name = val.str;
-                while ((token = xconfigGetSubToken (&(ptr->comment))) == STRING)
-                {
-                    iptr->options =
-                        xconfigAddNewOption (iptr->options, val.str, NULL);
+                while ((token = xconfigGetSubToken(&(ptr->comment))) == STRING) {
+                    xconfigAddNewOption(&iptr->options, val.str, NULL);
                 }
-                xconfigUnGetToken (token);
-                ptr->inputs = (XConfigInputrefPtr)
-                    xconfigAddListItem((GenericListPtr) ptr->inputs,
-                                    (GenericListPtr) iptr);
+                xconfigUnGetToken(token);
+                xconfigAddListItem((GenericListPtr *)(&ptr->inputs),
+                                   (GenericListPtr) iptr);
             }
             break;
         case OPTION:
@@ -360,53 +355,62 @@ xconfigPrintLayoutSection (FILE * cf, XConfigLayoutPtr ptr)
 }
 
 void
-xconfigFreeLayoutList (XConfigLayoutPtr ptr)
+xconfigFreeLayoutList (XConfigLayoutPtr *ptr)
 {
     XConfigLayoutPtr prev;
 
-    while (ptr)
+    if (ptr == NULL || *ptr == NULL)
+        return;
+
+    while (*ptr)
     {
-        TEST_FREE (ptr->identifier);
-        TEST_FREE (ptr->comment);
-        xconfigFreeAdjacencyList (ptr->adjacencies);
-        xconfigFreeInputrefList (ptr->inputs);
-        prev = ptr;
-        ptr = ptr->next;
+        TEST_FREE ((*ptr)->identifier);
+        TEST_FREE ((*ptr)->comment);
+        xconfigFreeAdjacencyList (&((*ptr)->adjacencies));
+        xconfigFreeInputrefList (&((*ptr)->inputs));
+        prev = *ptr;
+        *ptr = (*ptr)->next;
         free (prev);
     }
 }
 
 void
-xconfigFreeAdjacencyList (XConfigAdjacencyPtr ptr)
+xconfigFreeAdjacencyList (XConfigAdjacencyPtr *ptr)
 {
     XConfigAdjacencyPtr prev;
 
-    while (ptr)
-    {
-        TEST_FREE (ptr->screen_name);
-        TEST_FREE (ptr->top_name);
-        TEST_FREE (ptr->bottom_name);
-        TEST_FREE (ptr->left_name);
-        TEST_FREE (ptr->right_name);
+    if (ptr == NULL || *ptr == NULL)
+        return;
 
-        prev = ptr;
-        ptr = ptr->next;
+    while (*ptr)
+    {
+        TEST_FREE ((*ptr)->screen_name);
+        TEST_FREE ((*ptr)->top_name);
+        TEST_FREE ((*ptr)->bottom_name);
+        TEST_FREE ((*ptr)->left_name);
+        TEST_FREE ((*ptr)->right_name);
+
+        prev = *ptr;
+        *ptr = (*ptr)->next;
         free (prev);
     }
 
 }
 
 void
-xconfigFreeInputrefList (XConfigInputrefPtr ptr)
+xconfigFreeInputrefList (XConfigInputrefPtr *ptr)
 {
     XConfigInputrefPtr prev;
 
-    while (ptr)
+    if (ptr == NULL || *ptr == NULL)
+        return;
+
+    while (*ptr)
     {
-        TEST_FREE (ptr->input_name);
-        xconfigOptionListFree (ptr->options);
-        prev = ptr;
-        ptr = ptr->next;
+        TEST_FREE ((*ptr)->input_name);
+        xconfigFreeOptionList (&((*ptr)->options));
+        prev = *ptr;
+        *ptr = (*ptr)->next;
         free (prev);
     }
 

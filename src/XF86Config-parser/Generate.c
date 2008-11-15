@@ -122,8 +122,7 @@ XConfigScreenPtr xconfigGenerateAddScreen(XConfigPtr config,
         
     screen->defaultdepth = 24;
     
-    screen->displays = xconfigAddDisplay(screen->displays,
-                                         screen->defaultdepth);
+    xconfigAddDisplay(&screen->displays, screen->defaultdepth);
 
     /* append to the end of the screen list */
     
@@ -377,25 +376,25 @@ static void add_modules(GenerateOptions *gop, XConfigPtr config)
 
     config->modules = xconfigAlloc(sizeof(XConfigModuleRec));
     
-    l = xconfigAddNewLoadDirective(l, xconfigStrdup("dbe"),
-                                   XCONFIG_LOAD_MODULE, NULL, FALSE);
-    l = xconfigAddNewLoadDirective(l, xconfigStrdup("extmod"),
-                                   XCONFIG_LOAD_MODULE, NULL, FALSE);
-    l = xconfigAddNewLoadDirective(l, xconfigStrdup("type1"),
-                                   XCONFIG_LOAD_MODULE, NULL, FALSE);
+    xconfigAddNewLoadDirective(&l, xconfigStrdup("dbe"),
+                               XCONFIG_LOAD_MODULE, NULL, FALSE);
+    xconfigAddNewLoadDirective(&l, xconfigStrdup("extmod"),
+                               XCONFIG_LOAD_MODULE, NULL, FALSE);
+    xconfigAddNewLoadDirective(&l, xconfigStrdup("type1"),
+                               XCONFIG_LOAD_MODULE, NULL, FALSE);
 #if defined(NV_SUNOS)
-    l = xconfigAddNewLoadDirective(l, xconfigStrdup("IA"),
-                                   XCONFIG_LOAD_MODULE, NULL, FALSE);
-    l = xconfigAddNewLoadDirective(l, xconfigStrdup("bitstream"),
-                                   XCONFIG_LOAD_MODULE, NULL, FALSE);
-    l = xconfigAddNewLoadDirective(l, xconfigStrdup("xtsol"),
-                                   XCONFIG_LOAD_MODULE, NULL, FALSE);
+    xconfigAddNewLoadDirective(&l, xconfigStrdup("IA"),
+                               XCONFIG_LOAD_MODULE, NULL, FALSE);
+    xconfigAddNewLoadDirective(&l, xconfigStrdup("bitstream"),
+                               XCONFIG_LOAD_MODULE, NULL, FALSE);
+    xconfigAddNewLoadDirective(&l, xconfigStrdup("xtsol"),
+                               XCONFIG_LOAD_MODULE, NULL, FALSE);
 #else
-    l = xconfigAddNewLoadDirective(l, xconfigStrdup("freetype"),
-                                   XCONFIG_LOAD_MODULE, NULL, FALSE);
+    xconfigAddNewLoadDirective(&l, xconfigStrdup("freetype"),
+                               XCONFIG_LOAD_MODULE, NULL, FALSE);
 #endif
-    l = xconfigAddNewLoadDirective(l, xconfigStrdup("glx"),
-                                   XCONFIG_LOAD_MODULE, NULL, FALSE);
+    xconfigAddNewLoadDirective(&l, xconfigStrdup("glx"),
+                               XCONFIG_LOAD_MODULE, NULL, FALSE);
     
     config->modules->loads = l;
     
@@ -412,7 +411,6 @@ static void add_modules(GenerateOptions *gop, XConfigPtr config)
 XConfigMonitorPtr xconfigAddMonitor(XConfigPtr config, int count)
 {
     XConfigMonitorPtr monitor, m;
-    XConfigOptionPtr opt = NULL;
 
     /* XXX need to query resman for the EDID */
 
@@ -426,16 +424,15 @@ XConfigMonitorPtr xconfigAddMonitor(XConfigPtr config, int count)
     /* XXX check EDID for freq ranges */
 
     monitor->n_hsync = 1;
-    monitor->hsync[0].lo = 30.0;
-    monitor->hsync[0].hi = 110.0;
+    monitor->hsync[0].lo = 28.0;
+    monitor->hsync[0].hi = 33.0;
 
     monitor->n_vrefresh = 1;
-    monitor->vrefresh[0].lo = 50.0;
-    monitor->vrefresh[0].hi = 150.0;
+    monitor->vrefresh[0].lo = 43.0;
+    monitor->vrefresh[0].hi = 72.0;
 
-    opt = xconfigAddNewOption(opt, "DPMS", NULL);
-
-    monitor->options = opt;
+    monitor->options = NULL;
+    xconfigAddNewOption(&monitor->options, "DPMS", NULL);
 
     /* append to the end of the monitor list */
     
@@ -495,7 +492,7 @@ add_device(XConfigPtr config, int bus, int slot, char *boardname, int count)
 
 
 
-XConfigDisplayPtr xconfigAddDisplay(XConfigDisplayPtr head, const int depth)
+void xconfigAddDisplay(XConfigDisplayPtr *pHead, const int depth)
 {
     XConfigDisplayPtr display;
 
@@ -507,9 +504,8 @@ XConfigDisplayPtr xconfigAddDisplay(XConfigDisplayPtr head, const int depth)
     display->black.red = -1;
     display->white.red = -1;
 
-    display->next = head;
-    
-    return display;
+    display->next = *pHead;
+    *pHead = display;
 }
 
 
@@ -566,8 +562,8 @@ static void add_inputref(XConfigPtr config, XConfigLayoutPtr layout,
     inputRef = xconfigAlloc(sizeof(XConfigInputrefRec));
     inputRef->input_name = xconfigStrdup(name);
     inputRef->input = xconfigFindInput(inputRef->input_name, config->inputs);
-    inputRef->options =
-        xconfigAddNewOption(NULL, coreKeyword, NULL);
+    inputRef->options = NULL;
+    xconfigAddNewOption(&inputRef->options, coreKeyword, NULL);
     inputRef->next = layout->inputs;
     layout->inputs = inputRef;
 
@@ -918,7 +914,6 @@ int xconfigAddMouse(GenerateOptions *gop, XConfigPtr config)
 {
     const MouseEntry *entry = NULL;
     XConfigInputPtr input;
-    XConfigOptionPtr opt = NULL;
     char *device_path, *comment = "default";
     
     /* if the user specified on the commandline, use that */
@@ -1015,9 +1010,10 @@ int xconfigAddMouse(GenerateOptions *gop, XConfigPtr config)
 
     device_path = xconfigStrcat("/dev/", entry->device, NULL);
 
-    opt = xconfigAddNewOption(opt, "Protocol", entry->Xproto);
-    opt = xconfigAddNewOption(opt, "Device", device_path);
-    opt = xconfigAddNewOption(opt, "Emulate3Buttons",
+    input->options = NULL;
+    xconfigAddNewOption(&input->options, "Protocol", entry->Xproto);
+    xconfigAddNewOption(&input->options, "Device", device_path);
+    xconfigAddNewOption(&input->options, "Emulate3Buttons",
                               (entry->emulate3 ? "yes" : "no"));
     TEST_FREE(device_path);
     
@@ -1027,9 +1023,7 @@ int xconfigAddMouse(GenerateOptions *gop, XConfigPtr config)
      * ignore ZAxisMapping
      */
 
-    opt = xconfigAddNewOption(opt, "ZAxisMapping", "4 5");
-    
-    input->options = opt;
+    xconfigAddNewOption(&input->options, "ZAxisMapping", "4 5");
     
     input->next = config->inputs;
     config->inputs = input;
@@ -1213,7 +1207,6 @@ int xconfigAddKeyboard(GenerateOptions *gop, XConfigPtr config)
     const KeyboardEntry *entry = NULL;
     
     XConfigInputPtr input;
-    XConfigOptionPtr opt = NULL;
     
     /*
      * if the user specified on the command line, use that
@@ -1280,16 +1273,18 @@ int xconfigAddKeyboard(GenerateOptions *gop, XConfigPtr config)
      * entry we found above
      */
 
-    if (entry && entry->layout)
-        opt = xconfigAddNewOption(opt, "XkbLayout", entry->layout);
-    if (entry && entry->model)
-        opt = xconfigAddNewOption(opt, "XkbModel", entry->model);
-    if (entry && entry->variant)
-        opt = xconfigAddNewOption(opt, "XkbVariant", entry->variant);
-    if (entry && entry->options)
-        opt = xconfigAddNewOption(opt, "XkbOptions", entry->options);
+    input->options = NULL;
 
-    input->options = opt;
+    if (entry) {
+        if (entry->layout)
+            xconfigAddNewOption(&input->options, "XkbLayout", entry->layout);
+        if (entry->model)
+            xconfigAddNewOption(&input->options, "XkbModel", entry->model);
+        if (entry->variant)
+            xconfigAddNewOption(&input->options, "XkbVariant", entry->variant);
+        if (entry->options)
+            xconfigAddNewOption(&input->options, "XkbOptions", entry->options);
+    }
     
     input->next = config->inputs;
     config->inputs = input;

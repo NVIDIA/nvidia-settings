@@ -47,22 +47,24 @@ XConfigBuffersPtr
 xconfigParseBuffers (void)
 {
     int token;
-    PARSE_PROLOGUE (XConfigBuffersPtr, XConfigBuffersRec)
+    PARSE_PROLOGUE (XConfigBuffersPtr, XConfigBuffersRec);
 
-    if (xconfigGetSubToken (&(ptr->comment)) != NUMBER)
-    Error("Buffers count expected", NULL);
+    if (xconfigGetSubToken (&(ptr->comment)) != NUMBER) {
+        Error("Buffers count expected", NULL);
+    }
     ptr->count = val.num;
 
-    if (xconfigGetSubToken (&(ptr->comment)) != NUMBER)
-    Error("Buffers size expected", NULL);
+    if (xconfigGetSubToken (&(ptr->comment)) != NUMBER) {
+        Error("Buffers size expected", NULL);
+    }
     ptr->size = val.num;
 
     if ((token = xconfigGetSubToken (&(ptr->comment))) == STRING) {
-    ptr->flags = val.str;
-    if ((token = xconfigGetToken (NULL)) == COMMENT)
-        ptr->comment = xconfigAddComment(ptr->comment, val.str);
-    else
-        xconfigUnGetToken(token);
+        ptr->flags = val.str;
+        if ((token = xconfigGetToken (NULL)) == COMMENT)
+            ptr->comment = xconfigAddComment(ptr->comment, val.str);
+        else
+            xconfigUnGetToken(token);
     }
 
     return ptr;
@@ -126,26 +128,30 @@ xconfigPrintDRISection (FILE * cf, XConfigDRIPtr ptr)
 }
 
 void
-xconfigFreeDRI (XConfigDRIPtr ptr)
+xconfigFreeDRI (XConfigDRIPtr *ptr)
 {
-    if (ptr == NULL)
-    return;
+    if (ptr == NULL || *ptr == NULL)
+        return;
     
-    xconfigFreeBuffersList (ptr->buffers);
-    TEST_FREE (ptr->comment);
-    free (ptr);
+    xconfigFreeBuffersList (&((*ptr)->buffers));
+    TEST_FREE ((*ptr)->comment);
+    free (*ptr);
+    *ptr = NULL;
 }
 
 void
-xconfigFreeBuffersList (XConfigBuffersPtr ptr)
+xconfigFreeBuffersList (XConfigBuffersPtr *ptr)
 {
     XConfigBuffersPtr prev;
 
-    while (ptr) {
-        TEST_FREE (ptr->flags);
-        TEST_FREE (ptr->comment);
-        prev = ptr;
-        ptr  = ptr->next;
+    if (ptr == NULL || *ptr == NULL)
+        return;
+
+    while (*ptr) {
+        TEST_FREE ((*ptr)->flags);
+        TEST_FREE ((*ptr)->comment);
+        prev = *ptr;
+        *ptr  = (*ptr)->next;
         free (prev);
     }
 }
