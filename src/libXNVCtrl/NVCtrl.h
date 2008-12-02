@@ -2276,8 +2276,28 @@
 #define NV_CTRL_IS_GVO_DISPLAY_FALSE                              0
 #define NV_CTRL_IS_GVO_DISPLAY_TRUE                               1
 
+/*
+ * NV_CTRL_PCI_ID - Returns the PCI vendor and device ID of the GPU.
+ *
+ * NV_CTRL_PCI_ID is a "packed" integer attribute; the PCI vendor ID is stored
+ * in the upper 16 bits of the integer, and the PCI device ID is stored in the
+ * lower 16 bits of the integer.
+ */
 
-#define NV_CTRL_LAST_ATTRIBUTE  NV_CTRL_IS_GVO_DISPLAY
+#define NV_CTRL_PCI_ID                                          301 /* R--G */
+
+/*
+ * NV_CTRL_GVO_FULL_RANGE_COLOR - Allow full range color data [4-1019]
+ * without clamping to [64-940].
+ */
+
+#define NV_CTRL_GVO_FULL_RANGE_COLOR                            302 /* R-- */
+#define NV_CTRL_GVO_FULL_RANGE_COLOR_DISABLED                     0
+#define NV_CTRL_GVO_FULL_RANGE_COLOR_ENABLED                      1
+
+#define NV_CTRL_LAST_ATTRIBUTE  NV_CTRL_GVO_FULL_RANGE_COLOR
+
+
 
 /**************************************************************************/
 

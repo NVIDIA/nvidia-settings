@@ -264,6 +264,8 @@ static void ctk_event_class_init(CtkEventClass *ctk_event_class)
     MAKE_SIGNAL(NV_CTRL_PIXMAP_CACHE);
     MAKE_SIGNAL(NV_CTRL_PIXMAP_CACHE_ROUNDING_SIZE_KB);
     MAKE_SIGNAL(NV_CTRL_IS_GVO_DISPLAY);
+    MAKE_SIGNAL(NV_CTRL_PCI_ID);
+    MAKE_SIGNAL(NV_CTRL_GVO_FULL_RANGE_COLOR);
 
 #undef MAKE_SIGNAL
     
@@ -274,7 +276,7 @@ static void ctk_event_class_init(CtkEventClass *ctk_event_class)
      * knows about.
      */
 
-#if NV_CTRL_LAST_ATTRIBUTE != NV_CTRL_IS_GVO_DISPLAY
+#if NV_CTRL_LAST_ATTRIBUTE != NV_CTRL_GVO_FULL_RANGE_COLOR
 #warning "There are attributes that do not emit signals!"
 #endif
 

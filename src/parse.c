@@ -146,6 +146,7 @@ AttributeTableEntry attributeTable[] = {
     { "PCIBus",                 NV_CTRL_PCI_BUS,                       N,   "Returns the PCI bus number the GPU is using." },
     { "PCIDevice",              NV_CTRL_PCI_DEVICE,                    N,   "Returns the PCI device number the GPU is using." },
     { "PCIFunc",                NV_CTRL_PCI_FUNCTION,                  N,   "Returns the PCI function number the GPU is using." },
+    { "PCIID",                  NV_CTRL_PCI_ID,                        N|P, "Returns the PCI vendor and device ID of the GPU." },
     { "GPUErrors",              NV_CTRL_NUM_GPU_ERRORS_RECOVERED,      N,   "Returns the number of GPU errors occurred." },
     { "GPUPowerSource",         NV_CTRL_GPU_POWER_SOURCE,              N,   "Reports the type of power source of the GPU." },
     { "GPUCurrentPerfMode",     NV_CTRL_GPU_CURRENT_PERFORMANCE_MODE,  N,   "Reports the current performance mode of the GPU driving the X screen.  Running a 3D app, for example, will change this performance mode if Adaptive Clocking is enabled." },
@@ -208,6 +209,7 @@ AttributeTableEntry attributeTable[] = {
     { "GvoCompositeNumKeyRanges",        NV_CTRL_GVO_COMPOSITE_NUM_KEY_RANGES,         I|N,   "Returns the number of ranges available for each channel (Y/Luma, Cr, and Cb) that are used SDI compositing through color keying." },
     { "GvoFirmwareVersion",              NV_CTRL_STRING_GVO_FIRMWARE_VERSION,          I|S|N, "Indicates the version of the firmware on the GVO device." },
     { "GvoSyncToDisplay",                NV_CTRL_GVO_SYNC_TO_DISPLAY,                  I|N,   "Controls synchronization of the non-SDI display to the SDI display when both are active." },
+    { "GvoFullRangeColor",               NV_CTRL_GVO_FULL_RANGE_COLOR,                 I,     "Allow full range color data [4-1019].  If disabled, color data is clamped to [64-940]." },
     { "IsGvoDisplay",                    NV_CTRL_IS_GVO_DISPLAY,                       N|D,   "Returns whether or not the given display device is driven by the GVO device." },
 
     /* Display */
@@ -283,7 +285,7 @@ AttributeTableEntry attributeTable[] = {
  * about.
  */
 
-#if NV_CTRL_LAST_ATTRIBUTE != NV_CTRL_IS_GVO_DISPLAY
+#if NV_CTRL_LAST_ATTRIBUTE != NV_CTRL_GVO_FULL_RANGE_COLOR
 #warning "Have you forgotten to add a new integer attribute to attributeTable?"
 #endif
 
