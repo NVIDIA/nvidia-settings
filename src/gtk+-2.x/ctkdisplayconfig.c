@@ -6577,8 +6577,7 @@ static gboolean update_xconfig_save_buffer(CtkDisplayConfig *ctk_object)
                 g_strdup_printf("Failed to open existing X config file '%s'!",
                                 filename);
             ctk_display_warning_msg
-                (ctk_get_parent_window(GTK_WIDGET(ctk_object)),
-                 msg);
+                (ctk_get_parent_window(GTK_WIDGET(ctk_object)), msg);
             g_free(msg);
 
             xconfigCloseConfigFile();
@@ -6586,8 +6585,9 @@ static gboolean update_xconfig_save_buffer(CtkDisplayConfig *ctk_object)
 
         } else {
 
-        /* Must be able to parse the file as an X config file */
+            /* Must be able to parse the file as an X config file */
             error = xconfigReadConfigFile(&mergeConfig);
+            xconfigCloseConfigFile();
             if (error) {
                 /* If we failed to parse the config file, we should not
                  * allow a merge.
@@ -6600,7 +6600,6 @@ static gboolean update_xconfig_save_buffer(CtkDisplayConfig *ctk_object)
                      msg);
                 g_free(msg);
 
-                xconfigCloseConfigFile();
                 mergeConfig = NULL;
                 mergable = FALSE;
             }
@@ -6609,26 +6608,8 @@ static gboolean update_xconfig_save_buffer(CtkDisplayConfig *ctk_object)
         /* If we're not actualy doing a merge, close the file */
         if (!merge && mergeConfig) {
             xconfigFreeConfig(&mergeConfig);
-            xconfigCloseConfigFile();
         }
     }
-
-    merge = (merge && mergable);
-
-
-    /* Report merge problems */
-    g_signal_handlers_block_by_func
-        (G_OBJECT(ctk_object->btn_xconfig_merge),
-         G_CALLBACK(xconfig_merge_toggled), (gpointer) ctk_object);
-    
-    gtk_toggle_button_set_active
-        (GTK_TOGGLE_BUTTON(ctk_object->btn_xconfig_merge), merge);
-    
-    g_signal_handlers_unblock_by_func
-        (G_OBJECT(ctk_object->btn_xconfig_merge),
-         G_CALLBACK(xconfig_merge_toggled), (gpointer) ctk_object);
-    
-    gtk_widget_set_sensitive(ctk_object->btn_xconfig_merge, mergable);
 
 
     /* Generate an X config structure from our layout */
@@ -6642,17 +6623,39 @@ static gboolean update_xconfig_save_buffer(CtkDisplayConfig *ctk_object)
     /* Merge the two X config structures */
     if (mergeConfig) {
         result = xconfigMergeConfigs(mergeConfig, config);
-        xconfigFreeConfig(&config);
-        xconfigCloseConfigFile();
         if (!result) {
             xconfigFreeConfig(&mergeConfig);
             err_msg = g_strdup_printf("Failed to merge current configuration "
                                       "with existing X config file '%s'!",
                                       filename);
-            goto fail;
+            ctk_display_warning_msg
+                (ctk_get_parent_window(GTK_WIDGET(ctk_object)), err_msg);
+            g_free(err_msg);
+            err_msg = NULL;
+            mergable = FALSE;
+        } else {
+            xconfigFreeConfig(&config);
+            config = mergeConfig;
+            mergeConfig = NULL;
         }
-        config = mergeConfig;
     }
+
+
+    /* Report merge problems */
+    merge = (merge && mergable);
+
+    g_signal_handlers_block_by_func
+        (G_OBJECT(ctk_object->btn_xconfig_merge),
+         G_CALLBACK(xconfig_merge_toggled), (gpointer) ctk_object);
+    
+    gtk_toggle_button_set_active
+        (GTK_TOGGLE_BUTTON(ctk_object->btn_xconfig_merge), merge);
+    
+    g_signal_handlers_unblock_by_func
+        (G_OBJECT(ctk_object->btn_xconfig_merge),
+         G_CALLBACK(xconfig_merge_toggled), (gpointer) ctk_object);
+    
+    gtk_widget_set_sensitive(ctk_object->btn_xconfig_merge, mergable);
 
 
     /* Update the X config banner */
@@ -6700,6 +6703,15 @@ static gboolean update_xconfig_save_buffer(CtkDisplayConfig *ctk_object)
                               err_msg);
         g_free(err_msg);
     }
+
+    if (config) {
+        xconfigFreeConfig(&config);
+    }
+
+    if (mergeConfig) {
+        xconfigFreeConfig(&mergeConfig);
+    }
+
     return FALSE;
 
 } /* update_xconfig_save_buffer() */
@@ -7179,6 +7191,47 @@ static int add_screen_to_xconfig(CtkDisplayConfig *ctk_object,
 
 
 /*
+ * get_device_screen_id() - Returns the screen number that should be
+ * used in the device section that maps to the given screen's screen
+ * section.
+ */
+static int get_device_screen_id(nvGpuPtr gpu, nvScreenPtr screen)
+{
+    nvScreenPtr other;
+    int device_screen_id;
+
+    /* Go through the GPU's screens and figure out what the
+     * GPU-relative screen number should be for the given
+     * screen's device section.
+     */
+
+    /* If there is one screen, the device section shouldn't
+     * specify a "Screen #"
+     */
+
+    if (gpu->num_screens < 2) return -1;
+
+
+    /* Count the number of screens that have a screen number
+     * that is lower than the given screen, and that's the
+     * relative position of this screen wrt the GPU.
+     */
+
+    device_screen_id = 0;
+    for (other = gpu->screens; other; other = other->next) {
+        if (other == screen) continue;
+        if (screen->scrnum > other->scrnum) {
+            device_screen_id++;
+        }
+    }
+
+    return device_screen_id;
+
+} /* get_device_screen_id() */
+
+
+
+/*
  * add_screens_to_xconfig() - Adds all the X screens in the given
  * layout to the X configuration structure.
  */
@@ -7188,7 +7241,7 @@ static int add_screens_to_xconfig(CtkDisplayConfig *ctk_object,
 {
     nvGpuPtr gpu;
     nvScreenPtr screen;
-    int device_id;
+    int device_screen_id;
     int print_bus_ids;
     int ret;
 
@@ -7210,21 +7263,22 @@ static int add_screens_to_xconfig(CtkDisplayConfig *ctk_object,
 
     /* Generate the Device sections and Screen sections */
 
-    device_id = 0;
-
     for (gpu = layout->gpus; gpu; gpu = gpu->next) {
-        int device_screen_id = -1;
-
+        
         for (screen = gpu->screens; screen; screen = screen->next) {
 
-            /* Only print a screen number if more than 1 screen on gpu */
-            if (gpu->num_screens > 1) {
-                device_screen_id++;
-            }
+            /* Figure out what screen number to use for the device section. */
+            device_screen_id = get_device_screen_id(gpu, screen);
 
-            /* Each screen needs a unique device section */
+            /* Each screen needs a unique device section
+             *
+             * Note that the device id used to name the
+             * device section is the same as the screen
+             * number such that the name of the two sections
+             * match.
+             */
             screen->conf_device = add_device_to_xconfig(gpu, config,
-                                                        device_id,
+                                                        screen->scrnum,
                                                         device_screen_id,
                                                         print_bus_ids);
             if (!screen->conf_device) {
@@ -7239,8 +7293,6 @@ static int add_screens_to_xconfig(CtkDisplayConfig *ctk_object,
                              screen->scrnum);
             }
             if (ret != XCONFIG_GEN_OK) goto bail;
-
-            device_id++;
         }
     }
 

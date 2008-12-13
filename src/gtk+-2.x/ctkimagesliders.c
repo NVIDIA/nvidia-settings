@@ -340,6 +340,8 @@ static void scale_value_received(GtkObject *object, gpointer arg1,
                               "attribute active",
                               GINT_TO_POINTER(0));
         } else if (event_struct->availability == TRUE) {
+            setup_scale(ctk_image_sliders, NV_CTRL_IMAGE_SHARPENING,
+                        ctk_image_sliders->image_sharpening);
             gtk_widget_set_sensitive(scale, TRUE);
             gtk_widget_show(scale);
             g_object_set_data(G_OBJECT(CTK_SCALE(scale)->gtk_adjustment),

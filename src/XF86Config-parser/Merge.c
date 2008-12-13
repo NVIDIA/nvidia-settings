@@ -642,6 +642,10 @@ static int xconfigMergeLayout(XConfigPtr dstConfig, XConfigPtr srcConfig)
     XConfigAdjacencyPtr dstAdj;
     XConfigAdjacencyPtr lastDstAdj;
 
+    if (!dstLayout || !srcLayout) {
+        return 0;
+    }
+
     /* Clear the destination's adjacency list */
 
     xconfigFreeAdjacencyList(&dstLayout->adjacencies);
@@ -681,7 +685,7 @@ static int xconfigMergeLayout(XConfigPtr dstConfig, XConfigPtr srcConfig)
 
         /* Add adjacency at the end of the list */
         
-        if ( !lastDstAdj ) {
+        if (!lastDstAdj) {
             dstLayout->adjacencies = dstAdj;
         } else {
             lastDstAdj->next = dstAdj;
