@@ -79,6 +79,8 @@ static XConfigSymTabRec DisplayTab[] =
 
 #define CLEANUP xconfigFreeDisplayList
 
+static int addImpliedScreen(XConfigPtr config);
+
 XConfigDisplayPtr
 xconfigParseDisplaySubSection (void)
 {
@@ -500,12 +502,12 @@ xconfigValidateScreen (XConfigPtr p)
     XConfigDevicePtr device;
     XConfigAdaptorLinkPtr adaptor;
 
-    if (!screen)
-    {
-        xconfigErrorMsg(ValidationErrorMsg, "At least one Screen section "
-                     "is required.");
-        return (FALSE);
-    }
+    /*
+     * if we do not have a screen, just return TRUE; we'll add a
+     * screen later during the Sanitize step
+     */
+
+    if (!screen) return TRUE;
 
     while (screen)
     {
@@ -569,6 +571,10 @@ int xconfigSanitizeScreen(XConfigPtr p)
 {
     XConfigScreenPtr screen = p->screens;
     XConfigMonitorPtr monitor;
+
+    if (!addImpliedScreen(p)) {
+        return FALSE;
+    }
    
     while (screen) {
         
@@ -610,8 +616,9 @@ int xconfigSanitizeScreen(XConfigPtr p)
                 
                 screen->monitor_name = xconfigStrdup(monitor->identifier);
                 
-                if (!xconfigValidateMonitor(p, screen))
-                    return (FALSE);
+                if (!xconfigValidateMonitor(p, screen)) {
+                    return FALSE;
+                }
             }
         }
         
@@ -685,4 +692,43 @@ xconfigRemoveMode(XConfigModePtr *pHead, const char *name)
 }
 
 
+static int addImpliedScreen(XConfigPtr config)
+{
+    XConfigScreenPtr screen;
+    XConfigDevicePtr device;
+    XConfigMonitorPtr monitor;
 
+    if (config->screens) return TRUE;
+
+    xconfigErrorMsg(WarnMsg, "No Screen specified, constructing implicit "
+                    "screen section.\n");
+
+    /* allocate the new screen section */
+
+    screen = calloc(1, sizeof(XConfigScreenRec));
+    if (!screen) return FALSE;
+    
+    screen->identifier = xconfigStrdup("Default Screen");
+
+    /*
+     * Use the first device section if there is one.
+     */
+    if (config->devices) {
+        device = config->devices;
+        screen->device_name = xconfigStrdup(device->identifier);
+        screen->device = device;
+    }
+
+    /*
+     * Use the first monitor section if there is one.
+     */
+    if (config->monitors) {
+        monitor = config->monitors;
+        screen->monitor_name = xconfigStrdup(monitor->identifier);
+        screen->monitor = monitor;
+    }
+
+    config->screens = screen;
+
+    return TRUE;
+}

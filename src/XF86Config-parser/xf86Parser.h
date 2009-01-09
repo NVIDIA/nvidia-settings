@@ -591,6 +591,9 @@ typedef struct {
     char *keyboard;
     char *mouse;
     char *keyboard_driver;
+
+    int supports_extension_section;
+
 } GenerateOptions;
 
 
@@ -720,6 +723,10 @@ void xconfigGenerateAssignScreenAdjacencies(XConfigLayoutPtr layout);
 
 void xconfigGeneratePrintPossibleMice(void);
 void xconfigGeneratePrintPossibleKeyboards(void);
+void xconfigGenerateLoadDefaultOptions(GenerateOptions *gop);
+
+void xconfigGetXServerInUse(GenerateOptions *gop);
+
 
 /*
  * check (and update, if necessary) the inputs in the specified layout

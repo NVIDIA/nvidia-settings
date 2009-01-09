@@ -6584,6 +6584,7 @@ static gboolean update_xconfig_save_buffer(CtkDisplayConfig *ctk_object)
             mergable = FALSE;
 
         } else {
+            GenerateOptions gop;
 
             /* Must be able to parse the file as an X config file */
             error = xconfigReadConfigFile(&mergeConfig);
@@ -6601,6 +6602,22 @@ static gboolean update_xconfig_save_buffer(CtkDisplayConfig *ctk_object)
                 g_free(msg);
 
                 mergeConfig = NULL;
+                mergable = FALSE;
+            }
+
+            /* Sanitize the X config file */
+            xconfigGenerateLoadDefaultOptions(&gop);
+            xconfigGetXServerInUse(&gop);
+
+            if (!xconfigSanitizeConfig(mergeConfig, NULL, &gop)) {
+                gchar *msg = g_strdup_printf("Failed to sanitize existing X "
+                                             "config file '%s'!",
+                                             filename);
+                ctk_display_warning_msg
+                    (ctk_get_parent_window(GTK_WIDGET(ctk_object)), msg);
+                g_free(msg);
+
+                xconfigFreeConfig(&mergeConfig);
                 mergable = FALSE;
             }
         }

@@ -140,9 +140,10 @@ XConfigScreenPtr xconfigGenerateAddScreen(XConfigPtr config,
 
 
 /*
- * assign_screen_adjacencies() - setup all the adjacency information
- * for the X screens in the given layout.  Nothing fancy here: just
- * position all the screens horizontally, moving from left to right.
+ * xconfigGenerateAssignScreenAdjacencies() - setup all the adjacency
+ * information for the X screens in the given layout.  Nothing fancy
+ * here: just position all the screens horizontally, moving from left
+ * to right.
  */
 
 void xconfigGenerateAssignScreenAdjacencies(XConfigLayoutPtr layout)
@@ -1292,3 +1293,152 @@ int xconfigAddKeyboard(GenerateOptions *gop, XConfigPtr config)
     return TRUE;
     
 } /* xconfigAddKeyboard() */
+
+
+
+/*
+ * xconfigGetDefaultProjectRoot() - scan some common directories for the X
+ * project root.
+ *
+ * Users of this information should be careful to account for the
+ * modular layout.
+ */
+
+static char *xconfigGetDefaultProjectRoot(void)
+{
+    char *paths[] = { "/usr/X11R6", "/usr/X11", NULL };
+    struct stat stat_buf;
+    int i;
+        
+    for (i = 0; paths[i]; i++) {
+        
+        if (stat(paths[i], &stat_buf) == -1) {
+            continue;
+        }
+    
+        if (S_ISDIR(stat_buf.st_mode)) {
+            return paths[i];
+        }
+    }
+    
+    /* default to "/usr/X11R6", I guess */
+
+    return paths[0];
+
+} /* xconfigGetDefaultProjectRoot() */
+
+
+
+/*
+ * xconfigGetXServerInUse() - try to determine which X server is in use
+ * (XFree86, Xorg); also determine if the X server supports the
+ * Extension section of the X config file; support for the "Extension"
+ * section was added between X.Org 6.7 and 6.8.
+ *
+ * Some of the parsing here mimics what is done in the
+ * check_for_modular_xorg() function in nvidia-installer
+ */
+
+#define NV_LINE_LEN 1024
+#define EXTRA_PATH "/bin:/usr/bin:/sbin:/usr/sbin:/usr/X11R6/bin:/usr/bin/X11"
+#define VERSION_FORMAT "X Protocol Version %d, Revision %d, Release %d.%d"
+
+void xconfigGetXServerInUse(GenerateOptions *gop)
+{
+#if defined(NV_SUNOS)    
+
+    /*
+     * Solaris x86/x64 always uses X.Org 6.8 or higher, atleast as far
+     * as the NVIDIA X driver is concerned
+     */
+    
+    gop->xserver = X_IS_XORG;
+    gop->supports_extension_section = TRUE;
+    
+#else
+    
+    FILE *stream = NULL;
+    int xserver = -1;
+    int dummy, len, release_major, release_minor;
+    char *cmd, *ptr, *ret;
+    
+    gop->supports_extension_section = FALSE;
+    
+    /* run `X -version` with a PATH that hopefully includes the X binary */
+    
+    cmd = xconfigStrcat("PATH=", gop->x_project_root, ":",
+                        EXTRA_PATH, ":$PATH X -version 2>&1", NULL);
+    
+    if ((stream = popen(cmd, "r"))) {
+        char buf[NV_LINE_LEN];
+        
+        /* read in as much of the input as we can fit into the buffer */
+        
+        ptr = buf;
+
+        do {
+            len = NV_LINE_LEN - (ptr - buf) - 1;
+            ret = fgets(ptr, len, stream);
+            ptr = strchr(ptr, '\0');
+        } while ((ret != NULL) && (len > 1));
+        
+        /* Check if this is an XFree86 release */
+        
+        if (strstr(buf, "XFree86 Version") != NULL) {
+            xserver = X_IS_XF86;
+            gop->supports_extension_section = FALSE;
+        } else {
+            xserver = X_IS_XORG;
+            if ((ptr = strstr(buf, "X Protocol Version")) != NULL &&
+                sscanf(ptr, VERSION_FORMAT, &dummy, &dummy,
+                       &release_major, &release_minor) == 4) {
+                
+                if ((release_major > 6) ||
+                    ((release_major == 6) && (release_minor >= 8))) {
+                    gop->supports_extension_section = TRUE; 
+                }
+            }
+        } 
+    }
+    /* Close the popen()'ed stream. */
+    pclose(stream);
+    free(cmd);
+
+    if (xserver == -1) {
+        char *xorgpath;
+
+        xorgpath = xconfigStrcat(gop->x_project_root, "/bin/Xorg", NULL);
+        if (access(xorgpath, F_OK)==0) {
+            xserver = X_IS_XORG;
+        } else {
+            xserver = X_IS_XF86;
+        }
+        free(xorgpath);
+    }
+    
+    gop->xserver=xserver;
+#endif
+
+} /* xconfigGetXServerInUse() */
+
+
+
+/*
+ * xconfigGenerateLoadDefaultOptions - initialize a GenerateOptions
+ * structure with default values by peeking at the file system.
+ */
+
+void xconfigGenerateLoadDefaultOptions(GenerateOptions *gop)
+{
+    memset(gop, 0, sizeof(GenerateOptions));
+
+    gop->x_project_root = xconfigGetDefaultProjectRoot();
+
+    /* XXX What to default the following to?
+       gop->xserver
+       gop->keyboard
+       gop->mouse
+       gop->keyboard_driver
+     */
+
+} /* xconfigGenerateLoadDefaultOptions() */
