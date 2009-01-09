@@ -97,7 +97,7 @@ AttributeTableEntry attributeTable[] = {
     { "AssociatedDisplays",    NV_CTRL_ASSOCIATED_DISPLAY_DEVICES,  N|D   },
     { "ProbeDisplays",         NV_CTRL_PROBE_DISPLAYS,              A     },
     { "Depth30Allowed",        NV_CTRL_DEPTH_30_ALLOWED,            N     },
-    { "ForceGenericCpu",       NV_CTRL_FORCE_GENERIC_CPU,           N     },
+    { "ForceGenericCpu",       NV_CTRL_FORCE_GENERIC_CPU,           0     },
     { "GammaCorrectedAALines", NV_CTRL_OPENGL_AA_LINE_GAMMA,        0     },
     { "ShowSLIHUD",            NV_CTRL_SHOW_SLI_HUD,                0     },
     { "CursorShadow",          NV_CTRL_CURSOR_SHADOW,               0     },

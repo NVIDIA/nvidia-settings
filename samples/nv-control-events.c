@@ -360,6 +360,7 @@ static const char *attr2str(int n)
     case NV_CTRL_FRAMELOCK_TEST_SIGNAL:            return "frame lock test signal"; break;
     case NV_CTRL_FRAMELOCK_ETHERNET_DETECTED:      return "frame lock ethernet detected"; break;
     case NV_CTRL_FRAMELOCK_VIDEO_MODE:             return "frame lock video mode"; break;
+    case NV_CTRL_FORCE_GENERIC_CPU:                return "force generic cpu"; break;
     case NV_CTRL_OPENGL_AA_LINE_GAMMA:             return "opengl aa line gamma"; break;
     case NV_CTRL_FLIPPING_ALLOWED:                 return "flipping allowed"; break;
     case NV_CTRL_TEXTURE_CLAMPING:                 return "texture clamping"; break;

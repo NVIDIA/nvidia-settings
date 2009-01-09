@@ -586,9 +586,6 @@
  * conjunction with software such as the Valgrind memory debugger.
  * This setting is only applied to OpenGL clients that are started
  * after this setting is applied.
- *
- * USAGE NOTE: This attribute is deprecated. CPU compatibility is now
- *             checked each time during initialization.
  */
 
 #define NV_CTRL_FORCE_GENERIC_CPU                               37 /* RW-X */
