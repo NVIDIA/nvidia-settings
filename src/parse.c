@@ -211,6 +211,7 @@ AttributeTableEntry attributeTable[] = {
     { "GvoSyncToDisplay",                NV_CTRL_GVO_SYNC_TO_DISPLAY,                  I|N,   "Controls synchronization of the non-SDI display to the SDI display when both are active." },
     { "GvoFullRangeColor",               NV_CTRL_GVO_FULL_RANGE_COLOR,                 I,     "Allow full range color data [4-1019].  If disabled, color data is clamped to [64-940]." },
     { "IsGvoDisplay",                    NV_CTRL_IS_GVO_DISPLAY,                       N|D,   "Returns whether or not the given display device is driven by the GVO device." },
+    { "GvoEnableRGBData",                NV_CTRL_GVO_ENABLE_RGB_DATA,                  I,     "Indicates that RGB data is being sent via a PASSTHU mode." },
 
     /* Display */
     { "Brightness",                 BRIGHTNESS_VALUE|ALL_CHANNELS,         N|C|G, "Controls the overall brightness of the display." },
@@ -285,7 +286,7 @@ AttributeTableEntry attributeTable[] = {
  * about.
  */
 
-#if NV_CTRL_LAST_ATTRIBUTE != NV_CTRL_GVO_FULL_RANGE_COLOR
+#if NV_CTRL_LAST_ATTRIBUTE != NV_CTRL_GVO_ENABLE_RGB_DATA
 #warning "Have you forgotten to add a new integer attribute to attributeTable?"
 #endif
 

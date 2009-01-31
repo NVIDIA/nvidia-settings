@@ -266,6 +266,7 @@ static void ctk_event_class_init(CtkEventClass *ctk_event_class)
     MAKE_SIGNAL(NV_CTRL_IS_GVO_DISPLAY);
     MAKE_SIGNAL(NV_CTRL_PCI_ID);
     MAKE_SIGNAL(NV_CTRL_GVO_FULL_RANGE_COLOR);
+    MAKE_SIGNAL(NV_CTRL_GVO_ENABLE_RGB_DATA);
 
 #undef MAKE_SIGNAL
     
@@ -276,7 +277,7 @@ static void ctk_event_class_init(CtkEventClass *ctk_event_class)
      * knows about.
      */
 
-#if NV_CTRL_LAST_ATTRIBUTE != NV_CTRL_GVO_FULL_RANGE_COLOR
+#if NV_CTRL_LAST_ATTRIBUTE != NV_CTRL_GVO_ENABLE_RGB_DATA
 #warning "There are attributes that do not emit signals!"
 #endif
 

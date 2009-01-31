@@ -2291,11 +2291,21 @@
  * without clamping to [64-940].
  */
 
-#define NV_CTRL_GVO_FULL_RANGE_COLOR                            302 /* R-- */
+#define NV_CTRL_GVO_FULL_RANGE_COLOR                            302 /* RW- */
 #define NV_CTRL_GVO_FULL_RANGE_COLOR_DISABLED                     0
 #define NV_CTRL_GVO_FULL_RANGE_COLOR_ENABLED                      1
 
-#define NV_CTRL_LAST_ATTRIBUTE  NV_CTRL_GVO_FULL_RANGE_COLOR
+/*
+ * NV_CTRL_GVO_ENABLE_RGB_DATA - Allows clients to specify when
+ * the GVO board should process colors as RGB when the output data
+ * format is one of the NV_CTRL_GVO_DATA_FORMAT_???_PASSTRHU modes.
+ */
+
+#define NV_CTRL_GVO_ENABLE_RGB_DATA                             304 /* RW- */
+#define NV_CTRL_GVO_ENABLE_RGB_DATA_DISABLE                       0
+#define NV_CTRL_GVO_ENABLE_RGB_DATA_ENABLE                        1
+
+#define NV_CTRL_LAST_ATTRIBUTE  NV_CTRL_GVO_ENABLE_RGB_DATA
 
 
 
