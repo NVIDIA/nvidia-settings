@@ -213,6 +213,7 @@ struct _nvGPUDataRec {
 struct _nvFrameLockDataRec {
 
     gpointer   handle; /* NV-CONTROL Frame Lock Target */
+    int        server_id;
 
     /* Signal Handler IDs */
     gulong     signal_ids[NUM_FRAMELOCK_SIGNALS];
@@ -326,7 +327,7 @@ static const char * __client_checkbox_help =
 
 
 
-static unsigned int add_framelock_devices(CtkFramelock *, gpointer);
+static unsigned int add_framelock_devices(CtkFramelock *, gpointer, int);
 static unsigned int add_gpu_devices(CtkFramelock *, nvListEntryPtr);
 static unsigned int add_display_devices(CtkFramelock *, nvListEntryPtr);
 static gint add_devices(CtkFramelock *, const gchar *, gboolean);
@@ -2465,6 +2466,54 @@ static nvListEntryPtr find_server_by_name(nvListTreePtr tree,
     }
 
     return entry;
+}
+
+
+
+/** find_server_by_id() ********************************************
+ *
+ * - Looks in the list tree for a framelock list entry with a target
+ *   server with an id 'server_id'. The first list entry found
+ *   with such a server id is returned.
+ */
+static nvListEntryPtr find_server_by_id(nvListTreePtr tree,
+                                        int server_id)
+{
+    nvListEntryPtr entry;
+
+    entry = tree->entries;
+    while (entry) {
+        /* hold server id only in framelock entries */
+        if (entry->data_type == ENTRY_DATA_FRAMELOCK &&
+            ((nvFrameLockDataPtr)(entry->data))->server_id == server_id) {
+
+            return entry;
+        }
+        
+        entry = entry->next_sibling;
+    }
+
+    return entry;
+}
+
+
+
+/** get_server_id() ****************************************
+ *
+ * - Gets the X_SERVER_UNIQUE_ID nv-control attribute
+ */
+static gboolean get_server_id(NvCtrlAttributeHandle *handle,
+                              int *server_id)
+{
+    ReturnStatus ret;
+
+    ret = NvCtrlGetAttribute(handle, NV_CTRL_X_SERVER_UNIQUE_ID, server_id);
+
+    if (ret != NvCtrlSuccess) {
+        return FALSE;
+    }
+
+    return TRUE;
 }
 
 
@@ -5155,7 +5204,8 @@ static unsigned int add_gpu_devices(CtkFramelock *ctk_framelock,
  *
  */
 static unsigned int add_framelock_devices(CtkFramelock *ctk_framelock,
-                                          gpointer handle)
+                                          gpointer handle,
+                                          int server_id)
 {
     unsigned int        num_framelocks;
     unsigned int        framelocks_added = 0;
@@ -5230,6 +5280,8 @@ static unsigned int add_framelock_devices(CtkFramelock *ctk_framelock,
 
         framelock_data->extra_info_hbox = gtk_hbox_new(FALSE, 5);
 
+        framelock_data->server_id = server_id;
+
         /* Create the frame lock list entry */
         entry = list_entry_new_with_framelock(framelock_data);
 
@@ -5290,6 +5342,7 @@ static gint add_devices(CtkFramelock *ctk_framelock,
 {
     gpointer handle = NULL;
     Display *display;
+    int server_id = -1;
     gint devices_added = 0;
     char *server_name = NULL;
     char *ptr;
@@ -5329,30 +5382,6 @@ static gint add_devices(CtkFramelock *ctk_framelock,
         /* Assume sever id 0 if none given */
         sprintf(server_name + strlen(server_name), ":0");
     }
-
-    /*
-     * try to prevent users from adding the same X server more than
-     * once.
-     *
-     * XXX This is not an absolute check: this does not catch
-     *     "localhost:0" versus ":0", for example, nor does it
-     *     catch entering an IP vs entering a hostname.
-     */
-   
-    if (find_server_by_name(ctk_framelock->tree, server_name)) {
-        if (error_dialog) {
-            error_msg(ctk_framelock, "<span weight=\"bold\" "
-                      "size=\"larger\">Unable to add X server "
-                      "to frame lock Group</span>\n\n"
-                      "The X server %s already belongs to the frame lock "
-                      "Group.", server_name);
-        } else {
-            nv_error_msg("Unable to add X server to frame lock group; "
-                         "the X server %s already belongs to the "
-                         "frame lock group.", server_name);
-        }
-        goto done;
-    }
   
     /* open an X Display connection to that X server */
     
@@ -5388,9 +5417,28 @@ static gint add_devices(CtkFramelock *ctk_framelock,
         goto done;
     }
     
+    /* Try to prevent users from adding the same X server more than once */
+
+    if (get_server_id(handle, &server_id) &&
+        server_id != -1 &&
+        find_server_by_id(ctk_framelock->tree, server_id)) {
+        if (error_dialog) {
+            error_msg(ctk_framelock, "<span weight=\"bold\" "
+                      "size=\"larger\">Unable to add X server "
+                      "to frame lock Group</span>\n\n"
+                      "The X server %s already belongs to the frame lock "
+                      "Group.", server_name);
+        } else {
+            nv_error_msg("Unable to add X server to frame lock group; "
+                         "the X server %s already belongs to the "
+                         "frame lock group.", server_name);
+        }
+        goto done;
+    }
+
     /* Add frame lock devices found on server */
 
-    devices_added = add_framelock_devices(ctk_framelock, handle);
+    devices_added = add_framelock_devices(ctk_framelock, handle, server_id);
     if (!devices_added) {
         if (error_dialog) {
             error_msg(ctk_framelock, "<span weight=\"bold\" "

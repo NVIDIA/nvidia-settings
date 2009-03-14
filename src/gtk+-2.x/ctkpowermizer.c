@@ -604,11 +604,11 @@ GtkTextBuffer *ctk_powermizer_create_help(GtkTextTagTable *table,
     ctk_help_heading(b, &i, "Adaptive Clocking");
     ctk_help_para(b, &i, __adaptive_clock_help);
 
-    ctk_help_heading(b, &i, "Power Source");
-    ctk_help_para(b, &i, __power_source_help);
-
     ctk_help_heading(b, &i, "Clock Frequencies");
     ctk_help_para(b, &i, __clock_freq_help);
+
+    ctk_help_heading(b, &i, "Power Source");
+    ctk_help_para(b, &i, __power_source_help);
 
     ctk_help_heading(b, &i, "Performance Level");
     ctk_help_para(b, &i, __performance_level_help);

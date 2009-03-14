@@ -1138,16 +1138,16 @@ GtkTextBuffer *ctk_xvideo_create_help(GtkTextTagTable *table,
         ctk_help_para(b, &i, __xv_texture_sync_to_vblank_help);
     }
     
-    if (ctk_xvideo->active_attributes & __XV_TEXTURE_CONTRAST) {
-        ctk_help_heading(b, &i, "Video Texture Contrast");
-        ctk_help_para(b, &i, __xv_texture_contrast_help);
-    }
-    
     if (ctk_xvideo->active_attributes & __XV_TEXTURE_BRIGHTNESS) {   
         ctk_help_heading(b, &i, "Video Texture Brightness");
         ctk_help_para(b, &i, __xv_texture_brightness_help);
     }
 
+    if (ctk_xvideo->active_attributes & __XV_TEXTURE_CONTRAST) {
+        ctk_help_heading(b, &i, "Video Texture Contrast");
+        ctk_help_para(b, &i, __xv_texture_contrast_help);
+    }
+    
     if (ctk_xvideo->active_attributes & __XV_TEXTURE_HUE) {
         ctk_help_heading(b, &i, "Video Texture Hue");
         ctk_help_para(b, &i, __xv_texture_hue_help);

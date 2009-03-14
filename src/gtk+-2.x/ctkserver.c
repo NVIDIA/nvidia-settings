@@ -433,10 +433,10 @@ GtkWidget* ctk_server_new(NvCtrlAttributeHandle *handle,
                   0, 0.5, "Server Vendor Version:", 0, 0.5, vendor_ver);
     /* separator */
     add_table_row(table, 10,
-                  0, 0,   "NV-Control Version:",    0, 0, nv_control_server_version);
+                  0, 0,   "NV-CONTROL Version:",    0, 0, nv_control_server_version);
     /* separator */
     add_table_row(table, 14,
-                  0, 0,   "X Screens:",             0, 0, num_screens);
+                  0, 0,   "Screens:",               0, 0, num_screens);
 
 
     /* print special trademark text for FreeBSD */
@@ -510,7 +510,7 @@ GtkTextBuffer *ctk_server_create_help(GtkTextTagTable *table,
                   "X driver is running; possible values are "
                   "'Linux', 'FreeBSD', and 'SunOS'.  This also specifies the "
                   "platform on which the operating system is running, such "
-                  "as x86, x86_64, or ia64");
+                  "as x86, x86_64, or ia64.");
     
     ctk_help_heading(b, &i, "NVIDIA Driver Version");
     ctk_help_para(b, &i, "This is the version of the NVIDIA Accelerated "
@@ -520,17 +520,22 @@ GtkTextBuffer *ctk_server_create_help(GtkTextTagTable *table,
     ctk_help_para(b, &i, "This is the display connection string used to "
                   "communicate with the X Server.");
 
-    ctk_help_heading(b, &i, "X Server Version");
+    ctk_help_heading(b, &i, "Server Version");
     ctk_help_para(b, &i, "This is the version number of the X Server.");
 
-    ctk_help_heading(b, &i, "X Server Vendor String");
+    ctk_help_heading(b, &i, "Server Vendor String");
     ctk_help_para(b, &i, "This is the X Server vendor information string.");
 
-    ctk_help_heading(b, &i, "X Server Vendor Version");
-    ctk_help_para(b, &i, "This is the vertsion number of the X Server "
+    ctk_help_heading(b, &i, "Server Vendor Version");
+    ctk_help_para(b, &i, "This is the version number of the X Server "
                   "vendor.");
 
-    ctk_help_heading(b, &i, "X Screens");
+    ctk_help_heading(b, &i, "NV-CONTROL Version");
+    ctk_help_para(b, &i, "This is the version number of the NV-CONTROL X extension, "
+                  "used by nvidia-settings to communicate with the "
+                  "NVIDIA X driver.");
+
+    ctk_help_heading(b, &i, "Screens");
     ctk_help_para(b, &i, "This is the number of X Screens on the "
                   "display.  (When Xinerama is enabled this is always 1).");
 

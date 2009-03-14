@@ -70,21 +70,21 @@ static const char * __db_help =
   "buffers that are swappable.  '-' if this is not supported.";
 static const char * __st_help =
   "st (Stereo buffer) - 'y' if the configuration has left and right color "
-  "buffers that are rendered to in stereo.  '-' if this is not supported";
+  "buffers that are rendered to in stereo.  '-' if this is not supported.";
 static const char * __rs_help =
   "rs (Red size) - Number of bits per color used for red. "
   "(Undefined for configurations that use color indexing.)";
 static const char * __gs_help =
-  "gs (Green size - Number of bits per color used for green. "
+  "gs (Green size) - Number of bits per color used for green. "
   "(Undefined for configurations that use color indexing.)";
 static const char * __bs_help =
-  "bs (Blue size - Number of bits per color used for blue. "
+  "bs (Blue size) - Number of bits per color used for blue. "
   "(Undefined for configurations that use color indexing.)";
 static const char * __as_help =
-  "as (Alpha size - Number of bits per color used for alpha. "
+  "as (Alpha size) - Number of bits per color used for alpha. "
   "(Undefined for configurations that use color indexing.)";
 static const char * __aux_help =
-  "aux (Auxillary buffers) - Number of available auxiliary color butters.";
+  "aux (Auxiliary buffers) - Number of available auxiliary color buffers.";
 static const char * __dpt_help =
   "dpt (Depth buffer size) - Number of bits per color in the depth buffer.";
 static const char * __stn_help =
@@ -816,7 +816,7 @@ GtkTextBuffer *ctk_glx_create_help(GtkTextTagTable *table,
     ctk_help_para(b, &i,
                   "This will tell you if direct rendering is available.  If "
                   "direct rendering is available, then a program running on "
-                  "the same computer that the control pannel is running on "
+                  "the same computer that the control panel is running on "
                   "will be able to bypass the X Server and take advantage of "
                   "faster rendering.  If direct rendering is not available, "
                   "then indirect rendering will be used and all rendering "
@@ -859,6 +859,27 @@ GtkTextBuffer *ctk_glx_create_help(GtkTextTagTable *table,
                   "libraries."
                   );
 
+    ctk_help_heading(b, &i, "OpenGL Vendor String");
+    ctk_help_para(b, &i,
+                  "This is the name of the vendor providing the OpenGL "
+                  "implementation."
+                 );
+    ctk_help_heading(b, &i, "OpenGL Renderer String");
+    ctk_help_para(b, &i,
+                  "This shows the details of the graphics card on which "
+                  "OpenGL is running."
+                 );
+    ctk_help_heading(b, &i, "OpenGL Version String");
+    ctk_help_para(b, &i,
+                  "This is the version of the OpenGL implementation."
+                 );
+    ctk_help_heading(b, &i, "OpenGL Extensions");
+    ctk_help_para(b, &i,
+                  "This is the list of OpenGL extensions that are supported "
+                  "by this driver."
+                 );
+
+
     ctk_help_heading(b, &i, "Frame Buffer Configurations");
     ctk_help_para(b, &i, "This table lists the supported frame buffer "
                   "configurations for the display.");
@@ -875,6 +896,7 @@ GtkTextBuffer *ctk_glx_create_help(GtkTextTagTable *table,
                   "\t%s\n\n"
                   "\t%s\n\n"
 
+                  "\t%s\n\n"
                   "\t%s\n\n"
                   "\t%s\n\n"
                   "\t%s\n\n"

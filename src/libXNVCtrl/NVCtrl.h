@@ -2248,6 +2248,15 @@
 #define NV_CTRL_GVO_SYNC_TO_DISPLAY_ENABLE                      1
 
 /*
+ * NV_CTRL_X_SERVER_UNIQUE_ID - returns a pseudo-unique identifier for this
+ * X server. Intended for use in cases where an NV-CONTROL client communicates
+ * with multiple X servers, and wants some level of confidence that two
+ * X Display connections correspond to the same or different X servers.
+ */
+
+#define NV_CTRL_X_SERVER_UNIQUE_ID                              297 /* R--- */
+
+/*
  * NV_CTRL_PIXMAP_CACHE - This attribute controls whether the driver attempts to
  * store video memory pixmaps in a cache.  The cache speeds up allocation and
  * deallocation of pixmaps, but could use more memory than when the cache is
@@ -2296,17 +2305,32 @@
 #define NV_CTRL_GVO_FULL_RANGE_COLOR_ENABLED                      1
 
 /*
+ * NV_CTRL_SLI_MOSAIC_MODE_AVAILABLE - returns whether or not
+ * SLI Mosaic Mode supported.
+ */
+
+#define NV_CTRL_SLI_MOSAIC_MODE_AVAILABLE                       303 /* R-- */
+#define NV_CTRL_SLI_MOSAIC_MODE_AVAILABLE_FALSE                   0
+#define NV_CTRL_SLI_MOSAIC_MODE_AVAILABLE_TRUE                    1
+
+/*
  * NV_CTRL_GVO_ENABLE_RGB_DATA - Allows clients to specify when
  * the GVO board should process colors as RGB when the output data
  * format is one of the NV_CTRL_GVO_DATA_FORMAT_???_PASSTRHU modes.
- */
+ */	
 
 #define NV_CTRL_GVO_ENABLE_RGB_DATA                             304 /* RW- */
 #define NV_CTRL_GVO_ENABLE_RGB_DATA_DISABLE                       0
 #define NV_CTRL_GVO_ENABLE_RGB_DATA_ENABLE                        1
 
-#define NV_CTRL_LAST_ATTRIBUTE  NV_CTRL_GVO_ENABLE_RGB_DATA
+/* 
+ * NV_CTRL_IMAGE_SHARPENING_DEFAULT - Returns default value of
+ * Image Sharpening.
+ */
 
+#define NV_CTRL_IMAGE_SHARPENING_DEFAULT                        305 /* R-- */
+
+#define NV_CTRL_LAST_ATTRIBUTE  NV_CTRL_IMAGE_SHARPENING_DEFAULT
 
 
 /**************************************************************************/

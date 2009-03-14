@@ -45,7 +45,7 @@ static const char *__tooltip_help =
 
 static const char *__status_bar_help =
 "The status bar in the bottom "
-"right of the nvidia-settings GUI displays the most "
+"left of the nvidia-settings GUI displays the most "
 "recent change that has been sent to the X "
 "server.  The 'Display Status Bar' check box "
 "controls whether this status bar is displayed.";

@@ -27,6 +27,8 @@
 
 #include <gtk/gtk.h>
 
+#include "XF86Config-parser/xf86Parser.h"
+
 #include "ctkdisplaylayout.h"
 
 
@@ -100,6 +102,48 @@ nvLayoutPtr layout_load_from_server(NvCtrlAttributeHandle *handle,
 nvScreenPtr layout_get_a_screen(nvLayoutPtr layout, nvGpuPtr preferred_gpu);
 
 
+
+
+/* Save X config dialog  */
+
+typedef XConfigPtr (* generate_xconfig_callback) (XConfigPtr xconfCur,
+                                                  Bool merge,
+                                                  Bool *merged,
+                                                  gpointer callback_data);
+
+typedef struct _SaveXConfDlg {
+
+    GtkWidget *parent;
+    GtkWidget *top_window;
+
+    /* Callback functions for generating the XConfig struct */
+    generate_xconfig_callback xconf_gen_func;
+    void *callback_data;
+
+    Bool merge_toggleable; /* When possible, user able to toggle merge */
+
+    GtkWidget *dlg_xconfig_save;     /* Save X config dialog */
+    GtkWidget *scr_xconfig_save;     /* Scroll window */
+    GtkWidget *txt_xconfig_save;     /* Text view of file contents */
+    GtkTextBuffer *buf_xconfig_save; /* Text buffer (Actual) file contents */
+    GtkWidget *btn_xconfig_merge;    /* Merge with existing X config */
+    GtkWidget *btn_xconfig_preview;  /* Show/Hide button */
+    GtkWidget *box_xconfig_save;     /* Show/Hide this box */
+ 
+    GtkWidget *dlg_xconfig_file; /* File save dialog */
+    GtkWidget *btn_xconfig_file;
+    GtkWidget *txt_xconfig_file;
+
+} SaveXConfDlg;
+
+
+
+SaveXConfDlg *create_save_xconfig_dialog(GtkWidget *parent,
+                                         Bool merge_toggleable,
+                                         generate_xconfig_callback xconf_gen_func,
+                                         gpointer callback_data);
+
+void run_save_xconfig_dialog(SaveXConfDlg *dlg);
 
                    
 G_END_DECLS

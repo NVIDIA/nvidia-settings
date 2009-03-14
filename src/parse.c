@@ -107,6 +107,7 @@ AttributeTableEntry attributeTable[] = {
     { "NotebookInternalLCD",           NV_CTRL_NOTEBOOK_INTERNAL_LCD,             N|D,   "Returns the display device mask of the internal LCD of a notebook." },
     { "Depth30Allowed",                NV_CTRL_DEPTH_30_ALLOWED,                  N,     "Returns whether the NVIDIA X driver supports depth 30 on the specified X screen or GPU." },
     { "NoScanout",                     NV_CTRL_NO_SCANOUT,                        N,     "Returns whether the special \"NoScanout\" mode is enabled on the specified X screen or GPU." },
+    { "XServerUniqueId",               NV_CTRL_X_SERVER_UNIQUE_ID,                N,     "Returns a pseudo-unique identification number for the X server." },
     { "PixmapCache",                   NV_CTRL_PIXMAP_CACHE,                      N,     "Controls whether pixmaps are allocated in a cache." },
     { "PixmapCacheRoundSizeKB",        NV_CTRL_PIXMAP_CACHE_ROUNDING_SIZE_KB,     N,     "Controls the number of kilobytes to add to the pixmap cache when there is not enough room." },
 
@@ -129,6 +130,7 @@ AttributeTableEntry attributeTable[] = {
     { "GammaCorrectedAALinesValue", NV_CTRL_OPENGL_AA_LINE_GAMMA_VALUE,       0,   "Returns the gamma value used by OpenGL when gamma-corrected antialiased lines are enabled." },
     { "StereoEyesExchange",         NV_CTRL_STEREO_EYES_EXCHANGE,             0,   "Swaps the left and right eyes of stereo images." },
     { "SLIMode",                    NV_CTRL_STRING_SLI_MODE,                  S|N, "Returns a string describing the current SLI mode, if any." },
+    { "SliMosaicModeAvailable",     NV_CTRL_SLI_MOSAIC_MODE_AVAILABLE,        N,   "Returns whether or not SLI Mosaic Mode is supported." },
 
     /* GPU */
     { "BusType",                NV_CTRL_BUS_TYPE,                      0,   "Returns the type of bus connecting the GPU driving the specified X screen to the computer." },
@@ -228,7 +230,8 @@ AttributeTableEntry attributeTable[] = {
     { "BlueGamma",                  GAMMA_VALUE|BLUE_CHANNEL,              C|G,   "Controls the gamma of the color blue in the display." },
     { "FlatpanelDithering",         NV_CTRL_FLATPANEL_DITHERING,           0,     "This is the current state of flat panel dithering.  (This attribute has been deprecated.)" },
     { "DigitalVibrance",            NV_CTRL_DIGITAL_VIBRANCE,              0,     "Sets the digital vibrance level of the display device." },
-    { "ImageSharpening",            NV_CTRL_IMAGE_SHARPENING,              0,     "Adjusts the sharpness of the display's image quality by amplifying high frequency content.  Valid values will normally be in the range [0,32).  Only available on GeForceFX or newer." },
+    { "ImageSharpening",            NV_CTRL_IMAGE_SHARPENING,              0,     "Adjusts the sharpness of the display's image quality by amplifying high frequency content." },
+    { "ImageSharpeningDefault",     NV_CTRL_IMAGE_SHARPENING_DEFAULT,      0,     "Returns default value of image sharpening." },
     { "FrontendResolution",         NV_CTRL_FRONTEND_RESOLUTION,           N|P,   "Returns the dimensions of the frontend (current) resolution as determined by the NVIDIA X Driver. This attribute is a packed integer; the width is packed in the upper 16 bits and the height is packed in the lower 16-bits." },
     { "BackendResolution",          NV_CTRL_BACKEND_RESOLUTION,            N|P,   "Returns the dimensions of the backend resolution as determined by the NVIDIA X Driver.  The backend resolution is the resolution (supported by the display device) the GPU is set to scale to.  If this resolution matches the frontend resolution, GPU scaling will not be needed/used.  This attribute is a packed integer; the width is packed in the upper 16-bits and the height is packed in the lower 16-bits." },
     { "FlatpanelNativeResolution",  NV_CTRL_FLATPANEL_NATIVE_RESOLUTION,   N|P,   "Returns the dimensions of the native resolution of the flat panel as determined by the NVIDIA X Driver.  The native resolution is the resolution at which a flat panel must display any image.  All other resolutions must be scaled to this resolution through GPU scaling or the DFP's native scaling capabilities in order to be displayed.  This attribute is only valid for flat panel (DFP) display devices.  This attribute is a packed integer; the width is packed in the upper 16-bits and the height is packed in the lower 16-bits." },
@@ -286,7 +289,7 @@ AttributeTableEntry attributeTable[] = {
  * about.
  */
 
-#if NV_CTRL_LAST_ATTRIBUTE != NV_CTRL_GVO_ENABLE_RGB_DATA
+#if NV_CTRL_LAST_ATTRIBUTE != NV_CTRL_IMAGE_SHARPENING_DEFAULT
 #warning "Have you forgotten to add a new integer attribute to attributeTable?"
 #endif
 

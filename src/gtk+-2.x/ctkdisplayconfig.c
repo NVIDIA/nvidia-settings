@@ -22,16 +22,9 @@
  *
  */
 
-#include <stdlib.h> /* malloc */
-#include <unistd.h> /* lseek, close */
-#include <string.h> /* strlen,  strdup */
-#include <errno.h>
-
-#include <fcntl.h>
-#include <sys/mman.h>
-#include <sys/types.h>
+#include <stdlib.h>
+#include <string.h>
 #include <sys/stat.h>
-#include <pwd.h>
 
 #include <gtk/gtk.h>
 #include <gdk/gdkx.h>
@@ -88,12 +81,6 @@ static void screen_metamode_activate(GtkWidget *widget, gpointer user_data);
 static void screen_metamode_add_clicked(GtkWidget *widget, gpointer user_data);
 static void screen_metamode_delete_clicked(GtkWidget *widget, gpointer user_data);
 
-static void xconfig_preview_clicked(GtkWidget *widget, gpointer user_data);
-static void xconfig_file_clicked(GtkWidget *widget, gpointer user_data);
-static void xconfig_merge_toggled(GtkWidget *widget, gpointer user_data);
-static void xconfig_file_activate(GtkWidget *widget, gpointer user_data);
-static gboolean update_xconfig_save_buffer(CtkDisplayConfig *ctk_object);
-
 static void xinerama_state_toggled(GtkWidget *widget, gpointer user_data);
 static void apply_clicked(GtkWidget *widget, gpointer user_data);
 static void save_clicked(GtkWidget *widget, gpointer user_data);
@@ -102,13 +89,17 @@ static void advanced_clicked(GtkWidget *widget, gpointer user_data);
 static void reset_clicked(GtkWidget *widget, gpointer user_data);
 static void validation_details_clicked(GtkWidget *widget, gpointer user_data);
 
-static int generateXConfig(CtkDisplayConfig *ctk_object, XConfigPtr *pConfig);
-static void update_banner(XConfigPtr config);
 static void display_config_attribute_changed(GtkObject *object, gpointer arg1,
                                            gpointer user_data);
 static void reset_layout(CtkDisplayConfig *ctk_object);
 static gboolean force_layout_reset(gpointer user_data);
 static void user_changed_attributes(CtkDisplayConfig *ctk_object);
+
+static XConfigPtr xconfig_generate(XConfigPtr xconfCur,
+                                   Bool merge,
+                                   Bool *merged,
+                                   void *callback_data);
+
 
 
 
@@ -209,17 +200,20 @@ static const char * __screen_depth_help =
 "screen; changing this option will require restarting your X server.";
 
 static const char * __screen_position_type_help =
-"The Position Type drop-down allows you to set how the selected screen "
+"The Position Type drop-down appears when two or more display devices are active. "
+"This allows you to set how the selected screen "
 "is placed within the X server layout; changing this option will require "
 "restarting your X server.";
 
 static const char * __screen_position_relative_help =
-"The Position Relative drop-down allows you to set which other Screen "
+"The Position Relative drop-down appears when two or more display devices are active. "
+"This allows you to set which other Screen "
 "the selected screen should be relative to; changing this option will "
 "require restarting your X server.";
 
 static const char * __screen_position_offset_help =
-"The Position Offset identifies the top left of the selected Screen as "
+"The Position Offset drop-down appears when two or more display devices are active. "
+"This identifies the top left of the selected Screen as "
 "an offset from the top left of the X server layout in absolute coordinates; "
 "changing this option will require restarting your X server.";
 
@@ -549,6 +543,7 @@ static int generate_xconf_metamode_str(CtkDisplayConfig *ctk_object,
                                        nvScreenPtr screen,
                                        gchar **pMetamode_strs)
 {
+    nvLayoutPtr layout = screen->gpu->layout;
     gchar *metamode_strs = NULL;
     gchar *metamode_str;
     gchar *tmp;
@@ -558,8 +553,8 @@ static int generate_xconf_metamode_str(CtkDisplayConfig *ctk_object,
     int start_width;
     int start_height;
 
-    int vendrel = NvCtrlGetVendorRelease(ctk_object->handle);
-    char *vendstr = NvCtrlGetServerVendor(ctk_object->handle);
+    int vendrel = NvCtrlGetVendorRelease(layout->handle);
+    char *vendstr = NvCtrlGetServerVendor(layout->handle);
     int xorg_major;
     int xorg_minor;
     Bool longStringsOK;
@@ -581,7 +576,7 @@ static int generate_xconf_metamode_str(CtkDisplayConfig *ctk_object,
      * metamode first in the list so the X server starts
      * in this mode.
      */
-    if (!ctk_object->advanced_mode) {
+    if (!layout->advanced_mode) {
         metamode_strs = screen_get_metamode_str(screen,
                                                 screen->cur_metamode_idx, 1);
         len = strlen(metamode_strs);
@@ -602,7 +597,7 @@ static int generate_xconf_metamode_str(CtkDisplayConfig *ctk_object,
         if (!(metamode->source & METAMODE_SOURCE_USER)) continue;
 
         /* The current mode was already included */
-        if (!ctk_object->advanced_mode &&
+        if (!layout->advanced_mode &&
             (metamode_idx == screen->cur_metamode_idx))
             continue;
 
@@ -612,7 +607,7 @@ static int generate_xconf_metamode_str(CtkDisplayConfig *ctk_object,
          *     smaller that the bounding box of all the metamodes will result
          *     in an unwanted panning domain being setup for the first mode.
          */
-        if ((!ctk_object->advanced_mode) &&
+        if ((!layout->advanced_mode) &&
             ((metamode->edim[W] > start_width) ||
              (metamode->edim[H] > start_height)))
             continue;
@@ -1063,7 +1058,6 @@ GtkWidget* ctk_display_config_new(NvCtrlAttributeHandle *handle,
     GtkWidget *frame;
     GtkWidget *notebook;
     GtkWidget *hbox;
-    GtkWidget *hbox2;
     GtkWidget *vbox;
     GdkScreen *screen;
     GtkWidget *label;
@@ -1113,8 +1107,6 @@ GtkWidget* ctk_display_config_new(NvCtrlAttributeHandle *handle,
     ctk_object->forced_reset_allowed = TRUE;
     ctk_object->notify_user_of_reset = TRUE;
     ctk_object->ignore_reset_events = FALSE;
-
-    ctk_object->advanced_mode = FALSE;
 
     ctk_object->last_resolution_idx = -1;
 
@@ -1477,56 +1469,11 @@ GtkWidget* ctk_display_config_new(NvCtrlAttributeHandle *handle,
 
 
     /* X config save dialog */
-    ctk_object->dlg_xconfig_save = gtk_dialog_new_with_buttons
-        ("Save X Configuration",
-         GTK_WINDOW(gtk_widget_get_parent(GTK_WIDGET(ctk_object))),
-         GTK_DIALOG_MODAL |  GTK_DIALOG_DESTROY_WITH_PARENT |
-         GTK_DIALOG_NO_SEPARATOR,
-         GTK_STOCK_SAVE,
-         GTK_RESPONSE_ACCEPT,
-         GTK_STOCK_CANCEL,
-         GTK_RESPONSE_REJECT,
-         NULL);
-    gtk_dialog_set_default_response(GTK_DIALOG(ctk_object->dlg_xconfig_save),
-                                    GTK_RESPONSE_REJECT);
-
-    ctk_object->btn_xconfig_preview = gtk_button_new();
-    g_signal_connect(G_OBJECT(ctk_object->btn_xconfig_preview), "clicked",
-                     G_CALLBACK(xconfig_preview_clicked),
-                     (gpointer) ctk_object);
-
-    ctk_object->txt_xconfig_save = gtk_text_view_new();
-    gtk_text_view_set_left_margin
-        (GTK_TEXT_VIEW(ctk_object->txt_xconfig_save), 5);
-
-    ctk_object->buf_xconfig_save = gtk_text_buffer_new(NULL);
-    gtk_text_view_set_buffer(GTK_TEXT_VIEW(ctk_object->txt_xconfig_save),
-                             GTK_TEXT_BUFFER(ctk_object->buf_xconfig_save));
-
-    ctk_object->scr_xconfig_save = gtk_scrolled_window_new(NULL, NULL);
-    gtk_scrolled_window_set_shadow_type
-        (GTK_SCROLLED_WINDOW(ctk_object->scr_xconfig_save), GTK_SHADOW_IN);
-
-    ctk_object->txt_xconfig_file = gtk_entry_new();
-    gtk_widget_set_size_request(ctk_object->txt_xconfig_file, 300, -1);
-    g_signal_connect(G_OBJECT(ctk_object->txt_xconfig_file), "activate",
-                     G_CALLBACK(xconfig_file_activate),
-                     (gpointer) ctk_object);
-
-    ctk_object->btn_xconfig_file = gtk_button_new_with_label("Browse...");
-    g_signal_connect(G_OBJECT(ctk_object->btn_xconfig_file), "clicked",
-                     G_CALLBACK(xconfig_file_clicked),
-                     (gpointer) ctk_object);
-    ctk_object->dlg_xconfig_file = gtk_file_selection_new
-        ("Please select the X configuration file");
-    
-    ctk_object->btn_xconfig_merge =
-        gtk_check_button_new_with_label("Merge with existing file.");
-    gtk_toggle_button_set_active
-        (GTK_TOGGLE_BUTTON(ctk_object->btn_xconfig_merge), TRUE);
-    g_signal_connect(G_OBJECT(ctk_object->btn_xconfig_merge), "toggled",
-                     G_CALLBACK(xconfig_merge_toggled),
-                     (gpointer) ctk_object);
+    ctk_object->save_xconfig_dlg =
+        create_save_xconfig_dialog(GTK_WIDGET(ctk_object),
+                                   TRUE, // Merge toggleable
+                                   xconfig_generate,
+                                   (void *)ctk_object);
 
 
     /* Apply button */
@@ -1863,57 +1810,6 @@ GtkWidget* ctk_display_config_new(NvCtrlAttributeHandle *handle,
             (GTK_BOX(GTK_DIALOG(ctk_object->dlg_display_confirm)->vbox),
              hbox, TRUE, TRUE, 20);
         gtk_widget_show_all(GTK_DIALOG(ctk_object->dlg_display_confirm)->vbox);
-
-        /* X Config Save Dialog */
-        gtk_dialog_set_has_separator(GTK_DIALOG(ctk_object->dlg_xconfig_save),
-                                     TRUE);
-
-        /* Preview button */
-        hbox = gtk_hbox_new(FALSE, 0);
-        hbox2 = gtk_hbox_new(FALSE, 0);
-
-        gtk_box_pack_start(GTK_BOX(hbox), ctk_object->btn_xconfig_preview,
-                           FALSE, FALSE, 5);
-        gtk_box_pack_start
-            (GTK_BOX(GTK_DIALOG(ctk_object->dlg_xconfig_save)->vbox),
-             hbox, FALSE, FALSE, 5);
-
-        /* Preview window */
-        hbox = gtk_hbox_new(TRUE, 0);
-
-        gtk_container_add(GTK_CONTAINER(ctk_object->scr_xconfig_save),
-                          ctk_object->txt_xconfig_save);
-        gtk_box_pack_start(GTK_BOX(hbox),
-                           ctk_object->scr_xconfig_save,
-                           TRUE, TRUE, 5);
-        gtk_box_pack_start
-            (GTK_BOX(GTK_DIALOG(ctk_object->dlg_xconfig_save)->vbox),
-             hbox,
-             TRUE, TRUE, 0);
-        ctk_object->box_xconfig_save = hbox;
-
-        /* Filename */
-        hbox = gtk_hbox_new(FALSE, 0);
-        hbox2 = gtk_hbox_new(FALSE, 5);
-
-        gtk_box_pack_end(GTK_BOX(hbox2), ctk_object->btn_xconfig_file,
-                           FALSE, FALSE, 0);
-        gtk_box_pack_end(GTK_BOX(hbox2), ctk_object->txt_xconfig_file,
-                           TRUE, TRUE, 0);
-        gtk_box_pack_end(GTK_BOX(hbox), hbox2,
-                           TRUE, TRUE, 5);
-        gtk_box_pack_start
-            (GTK_BOX(GTK_DIALOG(ctk_object->dlg_xconfig_save)->vbox),
-             hbox,
-             FALSE, FALSE, 5);
-
-        /* Merge checkbox */
-        gtk_box_pack_start
-            (GTK_BOX(GTK_DIALOG(ctk_object->dlg_xconfig_save)->vbox),
-             ctk_object->btn_xconfig_merge,
-             FALSE, FALSE, 5);
-
-        gtk_widget_show_all(GTK_DIALOG(ctk_object->dlg_xconfig_save)->vbox);
     }
 
 
@@ -1987,7 +1883,7 @@ GtkTextBuffer *ctk_display_config_create_help(GtkTextTagTable *table,
     ctk_help_heading(b, &i, "Mode Name");
     ctk_help_para(b, &i, "The Mode name is the name of the modeline that is "
                   "currently chosen for the selected display device.  "
-                  "(Advanced view only)");
+                  "(Advanced view only.)");
     ctk_help_heading(b, &i, "Position Type");
     ctk_help_para(b, &i, __dpy_position_type_help);
     ctk_help_heading(b, &i, "Position Relative");
@@ -1995,16 +1891,16 @@ GtkTextBuffer *ctk_display_config_create_help(GtkTextTagTable *table,
     ctk_help_heading(b, &i, "Position Offset");
     ctk_help_para(b, &i, __dpy_position_offset_help);
     ctk_help_heading(b, &i, "Panning");
-    ctk_help_para(b, &i, "%s.  (Advanced view only)", __dpy_panning_help);
+    ctk_help_para(b, &i, "%s  (Advanced view only.)", __dpy_panning_help);
     ctk_help_heading(b, &i, "Primary Display");
     ctk_help_para(b, &i, __dpy_primary_help);
 
 
     ctk_help_para(b, &i, "");
-    ctk_help_heading(b, &i, "Screen Section");
+    ctk_help_heading(b, &i, "X Screen Section");
     ctk_help_para(b, &i, "This section shows information and configuration "
                   "settings for the currently selected X screen.");
-    ctk_help_heading(b, &i, "Screen Depth");
+    ctk_help_heading(b, &i, "Color Depth");
     ctk_help_para(b, &i, __screen_depth_help);
     ctk_help_heading(b, &i, "Position Type");
     ctk_help_para(b, &i, __screen_position_type_help);
@@ -2013,12 +1909,12 @@ GtkTextBuffer *ctk_display_config_create_help(GtkTextTagTable *table,
     ctk_help_heading(b, &i, "Position Offset");
     ctk_help_para(b, &i, __screen_position_offset_help);
     ctk_help_heading(b, &i, "MetaMode Selection");
-    ctk_help_para(b, &i, "%s.  (Advanced view only)", __screen_metamode_help);
+    ctk_help_para(b, &i, "%s  (Advanced view only.)", __screen_metamode_help);
     ctk_help_heading(b, &i, "Add Metamode");
-    ctk_help_para(b, &i, "%s.  (Advanced view only)",
+    ctk_help_para(b, &i, "%s  (Advanced view only.)",
                   __screen_metamode_add_button_help);
     ctk_help_heading(b, &i, "Delete Metamode");
-    ctk_help_para(b, &i, "%s.  (Advanced view only)",
+    ctk_help_para(b, &i, "%s  (Advanced view only.)",
                   __screen_metamode_delete_button_help);
     
     
@@ -2034,10 +1930,10 @@ GtkTextBuffer *ctk_display_config_create_help(GtkTextTagTable *table,
     ctk_help_heading(b, &i, "Detect Displays");
     ctk_help_para(b, &i, __detect_displays_button_help);
     ctk_help_heading(b, &i, "Advanced/Basic...");
-    ctk_help_para(b, &i, "%s.  The Basic view modifies the currently active "
+    ctk_help_para(b, &i, "%s  The Basic view modifies the currently active "
                   "MetaMode for an X screen, while the Advanced view exposes "
                   "all the MetaModes available on an X screen, and lets you "
-                  "modify each of them", __advanced_button_help);
+                  "modify each of them.", __advanced_button_help);
     ctk_help_heading(b, &i, "Reset");
     ctk_help_para(b, &i, __reset_button_help);
     ctk_help_heading(b, &i, "Save to X Configuration File");
@@ -2115,9 +2011,10 @@ static void setup_display_modename(CtkDisplayConfig *ctk_object)
 {
     nvDisplayPtr display = ctk_display_layout_get_selected_display
         (CTK_DISPLAY_LAYOUT(ctk_object->obj_layout));
+    nvLayoutPtr layout = ctk_object->layout;
 
 
-    if (!display || !display->screen || !ctk_object->advanced_mode) {
+    if (!display || !display->screen || !layout->advanced_mode) {
         gtk_widget_hide(ctk_object->box_display_modename);
         return;
     }
@@ -2190,6 +2087,7 @@ static void setup_display_refresh_dropdown(CtkDisplayConfig *ctk_object)
 
     nvDisplayPtr display = ctk_display_layout_get_selected_display
         (CTK_DISPLAY_LAYOUT(ctk_object->obj_layout));
+    nvLayoutPtr layout = ctk_object->layout;
 
 
 
@@ -2290,14 +2188,14 @@ static void setup_display_refresh_dropdown(CtkDisplayConfig *ctk_object)
             name = g_strdup("Auto");
 
         /* In advanced mode, all modelines are selectable */
-        } else if (count_ref > 1 && ctk_object->advanced_mode) {
+        } else if (count_ref > 1 && layout->advanced_mode) {
             gchar *tmp;
             tmp = g_strdup_printf("%s (%d)", name, num_ref);
             g_free(name);
             name = tmp;
 
         /* in simple mode only show one refresh rate */
-        } else if (num_ref > 1 && !ctk_object->advanced_mode) {
+        } else if (num_ref > 1 && !layout->advanced_mode) {
             continue;
         }
 
@@ -2953,14 +2851,17 @@ static void setup_primary_display(CtkDisplayConfig *ctk_object)
 static void setup_display_panning(CtkDisplayConfig *ctk_object)
 {
     char *tmp_str;
+    nvLayoutPtr layout;
     nvDisplayPtr display;
     nvModePtr mode;
+
+    layout = ctk_object->layout;
 
     display = ctk_display_layout_get_selected_display
         (CTK_DISPLAY_LAYOUT(ctk_object->obj_layout));
 
 
-    if (!display || !display->screen || !ctk_object->advanced_mode) {
+    if (!display || !display->screen || !layout->advanced_mode) {
         gtk_widget_hide(ctk_object->box_display_panning);
         return;
     }
@@ -3113,6 +3014,12 @@ static void setup_screen_depth_dropdown(CtkDisplayConfig *ctk_object)
     gtk_menu_shell_append(GTK_MENU_SHELL(menu), menu_item);
     gtk_widget_show(menu_item);
     ctk_object->screen_depth_table[screen_depth_table_len++] = 16;
+
+    menu_item = gtk_menu_item_new_with_label("32,768 Colors (Depth 15)");
+    gtk_menu_shell_append(GTK_MENU_SHELL(menu), menu_item);
+    gtk_widget_show(menu_item);
+    ctk_object->screen_depth_table[screen_depth_table_len++] = 15;
+
     menu_item = gtk_menu_item_new_with_label("256 Colors (Depth 8)");
     gtk_menu_shell_append(GTK_MENU_SHELL(menu), menu_item);
     gtk_widget_show(menu_item);
@@ -3390,12 +3297,13 @@ static void setup_screen_position(CtkDisplayConfig *ctk_object)
 
 static void setup_screen_metamode(CtkDisplayConfig *ctk_object)
 {
+    nvLayoutPtr layout = ctk_object->layout;
     nvScreenPtr screen = ctk_display_layout_get_selected_screen
         (CTK_DISPLAY_LAYOUT(ctk_object->obj_layout));
     gchar *str;
 
 
-    if (!screen || !ctk_object->advanced_mode) {
+    if (!screen || !layout->advanced_mode) {
         gtk_widget_hide(ctk_object->box_screen_metamode);
         return;
     }
@@ -4768,6 +4676,7 @@ static gboolean do_query_remove_display(CtkDisplayConfig *ctk_object,
 
 void do_disable_display(CtkDisplayConfig *ctk_object, nvDisplayPtr display)
 {
+    nvLayoutPtr layout = ctk_object->layout;
     nvGpuPtr gpu = display->gpu;
     nvScreenPtr screen = display->screen;
     gchar *str;
@@ -4775,7 +4684,7 @@ void do_disable_display(CtkDisplayConfig *ctk_object, nvDisplayPtr display)
 
 
     /* Setup the remove display dialog */
-    if (ctk_object->advanced_mode) {
+    if (layout->advanced_mode) {
         str = g_strdup_printf("Disable the display device %s (%s) "
                               "on GPU-%d (%s)?",
                               display->name, type,
@@ -5053,6 +4962,7 @@ static void display_refresh_changed(GtkWidget *widget, gpointer user_data)
     gint idx;
     nvModeLinePtr modeline;
     nvDisplayPtr display;
+    nvLayoutPtr layout = ctk_object->layout;
 
 
     /* Get the modeline and display to set */
@@ -5065,7 +4975,7 @@ static void display_refresh_changed(GtkWidget *widget, gpointer user_data)
     /* In Basic view, we assume the user most likely wants
      * to change which metamode is being used.
      */
-    if (!ctk_object->advanced_mode && (display->screen->num_displays == 1)) {
+    if (!layout->advanced_mode && (display->screen->num_displays == 1)) {
         int metamode_idx =
             display_find_closest_mode_matching_modeline(display, modeline);
 
@@ -5104,6 +5014,7 @@ static void display_resolution_changed(GtkWidget *widget, gpointer user_data)
     CtkDisplayConfig *ctk_object = CTK_DISPLAY_CONFIG(user_data);
     gint idx;
     gint last_idx;
+    nvLayoutPtr layout = ctk_object->layout;
     nvModeLinePtr modeline;
     nvDisplayPtr display;
 
@@ -5128,7 +5039,7 @@ static void display_resolution_changed(GtkWidget *widget, gpointer user_data)
     /* In Basic view, we assume the user most likely wants
      * to change which metamode is being used.
      */
-    if (!ctk_object->advanced_mode && (display->screen->num_displays == 1)) {
+    if (!layout->advanced_mode && (display->screen->num_displays == 1)) {
         int metamode_idx =
             display_find_closest_mode_matching_modeline(display, modeline);
 
@@ -6435,321 +6346,6 @@ static void apply_clicked(GtkWidget *widget, gpointer user_data)
 
 
 
-/** xconfig_file_clicked() *******************************************
- *
- * Called when the user clicks on the "Browse..." button of the
- * X config save dialog.
- *
- **/
-
-static void xconfig_file_clicked(GtkWidget *widget, gpointer user_data)
-{
-    CtkDisplayConfig *ctk_object = CTK_DISPLAY_CONFIG(user_data);
-    const gchar *filename =
-        gtk_entry_get_text(GTK_ENTRY(ctk_object->txt_xconfig_file));
-    gint result;
-
-
-    /* Ask user for a filename */
-    gtk_window_set_transient_for
-        (GTK_WINDOW(ctk_object->dlg_xconfig_file),
-         GTK_WINDOW(gtk_widget_get_toplevel(GTK_WIDGET(ctk_object))));
-
-    gtk_file_selection_set_filename
-        (GTK_FILE_SELECTION(ctk_object->dlg_xconfig_file), filename);
-    
-    result = gtk_dialog_run(GTK_DIALOG(ctk_object->dlg_xconfig_file));
-    gtk_widget_hide(ctk_object->dlg_xconfig_file);
-    
-    switch (result) {
-    case GTK_RESPONSE_ACCEPT:
-    case GTK_RESPONSE_OK:
-        
-        filename = gtk_file_selection_get_filename
-            (GTK_FILE_SELECTION(ctk_object->dlg_xconfig_file));
-
-        gtk_entry_set_text(GTK_ENTRY(ctk_object->txt_xconfig_file),
-                           filename);
-
-        update_xconfig_save_buffer(ctk_object);
-        break;
-    default:
-        return;
-    }
-
-} /* xconfig_file_clicked() */
-
-
-
-/** xconfig_file_activate() ******************************************
- *
- * Called when the user selects a new X config filename.
- *
- **/
-
-static void xconfig_file_activate(GtkWidget *widget, gpointer user_data)
-{
-    CtkDisplayConfig *ctk_object = CTK_DISPLAY_CONFIG(user_data);
-
-    update_xconfig_save_buffer(ctk_object);
-
-} /* xconfig_file_activate() */
-
-
-
-/** xconfig_preview_clicked() ****************************************
- *
- * Called when the user clicks on the "Preview" button of the
- * X config save dialog.
- *
- **/
-
-static void xconfig_preview_clicked(GtkWidget *widget, gpointer user_data)
-{
-    CtkDisplayConfig *ctk_object = CTK_DISPLAY_CONFIG(user_data);
-    gboolean show = !GTK_WIDGET_VISIBLE(ctk_object->box_xconfig_save);
-
-    if (show) {
-        gtk_widget_show_all(ctk_object->box_xconfig_save);
-        gtk_window_set_resizable(GTK_WINDOW(ctk_object->dlg_xconfig_save),
-                                 TRUE);
-        gtk_widget_set_size_request(ctk_object->txt_xconfig_save, 450, 350);
-        gtk_button_set_label(GTK_BUTTON(ctk_object->btn_xconfig_preview),
-                             "Hide Preview...");
-    } else {
-        gtk_widget_hide(ctk_object->box_xconfig_save);
-        gtk_window_set_resizable(GTK_WINDOW(ctk_object->dlg_xconfig_save),
-                                 FALSE);
-        gtk_button_set_label(GTK_BUTTON(ctk_object->btn_xconfig_preview),
-                             "Show Preview...");
-    }
-
-} /* xconfig_preview_clicked() */
-
-
-
-/**  update_xconfig_save_buffer() ************************************
- *
- * Updates the "preview" buffer to hold the right contents based on
- * how the user wants the X config file to be generated (and what is
- * possible.)
- *
- * Also updates the state of the "Merge" checkbox in the case where
- * the named file can/cannot be parsed as a valid X config file.
- *
- */
-static gboolean update_xconfig_save_buffer(CtkDisplayConfig *ctk_object)
-{
-    gchar *filename;
-    XConfigPtr config = NULL;
-    XConfigPtr mergeConfig = NULL;
-    XConfigError error;
-    gint result;
-
-    char *tmp_filename;
-    int tmp_fd;
-    struct stat st;
-    void *buf;
-    GtkTextIter buf_start, buf_end;
-
-    gboolean merge;
-    gboolean mergable = TRUE;
-
-    gchar *err_msg = NULL;
-
-
-    /* Get how the user wants to generate the X config file */
-    merge = gtk_toggle_button_get_active
-        (GTK_TOGGLE_BUTTON(ctk_object->btn_xconfig_merge));
-
-    filename = (gchar *)gtk_entry_get_text
-        (GTK_ENTRY(ctk_object->txt_xconfig_file));
-
-
-    /* Find out if the file is mergable */
-    if (!filename || (filename[0] == '\0')) {
-        mergable = FALSE;
-    } else {
-        /* Must be able to open the file */
-        tmp_filename = (char *)xconfigOpenConfigFile(filename, NULL);
-        if (!tmp_filename || strcmp(tmp_filename, filename)) {
-            gchar *msg =
-                g_strdup_printf("Failed to open existing X config file '%s'!",
-                                filename);
-            ctk_display_warning_msg
-                (ctk_get_parent_window(GTK_WIDGET(ctk_object)), msg);
-            g_free(msg);
-
-            xconfigCloseConfigFile();
-            mergable = FALSE;
-
-        } else {
-            GenerateOptions gop;
-
-            /* Must be able to parse the file as an X config file */
-            error = xconfigReadConfigFile(&mergeConfig);
-            xconfigCloseConfigFile();
-            if (error) {
-                /* If we failed to parse the config file, we should not
-                 * allow a merge.
-                 */
-                gchar *msg =
-                    g_strdup_printf("Failed to parse existing X config file "
-                                    "'%s'!", filename);
-                ctk_display_warning_msg
-                    (ctk_get_parent_window(GTK_WIDGET(ctk_object)),
-                     msg);
-                g_free(msg);
-
-                mergeConfig = NULL;
-                mergable = FALSE;
-            }
-
-            /* Sanitize the X config file */
-            xconfigGenerateLoadDefaultOptions(&gop);
-            xconfigGetXServerInUse(&gop);
-
-            if (!xconfigSanitizeConfig(mergeConfig, NULL, &gop)) {
-                gchar *msg = g_strdup_printf("Failed to sanitize existing X "
-                                             "config file '%s'!",
-                                             filename);
-                ctk_display_warning_msg
-                    (ctk_get_parent_window(GTK_WIDGET(ctk_object)), msg);
-                g_free(msg);
-
-                xconfigFreeConfig(&mergeConfig);
-                mergable = FALSE;
-            }
-        }
-
-        /* If we're not actualy doing a merge, close the file */
-        if (!merge && mergeConfig) {
-            xconfigFreeConfig(&mergeConfig);
-        }
-    }
-
-
-    /* Generate an X config structure from our layout */
-    result = generateXConfig(ctk_object, &config);
-    if ((result != XCONFIG_GEN_OK) || !config) {
-        err_msg = g_strdup("Failed to generate an X config file!");
-        goto fail;
-    }
-
-
-    /* Merge the two X config structures */
-    if (mergeConfig) {
-        result = xconfigMergeConfigs(mergeConfig, config);
-        if (!result) {
-            xconfigFreeConfig(&mergeConfig);
-            err_msg = g_strdup_printf("Failed to merge current configuration "
-                                      "with existing X config file '%s'!",
-                                      filename);
-            ctk_display_warning_msg
-                (ctk_get_parent_window(GTK_WIDGET(ctk_object)), err_msg);
-            g_free(err_msg);
-            err_msg = NULL;
-            mergable = FALSE;
-        } else {
-            xconfigFreeConfig(&config);
-            config = mergeConfig;
-            mergeConfig = NULL;
-        }
-    }
-
-
-    /* Report merge problems */
-    merge = (merge && mergable);
-
-    g_signal_handlers_block_by_func
-        (G_OBJECT(ctk_object->btn_xconfig_merge),
-         G_CALLBACK(xconfig_merge_toggled), (gpointer) ctk_object);
-    
-    gtk_toggle_button_set_active
-        (GTK_TOGGLE_BUTTON(ctk_object->btn_xconfig_merge), merge);
-    
-    g_signal_handlers_unblock_by_func
-        (G_OBJECT(ctk_object->btn_xconfig_merge),
-         G_CALLBACK(xconfig_merge_toggled), (gpointer) ctk_object);
-    
-    gtk_widget_set_sensitive(ctk_object->btn_xconfig_merge, mergable);
-
-
-    /* Update the X config banner */
-    update_banner(config);
-
-
-    /* Setup the X config file preview buffer by writing to a temp file */
-    tmp_filename = g_strdup_printf("/tmp/.xconfig.tmp.XXXXXX");
-    tmp_fd = mkstemp(tmp_filename);
-    if (!tmp_fd) {
-        err_msg = g_strdup_printf("Failed to create temp X config file '%s' "
-                                  "for display.",
-                                  tmp_filename);
-        g_free(tmp_filename);
-        goto fail;
-    }
-    xconfigWriteConfigFile(tmp_filename, config);
-    xconfigFreeConfig(&config);
-
-    lseek(tmp_fd, 0, SEEK_SET);
-    fstat(tmp_fd, &st);
-    buf = mmap(0, st.st_size, PROT_READ, MAP_PRIVATE, tmp_fd, 0);
-
-    /* Clear the GTK buffer */
-    gtk_text_buffer_get_bounds
-        (GTK_TEXT_BUFFER(ctk_object->buf_xconfig_save), &buf_start,
-         &buf_end);
-    gtk_text_buffer_delete
-        (GTK_TEXT_BUFFER(ctk_object->buf_xconfig_save), &buf_start,
-         &buf_end);
-
-    /* Set the new GTK buffer contents */
-    gtk_text_buffer_set_text(GTK_TEXT_BUFFER(ctk_object->buf_xconfig_save),
-                             buf, st.st_size);
-    munmap(buf, st.st_size);
-    close(tmp_fd);
-    remove(tmp_filename);
-    g_free(tmp_filename);
-
-    return TRUE;
-
- fail:
-    if (err_msg) {
-        ctk_display_error_msg(ctk_get_parent_window(GTK_WIDGET(ctk_object)),
-                              err_msg);
-        g_free(err_msg);
-    }
-
-    if (config) {
-        xconfigFreeConfig(&config);
-    }
-
-    if (mergeConfig) {
-        xconfigFreeConfig(&mergeConfig);
-    }
-
-    return FALSE;
-
-} /* update_xconfig_save_buffer() */
-
-
-
-/** xconfig_merge_toggled() ******************************************
- *
- * Called when the user clicks on the "Merge" button of the X config
- * save dialog.
- *
- **/
-
-static void xconfig_merge_toggled(GtkWidget *widget, gpointer user_data)
-{
-    update_xconfig_save_buffer((CtkDisplayConfig *)user_data);
-
-} /* xconfig_merge_toggled() */
-
-
-
 /** makeXConfigModeline() ********************************************
  *
  * Returns a copy of an XF86Config-parser modeline structure.
@@ -7533,207 +7129,61 @@ static int generateXConfig(CtkDisplayConfig *ctk_object, XConfigPtr *pConfig)
 
 
 
-/*
- * tilde_expansion() - do tilde expansion on the given path name;
- * based loosely on code snippets found in the comp.unix.programmer
- * FAQ.  The tilde expansion rule is: if a tilde ('~') is alone or
- * followed by a '/', then substitute the current user's home
- * directory; if followed by the name of a user, then substitute that
- * user's home directory.
+/** xconfig_generate() ***********************************************
  *
- * Code adapted from nvidia-xconfig
- */
-
-char *tilde_expansion(char *str)
-{
-    char *prefix = NULL;
-    char *replace, *user, *ret;
-    struct passwd *pw;
-    int len;
-
-    if ((!str) || (str[0] != '~')) return str;
-    
-    if ((str[1] == '/') || (str[1] == '\0')) {
-
-        /* expand to the current user's home directory */
-
-        prefix = getenv("HOME");
-        if (!prefix) {
-            
-            /* $HOME isn't set; get the home directory from /etc/passwd */
-            
-            pw = getpwuid(getuid());
-            if (pw) prefix = pw->pw_dir;
-        }
-        
-        replace = str + 1;
-        
-    } else {
-    
-        /* expand to the specified user's home directory */
-
-        replace = strchr(str, '/');
-        if (!replace) replace = str + strlen(str);
-
-        len = replace - str;
-        user = malloc(len + 1);
-        strncpy(user, str+1, len-1);
-        user[len] = '\0';
-        pw = getpwnam(user);
-        if (pw) prefix = pw->pw_dir;
-        free (user);
-    }
-
-    if (!prefix) return str;
-    
-    ret = malloc(strlen(prefix) + strlen(replace) + 1);
-    strcpy(ret, prefix);
-    strcat(ret, replace);
-    
-    return ret;
-
-} /* tilde_expansion() */
-
-
-
-/*
- * update_banner() - add our banner at the top of the config, but
- * first we need to remove any lines that already include our prefix
- * (because presumably they are a banner from an earlier run of
- * nvidia-settings)
- *
- * Code adapted from nvidia-xconfig
- */
-
-extern const char *pNV_ID;
-
-static void update_banner(XConfigPtr config)
-{
-    static const char *banner =
-        "X configuration file generated by nvidia-settings\n";
-    static const char *prefix =
-        "# nvidia-settings: ";
-
-    char *s = config->comment;
-    char *line, *eol, *tmp;
-    
-    /* remove all lines that begin with the prefix */
-    
-    while (s && (line = strstr(s, prefix))) {
-        
-        eol = strchr(line, '\n'); /* find the end of the line */
-        
-        if (eol) {
-            eol++;
-            if (*eol == '\0') eol = NULL;
-        }
-        
-        if (line == s) { /* the line with the prefix is at the start */
-            if (eol) {   /* there is more after the prefix line */
-                tmp = g_strdup(eol);
-                g_free(s);
-                s = tmp;
-            } else {     /* the prefix line is the only line */
-                g_free(s);
-                s = NULL;
-            }
-        } else {         /* prefix line is in the middle or end */
-            *line = '\0';
-            tmp = g_strconcat(s, eol, NULL);
-            g_free(s);
-            s = tmp;
-        }
-    }
-    
-    /* add our prefix lines at the start of the comment */
-    config->comment = g_strconcat(prefix, banner,
-                                  "# ", pNV_ID, "\n",
-                                  (s ? s : ""),
-                                  NULL);
-    if (s) g_free(s);
-    
-} /* update_banner() */
-
-
-
-/** save_xconfig_file() **********************************************
- *
- * Saves the X config file text from buf into a file called
- * filename.  If filename already exists, a backup file named
- * 'filename.backup' is created.
+ * Callback to generate an X config structure based on the current
+ * display configuration.
  *
  **/
-
-static int save_xconfig_file(CtkDisplayConfig *ctk_object,
-                             gchar *filename, char *buf, mode_t mode)
+static XConfigPtr xconfig_generate(XConfigPtr xconfCur,
+                                   Bool merge,
+                                   Bool *merged,
+                                   void *callback_data)
 {
-    gchar *backup_filename = NULL;
-    FILE *fp = NULL;
-    size_t size;
-    gchar *err_msg = NULL;
-
-    int ret = 0;
+    CtkDisplayConfig *ctk_object = (CtkDisplayConfig *)callback_data;
+    XConfigPtr xconfGen = NULL;
+    gint result;
 
 
-    if (!buf || !filename) goto done;
+    *merged = FALSE;
 
-    size = strlen(buf) ;
-
-    /* Backup any existing file */
-    if ((access(filename, F_OK) == 0)) {
-
-        backup_filename = g_strdup_printf("%s.backup", filename);
-        nv_info_msg("", "X configuration file '%s' already exists, "
-                    "backing up file as '%s'", filename,
-                    backup_filename);
-        
-        /* Delete any existing backup file */
-        if (access(backup_filename, F_OK) == 0) {
-
-            if (unlink(backup_filename) != 0) {
-                err_msg =
-                    g_strdup_printf("Unable to remove old X config backup "
-                                    "file '%s'.",
-                                    backup_filename);
-                goto done;
-            }
-        }
-
-        /* Make the current x config file the backup */
-        if (rename(filename, backup_filename)) {
-                err_msg =
-                    g_strdup_printf("Unable to create new X config backup "
-                                    "file '%s'.",
-                                    backup_filename);
-            goto done;            
-        }
+    /* Generate an X config structure from our layout */
+    result = generateXConfig(ctk_object, &xconfGen);
+    if ((result != XCONFIG_GEN_OK) || !xconfGen) {
+        goto fail;
     }
 
-    /* Write out the X config file */
-    fp = fopen(filename, "w");
-    if (!fp) {
-        err_msg =
-            g_strdup_printf("Unable to open X config file '%s' for writing.",
-                            filename);
-        goto done;
+    /* If we're not merging, we're done */
+    if (!xconfCur || !merge) {
+        return xconfGen;
     }
-    fprintf(fp, "%s", buf);
 
-    ret = 1;
-    
- done:
-    /* Display any errors that might have occured */
-    if (err_msg) {
-        ctk_display_error_msg(ctk_get_parent_window(GTK_WIDGET(ctk_object)),
-                              err_msg);
+    /* Merge xconfGen into xconfCur */
+    result = xconfigMergeConfigs(xconfCur, xconfGen);
+    if (!result) {
+        gchar *err_msg = g_strdup_printf("Failed to merge generated "
+                                         "configuration with existing "
+                                         "X config file!");
+        ctk_display_warning_msg(ctk_get_parent_window(GTK_WIDGET(ctk_object)),
+                                err_msg);
         g_free(err_msg);
+        return xconfGen;
     }
 
-    if (fp) fclose(fp);
-    g_free(backup_filename);
-    return ret;
-    
-} /* save_xconfig_file() */
+    /* Merge worked */
+    xconfigFreeConfig(&xconfGen);
+    *merged = TRUE;
+    return xconfCur;
+
+
+ fail:
+    if (xconfGen) {
+        xconfigFreeConfig(&xconfGen);
+    }
+
+    return NULL;
+
+} /* xconfig_generate() */
 
 
 
@@ -7746,13 +7196,6 @@ static int save_xconfig_file(CtkDisplayConfig *ctk_object,
 static void save_clicked(GtkWidget *widget, gpointer user_data)
 {
     CtkDisplayConfig *ctk_object = CTK_DISPLAY_CONFIG(user_data);
-    gint result;
-    gboolean created;
-
-    gchar *filename;
-
-    void *buf;
-    GtkTextIter buf_start, buf_end;
 
 
     /* Make sure the layout is ready to be saved */
@@ -7760,84 +7203,8 @@ static void save_clicked(GtkWidget *widget, gpointer user_data)
         return;
     }
 
-
-    /* Setup the default X config filename */
-    if (!ctk_object->layout->filename) {
-        filename = (gchar *) xconfigOpenConfigFile(NULL, NULL);
-        if (filename) {
-            ctk_object->layout->filename = g_strdup(filename);
-            xconfigCloseConfigFile();
-            filename = NULL;
-        } else {
-            ctk_object->layout->filename = g_strdup("");
-        }
-    }
-    gtk_entry_set_text(GTK_ENTRY(ctk_object->txt_xconfig_file),
-                       ctk_object->layout->filename);
-
-
-    /* Generate the X config file save buffer */
-    created = update_xconfig_save_buffer(ctk_object);
-    if (!created) {
-        return;
-    }
-
-
-    /* Confirm the save */
-    gtk_window_set_transient_for
-        (GTK_WINDOW(ctk_object->dlg_xconfig_save),
-         GTK_WINDOW(gtk_widget_get_toplevel(GTK_WIDGET(ctk_object))));
-    gtk_widget_hide(ctk_object->box_xconfig_save);
-    gtk_window_resize(GTK_WINDOW(ctk_object->dlg_xconfig_save), 350, 1);
-    gtk_window_set_resizable(GTK_WINDOW(ctk_object->dlg_xconfig_save),
-                             FALSE);
-    gtk_button_set_label(GTK_BUTTON(ctk_object->btn_xconfig_preview),
-                         "Show preview...");
-    gtk_widget_show(ctk_object->dlg_xconfig_save);
-    result = gtk_dialog_run(GTK_DIALOG(ctk_object->dlg_xconfig_save));
-    gtk_widget_hide(ctk_object->dlg_xconfig_save);
-    
-    
-    /* Handle user's response */
-    switch (result)
-    {
-    case GTK_RESPONSE_ACCEPT:
-
-        /* Get the filename to write to */
-        filename =
-            (gchar *) gtk_entry_get_text(GTK_ENTRY(ctk_object->txt_xconfig_file));
-
-        g_free(ctk_object->layout->filename);
-        ctk_object->layout->filename = tilde_expansion(filename);
-        if (ctk_object->layout->filename == filename) {
-            ctk_object->layout->filename = g_strdup(filename);
-        }
-        filename = ctk_object->layout->filename;
-
-
-        /* Get the buffer to write */
-        gtk_text_buffer_get_bounds
-            (GTK_TEXT_BUFFER(ctk_object->buf_xconfig_save), &buf_start,
-             &buf_end);
-        buf = (void *) gtk_text_buffer_get_text
-            (GTK_TEXT_BUFFER(ctk_object->buf_xconfig_save), &buf_start,
-             &buf_end, FALSE);
-        if (!buf) {
-            nv_error_msg("Failed to read X configuration buffer!");
-            break;
-        }
-
-        /* Save the X config file */
-        nv_info_msg("", "Writing X config file '%s'", filename);
-        save_xconfig_file(ctk_object, filename, (char *)buf, 0644);
-        g_free(buf);
-        break;
-        
-    case GTK_RESPONSE_REJECT:
-    default:
-        /* do nothing. */
-        break;
-    }
+    /* Run the save dialog */
+    run_save_xconfig_dialog(ctk_object->save_xconfig_dlg);
 
 } /* save_clicked() */
 
@@ -7852,23 +7219,24 @@ static void save_clicked(GtkWidget *widget, gpointer user_data)
 static void advanced_clicked(GtkWidget *widget, gpointer user_data)
 {
     CtkDisplayConfig *ctk_object = CTK_DISPLAY_CONFIG(user_data);
+    nvLayoutPtr layout = ctk_object->layout;
     
 
     /* Toggle advanced options for the display */
-    ctk_object->advanced_mode = !(ctk_object->advanced_mode);
+    layout->advanced_mode = !(layout->advanced_mode);
 
 
     /* Show advanced display options */
-    if (ctk_object->advanced_mode) {
+    if (layout->advanced_mode) {
         gtk_button_set_label(GTK_BUTTON(widget), "Basic...");
-        ctk_display_layout_set_advanced_mode(CTK_DISPLAY_LAYOUT(ctk_object->obj_layout),
-                                             1);
+        ctk_display_layout_set_advanced_mode
+            (CTK_DISPLAY_LAYOUT(ctk_object->obj_layout), 1);
 
     /* Show basic display options */
     } else {
         gtk_button_set_label(GTK_BUTTON(widget), "Advanced...");
-        ctk_display_layout_set_advanced_mode(CTK_DISPLAY_LAYOUT(ctk_object->obj_layout),
-                                             0);
+        ctk_display_layout_set_advanced_mode
+            (CTK_DISPLAY_LAYOUT(ctk_object->obj_layout), 0);
     }
 
     

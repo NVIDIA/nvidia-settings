@@ -28,6 +28,8 @@
 #include "ctkevent.h"
 #include "ctkconfig.h"
 #include "ctkdisplaylayout.h"
+#include "ctkdisplayconfig-utils.h"
+
 
 
 G_BEGIN_DECLS
@@ -158,18 +160,7 @@ typedef struct _CtkDisplayConfig
     guint display_confirm_timer;
     int display_confirm_countdown; /* Timeout to reset display config */
 
-    GtkWidget *dlg_xconfig_save;     /* Save X config dialog */
-    GtkWidget *scr_xconfig_save;     /* Scroll window */
-    GtkWidget *txt_xconfig_save;     /* Text view of file contents */
-    GtkTextBuffer *buf_xconfig_save; /* Text buffer (Actual) file contents */
-    GtkWidget *btn_xconfig_merge;    /* Merge with existing X config */
-    GtkWidget *btn_xconfig_preview;  /* Show/Hide button */
-    GtkWidget *box_xconfig_save;     /* Show/Hide this box */
- 
-    GtkWidget *dlg_xconfig_file; /* File save dialog */
-    GtkWidget *btn_xconfig_file;
-    GtkWidget *txt_xconfig_file;
-
+    SaveXConfDlg *save_xconfig_dlg;
 
     /* Buttons */
     GtkWidget *btn_apply;
@@ -186,7 +177,6 @@ typedef struct _CtkDisplayConfig
     GtkWidget *btn_probe;
 
     GtkWidget *btn_advanced;
-    gboolean   advanced_mode;  /* True if we are in advanced mode */
 
     GtkWidget *btn_reset;
     

@@ -39,6 +39,7 @@
 
 static void probe_displays_received(GtkObject *object, gpointer arg1,
                                     gpointer user_data);
+#define ARRAY_ELEMENTS 16
 
 GType ctk_gpu_get_type(
     void
@@ -142,6 +143,9 @@ GtkWidget* ctk_gpu_new(
     int pci_device;
     int pci_func;
     gchar *pci_bus_id;
+    gchar pci_device_id[ARRAY_ELEMENTS];
+    gchar pci_vendor_id[ARRAY_ELEMENTS];
+    int pci_id;
 
     gchar *__pci_bus_id_unknown = "?:?:?";
 
@@ -224,6 +228,21 @@ GtkWidget* ctk_gpu_new(
                                      pci_bus, pci_device, pci_func);
     } else {
         pci_bus_id = g_strdup(__pci_bus_id_unknown);
+    }
+
+    /* NV_CTRL_PCI_ID */
+
+    pci_device_id[ARRAY_ELEMENTS-1] = '\0';
+    pci_vendor_id[ARRAY_ELEMENTS-1] = '\0';
+
+    ret = NvCtrlGetAttribute(handle, NV_CTRL_PCI_ID, &pci_id);
+
+    if (ret != NvCtrlSuccess) {
+        snprintf(pci_device_id, ARRAY_ELEMENTS, "Unknown");
+        snprintf(pci_vendor_id, ARRAY_ELEMENTS, "Unknown");
+    } else {
+        snprintf(pci_device_id, ARRAY_ELEMENTS, "0x%04x", (pci_id & 0xFFFF));
+        snprintf(pci_vendor_id, ARRAY_ELEMENTS, "0x%04x", (pci_id >> 16));
     }
 
     /* NV_CTRL_STRING_VBIOS_VERSION */
@@ -345,7 +364,7 @@ GtkWidget* ctk_gpu_new(
     hseparator = gtk_hseparator_new();
     gtk_box_pack_start(GTK_BOX(hbox), hseparator, TRUE, TRUE, 5);
 
-    table = gtk_table_new(17, 2, FALSE);
+    table = gtk_table_new(19, 2, FALSE);
     gtk_box_pack_start(GTK_BOX(vbox), table, FALSE, FALSE, 0);
     gtk_table_set_row_spacings(GTK_TABLE(table), 3);
     gtk_table_set_col_spacings(GTK_TABLE(table), 15);
@@ -368,15 +387,21 @@ GtkWidget* ctk_gpu_new(
                   0, 0.5, "Bus ID:",
                   0, 0.5, pci_bus_id);
     add_table_row(table, 8,
+                  0, 0.5, "PCI Device ID:",
+                  0, 0.5, pci_device_id);
+    add_table_row(table, 9,
+                  0, 0.5, "PCI Vendor ID:",
+                  0, 0.5, pci_vendor_id);
+    add_table_row(table, 10,
                   0, 0.5, "IRQ:",
                   0, 0.5, irq);
     /* spacing */
-    add_table_row(table, 12,
+    add_table_row(table, 14,
                   0, 0, "X Screens:",
                   0, 0, screens);
     /* spacing */
     ctk_gpu->displays =
-        add_table_row(table, 16,
+        add_table_row(table, 18,
                       0, 0, "Display Devices:",
                       0, 0, displays);
 
@@ -446,6 +471,12 @@ GtkTextBuffer *ctk_gpu_create_help(GtkTextTagTable *table)
                   "This string can be used as-is with the 'BusID' X "
                   "configuration file option to unambiguously associate "
                   "Device sections with this GPU.");
+    
+    ctk_help_heading(b, &i, "PCI Device ID");
+    ctk_help_para(b, &i, "This is the PCI Device ID of the GPU.");
+    
+    ctk_help_heading(b, &i, "PCI Vendor ID");
+    ctk_help_para(b, &i, "This is the PCI Vendor ID of the GPU.");
     
     ctk_help_heading(b, &i, "IRQ");
     ctk_help_para(b, &i, "This is the interrupt request line assigned to "

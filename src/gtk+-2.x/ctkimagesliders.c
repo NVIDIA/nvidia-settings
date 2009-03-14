@@ -94,6 +94,8 @@ GtkWidget* ctk_image_sliders_new(NvCtrlAttributeHandle *handle,
     
     GtkWidget *frame;
     GtkWidget *vbox;
+    ReturnStatus status;
+    gint val;
     
     /*
      * now that we know that we will have atleast one attribute,
@@ -109,6 +111,17 @@ GtkWidget* ctk_image_sliders_new(NvCtrlAttributeHandle *handle,
     ctk_image_sliders->reset_button = reset_button;
     ctk_image_sliders->display_device_mask = display_device_mask;
     ctk_image_sliders->name = name;
+    
+    /* cache image sharpening default value */
+
+    status = NvCtrlGetDisplayAttribute(ctk_image_sliders->handle,
+                                       ctk_image_sliders->display_device_mask,
+                                       NV_CTRL_IMAGE_SHARPENING_DEFAULT,
+                                       &val);
+    if (status != NvCtrlSuccess) {
+        val = 0;
+    }
+    ctk_image_sliders->default_val = val;
     
     /* create the frame and vbox */
     
@@ -291,7 +304,7 @@ void ctk_image_sliders_reset(CtkImageSliders *ctk_image_sliders)
         NvCtrlSetDisplayAttribute(ctk_image_sliders->handle,
                                   ctk_image_sliders->display_device_mask,
                                   NV_CTRL_IMAGE_SHARPENING,
-                                  0);
+                                  ctk_image_sliders->default_val);
     }
 
     ctk_image_sliders_setup(ctk_image_sliders);

@@ -312,6 +312,9 @@ typedef struct nvGpuRec {
 typedef struct nvLayoutRec {
     XConfigLayoutPtr conf_layout;
     char *filename;
+    Bool  advanced_mode; /* Allow advanced layout modifications: */
+                         /*   - panning */
+                         /*   - multiple (meta)modes */
 
     NvCtrlAttributeHandle *handle;
 

@@ -1349,7 +1349,7 @@ GtkTextBuffer *ctk_multisample_create_help(GtkTextTagTable *table,
         if (ctk_multisample->active_attributes & __FSAA_4x) {
             ctk_help_term(b, &i, "4x (4xMS)");
             ctk_help_para(b, &i, "This enables antialiasing using the 4x (4xMS)"
-                          "Bilinearmode. This mode offers higher image "
+                          "Bilinear mode. This mode offers higher image "
                           "quality at the expense of some performance in "
                           "OpenGL applications.");
         }
@@ -1373,8 +1373,7 @@ GtkTextBuffer *ctk_multisample_create_help(GtkTextTagTable *table,
             ctk_help_term(b, &i, "8x (4xSS, 2xMS)");
             ctk_help_para(b, &i, "This enables antialiasing using the 8x "
                           "(4xSS, 2xMS) mode.  This mode offers better image "
-                          "quality than the 4x mode; 8xS is only available on "
-                          "Geforce (non-Quadro) FX or better GPUs.");
+                          "quality than the 4x mode.");
         }
 
         if (ctk_multisample->active_attributes & __FSAA_16x) {

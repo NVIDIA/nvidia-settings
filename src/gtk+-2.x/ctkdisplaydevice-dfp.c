@@ -86,9 +86,9 @@ static const char *__scaling_help =
 "A flat panel usually has a single 'native' resolution.  If you are "
 "using a resolution that is smaller than the flat panel's native "
 "resolution, then Flat Panel Scaling can adjust how the image is "
-"displayed on the flat panel.  This setting will only take effect "
-"when GPU scaling is active (This occurs when the frontend and "
-"backend resolutions of the current mode are different.)";
+"displayed on the flat panel. This setting will only take effect when "
+"GPU scaling is active, which occurs when the frontend and backend "
+"resolutions of the current mode are different.";
 
 static const char *__info_help = 
 "This section describes basic informations about the "
@@ -827,8 +827,8 @@ GtkTextBuffer *ctk_display_device_dfp_create_help(GtkTextTagTable *table,
     ctk_help_term(b, &i, "Chip Location");
     ctk_help_para(b, &i, "Report whether the flat panel is driven by "
                   "the on-chip controller (internal), or a "
-                  " separate controller chip elsewhere on the "
-                  "graphics board (external)");
+                  "separate controller chip elsewhere on the "
+                  "graphics board (external).");
                       
     ctk_help_term(b, &i, "Link");
     ctk_help_para(b, &i, "Report whether the specified display device "
@@ -837,7 +837,7 @@ GtkTextBuffer *ctk_display_device_dfp_create_help(GtkTextTagTable *table,
     
     ctk_help_term(b, &i, "Signal");
     ctk_help_para(b, &i, "Report whether the flat panel is driven by "
-                  "an LVDS, TMDS, or DisplayPort signal");
+                  "an LVDS, TMDS, or DisplayPort signal.");
 
     ctk_help_term(b, &i, "Native Resolution");
     ctk_help_para(b, &i, __native_res_help);

@@ -31,6 +31,7 @@
 #include "ctkevent.h"
 #include "ctkdisplaylayout.h"
 #include "ctkconfig.h"
+#include "ctkdisplayconfig-utils.h"
 
 #include "XF86Config-parser/xf86Parser.h"
 
@@ -71,6 +72,7 @@ struct _CtkSLIMM
     GtkWidget *lbl_total_size;
     GtkWidget *box_total_size;
     GtkWidget *btn_save_config;
+    SaveXConfDlg *save_xconfig_dlg;
     GtkWidget *cbtn_slimm_enable;
     nvModeLinePtr *resolution_table;
     nvModeLinePtr *refresh_table;
