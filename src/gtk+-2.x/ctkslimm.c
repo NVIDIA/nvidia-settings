@@ -154,6 +154,7 @@ static GridConfig *get_ith_valid_grid_config(int idx)
 static void add_slimm_options(XConfigPtr xconf, gchar *metamode_str)
 {
     XConfigAdjacencyPtr adj;
+    XConfigScreenPtr screen;
 
     /* Make sure there is only one screen specified in the main layout */
     adj = xconf->layouts->adjacencies;
@@ -166,7 +167,7 @@ static void add_slimm_options(XConfigPtr xconf, gchar *metamode_str)
      * Now fix up the screen in the Device section (to prevent failure with
      * seperate x screen config
      *
-    */
+     */
     xconf->layouts->adjacencies->screen->device->screen = -1;
 
     /* Write out SLI Mosaic Option */
@@ -176,6 +177,15 @@ static void add_slimm_options(XConfigPtr xconf, gchar *metamode_str)
     /* Write out MetaMode Option */
     xconfigAddNewOption(&(xconf->layouts->adjacencies->screen->options),
                         "MetaModes", metamode_str);
+
+    /* Remove Virtual size specification */
+    for (screen = xconf->layouts->adjacencies->screen; screen;
+         screen = screen->next) {
+        if ((screen->displays->virtualX) || (screen->displays->virtualY)) {
+            screen->displays->virtualX = 0;
+            screen->displays->virtualY = 0;
+        }
+    }
 }
 
 
@@ -984,7 +994,7 @@ static Bool parse_slimm_layout(CtkSLIMM *ctk_slimm,
                 }
             }
         }
-        if (*voverlap > 0) { *voverlap -= (*cur_modeline)->data.vdisplay; }
+        if (*voverlap > 0) { *voverlap = (*cur_modeline)->data.vdisplay - *voverlap; }
         if (*voverlap < 0) { *voverlap += (*cur_modeline)->data.vdisplay; }
 
 
@@ -1004,7 +1014,7 @@ static Bool parse_slimm_layout(CtkSLIMM *ctk_slimm,
                 }
             }
         }
-        if (*hoverlap > 0) { *hoverlap -= (*cur_modeline)->data.hdisplay; }
+        if (*hoverlap > 0) { *hoverlap = (*cur_modeline)->data.hdisplay - *hoverlap; }
         if (*hoverlap < 0) { *hoverlap += (*cur_modeline)->data.hdisplay; }
     }
     

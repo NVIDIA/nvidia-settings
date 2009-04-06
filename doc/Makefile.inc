@@ -29,7 +29,6 @@ EXTRA_DIST += \
 	Makefile.inc \
 	NV-CONTROL-API.txt \
 	FRAMELOCK.txt \
-	nvidia-settings-user-guide.txt \
 	nvidia-settings.1.m4
 
 AUTO_TEXT = ".\\\" WARNING: THIS FILE IS AUTO-GENERATED!  Edit $< instead."

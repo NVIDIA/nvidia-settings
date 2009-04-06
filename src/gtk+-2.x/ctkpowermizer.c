@@ -54,11 +54,11 @@ static const char *__performance_level_help =
 "This indicates the current Performance Level of the GPU.";
 
 static const char *__performance_mode_short_help =
-"This indicates the current Performance Mode of the GPU.\n";
+"This indicates the current Performance Mode of the GPU.";
 
 static const char *__performance_mode_help =
-"This indicates the current Performance Mode of the GPU.\n"
-"Performance Mode can be either \"Desktop\" or\n"
+"This indicates the current Performance Mode of the GPU. "
+"Performance Mode can be either \"Desktop\" or "
 "\"Maximum Performance\".";
 
 static const char *__gpu_clock_freq_help =

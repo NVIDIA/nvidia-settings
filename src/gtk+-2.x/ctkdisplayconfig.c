@@ -153,7 +153,8 @@ static const char * __layout_hidden_label_help =
 
 static const char * __layout_xinerama_button_help =
 "The Enable Xinerama checkbox enables the Xinerama X extension; changing "
-"this option will require restarting your X server.";
+"this option will require restarting your X server.  Note that when Xinerama "
+"is enabled, resolution changes will also require restarting your X server.";
 
 
 /* Display tooltips */
@@ -172,16 +173,19 @@ static const char * __dpy_refresh_mnu_help =
 
 static const char * __dpy_position_type_help =
 "The Position Type drop-down allows you to set how the selected display "
-"device is placed within the X screen.";
+"device is placed within the X screen. This is only available when "
+"multiple display devices are present.";
 
 static const char * __dpy_position_relative_help =
 "The Position Relative drop-down allows you to set which other display "
 "device (within the X screen) the selected display device should be "
-"relative to.";
+"relative to. This is only available when multiple display "
+"devices are present.";
 
 static const char * __dpy_position_offset_help =
 "The Position Offset identifies the top left of the display device "
-"as an offset from the top left of the X screen position.";
+"as an offset from the top left of the X screen position. This is only "
+"available when multiple display devices are present.";
 
 static const char * __dpy_panning_help =
 "The Panning Domain sets the total width/height that the display "

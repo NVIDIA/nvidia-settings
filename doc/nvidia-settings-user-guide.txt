@@ -1,2 +1,0 @@
-The nvidia-settings user guide has been moved to the nvidia-settings(1) man
-page.
