@@ -870,7 +870,8 @@ GtkTextBuffer *ctk_display_device_dfp_create_help(GtkTextTagTable *table,
     
     ctk_help_term(b, &i, "Centered");
     ctk_help_para(b, &i, "The image will only occupy the number of pixels "
-                  "needed and be centered on the flat panel.");
+                  "needed and be centered on the flat panel. Setting this "
+                  "will disable image sharpening for the display device.");
     
     ctk_help_term(b, &i, "Aspect Ratio Scaled");
     ctk_help_para(b, &i, "The image will be scaled (retaining the original "
