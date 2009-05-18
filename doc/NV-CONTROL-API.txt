@@ -380,6 +380,6 @@
 
 8. NV-CONTROL EXTENSION HISTORY
 
-    1.0 - 1.5   NVIDIA Internal development versions
-    1.6         Initial public version
+    Please see the NV-CONTROL Protocol Version History comment at the
+    top of nv_control.h.
 

@@ -19,6 +19,28 @@
  * LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
  * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
  * SOFTWARE.
+ *
+ *
+ * NV-CONTROL Protocol Version History
+ *
+ * 1.0 - 1.5   NVIDIA Internal development versions
+ * 1.6         Initial public version
+ * 1.7         Added QueryBinaryData request
+ * 1.8         Added TargetTypes
+ * 1.9         Added QueryTargetCount request
+ * 1.10        Fixed target type/id byte ordering for compatibility with
+ *             pre-1.8 NV-CONTROL clients
+ * 1.11        NVIDIA Internal development version
+ * 1.12        Added StringOperation request
+ * 1.13        NVIDIA Internal development version
+ * 1.14        Fixed an NV_CTRL_BINARY_DATA_MODELINES double scan modeline
+ *             reporting bug (vsyncstart, vsyncend, and vtotal were incorrectly
+ *             doubled)
+ * 1.15        Added AVAILABILITY_TARGET_ATTRIBUTE_CHANGED_EVENT
+ * 1.16        Added TARGET_STRING_ATTRIBUTE_CHANGED_EVENT
+ * 1.17        Added TARGET_BINARY_ATTRIBUTE_CHANGED_EVENT
+ * 1.18        Updated QueryTargetCount to return a count of 0, rather than
+ *             BadMatch, if an unknown TargetType is specified
  */
 
 #ifndef __NVCONTROL_H
@@ -29,7 +51,7 @@
 #define NV_CONTROL_NAME "NV-CONTROL"
 
 #define NV_CONTROL_MAJOR 1
-#define NV_CONTROL_MINOR 17
+#define NV_CONTROL_MINOR 18
 
 #define X_nvCtrlQueryExtension                      0
 #define X_nvCtrlIsNv                                1

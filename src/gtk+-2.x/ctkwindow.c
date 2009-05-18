@@ -398,6 +398,7 @@ GtkWidget *ctk_window_new(ParsedAttribute *p, ConfigProperties *conf,
     CtkConfig *ctk_config;
     
     gint column_offset, i;
+    gboolean slimm_page_added; /* XXX Kludge to only show one SLIMM page */
     
     /* create the new object */
 
@@ -597,6 +598,7 @@ GtkWidget *ctk_window_new(ParsedAttribute *p, ConfigProperties *conf,
 
     /* add the per-screen entries into the tree model */
 
+    slimm_page_added = FALSE;
     for (i = 0; i < h->targets[X_SCREEN_TARGET].n; i++) {
 
         gchar *screen_name;
@@ -633,11 +635,12 @@ GtkWidget *ctk_window_new(ParsedAttribute *p, ConfigProperties *conf,
                            CTK_WINDOW_CONFIG_FILE_ATTRIBUTES_FUNC_COLUMN,
                            NULL, -1);
 
-        if (h->targets[VCS_TARGET].n) {
+        if (h->targets[VCS_TARGET].n && !slimm_page_added) {
             /* SLI Mosaic Mode information */
 
             child = ctk_slimm_new(screen_handle, ctk_event, ctk_config);
             if (child) {
+                slimm_page_added = TRUE;
                 help = ctk_slimm_create_help(tag_table, "SLI Mosaic Mode Settings");
                 add_page(child, help, ctk_window, &iter, NULL,
                          "SLI Mosaic Mode Settings", NULL, NULL, NULL);

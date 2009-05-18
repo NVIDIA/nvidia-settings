@@ -167,6 +167,16 @@ typedef struct {
     /* whether this target type is aware of display devices */
     int uses_display_devices;
     
+    /*
+     * the minimum NV-CONTROL Protocol version required to use this target
+     * type; note that all future target types should be able to use 1.18,
+     * since that version and later allows NV-CONTROL clients to query the
+     * count of TargetTypes not recognized by the X server
+     */
+
+    int major;
+    int minor;
+
 } TargetTypeEntry;
 
 

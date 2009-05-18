@@ -1455,17 +1455,24 @@ static void clone_mode_button_ui_toggled(GtkWidget *button, gpointer user_data)
 
     if (enabled) val = NV_CTRL_GVO_DISPLAY_X_SCREEN_ENABLE;
     else         val = NV_CTRL_GVO_DISPLAY_X_SCREEN_DISABLE;
-    NvCtrlSetAttribute(ctk_gvo->handle, NV_CTRL_GVO_DISPLAY_X_SCREEN, val);
 
-    /*
-     * XXX NV_CTRL_GVO_DISPLAY_X_SCREEN can silently fail if GLX
-     * locked GVO output for use by pbuffer(s).  Check that the
-     * setting actually stuck.
-     */
+    ret = NvCtrlSetDisplayAttributeWithReply(ctk_gvo->handle,
+                                             0, /* display_mask */
+                                             NV_CTRL_GVO_DISPLAY_X_SCREEN,
+                                             val);
     
-    ret = NvCtrlGetAttribute(ctk_gvo->handle,
-                             NV_CTRL_GVO_LOCK_OWNER,
-                             &ctk_gvo->lock_owner);
+    if (ret == NvCtrlSuccess) {
+
+        /*
+         * XXX NV_CTRL_GVO_DISPLAY_X_SCREEN can silently fail if GLX
+         * locked GVO output for use by pbuffer(s).  Check that the
+         * setting actually stuck.
+         */
+
+        ret = NvCtrlGetAttribute(ctk_gvo->handle,
+                                 NV_CTRL_GVO_LOCK_OWNER,
+                                 &ctk_gvo->lock_owner);
+    }
 
     if ((ret != NvCtrlSuccess) ||
         (enabled &&

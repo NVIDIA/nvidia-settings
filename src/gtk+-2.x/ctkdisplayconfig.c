@@ -2439,6 +2439,7 @@ static void setup_display_resolution_dropdown(CtkDisplayConfig *ctk_object)
 
     gtk_option_menu_set_history
         (GTK_OPTION_MENU(ctk_object->mnu_display_resolution), cur_idx);
+    ctk_object->last_resolution_idx = cur_idx;
 
     /* If dropdown has only one item, disable menu selection */
     if (ctk_object->resolution_table_len > 1) {

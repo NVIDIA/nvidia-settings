@@ -307,28 +307,32 @@ TargetTypeEntry targetTypeTable[] = {
       X_SCREEN_TARGET,               /* target_index */
       NV_CTRL_TARGET_TYPE_X_SCREEN,  /* nvctrl */
       ATTRIBUTE_TYPE_X_SCREEN,       /* permission_bit */
-      NV_TRUE },                     /* uses_display_devices */
+      NV_TRUE,                       /* uses_display_devices */
+      1, 6 },                        /* required major,minor protocol rev */
     
     { "GPU",                         /* name */
       "gpu",                         /* parsed_name */
       GPU_TARGET,                    /* target_index */
       NV_CTRL_TARGET_TYPE_GPU,       /* nvctrl */
       ATTRIBUTE_TYPE_GPU,            /* permission_bit */
-      NV_TRUE },                     /* uses_display_devices */
+      NV_TRUE,                       /* uses_display_devices */
+      1, 10 },                       /* required major,minor protocol rev */
     
     { "Frame Lock Device",           /* name */
       "framelock",                   /* parsed_name */
       FRAMELOCK_TARGET,              /* target_index */
       NV_CTRL_TARGET_TYPE_FRAMELOCK, /* nvctrl */
       ATTRIBUTE_TYPE_FRAMELOCK,      /* permission_bit */
-      NV_FALSE },                    /* uses_display_devices */
+      NV_FALSE,                      /* uses_display_devices */
+      1, 10 },                       /* required major,minor protocol rev */
 
     { "VCS",                         /* name */
       "vcs",                         /* parsed_name */
       VCS_TARGET,                    /* target_index */
       NV_CTRL_TARGET_TYPE_VCSC,      /* nvctrl */
       ATTRIBUTE_TYPE_VCSC,           /* permission_bit */
-      NV_FALSE },                    /* uses_display_devices */
+      NV_FALSE,                      /* uses_display_devices */
+      1, 12 },                       /* required major,minor protocol rev */
 
     { NULL, NULL, 0, 0, 0 },
 };

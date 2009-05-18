@@ -154,8 +154,33 @@ CtrlHandles *nv_alloc_ctrl_handles(const char *display)
              */
             
             if (pQueryHandle) {
-                status = NvCtrlQueryTargetCount
-                    (pQueryHandle, targetTypeTable[j].nvctrl, &val);
+
+                /*
+                 * check that the NV-CONTROL protocol is new enough to
+                 * recognize this target type
+                 */
+
+                ReturnStatus ret1, ret2;
+                int major, minor;
+
+                ret1 = NvCtrlGetAttribute(pQueryHandle,
+                                          NV_CTRL_ATTR_NV_MAJOR_VERSION,
+                                          &major);
+                ret2 = NvCtrlGetAttribute(pQueryHandle,
+                                          NV_CTRL_ATTR_NV_MINOR_VERSION,
+                                          &minor);
+
+                if ((ret1 == NvCtrlSuccess) && (ret2 == NvCtrlSuccess) &&
+                    ((major > targetTypeTable[j].major) ||
+                     ((major == targetTypeTable[j].major) &&
+                      (minor >= targetTypeTable[j].minor)))) {
+
+                    status = NvCtrlQueryTargetCount
+                                (pQueryHandle, targetTypeTable[j].nvctrl,
+                                 &val);
+                } else {
+                    status = NvCtrlMissingExtension;
+                }
             } else {
                 status = NvCtrlMissingExtension;
             }
@@ -839,20 +864,21 @@ static void print_additional_fsaa_info(const char *name,
 {
     int bit;
 
-#define MORE_INDENT "      "
-
-    nv_msg(indent, "\nNames for valid '%s' values:\n", name);
+    nv_msg(indent, "\n");
+    nv_msg(indent, "Note to assign 'FSAA' on the commandline, you may also "
+           "need to assign\n");
+    nv_msg(indent, "'FSAAAppControlled' and 'FSAAAppEnhanced' to 0.\n");
+    nv_msg(indent, "\n");
+    nv_msg(indent, "Valid '%s' Values\n", name);
+    nv_msg(indent, "  value - description\n");
 
     for (bit = 0; bit < 32; bit++) {
         /* FSAA is not a packed attribute */
         if (valid_fsaa_modes & (1 << bit)) {
-            nv_msg(MORE_INDENT, "%2u - %s\n", 
+            nv_msg(indent, "   %2u   -   %s\n", 
                    bit, NvCtrlGetMultisampleModeName(bit));
         }
     }
-
-#undef MORE_INDENT
-
 }
 
 
