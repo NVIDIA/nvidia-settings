@@ -214,7 +214,8 @@ int nv_write_config_file(const char *filename, CtrlHandles *h,
     NVCTRLAttributeValidValuesRec valid;
     uint32 mask;
     CtrlHandleTarget *t;
-    char *tmp_d_str, *tmp, *prefix, scratch[4];
+    char *tmp_d_str, *prefix, scratch[4];
+    const char *tmp;
     char *locale = "C";
 
     stream = fopen(filename, "w");
@@ -386,7 +387,8 @@ int nv_write_config_file(const char *filename, CtrlHandles *h,
             continue;
         }
 
-        tmp = nv_get_attribute_name(p->attr);
+        tmp = nv_get_attribute_name(p->attr, NV_PARSER_TYPE_STRING_ATTRIBUTE,
+                                    p->flags);
         if (!tmp) {
             nv_error_msg("Failure to save unknown attribute %d.", p->attr);
             p = p->next;

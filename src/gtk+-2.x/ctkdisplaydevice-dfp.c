@@ -885,6 +885,8 @@ GtkTextBuffer *ctk_display_device_dfp_create_help(GtkTextTagTable *table,
         add_acquire_edid_help(b, &i);
     }
 
+    ctk_help_reset_hardware_defaults(b, &i, ctk_display_device_dfp->name);
+
     ctk_help_finish(b);
     
     return b;

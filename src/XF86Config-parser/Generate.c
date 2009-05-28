@@ -375,6 +375,15 @@ static void add_modules(GenerateOptions *gop, XConfigPtr config)
 {
     XConfigLoadPtr l = NULL;
 
+    /*
+     * if the X server will automatically autoload GLX, then don't
+     * bother adding a modules section; it is difficult for
+     * nvidia-xconfig to know if modules like "type1" are present,
+     * anyway.
+     */
+
+    if (gop->autoloads_glx) return;
+
     config->modules = xconfigAlloc(sizeof(XConfigModuleRec));
     
     xconfigAddNewLoadDirective(&l, xconfigStrdup("dbe"),
@@ -1329,6 +1338,104 @@ static char *xconfigGetDefaultProjectRoot(void)
 
 
 
+
+/*
+ * get_xserver_information() - parse the versionString (from `X
+ * -version`) and assign relevant information that we infer from the X
+ * server version.
+ *
+ * Note: this implementation should be shared with nvidia-installer
+ */
+
+static int get_xserver_information(const char *versionString,
+                                   int *isXorg,
+                                   int *isModular,
+                                   int *autoloadsGLX,
+                                   int *supportsExtensionSection)
+{
+#define XSERVER_VERSION_FORMAT_1 "X Window System Version"
+#define XSERVER_VERSION_FORMAT_2 "X.Org X Server"
+
+    int major, minor, found;
+    const char *ptr;
+
+    /* check if this is an XFree86 X server */
+
+    if (strstr(versionString, "XFree86 Version")) {
+        *isXorg = FALSE;
+        *isModular = FALSE;
+        *autoloadsGLX = FALSE;
+        *supportsExtensionSection = FALSE;
+        return TRUE;
+    }
+
+    /* this must be an X.Org X server */
+
+    *isXorg = TRUE;
+
+    /* attempt to parse the major.minor version out of the string */
+
+    found = FALSE;
+
+    if (((ptr = strstr(versionString, XSERVER_VERSION_FORMAT_1)) != NULL) &&
+        (sscanf(ptr, XSERVER_VERSION_FORMAT_1 " %d.%d", &major, &minor) == 2)) {
+        found = TRUE;
+    }
+
+    if (!found &&
+        ((ptr = strstr(versionString, XSERVER_VERSION_FORMAT_2)) != NULL) &&
+        (sscanf(ptr, XSERVER_VERSION_FORMAT_2 " %d.%d", &major, &minor) == 2)) {
+        found = TRUE;
+    }
+
+    /* if we can't parse the version, give up */
+
+    if (!found) return FALSE;
+
+    /*
+     * isModular: X.Org X11R6.x X servers are monolithic, all others
+     * are modular
+     */
+
+    if (major == 6) {
+        *isModular = FALSE;
+    } else {
+        *isModular = TRUE;
+    }
+
+    /*
+     * supportsExtensionSection: support for the "Extension" xorg.conf
+     * section was added between X.Org 6.7 and 6.8.  To account for
+     * the X server version wrap, it is easier to check for X servers
+     * that do not support the Extension section: 6.x (x < 8) X
+     * servers.
+     */
+
+    if ((major == 6) && (minor < 8)) {
+        *supportsExtensionSection = FALSE;
+    } else {
+        *supportsExtensionSection = TRUE;
+    }
+
+    /*
+     * support for autoloading GLX was added in X.Org 1.5.  To account
+     * for the X server version wrap, it is easier to check for X
+     * servers that do not support GLX autoloading: 6.x, 7.x, or < 1.5
+     * X servers.
+     */
+
+    if ((major == 6) || (major == 7) || ((major == 1) && (minor < 5))) {
+        *autoloadsGLX = FALSE;
+    } else {
+        *autoloadsGLX = TRUE;
+    }
+
+    return TRUE;
+
+} /* get_xserver_information() */
+
+
+
 /*
  * xconfigGetXServerInUse() - try to determine which X server is in use
  * (XFree86, Xorg); also determine if the X server supports the
@@ -1341,33 +1448,29 @@ static char *xconfigGetDefaultProjectRoot(void)
 
 #define NV_LINE_LEN 1024
 #define EXTRA_PATH "/bin:/usr/bin:/sbin:/usr/sbin:/usr/X11R6/bin:/usr/bin/X11"
-#define VERSION_FORMAT "X Protocol Version %d, Revision %d, Release %d.%d"
+#if defined(NV_SUNOS)
+#define XSERVER_BIN_NAME "Xorg"
+#else
+#define XSERVER_BIN_NAME "X"
+#endif
+
 
 void xconfigGetXServerInUse(GenerateOptions *gop)
 {
-#if defined(NV_SUNOS)    
-
-    /*
-     * Solaris x86/x64 always uses X.Org 6.8 or higher, atleast as far
-     * as the NVIDIA X driver is concerned
-     */
-    
-    gop->xserver = X_IS_XORG;
-    gop->supports_extension_section = TRUE;
-    
-#else
-    
     FILE *stream = NULL;
     int xserver = -1;
-    int dummy, len, release_major, release_minor;
+    int isXorg;
+    int dummy, len, found;
     char *cmd, *ptr, *ret;
     
     gop->supports_extension_section = FALSE;
-    
+    gop->autoloads_glx = FALSE;
+
     /* run `X -version` with a PATH that hopefully includes the X binary */
     
     cmd = xconfigStrcat("PATH=", gop->x_project_root, ":",
-                        EXTRA_PATH, ":$PATH X -version 2>&1", NULL);
+                        EXTRA_PATH, ":$PATH ", XSERVER_BIN_NAME,
+                        " -version 2>&1", NULL);
     
     if ((stream = popen(cmd, "r"))) {
         char buf[NV_LINE_LEN];
@@ -1382,23 +1485,26 @@ void xconfigGetXServerInUse(GenerateOptions *gop)
             ptr = strchr(ptr, '\0');
         } while ((ret != NULL) && (len > 1));
         
-        /* Check if this is an XFree86 release */
+        /*
+         * process the `X -version` output to infer relevant
+         * information from this X server
+         */
         
-        if (strstr(buf, "XFree86 Version") != NULL) {
-            xserver = X_IS_XF86;
-            gop->supports_extension_section = FALSE;
-        } else {
-            xserver = X_IS_XORG;
-            if ((ptr = strstr(buf, "X Protocol Version")) != NULL &&
-                sscanf(ptr, VERSION_FORMAT, &dummy, &dummy,
-                       &release_major, &release_minor) == 4) {
+        found = get_xserver_information(buf,
+                                        &isXorg,
+                                        &dummy, /* isModular */
+                                        &gop->autoloads_glx,
+                                        &gop->supports_extension_section);
                 
-                if ((release_major > 6) ||
-                    ((release_major == 6) && (release_minor >= 8))) {
-                    gop->supports_extension_section = TRUE; 
-                }
+        if (found) {
+            if (isXorg) {
+                xserver = X_IS_XORG;
+            } else {
+                xserver = X_IS_XF86;
             }
-        } 
+        } else {
+            xconfigErrorMsg(WarnMsg, "Unable to parse X.Org version string.");
+        }
     }
     /* Close the popen()'ed stream. */
     pclose(stream);
@@ -1417,7 +1523,6 @@ void xconfigGetXServerInUse(GenerateOptions *gop)
     }
     
     gop->xserver=xserver;
-#endif
 
 } /* xconfigGetXServerInUse() */
 

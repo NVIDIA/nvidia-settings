@@ -215,6 +215,8 @@ struct _nvFrameLockDataRec {
     gpointer   handle; /* NV-CONTROL Frame Lock Target */
     int        server_id;
 
+    int        sync_delay_resolution;
+
     /* Signal Handler IDs */
     gulong     signal_ids[NUM_FRAMELOCK_SIGNALS];
 
@@ -3457,7 +3459,8 @@ void list_entry_update_framelock_status(CtkFramelock *ctk_framelock,
     /* Sync Delay (Skew) */
     gtk_widget_set_sensitive(data->delay_label, framelock_enabled);
     gtk_widget_set_sensitive(data->delay_text, framelock_enabled);
-    fvalue = ((gfloat) delay) * NV_CTRL_FRAMELOCK_SYNC_DELAY_FACTOR;
+    fvalue = ((gfloat) delay) *
+             ((gfloat) data->sync_delay_resolution) / 1000.0;
     snprintf(str, 32, "%.2f uS", fvalue); // 10.2f
     gtk_label_set_text(GTK_LABEL(data->delay_text), str);
 
@@ -5244,7 +5247,19 @@ static unsigned int add_framelock_devices(CtkFramelock *ctk_framelock,
                                 framelock_id,
                                 NV_CTRL_ATTRIBUTES_NV_CONTROL_SUBSYSTEM);
 
-        /* Get the framelock revision information */
+        /* Gather framelock device information */
+        ret = NvCtrlGetAttribute(framelock_data->handle,
+                                 NV_CTRL_FRAMELOCK_SYNC_DELAY_RESOLUTION,
+                                 &val);
+        if (ret == NvCtrlSuccess) {
+            framelock_data->sync_delay_resolution = val;
+        } else {
+            /* Fall back to the GSync II's resolution when
+             * working with an older X server
+             */
+            framelock_data->sync_delay_resolution = 7810;
+        }
+
         ret = NvCtrlGetAttribute(framelock_data->handle,
                                  NV_CTRL_FRAMELOCK_FPGA_REVISION,
                                  &val);
@@ -5492,7 +5507,7 @@ static gint add_devices(CtkFramelock *ctk_framelock,
 static void add_entry_to_parsed_attributes(nvListEntryPtr entry,
                                              ParsedAttribute *head)
 {
-    ParsedAttribute a;
+    ParsedAttribute a = { 0 };
     char *display_name = NULL;
     int target_type = 0;
     int target_id = 0;

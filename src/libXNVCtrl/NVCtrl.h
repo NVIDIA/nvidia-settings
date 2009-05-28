@@ -404,17 +404,27 @@
 
 /*
  * NV_CTRL_FRAMELOCK_SYNC_DELAY - delay between the frame lock pulse
- * and the GPU sync.  This is an 11 bit value which is multipled by
- * 7.81 to determine the sync delay in microseconds.
+ * and the GPU sync.  This value must be multiplied by 
+ * NV_CTRL_FRAMELOCK_SYNC_DELAY_RESOLUTION to determine the sync delay in
+ * nanoseconds.
  *
  * This attribute may be queried through XNVCTRLQueryTargetAttribute()
  * using a NV_CTRL_TARGET_TYPE_FRAMELOCK or NV_CTRL_TARGET_TYPE_X_SCREEN
  * target.
+ *
+ * USAGE NODE: NV_CTRL_FRAMELOCK_SYNC_DELAY_MAX and
+ *             NV_CTRL_FRAMELOCK_SYNC_DELAY_FACTOR are deprecated.
+ *             The Sync Delay _MAX and _FACTOR are different for different
+ *             GSync products and so, to be correct, the valid values for
+ *             NV_CTRL_FRAMELOCK_SYNC_DELAY must be queried to get the range
+ *             of acceptable sync delay values, and 
+ *             NV_CTRL_FRAMELOCK_SYNC_DELAY_RESOLUTION must be queried to
+ *             obtain the correct factor.
  */
 
 #define NV_CTRL_FRAMELOCK_SYNC_DELAY                            24 /* RW-F */
-#define NV_CTRL_FRAMELOCK_SYNC_DELAY_MAX                        2047
-#define NV_CTRL_FRAMELOCK_SYNC_DELAY_FACTOR                     7.81
+#define NV_CTRL_FRAMELOCK_SYNC_DELAY_MAX                        2047 // deprecated
+#define NV_CTRL_FRAMELOCK_SYNC_DELAY_FACTOR                     7.81 // deprecated
 
 
 /*
@@ -2317,7 +2327,7 @@
  * NV_CTRL_GVO_ENABLE_RGB_DATA - Allows clients to specify when
  * the GVO board should process colors as RGB when the output data
  * format is one of the NV_CTRL_GVO_DATA_FORMAT_???_PASSTRHU modes.
- */	
+ */
 
 #define NV_CTRL_GVO_ENABLE_RGB_DATA                             304 /* RW- */
 #define NV_CTRL_GVO_ENABLE_RGB_DATA_DISABLE                       0
@@ -2330,7 +2340,13 @@
 
 #define NV_CTRL_IMAGE_SHARPENING_DEFAULT                        305 /* R-- */
 
-#define NV_CTRL_LAST_ATTRIBUTE  NV_CTRL_IMAGE_SHARPENING_DEFAULT
+/*
+ * NV_CTRL_FRAMELOCK_SYNC_DELAY_RESOLUTION - Returns the number of nanoseconds
+ * that one unit of NV_CTRL_FRAMELOCK_SYNC_DELAY corresponds to.
+ */
+#define NV_CTRL_FRAMELOCK_SYNC_DELAY_RESOLUTION                 318 /* R-- */
+
+#define NV_CTRL_LAST_ATTRIBUTE  NV_CTRL_FRAMELOCK_SYNC_DELAY_RESOLUTION
 
 
 /**************************************************************************/

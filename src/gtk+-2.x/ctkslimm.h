@@ -82,6 +82,9 @@ struct _CtkSLIMM
     nvModeLinePtr modelines;
     nvModeLinePtr cur_modeline;
     gint num_modelines;
+
+    int max_screen_width;
+    int max_screen_height;
 };
 
 struct _CtkSLIMMClass

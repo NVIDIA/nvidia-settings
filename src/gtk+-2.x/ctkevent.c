@@ -270,6 +270,7 @@ static void ctk_event_class_init(CtkEventClass *ctk_event_class)
     MAKE_SIGNAL(NV_CTRL_SLI_MOSAIC_MODE_AVAILABLE);
     MAKE_SIGNAL(NV_CTRL_GVO_ENABLE_RGB_DATA);
     MAKE_SIGNAL(NV_CTRL_IMAGE_SHARPENING_DEFAULT);
+    MAKE_SIGNAL(NV_CTRL_FRAMELOCK_SYNC_DELAY_RESOLUTION);
 
 #undef MAKE_SIGNAL
     
@@ -280,7 +281,7 @@ static void ctk_event_class_init(CtkEventClass *ctk_event_class)
      * knows about.
      */
 
-#if NV_CTRL_LAST_ATTRIBUTE != NV_CTRL_IMAGE_SHARPENING_DEFAULT
+#if NV_CTRL_LAST_ATTRIBUTE != NV_CTRL_FRAMELOCK_SYNC_DELAY_RESOLUTION
 #warning "There are attributes that do not emit signals!"
 #endif
 

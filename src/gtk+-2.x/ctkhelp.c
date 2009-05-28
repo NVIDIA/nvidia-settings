@@ -406,3 +406,14 @@ void ctk_help_finish(GtkTextBuffer *buffer)
     gtk_text_buffer_apply_tag_by_name
         (buffer, CTK_HELP_SINGLE_SPACE_TAG, &start, &end);
 }
+
+void ctk_help_reset_hardware_defaults(GtkTextBuffer *b, GtkTextIter *i,
+                                      char *name)
+{
+    ctk_help_heading(b, i, "Reset Hardware Defaults");
+    ctk_help_para(b, i, "The Reset Hardware Defaults button restores "
+                  "the %s settings to their default "
+                  "values.", name);
+
+}
+

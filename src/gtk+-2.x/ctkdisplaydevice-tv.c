@@ -737,6 +737,8 @@ GtkTextBuffer *ctk_display_device_tv_create_help(GtkTextTagTable *table,
         add_acquire_edid_help(b, &i);
     }
     
+    ctk_help_reset_hardware_defaults(b, &i, ctk_display_device_tv->name);
+
     ctk_help_finish(b);
 
     return b;

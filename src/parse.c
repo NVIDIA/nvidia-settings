@@ -179,6 +179,7 @@ AttributeTableEntry attributeTable[] = {
     { "FrameLockSlaveable",    NV_CTRL_FRAMELOCK_SLAVEABLE,         N|F|G|D, "Returns whether the display device(s) can be set as slave(s) of the frame lock group." },
     { "FrameLockFPGARevision", NV_CTRL_FRAMELOCK_FPGA_REVISION,     N|F|G,   "Returns the FPGA revision of the Frame Lock device." },
     { "FrameLockSyncRate4",    NV_CTRL_FRAMELOCK_SYNC_RATE_4,       N|F|G,   "Returns the refresh rate that the frame lock board is sending to the GPU in 1/10000 Hz (i.e. to get the refresh rate in Hz, divide the returned value by 10000.)" },
+    { "FrameLockSyncDelayResolution", NV_CTRL_FRAMELOCK_SYNC_DELAY_RESOLUTION, N|F|G, "Returns the number of nanoseconds that one unit of FrameLockSyncDelay corresponds to." },
 
     /* GVO */
     { "GvoSupported",                    NV_CTRL_GVO_SUPPORTED,                        I|N,   "Returns whether this X screen supports GVO; if this screen does not support GVO output, then all other GVO attributes are unavailable." },
@@ -289,7 +290,7 @@ AttributeTableEntry attributeTable[] = {
  * about.
  */
 
-#if NV_CTRL_LAST_ATTRIBUTE != NV_CTRL_IMAGE_SHARPENING_DEFAULT
+#if NV_CTRL_LAST_ATTRIBUTE != NV_CTRL_FRAMELOCK_SYNC_DELAY_RESOLUTION
 #warning "Have you forgotten to add a new integer attribute to attributeTable?"
 #endif
 
@@ -1095,12 +1096,16 @@ void nv_parsed_attribute_clean(ParsedAttribute *p)
  * corresponds to the attribute constant.
  */
 
-char *nv_get_attribute_name(const int attr)
+const char *nv_get_attribute_name(const int attr, const int flagsMask,
+                                  const int flags)
 {
     int i;
 
     for (i = 0; attributeTable[i].name; i++) {
-        if (attributeTable[i].attr == attr) return attributeTable[i].name;
+        if (attributeTable[i].attr == attr &&
+            (attributeTable[i].flags & flagsMask) == (flags & flagsMask)) {
+            return attributeTable[i].name;
+        }
     }
 
     return NULL;

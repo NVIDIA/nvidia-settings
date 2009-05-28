@@ -78,6 +78,9 @@ void ctk_help_heading (GtkTextBuffer *, GtkTextIter *, const gchar *, ...);
 void ctk_help_term    (GtkTextBuffer *, GtkTextIter *, const gchar *, ...);
 void ctk_help_finish  (GtkTextBuffer *);
 
+void ctk_help_reset_hardware_defaults(GtkTextBuffer *, GtkTextIter *, char *);
+
+
 #define CTK_HELP_TITLE_TAG                "title"
 #define CTK_HELP_HEADING_TAG              "heading"
 #define CTK_HELP_HEADING_NOT_EDITABLE_TAG "not_editable"

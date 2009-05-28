@@ -297,7 +297,8 @@ void nv_parsed_attribute_add(ParsedAttribute *head, ParsedAttribute *a);
 void nv_parsed_attribute_free(ParsedAttribute *p);
 void nv_parsed_attribute_clean(ParsedAttribute *p);
 
-char *nv_get_attribute_name(const int attr);
+const char *nv_get_attribute_name(const int attr, const int flagsMask,
+                                  const int flags);
 
 char *nv_standardize_screen_name(const char *display_name, int screen);
 

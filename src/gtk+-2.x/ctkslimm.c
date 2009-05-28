@@ -275,13 +275,95 @@ static XConfigPtr xconfig_generate(XConfigPtr xconfCur,
 
 
 
+static Bool compute_screen_size(CtkSLIMM *ctk_object, gint *width,
+                                gint *height)
+{
+    gint config_idx;
+    GridConfig *grid_config;
+    gint x_displays,y_displays;
+    gint h_overlap, v_overlap;
+
+
+    if (!ctk_object->cur_modeline) {
+        return FALSE;
+    }
+
+    config_idx = gtk_option_menu_get_history(GTK_OPTION_MENU(ctk_object->mnu_display_config));
+
+    /* Get grid configuration values from index */
+    grid_config = get_ith_valid_grid_config(config_idx);
+    if (grid_config) {
+        x_displays = grid_config->columns;
+        y_displays = grid_config->rows;
+    } else {
+        x_displays = y_displays = 0;
+    }
+    
+    gtk_widget_set_sensitive(ctk_object->spbtn_hedge_overlap,
+                             x_displays > 1 ? True : False);
+    gtk_widget_set_sensitive(ctk_object->spbtn_vedge_overlap,
+                             y_displays > 1 ? True : False);
+
+    h_overlap = gtk_spin_button_get_value_as_int(GTK_SPIN_BUTTON(ctk_object->spbtn_hedge_overlap));
+    v_overlap = gtk_spin_button_get_value_as_int(GTK_SPIN_BUTTON(ctk_object->spbtn_vedge_overlap));
+
+    /* Total X Screen Size Calculation */
+    *width = x_displays * ctk_object->cur_modeline->data.hdisplay - 
+        (x_displays - 1) * h_overlap;
+    *height = y_displays * ctk_object->cur_modeline->data.vdisplay - 
+        (y_displays - 1) * v_overlap;
+
+    return TRUE;
+}
+
+
+
 static void save_xconfig_button_clicked(GtkWidget *widget, gpointer user_data)
 {
     CtkSLIMM *ctk_object = CTK_SLIMM(user_data); 
+    gint width, height;
+    Bool error = FALSE;
+    gchar *err_msg = NULL;
 
-    /* Run the dialog */
+
+    /* Make sure the screen size is acceptable */
+    if (!compute_screen_size(ctk_object, &width, &height)) {
+        error = TRUE;
+        err_msg = g_strdup("Unknown screen size!");
+
+    } else if ((width > ctk_object->max_screen_width) ||
+               (height > ctk_object->max_screen_height)) {
+        error = TRUE;
+        err_msg = g_strdup_printf("The configured X screen size of %dx%d is \n"
+                                  "too large.  The maximum supported size is\n"
+                                  "%dx%d.",
+                                  width, height,
+                                  ctk_object->max_screen_width,
+                                  ctk_object->max_screen_height);
+    }
+
+    if (error) {
+        GtkWidget *dlg;
+        GtkWidget *parent;
+
+        parent = ctk_get_parent_window(GTK_WIDGET(ctk_object));
+
+        dlg = gtk_message_dialog_new
+            (GTK_WINDOW(parent),
+             GTK_DIALOG_DESTROY_WITH_PARENT,
+             GTK_MESSAGE_WARNING,
+             GTK_BUTTONS_OK,
+             err_msg);
+            
+        gtk_dialog_run(GTK_DIALOG(dlg));
+        gtk_widget_destroy(dlg);
+        g_free(err_msg);
+        return;
+    }
+
+
+    /* Run the save dialog */
     run_save_xconfig_dialog(ctk_object->save_xconfig_dlg);
-
 }
 
 
@@ -393,47 +475,20 @@ static void slimm_checkbox_toggled(GtkWidget *widget, gpointer user_data)
 
 static void setup_total_size_label(CtkSLIMM *ctk_object)
 {
-    gint idx;
-    gint x_displays,y_displays;
-    gint h_overlap, v_overlap;
+    gint width, height;
     gchar *xscreen_size;
-    gint x_total, y_total;
-    GridConfig *grid_config;
 
-    if (!ctk_object->cur_modeline) {
+
+    if (!compute_screen_size(ctk_object, &width, &height)) {
         return;
     }
 
-    idx = gtk_option_menu_get_history(GTK_OPTION_MENU(ctk_object->mnu_display_config));
-
-    /* Get grid configuration values from index */
-    grid_config = get_ith_valid_grid_config(idx);
-    if (grid_config) {
-        x_displays = grid_config->columns;
-        y_displays = grid_config->rows;
-    } else {
-        x_displays = y_displays = 0;
-    }
-    
-    gtk_widget_set_sensitive(ctk_object->spbtn_hedge_overlap,
-                             x_displays > 1 ? True : False);
-    gtk_widget_set_sensitive(ctk_object->spbtn_vedge_overlap,
-                             y_displays > 1 ? True : False);
-
-    h_overlap = gtk_spin_button_get_value_as_int(GTK_SPIN_BUTTON(ctk_object->spbtn_hedge_overlap));
-    v_overlap = gtk_spin_button_get_value_as_int(GTK_SPIN_BUTTON(ctk_object->spbtn_vedge_overlap));
-
-    /* Total X Screen Size Calculation */
-    x_total = x_displays * ctk_object->cur_modeline->data.hdisplay - 
-              (x_displays - 1) * h_overlap;
-    y_total = y_displays * ctk_object->cur_modeline->data.vdisplay - 
-              (y_displays - 1) * v_overlap;
-
-    xscreen_size = g_strdup_printf("%d x %d", x_total, y_total);
+    xscreen_size = g_strdup_printf("%d x %d", width, height);
     gtk_label_set_text(GTK_LABEL(ctk_object->lbl_total_size), xscreen_size);
     g_free(xscreen_size);
-
 }
+
+
 
 /** setup_display_refresh_dropdown() *********************************
  *
@@ -1222,6 +1277,21 @@ GtkWidget* ctk_slimm_new(NvCtrlAttributeHandle *handle,
         return NULL;
     }
 
+    /* Query the maximum screen sizes */
+    ret = NvCtrlGetAttribute(ctk_object->handle,
+                             NV_CTRL_MAX_SCREEN_WIDTH,
+                             &ctk_slimm->max_screen_width);
+    if (ret != NvCtrlSuccess) {
+        return NULL;
+    }
+
+    ret = NvCtrlGetAttribute(ctk_object->handle,
+                             NV_CTRL_MAX_SCREEN_HEIGHT,
+                             &ctk_slimm->max_screen_height);
+    if (ret != NvCtrlSuccess) {
+        return NULL;
+    }
+
     /*
      * Create the display configuration widgets
      *
@@ -1544,6 +1614,25 @@ GtkWidget* ctk_slimm_new(NvCtrlAttributeHandle *handle,
     gtk_box_pack_start(GTK_BOX(hbox), label, FALSE, FALSE, 10);
     gtk_table_attach(GTK_TABLE(table), hbox, 1, 2, 9, 10, GTK_EXPAND | GTK_FILL,
                      GTK_EXPAND | GTK_FILL, 0.5, 0.5);
+
+    hbox = gtk_hbox_new(FALSE, 0);
+    label = gtk_label_new("Maximum Size");
+    hseparator = gtk_hseparator_new();
+    gtk_widget_show(hseparator);
+    gtk_box_pack_start(GTK_BOX(hbox), label, FALSE, FALSE, 5);
+    gtk_box_pack_start(GTK_BOX(hbox), hseparator, TRUE, TRUE, 5);
+    gtk_table_attach(GTK_TABLE(table), hbox, 1, 2, 10, 11, GTK_EXPAND | GTK_FILL,
+                     GTK_EXPAND | GTK_FILL, 0.5, 0.5);
+
+    tmp = g_strdup_printf("%dx%d", ctk_slimm->max_screen_width,
+                          ctk_slimm->max_screen_height);
+    label = gtk_label_new(tmp);
+    g_free(tmp);
+    hbox = gtk_hbox_new(FALSE, 0);
+    gtk_box_pack_start(GTK_BOX(hbox), label, FALSE, FALSE, 10);
+    gtk_table_attach(GTK_TABLE(table), hbox, 1, 2, 11, 12, GTK_EXPAND | GTK_FILL,
+                     GTK_EXPAND | GTK_FILL, 0.5, 0.5);
+
 
     label = gtk_label_new("Save to X Configuration File");
     hbox = gtk_hbox_new(FALSE, 0);

@@ -593,6 +593,7 @@ typedef struct {
     char *keyboard_driver;
 
     int supports_extension_section;
+    int autoloads_glx;
 
 } GenerateOptions;
 
