@@ -141,9 +141,10 @@ XConfigScreenPtr xconfigGenerateAddScreen(XConfigPtr config,
 
 
 /*
- * assign_screen_adjacencies() - setup all the adjacency information
- * for the X screens in the given layout.  Nothing fancy here: just
- * position all the screens horizontally, moving from left to right.
+ * xconfigGenerateAssignScreenAdjacencies() - setup all the adjacency
+ * information for the X screens in the given layout.  Nothing fancy
+ * here: just position all the screens horizontally, moving from left
+ * to right.
  */
 
 void xconfigGenerateAssignScreenAdjacencies(XConfigLayoutPtr layout)
@@ -374,6 +375,15 @@ static void add_font_path(GenerateOptions *gop, XConfigPtr config)
 static void add_modules(GenerateOptions *gop, XConfigPtr config)
 {
     XConfigLoadPtr l = NULL;
+
+    /*
+     * if the X server will automatically autoload GLX, then don't
+     * bother adding a modules section; it is difficult for
+     * nvidia-xconfig to know if modules like "type1" are present,
+     * anyway.
+     */
+
+    if (gop->autoloads_glx) return;
 
     config->modules = xconfigAlloc(sizeof(XConfigModuleRec));
     
@@ -1311,3 +1321,248 @@ int xconfigAddKeyboard(GenerateOptions *gop, XConfigPtr config)
     return TRUE;
     
 } /* xconfigAddKeyboard() */
+
+
+
+/*
+ * xconfigGetDefaultProjectRoot() - scan some common directories for the X
+ * project root.
+ *
+ * Users of this information should be careful to account for the
+ * modular layout.
+ */
+
+static char *xconfigGetDefaultProjectRoot(void)
+{
+    char *paths[] = { "/usr/X11R6", "/usr/X11", NULL };
+    struct stat stat_buf;
+    int i;
+        
+    for (i = 0; paths[i]; i++) {
+        
+        if (stat(paths[i], &stat_buf) == -1) {
+            continue;
+        }
+    
+        if (S_ISDIR(stat_buf.st_mode)) {
+            return paths[i];
+        }
+    }
+    
+    /* default to "/usr/X11R6", I guess */
+
+    return paths[0];
+
+} /* xconfigGetDefaultProjectRoot() */
+
+
+
+
+/*
+ * get_xserver_information() - parse the versionString (from `X
+ * -version`) and assign relevant information that we infer from the X
+ * server version.
+ *
+ * Note: this implementation should be shared with nvidia-installer
+ */
+
+static int get_xserver_information(const char *versionString,
+                                   int *isXorg,
+                                   int *isModular,
+                                   int *autoloadsGLX,
+                                   int *supportsExtensionSection)
+{
+#define XSERVER_VERSION_FORMAT_1 "X Window System Version"
+#define XSERVER_VERSION_FORMAT_2 "X.Org X Server"
+
+    int major, minor, found;
+    const char *ptr;
+
+    /* check if this is an XFree86 X server */
+
+    if (strstr(versionString, "XFree86 Version")) {
+        *isXorg = FALSE;
+        *isModular = FALSE;
+        *autoloadsGLX = FALSE;
+        *supportsExtensionSection = FALSE;
+        return TRUE;
+    }
+
+    /* this must be an X.Org X server */
+
+    *isXorg = TRUE;
+
+    /* attempt to parse the major.minor version out of the string */
+
+    found = FALSE;
+
+    if (((ptr = strstr(versionString, XSERVER_VERSION_FORMAT_1)) != NULL) &&
+        (sscanf(ptr, XSERVER_VERSION_FORMAT_1 " %d.%d", &major, &minor) == 2)) {
+        found = TRUE;
+    }
+
+    if (!found &&
+        ((ptr = strstr(versionString, XSERVER_VERSION_FORMAT_2)) != NULL) &&
+        (sscanf(ptr, XSERVER_VERSION_FORMAT_2 " %d.%d", &major, &minor) == 2)) {
+        found = TRUE;
+    }
+
+    /* if we can't parse the version, give up */
+
+    if (!found) return FALSE;
+
+    /*
+     * isModular: X.Org X11R6.x X servers are monolithic, all others
+     * are modular
+     */
+
+    if (major == 6) {
+        *isModular = FALSE;
+    } else {
+        *isModular = TRUE;
+    }
+
+    /*
+     * supportsExtensionSection: support for the "Extension" xorg.conf
+     * section was added between X.Org 6.7 and 6.8.  To account for
+     * the X server version wrap, it is easier to check for X servers
+     * that do not support the Extension section: 6.x (x < 8) X
+     * servers.
+     */
+
+    if ((major == 6) && (minor < 8)) {
+        *supportsExtensionSection = FALSE;
+    } else {
+        *supportsExtensionSection = TRUE;
+    }
+
+    /*
+     * support for autoloading GLX was added in X.Org 1.5.  To account
+     * for the X server version wrap, it is easier to check for X
+     * servers that do not support GLX autoloading: 6.x, 7.x, or < 1.5
+     * X servers.
+     */
+
+    if ((major == 6) || (major == 7) || ((major == 1) && (minor < 5))) {
+        *autoloadsGLX = FALSE;
+    } else {
+        *autoloadsGLX = TRUE;
+    }
+
+    return TRUE;
+
+} /* get_xserver_information() */
+
+
+
+/*
+ * xconfigGetXServerInUse() - try to determine which X server is in use
+ * (XFree86, Xorg); also determine if the X server supports the
+ * Extension section of the X config file; support for the "Extension"
+ * section was added between X.Org 6.7 and 6.8.
+ *
+ * Some of the parsing here mimics what is done in the
+ * check_for_modular_xorg() function in nvidia-installer
+ */
+
+#define NV_LINE_LEN 1024
+#define EXTRA_PATH "/bin:/usr/bin:/sbin:/usr/sbin:/usr/X11R6/bin:/usr/bin/X11"
+#if defined(NV_SUNOS)
+#define XSERVER_BIN_NAME "Xorg"
+#else
+#define XSERVER_BIN_NAME "X"
+#endif
+
+
+void xconfigGetXServerInUse(GenerateOptions *gop)
+{
+    FILE *stream = NULL;
+    int xserver = -1;
+    int isXorg;
+    int dummy, len, found;
+    char *cmd, *ptr, *ret;
+    
+    gop->supports_extension_section = FALSE;
+    gop->autoloads_glx = FALSE;
+
+    /* run `X -version` with a PATH that hopefully includes the X binary */
+    
+    cmd = xconfigStrcat("PATH=", gop->x_project_root, ":",
+                        EXTRA_PATH, ":$PATH ", XSERVER_BIN_NAME,
+                        " -version 2>&1", NULL);
+    
+    if ((stream = popen(cmd, "r"))) {
+        char buf[NV_LINE_LEN];
+        
+        /* read in as much of the input as we can fit into the buffer */
+        
+        ptr = buf;
+
+        do {
+            len = NV_LINE_LEN - (ptr - buf) - 1;
+            ret = fgets(ptr, len, stream);
+            ptr = strchr(ptr, '\0');
+        } while ((ret != NULL) && (len > 1));
+        
+        /*
+         * process the `X -version` output to infer relevant
+         * information from this X server
+         */
+        
+        found = get_xserver_information(buf,
+                                        &isXorg,
+                                        &dummy, /* isModular */
+                                        &gop->autoloads_glx,
+                                        &gop->supports_extension_section);
+                
+        if (found) {
+            if (isXorg) {
+                xserver = X_IS_XORG;
+            } else {
+                xserver = X_IS_XF86;
+            }
+        } else {
+            xconfigErrorMsg(WarnMsg, "Unable to parse X.Org version string.");
+        }
+    }
+    /* Close the popen()'ed stream. */
+    pclose(stream);
+    free(cmd);
+
+    if (xserver == -1) {
+        char *xorgpath;
+
+        xorgpath = xconfigStrcat(gop->x_project_root, "/bin/Xorg", NULL);
+        if (access(xorgpath, F_OK)==0) {
+            xserver = X_IS_XORG;
+        } else {
+            xserver = X_IS_XF86;
+        }
+        free(xorgpath);
+    }
+    
+    gop->xserver=xserver;
+
+} /* xconfigGetXServerInUse() */
+
+
+
+/*
+ * xconfigGenerateLoadDefaultOptions - initialize a GenerateOptions
+ * structure with default values by peeking at the file system.
+ */
+
+void xconfigGenerateLoadDefaultOptions(GenerateOptions *gop)
+{
+    memset(gop, 0, sizeof(GenerateOptions));
+
+    gop->x_project_root = xconfigGetDefaultProjectRoot();
+
+    /* XXX What to default the following to?
+       gop->xserver
+       gop->keyboard
+       gop->mouse
+       gop->keyboard_driver
+     */
+
+} /* xconfigGenerateLoadDefaultOptions() */
