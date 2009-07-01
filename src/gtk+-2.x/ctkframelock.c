@@ -5381,7 +5381,7 @@ static gint add_devices(CtkFramelock *ctk_framelock,
 static void add_entry_to_parsed_attributes(nvListEntryPtr entry,
                                              ParsedAttribute *head)
 {
-    ParsedAttribute a;
+    ParsedAttribute a = { 0 };
     char *display_name = NULL;
     int target_type = 0;
     int target_id = 0;

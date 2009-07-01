@@ -701,8 +701,8 @@ static void print_valid_values(char *name, uint32 flags,
         }
 
         if (flags & NV_PARSER_TYPE_PACKED_ATTRIBUTE) {
-            nv_msg(INDENT, "Valid values for '%s' are: [%s], [%s].", name, str,
-                   str2);
+            nv_msg(INDENT, "Valid values for '%s' are: [%s], [%s].", name, str2,
+                   str);
         } else {
             nv_msg(INDENT, "Valid values for '%s' are: %s.", name, str);
         }

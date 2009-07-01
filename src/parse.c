@@ -1060,12 +1060,16 @@ void nv_parsed_attribute_clean(ParsedAttribute *p)
  * corresponds to the attribute constant.
  */
 
-char *nv_get_attribute_name(const int attr)
+const char *nv_get_attribute_name(const int attr, const int flagsMask,
+                                  const int flags)
 {
     int i;
 
     for (i = 0; attributeTable[i].name; i++) {
-        if (attributeTable[i].attr == attr) return attributeTable[i].name;
+        if (attributeTable[i].attr == attr &&
+            (attributeTable[i].flags & flagsMask) == (flags & flagsMask)) {
+            return attributeTable[i].name;
+        }
     }
 
     return NULL;
