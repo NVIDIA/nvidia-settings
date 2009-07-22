@@ -705,7 +705,7 @@ Bool XNVCTRLQueryTargetBinaryData (
     length = rep.length;
     numbytes = rep.n;
     slop = numbytes & 3;
-    *ptr = (char *) Xmalloc(numbytes);
+    *ptr = (unsigned char *) Xmalloc(numbytes);
     if (! *ptr) {
         _XEatData(dpy, length);
         UnlockDisplay (dpy);

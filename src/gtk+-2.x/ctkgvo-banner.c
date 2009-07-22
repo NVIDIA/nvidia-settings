@@ -232,9 +232,9 @@ GtkWidget* ctk_gvo_banner_new(NvCtrlAttributeHandle *handle,
     }
     ctk_gvo_banner->sync_source = val;
 
-    ret = NvCtrlGetAttribute(handle, NV_CTRL_GVO_OUTPUT_VIDEO_FORMAT, &val);
+    ret = NvCtrlGetAttribute(handle, NV_CTRL_GVIO_REQUESTED_VIDEO_FORMAT, &val);
     if (ret != NvCtrlSuccess) {
-        val = NV_CTRL_GVO_VIDEO_FORMAT_NONE;
+        val = NV_CTRL_GVIO_VIDEO_FORMAT_NONE;
     }
     ctk_gvo_banner->output_video_format = val;
 
@@ -289,7 +289,7 @@ GtkWidget* ctk_gvo_banner_new(NvCtrlAttributeHandle *handle,
                      (gpointer) ctk_gvo_banner);
 
     g_signal_connect(G_OBJECT(ctk_gvo_banner->ctk_event),
-                     CTK_EVENT_NAME(NV_CTRL_GVO_OUTPUT_VIDEO_FORMAT),
+                     CTK_EVENT_NAME(NV_CTRL_GVIO_REQUESTED_VIDEO_FORMAT),
                      G_CALLBACK(gvo_event_received),
                      (gpointer) ctk_gvo_banner);
 
@@ -575,7 +575,7 @@ static gboolean update_gvo_banner_led_images_shared_sync_bnc(gpointer data)
          ((banner->sync_source == NV_CTRL_GVO_SYNC_SOURCE_SDI) &&
           banner->state[GVO_BANNER_SDI] != GVO_LED_SDI_SYNC_NONE))) {
 
-        if (banner->input_video_format != NV_CTRL_GVO_VIDEO_FORMAT_NONE) {
+        if (banner->input_video_format != NV_CTRL_GVIO_VIDEO_FORMAT_NONE) {
             /* LED blinks if video format is detected */
             new = banner->flash ? LED_GREEN : LED_GREY;
         } else {
@@ -607,13 +607,13 @@ static void update_video_output_state(CtkGvoBanner *banner,
                                       gint output_video_format,
                                       gint output_data_format)
 {
-    if (output_video_format == NV_CTRL_GVO_VIDEO_FORMAT_NONE) {
+    if (output_video_format == NV_CTRL_GVIO_VIDEO_FORMAT_NONE) {
         banner->state[GVO_BANNER_VID1] = GVO_LED_VID_OUT_NOT_IN_USE;
         banner->state[GVO_BANNER_VID2] = GVO_LED_VID_OUT_NOT_IN_USE;
     } else if ((output_video_format ==
-                NV_CTRL_GVO_VIDEO_FORMAT_487I_59_94_SMPTE259_NTSC) ||
+                NV_CTRL_GVIO_VIDEO_FORMAT_487I_59_94_SMPTE259_NTSC) ||
                (output_video_format ==
-                NV_CTRL_GVO_VIDEO_FORMAT_576I_50_00_SMPTE259_PAL)) {
+                NV_CTRL_GVIO_VIDEO_FORMAT_576I_50_00_SMPTE259_PAL)) {
         banner->state[GVO_BANNER_VID1] = GVO_LED_VID_OUT_SD_MODE;
         banner->state[GVO_BANNER_VID2] = GVO_LED_VID_OUT_SD_MODE;
     } else {
@@ -675,7 +675,7 @@ static void update_gvo_banner_led_state(CtkGvoBanner *ctk_gvo_banner)
                                   ctk_gvo_banner->output_data_format);
     } else {
         update_video_output_state(ctk_gvo_banner,
-                                  NV_CTRL_GVO_VIDEO_FORMAT_NONE,
+                                  NV_CTRL_GVIO_VIDEO_FORMAT_NONE,
                                   ctk_gvo_banner->output_data_format);
     }
 
@@ -725,13 +725,13 @@ gint ctk_gvo_banner_probe(gpointer data)
     ctk_gvo_banner->sync_source = val;
 
 
-    /* query NV_CTRL_GVO_INPUT_VIDEO_FORMAT */
+    /* query NV_CTRL_GVIO_DETECTED_VIDEO_FORMAT */
     
     ret = NvCtrlGetAttribute(ctk_gvo_banner->handle,
-                             NV_CTRL_GVO_INPUT_VIDEO_FORMAT, &val);
+                             NV_CTRL_GVIO_DETECTED_VIDEO_FORMAT, &val);
     
     if (ret != NvCtrlSuccess) {
-        val = NV_CTRL_GVO_VIDEO_FORMAT_NONE;
+        val = NV_CTRL_GVIO_VIDEO_FORMAT_NONE;
     }
     
     ctk_gvo_banner->input_video_format = val;
@@ -813,7 +813,7 @@ static void gvo_event_received(GtkObject *object,
         ctk_gvo_banner->sync_source = value;
         break;
 
-    case NV_CTRL_GVO_OUTPUT_VIDEO_FORMAT:
+    case NV_CTRL_GVIO_REQUESTED_VIDEO_FORMAT:
         ctk_gvo_banner->output_video_format = value;
         break;
         

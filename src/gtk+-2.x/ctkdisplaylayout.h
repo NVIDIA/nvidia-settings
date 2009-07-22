@@ -207,7 +207,7 @@ typedef struct nvMetaModeRec {
     int source; /* Source of the metamode */
     Bool switchable; /* Can the metamode be accessed through Ctrl Alt +- */
 
-    // Used for drawing metamode boxes
+    // Used for drawing & moving metamode boxes
     int dim[4]; /* Bounding box of all modes */
 
     // Used for applying and generating metamodes (effective dimensions)
@@ -228,19 +228,18 @@ typedef struct nvScreenRec {
     /* An X screen may have one or more displays connected to it
      * if TwinView is on.
      *
-     * Fathers all displays (and their modes).  From this
-     * Structure a metamodes string can be generated:
-     * 
-     * "AAA,BBB,CCC ; DDD,EEE,FFF ; GGG,HHH,III"
+     * If NoScanout is enabled, the X screen will not make use
+     * of display device(s).
+     *
      */
 
     NvCtrlAttributeHandle *handle;  /* NV-CONTROL handle to X screen */
     CtkEvent *ctk_event;
     int scrnum;
 
-    struct nvGpuRec *gpu;          /* GPU driving this X screen */
+    struct nvGpuRec *gpu;  /* GPU driving this X screen */
 
-    int depth; /* Depth of the screen */
+    int depth;      /* Depth of the screen */
 
     unsigned int displays_mask; /* Display devices on this X screen */
     int num_displays; /* # of displays using this screen */
@@ -259,6 +258,8 @@ typedef struct nvScreenRec {
     int y_offset;
 
     Bool sli;
+    Bool dynamic_twinview;  /* This screen supports dynamic twinview */
+    Bool no_scanout;        /* This screen has no display devices */
 
 } nvScreen, *nvScreenPtr;
 
@@ -335,6 +336,56 @@ typedef void (* ctk_display_layout_modified_callback) (nvLayoutPtr, void *);
 
 
 
+/* Stores information about a screen or display  that
+ * is being moved/panned.
+ */
+typedef struct ModifyInfoRec {
+
+    /* What to move */
+    nvDisplayPtr display;
+    nvScreenPtr screen;
+    int orig_screen_dim[4]; // Used when moding display = moding screen.
+    nvGpuPtr gpu;
+
+    int orig_position_type; // Original values of what is being
+    int orig_dim[4];        // modified.
+
+    int *target_position_type; // Pointers to values of thing that
+    int *target_dim;           // is being modified.
+
+
+    /* Snapping */
+    int snap;         // Should we snap or not?
+    int best_snap_v;
+    int best_snap_h;
+
+    int modify_dirty;   // Sync the modify_dim before moving/panning.
+    int modify_panning; // Modifying panning (instead of position)
+    int modify_dim[4];  // Dimensions to snap from
+
+    int src_dim[4]; // Pre-snap (To allow snapping of pan box on move)
+    int dst_dim[4]; // Post-snap position
+
+} ModifyInfo;
+
+
+
+// Something selectable/visible.
+typedef struct _ZNode
+{
+    enum {
+        ZNODE_TYPE_DISPLAY,
+        ZNODE_TYPE_SCREEN,
+    } type;
+
+    union {
+        nvDisplayPtr display;
+        nvScreenPtr screen;
+    } u;
+
+} ZNode;
+
+
 typedef struct _CtkDisplayLayout
 {
     GtkVBox parent;
@@ -369,10 +420,12 @@ typedef struct _CtkDisplayLayout
 
     PangoLayout *pango_layout;
     
-    /* Display Z-Order */
-    nvDisplayPtr *Zorder;       /* Z ordering of dispays in layout */
-    int           Zcount;       /* Number of displays in Z order list */
-    int           Zselected;    /* Is first item selected? */
+    /* List of visible elements in the layout */
+    ZNode *Zorder; /* Z ordering of visible elements in layout */
+    int    Zcount; /* Count of visible elements in the z order */
+
+    nvDisplayPtr  selected_display; /* Currently selected display */
+    nvScreenPtr   selected_screen;  /* Selected screen */
 
     /* Settings */
     int        snap_strength;
@@ -381,9 +434,10 @@ typedef struct _CtkDisplayLayout
                                 /* - multiple modes */
 
     /* State */
-    int        select_next;     /* On click, select next screen in Z order. */
-    int        modify_dim[4];   /* Used to snap when moving/panning */
+    void      *first_selected_display; /* First thing clicked on (used to cycle) */
+    void      *first_selected_screen;
     int        clicked_outside; /* User clicked outside displays, don't move */
+    ModifyInfo modify_info;     /* Used to move/pan screens/displays */
 
     int        button1;
     int        button2;
@@ -421,11 +475,14 @@ GtkWidget*  ctk_display_layout_new       (NvCtrlAttributeHandle *,
                                           void *modified_callback_data
                                           );
 
+void ctk_display_layout_update (CtkDisplayLayout *);
+
 void ctk_display_layout_redraw (CtkDisplayLayout *);
 
 
 void ctk_display_layout_set_layout (CtkDisplayLayout *, nvLayoutPtr);
 
+void ctk_display_layout_update_zorder(CtkDisplayLayout *ctk_object);
 
 nvDisplayPtr ctk_display_layout_get_selected_display (CtkDisplayLayout *);
 nvScreenPtr ctk_display_layout_get_selected_screen (CtkDisplayLayout *);
@@ -449,6 +506,9 @@ void ctk_display_layout_select_display (CtkDisplayLayout *ctk_object,
 void ctk_display_layout_update_display_count (CtkDisplayLayout *,
                                               nvDisplayPtr);
 
+void ctk_display_layout_set_screen_virtual_size (CtkDisplayLayout *ctk_object,
+                                                 nvScreenPtr screen,
+                                                 int width, int height);
 void ctk_display_layout_set_screen_depth (CtkDisplayLayout *ctk_object,
                                           nvScreenPtr screen, int depth);
 void ctk_display_layout_set_screen_position (CtkDisplayLayout *ctk_object,
@@ -464,6 +524,8 @@ void ctk_display_layout_delete_screen_metamode (CtkDisplayLayout *,
                                                 nvScreenPtr,
                                                 int metamode_idx);
 
+void ctk_display_layout_disable_display (CtkDisplayLayout *ctk_object,
+                                         nvDisplayPtr display);
 
 void ctk_display_layout_set_advanced_mode (CtkDisplayLayout *ctk_object,
                                            int advanced_mode);

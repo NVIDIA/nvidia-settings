@@ -182,11 +182,11 @@ print_fbconfig_attribs(GLXFBConfigAttr *fbca)
         return;
     }
 
-    printf("--fc- -vi- vt buf lv rgb d s colorbuffer ax dp st "
+    printf("--fc- --vi- vt buf lv rgb d s colorbuffer ax dp st "
            "accumbuffer ---ms---- cav -----pbuffer----- ---transparent----\n");
-    printf("  id   id     siz l  ci  b t  r  g  b  a bf th en "
+    printf("  id    id     siz l  ci  b t  r  g  b  a bf th en "
            " r  g  b  a mvs mcs b eat widt hght max-pxs typ  r  g  b  a  i\n");
-    printf("--------------------------------------------------"
+    printf("---------------------------------------------------"
            "--------------------------------------------------------------\n");
 
     i = 0;
@@ -194,9 +194,9 @@ print_fbconfig_attribs(GLXFBConfigAttr *fbca)
         
         printf("0x%03x ", fbca[i].fbconfig_id);
         if ( fbca[i].visual_id ) {
-            printf("0x%2.2x ", fbca[i].visual_id);
+            printf("0x%03x ", fbca[i].visual_id);
         } else {
-            printf("   . ");
+            printf("   .  ");
         }
         printf("%2.2s %3d %2d %3.3s %1c %1c ",
                x_visual_type_abbrev(fbca[i].x_visual_type),

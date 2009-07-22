@@ -753,9 +753,9 @@ static gboolean query_init_gvo_sync_state(CtkGvoSync *ctk_gvo_sync)
     /* Query the current input video formats */
 
     ret = NvCtrlGetAttribute(ctk_gvo_sync->handle,
-                             NV_CTRL_GVO_INPUT_VIDEO_FORMAT, &val);
+                             NV_CTRL_GVIO_DETECTED_VIDEO_FORMAT, &val);
     if (ret != NvCtrlSuccess) {
-        val = NV_CTRL_GVO_VIDEO_FORMAT_NONE;
+        val = NV_CTRL_GVIO_VIDEO_FORMAT_NONE;
     }
     ctk_gvo_sync->input_video_format = val;
 

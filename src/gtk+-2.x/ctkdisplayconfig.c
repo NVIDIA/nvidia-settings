@@ -70,6 +70,10 @@ static gboolean display_panning_focus_out(GtkWidget *widget, GdkEvent *event,
 
 static void setup_screen_page(CtkDisplayConfig *ctk_object);
 
+static void screen_virtual_size_activate(GtkWidget *widget, gpointer user_data);
+static gboolean screen_virtual_size_focus_out(GtkWidget *widget, GdkEvent *event,
+                                              gpointer user_data);
+
 static void screen_depth_changed(GtkWidget *widget, gpointer user_data);
 
 static void screen_position_type_changed(GtkWidget *widget, gpointer user_data);
@@ -199,6 +203,11 @@ static const char * __dpy_primary_help =
 
 /* Screen tooltips */
 
+static const char * __screen_virtual_size_help =
+"The Virtual Size allows setting the size of the resulting X screen. "
+"The virtual size must be at least large enough to hold all the display "
+"devices that are currently enabled for scanout.";
+
 static const char * __screen_depth_help =
 "The Depth drop-down allows setting of the color quality for the selected "
 "screen; changing this option will require restarting your X server.";
@@ -272,13 +281,13 @@ static const char * __save_button_help =
 
 static void get_cur_screen_pos(CtkDisplayConfig *ctk_object)
 {
-    nvDisplayPtr display = ctk_display_layout_get_selected_display
+    nvScreenPtr screen = ctk_display_layout_get_selected_screen
         (CTK_DISPLAY_LAYOUT(ctk_object->obj_layout));
     
-    if (!display || !display->screen) return;
+    if (!screen) return;
 
-    ctk_object->cur_screen_pos[X] = display->screen->dim[X];
-    ctk_object->cur_screen_pos[Y] = display->screen->dim[Y];
+    ctk_object->cur_screen_pos[X] = screen->dim[X];
+    ctk_object->cur_screen_pos[Y] = screen->dim[Y];
 
 } /* get_cur_screen_pos() */
 
@@ -994,15 +1003,29 @@ GtkWidget * create_validation_apply_dialog(CtkDisplayConfig *ctk_object)
 
 
 
+/** user_changed_attributes() *************************************
+ *
+ * Turns off forced reset (of the layout config when the current
+ * X server configuration changes).
+ *
+ **/
+
 static void user_changed_attributes(CtkDisplayConfig *ctk_object)
 {
     if (ctk_object->forced_reset_allowed) {
         gtk_widget_set_sensitive(ctk_object->btn_apply, True);
         ctk_object->forced_reset_allowed = FALSE;
     }
+
 } /* user_changed_attributes() */
 
 
+
+/** screen_primary_display_toggled() ******************************
+ *
+ * Sets the primary display for a screen.
+ *
+ **/
 
 static void screen_primary_display_toggled(GtkWidget *widget,
                                            gpointer user_data)
@@ -1018,6 +1041,7 @@ static void screen_primary_display_toggled(GtkWidget *widget,
     }
 
     user_changed_attributes(ctk_object);
+
 } /* screen_primary_display_toggled() */
 
 
@@ -1347,6 +1371,18 @@ GtkWidget* ctk_display_config_new(NvCtrlAttributeHandle *handle,
     ctk_object->txt_screen_num = gtk_label_new("");
     gtk_label_set_selectable(GTK_LABEL(ctk_object->txt_screen_num), TRUE);
     gtk_misc_set_alignment(GTK_MISC(ctk_object->txt_screen_num), 0.0f, 0.5f);
+
+    /* X screen virtual size */
+    ctk_object->txt_screen_virtual_size = gtk_entry_new();
+    ctk_config_set_tooltip(ctk_config, ctk_object->txt_screen_virtual_size,
+                           __screen_virtual_size_help);
+    g_signal_connect(G_OBJECT(ctk_object->txt_screen_virtual_size), "activate",
+                     G_CALLBACK(screen_virtual_size_activate),
+                     (gpointer) ctk_object);
+    g_signal_connect(G_OBJECT(ctk_object->txt_screen_virtual_size),
+                     "focus-out-event",
+                     G_CALLBACK(screen_virtual_size_focus_out),
+                     (gpointer) ctk_object);
 
     /* X screen depth */
     ctk_object->mnu_screen_depth = gtk_option_menu_new();
@@ -1693,6 +1729,17 @@ GtkWidget* ctk_display_config_new(NvCtrlAttributeHandle *handle,
         gtk_box_pack_start(GTK_BOX(hbox), ctk_object->txt_screen_num,
                            TRUE, TRUE, 0);
 
+        /* X screen virtual size */
+        hbox = gtk_hbox_new(FALSE, 5);
+        gtk_box_pack_start(GTK_BOX(vbox), hbox, FALSE, FALSE, 0);
+        label = gtk_label_new("Virtual Size:");
+        gtk_misc_set_alignment(GTK_MISC(label), 0.0f, 0.5f);
+        gtk_widget_set_size_request(label, req.width, -1);
+        gtk_box_pack_start(GTK_BOX(hbox), label, FALSE, TRUE, 5); 
+        gtk_box_pack_start(GTK_BOX(hbox), ctk_object->txt_screen_virtual_size,
+                           TRUE, TRUE, 0);
+        ctk_object->box_screen_virtual_size = hbox;
+
         /* X screen depth dropdown */
         hbox = gtk_hbox_new(FALSE, 5);
         gtk_box_pack_start(GTK_BOX(vbox), hbox, FALSE, FALSE, 0);
@@ -1859,7 +1906,7 @@ GtkTextBuffer *ctk_display_config_create_help(GtkTextTagTable *table,
     ctk_help_para(b, &i, "This section shows information and configuration "
                   "settings for the X server layout.");
     ctk_help_heading(b, &i, "Layout Image");
-    ctk_help_para(b, &i, "The layout image shows the geomertic relationship "
+    ctk_help_para(b, &i, "The layout image shows the geometric relationship "
                   "that display devices and X screens have to each other.  "
                   "You may drag display devices around to reposition them.  "
                   "When in advanced view, the display's panning domain may "
@@ -1867,7 +1914,7 @@ GtkTextBuffer *ctk_display_config_create_help(GtkTextTagTable *table,
     ctk_help_heading(b, &i, "Layout Hidden Label");
     ctk_help_para(b, &i, __layout_hidden_label_help);
     ctk_help_heading(b, &i, "Enable Xinerama");
-    ctk_help_para(b, &i, "%s.  This setting is only available when multiple "
+    ctk_help_para(b, &i, "%s  This setting is only available when multiple "
                   "X screens are present.", __layout_xinerama_button_help);
 
 
@@ -1887,7 +1934,7 @@ GtkTextBuffer *ctk_display_config_create_help(GtkTextTagTable *table,
     ctk_help_heading(b, &i, "Mode Name");
     ctk_help_para(b, &i, "The Mode name is the name of the modeline that is "
                   "currently chosen for the selected display device.  "
-                  "(Advanced view only.)");
+                  "This is only available when advanced view is enabled.");
     ctk_help_heading(b, &i, "Position Type");
     ctk_help_para(b, &i, __dpy_position_type_help);
     ctk_help_heading(b, &i, "Position Relative");
@@ -1895,7 +1942,8 @@ GtkTextBuffer *ctk_display_config_create_help(GtkTextTagTable *table,
     ctk_help_heading(b, &i, "Position Offset");
     ctk_help_para(b, &i, __dpy_position_offset_help);
     ctk_help_heading(b, &i, "Panning");
-    ctk_help_para(b, &i, "%s  (Advanced view only.)", __dpy_panning_help);
+    ctk_help_para(b, &i, "%s  This is only available when advanced "
+                  "view is enabled.", __dpy_panning_help);
     ctk_help_heading(b, &i, "Primary Display");
     ctk_help_para(b, &i, __dpy_primary_help);
 
@@ -1904,6 +1952,10 @@ GtkTextBuffer *ctk_display_config_create_help(GtkTextTagTable *table,
     ctk_help_heading(b, &i, "X Screen Section");
     ctk_help_para(b, &i, "This section shows information and configuration "
                   "settings for the currently selected X screen.");
+    ctk_help_heading(b, &i, "Virtual Size");
+    ctk_help_para(b, &i, "%s  The Virtual screen size must be at least "
+                  "304x200, and the width must be a multiple of 8.",
+                  __screen_virtual_size_help);
     ctk_help_heading(b, &i, "Color Depth");
     ctk_help_para(b, &i, __screen_depth_help);
     ctk_help_heading(b, &i, "Position Type");
@@ -1913,17 +1965,18 @@ GtkTextBuffer *ctk_display_config_create_help(GtkTextTagTable *table,
     ctk_help_heading(b, &i, "Position Offset");
     ctk_help_para(b, &i, __screen_position_offset_help);
     ctk_help_heading(b, &i, "MetaMode Selection");
-    ctk_help_para(b, &i, "%s  (Advanced view only.)", __screen_metamode_help);
+    ctk_help_para(b, &i, "%s  This is only available when advanced view "
+                  "is enabled.", __screen_metamode_help);
     ctk_help_heading(b, &i, "Add Metamode");
-    ctk_help_para(b, &i, "%s  (Advanced view only.)",
-                  __screen_metamode_add_button_help);
+    ctk_help_para(b, &i, "%s  This is only available when advanced view "
+                  "is enabled.", __screen_metamode_add_button_help);
     ctk_help_heading(b, &i, "Delete Metamode");
-    ctk_help_para(b, &i, "%s  (Advanced view only.)",
-                  __screen_metamode_delete_button_help);
+    ctk_help_para(b, &i, "%s This is only available when advanced view "
+                  "is enabled.", __screen_metamode_delete_button_help);
     
     
     ctk_help_para(b, &i, "");
-     ctk_help_heading(b, &i, "Buttons");
+    ctk_help_heading(b, &i, "Buttons");
     ctk_help_heading(b, &i, "Apply");
     ctk_help_para(b, &i, "%s  Note that not all settings can be applied to an "
                   "active X server; these require restarting the X server "
@@ -1935,7 +1988,7 @@ GtkTextBuffer *ctk_display_config_create_help(GtkTextTagTable *table,
     ctk_help_para(b, &i, __detect_displays_button_help);
     ctk_help_heading(b, &i, "Advanced/Basic...");
     ctk_help_para(b, &i, "%s  The Basic view modifies the currently active "
-                  "MetaMode for an X screen, while the Advanced view exposes "
+                  "MetaMode for an X screen, while the advanced view exposes "
                   "all the MetaModes available on an X screen, and lets you "
                   "modify each of them.", __advanced_button_help);
     ctk_help_heading(b, &i, "Reset");
@@ -2641,8 +2694,10 @@ static void setup_display_position_relative(CtkDisplayConfig *ctk_object)
     display = ctk_display_layout_get_selected_display
         (CTK_DISPLAY_LAYOUT(ctk_object->obj_layout));
 
+
+    /* No need to show dropdown if display position is absolute */
     if (!display || !display->screen || !display->cur_mode || !display->gpu) {
-        return;
+        goto fail;
     }
 
 
@@ -2659,9 +2714,7 @@ static void setup_display_position_relative(CtkDisplayConfig *ctk_object)
                                sizeof(nvDisplayPtr));
     
     if (!ctk_object->display_position_table) {
-        ctk_object->display_position_table_len = 0;
-        gtk_widget_hide(ctk_object->mnu_display_position_relative);
-        return;
+        goto fail;
     }
 
 
@@ -2713,13 +2766,24 @@ static void setup_display_position_relative(CtkDisplayConfig *ctk_object)
          (idx > 1));
 
 
-    /* Handle cases where the position relative dropdown should be hidden */
+    /* Hide the dropdown if the display position is absolute */
     if (display->cur_mode->position_type == CONF_ADJ_ABSOLUTE) {
         gtk_widget_hide(ctk_object->mnu_display_position_relative);
         return;
     }
-    gtk_widget_show(ctk_object->mnu_display_position_relative);
 
+    gtk_widget_show(ctk_object->mnu_display_position_relative);
+    return;
+
+
+ fail:
+    if (ctk_object->display_position_table) {
+        free(ctk_object->display_position_table);
+        ctk_object->display_position_table = NULL;
+    }
+    ctk_object->display_position_table_len = 0;
+    gtk_widget_hide(ctk_object->mnu_display_position_relative);
+    
 } /* setup_display_position_relative() */
 
 
@@ -2806,6 +2870,13 @@ static void setup_display_position(CtkDisplayConfig *ctk_object)
 
 } /* setup_display_position */
 
+
+
+/** setup_primary_display() ******************************************
+ *
+ * Sets up the primary display device for an X screen.
+ *
+ **/
 
 static void setup_primary_display(CtkDisplayConfig *ctk_object)
 {
@@ -2964,6 +3035,41 @@ static void setup_display_page(CtkDisplayConfig *ctk_object)
 
 
 
+/** setup_screen_virtual_size() **************************************
+ *
+ * Sets up the UI for configuring the virtual width/height of the
+ * currently selected X screen.
+ *
+ **/
+
+static void setup_screen_virtual_size(CtkDisplayConfig *ctk_object)
+{
+    char *tmp_str;
+    nvScreenPtr screen;
+
+    screen = ctk_display_layout_get_selected_screen
+        (CTK_DISPLAY_LAYOUT(ctk_object->obj_layout));
+
+
+    /* Only show this box for no-scannout screens */
+    if (!screen || !screen->no_scanout) {
+        gtk_widget_hide(ctk_object->box_screen_virtual_size);
+        return;
+    }
+    gtk_widget_show(ctk_object->box_screen_virtual_size);
+
+
+    /* Update the virtual size text */
+    tmp_str = g_strdup_printf("%dx%d", screen->dim[W], screen->dim[H]);
+
+    gtk_entry_set_text(GTK_ENTRY(ctk_object->txt_screen_virtual_size),
+                       tmp_str);
+    g_free(tmp_str);
+    
+} /* setup_screen_virtual_size() */
+
+
+
 /** setup_screen_depth_dropdown() ************************************
  *
  * Generates the color depth dropdown based on the currently selected
@@ -2978,10 +3084,10 @@ static void setup_screen_depth_dropdown(CtkDisplayConfig *ctk_object)
     int cur_idx;
     int screen_depth_table_len = 0;
     gboolean add_depth_30_option;
-    nvDisplayPtr display = ctk_display_layout_get_selected_display
+    nvScreenPtr screen = ctk_display_layout_get_selected_screen
         (CTK_DISPLAY_LAYOUT(ctk_object->obj_layout));
     
-    if (!display || !display->screen) {
+    if (!screen) {
         gtk_widget_hide(ctk_object->box_screen_depth);
         return;
     }
@@ -2998,9 +3104,9 @@ static void setup_screen_depth_dropdown(CtkDisplayConfig *ctk_object)
      */
 
     if (ctk_object->layout->xinerama_enabled) {
-        add_depth_30_option = layout_supports_depth_30(display->gpu->layout);
+        add_depth_30_option = layout_supports_depth_30(screen->gpu->layout);
     } else {
-        add_depth_30_option = display->gpu->allow_depth_30;
+        add_depth_30_option = screen->gpu->allow_depth_30;
     }
 
     if (add_depth_30_option) {
@@ -3038,7 +3144,7 @@ static void setup_screen_depth_dropdown(CtkDisplayConfig *ctk_object)
         (GTK_OPTION_MENU(ctk_object->mnu_screen_depth), menu);
     
     for (cur_idx = 0; cur_idx < SCREEN_DEPTH_COUNT; cur_idx++) {
-        if (display->screen->depth == ctk_object->screen_depth_table[cur_idx]) {
+        if (screen->depth == ctk_object->screen_depth_table[cur_idx]) {
             gtk_option_menu_set_history
                 (GTK_OPTION_MENU(ctk_object->mnu_screen_depth), cur_idx);
         }
@@ -3065,12 +3171,12 @@ static void setup_screen_depth_dropdown(CtkDisplayConfig *ctk_object)
 
 static void setup_screen_position_type(CtkDisplayConfig *ctk_object)
 {
-    nvDisplayPtr display = ctk_display_layout_get_selected_display
+    nvScreenPtr screen = ctk_display_layout_get_selected_screen
         (CTK_DISPLAY_LAYOUT(ctk_object->obj_layout));
 
     
     /* Handle cases where the position type should be hidden */
-    if (!display || !display->screen) {
+    if (!screen) {
         gtk_widget_hide(ctk_object->mnu_screen_position_type);
         return;
     }
@@ -3084,7 +3190,7 @@ static void setup_screen_position_type(CtkDisplayConfig *ctk_object)
 
     gtk_option_menu_set_history
         (GTK_OPTION_MENU(ctk_object->mnu_screen_position_type),
-         display->screen->position_type);
+         screen->position_type);
 
     g_signal_handlers_unblock_by_func
         (G_OBJECT(ctk_object->mnu_screen_position_type),
@@ -3102,7 +3208,6 @@ static void setup_screen_position_type(CtkDisplayConfig *ctk_object)
 
 static void setup_screen_position_relative(CtkDisplayConfig *ctk_object)
 {
-    nvDisplayPtr display;
     nvScreenPtr screen;
     nvScreenPtr relative_to;
     nvGpuPtr gpu;
@@ -3111,20 +3216,14 @@ static void setup_screen_position_relative(CtkDisplayConfig *ctk_object)
     GtkWidget *menu;
     GtkWidget *menu_item;
 
-    display = ctk_display_layout_get_selected_display
+    screen = ctk_display_layout_get_selected_screen
         (CTK_DISPLAY_LAYOUT(ctk_object->obj_layout));
 
-    if (!display || !display->cur_mode || !display->gpu || !display->screen) {
-        return;
+
+    if (!screen) {
+        goto fail;
     }
 
-    screen = display->screen;
-
-
-    /* Allocate the screen lookup table for the dropdown */
-    if (ctk_object->screen_position_table) {
-        free(ctk_object->screen_position_table);
-    }
 
     /* Count the number of screens */
     ctk_object->screen_position_table_len = 0;
@@ -3137,14 +3236,16 @@ static void setup_screen_position_relative(CtkDisplayConfig *ctk_object)
         ctk_object->screen_position_table_len--;
     }
 
+    /* Allocate the screen lookup table for the dropdown */
+    if (ctk_object->screen_position_table) {
+        free(ctk_object->screen_position_table);
+    }
     ctk_object->screen_position_table =
         (nvScreenPtr *)calloc(1, ctk_object->screen_position_table_len *
                               sizeof(nvScreenPtr));
     
     if (!ctk_object->screen_position_table) {
-        ctk_object->screen_position_table_len = 0;
-        gtk_widget_hide(ctk_object->mnu_screen_position_relative);
-        return;
+        goto fail;
     }
 
 
@@ -3201,12 +3302,23 @@ static void setup_screen_position_relative(CtkDisplayConfig *ctk_object)
          (idx > 1));
 
 
-    /* Handle cases where the position relative dropdown should be hidden */
-    if (display->screen->position_type == CONF_ADJ_ABSOLUTE) {
+    /* Hide the dropdown if the screen position is absolute */
+    if (screen->position_type == CONF_ADJ_ABSOLUTE) {
         gtk_widget_hide(ctk_object->mnu_screen_position_relative);
         return;
     }
+
     gtk_widget_show(ctk_object->mnu_screen_position_relative);
+    return;
+
+
+ fail:
+    if (ctk_object->screen_position_table) {
+        free(ctk_object->screen_position_table);
+        ctk_object->screen_position_table = NULL;
+    }
+    ctk_object->screen_position_table_len = 0;
+    gtk_widget_hide(ctk_object->mnu_screen_position_relative);
 
 } /* setup_screen_position_relative() */
 
@@ -3222,17 +3334,16 @@ static void setup_screen_position_relative(CtkDisplayConfig *ctk_object)
 static void setup_screen_position_offset(CtkDisplayConfig *ctk_object)
 {
     char *tmp_str;
-    nvDisplayPtr display;
     nvScreenPtr screen;
 
-    display = ctk_display_layout_get_selected_display
+    screen = ctk_display_layout_get_selected_screen
         (CTK_DISPLAY_LAYOUT(ctk_object->obj_layout));
 
 
     /* Handle cases where the position offset should be hidden */
-    if (!display || !display->screen ||
-        (display->screen->position_type != CONF_ADJ_ABSOLUTE && 
-         display->screen->position_type != CONF_ADJ_RELATIVE)) {
+    if (!screen ||
+        (screen->position_type != CONF_ADJ_ABSOLUTE && 
+         screen->position_type != CONF_ADJ_RELATIVE)) {
         gtk_widget_hide(ctk_object->txt_screen_position_offset);
         return;
     }
@@ -3240,8 +3351,6 @@ static void setup_screen_position_offset(CtkDisplayConfig *ctk_object)
 
 
     /* Update the position text */
-    screen = display->screen;
-
     tmp_str = g_strdup_printf("%+d%+d", screen->dim[X], screen->dim[Y]);
 
     gtk_entry_set_text(GTK_ENTRY(ctk_object->txt_screen_position_offset),
@@ -3263,7 +3372,7 @@ static void setup_screen_position_offset(CtkDisplayConfig *ctk_object)
 static void setup_screen_position(CtkDisplayConfig *ctk_object)
 {
     nvGpuPtr gpu;
-    nvDisplayPtr display = ctk_display_layout_get_selected_display
+    nvScreenPtr screen = ctk_display_layout_get_selected_screen
         (CTK_DISPLAY_LAYOUT(ctk_object->obj_layout));
     int num_screens;
 
@@ -3276,7 +3385,7 @@ static void setup_screen_position(CtkDisplayConfig *ctk_object)
 
 
     /* Hide the position box if there is only one screen */
-    if (!display || !display->screen || num_screens <= 1) {
+    if (!screen || num_screens <= 1) {
         gtk_widget_hide(ctk_object->box_screen_position);
         return;
     }
@@ -3308,7 +3417,10 @@ static void setup_screen_metamode(CtkDisplayConfig *ctk_object)
     gchar *str;
 
 
-    if (!screen || !layout->advanced_mode) {
+    /* Only show the metamodes in advanced mode for screens
+     * that support scanout.
+     */
+    if (!screen || screen->no_scanout || !layout->advanced_mode) {
         gtk_widget_hide(ctk_object->box_screen_metamode);
         return;
     }
@@ -3337,7 +3449,7 @@ static void setup_screen_metamode(CtkDisplayConfig *ctk_object)
 
 static void setup_screen_page(CtkDisplayConfig *ctk_object)
 {
-    nvDisplayPtr display = ctk_display_layout_get_selected_display
+    nvScreenPtr screen = ctk_display_layout_get_selected_screen
         (CTK_DISPLAY_LAYOUT(ctk_object->obj_layout));
     gchar *tmp;
     gint page_num;
@@ -3349,7 +3461,7 @@ static void setup_screen_page(CtkDisplayConfig *ctk_object)
 
 
     /* If there is no display or no screen selected, remove the screen page */
-    if (!display || !display->screen) {
+    if (!screen) {
         gtk_widget_set_sensitive(ctk_object->screen_page, False);
         if (page_num >= 0) {
             gtk_notebook_remove_page(GTK_NOTEBOOK(ctk_object->notebook),
@@ -3364,10 +3476,14 @@ static void setup_screen_page(CtkDisplayConfig *ctk_object)
 
 
     /* Setup the screen number */
-    tmp = g_strdup_printf("%d", display->screen->scrnum);
+    tmp = g_strdup_printf("%d", screen->scrnum);
     gtk_label_set_text(GTK_LABEL(ctk_object->txt_screen_num), tmp);
     g_free(tmp);
     
+
+    /* Setup screen (virtual) size */
+    setup_screen_virtual_size(ctk_object);
+
 
     /* Setup depth menu */
     setup_screen_depth_dropdown(ctk_object);
@@ -3931,7 +4047,7 @@ void layout_modified_callback(nvLayoutPtr layout, void *data)
     /* Sync the information displayed by the GUI to match the settings
      * of the currently selected display device.
      */
-    
+
     /* Setup position */
     setup_display_position(ctk_object);
 
@@ -3940,6 +4056,9 @@ void layout_modified_callback(nvLayoutPtr layout, void *data)
     setup_display_panning(ctk_object);
 
     setup_screen_position(ctk_object);
+
+    /* Setup screen virtual size */
+    setup_screen_virtual_size(ctk_object);
 
     /* If the positioning of the X screen changes, we cannot apply */
     check_screen_pos_changed(ctk_object);
@@ -3951,45 +4070,6 @@ void layout_modified_callback(nvLayoutPtr layout, void *data)
 
 
 /* Widget signal handlers ********************************************/
-
-
-/** renumber_xscreens() **********************************************
- *
- * Ensures that the screens are numbered from 0 to (n-1).
- *
- **/
-
-static void renumber_xscreens(nvLayoutPtr layout)
-{
-    nvGpuPtr gpu;
-    nvScreenPtr screen;
-    nvScreenPtr lowest;
-    int scrnum;
-
-    scrnum = 0;
-    do {
-
-        /* Find screen w/ lowest # >= current screen index being assigned */
-        lowest = NULL;
-        for (gpu = layout->gpus; gpu; gpu = gpu->next) {
-            for (screen = gpu->screens; screen; screen = screen->next) {
-                if ((screen->scrnum >= scrnum) &&
-                    (!lowest || (lowest->scrnum > screen->scrnum))) {
-                    lowest = screen;
-                }
-            }
-        }
-
-        if (lowest) {
-            lowest->scrnum = scrnum;
-        }
-
-        /* Assign next screen number */ 
-        scrnum++;
-    } while (lowest);
-
-} /* renumber_xscreens() */
-
 
 
 /** do_enable_display_for_xscreen() **********************************
@@ -4084,6 +4164,7 @@ void do_enable_display_for_xscreen(CtkDisplayConfig *ctk_object,
 
     } else {
         screen->position_type = CONF_ADJ_ABSOLUTE;
+        screen->relative_to = NULL;
         screen->dim[X] = mode->dim[X];
         screen->dim[Y] = mode->dim[Y];
     }        
@@ -4296,6 +4377,7 @@ static void do_enable_display_for_twinview(CtkDisplayConfig *ctk_object,
             mode->pan[Y] = mode->dim[Y];
         } else {
             mode->position_type = CONF_ADJ_ABSOLUTE;
+            mode->relative_to = NULL;
             mode->dim[X] = metamode->dim[X] + metamode->dim[W];
             mode->dim[Y] = metamode->dim[Y];
             mode->pan[X] = mode->dim[X];
@@ -4683,7 +4765,6 @@ void do_disable_display(CtkDisplayConfig *ctk_object, nvDisplayPtr display)
 {
     nvLayoutPtr layout = ctk_object->layout;
     nvGpuPtr gpu = display->gpu;
-    nvScreenPtr screen = display->screen;
     gchar *str;
     gchar *type = display_get_type_str(display->device_mask, 0);
 
@@ -4710,22 +4791,10 @@ void do_disable_display(CtkDisplayConfig *ctk_object, nvDisplayPtr display)
                          "Cancel");
 
      
-    /* Ask user what to do */
+    /* Confirm with user before disabling */
     if (do_query_remove_display(ctk_object, display)) {
-
-        /* Remove display from the X screen */
-        screen_remove_display(display);
-        
-        /* If the screen is empty, remove it */
-        if (!screen->num_displays) {
-            gpu_remove_and_free_screen(screen);
-
-            /* Make sure screen numbers are consistent */
-            renumber_xscreens(ctk_object->layout);
-        }
-
-        /* Add the fake mode to the display */
-        gpu_add_screenless_modes_to_displays(display->gpu);
+        ctk_display_layout_disable_display(CTK_DISPLAY_LAYOUT(ctk_object->obj_layout),
+                                           display);
     }
 
 } /* do_disable_display() */
@@ -4927,8 +4996,15 @@ static void display_config_clicked(GtkWidget *widget, gpointer user_data)
     /* Sync the GUI */
     if (update) {
 
-        /* Recaltulate */
-        ctk_display_layout_redraw(CTK_DISPLAY_LAYOUT(ctk_object->obj_layout));
+        /* Update the z-order */
+        ctk_display_layout_update_zorder(CTK_DISPLAY_LAYOUT(ctk_object->obj_layout));
+
+        /* Make sure the display is still selected */
+        ctk_display_layout_select_display(CTK_DISPLAY_LAYOUT(ctk_object->obj_layout),
+                                          display);
+
+        /* Recalculate */
+        ctk_display_layout_update(CTK_DISPLAY_LAYOUT(ctk_object->obj_layout));
 
         /* Auto fix all screens on the gpu */
         {
@@ -5164,6 +5240,7 @@ static void display_position_type_changed(GtkWidget *widget,
     setup_display_position_offset(ctk_object);
 
     user_changed_attributes(ctk_object);
+
 } /* display_position_type_changed() */
 
 
@@ -5312,6 +5389,58 @@ static gboolean display_panning_focus_out(GtkWidget *widget, GdkEvent *event,
 
 } /* display_panning_focus_out() */
 
+
+
+/** screen_virtual_size_activate() ***********************************
+ *
+ * Called when user modifies the screen virtual size text entry.
+ *
+ **/
+
+static void screen_virtual_size_activate(GtkWidget *widget, gpointer user_data)
+{
+    CtkDisplayConfig *ctk_object = CTK_DISPLAY_CONFIG(user_data);
+    const gchar *str = gtk_entry_get_text(GTK_ENTRY(widget));
+    int x, y;
+    nvScreenPtr screen = ctk_display_layout_get_selected_screen
+        (CTK_DISPLAY_LAYOUT(ctk_object->obj_layout));
+
+
+    if (!screen || !screen->no_scanout) {
+        return;
+    }
+    
+    str = parse_read_integer_pair(str, 'x', &x, &y);
+    if (!str) {
+        /* Reset the display panning */
+        setup_screen_virtual_size(ctk_object);
+        return;
+    }
+
+    ctk_display_layout_set_screen_virtual_size
+        (CTK_DISPLAY_LAYOUT(ctk_object->obj_layout), screen, x, y);
+
+    setup_screen_virtual_size(ctk_object);
+
+} /* screen_virtual_size_activate() */
+
+
+
+/** screen_virtual_size_focus_out() **********************************
+ *
+ * Called when user leaves the screen virtual size entry
+ *
+ **/
+
+static gboolean screen_virtual_size_focus_out(GtkWidget *widget,
+                                              GdkEvent *event,
+                                              gpointer user_data)
+{
+    screen_virtual_size_activate(widget, user_data);
+
+    return FALSE;
+
+} /* screen_virtual_size_focus_out() */
 
 
 
@@ -6283,6 +6412,7 @@ static void apply_clicked(GtkWidget *widget, gpointer user_data)
         for (screen = gpu->screens; screen; screen = screen->next) {
 
             if (!screen->handle) continue;
+            if (screen->no_scanout) continue;
 
             if (!update_screen_metamodes(ctk_object, screen)) {
                 clear_apply = FALSE;
@@ -6649,6 +6779,8 @@ static XConfigDevicePtr add_device_to_xconfig(nvGpuPtr gpu, XConfigPtr config,
 static Bool add_display_to_screen(nvScreenPtr screen,
                                   XConfigScreenPtr conf_screen)
 {
+    XConfigDisplayPtr conf_display;
+
     /* Clear the display list */
     xconfigFreeDisplayList(&conf_screen->displays);
 
@@ -6657,6 +6789,13 @@ static Bool add_display_to_screen(nvScreenPtr screen,
     xconfigAddDisplay(&conf_screen->displays, conf_screen->defaultdepth);
     if (!conf_screen->displays) goto fail;
 
+    /* Configure the virtual screen size */
+    if (screen->no_scanout) {
+        conf_display = conf_screen->displays;
+        
+        conf_display->virtualX = screen->dim[W];
+        conf_display->virtualY = screen->dim[H];
+    }
 
     /* XXX Don't do any further tweaking to the display subsection.
      *     All mode configuration should be done through the 'MetaModes"
@@ -6704,72 +6843,82 @@ static int add_screen_to_xconfig(CtkDisplayConfig *ctk_object,
     conf_screen->device = screen->conf_device;
 
     
-    /* Find the first display on the screen */
-    for (display = screen->gpu->displays; display; display = display->next) {
-        if (display->screen == screen) {
-            break;
+    if (screen->no_scanout) {
+        /* Configure screen for no scanout */
+
+        /* Set the UseDisplayDevice option to "none" */
+        xconfigAddNewOption(&conf_screen->options, "UseDisplayDevice", "none");
+
+    } else {
+        /* Configure screen for scanout */
+
+        /* Find the first display on the screen */
+        for (display = screen->gpu->displays; display; display = display->next) {
+            if (display->screen == screen) {
+                break;
+            }
         }
-    }
-    if (!display) {
-        nv_error_msg("Unable to find a display device for screen %d!",
-                     screen->scrnum);
-        goto fail;
-    }
+        if (!display) {
+            nv_error_msg("Unable to find a display device for screen %d!",
+                         screen->scrnum);
+            goto fail;
+        }
+
+        
+        /* Create the screen's only Monitor section from the first display */
+        if (!add_monitor_to_xconfig(display, config, screen->scrnum)) {
+            nv_error_msg("Failed to add display device '%s' to screen %d!",
+                         display->name, screen->scrnum);
+            goto fail;
+        }
 
 
-    /* Create the screen's only Monitor section from the first display */
-    if (!add_monitor_to_xconfig(display, config, screen->scrnum)) {
-        nv_error_msg("Failed to add display device '%s' to screen %d!",
-                     display->name, screen->scrnum);
-        goto fail;
-    }
+        /* Tie the screen to the monitor section */
+        conf_screen->monitor_name =
+            xconfigStrdup(display->conf_monitor->identifier);
+        conf_screen->monitor = display->conf_monitor;
 
 
-    /* Tie the screen to the monitor section */
-    conf_screen->monitor_name =
-        xconfigStrdup(display->conf_monitor->identifier);
-    conf_screen->monitor = display->conf_monitor;
+        /* Add the modelines of all other connected displays to the monitor */
+        for (other = screen->gpu->displays; other; other = other->next) {
+            if (other->screen != screen) continue;
+            if (other == display) continue;
+            
+            /* Add modelines used by this display */
+            add_modelines_to_monitor(display->conf_monitor, other->modes);
+        }
 
+        /* Set the TwinView option */
+        xconfigAddNewOption(&conf_screen->options, "TwinView",
+                            ((screen->num_displays > 1) ? "1" : "0" ));
+        
+        /* Set the TwinviewXineramaInfoOrder option */
+        
+        if (screen->primaryDisplay) {
+            gchar *primary_str =
+                display_get_type_str(screen->primaryDisplay->device_mask, 0);
+            
+            xconfigAddNewOption(&conf_screen->options, "TwinViewXineramaInfoOrder",
+                                primary_str);
+            g_free(primary_str);
+        }
 
-    /* Add the modelines of all other connected displays to the monitor */
-    for (other = screen->gpu->displays; other; other = other->next) {
-        if (other->screen != screen) continue;
-        if (other == display) continue;
-
-        /* Add modelines used by this display */
-        add_modelines_to_monitor(display->conf_monitor, other->modes);
-    }
-
-    /* Set the TwinView option */
-    xconfigAddNewOption(&conf_screen->options, "TwinView",
-                        ((screen->num_displays > 1) ? "1" : "0" ));
-
-    /* Set the TwinviewXineramaInfoOrder option */
-
-    if (screen->primaryDisplay) {
-        gchar *primary_str =
-           display_get_type_str(screen->primaryDisplay->device_mask, 0);
-
-        xconfigAddNewOption(&conf_screen->options, "TwinViewXineramaInfoOrder",
-                            primary_str);
-        g_free(primary_str);
-    }
-
-    /* Create the "metamode" option string. */
-    ret = generate_xconf_metamode_str(ctk_object, screen, &metamode_strs);
-    if (ret != XCONFIG_GEN_OK) goto bail;
-
-    /* If no user specified metamodes were found, add
-     * whatever the currently selected metamode is
-     */
-    if (!metamode_strs) {
-        metamode_strs = screen_get_metamode_str(screen,
-                                                screen->cur_metamode_idx, 1);
-    }
-
-    if (metamode_strs) {
-        xconfigAddNewOption(&conf_screen->options, "metamodes", metamode_strs);
-        free(metamode_strs);
+        /* Create the "metamode" option string. */
+        ret = generate_xconf_metamode_str(ctk_object, screen, &metamode_strs);
+        if (ret != XCONFIG_GEN_OK) goto bail;
+        
+        /* If no user specified metamodes were found, add
+         * whatever the currently selected metamode is
+         */
+        if (!metamode_strs) {
+            metamode_strs = screen_get_metamode_str(screen,
+                                                    screen->cur_metamode_idx, 1);
+        }
+        
+        if (metamode_strs) {
+            xconfigAddNewOption(&conf_screen->options, "metamodes", metamode_strs);
+            free(metamode_strs);
+        }
     }
     
     

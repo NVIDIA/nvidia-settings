@@ -34,6 +34,7 @@
 #include "ctkevent.h"
 #include "ctkhelp.h"
 #include "ctkdisplaylayout.h"
+#include "ctkdisplayconfig-utils.h"
 
 
 
@@ -167,45 +168,66 @@ static void zorder_layout(CtkDisplayLayout *ctk_object)
 {
     nvLayoutPtr layout = ctk_object->layout;
     nvGpuPtr gpu;
+    nvScreenPtr screen;
+    nvDisplayPtr display;
     int i;
 
-    
-    /* Clear the list */
+
+    /* Clean up */
     if (ctk_object->Zorder) {
         free(ctk_object->Zorder);
         ctk_object->Zorder = NULL;
     }
     ctk_object->Zcount = 0;
-    ctk_object->Zselected = 0;
+    ctk_object->selected_display = NULL;
 
 
-    /* Count the number of displays in the layout */
+    /* Count the number of Z-orderable elements in the layout */
     for (gpu = layout->gpus; gpu; gpu = gpu->next) {
-        ctk_object->Zcount += gpu->num_displays;
+        ctk_object->Zcount += gpu->num_displays + gpu->num_screens;
     }
 
 
-    /* If there are no displays, we're done */
+    /* If there is nothing Z-orderable, we're done */
     if (!ctk_object->Zcount) {
         return;
     }
 
 
-    /* Create the Z order list buffer */
-    ctk_object->Zorder =
-        (nvDisplayPtr *)calloc(1, ctk_object->Zcount *sizeof(nvDisplayPtr));
+    /* Create the Z-order buffer */
+    ctk_object->Zorder = (ZNode *)calloc(ctk_object->Zcount, sizeof(ZNode));
     if (!ctk_object->Zorder) {
         ctk_object->Zcount = 0;
         return;
     }
 
 
-    /* Populate the Z order list */
+    /* Populate the Z-order list */
     i = 0;
     for (gpu = layout->gpus; gpu; gpu = gpu->next) {
-        nvDisplayPtr display;
+        // Add screens
+        for (screen = gpu->screens; screen; screen = screen->next) {
+            // Add displays that belong to the screen
+            for (display = gpu->displays; display; display = display->next) {
+                if (display->screen == screen) {
+                    ctk_object->Zorder[i].type = ZNODE_TYPE_DISPLAY;
+                    ctk_object->Zorder[i].u.display = display;
+                    i++;
+                }
+            }
+
+            // Add the screen
+            ctk_object->Zorder[i].type = ZNODE_TYPE_SCREEN;
+            ctk_object->Zorder[i].u.screen = screen;
+            i++;
+        }
+        // Add displays that don't have screens.
         for (display = gpu->displays; display; display = display->next) {
-            ctk_object->Zorder[i++] = display;            
+            if (!display->screen) {
+                ctk_object->Zorder[i].type = ZNODE_TYPE_DISPLAY;
+                ctk_object->Zorder[i].u.display = display;
+                i++;
+            }
         }
     }
 
@@ -215,18 +237,23 @@ static void zorder_layout(CtkDisplayLayout *ctk_object)
 
 /** get_selected() ***************************************************
  *
- * Returns the currently selected display.  The selected display
- * device should always be at the top of the Z-order.
+ * Returns the currently selected display and/or screen.  This
+ * function is only useful for keeping track of when something new
+ * has been selected.
  *
  **/
 
-static nvDisplayPtr get_selected(CtkDisplayLayout *ctk_object)
+static void * get_selected(CtkDisplayLayout *ctk_object)
 {
-    if (!(ctk_object->Zselected) || !(ctk_object->Zcount)) {
-        return NULL;
+    if (ctk_object->selected_display) {
+        return ctk_object->selected_display;
     }
 
-    return ctk_object->Zorder[0];
+    if (ctk_object->selected_screen) {
+        return ctk_object->selected_screen;
+    }
+
+    return NULL;
 
 } /*  get_selected() */
 
@@ -275,29 +302,143 @@ static nvModePtr get_mode(nvDisplayPtr display, int mode_idx)
 
 
 
-/** sync_modify() ****************************************************
+/** get_screen_dim ***************************************************
  *
- * When the user is moving/panning a display device around, a
- * temporary dimension buffer is used to allow for snapping to other
- * displays.
- *
- * This function sets up the temporary buffer by copying the actual
- * dimensions of the selected display device to the temporary buffer.
+ * Returns the dimension array to use as the screen's dimensions.
  *
  **/
 
-static void sync_modify(CtkDisplayLayout *ctk_object)
+static int *get_screen_dim(nvScreenPtr screen, Bool edim)
 {
-    nvDisplayPtr display = get_selected(ctk_object);
+    if (!screen) return NULL;
 
-    if (display && display->cur_mode) {
-        ctk_object->modify_dim[X] = display->cur_mode->pan[X];
-        ctk_object->modify_dim[Y] = display->cur_mode->pan[Y];
-        ctk_object->modify_dim[W] = display->cur_mode->pan[W];
-        ctk_object->modify_dim[H] = display->cur_mode->pan[H];
+    if (screen->no_scanout || !screen->cur_metamode) {
+        return screen->dim;
     }
 
-} /* sync_modify() */
+    return edim ? screen->cur_metamode->edim : screen->cur_metamode->dim;
+
+} /* get_screen_dim() */
+
+
+
+/** get_modify_info() ************************************************
+ *
+ * Gather information prior to moving/panning.
+ *
+ * Returns TRUE if something is selected and movable.
+ *
+ **/
+
+static Bool get_modify_info(CtkDisplayLayout *ctk_object)
+{
+    ModifyInfo *info = &(ctk_object->modify_info);
+    Bool use_screen_instead;
+    int *sdim;
+
+
+    info->screen = ctk_object->selected_screen;
+    info->display = ctk_object->selected_display;
+
+
+    /* There must be an associated screen to move */
+    if (!info->screen) {
+        info->display = NULL;
+        return FALSE;
+    }
+
+    /* Don't allow modifying displays without modes */
+    if (info->display && !info->display->cur_mode) {
+        info->screen = NULL;
+        info->display = NULL;
+        return FALSE;
+    }
+
+
+    /* Gather the initial screen dimensions */
+    sdim = get_screen_dim(info->screen, 0);
+    info->orig_screen_dim[X] = sdim[X];
+    info->orig_screen_dim[Y] = sdim[Y];
+    info->orig_screen_dim[W] = sdim[W];
+    info->orig_screen_dim[H] = sdim[H];
+
+
+    /* If a display device is being moved (not panned) and
+     * it is the only display device in the screen to use
+     * absolute positioning, then really we want to move
+     * its associated screen.
+     */
+    if (!ctk_object->modify_info.modify_panning &&
+        info->display &&
+        info->display->cur_mode->position_type == CONF_ADJ_ABSOLUTE) {
+
+        nvDisplayPtr display;
+
+        /* Make sure all other displays in the screen use
+         * relative positioning.
+         */
+        use_screen_instead = TRUE;
+        for (display = info->display->gpu->displays; display;
+             display = display->next) {
+            if (display->screen != info->screen) continue;
+            if (display == info->display) continue;
+            if (!display->cur_mode) continue;
+            if (display->cur_mode->position_type == CONF_ADJ_ABSOLUTE) {
+                use_screen_instead = FALSE;
+            }
+        }
+        if (use_screen_instead) {
+            info->display = NULL;
+        }
+    }
+
+
+    /* Gather the initial state of what is being moved */
+    if (info->display) {
+        info->target_position_type =
+            &(info->display->cur_mode->position_type);
+        if (ctk_object->modify_info.modify_panning) {
+            info->target_dim = info->display->cur_mode->pan;
+        } else {
+            info->target_dim = info->display->cur_mode->dim;
+        }
+        info->gpu = info->display->gpu;
+    } else {
+        info->target_position_type = &(info->screen->position_type);
+        info->target_dim = sdim;
+        info->gpu = info->screen->gpu;
+    }
+    info->orig_position_type = *(info->target_position_type);
+    info->orig_dim[X] = info->target_dim[X];
+    info->orig_dim[Y] = info->target_dim[Y];
+    info->orig_dim[W] = info->target_dim[W];
+    info->orig_dim[H] = info->target_dim[H];
+
+
+    /* Initialize where we moved to */
+    info->dst_dim[X] = info->orig_dim[X];
+    info->dst_dim[Y] = info->orig_dim[Y];
+    info->dst_dim[W] = info->orig_dim[W];
+    info->dst_dim[H] = info->orig_dim[H];
+
+
+    /* Initialize snapping */
+    info->best_snap_v = ctk_object->snap_strength +1;
+    info->best_snap_h = ctk_object->snap_strength +1;
+
+
+    /* Make sure the modify dim is up to date */
+    if (info->modify_dirty) {
+        info->modify_dim[X] = info->orig_dim[X];
+        info->modify_dim[Y] = info->orig_dim[Y];
+        info->modify_dim[W] = info->orig_dim[W];
+        info->modify_dim[H] = info->orig_dim[H];
+        info->modify_dirty = 0;
+    }
+
+    return TRUE;
+
+} /* get_modify_info() */
 
 
 
@@ -459,6 +600,7 @@ static void offset_layout(nvLayoutPtr layout, int x, int y)
             offset_display(display, x, y);
         }
     }
+
 } /* offset functions */
 
 
@@ -592,22 +734,23 @@ static void resolve_displays_in_screen(nvScreenPtr screen, int all_modes)
 
 static int resolve_screen(nvScreenPtr screen, int pos[4])
 {
-    nvMetaModePtr metamode = screen->cur_metamode;
+    int *sdim = get_screen_dim(screen, 0);
     int relative_pos[4];
     
-    if (!metamode) return 0;
+
+    if (!sdim) return 0;
 
 
     /* Set the dimensions */
-    pos[W] = metamode->dim[W];
-    pos[H] = metamode->dim[H];
+    pos[W] = sdim[W];
+    pos[H] = sdim[H];
 
 
     /* Find the position */
     switch (screen->position_type) {
     case CONF_ADJ_ABSOLUTE:
-        pos[X] = metamode->dim[X];
-        pos[Y] = metamode->dim[Y];
+        pos[X] = sdim[X];
+        pos[Y] = sdim[Y];
         break;
 
     case CONF_ADJ_RIGHTOF:
@@ -662,15 +805,17 @@ static void resolve_screen_in_layout(nvScreenPtr screen)
     nvDisplayPtr display;
     int pos[4];
     int x, y;
+    int *sdim;
 
     
     /* Resolve the current screen location */
     if (resolve_screen(screen, pos)) {
 
         /* Move the screen and the displays by offsetting */
+        sdim = get_screen_dim(screen, 0);
     
-        x = pos[X] - screen->cur_metamode->dim[X];
-        y = pos[Y] - screen->cur_metamode->dim[Y];
+        x = pos[X] - sdim[X];
+        y = pos[Y] - sdim[Y];
 
         offset_screen(screen, x, y);
 
@@ -815,7 +960,7 @@ static void calc_screen(nvScreenPtr screen)
     int *dim;
 
 
-    if (!screen) return;
+    if (!screen || screen->no_scanout) return;
 
     dim = screen->dim;
     metamode = screen->metamodes;
@@ -890,7 +1035,7 @@ static void calc_layout(nvLayoutPtr layout)
             int *sdim;
             
             calc_screen(screen);
-            sdim = screen->cur_metamode->dim;
+            sdim = get_screen_dim(screen, 0);
             
             if (init) {
                 dim[X] = sdim[X];
@@ -1115,28 +1260,28 @@ static void snap_dim_to_dim(int *dst, int *src, int *snap, int snap_strength,
 
         /* Snap top side to top side */
         dist = abs(snap[Y] - src[Y]);
-        if (dist <= snap_strength && dist < *best_vert) {
+        if (dist < *best_vert) {
             dst[Y] = snap[Y];
             *best_vert = dist;
         }
         
         /* Snap top side to bottom side */
         dist = abs((snap[Y] + snap[H]) - src[Y]);
-        if (dist <= snap_strength && dist < *best_vert) {
+        if (dist < *best_vert) {
             dst[Y] = snap[Y] + snap[H];
             *best_vert = dist;
         }
         
         /* Snap bottom side to top side */
         dist = abs(snap[Y] - (src[Y] + src[H]));
-        if (dist <= snap_strength && dist < *best_vert) {
+        if (dist < *best_vert) {
             dst[Y] = snap[Y] - src[H];
             *best_vert = dist;
         }
         
         /* Snap bottom side to bottom side */
         dist = abs((snap[Y] + snap[H]) - (src[Y] + src[H]));
-        if (dist <= snap_strength && dist < *best_vert) {
+        if (dist < *best_vert) {
             dst[Y] = snap[Y] + snap[H] - src[H];
             *best_vert = dist;
         }
@@ -1149,7 +1294,7 @@ static void snap_dim_to_dim(int *dst, int *src, int *snap, int snap_strength,
             
             /* Snap vertically */
             dist = abs((snap[Y] + snap[H]/2) - (src[Y]+src[H]/2));
-            if (dist <= snap_strength && dist < *best_vert) {
+            if (dist < *best_vert) {
                 dst[Y] = snap[Y] + snap[H]/2 - src[H]/2;
                 *best_vert = dist;
             }
@@ -1162,28 +1307,28 @@ static void snap_dim_to_dim(int *dst, int *src, int *snap, int snap_strength,
         
         /* Snap left side to left side */
         dist = abs(snap[X] - src[X]);
-        if (dist <= snap_strength && dist < *best_horz) {
+        if (dist < *best_horz) {
             dst[X] = snap[X];
             *best_horz = dist;
         }
         
         /* Snap left side to right side */
         dist = abs((snap[X] + snap[W]) - src[X]);
-        if (dist <= snap_strength && dist < *best_horz) {
+        if (dist < *best_horz) {
             dst[X] = snap[X] + snap[W];
             *best_horz = dist;
         }
         
         /* Snap right side to left side */
         dist = abs(snap[X] - (src[X] + src[W]));
-        if (dist <= snap_strength && dist < *best_horz) {
+        if (dist < *best_horz) {
             dst[X] = snap[X] - src[W];
             *best_horz = dist;
         }
         
         /* Snap right side to right side */
         dist = abs((snap[X] + snap[W]) - (src[X]+src[W]));
-        if (dist <= snap_strength && dist < *best_horz) {
+        if (dist < *best_horz) {
             dst[X] = snap[X] + snap[W] - src[W];
             *best_horz = dist;
         }
@@ -1196,7 +1341,7 @@ static void snap_dim_to_dim(int *dst, int *src, int *snap, int snap_strength,
             
             /* Snap vertically */
             dist = abs((snap[X] + snap[W]/2) - (src[X]+src[W]/2));
-            if (dist <= snap_strength && dist < *best_horz) {
+            if (dist < *best_horz) {
                 dst[X] = snap[X] + snap[W]/2 - src[W]/2;
                 *best_horz = dist;
             }
@@ -1215,7 +1360,7 @@ static void snap_dim_to_dim(int *dst, int *src, int *snap, int snap_strength,
  *
  **/
 
-static void snap_side_to_dim(int *dst, int *src, int *snap, int snap_strength,
+static void snap_side_to_dim(int *dst, int *src, int *snap,
                              int *best_vert, int *best_horz)
 {
     int dist;
@@ -1226,14 +1371,14 @@ static void snap_side_to_dim(int *dst, int *src, int *snap, int snap_strength,
 
         /* Snap side to top side */
         dist = abs(snap[Y] - (src[Y] + src[H]));
-        if (dist  <= snap_strength && dist < *best_vert) {
+        if (dist < *best_vert) {
             dst[H] = snap[Y] - src[Y];
             *best_vert = dist;
         }
     
         /* Snap side to bottom side */
         dist = abs((snap[Y] + snap[H]) - (src[Y] + src[H]));
-        if (dist <= snap_strength && dist < *best_vert) {
+        if (dist < *best_vert) {
             dst[H] = snap[Y] + snap[H] - src[Y];
             *best_vert = dist;
         }
@@ -1245,14 +1390,14 @@ static void snap_side_to_dim(int *dst, int *src, int *snap, int snap_strength,
 
         /* Snap side to left side */
         dist = abs(snap[X] - (src[X] + src[W]));
-        if (dist <= snap_strength && dist < *best_horz) {
+        if (dist < *best_horz) {
             dst[W] = snap[X] - src[X];
             *best_horz = dist;
         }
         
         /* Snap side to right side */
         dist = abs((snap[X] + snap[W]) - (src[X] + src[W]));
-        if (dist  <= snap_strength && dist < *best_horz) {
+        if (dist < *best_horz) {
             dst[W] = snap[X] + snap[W] - src[X];
             *best_horz = dist;
         }
@@ -1264,165 +1409,181 @@ static void snap_side_to_dim(int *dst, int *src, int *snap, int snap_strength,
 
 /** snap_move() *****************************************************
  *
- * Snaps the given dimensions 'dim' (viewport or panning domain of
- * a dislay) to other display devices' viewport and/or panning
- * domains in the layout due to a move.
- *
- * Returns 1 if a snap occured, 0 if not.
+ * Snaps the modify info's source dimensions (src_dim) to other
+ * displays/screens by moving the top left coord of the src_dim
+ * such that one or two of the edges of the src_dim line up
+ * with the closest other screen/display's dimensions.  The results
+ * of the snap are placed into the destination dimensions (dst_dim).
  *
  **/
 
-static int snap_move(CtkDisplayLayout *ctk_object, int *dim)
+static void snap_move(CtkDisplayLayout *ctk_object)
 {
-    int dim_orig[4];
-    int best_vert;
-    int best_horz;
+    ModifyInfo *info = &(ctk_object->modify_info);
     int *bv;
     int *bh;
-    int z;
+    int i;
     int dist;
-    nvDisplayPtr display;
-    nvDisplayPtr other;
     nvGpuPtr gpu;
     nvScreenPtr screen;
-
-
-    display = get_selected(ctk_object);
-    gpu = display->gpu;
-    screen = display->screen;
-
-
-    /* We will know that a snap occured if
-     * 'best_xxxx' <= ctk_object->snap_strength, so we
-     * initialize both directions to not having snapped here.
-     */
-    best_vert = ctk_object->snap_strength +1;
-    best_horz = ctk_object->snap_strength +1;
-
-
-    /* Copy the original dimensions (Always snap from this reference) */
-    dim_orig[X] = dim[X];
-    dim_orig[Y] = dim[Y];
-    dim_orig[W] = dim[W];
-    dim_orig[H] = dim[H];
+    nvDisplayPtr other;
+    int *sdim;
 
 
     /* Snap to other display's modes */
-    for (z = 1; z < ctk_object->Zcount; z++) {
+    if (info->display) {
+        for (i = 0; i < ctk_object->Zcount; i++) {
+            
+            if (ctk_object->Zorder[i].type != ZNODE_TYPE_DISPLAY) continue;
+            
+            other = ctk_object->Zorder[i].u.display;
 
-        other = ctk_object->Zorder[z];
+            /* Other display must have a mode */
+            if (!other || !other->cur_mode || !other->screen ||
+                other == info->display) continue;
 
-        /* Other display must have a mode */
-        if (!other || !other->cur_mode || !other->screen) continue;
+            /* Don't snap to displays that are somehow related.
+             * XXX Check for nested relations.
+             */
+            if (((other->cur_mode->position_type != CONF_ADJ_ABSOLUTE) &&
+                 (other->cur_mode->relative_to == info->display)) ||
+                ((info->display->cur_mode->position_type != CONF_ADJ_ABSOLUTE) &&
+                 (info->display->cur_mode->relative_to == other))) {
+                continue;
+            }
 
+            /* NOTE: When the display devices's screens are relative to each
+             *       other, we may still want to allow snapping of the non-
+             *       related edges.  This is useful, for example, when two
+             *       screens have a right of/left of relationtship and
+             *       one of them is taller.
+             */
+            bv = &info->best_snap_v;
+            bh = &info->best_snap_h;
 
-        bv = &best_vert;
-        bh = &best_horz;
+            if (((other->screen->position_type == CONF_ADJ_RIGHTOF) ||
+                 (other->screen->position_type == CONF_ADJ_LEFTOF)) &&
+                (other->screen->relative_to == info->screen)) {
+                bh = NULL;
+            }
+            if (((info->screen->position_type == CONF_ADJ_RIGHTOF) ||
+                 (info->screen->position_type == CONF_ADJ_LEFTOF)) &&
+                (info->screen->relative_to == other->screen)) {
+                bh = NULL;
+            }
 
-        /* We shouldn't snap horizontally to the other display if
-         * we are in a right-of/left-of relative relationship with
-         * the other display/display's screen.
-         */
-        if (((other->cur_mode->position_type == CONF_ADJ_RIGHTOF) ||
-             (other->cur_mode->position_type == CONF_ADJ_LEFTOF)) &&
-            (other->cur_mode->relative_to == display)) {
-            bh = NULL;
-        }
-        if (((display->cur_mode->position_type == CONF_ADJ_RIGHTOF) ||
-             (display->cur_mode->position_type == CONF_ADJ_LEFTOF)) &&
-            (display->cur_mode->relative_to == other)) {
-            bh = NULL;
-        }
-        if (display->screen && other->screen &&
-            ((other->screen->position_type == CONF_ADJ_RIGHTOF) ||
-             (other->screen->position_type == CONF_ADJ_LEFTOF)) &&
-            (other->screen->relative_to == display->screen)) {
-            bh = NULL;
-        }
-        if (display->screen && other->screen &&
-            ((display->screen->position_type == CONF_ADJ_RIGHTOF) ||
-             (display->screen->position_type == CONF_ADJ_LEFTOF)) &&
-            (display->screen->relative_to == other->screen)) {
-            bh = NULL;
-        }
+            if (((other->screen->position_type == CONF_ADJ_ABOVE) ||
+                 (other->screen->position_type == CONF_ADJ_BELOW)) &&
+                (other->screen->relative_to == info->screen)) {
+                bv = NULL;
+            }
+            if (((info->screen->position_type == CONF_ADJ_ABOVE) ||
+                 (info->screen->position_type == CONF_ADJ_BELOW)) &&
+                (info->screen->relative_to == other->screen)) {
+                bv = NULL;
+            }
+            
+            /* Snap to other display's panning dimensions */
+            snap_dim_to_dim(info->dst_dim,
+                            info->src_dim,
+                            other->cur_mode->pan,
+                            ctk_object->snap_strength, bv, bh);
 
-        /* If we aren't snapping horizontally with the other display,
-         * we shouldn't snap vertically either if this is the top-most
-         * display in the screen.
-         */
-        if (!bh && display->cur_mode->dim[Y] == display->screen->dim[Y]) {
-            bv = NULL;
-        }
-
-
-        /* We shouldn't snap vertically to the other display if
-         * we are in a above/below relative relationship with
-         * the other display/display's screen.
-         */
-        if (((other->cur_mode->position_type == CONF_ADJ_ABOVE) ||
-             (other->cur_mode->position_type == CONF_ADJ_BELOW)) &&
-            (other->cur_mode->relative_to == display)) {
-            bv = NULL;
-        }
-        if (((display->cur_mode->position_type == CONF_ADJ_ABOVE) ||
-             (display->cur_mode->position_type == CONF_ADJ_BELOW)) &&
-            (display->cur_mode->relative_to == other)) {
-            bv = NULL;
-        }
-        
-        if (display->screen && other->screen &&
-            ((other->screen->position_type == CONF_ADJ_ABOVE) ||
-             (other->screen->position_type == CONF_ADJ_BELOW)) &&
-            (other->screen->relative_to == display->screen)) {
-            bv = NULL;
-        }
-        if (display->screen && other->screen &&
-            ((display->screen->position_type == CONF_ADJ_ABOVE) ||
-             (display->screen->position_type == CONF_ADJ_BELOW)) &&
-            (display->screen->relative_to == other->screen)) {
-            bv = NULL;
+            /* Snap to other display's dimensions */
+            snap_dim_to_dim(info->dst_dim,
+                            info->src_dim,
+                            other->cur_mode->dim,
+                            ctk_object->snap_strength, bv, bh);
         }
 
-        /* If we aren't snapping vertically with the other display,
-         * we shouldn't snap horizontally either if this is the left-most
-         * display in the screen.
-         */
-        if (!bv && display->cur_mode->dim[X] == display->screen->dim[X]) {
-            bh = NULL;
+    } /* Done snapping to other displays */
+
+
+    /* Snap to other screen dimensions */
+    for (gpu = ctk_object->layout->gpus; gpu; gpu = gpu->next) {
+        for (screen = gpu->screens; screen; screen = screen->next) {
+            if (screen == info->screen) continue;
+
+            /* NOTE: When the (display devices's) screens are relative to
+             *       each other, we may still want to allow snapping of the
+             *       non-related edges.  This is useful, for example, when
+             *       two screens have a right of/left of relationtship and
+             *       one of them is taller.
+             */
+
+            bv = &info->best_snap_v;
+            bh = &info->best_snap_h;
+
+            if (((screen->position_type == CONF_ADJ_RIGHTOF) ||
+                 (screen->position_type == CONF_ADJ_LEFTOF)) &&
+                (screen->relative_to == info->screen)) {
+                bh = NULL;
+            }
+            if (((info->screen->position_type == CONF_ADJ_RIGHTOF) ||
+                 (info->screen->position_type == CONF_ADJ_LEFTOF)) &&
+                (info->screen->relative_to == screen)) {
+                bh = NULL;
+            }
+
+            /* If we aren't snapping horizontally with the other screen,
+             * we shouldn't snap vertically either if we are moving the
+             * top-most display in the screen.
+             */
+            if (!bh && 
+                info->display &&
+                info->display->cur_mode->dim[Y] == info->screen->dim[Y]) {
+                bv = NULL;
+            }
+            
+            if (((screen->position_type == CONF_ADJ_ABOVE) ||
+                 (screen->position_type == CONF_ADJ_BELOW)) &&
+                (screen->relative_to == info->screen)) {
+                bv = NULL;
+            }
+            if (((info->screen->position_type == CONF_ADJ_ABOVE) ||
+                 (info->screen->position_type == CONF_ADJ_BELOW)) &&
+                (info->screen->relative_to == screen)) {
+                bv = NULL;
+            }
+
+            /* If we aren't snapping vertically with the other screen,
+             * we shouldn't snap horizontally either if this is the
+             * left-most display in the screen.
+             */
+            if (!bv &&
+                info->display &&
+                info->display->cur_mode->dim[X] == info->screen->dim[X]) {
+                bh = NULL;
+            }
+
+            sdim = get_screen_dim(screen, 0);
+            snap_dim_to_dim(info->dst_dim,
+                            info->src_dim,
+                            sdim,
+                            ctk_object->snap_strength, bv, bh);
         }
-
-
-        /* Snap to other display's panning dimensions */
-        snap_dim_to_dim(dim,
-                        dim_orig,
-                        ctk_object->Zorder[z]->cur_mode->pan,
-                        ctk_object->snap_strength,
-                        bv, bh);
-
-        /* Snap to other display's dimensions */
-        snap_dim_to_dim(dim,
-                        dim_orig,
-                        ctk_object->Zorder[z]->cur_mode->dim,
-                        ctk_object->snap_strength,
-                        bv, bh);
     }
-
 
     /* Snap to the maximum screen dimensions */
-    dist = abs(screen->dim[X] + gpu->max_width - dim_orig[W] - dim_orig[X]);
-    if (dist <= ctk_object->snap_strength && dist < best_horz) {
-        dim[X] = screen->dim[X] + gpu->max_width - dim_orig[W];
-        best_horz = dist;
-    }
-    dist = abs(screen->dim[Y] + gpu->max_height - dim_orig[H] - dim_orig[Y]);
-    if (dist <= ctk_object->snap_strength && dist < best_vert) {
-        dim[Y] = screen->dim[Y] + gpu->max_height - dim_orig[H];
-        best_vert = dist;
-    }
+    bv = &info->best_snap_v;
+    bh = &info->best_snap_h;
 
-
-    return (best_vert <= ctk_object->snap_strength ||
-            best_horz <= ctk_object->snap_strength);
+    if (info->display) {
+        dist = abs( (info->screen->dim[X] + info->gpu->max_width)
+                   -(info->src_dim[X] + info->src_dim[W]));
+        if (dist < *bh) {
+            info->dst_dim[X] =
+                info->screen->dim[X] + info->gpu->max_width - info->src_dim[W];
+            *bh = dist;
+        }
+        dist = abs( (info->screen->dim[Y] + info->gpu->max_height)
+                   -(info->src_dim[Y] + info->src_dim[H]));
+        if (dist < *bv) {
+            info->dst_dim[Y] =
+                info->screen->dim[Y] + info->gpu->max_height - info->src_dim[H];
+            *bv = dist;
+        }
+    }
 
 } /* snap_move() */
 
@@ -1430,162 +1591,205 @@ static int snap_move(CtkDisplayLayout *ctk_object, int *dim)
 
 /** snap_pan() ******************************************************
  *
- * Snaps the bottom right of the panning domain given 'pan' of the
- * currently selected display to other display devices' viewport
- * and/or panning domains in the layout due to a panning domain
- * resize.
+ * Snaps the modify info's source dimensions (src_dim) bottom right
+ * edge(s) to other displays/screens by growing/shrinking the
+ * size of the src_dim such that the edge(s) of the src_dim line up
+ * with the closest other screen/display's dimensions.  The results
+ * of the snap are placed into the destination dimensions (dst_dim).
  *
- * Returns 1 if a snap happened, 0 if not.
+ * This is used for changing both the panning domain of a display
+ * device as well as setting a (no-scannout) screen's virtual size.
  *
  **/
 
-static int snap_pan(CtkDisplayLayout *ctk_object, int *pan, int *dim)
+static void snap_pan(CtkDisplayLayout *ctk_object)
 {
-    int pan_orig[4];
-    int best_vert;
-    int best_horz;
+    ModifyInfo *info = &(ctk_object->modify_info);
     int *bv;
     int *bh;
-    int z;
+    int i;
     int dist;
-    nvDisplayPtr display;
-    nvDisplayPtr other;
     nvGpuPtr gpu;
     nvScreenPtr screen;
+    nvDisplayPtr other;
+    int *sdim;
 
 
-    display = get_selected(ctk_object);
-    gpu = display->gpu;
-    screen = display->screen;
+    if (info->display) {
+        /* Snap to multiples of the display's dimensions */
+        bh = &(info->best_snap_h);
+        bv = &(info->best_snap_v);
 
-
-    /* We will know that a snap occured if
-     * 'best_xxxx' <= ctk_object->snap_strength, so we
-     * initialize both directions to not having snapped here.
-     */
-    best_vert = ctk_object->snap_strength +1;
-    best_horz = ctk_object->snap_strength +1;
-
-
-    /* Copy the original dimensions (Always snap from this reference) */
-    pan_orig[X] = pan[X];
-    pan_orig[Y] = pan[Y];
-    pan_orig[W] = pan[W];
-    pan_orig[H] = pan[H];
+        dist = info->src_dim[W] % info->display->cur_mode->dim[W];
+        if (dist < *bh) {
+            info->dst_dim[W] = info->display->cur_mode->dim[W] *
+                (int)(info->src_dim[W] / info->display->cur_mode->dim[W]);
+            *bh = dist;
+        }
+        dist = info->display->cur_mode->dim[W] -
+            (info->src_dim[W] % info->display->cur_mode->dim[W]);
+        if (dist < *bh) {
+            info->dst_dim[W] = info->display->cur_mode->dim[W] *
+                (1 + (int)(info->src_dim[W] / info->display->cur_mode->dim[W]));
+            *bh = dist;
+        }
+        dist = abs(info->src_dim[H] % info->display->cur_mode->dim[H]);
+        if (dist < *bv) {
+            info->dst_dim[H] = info->display->cur_mode->dim[H] *
+                (int)(info->src_dim[H] / info->display->cur_mode->dim[H]);
+            *bv = dist;
+        }
+        dist = info->display->cur_mode->dim[H] -
+            (info->src_dim[H] % info->display->cur_mode->dim[H]);
+        if (dist < *bv) {
+            info->dst_dim[H] = info->display->cur_mode->dim[H] *
+                (1 + (int)(info->src_dim[H] / info->display->cur_mode->dim[H]));
+            *bv = dist;
+        }
+    }
 
 
     /* Snap to other display's modes */
-    for (z = 1; z < ctk_object->Zcount; z++) {
+    for (i = 0; i < ctk_object->Zcount; i++) {
 
-        other = ctk_object->Zorder[z];
-        
+        if (ctk_object->Zorder[i].type != ZNODE_TYPE_DISPLAY) continue;
+
+        other = ctk_object->Zorder[i].u.display;
+
         /* Other display must have a mode */
-        if (!other || !other->cur_mode || !other->screen) continue;
-
-        bv = &best_vert;
-        bh = &best_horz;
+        if (!other || !other->cur_mode || !other->screen ||
+            other == info->display) continue;
 
 
-        /* Don't snap to other displays that are positioned right of
-         * the display being panned.
+        /* NOTE: When display devices are relative to each other,
+         *       we may still want to allow snapping of the non-related
+         *       edges.  This is useful, for example, when two
+         *       displays have a right of/left of relationtship and
+         *       one of the displays is taller.
          */
-        if ((other->cur_mode->position_type == CONF_ADJ_RIGHTOF) &&
-            other->cur_mode->relative_to == display) {
-            bh = NULL;
-        }
-        if ((display->cur_mode->position_type == CONF_ADJ_LEFTOF) &&
-            display->cur_mode->relative_to == other) {
-            bh = NULL;
-        }
-        if (display->screen && other->screen &&
-            (other->screen->position_type == CONF_ADJ_RIGHTOF) &&
-            (other->screen->relative_to == display->screen)) {
-            bh = NULL;
-        }
-        if (display->screen && other->screen &&
-            (display->screen->position_type == CONF_ADJ_LEFTOF) &&
-            (display->screen->relative_to == other->screen)) {
-            bh = NULL;
-        }
+        bv = &info->best_snap_v;
+        bh = &info->best_snap_h;
 
-        /* Don't snap to other displays that are positioned below of
-         * the display being panned.
+        /* Don't snap horizontally to other displays that are somehow
+         * related on the right edge of the display being panned.
          */
-        if ((other->cur_mode->position_type == CONF_ADJ_BELOW) &&
-            other->cur_mode->relative_to == display) {
+        if (info->display) {
+            if ((other->cur_mode->position_type == CONF_ADJ_RIGHTOF) &&
+                other->cur_mode->relative_to == info->display) {
+                bh = NULL;
+            }
+            if ((info->display->cur_mode->position_type == CONF_ADJ_LEFTOF) &&
+                info->display->cur_mode->relative_to == other) {
+                bh = NULL;
+            }
+        }
+        if ((other->screen->position_type == CONF_ADJ_RIGHTOF) &&
+            other->screen->relative_to == info->screen) {
+            bh = NULL;
+        }
+        if ((info->screen->position_type == CONF_ADJ_LEFTOF) &&
+            info->screen->relative_to == other->screen) {
+            bh = NULL;
+        }
+
+        /* Don't snap vertically to other displays that are somehow
+         * related on the bottom edge of the display being panned.
+         */
+        if (info->display) {
+            if ((other->cur_mode->position_type == CONF_ADJ_BELOW) &&
+                other->cur_mode->relative_to == info->display) {
+                bv = NULL;
+            }
+            if ((info->display->cur_mode->position_type == CONF_ADJ_ABOVE) &&
+                info->display->cur_mode->relative_to == other) {
+                bv = NULL;
+            }
+        }
+        if ((other->screen->position_type == CONF_ADJ_BELOW) &&
+            other->screen->relative_to == info->screen) {
             bv = NULL;
         }
-        if ((display->cur_mode->position_type == CONF_ADJ_ABOVE) &&
-            display->cur_mode->relative_to == other) {
-            bv = NULL;
-        }
-        if (display->screen && other->screen &&
-            (other->screen->position_type == CONF_ADJ_BELOW) &&
-            (other->screen->relative_to == display->screen)) {
-            bv = NULL;
-        }
-        if (display->screen && other->screen &&
-            (display->screen->position_type == CONF_ADJ_ABOVE) &&
-            (display->screen->relative_to == other->screen)) {
+        if ((info->screen->position_type == CONF_ADJ_ABOVE) &&
+            info->screen->relative_to == other->screen) {
             bv = NULL;
         }
 
-        /* Snap to other screen panning dimensions */
-        snap_side_to_dim(pan,
-                         pan_orig,
-                         ctk_object->Zorder[z]->cur_mode->pan,
-                         ctk_object->snap_strength,
+        /* Snap to other display panning dimensions */
+        snap_side_to_dim(info->dst_dim,
+                         info->src_dim,
+                         other->cur_mode->pan,
                          bv, bh);
-
-        /* Snap to other screen dimensions */
-        snap_side_to_dim(pan,
-                         pan_orig,
-                         ctk_object->Zorder[z]->cur_mode->dim,
-                         ctk_object->snap_strength,
+        
+        /* Snap to other display dimensions */
+        snap_side_to_dim(info->dst_dim,
+                         info->src_dim,
+                         other->cur_mode->dim,
                          bv, bh);
     }
 
 
-    /* Snap to multiples of the display's dimensions */
-    dist = pan_orig[W] % dim[W];
-    if (dist <= ctk_object->snap_strength && dist < best_horz) {
-        pan[W] = dim[W] * (int)(pan_orig[W] / dim[W]);
-        best_horz = dist;
-    }
-    dist = dim[W] - (pan_orig[W] % dim[W]);
-    if (dist <= ctk_object->snap_strength && dist < best_horz) {
-        pan[W] = dim[W] * (1 + (int)(pan_orig[W] / dim[W]));
-        best_horz = dist;
-    }
-    dist = abs(pan_orig[H] % dim[H]);
-    if (dist <= ctk_object->snap_strength && dist < best_vert) {
-        pan[H] = dim[H] * (int)(pan_orig[H] / dim[H]);
-        best_vert = dist;
-    }
-    dist = dim[H] - (pan_orig[H] % dim[H]);
-    if (dist <= ctk_object->snap_strength && dist < best_vert) {
-        pan[H] = dim[H] * (1 + (int)(pan_orig[H] / dim[H]));
-        best_vert = dist;
+    /* Snap to other screen dimensions */
+    for (gpu = ctk_object->layout->gpus; gpu; gpu = gpu->next) {
+        for (screen = gpu->screens; screen; screen = screen->next) {
+            if (screen == info->screen) continue;
+
+            bv = &info->best_snap_v;
+            bh = &info->best_snap_h;
+
+            /* Don't snap horizontally to other screens that are somehow
+             * related on the right edge of the (display's) screen being
+             * panned.
+             */
+            if ((screen->position_type == CONF_ADJ_RIGHTOF) &&
+                (screen->relative_to == info->screen)) {
+                bh = NULL;
+            }
+            if ((info->screen->position_type == CONF_ADJ_LEFTOF) &&
+                (info->screen->relative_to == screen)) {
+                bh = NULL;
+            }
+
+            /* Don't snap vertically to other screens that are somehow
+             * related on the bottom edge of the (display's) screen being
+             * panned.
+             */
+            if ((screen->position_type == CONF_ADJ_BELOW) &&
+                (screen->relative_to == info->screen)) {
+                bv = NULL;
+            }
+            if ((info->screen->position_type == CONF_ADJ_ABOVE) &&
+                (info->screen->relative_to == screen)) {
+                bv = NULL;
+            }
+
+            sdim = get_screen_dim(screen, 0);
+            snap_side_to_dim(info->dst_dim,
+                             info->src_dim,
+                             sdim,
+                             bv, bh);
+        }
     }
 
+    bh = &(info->best_snap_h);
+    bv = &(info->best_snap_v);
 
-    /* Snap to the maximum screen dimensions */
-    dist = abs((screen->dim[X] + gpu->max_width)
-               -(pan_orig[X] + pan_orig[W]));
-    if (dist <= ctk_object->snap_strength && dist < best_horz) {
-        pan[W] = screen->dim[X] + gpu->max_width - pan_orig[X];
-        best_horz = dist;
-    }
-    dist = abs((screen->dim[Y] + gpu->max_height)
-               -(pan_orig[Y] + pan_orig[H]));
-    if (dist <= ctk_object->snap_strength && dist < best_vert) {
-        pan[H] = screen->dim[Y] + gpu->max_height - pan_orig[Y];
-        best_vert = dist;
+    /* Snap to the maximum screen width */
+    dist = abs((info->screen->dim[X] + info->gpu->max_width)
+               -(info->src_dim[X] + info->src_dim[W]));
+    if (dist < *bh) {
+        info->dst_dim[W] = info->screen->dim[X] + info->gpu->max_width -
+            info->src_dim[X];
+        *bh = dist;
     }
 
-
-    return (best_vert <= ctk_object->snap_strength ||
-            best_horz <= ctk_object->snap_strength);
+    /* Snap to the maximum screen height */
+    dist = abs((info->screen->dim[Y] + info->gpu->max_height)
+               -(info->src_dim[Y] + info->src_dim[H]));
+    if (dist < *bv) {
+        info->dst_dim[H] = info->screen->dim[Y] + info->gpu->max_height -
+            info->src_dim[Y];
+        *bv = dist;
+    }
 
 } /* snap_pan() */
 
@@ -1593,239 +1797,224 @@ static int snap_pan(CtkDisplayLayout *ctk_object, int *pan, int *dim)
 
 /** move_selected() **************************************************
  *
- * Moves the selected display device by the given offset, optionally
- * snapping to other displays.
+ * Moves whatever is selected by the given x and y offsets.  This
+ * function handles movement of relative and absolute positions as
+ * well as snapping.
  *
- * If something actually moved, this function returns 1.  Otherwise
- * 0 is returned.
+ * Returns 1 if a move occured.
  *
  **/
 
 static int move_selected(CtkDisplayLayout *ctk_object, int x, int y, int snap)
 {
     nvLayoutPtr layout = ctk_object->layout;
-    nvDisplayPtr display;
-    nvGpuPtr gpu;
-    nvScreenPtr screen;
-    int *pan;
-    int *dim;
-    int orig_display_position_type;
-    int orig_display_pos[2] = { 0, 0 };
-    int orig_screen_position_type;
-    int orig_metamode_dim[4] = { 0, 0, 0, 0 };
-    int post_snap_display_pos[2];
-    int snap_dim[4];
+    ModifyInfo *info = &(ctk_object->modify_info);
+
+    int *dim; /* Temp dimensions */
+    int *sdim; /* Temp screen dimensions */
 
 
-    /* Get the dimensions of the display to move */
-    display = get_selected(ctk_object);
-    if (!display || !display->screen || !display->cur_mode ||
-        !display->screen->cur_metamode) {
-        return 0;
-    }
+    info->modify_panning = 0;
+    if (!get_modify_info(ctk_object)) return 0;
 
 
-    /* Keep track of original state to report changes */
-    gpu = display->gpu;
-    screen = display->screen;
-
-    orig_display_position_type = display->cur_mode->position_type;
-    dim = display->cur_mode->dim;
-    pan = display->cur_mode->pan;
-    orig_display_pos[X] = dim[X];
-    orig_display_pos[Y] = dim[Y];
-
-    orig_screen_position_type = screen->position_type;
-    orig_metamode_dim[X] = screen->cur_metamode->dim[X];
-    orig_metamode_dim[Y] = screen->cur_metamode->dim[Y];
-    orig_metamode_dim[W] = screen->cur_metamode->dim[W];
-    orig_metamode_dim[H] = screen->cur_metamode->dim[H];
+    /* Should we snap */
+    info->snap = snap;
 
 
-    /* Process TwinView relative position moves */
-    if (display->cur_mode->position_type != CONF_ADJ_ABSOLUTE) {
-        nvDisplayPtr other = display->cur_mode->relative_to;
-        int p_x;
-        int p_y;
-
-        if (!other) return 0; // Oops?
-
-        p_x = (ctk_object->mouse_x - ctk_object->img_dim[X]) /
+    /* Moving something that is using relative positioning can be done
+     * fairly cleanly with common code, so do that here.
+     */
+    if (info->orig_position_type != CONF_ADJ_ABSOLUTE) {
+        int p_x = (ctk_object->mouse_x - ctk_object->img_dim[X]) /
+            ctk_object->scale;
+        int p_y = (ctk_object->mouse_y - ctk_object->img_dim[Y]) /
             ctk_object->scale;
 
-        p_y = (ctk_object->mouse_y - ctk_object->img_dim[Y]) /
-            ctk_object->scale;
+        if (info->display) {
+            dim = info->display->cur_mode->relative_to->cur_mode->dim;
+        } else {
+            dim = get_screen_dim(info->screen->relative_to, 0);
+        }
 
-        display->cur_mode->position_type =
-            get_point_relative_position(other->cur_mode->dim, p_x, p_y);
-
-        /* In basic mode, make the position apply to all metamodes */
-        if (!ctk_object->advanced_mode) {
-            nvModePtr mode;
-            for (mode = display->modes; mode; mode = mode->next) {
-                mode->position_type = display->cur_mode->position_type;
+        if (dim) {
+            /* Compute the new orientation based on the mouse position */
+            *(info->target_position_type) =
+                get_point_relative_position(dim, p_x, p_y);
+            
+            /* For displays, while in basic mode, make sure that the
+             * relative position applies to all metamodes.
+             */
+            if (info->display) {
+                
+                if (!ctk_object->advanced_mode) {
+                    nvModePtr mode;
+                    for (mode = info->display->modes; mode;
+                         mode = mode->next) {
+                        mode->position_type = *(info->target_position_type);
+                    }
+                }
+                
+                /* Make sure the screen position does not change */
+                reposition_screen(info->screen, ctk_object->advanced_mode);
+                /* Always update the modify dim for relative positioning */
+                info->modify_dirty = 1;
             }
         }
 
-        post_snap_display_pos[X] = dim[X];
-        post_snap_display_pos[Y] = dim[Y];
+    } else {
+        /* Move via absolute positioning */
 
-        /* Make sure the screen position does not change */
-        reposition_screen(display->screen, ctk_object->advanced_mode);
+        /* Compute pre-snap dimensions */
+        info->modify_dim[X] += x;
+        info->modify_dim[Y] += y;
 
-        goto finish;
-    }
-
-
-    /* Move the display */
-    ctk_object->modify_dim[X] += x;
-    ctk_object->modify_dim[Y] += y;
-    snap_dim[X] = ctk_object->modify_dim[X]; /* Snap from move dim */
-    snap_dim[Y] = ctk_object->modify_dim[Y];
-    snap_dim[W] = dim[W];
-    snap_dim[H] = dim[H];
+        info->dst_dim[X] = info->modify_dim[X];
+        info->dst_dim[Y] = info->modify_dim[Y];
+        info->dst_dim[W] = info->modify_dim[W];
+        info->dst_dim[H] = info->modify_dim[H];
 
 
-    /* Snap */
-    if (snap && ctk_object->snap_strength) {
+        /* Snap to other screens and displays */
+        if (snap && ctk_object->snap_strength) {
 
-        /* Snap our viewport to other screens */
-        snap_move(ctk_object, snap_dim);
+            info->src_dim[X] = info->dst_dim[X];
+            info->src_dim[Y] = info->dst_dim[Y];
+            info->src_dim[W] = info->dst_dim[W];
+            info->src_dim[H] = info->dst_dim[H];
 
-        /* Snap our panning domain to other screens */
-        snap_dim[W] = pan[W];
-        snap_dim[H] = pan[H];
-        snap_move(ctk_object, snap_dim);
-    }
-    dim[X] = snap_dim[X];
-    dim[Y] = snap_dim[Y];
-    pan[X] = dim[X];
-    pan[Y] = dim[Y];
+            snap_move(ctk_object);
 
+            if (info->display) {
 
-    /* Prevent layout from growing too big */
-    x = MAX_LAYOUT_WIDTH - pan[W];
-    if (dim[X] > x) {
-        ctk_object->modify_dim[X] += x - dim[X];
-        dim[X] = x;
-    }
-    y = MAX_LAYOUT_HEIGHT - pan[H];
-    if (dim[Y] > y) {
-        ctk_object->modify_dim[Y] += y - dim[Y];
-        dim[Y] = y;
-    }
-    x = layout->dim[W] - MAX_LAYOUT_WIDTH;
-    if (dim[X] < x) {
-        ctk_object->modify_dim[X] += x - dim[X];
-        dim[X] = x;
-    }
-    y = layout->dim[H] - MAX_LAYOUT_HEIGHT;
-    if (dim[Y] < y) {
-        ctk_object->modify_dim[Y] += y - dim[Y];
-        dim[Y] = y;
-    }
+                /* Also snap display's panning box to other screens/displays */
+                info->src_dim[W] = info->display->cur_mode->pan[W];
+                info->src_dim[H] = info->display->cur_mode->pan[H];
+                info->dst_dim[W] = info->src_dim[W];
+                info->dst_dim[H] = info->src_dim[H];
 
+                snap_move(ctk_object);
+            }
+        }
 
-    /* Prevent screen from growing too big */
-    x = screen->cur_metamode->edim[X] + gpu->max_width - pan[W]; 
-    if (dim[X] > x) {
-        ctk_object->modify_dim[X] += x - dim[X];
-        dim[X] = x;
-    }
-    y = screen->cur_metamode->edim[Y] + gpu->max_height -pan[H];
-    if (dim[Y] > y) {
-        ctk_object->modify_dim[Y] += y - dim[Y];
-        dim[Y] = y;
-    }
-    x = screen->cur_metamode->edim[X] + screen->cur_metamode->edim[W]
-        - gpu->max_width;
-    if (dim[X] < x) {
-        ctk_object->modify_dim[X] += x - dim[X];
-        dim[X] = x;
-    }
-    y = screen->cur_metamode->edim[Y] + screen->cur_metamode->edim[H]
-        - gpu->max_height;
-    if (dim[Y] < y) {
-        ctk_object->modify_dim[Y] += y - dim[Y];
-        dim[Y] = y;
-    }
+        /* Get the bounding dimensions of what is being moved */
+        if (info->display) {
+            dim = info->display->cur_mode->pan;
+        } else {
+            dim = info->target_dim;
+        }
+        sdim = get_screen_dim(info->screen, 1);
 
-
-    /* Sync panning position */
-    pan[X] = dim[X];
-    pan[Y] = dim[Y];
-
-
-    /* Get the post-snap display position.  If calculating the
-     * layout changes the display's position, the modify dim
-     * (used to mode the display) should be offset as well.
-     */
-    post_snap_display_pos[X] = dim[X];
-    post_snap_display_pos[Y] = dim[Y];
-
-   
-    /* If the display's screen is using absolute positioning, we should
-     * check to see if the position of the metamode has changed and if
-     * so, offset other metamodes on the screen (hence moving the screen's
-     * position.)
-     *
-     * If the screen is using relative positioning, don't offset
-     * metamodes since the screen's position is based on another
-     * screen.
-     */ 
-    if (screen->position_type == CONF_ADJ_ABSOLUTE) {
-        resolve_displays_in_screen(screen, 0);
-        calc_metamode(screen, screen->cur_metamode);
-        x = screen->cur_metamode->dim[X] - orig_metamode_dim[X];
-        y = screen->cur_metamode->dim[Y] - orig_metamode_dim[Y];
         
-        if (x || y) {
-            nvDisplayPtr other;
-            nvModePtr mode;
-            
-            for (other = display->gpu->displays; other; other = other->next) {
+        /* Prevent moving out of the max layout bounds */
+        x = MAX_LAYOUT_WIDTH - dim[W];
+        if (info->dst_dim[X] > x) {
+            info->modify_dim[X] += x - info->dst_dim[X];
+            info->dst_dim[X] = x;
+        }
+        y = MAX_LAYOUT_HEIGHT - dim[H];
+        if (info->dst_dim[Y] > y) {
+            info->modify_dim[Y] += y - info->dst_dim[Y];
+            info->dst_dim[Y] = y;
+        }
+        x = layout->dim[W] - MAX_LAYOUT_WIDTH;
+        if (info->dst_dim[X] < x) {
+            info->modify_dim[X] += x - info->dst_dim[X];
+            info->dst_dim[X] = x;
+        }
+        y = layout->dim[H] - MAX_LAYOUT_HEIGHT;
+        if (info->dst_dim[Y] < y) {
+            info->modify_dim[Y] += y - info->dst_dim[Y];
+            info->dst_dim[Y] = y;
+        }
+
+        /* Prevent screen from growing too big */
+        x = sdim[X] + info->gpu->max_width - dim[W]; 
+        if (info->dst_dim[X] > x) {
+            info->modify_dim[X] += x - info->dst_dim[X];
+            info->dst_dim[X] = x;
+        }
+        y = sdim[Y] + info->gpu->max_height - dim[H];
+        if (info->dst_dim[Y] > y) {
+            info->modify_dim[Y] += y - info->dst_dim[Y];
+            info->dst_dim[Y] = y;
+        }
+        x = sdim[X] + sdim[W] - info->gpu->max_width;
+        if (info->dst_dim[X] < x) {
+            info->modify_dim[X] += x - info->dst_dim[X];
+            info->dst_dim[X] = x;
+        }
+        y = sdim[Y] + sdim[H] - info->gpu->max_height;
+        if (info->dst_dim[Y] < y) {
+            info->modify_dim[Y] += y - info->dst_dim[Y];
+            info->dst_dim[Y] = y;
+        }
+
+
+        /* Apply the move */
+        if (!info->display) {
+            /* Move the screen */
+            nvDisplayPtr display;
+
+            x = info->dst_dim[X] - info->orig_dim[X];
+            y = info->dst_dim[Y] - info->orig_dim[Y];
+
+            /* Offset the screen and all its displays */
+            offset_screen(info->screen, x, y);
+            for (display = info->gpu->displays; display;
+                 display = display->next) {
+                if (display->screen != info->screen) continue;
+                offset_display(display, x, y);
+            }
+
+        } else {
+            /* Move the display to its destination */
+            info->display->cur_mode->dim[X] = info->dst_dim[X];
+            info->display->cur_mode->dim[Y] = info->dst_dim[Y];
+            info->display->cur_mode->pan[X] = info->dst_dim[X];
+            info->display->cur_mode->pan[Y] = info->dst_dim[Y];
+
+            /* If the screen of the display that was moved is using absolute
+             * positioning, we should check to see if the position of the
+             * metamode has changed and if so, offset other metamodes on the
+             * screen (hence moving the screen's position.)
+             *
+             * If the screen is using relative positioning, don't offset
+             * metamodes since the screen's position is based on another
+             * screen which will get resolved later.
+             */
+            if (info->screen->position_type == CONF_ADJ_ABSOLUTE &&
+                info->screen->cur_metamode) {
+
+                resolve_displays_in_screen(info->screen, 0);
+                calc_metamode(info->screen, info->screen->cur_metamode);
+                x = info->screen->cur_metamode->dim[X] - info->orig_screen_dim[X];
+                y = info->screen->cur_metamode->dim[Y] - info->orig_screen_dim[Y];
                 
-                /* Other display must be in the same screen */
-                if (other->screen != screen) continue;
-
-                for (mode = other->modes; mode; mode = mode->next) {
-
-                    /* Only move non-current modes */
-                    if (mode == other->cur_mode) continue;
-
-                    /* Don't move modes that are relative */
-                    if (mode->position_type != CONF_ADJ_ABSOLUTE) continue;
-                    
-                    mode->dim[X] += x;
-                    mode->dim[Y] += y;
-                    mode->pan[X] = mode->dim[X];
-                    mode->pan[Y] = mode->dim[Y];
+                if (x || y) {
+                    nvDisplayPtr other;
+                    nvModePtr mode;
+                    for (other = info->gpu->displays; other; other = other->next) {
+                        
+                        /* Other display must be in the same screen */
+                        if (other->screen != info->screen) continue;
+                        
+                        for (mode = other->modes; mode; mode = mode->next) {
+                            
+                            /* Only move non-current modes */
+                            if (mode == other->cur_mode) continue;
+                            
+                            /* Don't move modes that are relative */
+                            if (mode->position_type != CONF_ADJ_ABSOLUTE) continue;
+                            
+                            offset_mode(mode, x, y);
+                        }
+                    }
                 }
             }
         }
-
-
-    /* Process X Screen Relative screen position moves */
-    } else if (screen->num_displays == 1) {
-        nvScreenPtr other = screen->relative_to;
-        int p_x;
-        int p_y;
-        int type;
-        
-        p_x = (ctk_object->mouse_x - ctk_object->img_dim[X]) /
-            ctk_object->scale;
-        
-        p_y = (ctk_object->mouse_y - ctk_object->img_dim[Y]) /
-            ctk_object->scale;
-        
-        type = get_point_relative_position(other->cur_metamode->dim, p_x, p_y);
-        if (type != CONF_ADJ_RELATIVE) {
-            screen->position_type = type;
-        }
     }
 
-
- finish:
 
     /* Recalculate layout dimensions and scaling */
     calc_layout(layout);
@@ -1834,25 +2023,24 @@ static int move_selected(CtkDisplayLayout *ctk_object, int x, int y, int snap)
     sync_scaling(ctk_object);
 
 
-    /* Update the modify dim if the position of the selected display changed */
-    if ((post_snap_display_pos[X] != dim[X] ||
-         post_snap_display_pos[Y] != dim[Y])) {
-        ctk_object->modify_dim[X] += dim[X] - post_snap_display_pos[X];
-        ctk_object->modify_dim[Y] += dim[Y] - post_snap_display_pos[Y];
+    /* If what we moved required the layout to be shifted, offset
+     * the modify dim (used for snapping) by the same displacement.
+     */
+    x = info->target_dim[X] - info->dst_dim[X];
+    y = info->target_dim[Y] - info->dst_dim[Y];
+    if (x || y ) {
+        info->modify_dim[X] += x;
+        info->modify_dim[Y] += y;
     }
 
-
-    /* Did the actual position of the display device change? */
-    if ((orig_display_position_type != display->cur_mode->position_type ||
-         orig_display_pos[X] != dim[X] ||
-         orig_display_pos[Y] != dim[Y] ||
-         orig_screen_position_type != screen->position_type ||
-         orig_metamode_dim[X] != screen->cur_metamode->dim[X] ||
-         orig_metamode_dim[Y] != screen->cur_metamode->dim[Y] ||
-         orig_metamode_dim[W] != screen->cur_metamode->dim[W] ||
-         orig_metamode_dim[H] != screen->cur_metamode->dim[H])) {
+    /* Report if anything changed */
+    if (*(info->target_position_type) != info->orig_position_type ||
+        info->target_dim[X] != info->orig_dim[X] ||
+        info->target_dim[Y] != info->orig_dim[Y]) {
         return 1;
     }
+
+    // XXX Screen could have changed position due to display moving.
 
     return 0;
 
@@ -1869,84 +2057,115 @@ static int move_selected(CtkDisplayLayout *ctk_object, int x, int y, int snap)
 static int pan_selected(CtkDisplayLayout *ctk_object, int x, int y, int snap)
 {
     nvLayoutPtr layout = ctk_object->layout;
-    nvDisplayPtr display;
-    nvScreenPtr screen;
-    nvGpuPtr gpu;
+    ModifyInfo *info = &(ctk_object->modify_info);
+
     int *dim;
-    int *pan;
-    int orig_dim[4];
+    int extra;
+    
+
+    info->modify_panning = 1;
+    if (!get_modify_info(ctk_object)) return 0;
 
 
+    /* Only allow changing the panning of displays and the size
+     * of no-scanout screens.
+     */
+    if (!info->display && !info->screen->no_scanout) return 0;
 
-    /* Get the dimensions of the display to pan */
-    display = get_selected(ctk_object);
-    if (!display || !display->screen || !display->cur_mode) {
-        return 0;
+    info->snap = snap;
+
+
+    /* Compute pre-snap dimensions */
+    info->modify_dim[W] += x;
+    info->modify_dim[H] += y;
+
+    /* Don't allow the panning domain to get too small */
+    if (info->display) {
+        dim = info->display->cur_mode->dim;
+        if (info->modify_dim[W] < dim[W]) {
+            info->modify_dim[W] = dim[W];
+        }
+        if (info->modify_dim[H] < dim[H]) {
+            info->modify_dim[H] = dim[H];
+        }
+    } else if (info->screen->no_scanout) {
+        if (info->modify_dim[W] < 304) {
+            info->modify_dim[W] = 304;
+        }
+        if (info->modify_dim[H] < 200) {
+            info->modify_dim[H] = 200;
+        }
     }
-    gpu = display->gpu;
-    screen = display->screen;
-    dim = display->cur_mode->dim;
-    pan = display->cur_mode->pan;
-    orig_dim[W] = pan[W];
-    orig_dim[H] = pan[H];
 
-
-    /* Resize the panning */
-    ctk_object->modify_dim[W] += x;
-    ctk_object->modify_dim[H] += y;
-
-
-    /* Panning can never be smaller then the display viewport */
-    if (ctk_object->modify_dim[W] < dim[W]) {
-        ctk_object->modify_dim[W] = dim[W];
-    }
-    if (ctk_object->modify_dim[H] < dim[H]) {
-        ctk_object->modify_dim[H] = dim[H];
-    }
-
-    pan[W] = ctk_object->modify_dim[W]; /* Snap from panning dimensions */
-    pan[H] = ctk_object->modify_dim[H];
+    info->dst_dim[W] = info->modify_dim[W];
+    info->dst_dim[H] = info->modify_dim[H];
 
 
     /* Snap to other screens and dimensions */
     if (snap && ctk_object->snap_strength) {
-        snap_pan(ctk_object, pan, dim);
+
+        info->src_dim[X] = info->dst_dim[X];
+        info->src_dim[Y] = info->dst_dim[Y];
+        info->src_dim[W] = info->dst_dim[W];
+        info->src_dim[H] = info->dst_dim[H];
+
+        snap_pan(ctk_object);
     }
 
+    /* Make sure no-scanout virtual screen width is at least a multiple of 8 */
+    if (info->screen->no_scanout) {
+        extra = (info->dst_dim[W] % 8);
+        if (extra > 0) {
+            info->dst_dim[W] += (8 - extra);
+        }
+    }
 
     /* Panning should not cause us to exceed the maximum layout dimensions */
-    x = MAX_LAYOUT_WIDTH - pan[X];
-    if (pan[W] > x) {
-        ctk_object->modify_dim[W] += x - pan[W];
-        pan[W] = x;
+    x = MAX_LAYOUT_WIDTH - info->dst_dim[X];
+    if (info->dst_dim[W] > x) {
+        info->modify_dim[W] += x - info->dst_dim[W];
+        info->dst_dim[W] = x;
     }
-    y = MAX_LAYOUT_HEIGHT - pan[Y];
-    if (pan[H] > y) {
-        ctk_object->modify_dim[H] += y - pan[H];
-        pan[H] = y;
+    y = MAX_LAYOUT_HEIGHT - info->dst_dim[Y];
+    if (info->dst_dim[H] > y) {
+        info->modify_dim[H] += y - info->dst_dim[H];
+        info->dst_dim[H] = y;
     }
-
 
     /* Panning should not cause us to exceed the maximum screen dimensions */
-    x = screen->cur_metamode->edim[X] + gpu->max_width - pan[X];
-    if (pan[W] > x) {
-        ctk_object->modify_dim[W] += x - pan[W];
-        pan[W] = x;
+    dim = get_screen_dim(info->screen, 1);
+    x = dim[X] + info->gpu->max_width - info->dst_dim[X];
+    if (info->dst_dim[W] > x) {
+        info->modify_dim[W] += x - info->dst_dim[W];
+        info->dst_dim[W] = x;
     }
-    y = screen->cur_metamode->edim[Y] + gpu->max_height - pan[Y];
-    if (pan[H] > y) {
-        ctk_object->modify_dim[H] += y - pan[H];
-        pan[H] = y;
+    y = dim[Y] + info->gpu->max_height - info->dst_dim[Y];
+    if (info->dst_dim[H] > y) {
+        info->modify_dim[H] += y - info->dst_dim[H];
+        info->dst_dim[H] = y;
     }
 
+    /* Panning domain can never be smaller then the display viewport */
+    if (info->display) {
+        dim = info->display->cur_mode->dim;
+        if (info->dst_dim[W] < dim[W]) {   
+            info->dst_dim[W] = dim[W];
+        }
+        if (info->dst_dim[H] < dim[H]) {
+            info->dst_dim[H] = dim[H];
+        }
+    } else if (info->screen->no_scanout) {
+        if (info->dst_dim[W] < 304) {
+            info->dst_dim[W] = 304;
+        }
+        if (info->dst_dim[H] < 200) {
+            info->dst_dim[H] = 200;
+        }
+    }
 
-    /* Panning can never be smaller then the display viewport */
-    if (pan[W] < dim[W]) {
-        pan[W] = dim[W];
-    }
-    if (pan[H] < dim[H]) {
-        pan[H] = dim[H];
-    }
+    /* Assign the new size */
+    info->target_dim[W] = info->dst_dim[W];
+    info->target_dim[H] = info->dst_dim[H];
 
 
     /* Recalculate layout dimensions and scaling */
@@ -1956,7 +2175,9 @@ static int pan_selected(CtkDisplayLayout *ctk_object, int x, int y, int snap)
     sync_scaling(ctk_object);
 
 
-    if (orig_dim[W] != pan[W] || orig_dim[H] != pan[H]) {
+    /* Report if anything changed */
+    if (info->target_dim[W] != info->orig_dim[W] ||
+        info->target_dim[H] != info->orig_dim[H]) {
         return 1;
     }
 
@@ -1965,100 +2186,313 @@ static int pan_selected(CtkDisplayLayout *ctk_object, int x, int y, int snap)
 } /* pan_selected() */
 
 
+/** get_screen_zorder_move_data() ************************************
+ *
+ * Looks for the screen in the Z order, and if the position given
+ * where the screen is to be moved to is different than there the
+ * screen currently is, returns a backup buffer of the zorder of
+ * the screen and its displays (also also returns the current zorder
+ * position of the screen).
+ *
+ **/
+
+ZNode *get_screen_zorder_move_data(CtkDisplayLayout *ctk_object,
+                                   nvScreenPtr screen,
+                                   int move_to,
+                                   int *screen_at)
+{
+    ZNode *tmpzo;
+    int i;
+
+    if (!screen) return NULL;
+
+    for (i = 0; i < ctk_object->Zcount; i++) {
+
+        if (ctk_object->Zorder[i].type == ZNODE_TYPE_SCREEN &&
+            ctk_object->Zorder[i].u.screen == screen) {
+
+            /* Only move screen if it is not moving to the same location */
+            if (move_to != i) {
+
+                tmpzo = (ZNode *)malloc((1 + screen->num_displays) *
+                                        sizeof(ZNode));
+                if (!tmpzo) return NULL;
+                
+                memcpy(tmpzo,
+                       ctk_object->Zorder + i - screen->num_displays,
+                       (1 + screen->num_displays)*sizeof(ZNode)); 
+                
+                if (screen_at) {
+                    *screen_at = i;
+                }
+                return tmpzo;
+            }
+            break;
+        }
+    }
+
+    return NULL;
+
+} /* get_screen_zorder_move_data() */
+
+
+/** select_screen() **************************************************
+ *
+ * Selects the given screen (by moving it and all of its displays
+ * to the top of the zorder).
+ *
+ **/
+
+static void select_screen(CtkDisplayLayout *ctk_object, nvScreenPtr screen)
+{
+    int move_to = 0;
+    int screen_at;
+    ZNode *tmpzo;
+
+    if (!screen) return;
+
+
+     /* Move the screen and its displays to the top */
+    move_to = 0 + screen->num_displays;
+
+
+    tmpzo = get_screen_zorder_move_data(ctk_object, screen, move_to,
+                                        &screen_at);
+    if (!tmpzo) {
+        goto done;
+    }
+
+    /* Move other nodes down to make room at the top */
+    memmove(ctk_object->Zorder + 1 + screen->num_displays,
+            ctk_object->Zorder,
+            (screen_at - screen->num_displays)*sizeof(ZNode));
+
+    /* Copy the screen and its displays to the top */
+    memcpy(ctk_object->Zorder, tmpzo,
+           (1 + screen->num_displays)*sizeof(ZNode));
+
+    free(tmpzo);
+    
+ done:
+    ctk_object->selected_screen = screen;
+
+} /* select_screen() */
+
+
 
 /** select_display() *************************************************
  *
- * Moves the specified display to the top of the Zorder.
+ * Moves the specified display to the top of the Z-order.
  *
  **/
 
 static void select_display(CtkDisplayLayout *ctk_object, nvDisplayPtr display)
 {
-    int z;
+    int i;
 
-    for (z = 0; z < ctk_object->Zcount; z++) {
+    if (!display) {
+        return;
+    }
 
-        /* Find the display in question */
-        if (ctk_object->Zorder[z] == display) {
-            
-            /* Bubble it to the top */
-            while (z > 0) {
-                ctk_object->Zorder[z] = ctk_object->Zorder[z-1];
-                z--;
+    /* Move the screen and its displays to the top of the Z order */
+    select_screen(ctk_object, display->screen);
+
+
+    /* Move the display to the top of the Z order */
+    for (i = 0; i < ctk_object->Zcount; i++) {
+
+        /* Find the display */
+        if (ctk_object->Zorder[i].type == ZNODE_TYPE_DISPLAY &&
+            ctk_object->Zorder[i].u.display == display) {
+
+            /* Move all nodes above this one down by one location */
+            if (i > 0) {
+                memmove(ctk_object->Zorder + 1, ctk_object->Zorder,
+                        i*sizeof(ZNode));
+
+                /* Place the display at the top */
+                ctk_object->Zorder[0].type = ZNODE_TYPE_DISPLAY;
+                ctk_object->Zorder[0].u.display = display;
             }
-            ctk_object->Zorder[0] = display;
-            ctk_object->Zselected = 1;
             break;
         }
     }
+
+    ctk_object->selected_display = display;
 
 } /* select_display() */
 
 
 
-/** select_default_display() *****************************************
+/** select_default_item() ********************************************
  *
- * Select the top left most display
+ * Select the top left most element (display/screen).
  *
  */
 
 #define DIST_SQR(D) (((D)[X] * (D)[X]) + ((D)[Y] * (D)[Y]))
 
-static void select_default_display(CtkDisplayLayout *ctk_object)
+static void select_default_item(CtkDisplayLayout *ctk_object)
 {
-    nvDisplayPtr display = NULL;
-    int z;
+    nvDisplayPtr sel_display = NULL;
+    nvScreenPtr sel_screen = NULL;
+    nvScreenPtr screen;
+    nvDisplayPtr display;
+    int i;
+    int best_dst = -1; // Distance squared to element.
+    int dst;
+
     
-    for (z = 0; z < ctk_object->Zcount; z++) {
+    for (i = 0; i < ctk_object->Zcount; i++) {
 
-        if (!ctk_object->Zorder[z]->cur_mode) continue;
+        if (ctk_object->Zorder[i].type == ZNODE_TYPE_DISPLAY) {
+            display = ctk_object->Zorder[i].u.display;
 
-        if (!display ||
-            (DIST_SQR(display->cur_mode->dim) >
-             DIST_SQR(ctk_object->Zorder[z]->cur_mode->dim))) {
-            display = ctk_object->Zorder[z];
+            /* Ignore disabled displays */
+            if (!display->cur_mode) continue;
+
+            dst = DIST_SQR(display->cur_mode->dim);
+            if (best_dst < 0 || dst < best_dst) {
+                best_dst = dst;
+                sel_display = display;
+                sel_screen = NULL;
+            }
+            
+        } else if (ctk_object->Zorder[i].type == ZNODE_TYPE_SCREEN) {
+            screen = ctk_object->Zorder[i].u.screen;
+
+            /* Only select no-scanout screens */
+            if (screen->num_displays > 0) continue;
+
+            dst = DIST_SQR(screen->dim);
+            if (best_dst < 0 || dst < best_dst) {
+                best_dst = dst;
+                sel_display = NULL;
+                sel_screen = screen;
+            }
         }
     }
 
-    if (display) {
-        select_display(ctk_object, display);
+    if (sel_display) {
+        select_display(ctk_object, sel_display);
+    } else if (sel_screen) {
+        select_screen(ctk_object, sel_screen);
     }
 
-} /* select_default_display() */
+} /* select_default_item() */
 
 
 
 /** pushback_display() ***********************************************
  *
- * Moves the specified display to the end of the Zorder
+ * Moves the specified display to the end of the Z-order.
  *
  **/
 
 static void pushback_display(CtkDisplayLayout *ctk_object,
                              nvDisplayPtr display)
 {
-    int z;
+    int i;
+    int move_to;
 
-    if (!ctk_object->Zcount) {
-        return;
-    }
-
-    for (z = 0; z < ctk_object->Zcount; z++) {
+    for (i = 0; i < ctk_object->Zcount; i++) {
 
         /* Find the display */
-        if (ctk_object->Zorder[z] == display) {
-
-            /* Bubble it down */
-            while (z < ctk_object->Zcount -1) {
-                ctk_object->Zorder[z] = ctk_object->Zorder[z+1];
-                z++;
+        if (ctk_object->Zorder[i].type == ZNODE_TYPE_DISPLAY &&
+            ctk_object->Zorder[i].u.display == display) {
+            
+            if (!display->screen) {
+                /* Move display to the end of the list. */
+                move_to = ctk_object->Zcount - 1;
+            } else {
+                /* Move display prior to its X screen */
+                for (move_to = i+1;
+                     move_to < ctk_object->Zcount;
+                     move_to++) {
+                    if (ctk_object->Zorder[move_to].type ==
+                        ZNODE_TYPE_SCREEN &&
+                        ctk_object->Zorder[move_to].u.screen ==
+                        display->screen) {
+                        break;
+                    }
+                }
+                move_to--;
             }
-            ctk_object->Zorder[ctk_object->Zcount -1] = display;
+
+            // Now move dispay from i to move_to
+            if (i != move_to) {
+                memmove(ctk_object->Zorder + i,
+                        ctk_object->Zorder + i + 1,
+                        (move_to - i)*sizeof(ZNode));
+
+                /* Place the display at the top */
+                ctk_object->Zorder[move_to].type = ZNODE_TYPE_DISPLAY;
+                ctk_object->Zorder[move_to].u.display = display;
+            }
+
             break;
         }
     }
 
 } /* pushback_display() */
+
+
+
+/** pushback_screen() ************************************************
+ *
+ * Moves the specified screen to the end of the Z-order.
+ *
+ **/
+
+static void pushback_screen(CtkDisplayLayout *ctk_object,
+                            nvScreenPtr screen)
+{
+    int move_to = ctk_object->Zcount -1;
+    int screen_at;
+    ZNode *tmpzo;
+
+    /* Get a copy of the zorder buffer for the screen */
+    tmpzo = get_screen_zorder_move_data(ctk_object, screen, move_to,
+                                        &screen_at);
+    if (!tmpzo) return;
+
+    /* Move other nodes up to make room at the bottom */
+    memmove(ctk_object->Zorder + screen_at - screen->num_displays,
+            ctk_object->Zorder + screen_at + 1,
+            (move_to - screen_at)*sizeof(ZNode));
+    
+    /* Copy the screen and its displays to the bottom */
+    memcpy(ctk_object->Zorder + move_to - screen->num_displays,
+           tmpzo,
+           (1 + screen->num_displays)*sizeof(ZNode));
+
+    free(tmpzo);
+
+} /* pushback_screen() */
+
+
+
+/** pushback_selected() **********************************************
+ *
+ * Moves the specified display or screen to the end of the Z-order.
+ *
+ **/
+
+static void pushback_selected(CtkDisplayLayout *ctk_object)
+{
+    /* Pushback the selected display if it has no screen or
+     * is part of twinview to avoid selecting the screen of
+     * single-display screens.
+     */
+    if (ctk_object->selected_display &&
+        (!ctk_object->selected_screen ||
+         ctk_object->selected_screen->num_displays > 1)) {
+        pushback_display(ctk_object, ctk_object->selected_display);
+    } else if (ctk_object->selected_screen) {
+        pushback_screen(ctk_object, ctk_object->selected_screen);
+    }
+
+} /* pushback_selected() */
 
 
 
@@ -2073,8 +2507,7 @@ static void pushback_display(CtkDisplayLayout *ctk_object,
  *
  **/
 
-static char *get_display_tooltip(CtkDisplayLayout *ctk_object,
-                                 nvDisplayPtr display)
+static char *get_display_tooltip(nvDisplayPtr display, Bool advanced)
 { 
     char *tip;
 
@@ -2092,7 +2525,7 @@ static char *get_display_tooltip(CtkDisplayLayout *ctk_object,
 
 
     /* Basic view */
-    } else if (!ctk_object->advanced_mode) {
+    } else if (!advanced) {
         
         /* Display has no mode */
         if (!display->cur_mode) {
@@ -2122,14 +2555,14 @@ static char *get_display_tooltip(CtkDisplayLayout *ctk_object,
 
         /* Display has no mode */
         if (!display->cur_mode) {
-            tip = g_strdup_printf("%s : (Screen: %d) (GPU: %s)",
+            tip = g_strdup_printf("%s\n(X Screen %d)\n(GPU: %s)",
                                   display->name,
                                   display->screen->scrnum,
                                   display->gpu->name);
             
         /* Display does not have a current modeline (Off) */
         } else if (!(display->cur_mode->modeline)) {
-            tip = g_strdup_printf("%s : Off (Screen: %d) (GPU: %s)",
+            tip = g_strdup_printf("%s : Off\n(X Screen %d)\n(GPU: %s)",
                                   display->name,
                                   display->screen->scrnum,
                                   display->gpu->name);
@@ -2137,7 +2570,7 @@ static char *get_display_tooltip(CtkDisplayLayout *ctk_object,
             /* Display has mode/modeline */
         } else {
             float ref = display->cur_mode->modeline->refresh_rate;
-            tip = g_strdup_printf("%s : %dx%d @ %.*f Hz (Screen: %d) "
+            tip = g_strdup_printf("%s : %dx%d @ %.*f Hz\n(X Screen %d)\n"
                                   "(GPU: %s)",
                                   display->name,
                                   display->cur_mode->modeline->data.hdisplay,
@@ -2155,20 +2588,69 @@ static char *get_display_tooltip(CtkDisplayLayout *ctk_object,
 
 
 
-/** get_display_tooltip_under_mouse() ********************************
+/** get_screen_tooltip() *********************************************
  *
- * Returns the tooltip text that should be used to give information
- * about the display under the mouse at x, y.
+ * Returns the text to use for displaying a tooltip from the given
+ * screen:
+ * 
+ *   SCREEN NUMBER (GPU NAME)
  *
  * The caller should free the string that is returned.
  *
  **/
 
-static char *get_display_tooltip_under_mouse(CtkDisplayLayout *ctk_object,
+static char *get_screen_tooltip(nvScreenPtr screen, Bool advanced)
+{ 
+    char *tip;
+
+
+    /* No display given */
+    if (!screen) {
+        return NULL;
+    }
+
+
+    /* Basic view */
+    if (!advanced) {
+        
+        tip = g_strdup_printf("X Screen %d%s", screen->scrnum,
+                              screen->no_scanout ? " : No Scanout" : ""
+                              );
+
+    /* Advanced view */
+    } else {
+
+        tip = g_strdup_printf("X Screen %d%s\n(GPU: %s)",
+                              screen->scrnum,
+                              screen->no_scanout ? " : No Scanout" : "",
+                              screen->gpu->name);
+    }
+            
+    return tip;
+
+} /* get_screen_tooltip() */
+
+
+
+/** get_tooltip_under_mouse() ****************************************
+ *
+ * Returns the tooltip text that should be used to give information
+ * about the item under the mouse at x, y.
+ *
+ * The caller should free the string that is returned.
+ *
+ **/
+
+static char *get_tooltip_under_mouse(CtkDisplayLayout *ctk_object,
                                              int x, int y)
 {
-    int                 z;
     static nvDisplayPtr last_display = NULL;
+    static nvScreenPtr  last_screen = NULL;
+    int i;
+    nvDisplayPtr display = NULL;
+    nvScreenPtr screen = NULL;
+    char *tip = NULL;
+    int *sdim;
     
  
     /* Scale and offset x & y so they reside in clickable area */
@@ -2176,43 +2658,50 @@ static char *get_display_tooltip_under_mouse(CtkDisplayLayout *ctk_object,
     y = (y -ctk_object->img_dim[Y]) / ctk_object->scale;
 
 
-    /* Find the first display under the cursor */
-    z = 0;
-    while (z < ctk_object->Zcount) {
-        if (ctk_object->Zorder[z]->cur_mode &&
-            point_in_dim(ctk_object->Zorder[z]->cur_mode->dim, x, y)) {
-            if (ctk_object->Zorder[z] == last_display) {
-                return NULL;
+    /* Go through the Z-order looking for what we are under */
+    for (i = 0; i < ctk_object->Zcount; i++) {
+        
+        if (ctk_object->Zorder[i].type == ZNODE_TYPE_DISPLAY) {
+            display = ctk_object->Zorder[i].u.display;
+            if (display->cur_mode &&
+                point_in_dim(display->cur_mode->pan, x, y)) {
+                screen = NULL;
+                if (display == last_display) {
+                    goto found;
+                }
+                tip = get_display_tooltip(display, ctk_object->advanced_mode);
+                goto found;
             }
-            last_display = ctk_object->Zorder[z];
-            return get_display_tooltip(ctk_object, ctk_object->Zorder[z]);
+
+        } else if (ctk_object->Zorder[i].type == ZNODE_TYPE_SCREEN) {
+            screen = ctk_object->Zorder[i].u.screen;
+            sdim = get_screen_dim(screen, 1);
+            if (point_in_dim(sdim, x, y)) {
+                display = NULL;
+                if (screen == last_screen) {
+                    goto found;
+                }
+                tip = get_screen_tooltip(screen, ctk_object->advanced_mode);
+                goto found;
+            }
         }
-        z++;
     }
 
-    /* Check display pannings as a last resort */
-    z = 0;
-    while (z < ctk_object->Zcount) {
-        if (ctk_object->Zorder[z]->cur_mode &&
-            point_in_dim(ctk_object->Zorder[z]->cur_mode->pan, x, y)) {
-            if (ctk_object->Zorder[z] == last_display) {
-                return NULL;
-            }
-            last_display = ctk_object->Zorder[z];
-            return get_display_tooltip(ctk_object, ctk_object->Zorder[z]);
-        }
-        z++;
-    }
-
-
-    if (last_display) {
+    /* Handle mouse over nothing for the first time */
+    if (last_display || last_screen) {
         last_display = NULL;
-        return g_strdup("*** No Display ***");
+        last_screen = NULL;
+        return g_strdup("No Display");
     }
 
     return NULL;
 
-} /* get_display_tooltip_under_mouse() */
+ found:
+    last_display = display;
+    last_screen = screen;
+    return tip;
+
+} /* get_tooltip_under_mouse() */
 
 
 
@@ -2222,63 +2711,65 @@ static char *get_display_tooltip_under_mouse(CtkDisplayLayout *ctk_object,
  *
  **/
 
-static int click_layout(CtkDisplayLayout *ctk_object, int x, int y)
+static int click_layout(CtkDisplayLayout *ctk_object, int x, int y,
+                        nvScreenPtr reselect_screen)
 {
-    int z;
-    nvDisplayPtr cur_selected;
+    int i;
+    nvDisplayPtr cur_selected_display = ctk_object->selected_display;
+    nvScreenPtr cur_selected_screen = ctk_object->selected_screen;
+    nvDisplayPtr display;
+    nvScreenPtr screen;
+    int *sdim;
 
-
-    /* Make sure there is something to click */
-    if (!ctk_object->Zcount) {
-        return 0;
-    }
-
-
-    /* Keep track of the currently selected display */
-    cur_selected = ctk_object->Zorder[0];
 
     /* Assume user didn't actually click inside a display for now */
     ctk_object->clicked_outside = 1;
+    ctk_object->selected_display = NULL;
+    ctk_object->selected_screen = NULL;
+    
 
-    /* Push selected screen to the back of Z order */
-    ctk_object->Zselected = 0;
-    if (ctk_object->select_next) {
-        pushback_display(ctk_object, ctk_object->Zorder[0]);
-    }
+    /* Look through the Z-order for the next element */
+    for (i = 0; i < ctk_object->Zcount; i++) {
+        if (ctk_object->Zorder[i].type == ZNODE_TYPE_DISPLAY) {
+            display = ctk_object->Zorder[i].u.display;
+            if (display->cur_mode &&
+                point_in_dim(display->cur_mode->pan, x, y)) {
 
-    /* Find the first display under the cursor */
-    z = 0;
-    while (z < ctk_object->Zcount) {
-        if (ctk_object->Zorder[z]->cur_mode &&
-            point_in_dim(ctk_object->Zorder[z]->cur_mode->dim, x, y)) {
-            select_display(ctk_object, ctk_object->Zorder[z]);
-            ctk_object->clicked_outside = 0;
-            break;
-        }
-        z++;
-    }
-
-    /* Check if we clicked on a panning domain */
-    if (!(ctk_object->Zselected)) {
-        z = 0;
-        while (z < ctk_object->Zcount) {
-            if (ctk_object->Zorder[z]->cur_mode &&
-                point_in_dim(ctk_object->Zorder[z]->cur_mode->pan, x, y)) {
-                select_display(ctk_object, ctk_object->Zorder[z]);
+                /* Re-select the screen instead of the display
+                 * (after a move)
+                 */
+                if (display->screen &&
+                    (reselect_screen == display->screen)) {
+                    select_screen(ctk_object, display->screen);
+                } else {
+                    select_display(ctk_object, display);
+                }
                 ctk_object->clicked_outside = 0;
                 break;
             }
-            z++;
+            
+        } else if (ctk_object->Zorder[i].type == ZNODE_TYPE_SCREEN) {
+            screen = ctk_object->Zorder[i].u.screen;
+            sdim = get_screen_dim(screen, 1);
+            if (point_in_dim(sdim, x, y)) {
+                select_screen(ctk_object, screen);
+                ctk_object->clicked_outside = 0;
+                break;
+            }
         }
     }
 
-    /* Reselect the last display */
-    if (ctk_object->clicked_outside && cur_selected) {
-        select_display(ctk_object, cur_selected);
-    }
 
-    /* Sync modify dimensions to the newly selected display */
-    sync_modify(ctk_object);
+    /* Don't allow clicking outside - reselect what was last selected */
+    if (ctk_object->clicked_outside) {
+        ctk_object->selected_display = cur_selected_display;
+        ctk_object->selected_screen = cur_selected_screen;
+
+    } else {
+
+        /* Sync modify dimensions to what was newly selected */
+        ctk_object->modify_info.modify_dirty = 1;
+    }
 
     return 1;
 
@@ -2361,7 +2852,7 @@ GtkWidget* ctk_display_layout_new(NvCtrlAttributeHandle *handle,
     calc_layout(layout);
     sync_scaling(ctk_object);
     zorder_layout(ctk_object);
-    select_default_display(ctk_object);
+    select_default_item(ctk_object);
 
     
     /* Setup Pango layout/font */
@@ -2394,8 +2885,9 @@ GtkWidget* ctk_display_layout_new(NvCtrlAttributeHandle *handle,
 
     /* Setup the layout state variables */
     ctk_object->snap_strength = DEFAULT_SNAP_STRENGTH;
-    ctk_object->need_swap     = 0;
-    ctk_object->select_next   = 0;
+    ctk_object->need_swap = 0;
+    ctk_object->first_selected_display = NULL;
+    ctk_object->first_selected_screen = NULL;
 
 
     /* Make the drawing area */
@@ -2713,6 +3205,61 @@ static void draw_display(CtkDisplayLayout *ctk_object,
 
 
 
+/** draw_screen() ****************************************************
+ *
+ * Draws a screen to scale within the layout.
+ *
+ **/
+
+static void draw_screen(CtkDisplayLayout *ctk_object,
+                        nvScreenPtr screen)
+{
+    GtkWidget *drawing_area = ctk_object->drawing_area;
+    GdkGC *fg_gc = get_widget_fg_gc(drawing_area);
+
+    int *sdim; /* Screen dimensions */
+    GdkColor bg_color; /* Background color */
+    GdkColor bd_color; /* Border color */
+    char *tmp_str;
+
+
+    if (!screen)  return;
+
+
+    /* Draw the screen effective size */
+    gdk_color_parse("#888888", &bg_color);
+    gdk_color_parse("#777777", &bd_color);
+
+    sdim = get_screen_dim(screen, 1);
+
+    /* Draw the screen background */
+    draw_rect(ctk_object, sdim, &bg_color, 1);
+
+    /* Draw the screen border with dashed lines */
+    gdk_gc_set_line_attributes(fg_gc, 1, GDK_LINE_ON_OFF_DASH,
+                               GDK_CAP_NOT_LAST, GDK_JOIN_ROUND);
+
+    draw_rect(ctk_object, sdim, &(ctk_object->fg_color), 0);
+    
+    gdk_gc_set_line_attributes(fg_gc, 1, GDK_LINE_SOLID,
+                               GDK_CAP_NOT_LAST, GDK_JOIN_ROUND);
+
+    /* Show the name of the scree if no-scanout is selected */
+    if (screen->no_scanout) {
+        tmp_str = g_strdup_printf("X Screen %d", screen->scrnum);
+        
+        draw_rect_strs(ctk_object,
+                       screen->dim,
+                       &(ctk_object->fg_color),
+                       tmp_str,
+                       "(No Scanout)");
+        g_free(tmp_str);
+    }
+
+} /* draw_screen() */
+
+
+
 /** draw_layout() ****************************************************
  *
  * Draws a layout.
@@ -2726,45 +3273,39 @@ static void draw_layout(CtkDisplayLayout *ctk_object)
     
     GdkColor bg_color; /* Background color */
     GdkColor bd_color; /* Border color */
-    nvGpuPtr gpu;
-    nvScreenPtr screen;
-    int z;
+    int i;
 
 
-    /* Draw the metamode's effective size */
     gdk_color_parse("#888888", &bg_color);
     gdk_color_parse("#777777", &bd_color);
 
-    gdk_gc_set_line_attributes(fg_gc, 1, GDK_LINE_ON_OFF_DASH,
-                               GDK_CAP_NOT_LAST, GDK_JOIN_ROUND);
 
-    for (gpu = ctk_object->layout->gpus; gpu; gpu = gpu->next) {
-        for (screen = gpu->screens; screen; screen = screen->next) {
-            draw_rect(ctk_object, screen->cur_metamode->edim, &bg_color, 1);
-            draw_rect(ctk_object, screen->cur_metamode->edim,
-                      &(ctk_object->fg_color), 0);
-         }
-    }
-
-    gdk_gc_set_line_attributes(fg_gc, 1, GDK_LINE_SOLID, GDK_CAP_NOT_LAST,
-                               GDK_JOIN_ROUND);
-
-
-    /* Draw display devices from back to front */
-    for (z = ctk_object->Zcount - 1; z >= 0; z--) {
-        draw_display(ctk_object, ctk_object->Zorder[z]);
-        ctk_object->need_swap = 1;
+    /* Draw the Z-order back to front */
+    for (i = ctk_object->Zcount - 1; i >= 0; i--) {
+        if (ctk_object->Zorder[i].type == ZNODE_TYPE_DISPLAY) {
+            draw_display(ctk_object, ctk_object->Zorder[i].u.display);
+            ctk_object->need_swap = 1;
+        } else if (ctk_object->Zorder[i].type == ZNODE_TYPE_SCREEN) {
+            draw_screen(ctk_object, ctk_object->Zorder[i].u.screen);
+            ctk_object->need_swap = 1;
+        }
     }
 
 
-    /* Hilite the selected display device */
-    if (ctk_object->Zselected && ctk_object->Zcount) {
+    /* Hilite the selected item */
+    if (ctk_object->selected_display ||
+        ctk_object->selected_screen) {
+
         int w, h;
         int size; /* Hilite line size */
         int offset; /* Hilite box offset */
         int *dim;
 
-        dim = ctk_object->Zorder[0]->cur_mode->dim;
+        if (ctk_object->selected_display) {
+            dim = ctk_object->selected_display->cur_mode->dim;
+        } else {
+            dim = get_screen_dim(ctk_object->selected_screen, 0);
+        }
 
         /* Draw red selection border */
         w  = (int)(ctk_object->scale * (dim[X] + dim[W])) - (int)(ctk_object->scale * (dim[X]));
@@ -2800,33 +3341,47 @@ static void draw_layout(CtkDisplayLayout *ctk_object)
 
         /* Uncomment to show bounding box of selected screen's metamodes */
         /*
-        if (ctk_object->Zorder[0]->screen) {
+        if (ctk_object->selected_screen) {
             
             // Shows the screen dimensions used to write to the X config file
             gdk_color_parse("#00FF00", &bg_color);
             draw_rect(ctk_object,
-                      ctk_object->Zorder[0]->screen->dim,
+                      ctk_object->selected_screen->dim,
                       &(bg_color), 0);
 
-            // Shows the effective screen dimensions used in conjunction with
-            // display devices that are "off"
-            gdk_color_parse("#0000FF", &bg_color);
-            draw_rect(ctk_object,
-                      ctk_object->Zorder[0]->screen->cur_metamode->dim,
-                      &(bg_color), 0);
+            if (ctk_object->selected_screen->cur_metamode) {
+                // Shows the effective screen dimensions used in conjunction
+                // with display devices that are "off"
+                gdk_color_parse("#0000FF", &bg_color);
+                draw_rect(ctk_object,
+                          ctk_object->selected_screen->cur_metamode->dim,
+                          &(bg_color), 0);
 
-            // Shows the current screen dimensions used for relative
-            // positioning of the screen (w/o displays that are "off")
-            gdk_color_parse("#FF00FF", &bg_color);
-            draw_rect(ctk_object,
-                      ctk_object->Zorder[0]->screen->cur_metamode->edim,
-                      &(bg_color), 0);
+                // Shows the current screen dimensions used for relative
+                // positioning of the screen (w/o displays that are "off")
+                gdk_color_parse("#FF00FF", &bg_color);
+                draw_rect(ctk_object,
+                          ctk_object->selected_screen->cur_metamode->edim,
+                          &(bg_color), 0);
+            }
         }
-        */
+        //*/
 
         /* Uncomment to show unsnapped dimensions */
-        //gdk_color_parse("#DD4444", &bg_color);
-        //draw_rect(ctk_object, ctk_object->modify_dim, &bg_color, 0);
+        /*
+        {
+            gdk_color_parse("#DD4444", &bg_color);
+            if (ctk_object->modify_info.modify_dirty) {
+                gdk_gc_set_line_attributes(fg_gc, 1, GDK_LINE_ON_OFF_DASH,
+                                           GDK_CAP_NOT_LAST, GDK_JOIN_ROUND);
+            }
+            draw_rect(ctk_object, ctk_object->modify_info.modify_dim, &bg_color, 0);
+            if (ctk_object->modify_info.modify_dirty) {
+                gdk_gc_set_line_attributes(fg_gc, 1, GDK_LINE_SOLID,
+                                           GDK_CAP_NOT_LAST, GDK_JOIN_ROUND);
+            }
+        }
+        //*/
 
         ctk_object->need_swap = 1;
     }
@@ -2915,6 +3470,32 @@ static void draw_all(CtkDisplayLayout *ctk_object)
 
 
 
+/** ctk_display_layout_update() **************************************
+ *
+ * Causes a recalculation of the layout.
+ *
+ **/
+
+void ctk_display_layout_update(CtkDisplayLayout *ctk_object)
+{
+    nvLayoutPtr layout = ctk_object->layout;
+
+    /* Recalculate layout dimensions and scaling */
+    calc_layout(layout);
+    offset_layout(layout, -layout->dim[X], -layout->dim[Y]);
+    recenter_layout(layout);
+    sync_scaling(ctk_object);
+    ctk_object->modify_info.modify_dirty = 1;
+
+    /* Make sure the selected display/screen is up to date */
+    if (ctk_object->selected_display) {
+        ctk_object->selected_screen = ctk_object->selected_display->screen;
+    }
+
+} /* ctk_display_layout_update() */
+
+
+
 /** ctk_display_layout_redraw() **************************************
  *
  * Redraw everything in the layout and makes sure the widget is
@@ -2924,19 +3505,8 @@ static void draw_all(CtkDisplayLayout *ctk_object)
 
 void ctk_display_layout_redraw(CtkDisplayLayout *ctk_object)
 {
-    nvLayoutPtr layout = ctk_object->layout;
-
-    /* Recalculate layout dimensions and scaling */
-    calc_layout(layout);
-    offset_layout(layout, -layout->dim[X], -layout->dim[Y]);
-    recenter_layout(layout);
-    sync_scaling(ctk_object);
-    sync_modify(ctk_object);
-
-    /* Redraw */
+    ctk_display_layout_update(ctk_object);
     draw_all(ctk_object);
-
-    /* Refresh GUI */
     do_swap(ctk_object);
 
 } /* ctk_display_layout_redraw() */
@@ -2955,20 +3525,26 @@ void ctk_display_layout_set_layout(CtkDisplayLayout *ctk_object,
     /* Setup for the new layout */
     ctk_object->layout = layout;
     zorder_layout(ctk_object);
-    select_default_display(ctk_object);
-    calc_layout(layout);
-    offset_layout(layout, -layout->dim[X], -layout->dim[Y]);
-    recenter_layout(layout);
-    sync_scaling(ctk_object);
-    sync_modify(ctk_object);
+    select_default_item(ctk_object);
 
     /* Redraw */
-    draw_all(ctk_object);
-
-    /* Refresh GUI */
-    do_swap(ctk_object);
+    ctk_display_layout_redraw(ctk_object);
 
 } /* ctk_display_layout_set_layout() */
+
+
+
+/** ctk_display_layout_update_zorder() *******************************
+ *
+ * Updates the layout by re-building the Z-order list.
+ *
+ **/
+
+void ctk_display_layout_update_zorder(CtkDisplayLayout *ctk_object)
+{
+    zorder_layout(ctk_object);
+
+} /* ctk_display_layout_update_zorder() */
 
 
 
@@ -2980,7 +3556,7 @@ void ctk_display_layout_set_layout(CtkDisplayLayout *ctk_object,
 
 nvDisplayPtr ctk_display_layout_get_selected_display(CtkDisplayLayout *ctk_object)
 {
-    return get_selected(ctk_object);
+    return ctk_object->selected_display;
 
 } /* ctk_display_layout_get_selected_display() */
 
@@ -2994,11 +3570,7 @@ nvDisplayPtr ctk_display_layout_get_selected_display(CtkDisplayLayout *ctk_objec
 
 nvScreenPtr ctk_display_layout_get_selected_screen(CtkDisplayLayout *ctk_object)
 {
-    nvDisplayPtr display = get_selected(ctk_object);
-    if (display) {
-        return display->screen;
-    }
-    return NULL;
+    return ctk_object->selected_screen;
 
 } /* ctk_display_layout_get_selected_screen() */
 
@@ -3012,10 +3584,14 @@ nvScreenPtr ctk_display_layout_get_selected_screen(CtkDisplayLayout *ctk_object)
 
 nvGpuPtr ctk_display_layout_get_selected_gpu(CtkDisplayLayout *ctk_object)
 {
-    nvDisplayPtr display = get_selected(ctk_object);
-    if (display) {
-        return display->gpu;
+    if (ctk_object->selected_display) {
+        return ctk_object->selected_display->gpu;
     }
+
+    if (ctk_object->selected_screen) {
+        return ctk_object->selected_screen->gpu;
+    }
+
     return NULL;
 
 } /* ctk_display_layout_get_selected_gpu() */
@@ -3045,7 +3621,7 @@ void ctk_display_layout_set_screen_metamode(CtkDisplayLayout *ctk_object,
     set_screen_metamode(ctk_object->layout, screen, new_metamode_idx);
     recenter_layout(ctk_object->layout);
     sync_scaling(ctk_object);
-    sync_modify(ctk_object);
+    ctk_object->modify_info.modify_dirty = 1;
 
     /* Redraw the layout */
     ctk_display_layout_redraw(ctk_object);
@@ -3063,7 +3639,7 @@ void ctk_display_layout_set_screen_metamode(CtkDisplayLayout *ctk_object,
 void ctk_display_layout_add_screen_metamode(CtkDisplayLayout *ctk_object,
                                             nvScreenPtr screen)
 {
-    nvDisplayPtr display = get_selected(ctk_object);
+    nvDisplayPtr display;
     nvMetaModePtr metamode;
 
 
@@ -3233,6 +3809,43 @@ void ctk_display_layout_delete_screen_metamode(CtkDisplayLayout *ctk_object,
 
 
 
+/** ctk_display_layout_disable_display() *****************************
+ *
+ * Disables a display (removes it from its X screen.
+ *
+ **/
+
+void ctk_display_layout_disable_display(CtkDisplayLayout *ctk_object,
+                                        nvDisplayPtr display)
+{
+    nvScreenPtr screen = display->screen;
+
+    /* Remove display from the X screen */
+    screen_remove_display(display);
+
+    /* If the screen is empty, remove it */
+    if (!screen->num_displays) {
+        gpu_remove_and_free_screen(screen);
+
+        /* Unselect the screen if it was selected */
+        if (screen == ctk_object->first_selected_screen) {
+            ctk_object->first_selected_screen = NULL;
+        }
+        if (screen == ctk_object->selected_screen) {
+            ctk_object->selected_screen = NULL;
+        }
+
+        /* Make sure screen numbers are consistent */
+        renumber_xscreens(ctk_object->layout);
+    }
+
+    /* Add the fake mode to the display */
+    gpu_add_screenless_modes_to_displays(display->gpu);    
+
+} /* ctk_display_layout_disable_display() */
+
+
+
 /** ctk_display_layout_set_mode_modeline() ***************************
  *
  * Sets which modeline the mode should use.
@@ -3243,7 +3856,6 @@ void ctk_display_layout_set_mode_modeline(CtkDisplayLayout *ctk_object,
                                           nvModePtr mode,
                                           nvModeLinePtr modeline)
 {
-    nvLayoutPtr layout = ctk_object->layout;
     nvModeLinePtr old_modeline;
 
     if (!mode) {
@@ -3292,13 +3904,6 @@ void ctk_display_layout_set_mode_modeline(CtkDisplayLayout *ctk_object,
         mode->metamode->source = METAMODE_SOURCE_NVCONTROL;
     }
 
-    /* Recalculate layout dimensions and scaling */
-    calc_layout(layout);
-    offset_layout(layout, -layout->dim[X], -layout->dim[Y]);
-    recenter_layout(layout);
-    sync_scaling(ctk_object);
-    sync_modify(ctk_object);
-
 
     /* Redraw the layout */
     ctk_display_layout_redraw(ctk_object);
@@ -3323,7 +3928,6 @@ void ctk_display_layout_set_display_position(CtkDisplayLayout *ctk_object,
     GdkGC *fg_gc = get_widget_fg_gc(drawing_area);
     GdkGCValues old_gc_values;
     int modified = 0;
-    nvLayoutPtr layout = ctk_object->layout;
 
 
     if (!display) return;
@@ -3381,7 +3985,7 @@ void ctk_display_layout_set_display_position(CtkDisplayLayout *ctk_object,
     switch (position_type) {
     case CONF_ADJ_ABSOLUTE:
         /* Do the move by offsetting */
-        sync_modify(ctk_object);
+        ctk_object->modify_info.modify_dirty = 1;
         modified = move_selected(ctk_object,
                                  x - display->cur_mode->dim[X],
                                  y - display->cur_mode->dim[Y],
@@ -3402,11 +4006,7 @@ void ctk_display_layout_set_display_position(CtkDisplayLayout *ctk_object,
         reposition_screen(display->screen, ctk_object->advanced_mode);
 
         /* Recalculate the layout */
-        calc_layout(layout);
-        offset_layout(layout, -layout->dim[X], -layout->dim[Y]);
-        recenter_layout(layout);
-        sync_scaling(ctk_object);
-        sync_modify(ctk_object);
+        ctk_display_layout_update(ctk_object);
         break;
     }
 
@@ -3452,7 +4052,7 @@ void ctk_display_layout_set_display_panning(CtkDisplayLayout *ctk_object,
 
 
     /* Change the panning */
-    sync_modify(ctk_object);
+    ctk_object->modify_info.modify_dirty = 1;
     modified = pan_selected(ctk_object,
                             width  - display->cur_mode->pan[W],
                             height - display->cur_mode->pan[H],
@@ -3491,13 +4091,8 @@ void ctk_display_layout_set_display_panning(CtkDisplayLayout *ctk_object,
 void ctk_display_layout_select_display(CtkDisplayLayout *ctk_object,
                                        nvDisplayPtr display)
 {
-    if (display) {
-        /* Select the new display */
-        select_display(ctk_object, display);
-    } else if (ctk_object->Zcount) {
-        /* Select the new topmost display */
-        select_display(ctk_object, ctk_object->Zorder[0]);
-    }
+    /* Select the new display */
+    select_display(ctk_object, display);
 
 } /* ctk_display_layout_select_display() */
 
@@ -3506,7 +4101,7 @@ void ctk_display_layout_select_display(CtkDisplayLayout *ctk_object,
 /** ctk_display_layout_update_display_count() ************************
  *
  * Updates the number of displays shown in the layout by re-building
- * the Zorder list.
+ * the Z-order list.
  *
  **/
 
@@ -3517,9 +4112,68 @@ void ctk_display_layout_update_display_count(CtkDisplayLayout *ctk_object,
     zorder_layout(ctk_object);
 
     /* Select the previously selected display */
-    ctk_display_layout_select_display(ctk_object, display);
+    if (display) {
+        ctk_display_layout_select_display(ctk_object, display);
+    }
 
 } /* ctk_display_layout_update_display_count() */
+
+
+
+/** ctk_display_layout_set_screen_virtual_size() *********************
+ *
+ * Sets the virtual size of the screen
+ *
+ **/
+
+void ctk_display_layout_set_screen_virtual_size(CtkDisplayLayout *ctk_object,
+                                                nvScreenPtr screen,
+                                                int width, int height)
+{
+    GtkWidget *drawing_area = ctk_object->drawing_area;
+    GdkGC *fg_gc = get_widget_fg_gc(drawing_area);
+    GdkGCValues old_gc_values;
+    int modified;
+
+    if (!screen || !screen->no_scanout) return;
+
+    /* Backup the foreground color */
+    if (fg_gc) {
+        gdk_gc_get_values(fg_gc, &old_gc_values);
+
+        clear_layout(ctk_object);
+    }
+
+    /* Do the panning by offsetting */
+
+    // XXX May want to pan non-selected screen,
+    //     though right now this just works out
+    //     since what we want to pan is always
+    //     what is selected.
+    ctk_object->modify_info.modify_dirty = 1;
+    modified = pan_selected(ctk_object,
+                            width - screen->dim[W],
+                            height - screen->dim[H],
+                            0);
+
+    if (ctk_object->modified_callback &&
+        (modified ||
+         width != screen->dim[W] ||
+         height != screen->dim[H])) {
+        ctk_object->modified_callback(ctk_object->layout,
+                                      ctk_object->modified_callback_data);
+    }
+
+    /* Redraw layout and reset the foreground color */
+    if (fg_gc) {
+        draw_layout(ctk_object);
+
+        gdk_gc_set_values(fg_gc, &old_gc_values, GDK_GC_FOREGROUND);
+
+        do_swap(ctk_object);
+    }
+
+} /* ctk_display_layout_set_screen_virtual_size() */
 
 
 
@@ -3602,6 +4256,7 @@ void ctk_display_layout_set_screen_position(CtkDisplayLayout *ctk_object,
             nvDisplayPtr other;
             int x_offset = x - screen->dim[X];
             int y_offset = y - screen->dim[Y];
+            int *sdim;
 
             /* Make sure this screen use absolute positioning */
             switch_screen_to_absolute(screen);
@@ -3614,17 +4269,15 @@ void ctk_display_layout_set_screen_position(CtkDisplayLayout *ctk_object,
             }
             
             /* Recalculate the layout */
-            calc_layout(layout);
-            offset_layout(layout, -layout->dim[X], -layout->dim[Y]);
-            recenter_layout(layout);
-            sync_scaling(ctk_object);
-            sync_modify(ctk_object);
+            ctk_display_layout_update(ctk_object);
                         
             /* Report back result of move */
-            if (ctk_object->modified_callback &&
-                (modified ||
-                 x != screen->cur_metamode->edim[X] ||
-                 y != screen->cur_metamode->edim[Y])) {
+            sdim = get_screen_dim(screen, 1);
+            if (x != sdim[X] || y != sdim[Y]) {
+                modified = 1;
+            }
+
+            if (ctk_object->modified_callback && modified) {
                 ctk_object->modified_callback
                     (ctk_object->layout, ctk_object->modified_callback_data);
             }
@@ -3659,11 +4312,7 @@ void ctk_display_layout_set_screen_position(CtkDisplayLayout *ctk_object,
          */
         
         /* Recalculate the layout */
-        calc_layout(layout);
-        offset_layout(layout, -layout->dim[X], -layout->dim[Y]);
-        recenter_layout(layout);
-        sync_scaling(ctk_object);
-        sync_modify(ctk_object);
+        ctk_display_layout_update(ctk_object);
         break;
     }
 
@@ -3780,14 +4429,21 @@ motion_event_callback(GtkWidget *widget, GdkEventMotion *event, gpointer data)
     GdkGCValues old_gc_values;
 
     static int init = 1;
-    static int __modify_panning;
+    int modify_panning;
 
-    if (init) {
+
+    /* Swap between panning and moving  */
+    if (ctk_object->advanced_mode && (event->state & ShiftMask)) {
+        modify_panning = 1;
+    } else {
+        modify_panning = 0;
+    }
+    if ((ctk_object->modify_info.modify_panning != modify_panning) || init) {
         init = 0;
-        __modify_panning = (event->state & ShiftMask) ? 1 : 0;
+        ctk_object->modify_info.modify_dirty = 1;
     }
 
-
+    /* Nothing to do if mouse didn't move */
     if (ctk_object->last_mouse_x == event->x &&
         ctk_object->last_mouse_y == event->y) {
         return TRUE;
@@ -3797,8 +4453,9 @@ motion_event_callback(GtkWidget *widget, GdkEventMotion *event, gpointer data)
     ctk_object->mouse_y = event->y;
 
 
-    /* Mouse moved, allow user to reselect the current display */
-    ctk_object->select_next = 0;
+    /* If mouse moved, allow user to reselect the current display/screen */
+    ctk_object->first_selected_display = NULL;
+    ctk_object->first_selected_screen = NULL;
 
 
     /* Backup the foreground color */
@@ -3816,12 +4473,7 @@ motion_event_callback(GtkWidget *widget, GdkEventMotion *event, gpointer data)
 
         clear_layout(ctk_object);
 
-        /* Swap between panning and moving  */
-        if (__modify_panning != ((event->state & ShiftMask) ? 1 : 0)) {
-            __modify_panning = ((event->state & ShiftMask) ? 1 : 0);
-            sync_modify(ctk_object);
-        }
-        if (!(event->state & ShiftMask) || !ctk_object->advanced_mode) {
+        if (!modify_panning) {
             modified = move_selected(ctk_object, delta_x, delta_y, 1);
         } else {
             modified = pan_selected(ctk_object, delta_x, delta_y, 1);
@@ -3838,7 +4490,7 @@ motion_event_callback(GtkWidget *widget, GdkEventMotion *event, gpointer data)
     /* Update the tooltip under the mouse */
     } else {
         char *tip =
-            get_display_tooltip_under_mouse(ctk_object, event->x, event->y);
+            get_tooltip_under_mouse(ctk_object, event->x, event->y);
 
         if (tip) {
             gtk_tooltips_set_tip(ctk_object->tooltip_group,
@@ -3879,19 +4531,42 @@ button_press_event_callback(GtkWidget *widget, GdkEventButton *event,
                             gpointer data)
 {
     CtkDisplayLayout *ctk_object = CTK_DISPLAY_LAYOUT(data);
-    nvDisplayPtr last_selected; /* Last display selected */
-    nvDisplayPtr new_selected;
+    void *last_selected; /* Last thing selected */
+    void *new_selected;
 
     /* Scale and offset x & y so they reside in the clickable area */
     int x = (event->x -ctk_object->img_dim[X]) / ctk_object->scale;
     int y = (event->y -ctk_object->img_dim[Y]) / ctk_object->scale;
 
-    static Time time = 0;
+    GdkEvent *next_event;
+    nvScreenPtr reselect_screen = NULL;
 
 
     ctk_object->last_mouse_x = event->x;
     ctk_object->last_mouse_y = event->y;
 
+
+    /* Check to see if a double click event is pending
+     * and ignore this click if that is the case.
+     */
+    next_event = gdk_event_peek();
+    if (next_event) {
+        if (next_event->type == GDK_2BUTTON_PRESS) {
+            /* Double click event detected, ignore the
+             * preceding GDK_BUTTON_PRESS
+             */
+            return TRUE;
+        }
+    }
+
+    /* Handle double clicks */
+    if (event->type == GDK_2BUTTON_PRESS) {
+        /* XXX Flash the display or screen */
+        return TRUE;
+    }
+
+    /* XXX Ignore tripple clicks */
+    if (event->type != GDK_BUTTON_PRESS) return TRUE;
 
     switch (event->button) {
 
@@ -3900,35 +4575,74 @@ button_press_event_callback(GtkWidget *widget, GdkEventButton *event,
         ctk_object->button1 = 1;
         last_selected = get_selected(ctk_object);
 
+        /* If the user had a screen selected
+         * and is not cycling through overlapping
+         * elements (screens/displays), try to
+         * re-select the screen instead of the display.
+         */
+        if (!ctk_object->first_selected_display &&
+            !ctk_object->first_selected_screen &&
+            !ctk_object->selected_display &&
+            ctk_object->selected_screen
+            ) {
+            reselect_screen = ctk_object->selected_screen;
+        }
+
+        /* If user clicked on the same spot twice, push last
+         * selection back in the Z-order.
+         */
+        if (ctk_object->first_selected_display ||
+            ctk_object->first_selected_screen) {
+            pushback_selected(ctk_object);
+        }
 
         /* Do the click */
-        click_layout(ctk_object, x, y);
+        click_layout(ctk_object, x, y, reselect_screen);
 
-        new_selected = get_selected(ctk_object);
-        
-        /* If the user just clicked on the currently selected display,
-         * the next time they click here, we should instead select
-         * the next display in the Z order.
+        /* Keep track of what is first selected to properly handle
+         * cycling through displays and screens when user keeps
+         * clicks on same spot.
          */
-        ctk_object->select_next =
-            (last_selected == new_selected)?1:0;
-        
+        new_selected = get_selected(ctk_object);
+
+        /* If the user clicks a second time on a display that has a
+         * screen (or has cycled/clicked through all the displays
+         * on that screen), select the screen instead of the first
+         * display that was originally clicked.
+         */
+        if (ctk_object->first_selected_display &&
+            ctk_object->first_selected_screen &&
+            (ctk_object->first_selected_display  ==
+             ctk_object->selected_display)
+            ) {
+            ctk_object->first_selected_display = NULL;
+            ctk_object->selected_display = NULL;
+            new_selected = ctk_object->first_selected_screen;
+        } else {
+            /* Keep track of the first display the user
+             * clicked on wrt the screen the display
+             * belongs to.  (ie, if the user clicked
+             * and we cycled to the next display in a
+             * TwinView screen, don't reset the first
+             * selected display.
+             */
+            if (!ctk_object->first_selected_display ||
+                (ctk_object->first_selected_screen!=
+                 ctk_object->selected_screen)) {
+                ctk_object->first_selected_display = 
+                    ctk_object->selected_display;
+            }
+        }
+
+        /* Keep track of the selected screen */
+        ctk_object->first_selected_screen = 
+            ctk_object->selected_screen;
+
+
+        /* Report back selection event */
         if (ctk_object->selected_callback) {
             ctk_object->selected_callback(ctk_object->layout,
                                           ctk_object->selected_callback_data);
-        }
-
-        if (last_selected != new_selected) {
-            /* Selected new display - Redraw */
-            time = event->time;
-
-        } else if (new_selected && time && (event->time - time < 500)) {
-            /* Double clicked on display - XXX Could flash display here */
-            time = 0;
-
-        } else {
-            /* Selected same display - Do noting */
-            time = event->time;
         }
 
         /* Redraw everything */

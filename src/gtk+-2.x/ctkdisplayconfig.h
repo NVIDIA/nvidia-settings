@@ -115,6 +115,9 @@ typedef struct _CtkDisplayConfig
     GtkWidget *txt_screen_num;
 
     /* X Screen - Settings */
+    GtkWidget *box_screen_virtual_size;
+    GtkWidget *txt_screen_virtual_size;
+
     GtkWidget *box_screen_depth;
     GtkWidget *mnu_screen_depth;
 

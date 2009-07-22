@@ -408,6 +408,11 @@ static int process_attribute_queries(int num, char **queries,
             continue;
         }
 
+        if (nv_strcasecmp(queries[query], "gvis")) {
+            query_all_targets(display_name, GVI_TARGET);
+            continue;
+        }
+
         
         /* call the parser to parse queries[query] */
 
@@ -731,8 +736,8 @@ static void print_valid_values(char *name, int attr, uint32 flags,
         }
 
         if (flags & NV_PARSER_TYPE_PACKED_ATTRIBUTE) {
-            nv_msg(INDENT, "Valid values for '%s' are: [%s], [%s].", name, str,
-                   str2);
+            nv_msg(INDENT, "Valid values for '%s' are: [%s], [%s].", name, str2,
+                   str);
         } else {
             nv_msg(INDENT, "Valid values for '%s' are: %s.", name, str);
         }
@@ -1217,6 +1222,7 @@ static int print_target_connections(CtrlHandles *h,
                 break;
                 
             case FRAMELOCK_TARGET:
+            case GVI_TARGET:
             case X_SCREEN_TARGET:
             default:
                 product_name = NULL;
@@ -1333,6 +1339,12 @@ static int query_all_targets(const char *display_name, const int target_index)
             
             if (status != NvCtrlSuccess) product_name = strdup("Unknown");
             
+        } else if (target_index == GVI_TARGET) {
+            
+            /* for gvi, create the product name */
+
+            product_name = malloc(32);
+            snprintf(product_name, 32, "SDI Input %d", i);
         } else {
 
             /* for X_SCREEN_TARGET or GPU_TARGET, query the product name */
@@ -1928,7 +1940,8 @@ int nv_process_parsed_attribute(ParsedAttribute *a, CtrlHandles *h,
          * sure that GVO is supported by the handle.
          */
 
-        if (a->flags & NV_PARSER_TYPE_SDI) {
+        if (a->flags & NV_PARSER_TYPE_SDI &&
+            target != NV_CTRL_TARGET_TYPE_GVI) {
             int available;
 
             status = NvCtrlGetAttribute(t->h, NV_CTRL_GVO_SUPPORTED,

@@ -24,6 +24,7 @@
 
 #include <gtk/gtk.h>
 #include "NvCtrlAttributes.h"
+#include "NVCtrlLib.h"
 
 #include <stdio.h>
 #include <stdlib.h>
@@ -237,23 +238,28 @@ GtkWidget* ctk_screen_new(NvCtrlAttributeHandle *handle,
     
     depth = g_strdup_printf("%d", NvCtrlGetScreenPlanes(handle));
     
-    /* get the list of GPUs driving this X screen */
+    /* get the list of GPUs driving this (logical) X screen */
 
     gpus = NULL;
     ret = NvCtrlGetBinaryAttribute(handle,
                                    0,
-                                   NV_CTRL_BINARY_DATA_GPUS_USED_BY_XSCREEN,
+                                   NV_CTRL_BINARY_DATA_GPUS_USED_BY_LOGICAL_XSCREEN,
                                    (unsigned char **)(&pData),
                                    &len);
     if (ret == NvCtrlSuccess) {
         for (i = 1; i <= pData[0]; i++) {
             gchar *tmp_str;
             gchar *gpu_name;
-            
-            ret = NvCtrlGetStringAttribute(handle,
-                                           NV_CTRL_STRING_PRODUCT_NAME,
-                                           &gpu_name);
-            if (ret != NvCtrlSuccess) {
+            Bool valid;
+
+            valid =
+                XNVCTRLQueryTargetStringAttribute(NvCtrlGetDisplayPtr(handle),
+                                                  NV_CTRL_TARGET_TYPE_GPU,
+                                                  pData[i],
+                                                  0,
+                                                  NV_CTRL_STRING_PRODUCT_NAME,
+                                                  &gpu_name);
+            if (!valid) {
                 gpu_name = "Unknown";
             }
             if (gpus) {
@@ -262,7 +268,7 @@ GtkWidget* ctk_screen_new(NvCtrlAttributeHandle *handle,
             } else {
                 tmp_str = g_strdup_printf("%s (GPU %d)", gpu_name, pData[i]);
             }
-            if (ret == NvCtrlSuccess) {
+            if (valid) {
                 XFree(gpu_name);
             }
             g_free(gpus);

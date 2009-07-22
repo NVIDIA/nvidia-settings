@@ -133,9 +133,9 @@ AttributeTableEntry attributeTable[] = {
     { "SliMosaicModeAvailable",     NV_CTRL_SLI_MOSAIC_MODE_AVAILABLE,        N,   "Returns whether or not SLI Mosaic Mode is supported." },
 
     /* GPU */
-    { "BusType",                NV_CTRL_BUS_TYPE,                      0,   "Returns the type of bus connecting the GPU driving the specified X screen to the computer." },
+    { "BusType",                NV_CTRL_BUS_TYPE,                      0,   "Returns the type of bus connecting the specified device to the computer.  If the target is an X screen, then it uses the GPU driving the X screen as the device." },
     { "VideoRam",               NV_CTRL_VIDEO_RAM,                     0,   "Returns the total amount of memory available to the specified GPU (or the GPU driving the specified X screen).  Note: if the GPU supports TurboCache(TM), the value reported may exceed the amount of video memory installed on the GPU.  The value reported for integrated GPUs may likewise exceed the amount of dedicated system memory set aside by the system BIOS for use by the integrated GPU." },
-    { "Irq",                    NV_CTRL_IRQ,                           0,   "Returns the interrupt request line used by the GPU driving the specified X screen." },
+    { "Irq",                    NV_CTRL_IRQ,                           0,   "Returns the interrupt request line used by the specified device.  If the target is an X screen, then it uses the GPU driving the X screen as the device." },
     { "GPUCoreTemp",            NV_CTRL_GPU_CORE_TEMPERATURE,          N,   "Reports the current core temperature in Celsius of the GPU driving the X screen." },
     { "GPUAmbientTemp",         NV_CTRL_AMBIENT_TEMPERATURE,           N,   "Reports the current temperature in Celsius of the immediate neighborhood of the GPU driving the X screen." },
     { "GPUOverclockingState",   NV_CTRL_GPU_OVERCLOCKING_STATE,        N,   "The current overclocking state; the value of this attribute controls the availability of additional overclocking attributes.  Note that this attribute is unavailable unless overclocking support has been enabled by the system administrator." },
@@ -144,17 +144,19 @@ AttributeTableEntry attributeTable[] = {
     { "GPUDefault2DClockFreqs", NV_CTRL_GPU_DEFAULT_2D_CLOCK_FREQS,    N|P, "Returns the default memory and GPU core clocks when operating in 2D mode." },
     { "GPUDefault3DClockFreqs", NV_CTRL_GPU_DEFAULT_3D_CLOCK_FREQS,    N|P, "Returns the default memory and GPU core clocks when operating in 3D mode." },
     { "GPUCurrentClockFreqs",   NV_CTRL_GPU_CURRENT_CLOCK_FREQS,       N|P, "Returns the current GPU and memory clocks of the graphics device driving the X screen." },
-    { "BusRate",                NV_CTRL_BUS_RATE,                      0,   "If the GPU is on an AGP bus, then BusRate returns the configured AGP rate.  If the GPU is on a PCI Express bus, then this attribute returns the width of the physical link." },
-    { "PCIBus",                 NV_CTRL_PCI_BUS,                       N,   "Returns the PCI bus number the GPU is using." },
-    { "PCIDevice",              NV_CTRL_PCI_DEVICE,                    N,   "Returns the PCI device number the GPU is using." },
-    { "PCIFunc",                NV_CTRL_PCI_FUNCTION,                  N,   "Returns the PCI function number the GPU is using." },
-    { "PCIID",                  NV_CTRL_PCI_ID,                        N|P, "Returns the PCI vendor and device ID of the GPU." },
+    { "BusRate",                NV_CTRL_BUS_RATE,                      0,   "If the device is on an AGP bus, then BusRate returns the configured AGP rate.  If the device is on a PCI Express bus, then this attribute returns the width of the physical link." },
+    { "PCIDomain",              NV_CTRL_PCI_DOMAIN,                    N,   "Returns the PCI domain number for the specified device." },
+    { "PCIBus",                 NV_CTRL_PCI_BUS,                       N,   "Returns the PCI bus number for the specified device." },
+    { "PCIDevice",              NV_CTRL_PCI_DEVICE,                    N,   "Returns the PCI device number for the specified device." },
+    { "PCIFunc",                NV_CTRL_PCI_FUNCTION,                  N,   "Returns the PCI function number for the specified device." },
+    { "PCIID",                  NV_CTRL_PCI_ID,                        N|P, "Returns the PCI vendor and device ID of the specified device." },
     { "GPUErrors",              NV_CTRL_NUM_GPU_ERRORS_RECOVERED,      N,   "Returns the number of GPU errors occurred." },
     { "GPUPowerSource",         NV_CTRL_GPU_POWER_SOURCE,              N,   "Reports the type of power source of the GPU." },
     { "GPUCurrentPerfMode",     NV_CTRL_GPU_CURRENT_PERFORMANCE_MODE,  N,   "Reports the current performance mode of the GPU driving the X screen.  Running a 3D app, for example, will change this performance mode if Adaptive Clocking is enabled." },
     { "GPUCurrentPerfLevel",    NV_CTRL_GPU_CURRENT_PERFORMANCE_LEVEL, N,   "Reports the current Performance level of the GPU driving the X screen.  Each Performance level has associated NVClock and Mem Clock values." },
     { "GPUAdaptiveClockState",  NV_CTRL_GPU_ADAPTIVE_CLOCK_STATE,      N,   "Reports if Adaptive Clocking is Enabled on the GPU driving the X screen." },
     { "GPUPerfModes",           NV_CTRL_STRING_PERFORMANCE_MODES,      S|N, "Returns a string with all the performance modes defined for this GPU along with their associated NV Clock and Memory Clock values." },
+    { "GPUPowerMizerMode",      NV_CTRL_GPU_POWER_MIZER_MODE,          0,   "Allows setting different GPU powermizer modes." },
 
     /* Framelock */
     { "FrameLockAvailable",    NV_CTRL_FRAMELOCK,                   N|F|G,   "Returns whether the underlying GPU supports Frame Lock.  All of the other frame lock attributes are only applicable if this attribute is enabled (Supported)." },
@@ -175,7 +177,7 @@ AttributeTableEntry attributeTable[] = {
     { "FrameLockTiming",       NV_CTRL_FRAMELOCK_TIMING,            N|F|G,   "This is 1 when the GPU is both receiving and locked to an input timing signal. Timing information may come from the following places: Another frame lock device that is set to master, the house sync signal, or the GPU's internal timing from a display device." },
     { "FramelockUseHouseSync", NV_CTRL_USE_HOUSE_SYNC,              N|F|G,   "When 1, the server (master) frame lock device will propagate the incoming house sync signal as the outgoing frame lock sync signal.  If the frame lock device cannot detect a frame lock sync signal, it will default to using the internal timings from the GPU connected to the primary connector." },
     { "FrameLockSlaves",       NV_CTRL_FRAMELOCK_SLAVES,            N|F|G|D, "Get/set whether the display device(s) given should listen or ignore the master's sync signal." },
-    { "FrameLockMasterable",   NV_CTRL_FRAMELOCK_MASTERABLE,        N|F|G,   "Returns whether the display device(s) can be set as the master of the frame lock group.  Returns 1 if the GPU driving the display device is connected to the \"primary\" connector on the frame lock board." },
+    { "FrameLockMasterable",   NV_CTRL_FRAMELOCK_MASTERABLE,        N|F|G|D, "Returns whether the display device(s) can be set as the master of the frame lock group.  Returns a bitmask indicating which of the given display devices can be set as a frame lock master." },
     { "FrameLockSlaveable",    NV_CTRL_FRAMELOCK_SLAVEABLE,         N|F|G|D, "Returns whether the display device(s) can be set as slave(s) of the frame lock group." },
     { "FrameLockFPGARevision", NV_CTRL_FRAMELOCK_FPGA_REVISION,     N|F|G,   "Returns the FPGA revision of the Frame Lock device." },
     { "FrameLockSyncRate4",    NV_CTRL_FRAMELOCK_SYNC_RATE_4,       N|F|G,   "Returns the refresh rate that the frame lock board is sending to the GPU in 1/10000 Hz (i.e. to get the refresh rate in Hz, divide the returned value by 10000.)" },
@@ -185,8 +187,10 @@ AttributeTableEntry attributeTable[] = {
     { "GvoSupported",                    NV_CTRL_GVO_SUPPORTED,                        I|N,   "Returns whether this X screen supports GVO; if this screen does not support GVO output, then all other GVO attributes are unavailable." },
     { "GvoSyncMode",                     NV_CTRL_GVO_SYNC_MODE,                        I,     "Selects the GVO sync mode; possible values are: FREE_RUNNING - GVO does not sync to any external signal.  GENLOCK - the GVO output is genlocked to an incoming sync signal; genlocking locks at hsync.  This requires that the output video format exactly match the incoming sync video format.  FRAMELOCK - the GVO output is frame locked to an incoming sync signal; frame locking locks at vsync.  This requires that the output video format have the same refresh rate as the incoming sync video format." },
     { "GvoSyncSource",                   NV_CTRL_GVO_SYNC_SOURCE,                      I,     "If the GVO sync mode is set to either GENLOCK or FRAMELOCK, this controls which sync source is used as the incoming sync signal (either Composite or SDI).  If the GVO sync mode is FREE_RUNNING, this attribute has no effect." },
-    { "GvoOutputVideoFormat",            NV_CTRL_GVO_OUTPUT_VIDEO_FORMAT,              I,     "Specifies the output video format coming out of the GVO device." },
-    { "GvoInputVideoFormat",             NV_CTRL_GVO_INPUT_VIDEO_FORMAT,               I|N,   "Returns the input video format detected by the GVO device." },
+    { "GvioRequestedVideoFormat",        NV_CTRL_GVIO_REQUESTED_VIDEO_FORMAT,          I,     "Specifies the requested output video format for a GVO device, or the requested capture format for a GVI device." },
+    { "GvoOutputVideoFormat",            NV_CTRL_GVIO_REQUESTED_VIDEO_FORMAT,          I|A,   "DEPRECATED: use \"GvioRequestedVideoFormat\" instead." },
+    { "GvioDetectedVideoFormat",         NV_CTRL_GVIO_DETECTED_VIDEO_FORMAT,           I|N,   "Returns the input video format detected by the GVO or GVI device." },
+    { "GvoInputVideoFormat",             NV_CTRL_GVIO_DETECTED_VIDEO_FORMAT,           I|N|A, "DEPRECATED: use \"GvioDetectedVideoFormat\" instead." },
     { "GvoDataFormat",                   NV_CTRL_GVO_DATA_FORMAT,                      I,     "Configures how the data in the source (either the X screen or the GLX pbuffer) is interpreted and displayed by the GVO device." },
     { "GvoDisplayXScreen",               NV_CTRL_GVO_DISPLAY_X_SCREEN,                 I|N,   "Enable/disable GVO output of the X screen (in Clone mode)." },
     { "GvoCompositeSyncInputDetected",   NV_CTRL_GVO_COMPOSITE_SYNC_INPUT_DETECTED,    I|N,   "Indicates whether Composite Sync input is detected." },
@@ -210,11 +214,13 @@ AttributeTableEntry attributeTable[] = {
     { "GvoComposite",                    NV_CTRL_GVO_COMPOSITE,                        I,     "Enables/Disables SDI compositing.  This attribute is only available when an SDI input source is detected and is in genlock mode." },
     { "GvoCompositeAlphaKey",            NV_CTRL_GVO_COMPOSITE_ALPHA_KEY,              I,     "When SDI compositing is enabled, this enables/disables alpha blending." },
     { "GvoCompositeNumKeyRanges",        NV_CTRL_GVO_COMPOSITE_NUM_KEY_RANGES,         I|N,   "Returns the number of ranges available for each channel (Y/Luma, Cr, and Cb) that are used SDI compositing through color keying." },
-    { "GvoFirmwareVersion",              NV_CTRL_STRING_GVO_FIRMWARE_VERSION,          I|S|N, "Indicates the version of the firmware on the GVO device." },
+    { "GvioFirmwareVersion",             NV_CTRL_STRING_GVIO_FIRMWARE_VERSION,         I|S|N, "Indicates the version of the firmware on the GVO or GVI device." },
+    { "GvoFirmwareVersion",              NV_CTRL_STRING_GVIO_FIRMWARE_VERSION,         I|S|N|A,"DEPRECATED: use \"GvioFirmwareVersion\" instead." },
     { "GvoSyncToDisplay",                NV_CTRL_GVO_SYNC_TO_DISPLAY,                  I|N,   "Controls synchronization of the non-SDI display to the SDI display when both are active." },
     { "GvoFullRangeColor",               NV_CTRL_GVO_FULL_RANGE_COLOR,                 I,     "Allow full range color data [4-1019].  If disabled, color data is clamped to [64-940]." },
     { "IsGvoDisplay",                    NV_CTRL_IS_GVO_DISPLAY,                       N|D,   "Returns whether or not the given display device is driven by the GVO device." },
     { "GvoEnableRGBData",                NV_CTRL_GVO_ENABLE_RGB_DATA,                  I,     "Indicates that RGB data is being sent via a PASSTHU mode." },
+    { "GviNumPorts",                     NV_CTRL_GVI_NUM_PORTS,                        N|A,   "Returns the number of ports on a GVI device." },
 
     /* Display */
     { "Brightness",                 BRIGHTNESS_VALUE|ALL_CHANNELS,         N|C|G, "Controls the overall brightness of the display." },
@@ -290,7 +296,7 @@ AttributeTableEntry attributeTable[] = {
  * about.
  */
 
-#if NV_CTRL_LAST_ATTRIBUTE != NV_CTRL_FRAMELOCK_SYNC_DELAY_RESOLUTION
+#if NV_CTRL_LAST_ATTRIBUTE != NV_CTRL_GPU_POWER_MIZER_MODE
 #warning "Have you forgotten to add a new integer attribute to attributeTable?"
 #endif
 
@@ -334,6 +340,14 @@ TargetTypeEntry targetTypeTable[] = {
       ATTRIBUTE_TYPE_VCSC,           /* permission_bit */
       NV_FALSE,                      /* uses_display_devices */
       1, 12 },                       /* required major,minor protocol rev */
+
+    { "SDI Input Device",            /* name */
+      "gvi",                         /* parsed_name */
+      GVI_TARGET,                    /* target_index */
+      NV_CTRL_TARGET_TYPE_GVI,       /* nvctrl */
+      ATTRIBUTE_TYPE_GVI,            /* permission_bit */
+      NV_FALSE,                      /* uses_display_devices */
+      1, 18 },                       /* required major,minor protocol rev */
 
     { NULL, NULL, 0, 0, 0 },
 };

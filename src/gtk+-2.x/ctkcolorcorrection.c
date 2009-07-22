@@ -367,7 +367,9 @@ GtkWidget* ctk_color_correction_new(NvCtrlAttributeHandle *handle,
     gtk_box_pack_end(GTK_BOX(hbox), button, FALSE, FALSE, 0);
     
     confirm_button = gtk_button_new_with_label("Confirm Current Changes");
-    gtk_box_pack_end(GTK_BOX(hbox), confirm_button, FALSE, FALSE, 5);
+    eventbox = gtk_event_box_new();
+    gtk_container_add(GTK_CONTAINER(eventbox), confirm_button);
+    gtk_box_pack_end(GTK_BOX(hbox), eventbox, FALSE, FALSE, 5);
     gtk_widget_set_sensitive(confirm_button, FALSE);
     
     g_signal_connect(G_OBJECT(button), "clicked", G_CALLBACK(reset_button_clicked),
@@ -379,7 +381,7 @@ GtkWidget* ctk_color_correction_new(NvCtrlAttributeHandle *handle,
 
     ctk_color_correction->confirm_button = confirm_button;
     gtk_widget_set_size_request(confirm_button, 160, -1);
-    ctk_config_set_tooltip(ctk_config, confirm_button, __confirm_button_help);
+    ctk_config_set_tooltip(ctk_config, eventbox, __confirm_button_help);
     ctk_config_set_tooltip(ctk_config, button, __resest_button_help);
 
     /*

@@ -77,6 +77,7 @@ void display_remove_modes(nvDisplayPtr display);
 
 /* Screen functions */
 
+void renumber_xscreens(nvLayoutPtr layout);
 void screen_remove_display(nvDisplayPtr display);
 gchar * screen_get_metamode_str(nvScreenPtr screen, int metamode_idx,
                                 int be_generic);

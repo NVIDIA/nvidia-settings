@@ -27,6 +27,7 @@
 
 #include "NvCtrlAttributes.h"
 #include "ctkconfig.h"
+#include "ctkevent.h"
 
 G_BEGIN_DECLS
 
@@ -65,6 +66,8 @@ struct _CtkPowermizer
     GtkWidget *performance_level;
     GtkWidget *performance_mode;
     GtkWidget *performance_table_hbox;
+    GtkWidget *powermizer_menu;
+    GtkWidget *box_powermizer_menu;
 };
 
 struct _CtkPowermizerClass
@@ -73,7 +76,8 @@ struct _CtkPowermizerClass
 };
 
 GType          ctk_powermizer_get_type    (void) G_GNUC_CONST;
-GtkWidget*     ctk_powermizer_new         (NvCtrlAttributeHandle *, CtkConfig *);
+GtkWidget*     ctk_powermizer_new         (NvCtrlAttributeHandle *,
+                                           CtkConfig *, CtkEvent *);
 GtkTextBuffer* ctk_powermizer_create_help (GtkTextTagTable *, CtkPowermizer *);
 
 void           ctk_powermizer_start_timer (GtkWidget *);

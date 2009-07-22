@@ -822,7 +822,7 @@ GtkWidget *ctk_window_new(ParsedAttribute *p, ConfigProperties *conf,
         }
 
         /* Powermizer information */
-        child = ctk_powermizer_new(gpu_handle, ctk_config);
+        child = ctk_powermizer_new(gpu_handle, ctk_config, ctk_event);
         if (child) {
             help = ctk_powermizer_create_help(tag_table, CTK_POWERMIZER(child));
             add_page(child, help, ctk_window, &iter, NULL, "PowerMizer",

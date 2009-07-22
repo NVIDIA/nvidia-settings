@@ -71,7 +71,7 @@ struct _CtkGvoSync
     gint caps;               // SDI device capabilities
     gint sync_mode;          // NV_CTRL_GVO_SYNC_MODE
 
-    gint input_video_format; // NV_CTRL_GVO_INPUT_VIDEO_FORMAT
+    gint input_video_format; // NV_CTRL_GVIO_DETECTED_VIDEO_FORMAT
     gint sync_source;        // NV_CTRL_ SDI and COMP sync formats...
 
     gint sdi_sync_input_detected;

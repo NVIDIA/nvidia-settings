@@ -1070,6 +1070,45 @@ static void display_free(nvDisplayPtr display)
 /*****************************************************************************/
 
 
+/** renumber_xscreens() **********************************************
+ *
+ * Ensures that the screens are numbered from 0 to (n-1).
+ *
+ **/
+
+void renumber_xscreens(nvLayoutPtr layout)
+{
+    nvGpuPtr gpu;
+    nvScreenPtr screen;
+    nvScreenPtr lowest;
+    int scrnum;
+
+    scrnum = 0;
+    do {
+
+        /* Find screen w/ lowest # >= current screen index being assigned */
+        lowest = NULL;
+        for (gpu = layout->gpus; gpu; gpu = gpu->next) {
+            for (screen = gpu->screens; screen; screen = screen->next) {
+                if ((screen->scrnum >= scrnum) &&
+                    (!lowest || (lowest->scrnum > screen->scrnum))) {
+                    lowest = screen;
+                }
+            }
+        }
+
+        if (lowest) {
+            lowest->scrnum = scrnum;
+        }
+
+        /* Assign next screen number */ 
+        scrnum++;
+    } while (lowest);
+
+} /* renumber_xscreens() */
+
+
+
 /** screen_remove_display() ******************************************
  *
  * Removes a display device from the screen
@@ -1736,12 +1775,12 @@ static Bool gpu_query_gvo_mode_info(nvGpuPtr gpu, int mode_id, int table_idx)
 
     ret1 = NvCtrlGetDisplayAttribute(gpu->handle,
                                      mode_id,
-                                     NV_CTRL_GVO_VIDEO_FORMAT_REFRESH_RATE,
+                                     NV_CTRL_GVIO_VIDEO_FORMAT_REFRESH_RATE,
                                      &(rate));
     
     ret2 = NvCtrlGetStringDisplayAttribute(gpu->handle,
                                            mode_id,
-                                           NV_CTRL_STRING_GVO_VIDEO_FORMAT_NAME,
+                                           NV_CTRL_STRING_GVIO_VIDEO_FORMAT_NAME,
                                            &(name));
 
     if ((ret1 == NvCtrlSuccess) && (ret2 == NvCtrlSuccess)) {
@@ -1815,7 +1854,7 @@ nvDisplayPtr gpu_add_display_from_server(nvGpuPtr gpu,
         NVCTRLAttributeValidValuesRec valid;
 
         ret = NvCtrlGetValidAttributeValues(gpu->handle,
-                                            NV_CTRL_GVO_OUTPUT_VIDEO_FORMAT,
+                                            NV_CTRL_GVIO_REQUESTED_VIDEO_FORMAT,
                                             &valid);
         if ((ret != NvCtrlSuccess) ||
             (valid.type != ATTRIBUTE_TYPE_INT_BITS)) {
@@ -1825,7 +1864,7 @@ nvDisplayPtr gpu_add_display_from_server(nvGpuPtr gpu,
         }
         
         ret = NvCtrlGetValidAttributeValues(gpu->handle,
-                                            NV_CTRL_GVO_OUTPUT_VIDEO_FORMAT2,
+                                            NV_CTRL_GVIO_REQUESTED_VIDEO_FORMAT2,
                                             &valid);
         if ((ret != NvCtrlSuccess) ||
             (valid.type != ATTRIBUTE_TYPE_INT_BITS)) {
@@ -2037,12 +2076,37 @@ static int gpu_add_screen_from_server(nvGpuPtr gpu, int screen_id,
     }
 
 
-    /* Make sure this screen supports dynamic twinview */
-    ret = NvCtrlGetAttribute(screen->handle, NV_CTRL_DYNAMIC_TWINVIEW,
-                             &val);
-    if (ret != NvCtrlSuccess || !val) {
-        *err_str = g_strdup_printf("Dynamic TwinView is disabled on "
+    /* See if the screen supports dynamic twinview */
+    ret = NvCtrlGetAttribute(screen->handle, NV_CTRL_DYNAMIC_TWINVIEW, &val);
+    if (ret != NvCtrlSuccess) {
+        *err_str = g_strdup_printf("Failed to query Dynamic TwinView for "
                                    "screen %d.",
+                                   screen_id);
+        nv_warning_msg(*err_str);
+        goto fail;
+    }
+    screen->dynamic_twinview = val ? TRUE : FALSE;
+
+
+    /* See if the screen is set to not scanout */
+    ret = NvCtrlGetAttribute(screen->handle, NV_CTRL_NO_SCANOUT, &val);
+    if (ret != NvCtrlSuccess) {
+        *err_str = g_strdup_printf("Failed to query NoScanout for "
+                                   "screen %d.",
+                                   screen_id);
+        nv_warning_msg(*err_str);
+        goto fail;
+    }
+    screen->no_scanout = (val == NV_CTRL_NO_SCANOUT_ENABLED) ? TRUE : FALSE;
+
+
+    /* XXX Currently there is no support for screens that are scanning
+     *     out but have TwinView disabled.
+     */
+    if (!screen->dynamic_twinview && !screen->no_scanout) {
+        *err_str = g_strdup_printf("nvidia-settings currently does not "
+                                   "support scanout screens (%d) that have "
+                                   "dynamic twinview disabled.",
                                    screen_id);
         nv_warning_msg(*err_str);
         goto fail;
@@ -2071,38 +2135,46 @@ static int gpu_add_screen_from_server(nvGpuPtr gpu, int screen_id,
     /* Query the depth of the screen */
     screen->depth = NvCtrlGetScreenPlanes(screen->handle);
 
+    /* Initialize the virtual X screen size */
+    screen->dim[W] = NvCtrlGetScreenWidth(screen->handle);
+    screen->dim[H] = NvCtrlGetScreenHeight(screen->handle);
+
 
     /* Parse the screen's metamodes (ties displays on the gpu to the screen) */
-    if (!screen_add_metamodes(screen, err_str)) {
-        nv_warning_msg("Failed to add metamodes to screen %d (on GPU-%d).",
-                       screen_id, NvCtrlGetTargetId(gpu->handle));
-        goto fail;
-    }
+    if (!screen->no_scanout) {
+        if (!screen_add_metamodes(screen, err_str)) {
+            nv_warning_msg("Failed to add metamodes to screen %d (on GPU-%d).",
+                           screen_id, NvCtrlGetTargetId(gpu->handle));
+            goto fail;
+        }
     
-    /* Query & parse the screen's primary display */
-    screen->primaryDisplay = NULL;
-    ret = NvCtrlGetStringDisplayAttribute
-        (screen->handle,
-         0,
-         NV_CTRL_STRING_TWINVIEW_XINERAMA_INFO_ORDER,
-         &primary_str);
-
-    if (ret == NvCtrlSuccess) {
-        nvDisplayPtr d;
-        unsigned int  device_mask;
-
-        /* Parse the device mask */
-        parse_read_display_name(primary_str, &device_mask);
-
-        /* Find the matching primary display */
-        for (d = gpu->displays; d; d = d->next) {
-            if (d->screen == screen &&
-                d->device_mask & device_mask) {
-                screen->primaryDisplay = d;
-                break;
+        /* Query & parse the screen's primary display */
+        screen->primaryDisplay = NULL;
+        ret = NvCtrlGetStringDisplayAttribute
+            (screen->handle,
+             0,
+             NV_CTRL_STRING_TWINVIEW_XINERAMA_INFO_ORDER,
+             &primary_str);
+        
+        if (ret == NvCtrlSuccess) {
+            nvDisplayPtr d;
+            unsigned int  device_mask;
+            
+            /* Parse the device mask */
+            parse_read_display_name(primary_str, &device_mask);
+            
+            /* Find the matching primary display */
+            for (d = gpu->displays; d; d = d->next) {
+                if (d->screen == screen &&
+                    d->device_mask & device_mask) {
+                    screen->primaryDisplay = d;
+                    break;
+                }
             }
         }
     }
+
+
     /* Add the screen at the end of the gpu's screen list */
     xconfigAddListItem((GenericListPtr *)(&gpu->screens),
                        (GenericListPtr)screen);

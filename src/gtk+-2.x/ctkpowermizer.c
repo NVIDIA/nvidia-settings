@@ -41,6 +41,11 @@
 #define DEFAULT_UPDATE_POWERMIZER_INFO_TIME_INTERVAL 1000
 
 static gboolean update_powermizer_info(gpointer);
+static void update_powermizer_menu_info(gpointer);
+static void powermizer_menu_changed(GtkOptionMenu*, gpointer);
+static void update_powermizer_menu_event(GtkObject *object,
+                                         gpointer arg1,
+                                         gpointer user_data);
 
 static const char *__adaptive_clock_help =
 "The Adaptive Clocking status describes if this feature "
@@ -76,6 +81,17 @@ static const char *__performance_levels_table_help =
 "the GPU and Memory clocks for that level.  The currently active performance "
 "level is shown in regular text.  All other performance levels are shown in "
 "gray.";
+
+static const char *__powermizer_menu_help =
+"The Preferred Mode menu allows you to choose the preferred Performance "
+"State for the GPU, provided the GPU has multiple Performance Levels.  "
+"'Adaptive' mode allows the GPU clocks to be adjusted based on GPU "
+"utilization.  'Prefer Maximum Performance' hints to the driver to prefer "
+"higher GPU clocks, when possible.  If a single X server is running, the mode "
+"selected in nvidia-settings is what the system will be using; if two or "
+"more X servers are running, the behavior is undefined.  If any CUDA "
+"application is running, the system will always be in the 'Prefer Maximum "
+"Performance' mode.";
 
 GType ctk_powermizer_get_type(void)
 {
@@ -353,12 +369,13 @@ static gboolean update_powermizer_info(gpointer user_data)
 }
 
 GtkWidget* ctk_powermizer_new(NvCtrlAttributeHandle *handle,
-                           CtkConfig *ctk_config)
+                              CtkConfig *ctk_config,
+                              CtkEvent *ctk_event)
 {
     GObject *object;
     CtkPowermizer *ctk_powermizer;
-    GtkWidget *hbox, *hbox2, *vbox, *hsep, *table;
-    GtkWidget *banner, *label;
+    GtkWidget *hbox, *hbox2, *vbox, *vbox2, *hsep, *table;
+    GtkWidget *banner, *label, *menu, *menu_item;
     GtkWidget *eventbox;
     ReturnStatus ret;
     gchar *s;    
@@ -583,14 +600,165 @@ GtkWidget* ctk_powermizer_new(NvCtrlAttributeHandle *handle,
                          (gpointer) ctk_powermizer);
     g_free(s);
 
+    /* PowerMizer Settings */
+
+    hbox = gtk_hbox_new(FALSE, 0);
+    gtk_box_pack_start(GTK_BOX(vbox), hbox, FALSE, FALSE, 0);
+
+    vbox2 = gtk_vbox_new(FALSE, 5);
+    gtk_box_pack_start(GTK_BOX(hbox), vbox2, TRUE, TRUE, 0);
+    ctk_powermizer->box_powermizer_menu = vbox2;
+
+    /* H-separator */
+
+    hbox2 = gtk_hbox_new(FALSE, 0);
+    gtk_box_pack_start(GTK_BOX(vbox2), hbox2, FALSE, FALSE, 0);
+
+    label = gtk_label_new("PowerMizer Settings");
+    gtk_box_pack_start(GTK_BOX(hbox2), label, FALSE, FALSE, 0);
+
+    hsep = gtk_hseparator_new();
+    gtk_box_pack_start(GTK_BOX(hbox2), hsep, TRUE, TRUE, 5);
+
+    /* Specifying drop down list */
+
+    menu = gtk_menu_new();
+
+    menu_item = gtk_menu_item_new_with_label("Adaptive");
+    gtk_menu_shell_append(GTK_MENU_SHELL(menu), menu_item);
+    gtk_widget_show(menu_item);
+
+    menu_item = gtk_menu_item_new_with_label("Prefer Maximum Performance");
+    gtk_menu_shell_append(GTK_MENU_SHELL(menu), menu_item);
+    gtk_widget_show(menu_item);
+
+    ctk_powermizer->powermizer_menu = gtk_option_menu_new();
+    gtk_option_menu_set_menu(GTK_OPTION_MENU(ctk_powermizer->powermizer_menu),
+                             menu);
+
+    g_signal_connect(G_OBJECT(ctk_powermizer->powermizer_menu), "changed",
+                     G_CALLBACK(powermizer_menu_changed),
+                     (gpointer) ctk_powermizer);
+
+    ctk_config_set_tooltip(ctk_config,
+                           ctk_powermizer->powermizer_menu,
+                           __powermizer_menu_help);
+
+    /* Packing the drop down list */
+
+    table = gtk_table_new(1, 2, FALSE);
+    gtk_box_pack_start(GTK_BOX(vbox2), table, FALSE, FALSE, 0);
+    gtk_table_set_row_spacings(GTK_TABLE(table), 3);
+    gtk_table_set_col_spacings(GTK_TABLE(table), 15);
+    gtk_container_set_border_width(GTK_CONTAINER(table), 5);
+
+    hbox2 = gtk_hbox_new(FALSE, 0);
+    gtk_table_attach(GTK_TABLE(table), hbox2, 0, 1, 0, 1,
+                     GTK_FILL, GTK_FILL | GTK_EXPAND, 5, 0);
+    label = gtk_label_new("Preferred Mode:");
+    gtk_misc_set_alignment(GTK_MISC(label), 0.0f, 0.5f);
+    gtk_box_pack_start(GTK_BOX(hbox2), label, FALSE, FALSE, 0);
+
+    hbox2 = gtk_hbox_new(FALSE, 0);
+    gtk_table_attach(GTK_TABLE(table), hbox2, 1, 2, 0, 1,
+                     GTK_FILL, GTK_FILL | GTK_EXPAND, 5, 0);
+    gtk_box_pack_start(GTK_BOX(hbox2),
+                       ctk_powermizer->powermizer_menu,
+                       FALSE, FALSE, 0);
+
+    /* Updating the powermizer page */
+
     update_powermizer_info(ctk_powermizer);
     gtk_widget_show_all(GTK_WIDGET(ctk_powermizer));
+
+    update_powermizer_menu_info(ctk_powermizer);
+    g_signal_connect(G_OBJECT(ctk_event),
+                     CTK_EVENT_NAME(NV_CTRL_GPU_POWER_MIZER_MODE),
+                     G_CALLBACK(update_powermizer_menu_event),
+                     (gpointer) ctk_powermizer);
 
     return GTK_WIDGET(ctk_powermizer);
 }
 
+static void update_powermizer_menu_event(GtkObject *object,
+                                         gpointer arg1,
+                                         gpointer user_data)
+{
+    update_powermizer_menu_info(user_data);
+}
+
+static void update_powermizer_menu_info(gpointer user_data)
+{
+    CtkPowermizer *ctk_powermizer = CTK_POWERMIZER(user_data);
+    gint powerMizerMode = NV_CTRL_GPU_POWER_MIZER_MODE_ADAPTIVE;
+    NVCTRLAttributeValidValuesRec valid;
+    ReturnStatus ret0, ret1;
+
+    ret0 = NvCtrlGetValidAttributeValues(ctk_powermizer->attribute_handle,
+                                         NV_CTRL_GPU_POWER_MIZER_MODE,
+                                         &valid);
+
+    ret1 = NvCtrlGetAttribute(ctk_powermizer->attribute_handle,
+                              NV_CTRL_GPU_POWER_MIZER_MODE,
+                              &powerMizerMode);
+
+    if ((ret0 != NvCtrlSuccess) || (ret1 != NvCtrlSuccess)) {
+        gtk_widget_hide(ctk_powermizer->box_powermizer_menu);
+    } else {
+        g_signal_handlers_block_by_func(G_OBJECT(ctk_powermizer->powermizer_menu),
+                                        G_CALLBACK(powermizer_menu_changed),
+                                        (gpointer) ctk_powermizer);
+
+        gtk_option_menu_set_history(GTK_OPTION_MENU(ctk_powermizer->powermizer_menu),
+                                    powerMizerMode);
+
+        g_signal_handlers_unblock_by_func(G_OBJECT(ctk_powermizer->powermizer_menu),
+                                          G_CALLBACK(powermizer_menu_changed),
+                                          (gpointer) ctk_powermizer);
+
+        gtk_widget_show(ctk_powermizer->box_powermizer_menu);
+    }
+}
+
+static void powermizer_menu_changed(GtkOptionMenu *powermizer_menu,
+                                    gpointer user_data)
+{
+    CtkPowermizer *ctk_powermizer;
+    gint history, powerMizerMode = NV_CTRL_GPU_POWER_MIZER_MODE_ADAPTIVE;
+
+    ctk_powermizer = CTK_POWERMIZER(user_data);
+
+    history = gtk_option_menu_get_history(powermizer_menu);
+
+    switch (history) {
+    case 1:
+        powerMizerMode = NV_CTRL_GPU_POWER_MIZER_MODE_PREFER_MAXIMUM_PERFORMANCE;
+        break;
+    case 0:
+    default:
+        powerMizerMode = NV_CTRL_GPU_POWER_MIZER_MODE_ADAPTIVE;
+    }
+
+    if (NvCtrlSuccess != NvCtrlSetAttribute(ctk_powermizer->attribute_handle,
+                                            NV_CTRL_GPU_POWER_MIZER_MODE,
+                                            powerMizerMode)) {
+        return;
+    }
+
+    g_signal_handlers_block_by_func(G_OBJECT(ctk_powermizer->powermizer_menu),
+                                    G_CALLBACK(powermizer_menu_changed),
+                                    (gpointer) ctk_powermizer);
+
+    gtk_option_menu_set_history(GTK_OPTION_MENU(ctk_powermizer->powermizer_menu),
+                                powerMizerMode);
+
+    g_signal_handlers_unblock_by_func(G_OBJECT(ctk_powermizer->powermizer_menu),
+                                      G_CALLBACK(powermizer_menu_changed),
+                                      (gpointer) ctk_powermizer);
+}
+
 GtkTextBuffer *ctk_powermizer_create_help(GtkTextTagTable *table,
-                                       CtkPowermizer *ctk_powermizer)
+                                          CtkPowermizer *ctk_powermizer)
 {
     GtkTextIter i;
     GtkTextBuffer *b;
@@ -619,6 +787,9 @@ GtkTextBuffer *ctk_powermizer_create_help(GtkTextTagTable *table,
 
     ctk_help_heading(b, &i, "Performance Levels (Table)");
     ctk_help_para(b, &i, __performance_levels_table_help);
+
+    ctk_help_heading(b, &i, "PowerMizer Settings");
+    ctk_help_para(b, &i, __powermizer_menu_help);
     ctk_help_finish(b);
 
     return b;

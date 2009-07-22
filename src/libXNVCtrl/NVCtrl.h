@@ -42,6 +42,7 @@
 #define NV_CTRL_TARGET_TYPE_GPU        1
 #define NV_CTRL_TARGET_TYPE_FRAMELOCK  2
 #define NV_CTRL_TARGET_TYPE_VCSC       3 /* Visual Computing System */
+#define NV_CTRL_TARGET_TYPE_GVI        4
 
 
 /**************************************************************************/
@@ -85,7 +86,10 @@
  *    broadcast by the NVIDIA X Driver to all X Screens.
  *
  * V: The attribute may be queried using an NV_CTRL_TARGET_TYPE_VCSC
- *    target type via XNVCTRLQueryTargetXXXAttribute().
+ *    target type via XNVCTRLQueryTargetAttribute().
+ * 
+ * I: The attribute may be queried using an NV_CTRL_TARGET_TYPE_GVI target type
+ *    via XNVCTRLQueryTargetAttribute().
  * 
  * NOTE: Unless mentioned otherwise, all attributes may be queried using
  *       an NV_CTRL_TARGET_TYPE_X_SCREEN target type via 
@@ -161,11 +165,13 @@
 
 
 /*
- * NV_CTRL_BUS_TYPE - returns the Bus type through which the GPU
- * driving the specified X screen is connected to the computer.
+ * NV_CTRL_BUS_TYPE - returns the bus type through which the specified device
+ * is connected to the computer.
+ * When this attribute is queried on an X screen target, the bus type of the
+ * GPU driving the X screen is returned.
  */
 
-#define NV_CTRL_BUS_TYPE                                        5  /* R--G */
+#define NV_CTRL_BUS_TYPE                                        5  /* R--GI */
 #define NV_CTRL_BUS_TYPE_AGP                                    0
 #define NV_CTRL_BUS_TYPE_PCI                                    1
 #define NV_CTRL_BUS_TYPE_PCI_EXPRESS                            2
@@ -186,11 +192,13 @@
 
 
 /*
- * NV_CTRL_IRQ - returns the interrupt request line used by the GPU
- * driving the specified X screen.
+ * NV_CTRL_IRQ - returns the interrupt request line used by the specified
+ * device.
+ * When this attribute is queried on an X screen target, the IRQ of the GPU
+ * driving the X screen is returned.
  */
 
-#define NV_CTRL_IRQ                                             7  /* R--G */
+#define NV_CTRL_IRQ                                             7  /* R--GI */
 
 
 /*
@@ -878,10 +886,10 @@
  * retest with NV_CTRL_GVO_COMPOSITE_SYNC_INPUT_DETECTED).
  *
  * - if syncing to input sync, query the
- * NV_CTRL_GVO_INPUT_VIDEO_FORMAT attribute; note that Input video
+ * NV_CTRL_GVIO_DETECTED_VIDEO_FORMAT attribute; note that Input video
  * format can only be queried after SYNC_SOURCE is specified.
  *
- * - specify the NV_CTRL_GVO_OUTPUT_VIDEO_FORMAT
+ * - specify the NV_CTRL_GVIO_REQUESTED_VIDEO_FORMAT
  *
  * - specify the NV_CTRL_GVO_DATA_FORMAT
  *
@@ -962,8 +970,10 @@
 
 
 /*
- * NV_CTRL_GVO_OUTPUT_VIDEO_FORMAT - specifies the output video
- * format.  Note that the valid video formats will vary depending on
+ * NV_CTRL_GVIO_REQUESTED_VIDEO_FORMAT - specifies the desired output video
+ * format for GVO devices or the desired input video format for GVI devices.
+ *
+ * Note that for GVO, the valid video formats may vary depending on
  * the NV_CTRL_GVO_SYNC_MODE and the incoming sync video format.  See
  * the definition of NV_CTRL_GVO_SYNC_MODE.
  *
@@ -971,16 +981,61 @@
  * values are reported as bits within a bitmask
  * (ATTRIBUTE_TYPE_INT_BITS); unfortunately, there are more valid
  * value bits than will fit in a single 32-bit value.  To solve this,
- * query the ValidValues for NV_CTRL_GVO_OUTPUT_VIDEO_FORMAT to check
+ * query the ValidValues for NV_CTRL_GVIO_OUTPUT_VIDEO_FORMAT to check
  * which of the first 31 VIDEO_FORMATS are valid, then query the
- * ValidValues for NV_CTRL_GVO_OUTPUT_VIDEO_FORMAT2 to check which of
+ * ValidValues for NV_CTRL_GVIO_OUTPUT_VIDEO_FORMAT2 to check which of
  * the VIDEO_FORMATS with value 32 and higher are valid.
  */
 
+#define NV_CTRL_GVIO_REQUESTED_VIDEO_FORMAT                     70  /* RW--I */
+
+#define NV_CTRL_GVIO_VIDEO_FORMAT_NONE                          0
+#define NV_CTRL_GVIO_VIDEO_FORMAT_487I_59_94_SMPTE259_NTSC      1
+#define NV_CTRL_GVIO_VIDEO_FORMAT_576I_50_00_SMPTE259_PAL       2
+#define NV_CTRL_GVIO_VIDEO_FORMAT_720P_59_94_SMPTE296           3
+#define NV_CTRL_GVIO_VIDEO_FORMAT_720P_60_00_SMPTE296           4
+#define NV_CTRL_GVIO_VIDEO_FORMAT_1035I_59_94_SMPTE260          5
+#define NV_CTRL_GVIO_VIDEO_FORMAT_1035I_60_00_SMPTE260          6
+#define NV_CTRL_GVIO_VIDEO_FORMAT_1080I_50_00_SMPTE295          7
+#define NV_CTRL_GVIO_VIDEO_FORMAT_1080I_50_00_SMPTE274          8
+#define NV_CTRL_GVIO_VIDEO_FORMAT_1080I_59_94_SMPTE274          9
+#define NV_CTRL_GVIO_VIDEO_FORMAT_1080I_60_00_SMPTE274          10
+#define NV_CTRL_GVIO_VIDEO_FORMAT_1080P_23_976_SMPTE274         11
+#define NV_CTRL_GVIO_VIDEO_FORMAT_1080P_24_00_SMPTE274          12
+#define NV_CTRL_GVIO_VIDEO_FORMAT_1080P_25_00_SMPTE274          13
+#define NV_CTRL_GVIO_VIDEO_FORMAT_1080P_29_97_SMPTE274          14
+#define NV_CTRL_GVIO_VIDEO_FORMAT_1080P_30_00_SMPTE274          15
+#define NV_CTRL_GVIO_VIDEO_FORMAT_720P_50_00_SMPTE296           16
+#define NV_CTRL_GVIO_VIDEO_FORMAT_1080I_48_00_SMPTE274          17
+#define NV_CTRL_GVIO_VIDEO_FORMAT_1080I_47_96_SMPTE274          18
+#define NV_CTRL_GVIO_VIDEO_FORMAT_720P_30_00_SMPTE296           19 
+#define NV_CTRL_GVIO_VIDEO_FORMAT_720P_29_97_SMPTE296           20  
+#define NV_CTRL_GVIO_VIDEO_FORMAT_720P_25_00_SMPTE296           21 
+#define NV_CTRL_GVIO_VIDEO_FORMAT_720P_24_00_SMPTE296           22 
+#define NV_CTRL_GVIO_VIDEO_FORMAT_720P_23_98_SMPTE296           23  
+#define NV_CTRL_GVIO_VIDEO_FORMAT_1080PSF_25_00_SMPTE274        24
+#define NV_CTRL_GVIO_VIDEO_FORMAT_1080PSF_29_97_SMPTE274        25
+#define NV_CTRL_GVIO_VIDEO_FORMAT_1080PSF_30_00_SMPTE274        26
+#define NV_CTRL_GVIO_VIDEO_FORMAT_1080PSF_24_00_SMPTE274        27
+#define NV_CTRL_GVIO_VIDEO_FORMAT_1080PSF_23_98_SMPTE274        28
+#define NV_CTRL_GVIO_VIDEO_FORMAT_2048P_30_00_SMPTE372          29
+#define NV_CTRL_GVIO_VIDEO_FORMAT_2048P_29_97_SMPTE372          30
+#define NV_CTRL_GVIO_VIDEO_FORMAT_2048I_60_00_SMPTE372          31
+#define NV_CTRL_GVIO_VIDEO_FORMAT_2048I_59_94_SMPTE372          32
+#define NV_CTRL_GVIO_VIDEO_FORMAT_2048P_25_00_SMPTE372          33
+#define NV_CTRL_GVIO_VIDEO_FORMAT_2048I_50_00_SMPTE372          34
+#define NV_CTRL_GVIO_VIDEO_FORMAT_2048P_24_00_SMPTE372          35
+#define NV_CTRL_GVIO_VIDEO_FORMAT_2048P_23_98_SMPTE372          36
+#define NV_CTRL_GVIO_VIDEO_FORMAT_2048I_48_00_SMPTE372          37
+#define NV_CTRL_GVIO_VIDEO_FORMAT_2048I_47_96_SMPTE372          38
+
+/* 
+ * The following are deprecated; NV_CTRL_GVIO_REQUESTED_VIDEO_FORMAT and the
+ * corresponding NV_CTRL_GVIO_* formats should be used instead.
+ */
 #define NV_CTRL_GVO_OUTPUT_VIDEO_FORMAT                         70  /* RW- */
 
 #define NV_CTRL_GVO_VIDEO_FORMAT_NONE                           0
-#define NV_CTRL_GVO_VIDEO_FORMAT_480I_59_94_SMPTE259_NTSC       1 //deprecated
 #define NV_CTRL_GVO_VIDEO_FORMAT_487I_59_94_SMPTE259_NTSC       1
 #define NV_CTRL_GVO_VIDEO_FORMAT_576I_50_00_SMPTE259_PAL        2
 #define NV_CTRL_GVO_VIDEO_FORMAT_720P_59_94_SMPTE296            3
@@ -997,9 +1052,7 @@
 #define NV_CTRL_GVO_VIDEO_FORMAT_1080P_29_97_SMPTE274           14
 #define NV_CTRL_GVO_VIDEO_FORMAT_1080P_30_00_SMPTE274           15
 #define NV_CTRL_GVO_VIDEO_FORMAT_720P_50_00_SMPTE296            16
-#define NV_CTRL_GVO_VIDEO_FORMAT_1080I_24_00_SMPTE274           17 //deprecated
 #define NV_CTRL_GVO_VIDEO_FORMAT_1080I_48_00_SMPTE274           17
-#define NV_CTRL_GVO_VIDEO_FORMAT_1080I_23_98_SMPTE274           18 //deprecated
 #define NV_CTRL_GVO_VIDEO_FORMAT_1080I_47_96_SMPTE274           18
 #define NV_CTRL_GVO_VIDEO_FORMAT_720P_30_00_SMPTE296            19 
 #define NV_CTRL_GVO_VIDEO_FORMAT_720P_29_97_SMPTE296            20  
@@ -1023,13 +1076,20 @@
 #define NV_CTRL_GVO_VIDEO_FORMAT_2048I_47_96_SMPTE372           38
 
 /*
- * NV_CTRL_GVO_INPUT_VIDEO_FORMAT - indicates the input video format
- * detected; the possible values are the NV_CTRL_GVO_VIDEO_FORMAT
- * constants.
+ * NV_CTRL_GVIO_DETECTED_VIDEO_FORMAT - indicates the input video format
+ * detected for GVO or GVI devices; the possible values are the
+ * NV_CTRL_GVIO_VIDEO_FORMAT constants.
+ * For GVI devices, the port number should be specified in the "display_mask"
+ * parameter.
  */
 
-#define NV_CTRL_GVO_INPUT_VIDEO_FORMAT                          71  /* R-- */
+#define NV_CTRL_GVIO_DETECTED_VIDEO_FORMAT                      71  /* R--I */
 
+/*
+ * The following is deprecated.  Use NV_CTRL_GVIO_DETECTED_VIDEO_FORMAT,
+ * instead.
+ */
+#define NV_CTRL_GVO_INPUT_VIDEO_FORMAT                          71  /* R-- */
 
 /*
  * NV_CTRL_GVO_DATA_FORMAT - This controls how the data in the source
@@ -1153,7 +1213,7 @@
 /*
  * NV_CTRL_GVO_FPGA_VERSION - indicates the version of the Firmware on
  * the GVO device.  Deprecated; use
- * NV_CTRL_STRING_GVO_FIRMWARE_VERSION instead.
+ * NV_CTRL_STRING_GVIO_FIRMWARE_VERSION instead.
  */
 
 #define NV_CTRL_GVO_FIRMWARE_VERSION                            78  /* R-- */
@@ -1208,7 +1268,7 @@
  * not happen immediately and will instead be cached.  The GVO resource will
  * need to be disabled/released and re-enabled/claimed for the values to be
  * flushed. These attributes are:
- *    NV_CTRL_GVO_OUTPUT_VIDEO_FORMAT
+ *    NV_CTRL_GVIO_REQUESTED_VIDEO_FORMAT
  *    NV_CTRL_GVO_DATA_FORMAT
  *    NV_CTRL_GVO_FLIP_QUEUE_SIZE
  *
@@ -1221,21 +1281,26 @@
 
 
 /*
- * NV_CTRL_GVO_VIDEO_FORMAT_{WIDTH,HEIGHT,REFRESH_RATE} - query the
+ * NV_CTRL_GVIO_VIDEO_FORMAT_{WIDTH,HEIGHT,REFRESH_RATE} - query the
  * width, height, and refresh rate for the specified
- * NV_CTRL_GVO_VIDEO_FORMAT_*.  So that this can be queried with
+ * NV_CTRL_GVIO_VIDEO_FORMAT_*.  So that this can be queried with
  * existing interfaces, XNVCTRLQueryAttribute() should be used, and
  * the video format specified in the display_mask field; eg:
  *
  * XNVCTRLQueryAttribute (dpy,
  *                        screen, 
- *                        NV_CTRL_GVO_VIDEO_FORMAT_487I_59_94_SMPTE259_NTSC,
- *                        NV_CTRL_GVO_VIDEO_FORMAT_WIDTH,
+ *                        NV_CTRL_GVIO_VIDEO_FORMAT_487I_59_94_SMPTE259_NTSC,
+ *                        NV_CTRL_GVIO_VIDEO_FORMAT_WIDTH,
  *                        &value);
  *
- * Note that Refresh Rate is in 1/1000 Hertz values
+ * Note that Refresh Rate is in milliHertz values
  */
 
+#define NV_CTRL_GVIO_VIDEO_FORMAT_WIDTH                         83  /* R--I */
+#define NV_CTRL_GVIO_VIDEO_FORMAT_HEIGHT                        84  /* R--I */
+#define NV_CTRL_GVIO_VIDEO_FORMAT_REFRESH_RATE                  85  /* R--I */
+
+/* The following are deprecated; use the NV_CTRL_GVIO_* versions, instead */
 #define NV_CTRL_GVO_VIDEO_FORMAT_WIDTH                          83  /* R-- */
 #define NV_CTRL_GVO_VIDEO_FORMAT_HEIGHT                         84  /* R-- */
 #define NV_CTRL_GVO_VIDEO_FORMAT_REFRESH_RATE                   85  /* R-- */
@@ -1476,13 +1541,14 @@
 #define NV_CTRL_XINERAMA_STEREO_TRUE                             1
 
 /*
- * NV_CTRL_BUS_RATE - if the bus type of the GPU driving the specified
- * screen is AGP, then NV_CTRL_BUS_RATE returns the configured AGP
- * transfer rate.  If the bus type is PCI Express, then this attribute
- * returns the width of the physical link.
+ * NV_CTRL_BUS_RATE - if the bus type of the specified device is AGP, then
+ * NV_CTRL_BUS_RATE returns the configured AGP transfer rate.  If the bus type
+ * is PCI Express, then this attribute returns the width of the physical link.
+ * When this attribute is queried on an X screen target, the bus rate of the
+ * GPU driving the X screen is returned.
  */
 
-#define NV_CTRL_BUS_RATE                                         224  /* R--G */
+#define NV_CTRL_BUS_RATE                                        224  /* R--GI */
 
 /*
  * NV_CTRL_SHOW_SLI_HUD - when TRUE, OpenGL will draw information about the
@@ -1502,13 +1568,20 @@
 #define NV_CTRL_XV_SYNC_TO_DISPLAY                               226  /* RW- */
 
 /*
- * NV_CTRL_GVO_OUTPUT_VIDEO_FORMAT2 - this attribute is only intended
+ * NV_CTRL_GVIO_REQUESTED_VIDEO_FORMAT2 - this attribute is only intended
  * to be used to query the ValidValues for
- * NV_CTRL_GVO_OUTPUT_VIDEO_FORMAT above the first 31 VIDEO_FORMATS.
- * See NV_CTRL_GVO_OUTPUT_VIDEO_FORMAT for details.
+ * NV_CTRL_GVIO_REQUESTED_VIDEO_FORMAT above the first 31 VIDEO_FORMATS.
+ * See NV_CTRL_GVIO_REQUESTED_VIDEO_FORMAT for details.
  */
 
+#define NV_CTRL_GVIO_REQUESTED_VIDEO_FORMAT2                    227  /* ---GI */
+
+/* 
+ * The following is deprecated; use NV_CTRL_GVIO_REQUESTED_VIDEO_FORMAT2,
+ * instead
+ */
 #define NV_CTRL_GVO_OUTPUT_VIDEO_FORMAT2                         227  /* --- */
+
 
 /*
  * NV_CTRL_GVO_OVERRIDE_HW_CSC - Override the SDI hardware's Color Space
@@ -1591,10 +1664,9 @@
 #define NV_CTRL_FRAMELOCK_SLAVES                                 232 /* RW-G */
 
 /*
- * NV_CTRL_FRAMELOCK_MASTERABLE - Can this Display Device be set
- * as the master of the frame lock group.  Returns MASTERABLE_TRUE if
- * the GPU driving the display device is connected to the "primary"
- * connector on the frame lock board.
+ * NV_CTRL_FRAMELOCK_MASTERABLE - Can any of the given display devices
+ * be set as master of the frame lock group.  Returns a bitmask of the
+ * corresponding display devices that can be set as master.
  *
  * This attribute can only be queried through XNVCTRLQueryTargetAttribute()
  * using a NV_CTRL_TARGET_TYPE_GPU target.  This attribute cannot be
@@ -1602,9 +1674,6 @@
  */
 
 #define NV_CTRL_FRAMELOCK_MASTERABLE                             233 /* R-DG */
-#define NV_CTRL_FRAMELOCK_MASTERABLE_FALSE                       0
-#define NV_CTRL_FRAMELOCK_MASTERABLE_TRUE                        1
-
 
 /*
  * NV_CTRL_PROBE_DISPLAYS - re-probes the hardware to detect what
@@ -1676,24 +1745,26 @@
 
 
 /*
- * NV_CTRL_PCI_BUS - Returns the PCI bus number the GPU is using.
+ * NV_CTRL_PCI_BUS - Returns the PCI bus number the specified device is using.
  */
 
-#define NV_CTRL_PCI_BUS                                          239 /* R--G */
+#define NV_CTRL_PCI_BUS                                          239 /* R--GI */
 
 
 /*
- * NV_CTRL_PCI_DEVICE - Returns the PCI device number the GPU is using.
+ * NV_CTRL_PCI_DEVICE - Returns the PCI device number the specified device is
+ * using.
  */
 
-#define NV_CTRL_PCI_DEVICE                                       240 /* R--G */
+#define NV_CTRL_PCI_DEVICE                                       240 /* R--GI */
 
 
 /*
- * NV_CTRL_PCI_FUNCTION - Returns the PCI function number the GPU is using.
+ * NV_CTRL_PCI_FUNCTION - Returns the PCI function number the specified device
+ * is using.
  */
 
-#define NV_CTRL_PCI_FUNCTION                                     241 /* R--G */
+#define NV_CTRL_PCI_FUNCTION                                     241 /* R--GI */
 
 
 /*
@@ -1910,7 +1981,7 @@
  * GVO resource will need to be disabled/released and re-enabled/claimed for
  * the values to be flushed. These attributes are:
  *
- *    NV_CTRL_GVO_OUTPUT_VIDEO_FORMAT
+ *    NV_CTRL_GVIO_REQUESTED_VIDEO_FORMAT
  *    NV_CTRL_GVO_DATA_FORMAT
  *    NV_CTRL_GVO_FLIP_QUEUE_SIZE
  */
@@ -2296,14 +2367,15 @@
 #define NV_CTRL_IS_GVO_DISPLAY_TRUE                               1
 
 /*
- * NV_CTRL_PCI_ID - Returns the PCI vendor and device ID of the GPU.
+ * NV_CTRL_PCI_ID - Returns the PCI vendor and device ID of the specified
+ * device.
  *
  * NV_CTRL_PCI_ID is a "packed" integer attribute; the PCI vendor ID is stored
  * in the upper 16 bits of the integer, and the PCI device ID is stored in the
  * lower 16 bits of the integer.
  */
 
-#define NV_CTRL_PCI_ID                                          301 /* R--G */
+#define NV_CTRL_PCI_ID                                          301 /* R--GI */
 
 /*
  * NV_CTRL_GVO_FULL_RANGE_COLOR - Allow full range color data [4-1019]
@@ -2315,7 +2387,7 @@
 #define NV_CTRL_GVO_FULL_RANGE_COLOR_ENABLED                      1
 
 /*
- * NV_CTRL_SLI_MOSAIC_MODE_AVAILABLE - returns whether or not
+ * NV_CTRL_SLI_MOSAIC_MODE_AVAILABLE - Returns whether or not
  * SLI Mosaic Mode supported.
  */
 
@@ -2333,7 +2405,7 @@
 #define NV_CTRL_GVO_ENABLE_RGB_DATA_DISABLE                       0
 #define NV_CTRL_GVO_ENABLE_RGB_DATA_ENABLE                        1
 
-/* 
+/*
  * NV_CTRL_IMAGE_SHARPENING_DEFAULT - Returns default value of
  * Image Sharpening.
  */
@@ -2341,13 +2413,41 @@
 #define NV_CTRL_IMAGE_SHARPENING_DEFAULT                        305 /* R-- */
 
 /*
+ * NV_CTRL_PCI_DOMAIN - Returns the PCI domain number the specified device is
+ * using.
+ */
+
+#define NV_CTRL_PCI_DOMAIN                                      306 /* R--GI */
+
+/*
+ * NV_CTRL_GVI_NUM_PORTS - Returns the number of input ports available on a GVI
+ * device.
+ */
+
+#define NV_CTRL_GVI_NUM_PORTS                                   307 /* R--I */
+
+/*
  * NV_CTRL_FRAMELOCK_SYNC_DELAY_RESOLUTION - Returns the number of nanoseconds
  * that one unit of NV_CTRL_FRAMELOCK_SYNC_DELAY corresponds to.
  */
 #define NV_CTRL_FRAMELOCK_SYNC_DELAY_RESOLUTION                 318 /* R-- */
 
-#define NV_CTRL_LAST_ATTRIBUTE  NV_CTRL_FRAMELOCK_SYNC_DELAY_RESOLUTION
+/*
+ * NV_CTRL_GPU_POWER_MIZER_MODE - Provides a hint to the driver
+ * as to how to manage the performance of the GPU.
+ *
+ * ADAPTIVE                     - adjust GPU clocks based on GPU
+ *                                utilization
+ * PREFER_MAXIMUM_PERFORMANCE   - raise GPU clocks to favor
+ *                                maximum performance, to the extent
+ *                                that thermal and other constraints
+ *                                allow
+ */
+#define NV_CTRL_GPU_POWER_MIZER_MODE                            334 /* RW-G */
+#define NV_CTRL_GPU_POWER_MIZER_MODE_ADAPTIVE                     0
+#define NV_CTRL_GPU_POWER_MIZER_MODE_PREFER_MAXIMUM_PERFORMANCE   1
 
+#define NV_CTRL_LAST_ATTRIBUTE NV_CTRL_GPU_POWER_MIZER_MODE
 
 /**************************************************************************/
 
@@ -2416,10 +2516,16 @@
 
 
 /*
- * NV_CTRL_STRING_GVO_FIRMWARE_VERSION - indicates the version of the
- * Firmware on the GVO device.
+ * NV_CTRL_STRING_GVIO_FIRMWARE_VERSION - indicates the version of the
+ * Firmware on the GVIO device.
  */
 
+#define NV_CTRL_STRING_GVIO_FIRMWARE_VERSION                    8  /* R--I */
+
+/*
+ * The following is deprecated; use NV_CTRL_STRING_GVIO_FIRMWARE_VERSION,
+ * instead
+ */
 #define NV_CTRL_STRING_GVO_FIRMWARE_VERSION                     8  /* R-- */
 
 
@@ -2824,22 +2930,28 @@
 
 
 /*
- * NV_CTRL_STRING_GVO_VIDEO_FORMAT_NAME - query the name for the specified
- * NV_CTRL_GVO_VIDEO_FORMAT_*.  So that this can be queried with existing
+ * NV_CTRL_STRING_GVIO_VIDEO_FORMAT_NAME - query the name for the specified
+ * NV_CTRL_GVIO_VIDEO_FORMAT_*.  So that this can be queried with existing
  * interfaces, XNVCTRLQueryStringAttribute() should be used, and the video
  * format specified in the display_mask field; eg:
  *
  * XNVCTRLQueryStringAttribute(dpy,
  *                             screen, 
- *                             NV_CTRL_GVO_VIDEO_FORMAT_720P_60_00_SMPTE296,
- *                             NV_CTRL_GVO_VIDEO_FORMAT_NAME,
+ *                             NV_CTRL_GVIO_VIDEO_FORMAT_720P_60_00_SMPTE296,
+ *                             NV_CTRL_GVIO_VIDEO_FORMAT_NAME,
  *                             &name);
  */
 
+#define NV_CTRL_STRING_GVIO_VIDEO_FORMAT_NAME                  33  /* R--GI */
+
+/*
+ * The following is deprecated; use NV_CTRL_STRING_GVIO_VIDEO_FORMAT_NAME,
+ * instead
+ */
 #define NV_CTRL_STRING_GVO_VIDEO_FORMAT_NAME                   33  /* R--- */
 
 #define NV_CTRL_STRING_LAST_ATTRIBUTE \
-        NV_CTRL_STRING_GVO_VIDEO_FORMAT_NAME
+        NV_CTRL_STRING_GVIO_VIDEO_FORMAT_NAME
 
 
 /**************************************************************************/
@@ -3075,8 +3187,21 @@
 
 #define NV_CTRL_BINARY_DATA_VCSCS_USED_BY_GPU                  9   /* R-DG */
 
+/*
+ * NV_CTRL_BINARY_DATA_GPUS_USED_BY_LOGICAL_XSCREEN - Returns the list of
+ * GPUs currently driving the given X screen.  If Xinerama is enabled, this
+ * will return all GPUs that are driving any X screen.
+ *
+ * The format of the returned data is:
+ *
+ *     4       CARD32 number of GPUs
+ *     4 * n   CARD32 GPU indices
+ */
+
+#define NV_CTRL_BINARY_DATA_GPUS_USED_BY_LOGICAL_XSCREEN     11   /* R--- */
+
 #define NV_CTRL_BINARY_DATA_LAST_ATTRIBUTE \
-        NV_CTRL_BINARY_DATA_VCSCS_USED_BY_GPU
+        NV_CTRL_BINARY_DATA_GPUS_USED_BY_LOGICAL_XSCREEN
 
 
 /**************************************************************************/
@@ -3249,6 +3374,10 @@
  * ATTRIBUTE_TYPE_X_SCREEN  - Attribute is valid for X Screen target types.
  * ATTRIBUTE_TYPE_XINERAMA  - Attribute will be made consistent for all
  *                            X Screens when the Xinerama extension is enabled.
+ * ATTRIBUTE_TYPE_VCSC      - Attribute is valid for Visual Computing System
+ *                            target types.
+ * ATTRIBUTE_TYPE_GVI       - Attribute is valid for Graphics Video In target
+ *                            types.
  *
  *
  * See 'Key to Integer Attribute "Permissions"' at the top of this
@@ -3262,14 +3391,15 @@
 #define ATTRIBUTE_TYPE_RANGE     4
 #define ATTRIBUTE_TYPE_INT_BITS  5
 
-#define ATTRIBUTE_TYPE_READ       0x01
-#define ATTRIBUTE_TYPE_WRITE      0x02
-#define ATTRIBUTE_TYPE_DISPLAY    0x04
-#define ATTRIBUTE_TYPE_GPU        0x08
-#define ATTRIBUTE_TYPE_FRAMELOCK  0x10
-#define ATTRIBUTE_TYPE_X_SCREEN   0x20
-#define ATTRIBUTE_TYPE_XINERAMA   0x40
-#define ATTRIBUTE_TYPE_VCSC       0x80
+#define ATTRIBUTE_TYPE_READ       0x001
+#define ATTRIBUTE_TYPE_WRITE      0x002
+#define ATTRIBUTE_TYPE_DISPLAY    0x004
+#define ATTRIBUTE_TYPE_GPU        0x008
+#define ATTRIBUTE_TYPE_FRAMELOCK  0x010
+#define ATTRIBUTE_TYPE_X_SCREEN   0x020
+#define ATTRIBUTE_TYPE_XINERAMA   0x040
+#define ATTRIBUTE_TYPE_VCSC       0x080
+#define ATTRIBUTE_TYPE_GVI        0x100
 
 typedef struct _NVCTRLAttributeValidValues {
     int type;

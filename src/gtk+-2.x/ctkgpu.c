@@ -139,21 +139,20 @@ GtkWidget* ctk_gpu_new(
 
     char *product_name, *vbios_version, *video_ram, *irq;
     gchar *bus_type, *bus_rate, *bus;
-    int pci_bus;
-    int pci_device;
-    int pci_func;
+    int pci_domain, pci_bus, pci_device, pci_func;
     gchar *pci_bus_id;
     gchar pci_device_id[ARRAY_ELEMENTS];
     gchar pci_vendor_id[ARRAY_ELEMENTS];
     int pci_id;
 
-    gchar *__pci_bus_id_unknown = "?:?:?";
+    gchar *__pci_bus_id_unknown = "?@?:?:?";
 
     int tmp;
     ReturnStatus ret;
 
     gchar *screens;
     gchar *displays;
+    gchar *tmp_str;
 
     unsigned int display_devices;
     int xinerama_enabled;
@@ -211,9 +210,14 @@ GtkWidget* ctk_gpu_new(
         bus = g_strdup(bus_type);
     }
 
-    /* NV_CTRL_PCI_BUS & NV_CTRL_PCI_DEVICE & NV__CTRL_PCI_FUNCTION */
+    /* NV_CTRL_PCI_DOMAIN & NV_CTRL_PCI_BUS &
+     * NV_CTRL_PCI_DEVICE & NV__CTRL_PCI_FUNCTION
+     */
 
     pci_bus_id = NULL;
+    ret = NvCtrlGetAttribute(handle, NV_CTRL_PCI_DOMAIN, &pci_domain);
+    if (ret != NvCtrlSuccess) pci_bus_id = __pci_bus_id_unknown;
+    
     ret = NvCtrlGetAttribute(handle, NV_CTRL_PCI_BUS, &pci_bus);
     if (ret != NvCtrlSuccess) pci_bus_id = __pci_bus_id_unknown;
 
@@ -224,8 +228,13 @@ GtkWidget* ctk_gpu_new(
     if (ret != NvCtrlSuccess) pci_bus_id = __pci_bus_id_unknown;
 
     if (!pci_bus_id) {
-        pci_bus_id = g_strdup_printf("%d:%d:%d",
-                                     pci_bus, pci_device, pci_func);
+        if (pci_domain == 0) {
+            pci_bus_id = g_strdup_printf("%d:%d:%d", pci_bus, pci_device,
+                                         pci_func);
+        } else {
+            pci_bus_id = g_strdup_printf("%d@%d:%d:%d", pci_bus, pci_domain,
+                                         pci_device, pci_func);
+        }
     } else {
         pci_bus_id = g_strdup(__pci_bus_id_unknown);
     }
@@ -269,52 +278,46 @@ GtkWidget* ctk_gpu_new(
         irq = g_strdup_printf("%d", tmp);
     }
     
-    /* List of X Screens using GPU */
+    /* List of X Screens using the GPU */
 
-    if (xinerama_enabled) {
-
-        /* In Xinerama, there is only one logical X screen */
-
-        screens = g_strdup("Screen 0 (Xinerama)");
-
-    } else {
-        gchar *tmp_str;
-        screens = NULL;
-
-        ret = NvCtrlGetBinaryAttribute(handle,
-                                       0,
-                                       NV_CTRL_BINARY_DATA_XSCREENS_USING_GPU,
-                                       (unsigned char **)(&pData),
-                                       &len);
-        if (ret == NvCtrlSuccess) {
-            for (i = 1; i <= pData[0]; i++) {
-                
-                if (screens) {
-                    tmp_str = g_strdup_printf("%s,\nScreen %d",
-                                              screens, pData[i]);
-                } else {
-                    tmp_str = g_strdup_printf("Screen %d", pData[i]);
-                }
-                g_free(screens);
-                screens = tmp_str;
-            }
-            if (!screens) {
-                screens = g_strdup("None");
-
-            } else if (pData[0] > 0) {
-
-                ret = NvCtrlGetAttribute(t[pData[1]].h,
-                                         NV_CTRL_SHOW_SLI_HUD,
-                                         &tmp);
-
-                if (ret == NvCtrlSuccess) {
-                    tmp_str = g_strdup_printf("%s (SLI)", screens);
+    screens = NULL;
+    ret = NvCtrlGetBinaryAttribute(handle,
+                                   0,
+                                   NV_CTRL_BINARY_DATA_XSCREENS_USING_GPU,
+                                   (unsigned char **)(&pData),
+                                   &len);
+    if (ret == NvCtrlSuccess) {
+        if (pData[0] == 0) {
+            screens = g_strdup("None");
+        } else {
+            if (xinerama_enabled) {
+                screens = g_strdup("Screen 0 (Xinerama)");
+            } else {
+                for (i = 1; i <= pData[0]; i++) {
+                    if (screens) {
+                        tmp_str = g_strdup_printf("%s,\nScreen %d",
+                                                  screens, pData[i]);
+                    } else {
+                        tmp_str = g_strdup_printf("Screen %d", pData[i]);
+                    }
                     g_free(screens);
                     screens = tmp_str;
                 }
             }
-            XFree(pData);
+
+            ret = NvCtrlGetAttribute(t[pData[1]].h,
+                                     NV_CTRL_SHOW_SLI_HUD,
+                                     &tmp);
+            if (ret == NvCtrlSuccess) {
+                tmp_str = g_strdup_printf("%s (SLI)", screens);
+                g_free(screens);
+                screens = tmp_str;
+            }
         }
+        XFree(pData);
+    }
+    if (!screens) {
+        screens = g_strdup("Unknown");
     }
 
     /* List of Display Device connected on GPU */
