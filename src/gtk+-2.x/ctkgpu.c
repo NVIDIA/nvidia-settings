@@ -290,8 +290,19 @@ GtkWidget* ctk_gpu_new(
         if (pData[0] == 0) {
             screens = g_strdup("None");
         } else {
+            NvCtrlAttributeHandle *screen_handle;
+
             if (xinerama_enabled) {
                 screens = g_strdup("Screen 0 (Xinerama)");
+                /* XXX Use the only screen handle we have.
+                 *     This is currently OK since we only
+                 *     query xinerama attributes with this
+                 *     handle below.  If we needed to query
+                 *     a screen-specific attribute below,
+                 *     then we would need to get a handle
+                 *     for the correct screen instead.
+                 */
+                screen_handle = t[0].h;
             } else {
                 for (i = 1; i <= pData[0]; i++) {
                     if (screens) {
@@ -303,9 +314,10 @@ GtkWidget* ctk_gpu_new(
                     g_free(screens);
                     screens = tmp_str;
                 }
+                screen_handle = t[pData[1]].h;
             }
 
-            ret = NvCtrlGetAttribute(t[pData[1]].h,
+            ret = NvCtrlGetAttribute(screen_handle,
                                      NV_CTRL_SHOW_SLI_HUD,
                                      &tmp);
             if (ret == NvCtrlSuccess) {
