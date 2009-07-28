@@ -166,7 +166,7 @@ static void do_query(Display *dpy)
             if (!ret) {
                 printf("Failed to query enabled displays.\n");
             } else {
-                printf("0x%08u\n", mask);
+                printf("0x%08x\n", mask);
             }
 
             /* Query GPU server (master) */
@@ -181,7 +181,7 @@ static void do_query(Display *dpy)
             if (!ret) {
                 printf("Failed to query server mask.\n");
             } else {
-                printf("0x%08u\n", mask);
+                printf("0x%08x\n", mask);
             }
 
             /* Query GPU clients (slaves) */
@@ -196,7 +196,7 @@ static void do_query(Display *dpy)
             if (!ret) {
                 printf("Failed to query clients mask.\n");
             } else {
-                printf("0x%08u\n", mask);
+                printf("0x%08x\n", mask);
             }
 
         } /* Done disabling GPUs */
@@ -313,7 +313,9 @@ static void do_enable(Display *dpy)
                 continue;
             }
 
-            /* Query if this GPU can be set as master */
+            /* Query if any of the enabled displays can be set as a
+             * master on this GPU.
+             */
 
             ret = XNVCTRLQueryTargetAttribute(dpy,
                                               NV_CTRL_TARGET_TYPE_GPU,
@@ -328,7 +330,7 @@ static void do_enable(Display *dpy)
             
             /* Clear the master setting if any */
             
-            if (masterable == NV_CTRL_FRAMELOCK_MASTERABLE_TRUE) {
+            if (masterable) {
                 XNVCTRLSetTargetAttribute(dpy,
                                           NV_CTRL_TARGET_TYPE_GPU,
                                           gpu, // target_id
@@ -350,13 +352,12 @@ static void do_enable(Display *dpy)
             
             /* Pick the first available/capable display device as master */
 
-            if (pick_server &&
-                masterable == NV_CTRL_FRAMELOCK_MASTERABLE_TRUE) {
+            if (pick_server && masterable) {
                 
                 /* Just pick the first enabled display */
                 
                 unsigned int master = (1<<31);
-                while (master && !(master & mask)) {
+                while (master && !(master & masterable)) {
                     master >>= 1;
                 }
                 
@@ -381,7 +382,7 @@ static void do_enable(Display *dpy)
                                               NV_CTRL_FRAMELOCK_MASTER,
                                               master);
 
-                    printf("    - Set Server Display    : 0x%08u\n", master);
+                    printf("    - Set Server Display    : 0x%08x\n", master);
                     pick_server = 0;
                     server_set = 1;
                 }
@@ -396,7 +397,7 @@ static void do_enable(Display *dpy)
                                           0, // display_mask
                                           NV_CTRL_FRAMELOCK_SLAVES,
                                           mask);
-                printf("    - Set Client Display(s) : 0x%08u\n", mask);
+                printf("    - Set Client Display(s) : 0x%08x\n", mask);
             }
 
             /* Enable frame lock */
@@ -552,6 +553,12 @@ int main(int argc, char *argv[])
 
     printf("Using NV-CONTROL extension %d.%d on %s\n\n",
            major, minor, XDisplayName(NULL));
+
+    if ((major < 1) || (major == 1 && minor < 9)) {
+        printf("The NV-CONTROL X extension is too old.  Version 1.9 or above "
+               " is required for configuring Frame Lock via target types.\n");
+        return 1;
+    }
     
     /* Do what the user wants */
 

@@ -1591,10 +1591,9 @@
 #define NV_CTRL_FRAMELOCK_SLAVES                                 232 /* RW-G */
 
 /*
- * NV_CTRL_FRAMELOCK_MASTERABLE - Can this Display Device be set
- * as the master of the frame lock group.  Returns MASTERABLE_TRUE if
- * the GPU driving the display device is connected to the "primary"
- * connector on the frame lock board.
+ * NV_CTRL_FRAMELOCK_MASTERABLE - Can any of the given display devices
+ * be set as master of the frame lock group.  Returns a bitmask of the
+ * corresponding display devices that can be set as master.
  *
  * This attribute can only be queried through XNVCTRLQueryTargetAttribute()
  * using a NV_CTRL_TARGET_TYPE_GPU target.  This attribute cannot be
@@ -1602,9 +1601,6 @@
  */
 
 #define NV_CTRL_FRAMELOCK_MASTERABLE                             233 /* R-DG */
-#define NV_CTRL_FRAMELOCK_MASTERABLE_FALSE                       0
-#define NV_CTRL_FRAMELOCK_MASTERABLE_TRUE                        1
-
 
 /*
  * NV_CTRL_PROBE_DISPLAYS - re-probes the hardware to detect what
