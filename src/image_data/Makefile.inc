@@ -54,6 +54,7 @@ EXTRA_DIST += \
 	opengl_pixdata.h \
 	penguin_pixdata.h \
 	png_to_c_header.sh \
+	gvi_pixdata.h \
 	rj45_input_pixdata.h \
 	rj45_output_pixdata.h \
 	rj45_unused_pixdata.h \

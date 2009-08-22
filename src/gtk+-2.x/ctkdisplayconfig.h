@@ -180,6 +180,7 @@ typedef struct _CtkDisplayConfig
     GtkWidget *btn_probe;
 
     GtkWidget *btn_advanced;
+    gboolean   advanced_mode;
 
     GtkWidget *btn_reset;
     

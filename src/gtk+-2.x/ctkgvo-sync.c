@@ -55,7 +55,7 @@
 #define SYNC_FORMAT_COMP_BI_LEVEL 2
 #define SYNC_FORMAT_COMP_TRI_LEVEL 3
 
-static const GvoFormatName syncFormatNames[] = {
+static const GvioFormatName syncFormatNames[] = {
     { SYNC_FORMAT_SDI,            "SDI Sync" },
     { SYNC_FORMAT_COMP_AUTO,      "COMP Sync" },
     { SYNC_FORMAT_COMP_BI_LEVEL,  "COMP Sync (Bi-level)" },
@@ -63,7 +63,7 @@ static const GvoFormatName syncFormatNames[] = {
     { -1, NULL },
 };
 
-extern const GvoFormatName videoFormatNames[];
+extern const GvioFormatName videoFormatNames[];
 
 
 

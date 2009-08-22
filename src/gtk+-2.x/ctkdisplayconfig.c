@@ -589,7 +589,7 @@ static int generate_xconf_metamode_str(CtkDisplayConfig *ctk_object,
      * metamode first in the list so the X server starts
      * in this mode.
      */
-    if (!layout->advanced_mode) {
+    if (!ctk_object->advanced_mode) {
         metamode_strs = screen_get_metamode_str(screen,
                                                 screen->cur_metamode_idx, 1);
         len = strlen(metamode_strs);
@@ -610,7 +610,7 @@ static int generate_xconf_metamode_str(CtkDisplayConfig *ctk_object,
         if (!(metamode->source & METAMODE_SOURCE_USER)) continue;
 
         /* The current mode was already included */
-        if (!layout->advanced_mode &&
+        if (!ctk_object->advanced_mode &&
             (metamode_idx == screen->cur_metamode_idx))
             continue;
 
@@ -620,7 +620,7 @@ static int generate_xconf_metamode_str(CtkDisplayConfig *ctk_object,
          *     smaller that the bounding box of all the metamodes will result
          *     in an unwanted panning domain being setup for the first mode.
          */
-        if ((!layout->advanced_mode) &&
+        if ((!ctk_object->advanced_mode) &&
             ((metamode->edim[W] > start_width) ||
              (metamode->edim[H] > start_height)))
             continue;
@@ -2068,10 +2068,9 @@ static void setup_display_modename(CtkDisplayConfig *ctk_object)
 {
     nvDisplayPtr display = ctk_display_layout_get_selected_display
         (CTK_DISPLAY_LAYOUT(ctk_object->obj_layout));
-    nvLayoutPtr layout = ctk_object->layout;
 
 
-    if (!display || !display->screen || !layout->advanced_mode) {
+    if (!display || !display->screen || !ctk_object->advanced_mode) {
         gtk_widget_hide(ctk_object->box_display_modename);
         return;
     }
@@ -2144,7 +2143,6 @@ static void setup_display_refresh_dropdown(CtkDisplayConfig *ctk_object)
 
     nvDisplayPtr display = ctk_display_layout_get_selected_display
         (CTK_DISPLAY_LAYOUT(ctk_object->obj_layout));
-    nvLayoutPtr layout = ctk_object->layout;
 
 
 
@@ -2245,14 +2243,14 @@ static void setup_display_refresh_dropdown(CtkDisplayConfig *ctk_object)
             name = g_strdup("Auto");
 
         /* In advanced mode, all modelines are selectable */
-        } else if (count_ref > 1 && layout->advanced_mode) {
+        } else if (count_ref > 1 && ctk_object->advanced_mode) {
             gchar *tmp;
             tmp = g_strdup_printf("%s (%d)", name, num_ref);
             g_free(name);
             name = tmp;
 
         /* in simple mode only show one refresh rate */
-        } else if (num_ref > 1 && !layout->advanced_mode) {
+        } else if (num_ref > 1 && !ctk_object->advanced_mode) {
             continue;
         }
 
@@ -2937,7 +2935,7 @@ static void setup_display_panning(CtkDisplayConfig *ctk_object)
         (CTK_DISPLAY_LAYOUT(ctk_object->obj_layout));
 
 
-    if (!display || !display->screen || !layout->advanced_mode) {
+    if (!display || !display->screen || !ctk_object->advanced_mode) {
         gtk_widget_hide(ctk_object->box_display_panning);
         return;
     }
@@ -3411,7 +3409,6 @@ static void setup_screen_position(CtkDisplayConfig *ctk_object)
 
 static void setup_screen_metamode(CtkDisplayConfig *ctk_object)
 {
-    nvLayoutPtr layout = ctk_object->layout;
     nvScreenPtr screen = ctk_display_layout_get_selected_screen
         (CTK_DISPLAY_LAYOUT(ctk_object->obj_layout));
     gchar *str;
@@ -3420,7 +3417,7 @@ static void setup_screen_metamode(CtkDisplayConfig *ctk_object)
     /* Only show the metamodes in advanced mode for screens
      * that support scanout.
      */
-    if (!screen || screen->no_scanout || !layout->advanced_mode) {
+    if (!screen || screen->no_scanout || !ctk_object->advanced_mode) {
         gtk_widget_hide(ctk_object->box_screen_metamode);
         return;
     }
@@ -4763,14 +4760,13 @@ static gboolean do_query_remove_display(CtkDisplayConfig *ctk_object,
 
 void do_disable_display(CtkDisplayConfig *ctk_object, nvDisplayPtr display)
 {
-    nvLayoutPtr layout = ctk_object->layout;
     nvGpuPtr gpu = display->gpu;
     gchar *str;
     gchar *type = display_get_type_str(display->device_mask, 0);
 
 
     /* Setup the remove display dialog */
-    if (layout->advanced_mode) {
+    if (ctk_object->advanced_mode) {
         str = g_strdup_printf("Disable the display device %s (%s) "
                               "on GPU-%d (%s)?",
                               display->name, type,
@@ -5043,7 +5039,6 @@ static void display_refresh_changed(GtkWidget *widget, gpointer user_data)
     gint idx;
     nvModeLinePtr modeline;
     nvDisplayPtr display;
-    nvLayoutPtr layout = ctk_object->layout;
 
 
     /* Get the modeline and display to set */
@@ -5056,7 +5051,7 @@ static void display_refresh_changed(GtkWidget *widget, gpointer user_data)
     /* In Basic view, we assume the user most likely wants
      * to change which metamode is being used.
      */
-    if (!layout->advanced_mode && (display->screen->num_displays == 1)) {
+    if (!ctk_object->advanced_mode && (display->screen->num_displays == 1)) {
         int metamode_idx =
             display_find_closest_mode_matching_modeline(display, modeline);
 
@@ -5095,7 +5090,6 @@ static void display_resolution_changed(GtkWidget *widget, gpointer user_data)
     CtkDisplayConfig *ctk_object = CTK_DISPLAY_CONFIG(user_data);
     gint idx;
     gint last_idx;
-    nvLayoutPtr layout = ctk_object->layout;
     nvModeLinePtr modeline;
     nvDisplayPtr display;
 
@@ -5120,7 +5114,7 @@ static void display_resolution_changed(GtkWidget *widget, gpointer user_data)
     /* In Basic view, we assume the user most likely wants
      * to change which metamode is being used.
      */
-    if (!layout->advanced_mode && (display->screen->num_displays == 1)) {
+    if (!ctk_object->advanced_mode && (display->screen->num_displays == 1)) {
         int metamode_idx =
             display_find_closest_mode_matching_modeline(display, modeline);
 
@@ -7373,15 +7367,14 @@ static void save_clicked(GtkWidget *widget, gpointer user_data)
 static void advanced_clicked(GtkWidget *widget, gpointer user_data)
 {
     CtkDisplayConfig *ctk_object = CTK_DISPLAY_CONFIG(user_data);
-    nvLayoutPtr layout = ctk_object->layout;
     
 
     /* Toggle advanced options for the display */
-    layout->advanced_mode = !(layout->advanced_mode);
+    ctk_object->advanced_mode = !(ctk_object->advanced_mode);
 
 
     /* Show advanced display options */
-    if (layout->advanced_mode) {
+    if (ctk_object->advanced_mode) {
         gtk_button_set_label(GTK_BUTTON(widget), "Basic...");
         ctk_display_layout_set_advanced_mode
             (CTK_DISPLAY_LAYOUT(ctk_object->obj_layout), 1);

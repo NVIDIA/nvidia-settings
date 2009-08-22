@@ -33,7 +33,8 @@ EXTRA_DIST += \
 	nv-control-info.c \
 	nv-control-events.c \
 	nv-control-targets.c \
-        nv-control-framelock.c
+        nv-control-framelock.c \
+        nv-control-gvi.c
 
 dist_list::
 	@ echo $(SRC) $(EXTRA_DIST)

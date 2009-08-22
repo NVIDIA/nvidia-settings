@@ -62,10 +62,9 @@ struct _CtkClocks
     NvCtrlAttributeHandle *handle;
     CtkConfig *ctk_config;
 
-    GtkWidget *enable_dialog;
+    GtkWidget *license_dialog;
     GtkWidget *detect_dialog;
 
-    Bool       license_accepted;
     GtkWidget *license_window;
 
 

@@ -37,6 +37,7 @@
 #include "ctkwindow.h"
 
 #include "ctkframelock.h"
+#include "ctkgvi.h"
 #include "ctkgvo.h"
 #include "ctkgvo-sync.h"
 #include "ctkgvo-csc.h"
@@ -911,6 +912,54 @@ GtkWidget *ctk_window_new(ParsedAttribute *p, ConfigProperties *conf,
 
     }
 
+    /* add the per gvi entries into the tree model */
+
+    for (i = 0; i < h->targets[GVI_TARGET].n; i++) {
+
+        gchar *gvi_name;
+        GtkWidget *child;
+        NvCtrlAttributeHandle *gvi_handle = h->targets[GVI_TARGET].t[i].h;
+
+        if (!gvi_handle) continue;
+
+        /* create the gvi entry name */
+
+        if (h->targets[GVI_TARGET].n > 1) {
+            gvi_name = g_strdup_printf("Graphics to Video In %d",
+                                       NvCtrlGetTargetId(gvi_handle));
+        } else {
+            gvi_name =  g_strdup_printf("Graphics to Video In");
+        }
+        
+        if (!gvi_name) continue;
+
+        /* create the object for receiving NV-CONTROL events */
+
+        ctk_event = CTK_EVENT(ctk_event_new(gvi_handle));
+
+        /* create the gvi entry */
+
+        gtk_tree_store_append(ctk_window->tree_store, &iter, NULL);
+        gtk_tree_store_set(ctk_window->tree_store, &iter,
+                           CTK_WINDOW_LABEL_COLUMN, gvi_name, -1);
+        child = ctk_gvi_new(gvi_handle, ctk_config);
+        gtk_object_ref(GTK_OBJECT(child));
+        gtk_tree_store_set(ctk_window->tree_store, &iter,
+                           CTK_WINDOW_WIDGET_COLUMN, child, -1);
+        gtk_tree_store_set(ctk_window->tree_store, &iter,
+                           CTK_WINDOW_HELP_COLUMN,
+                           ctk_gvi_create_help(tag_table, CTK_GVI(child)), -1);
+        gtk_tree_store_set(ctk_window->tree_store, &iter,
+                           CTK_WINDOW_CONFIG_FILE_ATTRIBUTES_FUNC_COLUMN,
+                           NULL, -1);
+        gtk_tree_store_set(ctk_window->tree_store, &iter,
+                           CTK_WINDOW_SELECT_WIDGET_FUNC_COLUMN,
+                           ctk_gvi_start_timer, -1);
+        gtk_tree_store_set(ctk_window->tree_store, &iter,
+                           CTK_WINDOW_UNSELECT_WIDGET_FUNC_COLUMN,
+                           ctk_gvi_stop_timer, -1);
+
+    }
     /*
      * add the frame lock page, if any of the X screens support
      * frame lock

@@ -114,7 +114,7 @@ struct _CtkGvoClass
 typedef struct {
     int format;
     const char *name;
-} GvoFormatName;
+} GvioFormatName;
 
 typedef struct {
     int format;
@@ -136,7 +136,7 @@ gint           ctk_gvo_probe       (gpointer data);
 
 
 
-const char *ctk_gvo_get_video_format_name(const gint format);
+const char *ctk_gvio_get_video_format_name(const gint format);
 const char *ctk_gvo_get_data_format_name(const gint format);
 void ctk_gvo_get_video_format_resolution(const gint format, gint *w, gint *h);
 

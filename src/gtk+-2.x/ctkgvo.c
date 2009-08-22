@@ -144,7 +144,7 @@ static void screen_changed_handler(GtkWidget *widget,
  * video format table -- should this be moved into NV-CONTROL?
  */
 
-const GvoFormatName videoFormatNames[] = {
+const GvioFormatName videoFormatNames[] = {
     { NV_CTRL_GVIO_VIDEO_FORMAT_487I_59_94_SMPTE259_NTSC, "720  x 487i    59.94  Hz  (SMPTE259) NTSC"},
     { NV_CTRL_GVIO_VIDEO_FORMAT_576I_50_00_SMPTE259_PAL,  "720  x 576i    50.00  Hz  (SMPTE259) PAL"},
     { NV_CTRL_GVIO_VIDEO_FORMAT_720P_23_98_SMPTE296,      "1280 x 720p    23.98  Hz  (SMPTE296)"    },
@@ -230,7 +230,7 @@ static GvoFormatDetails videoFormatDetails[] = {
 };
 
 
-static const GvoFormatName dataFormatNames[] = {
+static const GvioFormatName dataFormatNames[] = {
 
     /* Valid for Clone Mode */
     { NV_CTRL_GVO_DATA_FORMAT_R8G8B8_TO_YCRCB444,               "RGB -> YCrCb (4:4:4)" },
@@ -273,10 +273,10 @@ static const GvoFormatName dataFormatNames[] = {
 
 
 /*
- * ctk_gvo_get_video_format_name() - return the name of the given video format
+ * ctk_gvio_get_video_format_name() - return the name of the given video format
  */
 
-const char *ctk_gvo_get_video_format_name(const gint format)
+const char *ctk_gvio_get_video_format_name(const gint format)
 {
     gint i;
     
@@ -288,7 +288,7 @@ const char *ctk_gvo_get_video_format_name(const gint format)
 
     return "Unknown";
     
-} /* ctk_gvo_get_video_format_name() */
+} /* ctk_gvio_get_video_format_name() */
 
 
 
@@ -1522,7 +1522,7 @@ static void post_output_video_format_changed(CtkGvo *ctk_gvo)
     
     ctk_config_statusbar_message(ctk_gvo->ctk_config,
                                  "Output Video Format set to: %s.",
-                                 ctk_gvo_get_video_format_name
+                                 ctk_gvio_get_video_format_name
                                  (ctk_gvo->output_video_format));
 
 } /* post_output_video_format_changed() */

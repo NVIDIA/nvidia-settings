@@ -262,9 +262,10 @@ void XNVCTRLSetAttribute (
 }
 
 
-Bool XNVCTRLSetAttributeAndGetStatus (
+Bool XNVCTRLSetTargetAttributeAndGetStatus (
     Display *dpy,
-    int screen,
+    int target_type,
+    int target_id,
     unsigned int display_mask,
     unsigned int attribute,
     int value
@@ -283,7 +284,8 @@ Bool XNVCTRLSetAttributeAndGetStatus (
     GetReq (nvCtrlSetAttributeAndGetStatus, req);
     req->reqType = info->codes->major_opcode;
     req->nvReqType = X_nvCtrlSetAttributeAndGetStatus;
-    req->screen = screen;
+    req->target_type = target_type;
+    req->target_id = target_id;
     req->display_mask = display_mask;
     req->attribute = attribute;
     req->value = value;
@@ -299,6 +301,18 @@ Bool XNVCTRLSetAttributeAndGetStatus (
     return success;
 }
 
+Bool XNVCTRLSetAttributeAndGetStatus (
+    Display *dpy,
+    int screen,
+    unsigned int display_mask,
+    unsigned int attribute,
+    int value
+){
+    return XNVCTRLSetTargetAttributeAndGetStatus(dpy,
+                                                 NV_CTRL_TARGET_TYPE_X_SCREEN,
+                                                 screen, display_mask,
+                                                 attribute, value);
+}
 
 
 Bool XNVCTRLQueryTargetAttribute (
@@ -419,9 +433,10 @@ Bool XNVCTRLQueryStringAttribute (
 }
 
 
-Bool XNVCTRLSetStringAttribute (
+Bool XNVCTRLSetTargetStringAttribute (
     Display *dpy,
-    int screen,
+    int target_type,
+    int target_id,
     unsigned int display_mask,
     unsigned int attribute,
     char *ptr
@@ -443,7 +458,8 @@ Bool XNVCTRLSetStringAttribute (
     GetReq (nvCtrlSetStringAttribute, req);
     req->reqType = info->codes->major_opcode;
     req->nvReqType = X_nvCtrlSetStringAttribute;
-    req->screen = screen;
+    req->target_type = target_type;
+    req->target_id = target_id;
     req->display_mask = display_mask;
     req->attribute = attribute;
     req->length += ((size + 3) & ~3) >> 2;
@@ -460,6 +476,18 @@ Bool XNVCTRLSetStringAttribute (
     
     success = rep.flags;
     return success;
+}
+
+Bool XNVCTRLSetStringAttribute (
+    Display *dpy,
+    int screen,
+    unsigned int display_mask,
+    unsigned int attribute,
+    char *ptr
+){
+    return XNVCTRLSetTargetStringAttribute(dpy, NV_CTRL_TARGET_TYPE_X_SCREEN,
+                                           screen, display_mask,
+                                           attribute, ptr);
 }
 
 

@@ -31,6 +31,7 @@
 
 #include "ctkclocks.h"
 
+#include "ctklicense.h"
 #include "ctkscale.h"
 #include "ctkhelp.h"
 #include "ctkevent.h"
@@ -82,12 +83,11 @@ static void reset_clocks_clicked(GtkWidget *widget, gpointer user_data);
 static void clocks_received(GtkObject *object, gpointer arg1,
                             gpointer user_data);
 
-static void license_scrolled(GtkRange *range,
-                             gpointer user_data);
-
 
 
 /**** GLOBALS ****************************************************************/
+
+static gboolean license_accepted = FALSE;
 
 /* Tooltips */
 
@@ -134,11 +134,6 @@ static const char * __reset_button_help =
 
 /* Messages */
 
-static const char * __enable_confirm_msg = 
-"To use the features on the Clock Frequencies panel you\n"
-"must agree to the terms of the preceding license agreement.\n"
-"Do you agree accept this agreement?";
-
 static const char * __detect_confirm_msg = 
 "To find the best 3D clock frequencies your system supports,\n"
 "a series of tests will take place.  This testing may take several "
@@ -150,81 +145,6 @@ static const char * __detect_wait_msg =
 
 static const char * __canceled_msg =
 "Probing for optimal 3D clock frequencies has been canceled.";
-
-
-static const char * __license_pre_msg =
-"Please read the following license agreement.";
-
-static const char * __license_msg =
-"<b>TERMS AND CONDITIONS</b>\n"
-"\n"
-"WARNING: THE SOFTWARE UTILITY YOU ARE ABOUT TO \n"
-"ENABLE (\"UTILITY\") MAY CAUSE SYSTEM DAMAGE AND \n"
-"VOID WARRANTIES. THIS UTILITY RUNS YOUR COMPUTER \n"
-"SYSTEM OUT OF THE MANUFACTURER'S DESIGN \n"
-"SPECIFICATIONS, INCLUDING, BUT NOT LIMITED TO: \n"
-"HIGHER SYSTEM VOLTAGES, ABOVE NORMAL \n"
-"TEMPERATURES, EXCESSIVE FREQUENCIES, AND \n"
-"CHANGES TO BIOS THAT MAY CORRUPT THE BIOS. YOUR \n"
-"COMPUTER'S OPERATING SYSTEM MAY HANG AND RESULT \n"
-"IN DATA LOSS OR CORRUPTED IMAGES. DEPENDING ON \n"
-"THE MANUFACTURER OF YOUR COMPUTER SYSTEM, THE \n"
-"COMPUTER SYSTEM, HARDWARE AND SOFTWARE \n"
-"WARRANTIES MAY BE VOIDED, AND YOU MAY NOT \n"
-"RECEIVE ANY FURTHER MANUFACTURER SUPPORT. \n"
-"NVIDIA DOES NOT PROVIDE CUSTOMER SERVICE SUPPORT \n"
-"FOR THIS UTILITY. IT IS FOR THESE REASONS THAT \n"
-"ABSOLUTELY NO WARRANTY OR GUARANTEE IS EITHER \n"
-"EXPRESS OR IMPLIED. BEFORE ENABLING AND USING, YOU \n"
-"SHOULD DETERMINE THE SUITABILITY OF THE UTILITY \n"
-"FOR YOUR INTENDED USE, AND YOU SHALL ASSUME ALL \n"
-"RESPONSIBILITY IN CONNECTION THEREWITH.\n"
-"\n"
-"\n"
-"<b>DISCLAIMER OF WARRANTIES</b>\n"
-"\n"
-"ALL MATERIALS, INFORMATION, AND SOFTWARE \n"
-"PRODUCTS, INCLUDED IN OR MADE AVAILABLE THROUGH \n"
-"THIS UTILITY ARE PROVIDED \"AS IS\" AND \"AS AVAILABLE\" \n"
-"FOR YOUR USE. THE UTILITY IS PROVIDED WITHOUT \n"
-"WARRANTIES OF ANY KIND, EITHER EXPRESS OR IMPLIED, \n"
-"INCLUDING, BUT NOT LIMITED TO, IMPLIED WARRANTIES OF \n"
-"MERCHANTABILITY, FITNESS FOR A PARTICULAR \n"
-"PURPOSE, OR NONINFRINGEMENT. NVIDIA AND ITS \n"
-"SUBSIDIARIES DO NOT WARRANT THAT THE UTILITY IS \n"
-"RELIABLE OR CORRECT; THAT ANY DEFECTS OR ERRORS \n"
-"WILL BE CORRECTED; OR THAT THE UTILITY IS FREE OF \n"
-"VIRUSES OR OTHER HARMFUL COMPONENTS. YOUR USE \n"
-"OF THE UTILITY IS SOLELY AT YOUR RISK. BECAUSE SOME \n"
-"JURISDICTIONS DO NOT PERMIT THE EXCLUSION OF \n"
-"CERTAIN WARRANTIES, THESE EXCLUSIONS MAY NOT \n"
-"APPLY TO YOU.\n"
-"\n"
-"\n"
-"<b>LIMITATION OF LIABILITY</b>\n"
-"\n"
-"UNDER NO CIRCUMSTANCES SHALL NVIDIA AND ITS \n"
-"SUBSIDIARIES BE LIABLE FOR ANY DIRECT, INDIRECT, \n"
-"PUNITIVE, INCIDENTAL, SPECIAL, OR CONSEQUENTIAL \n"
-"DAMAGES THAT RESULT FROM THE USE OF, OR INABILITY \n"
-"TO USE, THE UTILITY. THIS LIMITATION APPLIES WHETHER \n"
-"THE ALLEGED LIABILITY IS BASED ON CONTRACT, TORT, \n"
-"NEGLIGENCE, STRICT LIABILITY, OR ANY OTHER BASIS, \n"
-"EVEN IF NVIDIA HAS BEEN ADVISED OF THE POSSIBILITY OF \n"
-"SUCH DAMAGE. BECAUSE SOME JURISDICTIONS DO NOT \n"
-"ALLOW THE EXCLUSION OR LIMITATION OF INCIDENTAL OR \n"
-"CONSEQUENTIAL DAMAGES, NVIDIA'S LIABILITY IN SUCH \n"
-"JURISDICTIONS SHALL BE LIMITED TO THE EXTENT \n"
-"PERMITTED BY LAW. \n"
-"\n"
-"IF YOU HAVE READ, UNDERSTOOD, AND AGREE TO ALL OF \n"
-"THE ABOVE TERMS AND CONDITIONS, CLICK THE \"YES\" \n"
-"BUTTON BELOW. \n"
-"\n"
-"IF YOU DO NOT AGREE WITH ALL OF THE ABOVE TERMS \n"
-"AND CONDITIONS, THEN CLICK ON THE \"NO\" BUTTON \n"
-"BELOW, AND DO NOT ENABLE OR USE THE UTILITY. \n\n";
-
 
 
 
@@ -277,8 +197,6 @@ GtkWidget* ctk_clocks_new(NvCtrlAttributeHandle *handle,
     GtkWidget *scale;
     GtkWidget *menu;
     GtkWidget *menu_item;
-    GtkWidget *scrollWin;
-    GtkWidget *event;
 
     GtkWidget *label;   
 
@@ -370,10 +288,13 @@ GtkWidget* ctk_clocks_new(NvCtrlAttributeHandle *handle,
 
     ctk_object->handle               = handle;
     ctk_object->ctk_config           = ctk_config;
-    ctk_object->license_accepted     = // = overclocking_enabled
     ctk_object->overclocking_enabled = overclocking_enabled;
     ctk_object->auto_detection_available  = auto_detection_available;
     ctk_object->probing_optimal      = probing_optimal;
+
+    if ( overclocking_enabled ) {
+        license_accepted = TRUE;
+    }
 
     /* Create the Clock menu widget */
 
@@ -538,63 +459,7 @@ GtkWidget* ctk_clocks_new(NvCtrlAttributeHandle *handle,
 
     /* Create the enable dialog */
 
-    ctk_object->enable_dialog =
-        gtk_dialog_new_with_buttons("License Agreement",
-                                    GTK_WINDOW(gtk_widget_get_parent(GTK_WIDGET(ctk_object))),
-                                    GTK_DIALOG_MODAL |  GTK_DIALOG_DESTROY_WITH_PARENT | GTK_DIALOG_NO_SEPARATOR,
-                                    GTK_STOCK_YES,
-                                    GTK_RESPONSE_ACCEPT,
-                                    GTK_STOCK_NO,
-                                    GTK_RESPONSE_REJECT,
-                                    NULL
-                                    );
-
-    hbox = gtk_hbox_new(TRUE, 10);
-    label = gtk_label_new(__license_pre_msg);
-
-    gtk_box_pack_start(GTK_BOX(hbox), label, TRUE, TRUE, 10);
-    gtk_box_pack_start(GTK_BOX(GTK_DIALOG(ctk_object->enable_dialog)->vbox),
-                       hbox, FALSE, FALSE, 10);
-
-    scrollWin = gtk_scrolled_window_new(NULL, NULL);
-    hbox = gtk_hbox_new(FALSE, 0);
-    label = gtk_label_new("");
-    event = gtk_event_box_new();
-    ctk_object->license_window = scrollWin;
-
-    gtk_widget_modify_fg(event, GTK_STATE_NORMAL, &(event->style->text[GTK_STATE_NORMAL]));
-    gtk_widget_modify_bg(event, GTK_STATE_NORMAL, &(event->style->base[GTK_STATE_NORMAL]));
-
-    gtk_label_set_line_wrap(GTK_LABEL(label), TRUE);
-    gtk_label_set_use_markup(GTK_LABEL(label), TRUE);
-    gtk_label_set_markup(GTK_LABEL(label), __license_msg);
-
-    gtk_scrolled_window_set_policy(GTK_SCROLLED_WINDOW(scrollWin),
-                                   GTK_POLICY_NEVER, GTK_POLICY_ALWAYS);
-
-
-    gtk_box_pack_start(GTK_BOX(hbox), label, FALSE, FALSE, 5);
-    gtk_container_add(GTK_CONTAINER(event), hbox);
-    gtk_scrolled_window_add_with_viewport(GTK_SCROLLED_WINDOW(scrollWin),
-                                          event);
-    hbox = gtk_hbox_new(TRUE, 10);
-    gtk_box_pack_start(GTK_BOX(hbox), scrollWin, TRUE, TRUE, 10);
-    gtk_box_pack_start(GTK_BOX(GTK_DIALOG(ctk_object->enable_dialog)->vbox),
-                       hbox, TRUE, TRUE, 10);
-
-
-    hbox = gtk_hbox_new(FALSE, 10);
-    label = gtk_label_new(__enable_confirm_msg);
-
-    gtk_box_pack_start(GTK_BOX(hbox), label, TRUE, TRUE, 15);
-    gtk_box_pack_start(GTK_BOX(GTK_DIALOG(ctk_object->enable_dialog)->vbox),
-                       hbox, FALSE, FALSE, 10);
-
-    g_signal_connect((gpointer)
-                     GTK_RANGE(GTK_SCROLLED_WINDOW(scrollWin)->vscrollbar),
-                     "value_changed",
-                     G_CALLBACK(license_scrolled),
-                     (gpointer) ctk_object);
+    ctk_object->license_dialog = ctk_license_dialog_new(GTK_WIDGET(ctk_object));
 
     /* Create the auto detect dialog */
 
@@ -944,48 +809,15 @@ static void overclocking_state_toggled(GtkWidget *widget, gpointer user_data)
 
     /* Verify user knows the risks involved */
 
-    if ( enabled && !ctk_object->license_accepted ) {
+    if ( enabled && !license_accepted ) {
 
-        /* Reset dialog window size */
-        
-        gint w, h;
-        GdkScreen * s =
-            gtk_window_get_screen(GTK_WINDOW(GTK_DIALOG(ctk_object->enable_dialog)));
-
-        gtk_window_get_size(GTK_WINDOW(GTK_DIALOG(ctk_object->enable_dialog)),
-                            &w, &h);
-        
-        /* Make license dialog default to 75% of the screen height */
-
-        h = (gint)(0.55f * gdk_screen_get_height(s));
-        w = 1;
-
-        gtk_window_resize(GTK_WINDOW(GTK_DIALOG(ctk_object->enable_dialog)),
-                          w, h);
-
-        /* Reset scroll bar to the top */
-
-        gtk_adjustment_set_value(GTK_ADJUSTMENT(
-                                 GTK_RANGE(
-                                 GTK_SCROLLED_WINDOW(
-                                   ctk_object->license_window)->vscrollbar)->adjustment)
-                                 ,0.0f);
-            
-
-        /* Disable the YES button */
-
-        gtk_dialog_set_response_sensitive(GTK_DIALOG(ctk_object->enable_dialog),
-                                          GTK_RESPONSE_ACCEPT,
-                                          FALSE);
-        
-        gtk_widget_show_all(ctk_object->enable_dialog);
-        result = gtk_dialog_run (GTK_DIALOG(ctk_object->enable_dialog));
-        gtk_widget_hide(ctk_object->enable_dialog);
+        result = 
+            ctk_license_run_dialog(CTK_LICENSE_DIALOG(ctk_object->license_dialog)); 
         
         switch (result)
         {
         case GTK_RESPONSE_ACCEPT:
-            ctk_object->license_accepted = TRUE;
+            license_accepted = TRUE;
             break;
             
         case GTK_RESPONSE_REJECT:
@@ -1554,31 +1386,5 @@ void ctk_clocks_select(GtkWidget *widget)
          value == NV_CTRL_GPU_OPTIMAL_CLOCK_FREQS_DETECTION_STATE_BUSY ) {
         ctk_config_statusbar_message(ctk_object->ctk_config,
                                      __detect_wait_msg);
-    }
-}
-
-
-
-/*****
- *
- * Callback Function - This function gets called when the user scrolls
- * the license agreement text.  Once the user has scrolled to the end
- * of the document, the YES button is activated.
- *
- */
-
-static void license_scrolled(GtkRange *range,
-                             gpointer user_data)
-{
-    CtkClocks *ctk_object = CTK_CLOCKS(user_data);    
-    GtkAdjustment *adj = gtk_range_get_adjustment(range);
-    
-
-    /* Enable the dialog's "YES" button once user reaches end of license */
-    if ( adj->value + adj->page_size >= adj->upper ) {
-
-        gtk_dialog_set_response_sensitive(GTK_DIALOG(ctk_object->enable_dialog),
-                                          GTK_RESPONSE_ACCEPT,
-                                          TRUE);
     }
 }

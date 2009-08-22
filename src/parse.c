@@ -189,7 +189,8 @@ AttributeTableEntry attributeTable[] = {
     { "GvoSyncSource",                   NV_CTRL_GVO_SYNC_SOURCE,                      I,     "If the GVO sync mode is set to either GENLOCK or FRAMELOCK, this controls which sync source is used as the incoming sync signal (either Composite or SDI).  If the GVO sync mode is FREE_RUNNING, this attribute has no effect." },
     { "GvioRequestedVideoFormat",        NV_CTRL_GVIO_REQUESTED_VIDEO_FORMAT,          I,     "Specifies the requested output video format for a GVO device, or the requested capture format for a GVI device." },
     { "GvoOutputVideoFormat",            NV_CTRL_GVIO_REQUESTED_VIDEO_FORMAT,          I|A,   "DEPRECATED: use \"GvioRequestedVideoFormat\" instead." },
-    { "GvioDetectedVideoFormat",         NV_CTRL_GVIO_DETECTED_VIDEO_FORMAT,           I|N,   "Returns the input video format detected by the GVO or GVI device." },
+    { "GviSyncOutputFormat",             NV_CTRL_GVI_SYNC_OUTPUT_FORMAT,               I|N,   "Returns the output sync signal from the GVI device." },
+    { "GvioDetectedVideoFormat",         NV_CTRL_GVIO_DETECTED_VIDEO_FORMAT,           I|N,   "Returns the input video format detected by the GVO or GVI device.  For GVI devices, the jack+channel must be passed through via the display mask param where the jack number is in the lower 16 bits and the channel number is in the upper 16 bits." },
     { "GvoInputVideoFormat",             NV_CTRL_GVIO_DETECTED_VIDEO_FORMAT,           I|N|A, "DEPRECATED: use \"GvioDetectedVideoFormat\" instead." },
     { "GvoDataFormat",                   NV_CTRL_GVO_DATA_FORMAT,                      I,     "Configures how the data in the source (either the X screen or the GLX pbuffer) is interpreted and displayed by the GVO device." },
     { "GvoDisplayXScreen",               NV_CTRL_GVO_DISPLAY_X_SCREEN,                 I|N,   "Enable/disable GVO output of the X screen (in Clone mode)." },
@@ -220,7 +221,20 @@ AttributeTableEntry attributeTable[] = {
     { "GvoFullRangeColor",               NV_CTRL_GVO_FULL_RANGE_COLOR,                 I,     "Allow full range color data [4-1019].  If disabled, color data is clamped to [64-940]." },
     { "IsGvoDisplay",                    NV_CTRL_IS_GVO_DISPLAY,                       N|D,   "Returns whether or not the given display device is driven by the GVO device." },
     { "GvoEnableRGBData",                NV_CTRL_GVO_ENABLE_RGB_DATA,                  I,     "Indicates that RGB data is being sent via a PASSTHU mode." },
-    { "GviNumPorts",                     NV_CTRL_GVI_NUM_PORTS,                        N|A,   "Returns the number of ports on a GVI device." },
+    { "GviNumJacks",                          NV_CTRL_GVI_NUM_JACKS,                            I|N, "Returns the number of input (BNC) jacks on a GVI device that can read video streams." },
+    { "GviMaxLinksPerStream",                 NV_CTRL_GVI_MAX_LINKS_PER_STREAM,                 I|N, "Returns the maximum number of links that can make up a stream." },
+    { "GviDetectedChannelBitsPerComponent",   NV_CTRL_GVI_DETECTED_CHANNEL_BITS_PER_COMPONENT,  I|N, "Returns the detected bits per component on the given jack+channel of the GVI device.  The jack+channel must be passed through via the display mask param where the jack number is in the lower 16 bits and the channel number is in the upper 16 bits." },
+    { "GviRequestedStreamBitsPerComponent",   NV_CTRL_GVI_REQUESTED_STREAM_BITS_PER_COMPONENT,  I,   "Indicates the number of bits per component for a capture stream." },
+    { "GviDetectedChannelComponentSampling",  NV_CTRL_GVI_DETECTED_CHANNEL_COMPONENT_SAMPLING,  I|N, "Returns the detected sampling format on the given jack+channel of the GVI device.  The jack+channel must be passed through via the display mask param where the jack number is in the lower 16 bits and the channel number is in the upper 16 bits." },
+    { "GviRequestedStreamComponentSampling",  NV_CTRL_GVI_REQUESTED_STREAM_COMPONENT_SAMPLING,  I,   "Indicates the sampling format for a capture stream." },
+    { "GviRequestedStreamChromaExpand",       NV_CTRL_GVI_REQUESTED_STREAM_CHROMA_EXPAND,       I,   "Indicates whether 4:2:2 -> 4:4:4 chroma expansion is enabled for the capture stream." },
+    { "GviDetectedChannelColorSpace",         NV_CTRL_GVI_DETECTED_CHANNEL_COLOR_SPACE,         I|N, "Returns the detected color space (RGB, YCRCB, etc) for the given jack+channel of the GVI device.  The jack+channel must be passed through via the display mask param where the jack number is in the lower 16 bits and the channel number is in the upper 16 bits." },
+    { "GviDetectedChannelLinkID",             NV_CTRL_GVI_DETECTED_CHANNEL_LINK_ID,             I|N, "Returns the detected link identifier for the given jack+channel of the GVI device.  The jack+channel must be passed through via the display mask param where the jack number is in the lower 16 bits and the channel number is in the upper 16 bits." },
+    { "GviDetectedChannelSMPTE352Identifier", NV_CTRL_GVI_DETECTED_CHANNEL_SMPTE352_IDENTIFIER, I|N, "Returns the detected 4-byte SMPTE 352 identifier from the given jack+channel of the GVI device.  The jack+channel must be passed through via the display mask param where the jack number is in the lower 16 bits and the channel number is in the upper 16 bits." },
+    { "GviGlobalIdentifier",                  NV_CTRL_GVI_GLOBAL_IDENTIFIER,                    I|N, "Returns the global identifier for the given NV-CONTROL GVI device." },
+    { "GviMaxChannelsPerJack",                NV_CTRL_GVI_MAX_CHANNELS_PER_JACK,                I|N, "Returns the maximum supported number of channels per single jack on a GVI device." },
+    { "GviMaxStreams",                        NV_CTRL_GVI_MAX_STREAMS,                          I|N, "Returns the maximum supported number of streams that can be configured on a GVI device." },
+    { "GviNumCaptureSurfaces",                NV_CTRL_GVI_NUM_CAPTURE_SURFACES,                 I|N, "Controls the number of capture buffers for storing incoming video from the GVI device." },
 
     /* Display */
     { "Brightness",                 BRIGHTNESS_VALUE|ALL_CHANNELS,         N|C|G, "Controls the overall brightness of the display." },
@@ -296,7 +310,7 @@ AttributeTableEntry attributeTable[] = {
  * about.
  */
 
-#if NV_CTRL_LAST_ATTRIBUTE != NV_CTRL_GPU_POWER_MIZER_MODE
+#if NV_CTRL_LAST_ATTRIBUTE != NV_CTRL_GVI_NUM_CAPTURE_SURFACES
 #warning "Have you forgotten to add a new integer attribute to attributeTable?"
 #endif
 

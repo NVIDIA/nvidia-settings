@@ -121,6 +121,77 @@ static gchar *make_display_device_list(NvCtrlAttributeHandle *handle,
 } /* make_display_device_list() */
 
 
+void get_bus_related_info(NvCtrlAttributeHandle *handle,
+                          gchar **bus,
+                          gchar **pci_bus_id)
+{
+    int tmp, ret;
+    int pci_domain, pci_bus, pci_device, pci_func;
+    gchar *bus_type, *bus_rate, *bus_id;
+    gchar *__pci_bus_id_unknown = "?@?:?:?";
+    
+    /* NV_CTRL_BUS_TYPE */
+
+    ret = NvCtrlGetAttribute(handle, NV_CTRL_BUS_TYPE, &tmp);
+    bus_type = NULL;
+    if (ret == NvCtrlSuccess) {
+        if      (tmp == NV_CTRL_BUS_TYPE_AGP) bus_type = "AGP";
+        else if (tmp == NV_CTRL_BUS_TYPE_PCI) bus_type = "PCI";
+        else if (tmp == NV_CTRL_BUS_TYPE_PCI_EXPRESS) bus_type = "PCI Express";
+        else if (tmp == NV_CTRL_BUS_TYPE_INTEGRATED) bus_type = "Integrated";
+    }
+
+    /* NV_CTRL_BUS_RATE */
+
+    bus_rate = NULL;
+    if (tmp == NV_CTRL_BUS_TYPE_AGP ||
+        tmp == NV_CTRL_BUS_TYPE_PCI_EXPRESS) {
+        ret = NvCtrlGetAttribute(handle, NV_CTRL_BUS_RATE, &tmp);
+        if (ret == NvCtrlSuccess) {
+            bus_rate = g_strdup_printf("%dX", tmp);
+        }
+    }
+
+    if (bus_rate) {
+        *bus = g_strdup_printf("%s %s", bus_type, bus_rate);
+        g_free(bus_rate);
+    } else {
+        *bus = g_strdup(bus_type);
+    }
+
+    /* NV_CTRL_PCI_DOMAIN & NV_CTRL_PCI_BUS &
+     * NV_CTRL_PCI_DEVICE & NV__CTRL_PCI_FUNCTION
+     */
+
+    bus_id = NULL;
+    ret = NvCtrlGetAttribute(handle, NV_CTRL_PCI_DOMAIN, &pci_domain);
+    if (ret != NvCtrlSuccess) bus_id = __pci_bus_id_unknown;
+
+    ret = NvCtrlGetAttribute(handle, NV_CTRL_PCI_BUS, &pci_bus);
+    if (ret != NvCtrlSuccess) bus_id = __pci_bus_id_unknown;
+
+    ret = NvCtrlGetAttribute(handle, NV_CTRL_PCI_DEVICE, &pci_device);
+    if (ret != NvCtrlSuccess) bus_id = __pci_bus_id_unknown;
+
+    ret = NvCtrlGetAttribute(handle, NV_CTRL_PCI_FUNCTION, &pci_func);
+    if (ret != NvCtrlSuccess) bus_id = __pci_bus_id_unknown;
+
+    if (!bus_id) {
+        if (pci_domain == 0) {
+            bus_id = g_strdup_printf("%d:%d:%d", pci_bus, pci_device,
+                                         pci_func);
+        } else {
+            bus_id = g_strdup_printf("%d@%d:%d:%d", pci_bus, pci_domain,
+                                         pci_device, pci_func);
+        }
+    } else {
+        bus_id = g_strdup(__pci_bus_id_unknown);
+    }
+    
+    *pci_bus_id = bus_id;
+}
+
+
 
 GtkWidget* ctk_gpu_new(
     NvCtrlAttributeHandle *handle,
@@ -138,14 +209,11 @@ GtkWidget* ctk_gpu_new(
     GtkWidget *table;
 
     char *product_name, *vbios_version, *video_ram, *irq;
-    gchar *bus_type, *bus_rate, *bus;
-    int pci_domain, pci_bus, pci_device, pci_func;
+    gchar *bus;
     gchar *pci_bus_id;
     gchar pci_device_id[ARRAY_ELEMENTS];
     gchar pci_vendor_id[ARRAY_ELEMENTS];
     int pci_id;
-
-    gchar *__pci_bus_id_unknown = "?@?:?:?";
 
     int tmp;
     ReturnStatus ret;
@@ -181,64 +249,10 @@ GtkWidget* ctk_gpu_new(
                                    &product_name);
     if (ret != NvCtrlSuccess) product_name = NULL;
     
-    /* NV_CTRL_BUS_TYPE */
-
-    ret = NvCtrlGetAttribute(handle, NV_CTRL_BUS_TYPE, &tmp);
-    bus_type = NULL;
-    if (ret == NvCtrlSuccess) {
-        if      (tmp == NV_CTRL_BUS_TYPE_AGP) bus_type = "AGP";
-        else if (tmp == NV_CTRL_BUS_TYPE_PCI) bus_type = "PCI";
-        else if (tmp == NV_CTRL_BUS_TYPE_PCI_EXPRESS) bus_type = "PCI Express";
-        else if (tmp == NV_CTRL_BUS_TYPE_INTEGRATED) bus_type = "Integrated";
-    }
-
-    /* NV_CTRL_BUS_RATE */
-
-    bus_rate = NULL;
-    if (tmp == NV_CTRL_BUS_TYPE_AGP ||
-        tmp == NV_CTRL_BUS_TYPE_PCI_EXPRESS) {
-        ret = NvCtrlGetAttribute(handle, NV_CTRL_BUS_RATE, &tmp);
-        if (ret == NvCtrlSuccess) {
-            bus_rate = g_strdup_printf("%dX", tmp);
-        }
-    }
-
-    if (bus_rate) {
-        bus = g_strdup_printf("%s %s", bus_type, bus_rate);
-        g_free(bus_rate);
-    } else {
-        bus = g_strdup(bus_type);
-    }
-
-    /* NV_CTRL_PCI_DOMAIN & NV_CTRL_PCI_BUS &
-     * NV_CTRL_PCI_DEVICE & NV__CTRL_PCI_FUNCTION
-     */
-
-    pci_bus_id = NULL;
-    ret = NvCtrlGetAttribute(handle, NV_CTRL_PCI_DOMAIN, &pci_domain);
-    if (ret != NvCtrlSuccess) pci_bus_id = __pci_bus_id_unknown;
+    /* Get Bus related information */
     
-    ret = NvCtrlGetAttribute(handle, NV_CTRL_PCI_BUS, &pci_bus);
-    if (ret != NvCtrlSuccess) pci_bus_id = __pci_bus_id_unknown;
-
-    ret = NvCtrlGetAttribute(handle, NV_CTRL_PCI_DEVICE, &pci_device);
-    if (ret != NvCtrlSuccess) pci_bus_id = __pci_bus_id_unknown;
-
-    ret = NvCtrlGetAttribute(handle, NV_CTRL_PCI_FUNCTION, &pci_func);
-    if (ret != NvCtrlSuccess) pci_bus_id = __pci_bus_id_unknown;
-
-    if (!pci_bus_id) {
-        if (pci_domain == 0) {
-            pci_bus_id = g_strdup_printf("%d:%d:%d", pci_bus, pci_device,
-                                         pci_func);
-        } else {
-            pci_bus_id = g_strdup_printf("%d@%d:%d:%d", pci_bus, pci_domain,
-                                         pci_device, pci_func);
-        }
-    } else {
-        pci_bus_id = g_strdup(__pci_bus_id_unknown);
-    }
-
+    get_bus_related_info(handle, &bus, &pci_bus_id);
+    
     /* NV_CTRL_PCI_ID */
 
     pci_device_id[ARRAY_ELEMENTS-1] = '\0';

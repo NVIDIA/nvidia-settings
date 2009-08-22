@@ -73,7 +73,8 @@ SAMPLES = \
 	nv-control-events \
 	nv-control-dpy \
 	nv-control-targets \
-	nv-control-framelock
+	nv-control-framelock \
+	nv-control-gvi
 
 all: $(SAMPLES)
 

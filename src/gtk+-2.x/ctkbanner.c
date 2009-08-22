@@ -52,6 +52,7 @@
 #include "help_pixdata.h"
 #include "opengl_pixdata.h"
 #include "penguin_pixdata.h"
+#include "gvi_pixdata.h"
 #include "rotation_pixdata.h"
 #include "sdi_pixdata.h"
 #include "sdi_shared_sync_bnc_pixdata.h"
@@ -364,6 +365,7 @@ static gboolean select_artwork(BannerArtworkType artwork,
         { BANNER_ARTWORK_FRAMELOCK,      FALSE, 16, &framelock_pixdata      },
         { BANNER_ARTWORK_GLX,            FALSE, 16, &glx_pixdata            },
         { BANNER_ARTWORK_GPU,            FALSE, 16, &gpu_pixdata            },
+        { BANNER_ARTWORK_GVI,            FALSE, 16, &gvi_pixdata            },
         { BANNER_ARTWORK_HELP,           FALSE, 16, &help_pixdata           },
         { BANNER_ARTWORK_OPENGL,         FALSE, 16, &opengl_pixdata         },
         { BANNER_ARTWORK_PENGUIN,        TRUE,  16, &penguin_pixdata        },

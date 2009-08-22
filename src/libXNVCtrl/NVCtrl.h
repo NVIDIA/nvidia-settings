@@ -1079,8 +1079,10 @@
  * NV_CTRL_GVIO_DETECTED_VIDEO_FORMAT - indicates the input video format
  * detected for GVO or GVI devices; the possible values are the
  * NV_CTRL_GVIO_VIDEO_FORMAT constants.
- * For GVI devices, the port number should be specified in the "display_mask"
- * parameter.
+ *
+ * For GVI devices, the jack number should be specified in the lower
+ * 16 bits of the "display_mask" parameter, while the channel number should be
+ * specified in the upper 16 bits.
  */
 
 #define NV_CTRL_GVIO_DETECTED_VIDEO_FORMAT                      71  /* R--I */
@@ -2420,16 +2422,135 @@
 #define NV_CTRL_PCI_DOMAIN                                      306 /* R--GI */
 
 /*
- * NV_CTRL_GVI_NUM_PORTS - Returns the number of input ports available on a GVI
- * device.
+ * NV_CTRL_GVI_NUM_JACKS - Returns the number of input BNC jacks available
+ * on a GVI device.
  */
 
-#define NV_CTRL_GVI_NUM_PORTS                                   307 /* R--I */
+#define NV_CTRL_GVI_NUM_JACKS                                   307 /* R--I */
+
+/* 
+ * NV_CTRL_GVI_MAX_LINKS_PER_STREAM - Returns the maximum supported number of
+ * links that can be tied to one stream.
+ */
+
+#define NV_CTRL_GVI_MAX_LINKS_PER_STREAM                        308 /* R--I */
+
+/*
+ * NV_CTRL_GVI_DETECTED_CHANNEL_BITS_PER_COMPONENT - Returns the detected
+ * number of bits per component (BPC) of data on the given input jack+
+ * channel.
+ *
+ * The jack number should be specified in the lower 16 bits of the
+ * "display_mask" parameter, while the channel number should be specified in
+ * the upper 16 bits.
+ */
+
+#define NV_CTRL_GVI_DETECTED_CHANNEL_BITS_PER_COMPONENT         309 /* R--I */
+#define NV_CTRL_GVI_BITS_PER_COMPONENT_UNKNOWN                    0
+#define NV_CTRL_GVI_BITS_PER_COMPONENT_8                          1
+#define NV_CTRL_GVI_BITS_PER_COMPONENT_10                         2
+#define NV_CTRL_GVI_BITS_PER_COMPONENT_12                         3
+
+/*
+ * NV_CTRL_GVI_REQUESTED_STREAM_BITS_PER_COMPONENT - Specify the number of
+ * bits per component (BPC) of data for the captured stream.
+ * The stream number should be specified in the "display_mask" parameter.
+ */
+
+#define NV_CTRL_GVI_REQUESTED_STREAM_BITS_PER_COMPONENT         310 /* RW-I */
+
+/*
+ * NV_CTRL_GVI_DETECTED_CHANNEL_COMPONENT_SAMPLING - Returns the detected
+ * sampling format for the input jack+channel.
+ *
+ * The jack number should be specified in the lower 16 bits of the
+ * "display_mask" parameter, while the channel number should be specified in
+ * the upper 16 bits.
+ */
+
+#define NV_CTRL_GVI_DETECTED_CHANNEL_COMPONENT_SAMPLING         311 /* R--I */
+#define NV_CTRL_GVI_COMPONENT_SAMPLING_UNKNOWN                    0
+#define NV_CTRL_GVI_COMPONENT_SAMPLING_4444                       1
+#define NV_CTRL_GVI_COMPONENT_SAMPLING_4224                       2
+#define NV_CTRL_GVI_COMPONENT_SAMPLING_444                        3
+#define NV_CTRL_GVI_COMPONENT_SAMPLING_422                        4
+#define NV_CTRL_GVI_COMPONENT_SAMPLING_420                        5
+
+/*
+ * NV_CTRL_GVI_REQUESTED_COMPONENT_SAMPLING - Specify the sampling format for
+ * the captured stream.
+ * The possible values are the NV_CTRL_GVI_DETECTED_COMPONENT_SAMPLING
+ * constants.
+ * The stream number should be specified in the "display_mask" parameter.
+ */
+
+#define NV_CTRL_GVI_REQUESTED_STREAM_COMPONENT_SAMPLING         312 /* RW-I */
+
+/*
+ * NV_CTRL_GVI_CHROMA_EXPAND - Enable or disable 4:2:2 -> 4:4:4 chroma
+ * expansion for the captured stream.  This value is ignored when a
+ * COMPONENT_SAMPLING format is selected that does not use chroma subsampling.
+ * The stream number should be specified in the "display_mask" parameter.
+ */
+
+#define NV_CTRL_GVI_REQUESTED_STREAM_CHROMA_EXPAND              313 /* RW-I */
+#define NV_CTRL_GVI_CHROMA_EXPAND_FALSE                           0
+#define NV_CTRL_GVI_CHROMA_EXPAND_TRUE                            1
+
+/*
+ * NV_CTRL_GVI_DETECTED_CHANNEL_COLOR_SPACE - Returns the detected color space
+ * of the input jack+channel.
+ *
+ * The jack number should be specified in the lower 16 bits of the
+ * "display_mask" parameter, while the channel number should be specified in
+ * the upper 16 bits.
+ */
+
+#define NV_CTRL_GVI_DETECTED_CHANNEL_COLOR_SPACE                314 /* R--I */
+#define NV_CTRL_GVI_COLOR_SPACE_UNKNOWN                           0
+#define NV_CTRL_GVI_COLOR_SPACE_GBR                               1
+#define NV_CTRL_GVI_COLOR_SPACE_GBRA                              2
+#define NV_CTRL_GVI_COLOR_SPACE_GBRD                              3
+#define NV_CTRL_GVI_COLOR_SPACE_YCBCR                             4
+#define NV_CTRL_GVI_COLOR_SPACE_YCBCRA                            5
+#define NV_CTRL_GVI_COLOR_SPACE_YCBCRD                            6
+
+/*
+ * NV_CTRL_GVI_DETECTED_CHANNEL_LINK_ID - Returns the detected link identifier
+ * for the given input jack+channel.
+ *
+ * The jack number should be specified in the lower 16 bits of the
+ * "display_mask" parameter, while the channel number should be specified in
+ * the upper 16 bits.
+ */
+
+#define NV_CTRL_GVI_DETECTED_CHANNEL_LINK_ID                    315 /* R--I */
+#define NV_CTRL_GVI_LINK_ID_UNKNOWN                          0xFFFF
+
+/*
+ * NV_CTRL_GVI_DETECTED_CHANNEL_SMPTE352_IDENTIFIER - Returns the 4-byte
+ * SMPTE 352 identifier from the given input jack+channel.
+ *
+ * The jack number should be specified in the lower 16 bits of the
+ * "display_mask" parameter, while the channel number should be specified in
+ * the upper 16 bits.
+ */
+
+#define NV_CTRL_GVI_DETECTED_CHANNEL_SMPTE352_IDENTIFIER        316 /* R--I */
+
+/*
+ * NV_CTRL_GVI_GLOBAL_IDENTIFIER - Returns a global identifier for the
+ * GVI device.  This identifier can be used to relate GVI devices named
+ * in NV-CONTROL with those enumerated in OpenGL.
+ */
+
+#define NV_CTRL_GVI_GLOBAL_IDENTIFIER                           317 /* R--I */
 
 /*
  * NV_CTRL_FRAMELOCK_SYNC_DELAY_RESOLUTION - Returns the number of nanoseconds
  * that one unit of NV_CTRL_FRAMELOCK_SYNC_DELAY corresponds to.
  */
+
 #define NV_CTRL_FRAMELOCK_SYNC_DELAY_RESOLUTION                 318 /* R-- */
 
 /*
@@ -2447,7 +2568,49 @@
 #define NV_CTRL_GPU_POWER_MIZER_MODE_ADAPTIVE                     0
 #define NV_CTRL_GPU_POWER_MIZER_MODE_PREFER_MAXIMUM_PERFORMANCE   1
 
-#define NV_CTRL_LAST_ATTRIBUTE NV_CTRL_GPU_POWER_MIZER_MODE
+/*
+ * NV_CTRL_GVI_SYNC_OUTPUT_FORMAT - Returns the output sync signal
+ * from the GVI device.
+ */
+
+#define NV_CTRL_GVI_SYNC_OUTPUT_FORMAT                          335 /* R--I */
+
+/*
+ * NV_CTRL_GVI_MAX_CHANNELS_PER_JACK  - Returns the maximum
+ * supported number of (logical) channels within a single physical jack of
+ * a GVI device.  For most SDI video formats, there is only one channel
+ * (channel 0).  But for 3G video formats (as specified in SMPTE 425),
+ * as an example, there are two channels (channel 0 and channel 1) per
+ * physical jack.
+ */
+
+#define NV_CTRL_GVI_MAX_CHANNELS_PER_JACK                       336 /* R--I */
+
+/*
+ * NV_CTRL_GVI_MAX_STREAMS  - Returns the maximum number of streams
+ * that can be configured on the GVI device.
+ */
+
+#define NV_CTRL_GVI_MAX_STREAMS                                 337 /* R--I */
+
+/*
+ * NV_CTRL_GVI_NUM_CAPTURE_SURFACES - The GVI interface exposed through
+ * NV-CONTROL and the GLX_NV_video_input extension uses internal capture
+ * surfaces when frames are read from the GVI device.  The
+ * NV_CTRL_GVI_NUM_CAPTURE_SURFACES can be used to query and assign the
+ * number of capture surfaces.  This attribute is applied when
+ * glXBindVideoCaptureDeviceNV() is called by the application.
+ *
+ * A lower number of capture surfaces will mean less video memory is used,
+ * but can result in frames being dropped if the application cannot keep up
+ * with the capture device.  A higher number will prevent frames from being
+ * dropped, making capture more reliable but will consume move video memory.
+ */
+#define NV_CTRL_GVI_NUM_CAPTURE_SURFACES                        338 /* RW-I */
+
+#define NV_CTRL_LAST_ATTRIBUTE  NV_CTRL_GVI_NUM_CAPTURE_SURFACES
+
+#define NV_CTRL_LAST_ATTRIBUTE NV_CTRL_GVI_NUM_CAPTURE_SURFACES
 
 /**************************************************************************/
 
@@ -3305,7 +3468,7 @@
  * a ModePool.
  *
  * The string input to BUILD_MODEPOOL may be NULL.  If it is not NULL,
- * then it is interpreted as a double-semicolon ("::") separated list
+ * then it is interpreted as a double-colon ("::") separated list
  * of "option=value" pairs, where the options and the syntax of their
  * values are the X configuration options that impact the behavior of
  * modePool construction; namely:
@@ -3328,8 +3491,66 @@
 #define NV_CTRL_STRING_OPERATION_BUILD_MODEPOOL                3 /* DG */
 
 
+/*
+ * NV_CTRL_STRING_OPERATION_GVI_CONFIGURE_STREAMS - Configure the streams-
+ * to-jack+channel topology for a GVI (Graphics capture board).
+ *
+ * The string input to GVI_CONFIGURE_STREAMS may be NULL.  If this is the
+ * case, then the current topology is returned.
+ *
+ * If the input string to GVI_CONFIGURE_STREAMS is not NULL, the string
+ * is interpreted as a semicolon (";") separated list of comma-separated
+ * lists of "option=value" pairs that define a stream's composition.  The
+ * available options and their values are:
+ *
+ *   "stream": Defines which stream this comma-separated list describes.
+ *             Valid values are the integers between 0 and
+ *             NV_CTRL_GVI_NUM_STREAMS-1 (inclusive).
+ *
+ *   "linkN":  Defines a jack+channel pair to use for the given link N.
+ *             Valid options are the string "linkN", where N is an integer
+ *             between 0 and NV_CTRL_GVI_MAX_LINKS_PER_STREAM-1 (inclusive).
+ *             Valid values for these options are strings of the form
+ *             "jackX" and/or "jackX.Y", where X is an integer between 0 and
+ *             NV_CTRL_GVI_NUM_JACKS-1 (inclusive), and Y (optional) is an
+ *             integer between 0 and NV_CTRL_GVI_MAX_CHANNELS_PER_JACK-1
+ *             (inclusive).
+ *
+ * An example input string might look like:
+ *
+ *   "stream=0, link0=jack0, link1=jack1; stream=1, link0=jack2.1"
+ * 
+ *   This example specifies two streams, stream 0 and stream 1.  Stream 0
+ *   is defined to capture link0 data from the first channel (channel 0) of
+ *   BNC jack 0 and link1 data from the first channel of BNC jack 1.  The
+ *   second stream (Stream 1) is defined to capture link0 data from channel 1
+ *   (second channel) of BNC jack 2.
+ *
+ * This example shows a possible configuration for capturing 3G input:
+ *
+ *   "stream=0, link0=jack0.0, link1=jack0.1"
+ *
+ * Applications should query the following attributes to determine
+ * possible combinations:
+ * 
+ *   NV_CTRL_GVI_MAX_STREAMS
+ *   NV_CTRL_GVI_MAX_LINKS_PER_STREAM
+ *   NV_CTRL_GVI_NUM_JACKS
+ *   NV_CTRL_GVI_MAX_CHANNELS_PER_JACK
+ *
+ * Note: A jack+channel pair can only be tied to one link/stream.
+ *
+ * Upon successful configuration or querying of this attribute, a string
+ * representing the current topology for all known streams on the device
+ * will be returned.  On failure, NULL is returned.
+ */
+
+#define NV_CTRL_STRING_OPERATION_GVI_CONFIGURE_STREAMS         4 /* RW-I */
+
+
 #define NV_CTRL_STRING_OPERATION_LAST_ATTRIBUTE \
-        NV_CTRL_STRING_OPERATION_BUILD_MODEPOOL
+        NV_CTRL_STRING_OPERATION_GVI_CONFIGURE_STREAMS
+
 
 
 

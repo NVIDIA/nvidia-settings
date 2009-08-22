@@ -41,6 +41,8 @@
  * 1.17        Added TARGET_BINARY_ATTRIBUTE_CHANGED_EVENT
  * 1.18        Updated QueryTargetCount to return a count of 0, rather than
  *             BadMatch, if an unknown TargetType is specified
+ * 1.19        Added TargetType support for SetAttributeAndGetStatus and
+ *             SetStringAttribute requests
  */
 
 #ifndef __NVCONTROL_H
@@ -51,7 +53,7 @@
 #define NV_CONTROL_NAME "NV-CONTROL"
 
 #define NV_CONTROL_MAJOR 1
-#define NV_CONTROL_MINOR 18
+#define NV_CONTROL_MINOR 19
 
 #define X_nvCtrlQueryExtension                      0
 #define X_nvCtrlIsNv                                1
@@ -196,7 +198,8 @@ typedef struct {
     CARD8 reqType;
     CARD8 nvReqType;
     CARD16 length B16;
-    CARD32 screen B32;
+    CARD16 target_id B16;
+    CARD16 target_type B16;
     CARD32 display_mask B32;
     CARD32 attribute B32;
     INT32 value B32;
@@ -247,7 +250,8 @@ typedef struct {
     CARD8 reqType;
     CARD8 nvReqType;
     CARD16 length B16;
-    CARD32 screen B32;
+    CARD16 target_id B16;
+    CARD16 target_type B16;
     CARD32 display_mask B32;
     CARD32 attribute B32;
     CARD32 num_bytes B32;

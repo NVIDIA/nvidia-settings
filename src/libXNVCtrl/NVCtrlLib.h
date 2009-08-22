@@ -166,6 +166,25 @@ Bool XNVCTRLSetAttributeAndGetStatus (
 
 
 /*
+ *  XNVCTRLSetTargetAttributeAndGetStatus -
+ *
+ * Same as XNVCTRLSetTargetAttribute().
+ * In addition, XNVCTRLSetTargetAttributeAndGetStatus() returns 
+ * True if the operation succeeds, False otherwise.
+ *
+ */
+
+Bool XNVCTRLSetTargetAttributeAndGetStatus (
+    Display *dpy,
+    int target_type,
+    int target_id,
+    unsigned int display_mask,
+    unsigned int attribute,
+    int value
+);
+
+
+/*
  *  XNVCTRLQueryAttribute -
  *
  *  Returns True if the attribute exists.  Returns False otherwise.
@@ -283,6 +302,27 @@ Bool XNVCTRLQueryTargetStringAttribute (
 Bool XNVCTRLSetStringAttribute (
     Display *dpy,
     int screen,
+    unsigned int display_mask,
+    unsigned int attribute,
+    char *ptr
+);
+
+
+/*
+ *  XNVCTRLSetTargetStringAttribute -
+ *
+ *  Returns True if the operation succeded.  Returns False otherwise.
+ *
+ *  Possible X errors:
+ *     BadValue - The screen doesn't exist.
+ *     BadMatch - The NVIDIA driver is not present on that screen.
+ *     BadAlloc - Insufficient resources to fulfill the request.
+ */
+ 
+Bool XNVCTRLSetTargetStringAttribute (
+    Display *dpy,
+    int target_type,
+    int target_id,
     unsigned int display_mask,
     unsigned int attribute,
     char *ptr
