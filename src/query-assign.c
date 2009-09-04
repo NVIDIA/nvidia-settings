@@ -413,7 +413,11 @@ static int process_attribute_queries(int num, char **queries,
             continue;
         }
 
-        
+        if (nv_strcasecmp(queries[query], "fans")) {
+            query_all_targets(display_name, COOLER_TARGET);
+            continue;
+        }
+
         /* call the parser to parse queries[query] */
 
         ret = nv_parse_attribute_string(queries[query], NV_PARSER_QUERY, &a);
@@ -1221,6 +1225,7 @@ static int print_target_connections(CtrlHandles *h,
                     get_vcs_name(h->targets[target_index].t[ pData[i] ].h);
                 break;
                 
+            case COOLER_TARGET:
             case FRAMELOCK_TARGET:
             case GVI_TARGET:
             case X_SCREEN_TARGET:
@@ -1324,8 +1329,15 @@ static int query_all_targets(const char *display_name, const int target_index)
         t = &h->targets[target_index].t[i];
         
         str = NULL;
-        
-        if (target_index == FRAMELOCK_TARGET) {
+
+        if (target_index == COOLER_TARGET) {
+
+            /* for cooler, create the product name */
+
+            product_name = malloc(32);
+            snprintf(product_name, 32, "Fan %d", i);
+
+        } else if (target_index == FRAMELOCK_TARGET) {
 
             /* for framelock, create the product name */
 
@@ -1390,6 +1402,9 @@ static int query_all_targets(const char *display_name, const int target_index)
                 print_target_connections
                     (h, t, NV_CTRL_BINARY_DATA_VCSCS_USED_BY_GPU,
                      VCS_TARGET);
+                print_target_connections
+                    (h, t, NV_CTRL_BINARY_DATA_COOLERS_USED_BY_GPU,
+                     COOLER_TARGET);
                 break;
 
             case X_SCREEN_TARGET:
@@ -1410,6 +1425,12 @@ static int query_all_targets(const char *display_name, const int target_index)
                      GPU_TARGET);
                 break;
 
+            case COOLER_TARGET:
+                print_target_connections
+                    (h, t, NV_CTRL_BINARY_DATA_COOLERS_USED_BY_GPU,
+                     COOLER_TARGET);
+                break;
+            
             default:
                 break;
             }

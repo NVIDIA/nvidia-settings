@@ -157,6 +157,11 @@ AttributeTableEntry attributeTable[] = {
     { "GPUAdaptiveClockState",  NV_CTRL_GPU_ADAPTIVE_CLOCK_STATE,      N,   "Reports if Adaptive Clocking is Enabled on the GPU driving the X screen." },
     { "GPUPerfModes",           NV_CTRL_STRING_PERFORMANCE_MODES,      S|N, "Returns a string with all the performance modes defined for this GPU along with their associated NV Clock and Memory Clock values." },
     { "GPUPowerMizerMode",      NV_CTRL_GPU_POWER_MIZER_MODE,          0,   "Allows setting different GPU powermizer modes." },
+    { "GPUFanControlState",     NV_CTRL_GPU_COOLER_MANUAL_CONTROL,        N,   "The current fan control state; the value of this attribute controls the availability of additional fan control attributes.  Note that this attribute is unavailable unless fan control support has been enabled by setting the \"Coolbits\" X config option." },
+    { "GPUCurrentFanSpeed",     NV_CTRL_THERMAL_COOLER_LEVEL,             N,   "Returns the GPU fan's current speed." },
+    { "GPUResetFanSpeed",       NV_CTRL_THERMAL_COOLER_LEVEL_SET_DEFAULT, N,   "Resets the GPU fan's speed to its default." },
+    { "GPUFanControlType",      NV_CTRL_THERMAL_COOLER_CONTROL_TYPE,      N,   "Returns how the GPU fan is controlled.  '1' means the fan can only be toggled on and off; '2' means the fan has variable speed.  '0' means the fan is restricted and cannot be adjusted under end user control." },
+    { "GPUFanTarget",           NV_CTRL_THERMAL_COOLER_TARGET,            N,   "Returns the objects the fan cools.  '1' means the GPU, '2' means video memory, '4' means the power supply, and '7' means all of the above." },
 
     /* Framelock */
     { "FrameLockAvailable",    NV_CTRL_FRAMELOCK,                   N|F|G,   "Returns whether the underlying GPU supports Frame Lock.  All of the other frame lock attributes are only applicable if this attribute is enabled (Supported)." },
@@ -363,6 +368,14 @@ TargetTypeEntry targetTypeTable[] = {
       NV_FALSE,                      /* uses_display_devices */
       1, 18 },                       /* required major,minor protocol rev */
 
+    { "Fan",                         /* name */
+      "fan",                         /* parsed_name */
+      COOLER_TARGET,                 /* target_index */
+      NV_CTRL_TARGET_TYPE_COOLER,    /* nvctrl */
+      ATTRIBUTE_TYPE_COOLER,         /* permission_bit */
+      NV_FALSE,                      /* uses_display_devices */
+      1, 20 },                       /* required major,minor protocol rev */
+    
     { NULL, NULL, 0, 0, 0 },
 };
 

@@ -67,7 +67,7 @@ struct _CtkLicenseDialogClass
 };
 
 GType       ctk_license_dialog_get_type  (void) G_GNUC_CONST;
-GtkWidget*  ctk_license_dialog_new       (GtkWidget *object);
+GtkWidget*  ctk_license_dialog_new       (GtkWidget *object, gchar *panel_name);
 gint ctk_license_run_dialog(CtkLicenseDialog *ctk_license_dialog);
 
 G_END_DECLS

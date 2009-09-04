@@ -194,15 +194,16 @@ static void print_assign_help(void)
            "an X screen.  A target specification is contained within brackets "
            "and consists of a target type name, a colon, and the "
            "target id.  The target type name can be one of \"screen\", "
-           "\"gpu\", or \"framelock\"; the target id is the index into the "
+           "\"gpu\", \"framelock\", \"vcs\", \"gvi\", or \"fan\"; the target "
+           "id is the index into the "
            "list of targets (for that target type).  The target specification "
            "can be used in {DISPLAY} wherever an X screen can be used, "
            "following the syntax {host}:{display}[{target_type}:"
            "{target_id}].  See the output of `nvidia-settings -q all` for "
            "information on which target types can be used with which "
            "attributes.  See the output of `nvidia-settings -q screens "
-           "-q gpus -q framelocks` for lists of targets for each "
-           "target type.");
+           "-q gpus -q framelocks -q vcs -q gvis -q fans` for lists of targets "
+           "for each target type.");
     
     nv_msg(NULL, "");
 
@@ -243,10 +244,11 @@ static void print_query_help(void)
     nv_msg(BIGTAB, "This queries the current value of the attribute "
            "{attribute name} on the X Display {DISPLAY}.  The format is "
            "the same as that for the '--assign' option, without "
-           "'={value}'.  Specify '-q screens', '-q gpus', or '-q framelocks' "
-           "to query a list of X screens, GPUs, or Frame Lock devices, "
-           "respectively, that are present on the X Display {DISPLAY}.  "
-           "Specify '-q all' to query all attributes.");
+           "'={value}'.  Specify '-q screens', '-q gpus', '-q framelocks', "
+           "'-q vcs', '-q gvis', or '-q fans' to query a list of X screens, "
+           "GPUs, Frame Lock devices, Visual Computing Systems, SDI Input "
+           "Devices, or Fans, respectively, that are present on the X Display "
+           "{DISPLAY}.  Specify '-q all' to query all attributes.");
 
 } /* print_query_help() */
 

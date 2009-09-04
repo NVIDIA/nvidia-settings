@@ -147,7 +147,8 @@ extern AttributeTableEntry attributeTable[];
 #define FRAMELOCK_TARGET 2
 #define VCS_TARGET       3
 #define GVI_TARGET       4
-#define MAX_TARGET_TYPES 5
+#define COOLER_TARGET    5
+#define MAX_TARGET_TYPES 6
 
 
 

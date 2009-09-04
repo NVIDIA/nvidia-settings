@@ -815,10 +815,10 @@ GtkWidget *ctk_window_new(ParsedAttribute *p, ConfigProperties *conf,
 
         /* thermal information */
 
-        child = ctk_thermal_new(gpu_handle, ctk_config);
+        child = ctk_thermal_new(gpu_handle, ctk_config, ctk_event);
         if (child) {
             help = ctk_thermal_create_help(tag_table, CTK_THERMAL(child));
-            add_page(child, help, ctk_window, &iter, NULL, "Thermal Monitor",
+            add_page(child, help, ctk_window, &iter, NULL, "Thermal Settings",
                      NULL, ctk_thermal_start_timer, ctk_thermal_stop_timer);
         }
 

@@ -87,7 +87,7 @@ static void clocks_received(GtkObject *object, gpointer arg1,
 
 /**** GLOBALS ****************************************************************/
 
-static gboolean license_accepted = FALSE;
+static gboolean __license_accepted = FALSE;
 
 /* Tooltips */
 
@@ -293,7 +293,7 @@ GtkWidget* ctk_clocks_new(NvCtrlAttributeHandle *handle,
     ctk_object->probing_optimal      = probing_optimal;
 
     if ( overclocking_enabled ) {
-        license_accepted = TRUE;
+        __license_accepted = TRUE;
     }
 
     /* Create the Clock menu widget */
@@ -459,7 +459,8 @@ GtkWidget* ctk_clocks_new(NvCtrlAttributeHandle *handle,
 
     /* Create the enable dialog */
 
-    ctk_object->license_dialog = ctk_license_dialog_new(GTK_WIDGET(ctk_object));
+    ctk_object->license_dialog = ctk_license_dialog_new(GTK_WIDGET(ctk_object),
+                                                        "Clock Frequencies");
 
     /* Create the auto detect dialog */
 
@@ -809,7 +810,7 @@ static void overclocking_state_toggled(GtkWidget *widget, gpointer user_data)
 
     /* Verify user knows the risks involved */
 
-    if ( enabled && !license_accepted ) {
+    if ( enabled && !__license_accepted ) {
 
         result = 
             ctk_license_run_dialog(CTK_LICENSE_DIALOG(ctk_object->license_dialog)); 
@@ -817,7 +818,7 @@ static void overclocking_state_toggled(GtkWidget *widget, gpointer user_data)
         switch (result)
         {
         case GTK_RESPONSE_ACCEPT:
-            license_accepted = TRUE;
+            __license_accepted = TRUE;
             break;
             
         case GTK_RESPONSE_REJECT:

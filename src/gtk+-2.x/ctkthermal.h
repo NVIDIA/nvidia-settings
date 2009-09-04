@@ -27,6 +27,7 @@
 
 #include "NvCtrlAttributes.h"
 #include "ctkconfig.h"
+#include "ctkevent.h"
 
 G_BEGIN_DECLS
 
@@ -51,6 +52,17 @@ G_BEGIN_DECLS
 typedef struct _CtkThermal       CtkThermal;
 typedef struct _CtkThermalClass  CtkThermalClass;
 
+typedef struct _CoolerControl {
+    NVCTRLAttributeValidValuesRec range;
+    NvCtrlAttributeHandle *handle;
+
+    int level;
+    Bool changed;              /* Cooler level moved by user */ 
+    GtkWidget *widget;         /* Cooler level control widget */
+    GtkAdjustment *adjustment; /* Track adjustment */
+    CtkEvent *event;           /* Receive NV_CONTROL events */
+} CoolerControlRec, *CoolerControlPtr;
+
 struct _CtkThermal
 {
     GtkVBox parent;
@@ -61,6 +73,25 @@ struct _CtkThermal
     GtkWidget *core_label;
     GtkWidget *core_gauge;
     GtkWidget *ambient_label;
+    GtkWidget *apply_button;
+    GtkWidget *reset_button;
+    GtkWidget *enable_checkbox;
+    GtkWidget *enable_dialog;
+    GtkWidget *license_window;
+    GtkWidget *fan_control_frame;
+    GtkWidget *adaptive_clock_status;
+    GtkWidget *fan_target;
+    GtkWidget *fan_signal;
+    GtkWidget *fan_control_policy;
+    GtkWidget *cooler_table_hbox;
+    GtkWidget *fan_information_box;
+
+    gboolean cooler_control_enabled;
+    gboolean settings_changed;
+    gboolean show_fan_control_frame;
+    gboolean enable_reset_button;
+    CoolerControlPtr cooler_control;
+    int cooler_count;
 };
 
 struct _CtkThermalClass
@@ -69,7 +100,9 @@ struct _CtkThermalClass
 };
 
 GType          ctk_thermal_get_type    (void) G_GNUC_CONST;
-GtkWidget*     ctk_thermal_new         (NvCtrlAttributeHandle *, CtkConfig *);
+GtkWidget*     ctk_thermal_new         (NvCtrlAttributeHandle *,
+                                        CtkConfig *,
+                                        CtkEvent *);
 GtkTextBuffer* ctk_thermal_create_help (GtkTextTagTable *, CtkThermal *);
 
 void           ctk_thermal_start_timer (GtkWidget *);

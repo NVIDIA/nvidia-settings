@@ -34,7 +34,7 @@
 #include "ctkbanner.h"
 
 static const char * __enable_confirm_msg =
-"To use the features on the Clock Frequencies panel you\n"
+"To use the features on the %s panel you\n"
 "must agree to the terms of the preceding license agreement.\n"
 "Do you accept this agreement?";
 
@@ -219,12 +219,13 @@ gint ctk_license_run_dialog(CtkLicenseDialog *ctk_license_dialog)
 
 
 
-GtkWidget* ctk_license_dialog_new(GtkWidget *parent)
+GtkWidget* ctk_license_dialog_new(GtkWidget *parent, gchar *panel_name)
 {
     GObject *object;
     CtkLicenseDialog *ctk_license_dialog;
 
     GtkWidget *hbox, *label, *scrollWin, *event;
+    gchar *enable_message;
 
     object = g_object_new(CTK_TYPE_LICENSE_DIALOG, NULL);
     ctk_license_dialog = CTK_LICENSE_DIALOG(object);
@@ -280,7 +281,9 @@ GtkWidget* ctk_license_dialog_new(GtkWidget *parent)
     gtk_box_pack_start(GTK_BOX(GTK_DIALOG(ctk_license_dialog->dialog)->vbox),
                        hbox, TRUE, TRUE, 10);
     hbox = gtk_hbox_new(FALSE, 10);
-    label = gtk_label_new(__enable_confirm_msg);
+    enable_message = g_strdup_printf(__enable_confirm_msg, panel_name);
+    label = gtk_label_new(enable_message);
+    g_free(enable_message);
 
     gtk_box_pack_start(GTK_BOX(hbox), label, TRUE, TRUE, 15);
     gtk_box_pack_start(GTK_BOX(GTK_DIALOG(ctk_license_dialog->dialog)->vbox),

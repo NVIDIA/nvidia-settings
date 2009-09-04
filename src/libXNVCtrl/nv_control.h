@@ -43,6 +43,7 @@
  *             BadMatch, if an unknown TargetType is specified
  * 1.19        Added TargetType support for SetAttributeAndGetStatus and
  *             SetStringAttribute requests
+ * 1.20        Added COOLER TargetType.
  */
 
 #ifndef __NVCONTROL_H
@@ -53,7 +54,7 @@
 #define NV_CONTROL_NAME "NV-CONTROL"
 
 #define NV_CONTROL_MAJOR 1
-#define NV_CONTROL_MINOR 19
+#define NV_CONTROL_MINOR 20
 
 #define X_nvCtrlQueryExtension                      0
 #define X_nvCtrlIsNv                                1

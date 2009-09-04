@@ -43,7 +43,7 @@
 #define NV_CTRL_TARGET_TYPE_FRAMELOCK  2
 #define NV_CTRL_TARGET_TYPE_VCSC       3 /* Visual Computing System */
 #define NV_CTRL_TARGET_TYPE_GVI        4
-
+#define NV_CTRL_TARGET_TYPE_COOLER     5 /* e.g., fan */
 
 /**************************************************************************/
 
@@ -90,6 +90,9 @@
  * 
  * I: The attribute may be queried using an NV_CTRL_TARGET_TYPE_GVI target type
  *    via XNVCTRLQueryTargetAttribute().
+ * 
+ * C: The attribute may be queried using an NV_CTRL_TARGET_TYPE_COOLER target
+ *    type via XNVCTRLQueryTargetAttribute().
  * 
  * NOTE: Unless mentioned otherwise, all attributes may be queried using
  *       an NV_CTRL_TARGET_TYPE_X_SCREEN target type via 
@@ -2554,6 +2557,60 @@
 #define NV_CTRL_FRAMELOCK_SYNC_DELAY_RESOLUTION                 318 /* R-- */
 
 /*
+ * NV_CTRL_GPU_COOLER_MANUAL_CONTROL - Query the current or set a new
+ * cooler control state; the value of this attribute controls the
+ * availability of additional cooler control attributes (see below).
+ *
+ * Note: this attribute is unavailable unless cooler control support
+ * has been enabled in the X server (by the user).
+ */
+
+#define NV_CTRL_GPU_COOLER_MANUAL_CONTROL                       319 /* RW-G */
+#define NV_CTRL_GPU_COOLER_MANUAL_CONTROL_FALSE                   0
+#define NV_CTRL_GPU_COOLER_MANUAL_CONTROL_TRUE                    1
+
+/* 
+ * NV_CTRL_THERMAL_COOLER_LEVEL - Returns cooler's current operating 
+ * level.
+ */
+
+#define NV_CTRL_THERMAL_COOLER_LEVEL                            320 /* RW-C */
+
+/* NV_CTRL_THERMAL_COOLER_LEVEL_SET_DEFAULT - Sets default values of  
+ * cooler.
+ */
+
+#define NV_CTRL_THERMAL_COOLER_LEVEL_SET_DEFAULT                321 /* -W-C */
+
+/* 
+ * NV_CTRL_THERMAL_COOLER_CONTROL_TYPE - 
+ * Returns a cooler's control signal characteristics.
+ * The possible types are restricted, Variable and Toggle.
+ */
+
+#define NV_CTRL_THERMAL_COOLER_CONTROL_TYPE                     322 /* R--C */
+#define NV_CTRL_THERMAL_COOLER_CONTROL_TYPE_NONE                  0
+#define NV_CTRL_THERMAL_COOLER_CONTROL_TYPE_TOGGLE                1 
+#define NV_CTRL_THERMAL_COOLER_CONTROL_TYPE_VARIABLE              2
+
+/* 
+ * NV_CTRL_THERMAL_COOLER_TARGET - Returns objects that cooler cools.
+ * Targets may be GPU, Memory, Power Supply or All of these.
+ * GPU_RELATED = GPU | MEMORY | POWER_SUPPLY
+ * 
+ */
+
+#define NV_CTRL_THERMAL_COOLER_TARGET                           323 /* R--C */
+#define NV_CTRL_THERMAL_COOLER_TARGET_NONE                        0
+#define NV_CTRL_THERMAL_COOLER_TARGET_GPU                         1
+#define NV_CTRL_THERMAL_COOLER_TARGET_MEMORY                      2
+#define NV_CTRL_THERMAL_COOLER_TARGET_POWER_SUPPLY                4
+#define NV_CTRL_THERMAL_COOLER_TARGET_GPU_RELATED   \
+        (NV_CTRL_THERMAL_COOLER_TARGET_GPU |        \
+         NV_CTRL_THERMAL_COOLER_TARGET_MEMORY |     \
+         NV_CTRL_THERMAL_COOLER_TARGET_POWER_SUPPLY) 
+
+/*
  * NV_CTRL_GPU_POWER_MIZER_MODE - Provides a hint to the driver
  * as to how to manage the performance of the GPU.
  *
@@ -2608,7 +2665,6 @@
  */
 #define NV_CTRL_GVI_NUM_CAPTURE_SURFACES                        338 /* RW-I */
 
-#define NV_CTRL_LAST_ATTRIBUTE  NV_CTRL_GVI_NUM_CAPTURE_SURFACES
 
 #define NV_CTRL_LAST_ATTRIBUTE NV_CTRL_GVI_NUM_CAPTURE_SURFACES
 
@@ -3350,6 +3406,24 @@
 
 #define NV_CTRL_BINARY_DATA_VCSCS_USED_BY_GPU                  9   /* R-DG */
 
+
+/*
+ * NV_CTRL_BINARY_DATA_COOLERS_USED_BY_GPU - Returns the coolers that
+ * are cooling the given GPU.
+ *
+ * The format of the returned data is:
+ *
+ *     4       CARD32 number of COOLER
+ *     4 * n   CARD32 COOLER indices
+ *
+ * This attribute can only be queried through XNVCTRLQueryTargetBinaryData()
+ * using a NV_CTRL_TARGET_TYPE_GPU target.  This attribute cannot be
+ * queried using a NV_CTRL_TARGET_TYPE_X_SCREEN
+ */
+
+#define NV_CTRL_BINARY_DATA_COOLERS_USED_BY_GPU                10  /* R-DG */
+
+
 /*
  * NV_CTRL_BINARY_DATA_GPUS_USED_BY_LOGICAL_XSCREEN - Returns the list of
  * GPUs currently driving the given X screen.  If Xinerama is enabled, this
@@ -3599,7 +3673,7 @@
  *                            target types.
  * ATTRIBUTE_TYPE_GVI       - Attribute is valid for Graphics Video In target
  *                            types.
- *
+ * ATTRIBUTE_TYPE_COOLER    - Attribute is valid for Cooler target types.
  *
  * See 'Key to Integer Attribute "Permissions"' at the top of this
  * file for a description of what these permission bits mean.
@@ -3621,6 +3695,7 @@
 #define ATTRIBUTE_TYPE_XINERAMA   0x040
 #define ATTRIBUTE_TYPE_VCSC       0x080
 #define ATTRIBUTE_TYPE_GVI        0x100
+#define ATTRIBUTE_TYPE_COOLER     0x200
 
 typedef struct _NVCTRLAttributeValidValues {
     int type;

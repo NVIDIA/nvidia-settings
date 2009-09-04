@@ -134,8 +134,11 @@ A target specification is contained within brackets and consists of a target typ
 The target type name can be one of
 .B screen,
 .B gpu,
+.B framelock,
+.B vcs,
+.B gvi,
 or
-.B framelock;
+.B fan;
 the target id is the index into the list of targets (for that target type).
 The target specification can be used in {DISPLAY} wherever an X screen can be used, following the syntax {host}:{display}[{target_type}:{target_id}].
 See the output of
@@ -148,7 +151,7 @@ for information on which target types can be used with which attributes.
 See the output of
 .nf
 
-        nvidia-settings -q screens -q gpus -q framelocks
+        nvidia-settings -q screens -q gpus -q framelocks -q vcs -q gvis -q fans
 
 .fi
 for lists of targets for each target type.
@@ -186,9 +189,12 @@ option, without
 Specify
 .B \-q screens,
 .B \-q gpus,
+.B \-q framelocks,
+.B \-q vcs,
+.B \-q gvis,
 or
-.B \-q framelocks
-to query a list of X screens, GPUs, or Frame Lock devices, respectively, that are present on the X Display {DISPLAY}.
+.B \-q fans
+to query a list of X screens, GPUs, Frame Lock devices, Visual Computing Systems, SDI Input Devices, or fans, respectively, that are present on the X Display {DISPLAY}.
 Specify
 .B \-q all
 to query all attributes.
@@ -395,7 +401,7 @@ If no X screen is specified, then the attribute value will be queried for all X 
 .PP
 Attributes can be addressed through "target types".
 A target type indicates the object that is queried when you query an attribute.
-The default target type is an X screen, but other possible target types are GPUs and Frame Lock devices.
+The default target type is an X screen, but other possible target types are GPUs, Frame Lock devices, Visual Computing Systems, SDI Input Devices, and fans.
 .PP
 Target types give you different granularities with which to perform queries and assignments.
 Since X screens can span multiple GPUs (in the case of Xinerama, or SLI), and multiple X screens can exist on the same GPU, it is sometimes useful to address attributes by GPU rather than X screen.
@@ -404,8 +410,11 @@ A target specification is contained within brackets and consists of a target typ
 The target type name can be one of
 .B screen,
 .B gpu,
+.B framelock,
+.B vcs,
+.B gvi,
 or
-.B framelock;
+.B fan;
 the target id is the index into the list of targets (for that target type).
 Target specifications can be used wherever an X screen is used in query and assignment commands; the target specification can be used either by itself on the left side of the forward slash, or as part of an X Display name.
 .PP
@@ -435,7 +444,7 @@ for what targets types can be used with each attribute.
 See the output of
 .nf
 
-        nvidia-settings --query screens --query gpus --query framelocks
+        nvidia-settings --query screens --query gpus --query framelocks --query vcs --query gvis --query fans
 
 .fi
 for lists of targets for each target type.
