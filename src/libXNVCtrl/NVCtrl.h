@@ -2665,8 +2665,22 @@
  */
 #define NV_CTRL_GVI_NUM_CAPTURE_SURFACES                        338 /* RW-I */
 
+/*
+ * NV_CTRL_OVERSCAN_COMPENSATION - This option specifies the amount of overscan
+ * compensation to apply to the current mode.  It is measured in raster pixels,
+ * i.e. pixels as specified in the current mode's backend timings.
+ *
+ * This option is similar to NV_CTRL_TV_OVERSCAN, but can be available on
+ * display devices other than TVs.  It also has semantics that are the opposite
+ * of NV_CTRL_TV_OVERSCAN: a higher NV_CTRL_OVERSCAN_COMPENSATION makes the
+ * screen smaller instead of bigger.  NV_CTRL_OVERSCAN_COMPENSATION and
+ * NV_CTRL_TV_OVERSCAN will not be available on the same display device at the
+ * same time.
+ */
+#define NV_CTRL_OVERSCAN_COMPENSATION                           339 /* RWDG */
 
-#define NV_CTRL_LAST_ATTRIBUTE NV_CTRL_GVI_NUM_CAPTURE_SURFACES
+
+#define NV_CTRL_LAST_ATTRIBUTE NV_CTRL_OVERSCAN_COMPENSATION
 
 /**************************************************************************/
 

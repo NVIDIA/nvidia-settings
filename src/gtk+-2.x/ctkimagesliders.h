@@ -67,6 +67,7 @@ struct _CtkImageSliders
     
     GtkWidget *frame;
     GtkWidget *digital_vibrance;
+    GtkWidget *overscan_compensation;
     GtkWidget *image_sharpening;
     gint default_val;
 };

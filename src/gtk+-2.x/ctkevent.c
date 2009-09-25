@@ -292,6 +292,7 @@ static void ctk_event_class_init(CtkEventClass *ctk_event_class)
     MAKE_SIGNAL(NV_CTRL_GVI_MAX_CHANNELS_PER_JACK);
     MAKE_SIGNAL(NV_CTRL_GVI_MAX_STREAMS);
     MAKE_SIGNAL(NV_CTRL_GVI_NUM_CAPTURE_SURFACES);
+    MAKE_SIGNAL(NV_CTRL_OVERSCAN_COMPENSATION);
 
 #undef MAKE_SIGNAL
     
@@ -302,7 +303,7 @@ static void ctk_event_class_init(CtkEventClass *ctk_event_class)
      * knows about.
      */
 
-#if NV_CTRL_LAST_ATTRIBUTE != NV_CTRL_GVI_NUM_CAPTURE_SURFACES
+#if NV_CTRL_LAST_ATTRIBUTE != NV_CTRL_OVERSCAN_COMPENSATION
 #warning "There are attributes that do not emit signals!"
 #endif
 

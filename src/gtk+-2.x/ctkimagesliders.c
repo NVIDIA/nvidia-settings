@@ -37,6 +37,10 @@
 static const char *__digital_vibrance_help = "The Digital Vibrance slider "
 "alters the level of Digital Vibrance for this display device.";
 
+static const char *__overscan_compensation_help = "The Overscan Compensation "
+"slider adjusts the amount of overscan compensation applied to this display "
+"device, in raster pixels.";
+
 static const char *__image_sharpening_help = "The Image Sharpening slider "
 "alters the level of Image Sharpening for this display device.";
 
@@ -145,6 +149,22 @@ GtkWidget* ctk_image_sliders_new(NvCtrlAttributeHandle *handle,
                      (gpointer) ctk_image_sliders);
 
     gtk_box_pack_start(GTK_BOX(vbox), ctk_image_sliders->digital_vibrance,
+                       TRUE, TRUE, 0);
+
+    /* Overscan Compensation */
+
+    ctk_image_sliders->overscan_compensation =
+        add_scale(ctk_config,
+                  NV_CTRL_OVERSCAN_COMPENSATION, "Overscan Compensation",
+                  __overscan_compensation_help, G_TYPE_INT,
+                  ctk_image_sliders);
+
+    g_signal_connect(G_OBJECT(ctk_event),
+                     CTK_EVENT_NAME(NV_CTRL_OVERSCAN_COMPENSATION),
+                     G_CALLBACK(scale_value_received),
+                     (gpointer) ctk_image_sliders);
+
+    gtk_box_pack_start(GTK_BOX(vbox), ctk_image_sliders->overscan_compensation,
                        TRUE, TRUE, 0);
 
     /* Image Sharpening */
@@ -300,11 +320,24 @@ void ctk_image_sliders_reset(CtkImageSliders *ctk_image_sliders)
                                   0);
     }
 
+    /*
+     * Reset IMAGE_SHARPENING before OVERSCAN_COMPENSATION, even though they're
+     * in the other order in the page, because setting OVERSCAN_COMPENSATION to
+     * 0 may cause IMAGE_SHARPENING to become unavailable and trying to reset it
+     * here would cause a BadValue error.
+     */
     if (get_scale_active(CTK_SCALE(ctk_image_sliders->image_sharpening))) {
         NvCtrlSetDisplayAttribute(ctk_image_sliders->handle,
                                   ctk_image_sliders->display_device_mask,
                                   NV_CTRL_IMAGE_SHARPENING,
                                   ctk_image_sliders->default_val);
+    }
+
+    if (get_scale_active(CTK_SCALE(ctk_image_sliders->overscan_compensation))) {
+        NvCtrlSetDisplayAttribute(ctk_image_sliders->handle,
+                                  ctk_image_sliders->display_device_mask,
+                                  NV_CTRL_OVERSCAN_COMPENSATION,
+                                  0);
     }
 
     ctk_image_sliders_setup(ctk_image_sliders);
@@ -343,6 +376,9 @@ static void scale_value_received(GtkObject *object, gpointer arg1,
     switch (event_struct->attribute) {
     case NV_CTRL_DIGITAL_VIBRANCE:
         scale = ctk_image_sliders->digital_vibrance;
+        break;
+    case NV_CTRL_OVERSCAN_COMPENSATION:
+        scale = ctk_image_sliders->overscan_compensation;
         break;
     case NV_CTRL_IMAGE_SHARPENING:
         scale = ctk_image_sliders->image_sharpening;
@@ -403,7 +439,12 @@ void add_image_sliders_help(CtkImageSliders *ctk_image_sliders,
                   "the color saturation of an image so that all images "
                   "including 2D, 3D, and video appear brighter and "
                   "crisper (even on flat panels) in your applications.");
-    
+
+    ctk_help_heading(b, i, "Overscan Compensation");
+    ctk_help_para(b, i, "Use the Overscan Compensation slider to adjust the "
+                  "size of the display, to adjust for the overscan behavior of "
+                  "certain display devices.");
+
     ctk_help_heading(b, i, "Image Sharpening");
     ctk_help_para(b, i, "Use the Image Sharpening slider to adjust the "
                   "sharpness of the image quality by amplifying high "
@@ -484,7 +525,12 @@ void ctk_image_sliders_setup(CtkImageSliders *ctk_image_sliders)
     
     setup_scale(ctk_image_sliders, NV_CTRL_DIGITAL_VIBRANCE,
                 ctk_image_sliders->digital_vibrance);
-    
+
+    /* NV_CTRL_OVERSCAN_COMPENSATION */
+
+    setup_scale(ctk_image_sliders, NV_CTRL_OVERSCAN_COMPENSATION,
+                ctk_image_sliders->overscan_compensation);
+
     /* NV_CTRL_IMAGE_SHARPENING */
     
     setup_scale(ctk_image_sliders, NV_CTRL_IMAGE_SHARPENING,
@@ -492,8 +538,9 @@ void ctk_image_sliders_setup(CtkImageSliders *ctk_image_sliders)
 
     active =
         get_scale_active(CTK_SCALE(ctk_image_sliders->digital_vibrance)) ||
+        get_scale_active(CTK_SCALE(ctk_image_sliders->overscan_compensation)) ||
         get_scale_active(CTK_SCALE(ctk_image_sliders->image_sharpening));
-    
+
     if (!active) {
         gtk_widget_hide(ctk_image_sliders->frame);
     } else {

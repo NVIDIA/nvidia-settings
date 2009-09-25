@@ -267,6 +267,7 @@ AttributeTableEntry attributeTable[] = {
     { "GPUScalingActive",           NV_CTRL_GPU_SCALING_ACTIVE,            N,     "Returns the current state of GPU scaling.  GPU scaling is mode-specific (meaning it may vary depending on which mode is currently set).  GPU scaling is active if the frontend timing (current resolution) is different than the target resolution.  The target resolution is either the native resolution of the flat panel or the best fit resolution supported by the flat panel.  What (and how) the GPU should scale to is controlled through the GPUScaling attribute." },
     { "RefreshRate",                NV_CTRL_REFRESH_RATE,                  N|H,   "Returns the refresh rate of the specified display device in cHz (Centihertz) (i.e. to get the refresh rate in Hz, divide the returned value by 100.)" },
     { "RefreshRate3",               NV_CTRL_REFRESH_RATE_3,                N|K,   "Returns the refresh rate of the specified display device in mHz (Millihertz) (i.e. to get the refresh rate in Hz, divide the returned value by 1000.)" },
+    { "OverscanCompensation",       NV_CTRL_OVERSCAN_COMPENSATION,         0,     "Adjust the amount of overscan compensation scaling, in pixels, to apply to the specified display device." },
 
     /* TV */
     { "TVOverScan",      NV_CTRL_TV_OVERSCAN,       0, "Adjusts the amount of overscan on the specified display device." },
@@ -315,7 +316,7 @@ AttributeTableEntry attributeTable[] = {
  * about.
  */
 
-#if NV_CTRL_LAST_ATTRIBUTE != NV_CTRL_GVI_NUM_CAPTURE_SURFACES
+#if NV_CTRL_LAST_ATTRIBUTE != NV_CTRL_OVERSCAN_COMPENSATION
 #warning "Have you forgotten to add a new integer attribute to attributeTable?"
 #endif
 
