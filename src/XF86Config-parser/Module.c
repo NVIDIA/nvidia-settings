@@ -73,6 +73,7 @@ static XConfigSymTabRec ModuleTab[] =
     {ENDSECTION, "endsection"},
     {LOAD, "load"},
     {LOAD_DRIVER, "loaddriver"},
+    {DISABLE, "disable"},
     {SUBSECTION, "subsection"},
     {-1, ""},
 };
@@ -143,6 +144,12 @@ xconfigParseModuleSection (void)
             xconfigAddNewLoadDirective (&ptr->loads, val.str,
                                         XCONFIG_LOAD_DRIVER, NULL, TRUE);
             break;
+        case DISABLE:
+            if (xconfigGetSubToken (&(ptr->comment)) != STRING)
+                Error (QUOTE_MSG, "Disable");
+            xconfigAddNewLoadDirective (&ptr->disables, val.str,
+                                        XCONFIG_DISABLE_MODULE, NULL, TRUE);
+            break;
         case SUBSECTION:
             if (xconfigGetSubToken (&(ptr->comment)) != STRING)
                         Error (QUOTE_MSG, "SubSection");
@@ -208,6 +215,19 @@ xconfigPrintModuleSection (FILE * cf, XConfigModulePtr ptr)
 #endif
         }
     }
+    for (lptr = ptr->disables; lptr; lptr = lptr->next)
+    {
+        switch (lptr->type)
+        {
+        case XCONFIG_DISABLE_MODULE:
+            fprintf (cf, "    Disable        \"%s\"", lptr->name);
+            if (lptr->comment)
+                fprintf(cf, "%s", lptr->comment);
+            else
+                fputc('\n', cf);
+            break;
+        }
+    }
 }
 
 void
@@ -245,16 +265,11 @@ xconfigRemoveLoadDirective(XConfigLoadPtr *pHead, XConfigLoadPtr load)
     free(load);
 }
 
-void
-xconfigFreeModules (XConfigModulePtr *ptr)
+static void
+FreeModule(XConfigLoadPtr lptr)
 {
-    XConfigLoadPtr lptr;
     XConfigLoadPtr prev;
 
-    if (ptr == NULL || *ptr == NULL)
-        return;
-
-    lptr = (*ptr)->loads;
     while (lptr)
     {
         TEST_FREE (lptr->name);
@@ -263,6 +278,17 @@ xconfigFreeModules (XConfigModulePtr *ptr)
         lptr = lptr->next;
         free (prev);
     }
+}
+
+void
+xconfigFreeModules (XConfigModulePtr *ptr)
+{
+    if (ptr == NULL || *ptr == NULL)
+        return;
+
+    FreeModule((*ptr)->loads);
+    FreeModule((*ptr)->disables);
+    
     TEST_FREE ((*ptr)->comment);
     free (*ptr);
     *ptr = NULL;

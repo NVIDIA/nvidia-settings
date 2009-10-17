@@ -129,15 +129,11 @@ static int xconfigOptionValuesDiffer(XConfigOptionPtr option0,
  *
  * Merging here means:
  *
- * If the option is not in the source config, remove it from the dest
- * config.
- *
- * If the option is in the source config, make sure the dest config
- * contains the option with the same value as the source config.
- *
- * if "comments" is given, a comment will be added to note when
- * an option has been removed/replaced.
- *
+ * If the option is not in the source config, do nothing to the
+ * destination.  Otherwise, either add or update the option in
+ * the dest.  If the option is modified, and a comment is given,
+ * then the old option will be commented out instead of being
+ * simply removed/replaced.
  */
 static void xconfigMergeOption(XConfigOptionPtr *dstHead,
                                XConfigOptionPtr *srcHead,
@@ -148,14 +144,14 @@ static void xconfigMergeOption(XConfigOptionPtr *dstHead,
 
     char *srcValue = NULL;
 
-    if (srcOption) srcValue = xconfigOptionValue(srcOption);
+    if (!srcOption) {
+        /* Option does not exist in src, do nothing to dst. */
+        return;
+    }
 
-    if (!srcOption && dstOption) {
+    srcValue = xconfigOptionValue(srcOption);
 
-        /* option does not exist in src, but exists in dst: remove from dst */
-        xconfigRemoveOption(dstHead, dstOption);
-
-    } else if (srcOption && !dstOption) {
+    if (srcOption && !dstOption) {
 
         /* option exists in src but not in dst: add to dst */
         xconfigAddNewOption(dstHead, name, srcValue);
@@ -714,7 +710,7 @@ static int xconfigMergeLayout(XConfigPtr dstConfig, XConfigPtr srcConfig)
  */
 int xconfigMergeConfigs(XConfigPtr dstConfig, XConfigPtr srcConfig)
 {
-    /* Make sure the X config is falid */
+    /* Make sure the X config is valid */
     // make_xconfig_usable(dstConfig);
 
 

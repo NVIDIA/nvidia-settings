@@ -7158,11 +7158,7 @@ static Bool add_layout_to_xconfig(nvLayoutPtr layout, XConfigPtr config)
 
 
     /* Setup for Xinerama */
-    if (!config->flags) {
-        config->flags = (XConfigFlagsPtr) calloc(1, sizeof(XConfigFlagsRec));
-        if (!config->flags) goto fail;
-    }
-    xconfigAddNewOption(&config->flags->options, "Xinerama",
+    xconfigAddNewOption(&conf_layout->options, "Xinerama",
                         (layout->xinerama_enabled ? "1" : "0"));
 
     layout->conf_layout = conf_layout;
@@ -7172,39 +7168,6 @@ static Bool add_layout_to_xconfig(nvLayoutPtr layout, XConfigPtr config)
     return FALSE;
 
 } /* add_layout_to_xconfig() */
-
-
-
-/*
- * get_default_project_root() - scan some common directories for the X
- * project root
- *
- * Users of this information should be careful to account for the
- * modular layout.
- */
-
-char *get_default_project_root(void)
-{
-    char *paths[] = { "/usr/X11R6", "/usr/X11", NULL };
-    struct stat stat_buf;
-    int i;
-        
-    for (i = 0; paths[i]; i++) {
-        
-        if (stat(paths[i], &stat_buf) == -1) {
-            continue;
-        }
-    
-        if (S_ISDIR(stat_buf.st_mode)) {
-            return paths[i];
-        }
-    }
-    
-    /* default to "/usr/X11R6", I guess */
-
-    return paths[0];
-
-} /* get_default_project_root() */
 
 
 
@@ -7225,20 +7188,17 @@ static int generateXConfig(CtkDisplayConfig *ctk_object, XConfigPtr *pConfig)
     if (!pConfig) goto fail;
 
 
-    /* Query server X.Org/XFree86 */
+    /* XXX Assume we are creating an X config file for the local system */
+    xconfigGenerateLoadDefaultOptions(&go);
+    xconfigGetXServerInUse(&go);
+
+    /* Query actual server X.Org/XFree86 */
     server_vendor = NvCtrlGetServerVendor(layout->handle);
     if (server_vendor && g_strrstr(server_vendor, "X.Org")) {
         go.xserver = X_IS_XORG;
     } else {
         go.xserver = X_IS_XF86;
     }
-
-
-    /* XXX Assume we are creating an X config file for the local system */
-    go.x_project_root = get_default_project_root();
-    go.keyboard = NULL;
-    go.mouse = NULL;
-    go.keyboard_driver = NULL;
 
 
     /* Generate the basic layout */

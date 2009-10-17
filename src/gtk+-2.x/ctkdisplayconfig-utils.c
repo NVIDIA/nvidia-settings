@@ -2845,6 +2845,35 @@ static int save_xconfig_file(SaveXConfDlg *dlg,
 
 
 
+/** get_non_regular_file_type_description() **************************
+ *
+ * Returns a string that describes the mode type of a file.
+ *
+ */
+static const char *get_non_regular_file_type_description(mode_t mode)
+{
+    if (S_ISDIR(mode)) {
+        return "directory";
+    } else if (S_ISCHR(mode)) {
+        return "character device file";
+    } else if (S_ISBLK(mode)) {
+        return "block device file";
+    } else if (S_ISFIFO(mode)) {
+        return "FIFO";
+    } else if (S_ISLNK(mode)) {
+        return "symbolic link";
+    } else if (S_ISSOCK(mode)) {
+        return "socket";
+    } else if (!S_ISREG(mode)) {
+        return "non-regular file";
+    }
+
+    return NULL;
+
+} /* get_non_regular_file_type_description() */
+
+
+
 /**  update_xconfig_save_buffer() ************************************
  *
  * Updates the "preview" buffer to hold the right contents based on
@@ -2871,7 +2900,7 @@ static void update_xconfig_save_buffer(SaveXConfDlg *dlg)
 
     gboolean merge;
     gboolean merged;
-    gboolean merge_error;
+    gboolean mergeable = FALSE;
 
     gchar *err_msg = NULL;
 
@@ -2883,17 +2912,34 @@ static void update_xconfig_save_buffer(SaveXConfDlg *dlg)
 
     filename = (gchar *)gtk_entry_get_text(GTK_ENTRY(dlg->txt_xconfig_file));
 
+
+    /* Assume we can save until we find out otherwise */
+    gtk_dialog_set_response_sensitive(GTK_DIALOG(dlg->dlg_xconfig_save),
+                                      GTK_RESPONSE_ACCEPT,
+                                      TRUE);
+
+
     /* Find out if the file is mergable */
-    if (filename && (filename[0] != '\0')) {
+    if (filename && (stat(filename, &st) == 0)) {
+        const char *non_regular_file_type_description =
+            get_non_regular_file_type_description(st.st_mode);
+
+        /* Make sure this is a regular file */
+        if (non_regular_file_type_description) {
+            err_msg = g_strdup_printf("Invalid file '%s': File exits but is a "
+                                      "%s!",
+                                      filename,
+                                      non_regular_file_type_description);
+            gtk_widget_set_sensitive(dlg->btn_xconfig_merge, FALSE);
+            gtk_dialog_set_response_sensitive(GTK_DIALOG(dlg->dlg_xconfig_save),
+                                              GTK_RESPONSE_ACCEPT,
+                                              FALSE);
+            goto fail;
+        }
+
         /* Must be able to open the file */
         tmp_filename = (char *)xconfigOpenConfigFile(filename, NULL);
         if (!tmp_filename || strcmp(tmp_filename, filename)) {
-            err_msg = g_strdup_printf("Failed to open existing X config "
-                                      "file '%s'!",
-                                      filename);
-            ctk_display_warning_msg
-                (ctk_get_parent_window(GTK_WIDGET(dlg->parent)), err_msg);
-
             xconfigCloseConfigFile();
 
         } else {
@@ -2913,41 +2959,46 @@ static void update_xconfig_save_buffer(SaveXConfDlg *dlg)
                     (ctk_get_parent_window(GTK_WIDGET(dlg->parent)), err_msg);
 
                 xconfCur = NULL;
+
+            } else {
+
+                /* Sanitize the X config file */
+                xconfigGenerateLoadDefaultOptions(&gop);
+                xconfigGetXServerInUse(&gop);
+                
+                if (!xconfigSanitizeConfig(xconfCur, NULL, &gop)) {
+                    err_msg = g_strdup_printf("Failed to sanitize existing X "
+                                              "config file '%s'!",
+                                              filename);
+                    ctk_display_warning_msg
+                        (ctk_get_parent_window(GTK_WIDGET(dlg->parent)),
+                         err_msg);
+                    
+                    xconfigFreeConfig(&xconfCur);
+                    xconfCur = NULL;
+                } else {
+                    mergeable = TRUE;
+                }
             }
 
-            /* Sanitize the X config file */
-            xconfigGenerateLoadDefaultOptions(&gop);
-            xconfigGetXServerInUse(&gop);
-
-            if (!xconfigSanitizeConfig(xconfCur, NULL, &gop)) {
-                err_msg = g_strdup_printf("Failed to sanitize existing X "
-                                          "config file '%s'!",
-                                          filename);
-                ctk_display_warning_msg
-                    (ctk_get_parent_window(GTK_WIDGET(dlg->parent)), err_msg);
-
+            /* If we're not actualy doing a merge, close the file */
+            if (!merge && xconfCur) {
                 xconfigFreeConfig(&xconfCur);
-                xconfCur = NULL;
             }
-        }
-
-        /* If we're not actualy doing a merge, close the file */
-        if (!merge && xconfCur) {
-            xconfigFreeConfig(&xconfCur);
         }
     }
 
-    merge_error = merge && !xconfCur;
-    merge = (merge && !merge_error);
 
-
-    /* If we have to merge but we can't, report the problem. */
-    if (merge_error && !dlg->merge_toggleable) {
-        // XXX Instead of bailing here, we may want to just disable
-        //     the "Save" button until the user specifies a file
-        //     that we can parse.
+    /* If we have to merge but we cannot, prevent user from saving */
+    if (merge && !xconfCur && !dlg->merge_toggleable) {
+        gtk_dialog_set_response_sensitive(GTK_DIALOG(dlg->dlg_xconfig_save),
+                                          GTK_RESPONSE_ACCEPT,
+                                          FALSE);
         goto fail;
     }
+
+    merge = (merge && xconfCur);
+
 
     /* Generate the X config file */
     xconfGen = dlg->xconf_gen_func(xconfCur, merge, &merged,
@@ -2956,8 +3007,6 @@ static void update_xconfig_save_buffer(SaveXConfDlg *dlg)
         err_msg = g_strdup_printf("Failed to generate X config file!");
         goto fail;
     }
-
-    merge_error = merge && !merged;
 
     /* Update merge status */
     g_signal_handlers_block_by_func
@@ -2972,7 +3021,7 @@ static void update_xconfig_save_buffer(SaveXConfDlg *dlg)
          G_CALLBACK(xconfig_update_buffer), (gpointer) dlg);
     
     gtk_widget_set_sensitive(dlg->btn_xconfig_merge,
-                             (dlg->merge_toggleable && !merge_error) ?
+                             (dlg->merge_toggleable && mergeable) ?
                              TRUE : FALSE);
     
 
@@ -3162,6 +3211,7 @@ void run_save_xconfig_dialog(SaveXConfDlg *dlg)
     GtkTextIter buf_start, buf_end;
     gchar *filename;
     gchar *tmp_filename;
+    struct stat st;
 
     gint result;
 
@@ -3197,6 +3247,20 @@ void run_save_xconfig_dialog(SaveXConfDlg *dlg)
         filename = tilde_expansion(tmp_filename);
         if (filename == tmp_filename) {
             filename = g_strdup(tmp_filename);
+        }
+
+        /* If the file exists, make sure it is a regular file */
+        if (stat(filename, &st) == 0) {
+            const char *non_regular_file_type_description =
+                get_non_regular_file_type_description(st.st_mode);
+
+            if (non_regular_file_type_description) {
+                nv_error_msg("Failed to write X configuration to file '%s': "
+                             "File exists but is a %s.",
+                             filename,
+                             non_regular_file_type_description);
+                break;
+            }
         }
 
         /* Get the buffer to write */

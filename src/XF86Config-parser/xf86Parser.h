@@ -169,7 +169,7 @@ typedef struct {
 /* Values for load_type */
 #define XCONFIG_LOAD_MODULE    0
 #define XCONFIG_LOAD_DRIVER    1
-
+#define XCONFIG_DISABLE_MODULE 2
 
 
 /*
@@ -186,6 +186,7 @@ typedef struct __xconfigloadrec {
 
 typedef struct {
     XConfigLoadPtr  loads;
+    XConfigLoadPtr  disables;
     char           *comment;
 } XConfigModuleRec, *XConfigModulePtr;
 

@@ -185,13 +185,18 @@ ReturnStatus NvCtrlNvControlSetAttribute (NvCtrlAttributePrivateHandle *h,
                                           unsigned int display_mask,
                                           int attr, int val)
 {
+    Bool bRet;
+
     if (attr <= NV_CTRL_LAST_ATTRIBUTE) {
-        XNVCTRLSetTargetAttribute (h->dpy, h->target_type, h->target_id,
-                                   display_mask, attr, val);
-        XFlush (h->dpy);
+        bRet = XNVCTRLSetTargetAttributeAndGetStatus (h->dpy, h->target_type,
+                                                      h->target_id,
+                                                      display_mask, attr, val);
+        if (!bRet) {
+            return NvCtrlError;
+        }
         return NvCtrlSuccess;
     }
-      
+
     return NvCtrlNoAttribute;
 
 } /* NvCtrlNvControlSetAttribute() */
