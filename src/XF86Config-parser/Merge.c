@@ -691,6 +691,21 @@ static int xconfigMergeLayout(XConfigPtr dstConfig, XConfigPtr srcConfig)
         srcAdj = srcAdj->next;
     }
 
+    /* Merge the options */
+    
+    if (srcLayout->options) {
+        XConfigOptionPtr srcOption;
+
+        srcOption = srcLayout->options;
+        while (srcOption) {
+            xconfigMergeOption(&(dstLayout->options),
+                               &(srcLayout->options),
+                               xconfigOptionName(srcOption),
+                               &(dstLayout->comment));
+            srcOption = srcOption->next;
+        }
+    }
+
     return 1;
 
 } /* xconfigMergeLayout() */

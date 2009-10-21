@@ -177,6 +177,8 @@ gint ctk_license_run_dialog(CtkLicenseDialog *ctk_license_dialog)
 
     gint w, h;
     gint result;
+    GtkRange *range;
+    GtkAdjustment *adj;
     GdkScreen * s =
         gtk_window_get_screen(GTK_WINDOW(GTK_DIALOG(ctk_license_dialog->dialog)));
 
@@ -185,7 +187,7 @@ gint ctk_license_run_dialog(CtkLicenseDialog *ctk_license_dialog)
     gtk_window_get_size(GTK_WINDOW(GTK_DIALOG(ctk_license_dialog->dialog)),
                         &w, &h);
 
-    /* Make license dialog default to 75% of the screen height */
+    /* Make license dialog default to 55% of the screen height */
 
     h = (gint)(0.55f * gdk_screen_get_height(s));
     w = 1;
@@ -195,20 +197,28 @@ gint ctk_license_run_dialog(CtkLicenseDialog *ctk_license_dialog)
 
     /* Reset scroll bar to the top */
 
-    gtk_adjustment_set_value(GTK_ADJUSTMENT(
-                             GTK_RANGE(
-                             GTK_SCROLLED_WINDOW(ctk_license_dialog->window)->
-                              vscrollbar)->adjustment)
-                             ,0.0f);
+    range =
+        GTK_RANGE(GTK_SCROLLED_WINDOW(ctk_license_dialog->window)->vscrollbar);
+    adj = gtk_range_get_adjustment(range);
 
-
-    /* Disable the YES button */
-
-    gtk_dialog_set_response_sensitive(GTK_DIALOG(ctk_license_dialog->dialog),
-                                      GTK_RESPONSE_ACCEPT,
-                                      FALSE);
+    gtk_adjustment_set_value(adj, 0.0f);
 
     gtk_widget_show_all(ctk_license_dialog->dialog);
+    
+    
+    /* Sensitize the YES button */
+
+    if ( adj->page_size >= adj->upper ) {
+        gtk_dialog_set_response_sensitive(GTK_DIALOG(
+                                          ctk_license_dialog->dialog),
+                                          GTK_RESPONSE_ACCEPT,
+                                          TRUE);
+    } else {
+        gtk_dialog_set_response_sensitive(GTK_DIALOG(
+                                          ctk_license_dialog->dialog),
+                                          GTK_RESPONSE_ACCEPT,
+                                          FALSE);
+    }
     
     result = gtk_dialog_run (GTK_DIALOG(ctk_license_dialog->dialog));
     
