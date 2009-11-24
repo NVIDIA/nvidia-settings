@@ -45,7 +45,7 @@
 
 static const char *__active_color_help = "The Active Color Channel drop-down "
 "menu allows you to select the color channel controlled by the Brightness, "
-"Contrast and Gamma sliders. You can adjust the red, green or blue channels "
+"Contrast and Gamma sliders.  You can adjust the red, green or blue channels "
 "individually or all three channels at once.";
 
 static const char *__resest_button_help = "The Reset Hardware Defaults "
@@ -1024,7 +1024,7 @@ GtkTextBuffer *ctk_color_correction_create_help(GtkTextTagTable *table)
                   "or gamma values for the selected color channel(s).  This "
                   "helps you to compensate "
                   "for variations in luminance between a source image and "
-                  "its output on a display device. This is useful when "
+                  "its output on a display device.  This is useful when "
                   "working with image processing applications to help "
                   "provide more accurate color reproduction of images (such "
                   "as photographs) when they are displayed on your "

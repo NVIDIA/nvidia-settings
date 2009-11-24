@@ -199,6 +199,12 @@ Specify
 .B \-q all
 to query all attributes.
 .TP
+.B \-t, \-\-terse
+When querying attribute values with the '--query' commandline option, only print the current value, rather than the more verbose description of the attribute, its valid values, and its current value.
+.TP
+.B \-d, \-\-display\-device\-string
+When printing attribute values in response to the '--query' option, if the attribute value is a display device mask, print the value as a list of display devices (e.g., "CRT-0, DFP-0"), rather than a hexidecimal bitmask (e.g., 0x00010001).
+.TP
 .B \-g, \-\-glxinfo
 Print GLX Information for the X display and exit.
 .TP

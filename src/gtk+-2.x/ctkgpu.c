@@ -125,38 +125,62 @@ void get_bus_related_info(NvCtrlAttributeHandle *handle,
                           gchar **bus,
                           gchar **pci_bus_id)
 {
-    int tmp, ret;
+    int tmp, ret, bus_type;
     int pci_domain, pci_bus, pci_device, pci_func;
-    gchar *bus_type, *bus_rate, *bus_id;
+    gchar *bus_type_str, *bus_rate, *pcie_gen, *bus_id;
     gchar *__pci_bus_id_unknown = "?@?:?:?";
     
     /* NV_CTRL_BUS_TYPE */
 
-    ret = NvCtrlGetAttribute(handle, NV_CTRL_BUS_TYPE, &tmp);
-    bus_type = NULL;
+    bus_type = 0xffffffff;
+    bus_type_str = "Unknown";
+    ret = NvCtrlGetAttribute(handle, NV_CTRL_BUS_TYPE, &bus_type);
     if (ret == NvCtrlSuccess) {
-        if      (tmp == NV_CTRL_BUS_TYPE_AGP) bus_type = "AGP";
-        else if (tmp == NV_CTRL_BUS_TYPE_PCI) bus_type = "PCI";
-        else if (tmp == NV_CTRL_BUS_TYPE_PCI_EXPRESS) bus_type = "PCI Express";
-        else if (tmp == NV_CTRL_BUS_TYPE_INTEGRATED) bus_type = "Integrated";
+        if      (bus_type == NV_CTRL_BUS_TYPE_AGP)
+            bus_type_str = "AGP";
+        else if (bus_type == NV_CTRL_BUS_TYPE_PCI)
+            bus_type_str = "PCI";
+        else if (bus_type == NV_CTRL_BUS_TYPE_PCI_EXPRESS)
+            bus_type_str = "PCI Express";
+        else if (bus_type == NV_CTRL_BUS_TYPE_INTEGRATED)
+            bus_type_str = "Integrated";
     }
 
     /* NV_CTRL_BUS_RATE */
 
     bus_rate = NULL;
-    if (tmp == NV_CTRL_BUS_TYPE_AGP ||
-        tmp == NV_CTRL_BUS_TYPE_PCI_EXPRESS) {
+    if (bus_type == NV_CTRL_BUS_TYPE_AGP ||
+        bus_type == NV_CTRL_BUS_TYPE_PCI_EXPRESS) {
         ret = NvCtrlGetAttribute(handle, NV_CTRL_BUS_RATE, &tmp);
         if (ret == NvCtrlSuccess) {
-            bus_rate = g_strdup_printf("%dX", tmp);
+            if (bus_type == NV_CTRL_BUS_TYPE_PCI_EXPRESS) {
+                bus_rate = g_strdup_printf("x%u", tmp);
+            } else {
+                bus_rate = g_strdup_printf("%uX", tmp);
+            }
         }
     }
 
-    if (bus_rate) {
-        *bus = g_strdup_printf("%s %s", bus_type, bus_rate);
+    /* NV_CTRL_GPU_PCIE_GENERATION */
+
+    pcie_gen = NULL;
+    if (bus_type == NV_CTRL_BUS_TYPE_PCI_EXPRESS) {
+        ret = NvCtrlGetAttribute(handle, NV_CTRL_GPU_PCIE_GENERATION, &tmp);
+        if (ret == NvCtrlSuccess)
+            pcie_gen = g_strdup_printf("Gen%u", tmp);
+    }
+
+    /* concatenate all the available bus related information */
+
+    if (bus_rate || pcie_gen) {
+        *bus = g_strdup_printf("%s %s%s%s", bus_type_str,
+                               bus_rate ? bus_rate : "",
+                               bus_rate ? " " : "",
+                               pcie_gen ? pcie_gen : "");
         g_free(bus_rate);
+        g_free(pcie_gen);
     } else {
-        *bus = g_strdup(bus_type);
+        *bus = g_strdup(bus_type_str);
     }
 
     /* NV_CTRL_PCI_DOMAIN & NV_CTRL_PCI_BUS &
@@ -495,8 +519,8 @@ GtkTextBuffer *ctk_gpu_create_help(GtkTextTagTable *table)
     
     ctk_help_heading(b, &i, "Bus ID");
     ctk_help_para(b, &i, "This is the GPU's PCI identification string, "
-                  "reported in the form 'bus:device:function'. It uniquely "
-                  "identifies the GPU's location in the host system. "
+                  "reported in the form 'bus:device:function'.  It uniquely "
+                  "identifies the GPU's location in the host system.  "
                   "This string can be used as-is with the 'BusID' X "
                   "configuration file option to unambiguously associate "
                   "Device sections with this GPU.");

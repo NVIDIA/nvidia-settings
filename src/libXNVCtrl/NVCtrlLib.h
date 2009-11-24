@@ -238,6 +238,34 @@ Bool XNVCTRLQueryTargetAttribute (
 
 
 /*
+ * XNVCTRLQueryTargetAttribute64 -
+ *
+ *  Returns True if the attribute exists.  Returns False otherwise.
+ *  If XNVCTRLQueryTargetAttribute returns True, value will contain the
+ *  value of the specified attribute.
+ *
+ *  Not all attributes require the display_mask parameter; see
+ *  NVCtrl.h for details.
+ *
+ *  Note: this function behaves like XNVCTRLQueryTargetAttribute(),
+ *  but supports 64-bit integer attributes.
+ *
+ *  Possible errors:
+ *     BadValue - The target doesn't exist.
+ *     BadMatch - The NVIDIA driver does not control the target.
+ */
+
+Bool XNVCTRLQueryTargetAttribute64 (
+    Display *dpy,
+    int target_Type,
+    int target_id,
+    unsigned int display_mask,
+    unsigned int attribute,
+    int64_t *value
+);
+
+
+/*
  *  XNVCTRLQueryStringAttribute -
  *
  *  Returns True if the attribute exists.  Returns False otherwise.

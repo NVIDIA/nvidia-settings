@@ -370,7 +370,8 @@ ReturnStatus NvCtrlQueryTargetCount(NvCtrlAttributeHandle *handle,
  * Modifications made via SetAttribute() are made immediatedly.  The
  * attr argument is the attribute to query/modify; valid attributes
  * are those listed in NVCtrl.h and the NV_CTRL_ attributes #define'd
- * above.
+ * above.  NvCtrlGetAttribute64() behaves like NvCtrlGetAttribute(),
+ * but supports 64-bit integer attributes.
  */
 
 ReturnStatus NvCtrlGetAttribute (NvCtrlAttributeHandle *handle,
@@ -378,6 +379,10 @@ ReturnStatus NvCtrlGetAttribute (NvCtrlAttributeHandle *handle,
 
 ReturnStatus NvCtrlSetAttribute (NvCtrlAttributeHandle *handle,
                                  int attr, int val);
+
+ReturnStatus NvCtrlGetAttribute64 (NvCtrlAttributeHandle *handle,
+                                   int attr, int64_t *val);
+
 
 /*
  * NvCtrlGetVoidAttribute() - this function works like the
@@ -430,6 +435,10 @@ NvCtrlGetDisplayAttribute (NvCtrlAttributeHandle *handle,
 ReturnStatus
 NvCtrlSetDisplayAttribute (NvCtrlAttributeHandle *handle,
                            unsigned int display_mask, int attr, int val);
+
+ReturnStatus
+NvCtrlGetDisplayAttribute64 (NvCtrlAttributeHandle *handle,
+                             unsigned int display_mask, int attr, int64_t *val);
 
 ReturnStatus
 NvCtrlSetDisplayAttributeWithReply (NvCtrlAttributeHandle *handle,

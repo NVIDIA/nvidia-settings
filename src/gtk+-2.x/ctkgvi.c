@@ -125,6 +125,7 @@ typedef struct {
     int color_space;
     int bpc;
     int link_id;
+    unsigned int smpte352_id;
 } ChannelInfo;
 
 
@@ -174,6 +175,14 @@ static void query_channel_info(CtkGvi *ctk_gvi, int jack, int channel, ChannelIn
                                     &(channel_info->link_id));
     if (ret != NvCtrlSuccess) {
         channel_info->link_id = NV_CTRL_GVI_LINK_ID_UNKNOWN;
+    }
+
+    ret = NvCtrlGetDisplayAttribute(ctk_gvi->handle,
+                                    jack_channel,
+                                    NV_CTRL_GVI_DETECTED_CHANNEL_SMPTE352_IDENTIFIER,
+                                    &(channel_info->smpte352_id));
+    if (ret != NvCtrlSuccess) {
+        channel_info->smpte352_id = 0x0;
     }
 }
 
@@ -356,7 +365,7 @@ static void update_sdi_input_info_all(CtkGvi *ctk_gvi)
     box = gtk_hbox_new(FALSE, 0);
     gtk_box_pack_start(GTK_BOX(vbox), box, FALSE, FALSE, 0);
 
-    table = gtk_table_new(5, 2, FALSE);
+    table = gtk_table_new(6, 2, FALSE);
     gtk_table_set_row_spacings(GTK_TABLE(table), 5);
     gtk_table_set_col_spacings(GTK_TABLE(table), 5);
 
@@ -428,6 +437,16 @@ static void update_sdi_input_info_all(CtkGvi *ctk_gvi)
     label = gtk_label_new(label_str);
     gtk_misc_set_alignment(GTK_MISC(label), 0, 0.5);
     gtk_table_attach_defaults(GTK_TABLE(table), label, 1, 2, 4, 5);
+    g_free(label_str);
+
+    label = gtk_label_new("SMPTE 352 Payload Identifier:");
+    gtk_misc_set_alignment(GTK_MISC(label), 0, 0.5);
+    gtk_table_attach_defaults(GTK_TABLE(table), label, 0, 1, 5, 6);
+
+    label_str = g_strdup_printf("0x%08x", channel_info.smpte352_id);
+    label = gtk_label_new(label_str);
+    gtk_misc_set_alignment(GTK_MISC(label), 0, 0.5);
+    gtk_table_attach_defaults(GTK_TABLE(table), label, 1, 2, 5, 6);
     g_free(label_str);
 }
 

@@ -439,10 +439,10 @@ GtkTextBuffer *ctk_screen_create_help(GtkTextTagTable *table,
     ctk_help_heading(b, &i, "Recovered GPU Errors");
     ctk_help_para(b, &i, "The GPU can encounter errors, either due to bugs in "
                   "the NVIDIA driver, or due to corruption of the command  "
-                  "stream as it is sent from the NVIDIA X driver to the GPU. "
+                  "stream as it is sent from the NVIDIA X driver to the GPU.  "
                   "When the GPU encounters one of these errors, it reports it "
                   "to the NVIDIA X driver and the NVIDIA X driver attempts to "
-                  "recover from the error. This reports how many errors the "
+                  "recover from the error.  This reports how many errors the "
                   "GPU received and the NVIDIA X driver successfully recovered "
                   "from.");
 

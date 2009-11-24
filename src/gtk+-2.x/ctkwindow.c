@@ -65,6 +65,7 @@
 
 #include "ctkdisplayconfig.h"
 #include "ctkserver.h"
+#include "ctkecc.h"
 
 #include "ctkhelp.h"
 #include "ctkevent.h"
@@ -839,7 +840,13 @@ GtkWidget *ctk_window_new(ParsedAttribute *p, ConfigProperties *conf,
             add_page(child, help, ctk_window, &iter, NULL, "Clock Frequencies",
                      NULL, ctk_clocks_select, NULL);
         }
-
+        /* ECC Information */
+        child = ctk_ecc_new(gpu_handle, ctk_config, ctk_event);
+        if (child) {
+            help = ctk_ecc_create_help(tag_table, CTK_ECC(child));
+            add_page(child, help, ctk_window, &iter, NULL, "ECC Settings",
+                     NULL, ctk_ecc_start_timer, ctk_ecc_stop_timer);
+        }
         /* display devices */
         data = (UpdateDisplaysData *)calloc(1, sizeof(UpdateDisplaysData));
         data->window = ctk_window;

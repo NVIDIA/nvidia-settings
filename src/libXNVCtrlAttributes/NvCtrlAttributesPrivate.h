@@ -252,7 +252,7 @@ NvCtrlNvControlQueryTargetCount(NvCtrlAttributePrivateHandle *, int, int *);
 
 ReturnStatus
 NvCtrlNvControlGetAttribute (NvCtrlAttributePrivateHandle *, unsigned int,
-                             int, int *);
+                             int, int64_t *);
 
 ReturnStatus
 NvCtrlNvControlSetAttribute (NvCtrlAttributePrivateHandle *, unsigned int,

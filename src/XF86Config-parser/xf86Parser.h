@@ -79,7 +79,7 @@
 #endif  // defined(__linux__)
 
 // Unix variations:  SunOS
-#if !defined(NV_SUNOS) && defined(__sun__) || defined(__sun)
+#if !defined(NV_SUNOS) && (defined(__sun__) || defined(__sun))
 #   define NV_SUNOS
 #endif // defined(__sun__)
 

@@ -65,9 +65,10 @@ SRC += \
 	ctkdisplayconfig-utils.c \
 	ctkgvo-banner.c \
 	ctkgvo-sync.c \
-	ctklicense.c \
 	ctkgvi.c \
-	ctkpowersavings.c
+	ctklicense.c \
+	ctkpowersavings.c \
+	ctkecc.c
 
 
 EXTRA_DIST += \
@@ -113,9 +114,10 @@ EXTRA_DIST += \
 	ctkpowersavings.h \
 	ctkgvo-banner.h \
 	ctkgvo-sync.h \
-	ctklicense.h \
 	ctkgvi.h \
-	ctkpowersavings.h
+	ctklicense.h \
+	ctkpowersavings.h \
+	ctkecc.h
 
 dist_list::
 	@ echo $(SRC) $(EXTRA_DIST)

@@ -1362,7 +1362,7 @@ static void update_framelock_controls(CtkFramelock *ctk_framelock)
 
     /* G-Sync Buttons */
     gtk_widget_set_sensitive(ctk_framelock->remove_devices_button,
-                             tree->nentries);
+                             (tree->selected_entry==NULL)?FALSE:TRUE);
 
     gtk_widget_set_sensitive(ctk_framelock->extra_info_button,
                              tree->nentries);
@@ -1618,6 +1618,9 @@ static void list_entry_clicked(GtkWidget *widget, GdkEventButton *event,
     }
     if (entry != entry->tree->selected_entry) {
         list_entry_set_select(entry, True);
+
+        /* Update GUI state */
+        update_framelock_controls(entry->tree->ctk_framelock);
     }
 }
 

@@ -70,7 +70,7 @@ AttributeTableEntry attributeTable[] = {
     /* name                    constant                             flags                 description */
 
     /* Version information */
-    { "OperatingSystem",     NV_CTRL_OPERATING_SYSTEM,             N,   "The operating system on which the X server is running.  (0-Linux, 1-FreeBSD, 2-SunOS.)" },
+    { "OperatingSystem",     NV_CTRL_OPERATING_SYSTEM,             N,   "The operating system on which the X server is running.  0-Linux, 1-FreeBSD, 2-SunOS." },
     { "NvidiaDriverVersion", NV_CTRL_STRING_NVIDIA_DRIVER_VERSION, S|N, "The NVIDIA X driver version." },
     { "NvControlVersion",    NV_CTRL_STRING_NV_CONTROL_VERSION,    S|N, "The NV-CONTROL X driver extension version." },
     { "GLXServerVersion",    NV_CTRL_STRING_GLX_SERVER_VERSION,    S|N, "The GLX X server extension version." },
@@ -112,7 +112,7 @@ AttributeTableEntry attributeTable[] = {
     { "PixmapCacheRoundSizeKB",        NV_CTRL_PIXMAP_CACHE_ROUNDING_SIZE_KB,     N,     "Controls the number of kilobytes to add to the pixmap cache when there is not enough room." },
 
     /* OpenGL */
-    { "SyncToVBlank",               NV_CTRL_SYNC_TO_VBLANK,                   0,   "Enables sync to vertical blanking for OpenGL clients. This setting only takes effect on OpenGL clients started after it is set." },
+    { "SyncToVBlank",               NV_CTRL_SYNC_TO_VBLANK,                   0,   "Enables sync to vertical blanking for OpenGL clients.  This setting only takes effect on OpenGL clients started after it is set." },
     { "LogAniso",                   NV_CTRL_LOG_ANISO,                        0,   "Enables anisotropic filtering for OpenGL clients; on some NVIDIA hardware, this can only be enabled or disabled; on other hardware different levels of anisotropic filtering can be specified.  This setting only takes effect on OpenGL clients started after it is set." },
     { "FSAA",                       NV_CTRL_FSAA_MODE,                        0,   "The full screen antialiasing setting for OpenGL clients.  This setting only takes effect on OpenGL clients started after it is set." },
     { "TextureSharpen",             NV_CTRL_TEXTURE_SHARPEN,                  0,   "Enables texture sharpening for OpenGL clients.  This setting only takes effect on OpenGL clients started after it is set." },
@@ -150,6 +150,7 @@ AttributeTableEntry attributeTable[] = {
     { "PCIDevice",              NV_CTRL_PCI_DEVICE,                    N,   "Returns the PCI device number for the specified device." },
     { "PCIFunc",                NV_CTRL_PCI_FUNCTION,                  N,   "Returns the PCI function number for the specified device." },
     { "PCIID",                  NV_CTRL_PCI_ID,                        N|P, "Returns the PCI vendor and device ID of the specified device." },
+    { "PCIEGen",                NV_CTRL_GPU_PCIE_GENERATION,           N,   "Returns the current PCI-E Bus Generation." },
     { "GPUErrors",              NV_CTRL_NUM_GPU_ERRORS_RECOVERED,      N,   "Returns the number of GPU errors occurred." },
     { "GPUPowerSource",         NV_CTRL_GPU_POWER_SOURCE,              N,   "Reports the type of power source of the GPU." },
     { "GPUCurrentPerfMode",     NV_CTRL_GPU_CURRENT_PERFORMANCE_MODE,  N,   "Reports the current performance mode of the GPU driving the X screen.  Running a 3D app, for example, will change this performance mode if Adaptive Clocking is enabled." },
@@ -157,6 +158,11 @@ AttributeTableEntry attributeTable[] = {
     { "GPUAdaptiveClockState",  NV_CTRL_GPU_ADAPTIVE_CLOCK_STATE,      N,   "Reports if Adaptive Clocking is Enabled on the GPU driving the X screen." },
     { "GPUPerfModes",           NV_CTRL_STRING_PERFORMANCE_MODES,      S|N, "Returns a string with all the performance modes defined for this GPU along with their associated NV Clock and Memory Clock values." },
     { "GPUPowerMizerMode",      NV_CTRL_GPU_POWER_MIZER_MODE,          0,   "Allows setting different GPU powermizer modes." },
+    { "ECCSupported",           NV_CTRL_GPU_ECC_SUPPORTED,             N,   "Reports whether the underlying GPU supports ECC.  All of the other ECC attributes are only applicable if this attribute indicates that ECC is supported." },
+    { "ECCStatus",              NV_CTRL_GPU_ECC_STATUS,                N,   "Reports whether ECC is enabled." },
+    { "ECCConfigurationSupported", NV_CTRL_GPU_ECC_CONFIGURATION_SUPPORTED, N,   "Reports whether ECC whether the ECC configuration setting can be changed." },
+    { "ECCConfiguration",       NV_CTRL_GPU_ECC_CONFIGURATION,         N,  "Returns the current ECC configuration setting." },
+    { "ECCDefaultConfiguration", NV_CTRL_GPU_ECC_DEFAULT_CONFIGURATION, N, "Returns the default ECC configuration setting." },
     { "GPUFanControlState",     NV_CTRL_GPU_COOLER_MANUAL_CONTROL,        N,   "The current fan control state; the value of this attribute controls the availability of additional fan control attributes.  Note that this attribute is unavailable unless fan control support has been enabled by setting the \"Coolbits\" X config option." },
     { "GPUCurrentFanSpeed",     NV_CTRL_THERMAL_COOLER_LEVEL,             N,   "Returns the GPU fan's current speed." },
     { "GPUResetFanSpeed",       NV_CTRL_THERMAL_COOLER_LEVEL_SET_DEFAULT, N,   "Resets the GPU fan's speed to its default." },
@@ -178,14 +184,14 @@ AttributeTableEntry attributeTable[] = {
     { "FrameLockTestSignal",   NV_CTRL_FRAMELOCK_TEST_SIGNAL,       N|F|G,   "To test the connections in the sync group, tell the master to enable a test signal, then query port[01] status and sync_ready on all slaves.  When done, tell the master to disable the test signal.  Test signal should only be manipulated while FrameLockEnable is enabled.  The FrameLockTestSignal is also used to reset the Universal Frame Count (as returned by the glXQueryFrameCountNV() function in the GLX_NV_swap_group extension).  Note: for best accuracy of the Universal Frame Count, it is recommended to toggle the FrameLockTestSignal on and off after enabling frame lock." },
     { "FrameLockEthDetected",  NV_CTRL_FRAMELOCK_ETHERNET_DETECTED, N|F|G,   "The frame lock boards are cabled together using regular cat5 cable, connecting to RJ45 ports on the backplane of the card.  There is some concern that users may think these are Ethernet ports and connect them to a router/hub/etc.  The hardware can detect this and will shut off to prevent damage (either to itself or to the router).  FrameLockEthDetected may be called to find out if Ethernet is connected to one of the RJ45 ports.  An appropriate error message should then be displayed." },
     { "FrameLockVideoMode",    NV_CTRL_FRAMELOCK_VIDEO_MODE,        N|F|G,   "Get/set what video mode is used to interpret the house sync signal.  This should only be set on the master." },
-    { "FrameLockSyncRate",     NV_CTRL_FRAMELOCK_SYNC_RATE,         N|F|G,   "Returns the refresh rate that the frame lock board is sending to the GPU, in mHz (Millihertz) (i.e. to get the refresh rate in Hz, divide the returned value by 1000.)" },
-    { "FrameLockTiming",       NV_CTRL_FRAMELOCK_TIMING,            N|F|G,   "This is 1 when the GPU is both receiving and locked to an input timing signal. Timing information may come from the following places: Another frame lock device that is set to master, the house sync signal, or the GPU's internal timing from a display device." },
+    { "FrameLockSyncRate",     NV_CTRL_FRAMELOCK_SYNC_RATE,         N|F|G,   "Returns the refresh rate that the frame lock board is sending to the GPU, in mHz (Millihertz) (i.e., to get the refresh rate in Hz, divide the returned value by 1000)." },
+    { "FrameLockTiming",       NV_CTRL_FRAMELOCK_TIMING,            N|F|G,   "This is 1 when the GPU is both receiving and locked to an input timing signal.  Timing information may come from the following places: another frame lock device that is set to master, the house sync signal, or the GPU's internal timing from a display device." },
     { "FramelockUseHouseSync", NV_CTRL_USE_HOUSE_SYNC,              N|F|G,   "When 1, the server (master) frame lock device will propagate the incoming house sync signal as the outgoing frame lock sync signal.  If the frame lock device cannot detect a frame lock sync signal, it will default to using the internal timings from the GPU connected to the primary connector." },
     { "FrameLockSlaves",       NV_CTRL_FRAMELOCK_SLAVES,            N|F|G|D, "Get/set whether the display device(s) given should listen or ignore the master's sync signal." },
     { "FrameLockMasterable",   NV_CTRL_FRAMELOCK_MASTERABLE,        N|F|G|D, "Returns whether the display device(s) can be set as the master of the frame lock group.  Returns a bitmask indicating which of the given display devices can be set as a frame lock master." },
     { "FrameLockSlaveable",    NV_CTRL_FRAMELOCK_SLAVEABLE,         N|F|G|D, "Returns whether the display device(s) can be set as slave(s) of the frame lock group." },
     { "FrameLockFPGARevision", NV_CTRL_FRAMELOCK_FPGA_REVISION,     N|F|G,   "Returns the FPGA revision of the Frame Lock device." },
-    { "FrameLockSyncRate4",    NV_CTRL_FRAMELOCK_SYNC_RATE_4,       N|F|G,   "Returns the refresh rate that the frame lock board is sending to the GPU in 1/10000 Hz (i.e. to get the refresh rate in Hz, divide the returned value by 10000.)" },
+    { "FrameLockSyncRate4",    NV_CTRL_FRAMELOCK_SYNC_RATE_4,       N|F|G,   "Returns the refresh rate that the frame lock board is sending to the GPU in 1/10000 Hz (i.e., to get the refresh rate in Hz, divide the returned value by 10000)." },
     { "FrameLockSyncDelayResolution", NV_CTRL_FRAMELOCK_SYNC_DELAY_RESOLUTION, N|F|G, "Returns the number of nanoseconds that one unit of FrameLockSyncDelay corresponds to." },
 
     /* GVO */
@@ -213,7 +219,7 @@ AttributeTableEntry attributeTable[] = {
     { "GvoCapabilities",                 NV_CTRL_GVO_CAPABILITIES,                     I|N,   "Returns a description of the GVO capabilities that differ between NVIDIA SDI products.  This value is a bitmask where each bit indicates whether that capability is available." },
     { "GvoCompositeTermination",         NV_CTRL_GVO_COMPOSITE_TERMINATION,            I,     "Enable or disable 75 ohm termination of the SDI composite input signal." },
     { "GvoFlipQueueSize",                NV_CTRL_GVO_FLIP_QUEUE_SIZE,                  I,     "Sets/Returns the GVO flip queue size.  This value is used by the GLX_NV_video_out extension to determine the size of the internal flip queue when pbuffers are sent to the video device (via glXSendPbufferToVideoNV()).  This attribute is applied to GLX when glXGetVideoDeviceNV() is called by the application." },
-    { "GvoLockOwner",                    NV_CTRL_GVO_LOCK_OWNER,                       I|N,   "Indicates that the GVO device is available or in use (by GLX, Clone Mode, TwinView etc.)" },
+    { "GvoLockOwner",                    NV_CTRL_GVO_LOCK_OWNER,                       I|N,   "Indicates that the GVO device is available or in use (by GLX, Clone Mode, or TwinView)." },
     { "GvoOutputVideoLocked",            NV_CTRL_GVO_OUTPUT_VIDEO_LOCKED,              I|N,   "Returns whether or not the GVO output video is locked to the GPU output signal." },
     { "GvoSyncLockStatus",               NV_CTRL_GVO_SYNC_LOCK_STATUS,                 I|N,   "Returns whether or not the GVO device is locked to the input reference signal." },
     { "GvoANCTimeCodeGeneration",        NV_CTRL_GVO_ANC_TIME_CODE_GENERATION,         I,     "Controls whether the GVO device generates time codes in the ANC region of the SDI video output stream." },
@@ -254,19 +260,19 @@ AttributeTableEntry attributeTable[] = {
     { "RedGamma",                   GAMMA_VALUE|RED_CHANNEL,               C|G,   "Controls the gamma of the color red in the display." },
     { "GreenGamma",                 GAMMA_VALUE|GREEN_CHANNEL,             C|G,   "Controls the gamma of the color green in the display." },
     { "BlueGamma",                  GAMMA_VALUE|BLUE_CHANNEL,              C|G,   "Controls the gamma of the color blue in the display." },
-    { "FlatpanelDithering",         NV_CTRL_FLATPANEL_DITHERING,           0,     "This is the current state of flat panel dithering.  (This attribute has been deprecated.)" },
+    { "FlatpanelDithering",         NV_CTRL_FLATPANEL_DITHERING,           0,     "This is the current state of flat panel dithering.  This attribute has been deprecated." },
     { "DigitalVibrance",            NV_CTRL_DIGITAL_VIBRANCE,              0,     "Sets the digital vibrance level of the display device." },
     { "ImageSharpening",            NV_CTRL_IMAGE_SHARPENING,              0,     "Adjusts the sharpness of the display's image quality by amplifying high frequency content." },
     { "ImageSharpeningDefault",     NV_CTRL_IMAGE_SHARPENING_DEFAULT,      0,     "Returns default value of image sharpening." },
-    { "FrontendResolution",         NV_CTRL_FRONTEND_RESOLUTION,           N|P,   "Returns the dimensions of the frontend (current) resolution as determined by the NVIDIA X Driver. This attribute is a packed integer; the width is packed in the upper 16 bits and the height is packed in the lower 16-bits." },
+    { "FrontendResolution",         NV_CTRL_FRONTEND_RESOLUTION,           N|P,   "Returns the dimensions of the frontend (current) resolution as determined by the NVIDIA X Driver.  This attribute is a packed integer; the width is packed in the upper 16 bits and the height is packed in the lower 16-bits." },
     { "BackendResolution",          NV_CTRL_BACKEND_RESOLUTION,            N|P,   "Returns the dimensions of the backend resolution as determined by the NVIDIA X Driver.  The backend resolution is the resolution (supported by the display device) the GPU is set to scale to.  If this resolution matches the frontend resolution, GPU scaling will not be needed/used.  This attribute is a packed integer; the width is packed in the upper 16-bits and the height is packed in the lower 16-bits." },
     { "FlatpanelNativeResolution",  NV_CTRL_FLATPANEL_NATIVE_RESOLUTION,   N|P,   "Returns the dimensions of the native resolution of the flat panel as determined by the NVIDIA X Driver.  The native resolution is the resolution at which a flat panel must display any image.  All other resolutions must be scaled to this resolution through GPU scaling or the DFP's native scaling capabilities in order to be displayed.  This attribute is only valid for flat panel (DFP) display devices.  This attribute is a packed integer; the width is packed in the upper 16-bits and the height is packed in the lower 16-bits." },
     { "FlatpanelBestFitResolution", NV_CTRL_FLATPANEL_BEST_FIT_RESOLUTION, N|P,   "Returns the dimensions of the resolution, selected by the X driver, from the DFP's EDID that most closely matches the frontend resolution of the current mode.  The best fit resolution is selected on a per-mode basis.  This attribute is only valid for flat panel (DFP) display devices.  This attribute is a packed integer; the width is packed in the upper 16-bits and the height is packed in the lower 16-bits." },
     { "DFPScalingActive",           NV_CTRL_DFP_SCALING_ACTIVE,            N,     "Returns the current state of DFP scaling.  DFP scaling is mode-specific (meaning it may vary depending on which mode is currently set).  DFP scaling is active if the GPU is set to scale to the best fit resolution (GPUScaling is set to use FlatpanelBestFitResolution) and the best fit and native resolutions are different." },
     { "GPUScaling",                 NV_CTRL_GPU_SCALING,                   P,     "Controls what the GPU scales to and how.  This attribute is a packed integer; the scaling target (native/best fit) is packed in the upper 16-bits and the scaling method is packed in the lower 16-bits." },
     { "GPUScalingActive",           NV_CTRL_GPU_SCALING_ACTIVE,            N,     "Returns the current state of GPU scaling.  GPU scaling is mode-specific (meaning it may vary depending on which mode is currently set).  GPU scaling is active if the frontend timing (current resolution) is different than the target resolution.  The target resolution is either the native resolution of the flat panel or the best fit resolution supported by the flat panel.  What (and how) the GPU should scale to is controlled through the GPUScaling attribute." },
-    { "RefreshRate",                NV_CTRL_REFRESH_RATE,                  N|H,   "Returns the refresh rate of the specified display device in cHz (Centihertz) (i.e. to get the refresh rate in Hz, divide the returned value by 100.)" },
-    { "RefreshRate3",               NV_CTRL_REFRESH_RATE_3,                N|K,   "Returns the refresh rate of the specified display device in mHz (Millihertz) (i.e. to get the refresh rate in Hz, divide the returned value by 1000.)" },
+    { "RefreshRate",                NV_CTRL_REFRESH_RATE,                  N|H,   "Returns the refresh rate of the specified display device in cHz (Centihertz) (to get the refresh rate in Hz, divide the returned value by 100)." },
+    { "RefreshRate3",               NV_CTRL_REFRESH_RATE_3,                N|K,   "Returns the refresh rate of the specified display device in mHz (Millihertz) (to get the refresh rate in Hz, divide the returned value by 1000)." },
     { "OverscanCompensation",       NV_CTRL_OVERSCAN_COMPENSATION,         0,     "Adjust the amount of overscan compensation scaling, in pixels, to apply to the specified display device." },
 
     /* TV */
@@ -316,7 +322,7 @@ AttributeTableEntry attributeTable[] = {
  * about.
  */
 
-#if NV_CTRL_LAST_ATTRIBUTE != NV_CTRL_OVERSCAN_COMPENSATION
+#if NV_CTRL_LAST_ATTRIBUTE != NV_CTRL_GPU_PCIE_GENERATION
 #warning "Have you forgotten to add a new integer attribute to attributeTable?"
 #endif
 

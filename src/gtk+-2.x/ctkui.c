@@ -64,9 +64,9 @@ void ctk_main(ParsedAttribute *p, ConfigProperties *conf,
                                       GTK_MESSAGE_WARNING,
                                       GTK_BUTTONS_OK,
                                       "You do not appear to be using the NVIDIA "
-                                      "X driver. Please edit your X configuration "
+                                      "X driver.  Please edit your X configuration "
                                       "file (just run `nvidia-xconfig` "
-                                      "as root), and restart the X server. ");
+                                      "as root), and restart the X server.");
         gtk_dialog_run(GTK_DIALOG(dlg));
         gtk_widget_destroy (dlg);
     }

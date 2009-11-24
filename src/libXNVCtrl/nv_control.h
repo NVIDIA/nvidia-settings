@@ -43,7 +43,8 @@
  *             BadMatch, if an unknown TargetType is specified
  * 1.19        Added TargetType support for SetAttributeAndGetStatus and
  *             SetStringAttribute requests
- * 1.20        Added COOLER TargetType.
+ * 1.20        Added COOLER TargetType
+ * 1.21        Added initial 64-bit integer attribute support (read-only)
  */
 
 #ifndef __NVCONTROL_H
@@ -54,7 +55,7 @@
 #define NV_CONTROL_NAME "NV-CONTROL"
 
 #define NV_CONTROL_MAJOR 1
-#define NV_CONTROL_MINOR 20
+#define NV_CONTROL_MINOR 21
 
 #define X_nvCtrlQueryExtension                      0
 #define X_nvCtrlIsNv                                1
@@ -82,7 +83,9 @@
 #define X_nvCtrlSelectTargetNotify                  23
 #define X_nvCtrlQueryTargetCount                    24
 #define X_nvCtrlStringOperation                     25
-#define X_nvCtrlLastRequest  (X_nvCtrlStringOperation + 1)
+#define X_nvCtrlQueryValidAttributeValues64         26
+#define X_nvCtrlQueryAttribute64                    27
+#define X_nvCtrlLastRequest (X_nvCtrlQueryAttribute64 + 1)
 
 
 /* Define 32 bit floats */
@@ -175,13 +178,26 @@ typedef struct {
     CARD16 sequenceNumber B16;
     CARD32 length B32;
     CARD32 flags B32;
-    INT32  value B32;
+    INT32 value B32;
     CARD32 pad4 B32;
     CARD32 pad5 B32;
     CARD32 pad6 B32;
     CARD32 pad7 B32;
 } xnvCtrlQueryAttributeReply;
 #define sz_xnvCtrlQueryAttributeReply 32
+
+typedef struct {
+    BYTE type;
+    BYTE pad0;
+    CARD16 sequenceNumber B16;
+    CARD32 length B32;
+    CARD32 flags B32;
+    CARD32 pad3 B32;
+    CARD64 value_64;
+    CARD32 pad6 B32;
+    CARD32 pad7 B32;
+} xnvCtrlQueryAttribute64Reply;
+#define sz_xnvCtrlQueryAttribute64Reply 32
 
 typedef struct {
     CARD8 reqType;
@@ -290,13 +306,29 @@ typedef struct {
     CARD16 sequenceNumber B16;
     CARD32 length B32;
     CARD32 flags B32;
-    INT32  attr_type B32;
-    INT32  min B32;
-    INT32  max B32;
+    INT32 attr_type B32;
+    INT32 min B32;
+    INT32 max B32;
     CARD32 bits B32;
     CARD32 perms B32;
 } xnvCtrlQueryValidAttributeValuesReply;
 #define sz_xnvCtrlQueryValidAttributeValuesReply 32
+
+typedef struct {
+    BYTE type;
+    BYTE pad0;
+    CARD16 sequenceNumber B16;
+    CARD32 length B32;
+    CARD32 flags B32;
+    INT32 attr_type B32;
+    CARD64 min_64;
+    CARD64 max_64;
+    CARD64 bits_64;
+    CARD32 perms B32;
+    CARD32 pad1 B32;
+} xnvCtrlQueryValidAttributeValues64Reply;
+#define sz_xnvCtrlQueryValidAttributeValues64Reply 48
+#define sz_xnvCtrlQueryValidAttributeValues64Reply_extra ((48 - 32) >> 2)
 
 /* Set GVO Color Conversion request (deprecated) */
 typedef struct {

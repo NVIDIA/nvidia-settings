@@ -24,6 +24,7 @@
 #ifndef __NVCTRL_H
 #define __NVCTRL_H
 
+#include <stdint.h>
 
 /**************************************************************************/
 
@@ -82,14 +83,18 @@
  *    target type via XNVCTRLQueryTargetAttribute().
  *
  * X: When Xinerama is enabled, this attribute is kept consistent across
- *    all Physical X Screens;  Assignment of this attribute will be
+ *    all Physical X Screens;  assignment of this attribute will be
  *    broadcast by the NVIDIA X Driver to all X Screens.
  *
  * V: The attribute may be queried using an NV_CTRL_TARGET_TYPE_VCSC
  *    target type via XNVCTRLQueryTargetAttribute().
- * 
+ *
  * I: The attribute may be queried using an NV_CTRL_TARGET_TYPE_GVI target type
  *    via XNVCTRLQueryTargetAttribute().
+ *
+ * Q: The attribute is a 64-bit integer attribute;  use the 64-bit versions
+ *    of the appropriate query interfaces.
+ *
  * 
  * C: The attribute may be queried using an NV_CTRL_TARGET_TYPE_COOLER target
  *    type via XNVCTRLQueryTargetAttribute().
@@ -1031,6 +1036,10 @@
 #define NV_CTRL_GVIO_VIDEO_FORMAT_2048P_23_98_SMPTE372          36
 #define NV_CTRL_GVIO_VIDEO_FORMAT_2048I_48_00_SMPTE372          37
 #define NV_CTRL_GVIO_VIDEO_FORMAT_2048I_47_96_SMPTE372          38
+#define NV_CTRL_GVIO_VIDEO_FORMAT_1080P_50_00_3G_LEVEL_A_SMPTE274  39
+#define NV_CTRL_GVIO_VIDEO_FORMAT_1080P_59_94_3G_LEVEL_A_SMPTE274  40
+#define NV_CTRL_GVIO_VIDEO_FORMAT_1080P_60_00_3G_LEVEL_A_SMPTE274  41
+
 
 /* 
  * The following are deprecated; NV_CTRL_GVIO_REQUESTED_VIDEO_FORMAT and the
@@ -2553,7 +2562,6 @@
  * NV_CTRL_FRAMELOCK_SYNC_DELAY_RESOLUTION - Returns the number of nanoseconds
  * that one unit of NV_CTRL_FRAMELOCK_SYNC_DELAY corresponds to.
  */
-
 #define NV_CTRL_FRAMELOCK_SYNC_DELAY_RESOLUTION                 318 /* R-- */
 
 /*
@@ -2609,6 +2617,86 @@
         (NV_CTRL_THERMAL_COOLER_TARGET_GPU |        \
          NV_CTRL_THERMAL_COOLER_TARGET_MEMORY |     \
          NV_CTRL_THERMAL_COOLER_TARGET_POWER_SUPPLY) 
+
+/*
+ * NV_CTRL_GPU_ECC_SUPPORTED - Reports whether ECC is supported by the
+ * targeted GPU.
+ */
+#define NV_CTRL_GPU_ECC_SUPPORTED                               324 /* R--G */
+#define NV_CTRL_GPU_ECC_SUPPORTED_FALSE                           0
+#define NV_CTRL_GPU_ECC_SUPPORTED_TRUE                            1
+
+/*
+ * NV_CTRL_GPU_ECC_STATUS - Returns the current hardware ECC setting
+ * for the targeted GPU.
+ */
+#define NV_CTRL_GPU_ECC_STATUS                                  325 /* R--G */
+#define NV_CTRL_GPU_ECC_STATUS_DISABLED                           0
+#define NV_CTRL_GPU_ECC_STATUS_ENABLED                            1
+
+/*
+ * NV_CTRL_GPU_ECC_CONFIGURATION - Reports whether ECC can be configured
+ * dynamically for the GPU in question.
+ */
+#define NV_CTRL_GPU_ECC_CONFIGURATION_SUPPORTED                 326 /* R--G */
+#define NV_CTRL_GPU_ECC_CONFIGURATION_SUPPORTED_FALSE             0
+#define NV_CTRL_GPU_ECC_CONFIGURATION_SUPPORTED_TRUE              1
+
+/*
+ * NV_CTRL_GPU_ECC_CONFIGURATION_SETTING - Returns the current ECC
+ * configuration setting or specifies new settings.  New settings do not
+ * take effect until the next POST.
+ */
+#define NV_CTRL_GPU_ECC_CONFIGURATION                           327 /* RW-G */
+#define NV_CTRL_GPU_ECC_CONFIGURATION_DISABLED                    0
+#define NV_CTRL_GPU_ECC_CONFIGURATION_ENABLED                     1
+
+/*
+ * NV_CTRL_GPU_ECC_DEFAULT_CONFIGURATION_SETTING - Returns the default
+ * ECC configuration setting.
+ */
+#define NV_CTRL_GPU_ECC_DEFAULT_CONFIGURATION                   328 /* R--G */
+#define NV_CTRL_GPU_ECC_DEFAULT_CONFIGURATION_DISABLED            0
+#define NV_CTRL_GPU_ECC_DEFAULT_CONFIGURATION_ENABLED             1
+
+/*
+ * NV_CTRL_GPU_ECC_SINGLE_BIT_ERRORS - Returns the number of single-bit
+ * ECC errors detected by the targeted GPU since the last POST.
+ * Note: this attribute is a 64-bit integer attribute.
+ */
+#define NV_CTRL_GPU_ECC_SINGLE_BIT_ERRORS                       329 /* R--GQ */
+
+/*
+ * NV_CTRL_GPU_ECC_DOUBLE_BIT_ERRORS - Returns the number of double-bit
+ * ECC errors detected by the targeted GPU since the last POST.
+ * Note: this attribute is a 64-bit integer attribute.
+ */
+#define NV_CTRL_GPU_ECC_DOUBLE_BIT_ERRORS                       330 /* R--GQ */
+
+/*
+ * NV_CTRL_GPU_ECC_AGGREGATE_SINGLE_BIT_ERRORS - Returns the number of
+ * single-bit ECC errors detected by the targeted GPU since the
+ * last counter reset.
+ * Note: this attribute is a 64-bit integer attribute.
+ */
+#define NV_CTRL_GPU_ECC_AGGREGATE_SINGLE_BIT_ERRORS             331 /* R--GQ */
+
+/*
+ * NV_CTRL_GPU_ECC_AGGREGATE_DOUBLE_BIT_ERRORS - Returns the number of
+ * double-bit ECC errors detected by the targeted GPU since the
+ * last counter reset.
+ * Note: this attribute is a 64-bit integer attribute.
+ */
+#define NV_CTRL_GPU_ECC_AGGREGATE_DOUBLE_BIT_ERRORS             332 /* R--GQ */
+
+/*
+ * NV_CTRL_GPU_ECC_RESET_ERROR_STATUS - Resets the volatile/aggregate
+ * single-bit and double-bit error counters.  This attribute is a
+ * bitmask attribute.
+ */
+#define NV_CTRL_GPU_ECC_RESET_ERROR_STATUS                      333 /* -W-G */
+#define NV_CTRL_GPU_ECC_RESET_ERROR_STATUS_VOLATILE             0x00000001
+#define NV_CTRL_GPU_ECC_RESET_ERROR_STATUS_AGGREGATE            0x00000002
 
 /*
  * NV_CTRL_GPU_POWER_MIZER_MODE - Provides a hint to the driver
@@ -2679,8 +2767,14 @@
  */
 #define NV_CTRL_OVERSCAN_COMPENSATION                           339 /* RWDG */
 
+/*
+ * NV_CTRL_GPU_PCIE_GENERATION - Reports the current PCI-E generation.
+ */
+#define NV_CTRL_GPU_PCIE_GENERATION                             341 /* R--GI */
+#define NV_CTRL_GPU_PCIE_GENERATION1                            0x00000001
+#define NV_CTRL_GPU_PCIE_GENERATION2                            0x00000002
 
-#define NV_CTRL_LAST_ATTRIBUTE NV_CTRL_OVERSCAN_COMPENSATION
+#define NV_CTRL_LAST_ATTRIBUTE NV_CTRL_GPU_PCIE_GENERATION
 
 /**************************************************************************/
 
@@ -3699,6 +3793,7 @@
 #define ATTRIBUTE_TYPE_BOOL      3
 #define ATTRIBUTE_TYPE_RANGE     4
 #define ATTRIBUTE_TYPE_INT_BITS  5
+#define ATTRIBUTE_TYPE_64BIT_INTEGER  6
 
 #define ATTRIBUTE_TYPE_READ       0x001
 #define ATTRIBUTE_TYPE_WRITE      0x002
@@ -3715,8 +3810,8 @@ typedef struct _NVCTRLAttributeValidValues {
     int type;
     union {
         struct {
-            int min;
-            int max;
+            int64_t min;
+            int64_t max;
         } range;
         struct {
             unsigned int ints;

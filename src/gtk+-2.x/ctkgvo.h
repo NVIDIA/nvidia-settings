@@ -121,7 +121,7 @@ typedef struct {
     int rate;
     int width;
     int height;
-} GvoFormatDetails;
+} GvioFormatDetails;
 
 
 

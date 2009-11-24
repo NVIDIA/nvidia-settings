@@ -105,7 +105,7 @@ static const char *__aa_line_gamma_slider_help =
 "This option allows Gamma-corrected "
 "antialiased lines to consider variances in the color "
 "display capabilities of output devices when rendering "
-"smooth lines. This option is applied to OpenGL applications "
+"smooth lines.  This option is applied to OpenGL applications "
 "that are started after this option is set.";
 
 static const char *__image_settings_slider_help =
@@ -114,7 +114,7 @@ static const char *__image_settings_slider_help =
 static const char *__force_stereo_help =
 "Enabling this option causes OpenGL to force "
 "stereo flipping even if a stereo drawable is "
-"not visible. This option is applied "
+"not visible.  This option is applied "
 "immediately.";
 
 static const char *__xinerama_stereo_help =

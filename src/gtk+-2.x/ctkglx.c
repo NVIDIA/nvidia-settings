@@ -49,7 +49,7 @@ static const char * __fid_help  =
 static const char * __vid_help  =
   "vid (XVisual ID) -  ID of the associated X Visual.";
 static const char * __vt_help  =
-  "vt (XVisual Type) -  Type of the associated X Visual. "
+  "vt (XVisual Type) -  Type of the associated X Visual.  "
   "Possible X visual types are 'tc', 'dc', 'pc', 'sc', 'gs', 'sg' and '.' "
   "which mean TrueColor, DirectColor, PseudoColor, StaticColor, GrayScale, "
   "StaticGray and None, respectively.";
@@ -72,16 +72,16 @@ static const char * __st_help =
   "st (Stereo buffer) - 'y' if the configuration has left and right color "
   "buffers that are rendered to in stereo.  '-' if this is not supported.";
 static const char * __rs_help =
-  "rs (Red size) - Number of bits per color used for red. "
+  "rs (Red size) - Number of bits per color used for red.  "
   "Undefined for configurations that use color indexing.";
 static const char * __gs_help =
-  "gs (Green size) - Number of bits per color used for green. "
+  "gs (Green size) - Number of bits per color used for green.  "
   "Undefined for configurations that use color indexing.";
 static const char * __bs_help =
-  "bs (Blue size) - Number of bits per color used for blue. "
+  "bs (Blue size) - Number of bits per color used for blue.  "
   "Undefined for configurations that use color indexing.";
 static const char * __as_help =
-  "as (Alpha size) - Number of bits per color used for alpha. "
+  "as (Alpha size) - Number of bits per color used for alpha.  "
   "Undefined for configurations that use color indexing.";
 static const char * __aux_help =
   "aux (Auxiliary buffers) - Number of available auxiliary color buffers.";
@@ -111,7 +111,7 @@ static const char * __cav_help =
   "cav (Caveats) - Caveats for this configuration.  A frame buffer "
   "configuration may have the following caveats: 'NonC' if it supports "
   "any non-conformant visual extension.  'Slow' if it has reduced "
-  "preformance. '-' if it has no caveats.";
+  "preformance.  '-' if it has no caveats.";
 static const char * __pbw_help =
   "pbw (Pbuffer width) - Width of pbuffer (in hexadecimal).";
 static const char * __pbh_help =

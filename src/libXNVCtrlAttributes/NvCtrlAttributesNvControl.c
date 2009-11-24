@@ -150,11 +150,29 @@ ReturnStatus NvCtrlNvControlQueryTargetCount(NvCtrlAttributePrivateHandle *h,
 
 ReturnStatus NvCtrlNvControlGetAttribute (NvCtrlAttributePrivateHandle *h,
                                           unsigned int display_mask,
-                                          int attr, int *val)
+                                          int attr, int64_t *val)
 {
+    ReturnStatus status;
+    int value_32;
+    int major, minor;
+
+    major = h->nv->major_version;
+    minor = h->nv->minor_version;
+
     if (attr <= NV_CTRL_LAST_ATTRIBUTE) {
-        if (XNVCTRLQueryTargetAttribute (h->dpy, h->target_type, h->target_id,
-                                         display_mask, attr, val)) {
+        if ((major > 1) || ((major == 1) && (minor >= 20))) {
+            status = XNVCTRLQueryTargetAttribute64(h->dpy, h->target_type,
+                                                   h->target_id,
+                                                   display_mask, attr,
+                                                   val);
+        } else {
+            status = XNVCTRLQueryTargetAttribute(h->dpy, h->target_type,
+                                                 h->target_id,
+                                                 display_mask, attr,
+                                                 &value_32);
+            *val = value_32;
+        }
+        if (status) {
             return NvCtrlSuccess;
         } else {
             return NvCtrlAttributeNotAvailable;
@@ -168,10 +186,10 @@ ReturnStatus NvCtrlNvControlGetAttribute (NvCtrlAttributePrivateHandle *h,
 
         switch (attr) {
         case NV_CTRL_ATTR_NV_MAJOR_VERSION:
-            *val = h->nv->major_version;
+            *val = major;
             return NvCtrlSuccess;
         case NV_CTRL_ATTR_NV_MINOR_VERSION:
-            *val = h->nv->minor_version;
+            *val = minor;
             return NvCtrlSuccess;
         }
     }

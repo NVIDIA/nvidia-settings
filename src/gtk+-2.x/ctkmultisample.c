@@ -1308,7 +1308,7 @@ GtkTextBuffer *ctk_multisample_create_help(GtkTextTagTable *table,
         if (ctk_multisample->active_attributes & __FSAA_NONE) {
             ctk_help_term(b, &i, "Off");
             ctk_help_para(b, &i, "Disables antialiasing in OpenGL "
-                          "applications. "
+                          "applications.  "
                           "Select this option if you require maximum "
                           "performance in your applications.");
         }
@@ -1325,7 +1325,7 @@ GtkTextBuffer *ctk_multisample_create_help(GtkTextTagTable *table,
             ctk_help_term(b, &i, "2x Quincunx");
             ctk_help_para(b, &i, "This enables the patented Quincunx "
                           "Antialiasing technique available in the GeForce "
-                          "GPU family. "
+                          "GPU family.  "
                           "Quincunx Antialiasing offers the quality of the "
                           "slower, 4x antialiasing mode, but at nearly the "
                           "performance of the faster, 2x mode.");
@@ -1341,7 +1341,7 @@ GtkTextBuffer *ctk_multisample_create_help(GtkTextTagTable *table,
         if (ctk_multisample->active_attributes & __FSAA_2x2) {
             ctk_help_term(b, &i, "2 x 2 Supersampling");
             ctk_help_para(b, &i, "This enables antialiasing using the 2x2 "
-                          "Supersampling mode. This mode offers higher image "
+                          "Supersampling mode.  This mode offers higher image "
                           "quality at the expense of some performance in "
                           "OpenGL applications.");
         }
@@ -1349,7 +1349,7 @@ GtkTextBuffer *ctk_multisample_create_help(GtkTextTagTable *table,
         if (ctk_multisample->active_attributes & __FSAA_4x) {
             ctk_help_term(b, &i, "4x (4xMS)");
             ctk_help_para(b, &i, "This enables antialiasing using the 4x (4xMS)"
-                          "Bilinear mode. This mode offers higher image "
+                          "Bilinear mode.  This mode offers higher image "
                           "quality at the expense of some performance in "
                           "OpenGL applications.");
         }
@@ -1357,7 +1357,7 @@ GtkTextBuffer *ctk_multisample_create_help(GtkTextTagTable *table,
         if (ctk_multisample->active_attributes & __FSAA_4x_9t) {
             ctk_help_term(b, &i, "4x, 9-tap Gaussian");
             ctk_help_para(b, &i, "This enables antialiasing using the 4x, "
-                          "9-tap (Gaussian) mode. This mode offers higher "
+                          "9-tap (Gaussian) mode.  This mode offers higher "
                           "image quality but at the expense of some "
                           "performance in OpenGL applications.");
         }
@@ -1417,9 +1417,9 @@ GtkTextBuffer *ctk_multisample_create_help(GtkTextTagTable *table,
         
         ctk_help_para(b, &i, "Anisotropic filtering is a technique used to "
                       "improve the quality of textures applied to the "
-                      "surfaces of 3D objects when drawn at a sharp angle. "
+                      "surfaces of 3D objects when drawn at a sharp angle.  "
                       "Use the Anisotropic filtering slider to set the degree "
-                      "of anisotropic filtering for improved image quality. "
+                      "of anisotropic filtering for improved image quality.  "
                       "Enabling this option improves image quality at the "
                       "expense of some performance.");
 

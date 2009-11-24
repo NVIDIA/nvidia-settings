@@ -69,8 +69,8 @@ done:
                     scf_handle_destroy(scf_handle);
     }
     if (!status) {
-        fmterr("Unable to set X server default depth through "
-               "Solaris Service Management Facility");
+        fprintf(stderr, "Unable to set X server default depth through Solaris "
+                "Service Management Facility");
     }
     return status;
 }

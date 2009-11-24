@@ -486,6 +486,15 @@ ReturnStatus NvCtrlSetAttribute(NvCtrlAttributeHandle *handle,
 } /* NvCtrlSetAttribute() */
 
 
+ReturnStatus NvCtrlGetAttribute64(NvCtrlAttributeHandle *handle,
+                                  int attr, int64_t *val)
+{
+    if (!handle) return NvCtrlBadArgument;
+    return NvCtrlGetDisplayAttribute64(handle, 0, attr, val);
+
+} /* NvCtrlGetAttribute64() */
+
+
 ReturnStatus NvCtrlGetVoidAttribute(NvCtrlAttributeHandle *handle,
                                     int attr, void **ptr)
 {
@@ -524,10 +533,12 @@ ReturnStatus NvCtrlSetStringAttribute(NvCtrlAttributeHandle *handle,
 
 
 ReturnStatus
-NvCtrlGetDisplayAttribute(NvCtrlAttributeHandle *handle,
-                          unsigned int display_mask, int attr, int *val)
+NvCtrlGetDisplayAttribute64(NvCtrlAttributeHandle *handle,
+                            unsigned int display_mask, int attr, int64_t *val)
 {
+    ReturnStatus status;
     NvCtrlAttributePrivateHandle *h;
+    int value_32;
 
     h = (NvCtrlAttributePrivateHandle *) handle;
 
@@ -559,19 +570,34 @@ NvCtrlGetDisplayAttribute(NvCtrlAttributeHandle *handle,
 
     if ((attr >= NV_CTRL_ATTR_XV_BASE) &&
         (attr <= NV_CTRL_ATTR_XV_LAST_ATTRIBUTE)) {
-        
-        return NvCtrlXvGetAttribute(h, attr, val);
+        status = NvCtrlXvGetAttribute(h, attr, &value_32);
+        *val = value_32;
+        return status;
     }
 
     if ((attr >= NV_CTRL_ATTR_XRANDR_BASE) &&
         (attr <= NV_CTRL_ATTR_XRANDR_LAST_ATTRIBUTE)) {
-        
-        return NvCtrlXrandrGetAttribute(h, attr, val);
+        status = NvCtrlXrandrGetAttribute(h, attr, &value_32);
+        *val = value_32;
+        return status;
     }
-
 
     return NvCtrlNoAttribute;
     
+} /* NvCtrlGetDisplayAttribute64() */
+
+ReturnStatus
+NvCtrlGetDisplayAttribute(NvCtrlAttributeHandle *handle,
+                          unsigned int display_mask, int attr, int *val)
+{
+    ReturnStatus status;
+    int64_t value_64;
+
+    status = NvCtrlGetDisplayAttribute64(handle, display_mask, attr, &value_64);
+    *val = value_64;
+
+    return status;
+
 } /* NvCtrlGetDisplayAttribute() */
 
 

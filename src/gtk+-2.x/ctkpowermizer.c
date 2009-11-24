@@ -62,7 +62,7 @@ static const char *__performance_mode_short_help =
 "This indicates the current Performance Mode of the GPU.";
 
 static const char *__performance_mode_help =
-"This indicates the current Performance Mode of the GPU. "
+"This indicates the current Performance Mode of the GPU.  "
 "Performance Mode can be either \"Desktop\" or "
 "\"Maximum Performance\".";
 

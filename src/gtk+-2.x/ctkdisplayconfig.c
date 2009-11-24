@@ -177,18 +177,18 @@ static const char * __dpy_refresh_mnu_help =
 
 static const char * __dpy_position_type_help =
 "The Position Type drop-down allows you to set how the selected display "
-"device is placed within the X screen. This is only available when "
+"device is placed within the X screen.  This is only available when "
 "multiple display devices are present.";
 
 static const char * __dpy_position_relative_help =
 "The Position Relative drop-down allows you to set which other display "
 "device (within the X screen) the selected display device should be "
-"relative to. This is only available when multiple display "
+"relative to.  This is only available when multiple display "
 "devices are present.";
 
 static const char * __dpy_position_offset_help =
 "The Position Offset identifies the top left of the display device "
-"as an offset from the top left of the X screen position. This is only "
+"as an offset from the top left of the X screen position.  This is only "
 "available when multiple display devices are present.";
 
 static const char * __dpy_panning_help =
@@ -204,7 +204,7 @@ static const char * __dpy_primary_help =
 /* Screen tooltips */
 
 static const char * __screen_virtual_size_help =
-"The Virtual Size allows setting the size of the resulting X screen. "
+"The Virtual Size allows setting the size of the resulting X screen.  "
 "The virtual size must be at least large enough to hold all the display "
 "devices that are currently enabled for scanout.";
 
@@ -213,20 +213,20 @@ static const char * __screen_depth_help =
 "screen; changing this option will require restarting your X server.";
 
 static const char * __screen_position_type_help =
-"The Position Type drop-down appears when two or more display devices are active. "
+"The Position Type drop-down appears when two or more display devices are active.  "
 "This allows you to set how the selected screen "
 "is placed within the X server layout; changing this option will require "
 "restarting your X server.";
 
 static const char * __screen_position_relative_help =
-"The Position Relative drop-down appears when two or more display devices are active. "
-"This allows you to set which other Screen "
+"The Position Relative drop-down appears when two or more display devices "
+"are active.  This allows you to set which other Screen "
 "the selected screen should be relative to; changing this option will "
 "require restarting your X server.";
 
 static const char * __screen_position_offset_help =
-"The Position Offset drop-down appears when two or more display devices are active. "
-"This identifies the top left of the selected Screen as "
+"The Position Offset drop-down appears when two or more display devices "
+"are active.  This identifies the top left of the selected Screen as "
 "an offset from the top left of the X server layout in absolute coordinates; "
 "changing this option will require restarting your X server.";
 
@@ -3474,6 +3474,8 @@ static void setup_screen_page(CtkDisplayConfig *ctk_object)
 
     /* Setup the screen number */
     tmp = g_strdup_printf("%d", screen->scrnum);
+    g_object_set(gtk_widget_get_settings(ctk_object->txt_screen_num),
+                 "gtk-label-select-on-focus", FALSE, NULL);
     gtk_label_set_text(GTK_LABEL(ctk_object->txt_screen_num), tmp);
     g_free(tmp);
     

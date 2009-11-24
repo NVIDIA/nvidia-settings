@@ -602,7 +602,7 @@ GtkTextBuffer *ctk_clocks_create_help(GtkTextTagTable *table,
                   "WARNING: Overclocking has the potential of destroying your "
                   "graphics card, CPU, RAM and any other component.  It may "
                   "also reduce the life expectancy of your components and "
-                  "void manufacturer warranties.  DO THIS AT YOUR OWN RISK. "
+                  "void manufacturer warranties.  DO THIS AT YOUR OWN RISK."
                   );
     ctk_help_heading(b, &i, "Enabeling Clock Frequencies");
     ctk_help_para(b, &i, __enable_button_help);

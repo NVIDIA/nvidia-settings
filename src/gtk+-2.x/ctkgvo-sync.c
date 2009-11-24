@@ -1519,7 +1519,7 @@ GtkTextBuffer* ctk_gvo_sync_create_help(GtkTextTagTable *table,
     ctk_help_heading(b, &i, "Input Video Format Detect");
     ctk_help_para(b, &i, __input_video_format_detect_help);
     ctk_help_heading(b, &i, "Composite Termination");
-    ctk_help_para(b, &i, "%s. This allows the composite signal to be daisy "
+    ctk_help_para(b, &i, "%s.  This allows the composite signal to be daisy "
                   "chained from a server load.",
                   __composite_termination_help);
     ctk_help_heading(b, &i, "Sync Mode");

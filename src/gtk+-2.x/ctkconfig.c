@@ -69,12 +69,12 @@ static const char *__x_display_names_help =
 
 static const char *__show_quit_dialog_help =
 "When this option is enabled, nvidia-settings will ask if you "
-"really want to quit when the quit button is pressed. ";
+"really want to quit when the quit button is pressed.";
 
 static const char *__save_current_config_help =
 "When nvidia-settings exits, it saves the current X server "
 "configuration to a configuration file (\"~/.nvidia-settings-rc\", "
-"by default). Use this button to save the current X server "
+"by default).  Use this button to save the current X server "
 "configuration immediately, optionally to a different file.";
 
 static void ctk_config_class_init(CtkConfigClass *ctk_config_class);
@@ -515,8 +515,8 @@ GtkTextBuffer *ctk_config_create_help(GtkTextTagTable *table)
     
     ctk_help_heading(b, &i, "Active Timers");
     ctk_help_para(b, &i, "Some attributes are polled periodically "
-                  "to ensure the reported values are up-to-date. "
-                  " Each row in the 'Active Timers' table reflects "
+                  "to ensure the reported values are up-to-date.  "
+                  "Each row in the 'Active Timers' table reflects "
                   "the configuration of one of these timers and "
                   "controls how frequently, if at all, a given "
                   "attribute is polled.  The 'Description' field "

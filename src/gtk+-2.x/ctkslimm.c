@@ -1717,7 +1717,7 @@ GtkTextBuffer *ctk_slimm_create_help(GtkTextTagTable *table,
     ctk_help_para(b, &i, "These two controls allow the user to specify the "
                   "Horizontal and Vertical Edge Overlap values.  The displays "
                   "will overlap by the specified number of pixels when forming "
-                  "the grid configuration. For example, 4 flat panel displays "
+                  "the grid configuration.  For example, 4 flat panel displays "
                   "forming a 2 x 2 grid in SLI Mosaic Mode with a resolution of "
                   "1600x1200 and a Horizontal and Vertical Edge overlap of 50 "
                   "will generate the following MetaMode: \"1600x1200+0+0,"

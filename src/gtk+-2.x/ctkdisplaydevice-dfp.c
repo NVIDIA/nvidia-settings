@@ -86,7 +86,7 @@ static const char *__scaling_help =
 "A flat panel usually has a single 'native' resolution.  If you are "
 "using a resolution that is smaller than the flat panel's native "
 "resolution, then Flat Panel Scaling can adjust how the image is "
-"displayed on the flat panel. This setting will only take effect when "
+"displayed on the flat panel.  This setting will only take effect when "
 "GPU scaling is active, which occurs when the frontend and backend "
 "resolutions of the current mode are different.";
 
@@ -870,7 +870,7 @@ GtkTextBuffer *ctk_display_device_dfp_create_help(GtkTextTagTable *table,
     
     ctk_help_term(b, &i, "Centered");
     ctk_help_para(b, &i, "The image will only occupy the number of pixels "
-                  "needed and be centered on the flat panel. Setting this "
+                  "needed and be centered on the flat panel.  Setting this "
                   "will disable image sharpening for the display device.");
     
     ctk_help_term(b, &i, "Aspect Ratio Scaled");
