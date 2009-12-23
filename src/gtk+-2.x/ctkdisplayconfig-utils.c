@@ -1851,6 +1851,7 @@ nvDisplayPtr gpu_add_display_from_server(nvGpuPtr gpu,
     if (display->is_sdi && !gpu->gvo_mode_data) {
         unsigned int valid1 = 0;
         unsigned int valid2 = 0;
+        unsigned int valid3 = 0;
         NVCTRLAttributeValidValuesRec valid;
 
         ret = NvCtrlGetValidAttributeValues(gpu->handle,
@@ -1873,9 +1874,20 @@ nvDisplayPtr gpu_add_display_from_server(nvGpuPtr gpu,
             valid2 = valid.u.bits.ints;
         }
 
+        ret = NvCtrlGetValidAttributeValues(gpu->handle,
+                                            NV_CTRL_GVIO_REQUESTED_VIDEO_FORMAT3,
+                                            &valid);
+        if ((ret != NvCtrlSuccess) ||
+            (valid.type != ATTRIBUTE_TYPE_INT_BITS)) {
+            valid3 = 0;
+        } else {
+            valid3 = valid.u.bits.ints;
+        }
+
         /* Count the number of valid modes there are */
         gpu->num_gvo_modes = count_number_of_bits(valid1);
         gpu->num_gvo_modes += count_number_of_bits(valid2);
+        gpu->num_gvo_modes += count_number_of_bits(valid3);
         if (gpu->num_gvo_modes > 0) {
             gpu->gvo_mode_data = (GvoModeData *)calloc(gpu->num_gvo_modes,
                                                        sizeof(GvoModeData));
@@ -1903,7 +1915,16 @@ nvDisplayPtr gpu_add_display_from_server(nvGpuPtr gpu,
                 }
                 valid2 >>= 1;
                 id++;
-            }                
+            }
+            while (valid3) {
+                if (valid3 & 1) {
+                    if (gpu_query_gvo_mode_info(gpu, id, idx)) {
+                        idx++;
+                    }
+                }
+                valid3 >>= 1;
+                id++;
+            }
         }
     }
 

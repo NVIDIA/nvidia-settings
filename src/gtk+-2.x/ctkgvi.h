@@ -26,6 +26,7 @@
 #define __CTK_GVI_H__
 
 #include "NvCtrlAttributes.h"
+#include "ctkevent.h"
 #include "ctkconfig.h"
 
 G_BEGIN_DECLS
@@ -61,6 +62,8 @@ struct _CtkGvi
     int num_jacks;
     int max_channels_per_jack;
 
+    GtkWidget *gpu_name;
+
     GtkWidget *jack_channel_omenu;
 
     GtkWidget *input_info_vbox;
@@ -75,7 +78,8 @@ struct _CtkGviClass
 };
 
 GType          ctk_gvi_get_type    (void) G_GNUC_CONST;
-GtkWidget*     ctk_gvi_new         (NvCtrlAttributeHandle *, CtkConfig *);
+GtkWidget*     ctk_gvi_new         (NvCtrlAttributeHandle *, CtkConfig *,
+                                    CtkEvent *);
 GtkTextBuffer* ctk_gvi_create_help (GtkTextTagTable *, CtkGvi *);
 
 void           ctk_gvi_start_timer (GtkWidget *);

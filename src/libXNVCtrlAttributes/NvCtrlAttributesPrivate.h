@@ -266,6 +266,13 @@ ReturnStatus
 NvCtrlNvControlGetValidAttributeValues (NvCtrlAttributePrivateHandle *,
                                         unsigned int, int,
                                         NVCTRLAttributeValidValuesRec *);
+
+ReturnStatus
+NvCtrlNvControlGetValidStringDisplayAttributeValues
+                                      (NvCtrlAttributePrivateHandle *,
+                                       unsigned int, int,
+                                       NVCTRLAttributeValidValuesRec *);
+
 ReturnStatus
 NvCtrlNvControlGetStringAttribute (NvCtrlAttributePrivateHandle *,
                                    unsigned int, int, char **);

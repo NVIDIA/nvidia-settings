@@ -494,15 +494,40 @@ static void show_detailed_info_button_toggled(GtkWidget *button,
     update_sdi_input_info(ctk_gvi);
 }
 
+static gchar* gpu_name_string(gint gpu, CtrlHandles *handle)
+{
+    gchar *gpu_name;
+
+    if ((gpu < 0) || (gpu >= handle->targets[GPU_TARGET].n)) {
+        gpu_name = g_strdup_printf("None");
+    } else {
+        NvCtrlAttributeHandle *gpu_handle = handle->targets[GPU_TARGET].t[gpu].h;
+        gpu_name = create_gpu_name_string(gpu_handle);
+    }
+    return gpu_name;
+}
+
+static void bound_gpu_changed(GtkObject *object, gpointer arg1,
+                              gpointer user_data)
+{
+    CtkGvi *ctk_gvi = (CtkGvi *) user_data;
+    CtkEventStruct *event_struct = (CtkEventStruct *) arg1;
+    gchar *gpu_name;
+
+    gpu_name = gpu_name_string(event_struct->value, ctk_gvi->ctk_config->pCtrlHandles);
+    
+    gtk_label_set_label(GTK_LABEL(ctk_gvi->gpu_name), gpu_name);
+}
 
 GtkWidget* ctk_gvi_new(NvCtrlAttributeHandle *handle,
-                       CtkConfig *ctk_config)
+                       CtkConfig *ctk_config,
+                       CtkEvent *ctk_event)
 {
     GObject *object;
     CtkGvi *ctk_gvi;
     GtkWidget *hbox, *vbox, *hsep, *hseparator, *table, *button;
     GtkWidget *banner, *label;
-    gchar *bus, *pci_bus_id, *irq;
+    gchar *bus, *pci_bus_id, *irq, *gpu_name;
     int tmp;
     ReturnStatus ret;
     gchar *firmware_version; 
@@ -537,7 +562,15 @@ GtkWidget* ctk_gvi_new(NvCtrlAttributeHandle *handle,
     } else {
         irq = g_strdup_printf("%d", tmp);
     }
-    
+   
+    /* NV_CTRL_GVI_BOUND_GPU */
+
+    ret = NvCtrlGetAttribute(handle, NV_CTRL_GVI_BOUND_GPU, &tmp);
+    if (ret != NvCtrlSuccess) {
+        tmp = -1;
+    }
+    gpu_name = gpu_name_string(tmp, ctk_config->pCtrlHandles);
+
     /* create the CtkGvi object */
 
     object = g_object_new(CTK_TYPE_GVI, NULL);
@@ -582,7 +615,7 @@ GtkWidget* ctk_gvi_new(NvCtrlAttributeHandle *handle,
     hseparator = gtk_hseparator_new();
     gtk_box_pack_start(GTK_BOX(hbox), hseparator, TRUE, TRUE, 5);
 
-    table = gtk_table_new(6, 2, FALSE);
+    table = gtk_table_new(8, 2, FALSE);
     gtk_box_pack_start(GTK_BOX(vbox), table, FALSE, FALSE, 0);
     gtk_table_set_row_spacings(GTK_TABLE(table), 3);
     gtk_table_set_col_spacings(GTK_TABLE(table), 15);
@@ -602,10 +635,25 @@ GtkWidget* ctk_gvi_new(NvCtrlAttributeHandle *handle,
     add_table_row(table, 5,
                   0, 0.5, "IRQ:",
                   0, 0.5, irq);
+    
+    label = gtk_label_new("Bound GPU:");
+    gtk_label_set_selectable(GTK_LABEL(label), TRUE);
+    gtk_misc_set_alignment(GTK_MISC(label), 0, 0.5);
+    gtk_table_attach(GTK_TABLE(table), label, 0, 1, 7, 8,
+                     GTK_FILL, GTK_EXPAND | GTK_FILL, 0, 0);
+
+    label = gtk_label_new(gpu_name);
+    gtk_label_set_selectable(GTK_LABEL(label), TRUE);
+    gtk_misc_set_alignment(GTK_MISC(label), 0, 0.5);
+    gtk_table_attach(GTK_TABLE(table), label, 1, 2, 7, 8,
+                     GTK_FILL, GTK_EXPAND | GTK_FILL, 0, 0);
+    ctk_gvi->gpu_name = label;
+    
     g_free(firmware_version);
     g_free(bus);
     g_free(pci_bus_id);
     g_free(irq);
+    g_free(gpu_name);
 
 
     hbox = gtk_hbox_new(FALSE, 0);
@@ -654,6 +702,11 @@ GtkWidget* ctk_gvi_new(NvCtrlAttributeHandle *handle,
     g_signal_connect(G_OBJECT(button), "toggled",
                      G_CALLBACK(show_detailed_info_button_toggled),
                      GTK_OBJECT(ctk_gvi));
+
+    g_signal_connect(G_OBJECT(ctk_event),
+                     CTK_EVENT_NAME(NV_CTRL_GVI_BOUND_GPU),
+                     G_CALLBACK(bound_gpu_changed),
+                     (gpointer) ctk_gvi);
 
     gtk_widget_show_all(GTK_WIDGET(ctk_gvi));
 

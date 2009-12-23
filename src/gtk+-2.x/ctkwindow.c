@@ -42,6 +42,7 @@
 #include "ctkgvo-sync.h"
 #include "ctkgvo-csc.h"
 #include "ctkconfig.h"
+#include "ctkutils.h"
 
 #include "ctkscreen.h"
 #include "ctkslimm.h"
@@ -760,10 +761,8 @@ GtkWidget *ctk_window_new(ParsedAttribute *p, ConfigProperties *conf,
 
     for (i = 0; i < h->targets[GPU_TARGET].n; i++) {
         
-        gchar *gpu_product_name;
         gchar *gpu_name;
         GtkWidget *child;
-        ReturnStatus ret;
         NvCtrlAttributeHandle *gpu_handle = h->targets[GPU_TARGET].t[i].h;
         UpdateDisplaysData *data;
 
@@ -772,17 +771,7 @@ GtkWidget *ctk_window_new(ParsedAttribute *p, ConfigProperties *conf,
 
         /* create the gpu entry name */
 
-        ret = NvCtrlGetStringDisplayAttribute(gpu_handle, 0,
-                                              NV_CTRL_STRING_PRODUCT_NAME,
-                                              &gpu_product_name);
-        if (ret == NvCtrlSuccess && gpu_product_name) {
-            gpu_name = g_strdup_printf("GPU %d - (%s)",
-                                       NvCtrlGetTargetId(gpu_handle),
-                                       gpu_product_name);
-        } else {
-            gpu_name =  g_strdup_printf("GPU %d - (Unknown)",
-                                        NvCtrlGetTargetId(gpu_handle));
-        }
+        gpu_name = create_gpu_name_string(gpu_handle);
         if (!gpu_name) continue;
 
         /* create the object for receiving NV-CONTROL events */
@@ -800,7 +789,7 @@ GtkWidget *ctk_window_new(ParsedAttribute *p, ConfigProperties *conf,
                            CTK_WINDOW_WIDGET_COLUMN, child, -1);
         gtk_tree_store_set(ctk_window->tree_store, &iter,
                            CTK_WINDOW_HELP_COLUMN, 
-                           ctk_gpu_create_help(tag_table), -1);
+                           ctk_gpu_create_help(tag_table, CTK_GPU(child)), -1);
         gtk_tree_store_set(ctk_window->tree_store, &iter,
                            CTK_WINDOW_CONFIG_FILE_ATTRIBUTES_FUNC_COLUMN,
                            NULL, -1);
@@ -949,7 +938,7 @@ GtkWidget *ctk_window_new(ParsedAttribute *p, ConfigProperties *conf,
         gtk_tree_store_append(ctk_window->tree_store, &iter, NULL);
         gtk_tree_store_set(ctk_window->tree_store, &iter,
                            CTK_WINDOW_LABEL_COLUMN, gvi_name, -1);
-        child = ctk_gvi_new(gvi_handle, ctk_config);
+        child = ctk_gvi_new(gvi_handle, ctk_config, ctk_event);
         gtk_object_ref(GTK_OBJECT(child));
         gtk_tree_store_set(ctk_window->tree_store, &iter,
                            CTK_WINDOW_WIDGET_COLUMN, child, -1);

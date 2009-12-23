@@ -270,6 +270,41 @@ ReturnStatus NvCtrlNvControlGetValidAttributeValues
 
 
 ReturnStatus
+NvCtrlNvControlGetValidStringDisplayAttributeValues
+                                       (NvCtrlAttributePrivateHandle *h,
+                                        unsigned int display_mask,
+                                        int attr, NVCTRLAttributeValidValuesRec *val)
+{
+    if (attr <= NV_CTRL_STRING_LAST_ATTRIBUTE) {
+        if ((h->nv->major_version > 1) ||
+            ((h->nv->major_version == 1) && (h->nv->minor_version >= 22))) {
+            if (XNVCTRLQueryValidTargetStringAttributeValues (h->dpy,
+                                                              h->target_type,
+                                                              h->target_id,
+                                                              display_mask,
+                                                              attr, val)) {
+                return NvCtrlSuccess;
+            } else {
+                return NvCtrlAttributeNotAvailable;
+            }
+        } else {
+            if (val) {
+                memset(val, 0, sizeof(NVCTRLAttributeValidValuesRec));
+                val->type = ATTRIBUTE_TYPE_STRING;
+                val->permissions = ATTRIBUTE_TYPE_READ | ATTRIBUTE_TYPE_X_SCREEN;
+                return NvCtrlSuccess;
+            } else {
+                return NvCtrlBadArgument;
+            }
+        }
+    }
+
+    return NvCtrlNoAttribute;
+
+} /* NvCtrlNvControlGetValidStringDisplayAttributeValues() */
+
+
+ReturnStatus
 NvCtrlNvControlGetStringAttribute (NvCtrlAttributePrivateHandle *h,
                                    unsigned int display_mask,
                                    int attr, char **ptr)

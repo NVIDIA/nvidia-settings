@@ -23,10 +23,33 @@
  */
  
 #include <gtk/gtk.h>
+#include <NvCtrlAttributes.h>
 #include "ctkutils.h"
 #include "msg.h"
 
 
+
+gchar* create_gpu_name_string(NvCtrlAttributeHandle *gpu_handle)
+{
+    gchar *gpu_name;
+    gchar *gpu_product_name;
+    ReturnStatus ret;
+    
+    ret = NvCtrlGetStringDisplayAttribute(gpu_handle, 0,
+                                          NV_CTRL_STRING_PRODUCT_NAME,
+                                          &gpu_product_name);
+    if (ret == NvCtrlSuccess && gpu_product_name) {
+        gpu_name = g_strdup_printf("GPU %d - (%s)",
+                                   NvCtrlGetTargetId(gpu_handle),
+                                   gpu_product_name);
+    } else {
+        gpu_name = g_strdup_printf("GPU %d - (Unknown)",
+                                   NvCtrlGetTargetId(gpu_handle));
+    }
+    g_free(gpu_product_name);
+    
+    return gpu_name;
+}
 
 
 GtkWidget *add_table_row(GtkWidget *table,

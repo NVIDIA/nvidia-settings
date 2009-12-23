@@ -667,6 +667,10 @@ static void print_valid_values(char *name, int attr, uint32 flags,
 #define INDENT "    "
 
     switch (valid.type) {
+    case ATTRIBUTE_TYPE_STRING:
+        nv_msg(INDENT, "'%s' is a string attribute.", name);
+        break;
+
     case ATTRIBUTE_TYPE_INTEGER:
         if (flags & NV_PARSER_TYPE_PACKED_ATTRIBUTE) {
             nv_msg(INDENT, "'%s' is a packed integer attribute.", name);
@@ -919,9 +923,9 @@ static void print_additional_info(const char *name,
 
 
 /*
- * query_all() - loop through all screens, and query all attributes
- * for those screens.  The current attribute values for all display
- * devices on all screens are printed, along with the valid values for
+ * query_all() - loop through all target types, and query all attributes
+ * for those targets.  The current attribute values for all display
+ * devices on all targets are printed, along with the valid values for
  * each attribute.
  *
  * If an error occurs, an error message is printed and NV_FALSE is
@@ -930,7 +934,8 @@ static void print_additional_info(const char *name,
 
 static int query_all(const char *display_name)
 {
-    int bit, entry, screen, val;
+    int bit, entry, target_id, val;
+    int target_type;
     uint32 mask;
     ReturnStatus status;
     AttributeTableEntry *a;
@@ -943,129 +948,131 @@ static int query_all(const char *display_name)
 #define INDENT "  "
     
     /*
-     * For now, we only loop over X screen targets; we could loop over
-     * other target types, too, but that would likely be redundant
-     * with X screens.
+     * Loop through all target types.
      */
 
-    for (screen = 0; screen < h->targets[X_SCREEN_TARGET].n; screen++) {
-
-        t = &h->targets[X_SCREEN_TARGET].t[screen];
-
-        if (!t->h) continue;
-
-        nv_msg(NULL, "Attributes for %s:", t->name);
-
-        if (!__terse) nv_msg(NULL, "");
-
-        for (entry = 0; attributeTable[entry].name; entry++) {
-
-            a = &attributeTable[entry];
-            
-            /* skip the color attributes */
-
-            if (a->flags & NV_PARSER_TYPE_COLOR_ATTRIBUTE) continue;
-
-            /* skip attributes that shouldn't be queried here */
-
-            if (a->flags & NV_PARSER_TYPE_NO_QUERY_ALL) continue;
-
-            for (bit = 0; bit < 24; bit++) {
-                mask = 1 << bit;
-
-                /*
-                 * if this bit is not present in the screens's enabled
-                 * display device mask (and the X screen has enabled
-                 * display devices), skip to the next bit
-                 */
-
-                if (((t->d & mask) == 0x0) && (t->d)) continue;
-                
-                if (a->flags & NV_PARSER_TYPE_STRING_ATTRIBUTE) {
-                    char *tmp_str = NULL;
-
-                    status = NvCtrlGetValidStringDisplayAttributeValues(t->h, mask,
-                                                                        a->attr, &valid);
-
-                    if (status == NvCtrlAttributeNotAvailable) goto exit_bit_loop;
-
-                    if (status != NvCtrlSuccess) {
-                        nv_error_msg("Error while querying valid values for "
-                                     "attribute '%s' on %s (%s).",
-                                     a->name, t->name,
-                                     NvCtrlAttributesStrError(status));
-                        goto exit_bit_loop;
-                    }
-
-                    status = NvCtrlGetStringDisplayAttribute(t->h, mask, a->attr, &tmp_str);
-
-                    if (status == NvCtrlAttributeNotAvailable) goto exit_bit_loop;
-
-                    if (status != NvCtrlSuccess) {
-                        nv_error_msg("Error while querying attribute '%s' "
-                                     "on %s (%s).", a->name, t->name,
-                                     NvCtrlAttributesStrError(status));
-                        goto exit_bit_loop;
-                    }
-
-                    if (__terse) {
-                        nv_msg("  ", "%s: %s", a->name, tmp_str);
-                    } else {
-                        nv_msg("  ",  "Attribute '%s' (%s%s): %s ",
-                               a->name, t->name, "", tmp_str);
-                    }
-                    free(tmp_str);
-                    tmp_str = NULL;
-
-                } else {
-                    status = NvCtrlGetValidDisplayAttributeValues(t->h, mask, a->attr, &valid);
-
-                    if (status == NvCtrlAttributeNotAvailable) goto exit_bit_loop;
-                
-                    if (status != NvCtrlSuccess) {
-                        nv_error_msg("Error while querying valid values for "
-                                     "attribute '%s' on %s (%s).",
-                                     a->name, t->name,
-                                     NvCtrlAttributesStrError(status));
-                        goto exit_bit_loop;
-                    }
-
-                    status = NvCtrlGetDisplayAttribute(t->h, mask, a->attr, &val);
-
-                    if (status == NvCtrlAttributeNotAvailable) goto exit_bit_loop;
-
-                    if (status != NvCtrlSuccess) {
-                        nv_error_msg("Error while querying attribute '%s' "
-                                     "on %s (%s).", a->name, t->name,
-                                     NvCtrlAttributesStrError(status));
-                        goto exit_bit_loop;
-                    }
-
-                    print_queried_value(t, &valid, val, a->flags, a->name,
-                                        mask, INDENT, __terse ?
-                                        VerboseLevelAbbreviated :
-                                        VerboseLevelVerbose);
-
-                    print_valid_values(a->name, a->attr, a->flags, valid);
-                }
-                
-                if (!__terse) nv_msg(NULL,"");
-                
-                if (valid.permissions & ATTRIBUTE_TYPE_DISPLAY) {
-                    continue;
-                }
-                
-                /* fall through to exit_bit_loop */
-                
-            exit_bit_loop:
-
-                bit = 25; /* XXX force us out of the display device loop */
-                
-            } /* bit */
-            
-        } /* entry */
+    for (target_type = 0; target_type < MAX_TARGET_TYPES; target_type++) {
         
-    } /* screen */
+        for (target_id = 0; target_id < h->targets[target_type].n; target_id++) {
+
+            t = &h->targets[target_type].t[target_id];
+
+            if (!t->h) continue;
+
+            nv_msg(NULL, "Attributes queryable via %s:", t->name);
+
+            if (!__terse) nv_msg(NULL, "");
+
+            for (entry = 0; attributeTable[entry].name; entry++) {
+
+                a = &attributeTable[entry];
+
+                /* skip the color attributes */
+
+                if (a->flags & NV_PARSER_TYPE_COLOR_ATTRIBUTE) continue;
+
+                /* skip attributes that shouldn't be queried here */
+
+                if (a->flags & NV_PARSER_TYPE_NO_QUERY_ALL) continue;
+
+                for (bit = 0; bit < 24; bit++) {
+                    mask = 1 << bit;
+
+                    /*
+                     * if this bit is not present in the screens's enabled
+                     * display device mask (and the X screen has enabled
+                     * display devices), skip to the next bit
+                     */
+
+                    if (((t->d & mask) == 0x0) && (t->d)) continue;
+
+                    if (a->flags & NV_PARSER_TYPE_STRING_ATTRIBUTE) {
+                        char *tmp_str = NULL;
+
+                        status = NvCtrlGetValidStringDisplayAttributeValues(t->h, mask,
+                                                                            a->attr, &valid);
+                        if (status == NvCtrlAttributeNotAvailable) goto exit_bit_loop;
+
+                        if (status != NvCtrlSuccess) {
+                            nv_error_msg("Error while querying valid values for "
+                                         "attribute '%s' on %s (%s).",
+                                         a->name, t->name,
+                                         NvCtrlAttributesStrError(status));
+                            goto exit_bit_loop;
+                        }
+                        
+                        status = NvCtrlGetStringDisplayAttribute(t->h, mask, a->attr, &tmp_str);
+
+                        if (status == NvCtrlAttributeNotAvailable) goto exit_bit_loop;
+
+                        if (status != NvCtrlSuccess) {
+                            nv_error_msg("Error while querying attribute '%s' "
+                                         "on %s (%s).", a->name, t->name,
+                                         NvCtrlAttributesStrError(status));
+                            goto exit_bit_loop;
+                        }
+
+                        if (__terse) {
+                            nv_msg("  ", "%s: %s", a->name, tmp_str);
+                        } else {
+                            nv_msg("  ",  "Attribute '%s' (%s%s): %s ",
+                                   a->name, t->name, "", tmp_str);
+                        }
+                        free(tmp_str);
+                        tmp_str = NULL;
+
+                    } else {
+                        
+                        status = NvCtrlGetValidDisplayAttributeValues(t->h, mask, a->attr, &valid);
+
+                        if (status == NvCtrlAttributeNotAvailable) goto exit_bit_loop;
+
+                        if (status != NvCtrlSuccess) {
+                            nv_error_msg("Error while querying valid values for "
+                                         "attribute '%s' on %s (%s).",
+                                         a->name, t->name,
+                                         NvCtrlAttributesStrError(status));
+                            goto exit_bit_loop;
+                        }
+
+                        status = NvCtrlGetDisplayAttribute(t->h, mask, a->attr, &val);
+
+                        if (status == NvCtrlAttributeNotAvailable) goto exit_bit_loop;
+
+                        if (status != NvCtrlSuccess) {
+                            nv_error_msg("Error while querying attribute '%s' "
+                                         "on %s (%s).", a->name, t->name,
+                                         NvCtrlAttributesStrError(status));
+                            goto exit_bit_loop;
+                        }
+
+                        print_queried_value(t, &valid, val, a->flags, a->name,
+                                            mask, INDENT, __terse ?
+                                            VerboseLevelAbbreviated :
+                                            VerboseLevelVerbose);
+
+                    }
+                    print_valid_values(a->name, a->attr, a->flags, valid);
+
+                    if (!__terse) nv_msg(NULL,"");
+
+                    if (valid.permissions & ATTRIBUTE_TYPE_DISPLAY) {
+                        continue;
+                    }
+
+                    /* fall through to exit_bit_loop */
+
+exit_bit_loop:
+
+                    bit = 25; /* XXX force us out of the display device loop */
+
+                } /* bit */
+
+            } /* entry */
+
+        } /* target_id */
+
+    } /* target_type */
 
 #undef INDENT
 

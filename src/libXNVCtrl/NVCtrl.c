@@ -577,6 +577,50 @@ static Bool XNVCTRLQueryValidTargetAttributeValues32 (
 }
 
 
+Bool XNVCTRLQueryValidTargetStringAttributeValues (
+    Display *dpy,
+    int target_type,
+    int target_id,
+    unsigned int display_mask,
+    unsigned int attribute,
+    NVCTRLAttributeValidValuesRec *values
+){
+    XExtDisplayInfo *info = find_display(dpy);
+    Bool exists;
+    xnvCtrlQueryValidAttributeValuesReply rep;
+    xnvCtrlQueryValidAttributeValuesReq   *req;
+
+    if (!values) return False;
+
+    if (!XextHasExtension(info))
+        return False;
+
+    XNVCTRLCheckExtension(dpy, info, False);
+
+    LockDisplay(dpy);
+    GetReq (nvCtrlQueryValidAttributeValues, req);
+    req->reqType = info->codes->major_opcode;
+    req->nvReqType = X_nvCtrlQueryValidStringAttributeValues;
+    req->target_type = target_type;
+    req->target_id = target_id;
+    req->display_mask = display_mask;
+    req->attribute = attribute;
+    if (!_XReply(dpy, (xReply *)&rep, 0, xTrue)) {
+        UnlockDisplay(dpy);
+        SyncHandle();
+        return False;
+    }
+    exists = rep.flags;
+    if (exists) {
+        values->type = rep.attr_type;
+        values->permissions = rep.perms;
+    }
+    UnlockDisplay(dpy);
+    SyncHandle();
+    return exists;
+}
+
+
 static Bool XNVCTRLQueryValidTargetAttributeValues64 (
     Display *dpy,
     XExtDisplayInfo *info,

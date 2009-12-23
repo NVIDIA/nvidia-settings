@@ -245,12 +245,16 @@ GtkWidget* ctk_gpu_new(
     gchar *screens;
     gchar *displays;
     gchar *tmp_str;
+    gchar *gpu_cores;
+    gchar *memory_interface;
 
     unsigned int display_devices;
     int xinerama_enabled;
     int *pData;
     int len;
     int i;
+    int row = 0;
+    int total_rows = 19;
 
 
     /*
@@ -306,7 +310,25 @@ GtkWidget* ctk_gpu_new(
     } else {
         video_ram = g_strdup_printf("%d MB", tmp >> 10);
     }
+    
+    /* NV_CTRL_GPU_CORES */
 
+    ret = NvCtrlGetAttribute(handle, NV_CTRL_GPU_CORES, &tmp);
+    if (ret != NvCtrlSuccess) {
+        gpu_cores = NULL;
+    } else {
+        gpu_cores = g_strdup_printf("%d", tmp);
+    }
+
+    /* NV_CTRL_GPU_MEMORY_BUS_WIDTH  */
+
+    ret = NvCtrlGetAttribute(handle, NV_CTRL_GPU_MEMORY_BUS_WIDTH, &tmp);
+    if (ret != NvCtrlSuccess) {
+        memory_interface = NULL;
+    } else {
+        memory_interface = g_strdup_printf("%d-bit", tmp);
+    }
+    
     /* NV_CTRL_IRQ */
     
     ret = NvCtrlGetAttribute(handle, NV_CTRL_IRQ, &tmp);
@@ -387,6 +409,8 @@ GtkWidget* ctk_gpu_new(
     /* cache the attribute handle */
 
     ctk_gpu->handle = handle;
+    ctk_gpu->gpu_cores = (gpu_cores != NULL) ? 1 : 0;
+    ctk_gpu->memory_interface = (memory_interface != NULL) ? 1 : 0;
 
     /* set container properties of the object */
 
@@ -417,44 +441,59 @@ GtkWidget* ctk_gpu_new(
     hseparator = gtk_hseparator_new();
     gtk_box_pack_start(GTK_BOX(hbox), hseparator, TRUE, TRUE, 5);
 
-    table = gtk_table_new(19, 2, FALSE);
+    table = gtk_table_new(total_rows, 2, FALSE);
     gtk_box_pack_start(GTK_BOX(vbox), table, FALSE, FALSE, 0);
     gtk_table_set_row_spacings(GTK_TABLE(table), 3);
     gtk_table_set_col_spacings(GTK_TABLE(table), 15);
     gtk_container_set_border_width(GTK_CONTAINER(table), 5);
 
-    add_table_row(table, 0,
+    add_table_row(table, row++,
                   0, 0.5, "Graphics Processor:",
                   0, 0.5, product_name);
-    add_table_row(table, 1,
+    if ( ctk_gpu->gpu_cores ) {
+        gtk_table_resize(GTK_TABLE(table), ++total_rows, 2);
+        add_table_row(table, row++,
+                      0, 0.5, "CUDA Cores:",
+                      0, 0.5, gpu_cores);
+    }
+    add_table_row(table, row++,
                   0, 0.5, "VBIOS Version:",
                   0, 0.5, vbios_version);
-    add_table_row(table, 2,
+    add_table_row(table, row++,
                   0, 0.5, "Memory:",
                   0, 0.5, video_ram);
+    if ( ctk_gpu->memory_interface ) {
+        gtk_table_resize(GTK_TABLE(table), ++total_rows, 2);
+        add_table_row(table, row++,
+                      0, 0.5, "Memory Interface:",
+                      0, 0.5, memory_interface);
+    }
     /* spacing */
-    add_table_row(table, 6,
+    row += 3;
+    add_table_row(table, row++,
                   0, 0.5, "Bus Type:",
                   0, 0.5, bus);
-    add_table_row(table, 7,
+    add_table_row(table, row++,
                   0, 0.5, "Bus ID:",
                   0, 0.5, pci_bus_id);
-    add_table_row(table, 8,
+    add_table_row(table, row++,
                   0, 0.5, "PCI Device ID:",
                   0, 0.5, pci_device_id);
-    add_table_row(table, 9,
+    add_table_row(table, row++,
                   0, 0.5, "PCI Vendor ID:",
                   0, 0.5, pci_vendor_id);
-    add_table_row(table, 10,
+    add_table_row(table, row++,
                   0, 0.5, "IRQ:",
                   0, 0.5, irq);
     /* spacing */
-    add_table_row(table, 14,
+    row += 3;
+    add_table_row(table, row++,
                   0, 0, "X Screens:",
                   0, 0, screens);
     /* spacing */
+    row += 3;
     ctk_gpu->displays =
-        add_table_row(table, 18,
+        add_table_row(table, row,
                       0, 0, "Display Devices:",
                       0, 0, displays);
 
@@ -462,6 +501,8 @@ GtkWidget* ctk_gpu_new(
     XFree(vbios_version);
     g_free(video_ram);
     g_free(bus);
+    g_free(gpu_cores);
+    g_free(memory_interface);
     g_free(pci_bus_id);
     g_free(irq);
     g_free(screens);
@@ -480,7 +521,8 @@ GtkWidget* ctk_gpu_new(
 }
 
     
-GtkTextBuffer *ctk_gpu_create_help(GtkTextTagTable *table)
+GtkTextBuffer *ctk_gpu_create_help(GtkTextTagTable *table, 
+                                   CtkGpu *ctk_gpu)
 {
     GtkTextIter i;
     GtkTextBuffer *b;
@@ -499,6 +541,12 @@ GtkTextBuffer *ctk_gpu_create_help(GtkTextTagTable *table)
     ctk_help_heading(b, &i, "Graphics Processor");
     ctk_help_para(b, &i, "This is the product name of the GPU.");
     
+    if (ctk_gpu->gpu_cores) {
+        ctk_help_heading(b, &i, "CUDA Cores");
+        ctk_help_para(b, &i, "This is the number of CUDA cores supported by "
+                      "the graphics pipeline.");
+    }
+    
     ctk_help_heading(b, &i, "VBIOS Version");
     ctk_help_para(b, &i, "This is the Video BIOS version.");
     
@@ -510,6 +558,12 @@ GtkTextBuffer *ctk_gpu_create_help(GtkTextTagTable *table)
                   "integrated GPUs, the value may exceed the amount of "
                   "dedicated system memory set aside by the system "
                   "BIOS for use by the integrated GPU.");
+
+    if (ctk_gpu->memory_interface) {
+        ctk_help_heading(b, &i, "Memory Interface");
+        ctk_help_para(b, &i, "This is the bus bandwidth of the GPU's "
+                      "memory interface.");
+    }
 
     ctk_help_heading(b, &i, "Bus Type");
     ctk_help_para(b, &i, "This is the bus type which is "

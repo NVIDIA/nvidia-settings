@@ -26,9 +26,11 @@
 #define __CTK_UTILS_H__
 
 #include <gtk/gtk.h>
-
+#include <NvCtrlAttributes.h>
 
 G_BEGIN_DECLS
+
+gchar* create_gpu_name_string(NvCtrlAttributeHandle *gpu_handle);
 
 GtkWidget *add_table_row(GtkWidget *, const gint,
                          const gfloat, const gfloat, const gchar *,

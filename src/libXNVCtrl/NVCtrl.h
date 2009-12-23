@@ -888,9 +888,9 @@
  * NV_CTRL_GVO_SDI_SYNC_INPUT_DETECTED to detect what input syncs are
  * present.
  * 
- * (If no analog sync is detected but it is known that a valid
+ * (If no analog sync is detected but it is known that a valid
  * bi-level or tri-level sync is connected set
- * NV_CTRL_GVO_COMPOSITE_SYNC_INPUT_DETECT_MODE appropriately and
+ * NV_CTRL_GVO_COMPOSITE_SYNC_INPUT_DETECT_MODE appropriately and
  * retest with NV_CTRL_GVO_COMPOSITE_SYNC_INPUT_DETECTED).
  *
  * - if syncing to input sync, query the
@@ -989,10 +989,12 @@
  * values are reported as bits within a bitmask
  * (ATTRIBUTE_TYPE_INT_BITS); unfortunately, there are more valid
  * value bits than will fit in a single 32-bit value.  To solve this,
- * query the ValidValues for NV_CTRL_GVIO_OUTPUT_VIDEO_FORMAT to check
- * which of the first 31 VIDEO_FORMATS are valid, then query the
- * ValidValues for NV_CTRL_GVIO_OUTPUT_VIDEO_FORMAT2 to check which of
- * the VIDEO_FORMATS with value 32 and higher are valid.
+ * query the ValidValues for NV_CTRL_GVIO_REQUESTED_VIDEO_FORMAT to
+ * check which of the first 31 VIDEO_FORMATS are valid, query the
+ * ValidValues for NV_CTRL_GVIO_REQUESTED_VIDEO_FORMAT2 to check which
+ * of the 32-63 VIDEO_FORMATS are valid, and query the ValidValues of
+ * NV_CTRL_GVIO_REQUESTED_VIDEO_FORMAT3 to check which of the 64-95
+ * VIDEO_FORMATS are valid.
  */
 
 #define NV_CTRL_GVIO_REQUESTED_VIDEO_FORMAT                     70  /* RW--I */
@@ -1039,6 +1041,29 @@
 #define NV_CTRL_GVIO_VIDEO_FORMAT_1080P_50_00_3G_LEVEL_A_SMPTE274  39
 #define NV_CTRL_GVIO_VIDEO_FORMAT_1080P_59_94_3G_LEVEL_A_SMPTE274  40
 #define NV_CTRL_GVIO_VIDEO_FORMAT_1080P_60_00_3G_LEVEL_A_SMPTE274  41
+#define NV_CTRL_GVIO_VIDEO_FORMAT_1080P_60_00_3G_LEVEL_B_SMPTE274  42
+#define NV_CTRL_GVIO_VIDEO_FORMAT_1080I_60_00_3G_LEVEL_B_SMPTE274  43
+#define NV_CTRL_GVIO_VIDEO_FORMAT_2048I_60_00_3G_LEVEL_B_SMPTE372  44
+#define NV_CTRL_GVIO_VIDEO_FORMAT_1080P_50_00_3G_LEVEL_B_SMPTE274  45
+#define NV_CTRL_GVIO_VIDEO_FORMAT_1080I_50_00_3G_LEVEL_B_SMPTE274  46
+#define NV_CTRL_GVIO_VIDEO_FORMAT_2048I_50_00_3G_LEVEL_B_SMPTE372  47
+#define NV_CTRL_GVIO_VIDEO_FORMAT_1080P_30_00_3G_LEVEL_B_SMPTE274  48
+#define NV_CTRL_GVIO_VIDEO_FORMAT_2048P_30_00_3G_LEVEL_B_SMPTE372  49
+#define NV_CTRL_GVIO_VIDEO_FORMAT_1080P_25_00_3G_LEVEL_B_SMPTE274  50
+#define NV_CTRL_GVIO_VIDEO_FORMAT_2048P_25_00_3G_LEVEL_B_SMPTE372  51
+#define NV_CTRL_GVIO_VIDEO_FORMAT_1080P_24_00_3G_LEVEL_B_SMPTE274  52
+#define NV_CTRL_GVIO_VIDEO_FORMAT_2048P_24_00_3G_LEVEL_B_SMPTE372  53
+#define NV_CTRL_GVIO_VIDEO_FORMAT_1080I_48_00_3G_LEVEL_B_SMPTE274  54
+#define NV_CTRL_GVIO_VIDEO_FORMAT_2048I_48_00_3G_LEVEL_B_SMPTE372  55
+#define NV_CTRL_GVIO_VIDEO_FORMAT_1080P_59_94_3G_LEVEL_B_SMPTE274  56
+#define NV_CTRL_GVIO_VIDEO_FORMAT_1080I_59_94_3G_LEVEL_B_SMPTE274  57
+#define NV_CTRL_GVIO_VIDEO_FORMAT_2048I_59_94_3G_LEVEL_B_SMPTE372  58
+#define NV_CTRL_GVIO_VIDEO_FORMAT_1080P_29_97_3G_LEVEL_B_SMPTE274  59
+#define NV_CTRL_GVIO_VIDEO_FORMAT_2048P_29_97_3G_LEVEL_B_SMPTE372  60
+#define NV_CTRL_GVIO_VIDEO_FORMAT_1080P_23_98_3G_LEVEL_B_SMPTE274  61
+#define NV_CTRL_GVIO_VIDEO_FORMAT_2048P_23_98_3G_LEVEL_B_SMPTE372  62
+#define NV_CTRL_GVIO_VIDEO_FORMAT_1080I_47_96_3G_LEVEL_B_SMPTE274  63
+#define NV_CTRL_GVIO_VIDEO_FORMAT_2048I_47_96_3G_LEVEL_B_SMPTE372  64
 
 
 /* 
@@ -1260,7 +1285,7 @@
 /*
  * NV_CTRL_GVO_INPUT_VIDEO_FORMAT_REACQUIRE - must be set for a period
  * of about 2 seconds for the new InputVideoFormat to be properly
- * locked to.  In nvidia-settings, we do a reacquire whenever genlock
+ * locked to.  In nvidia-settings, we do a reacquire whenever genlock
  * or frame lock mode is entered into, when the user clicks the
  * "detect" button.  This value can be written, but always reads back
  * _FALSE.
@@ -1582,10 +1607,10 @@
 #define NV_CTRL_XV_SYNC_TO_DISPLAY                               226  /* RW- */
 
 /*
- * NV_CTRL_GVIO_REQUESTED_VIDEO_FORMAT2 - this attribute is only intended
- * to be used to query the ValidValues for
- * NV_CTRL_GVIO_REQUESTED_VIDEO_FORMAT above the first 31 VIDEO_FORMATS.
- * See NV_CTRL_GVIO_REQUESTED_VIDEO_FORMAT for details.
+ * NV_CTRL_GVIO_REQUESTED_VIDEO_FORMAT2 - this attribute is only
+ * intended to be used to query the ValidValues for
+ * NV_CTRL_GVIO_REQUESTED_VIDEO_FORMAT for VIDEO_FORMAT values between
+ * 31 and 63.  See NV_CTRL_GVIO_REQUESTED_VIDEO_FORMAT for details.
  */
 
 #define NV_CTRL_GVIO_REQUESTED_VIDEO_FORMAT2                    227  /* ---GI */
@@ -2774,7 +2799,49 @@
 #define NV_CTRL_GPU_PCIE_GENERATION1                            0x00000001
 #define NV_CTRL_GPU_PCIE_GENERATION2                            0x00000002
 
-#define NV_CTRL_LAST_ATTRIBUTE NV_CTRL_GPU_PCIE_GENERATION
+/*
+ * NV_CTRL_GVI_BOUND_GPU - Returns the NV_CTRL_TARGET_TYPE_GPU target_id of
+ * the GPU currently bound to the GVI device.  Returns -1 if no GPU is
+ * currently bound to the GVI device.
+ */
+#define NV_CTRL_GVI_BOUND_GPU                                   342 /* R--I */
+
+
+/*
+ * NV_CTRL_GVIO_REQUESTED_VIDEO_FORMAT3 - this attribute is only
+ * intended to be used to query the ValidValues for
+ * NV_CTRL_GVIO_REQUESTED_VIDEO_FORMAT for VIDEO_FORMAT values between
+ * 64 and 95.  See NV_CTRL_GVIO_REQUESTED_VIDEO_FORMAT for details.
+ */
+
+#define NV_CTRL_GVIO_REQUESTED_VIDEO_FORMAT3                    343 /* ---GI */
+
+
+/*
+ * NV_CTRL_ACCELERATE_TRAPEZOIDS - Toggles RENDER Trapezoid acceleration
+ */
+
+#define NV_CTRL_ACCELERATE_TRAPEZOIDS                           344 /* RW- */
+#define NV_CTRL_ACCELERATE_TRAPEZOIDS_DISABLE                   0
+#define NV_CTRL_ACCELERATE_TRAPEZOIDS_ENABLE                    1
+
+
+/*
+ * NV_CTRL_GPU_CORES - Returns number of GPU cores supported by the graphics
+ * pipeline.
+ */
+
+#define NV_CTRL_GPU_CORES                                       345 /* R--G */
+
+
+/* 
+ * NV_CTRL_GPU_MEMORY_BUS_WIDTH - Returns memory bus bandwidth on the associated
+ * subdevice.
+ */
+
+#define NV_CTRL_GPU_MEMORY_BUS_WIDTH                            346 /* R--G */
+
+#define NV_CTRL_LAST_ATTRIBUTE NV_CTRL_GPU_MEMORY_BUS_WIDTH
 
 /**************************************************************************/
 
@@ -3794,6 +3861,7 @@
 #define ATTRIBUTE_TYPE_RANGE     4
 #define ATTRIBUTE_TYPE_INT_BITS  5
 #define ATTRIBUTE_TYPE_64BIT_INTEGER  6
+#define ATTRIBUTE_TYPE_STRING         7
 
 #define ATTRIBUTE_TYPE_READ       0x001
 #define ATTRIBUTE_TYPE_WRITE      0x002

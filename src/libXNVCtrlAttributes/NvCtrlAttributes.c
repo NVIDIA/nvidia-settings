@@ -708,14 +708,14 @@ NvCtrlGetValidStringDisplayAttributeValues(NvCtrlAttributeHandle *handle,
     NvCtrlAttributePrivateHandle *h;
     h = (NvCtrlAttributePrivateHandle *) handle;
 
-    if (val) {
-        memset(val, 0, sizeof(NVCTRLAttributeValidValuesRec));
-        val->type = ATTRIBUTE_TYPE_UNKNOWN;
-        val->permissions = ATTRIBUTE_TYPE_READ | ATTRIBUTE_TYPE_X_SCREEN;
-        return NvCtrlSuccess;
-    } else {
-        return NvCtrlBadArgument;
+    if ((attr >= 0) && (attr <= NV_CTRL_STRING_LAST_ATTRIBUTE)) {
+        if (!h->nv) return NvCtrlMissingExtension;
+        return NvCtrlNvControlGetValidStringDisplayAttributeValues(h,
+                                                                   display_mask,
+                                                                   attr, val);
     }
+
+    return NvCtrlBadArgument;
 
 } /* NvCtrlGetValidStringDisplayAttributeValues() */
 

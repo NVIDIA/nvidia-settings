@@ -62,6 +62,8 @@ struct _CtkGpu
     NvCtrlAttributeHandle *handle;
 
     GtkWidget *displays;
+    gint gpu_cores;
+    gint memory_interface;
 };
 
 struct _CtkGpuClass
@@ -78,7 +80,8 @@ void get_bus_related_info(NvCtrlAttributeHandle *handle,
                           gchar **bus,
                           gchar **pci_bus_id);
 
-GtkTextBuffer *ctk_gpu_create_help(GtkTextTagTable *);
+GtkTextBuffer *ctk_gpu_create_help(GtkTextTagTable *,
+                                   CtkGpu *);
 
 
 

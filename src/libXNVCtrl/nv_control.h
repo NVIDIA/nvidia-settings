@@ -45,6 +45,8 @@
  *             SetStringAttribute requests
  * 1.20        Added COOLER TargetType
  * 1.21        Added initial 64-bit integer attribute support (read-only)
+ * 1.22        Added X_nvCtrlQueryValidStringAttributeValues to check
+ *             string attribute permissions. 
  */
 
 #ifndef __NVCONTROL_H
@@ -55,7 +57,7 @@
 #define NV_CONTROL_NAME "NV-CONTROL"
 
 #define NV_CONTROL_MAJOR 1
-#define NV_CONTROL_MINOR 21
+#define NV_CONTROL_MINOR 22
 
 #define X_nvCtrlQueryExtension                      0
 #define X_nvCtrlIsNv                                1
@@ -85,7 +87,8 @@
 #define X_nvCtrlStringOperation                     25
 #define X_nvCtrlQueryValidAttributeValues64         26
 #define X_nvCtrlQueryAttribute64                    27
-#define X_nvCtrlLastRequest (X_nvCtrlQueryAttribute64 + 1)
+#define X_nvCtrlQueryValidStringAttributeValues     28
+#define X_nvCtrlLastRequest (X_nvCtrlQueryValidStringAttributeValues + 1)
 
 
 /* Define 32 bit floats */
@@ -193,7 +196,7 @@ typedef struct {
     CARD32 length B32;
     CARD32 flags B32;
     CARD32 pad3 B32;
-    CARD64 value_64;
+    int64_t value_64;
     CARD32 pad6 B32;
     CARD32 pad7 B32;
 } xnvCtrlQueryAttribute64Reply;
@@ -321,8 +324,8 @@ typedef struct {
     CARD32 length B32;
     CARD32 flags B32;
     INT32 attr_type B32;
-    CARD64 min_64;
-    CARD64 max_64;
+    int64_t min_64;
+    int64_t max_64;
     CARD64 bits_64;
     CARD32 perms B32;
     CARD32 pad1 B32;

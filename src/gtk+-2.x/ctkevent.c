@@ -295,6 +295,10 @@ static void ctk_event_class_init(CtkEventClass *ctk_event_class)
     MAKE_SIGNAL(NV_CTRL_GVI_NUM_CAPTURE_SURFACES);
     MAKE_SIGNAL(NV_CTRL_OVERSCAN_COMPENSATION);
     MAKE_SIGNAL(NV_CTRL_GPU_PCIE_GENERATION);
+    MAKE_SIGNAL(NV_CTRL_GVI_BOUND_GPU);
+    MAKE_SIGNAL(NV_CTRL_ACCELERATE_TRAPEZOIDS);
+    MAKE_SIGNAL(NV_CTRL_GPU_CORES);
+    MAKE_SIGNAL(NV_CTRL_GPU_MEMORY_BUS_WIDTH);
 
 #undef MAKE_SIGNAL
     
@@ -305,7 +309,7 @@ static void ctk_event_class_init(CtkEventClass *ctk_event_class)
      * knows about.
      */
 
-#if NV_CTRL_LAST_ATTRIBUTE != NV_CTRL_GPU_PCIE_GENERATION
+#if NV_CTRL_LAST_ATTRIBUTE != NV_CTRL_GPU_MEMORY_BUS_WIDTH
 #warning "There are attributes that do not emit signals!"
 #endif
 

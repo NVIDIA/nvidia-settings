@@ -110,6 +110,7 @@ AttributeTableEntry attributeTable[] = {
     { "XServerUniqueId",               NV_CTRL_X_SERVER_UNIQUE_ID,                N,     "Returns a pseudo-unique identification number for the X server." },
     { "PixmapCache",                   NV_CTRL_PIXMAP_CACHE,                      N,     "Controls whether pixmaps are allocated in a cache." },
     { "PixmapCacheRoundSizeKB",        NV_CTRL_PIXMAP_CACHE_ROUNDING_SIZE_KB,     N,     "Controls the number of kilobytes to add to the pixmap cache when there is not enough room." },
+    { "AccelerateTrapezoids",          NV_CTRL_ACCELERATE_TRAPEZOIDS,             N,     "Enable or disable GPU acceleration of RENDER Trapezoids." },
 
     /* OpenGL */
     { "SyncToVBlank",               NV_CTRL_SYNC_TO_VBLANK,                   0,   "Enables sync to vertical blanking for OpenGL clients.  This setting only takes effect on OpenGL clients started after it is set." },
@@ -136,6 +137,8 @@ AttributeTableEntry attributeTable[] = {
     { "BusType",                NV_CTRL_BUS_TYPE,                      0,   "Returns the type of bus connecting the specified device to the computer.  If the target is an X screen, then it uses the GPU driving the X screen as the device." },
     { "VideoRam",               NV_CTRL_VIDEO_RAM,                     0,   "Returns the total amount of memory available to the specified GPU (or the GPU driving the specified X screen).  Note: if the GPU supports TurboCache(TM), the value reported may exceed the amount of video memory installed on the GPU.  The value reported for integrated GPUs may likewise exceed the amount of dedicated system memory set aside by the system BIOS for use by the integrated GPU." },
     { "Irq",                    NV_CTRL_IRQ,                           0,   "Returns the interrupt request line used by the specified device.  If the target is an X screen, then it uses the GPU driving the X screen as the device." },
+    { "CUDACores",              NV_CTRL_GPU_CORES,                     N,   "Returns number of CUDA cores supported by the graphics pipeline." },
+    { "GPUMemoryInterface",     NV_CTRL_GPU_MEMORY_BUS_WIDTH,          N,   "Returns bus bandwidth of the GPU's memory interface." },
     { "GPUCoreTemp",            NV_CTRL_GPU_CORE_TEMPERATURE,          N,   "Reports the current core temperature in Celsius of the GPU driving the X screen." },
     { "GPUAmbientTemp",         NV_CTRL_AMBIENT_TEMPERATURE,           N,   "Reports the current temperature in Celsius of the immediate neighborhood of the GPU driving the X screen." },
     { "GPUOverclockingState",   NV_CTRL_GPU_OVERCLOCKING_STATE,        N,   "The current overclocking state; the value of this attribute controls the availability of additional overclocking attributes.  Note that this attribute is unavailable unless overclocking support has been enabled by the system administrator." },
@@ -246,6 +249,7 @@ AttributeTableEntry attributeTable[] = {
     { "GviMaxChannelsPerJack",                NV_CTRL_GVI_MAX_CHANNELS_PER_JACK,                I|N, "Returns the maximum supported number of channels per single jack on a GVI device." },
     { "GviMaxStreams",                        NV_CTRL_GVI_MAX_STREAMS,                          I|N, "Returns the maximum supported number of streams that can be configured on a GVI device." },
     { "GviNumCaptureSurfaces",                NV_CTRL_GVI_NUM_CAPTURE_SURFACES,                 I|N, "Controls the number of capture buffers for storing incoming video from the GVI device." },
+    { "GviBoundGpu",                          NV_CTRL_GVI_BOUND_GPU,                            I|N, "Returns the target index of the GPU currently attached to the GVI device." },
 
     /* Display */
     { "Brightness",                 BRIGHTNESS_VALUE|ALL_CHANNELS,         N|C|G, "Controls the overall brightness of the display." },
@@ -322,7 +326,7 @@ AttributeTableEntry attributeTable[] = {
  * about.
  */
 
-#if NV_CTRL_LAST_ATTRIBUTE != NV_CTRL_GPU_PCIE_GENERATION
+#if NV_CTRL_LAST_ATTRIBUTE != NV_CTRL_GPU_MEMORY_BUS_WIDTH
 #warning "Have you forgotten to add a new integer attribute to attributeTable?"
 #endif
 

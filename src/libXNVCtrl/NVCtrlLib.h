@@ -399,6 +399,24 @@ Bool XNVCTRLQueryValidTargetAttributeValues (
 
 
 /*
+ * XNVCTRLQueryValidTargetStringAttributeValues -
+ *
+ * Returns True if the attribute exists.  Returns False otherwise.  If
+ * XNVCTRLQueryValidTargetStringAttributeValues returns True, values will
+ * indicate the valid values for the specified attribute.
+ */
+
+ Bool XNVCTRLQueryValidTargetStringAttributeValues (
+    Display *dpy,
+    int target_type,
+    int target_id,
+    unsigned int display_mask,
+    unsigned int attribute,
+    NVCTRLAttributeValidValuesRec *values
+);
+
+
+/*
  *  XNVCTRLSetGvoColorConversion -
  *
  *  Sets the color conversion matrix, offset, and scale that should be

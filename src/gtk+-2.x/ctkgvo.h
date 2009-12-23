@@ -75,7 +75,7 @@ struct _CtkGvo
     gint input_video_format;
 
     gint output_video_format;
-    guint valid_output_video_format_mask[2];
+    guint valid_output_video_format_mask[3];
     
     gint output_data_format;
 
