@@ -41,8 +41,6 @@ static unsigned short computeVal(NvCtrlAttributePrivateHandle *,
 #define BLUE  BLUE_CHANNEL_INDEX
 
 
-#if defined(X_XF86VidModeGetGammaRampSize)
-
 /*
  * XXX The XF86VidMode extension can block remote clients.
  * Unfortunately, there doesn't seem to be a good way to determine if
@@ -72,9 +70,6 @@ static int vidModeErrorHandler(Display *dpy, XErrorEvent *err)
     return 1;
 }
 
-#endif /* X_XF86VidModeGetGammaRampSize */
-
-
 
 
 NvCtrlVidModeAttributes *
@@ -88,8 +83,6 @@ NvCtrlInitVidModeAttributes(NvCtrlAttributePrivateHandle *h)
     if (!h || !h->dpy || h->target_type != NV_CTRL_TARGET_TYPE_X_SCREEN) {
         goto failed;
     }
-
-#if defined(X_XF86VidModeGetGammaRampSize)
 
     ret = XF86VidModeQueryExtension(h->dpy, &event, &vidModeErrorBase);
     if (ret != True) goto failed;
@@ -190,12 +183,6 @@ NvCtrlInitVidModeAttributes(NvCtrlAttributePrivateHandle *h)
     
     return (vm);
 
-#else
-    
-#warning Old xf86vmode.h; dynamic gamma ramp support will not be compiled.
-    
-#endif
-    
  blocked:
     
     nv_warning_msg("The VidMode extension is blocked for remote "
@@ -272,8 +259,6 @@ ReturnStatus NvCtrlSetColorAttributes(NvCtrlAttributeHandle *handle,
     int i, ch;
     Bool ret;
     
-#if defined(X_XF86VidModeGetGammaRampSize)
-    
     NvCtrlAttributePrivateHandle *h;
 
     h = (NvCtrlAttributePrivateHandle *) handle;
@@ -340,10 +325,6 @@ ReturnStatus NvCtrlSetColorAttributes(NvCtrlAttributeHandle *handle,
     if (ret != True) return NvCtrlError;
 
     return NvCtrlSuccess;
-#else
-    return NvCtrlMissingExtension;
-
-#endif /* X_XF86VidModeGetGammaRampSize */
     
 } /* NvCtrlSetColorAttribute() */
 
@@ -353,8 +334,6 @@ ReturnStatus NvCtrlGetColorRamp(NvCtrlAttributeHandle *handle,
                                 unsigned short **lut,
                                 int *n)
 {
-#if defined(X_XF86VidModeGetGammaRampSize)
-    
     NvCtrlAttributePrivateHandle *h;
 
     h = (NvCtrlAttributePrivateHandle *) handle;
@@ -375,9 +354,6 @@ ReturnStatus NvCtrlGetColorRamp(NvCtrlAttributeHandle *handle,
     }
     
     return NvCtrlSuccess;
-#else
-    return NvCtrlMissingExtension;
-#endif
 }
 
 
