@@ -299,6 +299,7 @@ static void ctk_event_class_init(CtkEventClass *ctk_event_class)
     MAKE_SIGNAL(NV_CTRL_ACCELERATE_TRAPEZOIDS);
     MAKE_SIGNAL(NV_CTRL_GPU_CORES);
     MAKE_SIGNAL(NV_CTRL_GPU_MEMORY_BUS_WIDTH);
+    MAKE_SIGNAL(NV_CTRL_GVI_TEST_MODE);
 
 #undef MAKE_SIGNAL
     
@@ -309,7 +310,7 @@ static void ctk_event_class_init(CtkEventClass *ctk_event_class)
      * knows about.
      */
 
-#if NV_CTRL_LAST_ATTRIBUTE != NV_CTRL_GPU_MEMORY_BUS_WIDTH
+#if NV_CTRL_LAST_ATTRIBUTE != NV_CTRL_GVI_TEST_MODE
 #warning "There are attributes that do not emit signals!"
 #endif
 

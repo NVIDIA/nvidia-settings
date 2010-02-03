@@ -32,6 +32,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <inttypes.h>
 
 #include "parse.h"
 #include "msg.h"
@@ -671,6 +672,10 @@ static void print_valid_values(char *name, int attr, uint32 flags,
         nv_msg(INDENT, "'%s' is a string attribute.", name);
         break;
 
+    case ATTRIBUTE_TYPE_64BIT_INTEGER:
+        nv_msg(INDENT, "'%s' is a 64 bit integer attribute.", name);
+        break;
+
     case ATTRIBUTE_TYPE_INTEGER:
         if (flags & NV_PARSER_TYPE_PACKED_ATTRIBUTE) {
             nv_msg(INDENT, "'%s' is a packed integer attribute.", name);
@@ -691,12 +696,13 @@ static void print_valid_values(char *name, int attr, uint32 flags,
     case ATTRIBUTE_TYPE_RANGE:
         if (flags & NV_PARSER_TYPE_PACKED_ATTRIBUTE) {
             nv_msg(INDENT, "The valid values for '%s' are in the ranges "
-                   "%d - %d, %d - %d (inclusive).", name,
-                   valid.u.range.min >> 16, valid.u.range.max >> 16,
+                   "%" PRId64 " - %" PRId64 ", %" PRId64 " - %" PRId64
+                   " (inclusive).",
+                   name, valid.u.range.min >> 16, valid.u.range.max >> 16,
                    valid.u.range.min & 0xffff, valid.u.range.max & 0xffff);
         } else {
             nv_msg(INDENT, "The valid values for '%s' are in the range "
-                   "%d - %d (inclusive).", name,
+                   "%" PRId64 " - %" PRId64 " (inclusive).", name,
                    valid.u.range.min, valid.u.range.max);
         }
         break;

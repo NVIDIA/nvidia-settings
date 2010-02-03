@@ -164,8 +164,12 @@ AttributeTableEntry attributeTable[] = {
     { "ECCSupported",           NV_CTRL_GPU_ECC_SUPPORTED,             N,   "Reports whether the underlying GPU supports ECC.  All of the other ECC attributes are only applicable if this attribute indicates that ECC is supported." },
     { "ECCStatus",              NV_CTRL_GPU_ECC_STATUS,                N,   "Reports whether ECC is enabled." },
     { "ECCConfigurationSupported", NV_CTRL_GPU_ECC_CONFIGURATION_SUPPORTED, N,   "Reports whether ECC whether the ECC configuration setting can be changed." },
-    { "ECCConfiguration",       NV_CTRL_GPU_ECC_CONFIGURATION,         N,  "Returns the current ECC configuration setting." },
-    { "ECCDefaultConfiguration", NV_CTRL_GPU_ECC_DEFAULT_CONFIGURATION, N, "Returns the default ECC configuration setting." },
+    { "ECCConfiguration",            NV_CTRL_GPU_ECC_CONFIGURATION,               N, "Returns the current ECC configuration setting." },
+    { "ECCDefaultConfiguration",     NV_CTRL_GPU_ECC_DEFAULT_CONFIGURATION,       N, "Returns the default ECC configuration setting." },
+    { "ECCSingleBitErrors",          NV_CTRL_GPU_ECC_SINGLE_BIT_ERRORS,           N, "Returns the number of single-bit ECC errors detected by the targeted GPU since the last POST." },
+    { "ECCDoubleBitErrors",          NV_CTRL_GPU_ECC_DOUBLE_BIT_ERRORS,           N, "Returns the number of double-bit ECC errors detected by the targeted GPU since the last POST." },
+    { "ECCAggregateSingleBitErrors", NV_CTRL_GPU_ECC_AGGREGATE_SINGLE_BIT_ERRORS, N, "Returns the number of double-bit ECC errors detected by the targeted GPU since the last counter reset." },
+    { "ECCAggregateDoubleBitErrors", NV_CTRL_GPU_ECC_AGGREGATE_DOUBLE_BIT_ERRORS, N, "Returns the number of double-bit ECC errors detected by the targeted GPU since the last counter reset." },
     { "GPUFanControlState",     NV_CTRL_GPU_COOLER_MANUAL_CONTROL,        N,   "The current fan control state; the value of this attribute controls the availability of additional fan control attributes.  Note that this attribute is unavailable unless fan control support has been enabled by setting the \"Coolbits\" X config option." },
     { "GPUCurrentFanSpeed",     NV_CTRL_THERMAL_COOLER_LEVEL,             N,   "Returns the GPU fan's current speed." },
     { "GPUResetFanSpeed",       NV_CTRL_THERMAL_COOLER_LEVEL_SET_DEFAULT, N,   "Resets the GPU fan's speed to its default." },
@@ -250,6 +254,7 @@ AttributeTableEntry attributeTable[] = {
     { "GviMaxStreams",                        NV_CTRL_GVI_MAX_STREAMS,                          I|N, "Returns the maximum supported number of streams that can be configured on a GVI device." },
     { "GviNumCaptureSurfaces",                NV_CTRL_GVI_NUM_CAPTURE_SURFACES,                 I|N, "Controls the number of capture buffers for storing incoming video from the GVI device." },
     { "GviBoundGpu",                          NV_CTRL_GVI_BOUND_GPU,                            I|N, "Returns the target index of the GPU currently attached to the GVI device." },
+    { "GviTestMode",                          NV_CTRL_GVI_TEST_MODE,                            I|N, "Enable or disable GVI test mode." },
 
     /* Display */
     { "Brightness",                 BRIGHTNESS_VALUE|ALL_CHANNELS,         N|C|G, "Controls the overall brightness of the display." },
@@ -326,7 +331,7 @@ AttributeTableEntry attributeTable[] = {
  * about.
  */
 
-#if NV_CTRL_LAST_ATTRIBUTE != NV_CTRL_GPU_MEMORY_BUS_WIDTH
+#if NV_CTRL_LAST_ATTRIBUTE != NV_CTRL_GVI_TEST_MODE
 #warning "Have you forgotten to add a new integer attribute to attributeTable?"
 #endif
 

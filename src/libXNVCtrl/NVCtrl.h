@@ -2841,7 +2841,21 @@
 
 #define NV_CTRL_GPU_MEMORY_BUS_WIDTH                            346 /* R--G */
 
-#define NV_CTRL_LAST_ATTRIBUTE NV_CTRL_GPU_MEMORY_BUS_WIDTH
+
+/*
+ * NV_CTRL_GVI_TEST_MODE - This attribute controls the GVI test mode.  When
+ * enabled, the GVI device will generate fake data as quickly as possible.  All
+ * GVI settings are still valid when this is enabled (e.g., the requested video
+ * format is honored and sets the video size).
+ * This may be used to test the pipeline.
+ */
+
+#define NV_CTRL_GVI_TEST_MODE                                   347 /* R--I */
+#define NV_CTRL_GVI_TEST_MODE_DISABLE                             0
+#define NV_CTRL_GVI_TEST_MODE_ENABLE                              1
+
+
+#define NV_CTRL_LAST_ATTRIBUTE NV_CTRL_GVI_TEST_MODE
 
 /**************************************************************************/
 

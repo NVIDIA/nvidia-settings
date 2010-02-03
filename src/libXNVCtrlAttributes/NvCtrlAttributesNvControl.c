@@ -160,7 +160,7 @@ ReturnStatus NvCtrlNvControlGetAttribute (NvCtrlAttributePrivateHandle *h,
     minor = h->nv->minor_version;
 
     if (attr <= NV_CTRL_LAST_ATTRIBUTE) {
-        if ((major > 1) || ((major == 1) && (minor >= 20))) {
+        if ((major > 1) || ((major == 1) && (minor > 20))) {
             status = XNVCTRLQueryTargetAttribute64(h->dpy, h->target_type,
                                                    h->target_id,
                                                    display_mask, attr,

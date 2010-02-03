@@ -25,6 +25,7 @@
 #include <stdlib.h>
 #include <string.h>
 #include <sys/stat.h>
+#include <assert.h>
 
 #include <gtk/gtk.h>
 #include <gdk/gdkx.h>
@@ -137,7 +138,7 @@ typedef struct SwitchModeCallbackInfoRec {
 #define VALIDATE_APPLY 0
 #define VALIDATE_SAVE  1
 
-#define SCREEN_DEPTH_COUNT 4
+#define SCREEN_DEPTH_COUNT 5
 
 
 /*** G L O B A L S ***********************************************************/
@@ -3134,6 +3135,7 @@ static void setup_screen_depth_dropdown(CtkDisplayConfig *ctk_object)
     gtk_widget_show(menu_item);
     ctk_object->screen_depth_table[screen_depth_table_len++] = 8;
 
+    assert(screen_depth_table_len <= SCREEN_DEPTH_COUNT);
     g_signal_handlers_block_by_func(G_OBJECT(ctk_object->mnu_screen_depth),
                                     G_CALLBACK(screen_depth_changed),
                                     (gpointer) ctk_object);

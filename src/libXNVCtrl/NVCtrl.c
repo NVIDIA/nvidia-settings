@@ -689,7 +689,7 @@ Bool XNVCTRLQueryValidTargetAttributeValues (
     if (!XNVCTRLQueryVersion(dpy, &major, &minor))
         return False;
 
-    if ((major > 1) || ((major == 1) && (minor >= 20))) {
+    if ((major > 1) || ((major == 1) && (minor > 20))) {
         exists = XNVCTRLQueryValidTargetAttributeValues64(dpy, info,
                                                           target_type,
                                                           target_id,
