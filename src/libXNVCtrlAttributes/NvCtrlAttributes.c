@@ -696,6 +696,27 @@ NvCtrlGetValidDisplayAttributeValues(NvCtrlAttributeHandle *handle,
 
 
 /*
+ * GetValidStringDisplayAttributeValuesExtraAttr() -fill the
+ * NVCTRLAttributeValidValuesRec strucure for extra string atrributes i.e.
+ * NvCtrlNvControl*, NvCtrlGlx*, NvCtrlXrandr*, NvCtrlVidMode*, or NvCtrlXv*.
+ */
+
+static ReturnStatus
+GetValidStringDisplayAttributeValuesExtraAttr(NVCTRLAttributeValidValuesRec
+                                                    *val)
+{
+    if (val) {
+        memset(val, 0, sizeof(NVCTRLAttributeValidValuesRec));
+        val->type = ATTRIBUTE_TYPE_STRING;
+        val->permissions = ATTRIBUTE_TYPE_READ | ATTRIBUTE_TYPE_X_SCREEN;
+        return NvCtrlSuccess;
+    } else {
+        return NvCtrlBadArgument;
+    }
+} /* GetValidStringDisplayAttributeValuesExtraAttr() */
+
+
+/*
  * NvCtrlGetValidStringDisplayAttributeValues() -fill the
  * NVCTRLAttributeValidValuesRec strucure for String atrributes
  */
@@ -715,7 +736,46 @@ NvCtrlGetValidStringDisplayAttributeValues(NvCtrlAttributeHandle *handle,
                                                                    attr, val);
     }
 
-    return NvCtrlBadArgument;
+    /*
+     * The below string attributes are only available for X screen target
+     * types
+     */
+
+    if (h->target_type != NV_CTRL_TARGET_TYPE_X_SCREEN) {
+        return NvCtrlAttributeNotAvailable;
+    }
+    
+    if ((attr >= NV_CTRL_STRING_NV_CONTROL_BASE) &&
+        (attr <= NV_CTRL_STRING_NV_CONTROL_LAST_ATTRIBUTE)) {
+        if (!h->nv) return NvCtrlMissingExtension;
+        return GetValidStringDisplayAttributeValuesExtraAttr(val);
+    }
+
+    if ((attr >= NV_CTRL_STRING_GLX_BASE) &&
+        (attr <= NV_CTRL_STRING_GLX_LAST_ATTRIBUTE)) {
+        if (!h->glx) return NvCtrlMissingExtension;
+        return GetValidStringDisplayAttributeValuesExtraAttr(val);
+    }
+
+    if ((attr >= NV_CTRL_STRING_XRANDR_BASE) &&
+        (attr <= NV_CTRL_STRING_XRANDR_LAST_ATTRIBUTE)) {
+        if (!h->xrandr) return NvCtrlMissingExtension;
+        return GetValidStringDisplayAttributeValuesExtraAttr(val);
+    }
+
+    if ((attr >= NV_CTRL_STRING_XF86VIDMODE_BASE) &&
+        (attr <= NV_CTRL_STRING_XF86VIDMODE_LAST_ATTRIBUTE)) {
+        if (!h->vm) return NvCtrlMissingExtension;
+        return GetValidStringDisplayAttributeValuesExtraAttr(val);
+    }
+
+    if ((attr >= NV_CTRL_STRING_XV_BASE) &&
+        (attr <= NV_CTRL_STRING_XV_LAST_ATTRIBUTE)) {
+        if (!h->xv) return NvCtrlMissingExtension;
+        return GetValidStringDisplayAttributeValuesExtraAttr(val);
+    }
+
+    return NvCtrlNoAttribute;
 
 } /* NvCtrlGetValidStringDisplayAttributeValues() */
 
