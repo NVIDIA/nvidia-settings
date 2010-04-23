@@ -143,7 +143,7 @@ static const char *__stereo_eyes_exchange_help =
 #define __IMAGE_SETTINGS      (1 << 7)
 #define __XINERAMA_STEREO     (1 << 8)
 #define __SHOW_SLI_HUD        (1 << 9)
-#define __STEREO_EYES_EXCHANGE (1 << 9)
+#define __STEREO_EYES_EXCHANGE (1 << 10)
 
 
 
