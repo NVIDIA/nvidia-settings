@@ -940,7 +940,7 @@ int main(int argc, char *argv[])
         
         str = start = pMetaModes;
         
-        for (j = 0; j < MetaModeLen; j++) {
+        for (j = 0; j < MetaModeLen - 1; j++) {
 
             /*
              * if we found the end of a line, treat the string from
