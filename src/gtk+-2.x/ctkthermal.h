@@ -63,6 +63,23 @@ typedef struct _CoolerControl {
     CtkEvent *event;           /* Receive NV_CONTROL events */
 } CoolerControlRec, *CoolerControlPtr;
 
+typedef struct {
+    int format;
+    const char *name;
+} nvctrlFormatName;
+
+typedef struct _SensorInfo {
+    NvCtrlAttributeHandle *handle;
+    int currentTemp;
+    int minTemp;
+    int maxTemp;
+    
+    GtkWidget *target_type;
+    GtkWidget *provider_type;
+    GtkWidget *temp_label;
+    GtkWidget *core_gauge;
+} SensorInfoRec, *SensorInfoPtr;
+
 struct _CtkThermal
 {
     GtkVBox parent;
@@ -91,7 +108,10 @@ struct _CtkThermal
     gboolean show_fan_control_frame;
     gboolean enable_reset_button;
     CoolerControlPtr cooler_control;
+    SensorInfoPtr sensor_info;
     int cooler_count;
+    int sensor_count;
+    gboolean thermal_sensor_target_type_supported;
 };
 
 struct _CtkThermalClass

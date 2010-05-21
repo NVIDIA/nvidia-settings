@@ -136,8 +136,8 @@ struct __NvCtrlXvBlitterAttributes {
 };
 
 struct __NvCtrlXvAttributes {
-    int major_version;
-    int minor_version;
+    unsigned int major_version;
+    unsigned int minor_version;
     NvCtrlXvOverlayAttributes *overlay; /* XVideo info (overlay) */
     NvCtrlXvTextureAttributes *texture; /* XVideo info (texture) */
     NvCtrlXvBlitterAttributes *blitter; /* XVideo info (blitter) */

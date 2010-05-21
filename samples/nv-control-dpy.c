@@ -40,6 +40,7 @@
 #include "NVCtrl.h"
 #include "NVCtrlLib.h"
 
+#include "nv-control-screen.h"
 
 static char *display_device_name(int mask);
 static unsigned int display_device_mask(char *str);
@@ -73,13 +74,7 @@ int main(int argc, char *argv[])
         return 1;
     }
     
-    screen = DefaultScreen(dpy);
-
-    if (!XNVCTRLIsNvScreen(dpy, screen)) {
-        fprintf(stderr, "The NV-CONTROL X extension is not available on screen "
-                "%d of '%s'.\n\n", screen, XDisplayName(NULL));
-        return 1;
-    }
+    screen = GetNvXScreen(dpy);
 
     ret = XNVCTRLQueryVersion(dpy, &major, &minor);
     if (ret != True) {

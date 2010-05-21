@@ -25,7 +25,6 @@
 #include <stdlib.h> /* malloc */
 #include <string.h> /* strlen,  strdup */
 #include <unistd.h> /* lseek, close */
-#include <locale.h>
 #include <errno.h>
 
 #include <fcntl.h>
@@ -38,6 +37,7 @@
 
 #include "msg.h"
 #include "parse.h"
+#include "command-line.h"
 
 #include "ctkdisplayconfig-utils.h"
 #include "ctkutils.h"
@@ -257,24 +257,15 @@ static nvModeLinePtr modeline_parse(nvDisplayPtr display,
 {
     nvModeLinePtr modeline = NULL;
     const char *str = modeline_str;
-    char *tmp, *old_locale;
+    char *tmp;
     char *tokens, *nptr;
-    double pclk, htotal, vtotal, factor;
+    double htotal, vtotal, factor;
+    gdouble pclk;
 
     if (!str) return NULL;
 
     modeline = (nvModeLinePtr)calloc(1, sizeof(nvModeLine));
     if (!modeline) return NULL;
-
-    /* Make sure strtod uses . instead of , as the decimal separator */
-    old_locale = setlocale(LC_NUMERIC, NULL);
-
-    if (old_locale)
-        old_locale = strdup(old_locale);
-
-    if (!old_locale || !setlocale(LC_NUMERIC, "C"))
-        nv_warning_msg("Error parsing server modeline '%s': could not "
-                       "set the locale 'C'.", modeline_str);
 
     /* Parse the modeline tokens */
     tmp = strstr(str, "::");
@@ -397,7 +388,12 @@ static nvModeLinePtr modeline_parse(nvDisplayPtr display,
         htotal = (double) modeline->data.htotal;
         vtotal = (double) modeline->data.vtotal;
 
-        pclk = strtod(modeline->data.clock, &nptr);
+        /*
+         * Use g_ascii_strtod(), so that we do not have to change the locale
+         * to "C".
+         */
+        pclk = g_ascii_strtod((const gchar *)modeline->data.clock,
+                              (gchar **)&nptr);
 
         if ((pclk == 0.0) || !nptr || *nptr != '\0' || ((htotal * vtotal) == 0)) {
             nv_warning_msg("Failed to compute the refresh rate "
@@ -420,24 +416,12 @@ static nvModeLinePtr modeline_parse(nvDisplayPtr display,
         modeline->refresh_rate *= factor;
     }
 
-    /* Restore the locale */
-    if (old_locale) {
-        setlocale(LC_NUMERIC, old_locale);
-        free(old_locale);
-    }
-
     return modeline;
 
 
     /* Handle failures */
  fail:
     free(modeline);
-
-    /* Restore the locale */
-    if (old_locale) {
-        setlocale(LC_NUMERIC, old_locale);
-        free(old_locale);
-    }
 
     return NULL;
 
@@ -1270,14 +1254,16 @@ static void screen_remove_metamodes(nvScreenPtr screen)
  * screen's display devices (at the end of the list)
  *
  **/
-static Bool screen_add_metamode(nvScreenPtr screen, char *metamode_str,
+static Bool screen_add_metamode(nvScreenPtr screen, const char *metamode_str,
                                 gchar **err_str)
 {
-    char *mode_str;
+    char *mode_str_itr;
     char *str = NULL;
-    char *tmp;
+    const char *tmp;
     char *tokens;
+    char *metamode_copy;
     nvMetaModePtr metamode;
+    int str_offset = 0;
 
 
     if (!screen || !screen->gpu || !metamode_str) goto fail;
@@ -1287,29 +1273,33 @@ static Bool screen_add_metamode(nvScreenPtr screen, char *metamode_str,
     if (!metamode) goto fail;
 
 
-    /* Copy the string so we can split it up */
-    str = strdup(metamode_str);
-    if (!str) goto fail;
-    
-
     /* Read the MetaMode ID */
-    tmp = strstr(str, "::");
+    tmp = strstr(metamode_str, "::");
     if (tmp) {
-        tokens = strdup(str);
-        tokens[ tmp-str ] = '\0';
+
+        tokens = strdup(metamode_str);
+        if (!tokens) goto fail;
+
+        tokens[ tmp-metamode_str ] = '\0';
         tmp += 2;
         parse_token_value_pairs(tokens, apply_metamode_token,
                                 (void *)metamode);
         free(tokens);
+        str_offset = tmp - metamode_str;
     } else {
         /* No tokens?  Try the old "ID: METAMODE_STR" syntax */
-        tmp = (char *)parse_read_integer(str, &(metamode->id));
+        const char *read_offset;
+        read_offset = parse_read_integer(metamode_str, &(metamode->id));
         metamode->source = METAMODE_SOURCE_NVCONTROL;
-        if (*tmp == ':') {
-            tmp++;
+        if (*read_offset == ':') {
+            read_offset++;
+            str_offset = read_offset - metamode_str;
         }
     }
 
+    /* Copy the string so we can split it up */
+    metamode_copy = strdup(metamode_str + str_offset);
+    if (!metamode_copy) goto fail;
 
     /* Add the metamode at the end of the screen's metamode list */
     xconfigAddListItem((GenericListPtr *)(&screen->metamodes),
@@ -1317,18 +1307,18 @@ static Bool screen_add_metamode(nvScreenPtr screen, char *metamode_str,
 
 
     /* Split up the metamode into separate modes */
-    for (mode_str = strtok(tmp, ",");
-         mode_str;
-         mode_str = strtok(NULL, ",")) {
+    for (mode_str_itr = strtok(metamode_copy, ",");
+         mode_str_itr;
+         mode_str_itr = strtok(NULL, ",")) {
         
         nvModePtr     mode;
         unsigned int  device_mask;
         nvDisplayPtr  display;
-        const char *orig_mode_str = parse_skip_whitespace(mode_str);
-
+        const char *orig_mode_str = parse_skip_whitespace(mode_str_itr);
+        const char *mode_str;
 
         /* Parse the display device bitmask from the name */
-        mode_str = (char *)parse_read_display_name(mode_str, &device_mask);
+        mode_str = parse_read_display_name(mode_str_itr, &device_mask);
         if (!mode_str) {
             *err_str = g_strdup_printf("Failed to read a display device name "
                                        "on screen %d (on GPU-%d)\nwhile "
@@ -2663,69 +2653,6 @@ nvScreenPtr layout_get_a_screen(nvLayoutPtr layout, nvGpuPtr preferred_gpu)
 
 
 /*
- * tilde_expansion() - do tilde expansion on the given path name;
- * based loosely on code snippets found in the comp.unix.programmer
- * FAQ.  The tilde expansion rule is: if a tilde ('~') is alone or
- * followed by a '/', then substitute the current user's home
- * directory; if followed by the name of a user, then substitute that
- * user's home directory.
- *
- * Code adapted from nvidia-xconfig
- */
-
-char *tilde_expansion(char *str)
-{
-    char *prefix = NULL;
-    char *replace, *user, *ret;
-    struct passwd *pw;
-    int len;
-
-    if ((!str) || (str[0] != '~')) return str;
-    
-    if ((str[1] == '/') || (str[1] == '\0')) {
-
-        /* expand to the current user's home directory */
-
-        prefix = getenv("HOME");
-        if (!prefix) {
-            
-            /* $HOME isn't set; get the home directory from /etc/passwd */
-            
-            pw = getpwuid(getuid());
-            if (pw) prefix = pw->pw_dir;
-        }
-        
-        replace = str + 1;
-        
-    } else {
-    
-        /* expand to the specified user's home directory */
-
-        replace = strchr(str, '/');
-        if (!replace) replace = str + strlen(str);
-
-        len = replace - str;
-        user = malloc(len + 1);
-        strncpy(user, str+1, len-1);
-        user[len] = '\0';
-        pw = getpwnam(user);
-        if (pw) prefix = pw->pw_dir;
-        free (user);
-    }
-
-    if (!prefix) return str;
-    
-    ret = malloc(strlen(prefix) + strlen(replace) + 1);
-    strcpy(ret, prefix);
-    strcat(ret, replace);
-    
-    return ret;
-
-} /* tilde_expansion() */
-
-
-
-/*
  * update_banner() - add our banner at the top of the config, but
  * first we need to remove any lines that already include our prefix
  * (because presumably they are a banner from an earlier run of
@@ -2800,6 +2727,7 @@ static int save_xconfig_file(SaveXConfDlg *dlg,
     FILE *fp = NULL;
     size_t size;
     gchar *err_msg = NULL;
+    struct stat st;
 
     int ret = 0;
 
@@ -2810,6 +2738,23 @@ static int save_xconfig_file(SaveXConfDlg *dlg,
 
     /* Backup any existing file */
     if ((access(filename, F_OK) == 0)) {
+
+        /* Verify the file-write permission */
+        if ((access(filename, W_OK) != 0)) {
+            err_msg =
+              g_strdup_printf("You do not have adequate permission to"
+              " open the existing X configuration file '%s' for writing.",
+              filename);
+
+            /* Verify the user permissions */
+            if (stat(filename, &st) == 0) {
+                if ((getuid() != 0) && (st.st_uid == 0) &&
+                    !(st.st_mode & (S_IWGRP | S_IWOTH)))
+                    err_msg = g_strconcat(err_msg, " You must be 'root'"
+                    " to modify the file.", NULL);
+            }
+            goto done;
+        }
 
         backup_filename = g_strdup_printf("%s.backup", filename);
         nv_info_msg("", "X configuration file '%s' already exists, "
@@ -2907,7 +2852,7 @@ static const char *get_non_regular_file_type_description(mode_t mode)
  */
 static void update_xconfig_save_buffer(SaveXConfDlg *dlg)
 {
-    gchar *filename;
+    const gchar *filename;
 
     XConfigPtr xconfCur = NULL;
     XConfigPtr xconfGen = NULL;
@@ -2931,7 +2876,7 @@ static void update_xconfig_save_buffer(SaveXConfDlg *dlg)
     merge = gtk_toggle_button_get_active
         (GTK_TOGGLE_BUTTON(dlg->btn_xconfig_merge));
 
-    filename = (gchar *)gtk_entry_get_text(GTK_ENTRY(dlg->txt_xconfig_file));
+    filename = gtk_entry_get_text(GTK_ENTRY(dlg->txt_xconfig_file));
 
 
     /* Assume we can save until we find out otherwise */
@@ -2944,6 +2889,7 @@ static void update_xconfig_save_buffer(SaveXConfDlg *dlg)
     if (filename && (stat(filename, &st) == 0)) {
         const char *non_regular_file_type_description =
             get_non_regular_file_type_description(st.st_mode);
+        const char *test_filename;
 
         /* Make sure this is a regular file */
         if (non_regular_file_type_description) {
@@ -2959,8 +2905,8 @@ static void update_xconfig_save_buffer(SaveXConfDlg *dlg)
         }
 
         /* Must be able to open the file */
-        tmp_filename = (char *)xconfigOpenConfigFile(filename, NULL);
-        if (!tmp_filename || strcmp(tmp_filename, filename)) {
+        test_filename = xconfigOpenConfigFile(filename, NULL);
+        if (!test_filename || strcmp(test_filename, filename)) {
             xconfigCloseConfigFile();
 
         } else {
@@ -3231,7 +3177,7 @@ void run_save_xconfig_dialog(SaveXConfDlg *dlg)
     void *buf;
     GtkTextIter buf_start, buf_end;
     gchar *filename;
-    gchar *tmp_filename;
+    const gchar *tmp_filename;
     struct stat st;
 
     gint result;
@@ -3263,11 +3209,12 @@ void run_save_xconfig_dialog(SaveXConfDlg *dlg)
     case GTK_RESPONSE_ACCEPT:
 
         /* Get the filename to write to */
-        tmp_filename =
-            (gchar *) gtk_entry_get_text(GTK_ENTRY(dlg->txt_xconfig_file));
+        tmp_filename = gtk_entry_get_text(GTK_ENTRY(dlg->txt_xconfig_file));
         filename = tilde_expansion(tmp_filename);
-        if (filename == tmp_filename) {
-            filename = g_strdup(tmp_filename);
+
+        if (!filename) {
+            nv_error_msg("Failed to get X configuration filename!");
+            break;
         }
 
         /* If the file exists, make sure it is a regular file */
@@ -3327,7 +3274,7 @@ SaveXConfDlg *create_save_xconfig_dialog(GtkWidget *parent,
     GtkWidget *hbox;
     GtkWidget *hbox2;
     gchar *filename;
-
+    const char *tmp_filename;
 
     dlg = (SaveXConfDlg *) malloc (sizeof(SaveXConfDlg));
     if (!dlg) return NULL;
@@ -3338,9 +3285,9 @@ SaveXConfDlg *create_save_xconfig_dialog(GtkWidget *parent,
     dlg->callback_data = callback_data;
 
     /* Setup the default filename */
-    filename = (gchar *) xconfigOpenConfigFile(NULL, NULL);
-    if (filename) {
-        filename = g_strdup(filename);
+    tmp_filename = xconfigOpenConfigFile(NULL, NULL);
+    if (tmp_filename) {
+        filename = g_strdup(tmp_filename);
     } else {
         filename = g_strdup("");
     }

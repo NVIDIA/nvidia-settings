@@ -49,6 +49,7 @@ format_extension_list(const char *ext)
 {
    int    i;
    char * extTmp = NULL; /* Actual string to print */
+   const char *extCountTmp;
 
 
    if ( !ext || !ext[0] )
@@ -56,19 +57,19 @@ format_extension_list(const char *ext)
 
    /* Count number of extensions (to get number of commas needed) */
    i = 0;
-   extTmp = (char *)ext;
-   while ( *extTmp != '\0' ) {
-       if ( *extTmp == ' ' ) {
+   extCountTmp = ext;
+   while ( *extCountTmp != '\0' ) {
+       if ( *extCountTmp == ' ' ) {
            i++;
        }
-       extTmp++;
+       extCountTmp++;
    }
 
    /*
     * Allocate buffer that will hold the extension string with
     * commas in it 
     */
-   extTmp = (char *) malloc( (strlen(ext) +i +1) *sizeof(char) );
+   extTmp = malloc( (strlen(ext) +i +1) *sizeof(char) );
    if ( extTmp == NULL ) {
        return NULL;
    }

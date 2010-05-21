@@ -419,6 +419,11 @@ static int process_attribute_queries(int num, char **queries,
             continue;
         }
 
+        if (nv_strcasecmp(queries[query], "thermalsensors")) {
+            query_all_targets(display_name, THERMAL_SENSOR_TARGET);
+            continue;
+        }
+
         /* call the parser to parse queries[query] */
 
         ret = nv_parse_attribute_string(queries[query], NV_PARSER_QUERY, &a);
@@ -1238,6 +1243,7 @@ static int print_target_connections(CtrlHandles *h,
                     get_vcs_name(h->targets[target_index].t[ pData[i] ].h);
                 break;
                 
+            case THERMAL_SENSOR_TARGET:
             case COOLER_TARGET:
             case FRAMELOCK_TARGET:
             case GVI_TARGET:
@@ -1342,8 +1348,13 @@ static int query_all_targets(const char *display_name, const int target_index)
         t = &h->targets[target_index].t[i];
         
         str = NULL;
+        if (target_index == THERMAL_SENSOR_TARGET) {    
+            /* for sensor, create the product name */
 
-        if (target_index == COOLER_TARGET) {
+            product_name = malloc(32);
+            snprintf(product_name, 32, "Thermal Sensor %d", i);
+
+        } else if (target_index == COOLER_TARGET) {
 
             /* for cooler, create the product name */
 
@@ -1418,6 +1429,9 @@ static int query_all_targets(const char *display_name, const int target_index)
                 print_target_connections
                     (h, t, NV_CTRL_BINARY_DATA_COOLERS_USED_BY_GPU,
                      COOLER_TARGET);
+                print_target_connections
+                    (h, t, NV_CTRL_BINARY_DATA_THERMAL_SENSORS_USED_BY_GPU,
+                     THERMAL_SENSOR_TARGET);
                 break;
 
             case X_SCREEN_TARGET:
@@ -1442,6 +1456,12 @@ static int query_all_targets(const char *display_name, const int target_index)
                 print_target_connections
                     (h, t, NV_CTRL_BINARY_DATA_COOLERS_USED_BY_GPU,
                      COOLER_TARGET);
+                break;
+            
+            case THERMAL_SENSOR_TARGET:
+                print_target_connections
+                    (h, t, NV_CTRL_BINARY_DATA_THERMAL_SENSORS_USED_BY_GPU,
+                     THERMAL_SENSOR_TARGET);
                 break;
             
             default:

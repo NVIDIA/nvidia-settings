@@ -1,7 +1,7 @@
 changequote([[[, ]]])dnl
 dnl Solaris man chokes on three-letter macros.
 ifelse(__BUILD_OS__,SunOS,[[[define(__URL__,UR)]]],[[[define(__URL__,URL)]]])dnl
-.\" Copyright (C) 2006 NVIDIA Corporation.
+.\" Copyright (C) 2010 NVIDIA Corporation.
 __HEADER__
 .\" Define the .__URL__ macro and then override it with the www.tmac package if it
 .\" exists.
@@ -9,7 +9,7 @@ __HEADER__
 \\$2 \(la \\$1 \(ra\\$3
 ..
 .if \n[.g] .mso www.tmac
-.TH nvidia\-settings 1 2006-03-17 "nvidia\-settings 1.0"
+.TH nvidia\-settings 1 "__DATE__" "nvidia\-settings __VERSION__"
 .SH NAME
 nvidia\-settings \- configure the NVIDIA graphics driver
 .SH SYNOPSIS
@@ -39,7 +39,7 @@ The
 .B nvidia\-settings
 utility is a tool for configuring the NVIDIA graphics driver.
 It operates by communicating with the NVIDIA X driver, querying and updating state as appropriate.
-This communication is done with the NV-CONTROL X extension.
+This communication is done via the NV-CONTROL, GLX, XVideo, and RandR X extensions.
 .PP
 Values such as brightness and gamma, XVideo attributes, temperature, and OpenGL settings can be queried and configured via
 .B nvidia\-settings.
@@ -71,7 +71,7 @@ rather than the default
 Control the specified X display.
 If this option is not given, then
 .B nvidia\-settings
-will control the display specifed by
+will control the display specified by
 .B \-\-display.
 If that is not given, then the
 .I $DISPLAY
@@ -88,12 +88,13 @@ Load the configuration file, send the values specified therein to the X server, 
 This mode of operation is useful to place in your .xinitrc file, for example.
 .TP
 .B \-r, \-\-rewrite\-config\-file
-Write the current X server configuration to the configuration file, and exit without starting 
-a grpahical user interface.See Examples section.
+Write the current X server configuration to the configuration file, and exit without starting
+a graphical user interface.
+See the EXAMPLES section.
 .TP
 .BI "\-V, \-\-verbose=" verbosity
 Controls how much information is printed.
-By default, the verbosity is 
+By default, the verbosity is
 .B errors
 and only error messages are printed.
 .br
@@ -115,7 +116,7 @@ The
 .I assign
 argument to the
 .B \-\-assign
-commandline option is of the form:
+command line option is of the form:
 .nf
 
         {DISPLAY}/{attribute name}[{display devices}]={value}
@@ -175,7 +176,7 @@ The
 .I query
 argument to the
 .B \-\-query
-commandline option is of the form:
+command line option is of the form:
 .nf
 
         {DISPLAY}/{attribute name}[{display devices}]
@@ -200,10 +201,10 @@ Specify
 to query all attributes.
 .TP
 .B \-t, \-\-terse
-When querying attribute values with the '--query' commandline option, only print the current value, rather than the more verbose description of the attribute, its valid values, and its current value.
+When querying attribute values with the '--query' command line option, only print the current value, rather than the more verbose description of the attribute, its valid values, and its current value.
 .TP
 .B \-d, \-\-display\-device\-string
-When printing attribute values in response to the '--query' option, if the attribute value is a display device mask, print the value as a list of display devices (e.g., "CRT-0, DFP-0"), rather than a hexidecimal bitmask (e.g., 0x00010001).
+When printing attribute values in response to the '--query' option, if the attribute value is a display device mask, print the value as a list of display devices (e.g., "CRT-0, DFP-0"), rather than a hexadecimal bit mask (e.g., 0x00010001).
 .TP
 .B \-g, \-\-glxinfo
 Print GLX Information for the X display and exit.
@@ -218,7 +219,7 @@ Prints information about a particular attribute.  Specify 'all' to list the desc
 .br
 3.	Loading Settings Automatically
 .br
-4.	Commandline Interface
+4.	Command Line Interface
 .br
 5.	X Display Names in the Config File
 .br
@@ -299,7 +300,7 @@ The configuration file is named
 .IR ~/.nvidia\-settings\-rc .
 You can specify a different configuration file name with the
 .B \-\-config
-commandline option.
+command line option.
 .PP
 After you have run
 .B nvidia\-settings
@@ -361,10 +362,10 @@ Please see the
 man page for further details of configuring your
 .I ~/.xinitrc
 file.
-.SS 4. Commandline Interface
+.SS 4. Command Line Interface
 .B nvidia\-settings
-has a rich commandline interface: all attributes that can be manipulated with the GUI can also be queried and set from the command line.
-The commandline syntax for querying and assigning attributes matches that of the 
+has a rich command line interface: all attributes that can be manipulated with the GUI can also be queried and set from the command line.
+The command line syntax for querying and assigning attributes matches that of the
 .I .nvidia\-settings\-rc
 configuration file.
 .PP
@@ -472,7 +473,7 @@ For example:
         nvidia-settings --assign [gpu:0]/DigitalVibrance=0
 .fi
 .PP
-Multiple queries and assignments may be specified on the commandline for a single invocation of
+Multiple queries and assignments may be specified on the command line for a single invocation of
 .B nvidia\-settings.
 .PP
 If either the
@@ -484,8 +485,17 @@ options are passed to
 the GUI will not be presented, and
 .B nvidia\-settings
 will exit after processing the assignments and/or queries.
+In this case, settings contained within the
+.I ~/.nvidia\-settings-rc
+configuration file will not be automatically uploaded to the X server, nor will the
+.I ~/.nvidia\-settings-rc
+configuration file be automatically updated to reflect attribute assignments made via the
+.B \-\-assign
+option.
 .SS 5. X Display Names in the Config File
-In the Commandline Interface section above, it was noted that you can specify an attribute without any X Display qualifiers, with only an X screen qualifier, or with a full X Display name.
+In the Command Line Interface section above, it was noted that you can
+specify an attribute without any X Display qualifiers, with only an X
+screen qualifier, or with a full X Display name.
 For example:
 .nf
 
@@ -601,15 +611,15 @@ some of which include:
 different toolkits?
 The GUI for
 .B nvidia\-settings
-is cleanly abstracted from the backend of
+is cleanly abstracted from the back-end of
 .B nvidia\-settings
-that parses the configuration file and commandline, communicates with the X server, etc.
-If someone were so inclined, a different frontend GUI could be implemented.
+that parses the configuration file and command line, communicates with the X server, etc.
+If someone were so inclined, a different front-end GUI could be implemented.
 .TP
 -
 write a design document explaining how
 .B nvidia\-settings
-is architected; presumably this would make it easier for people to become familiar with the code base.
+is designed; presumably this would make it easier for people to become familiar with the code base.
 .PP
 If there are other things you would like to see added (or better yet, would like to add yourself), please contact linux-bugs@nvidia.com.
 .SH FILES
@@ -628,7 +638,7 @@ Loads the settings stored in
 and exits.
 .TP
 .B nvidia\-settings \-\-rewrite\-config\-file
-Writes the current X server configuration to 
+Writes the current X server configuration to
 .I ~/.nvidia\-settings\-rc
 file and exits.
 .TP
@@ -645,4 +655,4 @@ NVIDIA Corporation
 .BR nvidia\-xconfig (1)ifelse(__BUILD_OS__,Linux,[[[,
 .BR nvidia\-installer (1)]]])
 .SH COPYRIGHT
-Copyright \(co 2006 NVIDIA Corporation.
+Copyright \(co 2010 NVIDIA Corporation.

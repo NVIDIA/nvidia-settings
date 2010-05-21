@@ -48,7 +48,6 @@ static void print_assign_help(void);
 static void print_query_help(void);
 static void print_attribute_help(char *attr);
 static void print_help(void);
-static char *tilde_expansion(char *str);
 static char *nvstrcat(const char *str, ...);
 
 /*
@@ -74,7 +73,7 @@ static void print_version(void)
     nv_msg(TAB, "This program is used to configure the "
             "NVIDIA Linux graphics driver.");
     nv_msg(NULL, "");
-    nv_msg(TAB, "Copyright (C) 2004 - 2008 NVIDIA Corporation.");
+    nv_msg(TAB, "Copyright (C) 2004 - 2010 NVIDIA Corporation.");
     nv_msg(NULL, "");
     
 } /* print_version() */
@@ -474,14 +473,15 @@ Options *parse_command_line(int argc, char *argv[], char *dpy)
  * user's home directory.
  */
 
-static char *tilde_expansion(char *str)
+char *tilde_expansion(const char *str)
 {
     char *prefix = NULL;
-    char *replace, *user, *ret;
+    const char *replace;
+    char *user, *ret;
     struct passwd *pw;
     int len;
 
-    if ((!str) || (str[0] != '~')) return str;
+    if ((!str) || (str[0] != '~')) return strdup(str);
     
     if ((str[1] == '/') || (str[1] == '\0')) {
 
@@ -514,7 +514,7 @@ static char *tilde_expansion(char *str)
         free (user);
     }
 
-    if (!prefix) return str;
+    if (!prefix) return strdup(str);
     
     ret = malloc(strlen(prefix) + strlen(replace) + 1);
     strcpy(ret, prefix);

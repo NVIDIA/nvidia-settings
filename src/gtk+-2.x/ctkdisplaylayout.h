@@ -519,7 +519,8 @@ void ctk_display_layout_set_screen_metamode (CtkDisplayLayout *,
 void ctk_display_layout_add_screen_metamode (CtkDisplayLayout *, nvScreenPtr);
 void ctk_display_layout_delete_screen_metamode (CtkDisplayLayout *,
                                                 nvScreenPtr,
-                                                int metamode_idx);
+                                                int metamode_idx,
+                                                Bool reselect);
 
 void ctk_display_layout_disable_display (CtkDisplayLayout *ctk_object,
                                          nvDisplayPtr display);

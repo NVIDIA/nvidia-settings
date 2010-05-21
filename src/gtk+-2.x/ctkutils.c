@@ -29,6 +29,30 @@
 
 
 
+/*
+ * Used to check if current display enabled or disabled.
+ */ 
+void update_display_enabled_flag(NvCtrlAttributeHandle *handle,
+                                 gboolean *display_enabled,
+                                 unsigned int display_device_mask)
+{ 
+    ReturnStatus ret;
+    unsigned int enabled_displays;
+
+    /* Is display enabled? */
+
+    ret = NvCtrlGetAttribute(handle,
+                             NV_CTRL_ENABLED_DISPLAYS,
+                             (int *)&enabled_displays);
+
+    *display_enabled =
+        (ret == NvCtrlSuccess &&
+         (enabled_displays & (display_device_mask)));
+
+} /* update_display_enabled_flag() */
+
+
+
 gchar* create_gpu_name_string(NvCtrlAttributeHandle *gpu_handle)
 {
     gchar *gpu_name;
@@ -52,6 +76,46 @@ gchar* create_gpu_name_string(NvCtrlAttributeHandle *gpu_handle)
 }
 
 
+GtkWidget *add_table_row_with_help_text(GtkWidget *table,
+                                        CtkConfig *ctk_config,
+                                        const char *help,
+                                        const gint row,
+                                        const gint col,
+                                        // 0 = left, 1 = right
+                                        const gfloat name_xalign,
+                                        // 0 = top, 1 = bottom
+                                        const gfloat name_yalign,
+                                        const gchar *name,
+                                        const gfloat value_xalign,
+                                        const gfloat value_yalign,
+                                        const gchar *value)
+{
+    GtkWidget *label, *eventbox;
+
+    label = gtk_label_new(name);
+    gtk_label_set_selectable(GTK_LABEL(label), TRUE);
+    gtk_misc_set_alignment(GTK_MISC(label), name_xalign, name_yalign);
+    gtk_table_attach(GTK_TABLE(table), label, col, col+1, row, row + 1,
+                     GTK_FILL, GTK_EXPAND | GTK_FILL, 0, 0);
+
+    if (value == NULL)
+        label = gtk_label_new("Unknown");
+    else
+        label = gtk_label_new(value);
+    gtk_label_set_selectable(GTK_LABEL(label), TRUE);
+    eventbox = gtk_event_box_new();
+    gtk_misc_set_alignment(GTK_MISC(label), value_xalign, value_yalign);
+    gtk_container_add(GTK_CONTAINER(eventbox), label);
+    gtk_table_attach(GTK_TABLE(table), eventbox, col+1, col+2, row, row + 1,
+                     GTK_FILL, GTK_EXPAND | GTK_FILL, 0, 0);
+    if ((help != NULL) || (ctk_config != NULL)) {
+        ctk_config_set_tooltip(ctk_config, eventbox, help);
+    }
+
+    return label;
+}
+
+
 GtkWidget *add_table_row(GtkWidget *table,
                          const gint row,
                          const gfloat name_xalign, // 0 = left, 1 = right
@@ -61,24 +125,17 @@ GtkWidget *add_table_row(GtkWidget *table,
                          const gfloat value_yalign,
                          const gchar *value)
 {
-    GtkWidget *label;
-
-    label = gtk_label_new(name);
-    gtk_label_set_selectable(GTK_LABEL(label), TRUE);
-    gtk_misc_set_alignment(GTK_MISC(label), name_xalign, name_yalign);
-    gtk_table_attach(GTK_TABLE(table), label, 0, 1, row, row + 1,
-                     GTK_FILL, GTK_EXPAND | GTK_FILL, 0, 0);
-
-    if (value == NULL)
-        label = gtk_label_new("Unknown");
-    else
-        label = gtk_label_new(value);
-    gtk_label_set_selectable(GTK_LABEL(label), TRUE);
-    gtk_misc_set_alignment(GTK_MISC(label), value_xalign, value_yalign);
-    gtk_table_attach(GTK_TABLE(table), label, 1, 2, row, row + 1,
-                     GTK_FILL, GTK_EXPAND | GTK_FILL, 0, 0);
-
-    return label;
+    return add_table_row_with_help_text(table,
+                                        NULL, /* ctk_config */
+                                        NULL, /* help */
+                                        row,
+                                        0, /* col */
+                                        name_xalign,
+                                        name_yalign,
+                                        name,
+                                        value_xalign,
+                                        value_yalign,
+                                        value);
 }
 
 

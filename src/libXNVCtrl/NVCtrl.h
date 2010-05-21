@@ -39,12 +39,13 @@
  * Here are the supported target types:
  */
 
-#define NV_CTRL_TARGET_TYPE_X_SCREEN   0
-#define NV_CTRL_TARGET_TYPE_GPU        1
-#define NV_CTRL_TARGET_TYPE_FRAMELOCK  2
-#define NV_CTRL_TARGET_TYPE_VCSC       3 /* Visual Computing System */
-#define NV_CTRL_TARGET_TYPE_GVI        4
-#define NV_CTRL_TARGET_TYPE_COOLER     5 /* e.g., fan */
+#define NV_CTRL_TARGET_TYPE_X_SCREEN       0
+#define NV_CTRL_TARGET_TYPE_GPU            1
+#define NV_CTRL_TARGET_TYPE_FRAMELOCK      2
+#define NV_CTRL_TARGET_TYPE_VCSC           3 /* Visual Computing System */
+#define NV_CTRL_TARGET_TYPE_GVI            4
+#define NV_CTRL_TARGET_TYPE_COOLER         5 /* e.g., fan */
+#define NV_CTRL_TARGET_TYPE_THERMAL_SENSOR 6
 
 /**************************************************************************/
 
@@ -99,6 +100,9 @@
  * C: The attribute may be queried using an NV_CTRL_TARGET_TYPE_COOLER target
  *    type via XNVCTRLQueryTargetAttribute().
  * 
+ * S: The attribute may be queried using an NV_CTRL_TARGET_TYPE_THERMAL_SENSOR
+ *    target type via XNVCTRLQueryTargetAttribute().
+ * 
  * NOTE: Unless mentioned otherwise, all attributes may be queried using
  *       an NV_CTRL_TARGET_TYPE_X_SCREEN target type via 
  *       XNVCTRLQueryTargetAttribute().
@@ -151,17 +155,13 @@
  * NV_CTRL_FLATPANEL_DITHERING - the current flat panel dithering
  * state; possible values are:
  *
- * 0: default  (the driver will decide when to dither)
+ * 0: disabled (the driver will never dither)
  * 1: enabled  (the driver will always dither when possible)
- * 2: disabled (the driver will never dither)
- *
- * USAGE NOTE: This attribute had been deprecated.
  */
 
 #define NV_CTRL_FLATPANEL_DITHERING                             3  /* RWDG */
-#define NV_CTRL_FLATPANEL_DITHERING_DEFAULT                     0
+#define NV_CTRL_FLATPANEL_DITHERING_DISABLED                    0
 #define NV_CTRL_FLATPANEL_DITHERING_ENABLED                     1
-#define NV_CTRL_FLATPANEL_DITHERING_DISABLED                    2
 
 
 /*
@@ -320,7 +320,12 @@
 #define NV_CTRL_STEREO_BLUELINE                                 2
 #define NV_CTRL_STEREO_DIN                                      3
 #define NV_CTRL_STEREO_TWINVIEW                                 4
-
+#define NV_CTRL_STEREO_VERTICAL_INTERLACED                      5
+#define NV_CTRL_STEREO_COLOR_INTERLACED                         6
+#define NV_CTRL_STEREO_HORIZONTAL_INTERLACED                    7
+#define NV_CTRL_STEREO_CHECKERBOARD_PATTERN                     8
+#define NV_CTRL_STEREO_INVERSE_CHECKERBOARD_PATTERN             9
+#define NV_CTRL_STEREO_3D_VISION                                10
 
 /*
  * NV_CTRL_EMULATE - controls OpenGL software emulation of future
@@ -995,6 +1000,12 @@
  * of the 32-63 VIDEO_FORMATS are valid, and query the ValidValues of
  * NV_CTRL_GVIO_REQUESTED_VIDEO_FORMAT3 to check which of the 64-95
  * VIDEO_FORMATS are valid.
+ *
+ * Note: Setting this attribute on a GVI device may also result in the
+ *       following NV-CONTROL attributes being reset on that device (to
+ *       ensure the configuration remains valid):
+ *           NV_CTRL_GVI_REQUESTED_STREAM_BITS_PER_COMPONENT
+ *           NV_CTRL_GVI_REQUESTED_STREAM_COMPONENT_SAMPLING
  */
 
 #define NV_CTRL_GVIO_REQUESTED_VIDEO_FORMAT                     70  /* RW--I */
@@ -1763,8 +1774,9 @@
  * NV_CTRL_INITIAL_PIXMAP_PLACEMENT - Controls where X pixmaps are initially
  * created.
  *
- * NV_CTRL_INITIAL_PIXMAP_PLACEMENT_FORCE_SYSMEM causes to pixmaps to stay in
- * system memory.
+ * NV_CTRL_INITIAL_PIXMAP_PLACEMENT_FORCE_SYSMEM causes pixmaps to stay in
+ * system memory. These pixmaps can't be accelerated by the NVIDIA driver; this
+ * will cause blank windows if used with an OpenGL compositing manager.
  * NV_CTRL_INITIAL_PIXMAP_PLACEMENT_SYSMEM creates pixmaps in system memory
  * initially, but allows them to migrate to video memory.
  * NV_CTRL_INITIAL_PIXMAP_PLACEMENT_VIDMEM creates pixmaps in video memory
@@ -2492,6 +2504,11 @@
  * NV_CTRL_GVI_REQUESTED_STREAM_BITS_PER_COMPONENT - Specify the number of
  * bits per component (BPC) of data for the captured stream.
  * The stream number should be specified in the "display_mask" parameter.
+ *
+ * Note: Setting this attribute may also result in the following
+ *       NV-CONTROL attributes being reset on the GVI device (to ensure
+ *       the configuration remains valid):
+ *           NV_CTRL_GVI_REQUESTED_STREAM_COMPONENT_SAMPLING
  */
 
 #define NV_CTRL_GVI_REQUESTED_STREAM_BITS_PER_COMPONENT         310 /* RW-I */
@@ -2526,7 +2543,8 @@
 /*
  * NV_CTRL_GVI_CHROMA_EXPAND - Enable or disable 4:2:2 -> 4:4:4 chroma
  * expansion for the captured stream.  This value is ignored when a
- * COMPONENT_SAMPLING format is selected that does not use chroma subsampling.
+ * COMPONENT_SAMPLING format is selected that does not use chroma subsampling,
+ * or if a BITS_PER_COMPONENT value is selected that is not supported.
  * The stream number should be specified in the "display_mask" parameter.
  */
 
@@ -2806,7 +2824,6 @@
  */
 #define NV_CTRL_GVI_BOUND_GPU                                   342 /* R--I */
 
-
 /*
  * NV_CTRL_GVIO_REQUESTED_VIDEO_FORMAT3 - this attribute is only
  * intended to be used to query the ValidValues for
@@ -2816,7 +2833,6 @@
 
 #define NV_CTRL_GVIO_REQUESTED_VIDEO_FORMAT3                    343 /* ---GI */
 
-
 /*
  * NV_CTRL_ACCELERATE_TRAPEZOIDS - Toggles RENDER Trapezoid acceleration
  */
@@ -2825,7 +2841,6 @@
 #define NV_CTRL_ACCELERATE_TRAPEZOIDS_DISABLE                   0
 #define NV_CTRL_ACCELERATE_TRAPEZOIDS_ENABLE                    1
 
-
 /*
  * NV_CTRL_GPU_CORES - Returns number of GPU cores supported by the graphics
  * pipeline.
@@ -2833,14 +2848,12 @@
 
 #define NV_CTRL_GPU_CORES                                       345 /* R--G */
 
-
 /* 
  * NV_CTRL_GPU_MEMORY_BUS_WIDTH - Returns memory bus bandwidth on the associated
  * subdevice.
  */
 
 #define NV_CTRL_GPU_MEMORY_BUS_WIDTH                            346 /* R--G */
-
 
 /*
  * NV_CTRL_GVI_TEST_MODE - This attribute controls the GVI test mode.  When
@@ -2855,7 +2868,87 @@
 #define NV_CTRL_GVI_TEST_MODE_ENABLE                              1
 
 
-#define NV_CTRL_LAST_ATTRIBUTE NV_CTRL_GVI_TEST_MODE
+/*
+ * NV_CTRL_GPU_SCALING_DEFAULT_TARGET - Returns the default scaling target
+ * for the specified display device.
+ *
+ * NV_CTRL_GPU_SCALING_DEFAULT_METHOD - Returns the default scaling method
+ * for the specified display device.
+ *
+ * The values returned by these attributes are one of the target or method
+ * values defined for the attribute NV_CTRL_GPU_SCALING.
+ */
+#define NV_CTRL_GPU_SCALING_DEFAULT_TARGET                      350 /* R-DG */
+#define NV_CTRL_GPU_SCALING_DEFAULT_METHOD                      351 /* R-DG */
+
+/*
+ * NV_CTRL_FLATPANEL_DITHERING_MODE - Controls the dithering mode used for
+ * the flatpanel, when NV_CTRL_FLATPANEL_DITHERING is set to ENABLED.
+ *
+ * DYNAMIC_2X2: use a 2x2 matrix to dither from the GPU's pixel
+ * pipeline to the bit depth of the flatpanel.  The matrix values
+ * are changed from frame to frame.
+ *
+ * STATIC_2X2: use a 2x2 matrix to dither from the GPU's pixel
+ * pipeline to the bit depth of the flatpanel.  The matrix values
+ * do not change from frame to frame.
+ */
+#define NV_CTRL_FLATPANEL_DITHERING_MODE                        352 /* RWDG */
+#define NV_CTRL_FLATPANEL_DITHERING_MODE_DYNAMIC_2X2              0
+#define NV_CTRL_FLATPANEL_DITHERING_MODE_STATIC_2X2               1
+
+/*
+ * NV_CTRL_FLATPANEL_DEFAULT_DITHERING - Returns the default dithering
+ * configuration for the flatpanel. Values returned are those described
+ * for NV_CTRL_FLATPANEL_DITHERING.
+ *
+ * NV_CTRL_FLATPANEL_DEFAULT_DITHERING_MODE - Returns the default dithering
+ * mode for the flatpanel. Values returned are those described for
+ * NV_CTRL_FLATPANEL_DITHERING_MODE.
+ */
+#define NV_CTRL_FLATPANEL_DEFAULT_DITHERING                     353 /* R-DG */
+#define NV_CTRL_FLATPANEL_DEFAULT_DITHERING_MODE                354 /* R-DG */
+
+/* 
+ * NV_CTRL_THERMAL_SENSOR_READING - Returns the thermal sensor's current
+ * reading.
+ */
+#define NV_CTRL_THERMAL_SENSOR_READING                          355 /* R--S */
+
+/* 
+ * NV_CTRL_THERMAL_SENSOR_PROVIDER - Returns the hardware device that
+ * provides the thermal sensor.
+ */
+#define NV_CTRL_THERMAL_SENSOR_PROVIDER                         356 /* R--S */
+#define NV_CTRL_THERMAL_SENSOR_PROVIDER_NONE                      0
+#define NV_CTRL_THERMAL_SENSOR_PROVIDER_GPU_INTERNAL              1
+#define NV_CTRL_THERMAL_SENSOR_PROVIDER_ADM1032                   2
+#define NV_CTRL_THERMAL_SENSOR_PROVIDER_ADT7461                   3
+#define NV_CTRL_THERMAL_SENSOR_PROVIDER_MAX6649                   4
+#define NV_CTRL_THERMAL_SENSOR_PROVIDER_MAX1617                   5
+#define NV_CTRL_THERMAL_SENSOR_PROVIDER_LM99                      6
+#define NV_CTRL_THERMAL_SENSOR_PROVIDER_LM89                      7
+#define NV_CTRL_THERMAL_SENSOR_PROVIDER_LM64                      8
+#define NV_CTRL_THERMAL_SENSOR_PROVIDER_G781                      9
+#define NV_CTRL_THERMAL_SENSOR_PROVIDER_ADT7473                  10
+#define NV_CTRL_THERMAL_SENSOR_PROVIDER_SBMAX6649                11
+#define NV_CTRL_THERMAL_SENSOR_PROVIDER_VBIOSEVT                 12
+#define NV_CTRL_THERMAL_SENSOR_PROVIDER_OS                       13
+#define NV_CTRL_THERMAL_SENSOR_PROVIDER_UNKNOWN          0xFFFFFFFF
+
+/* 
+ * NV_CTRL_THERMAL_SENSOR_TARGET - Returns what hardware component
+ * the thermal sensor is measuring.
+ */
+#define NV_CTRL_THERMAL_SENSOR_TARGET                           357 /* R--S */
+#define NV_CTRL_THERMAL_SENSOR_TARGET_NONE                        0
+#define NV_CTRL_THERMAL_SENSOR_TARGET_GPU                         1
+#define NV_CTRL_THERMAL_SENSOR_TARGET_MEMORY                      2
+#define NV_CTRL_THERMAL_SENSOR_TARGET_POWER_SUPPLY                4
+#define NV_CTRL_THERMAL_SENSOR_TARGET_BOARD                       8
+#define NV_CTRL_THERMAL_SENSOR_TARGET_UNKNOWN            0xFFFFFFFF
+
+#define NV_CTRL_LAST_ATTRIBUTE NV_CTRL_THERMAL_SENSOR_TARGET
 
 /**************************************************************************/
 
@@ -3626,8 +3719,24 @@
 
 #define NV_CTRL_BINARY_DATA_GPUS_USED_BY_LOGICAL_XSCREEN     11   /* R--- */
 
+/*
+ * NV_CTRL_BINARY_DATA_THERMAL_SENSORS_USED_BY_GPU - Returns the sensors that
+ * are attached to the given GPU.
+ *
+ * The format of the returned data is:
+ *
+ *     4       CARD32 number of SENSOR
+ *     4 * n   CARD32 SENSOR indices
+ *
+ * This attribute can only be queried through XNVCTRLQueryTargetBinaryData()
+ * using a NV_CTRL_TARGET_TYPE_GPU target.  This attribute cannot be
+ * queried using a NV_CTRL_TARGET_TYPE_X_SCREEN
+ */
+
+#define NV_CTRL_BINARY_DATA_THERMAL_SENSORS_USED_BY_GPU      12  /* R--G */
+
 #define NV_CTRL_BINARY_DATA_LAST_ATTRIBUTE \
-        NV_CTRL_BINARY_DATA_GPUS_USED_BY_LOGICAL_XSCREEN
+        NV_CTRL_BINARY_DATA_THERMAL_SENSORS_USED_BY_GPU
 
 
 /**************************************************************************/
@@ -3806,6 +3915,13 @@
  * Upon successful configuration or querying of this attribute, a string
  * representing the current topology for all known streams on the device
  * will be returned.  On failure, NULL is returned.
+ *
+ * Note: Setting this attribute may also result in the following
+ *       NV-CONTROL attributes being reset on the GVI device (to ensure
+ *       the configuration remains valid):
+ *           NV_CTRL_GVIO_REQUESTED_VIDEO_FORMAT
+ *           NV_CTRL_GVI_REQUESTED_STREAM_BITS_PER_COMPONENT
+ *           NV_CTRL_GVI_REQUESTED_STREAM_COMPONENT_SAMPLING
  */
 
 #define NV_CTRL_STRING_OPERATION_GVI_CONFIGURE_STREAMS         4 /* RW-I */
@@ -3887,6 +4003,7 @@
 #define ATTRIBUTE_TYPE_VCSC       0x080
 #define ATTRIBUTE_TYPE_GVI        0x100
 #define ATTRIBUTE_TYPE_COOLER     0x200
+#define ATTRIBUTE_TYPE_THERMAL_SENSOR 0x400
 
 typedef struct _NVCTRLAttributeValidValues {
     int type;

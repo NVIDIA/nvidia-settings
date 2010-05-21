@@ -153,7 +153,7 @@ AttributeTableEntry attributeTable[] = {
     { "PCIDevice",              NV_CTRL_PCI_DEVICE,                    N,   "Returns the PCI device number for the specified device." },
     { "PCIFunc",                NV_CTRL_PCI_FUNCTION,                  N,   "Returns the PCI function number for the specified device." },
     { "PCIID",                  NV_CTRL_PCI_ID,                        N|P, "Returns the PCI vendor and device ID of the specified device." },
-    { "PCIEGen",                NV_CTRL_GPU_PCIE_GENERATION,           N,   "Returns the current PCI-E Bus Generation." },
+    { "PCIEGen",               NV_CTRL_GPU_PCIE_GENERATION,           N,   "Returns the current PCI-E Bus Generation." },
     { "GPUErrors",              NV_CTRL_NUM_GPU_ERRORS_RECOVERED,      N,   "Returns the number of GPU errors occurred." },
     { "GPUPowerSource",         NV_CTRL_GPU_POWER_SOURCE,              N,   "Reports the type of power source of the GPU." },
     { "GPUCurrentPerfMode",     NV_CTRL_GPU_CURRENT_PERFORMANCE_MODE,  N,   "Reports the current performance mode of the GPU driving the X screen.  Running a 3D app, for example, will change this performance mode if Adaptive Clocking is enabled." },
@@ -173,7 +173,9 @@ AttributeTableEntry attributeTable[] = {
     { "GPUResetFanSpeed",       NV_CTRL_THERMAL_COOLER_LEVEL_SET_DEFAULT, N,   "Resets the GPU fan's speed to its default." },
     { "GPUFanControlType",      NV_CTRL_THERMAL_COOLER_CONTROL_TYPE,      N,   "Returns how the GPU fan is controlled.  '1' means the fan can only be toggled on and off; '2' means the fan has variable speed.  '0' means the fan is restricted and cannot be adjusted under end user control." },
     { "GPUFanTarget",           NV_CTRL_THERMAL_COOLER_TARGET,            N,   "Returns the objects the fan cools.  '1' means the GPU, '2' means video memory, '4' means the power supply, and '7' means all of the above." },
-
+    { "ThermalSensorReading",   NV_CTRL_THERMAL_SENSOR_READING,           N,   "Returns the thermal sensor's current reading." },
+    { "ThermalSensorProvider",  NV_CTRL_THERMAL_SENSOR_PROVIDER,          N,   "Returns the hardware device that provides the thermal sensor." },
+    { "ThermalSensorTarget",    NV_CTRL_THERMAL_SENSOR_TARGET,            N,   "Returns what hardware component the thermal sensor is measuring." },  
     /* Framelock */
     { "FrameLockAvailable",    NV_CTRL_FRAMELOCK,                   N|F|G,   "Returns whether the underlying GPU supports Frame Lock.  All of the other frame lock attributes are only applicable if this attribute is enabled (Supported)." },
     { "FrameLockMaster",       NV_CTRL_FRAMELOCK_MASTER,            N|F|G|D, "Get/set which display device to use as the frame lock master for the entire sync group.  Note that only one node in the sync group should be configured as the master." },
@@ -267,7 +269,8 @@ AttributeTableEntry attributeTable[] = {
     { "RedGamma",                   GAMMA_VALUE|RED_CHANNEL,               C|G,   "Controls the gamma of the color red in the display." },
     { "GreenGamma",                 GAMMA_VALUE|GREEN_CHANNEL,             C|G,   "Controls the gamma of the color green in the display." },
     { "BlueGamma",                  GAMMA_VALUE|BLUE_CHANNEL,              C|G,   "Controls the gamma of the color blue in the display." },
-    { "FlatpanelDithering",         NV_CTRL_FLATPANEL_DITHERING,           0,     "This is the current state of flat panel dithering.  This attribute has been deprecated." },
+    { "FlatPanelDithering",         NV_CTRL_FLATPANEL_DITHERING,           0,     "Controls the FlatPanel dithering: enabled (1), disabled (0)." },
+    { "FlatPanelDitheringMode",     NV_CTRL_FLATPANEL_DITHERING_MODE,      0,     "Controls the FlatPanel dithering mode when FlatPanelDithering=1; temporally static dithering pattern (1), temporally dynamic dithering pattern (0)." },
     { "DigitalVibrance",            NV_CTRL_DIGITAL_VIBRANCE,              0,     "Sets the digital vibrance level of the display device." },
     { "ImageSharpening",            NV_CTRL_IMAGE_SHARPENING,              0,     "Adjusts the sharpness of the display's image quality by amplifying high frequency content." },
     { "ImageSharpeningDefault",     NV_CTRL_IMAGE_SHARPENING_DEFAULT,      0,     "Returns default value of image sharpening." },
@@ -277,6 +280,8 @@ AttributeTableEntry attributeTable[] = {
     { "FlatpanelBestFitResolution", NV_CTRL_FLATPANEL_BEST_FIT_RESOLUTION, N|P,   "Returns the dimensions of the resolution, selected by the X driver, from the DFP's EDID that most closely matches the frontend resolution of the current mode.  The best fit resolution is selected on a per-mode basis.  This attribute is only valid for flat panel (DFP) display devices.  This attribute is a packed integer; the width is packed in the upper 16-bits and the height is packed in the lower 16-bits." },
     { "DFPScalingActive",           NV_CTRL_DFP_SCALING_ACTIVE,            N,     "Returns the current state of DFP scaling.  DFP scaling is mode-specific (meaning it may vary depending on which mode is currently set).  DFP scaling is active if the GPU is set to scale to the best fit resolution (GPUScaling is set to use FlatpanelBestFitResolution) and the best fit and native resolutions are different." },
     { "GPUScaling",                 NV_CTRL_GPU_SCALING,                   P,     "Controls what the GPU scales to and how.  This attribute is a packed integer; the scaling target (native/best fit) is packed in the upper 16-bits and the scaling method is packed in the lower 16-bits." },
+    { "GPUScalingDefaultTarget",    NV_CTRL_GPU_SCALING_DEFAULT_TARGET,    0,     "Returns the default gpu scaling target for the Flatpanel." },
+    { "GPUScalingDefaultMethod",    NV_CTRL_GPU_SCALING_DEFAULT_METHOD,    0,     "Returns the default gpu scaling method for the Flatpanel." },
     { "GPUScalingActive",           NV_CTRL_GPU_SCALING_ACTIVE,            N,     "Returns the current state of GPU scaling.  GPU scaling is mode-specific (meaning it may vary depending on which mode is currently set).  GPU scaling is active if the frontend timing (current resolution) is different than the target resolution.  The target resolution is either the native resolution of the flat panel or the best fit resolution supported by the flat panel.  What (and how) the GPU should scale to is controlled through the GPUScaling attribute." },
     { "RefreshRate",                NV_CTRL_REFRESH_RATE,                  N|H,   "Returns the refresh rate of the specified display device in cHz (Centihertz) (to get the refresh rate in Hz, divide the returned value by 100)." },
     { "RefreshRate3",               NV_CTRL_REFRESH_RATE_3,                N|K,   "Returns the refresh rate of the specified display device in mHz (Millihertz) (to get the refresh rate in Hz, divide the returned value by 1000)." },
@@ -329,7 +334,7 @@ AttributeTableEntry attributeTable[] = {
  * about.
  */
 
-#if NV_CTRL_LAST_ATTRIBUTE != NV_CTRL_GVI_TEST_MODE
+#if NV_CTRL_LAST_ATTRIBUTE != NV_CTRL_THERMAL_SENSOR_TARGET
 #warning "Have you forgotten to add a new integer attribute to attributeTable?"
 #endif
 
@@ -389,6 +394,14 @@ TargetTypeEntry targetTypeTable[] = {
       ATTRIBUTE_TYPE_COOLER,         /* permission_bit */
       NV_FALSE,                      /* uses_display_devices */
       1, 20 },                       /* required major,minor protocol rev */
+    
+    { "Thermal Sensor",              /* name */
+      "thermalsensor",               /* parsed_name */
+      THERMAL_SENSOR_TARGET,         /* target_index */
+      NV_CTRL_TARGET_TYPE_THERMAL_SENSOR,    /* nvctrl */
+      ATTRIBUTE_TYPE_THERMAL_SENSOR, /* permission_bit */
+      NV_FALSE,                      /* uses_display_devices */
+      1, 23 },                       /* required major,minor protocol rev */
     
     { NULL, NULL, 0, 0, 0 },
 };
@@ -1650,11 +1663,11 @@ const char *parse_read_display_name(const char *str, unsigned int *mask)
  *     "MIN"
  *
  **/
-int parse_read_float_range(char *str, float *min, float *max)
+int parse_read_float_range(const char *str, float *min, float *max)
 {
     if (!str) return 0;
 
-    str = (char *)parse_skip_whitespace(str);
+    str = parse_skip_whitespace(str);
     *min = atof(str);
     str = strstr(str, "-");
     if (!str) {

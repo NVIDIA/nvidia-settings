@@ -1,0 +1,29 @@
+# makefile fragment included by nvidia-xconfig and nvidia-settings
+
+XCONFIG_PARSER_SRC += DRI.c
+XCONFIG_PARSER_SRC += Device.c
+XCONFIG_PARSER_SRC += Extensions.c
+XCONFIG_PARSER_SRC += Files.c
+XCONFIG_PARSER_SRC += Flags.c
+XCONFIG_PARSER_SRC += Generate.c
+XCONFIG_PARSER_SRC += Input.c
+XCONFIG_PARSER_SRC += Keyboard.c
+XCONFIG_PARSER_SRC += Layout.c
+XCONFIG_PARSER_SRC += Merge.c
+XCONFIG_PARSER_SRC += Module.c
+XCONFIG_PARSER_SRC += Monitor.c
+XCONFIG_PARSER_SRC += Pointer.c
+XCONFIG_PARSER_SRC += Read.c
+XCONFIG_PARSER_SRC += Scan.c
+XCONFIG_PARSER_SRC += Screen.c
+XCONFIG_PARSER_SRC += Util.c
+XCONFIG_PARSER_SRC += Vendor.c
+XCONFIG_PARSER_SRC += Video.c
+XCONFIG_PARSER_SRC += Write.c
+
+XCONFIG_PARSER_EXTRA_DIST += Configint.h
+XCONFIG_PARSER_EXTRA_DIST += configProcs.h
+XCONFIG_PARSER_EXTRA_DIST += xf86Parser.h
+XCONFIG_PARSER_EXTRA_DIST += xf86tokens.h
+XCONFIG_PARSER_EXTRA_DIST += src.mk
+

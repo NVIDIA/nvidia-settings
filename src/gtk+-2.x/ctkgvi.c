@@ -125,7 +125,7 @@ typedef struct {
     int color_space;
     int bpc;
     int link_id;
-    unsigned int smpte352_id;
+    int smpte352_id;
 } ChannelInfo;
 
 
@@ -443,7 +443,8 @@ static void update_sdi_input_info_all(CtkGvi *ctk_gvi)
     gtk_misc_set_alignment(GTK_MISC(label), 0, 0.5);
     gtk_table_attach_defaults(GTK_TABLE(table), label, 0, 1, 5, 6);
 
-    label_str = g_strdup_printf("0x%08x", channel_info.smpte352_id);
+    label_str = g_strdup_printf("0x%08x",
+                                (unsigned int) channel_info.smpte352_id);
     label = gtk_label_new(label_str);
     gtk_misc_set_alignment(GTK_MISC(label), 0, 0.5);
     gtk_table_attach_defaults(GTK_TABLE(table), label, 1, 2, 5, 6);

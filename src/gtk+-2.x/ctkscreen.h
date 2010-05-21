@@ -69,6 +69,11 @@ struct _CtkScreenClass
     GtkVBoxClass parent_class;
 };
 
+typedef struct {
+    int stereo_mode;
+    const char *name;
+} _CtkStereoMode;
+
 GType       ctk_screen_get_type (void) G_GNUC_CONST;
 GtkWidget*  ctk_screen_new      (NvCtrlAttributeHandle *handle,
                                  CtkEvent *ctk_event);

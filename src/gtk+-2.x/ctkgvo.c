@@ -991,7 +991,7 @@ static void fill_output_video_format_menu(CtkGvo *ctk_gvo)
     gint num_valid_entries = 0;
     gchar *str;
     gchar *tmp;
-   
+    const gchar *constStr;
 
     ctk_drop_down_menu_reset(CTK_DROP_DOWN_MENU(dmenu));
 
@@ -1022,7 +1022,8 @@ static void fill_output_video_format_menu(CtkGvo *ctk_gvo)
         }
 
         if (valid == GVO_VIDEO_FORMAT_VALID) {
-            str = (gchar *)videoFormatNames[i].name;
+            constStr = videoFormatNames[i].name;
+            str = NULL;
         } else {
             str = g_strconcat(videoFormatNames[i].name, " -", NULL);
 
@@ -1041,11 +1042,12 @@ static void fill_output_video_format_menu(CtkGvo *ctk_gvo)
                 g_free(str);
                 str = tmp;
             }
+            constStr = str;
         }
 
-        label = ctk_drop_down_menu_append_item(dmenu, str,
+        label = ctk_drop_down_menu_append_item(dmenu, constStr,
                                                videoFormatNames[i].format);
-        if (str != videoFormatNames[i].name) {
+        if (str) {
             g_free(str);
         }
             
@@ -1123,6 +1125,7 @@ static void fill_output_data_format_menu(CtkGvo *ctk_gvo)
     GtkWidget *label;
     gboolean valid;
     gchar *str;
+    const gchar *constStr;
    
     ctk_drop_down_menu_reset(CTK_DROP_DOWN_MENU(dmenu));
 
@@ -1134,15 +1137,17 @@ static void fill_output_data_format_menu(CtkGvo *ctk_gvo)
         }
 
         if (valid) {
-            str = (gchar *)dataFormatNames[i].name;
+            constStr = dataFormatNames[i].name;
+            str = NULL;
         } else {
             str = g_strconcat(dataFormatNames[i].name,
                               " - Invalid for Clone Mode", NULL);
+            constStr = str;
         }
 
-        label = ctk_drop_down_menu_append_item(dmenu, str,
+        label = ctk_drop_down_menu_append_item(dmenu, constStr,
                                                dataFormatNames[i].format);
-        if (str != dataFormatNames[i].name) {
+        if (str) {
             g_free(str);
         }
 
@@ -1459,6 +1464,10 @@ static void output_data_format_ui_changed(CtkDropDownMenu *menu,
     }
 
     update_gvo_sensitivity(ctk_gvo);
+
+    /* Made GVO banner to update current output data format */
+    CTK_GVO_BANNER(ctk_gvo->banner)->output_data_format =
+        ctk_gvo->output_data_format;
 
     post_output_data_format_changed(ctk_gvo);
     

@@ -380,7 +380,6 @@ GtkWidget* ctk_color_correction_new(NvCtrlAttributeHandle *handle,
                      (gpointer) ctk_color_correction);
 
     ctk_color_correction->confirm_button = confirm_button;
-    gtk_widget_set_size_request(confirm_button, 160, -1);
     ctk_config_set_tooltip(ctk_config, eventbox, __confirm_button_help);
     ctk_config_set_tooltip(ctk_config, button, __resest_button_help);
 

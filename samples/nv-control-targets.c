@@ -37,6 +37,7 @@
 #include "NVCtrl.h"
 #include "NVCtrlLib.h"
 
+#include "nv-control-screen.h"
 
 
 
@@ -107,16 +108,8 @@ int main(int argc, char *argv[])
         fprintf(stderr, "Cannot open display '%s'.\n", XDisplayName(NULL));
         return 1;
     }
-    
-    /* XXX Maybe check all screens for the NV-CONTROL X extension? */
 
-    screen = DefaultScreen(dpy);
-
-    if (!XNVCTRLIsNvScreen(dpy, screen)) {
-        fprintf(stderr, "The NV-CONTROL X not available on screen "
-                "%d of '%s'.\n", screen, XDisplayName(NULL));
-        return 1;
-    }
+    screen = GetNvXScreen(dpy);
 
     ret = XNVCTRLQueryVersion(dpy, &major, &minor);
     if (ret != True) {

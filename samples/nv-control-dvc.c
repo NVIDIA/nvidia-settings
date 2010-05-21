@@ -33,6 +33,9 @@
  * an explanation of display devices.
  */
 
+#define __STDC_FORMAT_MACROS
+#include <inttypes.h>
+
 #include <stdio.h>
 #include <stdlib.h>
 
@@ -41,6 +44,7 @@
 #include "NVCtrl.h"
 #include "NVCtrlLib.h"
 
+#include "nv-control-screen.h"
 
 
 /*
@@ -112,13 +116,7 @@ int main(int argc, char *argv[])
         return 1;
     }
     
-    screen = DefaultScreen(dpy);
-
-    if (!XNVCTRLIsNvScreen(dpy, screen)) {
-        fprintf(stderr, "The NV-CONTROL X not available on screen "
-                "%d of '%s'.\n", screen, XDisplayName(NULL));
-        return 1;
-    }
+    screen = GetNvXScreen(dpy);
 
 
     /*
@@ -173,7 +171,8 @@ int main(int argc, char *argv[])
 
         /* print the range of valid values */
 
-        printf("Valid values for NV_CTRL_DIGITAL_VIBRANCE: (%d - %d).\n",
+        printf("Valid values for NV_CTRL_DIGITAL_VIBRANCE: "
+               "(%" PRId64 " - %" PRId64 ").\n",
                valid_values.u.range.min, valid_values.u.range.max);
     
         /*

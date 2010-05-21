@@ -29,6 +29,7 @@
 
 #include "ctkdisplaydevice-dfp.h"
 
+#include "ctkditheringcontrols.h"
 #include "ctkimagesliders.h"
 #include "ctkedid.h"
 #include "ctkconfig.h"
@@ -204,6 +205,8 @@ GtkWidget* ctk_display_device_dfp_new(NvCtrlAttributeHandle *handle,
     GtkWidget *alignment;
     
     GtkWidget *table;
+    ReturnStatus ret1, ret2;
+    gint val_target, val_method;
 
     object = g_object_new(CTK_TYPE_DISPLAY_DEVICE_DFP, NULL);
     if (!object) return NULL;
@@ -214,6 +217,28 @@ GtkWidget* ctk_display_device_dfp_new(NvCtrlAttributeHandle *handle,
     ctk_display_device_dfp->ctk_config = ctk_config;
     ctk_display_device_dfp->display_device_mask = display_device_mask;
     ctk_display_device_dfp->name = g_strdup(name);
+
+    /* cache the default scaling target & method values */
+    ret1 =
+        NvCtrlGetDisplayAttribute(ctk_display_device_dfp->handle,
+                                  ctk_display_device_dfp->display_device_mask,
+                                  NV_CTRL_GPU_SCALING_DEFAULT_TARGET,
+                                  &val_target);
+    ret2 =
+        NvCtrlGetDisplayAttribute(ctk_display_device_dfp->handle,
+                                  ctk_display_device_dfp->display_device_mask,
+                                  NV_CTRL_GPU_SCALING_DEFAULT_METHOD,
+                                  &val_method);
+
+    if (ret1 != NvCtrlSuccess || ret2 != NvCtrlSuccess ||
+        val_target == NV_CTRL_GPU_SCALING_TARGET_INVALID ||
+        val_method == NV_CTRL_GPU_SCALING_METHOD_INVALID) {
+        val_target = NV_CTRL_GPU_SCALING_TARGET_FLATPANEL_BEST_FIT;
+        val_method = NV_CTRL_GPU_SCALING_METHOD_STRETCHED;
+    }
+
+    ctk_display_device_dfp->default_scaling_target = val_target;
+    ctk_display_device_dfp->default_scaling_method = val_method;
 
     gtk_box_set_spacing(GTK_BOX(object), 10);
 
@@ -435,6 +460,21 @@ GtkWidget* ctk_display_device_dfp_new(NvCtrlAttributeHandle *handle,
                      G_CALLBACK(dfp_update_received),
                      (gpointer) ctk_display_device_dfp);
 
+    /* pack the dithering controls */
+
+    ctk_display_device_dfp->dithering_controls =
+        ctk_dithering_controls_new(ctk_display_device_dfp->handle,
+                                   ctk_display_device_dfp->ctk_config,
+                                   ctk_display_device_dfp->ctk_event,
+                                   ctk_display_device_dfp->reset_button,
+                                   ctk_display_device_dfp->display_device_mask);
+
+    if (ctk_display_device_dfp->dithering_controls) {
+        gtk_box_pack_start(GTK_BOX(object),
+                           ctk_display_device_dfp->dithering_controls,
+                           FALSE, FALSE, 0);
+    }
+
     /* pack the image sliders */
     
     ctk_display_device_dfp->image_sliders =
@@ -458,6 +498,10 @@ GtkWidget* ctk_display_device_dfp_new(NvCtrlAttributeHandle *handle,
     gtk_widget_show_all(GTK_WIDGET(object));
 
     /* Update the GUI */
+
+    update_display_enabled_flag(ctk_display_device_dfp->handle,
+                                &ctk_display_device_dfp->display_enabled,
+                                ctk_display_device_dfp->display_device_mask);
 
     ctk_display_device_dfp_setup(ctk_display_device_dfp);
     
@@ -667,16 +711,23 @@ static void reset_button_clicked(GtkButton *button, gpointer user_data)
     if (ctk_display_device_dfp->active_attributes & __SCALING) {
         
         value =
-            MAKE_SCALING_VALUE(NV_CTRL_GPU_SCALING_TARGET_FLATPANEL_BEST_FIT,
-                               NV_CTRL_GPU_SCALING_METHOD_STRETCHED);
+            MAKE_SCALING_VALUE(ctk_display_device_dfp->default_scaling_target,
+                               ctk_display_device_dfp->default_scaling_method);
+
 
         NvCtrlSetDisplayAttribute(ctk_display_device_dfp->handle,
                                   ctk_display_device_dfp->display_device_mask,
                                   NV_CTRL_GPU_SCALING, value);
 
-        dfp_scaling_update_buttons(ctk_display_device_dfp, value);
+        dfp_scaling_setup(ctk_display_device_dfp);
     }
-    
+
+    /* Reset the dithering configuration */
+    if (ctk_display_device_dfp->dithering_controls) {
+        ctk_dithering_controls_reset
+            (CTK_DITHERING_CONTROLS(ctk_display_device_dfp->dithering_controls));
+    }
+
     /* Update the reset button */
 
     gtk_widget_set_sensitive(ctk_display_device_dfp->reset_button, FALSE);
@@ -877,6 +928,11 @@ GtkTextBuffer *ctk_display_device_dfp_create_help(GtkTextTagTable *table,
     ctk_help_para(b, &i, "The image will be scaled (retaining the original "
                   "aspect ratio) to expand and fit as much of the entire "
                   "flat panel as possible.");
+
+    if (ctk_display_device_dfp->dithering_controls) {
+        add_dithering_controls_help
+            (CTK_DITHERING_CONTROLS(ctk_display_device_dfp->dithering_controls), b, &i);
+    }
 
     add_image_sliders_help
         (CTK_IMAGE_SLIDERS(ctk_display_device_dfp->image_sliders), b, &i);
@@ -1172,21 +1228,6 @@ static void dfp_scaling_setup(CtkDisplayDeviceDfp *ctk_display_device_dfp)
 static void ctk_display_device_dfp_setup(CtkDisplayDeviceDfp
                                          *ctk_display_device_dfp)
 {
-    ReturnStatus ret;
-    unsigned int enabled_displays;
-
-
-    /* Is display enabled? */
-
-    ret = NvCtrlGetAttribute(ctk_display_device_dfp->handle,
-                             NV_CTRL_ENABLED_DISPLAYS,
-                             (int *)&enabled_displays);
-
-    ctk_display_device_dfp->display_enabled =
-        (ret == NvCtrlSuccess &&
-         (enabled_displays & (ctk_display_device_dfp->display_device_mask)));
-
-
     /* Update DFP-specific settings */
 
     dfp_info_setup(ctk_display_device_dfp);
@@ -1228,6 +1269,10 @@ static void ctk_display_device_dfp_setup(CtkDisplayDeviceDfp
                            ctk_display_device_dfp->edid, TRUE, TRUE, 0);
     }
 
+    /* Update the dithering setup */
+
+    ctk_dithering_controls_setup
+        (CTK_DITHERING_CONTROLS(ctk_display_device_dfp->dithering_controls));
 
     /* update the reset button */
 
@@ -1246,6 +1291,16 @@ static void enabled_displays_received(GtkObject *object, gpointer arg1,
                                       gpointer user_data)
 {
     CtkDisplayDeviceDfp *ctk_object = CTK_DISPLAY_DEVICE_DFP(user_data);
+
+    /* Requery display information only if display disabled */
+
+    update_display_enabled_flag(ctk_object->handle,
+                                &ctk_object->display_enabled,
+                                ctk_object->display_device_mask);
+
+    if (ctk_object->display_enabled) {
+        return;
+    }
 
     ctk_display_device_dfp_setup(ctk_object);
 

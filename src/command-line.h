@@ -95,5 +95,6 @@ typedef struct {
 
 
 Options *parse_command_line(int argc, char *argv[], char *dpy);
+char *tilde_expansion(const char *str);
 
 #endif /* __COMMAND_LINE_H__ */

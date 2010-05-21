@@ -33,6 +33,7 @@
 #include "ctkedid.h"
 #include "ctkconfig.h"
 #include "ctkhelp.h"
+#include "ctkutils.h"
 #include <stdio.h>
 
 static void ctk_display_device_crt_class_init(CtkDisplayDeviceCrtClass *);
@@ -224,6 +225,10 @@ GtkWidget* ctk_display_device_crt_new(NvCtrlAttributeHandle *handle,
 
     /* Update the GUI */
 
+    update_display_enabled_flag(ctk_display_device_crt->handle,
+                                &ctk_display_device_crt->display_enabled,
+                                ctk_display_device_crt->display_device_mask);
+
     ctk_display_device_crt_setup(ctk_display_device_crt);
     
     /* handle enable/disable events on the display device */
@@ -304,20 +309,6 @@ static void reset_button_clicked(GtkButton *button, gpointer user_data)
 static void ctk_display_device_crt_setup(CtkDisplayDeviceCrt
                                          *ctk_display_device_crt)
 {
-    ReturnStatus ret;
-    unsigned int enabled_displays;
-
-
-    /* Is display enabled? */
-
-    ret = NvCtrlGetAttribute(ctk_display_device_crt->handle,
-                             NV_CTRL_ENABLED_DISPLAYS,
-                             (int *)&enabled_displays);
-
-    ctk_display_device_crt->display_enabled =
-        (ret == NvCtrlSuccess &&
-         (enabled_displays & (ctk_display_device_crt->display_device_mask)));
-
     /* Update CRT-specific settings */
     crt_info_setup(ctk_display_device_crt);
     
@@ -393,6 +384,16 @@ static void enabled_displays_received(GtkObject *object, gpointer arg1,
                                       gpointer user_data)
 {
     CtkDisplayDeviceCrt *ctk_object = CTK_DISPLAY_DEVICE_CRT(user_data);
+
+    /* Requery display information only if display disabled */
+
+    update_display_enabled_flag(ctk_object->handle,
+                                &ctk_object->display_enabled,
+                                ctk_object->display_device_mask);
+
+    if (ctk_object->display_enabled) {
+        return;
+    }
 
     ctk_display_device_crt_setup(ctk_object);
 

@@ -47,6 +47,7 @@
  * 1.21        Added initial 64-bit integer attribute support (read-only)
  * 1.22        Added X_nvCtrlQueryValidStringAttributeValues to check
  *             string attribute permissions. 
+ * 1.23        Added SENSOR TargetType
  */
 
 #ifndef __NVCONTROL_H
@@ -57,7 +58,7 @@
 #define NV_CONTROL_NAME "NV-CONTROL"
 
 #define NV_CONTROL_MAJOR 1
-#define NV_CONTROL_MINOR 22
+#define NV_CONTROL_MINOR 23
 
 #define X_nvCtrlQueryExtension                      0
 #define X_nvCtrlIsNv                                1
@@ -66,8 +67,8 @@
 #define X_nvCtrlQueryStringAttribute                4
 #define X_nvCtrlQueryValidAttributeValues           5
 #define X_nvCtrlSelectNotify                        6
-#define X_nvCtrlSetGvoColorConversion_deprecated    7
-#define X_nvCtrlQueryGvoColorConversion_deprecated  8
+#define X_nvCtrlSetGvoColorConversionDeprecated     7
+#define X_nvCtrlQueryGvoColorConversionDeprecated   8
 #define X_nvCtrlSetStringAttribute                  9
 /* STUB X_nvCtrlQueryDDCCILutSize                   10 */
 /* STUB X_nvCtrlQueryDDCCISinglePointLutOperation   11 */

@@ -65,6 +65,7 @@ struct _CtkDisplayDeviceDfp
     GtkWidget *reset_button;
     GtkWidget *edid_box;
     GtkWidget *edid;
+    GtkWidget *dithering_controls;
 
     GtkWidget *txt_chip_location;
     GtkWidget *txt_link;
@@ -86,6 +87,8 @@ struct _CtkDisplayDeviceDfp
     unsigned int active_attributes;
 
     char *name;
+    gint default_scaling_target;
+    gint default_scaling_method;
 };
 
 struct _CtkDisplayDeviceDfpClass

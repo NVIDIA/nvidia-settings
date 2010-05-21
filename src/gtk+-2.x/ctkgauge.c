@@ -241,7 +241,8 @@ void ctk_gauge_set_current(CtkGauge *ctk_gauge, gint current)
     g_return_if_fail(CTK_IS_GAUGE(ctk_gauge));
     ctk_gauge->current = current;
 
-    ts = g_strdup_printf("%d\xc2\xb0", current);
+    ts = g_strdup_printf("%d\xc2\xb0" /* split for g_utf8_validate() */ "C",
+                         current);
     pango_layout_set_text(ctk_gauge->pango_layout, ts, -1);
 
     g_free(ts);

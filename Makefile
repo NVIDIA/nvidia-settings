@@ -2,7 +2,7 @@
 # nvidia-settings: A tool for configuring the NVIDIA X driver on Unix
 # and Linux systems.
 #
-# Copyright (C) 2004 NVIDIA Corporation.
+# Copyright (C) 2008 NVIDIA Corporation.
 #
 # This program is free software; you can redistribute it and/or
 # modify it under the terms of Version 2 of the GNU General Public
@@ -21,252 +21,171 @@
 #           Boston, MA 02111-1307, USA
 #
 
-#
-# This is the top level Makefile for the nvidia-settings utility
-#
 
-# Below are variables that users can override, either here or on the
-# make commandline
-#
-# CC = gcc
-# CFLAGS = -Wall
-# PKG_CONFIG = pkg-config
-# X11R6_DIR = /usr/X11R6
+##############################################################################
+# include common variables and functions
+##############################################################################
 
-# default build target
-
-default: all
+include utils.mk
 
 
-# default definitions; can be overwritten by users
+##############################################################################
+# The calling Makefile may export any of the following variables; we
+# assign default values if they are not exported by the caller
+##############################################################################
 
-SHELL = /bin/sh
-INSTALL = install
-BUILD_OS := $(shell uname)
-BUILD_ARCH := $(shell uname -m)
-M4 := m4
 
-ifndef CC
-  CC = gcc
-endif
-
-ifndef PKG_CONFIG
-  PKG_CONFIG = pkg-config
-endif
-
-ifndef X11_LIB_DIRS
-  ifeq ($(BUILD_OS)-$(BUILD_ARCH),Linux-x86_64)
-    X11_LIB_DIRS = -L/usr/X11R6/lib64
+ifndef X_LDFLAGS
+  ifeq ($(TARGET_OS)-$(TARGET_ARCH),Linux-x86_64)
+    X_LDFLAGS          = -L/usr/X11R6/lib64
   else
-    X11_LIB_DIRS = -L/usr/X11R6/lib
+    X_LDFLAGS          = -L/usr/X11R6/lib
   endif
 endif
 
-ifndef X11_INC_DIRS
-  X11_INC_DIRS = -I/usr/X11R6/include
+X_CFLAGS              ?=
+
+GL_INCLUDE_PATH       ?= /usr/include
+
+PKG_CONFIG            ?= pkg-config
+
+ifndef GTK_CFLAGS
+  GTK_CFLAGS          := $(shell $(PKG_CONFIG) --cflags gtk+-2.0)
 endif
 
-# define local variables
+ifndef GTK_LDFLAGS
+  GTK_LDFLAGS         := $(shell $(PKG_CONFIG) --libs gtk+-2.0)
+endif
 
-LOCAL_CFLAGS = -Wall
 
-# the NVDEBUG environment variable controls whether we build debug or retail
+##############################################################################
+# The XF86Config-parser and libXNVCtrl directories may be in one of
+# two places: either elsewhere in the driver source tree when building
+# nvidia-settings as part of the NVIDIA driver build (in which case,
+# XNVCTRL_DIR, XNVCTRL_ARCHIVE, and XCONFIG_PARSER_DIR should be
+# defined by the calling makefile), or directly in the source
+# directory when building from the nvidia-settings source tarball (in
+# which case, the below conditional assignments should be used)
+##############################################################################
 
-ifeq ($(NVDEBUG),1)
-  STRIP = true
-  LOCAL_CFLAGS += -g -DDEBUG
+XNVCTRL_DIR           ?= src/libXNVCtrl
+XNVCTRL_ARCHIVE       ?= $(XNVCTRL_DIR)/libXNVCtrl.a
+XCONFIG_PARSER_DIR    ?= src/XF86Config-parser
+
+
+##############################################################################
+# assign variables
+##############################################################################
+
+NVIDIA_SETTINGS = $(OUTPUTDIR)/nvidia-settings
+
+NVIDIA_SETTINGS_PROGRAM_NAME = "nvidia-settings"
+
+NVIDIA_SETTINGS_VERSION := $(NVIDIA_VERSION)
+
+CFLAGS += $(X_CFLAGS)
+
+ifeq ($(TARGET_OS),SunOS)
+  LDFLAGS += -Wl,-rpath=/usr/X11R6/lib
+endif
+
+LDFLAGS += $(X_LDFLAGS)
+
+# Some older Linux distributions do not have the dynamic library
+# libXxf86vm.so, though some newer Linux distributions do not have the
+# static library libXxf86vm.a.  Statically link against libXxf86vm
+# when building nvidia-settings within the NVIDIA driver build, but
+# dynamically link against libXxf86vm in the public builds.
+ifdef NV_LINK_LIBXXF86VM_STATICALLY
+    LDFLAGS += -Wl,-Bstatic -lXxf86vm -Wl,-Bdynamic
 else
-  ifndef STRIP
-    STRIP = strip
-  endif
-  LOCAL_CFLAGS += -O -DNDEBUG
+    LDFLAGS += -lXxf86vm
 endif
 
-# default prefix
-ifdef ROOT
-  prefix = $(ROOT)/usr
+LDFLAGS += -lX11 -lXext
+LDFLAGS += $(GTK_LDFLAGS)
+
+MANPAGE_GZIP ?= 1
+
+MANPAGE_gzipped 	= $(OUTPUTDIR)/nvidia-settings.1.gz
+MANPAGE_not_gzipped 	= $(OUTPUTDIR)/nvidia-settings.1
+ifeq ($(MANPAGE_GZIP),1)
+  MANPAGE     = $(MANPAGE_gzipped)
 else
-  prefix = /usr/local
+  MANPAGE     = $(MANPAGE_not_gzipped)
 endif
 
-# default echo within SunOS sh does not have -n option. Use /usr/ucb/echo instead.
-# Solaris install has a different argument syntax 
-ifeq ($(BUILD_OS),SunOS)
-ECHO=/usr/ucb/echo
-define INSTALL_RULE
-	$(INSTALL) -m 755 -f $(bindir) $(NVIDIA_SETTINGS)
-	mkdir -p $(mandir)
-	$(INSTALL) -m 644 -f $(mandir) doc/$(MANPAGE)
-endef
-LD_RUN_FLAG=-R/usr/X11R6/lib
-else
-ECHO=echo
-define INSTALL_RULE
-	$(INSTALL) -m 755 $(NVIDIA_SETTINGS) $(bindir)/$(NVIDIA_SETTINGS)
-	mkdir -p $(mandir)
-	$(INSTALL) -m 644 doc/$(MANPAGE) $(mandir)
-	gzip -9f $(mandir)/$(MANPAGE)
-endef
-endif
+# Include all the source lists; dist-files.mk will define SRC
+include dist-files.mk
 
-exec_prefix = $(prefix)
-bindir = $(exec_prefix)/bin
-mandir = $(exec_prefix)/share/man/man1
+include $(XCONFIG_PARSER_DIR)/src.mk
+SRC        += $(addprefix $(XCONFIG_PARSER_DIR)/,$(XCONFIG_PARSER_SRC))
 
-X11_CFLAGS = $(X11_INC_DIRS)
+SRC        += $(STAMP_C)
 
-GTK_CFLAGS := $(shell $(PKG_CONFIG) --cflags gtk+-2.0)
-GTK_LDFLAGS := $(shell $(PKG_CONFIG) --libs gtk+-2.0)
+OBJS        = $(call BUILD_OBJECT_LIST,$(SRC))
 
-X11_LIBS := $(X11_LIB_DIRS) -Wl,-Bstatic -lXxf86vm -Wl,-Bdynamic -lX11 -lXext
+CFLAGS     += -I src
+CFLAGS     += -I src/image_data
+CFLAGS     += -I $(XNVCTRL_DIR)
+CFLAGS     += -I $(XCONFIG_PARSER_DIR)/..
+CFLAGS     += -I src/libXNVCtrlAttributes
+CFLAGS     += -I src/xpm_data
+CFLAGS     += -I src/gtk+-2.x
+CFLAGS     += -I $(OUTPUTDIR)
 
-XNVCTRL_LIB := src/libXNVCtrl/libXNVCtrl.a
-XNVCTRL_DIR := src/libXNVCtrl
-
-XF86PARSER_LIB := src/XF86Config-parser/libXF86Config-parser.a
-XF86PARSER_DIR := src/XF86Config-parser
-
-CURDIR := $(shell pwd)
-
-RELATIVE_SRCDIRS = \
-	doc \
-	src \
-	src/image_data \
-	src/xpm_data \
-	src/gtk+-2.x \
-	src/libXNVCtrl \
-	src/libXNVCtrlAttributes \
-	src/XF86Config-parser \
-	samples
+$(call BUILD_OBJECT_LIST,$(GTK_SRC)): CFLAGS += $(GTK_CFLAGS)
 
 
-SRCDIRS := $(addprefix $(CURDIR)/, $(RELATIVE_SRCDIRS))
+##############################################################################
+# build rules
+##############################################################################
 
-INC_FLAGS := $(addprefix -I , $(RELATIVE_SRCDIRS))
+.PNONY: all install NVIDIA_SETTINGS_install MANPAGE_install clean clobber
 
-ALL_CFLAGS = $(CFLAGS) $(LOCAL_CFLAGS) $(X11_CFLAGS) $(GTK_CFLAGS) $(INC_FLAGS)
-ALL_LDFLAGS = $(LD_RUN_FLAG) $(LDFLAGS) $(GTK_LDFLAGS) $(X11_LIBS)
+all: $(NVIDIA_SETTINGS) $(MANPAGE)
 
-CPPFLAGS = $(ALL_CFLAGS)
+install: NVIDIA_SETTINGS_install MANPAGE_install
 
+NVIDIA_SETTINGS_install: $(NVIDIA_SETTINGS)
+	$(MKDIR) $(bindir)
+	$(INSTALL) $(INSTALL_BIN_ARGS) $< $(bindir)/$(notdir $<)
 
-NVIDIA_SETTINGS = nvidia-settings
-NVIDIA_SETTINGS_VERSION = 1.0
+MANPAGE_install: $(MANPAGE)
+	$(MKDIR) $(mandir)
+	$(INSTALL) $(INSTALL_BIN_ARGS) $< $(mandir)/$(notdir $<)
 
-NVIDIA_SETTINGS_DISTDIR = $(NVIDIA_SETTINGS)-$(NVIDIA_SETTINGS_VERSION)
-NVIDIA_SETTINGS_DISTDIR_DIRS := \
-	$(addprefix $(NVIDIA_SETTINGS_DISTDIR)/, $(RELATIVE_SRCDIRS))
+$(NVIDIA_SETTINGS): $(OBJS) $(XNVCTRL_ARCHIVE)
+	$(call quiet_cmd,LINK) -o $@ $(OBJS) $(XNVCTRL_ARCHIVE) \
+		$(CFLAGS) $(LDFLAGS) $(BIN_LDFLAGS)
+	$(call quiet_cmd,STRIP_CMD) $@
 
-STAMP_C = g_stamp.c
+# define the rule to build each object file
+$(foreach src,$(SRC),$(eval $(call DEFINE_OBJECT_RULE,CC,$(src))))
 
-MANPAGE = nvidia-settings.1
-
-
-# initialize SRC and EXTRA_DIST, then include each of the subdirectory
-# Makefiles so that they can append to SRC and EXTRA_DIST
-
-SRC =
-EXTRA_DIST =
-
-include $(patsubst %,%/Makefile.inc,$(RELATIVE_SRCDIRS))
-
-
-# set VPATH 
-
-VPATH = $(RELATIVE_SRCDIRS)
-
-
-# additional sources (eg: generated sources) can be appended to ALL_SRC
-
-ALL_SRC = $(SRC) $(STAMP_C)
-
-
-# OBJS and DEPS are constructed such that they are placed into special
-# ".objs" and ".deps" subdirectories
-
-OBJS_DIR = .objs
-DEPS_DIR = .deps
-
-OBJS := $(patsubst %.c,$(OBJS_DIR)/%.o,$(ALL_SRC))
-DEPS := $(patsubst %.c,$(DEPS_DIR)/%.d,$(SRC))
-
-# and now, the build rules:
-
-all: $(NVIDIA_SETTINGS) doc/$(MANPAGE)
-
-install: all
-	$(STRIP) $(NVIDIA_SETTINGS)
-	$(INSTALL_RULE)
-
-$(OBJS_DIR)/%.o: %.c
-	@ mkdir -p $(OBJS_DIR)
-	$(CC) -c $(ALL_CFLAGS) $< -o $@
-
-# to generate the dependency files, use the compiler's "-MM" option to
-# generate output of the form "foo.o : foo.c foo.h"; then, use sed to
-# replace the target with "$(OBJS_DIR)/foo.o $(DEPS_DIR)/foo.d", and
-# wrap the prerequisites with $(wildcard ...); the wildcard function
-# serves as an existence filter, so that files that are later removed
-# from the build do not cause stale references.
-
-$(DEPS_DIR)/%.d: %.c
-	@ mkdir -p $(DEPS_DIR)
-	@ set -e; b=`basename $* .c` ; \
-	$(CC) -MM $(CPPFLAGS) $< \
-	| sed \
-	-e "s%\\($$b\\)\\.o[ :]*%$(OBJS_DIR)/\\1.o $(DEPS_DIR)/\\1.d : $$\(wildcard %g" \
-	-e "s,\([^\\]\)$$,\1)," > $@; \
-	[ -s $@ ] || rm -f $@
-
-$(STAMP_C): $(filter-out $(OBJS_DIR)/$(STAMP_C:.c=.o), $(OBJS))
-	@ rm -f $@
-	@ $(ECHO) -n "const char NV_ID[] = \"nvidia id: " >> $@
-	@ $(ECHO) -n "$(NVIDIA_SETTINGS):  " >> $@
-	@ $(ECHO) -n "version $(NVIDIA_SETTINGS_VERSION)  " >> $@
-	@ $(ECHO) -n "($(shell whoami)@$(shell hostname))  " >> $@
-	@ echo    "$(shell date)\";" >> $@
-	@ echo    "const char *pNV_ID = NV_ID + 11;" >> $@
-
-
-%.i : %.c
-	$(CC) $(CPPFLAGS) -E -dD $< | sed -e 's/^ $$//' > $@
-	indent -kr -nbbo -l96 -sob $@
-
-$(XF86PARSER_LIB):
-	$(MAKE) NV_CFLAGS='$(NV_CFLAGS)' -C $(XF86PARSER_DIR)
-
-$(XNVCTRL_LIB):
-	$(MAKE) CFLAGS='$(ALL_CFLAGS)' LDFLAGS='$(ALL_LDFLAGS)' -C $(XNVCTRL_DIR)
-
-$(NVIDIA_SETTINGS): $(OBJS) $(XNVCTRL_LIB) $(XF86PARSER_LIB)
-	$(CC) $(OBJS) $(ALL_CFLAGS) $(ALL_LDFLAGS) $(XNVCTRL_LIB) $(XF86PARSER_LIB) -o $@
-
-.PHONY: $(XF86PARSER_LIB) dist clean clobber
-
-dist: $(XNVCTRL_LIB)
-	@ if [ -d $(NVIDIA_SETTINGS_DISTDIR) ]; then \
-		chmod 755 $(NVIDIA_SETTINGS_DISTDIR); \
-	fi
-	@ if [ -f $(NVIDIA_SETTINGS_DISTDIR).tar.gz ]; then \
-		chmod 644 $(NVIDIA_SETTINGS_DISTDIR).tar.gz; \
-	fi
-	rm -rf $(NVIDIA_SETTINGS_DISTDIR) $(NVIDIA_SETTINGS_DISTDIR).tar.gz
-	mkdir -p $(NVIDIA_SETTINGS_DISTDIR_DIRS)
-	@ for inc_dir in $(RELATIVE_SRCDIRS) .; do \
-		EXTRA_DIST=; \
-		SRC=; \
-		mkdir -p $(NVIDIA_SETTINGS_DISTDIR)/$$inc_dir; \
-		for inc_file in `$(MAKE) --makefile $$inc_dir/Makefile.inc dist_list`; do \
-			file="$$inc_dir/$$inc_file"; \
-			cp $$file $(NVIDIA_SETTINGS_DISTDIR)/$$file; \
-			chmod 644 $(NVIDIA_SETTINGS_DISTDIR)/$$file; \
-		done; \
-	done
-	tar czf $(NVIDIA_SETTINGS_DISTDIR).tar.gz $(NVIDIA_SETTINGS_DISTDIR)
-	rm -rf $(NVIDIA_SETTINGS_DISTDIR)
+# define the rule to generate $(STAMP_C)
+$(eval $(call DEFINE_STAMP_C_RULE, $(OBJS),$(NVIDIA_SETTINGS_PROGRAM_NAME)))
 
 clean clobber:
-	rm -rf $(OBJS_DIR) $(DEPS_DIR) $(STAMP_C) $(NVIDIA_SETTINGS) $(XNVCTRL_LIB)
-	find . -name "*~" -exec rm -f \{\} \;
+	rm -rf $(NVIDIA_SETTINGS) $(MANPAGE) *~ $(STAMP_C) \
+		$(OUTPUTDIR)/*.o $(OUTPUTDIR)/*.d
 
--include $(DEPS)
+
+##############################################################################
+# Documentation
+##############################################################################
+
+AUTO_TEXT = ".\\\" WARNING: THIS FILE IS AUTO-GENERATED!  Edit $< instead."
+
+doc: $(MANPAGE)
+
+$(MANPAGE_not_gzipped): doc/nvidia-settings.1.m4
+	$(call quiet_cmd,M4) \
+	  -D__HEADER__=$(AUTO_TEXT) \
+	  -D__BUILD_OS__=$(TARGET_OS) \
+	  -D__VERSION__=$(NVIDIA_VERSION) \
+	  -D__DATE__="`$(DATE) +%F`" \
+	  $< > $@
+
+$(MANPAGE_gzipped): $(MANPAGE_not_gzipped)
+	$(GZIP_CMD) -9f < $< > $@

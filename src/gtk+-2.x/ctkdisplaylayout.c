@@ -3721,7 +3721,8 @@ void ctk_display_layout_add_screen_metamode(CtkDisplayLayout *ctk_object,
 
 void ctk_display_layout_delete_screen_metamode(CtkDisplayLayout *ctk_object,
                                                nvScreenPtr screen,
-                                               int metamode_idx)
+                                               int metamode_idx,
+                                               Bool reselect)
 {
     nvDisplayPtr display;
     nvMetaModePtr metamode;
@@ -3802,8 +3803,10 @@ void ctk_display_layout_delete_screen_metamode(CtkDisplayLayout *ctk_object,
 
 
     /* Update which metamode should be selected */
-    ctk_display_layout_set_screen_metamode
-        (ctk_object, screen, screen->cur_metamode_idx);
+    if (reselect) {
+        ctk_display_layout_set_screen_metamode
+            (ctk_object, screen, screen->cur_metamode_idx);
+    }
 
 } /* ctk_display_layout_delete_screen_metamode() */
 

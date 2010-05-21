@@ -1171,7 +1171,7 @@ static void list_entry_update_gpu_controls(CtkFramelock *ctk_framelock,
                                            nvListEntryPtr entry)
 {
     nvGPUDataPtr data = (nvGPUDataPtr)(entry->data);
-    unsigned int slaveables;
+    int slaveables;
     nvDisplayDataPtr display_data;
     nvListEntryPtr child;
     ReturnStatus ret;

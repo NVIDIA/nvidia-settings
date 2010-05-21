@@ -629,8 +629,8 @@ NvCtrlGlxGetVoidAttribute (NvCtrlAttributePrivateHandle *h,
  * OpenGL/GLX function.
  *
  *
- * But first, the following macros are used to setup a rendering context
- * such that valid information may be retrieved. (Having a context is
+ * But first, the following helper function may be used to set up a rendering
+ * context such that valid information may be retrieved. (Having a context is
  * required for getting OpenGL and 'Direct rendering' information.)
  *
  * NOTE: A seperate display connection is used to avoid the dependence on
@@ -640,35 +640,14 @@ NvCtrlGlxGetVoidAttribute (NvCtrlAttributePrivateHandle *h,
  *
  ****/
 
-/* Macros to set up/tear down a rendering context */
-
-#define GET_CONTEXT() \
-  root    = RootWindow(h->dpy, h->target_id); \
-  visinfo = __libGL->glXChooseVisual(h->dpy, h->target_id, \
-                                    &(attribListSgl[0])); \
-  win_attr.background_pixel = 0; \
-  win_attr.border_pixel     = 0; \
-  win_attr.colormap         = XCreateColormap(h->dpy, root, \
-                                              visinfo->visual, AllocNone); \
-  win_attr.event_mask       = 0; \
-  mask                      = CWBackPixel | CWBorderPixel | CWColormap | \
-                              CWEventMask; \
-  win  = XCreateWindow(h->dpy, root, 0, 0, width, height, \
-                       0, visinfo->depth, InputOutput, \
-                       visinfo->visual, mask, &win_attr); \
-  ctx  = __libGL->glXCreateContext(h->dpy, visinfo, NULL, True ); \
-  if ( ctx ) { __libGL->glXMakeCurrent(h->dpy, win, ctx); }
-
-#define CLEAN_CONTEXT() \
-  if ( visinfo )   { XFree(visinfo); } \
-  if ( ctx )       { __libGL->glXDestroyContext(h->dpy, ctx); } \
-  if ( win )       { XDestroyWindow(h->dpy, win); }
-
-
-ReturnStatus
-NvCtrlGlxGetStringAttribute (NvCtrlAttributePrivateHandle *h,
-                             unsigned int display_mask,
-                             int attr, char **ptr)
+/*
+ * Helper function for NvCtrlGlxGetStringAttribute for queries that require a
+ * current context.  If getDirect is true, then check if we can create a direct
+ * GLX context and return "Yes" or "No".  Otherwise, create a context and query
+ * the GLX implementation for the string specified in prop.
+ */
+static const char *getString(NvCtrlAttributePrivateHandle *h,
+                             Bool getDirect, GLenum prop)
 {
     const char *str = NULL;
 
@@ -687,7 +666,53 @@ NvCtrlGlxGetStringAttribute (NvCtrlAttributePrivateHandle *h,
                                    GLX_GREEN_SIZE, 1,
                                    GLX_BLUE_SIZE, 1,
                                    None };
-    
+    root    = RootWindow(h->dpy, h->target_id);
+    visinfo = __libGL->glXChooseVisual(h->dpy, h->target_id,
+                                       &(attribListSgl[0]));
+    if (!visinfo) {
+        return NULL;
+    }
+    win_attr.background_pixel = 0;
+    win_attr.border_pixel     = 0;
+    win_attr.colormap         = XCreateColormap(h->dpy, root,
+                                                visinfo->visual, AllocNone);
+    win_attr.event_mask       = 0;
+    mask                      = CWBackPixel | CWBorderPixel | CWColormap |
+                                CWEventMask;
+    win  = XCreateWindow(h->dpy, root, 0, 0, width, height,
+                         0, visinfo->depth, InputOutput,
+                         visinfo->visual, mask, &win_attr);
+    ctx  = __libGL->glXCreateContext(h->dpy, visinfo, NULL, True );
+    if ( ctx ) {
+        __libGL->glXMakeCurrent(h->dpy, win, ctx);
+    }
+
+    if (getDirect) {
+        str = ((*(__libGL->glXIsDirect))(h->dpy, ctx)) ? "Yes" : "No";
+    } else {
+        str = (const char *) (* (__libGL->glGetString))(prop);
+    }
+
+    if (visinfo) {
+        XFree(visinfo);
+    }
+    if (ctx) {
+        __libGL->glXDestroyContext(h->dpy, ctx);
+    }
+    if (win) {
+        XDestroyWindow(h->dpy, win);
+    }
+
+    return str;
+}
+
+ReturnStatus
+NvCtrlGlxGetStringAttribute (NvCtrlAttributePrivateHandle *h,
+                             unsigned int display_mask,
+                             int attr, char **ptr)
+{
+    const char *str = NULL;
+
     /* Validate */
     if ( !h || !h->dpy || h->target_type != NV_CTRL_TARGET_TYPE_X_SCREEN ) {
         return NvCtrlBadHandle;
@@ -704,9 +729,7 @@ NvCtrlGlxGetStringAttribute (NvCtrlAttributePrivateHandle *h,
     switch (attr) {
         
     case NV_CTRL_STRING_GLX_DIRECT_RENDERING:
-        GET_CONTEXT();
-        str = (  (* (__libGL->glXIsDirect))(h->dpy, ctx)  ) ? "Yes" : "No";
-        CLEAN_CONTEXT();
+        str = getString(h, True, 0);
         break;
     case NV_CTRL_STRING_GLX_GLX_EXTENSIONS:
         str = (* (__libGL->glXQueryExtensionsString))(h->dpy, h->target_id);
@@ -733,24 +756,16 @@ NvCtrlGlxGetStringAttribute (NvCtrlAttributePrivateHandle *h,
         str = (* (__libGL->glXGetClientString))(h->dpy, GLX_EXTENSIONS);
         break;
     case NV_CTRL_STRING_GLX_OPENGL_VENDOR:
-        GET_CONTEXT();
-        str = (const char *) (* (__libGL->glGetString))(GL_VENDOR);
-        CLEAN_CONTEXT();
+        str = getString(h, False, GL_VENDOR);
         break;
     case NV_CTRL_STRING_GLX_OPENGL_RENDERER:
-        GET_CONTEXT();
-        str = (const char *) (* (__libGL->glGetString))(GL_RENDERER);
-        CLEAN_CONTEXT();
+        str = getString(h, False, GL_RENDERER);
         break;
     case NV_CTRL_STRING_GLX_OPENGL_VERSION:
-        GET_CONTEXT();
-        str = (const char *) (* (__libGL->glGetString))(GL_VERSION);
-        CLEAN_CONTEXT();
+        str = getString(h, False, GL_VERSION);
         break;
     case NV_CTRL_STRING_GLX_OPENGL_EXTENSIONS:
-        GET_CONTEXT();
-        str = (const char *) (* (__libGL->glGetString))(GL_EXTENSIONS);
-        CLEAN_CONTEXT();
+        str = getString(h, False, GL_EXTENSIONS);
         break;
         
     default:

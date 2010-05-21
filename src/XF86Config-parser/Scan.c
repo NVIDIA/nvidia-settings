@@ -188,7 +188,7 @@ static unsigned int xconfigStrToUL (char *str)
  *  support that.
  */
 
-static char *xconfigGetNextLine()
+static char *xconfigGetNextLine(void)
 {
     static int configBufLen = CONFIG_BUF_LEN;
     char *tmpConfigBuf, *tmpConfigRBuf;

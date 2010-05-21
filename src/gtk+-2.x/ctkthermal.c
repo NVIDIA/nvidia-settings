@@ -52,6 +52,13 @@ static void reset_button_clicked(GtkWidget *widget, gpointer user_data);
 static void adjustment_value_changed(GtkAdjustment *adjustment,
                                      gpointer user_data);
 
+static void draw_sensor_gui(GtkWidget *vbox1, CtkThermal *ctk_thermal,
+                            gboolean new_target_type, gint cur_sensor_idx,
+                            NvCtrlAttributeHandle *sensor_handle,
+                            gint reading, gint lower, gint upper,
+                            gint target, gint provider);
+static GtkWidget *pack_gauge(GtkWidget *hbox, gint lower, gint upper,
+                             CtkConfig *ctk_config, const char *help);
 
 static const char *__core_threshold_help =
 "The Core Slowdown Threshold Temperature is the temperature "
@@ -73,6 +80,18 @@ static const char *__temp_level_help =
 "This is a graphical representation of the current GPU core "
 "temperature relative to the maximum GPU Core Slowdown "
 "Threshold temperature.";
+
+static const char *__thermal_sensor_id_help =
+"This shows the thermal sensor's index.";
+
+static const char *__thermal_sensor_target_help =
+"This shows what hardware component the thermal sensor is measuring.";
+
+static const char *__thermal_sensor_provider_help =
+"This shows the hardware device that provides the thermal sensor.";
+
+static const char *__thermal_sensor_reading_help =
+"This shows the thermal sensor's current reading.";
 
 static const char * __enable_button_help =
 "The Enable GPU Fan Settings checkbox enables access to control GPU Fan "
@@ -292,37 +311,66 @@ static gboolean update_cooler_info(gpointer user_data)
 
 static gboolean update_thermal_info(gpointer user_data)
 {
-    gint core, ambient;
+    gint reading, ambient;
     CtkThermal *ctk_thermal;
     NvCtrlAttributeHandle *handle;
-    gint ret;
+    gint ret, i, core;
     gchar *s;
 
     ctk_thermal = CTK_THERMAL(user_data);
-    handle = ctk_thermal->attribute_handle;
 
-    ret = NvCtrlGetAttribute(handle, NV_CTRL_GPU_CORE_TEMPERATURE, &core);
-    if (ret != NvCtrlSuccess) {
-        /* thermal information no longer available */
-        return FALSE;
-    }
+    if (!ctk_thermal->thermal_sensor_target_type_supported) {
+        handle = ctk_thermal->attribute_handle;
 
-    s = g_strdup_printf(" %d C ", core);
-    gtk_label_set_text(GTK_LABEL(ctk_thermal->core_label), s);
-    g_free(s);
-
-    ctk_gauge_set_current(CTK_GAUGE(ctk_thermal->core_gauge), core);
-    ctk_gauge_draw(CTK_GAUGE(ctk_thermal->core_gauge));
-
-    if (ctk_thermal->ambient_label) {
-        ret = NvCtrlGetAttribute(handle, NV_CTRL_AMBIENT_TEMPERATURE, &ambient);
+        ret = NvCtrlGetAttribute(handle, NV_CTRL_GPU_CORE_TEMPERATURE, &core);
         if (ret != NvCtrlSuccess) {
             /* thermal information no longer available */
             return FALSE;
         }
-        s = g_strdup_printf(" %d C ", ambient);
-        gtk_label_set_text(GTK_LABEL(ctk_thermal->ambient_label), s);
+
+        s = g_strdup_printf(" %d C ", core);
+        gtk_label_set_text(GTK_LABEL(ctk_thermal->core_label), s);
         g_free(s);
+
+        ctk_gauge_set_current(CTK_GAUGE(ctk_thermal->core_gauge), core);
+        ctk_gauge_draw(CTK_GAUGE(ctk_thermal->core_gauge));
+
+        if (ctk_thermal->ambient_label) {
+            ret = NvCtrlGetAttribute(handle, NV_CTRL_AMBIENT_TEMPERATURE,
+                                     &ambient);
+            if (ret != NvCtrlSuccess) {
+                /* thermal information no longer available */
+                return FALSE;
+            }
+            s = g_strdup_printf(" %d C ", ambient);
+            gtk_label_set_text(GTK_LABEL(ctk_thermal->ambient_label), s);
+            g_free(s);
+        }
+    } else {
+        for (i = 0; i < ctk_thermal->sensor_count; i++) {
+            handle = ctk_thermal->sensor_info[i].handle;
+
+            ret = NvCtrlGetAttribute(handle, NV_CTRL_THERMAL_SENSOR_READING,
+                                     &reading);
+            /* querying THERMAL_SENSOR_READING failed: assume the temperature is 0 */
+            if (ret != NvCtrlSuccess) {
+                reading = 0;
+            }
+            
+            if (ctk_thermal->sensor_info[i].temp_label) {
+                s = g_strdup_printf(" %d C ", reading);
+                gtk_label_set_text(
+                                   GTK_LABEL(ctk_thermal->sensor_info[i].temp_label), s);
+                g_free(s);
+            }
+            
+            if (ctk_thermal->sensor_info[i].core_gauge) {
+                ctk_gauge_set_current(
+                          CTK_GAUGE(ctk_thermal->sensor_info[i].core_gauge),
+                          reading);
+                ctk_gauge_draw(CTK_GAUGE(ctk_thermal->sensor_info[i].core_gauge));
+            }
+        }
     }
     if ( ctk_thermal->cooler_count ) {
         update_cooler_info(ctk_thermal);
@@ -814,6 +862,193 @@ static void cooler_control_checkbox_toggled(GtkWidget *widget,
 
 } /* cooler_control_checkbox_toggled() */
 
+static const nvctrlFormatName targetFormatNames[] = {
+
+    { NV_CTRL_THERMAL_SENSOR_TARGET_NONE,         "None"         },
+    { NV_CTRL_THERMAL_SENSOR_TARGET_GPU,          "GPU"          },
+    { NV_CTRL_THERMAL_SENSOR_TARGET_MEMORY,       "MEMORY"       },
+    { NV_CTRL_THERMAL_SENSOR_TARGET_POWER_SUPPLY, "Power Supply" }, 
+    { NV_CTRL_THERMAL_SENSOR_TARGET_BOARD,        "BOARD"        },
+    { -1, NULL },
+};
+
+static const nvctrlFormatName providerFormatNames[] = {
+    { NV_CTRL_THERMAL_SENSOR_PROVIDER_NONE,         "None"         },
+    { NV_CTRL_THERMAL_SENSOR_PROVIDER_GPU_INTERNAL, "GPU Internal" },
+    { NV_CTRL_THERMAL_SENSOR_PROVIDER_ADM1032,      "ADM1032"      },
+    { NV_CTRL_THERMAL_SENSOR_PROVIDER_ADT7461,      "ADT7461"      },
+    { NV_CTRL_THERMAL_SENSOR_PROVIDER_MAX6649,      "MAX6649"      },
+    { NV_CTRL_THERMAL_SENSOR_PROVIDER_MAX1617,      "MAX1617"      },
+    { NV_CTRL_THERMAL_SENSOR_PROVIDER_LM99,         "LM99"         },
+    { NV_CTRL_THERMAL_SENSOR_PROVIDER_LM89,         "LM89"         },
+    { NV_CTRL_THERMAL_SENSOR_PROVIDER_LM64,         "LM64"         },
+    { NV_CTRL_THERMAL_SENSOR_PROVIDER_G781,         "G781"         },
+    { NV_CTRL_THERMAL_SENSOR_PROVIDER_ADT7473,      "ADT7473"      },
+    { NV_CTRL_THERMAL_SENSOR_PROVIDER_SBMAX6649,    "SBMAX6649"    },
+    { NV_CTRL_THERMAL_SENSOR_PROVIDER_VBIOSEVT,     "VBIOSEVT"     },
+    { NV_CTRL_THERMAL_SENSOR_PROVIDER_OS,           "OS"           },
+    { -1, NULL },
+};
+
+
+/*
+ * get_nvctrl_format_name() - return the name of the nvcontrol format
+ */
+static const char *get_nvctrl_format_name(const nvctrlFormatName *nvctrlFormatNames,
+                                          const gint format)
+{
+    gint i;
+
+    for (i = 0; nvctrlFormatNames[i].name; i++) {
+        if (nvctrlFormatNames[i].format == format) {
+            return nvctrlFormatNames[i].name;
+        }
+    }
+
+    return "Unknown";
+
+} /* get_nvctrl_format_name() */
+
+
+/*
+ * pack_gauge() - pack gauge gui in hbox
+ */
+static GtkWidget *pack_gauge(GtkWidget *hbox, gint lower, gint upper,
+                             CtkConfig *ctk_config, const char *help)
+{
+    GtkWidget *vbox, *frame, *eventbox, *gauge;
+    
+    /* GPU Core Temperature Gauge */
+
+    vbox = gtk_vbox_new(FALSE, 0);
+    gtk_box_pack_start(GTK_BOX(hbox), vbox, FALSE, FALSE, 0);
+
+    frame = gtk_frame_new("Temperature");
+    gtk_box_pack_start(GTK_BOX(vbox), frame, FALSE, FALSE, 0);
+
+    hbox = gtk_hbox_new(FALSE, 0);
+    gtk_container_set_border_width(GTK_CONTAINER(hbox), FRAME_PADDING);
+    gtk_container_add(GTK_CONTAINER(frame), hbox);
+
+    gauge = ctk_gauge_new(lower, upper);
+    eventbox = gtk_event_box_new();
+    gtk_container_add(GTK_CONTAINER(eventbox), gauge);
+    gtk_box_pack_start(GTK_BOX(hbox), eventbox, FALSE, FALSE, 0);
+    ctk_config_set_tooltip(ctk_config, eventbox, help);
+    
+    return gauge;
+} /* pack_gauge() */
+
+
+/*****
+ *
+ * draw_sensor_gui() - prints sensor related information
+ *
+ */
+static void draw_sensor_gui(GtkWidget *vbox1, CtkThermal *ctk_thermal,
+                            gboolean new_target_type, gint cur_sensor_idx,
+                            NvCtrlAttributeHandle *sensor_handle,
+                            gint reading, gint lower, gint upper,
+                            gint target, gint provider)
+{
+    GtkWidget *hbox, *hbox1, *hbox2, *vbox, *vbox2, *table;
+    GtkWidget *frame, *label, *hsep;
+    GtkWidget *eventbox = NULL;
+    gchar *s;
+
+    hbox = gtk_hbox_new(FALSE, FRAME_PADDING);
+    gtk_container_set_border_width(GTK_CONTAINER(hbox), 10);
+
+    hbox1 = gtk_hbox_new(FALSE, FRAME_PADDING);
+    gtk_box_pack_start(GTK_BOX(vbox1), hbox1, FALSE, FALSE, 0);
+    
+    vbox2 = gtk_vbox_new(FALSE, 0);
+    gtk_box_pack_start(GTK_BOX(hbox1), vbox2, FALSE, FALSE, 0);
+    gtk_box_pack_start(GTK_BOX(vbox2), hbox, FALSE, FALSE, 0);
+    
+    vbox = gtk_vbox_new(FALSE, 0);
+    gtk_box_pack_start(GTK_BOX(hbox), vbox, FALSE, FALSE, 0);
+
+    /* GPU sensor ID */
+
+    hbox2 = gtk_hbox_new(FALSE, 0);
+    s = g_strdup_printf("ID: %d", cur_sensor_idx);
+    label = gtk_label_new(s);
+    g_free(s);
+    gtk_box_pack_start(GTK_BOX(vbox), hbox2, FALSE, FALSE, 0);
+    gtk_box_pack_start(GTK_BOX(hbox2), label, FALSE, FALSE, 0);
+
+    table = gtk_table_new(4, 4, FALSE);
+    gtk_box_pack_start(GTK_BOX(vbox), table, FALSE, FALSE, 0);
+
+    gtk_table_set_row_spacings(GTK_TABLE(table), 3);
+    gtk_table_set_col_spacings(GTK_TABLE(table), 15);
+
+    gtk_container_set_border_width(GTK_CONTAINER(table), 5); 
+
+    /* sensor target type */
+    if (target) {
+        add_table_row_with_help_text(table, ctk_thermal->ctk_config,
+                                __thermal_sensor_target_help,
+                                0, 0, 0, 0.5,
+                                "Target:", 0, 0.5,
+                                get_nvctrl_format_name(targetFormatNames, target));
+        ctk_thermal->sensor_info[cur_sensor_idx].target_type = label;
+    } else {
+        ctk_thermal->sensor_info[cur_sensor_idx].target_type = NULL;
+    }
+
+    /* sensor provider type */
+    if (provider) {
+        add_table_row_with_help_text(table, ctk_thermal->ctk_config,
+                                __thermal_sensor_provider_help,
+                                1, 0, 0, 0.5,
+                                "Provider:", 0, 0.5,
+                                get_nvctrl_format_name(providerFormatNames, provider));
+        ctk_thermal->sensor_info[cur_sensor_idx].provider_type = label;
+    } else {
+        ctk_thermal->sensor_info[cur_sensor_idx].provider_type = NULL;
+    }
+    
+    /* thermal sensor reading */
+    if (reading) {
+        hbox2 = gtk_hbox_new(FALSE, 0);
+        gtk_table_attach(GTK_TABLE(table), hbox2, 0, 1, 3, 4,
+                         GTK_FILL, GTK_FILL | GTK_EXPAND, 0, 0);
+
+        label = gtk_label_new("Temperature:");
+        gtk_box_pack_start(GTK_BOX(hbox2), label, FALSE, FALSE, 0);
+
+        frame = gtk_frame_new(NULL);
+        eventbox = gtk_event_box_new();
+        gtk_container_add(GTK_CONTAINER(eventbox), frame);
+        gtk_table_attach(GTK_TABLE(table), eventbox, 1, 2, 3, 4,
+                         GTK_FILL, GTK_FILL | GTK_EXPAND, 0, 0);
+
+        label = gtk_label_new(NULL);
+        gtk_container_add(GTK_CONTAINER(frame), label);
+        ctk_thermal->sensor_info[cur_sensor_idx].temp_label = label;
+        ctk_config_set_tooltip(ctk_thermal->ctk_config, eventbox,
+                               __thermal_sensor_reading_help);
+    } else {
+        ctk_thermal->sensor_info[cur_sensor_idx].temp_label = NULL;
+    }
+
+    /* GPU Core Temperature Gauge */
+    ctk_thermal->sensor_info[cur_sensor_idx].core_gauge =
+        pack_gauge(hbox, lower, upper,
+                   ctk_thermal->ctk_config, __temp_level_help);
+     
+    /* add horizontal bar between sensors */
+    if (cur_sensor_idx+1 != ctk_thermal->sensor_count) {
+        hbox1 = gtk_hbox_new(FALSE, 0);
+        hsep = gtk_hseparator_new();
+        gtk_box_pack_start(GTK_BOX(vbox2), hbox1, FALSE, FALSE, 0);
+        gtk_box_pack_start(GTK_BOX(hbox1), hsep, TRUE, TRUE, 10);
+    }
+
+} /* draw_sensor_gui() */
+
 
 
 GtkWidget* ctk_thermal_new(NvCtrlAttributeHandle *handle,
@@ -824,20 +1059,22 @@ GtkWidget* ctk_thermal_new(NvCtrlAttributeHandle *handle,
     CtkThermal *ctk_thermal;
     CtrlHandles *h;
     GtkObject *adjustment;
-    GtkWidget *gauge;
-    GtkWidget *hbox, *hbox2, *vbox, *table;
+    GtkWidget *hbox = NULL, *hbox1, *hbox2, *table, *vbox;
     GtkWidget *frame, *banner, *label;
     GtkWidget *vbox1;
-    GtkWidget *eventbox, *entry;
+    GtkWidget *eventbox = NULL, *entry;
     GtkWidget *fan_control_frame;
     GtkWidget *hsep;
     GtkWidget *scale;
     GtkWidget *alignment;
     ReturnStatus ret;
+    ReturnStatus ret1;
     NvCtrlAttributeHandle *cooler_handle;
+    NvCtrlAttributeHandle *sensor_handle;
     NVCTRLAttributeValidValuesRec cooler_range;
-    gint trigger, ambient;
-    gint core, upper;
+    NVCTRLAttributeValidValuesRec sensor_range;
+    gint trigger, core, ambient;
+    gint upper;
     gchar *s;
     gint i, j;
     gint cooler_level;
@@ -845,31 +1082,61 @@ GtkWidget* ctk_thermal_new(NvCtrlAttributeHandle *handle,
     gchar *name = NULL;
     int *pData;
     int len, value;
+    int major = 0, minor = 0;
     Bool can_access_cooler_level;
     Bool cooler_control_enabled;
     int cur_cooler_idx = 0;
+    int cur_sensor_idx = 0;
+    Bool thermal_sensor_target_type_supported = FALSE;
 
     /* make sure we have a handle */
 
     g_return_val_if_fail(handle != NULL, NULL);
-    
-    /* check if this screen supports thermal querying */
 
-    ret = NvCtrlGetAttribute(handle, NV_CTRL_GPU_CORE_TEMPERATURE, &core);
-    if (ret != NvCtrlSuccess) {
-        /* thermal information unavailable */
-        return NULL;
+    /* 
+     * Check for NV-CONTROL protocol version. 
+     * In version 1.23 we added support for querying per sensor information
+     * This used for backward compatibility between new nvidia-settings
+     * and older X driver
+     */ 
+    ret = NvCtrlGetAttribute(handle,
+                             NV_CTRL_ATTR_NV_MAJOR_VERSION, &major);
+    ret1 = NvCtrlGetAttribute(handle,
+                              NV_CTRL_ATTR_NV_MINOR_VERSION, &minor);
+
+    if ((ret == NvCtrlSuccess) && (ret1 == NvCtrlSuccess) &&
+        ((major > 1) || ((major == 1) && (minor > 22)))) {
+        thermal_sensor_target_type_supported = TRUE;
     }
 
-    ret = NvCtrlGetAttribute(handle, NV_CTRL_GPU_MAX_CORE_THRESHOLD, &upper);
-    if (ret != NvCtrlSuccess) {
-        /* thermal information unavailable */
-        return NULL;
-    }
+    if (!thermal_sensor_target_type_supported) {
+        /* check if this screen supports thermal querying */
 
-    ret = NvCtrlGetAttribute(handle, NV_CTRL_GPU_CORE_THRESHOLD, &trigger);
-    if (ret != NvCtrlSuccess) {
-        /* thermal information unavailable */
+        ret = NvCtrlGetAttribute(handle, NV_CTRL_GPU_CORE_TEMPERATURE, &core);
+        if (ret != NvCtrlSuccess) {
+            /* thermal information unavailable */
+            return NULL;
+        }
+
+        ret = NvCtrlGetAttribute(handle, NV_CTRL_GPU_MAX_CORE_THRESHOLD, &upper);
+        if (ret != NvCtrlSuccess) {
+            /* thermal information unavailable */
+            return NULL;
+        }
+
+        ret = NvCtrlGetAttribute(handle, NV_CTRL_GPU_CORE_THRESHOLD, &trigger);
+        if (ret != NvCtrlSuccess) {
+            /* thermal information unavailable */
+            return NULL;
+        }
+    }
+    /* Retrieve CtrlHandles from ctk_config */
+
+    h = ctk_config->pCtrlHandles;
+
+    /* return if sensor and Fan information not available */
+    if ((h->targets[THERMAL_SENSOR_TARGET].n == 0) &&
+        (h->targets[COOLER_TARGET].n == 0)) {
         return NULL;
     }
 
@@ -883,6 +1150,7 @@ GtkWidget* ctk_thermal_new(NvCtrlAttributeHandle *handle,
     ctk_thermal->settings_changed = FALSE;
     ctk_thermal->show_fan_control_frame = TRUE;
     ctk_thermal->cooler_count = 0;
+    ctk_thermal->thermal_sensor_target_type_supported = thermal_sensor_target_type_supported;
     
     /* set container properties for the CtkThermal widget */
 
@@ -914,118 +1182,174 @@ GtkWidget* ctk_thermal_new(NvCtrlAttributeHandle *handle,
 
     /* Thermal Information */
 
-    hbox = gtk_hbox_new(FALSE, FRAME_PADDING);
-    gtk_box_pack_start(GTK_BOX(object), hbox, FALSE, FALSE, FRAME_PADDING);
-
     vbox = gtk_vbox_new(FALSE, 0);
-    gtk_box_pack_start(GTK_BOX(hbox), vbox, FALSE, FALSE, 0);
+    gtk_box_pack_start(GTK_BOX(object), vbox, FALSE, FALSE, 0);
+    
+    if (thermal_sensor_target_type_supported) {
+        if ( h->targets[THERMAL_SENSOR_TARGET].n == 0 ) {
+            goto sensor_end;
+        }
+        hbox1 = gtk_hbox_new(FALSE, FRAME_PADDING);
+        gtk_box_pack_start(GTK_BOX(vbox), hbox1, FALSE, FALSE, 0);
+        label = gtk_label_new("Thermal Sensor Information");
+        gtk_box_pack_start(GTK_BOX(hbox1), label, FALSE, FALSE, 0);
 
+        hsep = gtk_hseparator_new();
+        gtk_box_pack_start(GTK_BOX(hbox1), hsep, TRUE, TRUE, 0);
+        
+        /* Query the list of sensors attached to this GPU */
 
-    /* GPU Core Treshold Temperature */
+        ret = NvCtrlGetBinaryAttribute(handle, 0,
+                                 NV_CTRL_BINARY_DATA_THERMAL_SENSORS_USED_BY_GPU,
+                                 (unsigned char **)(&pData), &len);
+        if ( ret == NvCtrlSuccess ) {
+            ctk_thermal->sensor_count = pData[0];
+        } else {
+            ctk_thermal->sensor_count = 0;
+        }
 
-    frame = gtk_frame_new("Slowdown Threshold");
-    gtk_box_pack_start(GTK_BOX(vbox), frame, FALSE, FALSE, 0);
+        if (ctk_thermal->sensor_count > 0) {
+            ctk_thermal->sensor_info = (SensorInfoPtr)
+                malloc(pData[0] * sizeof(SensorInfoRec));
+        }
 
-    hbox2 = gtk_hbox_new(FALSE, 0);
-    gtk_container_set_border_width(GTK_CONTAINER(hbox2), FRAME_PADDING);
-    gtk_container_add(GTK_CONTAINER(frame), hbox2);
+        for (j = 1; j <= ctk_thermal->sensor_count; j++) {
+            gint reading, target, provider;
+            sensor_handle = h->targets[THERMAL_SENSOR_TARGET].t[pData[j]].h;
 
-    label = gtk_label_new("Degrees: ");
-    gtk_box_pack_start(GTK_BOX(hbox2), label, FALSE, FALSE, 0);
+            if ( !sensor_handle ) {
+                continue;
+            }
 
-    eventbox = gtk_event_box_new();
-    gtk_box_pack_start(GTK_BOX(hbox2), eventbox, FALSE, FALSE, 0);
+            ctk_thermal->sensor_info[cur_sensor_idx].handle = sensor_handle;
 
-    entry = gtk_entry_new_with_max_length(5);
-    gtk_container_add(GTK_CONTAINER(eventbox), entry);
-    gtk_widget_set_sensitive(entry, FALSE);
-    gtk_entry_set_width_chars(GTK_ENTRY(entry), 5);
+            /* check if this screen supports thermal querying */
 
-    s = g_strdup_printf(" %d ", trigger);
-    gtk_entry_set_text(GTK_ENTRY(entry), s);
-    g_free(s);
+            ret = NvCtrlGetAttribute(sensor_handle, NV_CTRL_THERMAL_SENSOR_READING,
+                                     &reading);
+            if (ret != NvCtrlSuccess) {
+                /* sensor information unavailable */
+                reading = 0;
+            }
 
-    ctk_config_set_tooltip(ctk_config, eventbox, __core_threshold_help);
+            ret = NvCtrlGetValidAttributeValues(sensor_handle,
+                                                NV_CTRL_THERMAL_SENSOR_READING, 
+                                                &sensor_range);
+            if (ret != NvCtrlSuccess) {
+                /* sensor information unavailable */
+                sensor_range.u.range.min = sensor_range.u.range.max = 0;
+            }
 
-    label = gtk_label_new(" C");
-    gtk_box_pack_start(GTK_BOX(hbox2), label, FALSE, FALSE, 0);
+            ret = NvCtrlGetAttribute(sensor_handle, NV_CTRL_THERMAL_SENSOR_TARGET,
+                                     &target);
+            if (ret != NvCtrlSuccess) {
+                /* sensor information unavailable */
+                target = 0;
+            }
 
+            ret = NvCtrlGetAttribute(sensor_handle, NV_CTRL_THERMAL_SENSOR_PROVIDER,
+                                     &provider);
+            if (ret != NvCtrlSuccess) {
+                /* sensor information unavailable */
+                provider = 0;
+            }
+            /* print sensor related information */
+            draw_sensor_gui(vbox, ctk_thermal, thermal_sensor_target_type_supported,
+                            cur_sensor_idx, sensor_handle,
+                            reading, sensor_range.u.range.min,
+                            sensor_range.u.range.max, target, provider);
+            cur_sensor_idx++;
+        }
+        XFree(pData);
+        pData = NULL;
+    } else {
+        /* GPU Core Treshold Temperature */
 
-    /* GPU Core Temperature */
+        frame = gtk_frame_new("Slowdown Threshold");
+        gtk_box_pack_start(GTK_BOX(vbox), frame, FALSE, FALSE, 0);
 
-    table = gtk_table_new(2, 2, FALSE);
-    gtk_box_pack_end(GTK_BOX(vbox), table, FALSE, FALSE, 0);
-
-    hbox2 = gtk_hbox_new(FALSE, 0);
-    gtk_table_attach(GTK_TABLE(table), hbox2, 0, 1, 0, 1,
-            GTK_FILL, GTK_FILL | GTK_EXPAND, 5, 0);
-
-    label = gtk_label_new("Core Temperature:");
-    gtk_box_pack_start(GTK_BOX(hbox2), label, FALSE, FALSE, 0);
-
-    frame = gtk_frame_new(NULL);
-    eventbox = gtk_event_box_new();
-    gtk_container_add(GTK_CONTAINER(eventbox), frame);
-    gtk_table_attach(GTK_TABLE(table), eventbox, 1, 2, 0, 1,
-            GTK_FILL, GTK_FILL | GTK_EXPAND, 0, 0);
-
-    label = gtk_label_new(NULL);
-    gtk_container_add(GTK_CONTAINER(frame), label);
-    ctk_thermal->core_label = label;
-
-    ctk_config_set_tooltip(ctk_config, eventbox, __core_temp_help);
-
-
-    /* Ambient Temperature */
-
-    ret = NvCtrlGetAttribute(handle, NV_CTRL_AMBIENT_TEMPERATURE, &ambient);
-
-    if (ret == NvCtrlSuccess) {
         hbox2 = gtk_hbox_new(FALSE, 0);
-        gtk_table_attach(GTK_TABLE(table), hbox2, 0, 1, 1, 2,
-                GTK_FILL, GTK_FILL | GTK_EXPAND, 5, 0);
-        
-        label = gtk_label_new("Ambient Temperature:");
+        gtk_container_set_border_width(GTK_CONTAINER(hbox2), FRAME_PADDING);
+        gtk_container_add(GTK_CONTAINER(frame), hbox2);
+
+        label = gtk_label_new("Degrees: ");
         gtk_box_pack_start(GTK_BOX(hbox2), label, FALSE, FALSE, 0);
-        
+
+        eventbox = gtk_event_box_new();
+        gtk_box_pack_start(GTK_BOX(hbox2), eventbox, FALSE, FALSE, 0);
+
+        entry = gtk_entry_new_with_max_length(5);
+        gtk_container_add(GTK_CONTAINER(eventbox), entry);
+        gtk_widget_set_sensitive(entry, FALSE);
+        gtk_entry_set_width_chars(GTK_ENTRY(entry), 5);
+
+        s = g_strdup_printf(" %d ", trigger);
+        gtk_entry_set_text(GTK_ENTRY(entry), s);
+        g_free(s);
+        ctk_config_set_tooltip(ctk_config, eventbox, __core_threshold_help);
+
+        label = gtk_label_new(" C");
+        gtk_box_pack_start(GTK_BOX(hbox2), label, FALSE, FALSE, 0);
+
+        /* GPU Core Temperature */
+
+        table = gtk_table_new(2, 2, FALSE);
+        gtk_box_pack_end(GTK_BOX(vbox), table, FALSE, FALSE, 0);
+
+        hbox2 = gtk_hbox_new(FALSE, 0);
+        gtk_table_attach(GTK_TABLE(table), hbox2, 0, 1, 0, 1,
+                         GTK_FILL, GTK_FILL | GTK_EXPAND, 5, 0);
+
+        label = gtk_label_new("Core Temperature:");
+        gtk_box_pack_start(GTK_BOX(hbox2), label, FALSE, FALSE, 0);
+
         frame = gtk_frame_new(NULL);
         eventbox = gtk_event_box_new();
         gtk_container_add(GTK_CONTAINER(eventbox), frame);
-        gtk_table_attach(GTK_TABLE(table), eventbox, 1, 2, 1, 2,
-                GTK_FILL, GTK_FILL | GTK_EXPAND, 0, 0);
-        
+        gtk_table_attach(GTK_TABLE(table), eventbox, 1, 2, 0, 1,
+                         GTK_FILL, GTK_FILL | GTK_EXPAND, 0, 0);
+
         label = gtk_label_new(NULL);
         gtk_container_add(GTK_CONTAINER(frame), label);
-        ctk_thermal->ambient_label = label;
+        ctk_thermal->core_label = label;
+
+        ctk_config_set_tooltip(ctk_config, eventbox, __core_temp_help);
+
+        /* Ambient Temperature */
+
+        ret = NvCtrlGetAttribute(handle, NV_CTRL_AMBIENT_TEMPERATURE, &ambient);
+
+        if (ret == NvCtrlSuccess) {
+            hbox2 = gtk_hbox_new(FALSE, 0);
+            gtk_table_attach(GTK_TABLE(table), hbox2, 0, 1, 1, 2,
+                             GTK_FILL, GTK_FILL | GTK_EXPAND, 5, 0);
+
+            label = gtk_label_new("Ambient Temperature:");
+            gtk_box_pack_start(GTK_BOX(hbox2), label, FALSE, FALSE, 0);
+
+            frame = gtk_frame_new(NULL);
+            eventbox = gtk_event_box_new();
+            gtk_container_add(GTK_CONTAINER(eventbox), frame);
+            gtk_table_attach(GTK_TABLE(table), eventbox, 1, 2, 1, 2,
+                             GTK_FILL, GTK_FILL | GTK_EXPAND, 0, 0);
+
+            label = gtk_label_new(NULL);
+            gtk_container_add(GTK_CONTAINER(frame), label);
+            ctk_thermal->ambient_label = label;
+
+            ctk_config_set_tooltip(ctk_config, eventbox, __ambient_temp_help);
+        } else {
+            ctk_thermal->ambient_label = NULL;
+        }
+
+        /* GPU Core Temperature Gauge */
         
-        ctk_config_set_tooltip(ctk_config, eventbox, __ambient_temp_help);
-    } else {
-        ctk_thermal->ambient_label = NULL;
+        ctk_thermal->core_gauge = pack_gauge(hbox, 25, upper,
+                                             ctk_config, __temp_level_help);
     }
-
-    /* GPU Core Temperature Gauge */
-
-    vbox = gtk_vbox_new(FALSE, 0);
-    gtk_box_pack_start(GTK_BOX(hbox), vbox, FALSE, FALSE, 0);
-
-    frame = gtk_frame_new("Level");
-    gtk_box_pack_start(GTK_BOX(vbox), frame, FALSE, FALSE, 0);
-
-    hbox = gtk_hbox_new(FALSE, 0);
-    gtk_container_set_border_width(GTK_CONTAINER(hbox), FRAME_PADDING);
-    gtk_container_add(GTK_CONTAINER(frame), hbox);
-
-    gauge = ctk_gauge_new(25, upper);
-    eventbox = gtk_event_box_new();
-    gtk_container_add(GTK_CONTAINER(eventbox), gauge);
-    gtk_box_pack_start(GTK_BOX(hbox), eventbox, FALSE, FALSE, 0);
-    ctk_thermal->core_gauge = gauge;
-
-    ctk_config_set_tooltip(ctk_config, eventbox, __temp_level_help);
-
-    /* Retrieve CtrlHandles from ctk_config */
-
-    h = ctk_config->pCtrlHandles;
+sensor_end:
+    
+    /* Check for if Fans present on GPU */
 
     if ( h->targets[COOLER_TARGET].n == 0 ) {
         goto end;
@@ -1285,17 +1609,46 @@ GtkTextBuffer *ctk_thermal_create_help(GtkTextTagTable *table,
     
     gtk_text_buffer_get_iter_at_offset(b, &i, 0);
 
-    ctk_help_title(b, &i, "Thermal Monitor Help");
-    
-    ctk_help_heading(b, &i, "Slowdown Threshold");
-    ctk_help_para(b, &i, __core_threshold_help);
+    ctk_help_title(b, &i, "Thermal Settings Help");
 
-    ctk_help_heading(b, &i, "Core Temperature");
-    ctk_help_para(b, &i, __core_temp_help);
+    /* if sensor not available skip online help */
+    if (!ctk_thermal->sensor_count) {
+        goto next_help;
+    }
 
-    if (ctk_thermal->ambient_label) {
-        ctk_help_heading(b, &i, "Ambient Temperature");
-        ctk_help_para(b, &i, __ambient_temp_help);
+    if (!ctk_thermal->thermal_sensor_target_type_supported) {
+        ctk_help_heading(b, &i, "Slowdown Threshold");
+        ctk_help_para(b, &i, __core_threshold_help);
+
+        ctk_help_heading(b, &i, "Core Temperature");
+        ctk_help_para(b, &i, __core_temp_help);
+
+        if (ctk_thermal->ambient_label) {
+            ctk_help_heading(b, &i, "Ambient Temperature");
+            ctk_help_para(b, &i, __ambient_temp_help);
+        }
+    } else {
+        ctk_help_title(b, &i, "Thermal Sensor Information Help");
+
+        ctk_help_heading(b, &i, "ID");
+        ctk_help_para(b, &i, __thermal_sensor_id_help);
+
+        ctk_help_heading(b, &i, "Temperature");
+        ctk_help_para(b, &i, __thermal_sensor_reading_help);
+
+        ctk_help_heading(b, &i, "Target");
+        ctk_help_para(b, &i, __thermal_sensor_target_help);
+        
+        ctk_help_heading(b, &i, "Provider");
+        ctk_help_para(b, &i, __thermal_sensor_provider_help);
+    }
+    ctk_help_heading(b, &i, "Level");
+    ctk_help_para(b, &i, __temp_level_help);
+
+next_help:
+    /* if Fan not available skip online help */
+    if (!ctk_thermal->cooler_count) {
+        goto done;
     }
 
     ctk_help_title(b, &i, "GPU Fan Settings Help");
@@ -1322,6 +1675,7 @@ GtkTextBuffer *ctk_thermal_create_help(GtkTextTagTable *table,
         ctk_help_heading(b, &i, "Enable GPU Fan Settings");
         ctk_help_para(b, &i, __reset_button_help);
     }
+done:
     ctk_help_finish(b);
 
     return b;

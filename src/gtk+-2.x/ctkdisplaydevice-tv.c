@@ -38,6 +38,7 @@
 #include "ctkconfig.h"
 #include "ctkhelp.h"
 #include "ctkscale.h"
+#include "ctkutils.h"
 #include <stdio.h>
 #define FRAME_PADDING 5
 
@@ -387,6 +388,10 @@ GtkWidget* ctk_display_device_tv_new(NvCtrlAttributeHandle *handle,
     gtk_widget_show_all(GTK_WIDGET(object));
 
     /* update the GUI */
+
+    update_display_enabled_flag(ctk_display_device_tv->handle,
+                                &ctk_display_device_tv->display_enabled,
+                                ctk_display_device_tv->display_device_mask);
 
     ctk_display_device_tv_setup(ctk_display_device_tv);
     
@@ -808,21 +813,6 @@ static void setup_scale(CtkDisplayDeviceTv *ctk_display_device_tv,
 static void ctk_display_device_tv_setup(CtkDisplayDeviceTv
                                         *ctk_display_device_tv)
 {
-    ReturnStatus ret;
-    unsigned int enabled_displays;
-
-
-    /* Is display enabled? */
-
-    ret = NvCtrlGetAttribute(ctk_display_device_tv->handle,
-                             NV_CTRL_ENABLED_DISPLAYS,
-                             (int *)&enabled_displays);
-
-    ctk_display_device_tv->display_enabled =
-        (ret == NvCtrlSuccess &&
-         (enabled_displays & (ctk_display_device_tv->display_device_mask)));
-
-
     /* Update Information Frame */
     
     tv_info_setup(ctk_display_device_tv);
@@ -948,6 +938,16 @@ static void enabled_displays_received(GtkObject *object, gpointer arg1,
                                       gpointer user_data)
 {
     CtkDisplayDeviceTv *ctk_object = CTK_DISPLAY_DEVICE_TV(user_data);
+
+    /* Requery display information only if display disabled */
+
+    update_display_enabled_flag(ctk_object->handle,
+                                &ctk_object->display_enabled,
+                                ctk_object->display_device_mask);
+
+    if (ctk_object->display_enabled) {
+        return;
+    }
 
     ctk_display_device_tv_setup(ctk_object);
 

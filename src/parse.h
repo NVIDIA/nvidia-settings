@@ -148,7 +148,8 @@ extern AttributeTableEntry attributeTable[];
 #define VCS_TARGET       3
 #define GVI_TARGET       4
 #define COOLER_TARGET    5
-#define MAX_TARGET_TYPES 6
+#define THERMAL_SENSOR_TARGET 6
+#define MAX_TARGET_TYPES 7
 
 
 
@@ -316,7 +317,7 @@ const char *parse_read_integer_pair(const char *str,
                                     const char separator, int *a, int *b);
 const char *parse_read_name(const char *str, char **name, char term);
 const char *parse_read_display_name(const char *str, unsigned int *mask);
-int parse_read_float_range(char *str, float *min, float *max);
+int parse_read_float_range(const char *str, float *min, float *max);
 int count_number_of_bits(unsigned int mask);
 
 /* Token parsing functions */

@@ -255,7 +255,7 @@ GtkWidget* ctk_glx_new(NvCtrlAttributeHandle *handle,
                                    &glx_info_str);
     free(glx_info_str);
     if ( ret != NvCtrlSuccess ) {
-        err_str = "Fail to query the GLX server vendor.";
+        err_str = "Failed to query the GLX server vendor.";
         goto fail;
     }
 

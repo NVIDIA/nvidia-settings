@@ -28,9 +28,26 @@
 #include <gtk/gtk.h>
 #include <NvCtrlAttributes.h>
 
+#include "ctkconfig.h"
+
 G_BEGIN_DECLS
 
 gchar* create_gpu_name_string(NvCtrlAttributeHandle *gpu_handle);
+
+
+GtkWidget *add_table_row_with_help_text(GtkWidget *table,
+                                        CtkConfig *ctk_config,
+                                        const char *help,
+                                        const gint row,
+                                        const gint col,
+                                        // 0 = left, 1 = right
+                                        const gfloat name_xalign,
+                                        // 0 = top, 1 = bottom
+                                        const gfloat name_yalign,
+                                        const gchar *name,
+                                        const gfloat value_xalign,
+                                        const gfloat value_yalign,
+                                        const gchar *value);
 
 GtkWidget *add_table_row(GtkWidget *, const gint,
                          const gfloat, const gfloat, const gchar *,
@@ -43,6 +60,10 @@ void ctk_display_error_msg(GtkWidget *parent, gchar *msg);
 void ctk_display_warning_msg(GtkWidget *parent, gchar *msg);
 
 void ctk_empty_container(GtkWidget *);
+
+void update_display_enabled_flag(NvCtrlAttributeHandle *handle,
+                                 gboolean *display_enabled,
+                                 unsigned int display_device_mask);
 
 G_END_DECLS
 

@@ -333,7 +333,7 @@ GtkWidget* ctk_config_new(ConfigProperties *conf, CtrlHandles *pCtrlHandles)
 static void save_rc_clicked(GtkWidget *widget, gpointer user_data)
 {
     gint result;
-    gchar *rc_filename = NULL;
+    const gchar *rc_filename = NULL;
     CtkConfig *ctk_config = CTK_CONFIG(user_data);
     CtkWindow *ctk_window =
         CTK_WINDOW(ctk_get_parent_window(GTK_WIDGET(ctk_config)));
@@ -344,7 +344,7 @@ static void save_rc_clicked(GtkWidget *widget, gpointer user_data)
     switch (result) {
     case GTK_RESPONSE_ACCEPT:
     case GTK_RESPONSE_OK:
-        rc_filename = (gchar *)gtk_file_selection_get_filename
+        rc_filename = gtk_file_selection_get_filename
                           (GTK_FILE_SELECTION(ctk_config->rc_file_selector));
         break;
     default:

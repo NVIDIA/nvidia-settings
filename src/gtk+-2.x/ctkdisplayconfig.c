@@ -138,7 +138,6 @@ typedef struct SwitchModeCallbackInfoRec {
 #define VALIDATE_APPLY 0
 #define VALIDATE_SAVE  1
 
-#define SCREEN_DEPTH_COUNT 5
 
 
 /*** G L O B A L S ***********************************************************/
@@ -3069,6 +3068,30 @@ static void setup_screen_virtual_size(CtkDisplayConfig *ctk_object)
 
 
 
+/** grow_screen_depth_table() **************************************
+ *
+ * realloc the screen_depth_table, if possible.
+ *
+ **/
+
+static gboolean grow_screen_depth_table(CtkDisplayConfig *ctk_object)
+{
+    int *tmp = realloc(ctk_object->screen_depth_table,
+                       sizeof(int) *
+                       (ctk_object->screen_depth_table_len + 1));
+    if (!tmp) {
+        return False;
+    }
+
+    ctk_object->screen_depth_table = tmp;
+    ctk_object->screen_depth_table_len++;
+
+    return True;
+
+} /* grow_screen_depth_table() */
+
+
+
 /** setup_screen_depth_dropdown() ************************************
  *
  * Generates the color depth dropdown based on the currently selected
@@ -3081,11 +3104,10 @@ static void setup_screen_depth_dropdown(CtkDisplayConfig *ctk_object)
     GtkWidget *menu;
     GtkWidget *menu_item;
     int cur_idx;
-    int screen_depth_table_len = 0;
     gboolean add_depth_30_option;
     nvScreenPtr screen = ctk_display_layout_get_selected_screen
         (CTK_DISPLAY_LAYOUT(ctk_object->obj_layout));
-    
+
     if (!screen) {
         gtk_widget_hide(ctk_object->box_screen_depth);
         return;
@@ -3093,8 +3115,8 @@ static void setup_screen_depth_dropdown(CtkDisplayConfig *ctk_object)
     if (ctk_object->screen_depth_table) {
         free(ctk_object->screen_depth_table);
     }
-    ctk_object->screen_depth_table =
-        (char *) malloc(sizeof(char) * SCREEN_DEPTH_COUNT);
+    ctk_object->screen_depth_table = NULL;
+    ctk_object->screen_depth_table_len = 0;
 
     menu  = gtk_menu_new();
 
@@ -3109,33 +3131,45 @@ static void setup_screen_depth_dropdown(CtkDisplayConfig *ctk_object)
     }
 
     if (add_depth_30_option) {
-        menu_item = gtk_menu_item_new_with_label
-            ("1.1 Billion Colors (Depth 30) - Experimental");
+
+        if (grow_screen_depth_table(ctk_object)) {
+            menu_item = gtk_menu_item_new_with_label
+                ("1.1 Billion Colors (Depth 30) - Experimental");
+            gtk_menu_shell_append(GTK_MENU_SHELL(menu), menu_item);
+            gtk_widget_show(menu_item);
+
+            ctk_object->screen_depth_table[ctk_object->screen_depth_table_len-1] = 30;
+        }
+    }
+
+    if (grow_screen_depth_table(ctk_object)) {
+        menu_item = gtk_menu_item_new_with_label("16.7 Million Colors (Depth 24)");
         gtk_menu_shell_append(GTK_MENU_SHELL(menu), menu_item);
         gtk_widget_show(menu_item);
-        ctk_object->screen_depth_table[screen_depth_table_len++] = 30;
+        ctk_object->screen_depth_table[ctk_object->screen_depth_table_len-1] = 24;
     }
-    menu_item = gtk_menu_item_new_with_label("16.7 Million Colors (Depth 24)");
-    gtk_menu_shell_append(GTK_MENU_SHELL(menu), menu_item);
-    gtk_widget_show(menu_item);
-    ctk_object->screen_depth_table[screen_depth_table_len++] = 24;
 
-    menu_item = gtk_menu_item_new_with_label("65,536 Colors (Depth 16)");
-    gtk_menu_shell_append(GTK_MENU_SHELL(menu), menu_item);
-    gtk_widget_show(menu_item);
-    ctk_object->screen_depth_table[screen_depth_table_len++] = 16;
+    if (grow_screen_depth_table(ctk_object)) {
+        menu_item = gtk_menu_item_new_with_label("65,536 Colors (Depth 16)");
+        gtk_menu_shell_append(GTK_MENU_SHELL(menu), menu_item);
+        gtk_widget_show(menu_item);
+        ctk_object->screen_depth_table[ctk_object->screen_depth_table_len-1] = 16;
+    }
 
-    menu_item = gtk_menu_item_new_with_label("32,768 Colors (Depth 15)");
-    gtk_menu_shell_append(GTK_MENU_SHELL(menu), menu_item);
-    gtk_widget_show(menu_item);
-    ctk_object->screen_depth_table[screen_depth_table_len++] = 15;
+    if (grow_screen_depth_table(ctk_object)) {
+        menu_item = gtk_menu_item_new_with_label("32,768 Colors (Depth 15)");
+        gtk_menu_shell_append(GTK_MENU_SHELL(menu), menu_item);
+        gtk_widget_show(menu_item);
+        ctk_object->screen_depth_table[ctk_object->screen_depth_table_len-1] = 15;
+    }
 
-    menu_item = gtk_menu_item_new_with_label("256 Colors (Depth 8)");
-    gtk_menu_shell_append(GTK_MENU_SHELL(menu), menu_item);
-    gtk_widget_show(menu_item);
-    ctk_object->screen_depth_table[screen_depth_table_len++] = 8;
+    if (grow_screen_depth_table(ctk_object)) {
+        menu_item = gtk_menu_item_new_with_label("256 Colors (Depth 8)");
+        gtk_menu_shell_append(GTK_MENU_SHELL(menu), menu_item);
+        gtk_widget_show(menu_item);
+        ctk_object->screen_depth_table[ctk_object->screen_depth_table_len-1] = 8;
+    }
 
-    assert(screen_depth_table_len <= SCREEN_DEPTH_COUNT);
     g_signal_handlers_block_by_func(G_OBJECT(ctk_object->mnu_screen_depth),
                                     G_CALLBACK(screen_depth_changed),
                                     (gpointer) ctk_object);
@@ -3143,7 +3177,7 @@ static void setup_screen_depth_dropdown(CtkDisplayConfig *ctk_object)
     gtk_option_menu_set_menu
         (GTK_OPTION_MENU(ctk_object->mnu_screen_depth), menu);
     
-    for (cur_idx = 0; cur_idx < SCREEN_DEPTH_COUNT; cur_idx++) {
+    for (cur_idx = 0; cur_idx < ctk_object->screen_depth_table_len; cur_idx++) {
         if (screen->depth == ctk_object->screen_depth_table[cur_idx]) {
             gtk_option_menu_set_history
                 (GTK_OPTION_MENU(ctk_object->mnu_screen_depth), cur_idx);
@@ -3453,6 +3487,7 @@ static void setup_screen_page(CtkDisplayConfig *ctk_object)
     gchar *tmp;
     gint page_num;
     GtkWidget *tab_label;
+    GParamSpec* param_spec = NULL;
 
 
     page_num = gtk_notebook_page_num(GTK_NOTEBOOK(ctk_object->notebook),
@@ -3476,8 +3511,21 @@ static void setup_screen_page(CtkDisplayConfig *ctk_object)
 
     /* Setup the screen number */
     tmp = g_strdup_printf("%d", screen->scrnum);
-    g_object_set(gtk_widget_get_settings(ctk_object->txt_screen_num),
-                 "gtk-label-select-on-focus", FALSE, NULL);
+
+    param_spec = g_object_class_find_property
+        (G_OBJECT_GET_CLASS(gtk_widget_get_settings(ctk_object->txt_screen_num)),
+         "gtk-label-select-on-focus");
+
+    if (param_spec) {
+        /*
+         * When running against versions of gtk that have the
+         * "gtk-label-select-on-focus" property, set the property to FALSE for
+         * the screen label so that it isn't auto-selected when switching tabs
+         */
+        g_object_set(gtk_widget_get_settings(ctk_object->txt_screen_num),
+                     "gtk-label-select-on-focus", FALSE, NULL);
+    }
+
     gtk_label_set_text(GTK_LABEL(ctk_object->txt_screen_num), tmp);
     g_free(tmp);
     
@@ -3583,7 +3631,8 @@ static gint validation_fix_crowded_metamodes(CtkDisplayConfig *ctk_object,
 
                 /* Delete the metamode */
                 ctk_display_layout_delete_screen_metamode
-                    (CTK_DISPLAY_LAYOUT(ctk_object->obj_layout), screen, i);
+                    (CTK_DISPLAY_LAYOUT(ctk_object->obj_layout), screen, i,
+                     TRUE);
 
                 nv_info_msg(TAB, "Removed MetaMode %d on Screen %d (No "
                             "active display devices)\n", i,
@@ -3646,7 +3695,8 @@ static gint validation_remove_dupe_metamodes(CtkDisplayConfig *ctk_object,
                 
                 /* Delete the metamode */
                 ctk_display_layout_delete_screen_metamode
-                    (CTK_DISPLAY_LAYOUT(ctk_object->obj_layout), screen, i);
+                    (CTK_DISPLAY_LAYOUT(ctk_object->obj_layout), screen, i,
+                     TRUE);
                 
                 nv_info_msg(TAB, "Removed MetaMode %d on Screen %d (Is "
                             "Duplicate of MetaMode %d)\n", i+1, screen->scrnum,
@@ -4213,6 +4263,7 @@ static void prepare_gpu_for_twinview(CtkDisplayConfig *ctk_object,
     /* Delete implicit metamodes from all screens involved */
     for (screen = gpu->screens; screen; screen = screen->next) {
         nvMetaModePtr next;
+        Bool updated = FALSE;
 
         m = 0;
         metamode = screen->metamodes;
@@ -4223,11 +4274,23 @@ static void prepare_gpu_for_twinview(CtkDisplayConfig *ctk_object,
                 (metamode != screen->cur_metamode)) {
 
                 ctk_display_layout_delete_screen_metamode
-                    (CTK_DISPLAY_LAYOUT(ctk_object->obj_layout), screen, m);
+                    (CTK_DISPLAY_LAYOUT(ctk_object->obj_layout), screen, m,
+                     FALSE);
+                updated = TRUE;
             } else {
                 m++;
             }
             metamode = next;
+        }
+
+        /* Now that all the implicit metamodes have been deleted,
+         * we can recalculate and reselect the current mode
+         * for the screen.
+         */
+        if (updated) {
+            ctk_display_layout_set_screen_metamode
+                (CTK_DISPLAY_LAYOUT(ctk_object->obj_layout),
+                 screen, screen->cur_metamode_idx);
         }
     }
 
@@ -5458,6 +5521,8 @@ static void screen_depth_changed(GtkWidget *widget, gpointer user_data)
 
     if (!screen) return;
 
+    if (idx >= ctk_object->screen_depth_table_len) return;
+
     depth = ctk_object->screen_depth_table[idx];
 
     if (depth == 30) {
@@ -5786,7 +5851,7 @@ static void screen_metamode_delete_clicked(GtkWidget *widget,
     
     ctk_display_layout_delete_screen_metamode
         (CTK_DISPLAY_LAYOUT(ctk_object->obj_layout),
-         screen, screen->cur_metamode_idx);
+         screen, screen->cur_metamode_idx, TRUE);
 
     /* Update the GUI */
     setup_display_page(ctk_object);
@@ -5998,7 +6063,7 @@ static Bool switch_to_current_metamode(CtkDisplayConfig *ctk_object,
         case GTK_RESPONSE_YES:
             ctk_display_layout_delete_screen_metamode
                 (CTK_DISPLAY_LAYOUT(ctk_object->obj_layout),
-                 screen, screen->cur_metamode_idx);
+                 screen, screen->cur_metamode_idx, TRUE);
 
             nv_info_msg(TAB, "Removed MetaMode %d on Screen %d.\n",
                         screen->cur_metamode_idx+1,
@@ -6085,14 +6150,14 @@ static Bool switch_to_current_metamode(CtkDisplayConfig *ctk_object,
 static char *find_metamode_string(char *metamode_str, char *metamode_strs)
 {
     char *m;
-    char *str;
+    const char *str;
 
     for (m = metamode_strs; m && strlen(m); m += strlen(m) +1) {
 
         /* Skip tokens if any */
         str = strstr(m, "::");
         if (str) {
-            str = (char *)parse_skip_whitespace(str +2);
+            str = parse_skip_whitespace(str +2);
         } else {
             str = m;
         }
@@ -6242,8 +6307,8 @@ static void order_metamodes(nvScreenPtr screen)
 
 static void postprocess_metamodes(nvScreenPtr screen, char *metamode_strs)
 {
-    char *metamode_str;
-    char *str;
+    char *metamode_str, *tmp;
+    const char *str;
     ReturnStatus ret;
 
 
@@ -6256,16 +6321,19 @@ static void postprocess_metamodes(nvScreenPtr screen, char *metamode_strs)
         str = strstr(metamode_str, "::");
         if (!str) continue;
 
-        str = (char *)parse_skip_whitespace(str +2);
-
+        str = parse_skip_whitespace(str +2);
+        tmp = strdup(str);
+        if (!tmp) continue;
 
         /* Delete the metamode */
         ret = NvCtrlSetStringAttribute(screen->handle,
                                        NV_CTRL_STRING_DELETE_METAMODE,
-                                       str, NULL);
+                                       tmp, NULL);
         if (ret == NvCtrlSuccess) {
             nv_info_msg(TAB, "Removed > %s", str);
         }
+
+        free(tmp);
     }
 
     /* Reorder the list of metamodes */
@@ -6286,7 +6354,7 @@ static int update_screen_metamodes(CtkDisplayConfig *ctk_object,
 {
     char *metamode_strs = NULL;
     char *cur_metamode_str = NULL;
-    char *metamode_str;
+    const char *metamode_str;
     int len;
 
     int clear_apply = 0; /* Set if we should clear the apply button */
@@ -6334,7 +6402,7 @@ static int update_screen_metamodes(CtkDisplayConfig *ctk_object,
     /* Skip tokens */
     metamode_str = strstr(cur_metamode_str, "::");
     if (metamode_str) {
-        metamode_str = (char *)parse_skip_whitespace(metamode_str +2);
+        metamode_str = parse_skip_whitespace(metamode_str +2);
     } else {
         metamode_str = cur_metamode_str;
     }

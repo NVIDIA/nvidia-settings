@@ -132,8 +132,10 @@ typedef struct _CtkDisplayConfig
     GtkWidget *btn_screen_metamode;
     GtkWidget *btn_screen_metamode_add;
     GtkWidget *btn_screen_metamode_delete;
-    
-    char *screen_depth_table;
+
+    int *screen_depth_table;
+    int screen_depth_table_len;
+
     /* Dialogs */
     GtkWidget *dlg_display_config;
     GtkWidget *rad_display_config_disabled;

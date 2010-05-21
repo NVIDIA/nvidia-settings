@@ -33,6 +33,7 @@
 
 #define NEED_EVENTS
 #define NEED_REPLIES
+#include <stdint.h>
 #include <stdlib.h>
 #include <X11/Xlibint.h>
 #include <X11/Xutil.h>
@@ -41,9 +42,10 @@
 #include "NVCtrlLib.h"
 #include "nv_control.h"
 
-#define NVCTRL_EXT_NEED_CHECK          (XPointer)(~0)
-#define NVCTRL_EXT_NEED_NOTHING        (XPointer)(0)
-#define NVCTRL_EXT_NEED_TARGET_SWAP    (XPointer)(1)
+#define NVCTRL_EXT_EXISTS              1
+#define NVCTRL_EXT_NEED_TARGET_SWAP    2
+#define NVCTRL_EXT_64_BIT_ATTRIBUTES   4
+#define NVCTRL_EXT_NEED_CHECK          (1 << (sizeof(XPointer) - 1))
 
 static XExtensionInfo _nvctrl_ext_info_data;
 static XExtensionInfo *nvctrl_ext_info = &_nvctrl_ext_info_data;
@@ -55,6 +57,7 @@ static /* const */ char *nvctrl_extension_name = NV_CONTROL_NAME;
   XextSimpleCheckExtension (dpy, i, nvctrl_extension_name)
 
 static int close_display();
+static uintptr_t version_flags(Display *dpy, XExtDisplayInfo *info);
 static Bool wire_to_event();
 static /* const */ XExtensionHooks nvctrl_extension_hooks = {
     NULL,                               /* create_gc */
@@ -71,9 +74,10 @@ static /* const */ XExtensionHooks nvctrl_extension_hooks = {
 };
 
 static XEXT_GENERATE_FIND_DISPLAY (find_display, nvctrl_ext_info,
-                                   nvctrl_extension_name, 
+                                   nvctrl_extension_name,
                                    &nvctrl_extension_hooks,
-                                   NV_CONTROL_EVENTS, NVCTRL_EXT_NEED_CHECK)
+                                   NV_CONTROL_EVENTS,
+                                   (XPointer)NVCTRL_EXT_NEED_CHECK)
 
 static XEXT_GENERATE_CLOSE_DISPLAY (close_display, nvctrl_ext_info)
 
@@ -82,29 +86,14 @@ static XEXT_GENERATE_CLOSE_DISPLAY (close_display, nvctrl_ext_info)
  * fields in reversed order.  In order to talk to one of these servers,
  * we need to swap these fields.
  */
+
 static void XNVCTRLCheckTargetData(Display *dpy, XExtDisplayInfo *info,
                                    int *target_type, int *target_id)
 {
-    /* Find out what the server's NV-CONTROL version is and
-     * setup for swapping if we need to.
-     */
-    if (info->data == NVCTRL_EXT_NEED_CHECK) {
-        int major, minor;
-
-        if (XNVCTRLQueryVersion(dpy, &major, &minor)) {
-            if (major == 1 &&
-                (minor == 8 || minor == 9)) {
-                info->data = NVCTRL_EXT_NEED_TARGET_SWAP;
-            } else {
-                info->data = NVCTRL_EXT_NEED_NOTHING;
-            }
-        } else {
-            info->data = NVCTRL_EXT_NEED_NOTHING;
-        }
-    }
+    uintptr_t flags = version_flags(dpy, info);
 
     /* We need to swap the target_type and target_id */
-    if (info->data == NVCTRL_EXT_NEED_TARGET_SWAP) {
+    if (flags & NVCTRL_EXT_NEED_TARGET_SWAP) {
         int tmp;
         tmp = *target_type;
         *target_type = *target_id;
@@ -129,6 +118,34 @@ Bool XNVCTRLQueryExtension (
     }
 }
 
+/*
+ * Retrieve any cached flags that depend on the version of the NV-CONTROL
+ * extension.
+ */
+
+static uintptr_t version_flags(Display *dpy, XExtDisplayInfo *info)
+{
+    uintptr_t data = (uintptr_t)info->data;
+
+    /* If necessary, determine the NV-CONTROL version */
+    if (data & NVCTRL_EXT_NEED_CHECK) {
+        int major, minor;
+        data = 0;
+        if (XNVCTRLQueryVersion(dpy, &major, &minor)) {
+            data |= NVCTRL_EXT_EXISTS;
+            if (major == 1 && (minor == 8 || minor == 9)) {
+                data |= NVCTRL_EXT_NEED_TARGET_SWAP;
+            }
+            if ((major > 1) || ((major == 1) && (minor > 20))) {
+                data |= NVCTRL_EXT_64_BIT_ATTRIBUTES;
+            }
+        }
+
+        info->data = (XPointer)data;
+    }
+
+    return data;
+}
 
 Bool XNVCTRLQueryVersion (
     Display *dpy,
@@ -676,7 +693,7 @@ Bool XNVCTRLQueryValidTargetAttributeValues (
 ){
     XExtDisplayInfo *info = find_display(dpy);
     Bool exists;
-    int major, minor;
+    uintptr_t flags;
 
     if (!values) return False;
 
@@ -686,10 +703,12 @@ Bool XNVCTRLQueryValidTargetAttributeValues (
     XNVCTRLCheckExtension(dpy, info, False);
     XNVCTRLCheckTargetData(dpy, info, &target_type, &target_id);
 
-    if (!XNVCTRLQueryVersion(dpy, &major, &minor))
+    flags = version_flags(dpy,info);
+
+    if (!(flags & NVCTRL_EXT_EXISTS))
         return False;
 
-    if ((major > 1) || ((major == 1) && (minor > 20))) {
+    if (flags & NVCTRL_EXT_64_BIT_ATTRIBUTES) {
         exists = XNVCTRLQueryValidTargetAttributeValues64(dpy, info,
                                                           target_type,
                                                           target_id,
@@ -712,7 +731,7 @@ Bool XNVCTRLQueryValidAttributeValues (
     Display *dpy,
     int screen,
     unsigned int display_mask,
-    unsigned int attribute,                                 
+    unsigned int attribute,
     NVCTRLAttributeValidValuesRec *values
 ){
     return XNVCTRLQueryValidTargetAttributeValues(dpy,
@@ -775,7 +794,7 @@ Bool XNVCTRLQueryGvoColorConversion (
     XExtDisplayInfo *info = find_display (dpy);
     xnvCtrlQueryGvoColorConversionReply rep;
     xnvCtrlQueryGvoColorConversionReq *req;
-    
+
     if(!XextHasExtension(info))
         return False;
 
@@ -1130,7 +1149,7 @@ static Bool wire_to_event (Display *dpy, XEvent *host, xEvent *wire)
     default:
         return False;
     }
-    
+
     return True;
 }
 
