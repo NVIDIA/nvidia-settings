@@ -155,13 +155,17 @@
  * NV_CTRL_FLATPANEL_DITHERING - the current flat panel dithering
  * state; possible values are:
  *
- * 0: disabled (the driver will never dither)
+ * 0: default  (the driver will decide when to dither)
  * 1: enabled  (the driver will always dither when possible)
+ * 2: disabled (the driver will never dither)
+ *
+ * USAGE NOTE: This attribute had been deprecated.
  */
 
 #define NV_CTRL_FLATPANEL_DITHERING                             3  /* RWDG */
-#define NV_CTRL_FLATPANEL_DITHERING_DISABLED                    0
+#define NV_CTRL_FLATPANEL_DITHERING_DEFAULT                     0
 #define NV_CTRL_FLATPANEL_DITHERING_ENABLED                     1
+#define NV_CTRL_FLATPANEL_DITHERING_DISABLED                    2
 
 
 /*
@@ -2881,33 +2885,6 @@
 #define NV_CTRL_GPU_SCALING_DEFAULT_TARGET                      350 /* R-DG */
 #define NV_CTRL_GPU_SCALING_DEFAULT_METHOD                      351 /* R-DG */
 
-/*
- * NV_CTRL_FLATPANEL_DITHERING_MODE - Controls the dithering mode used for
- * the flatpanel, when NV_CTRL_FLATPANEL_DITHERING is set to ENABLED.
- *
- * DYNAMIC_2X2: use a 2x2 matrix to dither from the GPU's pixel
- * pipeline to the bit depth of the flatpanel.  The matrix values
- * are changed from frame to frame.
- *
- * STATIC_2X2: use a 2x2 matrix to dither from the GPU's pixel
- * pipeline to the bit depth of the flatpanel.  The matrix values
- * do not change from frame to frame.
- */
-#define NV_CTRL_FLATPANEL_DITHERING_MODE                        352 /* RWDG */
-#define NV_CTRL_FLATPANEL_DITHERING_MODE_DYNAMIC_2X2              0
-#define NV_CTRL_FLATPANEL_DITHERING_MODE_STATIC_2X2               1
-
-/*
- * NV_CTRL_FLATPANEL_DEFAULT_DITHERING - Returns the default dithering
- * configuration for the flatpanel. Values returned are those described
- * for NV_CTRL_FLATPANEL_DITHERING.
- *
- * NV_CTRL_FLATPANEL_DEFAULT_DITHERING_MODE - Returns the default dithering
- * mode for the flatpanel. Values returned are those described for
- * NV_CTRL_FLATPANEL_DITHERING_MODE.
- */
-#define NV_CTRL_FLATPANEL_DEFAULT_DITHERING                     353 /* R-DG */
-#define NV_CTRL_FLATPANEL_DEFAULT_DITHERING_MODE                354 /* R-DG */
 
 /* 
  * NV_CTRL_THERMAL_SENSOR_READING - Returns the thermal sensor's current
