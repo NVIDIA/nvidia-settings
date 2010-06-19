@@ -46,145 +46,120 @@ char *SyncTypeName(int value)
     switch (value) {
     case NV_CTRL_GVO_SDI_SYNC_INPUT_DETECTED_HD:
         return "NV_CTRL_GVO_SDI_SYNC_INPUT_DETECTED_HD";
-        break;
     case NV_CTRL_GVO_SDI_SYNC_INPUT_DETECTED_SD:
         return "NV_CTRL_GVO_SDI_SYNC_INPUT_DETECTED_SD";
-        break;
     case NV_CTRL_GVO_SDI_SYNC_INPUT_DETECTED_NONE:
         return "NV_CTRL_GVO_SDI_SYNC_INPUT_DETECTED_NONE";
-        break;
     default:
         return "Invalid Value";
-        break;
     }
 }
 
 /*
  * Decode provided signal format.
  */
+
+#define ADD_NVCTRL_CASE(FMT) \
+case (FMT):                  \
+    return #FMT;
+
+
 char *VideoFormatName(int value)
 {
     switch(value) {
-    case NV_CTRL_GVO_VIDEO_FORMAT_487I_59_94_SMPTE259_NTSC:
-        return "NV_CTRL_GVO_VIDEO_FORMAT_480I_59_94_SMPTE259_NTSC";
-        break;
-    case NV_CTRL_GVO_VIDEO_FORMAT_576I_50_00_SMPTE259_PAL:
-        return "NV_CTRL_GVO_VIDEO_FORMAT_576I_50_00_SMPTE259_PAL";
-        break;
-    case NV_CTRL_GVO_VIDEO_FORMAT_720P_59_94_SMPTE296:
-        return "NV_CTRL_GVO_VIDEO_FORMAT_720P_59_94_SMPTE296";
-        break;
-    case NV_CTRL_GVO_VIDEO_FORMAT_720P_60_00_SMPTE296:
-        return "NV_CTRL_GVO_VIDEO_FORMAT_720P_60_00_SMPTE296";
-        break;
-    case NV_CTRL_GVO_VIDEO_FORMAT_1035I_59_94_SMPTE260:
-        return "NV_CTRL_GVO_VIDEO_FORMAT_1035I_59_94_SMPTE260";
-        break;
-    case NV_CTRL_GVO_VIDEO_FORMAT_1035I_60_00_SMPTE260:
-        return "NV_CTRL_GVO_VIDEO_FORMAT_1035I_60_00_SMPTE260";
-        break;
-    case NV_CTRL_GVO_VIDEO_FORMAT_1080I_50_00_SMPTE295:
-        return "NV_CTRL_GVO_VIDEO_FORMAT_1080I_50_00_SMPTE295";
-        break;
-    case NV_CTRL_GVO_VIDEO_FORMAT_1080I_50_00_SMPTE274:
-        return "NV_CTRL_GVO_VIDEO_FORMAT_1080I_50_00_SMPTE274";
-        break;
-    case NV_CTRL_GVO_VIDEO_FORMAT_1080I_59_94_SMPTE274:
-        return "NV_CTRL_GVO_VIDEO_FORMAT_1080I_59_94_SMPTE274";
-        break;
-    case NV_CTRL_GVO_VIDEO_FORMAT_1080I_60_00_SMPTE274:
-        return "NV_CTRL_GVO_VIDEO_FORMAT_1080I_60_00_SMPTE274";
-        break;
-    case NV_CTRL_GVO_VIDEO_FORMAT_1080P_23_976_SMPTE274:
-        return "NV_CTRL_GVO_VIDEO_FORMAT_1080P_23_976_SMPTE274";
-        break;
-    case NV_CTRL_GVO_VIDEO_FORMAT_1080P_24_00_SMPTE274:
-        return "NV_CTRL_GVO_VIDEO_FORMAT_1080P_24_00_SMPTE274";
-        break;
-    case NV_CTRL_GVO_VIDEO_FORMAT_1080P_25_00_SMPTE274:
-        return "NV_CTRL_GVO_VIDEO_FORMAT_1080P_25_00_SMPTE274";
-        break;
-    case NV_CTRL_GVO_VIDEO_FORMAT_1080P_29_97_SMPTE274:
-        return "NV_CTRL_GVO_VIDEO_FORMAT_1080P_29_97_SMPTE274";
-        break;
-    case NV_CTRL_GVO_VIDEO_FORMAT_1080P_30_00_SMPTE274:
-        return "NV_CTRL_GVO_VIDEO_FORMAT_1080P_30_00_SMPTE274";
-        break;
-    case NV_CTRL_GVO_VIDEO_FORMAT_720P_50_00_SMPTE296:
-        return "NV_CTRL_GVO_VIDEO_FORMAT_720P_50_00_SMPTE296";
-        break;
-    case NV_CTRL_GVO_VIDEO_FORMAT_1080I_48_00_SMPTE274:
-        return "NV_CTRL_GVO_VIDEO_FORMAT_1080I_48_00_SMPTE274";
-        break;
-    case NV_CTRL_GVO_VIDEO_FORMAT_1080I_47_96_SMPTE274:
-        return "NV_CTRL_GVO_VIDEO_FORMAT_1080I_47_96_SMPTE274";
-        break;
-    case NV_CTRL_GVO_VIDEO_FORMAT_720P_30_00_SMPTE296:
-        return "NV_CTRL_GVO_VIDEO_FORMAT_720P_30_00_SMPTE296";
-        break;
-    case NV_CTRL_GVO_VIDEO_FORMAT_720P_29_97_SMPTE296:
-        return "NV_CTRL_GVO_VIDEO_FORMAT_720P_29_97_SMPTE296";
-        break;
-    case NV_CTRL_GVO_VIDEO_FORMAT_720P_25_00_SMPTE296:
-        return "NV_CTRL_GVO_VIDEO_FORMAT_720P_25_00_SMPTE296";
-        break;
-    case NV_CTRL_GVO_VIDEO_FORMAT_720P_24_00_SMPTE296:
-        return "NV_CTRL_GVO_VIDEO_FORMAT_720P_24_00_SMPTE296";
-        break;
-    case NV_CTRL_GVO_VIDEO_FORMAT_720P_23_98_SMPTE296:
-        return "NV_CTRL_GVO_VIDEO_FORMAT_720P_23_98_SMPTE296";
-        break;
-    case NV_CTRL_GVO_VIDEO_FORMAT_1080PSF_25_00_SMPTE274:
-        return "NV_CTRL_GVO_VIDEO_FORMAT_1080PSF_25_00_SMPTE274";
-        break;
-    case NV_CTRL_GVO_VIDEO_FORMAT_1080PSF_29_97_SMPTE274:
-        return "NV_CTRL_GVO_VIDEO_FORMAT_1080PSF_29_97_SMPTE274";
-        break;
-    case NV_CTRL_GVO_VIDEO_FORMAT_1080PSF_30_00_SMPTE274:
-        return "NV_CTRL_GVO_VIDEO_FORMAT_1080PSF_30_00_SMPTE274";
-        break;
-    case NV_CTRL_GVO_VIDEO_FORMAT_1080PSF_24_00_SMPTE274:
-        return "NV_CTRL_GVO_VIDEO_FORMAT_1080PSF_24_00_SMPTE274";
-        break;
-    case NV_CTRL_GVO_VIDEO_FORMAT_1080PSF_23_98_SMPTE274:
-        return "NV_CTRL_GVO_VIDEO_FORMAT_1080PSF_23_98_SMPTE274";
-        break;
-    case NV_CTRL_GVO_VIDEO_FORMAT_2048P_30_00_SMPTE372:
-        return "NV_CTRL_GVO_VIDEO_FORMAT_2048P_30_00_SMPTE372";
-        break;
-    case NV_CTRL_GVO_VIDEO_FORMAT_2048P_29_97_SMPTE372:
-        return "NV_CTRL_GVO_VIDEO_FORMAT_2048P_29_97_SMPTE372";
-        break;
-    case NV_CTRL_GVO_VIDEO_FORMAT_2048I_60_00_SMPTE372:
-        return "NV_CTRL_GVO_VIDEO_FORMAT_2048I_60_00_SMPTE372";
-        break;
-    case NV_CTRL_GVO_VIDEO_FORMAT_2048I_59_94_SMPTE372:
-        return "NV_CTRL_GVO_VIDEO_FORMAT_2048I_59_94_SMPTE372";
-        break;
-    case NV_CTRL_GVO_VIDEO_FORMAT_2048P_25_00_SMPTE372:
-        return "NV_CTRL_GVO_VIDEO_FORMAT_2048P_25_00_SMPTE372";
-        break;
-    case NV_CTRL_GVO_VIDEO_FORMAT_2048I_50_00_SMPTE372:
-        return "NV_CTRL_GVO_VIDEO_FORMAT_2048I_50_00_SMPTE372";
-        break;
-    case NV_CTRL_GVO_VIDEO_FORMAT_2048P_24_00_SMPTE372:
-        return "NV_CTRL_GVO_VIDEO_FORMAT_2048P_24_00_SMPTE372";
-        break;
-    case NV_CTRL_GVO_VIDEO_FORMAT_2048P_23_98_SMPTE372:
-        return "NV_CTRL_GVO_VIDEO_FORMAT_2048P_23_98_SMPTE372";
-        break;
-    case NV_CTRL_GVO_VIDEO_FORMAT_2048I_48_00_SMPTE372:
-        return "NV_CTRL_GVO_VIDEO_FORMAT_2048I_48_00_SMPTE372";
-        break;
-    case NV_CTRL_GVO_VIDEO_FORMAT_2048I_47_96_SMPTE372:
-        return "NV_CTRL_GVO_VIDEO_FORMAT_2048I_47_96_SMPTE372";
-        break;
-    case NV_CTRL_GVO_VIDEO_FORMAT_NONE:
-        return "NV_CTRL_GVO_VIDEO_FORMAT_NONE";
-        break;
+        ADD_NVCTRL_CASE(NV_CTRL_GVIO_VIDEO_FORMAT_NONE);
+        ADD_NVCTRL_CASE(NV_CTRL_GVIO_VIDEO_FORMAT_487I_59_94_SMPTE259_NTSC);
+        ADD_NVCTRL_CASE(NV_CTRL_GVIO_VIDEO_FORMAT_576I_50_00_SMPTE259_PAL);
+        ADD_NVCTRL_CASE(NV_CTRL_GVIO_VIDEO_FORMAT_720P_59_94_SMPTE296);
+        ADD_NVCTRL_CASE(NV_CTRL_GVIO_VIDEO_FORMAT_720P_60_00_SMPTE296);
+        ADD_NVCTRL_CASE(NV_CTRL_GVIO_VIDEO_FORMAT_1035I_59_94_SMPTE260);
+        ADD_NVCTRL_CASE(NV_CTRL_GVIO_VIDEO_FORMAT_1035I_60_00_SMPTE260);
+        ADD_NVCTRL_CASE(NV_CTRL_GVIO_VIDEO_FORMAT_1080I_50_00_SMPTE295);
+        ADD_NVCTRL_CASE(NV_CTRL_GVIO_VIDEO_FORMAT_1080I_50_00_SMPTE274);
+        ADD_NVCTRL_CASE(NV_CTRL_GVIO_VIDEO_FORMAT_1080I_59_94_SMPTE274);
+        ADD_NVCTRL_CASE(NV_CTRL_GVIO_VIDEO_FORMAT_1080I_60_00_SMPTE274);
+        ADD_NVCTRL_CASE(NV_CTRL_GVIO_VIDEO_FORMAT_1080P_23_976_SMPTE274);
+        ADD_NVCTRL_CASE(NV_CTRL_GVIO_VIDEO_FORMAT_1080P_24_00_SMPTE274);
+        ADD_NVCTRL_CASE(NV_CTRL_GVIO_VIDEO_FORMAT_1080P_25_00_SMPTE274);
+        ADD_NVCTRL_CASE(NV_CTRL_GVIO_VIDEO_FORMAT_1080P_29_97_SMPTE274);
+        ADD_NVCTRL_CASE(NV_CTRL_GVIO_VIDEO_FORMAT_1080P_30_00_SMPTE274);
+        ADD_NVCTRL_CASE(NV_CTRL_GVIO_VIDEO_FORMAT_720P_50_00_SMPTE296);
+        ADD_NVCTRL_CASE(NV_CTRL_GVIO_VIDEO_FORMAT_1080I_48_00_SMPTE274);
+        ADD_NVCTRL_CASE(NV_CTRL_GVIO_VIDEO_FORMAT_1080I_47_96_SMPTE274);
+        ADD_NVCTRL_CASE(NV_CTRL_GVIO_VIDEO_FORMAT_720P_30_00_SMPTE296);
+        ADD_NVCTRL_CASE(NV_CTRL_GVIO_VIDEO_FORMAT_720P_29_97_SMPTE296);
+        ADD_NVCTRL_CASE(NV_CTRL_GVIO_VIDEO_FORMAT_720P_25_00_SMPTE296);
+        ADD_NVCTRL_CASE(NV_CTRL_GVIO_VIDEO_FORMAT_720P_24_00_SMPTE296);
+        ADD_NVCTRL_CASE(NV_CTRL_GVIO_VIDEO_FORMAT_720P_23_98_SMPTE296);
+        ADD_NVCTRL_CASE(NV_CTRL_GVIO_VIDEO_FORMAT_1080PSF_25_00_SMPTE274);
+        ADD_NVCTRL_CASE(NV_CTRL_GVIO_VIDEO_FORMAT_1080PSF_29_97_SMPTE274);
+        ADD_NVCTRL_CASE(NV_CTRL_GVIO_VIDEO_FORMAT_1080PSF_30_00_SMPTE274);
+        ADD_NVCTRL_CASE(NV_CTRL_GVIO_VIDEO_FORMAT_1080PSF_24_00_SMPTE274);
+        ADD_NVCTRL_CASE(NV_CTRL_GVIO_VIDEO_FORMAT_1080PSF_23_98_SMPTE274);
+        ADD_NVCTRL_CASE(NV_CTRL_GVIO_VIDEO_FORMAT_2048P_30_00_SMPTE372);
+        ADD_NVCTRL_CASE(NV_CTRL_GVIO_VIDEO_FORMAT_2048P_29_97_SMPTE372);
+        ADD_NVCTRL_CASE(NV_CTRL_GVIO_VIDEO_FORMAT_2048I_60_00_SMPTE372);
+        ADD_NVCTRL_CASE(NV_CTRL_GVIO_VIDEO_FORMAT_2048I_59_94_SMPTE372);
+        ADD_NVCTRL_CASE(NV_CTRL_GVIO_VIDEO_FORMAT_2048P_25_00_SMPTE372);
+        ADD_NVCTRL_CASE(NV_CTRL_GVIO_VIDEO_FORMAT_2048I_50_00_SMPTE372);
+        ADD_NVCTRL_CASE(NV_CTRL_GVIO_VIDEO_FORMAT_2048P_24_00_SMPTE372);
+        ADD_NVCTRL_CASE(NV_CTRL_GVIO_VIDEO_FORMAT_2048P_23_98_SMPTE372);
+        ADD_NVCTRL_CASE(NV_CTRL_GVIO_VIDEO_FORMAT_2048I_48_00_SMPTE372);
+        ADD_NVCTRL_CASE(NV_CTRL_GVIO_VIDEO_FORMAT_2048I_47_96_SMPTE372);
+        ADD_NVCTRL_CASE(NV_CTRL_GVIO_VIDEO_FORMAT_1080P_50_00_3G_LEVEL_A_SMPTE274);
+        ADD_NVCTRL_CASE(NV_CTRL_GVIO_VIDEO_FORMAT_1080P_59_94_3G_LEVEL_A_SMPTE274);
+        ADD_NVCTRL_CASE(NV_CTRL_GVIO_VIDEO_FORMAT_1080P_60_00_3G_LEVEL_A_SMPTE274);
+        ADD_NVCTRL_CASE(NV_CTRL_GVIO_VIDEO_FORMAT_1080P_60_00_3G_LEVEL_B_SMPTE274);
+        ADD_NVCTRL_CASE(NV_CTRL_GVIO_VIDEO_FORMAT_1080I_60_00_3G_LEVEL_B_SMPTE274);
+        ADD_NVCTRL_CASE(NV_CTRL_GVIO_VIDEO_FORMAT_2048I_60_00_3G_LEVEL_B_SMPTE372);
+        ADD_NVCTRL_CASE(NV_CTRL_GVIO_VIDEO_FORMAT_1080P_50_00_3G_LEVEL_B_SMPTE274);
+        ADD_NVCTRL_CASE(NV_CTRL_GVIO_VIDEO_FORMAT_1080I_50_00_3G_LEVEL_B_SMPTE274);
+        ADD_NVCTRL_CASE(NV_CTRL_GVIO_VIDEO_FORMAT_2048I_50_00_3G_LEVEL_B_SMPTE372);
+        ADD_NVCTRL_CASE(NV_CTRL_GVIO_VIDEO_FORMAT_1080P_30_00_3G_LEVEL_B_SMPTE274);
+        ADD_NVCTRL_CASE(NV_CTRL_GVIO_VIDEO_FORMAT_2048P_30_00_3G_LEVEL_B_SMPTE372);
+        ADD_NVCTRL_CASE(NV_CTRL_GVIO_VIDEO_FORMAT_1080P_25_00_3G_LEVEL_B_SMPTE274);
+        ADD_NVCTRL_CASE(NV_CTRL_GVIO_VIDEO_FORMAT_2048P_25_00_3G_LEVEL_B_SMPTE372);
+        ADD_NVCTRL_CASE(NV_CTRL_GVIO_VIDEO_FORMAT_1080P_24_00_3G_LEVEL_B_SMPTE274);
+        ADD_NVCTRL_CASE(NV_CTRL_GVIO_VIDEO_FORMAT_2048P_24_00_3G_LEVEL_B_SMPTE372);
+        ADD_NVCTRL_CASE(NV_CTRL_GVIO_VIDEO_FORMAT_1080I_48_00_3G_LEVEL_B_SMPTE274);
+        ADD_NVCTRL_CASE(NV_CTRL_GVIO_VIDEO_FORMAT_2048I_48_00_3G_LEVEL_B_SMPTE372);
+        ADD_NVCTRL_CASE(NV_CTRL_GVIO_VIDEO_FORMAT_1080P_59_94_3G_LEVEL_B_SMPTE274);
+        ADD_NVCTRL_CASE(NV_CTRL_GVIO_VIDEO_FORMAT_1080I_59_94_3G_LEVEL_B_SMPTE274);
+        ADD_NVCTRL_CASE(NV_CTRL_GVIO_VIDEO_FORMAT_2048I_59_94_3G_LEVEL_B_SMPTE372);
+        ADD_NVCTRL_CASE(NV_CTRL_GVIO_VIDEO_FORMAT_1080P_29_97_3G_LEVEL_B_SMPTE274);
+        ADD_NVCTRL_CASE(NV_CTRL_GVIO_VIDEO_FORMAT_2048P_29_97_3G_LEVEL_B_SMPTE372);
+        ADD_NVCTRL_CASE(NV_CTRL_GVIO_VIDEO_FORMAT_1080P_23_98_3G_LEVEL_B_SMPTE274);
+        ADD_NVCTRL_CASE(NV_CTRL_GVIO_VIDEO_FORMAT_2048P_23_98_3G_LEVEL_B_SMPTE372);
+        ADD_NVCTRL_CASE(NV_CTRL_GVIO_VIDEO_FORMAT_1080I_47_96_3G_LEVEL_B_SMPTE274);
+        ADD_NVCTRL_CASE(NV_CTRL_GVIO_VIDEO_FORMAT_2048I_47_96_3G_LEVEL_B_SMPTE372);
     default:
         return "Invalid Value";
-        break;
+    }
+}
+
+const char *SamplingName(int value)
+{
+    switch (value) {
+    default:
+        ADD_NVCTRL_CASE(NV_CTRL_GVI_COMPONENT_SAMPLING_UNKNOWN);
+        ADD_NVCTRL_CASE(NV_CTRL_GVI_COMPONENT_SAMPLING_4444);
+        ADD_NVCTRL_CASE(NV_CTRL_GVI_COMPONENT_SAMPLING_4224);
+        ADD_NVCTRL_CASE(NV_CTRL_GVI_COMPONENT_SAMPLING_444);
+        ADD_NVCTRL_CASE(NV_CTRL_GVI_COMPONENT_SAMPLING_422);
+        ADD_NVCTRL_CASE(NV_CTRL_GVI_COMPONENT_SAMPLING_420);
+        return "Invalid Value";
+    }
+}
+
+const char *BPCName(int value)
+{
+    switch (value) {
+        ADD_NVCTRL_CASE(NV_CTRL_GVI_BITS_PER_COMPONENT_UNKNOWN);
+        ADD_NVCTRL_CASE(NV_CTRL_GVI_BITS_PER_COMPONENT_8);
+        ADD_NVCTRL_CASE(NV_CTRL_GVI_BITS_PER_COMPONENT_10);
+        ADD_NVCTRL_CASE(NV_CTRL_GVI_BITS_PER_COMPONENT_12);
+    default:
+        return "Invalid Value";
     }
 }
 
@@ -202,6 +177,7 @@ static void do_help(void)
     printf("-q: query system GVI information.\n");
     printf("-c <TOPOLOGY>: configure default GVI system topology.\n");
     printf("-g #: Operate on specific GVI device.\n");
+    printf("-l: List GVI configuration space.\n");
     printf("\n");
 
 } /* do_help()*/
@@ -276,33 +252,6 @@ static void do_query(Display *dpy, int use_gvi)
         printf("  - Firmware Version: %s\n", pOut);
         XFree(pOut);
         pOut = NULL;
-        /*
-        ret = XNVCTRLQueryTargetAttribute(dpy,
-                                          NV_CTRL_TARGET_TYPE_GVI,
-                                          gvi, // target_id
-                                          0, // display_mask
-                                          NV_CTRL_GVIO_REQUESTED_VIDEO_FORMAT,
-                                          &value);
-        if (!ret) {
-            printf("  - Failed to query requested video format of "
-                   "GVI %d.\n", gvi);
-            continue;
-        } 
-        printf("  - Requested video format: %d\n", value);
-
-        ret = XNVCTRLQueryTargetAttribute(dpy,
-                                          NV_CTRL_TARGET_TYPE_GVI,
-                                          gvi, // target_id
-                                          0, // display_mask
-                                          NV_CTRL_GVIO_DETECTED_VIDEO_FORMAT,
-                                          &value);
-        if (!ret) {
-            printf("  - Failed to query detected video format of "
-                   "GVI %d.\n", gvi);
-            continue;
-        } 
-        printf("  - Detected video format: %d\n", value);
-        */
 
         ret = XNVCTRLQueryTargetAttribute(dpy,
                                           NV_CTRL_TARGET_TYPE_GVI,
@@ -327,6 +276,20 @@ static void do_query(Display *dpy, int use_gvi)
             continue;
         } 
         printf("  - Number of capture surfaces: %d\n", value);
+
+        ret = XNVCTRLQueryTargetAttribute(dpy,
+                                          NV_CTRL_TARGET_TYPE_GVI,
+                                          gvi, // target_id
+                                          0, // display_mask
+                                          NV_CTRL_GVIO_REQUESTED_VIDEO_FORMAT,
+                                          &value);
+        if (!ret) {
+            printf("  - Failed to query requested video format on "
+                   "GVI %d.\n", gvi);
+            continue;
+        } 
+        printf("  - Requested video format: %d (%s)\n", value,
+               VideoFormatName(value));
 
         ret = XNVCTRLQueryTargetAttribute(dpy,
                                           NV_CTRL_TARGET_TYPE_GVI,
@@ -539,12 +502,249 @@ static void do_query(Display *dpy, int use_gvi)
         } 
         printf("  - Topology:\n");
         printf("\n      %s\n\n", pOut ? pOut : "No streams are configured.");
+
+
+        /* Query per-stream settings */
+        if (pOut) {
+            char *str = pOut;
+            int i = 0;
+
+            while ( (str = strstr(str, "stream=")) )
+            {
+                printf("    - Stream %d\n", i);
+
+                ret = XNVCTRLQueryTargetAttribute(dpy,
+                                                  NV_CTRL_TARGET_TYPE_GVI,
+                                                  gvi, // target_id
+                                                  i, // display_mask (stream #)
+                                                  NV_CTRL_GVI_REQUESTED_STREAM_BITS_PER_COMPONENT,
+                                                  &value);
+                if (!ret) {
+                    printf("        - Failed to query requested stream bits per component "
+                           "for stream %d of GVI %d.\n",
+                           i, gvi);
+                    continue;
+                } 
+                printf("        - Requested bits per component: %d (%s)\n", value,
+                       BPCName(value));
+
+                ret = XNVCTRLQueryTargetAttribute(dpy,
+                                                  NV_CTRL_TARGET_TYPE_GVI,
+                                                  gvi, // target_id
+                                                  i, // display_mask (stream #)
+                                                  NV_CTRL_GVI_REQUESTED_STREAM_COMPONENT_SAMPLING,
+                                                  &value);
+                if (!ret) {
+                    printf("        - Failed to query requested stream component sampling "
+                           "for stream %d of GVI %d.\n",
+                           i, gvi);
+                    continue;
+                } 
+                printf("        - Requested component sampling: %d (%s)\n", value,
+                       SamplingName(value));
+
+                ret = XNVCTRLQueryTargetAttribute(dpy,
+                                                  NV_CTRL_TARGET_TYPE_GVI,
+                                                  gvi, // target_id
+                                                  i, // display_mask (stream #)
+                                                  NV_CTRL_GVI_REQUESTED_STREAM_CHROMA_EXPAND,
+                                                  &value);
+                if (!ret) {
+                    printf("        - Failed to query requested stream chroma expand "
+                           "for stream %d of GVI %d.\n",
+                           i, gvi);
+                    continue;
+                } 
+                printf("        - Requested chroma expand: %s\n",
+                       value ? "Enabled" : "Disabled");
+
+                i++;
+                str++;
+            }
+        }
+
         XFree(pOut);
         pOut = NULL;
 
     } /* Done Querying information about GVI devices */
 
 } /* do_query() */
+
+
+
+unsigned int firstbit (unsigned int mask)
+{
+    return mask ^ ((mask - 1) & mask);
+}
+
+// List the configuration space of the GVI device.
+void do_listconfig(Display *dpy, int gvi)
+{
+    NVCTRLAttributeValidValuesRec values;
+
+    unsigned int fmts[3];
+    int i;
+    char *pOut = NULL;
+    Bool ret;
+
+    // Assume GVI device has been configured already.
+    if (gvi < 0) {
+        gvi = 0;
+    }
+
+    printf("Querying Valid Configuring Space of GVI device %d:\n\n", gvi);
+
+    /* Query stream (link to jack+channel) topology */
+    ret = XNVCTRLStringOperation(dpy,
+                                 NV_CTRL_TARGET_TYPE_GVI,
+                                 gvi, // target_id
+                                 0, // display_mask
+                                 NV_CTRL_STRING_OPERATION_GVI_CONFIGURE_STREAMS,
+                                 NULL, // pIn
+                                 &pOut);
+    if (!ret || !pOut) {
+        printf("  - Failed to query stream topology configuration of "
+               "GVI %d.\n", gvi);
+        return;
+    } 
+    printf("- Current Topology:\n\n");
+    printf("      %s\n\n", pOut ? pOut : "No streams are configured.");
+    XFree(pOut);
+    pOut = NULL;
+
+
+    ret = XNVCTRLQueryValidTargetAttributeValues(dpy,
+                                                 NV_CTRL_TARGET_TYPE_GVI,
+                                                 gvi,
+                                                 0, // display_mask
+                                                 NV_CTRL_GVIO_REQUESTED_VIDEO_FORMAT,
+                                                 &values);
+    if (!ret) {
+        printf("- Failed to query valid video format values(1) of "
+               "GVI %d.\n", gvi);
+        return;
+    }
+    fmts[0] = values.u.bits.ints;
+
+    ret = XNVCTRLQueryValidTargetAttributeValues(dpy,
+                                                 NV_CTRL_TARGET_TYPE_GVI,
+                                                 gvi,
+                                                 0, // display_mask
+                                                 NV_CTRL_GVIO_REQUESTED_VIDEO_FORMAT2,
+                                                 &values);
+    if (!ret) {
+        printf("- Failed to query valid video format values(2) of "
+               "GVI %d.\n", gvi);
+        return;
+    }
+    fmts[1] = values.u.bits.ints;
+
+    ret = XNVCTRLQueryValidTargetAttributeValues(dpy,
+                                                 NV_CTRL_TARGET_TYPE_GVI,
+                                                 gvi,
+                                                 0, // display_mask
+                                                 NV_CTRL_GVIO_REQUESTED_VIDEO_FORMAT3,
+                                                 &values);
+    if (!ret) {
+        printf("- Failed to query valid video format values(3) of "
+               "GVI %d.\n", gvi);
+        return;
+    }
+    fmts[2] = values.u.bits.ints;
+
+
+
+    printf("- Valid Formats (NV_CTRL_GVIO_REQUESTED_VIDEO_FORMAT): %08x\n", fmts[0]);
+    printf("- Valid Formats (NV_CTRL_GVIO_REQUESTED_VIDEO_FORMAT2): %08x\n", fmts[1]);
+    printf("- Valid Formats (NV_CTRL_GVIO_REQUESTED_VIDEO_FORMAT3): %08x\n", fmts[2]);
+
+    printf("\n");
+    for (i = 0; i < 3; i++) {
+        unsigned int fmt_list = fmts[i];
+        unsigned int fmt_bit;
+        unsigned int fmt;
+
+        unsigned int bpcs;
+        unsigned int bpc_bit;
+        unsigned int bpc;
+
+        unsigned int samplings;
+        unsigned int smp_bit;
+        unsigned int sampling;
+
+
+        while (fmt_list) {
+            fmt_bit = firstbit(fmt_list);
+            fmt_list &= (~fmt_bit);
+            fmt = ffs(fmt_bit) - 1 + (32*i);
+
+            printf("\n%s:\n", VideoFormatName(fmt));
+
+            // Set the video format
+            XNVCTRLSetTargetAttribute(dpy,
+                                      NV_CTRL_TARGET_TYPE_GVI,
+                                      gvi,
+                                      0, // display_mask
+                                      NV_CTRL_GVIO_REQUESTED_VIDEO_FORMAT,
+                                      fmt);
+
+            // Get all bits per component (on first jack/channel)
+            ret = XNVCTRLQueryValidTargetAttributeValues(dpy,
+                                                         NV_CTRL_TARGET_TYPE_GVI,
+                                                         gvi,
+                                                         0, // jack 0, channel 0
+                                                         NV_CTRL_GVI_REQUESTED_STREAM_BITS_PER_COMPONENT,
+                                                         &values);
+            if (!ret) {
+                printf("  - Failed to query valid bits per component "
+                       "of GVI %d.\n", gvi);
+                continue;
+            }
+
+            bpcs = values.u.bits.ints;
+            while (bpcs) {
+                bpc_bit = firstbit(bpcs);
+                bpcs &= (~bpc_bit);
+                bpc = ffs(bpc_bit) -1;
+                    
+                printf("    %s:\n", BPCName(bpc));
+
+                // Set the bits per component
+                XNVCTRLSetTargetAttribute(dpy,
+                                          NV_CTRL_TARGET_TYPE_GVI,
+                                          gvi,
+                                          0, // jack 0, channel 0
+                                          NV_CTRL_GVI_REQUESTED_STREAM_BITS_PER_COMPONENT,
+                                          bpc);
+
+
+                // Get all component samplings (on first jack/channel)
+                ret = XNVCTRLQueryValidTargetAttributeValues(dpy,
+                                                             NV_CTRL_TARGET_TYPE_GVI,
+                                                             gvi,
+                                                             0, // display_mask
+                                                             NV_CTRL_GVI_REQUESTED_STREAM_COMPONENT_SAMPLING,
+                                                             &values);
+                if (!ret) {
+                    printf("  - Failed to query valid component sampling "
+                           "values of GVI %d.\n", gvi);
+                    continue;
+                }
+
+                samplings = values.u.bits.ints;
+                while (samplings) {
+                    smp_bit = firstbit(samplings);
+                    samplings &= (~smp_bit);
+                    sampling = ffs(smp_bit) -1;
+
+                    printf("        %s\n", SamplingName(sampling));
+
+                } // All component samplings
+            } // Add BPC
+        } // All formats
+    } // All format lists
+
+} /* do_listconfig() */
 
 
 
@@ -649,6 +849,9 @@ int main(int argc, char *argv[])
             do_configure(dpy, use_gvi, topology_str);
             ret = 1;
             break;
+        } else if (strcmp(argv[i], "-l") == 0) {
+            do_listconfig(dpy, use_gvi);
+            ret = 1;
         }
     }
     if (!ret) {

@@ -46,7 +46,8 @@ static char *display_device_name(int mask);
 static unsigned int display_device_mask(char *str);
 static char *remove_whitespace(char *str);
 static int count_bits(unsigned int mask);
-static void parse_mode_string(char *modeString, char **modeName, int *mask);
+static void parse_mode_string(char *modeString, char **modeName,
+                              unsigned int *mask);
 static char *find_modeline(char *modeString, char *pModeLines,
                            int ModeLineLen);
 
@@ -1392,7 +1393,8 @@ static int count_bits(unsigned int mask)
  * mask for the per-display device MetaMode string in 'modeString'
  */
 
-static void parse_mode_string(char *modeString, char **modeName, int *mask)
+static void parse_mode_string(char *modeString, char **modeName,
+                              unsigned int *mask)
 {
     char *colon, *s, tmp;
 

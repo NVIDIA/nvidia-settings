@@ -307,7 +307,7 @@ static void do_enable(Display *dpy)
                                               gpu, // target_id
                                               0, // display_mask
                                               NV_CTRL_ENABLED_DISPLAYS,
-                                              &mask);
+                                              (int *)&mask);
             if (!ret) {
                 printf("Failed to query enabled displays!\n");
                 continue;

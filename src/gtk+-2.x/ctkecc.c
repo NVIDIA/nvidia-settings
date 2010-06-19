@@ -372,7 +372,8 @@ GtkWidget* ctk_ecc_new(NvCtrlAttributeHandle *handle,
     if ( ret != NvCtrlSuccess ) {
         aggregate_dbit_error_available = FALSE;
     }
-
+    ctk_ecc->dbit_error_available = dbit_error_available;
+    ctk_ecc->aggregate_dbit_error_available = aggregate_dbit_error_available;
     /* Query ECC configuration supported */
 
     ret = NvCtrlGetAttribute(handle,
@@ -548,27 +549,31 @@ GtkTextBuffer *ctk_ecc_create_help(GtkTextTagTable *table,
     ctk_help_heading(b, &i, "ECC");
     ctk_help_para(b, &i, __ecc_status_help);
 
-    ctk_help_heading(b, &i, "Double-bit ECC Errors");
-    ctk_help_para(b, &i, __dbit_error_help);
-
-    ctk_help_heading(b, &i, "Aggregate Double-bit ECC Errors");
-    ctk_help_para(b, &i, __aggregate_dbit_error_help);
-
+    if (ctk_ecc->dbit_error_available) {
+        ctk_help_heading(b, &i, "Double-bit ECC Errors");
+        ctk_help_para(b, &i, __dbit_error_help);
+    }
+    if (ctk_ecc->aggregate_dbit_error_available) {
+        ctk_help_heading(b, &i, "Aggregate Double-bit ECC Errors");
+        ctk_help_para(b, &i, __aggregate_dbit_error_help);
+    }
     ctk_help_heading(b, &i, "ECC Configuration");
     ctk_help_para(b, &i, __configuration_status_help);
 
     ctk_help_heading(b, &i, "Enable ECC");
     ctk_help_para(b, &i, __ecc_status_help);
 
+    if (ctk_ecc->dbit_error_available) {
+        ctk_help_heading(b, &i, "Clear ECC Errors");
+        ctk_help_para(b, &i, __clear_button_help);
+    }
+    if (ctk_ecc->aggregate_dbit_error_available) {
+        ctk_help_heading(b, &i, "Clear Aggregate ECC Errors");
+        ctk_help_para(b, &i, __clear_aggregate_button_help);
+    }
+    
     ctk_help_heading(b, &i, "Reset Default Configuration");
     ctk_help_para(b, &i, __reset_default_config_button_help);
-
-    ctk_help_heading(b, &i, "Clear Aggregate ECC Errors");
-    ctk_help_para(b, &i, __clear_aggregate_button_help);
-
-    ctk_help_heading(b, &i, "Clear ECC Errors");
-    ctk_help_para(b, &i, __clear_button_help);
-
 
 
     ctk_help_finish(b);

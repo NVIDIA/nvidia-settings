@@ -2317,14 +2317,6 @@
 #define NV_CTRL_VCSC_HIGH_PERF_MODE_DISABLE                       0
 #define NV_CTRL_VCSC_HIGH_PERF_MODE_ENABLE                        1
 
-
-/*
- * NV_CTRL_OPENGL_AA_LINE_GAMMA_VALUE - the gamma value used by
- * OpenGL when NV_CTRL_OPENGL_AA_LINE_GAMMA is enabled
- */
-
-#define NV_CTRL_OPENGL_AA_LINE_GAMMA_VALUE                      281 /* RW-X */
-
 /*
  * NV_CTRL_DISPLAYPORT_LINK_RATE - returns the negotiated lane bandwidth of the
  * DisplayPort main link.

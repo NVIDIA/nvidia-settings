@@ -46,6 +46,7 @@ int main(void)
     Bool ret;
     int event_base, error_base;
     int num_screens, num_gpus, num_framelocks, num_vcs, i;
+    int num_gvis, num_coolers, num_thermal_sensors;
     int sources;
     XEvent event;
     XNVCtrlAttributeChangedEvent *nvevent;
@@ -111,6 +112,39 @@ int main(void)
     if (ret != True) {
         fprintf(stderr, "Failed to query the number of Visual Computing "
                 "System devices on '%s'.\n",
+                XDisplayName(NULL));
+        return 1;
+    }
+
+    /* Query number of GVI (Graphics Video Input) devices */
+
+    ret = XNVCTRLQueryTargetCount(dpy, NV_CTRL_TARGET_TYPE_GVI,
+                                  &num_gvis);
+    if (ret != True) {
+        fprintf(stderr, "Failed to query the number of Graphics Video "
+                "Input devices on '%s'.\n",
+                XDisplayName(NULL));
+        return 1;
+    }
+
+    /* Query number of Cooler devices */
+
+    ret = XNVCTRLQueryTargetCount(dpy, NV_CTRL_TARGET_TYPE_COOLER,
+                                  &num_coolers);
+    if (ret != True) {
+        fprintf(stderr, "Failed to query the number of Cooler devices "
+                "on '%s'.\n",
+                XDisplayName(NULL));
+        return 1;
+    }
+
+    /* Query number of Thermal Sensor devices */
+
+    ret = XNVCTRLQueryTargetCount(dpy, NV_CTRL_TARGET_TYPE_THERMAL_SENSOR,
+                                  &num_thermal_sensors);
+    if (ret != True) {
+        fprintf(stderr, "Failed to query the number of Thermal Sensor "
+                "devices on '%s'.\n",
                 XDisplayName(NULL));
         return 1;
     }
@@ -182,8 +216,8 @@ int main(void)
                                         i, TARGET_ATTRIBUTE_CHANGED_EVENT,
                                         True);
         if (ret != True) {
-            printf("- Unable to register to receive NV-CONTROL X Screen "
-                   "target events for screen %d on '%s'.\n",
+            printf("- Unable to register to receive NV-CONTROL "
+                   "target events for X screen %d on '%s'.\n",
                    i, XDisplayName(NULL));
             continue;
         }
@@ -201,7 +235,7 @@ int main(void)
                                         i, TARGET_ATTRIBUTE_CHANGED_EVENT,
                                         True);
         if (ret != True) {
-            printf("- Unable to register to receive NV-CONTROL GPU "
+            printf("- Unable to register to receive NV-CONTROL "
                    "target events for GPU %d on '%s'.\n",
                    i, XDisplayName(NULL));
             continue;
@@ -220,7 +254,7 @@ int main(void)
                                         i, TARGET_ATTRIBUTE_CHANGED_EVENT,
                                         True);
         if (ret != True) {
-            printf("- Unable to register to receive NV-CONTROL GPU "
+            printf("- Unable to register to receive NV-CONTROL "
                    "target events for Frame Lock %d on '%s'.\n",
                    i, XDisplayName(NULL));
             continue;
@@ -239,7 +273,7 @@ int main(void)
                                         i, TARGET_ATTRIBUTE_CHANGED_EVENT,
                                         True);
         if (ret != True) {
-            printf("- Unable to register to receive NV-CONTROL VCS "
+            printf("- Unable to register to receive NV-CONTROL "
                    "target events for VCS %d on '%s'.\n",
                    i, XDisplayName(NULL));
             continue;
@@ -247,6 +281,63 @@ int main(void)
         
         printf("+ Listening to TARGET_ATTRIBUTE_CHANGE_EVENTs on VCS "
                "%d.\n", i);
+        sources++;
+    }
+
+    /* Register to receive on all GVI targets */
+
+    for (i = 0; i < num_gvis; i++ ) {
+
+        ret = XNVCtrlSelectTargetNotify(dpy, NV_CTRL_TARGET_TYPE_GVI,
+                                        i, TARGET_ATTRIBUTE_CHANGED_EVENT,
+                                        True);
+        if (ret != True) {
+            printf("- Unable to register to receive NV-CONTROL "
+                   "target events for GVI %d on '%s'.\n",
+                   i, XDisplayName(NULL));
+            continue;
+        }
+        
+        printf("+ Listening to TARGET_ATTRIBUTE_CHANGE_EVENTs on GVI "
+               "%d.\n", i);
+        sources++;
+    }
+
+    /* Register to receive on all Cooler targets */
+
+    for (i = 0; i < num_coolers; i++ ) {
+
+        ret = XNVCtrlSelectTargetNotify(dpy, NV_CTRL_TARGET_TYPE_COOLER,
+                                        i, TARGET_ATTRIBUTE_CHANGED_EVENT,
+                                        True);
+        if (ret != True) {
+            printf("- Unable to register to receive NV-CONTROL "
+                   "target events for Cooler %d on '%s'.\n",
+                   i, XDisplayName(NULL));
+            continue;
+        }
+        
+        printf("+ Listening to TARGET_ATTRIBUTE_CHANGE_EVENTs on Cooler "
+               "%d.\n", i);
+        sources++;
+    }
+
+    /* Register to receive on all Thermal Sensor targets */
+
+    for (i = 0; i < num_thermal_sensors; i++ ) {
+
+        ret = XNVCtrlSelectTargetNotify(dpy, NV_CTRL_TARGET_TYPE_THERMAL_SENSOR,
+                                        i, TARGET_ATTRIBUTE_CHANGED_EVENT,
+                                        True);
+        if (ret != True) {
+            printf("- Unable to register to receive NV-CONTROL "
+                   "target events for Thermal Sensor %d on '%s'.\n",
+                   i, XDisplayName(NULL));
+            continue;
+        }
+        
+        printf("+ Listening to TARGET_ATTRIBUTE_CHANGE_EVENTs on Thermal "
+               "Sensor %d.\n", i);
         sources++;
     }
 
@@ -337,10 +428,14 @@ static const char *target2str(int n)
     static char unknown[24];
 
     switch (n) {
-    case NV_CTRL_TARGET_TYPE_X_SCREEN:  return "X Screen"; break;
-    case NV_CTRL_TARGET_TYPE_GPU:       return "GPU"; break;
-    case NV_CTRL_TARGET_TYPE_FRAMELOCK: return "Frame Lock"; break;
-    case NV_CTRL_TARGET_TYPE_VCSC:      return "VCS"; break;
+    case NV_CTRL_TARGET_TYPE_X_SCREEN:       return "X Screen"; break;
+    case NV_CTRL_TARGET_TYPE_GPU:            return "GPU"; break;
+    case NV_CTRL_TARGET_TYPE_FRAMELOCK:      return "Frame Lock"; break;
+    case NV_CTRL_TARGET_TYPE_VCSC:           return "VCS"; break;
+    case NV_CTRL_TARGET_TYPE_GVI:            return "GVI"; break;
+    case NV_CTRL_TARGET_TYPE_COOLER:         return "Cooler"; break;
+    case NV_CTRL_TARGET_TYPE_THERMAL_SENSOR: return "Thermal Sensor"; break;
+        
     default:
         snprintf(unknown, 24, "Unknown (%d)", n);
         return unknown;
@@ -546,8 +641,72 @@ static AttrEntry attr_table[] = {
     MAKE_ENTRY(NV_CTRL_DEPTH_30_ALLOWED),
     MAKE_ENTRY(NV_CTRL_MODE_SET_EVENT),
     MAKE_ENTRY(NV_CTRL_OPENGL_AA_LINE_GAMMA_VALUE),
+    MAKE_ENTRY(NV_CTRL_VCSC_HIGH_PERF_MODE),
     MAKE_ENTRY(NV_CTRL_DISPLAYPORT_LINK_RATE),
     MAKE_ENTRY(NV_CTRL_STEREO_EYES_EXCHANGE),
+    MAKE_ENTRY(NV_CTRL_NO_SCANOUT),
+    MAKE_ENTRY(NV_CTRL_GVO_CSC_CHANGED_EVENT),
+    MAKE_ENTRY(NV_CTRL_FRAMELOCK_SLAVEABLE ),
+    MAKE_ENTRY(NV_CTRL_GVO_SYNC_TO_DISPLAY),
+    MAKE_ENTRY(NV_CTRL_X_SERVER_UNIQUE_ID),
+    MAKE_ENTRY(NV_CTRL_PIXMAP_CACHE),
+    MAKE_ENTRY(NV_CTRL_PIXMAP_CACHE_ROUNDING_SIZE_KB),
+    MAKE_ENTRY(NV_CTRL_IS_GVO_DISPLAY),
+    MAKE_ENTRY(NV_CTRL_PCI_ID),
+    MAKE_ENTRY(NV_CTRL_GVO_FULL_RANGE_COLOR),
+    MAKE_ENTRY(NV_CTRL_SLI_MOSAIC_MODE_AVAILABLE),
+    MAKE_ENTRY(NV_CTRL_GVO_ENABLE_RGB_DATA),
+    MAKE_ENTRY(NV_CTRL_IMAGE_SHARPENING_DEFAULT),
+    MAKE_ENTRY(NV_CTRL_PCI_DOMAIN),
+    MAKE_ENTRY(NV_CTRL_GVI_NUM_JACKS),
+    MAKE_ENTRY(NV_CTRL_GVI_MAX_LINKS_PER_STREAM),
+    MAKE_ENTRY(NV_CTRL_GVI_DETECTED_CHANNEL_BITS_PER_COMPONENT),
+    MAKE_ENTRY(NV_CTRL_GVI_REQUESTED_STREAM_BITS_PER_COMPONENT),
+    MAKE_ENTRY(NV_CTRL_GVI_DETECTED_CHANNEL_COMPONENT_SAMPLING),
+    MAKE_ENTRY(NV_CTRL_GVI_REQUESTED_STREAM_COMPONENT_SAMPLING),
+    MAKE_ENTRY(NV_CTRL_GVI_REQUESTED_STREAM_CHROMA_EXPAND),
+    MAKE_ENTRY(NV_CTRL_GVI_DETECTED_CHANNEL_COLOR_SPACE),
+    MAKE_ENTRY(NV_CTRL_GVI_DETECTED_CHANNEL_LINK_ID),
+    MAKE_ENTRY(NV_CTRL_GVI_DETECTED_CHANNEL_SMPTE352_IDENTIFIER),
+    MAKE_ENTRY(NV_CTRL_GVI_GLOBAL_IDENTIFIER),
+    MAKE_ENTRY(NV_CTRL_FRAMELOCK_SYNC_DELAY_RESOLUTION),
+    MAKE_ENTRY(NV_CTRL_GPU_COOLER_MANUAL_CONTROL),
+    MAKE_ENTRY(NV_CTRL_THERMAL_COOLER_LEVEL),
+    MAKE_ENTRY(NV_CTRL_THERMAL_COOLER_LEVEL_SET_DEFAULT),
+    MAKE_ENTRY(NV_CTRL_THERMAL_COOLER_CONTROL_TYPE),
+    MAKE_ENTRY(NV_CTRL_THERMAL_COOLER_TARGET),
+    MAKE_ENTRY(NV_CTRL_GPU_ECC_SUPPORTED),
+    MAKE_ENTRY(NV_CTRL_GPU_ECC_STATUS),
+    MAKE_ENTRY(NV_CTRL_GPU_ECC_CONFIGURATION_SUPPORTED),
+    MAKE_ENTRY(NV_CTRL_GPU_ECC_CONFIGURATION),
+    MAKE_ENTRY(NV_CTRL_GPU_ECC_DEFAULT_CONFIGURATION),
+    MAKE_ENTRY(NV_CTRL_GPU_ECC_SINGLE_BIT_ERRORS),
+    MAKE_ENTRY(NV_CTRL_GPU_ECC_DOUBLE_BIT_ERRORS),
+    MAKE_ENTRY(NV_CTRL_GPU_ECC_AGGREGATE_SINGLE_BIT_ERRORS),
+    MAKE_ENTRY(NV_CTRL_GPU_ECC_AGGREGATE_DOUBLE_BIT_ERRORS),
+    MAKE_ENTRY(NV_CTRL_GPU_ECC_RESET_ERROR_STATUS),
+    MAKE_ENTRY(NV_CTRL_GPU_POWER_MIZER_MODE),
+    MAKE_ENTRY(NV_CTRL_GVI_SYNC_OUTPUT_FORMAT),
+    MAKE_ENTRY(NV_CTRL_GVI_MAX_CHANNELS_PER_JACK),
+    MAKE_ENTRY(NV_CTRL_GVI_MAX_STREAMS ),
+    MAKE_ENTRY(NV_CTRL_GVI_NUM_CAPTURE_SURFACES),
+    MAKE_ENTRY(NV_CTRL_OVERSCAN_COMPENSATION),
+    MAKE_ENTRY(NV_CTRL_GPU_PCIE_GENERATION),
+    MAKE_ENTRY(NV_CTRL_GVI_BOUND_GPU),
+    MAKE_ENTRY(NV_CTRL_GVIO_REQUESTED_VIDEO_FORMAT3),
     MAKE_ENTRY(NV_CTRL_ACCELERATE_TRAPEZOIDS),
+    MAKE_ENTRY(NV_CTRL_GPU_CORES),
+    MAKE_ENTRY(NV_CTRL_GPU_MEMORY_BUS_WIDTH),
+    MAKE_ENTRY(NV_CTRL_GVI_TEST_MODE),
+    MAKE_ENTRY(NV_CTRL_COLOR_SPACE),
+    MAKE_ENTRY(NV_CTRL_COLOR_RANGE),
+    MAKE_ENTRY(NV_CTRL_GPU_SCALING_DEFAULT_TARGET),
+    MAKE_ENTRY(NV_CTRL_GPU_SCALING_DEFAULT_METHOD),
+    MAKE_ENTRY(NV_CTRL_FLATPANEL_DITHERING_MODE),
+    //    MAKE_ENTRY(NV_CTRL_FLATPANEL_DEFAULT_DITHERING),
+    //    MAKE_ENTRY(NV_CTRL_FLATPANEL_DEFAULT_DITHERING_MODE),
+    MAKE_ENTRY(NV_CTRL_THERMAL_SENSOR_READING),
+    MAKE_ENTRY(NV_CTRL_THERMAL_SENSOR_PROVIDER),
+    MAKE_ENTRY(NV_CTRL_THERMAL_SENSOR_TARGET),
     { -1, NULL, NULL }
 };

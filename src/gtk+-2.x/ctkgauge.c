@@ -262,10 +262,11 @@ static void draw(CtkGauge *ctk_gauge)
 {
     GtkWidget *widget;
     gint x1, x2, y, width, i, percent, pos;
-    gint upper, lower, current;
+    gint upper, lower, range, current;
     
     lower = ctk_gauge->lower;
     upper = ctk_gauge->upper;
+    range = upper - lower;
     current = ctk_gauge->current;
 
     gdk_gc_set_function(ctk_gauge->gdk_gc, GDK_COPY);
@@ -276,7 +277,7 @@ static void draw(CtkGauge *ctk_gauge)
 
     width = ctk_gauge->width / 5;
     y = ctk_gauge->height / 5;
-    percent = ((current - lower) * 100) / (upper - lower);
+    percent = (range > 0) ? (((current - lower) * 100) / range) : 0;
     pos = (percent >= 95) ? 10 : (percent / 10);
 
     x1 = (ctk_gauge->width / 2) - width - 4;

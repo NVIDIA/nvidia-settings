@@ -76,7 +76,8 @@ static const char * __clone_mode_video_format_help =
 
 static const char * __clone_mode_data_format_help =
 "The Data Format drop-down allows you to select the desired data format that "
-"the SDI will output.";
+"the SDI will output.  Note that the new data format "
+"will be applied at modeset time.";
 
 static const char * __clone_mode_x_offset_help =
 "The X Offset determines the start location of the left side of SDI output "

@@ -90,6 +90,9 @@ int main(int argc, char *argv[])
 
     int num_gpus, num_screens, num_gsyncs;
     int num_vcs;
+    int num_gvis;
+    int num_coolers;
+    int num_thermal_sensors;
     int gpu, screen;
     int display_devices, mask;
     int *pData;
@@ -176,6 +179,42 @@ int main(int argc, char *argv[])
     }
     printf("  number of Visual Computing System Devices: %d\n",
            num_vcs);
+
+
+    /* Get the number of GVI devices in the system */
+
+    ret = XNVCTRLQueryTargetCount(dpy, NV_CTRL_TARGET_TYPE_GVI,
+                                  &num_gvis);
+    if (!ret) {
+        fprintf(stderr, "Failed to query number of GVIs\n");
+        return 1;
+    }
+    printf("  number of Graphics Video Input Devices: %d\n",
+           num_gvis);
+
+
+    /* Get the number of Cooler devices in the system */
+
+    ret = XNVCTRLQueryTargetCount(dpy, NV_CTRL_TARGET_TYPE_COOLER,
+                                  &num_coolers);
+    if (!ret) {
+        fprintf(stderr, "Failed to query number of Coolers\n");
+        return 1;
+    }
+    printf("  number of Cooler Devices: %d\n",
+           num_coolers);
+
+
+    /* Get the number of Thermal Sensor devices in the system */
+
+    ret = XNVCTRLQueryTargetCount(dpy, NV_CTRL_TARGET_TYPE_THERMAL_SENSOR,
+                                  &num_thermal_sensors);
+    if (!ret) {
+        fprintf(stderr, "Failed to query number of Thermal Sensors\n");
+        return 1;
+    }
+    printf("  number of Thermal Sensor Devices: %d\n",
+           num_thermal_sensors);
 
 
     /* display information about all GPUs */

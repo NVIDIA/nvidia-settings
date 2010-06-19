@@ -1080,7 +1080,8 @@ GtkWidget* ctk_thermal_new(NvCtrlAttributeHandle *handle,
     gint cooler_level;
     gint cooler_control_type;
     gchar *name = NULL;
-    int *pData;
+    int *pDataCooler = NULL, *pDataSensor = NULL;
+    gint cooler_count = 0, sensor_count = 0;
     int len, value;
     int major = 0, minor = 0;
     Bool can_access_cooler_level;
@@ -1130,13 +1131,29 @@ GtkWidget* ctk_thermal_new(NvCtrlAttributeHandle *handle,
             return NULL;
         }
     }
-    /* Retrieve CtrlHandles from ctk_config */
+    /* Query the list of sensors attached to this GPU */
 
-    h = ctk_config->pCtrlHandles;
+    ret = NvCtrlGetBinaryAttribute(handle, 0,
+                                   NV_CTRL_BINARY_DATA_THERMAL_SENSORS_USED_BY_GPU,
+                                   (unsigned char **)(&pDataSensor), &len);
+    if ( ret == NvCtrlSuccess ) {
+        sensor_count = pDataSensor[0];
+    }
+    
+    /* Query the list of coolers attached to this GPU */
 
+    ret = NvCtrlGetBinaryAttribute(handle, 0,
+                                   NV_CTRL_BINARY_DATA_COOLERS_USED_BY_GPU,
+                                   (unsigned char **)(&pDataCooler), &len);
+    if ( ret == NvCtrlSuccess ) {
+        cooler_count = pDataCooler[0];
+    }
+    
     /* return if sensor and Fan information not available */
-    if ((h->targets[THERMAL_SENSOR_TARGET].n == 0) &&
-        (h->targets[COOLER_TARGET].n == 0)) {
+    if ((thermal_sensor_target_type_supported && !sensor_count) &&
+        !cooler_count) {
+        XFree(pDataSensor);
+        XFree(pDataCooler);
         return NULL;
     }
 
@@ -1149,7 +1166,8 @@ GtkWidget* ctk_thermal_new(NvCtrlAttributeHandle *handle,
     ctk_thermal->ctk_config = ctk_config;
     ctk_thermal->settings_changed = FALSE;
     ctk_thermal->show_fan_control_frame = TRUE;
-    ctk_thermal->cooler_count = 0;
+    ctk_thermal->cooler_count = cooler_count;
+    ctk_thermal->sensor_count = sensor_count;
     ctk_thermal->thermal_sensor_target_type_supported = thermal_sensor_target_type_supported;
     
     /* set container properties for the CtkThermal widget */
@@ -1180,13 +1198,18 @@ GtkWidget* ctk_thermal_new(NvCtrlAttributeHandle *handle,
         __license_accepted = TRUE;
     }
 
+    /* Retrieve CtrlHandles from ctk_config */
+
+    h = ctk_config->pCtrlHandles;
+
     /* Thermal Information */
 
     vbox = gtk_vbox_new(FALSE, 0);
     gtk_box_pack_start(GTK_BOX(object), vbox, FALSE, FALSE, 0);
     
     if (thermal_sensor_target_type_supported) {
-        if ( h->targets[THERMAL_SENSOR_TARGET].n == 0 ) {
+        
+        if ( ctk_thermal->sensor_count == 0 ) {
             goto sensor_end;
         }
         hbox1 = gtk_hbox_new(FALSE, FRAME_PADDING);
@@ -1197,25 +1220,15 @@ GtkWidget* ctk_thermal_new(NvCtrlAttributeHandle *handle,
         hsep = gtk_hseparator_new();
         gtk_box_pack_start(GTK_BOX(hbox1), hsep, TRUE, TRUE, 0);
         
-        /* Query the list of sensors attached to this GPU */
-
-        ret = NvCtrlGetBinaryAttribute(handle, 0,
-                                 NV_CTRL_BINARY_DATA_THERMAL_SENSORS_USED_BY_GPU,
-                                 (unsigned char **)(&pData), &len);
-        if ( ret == NvCtrlSuccess ) {
-            ctk_thermal->sensor_count = pData[0];
-        } else {
-            ctk_thermal->sensor_count = 0;
-        }
-
         if (ctk_thermal->sensor_count > 0) {
             ctk_thermal->sensor_info = (SensorInfoPtr)
-                malloc(pData[0] * sizeof(SensorInfoRec));
+                malloc(ctk_thermal->sensor_count * sizeof(SensorInfoRec));
         }
 
         for (j = 1; j <= ctk_thermal->sensor_count; j++) {
             gint reading, target, provider;
-            sensor_handle = h->targets[THERMAL_SENSOR_TARGET].t[pData[j]].h;
+            sensor_handle =
+                h->targets[THERMAL_SENSOR_TARGET].t[pDataSensor[j]].h;
 
             if ( !sensor_handle ) {
                 continue;
@@ -1260,13 +1273,15 @@ GtkWidget* ctk_thermal_new(NvCtrlAttributeHandle *handle,
                             sensor_range.u.range.max, target, provider);
             cur_sensor_idx++;
         }
-        XFree(pData);
-        pData = NULL;
     } else {
         /* GPU Core Treshold Temperature */
 
+        vbox1 = gtk_vbox_new(FALSE, 0);
+        hbox1 = gtk_hbox_new(FALSE, 0);
         frame = gtk_frame_new("Slowdown Threshold");
-        gtk_box_pack_start(GTK_BOX(vbox), frame, FALSE, FALSE, 0);
+        gtk_box_pack_start(GTK_BOX(vbox), hbox1, FALSE, FALSE, 0);
+        gtk_box_pack_start(GTK_BOX(hbox1), vbox1, FALSE, FALSE, 5);
+        gtk_box_pack_start(GTK_BOX(vbox1), frame, FALSE, FALSE, 0);
 
         hbox2 = gtk_hbox_new(FALSE, 0);
         gtk_container_set_border_width(GTK_CONTAINER(hbox2), FRAME_PADDING);
@@ -1294,7 +1309,7 @@ GtkWidget* ctk_thermal_new(NvCtrlAttributeHandle *handle,
         /* GPU Core Temperature */
 
         table = gtk_table_new(2, 2, FALSE);
-        gtk_box_pack_end(GTK_BOX(vbox), table, FALSE, FALSE, 0);
+        gtk_box_pack_end(GTK_BOX(vbox1), table, FALSE, FALSE, 0);
 
         hbox2 = gtk_hbox_new(FALSE, 0);
         gtk_table_attach(GTK_TABLE(table), hbox2, 0, 1, 0, 1,
@@ -1344,14 +1359,14 @@ GtkWidget* ctk_thermal_new(NvCtrlAttributeHandle *handle,
 
         /* GPU Core Temperature Gauge */
         
-        ctk_thermal->core_gauge = pack_gauge(hbox, 25, upper,
+        ctk_thermal->core_gauge = pack_gauge(hbox1, 25, upper,
                                              ctk_config, __temp_level_help);
     }
 sensor_end:
     
     /* Check for if Fans present on GPU */
 
-    if ( h->targets[COOLER_TARGET].n == 0 ) {
+    if ( ctk_thermal->cooler_count == 0 ) {
         goto end;
     }
 
@@ -1376,22 +1391,13 @@ sensor_end:
     gtk_box_pack_start(GTK_BOX(vbox), hbox, FALSE, FALSE, 0);
     ctk_thermal->cooler_table_hbox = hbox;
 
-    /* Query the list of coolers attached to this GPU */
-    
-    ret = NvCtrlGetBinaryAttribute(handle, 0,
-                                   NV_CTRL_BINARY_DATA_COOLERS_USED_BY_GPU,
-                                   (unsigned char **)(&pData), &len);
-    if ( ret == NvCtrlSuccess ) {
-        ctk_thermal->cooler_count = pData[0];
-    }
-    
     /* Create cooler level control sliders/checkbox */
     
     ctk_thermal->cooler_control = (CoolerControlPtr)
-        malloc(pData[0] * sizeof(CoolerControlRec));
+        malloc(ctk_thermal->cooler_count * sizeof(CoolerControlRec));
 
     for (j = 1; j <= ctk_thermal->cooler_count; j++) {
-        cooler_handle = h->targets[COOLER_TARGET].t[pData[j]].h;
+        cooler_handle = h->targets[COOLER_TARGET].t[pDataCooler[j]].h;
         
         if ( !cooler_handle ) {    
             continue;
@@ -1473,8 +1479,6 @@ sensor_end:
             cur_cooler_idx++;
         }
     }
-    
-    XFree(pData);
     
     if ( ctk_thermal->cooler_count && ctk_thermal->show_fan_control_frame ) {
         /* Create the enable dialog */
@@ -1577,6 +1581,12 @@ sensor_end:
     }
 
 end:
+    XFree(pDataSensor);
+    pDataSensor = NULL;
+    
+    XFree(pDataCooler);
+    pDataCooler = NULL;
+    
     /* sync GUI to current server settings */
     
     sync_gui_to_modify_cooler_level(ctk_thermal);
