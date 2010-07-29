@@ -1049,8 +1049,11 @@ static Bool parse_slimm_layout(CtkSLIMM *ctk_slimm,
                 }
             }
         }
-        if (*voverlap > 0) { *voverlap = (*cur_modeline)->data.vdisplay - *voverlap; }
-        if (*voverlap < 0) { *voverlap += (*cur_modeline)->data.vdisplay; }
+        if (*voverlap > 0) {
+            *voverlap = (*cur_modeline)->data.vdisplay - *voverlap;
+        } else if (*voverlap < 0) {
+            *voverlap += (*cur_modeline)->data.vdisplay;
+        }
 
 
         /* Calculte column overlap */
@@ -1069,8 +1072,11 @@ static Bool parse_slimm_layout(CtkSLIMM *ctk_slimm,
                 }
             }
         }
-        if (*hoverlap > 0) { *hoverlap = (*cur_modeline)->data.hdisplay - *hoverlap; }
-        if (*hoverlap < 0) { *hoverlap += (*cur_modeline)->data.hdisplay; }
+        if (*hoverlap > 0) {
+            *hoverlap = (*cur_modeline)->data.hdisplay - *hoverlap;
+        } else if (*hoverlap < 0) {
+            *hoverlap += (*cur_modeline)->data.hdisplay;
+        }
     }
     
     XFree(metamode_str);

@@ -434,8 +434,8 @@ int xconfigParsePciBusString(const char *busID,
 {
     /*
      * The format is assumed to be "bus[@domain]:device[:func]", where domain,
-     * bus, device and func are decimal integers.  domain and func may be
-     * omitted and assumed to be zero, although doing this isn't encouraged.
+     * bus, device and func are decimal integers. func may be omitted and
+     * assumed to be zero.
      */
     
     char *p, *s, *d;
@@ -499,3 +499,18 @@ int xconfigParsePciBusString(const char *busID,
     return TRUE;
 }
 
+
+/*
+ * xconfigFormatPciBusString : The function checks for the availability
+ * of PCI domain & accordingly formats the busid string.
+ */
+void xconfigFormatPciBusString(char *str, int len,
+                               int domain, int bus, int device)
+{
+    if (domain) {
+        snprintf(str, len, "PCI:%d@%d:%d:0", bus, domain, device);
+    } else {
+        snprintf(str, len, "PCI:%d:%d:0", bus, device);
+    }
+    str[len - 1] = '\0';
+}

@@ -710,6 +710,8 @@ XConfigOptionPtr xconfigParseOption(XConfigOptionPtr head);
 void xconfigPrintOptionList(FILE *fp, XConfigOptionPtr list, int tabs);
 int xconfigParsePciBusString(const char *busID,
                              int *bus, int *device, int *func);
+void xconfigFormatPciBusString(char *str, int len,
+                               int domain, int bus, int device);
 
 void xconfigAddDisplay(XConfigDisplayPtr *pHead, const int depth);
 
@@ -718,7 +720,8 @@ void xconfigRemoveMode(XConfigModePtr *pHead, const char *name);
 
 XConfigPtr xconfigGenerate(GenerateOptions *gop);
 
-XConfigScreenPtr xconfigGenerateAddScreen(XConfigPtr config, int bus, int slot,
+XConfigScreenPtr xconfigGenerateAddScreen(XConfigPtr config,
+                                          int bus, int domain, int slot,
                                           char *boardname, int count);
 
 void xconfigGenerateAssignScreenAdjacencies(XConfigLayoutPtr layout);

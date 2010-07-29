@@ -51,8 +51,8 @@ static int is_file(const char *filename);
 static void add_font_path(GenerateOptions *gop, XConfigPtr config);
 static void add_modules(GenerateOptions *gop, XConfigPtr config);
 
-static XConfigDevicePtr
-add_device(XConfigPtr config, int bus, int slot, char *boardname, int count);
+static XConfigDevicePtr add_device(XConfigPtr config, int bus, int domain,
+                                   int slot, char *boardname, int count);
 
 static void add_layout(GenerateOptions *gop, XConfigPtr config);
 
@@ -99,7 +99,7 @@ XConfigPtr xconfigGenerate(GenerateOptions *gop)
  */
 
 XConfigScreenPtr xconfigGenerateAddScreen(XConfigPtr config,
-                                          int bus, int slot,
+                                          int bus, int domain, int slot,
                                           char *boardname, int count)
 {
     XConfigScreenPtr screen, s;
@@ -107,7 +107,7 @@ XConfigScreenPtr xconfigGenerateAddScreen(XConfigPtr config,
     XConfigMonitorPtr monitor;
 
     monitor = xconfigAddMonitor(config, count);
-    device = add_device(config, bus, slot, boardname, count);
+    device = add_device(config, bus, domain, slot, boardname, count);
 
     screen = xconfigAlloc(sizeof(XConfigScreenRec));
 
@@ -463,8 +463,8 @@ XConfigMonitorPtr xconfigAddMonitor(XConfigPtr config, int count)
  * add_device()
  */
 
-static XConfigDevicePtr
-add_device(XConfigPtr config, int bus, int slot, char *boardname, int count)
+static XConfigDevicePtr add_device(XConfigPtr config, int bus, int domain,
+                                   int slot, char *boardname, int count)
 {
     XConfigDevicePtr device, d;
 
@@ -475,9 +475,9 @@ add_device(XConfigPtr config, int bus, int slot, char *boardname, int count)
     device->driver = xconfigStrdup("nvidia");
     device->vendor = xconfigStrdup("NVIDIA Corporation");
 
-    if (bus != -1 && slot != -1) {
+    if (bus != -1 && domain != -1 && slot != -1) {
         device->busid = xconfigAlloc(32);
-        snprintf(device->busid, 32, "PCI:%d:%d:0", bus, slot);
+        xconfigFormatPciBusString(device->busid, 32, domain, bus, slot);
     }
 
     if (boardname) device->board = xconfigStrdup(boardname);
@@ -532,7 +532,7 @@ static void add_layout(GenerateOptions *gop, XConfigPtr config)
 
     /* assume 1 X screen */
 
-    screen = xconfigGenerateAddScreen(config, -1, -1, NULL, 0);
+    screen = xconfigGenerateAddScreen(config, -1, -1, -1, NULL, 0);
 
     /* create layout */
 

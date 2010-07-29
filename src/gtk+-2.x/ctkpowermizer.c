@@ -62,9 +62,11 @@ static const char *__performance_mode_short_help =
 "This indicates the current Performance Mode of the GPU.";
 
 static const char *__performance_mode_help =
-"This indicates the current Performance Mode of the GPU.  "
-"Performance Mode can be either \"Desktop\" or "
-"\"Maximum Performance\".";
+"This reports the current Performance Mode of the GPU.  This indicates "
+"the driver's current power strategy.  Possible Performance "
+"Mode values are \"Desktop\" (the GPU is being used for desktop-oriented "
+"purposes) and \"Maximum Performance\" (typically, an OpenGL, VDPAU, or "
+"CUDA application is running).";
 
 static const char *__gpu_clock_freq_help =
 "This indicates the current GPU Clock frequency.";

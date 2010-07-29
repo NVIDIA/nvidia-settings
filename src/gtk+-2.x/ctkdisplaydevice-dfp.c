@@ -405,7 +405,7 @@ GtkWidget* ctk_display_device_dfp_new(NvCtrlAttributeHandle *handle,
     eventbox = gtk_event_box_new();
     gtk_container_add(GTK_CONTAINER(eventbox), frame);
     gtk_box_pack_start(GTK_BOX(hbox), eventbox, FALSE, FALSE, 0);
-    ctk_display_device_dfp->scaling_frame = frame;
+    ctk_display_device_dfp->scaling_frame = eventbox;
     
     ctk_config_set_tooltip(ctk_config, eventbox, __scaling_help);
 
