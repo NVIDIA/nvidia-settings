@@ -711,7 +711,7 @@ void xconfigPrintOptionList(FILE *fp, XConfigOptionPtr list, int tabs);
 int xconfigParsePciBusString(const char *busID,
                              int *bus, int *device, int *func);
 void xconfigFormatPciBusString(char *str, int len,
-                               int domain, int bus, int device);
+                               int domain, int bus, int device, int func);
 
 void xconfigAddDisplay(XConfigDisplayPtr *pHead, const int depth);
 

@@ -2917,7 +2917,58 @@
 #define NV_CTRL_THERMAL_SENSOR_TARGET_BOARD                       8
 #define NV_CTRL_THERMAL_SENSOR_TARGET_UNKNOWN            0xFFFFFFFF
 
-#define NV_CTRL_LAST_ATTRIBUTE NV_CTRL_THERMAL_SENSOR_TARGET
+/*
+ * NV_CTRL_SHOW_MULTIGPU_VISUAL_INDICATOR - when TRUE, OpenGL will
+ * draw information about the current MULTIGPU mode.
+ */
+#define NV_CTRL_SHOW_MULTIGPU_VISUAL_INDICATOR                  358  /* RW-X */
+#define NV_CTRL_SHOW_MULTIGPU_VISUAL_INDICATOR_FALSE              0
+#define NV_CTRL_SHOW_MULTIGPU_VISUAL_INDICATOR_TRUE               1
+
+/*
+ * NV_CTRL_GPU_CURRENT_PROCESSOR_CLOCK_FREQS - Returns GPU's processor
+ * clock freqs.
+ */
+#define NV_CTRL_GPU_CURRENT_PROCESSOR_CLOCK_FREQS               359 /* RW-G */
+
+/*
+ * NV_CTRL_GVIO_VIDEO_FORMAT_FLAGS - query the flags (various information
+ * for the specified NV_CTRL_GVIO_VIDEO_FORMAT_*.  So that this can be
+ * queried with existing interfaces, the video format should be specified
+ * in the display_mask field; eg:
+ *
+ * XNVCTRLQueryTargetAttribute(dpy,
+ *                             NV_CTRL_TARGET_TYPE_GVI,
+ *                             gvi,
+ *                             NV_CTRL_GVIO_VIDEO_FORMAT_720P_60_00_SMPTE296,
+ *                             NV_CTRL_GVIO_VIDEO_FORMAT_FLAGS,
+ *                             &flags);
+ *
+ * Note: The NV_CTRL_GVIO_VIDEO_FORMAT_FLAGS_3G_1080P_NO_12BPC flag is set
+ *       for those 1080P 3G modes (level A and B) that do not support
+ *       12 bits per component (when configuring a GVI stream.)
+ */
+
+#define NV_CTRL_GVIO_VIDEO_FORMAT_FLAGS                         360  /* R--I */
+#define NV_CTRL_GVIO_VIDEO_FORMAT_FLAGS_NONE              0x00000000
+#define NV_CTRL_GVIO_VIDEO_FORMAT_FLAGS_INTERLACED        0x00000001
+#define NV_CTRL_GVIO_VIDEO_FORMAT_FLAGS_PROGRESSIVE       0x00000002
+#define NV_CTRL_GVIO_VIDEO_FORMAT_FLAGS_PSF               0x00000004
+#define NV_CTRL_GVIO_VIDEO_FORMAT_FLAGS_3G_LEVEL_A        0x00000008
+#define NV_CTRL_GVIO_VIDEO_FORMAT_FLAGS_3G_LEVEL_B        0x00000010
+#define NV_CTRL_GVIO_VIDEO_FORMAT_FLAGS_3G          \
+    ((NV_CTRL_GVIO_VIDEO_FORMAT_FLAGS_3G_LEVEL_A) | \
+     (NV_CTRL_GVIO_VIDEO_FORMAT_FLAGS_3G_LEVEL_B))
+#define NV_CTRL_GVIO_VIDEO_FORMAT_FLAGS_3G_1080P_NO_12BPC 0x00000020
+
+
+/*
+ * NV_CTRL_GPU_PCIE_MAX_LINK_SPEED - returns maximum PCI-E link speed.
+ */
+
+#define NV_CTRL_GPU_PCIE_MAX_LINK_SPEED                         361 /* R--GI */
+
+#define NV_CTRL_LAST_ATTRIBUTE NV_CTRL_GPU_PCIE_MAX_LINK_SPEED
 
 /**************************************************************************/
 

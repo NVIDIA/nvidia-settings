@@ -477,7 +477,7 @@ static XConfigDevicePtr add_device(XConfigPtr config, int bus, int domain,
 
     if (bus != -1 && domain != -1 && slot != -1) {
         device->busid = xconfigAlloc(32);
-        xconfigFormatPciBusString(device->busid, 32, domain, bus, slot);
+        xconfigFormatPciBusString(device->busid, 32, domain, bus, slot, 0);
     }
 
     if (boardname) device->board = xconfigStrdup(boardname);

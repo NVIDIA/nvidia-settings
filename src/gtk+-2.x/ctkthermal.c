@@ -1185,6 +1185,7 @@ GtkWidget* ctk_thermal_new(NvCtrlAttributeHandle *handle,
                              &value);
     if ( ret != NvCtrlSuccess ) {
         ctk_thermal->show_fan_control_frame = FALSE;
+        value = NV_CTRL_GPU_COOLER_MANUAL_CONTROL_FALSE;
     }
     
     cooler_control_enabled =

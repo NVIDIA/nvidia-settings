@@ -29,6 +29,7 @@
 #include <query-assign.h>
 
 #include "ctkevent.h"
+#include "ctkconfig.h"
 
 #include "NvCtrlAttributes.h"
 
@@ -60,10 +61,14 @@ struct _CtkGpu
     GtkVBox parent;
 
     NvCtrlAttributeHandle *handle;
+    CtkConfig *ctk_config;
 
+    GtkWidget *bus_label;
+    GtkWidget *link_speed_label;
     GtkWidget *displays;
     gint gpu_cores;
     gint memory_interface;
+    gboolean pcie_gen_queriable;
 };
 
 struct _CtkGpuClass
@@ -74,7 +79,8 @@ struct _CtkGpuClass
 GType       ctk_gpu_get_type (void) G_GNUC_CONST;
 GtkWidget*  ctk_gpu_new      (NvCtrlAttributeHandle *handle,
                               CtrlHandleTarget *t,
-                              CtkEvent *ctk_event);
+                              CtkEvent *ctk_event,
+                              CtkConfig *ctk_config);
 
 void get_bus_related_info(NvCtrlAttributeHandle *handle,
                           gchar **bus,
@@ -83,7 +89,8 @@ void get_bus_related_info(NvCtrlAttributeHandle *handle,
 GtkTextBuffer *ctk_gpu_create_help(GtkTextTagTable *,
                                    CtkGpu *);
 
-
+void ctk_gpu_start_timer(GtkWidget *widget);
+void ctk_gpu_stop_timer(GtkWidget *widget);
 
 G_END_DECLS
 

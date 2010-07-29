@@ -289,13 +289,11 @@ typedef struct nvGpuRec {
     Bool allow_depth_30;
 
     char *name;  /* Name of the GPU */
-
+    
     unsigned int connected_displays;  /* Bitmask of connected displays */
 
-    int pci_bus;
-    int pci_device;
-    int pci_func;
-    
+    gchar *pci_bus_id;
+
     GvoModeData *gvo_mode_data; /* Information about GVO modes available */
     unsigned int num_gvo_modes;
 

@@ -135,6 +135,7 @@ AttributeTableEntry attributeTable[] = {
 
     /* GPU */
     { "BusType",                NV_CTRL_BUS_TYPE,                      0,   "Returns the type of bus connecting the specified device to the computer.  If the target is an X screen, then it uses the GPU driving the X screen as the device." },
+    { "PCIEMaxLinkSpeed",       NV_CTRL_GPU_PCIE_MAX_LINK_SPEED,       0,   "Returns the maximum PCI-E link speed" },
     { "VideoRam",               NV_CTRL_VIDEO_RAM,                     0,   "Returns the total amount of memory available to the specified GPU (or the GPU driving the specified X screen).  Note: if the GPU supports TurboCache(TM), the value reported may exceed the amount of video memory installed on the GPU.  The value reported for integrated GPUs may likewise exceed the amount of dedicated system memory set aside by the system BIOS for use by the integrated GPU." },
     { "Irq",                    NV_CTRL_IRQ,                           0,   "Returns the interrupt request line used by the specified device.  If the target is an X screen, then it uses the GPU driving the X screen as the device." },
     { "CUDACores",              NV_CTRL_GPU_CORES,                     N,   "Returns number of CUDA cores supported by the graphics pipeline." },
@@ -153,7 +154,7 @@ AttributeTableEntry attributeTable[] = {
     { "PCIDevice",              NV_CTRL_PCI_DEVICE,                    N,   "Returns the PCI device number for the specified device." },
     { "PCIFunc",                NV_CTRL_PCI_FUNCTION,                  N,   "Returns the PCI function number for the specified device." },
     { "PCIID",                  NV_CTRL_PCI_ID,                        N|P, "Returns the PCI vendor and device ID of the specified device." },
-    { "PCIEGen",               NV_CTRL_GPU_PCIE_GENERATION,           N,   "Returns the current PCI-E Bus Generation." },
+    { "PCIEGen",                NV_CTRL_GPU_PCIE_GENERATION,           N,   "Returns the current PCI-E Bus Generation." },
     { "GPUErrors",              NV_CTRL_NUM_GPU_ERRORS_RECOVERED,      N,   "Returns the number of GPU errors occurred." },
     { "GPUPowerSource",         NV_CTRL_GPU_POWER_SOURCE,              N,   "Reports the type of power source of the GPU." },
     { "GPUCurrentPerfMode",     NV_CTRL_GPU_CURRENT_PERFORMANCE_MODE,  N,   "Reports the current performance mode of the GPU driving the X screen.  Running a 3D app, for example, will change this performance mode if Adaptive Clocking is enabled." },
@@ -333,7 +334,7 @@ AttributeTableEntry attributeTable[] = {
  * about.
  */
 
-#if NV_CTRL_LAST_ATTRIBUTE != NV_CTRL_THERMAL_SENSOR_TARGET
+#if NV_CTRL_LAST_ATTRIBUTE != NV_CTRL_GPU_PCIE_MAX_LINK_SPEED
 #warning "Have you forgotten to add a new integer attribute to attributeTable?"
 #endif
 

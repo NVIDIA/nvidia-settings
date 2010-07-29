@@ -6808,10 +6808,8 @@ static XConfigDevicePtr add_device_to_xconfig(nvGpuPtr gpu, XConfigPtr config,
     device->vendor = xconfigStrdup("NVIDIA Corporation");
     device->board = xconfigStrdup(gpu->name);
 
-    if (print_bus_id) {
-        device->busid = (char *)malloc(32);
-        snprintf(device->busid, 32, "PCI:%d:%d:0",
-                 gpu->pci_bus, gpu->pci_device);
+    if (print_bus_id && gpu->pci_bus_id) {
+        device->busid = strdup(gpu->pci_bus_id);
     }
 
     device->chipid = -1;

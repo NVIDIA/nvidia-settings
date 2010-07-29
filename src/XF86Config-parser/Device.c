@@ -505,12 +505,12 @@ int xconfigParsePciBusString(const char *busID,
  * of PCI domain & accordingly formats the busid string.
  */
 void xconfigFormatPciBusString(char *str, int len,
-                               int domain, int bus, int device)
+                               int domain, int bus, int device, int func)
 {
     if (domain) {
-        snprintf(str, len, "PCI:%d@%d:%d:0", bus, domain, device);
+        snprintf(str, len, "PCI:%d@%d:%d:%d", bus, domain, device, func);
     } else {
-        snprintf(str, len, "PCI:%d:%d:0", bus, device);
+        snprintf(str, len, "PCI:%d:%d:%d", bus, device, func);
     }
     str[len - 1] = '\0';
 }

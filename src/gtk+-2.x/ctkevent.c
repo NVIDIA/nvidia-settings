@@ -305,6 +305,7 @@ static void ctk_event_class_init(CtkEventClass *ctk_event_class)
     MAKE_SIGNAL(NV_CTRL_THERMAL_SENSOR_READING);
     MAKE_SIGNAL(NV_CTRL_THERMAL_SENSOR_PROVIDER);
     MAKE_SIGNAL(NV_CTRL_THERMAL_SENSOR_TARGET);
+    MAKE_SIGNAL(NV_CTRL_GPU_PCIE_MAX_LINK_SPEED);
 
 #undef MAKE_SIGNAL
     
@@ -315,7 +316,7 @@ static void ctk_event_class_init(CtkEventClass *ctk_event_class)
      * knows about.
      */
 
-#if NV_CTRL_LAST_ATTRIBUTE != NV_CTRL_THERMAL_SENSOR_TARGET
+#if NV_CTRL_LAST_ATTRIBUTE != NV_CTRL_GPU_PCIE_MAX_LINK_SPEED
 #warning "There are attributes that do not emit signals!"
 #endif
 

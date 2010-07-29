@@ -41,6 +41,7 @@
 
 #include "ctkdisplayconfig-utils.h"
 #include "ctkutils.h"
+#include "ctkgpu.h"
 
 
 static void xconfig_update_buffer(GtkWidget *widget, gpointer user_data);
@@ -2304,6 +2305,7 @@ static void gpu_free(nvGpuPtr gpu)
         gpu_remove_screens(gpu);
         gpu_remove_displays(gpu);
         XFree(gpu->name);
+        g_free(gpu->pci_bus_id);
         if (gpu->handle) {
             NvCtrlAttributeClose(gpu->handle);
         }
@@ -2393,32 +2395,8 @@ static Bool layout_add_gpu_from_server(nvLayoutPtr layout, unsigned int gpu_id,
         goto fail;
     }
 
-    ret = NvCtrlGetAttribute(gpu->handle, NV_CTRL_PCI_BUS,
-                             (int *)&(gpu->pci_bus));
-    if (ret != NvCtrlSuccess) {
-        *err_str = g_strdup_printf("Failed to query PCI BUS on GPU-%d '%s'.",
-                                   gpu_id, gpu->name);
-        nv_error_msg(*err_str);
-        goto fail;
-    }
+    get_bus_related_info(gpu->handle, NULL, &(gpu->pci_bus_id));
 
-    ret = NvCtrlGetAttribute(gpu->handle, NV_CTRL_PCI_DEVICE,
-                             (int *)&(gpu->pci_device));
-    if (ret != NvCtrlSuccess) {
-        *err_str = g_strdup_printf("Failed to query PCI DEVICE on "
-                                   "GPU-%d '%s'.", gpu_id, gpu->name);
-        nv_error_msg(*err_str);
-        goto fail;
-    }
-
-    ret = NvCtrlGetAttribute(gpu->handle, NV_CTRL_PCI_FUNCTION,
-                             (int *)&(gpu->pci_func));
-    if (ret != NvCtrlSuccess) {
-        *err_str = g_strdup_printf("Failed to query PCI FUNCTION on "
-                                   "GPU-%d '%s'.", gpu_id, gpu->name);
-        nv_error_msg(*err_str);
-        goto fail;
-    }
 
     ret = NvCtrlGetAttribute(gpu->handle, NV_CTRL_MAX_SCREEN_WIDTH,
                              (int *)&(gpu->max_width));

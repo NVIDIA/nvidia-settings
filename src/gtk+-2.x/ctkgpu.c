@@ -36,10 +36,12 @@
 #include "ctkhelp.h"
 #include "ctkutils.h"
 
+#include "XF86Config-parser/xf86Parser.h"
 
 static void probe_displays_received(GtkObject *object, gpointer arg1,
                                     gpointer user_data);
 #define ARRAY_ELEMENTS 16
+#define DEFAULT_UPDATE_PCIE_INFO_TIME_INTERVAL 1000
 
 GType ctk_gpu_get_type(
     void
@@ -120,17 +122,11 @@ static gchar *make_display_device_list(NvCtrlAttributeHandle *handle,
 
 } /* make_display_device_list() */
 
-
-void get_bus_related_info(NvCtrlAttributeHandle *handle,
-                          gchar **bus,
-                          gchar **pci_bus_id)
+static void get_bus_type_str(NvCtrlAttributeHandle *handle,
+                             gchar **bus)
 {
     int tmp, ret, bus_type;
-    int pci_domain, pci_bus, pci_device, pci_func;
-    gchar *bus_type_str, *bus_rate, *pcie_gen, *bus_id;
-    gchar *__pci_bus_id_unknown = "?@?:?:?";
-    
-    /* NV_CTRL_BUS_TYPE */
+    gchar *bus_type_str, *bus_rate, *pcie_gen;
 
     bus_type = 0xffffffff;
     bus_type_str = "Unknown";
@@ -174,45 +170,86 @@ void get_bus_related_info(NvCtrlAttributeHandle *handle,
 
     if (bus_rate || pcie_gen) {
         *bus = g_strdup_printf("%s %s%s%s", bus_type_str,
-                               bus_rate ? bus_rate : "",
-                               bus_rate ? " " : "",
-                               pcie_gen ? pcie_gen : "");
+                              bus_rate ? bus_rate : "",
+                              bus_rate ? " " : "",
+                              pcie_gen ? pcie_gen : "");
         g_free(bus_rate);
         g_free(pcie_gen);
     } else {
         *bus = g_strdup(bus_type_str);
     }
+}
 
+void get_bus_related_info(NvCtrlAttributeHandle *handle,
+                          gchar **bus,
+                          gchar **pci_bus_id)
+{
+    int ret;
+    int pci_domain, pci_bus, pci_device, pci_func;
+    gchar *bus_id;
+    const gchar *__pci_bus_id_unknown = "?@?:?:?";
+
+    if (bus) {
+        get_bus_type_str(handle, bus);
+    }
+    
     /* NV_CTRL_PCI_DOMAIN & NV_CTRL_PCI_BUS &
      * NV_CTRL_PCI_DEVICE & NV__CTRL_PCI_FUNCTION
      */
 
     bus_id = NULL;
     ret = NvCtrlGetAttribute(handle, NV_CTRL_PCI_DOMAIN, &pci_domain);
-    if (ret != NvCtrlSuccess) bus_id = __pci_bus_id_unknown;
+    if (ret != NvCtrlSuccess) goto bus_id_fallback;
 
     ret = NvCtrlGetAttribute(handle, NV_CTRL_PCI_BUS, &pci_bus);
-    if (ret != NvCtrlSuccess) bus_id = __pci_bus_id_unknown;
+    if (ret != NvCtrlSuccess) goto bus_id_fallback;
 
     ret = NvCtrlGetAttribute(handle, NV_CTRL_PCI_DEVICE, &pci_device);
-    if (ret != NvCtrlSuccess) bus_id = __pci_bus_id_unknown;
+    if (ret != NvCtrlSuccess) goto bus_id_fallback;
 
     ret = NvCtrlGetAttribute(handle, NV_CTRL_PCI_FUNCTION, &pci_func);
-    if (ret != NvCtrlSuccess) bus_id = __pci_bus_id_unknown;
+    if (ret != NvCtrlSuccess) goto bus_id_fallback;
+
+    bus_id = malloc(32);
+    if (bus_id) {
+        xconfigFormatPciBusString(bus_id, 32, pci_domain, pci_bus,
+                                  pci_device, pci_func);
+    }
+
+ bus_id_fallback:
 
     if (!bus_id) {
-        if (pci_domain == 0) {
-            bus_id = g_strdup_printf("%d:%d:%d", pci_bus, pci_device,
-                                         pci_func);
-        } else {
-            bus_id = g_strdup_printf("%d@%d:%d:%d", pci_bus, pci_domain,
-                                         pci_device, pci_func);
-        }
-    } else {
         bus_id = g_strdup(__pci_bus_id_unknown);
     }
     
     *pci_bus_id = bus_id;
+}
+
+static gboolean update_pcie_info(gpointer user_data)
+{
+    gchar *bus;
+    gint link_speed;
+    gchar *link_speed_str;
+    ReturnStatus ret;
+
+    CtkGpu *ctk_gpu = (CtkGpu *) user_data;
+    get_bus_type_str(ctk_gpu->handle, &bus);
+    gtk_label_set_text(GTK_LABEL(ctk_gpu->bus_label), bus);
+    
+    if (ctk_gpu->pcie_gen_queriable) {
+        ret = NvCtrlGetAttribute(ctk_gpu->handle, NV_CTRL_GPU_PCIE_MAX_LINK_SPEED,
+                                 &link_speed);
+        if (ret != NvCtrlSuccess) {
+            link_speed_str = g_strdup_printf("Unknown");
+        }
+        else {
+            link_speed_str = g_strdup_printf("%d", link_speed);
+        }
+        gtk_label_set_text(GTK_LABEL(ctk_gpu->link_speed_label), link_speed_str);
+        g_free(link_speed_str);
+    }
+    g_free(bus);
+    return TRUE;
 }
 
 
@@ -220,7 +257,8 @@ void get_bus_related_info(NvCtrlAttributeHandle *handle,
 GtkWidget* ctk_gpu_new(
     NvCtrlAttributeHandle *handle,
     CtrlHandleTarget *t,
-    CtkEvent *ctk_event
+    CtkEvent *ctk_event,
+    CtkConfig *ctk_config
 )
 {
     GObject *object;
@@ -233,7 +271,7 @@ GtkWidget* ctk_gpu_new(
     GtkWidget *table;
 
     char *product_name, *vbios_version, *video_ram, *irq;
-    gchar *bus;
+    gchar *s;
     gchar *pci_bus_id;
     gchar pci_device_id[ARRAY_ELEMENTS];
     gchar pci_vendor_id[ARRAY_ELEMENTS];
@@ -279,7 +317,7 @@ GtkWidget* ctk_gpu_new(
     
     /* Get Bus related information */
     
-    get_bus_related_info(handle, &bus, &pci_bus_id);
+    get_bus_related_info(handle, NULL, &pci_bus_id);
     
     /* NV_CTRL_PCI_ID */
 
@@ -411,6 +449,8 @@ GtkWidget* ctk_gpu_new(
     ctk_gpu->handle = handle;
     ctk_gpu->gpu_cores = (gpu_cores != NULL) ? 1 : 0;
     ctk_gpu->memory_interface = (memory_interface != NULL) ? 1 : 0;
+    ctk_gpu->ctk_config = ctk_config;
+    ctk_gpu->pcie_gen_queriable = FALSE;
 
     /* set container properties of the object */
 
@@ -420,7 +460,13 @@ GtkWidget* ctk_gpu_new(
 
     banner = ctk_banner_image_new(BANNER_ARTWORK_GPU);
     gtk_box_pack_start(GTK_BOX(ctk_gpu), banner, FALSE, FALSE, 0);
-        
+
+    /* NV_CTRL_GPU_PCIE_GENERATION */
+
+    ret = NvCtrlGetAttribute(handle, NV_CTRL_GPU_PCIE_GENERATION, &tmp);
+    if (ret == NvCtrlSuccess)
+        ctk_gpu->pcie_gen_queriable = TRUE;
+
     /*
      * GPU information: TOP->MIDDLE - LEFT->RIGHT
      *
@@ -470,9 +516,10 @@ GtkWidget* ctk_gpu_new(
     }
     /* spacing */
     row += 3;
-    add_table_row(table, row++,
-                  0, 0.5, "Bus Type:",
-                  0, 0.5, bus);
+    ctk_gpu->bus_label =
+        add_table_row(table, row++,
+                      0, 0.5, "Bus Type:",
+                      0, 0.5, NULL);
     add_table_row(table, row++,
                   0, 0.5, "Bus ID:",
                   0, 0.5, pci_bus_id);
@@ -485,6 +532,16 @@ GtkWidget* ctk_gpu_new(
     add_table_row(table, row++,
                   0, 0.5, "IRQ:",
                   0, 0.5, irq);
+    if (ctk_gpu->pcie_gen_queriable) { 
+        /* spacing */
+        row += 3;
+        ctk_gpu->link_speed_label =
+            add_table_row(table, row++,
+                          0, 0.5, "PCI-E Max Link Speed:",
+                          0, 0.5, NULL);
+        row++;
+    }
+
     /* spacing */
     row += 3;
     add_table_row(table, row++,
@@ -500,7 +557,6 @@ GtkWidget* ctk_gpu_new(
     XFree(product_name);
     XFree(vbios_version);
     g_free(video_ram);
-    g_free(bus);
     g_free(gpu_cores);
     g_free(memory_interface);
     g_free(pci_bus_id);
@@ -509,6 +565,20 @@ GtkWidget* ctk_gpu_new(
     g_free(displays);
 
     gtk_widget_show_all(GTK_WIDGET(object));
+    
+    /* update PCI-E info */
+    update_pcie_info((gpointer) ctk_gpu);
+
+    /* Register a timer callback to update the PCI-E info */
+    s = g_strdup_printf("Graphics Card (GPU %d)",
+                        NvCtrlGetTargetId(handle));
+
+    ctk_config_add_timer(ctk_config,
+                         DEFAULT_UPDATE_PCIE_INFO_TIME_INTERVAL,
+                         s,
+                         (GSourceFunc) update_pcie_info,
+                         (gpointer) ctk_gpu);
+    g_free(s);
 
     /* Handle events */
     
@@ -573,12 +643,12 @@ GtkTextBuffer *ctk_gpu_create_help(GtkTextTagTable *table,
     
     ctk_help_heading(b, &i, "Bus ID");
     ctk_help_para(b, &i, "This is the GPU's PCI identification string, "
-                  "reported in the form 'bus:device:function'.  It uniquely "
-                  "identifies the GPU's location in the host system.  "
-                  "This string can be used as-is with the 'BusID' X "
-                  "configuration file option to unambiguously associate "
-                  "Device sections with this GPU.");
-    
+                  "in X configuration file 'BusID' format: "
+                  "\"bus:device:function\", or, if the PCI domain of the GPU "
+                  "is non-zero, \"bus@domain:device:function\".  Note "
+                  "that all values are in decimal (as opposed to hexidecimal, "
+                  "which is how `lspci` formats its BusID values).");
+
     ctk_help_heading(b, &i, "PCI Device ID");
     ctk_help_para(b, &i, "This is the PCI Device ID of the GPU.");
     
@@ -588,6 +658,11 @@ GtkTextBuffer *ctk_gpu_create_help(GtkTextTagTable *table,
     ctk_help_heading(b, &i, "IRQ");
     ctk_help_para(b, &i, "This is the interrupt request line assigned to "
                   "this GPU.");
+    
+    if (ctk_gpu->pcie_gen_queriable) {
+        ctk_help_heading(b, &i, "PCI-E Max Link Speed");
+        ctk_help_para(b, &i, "This is the maximum PCI-E link speed.");
+    }
     
     ctk_help_heading(b, &i, "X Screens");
     ctk_help_para(b, &i, "This is the list of X Screens driven by this GPU.");
@@ -604,17 +679,39 @@ GtkTextBuffer *ctk_gpu_create_help(GtkTextTagTable *table,
 
 
 static void probe_displays_received(GtkObject *object, gpointer arg1,
-                                   gpointer user_data)
+                                    gpointer user_data)
 {
     CtkEventStruct *event_struct = (CtkEventStruct *) arg1;
     CtkGpu *ctk_object = CTK_GPU(user_data);
     unsigned int probed_displays = event_struct->value;
     gchar *str;
 
-    
     str = make_display_device_list(ctk_object->handle, probed_displays);
 
     gtk_label_set_text(GTK_LABEL(ctk_object->displays), str);
 
     g_free(str);
 }
+
+void ctk_gpu_start_timer(GtkWidget *widget)
+{
+    CtkGpu *ctk_gpu = CTK_GPU(widget);
+
+    /* Start the GPU timer */
+
+    ctk_config_start_timer(ctk_gpu->ctk_config,
+                           (GSourceFunc) update_pcie_info,
+                           (gpointer) ctk_gpu);
+}
+
+void ctk_gpu_stop_timer(GtkWidget *widget)
+{
+    CtkGpu *ctk_gpu = CTK_GPU(widget);
+
+    /* Stop the GPU timer */
+
+    ctk_config_stop_timer(ctk_gpu->ctk_config,
+                          (GSourceFunc) update_pcie_info,
+                          (gpointer) ctk_gpu);
+}
+
