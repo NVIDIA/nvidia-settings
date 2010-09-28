@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2008 NVIDIA, Corporation
+ * Copyright (c) 2010 NVIDIA, Corporation
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy
  * of this software and associated documentation files (the "Software"), to deal
@@ -3025,7 +3025,29 @@
 
 #define NV_CTRL_GPU_PCIE_MAX_LINK_SPEED                         361 /* R--GI */
 
-#define NV_CTRL_LAST_ATTRIBUTE NV_CTRL_GPU_PCIE_MAX_LINK_SPEED
+
+/*
+ * NV_CTRL_DITHERING_DEPTH - Controls the dithering depth when
+ * NV_CTRL_CURRENT_DITHERING is ENABLED.  Some displays connected
+ * to the GPU via the DVI or LVDS interfaces cannot display the
+ * full color range of ten bits per channel, so the GPU will
+ * dither to either 6 or 8 bits per channel.
+ */
+#define NV_CTRL_DITHERING_DEPTH                                 368 /* RWDG */
+#define NV_CTRL_DITHERING_DEPTH_AUTO                            0
+#define NV_CTRL_DITHERING_DEPTH_6_BITS                          1
+#define NV_CTRL_DITHERING_DEPTH_8_BITS                          2
+
+/*
+ * NV_CTRL_CURRENT_DITHERING_DEPTH - Returns the current dithering
+ * depth value.
+ */
+#define NV_CTRL_CURRENT_DITHERING_DEPTH                         369 /* R-DG */
+#define NV_CTRL_CURRENT_DITHERING_DEPTH_NONE                    0
+#define NV_CTRL_CURRENT_DITHERING_DEPTH_6_BITS                  1
+#define NV_CTRL_CURRENT_DITHERING_DEPTH_8_BITS                  2
+
+#define NV_CTRL_LAST_ATTRIBUTE NV_CTRL_CURRENT_DITHERING_DEPTH
 
 /**************************************************************************/
 

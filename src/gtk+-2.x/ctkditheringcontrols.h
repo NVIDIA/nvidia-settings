@@ -62,17 +62,18 @@ struct _CtkDitheringControls
     GtkWidget *reset_button;
     GtkWidget *dithering_controls_main;
     GtkWidget *dithering_mode_box;
+    GtkWidget *dithering_depth_box;
 
     GtkWidget *dithering_config_menu;
     GtkWidget *dithering_mode_menu;
+    GtkWidget *dithering_depth_menu;
     GtkWidget *dithering_current_config;
     GtkWidget *dithering_current_mode;
+    GtkWidget *dithering_current_depth;
 
     gint display_device_mask;
     gint *dithering_mode_table;
     gint dithering_mode_table_size;
-    gint default_dithering_config;
-    gint default_dithering_mode;
     char *name;
 };
 

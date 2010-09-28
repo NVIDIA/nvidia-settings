@@ -278,6 +278,8 @@ AttributeTableEntry attributeTable[] = {
     { "CurrentDithering",           NV_CTRL_CURRENT_DITHERING,             0,     "Returns the current dithering state: enabled (1), disabled (0)." },
     { "DitheringMode",              NV_CTRL_DITHERING_MODE,                0,     "Controls the dithering mode when CurrentDithering=1; auto (0), temporally dynamic dithering pattern (1), temporally static dithering pattern (2)." },
     { "CurrentDitheringMode",       NV_CTRL_CURRENT_DITHERING_MODE,        0,     "Returns the current dithering mode: none (0), temporally dynamic dithering pattern (1), temporally static dithering pattern (2)." },
+    { "DitheringDepth",             NV_CTRL_DITHERING_DEPTH,               0,     "Controls the dithering depth when CurrentDithering=1; auto (0), 6 bits per channel (1), 8 bits per channel (2)." },
+    { "CurrentDitheringDepth",      NV_CTRL_CURRENT_DITHERING_DEPTH,       0,     "Returns the current dithering depth: none (0), 6 bits per channel (1), 8 bits per channel (2)." },
     { "DigitalVibrance",            NV_CTRL_DIGITAL_VIBRANCE,              0,     "Sets the digital vibrance level of the display device." },
     { "ImageSharpening",            NV_CTRL_IMAGE_SHARPENING,              0,     "Adjusts the sharpness of the display's image quality by amplifying high frequency content." },
     { "ImageSharpeningDefault",     NV_CTRL_IMAGE_SHARPENING_DEFAULT,      0,     "Returns default value of image sharpening." },
@@ -343,7 +345,7 @@ AttributeTableEntry attributeTable[] = {
  * about.
  */
 
-#if NV_CTRL_LAST_ATTRIBUTE != NV_CTRL_GPU_PCIE_MAX_LINK_SPEED
+#if NV_CTRL_LAST_ATTRIBUTE != NV_CTRL_CURRENT_DITHERING_DEPTH
 #warning "Have you forgotten to add a new integer attribute to attributeTable?"
 #endif
 
