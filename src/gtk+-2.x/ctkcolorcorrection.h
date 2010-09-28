@@ -67,8 +67,8 @@ struct _CtkColorCorrection
     GtkWidget *confirm_button;
     gint confirm_countdown;
     guint confirm_timer;
-    gfloat cur_val[3][3];  // as [attribute][channel]
-    gfloat prev_val[3][3]; // as [attribute][channel]
+    gfloat cur_slider_val[3][4];  // as [attribute][channel]
+    gfloat prev_slider_val[3][4]; // as [attribute][channel]
     guint enabled_display_devices;
 };
 

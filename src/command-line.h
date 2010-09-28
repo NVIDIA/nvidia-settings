@@ -28,6 +28,8 @@
 #include <NvCtrlAttributes.h>
 
 #define DEFAULT_RC_FILE "~/.nvidia-settings-rc"
+#define CONFIG_FILE_OPTION 1
+
 
 #define VERBOSITY_ERROR    0 /* errors only */
 #define VERBOSITY_WARNING  1 /* errors and warnings */

@@ -38,18 +38,22 @@
 #include "NVCtrlLib.h"
 
 
+/* Used to stringify NV_CTRL_XXX #defines */
+
+#define ADD_NVCTRL_CASE(FMT) \
+case (FMT):                  \
+    return #FMT;
+
+
 /*
  * Decode SDI input value returned.
  */
 char *SyncTypeName(int value)
 {
     switch (value) {
-    case NV_CTRL_GVO_SDI_SYNC_INPUT_DETECTED_HD:
-        return "NV_CTRL_GVO_SDI_SYNC_INPUT_DETECTED_HD";
-    case NV_CTRL_GVO_SDI_SYNC_INPUT_DETECTED_SD:
-        return "NV_CTRL_GVO_SDI_SYNC_INPUT_DETECTED_SD";
-    case NV_CTRL_GVO_SDI_SYNC_INPUT_DETECTED_NONE:
-        return "NV_CTRL_GVO_SDI_SYNC_INPUT_DETECTED_NONE";
+        ADD_NVCTRL_CASE(NV_CTRL_GVO_SDI_SYNC_INPUT_DETECTED_HD);
+        ADD_NVCTRL_CASE(NV_CTRL_GVO_SDI_SYNC_INPUT_DETECTED_SD);
+        ADD_NVCTRL_CASE(NV_CTRL_GVO_SDI_SYNC_INPUT_DETECTED_NONE);
     default:
         return "Invalid Value";
     }
@@ -58,11 +62,6 @@ char *SyncTypeName(int value)
 /*
  * Decode provided signal format.
  */
-
-#define ADD_NVCTRL_CASE(FMT) \
-case (FMT):                  \
-    return #FMT;
-
 
 char *VideoFormatName(int value)
 {
@@ -663,6 +662,7 @@ void do_listconfig(Display *dpy, int gvi)
         unsigned int fmt_list = fmts[i];
         unsigned int fmt_bit;
         unsigned int fmt;
+        unsigned int fmt_flags;
 
         unsigned int bpcs;
         unsigned int bpc_bit;
@@ -678,7 +678,29 @@ void do_listconfig(Display *dpy, int gvi)
             fmt_list &= (~fmt_bit);
             fmt = ffs(fmt_bit) - 1 + (32*i);
 
-            printf("\n%s:\n", VideoFormatName(fmt));
+            printf("\n%s", VideoFormatName(fmt));
+            ret = XNVCTRLQueryTargetAttribute(dpy,
+                                              NV_CTRL_TARGET_TYPE_GVI,
+                                              gvi,
+                                              fmt, // display_mask
+                                              NV_CTRL_GVIO_VIDEO_FORMAT_FLAGS,
+                                              (int *)&fmt_flags);
+            if (!ret) {
+                printf(" - Failed to query flag bits for video format for "
+                       "GVI %d.\n", gvi);
+            } else if (fmt_flags == NV_CTRL_GVIO_VIDEO_FORMAT_FLAGS_NONE) {
+                printf(" (No flags set): \n");
+            } else {
+                printf(" (Flags:");
+                printf("%c", (fmt_flags & NV_CTRL_GVIO_VIDEO_FORMAT_FLAGS_INTERLACED)        ? 'I' : '_');
+                printf("%c", (fmt_flags & NV_CTRL_GVIO_VIDEO_FORMAT_FLAGS_PROGRESSIVE)       ? 'P' : '_');
+                printf("%c", (fmt_flags & NV_CTRL_GVIO_VIDEO_FORMAT_FLAGS_PSF)               ? 'F' : '_');
+                printf("%c", (fmt_flags & NV_CTRL_GVIO_VIDEO_FORMAT_FLAGS_3G_LEVEL_A)        ? 'A' : '_');
+                printf("%c", (fmt_flags & NV_CTRL_GVIO_VIDEO_FORMAT_FLAGS_3G_LEVEL_B)        ? 'B' : '_');
+                printf("%c", (fmt_flags & NV_CTRL_GVIO_VIDEO_FORMAT_FLAGS_3G_1080P_NO_12BPC) ? 'N' : '_');
+                printf("):\n");
+            }
+
 
             // Set the video format
             XNVCTRLSetTargetAttribute(dpy,

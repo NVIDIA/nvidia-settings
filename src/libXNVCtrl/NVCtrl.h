@@ -152,20 +152,28 @@
 
 
 /*
- * NV_CTRL_FLATPANEL_DITHERING - the current flat panel dithering
- * state; possible values are:
- *
- * 0: default  (the driver will decide when to dither)
- * 1: enabled  (the driver will always dither when possible)
- * 2: disabled (the driver will never dither)
- *
- * USAGE NOTE: This attribute had been deprecated.
+ * NV_CTRL_FLATPANEL_DITHERING is deprecated; NV_CTRL_DITHERING should
+ * be used instead.
  */
 
 #define NV_CTRL_FLATPANEL_DITHERING                             3  /* RWDG */
 #define NV_CTRL_FLATPANEL_DITHERING_DEFAULT                     0
 #define NV_CTRL_FLATPANEL_DITHERING_ENABLED                     1
 #define NV_CTRL_FLATPANEL_DITHERING_DISABLED                    2
+
+/*
+ * NV_CTRL_DITHERING - the requested dithering configuration;
+ * possible values are:
+ *
+ * 0: auto     (the driver will decide when to dither)
+ * 1: enabled  (the driver will always dither when possible)
+ * 2: disabled (the driver will never dither)
+ */
+
+#define NV_CTRL_DITHERING                                       3  /* RWDG */
+#define NV_CTRL_DITHERING_AUTO                                  0
+#define NV_CTRL_DITHERING_ENABLED                               1
+#define NV_CTRL_DITHERING_DISABLED                              2
 
 
 /*
@@ -323,7 +331,7 @@
 #define NV_CTRL_STEREO_DDC                                      1
 #define NV_CTRL_STEREO_BLUELINE                                 2
 #define NV_CTRL_STEREO_DIN                                      3
-#define NV_CTRL_STEREO_TWINVIEW                                 4
+#define NV_CTRL_STEREO_PASSIVE_EYE_PER_DPY                      4
 #define NV_CTRL_STEREO_VERTICAL_INTERLACED                      5
 #define NV_CTRL_STEREO_COLOR_INTERLACED                         6
 #define NV_CTRL_STEREO_HORIZONTAL_INTERLACED                    7
@@ -2844,7 +2852,7 @@
 
 #define NV_CTRL_GPU_CORES                                       345 /* R--G */
 
-/* 
+/*
  * NV_CTRL_GPU_MEMORY_BUS_WIDTH - Returns memory bus bandwidth on the associated
  * subdevice.
  */
@@ -2863,6 +2871,22 @@
 #define NV_CTRL_GVI_TEST_MODE_DISABLE                             0
 #define NV_CTRL_GVI_TEST_MODE_ENABLE                              1
 
+/*
+ * NV_CTRL_COLOR_SPACE - This option sets color space of the video
+ * signal.
+ */
+#define NV_CTRL_COLOR_SPACE                                     348 /* RWDG */
+#define NV_CTRL_COLOR_SPACE_RGB                                   0
+#define NV_CTRL_COLOR_SPACE_YCbCr422                              1
+#define NV_CTRL_COLOR_SPACE_YCbCr444                              2
+
+/*
+ * NV_CTRL_COLOR_RANGE - This option sets color range of the video
+ * signal.
+ */
+#define NV_CTRL_COLOR_RANGE                                     349 /* RWDG */
+#define NV_CTRL_COLOR_RANGE_FULL                                  0
+#define NV_CTRL_COLOR_RANGE_LIMITED                               1
 
 /*
  * NV_CTRL_GPU_SCALING_DEFAULT_TARGET - Returns the default scaling target
@@ -2877,6 +2901,40 @@
 #define NV_CTRL_GPU_SCALING_DEFAULT_TARGET                      350 /* R-DG */
 #define NV_CTRL_GPU_SCALING_DEFAULT_METHOD                      351 /* R-DG */
 
+/*
+ * NV_CTRL_DITHERING_MODE - Controls the dithering mode, when
+ * NV_CTRL_CURRENT_DITHERING is Enabled.
+ *
+ * AUTO: allow the driver to choose the dithering mode automatically.
+ *
+ * DYNAMIC_2X2: use a 2x2 matrix to dither from the GPU's pixel
+ * pipeline to the bit depth of the flat panel.  The matrix values
+ * are changed from frame to frame.
+ *
+ * STATIC_2X2: use a 2x2 matrix to dither from the GPU's pixel
+ * pipeline to the bit depth of the flat panel.  The matrix values
+ * do not change from frame to frame.
+ */
+#define NV_CTRL_DITHERING_MODE                                  352 /* RWDG */
+#define NV_CTRL_DITHERING_MODE_AUTO                               0
+#define NV_CTRL_DITHERING_MODE_DYNAMIC_2X2                        1
+#define NV_CTRL_DITHERING_MODE_STATIC_2X2                         2
+
+/*
+ * NV_CTRL_CURRENT_DITHERING - Returns the current dithering state.
+ */
+#define NV_CTRL_CURRENT_DITHERING                               353 /* R-DG */
+#define NV_CTRL_CURRENT_DITHERING_DISABLED                        0
+#define NV_CTRL_CURRENT_DITHERING_ENABLED                         1
+
+/*
+ * NV_CTRL_CURRENT_DITHERING_MODE - Returns the current dithering
+ * mode.
+ */
+#define NV_CTRL_CURRENT_DITHERING_MODE                          354 /* R-DG */
+#define NV_CTRL_CURRENT_DITHERING_MODE_NONE                       0
+#define NV_CTRL_CURRENT_DITHERING_MODE_DYNAMIC_2X2                1
+#define NV_CTRL_CURRENT_DITHERING_MODE_STATIC_2X2                 2
 
 /* 
  * NV_CTRL_THERMAL_SENSOR_READING - Returns the thermal sensor's current
@@ -2960,7 +3018,6 @@
     ((NV_CTRL_GVIO_VIDEO_FORMAT_FLAGS_3G_LEVEL_A) | \
      (NV_CTRL_GVIO_VIDEO_FORMAT_FLAGS_3G_LEVEL_B))
 #define NV_CTRL_GVIO_VIDEO_FORMAT_FLAGS_3G_1080P_NO_12BPC 0x00000020
-
 
 /*
  * NV_CTRL_GPU_PCIE_MAX_LINK_SPEED - returns maximum PCI-E link speed.
@@ -3358,8 +3415,8 @@
  *
  *    Token      Value
  *   "perf"      integer   - the Performance level
- *   "nvClock"   integer   - the GPU clocks (in MHz) for the perf level
- *   "memClock"  integer   - the memory clocks (in MHz) for the perf level
+ *   "nvclock"   integer   - the GPU clocks (in MHz) for the perf level
+ *   "memclock"  integer   - the memory clocks (in MHz) for the perf level
  *
  *
  * Example:
@@ -3471,8 +3528,40 @@
  */
 #define NV_CTRL_STRING_GVO_VIDEO_FORMAT_NAME                   33  /* R--- */
 
+
+/*
+ * NV_CTRL_STRING_GPU_CURRENT_CLOCK_FREQS - returns a string with the
+ * associated NV Clock, Memory Clock and Processor Clock values.
+ * 
+ * Current valid tokens are "nvclock", "memclock", and "processorclock".
+ * Not all tokens will be reported on all GPUs, and additional tokens
+ * may be added in the future.
+ *
+ * Clock values are returned as a comma-separated list of
+ * "token=value" pairs.
+ * Valid tokens:
+ *
+ *    Token           Value
+ *   "nvclock"        integer - the GPU clocks (in MHz) for the current
+ *                              perf level
+ *   "memclock"       integer - the memory clocks (in MHz) for the current
+ *                              perf level
+ *   "processorclock" integer - the processor clocks (in MHz) for the perf level
+ *
+ *
+ * Example:
+ *
+ *    nvclock=459, memclock=400, processorclock=918
+ *
+ * This attribute may be queried through XNVCTRLQueryTargetStringAttribute()
+ * using an NV_CTRL_TARGET_TYPE_GPU or NV_CTRL_TARGET_TYPE_X_SCREEN target.
+ */
+
+#define NV_CTRL_STRING_GPU_CURRENT_CLOCK_FREQS                 34  /* RW-G */
+
+
 #define NV_CTRL_STRING_LAST_ATTRIBUTE \
-        NV_CTRL_STRING_GVIO_VIDEO_FORMAT_NAME
+        NV_CTRL_STRING_GPU_CURRENT_CLOCK_FREQS
 
 
 /**************************************************************************/

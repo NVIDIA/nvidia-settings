@@ -58,6 +58,7 @@
 #define NV_PARSER_TYPE_VALUE_IS_SWITCH_DISPLAY (1<<28)
 #define NV_PARSER_TYPE_1000Hz                  (1<<29)
 #define NV_PARSER_TYPE_SDI                     (1<<30)
+#define NV_PARSER_TYPE_SDI_CSC                 (1<<31)
 
 #define NV_PARSER_ASSIGNMENT 0
 #define NV_PARSER_QUERY 1
@@ -123,6 +124,7 @@ typedef struct _ParsedAttribute {
     int attr;
     int val;
     float fval; /* XXX put in a union with val? */
+    const float *pfval; /* XXX put in a union with val? */
     uint32 display_device_mask;
     uint32 flags;
     struct _ParsedAttribute *next;
@@ -188,6 +190,18 @@ typedef struct {
  */
 
 extern TargetTypeEntry targetTypeTable[];
+
+/* nv_get_sdi_csc_matrxi() - Returns an array of floats that specifies
+ * all the color, offset and scale values for specifing one of the
+ * Standard CSC. 's' is a string that names the matrix values to return.
+ * The values are placed in the float buffer like so:
+ *
+ * { YR,  YG,  YB,   YOffset,  YScale,
+ *   CrR, CrG, CrB,  CrOffset, CrScale,
+ *   CbR, CbG, CbB,  CbOffset, CbScale }
+ *
+ */
+const float * nv_get_sdi_csc_matrix(char *s);
 
 /*
  * nv_parse_attribute_string() - this function parses an attribute

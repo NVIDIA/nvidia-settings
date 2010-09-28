@@ -44,7 +44,7 @@ static const _CtkStereoMode stereoMode[] = {
     { NV_CTRL_STEREO_DDC,                          "DDC Stereo" },
     { NV_CTRL_STEREO_BLUELINE,                     "Blueline Stereo" },
     { NV_CTRL_STEREO_DIN,                          "Onboard DIN Stereo" },
-    { NV_CTRL_STEREO_TWINVIEW,                     "TwinView clone Stereo" },
+    { NV_CTRL_STEREO_PASSIVE_EYE_PER_DPY,          "Passive One-Eye-per-Display Stereo" },
     { NV_CTRL_STEREO_VERTICAL_INTERLACED,          "Vertical Interlaced Stereo" },
     { NV_CTRL_STEREO_COLOR_INTERLACED,             "Color Interleaved Stereo" },
     { NV_CTRL_STEREO_HORIZONTAL_INTERLACED,        "Horizontal Interlaced Stereo" },
@@ -104,39 +104,73 @@ GType ctk_screen_get_type(
 
 
 
-static gchar *make_display_device_list(NvCtrlAttributeHandle *handle,
-                                       unsigned int display_devices)
+/* Generates a list of display device names for those display devices that
+ * are enabled on the given GPU and, if Xinerama is disabled, are also
+ * associated to the given X screen (handle).
+ */
+static gchar *make_gpu_display_device_list(NvCtrlAttributeHandle *handle,
+                                           int gpu_id,
+                                           int xinerama_enabled)
 {
     gchar *displays = NULL;
     gchar *type;
     gchar *name;
     gchar *tmp_str;
+    unsigned int display_devices;
     unsigned int mask;
-    ReturnStatus ret;
-    
+    Bool valid;
 
-    /* List of Display Device connected on GPU */
+
+    /* Get the list of enabled display devices on the GPU */
+
+    valid =
+        XNVCTRLQueryTargetAttribute(NvCtrlGetDisplayPtr(handle),
+                                    NV_CTRL_TARGET_TYPE_GPU,
+                                    gpu_id,
+                                    0,
+                                    NV_CTRL_ENABLED_DISPLAYS,
+                                    (int *)&display_devices);
+    if (!valid) return NULL;
+
+    /* If Xinerama is disabled, only show displays that are associated
+     * to this X screen.
+     */
+    if (!xinerama_enabled) {
+        ReturnStatus ret;
+        unsigned int associated_devices;
+
+        ret = NvCtrlGetAttribute(handle,
+                                 NV_CTRL_ASSOCIATED_DISPLAY_DEVICES,
+                                 (int *)&associated_devices);
+        if (ret == NvCtrlSuccess) {
+            display_devices &= associated_devices;
+        }
+    }
+
+    /* Make the list of display device names */
 
     for (mask = 1; mask; mask <<= 1) {
-        
+
         if (!(mask & display_devices)) continue;
-        
+
         type = display_device_mask_to_display_device_name(mask);
         name = NULL;
-        
-        ret =
-            NvCtrlGetStringDisplayAttribute(handle,
-                                            mask,
-                                            NV_CTRL_STRING_DISPLAY_DEVICE_NAME,
-                                            &name);
-        if (ret != NvCtrlSuccess) {
+
+        valid =
+            XNVCTRLQueryTargetStringAttribute(NvCtrlGetDisplayPtr(handle),
+                                              NV_CTRL_TARGET_TYPE_GPU,
+                                              gpu_id,
+                                              mask,
+                                              NV_CTRL_STRING_DISPLAY_DEVICE_NAME,
+                                              &name);
+        if (!valid) {
             tmp_str = g_strdup_printf("Unknown (%s)", type);
         } else {
             tmp_str = g_strdup_printf("%s (%s)", name, type);
             XFree(name);
         }
         free(type);
-        
+
         if (displays) {
             name = g_strdup_printf("%s,\n%s", tmp_str, displays);
             g_free(displays);
@@ -147,6 +181,60 @@ static gchar *make_display_device_list(NvCtrlAttributeHandle *handle,
         displays = name;
     }
 
+    return displays;
+}
+
+
+
+/* Generates a list of display devices for the logical X screen
+ * given as "handle".
+ */
+static gchar *make_display_device_list(NvCtrlAttributeHandle *handle)
+{
+    ReturnStatus ret;
+    int len;
+    int i;
+    int *pData;
+    gchar *displays = NULL;
+    int xinerama_enabled;
+
+
+    /* See if Xinerama is enabled */
+    ret = NvCtrlGetAttribute(handle, NV_CTRL_XINERAMA, &xinerama_enabled);
+    if (ret != NvCtrlSuccess) {
+        goto done;
+    }
+
+    /* Get all GPUs driving this X screen */
+    ret = NvCtrlGetBinaryAttribute(handle,
+                                   0,
+                                   NV_CTRL_BINARY_DATA_GPUS_USED_BY_LOGICAL_XSCREEN,
+                                   (unsigned char **)(&pData),
+                                   &len);
+    if (ret != NvCtrlSuccess) {
+        goto done;
+    }
+
+    /* Generate the list of display device names that display this X screen */
+    for (i = 1; i <= pData[0]; i++) {
+        gchar *new_str;
+        gchar *tmp_str;
+
+        new_str = make_gpu_display_device_list(handle, pData[i],
+                                               xinerama_enabled);
+        if (new_str) {
+            if (displays) {
+                tmp_str = g_strdup_printf("%s,\n%s", displays, new_str);
+                g_free(displays);
+                g_free(new_str);
+                displays = tmp_str;
+            } else {
+                displays = new_str;
+            }
+        }
+    }
+
+ done:
     if (!displays) {
         displays = g_strdup("None");
     }
@@ -223,8 +311,6 @@ GtkWidget* ctk_screen_new(NvCtrlAttributeHandle *handle,
     char tmp[16];
 
     double xres, yres;
-
-    unsigned int display_devices;
 
     int *pData;
     int len;
@@ -308,12 +394,7 @@ GtkWidget* ctk_screen_new(NvCtrlAttributeHandle *handle,
 
     /* get the list of Display Devices displaying this X screen */
 
-    displays = NULL;
-    ret = NvCtrlGetAttribute(handle, NV_CTRL_ASSOCIATED_DISPLAY_DEVICES,
-                             (int *)&display_devices);
-    if (ret == NvCtrlSuccess) {
-        displays = make_display_device_list(handle, display_devices);
-    }
+    displays = make_display_device_list(handle);
 
     /* get the number of gpu errors occurred */
 
@@ -522,12 +603,10 @@ void ctk_screen_event_handler(GtkWidget *widget,
 static void associated_displays_received(GtkObject *object, gpointer arg1,
                                          gpointer user_data)
 {
-    CtkEventStruct *event_struct = (CtkEventStruct *) arg1;
     CtkScreen *ctk_object = CTK_SCREEN(user_data);
-    unsigned int associated_displays = event_struct->value;
     gchar *str;
 
-    str = make_display_device_list(ctk_object->handle, associated_displays);
+    str = make_display_device_list(ctk_object->handle);
 
     gtk_label_set_text(GTK_LABEL(ctk_object->displays), str);
 

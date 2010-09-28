@@ -62,11 +62,14 @@ struct _CtkEdid
     GtkWidget *reset_button;
     GtkWidget *button;
     GtkWidget *file_selector;
+    GtkWidget *file_format_binary_radio_button;
+    GtkWidget *file_format_ascii_radio_button;
     
     const gchar *filename;
     char *name;
 
     unsigned int display_device_mask;
+    gint file_format;
 };
 
 struct _CtkEdidClass

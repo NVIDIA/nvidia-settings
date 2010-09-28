@@ -84,7 +84,7 @@ static gfloat
 get_attribute_channel_value (CtkColorCorrection *, gint, gint);
 
 static void
-flush_attribute_channel_values (CtkColorCorrection *, gint, gint, gfloat);
+flush_attribute_channel_values (CtkColorCorrection *, gint, gint);
 
 static void
 ctk_color_correction_class_init(CtkColorCorrectionClass *);
@@ -108,6 +108,8 @@ static guint signals[LAST_SIGNAL] = { 0 };
 #define RED        RED_CHANNEL_INDEX
 #define GREEN      GREEN_CHANNEL_INDEX
 #define BLUE       BLUE_CHANNEL_INDEX
+
+#define ALL_CHANNELS_INDEX 3
 
 #define CONTRAST   (CONTRAST_INDEX - CONTRAST_INDEX)
 #define BRIGHTNESS (BRIGHTNESS_INDEX - CONTRAST_INDEX)
@@ -536,6 +538,15 @@ static void option_menu_changed(
             break;
     }
 
+    /*
+     * store the currently selected color channel, so that
+     * adjustment_value_changed() can update the correct channel(s) in
+     * response to slider changes
+     */
+
+    g_object_set_data(G_OBJECT(option_menu), "color_channel",
+                      GINT_TO_POINTER(channel));
+
     for (i = 0; i < 3; i++) {
 
         if (i == 0) {
@@ -548,9 +559,6 @@ static void option_menu_changed(
             adjustment = ctk_color_correction->gamma_adjustment;
             attribute = GAMMA_VALUE;
         }
-        
-        g_object_set_data(G_OBJECT(option_menu), "color_channel",
-                          GINT_TO_POINTER(channel));
         
         value = get_attribute_channel_value(ctk_color_correction,
                                             attribute, channel);
@@ -566,9 +574,6 @@ static void option_menu_changed(
             (G_OBJECT(adjustment),
              G_SIGNAL_MATCH_FUNC, 0, 0, NULL,
              G_CALLBACK(adjustment_value_changed), NULL);
-    
-        if (channel == ALL_CHANNELS)
-            gtk_adjustment_value_changed(GTK_ADJUSTMENT(adjustment));
     }
 }
 
@@ -583,27 +588,43 @@ static void set_button_sensitive(
 
 /** set_color_state() *******************
  *
- * Stores color state to cur_val[attribute][channel]
- * and prev_val[attribute][channel].
+ * Stores color state to cur_slider_val[attribute][channel]
+ * and prev_slider_val[attribute][channel].
  *
  **/
 
 static void set_color_state(CtkColorCorrection *ctk_color_correction,
-    gint attribute_idx, gint channel_idx,
+    gint attribute_idx, gint channel_mask,
     gfloat value, gboolean all
 )
 {
-    if ( channel_idx != ALL_CHANNELS ) {
-        ctk_color_correction->cur_val
-            [attribute_idx][channel_idx] = value;
-        if ( all ) {
-            ctk_color_correction->prev_val
-                [attribute_idx][channel_idx] = value;
+    if (channel_mask & RED_CHANNEL) {
+        ctk_color_correction->cur_slider_val[attribute_idx][RED] = value;
+        if (all) {
+            ctk_color_correction->prev_slider_val[attribute_idx][RED] = value;
         }
-    } else {
-        gint ch;
-        for ( ch = RED; ch <= BLUE; ch++ ) {
-            set_color_state(ctk_color_correction, attribute_idx, ch, value, all);
+    }
+
+    if (channel_mask & GREEN_CHANNEL) {
+        ctk_color_correction->cur_slider_val[attribute_idx][GREEN] = value;
+        if (all) {
+            ctk_color_correction->prev_slider_val[attribute_idx][GREEN] = value;
+        }
+    }
+
+    if (channel_mask & BLUE_CHANNEL) {
+        ctk_color_correction->cur_slider_val[attribute_idx][BLUE] = value;
+        if (all) {
+            ctk_color_correction->prev_slider_val[attribute_idx][BLUE] = value;
+        }
+    }
+
+    if (channel_mask == ALL_CHANNELS) {
+        ctk_color_correction->cur_slider_val
+            [attribute_idx][ALL_CHANNELS_INDEX] = value;
+        if (all) {
+            ctk_color_correction->prev_slider_val
+                [attribute_idx][ALL_CHANNELS_INDEX] = value;
         }
     }
 } /* set_color_state() */
@@ -624,9 +645,11 @@ static void confirm_button_clicked(
 {
     CtkColorCorrection *ctk_color_correction = CTK_COLOR_CORRECTION(user_data);
 
-    /* Store cur_val[attribute][channel] to prev_val[attribute][channel]. */
-    memcpy (ctk_color_correction->prev_val, ctk_color_correction->cur_val,
-            sizeof(ctk_color_correction->cur_val));
+    /* Store cur_slider_val[attribute][channel] to
+       prev_slider_val[attribute][channel]. */
+    memcpy (ctk_color_correction->prev_slider_val,
+            ctk_color_correction->cur_slider_val,
+            sizeof(ctk_color_correction->cur_slider_val));
     
     /* kill the timer */
     g_source_remove(ctk_color_correction->confirm_timer);
@@ -657,12 +680,9 @@ static void reset_button_clicked(
     set_color_state(ctk_color_correction, GAMMA, ALL_CHANNELS,
                     GAMMA_DEFAULT, TRUE);
 
-    NvCtrlSetColorAttributes(ctk_color_correction->handle,
-                             ctk_color_correction->cur_val[CONTRAST],
-                             ctk_color_correction->cur_val[BRIGHTNESS],
-                             ctk_color_correction->cur_val[GAMMA],
-                             ALL_VALUES | ALL_CHANNELS); 
-    
+    flush_attribute_channel_values(ctk_color_correction,
+                                   ALL_VALUES, ALL_CHANNELS);
+
     option_menu = GTK_OPTION_MENU(ctk_color_correction->option_menu);
     
     if (gtk_option_menu_get_history(option_menu) == 0) {
@@ -699,7 +719,7 @@ static void adjustment_value_changed(
 {
     CtkColorCorrection *ctk_color_correction;
     gint attribute, channel;
-    gint attribute_idx, channel_idx;
+    gint attribute_idx;
     gfloat value;
     gchar *channel_str, *attribute_str;
 
@@ -745,30 +765,25 @@ static void adjustment_value_changed(
 
     switch (channel) {
     case RED_CHANNEL:
-        channel_idx = RED;
         channel_str = "red ";
         break;
     case GREEN_CHANNEL:
-        channel_idx = GREEN;
         channel_str = "green ";
         break;
     case BLUE_CHANNEL:
-        channel_idx = BLUE;
         channel_str = "blue ";
         break;
     case ALL_CHANNELS:
-        channel_idx = ALL_CHANNELS;
         channel_str = "";
         break;
     default:
         return;
     }
 
-    set_color_state(ctk_color_correction, attribute_idx, channel_idx,
+    set_color_state(ctk_color_correction, attribute_idx, channel,
                     value, FALSE);
     
-    flush_attribute_channel_values(ctk_color_correction,
-                                attribute, channel, value);
+    flush_attribute_channel_values(ctk_color_correction, attribute, channel);
     
     ctk_config_statusbar_message(ctk_color_correction->ctk_config,
                                  "Set %s%s to %f.",
@@ -781,51 +796,54 @@ static gfloat get_attribute_channel_value(CtkColorCorrection
                                           *ctk_color_correction,
                                           gint attribute, gint channel)
 {
-    gfloat values[3] = { 0.0, 0.0, 0.0 };
-    gfloat ignore[3] = { 0.0, 0.0, 0.0 };
-
-    NvCtrlAttributeHandle *handle = ctk_color_correction->handle;
+    int attribute_idx, channel_idx;
 
     switch (attribute) {
         case CONTRAST_VALUE:
-            NvCtrlGetColorAttributes(handle, values, ignore, ignore);
+            attribute_idx = CONTRAST;
             break;
         case BRIGHTNESS_VALUE:
-            NvCtrlGetColorAttributes(handle, ignore, values, ignore);
+            attribute_idx = BRIGHTNESS;
             break;
         case GAMMA_VALUE:
-            NvCtrlGetColorAttributes(handle, ignore, ignore, values);
+            attribute_idx = GAMMA;
             break;
         default:
             return 0.0;
     }
 
     switch (channel) {
-        case ALL_CHANNELS: /* XXX what to do for all channels? */
+        case ALL_CHANNELS:
+            channel_idx = ALL_CHANNELS_INDEX;
+            break;
         case RED_CHANNEL:
-            return values[0];
+            channel_idx = RED_CHANNEL_INDEX;
+            break;
         case GREEN_CHANNEL:
-            return values[1];
+            channel_idx = GREEN_CHANNEL_INDEX;
+            break;
         case BLUE_CHANNEL:
-            return values[2];
+            channel_idx = BLUE_CHANNEL_INDEX;
+            break;
         default:
-            return 0;
+            return 0.0;
     }
+
+    return ctk_color_correction->cur_slider_val[attribute_idx][channel_idx];
 }
 
 static void flush_attribute_channel_values(
     CtkColorCorrection *ctk_color_correction,
     gint attribute,
-    gint channel,
-    gfloat value
+    gint channel
 )
 {
     NvCtrlAttributeHandle *handle = ctk_color_correction->handle;
     
     NvCtrlSetColorAttributes(handle,
-                             ctk_color_correction->cur_val[CONTRAST],
-                             ctk_color_correction->cur_val[BRIGHTNESS],
-                             ctk_color_correction->cur_val[GAMMA],
+                             ctk_color_correction->cur_slider_val[CONTRAST],
+                             ctk_color_correction->cur_slider_val[BRIGHTNESS],
+                             ctk_color_correction->cur_slider_val[GAMMA],
                              attribute | channel);
     
     g_signal_emit(ctk_color_correction, signals[CHANGED], 0);
@@ -867,39 +885,39 @@ static void apply_parsed_attribute_list(
         switch (p->attr & (ALL_VALUES | ALL_CHANNELS)) {
         case (CONTRAST_VALUE | RED_CHANNEL):
             set_color_state(ctk_color_correction, CONTRAST,
-                            RED, p->fval, TRUE); break;
+                            RED_CHANNEL, p->fval, TRUE); break;
         case (CONTRAST_VALUE | GREEN_CHANNEL):
             set_color_state(ctk_color_correction, CONTRAST,
-                            GREEN, p->fval, TRUE); break;
+                            GREEN_CHANNEL, p->fval, TRUE); break;
         case (CONTRAST_VALUE | BLUE_CHANNEL):
             set_color_state(ctk_color_correction, CONTRAST,
-                            BLUE, p->fval, TRUE); break;
+                            BLUE_CHANNEL, p->fval, TRUE); break;
         case (CONTRAST_VALUE | ALL_CHANNELS):
             set_color_state(ctk_color_correction, CONTRAST,
                             ALL_CHANNELS, p->fval, TRUE); break;
 
         case (BRIGHTNESS_VALUE | RED_CHANNEL):
             set_color_state(ctk_color_correction, BRIGHTNESS,
-                            RED, p->fval, TRUE); break;
+                            RED_CHANNEL, p->fval, TRUE); break;
         case (BRIGHTNESS_VALUE | GREEN_CHANNEL):
             set_color_state(ctk_color_correction, BRIGHTNESS,
-                            GREEN, p->fval, TRUE); break;
+                            GREEN_CHANNEL, p->fval, TRUE); break;
         case (BRIGHTNESS_VALUE | BLUE_CHANNEL):
             set_color_state(ctk_color_correction, BRIGHTNESS,
-                            BLUE, p->fval, TRUE); break;
+                            BLUE_CHANNEL, p->fval, TRUE); break;
         case (BRIGHTNESS_VALUE | ALL_CHANNELS):
             set_color_state(ctk_color_correction, BRIGHTNESS,
                             ALL_CHANNELS, p->fval, TRUE); break;
 
         case (GAMMA_VALUE | RED_CHANNEL):
             set_color_state(ctk_color_correction, GAMMA,
-                            RED, p->fval, TRUE); break;
+                            RED_CHANNEL, p->fval, TRUE); break;
         case (GAMMA_VALUE | GREEN_CHANNEL):
             set_color_state(ctk_color_correction, GAMMA,
-                            GREEN, p->fval, TRUE); break;
+                            GREEN_CHANNEL, p->fval, TRUE); break;
         case (GAMMA_VALUE | BLUE_CHANNEL):
             set_color_state(ctk_color_correction, GAMMA,
-                            BLUE, p->fval, TRUE); break;
+                            BLUE_CHANNEL, p->fval, TRUE); break;
         case (GAMMA_VALUE | ALL_CHANNELS):
             set_color_state(ctk_color_correction, GAMMA,
                             ALL_CHANNELS, p->fval, TRUE); break;
@@ -917,9 +935,9 @@ static void apply_parsed_attribute_list(
 
     if (attr) {
         NvCtrlSetColorAttributes(ctk_color_correction->handle,
-                                 ctk_color_correction->cur_val[CONTRAST],
-                                 ctk_color_correction->cur_val[BRIGHTNESS],
-                                 ctk_color_correction->cur_val[GAMMA],
+                                 ctk_color_correction->cur_slider_val[CONTRAST],
+                                 ctk_color_correction->cur_slider_val[BRIGHTNESS],
+                                 ctk_color_correction->cur_slider_val[GAMMA],
                                  attr);
     }
     
@@ -952,7 +970,8 @@ static gboolean do_confirm_countdown(gpointer data)
 {
     gint attr, ch;
     CtkColorCorrection *ctk_color_correction = (CtkColorCorrection *)(data);
-    unsigned int active_attributes_channels = 0;
+    unsigned int channels = 0;
+    unsigned int attributes = 0;
     GtkOptionMenu *option_menu =
         GTK_OPTION_MENU(ctk_color_correction->option_menu);
 
@@ -964,23 +983,21 @@ static gboolean do_confirm_countdown(gpointer data)
 
     /* Countdown timed out, reset color settings to previous state */
     for (attr = CONTRAST_INDEX; attr <= GAMMA_INDEX; attr++) {
-        for (ch = RED; ch <= BLUE; ch++) {
+        for (ch = RED; ch <= ALL_CHANNELS_INDEX; ch++) {
             /* Check for attribute channel value change. */
-            if (ctk_color_correction->cur_val[attr - CONTRAST_INDEX][ch] !=
-                ctk_color_correction->prev_val[attr - CONTRAST_INDEX][ch]) {
-                ctk_color_correction->cur_val[attr - CONTRAST_INDEX][ch] =
-                    ctk_color_correction->prev_val[attr - CONTRAST_INDEX][ch];
-                active_attributes_channels |= (1 << attr) | (1 << ch);
+            int index = attr - CONTRAST_INDEX;
+            if (ctk_color_correction->cur_slider_val[index][ch] !=
+                ctk_color_correction->prev_slider_val[index][ch]) {
+                ctk_color_correction->cur_slider_val[index][ch] =
+                    ctk_color_correction->prev_slider_val[index][ch];
+                attributes |= (1 << attr);
+                channels |= (1 << ch);
             }
         }
     }
-    if (active_attributes_channels) {
-        NvCtrlSetColorAttributes(ctk_color_correction->handle,
-                                 ctk_color_correction->cur_val[CONTRAST],
-                                 ctk_color_correction->cur_val[BRIGHTNESS],
-                                 ctk_color_correction->cur_val[GAMMA],
-                                 active_attributes_channels);
-        g_signal_emit(ctk_color_correction, signals[CHANGED], 0);
+    if (attributes | channels) {
+        flush_attribute_channel_values(ctk_color_correction,
+                                       attributes, channels);
     }
     
     /* Refresh color correction page for current selected channel. */

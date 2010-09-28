@@ -64,6 +64,7 @@ static char *nv_strndup(char *s, int n);
 #define S NV_PARSER_TYPE_STRING_ATTRIBUTE
 #define I NV_PARSER_TYPE_SDI
 #define W NV_PARSER_TYPE_VALUE_IS_SWITCH_DISPLAY
+#define M NV_PARSER_TYPE_SDI_CSC
 
 AttributeTableEntry attributeTable[] = {
    
@@ -148,6 +149,8 @@ AttributeTableEntry attributeTable[] = {
     { "GPUDefault2DClockFreqs", NV_CTRL_GPU_DEFAULT_2D_CLOCK_FREQS,    N|P, "Returns the default memory and GPU core clocks when operating in 2D mode." },
     { "GPUDefault3DClockFreqs", NV_CTRL_GPU_DEFAULT_3D_CLOCK_FREQS,    N|P, "Returns the default memory and GPU core clocks when operating in 3D mode." },
     { "GPUCurrentClockFreqs",   NV_CTRL_GPU_CURRENT_CLOCK_FREQS,       N|P, "Returns the current GPU and memory clocks of the graphics device driving the X screen." },
+    { "GPUCurrentProcessorClockFreqs", NV_CTRL_GPU_CURRENT_PROCESSOR_CLOCK_FREQS, N, "Returns the current processor clock of the graphics device driving the X screen." },
+    { "GPUCurrentClockFreqsString", NV_CTRL_STRING_GPU_CURRENT_CLOCK_FREQS, S|N, "Returns the current GPU, memory and Processor clocks of the graphics device driving the X screen." },
     { "BusRate",                NV_CTRL_BUS_RATE,                      0,   "If the device is on an AGP bus, then BusRate returns the configured AGP rate.  If the device is on a PCI Express bus, then this attribute returns the width of the physical link." },
     { "PCIDomain",              NV_CTRL_PCI_DOMAIN,                    N,   "Returns the PCI domain number for the specified device." },
     { "PCIBus",                 NV_CTRL_PCI_BUS,                       N,   "Returns the PCI bus number for the specified device." },
@@ -256,6 +259,7 @@ AttributeTableEntry attributeTable[] = {
     { "GviNumCaptureSurfaces",                NV_CTRL_GVI_NUM_CAPTURE_SURFACES,                 I|N, "Controls the number of capture buffers for storing incoming video from the GVI device." },
     { "GviBoundGpu",                          NV_CTRL_GVI_BOUND_GPU,                            I|N, "Returns the target index of the GPU currently attached to the GVI device." },
     { "GviTestMode",                          NV_CTRL_GVI_TEST_MODE,                            I|N, "Enable or disable GVI test mode." },
+    { "GvoCSCMatrix",                         0,                                                I|M|N, "Sets the GVO Color Space Conversion (CSC) matrix.  Accepted values are \"ITU_601\", \"ITU_709\", \"ITU_177\", and \"Identity\"." },
 
     /* Display */
     { "Brightness",                 BRIGHTNESS_VALUE|ALL_CHANNELS,         N|C|G, "Controls the overall brightness of the display." },
@@ -270,7 +274,10 @@ AttributeTableEntry attributeTable[] = {
     { "RedGamma",                   GAMMA_VALUE|RED_CHANNEL,               C|G,   "Controls the gamma of the color red in the display." },
     { "GreenGamma",                 GAMMA_VALUE|GREEN_CHANNEL,             C|G,   "Controls the gamma of the color green in the display." },
     { "BlueGamma",                  GAMMA_VALUE|BLUE_CHANNEL,              C|G,   "Controls the gamma of the color blue in the display." },
-    { "FlatpanelDithering",         NV_CTRL_FLATPANEL_DITHERING,           0,     "This is the current state of flat panel dithering.  This attribute has been deprecated." },
+    { "Dithering",                  NV_CTRL_DITHERING,                     0,     "Controls the dithering: auto (0), enabled (1), disabled (2)." },
+    { "CurrentDithering",           NV_CTRL_CURRENT_DITHERING,             0,     "Returns the current dithering state: enabled (1), disabled (0)." },
+    { "DitheringMode",              NV_CTRL_DITHERING_MODE,                0,     "Controls the dithering mode when CurrentDithering=1; auto (0), temporally dynamic dithering pattern (1), temporally static dithering pattern (2)." },
+    { "CurrentDitheringMode",       NV_CTRL_CURRENT_DITHERING_MODE,        0,     "Returns the current dithering mode: none (0), temporally dynamic dithering pattern (1), temporally static dithering pattern (2)." },
     { "DigitalVibrance",            NV_CTRL_DIGITAL_VIBRANCE,              0,     "Sets the digital vibrance level of the display device." },
     { "ImageSharpening",            NV_CTRL_IMAGE_SHARPENING,              0,     "Adjusts the sharpness of the display's image quality by amplifying high frequency content." },
     { "ImageSharpeningDefault",     NV_CTRL_IMAGE_SHARPENING_DEFAULT,      0,     "Returns default value of image sharpening." },
@@ -286,6 +293,8 @@ AttributeTableEntry attributeTable[] = {
     { "RefreshRate",                NV_CTRL_REFRESH_RATE,                  N|H,   "Returns the refresh rate of the specified display device in cHz (Centihertz) (to get the refresh rate in Hz, divide the returned value by 100)." },
     { "RefreshRate3",               NV_CTRL_REFRESH_RATE_3,                N|K,   "Returns the refresh rate of the specified display device in mHz (Millihertz) (to get the refresh rate in Hz, divide the returned value by 1000)." },
     { "OverscanCompensation",       NV_CTRL_OVERSCAN_COMPENSATION,         0,     "Adjust the amount of overscan compensation scaling, in pixels, to apply to the specified display device." },
+    { "ColorSpace",                 NV_CTRL_COLOR_SPACE,                   0,     "Sets the color space of the signal sent to the display device." },
+    { "ColorRange",                 NV_CTRL_COLOR_RANGE,                   0,     "Sets the color range of the signal sent to the display device." },
 
     /* TV */
     { "TVOverScan",      NV_CTRL_TV_OVERSCAN,       0, "Adjusts the amount of overscan on the specified display device." },
@@ -308,7 +317,7 @@ AttributeTableEntry attributeTable[] = {
     { "XVideoTextureSyncToVBlank", NV_CTRL_ATTR_XV_TEXTURE_SYNC_TO_VBLANK, V,   "Enables sync to vertical blanking for X video texture adaptor." },
     { "XVideoBlitterSyncToVBlank", NV_CTRL_ATTR_XV_BLITTER_SYNC_TO_VBLANK, V,   "Enables sync to vertical blanking for X video blitter adaptor." },
     { "XVideoSyncToDisplay",       NV_CTRL_XV_SYNC_TO_DISPLAY,             D|Z, "Controls which display device is synced to by the texture and blitter adaptors when they are set to synchronize to the vertical blanking." },
-    
+
     { NULL, 0, 0, NULL }
 };
 
@@ -405,6 +414,48 @@ TargetTypeEntry targetTypeTable[] = {
     
     { NULL, NULL, 0, 0, 0 },
 };
+
+
+
+/*
+ * nv_get_sdi_csc_matrix() - see comments in parse.h
+ */
+
+static const float sdi_csc_itu601[15] = {
+     0.2991,  0.5870,  0.1150, 0.0625, 0.85547, // Y
+     0.5000, -0.4185, -0.0810, 0.5000, 0.87500, // Cr
+    -0.1685, -0.3310,  0.5000, 0.5000, 0.87500, // Cb
+};
+static const float sdi_csc_itu709[15] = {
+     0.2130,  0.7156,  0.0725, 0.0625, 0.85547, // Y
+     0.5000, -0.4542, -0.0455, 0.5000, 0.87500, // Cr
+    -0.1146, -0.3850,  0.5000, 0.5000, 0.87500, // Cb
+};
+static const float sdi_csc_itu177[15] = {
+     0.412391, 0.357584, 0.180481, 0.0, 0.85547, // Y
+     0.019331, 0.119195, 0.950532, 0.0, 0.87500, // Cr
+     0.212639, 0.715169, 0.072192, 0.0, 0.87500, // Cb
+};
+static const float sdi_csc_identity[15] = {
+     0.0000,  1.0000,  0.0000, 0.0000, 1.0, // Y (Green)
+     1.0000,  0.0000,  0.0000, 0.0000, 1.0, // Cr (Red)
+     0.0000,  0.0000,  1.0000, 0.0000, 1.0, // Cb (Blue)
+};
+
+const float * nv_get_sdi_csc_matrix(char *s)
+{
+    if (nv_strcasecmp(s, "itu_601")) {
+        return sdi_csc_itu601;
+    } else if (nv_strcasecmp(s, "itu_709")) {
+        return sdi_csc_itu709;
+    } else if (nv_strcasecmp(s, "itu_177")) {
+        return sdi_csc_itu177;
+    } else if (nv_strcasecmp(s, "identity")) {
+        return sdi_csc_identity;
+    }
+
+    return NULL;
+}
 
 
 
@@ -542,6 +593,10 @@ int nv_parse_attribute_string(const char *str, int query, ParsedAttribute *a)
                    a->val = strtol(s, &tmp, 0);
                 }
             }
+        } else if (a->flags & NV_PARSER_TYPE_SDI_CSC) {
+            /* String that names a standard CSC matrix */
+            a->pfval = nv_get_sdi_csc_matrix(s);
+            tmp = s + strlen(s);
         } else {
             /* all other attributes are integer */
             a->val = strtol(s, &tmp, 0);

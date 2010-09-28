@@ -495,6 +495,43 @@ static void consolidate_xinerama(CtkDisplayConfig *ctk_object,
 
 
 
+/** update_btn_apply() **************************************************
+ *
+ * Updates the apply button's sensitvity (if possible)
+ *
+ **/
+
+void update_btn_apply(CtkDisplayConfig *ctk_object, Bool sensitive)
+{
+    Bool xrandr_available = FALSE;
+    nvGpuPtr gpu;
+    nvScreenPtr screen;
+
+
+    if (sensitive) {
+        /* If XRandR is disabled (for all screens), we can't apply */
+        for (gpu = ctk_object->layout->gpus; gpu; gpu = gpu->next) {
+
+            for (screen = gpu->screens; screen; screen = screen->next) {
+                if (NvCtrlGetXrandrEventBase(screen->handle) >= 0) {
+                    xrandr_available = TRUE;
+                    break;
+                }
+            }
+            if (xrandr_available) break;
+        }
+
+        if (!xrandr_available) {
+            sensitive = FALSE;
+        }
+    }
+
+    gtk_widget_set_sensitive(ctk_object->btn_apply, sensitive);
+
+} /* update_btn_apply() */
+
+
+
 /** xconfigPrint() ******************************************************
  *
  * xconfigPrint() - this is the one entry point that a user of the
@@ -1013,7 +1050,7 @@ GtkWidget * create_validation_apply_dialog(CtkDisplayConfig *ctk_object)
 static void user_changed_attributes(CtkDisplayConfig *ctk_object)
 {
     if (ctk_object->forced_reset_allowed) {
-        gtk_widget_set_sensitive(ctk_object->btn_apply, True);
+        update_btn_apply(ctk_object, TRUE);
         ctk_object->forced_reset_allowed = FALSE;
     }
 
@@ -1185,11 +1222,7 @@ GtkWidget* ctk_display_config_new(NvCtrlAttributeHandle *handle,
     ctk_object->obj_layout = ctk_display_layout_new(handle, ctk_config,
                                                     ctk_object->layout,
                                                     300, /* min width */
-                                                    225, /* min height */
-                                                    layout_selected_callback,
-                                                    (void *)ctk_object,
-                                                    layout_modified_callback,
-                                                    (void *)ctk_object);
+                                                    225); /* min height */
 
     /* Make sure all X screens have the same depth if Xinerama is enabled */
     consolidate_xinerama(ctk_object, NULL);
@@ -1518,7 +1551,7 @@ GtkWidget* ctk_display_config_new(NvCtrlAttributeHandle *handle,
 
     /* Apply button */
     ctk_object->btn_apply = gtk_button_new_with_label("Apply");
-    gtk_widget_set_sensitive(ctk_object->btn_apply, False);
+    update_btn_apply(ctk_object, FALSE);
     ctk_config_set_tooltip(ctk_config, ctk_object->btn_apply,
                            __apply_button_help);
     g_signal_connect(G_OBJECT(ctk_object->btn_apply), "clicked",
@@ -1873,6 +1906,12 @@ GtkWidget* ctk_display_config_new(NvCtrlAttributeHandle *handle,
     setup_display_page(ctk_object);
     setup_screen_page(ctk_object);
 
+    /* Register to receive updates when layout changed */
+    ctk_display_layout_register_callbacks(CTK_DISPLAY_LAYOUT(ctk_object->obj_layout),
+                                          layout_selected_callback,
+                                          (void *)ctk_object,
+                                          layout_modified_callback,
+                                          (void *)ctk_object);
 
     return GTK_WIDGET(ctk_object);
 
@@ -1978,12 +2017,14 @@ GtkTextBuffer *ctk_display_config_create_help(GtkTextTagTable *table,
     ctk_help_para(b, &i, "");
     ctk_help_heading(b, &i, "Buttons");
     ctk_help_heading(b, &i, "Apply");
-    ctk_help_para(b, &i, "%s  Note that not all settings can be applied to an "
-                  "active X server; these require restarting the X server "
-                  "after saving the desired settings to the X configuration "
-                  "file.  Examples of such settings include changing the "
-                  "position of any X screen, adding/removing an X screen, and "
-                  "changing the X screen color depth.", __apply_button_help);
+    ctk_help_para(b, &i, "%s  Note that XRandR must be available to apply "
+                  "settings.  Also note that even when XRandR is available, "
+                  "not all settings can be applied to an active X server; "
+                  "these require restarting the X server after saving the "
+                  "desired settings to the X configuration file.  Examples "
+                  "of such settings include changing the position of any X "
+                  "screen, adding/removing an X screen, and changing the X "
+                  "screen color depth.", __apply_button_help);
     ctk_help_heading(b, &i, "Detect Displays");
     ctk_help_para(b, &i, __detect_displays_button_help);
     ctk_help_heading(b, &i, "Advanced/Basic...");
@@ -5980,7 +6021,7 @@ static Bool switch_to_current_metamode(CtkDisplayConfig *ctk_object,
 
     /* XRandR must be available to do mode switching */
 
-    if (!NvCtrlGetXrandrEventBase(screen->handle)) {
+    if (NvCtrlGetXrandrEventBase(screen->handle) < 0) {
         dlg = gtk_message_dialog_new
             (GTK_WINDOW(parent),
              GTK_DIALOG_DESTROY_WITH_PARENT,
@@ -7609,7 +7650,7 @@ static void reset_layout(CtkDisplayConfig *ctk_object)
 
     /* Clear the apply button */
     ctk_object->apply_possible = TRUE;
-    gtk_widget_set_sensitive(ctk_object->btn_apply, FALSE);
+    update_btn_apply(ctk_object, FALSE);
 
     ctk_object->forced_reset_allowed = TRUE; /* OK to reset w/o user input */
     ctk_object->notify_user_of_reset = TRUE; /* Notify user of new changes */
@@ -7733,7 +7774,7 @@ static gboolean force_layout_reset(gpointer user_data)
          * until they have reloaded the layout manually.
          */
         ctk_object->notify_user_of_reset = FALSE;
-        gtk_widget_set_sensitive(ctk_object->btn_apply, False);
+        update_btn_apply(ctk_object, FALSE);
         break;
     }
     gtk_widget_destroy(dlg);

@@ -463,11 +463,7 @@ GtkWidget*  ctk_display_layout_new       (NvCtrlAttributeHandle *,
                                           CtkConfig *,
                                           nvLayoutPtr, /* Layout to display */
                                           int,         /* Width of image */
-                                          int,         /* Height of image */
-                                          ctk_display_layout_selected_callback,
-                                          void *selected_callback_data,
-                                          ctk_display_layout_modified_callback,
-                                          void *modified_callback_data
+                                          int          /* Height of image */
                                           );
 
 void ctk_display_layout_update (CtkDisplayLayout *);
@@ -526,6 +522,11 @@ void ctk_display_layout_disable_display (CtkDisplayLayout *ctk_object,
 void ctk_display_layout_set_advanced_mode (CtkDisplayLayout *ctk_object,
                                            int advanced_mode);
 
+void ctk_display_layout_register_callbacks(CtkDisplayLayout *ctk_object,
+                                           ctk_display_layout_selected_callback,
+                                           void *selected_callback_data,
+                                           ctk_display_layout_modified_callback,
+                                           void *modified_callback_data);
 
 
 G_END_DECLS

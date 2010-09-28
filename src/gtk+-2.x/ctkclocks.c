@@ -101,9 +101,9 @@ static const char * __clock_menu_help =
 "Selects which clock frequencies to modify.  Standard (2D) only affects 2D "
 "applications.  Performance (3D) only affects 3D applications.";
 
-static const char * __gpu_clock_help =
-"The GPU Clock Frequency is the core clock speed that the NVIDIA GPU will be "
-"set to when the graphics card is operating in this mode (2D/3D).";
+static const char * __graphics_clock_help =
+"The Graphics Clock Frequency is the core clock speed that the NVIDIA "
+"GPU will be set to when the graphics card is operating in this mode (2D/3D).";
 
 static const char * __mem_clock_help =
 "The Memory Clock Frequency is the clock speed of the memory interface on "
@@ -324,7 +324,7 @@ GtkWidget* ctk_clocks_new(NvCtrlAttributeHandle *handle,
     gtk_widget_set_sensitive(ctk_object->clock_menu,
                              overclocking_enabled && !probing_optimal);
     
-    /* Create the GPU clock frequency slider widget */
+    /* Create the Graphics clock frequency slider widget */
 
     if ( can_access_2d_clocks ) {
         adjustment =
@@ -352,7 +352,7 @@ GtkWidget* ctk_clocks_new(NvCtrlAttributeHandle *handle,
 
     ctk_config_set_tooltip(ctk_config,
                            CTK_SCALE(ctk_object->gpu_clk_scale)->gtk_scale,
-                           __gpu_clock_help);
+                           __graphics_clock_help);
 
     gtk_widget_set_sensitive(ctk_object->gpu_clk_scale,
                              overclocking_enabled && !probing_optimal);
@@ -619,8 +619,8 @@ GtkTextBuffer *ctk_clocks_create_help(GtkTextTagTable *table,
                   "The 3D clock frequencies are the performance clock "
                   "frequencies used when running 3D applications."
                   );
-    ctk_help_heading(b, &i, "GPU Clock Frequency");
-    ctk_help_para(b, &i, __gpu_clock_help);
+    ctk_help_heading(b, &i, "Graphics Clock Frequency");
+    ctk_help_para(b, &i, __graphics_clock_help);
     ctk_help_heading(b, &i, "Memory Clock Frequency");
     ctk_help_para(b, &i, __mem_clock_help);
     ctk_help_heading(b, &i, "Applying Custom Clock Frequencies");
@@ -679,7 +679,7 @@ static void sync_gui_sensitivity(CtkClocks *ctk_object)
 
     gtk_widget_set_sensitive(ctk_object->clock_menu, enabled && !probing);
 
-    /* Update the GPU clock slider */
+    /* Update the Graphics clock slider */
     
     gtk_widget_set_sensitive(ctk_object->gpu_clk_scale, enabled && !probing);
 

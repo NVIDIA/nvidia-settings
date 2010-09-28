@@ -34,7 +34,6 @@ include utils.mk
 # assign default values if they are not exported by the caller
 ##############################################################################
 
-
 ifndef X_LDFLAGS
   ifeq ($(TARGET_OS)-$(TARGET_ARCH),Linux-x86_64)
     X_LDFLAGS          = -L/usr/X11R6/lib64
@@ -59,19 +58,20 @@ endif
 
 
 ##############################################################################
-# The XF86Config-parser and libXNVCtrl directories may be in one of
-# two places: either elsewhere in the driver source tree when building
-# nvidia-settings as part of the NVIDIA driver build (in which case,
-# XNVCTRL_DIR, XNVCTRL_ARCHIVE, and XCONFIG_PARSER_DIR should be
-# defined by the calling makefile), or directly in the source
-# directory when building from the nvidia-settings source tarball (in
-# which case, the below conditional assignments should be used)
+# The XF86Config-parser, libXNVCtrl, and common-utils directories may
+# be in one of two places: either elsewhere in the driver source tree
+# when building nvidia-settings as part of the NVIDIA driver build (in
+# which case, XNVCTRL_DIR, XNVCTRL_ARCHIVE, XCONFIG_PARSER_DIR and
+# COMMON_UTILS_DIR should be defined by the calling makefile), or
+# directly in the source directory when building from the
+# nvidia-settings source tarball (in which case, the below conditional
+# assignments should be used)
 ##############################################################################
 
 XNVCTRL_DIR           ?= src/libXNVCtrl
 XNVCTRL_ARCHIVE       ?= $(XNVCTRL_DIR)/libXNVCtrl.a
 XCONFIG_PARSER_DIR    ?= src/XF86Config-parser
-
+COMMON_UTILS_DIR      ?= src/common-utils
 
 ##############################################################################
 # assign variables
@@ -114,12 +114,17 @@ ifeq ($(MANPAGE_GZIP),1)
 else
   MANPAGE     = $(MANPAGE_not_gzipped)
 endif
+GEN_MANPAGE_OPTS   = $(OUTPUTDIR)/gen-manpage-opts
+OPTIONS_1_INC      = $(OUTPUTDIR)/options.1.inc
 
 # Include all the source lists; dist-files.mk will define SRC
 include dist-files.mk
 
 include $(XCONFIG_PARSER_DIR)/src.mk
 SRC        += $(addprefix $(XCONFIG_PARSER_DIR)/,$(XCONFIG_PARSER_SRC))
+
+include $(COMMON_UTILS_DIR)/src.mk
+SRC        += $(addprefix $(COMMON_UTILS_DIR)/,$(COMMON_UTILS_SRC))
 
 SRC        += $(STAMP_C)
 
@@ -132,6 +137,7 @@ CFLAGS     += -I $(XCONFIG_PARSER_DIR)/..
 CFLAGS     += -I src/libXNVCtrlAttributes
 CFLAGS     += -I src/xpm_data
 CFLAGS     += -I src/gtk+-2.x
+CFLAGS     += -I $(COMMON_UTILS_DIR)
 CFLAGS     += -I $(OUTPUTDIR)
 
 $(call BUILD_OBJECT_LIST,$(GTK_SRC)): CFLAGS += $(GTK_CFLAGS)
@@ -168,7 +174,8 @@ $(eval $(call DEFINE_STAMP_C_RULE, $(OBJS),$(NVIDIA_SETTINGS_PROGRAM_NAME)))
 
 clean clobber:
 	rm -rf $(NVIDIA_SETTINGS) $(MANPAGE) *~ $(STAMP_C) \
-		$(OUTPUTDIR)/*.o $(OUTPUTDIR)/*.d
+		$(OUTPUTDIR)/*.o $(OUTPUTDIR)/*.d \
+		$(GEN_MANPAGE_OPTS) $(OPTIONS_1_INC)
 
 
 ##############################################################################
@@ -179,12 +186,33 @@ AUTO_TEXT = ".\\\" WARNING: THIS FILE IS AUTO-GENERATED!  Edit $< instead."
 
 doc: $(MANPAGE)
 
-$(MANPAGE_not_gzipped): doc/nvidia-settings.1.m4
+GEN_MANPAGE_OPTS_SRC = src/gen-manpage-opts.c
+
+BUILD_MANPAGE_OBJECT_LIST = \
+	$(patsubst %.o,%.manpage.o,$(call BUILD_OBJECT_LIST,$(1)))
+
+GEN_MANPAGE_OPTS_OBJS = \
+	$(call BUILD_MANPAGE_OBJECT_LIST,$(GEN_MANPAGE_OPTS_SRC))
+
+$(GEN_MANPAGE_OPTS): $(GEN_MANPAGE_OPTS_OBJS)
+	$(call quiet_cmd,HOST_LINK) $(GEN_MANPAGE_OPTS_OBJS) -o $@ \
+		$(HOST_CFLAGS) $(HOST_LDFLAGS) $(HOST_BIN_LDFLAGS)
+
+# define a rule to build each GEN_MANPAGE_OPTS object file
+$(foreach src,$(GEN_MANPAGE_OPTS_SRC),\
+	$(eval $(call DEFINE_OBJECT_RULE_WITH_OBJECT_NAME,HOST_CC,$(src),\
+		$(call BUILD_MANPAGE_OBJECT_LIST,$(src)))))
+
+$(OPTIONS_1_INC): $(GEN_MANPAGE_OPTS)
+	@./$< > $@
+
+$(MANPAGE_not_gzipped): doc/nvidia-settings.1.m4 $(OPTIONS_1_INC)
 	$(call quiet_cmd,M4) \
 	  -D__HEADER__=$(AUTO_TEXT) \
 	  -D__BUILD_OS__=$(TARGET_OS) \
 	  -D__VERSION__=$(NVIDIA_VERSION) \
 	  -D__DATE__="`$(DATE) +%F`" \
+	  -I $(OUTPUTDIR) \
 	  $< > $@
 
 $(MANPAGE_gzipped): $(MANPAGE_not_gzipped)

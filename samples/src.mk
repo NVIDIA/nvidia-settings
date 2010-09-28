@@ -4,7 +4,6 @@
 
 SAMPLES_SRC +=
 
-SAMPLES_EXTRA_DIST += Makefile
 SAMPLES_EXTRA_DIST += README
 SAMPLES_EXTRA_DIST += nv-control-dvc.c
 SAMPLES_EXTRA_DIST += nv-control-dpy.c

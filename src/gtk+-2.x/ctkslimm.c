@@ -1248,6 +1248,8 @@ GtkWidget* ctk_slimm_new(NvCtrlAttributeHandle *handle,
     gchar *tmp;
     gchar *sli_mode = NULL;
     ReturnStatus ret;
+    ReturnStatus ret1;
+    int major = 0, minor = 0;
     gint val;
 
     nvLayoutPtr layout;
@@ -1258,6 +1260,8 @@ GtkWidget* ctk_slimm_new(NvCtrlAttributeHandle *handle,
     int count;
 
     Bool valid_layout = FALSE;
+    Bool trust_slimm_available = FALSE;
+    int vcs_target_count;
 
     int hoverlap = 0;
     int voverlap = 0;
@@ -1273,7 +1277,29 @@ GtkWidget* ctk_slimm_new(NvCtrlAttributeHandle *handle,
     ctk_slimm->handle = handle;
     ctk_slimm->ctk_config = ctk_config;
     ctk_object = ctk_slimm;
+
+    /*
+     * Check for NV-CONTROL protocol version.
+     * This used for not trust old X drivers which always reported
+     * it available (on NV50+).
+     */
+    ret = NvCtrlGetAttribute(handle,
+                             NV_CTRL_ATTR_NV_MAJOR_VERSION, &major);
+    ret1 = NvCtrlGetAttribute(handle,
+                              NV_CTRL_ATTR_NV_MINOR_VERSION, &minor);
+
+    if ((ret == NvCtrlSuccess) && (ret1 == NvCtrlSuccess) &&
+        ((major > 1) || ((major == 1) && (minor > 23)))) {
+        trust_slimm_available = TRUE;
+    }
     
+    vcs_target_count = ctk_config->pCtrlHandles->targets[VCS_TARGET].n;
+
+    /* return on old X drivers if target is other than VCS. */
+    if (!vcs_target_count && !trust_slimm_available) {
+      return NULL;
+    }
+
     /* Check if this screen supports SLI Mosaic Mode */
     ret = NvCtrlGetAttribute(ctk_object->handle,
                              NV_CTRL_SLI_MOSAIC_MODE_AVAILABLE, &val);

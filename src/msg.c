@@ -38,15 +38,15 @@
 
 extern int __verbosity;
 
-static void format(FILE*, const char*, char *);
+static void format(FILE*, const char*, char *, int);
 static int get_terminal_width(void);
 
-#define NV_FORMAT(stream, prefix, fmt)          \
-do {                                            \
-    char *buf;                                  \
-    NV_VSNPRINTF(buf, fmt);                     \
-    format(stream, prefix, buf);                \
-    free (buf);                                 \
+#define NV_FORMAT(stream, prefix, fmt, whitespace) \
+do {                                               \
+    char *buf;                                     \
+    NV_VSNPRINTF(buf, fmt);                        \
+    format(stream, prefix, buf, whitespace);       \
+    free (buf);                                    \
 } while(0)
 
 /*
@@ -62,7 +62,7 @@ void nv_error_msg(const char *fmt, ...)
 
     fprintf(stderr, "\n");
  
-    NV_FORMAT(stderr, "ERROR: ", fmt);
+    NV_FORMAT(stderr, "ERROR: ", fmt, False);
 
     fprintf(stderr, "\n");
 
@@ -83,7 +83,7 @@ void nv_warning_msg(const char *fmt, ...)
 
     fprintf(stdout, "\n");
 
-    NV_FORMAT(stdout, "WARNING: ", fmt);
+    NV_FORMAT(stdout, "WARNING: ", fmt, False);
 
     fprintf(stdout, "\n");
     
@@ -102,7 +102,7 @@ void nv_info_msg(const char *prefix, const char *fmt, ...)
 {
     if (__verbosity < VERBOSITY_ALL) return;
 
-    NV_FORMAT(stdout, prefix, fmt);
+    NV_FORMAT(stdout, prefix, fmt, False);
     
 } /* nv_info_msg() */
 
@@ -118,10 +118,22 @@ void nv_info_msg(const char *prefix, const char *fmt, ...)
 
 void nv_msg(const char *prefix, const char *fmt, ...)
 {
-    NV_FORMAT(stdout, prefix, fmt);
+    NV_FORMAT(stdout, prefix, fmt, False);
 
 } /* nv_msg() */
 
+
+/*
+ * nv_msg_preserve_whitespace() - Prints the message, just like nv_msg()
+ * using format(), the difference is, whitespace characters are not
+ * skipped during the text processing.
+ */
+
+void nv_msg_preserve_whitespace(const char *prefix, const char *fmt, ...)
+{
+    NV_FORMAT(stdout, prefix, fmt, True);
+
+} /* nv_msg_preserve_whitespace() */
 
 
 /*
@@ -142,7 +154,7 @@ int vsnprintf(char *str, size_t size, const char  *format,
  */
 
 static void format(FILE *stream, const char *prefix,
-                   char *buf)
+                   char *buf, int preserveWhitespace)
 {
     int len, prefix_len, z, w, i, max_width;
     char *line, *local_prefix, *a, *b, *c;
@@ -224,9 +236,10 @@ static void format(FILE *stream, const char *prefix,
         z -= (b - a + 1);
         a = b + 1;
 
-        /* move to the first non whitespace character */
-        
-        while ((z > 0) && (isspace(*a))) a++, z--;
+        if (!preserveWhitespace) {
+            /* move to the first non whitespace character */
+            while ((z > 0) && (isspace(*a))) a++, z--;
+        }
 
         if (local_prefix) {
             for (i = 0; i < prefix_len; i++) local_prefix[i] = ' ';

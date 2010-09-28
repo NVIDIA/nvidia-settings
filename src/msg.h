@@ -32,6 +32,7 @@ void  nv_error_msg(const char*, ...);
 void  nv_warning_msg(const char*, ...);
 void  nv_info_msg(const char*, const char*, ...);
 void  nv_msg(const char*, const char*, ...);
+void  nv_msg_preserve_whitespace(const char*, const char*, ...);
 
 /*
  * NV_VSNPRINTF(): macro that assigns buf using vsnprintf().  This is

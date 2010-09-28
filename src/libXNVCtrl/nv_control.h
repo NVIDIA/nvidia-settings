@@ -46,8 +46,10 @@
  * 1.20        Added COOLER TargetType
  * 1.21        Added initial 64-bit integer attribute support (read-only)
  * 1.22        Added X_nvCtrlQueryValidStringAttributeValues to check
- *             string attribute permissions. 
+ *             string attribute permissions.
  * 1.23        Added SENSOR TargetType
+ * 1.24        Fixed a bug where SLI_MOSAIC_MODE_AVAILABLE attribute would
+ *             report false positives via the GPU and X screen target types
  */
 
 #ifndef __NVCONTROL_H
@@ -58,7 +60,7 @@
 #define NV_CONTROL_NAME "NV-CONTROL"
 
 #define NV_CONTROL_MAJOR 1
-#define NV_CONTROL_MINOR 23
+#define NV_CONTROL_MINOR 24
 
 #define X_nvCtrlQueryExtension                      0
 #define X_nvCtrlIsNv                                1

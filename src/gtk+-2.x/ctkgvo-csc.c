@@ -930,64 +930,41 @@ static void initialize_csc_dropdown_changed(CtkDropDownMenu *menu,
                                             gpointer user_data)
 {
     CtkGvoCsc *ctk_gvo_csc = (CtkGvoCsc *) user_data;
-    const gfloat (*std)[5];
+    const float *std = NULL;
     gint column, row, value;
-        
-    //     red      green    blue    offset  scale
-    static const float itu601[3][5] = {
-        {  0.2991,  0.5870,  0.1150, 0.0625, 0.85547 }, // Y
-        {  0.5000, -0.4185, -0.0810, 0.5000, 0.87500 }, // Cr
-        { -0.1685, -0.3310,  0.5000, 0.5000, 0.87500 }, // Cb
-    };
-    
-    static const float itu709[3][5] = {
-        {  0.2130,  0.7156,  0.0725, 0.0625, 0.85547 }, // Y
-        {  0.5000, -0.4542, -0.0455, 0.5000, 0.87500 }, // Cr
-        { -0.1146, -0.3850,  0.5000, 0.5000, 0.87500 }, // Cb
-    };
-    
-    static const float itu177[3][5] = {
-        { 0.412391, 0.357584, 0.180481, 0.0, 0.85547 }, // Y
-        { 0.019331, 0.119195, 0.950532, 0.0, 0.87500 }, // Cr
-        { 0.212639, 0.715169, 0.072192, 0.0, 0.87500 }, // Cb
-    };
-    
-    static const float identity[3][5] = {
-        {  0.0000,  1.0000,  0.0000, 0.0000, 1.0 }, // Y (Green)
-        {  1.0000,  0.0000,  0.0000, 0.0000, 1.0 }, // Cr (Red)
-        {  0.0000,  0.0000,  1.0000, 0.0000, 1.0 }, // Cb (Blue)
-    };
-    
 
     value = ctk_drop_down_menu_get_current_value(menu);
- 
+
     switch (value) {
-      case CSC_STANDARD_ITU_601:  std = itu601; break;
-      case CSC_STANDARD_ITU_709:  std = itu709; break;
-      case CSC_STANDARD_ITU_177:  std = itu177; break;
-      case CSC_STANDARD_IDENTITY: std = identity; break;
-      default: return;
+    case CSC_STANDARD_ITU_601:  std = nv_get_sdi_csc_matrix("itu_601"); break;
+    case CSC_STANDARD_ITU_709:  std = nv_get_sdi_csc_matrix("itu_709"); break;
+    case CSC_STANDARD_ITU_177:  std = nv_get_sdi_csc_matrix("itu_177"); break;
+    case CSC_STANDARD_IDENTITY: std = nv_get_sdi_csc_matrix("identity"); break;
+    default: return;
     }
-        
+    if (!std) {
+        return;
+    }
+
     for (row = 0; row < 3; row++) {
         for (column = 0; column < 3; column++) {
-            ctk_gvo_csc->matrix[row][column] = std[row][column];
+            ctk_gvo_csc->matrix[row][column] = std[row*5 + column];
             gtk_spin_button_set_value
                 (GTK_SPIN_BUTTON(ctk_gvo_csc->matrixWidget[row][column]),
                  ctk_gvo_csc->matrix[row][column]);
         }
-        
-        ctk_gvo_csc->offset[row] = std[row][3];
+
+        ctk_gvo_csc->offset[row] = std[row*5 + 3];
         gtk_spin_button_set_value
             (GTK_SPIN_BUTTON(ctk_gvo_csc->offsetWidget[row]),
              ctk_gvo_csc->offset[row]);
 
-        ctk_gvo_csc->scale[row] = std[row][4];
+        ctk_gvo_csc->scale[row] = std[row*5 + 4];
         gtk_spin_button_set_value
             (GTK_SPIN_BUTTON(ctk_gvo_csc->scaleWidget[row]),
              ctk_gvo_csc->scale[row]);
     }
-    
+
     /*
      * the data has changed, make sure the apply button is sensitive
      */

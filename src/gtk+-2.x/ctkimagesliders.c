@@ -340,6 +340,27 @@ void ctk_image_sliders_reset(CtkImageSliders *ctk_image_sliders)
                                   0);
     }
 
+    /*
+     * The above may have triggered events (e.g., changing
+     * NV_CTRL_OVERSCAN_COMPENSATION may trigger an
+     * NV_CTRL_IMAGE_SHARPENING value change).  Such an event will
+     * cause scale_value_changed() and post_scale_value_changed() to
+     * be called when control returns to the gtk_main loop.
+     * post_scale_value_changed() will write a status message to the
+     * statusbar.
+     *
+     * However, the caller of ctk_image_sliders_reset() (e.g.,
+     * ctkdisplaydevice-dfp.c:reset_button_clicked()) may also want to
+     * write a status message to the statusbar.  To ensure that the
+     * caller's statusbar message takes precedence (i.e., is the last
+     * thing written to the statusbar), process any generated events
+     * now, before returning to the caller.
+     */
+
+    while (gtk_events_pending()) {
+        gtk_main_iteration_do(FALSE);
+    }
+
     ctk_image_sliders_setup(ctk_image_sliders);
     
 } /* ctk_image_sliders_reset() */

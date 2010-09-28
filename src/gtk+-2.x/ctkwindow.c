@@ -638,7 +638,7 @@ GtkWidget *ctk_window_new(ParsedAttribute *p, ConfigProperties *conf,
                            CTK_WINDOW_CONFIG_FILE_ATTRIBUTES_FUNC_COLUMN,
                            NULL, -1);
 
-        if (h->targets[VCS_TARGET].n && !slimm_page_added) {
+        if (!slimm_page_added) {
             /* SLI Mosaic Mode information */
 
             child = ctk_slimm_new(screen_handle, ctk_event, ctk_config);

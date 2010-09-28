@@ -682,7 +682,8 @@ static int resolve_display(nvDisplayPtr display, int mode_idx,
  *
  **/
 
-static void resolve_displays_in_screen(nvScreenPtr screen, int all_modes)
+static void resolve_displays_in_screen(nvScreenPtr screen,
+                                       int resolve_all_modes)
 {
     nvDisplayPtr display;
     int pos[4];
@@ -690,7 +691,7 @@ static void resolve_displays_in_screen(nvScreenPtr screen, int all_modes)
     int last_idx;
     int mode_idx;
 
-    if (all_modes) {
+    if (resolve_all_modes) {
         first_idx = 0;
         last_idx = screen->num_metamodes -1;
     } else {
@@ -1191,17 +1192,17 @@ static void recenter_layout(nvLayoutPtr layout)
  *
  **/
 
-void reposition_screen(nvScreenPtr screen, int advanced)
+static void reposition_screen(nvScreenPtr screen, int resolve_all_modes)
 {
     int orig_screen_x = screen->dim[X];
     int orig_screen_y = screen->dim[Y];
-            
+
     /* Resolve new relative positions.  In basic mode,
      * relative position changes apply to all modes of a
      * display so we should resolve all modes (since they
      * were all changed.)
      */
-    resolve_displays_in_screen(screen, !advanced);
+    resolve_displays_in_screen(screen, resolve_all_modes);
 
     /* Reestablish the screen's original position */
     screen->dim[X] = orig_screen_x;
@@ -1856,7 +1857,7 @@ static int move_selected(CtkDisplayLayout *ctk_object, int x, int y, int snap)
                 }
                 
                 /* Make sure the screen position does not change */
-                reposition_screen(info->screen, ctk_object->advanced_mode);
+                reposition_screen(info->screen, !ctk_object->advanced_mode);
                 /* Always update the modify dim for relative positioning */
                 info->modify_dirty = 1;
             }
@@ -2819,11 +2820,7 @@ GtkWidget* ctk_display_layout_new(NvCtrlAttributeHandle *handle,
                                   CtkConfig *ctk_config,
                                   nvLayoutPtr layout,
                                   int width,
-                                  int height,
-                                  ctk_display_layout_selected_callback selected_callback,
-                                  void *selected_callback_data,
-                                  ctk_display_layout_modified_callback modified_callback,
-                                  void *modified_callback_data)
+                                  int height)
 {
     GObject *object;
     CtkDisplayLayout *ctk_object;
@@ -2839,13 +2836,13 @@ GtkWidget* ctk_display_layout_new(NvCtrlAttributeHandle *handle,
     /* Create the ctk object */
     object = g_object_new(CTK_TYPE_DISPLAY_LAYOUT, NULL);
     ctk_object = CTK_DISPLAY_LAYOUT(object);
+    ctk_object->selected_callback = NULL;
+    ctk_object->selected_callback_data = NULL;
+    ctk_object->modified_callback = NULL;
+    ctk_object->modified_callback_data = NULL;
 
     /* Setup widget properties */
     ctk_object->ctk_config = ctk_config;
-    ctk_object->selected_callback = selected_callback;
-    ctk_object->selected_callback_data = selected_callback_data;
-    ctk_object->modified_callback = modified_callback;
-    ctk_object->modified_callback_data = modified_callback_data;
 
     ctk_object->handle = handle;
     ctk_object->layout = layout;
@@ -3900,10 +3897,12 @@ void ctk_display_layout_set_mode_modeline(CtkDisplayLayout *ctk_object,
         mode->pan[H] = mode->display->modelines->data.vdisplay;
     }
 
-    /* The metamode that this mode belongs to should now be
-     * considered a user metamode.
+    /* In advanced mode, changing the resolution a display uses for a
+     * particular metamode should make this metamode non-implicit.
      */
-    if (mode->metamode) {
+    if (ctk_object->advanced_mode &&
+        (old_modeline != modeline) &&
+        mode->metamode) {
         mode->metamode->source = METAMODE_SOURCE_NVCONTROL;
     }
 
@@ -3931,6 +3930,7 @@ void ctk_display_layout_set_display_position(CtkDisplayLayout *ctk_object,
     GdkGC *fg_gc = get_widget_fg_gc(drawing_area);
     GdkGCValues old_gc_values;
     int modified = 0;
+    int resolve_all_modes = !ctk_object->advanced_mode;
 
 
     if (!display) return;
@@ -3953,25 +3953,36 @@ void ctk_display_layout_set_display_position(CtkDisplayLayout *ctk_object,
      */
 
     if (position_type != CONF_ADJ_ABSOLUTE) {
-        
+
         nvDisplayPtr other;
+        nvModePtr mode;
 
         for (other = display->gpu->displays; other; other = other->next) {
 
             if (other->screen != display->screen) continue;
 
-            if (!other->cur_mode) continue;
+            if (!resolve_all_modes) {
+                mode = other->cur_mode;
+                if (mode && mode->relative_to == display) {
+                    mode->position_type = CONF_ADJ_ABSOLUTE;
+                    mode->relative_to = NULL;
+                }
 
-            if (other->cur_mode->relative_to == display) {
-                other->cur_mode->position_type = CONF_ADJ_ABSOLUTE;
-                other->cur_mode->relative_to = NULL;
+            } else {
+
+                for (mode = other->modes; mode; mode = mode->next) {
+                    if (mode->relative_to == display) {
+                        mode->position_type = CONF_ADJ_ABSOLUTE;
+                        mode->relative_to = NULL;
+                    }
+                }
             }
         }
     }
 
 
     /* Set the new positioning type */
-    if (ctk_object->advanced_mode) {
+    if (!resolve_all_modes) {
         display->cur_mode->position_type = position_type;
         display->cur_mode->relative_to = relative_to;
 
@@ -4006,7 +4017,7 @@ void ctk_display_layout_set_display_position(CtkDisplayLayout *ctk_object,
         
     default:
         /* Make sure the screen position does not change */
-        reposition_screen(display->screen, ctk_object->advanced_mode);
+        reposition_screen(display->screen, resolve_all_modes);
 
         /* Recalculate the layout */
         ctk_display_layout_update(ctk_object);
@@ -4358,6 +4369,28 @@ void ctk_display_layout_set_advanced_mode(CtkDisplayLayout *ctk_object,
     ctk_object->advanced_mode = advanced_mode;
 
 } /* ctk_display_layout_set_allow_panning() */
+
+
+
+/** ctk_display_layout_register_callbacks() **************************
+ *
+ * Sets up callbacks so users of the display layout can recieve
+ * notifications.
+ *
+ **/
+
+void ctk_display_layout_register_callbacks(CtkDisplayLayout *ctk_object,
+                                           ctk_display_layout_selected_callback selected_callback,
+                                           void *selected_callback_data,
+                                           ctk_display_layout_modified_callback modified_callback,
+                                           void *modified_callback_data)
+{
+    ctk_object->selected_callback = selected_callback;
+    ctk_object->selected_callback_data = selected_callback_data;
+    ctk_object->modified_callback = modified_callback;
+    ctk_object->modified_callback_data = modified_callback_data;
+
+} /* ctk_display_layout_register_callbacks() */
 
 
 

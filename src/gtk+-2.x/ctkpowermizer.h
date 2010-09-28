@@ -62,6 +62,7 @@ struct _CtkPowermizer
     GtkWidget *adaptive_clock_status;
     GtkWidget *gpu_clock;
     GtkWidget *memory_clock;
+    GtkWidget *processor_clock;
     GtkWidget *power_source;
     GtkWidget *performance_level;
     GtkWidget *performance_mode;

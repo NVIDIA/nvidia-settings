@@ -33,7 +33,8 @@
 
 CC                    ?= gcc
 LD                    ?= ld
-CFLAGS                ?= -Wall -fno-strict-aliasing
+CFLAGS                ?=
+CFLAGS                += -Wall -fno-strict-aliasing -Wno-unused-parameter
 CFLAGS                += -O2 -fno-omit-frame-pointer
 CC_ONLY_CFLAGS        ?=
 LDFLAGS               ?=
@@ -147,14 +148,15 @@ include $(wildcard $(OUTPUTDIR)/version.mk version.mk)
 #
 # Arguments:
 # $(1): CC command (CC or HOST_CC)
-# $(2): object filename
+# $(2): source filename
+# $(3): object filename
 ##############################################################################
 
 ifeq ($(NV_AUTO_DEPEND),1)
   AUTO_DEP_CMD = && $($(1)) -MM $$(CFLAGS) $$< | $$(SED) \
     -e "s,: ,: $$$$\(wildcard ," \
     -e "s,\([^\\]\)$$$$,\1)," \
-    -e "s;^$$(notdir $(2)): ;$(2): ;" \
+    -e "s;^$$(addsuffix .o,$$(notdir $$(basename $(2)))): ;$(3): ;" \
     > $$(@:.o=.d)
 else
   AUTO_DEP_CMD =
@@ -244,7 +246,7 @@ define DEFINE_OBJECT_RULE_WITH_OBJECT_NAME
   $(3): $(2)
 	@$(MKDIR) $(OUTPUTDIR)
 	$$(call quiet_cmd,$(1)) -c $$< -o $$@ $$(CFLAGS) \
-	  $(call AUTO_DEP_CMD,$(1),$(3))
+	  $(call AUTO_DEP_CMD,$(1),$(2),$(3))
 
   -include $$(call BUILD_DEPENDENCY_LIST,$(3))
 

@@ -30,7 +30,7 @@
 #include <stdio.h>
 #include <ctype.h>
 
-#include "command-line.h"
+#include "option-table.h"
 #include "query-assign.h"
 #include "msg.h"
 #include "nvgetopt.h"
@@ -39,13 +39,8 @@
 #include "NvCtrlAttributes.h"
 
 
-#define TAB    "  "
-#define BIGTAB "      "
-
 /* local prototypes */
 
-static void print_assign_help(void);
-static void print_query_help(void);
 static void print_attribute_help(char *attr);
 static void print_help(void);
 static char *nvstrcat(const char *str, ...);
@@ -71,187 +66,14 @@ static void print_version(void)
     nv_msg(TAB, "The NVIDIA X Server Settings tool.");
     nv_msg(NULL, "");
     nv_msg(TAB, "This program is used to configure the "
-            "NVIDIA Linux graphics driver.");
+           "NVIDIA Linux graphics driver.");
+    nv_msg(TAB, "For more detail, please see the nvidia-settings(1) "
+           "man page.");
     nv_msg(NULL, "");
     nv_msg(TAB, "Copyright (C) 2004 - 2010 NVIDIA Corporation.");
     nv_msg(NULL, "");
     
 } /* print_version() */
-
-
-/*
- * Options table; the fields are:
- *
- * name - this is the long option name
- *
- * shortname - this is the one character short option name
- *
- * flags - bitmask; possible values are NVGETOPT_HAS_ARGUMENT and
- * NVGETOPT_IS_BOOLEAN
- *
- * description function - function to call to display description
- *                        through nv_msg()
- *
- * description - text for use by print_help() to describe the option
- */
-
-#define CONFIG_FILE_OPTION 1
-
-static const NVGetoptOption __options[] = {
-    { "version", 'v', 0, NULL,
-      "Print the nvidia-settings version and exit." },
-    
-    { "help", 'h', 0, NULL,
-      "Print usage information and exit." },
-    
-    { "config", CONFIG_FILE_OPTION, NVGETOPT_HAS_ARGUMENT, NULL,
-      "Use the configuration file [CONFIG] rather than the "
-      "default " DEFAULT_RC_FILE },
-
-    { "ctrl-display", 'c', NVGETOPT_HAS_ARGUMENT, NULL,
-      "Control the specified X display.  If this option is not given, then "
-      "nvidia-settings will control the display specifed by '--display'.  If "
-      "that is not given, then the $DISPLAY environment variable is used." },
-    
-    { "load-config-only", 'l', 0, NULL,
-      "Load the configuration file, send the values specified therein to "
-      "the X server, and exit.  This mode of operation is useful to place "
-      "in your .xinitrc file, for example." },
-
-    { "no-config", 'n', 0, NULL,
-      "Do not load the configuration file.  This mode of operation is useful "
-      "if nvidia-settings has difficulties starting due to problems with "
-      "applying settings in the configuration file." },
-
-    { "rewrite-config-file", 'r', 0, NULL,
-      "Write the X server configuration to the configuration file, and exit, "
-      "without starting the graphical user interface." },
-
-    { "verbose", 'V', NVGETOPT_HAS_ARGUMENT|NVGETOPT_ARGUMENT_IS_OPTIONAL, NULL,
-      "Controls how much information is printed.  Valid values are 'errors' "
-      "(print error messages), 'warnings' (print error and warning messages), "
-      "and 'all' (print error, warning and other informational messages).  By "
-      "default, only errors are printed." },
-
-    { "assign", 'a', NVGETOPT_HAS_ARGUMENT, print_assign_help, NULL },
-
-    { "query", 'q', NVGETOPT_HAS_ARGUMENT, print_query_help, NULL },
-
-    { "terse", 't', 0, NULL,
-      "When querying attribute values with the '--query' commandline option, "
-      "only print the current value, rather than the more verbose description "
-      "of the attribute, its valid values, and its current value." },
-
-    { "display-device-string", 'd', 0, NULL,
-      "When printing attribute values in response to the '--query' option, "
-      "if the attribute value is a display device mask, print the value "
-      "as a list of display devices (e.g., \"CRT-0, DFP-0\"), rather than "
-      "a hexidecimal bitmask (e.g., 0x00010001)." },
-
-    { "glxinfo", 'g', 0, NULL,
-      "Print GLX Information for the X display and exit." },
-    
-    { "describe", 'e', NVGETOPT_HAS_ARGUMENT, NULL,
-      "Prints information about a particular attribute.  Specify 'all' to "
-      "list the descriptions of all attributes.  Specify 'list' to list the "
-      "attribute names without a descriptions." },
-
-    { NULL,               0, 0, 0                   },
-};
-
-
-
-/*
- * print_assign_help() - print help information for the assign option.
- */
-
-static void print_assign_help(void)
-{
-    nv_msg(BIGTAB, "The ASSIGN argument to the '--assign' commandline option "
-           "is of the form:");
-    
-    nv_msg(NULL, "");
-    
-    nv_msg(BIGTAB TAB, "{DISPLAY}/{attribute name}[{display devices}]"
-           "={value}");
-    
-    nv_msg(NULL, "");
-
-    nv_msg(BIGTAB, "This assigns the attribute {attribute name} to the value "
-           "{value} on the X Display {DISPLAY}.  {DISPLAY} follows the usual "
-           "{host}:{display}.{screen} syntax of the DISPLAY environment "
-           "variable and is optional; when it is not specified, then it is "
-           "implied following the same rule as the --ctrl-display option.  "
-           "If the X screen is not specified, then the assignment is made to "
-           "all X screens.  Note that the '/' is only required when {DISPLAY} "
-           "is present.");
-
-    nv_msg(NULL, "");
-
-    nv_msg(BIGTAB, "{DISPLAY} can additionally include a target "
-           "specification to direct an assignment to something other than "
-           "an X screen.  A target specification is contained within brackets "
-           "and consists of a target type name, a colon, and the "
-           "target id.  The target type name can be one of \"screen\", "
-           "\"gpu\", \"framelock\", \"vcs\", \"gvi\", or \"fan\"; the target "
-           "id is the index into the "
-           "list of targets (for that target type).  The target specification "
-           "can be used in {DISPLAY} wherever an X screen can be used, "
-           "following the syntax {host}:{display}[{target_type}:"
-           "{target_id}].  See the output of `nvidia-settings -q all` for "
-           "information on which target types can be used with which "
-           "attributes.  See the output of `nvidia-settings -q screens "
-           "-q gpus -q framelocks -q vcs -q gvis -q fans` for lists of targets "
-           "for each target type.");
-    
-    nv_msg(NULL, "");
-
-    nv_msg(BIGTAB, "The [{display devices}] portion is also optional; "
-           "if it is not specified, then the attribute is assigned to all "
-           "display devices.");
-
-    nv_msg(NULL, "");
- 
-    nv_msg(BIGTAB, "Some examples:");
-    
-    nv_msg(NULL, "");
-    
-    nv_msg(BIGTAB TAB, "-a FSAA=5");
-    nv_msg(BIGTAB TAB, "-a localhost:0.0/DigitalVibrance[CRT-0]=0");
-    nv_msg(BIGTAB TAB, "--assign=\"SyncToVBlank=1\"");
-    nv_msg(BIGTAB TAB, "-a [gpu:0]/DigitalVibrance[DFP-1]=63");
-    
-} /* print_assign_help() */
-
-
-
-/*
- * print_query_help() - print help information for the query option.
- */
-
-static void print_query_help(void)
-{
-    nv_msg(BIGTAB, "The QUERY argument to the '--query' commandline option "
-           "is of the form:");
-
-    nv_msg(NULL, "");
-
-    nv_msg(BIGTAB TAB, "{DISPLAY}/{attribute name}[{display devices}]");
-    
-    nv_msg(NULL, "");
-
-    nv_msg(BIGTAB, "This queries the current value of the attribute "
-           "{attribute name} on the X Display {DISPLAY}.  The format is "
-           "the same as that for the '--assign' option, without "
-           "'={value}'.  Specify '-q screens', '-q gpus', '-q framelocks', "
-           "'-q vcs', '-q gvis', or '-q fans' to query a list of X screens, "
-           "GPUs, Frame Lock devices, Visual Computing Systems, SDI Input "
-           "Devices, or Fans, respectively, that are present on the X Display "
-           "{DISPLAY}.  Specify '-q all' to query all attributes.");
-
-} /* print_query_help() */
-
-
 
 /*
  * print_attribute_help() - print information about the specified attribute.
@@ -362,10 +184,37 @@ void print_help(void)
             msg = tmp;
         }
         nv_msg(TAB, msg);
-        if (o->description) nv_msg(BIGTAB, o->description);
-        if (o->print_description) (*(o->print_description))();
-        nv_msg(NULL, "");
         free(msg);
+
+        if (o->description) {
+            char *buf = NULL, *pbuf = NULL, *s = NULL;
+
+            buf = calloc(1, 1 + strlen(o->description));
+            if (!buf) {
+                /* XXX There should be better message than this */
+                nv_error_msg("Not enough memory\n");
+                return;
+            }
+            pbuf = buf;
+
+            for (s = o->description; s && *s; s++) {
+                switch (*s) {
+                case '<':
+                case '>':
+                case '^':
+                    break;
+                default:
+                    *pbuf = *s;
+                    pbuf++;
+                    break;
+                }
+            }
+            *pbuf = '\0';
+            nv_msg_preserve_whitespace(BIGTAB, buf);
+            free(buf);
+        }
+
+        nv_msg(NULL, "");
     }
 } /* print_help() */
 
@@ -400,7 +249,11 @@ Options *parse_command_line(int argc, char *argv[], char *dpy)
     op->ctrl_display = dpy;
     
     while (1) {
-        c = nvgetopt(argc, argv, __options, &strval, NULL);
+        c = nvgetopt(argc, argv, __options, &strval,
+                     NULL,  /* boolval */
+                     NULL,  /* intval */
+                     NULL,  /* doubleval */
+                     NULL); /* disable_val */
 
         if (c == -1)
             break;

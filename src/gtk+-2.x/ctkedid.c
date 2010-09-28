@@ -35,23 +35,32 @@
 
 #include <sys/types.h>
 #include <sys/stat.h>
-#include <fcntl.h>
-#include <unistd.h>
-#include <sys/mman.h>
+#include <stdio.h>
+#include <stdlib.h>
 #include <errno.h>
 
 
 #define FRAME_PADDING 5
 
-#define DEFAULT_EDID_FILENAME "edid.bin"
+/* file formats */
+#define FILE_FORMAT_BINARY 1
+#define FILE_FORMAT_ASCII  2
+
+/* default file names */
+#define DEFAULT_EDID_FILENAME_BINARY "edid.bin"
+#define DEFAULT_EDID_FILENAME_ASCII  "edid.txt"
 
 static const char *__acquire_edid_help =
 "The Acquire EDID button allows you to save the display device's EDID "
-"(Extended Display Identification Data) information to a file.";
+"(Extended Display Identification Data) information to a file.  By "
+"default it saves information in binary format but one can also choose "
+"to save in ASCII format.";
 
+static void file_format_changed(GtkWidget *widget, gpointer user_data);
+static void normalize_filename(CtkEdid *ctk_edid);
 static void button_clicked(GtkButton *button, gpointer user_data);
 static gboolean write_edid_to_file(CtkConfig *ctk_config, const gchar *filename,
-                                   unsigned char *data, int len);
+                                   int format, unsigned char *data, int len);
 
 GType ctk_edid_get_type(void)
 {
@@ -110,13 +119,15 @@ GtkWidget* ctk_edid_new(NvCtrlAttributeHandle *handle,
     ctk_edid->reset_button = reset_button;
     ctk_edid->display_device_mask = display_device_mask;
     ctk_edid->name = name;
-    ctk_edid->filename = DEFAULT_EDID_FILENAME;
+    ctk_edid->filename = DEFAULT_EDID_FILENAME_BINARY;
+    ctk_edid->file_format = FILE_FORMAT_BINARY;
     ctk_edid->file_selector = gtk_file_selection_new("Please select file where "
                                                      "EDID data will be "
                                                      "saved.");
 
-    gtk_file_selection_set_select_multiple(GTK_FILE_SELECTION(ctk_edid->file_selector),
-                                           FALSE);
+    gtk_file_selection_set_select_multiple
+        (GTK_FILE_SELECTION(ctk_edid->file_selector),
+         FALSE);
 
     /* create the frame and vbox */
     
@@ -148,12 +159,130 @@ GtkWidget* ctk_edid_new(NvCtrlAttributeHandle *handle,
                      G_CALLBACK(button_clicked),
                      (gpointer) ctk_edid);
 
+    /* adding file format selection option to file selector dialog */
+
+    frame = gtk_frame_new(NULL);
+    gtk_box_pack_start
+        (GTK_BOX(GTK_FILE_SELECTION(ctk_edid->file_selector)->main_vbox),
+         frame, FALSE, FALSE, 15);
+    gtk_box_reorder_child
+        (GTK_BOX(GTK_FILE_SELECTION(ctk_edid->file_selector)->main_vbox),
+         frame, 0);
+
+    hbox = gtk_hbox_new(FALSE, 10);
+    gtk_container_set_border_width(GTK_CONTAINER(hbox), FRAME_PADDING);
+    gtk_container_add(GTK_CONTAINER(frame), hbox);
+
+    label = gtk_label_new("EDID File Format: ");
+    gtk_box_pack_start(GTK_BOX(hbox), label, FALSE, FALSE, 0);
+
+    ctk_edid->file_format_binary_radio_button =
+        gtk_radio_button_new_with_label(NULL, "Binary");
+    gtk_box_pack_start(GTK_BOX(hbox), ctk_edid->file_format_binary_radio_button,
+                       FALSE, FALSE, 0);
+    g_signal_connect(G_OBJECT(ctk_edid->file_format_binary_radio_button),
+                     "toggled", G_CALLBACK(file_format_changed),
+                     (gpointer) ctk_edid);
+
+    ctk_edid->file_format_ascii_radio_button =
+        gtk_radio_button_new_with_label_from_widget
+        (GTK_RADIO_BUTTON(ctk_edid->file_format_binary_radio_button),
+         "ASCII");
+    gtk_box_pack_start(GTK_BOX(hbox), ctk_edid->file_format_ascii_radio_button,
+                       FALSE, FALSE, 0);
+    g_signal_connect(G_OBJECT(ctk_edid->file_format_ascii_radio_button),
+                     "toggled", G_CALLBACK(file_format_changed),
+                     (gpointer) ctk_edid);
+
+    gtk_window_set_resizable(GTK_WINDOW(ctk_edid->file_selector),
+                             FALSE);
+    gtk_toggle_button_set_active
+        (GTK_TOGGLE_BUTTON(ctk_edid->file_format_binary_radio_button), TRUE);
+    gtk_widget_show_all(GTK_FILE_SELECTION(ctk_edid->file_selector)->main_vbox);
+
     gtk_widget_show_all(GTK_WIDGET(object));
 
     return GTK_WIDGET(object);
     
 } /* ctk_edid_new() */
 
+
+static void normalize_filename(CtkEdid *ctk_edid)
+{
+    char *buffer = NULL, *filename = NULL;
+    char *end = NULL, *slash = NULL;
+    int len = 0, n;
+
+    ctk_edid->filename =
+        gtk_file_selection_get_filename(GTK_FILE_SELECTION(ctk_edid->file_selector));
+
+    len = strlen(ctk_edid->filename);
+    filename = malloc(len + 1);
+    if (!filename) {
+        goto done;
+    }
+    strncpy(filename, ctk_edid->filename, len);
+
+    /*
+     * It is possible that filename is entered without any extension,
+     * in that case we need to make room for the extension string e.g.
+     * '.bin' or '.txt', so total buffer length will be filename plus 5.
+     */
+    buffer = malloc(len + 5);
+    if (!buffer) {
+        goto done;
+    }
+
+    /* find the last forward slash (or the start of the filename) */
+
+    slash = strrchr(filename, '/');
+    if (!slash) {
+        slash = filename;
+    }
+
+    /*
+     * find where to truncate the filename: either the last period
+     * after 'slash', or the end of the filename
+     */
+
+    for (end = filename + len; end > slash; end--) {
+        if (*end == '.') break;
+    }
+
+    if (end == slash) {
+        end = filename + len;
+    }
+
+    /*
+     * print the characters between filename and end; then append the
+     * suffix
+     */
+    n = end - filename;
+    strncpy(buffer, filename, n);
+
+    if (gtk_toggle_button_get_active
+        (GTK_TOGGLE_BUTTON(ctk_edid->file_format_binary_radio_button))) {
+        ctk_edid->file_format = FILE_FORMAT_BINARY;
+        snprintf(buffer + n, 5, ".bin");
+    } else if (gtk_toggle_button_get_active
+               (GTK_TOGGLE_BUTTON(ctk_edid->file_format_ascii_radio_button))) {
+        ctk_edid->file_format = FILE_FORMAT_ASCII;
+        snprintf(buffer + n, 5, ".txt");
+    }
+
+    /* modify the file name as per the format selected */
+    gtk_file_selection_set_filename(GTK_FILE_SELECTION(ctk_edid->file_selector),
+                                    buffer);
+ done:
+    free(filename);
+    free(buffer);
+}
+
+static void file_format_changed(GtkWidget *widget, gpointer user_data)
+{
+    CtkEdid *ctk_edid = CTK_EDID(user_data);
+    normalize_filename(ctk_edid);
+}
 
 static void button_clicked(GtkButton *button, gpointer user_data)
 {
@@ -188,11 +317,12 @@ static void button_clicked(GtkButton *button, gpointer user_data)
         case GTK_RESPONSE_ACCEPT:
         case GTK_RESPONSE_OK:
 
+            normalize_filename(ctk_edid);
             ctk_edid->filename =
                 gtk_file_selection_get_filename(GTK_FILE_SELECTION(ctk_edid->file_selector));
             
             write_edid_to_file(ctk_edid->ctk_config, ctk_edid->filename,
-                               data, len);
+                               ctk_edid->file_format, data, len);
 
             break;
         default:
@@ -209,51 +339,77 @@ static void button_clicked(GtkButton *button, gpointer user_data)
 
 
 static gboolean write_edid_to_file(CtkConfig *ctk_config, const gchar *filename,
-                                   unsigned char *data, int len)
+                                   int format, unsigned char *data, int len)
 {
-    int fd = -1;
-    char *dst = (void *) -1;
+    int i;
+    FILE *fp = NULL;
     char *msg = "";
+    char *tmpbuf = NULL, *pbuf = NULL;
 
-    fd = open(filename, O_RDWR | O_CREAT | O_TRUNC,
-              S_IRUSR | S_IWUSR | S_IRGRP);
-    if (fd == -1) {
-        msg = "Unable to open file for writing";
-        goto fail;
+
+    if (format == FILE_FORMAT_ASCII) {
+        fp = fopen(filename, "wt");
+        if (!fp) {
+            msg = "ASCII Mode: Unable to open file for writing";
+            goto fail;
+        }
+        /*
+         * for printing every member we reserve 2 locations i.e. %02x and
+         * one extra space to comply with NVIDIA Windows Control Panel
+         * ASCII file output, so in all 3 bytes are required for every entry.
+         */
+        tmpbuf = calloc(1, 1 + (len * 3));
+        if (!tmpbuf) {
+            msg = "ASCII Mode: Could not allocate enough memory";
+            goto fail;
+        }
+        pbuf = tmpbuf;
+
+        for (i = 0; i < len; i++) {
+            if (sprintf(pbuf, "%02x ", data[i]) < 0) {
+                msg = "ASCII Mode: Unable to write to buffer";
+                goto fail;
+            }
+            pbuf = pbuf + 3;
+        }
+        /* being extra cautious */
+        sprintf(pbuf, "%c", '\0');
+
+        if (fprintf(fp, "%s", tmpbuf) < 0) {
+            msg = "ASCII Mode: Unable to write to file";
+            goto fail;
+        }
+
+        free(tmpbuf);
+        tmpbuf = pbuf = NULL;
+
+    } else {
+        fp = fopen(filename, "wb");
+        if (!fp) {
+            msg = "Binary Mode: Unable to open file for writing";
+            goto fail;
+        }
+
+        if (fwrite(data, 1, len, fp) != len) {
+            msg = "Binary Mode: Unable to write to file";
+            goto fail;
+        }
     }
-    
-    if (lseek(fd, len - 1, SEEK_SET) == -1) {
-        msg = "Unable to set file size";
-        goto fail;
-    }
-    
-    if (write(fd, "", 1) != 1) {
-        msg = "Unable to write output file size";
-        goto fail;
-    }
-    
-    if ((dst = mmap(0, len, PROT_READ | PROT_WRITE,
-                    MAP_SHARED, fd, 0)) == (void *) -1) {
-        msg = "Unable to map file for copying";
-        goto fail;
-    }
-    
-    memcpy(dst, data, len);
-    
-    if (munmap(dst, len) == -1) {
-        msg = "Unable to unmap output file";
-        goto fail;
-    }
-    
-    close(fd);
-    
+
+    fclose(fp);
+
     ctk_config_statusbar_message(ctk_config,
                                  "EDID written to %s.", filename);
     return TRUE;
     
  fail:
 
-    if (fd != -1) close(fd);
+    free(tmpbuf);
+    tmpbuf = pbuf = NULL;
+
+    if (fp) {
+        fclose(fp);
+    }
 
     ctk_config_statusbar_message(ctk_config,
                                  "Unable to write EDID to file '%s': %s (%s).",

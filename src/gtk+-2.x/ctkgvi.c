@@ -751,25 +751,21 @@ GtkTextBuffer *ctk_gvi_create_help(GtkTextTagTable *table,
     ctk_help_para(b, &i, "This is the interrupt request line assigned to "
                   "this GVI device.");
 
-    ctk_help_heading(b, &i, "Fill A");
-    ctk_help_para(b, &i, "This reports the detected incoming video format on "
-                  "first jack on the GVI device.");
-    
-    ctk_help_heading(b, &i, "Key A");
-    ctk_help_para(b, &i, "This reports the detected incoming video format on "
-                  "second jack on the GVI device.");
-    
-    ctk_help_heading(b, &i, "Fill B");
-    ctk_help_para(b, &i, "This reports the detected incoming video format on "
-                  "third jack on the GVI device.");
-    
-    ctk_help_heading(b, &i, "Key B");
-    ctk_help_para(b, &i, "This reports the detected incoming video format on "
-                  "fourth jack on the GVI device.");
-    
-    ctk_help_heading(b, &i, "Sync Output");
-    ctk_help_para(b, &i, "This reports the output sync signal from "
-                  "the GVI device.");
+    ctk_help_heading(b, &i, "Input Information");
+    ctk_help_para(b, &i, "This section shows the detected video format(s) on "
+                  "each jack of the GVI device.  When condensed mode is "
+                  "selected, the detected video format is shown for each "
+                  "jack (and channel).  when detailed mode is selected, "
+                  "information pertaining to the single channel on a jack "
+                  "selected is given as such:");
+
+    ctk_help_para(b, &i, "Video Format:  The detected SMPTE video format.");
+    ctk_help_para(b, &i, "Component Sampling: The detected composition of the "
+                  "channel.");
+    ctk_help_para(b, &i, "Color Space: The detected color space.");
+    ctk_help_para(b, &i, "Bites Per Component: The detected number of bits "
+                  "per component.");
+    ctk_help_para(b, &i, "Link ID: The detected link ID of the channel.");
 
     ctk_help_finish(b);
 

@@ -2018,6 +2018,85 @@ int nv_process_parsed_attribute(ParsedAttribute *a, CtrlHandles *h,
             }
         }
 
+        /* Special case the GVO CSC attribute */
+
+        if (a->flags & NV_PARSER_TYPE_SDI_CSC) {
+            float colorMatrix[3][3];
+            float colorOffset[3];
+            float colorScale[3];
+            int r, c;
+
+            if (assign) {
+
+                /* Make sure the standard is known */
+                if (!a->pfval) {
+                    nv_error_msg("The attribute '%s' specified %s cannot be "
+                                 "assigned; valid values are \"ITU_601\", "
+                                 "\"ITU_709\", \"ITU_177\", and \"Identity\".",
+                                 a->name, whence);
+                    continue;
+                }
+
+                for (r = 0; r < 3; r++) {
+                    for (c = 0; c < 3; c++) {
+                        colorMatrix[r][c] = a->pfval[r*5 + c];
+                    }
+                    colorOffset[r] = a->pfval[r*5 + 3];
+                    colorScale[r] = a->pfval[r*5 + 4];
+                }
+
+                status = NvCtrlSetGvoColorConversion(t->h,
+                                                     colorMatrix,
+                                                     colorOffset,
+                                                     colorScale);
+            } else {
+                status = NvCtrlGetGvoColorConversion(t->h,
+                                                     colorMatrix,
+                                                     colorOffset,
+                                                     colorScale);
+            }
+
+            if (status != NvCtrlSuccess) {
+                nv_error_msg("The attribute '%s' specified %s cannot be "
+                             "%s; error on %s (%s).",
+                             a->name, whence,
+                             assign ? "assigned" : "queried",
+                             t->name, NvCtrlAttributesStrError(status));
+                continue;
+            }
+
+
+            /* Print results */
+            if (!assign) {
+#define INDENT "    "
+
+                nv_msg(INDENT, "   Red       Green     Blue      Offset    Scale");
+                nv_msg(INDENT, "----------------------------------------------------");
+                nv_msg(INDENT, " Y % -0.6f % -0.6f %  -0.6f % -0.6f % -0.6f",
+                       colorMatrix[0][0],
+                       colorMatrix[0][1],
+                       colorMatrix[0][2],
+                       colorOffset[0],
+                       colorScale[0]);
+                nv_msg(INDENT, "Cr % -0.6f % -0.6f %  -0.6f % -0.6f % -0.6f",
+                       colorMatrix[1][0],
+                       colorMatrix[1][1],
+                       colorMatrix[1][2],
+                       colorOffset[1],
+                       colorScale[1]);
+                nv_msg(INDENT, "Cb % -0.6f % -0.6f %  -0.6f % -0.6f % -0.6f",
+                       colorMatrix[2][0],
+                       colorMatrix[2][1],
+                       colorMatrix[2][2],
+                       colorOffset[2],
+                       colorScale[2]);
+#undef INDENT
+            }
+
+            continue;
+        }
+
+
         /* loop over the display devices */
 
         for (bit = 0; bit < 24; bit++) {

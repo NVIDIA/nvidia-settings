@@ -2,7 +2,7 @@ NV-CONTROL X Extension Samples
 
 The `nvidia-settings` application is fairly involved, and is not
 the easiest source code to read through for someone interested in
-learning how to use the NV-CONTROL.
+learning how to use the NV-CONTROL X extension.
 
 The applications in this directory are trivial examples demonstrating
 how to use the NV-CONTROL X extension.  For more thorough
@@ -12,24 +12,29 @@ source package).
 
 Sample applications:
 
-    nv-control-info: demonstrates how to query for extension
-                     presense, basic information.
+    nv-control-info:      Demonstrates how to query for extension
+                          presence and basic information.
 
-    nv-control-dvc:  demonstrates how to query and assign an
-                     integer attribute (NV_CTRL_DIGITAL_VIBRANCE); also
-                     shows how to handle multiple display devices.
+    nv-control-dvc:       Demonstrates how to query and assign an
+                          integer attribute (NV_CTRL_DIGITAL_VIBRANCE); also
+                          shows how to handle multiple display devices.
 
-    nv-control-events: demonstrates how to register to receive and
-                       interpret NV-CONTROL events.
+    nv-control-events:    Demonstrates how to register to receive and
+                          interpret NV-CONTROL events.
 
-    nv-control-dpy: demonstrates how to configure display devices
-                    using the NV-CONTROL X extension.
+    nv-control-dpy:       Demonstrates how to configure display devices
+                          using the NV-CONTROL X extension.
 
-    nv-control-targets: demonstrates how to query various attributes
-                        from varying target types (GPUs, X Screens,
-                        Frame Lock Boards) using the XNVCTRL target
-                        functions.
+    nv-control-targets:   Demonstrates how to query various attributes
+                          from varying target types (GPUs, X Screens,
+                          Frame Lock Boards) using the XNVCTRL target
+                          functions.
 
-    nv-control-framelock: demonstrates how to query frame lock related
+    nv-control-framelock: Demonstrates how to query frame lock related
                           attributes.  Also demonstrates how to enable/
                           disable frame lock.
+
+    nv-control-gvi:       Demonstrates how to interact with the Graphics-to-
+                          Video-In (GVI) capabilities of a GVI target via
+                          NV-CONTROL.
+

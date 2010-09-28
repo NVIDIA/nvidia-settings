@@ -1428,6 +1428,10 @@ static void output_video_format_ui_changed(CtkDropDownMenu *menu,
 
     update_gvo_sensitivity(ctk_gvo);
 
+    /* Made GVO banner to update current output video format */
+    CTK_GVO_BANNER(ctk_gvo->banner)->output_video_format =
+        ctk_gvo->output_video_format;
+
     post_output_video_format_changed(ctk_gvo);
     
 } /* output_video_format_ui_changed() */

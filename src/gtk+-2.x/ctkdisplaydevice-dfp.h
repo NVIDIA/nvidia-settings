@@ -65,6 +65,8 @@ struct _CtkDisplayDeviceDfp
     GtkWidget *reset_button;
     GtkWidget *edid_box;
     GtkWidget *edid;
+    GtkWidget *dithering_controls;
+    GtkWidget *color_controls;
 
     GtkWidget *txt_chip_location;
     GtkWidget *txt_link;

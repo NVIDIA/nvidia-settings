@@ -76,10 +76,10 @@ struct _CtkFramelock
 
     /* House sync */
     GtkWidget             *house_sync_frame;
-    GtkWidget             *house_sync_hbox;
+    GtkWidget             *house_sync_vbox;
     GtkWidget             *use_house_sync;
     GtkWidget             *sync_interval_frame;
-    GtkWidget             *sync_interval_entry;
+    GtkWidget             *sync_interval_scale;
     GtkWidget             *sync_edge_frame;
     GtkWidget             *sync_edge_combo;
     GtkWidget             *video_mode_frame;

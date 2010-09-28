@@ -287,8 +287,8 @@ static const char * __use_house_sync_button_help =
 "(if a house sync signal is detected) instead of using internal timing from "
 "the server GPU/display device.";
 
-static const char * __sync_interval_entry_help =
-"The Sync Interval entry allows you to set the number of incoming house sync "
+static const char * __sync_interval_scale_help =
+"The Sync Interval allows you to set the number of incoming house sync "
 "pulses the master frame lock board recieves before generating an outgoing "
 "frame lock sync pulse.  A value of 0 means a frame lock sync pulse is sent "
 "for every house sync pulse.";
@@ -350,7 +350,7 @@ static void toggle_server(GtkWidget *, gpointer);
 static void toggle_client(GtkWidget *, gpointer);
 static void toggle_sync_enable(GtkWidget *, gpointer);
 static void toggle_test_link(GtkWidget *, gpointer);
-static void activate_sync_interval(GtkEntry *, gpointer);
+static void sync_interval_changed(GtkRange *, gpointer);
 static void changed_video_mode(GtkEditable *, gpointer);
 static void toggle_detect_video_mode(GtkToggleButton *, gpointer);
 
@@ -3151,24 +3151,23 @@ static void toggle_test_link(GtkWidget *button, gpointer data)
 
 
 
-/** activate_sync_interval() *****************************************
+/** sync_interval_changed() *****************************************
  *
  * Callback function for when the user changes the house sync
  * interval.
  *
  */
-static void activate_sync_interval(GtkEntry *widget, gpointer user_data)
+static void sync_interval_changed(GtkRange *range, gpointer user_data)
 {
     CtkFramelock *ctk_framelock = (CtkFramelock *)user_data;
     nvListTreePtr tree = (nvListTreePtr)(ctk_framelock->tree);
     nvListEntryPtr entry = get_framelock_server_entry(tree);
-    nvFrameLockDataPtr data;
-    const gchar *str = gtk_entry_get_text(widget);
-    gint interval;
-    
-    if (!entry || !str) return;
+    nvFrameLockDataPtr data = NULL;
+    gint interval = gtk_range_get_value(range);
 
-    interval = strtol(str, NULL, 10);
+    if (!entry) {
+        return;
+    }
 
     data = (nvFrameLockDataPtr)(entry->data);
 
@@ -3176,6 +3175,20 @@ static void activate_sync_interval(GtkEntry *widget, gpointer user_data)
                        interval);
 }
 
+
+/*
+ * format_sync_interval() - callback for the "format-value" signal from
+ * the sync interval scale; return a string describing the current value of the
+ * scale.
+ */
+static gchar *format_sync_interval(GtkScale *scale, gdouble arg1,
+                                   gpointer user_data)
+{
+    gint val = (gint)arg1;
+
+    return g_strdup_printf("%d", val);
+
+}
 
 
 /** changed_sync_edge() **********************************************
@@ -3786,16 +3799,15 @@ static void update_house_sync_controls(CtkFramelock *ctk_framelock)
     gtk_widget_set_sensitive(ctk_framelock->house_sync_frame, !enabled);
 
     if (enabled || !use_house) {
-        gtk_widget_set_sensitive(ctk_framelock->house_sync_hbox, FALSE);
+        gtk_widget_set_sensitive(ctk_framelock->house_sync_vbox, FALSE);
     } else {
         gint sync_interval;
         gint sync_edge;
         gint house_format;
-        gchar str[32];
 
         nvFrameLockDataPtr data;
         
-        gtk_widget_set_sensitive(ctk_framelock->house_sync_hbox, TRUE);
+        gtk_widget_set_sensitive(ctk_framelock->house_sync_vbox, TRUE);
 
         data = (nvFrameLockDataPtr)(entry->data);
 
@@ -3812,9 +3824,18 @@ static void update_house_sync_controls(CtkFramelock *ctk_framelock)
 
         /* Update GUI to reflect server settings */
 
-        snprintf(str, 32, "%d", sync_interval);
-        gtk_entry_set_text(GTK_ENTRY(ctk_framelock->sync_interval_entry),
-                           str); 
+        g_signal_handlers_block_by_func
+            (G_OBJECT(ctk_framelock->sync_interval_scale),
+             G_CALLBACK(sync_interval_changed),
+             (gpointer) ctk_framelock);
+
+        gtk_range_set_value(GTK_RANGE(ctk_framelock->sync_interval_scale),
+                            sync_interval);
+
+        g_signal_handlers_unblock_by_func
+            (G_OBJECT(ctk_framelock->sync_interval_scale),
+             G_CALLBACK(sync_interval_changed),
+             (gpointer) ctk_framelock);
 
         if (sync_edge < NV_CTRL_FRAMELOCK_POLARITY_RISING_EDGE)
             sync_edge = NV_CTRL_FRAMELOCK_POLARITY_RISING_EDGE;
@@ -4130,7 +4151,6 @@ static void framelock_state_received(GtkObject *object,
     nvListEntryPtr server_entry =
         get_framelock_server_entry(entry->tree);
 
-    char str[32];
     gint sync_edge;
     gint house_format;
 
@@ -4160,17 +4180,16 @@ static void framelock_state_received(GtkObject *object,
 
     case NV_CTRL_FRAMELOCK_SYNC_INTERVAL:
         g_signal_handlers_block_by_func
-            (G_OBJECT(ctk_framelock->sync_interval_entry),
-             G_CALLBACK(activate_sync_interval),
+            (G_OBJECT(ctk_framelock->sync_interval_scale),
+             G_CALLBACK(sync_interval_changed),
              (gpointer) ctk_framelock);
 
-        snprintf(str, 32, "%d", event->value);
-        gtk_entry_set_text(GTK_ENTRY(ctk_framelock->sync_interval_entry),
-                           str);
+        gtk_range_set_value(GTK_RANGE(ctk_framelock->sync_interval_scale),
+                            event->value);
 
         g_signal_handlers_unblock_by_func
-            (G_OBJECT(ctk_framelock->sync_interval_entry),
-             G_CALLBACK(activate_sync_interval),
+            (G_OBJECT(ctk_framelock->sync_interval_scale),
+             G_CALLBACK(sync_interval_changed),
              (gpointer) ctk_framelock);
         break;
 
@@ -4310,20 +4329,23 @@ GtkWidget* ctk_framelock_new(NvCtrlAttributeHandle *handle,
     ReturnStatus ret;
     unsigned int num_framelocks;
     gchar *string;
+    gint val;
 
     GtkWidget *frame;
     GtkWidget *padding;
     GtkWidget *sw;     /* Scrollable window */
     GtkWidget *vp;     /* Viewport */
+    GtkWidget *scale;
+    GtkObject *adjustment;
 
     GtkWidget *hbox;
     GtkWidget *vbox;
     GtkWidget *label;
-    GtkWidget *entry;
     GtkWidget *combo;
     GList *glist;
     GtkWidget *button;
     GtkWidget *image;
+    NVCTRLAttributeValidValuesRec valid;
 
     
 
@@ -4605,33 +4627,60 @@ GtkWidget* ctk_framelock_new(NvCtrlAttributeHandle *handle,
     gtk_box_pack_start(GTK_BOX(hbox), ctk_framelock->use_house_sync,
                        FALSE, FALSE, 0);
     
-    padding = gtk_hbox_new(FALSE, 5);
-    ctk_framelock->house_sync_hbox = padding;
+    padding = gtk_vbox_new(FALSE, 5);
+    ctk_framelock->house_sync_vbox = padding;
     gtk_box_pack_start(GTK_BOX(vbox), padding, FALSE, FALSE, 0);
 
     /* add the house sync interval */
     {
         GtkWidget *frame2 = gtk_frame_new(NULL);
+
+        ret = NvCtrlGetValidAttributeValues(ctk_framelock->attribute_handle,
+                                            NV_CTRL_FRAMELOCK_SYNC_INTERVAL,
+                                            &valid);
+        /*
+         * pick a conservative default range if we could not query the
+         * range from NV-CONTROL
+         */
+
+        if ((ret != NvCtrlSuccess) || (valid.type != ATTRIBUTE_TYPE_RANGE)) {
+            valid.type = ATTRIBUTE_TYPE_RANGE;
+            valid.u.range.min = 0;
+            valid.u.range.max = 4;
+        }
+
+        if (NvCtrlSuccess !=
+            NvCtrlGetAttribute(ctk_framelock->attribute_handle,
+                               NV_CTRL_FRAMELOCK_SYNC_INTERVAL,
+                               &val)) {
+            return NULL;
+        }
+
         hbox = gtk_hbox_new(FALSE, 5);
         label = gtk_label_new("Sync Interval:");
-        entry = gtk_entry_new();
-        gtk_entry_set_text(GTK_ENTRY(entry), "0");
-        gtk_entry_set_width_chars(GTK_ENTRY(entry), 4);
-        g_signal_connect(G_OBJECT(entry),
-                         "activate", G_CALLBACK(activate_sync_interval),
+
+        adjustment = gtk_adjustment_new(val, valid.u.range.min,
+                                        valid.u.range.max, 1, 1, 0);
+        scale = gtk_hscale_new(GTK_ADJUSTMENT(adjustment));
+        gtk_adjustment_set_value(GTK_ADJUSTMENT(adjustment), val);
+
+        gtk_scale_set_draw_value(GTK_SCALE(scale), TRUE);
+        gtk_scale_set_value_pos(GTK_SCALE(scale), GTK_POS_TOP);
+
+        g_signal_connect(G_OBJECT(scale), "format-value",
+                         G_CALLBACK(format_sync_interval),
                          (gpointer) ctk_framelock);
-        ctk_config_set_tooltip(ctk_config, entry, __sync_interval_entry_help);
+        g_signal_connect(G_OBJECT(scale), "value-changed",
+                         G_CALLBACK(sync_interval_changed),
+                         (gpointer) ctk_framelock);
+        ctk_config_set_tooltip(ctk_config, scale, __sync_interval_scale_help);
+
         ctk_framelock->sync_interval_frame = frame2;
-        ctk_framelock->sync_interval_entry = entry;
+        ctk_framelock->sync_interval_scale = scale;
 
         gtk_box_pack_start(GTK_BOX(padding), frame2, FALSE, FALSE, 0);
-
-        gtk_entry_set_text(GTK_ENTRY(entry), "0");
-        gtk_entry_set_width_chars(GTK_ENTRY(entry), 4);
-
         gtk_box_pack_start(GTK_BOX(hbox), label, FALSE, TRUE, 5);
-        gtk_box_pack_start(GTK_BOX(hbox), entry, FALSE, TRUE, 5);
-
+        gtk_box_pack_start(GTK_BOX(hbox), scale, TRUE, TRUE, 5);
         gtk_container_add(GTK_CONTAINER(frame2), hbox);
     }
 
@@ -5779,7 +5828,7 @@ GtkTextBuffer *ctk_framelock_create_help(GtkTextTagTable *table)
                   "fall back to using internal timings from the primary GPU.");
 
     ctk_help_heading(b, &i, "Sync Interval");
-    ctk_help_para(b, &i, __sync_interval_entry_help);
+    ctk_help_para(b, &i, __sync_interval_scale_help);
 
     ctk_help_heading(b, &i, "Sync Edge");
     ctk_help_para(b, &i, __sync_edge_combo_help);

@@ -2,7 +2,7 @@
 # NV-CONTROL samples: Sample tools for configuring the NVIDIA X driver on Unix
 # and Linux systems.
 #
-# Copyright (c) 2004-2008 NVIDIA, Corporation
+# Copyright (c) 2010 NVIDIA, Corporation
 #
 # Permission is hereby granted, free of charge, to any person obtaining a copy
 # of this software and associated documentation files (the "Software"), to deal
@@ -24,62 +24,71 @@
 # SOFTWARE.
 #
 
-# Below are variables that users can override, either here or on the
-# make commandline
-#
-# CC = gcc
-# CFLAGS = -Wall
-# LDFLAGS = 
-# X11R6_INC_DIR = /usr/X11R6/include
-# X11R6_LIB_DIR = /usr/X11R6/lib/
+##############################################################################
+# include common variables and functions
+##############################################################################
 
-BUILD_OS := $(shell uname)
-BUILD_ARCH := $(shell uname -m)
+UTILS_MK_DIR ?= ..
 
-ifndef CC
-  CC = gcc
-endif
+include $(UTILS_MK_DIR)/utils.mk
 
-ifndef CFLAGS
-  CFLAGS = -Wall 
-endif
 
-ifndef LDFLAGS
-  LDFLAGS =
-endif
+##############################################################################
+# The calling Makefile may export any of the following variables; we
+# assign default values if they are not exported by the caller
+##############################################################################
 
-ifndef X11R6_INC_DIR
-  X11R6_INC_DIR = /usr/X11R6/include/
-endif
-
-ifndef X11R6_LIB_DIR
-  ifeq ($(BUILD_OS)-$(BUILD_ARCH),Linux-x86_64)
-    X11R6_LIB_DIR = /usr/X11R6/lib64
+ifndef X_LDFLAGS
+  ifeq ($(TARGET_OS)-$(TARGET_ARCH),Linux-x86_64)
+    X_LDFLAGS          = -L/usr/X11R6/lib64
   else
-    X11R6_LIB_DIR = /usr/X11R6/lib
+    X_LDFLAGS          = -L/usr/X11R6/lib
   endif
 endif
 
-LIBXNVCTRL_DIR = ../src/libXNVCtrl
+X_CFLAGS              ?=
+
+LIBXNVCTRL_DIR        ?= ../src/libXNVCtrl
+
+CFLAGS                += $(X_CFLAGS)
+CFLAGS                += -I $(LIBXNVCTRL_DIR)
+
+LDFLAGS               += $(X_LDFLAGS)
+LDFLAGS               += -L $(LIBXNVCTRL_DIR)
+LDFLAGS               += -lXNVCtrl -lXext -lX11
 
 
-ALL_CFLAGS = $(CFLAGS) -I $(LIBXNVCTRL_DIR) -I $(X11R6_INC_DIR)
-ALL_LDFLAGS = $(LDFLAGS) -L $(LIBXNVCTRL_DIR) -L $(X11R6_LIB_DIR) \
-	-lXNVCtrl -lXext -lX11
+##############################################################################
+# samples
+##############################################################################
 
-SAMPLES = \
-	nv-control-info \
-	nv-control-dvc \
-	nv-control-events \
-	nv-control-dpy \
-	nv-control-targets \
-	nv-control-framelock \
-	nv-control-gvi
+SAMPLE_SOURCES        += nv-control-info.c
+SAMPLE_SOURCES        += nv-control-dvc.c
+SAMPLE_SOURCES        += nv-control-events.c
+SAMPLE_SOURCES        += nv-control-dpy.c
+SAMPLE_SOURCES        += nv-control-targets.c
+SAMPLE_SOURCES        += nv-control-framelock.c
+SAMPLE_SOURCES        += nv-control-gvi.c
 
-all: $(SAMPLES)
 
-% : %.c
-	$(CC) $(ALL_CFLAGS) $< -o $@ $(ALL_LDFLAGS)
+##############################################################################
+# build rules
+##############################################################################
 
-clean:
-	rm -rf *.o *~ $(SAMPLES)
+.PHONY: all clean clobber
+
+# define the rule to build each object file
+$(foreach src, $(SAMPLE_SOURCES), $(eval $(call DEFINE_OBJECT_RULE,CC,$(src))))
+
+# define the rule to link each sample app from its corresponding object file
+define link_sample_from_object
+  $$(OUTPUTDIR)/$(1:.c=): $$(call BUILD_OBJECT_LIST,$(1))
+	$$(call quiet_cmd,LINK) $$(CFLAGS) -o $$@ $$< $$(LDFLAGS) $$(BIN_LDFLAGS)
+  all:: $$(OUTPUTDIR)/$(1:.c=)
+  SAMPLES += $$(OUTPUTDIR)/$(1:.c=)
+endef
+
+$(foreach sample,$(SAMPLE_SOURCES),$(eval $(call link_sample_from_object,$(sample))))
+
+clean clobber:
+	rm -rf *~ $(OUTPUTDIR)/*.o $(OUTPUTDIR)/*.d $(SAMPLES)
