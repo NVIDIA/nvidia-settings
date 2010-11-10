@@ -345,7 +345,7 @@ AttributeTableEntry attributeTable[] = {
  * about.
  */
 
-#if NV_CTRL_LAST_ATTRIBUTE != NV_CTRL_CURRENT_DITHERING_DEPTH
+#if NV_CTRL_LAST_ATTRIBUTE != NV_CTRL_GVO_ANC_PARITY_COMPUTATION
 #warning "Have you forgotten to add a new integer attribute to attributeTable?"
 #endif
 

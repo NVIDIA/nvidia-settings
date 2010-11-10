@@ -3047,7 +3047,18 @@
 #define NV_CTRL_CURRENT_DITHERING_DEPTH_6_BITS                  1
 #define NV_CTRL_CURRENT_DITHERING_DEPTH_8_BITS                  2
 
-#define NV_CTRL_LAST_ATTRIBUTE NV_CTRL_CURRENT_DITHERING_DEPTH
+/*
+ * NV_CTRL_GVO_ANC_PARITY_COMPUTATION - Controls the SDI device's computation
+ * of the parity bit (bit 8) for ANC data words.
+ */
+
+#define NV_CTRL_GVO_ANC_PARITY_COMPUTATION                      381 /* RW--- */
+#define NV_CTRL_GVO_ANC_PARITY_COMPUTATION_AUTO                   0
+#define NV_CTRL_GVO_ANC_PARITY_COMPUTATION_ON                     1
+#define NV_CTRL_GVO_ANC_PARITY_COMPUTATION_OFF                    2
+
+
+#define NV_CTRL_LAST_ATTRIBUTE NV_CTRL_GVO_ANC_PARITY_COMPUTATION
 
 /**************************************************************************/
 
