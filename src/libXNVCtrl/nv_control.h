@@ -50,6 +50,7 @@
  * 1.23        Added SENSOR TargetType
  * 1.24        Fixed a bug where SLI_MOSAIC_MODE_AVAILABLE attribute would
  *             report false positives via the GPU and X screen target types
+ * 1.25        Added 3D_VISION_PRO_TRANSCEIVER TargetType
  */
 
 #ifndef __NVCONTROL_H
@@ -60,7 +61,7 @@
 #define NV_CONTROL_NAME "NV-CONTROL"
 
 #define NV_CONTROL_MAJOR 1
-#define NV_CONTROL_MINOR 24
+#define NV_CONTROL_MINOR 25
 
 #define X_nvCtrlQueryExtension                      0
 #define X_nvCtrlIsNv                                1

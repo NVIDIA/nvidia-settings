@@ -46,6 +46,7 @@
 #define NV_CTRL_TARGET_TYPE_GVI            4
 #define NV_CTRL_TARGET_TYPE_COOLER         5 /* e.g., fan */
 #define NV_CTRL_TARGET_TYPE_THERMAL_SENSOR 6
+#define NV_CTRL_TARGET_TYPE_3D_VISION_PRO_TRANSCEIVER 7
 
 /**************************************************************************/
 
@@ -102,6 +103,10 @@
  * 
  * S: The attribute may be queried using an NV_CTRL_TARGET_TYPE_THERMAL_SENSOR
  *    target type via XNVCTRLQueryTargetAttribute().
+ *
+ * T: The attribute may be queried using an
+ *    NV_CTRL_TARGET_TYPE_3D_VISION_PRO_TRANSCEIVER target type
+ *    via XNVCTRLQueryTargetAttribute().
  * 
  * NOTE: Unless mentioned otherwise, all attributes may be queried using
  *       an NV_CTRL_TARGET_TYPE_X_SCREEN target type via 
@@ -338,6 +343,7 @@
 #define NV_CTRL_STEREO_CHECKERBOARD_PATTERN                     8
 #define NV_CTRL_STEREO_INVERSE_CHECKERBOARD_PATTERN             9
 #define NV_CTRL_STEREO_3D_VISION                                10
+#define NV_CTRL_STEREO_3D_VISION_PRO                            11
 
 /*
  * NV_CTRL_EMULATE - controls OpenGL software emulation of future
@@ -3025,6 +3031,34 @@
 
 #define NV_CTRL_GPU_PCIE_MAX_LINK_SPEED                         361 /* R--GI */
 
+/*
+ * NV_CTRL_3D_VISION_PRO_RESET_TRANSCEIVER_TO_FACTORY_SETTINGS - Resets the
+ * 3D Vision Pro transceiver to its factory settings.
+ */
+#define NV_CTRL_3D_VISION_PRO_RESET_TRANSCEIVER_TO_FACTORY_SETTINGS 363 /* -W-T */
+
+/*
+ * NV_CTRL_3D_VISION_PRO_TRANSCEIVER_CHANNEL - Controls the channel that is
+ * currently used by the 3D Vision Pro transceiver.
+ */
+#define NV_CTRL_3D_VISION_PRO_TRANSCEIVER_CHANNEL                   364 /* RW-T */
+
+/*
+ * NV_CTRL_3D_VISION_PRO_TRANSCEIVER_MODE - Controls the mode in which the
+ * 3D Vision Pro transceiver operates.
+ * NV_CTRL_3D_VISION_PRO_TM_LOW_RANGE is bidirectional
+ * NV_CTRL_3D_VISION_PRO_TM_MEDIUM_RANGE is bidirectional
+ * NV_CTRL_3D_VISION_PRO_TM_HIGH_RANGE may be bidirectional just up to a
+ *     given range, and unidirectional beyond it
+ * NV_CTRL_3D_VISION_PRO_TM_COUNT is the total number of
+ *     3D Vision Pro transceiver modes
+ */
+#define NV_CTRL_3D_VISION_PRO_TRANSCEIVER_MODE                      365 /* RW-T */
+#define NV_CTRL_3D_VISION_PRO_TRANSCEIVER_MODE_INVALID              0
+#define NV_CTRL_3D_VISION_PRO_TRANSCEIVER_MODE_LOW_RANGE            1
+#define NV_CTRL_3D_VISION_PRO_TRANSCEIVER_MODE_MEDIUM_RANGE         2
+#define NV_CTRL_3D_VISION_PRO_TRANSCEIVER_MODE_HIGH_RANGE           3
+#define NV_CTRL_3D_VISION_PRO_TRANSCEIVER_MODE_COUNT                4
 
 /*
  * NV_CTRL_DITHERING_DEPTH - Controls the dithering depth when
@@ -3048,17 +3082,106 @@
 #define NV_CTRL_CURRENT_DITHERING_DEPTH_8_BITS                  2
 
 /*
- * NV_CTRL_GVO_ANC_PARITY_COMPUTATION - Controls the SDI device's computation
+ * NV_CTRL_3D_VISION_PRO_TRANSCEIVER_CHANNEL_FREQUENCY - Returns the
+ * frequency of the channel(in kHz) of the 3D Vision Pro transceiver.
+ * Use the display_mask parameter to specify the channel number.
+ */
+#define NV_CTRL_3D_VISION_PRO_TRANSCEIVER_CHANNEL_FREQUENCY     370 /* R--T */
+
+/*
+ * NV_CTRL_3D_VISION_PRO_TRANSCEIVER_CHANNEL_QUALITY - Returns the
+ * quality of the channel(in percentage) of the 3D Vision Pro transceiver.
+ * Use the display_mask parameter to specify the channel number.
+ */
+#define NV_CTRL_3D_VISION_PRO_TRANSCEIVER_CHANNEL_QUALITY       371 /* R--T */
+
+/*
+ * NV_CTRL_3D_VISION_PRO_TRANSCEIVER_CHANNEL_COUNT - Returns the number of
+ * channels on the 3D Vision Pro transceiver.
+ */
+#define NV_CTRL_3D_VISION_PRO_TRANSCEIVER_CHANNEL_COUNT         372 /* R--T */
+
+/*
+ * NV_CTRL_3D_VISION_PRO_PAIR_GLASSES - Puts the 3D Vision Pro
+ * transceiver into pairing mode to gather additional glasses.
+ * NV_CTRL_3D_VISION_PRO_PAIR_GLASSES_STOP - stops any pairing
+ * NV_CTRL_3D_VISION_PRO_PAIR_GLASSES_BEACON - starts continuous
+ *     pairing via beacon mode
+ * Any other value, N - Puts the 3D Vision Pro transceiver into
+ *     authenticated pairing mode for N seconds.
+ */
+#define NV_CTRL_3D_VISION_PRO_PAIR_GLASSES                      373 /* -W-T */
+#define NV_CTRL_3D_VISION_PRO_PAIR_GLASSES_STOP                 0
+#define NV_CTRL_3D_VISION_PRO_PAIR_GLASSES_BEACON               0xFFFFFFFF
+
+/*
+ * NV_CTRL_3D_VISION_PRO_UNPAIR_GLASSES - Tells a specific pair
+ * of glasses to unpair. The glasses will "forget" the address
+ * of the 3D Vision Pro transceiver to which they have been paired.
+ * To unpair all the currently paired glasses, specify
+ * the glasses id as 0.
+ */
+#define NV_CTRL_3D_VISION_PRO_UNPAIR_GLASSES                    374 /* -W-T */
+
+/*
+ * NV_CTRL_3D_VISION_PRO_DISCOVER_GLASSES - Tells the 3D Vision Pro
+ * transceiver about the glasses that have been paired using
+ * NV_CTRL_3D_VISION_PRO_PAIR_GLASSES_BEACON. Unless this is done,
+ * the 3D Vision Pro transceiver will not know about glasses paired in
+ * beacon mode.
+ */
+#define NV_CTRL_3D_VISION_PRO_DISCOVER_GLASSES                  375 /* -W-T */
+
+/*
+ * NV_CTRL_3D_VISION_PRO_IDENTIFY_GLASSES - Causes glasses LEDs to
+ * flash for a short period of time.
+ */
+#define NV_CTRL_3D_VISION_PRO_IDENTIFY_GLASSES                  376 /* -W-T */
+
+/*
+ * NV_CTRL_3D_VISION_PRO_GLASSES_SYNC_CYCLE - Controls the
+ * sync cycle duration(in milliseconds) of the glasses.
+ * Use the display_mask parameter to specify the glasses id.
+ */
+#define NV_CTRL_3D_VISION_PRO_GLASSES_SYNC_CYCLE                378 /* RW-T */
+
+/*
+ * NV_CTRL_3D_VISION_PRO_GLASSES_MISSED_SYNC_CYCLES - Returns the
+ * number of state sync cycles recently missed by the glasses.
+ * Use the display_mask parameter to specify the glasses id.
+ */
+#define NV_CTRL_3D_VISION_PRO_GLASSES_MISSED_SYNC_CYCLES        379 /* R--T */
+
+/*
+ * NV_CTRL_3D_VISION_PRO_GLASSES_BATTERY_LEVEL - Returns the
+ * battery level(in percentage) of the glasses.
+ * Use the display_mask parameter to specify the glasses id.
+ */
+#define NV_CTRL_3D_VISION_PRO_GLASSES_BATTERY_LEVEL             380 /* R--T */
+
+/* NV_CTRL_GVO_ANC_PARITY_COMPUTATION - Controls the SDI device's computation
  * of the parity bit (bit 8) for ANC data words.
  */
-
 #define NV_CTRL_GVO_ANC_PARITY_COMPUTATION                      381 /* RW--- */
 #define NV_CTRL_GVO_ANC_PARITY_COMPUTATION_AUTO                   0
 #define NV_CTRL_GVO_ANC_PARITY_COMPUTATION_ON                     1
 #define NV_CTRL_GVO_ANC_PARITY_COMPUTATION_OFF                    2
 
+/*
+ * NV_CTRL_3D_VISION_PRO_GLASSES_PAIR_EVENT - This attribute is sent
+ * as an event when glasses get paired in response to pair command 
+ * from any of the clients.
+ */
+#define NV_CTRL_3D_VISION_PRO_GLASSES_PAIR_EVENT                382 /* ---T */
 
-#define NV_CTRL_LAST_ATTRIBUTE NV_CTRL_GVO_ANC_PARITY_COMPUTATION
+/*
+ * NV_CTRL_3D_VISION_PRO_GLASSES_UNPAIR_EVENT - This attribute is sent
+ * as an event when glasses get unpaired in response to unpair command
+ * from any of the clients.
+ */
+#define NV_CTRL_3D_VISION_PRO_GLASSES_UNPAIR_EVENT              383 /* ---T */
+
+#define NV_CTRL_LAST_ATTRIBUTE NV_CTRL_3D_VISION_PRO_GLASSES_UNPAIR_EVENT
 
 /**************************************************************************/
 
@@ -3592,9 +3715,73 @@
 
 #define NV_CTRL_STRING_GPU_CURRENT_CLOCK_FREQS                 34  /* RW-G */
 
+/*
+ * NV_CTRL_STRING_3D_VISION_PRO_TRANSCEIVER_HARDWARE_REVISION - Returns the
+ * hardware revision of the 3D Vision Pro transceiver.
+ */
+#define NV_CTRL_STRING_3D_VISION_PRO_TRANSCEIVER_HARDWARE_REVISION  35 /* R--T */
+
+/*
+ * NV_CTRL_STRING_3D_VISION_PRO_TRANSCEIVER_FIRMWARE_VERSION_A - Returns the
+ * firmware version of chip A of the 3D Vision Pro transceiver.
+ */
+#define NV_CTRL_STRING_3D_VISION_PRO_TRANSCEIVER_FIRMWARE_VERSION_A 36 /* R--T */
+
+/*
+ * NV_CTRL_STRING_3D_VISION_PRO_TRANSCEIVER_FIRMWARE_DATE_A - Returns the
+ * date of the firmware of chip A of the 3D Vision Pro transceiver.
+ */
+#define NV_CTRL_STRING_3D_VISION_PRO_TRANSCEIVER_FIRMWARE_DATE_A    37 /* R--T */
+
+/*
+ * NV_CTRL_STRING_3D_VISION_PRO_TRANSCEIVER_FIRMWARE_VERSION_B - Returns the
+ * firmware version of chip B of the 3D Vision Pro transceiver.
+ */
+#define NV_CTRL_STRING_3D_VISION_PRO_TRANSCEIVER_FIRMWARE_VERSION_B 38 /* R--T */
+
+/*
+ * NV_CTRL_STRING_3D_VISION_PRO_TRANSCEIVER_FIRMWARE_DATE_B - Returns the
+ * date of the firmware of chip B of the 3D Vision Pro transceiver.
+ */
+#define NV_CTRL_STRING_3D_VISION_PRO_TRANSCEIVER_FIRMWARE_DATE_B    39 /* R--T */
+
+/*
+ * NV_CTRL_STRING_3D_VISION_PRO_TRANSCEIVER_ADDRESS - Returns the RF address
+ * of the 3D Vision Pro transceiver.
+ */
+#define NV_CTRL_STRING_3D_VISION_PRO_TRANSCEIVER_ADDRESS            40 /* R--T */
+
+/*
+ * NV_CTRL_STRING_3D_VISION_PRO_GLASSES_FIRMWARE_VERSION_A - Returns the
+ * firmware version of chip A of the glasses.
+ * Use the display_mask parameter to specify the glasses id.
+ */
+#define NV_CTRL_STRING_3D_VISION_PRO_GLASSES_FIRMWARE_VERSION_A     41 /* R--T */
+
+/*
+ * NV_CTRL_STRING_3D_VISION_PRO_GLASSES_FIRMWARE_DATE_A - Returns the
+ * date of the firmware of chip A of the glasses.
+ * Use the display_mask parameter to specify the glasses id.
+ */
+#define NV_CTRL_STRING_3D_VISION_PRO_GLASSES_FIRMWARE_DATE_A        42 /* R--T */
+
+/*
+ * NV_CTRL_STRING_3D_VISION_PRO_GLASSES_ADDRESS - Returns the RF address
+ * of the glasses.
+ * Use the display_mask parameter to specify the glasses id.
+ */
+#define NV_CTRL_STRING_3D_VISION_PRO_GLASSES_ADDRESS                43 /* R--T */
+
+/*
+ * NV_CTRL_STRING_3D_VISION_PRO_GLASSES_NAME - Controls the name the
+ * glasses should use.
+ * Use the display_mask parameter to specify the glasses id.
+ */
+#define NV_CTRL_STRING_3D_VISION_PRO_GLASSES_NAME                   44 /* RW-T */
+
 
 #define NV_CTRL_STRING_LAST_ATTRIBUTE \
-        NV_CTRL_STRING_GPU_CURRENT_CLOCK_FREQS
+        NV_CTRL_STRING_3D_VISION_PRO_GLASSES_NAME
 
 
 /**************************************************************************/
@@ -3877,8 +4064,23 @@
 
 #define NV_CTRL_BINARY_DATA_THERMAL_SENSORS_USED_BY_GPU      12  /* R--G */
 
+/*
+ * NV_CTRL_BINARY_DATA_GLASSES_PAIRED_TO_3D_VISION_PRO_TRANSCEIVER - Returns
+ * the id of the glasses that are currently paired to the given
+ * 3D Vision Pro transceiver.
+ *
+ * The format of the returned data is:
+ *
+ *     4       CARD32 number of glasses
+ *     4 * n   CARD32 id of glasses
+ *
+ * This attribute can only be queried through XNVCTRLQueryTargetBinaryData()
+ * using a NV_CTRL_TARGET_TYPE_3D_VISION_PRO_TRANSCEIVER target.
+ */
+#define NV_CTRL_BINARY_DATA_GLASSES_PAIRED_TO_3D_VISION_PRO_TRANSCEIVER 13 /* R--T */
+
 #define NV_CTRL_BINARY_DATA_LAST_ATTRIBUTE \
-        NV_CTRL_BINARY_DATA_THERMAL_SENSORS_USED_BY_GPU
+        NV_CTRL_BINARY_DATA_GLASSES_PAIRED_TO_3D_VISION_PRO_TRANSCEIVER
 
 
 /**************************************************************************/
@@ -4121,6 +4323,8 @@
  * ATTRIBUTE_TYPE_GVI       - Attribute is valid for Graphics Video In target
  *                            types.
  * ATTRIBUTE_TYPE_COOLER    - Attribute is valid for Cooler target types.
+ * ATTRIBUTE_TYPE_3D_VISION_PRO_TRANSCEIVER - Attribute is valid for 3D Vision
+ *                                            Pro Transceiver target types.
  *
  * See 'Key to Integer Attribute "Permissions"' at the top of this
  * file for a description of what these permission bits mean.
@@ -4146,6 +4350,7 @@
 #define ATTRIBUTE_TYPE_GVI        0x100
 #define ATTRIBUTE_TYPE_COOLER     0x200
 #define ATTRIBUTE_TYPE_THERMAL_SENSOR 0x400
+#define ATTRIBUTE_TYPE_3D_VISION_PRO_TRANSCEIVER 0x800
 
 typedef struct _NVCTRLAttributeValidValues {
     int type;

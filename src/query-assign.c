@@ -424,6 +424,11 @@ static int process_attribute_queries(int num, char **queries,
             continue;
         }
 
+        if (nv_strcasecmp(queries[query], "svps")) {
+            query_all_targets(display_name, NVIDIA_3D_VISION_PRO_TRANSCEIVER_TARGET);
+            continue;
+        }
+
         /* call the parser to parse queries[query] */
 
         ret = nv_parse_attribute_string(queries[query], NV_PARSER_QUERY, &a);
@@ -1242,7 +1247,8 @@ static int print_target_connections(CtrlHandles *h,
                 product_name =
                     get_vcs_name(h->targets[target_index].t[ pData[i] ].h);
                 break;
-                
+
+            case NVIDIA_3D_VISION_PRO_TRANSCEIVER_TARGET:
             case THERMAL_SENSOR_TARGET:
             case COOLER_TARGET:
             case FRAMELOCK_TARGET:
@@ -1348,7 +1354,13 @@ static int query_all_targets(const char *display_name, const int target_index)
         t = &h->targets[target_index].t[i];
         
         str = NULL;
-        if (target_index == THERMAL_SENSOR_TARGET) {    
+        if (target_index == NVIDIA_3D_VISION_PRO_TRANSCEIVER_TARGET) {
+            /* for 3D Vision Pro transceiver, create the product name */
+
+            product_name = malloc(32);
+            snprintf(product_name, 32, "3D Vision Pro Transceiver %d", i);
+
+        } else if (target_index == THERMAL_SENSOR_TARGET) {
             /* for sensor, create the product name */
 
             product_name = malloc(32);

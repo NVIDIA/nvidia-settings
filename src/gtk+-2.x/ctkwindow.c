@@ -59,6 +59,7 @@
 #include "ctkclocks.h"
 #include "ctkvcs.h"
 #include "ctkpowersavings.h"
+#include "ctk3dvisionpro.h"
 
 #include "ctkdisplaydevice-crt.h"
 #include "ctkdisplaydevice-tv.h"
@@ -987,6 +988,29 @@ GtkWidget *ctk_window_new(ParsedAttribute *p, ConfigProperties *conf,
                  ctk_framelock_unselect);
         break;
     }
+
+    /* add NVIDIA 3D VisionPro dongle configuration page */
+
+    for (i = 0; i < h->targets[NVIDIA_3D_VISION_PRO_TRANSCEIVER_TARGET].n; i++) {
+        NvCtrlAttributeHandle *svp_handle = h->targets[NVIDIA_3D_VISION_PRO_TRANSCEIVER_TARGET].t[i].h;
+
+        if (!svp_handle) continue;
+
+        /* create the object for receiving NV-CONTROL events */
+
+        ctk_event = CTK_EVENT(ctk_event_new(svp_handle));
+
+        widget = ctk_3d_vision_pro_new(svp_handle, ctk_config,
+                                       ctk_window->attribute_list,
+                                       ctk_event);
+        if (!widget) continue;
+
+        help = ctk_3d_vision_pro_create_help(tag_table);
+        add_page(widget, help, ctk_window, NULL, NULL,
+                 "NVIDIA 3D VisionPro", ctk_3d_vision_pro_config_file_attributes,
+                 ctk_3d_vision_pro_select, ctk_3d_vision_pro_unselect);
+    }
+
 
     /* nvidia-settings configuration */
 

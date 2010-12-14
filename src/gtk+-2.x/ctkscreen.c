@@ -51,6 +51,7 @@ static const _CtkStereoMode stereoMode[] = {
     { NV_CTRL_STEREO_CHECKERBOARD_PATTERN,         "Checkerboard Pattern Stereo" },
     { NV_CTRL_STEREO_INVERSE_CHECKERBOARD_PATTERN, "Inverse Checkerboard Stereo" },
     { NV_CTRL_STEREO_3D_VISION,                    "NVIDIA 3D Vision Stereo" },
+    { NV_CTRL_STEREO_3D_VISION_PRO,                "NVIDIA 3D Vision Pro Stereo" },
     { -1, NULL},
 };
 

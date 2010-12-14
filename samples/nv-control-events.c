@@ -428,14 +428,20 @@ static const char *target2str(int n)
     static char unknown[24];
 
     switch (n) {
-    case NV_CTRL_TARGET_TYPE_X_SCREEN:       return "X Screen"; break;
-    case NV_CTRL_TARGET_TYPE_GPU:            return "GPU"; break;
-    case NV_CTRL_TARGET_TYPE_FRAMELOCK:      return "Frame Lock"; break;
-    case NV_CTRL_TARGET_TYPE_VCSC:           return "VCS"; break;
-    case NV_CTRL_TARGET_TYPE_GVI:            return "GVI"; break;
-    case NV_CTRL_TARGET_TYPE_COOLER:         return "Cooler"; break;
-    case NV_CTRL_TARGET_TYPE_THERMAL_SENSOR: return "Thermal Sensor"; break;
-        
+    case NV_CTRL_TARGET_TYPE_X_SCREEN:
+        return "X Screen";
+    case NV_CTRL_TARGET_TYPE_GPU:
+        return "GPU";
+    case NV_CTRL_TARGET_TYPE_FRAMELOCK:
+        return "Frame Lock";
+    case NV_CTRL_TARGET_TYPE_VCSC:
+        return "VCS";
+    case NV_CTRL_TARGET_TYPE_GVI:
+        return "GVI";
+    case NV_CTRL_TARGET_TYPE_COOLER:
+        return "Cooler";
+    case NV_CTRL_TARGET_TYPE_THERMAL_SENSOR:
+        return "Thermal Sensor";
     default:
         snprintf(unknown, 24, "Unknown (%d)", n);
         return unknown;
@@ -483,6 +489,7 @@ static const char *attr2str(int n)
 static AttrEntry attr_table[] = {
     MAKE_ENTRY(NV_CTRL_FLATPANEL_SCALING),
     MAKE_ENTRY(NV_CTRL_FLATPANEL_DITHERING),
+    MAKE_ENTRY(NV_CTRL_DITHERING),
     MAKE_ENTRY(NV_CTRL_DIGITAL_VIBRANCE),
     MAKE_ENTRY(NV_CTRL_BUS_TYPE),
     MAKE_ENTRY(NV_CTRL_VIDEO_RAM),
@@ -702,11 +709,18 @@ static AttrEntry attr_table[] = {
     MAKE_ENTRY(NV_CTRL_COLOR_RANGE),
     MAKE_ENTRY(NV_CTRL_GPU_SCALING_DEFAULT_TARGET),
     MAKE_ENTRY(NV_CTRL_GPU_SCALING_DEFAULT_METHOD),
-    MAKE_ENTRY(NV_CTRL_FLATPANEL_DITHERING_MODE),
-    //    MAKE_ENTRY(NV_CTRL_FLATPANEL_DEFAULT_DITHERING),
-    //    MAKE_ENTRY(NV_CTRL_FLATPANEL_DEFAULT_DITHERING_MODE),
+    MAKE_ENTRY(NV_CTRL_DITHERING_MODE),
+    MAKE_ENTRY(NV_CTRL_CURRENT_DITHERING),
+    MAKE_ENTRY(NV_CTRL_CURRENT_DITHERING_MODE),
     MAKE_ENTRY(NV_CTRL_THERMAL_SENSOR_READING),
     MAKE_ENTRY(NV_CTRL_THERMAL_SENSOR_PROVIDER),
     MAKE_ENTRY(NV_CTRL_THERMAL_SENSOR_TARGET),
+    MAKE_ENTRY(NV_CTRL_SHOW_MULTIGPU_VISUAL_INDICATOR),
+    MAKE_ENTRY(NV_CTRL_GPU_CURRENT_PROCESSOR_CLOCK_FREQS),
+    MAKE_ENTRY(NV_CTRL_GVIO_VIDEO_FORMAT_FLAGS),
+    MAKE_ENTRY(NV_CTRL_GPU_PCIE_MAX_LINK_SPEED),
+    MAKE_ENTRY(NV_CTRL_DITHERING_DEPTH),
+    MAKE_ENTRY(NV_CTRL_CURRENT_DITHERING_DEPTH),
+    MAKE_ENTRY(NV_CTRL_GVO_ANC_PARITY_COMPUTATION),
     { -1, NULL, NULL }
 };

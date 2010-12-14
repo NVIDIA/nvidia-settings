@@ -63,7 +63,7 @@
 #include "vcs_pixdata.h"
 #include "x_pixdata.h"
 #include "xvideo_pixdata.h"
-
+#include "svp_3dvp_pixdata.h"
 
 
 static void
@@ -379,6 +379,7 @@ static gboolean select_artwork(BannerArtworkType artwork,
         { BANNER_ARTWORK_VCS,            FALSE, 16, &vcs_pixdata            },
         { BANNER_ARTWORK_X,              FALSE, 16, &x_pixdata              },
         { BANNER_ARTWORK_XVIDEO,         FALSE, 16, &xvideo_pixdata         },
+        { BANNER_ARTWORK_SVP,            FALSE, 16, &svp_3dvp_pixdata       },
         { BANNER_ARTWORK_INVALID,        FALSE, 16, NULL                    },
     };
 

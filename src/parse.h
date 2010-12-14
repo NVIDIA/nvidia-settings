@@ -151,7 +151,8 @@ extern AttributeTableEntry attributeTable[];
 #define GVI_TARGET       4
 #define COOLER_TARGET    5
 #define THERMAL_SENSOR_TARGET 6
-#define MAX_TARGET_TYPES 7
+#define NVIDIA_3D_VISION_PRO_TRANSCEIVER_TARGET 7
+#define MAX_TARGET_TYPES 8
 
 
 

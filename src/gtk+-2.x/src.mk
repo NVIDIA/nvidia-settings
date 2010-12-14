@@ -47,6 +47,7 @@ GTK_SRC += ctkgvi.c
 GTK_SRC += ctklicense.c
 GTK_SRC += ctkecc.c
 GTK_SRC += ctkcolorcontrols.c
+GTK_SRC += ctk3dvisionpro.c
 
 GTK_EXTRA_DIST += ctkxvideo.h
 GTK_EXTRA_DIST += ctkcursorshadow.h
@@ -94,4 +95,5 @@ GTK_EXTRA_DIST += ctkgvi.h
 GTK_EXTRA_DIST += ctklicense.h
 GTK_EXTRA_DIST += ctkecc.h
 GTK_EXTRA_DIST += ctkcolorcontrols.h
+GTK_EXTRA_DIST += ctk3dvisionpro.h
 GTK_EXTRA_DIST += src.mk

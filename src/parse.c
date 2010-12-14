@@ -320,6 +320,31 @@ AttributeTableEntry attributeTable[] = {
     { "XVideoBlitterSyncToVBlank", NV_CTRL_ATTR_XV_BLITTER_SYNC_TO_VBLANK, V,   "Enables sync to vertical blanking for X video blitter adaptor." },
     { "XVideoSyncToDisplay",       NV_CTRL_XV_SYNC_TO_DISPLAY,             D|Z, "Controls which display device is synced to by the texture and blitter adaptors when they are set to synchronize to the vertical blanking." },
 
+    /* 3D Vision Pro */
+    {"3DVisionProResetTransceiverToFactorySettings", NV_CTRL_3D_VISION_PRO_RESET_TRANSCEIVER_TO_FACTORY_SETTINGS, N,   "Resets the 3D Vision Pro transceiver to its factory settings."},
+    {"3DVisionProTransceiverChannel",                NV_CTRL_3D_VISION_PRO_TRANSCEIVER_CHANNEL,                   N,   "Controls the channel that is currently used by the 3D Vision Pro transceiver."},
+    {"3DVisionProTransceiverMode",                   NV_CTRL_3D_VISION_PRO_TRANSCEIVER_MODE,                      N,   "Controls the mode in which the 3D Vision Pro transceiver operates."},
+    {"3DVisionProTransceiverChannelFrequency",       NV_CTRL_3D_VISION_PRO_TRANSCEIVER_CHANNEL_FREQUENCY,         N,   "Returns the frequency of the channel(in kHz) of the 3D Vision Pro transceiver."},
+    {"3DVisionProTransceiverChannelQuality",         NV_CTRL_3D_VISION_PRO_TRANSCEIVER_CHANNEL_QUALITY,           N,   "Returns the quality of the channel(in percentage) of the 3D Vision Pro transceiver."},
+    {"3DVisionProTransceiverChannelCount",           NV_CTRL_3D_VISION_PRO_TRANSCEIVER_CHANNEL_COUNT,             N,   "Returns the number of channels on the 3D Vision Pro transceiver."},
+    {"3DVisionProPairGlasses",                       NV_CTRL_3D_VISION_PRO_PAIR_GLASSES,                          N,   "Puts the 3D Vision Pro transceiver into pairing mode to gather additional glasses."},
+    {"3DVisionProUnpairGlasses",                     NV_CTRL_3D_VISION_PRO_UNPAIR_GLASSES,                        N,   "Tells a specific pair of glasses to unpair."},
+    {"3DVisionProDiscoverGlasses",                   NV_CTRL_3D_VISION_PRO_DISCOVER_GLASSES,                      N,   "Tells the 3D Vision Pro transceiver about the glasses that have been paired using NV_CTRL_3D_VISION_PRO_PAIR_GLASSES_BEACON."},
+    {"3DVisionProIdentifyGlasses",                   NV_CTRL_3D_VISION_PRO_IDENTIFY_GLASSES,                      N,   "Causes glasses LEDs to flash for a short period of time."},
+    {"3DVisionProGlassesSyncCycle",                  NV_CTRL_3D_VISION_PRO_GLASSES_SYNC_CYCLE,                    N,   "Controls the sync cycle duration(in milliseconds) of the glasses."},
+    {"3DVisionProGlassesMissedSyncCycles",           NV_CTRL_3D_VISION_PRO_GLASSES_MISSED_SYNC_CYCLES,            N,   "Returns the number of state sync cycles recently missed by the glasses."},
+    {"3DVisionProGlassesBatteryLevel",               NV_CTRL_3D_VISION_PRO_GLASSES_BATTERY_LEVEL,                 N,   "Returns the battery level(in percentage) of the glasses."},
+    {"3DVisionProTransceiverHardwareRevision",       NV_CTRL_STRING_3D_VISION_PRO_TRANSCEIVER_HARDWARE_REVISION,  S|N, "Returns the hardware revision of the 3D Vision Pro transceiver."},
+    {"3DVisionProTransceiverFirmwareVersionA",       NV_CTRL_STRING_3D_VISION_PRO_TRANSCEIVER_FIRMWARE_VERSION_A, S|N, "Returns the firmware version of chip A of the 3D Vision Pro transceiver."},
+    {"3DVisionProTransceiverFirmwareDateA",          NV_CTRL_STRING_3D_VISION_PRO_TRANSCEIVER_FIRMWARE_DATE_A,    S|N, "Returns the date of the firmware of chip A of the 3D Vision Pro transceiver."},
+    {"3DVisionProTransceiverFirmwareVersionB",       NV_CTRL_STRING_3D_VISION_PRO_TRANSCEIVER_FIRMWARE_VERSION_B, S|N, "Returns the firmware version of chip B of the 3D Vision Pro transceiver."},
+    {"3DVisionProTransceiverFirmwareDateB",          NV_CTRL_STRING_3D_VISION_PRO_TRANSCEIVER_FIRMWARE_DATE_B,    S|N, "Returns the date of the firmware of chip B of the 3D Vision Pro transceiver."},
+    {"3DVisionProTransceiverAddress",                NV_CTRL_STRING_3D_VISION_PRO_TRANSCEIVER_ADDRESS,            S|N, "Returns the RF address of the 3D Vision Pro transceiver."},
+    {"3DVisionProGlassesFirmwareVersionA",           NV_CTRL_STRING_3D_VISION_PRO_GLASSES_FIRMWARE_VERSION_A,     S|N, "Returns the firmware version of chip A of the glasses."},
+    {"3DVisionProGlassesFirmwareDateA",              NV_CTRL_STRING_3D_VISION_PRO_GLASSES_FIRMWARE_DATE_A,        S|N, "Returns the date of the firmware of chip A of the glasses."},
+    {"3DVisionProGlassesAddress",                    NV_CTRL_STRING_3D_VISION_PRO_GLASSES_ADDRESS,                S|N, "Returns the RF address of the glasses."},
+    {"3DVisionProGlassesName",                       NV_CTRL_STRING_3D_VISION_PRO_GLASSES_NAME,                   S|N, "Controls the name the glasses should use."},
+
     { NULL, 0, 0, NULL }
 };
 
@@ -345,7 +370,7 @@ AttributeTableEntry attributeTable[] = {
  * about.
  */
 
-#if NV_CTRL_LAST_ATTRIBUTE != NV_CTRL_GVO_ANC_PARITY_COMPUTATION
+#if NV_CTRL_LAST_ATTRIBUTE != NV_CTRL_3D_VISION_PRO_GLASSES_UNPAIR_EVENT
 #warning "Have you forgotten to add a new integer attribute to attributeTable?"
 #endif
 
@@ -413,6 +438,14 @@ TargetTypeEntry targetTypeTable[] = {
       ATTRIBUTE_TYPE_THERMAL_SENSOR, /* permission_bit */
       NV_FALSE,                      /* uses_display_devices */
       1, 23 },                       /* required major,minor protocol rev */
+
+    { "3D Vision Pro Transceiver",                   /* name */
+      "svp",                                         /* parsed_name */
+      NVIDIA_3D_VISION_PRO_TRANSCEIVER_TARGET,       /* target_index */
+      NV_CTRL_TARGET_TYPE_3D_VISION_PRO_TRANSCEIVER, /* nvctrl */
+      ATTRIBUTE_TYPE_3D_VISION_PRO_TRANSCEIVER,      /* permission_bit */
+      NV_FALSE,                                      /* uses_display_devices */
+      1, 25 },                                       /* required major,minor protocol rev */
     
     { NULL, NULL, 0, 0, 0 },
 };
