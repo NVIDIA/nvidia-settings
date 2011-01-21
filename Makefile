@@ -102,7 +102,7 @@ else
     LDFLAGS += -lXxf86vm
 endif
 
-LDFLAGS += -lX11 -lXext
+LDFLAGS += -lX11 -lXext -lm
 LDFLAGS += $(GTK_LDFLAGS)
 
 MANPAGE_GZIP ?= 1
