@@ -741,6 +741,91 @@ Bool XNVCTRLQueryValidAttributeValues (
 }
 
 
+static Bool QueryAttributePermissionsInternal (
+    Display *dpy,
+    unsigned int attribute,
+    NVCTRLAttributePermissionsRec *permissions,
+    unsigned int reqType
+){
+    XExtDisplayInfo *info = find_display (dpy);
+    xnvCtrlQueryAttributePermissionsReply rep;
+    xnvCtrlQueryAttributePermissionsReq *req;
+    Bool exists;
+
+    if(!XextHasExtension(info))
+        return False;
+
+    XNVCTRLCheckExtension (dpy, info, False);
+
+    LockDisplay(dpy);
+    GetReq(nvCtrlQueryAttributePermissions, req);
+    req->reqType = info->codes->major_opcode;
+    req->nvReqType = reqType;
+    req->attribute = attribute;
+    if (!_XReply (dpy, (xReply *) &rep, 0, xTrue)) {
+        UnlockDisplay (dpy);
+        SyncHandle();
+        return False;
+    }
+    exists = rep.flags;
+    if (exists && permissions) {
+        permissions->type = rep.attr_type;
+        permissions->permissions = rep.perms;
+    }
+    UnlockDisplay(dpy);
+    SyncHandle();
+    return exists;
+}
+
+
+Bool XNVCTRLQueryAttributePermissions (
+    Display *dpy,
+    unsigned int attribute,
+    NVCTRLAttributePermissionsRec *permissions
+){
+    return QueryAttributePermissionsInternal(dpy,
+                                             attribute,
+                                             permissions,
+                                             X_nvCtrlQueryAttributePermissions);
+}
+
+
+Bool XNVCTRLQueryStringAttributePermissions (
+    Display *dpy,
+    unsigned int attribute,
+    NVCTRLAttributePermissionsRec *permissions
+){
+    return QueryAttributePermissionsInternal(dpy,
+                                             attribute,
+                                             permissions,
+                                             X_nvCtrlQueryStringAttributePermissions);
+}
+
+
+Bool XNVCTRLQueryBinaryDataAttributePermissions (
+    Display *dpy,
+    unsigned int attribute,
+    NVCTRLAttributePermissionsRec *permissions
+){
+    return QueryAttributePermissionsInternal(dpy,
+                                             attribute,
+                                             permissions,
+                                             X_nvCtrlQueryBinaryDataAttributePermissions);
+}
+
+
+Bool XNVCTRLQueryStringOperationAttributePermissions (
+    Display *dpy,
+    unsigned int attribute,
+    NVCTRLAttributePermissionsRec *permissions
+){
+    return QueryAttributePermissionsInternal(dpy,
+                                             attribute,
+                                             permissions,
+                                             X_nvCtrlQueryStringOperationAttributePermissions);
+}
+
+
 void XNVCTRLSetGvoColorConversion (
     Display *dpy,
     int screen,

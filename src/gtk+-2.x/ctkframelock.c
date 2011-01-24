@@ -281,6 +281,10 @@ static const char * __show_extra_info_button_help =
 "The Show Extra Info button displays extra information and settings "
 "for various devices.";
 
+static const char * __expand_all_button_help =
+"This button expands or collapses all the entries in the framelock device "
+"list.";
+
 static const char * __use_house_sync_button_help =
 "The Use House Sync if Present checkbox tells the server G-Sync device to "
 "generate the master frame lock signal from the incoming house sync signal "
@@ -341,6 +345,7 @@ static GtkWidget *create_enable_confirm_dialog(CtkFramelock *);
 static void add_devices_response(GtkWidget *, gint, gpointer);
 static void add_devices_repond_ok(GtkWidget *, gpointer);
 static void remove_devices_response(GtkWidget *, gint, gpointer);
+static void expand_all_clicked(GtkWidget *, gpointer);
 
 static void error_msg(CtkFramelock *, const gchar *, ...);
 
@@ -359,6 +364,7 @@ static gboolean check_for_ethernet(gpointer);
 
 static void update_framelock_controls(CtkFramelock *);
 static void update_house_sync_controls(CtkFramelock *);
+static void update_expand_all_button_status(CtkFramelock *);
 
 static void apply_parsed_attribute_list(CtkFramelock *ctk_framelock,
                                         ParsedAttribute *list);
@@ -1228,26 +1234,19 @@ static void list_entry_update_display_controls(CtkFramelock *ctk_framelock,
         (GTK_TOGGLE_BUTTON(data->client_checkbox));
     
     /* Server Checkbox is unavailable when framelock is enabled,
-     * this display is set as client, this display cannot be master
+     * this display cannot be master
      * (display is driven by GPU that is connected through a
-     * secondary connector.), or another server is already selected.
+     * secondary connector.).
      */
-    sensitive = (!framelock_enabled &&
-                 !client_checked &&
-                 data->masterable &&
-                 (!server_entry || data == server_entry->data));
+    sensitive = (!framelock_enabled && data->masterable);
     gtk_widget_set_sensitive(data->server_label, sensitive);
     gtk_widget_set_sensitive(data->server_checkbox, sensitive);
     
     /* When a server is selected, this display can only become a
-     * client if its refresh rate matches that of the client,
-     * and the X server reports that it can frame lock this client
-     * correctly.
+     * client if the X server reports that it can frame lock this
+     * client correctly.
      */
-    sensitive = (!framelock_enabled &&
-                 !server_checked &&
-                 data->slaveable &&
-                 (!server_data || data->rate == server_data->rate));
+    sensitive = (!framelock_enabled && data->slaveable);
     gtk_widget_set_sensitive(data->client_label, sensitive);
     gtk_widget_set_sensitive(data->client_checkbox, sensitive);
 
@@ -1362,7 +1361,7 @@ static void update_framelock_controls(CtkFramelock *ctk_framelock)
 
     /* G-Sync Buttons */
     gtk_widget_set_sensitive(ctk_framelock->remove_devices_button,
-                             (tree->selected_entry==NULL)?FALSE:TRUE);
+                             tree->selected_entry != NULL);
 
     gtk_widget_set_sensitive(ctk_framelock->extra_info_button,
                              tree->nentries);
@@ -1413,6 +1412,9 @@ static void update_framelock_controls(CtkFramelock *ctk_framelock)
 
     /* House Sync */
     update_house_sync_controls(ctk_framelock);
+
+    /* Update the expand/collapse all button status */
+    update_expand_all_button_status(ctk_framelock);
 }
 
 
@@ -1670,6 +1672,8 @@ static void expander_button_clicked(GtkWidget *widget, gpointer user_data)
     }
 
     entry->expanded = !(entry->expanded);
+
+    update_expand_all_button_status(entry->tree->ctk_framelock);
 }
 
 
@@ -2660,6 +2664,134 @@ static void toggle_extra_info(GtkWidget *widget, gpointer data)
                                  (enabled ? "Showing" : "Hiding"));
 }
 
+/** update_expand_all_button_status() ************************
+ *
+ * This function updates the state of expand all button based
+ * on entries in the device list tree & user interaction.
+ */
+static void update_expand_all_button_status(CtkFramelock *ctk_framelock)
+{
+    nvListTreePtr tree = (nvListTreePtr) ctk_framelock->tree;
+    nvListEntryPtr entry, child;
+
+    if (!tree) {
+        return;
+    }
+
+    /*
+     * This is set between !tree & !tree->entries checks because, we will
+     * have to disable "Expand All" button in case there are no entries in the
+     * tree, before we return from here because of NULL tree->entries value.
+     */
+    gtk_widget_set_sensitive(ctk_framelock->expand_all_button,
+                             tree->nentries);
+
+    if (!tree->entries) {
+        return;
+    }
+
+    ctk_framelock->is_expanded = TRUE;
+    for (entry = tree->entries; entry && ctk_framelock->is_expanded;
+         entry = entry->next_sibling) {
+
+        /* if any top-level entry is not expanded, then advertise "Expand All" */
+
+        if (!entry->expanded) {
+            ctk_framelock->is_expanded = FALSE;
+            break;
+        }
+
+        /* if any child entry is not expanded, then advertise "Expand All" */
+
+        child = entry->children;
+        while (child) {
+            if (!child->expanded) {
+                ctk_framelock->is_expanded = FALSE;
+                break;
+            }
+            child = child->next_sibling;
+        }
+    }
+
+    /* based on the status of the entries, advertise "Expand/Collapse All" */
+
+    if (ctk_framelock->is_expanded) {
+        gtk_button_set_label(GTK_BUTTON(ctk_framelock->expand_all_button),
+                             "Collapse All");
+    } else {
+        gtk_button_set_label(GTK_BUTTON(ctk_framelock->expand_all_button),
+                             "Expand All");
+    }
+}
+
+
+/** list_entry_expand_collapse() **********************************************
+ *
+ * This function expands/collapses the entry & all the corresponding
+ * child entries.
+ */
+static void list_entry_expand_collapse(nvListEntryPtr entry, gboolean expand)
+{
+    if (!entry || !entry->expander_button || !entry->child_vbox) {
+        return;
+    }
+
+    gtk_container_remove(GTK_CONTAINER(entry->expander_button),
+                         entry->expander_button_image);
+
+    if (expand) {
+        /* Expand */
+        entry->expander_button_image =
+            gtk_image_new_from_stock(GTK_STOCK_REMOVE,
+                                     GTK_ICON_SIZE_SMALL_TOOLBAR);
+    } else {
+        /* Collapse */
+        entry->expander_button_image =
+            gtk_image_new_from_stock(GTK_STOCK_ADD,
+                                     GTK_ICON_SIZE_SMALL_TOOLBAR);
+    }
+
+    gtk_widget_set_size_request(entry->expander_button, 20, 20);
+    gtk_container_add(GTK_CONTAINER(entry->expander_button),
+                      entry->expander_button_image);
+
+    gtk_widget_show_all(entry->expander_button);
+
+    if (expand) {
+        /* Expand */
+        gtk_widget_show(entry->child_vbox);
+        entry->expanded = TRUE;
+    } else {
+        /* Collapse */
+        gtk_widget_hide(entry->child_vbox);
+        entry->expanded = FALSE;
+    }
+
+    list_entry_expand_collapse(entry->children, expand);
+
+    list_entry_expand_collapse(entry->next_sibling, expand);
+}
+
+/** expand_all_clicked() **********************************************
+ *
+ * Callback function for the 'Expand/Collapse All' button.
+ * This button expands/collapses framelock list entries.
+ */
+static void expand_all_clicked(GtkWidget *widget, gpointer data)
+{
+    CtkFramelock *ctk_framelock = CTK_FRAMELOCK(data);
+    nvListTreePtr tree = (nvListTreePtr) ctk_framelock->tree;
+
+    if (!tree->entries && !tree->nentries) {
+        return;
+    }
+
+    /* expand or collapse all the entries */
+    list_entry_expand_collapse(tree->entries, !ctk_framelock->is_expanded);
+
+    /* update the expand_all button stattus */
+    update_expand_all_button_status(ctk_framelock);
+}
 
 
 /** toggle_server() **************************************************
@@ -2671,7 +2803,10 @@ static void toggle_extra_info(GtkWidget *widget, gpointer data)
 static void toggle_server(GtkWidget *widget, gpointer data)
 {
     nvListEntryPtr entry = (nvListEntryPtr)data;
+    nvListEntryPtr server_entry = NULL;
     nvDisplayDataPtr display_data = (nvDisplayDataPtr)(entry->data);
+    nvDisplayDataPtr server_entry_display_data = NULL;
+    nvListTreePtr tree = (nvListTreePtr)(entry->tree);
     nvGPUDataPtr gpu_data = (nvGPUDataPtr)(entry->parent->data);
     gboolean server_checked;
 
@@ -2681,6 +2816,23 @@ static void toggle_server(GtkWidget *widget, gpointer data)
 
     server_checked = gtk_toggle_button_get_active
         (GTK_TOGGLE_BUTTON(display_data->server_checkbox));
+
+    /*
+     * If the device is selected as server, uncheck the client box for
+     * that device & also uncheck server box for any other device if
+     * it was selected as server before.
+     */
+    if (server_checked) {
+        gtk_toggle_button_set_active
+            (GTK_TOGGLE_BUTTON(display_data->client_checkbox), FALSE);
+        server_entry = get_display_server_entry(tree);
+        if (server_entry) {
+            server_entry_display_data = (nvDisplayDataPtr)server_entry->data;
+            gtk_toggle_button_set_active
+                (GTK_TOGGLE_BUTTON(server_entry_display_data->server_checkbox),
+                 FALSE);
+        }
+    }
 
     entry->tree->server_entry = (server_checked ? entry : NULL);
     gpu_data->server_mask = (server_checked ? display_data->device_mask : 0);
@@ -2728,6 +2880,14 @@ static void toggle_client(GtkWidget *widget, gpointer data)
     
     if (client_checked) {
         gpu_data->clients_mask |= display_data->device_mask;
+
+        /*
+         * if the device is selected as client, uncheck the server box
+         * for the same.
+         */
+
+        gtk_toggle_button_set_active
+            (GTK_TOGGLE_BUTTON(display_data->server_checkbox), FALSE);
     } else {
         gpu_data->clients_mask &= ~(display_data->device_mask);
     }
@@ -2797,8 +2957,8 @@ static gboolean set_enable_sync_clients(nvListEntryPtr entry_list,
     nvListEntryPtr entry;
     nvListEntryPtr server_gpu_entry;
 
-    gint framelock_enabled = 0;
-    gint something_enabled = 0;
+    gboolean framelock_enabled = FALSE;
+    gboolean something_enabled = FALSE;
     ReturnStatus ret;
 
 
@@ -2838,10 +2998,10 @@ static gboolean set_enable_sync_clients(nvListEntryPtr entry_list,
         if (ret != NvCtrlSuccess) continue;
 
         data->enabled = something_enabled;
-        framelock_enabled = framelock_enabled ? 1 : something_enabled;
+        framelock_enabled = (framelock_enabled || something_enabled);
     }
 
-    return framelock_enabled?TRUE:FALSE;
+    return framelock_enabled;
 }
 
 
@@ -4432,6 +4592,13 @@ GtkWidget* ctk_framelock_new(NvCtrlAttributeHandle *handle,
                            __show_extra_info_button_help);
     ctk_framelock->extra_info_button = button;
 
+    button = my_button_new_with_label("Expand All", 15, 0);
+    g_signal_connect(G_OBJECT(button),
+                     "clicked", G_CALLBACK(expand_all_clicked),
+                     (gpointer) ctk_framelock);
+    ctk_config_set_tooltip(ctk_config, button,
+                           __expand_all_button_help);
+    ctk_framelock->expand_all_button = button;
 
     button = gtk_check_button_new_with_label("Use House Sync if Present");
     gtk_toggle_button_set_active(GTK_TOGGLE_BUTTON(button), FALSE);
@@ -4588,6 +4755,8 @@ GtkWidget* ctk_framelock_new(NvCtrlAttributeHandle *handle,
     gtk_container_add(GTK_CONTAINER(vp), vbox);
 
     hbox = gtk_hbox_new(FALSE, 5);
+    gtk_box_pack_end(GTK_BOX(hbox), ctk_framelock->expand_all_button,
+                     FALSE, FALSE, 0);
     gtk_box_pack_end(GTK_BOX(hbox), ctk_framelock->extra_info_button,
                      FALSE, FALSE, 0);
     // XXX Add me later....
@@ -5434,7 +5603,7 @@ static gint add_devices(CtkFramelock *ctk_framelock,
      */
 
     /* +2 extra characters in case we need to append ":0" */
-    server_name = (char *) malloc(strlen(display_name) +3);
+    server_name = malloc(strlen(display_name) + 3);
     if (!server_name) {
         goto done;
     }

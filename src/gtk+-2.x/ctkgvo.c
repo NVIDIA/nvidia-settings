@@ -459,8 +459,7 @@ guint ctk_gvo_video_format_valid(CtkGvo *ctk_gvo, const gint format)
 
         if ((refresh_rate != input_refresh_rate) &&
             (!(ctk_gvo->caps & NV_CTRL_GVO_CAPABILITIES_MULTIRATE_SYNC) ||
-             (((refresh_rate % 1000) ? TRUE : FALSE) !=
-              ((input_refresh_rate % 1000) ? TRUE : FALSE)))) {
+             ((refresh_rate % 1000 == 0) != (input_refresh_rate % 1000 == 0)))) {
              valid &= ~(GVO_VIDEO_FORMAT_REFRESH_VALID);
         }
     }
@@ -503,7 +502,7 @@ gboolean ctk_gvo_data_format_valid(const gint format)
     for (i = 0; dataFormatNames[i].name; i++) {
         if (dataFormatNames[i].format == format) {
             /* Only the first three formats are valid */
-            return (i < 3) ? TRUE : FALSE;
+            return (i < 3);
         }
     }
 
@@ -1152,7 +1151,7 @@ static void fill_output_data_format_menu(CtkGvo *ctk_gvo)
             g_free(str);
         }
 
-        gtk_widget_set_sensitive(label, (valid ? TRUE : FALSE));
+        gtk_widget_set_sensitive(label, valid);
     }
 
 } /* fill_output_data_format_menu() */
@@ -1647,7 +1646,7 @@ static void post_clone_mode_button_toggled(CtkGvo *ctk_gvo)
     g_list_free(children);
 
     enabled =
-        (ctk_gvo->lock_owner == NV_CTRL_GVO_LOCK_OWNER_CLONE) ? TRUE : FALSE;
+        (ctk_gvo->lock_owner == NV_CTRL_GVO_LOCK_OWNER_CLONE);
 
     if (enabled) {
         gtk_container_add(GTK_CONTAINER(ctk_gvo->toggle_clone_mode_button),

@@ -195,7 +195,7 @@ static void zorder_layout(CtkDisplayLayout *ctk_object)
 
 
     /* Create the Z-order buffer */
-    ctk_object->Zorder = (ZNode *)calloc(ctk_object->Zcount, sizeof(ZNode));
+    ctk_object->Zorder = calloc(ctk_object->Zcount, sizeof(ZNode));
     if (!ctk_object->Zorder) {
         ctk_object->Zcount = 0;
         return;
@@ -2215,8 +2215,7 @@ ZNode *get_screen_zorder_move_data(CtkDisplayLayout *ctk_object,
             /* Only move screen if it is not moving to the same location */
             if (move_to != i) {
 
-                tmpzo = (ZNode *)malloc((1 + screen->num_displays) *
-                                        sizeof(ZNode));
+                tmpzo = malloc((1 + screen->num_displays) * sizeof(ZNode));
                 if (!tmpzo) return NULL;
                 
                 memcpy(tmpzo,
@@ -2872,8 +2871,7 @@ GtkWidget* ctk_display_layout_new(NvCtrlAttributeHandle *handle,
     gdk_color_parse(LAYOUT_IMG_SELECT_COLOR, &(ctk_object->select_color));
 
     /* Parse the device color palettes */
-    ctk_object->color_palettes = 
-        (GdkColor *)calloc(1, NUM_COLORS * sizeof(GdkColor));
+    ctk_object->color_palettes = calloc(NUM_COLORS, sizeof(GdkColor));
     for (i = 0; i < NUM_COLORS; i++) {
         gdk_color_parse(__palettes_color_names[i],
                         &(ctk_object->color_palettes[i]));

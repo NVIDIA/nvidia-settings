@@ -87,7 +87,7 @@ NvCtrlInitVidModeAttributes(NvCtrlAttributePrivateHandle *h)
     ret = XF86VidModeQueryExtension(h->dpy, &event, &vidModeErrorBase);
     if (ret != True) goto failed;
 
-    vm = (NvCtrlVidModeAttributes *) malloc(sizeof(NvCtrlVidModeAttributes));
+    vm = malloc(sizeof(NvCtrlVidModeAttributes));
 
     ret = XF86VidModeQueryVersion(h->dpy, &(vm->major_version), &(vm->minor_version));
     if (ret != True) goto failed;
@@ -120,9 +120,9 @@ NvCtrlInitVidModeAttributes(NvCtrlAttributePrivateHandle *h)
     
     if (ret != True) goto failed;
     
-    vm->lut[RED]   = (unsigned short *) malloc(sizeof(unsigned short) * vm->n);
-    vm->lut[GREEN] = (unsigned short *) malloc(sizeof(unsigned short) * vm->n);
-    vm->lut[BLUE]  = (unsigned short *) malloc(sizeof(unsigned short) * vm->n);
+    vm->lut[RED]   = malloc(sizeof(unsigned short) * vm->n);
+    vm->lut[GREEN] = malloc(sizeof(unsigned short) * vm->n);
+    vm->lut[BLUE]  = malloc(sizeof(unsigned short) * vm->n);
     
     ret = XF86VidModeGetGammaRamp(h->dpy, h->target_id, vm->n, vm->lut[RED],
                                   vm->lut[GREEN], vm->lut[BLUE]);

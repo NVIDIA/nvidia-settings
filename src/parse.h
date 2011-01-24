@@ -43,6 +43,7 @@
  * Flag values used in the flags field of the AttributeTableEntry struct.
  */
 
+#define NV_PARSER_TYPE_HIJACK_DISPLAY_DEVICE   (1<<15)
 #define NV_PARSER_TYPE_FRAMELOCK               (1<<16)
 #define NV_PARSER_TYPE_COLOR_ATTRIBUTE         (1<<17)
 #define NV_PARSER_TYPE_NO_CONFIG_WRITE         (1<<18)

@@ -239,7 +239,7 @@ static void update_perf_mode_table(CtkPowermizer *ctk_powermizer,
             (entry.nvclock != -1) &&
             (entry.memclock != -1)) {
             
-            active = (entry.perf_level == perf_level) ? TRUE : FALSE;
+            active = (entry.perf_level == perf_level);
 
             /* XXX Assume the perf levels are sorted by the server */
 

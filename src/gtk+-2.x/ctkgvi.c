@@ -553,7 +553,8 @@ GtkWidget* ctk_gvi_new(NvCtrlAttributeHandle *handle,
 
     /* Get Bus related information */
 
-    get_bus_related_info(handle, &bus, &pci_bus_id);
+    get_bus_type_str(handle, &bus);
+    get_bus_id_str(handle, &pci_bus_id);
 
     /* NV_CTRL_IRQ */
 

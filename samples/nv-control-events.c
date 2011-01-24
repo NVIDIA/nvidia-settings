@@ -47,6 +47,7 @@ int main(void)
     int event_base, error_base;
     int num_screens, num_gpus, num_framelocks, num_vcs, i;
     int num_gvis, num_coolers, num_thermal_sensors;
+    int num_3d_vision_pro_transceivers;
     int sources;
     XEvent event;
     XNVCtrlAttributeChangedEvent *nvevent;
@@ -145,6 +146,17 @@ int main(void)
     if (ret != True) {
         fprintf(stderr, "Failed to query the number of Thermal Sensor "
                 "devices on '%s'.\n",
+                XDisplayName(NULL));
+        return 1;
+    }
+
+    /* Query number of 3d Vision Pro Transceivers */
+
+    ret = XNVCTRLQueryTargetCount(dpy, NV_CTRL_TARGET_TYPE_3D_VISION_PRO_TRANSCEIVER,
+                                  &num_3d_vision_pro_transceivers);
+    if (ret != True) {
+        fprintf(stderr, "Failed to query the number of 3D Vision Pro "
+                "Transceiver devices on '%s'.\n",
                 XDisplayName(NULL));
         return 1;
     }
@@ -341,6 +353,25 @@ int main(void)
         sources++;
     }
 
+    /* Register to receive on all 3D Vision Pro Transceiver targets */
+
+    for (i = 0; i < num_3d_vision_pro_transceivers; i++ ) {
+
+        ret = XNVCtrlSelectTargetNotify(dpy, NV_CTRL_TARGET_TYPE_3D_VISION_PRO_TRANSCEIVER,
+                                        i, TARGET_ATTRIBUTE_CHANGED_EVENT,
+                                        True);
+        if (ret != True) {
+            printf("- Unable to register to receive NV-CONTROL "
+                   "target events for 3D Vision Pro Transceiver %d on '%s'.\n",
+                   i, XDisplayName(NULL));
+            continue;
+        }
+
+        printf("+ Listening to TARGET_ATTRIBUTE_CHANGE_EVENTs on 3d Vision "
+               "Pro Transceiver %d.\n", i);
+        sources++;
+    }
+
     /* 
      * Report the number of sources (things that we have registered to
      * listen for NV-CONTROL X Events on.)
@@ -442,6 +473,8 @@ static const char *target2str(int n)
         return "Cooler";
     case NV_CTRL_TARGET_TYPE_THERMAL_SENSOR:
         return "Thermal Sensor";
+    case NV_CTRL_TARGET_TYPE_3D_VISION_PRO_TRANSCEIVER:
+        return "3D Vision Pro Transceiver";
     default:
         snprintf(unknown, 24, "Unknown (%d)", n);
         return unknown;
@@ -591,7 +624,7 @@ static AttrEntry attr_table[] = {
     MAKE_ENTRY(NV_CTRL_XINERAMA),
     MAKE_ENTRY(NV_CTRL_XINERAMA_STEREO),
     MAKE_ENTRY(NV_CTRL_BUS_RATE),
-    MAKE_ENTRY(NV_CTRL_SHOW_SLI_HUD),
+    MAKE_ENTRY(NV_CTRL_SHOW_SLI_VISUAL_INDICATOR),
     MAKE_ENTRY(NV_CTRL_XV_SYNC_TO_DISPLAY),
     MAKE_ENTRY(NV_CTRL_GVIO_REQUESTED_VIDEO_FORMAT2),
     MAKE_ENTRY(NV_CTRL_GVO_OVERRIDE_HW_CSC),
@@ -719,8 +752,25 @@ static AttrEntry attr_table[] = {
     MAKE_ENTRY(NV_CTRL_GPU_CURRENT_PROCESSOR_CLOCK_FREQS),
     MAKE_ENTRY(NV_CTRL_GVIO_VIDEO_FORMAT_FLAGS),
     MAKE_ENTRY(NV_CTRL_GPU_PCIE_MAX_LINK_SPEED),
+    MAKE_ENTRY(NV_CTRL_3D_VISION_PRO_RESET_TRANSCEIVER_TO_FACTORY_SETTINGS),
+    MAKE_ENTRY(NV_CTRL_3D_VISION_PRO_TRANSCEIVER_CHANNEL),
+    MAKE_ENTRY(NV_CTRL_3D_VISION_PRO_TRANSCEIVER_MODE),
+    MAKE_ENTRY(NV_CTRL_SYNCHRONOUS_PALETTE_UPDATES),
     MAKE_ENTRY(NV_CTRL_DITHERING_DEPTH),
     MAKE_ENTRY(NV_CTRL_CURRENT_DITHERING_DEPTH),
+    MAKE_ENTRY(NV_CTRL_3D_VISION_PRO_TRANSCEIVER_CHANNEL_FREQUENCY),
+    MAKE_ENTRY(NV_CTRL_3D_VISION_PRO_TRANSCEIVER_CHANNEL_QUALITY),
+    MAKE_ENTRY(NV_CTRL_3D_VISION_PRO_TRANSCEIVER_CHANNEL_COUNT),
+    MAKE_ENTRY(NV_CTRL_3D_VISION_PRO_PAIR_GLASSES),
+    MAKE_ENTRY(NV_CTRL_3D_VISION_PRO_UNPAIR_GLASSES),
+    MAKE_ENTRY(NV_CTRL_3D_VISION_PRO_DISCOVER_GLASSES),
+    MAKE_ENTRY(NV_CTRL_3D_VISION_PRO_IDENTIFY_GLASSES),
+    MAKE_ENTRY(NV_CTRL_3D_VISION_PRO_GLASSES_SYNC_CYCLE),
+    MAKE_ENTRY(NV_CTRL_3D_VISION_PRO_GLASSES_MISSED_SYNC_CYCLES),
+    MAKE_ENTRY(NV_CTRL_3D_VISION_PRO_GLASSES_BATTERY_LEVEL),
+    MAKE_ENTRY(NV_CTRL_3D_VISION_PRO_GLASSES_BATTERY_LEVEL),
     MAKE_ENTRY(NV_CTRL_GVO_ANC_PARITY_COMPUTATION),
+    MAKE_ENTRY(NV_CTRL_3D_VISION_PRO_GLASSES_PAIR_EVENT),
+    MAKE_ENTRY(NV_CTRL_3D_VISION_PRO_GLASSES_UNPAIR_EVENT),
     { -1, NULL, NULL }
 };

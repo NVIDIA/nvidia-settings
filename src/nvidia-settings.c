@@ -143,7 +143,7 @@ int main(int argc, char **argv)
 
     /* pass control to the gui */
 
-    ctk_main(p, &conf, h);
+    ctk_main(p, &conf, h, op->page);
     
     /* write the configuration file */
 

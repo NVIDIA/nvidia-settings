@@ -73,8 +73,7 @@ NvCtrlInitNvControlAttributes (NvCtrlAttributePrivateHandle *h)
         }
     }
     
-    nv = (NvCtrlNvControlAttributes *)
-        calloc(1, sizeof (NvCtrlNvControlAttributes));
+    nv = calloc(1, sizeof(NvCtrlNvControlAttributes));
 
     ret = XNVCtrlSelectTargetNotify(h->dpy, h->target_type, h->target_id,
                                     TARGET_ATTRIBUTE_CHANGED_EVENT, True);

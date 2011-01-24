@@ -38,6 +38,7 @@
 #include "msg.h"
 #include "parse.h"
 #include "command-line.h"
+#include "common-utils.h"
 
 #include "ctkdisplayconfig-utils.h"
 #include "ctkutils.h"
@@ -1880,8 +1881,7 @@ nvDisplayPtr gpu_add_display_from_server(nvGpuPtr gpu,
         gpu->num_gvo_modes += count_number_of_bits(valid2);
         gpu->num_gvo_modes += count_number_of_bits(valid3);
         if (gpu->num_gvo_modes > 0) {
-            gpu->gvo_mode_data = (GvoModeData *)calloc(gpu->num_gvo_modes,
-                                                       sizeof(GvoModeData));
+            gpu->gvo_mode_data = calloc(gpu->num_gvo_modes, sizeof(GvoModeData));
         }
         if (!gpu->gvo_mode_data) {
             gpu->num_gvo_modes = 0;
@@ -2097,7 +2097,7 @@ static int gpu_add_screen_from_server(nvGpuPtr gpu, int screen_id,
         nv_warning_msg(*err_str);
         goto fail;
     }
-    screen->dynamic_twinview = val ? TRUE : FALSE;
+    screen->dynamic_twinview = !!val;
 
 
     /* See if the screen is set to not scanout */
@@ -2109,7 +2109,7 @@ static int gpu_add_screen_from_server(nvGpuPtr gpu, int screen_id,
         nv_warning_msg(*err_str);
         goto fail;
     }
-    screen->no_scanout = (val == NV_CTRL_NO_SCANOUT_ENABLED) ? TRUE : FALSE;
+    screen->no_scanout = (val == NV_CTRL_NO_SCANOUT_ENABLED);
 
 
     /* XXX Currently there is no support for screens that are scanning
@@ -2134,7 +2134,7 @@ static int gpu_add_screen_from_server(nvGpuPtr gpu, int screen_id,
     }
 
     ret = NvCtrlGetAttribute(screen->handle,
-                             NV_CTRL_SHOW_SLI_HUD,
+                             NV_CTRL_SHOW_SLI_VISUAL_INDICATOR,
                              &tmp);
 
     screen->sli = (ret == NvCtrlSuccess);
@@ -2395,8 +2395,7 @@ static Bool layout_add_gpu_from_server(nvLayoutPtr layout, unsigned int gpu_id,
         goto fail;
     }
 
-    get_bus_related_info(gpu->handle, NULL, &(gpu->pci_bus_id));
-
+    get_bus_id_str(gpu->handle, &(gpu->pci_bus_id));
 
     ret = NvCtrlGetAttribute(gpu->handle, NV_CTRL_MAX_SCREEN_WIDTH,
                              (int *)&(gpu->max_width));
@@ -2966,9 +2965,8 @@ static void update_xconfig_save_buffer(SaveXConfDlg *dlg)
          G_CALLBACK(xconfig_update_buffer), (gpointer) dlg);
     
     gtk_widget_set_sensitive(dlg->btn_xconfig_merge,
-                             (dlg->merge_toggleable && mergeable) ?
-                             TRUE : FALSE);
-    
+                             dlg->merge_toggleable && mergeable);
+
 
     /* We're done with the user's X config, so do some cleanup,
      * but make sure to handle the case where the generation
@@ -3254,7 +3252,7 @@ SaveXConfDlg *create_save_xconfig_dialog(GtkWidget *parent,
     gchar *filename;
     const char *tmp_filename;
 
-    dlg = (SaveXConfDlg *) malloc (sizeof(SaveXConfDlg));
+    dlg = malloc(sizeof(SaveXConfDlg));
     if (!dlg) return NULL;
 
     dlg->parent = parent;

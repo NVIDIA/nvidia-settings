@@ -65,6 +65,7 @@ static char *nv_strndup(char *s, int n);
 #define I NV_PARSER_TYPE_SDI
 #define W NV_PARSER_TYPE_VALUE_IS_SWITCH_DISPLAY
 #define M NV_PARSER_TYPE_SDI_CSC
+#define T NV_PARSER_TYPE_HIJACK_DISPLAY_DEVICE
 
 AttributeTableEntry attributeTable[] = {
    
@@ -128,6 +129,8 @@ AttributeTableEntry attributeTable[] = {
     { "OpenGLImageSettings",        NV_CTRL_IMAGE_SETTINGS,                   0,   "The image quality setting for OpenGL clients.  This setting only takes effect on OpenGL clients started after it is set." },
     { "XineramaStereoFlipping",     NV_CTRL_XINERAMA_STEREO,                  0,   "When 1, OpenGL will allow stereo flipping on multiple X screens configured with Xinerama.  When 0, flipping is allowed only on one X screen at a time." },
     { "ShowSLIHUD",                 NV_CTRL_SHOW_SLI_HUD,                     0,   "If this is enabled (1), the driver will draw information about the current SLI mode into a \"heads-up display\" inside OpenGL windows accelerated with SLI.  This setting only takes effect on OpenGL clients started after it is set." },
+    { "ShowSLIVisualIndicator",     NV_CTRL_SHOW_SLI_VISUAL_INDICATOR,        0,   "If this is enabled (1), the driver will draw information about the current SLI mode into a \"visual indicator\" inside OpenGL windows accelerated with SLI.  This setting only takes effect on OpenGL clients started after it is set." },
+    { "ShowMultiGpuVisualIndicator", NV_CTRL_SHOW_MULTIGPU_VISUAL_INDICATOR,  0,   "If this is enabled (1), the driver will draw information about the current MultiGPU mode into a \"visual indicator\" inside OpenGL windows accelerated with SLI.  This setting only takes effect on OpenGL clients started after it is set." },
     { "FSAAAppEnhanced",            NV_CTRL_FSAA_APPLICATION_ENHANCED,        0,   "Controls how the FSAA attribute is applied when FSAAAppControlled is disabled.  When FSAAAppEnhanced is disabled, OpenGL applications will be forced to use the FSAA mode specified by the FSAA attribute.  When the FSAAAppEnhanced attribute is enabled, only those applications that have selected a multisample FBConfig will be made to use the FSAA mode specified." },
     { "GammaCorrectedAALinesValue", NV_CTRL_OPENGL_AA_LINE_GAMMA_VALUE,       0,   "Returns the gamma value used by OpenGL when gamma-corrected antialiased lines are enabled." },
     { "StereoEyesExchange",         NV_CTRL_STEREO_EYES_EXCHANGE,             0,   "Swaps the left and right eyes of stereo images." },
@@ -276,8 +279,8 @@ AttributeTableEntry attributeTable[] = {
     { "BlueGamma",                  GAMMA_VALUE|BLUE_CHANNEL,              C|G,   "Controls the gamma of the color blue in the display." },
     { "Dithering",                  NV_CTRL_DITHERING,                     0,     "Controls the dithering: auto (0), enabled (1), disabled (2)." },
     { "CurrentDithering",           NV_CTRL_CURRENT_DITHERING,             0,     "Returns the current dithering state: enabled (1), disabled (0)." },
-    { "DitheringMode",              NV_CTRL_DITHERING_MODE,                0,     "Controls the dithering mode when CurrentDithering=1; auto (0), temporally dynamic dithering pattern (1), temporally static dithering pattern (2)." },
-    { "CurrentDitheringMode",       NV_CTRL_CURRENT_DITHERING_MODE,        0,     "Returns the current dithering mode: none (0), temporally dynamic dithering pattern (1), temporally static dithering pattern (2)." },
+    { "DitheringMode",              NV_CTRL_DITHERING_MODE,                0,     "Controls the dithering mode when CurrentDithering=1; auto (0), temporally repeating dithering pattern (1), static dithering pattern (2), temporally stochastic dithering (3)." },
+    { "CurrentDitheringMode",       NV_CTRL_CURRENT_DITHERING_MODE,        0,     "Returns the current dithering mode: none (0), temporally repeating dithering pattern (1), static dithering pattern (2), temporally stochastic dithering (3)." },
     { "DitheringDepth",             NV_CTRL_DITHERING_DEPTH,               0,     "Controls the dithering depth when CurrentDithering=1; auto (0), 6 bits per channel (1), 8 bits per channel (2)." },
     { "CurrentDitheringDepth",      NV_CTRL_CURRENT_DITHERING_DEPTH,       0,     "Returns the current dithering depth: none (0), 6 bits per channel (1), 8 bits per channel (2)." },
     { "DigitalVibrance",            NV_CTRL_DIGITAL_VIBRANCE,              0,     "Sets the digital vibrance level of the display device." },
@@ -297,6 +300,7 @@ AttributeTableEntry attributeTable[] = {
     { "OverscanCompensation",       NV_CTRL_OVERSCAN_COMPENSATION,         0,     "Adjust the amount of overscan compensation scaling, in pixels, to apply to the specified display device." },
     { "ColorSpace",                 NV_CTRL_COLOR_SPACE,                   0,     "Sets the color space of the signal sent to the display device." },
     { "ColorRange",                 NV_CTRL_COLOR_RANGE,                   0,     "Sets the color range of the signal sent to the display device." },
+    { "SynchronousPaletteUpdates",  NV_CTRL_SYNCHRONOUS_PALETTE_UPDATES,   0,     "Controls whether colormap updates are synchronized with X rendering." },
 
     /* TV */
     { "TVOverScan",      NV_CTRL_TV_OVERSCAN,       0, "Adjusts the amount of overscan on the specified display device." },
@@ -321,29 +325,29 @@ AttributeTableEntry attributeTable[] = {
     { "XVideoSyncToDisplay",       NV_CTRL_XV_SYNC_TO_DISPLAY,             D|Z, "Controls which display device is synced to by the texture and blitter adaptors when they are set to synchronize to the vertical blanking." },
 
     /* 3D Vision Pro */
-    {"3DVisionProResetTransceiverToFactorySettings", NV_CTRL_3D_VISION_PRO_RESET_TRANSCEIVER_TO_FACTORY_SETTINGS, N,   "Resets the 3D Vision Pro transceiver to its factory settings."},
-    {"3DVisionProTransceiverChannel",                NV_CTRL_3D_VISION_PRO_TRANSCEIVER_CHANNEL,                   N,   "Controls the channel that is currently used by the 3D Vision Pro transceiver."},
-    {"3DVisionProTransceiverMode",                   NV_CTRL_3D_VISION_PRO_TRANSCEIVER_MODE,                      N,   "Controls the mode in which the 3D Vision Pro transceiver operates."},
-    {"3DVisionProTransceiverChannelFrequency",       NV_CTRL_3D_VISION_PRO_TRANSCEIVER_CHANNEL_FREQUENCY,         N,   "Returns the frequency of the channel(in kHz) of the 3D Vision Pro transceiver."},
-    {"3DVisionProTransceiverChannelQuality",         NV_CTRL_3D_VISION_PRO_TRANSCEIVER_CHANNEL_QUALITY,           N,   "Returns the quality of the channel(in percentage) of the 3D Vision Pro transceiver."},
-    {"3DVisionProTransceiverChannelCount",           NV_CTRL_3D_VISION_PRO_TRANSCEIVER_CHANNEL_COUNT,             N,   "Returns the number of channels on the 3D Vision Pro transceiver."},
-    {"3DVisionProPairGlasses",                       NV_CTRL_3D_VISION_PRO_PAIR_GLASSES,                          N,   "Puts the 3D Vision Pro transceiver into pairing mode to gather additional glasses."},
-    {"3DVisionProUnpairGlasses",                     NV_CTRL_3D_VISION_PRO_UNPAIR_GLASSES,                        N,   "Tells a specific pair of glasses to unpair."},
-    {"3DVisionProDiscoverGlasses",                   NV_CTRL_3D_VISION_PRO_DISCOVER_GLASSES,                      N,   "Tells the 3D Vision Pro transceiver about the glasses that have been paired using NV_CTRL_3D_VISION_PRO_PAIR_GLASSES_BEACON."},
-    {"3DVisionProIdentifyGlasses",                   NV_CTRL_3D_VISION_PRO_IDENTIFY_GLASSES,                      N,   "Causes glasses LEDs to flash for a short period of time."},
-    {"3DVisionProGlassesSyncCycle",                  NV_CTRL_3D_VISION_PRO_GLASSES_SYNC_CYCLE,                    N,   "Controls the sync cycle duration(in milliseconds) of the glasses."},
-    {"3DVisionProGlassesMissedSyncCycles",           NV_CTRL_3D_VISION_PRO_GLASSES_MISSED_SYNC_CYCLES,            N,   "Returns the number of state sync cycles recently missed by the glasses."},
-    {"3DVisionProGlassesBatteryLevel",               NV_CTRL_3D_VISION_PRO_GLASSES_BATTERY_LEVEL,                 N,   "Returns the battery level(in percentage) of the glasses."},
-    {"3DVisionProTransceiverHardwareRevision",       NV_CTRL_STRING_3D_VISION_PRO_TRANSCEIVER_HARDWARE_REVISION,  S|N, "Returns the hardware revision of the 3D Vision Pro transceiver."},
-    {"3DVisionProTransceiverFirmwareVersionA",       NV_CTRL_STRING_3D_VISION_PRO_TRANSCEIVER_FIRMWARE_VERSION_A, S|N, "Returns the firmware version of chip A of the 3D Vision Pro transceiver."},
-    {"3DVisionProTransceiverFirmwareDateA",          NV_CTRL_STRING_3D_VISION_PRO_TRANSCEIVER_FIRMWARE_DATE_A,    S|N, "Returns the date of the firmware of chip A of the 3D Vision Pro transceiver."},
-    {"3DVisionProTransceiverFirmwareVersionB",       NV_CTRL_STRING_3D_VISION_PRO_TRANSCEIVER_FIRMWARE_VERSION_B, S|N, "Returns the firmware version of chip B of the 3D Vision Pro transceiver."},
-    {"3DVisionProTransceiverFirmwareDateB",          NV_CTRL_STRING_3D_VISION_PRO_TRANSCEIVER_FIRMWARE_DATE_B,    S|N, "Returns the date of the firmware of chip B of the 3D Vision Pro transceiver."},
-    {"3DVisionProTransceiverAddress",                NV_CTRL_STRING_3D_VISION_PRO_TRANSCEIVER_ADDRESS,            S|N, "Returns the RF address of the 3D Vision Pro transceiver."},
-    {"3DVisionProGlassesFirmwareVersionA",           NV_CTRL_STRING_3D_VISION_PRO_GLASSES_FIRMWARE_VERSION_A,     S|N, "Returns the firmware version of chip A of the glasses."},
-    {"3DVisionProGlassesFirmwareDateA",              NV_CTRL_STRING_3D_VISION_PRO_GLASSES_FIRMWARE_DATE_A,        S|N, "Returns the date of the firmware of chip A of the glasses."},
-    {"3DVisionProGlassesAddress",                    NV_CTRL_STRING_3D_VISION_PRO_GLASSES_ADDRESS,                S|N, "Returns the RF address of the glasses."},
-    {"3DVisionProGlassesName",                       NV_CTRL_STRING_3D_VISION_PRO_GLASSES_NAME,                   S|N, "Controls the name the glasses should use."},
+    {"3DVisionProResetTransceiverToFactorySettings", NV_CTRL_3D_VISION_PRO_RESET_TRANSCEIVER_TO_FACTORY_SETTINGS, N,     "Resets the 3D Vision Pro transceiver to its factory settings."},
+    {"3DVisionProTransceiverChannel",                NV_CTRL_3D_VISION_PRO_TRANSCEIVER_CHANNEL,                   N,     "Controls the channel that is currently used by the 3D Vision Pro transceiver."},
+    {"3DVisionProTransceiverMode",                   NV_CTRL_3D_VISION_PRO_TRANSCEIVER_MODE,                      N,     "Controls the mode in which the 3D Vision Pro transceiver operates."},
+    {"3DVisionProTransceiverChannelFrequency",       NV_CTRL_3D_VISION_PRO_TRANSCEIVER_CHANNEL_FREQUENCY,         N|T,   "Returns the frequency of the channel(in kHz) of the 3D Vision Pro transceiver."},
+    {"3DVisionProTransceiverChannelQuality",         NV_CTRL_3D_VISION_PRO_TRANSCEIVER_CHANNEL_QUALITY,           N|T,   "Returns the quality of the channel(in percentage) of the 3D Vision Pro transceiver."},
+    {"3DVisionProTransceiverChannelCount",           NV_CTRL_3D_VISION_PRO_TRANSCEIVER_CHANNEL_COUNT,             N,     "Returns the number of channels on the 3D Vision Pro transceiver."},
+    {"3DVisionProPairGlasses",                       NV_CTRL_3D_VISION_PRO_PAIR_GLASSES,                          N,     "Puts the 3D Vision Pro transceiver into pairing mode to gather additional glasses."},
+    {"3DVisionProUnpairGlasses",                     NV_CTRL_3D_VISION_PRO_UNPAIR_GLASSES,                        N,     "Tells a specific pair of glasses to unpair."},
+    {"3DVisionProDiscoverGlasses",                   NV_CTRL_3D_VISION_PRO_DISCOVER_GLASSES,                      N,     "Tells the 3D Vision Pro transceiver about the glasses that have been paired using NV_CTRL_3D_VISION_PRO_PAIR_GLASSES_BEACON."},
+    {"3DVisionProIdentifyGlasses",                   NV_CTRL_3D_VISION_PRO_IDENTIFY_GLASSES,                      N,     "Causes glasses LEDs to flash for a short period of time."},
+    {"3DVisionProGlassesSyncCycle",                  NV_CTRL_3D_VISION_PRO_GLASSES_SYNC_CYCLE,                    N|T,   "Controls the sync cycle duration(in milliseconds) of the glasses."},
+    {"3DVisionProGlassesMissedSyncCycles",           NV_CTRL_3D_VISION_PRO_GLASSES_MISSED_SYNC_CYCLES,            N|T,   "Returns the number of state sync cycles recently missed by the glasses."},
+    {"3DVisionProGlassesBatteryLevel",               NV_CTRL_3D_VISION_PRO_GLASSES_BATTERY_LEVEL,                 N|T,   "Returns the battery level(in percentage) of the glasses."},
+    {"3DVisionProTransceiverHardwareRevision",       NV_CTRL_STRING_3D_VISION_PRO_TRANSCEIVER_HARDWARE_REVISION,  S|N,   "Returns the hardware revision of the 3D Vision Pro transceiver."},
+    {"3DVisionProTransceiverFirmwareVersionA",       NV_CTRL_STRING_3D_VISION_PRO_TRANSCEIVER_FIRMWARE_VERSION_A, S|N,   "Returns the firmware version of chip A of the 3D Vision Pro transceiver."},
+    {"3DVisionProTransceiverFirmwareDateA",          NV_CTRL_STRING_3D_VISION_PRO_TRANSCEIVER_FIRMWARE_DATE_A,    S|N,   "Returns the date of the firmware of chip A of the 3D Vision Pro transceiver."},
+    {"3DVisionProTransceiverFirmwareVersionB",       NV_CTRL_STRING_3D_VISION_PRO_TRANSCEIVER_FIRMWARE_VERSION_B, S|N,   "Returns the firmware version of chip B of the 3D Vision Pro transceiver."},
+    {"3DVisionProTransceiverFirmwareDateB",          NV_CTRL_STRING_3D_VISION_PRO_TRANSCEIVER_FIRMWARE_DATE_B,    S|N,   "Returns the date of the firmware of chip B of the 3D Vision Pro transceiver."},
+    {"3DVisionProTransceiverAddress",                NV_CTRL_STRING_3D_VISION_PRO_TRANSCEIVER_ADDRESS,            S|N,   "Returns the RF address of the 3D Vision Pro transceiver."},
+    {"3DVisionProGlassesFirmwareVersionA",           NV_CTRL_STRING_3D_VISION_PRO_GLASSES_FIRMWARE_VERSION_A,     S|N|T, "Returns the firmware version of chip A of the glasses."},
+    {"3DVisionProGlassesFirmwareDateA",              NV_CTRL_STRING_3D_VISION_PRO_GLASSES_FIRMWARE_DATE_A,        S|N|T, "Returns the date of the firmware of chip A of the glasses."},
+    {"3DVisionProGlassesAddress",                    NV_CTRL_STRING_3D_VISION_PRO_GLASSES_ADDRESS,                S|N|T, "Returns the RF address of the glasses."},
+    {"3DVisionProGlassesName",                       NV_CTRL_STRING_3D_VISION_PRO_GLASSES_NAME,                   S|N|T, "Controls the name the glasses should use."},
 
     { NULL, 0, 0, NULL }
 };
@@ -579,8 +583,16 @@ int nv_parse_attribute_string(const char *str, int query, ParsedAttribute *a)
         display_device_name = nv_strndup(start, s - start);
         a->display_device_mask =
             display_device_name_to_display_device_mask(display_device_name);
-        if (a->display_device_mask == INVALID_DISPLAY_DEVICE_MASK)
+        /*
+         * stop parsing if the display device mask is invalid (and the
+         * display device mask is not hijacked for something other than
+         * display)
+         */
+
+        if ((a->display_device_mask == INVALID_DISPLAY_DEVICE_MASK) &&
+            !(a->flags & NV_PARSER_TYPE_HIJACK_DISPLAY_DEVICE))
             stop(NV_PARSER_STATUS_BAD_DISPLAY_DEVICE);
+
         a->flags |= NV_PARSER_HAS_DISPLAY_DEVICE;
         if (*s == ']') s++;
     }
@@ -932,8 +944,9 @@ int nv_strcasecmp(const char *a, const char *b)
 uint32 display_device_name_to_display_device_mask(const char *str)
 {
     uint32 mask = 0;
-    char *s, **toks;
+    char *s, **toks, *endptr;
     int i, n;
+    unsigned long int num;
 
     /* sanity check */
 
@@ -944,6 +957,17 @@ uint32 display_device_name_to_display_device_mask(const char *str)
     s = remove_spaces(str);
     if (!s || !*s) return INVALID_DISPLAY_DEVICE_MASK;
     
+    /*
+     * can the string be interpreted as a number? if so, use the number
+     * as the mask
+     */
+
+    num = strtoul(s, &endptr, 0);
+    if (*endptr == '\0') {
+        free(s);
+        return (uint32) num;
+    }
+
     /* break up the string by commas */
 
     toks = nv_strtok(s, ',', &n);
@@ -1373,7 +1397,7 @@ char *remove_spaces(const char *o)
     
     len = strlen (o);
     
-    no_spaces = (char *) malloc (len+1);
+    no_spaces = malloc(len + 1);
 
     m = no_spaces;
     while (*o) {
@@ -1383,8 +1407,8 @@ char *remove_spaces(const char *o)
     *m = '\0';
     
     len = m - no_spaces + 1;
-    no_spaces = (char *) (realloc (no_spaces, len));
-    
+    no_spaces = realloc (no_spaces, len);
+
     return (no_spaces);
 
 } /* remove_spaces() */
@@ -1450,7 +1474,7 @@ static char **nv_strtok(char *s, char c, int *n)
      * dividing character, and the terminating NULL of the string)
      */
     
-    delims = (char **) malloc((count+1) * sizeof(char *));
+    delims = malloc((count + 1) * sizeof(char *));
     m = s;
     for (i = 0; i < count; i++) {
         while (*m != c) m++;
@@ -1464,7 +1488,7 @@ static char **nv_strtok(char *s, char c, int *n)
      * the divisions (the tokens) into the dynamic array of strings
      */
     
-    tokens = (char **) malloc((count+1) * sizeof(char *));
+    tokens = malloc((count + 1) * sizeof(char *));
     len = delims[0] - s;
     tokens[0] = nv_strndup(s, len);
     
@@ -1556,7 +1580,7 @@ int count_number_of_bits(unsigned int mask)
 
 static char *nv_strndup(char *s, int n)
 {
-    char *m = (char *) malloc(n+1);
+    char *m = malloc(n + 1);
     strncpy (m, s, n);
     m[n] = '\0';
     return (m);
@@ -1690,7 +1714,7 @@ const char *parse_read_name(const char *str, char **name, char term)
     while (*str && !name_terminated(*str, term))
         str++;
 
-    *name = (char *)calloc(1, str -tmp +1);
+    *name = calloc(1, str - tmp + 1);
     if (!(*name)) {
         return NULL;
     }

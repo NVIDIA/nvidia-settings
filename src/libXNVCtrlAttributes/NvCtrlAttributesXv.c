@@ -77,7 +77,7 @@ static Bool open_libxv(void)
 
     /* Initialize bookkeeping structure */
     if ( !__libXv ) {
-        __libXv = (__libXvInfo *) calloc(1, sizeof(__libXvInfo));
+        __libXv = calloc(1, sizeof(__libXvInfo));
         if ( !__libXv ) {
             error_str = "Could not allocate memory.";
             goto fail;
@@ -201,8 +201,7 @@ NvCtrlXvAttributes * NvCtrlInitXvAttributes(NvCtrlAttributePrivateHandle *h)
 
 
     /* Allocate the attributes structure */
-    xv = (NvCtrlXvAttributes *)
-        calloc(1, sizeof (NvCtrlXvAttributes));
+    xv = calloc(1, sizeof(NvCtrlXvAttributes));
     if ( xv == NULL ) {
         error_str = "Out of memory.";
         goto fail;
@@ -230,8 +229,7 @@ NvCtrlXvAttributes * NvCtrlInitXvAttributes(NvCtrlAttributePrivateHandle *h)
         
             NvCtrlXvOverlayAttributes *attrs;
             
-            attrs = (NvCtrlXvOverlayAttributes *)
-                malloc(sizeof(NvCtrlXvOverlayAttributes));
+            attrs = malloc(sizeof(NvCtrlXvOverlayAttributes));
             if ( !attrs ) {
                 error_str = "Out of memory.";
                 goto fail;
@@ -273,8 +271,7 @@ NvCtrlXvAttributes * NvCtrlInitXvAttributes(NvCtrlAttributePrivateHandle *h)
             
             NvCtrlXvTextureAttributes *attrs;
             
-            attrs = (NvCtrlXvTextureAttributes *)
-                malloc(sizeof(NvCtrlXvTextureAttributes));
+            attrs = malloc(sizeof(NvCtrlXvTextureAttributes));
             if ( !attrs ) {
                 error_str = "Out of memory.";
                 goto fail;
@@ -311,8 +308,7 @@ NvCtrlXvAttributes * NvCtrlInitXvAttributes(NvCtrlAttributePrivateHandle *h)
             
             NvCtrlXvBlitterAttributes *attrs;
 
-            attrs = (NvCtrlXvBlitterAttributes *)
-                malloc(sizeof(NvCtrlXvBlitterAttributes));
+            attrs = malloc(sizeof(NvCtrlXvBlitterAttributes));
             if ( !attrs ) {
                 error_str = "Out of memory.";
                 goto fail;
@@ -516,7 +512,7 @@ static NvCtrlXvAttribute *getXvAttribute(NvCtrlAttributePrivateHandle *h,
     for (i = 0; i < n; i++) {
         if (strcmp(attributes[i].name, name) != 0) continue;
 
-        attr = (NvCtrlXvAttribute *) malloc(sizeof (NvCtrlXvAttribute));
+        attr = malloc(sizeof(NvCtrlXvAttribute));
         attr->range.type = ATTRIBUTE_TYPE_RANGE;
         attr->range.u.range.min = attributes[i].min_value;
         attr->range.u.range.max = attributes[i].max_value;

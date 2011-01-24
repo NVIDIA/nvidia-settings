@@ -250,6 +250,9 @@ GtkWidget* ctk_dithering_controls_new(NvCtrlAttributeHandle *handle,
         case NV_CTRL_DITHERING_MODE_STATIC_2X2:
             menu_item = gtk_menu_item_new_with_label("Static 2X2");
             break;
+        case NV_CTRL_DITHERING_MODE_TEMPORAL:
+            menu_item = gtk_menu_item_new_with_label("Temporal");
+            break;
         default:
         case NV_CTRL_DITHERING_MODE_AUTO:
             menu_item = gtk_menu_item_new_with_label("Auto");
@@ -517,6 +520,10 @@ static Bool update_dithering_info(gpointer user_data)
         gtk_label_set_text(GTK_LABEL(ctk_dithering_controls->dithering_current_mode),
                            "Static 2x2");
         break;
+    case NV_CTRL_CURRENT_DITHERING_MODE_TEMPORAL:
+        gtk_label_set_text(GTK_LABEL(ctk_dithering_controls->dithering_current_mode),
+                           "Temporal");
+        break;
     default:
     case NV_CTRL_CURRENT_DITHERING_MODE_NONE:
         gtk_label_set_text(GTK_LABEL(ctk_dithering_controls->dithering_current_mode),
@@ -609,11 +616,12 @@ void post_dithering_mode_update(CtkDitheringControls *ctk_dithering_controls,
     static const char *dither_mode_table[] = {
         "Auto",        /* NV_CTRL_DITHERING_MODE_AUTO */
         "Dynamic 2x2", /* NV_CTRL_DITHERING_MODE_DYNAMIC_2X2 */
-        "Static 2x2"   /* NV_CTRL_DITHERING_MODE_STATIC_2X2 */
+        "Static 2x2",  /* NV_CTRL_DITHERING_MODE_STATIC_2X2 */
+        "Temporal",    /* NV_CTRL_DITHERING_MODE_TEMPORAL */
     };
 
     if (dithering_mode < NV_CTRL_DITHERING_MODE_AUTO ||
-        dithering_mode > NV_CTRL_DITHERING_MODE_STATIC_2X2) {
+        dithering_mode > NV_CTRL_DITHERING_MODE_TEMPORAL) {
         return;
     }
 

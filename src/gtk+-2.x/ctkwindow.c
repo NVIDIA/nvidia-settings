@@ -33,6 +33,7 @@
 #include <gdk/gdkkeysyms.h>
 #include <stdio.h>
 #include <stdlib.h>
+#include <string.h>
 
 #include "ctkwindow.h"
 
@@ -72,6 +73,10 @@
 #include "ctkhelp.h"
 #include "ctkevent.h"
 #include "ctkconstants.h"
+
+#include "msg.h"
+#include "common-utils.h"
+
 
 /* column enumeration */
 
@@ -847,7 +852,7 @@ GtkWidget *ctk_window_new(ParsedAttribute *p, ConfigProperties *conf,
                      NULL, ctk_ecc_start_timer, ctk_ecc_stop_timer);
         }
         /* display devices */
-        data = (UpdateDisplaysData *)calloc(1, sizeof(UpdateDisplaysData));
+        data = calloc(1, sizeof(UpdateDisplaysData));
         data->window = ctk_window;
         data->event = ctk_event;
         data->gpu_handle = gpu_handle;
@@ -1083,6 +1088,85 @@ GtkWidget *ctk_window_new(ParsedAttribute *p, ConfigProperties *conf,
 
 
 /*
+ * Set the currently active page to be the page that matches the
+ * specified label.
+ *
+ * Note that child pages of X screens and GPUs cannot be uniquely
+ * identified by their label alone (e.g., each GPU has a "PowerMizer"
+ * page).  To allow explicit control over which instance of a child
+ * page is selected, the label can have the optional format
+ *
+ *  "[PARENT LABEL], [CHILD LABEL]"
+ *
+ * E.g.,
+ *
+ *  "GPU 0 - (GeForce 7600 GT), PowerMizer"
+ */
+
+typedef struct {
+    CtkWindow *ctk_window;
+    const gchar *label;
+} ctk_window_set_active_page_args;
+
+static gboolean ctk_window_set_active_page_callback(GtkTreeModel *model,
+                                                    GtkTreePath *path,
+                                                    GtkTreeIter *iter,
+                                                    gpointer data)
+{
+    GtkTreeIter parent;
+    gboolean valid;
+    gchar *iter_label;
+    gchar *parent_label = "no parent";
+    gchar *qualified_label;
+    ctk_window_set_active_page_args *args = data;
+
+    /* get the parent's label, if there is a parent */
+
+    valid = gtk_tree_model_iter_parent(model, &parent, iter);
+    if (valid) {
+        gtk_tree_model_get(model, &parent,
+                           CTK_WINDOW_LABEL_COLUMN, &parent_label, -1);
+    }
+
+    gtk_tree_model_get(model, iter, CTK_WINDOW_LABEL_COLUMN, &iter_label, -1);
+
+    qualified_label = nvstrcat(parent_label, ", ", iter_label, NULL);
+
+    if ((strcmp(iter_label, args->label) == 0) ||
+        (strcmp(qualified_label, args->label) == 0)) {
+        GtkTreeSelection* selection;
+        selection = gtk_tree_view_get_selection(args->ctk_window->treeview);
+        gtk_tree_selection_select_iter(selection, iter);
+        free(qualified_label);
+        return TRUE; /* stop walking the tree */
+    }
+
+    free(qualified_label);
+
+    return FALSE; /* keep walking the tree */
+}
+
+
+void ctk_window_set_active_page(CtkWindow *ctk_window, const gchar *label)
+{
+    GtkTreeModel *model = GTK_TREE_MODEL(ctk_window->tree_store);
+
+    ctk_window_set_active_page_args args;
+
+    if (!label) return;
+
+    args.ctk_window = ctk_window;
+    args.label = label;
+
+    gtk_tree_model_foreach(model,
+                           ctk_window_set_active_page_callback,
+                           &args);
+
+} /* ctk_window_set_active_page() */
+
+
+
+/*
  * add_page() - add a new page to ctk_window's tree_store, using iter
  * as a parent; the new child iter is written in pchild_iter, if
  * provided.
@@ -1229,26 +1313,34 @@ static void quit_response(GtkWidget *button, gint response, gpointer user_data)
  * saved to the config file.
  */
 
+static gboolean add_special_config_file_attributes_callback(GtkTreeModel *model,
+                                                            GtkTreePath *path,
+                                                            GtkTreeIter *iter,
+                                                            gpointer data)
+{
+    GtkWidget *widget;
+    config_file_attributes_func_t func;
+    CtkWindow *ctk_window = data;
+
+    gtk_tree_model_get(model, iter,
+                       CTK_WINDOW_WIDGET_COLUMN, &widget,
+                       CTK_WINDOW_CONFIG_FILE_ATTRIBUTES_FUNC_COLUMN,
+                       &func, -1);
+
+    if (func) (*func)(widget, ctk_window->attribute_list);
+
+    return FALSE; /* keep iterating over nodes in the tree */
+}
+
+
 void add_special_config_file_attributes(CtkWindow *ctk_window)
 {
     GtkTreeModel *model = GTK_TREE_MODEL(ctk_window->tree_store);
-    GtkTreeIter   iter;
-    gboolean valid;
-    config_file_attributes_func_t func;
-    GtkWidget *widget;
-    
-    valid = gtk_tree_model_get_iter_first(model, &iter);
-    while (valid) {
-        
-        gtk_tree_model_get(model, &iter,
-                           CTK_WINDOW_WIDGET_COLUMN, &widget,
-                           CTK_WINDOW_CONFIG_FILE_ATTRIBUTES_FUNC_COLUMN,
-                           &func, -1);
-        
-        if (func) (*func)(widget, ctk_window->attribute_list);
-        
-        valid = gtk_tree_model_iter_next(model, &iter);
-    }
+
+    gtk_tree_model_foreach(model,
+                           add_special_config_file_attributes_callback,
+                           ctk_window);
+
 } /* add_special_config_file_attributes() */
 
 
@@ -1292,8 +1384,7 @@ static void add_display_devices(CtkWindow *ctk_window, GtkTreeIter *iter,
     if (data->display_iters) {
         free(data->display_iters);
     }
-    data->display_iters =
-        (GtkTreeIter *)calloc(1, n * sizeof(GtkTreeIter));
+    data->display_iters = calloc(n, sizeof(GtkTreeIter));
     data->num_displays = 0;
     if (!data->display_iters) return;
 

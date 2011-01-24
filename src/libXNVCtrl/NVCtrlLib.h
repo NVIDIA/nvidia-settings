@@ -417,6 +417,66 @@ Bool XNVCTRLQueryValidTargetAttributeValues (
 
 
 /*
+ * XNVCTRLQueryAttributePermissions -
+ *
+ * Returns True if the attribute exists.  Returns False otherwise.  If
+ * XNVCTRLQueryAttributePermissions returns True, permissions will
+ * indicate the permission flags for the attribute.
+ */
+
+Bool XNVCTRLQueryAttributePermissions (
+    Display *dpy,
+    unsigned int attribute,
+    NVCTRLAttributePermissionsRec *permissions
+);
+
+
+/*
+ * XNVCTRLQueryStringAttributePermissions -
+ *
+ * Returns True if the attribute exists.  Returns False otherwise.  If
+ * XNVCTRLQueryStringAttributePermissions returns True, permissions will
+ * indicate the permission flags for the attribute.
+ */
+
+ Bool XNVCTRLQueryStringAttributePermissions (
+    Display *dpy,
+    unsigned int attribute,
+    NVCTRLAttributePermissionsRec *permissions
+);
+
+
+/*
+ * XNVCTRLQueryBinaryDataAttributePermissions -
+ *
+ * Returns True if the attribute exists.  Returns False otherwise.  If
+ * XNVCTRLQueryBinaryDataAttributePermissions returns True, permissions
+ * will indicate the permission flags for the attribute.
+ */
+
+ Bool XNVCTRLQueryBinaryDataAttributePermissions (
+    Display *dpy,
+    unsigned int attribute,
+    NVCTRLAttributePermissionsRec *permissions
+);
+
+
+/*
+ * XNVCTRLQueryStringOperationAttributePermissions -
+ *
+ * Returns True if the attribute exists.  Returns False otherwise.  If
+ * XNVCTRLQueryStringOperationAttributePermissions returns True,
+ * permissions will indicate the permission flags for the attribute.
+ */
+
+ Bool XNVCTRLQueryStringOperationAttributePermissions (
+    Display *dpy,
+    unsigned int attribute,
+    NVCTRLAttributePermissionsRec *permissions
+);
+
+
+/*
  *  XNVCTRLSetGvoColorConversion -
  *
  *  Sets the color conversion matrix, offset, and scale that should be

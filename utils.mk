@@ -97,6 +97,12 @@ ifndef TARGET_ARCH
   TARGET_ARCH         := $(subst i686,x86,$(TARGET_ARCH))
 endif
 
+ifeq ($(TARGET_OS),Linux)
+  LIBDL_LDFLAGS = -ldl
+else
+  LIBDL_LDFLAGS =
+endif
+
 OUTPUTDIR             ?= _out/$(TARGET_OS)_$(TARGET_ARCH)
 
 NV_QUIET_COMMAND_REMOVED_TARGET_PREFIX ?=

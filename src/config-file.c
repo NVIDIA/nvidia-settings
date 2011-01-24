@@ -110,6 +110,14 @@ int nv_read_config_file(const char *file, const char *display_name,
     struct stat stat_buf;
     char *buf, *locale;
     ParsedAttributeWrapper *w = NULL;
+
+    if (!file) {
+        /*
+         * file is NULL, likely because tilde_expansion() failed and
+         * returned NULL; silently fail
+         */
+        return NV_FALSE;
+    }
     
     /* open the file */
 
@@ -217,6 +225,11 @@ int nv_write_config_file(const char *filename, CtrlHandles *h,
     char *tmp_d_str, *prefix, scratch[4];
     const char *tmp;
     char *locale = "C";
+
+    if (!filename) {
+        nv_error_msg("Unable to open configuration file for writing.");
+        return NV_FALSE;
+    }
 
     stream = fopen(filename, "w");
     if (!stream) {

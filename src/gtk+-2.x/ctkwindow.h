@@ -93,6 +93,8 @@ struct _CtkWindowClass
 GType       ctk_window_get_type  (void) G_GNUC_CONST;
 GtkWidget*  ctk_window_new       (ParsedAttribute *, ConfigProperties *conf,
                                   CtrlHandles *h);
+void        ctk_window_set_active_page(CtkWindow *ctk_window,
+                                       const gchar *label);
 
 void add_special_config_file_attributes(CtkWindow *ctk_window);
 

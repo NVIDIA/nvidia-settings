@@ -82,9 +82,10 @@ GtkWidget*  ctk_gpu_new      (NvCtrlAttributeHandle *handle,
                               CtkEvent *ctk_event,
                               CtkConfig *ctk_config);
 
-void get_bus_related_info(NvCtrlAttributeHandle *handle,
-                          gchar **bus,
-                          gchar **pci_bus_id);
+void get_bus_type_str(NvCtrlAttributeHandle *handle,
+                      gchar **bus);
+void get_bus_id_str(NvCtrlAttributeHandle *handle,
+                    gchar **pci_bus_id);
 
 GtkTextBuffer *ctk_gpu_create_help(GtkTextTagTable *,
                                    CtkGpu *);

@@ -115,7 +115,7 @@ static Bool open_libxrandr(void)
 
     /* Initialize bookkeeping structure */
     if ( !__libXrandr ) {
-        __libXrandr = (__libXrandrInfo *) calloc(1, sizeof(__libXrandrInfo));
+        __libXrandr = calloc(1, sizeof(__libXrandrInfo));
         if ( !__libXrandr ) {
             error_str = "Could not allocate memory.";
             goto fail;
@@ -288,7 +288,7 @@ NvCtrlInitXrandrAttributes (NvCtrlAttributePrivateHandle *h)
 
     /* Create storage for XRandR attributes */
     xrandr =
-        (NvCtrlXrandrAttributes *) calloc(1, sizeof(NvCtrlXrandrAttributes));
+        calloc(1, sizeof(NvCtrlXrandrAttributes));
     if ( !xrandr ) {
         goto fail;
     }

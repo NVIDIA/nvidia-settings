@@ -50,7 +50,7 @@ static const char *__ecc_status_help =
 
 static const char *__dbit_error_help =
 "Returns the number of double-bit ECC errors detected by "
-"the targeted GPU since the last POST.";
+"the targeted GPU since the last system reboot.";
 
 static const char *__aggregate_dbit_error_help =
 "Returns the number of double-bit ECC errors detected by the "
@@ -58,18 +58,20 @@ static const char *__aggregate_dbit_error_help =
 
 static const char *__configuration_status_help =
 "Returns the current ECC configuration setting or specifies new "
-"settings.  A new setting do not take effect until the next POST.";
+"settings.  Changes to these settings do not take effect until the next "
+"system reboot.";
 
 static const char *__clear_button_help =
-"This button is used to clear the ECC errors detected since last POST.";
+"This button is used to clear the ECC errors detected since the last system reboot.";
 
 static const char *__clear_aggregate_button_help =
-"This button is used to reset aggregate ECC errors counter.";
+"This button is used to reset the aggregate ECC errors counter.";
 
 static const char *__reset_default_config_button_help =
 "The button is used to restore the GPU's default ECC configuration setting.";
 
 static void ecc_config_button_toggled(GtkWidget *, gpointer);
+static void show_ecc_toggle_warning_dlg(CtkEcc *);
 
 GType ctk_ecc_get_type(void)
 {
@@ -230,6 +232,11 @@ static void reset_default_config_button_clicked(GtkWidget *widget,
     NvCtrlSetAttribute(ctk_ecc->handle,
                        NV_CTRL_GPU_ECC_CONFIGURATION,
                        status);
+
+    /* show popup dialog*/
+    show_ecc_toggle_warning_dlg(ctk_ecc);
+    
+    gtk_widget_set_sensitive(ctk_ecc->reset_default_config_button, FALSE);
     
     ctk_config_statusbar_message(ctk_ecc->ctk_config,
                                  "Set to default configuration.");
@@ -277,6 +284,30 @@ static void clear_aggregate_ecc_errors_button_clicked(GtkWidget *widget,
 
 
 
+static void show_ecc_toggle_warning_dlg(CtkEcc *ctk_ecc)
+{
+    GtkWidget *dlg, *parent;
+    
+    /* return early if message dialog already shown */
+    if (ctk_ecc->ecc_toggle_warning_dlg_shown) {
+        return;
+    }
+    ctk_ecc->ecc_toggle_warning_dlg_shown = TRUE;
+    parent = ctk_get_parent_window(GTK_WIDGET(ctk_ecc));
+
+    dlg = gtk_message_dialog_new (GTK_WINDOW(parent),
+                                  GTK_DIALOG_MODAL,
+                                  GTK_MESSAGE_WARNING,
+                                  GTK_BUTTONS_OK,
+                                  "Changes to the ECC setting "
+                                  "require a system reboot before "
+                                  "taking effect.");
+    gtk_dialog_run(GTK_DIALOG(dlg));
+    gtk_widget_destroy (dlg);
+}
+
+
+
 /*
  * ecc_config_button_toggled() - callback function for
  * enable ECC checkbox.
@@ -289,9 +320,16 @@ static void ecc_config_button_toggled(GtkWidget *widget,
     CtkEcc *ctk_ecc = CTK_ECC(user_data);
     enabled = gtk_toggle_button_get_active(GTK_TOGGLE_BUTTON(widget));
 
+    /* show popup dialog when user first time click ECC config */
+    show_ecc_toggle_warning_dlg(ctk_ecc);
+
+    /* set the newly specified ECC value */
     NvCtrlSetAttribute(ctk_ecc->handle,
                        NV_CTRL_GPU_ECC_CONFIGURATION,
                        enabled);
+
+    gtk_widget_set_sensitive(ctk_ecc->reset_default_config_button, TRUE);
+
     ctk_config_statusbar_message(ctk_ecc->ctk_config,
                                  "ECC %s.",
                                  enabled ? "enabled" : "disabled");
@@ -314,6 +352,7 @@ GtkWidget* ctk_ecc_new(NvCtrlAttributeHandle *handle,
     gboolean dbit_error_available;
     gboolean aggregate_dbit_error_available;
     gboolean ecc_enabled;
+    gboolean ecc_default_status;
     ReturnStatus ret;
     gchar *ecc_enabled_string;
 
@@ -339,6 +378,7 @@ GtkWidget* ctk_ecc_new(NvCtrlAttributeHandle *handle,
     ctk_ecc = CTK_ECC(object);
     ctk_ecc->handle = handle;
     ctk_ecc->ctk_config = ctk_config;
+    ctk_ecc->ecc_toggle_warning_dlg_shown = FALSE;
 
     dbit_error_available = TRUE;
     aggregate_dbit_error_available = TRUE;
@@ -358,6 +398,17 @@ GtkWidget* ctk_ecc_new(NvCtrlAttributeHandle *handle,
         ecc_enabled_string = "Enabled";
     }
     ctk_ecc->ecc_enabled = ecc_enabled; 
+
+    /* get default status */
+    ret = NvCtrlGetAttribute(handle,
+                             NV_CTRL_GPU_ECC_DEFAULT_CONFIGURATION,
+                             &val);
+    if (ret != NvCtrlSuccess ||
+        val == NV_CTRL_GPU_ECC_DEFAULT_CONFIGURATION_DISABLED) {
+        ecc_default_status = FALSE;
+    } else {
+        ecc_default_status = TRUE;
+    }
 
     /* Query ECC errors */
     
@@ -512,7 +563,8 @@ GtkWidget* ctk_ecc_new(NvCtrlAttributeHandle *handle,
     ctk_config_set_tooltip(ctk_config, ctk_ecc->reset_default_config_button,
                            __reset_default_config_button_help);
     gtk_widget_set_sensitive(ctk_ecc->reset_default_config_button,
-                             ecc_config_supported && ecc_enabled);
+                             ecc_config_supported &&
+                             (ecc_enabled != ecc_default_status));
     g_signal_connect(G_OBJECT(ctk_ecc->reset_default_config_button),
                      "clicked",
                      G_CALLBACK(reset_default_config_button_clicked),
@@ -534,7 +586,7 @@ GtkWidget* ctk_ecc_new(NvCtrlAttributeHandle *handle,
 }
 
 GtkTextBuffer *ctk_ecc_create_help(GtkTextTagTable *table,
-                                       CtkEcc *ctk_ecc)
+                                   CtkEcc *ctk_ecc)
 {
     GtkTextIter i;
     GtkTextBuffer *b;
@@ -574,7 +626,6 @@ GtkTextBuffer *ctk_ecc_create_help(GtkTextTagTable *table,
     
     ctk_help_heading(b, &i, "Reset Default Configuration");
     ctk_help_para(b, &i, __reset_default_config_button_help);
-
 
     ctk_help_finish(b);
 

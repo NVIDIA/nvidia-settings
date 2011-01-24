@@ -695,7 +695,7 @@ static void svp_config_changed(GtkObject *object, gpointer arg1,
     case NV_CTRL_3D_VISION_PRO_TRANSCEIVER_CHANNEL:
         if (HTU(0)->channel_num != event_struct->value) {
             HTU(0)->channel_num = event_struct->value;
-            snprintf(temp, sizeof(temp), "Current Channel ID: %d", HTU(0)->channel_num);
+            snprintf(temp, sizeof(temp), "%d", HTU(0)->channel_num);
             gtk_label_set_text(ctk_3d_vision_pro->channel_num_label, temp);
             gtk_widget_show_all(GTK_WIDGET(ctk_3d_vision_pro->channel_num_label));
         }
@@ -1287,32 +1287,32 @@ static void rename_button_clicked(GtkButton *button, gpointer user_data)
                 }
             }
             if (i == HTU(0)->num_glasses) {
-                goto new_unique_name_set;
+                if (dlg->glasses_selected_index >= 0 &&
+                    dlg->glasses_selected_index < HTU(0)->num_glasses) {
+                    Bool ret;
+                    unsigned int glasses_id = HTU(0)->glasses_info[dlg->glasses_selected_index]->glasses_id;
+
+                    ret = XNVCTRLSetTargetStringAttribute(NvCtrlGetDisplayPtr(ctk_3d_vision_pro->handle),
+                                                          NV_CTRL_TARGET_TYPE_3D_VISION_PRO_TRANSCEIVER,
+                                                          0, glasses_id,
+                                                          NV_CTRL_STRING_3D_VISION_PRO_GLASSES_NAME,
+                                                          dlg->glasses_new_name);
+
+                    if (ret == False) {
+                        continue;
+                    }
+                    strncpy(HTU(0)->glasses_info[dlg->glasses_selected_index]->name, dlg->glasses_new_name,
+                            sizeof(HTU(0)->glasses_info[dlg->glasses_selected_index]->name));
+                    HTU(0)->glasses_info[dlg->glasses_selected_index]->name[GLASSES_NAME_MAX_LENGTH - 1] = '\0';
+
+                    update_glasses_info_data_table(&(ctk_3d_vision_pro->table), HTU(0)->glasses_info);
+                    gtk_widget_show_all(GTK_WIDGET(ctk_3d_vision_pro->table.data_table));
+                }
+                break;
             }
         }
 
     } while (result != GTK_RESPONSE_REJECT);
-    goto no_name_set;
-
-new_unique_name_set:
-    if (dlg->glasses_selected_index >= 0 &&
-        dlg->glasses_selected_index < HTU(0)->num_glasses) {
-        unsigned int glasses_id = HTU(0)->glasses_info[dlg->glasses_selected_index]->glasses_id;
-
-        XNVCTRLSetTargetStringAttribute(NvCtrlGetDisplayPtr(ctk_3d_vision_pro->handle),
-                                        NV_CTRL_TARGET_TYPE_3D_VISION_PRO_TRANSCEIVER,
-                                        0, glasses_id,
-                                        NV_CTRL_STRING_3D_VISION_PRO_GLASSES_NAME,
-                                        dlg->glasses_new_name);
-
-        strncpy(HTU(0)->glasses_info[dlg->glasses_selected_index]->name, dlg->glasses_new_name,
-                sizeof(HTU(0)->glasses_info[dlg->glasses_selected_index]->name));
-        HTU(0)->glasses_info[dlg->glasses_selected_index]->name[GLASSES_NAME_MAX_LENGTH - 1] = '\0';
-
-        update_glasses_info_data_table(&(ctk_3d_vision_pro->table), HTU(0)->glasses_info);
-        gtk_widget_show_all(GTK_WIDGET(ctk_3d_vision_pro->table.data_table));
-    }
-no_name_set:
 
     gtk_widget_hide(dlg->dlg_rename_glasses);
 
@@ -1846,7 +1846,8 @@ GtkTextBuffer *ctk_3d_vision_pro_create_help(GtkTextTagTable *table)
     ctk_help_para(b, &i, __goggle_info_tooltip);
 
     ctk_help_heading(b, &i, "Glasses Name");
-    ctk_help_para(b, &i, "Each pair of glasses has an unique name. "
+    ctk_help_para(b, &i, "Each pair of glasses has an unique name and the name should "
+                         "start and end with an alpha-numeric character. "
                          "Glasses can be renamed using Rename button.");
 
     ctk_help_heading(b, &i, "Battery Level");

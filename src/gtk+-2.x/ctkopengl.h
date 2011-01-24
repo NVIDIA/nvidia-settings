@@ -66,7 +66,8 @@ struct _CtkOpenGL
     GtkWidget *image_settings_scale;
     GtkWidget *aa_line_gamma_button;
     GtkWidget *aa_line_gamma_scale;
-    GtkWidget *show_sli_hud_button;
+    GtkWidget *show_sli_visual_indicator_button;
+    GtkWidget *show_multigpu_visual_indicator_button;
     
     unsigned int active_attributes;
 };

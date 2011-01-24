@@ -186,6 +186,7 @@ GtkWidget* ctk_color_correction_new(NvCtrlAttributeHandle *handle,
 {
     GObject *object;
     CtkColorCorrection *ctk_color_correction;
+    GtkRequisition requisition;
 
     GtkWidget *menu;
     GtkWidget *image;
@@ -502,7 +503,24 @@ GtkWidget* ctk_color_correction_new(NvCtrlAttributeHandle *handle,
     /* finally, show the widget */
 
     gtk_widget_show_all(GTK_WIDGET(object));
-    
+
+    /*
+     * lock the size of the confirm button, so that it is not resized
+     * when we change the button text later.
+     *
+     * Note: this assumes that the initial size of the button is the
+     * largest size needed for any text placed in the button.  In the
+     * case of the confirm button, this works out:
+     *
+     *  "Confirm Current Changes" <-- initial value
+     *  "%d Seconds to Confirm"
+     */
+
+    gtk_widget_size_request(ctk_color_correction->confirm_button,
+                            &requisition);
+    gtk_widget_set_size_request(ctk_color_correction->confirm_button,
+                                requisition.width, -1);
+
     return GTK_WIDGET(object);
 }
 
@@ -704,8 +722,10 @@ static void reset_button_clicked(
                              FALSE);
     gtk_widget_set_sensitive(GTK_WIDGET(button), FALSE);
     /* kill the timer */
-    g_source_remove(ctk_color_correction->confirm_timer);
-    ctk_color_correction->confirm_timer = 0;
+    if (ctk_color_correction->confirm_timer) {
+        g_source_remove(ctk_color_correction->confirm_timer);
+        ctk_color_correction->confirm_timer = 0;
+    }
     
     /* Reset confirm button text */
     gtk_button_set_label(GTK_BUTTON(ctk_color_correction->confirm_button),

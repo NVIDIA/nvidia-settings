@@ -69,6 +69,7 @@ struct _CtkEcc
     GtkWidget* configuration_status;
 
     gboolean ecc_enabled;
+    gboolean ecc_toggle_warning_dlg_shown;
     gboolean dbit_error_available;
     gboolean aggregate_dbit_error_available;
 

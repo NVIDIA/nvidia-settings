@@ -264,3 +264,4 @@ static int get_terminal_width(void)
         return (ws.ws_col - 1);
     }
 }
+

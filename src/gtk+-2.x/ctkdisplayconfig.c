@@ -2204,8 +2204,7 @@ static void setup_display_refresh_dropdown(CtkDisplayConfig *ctk_object)
         ctk_object->refresh_table_len = 0;
     }
     ctk_object->refresh_table =
-        (nvModeLinePtr *)calloc(1, display->num_modelines
-                                * sizeof(nvModeLinePtr));
+        calloc(display->num_modelines, sizeof(nvModeLinePtr));
     if (!ctk_object->refresh_table) {
         goto fail;
     }
@@ -2440,8 +2439,7 @@ static void setup_display_resolution_dropdown(CtkDisplayConfig *ctk_object)
         ctk_object->resolution_table_len = 0;
     }
     ctk_object->resolution_table =
-        (nvModeLinePtr *)calloc(1, (display->num_modelines +1)
-                                *sizeof(nvModeLinePtr));
+        calloc(display->num_modelines + 1, sizeof(nvModeLinePtr));
     if (!ctk_object->resolution_table) {
         goto fail;
     }
@@ -2590,7 +2588,7 @@ static GtkWidget* generate_display_modelname_dropdown
     }
 
     ctk_object->display_model_table =
-        (nvDisplayPtr *)calloc(1, display_count * sizeof(nvDisplayPtr));
+        calloc(display_count, sizeof(nvDisplayPtr));
 
     if (!ctk_object->display_model_table) {
         gtk_option_menu_remove_menu
@@ -2749,9 +2747,8 @@ static void setup_display_position_relative(CtkDisplayConfig *ctk_object)
         display->screen->num_displays -1;
 
     ctk_object->display_position_table =
-        (nvDisplayPtr *)calloc(1, ctk_object->display_position_table_len *
-                               sizeof(nvDisplayPtr));
-    
+        calloc(ctk_object->display_position_table_len, sizeof(nvDisplayPtr));
+
     if (!ctk_object->display_position_table) {
         goto fail;
     }
@@ -3316,9 +3313,8 @@ static void setup_screen_position_relative(CtkDisplayConfig *ctk_object)
         free(ctk_object->screen_position_table);
     }
     ctk_object->screen_position_table =
-        (nvScreenPtr *)calloc(1, ctk_object->screen_position_table_len *
-                              sizeof(nvScreenPtr));
-    
+        calloc(ctk_object->screen_position_table_len, sizeof(nvScreenPtr));
+
     if (!ctk_object->screen_position_table) {
         goto fail;
     }
@@ -6693,14 +6689,14 @@ static Bool add_monitor_to_xconfig(nvDisplayPtr display, XConfigPtr config,
     monitor = (XConfigMonitorPtr)calloc(1, sizeof(XConfigMonitorRec));
     if (!monitor) goto fail;
     
-    monitor->identifier = (char *)malloc(32);
+    monitor->identifier = malloc(32);
     snprintf(monitor->identifier, 32, "Monitor%d", monitor_id);
     monitor->vendor = xconfigStrdup("Unknown");  /* XXX */
 
     /* Copy the model name string, stripping any '"' characters */
 
     len = strlen(display->name);
-    monitor->modelname = (char *)malloc(len + 1);
+    monitor->modelname = malloc(len + 1);
     for (i = 0, j = 0; i < len; i++, j++) {
         if (display->name[i] == '\"') {
             if (++i >= len)
@@ -6842,7 +6838,7 @@ static XConfigDevicePtr add_device_to_xconfig(nvGpuPtr gpu, XConfigPtr config,
 
 
     /* Fill out the device information */
-    device->identifier = (char *)malloc(32);
+    device->identifier = malloc(32);
     snprintf(device->identifier, 32, "Device%d", device_id);
 
     device->driver = xconfigStrdup("nvidia");
@@ -6938,7 +6934,7 @@ static int add_screen_to_xconfig(CtkDisplayConfig *ctk_object,
 
 
     /* Fill out the screen information */
-    conf_screen->identifier = (char *)malloc(32);
+    conf_screen->identifier = malloc(32);
     snprintf(conf_screen->identifier, 32, "Screen%d", screen->scrnum);
 
     

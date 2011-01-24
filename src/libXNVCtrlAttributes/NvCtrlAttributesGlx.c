@@ -135,7 +135,7 @@ static Bool open_libgl(void)
 
     /* Initialize bookkeeping structure */
     if ( !__libGL ) {
-        __libGL = (__libGLInfo *) calloc(1, sizeof(__libGLInfo));
+        __libGL = calloc(1, sizeof(__libGLInfo));
         if ( !__libGL ) {
             error_str = "Could not allocate memory.";
             goto fail;

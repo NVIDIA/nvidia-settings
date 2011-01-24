@@ -73,6 +73,8 @@ struct _CtkFramelock
     GtkWidget             *remove_devices_button;
     GtkWidget             *short_labels_button;
     GtkWidget             *extra_info_button;
+    GtkWidget             *expand_all_button;
+    gboolean               is_expanded;
 
     /* House sync */
     GtkWidget             *house_sync_frame;

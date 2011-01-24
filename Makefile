@@ -104,6 +104,7 @@ endif
 
 LDFLAGS += -lX11 -lXext -lm
 LDFLAGS += $(GTK_LDFLAGS)
+LDFLAGS += $(LIBDL_LDFLAGS)
 
 MANPAGE_GZIP ?= 1
 
@@ -139,6 +140,7 @@ CFLAGS     += -I src/xpm_data
 CFLAGS     += -I src/gtk+-2.x
 CFLAGS     += -I $(COMMON_UTILS_DIR)
 CFLAGS     += -I $(OUTPUTDIR)
+CFLAGS     += -DPROGRAM_NAME=\"nvidia-setttings\"
 
 $(call BUILD_OBJECT_LIST,$(GTK_SRC)): CFLAGS += $(GTK_CFLAGS)
 

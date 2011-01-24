@@ -35,7 +35,8 @@ char *ctk_get_display(void);
 
 void ctk_main(ParsedAttribute*,
               ConfigProperties*,
-              CtrlHandles*);
+              CtrlHandles*,
+              const char *page);
 
 
 #endif /* __CTK_UI_H__ */

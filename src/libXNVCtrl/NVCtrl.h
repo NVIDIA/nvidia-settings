@@ -145,7 +145,7 @@
  *    ratio correct)
  *
  * USAGE NOTE: This attribute has been deprecated in favor of the new
- *             NV_CTRL_FLATPANEL_GPU_SCALING attribute.
+ *             NV_CTRL_GPU_SCALING attribute.
  */
 
 #define NV_CTRL_FLATPANEL_SCALING                               2  /* RWDG */
@@ -1621,11 +1621,21 @@
 /*
  * NV_CTRL_SHOW_SLI_HUD - when TRUE, OpenGL will draw information about the
  * current SLI mode.
+ * Renamed this attribute to NV_CTRL_SHOW_SLI_VISUAL_INDICATOR
  */
 
-#define NV_CTRL_SHOW_SLI_HUD                                     225  /* RW-X */
-#define NV_CTRL_SHOW_SLI_HUD_FALSE                               0
-#define NV_CTRL_SHOW_SLI_HUD_TRUE                                1
+#define NV_CTRL_SHOW_SLI_HUD         NV_CTRL_SHOW_SLI_VISUAL_INDICATOR
+#define NV_CTRL_SHOW_SLI_HUD_FALSE   NV_CTRL_SHOW_SLI_VISUAL_INDICATOR_FALSE
+#define NV_CTRL_SHOW_SLI_HUD_TRUE    NV_CTRL_SHOW_SLI_VISUAL_INDICATOR_TRUE
+
+/*
+ * NV_CTRL_SHOW_SLI_VISUAL_INDICATOR - when TRUE, OpenGL will draw information
+ * about the current SLI mode.
+ */
+
+#define NV_CTRL_SHOW_SLI_VISUAL_INDICATOR                       225  /* RW-X */
+#define NV_CTRL_SHOW_SLI_VISUAL_INDICATOR_FALSE                   0
+#define NV_CTRL_SHOW_SLI_VISUAL_INDICATOR_TRUE                    1
 
 /*
  * NV_CTRL_XV_SYNC_TO_DISPLAY - this control is valid when TwinView and 
@@ -1878,8 +1888,8 @@
 
 
 /*
- * NV_CTRL_MULTIGPU_DISPLAY_OWNER - Returns the GPU ID of the GPU
- * that has the display device(s) used for showing the X Screen.
+ * NV_CTRL_MULTIGPU_DISPLAY_OWNER - Returns the (NV-CONTROL) GPU ID of
+ * the GPU that has the display device(s) used for showing the X Screen.
  */
 
 #define NV_CTRL_MULTIGPU_DISPLAY_OWNER                           247 /* R-- */
@@ -2213,7 +2223,7 @@
  *
  * Range # (11 bits), (Enabled 1 bit), min value (10 bits), max value (10 bits)
  *
- * To query the current values, pass the range # throught he display_mask
+ * To query the current values, pass the range # throught the display_mask
  * variable.
  */
 
@@ -2920,11 +2930,16 @@
  * STATIC_2X2: use a 2x2 matrix to dither from the GPU's pixel
  * pipeline to the bit depth of the flat panel.  The matrix values
  * do not change from frame to frame.
+ *
+ * TEMPORAL: use a pseudorandom value from a uniform distribution calculated at
+ * every pixel to achieve stochastic dithering.  This method produces a better
+ * visual result than 2x2 matrix approaches.
  */
 #define NV_CTRL_DITHERING_MODE                                  352 /* RWDG */
 #define NV_CTRL_DITHERING_MODE_AUTO                               0
 #define NV_CTRL_DITHERING_MODE_DYNAMIC_2X2                        1
 #define NV_CTRL_DITHERING_MODE_STATIC_2X2                         2
+#define NV_CTRL_DITHERING_MODE_TEMPORAL                           3
 
 /*
  * NV_CTRL_CURRENT_DITHERING - Returns the current dithering state.
@@ -2941,6 +2956,7 @@
 #define NV_CTRL_CURRENT_DITHERING_MODE_NONE                       0
 #define NV_CTRL_CURRENT_DITHERING_MODE_DYNAMIC_2X2                1
 #define NV_CTRL_CURRENT_DITHERING_MODE_STATIC_2X2                 2
+#define NV_CTRL_CURRENT_DITHERING_MODE_TEMPORAL                   3
 
 /* 
  * NV_CTRL_THERMAL_SENSOR_READING - Returns the thermal sensor's current
@@ -3061,6 +3077,27 @@
 #define NV_CTRL_3D_VISION_PRO_TRANSCEIVER_MODE_COUNT                4
 
 /*
+ * NV_CTRL_SYNCHRONOUS_PALETTE_UPDATES - controls whether updates to the color
+ * lookup table (LUT) are synchronous with respect to X rendering.  For example,
+ * if an X client sends XStoreColors followed by XFillRectangle, the driver will
+ * guarantee that the FillRectangle request is not processed until after the
+ * updated LUT colors are actually visible on the screen if
+ * NV_CTRL_SYNCHRONOUS_PALETTE_UPDATES is enabled.  Otherwise, the rendering may
+ * occur first.
+ *
+ * This makes a difference for applications that use the LUT to animate, such as
+ * XPilot.  If you experience flickering in applications that use LUT
+ * animations, try enabling this attribute.
+ *
+ * When synchronous updates are enabled, XStoreColors requests will be processed
+ * at your screen's refresh rate.
+ */
+
+#define NV_CTRL_SYNCHRONOUS_PALETTE_UPDATES                     367  /* RWDG */
+#define NV_CTRL_SYNCHRONOUS_PALETTE_UPDATES_DISABLE             0
+#define NV_CTRL_SYNCHRONOUS_PALETTE_UPDATES_ENABLE              1
+
+/*
  * NV_CTRL_DITHERING_DEPTH - Controls the dithering depth when
  * NV_CTRL_CURRENT_DITHERING is ENABLED.  Some displays connected
  * to the GPU via the DVI or LVDS interfaces cannot display the
@@ -3159,9 +3196,12 @@
  */
 #define NV_CTRL_3D_VISION_PRO_GLASSES_BATTERY_LEVEL             380 /* R--T */
 
-/* NV_CTRL_GVO_ANC_PARITY_COMPUTATION - Controls the SDI device's computation
+
+/*
+ * NV_CTRL_GVO_ANC_PARITY_COMPUTATION - Controls the SDI device's computation
  * of the parity bit (bit 8) for ANC data words.
  */
+
 #define NV_CTRL_GVO_ANC_PARITY_COMPUTATION                      381 /* RW--- */
 #define NV_CTRL_GVO_ANC_PARITY_COMPUTATION_AUTO                   0
 #define NV_CTRL_GVO_ANC_PARITY_COMPUTATION_ON                     1
@@ -3776,6 +3816,7 @@
  * NV_CTRL_STRING_3D_VISION_PRO_GLASSES_NAME - Controls the name the
  * glasses should use.
  * Use the display_mask parameter to specify the glasses id.
+ * Glasses' name should start and end with an alpha-numeric character.
  */
 #define NV_CTRL_STRING_3D_VISION_PRO_GLASSES_NAME                   44 /* RW-T */
 
@@ -4306,6 +4347,18 @@
  * value, etc).  This is useful for attributes like NV_CTRL_FSAA_MODE,
  * which can only have certain values, depending on GPU.
  *
+ * ATTRIBUTE_TYPE_64BIT_INTEGER : the attribute is a 64 bit integer value;
+ * there is no fixed range of valid values.
+ *
+ * ATTRIBUTE_TYPE_STRING : the attribute is a string value; there is no fixed
+ * range of valid values.
+ *
+ * ATTRIBUTE_TYPE_BINARY_DATA : the attribute is binary data; there is
+ * no fixed range of valid values.
+ *
+ * ATTRIBUTE_TYPE_STRING_OPERATION : the attribute is a string; there is
+ * no fixed range of valid values.
+ *
  *
  * The permissions field of NVCTRLAttributeValidValuesRec is a bitmask
  * that may contain:
@@ -4330,14 +4383,16 @@
  * file for a description of what these permission bits mean.
  */
 
-#define ATTRIBUTE_TYPE_UNKNOWN   0
-#define ATTRIBUTE_TYPE_INTEGER   1
-#define ATTRIBUTE_TYPE_BITMASK   2
-#define ATTRIBUTE_TYPE_BOOL      3
-#define ATTRIBUTE_TYPE_RANGE     4
-#define ATTRIBUTE_TYPE_INT_BITS  5
-#define ATTRIBUTE_TYPE_64BIT_INTEGER  6
-#define ATTRIBUTE_TYPE_STRING         7
+#define ATTRIBUTE_TYPE_UNKNOWN           0
+#define ATTRIBUTE_TYPE_INTEGER           1
+#define ATTRIBUTE_TYPE_BITMASK           2
+#define ATTRIBUTE_TYPE_BOOL              3
+#define ATTRIBUTE_TYPE_RANGE             4
+#define ATTRIBUTE_TYPE_INT_BITS          5
+#define ATTRIBUTE_TYPE_64BIT_INTEGER     6
+#define ATTRIBUTE_TYPE_STRING            7
+#define ATTRIBUTE_TYPE_BINARY_DATA       8
+#define ATTRIBUTE_TYPE_STRING_OPERATION  9
 
 #define ATTRIBUTE_TYPE_READ       0x001
 #define ATTRIBUTE_TYPE_WRITE      0x002
@@ -4365,6 +4420,11 @@ typedef struct _NVCTRLAttributeValidValues {
     } u;
     unsigned int permissions;
 } NVCTRLAttributeValidValuesRec;
+
+typedef struct _NVCTRLAttributePermissions {
+    int type;
+    unsigned int permissions;
+} NVCTRLAttributePermissionsRec;
 
 
 /**************************************************************************/

@@ -93,10 +93,14 @@ typedef struct {
                           * to the configuration file and exit.
                           */
 
+    char *page;          /*
+                          * The default page to display in the GUI
+                          * when started.
+                          */
+
 } Options;
 
 
 Options *parse_command_line(int argc, char *argv[], char *dpy);
-char *tilde_expansion(const char *str);
 
 #endif /* __COMMAND_LINE_H__ */

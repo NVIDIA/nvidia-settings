@@ -42,14 +42,19 @@ char *ctk_get_display(void)
     return gdk_get_display();
 }
 
-void ctk_main(ParsedAttribute *p, ConfigProperties *conf,
-              CtrlHandles *h)
+void ctk_main(ParsedAttribute *p,
+              ConfigProperties *conf,
+              CtrlHandles *h,
+              const char *page)
 {
     int i, has_nv_control = FALSE;
     GList *list = NULL;
+    GtkWidget *window;
+
     list = g_list_append (list, gdk_pixbuf_from_pixdata(&nvidia_icon_pixdata, TRUE, NULL));
     gtk_window_set_default_icon_list(list);
-    ctk_window_new(p, conf, h);
+    window = ctk_window_new(p, conf, h);
+
     for (i = 0; i < h->targets[X_SCREEN_TARGET].n; i++) {
         if (h->targets[X_SCREEN_TARGET].t[i].h) {
             has_nv_control = TRUE;
@@ -70,6 +75,8 @@ void ctk_main(ParsedAttribute *p, ConfigProperties *conf,
         gtk_dialog_run(GTK_DIALOG(dlg));
         gtk_widget_destroy (dlg);
     }
+
+    ctk_window_set_active_page(CTK_WINDOW(window), page);
 
     gtk_main();
 }

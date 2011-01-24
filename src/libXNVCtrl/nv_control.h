@@ -51,6 +51,7 @@
  * 1.24        Fixed a bug where SLI_MOSAIC_MODE_AVAILABLE attribute would
  *             report false positives via the GPU and X screen target types
  * 1.25        Added 3D_VISION_PRO_TRANSCEIVER TargetType
+ * 1.26        Added XNVCTRLQueryXXXAttributePermissions.
  */
 
 #ifndef __NVCONTROL_H
@@ -61,7 +62,7 @@
 #define NV_CONTROL_NAME "NV-CONTROL"
 
 #define NV_CONTROL_MAJOR 1
-#define NV_CONTROL_MINOR 25
+#define NV_CONTROL_MINOR 26
 
 #define X_nvCtrlQueryExtension                      0
 #define X_nvCtrlIsNv                                1
@@ -92,7 +93,12 @@
 #define X_nvCtrlQueryValidAttributeValues64         26
 #define X_nvCtrlQueryAttribute64                    27
 #define X_nvCtrlQueryValidStringAttributeValues     28
-#define X_nvCtrlLastRequest (X_nvCtrlQueryValidStringAttributeValues + 1)
+#define X_nvCtrlQueryAttributePermissions                29
+#define X_nvCtrlQueryStringAttributePermissions          30
+#define X_nvCtrlQueryBinaryDataAttributePermissions      31
+#define X_nvCtrlQueryStringOperationAttributePermissions 32
+
+#define X_nvCtrlLastRequest (X_nvCtrlQueryStringOperationAttributePermissions + 1)
 
 
 /* Define 32 bit floats */
@@ -336,6 +342,29 @@ typedef struct {
 } xnvCtrlQueryValidAttributeValues64Reply;
 #define sz_xnvCtrlQueryValidAttributeValues64Reply 48
 #define sz_xnvCtrlQueryValidAttributeValues64Reply_extra ((48 - 32) >> 2)
+
+typedef struct {
+    CARD8 reqType;
+    CARD8 nvReqType;
+    CARD16 length B16;
+    CARD32 attribute B32;
+} xnvCtrlQueryAttributePermissionsReq;
+#define sz_xnvCtrlQueryAttributePermissionsReq 8
+
+typedef struct {
+    BYTE type;
+    BYTE pad0;
+    CARD16 sequenceNumber B16;
+    CARD32 length B32;
+    CARD32 flags B32;
+    INT32 attr_type B32;
+    CARD32 perms B32;
+    CARD32 pad5 B32;
+    CARD32 pad6 B32;
+    CARD32 pad7 B32;
+    CARD32 pad8 B32;
+} xnvCtrlQueryAttributePermissionsReply;
+#define sz_xnvCtrlQueryAttributePermissionsReply 32
 
 /* Set GVO Color Conversion request (deprecated) */
 typedef struct {

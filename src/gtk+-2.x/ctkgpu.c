@@ -122,8 +122,8 @@ static gchar *make_display_device_list(NvCtrlAttributeHandle *handle,
 
 } /* make_display_device_list() */
 
-static void get_bus_type_str(NvCtrlAttributeHandle *handle,
-                             gchar **bus)
+void get_bus_type_str(NvCtrlAttributeHandle *handle,
+                      gchar **bus)
 {
     int tmp, ret, bus_type;
     gchar *bus_type_str, *bus_rate, *pcie_gen;
@@ -180,19 +180,14 @@ static void get_bus_type_str(NvCtrlAttributeHandle *handle,
     }
 }
 
-void get_bus_related_info(NvCtrlAttributeHandle *handle,
-                          gchar **bus,
-                          gchar **pci_bus_id)
+void get_bus_id_str(NvCtrlAttributeHandle *handle,
+                    gchar **pci_bus_id)
 {
     int ret;
     int pci_domain, pci_bus, pci_device, pci_func;
     gchar *bus_id;
     const gchar *__pci_bus_id_unknown = "?@?:?:?";
 
-    if (bus) {
-        get_bus_type_str(handle, bus);
-    }
-    
     /* NV_CTRL_PCI_DOMAIN & NV_CTRL_PCI_BUS &
      * NV_CTRL_PCI_DEVICE & NV__CTRL_PCI_FUNCTION
      */
@@ -317,7 +312,7 @@ GtkWidget* ctk_gpu_new(
     
     /* Get Bus related information */
     
-    get_bus_related_info(handle, NULL, &pci_bus_id);
+    get_bus_id_str(handle, &pci_bus_id);
     
     /* NV_CTRL_PCI_ID */
 
@@ -416,7 +411,7 @@ GtkWidget* ctk_gpu_new(
             }
 
             ret = NvCtrlGetAttribute(screen_handle,
-                                     NV_CTRL_SHOW_SLI_HUD,
+                                     NV_CTRL_SHOW_SLI_VISUAL_INDICATOR,
                                      &tmp);
             if (ret == NvCtrlSuccess) {
                 tmp_str = g_strdup_printf("%s (SLI)", screens);

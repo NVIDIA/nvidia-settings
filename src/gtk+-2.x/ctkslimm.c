@@ -522,7 +522,7 @@ static void setup_display_refresh_dropdown(CtkSLIMM *ctk_object)
         ctk_object->refresh_table_len = 0;
     }
     ctk_object->refresh_table =
-        (nvModeLinePtr *)calloc(ctk_object->num_modelines, sizeof(nvModeLinePtr));
+        calloc(ctk_object->num_modelines, sizeof(nvModeLinePtr));
     if (!ctk_object->refresh_table) {
         goto fail;
     }
@@ -694,8 +694,7 @@ static void setup_display_resolution_dropdown(CtkSLIMM *ctk_object)
         ctk_object->resolution_table_len = 0;
     }
     ctk_object->resolution_table =
-        (nvModeLinePtr *)calloc((ctk_object->num_modelines + 1),
-                                sizeof(nvModeLinePtr));
+        calloc((ctk_object->num_modelines + 1), sizeof(nvModeLinePtr));
     if (!ctk_object->resolution_table) {
         goto fail;
     }
@@ -859,7 +858,7 @@ static Bool parse_slimm_layout(CtkSLIMM *ctk_slimm,
                     gridConfigs[loc_idx].rows * gridConfigs[loc_idx].columns;
             }
         }
-        locs = (DpyLoc *)malloc(max_locs * sizeof(DpyLoc));
+        locs = malloc(max_locs * sizeof(DpyLoc));
         if (!locs) {
             err_msg = "Out of memory.";
             goto fail;

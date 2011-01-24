@@ -842,7 +842,7 @@ static void init_composite_termination(CtkGvoSync *ctk_gvo_sync)
     
     gtk_toggle_button_set_active
         (GTK_TOGGLE_BUTTON(ctk_gvo_sync->composite_termination_button),
-         ((val == NV_CTRL_GVO_COMPOSITE_TERMINATION_ENABLE) ? TRUE : FALSE));
+         val == NV_CTRL_GVO_COMPOSITE_TERMINATION_ENABLE);
 
 } /* init_composite_termination() */
 
@@ -916,8 +916,7 @@ static void update_gvo_sync_sensitivity(CtkGvoSync *ctk_gvo_sync)
 
     /* Allow selection of the sync format if we're not free-running */
 
-    sensitive = (ctk_gvo_sync->sync_mode !=
-                 NV_CTRL_GVO_SYNC_MODE_FREE_RUNNING) ? TRUE : FALSE;
+    sensitive = (ctk_gvo_sync->sync_mode != NV_CTRL_GVO_SYNC_MODE_FREE_RUNNING);
 
     gtk_widget_set_sensitive(ctk_gvo_sync->sync_format_menu, sensitive);
 

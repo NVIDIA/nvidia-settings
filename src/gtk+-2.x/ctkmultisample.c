@@ -792,8 +792,8 @@ static void fsaa_setting_menu_changed(GtkWidget *widget, gpointer user_data)
      * 2 == enhance
      */
 
-    override = (idx > 0) ? TRUE : FALSE;
-    enhance = (idx == 2) ? TRUE : FALSE;
+    override = (idx > 0);
+    enhance = (idx == 2);
 
     update_fsaa_setting(ctk_multisample, override, enhance);
 

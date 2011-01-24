@@ -1780,7 +1780,10 @@ int nv_process_parsed_attribute(ParsedAttribute *a, CtrlHandles *h,
 
         if (!t->h) continue; /* no handle on this target; silently skip */
 
-        if (a->flags & NV_PARSER_HAS_DISPLAY_DEVICE) {
+        /* validate any specified display device mask */
+
+        if ((a->flags & NV_PARSER_HAS_DISPLAY_DEVICE) &&
+            !(a->flags & NV_PARSER_TYPE_HIJACK_DISPLAY_DEVICE)) {
 
             /* Expand any wildcards in the display device mask */
         
@@ -2119,6 +2122,17 @@ int nv_process_parsed_attribute(ParsedAttribute *a, CtrlHandles *h,
                 (targetTypeTable[target_type_index].uses_display_devices) &&
                 (t->d)) {
                 continue;
+            }
+
+            /*
+             * special case the display device mask in the case that it
+             * was "hijacked" for something other than a display device:
+             * assign mask here so that it will be passed through to
+             * process_parsed_attribute_internal() unfiltered
+             */
+
+            if (a->flags & NV_PARSER_TYPE_HIJACK_DISPLAY_DEVICE) {
+                mask = a->display_device_mask;
             }
 
             if (a->flags & NV_PARSER_TYPE_STRING_ATTRIBUTE) {

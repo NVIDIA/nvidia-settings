@@ -35,6 +35,7 @@
 #include "ctkutils.h"
 #include "ctkconfig.h"
 #include "ctkhelp.h"
+#include "ctkconstants.h"
 
 #include <GL/glx.h> /* GLX #defines */
 
@@ -44,6 +45,8 @@
 
 
 /* FBConfig tooltips */
+static const char * __show_fbc_help =
+  "Show the GLX Frame Buffer Configurations table in a new window.";
 static const char * __fid_help  =
   "fid (Frame buffer ID) - Frame Buffer Configuration ID.";
 static const char * __vid_help  =
@@ -167,6 +170,51 @@ static void dummy_button_signal(GtkWidget *widget,
 }
 
 
+/*
+ * show_fbc_toggled() - called when the show GLX Frame Buffer Configurations
+ * button has been toggled.
+ */
+
+static void show_fbc_toggled(GtkWidget *widget, gpointer user_data)
+{
+    CtkGLX *ctk_glx = user_data;
+    gboolean enabled;
+
+    /* get the enabled state */
+
+    enabled = gtk_toggle_button_get_active(GTK_TOGGLE_BUTTON(widget));
+
+    if (enabled) {
+        gtk_widget_show_all(ctk_glx->fbc_window);
+    } else {
+        gtk_widget_hide(ctk_glx->fbc_window);
+    }
+
+    ctk_config_statusbar_message(ctk_glx->ctk_config,
+                                 "Show GLX Frame Buffer Configurations button %s.",
+                                 enabled ? "enabled" : "disabled");
+
+} /* show_fbc_toggled() */
+
+
+/*
+ * fbc_window_destroy() - called when the window displaying the
+ * GLX Frame Buffer Configurations table is closed.
+ */
+static gboolean
+fbc_window_destroy(GtkWidget *widget, GdkEvent *event, gpointer user_data)
+{
+    CtkGLX *ctk_glx = user_data;
+
+    gtk_toggle_button_set_active
+        (GTK_TOGGLE_BUTTON(ctk_glx->show_fbc_button),
+         FALSE);
+
+    return TRUE;
+
+} /* fbc_window_destroy() */
+
+
 /* Creates the GLX information widget
  * 
  * NOTE: The GLX information other than the FBConfigs will
@@ -188,13 +236,14 @@ GtkWidget* ctk_glx_new(NvCtrlAttributeHandle *handle,
     GtkWidget *label;
     GtkWidget *banner;
     GtkWidget *hseparator;
-    GtkWidget *hbox, *hbox1;
+    GtkWidget *hbox;
     GtkWidget *vbox, *vbox2;
     GtkWidget *scrollWin;
     GtkWidget *event;    /* For setting the background color to white */
     GtkWidget *data_table, *header_table;
     GtkWidget *data_viewport, *full_viewport;
-    GtkWidget *vscrollbar, *hscrollbar, *vpan;
+    GtkWidget *vscrollbar, *hscrollbar;
+    GtkWidget *show_fbc_button, *window;
     GtkRequisition req;
     ReturnStatus ret;
 
@@ -300,18 +349,31 @@ GtkWidget* ctk_glx_new(NvCtrlAttributeHandle *handle,
         goto fail;
     }
 
+    show_fbc_button = gtk_toggle_button_new_with_label(
+                          "Show GLX Frame Buffer Configurations");
+    gtk_toggle_button_set_active(GTK_TOGGLE_BUTTON(show_fbc_button), FALSE);
+    ctk_config_set_tooltip(ctk_config, show_fbc_button, __show_fbc_help);
+    g_signal_connect(G_OBJECT(show_fbc_button),
+                     "clicked", G_CALLBACK(show_fbc_toggled),
+                     (gpointer) ctk_glx);
 
-    /* Create clist in a scroll box */
-    hbox1      = gtk_hbox_new(FALSE, 0);
-    label      = gtk_label_new("Frame Buffer Configurations");
-    hseparator = gtk_hseparator_new();
-    gtk_box_pack_start(GTK_BOX(hbox1), label, FALSE, FALSE, 0);
-    gtk_box_pack_start(GTK_BOX(hbox1), hseparator, TRUE, TRUE, 5);
+    window = gtk_window_new(GTK_WINDOW_TOPLEVEL);
+    gtk_window_set_title(GTK_WINDOW(window), "GLX Frame Buffer Configurations");
+    gtk_container_set_border_width(GTK_CONTAINER(window), CTK_WINDOW_PAD);
+    gtk_widget_set_size_request(window, 400, 200);
+    g_signal_connect(G_OBJECT(window), "destroy-event",
+                     G_CALLBACK(fbc_window_destroy),
+                     (gpointer) ctk_glx);
+    g_signal_connect(G_OBJECT(window), "delete-event",
+                     G_CALLBACK(fbc_window_destroy),
+                     (gpointer) ctk_glx);
+
+    ctk_glx->fbc_window = window;
+    ctk_glx->show_fbc_button = show_fbc_button;
 
     hbox      = gtk_hbox_new(FALSE, 0);
     vbox      = gtk_vbox_new(FALSE, 10);
     vbox2     = gtk_vbox_new(FALSE, 10);
-    vpan      = gtk_vpaned_new();
 
     data_viewport = gtk_viewport_new(NULL, NULL);
     gtk_widget_set_size_request(data_viewport, 400, 50);
@@ -377,13 +439,21 @@ GtkWidget* ctk_glx_new(NvCtrlAttributeHandle *handle,
     gtk_box_pack_start(GTK_BOX(hbox), vbox, TRUE, TRUE, 0);
     gtk_box_pack_start(GTK_BOX(hbox), vscrollbar, FALSE, FALSE, 0);
     
+    gtk_container_add(GTK_CONTAINER(window), hbox);
+
     vbox = gtk_vbox_new(FALSE, 0);
-    gtk_box_pack_start(GTK_BOX(vbox), hbox1, FALSE, FALSE, 5);
-    gtk_box_pack_start(GTK_BOX(vbox), hbox, TRUE, TRUE, 0);
-    
-    gtk_paned_pack1 (GTK_PANED (vpan), scrollWin, TRUE, FALSE);
-    gtk_paned_pack2 (GTK_PANED (vpan), vbox, TRUE, FALSE);
-    gtk_box_pack_start(GTK_BOX(ctk_glx), vpan, TRUE, TRUE, 0);
+    gtk_box_pack_start(GTK_BOX(vbox), show_fbc_button, FALSE, FALSE, 0);
+    hbox = gtk_hbox_new(FALSE, 0);
+    gtk_box_pack_start(GTK_BOX(hbox), vbox, FALSE, FALSE, 0);
+
+    hseparator = gtk_hseparator_new();
+
+    vbox = gtk_vbox_new(FALSE, 5);
+    gtk_box_pack_start(GTK_BOX(vbox), scrollWin, TRUE, TRUE, 0);
+    gtk_box_pack_start(GTK_BOX(vbox), hseparator, FALSE, FALSE, 0);
+    gtk_box_pack_start(GTK_BOX(vbox), hbox, FALSE, FALSE, 0);
+
+    gtk_box_pack_start(GTK_BOX(ctk_glx), vbox, TRUE, TRUE, 0);
     
     /* Fill the data table */
 
@@ -879,8 +949,10 @@ GtkTextBuffer *ctk_glx_create_help(GtkTextTagTable *table,
                   "by this driver."
                  );
 
+    ctk_help_heading(b, &i, "Show GLX Frame Buffer Configurations");
+    ctk_help_para(b, &i, __show_fbc_help);
 
-    ctk_help_heading(b, &i, "Frame Buffer Configurations");
+    ctk_help_heading(b, &i, "GLX Frame Buffer Configurations");
     ctk_help_para(b, &i, "This table lists the supported frame buffer "
                   "configurations for the display.");
     ctk_help_para(b, &i,

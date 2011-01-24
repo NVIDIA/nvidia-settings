@@ -38,12 +38,12 @@
 
 #include "NvCtrlAttributes.h"
 
+#include "common-utils.h"
 
 /* local prototypes */
 
 static void print_attribute_help(char *attr);
 static void print_help(void);
-static char *nvstrcat(const char *str, ...);
 
 /*
  * verbosity, controls output of errors, warnings and other
@@ -236,7 +236,7 @@ Options *parse_command_line(int argc, char *argv[], char *dpy)
     int n, c;
     char *strval;
 
-    op = (Options *) malloc(sizeof (Options));
+    op = malloc(sizeof(Options));
     memset(op, 0, sizeof (Options));
     
     op->config = DEFAULT_RC_FILE;
@@ -265,6 +265,7 @@ Options *parse_command_line(int argc, char *argv[], char *dpy)
         case 'n': op->no_load = 1; break;
         case 'r': op->rewrite = 1; break;
         case 'c': op->ctrl_display = strval; break;
+        case 'p': op->page = strval; break;
         case 'V':
             __verbosity = VERBOSITY_DEFAULT;
             if (!strval) {
@@ -315,105 +316,3 @@ Options *parse_command_line(int argc, char *argv[], char *dpy)
 
 } /* parse_command_line() */
 
-
-
-/*
- * tilde_expansion() - do tilde expansion on the given path name;
- * based loosely on code snippets found in the comp.unix.programmer
- * FAQ.  The tilde expansion rule is: if a tilde ('~') is alone or
- * followed by a '/', then substitute the current user's home
- * directory; if followed by the name of a user, then substitute that
- * user's home directory.
- */
-
-char *tilde_expansion(const char *str)
-{
-    char *prefix = NULL;
-    const char *replace;
-    char *user, *ret;
-    struct passwd *pw;
-    int len;
-
-    if ((!str) || (str[0] != '~')) return strdup(str);
-    
-    if ((str[1] == '/') || (str[1] == '\0')) {
-
-        /* expand to the current user's home directory */
-
-        prefix = getenv("HOME");
-        if (!prefix) {
-            
-            /* $HOME isn't set; get the home directory from /etc/passwd */
-            
-            pw = getpwuid(getuid());
-            if (pw) prefix = pw->pw_dir;
-        }
-        
-        replace = str + 1;
-        
-    } else {
-    
-        /* expand to the specified user's home directory */
-
-        replace = strchr(str, '/');
-        if (!replace) replace = str + strlen(str);
-
-        len = replace - str;
-        user = malloc(len + 1);
-        strncpy(user, str+1, len-1);
-        user[len] = '\0';
-        pw = getpwnam(user);
-        if (pw) prefix = pw->pw_dir;
-        free (user);
-    }
-
-    if (!prefix) return strdup(str);
-    
-    ret = malloc(strlen(prefix) + strlen(replace) + 1);
-    strcpy(ret, prefix);
-    strcat(ret, replace);
-    
-    return ret;
-
-} /* tilde_expansion() */
-
-
-/* XXX useful utility function... where should this go? */
-
-/*
- * nvstrcat() - allocate a new string, copying all given strings
- * into it.  taken from glib
- */
-
-static char *nvstrcat(const char *str, ...)
-{
-    unsigned int l;
-    va_list args;
-    char *s;
-    char *concat;
-  
-    l = 1 + strlen(str);
-    va_start(args, str);
-    s = va_arg(args, char *);
-
-    while (s) {
-        l += strlen(s);
-        s = va_arg(args, char *);
-    }
-    va_end(args);
-  
-    concat = malloc(l);
-    concat[0] = 0;
-  
-    strcat(concat, str);
-    va_start(args, str);
-    s = va_arg(args, char *);
-    while (s) {
-        strcat(concat, s);
-        s = va_arg(args, char *);
-    }
-    va_end(args);
-  
-    return concat;
-
-} /* nvstrcat() */

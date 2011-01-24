@@ -176,7 +176,7 @@ GtkWidget* ctk_gvo_banner_new(NvCtrlAttributeHandle *handle,
     /* handle GVO devices that share the sync input differently */
 
     ctk_gvo_banner->shared_sync_bnc =
-        (caps & NV_CTRL_GVO_CAPABILITIES_SHARED_SYNC_BNC) ? TRUE : FALSE;
+        !!(caps & NV_CTRL_GVO_CAPABILITIES_SHARED_SYNC_BNC);
 
     /* create the banner image */
 

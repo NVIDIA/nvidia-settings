@@ -32,7 +32,9 @@
 #define BIGTAB "      "
 
 /*
- * Options table; see nvgetopt.h for a description of the fields.
+ * Options table; see nvgetopt.h for a description of the fields, and
+ * gen-manpage-opts.c:print_option() for a description of special
+ * characters that are converted during manpage generation.
  */
 
 static const NVGetoptOption __options[] = {
@@ -149,6 +151,25 @@ static const NVGetoptOption __options[] = {
       "Prints information about a particular attribute.  Specify 'all' to "
       "list the descriptions of all attributes.  Specify 'list' to list the "
       "attribute names without a descriptions." },
+
+    { "page", 'p', NVGETOPT_STRING_ARGUMENT, NULL,
+      "The ^PAGE> argument to the <'--page'> commandline option selects a "
+      "particular page in the nvidia-settings user interface to display "
+      "upon starting nvidia-settings.  Valid values are the page names "
+      "in the tree view on the left side of the nvidia-settings user "
+      "interface; e.g.,\n"
+      "\n"
+      TAB "--page=\"X Screen 0\"\n"
+      "\n"
+      "Because some page names are not unique (e.g., a \"PowerMizer\" page is "
+      "present under each GPU), the page name can optionally be prepended "
+      "with the name of the parent X Screen or GPU page, followed by a comma.  "
+      "E.g.,\n"
+      "\n"
+      TAB "--page=\"GPU 0 - (Quadro 6000), PowerMizer\"\n"
+      "\n"
+      "The first page with a name matching the ^PAGE> argument will be used.  "
+      "By default, the \"X Server Information\" page is displayed." },
 
     { NULL, 0, 0, NULL, NULL},
 };
