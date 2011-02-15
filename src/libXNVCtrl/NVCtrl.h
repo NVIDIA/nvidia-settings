@@ -536,7 +536,7 @@
 
 
 /*
- * NV_CTRL_FRAMELOCK_SYNC_READY - reports whether a slave frame lock
+ * NV_CTRL_FRAMELOCK_SYNC_READY - reports whether a frame lock
  * board is receiving sync (regardless of whether or not any display
  * devices are using the sync).
  *

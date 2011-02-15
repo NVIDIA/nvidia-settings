@@ -77,10 +77,6 @@ static const char *__memory_clock_freq_help =
 static const char *__processor_clock_freq_help =
 "This indicates the current Processor Clock frequency.";
 
-static const char *__clock_freq_help =
-"This indicates the GPU's current Graphics Clock, Memory Clock and Processor "
-"Clock frequencies.";
-
 static const char *__performance_levels_table_help =
 "This indicates the Performance Levels available for the GPU.  Each "
 "performance level is indicated by a Performance Level number, along with "
@@ -825,18 +821,29 @@ GtkTextBuffer *ctk_powermizer_create_help(GtkTextTagTable *table,
 {
     GtkTextIter i;
     GtkTextBuffer *b;
+    gchar *s;
 
     b = gtk_text_buffer_new(table);
     
     gtk_text_buffer_get_iter_at_offset(b, &i, 0);
 
     ctk_help_title(b, &i, "PowerMizer Monitor Help");
+    ctk_help_para(b, &i, "When SLI is enabled, this page is only exposed "
+                  "on the master GPU, and changes here will apply to "
+                  "all GPUs in the SLI group.");
     
     ctk_help_heading(b, &i, "Adaptive Clocking");
     ctk_help_para(b, &i, __adaptive_clock_help);
 
     ctk_help_heading(b, &i, "Clock Frequencies");
-    ctk_help_para(b, &i, __clock_freq_help);
+    if (ctk_powermizer->processor_clock) {
+        s = "This indicates the GPU's current Graphics Clock, "
+            "Memory Clock and Processor Clock frequencies.";
+    } else {
+        s = "This indicates the GPU's current Graphics Clock and "
+            "Memory Clock frequencies.";
+    }
+    ctk_help_para(b, &i, s);
 
     ctk_help_heading(b, &i, "Power Source");
     ctk_help_para(b, &i, __power_source_help);
