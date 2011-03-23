@@ -104,6 +104,7 @@ endif
 
 LDFLAGS += -lX11 -lXext -lm
 LDFLAGS += $(GTK_LDFLAGS)
+LDFLAGS += $(LIBDL_LDFLAGS)
 
 MANPAGE_GZIP ?= 1
 
