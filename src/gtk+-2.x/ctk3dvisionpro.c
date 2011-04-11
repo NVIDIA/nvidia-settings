@@ -63,6 +63,9 @@
 #define POLL_PAIRING_TIMEOUT     2000 //mS
 #define POLL_PAIRING_CYCLE       ((POLL_PAIRING_TIMEOUT / 1000) * 2)
 
+#define CHANNEL_RANGE_TO_OPTION_MENU_IDX(range) ((range) - 1)
+#define OPTION_MENU_IDX_TO_CHANNEL_RANGE(menu)  ((menu) + 1)
+
 enum {
     CHANGED,
     LAST_SIGNAL
@@ -705,12 +708,12 @@ static void svp_config_changed(GtkObject *object, gpointer arg1,
             SVP_RANGE range;
             range = gtk_option_menu_get_history(GTK_OPTION_MENU(ctk_3d_vision_pro->option_menu));
 
-            if (event_struct->value != SVP_INVALID_RANGE && range != event_struct->value) {
+            if (range != CHANNEL_RANGE_TO_OPTION_MENU_IDX(event_struct->value)) {
                 g_signal_handlers_block_by_func(ctk_3d_vision_pro->option_menu,
                     channel_range_changed, ctk_3d_vision_pro);
                 HTU(0)->channel_range = event_struct->value;
                 gtk_option_menu_set_history(GTK_OPTION_MENU(ctk_3d_vision_pro->option_menu),
-                    event_struct->value);
+                    CHANNEL_RANGE_TO_OPTION_MENU_IDX(event_struct->value));
                 enable_widgets(ctk_3d_vision_pro,
                     (HTU(0)->channel_range == SVP_LONG_RANGE ? FALSE : TRUE));
                 g_signal_handlers_unblock_by_func(ctk_3d_vision_pro->option_menu,
@@ -1354,22 +1357,19 @@ static ChannelRangeDlg *create_channel_range_change_dlg(Ctk3DVisionPro *ctk_3d_v
 
     switch (range) {
     case SVP_SHORT_RANGE:
-        label = gtk_label_new("You have changed transceiver range to short range (less than 5m.).\n"
+        label = gtk_label_new("You have changed transceiver range to short range (less than 2m.).\n"
                               "Only glasses in this range will be available.\n\n"
                               "Do you want to apply changes?");
         break;
     case SVP_MEDIUM_RANGE:
-        label = gtk_label_new("You have changed transceiver range to medium range (less than 15m.).\n"
+        label = gtk_label_new("You have changed transceiver range to medium range (less than 10m.).\n"
                               "Only glasses in this range will be available.\n\n"
                               "Do you want to apply changes?");
         break;
     case SVP_LONG_RANGE:
-        label = gtk_label_new("You have changed transceiver range to long range (less than 30m.).\n"
+        label = gtk_label_new("You have changed transceiver range to long range.\n"
                               "Only glasses in this range will be available.\n\n"
                               "Do you want to apply changes?");
-        break;
-    case SVP_INVALID_RANGE:
-        label = gtk_label_new("Invalid selection.\n");
         break;
     }
 
@@ -1397,14 +1397,10 @@ static void channel_range_changed(
     SVP_RANGE range;
     SVP_RANGE prev_range;
 
-    range = gtk_option_menu_get_history(option_menu);
+    range = OPTION_MENU_IDX_TO_CHANNEL_RANGE(gtk_option_menu_get_history(option_menu));
     prev_range = HTU(0)->channel_range;
 
     if (HTU(0)->channel_range == range) {
-        return;
-    }
-    if (range == SVP_INVALID_RANGE) {
-        gtk_option_menu_set_history(GTK_OPTION_MENU(ctk_3d_vision_pro->option_menu), prev_range);
         return;
     }
 
@@ -1437,7 +1433,8 @@ static void channel_range_changed(
 
         break;
     case GTK_RESPONSE_NO:
-        gtk_option_menu_set_history(GTK_OPTION_MENU(ctk_3d_vision_pro->option_menu), prev_range);
+        gtk_option_menu_set_history(GTK_OPTION_MENU(ctk_3d_vision_pro->option_menu), 
+                                    CHANNEL_RANGE_TO_OPTION_MENU_IDX(prev_range));
         break;
     default:
         /* do nothing. */
@@ -1516,15 +1513,11 @@ GtkWidget* ctk_3d_vision_pro_new(NvCtrlAttributeHandle *handle,
                                       0, 0,
                                       NV_CTRL_3D_VISION_PRO_TRANSCEIVER_MODE,
                                       (int *)&(HTU(0)->channel_range));
-    if (ret != TRUE) {
-        HTU(0)->channel_range = SVP_INVALID_RANGE;
-    }
-
-    // validate channel range
-    if (!(HTU(0)->channel_range == SVP_SHORT_RANGE ||
+    if (ret != TRUE ||
+        (!(HTU(0)->channel_range == SVP_SHORT_RANGE ||
           HTU(0)->channel_range == SVP_MEDIUM_RANGE ||
-          HTU(0)->channel_range == SVP_LONG_RANGE)) {
-        HTU(0)->channel_range = SVP_INVALID_RANGE;
+          HTU(0)->channel_range == SVP_LONG_RANGE))) {
+        HTU(0)->channel_range = SVP_SHORT_RANGE;
     }
 
     ret = XNVCTRLQueryTargetBinaryData(NvCtrlGetDisplayPtr(ctk_3d_vision_pro->handle), 
@@ -1703,7 +1696,6 @@ GtkWidget* ctk_3d_vision_pro_new(NvCtrlAttributeHandle *handle,
 
     hbox = gtk_hbox_new(FALSE, 5);
     menu = gtk_menu_new();
-    add_menu_item(menu, "Invalid Range");
     add_menu_item(menu, "Short Range (upto 5 meter)");
     add_menu_item(menu, "Medium Range (upto 15 meter)");
     add_menu_item(menu, "Long Range (upto 30 meter)");
@@ -1721,7 +1713,7 @@ GtkWidget* ctk_3d_vision_pro_new(NvCtrlAttributeHandle *handle,
                       "channel_range", GINT_TO_POINTER(0));
 
     gtk_option_menu_set_history(GTK_OPTION_MENU(ctk_3d_vision_pro->option_menu),
-                                HTU(0)->channel_range);
+                                CHANNEL_RANGE_TO_OPTION_MENU_IDX(HTU(0)->channel_range));
     g_signal_connect(G_OBJECT(ctk_3d_vision_pro->option_menu), "changed",
                      G_CALLBACK(channel_range_changed),
                      (gpointer) ctk_3d_vision_pro);
@@ -1881,20 +1873,20 @@ GtkTextBuffer *ctk_3d_vision_pro_create_help(GtkTextTagTable *table)
                          "Possible values for transeiver range are 'Short Range' "
                          "'Medium Range' and 'Long Range'.");
     ctk_help_para(b, &i, "Short Range: \n"
-                         "Allows glasses within a 5-meter (15-foot) range to "
+                         "Allows glasses within a 2-meter (6.5-foot) range to "
                          "be synced with the hub. This range is typically used "
                          "for sharing 3D simulations and training information "
                          "on a local workstation.");
     ctk_help_para(b, &i, "Medium Range: \n"
-                         "Allows glasses within a 15-meter (45-foot) range to "
+                         "Allows glasses within a 10-meter (32-foot) range to "
                          "be synced with the hub. This range is typically used "
                          "for sharing a presentation with a limited audience or "
                          "interacting with 3D CAD models during a collaborative "
                          "design session.");
     ctk_help_para(b, &i, "Long Range: \n"
-                         "Allows glasses within a 30-meter (90-foot) range to "
-                         "be synced with the hub. This range is typically used in a "
-                         "theater or visualization center.");
+                         "All glasses detected within the range and frequency of "
+                         "the hub will be synced. This range is typically used "
+                         "in a theater or visualization center.");
 
     ctk_help_finish(b);
 

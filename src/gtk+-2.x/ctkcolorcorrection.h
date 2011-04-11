@@ -65,6 +65,7 @@ struct _CtkColorCorrection
     GtkObject *contrast_adjustment;
     GtkObject *gamma_adjustment;
     GtkWidget *confirm_button;
+    GtkWidget *confirm_label;
     gint confirm_countdown;
     guint confirm_timer;
     gfloat cur_slider_val[3][4];  // as [attribute][channel]

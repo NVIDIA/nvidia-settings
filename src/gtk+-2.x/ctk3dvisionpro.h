@@ -59,8 +59,7 @@ typedef struct _Ctk3DVisionPro       Ctk3DVisionPro;
 typedef struct _Ctk3DVisionProClass  Ctk3DVisionProClass;
 
 typedef enum {
-    SVP_INVALID_RANGE = 0,
-    SVP_SHORT_RANGE,
+    SVP_SHORT_RANGE = 1,
     SVP_MEDIUM_RANGE,
     SVP_LONG_RANGE
 } SVP_RANGE;

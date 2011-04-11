@@ -351,7 +351,7 @@ void post_color_space_update(CtkColorControls *ctk_color_controls,
 
     ctk_config_statusbar_message(ctk_color_controls->ctk_config,
                                  "Color Space set to %s for %s.",
-                                 color_space_table[color_space],
+                                 color_space_table[ctk_color_controls->color_space_table[color_space]],
                                  ctk_color_controls->name);
 }
 

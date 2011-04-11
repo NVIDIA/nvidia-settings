@@ -201,7 +201,7 @@ GtkWidget* ctk_color_correction_new(NvCtrlAttributeHandle *handle,
     GtkWidget *rightvbox;
     GtkWidget *hbox;
     GtkWidget *vbox;
-    GtkWidget *button, *confirm_button;
+    GtkWidget *button, *confirm_button, *confirm_label;
     GtkWidget *widget;
     GtkWidget *hsep;
     GtkWidget *eventbox;
@@ -369,7 +369,9 @@ GtkWidget* ctk_color_correction_new(NvCtrlAttributeHandle *handle,
     button = gtk_button_new_with_label("Reset Hardware Defaults");
     gtk_box_pack_end(GTK_BOX(hbox), button, FALSE, FALSE, 0);
     
-    confirm_button = gtk_button_new_with_label("Confirm Current Changes");
+    confirm_button = gtk_button_new();
+    confirm_label = gtk_label_new("Confirm Current Changes");
+    gtk_container_add(GTK_CONTAINER(confirm_button), confirm_label);
     eventbox = gtk_event_box_new();
     gtk_container_add(GTK_CONTAINER(eventbox), confirm_button);
     gtk_box_pack_end(GTK_BOX(hbox), eventbox, FALSE, FALSE, 5);
@@ -382,6 +384,7 @@ GtkWidget* ctk_color_correction_new(NvCtrlAttributeHandle *handle,
                      G_CALLBACK(confirm_button_clicked),
                      (gpointer) ctk_color_correction);
 
+    ctk_color_correction->confirm_label = confirm_label;
     ctk_color_correction->confirm_button = confirm_button;
     ctk_config_set_tooltip(ctk_config, eventbox, __confirm_button_help);
     ctk_config_set_tooltip(ctk_config, button, __resest_button_help);
@@ -516,9 +519,9 @@ GtkWidget* ctk_color_correction_new(NvCtrlAttributeHandle *handle,
      *  "%d Seconds to Confirm"
      */
 
-    gtk_widget_size_request(ctk_color_correction->confirm_button,
+    gtk_widget_size_request(ctk_color_correction->confirm_label,
                             &requisition);
-    gtk_widget_set_size_request(ctk_color_correction->confirm_button,
+    gtk_widget_set_size_request(ctk_color_correction->confirm_label,
                                 requisition.width, -1);
 
     return GTK_WIDGET(object);
@@ -674,8 +677,8 @@ static void confirm_button_clicked(
     ctk_color_correction->confirm_timer = 0;
     
     /* Reset confirm button text */
-    gtk_button_set_label(GTK_BUTTON(ctk_color_correction->confirm_button),
-                         "Confirm Current Changes");
+    gtk_label_set_text(GTK_LABEL(ctk_color_correction->confirm_label),
+                       "Confirm Current Changes");
     
     gtk_widget_set_sensitive(ctk_color_correction->confirm_button, FALSE);
 } /* confirm_button_clicked() */
@@ -728,8 +731,8 @@ static void reset_button_clicked(
     }
     
     /* Reset confirm button text */
-    gtk_button_set_label(GTK_BUTTON(ctk_color_correction->confirm_button),
-                         "Confirm Current Changes");
+    gtk_label_set_text(GTK_LABEL(ctk_color_correction->confirm_label),
+                       "Confirm Current Changes");
 }
 
 static void adjustment_value_changed(
@@ -974,8 +977,8 @@ static void update_confirm_text(CtkColorCorrection *ctk_color_correction)
     gchar *str;
     str = g_strdup_printf("%d Seconds to Confirm",
                           ctk_color_correction->confirm_countdown);
-    gtk_button_set_label(GTK_BUTTON(ctk_color_correction->confirm_button),
-                         str);
+    gtk_label_set_text(GTK_LABEL(ctk_color_correction->confirm_label),
+                       str);
     g_free(str);
 } /* update_confirm_text() */
 
@@ -1024,8 +1027,8 @@ static gboolean do_confirm_countdown(gpointer data)
     option_menu_changed(option_menu, (gpointer)(ctk_color_correction));
     
     /* Reset confirm button text */
-    gtk_button_set_label(GTK_BUTTON(ctk_color_correction->confirm_button),
-                         "Confirm Current Changes");
+    gtk_label_set_text(GTK_LABEL(ctk_color_correction->confirm_label),
+                       "Confirm Current Changes");
     
     /* Update status bar message */
     ctk_config_statusbar_message(ctk_color_correction->ctk_config,
