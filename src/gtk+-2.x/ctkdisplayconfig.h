@@ -71,6 +71,7 @@ typedef struct _CtkDisplayConfig
 
     GtkWidget *chk_xinerama_enabled;
     GtkWidget *chk_primary_display;
+    gboolean primary_display_changed;
 
     GtkWidget *notebook; /* Tabbed notebook for display and X screen pages */
 

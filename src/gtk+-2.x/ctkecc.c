@@ -41,8 +41,7 @@
 
 static const char *__ecc_settings_help =
 "This page allows you to change the Error Correction Code (ECC) "
-"setting for this GPU. You can also view memory details and the number "
-"of ECC events.";
+"setting for this GPU.";
 
 static const char *__ecc_status_help =
 "Returns the current hardware ECC setting "

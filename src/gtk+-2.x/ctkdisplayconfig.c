@@ -521,7 +521,7 @@ void update_btn_apply(CtkDisplayConfig *ctk_object, Bool sensitive)
             if (xrandr_available) break;
         }
 
-        if (!xrandr_available) {
+        if (!xrandr_available && !ctk_object->primary_display_changed) {
             sensitive = FALSE;
         }
     }
@@ -1075,6 +1075,7 @@ static void screen_primary_display_toggled(GtkWidget *widget,
     
     if (enabled) {
         screen->primaryDisplay = display;
+        ctk_object->primary_display_changed = TRUE;
     }
 
     user_changed_attributes(ctk_object);
@@ -1172,6 +1173,7 @@ GtkWidget* ctk_display_config_new(NvCtrlAttributeHandle *handle,
     ctk_object->forced_reset_allowed = TRUE;
     ctk_object->notify_user_of_reset = TRUE;
     ctk_object->ignore_reset_events = FALSE;
+    ctk_object->primary_display_changed = FALSE;
 
     ctk_object->last_resolution_idx = -1;
 
@@ -6463,6 +6465,8 @@ static int update_screen_metamodes(CtkDisplayConfig *ctk_object,
 
             clear_apply = 1;
         }
+    } else {
+        clear_apply = 1;
     }
 
     /* Post process the metamodes list */
@@ -6539,7 +6543,7 @@ static void apply_clicked(GtkWidget *widget, gpointer user_data)
                 }
             }
             
-            if (screen->primaryDisplay) {
+            if (screen->primaryDisplay && ctk_object->primary_display_changed) {
                 gchar *primary_str =
                     display_get_type_str(screen->primaryDisplay->device_mask,
                                          0);
@@ -6557,6 +6561,7 @@ static void apply_clicked(GtkWidget *widget, gpointer user_data)
                     /* Make sure other parts of nvidia-settings get updated */
                     ctk_event_emit_string(screen->ctk_event, 0,
                                    NV_CTRL_STRING_TWINVIEW_XINERAMA_INFO_ORDER);
+                    ctk_object->primary_display_changed = FALSE;
                 }
             }
         }
