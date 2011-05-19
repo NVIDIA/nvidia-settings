@@ -1149,8 +1149,8 @@ static Bool other_displays_have_modeline(nvLayoutPtr layout,
     nvGpuPtr gpu;
     nvDisplayPtr d;
 
-    for (gpu = layout->gpus; gpu; gpu = gpu->next) {
-        for (d = gpu->displays; d; d = d->next) {
+    for (gpu = layout->gpus; gpu; gpu = gpu->next_in_layout) {
+        for (d = gpu->displays; d; d = d->next_on_gpu) {
             if (display == d) continue;
             if (d->modelines == NULL) continue;
             if (!display_has_modeline(d, modeline)) {
@@ -1167,8 +1167,11 @@ static nvDisplayPtr find_active_display(nvLayoutPtr layout)
 {
     nvGpuPtr gpu;
     nvDisplayPtr display;
-    for (gpu = layout->gpus; gpu; gpu = gpu->next) {
-        for (display = gpu->displays; display; display = display->next) {
+
+    for (gpu = layout->gpus; gpu; gpu = gpu->next_in_layout) {
+        for (display = gpu->displays;
+             display;
+             display = display->next_on_gpu) {
             if (display->modelines) return display;
         }
     }
@@ -1338,7 +1341,7 @@ GtkWidget* ctk_slimm_new(NvCtrlAttributeHandle *handle,
         GridConfig *grid;
         int num_valid = 0;
 
-        for (gpu = layout->gpus; gpu; gpu = gpu->next) {
+        for (gpu = layout->gpus; gpu; gpu = gpu->next_in_layout) {
             num_displays += gpu->num_displays;
         }
 

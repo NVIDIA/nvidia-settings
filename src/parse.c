@@ -450,7 +450,15 @@ TargetTypeEntry targetTypeTable[] = {
       ATTRIBUTE_TYPE_3D_VISION_PRO_TRANSCEIVER,      /* permission_bit */
       NV_FALSE,                                      /* uses_display_devices */
       1, 25 },                                       /* required major,minor protocol rev */
-    
+
+    { "Display Device",                              /* name */
+      "dpy",                                         /* parsed_name */
+      DISPLAY_TARGET,                                /* target_index */
+      NV_CTRL_TARGET_TYPE_DISPLAY,                   /* nvctrl */
+      ATTRIBUTE_TYPE_DISPLAY,                        /* permission_bit */
+      NV_FALSE,                                      /* uses_display_devices */
+      1, 27 },                                       /* required major,minor protocol rev */
+
     { NULL, NULL, 0, 0, 0 },
 };
 

@@ -1064,7 +1064,6 @@ static void display_free(nvDisplayPtr display)
 
 void renumber_xscreens(nvLayoutPtr layout)
 {
-    nvGpuPtr gpu;
     nvScreenPtr screen;
     nvScreenPtr lowest;
     int scrnum;
@@ -1074,12 +1073,13 @@ void renumber_xscreens(nvLayoutPtr layout)
 
         /* Find screen w/ lowest # >= current screen index being assigned */
         lowest = NULL;
-        for (gpu = layout->gpus; gpu; gpu = gpu->next) {
-            for (screen = gpu->screens; screen; screen = screen->next) {
-                if ((screen->scrnum >= scrnum) &&
-                    (!lowest || (lowest->scrnum > screen->scrnum))) {
-                    lowest = screen;
-                }
+        for (screen = layout->screens;
+             screen;
+             screen = screen->next_in_layout) {
+
+            if ((screen->scrnum >= scrnum) &&
+                (!lowest || (lowest->scrnum > screen->scrnum))) {
+                lowest = screen;
             }
         }
 
@@ -1095,6 +1095,72 @@ void renumber_xscreens(nvLayoutPtr layout)
 
 
 
+/** screen_link_display() ********************************************
+ *
+ * Makes the given display part of the screen
+ *
+ **/
+void screen_link_display(nvScreenPtr screen, nvDisplayPtr display)
+{
+    if (!display || !screen || (display->screen == screen)) return;
+
+    display->screen = screen;
+    display->next_in_screen = NULL;
+
+    /* Add the display at the end of the screen's display list */
+    if (!screen->displays) {
+        screen->displays = display;
+    } else {
+        nvDisplayPtr last = screen->displays;
+        while (last) {
+            if (!last->next_in_screen) {
+                last->next_in_screen = display;
+                break;
+            }
+        }
+    }
+    screen->displays_mask |= display->device_mask;
+    screen->num_displays++;
+
+} /* screen_link_display() */
+
+
+
+/** screen_unlink_display() ******************************************
+ *
+ * Removes the display from the screen's list of displays
+ *
+ **/
+void screen_unlink_display(nvDisplayPtr display)
+{
+    nvScreenPtr screen;
+
+    if (!display || !display->screen) return;
+
+    screen = display->screen;
+
+    /* Remove the display from the screen */
+    if (screen->displays == display) {
+        screen->displays = display->next_in_screen;
+    } else {
+        nvDisplayPtr cur = screen->displays;
+        while (cur) {
+            if (cur->next_in_screen == display) {
+                cur->next_in_screen = display->next_in_screen;
+                break;
+            }
+            cur = cur->next_in_screen;
+        }
+    }
+    screen->displays_mask &= ~(display->device_mask);
+    screen->num_displays--;
+
+    display->screen = NULL;
+
+} /* screen_unlink_display() */
+
+
+
 /** screen_remove_display() ******************************************
  *
  * Removes a display device from the screen
@@ -1102,42 +1168,37 @@ void renumber_xscreens(nvLayoutPtr layout)
  **/
 void screen_remove_display(nvDisplayPtr display)
 {
-    nvGpuPtr gpu;
     nvScreenPtr screen;
     nvDisplayPtr other;
     nvModePtr mode;
 
+    if (!display || !display->screen) return;
 
-    if (display && display->screen) {
-        screen = display->screen;
-        gpu = display->gpu;
 
-        /* Make any display relative to this one use absolute position */
-        for (other = gpu->displays; other; other = other->next) {
+    screen = display->screen;
 
-            if (other == display) continue;
-            if (other->screen != screen) continue;
+    /* Make any display relative to this one use absolute position */
+    for (other = screen->displays; other; other = other->next_in_screen) {
 
-            for (mode = other->modes; mode; mode = mode->next) {
-                if (mode->relative_to == display) {
-                    mode->position_type = CONF_ADJ_ABSOLUTE;
-                    mode->relative_to = NULL;
-                }
+        if (other == display) continue;
+
+        for (mode = other->modes; mode; mode = mode->next) {
+            if (mode->relative_to == display) {
+                mode->position_type = CONF_ADJ_ABSOLUTE;
+                mode->relative_to = NULL;
             }
         }
-
-        /* Remove the display from the screen */
-        screen->displays_mask &= ~(display->device_mask);
-        screen->num_displays--;
-
-        if (screen->primaryDisplay == display) {
-            screen->primaryDisplay = NULL;
-        }
-
-        /* Clean up old references to the screen in the display */
-        display_remove_modes(display);
-        display->screen = NULL;
     }
+
+    /* Remove the display from the screen */
+    screen_unlink_display(display);
+
+    /* Clean up old references */
+    if (screen->primaryDisplay == display) {
+        screen->primaryDisplay = NULL;
+    }
+
+    display_remove_modes(display);
 
 } /* screen_remove_display() */
 
@@ -1151,18 +1212,10 @@ void screen_remove_display(nvDisplayPtr display)
  **/
 static void screen_remove_displays(nvScreenPtr screen)
 {
-    nvGpuPtr gpu;
-    nvDisplayPtr display;
+    if (!screen) return;
 
-    if (screen && screen->gpu) {
-        gpu = screen->gpu;
-        
-        for (display = gpu->displays; display; display = display->next) {
-            
-            if (display->screen != screen) continue;
-            
-            screen_remove_display(display);
-        }
+    while (screen->displays) {
+        screen_remove_display(screen->displays);
     }
 
 } /* screen_remove_displays() */
@@ -1186,10 +1239,10 @@ gchar *screen_get_metamode_str(nvScreenPtr screen, int metamode_idx,
     gchar *mode_str;
     gchar *tmp;
 
-    for (display = screen->gpu->displays; display; display = display->next) {
+    for (display = screen->displays;
+         display;
+         display = display->next_in_screen) {
 
-        if (display->screen != screen) continue; /* Display not in screen */
-    
         mode_str = display_get_mode_str(display, metamode_idx, be_generic);
         if (!mode_str) continue;
 
@@ -1217,35 +1270,29 @@ gchar *screen_get_metamode_str(nvScreenPtr screen, int metamode_idx,
  **/
 static void screen_remove_metamodes(nvScreenPtr screen)
 {
-    nvGpuPtr gpu;
     nvDisplayPtr display;
     nvMetaModePtr metamode;
 
-    if (screen) {
-        gpu = screen->gpu;
+    if (!screen) return;
 
-        /* Remove the modes from this screen's displays */
-        if (gpu) {
-            for (display = gpu->displays; display; display = display->next) {
-
-                if (display->screen != screen) continue;
-
-                display_remove_modes(display);
-            }
-        }
-
-        /* Clear the screen's metamode list */
-        while (screen->metamodes) {
-            metamode = screen->metamodes;
-            screen->metamodes = metamode->next;
-            free(metamode->string);
-            free(metamode);
-        }
-        screen->num_metamodes = 0;
-        screen->cur_metamode = NULL;
-        screen->cur_metamode_idx = -1;
+    /* Remove the modes from this screen's displays */
+    for (display = screen->displays;
+         display;
+         display = display->next_in_screen) {
+        display_remove_modes(display);
     }
-        
+
+    /* Clear the screen's metamode list */
+    while (screen->metamodes) {
+        metamode = screen->metamodes;
+        screen->metamodes = metamode->next;
+        free(metamode->string);
+        free(metamode);
+    }
+    screen->num_metamodes = 0;
+    screen->cur_metamode = NULL;
+    screen->cur_metamode_idx = -1;
+
 } /* screen_remove_metamodes() */
 
 
@@ -1367,7 +1414,7 @@ static Bool screen_add_metamode(nvScreenPtr screen, const char *metamode_str,
 
 
         /* Make the display part of the screen */
-        display->screen = screen;
+        screen_link_display(screen, display);
 
 
         /* Set the panning offset */
@@ -1415,9 +1462,9 @@ static Bool screen_check_metamodes(nvScreenPtr screen)
     nvModePtr last_mode = NULL;
 
 
-    for (display = screen->gpu->displays; display; display = display->next) {
-
-        if (display->screen != screen) continue;
+    for (display = screen->displays;
+         display;
+         display = display->next_in_screen) {
 
         if (display->num_modes == screen->num_metamodes) continue;
 
@@ -1480,11 +1527,12 @@ void screen_assign_dummy_metamode_positions(nvScreenPtr screen)
     nvDisplayPtr display;
     nvModePtr ok_mode;
     nvModePtr mode;
-    
 
-    for (display = screen->gpu->displays; display; display = display->next) {
-        if (display->screen != screen) continue;
-        
+
+    for (display = screen->displays;
+         display;
+         display = display->next_in_screen) {
+
         /* Get the first non-dummy mode */
         for (ok_mode = display->modes; ok_mode; ok_mode = ok_mode->next) {
             if (!ok_mode->dummy) break;
@@ -1500,7 +1548,7 @@ void screen_assign_dummy_metamode_positions(nvScreenPtr screen)
             }
         }
     }
-    
+
 } /* screen_assign_dummy_metamode_positions() */
 
 
@@ -1599,18 +1647,12 @@ static Bool screen_add_metamodes(nvScreenPtr screen, gchar **err_str)
     for (i = 0; i < screen->cur_metamode_idx; i++) {
         screen->cur_metamode = screen->cur_metamode->next;
     }
-    
 
-    /* Make each display within the screen point to the current mode.
-     * Also, count the number of displays on the screen
-     */
-    screen->num_displays = 0;
-    for (display = screen->gpu->displays; display; display = display->next) {
-        
-        if (display->screen != screen) continue; /* Display not in screen */
 
-        screen->num_displays++;
-        screen->displays_mask |= display->device_mask;
+    /* Make each display within the screen point to the current mode */
+    for (display = screen->displays;
+         display;
+         display = display->next_in_screen) {
 
         display->cur_mode = display->modes;
         for (i = 0; i < screen->cur_metamode_idx; i++) {
@@ -1623,12 +1665,12 @@ static Bool screen_add_metamodes(nvScreenPtr screen, gchar **err_str)
 
     /* Failure case */
  fail:
-    
+
     /* Remove modes we may have added */
     screen_remove_metamodes(screen);
 
     XFree(metamode_strs);
-    return FALSE;    
+    return FALSE;
 
 } /* screen_add_metamodes() */
 
@@ -1673,7 +1715,7 @@ nvDisplayPtr gpu_get_display(nvGpuPtr gpu, unsigned int device_mask)
 {
     nvDisplayPtr display;
 
-    for (display = gpu->displays; display; display = display->next) {
+    for (display = gpu->displays; display; display = display->next_on_gpu) {
         if (display->device_mask == device_mask) return display;
     }
     
@@ -1693,27 +1735,33 @@ void gpu_remove_and_free_display(nvDisplayPtr display)
     nvGpuPtr gpu;
     nvScreenPtr screen;
 
+    if (!display || !display->gpu) return;
 
-    if (display && display->gpu) {
-        gpu = display->gpu;
-        screen = display->screen;
+    gpu = display->gpu;
+    screen = display->screen;
 
-        /* Remove the display from the screen it may be in */
-        if (screen) {
-            screen_remove_display(display);
+    /* Remove the display from the X screen */
+    if (screen) {
+        screen_remove_display(display);
 
-            /* If the screen is empty, remove it too */
-            if (!screen->num_displays) {
-                gpu_remove_and_free_screen(screen);
+        if (!screen->num_displays) {
+            layout_remove_and_free_screen(screen);
+        }
+    }
+
+    /* Remove the display from the GPU */
+    if (gpu->displays == display) {
+        gpu->displays = display->next_on_gpu;
+    } else {
+        nvDisplayPtr cur;
+        for (cur = gpu->displays; cur; cur = cur->next_on_gpu) {
+            if (cur->next_on_gpu == display) {
+                cur->next_on_gpu = display->next_on_gpu;
+                break;
             }
         }
-
-        /* Remove the display from the GPU */
-        xconfigRemoveListItem((GenericListPtr *)(&gpu->displays),
-                              (GenericListPtr)display);
-        gpu->connected_displays &= ~(display->device_mask);
-        gpu->num_displays--;
     }
+    gpu->num_displays--;
 
     display_free(display);
 
@@ -1728,20 +1776,44 @@ void gpu_remove_and_free_display(nvDisplayPtr display)
  **/
 static void gpu_remove_displays(nvGpuPtr gpu)
 {
-    nvDisplayPtr display;
+    if (!gpu) return;
 
-    if (gpu) {
-        while (gpu->displays) {
-            display = gpu->displays;
-            screen_remove_display(display);
-            gpu->displays = display->next;
-            display_free(display);
-        }
-        //gpu->connected_displays = 0;
-        gpu->num_displays = 0;
+    while (gpu->displays) {
+        gpu_remove_and_free_display(gpu->displays);
     }
 
 } /* gpu_remove_displays() */
+
+
+
+/** gpu_add_display() ************************************************
+ *
+ * Adds the display to (the end of) the GPU display list.
+ *
+ **/
+static void gpu_add_display(nvGpuPtr gpu, nvDisplayPtr display)
+{
+
+    if (!display || !gpu || (display->gpu == gpu)) return;
+
+    display->gpu = gpu;
+    display->next_on_gpu = NULL;
+
+    /* Add the display at the end of the GPU's display list */
+    if (!gpu->displays) {
+        gpu->displays = display;
+    } else {
+        nvDisplayPtr last;
+        for (last = gpu->displays; last; last = last->next_on_gpu) {
+            if (!last->next_on_gpu) {
+                last->next_on_gpu = display;
+                break;
+            }
+        }
+    }
+    gpu->num_displays++;
+
+} /* gpu_add_display() */
 
 
 
@@ -1797,19 +1869,18 @@ nvDisplayPtr gpu_add_display_from_server(nvGpuPtr gpu,
                                          gchar **err_str)
 {
     ReturnStatus ret;
-    nvDisplayPtr display = NULL;
+    nvDisplayPtr display;
 
-    
+
     /* Create the display structure */
     display = (nvDisplayPtr)calloc(1, sizeof(nvDisplay));
     if (!display) goto fail;
 
 
     /* Init the display structure */
-    display->gpu = gpu;
     display->device_mask = device_mask;
 
-    
+
     /* Query the display information */
     ret = NvCtrlGetStringDisplayAttribute(gpu->handle,
                                           device_mask,
@@ -1920,6 +1991,10 @@ nvDisplayPtr gpu_add_display_from_server(nvGpuPtr gpu,
     }
 
 
+    /* Add the display at the end of gpu's display list */
+    gpu_add_display(gpu, display);
+
+
     /* Query the modelines for the display device */
     if (!display_add_modelines_from_server(display, err_str)) {
         nv_warning_msg("Failed to add modelines to display device 0x%08x "
@@ -1930,11 +2005,6 @@ nvDisplayPtr gpu_add_display_from_server(nvGpuPtr gpu,
     }
 
 
-    /* Add the display at the end of gpu's display list */
-    xconfigAddListItem((GenericListPtr *)(&gpu->displays),
-                       (GenericListPtr)display);
-    gpu->connected_displays |= device_mask;
-    gpu->num_displays++;
     return display;
 
 
@@ -1954,6 +2024,7 @@ nvDisplayPtr gpu_add_display_from_server(nvGpuPtr gpu,
  **/
 static Bool gpu_add_displays_from_server(nvGpuPtr gpu, gchar **err_str)
 {
+    ReturnStatus ret;
     unsigned int mask;
 
 
@@ -1961,14 +2032,23 @@ static Bool gpu_add_displays_from_server(nvGpuPtr gpu, gchar **err_str)
     gpu_remove_displays(gpu);
 
 
-    // XXX Query connected_displays here...
+    /* Get the list of connected displays */
+    ret = NvCtrlGetAttribute(gpu->handle, NV_CTRL_CONNECTED_DISPLAYS,
+                             (int *)&(gpu->connected_displays));
+    if (ret != NvCtrlSuccess) {
+        *err_str = g_strdup_printf("Failed to query connected display "
+                                   "devices on GPU-%d '%s'.",
+                                   NvCtrlGetTargetId(gpu), gpu->name);
+        nv_error_msg(*err_str);
+        goto fail;
+    }
 
 
     /* Add each connected display */
     for (mask = 1; mask; mask <<= 1) {
 
         if (!(mask & (gpu->connected_displays))) continue;
-        
+
         if (!gpu_add_display_from_server(gpu, mask, err_str)) {
             nv_warning_msg("Failed to add display device 0x%08x to GPU-%d "
                            "'%s'.",
@@ -1979,280 +2059,11 @@ static Bool gpu_add_displays_from_server(nvGpuPtr gpu, gchar **err_str)
 
     return TRUE;
 
-
-    /* Failure case */
  fail:
     gpu_remove_displays(gpu);
     return FALSE;
 
 } /* gpu_add_displays_from_server() */
-
-
-
-/** gpu_remove_and_free_screen() *************************************
- *
- * Removes a screen from its GPU and frees it.
- *
- **/
-void gpu_remove_and_free_screen(nvScreenPtr screen)
-{
-    nvGpuPtr gpu;
-    nvScreenPtr other;
-
-    if (screen && screen->gpu) {
-
-        /* Remove the screen from the GPU */
-        gpu = screen->gpu;
-        
-        xconfigRemoveListItem((GenericListPtr *)(&gpu->screens),
-                              (GenericListPtr)screen);
-        gpu->num_screens--;
-        
-        /* Make sure other screens in the layout aren't relative
-         * to this screen
-         */
-        for (gpu = screen->gpu->layout->gpus; gpu; gpu = gpu->next) {
-            for (other = gpu->screens; other; other = other->next) {
-                if (other->relative_to == screen) {
-                    other->position_type = CONF_ADJ_ABSOLUTE;
-                    other->relative_to = NULL;
-                }
-            }
-        }
-    }
-
-    screen_free(screen);
-
-} /* gpu_remove_and_free_screen() */
-
-
-
-/** gpu_remove_screens() *********************************************
- *
- * Removes all screens from a gpu and frees them
- *
- **/
-static void gpu_remove_screens(nvGpuPtr gpu)
-{
-    nvScreenPtr screen;
-
-    if (gpu) {
-        while (gpu->screens) {
-            screen = gpu->screens;
-            gpu->screens = screen->next;
-            screen_free(screen);
-        }
-        gpu->num_screens = 0;
-    }
-
-} /* gpu_remove_screens() */
-
-
-
-/** gpu_add_screen_from_server() *************************************
- *
- * Adds screen 'screen_id' that is connected to the gpu.
- *
- **/
-static int gpu_add_screen_from_server(nvGpuPtr gpu, int screen_id,
-                                      gchar **err_str)
-{
-    Display *display;
-    nvScreenPtr screen;
-    int val, tmp;
-    ReturnStatus ret;
-    gchar *primary_str = NULL;
-
-    /* Create the screen structure */
-    screen = (nvScreenPtr)calloc(1, sizeof(nvScreen));
-    if (!screen) goto fail;
-
-    screen->gpu = gpu;
-    screen->scrnum = screen_id;
-
-
-    /* Make an NV-CONTROL handle to talk to the screen */
-    display = NvCtrlGetDisplayPtr(gpu->handle);
-    screen->handle =
-        NvCtrlAttributeInit(display,
-                            NV_CTRL_TARGET_TYPE_X_SCREEN,
-                            screen_id,
-                            NV_CTRL_ATTRIBUTES_NV_CONTROL_SUBSYSTEM |
-                            NV_CTRL_ATTRIBUTES_XRANDR_SUBSYSTEM);
-    if (!screen->handle) {
-        *err_str = g_strdup_printf("Failed to create NV-CONTROL handle for\n"
-                                   "screen %d (on GPU-%d).",
-                                   screen_id, NvCtrlGetTargetId(gpu->handle));
-        nv_error_msg(*err_str);
-        goto fail;
-    }
-
-
-    /* See if the screen supports dynamic twinview */
-    ret = NvCtrlGetAttribute(screen->handle, NV_CTRL_DYNAMIC_TWINVIEW, &val);
-    if (ret != NvCtrlSuccess) {
-        *err_str = g_strdup_printf("Failed to query Dynamic TwinView for "
-                                   "screen %d.",
-                                   screen_id);
-        nv_warning_msg(*err_str);
-        goto fail;
-    }
-    screen->dynamic_twinview = !!val;
-
-
-    /* See if the screen is set to not scanout */
-    ret = NvCtrlGetAttribute(screen->handle, NV_CTRL_NO_SCANOUT, &val);
-    if (ret != NvCtrlSuccess) {
-        *err_str = g_strdup_printf("Failed to query NoScanout for "
-                                   "screen %d.",
-                                   screen_id);
-        nv_warning_msg(*err_str);
-        goto fail;
-    }
-    screen->no_scanout = (val == NV_CTRL_NO_SCANOUT_ENABLED);
-
-
-    /* XXX Currently there is no support for screens that are scanning
-     *     out but have TwinView disabled.
-     */
-    if (!screen->dynamic_twinview && !screen->no_scanout) {
-        *err_str = g_strdup_printf("nvidia-settings currently does not "
-                                   "support scanout screens (%d) that have "
-                                   "dynamic twinview disabled.",
-                                   screen_id);
-        nv_warning_msg(*err_str);
-        goto fail;
-    }
-
-
-    /* The display owner GPU gets the screen(s) */
-    ret = NvCtrlGetAttribute(screen->handle, NV_CTRL_MULTIGPU_DISPLAY_OWNER,
-                             &val);
-    if (ret != NvCtrlSuccess || val != NvCtrlGetTargetId(gpu->handle)) {
-        screen_free(screen);
-        return TRUE;
-    }
-
-    ret = NvCtrlGetAttribute(screen->handle,
-                             NV_CTRL_SHOW_SLI_VISUAL_INDICATOR,
-                             &tmp);
-
-    screen->sli = (ret == NvCtrlSuccess);
-
-
-    /* Listen to NV-CONTROL events on this screen handle */
-    screen->ctk_event = CTK_EVENT(ctk_event_new(screen->handle));
-
-
-    /* Query the depth of the screen */
-    screen->depth = NvCtrlGetScreenPlanes(screen->handle);
-
-    /* Initialize the virtual X screen size */
-    screen->dim[W] = NvCtrlGetScreenWidth(screen->handle);
-    screen->dim[H] = NvCtrlGetScreenHeight(screen->handle);
-
-
-    /* Parse the screen's metamodes (ties displays on the gpu to the screen) */
-    if (!screen->no_scanout) {
-        if (!screen_add_metamodes(screen, err_str)) {
-            nv_warning_msg("Failed to add metamodes to screen %d (on GPU-%d).",
-                           screen_id, NvCtrlGetTargetId(gpu->handle));
-            goto fail;
-        }
-    
-        /* Query & parse the screen's primary display */
-        screen->primaryDisplay = NULL;
-        ret = NvCtrlGetStringDisplayAttribute
-            (screen->handle,
-             0,
-             NV_CTRL_STRING_TWINVIEW_XINERAMA_INFO_ORDER,
-             &primary_str);
-        
-        if (ret == NvCtrlSuccess) {
-            nvDisplayPtr d;
-            unsigned int  device_mask;
-            
-            /* Parse the device mask */
-            parse_read_display_name(primary_str, &device_mask);
-            
-            /* Find the matching primary display */
-            for (d = gpu->displays; d; d = d->next) {
-                if (d->screen == screen &&
-                    d->device_mask & device_mask) {
-                    screen->primaryDisplay = d;
-                    break;
-                }
-            }
-        }
-    }
-
-
-    /* Add the screen at the end of the gpu's screen list */
-    xconfigAddListItem((GenericListPtr *)(&gpu->screens),
-                       (GenericListPtr)screen);
-    gpu->num_screens++;
-    return TRUE;
-
-
- fail:
-    screen_free(screen);
-    return FALSE;
-
-} /* gpu_add_screen_from_server() */
-
-
-
-/** gpu_add_screens_from_server() ************************************
- *
- * Queries the list of screens on the gpu.
- *
- */
-static Bool gpu_add_screens_from_server(nvGpuPtr gpu, gchar **err_str)
-{
-    ReturnStatus ret;
-    int *pData;
-    int len;
-    int i;
-
-
-    /* Clean up the GPU list */
-    gpu_remove_screens(gpu);
-
-
-    /* Query the list of X screens this GPU is driving */
-    ret = NvCtrlGetBinaryAttribute(gpu->handle, 0,
-                                   NV_CTRL_BINARY_DATA_XSCREENS_USING_GPU,
-                                   (unsigned char **)(&pData), &len);
-    if (ret != NvCtrlSuccess) {
-        *err_str = g_strdup_printf("Failed to query list of screens driven\n"
-                                   "by GPU-%d '%s'.",
-                                   NvCtrlGetTargetId(gpu->handle), gpu->name);
-        nv_error_msg(*err_str);
-        goto fail;
-    }
-
-
-    /* Add each X screen */
-    for (i = 1; i <= pData[0]; i++) {
-        if (!gpu_add_screen_from_server(gpu, pData[i], err_str)) {
-            nv_warning_msg("Failed to add screen %d to GPU-%d '%s'.",
-                           pData[i], NvCtrlGetTargetId(gpu->handle),
-                           gpu->name);
-            XFree(pData);
-            goto fail;
-        }
-    }
-
-    XFree(pData);
-    return TRUE;
-
-
-    /* Failure case */
- fail:
-    gpu_remove_screens(gpu);
-    return FALSE;
-
-} /* gpu_add_screens_from_server() */
 
 
 
@@ -2267,8 +2078,9 @@ Bool gpu_add_screenless_modes_to_displays(nvGpuPtr gpu)
     nvDisplayPtr display;
     nvModePtr mode;
 
-    for (display = gpu->displays; display; display = display->next) {
+    for (display = gpu->displays; display; display = display->next_on_gpu) {
         if (display->screen) continue;
+        if (display->modes) continue;
 
         /* Create a fake mode */
         mode = (nvModePtr)calloc(1, sizeof(nvMode));
@@ -2302,10 +2114,12 @@ Bool gpu_add_screenless_modes_to_displays(nvGpuPtr gpu)
 static void gpu_free(nvGpuPtr gpu)
 {
     if (gpu) {
-        gpu_remove_screens(gpu);
         gpu_remove_displays(gpu);
+
         XFree(gpu->name);
         g_free(gpu->pci_bus_id);
+        free(gpu->gvo_mode_data);
+
         if (gpu->handle) {
             NvCtrlAttributeClose(gpu->handle);
         }
@@ -2322,6 +2136,110 @@ static void gpu_free(nvGpuPtr gpu)
 /*****************************************************************************/
 
 
+
+/** layout_add_gpu() *************************************************
+ *
+ * Adds a GPU to the (end of the) layout's list of GPUs.
+ *
+ **/
+static void layout_add_gpu(nvLayoutPtr layout, nvGpuPtr gpu)
+{
+    gpu->layout = layout;
+    gpu->next_in_layout = NULL;
+
+    if (!layout->gpus) {
+        layout->gpus = gpu;
+    } else {
+        nvGpuPtr last;
+        for (last = layout->gpus; last; last = last->next_in_layout) {
+            if (!last->next_in_layout) {
+                last->next_in_layout = gpu;
+                break;
+            }
+        }
+    }
+
+    layout->num_gpus++;
+
+} /* layout_add_gpu() */
+
+
+
+/** layout_add_screen() **********************************************
+ *
+ * Adds a screen to the (end of the) layout's list of screens.
+ *
+ **/
+void layout_add_screen(nvLayoutPtr layout, nvScreenPtr screen)
+{
+    screen->layout = layout;
+    screen->next_in_layout = NULL;
+
+    if (!layout->screens) {
+        layout->screens = screen;
+    } else {
+        nvScreenPtr last;
+        for (last = layout->screens; last; last = last->next_in_layout) {
+            if (!last->next_in_layout) {
+                last->next_in_layout = screen;
+                break;
+            }
+        }
+    }
+
+    layout->num_screens++;
+
+} /* layout_add_screen() */
+
+
+
+/** layout_remove_and_free_screen() **********************************
+ *
+ * Removes a screen from the layout and frees it.
+ *
+ **/
+
+void layout_remove_and_free_screen(nvScreenPtr screen)
+{
+    nvLayoutPtr layout = screen->layout;
+    nvScreenPtr other;
+
+    if (!screen) return;
+
+
+    /* Make sure other screens in the layout aren't relative
+     * to this screen
+     */
+    for (other = layout->screens;
+         other;
+         other = other->next_in_layout) {
+
+        if (other->relative_to == screen) {
+            other->position_type = CONF_ADJ_ABSOLUTE;
+            other->relative_to = NULL;
+        }
+    }
+
+    /* Remove the screen from the layout */
+    if (layout->screens == screen) {
+        layout->screens = screen->next_in_layout;
+    } else {
+        nvScreenPtr cur;
+        for (cur = layout->screens; cur; cur = cur->next_in_layout) {
+            if (cur->next_in_layout == screen) {
+                cur->next_in_layout = screen->next_in_layout;
+                break;
+            }
+        }
+    }
+    layout->num_screens--;
+
+    screen_free(screen);
+
+} /* layout_remove_and_free_screen() */
+
+
+
 /** layout_remove_gpus() *********************************************
  *
  * Removes all GPUs from the layout structure.
@@ -2329,14 +2247,16 @@ static void gpu_free(nvGpuPtr gpu)
  **/
 static void layout_remove_gpus(nvLayoutPtr layout)
 {
-    if (layout) {
-        while (layout->gpus) {
-            nvGpuPtr gpu = layout->gpus;
-            layout->gpus = gpu->next;
-            gpu_free(gpu);
-        }
-        layout->num_gpus = 0;
+    nvGpuPtr gpu;
+
+    if (!layout) return;
+
+    while (layout->gpus) {
+        gpu = layout->gpus;
+        layout->gpus = gpu->next_in_layout;
+        gpu_free(gpu);
     }
+    layout->num_gpus = 0;
 
 } /* layout_remove_gpus() */
 
@@ -2385,16 +2305,6 @@ static Bool layout_add_gpu_from_server(nvLayoutPtr layout, unsigned int gpu_id,
         goto fail;
     }
 
-    ret = NvCtrlGetAttribute(gpu->handle, NV_CTRL_CONNECTED_DISPLAYS,
-                             (int *)&(gpu->connected_displays));
-    if (ret != NvCtrlSuccess) {
-        *err_str = g_strdup_printf("Failed to query connected display "
-                                   "devices on GPU-%d '%s'.",
-                                   gpu_id, gpu->name);
-        nv_error_msg(*err_str);
-        goto fail;
-    }
-
     get_bus_id_str(gpu->handle, &(gpu->pci_bus_id));
 
     ret = NvCtrlGetAttribute(gpu->handle, NV_CTRL_MAX_SCREEN_WIDTH,
@@ -2438,27 +2348,9 @@ static Bool layout_add_gpu_from_server(nvLayoutPtr layout, unsigned int gpu_id,
         goto fail;
     }
 
-
-    /* Add the X screens to the GPU */
-    if (!gpu_add_screens_from_server(gpu, err_str)) {
-        nv_warning_msg("Failed to add screens to GPU-%d '%s'.",
-                       gpu_id, gpu->name);
-        goto fail;
-    }
-    
-
-    /* Add fake modes to screenless display devices */
-    if (!gpu_add_screenless_modes_to_displays(gpu)) {
-        nv_warning_msg("Failed to add screenless modes to GPU-%d '%s'.",
-                       gpu_id, gpu->name);
-        goto fail;
-    }
-
-
     /* Add the GPU at the end of the layout's GPU list */
-    xconfigAddListItem((GenericListPtr *)(&layout->gpus),
-                       (GenericListPtr)gpu);
-    layout->num_gpus++;
+    layout_add_gpu(layout, gpu);
+
     return TRUE;
 
 
@@ -2518,6 +2410,253 @@ static int layout_add_gpus_from_server(nvLayoutPtr layout, gchar **err_str)
 
 
 
+/** layout_remove_screens() ******************************************
+ *
+ * Removes all X screens from the layout structure.
+ *
+ **/
+static void layout_remove_screens(nvLayoutPtr layout)
+{
+    if (!layout) return;
+
+    while (layout->screens) {
+        layout_remove_and_free_screen(layout->screens);
+    }
+
+} /* layout_remove_screens() */
+
+
+
+/** layout_add_screen_from_server() **********************************
+ *
+ * Adds an X screen to the layout structure.
+ *
+ **/
+static Bool layout_add_screen_from_server(nvLayoutPtr layout,
+                                          unsigned int screen_id,
+                                          gchar **err_str)
+{
+    Display *display;
+    nvScreenPtr screen;
+    int val, tmp;
+    ReturnStatus ret;
+    gchar *primary_str = NULL;
+    nvGpuPtr gpu;
+
+
+    screen = (nvScreenPtr)calloc(1, sizeof(nvScreen));
+    if (!screen) goto fail;
+
+    screen->scrnum = screen_id;
+
+
+    /* Make an NV-CONTROL handle to talk to the screen (use the
+     * first gpu's display)
+     */
+    display = NvCtrlGetDisplayPtr(layout->gpus->handle);
+    screen->handle =
+        NvCtrlAttributeInit(display,
+                            NV_CTRL_TARGET_TYPE_X_SCREEN,
+                            screen_id,
+                            NV_CTRL_ATTRIBUTES_NV_CONTROL_SUBSYSTEM |
+                            NV_CTRL_ATTRIBUTES_XRANDR_SUBSYSTEM);
+    if (!screen->handle) {
+        *err_str = g_strdup_printf("Failed to create NV-CONTROL handle for\n"
+                                   "screen %d.",
+                                   screen_id);
+        nv_error_msg(*err_str);
+        goto fail;
+    }
+
+
+    /* See if the screen supports dynamic twinview */
+    ret = NvCtrlGetAttribute(screen->handle, NV_CTRL_DYNAMIC_TWINVIEW, &val);
+    if (ret != NvCtrlSuccess) {
+        *err_str = g_strdup_printf("Failed to query Dynamic TwinView for "
+                                   "screen %d.",
+                                   screen_id);
+        nv_warning_msg(*err_str);
+        goto fail;
+    }
+    screen->dynamic_twinview = !!val;
+
+
+    /* See if the screen is set to not scanout */
+    ret = NvCtrlGetAttribute(screen->handle, NV_CTRL_NO_SCANOUT, &val);
+    if (ret != NvCtrlSuccess) {
+        *err_str = g_strdup_printf("Failed to query NoScanout for "
+                                   "screen %d.",
+                                   screen_id);
+        nv_warning_msg(*err_str);
+        goto fail;
+    }
+    screen->no_scanout = (val == NV_CTRL_NO_SCANOUT_ENABLED);
+
+
+    /* XXX Currently there is no support for screens that are scanning
+     *     out but have TwinView disabled.
+     */
+    if (!screen->dynamic_twinview && !screen->no_scanout) {
+        *err_str = g_strdup_printf("nvidia-settings currently does not "
+                                   "support scanout screens (%d) that have "
+                                   "dynamic twinview disabled.",
+                                   screen_id);
+        nv_warning_msg(*err_str);
+        goto fail;
+    }
+
+
+    /* The display owner GPU gets the screen(s) */
+    ret = NvCtrlGetAttribute(screen->handle, NV_CTRL_MULTIGPU_DISPLAY_OWNER,
+                             &val);
+    if (ret != NvCtrlSuccess) {
+        screen_free(screen);
+        return TRUE;
+    }
+
+    for (gpu = layout->gpus; gpu; gpu = gpu->next_in_layout) {
+        if (val == NvCtrlGetTargetId(gpu->handle)) {
+            screen->gpu = gpu;
+        }
+    }
+    if (!screen->gpu) {
+        *err_str = g_strdup_printf("Failed to find GPU that drives screen %d.",
+                                   screen_id);
+        nv_warning_msg(*err_str);
+        goto fail;
+    }
+
+    /* Query SLI status */
+    ret = NvCtrlGetAttribute(screen->handle,
+                             NV_CTRL_SHOW_SLI_VISUAL_INDICATOR,
+                             &tmp);
+
+    screen->sli = (ret == NvCtrlSuccess);
+
+
+    /* Listen to NV-CONTROL events on this screen handle */
+    screen->ctk_event = CTK_EVENT(ctk_event_new(screen->handle));
+
+
+    /* Query the depth of the screen */
+    screen->depth = NvCtrlGetScreenPlanes(screen->handle);
+
+    /* Initialize the virtual X screen size */
+    screen->dim[W] = NvCtrlGetScreenWidth(screen->handle);
+    screen->dim[H] = NvCtrlGetScreenHeight(screen->handle);
+
+
+
+    /* Add the screen at the end of the gpu's screen list */
+    layout_add_screen(layout, screen);
+
+
+    /* Parse the screen's metamodes (ties displays on the gpu to the screen) */
+    if (!screen->no_scanout) {
+        if (!screen_add_metamodes(screen, err_str)) {
+            nv_warning_msg("Failed to add metamodes to screen %d.",
+                           screen_id);
+            goto fail;
+        }
+
+        /* Query & parse the screen's primary display */
+        screen->primaryDisplay = NULL;
+        ret = NvCtrlGetStringDisplayAttribute
+            (screen->handle,
+             0,
+             NV_CTRL_STRING_TWINVIEW_XINERAMA_INFO_ORDER,
+             &primary_str);
+        
+        if (ret == NvCtrlSuccess) {
+            unsigned int  device_mask;
+            
+            /* Parse the device mask */
+            parse_read_display_name(primary_str, &device_mask);
+            
+            /* Find the matching primary display */
+            screen->primaryDisplay = gpu_get_display(screen->gpu, device_mask);
+        }
+    }
+
+    return TRUE;
+
+ fail:
+    screen_free(screen);
+
+    return FALSE;
+
+} /* layout_add_screen_from_server() */
+
+
+
+/** layout_add_screens_from_server() *********************************
+ *
+ * Adds the screens found on the server to the layout structure.
+ *
+ **/
+static int layout_add_screens_from_server(nvLayoutPtr layout, gchar **err_str)
+{
+    ReturnStatus ret;
+    int i, nscreens;
+
+
+    layout_remove_screens(layout);
+
+
+    ret = NvCtrlQueryTargetCount(layout->handle, NV_CTRL_TARGET_TYPE_X_SCREEN,
+                                 &nscreens);
+    if (ret != NvCtrlSuccess || !nscreens) {
+        *err_str = g_strdup("Failed to query number of X screens (or no X "
+                            "screens found) in the system.");
+        nv_error_msg(*err_str);
+        nscreens = 0;
+        goto fail;
+    }
+
+    for (i = 0; i < nscreens; i++) {
+        if (!layout_add_screen_from_server(layout, i, err_str)) {
+            nv_warning_msg("Failed to add X screen %d to layout.", i);
+            goto fail;
+        }
+    }
+
+    return nscreens;
+
+
+ fail:
+    layout_remove_screens(layout);
+    return 0;
+
+} /* layout_add_screens_from_server() */
+
+
+
+/** layout_add_screenless_modes_to_displays()*************************
+ *
+ * Adds fake modes to display devices that are currently not
+ * associated with an X screen so we can see them on the layout.
+ *
+ **/
+static Bool layout_add_screenless_modes_to_displays(nvLayoutPtr layout)
+{
+    nvGpuPtr gpu;
+
+    for (gpu = layout->gpus; gpu; gpu = gpu->next_in_layout) {
+
+        /* Add fake modes to screenless display devices */
+        if (!gpu_add_screenless_modes_to_displays(gpu)) {
+            nv_warning_msg("Failed to add screenless modes to GPU-%d '%s'.",
+                           NvCtrlGetTargetId(gpu->handle), gpu->name);
+            return FALSE;
+        }
+    }
+
+    return TRUE;
+
+} /* layout_add_screenless_modes_to_displays() */
+
+
+
 /** layout_free() ****************************************************
  *
  * Frees a layout structure.
@@ -2553,7 +2692,7 @@ nvLayoutPtr layout_load_from_server(NvCtrlAttributeHandle *handle,
 
     /* Cache the handle for talking to the X server */
     layout->handle = handle;
-    
+
 
     /* Is Xinerma enabled? */
     ret = NvCtrlGetAttribute(handle, NV_CTRL_XINERAMA,
@@ -2564,11 +2703,21 @@ nvLayoutPtr layout_load_from_server(NvCtrlAttributeHandle *handle,
         goto fail;
     }
 
-
-    /* Add GPUs to the layout */
     if (!layout_add_gpus_from_server(layout, err_str)) {
         nv_warning_msg("Failed to add GPU(s) to layout for display "
                        "configuration page.");
+        goto fail;
+    }
+
+    if (!layout_add_screens_from_server(layout, err_str)) {
+        nv_warning_msg("Failed to add Screens(s) to layout for display "
+                       "configuration page.");
+        goto fail;
+    }
+
+    if (!layout_add_screenless_modes_to_displays(layout)) {
+        nv_warning_msg("Failed to add Screenless modes to layout for "
+                       "display configuration page.");
         goto fail;
     }
 
@@ -2593,28 +2742,22 @@ nvLayoutPtr layout_load_from_server(NvCtrlAttributeHandle *handle,
  **/
 nvScreenPtr layout_get_a_screen(nvLayoutPtr layout, nvGpuPtr preferred_gpu)
 {
-    nvGpuPtr gpu;
     nvScreenPtr screen = NULL;
-    nvScreenPtr other;
-    
-    if (!layout) return NULL;
+    nvScreenPtr cur;
 
-    if (preferred_gpu && preferred_gpu->screens) {
-        gpu = preferred_gpu;
-    } else {
-        preferred_gpu = NULL;
-        gpu = layout->gpus;
-    }
+    if (!layout || !layout->screens) return NULL;
 
-    for (; gpu; gpu = gpu->next) {
-        for (other = gpu->screens; other; other = other->next) {
-            if (!screen || screen->scrnum > other->scrnum) {
-                screen = other;
+    screen = layout->screens;
+    for (cur = screen->next_in_layout; cur; cur = cur->next_in_layout) {
+        if (cur->gpu == preferred_gpu) {
+            if (screen->gpu != preferred_gpu) {
+                screen = cur;
+                continue;
             }
         }
-
-        /* We found a preferred screen */
-        if (gpu == preferred_gpu) break;
+        if (screen->scrnum > cur->scrnum) {
+            screen = cur;
+        }
     }
 
     return screen;

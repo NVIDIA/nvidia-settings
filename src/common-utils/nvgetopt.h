@@ -30,6 +30,14 @@
 
 
 /*
+ * mask of bits not used by nvgetopt in NVGetoptOption::flags;
+ * these bits are available for use within specific users of
+ * nvgetopt
+ */
+
+#define NVGETOPT_UNUSED_FLAG_RANGE 0xffff0000
+
+/*
  * indicates that the option is a boolean value; the presence of the
  * option will be interpretted as a TRUE value; if the option is
  * prepended with '--no-', the option will be interpretted as a FALSE

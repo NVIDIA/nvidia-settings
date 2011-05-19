@@ -178,7 +178,8 @@ typedef struct nvModeRec {
 
 /* Display Device (CRT, DFP, TV, Projector ...) */
 typedef struct nvDisplayRec {
-    struct nvDisplayRec *next;
+    struct nvDisplayRec *next_on_gpu;
+    struct nvDisplayRec *next_in_screen;
     XConfigMonitorPtr    conf_monitor;
 
     struct nvGpuRec    *gpu;            /* GPU the display belongs to */
@@ -221,7 +222,8 @@ typedef struct nvMetaModeRec {
 
 /* X Screen */
 typedef struct nvScreenRec {
-    struct nvScreenRec *next;
+    struct nvScreenRec *next_in_layout;
+
     XConfigScreenPtr conf_screen;
     XConfigDevicePtr conf_device;
 
@@ -237,11 +239,13 @@ typedef struct nvScreenRec {
     CtkEvent *ctk_event;
     int scrnum;
 
+    struct nvLayoutRec *layout; /* Layout this X screen belongs to */
     struct nvGpuRec *gpu;  /* GPU driving this X screen */
 
     int depth;      /* Depth of the screen */
 
     unsigned int displays_mask; /* Display devices on this X screen */
+    nvDisplayPtr displays; /* List of displays using this screen */
     int num_displays; /* # of displays using this screen */
 
     nvMetaModePtr metamodes;     /* List of metamodes */
@@ -276,11 +280,11 @@ typedef struct GvoModeDataRec {
 
 /* GPU (Device) */
 typedef struct nvGpuRec {
-    struct nvGpuRec *next;
+    struct nvGpuRec *next_in_layout; /* List of all GPUs */
 
     NvCtrlAttributeHandle *handle;  /* NV-CONTROL handle to GPU */
     CtkEvent *ctk_event;
-    
+
     struct nvLayoutRec *layout; /* Layout this GPU belongs to */
 
     int max_width;
@@ -289,7 +293,7 @@ typedef struct nvGpuRec {
     Bool allow_depth_30;
 
     char *name;  /* Name of the GPU */
-    
+
     unsigned int connected_displays;  /* Bitmask of connected displays */
 
     gchar *pci_bus_id;
@@ -297,10 +301,7 @@ typedef struct nvGpuRec {
     GvoModeData *gvo_mode_data; /* Information about GVO modes available */
     unsigned int num_gvo_modes;
 
-    nvScreenPtr screens;  /* List of screens this GPU drives */
-    int num_screens;
-
-    nvDisplayPtr displays;  /* List of displays attached to screen */
+    nvDisplayPtr displays; /* Linked list of displays connected to GPU */
     int num_displays;
 
 } nvGpu, *nvGpuPtr;
@@ -314,10 +315,13 @@ typedef struct nvLayoutRec {
 
     NvCtrlAttributeHandle *handle;
 
-    nvGpuPtr gpus;  /* List of GPUs in the layout */
+    nvGpuPtr gpus;  /* Linked list of GPUs (next_in_layout) */
     int num_gpus;
 
-    // Used for drawing the layout.
+    nvScreenPtr screens; /* Linked list of X screens (next_in_layout) */
+    int num_screens;
+
+    /* Used for drawing the layout */
     int dim[4]; /* Bounding box of All X screens (Absolute coords) */
 
     int xinerama_enabled;

@@ -260,8 +260,8 @@ static GtkWidget * add_scale(CtkConfig *ctk_config,
  */
 
 static void post_scale_value_changed(GtkAdjustment *adjustment,
-                                          CtkImageSliders *ctk_image_sliders,
-                                          gint value)
+                                     CtkImageSliders *ctk_image_sliders,
+                                     gint value)
 {
     char *name = g_object_get_data(G_OBJECT(adjustment), "attribute name");
     
@@ -417,6 +417,12 @@ static void scale_value_received(GtkObject *object, gpointer arg1,
             g_object_set_data(G_OBJECT(CTK_SCALE(scale)->gtk_adjustment),
                               "attribute active",
                               GINT_TO_POINTER(1));
+            /* In case of image sharpening slider here we are syncing to the 
+             * recent image sharpening value, so updating status bar message */
+            post_scale_value_changed(CTK_SCALE(scale)->gtk_adjustment,
+                                     ctk_image_sliders,
+                                     gtk_adjustment_get_value(
+                                             CTK_SCALE(scale)->gtk_adjustment));
         }
         break;
     default:

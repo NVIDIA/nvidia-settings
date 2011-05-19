@@ -91,9 +91,7 @@ static const char *__powermizer_menu_help =
 "utilization.  'Prefer Maximum Performance' hints to the driver to prefer "
 "higher GPU clocks, when possible.  If a single X server is running, the "
 "mode selected in nvidia-settings is what the system will be using; if two or "
-"more X servers are running, the behavior is undefined.  If any CUDA "
-"application is running, the system will always be in the 'Prefer Maximum "
-"Performance' mode.";
+"more X servers are running, the behavior is undefined.";
 
 GType ctk_powermizer_get_type(void)
 {

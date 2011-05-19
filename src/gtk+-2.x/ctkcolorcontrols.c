@@ -333,6 +333,7 @@ void post_color_range_update(CtkColorControls *ctk_color_controls,
         "Limited",  /* NV_CTRL_COLOR_RANGE_LIMITED */
     };
 
+    gtk_widget_set_sensitive(ctk_color_controls->reset_button, TRUE);
     ctk_config_statusbar_message(ctk_color_controls->ctk_config,
                                  "Color Range set to %s for %s.",
                                  color_range_table[color_range],
@@ -349,6 +350,7 @@ void post_color_space_update(CtkColorControls *ctk_color_controls,
         "YCbCr444"   /* NV_CTRL_COLOR_SPACE_YCbCr444 */
     };
 
+    gtk_widget_set_sensitive(ctk_color_controls->reset_button, TRUE);
     ctk_config_statusbar_message(ctk_color_controls->ctk_config,
                                  "Color Space set to %s for %s.",
                                  color_space_table[ctk_color_controls->color_space_table[color_space]],
@@ -386,7 +388,6 @@ static void color_range_menu_changed(GtkOptionMenu *color_range_menu,
 
     /* reflecting the change to statusbar message and the reset button */
     post_color_range_update(ctk_color_controls, color_range);
-    gtk_widget_set_sensitive(ctk_color_controls->reset_button, TRUE);
 
 } /* color_range_menu_changed() */
 
@@ -426,7 +427,6 @@ static void color_space_menu_changed(GtkOptionMenu *color_space_menu,
     /* reflecting the change in color space to other widgets & reset button */
     ctk_color_controls_setup(ctk_color_controls);
     post_color_space_update(ctk_color_controls, color_space);
-    gtk_widget_set_sensitive(ctk_color_controls->reset_button, TRUE);
 
 } /* color_space_menu_changed() */
 
@@ -485,6 +485,14 @@ static void color_control_update_received(GtkObject *object, gpointer arg1,
     }
 
     ctk_color_controls_setup(ctk_object);
+    
+    /* update status bar message */
+    switch (event_struct->attribute) {
+    case NV_CTRL_COLOR_RANGE:
+        post_color_range_update(ctk_object, event_struct->value); break;
+    case NV_CTRL_COLOR_SPACE:
+        post_color_space_update(ctk_object, event_struct->value); break;
+    }
 } /* color_control_update_received()  */
 
 

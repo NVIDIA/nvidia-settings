@@ -47,6 +47,7 @@
 #define NV_CTRL_TARGET_TYPE_COOLER         5 /* e.g., fan */
 #define NV_CTRL_TARGET_TYPE_THERMAL_SENSOR 6
 #define NV_CTRL_TARGET_TYPE_3D_VISION_PRO_TRANSCEIVER 7
+#define NV_CTRL_TARGET_TYPE_DISPLAY        8
 
 /**************************************************************************/
 
@@ -78,6 +79,10 @@
  *    designated with "D" below.  For attributes that do not require the
  *    display mask, the argument is ignored.
  *
+ *    Alternatively, NV-CONTROL versions 1.27 and greater allow these
+ *    attributes to be accessed via display target types, in which case
+ *    the display_mask is ignored.
+ *
  * G: The attribute may be queried using an NV_CTRL_TARGET_TYPE_GPU
  *    target type via XNVCTRLQueryTargetAttribute().
  *
@@ -97,19 +102,18 @@
  * Q: The attribute is a 64-bit integer attribute;  use the 64-bit versions
  *    of the appropriate query interfaces.
  *
- * 
  * C: The attribute may be queried using an NV_CTRL_TARGET_TYPE_COOLER target
  *    type via XNVCTRLQueryTargetAttribute().
- * 
+ *
  * S: The attribute may be queried using an NV_CTRL_TARGET_TYPE_THERMAL_SENSOR
  *    target type via XNVCTRLQueryTargetAttribute().
  *
  * T: The attribute may be queried using an
  *    NV_CTRL_TARGET_TYPE_3D_VISION_PRO_TRANSCEIVER target type
  *    via XNVCTRLQueryTargetAttribute().
- * 
+ *
  * NOTE: Unless mentioned otherwise, all attributes may be queried using
- *       an NV_CTRL_TARGET_TYPE_X_SCREEN target type via 
+ *       an NV_CTRL_TARGET_TYPE_X_SCREEN target type via
  *       XNVCTRLQueryTargetAttribute().
  */
 
@@ -699,8 +703,7 @@
 
 /*
  * NV_CTRL_FLIPPING_ALLOWED - when TRUE, OpenGL will swap by flipping
- * when possible; when FALSE, OpenGL will alway swap by blitting.  XXX
- * can this be enabled dynamically?
+ * when possible; when FALSE, OpenGL will alway swap by blitting.
  */
 
 #define NV_CTRL_FLIPPING_ALLOWED                                40 /* RW-X */
@@ -1340,7 +1343,8 @@
  *    NV_CTRL_GVO_DATA_FORMAT
  *    NV_CTRL_GVO_FLIP_QUEUE_SIZE
  *
- * XXX This is deprecated, please see NV_CTRL_GVO_LOCK_OWNER
+ * This attribute is deprecated and may be removed in a future release.  Its
+ * functionality has been replaced by NV_CTRL_GVO_LOCK_OWNER.
  */
 
 #define NV_CTRL_GVO_GLX_LOCKED                                  82  /* R-- */
@@ -4120,8 +4124,38 @@
  */
 #define NV_CTRL_BINARY_DATA_GLASSES_PAIRED_TO_3D_VISION_PRO_TRANSCEIVER 13 /* R--T */
 
+/*
+ * NV_CTRL_BINARY_DATA_DISPLAY_TARGETS - Returns all the display devices
+ * currently connected to any GPU on the X server.
+ *
+ * The format of the returned data is:
+ *
+ *     4       CARD32 number of display devices
+ *     4 * n   CARD32 display device indices
+ *
+ * This attribute can only be queried through XNVCTRLQueryTargetBinaryData().
+ */
+
+#define NV_CTRL_BINARY_DATA_DISPLAY_TARGETS                  14  /* R--- */
+
+/*
+ * NV_CTRL_BINARY_DATA_DISPLAYS_CONNECTED_TO_GPU - Returns the list of
+ * display devices that are connected to the GPU target.
+ *
+ * The format of the returned data is:
+ *
+ *     4       CARD32 number of display devices
+ *     4 * n   CARD32 display device indices
+ *
+ * This attribute can only be queried through XNVCTRLQueryTargetBinaryData()
+ * using a NV_CTRL_TARGET_TYPE_GPU target.
+ */
+
+#define NV_CTRL_BINARY_DATA_DISPLAYS_CONNECTED_TO_GPU        15  /* R--G */
+
+
 #define NV_CTRL_BINARY_DATA_LAST_ATTRIBUTE \
-        NV_CTRL_BINARY_DATA_GLASSES_PAIRED_TO_3D_VISION_PRO_TRANSCEIVER
+        NV_CTRL_BINARY_DATA_DISPLAYS_CONNECTED_TO_GPU
 
 
 /**************************************************************************/
@@ -4365,7 +4399,9 @@
  *
  * ATTRIBUTE_TYPE_READ      - Attribute may be read (queried.)
  * ATTRIBUTE_TYPE_WRITE     - Attribute may be written to (set.)
- * ATTRIBUTE_TYPE_DISPLAY   - Attribute requires a display mask.
+ * ATTRIBUTE_TYPE_DISPLAY   - Attribute is valid for display target types
+ *                            (requires a display_mask if queried via
+ *                            a GPU or X screen.)
  * ATTRIBUTE_TYPE_GPU       - Attribute is valid for GPU target types.
  * ATTRIBUTE_TYPE_FRAMELOCK - Attribute is valid for Frame Lock target types.
  * ATTRIBUTE_TYPE_X_SCREEN  - Attribute is valid for X Screen target types.
@@ -4406,6 +4442,17 @@
 #define ATTRIBUTE_TYPE_COOLER     0x200
 #define ATTRIBUTE_TYPE_THERMAL_SENSOR 0x400
 #define ATTRIBUTE_TYPE_3D_VISION_PRO_TRANSCEIVER 0x800
+
+#define ATTRIBUTE_TYPE_ALL_TARGETS                \
+    ((ATTRIBUTE_TYPE_DISPLAY)                   | \
+     (ATTRIBUTE_TYPE_GPU)                       | \
+     (ATTRIBUTE_TYPE_FRAMELOCK)                 | \
+     (ATTRIBUTE_TYPE_X_SCREEN)                  | \
+     (ATTRIBUTE_TYPE_VCSC)                      | \
+     (ATTRIBUTE_TYPE_GVI)                       | \
+     (ATTRIBUTE_TYPE_COOLER)                    | \
+     (ATTRIBUTE_TYPE_THERMAL_SENSOR)            | \
+     (ATTRIBUTE_TYPE_3D_VISION_PRO_TRANSCEIVER))
 
 typedef struct _NVCTRLAttributeValidValues {
     int type;

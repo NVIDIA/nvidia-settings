@@ -384,18 +384,6 @@ GtkWidget* ctk_dithering_controls_new(NvCtrlAttributeHandle *handle,
                      CTK_EVENT_NAME(NV_CTRL_DITHERING_DEPTH),
                      G_CALLBACK(dithering_update_received),
                      (gpointer) ctk_dithering_controls);
-    g_signal_connect(G_OBJECT(ctk_event),
-                     CTK_EVENT_NAME(NV_CTRL_CURRENT_DITHERING),
-                     G_CALLBACK(dithering_update_received),
-                     (gpointer) ctk_dithering_controls);
-    g_signal_connect(G_OBJECT(ctk_event),
-                     CTK_EVENT_NAME(NV_CTRL_CURRENT_DITHERING_MODE),
-                     G_CALLBACK(dithering_update_received),
-                     (gpointer) ctk_dithering_controls);
-    g_signal_connect(G_OBJECT(ctk_event),
-                     CTK_EVENT_NAME(NV_CTRL_CURRENT_DITHERING_DEPTH),
-                     G_CALLBACK(dithering_update_received),
-                     (gpointer) ctk_dithering_controls);
 
     return GTK_WIDGET(object);
 
@@ -603,6 +591,7 @@ void post_dithering_config_update(CtkDitheringControls *ctk_dithering_controls,
         return;
     }
 
+    gtk_widget_set_sensitive(ctk_dithering_controls->reset_button, TRUE);
     ctk_config_statusbar_message(ctk_dithering_controls->ctk_config,
                                  "Dithering set to %s for %s.",
                                  dither_config_table[dithering_config],
@@ -625,6 +614,7 @@ void post_dithering_mode_update(CtkDitheringControls *ctk_dithering_controls,
         return;
     }
 
+    gtk_widget_set_sensitive(ctk_dithering_controls->reset_button, TRUE);
     ctk_config_statusbar_message(ctk_dithering_controls->ctk_config,
                                  "Dithering mode set to %s for %s.",
                                  dither_mode_table[dithering_mode],
@@ -646,6 +636,7 @@ void post_dithering_depth_update(CtkDitheringControls *ctk_dithering_controls,
         return;
     }
 
+    gtk_widget_set_sensitive(ctk_dithering_controls->reset_button, TRUE);
     ctk_config_statusbar_message(ctk_dithering_controls->ctk_config,
                                  "Dithering depth set to %s for %s.",
                                  dither_depth_table[dithering_depth],
@@ -696,7 +687,6 @@ static void dithering_config_menu_changed(GtkOptionMenu *dithering_config_menu,
     /* reflecting the change in configuration to other widgets & reset button */
     ctk_dithering_controls_setup(ctk_dithering_controls);
     post_dithering_config_update(ctk_dithering_controls, dithering_config);
-    gtk_widget_set_sensitive(ctk_dithering_controls->reset_button, TRUE);
 
 } /* dithering_config_menu_changed() */
 
@@ -736,7 +726,6 @@ static void dithering_mode_menu_changed(GtkOptionMenu *dithering_mode_menu,
     /* reflecting the change in mode to other widgets & reset button */
     ctk_dithering_controls_setup(ctk_dithering_controls);
     post_dithering_mode_update(ctk_dithering_controls, dithering_mode);
-    gtk_widget_set_sensitive(ctk_dithering_controls->reset_button, TRUE);
 
 } /* dithering_mode_menu_changed() */
 
@@ -784,7 +773,6 @@ static void dithering_depth_menu_changed(GtkOptionMenu *dithering_depth_menu,
     /* reflecting the change in configuration to other widgets & reset button */
     ctk_dithering_controls_setup(ctk_dithering_controls);
     post_dithering_depth_update(ctk_dithering_controls, dithering_depth);
-    gtk_widget_set_sensitive(ctk_dithering_controls->reset_button, TRUE);
 
 } /* dithering_depth_menu_changed() */
 
@@ -847,6 +835,16 @@ static void dithering_update_received(GtkObject *object, gpointer arg1,
     }
 
     ctk_dithering_controls_setup(ctk_object);
+
+    /* update status bar message */
+    switch (event_struct->attribute) {
+    case NV_CTRL_DITHERING:
+        post_dithering_config_update(ctk_object, event_struct->value); break;
+    case NV_CTRL_DITHERING_MODE:
+        post_dithering_mode_update(ctk_object, event_struct->value); break;
+    case NV_CTRL_DITHERING_DEPTH:
+        post_dithering_depth_update(ctk_object, event_struct->value); break;
+    }
 } /* dithering_update_received()  */
 
 

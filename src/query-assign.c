@@ -104,6 +104,7 @@ CtrlHandles *nv_alloc_ctrl_handles(const char *display)
     NvCtrlAttributeHandle *handle;
     int target, i, j, val, d, c, len;
     char *tmp;
+    int *pData = NULL;
 
     /* allocate the CtrlHandles struct */
     
@@ -176,9 +177,23 @@ CtrlHandles *nv_alloc_ctrl_handles(const char *display)
                      ((major == targetTypeTable[j].major) &&
                       (minor >= targetTypeTable[j].minor)))) {
 
-                    status = NvCtrlQueryTargetCount
-                                (pQueryHandle, targetTypeTable[j].nvctrl,
-                                 &val);
+                    if (target != DISPLAY_TARGET) {
+                        status = NvCtrlQueryTargetCount
+                            (pQueryHandle, targetTypeTable[j].nvctrl,
+                             &val);
+                    } else {
+                        /* For targets that aren't simply enumerated,
+                         * query the list of valid IDs in pData which
+                         * will be used below
+                         */
+                        status =
+                            NvCtrlGetBinaryAttribute(pQueryHandle, 0,
+                                                     NV_CTRL_BINARY_DATA_DISPLAY_TARGETS,
+                                                     (unsigned char **)(&pData), &len);
+                        if (status == NvCtrlSuccess) {
+                            val = pData[0];
+                        }
+                    }
                 } else {
                     status = NvCtrlMissingExtension;
                 }
@@ -199,8 +214,14 @@ CtrlHandles *nv_alloc_ctrl_handles(const char *display)
     
         /* if there are no targets of this type, skip */
 
-        if (h->targets[target].n == 0) continue;
-        
+        if (h->targets[target].n == 0) {
+            if (pData) {
+                XFree(pData);
+                pData = NULL;
+            }
+            continue;
+        }
+
         /* allocate an array of CtrlHandleTarget's */
 
         h->targets[target].t =
@@ -212,11 +233,29 @@ CtrlHandles *nv_alloc_ctrl_handles(const char *display)
          */
 
         for (i = 0; i < h->targets[target].n; i++) {
-        
+            int targetId;
+
+            switch (target) {
+            case DISPLAY_TARGET:
+                /* Grab the target Id from the pData list */
+                targetId = pData[i+1];
+                break;
+            case X_SCREEN_TARGET:
+            case GPU_TARGET:
+            case FRAMELOCK_TARGET:
+            case VCS_TARGET:
+            case GVI_TARGET:
+            case COOLER_TARGET:
+            case THERMAL_SENSOR_TARGET:
+            case NVIDIA_3D_VISION_PRO_TRANSCEIVER_TARGET:
+            default:
+                targetId = i;
+            }
+
             /* allocate the handle */
             
             handle = NvCtrlAttributeInit(h->dpy,
-                                         targetTypeTable[j].nvctrl, i,
+                                         targetTypeTable[j].nvctrl, targetId,
                                          NV_CTRL_ATTRIBUTES_ALL_SUBSYSTEMS);
             
             h->targets[target].t[i].h = handle;
@@ -225,9 +264,15 @@ CtrlHandles *nv_alloc_ctrl_handles(const char *display)
              * silently fail: this might happen if not all X screens
              * are NVIDIA X screens
              */
-            
-            if (!handle) continue;
-            
+
+            if (!handle) {
+                if (pData) {
+                    XFree(pData);
+                    pData = NULL;
+                }
+                continue;
+            }
+
             /*
              * get a name for this target; in the case of
              * X_SCREEN_TARGET targets, just use the string returned
@@ -293,6 +338,11 @@ CtrlHandles *nv_alloc_ctrl_handles(const char *display)
              */
             
             if (!pQueryHandle) pQueryHandle = handle;
+        }
+
+        if (pData) {
+            XFree(pData);
+            pData = NULL;
         }
     }
     
@@ -426,6 +476,11 @@ static int process_attribute_queries(int num, char **queries,
 
         if (nv_strcasecmp(queries[query], "svps")) {
             query_all_targets(display_name, NVIDIA_3D_VISION_PRO_TRANSCEIVER_TARGET);
+            continue;
+        }
+
+        if (nv_strcasecmp(queries[query], "dpys")) {
+            query_all_targets(display_name, DISPLAY_TARGET);
             continue;
         }
 
@@ -1147,44 +1202,22 @@ static int print_target_display_connections(CtrlHandleTarget *t)
 
 
 /*
- * get_vcs_name() Returns the VCS product name of the given
- * VCS target.
+ * get_product_name() Returns the (GPU, X screen, display device or VCS)
+ * product name of the given target.
  */
 
-static char * get_vcs_name(NvCtrlAttributeHandle *h)
+static char * get_product_name(NvCtrlAttributeHandle *h, int attr)
 {
     char *product_name;
     ReturnStatus status;
 
-    status = NvCtrlGetStringAttribute(h, NV_CTRL_STRING_VCSC_PRODUCT_NAME,
-                                      &product_name);
-    
+    status = NvCtrlGetStringAttribute(h, attr, &product_name);
+
     if (status != NvCtrlSuccess) return strdup("Unknown");
-    
+
     return product_name;
 
-} /* get_vcs_name() */
-
-
-
-/*
- * get_gpu_name() Returns the GPU product name of the given
- * GPU target.
- */
-
-static char * get_gpu_name(NvCtrlAttributeHandle *h)
-{
-    char *product_name;
-    ReturnStatus status;
-
-    status = NvCtrlGetStringAttribute(h, NV_CTRL_STRING_PRODUCT_NAME,
-                                      &product_name);
-    
-    if (status != NvCtrlSuccess) return strdup("Unknown");
-    
-    return product_name;
-
-} /* get_gpu_name() */
+} /* get_product_name() */
 
 
 
@@ -1240,12 +1273,20 @@ static int print_target_connections(CtrlHandles *h,
             switch (target_index) {
             case GPU_TARGET:
                 product_name =
-                    get_gpu_name(h->targets[target_index].t[ pData[i] ].h);
+                    get_product_name(h->targets[target_index].t[ pData[i] ].h,
+                                     NV_CTRL_STRING_PRODUCT_NAME);
                 break;
                 
             case VCS_TARGET:
                 product_name =
-                    get_vcs_name(h->targets[target_index].t[ pData[i] ].h);
+                    get_product_name(h->targets[target_index].t[ pData[i] ].h,
+                                     NV_CTRL_STRING_VCSC_PRODUCT_NAME);
+                break;
+
+            case DISPLAY_TARGET:
+                product_name =
+                    get_product_name(h->targets[target_index].t[ pData[i] ].h,
+                                     NV_CTRL_STRING_DISPLAY_DEVICE_NAME);
                 break;
 
             case NVIDIA_3D_VISION_PRO_TRANSCEIVER_TARGET:
@@ -1299,7 +1340,6 @@ static int query_all_targets(const char *display_name, const int target_index)
 {
     CtrlHandles *h;
     CtrlHandleTarget *t;
-    ReturnStatus status;
     int i, table_index;
     char *str, *name, *product_name;
     
@@ -1379,31 +1419,31 @@ static int query_all_targets(const char *display_name, const int target_index)
 
             product_name = malloc(32);
             snprintf(product_name, 32, "G-Sync %d", i);
-            
+
         } else if (target_index == VCS_TARGET) {
 
-            status = NvCtrlGetStringAttribute
-                (t->h, NV_CTRL_STRING_VCSC_PRODUCT_NAME, &product_name);
-            
-            if (status != NvCtrlSuccess) product_name = strdup("Unknown");
-            
+            product_name = get_product_name(t->h,
+                                            NV_CTRL_STRING_VCSC_PRODUCT_NAME);
+
         } else if (target_index == GVI_TARGET) {
             
             /* for gvi, create the product name */
 
             product_name = malloc(32);
             snprintf(product_name, 32, "SDI Input %d", i);
+
+        } else if (target_index == DISPLAY_TARGET) {
+
+            product_name = get_product_name(t->h,
+                                            NV_CTRL_STRING_DISPLAY_DEVICE_NAME);
+
         } else {
 
             /* for X_SCREEN_TARGET or GPU_TARGET, query the product name */
+            product_name = get_product_name(t->h, NV_CTRL_STRING_PRODUCT_NAME);
 
-            status = NvCtrlGetStringAttribute
-                (t->h, NV_CTRL_STRING_PRODUCT_NAME, &product_name);
-            
-            if (status != NvCtrlSuccess) product_name = strdup("Unknown");
-            
         }
-        
+
         /*
          * use the name for the target handle, or "Unknown" if we
          * don't have a target handle name (this can happen for a
@@ -1444,6 +1484,9 @@ static int query_all_targets(const char *display_name, const int target_index)
                 print_target_connections
                     (h, t, NV_CTRL_BINARY_DATA_THERMAL_SENSORS_USED_BY_GPU,
                      THERMAL_SENSOR_TARGET);
+                print_target_connections
+                    (h, t, NV_CTRL_BINARY_DATA_DISPLAYS_CONNECTED_TO_GPU,
+                     GPU_TARGET);
                 break;
 
             case X_SCREEN_TARGET:
@@ -1469,13 +1512,13 @@ static int query_all_targets(const char *display_name, const int target_index)
                     (h, t, NV_CTRL_BINARY_DATA_COOLERS_USED_BY_GPU,
                      COOLER_TARGET);
                 break;
-            
+
             case THERMAL_SENSOR_TARGET:
                 print_target_connections
                     (h, t, NV_CTRL_BINARY_DATA_THERMAL_SENSORS_USED_BY_GPU,
                      THERMAL_SENSOR_TARGET);
                 break;
-            
+
             default:
                 break;
             }

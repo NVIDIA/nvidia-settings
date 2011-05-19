@@ -52,6 +52,7 @@
  *             report false positives via the GPU and X screen target types
  * 1.25        Added 3D_VISION_PRO_TRANSCEIVER TargetType
  * 1.26        Added XNVCTRLQueryXXXAttributePermissions.
+ * 1.27        Added DISPLAY TargetType
  */
 
 #ifndef __NVCONTROL_H
@@ -62,7 +63,7 @@
 #define NV_CONTROL_NAME "NV-CONTROL"
 
 #define NV_CONTROL_MAJOR 1
-#define NV_CONTROL_MINOR 26
+#define NV_CONTROL_MINOR 27
 
 #define X_nvCtrlQueryExtension                      0
 #define X_nvCtrlIsNv                                1

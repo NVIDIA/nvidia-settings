@@ -83,9 +83,12 @@ typedef struct _CtkDisplayConfig
     int display_model_table_len;
     GtkWidget *txt_display_gpu;
 
-    GtkWidget *btn_display_config;
-    GtkWidget *txt_display_config;
-
+    GtkWidget *box_display_config;
+    GtkWidget *mnu_display_config;
+    GtkWidget *mnu_display_config_disabled;
+    GtkWidget *mnu_display_config_xscreen;
+    GtkWidget *mnu_display_config_twinview;
+    
     /* Display - Settings */
     GtkWidget *box_display_resolution;
     GtkWidget *mnu_display_resolution;
@@ -138,12 +141,6 @@ typedef struct _CtkDisplayConfig
     int screen_depth_table_len;
 
     /* Dialogs */
-    GtkWidget *dlg_display_config;
-    GtkWidget *rad_display_config_disabled;
-    GtkWidget *rad_display_config_xscreen;
-    GtkWidget *rad_display_config_twinview;
-    GtkWidget *btn_display_config_cancel;
-
     GtkWidget *dlg_display_disable;
     GtkWidget *txt_display_disable;
     GtkWidget *btn_display_disable_off;

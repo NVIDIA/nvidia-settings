@@ -78,6 +78,8 @@ void display_remove_modes(nvDisplayPtr display);
 /* Screen functions */
 
 void renumber_xscreens(nvLayoutPtr layout);
+void screen_unlink_display(nvDisplayPtr display);
+void screen_link_display(nvScreenPtr screen, nvDisplayPtr display);
 void screen_remove_display(nvDisplayPtr display);
 gchar * screen_get_metamode_str(nvScreenPtr screen, int metamode_idx,
                                 int be_generic);
@@ -91,17 +93,17 @@ nvDisplayPtr gpu_add_display_from_server(nvGpuPtr gpu,
                                          unsigned int device_mask,
                                          gchar **err_str);
 
-void gpu_remove_and_free_screen(nvScreenPtr screen);
 Bool gpu_add_screenless_modes_to_displays(nvGpuPtr gpu);
 
 
 /* Layout functions */
 
 void layout_free(nvLayoutPtr layout);
+void layout_add_screen(nvLayoutPtr layout, nvScreenPtr screen);
 nvLayoutPtr layout_load_from_server(NvCtrlAttributeHandle *handle,
                                     gchar **err_str);
 nvScreenPtr layout_get_a_screen(nvLayoutPtr layout, nvGpuPtr preferred_gpu);
-
+void layout_remove_and_free_screen(nvScreenPtr screen);
 
 
 
