@@ -1761,6 +1761,7 @@ void gpu_remove_and_free_display(nvDisplayPtr display)
             }
         }
     }
+    gpu->connected_displays &= ~(display->device_mask);
     gpu->num_displays--;
 
     display_free(display);
@@ -1781,6 +1782,7 @@ static void gpu_remove_displays(nvGpuPtr gpu)
     while (gpu->displays) {
         gpu_remove_and_free_display(gpu->displays);
     }
+    gpu->connected_displays = 0;
 
 } /* gpu_remove_displays() */
 
