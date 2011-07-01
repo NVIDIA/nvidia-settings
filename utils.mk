@@ -111,6 +111,20 @@ CFLAGS += $(CC_ONLY_CFLAGS)
 
 
 ##############################################################################
+# This makefile uses the $(eval) builtin function, which was added in
+# GNU make 3.80.  Check that the current make version recognizes it.
+# Idea suggested by:  http://www.jgc.org/blog/cookbook-sample.pdf
+##############################################################################
+
+_eval_available :=
+$(eval _eval_available := T)
+
+ifneq ($(_eval_available),T)
+  $(error This Makefile requires a GNU Make that supports 'eval'.  Please upgrade to GNU make 3.80 or later)
+endif
+
+
+##############################################################################
 # define variables used when installing the open source utilities from
 # the source tarball
 ##############################################################################
