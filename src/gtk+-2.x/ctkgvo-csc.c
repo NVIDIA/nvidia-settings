@@ -685,7 +685,7 @@ static void make_entry(CtkGvoCsc *ctk_gvo_csc,
                                                1.0,     // upper
                                                0.001,   // step incr
                                                0.1,     // page incr
-                                               0.1);    // page size
+                                               0);      // page size
     
     *widget = gtk_spin_button_new(adj,                  // adjustment
                                   0.001,                // climb rate
