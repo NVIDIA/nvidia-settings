@@ -1813,6 +1813,7 @@ static void gpu_add_display(nvGpuPtr gpu, nvDisplayPtr display)
             }
         }
     }
+    gpu->connected_displays |= display->device_mask;
     gpu->num_displays++;
 
 } /* gpu_add_display() */
@@ -2547,11 +2548,8 @@ static Bool layout_add_screen_from_server(nvLayoutPtr layout,
     screen->dim[W] = NvCtrlGetScreenWidth(screen->handle);
     screen->dim[H] = NvCtrlGetScreenHeight(screen->handle);
 
-
-
-    /* Add the screen at the end of the gpu's screen list */
+    /* Add the screen to the layout */
     layout_add_screen(layout, screen);
-
 
     /* Parse the screen's metamodes (ties displays on the gpu to the screen) */
     if (!screen->no_scanout) {
@@ -2568,13 +2566,13 @@ static Bool layout_add_screen_from_server(nvLayoutPtr layout,
              0,
              NV_CTRL_STRING_TWINVIEW_XINERAMA_INFO_ORDER,
              &primary_str);
-        
+
         if (ret == NvCtrlSuccess) {
             unsigned int  device_mask;
-            
+
             /* Parse the device mask */
             parse_read_display_name(primary_str, &device_mask);
-            
+
             /* Find the matching primary display */
             screen->primaryDisplay = gpu_get_display(screen->gpu, device_mask);
         }
@@ -2583,7 +2581,13 @@ static Bool layout_add_screen_from_server(nvLayoutPtr layout,
     return TRUE;
 
  fail:
-    screen_free(screen);
+    if (screen) {
+        if (screen->layout) {
+            layout_remove_and_free_screen(screen);
+        } else {
+            screen_free(screen);
+        }
+    }
 
     return FALSE;
 
