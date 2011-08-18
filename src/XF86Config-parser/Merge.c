@@ -713,6 +713,38 @@ static int xconfigMergeLayout(XConfigPtr dstConfig, XConfigPtr srcConfig)
 
 
 /*
+ * xconfigMergeExtensions() - Updates information in the destination's extension
+ * section with that of the source's extension section. 
+ * Currently considering composite extension only.
+ *
+ */
+static int  xconfigMergeExtensions(XConfigPtr dstConfig, XConfigPtr srcConfig)
+{
+   if (srcConfig->extensions) {
+        XConfigOptionPtr option;
+
+        /* Extension section was not found, create a new one */
+        if (!dstConfig->extensions) {
+            dstConfig->extensions =
+                (XConfigExtensionsPtr) calloc(1, sizeof(XConfigExtensionsRec));
+            if (!dstConfig->extensions) return 0;
+        }
+
+        option = srcConfig->extensions->options;
+        while (option) {
+            xconfigMergeOption(&(dstConfig->extensions->options),
+                               &(srcConfig->extensions->options),
+                               xconfigOptionName(option),
+                               &(dstConfig->extensions->comment));
+            option = option->next;
+        }
+    }
+
+    return 1;
+
+} /* xconfigMergeExtensions() */
+
+/*
  * xconfigMergeConfigs() - Merges the source X configuration with the
  * destination X configuration.
  *
@@ -762,6 +794,13 @@ int xconfigMergeConfigs(XConfigPtr dstConfig, XConfigPtr srcConfig)
     if (!xconfigMergeLayout(dstConfig, srcConfig)) {
         return 0;
     }
+
+    /* Merge the extensions */
+    
+    if (!xconfigMergeExtensions(dstConfig, srcConfig)) {
+        return 0;
+    }
+
 
     return 1;
 

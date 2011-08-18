@@ -7187,6 +7187,20 @@ static int generateXConfig(CtkDisplayConfig *ctk_object, XConfigPtr *pConfig)
         goto fail;
     }
 
+    if (go.supports_extension_section && layout->xinerama_enabled) {
+
+        if (!config->extensions) {
+            config->extensions = calloc(1, sizeof(XConfigExtensionsRec));
+        }
+
+        /* remove any existing composite extension option and then add the option*/
+        xconfigRemoveNamedOption(&(config->extensions->options), "Composite",
+                                 NULL);
+        xconfigAddNewOption(&config->extensions->options, "Composite", "Disable");
+
+    }
+
+
 
     *pConfig = config;
 
