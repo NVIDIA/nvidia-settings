@@ -116,6 +116,8 @@ int xconfigWriteConfigFile (const char *filename, XConfigPtr cptr)
 
     xconfigPrintInputSection (cf, cptr->inputs);
 
+    xconfigPrintInputClassSection (cf, cptr->inputclasses);
+
     xconfigPrintVideoAdaptorSection (cf, cptr->videoadaptors);
 
     xconfigPrintModesSection (cf, cptr->modes);

@@ -84,6 +84,8 @@ static int parse_config_property(const char *file, const char *line,
 static void write_config_properties(FILE *stream, ConfigProperties *conf,
                                     char *locale);
 
+extern int __verbosity;
+extern int __verbosity_level_changed;
 
 /*
  * nv_read_config_file() - read the specified config file, building a
@@ -582,6 +584,15 @@ static int process_config_file_attributes(const char *file,
     int i, j, ret, found, n = 0;
     CtrlHandles **h = NULL;
     
+    int old_verbosity = __verbosity;
+
+    /* Override the verbosity in the default behavior so
+     * nvidia-settings isn't so alarmist when loading the RC file.
+     */
+    if (!__verbosity_level_changed) {
+        __verbosity = VERBOSITY_NONE;
+    }
+
     /*
      * make sure that all ParsedAttributes have displays (this will do
      * nothing if we already have a display name
@@ -638,6 +649,12 @@ static int process_config_file_attributes(const char *file,
          */
     }
     
+    /* Reset the default verbosity */
+
+    if (!__verbosity_level_changed) {
+        __verbosity = old_verbosity;
+    }
+
     /* free all the CtrlHandles we allocated */
 
     for (i = 0; i < n; i++) {

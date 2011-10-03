@@ -195,6 +195,13 @@ XConfigError xconfigReadConfigFile(XConfigPtr *configPtr)
                 READ_HANDLE_LIST(inputs, xconfigParseInputSection,
                                  XConfigInputPtr);
             }
+            else if ((xconfigNameCompare(val.str, "inputclass") == 0))
+            {
+                free(val.str);
+                val.str = NULL;
+                READ_HANDLE_LIST(inputclasses, xconfigParseInputClassSection,
+                                 XConfigInputClassPtr);
+            }
             else if (xconfigNameCompare(val.str, "module") == 0)
             {
                 free(val.str);

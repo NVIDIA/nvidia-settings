@@ -71,6 +71,29 @@ XConfigSymTabRec InputTab[] =
     {-1, ""},
 };
 
+static
+XConfigSymTabRec InputClassTab[] =
+{   {ENDSECTION, "endsection"},
+    {IDENTIFIER, "identifier"},
+    {MATCHPRODUCT, "matchproduct"},
+    {MATCHVENDOR, "matchvendor"},
+    {MATCHOS, "matchos"},
+    {MATCHDEVICEPATH, "matchdevicepath"},
+    {MATCHPNPID, "matchpnpid"},
+    {MATCHUSBID, "matchusbid"},
+    {MATCHDRIVER, "matchdriver"},
+    {MATCHTAG, "matchtag"},
+    {MATCHISKEYBOARD, "matchiskeyboard"},
+    {MATCHISJOYSTICK, "matchisjoystick"},
+    {MATCHISTABLET, "matchistablet"},
+    {MATCHISTOUCHSCREEN, "matchistouchscreen"},
+    {MATCHISTOUCHPAD, "matchistouchpad"},
+    {MATCHISPOINTER, "matchispointer"},
+    {OPTION, "option"},
+    {DRIVER, "driver"},
+    {-1, ""},
+};
+
 #define CLEANUP xconfigFreeInputList
 
 XConfigInputPtr
@@ -120,6 +143,125 @@ xconfigParseInputSection (void)
 
 #undef CLEANUP
 
+#define CLEANUP xconfigFreeInputClassList
+
+XConfigInputClassPtr
+xconfigParseInputClassSection (void)
+{
+    int has_ident = FALSE;
+    int token;
+    PARSE_PROLOGUE (XConfigInputClassPtr, XConfigInputClassRec)
+
+    while ((token = xconfigGetToken (InputClassTab)) != ENDSECTION)
+    {
+        switch (token)
+        {
+        case COMMENT:
+            ptr->comment = xconfigAddComment(ptr->comment, val.str);
+            break;
+        case IDENTIFIER:
+            if (xconfigGetSubToken (&(ptr->comment)) != STRING)
+                Error (QUOTE_MSG, "Identifier");
+            if (has_ident == TRUE)
+                Error (MULTIPLE_MSG, "Identifier");
+            ptr->identifier = val.str;
+            has_ident = TRUE;
+            break;
+        case DRIVER:
+            if (xconfigGetSubToken (&(ptr->comment)) != STRING)
+                Error (QUOTE_MSG, "Driver");
+            ptr->driver = val.str;
+            break;
+        case MATCHDEVICEPATH:
+            if (xconfigGetSubToken (&(ptr->comment)) != STRING)
+                Error (QUOTE_MSG, "MatchDevicePath");
+            ptr->match_device_path = val.str;
+            break;
+        case MATCHISPOINTER:
+            if (xconfigGetSubToken (&(ptr->comment)) != STRING)
+                Error (QUOTE_MSG, "MatchIsPointer");
+            ptr->match_is_pointer = val.str;
+            break;
+        case MATCHISTOUCHPAD:
+            if (xconfigGetSubToken (&(ptr->comment)) != STRING)
+                Error (QUOTE_MSG, "MatchIsTouchpad");
+            ptr->match_is_touchpad = val.str;
+            break;
+        case MATCHISKEYBOARD:
+            if (xconfigGetSubToken (&(ptr->comment)) != STRING)
+                Error (QUOTE_MSG, "MatchIsKeyboard");
+            ptr->match_is_keyboard = val.str;
+            break;
+        case MATCHISTOUCHSCREEN:
+            if (xconfigGetSubToken (&(ptr->comment)) != STRING)
+                Error (QUOTE_MSG, "MatchIsTouchscreen");
+            ptr->match_is_touchscreen = val.str;
+            break;
+        case MATCHISJOYSTICK:
+            if (xconfigGetSubToken (&(ptr->comment)) != STRING)
+                Error (QUOTE_MSG, "MatchIsJoystick");
+            ptr->match_is_joystick = val.str;
+            break;
+        case MATCHISTABLET:
+            if (xconfigGetSubToken (&(ptr->comment)) != STRING)
+                Error (QUOTE_MSG, "MatchIsTablet");
+            ptr->match_is_tablet = val.str;
+            break;
+        case MATCHUSBID:
+            if (xconfigGetSubToken (&(ptr->comment)) != STRING)
+                Error (QUOTE_MSG, "MatchUSBID");
+            ptr->match_usb_id = val.str;
+            break;
+        case MATCHPNPID:
+            if (xconfigGetSubToken (&(ptr->comment)) != STRING)
+                Error (QUOTE_MSG, "MatchPnPID");
+            ptr->match_pnp_id = val.str;
+            break;
+        case MATCHPRODUCT:
+            if (xconfigGetSubToken (&(ptr->comment)) != STRING)
+                Error (QUOTE_MSG, "MatchProduct");
+            ptr->match_product = val.str;
+            break;
+        case MATCHDRIVER:
+            if (xconfigGetSubToken (&(ptr->comment)) != STRING)
+                Error (QUOTE_MSG, "MatchDriver");
+            ptr->match_driver = val.str;
+            break;
+        case MATCHOS:
+            if (xconfigGetSubToken (&(ptr->comment)) != STRING)
+                Error (QUOTE_MSG, "MatchOS");
+            ptr->match_os = val.str;
+            break;
+        case MATCHTAG:
+            if (xconfigGetSubToken (&(ptr->comment)) != STRING)
+                Error (QUOTE_MSG, "MatchTag");
+            ptr->match_tag = val.str;
+            break;
+        case MATCHVENDOR:
+            if (xconfigGetSubToken (&(ptr->comment)) != STRING)
+                Error (QUOTE_MSG, "MatchVendor");
+            ptr->match_vendor = val.str;
+            break;
+        case OPTION:
+            ptr->options = xconfigParseOption(ptr->options);
+            break;
+        case EOF_TOKEN:
+            Error (UNEXPECTED_EOF_MSG, NULL);
+            break;
+        default:
+            Error (INVALID_KEYWORD_MSG, xconfigTokenString ());
+            break;
+        }
+    }
+
+    if (!has_ident)
+        Error (NO_IDENT_MSG, NULL);
+
+    return ptr;
+}
+
+#undef CLEANUP
+
 void
 xconfigPrintInputSection (FILE * cf, XConfigInputPtr ptr)
 {
@@ -139,6 +281,50 @@ xconfigPrintInputSection (FILE * cf, XConfigInputPtr ptr)
 }
 
 void
+xconfigPrintInputClassSection (FILE * cf, XConfigInputClassPtr ptr)
+{
+    while (ptr)
+    {
+        fprintf (cf, "Section \"InputClass\"\n");
+        if (ptr->comment)
+            fprintf (cf, "%s", ptr->comment);
+        if (ptr->identifier)
+            fprintf (cf, "    Identifier         \"%s\"\n", ptr->identifier);
+        if (ptr->driver)
+            fprintf (cf, "    Driver             \"%s\"\n", ptr->driver);
+        if (ptr->match_is_pointer)
+            fprintf (cf, "    MatchIsPointer     \"%s\"\n", ptr->match_is_pointer);
+        if (ptr->match_is_touchpad)
+            fprintf (cf, "    MatchIsTouchpad    \"%s\"\n", ptr->match_is_touchpad);
+        if (ptr->match_is_keyboard)
+            fprintf (cf, "    MatchIsKeyboard    \"%s\"\n", ptr->match_is_keyboard);
+        if (ptr->match_is_joystick)
+            fprintf (cf, "    MatchIsJoystick    \"%s\"\n", ptr->match_is_joystick);
+        if (ptr->match_is_touchscreen)
+            fprintf (cf, "    MatchIsTouchscreen \"%s\"\n", ptr->match_is_touchscreen);
+        if (ptr->match_is_tablet)
+            fprintf (cf, "    MatchIsTablet      \"%s\"\n", ptr->match_is_tablet);
+        if (ptr->match_device_path)
+            fprintf (cf, "    MatchDevicePath    \"%s\"\n", ptr->match_device_path);
+        if (ptr->match_os)
+            fprintf (cf, "    MatchOS            \"%s\"\n", ptr->match_os);
+        if (ptr->match_pnp_id)
+            fprintf (cf, "    MatchPnPID         \"%s\"\n", ptr->match_pnp_id);
+        if (ptr->match_driver)
+            fprintf (cf, "    MatchDriver        \"%s\"\n", ptr->match_driver);
+        if (ptr->match_usb_id)
+            fprintf (cf, "    MatchUSBID         \"%s\"\n", ptr->match_usb_id);
+        if (ptr->match_tag)
+            fprintf (cf, "    MatchTag           \"%s\"\n", ptr->match_tag);
+        if (ptr->match_vendor)
+            fprintf (cf, "    MatchVendor        \"%s\"\n", ptr->match_vendor);
+        xconfigPrintOptionList(cf, ptr->options, 1);
+        fprintf (cf, "EndSection\n\n");
+        ptr = ptr->next;
+    }
+}
+
+void
 xconfigFreeInputList (XConfigInputPtr *ptr)
 {
     XConfigInputPtr prev;
@@ -151,6 +337,40 @@ xconfigFreeInputList (XConfigInputPtr *ptr)
         TEST_FREE ((*ptr)->identifier);
         TEST_FREE ((*ptr)->driver);
         TEST_FREE ((*ptr)->comment);
+        xconfigFreeOptionList (&((*ptr)->options));
+
+        prev = *ptr;
+        *ptr = (*ptr)->next;
+        free (prev);
+    }
+}
+
+void
+xconfigFreeInputClassList (XConfigInputClassPtr *ptr)
+{
+    XConfigInputClassPtr prev;
+
+    if (ptr == NULL || *ptr == NULL)
+        return;
+
+    while (*ptr)
+    {
+        TEST_FREE ((*ptr)->identifier);
+        TEST_FREE ((*ptr)->driver);
+        TEST_FREE ((*ptr)->comment);
+        TEST_FREE ((*ptr)->match_product);
+        TEST_FREE ((*ptr)->match_vendor);
+        TEST_FREE ((*ptr)->match_driver);
+        TEST_FREE ((*ptr)->match_device_path);
+        TEST_FREE ((*ptr)->match_os);
+        TEST_FREE ((*ptr)->match_pnp_id);
+        TEST_FREE ((*ptr)->match_usb_id);
+        TEST_FREE ((*ptr)->match_is_pointer);
+        TEST_FREE ((*ptr)->match_is_touchpad);
+        TEST_FREE ((*ptr)->match_is_touchscreen);
+        TEST_FREE ((*ptr)->match_is_keyboard);
+        TEST_FREE ((*ptr)->match_is_tablet);
+        TEST_FREE ((*ptr)->match_is_joystick);
         xconfigFreeOptionList (&((*ptr)->options));
 
         prev = *ptr;

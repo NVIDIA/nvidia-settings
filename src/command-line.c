@@ -53,6 +53,8 @@ static void print_help(void);
 int __verbosity = VERBOSITY_DEFAULT;
 int __terse = NV_FALSE;
 int __display_device_string = NV_FALSE;
+int __verbosity_level_changed = NV_FALSE;
+
 /*
  * print_version() - print version information
  */
@@ -271,6 +273,8 @@ Options *parse_command_line(int argc, char *argv[], char *dpy)
             if (!strval) {
                 /* user didn't give argument, assume "all" */
                 __verbosity = VERBOSITY_ALL;
+            } else if (nv_strcasecmp(strval, "none") == NV_TRUE) {
+                __verbosity = VERBOSITY_NONE;
             } else if (nv_strcasecmp(strval, "errors") == NV_TRUE) {
                 __verbosity = VERBOSITY_ERROR;
             } else if (nv_strcasecmp(strval, "warnings") == NV_TRUE) {
@@ -283,6 +287,7 @@ Options *parse_command_line(int argc, char *argv[], char *dpy)
                              strval, argv[0]);
                 exit(0);
             }
+            __verbosity_level_changed = NV_TRUE;
             break;
         case 'a':
             n = op->num_assignments;

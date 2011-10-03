@@ -408,6 +408,34 @@ typedef struct __xconfigconfinputrec {
 
 
 /*
+ * Input Class Section
+ */
+
+typedef struct __xconfigconfinputclassrec {
+    struct __xconfigconfinputclassrec *next;
+    char              *identifier;
+    char              *driver;
+    char              *match_is_pointer;
+    char              *match_is_touchpad;
+    char              *match_is_touchscreen;
+    char              *match_is_keyboard;
+    char              *match_is_joystick;
+    char              *match_is_tablet;
+    char              *match_tag;
+    char              *match_device_path;
+    char              *match_os;
+    char              *match_usb_id;
+    char              *match_pnp_id;
+    char              *match_product;
+    char              *match_driver;
+    char              *match_vendor;
+    XConfigOptionPtr   options;
+    char              *comment;
+} XConfigInputClassRec, *XConfigInputClassPtr;
+
+
+
+/*
  * Input Reference; used by layout to store list of XConfigInputPtrs
  */
 
@@ -564,6 +592,7 @@ typedef struct {
     XConfigDevicePtr       devices;
     XConfigScreenPtr       screens;
     XConfigInputPtr        inputs;
+    XConfigInputClassPtr   inputclasses;
     XConfigLayoutPtr       layouts;
     XConfigVendorPtr       vendors;
     XConfigDRIPtr          dri;
@@ -638,6 +667,7 @@ void xconfigFreeDeviceList(XConfigDevicePtr *ptr);
 void xconfigFreeFiles(XConfigFilesPtr *p);
 void xconfigFreeFlags(XConfigFlagsPtr *flags);
 void xconfigFreeInputList(XConfigInputPtr *ptr);
+void xconfigFreeInputClassList(XConfigInputClassPtr *ptr);
 void xconfigFreeLayoutList(XConfigLayoutPtr *ptr);
 void xconfigFreeAdjacencyList(XConfigAdjacencyPtr *ptr);
 void xconfigFreeInputrefList(XConfigInputrefPtr *ptr);

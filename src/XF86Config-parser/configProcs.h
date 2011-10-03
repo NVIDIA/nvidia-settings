@@ -45,7 +45,9 @@ void xconfigPrintServerFlagsSection(FILE *f, XConfigFlagsPtr flags);
 
 /* Input.c */
 XConfigInputPtr xconfigParseInputSection(void);
+XConfigInputClassPtr xconfigParseInputClassSection(void);
 void xconfigPrintInputSection(FILE *f, XConfigInputPtr ptr);
+void xconfigPrintInputClassSection(FILE *f, XConfigInputClassPtr ptr);
 int xconfigValidateInput (XConfigPtr p);
 
 /* Keyboard.c */
