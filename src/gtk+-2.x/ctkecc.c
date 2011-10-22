@@ -71,6 +71,8 @@ static const char *__reset_default_config_button_help =
 
 static void ecc_config_button_toggled(GtkWidget *, gpointer);
 static void show_ecc_toggle_warning_dlg(CtkEcc *);
+static void ecc_configuration_update_received(GtkObject *, gpointer, gpointer);
+static void post_ecc_configuration_update(CtkEcc *, gboolean);
 
 GType ctk_ecc_get_type(void)
 {
@@ -156,11 +158,10 @@ static gboolean update_ecc_info(gpointer user_data)
 {
     CtkEcc *ctk_ecc = CTK_ECC(user_data);
     int64_t val;
-    gint ecc_config;
     ReturnStatus ret;
 
     if ( ctk_ecc->ecc_enabled == FALSE ) {
-        goto end;
+        return FALSE;
     }
     
     /* Query ECC Errors */
@@ -184,32 +185,49 @@ static gboolean update_ecc_info(gpointer user_data)
         }
         set_label_value(ctk_ecc->aggregate_dbit_error, val);
     }
-end:
-    /* Query ECC configuration */
 
-    if ( ctk_ecc->configuration_status ) {
-        ret = NvCtrlGetAttribute(ctk_ecc->handle,
-                                 NV_CTRL_GPU_ECC_CONFIGURATION,
-                                 &ecc_config);
-        if (ret != NvCtrlSuccess ||
-            ecc_config != NV_CTRL_GPU_ECC_CONFIGURATION_ENABLED) {
-            ecc_config = 0;
-        } else {
-            ecc_config = 1;
-        }
-        g_signal_handlers_block_by_func(G_OBJECT(ctk_ecc->configuration_status),
-                                        G_CALLBACK(ecc_config_button_toggled),
-                                        (gpointer) ctk_ecc);
-        gtk_toggle_button_set_active(
-                            GTK_TOGGLE_BUTTON(ctk_ecc->configuration_status),
-                            ecc_config);
-        g_signal_handlers_unblock_by_func(G_OBJECT(ctk_ecc->configuration_status),
-                                          G_CALLBACK(ecc_config_button_toggled),
-                                          (gpointer) ctk_ecc);
-    }
-    
     return TRUE;
 } /* update_ecc_info() */
+
+
+
+/*
+ * post_ecc_configuration_update() - this function update status bar string.
+ */
+
+static void post_ecc_configuration_update(CtkEcc *ctk_ecc, gboolean enabled)
+{
+    ctk_config_statusbar_message(ctk_ecc->ctk_config,
+                                 "ECC %s.",
+                                 enabled ? "enabled" : "disabled");
+} /* post_ecc_configuration_update() */
+
+
+
+/*
+ * ecc_configuration_update_received() - this function is called when the
+ * NV_CTRL_GPU_ECC_CONFIGURATION atribute is changed by another
+ * NV-CONTROL client.
+ */
+
+static void ecc_configuration_update_received(GtkObject *object,
+                                              gpointer arg1, gpointer user_data)
+{
+    CtkEventStruct *event_struct = (CtkEventStruct *) arg1;
+    CtkEcc *ctk_ecc = CTK_ECC(user_data);
+    
+    g_signal_handlers_block_by_func(G_OBJECT(ctk_ecc->configuration_status),
+                                    G_CALLBACK(ecc_config_button_toggled),
+                                    (gpointer) ctk_ecc);
+    gtk_toggle_button_set_active(GTK_TOGGLE_BUTTON(ctk_ecc->configuration_status),
+                                 event_struct->value);
+
+    g_signal_handlers_unblock_by_func(G_OBJECT(ctk_ecc->configuration_status),
+                                      G_CALLBACK(ecc_config_button_toggled),
+                                      (gpointer) ctk_ecc);
+    /* Update status bar message */
+    post_ecc_configuration_update(ctk_ecc, event_struct->value);
+}
 
 
 
@@ -329,9 +347,8 @@ static void ecc_config_button_toggled(GtkWidget *widget,
 
     gtk_widget_set_sensitive(ctk_ecc->reset_default_config_button, TRUE);
 
-    ctk_config_statusbar_message(ctk_ecc->ctk_config,
-                                 "ECC %s.",
-                                 enabled ? "enabled" : "disabled");
+    /* Update status bar message */
+    post_ecc_configuration_update(ctk_ecc, enabled);
 } /* ecc_config_button_toggled() */
 
 
@@ -516,10 +533,16 @@ GtkWidget* ctk_ecc_new(NvCtrlAttributeHandle *handle,
                        ctk_ecc->configuration_status, FALSE, FALSE, 0);
     gtk_container_set_border_width(GTK_CONTAINER(hbox2), 5);
     gtk_box_pack_start(GTK_BOX(vbox), hbox2, FALSE, FALSE, 0);
+    gtk_toggle_button_set_active(GTK_TOGGLE_BUTTON(ctk_ecc->configuration_status),
+                                 ecc_enabled);
     ctk_config_set_tooltip(ctk_config, ctk_ecc->configuration_status,
                            __configuration_status_help);
     g_signal_connect(G_OBJECT(ctk_ecc->configuration_status), "clicked",
                      G_CALLBACK(ecc_config_button_toggled),
+                     (gpointer) ctk_ecc);
+    g_signal_connect(G_OBJECT(ctk_event),
+                     CTK_EVENT_NAME(NV_CTRL_GPU_ECC_CONFIGURATION),
+                     G_CALLBACK(ecc_configuration_update_received),
                      (gpointer) ctk_ecc);
     gtk_widget_set_sensitive(ctk_ecc->configuration_status, ecc_config_supported);
 

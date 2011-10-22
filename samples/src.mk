@@ -6,6 +6,7 @@ SAMPLES_SRC +=
 
 SAMPLES_EXTRA_DIST += README
 SAMPLES_EXTRA_DIST += nv-control-dvc.c
+SAMPLES_EXTRA_DIST += nv-control-3dvisionpro.c
 SAMPLES_EXTRA_DIST += nv-control-dpy.c
 SAMPLES_EXTRA_DIST += nv-control-info.c
 SAMPLES_EXTRA_DIST += nv-control-events.c

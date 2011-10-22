@@ -1111,8 +1111,8 @@ void screen_link_display(nvScreenPtr screen, nvDisplayPtr display)
     if (!screen->displays) {
         screen->displays = display;
     } else {
-        nvDisplayPtr last = screen->displays;
-        while (last) {
+        nvDisplayPtr last;
+        for (last = screen->displays; last; last = last->next_in_screen) {
             if (!last->next_in_screen) {
                 last->next_in_screen = display;
                 break;
