@@ -320,6 +320,9 @@ static void ctk_event_class_init(CtkEventClass *ctk_event_class)
     MAKE_SIGNAL(NV_CTRL_GVO_ANC_PARITY_COMPUTATION);
     MAKE_SIGNAL(NV_CTRL_3D_VISION_PRO_GLASSES_PAIR_EVENT);
     MAKE_SIGNAL(NV_CTRL_3D_VISION_PRO_GLASSES_UNPAIR_EVENT);
+    MAKE_SIGNAL(NV_CTRL_GPU_PCIE_MAX_LINK_WIDTH);
+    MAKE_SIGNAL(NV_CTRL_GPU_PCIE_CURRENT_LINK_WIDTH);
+    MAKE_SIGNAL(NV_CTRL_GPU_PCIE_CURRENT_LINK_SPEED);
 #undef MAKE_SIGNAL
     
     /*
@@ -329,7 +332,7 @@ static void ctk_event_class_init(CtkEventClass *ctk_event_class)
      * knows about.
      */
 
-#if NV_CTRL_LAST_ATTRIBUTE != NV_CTRL_3D_VISION_PRO_GLASSES_UNPAIR_EVENT
+#if NV_CTRL_LAST_ATTRIBUTE != NV_CTRL_GPU_PCIE_CURRENT_LINK_SPEED
 #warning "There are attributes that do not emit signals!"
 #endif
 

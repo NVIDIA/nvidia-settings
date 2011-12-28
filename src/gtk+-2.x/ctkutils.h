@@ -27,6 +27,14 @@
 
 G_BEGIN_DECLS
 
+gchar *get_pcie_generation_string(NvCtrlAttributeHandle *handle);
+
+gchar *get_pcie_link_width_string(NvCtrlAttributeHandle *handle,
+                                  gint attribute);
+
+gchar *get_pcie_link_speed_string(NvCtrlAttributeHandle *handle,
+                                  gint attribute);
+
 gchar* create_gpu_name_string(NvCtrlAttributeHandle *gpu_handle);
 
 

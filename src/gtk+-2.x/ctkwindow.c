@@ -797,12 +797,6 @@ GtkWidget *ctk_window_new(ParsedAttribute *p, ConfigProperties *conf,
         gtk_tree_store_set(ctk_window->tree_store, &iter,
                            CTK_WINDOW_CONFIG_FILE_ATTRIBUTES_FUNC_COLUMN,
                            NULL, -1);
-        gtk_tree_store_set(ctk_window->tree_store, &iter,
-                           CTK_WINDOW_SELECT_WIDGET_FUNC_COLUMN,
-                           ctk_gpu_start_timer, -1);
-        gtk_tree_store_set(ctk_window->tree_store, &iter,
-                           CTK_WINDOW_UNSELECT_WIDGET_FUNC_COLUMN,
-                           ctk_gpu_stop_timer, -1);
 
         /* power savings */
 

@@ -60,10 +60,13 @@ struct _CtkPowermizer
     GtkWidget *processor_clock;
     GtkWidget *power_source;
     GtkWidget *performance_level;
-    GtkWidget *performance_mode;
     GtkWidget *performance_table_hbox;
     GtkWidget *powermizer_menu;
     GtkWidget *box_powermizer_menu;
+
+    GtkWidget *link_width;
+    GtkWidget *link_speed;
+    gboolean  pcie_gen_queriable;
 };
 
 struct _CtkPowermizerClass

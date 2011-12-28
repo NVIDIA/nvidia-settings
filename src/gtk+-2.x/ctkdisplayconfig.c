@@ -2162,7 +2162,9 @@ static void setup_display_config(CtkDisplayConfig *ctk_object)
      */
     if (display->gpu->num_displays == 1 ||
         !num_screens_on_gpu ||
-        (num_screens_on_gpu == 1 && display->screen) || 
+        (num_screens_on_gpu == 1 && 
+         display->screen &&
+         display->screen->num_displays == 1) ||
         (display->screen && display->screen->sli)) {
         gtk_widget_set_sensitive(ctk_object->mnu_display_config_twinview,
                                  FALSE);
@@ -3636,7 +3638,7 @@ static gint validation_fix_crowded_metamodes(CtkDisplayConfig *ctk_object,
 
         /* Count the number of display devices that have a mode
          * set for this metamode.  NULL out the modes of extra
-         * display devices once we've counted 2 display devices
+         * display devices once we've counted max supported display devices
          * that have a (non NULL) mode set.
          */
         num = 0;
@@ -3659,15 +3661,16 @@ static gint validation_fix_crowded_metamodes(CtkDisplayConfig *ctk_object,
             }
 
             /* Disable extra modes */
-            if (num > 2) {
+            if (num > screen->gpu->max_displays) {
                 ctk_display_layout_set_mode_modeline
                     (CTK_DISPLAY_LAYOUT(ctk_object->obj_layout),
                      mode, NULL);
 
                 nv_info_msg(TAB, "Setting display device '%s' as Off "
                             "for MetaMode %d on Screen %d.  (There are "
-                            "already two active display devices for this "
-                            "MetaMode.", display->name, i, screen->scrnum);
+                            "already %d active display devices for this "
+                            "MetaMode.", display->name, i, screen->scrnum,
+                            screen->gpu->max_displays);
             }
         }
 
@@ -3896,11 +3899,12 @@ static gchar * validate_screen(nvScreenPtr screen)
         }
 
 
-        /* There can be at most two displays active in the metamode. */
-        if (num_displays > 2) {
+        /* There can be at most max supported displays active in the metamode. */
+        if (num_displays > screen->gpu->max_displays) {
             tmp = g_strdup_printf("%s MetaMode %d of Screen %d has more than "
-                                  "two active display devices.\n\n",
-                                  bullet, i+1, screen->scrnum);
+                                  "%d active display devices.\n\n",
+                                  bullet, i+1, screen->scrnum,
+                                  screen->gpu->max_displays);
             tmp2 = g_strconcat((err_str ? err_str : ""), tmp, NULL);
             g_free(err_str);
             g_free(tmp);
@@ -7344,124 +7348,29 @@ static void probe_clicked(GtkWidget *widget, gpointer user_data)
 {
     CtkDisplayConfig *ctk_object = CTK_DISPLAY_CONFIG(user_data);
     unsigned int probed_displays;
-    unsigned int mask;
     nvLayoutPtr layout = ctk_object->layout;
     nvGpuPtr gpu;
-    nvDisplayPtr display;
-    nvDisplayPtr selected_display = ctk_display_layout_get_selected_display
-        (CTK_DISPLAY_LAYOUT(ctk_object->obj_layout));
     ReturnStatus ret;
-    gchar *type;
-    gchar *str;
 
     /* Probe each GPU for display changes */
     for (gpu = layout->gpus; gpu; gpu = gpu->next_in_layout) {
 
         if (!gpu->handle) continue;
 
-        g_signal_handlers_block_by_func
-            (G_OBJECT(gpu->ctk_event),
-             G_CALLBACK(display_config_attribute_changed),
-             (gpointer) ctk_object);
-
-        /* Do the probe */
         ret = NvCtrlGetAttribute(gpu->handle, NV_CTRL_PROBE_DISPLAYS,
                                  (int *)&probed_displays);
         if (ret != NvCtrlSuccess) {
             nv_error_msg("Failed to probe for display devices on GPU-%d '%s'.",
                          NvCtrlGetTargetId(gpu->handle), gpu->name);
-
-            g_signal_handlers_unblock_by_func
-                (G_OBJECT(gpu->ctk_event),
-                 G_CALLBACK(display_config_attribute_changed),
-                 (gpointer) ctk_object);
-
             continue;
         }
 
-        /* Make sure other parts of nvidia-settings get updated */
+        /* Emit the probe event to ourself so changes are handled
+         * consistently.
+         */
         ctk_event_emit(gpu->ctk_event, 0,
                        NV_CTRL_PROBE_DISPLAYS, probed_displays);
-        
-        /* Go through the probed displays */
-        for (mask = 1; mask; mask <<= 1) {
-
-            /* Ask users about removing old displays */
-            if ((gpu->connected_displays & mask) &&
-                !(probed_displays & mask)) {
-
-                display = gpu_get_display(gpu, mask);
-                if (!display) continue; /* XXX ack. */
-
-                /* The selected display is being removed */
-                if (display == selected_display) {
-                    selected_display = NULL;
-                }
-                    
-                /* Setup the remove display dialog */
-                type = display_get_type_str(display->device_mask, 0);
-                str = g_strdup_printf("The display device %s (%s) on GPU-%d "
-                                      "(%s) has been\nunplugged.  Would you "
-                                      "like to remove this display from the "
-                                      "layout?",
-                                      display->name, type,
-                                      NvCtrlGetTargetId(gpu->handle),
-                                      gpu->name);
-                g_free(type);
-                gtk_label_set_text(GTK_LABEL(ctk_object->txt_display_disable),
-                                   str);
-                g_free(str);
-                
-                gtk_button_set_label
-                    (GTK_BUTTON(ctk_object->btn_display_disable_off),
-                     "Remove");
-
-                gtk_button_set_label
-                    (GTK_BUTTON(ctk_object->btn_display_disable_cancel),
-                     "Ignore");
-                 
-                /* Ask the user if they want to remove the display */
-                if (do_query_remove_display(ctk_object, display)) {
-                    
-                    /* Remove display from the GPU */
-                    gpu_remove_and_free_display(display);
-                    
-                    /* Let display layout widget know about change */
-                    ctk_display_layout_update_display_count
-                        (CTK_DISPLAY_LAYOUT(ctk_object->obj_layout), NULL);
-
-                    user_changed_attributes(ctk_object);
-                }
-
-            /* Add new displays as 'disabled' */
-            } else if (!(gpu->connected_displays & mask) &&
-                       (probed_displays & mask)) {
-                gchar *err_str = NULL;
-                display = gpu_add_display_from_server(gpu, mask, &err_str);
-                if (err_str) {
-                    nv_warning_msg(err_str);
-                    g_free(err_str);
-                }
-                gpu_add_screenless_modes_to_displays(gpu);
-                ctk_display_layout_update_display_count
-                    (CTK_DISPLAY_LAYOUT(ctk_object->obj_layout),
-                     selected_display);
-            }
-        }
-
-        g_signal_handlers_unblock_by_func
-            (G_OBJECT(gpu->ctk_event),
-             G_CALLBACK(display_config_attribute_changed),
-             (gpointer) ctk_object);
     }
-
-
-    /* Sync the GUI */
-    ctk_display_layout_redraw(CTK_DISPLAY_LAYOUT(ctk_object->obj_layout));
-    
-    setup_display_page(ctk_object);
-    
-    setup_screen_page(ctk_object);
 
 } /* probe_clicked() */
 
@@ -7483,8 +7392,10 @@ static void reset_layout(CtkDisplayConfig *ctk_object)
 
     /* Handle errors loading the new layout */
     if (!layout || err_str) {
-        nv_error_msg(err_str);
-        g_free(err_str);
+        if (err_str) {
+            nv_error_msg(err_str);
+            g_free(err_str);
+        }
         return;
     }
 

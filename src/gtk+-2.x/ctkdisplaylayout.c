@@ -4077,6 +4077,23 @@ void ctk_display_layout_set_display_panning(CtkDisplayLayout *ctk_object,
 
 
 
+/** select_topmost_item() **************************************
+ *
+ * Select top item from Z order list.
+ *
+ **/
+
+static void select_topmost_item(CtkDisplayLayout *ctk_object)
+{
+    if (ctk_object->Zorder[0].type == ZNODE_TYPE_DISPLAY) {
+        select_display(ctk_object, ctk_object->Zorder[0].u.display);
+    } else if (ctk_object->Zorder[0].type == ZNODE_TYPE_SCREEN) {
+        select_screen(ctk_object, ctk_object->Zorder[0].u.screen);
+    }
+} /* select_topmost_item() */
+
+
+
 /** ctk_display_layout_select_display() ***********************
  *
  * Updates the currently selected display.
@@ -4109,6 +4126,8 @@ void ctk_display_layout_update_display_count(CtkDisplayLayout *ctk_object,
     /* Select the previously selected display */
     if (display) {
         ctk_display_layout_select_display(ctk_object, display);
+    } else {
+        select_topmost_item(ctk_object);
     }
 
 } /* ctk_display_layout_update_display_count() */

@@ -380,6 +380,19 @@ GtkWidget* ctk_dithering_controls_new(NvCtrlAttributeHandle *handle,
                      G_CALLBACK(dithering_update_received),
                      (gpointer) ctk_dithering_controls);
 
+    g_signal_connect(G_OBJECT(ctk_event),
+                     CTK_EVENT_NAME(NV_CTRL_CURRENT_DITHERING),
+                     G_CALLBACK(dithering_update_received),
+                     (gpointer) ctk_dithering_controls);
+    g_signal_connect(G_OBJECT(ctk_event),
+                     CTK_EVENT_NAME(NV_CTRL_CURRENT_DITHERING_MODE),
+                     G_CALLBACK(dithering_update_received),
+                     (gpointer) ctk_dithering_controls);
+    g_signal_connect(G_OBJECT(ctk_event),
+                     CTK_EVENT_NAME(NV_CTRL_CURRENT_DITHERING_DEPTH),
+                     G_CALLBACK(dithering_update_received),
+                     (gpointer) ctk_dithering_controls);
+
     return GTK_WIDGET(object);
 
 } /* ctk_dithering_controls_new() */
@@ -435,6 +448,25 @@ static Bool update_dithering_info(gpointer user_data)
         CTK_DITHERING_CONTROLS(user_data);
     gint val, dithering_mode, dithering_depth;
 
+    /* requested dithering */
+    if (NvCtrlSuccess !=
+        NvCtrlGetDisplayAttribute(ctk_dithering_controls->handle,
+                                  ctk_dithering_controls->display_device_mask,
+                                  NV_CTRL_DITHERING, &val)) {
+        val = NV_CTRL_DITHERING_DISABLED;
+    }
+
+    if (val == NV_CTRL_DITHERING_ENABLED ||
+        val == NV_CTRL_DITHERING_AUTO) {
+        gtk_widget_set_sensitive(ctk_dithering_controls->dithering_mode_box, TRUE);
+        gtk_widget_set_sensitive(ctk_dithering_controls->dithering_depth_box, TRUE);
+        gtk_widget_show(ctk_dithering_controls->dithering_mode_box);
+        gtk_widget_show(ctk_dithering_controls->dithering_depth_box);
+    } else if (val == NV_CTRL_DITHERING_DISABLED) {
+        gtk_widget_set_sensitive(ctk_dithering_controls->dithering_mode_box, FALSE);
+        gtk_widget_set_sensitive(ctk_dithering_controls->dithering_depth_box, FALSE);
+    }
+
     /* current dithering */
     if (NvCtrlSuccess !=
         NvCtrlGetDisplayAttribute(ctk_dithering_controls->handle,
@@ -446,15 +478,9 @@ static Bool update_dithering_info(gpointer user_data)
     if (val == NV_CTRL_CURRENT_DITHERING_ENABLED) {
         gtk_label_set_text(GTK_LABEL(ctk_dithering_controls->dithering_current_config),
                            "Enabled");
-        gtk_widget_set_sensitive(ctk_dithering_controls->dithering_mode_box, TRUE);
-        gtk_widget_set_sensitive(ctk_dithering_controls->dithering_depth_box, TRUE);
-        gtk_widget_show(ctk_dithering_controls->dithering_mode_box);
-        gtk_widget_show(ctk_dithering_controls->dithering_depth_box);
-    } else if (val == NV_CTRL_CURRENT_DITHERING_DISABLED) {
+    } else {
         gtk_label_set_text(GTK_LABEL(ctk_dithering_controls->dithering_current_config),
                            "Disabled");
-        gtk_widget_set_sensitive(ctk_dithering_controls->dithering_mode_box, FALSE);
-        gtk_widget_set_sensitive(ctk_dithering_controls->dithering_depth_box, FALSE);
     }
 
     /* dithering mode */

@@ -116,6 +116,7 @@ AttributeTableEntry attributeTable[] = {
     { "TextureSharpen",             NV_CTRL_TEXTURE_SHARPEN,                  0,   "Enables texture sharpening for OpenGL clients.  This setting only takes effect on OpenGL clients started after it is set." },
     { "ForceGenericCpu",            NV_CTRL_FORCE_GENERIC_CPU,                N,   "Inhibit the use of CPU-specific features such as MMX, SSE, or 3DNOW! for OpenGL clients; this option may result in performance loss, but may be useful in conjunction with software such as the Valgrind memory debugger.  This setting only takes effect on OpenGL clients started after it is set." },
     { "GammaCorrectedAALines",      NV_CTRL_OPENGL_AA_LINE_GAMMA,             0,   "For OpenGL clients, allow gamma-corrected antialiased lines to consider variances in the color display capabilities of output devices when rendering smooth lines.  Only available on recent Quadro GPUs.  This setting only takes effect on OpenGL clients started after it is set." },
+    { "TextureClamping",            NV_CTRL_TEXTURE_CLAMPING,                 0,   "Define the behavior of OpenGL texture clamping for unbordered textures.  If enabled (1), the conformant behavior is used.  If disabled (0), GL_CLAMP is remapped to GL_CLAMP_TO_EDGE to avoid seams in applications that rely on this behavior, which was the only option in some very old hardware." },
 
     { "AllowFlipping",              NV_CTRL_FLIPPING_ALLOWED,                 0,   "Defines the swap behavior of OpenGL.  When 1, OpenGL will swap by flipping when possible;  When 0, OpenGL will always swap by blitting." },
     { "FSAAAppControlled",          NV_CTRL_FSAA_APPLICATION_CONTROLLED,      0,   "When Application Control for FSAA is enabled, then what the application requests is used, and the FSAA attribute is ignored.  If this is disabled, then any application setting is overridden with the FSAA attribute." },
@@ -133,10 +134,13 @@ AttributeTableEntry attributeTable[] = {
     { "SliMosaicModeAvailable",     NV_CTRL_SLI_MOSAIC_MODE_AVAILABLE,        N,   "Returns whether or not SLI Mosaic Mode is supported." },
 
     /* GPU */
-    { "BusType",                NV_CTRL_BUS_TYPE,                      0,   "Returns the type of bus connecting the specified device to the computer.  If the target is an X screen, then it uses the GPU driving the X screen as the device." },
-    { "PCIEMaxLinkSpeed",       NV_CTRL_GPU_PCIE_MAX_LINK_SPEED,       0,   "Returns the maximum PCI-E link speed" },
-    { "VideoRam",               NV_CTRL_VIDEO_RAM,                     0,   "Returns the total amount of memory available to the specified GPU (or the GPU driving the specified X screen).  Note: if the GPU supports TurboCache(TM), the value reported may exceed the amount of video memory installed on the GPU.  The value reported for integrated GPUs may likewise exceed the amount of dedicated system memory set aside by the system BIOS for use by the integrated GPU." },
-    { "Irq",                    NV_CTRL_IRQ,                           0,   "Returns the interrupt request line used by the specified device.  If the target is an X screen, then it uses the GPU driving the X screen as the device." },
+    { "BusType",                NV_CTRL_BUS_TYPE,                      N,   "Returns the type of bus connecting the specified device to the computer.  If the target is an X screen, then it uses the GPU driving the X screen as the device." },
+    { "PCIEMaxLinkSpeed",       NV_CTRL_GPU_PCIE_MAX_LINK_SPEED,       N,   "Returns the maximum speed that the PCIe link between the GPU and the system may be trained to.  This is expressed in gigatransfers per second (GT/s).  The link may be dynamically trained to a slower speed, based on the GPU's utilization and performance settings." },
+    { "PCIEMaxLinkWidth",       NV_CTRL_GPU_PCIE_MAX_LINK_WIDTH,       N,   "Returns the maximum width that the PCIe link between the GPU and the system may be trained to.  This is expressed in number of lanes.  The trained link width may vary dynamically and possibly be narrower based on the GPU's utilization and performance settings." },
+    { "PCIECurrentLinkSpeed",   NV_CTRL_GPU_PCIE_CURRENT_LINK_SPEED,   N,   "Returns the current PCIe link speed, in gigatransfers per second (GT/s)." },
+    { "PCIECurrentLinkWidth",   NV_CTRL_GPU_PCIE_CURRENT_LINK_WIDTH,   N,   "Returns the current PCIe link width of the GPU, in number of lanes." },
+    { "VideoRam",               NV_CTRL_VIDEO_RAM,                     N,   "Returns the total amount of memory available to the specified GPU (or the GPU driving the specified X screen).  Note: if the GPU supports TurboCache(TM), the value reported may exceed the amount of video memory installed on the GPU.  The value reported for integrated GPUs may likewise exceed the amount of dedicated system memory set aside by the system BIOS for use by the integrated GPU." },
+    { "Irq",                    NV_CTRL_IRQ,                           N,   "Returns the interrupt request line used by the specified device.  If the target is an X screen, then it uses the GPU driving the X screen as the device." },
     { "CUDACores",              NV_CTRL_GPU_CORES,                     N,   "Returns number of CUDA cores supported by the graphics pipeline." },
     { "GPUMemoryInterface",     NV_CTRL_GPU_MEMORY_BUS_WIDTH,          N,   "Returns bus bandwidth of the GPU's memory interface." },
     { "GPUCoreTemp",            NV_CTRL_GPU_CORE_TEMPERATURE,          N,   "Reports the current core temperature in Celsius of the GPU driving the X screen." },
@@ -149,13 +153,13 @@ AttributeTableEntry attributeTable[] = {
     { "GPUCurrentClockFreqs",   NV_CTRL_GPU_CURRENT_CLOCK_FREQS,       N|P, "Returns the current GPU and memory clocks of the graphics device driving the X screen." },
     { "GPUCurrentProcessorClockFreqs", NV_CTRL_GPU_CURRENT_PROCESSOR_CLOCK_FREQS, N, "Returns the current processor clock of the graphics device driving the X screen." },
     { "GPUCurrentClockFreqsString", NV_CTRL_STRING_GPU_CURRENT_CLOCK_FREQS, S|N, "Returns the current GPU, memory and Processor clocks of the graphics device driving the X screen." },
-    { "BusRate",                NV_CTRL_BUS_RATE,                      0,   "If the device is on an AGP bus, then BusRate returns the configured AGP rate.  If the device is on a PCI Express bus, then this attribute returns the width of the physical link." },
+    { "BusRate",                NV_CTRL_BUS_RATE,                      N,   "If the device is on an AGP bus, then BusRate returns the configured AGP rate.  If the device is on a PCI Express bus, then this attribute returns the width of the physical link." },
     { "PCIDomain",              NV_CTRL_PCI_DOMAIN,                    N,   "Returns the PCI domain number for the specified device." },
     { "PCIBus",                 NV_CTRL_PCI_BUS,                       N,   "Returns the PCI bus number for the specified device." },
     { "PCIDevice",              NV_CTRL_PCI_DEVICE,                    N,   "Returns the PCI device number for the specified device." },
     { "PCIFunc",                NV_CTRL_PCI_FUNCTION,                  N,   "Returns the PCI function number for the specified device." },
     { "PCIID",                  NV_CTRL_PCI_ID,                        N|P, "Returns the PCI vendor and device ID of the specified device." },
-    { "PCIEGen",                NV_CTRL_GPU_PCIE_GENERATION,           N,   "Returns the current PCI-E Bus Generation." },
+    { "PCIEGen",                NV_CTRL_GPU_PCIE_GENERATION,           N,   "Returns the PCIe generation that this GPU, in this system, is compliant with." },
     { "GPUErrors",              NV_CTRL_NUM_GPU_ERRORS_RECOVERED,      N,   "Returns the number of GPU errors occurred." },
     { "GPUPowerSource",         NV_CTRL_GPU_POWER_SOURCE,              N,   "Reports the type of power source of the GPU." },
     { "GPUCurrentPerfMode",     NV_CTRL_GPU_CURRENT_PERFORMANCE_MODE,  N,   "Reports the current performance mode of the GPU driving the X screen.  Running a 3D app, for example, will change this performance mode if Adaptive Clocking is enabled." },
@@ -369,7 +373,7 @@ AttributeTableEntry attributeTable[] = {
  * about.
  */
 
-#if NV_CTRL_LAST_ATTRIBUTE != NV_CTRL_3D_VISION_PRO_GLASSES_UNPAIR_EVENT
+#if NV_CTRL_LAST_ATTRIBUTE != NV_CTRL_GPU_PCIE_CURRENT_LINK_SPEED
 #warning "Have you forgotten to add a new integer attribute to attributeTable?"
 #endif
 

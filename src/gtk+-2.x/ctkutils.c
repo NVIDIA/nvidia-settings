@@ -24,6 +24,55 @@
 
 
 
+gchar *get_pcie_generation_string(NvCtrlAttributeHandle *handle)
+{
+    ReturnStatus ret;
+    gchar *s = NULL;
+    int tmp;
+
+    ret = NvCtrlGetAttribute(handle, NV_CTRL_GPU_PCIE_GENERATION, &tmp);
+    if (ret == NvCtrlSuccess) {
+        s = g_strdup_printf("Gen%u", tmp);
+    }
+    return s;
+}
+
+gchar *get_pcie_link_width_string(NvCtrlAttributeHandle *handle,
+                                  int attribute)
+{
+    ReturnStatus ret;
+    gint tmp;
+    gchar *s = NULL;
+
+    ret = NvCtrlGetAttribute(handle, attribute, &tmp);
+    if (ret != NvCtrlSuccess) {
+        s = g_strdup_printf("Unknown");
+    } else {
+        s = g_strdup_printf("x%d", tmp);
+    }
+
+    return s;
+}
+
+gchar *get_pcie_link_speed_string(NvCtrlAttributeHandle *handle,
+                                  int attribute)
+{
+    ReturnStatus ret;
+    gint tmp;
+    gchar *s = NULL;
+
+    ret = NvCtrlGetAttribute(handle, attribute, &tmp);
+    if (ret != NvCtrlSuccess) {
+        s = g_strdup_printf("Unknown");
+    } else {
+        s = g_strdup_printf("%.1f GT/s", tmp/1000.0);
+    }
+
+    return s;
+}
+
+
+
 /*
  * Used to check if current display enabled or disabled.
  */ 

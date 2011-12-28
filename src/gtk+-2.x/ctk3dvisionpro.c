@@ -527,12 +527,27 @@ static void callback_glasses_paired(GtkObject *object, gpointer arg1,
     Bool ret;
     CtkEventStruct *event_struct;
     char temp[64]; //scratchpad memory used to construct labels.
+    int index;
 
     Ctk3DVisionPro *ctk_3d_vision_pro = CTK_3D_VISION_PRO(user_data);
     AddGlassesDlg  *dlg = ctk_3d_vision_pro->add_glasses_dlg;
     event_struct = (CtkEventStruct *) arg1;
 
     glasses_id = event_struct->value;
+
+    /* It is possible for the user to accidentally try pairing a glass even if 
+     * it is already paired leading to multiple entries. To avoid this, return if 
+     * the glass entry is already present in the local table.
+     */ 
+
+    if (dlg) {
+        for (index = 0; index < dlg->new_glasses; index++) {
+            if (dlg->glasses_info[index]->glasses_id == glasses_id) {
+                return;
+            }        
+        }
+    }
+
     ret = XNVCTRLQueryTargetStringAttribute(NvCtrlGetDisplayPtr(ctk_3d_vision_pro->handle),
                                             NV_CTRL_TARGET_TYPE_3D_VISION_PRO_TRANSCEIVER,
                                             target_id, glasses_id,
@@ -571,6 +586,17 @@ static void callback_glasses_paired(GtkObject *object, gpointer arg1,
         dlg->table.rows++;
         update_glasses_info_data_table(&(dlg->table), dlg->glasses_info);
         gtk_widget_show_all(GTK_WIDGET(dlg->table.data_table));
+    }
+
+    /* This is to avoid multiple entries of a glass's information 
+     * being displayed by nvidia-settings. Return in case the glass 
+     * entry is already present in the HTU table.
+     */
+
+    for (index = 0; index < HTU(0)->num_glasses; index++) {
+        if (HTU(0)->glasses_info[index]->glasses_id == glasses_id) {
+            return;
+        }
     }
 
     // Add glasses_info into HTU(0)->glasses_info list.

@@ -747,13 +747,21 @@ GtkTextBuffer *ctk_gvi_create_help(GtkTextTagTable *table,
     ctk_help_para(b, &i, "This is the interrupt request line assigned to "
                   "this GVI device.");
 
+    ctk_help_heading(b, &i, "Bound GPU");
+    ctk_help_para(b, &i, "An OpenGL application can bind a GVI device to a "
+                  "GPU using the GL_NV_video_capture OpenGL extension.  The "
+                  "Bound GPU field reports if an OpenGL application has "
+                  "currently bound this GVI device to a GPU.");
+
     ctk_help_heading(b, &i, "Input Information");
     ctk_help_para(b, &i, "This section shows the detected video format(s) on "
                   "each jack of the GVI device.  When condensed mode is "
                   "selected, the detected video format is shown for each "
-                  "jack (and channel).  when detailed mode is selected, "
-                  "information pertaining to the single channel on a jack "
-                  "selected is given as such:");
+                  "jack (and channel).  When detailed mode is selected, "
+                  "information pertaining to the selected jack is reported.  "
+                  "Note that the GVI device can only detect the following "
+                  "information if the incoming signal has a non-zero SMPTE "
+                  "352 payload identifier, which not all SDI devices provide.");
 
     ctk_help_para(b, &i, "Video Format:  The detected SMPTE video format.");
     ctk_help_para(b, &i, "Component Sampling: The detected composition of the "

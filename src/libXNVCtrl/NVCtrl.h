@@ -1615,12 +1615,18 @@
 /*
  * NV_CTRL_BUS_RATE - if the bus type of the specified device is AGP, then
  * NV_CTRL_BUS_RATE returns the configured AGP transfer rate.  If the bus type
- * is PCI Express, then this attribute returns the width of the physical link.
+ * is PCI Express, then this attribute returns the maximum link width.
  * When this attribute is queried on an X screen target, the bus rate of the
  * GPU driving the X screen is returned.
  */
 
 #define NV_CTRL_BUS_RATE                                        224  /* R--GI */
+
+/*
+ * NV_CTRL_GPU_PCIE_MAX_LINK_WIDTH - returns the maximum
+ * PCIe link width, in number of lanes.
+ */
+#define NV_CTRL_GPU_PCIE_MAX_LINK_WIDTH  NV_CTRL_BUS_RATE
 
 /*
  * NV_CTRL_SHOW_SLI_HUD - when TRUE, OpenGL will draw information about the
@@ -2129,10 +2135,7 @@
 
 
 /*
- * NV_CTRL_GPU_CURRENT_PERFORMANCE_MODE reports the current
- * Performance mode of the GPU driving the X screen.  Running
- * a 3D app for example, will change this performance mode,
- * if Adaptive Clocking is enabled.
+ * NV_CTRL_GPU_CURRENT_PERFORMANCE_MODE is deprecated
  */
 
 #define NV_CTRL_GPU_CURRENT_PERFORMANCE_MODE                    263 /* R--G */
@@ -2835,11 +2838,12 @@
 #define NV_CTRL_OVERSCAN_COMPENSATION                           339 /* RWDG */
 
 /*
- * NV_CTRL_GPU_PCIE_GENERATION - Reports the current PCI-E generation.
+ * NV_CTRL_GPU_PCIE_GENERATION - Reports the current PCIe generation.
  */
 #define NV_CTRL_GPU_PCIE_GENERATION                             341 /* R--GI */
 #define NV_CTRL_GPU_PCIE_GENERATION1                            0x00000001
 #define NV_CTRL_GPU_PCIE_GENERATION2                            0x00000002
+#define NV_CTRL_GPU_PCIE_GENERATION3                            0x00000003
 
 /*
  * NV_CTRL_GVI_BOUND_GPU - Returns the NV_CTRL_TARGET_TYPE_GPU target_id of
@@ -3046,7 +3050,8 @@
 #define NV_CTRL_GVIO_VIDEO_FORMAT_FLAGS_3G_1080P_NO_12BPC 0x00000020
 
 /*
- * NV_CTRL_GPU_PCIE_MAX_LINK_SPEED - returns maximum PCI-E link speed.
+ * NV_CTRL_GPU_PCIE_MAX_LINK_SPEED - returns maximum PCIe link speed,
+ * in gigatransfers per second (GT/s).
  */
 
 #define NV_CTRL_GPU_PCIE_MAX_LINK_SPEED                         361 /* R--GI */
@@ -3225,7 +3230,19 @@
  */
 #define NV_CTRL_3D_VISION_PRO_GLASSES_UNPAIR_EVENT              383 /* ---T */
 
-#define NV_CTRL_LAST_ATTRIBUTE NV_CTRL_3D_VISION_PRO_GLASSES_UNPAIR_EVENT
+/* 
+ * NV_CTRL_GPU_PCIE_CURRENT_LINK_WIDTH - returns the current
+ * PCIe link width, in number of lanes.
+ */
+#define NV_CTRL_GPU_PCIE_CURRENT_LINK_WIDTH                     384 /* R--GI */
+
+/* 
+ * NV_CTRL_GPU_PCIE_CURRENT_LINK_SPEED - returns the current
+ * PCIe link speed, in megatransfers per second (GT/s).
+ */
+#define NV_CTRL_GPU_PCIE_CURRENT_LINK_SPEED                     385 /* R--GI */
+
+#define NV_CTRL_LAST_ATTRIBUTE NV_CTRL_GPU_PCIE_CURRENT_LINK_SPEED
 
 /**************************************************************************/
 

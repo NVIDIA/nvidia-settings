@@ -58,8 +58,6 @@ struct _CtkGpu
     NvCtrlAttributeHandle *handle;
     CtkConfig *ctk_config;
 
-    GtkWidget *bus_label;
-    GtkWidget *link_speed_label;
     GtkWidget *displays;
     gint gpu_cores;
     gint memory_interface;
@@ -84,9 +82,6 @@ void get_bus_id_str(NvCtrlAttributeHandle *handle,
 
 GtkTextBuffer *ctk_gpu_create_help(GtkTextTagTable *,
                                    CtkGpu *);
-
-void ctk_gpu_start_timer(GtkWidget *widget);
-void ctk_gpu_stop_timer(GtkWidget *widget);
 
 G_END_DECLS
 

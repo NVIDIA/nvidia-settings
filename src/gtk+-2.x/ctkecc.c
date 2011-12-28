@@ -66,6 +66,7 @@ static const char *__reset_default_config_button_help =
 
 static void ecc_config_button_toggled(GtkWidget *, gpointer);
 static void show_ecc_toggle_warning_dlg(CtkEcc *);
+static void ecc_set_config_status(CtkEcc *, gboolean);
 static void ecc_configuration_update_received(GtkObject *, gpointer, gpointer);
 static void post_ecc_configuration_update(CtkEcc *, gboolean);
 
@@ -200,6 +201,25 @@ static void post_ecc_configuration_update(CtkEcc *ctk_ecc, gboolean enabled)
 
 
 /*
+ * ecc_set_config_status() - set ECC configuration button status
+ */
+
+static void ecc_set_config_status(CtkEcc *ctk_ecc, gboolean value)
+{
+    g_signal_handlers_block_by_func(G_OBJECT(ctk_ecc->configuration_status),
+                                    G_CALLBACK(ecc_config_button_toggled),
+                                    (gpointer) ctk_ecc);
+    gtk_toggle_button_set_active(GTK_TOGGLE_BUTTON(ctk_ecc->configuration_status),
+                                 value);
+
+    g_signal_handlers_unblock_by_func(G_OBJECT(ctk_ecc->configuration_status),
+                                      G_CALLBACK(ecc_config_button_toggled),
+                                      (gpointer) ctk_ecc);
+}
+
+
+
+/*
  * ecc_configuration_update_received() - this function is called when the
  * NV_CTRL_GPU_ECC_CONFIGURATION atribute is changed by another
  * NV-CONTROL client.
@@ -211,15 +231,9 @@ static void ecc_configuration_update_received(GtkObject *object,
     CtkEventStruct *event_struct = (CtkEventStruct *) arg1;
     CtkEcc *ctk_ecc = CTK_ECC(user_data);
     
-    g_signal_handlers_block_by_func(G_OBJECT(ctk_ecc->configuration_status),
-                                    G_CALLBACK(ecc_config_button_toggled),
-                                    (gpointer) ctk_ecc);
-    gtk_toggle_button_set_active(GTK_TOGGLE_BUTTON(ctk_ecc->configuration_status),
-                                 event_struct->value);
+    /* set ECC configuration buttion status */
+    ecc_set_config_status(ctk_ecc, event_struct->value);
 
-    g_signal_handlers_unblock_by_func(G_OBJECT(ctk_ecc->configuration_status),
-                                      G_CALLBACK(ecc_config_button_toggled),
-                                      (gpointer) ctk_ecc);
     /* Update status bar message */
     post_ecc_configuration_update(ctk_ecc, event_struct->value);
 }
@@ -244,6 +258,9 @@ static void reset_default_config_button_clicked(GtkWidget *widget,
     NvCtrlSetAttribute(ctk_ecc->handle,
                        NV_CTRL_GPU_ECC_CONFIGURATION,
                        status);
+
+    /* update ECC configuration button status */
+    ecc_set_config_status(ctk_ecc, status);
 
     /* show popup dialog*/
     show_ecc_toggle_warning_dlg(ctk_ecc);
