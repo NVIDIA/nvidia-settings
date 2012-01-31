@@ -3242,7 +3242,23 @@
  */
 #define NV_CTRL_GPU_PCIE_CURRENT_LINK_SPEED                     385 /* R--GI */
 
-#define NV_CTRL_LAST_ATTRIBUTE NV_CTRL_GPU_PCIE_CURRENT_LINK_SPEED
+/*
+ * NV_CTRL_GVO_AUDIO_BLANKING - specifies whether the GVO device should delete
+ * audio ancillary data packets when frames are repeated.
+ *
+ * When a new frame is not ready in time, the current frame, including all
+ * ancillary data packets, is repeated.  When this data includes audio packets,
+ * this can result in stutters or clicks.  When this option is enabled, the GVO
+ * device will detect when frames are repeated, identify audio ancillary data
+ * packets, and mark them for deletion.
+ *
+ * This option is applied when the GVO device is bound.
+ */
+#define NV_CTRL_GVO_AUDIO_BLANKING                              386 /* RW- */
+#define NV_CTRL_GVO_AUDIO_BLANKING_DISABLE                        0
+#define NV_CTRL_GVO_AUDIO_BLANKING_ENABLE                         1
+
+#define NV_CTRL_LAST_ATTRIBUTE NV_CTRL_GVO_AUDIO_BLANKING
 
 /**************************************************************************/
 

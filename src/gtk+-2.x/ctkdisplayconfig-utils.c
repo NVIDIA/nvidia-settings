@@ -1627,11 +1627,9 @@ static Bool screen_add_metamodes(nvScreenPtr screen, gchar **err_str)
     metamode_strs = NULL;
 
     if (!screen->metamodes) {
-        *err_str = g_strdup_printf("Failed to add any metamode to screen %d "
-                                   "(on GPU-%d).",
-                                   screen->scrnum,
-                                   NvCtrlGetTargetId(screen->gpu->handle));
-        nv_error_msg(*err_str);
+        nv_warning_msg("Failed to add any metamode to screen %d (on GPU-%d).",
+                       screen->scrnum,
+                       NvCtrlGetTargetId(screen->gpu->handle));
         goto fail;
     }
 
@@ -2427,6 +2425,59 @@ static void layout_remove_screens(nvLayoutPtr layout)
 
 
 
+/** link_screen_to_gpu() *********************************************
+ *
+ * Finds the GPU driving the screen and links the two.
+ *
+ **/
+
+static Bool link_screen_to_gpu(nvLayoutPtr layout, nvScreenPtr screen)
+{
+    int val;
+    ReturnStatus ret;
+    nvGpuPtr gpu;
+
+    /* Link the screen to the display owner GPU.  If there is no display owner,
+     * which is the case when SLI Mosaic Mode is configured, link screen
+     * to the first GPU we find.
+     */
+    ret = NvCtrlGetAttribute(screen->handle, NV_CTRL_MULTIGPU_DISPLAY_OWNER,
+                             &val);
+    if (ret != NvCtrlSuccess) {
+        int *pData = NULL;
+        int len;
+
+        ret = NvCtrlGetBinaryAttribute(screen->handle,
+                                       0,
+                                       NV_CTRL_BINARY_DATA_GPUS_USED_BY_XSCREEN,
+                                       (unsigned char **)(&pData),
+                                       &len);
+        if (ret != NvCtrlSuccess || !pData) {
+            return FALSE;
+        }
+        if (pData[0] < 1) {
+            XFree(pData);
+            return FALSE;
+        }
+
+        /* Pick the first GPU */
+        val = pData[1];
+        XFree(pData);
+    }
+
+    for (gpu = layout->gpus; gpu; gpu = gpu->next_in_layout) {
+        if (val == NvCtrlGetTargetId(gpu->handle)) {
+            screen->gpu = gpu;
+            return TRUE;
+        }
+    }
+
+    return FALSE;
+
+} /* link_screen_to_gpu() */
+
+
+
 /** layout_add_screen_from_server() **********************************
  *
  * Adds an X screen to the layout structure.
@@ -2441,7 +2492,6 @@ static Bool layout_add_screen_from_server(nvLayoutPtr layout,
     int val, tmp;
     ReturnStatus ret;
     gchar *primary_str = NULL;
-    nvGpuPtr gpu;
 
 
     screen = (nvScreenPtr)calloc(1, sizeof(nvScreen));
@@ -2505,21 +2555,8 @@ static Bool layout_add_screen_from_server(nvLayoutPtr layout,
         goto fail;
     }
 
-
-    /* The display owner GPU gets the screen(s) */
-    ret = NvCtrlGetAttribute(screen->handle, NV_CTRL_MULTIGPU_DISPLAY_OWNER,
-                             &val);
-    if (ret != NvCtrlSuccess) {
-        screen_free(screen);
-        return TRUE;
-    }
-
-    for (gpu = layout->gpus; gpu; gpu = gpu->next_in_layout) {
-        if (val == NvCtrlGetTargetId(gpu->handle)) {
-            screen->gpu = gpu;
-        }
-    }
-    if (!screen->gpu) {
+    /* Link screen to the GPU driving it */
+    if (!link_screen_to_gpu(layout, screen)) {
         *err_str = g_strdup_printf("Failed to find GPU that drives screen %d.",
                                    screen_id);
         nv_warning_msg(*err_str);
@@ -2624,7 +2661,7 @@ static int layout_add_screens_from_server(nvLayoutPtr layout, gchar **err_str)
         }
     }
 
-    return layout->num_screens;
+    return nscreens;
 
 
  fail:

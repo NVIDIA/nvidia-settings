@@ -3890,7 +3890,7 @@ static gchar * validate_screen(nvScreenPtr screen)
         /* There must be at least one display active in the metamode. */
         if (!num_displays) {
             tmp = g_strdup_printf("%s MetaMode %d of Screen %d  does not have "
-                                  "an active display devices.\n\n",
+                                  "an active display device.\n\n",
                                   bullet, i+1, screen->scrnum);
             tmp2 = g_strconcat((err_str ? err_str : ""), tmp, NULL);
             g_free(err_str);
@@ -3910,7 +3910,7 @@ static gchar * validate_screen(nvScreenPtr screen)
             g_free(tmp);
             err_str = tmp2;
         }
-        
+
 
         /* Verify that the metamode is unique */
         metamode_str = screen_get_metamode_str(screen, i, 0);
@@ -4861,17 +4861,24 @@ void do_disable_display(CtkDisplayConfig *ctk_object, nvDisplayPtr display)
     gtk_label_set_text
         (GTK_LABEL(ctk_object->txt_display_disable), str);
     g_free(str);
-        
+
     gtk_button_set_label(GTK_BUTTON(ctk_object->btn_display_disable_off),
                          "Disable");
     gtk_button_set_label(GTK_BUTTON(ctk_object->btn_display_disable_cancel),
                          "Cancel");
 
-     
     /* Confirm with user before disabling */
     if (do_query_remove_display(ctk_object, display)) {
+        gboolean screen_disabled =
+            (display->screen->num_displays == 1) ? TRUE : FALSE;
         ctk_display_layout_disable_display(CTK_DISPLAY_LAYOUT(ctk_object->obj_layout),
                                            display);
+        /* If the display was the last one on the X screen, make note that we
+         * can't actually remove the X screen without a restart.
+         */
+        if (screen_disabled) {
+            ctk_object->apply_possible = FALSE;
+        }
     }
 
 } /* do_disable_display() */
@@ -4980,9 +4987,9 @@ static void display_config_changed(GtkWidget *widget, gpointer user_data)
             validation_auto_fix_screen(ctk_object, screen);
         }
 
-        /* Redraw */
-        ctk_display_layout_redraw(CTK_DISPLAY_LAYOUT(ctk_object->obj_layout));
-        
+        /* Final update */
+        ctk_display_layout_update(CTK_DISPLAY_LAYOUT(ctk_object->obj_layout));
+
         /* Update GUI */
         setup_layout_frame(ctk_object);
         setup_display_page(ctk_object);
@@ -5135,7 +5142,6 @@ static void display_modelname_changed(GtkWidget *widget, gpointer user_data)
     display = ctk_object->display_model_table[idx];
     ctk_display_layout_select_display
         (CTK_DISPLAY_LAYOUT(ctk_object->obj_layout), display);
-    ctk_display_layout_redraw(CTK_DISPLAY_LAYOUT(ctk_object->obj_layout));
 
     /* Reconfigure GUI to display information about the selected display. */
     setup_display_page(ctk_object);
@@ -6426,8 +6432,10 @@ static void apply_clicked(GtkWidget *widget, gpointer user_data)
         }
     }
 
-    /* Clear the apply button if all went well */
-    if (clear_apply) {
+    /* Clear the apply button if all went well, and we were able to apply
+     * eveything.
+     */
+    if (ctk_object->apply_possible && clear_apply) {
         gtk_widget_set_sensitive(widget, False);
         ctk_object->forced_reset_allowed = TRUE;
     }

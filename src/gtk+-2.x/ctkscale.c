@@ -212,11 +212,7 @@ GtkWidget* ctk_scale_new(GtkAdjustment *gtk_adjustment,
     
     frame = gtk_frame_new(NULL);
     gtk_box_pack_start(GTK_BOX(object), frame, TRUE, TRUE, 0);
-    
-    /* event box (for tooltips) */
-
-    ctk_scale->tooltip_widget = gtk_event_box_new();
-    gtk_container_add(GTK_CONTAINER(frame), ctk_scale->tooltip_widget);
+    ctk_scale->tooltip_widget = frame;
     
     /* hbox to contain slider and text box */
 

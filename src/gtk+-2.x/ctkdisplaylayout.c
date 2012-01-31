@@ -151,6 +151,36 @@ static void calc_metamode(nvScreenPtr screen, nvMetaModePtr metamode);
 /*** F U N C T I O N S *******************************************************/
 
 
+/** queue_layout_redraw() ********************************************
+ *
+ * Queues an expose event to happen on ourselves so we know to
+ * redraw later.
+ *
+ **/
+
+static void queue_layout_redraw(CtkDisplayLayout *ctk_object)
+{
+    GtkWidget *drawing_area = ctk_object->drawing_area;
+    GtkAllocation *allocation = &(drawing_area->allocation);
+    GdkRectangle rect;
+
+
+    if (!drawing_area->window) {
+        return;
+    }
+
+    /* Queue an expose event */
+    rect.x = allocation->x;
+    rect.y = allocation->x;
+    rect.width = allocation->width;
+    rect.height = allocation->height;
+
+    gdk_window_invalidate_rect(drawing_area->window, &rect, TRUE);
+
+} /* queue_layout_redraw() */
+
+
+
 /** zorder_layout() **************************************************
  *
  * In order to draw and allow selecting display devices, we need to
@@ -159,7 +189,7 @@ static void calc_metamode(nvScreenPtr screen, nvMetaModePtr metamode);
  *
  **/
 
-static void zorder_layout(CtkDisplayLayout *ctk_object) 
+static void zorder_layout(CtkDisplayLayout *ctk_object)
 {
     nvLayoutPtr layout = ctk_object->layout;
     nvGpuPtr gpu;
@@ -1786,7 +1816,7 @@ static void snap_pan(CtkDisplayLayout *ctk_object)
  * function handles movement of relative and absolute positions as
  * well as snapping.
  *
- * Returns 1 if a move occured.
+ * Returns 1 if the layout was modified
  *
  **/
 
@@ -1794,6 +1824,7 @@ static int move_selected(CtkDisplayLayout *ctk_object, int x, int y, int snap)
 {
     nvLayoutPtr layout = ctk_object->layout;
     ModifyInfo *info = &(ctk_object->modify_info);
+    int modified = 0;
 
     int *dim; /* Temp dimensions */
     int *sdim; /* Temp screen dimensions */
@@ -1826,12 +1857,12 @@ static int move_selected(CtkDisplayLayout *ctk_object, int x, int y, int snap)
             /* Compute the new orientation based on the mouse position */
             *(info->target_position_type) =
                 get_point_relative_position(dim, p_x, p_y);
-            
+
             /* For displays, while in basic mode, make sure that the
              * relative position applies to all metamodes.
              */
             if (info->display) {
-                
+
                 if (!ctk_object->advanced_mode) {
                     nvModePtr mode;
                     for (mode = info->display->modes; mode;
@@ -1839,7 +1870,7 @@ static int move_selected(CtkDisplayLayout *ctk_object, int x, int y, int snap)
                         mode->position_type = *(info->target_position_type);
                     }
                 }
-                
+
                 /* Make sure the screen position does not change */
                 reposition_screen(info->screen, !ctk_object->advanced_mode);
                 /* Always update the modify dim for relative positioning */
@@ -1890,7 +1921,6 @@ static int move_selected(CtkDisplayLayout *ctk_object, int x, int y, int snap)
         }
         sdim = get_screen_dim(info->screen, 1);
 
-        
         /* Prevent moving out of the max layout bounds */
         x = MAX_LAYOUT_WIDTH - dim[W];
         if (info->dst_dim[X] > x) {
@@ -1999,10 +2029,15 @@ static int move_selected(CtkDisplayLayout *ctk_object, int x, int y, int snap)
         }
     }
 
-
     /* Recalculate layout dimensions and scaling */
     calc_layout(layout);
-    offset_layout(layout, -layout->dim[X], -layout->dim[Y]);
+
+    /* If layout needs to offset, it was modified */
+    if (layout->dim[X] || layout->dim[Y]) {
+        offset_layout(layout, -layout->dim[X], -layout->dim[Y]);
+        modified = 1;
+    }
+
     recenter_layout(layout);
     sync_scaling(ctk_object);
 
@@ -2012,21 +2047,21 @@ static int move_selected(CtkDisplayLayout *ctk_object, int x, int y, int snap)
      */
     x = info->target_dim[X] - info->dst_dim[X];
     y = info->target_dim[Y] - info->dst_dim[Y];
-    if (x || y ) {
+    if (x || y) {
         info->modify_dim[X] += x;
         info->modify_dim[Y] += y;
     }
 
-    /* Report if anything changed */
+    /* Check if the item being moved has a new position */
     if (*(info->target_position_type) != info->orig_position_type ||
         info->target_dim[X] != info->orig_dim[X] ||
         info->target_dim[Y] != info->orig_dim[Y]) {
-        return 1;
+        modified = 1;
     }
 
     // XXX Screen could have changed position due to display moving.
 
-    return 0;
+    return modified;
 
 } /* move_selected() */
 
@@ -2042,10 +2077,11 @@ static int pan_selected(CtkDisplayLayout *ctk_object, int x, int y, int snap)
 {
     nvLayoutPtr layout = ctk_object->layout;
     ModifyInfo *info = &(ctk_object->modify_info);
+    int modified = 0;
 
     int *dim;
     int extra;
-    
+
 
     info->modify_panning = 1;
     if (!get_modify_info(ctk_object)) return 0;
@@ -2154,18 +2190,27 @@ static int pan_selected(CtkDisplayLayout *ctk_object, int x, int y, int snap)
 
     /* Recalculate layout dimensions and scaling */
     calc_layout(layout);
-    offset_layout(layout, -layout->dim[X], -layout->dim[Y]);
+
+    /* If layout needs to offset, something moved */
+    if (layout->dim[X] || layout->dim[Y]) {
+        offset_layout(layout, -layout->dim[X], -layout->dim[Y]);
+        modified = 1;
+    }
+
     recenter_layout(layout);
     sync_scaling(ctk_object);
 
 
+    /* Check if the item being moved has a new position */
     /* Report if anything changed */
     if (info->target_dim[W] != info->orig_dim[W] ||
         info->target_dim[H] != info->orig_dim[H]) {
-        return 1;
+        modified = 1;
     }
 
-    return 0;
+    // XXX Screen could have changed position due to display moving.
+
+    return modified;
 
 } /* pan_selected() */
 
@@ -2822,18 +2867,20 @@ GtkWidget* ctk_display_layout_new(NvCtrlAttributeHandle *handle,
     ctk_object->selected_callback_data = NULL;
     ctk_object->modified_callback = NULL;
     ctk_object->modified_callback_data = NULL;
+    ctk_object->Zorder = NULL;
+    ctk_object->Zcount = 0;
 
     /* Setup widget properties */
     ctk_object->ctk_config = ctk_config;
 
     ctk_object->handle = handle;
     ctk_object->layout = layout;
+
     calc_layout(layout);
     sync_scaling(ctk_object);
     zorder_layout(ctk_object);
     select_default_item(ctk_object);
 
-    
     /* Setup Pango layout/font */
     ctk_object->pango_layout =
         gtk_widget_create_pango_layout(GTK_WIDGET(ctk_object), NULL);
@@ -2863,7 +2910,6 @@ GtkWidget* ctk_display_layout_new(NvCtrlAttributeHandle *handle,
 
     /* Setup the layout state variables */
     ctk_object->snap_strength = DEFAULT_SNAP_STRENGTH;
-    ctk_object->need_swap = 0;
     ctk_object->first_selected_display = NULL;
     ctk_object->first_selected_screen = NULL;
 
@@ -2874,7 +2920,8 @@ GtkWidget* ctk_display_layout_new(NvCtrlAttributeHandle *handle,
                           GDK_EXPOSURE_MASK |
                           GDK_BUTTON_PRESS_MASK |
                           GDK_BUTTON_RELEASE_MASK |
-                          GDK_POINTER_MOTION_MASK);
+                          GDK_POINTER_MOTION_MASK |
+                          GDK_POINTER_MOTION_HINT_MASK);
 
     g_signal_connect (G_OBJECT (tmp), "expose_event",  
                       G_CALLBACK (expose_event_callback),
@@ -2943,34 +2990,6 @@ static GdkGC *get_widget_fg_gc(GtkWidget *widget)
 
 
 
-/** do_swap() ********************************************************
- *
- * Preforms a swap from the back buffer if one is needed.
- *
- **/
-
-static void do_swap(CtkDisplayLayout *ctk_object)
-{
-    GtkWidget *drawing_area = ctk_object->drawing_area;
-    GdkGC *fg_gc = get_widget_fg_gc(drawing_area);
-
-    if (ctk_object->need_swap && drawing_area->window && fg_gc) {
-
-        gdk_draw_pixmap(drawing_area->window,
-                        fg_gc,
-                        ctk_object->pixmap,
-                        0,0,
-                        0,0,
-                        ctk_object->width,
-                        ctk_object->height);
-
-        ctk_object->need_swap = 0;
-    }
-
-} /* do_swap() */
-
-
-
 /** draw_rect() ******************************************************
  *
  * Draws a solid or wireframe rectangle to scale of the given color
@@ -3000,8 +3019,6 @@ static void draw_rect(CtkDisplayLayout *ctk_object,
                        ctk_object->img_dim[Y] + ctk_object->scale * dim[Y],
                        w,
                        h);
-
-    ctk_object->need_swap = 1;
 
 } /* draw_rect() */
 
@@ -3035,7 +3052,7 @@ static void draw_rect_strs(CtkDisplayLayout *ctk_object,
     if (str_1) {
         pango_layout_set_text(ctk_object->pango_layout, str_1, -1);
         pango_layout_get_pixel_size(ctk_object->pango_layout, &txt_w, &txt_h);
-        
+
         if (txt_w +8 <= ctk_object->scale * dim[W] &&
             txt_h +8 <= ctk_object->scale * dim[H]) {
             draw_1 = 1;
@@ -3079,8 +3096,6 @@ static void draw_rect_strs(CtkDisplayLayout *ctk_object,
                         ctk_object->img_dim[X] + txt_x1,
                         ctk_object->img_dim[Y] + txt_y1,
                         ctk_object->pango_layout);
-
-        ctk_object->need_swap = 1;
     }
 
     else if (!draw_1 && draw_2) {
@@ -3098,8 +3113,6 @@ static void draw_rect_strs(CtkDisplayLayout *ctk_object,
                         ctk_object->img_dim[X] + txt_x2,
                         ctk_object->img_dim[Y] + txt_y2,
                         ctk_object->pango_layout);
-
-        ctk_object->need_swap = 1;
     }
 
     else if (draw_1 && draw_2) {
@@ -3155,7 +3168,7 @@ static void draw_display(CtkDisplayLayout *ctk_object,
     draw_rect(ctk_object, mode->pan, &(ctk_object->color_palettes[color_idx]),
               1);
     draw_rect(ctk_object, mode->pan, &(ctk_object->fg_color), 0);
-    
+
 
     /* Draw viewport */
     color_idx = base_color_idx + ((mode->modeline) ? BG_SCR_ON : BG_SCR_OFF);
@@ -3248,7 +3261,7 @@ static void draw_layout(CtkDisplayLayout *ctk_object)
 {
     GtkWidget *drawing_area = ctk_object->drawing_area;
     GdkGC *fg_gc = get_widget_fg_gc(drawing_area);
-    
+
     GdkColor bg_color; /* Background color */
     GdkColor bd_color; /* Border color */
     int i;
@@ -3257,18 +3270,14 @@ static void draw_layout(CtkDisplayLayout *ctk_object)
     gdk_color_parse("#888888", &bg_color);
     gdk_color_parse("#777777", &bd_color);
 
-
     /* Draw the Z-order back to front */
     for (i = ctk_object->Zcount - 1; i >= 0; i--) {
         if (ctk_object->Zorder[i].type == ZNODE_TYPE_DISPLAY) {
             draw_display(ctk_object, ctk_object->Zorder[i].u.display);
-            ctk_object->need_swap = 1;
         } else if (ctk_object->Zorder[i].type == ZNODE_TYPE_SCREEN) {
             draw_screen(ctk_object, ctk_object->Zorder[i].u.screen);
-            ctk_object->need_swap = 1;
         }
     }
-
 
     /* Hilite the selected item */
     if (ctk_object->selected_display ||
@@ -3311,7 +3320,7 @@ static void draw_layout(CtkDisplayLayout *ctk_object)
                                ctk_object->img_dim[Y] +(ctk_object->scale * dim[Y]) +offset,
                                w -(2 * offset),
                                h -(2 * offset));
-            
+
             gdk_gc_set_line_attributes(fg_gc, 1, GDK_LINE_SOLID, GDK_CAP_ROUND,
                                        GDK_JOIN_ROUND);
         }
@@ -3320,7 +3329,7 @@ static void draw_layout(CtkDisplayLayout *ctk_object)
         /* Uncomment to show bounding box of selected screen's metamodes */
         /*
         if (ctk_object->selected_screen) {
-            
+
             // Shows the screen dimensions used to write to the X config file
             gdk_color_parse("#00FF00", &bg_color);
             draw_rect(ctk_object,
@@ -3360,8 +3369,6 @@ static void draw_layout(CtkDisplayLayout *ctk_object)
             }
         }
         //*/
-
-        ctk_object->need_swap = 1;
     }
 
 } /* draw_layout() */
@@ -3377,6 +3384,7 @@ static void draw_layout(CtkDisplayLayout *ctk_object)
 static void clear_layout(CtkDisplayLayout *ctk_object)
 {
     GtkWidget *drawing_area = ctk_object->drawing_area;
+    GtkAllocation *allocation = &(drawing_area->allocation);
     GdkGC *fg_gc = get_widget_fg_gc(drawing_area);
     GdkColor color;
 
@@ -3389,8 +3397,8 @@ static void clear_layout(CtkDisplayLayout *ctk_object)
                        TRUE,
                        2,
                        2,
-                       drawing_area->allocation.width  -4,
-                       drawing_area->allocation.height -4);
+                       allocation->width  -4,
+                       allocation->height -4);
 
 
     /* Add white trim */
@@ -3401,8 +3409,8 @@ static void clear_layout(CtkDisplayLayout *ctk_object)
                        FALSE,
                        1,
                        1,
-                       drawing_area->allocation.width  -3,
-                       drawing_area->allocation.height -3);
+                       allocation->width  -3,
+                       allocation->height -3);
 
 
     /* Add layout border */
@@ -3412,39 +3420,10 @@ static void clear_layout(CtkDisplayLayout *ctk_object)
                        FALSE,
                        0,
                        0,
-                       drawing_area->allocation.width  -1,
-                       drawing_area->allocation.height -1);
-
-    ctk_object->need_swap = 1;
+                       allocation->width  -1,
+                       allocation->height -1);
 
 } /* clear_layout() */
-
-
-
-/** draw_all() *******************************************************
- *
- * Clears and redraws the entire layout.
- *
- **/
-
-static void draw_all(CtkDisplayLayout *ctk_object)
-{
-    GtkWidget *drawing_area = ctk_object->drawing_area;
-    GdkGC *fg_gc = get_widget_fg_gc(drawing_area);
-    GdkGCValues old_gc_values;
-
-    if (!fg_gc) return;
-
-    /* Redraw everything */
-    gdk_gc_get_values(fg_gc, &old_gc_values);
-
-    clear_layout(ctk_object);
-
-    draw_layout(ctk_object);
-
-    gdk_gc_set_values(fg_gc, &old_gc_values, GDK_GC_FOREGROUND);
-
-} /* draw_all() */
 
 
 
@@ -3470,24 +3449,9 @@ void ctk_display_layout_update(CtkDisplayLayout *ctk_object)
         ctk_object->selected_screen = ctk_object->selected_display->screen;
     }
 
+    queue_layout_redraw(ctk_object);
+
 } /* ctk_display_layout_update() */
-
-
-
-/** ctk_display_layout_redraw() **************************************
- *
- * Redraw everything in the layout and makes sure the widget is
- * updated.
- *
- **/
-
-void ctk_display_layout_redraw(CtkDisplayLayout *ctk_object)
-{
-    ctk_display_layout_update(ctk_object);
-    draw_all(ctk_object);
-    do_swap(ctk_object);
-
-} /* ctk_display_layout_redraw() */
 
 
 
@@ -3505,8 +3469,8 @@ void ctk_display_layout_set_layout(CtkDisplayLayout *ctk_object,
     zorder_layout(ctk_object);
     select_default_item(ctk_object);
 
-    /* Redraw */
-    ctk_display_layout_redraw(ctk_object);
+    /* Update */
+    ctk_display_layout_update(ctk_object);
 
 } /* ctk_display_layout_set_layout() */
 
@@ -3521,6 +3485,8 @@ void ctk_display_layout_set_layout(CtkDisplayLayout *ctk_object,
 void ctk_display_layout_update_zorder(CtkDisplayLayout *ctk_object)
 {
     zorder_layout(ctk_object);
+
+    queue_layout_redraw(ctk_object);
 
 } /* ctk_display_layout_update_zorder() */
 
@@ -3601,8 +3567,8 @@ void ctk_display_layout_set_screen_metamode(CtkDisplayLayout *ctk_object,
     sync_scaling(ctk_object);
     ctk_object->modify_info.modify_dirty = 1;
 
-    /* Redraw the layout */
-    ctk_display_layout_redraw(ctk_object);
+    /* Update the layout */
+    ctk_display_layout_update(ctk_object);
 
 } /* ctk_display_layout_set_screen_metamode() */
 
@@ -3684,6 +3650,7 @@ void ctk_display_layout_add_screen_metamode(CtkDisplayLayout *ctk_object,
      * - Remove metamode from screen
      * - Remove any excess metamodes from the displays
      */
+    queue_layout_redraw(ctk_object);
     return;
 
 } /* ctk_display_layout_add_screen_metamode() */
@@ -3786,6 +3753,8 @@ void ctk_display_layout_delete_screen_metamode(CtkDisplayLayout *ctk_object,
             (ctk_object, screen, screen->cur_metamode_idx);
     }
 
+    queue_layout_redraw(ctk_object);
+
 } /* ctk_display_layout_delete_screen_metamode() */
 
 
@@ -3823,6 +3792,8 @@ void ctk_display_layout_disable_display(CtkDisplayLayout *ctk_object,
     /* Add the fake mode to the display */
     gpu_add_screenless_modes_to_displays(display->gpu);
 
+    queue_layout_redraw(ctk_object);
+
 } /* ctk_display_layout_disable_display() */
 
 
@@ -3852,14 +3823,14 @@ void ctk_display_layout_set_mode_modeline(CtkDisplayLayout *ctk_object,
     if (modeline) {
         mode->dim[W] = modeline->data.hdisplay;
         mode->dim[H] = modeline->data.vdisplay;
-        
+
         if (mode->pan[W] < modeline->data.hdisplay) {
             mode->pan[W] = modeline->data.hdisplay;
         }
         if (mode->pan[H] < modeline->data.vdisplay) {
             mode->pan[H] = modeline->data.vdisplay;
         }
-        
+
         /* If the old modeline did not have panning dimensions */
         if (!old_modeline ||
             (mode->pan[W] == old_modeline->data.hdisplay)) {
@@ -3888,8 +3859,8 @@ void ctk_display_layout_set_mode_modeline(CtkDisplayLayout *ctk_object,
     }
 
 
-    /* Redraw the layout */
-    ctk_display_layout_redraw(ctk_object);
+    /* Update the layout */
+    ctk_display_layout_update(ctk_object);
 
 } /* ctk_display_layout_set_display_modeline() */
 
@@ -3907,9 +3878,6 @@ void ctk_display_layout_set_display_position(CtkDisplayLayout *ctk_object,
                                              nvDisplayPtr relative_to,
                                              int x, int y)
 {
-    GtkWidget *drawing_area = ctk_object->drawing_area;
-    GdkGC *fg_gc = get_widget_fg_gc(drawing_area);
-    GdkGCValues old_gc_values;
     int modified = 0;
     int resolve_all_modes = !ctk_object->advanced_mode;
 
@@ -3917,15 +3885,6 @@ void ctk_display_layout_set_display_position(CtkDisplayLayout *ctk_object,
     if (!display) return;
 
     if (position_type != CONF_ADJ_ABSOLUTE && !relative_to) return;
-
-
-    /* Backup the foreground color and clear the layout */
-    if (fg_gc) {
-        gdk_gc_get_values(fg_gc, &old_gc_values);
-        
-        clear_layout(ctk_object);
-    }
-
 
     /* XXX When configuring a relative position, make sure
      * all displays that are relative to us become absolute.
@@ -3975,7 +3934,7 @@ void ctk_display_layout_set_display_position(CtkDisplayLayout *ctk_object,
             mode->relative_to = relative_to;
         }
     }
-    
+
 
     switch (position_type) {
     case CONF_ADJ_ABSOLUTE:
@@ -3985,17 +3944,17 @@ void ctk_display_layout_set_display_position(CtkDisplayLayout *ctk_object,
                                  x - display->cur_mode->dim[X],
                                  y - display->cur_mode->dim[Y],
                                  0);
-        
+
         /* Report back result of move */
         if (ctk_object->modified_callback &&
-            (modified || 
+            (modified ||
              x != display->cur_mode->dim[X] ||
              y != display->cur_mode->dim[Y])) {
             ctk_object->modified_callback
                 (ctk_object->layout, ctk_object->modified_callback_data);
         }
         break;
-        
+
     default:
         /* Make sure the screen position does not change */
         reposition_screen(display->screen, resolve_all_modes);
@@ -4005,15 +3964,7 @@ void ctk_display_layout_set_display_position(CtkDisplayLayout *ctk_object,
         break;
     }
 
-    
-    /* Redraw the layout and reset the foreground color */
-    if (fg_gc) {
-        draw_layout(ctk_object);
-
-        gdk_gc_set_values(fg_gc, &old_gc_values, GDK_GC_FOREGROUND);
-        
-        do_swap(ctk_object);
-    }
+    queue_layout_redraw(ctk_object);
 
 } /* ctk_display_layout_set_display_position() */
 
@@ -4029,22 +3980,10 @@ void ctk_display_layout_set_display_panning(CtkDisplayLayout *ctk_object,
                                             nvDisplayPtr display,
                                             int width, int height)
 {
-    GtkWidget *drawing_area = ctk_object->drawing_area;
-    GdkGC *fg_gc = get_widget_fg_gc(drawing_area);
-    GdkGCValues old_gc_values;
     int modified = 0;
 
 
     if (!display) return;
-
-
-    /* Backup the foreground color */
-    if (fg_gc) {
-        gdk_gc_get_values(fg_gc, &old_gc_values);
-
-        clear_layout(ctk_object);
-    }
-
 
     /* Change the panning */
     ctk_object->modify_info.modify_dirty = 1;
@@ -4052,26 +3991,17 @@ void ctk_display_layout_set_display_panning(CtkDisplayLayout *ctk_object,
                             width  - display->cur_mode->pan[W],
                             height - display->cur_mode->pan[H],
                             0);
-    
 
     /* Report back result of move */
     if (ctk_object->modified_callback &&
-        (modified || 
+        (modified ||
          width  != display->cur_mode->pan[W] ||
          height != display->cur_mode->pan[H])) {
         ctk_object->modified_callback(ctk_object->layout,
                                       ctk_object->modified_callback_data);
     }
-    
 
-    /* Redraw layout and reset the foreground color */
-    if (fg_gc) {
-        draw_layout(ctk_object);
-
-        gdk_gc_set_values(fg_gc, &old_gc_values, GDK_GC_FOREGROUND);
-
-        do_swap(ctk_object);
-    }
+    queue_layout_redraw(ctk_object);
 
 } /* ctk_display_layout_set_display_panning() */
 
@@ -4106,6 +4036,8 @@ void ctk_display_layout_select_display(CtkDisplayLayout *ctk_object,
     /* Select the new display */
     select_display(ctk_object, display);
 
+    queue_layout_redraw(ctk_object);
+
 } /* ctk_display_layout_select_display() */
 
 
@@ -4130,6 +4062,8 @@ void ctk_display_layout_update_display_count(CtkDisplayLayout *ctk_object,
         select_topmost_item(ctk_object);
     }
 
+    queue_layout_redraw(ctk_object);
+
 } /* ctk_display_layout_update_display_count() */
 
 
@@ -4144,19 +4078,9 @@ void ctk_display_layout_set_screen_virtual_size(CtkDisplayLayout *ctk_object,
                                                 nvScreenPtr screen,
                                                 int width, int height)
 {
-    GtkWidget *drawing_area = ctk_object->drawing_area;
-    GdkGC *fg_gc = get_widget_fg_gc(drawing_area);
-    GdkGCValues old_gc_values;
     int modified;
 
     if (!screen || !screen->no_scanout) return;
-
-    /* Backup the foreground color */
-    if (fg_gc) {
-        gdk_gc_get_values(fg_gc, &old_gc_values);
-
-        clear_layout(ctk_object);
-    }
 
     /* Do the panning by offsetting */
 
@@ -4178,14 +4102,7 @@ void ctk_display_layout_set_screen_virtual_size(CtkDisplayLayout *ctk_object,
                                       ctk_object->modified_callback_data);
     }
 
-    /* Redraw layout and reset the foreground color */
-    if (fg_gc) {
-        draw_layout(ctk_object);
-
-        gdk_gc_set_values(fg_gc, &old_gc_values, GDK_GC_FOREGROUND);
-
-        do_swap(ctk_object);
-    }
+    queue_layout_redraw(ctk_object);
 
 } /* ctk_display_layout_set_screen_virtual_size() */
 
@@ -4222,9 +4139,6 @@ void ctk_display_layout_set_screen_position(CtkDisplayLayout *ctk_object,
                                             nvScreenPtr relative_to,
                                             int x, int y)
 {
-    GtkWidget *drawing_area = ctk_object->drawing_area;
-    GdkGC *fg_gc = get_widget_fg_gc(drawing_area);
-    GdkGCValues old_gc_values;
     int modified = 0;
     nvLayoutPtr layout = ctk_object->layout;
 
@@ -4232,13 +4146,6 @@ void ctk_display_layout_set_screen_position(CtkDisplayLayout *ctk_object,
     if (!screen) return;
 
     if (position_type != CONF_ADJ_ABSOLUTE && !relative_to) return;
-
-
-    /* Backup the foreground color and clear the layout */
-    if (fg_gc) {
-        gdk_gc_get_values(fg_gc, &old_gc_values);
-        clear_layout(ctk_object);
-    }
 
 
     /* XXX When configuring a relative position, make sure
@@ -4299,11 +4206,10 @@ void ctk_display_layout_set_screen_position(CtkDisplayLayout *ctk_object,
         break;
 
     case CONF_ADJ_RELATIVE:
-        
-        /* Fall Through */
         screen->x_offset = x;
         screen->y_offset = y;
- 
+
+        /* Fall Through */
     default:
         /* Set the desired positioning */
         screen->relative_to = relative_to;
@@ -4324,21 +4230,14 @@ void ctk_display_layout_set_screen_position(CtkDisplayLayout *ctk_object,
          *  CRT-1 left of CRT-2
          *  CRT-2 clones  CRT-0 ...  Eep!
          */
-        
+
         /* Recalculate the layout */
         ctk_display_layout_update(ctk_object);
         break;
     }
 
 
-    /* Redraw the layout and reset the foreground color */
-    if (fg_gc) {
-        draw_layout(ctk_object);
-        
-        gdk_gc_set_values(fg_gc, &old_gc_values, GDK_GC_FOREGROUND);
-        
-        do_swap(ctk_object);
-    }
+    queue_layout_redraw(ctk_object);
 
 } /* ctk_display_layout_set_screen_position() */
 
@@ -4404,15 +4303,34 @@ static gboolean
 expose_event_callback(GtkWidget *widget, GdkEventExpose *event, gpointer data)
 {
     CtkDisplayLayout *ctk_object = CTK_DISPLAY_LAYOUT(data);
+    GdkGC *fg_gc = get_widget_fg_gc(widget);
+    GdkGCValues old_gc_values;
 
 
-    if (event->count) {
+    if (event->count || !widget->window || !fg_gc) {
         return TRUE;
     }
 
     /* Redraw the layout */
-    ctk_display_layout_redraw(ctk_object);
-    
+    gdk_window_begin_paint_rect(widget->window, &event->area);
+
+    gdk_gc_get_values(fg_gc, &old_gc_values);
+
+    clear_layout(ctk_object);
+
+    draw_layout(ctk_object);
+
+    gdk_gc_set_values(fg_gc, &old_gc_values, GDK_GC_FOREGROUND);
+
+    gdk_draw_pixmap(widget->window,
+                    fg_gc,
+                    ctk_object->pixmap,
+                    event->area.x, event->area.y,
+                    event->area.x, event->area.y,
+                    event->area.width, event->area.height);
+
+    gdk_window_end_paint(widget->window);
+
     return TRUE;
 
 } /* expose_event_callback() */
@@ -4433,17 +4351,15 @@ configure_event_callback(GtkWidget *widget, GdkEventConfigure *event,
     int width = widget->allocation.width;
     int height = widget->allocation.height;
 
-    ctk_object->width = width;
-    ctk_object->height = height;
     ctk_object->img_dim[X] = LAYOUT_IMG_OFFSET + LAYOUT_IMG_BORDER_PADDING;
     ctk_object->img_dim[Y] = LAYOUT_IMG_OFFSET + LAYOUT_IMG_BORDER_PADDING;
     ctk_object->img_dim[W] = width  -2*(ctk_object->img_dim[X]);
     ctk_object->img_dim[H] = height -2*(ctk_object->img_dim[Y]);
 
     sync_scaling(ctk_object);
-    
+
     ctk_object->pixmap = gdk_pixmap_new(widget->window, width, height, -1);
-    
+
     return TRUE;
 
 } /* configure_event_callback() */
@@ -4460,16 +4376,24 @@ static gboolean
 motion_event_callback(GtkWidget *widget, GdkEventMotion *event, gpointer data)
 {
     CtkDisplayLayout *ctk_object = CTK_DISPLAY_LAYOUT(data);
-    GtkWidget *drawing_area = ctk_object->drawing_area;
-    GdkGC *fg_gc = get_widget_fg_gc(drawing_area);
-    GdkGCValues old_gc_values;
-
     static int init = 1;
     int modify_panning;
+    int x;
+    int y;
+    GdkModifierType state;
 
+
+    /* Handle hints so we don't get overwhelmed with motion events */
+    if (event->is_hint) {
+        gdk_window_get_pointer(event->window, &x, &y, &state);
+    } else {
+        x = event->x;
+        y = event->y;
+        state = event->state;
+    }
 
     /* Swap between panning and moving  */
-    if (ctk_object->advanced_mode && (event->state & ShiftMask)) {
+    if (ctk_object->advanced_mode && (state & ShiftMask)) {
         modify_panning = 1;
     } else {
         modify_panning = 0;
@@ -4480,13 +4404,13 @@ motion_event_callback(GtkWidget *widget, GdkEventMotion *event, gpointer data)
     }
 
     /* Nothing to do if mouse didn't move */
-    if (ctk_object->last_mouse_x == event->x &&
-        ctk_object->last_mouse_y == event->y) {
+    if (ctk_object->last_mouse_x == x &&
+        ctk_object->last_mouse_y == y) {
         return TRUE;
     }
 
-    ctk_object->mouse_x = event->x;
-    ctk_object->mouse_y = event->y;
+    ctk_object->mouse_x = x;
+    ctk_object->mouse_y = y;
 
 
     /* If mouse moved, allow user to reselect the current display/screen */
@@ -4494,20 +4418,13 @@ motion_event_callback(GtkWidget *widget, GdkEventMotion *event, gpointer data)
     ctk_object->first_selected_screen = NULL;
 
 
-    /* Backup the foreground color */
-    gdk_gc_get_values(fg_gc, &old_gc_values);
-
-
     /* Modify screen layout */
     if (ctk_object->button1 && !ctk_object->clicked_outside) {
         int modified = 0;
         int delta_x =
-            (event->x - ctk_object->last_mouse_x) / ctk_object->scale;
+            (x - ctk_object->last_mouse_x) / ctk_object->scale;
         int delta_y =
-            (event->y - ctk_object->last_mouse_y) / ctk_object->scale;
-
-
-        clear_layout(ctk_object);
+            (y - ctk_object->last_mouse_y) / ctk_object->scale;
 
         if (!modify_panning) {
             modified = move_selected(ctk_object, delta_x, delta_y, 1);
@@ -4515,40 +4432,33 @@ motion_event_callback(GtkWidget *widget, GdkEventMotion *event, gpointer data)
             modified = pan_selected(ctk_object, delta_x, delta_y, 1);
         }
 
-        if (modified && ctk_object->modified_callback) {
-            ctk_object->modified_callback(ctk_object->layout,
-                                       ctk_object->modified_callback_data);
+        if (modified) {
+            GtkWidget *drawing_area = ctk_object->drawing_area;
+
+            if (ctk_object->modified_callback) {
+                ctk_object->modified_callback(ctk_object->layout,
+                                              ctk_object->modified_callback_data);
+            }
+
+            /* Queue and process expose event so we redraw ASAP */
+            queue_layout_redraw(ctk_object);
+            gdk_window_process_updates(drawing_area->window, TRUE);
         }
-
-        draw_layout(ctk_object);
-
 
     /* Update the tooltip under the mouse */
     } else {
-        char *tip =
-            get_tooltip_under_mouse(ctk_object, event->x, event->y);
-
+        char *tip = get_tooltip_under_mouse(ctk_object, x, y);
         if (tip) {
             gtk_tooltips_set_tip(ctk_object->tooltip_group,
                                  ctk_object->tooltip_area,
                                  tip, NULL);
-            
             gtk_tooltips_force_window(ctk_object->tooltip_group);
             g_free(tip);
         }
     }
 
-
-    ctk_object->last_mouse_x = event->x;
-    ctk_object->last_mouse_y = event->y;
-
-
-    /* Reset the foreground color */
-    gdk_gc_set_values(fg_gc, &old_gc_values, GDK_GC_FOREGROUND);
-    
-
-    /* Refresh GUI */
-    do_swap(ctk_object);
+    ctk_object->last_mouse_x = x;
+    ctk_object->last_mouse_y = y;
 
     return TRUE;
 
@@ -4681,19 +4591,13 @@ button_press_event_callback(GtkWidget *widget, GdkEventButton *event,
                                           ctk_object->selected_callback_data);
         }
 
-        /* Redraw everything */
-        draw_all(ctk_object);
-
+        queue_layout_redraw(ctk_object);
         break;
 
     default:
         break;
     }
 
-
-    /* Refresh GUI */
-    do_swap(ctk_object);
-    
     return TRUE;
 
 } /* button_press_event_callback() */
@@ -4730,10 +4634,6 @@ button_release_event_callback(GtkWidget *widget, GdkEventButton *event,
     default:
         break;
     }
-    
-
-    /* Refresh GUI */
-    do_swap(ctk_object);
 
     return TRUE;
 

@@ -65,10 +65,15 @@ void post_color_space_update(CtkColorControls *ctk_color_controls,
 /* help text */
 static const char * __color_controls_help =
 "The Color Controls allow changing the color space and color range "
-"of the display device.  The possible values for Color Space vary "
-"depending on the capabilities of the display device and the GPU, but "
-"may contain \"RGB\", \"YCbCr422\", and \"YCbCr444\".  The possible values "
-"for Color Range are \"Limited\" and \"Full\".";
+"of the display device.";
+
+static const char * __color_space_help =
+"The possible values for Color Space vary depending on the capabilities of "
+"the display device and the GPU, but may contain \"RGB\", \"YCbCr422\", "
+"and \"YCbCr444\".";  
+
+static const char * __color_range_help =
+"The possible values for Color Range are \"Limited\" and \"Full\".";
 
 GType ctk_color_controls_get_type(void)
 {
@@ -105,7 +110,7 @@ GtkWidget* ctk_color_controls_new(NvCtrlAttributeHandle *handle,
 {
     GObject *object;
     CtkColorControls *ctk_color_controls;
-    GtkWidget *frame, *hbox, *label, *eventbox;
+    GtkWidget *frame, *hbox, *label;
     GtkWidget *menu, *table, *menu_item = NULL, *separator;
     ReturnStatus ret1, ret2;
     NVCTRLAttributeValidValuesRec valid1, valid2;
@@ -148,10 +153,7 @@ GtkWidget* ctk_color_controls_new(NvCtrlAttributeHandle *handle,
     ctk_color_controls->color_controls_main = hbox;
 
     frame = gtk_frame_new("Color Controls");
-    eventbox = gtk_event_box_new();
-    gtk_container_add(GTK_CONTAINER(eventbox), frame);
-    gtk_box_pack_start(GTK_BOX(hbox), eventbox, FALSE, FALSE, 0);
-    ctk_config_set_tooltip(ctk_config, eventbox, __color_controls_help);
+    gtk_box_pack_start(GTK_BOX(hbox), frame, FALSE, FALSE, 0);
 
     table = gtk_table_new(1, 6, FALSE);
     gtk_container_add(GTK_CONTAINER(frame), table);
@@ -183,6 +185,9 @@ GtkWidget* ctk_color_controls_new(NvCtrlAttributeHandle *handle,
     gtk_option_menu_set_menu
         (GTK_OPTION_MENU(ctk_color_controls->color_space_menu),
          menu);
+    ctk_config_set_tooltip(ctk_config, 
+                           ctk_color_controls->color_space_menu,
+                           __color_space_help);
 
     /* If dropdown only has one item, disable it */
     if (ctk_color_controls->color_space_table_size > 1) {
@@ -223,6 +228,9 @@ GtkWidget* ctk_color_controls_new(NvCtrlAttributeHandle *handle,
     /* dropdown list for color range */
 
     ctk_color_controls->color_range_menu = gtk_option_menu_new();
+    ctk_config_set_tooltip(ctk_config, 
+                           ctk_color_controls->color_range_menu,
+                           __color_range_help);
 
     g_signal_connect(G_OBJECT(ctk_color_controls->color_range_menu),
                      "changed", G_CALLBACK(color_range_menu_changed),
@@ -459,6 +467,12 @@ void add_color_controls_help(CtkColorControls *ctk_color_controls,
 {
     ctk_help_heading(b, i, "Color Controls");
     ctk_help_para(b, i, __color_controls_help);
+
+    ctk_help_term(b, i, "Color Space");
+    ctk_help_para(b, i, __color_space_help);
+
+    ctk_help_term(b, i, "Color Range");
+    ctk_help_para(b, i, __color_range_help);
 } /* add_color_controls_help() */
 
 

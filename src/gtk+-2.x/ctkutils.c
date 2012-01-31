@@ -134,7 +134,7 @@ GtkWidget *add_table_row_with_help_text(GtkWidget *table,
                                         const gfloat value_yalign,
                                         const gchar *value)
 {
-    GtkWidget *label, *eventbox;
+    GtkWidget *label;
 
     label = gtk_label_new(name);
     gtk_label_set_selectable(GTK_LABEL(label), TRUE);
@@ -147,13 +147,11 @@ GtkWidget *add_table_row_with_help_text(GtkWidget *table,
     else
         label = gtk_label_new(value);
     gtk_label_set_selectable(GTK_LABEL(label), TRUE);
-    eventbox = gtk_event_box_new();
     gtk_misc_set_alignment(GTK_MISC(label), value_xalign, value_yalign);
-    gtk_container_add(GTK_CONTAINER(eventbox), label);
-    gtk_table_attach(GTK_TABLE(table), eventbox, col+1, col+2, row, row + 1,
+    gtk_table_attach(GTK_TABLE(table), label, col+1, col+2, row, row + 1,
                      GTK_FILL, GTK_EXPAND | GTK_FILL, 0, 0);
     if ((help != NULL) || (ctk_config != NULL)) {
-        ctk_config_set_tooltip(ctk_config, eventbox, help);
+        ctk_config_set_tooltip(ctk_config, label, help);
     }
 
     return label;

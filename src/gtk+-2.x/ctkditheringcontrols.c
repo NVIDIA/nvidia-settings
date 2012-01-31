@@ -34,8 +34,7 @@
 #include "ctkditheringcontrols.h"
 
 /* function prototypes */
-static gboolean build_dithering_mode_table(CtkDitheringControls *ctk_dithering_controls,
-                                           NVCTRLAttributeValidValuesRec valid);
+static gboolean build_dithering_mode_table(CtkDitheringControls *ctk_dithering_controls);
 
 static gint map_nvctrl_value_to_table(CtkDitheringControls *ctk_dithering_controls,
                                       gint val);
@@ -70,11 +69,19 @@ void post_dithering_depth_update(CtkDitheringControls *ctk_dithering_controls,
 /* help text */
 static const char * __dithering_help =
 "The Dithering Controls show the current state of dithering and allow "
-"changing the dithering configuration, mode and/or depth.  Dithering will "
-"be performed when dithering is enabled here, and the panel's bitdepth is "
-"less than that of the GPU's internal pixel pipeline.  The depth can be "
-"adjusted to 6 or 8 bits per channel depending on the type of display "
-"device.";
+"changing the dithering configuration, mode and/or depth.";
+
+static const char * __dithering_config_help =
+"Dithering will be performed when dithering is enabled here and the "
+"panel's bitdepth is less than that of the GPU's internal pixel pipeline.";
+
+static const char * __dithering_mode_help = 
+"Dithering mode can be Dynamic 2x2, Static 2x2 or Temporal "
+"depending on the type of the display device.";
+
+static const char * __dithering_depth_help = 
+"The depth can be adjusted to 6 or 8 bits per channel depending on "
+"the type of display device.";
 
 GType ctk_dithering_controls_get_type(void)
 {
@@ -111,28 +118,8 @@ GtkWidget* ctk_dithering_controls_new(NvCtrlAttributeHandle *handle,
 {
     GObject *object;
     CtkDitheringControls *ctk_dithering_controls;
-    GtkWidget *frame, *vbox, *hbox, *label, *eventbox;
+    GtkWidget *frame, *vbox, *hbox, *label;
     GtkWidget *menu, *table, *menu_item = NULL, *separator;
-    ReturnStatus ret1, ret2, ret3;
-    NVCTRLAttributeValidValuesRec valid1, valid2, valid3;
-    gint i;
-
-    /* check if dithering configuration is supported */
-    ret1 = NvCtrlGetValidDisplayAttributeValues(handle, display_device_mask,
-                                                NV_CTRL_DITHERING,
-                                                &valid1);
-    ret2 = NvCtrlGetValidDisplayAttributeValues(handle, display_device_mask,
-                                                NV_CTRL_DITHERING_MODE,
-                                                &valid2);
-    ret3 = NvCtrlGetValidDisplayAttributeValues(handle, display_device_mask,
-                                                NV_CTRL_DITHERING_DEPTH,
-                                                &valid3);
-
-    if ((ret1 != NvCtrlSuccess) || (valid1.type != ATTRIBUTE_TYPE_INTEGER) ||
-        (ret2 != NvCtrlSuccess) || (valid2.type != ATTRIBUTE_TYPE_INT_BITS) ||
-        (ret3 != NvCtrlSuccess) || (valid3.type != ATTRIBUTE_TYPE_INTEGER)) {
-        return NULL;
-    }
 
     /* create the object */
     object = g_object_new(CTK_TYPE_DITHERING_CONTROLS, NULL);
@@ -147,11 +134,6 @@ GtkWidget* ctk_dithering_controls_new(NvCtrlAttributeHandle *handle,
     ctk_dithering_controls->display_device_mask = display_device_mask;
     ctk_dithering_controls->name = strdup(name);
 
-    /* build a table holding available dithering modes */
-    if (!build_dithering_mode_table(ctk_dithering_controls, valid2)) {
-        return NULL;
-    }
-
     /* create main dithering box & frame */
 
     hbox = gtk_hbox_new(FALSE, 0);
@@ -159,10 +141,7 @@ GtkWidget* ctk_dithering_controls_new(NvCtrlAttributeHandle *handle,
     ctk_dithering_controls->dithering_controls_main = hbox;
 
     frame = gtk_frame_new("Dithering Controls");
-    eventbox = gtk_event_box_new();
-    gtk_container_add(GTK_CONTAINER(eventbox), frame);
-    gtk_box_pack_start(GTK_BOX(hbox), eventbox, FALSE, FALSE, 0);
-    ctk_config_set_tooltip(ctk_config, eventbox, __dithering_help);
+    gtk_box_pack_start(GTK_BOX(hbox), frame, FALSE, FALSE, 0);
 
     table = gtk_table_new(5, 4, FALSE);
     gtk_container_add(GTK_CONTAINER(frame), table);
@@ -190,6 +169,9 @@ GtkWidget* ctk_dithering_controls_new(NvCtrlAttributeHandle *handle,
     gtk_option_menu_set_menu
         (GTK_OPTION_MENU(ctk_dithering_controls->dithering_config_menu),
          menu);
+    ctk_config_set_tooltip(ctk_config, 
+                           ctk_dithering_controls->dithering_config_menu, 
+                           __dithering_config_help);
 
     g_signal_connect(G_OBJECT(ctk_dithering_controls->dithering_config_menu),
                      "changed", G_CALLBACK(dithering_config_menu_changed),
@@ -234,33 +216,11 @@ GtkWidget* ctk_dithering_controls_new(NvCtrlAttributeHandle *handle,
     gtk_table_attach(GTK_TABLE(table), vbox, 0, 4, 1, 2,
                      GTK_FILL, GTK_FILL | GTK_EXPAND, 5, 0);
 
-    /* dropdown list for dithering modes */
-    menu = gtk_menu_new();
-
-    for (i = 0; i < ctk_dithering_controls->dithering_mode_table_size; i++) {
-        switch (ctk_dithering_controls->dithering_mode_table[i]) {
-        case NV_CTRL_DITHERING_MODE_DYNAMIC_2X2:
-            menu_item = gtk_menu_item_new_with_label("Dynamic 2X2");
-            break;
-        case NV_CTRL_DITHERING_MODE_STATIC_2X2:
-            menu_item = gtk_menu_item_new_with_label("Static 2X2");
-            break;
-        case NV_CTRL_DITHERING_MODE_TEMPORAL:
-            menu_item = gtk_menu_item_new_with_label("Temporal");
-            break;
-        default:
-        case NV_CTRL_DITHERING_MODE_AUTO:
-            menu_item = gtk_menu_item_new_with_label("Auto");
-            break;
-        }
-        gtk_menu_shell_append(GTK_MENU_SHELL(menu), menu_item);
-        gtk_widget_show(menu_item);
-    }
-
+    /* dropdown list for dithering modes - populated in setup */
     ctk_dithering_controls->dithering_mode_menu = gtk_option_menu_new();
-    gtk_option_menu_set_menu
-        (GTK_OPTION_MENU(ctk_dithering_controls->dithering_mode_menu),
-         menu);
+    ctk_config_set_tooltip(ctk_config, 
+                           ctk_dithering_controls->dithering_mode_menu, 
+                           __dithering_mode_help);
 
     g_signal_connect(G_OBJECT(ctk_dithering_controls->dithering_mode_menu),
                      "changed", G_CALLBACK(dithering_mode_menu_changed),
@@ -325,6 +285,9 @@ GtkWidget* ctk_dithering_controls_new(NvCtrlAttributeHandle *handle,
     gtk_option_menu_set_menu
         (GTK_OPTION_MENU(ctk_dithering_controls->dithering_depth_menu),
          menu);
+    ctk_config_set_tooltip(ctk_config, 
+                           ctk_dithering_controls->dithering_depth_menu, 
+                           __dithering_depth_help);
 
     g_signal_connect(G_OBJECT(ctk_dithering_controls->dithering_depth_menu),
                      "changed", G_CALLBACK(dithering_depth_menu_changed),
@@ -405,7 +368,8 @@ GtkWidget* ctk_dithering_controls_new(NvCtrlAttributeHandle *handle,
  */
 void ctk_dithering_controls_setup(CtkDitheringControls *ctk_dithering_controls)
 {
-    gint val;
+    GtkWidget *menu, *menu_item = NULL;
+    gint val, i;
 
     if (!ctk_dithering_controls) {
         return;
@@ -433,10 +397,49 @@ void ctk_dithering_controls_setup(CtkDitheringControls *ctk_dithering_controls)
          G_CALLBACK(dithering_config_menu_changed),
          (gpointer) ctk_dithering_controls);
 
+    /* setup dithering modes */
+    build_dithering_mode_table(ctk_dithering_controls);
+
+    /* populate dropdown list for dithering modes */
+    menu = gtk_menu_new();
+    for (i = 0; i < ctk_dithering_controls->dithering_mode_table_size; i++) {
+        switch (ctk_dithering_controls->dithering_mode_table[i]) {
+        case NV_CTRL_DITHERING_MODE_DYNAMIC_2X2:
+            menu_item = gtk_menu_item_new_with_label("Dynamic 2x2");
+            break;
+        case NV_CTRL_DITHERING_MODE_STATIC_2X2:
+            menu_item = gtk_menu_item_new_with_label("Static 2x2");
+            break;
+        case NV_CTRL_DITHERING_MODE_TEMPORAL:
+            menu_item = gtk_menu_item_new_with_label("Temporal");
+            break;
+        default:
+        case NV_CTRL_DITHERING_MODE_AUTO:
+            menu_item = gtk_menu_item_new_with_label("Auto");
+            break;
+        }
+        gtk_menu_shell_append(GTK_MENU_SHELL(menu), menu_item);
+        gtk_widget_show(menu_item);
+    }
+
+    g_signal_handlers_block_by_func
+        (G_OBJECT(ctk_dithering_controls->dithering_mode_menu),
+         G_CALLBACK(dithering_mode_menu_changed),
+         (gpointer) ctk_dithering_controls);
+
+    gtk_option_menu_set_menu
+        (GTK_OPTION_MENU(ctk_dithering_controls->dithering_mode_menu),
+         menu);
+
+    g_signal_handlers_unblock_by_func
+        (G_OBJECT(ctk_dithering_controls->dithering_mode_menu),
+         G_CALLBACK(dithering_mode_menu_changed),
+         (gpointer) ctk_dithering_controls);
+
+
     if (!update_dithering_info((gpointer)ctk_dithering_controls)) {
         gtk_widget_set_sensitive(ctk_dithering_controls->dithering_controls_main,
                                  FALSE);
-        gtk_widget_hide_all(ctk_dithering_controls->dithering_controls_main);
     }
 
 } /* ctk_dithering_controls_setup() */
@@ -453,16 +456,19 @@ static Bool update_dithering_info(gpointer user_data)
         NvCtrlGetDisplayAttribute(ctk_dithering_controls->handle,
                                   ctk_dithering_controls->display_device_mask,
                                   NV_CTRL_DITHERING, &val)) {
-        val = NV_CTRL_DITHERING_DISABLED;
-    }
-
-    if (val == NV_CTRL_DITHERING_ENABLED ||
-        val == NV_CTRL_DITHERING_AUTO) {
+        gtk_widget_set_sensitive(ctk_dithering_controls->dithering_controls_main, 
+                                 FALSE);
+    } else if (val == NV_CTRL_DITHERING_ENABLED ||
+               val == NV_CTRL_DITHERING_AUTO) {
+        gtk_widget_set_sensitive(ctk_dithering_controls->dithering_controls_main, 
+                                 TRUE);
         gtk_widget_set_sensitive(ctk_dithering_controls->dithering_mode_box, TRUE);
         gtk_widget_set_sensitive(ctk_dithering_controls->dithering_depth_box, TRUE);
         gtk_widget_show(ctk_dithering_controls->dithering_mode_box);
         gtk_widget_show(ctk_dithering_controls->dithering_depth_box);
     } else if (val == NV_CTRL_DITHERING_DISABLED) {
+        gtk_widget_set_sensitive(ctk_dithering_controls->dithering_controls_main, 
+                                 TRUE);
         gtk_widget_set_sensitive(ctk_dithering_controls->dithering_mode_box, FALSE);
         gtk_widget_set_sensitive(ctk_dithering_controls->dithering_depth_box, FALSE);
     }
@@ -484,13 +490,12 @@ static Bool update_dithering_info(gpointer user_data)
     }
 
     /* dithering mode */
-    dithering_mode = NV_CTRL_DITHERING_MODE_AUTO;
     if (NvCtrlSuccess !=
         NvCtrlGetDisplayAttribute(ctk_dithering_controls->handle,
                                   ctk_dithering_controls->display_device_mask,
                                   NV_CTRL_DITHERING_MODE,
                                   &dithering_mode)) {
-        goto fail;
+        dithering_mode = NV_CTRL_DITHERING_MODE_AUTO;
     }
 
     dithering_mode = map_nvctrl_value_to_table(ctk_dithering_controls,
@@ -511,13 +516,12 @@ static Bool update_dithering_info(gpointer user_data)
          (gpointer) ctk_dithering_controls);
 
     /* current dithering mode */
-    dithering_mode = NV_CTRL_CURRENT_DITHERING_MODE_NONE;
     if (NvCtrlSuccess !=
         NvCtrlGetDisplayAttribute(ctk_dithering_controls->handle,
                                   ctk_dithering_controls->display_device_mask,
                                   NV_CTRL_CURRENT_DITHERING_MODE,
                                   &dithering_mode)) {
-        goto fail;
+        dithering_mode = NV_CTRL_CURRENT_DITHERING_MODE_NONE;
     }
 
     switch (dithering_mode) {
@@ -541,13 +545,12 @@ static Bool update_dithering_info(gpointer user_data)
     }
 
     /* dithering depth */
-    dithering_depth = NV_CTRL_DITHERING_DEPTH_AUTO;
     if (NvCtrlSuccess !=
         NvCtrlGetDisplayAttribute(ctk_dithering_controls->handle,
                                   ctk_dithering_controls->display_device_mask,
                                   NV_CTRL_DITHERING_DEPTH,
                                   &dithering_depth)) {
-        goto fail;
+        dithering_depth = NV_CTRL_DITHERING_DEPTH_AUTO;
     }
 
     g_signal_handlers_block_by_func
@@ -565,13 +568,12 @@ static Bool update_dithering_info(gpointer user_data)
          (gpointer) ctk_dithering_controls);
 
     /* current dithering depth */
-    dithering_depth = NV_CTRL_CURRENT_DITHERING_DEPTH_NONE;
     if (NvCtrlSuccess !=
         NvCtrlGetDisplayAttribute(ctk_dithering_controls->handle,
                                   ctk_dithering_controls->display_device_mask,
                                   NV_CTRL_CURRENT_DITHERING_DEPTH,
                                   &dithering_depth)) {
-        goto fail;
+        dithering_depth = NV_CTRL_CURRENT_DITHERING_DEPTH_NONE;
     }
 
     switch (dithering_depth) {
@@ -591,10 +593,6 @@ static Bool update_dithering_info(gpointer user_data)
     }
 
     return True;
-
- fail:
-    free(ctk_dithering_controls->dithering_mode_table);
-    return False;
 } /* update_dithering_info() */
 
 static
@@ -836,6 +834,15 @@ void add_dithering_controls_help(CtkDitheringControls *ctk_dithering_controls,
 {
     ctk_help_heading(b, i, "Dithering Controls");
     ctk_help_para(b, i, __dithering_help);
+
+    ctk_help_term(b, i, "Dithering");
+    ctk_help_para(b, i, __dithering_config_help);
+
+    ctk_help_term(b, i, "Mode");
+    ctk_help_para(b, i, __dithering_mode_help);
+
+    ctk_help_term(b, i, "Depth");
+    ctk_help_para(b, i, __dithering_depth_help);
 } /* add_dithering_controls_help() */
 
 
@@ -873,17 +880,43 @@ static void dithering_update_received(GtkObject *object, gpointer arg1,
  * build_dithering_mode_table() - build a table of dithering modes, showing
  * modes supported by the hardware.
  */
-static gboolean build_dithering_mode_table(CtkDitheringControls *ctk_dithering_controls,
-                                           NVCTRLAttributeValidValuesRec valid)
+static gboolean build_dithering_mode_table(CtkDitheringControls *ctk_dithering_controls)
 {
-    gint i, n = 0, num_of_modes = 0;
-    gint mask = valid.u.bits.ints;
+    ReturnStatus ret;
+    NVCTRLAttributeValidValuesRec valid;
+    gint i, n = 0, num_of_modes = 0, mask;
 
-    if (valid.type != ATTRIBUTE_TYPE_INT_BITS) {
+    if (ctk_dithering_controls->dithering_mode_table_size > 0 && 
+        ctk_dithering_controls->dithering_mode_table != NULL) {
+        ctk_dithering_controls->dithering_mode_table_size = 0;
+        free(ctk_dithering_controls->dithering_mode_table);
+    }
+
+    ret = 
+    NvCtrlGetValidDisplayAttributeValues(ctk_dithering_controls->handle, 
+                                         ctk_dithering_controls->display_device_mask,
+                                         NV_CTRL_DITHERING_MODE,
+                                         &valid);
+        
+    if (ret != NvCtrlSuccess || valid.type != ATTRIBUTE_TYPE_INT_BITS) {
+        /* 
+         * We do not have valid information to build a mode table
+         * so we need to create default data for the placeholder menu.
+         */
+        ctk_dithering_controls->dithering_mode_table_size = 1;
+        ctk_dithering_controls->dithering_mode_table =
+            calloc(1, sizeof(ctk_dithering_controls->dithering_mode_table[0]));
+        if (ctk_dithering_controls->dithering_mode_table) {
+            ctk_dithering_controls->dithering_mode_table[0] = 
+                NV_CTRL_DITHERING_MODE_AUTO;
+        } else {
+            ctk_dithering_controls->dithering_mode_table_size = 0;
+        }
         return False;
     }
 
     /* count no. of supported modes */
+    mask = valid.u.bits.ints;
     while(mask) {
         mask = mask & (mask - 1);
         num_of_modes++;
@@ -893,6 +926,7 @@ static gboolean build_dithering_mode_table(CtkDitheringControls *ctk_dithering_c
     ctk_dithering_controls->dithering_mode_table =
         calloc(num_of_modes, sizeof(ctk_dithering_controls->dithering_mode_table[0]));
     if (!ctk_dithering_controls->dithering_mode_table) {
+        ctk_dithering_controls->dithering_mode_table_size = 0;
         return False;
     }
 

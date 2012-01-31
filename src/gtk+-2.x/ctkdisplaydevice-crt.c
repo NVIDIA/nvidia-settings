@@ -141,7 +141,7 @@ GtkWidget* ctk_display_device_crt_new(NvCtrlAttributeHandle *handle,
      */
 
     ctk_display_device_crt->reset_button =
-        gtk_button_new_with_label("Reset Hardware Defaults");
+        gtk_button_new_with_label("Reset CRT Hardware Defaults");
 
     alignment = gtk_alignment_new(1, 1, 0, 0);
     gtk_container_add(GTK_CONTAINER(alignment),
@@ -153,8 +153,7 @@ GtkWidget* ctk_display_device_crt_new(NvCtrlAttributeHandle *handle,
                      (gpointer) ctk_display_device_crt);
 
     ctk_config_set_tooltip(ctk_config, ctk_display_device_crt->reset_button,
-                           "The Reset Hardware Defaults button restores "
-                           "the CRT settings to their default values.");
+                           ctk_help_create_reset_hardware_defaults_text("CRT", name));
     
     /* pack the image sliders */
     
@@ -249,6 +248,7 @@ GtkTextBuffer *ctk_display_device_crt_create_help(GtkTextTagTable *table,
 {
     GtkTextIter i;
     GtkTextBuffer *b;
+    GtkTooltipsData *td;
 
     b = gtk_text_buffer_new(table);
     
@@ -266,7 +266,8 @@ GtkTextBuffer *ctk_display_device_crt_create_help(GtkTextTagTable *table,
         add_acquire_edid_help(b, &i);
     }
     
-    ctk_help_reset_hardware_defaults(b, &i, ctk_display_device_crt->name);
+    td = gtk_tooltips_data_get(GTK_WIDGET(ctk_display_device_crt->reset_button));
+    ctk_help_reset_hardware_defaults (b, &i, td->tip_text);
 
     ctk_help_finish(b);
 

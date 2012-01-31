@@ -128,6 +128,9 @@ static void add_display_devices(CtkWindow *ctk_window, GtkTreeIter *iter,
 static void update_display_devices(GtkObject *object, gpointer arg1,
                                    gpointer user_data);
 
+static void ctk_window_destroyed(GtkObject *object, gpointer arg1,
+                                 gpointer user_data);
+
 
 static GObjectClass *parent_class;
 
@@ -197,6 +200,19 @@ static void ctk_window_real_destroy(GtkObject *object)
     gtk_main_quit();
 
 } /* ctk_window_real_destroy() */
+
+
+
+/* 
+ * ctk_window_destroyed() - called when ctk_window destroyed.
+ */
+
+static void ctk_window_destroyed(GtkObject *object, gpointer arg1,
+                                 gpointer user_data)
+{
+    CtkWindow *ctk_window = CTK_WINDOW(object);
+    save_settings_and_exit(ctk_window);
+} /* ctk_window_destroyed() */
 
 
 
@@ -1070,6 +1086,11 @@ GtkWidget *ctk_window_new(ParsedAttribute *p, ConfigProperties *conf,
                                        GTK_POLICY_AUTOMATIC);
     }
 
+    /* Add callback when window destroyed */
+
+    g_signal_connect(G_OBJECT(ctk_window), "destroy",
+                     G_CALLBACK(ctk_window_destroyed), (gpointer) ctk_window);
+    
     return GTK_WIDGET(object);
 
 } /* ctk_window_new() */

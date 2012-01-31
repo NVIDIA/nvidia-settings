@@ -396,11 +396,8 @@ typedef struct _CtkDisplayLayout
 
     /* Double buffering of layout image */
     GdkPixmap *pixmap;
-    int        need_swap;
 
     /* Image information */
-    int        width;           /* Real widget dimensions */
-    int        height;
     int        img_dim[4];      /* Dimensions used to draw in */
     float      scale;
 
@@ -413,7 +410,7 @@ typedef struct _CtkDisplayLayout
     /* Pango layout for strings in layout image */
 
     PangoLayout *pango_layout;
-    
+
     /* List of visible elements in the layout */
     ZNode *Zorder; /* Z ordering of visible elements in layout */
     int    Zcount; /* Count of visible elements in the z order */
@@ -466,9 +463,6 @@ GtkWidget*  ctk_display_layout_new       (NvCtrlAttributeHandle *,
                                           );
 
 void ctk_display_layout_update (CtkDisplayLayout *);
-
-void ctk_display_layout_redraw (CtkDisplayLayout *);
-
 
 void ctk_display_layout_set_layout (CtkDisplayLayout *, nvLayoutPtr);
 

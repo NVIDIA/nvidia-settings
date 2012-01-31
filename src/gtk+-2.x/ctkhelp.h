@@ -73,7 +73,8 @@ void ctk_help_heading (GtkTextBuffer *, GtkTextIter *, const gchar *, ...);
 void ctk_help_term    (GtkTextBuffer *, GtkTextIter *, const gchar *, ...);
 void ctk_help_finish  (GtkTextBuffer *);
 
-void ctk_help_reset_hardware_defaults(GtkTextBuffer *, GtkTextIter *, char *);
+void ctk_help_reset_hardware_defaults(GtkTextBuffer *, GtkTextIter *, gchar *);
+gchar *ctk_help_create_reset_hardware_defaults_text(gchar*, gchar *);
 
 
 #define CTK_HELP_TITLE_TAG                "title"

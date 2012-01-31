@@ -400,7 +400,6 @@ static void scale_value_received(GtkObject *object, gpointer arg1,
         scale = ctk_image_sliders->image_sharpening;
         if (event_struct->availability == FALSE) {
             gtk_widget_set_sensitive(scale, FALSE);
-            gtk_widget_hide(scale);
             g_object_set_data(G_OBJECT(CTK_SCALE(scale)->gtk_adjustment),
                               "attribute active",
                               GINT_TO_POINTER(0));
@@ -408,7 +407,6 @@ static void scale_value_received(GtkObject *object, gpointer arg1,
             setup_scale(ctk_image_sliders, NV_CTRL_IMAGE_SHARPENING,
                         ctk_image_sliders->image_sharpening);
             gtk_widget_set_sensitive(scale, TRUE);
-            gtk_widget_show(scale);
             g_object_set_data(G_OBJECT(CTK_SCALE(scale)->gtk_adjustment),
                               "attribute active",
                               GINT_TO_POINTER(1));
@@ -517,17 +515,14 @@ static void setup_scale(CtkImageSliders *ctk_image_sliders,
                       GINT_TO_POINTER(1));
 
         gtk_widget_set_sensitive(scale, TRUE);
-        gtk_widget_show(scale);
     } else {
         g_object_set_data(G_OBJECT(adj), "attribute active",
                       GINT_TO_POINTER(0));
 
         gtk_widget_set_sensitive(scale, FALSE);
-        gtk_widget_hide(scale);
     }
 
 } /* setup_scale() */
-
 
 
 /*
@@ -536,9 +531,6 @@ static void setup_scale(CtkImageSliders *ctk_image_sliders,
  */
 void ctk_image_sliders_setup(CtkImageSliders *ctk_image_sliders)
 {
-    int active;
-
-
     if (!ctk_image_sliders) return;
 
     /* Update sliders */
@@ -558,15 +550,11 @@ void ctk_image_sliders_setup(CtkImageSliders *ctk_image_sliders)
     setup_scale(ctk_image_sliders, NV_CTRL_IMAGE_SHARPENING,
                 ctk_image_sliders->image_sharpening);
 
-    active =
-        get_scale_active(CTK_SCALE(ctk_image_sliders->digital_vibrance)) ||
-        get_scale_active(CTK_SCALE(ctk_image_sliders->overscan_compensation)) ||
-        get_scale_active(CTK_SCALE(ctk_image_sliders->image_sharpening));
-
-    if (!active) {
-        gtk_widget_hide(ctk_image_sliders->frame);
-    } else {
-        gtk_widget_show(ctk_image_sliders->frame);
-    }
+    gtk_widget_set_sensitive(ctk_image_sliders->digital_vibrance,
+        get_scale_active(CTK_SCALE(ctk_image_sliders->digital_vibrance)));
+    gtk_widget_set_sensitive(ctk_image_sliders->overscan_compensation,
+        get_scale_active(CTK_SCALE(ctk_image_sliders->overscan_compensation)));
+    gtk_widget_set_sensitive(ctk_image_sliders->image_sharpening,
+        get_scale_active(CTK_SCALE(ctk_image_sliders->image_sharpening)));
 
 } /* ctk_image_sliders_setup() */

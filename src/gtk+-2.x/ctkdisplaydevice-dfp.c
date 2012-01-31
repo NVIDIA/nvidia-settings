@@ -91,6 +91,19 @@ static const char *__info_help =
 "This section describes basic informations about the "
 "DVI connection to the digital flat panel.";
 
+static const char *__info_chip_location_help = 
+"Report whether the flat panel is driven by the on-chip controller "
+"(internal), or a separate controller chip elsewhere on the graphics "
+"board (external).";
+                      
+static const char *__info_link_help = 
+"Report whether the specified display device is driven by a single "
+"link or dual link DVI connection.";
+    
+static const char *__info_signal_help = 
+"Report whether the flat panel is driven by an LVDS, TMDS, or "
+"DisplayPort signal.";
+
 static const char * __native_res_help =
 "The Native Resolution is the width and height in pixels that the flat "
 "panel uses to display the image.  All other resolutions must be scaled "
@@ -127,6 +140,22 @@ static const char * __force_gpu_scaling_help =
 "panel's EDID; the flat panel will then scale the image to "
 "its native resolution.";
 
+static const char *__gpu_scaling_help = 
+"Reports whether the GPU and/or DFP are actively scaling the current "
+"resolution.";
+
+static const char *__gpu_scaling_stretched_help = 
+"The image will be expanded to fit the entire flat panel.";
+
+static const char *__gpu_scaling_centered_help = 
+"The image will only occupy the number of pixels "
+"needed and be centered on the flat panel.  Setting this "
+"will disable image sharpening for the display device.";
+
+static const char *__gpu_scaling_ar_scaled_help = 
+"The image will be scaled (retaining the original "
+"aspect ratio) to expand and fit as much of the entire "
+"flat panel as possible.";
 
 GType ctk_display_device_dfp_get_type(void)
 {
@@ -192,13 +221,15 @@ GtkWidget* ctk_display_device_dfp_new(NvCtrlAttributeHandle *handle,
     GtkWidget *banner;
     GtkWidget *frame;
     GtkWidget *hbox, *vbox, *tmpbox;
-    GtkWidget *eventbox;
 
     GtkWidget *button;
     GtkWidget *radio0;
     GtkWidget *radio1;
     GtkWidget *radio2;
     GtkWidget *alignment;
+    GtkWidget *notebook;
+    GtkWidget *nbox;
+    GtkWidget *align;
     
     GtkWidget *table;
     ReturnStatus ret1, ret2;
@@ -250,7 +281,7 @@ GtkWidget* ctk_display_device_dfp_new(NvCtrlAttributeHandle *handle,
      */
 
     ctk_display_device_dfp->reset_button =
-        gtk_button_new_with_label("Reset Hardware Defaults");
+        gtk_button_new_with_label("Reset DFP Hardware Defaults");
 
     alignment = gtk_alignment_new(1, 1, 0, 0);
     gtk_container_add(GTK_CONTAINER(alignment),
@@ -262,13 +293,26 @@ GtkWidget* ctk_display_device_dfp_new(NvCtrlAttributeHandle *handle,
                      (gpointer) ctk_display_device_dfp);
     
     ctk_config_set_tooltip(ctk_config, ctk_display_device_dfp->reset_button,
-                           "The Reset Hardware Defaults button restores "
-                           "the DFP settings to their default values.");
+                           ctk_help_create_reset_hardware_defaults_text("DFP", name));
+
+    /* Create tabbed notebook for widget */
+
+    notebook = gtk_notebook_new();
+    gtk_notebook_set_tab_pos(GTK_NOTEBOOK(notebook), GTK_POS_TOP);
+    align = gtk_alignment_new(0, 0, 1, 1);
+    gtk_container_add(GTK_CONTAINER(align), notebook);
+    gtk_box_pack_start(GTK_BOX(object), align, FALSE, FALSE, 0);
+
+    /* Create first tab for dfp info */
+    
+    nbox = gtk_vbox_new(FALSE, FRAME_PADDING);
+    gtk_container_set_border_width(GTK_CONTAINER(nbox), FRAME_PADDING);
+    gtk_notebook_append_page(GTK_NOTEBOOK(notebook), nbox, gtk_label_new("Information"));
 
     /* create the hbox to store dfp info, scaling */
 
     hbox = gtk_hbox_new(FALSE, FRAME_PADDING);
-    gtk_box_pack_start(GTK_BOX(object), hbox, FALSE, FALSE, FRAME_PADDING);
+    gtk_box_pack_start(GTK_BOX(nbox), hbox, FALSE, FALSE, FRAME_PADDING);
 
     /* DFP info */
 
@@ -282,6 +326,7 @@ GtkWidget* ctk_display_device_dfp_new(NvCtrlAttributeHandle *handle,
      */
     
     tmpbox = gtk_vbox_new(FALSE, 5);
+    gtk_container_set_border_width(GTK_CONTAINER(tmpbox), FRAME_PADDING);
     gtk_container_add(GTK_CONTAINER(frame), tmpbox);
     
     /* Make the txt widgets that will get updated */
@@ -306,17 +351,17 @@ GtkWidget* ctk_display_device_dfp_new(NvCtrlAttributeHandle *handle,
             {
                 gtk_label_new("Chip location:"),
                 ctk_display_device_dfp->txt_chip_location,
-                NULL
+                __info_chip_location_help
             },
             {
                 gtk_label_new("Connection link:"),
                 ctk_display_device_dfp->txt_link,
-                NULL
+                __info_link_help
             },
             {
                 gtk_label_new("Signal:"),
                 ctk_display_device_dfp->txt_signal,
-                NULL
+                __info_signal_help
             },
             {
                 gtk_label_new("Native Resolution:"),
@@ -384,14 +429,15 @@ GtkWidget* ctk_display_device_dfp_new(NvCtrlAttributeHandle *handle,
                                FALSE, TRUE, 5);
 
             /* Include tooltips */
-            if (!lines[i].tooltip) {
-                gtk_box_pack_start(GTK_BOX(tmpbox), tmphbox, FALSE, FALSE, 0);
-            } else {
-                eventbox = gtk_event_box_new();
-                gtk_container_add(GTK_CONTAINER(eventbox), tmphbox);
-                ctk_config_set_tooltip(ctk_config, eventbox, lines[i].tooltip);
-                gtk_box_pack_start(GTK_BOX(tmpbox), eventbox, FALSE, FALSE, 0);
+            if (lines[i].tooltip) {
+                ctk_config_set_tooltip(ctk_config, 
+                                       lines[i].label, 
+                                       lines[i].tooltip);
+                ctk_config_set_tooltip(ctk_config, 
+                                       lines[i].txt, 
+                                       lines[i].tooltip);
             }
+            gtk_box_pack_start(GTK_BOX(tmpbox), tmphbox, FALSE, FALSE, 0);
         }
     }
 
@@ -399,13 +445,9 @@ GtkWidget* ctk_display_device_dfp_new(NvCtrlAttributeHandle *handle,
     /* Flat Panel Scaling */
     
     frame = gtk_frame_new("Flat Panel Scaling");
-    eventbox = gtk_event_box_new();
-    gtk_container_add(GTK_CONTAINER(eventbox), frame);
-    gtk_box_pack_start(GTK_BOX(hbox), eventbox, FALSE, FALSE, 0);
-    ctk_display_device_dfp->scaling_frame = eventbox;
+    gtk_box_pack_start(GTK_BOX(hbox), frame, FALSE, FALSE, 0);
+    ctk_display_device_dfp->scaling_frame = frame;
     
-    ctk_config_set_tooltip(ctk_config, eventbox, __scaling_help);
-
     vbox = gtk_vbox_new(FALSE, FRAME_PADDING);
     gtk_container_set_border_width(GTK_CONTAINER(vbox), FRAME_PADDING);
     gtk_container_add(GTK_CONTAINER(frame), vbox);
@@ -423,9 +465,10 @@ GtkWidget* ctk_display_device_dfp_new(NvCtrlAttributeHandle *handle,
     gtk_container_set_border_width(GTK_CONTAINER(table), 5);
     
     ctk_display_device_dfp->txt_scaling = 
-        add_table_row(table, 0,
-                      0, 0.5, "Scaling:",
-                      0, 0.5,  "");
+        add_table_row_with_help_text(table, ctk_config, __gpu_scaling_help,
+                                     0, 0, 
+                                     0, 0.5, "Scaling:",
+                                     0, 0.5,  "");
 
     gtk_box_pack_start(GTK_BOX(vbox), table, FALSE, FALSE, 0);
 
@@ -442,29 +485,48 @@ GtkWidget* ctk_display_device_dfp_new(NvCtrlAttributeHandle *handle,
     radio0 = make_scaling_radio_button
         (ctk_display_device_dfp, vbox, NULL, "Stretched",
          NV_CTRL_GPU_SCALING_METHOD_STRETCHED);
+    ctk_config_set_tooltip(ctk_config, radio0, __gpu_scaling_stretched_help);
     
     radio1 = make_scaling_radio_button
         (ctk_display_device_dfp, vbox, radio0, "Centered",
          NV_CTRL_GPU_SCALING_METHOD_CENTERED);
+    ctk_config_set_tooltip(ctk_config, radio1, __gpu_scaling_centered_help);
     
     radio2 = make_scaling_radio_button
         (ctk_display_device_dfp, vbox, radio1, "Aspect Ratio Scaled",
          NV_CTRL_GPU_SCALING_METHOD_ASPECT_SCALED);
+    ctk_config_set_tooltip(ctk_config, radio2, __gpu_scaling_ar_scaled_help);
     
     g_signal_connect(G_OBJECT(ctk_event),
                      CTK_EVENT_NAME(NV_CTRL_GPU_SCALING),
                      G_CALLBACK(dfp_update_received),
                      (gpointer) ctk_display_device_dfp);
 
+    /* pack the EDID button */
+
+    hbox = gtk_hbox_new(FALSE, 0);
+    align = gtk_alignment_new(0, 1, 1, 1);
+    gtk_container_add(GTK_CONTAINER(align), hbox);
+    gtk_box_pack_end(GTK_BOX(nbox), align, FALSE, FALSE, 0);
+    ctk_display_device_dfp->edid_box = hbox;
+
+    /* 
+     * Create layout for second tab for dfp controls but don't
+     * add the tab until we make sure its required 
+     */
+
+    nbox = gtk_vbox_new(FALSE, FRAME_PADDING);
+    gtk_container_set_border_width(GTK_CONTAINER(nbox), FRAME_PADDING);
+
     /* pack the color controls */
 
     ctk_display_device_dfp->color_controls =
         ctk_color_controls_new(handle, ctk_config, ctk_event,
-                                   ctk_display_device_dfp->reset_button,
-                                   display_device_mask, name);
+                               ctk_display_device_dfp->reset_button,
+                               display_device_mask, name);
 
     if (ctk_display_device_dfp->color_controls) {
-        gtk_box_pack_start(GTK_BOX(object),
+        gtk_box_pack_start(GTK_BOX(nbox),
                            ctk_display_device_dfp->color_controls,
                            FALSE, FALSE, 0);
     }
@@ -477,7 +539,7 @@ GtkWidget* ctk_display_device_dfp_new(NvCtrlAttributeHandle *handle,
                                    display_device_mask, name);
 
     if (ctk_display_device_dfp->dithering_controls) {
-        gtk_box_pack_start(GTK_BOX(object),
+        gtk_box_pack_start(GTK_BOX(nbox),
                            ctk_display_device_dfp->dithering_controls,
                            FALSE, FALSE, 0);
     }
@@ -489,17 +551,19 @@ GtkWidget* ctk_display_device_dfp_new(NvCtrlAttributeHandle *handle,
                               ctk_display_device_dfp->reset_button,
                               display_device_mask, name);
     if (ctk_display_device_dfp->image_sliders) {
-        gtk_box_pack_start(GTK_BOX(object),
+        gtk_box_pack_start(GTK_BOX(nbox),
                            ctk_display_device_dfp->image_sliders,
                            FALSE, FALSE, 0);
     }
 
-    /* pack the EDID button */
+    /* If no controls are created, don't add a controls tab */
 
-    hbox = gtk_hbox_new(FALSE, 0);
-    gtk_box_pack_start(GTK_BOX(object), hbox, FALSE, FALSE, 0);
-    ctk_display_device_dfp->edid_box = hbox;
-    
+    if (ctk_display_device_dfp->color_controls || 
+        ctk_display_device_dfp->dithering_controls || 
+        ctk_display_device_dfp->image_sliders) {
+            gtk_notebook_append_page(GTK_NOTEBOOK(notebook),nbox,gtk_label_new("Controls"));
+    }
+
     /* show the page */
 
     gtk_widget_show_all(GTK_WIDGET(object));
@@ -878,6 +942,7 @@ GtkTextBuffer *ctk_display_device_dfp_create_help(GtkTextTagTable *table,
 {
     GtkTextIter i;
     GtkTextBuffer *b;
+    GtkTooltipsData *td;
     
     b = gtk_text_buffer_new(table);
     
@@ -889,19 +954,13 @@ GtkTextBuffer *ctk_display_device_dfp_create_help(GtkTextTagTable *table,
     ctk_help_para(b, &i, __info_help);
         
     ctk_help_term(b, &i, "Chip Location");
-    ctk_help_para(b, &i, "Report whether the flat panel is driven by "
-                  "the on-chip controller (internal), or a "
-                  "separate controller chip elsewhere on the "
-                  "graphics board (external).");
+    ctk_help_para(b, &i, __info_chip_location_help);
                       
     ctk_help_term(b, &i, "Link");
-    ctk_help_para(b, &i, "Report whether the specified display device "
-                  "is driven by a single link or dual link DVI "
-                  "connection.");
+    ctk_help_para(b, &i, __info_link_help);
     
     ctk_help_term(b, &i, "Signal");
-    ctk_help_para(b, &i, "Report whether the flat panel is driven by "
-                  "an LVDS, TMDS, or DisplayPort signal.");
+    ctk_help_para(b, &i, __info_signal_help);
 
     ctk_help_term(b, &i, "Native Resolution");
     ctk_help_para(b, &i, __native_res_help);
@@ -925,22 +984,20 @@ GtkTextBuffer *ctk_display_device_dfp_create_help(GtkTextTagTable *table,
     ctk_help_para(b, &i, __force_gpu_scaling_help);
     
     ctk_help_term(b, &i, "Scaling");
-    ctk_help_para(b, &i, "Reports whether the GPU and/or DFP are actively "
-                  "scaling the current resolution.");
+    ctk_help_para(b, &i, __gpu_scaling_help);
     
     ctk_help_term(b, &i, "Stretched");
-    ctk_help_para(b, &i, "The image will be expanded to fit the entire "
-                  "flat panel.");
+    ctk_help_para(b, &i, __gpu_scaling_stretched_help);
     
     ctk_help_term(b, &i, "Centered");
-    ctk_help_para(b, &i, "The image will only occupy the number of pixels "
-                  "needed and be centered on the flat panel.  Setting this "
-                  "will disable image sharpening for the display device.");
+    ctk_help_para(b, &i, __gpu_scaling_centered_help);
     
     ctk_help_term(b, &i, "Aspect Ratio Scaled");
-    ctk_help_para(b, &i, "The image will be scaled (retaining the original "
-                  "aspect ratio) to expand and fit as much of the entire "
-                  "flat panel as possible.");
+    ctk_help_para(b, &i, __gpu_scaling_ar_scaled_help);
+
+    if (ctk_display_device_dfp->edid) {
+        add_acquire_edid_help(b, &i);
+    }
 
     if (ctk_display_device_dfp->color_controls) {
         add_color_controls_help
@@ -955,11 +1012,8 @@ GtkTextBuffer *ctk_display_device_dfp_create_help(GtkTextTagTable *table,
     add_image_sliders_help
         (CTK_IMAGE_SLIDERS(ctk_display_device_dfp->image_sliders), b, &i);
     
-    if (ctk_display_device_dfp->edid) {
-        add_acquire_edid_help(b, &i);
-    }
-
-    ctk_help_reset_hardware_defaults(b, &i, ctk_display_device_dfp->name);
+    td = gtk_tooltips_data_get(GTK_WIDGET(ctk_display_device_dfp->reset_button));
+    ctk_help_reset_hardware_defaults (b, &i, td->tip_text);
 
     ctk_help_finish(b);
     

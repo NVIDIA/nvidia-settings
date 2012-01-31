@@ -245,6 +245,7 @@ AttributeTableEntry attributeTable[] = {
     { "GvoFullRangeColor",               NV_CTRL_GVO_FULL_RANGE_COLOR,                 I,     "Allow full range color data [4-1019].  If disabled, color data is clamped to [64-940]." },
     { "IsGvoDisplay",                    NV_CTRL_IS_GVO_DISPLAY,                       N|D,   "Returns whether or not the given display device is driven by the GVO device." },
     { "GvoEnableRGBData",                NV_CTRL_GVO_ENABLE_RGB_DATA,                  I,     "Indicates that RGB data is being sent via a PASSTHU mode." },
+    { "GvoAudioBlanking",                NV_CTRL_GVO_AUDIO_BLANKING,                   I,     "Indicates that the GVO device should drop audio ancillary data packets when frames are repeated." },
     { "GviNumJacks",                          NV_CTRL_GVI_NUM_JACKS,                            I|N, "Returns the number of input (BNC) jacks on a GVI device that can read video streams." },
     { "GviMaxLinksPerStream",                 NV_CTRL_GVI_MAX_LINKS_PER_STREAM,                 I|N, "Returns the maximum number of links that can make up a stream." },
     { "GviDetectedChannelBitsPerComponent",   NV_CTRL_GVI_DETECTED_CHANNEL_BITS_PER_COMPONENT,  I|N, "Returns the detected bits per component on the given jack+channel of the GVI device.  The jack+channel must be passed through via the display mask param where the jack number is in the lower 16 bits and the channel number is in the upper 16 bits." },
@@ -373,7 +374,7 @@ AttributeTableEntry attributeTable[] = {
  * about.
  */
 
-#if NV_CTRL_LAST_ATTRIBUTE != NV_CTRL_GPU_PCIE_CURRENT_LINK_SPEED
+#if NV_CTRL_LAST_ATTRIBUTE != NV_CTRL_GVO_AUDIO_BLANKING
 #warning "Have you forgotten to add a new integer attribute to attributeTable?"
 #endif
 

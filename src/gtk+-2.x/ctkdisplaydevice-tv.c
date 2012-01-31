@@ -369,8 +369,7 @@ GtkWidget* ctk_display_device_tv_new(NvCtrlAttributeHandle *handle,
                      (gpointer) ctk_display_device_tv);
     
     ctk_config_set_tooltip(ctk_config, ctk_display_device_tv->reset_button,
-                           "The Reset TV Hardware Defaults button restores "
-                           "the TV settings to their default values.");
+                           ctk_help_create_reset_hardware_defaults_text("TV", name));
 
     /* EDID button box */
 
@@ -699,6 +698,7 @@ GtkTextBuffer *ctk_display_device_tv_create_help(GtkTextTagTable *table,
 {
     GtkTextIter i;
     GtkTextBuffer *b;
+    GtkTooltipsData *td;
 
     b = gtk_text_buffer_new(table);
     
@@ -737,7 +737,8 @@ GtkTextBuffer *ctk_display_device_tv_create_help(GtkTextTagTable *table,
         add_acquire_edid_help(b, &i);
     }
     
-    ctk_help_reset_hardware_defaults(b, &i, ctk_display_device_tv->name);
+    td = gtk_tooltips_data_get(GTK_WIDGET(ctk_display_device_tv->reset_button));
+    ctk_help_reset_hardware_defaults (b, &i, td->tip_text);
 
     ctk_help_finish(b);
 

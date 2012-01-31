@@ -402,13 +402,16 @@ void ctk_help_finish(GtkTextBuffer *buffer)
         (buffer, CTK_HELP_SINGLE_SPACE_TAG, &start, &end);
 }
 
+gchar *ctk_help_create_reset_hardware_defaults_text(gchar *type, gchar *name)
+{
+    return g_strconcat("The Reset ", type, " Hardware Defaults button restores ",
+                       "all ", name, " settings to their default values.", NULL);
+}
+
 void ctk_help_reset_hardware_defaults(GtkTextBuffer *b, GtkTextIter *i,
-                                      char *name)
+                                      gchar *text)
 {
     ctk_help_heading(b, i, "Reset Hardware Defaults");
-    ctk_help_para(b, i, "The Reset Hardware Defaults button restores "
-                  "the %s settings to their default "
-                  "values.", name);
-
+    ctk_help_para(b, i, text);
 }
 
