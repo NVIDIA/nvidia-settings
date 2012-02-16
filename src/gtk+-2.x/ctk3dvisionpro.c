@@ -1378,18 +1378,17 @@ static ChannelRangeDlg *create_channel_range_change_dlg(Ctk3DVisionPro *ctk_3d_v
 
     switch (range) {
     case SVP_SHORT_RANGE:
-        label = gtk_label_new("You have changed transceiver range to short range (less than 2m.).\n"
+        label = gtk_label_new("You have changed transceiver range to short range (less than 5m.).\n"
                               "Only glasses in this range will be available.\n\n"
                               "Do you want to apply changes?");
         break;
     case SVP_MEDIUM_RANGE:
-        label = gtk_label_new("You have changed transceiver range to medium range (less than 10m.).\n"
+        label = gtk_label_new("You have changed transceiver range to medium range (less than 15m.).\n"
                               "Only glasses in this range will be available.\n\n"
                               "Do you want to apply changes?");
         break;
     case SVP_LONG_RANGE:
-        label = gtk_label_new("You have changed transceiver range to long range.\n"
-                              "Only glasses in this range will be available.\n\n"
+        label = gtk_label_new("You have changed transceiver range to long range.\n\n"
                               "Do you want to apply changes?");
         break;
     }
@@ -1717,9 +1716,9 @@ GtkWidget* ctk_3d_vision_pro_new(NvCtrlAttributeHandle *handle,
 
     hbox = gtk_hbox_new(FALSE, 5);
     menu = gtk_menu_new();
-    add_menu_item(menu, "Short Range (upto 5 meter)");
-    add_menu_item(menu, "Medium Range (upto 15 meter)");
-    add_menu_item(menu, "Long Range (upto 30 meter)");
+    add_menu_item(menu, "Short Range (up to 5 meters)");
+    add_menu_item(menu, "Medium Range (up to 15 meters)");
+    add_menu_item(menu, "Long Range");
     ctk_3d_vision_pro->option_menu = gtk_option_menu_new ();
     gtk_option_menu_set_menu
         (GTK_OPTION_MENU(ctk_3d_vision_pro->option_menu), menu);
@@ -1894,12 +1893,12 @@ GtkTextBuffer *ctk_3d_vision_pro_create_help(GtkTextTagTable *table)
                          "Possible values for transeiver range are 'Short Range' "
                          "'Medium Range' and 'Long Range'.");
     ctk_help_para(b, &i, "Short Range: \n"
-                         "Allows glasses within a 2-meter (6.5-foot) range to "
+                         "Allows glasses within a 5-meter (16.5-foot) range to "
                          "be synced with the hub. This range is typically used "
                          "for sharing 3D simulations and training information "
                          "on a local workstation.");
     ctk_help_para(b, &i, "Medium Range: \n"
-                         "Allows glasses within a 10-meter (32-foot) range to "
+                         "Allows glasses within a 15-meter (49-foot) range to "
                          "be synced with the hub. This range is typically used "
                          "for sharing a presentation with a limited audience or "
                          "interacting with 3D CAD models during a collaborative "
