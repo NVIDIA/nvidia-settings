@@ -28,6 +28,8 @@
  *   NV-CONTROL -> event -> glib -> CtkEvent -> signal -> GUI
  */
 
+#include <string.h>
+
 #include <gtk/gtk.h>
 
 #include <X11/Xlib.h> /* Xrandr */
@@ -205,6 +207,7 @@ static void ctk_event_class_init(CtkEventClass *ctk_event_class)
     MAKE_SIGNAL(NV_CTRL_GPU_3D_CLOCK_FREQS);
     MAKE_SIGNAL(NV_CTRL_GPU_OPTIMAL_CLOCK_FREQS);
     MAKE_SIGNAL(NV_CTRL_GPU_OPTIMAL_CLOCK_FREQS_DETECTION_STATE);
+    MAKE_SIGNAL(NV_CTRL_FLATPANEL_LINK);
     MAKE_SIGNAL(NV_CTRL_USE_HOUSE_SYNC);
     MAKE_SIGNAL(NV_CTRL_IMAGE_SETTINGS);
     MAKE_SIGNAL(NV_CTRL_XINERAMA_STEREO);
@@ -611,6 +614,8 @@ static gboolean ctk_event_dispatch(GSource *source,
     CtkEventSource *event_source = (CtkEventSource *) source;
     CtkEventStruct event_struct;
 
+    memset(&event_struct, 0, sizeof(event_struct));
+
     /*
      * if ctk_event_dispatch() is called, then either
      * ctk_event_prepare() or ctk_event_check() returned TRUE, so we
@@ -638,7 +643,6 @@ static gboolean ctk_event_dispatch(GSource *source,
             event_struct.attribute    = nvctrlevent->attribute;
             event_struct.value        = nvctrlevent->value;
             event_struct.display_mask = nvctrlevent->display_mask;
-            event_struct.availability = TRUE;
 
             /*
              * XXX Is emitting a signal with g_signal_emit() really
@@ -672,8 +676,7 @@ static gboolean ctk_event_dispatch(GSource *source,
             event_struct.attribute    = nvctrlevent->attribute;
             event_struct.value        = nvctrlevent->value;
             event_struct.display_mask = nvctrlevent->display_mask;
-            event_struct.availability = TRUE;
-            
+
             /*
              * XXX Is emitting a signal with g_signal_emit() really
              * the "correct" way of dispatching the event?
@@ -707,8 +710,8 @@ static gboolean ctk_event_dispatch(GSource *source,
             event_struct.attribute    = nvctrlevent->attribute;
             event_struct.value        = nvctrlevent->value;
             event_struct.display_mask = nvctrlevent->display_mask;
-            event_struct.availability = nvctrlevent->availability;
-            
+            event_struct.is_availability_changed = TRUE;
+
             /*
              * XXX Is emitting a signal with g_signal_emit() really
              * the "correct" way of dispatching the event?
@@ -739,7 +742,6 @@ static gboolean ctk_event_dispatch(GSource *source,
             event_struct.attribute    = nvctrlevent->attribute;
             event_struct.value        = 0;
             event_struct.display_mask = nvctrlevent->display_mask;
-            event_struct.availability = TRUE;
             /*
              * XXX Is emitting a signal with g_signal_emit() really
              * the "correct" way of dispatching the event
@@ -769,7 +771,6 @@ static gboolean ctk_event_dispatch(GSource *source,
             event_struct.attribute    = nvctrlevent->attribute;
             event_struct.value        = 0;
             event_struct.display_mask = nvctrlevent->display_mask;
-            event_struct.availability = TRUE;
             /*
              * XXX Is emitting a signal with g_signal_emit() really
              * the "correct" way of dispatching the event

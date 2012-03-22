@@ -85,6 +85,7 @@ struct _CtkDisplayDeviceDfp
     char *name;
     gint default_scaling_target;
     gint default_scaling_method;
+    gint signal_type;
 };
 
 struct _CtkDisplayDeviceDfpClass

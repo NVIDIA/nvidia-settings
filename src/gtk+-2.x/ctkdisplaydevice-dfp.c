@@ -1022,6 +1022,73 @@ GtkTextBuffer *ctk_display_device_dfp_create_help(GtkTextTagTable *table,
 } /* ctk_display_device_dfp_create_help() */
 
 
+static void update_link(CtkDisplayDeviceDfp *ctk_display_device_dfp)
+{
+    ReturnStatus ret;
+    gint val, signal_type = ctk_display_device_dfp->signal_type;
+    const char *link = "Unknown";
+    char tmp[32];
+
+    ret =
+        NvCtrlGetDisplayAttribute(ctk_display_device_dfp->handle,
+                                  ctk_display_device_dfp->display_device_mask,
+                                  NV_CTRL_FLATPANEL_LINK, &val);
+    if (ret == NvCtrlSuccess) {
+        if (signal_type == NV_CTRL_FLATPANEL_SIGNAL_DISPLAYPORT) {
+            int lanes;
+
+            lanes = val + 1;
+
+            ret =
+                NvCtrlGetDisplayAttribute(ctk_display_device_dfp->handle,
+                                          ctk_display_device_dfp->display_device_mask,
+                                          NV_CTRL_DISPLAYPORT_LINK_RATE, &val);
+            if (ret == NvCtrlSuccess && val == NV_CTRL_DISPLAYPORT_LINK_RATE_DISABLED) {
+                link = "Disabled";
+            } else {
+                const char *bw = "unknown bandwidth";
+
+                if (ret == NvCtrlSuccess) {
+                    switch (val) {
+                    case NV_CTRL_DISPLAYPORT_LINK_RATE_1_62GBPS:
+                        bw = "1.62 Gbps";
+                        break;
+                    case NV_CTRL_DISPLAYPORT_LINK_RATE_2_70GBPS:
+                        bw = "2.70 Gbps";
+                        break;
+                    }
+                }
+
+                snprintf(tmp, 32, "%d lane%s @ %s", lanes, lanes == 1 ? "" : "s",
+                         bw);
+                link = tmp;
+            }
+        } else {
+            // LVDS or TMDS
+            switch(val) {
+            case NV_CTRL_FLATPANEL_LINK_SINGLE:
+                link = "Single";
+                break;
+            case NV_CTRL_FLATPANEL_LINK_DUAL:
+                link = "Dual";
+                break;
+            }
+        }
+    }
+
+    gtk_label_set_text
+        (GTK_LABEL(ctk_display_device_dfp->txt_link), link);
+}
+
+
+static void callback_link_changed(GtkObject *object, gpointer arg1,
+                                  gpointer user_data)
+{
+    CtkDisplayDeviceDfp *ctk_display_device_dfp =
+        CTK_DISPLAY_DEVICE_DFP(user_data);
+
+    update_link(ctk_display_device_dfp);
+}
 
 /*
  * dfp_info_setup() -
@@ -1031,10 +1098,10 @@ GtkTextBuffer *ctk_display_device_dfp_create_help(GtkTextTagTable *table,
 static void dfp_info_setup(CtkDisplayDeviceDfp *ctk_display_device_dfp)
 {
     ReturnStatus ret;
-    gint val, signal_type, gpu_scaling, dfp_scaling;
+    gint val, gpu_scaling, dfp_scaling;
     char *chip_location, *link, *signal;
     char *scaling;
-    char tmp[32];
+    CtkEvent *ctk_event = ctk_display_device_dfp->ctk_event;
 
     chip_location = link = signal = "Unknown";
     scaling = "Unknown";
@@ -1079,59 +1146,21 @@ static void dfp_info_setup(CtkDisplayDeviceDfp *ctk_display_device_dfp)
     }
     gtk_label_set_text
         (GTK_LABEL(ctk_display_device_dfp->txt_signal), signal);
-    signal_type = val;
+    ctk_display_device_dfp->signal_type = val;
 
     /* Link */
 
-    ret =
-        NvCtrlGetDisplayAttribute(ctk_display_device_dfp->handle,
-                                  ctk_display_device_dfp->display_device_mask,
-                                  NV_CTRL_FLATPANEL_LINK, &val);
-    if (ret == NvCtrlSuccess) {
-        if (signal_type == NV_CTRL_FLATPANEL_SIGNAL_DISPLAYPORT) {
-            int lanes;
+    g_signal_connect(G_OBJECT(ctk_event),
+                     CTK_EVENT_NAME(NV_CTRL_FLATPANEL_LINK),
+                     G_CALLBACK(callback_link_changed),
+                     (gpointer) ctk_display_device_dfp);
 
-            lanes = val + 1;
+    g_signal_connect(G_OBJECT(ctk_event),
+                     CTK_EVENT_NAME(NV_CTRL_DISPLAYPORT_LINK_RATE),
+                     G_CALLBACK(callback_link_changed),
+                     (gpointer) ctk_display_device_dfp);
 
-            ret =
-                NvCtrlGetDisplayAttribute(ctk_display_device_dfp->handle,
-                                          ctk_display_device_dfp->display_device_mask,
-                                          NV_CTRL_DISPLAYPORT_LINK_RATE, &val);
-            if (ret == NvCtrlSuccess && val == NV_CTRL_DISPLAYPORT_LINK_RATE_DISABLED) {
-                link = "Disabled";
-            } else {
-                char *bw = "unknown bandwidth";
-
-                if (ret == NvCtrlSuccess) {
-                    switch (val) {
-                    case NV_CTRL_DISPLAYPORT_LINK_RATE_1_62GBPS:
-                        bw = "1.62 Gbps";
-                        break;
-                    case NV_CTRL_DISPLAYPORT_LINK_RATE_2_70GBPS:
-                        bw = "2.70 Gbps";
-                        break;
-                    }
-                }
-
-                snprintf(tmp, 32, "%d lane%s @ %s", lanes, lanes == 1 ? "" : "s",
-                         bw);
-                link = tmp;
-            }
-        } else {
-            // LVDS or TMDS
-            switch(val) {
-            case NV_CTRL_FLATPANEL_LINK_SINGLE:
-                link = "Single";
-                break;
-            case NV_CTRL_FLATPANEL_LINK_DUAL:
-                link = "Dual";
-                break;
-            }
-        }
-    }
-    gtk_label_set_text
-        (GTK_LABEL(ctk_display_device_dfp->txt_link), link);
-
+    update_link(ctk_display_device_dfp);
 
     /* Native Resolution */
 

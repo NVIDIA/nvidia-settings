@@ -1230,6 +1230,10 @@
  *       attribute.  When NV_CTRL_GVO_DISPLAY_X_SCREEN is enabled,
  *       the GVO device will be locked by NV_CTRL_GVO_LOCK_OWNER_CLONE.
  *       see NV_CTRL_GVO_LOCK_OWNER for detais.
+ *
+ * NOTE: This attribute is deprecated and will be removed in a future release.
+ *       To display an X screen over GVO, it is recommended to instead
+ *       configure GVO via MetaModes.
  */
 
 #define NV_CTRL_GVO_DISPLAY_X_SCREEN                            73  /* RW- */
@@ -1385,6 +1389,10 @@
  * GVO output is enabled, or before enabling GVO output.  The pan
  * values will be clamped so that GVO output is not panned beyond the
  * end of the X screen.
+ *
+ * NOTE: These attributes are deprecated and will be removed in a future
+ *       release. To display an X screen over GVO, it is recommended to
+ *       instead configure GVO via MetaModes.
  */
 
 #define NV_CTRL_GVO_X_SCREEN_PAN_X                              86  /* RW- */

@@ -398,30 +398,15 @@ static void scale_value_received(GtkObject *object, gpointer arg1,
         break;
     case NV_CTRL_IMAGE_SHARPENING:
         scale = ctk_image_sliders->image_sharpening;
-        if (event_struct->availability == FALSE) {
-            gtk_widget_set_sensitive(scale, FALSE);
-            g_object_set_data(G_OBJECT(CTK_SCALE(scale)->gtk_adjustment),
-                              "attribute active",
-                              GINT_TO_POINTER(0));
-        } else if (event_struct->availability == TRUE) {
-            setup_scale(ctk_image_sliders, NV_CTRL_IMAGE_SHARPENING,
-                        ctk_image_sliders->image_sharpening);
-            gtk_widget_set_sensitive(scale, TRUE);
-            g_object_set_data(G_OBJECT(CTK_SCALE(scale)->gtk_adjustment),
-                              "attribute active",
-                              GINT_TO_POINTER(1));
-            /* In case of image sharpening slider here we are syncing to the 
-             * recent image sharpening value, so updating status bar message */
-            post_scale_value_changed(CTK_SCALE(scale)->gtk_adjustment,
-                                     ctk_image_sliders,
-                                     gtk_adjustment_get_value(
-                                             CTK_SCALE(scale)->gtk_adjustment));
-        }
         break;
     default:
         return;
     }
-    
+
+    if (event_struct->is_availability_changed) {
+        setup_scale(ctk_image_sliders, event_struct->attribute, scale);
+    }
+
     adj = CTK_SCALE(scale)->gtk_adjustment;
     val = gtk_adjustment_get_value(GTK_ADJUSTMENT(adj));
 
