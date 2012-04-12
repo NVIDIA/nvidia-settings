@@ -7382,7 +7382,57 @@ static void probe_clicked(GtkWidget *widget, gpointer user_data)
 
 } /* probe_clicked() */
 
+/** layout_change_is_applyable() ***********************************
+ *
+ * Determine whether an updated layout should let the user press the Apply
+ * button.
+ *
+ **/
+static gboolean layout_change_is_applyable(const nvLayout *old,
+                                           const nvLayout *new)
+{
+    const nvGpu *gpu;
 
+    /* The update should be applyable if any active display devices were
+     * removed. */
+    for (gpu = old->gpus; gpu; gpu = gpu->next_in_layout) {
+        const nvDisplay *dpy;
+
+        for (dpy = gpu->displays; dpy; dpy = dpy->next_on_gpu) {
+            const nvGpu *new_gpu;
+
+            /* See if the display was active in the old layout. */
+            if (!dpy->cur_mode || !dpy->cur_mode->modeline) {
+                continue;
+            }
+
+            /* This display device had an active mode in the old layout.  See if
+             * it's still connected in the new layout. */
+
+            /* First, find the matching GPU */
+            for (new_gpu = new->gpus; new_gpu; new_gpu =
+                 new_gpu->next_in_layout) {
+
+                if (strcmp(gpu->pci_bus_id, new_gpu->pci_bus_id) == 0) {
+                    break;
+                }
+            }
+
+            if (!new_gpu) {
+                /* We really should have found the new GPU! */
+                return True;
+            }
+
+            /* Then, see if the given dpy is connected.  If it's not, then the
+             * Apply button should be enabled. */
+            if (!(dpy->device_mask & new_gpu->connected_displays)) {
+                return True;
+            }
+        }
+    }
+
+    return False;
+}
 
 /** reset_layout() *************************************************
  *
@@ -7394,9 +7444,14 @@ static void reset_layout(CtkDisplayConfig *ctk_object)
 {
     gchar *err_str = NULL;
     nvLayoutPtr layout;
+    gboolean allow_apply;
+
     /* Load the current layout */
     layout = layout_load_from_server(ctk_object->handle, &err_str);
 
+    /* See if we should allow the user to press the Apply button to make the new
+     * layout take effect, e.g. if an active display device disappeared. */
+    allow_apply = layout_change_is_applyable(ctk_object->layout, layout);
 
     /* Handle errors loading the new layout */
     if (!layout || err_str) {
@@ -7436,9 +7491,9 @@ static void reset_layout(CtkDisplayConfig *ctk_object)
     /* Get new position */
     get_cur_screen_pos(ctk_object);
 
-    /* Clear the apply button */
+    /* Update the apply button */
     ctk_object->apply_possible = TRUE;
-    update_btn_apply(ctk_object, FALSE);
+    update_btn_apply(ctk_object, allow_apply);
 
     ctk_object->forced_reset_allowed = TRUE; /* OK to reset w/o user input */
     ctk_object->notify_user_of_reset = TRUE; /* Notify user of new changes */
