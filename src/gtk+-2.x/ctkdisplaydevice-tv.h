@@ -56,7 +56,6 @@ struct _CtkDisplayDeviceTv
     CtkEvent *ctk_event;
 
     NvCtrlAttributeHandle *handle;
-    unsigned int display_device_mask;
     gboolean display_enabled;
     char *name;
 
@@ -65,7 +64,7 @@ struct _CtkDisplayDeviceTv
 
     GtkWidget *overscan;
     GtkWidget *flicker_filter;
-    
+
     GtkWidget *brightness;
     GtkWidget *hue;
     GtkWidget *contrast;
@@ -74,7 +73,6 @@ struct _CtkDisplayDeviceTv
 
     GtkWidget *image_sliders;
 
-    GtkWidget *edid_box;
     GtkWidget *edid;
     GtkWidget *reset_button;
 };
@@ -87,7 +85,7 @@ struct _CtkDisplayDeviceTvClass
 GType       ctk_display_device_tv_get_type  (void) G_GNUC_CONST;
 GtkWidget*  ctk_display_device_tv_new       (NvCtrlAttributeHandle *,
                                              CtkConfig *, CtkEvent *,
-                                             unsigned int, char *);
+                                             char *);
 
 GtkTextBuffer *ctk_display_device_tv_create_help(GtkTextTagTable *,
                                                  CtkDisplayDeviceTv *);

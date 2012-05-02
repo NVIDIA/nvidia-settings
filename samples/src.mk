@@ -15,3 +15,5 @@ SAMPLES_EXTRA_DIST += nv-control-targets.c
 SAMPLES_EXTRA_DIST += nv-control-framelock.c
 SAMPLES_EXTRA_DIST += nv-control-screen.h
 SAMPLES_EXTRA_DIST += src.mk
+
+SAMPLES_DIST_FILES := $(SAMPLES_SRC) $(SAMPLES_EXTRA_DIST)

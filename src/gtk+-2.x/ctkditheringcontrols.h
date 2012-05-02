@@ -54,22 +54,23 @@ struct _CtkDitheringControls
 
     NvCtrlAttributeHandle *handle;
     CtkConfig *ctk_config;
+    char *name;
     GtkWidget *reset_button;
-    GtkWidget *dithering_controls_main;
+
+    GtkWidget *dithering_controls_box;
     GtkWidget *dithering_mode_box;
     GtkWidget *dithering_depth_box;
 
     GtkWidget *dithering_config_menu;
     GtkWidget *dithering_mode_menu;
     GtkWidget *dithering_depth_menu;
-    GtkWidget *dithering_current_config;
-    GtkWidget *dithering_current_mode;
-    GtkWidget *dithering_current_depth;
 
-    gint display_device_mask;
+    GtkWidget *dithering_config_txt;
+    GtkWidget *dithering_mode_txt;
+    GtkWidget *dithering_depth_txt;
+
     gint *dithering_mode_table;
     gint dithering_mode_table_size;
-    char *name;
 };
 
 struct _CtkDitheringControlsClass
@@ -81,7 +82,6 @@ GType ctk_dithering_controls_get_type (void) G_GNUC_CONST;
 GtkWidget* ctk_dithering_controls_new (NvCtrlAttributeHandle *,
                                        CtkConfig *, CtkEvent *,
                                        GtkWidget *,
-                                       unsigned int display_device_mask,
                                        char *);
 
 void ctk_dithering_controls_reset (CtkDitheringControls*);

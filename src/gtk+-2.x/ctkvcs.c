@@ -117,6 +117,7 @@ GType ctk_vcs_get_type(void)
             sizeof(CtkVcs),
             0, /* n_preallocs */
             NULL, /* instance_init */
+            NULL  /* value_table */
         };
 
         ctk_vcs_type = g_type_register_static
@@ -231,7 +232,7 @@ static gboolean update_vcs_info(gpointer user_data)
  *
  **/
 
-GtkWidget * create_error_dialog(CtkVcs *ctk_object)
+static GtkWidget * create_error_dialog(CtkVcs *ctk_object)
 {
     GtkWidget *dialog;
     GtkWidget *image;

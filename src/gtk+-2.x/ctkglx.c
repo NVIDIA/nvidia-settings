@@ -146,6 +146,7 @@ GType ctk_glx_get_type(void)
             sizeof (CtkGLX),
             0, /* n_preallocs */
             NULL, /* instance_init */
+            NULL  /* value_table */
         };
 
         ctk_glx_type = g_type_register_static (GTK_TYPE_VBOX,

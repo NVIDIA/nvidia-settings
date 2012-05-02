@@ -65,6 +65,7 @@ GType ctk_display_device_crt_get_type(void)
             sizeof (CtkDisplayDeviceCrt),
             0, /* n_preallocs */
             NULL, /* instance_init */
+            NULL  /* value_table */
         };
 
         ctk_display_device_crt_type = g_type_register_static (GTK_TYPE_VBOX,
@@ -105,7 +106,6 @@ static void ctk_display_device_crt_finalize(
 GtkWidget* ctk_display_device_crt_new(NvCtrlAttributeHandle *handle,
                                       CtkConfig *ctk_config,
                                       CtkEvent *ctk_event,
-                                      unsigned int display_device_mask,
                                       char *name)
 {
     GObject *object;
@@ -124,7 +124,6 @@ GtkWidget* ctk_display_device_crt_new(NvCtrlAttributeHandle *handle,
     ctk_display_device_crt->handle = handle;
     ctk_display_device_crt->ctk_config = ctk_config;
     ctk_display_device_crt->ctk_event = ctk_event;
-    ctk_display_device_crt->display_device_mask = display_device_mask;
     ctk_display_device_crt->name = g_strdup(name);
     ctk_display_device_crt->txt_refresh_rate = gtk_label_new("");
     gtk_box_set_spacing(GTK_BOX(object), 10);
@@ -160,7 +159,7 @@ GtkWidget* ctk_display_device_crt_new(NvCtrlAttributeHandle *handle,
     ctk_display_device_crt->image_sliders =
         ctk_image_sliders_new(handle, ctk_config, ctk_event,
                               ctk_display_device_crt->reset_button,
-                              display_device_mask, name);
+                              name);
     if (ctk_display_device_crt->image_sliders) {
         gtk_box_pack_start(GTK_BOX(object),
                            ctk_display_device_crt->image_sliders,
@@ -209,10 +208,17 @@ GtkWidget* ctk_display_device_crt_new(NvCtrlAttributeHandle *handle,
     }
     /* pack the EDID button */
 
+    ctk_display_device_crt->edid =
+        ctk_edid_new(ctk_display_device_crt->handle,
+                     ctk_display_device_crt->ctk_config,
+                     ctk_display_device_crt->ctk_event,
+                     ctk_display_device_crt->name);
+
     hbox = gtk_hbox_new(FALSE, 0);
     gtk_box_pack_start(GTK_BOX(object), hbox, FALSE, FALSE, 0);
-    ctk_display_device_crt->edid_box = hbox;
-    
+    gtk_box_pack_start(GTK_BOX(hbox), ctk_display_device_crt->edid,
+                       TRUE, TRUE, 0);
+
     /* show the page */
 
     gtk_widget_show_all(GTK_WIDGET(object));
@@ -220,8 +226,7 @@ GtkWidget* ctk_display_device_crt_new(NvCtrlAttributeHandle *handle,
     /* Update the GUI */
 
     update_display_enabled_flag(ctk_display_device_crt->handle,
-                                &ctk_display_device_crt->display_enabled,
-                                ctk_display_device_crt->display_device_mask);
+                                &ctk_display_device_crt->display_enabled);
 
     ctk_display_device_crt_setup(ctk_display_device_crt);
     
@@ -262,10 +267,8 @@ GtkTextBuffer *ctk_display_device_crt_create_help(GtkTextTagTable *table,
     add_image_sliders_help
         (CTK_IMAGE_SLIDERS(ctk_display_device_crt->image_sliders), b, &i);
 
-    if (ctk_display_device_crt->edid) {
-        add_acquire_edid_help(b, &i);
-    }
-    
+    add_acquire_edid_help(b, &i);
+
     td = gtk_tooltips_data_get(GTK_WIDGET(ctk_display_device_crt->reset_button));
     ctk_help_reset_hardware_defaults (b, &i, td->tip_text);
 
@@ -284,12 +287,15 @@ static void reset_button_clicked(GtkButton *button, gpointer user_data)
 {
     CtkDisplayDeviceCrt *ctk_display_device_crt =
         CTK_DISPLAY_DEVICE_CRT(user_data);
-    
+
+    /* Disable the reset button here and allow the controls below to (re)enable
+     * it if need be,.
+     */
+    gtk_widget_set_sensitive(ctk_display_device_crt->reset_button, FALSE);
+
     ctk_image_sliders_reset
         (CTK_IMAGE_SLIDERS(ctk_display_device_crt->image_sliders));
 
-    gtk_widget_set_sensitive(ctk_display_device_crt->reset_button, FALSE);
-    
     ctk_config_statusbar_message(ctk_display_device_crt->ctk_config,
                                  "Reset hardware defaults for %s.",
                                  ctk_display_device_crt->name);
@@ -305,59 +311,35 @@ static void reset_button_clicked(GtkButton *button, gpointer user_data)
 static void ctk_display_device_crt_setup(CtkDisplayDeviceCrt
                                          *ctk_display_device_crt)
 {
-    /* Update CRT-specific settings */
+    /* Disable the reset button here and allow the controls below to (re)enable
+     * it if need be,.
+     */
+    gtk_widget_set_sensitive(ctk_display_device_crt->reset_button, FALSE);
+
+
+    /* Update info */
+
     crt_info_setup(ctk_display_device_crt);
-    
-    /* Update the image sliders */
+
+    ctk_edid_setup(CTK_EDID(ctk_display_device_crt->edid));
+
+    /* Update controls */
 
     ctk_image_sliders_setup
         (CTK_IMAGE_SLIDERS(ctk_display_device_crt->image_sliders));
 
-
-    /* update acquire EDID button */
-    
-    if (ctk_display_device_crt->edid) {
-        GList *list;
-            
-        list = gtk_container_get_children
-                (GTK_CONTAINER(ctk_display_device_crt->edid_box));
-        if (list) {
-            gtk_container_remove
-                (GTK_CONTAINER(ctk_display_device_crt->edid_box),
-                 (GtkWidget *)(list->data));
-            g_list_free(list);
-        }
-    }
-
-    ctk_display_device_crt->edid =
-        ctk_edid_new(ctk_display_device_crt->handle,
-                     ctk_display_device_crt->ctk_config,
-                     ctk_display_device_crt->ctk_event,
-                     ctk_display_device_crt->reset_button,
-                     ctk_display_device_crt->display_device_mask,
-                     ctk_display_device_crt->name);
-
-    if (ctk_display_device_crt->edid) {
-        gtk_box_pack_start(GTK_BOX(ctk_display_device_crt->edid_box),
-                           ctk_display_device_crt->edid, TRUE, TRUE, 0);
-    }
-
-
-    /* update the reset button */
-
-    gtk_widget_set_sensitive(ctk_display_device_crt->reset_button, FALSE);
-
 } /* ctk_display_device_crt_setup() */
+
+
 
 static void crt_info_setup(CtkDisplayDeviceCrt *ctk_display_device_crt)
 {
     ReturnStatus ret;
     gint val;
-    
+
     /* Refresh Rate */
-    ret = NvCtrlGetDisplayAttribute(ctk_display_device_crt->handle,
-                                    ctk_display_device_crt->display_device_mask,
-                                    NV_CTRL_REFRESH_RATE, &val);
+    ret = NvCtrlGetAttribute(ctk_display_device_crt->handle,
+                             NV_CTRL_REFRESH_RATE, &val);
     if (ret == NvCtrlSuccess) {
         char str[32];
         float fvalue = ((float)(val)) / 100.0f;
@@ -384,12 +366,7 @@ static void enabled_displays_received(GtkObject *object, gpointer arg1,
     /* Requery display information only if display disabled */
 
     update_display_enabled_flag(ctk_object->handle,
-                                &ctk_object->display_enabled,
-                                ctk_object->display_device_mask);
-
-    if (ctk_object->display_enabled) {
-        return;
-    }
+                                &ctk_object->display_enabled);
 
     ctk_display_device_crt_setup(ctk_object);
 
@@ -405,11 +382,6 @@ static void info_update_received(GtkObject *object, gpointer arg1,
                                  gpointer user_data)
 {
     CtkDisplayDeviceCrt *ctk_object = CTK_DISPLAY_DEVICE_CRT(user_data);
-    CtkEventStruct *event_struct = (CtkEventStruct *) arg1;
-    
-    /* if the event is not for this display device, return */
-    if (!(event_struct->display_mask & ctk_object->display_device_mask)) {
-        return;
-    }
+
     crt_info_setup(ctk_object);
 }

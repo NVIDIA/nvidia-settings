@@ -128,6 +128,12 @@ G_BEGIN_DECLS
 
 /*** T Y P E   D E F I N I T I O N S *****************************************/
 
+typedef enum {
+    PASSIVE_STEREO_EYE_NONE = 0,
+    PASSIVE_STEREO_EYE_LEFT,
+    PASSIVE_STEREO_EYE_RIGHT,
+} PassiveStereoEye;
+
 
 typedef struct nvModeLineRec {
     struct nvModeLineRec *next;
@@ -167,6 +173,8 @@ typedef struct nvModeRec {
     int position_type;                  /* Relative, Absolute, etc. */
     struct nvDisplayRec *relative_to;   /* Display Relative/RightOf etc */
 
+    PassiveStereoEye passive_stereo_eye; /* Stereo mode 4 per-dpy setting */
+
 } nvMode, *nvModePtr;
 
 
@@ -177,11 +185,19 @@ typedef struct nvDisplayRec {
     struct nvDisplayRec *next_in_screen;
     XConfigMonitorPtr    conf_monitor;
 
+    NvCtrlAttributeHandle *handle;      /* NV-CONTROL handle to device */
+
     struct nvGpuRec    *gpu;            /* GPU the display belongs to */
     struct nvScreenRec *screen;         /* X screen the display is tied to */
 
-    unsigned int        device_mask;    /* Bit mask to identify the display */
-    char               *name;           /* Display name (from NV-CONTROL) */
+    char               *logName;        /* Display name (from NV-CONTROL) */
+    char               *typeBaseName;   /* e.g. "CRT", "DFP", "TV" */
+    char               *typeIdName;     /* e.g. "DFP-1", "TV-0" */
+    char               *dpGuidName;     /* e.g. "DP-GUID-11111111-1111-1111-1111-111111111111" */
+    char               *edidHashName;   /* e.g. "DPY-EDID-11111111-1111-1111-1111-111111111111" */
+    char               *targetIdName;   /* e.g. "DPY-3" */
+    char               *randrName;      /* e.g. "VGA-1", "DVI-I-2" */
+
     Bool                is_sdi;         /* Is an SDI display */
 
     nvModeLinePtr       modelines;      /* Modelines validated by X */
@@ -238,8 +254,8 @@ typedef struct nvScreenRec {
     struct nvGpuRec *gpu;  /* GPU driving this X screen */
 
     int depth;      /* Depth of the screen */
+    int stereo;     /* Stereo mode enabled on this screen */
 
-    unsigned int displays_mask; /* Display devices on this X screen */
     nvDisplayPtr displays; /* List of displays using this screen */
     int num_displays; /* # of displays using this screen */
 
@@ -259,6 +275,7 @@ typedef struct nvScreenRec {
     Bool sli;
     Bool dynamic_twinview;  /* This screen supports dynamic twinview */
     Bool no_scanout;        /* This screen has no display devices */
+    Bool stereo_supported;  /* Can stereo be configured on this screen */
 
 } nvScreen, *nvScreenPtr;
 
@@ -288,8 +305,6 @@ typedef struct nvGpuRec {
     Bool allow_depth_30;
 
     char *name;  /* Name of the GPU */
-
-    unsigned int connected_displays;  /* Bitmask of connected displays */
 
     gchar *pci_bus_id;
 
@@ -487,6 +502,8 @@ void ctk_display_layout_set_display_panning (CtkDisplayLayout *ctk_object,
                                              int width, int height);
 void ctk_display_layout_select_display (CtkDisplayLayout *ctk_object,
                                         nvDisplayPtr display);
+void ctk_display_layout_select_screen (CtkDisplayLayout *ctk_object,
+                                       nvScreenPtr screen);
 void ctk_display_layout_update_display_count (CtkDisplayLayout *,
                                               nvDisplayPtr);
 

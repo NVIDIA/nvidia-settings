@@ -143,6 +143,7 @@ GType ctk_color_correction_get_type(
             sizeof (CtkColorCorrection),
             0,    /* n_preallocs */
             NULL, /* instance_init */
+            NULL  /* value_table */
         };
 
         ctk_color_correction_type =
@@ -903,42 +904,42 @@ static void apply_parsed_attribute_list(
         switch (p->attr & (ALL_VALUES | ALL_CHANNELS)) {
         case (CONTRAST_VALUE | RED_CHANNEL):
             set_color_state(ctk_color_correction, CONTRAST,
-                            RED_CHANNEL, p->fval, TRUE); break;
+                            RED_CHANNEL, p->val.f, TRUE); break;
         case (CONTRAST_VALUE | GREEN_CHANNEL):
             set_color_state(ctk_color_correction, CONTRAST,
-                            GREEN_CHANNEL, p->fval, TRUE); break;
+                            GREEN_CHANNEL, p->val.f, TRUE); break;
         case (CONTRAST_VALUE | BLUE_CHANNEL):
             set_color_state(ctk_color_correction, CONTRAST,
-                            BLUE_CHANNEL, p->fval, TRUE); break;
+                            BLUE_CHANNEL, p->val.f, TRUE); break;
         case (CONTRAST_VALUE | ALL_CHANNELS):
             set_color_state(ctk_color_correction, CONTRAST,
-                            ALL_CHANNELS, p->fval, TRUE); break;
+                            ALL_CHANNELS, p->val.f, TRUE); break;
 
         case (BRIGHTNESS_VALUE | RED_CHANNEL):
             set_color_state(ctk_color_correction, BRIGHTNESS,
-                            RED_CHANNEL, p->fval, TRUE); break;
+                            RED_CHANNEL, p->val.f, TRUE); break;
         case (BRIGHTNESS_VALUE | GREEN_CHANNEL):
             set_color_state(ctk_color_correction, BRIGHTNESS,
-                            GREEN_CHANNEL, p->fval, TRUE); break;
+                            GREEN_CHANNEL, p->val.f, TRUE); break;
         case (BRIGHTNESS_VALUE | BLUE_CHANNEL):
             set_color_state(ctk_color_correction, BRIGHTNESS,
-                            BLUE_CHANNEL, p->fval, TRUE); break;
+                            BLUE_CHANNEL, p->val.f, TRUE); break;
         case (BRIGHTNESS_VALUE | ALL_CHANNELS):
             set_color_state(ctk_color_correction, BRIGHTNESS,
-                            ALL_CHANNELS, p->fval, TRUE); break;
+                            ALL_CHANNELS, p->val.f, TRUE); break;
 
         case (GAMMA_VALUE | RED_CHANNEL):
             set_color_state(ctk_color_correction, GAMMA,
-                            RED_CHANNEL, p->fval, TRUE); break;
+                            RED_CHANNEL, p->val.f, TRUE); break;
         case (GAMMA_VALUE | GREEN_CHANNEL):
             set_color_state(ctk_color_correction, GAMMA,
-                            GREEN_CHANNEL, p->fval, TRUE); break;
+                            GREEN_CHANNEL, p->val.f, TRUE); break;
         case (GAMMA_VALUE | BLUE_CHANNEL):
             set_color_state(ctk_color_correction, GAMMA,
-                            BLUE_CHANNEL, p->fval, TRUE); break;
+                            BLUE_CHANNEL, p->val.f, TRUE); break;
         case (GAMMA_VALUE | ALL_CHANNELS):
             set_color_state(ctk_color_correction, GAMMA,
-                            ALL_CHANNELS, p->fval, TRUE); break;
+                            ALL_CHANNELS, p->val.f, TRUE); break;
 
         default:
             goto next_attribute;

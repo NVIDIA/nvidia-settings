@@ -47,6 +47,7 @@ GType ctk_server_get_type(void)
             sizeof(CtkServer),
             0, /* n_preallocs */
             NULL, /* instance_init */
+            NULL  /* value_table */
         };
 
         ctk_server_type = g_type_register_static

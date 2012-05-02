@@ -53,6 +53,9 @@
  * 1.25        Added 3D_VISION_PRO_TRANSCEIVER TargetType
  * 1.26        Added XNVCTRLQueryXXXAttributePermissions.
  * 1.27        Added DISPLAY TargetType
+ * 1.28        Added NV_CTRL_CURRENT_METAMODE_ID: clients should use this
+ *             attribute to switch MetaModes, rather than pass the MetaMode ID
+ *             through the RRSetScreenConfig protocol request.
  */
 
 #ifndef __NVCONTROL_H
@@ -63,7 +66,7 @@
 #define NV_CONTROL_NAME "NV-CONTROL"
 
 #define NV_CONTROL_MAJOR 1
-#define NV_CONTROL_MINOR 27
+#define NV_CONTROL_MINOR 28
 
 #define X_nvCtrlQueryExtension                      0
 #define X_nvCtrlIsNv                                1

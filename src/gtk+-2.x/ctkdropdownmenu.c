@@ -52,6 +52,7 @@ GType ctk_drop_down_menu_get_type(
             sizeof (CtkDropDownMenu),
             0, /* n_preallocs */
             NULL, /* instance_init */
+            NULL  /* value_table */
         };
 
         ctk_drop_down_menu_type = g_type_register_static(GTK_TYPE_VBOX,

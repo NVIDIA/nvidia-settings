@@ -197,6 +197,7 @@ GType ctk_3d_vision_pro_get_type(void)
             sizeof (Ctk3DVisionPro),
             0,    /* n_preallocs */
             NULL, /* instance_init */
+            NULL  /* value_table */
         };
 
         ctk_3d_vision_pro_type = g_type_register_static(GTK_TYPE_VBOX,

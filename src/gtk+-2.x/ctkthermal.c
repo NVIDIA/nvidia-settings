@@ -136,6 +136,7 @@ GType ctk_thermal_get_type(void)
             sizeof (CtkThermal),
             0,    /* n_preallocs */
             NULL, /* instance_init */
+            NULL  /* value_table */
         };
 
         ctk_thermal_type =

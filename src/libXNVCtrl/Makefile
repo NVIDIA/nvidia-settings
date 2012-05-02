@@ -20,6 +20,7 @@
 # SOFTWARE.
 
 RANLIB ?= ranlib
+CFLAGS += -fPIC
 
 libXNVCtrl.a : libXNVCtrl.a(NVCtrl.o)
 	$(RANLIB) $@

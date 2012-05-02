@@ -53,6 +53,28 @@ static char *find_modeline(char *modeString, char *pModeLines,
 
 
 
+static void print_display_name(Display *dpy, int target_id, int attr,
+                               char *name)
+{
+    Bool ret;
+    char *str;
+
+    ret = XNVCTRLQueryTargetStringAttribute(dpy,
+                                            NV_CTRL_TARGET_TYPE_DISPLAY,
+                                            target_id, 0,
+                                            attr,
+                                            &str);
+    if (!ret) {
+        printf("    %18s : N/A\n", name);
+        return;
+    }
+
+    printf("    %18s : %s\n", name, str);
+    XFree(str);
+}
+
+
+
 
 int main(int argc, char *argv[])
 {
@@ -363,8 +385,48 @@ int main(int argc, char *argv[])
         
         XFree(str);
     }
-    
-    
+
+
+    /*
+     * query the MetaModes for the X screen, using
+     * NV_CTRL_BINARY_DATA_METAMODES_VERSION_2.
+     */
+
+    else if (strcmp(argv[1], "--print-metamodes-version2") == 0) {
+
+        /* get list of metamodes */
+
+        ret = XNVCTRLQueryBinaryData(dpy, screen, 0, // n/a
+                                     NV_CTRL_BINARY_DATA_METAMODES_VERSION_2,
+                                     (void *) &str, &len);
+
+        if (!ret) {
+            fprintf(stderr, "Failed to query MetaModes.\n\n");
+            return 1;
+        }
+
+        /*
+         * the returned data is in the form:
+         *
+         *   "MetaMode 1\0MetaMode 2\0MetaMode 3\0Last MetaMode\0\0"
+         *
+         * so walk from one "\0" to the next to print each MetaMode.
+         */
+
+        printf("MetaModes:\n");
+
+        start = str;
+        for (j = 0; j < len; j++) {
+            if (str[j] == '\0') {
+                printf("  %s\n", start);
+                start = &str[j+1];
+            }
+        }
+
+        XFree(str);
+    }
+
+
     /*
      * query the currently in use MetaMode.  Note that an alternative
      * way to accomplish this is to use XRandR to query the current
@@ -387,8 +449,32 @@ int main(int argc, char *argv[])
 
         XFree(str);
     }
-    
-    
+
+
+    /*
+     * query the currently in use MetaMode.  Note that an alternative
+     * way to accomplish this is to use XRandR to query the current
+     * mode's refresh rate, and then match the refresh rate to the id
+     * reported in the returned NV_CTRL_BINARY_DATA_METAMODES_VERSION_2 data.
+     */
+
+    else if (strcmp(argv[1], "--print-current-metamode-version2") == 0) {
+
+        ret = XNVCTRLQueryStringAttribute(dpy, screen, mask,
+                                          NV_CTRL_STRING_CURRENT_METAMODE_VERSION_2,
+                                          &str);
+
+        if (!ret) {
+            fprintf(stderr, "Failed to query the current MetaMode.\n\n");
+            return 1;
+        }
+
+        printf("current metamode: \"%s\"\n\n", str);
+
+        XFree(str);
+    }
+
+
     /*
      * add the given MetaMode to X screen's list of MetaModes, using
      * NV_CTRL_STRING_OPERATION_ADD_METAMODE; example MetaMode string:
@@ -1163,7 +1249,54 @@ int main(int argc, char *argv[])
         printf("The id of the new MetaMode is %d; use xrandr to "
                "switch to it.\n\n", id);
     }
-    
+
+
+    /* Display all names each display device goes by
+     */
+    else if (strcmp(argv[1], "--print-display-names") == 0) {
+        unsigned int *pData;
+        int len, i;
+
+        printf("Display Device Information:\n");
+
+        ret = XNVCTRLQueryTargetBinaryData(dpy,
+                                           NV_CTRL_TARGET_TYPE_GPU,
+                                           0,
+                                           0,
+                                           NV_CTRL_BINARY_DATA_DISPLAY_TARGETS,
+                                           (unsigned char **) &pData,
+                                           &len);
+        if (!ret) {
+            fprintf(stderr, "Failed to query number of display devices.\n\n");
+            return 1;
+        }
+
+        printf("  number of display devices: %d\n", pData[0]);
+
+        for (i = 1; i <= pData[0]; i++) {
+
+            printf("\n  Display Device: %d\n", pData[i]);
+
+            print_display_name(dpy, pData[i],
+                               NV_CTRL_STRING_DISPLAY_NAME_TYPE_BASENAME,
+                               "Type Basename");
+            print_display_name(dpy, pData[i],
+                               NV_CTRL_STRING_DISPLAY_NAME_TYPE_ID,
+                               "Type ID");
+            print_display_name(dpy, pData[i],
+                               NV_CTRL_STRING_DISPLAY_NAME_DP_GUID,
+                               "DP GUID");
+            print_display_name(dpy, pData[i],
+                               NV_CTRL_STRING_DISPLAY_NAME_EDID_HASH,
+                               "EDID HASH");
+            print_display_name(dpy, pData[i],
+                               NV_CTRL_STRING_DISPLAY_NAME_TARGET_INDEX,
+                               "Target Index");
+            print_display_name(dpy, pData[i],
+                               NV_CTRL_STRING_DISPLAY_NAME_RANDR,
+                               "RANDR");
+        }
+    }
 
     /*
      * print help information
@@ -1204,6 +1337,9 @@ int main(int argc, char *argv[])
         printf("  --print-metamodes: print the current MetaModes for the "
                "X screen\n\n");
 
+        printf("  --print-metamodes-version2: print the current MetaModes for "
+               "the X screen with extended information\n\n");
+
         printf("  --add-metamode [metamode]: add the specified "
                "MetaMode to the X screen's list of MetaModes.\n\n");
         
@@ -1212,7 +1348,10 @@ int main(int argc, char *argv[])
 
         printf("  --print-current-metamode: print the current MetaMode.\n\n");
 
-        
+        printf("  --print-current-metamode-version2: print the current "
+               "MetaMode with extended information.\n\n");
+
+
         printf(" Misc options:\n\n");
         
         printf("  --get-valid-freq-ranges: query the valid frequency "
@@ -1246,6 +1385,9 @@ int main(int argc, char *argv[])
 
         printf("  --dynamic-twinview: demonstrates the process of "
                "dynamically transitioning into TwinView.\n\n");
+
+        printf("  --print-display-names: print all the names associated with "
+               "each display device on the server\n\n");
     }
 
     return 0;

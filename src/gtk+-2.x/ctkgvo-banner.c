@@ -109,6 +109,7 @@ GType ctk_gvo_banner_get_type(void)
             sizeof (CtkGvoBanner),
             0,    /* n_preallocs */
             NULL, /* instance_init */
+            NULL  /* value_table */
         };
 
         ctk_gvo_banner_type =

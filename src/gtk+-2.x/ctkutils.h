@@ -37,6 +37,8 @@ gchar *get_pcie_link_speed_string(NvCtrlAttributeHandle *handle,
 
 gchar* create_gpu_name_string(NvCtrlAttributeHandle *gpu_handle);
 
+gchar* create_display_name_list_string(NvCtrlAttributeHandle *handle,
+                                       unsigned int attr);
 
 GtkWidget *add_table_row_with_help_text(GtkWidget *table,
                                         CtkConfig *ctk_config,
@@ -65,8 +67,7 @@ void ctk_display_warning_msg(GtkWidget *parent, gchar *msg);
 void ctk_empty_container(GtkWidget *);
 
 void update_display_enabled_flag(NvCtrlAttributeHandle *handle,
-                                 gboolean *display_enabled,
-                                 unsigned int display_device_mask);
+                                 gboolean *display_enabled);
 
 G_END_DECLS
 

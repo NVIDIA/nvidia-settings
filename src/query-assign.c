@@ -32,6 +32,7 @@
 #include "parse.h"
 #include "msg.h"
 #include "query-assign.h"
+#include "common-utils.h"
 
 extern int __verbosity;
 extern int __terse;
@@ -633,19 +634,20 @@ static int validate_value(CtrlHandleTarget *t, ParsedAttribute *a, uint32 d,
         /* don't do any checks on integer or bitmask values */
         break;
     case ATTRIBUTE_TYPE_BOOL:
-        if ((a->val < 0) || (a->val > 1)) {
+        if ((a->val.i < 0) || (a->val.i > 1)) {
             bad_val = NV_TRUE;
         }
         break;
     case ATTRIBUTE_TYPE_RANGE:
         if (a->flags & NV_PARSER_TYPE_PACKED_ATTRIBUTE) {
-            if (((a->val >> 16) < (valid.u.range.min >> 16)) ||
-                ((a->val >> 16) > (valid.u.range.max >> 16)) ||
-                ((a->val & 0xffff) < (valid.u.range.min & 0xffff)) ||
-                ((a->val & 0xffff) > (valid.u.range.max & 0xffff)))
+            if (((a->val.i >> 16) < (valid.u.range.min >> 16)) ||
+                ((a->val.i >> 16) > (valid.u.range.max >> 16)) ||
+                ((a->val.i & 0xffff) < (valid.u.range.min & 0xffff)) ||
+                ((a->val.i & 0xffff) > (valid.u.range.max & 0xffff)))
                 bad_val = NV_TRUE;
         } else {
-            if ((a->val < valid.u.range.min) || (a->val > valid.u.range.max))
+            if ((a->val.i < valid.u.range.min) ||
+                (a->val.i > valid.u.range.max))
                 bad_val = NV_TRUE;
         }
         break;
@@ -653,16 +655,16 @@ static int validate_value(CtrlHandleTarget *t, ParsedAttribute *a, uint32 d,
         if (a->flags & NV_PARSER_TYPE_PACKED_ATTRIBUTE) {
             unsigned int u, l;
 
-             u = (((unsigned int) a->val) >> 16);
-             l = (a->val & 0xffff);
+             u = (((unsigned int) a->val.i) >> 16);
+             l = (a->val.i & 0xffff);
 
              if ((u > 15) || ((valid.u.bits.ints & (1 << u << 16)) == 0) ||
                  (l > 15) || ((valid.u.bits.ints & (1 << l)) == 0)) {
                 bad_val = NV_TRUE;
             }
         } else {
-            if ((a->val > 31) || (a->val < 0) ||
-                ((valid.u.bits.ints & (1<<a->val)) == 0)) {
+            if ((a->val.i > 31) || (a->val.i < 0) ||
+                ((valid.u.bits.ints & (1<<a->val.i)) == 0)) {
                 bad_val = NV_TRUE;
             }
         }
@@ -688,13 +690,13 @@ static int validate_value(CtrlHandleTarget *t, ParsedAttribute *a, uint32 d,
         if (a->flags & NV_PARSER_TYPE_PACKED_ATTRIBUTE) {
             nv_warning_msg("The value pair %d,%d for attribute '%s' (%s%s) "
                            "specified %s is invalid.",
-                           a->val >> 16, a->val & 0xffff,
+                           a->val.i >> 16, a->val.i & 0xffff,
                            a->name, t->name,
                            d_str, whence);
         } else {
             nv_warning_msg("The value %d for attribute '%s' (%s%s) "
                            "specified %s is invalid.",
-                           a->val, a->name, t->name,
+                           a->val.i, a->name, t->name,
                            d_str, whence);
         }
         print_valid_values(a->name, a->attr, a->flags, valid);
@@ -834,7 +836,7 @@ static void print_valid_values(char *name, int attr, uint32 flags,
     for (i = 0; targetTypeTable[i].name; i++) {
         if (valid.permissions & targetTypeTable[i].permission_bit) {
             if (n > 0) c += sprintf(c, ", ");
-            c += sprintf(c, targetTypeTable[i].name);
+            c += sprintf(c, "%s", targetTypeTable[i].name);
             n++;
         }
     }
@@ -1556,27 +1558,32 @@ static int process_parsed_attribute_internal(CtrlHandleTarget *t,
     }
 
     if (assign) {
-        ret = validate_value(t, a, d, target_type, whence);
-        if (!ret) return NV_FALSE;
+        if (a->flags & NV_PARSER_TYPE_STRING_ATTRIBUTE) {
+            status = NvCtrlSetStringAttribute(t->h, a->attr, a->val.str, NULL);
+        } else {
 
-        status = NvCtrlSetDisplayAttribute(t->h, d, a->attr, a->val);
-        
-        if (status != NvCtrlSuccess) {
-            nv_error_msg("Error assigning value %d to attribute '%s' "
-                         "(%s%s) as specified %s (%s).",
-                         a->val, a->name, t->name, str, whence,
-                         NvCtrlAttributesStrError(status));
-            return NV_FALSE;
-        }
-        
-        if (verbose) {
-            if (a->flags & NV_PARSER_TYPE_PACKED_ATTRIBUTE) {
-                nv_msg("  ", "Attribute '%s' (%s%s) assigned value %d,%d.",
-                       a->name, t->name, str,
-                       a->val >> 16, a->val & 0xffff);
-            } else {
-                nv_msg("  ", "Attribute '%s' (%s%s) assigned value %d.",
-                       a->name, t->name, str, a->val);
+            ret = validate_value(t, a, d, target_type, whence);
+            if (!ret) return NV_FALSE;
+
+            status = NvCtrlSetDisplayAttribute(t->h, d, a->attr, a->val.i);
+
+            if (status != NvCtrlSuccess) {
+                nv_error_msg("Error assigning value %d to attribute '%s' "
+                             "(%s%s) as specified %s (%s).",
+                             a->val.i, a->name, t->name, str, whence,
+                             NvCtrlAttributesStrError(status));
+                return NV_FALSE;
+            }
+
+            if (verbose) {
+                if (a->flags & NV_PARSER_TYPE_PACKED_ATTRIBUTE) {
+                    nv_msg("  ", "Attribute '%s' (%s%s) assigned value %d,%d.",
+                           a->name, t->name, str,
+                           a->val.i >> 16, a->val.i & 0xffff);
+                } else {
+                    nv_msg("  ", "Attribute '%s' (%s%s) assigned value %d.",
+                           a->name, t->name, str, a->val.i);
+                }
             }
         }
 
@@ -1608,7 +1615,7 @@ static int process_parsed_attribute_internal(CtrlHandleTarget *t,
                 tmp_str = NULL;
             }
         } else { 
-            status = NvCtrlGetDisplayAttribute(t->h, d, a->attr, &a->val);
+            status = NvCtrlGetDisplayAttribute(t->h, d, a->attr, &a->val.i);
 
             if (status == NvCtrlAttributeNotAvailable) {
                 nv_warning_msg("Error querying attribute '%s' specified %s; "
@@ -1622,7 +1629,7 @@ static int process_parsed_attribute_internal(CtrlHandleTarget *t,
                              NvCtrlAttributesStrError(status));
                 return NV_FALSE;
             } else {
-                print_queried_value(t, &valid, a->val, a->flags, a->name, d,
+                print_queried_value(t, &valid, a->val.i, a->flags, a->name, d,
                                     "  ", __terse ?
                                     VerboseLevelTerse : VerboseLevelVerbose);
                 print_valid_values(a->name, a->attr, a->flags, valid);
@@ -1874,18 +1881,18 @@ int nv_process_parsed_attribute(ParsedAttribute *a, CtrlHandles *h,
             }
             
             /*
-             * assign fval to all values in the array; a->attr will
+             * assign a->val.f to all values in the array; a->attr will
              * tell NvCtrlSetColorAttributes() which indices in the
              * array to use
              */
 
-            v[0] = v[1] = v[2] = a->fval;
+            v[0] = v[1] = v[2] = a->val.f;
 
             status = NvCtrlSetColorAttributes(t->h, v, v, v, a->attr);
 
             if (status != NvCtrlSuccess) {
                 nv_error_msg("Error assigning %f to attribute '%s' on %s "
-                             "specified %s (%s)", a->fval, a->name,
+                             "specified %s (%s)", a->val.f, a->name,
                              t->name, whence,
                              NvCtrlAttributesStrError(status));
                 goto done;
@@ -1909,9 +1916,9 @@ int nv_process_parsed_attribute(ParsedAttribute *a, CtrlHandles *h,
 
             if (a->flags & NV_PARSER_TYPE_ASSIGN_ALL_DISPLAYS) {
                 if (a->flags & NV_PARSER_TYPE_VALUE_IS_SWITCH_DISPLAY) {
-                    a->val = t->c;
+                    a->val.i = t->c;
                 } else {
-                    a->val = t->d;
+                    a->val.i = t->d;
                 }
             }
 
@@ -1929,10 +1936,10 @@ int nv_process_parsed_attribute(ParsedAttribute *a, CtrlHandles *h,
                 display_device_descriptor = "enabled";
             }
 
-            if ((check_mask & a->val) != a->val) {
+            if ((check_mask & a->val.i) != a->val.i) {
 
                 tmp_d_str0 =
-                    display_device_mask_to_display_device_name(a->val);
+                    display_device_mask_to_display_device_name(a->val.i);
 
                 tmp_d_str1 =
                     display_device_mask_to_display_device_name(check_mask);
@@ -1960,7 +1967,7 @@ int nv_process_parsed_attribute(ParsedAttribute *a, CtrlHandles *h,
             
             /* value must be non-zero */
 
-            if (!a->val) {
+            if (!a->val.i) {
                 
                 if (a->flags & NV_PARSER_TYPE_VALUE_IS_DISPLAY) {
                     tmp_d_str0 = "display device";
@@ -2082,7 +2089,7 @@ int nv_process_parsed_attribute(ParsedAttribute *a, CtrlHandles *h,
             if (assign) {
 
                 /* Make sure the standard is known */
-                if (!a->pfval) {
+                if (!a->val.pf) {
                     nv_error_msg("The attribute '%s' specified %s cannot be "
                                  "assigned; valid values are \"ITU_601\", "
                                  "\"ITU_709\", \"ITU_177\", and \"Identity\".",
@@ -2092,10 +2099,10 @@ int nv_process_parsed_attribute(ParsedAttribute *a, CtrlHandles *h,
 
                 for (r = 0; r < 3; r++) {
                     for (c = 0; c < 3; c++) {
-                        colorMatrix[r][c] = a->pfval[r*5 + c];
+                        colorMatrix[r][c] = a->val.pf[r*5 + c];
                     }
-                    colorOffset[r] = a->pfval[r*5 + 3];
-                    colorScale[r] = a->pfval[r*5 + 4];
+                    colorOffset[r] = a->val.pf[r*5 + 3];
+                    colorScale[r] = a->val.pf[r*5 + 4];
                 }
 
                 status = NvCtrlSetGvoColorConversion(t->h,

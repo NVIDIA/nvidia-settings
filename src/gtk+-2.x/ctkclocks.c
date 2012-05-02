@@ -165,6 +165,7 @@ GType ctk_clocks_get_type(void)
             sizeof(CtkClocks),
             0, /* n_preallocs */
             NULL, /* instance_init */
+            NULL  /* value_table */
         };
 
         ctk_object_type = g_type_register_static

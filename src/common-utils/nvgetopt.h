@@ -155,5 +155,29 @@ int nvgetopt(int argc,
              double *doubleval,
              int *disable_val);
 
+/*
+ * nvgetopt_print_help() - print a help message for each option in the
+ * provided NVGetoptOption array.  This is useful for a utility's
+ * "--help" output.
+ *
+ * Options will only be printed if they have every bit set that
+ * include_mask includes.
+ *
+ * For each option, the provided callback function wil be called with
+ * two strings: a name string that lists the option's name, and a
+ * description string for the option.  The callback function is
+ * responsible for actually printing these strings.  Examples:
+ *
+ * name = "-v, --version";
+ * description = "Print usage information for the common commandline "
+ *     "options and exit.";
+ */
+
+typedef void nvgetopt_print_help_callback_ptr(const char *name,
+                                              const char *description);
+
+void nvgetopt_print_help(const NVGetoptOption *options,
+                         unsigned int include_mask,
+                         nvgetopt_print_help_callback_ptr callback);
 
 #endif /* __NVGETOPT_H__ */

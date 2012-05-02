@@ -45,7 +45,6 @@
 #include "ctkgpu.h"
 #include "ctkcolorcorrection.h"
 #include "ctkxvideo.h"
-#include "ctkrandr.h"
 #include "ctkcursorshadow.h"
 #include "ctkopengl.h"
 #include "ctkglx.h"
@@ -59,7 +58,7 @@
 
 #include "ctkdisplaydevice-crt.h"
 #include "ctkdisplaydevice-tv.h"
-#include "ctkdisplaydevice-dfp.h"
+#include "ctkdisplaydevice.h"
 
 #include "ctkdisplayconfig.h"
 #include "ctkserver.h"
@@ -156,6 +155,7 @@ GType ctk_window_get_type(void)
             sizeof(CtkWindow),
             0,                  /* n_preallocs */
             NULL,               /* instance_init */
+            NULL                /* value_table */
         };
 
         ctk_window_type = g_type_register_static
@@ -687,15 +687,6 @@ GtkWidget *ctk_window_new(ParsedAttribute *p, ConfigProperties *conf,
                      "X Server XVideo Settings", NULL, NULL, NULL);
         }
 
-        /* randr settings */
-
-        child = ctk_randr_new(screen_handle, ctk_config, ctk_event);
-        if (child) {
-            help = ctk_randr_create_help(tag_table, CTK_RANDR(child));
-            add_page(child, help, ctk_window, &iter, NULL,
-                     "Rotation Settings", NULL, NULL, NULL);
-        }
-
         /* cursor shadow */
 
         child = ctk_cursor_shadow_new(screen_handle, ctk_config, ctk_event);
@@ -887,9 +878,9 @@ GtkWidget *ctk_window_new(ParsedAttribute *p, ConfigProperties *conf,
 
         /* create the vcs entry name */
 
-        ret = NvCtrlGetStringDisplayAttribute(vcs_handle, 0,
-                                              NV_CTRL_STRING_VCSC_PRODUCT_NAME,
-                                              &vcs_product_name);
+        ret = NvCtrlGetStringAttribute(vcs_handle,
+                                       NV_CTRL_STRING_VCSC_PRODUCT_NAME,
+                                       &vcs_product_name);
         if (ret == NvCtrlSuccess && vcs_product_name) {
             vcs_name = g_strdup_printf("VCS %d - (%s)",
                                         NvCtrlGetTargetId(vcs_handle),
@@ -1360,102 +1351,117 @@ void add_special_config_file_attributes(CtkWindow *ctk_window)
  */
 
 static void add_display_devices(CtkWindow *ctk_window, GtkTreeIter *iter,
-                                NvCtrlAttributeHandle *handle,
+                                NvCtrlAttributeHandle *gpu_handle,
                                 CtkEvent *ctk_event,
                                 GtkTextTagTable *tag_table,
                                 UpdateDisplaysData *data)
 {
-    GtkWidget *widget;
     GtkTextBuffer *help;
     ReturnStatus ret;
-    int i, connected, n, mask;
-    char *name;
-    char *type;
-    gchar *title;
-    
-    
-    /* retrieve the connected display device mask */
+    int *pData;
+    int len;
+    int i;
+    NvCtrlAttributeHandle *display_handle;
 
-    ret = NvCtrlGetAttribute(handle, NV_CTRL_CONNECTED_DISPLAYS, &connected);
-    if (ret != NvCtrlSuccess) {
+
+    /* retrieve the list of connected display devices */
+
+    ret = NvCtrlGetBinaryAttribute(gpu_handle, 0,
+                                   NV_CTRL_BINARY_DATA_DISPLAYS_CONNECTED_TO_GPU,
+                                   (unsigned char **)(&pData), &len);
+    if ((ret != NvCtrlSuccess) || (pData[0] <= 0)) {
         return;
     }
 
-    /* count how many display devices are connected */
-
-    for (i = 0, n = 0; i < 24; i++) {
-        if (connected & (1 << i)) n++;
-    }
-    if (n == 0) {
-        return;
-    }
-    
-
-    if (data->display_iters) {
-        free(data->display_iters);
-    }
-    data->display_iters = calloc(n, sizeof(GtkTreeIter));
+    nvfree(data->display_iters);
+    data->display_iters = calloc(pData[0], sizeof(GtkTreeIter));
     data->num_displays = 0;
     if (!data->display_iters) return;
 
 
     /*
-     * create pages for each of the display devices driven by this handle.
+     * create pages for each of the display devices driven by this (gpu)
+     * handle.
      */
 
-    for (i = 0; i < 24; i++) {
-        mask = (1 << i);
-        if (!(mask & connected)) continue;
+    for (i = 0; i < pData[0]; i++) {
+        int display_id = pData[i+1];
+        char *logName;
+        char *typeBaseName;
+        char *typeIdName;
+        GtkWidget *widget;
+        gchar *title;
 
-        type = display_device_mask_to_display_device_name(mask);
-        
-        ret =
-            NvCtrlGetStringDisplayAttribute(handle, mask,
-                                            NV_CTRL_STRING_DISPLAY_DEVICE_NAME,
-                                            &name);
-        
-        if ((ret != NvCtrlSuccess) || (!name)) {
-            title = g_strdup_printf("%s - (Unknown)", type);
-        } else {
-            title = g_strdup_printf("%s - (%s)", type, name);
-            XFree(name);
-        }
-        free(type);
-        
-        if (mask & CTK_DISPLAY_DEVICE_CRT_MASK) {
-            
-            widget = ctk_display_device_crt_new
-                (handle, ctk_window->ctk_config, ctk_event, mask, title);
-            
-            help = ctk_display_device_crt_create_help
-                (tag_table, CTK_DISPLAY_DEVICE_CRT(widget));
-            
-        } else if (mask & CTK_DISPLAY_DEVICE_TV_MASK) {
-            
-            widget = ctk_display_device_tv_new
-                (handle, ctk_window->ctk_config, ctk_event, mask, title);
-            
-            help = ctk_display_device_tv_create_help
-                (tag_table, CTK_DISPLAY_DEVICE_TV(widget));
-            
-        } else if (mask & CTK_DISPLAY_DEVICE_DFP_MASK) {
-            
-            widget = ctk_display_device_dfp_new
-                (handle, ctk_window->ctk_config, ctk_event, mask, title);
-            
-            help = ctk_display_device_dfp_create_help
-                (tag_table, CTK_DISPLAY_DEVICE_DFP(widget));
-            
-        } else {
-            g_free(title);
+        display_handle =
+            NvCtrlAttributeInit(NvCtrlGetDisplayPtr(gpu_handle),
+                                NV_CTRL_TARGET_TYPE_DISPLAY,
+                                display_id,
+                                NV_CTRL_ATTRIBUTES_NV_CONTROL_SUBSYSTEM);
+        if (!display_handle) {
             continue;
         }
 
-        add_page(widget, help, ctk_window, iter,
-                 &(data->display_iters[data->num_displays]), title,
-                 NULL, NULL, NULL);
+        /* Query display's names */
+        ret = NvCtrlGetStringAttribute(display_handle,
+                                       NV_CTRL_STRING_DISPLAY_NAME_TYPE_BASENAME,
+                                       &typeBaseName);
+        if (ret != NvCtrlSuccess) {
+            NvCtrlAttributeClose(display_handle);
+            continue;
+        }
+        ret = NvCtrlGetStringAttribute(display_handle,
+                                       NV_CTRL_STRING_DISPLAY_DEVICE_NAME,
+                                       &logName);
+        if (ret != NvCtrlSuccess) {
+            logName = NULL;
+        }
+        ret = NvCtrlGetStringAttribute(display_handle,
+                                       NV_CTRL_STRING_DISPLAY_NAME_TYPE_ID,
+                                       &typeIdName);
+        if (ret != NvCtrlSuccess) {
+            typeIdName = NULL;
+        }
+
+        if (!logName && !typeIdName) {
+            title = g_strdup_printf("DPY-%d - (Unknown)", display_id);
+        } else {
+            title = g_strdup_printf("%s - (%s)", typeIdName, logName);
+        }
+        XFree(logName);
+        XFree(typeIdName);
+
+        /* Create the appropriate page for the display */
+        if (strcmp(typeBaseName, "CRT") == 0) {
+            widget = ctk_display_device_crt_new
+                (display_handle, ctk_window->ctk_config, ctk_event, title);
+            help = ctk_display_device_crt_create_help
+                (tag_table, CTK_DISPLAY_DEVICE_CRT(widget));
+        } else if (strcmp(typeBaseName, "TV") == 0) {
+            widget = ctk_display_device_tv_new
+                (display_handle, ctk_window->ctk_config, ctk_event, title);
+            help = ctk_display_device_tv_create_help
+                (tag_table, CTK_DISPLAY_DEVICE_TV(widget));
+        } else if (strcmp(typeBaseName, "DFP") == 0) {
+            widget = ctk_display_device_new(display_handle,
+                                            ctk_window->ctk_config, ctk_event,
+                                            title, typeBaseName);
+            help = ctk_display_device_create_help(tag_table,
+                                                  CTK_DISPLAY_DEVICE(widget));
+        } else {
+            widget = NULL;
+        }
+
+        if (!widget) {
+            NvCtrlAttributeClose(display_handle);
+        } else {
+            add_page(widget, help, ctk_window, iter,
+                     &(data->display_iters[data->num_displays]), title,
+                     NULL, NULL, NULL);
+            data->num_displays++;
+        }
+
+        XFree(typeBaseName);
         g_free(title);
-        data->num_displays++;
     }
 } /* add_display_devices() */
 

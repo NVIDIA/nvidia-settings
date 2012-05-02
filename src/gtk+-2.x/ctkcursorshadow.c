@@ -176,6 +176,7 @@ GType ctk_cursor_shadow_get_type(void)
             sizeof(CtkCursorShadow),
             0,    /* n_preallocs */
             NULL, /* instance_init */
+            NULL  /* value_table */
         };
         
         ctk_cursor_shadow_type = g_type_register_static

@@ -169,6 +169,7 @@ GType ctk_gvo_csc_get_type(void)
             sizeof (CtkGvoCsc),
             0, /* n_preallocs */
             NULL, /* instance_init */
+            NULL  /* value_table */
         };
 
         ctk_gvo_csc_type =

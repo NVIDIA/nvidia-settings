@@ -28,6 +28,9 @@
 #include "parse.h"
 #include "NvCtrlAttributes.h"
 
+#include "common-utils.h"
+
+
 /* local helper functions */
 
 static int nv_parse_display_and_target(char *start, char *end,
@@ -36,7 +39,6 @@ static char **nv_strtok(char *s, char c, int *n);
 static void nv_free_strtoks(char **s, int n);
 static int ctoi(const char c);
 static int count_number_of_chars(char *o, char d);
-static char *nv_strndup(char *s, int n);
 
 /*
  * Table of all attribute names recognized by the attribute string
@@ -217,7 +219,6 @@ AttributeTableEntry attributeTable[] = {
     { "GvioDetectedVideoFormat",         NV_CTRL_GVIO_DETECTED_VIDEO_FORMAT,           I|N,   "Returns the input video format detected by the GVO or GVI device.  For GVI devices, the jack+channel must be passed through via the display mask param where the jack number is in the lower 16 bits and the channel number is in the upper 16 bits." },
     { "GvoInputVideoFormat",             NV_CTRL_GVIO_DETECTED_VIDEO_FORMAT,           I|N|A, "DEPRECATED: use \"GvioDetectedVideoFormat\" instead." },
     { "GvoDataFormat",                   NV_CTRL_GVO_DATA_FORMAT,                      I,     "Configures how the data in the source (either the X screen or the GLX pbuffer) is interpreted and displayed by the GVO device." },
-    { "GvoDisplayXScreen",               NV_CTRL_GVO_DISPLAY_X_SCREEN,                 I|N,   "Enable/disable GVO output of the X screen (in Clone mode)." },
     { "GvoCompositeSyncInputDetected",   NV_CTRL_GVO_COMPOSITE_SYNC_INPUT_DETECTED,    I|N,   "Indicates whether Composite Sync input is detected." },
     { "GvoCompositeSyncInputDetectMode", NV_CTRL_GVO_COMPOSITE_SYNC_INPUT_DETECT_MODE, I|N,   "Get/set the Composite Sync input detect mode." },
     { "GvoSdiSyncInputDetected",         NV_CTRL_GVO_SDI_SYNC_INPUT_DETECTED,          I|N,   "Indicates whether SDI Sync input is detected, and what type." },
@@ -226,8 +227,6 @@ AttributeTableEntry attributeTable[] = {
     { "GvoSyncDelayLines",               NV_CTRL_GVO_SYNC_DELAY_LINES,                 I,     "Controls the skew between the input sync and the output sync in numbers of lines from vsync; this is a 12-bit value.  If the GVO Capabilities has the Advanced Sync Skew bit set, then setting this value will set a sync advance instead of a delay." },
     { "GvoInputVideoFormatReacquire",    NV_CTRL_GVO_INPUT_VIDEO_FORMAT_REACQUIRE,     I|N,   "Forces input detection to reacquire the input format." },
     { "GvoGlxLocked",                    NV_CTRL_GVO_GLX_LOCKED,                       I|N,   "Indicates that GVO configuration is locked by GLX;  this occurs when the GLX_NV_video_out function calls glXGetVideoDeviceNV().  All GVO output resources are locked until either glXReleaseVideoDeviceNV() is called or the X Display used when calling glXGetVideoDeviceNV() is closed." },
-    { "GvoXScreenPanX",                  NV_CTRL_GVO_X_SCREEN_PAN_X,                   I,     "When GVO output of the X screen is enabled, the pan x/y attributes control which portion of the X screen is displayed by GVO.  These attributes can be updated while GVO output is enabled, or before enabling GVO output.  The pan values will be clamped so that GVO output is not panned beyond the end of the X screen." },
-    { "GvoXScreenPanY",                  NV_CTRL_GVO_X_SCREEN_PAN_Y,                   I,     "When GVO output of the X screen is enabled, the pan x/y attributes control which portion of the X screen is displayed by GVO.  These attributes can be updated while GVO output is enabled, or before enabling GVO output.  The pan values will be clamped so that GVO output is not panned beyond the end of the X screen." },
     { "GvoOverrideHwCsc",                NV_CTRL_GVO_OVERRIDE_HW_CSC,                  I,     "Override the SDI hardware's Color Space Conversion with the values controlled through XNVCTRLSetGvoColorConversion() and XNVCTRLGetGvoColorConversion()." },
     { "GvoCapabilities",                 NV_CTRL_GVO_CAPABILITIES,                     I|N,   "Returns a description of the GVO capabilities that differ between NVIDIA SDI products.  This value is a bitmask where each bit indicates whether that capability is available." },
     { "GvoCompositeTermination",         NV_CTRL_GVO_COMPOSITE_TERMINATION,            I,     "Enable or disable 75 ohm termination of the SDI composite input signal." },
@@ -301,6 +300,9 @@ AttributeTableEntry attributeTable[] = {
     { "ColorSpace",                 NV_CTRL_COLOR_SPACE,                   0,     "Sets the color space of the signal sent to the display device." },
     { "ColorRange",                 NV_CTRL_COLOR_RANGE,                   0,     "Sets the color range of the signal sent to the display device." },
     { "SynchronousPaletteUpdates",  NV_CTRL_SYNCHRONOUS_PALETTE_UPDATES,   0,     "Controls whether colormap updates are synchronized with X rendering." },
+    { "CurrentMetaModeID",          NV_CTRL_CURRENT_METAMODE_ID,           N,     "The ID of the current MetaMode." },
+    { "CurrentMetaMode",            NV_CTRL_STRING_CURRENT_METAMODE_VERSION_2, S|N, "Controls the current MetaMode." },
+    { "XineramaInfoOrder",          NV_CTRL_STRING_TWINVIEW_XINERAMA_INFO_ORDER, S|N, "Controls the TwinViewXineramaInfoOrder." },
 
     /* TV */
     { "TVOverScan",      NV_CTRL_TV_OVERSCAN,       0, "Adjusts the amount of overscan on the specified display device." },
@@ -374,7 +376,7 @@ AttributeTableEntry attributeTable[] = {
  * about.
  */
 
-#if NV_CTRL_LAST_ATTRIBUTE != NV_CTRL_GVO_AUDIO_BLANKING
+#if NV_CTRL_LAST_ATTRIBUTE != NV_CTRL_DISPLAY_ENABLED
 #warning "Have you forgotten to add a new integer attribute to attributeTable?"
 #endif
 
@@ -459,7 +461,7 @@ TargetTypeEntry targetTypeTable[] = {
       NV_FALSE,                                      /* uses_display_devices */
       1, 27 },                                       /* required major,minor protocol rev */
 
-    { NULL, NULL, 0, 0, 0 },
+    { NULL, NULL, 0, 0, 0, 0, 0, 0 },
 };
 
 
@@ -588,7 +590,7 @@ int nv_parse_attribute_string(const char *str, int query, ParsedAttribute *a)
         s++;
         start = s;
         while (*s && *s != ']') s++;
-        display_device_name = nv_strndup(start, s - start);
+        display_device_name = nvstrndup(start, s - start);
         a->display_device_mask =
             display_device_name_to_display_device_mask(display_device_name);
         /*
@@ -617,7 +619,10 @@ int nv_parse_attribute_string(const char *str, int query, ParsedAttribute *a)
         tmp = s;
         if (a->flags & NV_PARSER_TYPE_COLOR_ATTRIBUTE) {
             /* color attributes are floating point */
-            a->fval = strtod(s, &tmp);
+            a->val.f = strtod(s, &tmp);
+        } else if (a->flags & NV_PARSER_TYPE_STRING_ATTRIBUTE) {
+            a->val.str = strdup(s);
+            tmp = s + strlen(s);
         } else if (a->flags & NV_PARSER_TYPE_PACKED_ATTRIBUTE) {
             /*
              * Either a single 32-bit integer or two 16-bit
@@ -625,11 +630,11 @@ int nv_parse_attribute_string(const char *str, int query, ParsedAttribute *a)
              * Passing base as 0 allows packed values to be specified 
              * in hex (Bug 377242)
              */
-            a->val = strtol(s, &tmp, 0);
+            a->val.i = strtol(s, &tmp, 0);
             
             if (tmp && *tmp == ',') {
-                a->val = (a->val & 0xffff) << 16;
-                a->val |= strtol((tmp + 1), &tmp, 0) & 0xffff;
+                a->val.i = (a->val.i & 0xffff) << 16;
+                a->val.i |= strtol((tmp + 1), &tmp, 0) & 0xffff;
             }
         } else if (a->flags & NV_PARSER_TYPE_VALUE_IS_DISPLAY) {
             if (nv_strcasecmp(s, "alldisplays")) {
@@ -642,19 +647,19 @@ int nv_parse_attribute_string(const char *str, int query, ParsedAttribute *a)
                     ((mask & (DISPLAY_DEVICES_WILDCARD_CRT |
                               DISPLAY_DEVICES_WILDCARD_TV |
                               DISPLAY_DEVICES_WILDCARD_DFP)) == 0)) {
-                    a->val = mask;
+                    a->val.i = mask;
                     tmp = s + strlen(s);
                 } else {
-                   a->val = strtol(s, &tmp, 0);
+                   a->val.i = strtol(s, &tmp, 0);
                 }
             }
         } else if (a->flags & NV_PARSER_TYPE_SDI_CSC) {
             /* String that names a standard CSC matrix */
-            a->pfval = nv_get_sdi_csc_matrix(s);
+            a->val.pf = nv_get_sdi_csc_matrix(s);
             tmp = s + strlen(s);
         } else {
             /* all other attributes are integer */
-            a->val = strtol(s, &tmp, 0);
+            a->val.i = strtol(s, &tmp, 0);
         }
          
         if (tmp && (s != tmp)) a->flags |= NV_PARSER_HAS_VAL;
@@ -743,7 +748,7 @@ static int nv_parse_display_and_target(char *start,
 
         len = pClose - pOpen - 1;
 
-        tmp = nv_strndup(pOpen + 1, len);
+        tmp = nvstrndup(pOpen + 1, len);
 
         /* find the colon within the temp string */
 
@@ -836,7 +841,7 @@ static int nv_parse_display_and_target(char *start,
     
     if (start < end) {
 
-        a->display = nv_strndup(start, end - start);
+        a->display = nvstrndup(start, end - start);
         a->flags |= NV_PARSER_HAS_X_DISPLAY;
             
         /*
@@ -1236,7 +1241,6 @@ void nv_parsed_attribute_add(ParsedAttribute *head, ParsedAttribute *a)
     t->target_id           = a->target_id;
     t->attr                = a->attr;
     t->val                 = a->val;
-    t->fval                = a->fval;
     t->display_device_mask = a->display_device_mask;
     t->flags               = a->flags;
     
@@ -1498,11 +1502,11 @@ static char **nv_strtok(char *s, char c, int *n)
     
     tokens = malloc((count + 1) * sizeof(char *));
     len = delims[0] - s;
-    tokens[0] = nv_strndup(s, len);
+    tokens[0] = nvstrndup(s, len);
     
     for (i = 1; i < count+1; i++) {
         len = delims[i] - delims[i-1];
-        tokens[i] = nv_strndup(delims[i-1]+1, len-1);
+        tokens[i] = nvstrndup(delims[i-1]+1, len-1);
     }
     
     free(delims);
@@ -1576,24 +1580,6 @@ int count_number_of_bits(unsigned int mask)
     return count;
 
 } /* count_number_of_bits() */
-
-
-
-/*
- * nv_strndup() - this function takes a pointer to a string and a
- * length n, mallocs a new string of n+1, copies the first n chars
- * from the original string into the new, and null terminates the new
- * string.  The caller should free the string.
- */
-
-static char *nv_strndup(char *s, int n)
-{
-    char *m = malloc(n + 1);
-    strncpy (m, s, n);
-    m[n] = '\0';
-    return (m);
-    
-} /* nv_strndup() */
 
 
 
@@ -1773,6 +1759,39 @@ const char *parse_read_display_name(const char *str, unsigned int *mask)
     return parse_skip_whitespace(str);
 
 } /* parse_read_display_name() */
+
+
+
+/** parse_read_display_id() *****************************************
+ *
+ * Convert a 'DPY-#' style display device name into a display device
+ * id.  The location where parsing stopped is returned or NULL if an
+ * error occured.
+ *
+ **/
+const char *parse_read_display_id(const char *str, unsigned int *id)
+{
+    if (!str || !id) {
+        return NULL;
+    }
+
+    str = parse_skip_whitespace(str);
+    if (!strncmp(str, "DPY-", 4)) {
+        *id = atoi(str+4);
+    } else {
+        return NULL;
+    }
+
+    while (*str && *str != ':') {
+        str++;
+    }
+    if (*str == ':') {
+        str++;
+    }
+
+    return parse_skip_whitespace(str);
+
+} /* parse_read_display_id() */
 
 
 

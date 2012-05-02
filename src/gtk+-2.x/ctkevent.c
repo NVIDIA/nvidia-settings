@@ -91,6 +91,7 @@ GType ctk_event_get_type(void)
             sizeof(CtkEvent),
             0,                  /* n_preallocs */
             NULL,               /* instance_init */
+            NULL                /* value_table */
         };
 
         ctk_event_type = g_type_register_static
@@ -187,7 +188,6 @@ static void ctk_event_class_init(CtkEventClass *ctk_event_class)
     MAKE_SIGNAL(NV_CTRL_GVIO_REQUESTED_VIDEO_FORMAT);
     MAKE_SIGNAL(NV_CTRL_GVIO_DETECTED_VIDEO_FORMAT);
     MAKE_SIGNAL(NV_CTRL_GVO_DATA_FORMAT);
-    MAKE_SIGNAL(NV_CTRL_GVO_DISPLAY_X_SCREEN);
     MAKE_SIGNAL(NV_CTRL_GVO_COMPOSITE_SYNC_INPUT_DETECTED);
     MAKE_SIGNAL(NV_CTRL_GVO_COMPOSITE_SYNC_INPUT_DETECT_MODE);
     MAKE_SIGNAL(NV_CTRL_GVO_SDI_SYNC_INPUT_DETECTED);
@@ -200,8 +200,6 @@ static void ctk_event_class_init(CtkEventClass *ctk_event_class)
     MAKE_SIGNAL(NV_CTRL_GVIO_VIDEO_FORMAT_WIDTH);
     MAKE_SIGNAL(NV_CTRL_GVIO_VIDEO_FORMAT_HEIGHT);
     MAKE_SIGNAL(NV_CTRL_GVIO_VIDEO_FORMAT_REFRESH_RATE);
-    MAKE_SIGNAL(NV_CTRL_GVO_X_SCREEN_PAN_X);
-    MAKE_SIGNAL(NV_CTRL_GVO_X_SCREEN_PAN_Y);
     MAKE_SIGNAL(NV_CTRL_GPU_OVERCLOCKING_STATE);
     MAKE_SIGNAL(NV_CTRL_GPU_2D_CLOCK_FREQS);
     MAKE_SIGNAL(NV_CTRL_GPU_3D_CLOCK_FREQS);
@@ -327,6 +325,8 @@ static void ctk_event_class_init(CtkEventClass *ctk_event_class)
     MAKE_SIGNAL(NV_CTRL_GPU_PCIE_CURRENT_LINK_WIDTH);
     MAKE_SIGNAL(NV_CTRL_GPU_PCIE_CURRENT_LINK_SPEED);
     MAKE_SIGNAL(NV_CTRL_GVO_AUDIO_BLANKING);
+    MAKE_SIGNAL(NV_CTRL_CURRENT_METAMODE_ID);
+    MAKE_SIGNAL(NV_CTRL_DISPLAY_ENABLED);
 #undef MAKE_SIGNAL
     
     /*
@@ -336,7 +336,7 @@ static void ctk_event_class_init(CtkEventClass *ctk_event_class)
      * knows about.
      */
 
-#if NV_CTRL_LAST_ATTRIBUTE != NV_CTRL_GVO_AUDIO_BLANKING
+#if NV_CTRL_LAST_ATTRIBUTE != NV_CTRL_DISPLAY_ENABLED
 #warning "There are attributes that do not emit signals!"
 #endif
 
@@ -380,13 +380,20 @@ static void ctk_event_class_init(CtkEventClass *ctk_event_class)
     MAKE_STRING_SIGNAL(NV_CTRL_STRING_GVIO_VIDEO_FORMAT_NAME);
     MAKE_STRING_SIGNAL(NV_CTRL_STRING_GPU_CURRENT_CLOCK_FREQS);
     MAKE_STRING_SIGNAL(NV_CTRL_STRING_3D_VISION_PRO_GLASSES_NAME);
+    MAKE_STRING_SIGNAL(NV_CTRL_STRING_CURRENT_METAMODE_VERSION_2);
+    MAKE_STRING_SIGNAL(NV_CTRL_STRING_DISPLAY_NAME_TYPE_BASENAME);
+    MAKE_STRING_SIGNAL(NV_CTRL_STRING_DISPLAY_NAME_TYPE_ID);
+    MAKE_STRING_SIGNAL(NV_CTRL_STRING_DISPLAY_NAME_DP_GUID);
+    MAKE_STRING_SIGNAL(NV_CTRL_STRING_DISPLAY_NAME_EDID_HASH);
+    MAKE_STRING_SIGNAL(NV_CTRL_STRING_DISPLAY_NAME_TARGET_INDEX);
+    MAKE_STRING_SIGNAL(NV_CTRL_STRING_DISPLAY_NAME_RANDR);
 #undef MAKE_STRING_SIGNAL
 
-#if NV_CTRL_STRING_LAST_ATTRIBUTE != NV_CTRL_STRING_3D_VISION_PRO_GLASSES_NAME
+#if NV_CTRL_STRING_LAST_ATTRIBUTE != NV_CTRL_STRING_DISPLAY_NAME_RANDR
 #warning "There are attributes that do not emit signals!"
 #endif
-    
-    
+
+
     /* make signals for binary attribute */
     for (i = 0; i <= NV_CTRL_BINARY_DATA_LAST_ATTRIBUTE; i++) binary_signals[i] = 0;
 
@@ -410,10 +417,11 @@ static void ctk_event_class_init(CtkEventClass *ctk_event_class)
     MAKE_BINARY_SIGNAL(NV_CTRL_BINARY_DATA_THERMAL_SENSORS_USED_BY_GPU);
     MAKE_BINARY_SIGNAL(NV_CTRL_BINARY_DATA_DISPLAY_TARGETS);
     MAKE_BINARY_SIGNAL(NV_CTRL_BINARY_DATA_DISPLAYS_CONNECTED_TO_GPU);
-
+    MAKE_BINARY_SIGNAL(NV_CTRL_BINARY_DATA_METAMODES_VERSION_2);
+    MAKE_BINARY_SIGNAL(NV_CTRL_BINARY_DATA_DISPLAYS_ENABLED_ON_XSCREEN);
 #undef MAKE_BINARY_SIGNAL
 
-#if NV_CTRL_BINARY_DATA_LAST_ATTRIBUTE != NV_CTRL_BINARY_DATA_DISPLAYS_CONNECTED_TO_GPU
+#if NV_CTRL_BINARY_DATA_LAST_ATTRIBUTE != NV_CTRL_BINARY_DATA_DISPLAYS_ENABLED_ON_XSCREEN
 #warning "There are attributes that do not emit signals!"
 #endif
 
@@ -469,7 +477,9 @@ static void ctk_event_register_source(CtkEvent *ctk_event)
             ctk_event_prepare,
             ctk_event_check,
             ctk_event_dispatch,
-            NULL
+            NULL, /* finalize */
+            NULL, /* closure_callback */
+            NULL, /* closure_marshal */
         };
 
         source = g_source_new(&ctk_source_funcs, sizeof(CtkEventSource));
@@ -636,8 +646,7 @@ static gboolean ctk_event_dispatch(GSource *source,
 
         /* make sure the attribute is in our signal array */
 
-        if ((nvctrlevent->attribute >= 0) &&
-            (nvctrlevent->attribute <= NV_CTRL_LAST_ATTRIBUTE) &&
+        if ((nvctrlevent->attribute <= NV_CTRL_LAST_ATTRIBUTE) &&
             (signals[nvctrlevent->attribute] != 0)) {
             
             event_struct.attribute    = nvctrlevent->attribute;
@@ -669,8 +678,7 @@ static gboolean ctk_event_dispatch(GSource *source,
 
         /* make sure the attribute is in our signal array */
 
-        if ((nvctrlevent->attribute >= 0) &&
-            (nvctrlevent->attribute <= NV_CTRL_LAST_ATTRIBUTE) &&
+        if ((nvctrlevent->attribute <= NV_CTRL_LAST_ATTRIBUTE) &&
             (signals[nvctrlevent->attribute] != 0)) {
             
             event_struct.attribute    = nvctrlevent->attribute;
@@ -703,8 +711,7 @@ static gboolean ctk_event_dispatch(GSource *source,
 
         /* make sure the attribute is in our signal array */
 
-        if ((nvctrlevent->attribute >= 0) &&
-            (nvctrlevent->attribute <= NV_CTRL_LAST_ATTRIBUTE) &&
+        if ((nvctrlevent->attribute <= NV_CTRL_LAST_ATTRIBUTE) &&
             (signals[nvctrlevent->attribute] != 0)) {
             
             event_struct.attribute    = nvctrlevent->attribute;
@@ -735,8 +742,7 @@ static gboolean ctk_event_dispatch(GSource *source,
 
         /* make sure the attribute is in our signal array */
         
-        if ((nvctrlevent->attribute >= 0) &&
-            (nvctrlevent->attribute <= NV_CTRL_STRING_LAST_ATTRIBUTE) &&
+        if ((nvctrlevent->attribute <= NV_CTRL_STRING_LAST_ATTRIBUTE) &&
             (string_signals[nvctrlevent->attribute] != 0)) {
 
             event_struct.attribute    = nvctrlevent->attribute;
@@ -764,8 +770,7 @@ static gboolean ctk_event_dispatch(GSource *source,
             (XNVCtrlBinaryAttributeChangedEventTarget *) &event;
 
         /* make sure the attribute is in our signal array */
-        if ((nvctrlevent->attribute >= 0) &&
-            (nvctrlevent->attribute <= NV_CTRL_BINARY_DATA_LAST_ATTRIBUTE) &&
+        if ((nvctrlevent->attribute <= NV_CTRL_BINARY_DATA_LAST_ATTRIBUTE) &&
             (binary_signals[nvctrlevent->attribute] != 0)) {
 
             event_struct.attribute    = nvctrlevent->attribute;

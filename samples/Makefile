@@ -55,7 +55,7 @@ CFLAGS                += -I $(LIBXNVCTRL_DIR)
 
 LDFLAGS               += $(X_LDFLAGS)
 LDFLAGS               += -L $(LIBXNVCTRL_DIR)
-LDFLAGS               += -lXNVCtrl -lXext -lX11
+LIBS                  += -lXNVCtrl -lXext -lX11
 
 
 ##############################################################################
@@ -76,7 +76,7 @@ SAMPLE_SOURCES        += nv-control-3dvisionpro.c
 # build rules
 ##############################################################################
 
-.PHONY: all clean clobber
+.PHONY: all clean clobber install
 
 # define the rule to build each object file
 $(foreach src, $(SAMPLE_SOURCES), $(eval $(call DEFINE_OBJECT_RULE,CC,$(src))))
@@ -84,7 +84,7 @@ $(foreach src, $(SAMPLE_SOURCES), $(eval $(call DEFINE_OBJECT_RULE,CC,$(src))))
 # define the rule to link each sample app from its corresponding object file
 define link_sample_from_object
   $$(OUTPUTDIR)/$(1:.c=): $$(call BUILD_OBJECT_LIST,$(1))
-	$$(call quiet_cmd,LINK) $$(CFLAGS) -o $$@ $$< $$(LDFLAGS) $$(BIN_LDFLAGS)
+	$$(call quiet_cmd,LINK) $$(CFLAGS) $$(LDFLAGS) $$(BIN_LDFLAGS) -o $$@ $$< $$(LIBS)
   all:: $$(OUTPUTDIR)/$(1:.c=)
   SAMPLES += $$(OUTPUTDIR)/$(1:.c=)
 endef
@@ -93,3 +93,7 @@ $(foreach sample,$(SAMPLE_SOURCES),$(eval $(call link_sample_from_object,$(sampl
 
 clean clobber:
 	rm -rf *~ $(OUTPUTDIR)/*.o $(OUTPUTDIR)/*.d $(SAMPLES)
+
+install:
+	@# don't install samples, this is just to satisfy the top-level
+	@# recursion rule

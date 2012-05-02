@@ -73,7 +73,7 @@ static GtkWidget * add_scale(CtkDisplayDeviceTv *ctk_display_device_tv,
 static void adjustment_value_changed(GtkAdjustment *adjustment,
                                      gpointer user_data);
 
-static void reset_defaults(GtkButton *button, gpointer user_data);
+static void reset_button_clicked(GtkButton *button, gpointer user_data);
 
 static void value_received(GtkObject *object, gpointer arg1,
                            gpointer user_data);
@@ -104,6 +104,7 @@ GType ctk_display_device_tv_get_type(void)
             sizeof (CtkDisplayDeviceTv),
             0, /* n_preallocs */
             NULL, /* instance_init */
+            NULL  /* value_table */
         };
 
         ctk_display_device_tv_type = g_type_register_static (GTK_TYPE_VBOX,
@@ -145,7 +146,6 @@ static void ctk_display_device_tv_finalize(
 GtkWidget* ctk_display_device_tv_new(NvCtrlAttributeHandle *handle,
                                      CtkConfig *ctk_config,
                                      CtkEvent *ctk_event,
-                                     unsigned int display_device_mask,
                                      char *name)
 {
     GObject *object;
@@ -165,7 +165,6 @@ GtkWidget* ctk_display_device_tv_new(NvCtrlAttributeHandle *handle,
     ctk_display_device_tv->handle = handle;
     ctk_display_device_tv->ctk_config = ctk_config;
     ctk_display_device_tv->ctk_event = ctk_event;
-    ctk_display_device_tv->display_device_mask = display_device_mask;
     ctk_display_device_tv->name = g_strdup(name);
     
     gtk_box_set_spacing(GTK_BOX(object), 10);
@@ -345,7 +344,7 @@ GtkWidget* ctk_display_device_tv_new(NvCtrlAttributeHandle *handle,
     ctk_display_device_tv->image_sliders =
         ctk_image_sliders_new(handle, ctk_config, ctk_event,
                               ctk_display_device_tv->reset_button,
-                              display_device_mask, name);
+                              name);
     if (ctk_display_device_tv->image_sliders) {
         gtk_box_pack_start(GTK_BOX(object),
                            ctk_display_device_tv->image_sliders,
@@ -355,7 +354,7 @@ GtkWidget* ctk_display_device_tv_new(NvCtrlAttributeHandle *handle,
     /* reset button */
 
     g_signal_connect(G_OBJECT(ctk_display_device_tv->reset_button), "clicked",
-                     G_CALLBACK(reset_defaults),
+                     G_CALLBACK(reset_button_clicked),
                      (gpointer) ctk_display_device_tv);
     
     alignment = gtk_alignment_new(1, 1, 0, 0);
@@ -373,9 +372,16 @@ GtkWidget* ctk_display_device_tv_new(NvCtrlAttributeHandle *handle,
 
     /* EDID button box */
 
+    ctk_display_device_tv->edid =
+        ctk_edid_new(ctk_display_device_tv->handle,
+                     ctk_display_device_tv->ctk_config,
+                     ctk_display_device_tv->ctk_event,
+                     ctk_display_device_tv->name);
+
     hbox = gtk_hbox_new(FALSE, 0);
     gtk_box_pack_start(GTK_BOX(object), hbox, FALSE, FALSE, 0);
-    ctk_display_device_tv->edid_box = hbox;
+    gtk_box_pack_start(GTK_BOX(hbox), ctk_display_device_tv->edid,
+                       TRUE, TRUE, 0);
 
     /* finally, display the widget */
 
@@ -384,8 +390,7 @@ GtkWidget* ctk_display_device_tv_new(NvCtrlAttributeHandle *handle,
     /* update the GUI */
 
     update_display_enabled_flag(ctk_display_device_tv->handle,
-                                &ctk_display_device_tv->display_enabled,
-                                ctk_display_device_tv->display_device_mask);
+                                &ctk_display_device_tv->display_enabled);
 
     ctk_display_device_tv_setup(ctk_display_device_tv);
     
@@ -505,11 +510,10 @@ static void adjustment_value_changed(GtkAdjustment *adjustment,
     
     user_data = g_object_get_data(G_OBJECT(adjustment), "attribute");
     attribute = GPOINTER_TO_INT(user_data);
-    
-    NvCtrlSetDisplayAttribute(ctk_display_device_tv->handle,
-                              ctk_display_device_tv->display_device_mask,
-                              attribute, (int) value);
-    
+
+    NvCtrlSetAttribute(ctk_display_device_tv->handle,
+                       attribute, (int) value);
+
     post_adjustment_value_changed(adjustment, ctk_display_device_tv, value);
     
 } /* adjustment_value_changed() */
@@ -537,10 +541,8 @@ static void reset_slider(CtkDisplayDeviceTv *ctk_display_device_tv,
     if (!get_scale_active(CTK_SCALE(scale))) return;
 
     attribute = GPOINTER_TO_INT(g_object_get_data(G_OBJECT(adj), "attribute"));
-    
-    ret = NvCtrlGetDisplayAttribute(ctk_display_device_tv->handle,
-                                    ctk_display_device_tv->display_device_mask,
-                                    attribute, &val);
+
+    ret = NvCtrlGetAttribute(ctk_display_device_tv->handle, attribute, &val);
     if (ret != NvCtrlSuccess) return;
     
     g_signal_handlers_block_matched(adj, G_SIGNAL_MATCH_FUNC, 0, 0, NULL,
@@ -572,8 +574,6 @@ static void reset_sliders(CtkDisplayDeviceTv *ctk_display_device_tv)
     reset_slider(ctk_display_device_tv, ctk_display_device_tv->contrast);
     reset_slider(ctk_display_device_tv, ctk_display_device_tv->saturation);
 
-    gtk_widget_set_sensitive(ctk_display_device_tv->reset_button, FALSE);
-
     ctk_config_statusbar_message(ctk_display_device_tv->ctk_config,
                                  "Reset TV Hardware defaults for %s.",
                                  ctk_display_device_tv->name);
@@ -582,16 +582,22 @@ static void reset_sliders(CtkDisplayDeviceTv *ctk_display_device_tv)
 
 
 /*
- * reset_defaults() - called when the "reset defaults" button is
+ * reset_button_clicked() - called when the "reset defaults" button is
  * pressed; tells the X server to reset its defaults, and then resets
  * all the sliders.
  */
 
-static void reset_defaults(GtkButton *button, gpointer user_data)
+static void reset_button_clicked(GtkButton *button, gpointer user_data)
 {
     CtkDisplayDeviceTv *ctk_display_device_tv =
         CTK_DISPLAY_DEVICE_TV(user_data);
     gint active = 0;
+
+
+    /* Disable the reset button here and allow the controls below to (re)enable
+     * it if need be,.
+     */
+    gtk_widget_set_sensitive(ctk_display_device_tv->reset_button, FALSE);
 
     /* Make sure something is active */
 
@@ -604,19 +610,16 @@ static void reset_defaults(GtkButton *button, gpointer user_data)
          get_scale_active(CTK_SCALE(ctk_display_device_tv->saturation)));
 
     if (active) {
-        NvCtrlSetDisplayAttribute(ctk_display_device_tv->handle,
-                                  ctk_display_device_tv->display_device_mask,
-                                  NV_CTRL_TV_RESET_SETTINGS, 1);
+        NvCtrlSetAttribute(ctk_display_device_tv->handle,
+                           NV_CTRL_TV_RESET_SETTINGS, 1);
     }
-    
-    if (ctk_display_device_tv->image_sliders) {
-        ctk_image_sliders_reset
-            (CTK_IMAGE_SLIDERS(ctk_display_device_tv->image_sliders));
-    }
+
+    ctk_image_sliders_reset
+        (CTK_IMAGE_SLIDERS(ctk_display_device_tv->image_sliders));
 
     reset_sliders(ctk_display_device_tv);
 
-} /* reset_defaults() */
+} /* reset_button_clicked() */
 
 
 
@@ -660,6 +663,7 @@ static void value_received(GtkObject *object, gpointer arg1,
         break;
     case NV_CTRL_TV_RESET_SETTINGS:
         reset_sliders(ctk_display_device_tv);
+        ctk_display_device_tv_setup(ctk_display_device_tv);
         return;
     default:
         return;
@@ -733,10 +737,8 @@ GtkTextBuffer *ctk_display_device_tv_create_help(GtkTextTagTable *table,
     add_image_sliders_help
         (CTK_IMAGE_SLIDERS(ctk_display_device_tv->image_sliders), b, &i);
 
-    if (ctk_display_device_tv->edid) {
-        add_acquire_edid_help(b, &i);
-    }
-    
+    add_acquire_edid_help(b, &i);
+
     td = gtk_tooltips_data_get(GTK_WIDGET(ctk_display_device_tv->reset_button));
     ctk_help_reset_hardware_defaults (b, &i, td->tip_text);
 
@@ -757,17 +759,15 @@ static void setup_scale(CtkDisplayDeviceTv *ctk_display_device_tv,
     ReturnStatus ret0, ret1;
     NVCTRLAttributeValidValuesRec valid;
     NvCtrlAttributeHandle *handle = ctk_display_device_tv->handle;
-    unsigned int mask = ctk_display_device_tv->display_device_mask;
     int val;
     GtkAdjustment *adj = CTK_SCALE(scale)->gtk_adjustment;
     
 
     /* Read settings from X server */
-    ret0 = NvCtrlGetValidDisplayAttributeValues(handle, mask,
-                                                attribute, &valid);
-    
-    ret1 = NvCtrlGetDisplayAttribute(handle, mask, attribute, &val);
-    
+    ret0 = NvCtrlGetValidAttributeValues(handle, attribute, &valid);
+
+    ret1 = NvCtrlGetAttribute(handle, attribute, &val);
+
     if ((ret0 == NvCtrlSuccess) && (ret1 == NvCtrlSuccess) &&
         (valid.type == ATTRIBUTE_TYPE_RANGE)) {
 
@@ -809,79 +809,55 @@ static void setup_scale(CtkDisplayDeviceTv *ctk_display_device_tv,
 static void ctk_display_device_tv_setup(CtkDisplayDeviceTv
                                         *ctk_display_device_tv)
 {
-    /* Update Information Frame */
-    
+    /* Disable the reset button here and allow the controls below to (re)enable
+     * it if need be,.
+     */
+    gtk_widget_set_sensitive(ctk_display_device_tv->reset_button, FALSE);
+
+
+    /* Update info */
+
     tv_info_setup(ctk_display_device_tv);
 
-    /* Update sliders */
-    
+    /* update acquire EDID button */
+
+    ctk_edid_setup(CTK_EDID(ctk_display_device_tv->edid));
+
+
+    /* Update controls */
+
     /* NV_CTRL_TV_OVERSCAN */
-    
+
     setup_scale(ctk_display_device_tv, NV_CTRL_TV_OVERSCAN,
                 ctk_display_device_tv->overscan);
-    
+
     /* NV_CTRL_TV_FLICKER_FILTER */
-    
+
     setup_scale(ctk_display_device_tv, NV_CTRL_TV_FLICKER_FILTER,
                 ctk_display_device_tv->flicker_filter);
-    
+
     /* NV_CTRL_TV_BRIGHTNESS */
-    
+
     setup_scale(ctk_display_device_tv, NV_CTRL_TV_BRIGHTNESS,
                 ctk_display_device_tv->brightness);
-    
+
     /* NV_CTRL_TV_HUE */
-    
+
     setup_scale(ctk_display_device_tv, NV_CTRL_TV_HUE,
                 ctk_display_device_tv->hue);
 
     /* NV_CTRL_TV_CONTRAST */
-    
+
     setup_scale(ctk_display_device_tv, NV_CTRL_TV_CONTRAST,
                 ctk_display_device_tv->contrast);
 
     /* NV_CTRL_TV_SATURATION */
-    
+
     setup_scale(ctk_display_device_tv, NV_CTRL_TV_SATURATION,
                 ctk_display_device_tv->saturation);
 
-    /* Update the image sliders */
-
     ctk_image_sliders_setup
         (CTK_IMAGE_SLIDERS(ctk_display_device_tv->image_sliders));
-
-
-    /* update acquire EDID button */
-    
-    if (ctk_display_device_tv->edid) {
-        GList *list;
-        list = gtk_container_get_children
-                (GTK_CONTAINER(ctk_display_device_tv->edid_box));
-        if (list) {
-            gtk_container_remove
-                    (GTK_CONTAINER(ctk_display_device_tv->edid_box),
-                     (GtkWidget *)(list->data));
-            g_list_free(list);
-        }
-    }
-
-    ctk_display_device_tv->edid =
-        ctk_edid_new(ctk_display_device_tv->handle,
-                     ctk_display_device_tv->ctk_config,
-                     ctk_display_device_tv->ctk_event,
-                     ctk_display_device_tv->reset_button,
-                     ctk_display_device_tv->display_device_mask,
-                     ctk_display_device_tv->name);
-
-    if (ctk_display_device_tv->edid) {
-        gtk_box_pack_start(GTK_BOX(ctk_display_device_tv->edid_box),
-                           ctk_display_device_tv->edid, TRUE, TRUE, 0);
-    }
-
-
-    /* update the reset button */
-
-    gtk_widget_set_sensitive(ctk_display_device_tv->reset_button, FALSE);
 
 } /* ctk_display_device_tv_setup() */
 
@@ -893,11 +869,9 @@ static void tv_info_setup(CtkDisplayDeviceTv *ctk_display_device_tv)
     
     /* NV_CTRL_STRING_TV_ENCODER_NAME */
     
-    ret = NvCtrlGetStringDisplayAttribute
-          (ctk_display_device_tv->handle,
-          ctk_display_device_tv->display_device_mask,
-          NV_CTRL_STRING_TV_ENCODER_NAME,
-          &str);
+    ret = NvCtrlGetStringDisplayAttribute(ctk_display_device_tv->handle, 0,
+                                          NV_CTRL_STRING_TV_ENCODER_NAME,
+                                          &str);
     if (ret == NvCtrlSuccess) {
         gtk_label_set_text(GTK_LABEL(ctk_display_device_tv->txt_encoder_name),
                            str);
@@ -905,14 +879,12 @@ static void tv_info_setup(CtkDisplayDeviceTv *ctk_display_device_tv)
     } else {
         gtk_widget_hide(ctk_display_device_tv->info_frame);
     }
-    
+
     /* NV_CTRL_REFRESH_RATE */
-    
-    ret = NvCtrlGetDisplayAttribute
-          (ctk_display_device_tv->handle,
-          ctk_display_device_tv->display_device_mask,
-          NV_CTRL_REFRESH_RATE,
-          &val);
+
+    ret = NvCtrlGetAttribute(ctk_display_device_tv->handle,
+                             NV_CTRL_REFRESH_RATE,
+                             &val);
     if (ret == NvCtrlSuccess) {
         float fvalue = ((float)(val)) / 100.0f;
         snprintf(str, 32, "%.2f Hz", fvalue);
@@ -938,12 +910,7 @@ static void enabled_displays_received(GtkObject *object, gpointer arg1,
     /* Requery display information only if display disabled */
 
     update_display_enabled_flag(ctk_object->handle,
-                                &ctk_object->display_enabled,
-                                ctk_object->display_device_mask);
-
-    if (ctk_object->display_enabled) {
-        return;
-    }
+                                &ctk_object->display_enabled);
 
     ctk_display_device_tv_setup(ctk_object);
 
@@ -957,13 +924,6 @@ static void info_update_received(GtkObject *object, gpointer arg1,
                                  gpointer user_data)
 {
     CtkDisplayDeviceTv *ctk_object = CTK_DISPLAY_DEVICE_TV(user_data);
-    CtkEventStruct *event_struct = (CtkEventStruct *) arg1;
-
-    /* if the event is not for this display device, return */
-
-    if (!(event_struct->display_mask & ctk_object->display_device_mask)) {
-        return;
-    }
 
     tv_info_setup(ctk_object);
 }

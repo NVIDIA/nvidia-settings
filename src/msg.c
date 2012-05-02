@@ -19,6 +19,9 @@
 
 #include "msg.h"
 #include "command-line.h"
+#include "common-utils.h"
+
+#include <NvCtrlAttributes.h>
 
 #include <stdio.h>
 #include <stdarg.h>

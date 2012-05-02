@@ -47,6 +47,7 @@ GType ctk_scale_get_type(
             sizeof (CtkScale),
             0, /* n_preallocs */
             NULL, /* instance_init */
+            NULL  /* value_table */
         };
 
         ctk_scale_type = g_type_register_static (GTK_TYPE_VBOX,

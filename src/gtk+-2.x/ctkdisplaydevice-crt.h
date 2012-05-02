@@ -59,11 +59,9 @@ struct _CtkDisplayDeviceCrt
     GtkWidget *image_sliders;
     GtkWidget *reset_button;
     GtkWidget *txt_refresh_rate;
-    
-    GtkWidget *edid_box;
+
     GtkWidget *edid;
 
-    unsigned int display_device_mask;
     gboolean display_enabled;
 
     char *name;
@@ -77,7 +75,7 @@ struct _CtkDisplayDeviceCrtClass
 GType       ctk_display_device_crt_get_type  (void) G_GNUC_CONST;
 GtkWidget*  ctk_display_device_crt_new       (NvCtrlAttributeHandle *,
                                               CtkConfig *, CtkEvent *,
-                                              unsigned int, char *);
+                                              char *);
 
 GtkTextBuffer *ctk_display_device_crt_create_help(GtkTextTagTable *,
                                                   CtkDisplayDeviceCrt *);

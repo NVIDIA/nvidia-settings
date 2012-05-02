@@ -165,6 +165,7 @@ GType ctk_gvo_sync_get_type(void)
             sizeof (CtkGvoSync),
             0, /* n_preallocs */
             NULL, /* instance_init */
+            NULL  /* value_table */
         };
 
         ctk_gvo_sync_type =

@@ -88,6 +88,7 @@ GType ctk_screen_get_type(
             sizeof (CtkScreen),
             0, /* n_preallocs */
             NULL, /* instance_init */
+            NULL  /* value_table */
         };
 
         ctk_screen_type =
@@ -108,76 +109,8 @@ static gchar *make_gpu_display_device_list(NvCtrlAttributeHandle *handle,
                                            int gpu_id,
                                            int xinerama_enabled)
 {
-    gchar *displays = NULL;
-    gchar *type;
-    gchar *name;
-    gchar *tmp_str;
-    unsigned int display_devices;
-    unsigned int mask;
-    Bool valid;
-
-
-    /* Get the list of enabled display devices on the GPU */
-
-    valid =
-        XNVCTRLQueryTargetAttribute(NvCtrlGetDisplayPtr(handle),
-                                    NV_CTRL_TARGET_TYPE_GPU,
-                                    gpu_id,
-                                    0,
-                                    NV_CTRL_ENABLED_DISPLAYS,
-                                    (int *)&display_devices);
-    if (!valid) return NULL;
-
-    /* If Xinerama is disabled, only show displays that are associated
-     * to this X screen.
-     */
-    if (!xinerama_enabled) {
-        ReturnStatus ret;
-        unsigned int associated_devices;
-
-        ret = NvCtrlGetAttribute(handle,
-                                 NV_CTRL_ASSOCIATED_DISPLAY_DEVICES,
-                                 (int *)&associated_devices);
-        if (ret == NvCtrlSuccess) {
-            display_devices &= associated_devices;
-        }
-    }
-
-    /* Make the list of display device names */
-
-    for (mask = 1; mask; mask <<= 1) {
-
-        if (!(mask & display_devices)) continue;
-
-        type = display_device_mask_to_display_device_name(mask);
-        name = NULL;
-
-        valid =
-            XNVCTRLQueryTargetStringAttribute(NvCtrlGetDisplayPtr(handle),
-                                              NV_CTRL_TARGET_TYPE_GPU,
-                                              gpu_id,
-                                              mask,
-                                              NV_CTRL_STRING_DISPLAY_DEVICE_NAME,
-                                              &name);
-        if (!valid) {
-            tmp_str = g_strdup_printf("Unknown (%s)", type);
-        } else {
-            tmp_str = g_strdup_printf("%s (%s)", name, type);
-            XFree(name);
-        }
-        free(type);
-
-        if (displays) {
-            name = g_strdup_printf("%s,\n%s", tmp_str, displays);
-            g_free(displays);
-            g_free(tmp_str);
-        } else {
-            name = tmp_str;
-        }
-        displays = name;
-    }
-
-    return displays;
+    return create_display_name_list_string(handle,
+                                           NV_CTRL_BINARY_DATA_DISPLAYS_ENABLED_ON_XSCREEN);
 }
 
 
@@ -395,16 +328,14 @@ GtkWidget* ctk_screen_new(NvCtrlAttributeHandle *handle,
     /* get the number of gpu errors occurred */
 
     gpu_errors = 0;
-    ret = NvCtrlGetDisplayAttribute(handle,
-                                    0,
-                                    NV_CTRL_NUM_GPU_ERRORS_RECOVERED,
-                                    (int *)&gpu_errors);
+    ret = NvCtrlGetAttribute(handle,
+                             NV_CTRL_NUM_GPU_ERRORS_RECOVERED,
+                             (int *)&gpu_errors);
 
     snprintf(tmp, 16, "%d", gpu_errors);
 
     /* get the stereo mode set for this X screen */
-    ret = NvCtrlGetDisplayAttribute(handle, 0, NV_CTRL_STEREO,
-                                    (int *)&stereo_mode);
+    ret = NvCtrlGetAttribute(handle, NV_CTRL_STEREO, (int *)&stereo_mode);
     if (ret != NvCtrlSuccess) {
         stereo_mode = -1;
     }
@@ -625,11 +556,12 @@ static void info_update_gpu_error(GtkObject *object, gpointer arg1,
     char tmp[16];
 
     /* get the number of gpu errors occurred */
-    ret = NvCtrlGetDisplayAttribute(ctk_screen->handle, 0,
-                                    NV_CTRL_NUM_GPU_ERRORS_RECOVERED,
-                                    (int *)&gpu_errors);
+    ret = NvCtrlGetAttribute(ctk_screen->handle,
+                             NV_CTRL_NUM_GPU_ERRORS_RECOVERED,
+                             (int *)&gpu_errors);
     if (ret == NvCtrlSuccess) {
         snprintf(tmp, 16, "%d", gpu_errors);
         gtk_label_set_text(GTK_LABEL(ctk_screen->gpu_errors), tmp);
     }
+
 } /* info_update_gpu_error() */

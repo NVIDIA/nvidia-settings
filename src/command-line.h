@@ -20,8 +20,6 @@
 #ifndef __COMMAND_LINE_H__
 #define __COMMAND_LINE_H__
 
-#include <NvCtrlAttributes.h>
-
 #define DEFAULT_RC_FILE "~/.nvidia-settings-rc"
 #define CONFIG_FILE_OPTION 1
 

@@ -54,49 +54,21 @@ typedef struct _CtkGvoClass  CtkGvoClass;
 struct _CtkGvo
 {
     GtkVBox parent;
-
     NvCtrlAttributeHandle *handle;
-    GtkWidget *parent_window;
-    CtkConfig *ctk_config;
-    CtkEvent *ctk_event;
-    
+
     /* State */
 
-    gint caps; // Capabilities
-
-    gint lock_owner;
-
-    gint sync_mode;
-    gint input_video_format;
-
-    gint output_video_format;
     guint valid_output_video_format_mask[3];
-    
-    gint output_data_format;
-
-    gint screen_width;
-    gint screen_height;
 
     /* Widgets */
 
     GtkWidget *banner_box;
     GtkWidget *banner;
 
-
     GtkWidget *current_resolution_label;
     GtkWidget *current_state_label;
-
-    GtkWidget *clone_mode_frame;
-
-    GtkWidget *output_video_format_menu;
-    GtkWidget *output_data_format_menu;
-
-    GtkWidget *x_offset_spin_button;
-    GtkWidget *y_offset_spin_button;
-
-    GtkWidget *toggle_clone_mode_button;
-    GtkWidget *enable_clone_mode_label;
-    GtkWidget *disable_clone_mode_label;
+    GtkWidget *current_output_video_format_label;
+    GtkWidget *current_output_data_format_label;
 };
 
 
@@ -126,8 +98,6 @@ GtkWidget*     ctk_gvo_new         (NvCtrlAttributeHandle *,
 void           ctk_gvo_select      (GtkWidget *);
 void           ctk_gvo_unselect    (GtkWidget *);
 GtkTextBuffer* ctk_gvo_create_help (GtkTextTagTable *);
-void           ctk_gvo_pack_banner_slot (CtkGvoBanner *, gint slot, gint new);
-gint           ctk_gvo_probe       (gpointer data);
 
 
 

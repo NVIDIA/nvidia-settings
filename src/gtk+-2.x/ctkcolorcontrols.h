@@ -55,14 +55,11 @@ struct _CtkColorControls
     NvCtrlAttributeHandle *handle;
     CtkConfig *ctk_config;
     GtkWidget *reset_button;
-    GtkWidget *color_controls_main;
-    GtkWidget *color_space_box;
+    GtkWidget *color_controls_box;
 
     GtkWidget *color_range_menu;
     GtkWidget *color_space_menu;
-    GtkWidget *color_current_config;
 
-    gint display_device_mask;
     gint *color_space_table;
     gint color_space_table_size;
     gint *color_range_table;
@@ -81,7 +78,6 @@ GType ctk_color_controls_get_type (void) G_GNUC_CONST;
 GtkWidget* ctk_color_controls_new (NvCtrlAttributeHandle *,
                                    CtkConfig *, CtkEvent *,
                                    GtkWidget *,
-                                   unsigned int display_device_mask,
                                    char *);
 
 void ctk_color_controls_reset (CtkColorControls*);

@@ -46,24 +46,10 @@ case (FMT):                  \
 
 
 /*
- * Decode SDI input value returned.
- */
-char *SyncTypeName(int value)
-{
-    switch (value) {
-        ADD_NVCTRL_CASE(NV_CTRL_GVO_SDI_SYNC_INPUT_DETECTED_HD);
-        ADD_NVCTRL_CASE(NV_CTRL_GVO_SDI_SYNC_INPUT_DETECTED_SD);
-        ADD_NVCTRL_CASE(NV_CTRL_GVO_SDI_SYNC_INPUT_DETECTED_NONE);
-    default:
-        return "Invalid Value";
-    }
-}
-
-/*
  * Decode provided signal format.
  */
 
-char *VideoFormatName(int value)
+static char *VideoFormatName(int value)
 {
     switch(value) {
         ADD_NVCTRL_CASE(NV_CTRL_GVIO_VIDEO_FORMAT_NONE);
@@ -136,7 +122,7 @@ char *VideoFormatName(int value)
     }
 }
 
-const char *SamplingName(int value)
+static const char *SamplingName(int value)
 {
     switch (value) {
     default:
@@ -150,7 +136,7 @@ const char *SamplingName(int value)
     }
 }
 
-const char *BPCName(int value)
+static const char *BPCName(int value)
 {
     switch (value) {
         ADD_NVCTRL_CASE(NV_CTRL_GVI_BITS_PER_COMPONENT_UNKNOWN);
@@ -349,9 +335,10 @@ static void do_query(Display *dpy, int use_gvi)
             printf("    - Jack %d\n", jack);
 
             for (channel = 0; channel < max_channels_per_jack; channel++) {
+                unsigned int link_definition = ((channel & 0xFFFF)<<16);
+
                 printf("      - Channel %d\n", channel);
 
-                unsigned int link_definition = ((channel & 0xFFFF)<<16);
                 link_definition |= (jack & 0xFFFF);
 
                 ret = XNVCTRLQueryTargetAttribute(dpy,
@@ -571,13 +558,13 @@ static void do_query(Display *dpy, int use_gvi)
 
 
 
-unsigned int firstbit (unsigned int mask)
+static unsigned int firstbit (unsigned int mask)
 {
     return mask ^ ((mask - 1) & mask);
 }
 
 // List the configuration space of the GVI device.
-void do_listconfig(Display *dpy, int gvi)
+static void do_listconfig(Display *dpy, int gvi)
 {
     NVCTRLAttributeValidValuesRec values;
 
@@ -770,7 +757,7 @@ void do_listconfig(Display *dpy, int gvi)
 
 
 
-void do_configure(Display *dpy, int use_gvi, char *pIn)
+static void do_configure(Display *dpy, int use_gvi, char *pIn)
 {
     Bool ret;
     char *pOut = NULL;

@@ -146,6 +146,12 @@ static void print_attribute_help(char *attr)
 } /* print_attribute_help() */
 
 
+static void print_help_helper(const char *name, const char *description)
+{
+    nv_msg(TAB, name);
+    nv_msg_preserve_whitespace(BIGTAB, description);
+    nv_msg(NULL, "");
+}
 
 /*
  * print_help() - loop through the __options[] table, and print the
@@ -154,66 +160,14 @@ static void print_attribute_help(char *attr)
 
 void print_help(void)
 {
-    int i, j, len;
-    char *msg, *tmp, scratch[64];
-    const NVGetoptOption *o;
-    
     print_version();
 
     nv_msg(NULL, "");
     nv_msg(NULL, "nvidia-settings [options]");
     nv_msg(NULL, "");
-    
-    for (i = 0; __options[i].name; i++) {
-        o = &__options[i];
-        if (isalpha(o->val)) {
-            sprintf(scratch, "%c", o->val);
-            msg = nvstrcat("-", scratch, ", --", o->name, NULL);
-        } else {
-            msg = nvstrcat("--", o->name, NULL);
-        }
-        if (o->flags & NVGETOPT_HAS_ARGUMENT) {
-            len = strlen(o->name);
-            for (j = 0; j < len; j++) scratch[j] = toupper(o->name[j]);
-            scratch[len] = '\0';
-            tmp = nvstrcat(msg, "=[", scratch, "]", NULL);
-            free(msg);
-            msg = tmp;
-        }
-        nv_msg(TAB, msg);
-        free(msg);
 
-        if (o->description) {
-            char *buf = NULL, *pbuf = NULL, *s = NULL;
-
-            buf = calloc(1, 1 + strlen(o->description));
-            if (!buf) {
-                /* XXX There should be better message than this */
-                nv_error_msg("Not enough memory\n");
-                return;
-            }
-            pbuf = buf;
-
-            for (s = o->description; s && *s; s++) {
-                switch (*s) {
-                case '<':
-                case '>':
-                case '^':
-                    break;
-                default:
-                    *pbuf = *s;
-                    pbuf++;
-                    break;
-                }
-            }
-            *pbuf = '\0';
-            nv_msg_preserve_whitespace(BIGTAB, buf);
-            free(buf);
-        }
-
-        nv_msg(NULL, "");
-    }
-} /* print_help() */
+    nvgetopt_print_help(__options, 0, print_help_helper);
+}
 
 
 /*

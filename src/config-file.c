@@ -434,14 +434,14 @@ int nv_write_config_file(const char *filename, CtrlHandles *h,
                 (p->display_device_mask);
             
             fprintf(stream, "%s%s%c%s[%s]=%d\n", p->display, target_str,
-                    DISPLAY_NAME_SEPARATOR, tmp, tmp_d_str, p->val);
+                    DISPLAY_NAME_SEPARATOR, tmp, tmp_d_str, p->val.i);
             
             free(tmp_d_str);
             
         } else {
                 
             fprintf(stream, "%s%s%c%s=%d\n", p->display, target_str,
-                    DISPLAY_NAME_SEPARATOR, tmp, p->val);
+                    DISPLAY_NAME_SEPARATOR, tmp, p->val.i);
         }
         
         p = p->next;

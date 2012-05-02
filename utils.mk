@@ -28,9 +28,10 @@
 
 CC                    ?= gcc
 LD                    ?= ld
-CFLAGS                ?=
-CFLAGS                += -Wall -fno-strict-aliasing -Wno-unused-parameter
-CFLAGS                += -O2 -fno-omit-frame-pointer
+# only set these warnings and optimizations if CFLAGS is unset
+CFLAGS                ?= -Wall -Wno-unused-parameter -O2
+# always set these -f CFLAGS
+CFLAGS                += -fno-strict-aliasing -fno-omit-frame-pointer
 CC_ONLY_CFLAGS        ?=
 LDFLAGS               ?=
 BIN_LDFLAGS           ?=
@@ -93,9 +94,9 @@ ifndef TARGET_ARCH
 endif
 
 ifeq ($(TARGET_OS),Linux)
-  LIBDL_LDFLAGS = -ldl
+  LIBDL_LIBS = -ldl
 else
-  LIBDL_LDFLAGS =
+  LIBDL_LIBS =
 endif
 
 OUTPUTDIR             ?= _out/$(TARGET_OS)_$(TARGET_ARCH)
@@ -124,11 +125,10 @@ endif
 # the source tarball
 ##############################################################################
 
-prefix = /usr/local
+PREFIX ?= /usr/local
 
-exec_prefix = $(prefix)
-bindir = $(exec_prefix)/bin
-mandir = $(exec_prefix)/share/man/man1
+BINDIR = $(DESTDIR)$(PREFIX)/bin
+MANDIR = $(DESTDIR)$(PREFIX)/share/man/man1
 
 
 ##############################################################################
@@ -145,10 +145,16 @@ default build: all
 # version.mk may be in one of two places: either in $(OUTPUTDIR) when
 # building as part of the NVIDIA driver build, or directly in the
 # source directory when building from the source tarball
+#
+# Throw an error if one of these two places did not define NVIDIA_VERSION.
 ##############################################################################
 
-include $(wildcard $(OUTPUTDIR)/version.mk version.mk)
+VERSION_MK := $(wildcard $(OUTPUTDIR)/version.mk version.mk)
+include $(VERSION_MK)
 
+ifndef NVIDIA_VERSION
+$(error NVIDIA_VERSION undefined)
+endif
 
 ##############################################################################
 # to generate the dependency files, use the compiler's "-MM" option to
@@ -260,7 +266,7 @@ BUILD_DEPENDENCY_LIST = \
 define DEFINE_OBJECT_RULE_WITH_OBJECT_NAME
   $(3): $(2)
 	@$(MKDIR) $(OUTPUTDIR)
-	$$(call quiet_cmd,$(1)) -c $$< -o $$@ $$(CFLAGS) \
+	$$(call quiet_cmd,$(1)) $$(CFLAGS) -c $$< -o $$@ \
 	  $(call AUTO_DEP_CMD,$(1),$(2),$(3))
 
   -include $$(call BUILD_DEPENDENCY_LIST,$(3))
@@ -298,7 +304,7 @@ define DEFINE_STAMP_C_RULE
 
   $$(STAMP_C): $$(filter-out \
     $$(call BUILD_OBJECT_LIST,$$(STAMP_C)),$(1)) \
-    $$(wildcard version.mk $$(OUTPUTDIR)/version.mk)
+    $$(VERSION_MK)
 	@ $$(RM) $$@
 	@ $$(PRINTF) "const char NV_ID[] = \"nvidia id: "                  >> $$@
 	@ $$(PRINTF) "$(2):  "                                             >> $$@

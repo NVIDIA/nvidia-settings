@@ -51,19 +51,17 @@ typedef struct _CtkEdidClass  CtkEdidClass;
 struct _CtkEdid
 {
     GtkVBox parent;
-    
+
     NvCtrlAttributeHandle *handle;
     CtkConfig *ctk_config;
-    GtkWidget *reset_button;
     GtkWidget *button;
     GtkWidget *file_selector;
     GtkWidget *file_format_binary_radio_button;
     GtkWidget *file_format_ascii_radio_button;
-    
+
     const gchar *filename;
     char *name;
 
-    unsigned int display_device_mask;
     gint file_format;
 };
 
@@ -75,11 +73,9 @@ struct _CtkEdidClass
 GType       ctk_edid_get_type  (void) G_GNUC_CONST;
 GtkWidget*  ctk_edid_new       (NvCtrlAttributeHandle *,
                                 CtkConfig *, CtkEvent *,
-                                GtkWidget *reset_button,
-                                unsigned int display_device_mask,
                                 char *name);
 
-void ctk_edid_reset(CtkEdid *);
+void ctk_edid_setup(CtkEdid *ctk_object);
 
 void add_acquire_edid_help(GtkTextBuffer *b, GtkTextIter *i);
 

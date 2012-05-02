@@ -23,7 +23,6 @@
 #include <stdlib.h>
 #include <string.h>
 #include <X11/Xlib.h>
-#include <X11/extensions/Xrandr.h>
 
 #include "msg.h"
 #include "parse.h"
@@ -106,6 +105,7 @@ GType ctk_slimm_get_type()
             sizeof (CtkSLIMM),
             0, /* n_preallocs */
             NULL, /* instance_init */
+            NULL  /* value_table */
         };
 
         ctk_slimm_type =
@@ -348,7 +348,7 @@ static void save_xconfig_button_clicked(GtkWidget *widget, gpointer user_data)
              GTK_DIALOG_DESTROY_WITH_PARENT,
              GTK_MESSAGE_WARNING,
              GTK_BUTTONS_OK,
-             err_msg);
+             "%s", err_msg);
             
         gtk_dialog_run(GTK_DIALOG(dlg));
         gtk_widget_destroy(dlg);

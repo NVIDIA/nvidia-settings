@@ -19,6 +19,7 @@
  
 #include <gtk/gtk.h>
 #include <NvCtrlAttributes.h>
+#include "NVCtrlLib.h"
 #include "ctkutils.h"
 #include "msg.h"
 
@@ -75,23 +76,22 @@ gchar *get_pcie_link_speed_string(NvCtrlAttributeHandle *handle,
 
 /*
  * Used to check if current display enabled or disabled.
- */ 
+ */
 void update_display_enabled_flag(NvCtrlAttributeHandle *handle,
-                                 gboolean *display_enabled,
-                                 unsigned int display_device_mask)
-{ 
+                                 gboolean *display_enabled)
+{
     ReturnStatus ret;
-    unsigned int enabled_displays;
+    int val;
 
     /* Is display enabled? */
 
     ret = NvCtrlGetAttribute(handle,
-                             NV_CTRL_ENABLED_DISPLAYS,
-                             (int *)&enabled_displays);
+                             NV_CTRL_DISPLAY_ENABLED,
+                             &val);
 
     *display_enabled =
-        (ret == NvCtrlSuccess &&
-         (enabled_displays & (display_device_mask)));
+        ((ret == NvCtrlSuccess) &&
+         (val == NV_CTRL_DISPLAY_ENABLED_TRUE));
 
 } /* update_display_enabled_flag() */
 
@@ -102,10 +102,10 @@ gchar* create_gpu_name_string(NvCtrlAttributeHandle *gpu_handle)
     gchar *gpu_name;
     gchar *gpu_product_name;
     ReturnStatus ret;
-    
-    ret = NvCtrlGetStringDisplayAttribute(gpu_handle, 0,
-                                          NV_CTRL_STRING_PRODUCT_NAME,
-                                          &gpu_product_name);
+
+    ret = NvCtrlGetStringAttribute(gpu_handle,
+                                   NV_CTRL_STRING_PRODUCT_NAME,
+                                   &gpu_product_name);
     if (ret == NvCtrlSuccess && gpu_product_name) {
         gpu_name = g_strdup_printf("GPU %d - (%s)",
                                    NvCtrlGetTargetId(gpu_handle),
@@ -115,9 +115,89 @@ gchar* create_gpu_name_string(NvCtrlAttributeHandle *gpu_handle)
                                    NvCtrlGetTargetId(gpu_handle));
     }
     g_free(gpu_product_name);
-    
+
     return gpu_name;
 }
+
+
+gchar* create_display_name_list_string(NvCtrlAttributeHandle *handle,
+                                       unsigned int attr)
+{
+    gchar *displays = NULL;
+    gchar *typeIdName;
+    gchar *logName;
+    gchar *tmp_str;
+    ReturnStatus ret;
+    int *pData;
+    int len;
+    int i;
+    Bool valid;
+
+
+    /* List of Display Device connected on GPU */
+
+    ret = NvCtrlGetBinaryAttribute(handle, 0,
+                                   attr,
+                                   (unsigned char **)(&pData), &len);
+    if (ret != NvCtrlSuccess) {
+        goto done;
+    }
+
+    for (i = 0; i < pData[0]; i++) {
+        int display_id = pData[i+1];
+
+        valid =
+            XNVCTRLQueryTargetStringAttribute(NvCtrlGetDisplayPtr(handle),
+                                              NV_CTRL_TARGET_TYPE_DISPLAY,
+                                              display_id,
+                                              0,
+                                              NV_CTRL_STRING_DISPLAY_DEVICE_NAME,
+                                              &tmp_str);
+        if (!valid) {
+            logName = g_strdup("Unknown");
+        } else {
+            logName = g_strdup(tmp_str);
+            XFree(tmp_str);
+        }
+
+        valid =
+            XNVCTRLQueryTargetStringAttribute(NvCtrlGetDisplayPtr(handle),
+                                              NV_CTRL_TARGET_TYPE_DISPLAY,
+                                              display_id,
+                                              0,
+                                              NV_CTRL_STRING_DISPLAY_NAME_TYPE_ID,
+                                              &tmp_str);
+        if (!valid) {
+            typeIdName = g_strdup_printf("DPY-%d", display_id);
+        } else {
+            typeIdName = g_strdup(tmp_str);
+            XFree(tmp_str);
+        }
+
+        tmp_str = g_strdup_printf("%s (%s)", logName, typeIdName);
+        g_free(logName);
+        g_free(typeIdName);
+
+        if (displays) {
+            logName = g_strdup_printf("%s,\n%s", tmp_str, displays);
+            g_free(displays);
+            g_free(tmp_str);
+            displays = logName;
+        } else {
+            displays = tmp_str;
+        }
+    }
+
+ done:
+
+    if (!displays) {
+        displays = g_strdup("None");
+    }
+
+    return displays;
+}
+
+
 
 
 GtkWidget *add_table_row_with_help_text(GtkWidget *table,
@@ -228,7 +308,7 @@ void ctk_display_error_msg(GtkWidget *parent, gchar * msg)
              GTK_DIALOG_DESTROY_WITH_PARENT,
              GTK_MESSAGE_ERROR,
              GTK_BUTTONS_OK,
-             msg);
+             "%s", msg);
             gtk_dialog_run(GTK_DIALOG(dlg));
             gtk_widget_destroy(dlg);
         }
@@ -256,7 +336,7 @@ void ctk_display_warning_msg(GtkWidget *parent, gchar * msg)
              GTK_DIALOG_DESTROY_WITH_PARENT,
              GTK_MESSAGE_WARNING,
              GTK_BUTTONS_OK,
-             msg);
+             "%s", msg);
             gtk_dialog_run(GTK_DIALOG(dlg));
             gtk_widget_destroy(dlg);
         }

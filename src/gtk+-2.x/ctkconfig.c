@@ -102,6 +102,7 @@ GType ctk_config_get_type(
             sizeof (CtkConfig),
             0,    /* n_preallocs */
             NULL, /* instance_init */
+            NULL  /* value_table */
         };
 
         ctk_config_type = g_type_register_static

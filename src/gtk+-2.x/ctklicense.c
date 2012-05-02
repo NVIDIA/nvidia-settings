@@ -121,6 +121,7 @@ GType ctk_license_dialog_get_type(void)
             sizeof (CtkLicenseDialog),
             0, /* n_preallocs */
             NULL, /* instance_init */
+            NULL  /* value_table */
         };
 
         ctk_license_dialog_type = g_type_register_static(GTK_TYPE_VBOX,

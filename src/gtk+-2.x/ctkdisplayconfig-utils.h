@@ -59,7 +59,6 @@ void modeline_free(nvModeLinePtr m);
 
 /* Display functions */
 
-gchar * display_get_type_str(unsigned int device_mask, int be_generic);
 int display_find_closest_mode_matching_modeline(nvDisplayPtr display,
                                                 nvModeLinePtr modeline);
 Bool display_has_modeline(nvDisplayPtr display, nvModeLinePtr modeline);
@@ -82,10 +81,9 @@ gchar * screen_get_metamode_str(nvScreenPtr screen, int metamode_idx,
 
 /* GPU functions */
 
-nvDisplayPtr gpu_get_display(nvGpuPtr gpu, unsigned int device_mask);
 void gpu_remove_and_free_display(nvDisplayPtr display);
 nvDisplayPtr gpu_add_display_from_server(nvGpuPtr gpu,
-                                         unsigned int device_mask,
+                                         unsigned int display_id,
                                          gchar **err_str);
 
 Bool gpu_add_screenless_modes_to_displays(nvGpuPtr gpu);
@@ -98,6 +96,8 @@ void layout_add_screen(nvLayoutPtr layout, nvScreenPtr screen);
 nvLayoutPtr layout_load_from_server(NvCtrlAttributeHandle *handle,
                                     gchar **err_str);
 nvScreenPtr layout_get_a_screen(nvLayoutPtr layout, nvGpuPtr preferred_gpu);
+nvDisplayPtr layout_get_display(const nvLayoutPtr layout,
+                                const unsigned int display_id);
 void layout_remove_and_free_screen(nvScreenPtr screen);
 
 

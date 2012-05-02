@@ -134,21 +134,23 @@ static const char *__texture_sharpening_help =
 #define __LOG_ANISO_RANGE (1 << 2)
 #define __TEXTURE_SHARPEN (1 << 3)
 #define __FSAA            (1 << 4)
-#define __FSAA_NONE       (1 << (__FSAA + NV_CTRL_FSAA_MODE_NONE))
-#define __FSAA_2x         (1 << (__FSAA + NV_CTRL_FSAA_MODE_2x))
-#define __FSAA_2x_5t      (1 << (__FSAA + NV_CTRL_FSAA_MODE_2x_5t))
-#define __FSAA_15x15      (1 << (__FSAA + NV_CTRL_FSAA_MODE_15x15))
-#define __FSAA_2x2        (1 << (__FSAA + NV_CTRL_FSAA_MODE_2x2))
-#define __FSAA_4x         (1 << (__FSAA + NV_CTRL_FSAA_MODE_4x))
-#define __FSAA_4x_9t      (1 << (__FSAA + NV_CTRL_FSAA_MODE_4x_9t))
-#define __FSAA_8x         (1 << (__FSAA + NV_CTRL_FSAA_MODE_8x))
-#define __FSAA_16x        (1 << (__FSAA + NV_CTRL_FSAA_MODE_16x))
-#define __FSAA_8xS        (1 << (__FSAA + NV_CTRL_FSAA_MODE_8xS))
-#define __FSAA_8xQ        (1 << (__FSAA + NV_CTRL_FSAA_MODE_8xQ))
-#define __FSAA_16xS       (1 << (__FSAA + NV_CTRL_FSAA_MODE_16xS))
-#define __FSAA_16xQ       (1 << (__FSAA + NV_CTRL_FSAA_MODE_16xQ))
-#define __FSAA_32xS       (1 << (__FSAA + NV_CTRL_FSAA_MODE_32xS))
-#define __FSAA_ENHANCE    (1 << (__FSAA + NV_CTRL_FSAA_MODE_MAX +1))
+#define __FSAA_NONE       (__FSAA << NV_CTRL_FSAA_MODE_NONE)
+#define __FSAA_2x         (__FSAA << NV_CTRL_FSAA_MODE_2x)
+#define __FSAA_2x_5t      (__FSAA << NV_CTRL_FSAA_MODE_2x_5t)
+#define __FSAA_15x15      (__FSAA << NV_CTRL_FSAA_MODE_15x15)
+#define __FSAA_2x2        (__FSAA << NV_CTRL_FSAA_MODE_2x2)
+#define __FSAA_4x         (__FSAA << NV_CTRL_FSAA_MODE_4x)
+#define __FSAA_4x_9t      (__FSAA << NV_CTRL_FSAA_MODE_4x_9t)
+#define __FSAA_8x         (__FSAA << NV_CTRL_FSAA_MODE_8x)
+#define __FSAA_16x        (__FSAA << NV_CTRL_FSAA_MODE_16x)
+#define __FSAA_8xS        (__FSAA << NV_CTRL_FSAA_MODE_8xS)
+#define __FSAA_8xQ        (__FSAA << NV_CTRL_FSAA_MODE_8xQ)
+#define __FSAA_16xS       (__FSAA << NV_CTRL_FSAA_MODE_16xS)
+#define __FSAA_16xQ       (__FSAA << NV_CTRL_FSAA_MODE_16xQ)
+#define __FSAA_32xS       (__FSAA << NV_CTRL_FSAA_MODE_32xS)
+#define __FSAA_32x        (__FSAA << NV_CTRL_FSAA_MODE_32x)
+#define __FSAA_64xS       (__FSAA << NV_CTRL_FSAA_MODE_64xS)
+#define __FSAA_ENHANCE    (__FSAA << (NV_CTRL_FSAA_MODE_MAX + 1))
 
 #define FRAME_PADDING 5
 
@@ -169,6 +171,7 @@ GType ctk_multisample_get_type(
             sizeof (CtkMultisample),
             0, /* n_preallocs */
             NULL, /* instance_init */
+            NULL  /* value_table */
         };
 
         ctk_multisample_type =
@@ -526,6 +529,8 @@ static void build_fsaa_translation_table(CtkMultisample *ctk_multisample,
     gint i, n = 0;
     gint index_8xs = -1;
     gint index_16x = -1;
+    gint index_32x = -1;
+    gint index_32xs = -1;
     gint mask = valid.u.bits.ints;
 
     ctk_multisample->fsaa_translation_table_size = 0;
@@ -543,15 +548,17 @@ static void build_fsaa_translation_table(CtkMultisample *ctk_multisample,
 
             if (i == NV_CTRL_FSAA_MODE_8xS) index_8xs = n;
             if (i == NV_CTRL_FSAA_MODE_16x) index_16x = n;
+            if (i == NV_CTRL_FSAA_MODE_32x) index_32x = n;
+            if (i == NV_CTRL_FSAA_MODE_32xS) index_32xs = n;
             
             n++;
         }
     }
     
     /*
-     * XXX 8xS was added to the NV_CTRL_FSAA_MODE list after 16x, but
-     * should appear before it in the slider.  If both were added to
-     * the fsaa_translation_table[], then swap their positions.
+     * XXX 8xS was added to the NV_CTRL_FSAA_MODE list after 16x, but should
+     * appear before it in the slider.  Same with 32x and 32xS.  If both were
+     * added to the fsaa_translation_table[], then re-order them appropriately.
      */
 
     if ((index_8xs != -1) && (index_16x != -1)) {
@@ -560,7 +567,14 @@ static void build_fsaa_translation_table(CtkMultisample *ctk_multisample,
         ctk_multisample->fsaa_translation_table[index_16x] =
             NV_CTRL_FSAA_MODE_8xS;
     }
-    
+
+    if ((index_32x != -1) && (index_32xs != -1)) {
+        ctk_multisample->fsaa_translation_table[index_32x] =
+            NV_CTRL_FSAA_MODE_32xS;
+        ctk_multisample->fsaa_translation_table[index_32xs] =
+            NV_CTRL_FSAA_MODE_32x;
+    }
+
     ctk_multisample->fsaa_translation_table_size = n;
 
 } /* build_fsaa_translation_table() */

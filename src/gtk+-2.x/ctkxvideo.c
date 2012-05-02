@@ -181,6 +181,7 @@ GType ctk_xvideo_get_type(
             sizeof(CtkXVideo),
             0, /* n_preallocs */
             NULL, /* instance_init */
+            NULL  /* value_table */
         };
 
         ctk_xvideo_type = g_type_register_static

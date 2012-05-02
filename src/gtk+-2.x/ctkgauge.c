@@ -65,6 +65,7 @@ GType ctk_gauge_get_type(
             sizeof (CtkGauge),
             0, /* n_preallocs */
             NULL, /* instance_init */
+            NULL  /* value_table */
         };
 
         ctk_gauge_type = g_type_register_static(GTK_TYPE_DRAWING_AREA,

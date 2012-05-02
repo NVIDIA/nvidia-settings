@@ -21,8 +21,10 @@
 #include <stdio.h>
 #include <string.h>
 #include <stdlib.h>
+#include <ctype.h>
 
 #include "nvgetopt.h"
+#include "common-utils.h"
 
 
 int nvgetopt(int argc,
@@ -309,3 +311,126 @@ int nvgetopt(int argc,
     return ret;
 
 } /* nvgetopt() */
+
+
+/*
+ * cook_description() - the description string may contain text within
+ * special characters which are interpreted by the manpage generator.
+ * We want to omit those characters here.
+ */
+
+static char *cook_description(const char *description)
+{
+    const char *src;
+    char *s, *dst;
+
+    if (!description) {
+        return NULL;
+    }
+
+    s = strdup(description);
+
+    if (!s) {
+        return NULL;
+    }
+
+    for (src = description, dst = s; *src; src++) {
+        if ((*src == '&') || (*src == '^')) {
+            continue;
+        }
+        *dst = *src;
+        dst++;
+    }
+
+    *dst = '\0';
+
+    return s;
+}
+
+
+void nvgetopt_print_help(const NVGetoptOption *options,
+                         unsigned int include_mask,
+                         nvgetopt_print_help_callback_ptr callback)
+{
+    const NVGetoptOption *o;
+    int i;
+
+    for (i = 0; options[i].name; i++) {
+
+        char *msg = NULL, *arg = NULL, *description = NULL;
+
+        o = &options[i];
+
+        /* Skip options with no help text */
+        if (!o->description) {
+            continue;
+        }
+
+        /* skip options who don't have all the bits of include_mask */
+        if ((o->flags & include_mask) != include_mask) {
+            continue;
+        }
+
+        /* if we are going to need the argument, process it now */
+        arg = NULL;
+        if (o->flags & NVGETOPT_HAS_ARGUMENT) {
+            if (o->arg_name) {
+                arg = strdup(o->arg_name);
+            } else {
+                char *tmp;
+                arg = strdup(o->name);
+                for (tmp = arg; tmp && *tmp; tmp++) {
+                    *tmp = toupper(*tmp);
+                }
+            }
+        }
+
+        msg = NULL;
+
+        /*
+         * create the long version of the option, possibly with an
+         * argument; e.g., "--foo" or "--foo=BAR"
+         */
+        if (arg) {
+            msg = nvstrcat("--", o->name, "=", arg, NULL);
+        } else {
+            msg = nvstrcat("--", o->name, NULL);
+        }
+
+        /*
+         * prepend the single character version of the option,
+         * possibly with an argument; e.g., "-f" or "-f BAR"
+         */
+        if (isalpha(o->val)) {
+            char scratch[16];
+            char *tmp;
+            snprintf(scratch, sizeof(scratch), "%c", o->val);
+            if (arg) {
+                tmp = nvstrcat("-", scratch, " ", arg, ", ", msg, NULL);
+            } else {
+                tmp = nvstrcat("-", scratch, ", ", msg, NULL);
+            }
+            free(msg);
+            msg = tmp;
+        }
+
+        /* append the boolean version of the option; e.g., "--no-foo" */
+        if (((o->flags & NVGETOPT_IS_BOOLEAN) &&
+             !(o->flags & NVGETOPT_HAS_ARGUMENT)) ||
+            (o->flags & NVGETOPT_ALLOW_DISABLE)) {
+            char *tmp = nvstrcat(msg, ", --no-", o->name, NULL);
+            free(msg);
+            msg = tmp;
+        }
+
+        /* process the description text */
+        description = cook_description(o->description);
+
+        /* give the strings to the caller to format and print */
+        callback(msg, description);
+
+        free(msg);
+        free(arg);
+        free(description);
+    }
+}

@@ -51,20 +51,18 @@ typedef struct _CtkImageSlidersClass  CtkImageSlidersClass;
 struct _CtkImageSliders
 {
     GtkVBox parent;
-    
+
     NvCtrlAttributeHandle *handle;
-    unsigned int display_device_mask;
     char *name;
 
     CtkConfig *ctk_config;
     CtkEvent *ctk_event;
     GtkWidget *reset_button;
-    
+
     GtkWidget *frame;
+
     GtkWidget *digital_vibrance;
-    GtkWidget *overscan_compensation;
     GtkWidget *image_sharpening;
-    gint default_val;
 };
 
 struct _CtkImageSlidersClass
@@ -76,7 +74,6 @@ GType       ctk_image_sliders_get_type  (void) G_GNUC_CONST;
 GtkWidget*  ctk_image_sliders_new       (NvCtrlAttributeHandle *,
                                          CtkConfig *, CtkEvent *,
                                          GtkWidget *reset_button,
-                                         unsigned int display_device_mask,
                                          char *name);
 
 void ctk_image_sliders_reset(CtkImageSliders *);

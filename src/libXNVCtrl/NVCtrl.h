@@ -138,18 +138,7 @@
 
 
 /*
- * NV_CTRL_FLATPANEL_SCALING - the current flat panel scaling state;
- * possible values are:
- *
- * 0: default (the driver will use whatever state is current)
- * 1: native (the driver will use the panel's scaler, if possible)
- * 2: scaled (the driver will use the GPU's scaler, if possible)
- * 3: centered (the driver will center the image)
- * 4: aspect scaled (scale with the GPU's scaler, but keep the aspect
- *    ratio correct)
- *
- * USAGE NOTE: This attribute has been deprecated in favor of the new
- *             NV_CTRL_GPU_SCALING attribute.
+ * NV_CTRL_FLATPANEL_SCALING - not supported
  */
 
 #define NV_CTRL_FLATPANEL_SCALING                               2  /* RWDG */
@@ -296,7 +285,9 @@
 #define NV_CTRL_FSAA_MODE_16xS                                 11
 #define NV_CTRL_FSAA_MODE_16xQ                                 12
 #define NV_CTRL_FSAA_MODE_32xS                                 13
-#define NV_CTRL_FSAA_MODE_MAX NV_CTRL_FSAA_MODE_32xS
+#define NV_CTRL_FSAA_MODE_32x                                  14
+#define NV_CTRL_FSAA_MODE_64xS                                 15
+#define NV_CTRL_FSAA_MODE_MAX NV_CTRL_FSAA_MODE_64xS
 
 
 /*
@@ -723,12 +714,11 @@
 
 /*
  * NV_CTRL_TEXTURE_CLAMPING - texture clamping mode in OpenGL.  By
- * default, NVIDIA's OpenGL implementation uses CLAMP_TO_EDGE, which
- * is not strictly conformant, but some applications rely on the
- * non-conformant behavior, and not all GPUs support conformant
- * texture clamping in hardware.  _SPEC forces OpenGL texture clamping
- * to be conformant, but may introduce slower performance on older
- * GPUS, or incorrect texture clamping in certain applications.
+ * default, _SPEC is used, which forces OpenGL texture clamping to
+ * conform with the OpenGL specification.  _EDGE forces NVIDIA's
+ * OpenGL implementation to remap GL_CLAMP to GL_CLAMP_TO_EDGE,
+ * which is not strictly conformant, but some applications rely on
+ * the non-conformant behavior.
  */
 
 #define NV_CTRL_TEXTURE_CLAMPING                                42  /* RW-X */
@@ -937,22 +927,24 @@
  * glXSendPbufferToVideoNV(); see the GLX_NV_video_out spec for more
  * details.
  *
- * - if, rather than using the GLX_NV_video_out extension to display
- * GLX pbuffers on the GVO output, you wish display the X screen on
- * the GVO output, set NV_CTRL_GVO_DISPLAY_X_SCREEN to
- * NV_CTRL_GVO_DISPLAY_X_SCREEN_ENABLE.
+ * - if using the GLX_NV_present_video extension, call
+ * glXBindVideoDeviceNV() to bind the GVO video device to current
+ * OpenGL context.
  *
  * Note that setting most GVO attributes only causes the value to be
  * cached in the X server.  The values will be flushed to the hardware
- * either when NV_CTRL_GVO_DISPLAY_X_SCREEN is enabled, or when a GLX
- * pbuffer is bound to the GVO output (with glXBindVideoImageNV()).
+ * either when the next MetaMode is set that uses the GVO display
+ * device, or when a GLX pbuffer is bound to the GVO output (with
+ * glXBindVideoImageNV()).
  *
- * Note that GLX_NV_video_out and NV_CTRL_GVO_DISPLAY_X_SCREEN are
- * mutually exclusive.  If NV_CTRL_GVO_DISPLAY_X_SCREEN is enabled,
- * then glXGetVideoDeviceNV will fail.  Similarly, if a GLX client has
- * locked the GVO output (via glXGetVideoDeviceNV), then
- * NV_CTRL_GVO_DISPLAY_X_SCREEN will fail.  The NV_CTRL_GVO_GLX_LOCKED
- * event will be sent when a GLX client locks the GVO output.
+ * Note that GLX_NV_video_out/GLX_NV_present_video and X screen use
+ * are mutually exclusive.  If a MetaMode is currently using the GVO
+ * device, then glXGetVideoDeviceNV and glXBindVideoImageNV() will
+ * fail.  Similarly, if a GLX client has locked the GVO output (via
+ * glXGetVideoDeviceNV or glXBindVideoImageNV), then setting a
+ * MetaMode that uses the GVO device will fail.  The
+ * NV_CTRL_GVO_GLX_LOCKED event will be sent when a GLX client locks
+ * the GVO output.
  *
  */
 
@@ -1215,25 +1207,7 @@
 #define NV_CTRL_GVO_DATA_FORMAT_R12G12B12_TO_YCRCB422           27
 
 /*
- * NV_CTRL_GVO_DISPLAY_X_SCREEN - enable/disable GVO output of the X
- * screen (in Clone mode).  At this point, all the GVO attributes that
- * have been cached in the X server are flushed to the hardware and GVO is
- * enabled.  Note that this attribute can fail to be set if a GLX
- * client has locked the GVO output (via glXGetVideoDeviceNV).  Note
- * that due to the inherit race conditions in this locking strategy,
- * NV_CTRL_GVO_DISPLAY_X_SCREEN can fail unexpectantly.  In the
- * failing situation, X will not return an X error.  Instead, you
- * should query the value of NV_CTRL_GVO_DISPLAY_X_SCREEN after
- * setting it to confirm that the setting was applied.
- *
- * NOTE: This attribute is related to the NV_CTRL_GVO_LOCK_OWNER
- *       attribute.  When NV_CTRL_GVO_DISPLAY_X_SCREEN is enabled,
- *       the GVO device will be locked by NV_CTRL_GVO_LOCK_OWNER_CLONE.
- *       see NV_CTRL_GVO_LOCK_OWNER for detais.
- *
- * NOTE: This attribute is deprecated and will be removed in a future release.
- *       To display an X screen over GVO, it is recommended to instead
- *       configure GVO via MetaModes.
+ * NV_CTRL_GVO_DISPLAY_X_SCREEN - no longer supported
  */
 
 #define NV_CTRL_GVO_DISPLAY_X_SCREEN                            73  /* RW- */
@@ -1333,11 +1307,12 @@
 
 
 /*
- * NV_CTRL_GVO_GLX_LOCKED - indicates that GVO configurability is locked by
- * GLX;  this occurs when the GLX_NV_video_out function calls
- * glXGetVideoDeviceNV().  All GVO output resources are locked until
- * either glXReleaseVideoDeviceNV() is called or the X Display used
- * when calling glXGetVideoDeviceNV() is closed.
+ * NV_CTRL_GVO_GLX_LOCKED - indicates that GVO configurability is
+ * locked by GLX; this occurs when either glXGetVideoDeviceNV (part of
+ * GLX_NV_video_out) or glXBindVideoDeviceNV (part of
+ * GLX_NV_present_video) is called.  All GVO output resources are
+ * locked until released by the GLX_NV_video_out/GLX_NV_present_video
+ * client.
  *
  * When GVO is locked, setting of the following GVO NV-CONTROL attributes will
  * not happen immediately and will instead be cached.  The GVO resource will
@@ -1383,16 +1358,7 @@
 
 
 /*
- * NV_CTRL_GVO_X_SCREEN_PAN_[XY] - when GVO output of the X screen is
- * enabled, the pan x/y attributes control which portion of the X
- * screen is displayed by GVO.  These attributes can be updated while
- * GVO output is enabled, or before enabling GVO output.  The pan
- * values will be clamped so that GVO output is not panned beyond the
- * end of the X screen.
- *
- * NOTE: These attributes are deprecated and will be removed in a future
- *       release. To display an X screen over GVO, it is recommended to
- *       instead configure GVO via MetaModes.
+ * NV_CTRL_GVO_X_SCREEN_PAN_[XY] - no longer supported
  */
 
 #define NV_CTRL_GVO_X_SCREEN_PAN_X                              86  /* RW- */
@@ -1913,19 +1879,8 @@
 #define NV_CTRL_MULTIGPU_DISPLAY_OWNER                           247 /* R-- */
 
 
-/* 
- * NV_CTRL_GPU_SCALING - Controls what the GPU scales to and how.
- * This attribute is a packed integer; the scaling target (native/best fit)
- * is packed in the upper 16-bits and the scaling method is packed in the
- * lower 16-bits.
- *
- * 'Best fit' scaling will make the GPU scale the frontend (current) mode to
- * the closest larger resolution in the flat panel's EDID and allow the
- * flat panel to do its own scaling to the native resolution.
- *
- * 'Native' scaling will make the GPU scale the frontend (current) mode to
- * the flat panel's native resolution, thus disabling any internal scaling
- * the flat panel might have.
+/*
+ * NV_CTRL_GPU_SCALING - not supported
  */
 
 #define NV_CTRL_GPU_SCALING                                      248 /* RWDG */
@@ -1941,26 +1896,14 @@
 
 
 /*
- * NV_CTRL_FRONTEND_RESOLUTION - Returns the dimensions of the frontend
- * (current) resolution as determined by the NVIDIA X Driver.
- *
- * This attribute is a packed integer; the width is packed in the upper
- * 16-bits and the height is packed in the lower 16-bits.
+ * NV_CTRL_FRONTEND_RESOLUTION - not supported
  */
 
 #define NV_CTRL_FRONTEND_RESOLUTION                              249 /* R-DG */
 
 
 /*
- * NV_CTRL_BACKEND_RESOLUTION - Returns the dimensions of the
- * backend resolution as determined by the NVIDIA X Driver.  
- *
- * The backend resolution is the resolution (supported by the display
- * device) the GPU is set to scale to.  If this resolution matches the
- * frontend resolution, GPU scaling will not be needed/used.
- *
- * This attribute is a packed integer; the width is packed in the upper
- * 16-bits and the height is packed in the lower 16-bits.
+ * NV_CTRL_BACKEND_RESOLUTION - not supported
  */
 
 #define NV_CTRL_BACKEND_RESOLUTION                               250 /* R-DG */
@@ -1986,43 +1929,21 @@
 
 
 /*
- * NV_CTRL_FLATPANEL_BEST_FIT_RESOLUTION - Returns the dimensions of the
- * resolution, selected by the X driver, from the DFP's EDID that most
- * closely matches the frontend resolution of the current mode.  The best
- * fit resolution is selected on a per-mode basis.
- * NV_CTRL_GPU_SCALING_TARGET is used to select between
- * NV_CTRL_FLATPANEL_BEST_FIT_RESOLUTION and NV_CTRL_NATIVE_RESOLUTION.
- *
- * This attribute is only valid for flat panel (DFP) display devices.
- *
- * This attribute is a packed integer; the width is packed in the upper
- * 16-bits and the height is packed in the lower 16-bits.
+ * NV_CTRL_FLATPANEL_BEST_FIT_RESOLUTION - not supported
  */
 
 #define NV_CTRL_FLATPANEL_BEST_FIT_RESOLUTION                    252 /* R-DG */
 
 
 /*
- * NV_CTRL_GPU_SCALING_ACTIVE - Returns the current state of
- * GPU scaling.  GPU scaling is mode-specific (meaning it may vary
- * depending on which mode is currently set).  GPU scaling is active if
- * the frontend timing (current resolution) is different than the target
- * resolution.  The target resolution is either the native resolution of
- * the flat panel or the best fit resolution supported by the flat panel.
- * What (and how) the GPU should scale to is controlled through the
- * NV_CTRL_GPU_SCALING attribute.
+ * NV_CTRL_GPU_SCALING_ACTIVE - not supported
  */
 
 #define NV_CTRL_GPU_SCALING_ACTIVE                               253 /* R-DG */
 
 
 /*
- * NV_CTRL_DFP_SCALING_ACTIVE - Returns the current state of
- * DFP scaling.  DFP scaling is mode-specific (meaning it may vary
- * depending on which mode is currently set).  DFP scaling is active if
- * the GPU is set to scale to the best fit resolution (NV_CTRL_GPU_SCALING
- * is set to NV_CTRL_GPU_SCALING_TARGET_FLATPANEL_BEST_FIT) and the best fit
- * and native resolutions are different.
+ * NV_CTRL_DFP_SCALING_ACTIVE - not supported
  */
 
 #define NV_CTRL_DFP_SCALING_ACTIVE                               254 /* R-DG */
@@ -2059,19 +1980,16 @@
 
 /*
  * NV_CTRL_GVO_LOCK_OWNER - indicates that the GVO device is available
- * or in use (by GLX, Clone Mode, TwinView etc).
+ * or in use (by GLX or an X screen).
  *
- * The GVO device is locked by GLX when the GLX_NV_video_out function
- * calls glXGetVideoDeviceNV().  The GVO device is then unlocked when
- * glXReleaseVideoDeviceNV() is called, or the X Display used when calling
- * glXGetVideoDeviceNV() is closed.
+ * The GVO device is locked by GLX when either glXGetVideoDeviceNV
+ * (part of GLX_NV_video_out) or glXBindVideoDeviceNV (part of
+ * GLX_NV_present_video) is called.  All GVO output resources are
+ * locked until released by the GLX_NV_video_out/GLX_NV_present_video
+ * client.
  *
- * The GVO device is locked/unlocked for Clone mode use when the
- * attribute NV_CTRL_GVO_DISPLAY_X_SCREEN is enabled/disabled.
- *
- * The GVO device is locked/unlocked by TwinView mode, when the GVO device is
- * associated/unassociated to/from an X screen through the
- * NV_CTRL_ASSOCIATED_DISPLAY_DEVICES attribute directly.
+ * The GVO device is locked/unlocked by an X screen, when the GVO device is
+ * used in a MetaMode on an X screen.
  *
  * When the GVO device is locked, setting of the following GVO NV-CONTROL
  * attributes will not happen immediately and will instead be cached.  The
@@ -2086,7 +2004,7 @@
 #define NV_CTRL_GVO_LOCK_OWNER                                  257 /* R-- */
 #define NV_CTRL_GVO_LOCK_OWNER_NONE                               0
 #define NV_CTRL_GVO_LOCK_OWNER_GLX                                1
-#define NV_CTRL_GVO_LOCK_OWNER_CLONE                              2
+#define NV_CTRL_GVO_LOCK_OWNER_CLONE /* no longer supported */    2
 #define NV_CTRL_GVO_LOCK_OWNER_X_SCREEN                           3
 
 
@@ -2832,16 +2750,7 @@
 #define NV_CTRL_GVI_NUM_CAPTURE_SURFACES                        338 /* RW-I */
 
 /*
- * NV_CTRL_OVERSCAN_COMPENSATION - This option specifies the amount of overscan
- * compensation to apply to the current mode.  It is measured in raster pixels,
- * i.e. pixels as specified in the current mode's backend timings.
- *
- * This option is similar to NV_CTRL_TV_OVERSCAN, but can be available on
- * display devices other than TVs.  It also has semantics that are the opposite
- * of NV_CTRL_TV_OVERSCAN: a higher NV_CTRL_OVERSCAN_COMPENSATION makes the
- * screen smaller instead of bigger.  NV_CTRL_OVERSCAN_COMPENSATION and
- * NV_CTRL_TV_OVERSCAN will not be available on the same display device at the
- * same time.
+ * NV_CTRL_OVERSCAN_COMPENSATION - not supported
  */
 #define NV_CTRL_OVERSCAN_COMPENSATION                           339 /* RWDG */
 
@@ -2921,14 +2830,9 @@
 #define NV_CTRL_COLOR_RANGE_LIMITED                               1
 
 /*
- * NV_CTRL_GPU_SCALING_DEFAULT_TARGET - Returns the default scaling target
- * for the specified display device.
+ * NV_CTRL_GPU_SCALING_DEFAULT_TARGET - not supported
  *
- * NV_CTRL_GPU_SCALING_DEFAULT_METHOD - Returns the default scaling method
- * for the specified display device.
- *
- * The values returned by these attributes are one of the target or method
- * values defined for the attribute NV_CTRL_GPU_SCALING.
+ * NV_CTRL_GPU_SCALING_DEFAULT_METHOD - not supported
  */
 #define NV_CTRL_GPU_SCALING_DEFAULT_TARGET                      350 /* R-DG */
 #define NV_CTRL_GPU_SCALING_DEFAULT_METHOD                      351 /* R-DG */
@@ -3266,7 +3170,22 @@
 #define NV_CTRL_GVO_AUDIO_BLANKING_DISABLE                        0
 #define NV_CTRL_GVO_AUDIO_BLANKING_ENABLE                         1
 
-#define NV_CTRL_LAST_ATTRIBUTE NV_CTRL_GVO_AUDIO_BLANKING
+/*
+ * NV_CTRL_CURRENT_METAMODE_ID - switch modes to the MetaMode with
+ * the specified ID.
+ */
+#define NV_CTRL_CURRENT_METAMODE_ID                             387 /* RW- */
+
+/*
+ * NV_CTRL_DISPLAY_ENABLED - Returns whether or not the display device
+ * is currently enabled.
+ */
+#define NV_CTRL_DISPLAY_ENABLED                                 388 /* R-D */
+#define NV_CTRL_DISPLAY_ENABLED_TRUE                              1
+#define NV_CTRL_DISPLAY_ENABLED_FALSE                             0
+
+
+#define NV_CTRL_LAST_ATTRIBUTE NV_CTRL_DISPLAY_ENABLED
 
 /**************************************************************************/
 
@@ -3404,7 +3323,10 @@
  * NV_CTRL_BINARY_DATA_METAMODES.
  */
 
-#define NV_CTRL_STRING_CURRENT_METAMODE                        12   /* R--- */
+#define NV_CTRL_STRING_CURRENT_METAMODE                        12   /* RW-- */
+#define NV_CTRL_STRING_CURRENT_METAMODE_VERSION_1 \
+    NV_CTRL_STRING_CURRENT_METAMODE
+
 
 
 /* 
@@ -3865,9 +3787,75 @@
  */
 #define NV_CTRL_STRING_3D_VISION_PRO_GLASSES_NAME                   44 /* RW-T */
 
+/*
+ * NV_CTRL_STRING_CURRENT_METAMODE_VERSION_2 - Returns the metamode currently
+ * being used by the specified X screen.  The MetaMode string has the same
+ * syntax as the MetaMode X configuration option, as documented in the NVIDIA
+ * driver README.  Also, see NV_CTRL_BINARY_DATA_METAMODES_VERSION_2 for more
+ * details on the base syntax.
+ *
+ * The returned string may also be prepended with a comma-separated list of
+ * "token=value" pairs, separated from the MetaMode string by "::".
+ */
+#define NV_CTRL_STRING_CURRENT_METAMODE_VERSION_2                   45 /* RW-- */
+
+/*
+ * NV_CTRL_STRING_DISPLAY_NAME_TYPE_BASENAME - Returns a type name for the
+ * display device ("CRT", "DFP", or "TV").  However, note that the determination
+ * of the name is based on the protocol through which the X driver communicates
+ * to the display device.  E.g., if the driver communicates using VGA ,then the
+ * basename is "CRT"; if the driver communicates using TMDS, LVDS, or DP, then
+ * the name is "DFP".
+ */
+#define NV_CTRL_STRING_DISPLAY_NAME_TYPE_BASENAME                   46 /* R-D- */
+
+/*
+ * NV_CTRL_STRING_DISPLAY_NAME_TYPE_ID - Returns the type-based name + ID for
+ * the display device, e.g. "CRT-0", "DFP-1", "TV-2".  If this device is a
+ * DisplayPort 1.2 device, then this name will also be prepended with the
+ * device's port address like so: "DFP-1.0.1.2.3".  See
+ * NV_CTRL_STRING_DISPLAY_NAME_TYPE_BASENAME for more information about the
+ * construction of type-based names.
+ */
+#define NV_CTRL_STRING_DISPLAY_NAME_TYPE_ID                         47 /* R-D- */
+
+/*
+ * NV_CTRL_STRING_DISPLAY_NAME_DP_GUID - Returns the GUID of the DisplayPort
+ * display device.  e.g. "DP-GUID-f16a5bde-79f3-11e1-b2ae-8b5a8969ba9c"
+ *
+ * The display device must be a DisplayPort 1.2 device.
+ */
+#define NV_CTRL_STRING_DISPLAY_NAME_DP_GUID                         48 /* R-D- */
+
+/*
+ * NV_CTRL_STRING_DISPLAY_NAME_EDID_HASH - Returns the SHA-1 hash of the
+ * display device's EDID in 8-4-4-4-12 UID format. e.g.
+ * "DPY-EDID-f16a5bde-79f3-11e1-b2ae-8b5a8969ba9c"
+ *
+ * The display device must have a valid EDID.
+ */
+#define NV_CTRL_STRING_DISPLAY_NAME_EDID_HASH                       49 /* R-D- */
+
+/*
+ * NV_CTRL_STRING_DISPLAY_NAME_TARGET_INDEX - Returns the current NV-CONTROL
+ * target ID (name) of the display device.  e.g. "DPY-1", "DPY-4"
+ *
+ * This name for the display device is not guarenteed to be the same between
+ * different runs of the X server.
+ */
+#define NV_CTRL_STRING_DISPLAY_NAME_TARGET_INDEX                    50 /* R-D- */
+
+/*
+ * NV_CTRL_STRING_DISPLAY_NAME_RANDR - Returns the RandR output name for the
+ * display device.  e.g.  "VGA-1", "DVI-I-0", "DVI-D-3", "LVDS-1", "DP-2",
+ * "HDMI-3", "eDP-6".  This name should match  If this device is a DisplayPort
+ * 1.2 device, then this name will also be prepended with the device's port
+ * address like so: "DVI-I-3.0.1.2.3"
+ */
+#define NV_CTRL_STRING_DISPLAY_NAME_RANDR                           51 /* R-D- */
 
 #define NV_CTRL_STRING_LAST_ATTRIBUTE \
-        NV_CTRL_STRING_3D_VISION_PRO_GLASSES_NAME
+    NV_CTRL_STRING_DISPLAY_NAME_RANDR
 
 
 /**************************************************************************/
@@ -3988,6 +3976,8 @@
  */
 
 #define NV_CTRL_BINARY_DATA_METAMODES                           2   /* R-D- */
+#define NV_CTRL_BINARY_DATA_METAMODES_VERSION_1 \
+    NV_CTRL_BINARY_DATA_METAMODES
 
 
 /*
@@ -4194,9 +4184,42 @@
 
 #define NV_CTRL_BINARY_DATA_DISPLAYS_CONNECTED_TO_GPU        15  /* R--G */
 
+/*
+ * NV_CTRL_BINARY_DATA_METAMODES_VERSION_2  - Returns values similar to
+ * NV_CTRL_BINARY_DATA_METAMODES(_VERSION_1) but also returns extended syntax
+ * information to indicate a specific display device, as well as other per-
+ * display deviceflags as "token=value" pairs.  For example:
+ *
+ *   "DPY-1: 1280x1024 {Stereo=PassiveLeft},
+ *    DPY-2: 1280x1024 {Stereo=PassiveRight},"
+ *
+ * The display device names have the form "DPY-%d", where the integer
+ * part of the name is the NV-CONTROL target ID for that display device
+ * for this instance of the X server.  Note that display device NV-CONTROL
+ * target IDs are not guaranteed to be the same from one run of the X
+ * server to the next.
+ */
+
+#define NV_CTRL_BINARY_DATA_METAMODES_VERSION_2              16  /* R-D- */
+
+/*
+ * NV_CTRL_BINARY_DATA_DISPLAYS_ENABLED_ON_XSCREEN - Returns the list of
+ * display devices that are currently scanning out the X screen target.
+ *
+ * The format of the returned data is:
+ *
+ *     4       CARD32 number of display devices
+ *     4 * n   CARD32 display device indices
+ *
+ * This attribute can only be queried through XNVCTRLQueryTargetBinaryData()
+ * using a NV_CTRL_TARGET_TYPE_X_SCREEN target.
+ */
+
+#define NV_CTRL_BINARY_DATA_DISPLAYS_ENABLED_ON_XSCREEN      17  /* R--- */
+
 
 #define NV_CTRL_BINARY_DATA_LAST_ATTRIBUTE \
-        NV_CTRL_BINARY_DATA_DISPLAYS_CONNECTED_TO_GPU
+        NV_CTRL_BINARY_DATA_DISPLAYS_ENABLED_ON_XSCREEN
 
 
 /**************************************************************************/

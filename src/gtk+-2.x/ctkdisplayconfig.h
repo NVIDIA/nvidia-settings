@@ -49,6 +49,20 @@ G_BEGIN_DECLS
     (G_TYPE_INSTANCE_GET_CLASS ((obj), CTK_TYPE_DISPLAY_CONFIG, \
                                 CtkDisplayConfigClass))
 
+typedef enum {
+    SELECTABLE_ITEM_SCREEN,
+    SELECTABLE_ITEM_DISPLAY
+} SelectableItemType;
+
+
+typedef struct SelectableItemRec {
+    SelectableItemType type;
+    union {
+        nvDisplayPtr display;
+        nvScreenPtr screen;
+    } u;
+} SelectableItem;
+
 
 typedef struct _CtkDisplayConfig
 {
@@ -68,14 +82,15 @@ typedef struct _CtkDisplayConfig
     GtkWidget *chk_primary_display;
     gboolean primary_display_changed;
 
+    GtkWidget *mnu_selected_item;
+    SelectableItem *selected_item_table;
+    int selected_item_table_len;
+
     GtkWidget *notebook; /* Tabbed notebook for display and X screen pages */
 
     /* Display - Info */
     GtkWidget *display_page;
 
-    GtkWidget *mnu_display_model;
-    nvDisplayPtr *display_model_table; /* Lookup table for display modelname */
-    int display_model_table_len;
     GtkWidget *txt_display_gpu;
 
     GtkWidget *box_display_config;
@@ -83,7 +98,7 @@ typedef struct _CtkDisplayConfig
     GtkWidget *mnu_display_config_disabled;
     GtkWidget *mnu_display_config_xscreen;
     GtkWidget *mnu_display_config_twinview;
-    
+
     /* Display - Settings */
     GtkWidget *box_display_resolution;
     GtkWidget *mnu_display_resolution;
@@ -96,6 +111,9 @@ typedef struct _CtkDisplayConfig
 
     GtkWidget *box_display_modename;
     GtkWidget *txt_display_modename;
+
+    GtkWidget *box_display_stereo;
+    GtkWidget *mnu_display_stereo;
 
     GtkWidget *box_display_position;
     GtkWidget *mnu_display_position_type;     /* Absolute, Right of... */
@@ -111,14 +129,15 @@ typedef struct _CtkDisplayConfig
     /* X Screen - Info */
     GtkWidget *screen_page;
 
-    GtkWidget *txt_screen_num;
-
     /* X Screen - Settings */
     GtkWidget *box_screen_virtual_size;
     GtkWidget *txt_screen_virtual_size;
 
     GtkWidget *box_screen_depth;
     GtkWidget *mnu_screen_depth;
+
+    GtkWidget *box_screen_stereo;
+    GtkWidget *mnu_screen_stereo;
 
     GtkWidget *box_screen_position;
     GtkWidget *mnu_screen_position_type;     /* Absolute, Right of... */
@@ -178,7 +197,7 @@ typedef struct _CtkDisplayConfig
     gboolean   advanced_mode;
 
     GtkWidget *btn_reset;
-    
+
     int last_resolution_idx;
 
 } CtkDisplayConfig;

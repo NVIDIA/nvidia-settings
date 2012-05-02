@@ -130,20 +130,7 @@ typedef void NvCtrlAttributeHandle;
 #define NV_CTRL_ATTR_GLX_LAST_ATTRIBUTE \
        (NV_CTRL_ATTR_GLX_FBCONFIG_ATTRIBS)
 
-/* XRandR */
-
-#define NV_CTRL_ATTR_XRANDR_BASE \
-       (NV_CTRL_ATTR_GLX_LAST_ATTRIBUTE + 1)
-
-#define NV_CTRL_ATTR_XRANDR_ROTATION_SUPPORTED (NV_CTRL_ATTR_XRANDR_BASE +  0)
-#define NV_CTRL_ATTR_XRANDR_ROTATIONS          (NV_CTRL_ATTR_XRANDR_BASE +  1)
-#define NV_CTRL_ATTR_XRANDR_ROTATION           (NV_CTRL_ATTR_XRANDR_BASE +  2)
-
-#define NV_CTRL_ATTR_XRANDR_LAST_ATTRIBUTE \
-       (NV_CTRL_ATTR_XRANDR_ROTATION)
-
-
-#define NV_CTRL_ATTR_LAST_ATTRIBUTE (NV_CTRL_ATTR_XRANDR_LAST_ATTRIBUTE)
+#define NV_CTRL_ATTR_LAST_ATTRIBUTE (NV_CTRL_ATTR_GLX_LAST_ATTRIBUTE)
 
 
 typedef enum {
@@ -505,13 +492,5 @@ const char *NvCtrlGetMultisampleModeName(int multisample_mode);
 char *NvCtrlAttributesStrError (ReturnStatus status);
 
 void NvCtrlAttributeClose(NvCtrlAttributeHandle *handle);
-
-ReturnStatus
-NvCtrlXrandrSetScreenMode (NvCtrlAttributeHandle *handle,
-                           int width, int height, int refresh);
-
-ReturnStatus
-NvCtrlXrandrGetScreenMode (NvCtrlAttributeHandle *handle,
-                           int *width, int *height, int *refresh);
 
 #endif /* __NVCTRL_ATTRIBUTES__ */

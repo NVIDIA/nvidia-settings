@@ -46,7 +46,7 @@
  * to the display device mask.
  */
 
-char *display_device_name(int mask)
+static char *display_device_name(int mask)
 {
     switch (mask) {
     case (1 <<  0): return "CRT-0"; break;

@@ -25,6 +25,7 @@
 #include "NvCtrlAttributes.h"
 #include "query-assign.h" /* CtrlHandles */
 #include "msg.h"
+#include "glxinfo.h"
 
 #include <GL/glx.h> /* GLX #defines */
 

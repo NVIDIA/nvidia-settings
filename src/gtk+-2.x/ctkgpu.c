@@ -54,6 +54,7 @@ GType ctk_gpu_get_type(
             sizeof (CtkGpu),
             0, /* n_preallocs */
             NULL, /* instance_init */
+            NULL  /* value_table */
         };
 
         ctk_gpu_type =
@@ -65,54 +66,10 @@ GType ctk_gpu_get_type(
 }
 
 
-static gchar *make_display_device_list(NvCtrlAttributeHandle *handle,
-                                       unsigned int display_devices)
+static gchar *make_display_device_list(NvCtrlAttributeHandle *handle)
 {
-    gchar *displays = NULL;
-    gchar *type;
-    gchar *name;
-    gchar *tmp_str;
-    unsigned int mask;
-    ReturnStatus ret;
-    
-
-    /* List of Display Device connected on GPU */
-
-    for (mask = 1; mask; mask <<= 1) {
-        
-        if (!(mask & display_devices)) continue;
-        
-        type = display_device_mask_to_display_device_name(mask);
-        name = NULL;
-        
-        ret =
-            NvCtrlGetStringDisplayAttribute(handle,
-                                            mask,
-                                            NV_CTRL_STRING_DISPLAY_DEVICE_NAME,
-                                            &name);
-        if (ret != NvCtrlSuccess) {
-            tmp_str = g_strdup_printf("Unknown (%s)", type);
-        } else {
-            tmp_str = g_strdup_printf("%s (%s)", name, type);
-            XFree(name);
-        }
-        free(type);
-        
-        if (displays) {
-            name = g_strdup_printf("%s,\n%s", tmp_str, displays);
-            g_free(displays);
-            g_free(tmp_str);
-        } else {
-            name = tmp_str;
-        }
-        displays = name;
-    }
-
-    if (!displays) {
-        displays = g_strdup("None");
-    }
-
-    return displays;
+    return create_display_name_list_string(handle,
+                                           NV_CTRL_BINARY_DATA_DISPLAYS_CONNECTED_TO_GPU);
 
 } /* make_display_device_list() */
 
@@ -250,7 +207,6 @@ GtkWidget* ctk_gpu_new(
     gchar *link_width_str = NULL;
     gchar *pcie_gen_str = NULL;
 
-    unsigned int display_devices;
     int xinerama_enabled;
     int *pData;
     int len;
@@ -394,17 +350,8 @@ GtkWidget* ctk_gpu_new(
         screens = g_strdup("Unknown");
     }
 
-    /* List of Display Device connected on GPU */
-
-    displays = NULL;
-    ret = NvCtrlGetAttribute(handle, NV_CTRL_CONNECTED_DISPLAYS,
-                             (int *)&display_devices);
-    if (ret == NvCtrlSuccess) {
-        displays = make_display_device_list(handle, display_devices);
-    }
-    
     /* now, create the object */
-    
+
     object = g_object_new(CTK_TYPE_GPU, NULL);
     ctk_gpu = CTK_GPU(object);
 
@@ -525,6 +472,8 @@ GtkWidget* ctk_gpu_new(
                   0, 0, "X Screens:",
                   0, 0, screens);
     /* spacing */
+    displays = make_display_device_list(handle);
+
     row += 3;
     ctk_gpu->displays =
         add_table_row(table, row,
@@ -662,12 +611,10 @@ GtkTextBuffer *ctk_gpu_create_help(GtkTextTagTable *table,
 static void probe_displays_received(GtkObject *object, gpointer arg1,
                                     gpointer user_data)
 {
-    CtkEventStruct *event_struct = (CtkEventStruct *) arg1;
     CtkGpu *ctk_object = CTK_GPU(user_data);
-    unsigned int probed_displays = event_struct->value;
     gchar *str;
 
-    str = make_display_device_list(ctk_object->handle, probed_displays);
+    str = make_display_device_list(ctk_object->handle);
 
     gtk_label_set_text(GTK_LABEL(ctk_object->displays), str);
 

@@ -72,6 +72,7 @@ GType ctk_edid_get_type(void)
             sizeof (CtkEdid),
             0, /* n_preallocs */
             NULL, /* instance_init */
+            NULL  /* value_table */
         };
 
         ctk_edid_type = g_type_register_static (GTK_TYPE_VBOX,
@@ -82,37 +83,39 @@ GType ctk_edid_get_type(void)
 }
 
 
+void ctk_edid_setup(CtkEdid *ctk_object)
+{
+    ReturnStatus ret;
+    gint val;
+
+    ret = NvCtrlGetAttribute(ctk_object->handle, NV_CTRL_EDID_AVAILABLE, &val);
+
+    if ((ret != NvCtrlSuccess) || (val != NV_CTRL_EDID_AVAILABLE_TRUE)) {
+        gtk_widget_set_sensitive(ctk_object->button, FALSE);
+        return;
+    }
+
+    gtk_widget_set_sensitive(ctk_object->button, TRUE);
+}
+
+
 GtkWidget* ctk_edid_new(NvCtrlAttributeHandle *handle,
                         CtkConfig *ctk_config, CtkEvent *ctk_event,
-                        GtkWidget *reset_button,
-                        unsigned int display_device_mask,
                         char *name)
 {
     CtkEdid *ctk_edid;
     GObject *object;
     GtkWidget *frame, *vbox, *label, *hbox, *alignment;
-    ReturnStatus ret;
-    gint val;
-
-    /* check if EDID is available for this display device */
-
-    ret = NvCtrlGetDisplayAttribute(handle, display_device_mask,
-                                    NV_CTRL_EDID_AVAILABLE, &val);
-    
-    if ((ret != NvCtrlSuccess) || (val != NV_CTRL_EDID_AVAILABLE_TRUE)) {
-        return NULL;
-    }
 
     /* create the object */
-    
+
     object = g_object_new(CTK_TYPE_EDID, NULL);
+    if (!object) return NULL;
 
     ctk_edid = CTK_EDID(object);
-    
+
     ctk_edid->handle = handle;
     ctk_edid->ctk_config = ctk_config;
-    ctk_edid->reset_button = reset_button;
-    ctk_edid->display_device_mask = display_device_mask;
     ctk_edid->name = name;
     ctk_edid->filename = DEFAULT_EDID_FILENAME_BINARY;
     ctk_edid->file_format = FILE_FORMAT_BINARY;
@@ -196,6 +199,8 @@ GtkWidget* ctk_edid_new(NvCtrlAttributeHandle *handle,
     gtk_widget_show_all(GTK_FILE_SELECTION(ctk_edid->file_selector)->main_vbox);
 
     gtk_widget_show_all(GTK_WIDGET(object));
+
+    ctk_edid_setup(ctk_edid);
 
     return GTK_WIDGET(object);
     
@@ -290,8 +295,7 @@ static void button_clicked(GtkButton *button, gpointer user_data)
 
     /* Grab EDID information */
     
-    ret = NvCtrlGetBinaryAttribute(ctk_edid->handle,
-                                   ctk_edid->display_device_mask,
+    ret = NvCtrlGetBinaryAttribute(ctk_edid->handle, 0,
                                    NV_CTRL_BINARY_DATA_EDID,
                                    &data, &len);
     if (ret != NvCtrlSuccess) {

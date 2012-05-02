@@ -118,9 +118,12 @@ typedef struct _ParsedAttribute {
     int target_type;
     int target_id;
     int attr;
-    int val;
-    float fval; /* XXX put in a union with val? */
-    const float *pfval; /* XXX put in a union with val? */
+    union {
+        int i;
+        float f;
+        const float *pf;
+        char *str;
+    } val;
     uint32 display_device_mask;
     uint32 flags;
     struct _ParsedAttribute *next;
@@ -329,6 +332,7 @@ const char *parse_read_integer_pair(const char *str,
                                     const char separator, int *a, int *b);
 const char *parse_read_name(const char *str, char **name, char term);
 const char *parse_read_display_name(const char *str, unsigned int *mask);
+const char *parse_read_display_id(const char *str, unsigned int *id);
 int parse_read_float_range(const char *str, float *min, float *max);
 int count_number_of_bits(unsigned int mask);
 

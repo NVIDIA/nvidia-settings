@@ -23,7 +23,6 @@
 #include "NvCtrlAttributes.h"
 #include "NVCtrl.h"
 #include <GL/glx.h> /* GLX #defines */
-#include <X11/extensions/Xrandr.h> /* Xrandr */
 #include <X11/extensions/Xvlib.h> /* Xv */
 
 
@@ -214,19 +213,6 @@ NvCtrlInitXrandrAttributes (NvCtrlAttributePrivateHandle *);
 
 void
 NvCtrlXrandrAttributesClose (NvCtrlAttributePrivateHandle *);
-
-ReturnStatus
-NvCtrlXrandrGetAttribute (NvCtrlAttributePrivateHandle *, int, int *);
-
-ReturnStatus
-NvCtrlXrandrSetAttribute (NvCtrlAttributePrivateHandle *, int, int);
-
-ReturnStatus
-NvCtrlXrandrSetScreenMagicMode (NvCtrlAttributePrivateHandle *, int, int, int);
-
-ReturnStatus
-NvCtrlXrandrGetScreenMagicMode (NvCtrlAttributePrivateHandle *, int *, int *,
-                                int *);
 
 ReturnStatus
 NvCtrlXrandrGetStringAttribute (NvCtrlAttributePrivateHandle *,

@@ -54,6 +54,7 @@ GType ctk_power_savings_get_type(void)
             sizeof (CtkPowerSavings),
             0, /* n_preallocs */
             NULL, /* instance_init */
+            NULL  /* value_table */
         };
 
         ctk_power_savings_type = g_type_register_static (GTK_TYPE_VBOX,

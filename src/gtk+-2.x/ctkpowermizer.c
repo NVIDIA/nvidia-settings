@@ -100,6 +100,7 @@ GType ctk_powermizer_get_type(void)
             sizeof (CtkPowermizer),
             0,    /* n_preallocs */
             NULL, /* instance_init */
+            NULL  /* value_table */
         };
 
         ctk_powermizer_type =

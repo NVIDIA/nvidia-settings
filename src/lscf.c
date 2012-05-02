@@ -1,4 +1,7 @@
 #include <stdio.h>
+
+#include "lscf.h"
+
 #if defined(NV_SUNOS)
 
 /* Interface to the Solaris Service Management Facility.

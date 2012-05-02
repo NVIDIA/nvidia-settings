@@ -265,30 +265,6 @@ static void zorder_layout(CtkDisplayLayout *ctk_object)
 
 
 
-/** get_selected() ***************************************************
- *
- * Returns the currently selected display and/or screen.  This
- * function is only useful for keeping track of when something new
- * has been selected.
- *
- **/
-
-static void * get_selected(CtkDisplayLayout *ctk_object)
-{
-    if (ctk_object->selected_display) {
-        return ctk_object->selected_display;
-    }
-
-    if (ctk_object->selected_screen) {
-        return ctk_object->selected_screen;
-    }
-
-    return NULL;
-
-} /*  get_selected() */
-
-
-
 /** get_metamode() ***************************************************
  *
  * Returns a screen's metamode_idx'th metamode, clamping to the last
@@ -2225,10 +2201,10 @@ static int pan_selected(CtkDisplayLayout *ctk_object, int x, int y, int snap)
  *
  **/
 
-ZNode *get_screen_zorder_move_data(CtkDisplayLayout *ctk_object,
-                                   nvScreenPtr screen,
-                                   int move_to,
-                                   int *screen_at)
+static ZNode *get_screen_zorder_move_data(CtkDisplayLayout *ctk_object,
+                                          nvScreenPtr screen,
+                                          int move_to,
+                                          int *screen_at)
 {
     ZNode *tmpzo;
     int i;
@@ -2411,119 +2387,6 @@ static void select_default_item(CtkDisplayLayout *ctk_object)
 
 
 
-/** pushback_display() ***********************************************
- *
- * Moves the specified display to the end of the Z-order.
- *
- **/
-
-static void pushback_display(CtkDisplayLayout *ctk_object,
-                             nvDisplayPtr display)
-{
-    int i;
-    int move_to;
-
-    for (i = 0; i < ctk_object->Zcount; i++) {
-
-        /* Find the display */
-        if (ctk_object->Zorder[i].type == ZNODE_TYPE_DISPLAY &&
-            ctk_object->Zorder[i].u.display == display) {
-            
-            if (!display->screen) {
-                /* Move display to the end of the list. */
-                move_to = ctk_object->Zcount - 1;
-            } else {
-                /* Move display prior to its X screen */
-                for (move_to = i+1;
-                     move_to < ctk_object->Zcount;
-                     move_to++) {
-                    if (ctk_object->Zorder[move_to].type ==
-                        ZNODE_TYPE_SCREEN &&
-                        ctk_object->Zorder[move_to].u.screen ==
-                        display->screen) {
-                        break;
-                    }
-                }
-                move_to--;
-            }
-
-            // Now move dispay from i to move_to
-            if (i != move_to) {
-                memmove(ctk_object->Zorder + i,
-                        ctk_object->Zorder + i + 1,
-                        (move_to - i)*sizeof(ZNode));
-
-                /* Place the display at the top */
-                ctk_object->Zorder[move_to].type = ZNODE_TYPE_DISPLAY;
-                ctk_object->Zorder[move_to].u.display = display;
-            }
-
-            break;
-        }
-    }
-
-} /* pushback_display() */
-
-
-
-/** pushback_screen() ************************************************
- *
- * Moves the specified screen to the end of the Z-order.
- *
- **/
-
-static void pushback_screen(CtkDisplayLayout *ctk_object,
-                            nvScreenPtr screen)
-{
-    int move_to = ctk_object->Zcount -1;
-    int screen_at;
-    ZNode *tmpzo;
-
-    /* Get a copy of the zorder buffer for the screen */
-    tmpzo = get_screen_zorder_move_data(ctk_object, screen, move_to,
-                                        &screen_at);
-    if (!tmpzo) return;
-
-    /* Move other nodes up to make room at the bottom */
-    memmove(ctk_object->Zorder + screen_at - screen->num_displays,
-            ctk_object->Zorder + screen_at + 1,
-            (move_to - screen_at)*sizeof(ZNode));
-    
-    /* Copy the screen and its displays to the bottom */
-    memcpy(ctk_object->Zorder + move_to - screen->num_displays,
-           tmpzo,
-           (1 + screen->num_displays)*sizeof(ZNode));
-
-    free(tmpzo);
-
-} /* pushback_screen() */
-
-
-
-/** pushback_selected() **********************************************
- *
- * Moves the specified display or screen to the end of the Z-order.
- *
- **/
-
-static void pushback_selected(CtkDisplayLayout *ctk_object)
-{
-    /* Pushback the selected display if it has no screen or
-     * is part of twinview to avoid selecting the screen of
-     * single-display screens.
-     */
-    if (ctk_object->selected_display &&
-        (!ctk_object->selected_screen ||
-         ctk_object->selected_screen->num_displays > 1)) {
-        pushback_display(ctk_object, ctk_object->selected_display);
-    } else if (ctk_object->selected_screen) {
-        pushback_screen(ctk_object, ctk_object->selected_screen);
-    }
-
-} /* pushback_selected() */
-
-
-
 /** get_display_tooltip() ********************************************
  *
  * Returns the text to use for displaying a tooltip from the given
@@ -2549,7 +2412,7 @@ static char *get_display_tooltip(nvDisplayPtr display, Bool advanced)
     /* Display does not have a screen (not configured) */
     if (!(display->screen)) {
         tip = g_strdup_printf("%s : Disabled (GPU: %s)",
-                              display->name, display->gpu->name);
+                              display->logName, display->gpu->name);
 
 
     /* Basic view */
@@ -2557,19 +2420,19 @@ static char *get_display_tooltip(nvDisplayPtr display, Bool advanced)
         
         /* Display has no mode */
         if (!display->cur_mode) {
-            tip = g_strdup_printf("%s", display->name);
+            tip = g_strdup_printf("%s", display->logName);
             
             
         /* Display does not have a current modeline (Off) */
         } else if (!(display->cur_mode->modeline)) {
             tip = g_strdup_printf("%s : Off",
-                                  display->name);
+                                  display->logName);
             
         /* Display has mode/modeline */
         } else {
             float ref = display->cur_mode->modeline->refresh_rate;
             tip = g_strdup_printf("%s : %dx%d @ %.*f Hz",
-                                  display->name,
+                                  display->logName,
                                   display->cur_mode->modeline->data.hdisplay,
                                   display->cur_mode->modeline->data.vdisplay,
                                   (display->is_sdi ? 3 : 0),
@@ -2584,14 +2447,14 @@ static char *get_display_tooltip(nvDisplayPtr display, Bool advanced)
         /* Display has no mode */
         if (!display->cur_mode) {
             tip = g_strdup_printf("%s\n(X Screen %d)\n(GPU: %s)",
-                                  display->name,
+                                  display->logName,
                                   display->screen->scrnum,
                                   display->gpu->name);
             
         /* Display does not have a current modeline (Off) */
         } else if (!(display->cur_mode->modeline)) {
             tip = g_strdup_printf("%s : Off\n(X Screen %d)\n(GPU: %s)",
-                                  display->name,
+                                  display->logName,
                                   display->screen->scrnum,
                                   display->gpu->name);
             
@@ -2600,7 +2463,7 @@ static char *get_display_tooltip(nvDisplayPtr display, Bool advanced)
             float ref = display->cur_mode->modeline->refresh_rate;
             tip = g_strdup_printf("%s : %dx%d @ %.*f Hz\n(X Screen %d)\n"
                                   "(GPU: %s)",
-                                  display->name,
+                                  display->logName,
                                   display->cur_mode->modeline->data.hdisplay,
                                   display->cur_mode->modeline->data.vdisplay,
                                   (display->is_sdi ? 3 : 0),
@@ -2739,8 +2602,7 @@ static char *get_tooltip_under_mouse(CtkDisplayLayout *ctk_object,
  *
  **/
 
-static int click_layout(CtkDisplayLayout *ctk_object, int x, int y,
-                        nvScreenPtr reselect_screen)
+static int click_layout(CtkDisplayLayout *ctk_object, int x, int y)
 {
     int i;
     nvDisplayPtr cur_selected_display = ctk_object->selected_display;
@@ -2754,7 +2616,7 @@ static int click_layout(CtkDisplayLayout *ctk_object, int x, int y,
     ctk_object->clicked_outside = 1;
     ctk_object->selected_display = NULL;
     ctk_object->selected_screen = NULL;
-    
+
 
     /* Look through the Z-order for the next element */
     for (i = 0; i < ctk_object->Zcount; i++) {
@@ -2763,19 +2625,10 @@ static int click_layout(CtkDisplayLayout *ctk_object, int x, int y,
             if (display->cur_mode &&
                 point_in_dim(display->cur_mode->pan, x, y)) {
 
-                /* Re-select the screen instead of the display
-                 * (after a move)
-                 */
-                if (display->screen &&
-                    (reselect_screen == display->screen)) {
-                    select_screen(ctk_object, display->screen);
-                } else {
-                    select_display(ctk_object, display);
-                }
+                select_display(ctk_object, display);
                 ctk_object->clicked_outside = 0;
                 break;
             }
-            
         } else if (ctk_object->Zorder[i].type == ZNODE_TYPE_SCREEN) {
             screen = ctk_object->Zorder[i].u.screen;
             sdim = get_screen_dim(screen, 1);
@@ -2826,6 +2679,7 @@ GType ctk_display_layout_get_type(void)
             sizeof(CtkDisplayLayout),
             0, /* n_preallocs */
             NULL, /* instance_init */
+            NULL  /* value_table */
         };
 
         ctk_display_layout_type = g_type_register_static
@@ -3188,7 +3042,7 @@ static void draw_display(CtkDisplayLayout *ctk_object,
     draw_rect_strs(ctk_object,
                    mode->dim,
                    &(ctk_object->fg_color),
-                   display->name,
+                   display->logName,
                    tmp_str);
     g_free(tmp_str);
 
@@ -4042,6 +3896,25 @@ void ctk_display_layout_select_display(CtkDisplayLayout *ctk_object,
 
 
 
+/** ctk_display_layout_select_screen() ************************
+ *
+ * Makes the given screen the thing that is selected.
+ *
+ **/
+
+void ctk_display_layout_select_screen(CtkDisplayLayout *ctk_object,
+                                      nvScreenPtr screen)
+{
+    /* Select the new display */
+    ctk_object->selected_display = NULL;
+    select_screen(ctk_object, screen);
+
+    queue_layout_redraw(ctk_object);
+
+} /* ctk_display_layout_select_screen() */
+
+
+
 /** ctk_display_layout_update_display_count() ************************
  *
  * Updates the number of displays shown in the layout by re-building
@@ -4477,15 +4350,12 @@ button_press_event_callback(GtkWidget *widget, GdkEventButton *event,
                             gpointer data)
 {
     CtkDisplayLayout *ctk_object = CTK_DISPLAY_LAYOUT(data);
-    void *last_selected; /* Last thing selected */
-    void *new_selected;
 
     /* Scale and offset x & y so they reside in the clickable area */
     int x = (event->x -ctk_object->img_dim[X]) / ctk_object->scale;
     int y = (event->y -ctk_object->img_dim[Y]) / ctk_object->scale;
 
     GdkEvent *next_event;
-    nvScreenPtr reselect_screen = NULL;
 
 
     ctk_object->last_mouse_x = event->x;
@@ -4516,74 +4386,10 @@ button_press_event_callback(GtkWidget *widget, GdkEventButton *event,
 
     switch (event->button) {
 
-    /* Select a display device */
+    /* Handle selection of displays/X screens */
     case Button1:
         ctk_object->button1 = 1;
-        last_selected = get_selected(ctk_object);
-
-        /* If the user had a screen selected
-         * and is not cycling through overlapping
-         * elements (screens/displays), try to
-         * re-select the screen instead of the display.
-         */
-        if (!ctk_object->first_selected_display &&
-            !ctk_object->first_selected_screen &&
-            !ctk_object->selected_display &&
-            ctk_object->selected_screen
-            ) {
-            reselect_screen = ctk_object->selected_screen;
-        }
-
-        /* If user clicked on the same spot twice, push last
-         * selection back in the Z-order.
-         */
-        if (ctk_object->first_selected_display ||
-            ctk_object->first_selected_screen) {
-            pushback_selected(ctk_object);
-        }
-
-        /* Do the click */
-        click_layout(ctk_object, x, y, reselect_screen);
-
-        /* Keep track of what is first selected to properly handle
-         * cycling through displays and screens when user keeps
-         * clicks on same spot.
-         */
-        new_selected = get_selected(ctk_object);
-
-        /* If the user clicks a second time on a display that has a
-         * screen (or has cycled/clicked through all the displays
-         * on that screen), select the screen instead of the first
-         * display that was originally clicked.
-         */
-        if (ctk_object->first_selected_display &&
-            ctk_object->first_selected_screen &&
-            (ctk_object->first_selected_display  ==
-             ctk_object->selected_display)
-            ) {
-            ctk_object->first_selected_display = NULL;
-            ctk_object->selected_display = NULL;
-            new_selected = ctk_object->first_selected_screen;
-        } else {
-            /* Keep track of the first display the user
-             * clicked on wrt the screen the display
-             * belongs to.  (ie, if the user clicked
-             * and we cycled to the next display in a
-             * TwinView screen, don't reset the first
-             * selected display.
-             */
-            if (!ctk_object->first_selected_display ||
-                (ctk_object->first_selected_screen!=
-                 ctk_object->selected_screen)) {
-                ctk_object->first_selected_display = 
-                    ctk_object->selected_display;
-            }
-        }
-
-        /* Keep track of the selected screen */
-        ctk_object->first_selected_screen = 
-            ctk_object->selected_screen;
-
+        click_layout(ctk_object, x, y);
 
         /* Report back selection event */
         if (ctk_object->selected_callback) {

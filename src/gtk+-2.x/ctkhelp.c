@@ -20,7 +20,7 @@
 #include <gtk/gtk.h>
 #include "ctkhelp.h"
 
-#include "msg.h"
+#include "common-utils.h"
 #include "ctkconstants.h"
 
 #include "ctkbanner.h"
@@ -51,6 +51,7 @@ GType ctk_help_get_type(
             sizeof (CtkHelp),
             0,    /* n_preallocs */
             NULL, /* instance_init */
+            NULL  /* value_table */
         };
 
         ctk_help_type = g_type_register_static

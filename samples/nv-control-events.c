@@ -30,6 +30,7 @@
 #include <stdlib.h>
 #include <string.h>
 #include <ctype.h>
+#include <unistd.h>
 
 
 #include <X11/Xlib.h>
@@ -37,30 +38,117 @@
 #include "NVCtrl.h"
 #include "NVCtrlLib.h"
 
+#define EVENT_TYPE_START TARGET_ATTRIBUTE_CHANGED_EVENT
+#define EVENT_TYPE_END TARGET_BINARY_ATTRIBUTE_CHANGED_EVENT
+
+
 static const char *attr2str(int n);
 static const char *target2str(int n);
+static const char *targetTypeAndId2Str(int targetType, int targetId);
 
-int main(void)
+struct target_info {
+    int type;
+    int count;
+};
+
+static void print_usage(char **argv)
+{
+    printf("Usage:\n");
+    printf("%s [-d <dpy>] [-a] [-c] [-b] [-s]\n", argv[0]);
+    printf("\n");
+    printf("-d <dpy>: X server display to connect to\n");
+    printf("-a: Listen for attribute availability events\n");
+    printf("-c: Listen for attribute changed events\n");
+    printf("-b: Listen for binary attribute changed events\n");
+    printf("-s: Listen for string attribute changed events\n");
+    printf("\n");
+    printf("By default (i.e., if none of -a, -c, -b, or -s are requested),\n"
+           "all event types are enabled.\n");
+}
+
+int main(int argc, char **argv)
 {
     Display *dpy;
     Bool ret;
     int event_base, error_base;
-    int num_screens, num_gpus, num_framelocks, num_vcs, i;
-    int num_gvis, num_coolers, num_thermal_sensors;
-    int num_3d_vision_pro_transceivers;
-    int sources;
-    XEvent event;
-    XNVCtrlAttributeChangedEvent *nvevent;
-    XNVCtrlAttributeChangedEventTarget *nveventtarget;
+    int i, j, k;
+    int sources = 0;
+    struct target_info info[] = {
+        { .type = NV_CTRL_TARGET_TYPE_X_SCREEN },
+        { .type = NV_CTRL_TARGET_TYPE_GPU },
+        { .type = NV_CTRL_TARGET_TYPE_FRAMELOCK },
+        { .type = NV_CTRL_TARGET_TYPE_VCSC },
+        { .type = NV_CTRL_TARGET_TYPE_GVI },
+        { .type = NV_CTRL_TARGET_TYPE_COOLER },
+        { .type = NV_CTRL_TARGET_TYPE_THERMAL_SENSOR },
+        { .type = NV_CTRL_TARGET_TYPE_3D_VISION_PRO_TRANSCEIVER },
+    };
+    static const int num_target_types = sizeof(info) / sizeof(*info);
+
+    int c;
+    char *dpy_name = NULL;
+    Bool anythingEnabled;
+
+#define EVENT_TYPE_ENTRY(_x) [_x] = { False, #_x }
+
+    struct {
+        Bool enabled;
+        char *description;
+    } eventTypes[] = {
+        EVENT_TYPE_ENTRY(TARGET_ATTRIBUTE_CHANGED_EVENT),
+        EVENT_TYPE_ENTRY(TARGET_ATTRIBUTE_AVAILABILITY_CHANGED_EVENT),
+        EVENT_TYPE_ENTRY(TARGET_STRING_ATTRIBUTE_CHANGED_EVENT),
+        EVENT_TYPE_ENTRY(TARGET_BINARY_ATTRIBUTE_CHANGED_EVENT),
+    };
+
+    while ((c = getopt(argc, argv, "d:acbsh")) >= 0) {
+        switch (c) {
+        case 'd':
+            dpy_name = optarg;
+            break;
+        case 'a':
+            eventTypes[TARGET_ATTRIBUTE_AVAILABILITY_CHANGED_EVENT].enabled = True;
+            break;
+        case 'c':
+            eventTypes[TARGET_ATTRIBUTE_CHANGED_EVENT].enabled = True;
+            break;
+        case 'b':
+            eventTypes[TARGET_BINARY_ATTRIBUTE_CHANGED_EVENT].enabled = True;
+            break;
+        case 's':
+            eventTypes[TARGET_STRING_ATTRIBUTE_CHANGED_EVENT].enabled = True;
+            break;
+        case '?':
+            fprintf(stderr, "%s: Unknown argument '%c'\n", argv[0], optopt);
+            /* fallthrough */
+        case 'h':
+            print_usage(argv);
+            return 1;
+        }
+    }
+
+    anythingEnabled = False;
+    for (i = EVENT_TYPE_START; i <= EVENT_TYPE_END; i++) {
+        if (eventTypes[i].enabled) {
+            anythingEnabled = True;
+            break;
+        }
+    }
+
+    if (!anythingEnabled) {
+        for (i = EVENT_TYPE_START; i <= EVENT_TYPE_END; i++) {
+            eventTypes[i].enabled = True;
+        }
+    }
 
     /*
      * Open a display connection, and make sure the NV-CONTROL X
      * extension is present on the screen we want to use.
      */
-    
-    dpy = XOpenDisplay(NULL);
+
+    dpy = XOpenDisplay(dpy_name);
     if (!dpy) {
-        fprintf(stderr, "Cannot open display '%s'.\n", XDisplayName(NULL));
+        fprintf(stderr, "Cannot open display '%s'.\n", XDisplayName(dpy_name));
         return 1;
     }
     
@@ -71,305 +159,97 @@ int main(void)
     ret = XNVCTRLQueryExtension(dpy, &event_base, &error_base);
     if (ret != True) {
         fprintf(stderr, "The NV-CONTROL X extension does not exist on '%s'.\n",
-                XDisplayName(NULL));
+                XDisplayName(dpy_name));
         return 1;
     }
 
-    /* Query number of X Screens */
+    /* Query target counts */
+    for (i = 0; i < num_target_types; i++) {
 
-    ret = XNVCTRLQueryTargetCount(dpy, NV_CTRL_TARGET_TYPE_X_SCREEN,
-                                  &num_screens);
-    if (ret != True) {
-        fprintf(stderr, "Failed to query the number of X Screens on '%s'.\n",
-                XDisplayName(NULL));
-        return 1;
+        struct target_info *tinfo = &info[i];
+
+        ret = XNVCTRLQueryTargetCount(dpy, tinfo->type, &tinfo->count);
+        if (ret != True) {
+            fprintf(stderr, "Failed to query %s target count on '%s'.\n",
+                    target2str(tinfo->type), XDisplayName(dpy_name));
+            return 1;
+        }
     }
 
-    /* Query number of GPUs */
-
-    ret = XNVCTRLQueryTargetCount(dpy, NV_CTRL_TARGET_TYPE_GPU,
-                                  &num_gpus);
-    if (ret != True) {
-        fprintf(stderr, "Failed to query the number of GPUs on '%s'.\n",
-                XDisplayName(NULL));
-        return 1;
-    }
-
-    /* Query number of Frame Lock (G-Sync) devices */
-
-    ret = XNVCTRLQueryTargetCount(dpy, NV_CTRL_TARGET_TYPE_FRAMELOCK,
-                                  &num_framelocks);
-    if (ret != True) {
-        fprintf(stderr, "Failed to query the number of G-Sync devices on "
-                "'%s'.\n",
-                XDisplayName(NULL));
-        return 1;
-    }
-
-    /* Query number of VCS (Visual Computing System) devices */
-
-    ret = XNVCTRLQueryTargetCount(dpy, NV_CTRL_TARGET_TYPE_VCSC,
-                                  &num_vcs);
-    if (ret != True) {
-        fprintf(stderr, "Failed to query the number of Visual Computing "
-                "System devices on '%s'.\n",
-                XDisplayName(NULL));
-        return 1;
-    }
-
-    /* Query number of GVI (Graphics Video Input) devices */
-
-    ret = XNVCTRLQueryTargetCount(dpy, NV_CTRL_TARGET_TYPE_GVI,
-                                  &num_gvis);
-    if (ret != True) {
-        fprintf(stderr, "Failed to query the number of Graphics Video "
-                "Input devices on '%s'.\n",
-                XDisplayName(NULL));
-        return 1;
-    }
-
-    /* Query number of Cooler devices */
-
-    ret = XNVCTRLQueryTargetCount(dpy, NV_CTRL_TARGET_TYPE_COOLER,
-                                  &num_coolers);
-    if (ret != True) {
-        fprintf(stderr, "Failed to query the number of Cooler devices "
-                "on '%s'.\n",
-                XDisplayName(NULL));
-        return 1;
-    }
-
-    /* Query number of Thermal Sensor devices */
-
-    ret = XNVCTRLQueryTargetCount(dpy, NV_CTRL_TARGET_TYPE_THERMAL_SENSOR,
-                                  &num_thermal_sensors);
-    if (ret != True) {
-        fprintf(stderr, "Failed to query the number of Thermal Sensor "
-                "devices on '%s'.\n",
-                XDisplayName(NULL));
-        return 1;
-    }
-
-    /* Query number of 3d Vision Pro Transceivers */
-
-    ret = XNVCTRLQueryTargetCount(dpy, NV_CTRL_TARGET_TYPE_3D_VISION_PRO_TRANSCEIVER,
-                                  &num_3d_vision_pro_transceivers);
-    if (ret != True) {
-        fprintf(stderr, "Failed to query the number of 3D Vision Pro "
-                "Transceiver devices on '%s'.\n",
-                XDisplayName(NULL));
-        return 1;
-    }
-
-    /*
-     * register to receive NV-CONTROL events: whenever any NV-CONTROL
-     * attribute is changed by an NV-CONTROL client, any other client
-     * can receive notification of the change.
-     */
-
-    sources = 0;
-
-    /* 
-     * - Register to receive ATTRIBUTE_CHANGE_EVENT events.  These events
-     *   are specific to attributes set on X Screens.
-     */
-
-    printf("Registering to receive ATTRIBUTE_CHANGED_EVENT events...\n");
+    printf("Registering to receive events...\n");
     fflush(stdout);
 
-    for (i = 0; i < num_screens; i++ ) {
+    /* Register to receive events on all targets */
 
-        /* Only register to receive events if this screen is controlled by
-         * the NVIDIA driver.
-         */
-        if (!XNVCTRLIsNvScreen(dpy, i)) {
-            printf("- The NV-CONTROL X not available on X screen "
-                   "%d of '%s'.\n", i, XDisplayName(NULL));
-            continue;
+    for (i = 0; i < num_target_types; i++) {
+        struct target_info *tinfo = &info[i];
+
+        for (j = 0; j < tinfo->count; j++) {
+
+            for (k = EVENT_TYPE_START; k <= EVENT_TYPE_END; k++) {
+                if (!eventTypes[k].enabled) {
+                    continue;
+                }
+
+                if ((k == TARGET_ATTRIBUTE_CHANGED_EVENT) &&
+                    (tinfo->type == NV_CTRL_TARGET_TYPE_X_SCREEN)) {
+
+                    /*
+                     * Only register to receive events if this screen is
+                     * controlled by the NVIDIA driver.
+                     */
+                    if (!XNVCTRLIsNvScreen(dpy, j)) {
+                        printf("- The NV-CONTROL X not available on X screen "
+                               "%d of '%s'.\n", i, XDisplayName(dpy_name));
+                        continue;
+                    }
+
+                    /*
+                     * - Register to receive ATTRIBUTE_CHANGE_EVENT events.
+                     *   These events are specific to attributes set on X
+                     *   Screens.
+                     */
+
+
+                    ret = XNVCtrlSelectNotify(dpy, j, ATTRIBUTE_CHANGED_EVENT,
+                                              True);
+                    if (ret != True) {
+                        printf("- Unable to register to receive NV-CONTROL"
+                               "events on '%s'.\n", XDisplayName(dpy_name));
+                        continue;
+                    }
+
+                    printf("+ Listening on X screen %d for "
+                           "ATTRIBUTE_CHANGED_EVENTs.\n", j);
+                    sources++;
+                }
+
+                /*
+                 * - Register to receive TARGET_ATTRIBUTE_CHANGED_EVENT events.
+                 *   These events are specific to attributes set on various
+                 *   devices and structures controlled by the NVIDIA driver.
+                 *   Some possible targets include X Screens, GPUs, and Frame
+                 *   Lock boards.
+                 */
+
+                ret = XNVCtrlSelectTargetNotify(dpy,
+                                                tinfo->type, /* target type */
+                                                j,           /* target ID */
+                                                k,           /* eventType */
+                                                True);
+                if (ret != True) {
+                    printf("- Unable to register on %s %d for %ss.\n",
+                           target2str(tinfo->type), j,
+                           eventTypes[k].description);
+                    continue;
+                }
+
+                printf("+ Listening on %s %d for %ss.\n",
+                       target2str(tinfo->type), j, eventTypes[k].description);
+
+                sources++;
+            }
         }
-        
-        ret = XNVCtrlSelectNotify(dpy, i, ATTRIBUTE_CHANGED_EVENT, True);
-        if (ret != True) {
-            printf("- Unable to register to receive NV-CONTROL events on '%s'."
-                   "\n", XDisplayName(NULL));
-            continue;
-        }
-        
-        printf("+ Listening to ATTRIBUTE_CHANGE_EVENTs on X screen %d.\n", i);
-        sources++;
-    }
-    printf("\n");
-
-    /* 
-     * - Register to receive TARGET_ATTRIBUTE_CHANGED_EVENT events.  These
-     *   events are specific to attributes set on various devices and
-     *   structures controlled by the NVIDIA driver.  Some possible targets
-     *   include X Screens, GPUs, and Frame Lock boards.
-     */
-
-    printf("Registering to receive TARGET_ATTRIBUTE_CHANGED_EVENT "
-           "events...\n");
-    fflush(stdout);
-
-    /* Register to receive on all X Screen targets */
-
-    for (i = 0; i < num_screens; i++ ) {
-
-        /* Only register to receive events if this screen is controlled by
-         * the NVIDIA driver.
-         */
-        if (!XNVCTRLIsNvScreen(dpy, i)) {
-            printf("- The NV-CONTROL X not available on X screen "
-                   "%d of '%s'.\n", i, XDisplayName(NULL));
-            continue;
-        }
-
-        ret = XNVCtrlSelectTargetNotify(dpy, NV_CTRL_TARGET_TYPE_X_SCREEN,
-                                        i, TARGET_ATTRIBUTE_CHANGED_EVENT,
-                                        True);
-        if (ret != True) {
-            printf("- Unable to register to receive NV-CONTROL "
-                   "target events for X screen %d on '%s'.\n",
-                   i, XDisplayName(NULL));
-            continue;
-        }
-        
-        printf("+ Listening to TARGET_ATTRIBUTE_CHANGE_EVENTs on X screen "
-               "%d.\n", i);
-        sources++;
-    }
-
-    /* Register to receive on all GPU targets */
-
-    for (i = 0; i < num_gpus; i++ ) {
-
-        ret = XNVCtrlSelectTargetNotify(dpy, NV_CTRL_TARGET_TYPE_GPU,
-                                        i, TARGET_ATTRIBUTE_CHANGED_EVENT,
-                                        True);
-        if (ret != True) {
-            printf("- Unable to register to receive NV-CONTROL "
-                   "target events for GPU %d on '%s'.\n",
-                   i, XDisplayName(NULL));
-            continue;
-        }
-        
-        printf("+ Listening to TARGET_ATTRIBUTE_CHANGE_EVENTs on GPU "
-               "%d.\n", i);
-        sources++;
-    }
-
-    /* Register to receive on all Frame Lock (G-Sync) targets */
-
-    for (i = 0; i < num_framelocks; i++ ) {
-
-        ret = XNVCtrlSelectTargetNotify(dpy, NV_CTRL_TARGET_TYPE_FRAMELOCK,
-                                        i, TARGET_ATTRIBUTE_CHANGED_EVENT,
-                                        True);
-        if (ret != True) {
-            printf("- Unable to register to receive NV-CONTROL "
-                   "target events for Frame Lock %d on '%s'.\n",
-                   i, XDisplayName(NULL));
-            continue;
-        }
-        
-        printf("+ Listening to TARGET_ATTRIBUTE_CHANGE_EVENTs on Frame Lock "
-               "%d.\n", i);
-        sources++;
-    }
-
-    /* Register to receive on all VCS targets */
-
-    for (i = 0; i < num_vcs; i++ ) {
-
-        ret = XNVCtrlSelectTargetNotify(dpy, NV_CTRL_TARGET_TYPE_VCSC,
-                                        i, TARGET_ATTRIBUTE_CHANGED_EVENT,
-                                        True);
-        if (ret != True) {
-            printf("- Unable to register to receive NV-CONTROL "
-                   "target events for VCS %d on '%s'.\n",
-                   i, XDisplayName(NULL));
-            continue;
-        }
-        
-        printf("+ Listening to TARGET_ATTRIBUTE_CHANGE_EVENTs on VCS "
-               "%d.\n", i);
-        sources++;
-    }
-
-    /* Register to receive on all GVI targets */
-
-    for (i = 0; i < num_gvis; i++ ) {
-
-        ret = XNVCtrlSelectTargetNotify(dpy, NV_CTRL_TARGET_TYPE_GVI,
-                                        i, TARGET_ATTRIBUTE_CHANGED_EVENT,
-                                        True);
-        if (ret != True) {
-            printf("- Unable to register to receive NV-CONTROL "
-                   "target events for GVI %d on '%s'.\n",
-                   i, XDisplayName(NULL));
-            continue;
-        }
-        
-        printf("+ Listening to TARGET_ATTRIBUTE_CHANGE_EVENTs on GVI "
-               "%d.\n", i);
-        sources++;
-    }
-
-    /* Register to receive on all Cooler targets */
-
-    for (i = 0; i < num_coolers; i++ ) {
-
-        ret = XNVCtrlSelectTargetNotify(dpy, NV_CTRL_TARGET_TYPE_COOLER,
-                                        i, TARGET_ATTRIBUTE_CHANGED_EVENT,
-                                        True);
-        if (ret != True) {
-            printf("- Unable to register to receive NV-CONTROL "
-                   "target events for Cooler %d on '%s'.\n",
-                   i, XDisplayName(NULL));
-            continue;
-        }
-        
-        printf("+ Listening to TARGET_ATTRIBUTE_CHANGE_EVENTs on Cooler "
-               "%d.\n", i);
-        sources++;
-    }
-
-    /* Register to receive on all Thermal Sensor targets */
-
-    for (i = 0; i < num_thermal_sensors; i++ ) {
-
-        ret = XNVCtrlSelectTargetNotify(dpy, NV_CTRL_TARGET_TYPE_THERMAL_SENSOR,
-                                        i, TARGET_ATTRIBUTE_CHANGED_EVENT,
-                                        True);
-        if (ret != True) {
-            printf("- Unable to register to receive NV-CONTROL "
-                   "target events for Thermal Sensor %d on '%s'.\n",
-                   i, XDisplayName(NULL));
-            continue;
-        }
-        
-        printf("+ Listening to TARGET_ATTRIBUTE_CHANGE_EVENTs on Thermal "
-               "Sensor %d.\n", i);
-        sources++;
-    }
-
-    /* Register to receive on all 3D Vision Pro Transceiver targets */
-
-    for (i = 0; i < num_3d_vision_pro_transceivers; i++ ) {
-
-        ret = XNVCtrlSelectTargetNotify(dpy, NV_CTRL_TARGET_TYPE_3D_VISION_PRO_TRANSCEIVER,
-                                        i, TARGET_ATTRIBUTE_CHANGED_EVENT,
-                                        True);
-        if (ret != True) {
-            printf("- Unable to register to receive NV-CONTROL "
-                   "target events for 3D Vision Pro Transceiver %d on '%s'.\n",
-                   i, XDisplayName(NULL));
-            continue;
-        }
-
-        printf("+ Listening to TARGET_ATTRIBUTE_CHANGE_EVENTs on 3d Vision "
-               "Pro Transceiver %d.\n", i);
-        sources++;
     }
 
     /* 
@@ -386,31 +266,25 @@ int main(void)
      */
 
     while (True) {
-        char target_str[256];
+        XEvent event;
+        const char *target_str;
 
         /* block for the next event */
 
         XNextEvent(dpy, &event);
 
-        /* if this is not one of our events, then bail out of this iteration */
-
-        if ((event.type != (event_base + ATTRIBUTE_CHANGED_EVENT)) &&
-            (event.type != (event_base + TARGET_ATTRIBUTE_CHANGED_EVENT)))
-            continue;
-        
         /* Handle ATTRIBUTE_CHANGED_EVENTS */
         if (event.type == (event_base + ATTRIBUTE_CHANGED_EVENT)) {
 
             /* cast the X event as an XNVCtrlAttributeChangedEvent */
-            
-            nvevent = (XNVCtrlAttributeChangedEvent *) &event;
-            
-            /* print out the event information */
-            snprintf(target_str, 256, "%s-%-3d", 
-                     target2str(NV_CTRL_TARGET_TYPE_X_SCREEN),
-                     nvevent->screen);
+            XNVCtrlAttributeChangedEvent *nvevent =
+                (XNVCtrlAttributeChangedEvent *) &event;
 
-            printf("ATTRIBUTE_CHANGED_EVENTS:         Target: %15s   "
+            target_str = targetTypeAndId2Str(NV_CTRL_TARGET_TYPE_X_SCREEN,
+                                             nvevent->screen);
+
+            /* print out the event information */
+            printf("ATTRIBUTE_CHANGED_EVENTS:                    Target: %15s  "
                    "Display Mask: 0x%08x   "
                    "Attribute: (%3d) %-32s   Value: %d (0x%08x)\n",
                    target_str,
@@ -424,16 +298,16 @@ int main(void)
         /* Handle TARGET_ATTRIBUTE_CHANGED_EVENTS */
         } else if (event.type ==
                    (event_base + TARGET_ATTRIBUTE_CHANGED_EVENT)) {
-            /* cast the X event as an XNVCtrlAttributeChangedEventTarget */
-            
-            nveventtarget = (XNVCtrlAttributeChangedEventTarget *) &event;
-            
-            /* print out the event information */
-            snprintf(target_str, 256, "%s-%-3d",
-                     target2str(nveventtarget->target_type),
-                     nveventtarget->target_id);
 
-            printf("TARGET_ATTRIBUTE_CHANGED_EVENTS:  Target: %15s   "
+            /* cast the X event as an XNVCtrlAttributeChangedEventTarget */
+            XNVCtrlAttributeChangedEventTarget *nveventtarget =
+                (XNVCtrlAttributeChangedEventTarget *) &event;
+
+            target_str = targetTypeAndId2Str(nveventtarget->target_type,
+                                             nveventtarget->target_id);
+
+            /* print out the event information */
+            printf("TARGET_ATTRIBUTE_CHANGED_EVENT:              Target: %15s  "
                    "Display Mask: 0x%08x   "
                    "Attribute: (%3d) %-32s   Value: %d (0x%08x)\n",
                    target_str,
@@ -443,6 +317,66 @@ int main(void)
                    nveventtarget->value,
                    nveventtarget->value
                    );
+
+        /* Handle TARGET_ATTRIBUTE_AVAILABILITY_CHANGED_EVENTS */
+        } else if (event.type ==
+                   (event_base + TARGET_ATTRIBUTE_AVAILABILITY_CHANGED_EVENT)) {
+
+            /* cast the X event as an XNVCtrlAttributeChangedEventTargetAvailability */
+            XNVCtrlAttributeChangedEventTargetAvailability *nveventavail =
+                (XNVCtrlAttributeChangedEventTargetAvailability *) &event;
+
+            target_str = targetTypeAndId2Str(nveventavail->target_type,
+                                             nveventavail->target_id);
+
+            /* print out the event information */
+            printf("TARGET_ATTRIBUTE_AVAILABILITY_CHANGED_EVENT: Target: %15s  "
+                   "Display Mask: 0x%08x   "
+                   "Attribute: (%3d) %-32s   Available: %s\n",
+                   target_str,
+                   nveventavail->display_mask,
+                   nveventavail->attribute,
+                   attr2str(nveventavail->attribute),
+                   nveventavail->availability ? "Yes" : "No"
+                   );
+        } else if (event.type ==
+                   (event_base + TARGET_STRING_ATTRIBUTE_CHANGED_EVENT)) {
+
+            XNVCtrlStringAttributeChangedEventTarget *nveventstring =
+                (XNVCtrlStringAttributeChangedEventTarget*) &event;
+
+            target_str = targetTypeAndId2Str(nveventstring->target_type,
+                                             nveventstring->target_id);
+
+            /* print out the event information */
+            printf("TARGET_STRING_ATTRIBUTE_CHANGED_EVENT:       Target: %15s  "
+                   "Display Mask: 0x%08x   "
+                   "Attribute: %3d\n",
+                   target_str,
+                   nveventstring->display_mask,
+                   nveventstring->attribute
+                   );
+
+        } else if (event.type ==
+                   (event_base + TARGET_BINARY_ATTRIBUTE_CHANGED_EVENT)) {
+
+            XNVCtrlBinaryAttributeChangedEventTarget *nveventbinary =
+                (XNVCtrlBinaryAttributeChangedEventTarget *) &event;
+
+            target_str = targetTypeAndId2Str(nveventbinary->target_type,
+                                             nveventbinary->target_id);
+
+            /* print out the event information */
+            printf("TARGET_BINARY_ATTRIBUTE_CHANGED_EVENT:       Target: %15s  "
+                   "Display Mask: 0x%08x   "
+                   "Attribute: %3d\n",
+                   target_str,
+                   nveventbinary->display_mask,
+                   nveventbinary->attribute
+                   );
+
+        } else {
+            printf("ERROR: unrecognized event type %d\n", event.type);
         }
     }
 
@@ -479,6 +413,15 @@ static const char *target2str(int n)
         snprintf(unknown, 24, "Unknown (%d)", n);
         return unknown;
     }
+}
+
+static const char *targetTypeAndId2Str(int targetType, int targetId)
+{
+    static char tmp[256];
+
+    snprintf(tmp, sizeof(tmp), "%s-%-3d", target2str(targetType), targetId);
+
+    return tmp;
 }
 
 
@@ -590,7 +533,6 @@ static AttrEntry attr_table[] = {
     MAKE_ENTRY(NV_CTRL_GVIO_REQUESTED_VIDEO_FORMAT),
     MAKE_ENTRY(NV_CTRL_GVIO_DETECTED_VIDEO_FORMAT),
     MAKE_ENTRY(NV_CTRL_GVO_DATA_FORMAT),
-    MAKE_ENTRY(NV_CTRL_GVO_DISPLAY_X_SCREEN),
     MAKE_ENTRY(NV_CTRL_GVO_COMPOSITE_SYNC_INPUT_DETECTED),
     MAKE_ENTRY(NV_CTRL_GVO_COMPOSITE_SYNC_INPUT_DETECT_MODE),
     MAKE_ENTRY(NV_CTRL_GVO_SDI_SYNC_INPUT_DETECTED),
@@ -603,8 +545,6 @@ static AttrEntry attr_table[] = {
     MAKE_ENTRY(NV_CTRL_GVIO_VIDEO_FORMAT_WIDTH),
     MAKE_ENTRY(NV_CTRL_GVIO_VIDEO_FORMAT_HEIGHT),
     MAKE_ENTRY(NV_CTRL_GVIO_VIDEO_FORMAT_REFRESH_RATE),
-    MAKE_ENTRY(NV_CTRL_GVO_X_SCREEN_PAN_X),
-    MAKE_ENTRY(NV_CTRL_GVO_X_SCREEN_PAN_Y),
     MAKE_ENTRY(NV_CTRL_GPU_OVERCLOCKING_STATE),
     MAKE_ENTRY(NV_CTRL_GPU_2D_CLOCK_FREQS),
     MAKE_ENTRY(NV_CTRL_GPU_3D_CLOCK_FREQS),

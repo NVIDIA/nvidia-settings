@@ -51,6 +51,7 @@ GType ctk_gvi_get_type(void)
             sizeof (CtkGvi),
             0,    /* n_preallocs */
             NULL, /* instance_init */
+            NULL  /* value_table */
         };
 
         ctk_gvi_type =
@@ -96,8 +97,8 @@ static gboolean update_sdi_input_info(gpointer user_data);
 /*
  * ctk_gvio_get_format_name() - retrun name of format.
  */
-const char * ctk_gvio_get_format_name(const GvioFormatName *formatTable,
-                                      const gint format)
+static const char *ctk_gvio_get_format_name(const GvioFormatName *formatTable,
+                                            const gint format)
 {
     int i;
     for (i = 0; formatTable[i].name; i++) {

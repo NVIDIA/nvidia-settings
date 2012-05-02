@@ -85,6 +85,7 @@ GType ctk_ecc_get_type(void)
             sizeof (CtkEcc),
             0,    /* n_preallocs */
             NULL, /* instance_init */
+            NULL  /* value_table */
         };
 
         ctk_ecc_type =

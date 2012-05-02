@@ -48,6 +48,8 @@ static void post_stereo_eyes_exchange_button_toggled(CtkOpenGL *, gboolean);
 
 static void post_aa_line_gamma_toggled(CtkOpenGL *, gboolean);
 
+static void post_use_conformant_clamping_button_toggled(CtkOpenGL *, gint);
+
 static void allow_flipping_button_toggled(GtkWidget *, gpointer);
 
 static void force_stereo_button_toggled (GtkWidget *, gpointer);
@@ -57,6 +59,8 @@ static void xinerama_stereo_button_toggled (GtkWidget *, gpointer);
 static void stereo_eyes_exchange_button_toggled (GtkWidget *, gpointer);
 
 static void aa_line_gamma_toggled        (GtkWidget *, gpointer);
+
+static void use_conformant_clamping_button_toggled(GtkWidget *, gpointer);
 
 static void show_sli_visual_indicator_button_toggled (GtkWidget *, gpointer);
 
@@ -142,6 +146,12 @@ static const char *__stereo_eyes_exchange_help =
 "eye image in the right eye and vice versa for stereo "
 "drawables.  This option is applied immediately.";
 
+static const char *__use_conformant_clamping_help =
+"Disabling this option causes OpenGL to replace GL_CLAMP with "
+"GL_CLAMP_TO_EDGE for borderless 2D textures.  This eliminates "
+"seams at the edges of textures in some older games such as "
+"Quake 3.";
+
 #define __SYNC_TO_VBLANK      (1 << 1)
 #define __ALLOW_FLIPPING      (1 << 2)
 #define __AA_LINE_GAMMA_VALUE (1 << 3)
@@ -153,6 +163,7 @@ static const char *__stereo_eyes_exchange_help =
 #define __SHOW_SLI_VISUAL_INDICATOR        (1 << 9)
 #define __STEREO_EYES_EXCHANGE (1 << 10)
 #define __SHOW_MULTIGPU_VISUAL_INDICATOR    (1 << 11)
+#define __CONFORMANT_CLAMPING (1 << 12)
 
 
 
@@ -173,6 +184,7 @@ GType ctk_opengl_get_type(
             sizeof (CtkOpenGL),
             0, /* n_preallocs */
             NULL, /* instance_init */
+            NULL  /* value_table */
         };
 
         ctk_opengl_type = g_type_register_static (GTK_TYPE_VBOX,
@@ -206,6 +218,7 @@ GtkWidget* ctk_opengl_new(NvCtrlAttributeHandle *handle,
     NVCTRLAttributeValidValuesRec image_settings_valid;
     gint image_settings_value;
     gint aa_line_gamma;
+    gint use_conformant_clamping;
     gint show_sli_visual_indicator;
     gint show_multigpu_visual_indicator;
 
@@ -216,6 +229,7 @@ GtkWidget* ctk_opengl_new(NvCtrlAttributeHandle *handle,
     ReturnStatus ret_stereo_eyes_exchange;
     ReturnStatus ret_image_settings;
     ReturnStatus ret_aa_line_gamma;
+    ReturnStatus ret_use_conformant_clamping;
     ReturnStatus ret_show_sli_visual_indicator;
     ReturnStatus ret_show_multigpu_visual_indicator;
 
@@ -252,6 +266,11 @@ GtkWidget* ctk_opengl_new(NvCtrlAttributeHandle *handle,
 
     ret_aa_line_gamma = NvCtrlGetAttribute(handle, NV_CTRL_OPENGL_AA_LINE_GAMMA,
                                            &aa_line_gamma);
+
+    ret_use_conformant_clamping =
+        NvCtrlGetAttribute(handle, NV_CTRL_TEXTURE_CLAMPING,
+                           &use_conformant_clamping);
+
     ret_show_sli_visual_indicator = NvCtrlGetAttribute(handle,
                                           NV_CTRL_SHOW_SLI_VISUAL_INDICATOR,
                                           &show_sli_visual_indicator);
@@ -267,6 +286,7 @@ GtkWidget* ctk_opengl_new(NvCtrlAttributeHandle *handle,
         (ret_stereo_eyes_exchange != NvCtrlSuccess) &&
         (ret_image_settings != NvCtrlSuccess) &&
         (ret_aa_line_gamma != NvCtrlSuccess) &&
+        (ret_use_conformant_clamping != NvCtrlSuccess) &&
         (ret_show_sli_visual_indicator != NvCtrlSuccess) &&
         (ret_show_multigpu_visual_indicator != NvCtrlSuccess)) {
         return NULL;
@@ -565,6 +585,37 @@ GtkWidget* ctk_opengl_new(NvCtrlAttributeHandle *handle,
                                      gtk_toggle_button_get_active
                                      (GTK_TOGGLE_BUTTON(check_button)));
     }
+
+    /*
+     * NV_CTRL_TEXTURE_CLAMPING
+     */
+
+    if (ret_use_conformant_clamping == NvCtrlSuccess) {
+        label = gtk_label_new("Use Conformant Texture Clamping");
+
+        check_button = gtk_check_button_new();
+        gtk_container_add(GTK_CONTAINER(check_button), label);
+
+        gtk_toggle_button_set_active(GTK_TOGGLE_BUTTON(check_button),
+                                     use_conformant_clamping);
+
+        gtk_box_pack_start(GTK_BOX(vbox), check_button, FALSE, FALSE, 0);
+
+        g_signal_connect(G_OBJECT(check_button), "toggled",
+                         G_CALLBACK(use_conformant_clamping_button_toggled),
+                         (gpointer) ctk_opengl);
+
+        g_signal_connect(G_OBJECT(ctk_event),
+                         CTK_EVENT_NAME(NV_CTRL_TEXTURE_CLAMPING),
+                         G_CALLBACK(value_changed), (gpointer) ctk_opengl);
+
+        ctk_config_set_tooltip(ctk_config, check_button,
+                               __use_conformant_clamping_help);
+
+        ctk_opengl->active_attributes |= __CONFORMANT_CLAMPING;
+
+        ctk_opengl->use_conformant_clamping_button = check_button;
+    }
     
     if (ret_show_sli_visual_indicator == NvCtrlSuccess) {
 
@@ -696,6 +747,15 @@ static void post_aa_line_gamma_toggled(CtkOpenGL *ctk_opengl,
                                  enabled ? "enabled" : "disabled");
 }
 
+static void
+post_use_conformant_clamping_button_toggled(CtkOpenGL *ctk_opengl,
+                                               int clamping) 
+{
+    ctk_config_statusbar_message(ctk_opengl->ctk_config,
+                                 "Use %sConformant OpenGL Texture Clamping",
+                                 (clamping == NV_CTRL_TEXTURE_CLAMPING_SPEC) ?
+                                 "" : "Non-");
+}
 
 static void vblank_sync_button_toggled(
     GtkWidget *widget,
@@ -826,6 +886,24 @@ static void aa_line_gamma_toggled(
     post_aa_line_gamma_toggled(ctk_opengl, enabled);
 }
 
+static void use_conformant_clamping_button_toggled(GtkWidget *widget,
+                                                   gpointer user_data)
+{
+    CtkOpenGL *ctk_opengl;
+    int clamping;
+    
+    ctk_opengl = CTK_OPENGL(user_data);
+
+    if (gtk_toggle_button_get_active(GTK_TOGGLE_BUTTON(widget))) {
+        clamping = NV_CTRL_TEXTURE_CLAMPING_SPEC;
+    } else {
+        clamping = NV_CTRL_TEXTURE_CLAMPING_EDGE;
+    }
+   
+    NvCtrlSetAttribute(ctk_opengl->handle, NV_CTRL_TEXTURE_CLAMPING, clamping);
+
+    post_use_conformant_clamping_button_toggled(ctk_opengl, clamping);
+}
 
 
 /*
@@ -876,6 +954,13 @@ static void value_changed(GtkObject *object, gpointer arg1, gpointer user_data)
         post_aa_line_gamma_toggled(ctk_opengl, event_struct->value);
         gtk_widget_set_sensitive(ctk_opengl->aa_line_gamma_scale,
                                  event_struct->value);
+        break;
+    case NV_CTRL_TEXTURE_CLAMPING:
+        button =
+            GTK_TOGGLE_BUTTON(ctk_opengl->use_conformant_clamping_button);
+        func = G_CALLBACK(use_conformant_clamping_button_toggled);
+        post_use_conformant_clamping_button_toggled(ctk_opengl,
+                                                    event_struct->value);
         break;
     case NV_CTRL_SHOW_SLI_VISUAL_INDICATOR:
         button = GTK_TOGGLE_BUTTON(ctk_opengl->show_sli_visual_indicator_button);
@@ -1199,6 +1284,11 @@ GtkTextBuffer *ctk_opengl_create_help(GtkTextTagTable *table,
         ctk_help_heading(b, &i, "Set gamma correction for "
                          "antialiased lines");
         ctk_help_para(b, &i, __aa_line_gamma_slider_help);
+    }
+
+    if (ctk_opengl->active_attributes & __CONFORMANT_CLAMPING) {
+        ctk_help_heading(b, &i, "Use Conformant Texture Clamping");
+        ctk_help_para(b, &i, __use_conformant_clamping_help);
     }
 
     if (ctk_opengl->active_attributes & __SHOW_SLI_VISUAL_INDICATOR) {

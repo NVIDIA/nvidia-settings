@@ -49,7 +49,6 @@
 #include "opengl_pixdata.h"
 #include "penguin_pixdata.h"
 #include "gvi_pixdata.h"
-#include "rotation_pixdata.h"
 #include "sdi_pixdata.h"
 #include "sdi_shared_sync_bnc_pixdata.h"
 #include "slimm_pixdata.h"
@@ -105,6 +104,7 @@ GType ctk_banner_get_type(
             sizeof (CtkBanner),
             0, /* n_preallocs */
             NULL, /* instance_init */
+            NULL  /* value_table */
         };
 
         ctk_banner_type = g_type_register_static(GTK_TYPE_DRAWING_AREA,
@@ -365,7 +365,6 @@ static gboolean select_artwork(BannerArtworkType artwork,
         { BANNER_ARTWORK_HELP,           FALSE, 16, &help_pixdata           },
         { BANNER_ARTWORK_OPENGL,         FALSE, 16, &opengl_pixdata         },
         { BANNER_ARTWORK_PENGUIN,        TRUE,  16, &penguin_pixdata        },
-        { BANNER_ARTWORK_ROTATION,       FALSE, 16, &rotation_pixdata       },
         { BANNER_ARTWORK_SDI,            FALSE, 16, &sdi_pixdata            },
         { BANNER_ARTWORK_SDI_SHARED_SYNC_BNC, FALSE, 16, &sdi_shared_sync_bnc_pixdata },
         { BANNER_ARTWORK_SLIMM,          FALSE, 16, &slimm_pixdata          },

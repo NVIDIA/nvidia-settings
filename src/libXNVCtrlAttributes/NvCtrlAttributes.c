@@ -570,13 +570,6 @@ NvCtrlGetDisplayAttribute64(NvCtrlAttributeHandle *handle,
         return status;
     }
 
-    if ((attr >= NV_CTRL_ATTR_XRANDR_BASE) &&
-        (attr <= NV_CTRL_ATTR_XRANDR_LAST_ATTRIBUTE)) {
-        status = NvCtrlXrandrGetAttribute(h, attr, &value_32);
-        *val = value_32;
-        return status;
-    }
-
     return NvCtrlNoAttribute;
     
 } /* NvCtrlGetDisplayAttribute64() */
@@ -613,12 +606,6 @@ NvCtrlSetDisplayAttribute(NvCtrlAttributeHandle *handle,
         (attr <= NV_CTRL_ATTR_XV_LAST_ATTRIBUTE)) {
         
         return NvCtrlXvSetAttribute(h, attr, val);
-    }
-    
-    if ((attr >= NV_CTRL_ATTR_XRANDR_BASE) &&
-        (attr <= NV_CTRL_ATTR_XRANDR_LAST_ATTRIBUTE)) {
-        
-        return NvCtrlXrandrSetAttribute(h, attr, val);
     }
 
     return NvCtrlNoAttribute;
@@ -931,24 +918,6 @@ void NvCtrlAttributeClose(NvCtrlAttributeHandle *handle)
 } /* NvCtrlAttributeClose() */
 
 
-ReturnStatus
-NvCtrlXrandrSetScreenMode (NvCtrlAttributeHandle *handle,
-                           int width, int height, int refresh)
-{
-    return NvCtrlXrandrSetScreenMagicMode
-        ((NvCtrlAttributePrivateHandle *)handle, width, height, refresh);
-} /* NvCtrlXrandrSetScreenMode() */
-
-
-ReturnStatus
-NvCtrlXrandrGetScreenMode (NvCtrlAttributeHandle *handle,
-                           int *width, int *height, int *refresh)
-{
-    return NvCtrlXrandrGetScreenMagicMode
-        ((NvCtrlAttributePrivateHandle *)handle, width, height, refresh);
-} /* NvCtrlXrandrGetScreenMode() */
-
-
 /*
  * NvCtrlGetMultisampleModeName() - lookup a string desribing the
  * NV-CONTROL constant.
@@ -971,7 +940,9 @@ const char *NvCtrlGetMultisampleModeName(int multisample_mode)
         "8x (8xMS)",           /* FSAA_MODE_8xQ   */
         "16x (4xSS, 4xMS)",    /* FSAA_MODE_16xS  */
         "16x (8xMS, 8xCS)",    /* FSAA_MODE_16xQ  */
-        "32x (4xSS, 8xMS)"     /* FSAA_MODE_32xS  */
+        "32x (4xSS, 8xMS)",    /* FSAA_MODE_32xS  */
+        "32x (8xMS, 24xCS)",   /* FSAA_MODE_32x   */
+        "64x (16xSS, 4xMS)",   /* FSAA_MODE_64xS  */
     };
 
     if ((multisample_mode < NV_CTRL_FSAA_MODE_NONE) ||

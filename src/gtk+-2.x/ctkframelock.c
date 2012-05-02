@@ -44,6 +44,7 @@
 
 #include "parse.h"
 #include "msg.h"
+#include "common-utils.h"
 
 
 #define DEFAULT_UPDATE_STATUS_TIME_INTERVAL       1000
@@ -743,9 +744,9 @@ static GtkWidget *create_enable_confirm_dialog(CtkFramelock *ctk_framelock)
  * Creates a button with padding.
  *
  */
-GtkWidget *my_button_new_with_label(const gchar *txt,
-                                    gint hpad,
-                                    gint vpad)
+static GtkWidget *my_button_new_with_label(const gchar *txt,
+                                           gint hpad,
+                                           gint vpad)
 {
     GtkWidget *btn;
     GtkWidget *hbox;
@@ -771,9 +772,9 @@ GtkWidget *my_button_new_with_label(const gchar *txt,
  * Creates a toggle button with padding.
  *
  */
-GtkWidget *my_toggle_button_new_with_label(const gchar *txt,
-                                           gint hpad,
-                                           gint vpad)
+static GtkWidget *my_toggle_button_new_with_label(const gchar *txt,
+                                                  gint hpad,
+                                                  gint vpad)
 {
     GtkWidget *btn;
     GtkWidget *hbox;
@@ -799,7 +800,7 @@ GtkWidget *my_toggle_button_new_with_label(const gchar *txt,
  * Updates the container to hold a duplicate of the given image.
  *
  */
-void update_image(GtkWidget *container, GdkPixbuf *new_pixbuf)
+static void update_image(GtkWidget *container, GdkPixbuf *new_pixbuf)
 {
     ctk_empty_container(container);
 
@@ -1194,7 +1195,14 @@ static void list_entry_update_gpu_controls(CtkFramelock *ctk_framelock,
     }
 }
 
+static gboolean framelock_refresh_rates_compatible(int server, int client)
+{
+    int range = ABS(((int64_t)(server - client) * 1000000) / client);
 
+    /* Framelock can be achieved if the range between refresh rates is less
+     * than 50 ppm */
+    return range <= 50;
+}
 
 /** list_entry_update_display_controls() *****************************
  *
@@ -1249,8 +1257,9 @@ static void list_entry_update_display_controls(CtkFramelock *ctk_framelock,
      * the same as the current server's, or the X server tells us
      * the client cannot be frame locked.
      */
-    sensitive = ((!server_data || data->rate == server_data->rate) &&
-                 data->slaveable);
+    sensitive = (data->slaveable &&
+        (!server_data ||
+         framelock_refresh_rates_compatible(server_data->rate, data->rate)));
     gtk_widget_set_sensitive(data->rate_label, sensitive);
     gtk_widget_set_sensitive(data->rate_text, sensitive);
     gtk_widget_set_sensitive(data->label, sensitive);
@@ -2522,79 +2531,6 @@ static gboolean get_server_id(NvCtrlAttributeHandle *handle,
 
 
 
-/** find_entry_by_name() *********************************************
- *
- * - Looks in the list tree for the first list entry to have a handle
- *   to the given server name with the given entry data type and
- *   target id.
- *
- */
-static nvListEntryPtr find_entry_by_name(nvListEntryPtr entry,
-                                         gchar *server_name,
-                                         int entry_type,
-                                         int entry_id
-                                         )
-{
-    nvListEntryPtr found_entry = NULL;
-
-    if (!entry) return NULL;
-
-    /* Check this entry */
-
-    if ((entry->data_type == ENTRY_DATA_FRAMELOCK &&
-         entry_type == NV_CTRL_TARGET_TYPE_FRAMELOCK) ||
-        (entry->data_type == ENTRY_DATA_GPU &&
-         entry_type == NV_CTRL_TARGET_TYPE_GPU)) {
-        gpointer  handle;
-
-        switch (entry->data_type) {
-        case ENTRY_DATA_FRAMELOCK:
-            handle = ((nvFrameLockDataPtr)(entry->data))->handle;
-            break;
-        case ENTRY_DATA_GPU:
-            handle = ((nvGPUDataPtr)(entry->data))->handle;
-            break;
-        default:
-            handle = NULL;
-            break;
-        }
-
-        if (handle) {
-            gchar  *name = NvCtrlGetDisplayName(handle);
-            int     id   = NvCtrlGetTargetId(handle);
-            
-            if (name && !strcasecmp(server_name, name) &&
-                id == entry_id) {
-                free(name);
-                return entry;
-            }
-            free(name);
-        }
-    }
-
-    /* Check children */
-
-    found_entry = find_entry_by_name(entry->children,
-                                     server_name,
-                                     entry_type,
-                                     entry_id);
-    if (found_entry) return found_entry;
-
-    /* Check siblings */
-
-    found_entry = find_entry_by_name(entry->next_sibling,
-                                     server_name,
-                                     entry_type,
-                                     entry_id);
-    if (found_entry) return found_entry;
-
-    /* Entry not found in this branch */
-
-    return NULL;
-}
-
-
-
 /**************************************************************************/
 
 /*
@@ -3572,8 +3508,8 @@ static void toggle_detect_video_mode(GtkToggleButton *button,
  * querying the current state of the X Server.
  *
  */
-void list_entry_update_framelock_status(CtkFramelock *ctk_framelock,
-                                        nvListEntryPtr entry)
+static void list_entry_update_framelock_status(CtkFramelock *ctk_framelock,
+                                               nvListEntryPtr entry)
 {
     nvFrameLockDataPtr data = (nvFrameLockDataPtr)(entry->data);
     gint rate, delay, house, port0, port1;
@@ -3665,8 +3601,8 @@ void list_entry_update_framelock_status(CtkFramelock *ctk_framelock,
  * current state of the X Server.
  *
  */
-void list_entry_update_gpu_status(CtkFramelock *ctk_framelock,
-                                  nvListEntryPtr entry)
+static void list_entry_update_gpu_status(CtkFramelock *ctk_framelock,
+                                         nvListEntryPtr entry)
 {
     nvGPUDataPtr data = (nvGPUDataPtr)(entry->data);
     gboolean framelock_enabled;
@@ -3724,8 +3660,8 @@ void list_entry_update_gpu_status(CtkFramelock *ctk_framelock,
  * the current state of the X Server.
  *
  */
-void list_entry_update_display_status(CtkFramelock *ctk_framelock,
-                                      nvListEntryPtr entry)
+static void list_entry_update_display_status(CtkFramelock *ctk_framelock,
+                                             nvListEntryPtr entry)
 {
     nvDisplayDataPtr data = (nvDisplayDataPtr)(entry->data);
     gboolean framelock_enabled;
@@ -3793,8 +3729,8 @@ void list_entry_update_display_status(CtkFramelock *ctk_framelock,
  * by querying the X Server.
  *
  */
-void list_entry_update_status(CtkFramelock *ctk_framelock,
-                              nvListEntryPtr entry)
+static void list_entry_update_status(CtkFramelock *ctk_framelock,
+                                     nvListEntryPtr entry)
 {
     if (!entry) return;
 
@@ -4456,6 +4392,7 @@ GType ctk_framelock_get_type(
             sizeof (CtkFramelock),
             0, /* n_preallocs */
             NULL, /* instance_init */
+            NULL  /* value_table */
         };
         
         ctk_framelock_type = g_type_register_static
@@ -5715,7 +5652,7 @@ static gint add_devices(CtkFramelock *ctk_framelock,
         a.target_type          = target_type;           \
         a.target_id            = target_id;             \
         a.attr                 = (x);                   \
-        a.val                  = (y);                   \
+        a.val.i                = (y);                   \
         a.display_device_mask  = (z);                   \
         a.flags               |= NV_PARSER_HAS_TARGET;  \
         nv_parsed_attribute_add(head, &a);
@@ -5723,13 +5660,17 @@ static gint add_devices(CtkFramelock *ctk_framelock,
 static void add_entry_to_parsed_attributes(nvListEntryPtr entry,
                                              ParsedAttribute *head)
 {
-    ParsedAttribute a = { 0 };
+    ParsedAttribute a;
     char *display_name = NULL;
     int target_type = 0;
     int target_id = 0;
 
-    if (!entry) return;
-   
+    if (!entry) {
+        return;
+    }
+
+    memset(&a, 0, sizeof(a));
+
     switch (entry->data_type) {
 
     case ENTRY_DATA_FRAMELOCK:
