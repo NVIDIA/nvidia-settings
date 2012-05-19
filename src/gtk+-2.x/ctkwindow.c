@@ -56,7 +56,6 @@
 #include "ctkpowersavings.h"
 #include "ctk3dvisionpro.h"
 
-#include "ctkdisplaydevice-crt.h"
 #include "ctkdisplaydevice-tv.h"
 #include "ctkdisplaydevice.h"
 
@@ -120,7 +119,6 @@ static void save_settings_and_exit(CtkWindow *);
 
 static void add_display_devices(CtkWindow *ctk_window, GtkTreeIter *iter,
                                 NvCtrlAttributeHandle *handle,
-                                CtkEvent *ctk_event,
                                 GtkTextTagTable *tag_table,
                                 UpdateDisplaysData *data);
 
@@ -854,14 +852,13 @@ GtkWidget *ctk_window_new(ParsedAttribute *p, ConfigProperties *conf,
         data->gpu_handle = gpu_handle;
         data->parent_iter = iter;
         data->tag_table = tag_table;
-        
+
         g_signal_connect(G_OBJECT(ctk_event),
                          CTK_EVENT_NAME(NV_CTRL_PROBE_DISPLAYS),
                          G_CALLBACK(update_display_devices),
-                         (gpointer) data);            
-        
-        add_display_devices(ctk_window, &iter, gpu_handle, ctk_event,
-                            tag_table, data);
+                         (gpointer) data);
+
+        add_display_devices(ctk_window, &iter, gpu_handle, tag_table, data);
     }
 
     /* add the per-vcs (e.g. Quadro Plex) entries into the tree model */
@@ -1352,7 +1349,6 @@ void add_special_config_file_attributes(CtkWindow *ctk_window)
 
 static void add_display_devices(CtkWindow *ctk_window, GtkTreeIter *iter,
                                 NvCtrlAttributeHandle *gpu_handle,
-                                CtkEvent *ctk_event,
                                 GtkTextTagTable *tag_table,
                                 UpdateDisplaysData *data)
 {
@@ -1391,6 +1387,7 @@ static void add_display_devices(CtkWindow *ctk_window, GtkTreeIter *iter,
         char *typeIdName;
         GtkWidget *widget;
         gchar *title;
+        CtkEvent *ctk_event;
 
         display_handle =
             NvCtrlAttributeInit(NvCtrlGetDisplayPtr(gpu_handle),
@@ -1400,6 +1397,8 @@ static void add_display_devices(CtkWindow *ctk_window, GtkTreeIter *iter,
         if (!display_handle) {
             continue;
         }
+
+        ctk_event = CTK_EVENT(ctk_event_new(display_handle));
 
         /* Query display's names */
         ret = NvCtrlGetStringAttribute(display_handle,
@@ -1431,17 +1430,13 @@ static void add_display_devices(CtkWindow *ctk_window, GtkTreeIter *iter,
         XFree(typeIdName);
 
         /* Create the appropriate page for the display */
-        if (strcmp(typeBaseName, "CRT") == 0) {
-            widget = ctk_display_device_crt_new
-                (display_handle, ctk_window->ctk_config, ctk_event, title);
-            help = ctk_display_device_crt_create_help
-                (tag_table, CTK_DISPLAY_DEVICE_CRT(widget));
-        } else if (strcmp(typeBaseName, "TV") == 0) {
+        if (strcmp(typeBaseName, "TV") == 0) {
             widget = ctk_display_device_tv_new
                 (display_handle, ctk_window->ctk_config, ctk_event, title);
             help = ctk_display_device_tv_create_help
                 (tag_table, CTK_DISPLAY_DEVICE_TV(widget));
-        } else if (strcmp(typeBaseName, "DFP") == 0) {
+        } else if ((strcmp(typeBaseName, "DFP") == 0) ||
+                   (strcmp(typeBaseName, "CRT") == 0)) {
             widget = ctk_display_device_new(display_handle,
                                             ctk_window->ctk_config, ctk_event,
                                             title, typeBaseName);
@@ -1480,7 +1475,6 @@ static void update_display_devices(GtkObject *object, gpointer arg1,
     UpdateDisplaysData *data = (UpdateDisplaysData *) user_data;
 
     CtkWindow *ctk_window = data->window;
-    CtkEvent *ctk_event = data->event;
     NvCtrlAttributeHandle *gpu_handle = data->gpu_handle;
     GtkTreeIter parent_iter = data->parent_iter;
     GtkTextTagTable *tag_table = data->tag_table;
@@ -1520,10 +1514,9 @@ static void update_display_devices(GtkObject *object, gpointer arg1,
 
         data->num_displays--;
     }
-    
+
     /* Add back all the connected display devices */
-    add_display_devices(ctk_window, &parent_iter, gpu_handle, ctk_event,
-                        tag_table, data);
+    add_display_devices(ctk_window, &parent_iter, gpu_handle, tag_table, data);
 
     /* Expand the GPU entry if it used to be */
     if (parent_expanded) {

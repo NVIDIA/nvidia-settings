@@ -3964,6 +3964,8 @@
  *                               for details.
  *                "nv-control" - the MetaMode was added via the NV-CONTROL X
  *                               extension to the currently running X server.
+ *                "RandR"      - the MetaMode was modified in response to an
+ *                               RandR RRSetCrtcConfig request.
  *
  * Additional tokens may be added in the future, so it is recommended
  * that any token parser processing the returned string from

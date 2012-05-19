@@ -49,6 +49,7 @@ static const char *targetTypeAndId2Str(int targetType, int targetId);
 struct target_info {
     int type;
     int count;
+    unsigned int *pIds; // If Non-NULL, is list of target ids.
 };
 
 static void print_usage(char **argv)
@@ -76,6 +77,7 @@ int main(int argc, char **argv)
     struct target_info info[] = {
         { .type = NV_CTRL_TARGET_TYPE_X_SCREEN },
         { .type = NV_CTRL_TARGET_TYPE_GPU },
+        { .type = NV_CTRL_TARGET_TYPE_DISPLAY },
         { .type = NV_CTRL_TARGET_TYPE_FRAMELOCK },
         { .type = NV_CTRL_TARGET_TYPE_VCSC },
         { .type = NV_CTRL_TARGET_TYPE_GVI },
@@ -168,11 +170,26 @@ int main(int argc, char **argv)
 
         struct target_info *tinfo = &info[i];
 
-        ret = XNVCTRLQueryTargetCount(dpy, tinfo->type, &tinfo->count);
-        if (ret != True) {
-            fprintf(stderr, "Failed to query %s target count on '%s'.\n",
-                    target2str(tinfo->type), XDisplayName(dpy_name));
-            return 1;
+
+        if (tinfo->type == NV_CTRL_TARGET_TYPE_DISPLAY) {
+            ret = XNVCTRLQueryTargetBinaryData(dpy, NV_CTRL_TARGET_TYPE_X_SCREEN,
+                                               0, 0,
+                                               NV_CTRL_BINARY_DATA_DISPLAY_TARGETS,
+                                               (unsigned char **)&(tinfo->pIds),
+                                               &(tinfo->count));
+            if (ret != True) {
+                fprintf(stderr, "Failed to query %s target count on '%s'.\n",
+                        target2str(tinfo->type), XDisplayName(dpy_name));
+                return 1;
+            }
+            tinfo->count = tinfo->pIds[0];
+        } else {
+            ret = XNVCTRLQueryTargetCount(dpy, tinfo->type, &tinfo->count);
+            if (ret != True) {
+                fprintf(stderr, "Failed to query %s target count on '%s'.\n",
+                        target2str(tinfo->type), XDisplayName(dpy_name));
+                return 1;
+            }
         }
     }
 
@@ -185,6 +202,13 @@ int main(int argc, char **argv)
         struct target_info *tinfo = &info[i];
 
         for (j = 0; j < tinfo->count; j++) {
+            int target_id;
+
+            if (tinfo->pIds) {
+                target_id = tinfo->pIds[1+j];
+            } else {
+                target_id = j;
+            }
 
             for (k = EVENT_TYPE_START; k <= EVENT_TYPE_END; k++) {
                 if (!eventTypes[k].enabled) {
@@ -198,7 +222,7 @@ int main(int argc, char **argv)
                      * Only register to receive events if this screen is
                      * controlled by the NVIDIA driver.
                      */
-                    if (!XNVCTRLIsNvScreen(dpy, j)) {
+                    if (!XNVCTRLIsNvScreen(dpy, target_id)) {
                         printf("- The NV-CONTROL X not available on X screen "
                                "%d of '%s'.\n", i, XDisplayName(dpy_name));
                         continue;
@@ -211,7 +235,7 @@ int main(int argc, char **argv)
                      */
 
 
-                    ret = XNVCtrlSelectNotify(dpy, j, ATTRIBUTE_CHANGED_EVENT,
+                    ret = XNVCtrlSelectNotify(dpy, target_id, ATTRIBUTE_CHANGED_EVENT,
                                               True);
                     if (ret != True) {
                         printf("- Unable to register to receive NV-CONTROL"
@@ -220,7 +244,7 @@ int main(int argc, char **argv)
                     }
 
                     printf("+ Listening on X screen %d for "
-                           "ATTRIBUTE_CHANGED_EVENTs.\n", j);
+                           "ATTRIBUTE_CHANGED_EVENTs.\n", target_id);
                     sources++;
                 }
 
@@ -234,18 +258,18 @@ int main(int argc, char **argv)
 
                 ret = XNVCtrlSelectTargetNotify(dpy,
                                                 tinfo->type, /* target type */
-                                                j,           /* target ID */
+                                                target_id,   /* target ID */
                                                 k,           /* eventType */
                                                 True);
                 if (ret != True) {
                     printf("- Unable to register on %s %d for %ss.\n",
-                           target2str(tinfo->type), j,
+                           target2str(tinfo->type), target_id,
                            eventTypes[k].description);
                     continue;
                 }
 
                 printf("+ Listening on %s %d for %ss.\n",
-                       target2str(tinfo->type), j, eventTypes[k].description);
+                       target2str(tinfo->type), target_id, eventTypes[k].description);
 
                 sources++;
             }
@@ -397,6 +421,8 @@ static const char *target2str(int n)
         return "X Screen";
     case NV_CTRL_TARGET_TYPE_GPU:
         return "GPU";
+    case NV_CTRL_TARGET_TYPE_DISPLAY:
+        return "Display";
     case NV_CTRL_TARGET_TYPE_FRAMELOCK:
         return "Frame Lock";
     case NV_CTRL_TARGET_TYPE_VCSC:

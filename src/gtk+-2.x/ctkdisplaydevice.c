@@ -19,6 +19,7 @@
 
 #include <gtk/gtk.h>
 #include <NvCtrlAttributes.h>
+#include <string.h>
 
 #include "ctkbanner.h"
 
@@ -41,6 +42,9 @@ static void reset_button_clicked(GtkButton *button, gpointer user_data);
 static void update_device_info(CtkDisplayDevice *ctk_object);
 
 static void display_device_setup(CtkDisplayDevice *ctk_object);
+
+static void callback_link_changed(GtkObject *object, gpointer arg1,
+                                  gpointer user_data);
 
 static void enabled_displays_received(GtkObject *object, gpointer arg1,
                                       gpointer user_data);
@@ -141,13 +145,16 @@ GtkWidget* ctk_display_device_new(NvCtrlAttributeHandle *handle,
     GObject *object;
     CtkDisplayDevice *ctk_object;
     GtkWidget *banner;
-    GtkWidget *frame;
     GtkWidget *hbox, *tmpbox;
 
     GtkWidget *alignment;
     GtkWidget *notebook;
     GtkWidget *nbox;
     GtkWidget *align;
+    GtkWidget *label;
+    GtkWidget *hseparator;
+    GtkWidget *button;
+    gchar *str;
 
     object = g_object_new(CTK_TYPE_DISPLAY_DEVICE, NULL);
     if (!object) return NULL;
@@ -160,39 +167,33 @@ GtkWidget* ctk_display_device_new(NvCtrlAttributeHandle *handle,
 
     gtk_box_set_spacing(GTK_BOX(object), 10);
 
-    /* banner */
+    /* Banner */
 
-    banner = ctk_banner_image_new(BANNER_ARTWORK_DFP);
+    if (strcmp(typeBaseName, "CRT") == 0) {
+        banner = ctk_banner_image_new(BANNER_ARTWORK_CRT);
+    } else {
+        banner = ctk_banner_image_new(BANNER_ARTWORK_DFP);
+    }
     gtk_box_pack_start(GTK_BOX(object), banner, FALSE, FALSE, 0);
 
-    /*
-     * create the reset button (which we need while creating the
-     * controls in this page so that we can set the button's
-     * sensitivity), though we pack it at the bottom of the page
-     */
+    /* Reset button */
 
-    ctk_object->reset_button =
-        gtk_button_new_with_label("Reset Hardware Defaults");
+    button = gtk_button_new_with_label("Reset Hardware Defaults");
+    str = ctk_help_create_reset_hardware_defaults_text(typeBaseName,
+                                                       name);
+    ctk_config_set_tooltip(ctk_config, button, str);
+    ctk_object->reset_button = button;
 
     alignment = gtk_alignment_new(1, 1, 0, 0);
-    gtk_container_add(GTK_CONTAINER(alignment), ctk_object->reset_button);
-    gtk_box_pack_end(GTK_BOX(object), alignment, TRUE, TRUE, 0);
+    gtk_container_add(GTK_CONTAINER(alignment), button);
+    gtk_box_pack_end(GTK_BOX(object), alignment, FALSE, FALSE, 0);
 
-    g_signal_connect(G_OBJECT(ctk_object->reset_button),
-                     "clicked", G_CALLBACK(reset_button_clicked),
-                     (gpointer) ctk_object);
-
-    ctk_config_set_tooltip(ctk_config, ctk_object->reset_button,
-                           ctk_help_create_reset_hardware_defaults_text(typeBaseName,
-                                                                        name));
 
     /* Create tabbed notebook for widget */
 
     notebook = gtk_notebook_new();
     gtk_notebook_set_tab_pos(GTK_NOTEBOOK(notebook), GTK_POS_TOP);
-    align = gtk_alignment_new(0, 0, 1, 1);
-    gtk_container_add(GTK_CONTAINER(align), notebook);
-    gtk_box_pack_start(GTK_BOX(object), align, FALSE, FALSE, 0);
+    gtk_box_pack_start(GTK_BOX(object), notebook, TRUE, TRUE, 0);
 
     /* Create first tab for device info */
 
@@ -201,15 +202,23 @@ GtkWidget* ctk_display_device_new(NvCtrlAttributeHandle *handle,
     gtk_notebook_append_page(GTK_NOTEBOOK(notebook), nbox,
                              gtk_label_new("Information"));
 
+
+    /* Device info */
+
+    hbox = gtk_hbox_new(FALSE, 0);
+    gtk_box_pack_start(GTK_BOX(nbox), hbox, FALSE, FALSE, 0);
+
+    label = gtk_label_new("Display Device Information");
+    gtk_box_pack_start(GTK_BOX(hbox), label, FALSE, FALSE, 0);
+
+    hseparator = gtk_hseparator_new();
+    gtk_box_pack_start(GTK_BOX(hbox), hseparator, TRUE, TRUE, 5);
+
+
     /* create the hbox to store device info */
 
     hbox = gtk_hbox_new(FALSE, FRAME_PADDING);
     gtk_box_pack_start(GTK_BOX(nbox), hbox, FALSE, FALSE, FRAME_PADDING);
-
-    /* Device info */
-
-    frame = gtk_frame_new("Device Information");
-    gtk_box_pack_start(GTK_BOX(hbox), frame, FALSE, FALSE, 0);
 
     /*
      * insert a vbox between the frame and the widgets, so that the
@@ -219,7 +228,7 @@ GtkWidget* ctk_display_device_new(NvCtrlAttributeHandle *handle,
     
     tmpbox = gtk_vbox_new(FALSE, FRAME_PADDING);
     gtk_container_set_border_width(GTK_CONTAINER(tmpbox), FRAME_PADDING);
-    gtk_container_add(GTK_CONTAINER(frame), tmpbox);
+    gtk_container_add(GTK_CONTAINER(hbox), tmpbox);
 
     /* Make the txt widgets that will get updated */
     ctk_object->txt_chip_location = gtk_label_new("");
@@ -377,18 +386,28 @@ GtkWidget* ctk_display_device_new(NvCtrlAttributeHandle *handle,
                                  gtk_label_new("Controls"));
     }
 
-    /* show the page */
-
-    gtk_widget_show_all(GTK_WIDGET(object));
-
     /* Update the GUI */
 
-    update_display_enabled_flag(ctk_object->handle,
-                                &ctk_object->display_enabled);
-
+    gtk_widget_show_all(GTK_WIDGET(object));
     display_device_setup(ctk_object);
 
-    /* handle enable/disable events on the display device */
+    /* Listen to events */
+
+    g_signal_connect(G_OBJECT(ctk_object->reset_button),
+                     "clicked", G_CALLBACK(reset_button_clicked),
+                     (gpointer) ctk_object);
+
+    if (ctk_object->txt_link) {
+        g_signal_connect(G_OBJECT(ctk_event),
+                         CTK_EVENT_NAME(NV_CTRL_FLATPANEL_LINK),
+                         G_CALLBACK(callback_link_changed),
+                         (gpointer) ctk_object);
+
+        g_signal_connect(G_OBJECT(ctk_event),
+                         CTK_EVENT_NAME(NV_CTRL_DISPLAYPORT_LINK_RATE),
+                         G_CALLBACK(callback_link_changed),
+                         (gpointer) ctk_object);
+    }
 
     g_signal_connect(G_OBJECT(ctk_event),
                      CTK_EVENT_NAME(NV_CTRL_ENABLED_DISPLAYS),
@@ -544,13 +563,6 @@ static void update_link(CtkDisplayDevice *ctk_object)
 }
 
 
-static void callback_link_changed(GtkObject *object, gpointer arg1,
-                                  gpointer user_data)
-{
-    CtkDisplayDevice *ctk_object = CTK_DISPLAY_DEVICE(user_data);
-
-    update_link(ctk_object);
-}
 
 /*
  * update_device_info() - (Re)Queries the static display device information.
@@ -559,58 +571,47 @@ static void update_device_info(CtkDisplayDevice *ctk_object)
 {
     ReturnStatus ret;
     gint val;
-    char *chip_location, *link, *signal;
-    CtkEvent *ctk_event = ctk_object->ctk_event;
-
-    chip_location = link = signal = "Unknown";
+    gchar *str;
 
     /* Chip location */
 
+    str = "Unknown";
     ret = NvCtrlGetAttribute(ctk_object->handle,
                              NV_CTRL_FLATPANEL_CHIP_LOCATION, &val);
     if (ret == NvCtrlSuccess) {
         switch (val) {
         case NV_CTRL_FLATPANEL_CHIP_LOCATION_INTERNAL:
-            chip_location = "Internal";
+            str = "Internal";
             break;
         case NV_CTRL_FLATPANEL_CHIP_LOCATION_EXTERNAL:
-            chip_location = "External";
+            str = "External";
             break;
         }
     }
-    gtk_label_set_text(GTK_LABEL(ctk_object->txt_chip_location), chip_location);
+    gtk_label_set_text(GTK_LABEL(ctk_object->txt_chip_location), str);
 
     /* Signal */
 
+    str = "Unknown";
     ret = NvCtrlGetAttribute(ctk_object->handle, NV_CTRL_FLATPANEL_SIGNAL,
                              &val);
     if (ret == NvCtrlSuccess) {
         switch (val) {
         case NV_CTRL_FLATPANEL_SIGNAL_LVDS:
-            signal = "LVDS";
+            str = "LVDS";
             break;
         case NV_CTRL_FLATPANEL_SIGNAL_TMDS:
-            signal = "TMDS";
+            str = "TMDS";
             break;
         case NV_CTRL_FLATPANEL_SIGNAL_DISPLAYPORT:
-            signal = "DisplayPort";
+            str = "DisplayPort";
             break;
         }
     }
-    gtk_label_set_text(GTK_LABEL(ctk_object->txt_signal), signal);
+    gtk_label_set_text(GTK_LABEL(ctk_object->txt_signal), str);
     ctk_object->signal_type = val;
 
     /* Link */
-
-    g_signal_connect(G_OBJECT(ctk_event),
-                     CTK_EVENT_NAME(NV_CTRL_FLATPANEL_LINK),
-                     G_CALLBACK(callback_link_changed),
-                     (gpointer) ctk_object);
-
-    g_signal_connect(G_OBJECT(ctk_event),
-                     CTK_EVENT_NAME(NV_CTRL_DISPLAYPORT_LINK_RATE),
-                     G_CALLBACK(callback_link_changed),
-                     (gpointer) ctk_object);
 
     update_link(ctk_object);
 
@@ -619,11 +620,10 @@ static void update_device_info(CtkDisplayDevice *ctk_object)
     ret = NvCtrlGetAttribute(ctk_object->handle,
                              NV_CTRL_FLATPANEL_NATIVE_RESOLUTION, &val);
     if (ret == NvCtrlSuccess) {
-        gchar *resolution =
-            g_strdup_printf("%dx%d", (val >> 16), (val & 0xFFFF));
+        str = g_strdup_printf("%dx%d", (val >> 16), (val & 0xFFFF));
         gtk_label_set_text(GTK_LABEL(ctk_object->txt_native_resolution),
-                           resolution);
-        g_free(resolution);
+                           str);
+        g_free(str);
     } else {
         gtk_label_set_text(GTK_LABEL(ctk_object->txt_native_resolution),
                            "Unknown");
@@ -633,10 +633,10 @@ static void update_device_info(CtkDisplayDevice *ctk_object)
 
     ret = NvCtrlGetAttribute(ctk_object->handle, NV_CTRL_REFRESH_RATE, &val);
     if (ret == NvCtrlSuccess) {
-        char str[32];
         float fvalue = ((float)(val)) / 100.0f;
-        snprintf(str, 32, "%.2f Hz", fvalue);
+        str = g_strdup_printf("%.2f Hz", fvalue);
         gtk_label_set_text(GTK_LABEL(ctk_object->txt_refresh_rate), str);
+        g_free(str);
     } else {
         gtk_label_set_text(GTK_LABEL(ctk_object->txt_refresh_rate), "Unknown");
     }
@@ -656,6 +656,8 @@ static void display_device_setup(CtkDisplayDevice *ctk_object)
      */
     gtk_widget_set_sensitive(ctk_object->reset_button, FALSE);
 
+    update_display_enabled_flag(ctk_object->handle,
+                                &ctk_object->display_enabled);
 
     /* Update info */
 
@@ -676,6 +678,16 @@ static void display_device_setup(CtkDisplayDevice *ctk_object)
 
 
 
+static void callback_link_changed(GtkObject *object, gpointer arg1,
+                                  gpointer user_data)
+{
+    CtkDisplayDevice *ctk_object = CTK_DISPLAY_DEVICE(user_data);
+
+    update_link(ctk_object);
+}
+
+
+
 /*
  * When the list of enabled displays on the GPU changes,
  * this page should disable/enable access based on whether
@@ -687,9 +699,6 @@ static void enabled_displays_received(GtkObject *object, gpointer arg1,
     CtkDisplayDevice *ctk_object = CTK_DISPLAY_DEVICE(user_data);
 
     /* Requery display information only if display disabled */
-
-    update_display_enabled_flag(ctk_object->handle,
-                                &ctk_object->display_enabled);
 
     display_device_setup(ctk_object);
 

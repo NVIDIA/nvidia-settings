@@ -79,9 +79,7 @@ enum
  * that entry.
  */
 
-#define NUM_GPU_SIGNALS 7
-
-const char *__GPUSignals[NUM_GPU_SIGNALS] = 
+const char *__GPUSignals[] =
     {
         CTK_EVENT_NAME(NV_CTRL_FRAMELOCK_MASTER),
         CTK_EVENT_NAME(NV_CTRL_FRAMELOCK_SLAVES),
@@ -99,9 +97,7 @@ const char *__GPUSignals[NUM_GPU_SIGNALS] =
  * that entry.
  */
 
-#define NUM_FRAMELOCK_SIGNALS 4
-
-const char *__FrameLockSignals[NUM_FRAMELOCK_SIGNALS] =
+const char *__FrameLockSignals[] =
     {
         CTK_EVENT_NAME(NV_CTRL_USE_HOUSE_SYNC),
         CTK_EVENT_NAME(NV_CTRL_FRAMELOCK_SYNC_INTERVAL),
@@ -200,9 +196,6 @@ struct _nvGPUDataRec {
     GtkWidget *timing_label;
     GtkWidget *timing_hbox; /* LED */
 
-    /* Signal Handler IDs */
-    gulong     signal_ids[NUM_GPU_SIGNALS];
-
     GtkWidget *label;
 };
 
@@ -212,9 +205,6 @@ struct _nvFrameLockDataRec {
     int        server_id;
 
     int        sync_delay_resolution;
-
-    /* Signal Handler IDs */
-    gulong     signal_ids[NUM_FRAMELOCK_SIGNALS];
 
     GtkWidget *label;
 
@@ -329,10 +319,10 @@ static const char * __client_checkbox_help =
 
 
 
-static unsigned int add_framelock_devices(CtkFramelock *, gpointer, int);
-static unsigned int add_gpu_devices(CtkFramelock *, nvListEntryPtr);
-static unsigned int add_display_devices(CtkFramelock *, nvListEntryPtr);
-static gint add_devices(CtkFramelock *, const gchar *, gboolean);
+static void add_framelock_devices(CtkFramelock *, gpointer, int);
+static void add_gpu_devices(CtkFramelock *, nvListEntryPtr);
+static void add_display_devices(CtkFramelock *, nvListEntryPtr);
+static void add_devices(CtkFramelock *, const gchar *, gboolean);
 
 static GtkWidget *create_add_devices_dialog(CtkFramelock *);
 static GtkWidget *create_remove_devices_dialog(CtkFramelock *);
@@ -923,27 +913,23 @@ static char *get_framelock_name(nvFrameLockDataPtr data, gboolean simple)
 
 
 
-/** get_entry_label() ************************************************
+/** list_entry_get_name() ********************************************
  *
  * Returns the correct label for the given entry.
  *
  */
-static gchar *get_entry_label(nvListEntryPtr entry, gboolean simple)
+static gchar *list_entry_get_name(nvListEntryPtr entry, gboolean simple)
 {
-    char *str = NULL;
-
-    if (entry->data_type == ENTRY_DATA_FRAMELOCK) {
-        str = get_framelock_name((nvFrameLockDataPtr)(entry->data), simple);
-
-    } else if (entry->data_type == ENTRY_DATA_GPU) {
-        str = get_gpu_name((nvGPUDataPtr)(entry->data), simple);
-
-    } else if (entry->data_type == ENTRY_DATA_DISPLAY) {
-        str = get_display_name((nvDisplayDataPtr)(entry->data), simple);
-
+    switch (entry->data_type) {
+    case ENTRY_DATA_FRAMELOCK:
+        return get_framelock_name((nvFrameLockDataPtr)(entry->data), simple);
+    case ENTRY_DATA_GPU:
+        return get_gpu_name((nvGPUDataPtr)(entry->data), simple);
+    case ENTRY_DATA_DISPLAY:
+        return get_display_name((nvDisplayDataPtr)(entry->data), simple);
     }
 
-    return str;
+    return NULL;
 }
 
 
@@ -956,31 +942,32 @@ static gchar *get_entry_label(nvListEntryPtr entry, gboolean simple)
 static void update_entry_label(CtkFramelock *ctk_framelock,
                                nvListEntryPtr entry)
 {
-    char *str = NULL;
+    char *str;
     gboolean simple;
 
     simple = gtk_toggle_button_get_active
         (GTK_TOGGLE_BUTTON(ctk_framelock->short_labels_button));
 
-    if (entry->data_type == ENTRY_DATA_FRAMELOCK) {
-        str = get_framelock_name((nvFrameLockDataPtr)(entry->data), simple);
+    str = list_entry_get_name(entry, simple);
+
+    switch (entry->data_type) {
+    case ENTRY_DATA_FRAMELOCK:
         gtk_label_set_text(GTK_LABEL
                            (((nvFrameLockDataPtr)(entry->data))->label),
                            str?str:"Unknown G-Sync");
-
-    } else if (entry->data_type == ENTRY_DATA_GPU) {
-        str = get_gpu_name((nvGPUDataPtr)(entry->data), simple);
+        break;
+    case ENTRY_DATA_GPU:
         gtk_label_set_text(GTK_LABEL
                            (((nvGPUDataPtr)(entry->data))->label),
                            str?str:"Unknown GPU");
-
-    } else if (entry->data_type == ENTRY_DATA_DISPLAY) {
-        str = get_display_name((nvDisplayDataPtr)(entry->data), simple);
+        break;
+    case ENTRY_DATA_DISPLAY:
         gtk_label_set_text(GTK_LABEL
                            (((nvDisplayDataPtr)(entry->data))->label),
                            str?str:"Unknown Display");
+        break;
     }
-    
+
     if (str) {
         g_free(str);
     }
@@ -1019,15 +1006,15 @@ static void show_remove_devices_dialog(GtkWidget *button,
 {
     nvListTreePtr tree;
     nvListEntryPtr entry;
-    gchar *str = NULL, *label;
+    gchar *str = NULL, *name;
 
     tree = (nvListTreePtr)(ctk_framelock->tree);
     entry = tree->selected_entry;
 
     if (!entry) return;
 
-    label = get_entry_label(entry, 0);
-    if (!label) {
+    name = list_entry_get_name(entry, 0);
+    if (!name) {
         str = g_strconcat("Would you like to remove the selected entry "
                           "from the group?"
                           "\n\nNOTE: This will also remove any entries "
@@ -1036,17 +1023,18 @@ static void show_remove_devices_dialog(GtkWidget *button,
     } else if (entry->nchildren) {
         str = g_strconcat("Would you like to remove the following entry "
                           "from the group?\n\n<span weight=\"bold\" "
-                          "size=\"larger\">", label, "</span>",
+                          "size=\"larger\">", name, "</span>",
                           "\n\nNOTE: This will also remove any entries "
                           "under this one.",
                           NULL);
-        g_free(label);
     } else {
         str = g_strconcat("Would you like to remove the following entry "
                           "from the group?\n\n<span weight=\"bold\" "
-                          "size=\"larger\">", label, "</span>",
+                          "size=\"larger\">", name, "</span>",
                           NULL);
-        g_free(label);
+    }
+    if (name) {
+        g_free(name);
     }
 
     gtk_label_set_line_wrap(GTK_LABEL(ctk_framelock->remove_devices_label),
@@ -1058,7 +1046,7 @@ static void show_remove_devices_dialog(GtkWidget *button,
                              str);
         g_free(str);
     }
-    
+
     gtk_widget_show_all(ctk_framelock->remove_devices_dialog);
 }
 
@@ -1294,14 +1282,16 @@ static void list_entry_update_controls(CtkFramelock *ctk_framelock,
 {
     if (!entry) return;
 
-    if (entry->data_type == ENTRY_DATA_FRAMELOCK) {
+    switch (entry->data_type) {
+    case ENTRY_DATA_FRAMELOCK:
         list_entry_update_framelock_controls(ctk_framelock, entry);
-        
-    } else if (entry->data_type == ENTRY_DATA_GPU) {
+        break;
+    case ENTRY_DATA_GPU:
         list_entry_update_gpu_controls(ctk_framelock, entry);
-        
-    } else if (entry->data_type == ENTRY_DATA_DISPLAY) {
+        break;
+    case ENTRY_DATA_DISPLAY:
         list_entry_update_display_controls(ctk_framelock, entry);
+        break;
     }
 
     /*
@@ -1791,6 +1781,41 @@ static nvListEntryPtr list_entry_new(void)
 
 
 
+static void framelock_data_free(nvFrameLockDataPtr data)
+{
+    if (!data) return;
+
+    if (data->handle) {
+        NvCtrlAttributeClose(data->handle);
+    }
+
+    free(data);
+}
+
+
+
+static void gpu_data_free(nvGPUDataPtr data)
+{
+    if (!data) return;
+
+    if (data->handle) {
+        NvCtrlAttributeClose(data->handle);
+    }
+
+    free(data);
+}
+
+
+
+static void display_data_free(nvDisplayDataPtr data)
+{
+    if (!data) return;
+
+    free(data);
+}
+
+
+
 /** list_entry_free() ************************************************
  *
  * - Frees an existing list entry.
@@ -1798,49 +1823,34 @@ static nvListEntryPtr list_entry_new(void)
  */
 static void list_entry_free(nvListEntryPtr entry)
 {
-    int i;
-
-
     if (!entry) {
         return;
     }
 
-    /* XXX DON"T Need these?
-    gtk_widget_destroy(entry->vbox);
-    gtk_widget_destroy(entry->title_hbox);
-    gtk_widget_destroy(entry->data_hbox);
-    gtk_widget_destroy(entry->ebox);
-    */
-
     /* Remove signal callbacks */
 
     if (entry->ctk_event) {
-        if (entry->data_type == ENTRY_DATA_GPU) {
-            
-            nvGPUDataPtr data = (nvGPUDataPtr) entry->data;
-            
-            for (i = 0; i < NUM_GPU_SIGNALS; i++) {
-                if (g_signal_handler_is_connected(G_OBJECT(entry->ctk_event),
-                                                  data->signal_ids[i])) {
-                    g_signal_handler_disconnect(G_OBJECT(entry->ctk_event),
-                                                data->signal_ids[i]);
-                }
-            }
-            
-        } else if (entry->data_type == ENTRY_DATA_FRAMELOCK) {
-            
-            nvFrameLockDataPtr data = (nvFrameLockDataPtr) entry->data;
-            
-            for (i = 0; i < NUM_FRAMELOCK_SIGNALS; i++) {
-                if (g_signal_handler_is_connected(G_OBJECT(entry->ctk_event),
-                                                  data->signal_ids[i])) {
-                    g_signal_handler_disconnect(G_OBJECT(entry->ctk_event),
-                                                data->signal_ids[i]);
-                }
-            }
-        }
+        g_signal_handlers_disconnect_matched(G_OBJECT(entry->ctk_event),
+                                             G_SIGNAL_MATCH_DATA,
+                                             0, 0, NULL, NULL, (gpointer) entry);
 
-        /* XXX We should probably free/destroy the ctk_event objects here */
+        // XXX Free ctk_event object when we add that functionality.
+    }
+
+    /* Free any data associated with the entry */
+
+    if (entry->data) {
+        switch (entry->data_type) {
+        case ENTRY_DATA_FRAMELOCK:
+            framelock_data_free((nvFrameLockDataPtr)entry->data);
+            break;
+        case ENTRY_DATA_GPU:
+            gpu_data_free((nvGPUDataPtr)entry->data);
+            break;
+        case ENTRY_DATA_DISPLAY:
+            display_data_free((nvDisplayDataPtr)entry->data);
+            break;
+        }
     }
 
     free(entry);
@@ -3736,12 +3746,16 @@ static void list_entry_update_status(CtkFramelock *ctk_framelock,
 
     list_entry_update_status(ctk_framelock, entry->children);
 
-    if (entry->data_type == ENTRY_DATA_FRAMELOCK) {
+    switch (entry->data_type) {
+    case ENTRY_DATA_FRAMELOCK:
         list_entry_update_framelock_status(ctk_framelock, entry);
-    } else if (entry->data_type == ENTRY_DATA_GPU) {
+        break;
+    case ENTRY_DATA_GPU:
         list_entry_update_gpu_status(ctk_framelock, entry);
-    } else if (entry->data_type == ENTRY_DATA_DISPLAY) {
+        break;
+    case ENTRY_DATA_DISPLAY:
         list_entry_update_display_status(ctk_framelock, entry);
+        break;
     }
 
     list_entry_update_status(ctk_framelock, entry->next_sibling);
@@ -4904,8 +4918,7 @@ static void add_devices_response(GtkWidget *button, gint response,
 {
     CtkFramelock *ctk_framelock = CTK_FRAMELOCK(user_data);
     const gchar *display_name;
-    gint devices_added;
-    
+
     /* hide the dialog box */
  
     gtk_widget_hide_all(ctk_framelock->add_devices_dialog);
@@ -4924,9 +4937,10 @@ static void add_devices_response(GtkWidget *button, gint response,
         gtk_entry_get_text(GTK_ENTRY(ctk_framelock->add_devices_entry));
 
     /* Add all devices found on the server */
-    
-    devices_added = add_devices(ctk_framelock, display_name, TRUE);
-    if (!devices_added) {
+
+    add_devices(ctk_framelock, display_name, TRUE);
+    if (!ctk_framelock->tree ||
+        !((nvListTreePtr)(ctk_framelock->tree))->nentries) {
         /* Nothing was added, nothing to update */
         return;
     }
@@ -4959,15 +4973,15 @@ static void remove_devices_response(GtkWidget *button, gint response,
     CtkFramelock *ctk_framelock = CTK_FRAMELOCK(user_data);
     nvListTreePtr tree = (nvListTreePtr)(ctk_framelock->tree);
     nvListEntryPtr entry = tree->selected_entry;
-    gchar *label;
-    
+    gchar *name;
+
     gtk_widget_hide_all(ctk_framelock->remove_devices_dialog);
 
     if (response != GTK_RESPONSE_OK) return;
 
     if (!entry) return;
 
-    label = get_entry_label(entry, 0);
+    name = list_entry_get_name(entry, 0);
 
     /* Remove entry from list */
     list_tree_remove_entry(tree, entry);
@@ -4992,8 +5006,8 @@ static void remove_devices_response(GtkWidget *button, gint response,
 
     ctk_config_statusbar_message(ctk_framelock->ctk_config,
                                  "Removed '%s' from the frame lock group.",
-                                 label);
-    g_free(label);
+                                 name);
+    g_free(name);
 }
 
 
@@ -5004,10 +5018,9 @@ static void remove_devices_response(GtkWidget *button, gint response,
  * are bound to the given GPU List Entry.
  *
  */
-static unsigned int add_display_devices(CtkFramelock *ctk_framelock,
-                                        nvListEntryPtr gpu_entry)
+static void add_display_devices(CtkFramelock *ctk_framelock,
+                                nvListEntryPtr gpu_entry)
 {
-    unsigned int      displays_added = 0;
     nvDisplayDataPtr  display_data = NULL;
 
     nvGPUDataPtr      gpu_data;
@@ -5021,9 +5034,8 @@ static unsigned int add_display_devices(CtkFramelock *ctk_framelock,
     unsigned int slaves_mask;
     gfloat       fvalue; /* To print the refresh rate */
     gchar        rr_str[32];
-    
+
     nvListEntryPtr   server_entry = NULL;
-    nvDisplayDataPtr server_data = NULL;
 
 
     if (!gpu_entry || gpu_entry->data_type != ENTRY_DATA_GPU) {
@@ -5032,9 +5044,6 @@ static unsigned int add_display_devices(CtkFramelock *ctk_framelock,
 
     server_entry =
         get_display_server_entry((nvListTreePtr)(ctk_framelock->tree));
-    if (server_entry) {
-        server_data  = (nvDisplayDataPtr)(server_entry->data);
-    }
 
     gpu_data = (nvGPUDataPtr)(gpu_entry->data);
 
@@ -5213,21 +5222,16 @@ static unsigned int add_display_devices(CtkFramelock *ctk_framelock,
                              "toggled",
                              G_CALLBACK(toggle_client),
                              (gpointer) entry);
-            
-            displays_added++;
         }
         display_mask <<= 1;
     }
 
-    return displays_added;
+    return;
 
 
     /* Handle failures */
- fail:  
-    if (display_data) {
-        free(display_data);
-    }
-    return displays_added;
+ fail:
+    display_data_free(display_data);
 }
 
 
@@ -5238,11 +5242,10 @@ static unsigned int add_display_devices(CtkFramelock *ctk_framelock,
  * the given frame lock list entry.
  *
  */
-static unsigned int add_gpu_devices(CtkFramelock *ctk_framelock,
-                                    nvListEntryPtr framelock_entry)
+static void add_gpu_devices(CtkFramelock *ctk_framelock,
+                            nvListEntryPtr framelock_entry)
 {
     unsigned int        num_gpus;
-    unsigned int        gpus_added = 0;
     unsigned int        gpu_id;
     unsigned int        gpu_idx;
     nvGPUDataPtr        gpu_data = NULL;
@@ -5274,14 +5277,11 @@ static unsigned int add_gpu_devices(CtkFramelock *ctk_framelock,
     gpus     = (int *)data;
     num_gpus = gpus[0];
     for (gpu_idx = 0; gpu_idx < num_gpus; gpu_idx++) {
-        int  displays_added = 0;
-
         gpu_id = gpus[gpu_idx +1];
 
         /* Create the GPU data structure */
         gpu_data = (nvGPUDataPtr) calloc(1, sizeof(nvGPUDataRec));
         if (!gpu_data) {
-            XFree(data);
             goto fail;
         }
 
@@ -5303,8 +5303,8 @@ static unsigned int add_gpu_devices(CtkFramelock *ctk_framelock,
         list_entry_update_status(ctk_framelock, entry);
 
         /* Add Displays tied to this GPU */
-        displays_added = add_display_devices(ctk_framelock, entry);
-        if (displays_added) {
+        add_display_devices(ctk_framelock, entry);
+        if (entry->children) {
             int i;
 
             list_entry_add_child(framelock_entry, entry);
@@ -5320,15 +5320,12 @@ static unsigned int add_gpu_devices(CtkFramelock *ctk_framelock,
 
             entry->ctk_event = CTK_EVENT(ctk_event_new(gpu_data->handle));
 
-            for (i = 0; i < NUM_GPU_SIGNALS; i++) {
-                gpu_data->signal_ids[i] =
-                    g_signal_connect(G_OBJECT(entry->ctk_event),
-                                     __GPUSignals[i],
-                                     G_CALLBACK(gpu_state_received),
-                                     (gpointer) entry);
+            for (i = 0; i < ARRAY_LEN(__GPUSignals); i++) {
+                g_signal_connect(G_OBJECT(entry->ctk_event),
+                                 __GPUSignals[i],
+                                 G_CALLBACK(gpu_state_received),
+                                 (gpointer) entry);
             }
-            
-            gpus_added++;
         } else {
             /* No Displays found, don't add this GPU device */
             list_entry_free(entry);
@@ -5337,18 +5334,13 @@ static unsigned int add_gpu_devices(CtkFramelock *ctk_framelock,
 
     XFree(data);
 
-    return gpus_added;
+    return;
 
 
     /* Handle failures */
  fail:
-    if (gpu_data) {
-        if (gpu_data->handle) {
-            NvCtrlAttributeClose(gpu_data->handle);
-        }
-        free(gpu_data);
-    }
-    return gpus_added;
+    XFree(data);
+    gpu_data_free(gpu_data);
 }
 
 
@@ -5359,12 +5351,11 @@ static unsigned int add_gpu_devices(CtkFramelock *ctk_framelock,
  * the frame lock group,
  *
  */
-static unsigned int add_framelock_devices(CtkFramelock *ctk_framelock,
-                                          gpointer handle,
-                                          int server_id)
+static void add_framelock_devices(CtkFramelock *ctk_framelock,
+                                  gpointer handle,
+                                  int server_id)
 {
     unsigned int        num_framelocks;
-    unsigned int        framelocks_added = 0;
     unsigned int        framelock_id;
     nvFrameLockDataPtr  framelock_data = NULL;
     nvListEntryPtr      entry;
@@ -5382,7 +5373,6 @@ static unsigned int add_framelock_devices(CtkFramelock *ctk_framelock,
 
     /* Add frame lock devices found */
     for (framelock_id = 0; framelock_id < num_framelocks; framelock_id++) {
-        int gpus_added = 0;
         int val;
         char *revision_str = NULL;
 
@@ -5455,45 +5445,36 @@ static unsigned int add_framelock_devices(CtkFramelock *ctk_framelock,
 
         update_entry_label(ctk_framelock, entry);
         list_entry_update_status(ctk_framelock, entry);
-        
+
         /* Add GPUs tied to this G-Sync */
-        gpus_added = add_gpu_devices(ctk_framelock, entry);
-        if (gpus_added) {
+        add_gpu_devices(ctk_framelock, entry);
+        if (entry->children) {
             int i;
 
             list_tree_add_entry((nvListTreePtr)(ctk_framelock->tree),
                                 entry);
-            
+
             entry->ctk_event =
                 CTK_EVENT(ctk_event_new(framelock_data->handle));
 
-            for (i = 0; i < NUM_FRAMELOCK_SIGNALS; i++) {
-                framelock_data->signal_ids[i] =
-                    g_signal_connect(G_OBJECT(entry->ctk_event),
-                                     __FrameLockSignals[i],
-                                     G_CALLBACK(framelock_state_received),
-                                     (gpointer) entry);
+            for (i = 0; i < ARRAY_LEN(__FrameLockSignals); i++) {
+                g_signal_connect(G_OBJECT(entry->ctk_event),
+                                 __FrameLockSignals[i],
+                                 G_CALLBACK(framelock_state_received),
+                                 (gpointer) entry);
             }
-
-            framelocks_added++;
         } else {
             /* No GPUs found, don't add this frame lock device */
             list_entry_free(entry);
         }
     }
 
-    return framelocks_added;
+    return;
 
 
     /* Handle failures */
  fail:
-    if (framelock_data) {
-        if (framelock_data->handle) {
-            NvCtrlAttributeClose(framelock_data->handle);
-        }
-        free(framelock_data);
-    }
-    return framelocks_added;
+    framelock_data_free(framelock_data);
 }
 
 
@@ -5504,14 +5485,13 @@ static unsigned int add_framelock_devices(CtkFramelock *ctk_framelock,
  * frame lock group,
  *
  */
-static gint add_devices(CtkFramelock *ctk_framelock,
+static void add_devices(CtkFramelock *ctk_framelock,
                         const gchar *display_name,
                         gboolean error_dialog)
 {
     gpointer handle = NULL;
     Display *display;
     int server_id = -1;
-    gint devices_added = 0;
     char *server_name = NULL;
     char *ptr;
 
@@ -5606,8 +5586,9 @@ static gint add_devices(CtkFramelock *ctk_framelock,
 
     /* Add frame lock devices found on server */
 
-    devices_added = add_framelock_devices(ctk_framelock, handle, server_id);
-    if (!devices_added) {
+    add_framelock_devices(ctk_framelock, handle, server_id);
+    if (!ctk_framelock->tree ||
+        !((nvListTreePtr)(ctk_framelock->tree))->nentries) {
         if (error_dialog) {
             error_msg(ctk_framelock, "<span weight=\"bold\" "
                       "size=\"larger\">No frame lock devices "
@@ -5636,7 +5617,7 @@ static gint add_devices(CtkFramelock *ctk_framelock,
         NvCtrlAttributeClose(handle);
     }
 
-    return devices_added;
+    return;
 }
 
 

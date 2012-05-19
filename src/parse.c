@@ -1705,8 +1705,9 @@ const char *parse_read_name(const char *str, char **name, char term)
 
     str = parse_skip_whitespace(str);
     tmp = str;
-    while (*str && !name_terminated(*str, term))
+    while (*str && !name_terminated(*str, term)) {
         str++;
+    }
 
     *name = calloc(1, str - tmp + 1);
     if (!(*name)) {
@@ -1830,33 +1831,48 @@ int parse_read_float_range(const char *str, float *min, float *max)
  * and dispatches the handeling of tokens to the given function with
  * the given data as an extra argument.
  *
+ * Note that the value may be in parentheses:  "token=(value), ..."
+ *
  **/
 int parse_token_value_pairs(const char *str, apply_token_func func,
                             void *data)
 {
     char *token;
     char *value;
+    char endChar;
 
 
     if (str) {
 
         /* Parse each token */
         while (*str) {
-            
+
             /* Read the token */
             str = parse_read_name(str, &token, '=');
             if (!str) return 0;
-            
+
             /* Read the value */
-            str = parse_read_name(str, &value, ',');
+            if (str && *str == '(') {
+                str++;
+                endChar = ')';
+            } else {
+                endChar = ',';
+            }
+            str = parse_read_name(str, &value, endChar);
             if (!str) return 0;
-            
+            if (endChar == ')' && *str == ')') {
+                str++;
+            }
+            if (*str == ',') {
+                str++;
+            }
+
             /* Remove trailing whitespace */
             parse_chop_whitespace(token);
             parse_chop_whitespace(value);
-            
+
             func(token, value, data);
-            
+
             free(token);
             free(value);
         }

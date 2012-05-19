@@ -456,6 +456,7 @@ static void apply_mode_attribute_token(char *token, char *value, void *data)
         } else if (!strcasecmp("PassiveRight", value)) {
             mode->passive_stereo_eye = PASSIVE_STEREO_EYE_RIGHT;
         }
+        return;
     }
 
 } /* apply_mode_attribute_token() */
@@ -1421,6 +1422,47 @@ static void screen_remove_metamodes(nvScreenPtr screen)
 
 
 
+ /** mode_strtok() ***************************************************
+ *
+ * Special strtok function for parsing modes.  This function ignores
+ * anything between curly braces, including commas when parsing tokens
+ * deliminated by commas.
+ *
+ **/
+static char *mode_strtok(char *str)
+{
+    static char *intStr = NULL;
+    char *start;
+
+    if (str) {
+        intStr = str;
+    }
+
+    if (!intStr || *intStr == '\0') {
+        return NULL;
+    }
+
+    /* Mark off the next token value */
+    start = intStr;
+    while (*intStr != '\0') {
+        if (*intStr == '{') {
+            while (*intStr != '}' && *intStr != '\0') {
+                intStr++;
+            }
+        }
+        if (*intStr == ',') {
+            *intStr = '\0';
+            intStr++;
+            break;
+        }
+        intStr++;
+    }
+
+    return start;
+}
+
+
+
 /** screen_add_metamode() ********************************************
  *
  * Parses a metamode string and adds the appropriate modes to the
@@ -1471,9 +1513,9 @@ static Bool screen_add_metamode(nvScreenPtr screen, const char *metamode_str,
     metamode_copy = strdup(metamode_modes);
     if (!metamode_copy) goto fail;
 
-    for (mode_str_itr = strtok(metamode_copy, ",");
+    for (mode_str_itr = mode_strtok(metamode_copy);
          mode_str_itr;
-         mode_str_itr = strtok(NULL, ",")) {
+         mode_str_itr = mode_strtok(NULL)) {
 
         nvModePtr     mode;
         nvDisplayPtr  display;

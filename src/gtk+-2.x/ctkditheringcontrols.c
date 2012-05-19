@@ -494,8 +494,9 @@ void ctk_dithering_controls_setup(CtkDitheringControls *ctk_dithering_controls)
 
 
     if (!update_dithering_info((gpointer)ctk_dithering_controls)) {
-        gtk_widget_set_sensitive(ctk_dithering_controls->dithering_controls_box,
-                                 FALSE);
+        gtk_widget_hide(ctk_dithering_controls->dithering_controls_box);
+    } else {
+        gtk_widget_show(ctk_dithering_controls->dithering_controls_box);
     }
 
     setup_reset_button(ctk_dithering_controls);
@@ -507,33 +508,33 @@ static Bool update_dithering_info(gpointer user_data)
 {
     CtkDitheringControls *ctk_dithering_controls =
         CTK_DITHERING_CONTROLS(user_data);
-    gint val, dithering_mode, dithering_depth;
+    ReturnStatus ret;
+    gint val;
 
-    /* requested dithering */
-    if (NvCtrlSuccess !=
-        NvCtrlGetAttribute(ctk_dithering_controls->handle,
-                           NV_CTRL_DITHERING, &val)) {
-        gtk_widget_set_sensitive(ctk_dithering_controls->dithering_controls_box,
-                                 FALSE);
-    } else if (val == NV_CTRL_DITHERING_ENABLED ||
-               val == NV_CTRL_DITHERING_AUTO) {
-        gtk_widget_set_sensitive(ctk_dithering_controls->dithering_controls_box,
+    ret = NvCtrlGetAttribute(ctk_dithering_controls->handle,
+                             NV_CTRL_DITHERING, &val);
+    if (ret != NvCtrlSuccess) {
+        /* Dithering is not currently available */
+        return FALSE;
+    }
+
+    if (val == NV_CTRL_DITHERING_ENABLED ||
+        val == NV_CTRL_DITHERING_AUTO) {
+        gtk_widget_set_sensitive(ctk_dithering_controls->dithering_mode_box,
                                  TRUE);
-        gtk_widget_set_sensitive(ctk_dithering_controls->dithering_mode_box, TRUE);
-        gtk_widget_set_sensitive(ctk_dithering_controls->dithering_depth_box, TRUE);
-        gtk_widget_show(ctk_dithering_controls->dithering_mode_box);
-        gtk_widget_show(ctk_dithering_controls->dithering_depth_box);
+        gtk_widget_set_sensitive(ctk_dithering_controls->dithering_depth_box,
+                                 TRUE);
     } else if (val == NV_CTRL_DITHERING_DISABLED) {
-        gtk_widget_set_sensitive(ctk_dithering_controls->dithering_controls_box,
-                                 TRUE);
-        gtk_widget_set_sensitive(ctk_dithering_controls->dithering_mode_box, FALSE);
-        gtk_widget_set_sensitive(ctk_dithering_controls->dithering_depth_box, FALSE);
+        gtk_widget_set_sensitive(ctk_dithering_controls->dithering_mode_box,
+                                 FALSE);
+        gtk_widget_set_sensitive(ctk_dithering_controls->dithering_depth_box,
+                                 FALSE);
     }
 
     /* current dithering */
-    if (NvCtrlSuccess !=
-        NvCtrlGetAttribute(ctk_dithering_controls->handle,
-                           NV_CTRL_CURRENT_DITHERING, &val)) {
+    ret = NvCtrlGetAttribute(ctk_dithering_controls->handle,
+                             NV_CTRL_CURRENT_DITHERING, &val);
+    if (ret != NvCtrlSuccess) {
         val = NV_CTRL_CURRENT_DITHERING_DISABLED;
     }
 
@@ -546,15 +547,13 @@ static Bool update_dithering_info(gpointer user_data)
     }
 
     /* dithering mode */
-    if (NvCtrlSuccess !=
-        NvCtrlGetAttribute(ctk_dithering_controls->handle,
-                           NV_CTRL_DITHERING_MODE,
-                           &dithering_mode)) {
-        dithering_mode = NV_CTRL_DITHERING_MODE_AUTO;
+    ret = NvCtrlGetAttribute(ctk_dithering_controls->handle,
+                             NV_CTRL_DITHERING_MODE, &val);
+    if (ret != NvCtrlSuccess) {
+        val = NV_CTRL_DITHERING_MODE_AUTO;
     }
 
-    dithering_mode = map_nvctrl_value_to_table(ctk_dithering_controls,
-                                               dithering_mode);
+    val = map_nvctrl_value_to_table(ctk_dithering_controls, val);
 
     g_signal_handlers_block_by_func
         (G_OBJECT(ctk_dithering_controls->dithering_mode_menu),
@@ -562,8 +561,7 @@ static Bool update_dithering_info(gpointer user_data)
          (gpointer) ctk_dithering_controls);
 
     gtk_option_menu_set_history
-        (GTK_OPTION_MENU(ctk_dithering_controls->dithering_mode_menu),
-         dithering_mode);
+        (GTK_OPTION_MENU(ctk_dithering_controls->dithering_mode_menu), val);
 
     g_signal_handlers_unblock_by_func
         (G_OBJECT(ctk_dithering_controls->dithering_mode_menu),
@@ -571,14 +569,13 @@ static Bool update_dithering_info(gpointer user_data)
          (gpointer) ctk_dithering_controls);
 
     /* current dithering mode */
-    if (NvCtrlSuccess !=
-        NvCtrlGetAttribute(ctk_dithering_controls->handle,
-                           NV_CTRL_CURRENT_DITHERING_MODE,
-                           &dithering_mode)) {
-        dithering_mode = NV_CTRL_CURRENT_DITHERING_MODE_NONE;
+    ret = NvCtrlGetAttribute(ctk_dithering_controls->handle,
+                             NV_CTRL_CURRENT_DITHERING_MODE, &val);
+    if (ret != NvCtrlSuccess) {
+        val = NV_CTRL_CURRENT_DITHERING_MODE_NONE;
     }
 
-    switch (dithering_mode) {
+    switch (val) {
     case NV_CTRL_CURRENT_DITHERING_MODE_DYNAMIC_2X2:
         gtk_label_set_text(GTK_LABEL(ctk_dithering_controls->dithering_mode_txt),
                            "Dynamic 2x2");
@@ -599,11 +596,10 @@ static Bool update_dithering_info(gpointer user_data)
     }
 
     /* dithering depth */
-    if (NvCtrlSuccess !=
-        NvCtrlGetAttribute(ctk_dithering_controls->handle,
-                           NV_CTRL_DITHERING_DEPTH,
-                           &dithering_depth)) {
-        dithering_depth = NV_CTRL_DITHERING_DEPTH_AUTO;
+    ret = NvCtrlGetAttribute(ctk_dithering_controls->handle,
+                             NV_CTRL_DITHERING_DEPTH, &val);
+    if (ret != NvCtrlSuccess) {
+        val = NV_CTRL_DITHERING_DEPTH_AUTO;
     }
 
     g_signal_handlers_block_by_func
@@ -612,8 +608,7 @@ static Bool update_dithering_info(gpointer user_data)
          (gpointer) ctk_dithering_controls);
 
     gtk_option_menu_set_history
-        (GTK_OPTION_MENU(ctk_dithering_controls->dithering_depth_menu),
-         dithering_depth);
+        (GTK_OPTION_MENU(ctk_dithering_controls->dithering_depth_menu), val);
 
     g_signal_handlers_unblock_by_func
         (G_OBJECT(ctk_dithering_controls->dithering_depth_menu),
@@ -621,14 +616,13 @@ static Bool update_dithering_info(gpointer user_data)
          (gpointer) ctk_dithering_controls);
 
     /* current dithering depth */
-    if (NvCtrlSuccess !=
-        NvCtrlGetAttribute(ctk_dithering_controls->handle,
-                           NV_CTRL_CURRENT_DITHERING_DEPTH,
-                           &dithering_depth)) {
-        dithering_depth = NV_CTRL_CURRENT_DITHERING_DEPTH_NONE;
+    ret = NvCtrlGetAttribute(ctk_dithering_controls->handle,
+                             NV_CTRL_CURRENT_DITHERING_DEPTH, &val);
+    if (ret != NvCtrlSuccess) {
+        val = NV_CTRL_CURRENT_DITHERING_DEPTH_NONE;
     }
 
-    switch (dithering_depth) {
+    switch (val) {
     case NV_CTRL_CURRENT_DITHERING_DEPTH_6_BITS:
         gtk_label_set_text(GTK_LABEL(ctk_dithering_controls->dithering_depth_txt),
                            "6 bpc");
@@ -644,7 +638,8 @@ static Bool update_dithering_info(gpointer user_data)
         break;
     }
 
-    return True;
+    return TRUE;
+
 } /* update_dithering_info() */
 
 static
