@@ -3546,12 +3546,14 @@
 /*
  * NV_CTRL_STRING_TWINVIEW_XINERAMA_INFO_ORDER - used to specify the
  * order that display devices will be returned via Xinerama when
- * TwinViewXineramaInfo is enabled.  Follows the same syntax as the
- * TwinViewXineramaInfoOrder X config option.
+ * nvidiaXineramaInfo is enabled.  Follows the same syntax as the
+ * nvidiaXineramaInfoOrder X config option.
  */
 
-#define NV_CTRL_STRING_TWINVIEW_XINERAMA_INFO_ORDER            27   /* RW-- */
+#define NV_CTRL_STRING_NVIDIA_XINERAMA_INFO_ORDER              27   /* RW-- */
 
+#define NV_CTRL_STRING_TWINVIEW_XINERAMA_INFO_ORDER \
+    NV_CTRL_STRING_NVIDIA_XINERAMA_INFO_ORDER /* for backwards compatibility: */
 
 /*
  * NV_CTRL_STRING_SLI_MODE - returns a string describing the current

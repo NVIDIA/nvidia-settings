@@ -302,7 +302,7 @@ AttributeTableEntry attributeTable[] = {
     { "SynchronousPaletteUpdates",  NV_CTRL_SYNCHRONOUS_PALETTE_UPDATES,   0,     "Controls whether colormap updates are synchronized with X rendering." },
     { "CurrentMetaModeID",          NV_CTRL_CURRENT_METAMODE_ID,           N,     "The ID of the current MetaMode." },
     { "CurrentMetaMode",            NV_CTRL_STRING_CURRENT_METAMODE_VERSION_2, S|N, "Controls the current MetaMode." },
-    { "XineramaInfoOrder",          NV_CTRL_STRING_TWINVIEW_XINERAMA_INFO_ORDER, S|N, "Controls the TwinViewXineramaInfoOrder." },
+    { "XineramaInfoOrder",          NV_CTRL_STRING_NVIDIA_XINERAMA_INFO_ORDER, S|N, "Controls the nvidiaXineramaInfoOrder." },
 
     /* TV */
     { "TVOverScan",      NV_CTRL_TV_OVERSCAN,       0, "Adjusts the amount of overscan on the specified display device." },

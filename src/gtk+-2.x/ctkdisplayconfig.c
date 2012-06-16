@@ -399,7 +399,7 @@ static void register_layout_events(CtkDisplayConfig *ctk_object)
         if (!screen->handle) continue;
 
         g_signal_connect(G_OBJECT(screen->ctk_event),
-                         CTK_EVENT_NAME(NV_CTRL_STRING_TWINVIEW_XINERAMA_INFO_ORDER),
+                         CTK_EVENT_NAME(NV_CTRL_STRING_NVIDIA_XINERAMA_INFO_ORDER),
                          G_CALLBACK(display_config_attribute_changed),
                          (gpointer) ctk_object);
 
@@ -6538,7 +6538,7 @@ static void apply_clicked(GtkWidget *widget, gpointer user_data)
 
         if (screen->primaryDisplay && ctk_object->primary_display_changed) {
             ret = NvCtrlSetStringAttribute(screen->handle,
-                                           NV_CTRL_STRING_TWINVIEW_XINERAMA_INFO_ORDER,
+                                           NV_CTRL_STRING_NVIDIA_XINERAMA_INFO_ORDER,
                                            screen->primaryDisplay->typeIdName,
                                            NULL);
             if (ret != NvCtrlSuccess) {
@@ -6548,7 +6548,7 @@ static void apply_clicked(GtkWidget *widget, gpointer user_data)
             } else {
                 /* Make sure other parts of nvidia-settings get updated */
                 ctk_event_emit_string(screen->ctk_event, 0,
-                                      NV_CTRL_STRING_TWINVIEW_XINERAMA_INFO_ORDER);
+                                      NV_CTRL_STRING_NVIDIA_XINERAMA_INFO_ORDER);
                 ctk_object->primary_display_changed = FALSE;
             }
         }
@@ -6981,11 +6981,11 @@ static int add_screen_to_xconfig(CtkDisplayConfig *ctk_object,
             xconfigAddNewOption(&conf_screen->options, "Stereo", buf);
         }
 
-        /* Set the TwinviewXineramaInfoOrder option */
+        /* Set the nvidiaXineramaInfoOrder option */
 
         if (screen->primaryDisplay) {
             xconfigAddNewOption(&conf_screen->options,
-                                "TwinViewXineramaInfoOrder",
+                                "nvidiaXineramaInfoOrder",
                                 screen->primaryDisplay->typeIdName);
         }
 

@@ -2822,7 +2822,7 @@ static Bool layout_add_screen_from_server(nvLayoutPtr layout,
         /* Query & parse the screen's primary display */
         screen->primaryDisplay = NULL;
         ret = NvCtrlGetStringAttribute(screen->handle,
-                                       NV_CTRL_STRING_TWINVIEW_XINERAMA_INFO_ORDER,
+                                       NV_CTRL_STRING_NVIDIA_XINERAMA_INFO_ORDER,
                                        &primary_str);
 
         if (ret == NvCtrlSuccess && primary_str) {

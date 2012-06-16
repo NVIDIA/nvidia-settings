@@ -877,46 +877,45 @@ int main(int argc, char *argv[])
     
     
     /*
-     * query the TwinViewXineramaInfoOrder
+     * query the nvidiaXineramaInfoOrder
      */
     
-    else if (strcmp(argv[1], "--query-twinview-xinerama-info-order") == 0) {
+    else if (strcmp(argv[1], "--query-nvidia-xinerama-info-order") == 0) {
         
         ret = XNVCTRLQueryTargetStringAttribute
             (dpy, NV_CTRL_TARGET_TYPE_X_SCREEN, screen, 0,
-             NV_CTRL_STRING_TWINVIEW_XINERAMA_INFO_ORDER, &str);
+             NV_CTRL_STRING_NVIDIA_XINERAMA_INFO_ORDER, &str);
         
         if (!ret) {
-            fprintf(stderr, "Failed to query "
-                    "TwinViewXineramaInfoOrder.\n\n");
+            fprintf(stderr, "Failed to query nvidiaXineramaInfoOrder.\n\n");
             return 1;
         }
         
-        printf("TwinViewXineramaInfoOrder: %s\n\n", str);
+        printf("nvidiaXineramaInfoOrder: %s\n\n", str);
     }
     
     
     /*
-     * assign the TwinViewXineramaInfoOrder
+     * assign the nvidiaXineramaInfoOrder
      */
     
-    else if ((strcmp(argv[1], "--assign-twinview-xinerama-info-order")== 0)
+    else if ((strcmp(argv[1], "--assign-nvidia-xinerama-info-order")== 0)
              && argv[2]) {
         
         ret = XNVCTRLSetStringAttribute
             (dpy,
              screen,
              0,
-             NV_CTRL_STRING_TWINVIEW_XINERAMA_INFO_ORDER,
+             NV_CTRL_STRING_NVIDIA_XINERAMA_INFO_ORDER,
              argv[2]);
         
         if (!ret) {
             fprintf(stderr, "Failed to assign "
-                    "TwinViewXineramaInfoOrder = \"%s\".\n\n", argv[2]);
+                    "nvidiaXineramaInfoOrder = \"%s\".\n\n", argv[2]);
             return 1;
         }
         
-        printf("assigned TwinViewXineramaInfoOrder: \"%s\"\n\n",
+        printf("assigned nvidiaXineramaInfoOrder: \"%s\"\n\n",
                argv[2]);
     }
 
@@ -1371,11 +1370,11 @@ int main(int argc, char *argv[])
         
         printf("  --probe-dpys: probe GPUs for new display devices\n\n");
         
-        printf("  --query-twinview-xinerama-info-order: query the "
-               "TwinViewXineramaInfoOrder.\n\n");
+        printf("  --query-nvidia-xinerama-info-order: query the "
+               "nvidiaXineramaInfoOrder.\n\n");
         
-        printf("  --assign-twinview-xinerama-info-order [order]: assign the "
-               "TwinViewXineramaInfoOrder.\n\n");
+        printf("  --assign-nvidia-xinerama-info-order [order]: assign the "
+               "nvidiaXineramaInfoOrder.\n\n");
 
         printf("  --max-screen-size: query the maximum screen size "
                "on all GPUs in the system\n\n");
