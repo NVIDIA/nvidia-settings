@@ -54,16 +54,6 @@ struct _CtkXVideo
     NvCtrlAttributeHandle *handle;
     CtkConfig *ctk_config;
 
-    GtkWidget *overlay_saturation;
-    GtkWidget *overlay_contrast;
-    GtkWidget *overlay_brightness;
-    GtkWidget *overlay_hue;
-    GtkWidget *texture_contrast;
-    GtkWidget *texture_brightness;
-    GtkWidget *texture_hue;
-    GtkWidget *texture_saturation;
-    GtkWidget *texture_sync_to_blank;
-    GtkWidget *blitter_sync_to_blank;
     GtkWidget *xv_sync_to_display_buttons[24];
     GtkWidget *xv_sync_to_display_button_box;
     unsigned int active_attributes;

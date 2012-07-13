@@ -80,11 +80,12 @@ struct _CtkFramelock
     GtkWidget             *sync_edge_frame;
     GtkWidget             *sync_edge_combo;
     GtkWidget             *video_mode_frame;
-    GtkWidget             *video_mode_combo;
+    GtkWidget             *video_mode_widget;
     GtkWidget             *video_mode_detect;
 
     gint                   current_detect_format;
     guint                  video_mode_detect_timer;
+    gboolean               video_mode_read_only;
 
     /* Dialogs */
     GtkWidget             *add_devices_dialog;

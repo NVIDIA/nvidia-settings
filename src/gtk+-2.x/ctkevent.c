@@ -327,6 +327,7 @@ static void ctk_event_class_init(CtkEventClass *ctk_event_class)
     MAKE_SIGNAL(NV_CTRL_GVO_AUDIO_BLANKING);
     MAKE_SIGNAL(NV_CTRL_CURRENT_METAMODE_ID);
     MAKE_SIGNAL(NV_CTRL_DISPLAY_ENABLED);
+    MAKE_SIGNAL(NV_CTRL_FRAMELOCK_INCOMING_HOUSE_SYNC_RATE);
 #undef MAKE_SIGNAL
     
     /*
@@ -336,7 +337,7 @@ static void ctk_event_class_init(CtkEventClass *ctk_event_class)
      * knows about.
      */
 
-#if NV_CTRL_LAST_ATTRIBUTE != NV_CTRL_DISPLAY_ENABLED
+#if NV_CTRL_LAST_ATTRIBUTE != NV_CTRL_FRAMELOCK_INCOMING_HOUSE_SYNC_RATE
 #warning "There are attributes that do not emit signals!"
 #endif
 
@@ -560,14 +561,14 @@ GtkObject *ctk_event_new(NvCtrlAttributeHandle *handle)
 
 static gboolean ctk_event_prepare(GSource *source, gint *timeout)
 {
+    CtkEventSource *event_source = (CtkEventSource *) source;
     *timeout = -1;
-    
+
     /*
-     * XXX We could check if any events are pending on the Display
-     * connection
+     * Check if any events are pending on the Display connection
      */
-    
-    return FALSE;
+
+    return XPending(event_source->dpy);
 }
 
 

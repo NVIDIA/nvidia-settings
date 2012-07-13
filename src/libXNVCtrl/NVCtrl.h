@@ -2276,14 +2276,15 @@
 
 /*
  * NV_CTRL_DISPLAYPORT_LINK_RATE - returns the negotiated lane bandwidth of the
- * DisplayPort main link.
+ * DisplayPort main link.  The numerical value of this attribute is the link
+ * rate in bps divided by 27000000.
  * This attribute is only available for DisplayPort flat panels.
  */
 
 #define NV_CTRL_DISPLAYPORT_LINK_RATE                           291 /* R-DG */
 #define NV_CTRL_DISPLAYPORT_LINK_RATE_DISABLED                  0x0
-#define NV_CTRL_DISPLAYPORT_LINK_RATE_1_62GBPS                  0x6
-#define NV_CTRL_DISPLAYPORT_LINK_RATE_2_70GBPS                  0xA
+#define NV_CTRL_DISPLAYPORT_LINK_RATE_1_62GBPS                  0x6 /* deprecated */
+#define NV_CTRL_DISPLAYPORT_LINK_RATE_2_70GBPS                  0xA /* deprecated */
 
 /*
  * NV_CTRL_STEREO_EYES_EXCHANGE - Controls whether or not the left and right
@@ -3184,8 +3185,18 @@
 #define NV_CTRL_DISPLAY_ENABLED_TRUE                              1
 #define NV_CTRL_DISPLAY_ENABLED_FALSE                             0
 
+/* 
+ * NV_CTRL_FRAMELOCK_INCOMING_HOUSE_SYNC_RATE: this is the rate 
+ * of an incomming house sync signal to the frame lock board, in milliHz.
+ *
+ * This attribute may be queried through XNVCTRLQueryTargetAttribute()
+ * using a NV_CTRL_TARGET_TYPE_FRAMELOCK or NV_CTRL_TARGET_TYPE_X_SCREEN
+ * target.
+ */
+#define NV_CTRL_FRAMELOCK_INCOMING_HOUSE_SYNC_RATE              389 /* R--F */
 
-#define NV_CTRL_LAST_ATTRIBUTE NV_CTRL_DISPLAY_ENABLED
+
+#define NV_CTRL_LAST_ATTRIBUTE NV_CTRL_FRAMELOCK_INCOMING_HOUSE_SYNC_RATE
 
 /**************************************************************************/
 
@@ -3483,8 +3494,6 @@
  *                          the Monitor section of the X config file
  *             "option"   - HorizSync is from the "HorizSync" NVIDIA X
  *                          config option
- *             "twinview" - HorizSync is from the "SecondMonitorHorizSync"
- *                          NVIDIA X config option
  *             "builtin"  - HorizSync is from NVIDIA X driver builtin
  *                          default values
  *
@@ -3518,8 +3527,6 @@
  *                          the Monitor section of the X config file
  *             "option"   - VertRefresh is from the "VertRefresh" NVIDIA X
  *                          config option
- *             "twinview" - VertRefresh is from the "SecondMonitorVertRefresh"
- *                          NVIDIA X config option
  *             "builtin"  - VertRefresh is from NVIDIA X driver builtin
  *                          default values
  *

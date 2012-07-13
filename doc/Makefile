@@ -56,9 +56,11 @@ endif
 GEN_MANPAGE_OPTS        = $(OUTPUTDIR)/gen-manpage-opts
 OPTIONS_1_INC           = $(OUTPUTDIR)/options.1.inc
 
-CFLAGS     += -I $(COMMON_UTILS_DIR)
-CFLAGS     += -I ../src/libXNVCtrlAttributes
+common_cflags += -I $(COMMON_UTILS_DIR)
+common_cflags += -I ../src/libXNVCtrlAttributes
 
+CFLAGS += $(common_cflags)
+HOST_CFLAGS += $(common_cflags)
 
 ##############################################################################
 # build rules
@@ -93,7 +95,7 @@ GEN_MANPAGE_OPTS_SRC += $(COMMON_UTILS_DIR)/gen-manpage-opts-helper.c
 GEN_MANPAGE_OPTS_OBJS = $(call BUILD_OBJECT_LIST,$(GEN_MANPAGE_OPTS_SRC))
 
 $(foreach src, $(GEN_MANPAGE_OPTS_SRC), \
-    $(eval $(call DEFINE_OBJECT_RULE,HOST_CC,$(src))))
+    $(eval $(call DEFINE_OBJECT_RULE,HOST,$(src))))
 
 $(GEN_MANPAGE_OPTS): $(GEN_MANPAGE_OPTS_OBJS)
 	$(call quiet_cmd,HOST_LINK) \

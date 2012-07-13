@@ -23,7 +23,6 @@
 #include "NvCtrlAttributes.h"
 #include "NVCtrl.h"
 #include <GL/glx.h> /* GLX #defines */
-#include <X11/extensions/Xvlib.h> /* Xv */
 
 
 #define EXTENSION_NV_CONTROL  0x1
@@ -99,42 +98,12 @@ struct __NvCtrlVidModeAttributes {
     float gamma[3];
 };
 
-struct __NvCtrlXvAttribute {
-    Atom atom;
-    NVCTRLAttributeValidValuesRec range;
-};
-
-struct __NvCtrlXvOverlayAttributes {
-    unsigned int port;
-    NvCtrlXvAttribute *saturation;
-    NvCtrlXvAttribute *contrast;
-    NvCtrlXvAttribute *brightness;
-    NvCtrlXvAttribute *hue;
-    NvCtrlXvAttribute *defaults;
-};
-
-struct __NvCtrlXvTextureAttributes {
-    unsigned int port;
-    NvCtrlXvAttribute *sync_to_vblank;
-    NvCtrlXvAttribute *contrast;
-    NvCtrlXvAttribute *brightness;
-    NvCtrlXvAttribute *hue;
-    NvCtrlXvAttribute *saturation;
-    NvCtrlXvAttribute *defaults;
-};
-
-struct __NvCtrlXvBlitterAttributes {
-    unsigned int port;
-    NvCtrlXvAttribute *sync_to_vblank;
-    NvCtrlXvAttribute *defaults;
-};
-
 struct __NvCtrlXvAttributes {
     unsigned int major_version;
     unsigned int minor_version;
-    NvCtrlXvOverlayAttributes *overlay; /* XVideo info (overlay) */
-    NvCtrlXvTextureAttributes *texture; /* XVideo info (texture) */
-    NvCtrlXvBlitterAttributes *blitter; /* XVideo info (blitter) */
+    Bool overlay; 
+    Bool texture;
+    Bool blitter;
 };
 
 struct __NvCtrlXrandrAttributes {
@@ -175,19 +144,8 @@ void
 NvCtrlXvAttributesClose (NvCtrlAttributePrivateHandle *);
 
 ReturnStatus
-NvCtrlXvGetAttribute (NvCtrlAttributePrivateHandle *, int, int *);
-
-ReturnStatus
-NvCtrlXvSetAttribute (NvCtrlAttributePrivateHandle *, int, int);
-
-ReturnStatus
 NvCtrlXvGetStringAttribute (NvCtrlAttributePrivateHandle *,
                            unsigned int, int, char **);
-
-ReturnStatus
-NvCtrlXvGetValidAttributeValues(NvCtrlAttributePrivateHandle *, int,
-                                NVCTRLAttributeValidValuesRec *);
-
 
 /* GLX extension attribute functions */
 

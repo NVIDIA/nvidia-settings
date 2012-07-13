@@ -45,7 +45,9 @@
 #define NVCTRL_EXT_EXISTS              1
 #define NVCTRL_EXT_NEED_TARGET_SWAP    2
 #define NVCTRL_EXT_64_BIT_ATTRIBUTES   4
-#define NVCTRL_EXT_NEED_CHECK          (1 << (sizeof(XPointer) - 1))
+/* SetAttributeAndGetStatus supports target type other than X_SCREEN */
+#define NVCTRL_EXT_HAS_TARGET_SET_GET  8
+#define NVCTRL_EXT_NEED_CHECK          (~(uintptr_t)0)
 
 static XExtensionInfo _nvctrl_ext_info_data;
 static XExtensionInfo *nvctrl_ext_info = &_nvctrl_ext_info_data;
@@ -56,9 +58,12 @@ static /* const */ char *nvctrl_extension_name = NV_CONTROL_NAME;
 #define XNVCTRLSimpleCheckExtension(dpy,i) \
   XextSimpleCheckExtension (dpy, i, nvctrl_extension_name)
 
-static int close_display();
 static uintptr_t version_flags(Display *dpy, XExtDisplayInfo *info);
-static Bool wire_to_event();
+static Bool wire_to_event(Display *dpy, XEvent *host, xEvent *wire);
+
+// This is needed to define nvctrl_extension_hooks
+static XEXT_GENERATE_CLOSE_DISPLAY (close_display, nvctrl_ext_info)
+
 static /* const */ XExtensionHooks nvctrl_extension_hooks = {
     NULL,                               /* create_gc */
     NULL,                               /* copy_gc */
@@ -78,8 +83,6 @@ static XEXT_GENERATE_FIND_DISPLAY (find_display, nvctrl_ext_info,
                                    &nvctrl_extension_hooks,
                                    NV_CONTROL_EVENTS,
                                    (XPointer)NVCTRL_EXT_NEED_CHECK)
-
-static XEXT_GENERATE_CLOSE_DISPLAY (close_display, nvctrl_ext_info)
 
 /*
  * NV-CONTROL versions 1.8 and 1.9 pack the target_type and target_id
@@ -135,6 +138,9 @@ static uintptr_t version_flags(Display *dpy, XExtDisplayInfo *info)
             data |= NVCTRL_EXT_EXISTS;
             if (major == 1 && (minor == 8 || minor == 9)) {
                 data |= NVCTRL_EXT_NEED_TARGET_SWAP;
+            }
+            if ((major > 1) || ((major == 1) && (minor > 18))) {
+                data |= NVCTRL_EXT_HAS_TARGET_SET_GET;
             }
             if ((major > 1) || ((major == 1) && (minor > 20))) {
                 data |= NVCTRL_EXT_64_BIT_ATTRIBUTES;
@@ -291,8 +297,18 @@ Bool XNVCTRLSetTargetAttributeAndGetStatus (
     xnvCtrlSetAttributeAndGetStatusReq *req;
     xnvCtrlSetAttributeAndGetStatusReply rep;
     Bool success;
+    uintptr_t flags;
 
     if(!XextHasExtension(info))
+        return False;
+
+    flags = version_flags(dpy, info);
+
+    if (!(flags & NVCTRL_EXT_EXISTS))
+        return False;
+
+    if (!(flags & NVCTRL_EXT_HAS_TARGET_SET_GET) &&
+        target_type != NV_CTRL_TARGET_TYPE_X_SCREEN)
         return False;
 
     XNVCTRLCheckExtension (dpy, info, False);

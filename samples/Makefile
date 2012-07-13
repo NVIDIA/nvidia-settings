@@ -79,7 +79,7 @@ SAMPLE_SOURCES        += nv-control-3dvisionpro.c
 .PHONY: all clean clobber install
 
 # define the rule to build each object file
-$(foreach src, $(SAMPLE_SOURCES), $(eval $(call DEFINE_OBJECT_RULE,CC,$(src))))
+$(foreach src, $(SAMPLE_SOURCES), $(eval $(call DEFINE_OBJECT_RULE,TARGET,$(src))))
 
 # define the rule to link each sample app from its corresponding object file
 define link_sample_from_object

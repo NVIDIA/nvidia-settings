@@ -26,6 +26,7 @@
 
 #include "msg.h"
 #include "parse.h"
+#include "common-utils.h"
 
 #include "ctkbanner.h"
 
@@ -70,24 +71,53 @@ typedef struct DpyLocRec { // Display Location
 
 
 
-/** 
+/**
  * The gridConfigs array enumerates the display grid configurations
  * that are presently supported.
  *
  **/
 
 static GridConfig gridConfigs[] = {
-    {2, 2, FALSE}, // rows, columns, valid
-    {2, 3, FALSE},
-    {2, 4, FALSE},
-    {3, 1, FALSE},
-    {3, 2, FALSE},
-    {1, 3, FALSE},
-    {2, 1, FALSE},
-    {1, 2, FALSE},
-    {4, 1, FALSE},
-    {1, 4, FALSE},
-    {0, 0, FALSE}
+    {4, 4,  FALSE}, // rows, columns, valid
+    {5, 3,  FALSE},
+    {3, 5,  FALSE},
+    {3, 4,  FALSE},
+    {4, 3,  FALSE},
+    {3, 3,  FALSE},
+    {2, 8,  FALSE},
+    {8, 2,  FALSE},
+    {2, 7,  FALSE},
+    {7, 2,  FALSE},
+    {2, 6,  FALSE},
+    {6, 2,  FALSE},
+    {2, 5,  FALSE},
+    {5, 2,  FALSE},
+    {1, 16, FALSE},
+    {16, 1, FALSE},
+    {1, 15, FALSE},
+    {15, 1, FALSE},
+    {1, 14, FALSE},
+    {14, 1, FALSE},
+    {1, 13, FALSE},
+    {13, 1, FALSE},
+    {1, 12, FALSE},
+    {12, 1, FALSE},
+    {1, 11, FALSE},
+    {11, 1, FALSE},
+    {1, 10, FALSE},
+    {10, 1, FALSE},
+    {1, 9,  FALSE},
+    {9, 1,  FALSE},
+    {2, 2,  FALSE},
+    {2, 3,  FALSE},
+    {2, 4,  FALSE},
+    {3, 1,  FALSE},
+    {3, 2,  FALSE},
+    {1, 3,  FALSE},
+    {2, 1,  FALSE},
+    {1, 2,  FALSE},
+    {4, 1,  FALSE},
+    {1, 4,  FALSE},
 };
 
 GType ctk_slimm_get_type()
@@ -136,7 +166,7 @@ static void remove_slimm_options(XConfigPtr xconf)
 static GridConfig *get_ith_valid_grid_config(int idx)
 {
     int i, count = 0;
-    for (i = 0; gridConfigs[i].rows; i++) {
+    for (i = 0; i < ARRAY_LEN(gridConfigs); i++) {
         if (!gridConfigs[i].valid) continue;
         if (count == idx) return &gridConfigs[i];
         count++;
@@ -840,14 +870,14 @@ static Bool parse_slimm_layout(CtkSLIMM *ctk_slimm,
 
     /* Make space for the display location array */
     if (!locs) {
-        for (loc_idx = 0; gridConfigs[loc_idx].rows; loc_idx++ ) {
+        for (loc_idx = 0; loc_idx < ARRAY_LEN(gridConfigs); loc_idx++ ) {
             if ( max_rows < gridConfigs[loc_idx].rows) {
                 max_rows = gridConfigs[loc_idx].rows;
             }
             if ( max_cols < gridConfigs[loc_idx].columns) {
                 max_cols = gridConfigs[loc_idx].columns;
             }
-            if (max_locs < 
+            if (max_locs <
                 (gridConfigs[loc_idx].rows * gridConfigs[loc_idx].columns)) {
                 max_locs =
                     gridConfigs[loc_idx].rows * gridConfigs[loc_idx].columns;
@@ -1010,10 +1040,10 @@ static Bool parse_slimm_layout(CtkSLIMM *ctk_slimm,
                 goto fail;
             }
         }
-        
+
         /* Make sure this is a known/supported grid config */
         found = 0;
-        for (i = 0; gridConfigs[i].rows; i++) {
+        for (i = 0; i < ARRAY_LEN(gridConfigs); i++) {
             if ((gridConfigs[i].rows == rows) &&
                 (gridConfigs[i].columns == cols)) {
                 *grid_config_id = i;
@@ -1333,7 +1363,7 @@ GtkWidget* ctk_slimm_new(NvCtrlAttributeHandle *handle,
         nvGpuPtr gpu;
         int num_displays = 0;
         int min_displays = 0;
-        GridConfig *grid;
+        int i;
         int num_valid = 0;
 
         for (gpu = layout->gpus; gpu; gpu = gpu->next_in_layout) {
@@ -1341,7 +1371,9 @@ GtkWidget* ctk_slimm_new(NvCtrlAttributeHandle *handle,
         }
 
         /* Mark configs that have enough displays as valid */
-        for (grid = gridConfigs; grid->rows; grid++) {
+        for (i = 0; i < ARRAY_LEN(gridConfigs); i++) {
+            GridConfig *grid = &(gridConfigs[i]);
+
             if (!min_displays ||
                 (min_displays > (grid->rows * grid->columns))) {
                 min_displays = grid->rows * grid->columns;
@@ -1351,7 +1383,7 @@ GtkWidget* ctk_slimm_new(NvCtrlAttributeHandle *handle,
                 num_valid++;
             }
         }
-        
+
         /* Make sure we have enough dislays for the minimum config */
         if (num_valid <= 0) {
             err_str = g_strdup_printf("Not enough display devices to "
@@ -1476,7 +1508,7 @@ GtkWidget* ctk_slimm_new(NvCtrlAttributeHandle *handle,
 
     grid_menu_selected_id = 0;
     count = 0;
-    for (iter = 0; gridConfigs[iter].rows; iter++) {
+    for (iter = 0; iter < ARRAY_LEN(gridConfigs); iter++) {
         /* Don't show invalid configs */
         if (!gridConfigs[iter].valid) continue;
         tmp = g_strdup_printf("%d x %d grid",

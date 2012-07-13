@@ -586,3 +586,63 @@ void fmt(FILE *stream, const char *prefix, const char *fmt, ...)
     }
     NV_VFORMAT(stream, TRUE, prefix, fmt);
 }
+
+
+/*
+ * Read from the given FILE stream until a newline, EOF, or nul
+ * terminator is encountered, writing data into a growable buffer.
+ * The eof parameter is set to TRUE when EOF is encountered.  In all
+ * cases, the returned string is null-terminated.
+ *
+ * XXX this function will be rather slow because it uses fgetc() to
+ * pull each character off the stream one at a time; this is done so
+ * that each character can be examined as it's read so that we can
+ * appropriately deal with EOFs and newlines.  A better implementation
+ * would use fgets(), but that would still require us to parse each
+ * read line, checking for newlines or guessing if we hit an EOF.
+ */
+char *fget_next_line(FILE *fp, int *eof)
+{
+    char *buf = NULL, *tmpbuf;
+    char *c = NULL;
+    int len = 0, buflen = 0;
+    int ret;
+
+    const int __fget_next_line_len = 32;
+
+    if (eof) {
+        *eof = FALSE;
+    }
+
+    while (1) {
+        if (buflen == len) { /* buffer isn't big enough -- grow it */
+            buflen += __fget_next_line_len;
+            tmpbuf = nvalloc(buflen);
+            if (buf) {
+                memcpy(tmpbuf, buf, len);
+                nvfree(buf);
+            }
+            buf = tmpbuf;
+            c = buf + len;
+        }
+
+        ret = fgetc(fp);
+
+        if ((ret == EOF) && (eof)) {
+            *eof = TRUE;
+        }
+
+        if ((ret == EOF) || (ret == '\n') || (ret == '\0')) {
+            *c = '\0';
+            return buf;
+        }
+
+        *c = (char) ret;
+
+        len++;
+        c++;
+
+    } /* while (1) */
+
+    return NULL; /* should never get here */
+}

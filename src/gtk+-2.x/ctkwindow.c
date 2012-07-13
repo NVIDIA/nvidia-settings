@@ -561,7 +561,7 @@ GtkWidget *ctk_window_new(ParsedAttribute *p, ConfigProperties *conf,
     /* create the container widget for the "pages" */
 
     hbox = gtk_hbox_new(FALSE, 0);
-    gtk_paned_pack2(GTK_PANED(hpane), hbox, TRUE, TRUE);
+    gtk_paned_pack2(GTK_PANED(hpane), hbox, TRUE, FALSE);
 
     ctk_window->page_viewer = hbox;
     ctk_window->page = NULL;

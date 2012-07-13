@@ -94,7 +94,7 @@ AttributeTableEntry attributeTable[] = {
     { "CursorShadowXOffset",           NV_CTRL_CURSOR_SHADOW_X_OFFSET,            0,     "Hardware cursor shadow X offset." },
     { "CursorShadowYOffset",           NV_CTRL_CURSOR_SHADOW_Y_OFFSET,            0,     "Hardware cursor shadow Y offset." },
     { "AssociatedDisplays",            NV_CTRL_ASSOCIATED_DISPLAY_DEVICES,        N|D,   "Display device mask indicating which display devices are \"associated\" with the specified X screen (i.e., are available for displaying the desktop)." },
-    { "ProbeDisplays",                 NV_CTRL_PROBE_DISPLAYS,                    A,     "When this attribute is queried, the X driver re-probes the hardware to detect which display devices are connected to the GPU or DPU driving the specified X screen.  Returns a display mask of the currently connected display devices." },
+    { "ProbeDisplays",                 NV_CTRL_PROBE_DISPLAYS,                    A|D,   "When this attribute is queried, the X driver re-probes the hardware to detect which display devices are connected to the GPU or DPU driving the specified X screen.  Returns a display mask of the currently connected display devices." },
     { "InitialPixmapPlacement",        NV_CTRL_INITIAL_PIXMAP_PLACEMENT,          N,     "Controls where X pixmaps are initially created." },
     { "DynamicTwinview",               NV_CTRL_DYNAMIC_TWINVIEW,                  N,     "Does the X screen support dynamic TwinView." },
     { "MultiGpuDisplayOwner",          NV_CTRL_MULTIGPU_DISPLAY_OWNER,            N,     "GPU ID of the GPU that has the display device(s) used for showing the X screen." },
@@ -208,6 +208,7 @@ AttributeTableEntry attributeTable[] = {
     { "FrameLockFPGARevision", NV_CTRL_FRAMELOCK_FPGA_REVISION,     N|F|G,   "Returns the FPGA revision of the Frame Lock device." },
     { "FrameLockSyncRate4",    NV_CTRL_FRAMELOCK_SYNC_RATE_4,       N|F|G,   "Returns the refresh rate that the frame lock board is sending to the GPU in 1/10000 Hz (i.e., to get the refresh rate in Hz, divide the returned value by 10000)." },
     { "FrameLockSyncDelayResolution", NV_CTRL_FRAMELOCK_SYNC_DELAY_RESOLUTION, N|F|G, "Returns the number of nanoseconds that one unit of FrameLockSyncDelay corresponds to." },
+    { "FrameLockIncomingHouseSyncRate", NV_CTRL_FRAMELOCK_INCOMING_HOUSE_SYNC_RATE, N|F|G, "Returns the rate of the incoming house sync signal to the frame lock board, in mHz (Millihertz) (i.e., to get the house sync rate in Hz, divide the returned value by 1000)." },
 
     /* GVO */
     { "GvoSupported",                    NV_CTRL_GVO_SUPPORTED,                        I|N,   "Returns whether this X screen supports GVO; if this screen does not support GVO output, then all other GVO attributes are unavailable." },
@@ -313,17 +314,6 @@ AttributeTableEntry attributeTable[] = {
     { "TVSaturation",    NV_CTRL_TV_SATURATION,     0, "Adjusts the amount of saturation on the specified display device." },
 
     /* X Video */
-    { "XVideoOverlaySaturation",   NV_CTRL_ATTR_XV_OVERLAY_SATURATION,     V,   "Controls the amount of saturation in the X video overlay." },
-    { "XVideoOverlayContrast",     NV_CTRL_ATTR_XV_OVERLAY_CONTRAST,       V,   "Controls the amount of contrast in the X video overlay." },
-    { "XVideoOverlayBrightness",   NV_CTRL_ATTR_XV_OVERLAY_BRIGHTNESS,     V,   "Controls the amount of brightness in the X video overlay." },
-    { "XVideoOverlayHue",          NV_CTRL_ATTR_XV_OVERLAY_HUE,            V,   "Controls the amount of hue in the X video overlay." },
-    { "XVideoTextureBrightness",   NV_CTRL_ATTR_XV_TEXTURE_BRIGHTNESS,     V,   "Controls the amount of brightness in the X video texture adaptor." },
-    { "XVideoTextureContrast",     NV_CTRL_ATTR_XV_TEXTURE_CONTRAST,       V,   "Controls the amount of contrast in the X video texture adaptor." },
-    { "XVideoTextureHue",          NV_CTRL_ATTR_XV_TEXTURE_HUE,            V,   "Controls the amount of hue in the X video texture adaptor." },
-    { "XVideoTextureSaturation",   NV_CTRL_ATTR_XV_TEXTURE_SATURATION,     V,   "Controls the amount of saturation in the X video texture adaptor." },
-
-    { "XVideoTextureSyncToVBlank", NV_CTRL_ATTR_XV_TEXTURE_SYNC_TO_VBLANK, V,   "Enables sync to vertical blanking for X video texture adaptor." },
-    { "XVideoBlitterSyncToVBlank", NV_CTRL_ATTR_XV_BLITTER_SYNC_TO_VBLANK, V,   "Enables sync to vertical blanking for X video blitter adaptor." },
     { "XVideoSyncToDisplay",       NV_CTRL_XV_SYNC_TO_DISPLAY,             D|Z, "Controls which display device is synced to by the texture and blitter adaptors when they are set to synchronize to the vertical blanking." },
 
     /* 3D Vision Pro */
@@ -376,7 +366,7 @@ AttributeTableEntry attributeTable[] = {
  * about.
  */
 
-#if NV_CTRL_LAST_ATTRIBUTE != NV_CTRL_DISPLAY_ENABLED
+#if NV_CTRL_LAST_ATTRIBUTE != NV_CTRL_FRAMELOCK_INCOMING_HOUSE_SYNC_RATE
 #warning "Have you forgotten to add a new integer attribute to attributeTable?"
 #endif
 
@@ -796,23 +786,36 @@ static int nv_parse_display_and_target(char *start,
         }
 
         /*
-         * everything after the colon should be numeric; assign it to
-         * the target_id
+         * are all characters numeric? compute the target_id integer as we scan
+         * the string to check
          */
-        
+
+        digits_only = NV_TRUE;
         target_id = 0;
 
-        for (s = colon + 1; *s; s++) {
+        for (s = colon +1; *s; s++) {
             if (!isdigit(*s)) {
-                free(tmp);
-                return NV_PARSER_STATUS_TARGET_SPEC_BAD_TARGET_ID;
+                digits_only = NV_FALSE;
+                break;
             }
             target_id = (target_id * 10) + ctoi(*s);
         }
-        
+
+        /*
+         * if all characters are numeric, this is the target_id, otherwise,
+         * this is a target type-specific name.
+         */
+
         a->target_type = target_type;
-        a->target_id = target_id;
-        
+
+        if (digits_only) {
+            a->target_id = target_id;
+            a->target_name = NULL;
+        } else {
+            a->target_id = -1;
+            a->target_name = strdup(colon +1);
+        }
+
         a->flags |= NV_PARSER_HAS_TARGET;
 
         /* we're finally done with the temp string */
@@ -1278,8 +1281,9 @@ void nv_parsed_attribute_clean(ParsedAttribute *p)
 
     if (p->display) free(p->display);
     if (p->name) free(p->name);
-    
-    memset(p, 0, sizeof(ParsedAttribute));
+    free(p->target_name);
+
+    memset(p, 0, sizeof(*p));
 
 } /* nv_parsed_attribute_clean() */
 

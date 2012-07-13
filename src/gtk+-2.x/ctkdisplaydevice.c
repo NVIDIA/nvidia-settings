@@ -529,21 +529,17 @@ static void update_link(CtkDisplayDevice *ctk_object)
                 (val == NV_CTRL_DISPLAYPORT_LINK_RATE_DISABLED)) {
                 link = "Disabled";
             } else {
-                const char *bw = "unknown bandwidth";
-
-                if (ret == NvCtrlSuccess) {
-                    switch (val) {
-                    case NV_CTRL_DISPLAYPORT_LINK_RATE_1_62GBPS:
-                        bw = "1.62 Gbps";
-                        break;
-                    case NV_CTRL_DISPLAYPORT_LINK_RATE_2_70GBPS:
-                        bw = "2.70 Gbps";
-                        break;
-                    }
+                if (ret != NvCtrlSuccess) {
+                    val = 0;
                 }
 
-                snprintf(tmp, 32, "%d lane%s @ %s", lanes, lanes == 1 ? "" : "s",
-                         bw);
+                if (val > 0) {
+                    snprintf(tmp, 32, "%d lane%s @ %.2f Gbps", lanes, lanes == 1 ? "" : "s",
+                             val * 0.27);
+                } else {
+                    snprintf(tmp, 32, "%d lane%s @ unknown bandwidth", lanes,
+                             lanes == 1 ? "" : "s");
+                }
                 link = tmp;
             }
         } else {

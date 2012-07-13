@@ -26,8 +26,6 @@
 
 #include "parse.h"
 
-#include <X11/extensions/xf86vmode.h>
-#include <X11/extensions/Xvlib.h>
 #include <stdlib.h>
 #include <string.h>
 #include <stdio.h>
@@ -531,9 +529,7 @@ ReturnStatus
 NvCtrlGetDisplayAttribute64(NvCtrlAttributeHandle *handle,
                             unsigned int display_mask, int attr, int64_t *val)
 {
-    ReturnStatus status;
     NvCtrlAttributePrivateHandle *h;
-    int value_32;
 
     h = (NvCtrlAttributePrivateHandle *) handle;
 
@@ -545,11 +541,11 @@ NvCtrlGetDisplayAttribute64(NvCtrlAttributeHandle *handle,
           case NV_CTRL_ATTR_EXT_VM_PRESENT:
             *val = (h->vm) ? True : False; break;
           case NV_CTRL_ATTR_EXT_XV_OVERLAY_PRESENT:
-            *val = (h->xv && h->xv->overlay) ? True : False; break;
+            *val = h->xv && h->xv->overlay; break;
           case NV_CTRL_ATTR_EXT_XV_TEXTURE_PRESENT:
-            *val = (h->xv && h->xv->texture) ? True : False; break;
+            *val = h->xv && h->xv->texture; break;
           case NV_CTRL_ATTR_EXT_XV_BLITTER_PRESENT:
-            *val = (h->xv && h->xv->blitter) ? True : False; break;
+            *val = h->xv && h->xv->blitter; break;
           default:
             return NvCtrlNoAttribute;
         }
@@ -561,13 +557,6 @@ NvCtrlGetDisplayAttribute64(NvCtrlAttributeHandle *handle,
          (attr <= NV_CTRL_ATTR_NV_LAST_ATTRIBUTE))) {
         if (!h->nv) return NvCtrlMissingExtension;
         return NvCtrlNvControlGetAttribute(h, display_mask, attr, val);
-    }
-
-    if ((attr >= NV_CTRL_ATTR_XV_BASE) &&
-        (attr <= NV_CTRL_ATTR_XV_LAST_ATTRIBUTE)) {
-        status = NvCtrlXvGetAttribute(h, attr, &value_32);
-        *val = value_32;
-        return status;
     }
 
     return NvCtrlNoAttribute;
@@ -600,12 +589,6 @@ NvCtrlSetDisplayAttribute(NvCtrlAttributeHandle *handle,
     if ((attr >= 0) && (attr <= NV_CTRL_LAST_ATTRIBUTE)) {
         if (!h->nv) return NvCtrlMissingExtension;
         return NvCtrlNvControlSetAttribute(h, display_mask, attr, val);
-    }
-
-    if ((attr >= NV_CTRL_ATTR_XV_BASE) &&
-        (attr <= NV_CTRL_ATTR_XV_LAST_ATTRIBUTE)) {
-        
-        return NvCtrlXvSetAttribute(h, attr, val);
     }
 
     return NvCtrlNoAttribute;
@@ -666,12 +649,6 @@ NvCtrlGetValidDisplayAttributeValues(NvCtrlAttributeHandle *handle,
                                                       attr, val);
     }
 
-    if ((attr >= NV_CTRL_ATTR_XV_BASE) &&
-        (attr <= NV_CTRL_ATTR_XV_LAST_ATTRIBUTE)) {
-
-        return NvCtrlXvGetValidAttributeValues(h, attr, val);
-    }
-    
     return NvCtrlNoAttribute;
     
 } /* NvCtrlGetValidDisplayAttributeValues() */

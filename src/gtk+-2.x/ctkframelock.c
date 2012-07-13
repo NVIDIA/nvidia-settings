@@ -178,7 +178,8 @@ struct _nvDisplayDataRec {
 
     GtkWidget *rate_label;
     GtkWidget *rate_text;
-    guint      rate;
+    /* Rate in milliHz */
+    guint      rate_mHz;
     guint      rate_precision;
 
     GtkWidget *stereo_label;
@@ -218,6 +219,8 @@ struct _nvFrameLockDataRec {
     GtkWidget *delay_text;
 
     GtkWidget *house_label;
+    GtkWidget *house_sync_rate_label;
+    GtkWidget *house_sync_rate_text;
     GtkWidget *house_hbox; /* LED */
 
     GtkWidget *port0_label;
@@ -287,9 +290,11 @@ static const char * __sync_edge_combo_help =
 "The Sync Edge drop-down allows you to select which edge the master "
 "frame lock device will use to decode the incoming house sync signal.";
 
-static const char * __video_mode_combo_help =
+static const char * __video_mode_help =
 "The Video Mode drop-down allows you to select which video mode the server "
-"G-Sync device will use to decode the incoming house sync signal.";
+"G-Sync device will use to decode the incoming house sync signal.  On some "
+"G-Sync devices, this will be auto-detected and will be reported as "
+"read-only information.";
 
 static const char * __detect_video_mode_button_help =
 "The Detect Video Mode button will attempt to automatically detect the format "
@@ -1185,7 +1190,15 @@ static void list_entry_update_gpu_controls(CtkFramelock *ctk_framelock,
 
 static gboolean framelock_refresh_rates_compatible(int server, int client)
 {
-    int range = ABS(((int64_t)(server - client) * 1000000) / client);
+    int range;
+
+    /* client can be 0, e.g. if querying NV_CTRL_REFRESH_RATE{,_3} fails,
+     * or if the display device is disabled. */
+    if (client == 0) {
+        return FALSE;
+    }
+
+    range = ABS(((int64_t)(server - client) * 1000000) / client);
 
     /* Framelock can be achieved if the range between refresh rates is less
      * than 50 ppm */
@@ -1247,7 +1260,8 @@ static void list_entry_update_display_controls(CtkFramelock *ctk_framelock,
      */
     sensitive = (data->slaveable &&
         (!server_data ||
-         framelock_refresh_rates_compatible(server_data->rate, data->rate)));
+         framelock_refresh_rates_compatible(server_data->rate_mHz,
+                                            data->rate_mHz)));
     gtk_widget_set_sensitive(data->rate_label, sensitive);
     gtk_widget_set_sensitive(data->rate_text, sensitive);
     gtk_widget_set_sensitive(data->label, sensitive);
@@ -2065,9 +2079,10 @@ static nvListEntryPtr list_entry_new_with_framelock(nvFrameLockDataPtr data)
     }
     entry->data = (gpointer)(data);
     entry->data_type = ENTRY_DATA_FRAMELOCK;
+    entry->ctk_event = CTK_EVENT(ctk_event_new(data->handle));
 
     /* Pack the data's widgets into the list entry data hbox */
-    
+
     gtk_box_pack_start(GTK_BOX(entry->label_hbox), data->label,
                        FALSE, FALSE, 5);
 
@@ -2076,34 +2091,34 @@ static nvListEntryPtr list_entry_new_with_framelock(nvFrameLockDataPtr data)
     padding = gtk_hbox_new(FALSE, 0);
 
     gtk_container_set_border_width(GTK_CONTAINER(hbox), 2);
-    
+
     gtk_box_pack_end(GTK_BOX(entry->data_hbox), frame, FALSE, FALSE, 0);
     gtk_container_add(GTK_CONTAINER(frame), hbox);
-    
+
     gtk_box_pack_start(GTK_BOX(hbox), data->receiving_hbox, FALSE, FALSE, 0);
     gtk_box_pack_start(GTK_BOX(hbox), data->receiving_label, FALSE, FALSE, 0);
 
     vseparator = gtk_vseparator_new();
     gtk_box_pack_start(GTK_BOX(hbox), vseparator, FALSE, FALSE, 0);
-    
+
     gtk_box_pack_start(GTK_BOX(hbox), data->rate_label, FALSE, FALSE, 0);
     gtk_box_pack_start(GTK_BOX(hbox), data->rate_text, FALSE, FALSE, 0);
 
     vseparator = gtk_vseparator_new();
     gtk_box_pack_start(GTK_BOX(hbox), vseparator, FALSE, FALSE, 0);
-    
+
     gtk_box_pack_start(GTK_BOX(hbox), data->house_hbox, FALSE, FALSE, 0);
     gtk_box_pack_start(GTK_BOX(hbox), data->house_label, FALSE, FALSE, 0);
 
     vseparator = gtk_vseparator_new();
     gtk_box_pack_start(GTK_BOX(hbox), vseparator, FALSE, FALSE, 0);
-    
+
     gtk_box_pack_start(GTK_BOX(hbox), data->port0_hbox, FALSE, FALSE, 0);
     gtk_box_pack_start(GTK_BOX(hbox), data->port0_label, FALSE, FALSE, 0);
 
     vseparator = gtk_vseparator_new();
     gtk_box_pack_start(GTK_BOX(hbox), vseparator, FALSE, FALSE, 0);
-    
+
     gtk_box_pack_start(GTK_BOX(hbox), data->port1_hbox, FALSE, FALSE, 0);
     gtk_box_pack_start(GTK_BOX(hbox), data->port1_label, FALSE, FALSE, 0);
 
@@ -2120,6 +2135,16 @@ static nvListEntryPtr list_entry_new_with_framelock(nvFrameLockDataPtr data)
     gtk_box_pack_start(GTK_BOX(data->extra_info_hbox), data->delay_text,
                        FALSE, FALSE, 0);
 
+    vseparator = gtk_vseparator_new();
+    gtk_box_pack_start(GTK_BOX(data->extra_info_hbox), vseparator,
+                       FALSE, FALSE, 0);
+
+    gtk_box_pack_start(GTK_BOX(data->extra_info_hbox),
+                       data->house_sync_rate_label,
+                       FALSE, FALSE, 0);
+    gtk_box_pack_start(GTK_BOX(data->extra_info_hbox),
+                       data->house_sync_rate_text,
+                       FALSE, FALSE, 0);
     vseparator = gtk_vseparator_new();
     gtk_box_pack_start(GTK_BOX(data->extra_info_hbox), vseparator,
                        FALSE, FALSE, 0);
@@ -2156,24 +2181,25 @@ static nvListEntryPtr list_entry_new_with_gpu(nvGPUDataPtr data)
     }
     entry->data = (gpointer)(data);
     entry->data_type = ENTRY_DATA_GPU;
+    entry->ctk_event = CTK_EVENT(ctk_event_new(data->handle));
 
     /* Pack the data's widgets into the list entry data hbox */
-    
+
     gtk_box_pack_start(GTK_BOX(entry->label_hbox), data->label,
                        FALSE, FALSE, 5);
 
     frame = gtk_frame_new(NULL);
     hbox = gtk_hbox_new(FALSE, 5);
     padding = gtk_hbox_new(FALSE, 0);
-    
+
     gtk_container_set_border_width(GTK_CONTAINER(hbox), 2);
-    
+
     gtk_box_pack_end(GTK_BOX(entry->data_hbox), frame, FALSE, FALSE, 0);
     gtk_container_add(GTK_CONTAINER(frame), hbox);
-    
+
     gtk_box_pack_start(GTK_BOX(hbox), data->timing_hbox, FALSE, FALSE, 0);
     gtk_box_pack_start(GTK_BOX(hbox), data->timing_label, FALSE, FALSE, 0);
-    
+
     gtk_box_pack_end(GTK_BOX(hbox), padding, FALSE, FALSE, 0);
 
     return entry;
@@ -2204,7 +2230,7 @@ static nvListEntryPtr list_entry_new_with_display(nvDisplayDataPtr data)
     entry->data_type = ENTRY_DATA_DISPLAY;
 
    /* Pack the data's widgets into the list entry data hbox */
-    
+
     gtk_box_pack_start(GTK_BOX(entry->label_hbox), data->label,
                        FALSE, FALSE, 5);
 
@@ -2216,28 +2242,28 @@ static nvListEntryPtr list_entry_new_with_display(nvDisplayDataPtr data)
 
     gtk_box_pack_end(GTK_BOX(entry->data_hbox), frame, FALSE, FALSE, 0);
     gtk_container_add(GTK_CONTAINER(frame), hbox);
-    
+
     gtk_box_pack_start(GTK_BOX(hbox), data->stereo_hbox, FALSE, FALSE, 0);
     gtk_box_pack_start(GTK_BOX(hbox), data->stereo_label, FALSE, FALSE, 0);
-    
+
     vseparator = gtk_vseparator_new();
     gtk_box_pack_start(GTK_BOX(hbox), vseparator, FALSE, FALSE, 0);
-    
+
     gtk_box_pack_start(GTK_BOX(hbox), data->rate_label, FALSE, FALSE, 0);
     gtk_box_pack_start(GTK_BOX(hbox), data->rate_text, FALSE, FALSE, 0);
-    
+
     vseparator = gtk_vseparator_new();
     gtk_box_pack_start(GTK_BOX(hbox), vseparator, FALSE, FALSE, 0);
-    
+
     gtk_box_pack_start(GTK_BOX(hbox), data->server_checkbox, FALSE, FALSE, 0);
     gtk_box_pack_start(GTK_BOX(hbox), data->server_label, FALSE, FALSE, 0);
-    
+
     vseparator = gtk_vseparator_new();
     gtk_box_pack_start(GTK_BOX(hbox), vseparator, FALSE, FALSE, 0);
-    
+
     gtk_box_pack_start(GTK_BOX(hbox), data->client_checkbox, FALSE, FALSE, 0);
     gtk_box_pack_start(GTK_BOX(hbox), data->client_label, FALSE, FALSE, 0);
-    
+
     gtk_box_pack_end(GTK_BOX(hbox), padding, FALSE, FALSE, 0);
 
     return entry;
@@ -3581,6 +3607,21 @@ static void list_entry_update_framelock_status(CtkFramelock *ctk_framelock,
     snprintf(str, 32, "%.2f uS", fvalue); // 10.2f
     gtk_label_set_text(GTK_LABEL(data->delay_text), str);
 
+    /* Incomming signal rate */
+    gtk_widget_set_sensitive(data->house_sync_rate_label, framelock_enabled);
+    gtk_widget_set_sensitive(data->house_sync_rate_text, framelock_enabled);
+
+    ret =
+        NvCtrlGetAttribute(data->handle,
+                           NV_CTRL_FRAMELOCK_INCOMING_HOUSE_SYNC_RATE,
+                           &rate);
+    if (ret == NvCtrlSuccess) {
+        snprintf(str, 32, "%d.%.4d Hz", (rate / 10000), (rate % 10000));
+    } else {
+        snprintf(str, 32, "Unknown");
+    }
+    gtk_label_set_text(GTK_LABEL(data->house_sync_rate_text), str);
+    
     /* House Sync and Ports are always active */
     update_image(data->house_hbox,
                  (house ? ctk_framelock->led_green_pixbuf :
@@ -3955,12 +3996,39 @@ static void update_house_sync_controls(CtkFramelock *ctk_framelock)
             house_format = NV_CTRL_FRAMELOCK_VIDEO_MODE_NONE;
         if (house_format > NV_CTRL_FRAMELOCK_VIDEO_MODE_HDTV)
             house_format = NV_CTRL_FRAMELOCK_VIDEO_MODE_HDTV;
-        
-        gtk_entry_set_text
-            (GTK_ENTRY(GTK_COMBO(ctk_framelock->video_mode_combo)->entry),
-             houseFormatStrings[house_format]);
+
+        if (!ctk_framelock->video_mode_read_only) {
+            gtk_entry_set_text
+                (GTK_ENTRY(GTK_COMBO(ctk_framelock->video_mode_widget)->entry),
+                 houseFormatStrings[house_format]);
+        } else {
+            gtk_label_set_text(GTK_LABEL(ctk_framelock->video_mode_widget),
+                               houseFormatStrings[house_format]);
+        }
 
     }
+}
+
+
+
+static void update_display_rate_txt(nvDisplayDataPtr data,
+                                    guint rate_mHz, int precision)
+{
+    float fvalue;
+    char str[32];
+
+    /* Don't overwrite REFRESH_RATE_3 with REFRESH_RATE data */
+    if (precision < data->rate_precision) {
+        return;
+    }
+
+    data->rate_precision = precision;
+    data->rate_mHz = rate_mHz;
+
+    fvalue = ((float)(data->rate_mHz)) / 1000.0f;
+    snprintf(str, 32, "%.*f Hz", precision, fvalue);
+
+    gtk_label_set_text(GTK_LABEL(data->rate_text), str);
 }
 
 
@@ -3983,6 +4051,8 @@ static void gpu_state_received(GtkObject *object,
     CtkFramelock *ctk_framelock = gpu_entry->tree->ctk_framelock;
     gboolean sensitive;
     gboolean checked;
+    int rateMultiplier = 1;
+    int precision = 3;
 
     switch (event->attribute) {
     case NV_CTRL_FRAMELOCK_MASTER:
@@ -4195,32 +4265,21 @@ static void gpu_state_received(GtkObject *object,
 
 
     case NV_CTRL_REFRESH_RATE:
+        rateMultiplier = 10;
+        precision = 2;
+        /* fallthrough */
     case NV_CTRL_REFRESH_RATE_3:
         /* Update the display device's refresh rate */
         display_entry = get_display_on_gpu(gpu_entry, event->display_mask);
         if (display_entry && display_entry->data) {
-            float fvalue;
-            char str[32];
-
             display_data =
                 (nvDisplayDataPtr)(display_entry->data);
 
-            display_data->rate = event->value;
-            if (event->attribute == NV_CTRL_REFRESH_RATE_3 &&
-                display_data->rate_precision == 3) {
-                fvalue = ((float)(display_data->rate)) / 1000.0f;
-                snprintf(str, 32, "%.3f Hz", fvalue);
-            } else if (display_data->rate_precision == 2 ){
-                fvalue = ((float)(display_data->rate)) / 100.0f;
-                snprintf(str, 32, "%.2f Hz", fvalue);
-            } else {
-                // wrong signal (got 2 but support 3 or got 3 but
-                // don't support it);
-                break;
-            }
-            gtk_label_set_text(GTK_LABEL(display_data->rate_text), str);   
+            update_display_rate_txt(display_data,
+                                    event->value * rateMultiplier,
+                                    precision);
         }
-        
+
         /* Make sure the framelock controls are in a consistent state */
         update_framelock_controls(ctk_framelock);
         break;
@@ -4328,19 +4387,24 @@ static void framelock_state_received(GtkObject *object,
         if (house_format > NV_CTRL_FRAMELOCK_VIDEO_MODE_HDTV)
             house_format = NV_CTRL_FRAMELOCK_VIDEO_MODE_HDTV;
 
-        g_signal_handlers_block_by_func
-            (G_OBJECT(GTK_COMBO(ctk_framelock->video_mode_combo)->entry),
-             G_CALLBACK(changed_video_mode),
-             (gpointer) ctk_framelock);
+        if (!ctk_framelock->video_mode_read_only) {
+            g_signal_handlers_block_by_func
+                (G_OBJECT(GTK_COMBO(ctk_framelock->video_mode_widget)->entry),
+                 G_CALLBACK(changed_video_mode),
+                 (gpointer) ctk_framelock);
 
-        gtk_entry_set_text
-            (GTK_ENTRY(GTK_COMBO(ctk_framelock->video_mode_combo)->entry),
-             houseFormatStrings[house_format]);
-        
-        g_signal_handlers_unblock_by_func
-            (G_OBJECT(GTK_COMBO(ctk_framelock->video_mode_combo)->entry),
-             G_CALLBACK(changed_video_mode),
-             (gpointer) ctk_framelock);
+            gtk_entry_set_text
+                (GTK_ENTRY(GTK_COMBO(ctk_framelock->video_mode_widget)->entry),
+                 houseFormatStrings[house_format]);
+
+            g_signal_handlers_unblock_by_func
+                (G_OBJECT(GTK_COMBO(ctk_framelock->video_mode_widget)->entry),
+                 G_CALLBACK(changed_video_mode),
+                 (gpointer) ctk_framelock);
+        } else {
+            gtk_label_set_text(GTK_LABEL(ctk_framelock->video_mode_widget),
+                               houseFormatStrings[house_format]);
+        }
         break;
 
     default:
@@ -4487,6 +4551,7 @@ GtkWidget* ctk_framelock_new(NvCtrlAttributeHandle *handle,
     ctk_framelock->attribute_handle = handle;
     ctk_framelock->ctk_config = ctk_config;
     ctk_framelock->parent_window = GTK_WINDOW(parent_window);
+    ctk_framelock->video_mode_read_only = TRUE;
 
     /* create the watch cursor */
 
@@ -4585,28 +4650,42 @@ GtkWidget* ctk_framelock_new(NvCtrlAttributeHandle *handle,
 
     /* Create combo boxes */
 
-    combo = gtk_combo_new();
-    glist = NULL;
-    glist = g_list_append
-        (glist,
-         houseFormatStrings[NV_CTRL_FRAMELOCK_VIDEO_MODE_COMPOSITE_AUTO]);
-    glist = g_list_append
-        (glist,
-         houseFormatStrings[NV_CTRL_FRAMELOCK_VIDEO_MODE_COMPOSITE_BI_LEVEL]);
-    glist = g_list_append
-        (glist,
-         houseFormatStrings[NV_CTRL_FRAMELOCK_VIDEO_MODE_COMPOSITE_TRI_LEVEL]);
-    glist = g_list_append
-        (glist, houseFormatStrings[NV_CTRL_FRAMELOCK_VIDEO_MODE_TTL]);
-    
-    gtk_combo_set_popdown_strings(GTK_COMBO(combo), glist);
-    gtk_editable_set_editable(GTK_EDITABLE(GTK_COMBO(combo)->entry), FALSE);
-    g_signal_connect(G_OBJECT(GTK_EDITABLE(GTK_COMBO(combo)->entry)),
-                     "changed", G_CALLBACK(changed_video_mode),
-                     (gpointer) ctk_framelock);
-    ctk_config_set_tooltip(ctk_config, combo,
-                           __video_mode_combo_help);
-    ctk_framelock->video_mode_combo = combo;
+    /* Select video mode widget dropdown/label depending on 
+     * video mode is read-only.
+     */
+    ret = NvCtrlGetValidAttributeValues(ctk_framelock->attribute_handle,
+                                        NV_CTRL_FRAMELOCK_VIDEO_MODE,
+                                        &valid);
+    if ((ret == NvCtrlSuccess) && (valid.permissions & ATTRIBUTE_TYPE_WRITE)) {
+        ctk_framelock->video_mode_read_only = FALSE;
+    }
+
+    if (!ctk_framelock->video_mode_read_only) {
+        combo = gtk_combo_new();
+        glist = NULL;
+        glist = g_list_append
+            (glist,
+             houseFormatStrings[NV_CTRL_FRAMELOCK_VIDEO_MODE_COMPOSITE_AUTO]);
+        glist = g_list_append
+            (glist,
+             houseFormatStrings[NV_CTRL_FRAMELOCK_VIDEO_MODE_COMPOSITE_BI_LEVEL]);
+        glist = g_list_append
+            (glist,
+             houseFormatStrings[NV_CTRL_FRAMELOCK_VIDEO_MODE_COMPOSITE_TRI_LEVEL]);
+        glist = g_list_append
+            (glist, houseFormatStrings[NV_CTRL_FRAMELOCK_VIDEO_MODE_TTL]);
+
+        gtk_combo_set_popdown_strings(GTK_COMBO(combo), glist);
+        gtk_editable_set_editable(GTK_EDITABLE(GTK_COMBO(combo)->entry), FALSE);
+        g_signal_connect(G_OBJECT(GTK_EDITABLE(GTK_COMBO(combo)->entry)),
+                         "changed", G_CALLBACK(changed_video_mode),
+                         (gpointer) ctk_framelock);
+        ctk_framelock->video_mode_widget = combo;
+    } else {
+        ctk_framelock->video_mode_widget = gtk_label_new("None");
+    } 
+    ctk_config_set_tooltip(ctk_config, ctk_framelock->video_mode_widget,
+                           __video_mode_help);
 
 
     combo = gtk_combo_new();
@@ -4827,7 +4906,7 @@ GtkWidget* ctk_framelock_new(NvCtrlAttributeHandle *handle,
         gtk_container_add(GTK_CONTAINER(frame2), hbox);
 
         gtk_box_pack_start(GTK_BOX(hbox), label, FALSE, TRUE, 5);
-        gtk_box_pack_start(GTK_BOX(hbox), ctk_framelock->video_mode_combo,
+        gtk_box_pack_start(GTK_BOX(hbox), ctk_framelock->video_mode_widget,
                            FALSE, FALSE, 5);
         gtk_box_pack_start(GTK_BOX(hbox), ctk_framelock->video_mode_detect,
                            FALSE, TRUE, 5);
@@ -5026,14 +5105,12 @@ static void add_display_devices(CtkFramelock *ctk_framelock,
     nvGPUDataPtr      gpu_data;
     nvListEntryPtr    entry;
     ReturnStatus      ret;
-    
+
     unsigned int enabled_displays;
     unsigned int display_mask;
 
     unsigned int master_mask;
     unsigned int slaves_mask;
-    gfloat       fvalue; /* To print the refresh rate */
-    gchar        rr_str[32];
 
     nvListEntryPtr   server_entry = NULL;
 
@@ -5097,11 +5174,14 @@ static void add_display_devices(CtkFramelock *ctk_framelock,
     /* Cache the server/clients masks */
     gpu_data->server_mask = master_mask;
     gpu_data->clients_mask = slaves_mask;
-    
+
 
     /* Add all enabled displays found on the GPU */
     display_mask = 1;
     while (display_mask) {
+        int rate;
+        int precision;
+
         if (display_mask & enabled_displays) {
 
             /* Create the display structure */
@@ -5110,11 +5190,11 @@ static void add_display_devices(CtkFramelock *ctk_framelock,
             if (!display_data) {
                 goto fail;
             }
-            
+
             /* Setup the display information */
             display_data->handle      = gpu_data->handle;
             display_data->device_mask = display_mask;
-            
+
             ret = NvCtrlGetDisplayAttribute(gpu_data->handle,
                                             display_mask,
                                             NV_CTRL_FRAMELOCK_MASTERABLE,
@@ -5123,30 +5203,8 @@ static void add_display_devices(CtkFramelock *ctk_framelock,
                 goto fail;
             }
 
-            // If we can't get either percision, then fail
-            if (NvCtrlSuccess !=
-                (ret = NvCtrlGetDisplayAttribute(gpu_data->handle,
-                                             display_mask,
-                                             NV_CTRL_REFRESH_RATE_3,
-                                             (int *)&(display_data->rate)))) {
-                ret = NvCtrlGetDisplayAttribute(gpu_data->handle,
-                                                display_mask,
-                                                NV_CTRL_REFRESH_RATE,
-                                                (int *)&(display_data->rate));
-                fvalue = ((float)(display_data->rate)) / 100.0f;
-                snprintf(rr_str, 32, "%.2f Hz", fvalue);
-                display_data->rate_precision = 2;
-            } else {
-                fvalue = ((float)(display_data->rate)) / 1000.0f;
-                snprintf(rr_str, 32, "%.3f Hz", fvalue);
-                display_data->rate_precision = 3;
-            }
-            if (ret != NvCtrlSuccess) {
-                goto fail;
-            }
-
             display_data->label           = gtk_label_new("");
-            
+
             display_data->server_label    = gtk_label_new("Server");
             display_data->server_checkbox = gtk_check_button_new();
             ctk_config_set_tooltip(ctk_framelock->ctk_config,
@@ -5158,9 +5216,10 @@ static void add_display_devices(CtkFramelock *ctk_framelock,
             ctk_config_set_tooltip(ctk_framelock->ctk_config,
                                    display_data->client_checkbox,
                                    __client_checkbox_help);
-            
+
+
             display_data->rate_label      = gtk_label_new("Refresh:");
-            display_data->rate_text       = gtk_label_new(rr_str);
+            display_data->rate_text       = gtk_label_new("");
 
             display_data->stereo_label    = gtk_label_new("Stereo");
             display_data->stereo_hbox     = gtk_hbox_new(FALSE, 0);
@@ -5170,10 +5229,31 @@ static void add_display_devices(CtkFramelock *ctk_framelock,
 
             update_entry_label(ctk_framelock, entry);
             list_entry_update_status(ctk_framelock, entry);
-                       
+
             /* Add display to GPU entry */
             list_entry_add_child(gpu_entry, entry);
-            
+
+
+            /* Refresh Rate */
+            ret = NvCtrlGetDisplayAttribute(display_data->handle,
+                                            display_data->device_mask,
+                                            NV_CTRL_REFRESH_RATE_3, &rate);
+            if (ret != NvCtrlSuccess) {
+                ret = NvCtrlGetDisplayAttribute(display_data->handle,
+                                                display_data->device_mask,
+                                                NV_CTRL_REFRESH_RATE, &rate);
+                if (ret != NvCtrlSuccess) {
+                    rate = 0;
+                    precision = 0;
+                } else {
+                    rate = rate * 10;
+                    precision = 2;
+                }
+            } else {
+                precision = 3;
+            }
+            update_display_rate_txt(display_data, rate, precision);
+
             /* Setup state */
             if (!display_data->masterable) {
                 gtk_widget_set_sensitive(display_data->server_label, FALSE);
@@ -5318,8 +5398,6 @@ static void add_gpu_devices(CtkFramelock *ctk_framelock,
                                &(gpu_data->enabled));
             ctk_framelock->framelock_enabled |= gpu_data->enabled;
 
-            entry->ctk_event = CTK_EVENT(ctk_event_new(gpu_data->handle));
-
             for (i = 0; i < ARRAY_LEN(__GPUSignals); i++) {
                 g_signal_connect(G_OBJECT(entry->ctk_event),
                                  __GPUSignals[i],
@@ -5425,6 +5503,10 @@ static void add_framelock_devices(CtkFramelock *ctk_framelock,
 
         framelock_data->house_label = gtk_label_new("House");
         framelock_data->house_hbox = gtk_hbox_new(FALSE, 0);
+        
+        framelock_data->house_sync_rate_label =
+            gtk_label_new("House Sync Rate:");
+        framelock_data->house_sync_rate_text = gtk_label_new("");
 
         framelock_data->port0_label = gtk_label_new("Port 0");
         framelock_data->port0_hbox = gtk_hbox_new(FALSE, 0);
@@ -5453,9 +5535,6 @@ static void add_framelock_devices(CtkFramelock *ctk_framelock,
 
             list_tree_add_entry((nvListTreePtr)(ctk_framelock->tree),
                                 entry);
-
-            entry->ctk_event =
-                CTK_EVENT(ctk_event_new(framelock_data->handle));
 
             for (i = 0; i < ARRAY_LEN(__FrameLockSignals); i++) {
                 g_signal_connect(G_OBJECT(entry->ctk_event),
@@ -5926,7 +6005,7 @@ GtkTextBuffer *ctk_framelock_create_help(GtkTextTagTable *table)
                   "only.");
 
     ctk_help_heading(b, &i, "Video Mode");
-    ctk_help_para(b, &i, __video_mode_combo_help);
+    ctk_help_para(b, &i, __video_mode_help);
 
     ctk_help_heading(b, &i, "Video Mode Detect");
     ctk_help_para(b, &i, __detect_video_mode_button_help);

@@ -65,6 +65,7 @@ WHOAMI                ?= whoami
 HOSTNAME_CMD          ?= hostname
 DATE                  ?= date
 GZIP_CMD              ?= gzip
+CHMOD                 ?= chmod
 
 NV_AUTO_DEPEND        ?= 1
 NV_VERBOSE            ?= 0
@@ -156,6 +157,25 @@ ifndef NVIDIA_VERSION
 $(error NVIDIA_VERSION undefined)
 endif
 
+
+##############################################################################
+# Several of the functions below take an argument that indicates if
+# the expression is for the target platform (the system the built
+# program is going to run on) or the host platform (the system
+# performing the build).  The argument is either "HOST" or "TARGET"
+# and needs to be converted:
+#
+# "HOST" -> "HOST_"
+# "TARGET" -> ""
+#
+# and prepended to "CC" or "CFLAGS"
+##############################################################################
+
+host_target = $(patsubst HOST,HOST_,$(patsubst TARGET,,$(1)))
+host_target_cc = $(call host_target,$(1))CC
+host_target_cflags = $(call host_target,$(1))CFLAGS
+
+
 ##############################################################################
 # to generate the dependency files, use the compiler's "-MM" option to
 # generate output of the form "foo.o : foo.c foo.h"; then, use sed to
@@ -168,13 +188,14 @@ endif
 # applies to the object files produced in the build.
 #
 # Arguments:
-# $(1): CC command (CC or HOST_CC)
+# $(1): whether for host or target platform ("HOST" or "TARGET")
 # $(2): source filename
 # $(3): object filename
 ##############################################################################
 
 ifeq ($(NV_AUTO_DEPEND),1)
-  AUTO_DEP_CMD = && $($(1)) -MM $$(CFLAGS) $$< | $$(SED) \
+  AUTO_DEP_CMD = && $($(call host_target_cc,$(1))) \
+    -MM $$($(call host_target_cflags,$(1))) $$< | $$(SED) \
     -e "s,: ,: $$$$\(wildcard ," \
     -e "s,\([^\\]\)$$$$,\1)," \
     -e "s;^$$(addsuffix .o,$$(notdir $$(basename $(2)))): ;$(3): ;" \
@@ -249,11 +270,12 @@ BUILD_DEPENDENCY_LIST = \
 
 ##############################################################################
 # functions to define a rule to build an object file; the first
-# argument is either CC or HOST_CC, the second argument is the source
-# file to compile, and the third argument (_WITH_OBJECT_NAME-only) is
-# the object filename to produce.  Example usage:
+# argument whether the rule is for the target or host platform ("HOST"
+# or "TARGET"), the second argument is the source file to compile, and
+# the third argument (_WITH_OBJECT_NAME-only) is the object filename
+# to produce.  Example usage:
 #
-#  $(eval $(call DEFINE_OBJECT_RULE,CC,foo.c))
+#  $(eval $(call DEFINE_OBJECT_RULE,TARGET,foo.c))
 #
 # Note this also attempts to include the dependency file for this
 # source file.
@@ -266,7 +288,8 @@ BUILD_DEPENDENCY_LIST = \
 define DEFINE_OBJECT_RULE_WITH_OBJECT_NAME
   $(3): $(2)
 	@$(MKDIR) $(OUTPUTDIR)
-	$$(call quiet_cmd,$(1)) $$(CFLAGS) -c $$< -o $$@ \
+	$$(call quiet_cmd,$(call host_target_cc,$(1))) \
+	  $$($(call host_target_cflags,$(1))) -c $$< -o $$@ \
 	  $(call AUTO_DEP_CMD,$(1),$(2),$(3))
 
   -include $$(call BUILD_DEPENDENCY_LIST,$(3))

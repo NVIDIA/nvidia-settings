@@ -117,6 +117,7 @@ typedef struct _ParsedAttribute {
     char *name;
     int target_type;
     int target_id;
+    char *target_name;
     int attr;
     union {
         int i;

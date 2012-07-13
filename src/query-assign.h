@@ -30,6 +30,15 @@
 #include "parse.h"
 #include "command-line.h"
 
+enum {
+    NV_DPY_PROTO_NAME_TYPE_BASENAME = 0,
+    NV_DPY_PROTO_NAME_TYPE_ID,
+    NV_DPY_PROTO_NAME_DP_GUID,
+    NV_DPY_PROTO_NAME_EDID_HASH,
+    NV_DPY_PROTO_NAME_TARGET_INDEX,
+    NV_DPY_PROTO_NAME_RANDR,
+    NV_DPY_PROTO_NAME_MAX,
+};
 
 /*
  * The CtrlHandles struct contains an array of target types for an X
@@ -43,7 +52,8 @@ typedef struct {
     NvCtrlAttributeHandle *h; /* handle for this target */
     uint32 d;                 /* display device mask for this target */
     uint32 c;                 /* Connected display device mask for target */
-    char *name;               /* name for this target */
+    char *name;               /* Name for this target */
+    char *protoNames[NV_DPY_PROTO_NAME_MAX];  /* List of valid names for this target */
 } CtrlHandleTarget;
 
 typedef struct {

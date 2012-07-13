@@ -163,7 +163,7 @@ $(NVIDIA_SETTINGS): $(OBJS) $(XNVCTRL_ARCHIVE)
 	$(call quiet_cmd,STRIP_CMD) $@
 
 # define the rule to build each object file
-$(foreach src,$(SRC),$(eval $(call DEFINE_OBJECT_RULE,CC,$(src))))
+$(foreach src,$(SRC),$(eval $(call DEFINE_OBJECT_RULE,TARGET,$(src))))
 
 # define the rule to generate $(STAMP_C)
 $(eval $(call DEFINE_STAMP_C_RULE, $(OBJS),$(NVIDIA_SETTINGS_PROGRAM_NAME)))

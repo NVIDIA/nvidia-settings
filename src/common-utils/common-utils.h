@@ -65,6 +65,8 @@ void fmterr(const char *fmt, ...);
 void fmtwarn(const char *fmt, ...);
 void fmt(FILE *stream, const char *prefix, const char *fmt, ...);
 
+char *fget_next_line(FILE *fp, int *eof);
+
 /*
  * NV_VSNPRINTF(): macro that assigns buf using vsnprintf().  This is
  * correct for differing semantics of the vsnprintf() return value:

@@ -421,7 +421,8 @@ Bool XNVCTRLQueryValidTargetAttributeValues (
  *
  * Returns True if the attribute exists.  Returns False otherwise.  If
  * XNVCTRLQueryAttributePermissions returns True, permissions will
- * indicate the permission flags for the attribute.
+ * indicate the permission flags for the attribute.  It excludes read
+ * and write permissions.
  */
 
 Bool XNVCTRLQueryAttributePermissions (

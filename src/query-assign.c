@@ -87,6 +87,28 @@ int nv_process_assignments_and_queries(Options *op)
 
 
 /*
+ * query_display_target_names() - retrieves the list of display device names
+ * for the given target.
+ */
+static void query_display_target_names(CtrlHandleTarget *t)
+{
+    NvCtrlGetStringAttribute(t->h, NV_CTRL_STRING_DISPLAY_NAME_TYPE_BASENAME,
+                             &(t->protoNames[NV_DPY_PROTO_NAME_TYPE_BASENAME]));
+    NvCtrlGetStringAttribute(t->h, NV_CTRL_STRING_DISPLAY_NAME_TYPE_ID,
+                             &(t->protoNames[NV_DPY_PROTO_NAME_TYPE_ID]));
+    NvCtrlGetStringAttribute(t->h, NV_CTRL_STRING_DISPLAY_NAME_DP_GUID,
+                             &(t->protoNames[NV_DPY_PROTO_NAME_DP_GUID]));
+    NvCtrlGetStringAttribute(t->h, NV_CTRL_STRING_DISPLAY_NAME_EDID_HASH,
+                             &(t->protoNames[NV_DPY_PROTO_NAME_EDID_HASH]));
+    NvCtrlGetStringAttribute(t->h, NV_CTRL_STRING_DISPLAY_NAME_TARGET_INDEX,
+                             &(t->protoNames[NV_DPY_PROTO_NAME_TARGET_INDEX]));
+    NvCtrlGetStringAttribute(t->h, NV_CTRL_STRING_DISPLAY_NAME_RANDR,
+                             &(t->protoNames[NV_DPY_PROTO_NAME_RANDR]));
+}
+
+
+
+/*
  * nv_alloc_ctrl_handles() - allocate a new CtrlHandles structure,
  * connect to the X server identified by display, and initialize an
  * NvCtrlAttributeHandle for each possible target (X screens, gpus,
@@ -291,6 +313,10 @@ CtrlHandles *nv_alloc_ctrl_handles(const char *display)
                 } else {
                     h->targets[target].t[i].name = tmp;
                 }
+
+                if (target == DISPLAY_TARGET) {
+                    query_display_target_names(&(h->targets[target].t[i]));
+                }
             }
 
             /*
@@ -372,26 +398,32 @@ void nv_free_ctrl_handles(CtrlHandles *h)
          */
         XCloseDisplay(h->dpy);
         h->dpy = NULL;
-        
+
         for (j = 0; targetTypeTable[j].name; j++) {
-            
+
             target = targetTypeTable[j].target_index;
-            
+
             for (i = 0; i < h->targets[target].n; i++) {
-                
-                NvCtrlAttributeClose(h->targets[target].t[i].h);
-                
-                if (h->targets[target].t[i].name) {
-                    free(h->targets[target].t[i].name);
+                CtrlHandleTarget *t = &(h->targets[target].t[i]);
+                int n;
+
+                NvCtrlAttributeClose(t->h);
+                free(t->name);
+                for (n = 0; n < NV_DPY_PROTO_NAME_MAX; n++) {
+                    if (t->protoNames[n]) {
+                        XFree(t->protoNames[n]);
+                    }
                 }
+
+                memset(t, 0, sizeof(*t));
             }
-            
+
             if (h->targets[target].t) free(h->targets[target].t);
         }
     }
-    
+
     free(h);
-    
+
 } /* nv_free_ctrl_handles() */
 
 
@@ -619,8 +651,9 @@ static int validate_value(CtrlHandleTarget *t, ParsedAttribute *a, uint32 d,
                      a->name, NvCtrlAttributesStrError(status));
         return NV_FALSE;
     }
-    
-    if (valid.permissions & ATTRIBUTE_TYPE_DISPLAY) {
+
+    if (target_type != NV_CTRL_TARGET_TYPE_DISPLAY &&
+        valid.permissions & ATTRIBUTE_TYPE_DISPLAY) {
         tmp_d_str = display_device_mask_to_display_device_name(d);
         sprintf(d_str, ", display device: %s", tmp_d_str);
         free(tmp_d_str);
@@ -898,7 +931,8 @@ static void print_queried_value(CtrlHandleTarget *t,
 
     /* append the display device name, if necessary */
 
-    if (v->permissions & ATTRIBUTE_TYPE_DISPLAY) {
+    if ((NvCtrlGetTargetType(t->h) != NV_CTRL_TARGET_TYPE_DISPLAY) &&
+        v->permissions & ATTRIBUTE_TYPE_DISPLAY) {
         tmp_d_str = display_device_mask_to_display_device_name(mask);
         snprintf(d_str, 64, "; display device: %s", tmp_d_str);
         free(tmp_d_str);
@@ -1548,8 +1582,9 @@ static int process_parsed_attribute_internal(CtrlHandleTarget *t,
     ReturnStatus status;
     char str[32], *tmp_d_str;
     int ret;
-    
-    if (valid.permissions & ATTRIBUTE_TYPE_DISPLAY) {
+
+    if (target_type != NV_CTRL_TARGET_TYPE_DISPLAY &&
+        valid.permissions & ATTRIBUTE_TYPE_DISPLAY) {
         tmp_d_str = display_device_mask_to_display_device_name(d);
         sprintf(str, ", display device: %s", tmp_d_str);
         free(tmp_d_str);
@@ -1748,6 +1783,37 @@ int nv_process_parsed_attribute(ParsedAttribute *a, CtrlHandles *h,
             nv_error_msg("Invalid target specified %s.", whence);
             goto done; 
         }
+
+        /*
+         * If the target was named, match it to one of the probed targets
+         * to obtain the target_id
+         */
+
+        if (a->target_name) {
+            Bool found = FALSE;
+            for (i = 0; i < h->targets[target].n; i++) {
+                int j;
+                t = &(h->targets[target].t[i]);
+                for (j = 0; j < NV_DPY_PROTO_NAME_MAX; j++) {
+                    char *name = t->protoNames[j];
+                    if (!name) continue;
+                    if (strcasecmp(name, a->target_name) == 0) {
+                        a->target_id = NvCtrlGetTargetId(t->h);
+                        found = TRUE;
+                        break;
+                    }
+                }
+                if (found) break;
+            }
+
+            if (!found) {
+                nv_error_msg("Invalid name '%s' specified for %s "
+                             "specified %s.", a->target_name,
+                             target_type_name, whence);
+                goto done;
+            }
+        }
+
         
         /* make sure the target_id is in range */
         

@@ -22,6 +22,7 @@
 #include <string.h>
 #include <stdlib.h>
 #include <ctype.h>
+#include <limits.h>
 
 #include "nvgetopt.h"
 #include "common-utils.h"
@@ -401,7 +402,7 @@ void nvgetopt_print_help(const NVGetoptOption *options,
          * prepend the single character version of the option,
          * possibly with an argument; e.g., "-f" or "-f BAR"
          */
-        if (isalpha(o->val)) {
+        if (o->val <= UCHAR_MAX && o->val >= 0 && isalpha(o->val)) {
             char scratch[16];
             char *tmp;
             snprintf(scratch, sizeof(scratch), "%c", o->val);
