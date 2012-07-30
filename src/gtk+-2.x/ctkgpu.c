@@ -361,6 +361,7 @@ GtkWidget* ctk_gpu_new(
     ctk_gpu->gpu_cores = (gpu_cores != NULL) ? 1 : 0;
     ctk_gpu->memory_interface = (memory_interface != NULL) ? 1 : 0;
     ctk_gpu->ctk_config = ctk_config;
+    ctk_gpu->ctk_event = ctk_event;
     ctk_gpu->pcie_gen_queriable = FALSE;
 
     /* set container properties of the object */

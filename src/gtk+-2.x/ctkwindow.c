@@ -119,6 +119,7 @@ static void save_settings_and_exit(CtkWindow *);
 
 static void add_display_devices(CtkWindow *ctk_window, GtkTreeIter *iter,
                                 NvCtrlAttributeHandle *handle,
+                                CtkEvent *ctk_event,
                                 GtkTextTagTable *tag_table,
                                 UpdateDisplaysData *data);
 
@@ -858,7 +859,8 @@ GtkWidget *ctk_window_new(ParsedAttribute *p, ConfigProperties *conf,
                          G_CALLBACK(update_display_devices),
                          (gpointer) data);
 
-        add_display_devices(ctk_window, &iter, gpu_handle, tag_table, data);
+        add_display_devices(ctk_window, &iter, gpu_handle, ctk_event, tag_table,
+                            data);
     }
 
     /* add the per-vcs (e.g. Quadro Plex) entries into the tree model */
@@ -1349,6 +1351,7 @@ void add_special_config_file_attributes(CtkWindow *ctk_window)
 
 static void add_display_devices(CtkWindow *ctk_window, GtkTreeIter *iter,
                                 NvCtrlAttributeHandle *gpu_handle,
+                                CtkEvent *ctk_event_gpu,
                                 GtkTextTagTable *tag_table,
                                 UpdateDisplaysData *data)
 {
@@ -1439,6 +1442,7 @@ static void add_display_devices(CtkWindow *ctk_window, GtkTreeIter *iter,
                    (strcmp(typeBaseName, "CRT") == 0)) {
             widget = ctk_display_device_new(display_handle,
                                             ctk_window->ctk_config, ctk_event,
+                                            ctk_event_gpu,
                                             title, typeBaseName);
             help = ctk_display_device_create_help(tag_table,
                                                   CTK_DISPLAY_DEVICE(widget));
@@ -1482,6 +1486,7 @@ static void update_display_devices(GtkObject *object, gpointer arg1,
     gboolean parent_expanded;
     GtkTreeSelection *tree_selection =
         gtk_tree_view_get_selection(ctk_window->treeview);
+    GtkWidget *widget;
 
 
     /* Keep track if the parent row is expanded */
@@ -1496,7 +1501,6 @@ static void update_display_devices(GtkObject *object, gpointer arg1,
     while (data->num_displays) {
 
         GtkTreeIter *iter = &(data->display_iters[data->num_displays -1]);
-        GtkWidget *widget;
 
         /* Select the parent (GPU) iter if we're removing the selected page */
         if (gtk_tree_selection_iter_is_selected(tree_selection, iter)) {
@@ -1516,7 +1520,13 @@ static void update_display_devices(GtkObject *object, gpointer arg1,
     }
 
     /* Add back all the connected display devices */
-    add_display_devices(ctk_window, &parent_iter, gpu_handle, tag_table, data);
+
+    gtk_tree_model_get(GTK_TREE_MODEL(ctk_window->tree_store), &parent_iter,
+                       CTK_WINDOW_WIDGET_COLUMN, &widget, -1);
+
+    add_display_devices(ctk_window, &parent_iter, gpu_handle,
+                        CTK_GPU(widget)->ctk_event,
+                        tag_table, data);
 
     /* Expand the GPU entry if it used to be */
     if (parent_expanded) {

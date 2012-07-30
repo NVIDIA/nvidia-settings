@@ -119,6 +119,7 @@ AttributeTableEntry attributeTable[] = {
     { "ForceGenericCpu",            NV_CTRL_FORCE_GENERIC_CPU,                N,   "Inhibit the use of CPU-specific features such as MMX, SSE, or 3DNOW! for OpenGL clients; this option may result in performance loss, but may be useful in conjunction with software such as the Valgrind memory debugger.  This setting only takes effect on OpenGL clients started after it is set." },
     { "GammaCorrectedAALines",      NV_CTRL_OPENGL_AA_LINE_GAMMA,             0,   "For OpenGL clients, allow gamma-corrected antialiased lines to consider variances in the color display capabilities of output devices when rendering smooth lines.  Only available on recent Quadro GPUs.  This setting only takes effect on OpenGL clients started after it is set." },
     { "TextureClamping",            NV_CTRL_TEXTURE_CLAMPING,                 0,   "Define the behavior of OpenGL texture clamping for unbordered textures.  If enabled (1), the conformant behavior is used.  If disabled (0), GL_CLAMP is remapped to GL_CLAMP_TO_EDGE to avoid seams in applications that rely on this behavior, which was the only option in some very old hardware." },
+    { "FXAA",                       NV_CTRL_FXAA,                             0,   "Enables or disables the use of FXAA, Fast Approximate Anti-Aliasing" },
 
     { "AllowFlipping",              NV_CTRL_FLIPPING_ALLOWED,                 0,   "Defines the swap behavior of OpenGL.  When 1, OpenGL will swap by flipping when possible;  When 0, OpenGL will always swap by blitting." },
     { "FSAAAppControlled",          NV_CTRL_FSAA_APPLICATION_CONTROLLED,      0,   "When Application Control for FSAA is enabled, then what the application requests is used, and the FSAA attribute is ignored.  If this is disabled, then any application setting is overridden with the FSAA attribute." },
@@ -366,7 +367,7 @@ AttributeTableEntry attributeTable[] = {
  * about.
  */
 
-#if NV_CTRL_LAST_ATTRIBUTE != NV_CTRL_FRAMELOCK_INCOMING_HOUSE_SYNC_RATE
+#if NV_CTRL_LAST_ATTRIBUTE != NV_CTRL_FXAA
 #warning "Have you forgotten to add a new integer attribute to attributeTable?"
 #endif
 

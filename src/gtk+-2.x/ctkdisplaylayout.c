@@ -205,6 +205,7 @@ static void zorder_layout(CtkDisplayLayout *ctk_object)
     }
     ctk_object->Zcount = 0;
     ctk_object->selected_display = NULL;
+    ctk_object->selected_screen = NULL;
 
 
     /* Count the number of Z-orderable elements in the layout */
@@ -2253,12 +2254,13 @@ static void select_screen(CtkDisplayLayout *ctk_object, nvScreenPtr screen)
     int screen_at;
     ZNode *tmpzo;
 
-    if (!screen) return;
+    if (!screen) {
+        goto done;
+    }
 
 
      /* Move the screen and its displays to the top */
     move_to = 0 + screen->num_displays;
-
 
     tmpzo = get_screen_zorder_move_data(ctk_object, screen, move_to,
                                         &screen_at);
@@ -2276,7 +2278,7 @@ static void select_screen(CtkDisplayLayout *ctk_object, nvScreenPtr screen)
            (1 + screen->num_displays)*sizeof(ZNode));
 
     free(tmpzo);
-    
+
  done:
     ctk_object->selected_screen = screen;
 
@@ -2295,12 +2297,12 @@ static void select_display(CtkDisplayLayout *ctk_object, nvDisplayPtr display)
     int i;
 
     if (!display) {
-        return;
+        select_screen(ctk_object, NULL);
+        goto done;
     }
 
     /* Move the screen and its displays to the top of the Z order */
     select_screen(ctk_object, display->screen);
-
 
     /* Move the display to the top of the Z order */
     for (i = 0; i < ctk_object->Zcount; i++) {
@@ -2322,6 +2324,7 @@ static void select_display(CtkDisplayLayout *ctk_object, nvDisplayPtr display)
         }
     }
 
+ done:
     ctk_object->selected_display = display;
 
 } /* select_display() */
@@ -3297,11 +3300,6 @@ void ctk_display_layout_update(CtkDisplayLayout *ctk_object)
     recenter_layout(layout);
     sync_scaling(ctk_object);
     ctk_object->modify_info.modify_dirty = 1;
-
-    /* Make sure the selected display/screen is up to date */
-    if (ctk_object->selected_display) {
-        ctk_object->selected_screen = ctk_object->selected_display->screen;
-    }
 
     queue_layout_redraw(ctk_object);
 

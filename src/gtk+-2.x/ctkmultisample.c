@@ -62,6 +62,15 @@ static void fsaa_value_changed(GtkRange *range, gpointer user_data);
 static void fsaa_update_received(GtkObject *object,
                                  gpointer arg1, gpointer user_data);
 
+static void fxaa_checkbox_toggled(GtkWidget *widget,
+                                  gpointer user_data);
+
+static void fxaa_update_received(GtkObject *object,
+                                 gpointer arg1, gpointer user_data);
+
+static void post_fxaa_toggled(CtkMultisample *ctk_multisample, 
+                              gboolean enable);
+
 static void
 post_log_aniso_app_override_toggled(CtkMultisample *ctk_multisample,
                                     gboolean override);
@@ -119,6 +128,10 @@ static const char *__aniso_override_app_help =
 static const char *__aniso_slider_help =
 "The Anisotropic Filtering slider controls the "
 "level of automatic anisotropic texture filtering.";
+
+static const char *__fxaa_enable_help = 
+"Enable Fast Approximate Anti-Aliasing. This option is applied to "
+"OpenGL applications that are started after this option is set.";
 
 static const char *__texture_sharpening_help =
 "To improve image quality, select this option "
@@ -352,6 +365,27 @@ GtkWidget *ctk_multisample_new(NvCtrlAttributeHandle *handle,
             for (i = 0; i < ctk_multisample->fsaa_translation_table_size; i++)
                 ctk_multisample->active_attributes |=
                     (1 << (__FSAA+ctk_multisample->fsaa_translation_table[i]));
+
+            /* FXAA Option button */
+
+            check_button = gtk_check_button_new_with_label("Enable FXAA");
+
+            ret = NvCtrlGetAttribute(handle, NV_CTRL_FXAA, &val);
+            gtk_toggle_button_set_active(GTK_TOGGLE_BUTTON(check_button),val);
+
+            g_signal_connect(G_OBJECT(check_button), "toggled",
+                             G_CALLBACK(fxaa_checkbox_toggled),
+                             (gpointer) ctk_multisample);
+
+            g_signal_connect(G_OBJECT(ctk_event),
+                             CTK_EVENT_NAME(NV_CTRL_FXAA),
+                             G_CALLBACK(fxaa_update_received),
+                             (gpointer) ctk_multisample);
+
+            ctk_config_set_tooltip(ctk_config, check_button,
+                                   __fxaa_enable_help);
+            gtk_box_pack_start(GTK_BOX(vbox), check_button, FALSE, FALSE, 0);
+            ctk_multisample->fxaa_enable_check_button = check_button;
         }
     }
     
@@ -941,6 +975,69 @@ static void fsaa_value_changed(GtkRange *range, gpointer user_data)
     post_fsaa_value_changed(ctk_multisample, val);
 
 } /* fsaa_value_changed() */
+
+
+/*
+ * fxaa_checkbox_toggled - callback for a change to
+ * the FXAA settings in the control panel
+ */
+static void fxaa_checkbox_toggled(GtkWidget *widget,
+                                  gpointer user_data)
+{
+    CtkMultisample *ctk_multisample = CTK_MULTISAMPLE(user_data);
+    gboolean enabled;
+
+    enabled = gtk_toggle_button_get_active(GTK_TOGGLE_BUTTON(widget));
+
+    NvCtrlSetAttribute(ctk_multisample->handle, NV_CTRL_FXAA, enabled);
+
+    post_fxaa_toggled(ctk_multisample, enabled);
+
+} /* fxaa_checkbox_toggled */
+
+
+/*
+ * fxaa_update_received() - callback function for when the
+ * NV_CTRL_FXAA attribute is changed by another NV-CONTROL
+ * client.
+ */
+
+static void fxaa_update_received(GtkObject *object,
+                                 gpointer arg1, gpointer user_data)
+{
+    CtkEventStruct *event_struct = (CtkEventStruct *) arg1;
+    CtkMultisample *ctk_multisample = CTK_MULTISAMPLE(user_data);
+    gboolean fxaa_value = event_struct->value;
+    GtkWidget *check_button = ctk_multisample->fxaa_enable_check_button;
+
+    g_signal_handlers_block_by_func(G_OBJECT(check_button),
+                                    G_CALLBACK(fxaa_checkbox_toggled),
+                                    (gpointer) ctk_multisample);
+
+    gtk_toggle_button_set_active(GTK_TOGGLE_BUTTON(check_button), fxaa_value);
+
+    g_signal_handlers_unblock_by_func(G_OBJECT(check_button),
+                                      G_CALLBACK(fxaa_checkbox_toggled),
+                                      (gpointer) ctk_multisample);
+
+    post_fxaa_toggled(ctk_multisample, fxaa_value);
+
+} /* fxaa_update_received() */
+
+/*
+ * post_fxaa_toggled() - helper function for fxaa_button_toggled() 
+ * and fxaa_update_received(); this does whatever work is necessary 
+ * after the app control check button has been toggled.
+ */
+
+static void
+post_fxaa_toggled(CtkMultisample *ctk_multisample, gboolean enable)
+{
+    ctk_config_statusbar_message(ctk_multisample->ctk_config,
+                                 "FXAA "
+                                 "%s.", enable ? "enabled" : "disabled");
+
+} /* post_fxaa_toggled() */
 
 
 

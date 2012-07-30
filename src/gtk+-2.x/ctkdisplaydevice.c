@@ -20,6 +20,10 @@
 #include <gtk/gtk.h>
 #include <NvCtrlAttributes.h>
 #include <string.h>
+#include <stdio.h>
+#include <stdlib.h>
+
+#include "common-utils.h"
 
 #include "ctkbanner.h"
 
@@ -32,7 +36,6 @@
 #include "ctkconfig.h"
 #include "ctkhelp.h"
 #include "ctkutils.h"
-#include <stdio.h>
 
 static void ctk_display_device_class_init(CtkDisplayDeviceClass *);
 static void ctk_display_device_finalize(GObject *);
@@ -43,14 +46,23 @@ static void update_device_info(CtkDisplayDevice *ctk_object);
 
 static void display_device_setup(CtkDisplayDevice *ctk_object);
 
-static void callback_link_changed(GtkObject *object, gpointer arg1,
-                                  gpointer user_data);
-
 static void enabled_displays_received(GtkObject *object, gpointer arg1,
                                       gpointer user_data);
 
-static void info_update_received(GtkObject *object, gpointer arg1,
-                                 gpointer user_data);
+static void callback_link_changed(GtkObject *object, gpointer arg1,
+                                  gpointer user_data);
+
+static void callback_refresh_rate_changed(GtkObject *object, gpointer arg1,
+                                          gpointer user_data);
+
+static void update_chip_info(InfoEntry *entry);
+static void update_signal_info(InfoEntry *entry);
+static void update_link_info(InfoEntry *entry);
+static void update_native_resolution(InfoEntry *entry);
+static void update_refresh_rate(InfoEntry *entry);
+
+static void register_link_events(InfoEntry *entry);
+static void register_refresh_rate_events(InfoEntry *entry);
 
 
 #define FRAME_PADDING 5
@@ -81,6 +93,49 @@ static const char * __native_res_help =
 static const char * __refresh_rate_help =
 "The refresh rate displays the rate at which the screen is currently "
 "refreshing the image.";
+
+typedef void (*InfoEntryFunc)(InfoEntry *entry);
+
+typedef struct {
+    const char *str;
+    const gchar **tooltip;
+    InfoEntryFunc update_func;
+    InfoEntryFunc register_events_func;
+
+} InfoEntryData;
+
+static InfoEntryData __info_entry_data[] = {
+    {
+        "Chip Location",
+        &__info_chip_location_help,
+        update_chip_info,
+        NULL,
+    },
+    {
+        "Signal",
+        &__info_signal_help,
+        update_signal_info,
+        NULL,
+    },
+    {
+        "Connection link",
+        &__info_link_help,
+        update_link_info,
+        register_link_events,
+    },
+    {
+        "Native Resolution",
+        &__native_res_help,
+        update_native_resolution,
+        NULL,
+    },
+    {
+        "Refresh Rate",
+        &__refresh_rate_help,
+        update_refresh_rate,
+        register_refresh_rate_events,
+    },
+};
 
 GType ctk_display_device_get_type(void)
 {
@@ -139,6 +194,7 @@ static void ctk_display_device_finalize(
 GtkWidget* ctk_display_device_new(NvCtrlAttributeHandle *handle,
                                   CtkConfig *ctk_config,
                                   CtkEvent *ctk_event,
+                                  CtkEvent *ctk_event_gpu,
                                   char *name,
                                   char *typeBaseName)
 {
@@ -155,6 +211,7 @@ GtkWidget* ctk_display_device_new(NvCtrlAttributeHandle *handle,
     GtkWidget *hseparator;
     GtkWidget *button;
     gchar *str;
+    int i;
 
     object = g_object_new(CTK_TYPE_DISPLAY_DEVICE, NULL);
     if (!object) return NULL;
@@ -225,103 +282,49 @@ GtkWidget* ctk_display_device_new(NvCtrlAttributeHandle *handle,
      * widgets don't expand to fill all of the space within the
      * frame
      */
-    
+
     tmpbox = gtk_vbox_new(FALSE, FRAME_PADDING);
     gtk_container_set_border_width(GTK_CONTAINER(tmpbox), FRAME_PADDING);
     gtk_container_add(GTK_CONTAINER(hbox), tmpbox);
 
-    /* Make the txt widgets that will get updated */
-    ctk_object->txt_chip_location = gtk_label_new("");
-    ctk_object->txt_link = gtk_label_new("");
-    ctk_object->txt_signal = gtk_label_new("");
-    ctk_object->txt_native_resolution = gtk_label_new("");
-    ctk_object->txt_refresh_rate = gtk_label_new("");
+    /* Create and add the information widgets */
 
-    /* Add information widget lines */
-    {
-        typedef struct {
-            GtkWidget *label;
-            GtkWidget *txt;
-            const gchar *tooltip;
-        } TextLineInfo;
+    ctk_object->num_info_entries = ARRAY_LEN(__info_entry_data);
+    ctk_object->info_entries = calloc(ctk_object->num_info_entries,
+                                      sizeof(InfoEntry));
+    if (!ctk_object->info_entries) {
+        ctk_object->num_info_entries = 0;
+    }
 
-        TextLineInfo lines[] = {
-            {
-                gtk_label_new("Chip location:"),
-                ctk_object->txt_chip_location,
-                __info_chip_location_help
-            },
-            {
-                gtk_label_new("Connection link:"),
-                ctk_object->txt_link,
-                __info_link_help
-            },
-            {
-                gtk_label_new("Signal:"),
-                ctk_object->txt_signal,
-                __info_signal_help
-            },
-            {
-                gtk_label_new("Native Resolution:"),
-                ctk_object->txt_native_resolution,
-                __native_res_help,
-            },
-            {
-                gtk_label_new("Refresh Rate:"),
-                ctk_object->txt_refresh_rate,
-                __refresh_rate_help,
-            },
-            { NULL, NULL, NULL }
-        };
-        int i;
+    for (i = 0; i < ctk_object->num_info_entries; i++) {
+        InfoEntryData *entryData = __info_entry_data+i;
+        InfoEntry *entry = ctk_object->info_entries+i;
+        gchar *str;
 
-        GtkRequisition req;
-        int max_width;
+        entry->ctk_object = ctk_object;
+        str = g_strconcat(entryData->str, ":", NULL);
+        entry->label = gtk_label_new(str);
+        g_free(str);
 
-        /* Compute max width of lables and setup text alignments */
-        max_width = 0;
-        for (i = 0; lines[i].label; i++) {
-            gtk_misc_set_alignment(GTK_MISC(lines[i].label), 0.0f, 0.5f);
-            gtk_misc_set_alignment(GTK_MISC(lines[i].txt), 0.0f, 0.5f);
+        entry->txt = gtk_label_new("");
 
-            gtk_widget_size_request(lines[i].label, &req);
-            if (max_width < req.width) {
-                max_width = req.width;
-            }
-        }
+        gtk_misc_set_alignment(GTK_MISC(entry->label), 0.0f, 0.5f);
+        gtk_misc_set_alignment(GTK_MISC(entry->txt), 0.0f, 0.5f);
 
-        /* Pack labels */
-        for (i = 0; lines[i].label; i++) {
-            GtkWidget *tmphbox;
+        ctk_config_set_tooltip(ctk_config,
+                               entry->label,
+                               *(entryData->tooltip));
+        ctk_config_set_tooltip(ctk_config,
+                               entry->txt,
+                               *(entryData->tooltip));
 
-            /* Add separators */
-            if (i == 3 || i == 5 || i == 7) {
-                GtkWidget *separator = gtk_hseparator_new();
-                gtk_box_pack_start(GTK_BOX(tmpbox), separator,
-                                   FALSE, FALSE, 0);
-            }
+        entry->hbox = gtk_hbox_new(FALSE, FRAME_PADDING);
+        gtk_box_pack_start(GTK_BOX(entry->hbox), entry->label,
+                           FALSE, TRUE, FRAME_PADDING);
+        gtk_box_pack_start(GTK_BOX(entry->hbox), entry->txt,
+                           FALSE, TRUE, FRAME_PADDING);
 
-            /* Set the label's width */
-            gtk_widget_set_size_request(lines[i].label, max_width, -1);
-
-            /* add the widgets for this line */
-            tmphbox = gtk_hbox_new(FALSE, FRAME_PADDING);
-            gtk_box_pack_start(GTK_BOX(tmphbox), lines[i].label,
-                               FALSE, TRUE, FRAME_PADDING);
-            gtk_box_pack_start(GTK_BOX(tmphbox), lines[i].txt,
-                               FALSE, TRUE, FRAME_PADDING);
-
-            /* Include tooltips */
-            if (lines[i].tooltip) {
-                ctk_config_set_tooltip(ctk_config, 
-                                       lines[i].label, 
-                                       lines[i].tooltip);
-                ctk_config_set_tooltip(ctk_config, 
-                                       lines[i].txt, 
-                                       lines[i].tooltip);
-            }
-            gtk_box_pack_start(GTK_BOX(tmpbox), tmphbox, FALSE, FALSE, 0);
-        }
+        gtk_box_pack_start(GTK_BOX(tmpbox), entry->hbox, FALSE, FALSE, 0);
     }
 
     /* pack the EDID button */
@@ -397,27 +400,19 @@ GtkWidget* ctk_display_device_new(NvCtrlAttributeHandle *handle,
                      "clicked", G_CALLBACK(reset_button_clicked),
                      (gpointer) ctk_object);
 
-    if (ctk_object->txt_link) {
-        g_signal_connect(G_OBJECT(ctk_event),
-                         CTK_EVENT_NAME(NV_CTRL_FLATPANEL_LINK),
-                         G_CALLBACK(callback_link_changed),
-                         (gpointer) ctk_object);
-
-        g_signal_connect(G_OBJECT(ctk_event),
-                         CTK_EVENT_NAME(NV_CTRL_DISPLAYPORT_LINK_RATE),
-                         G_CALLBACK(callback_link_changed),
-                         (gpointer) ctk_object);
-    }
-
-    g_signal_connect(G_OBJECT(ctk_event),
+    g_signal_connect(G_OBJECT(ctk_event_gpu),
                      CTK_EVENT_NAME(NV_CTRL_ENABLED_DISPLAYS),
                      G_CALLBACK(enabled_displays_received),
                      (gpointer) ctk_object);
 
-    g_signal_connect(G_OBJECT(ctk_event),
-                     CTK_EVENT_NAME(NV_CTRL_REFRESH_RATE),
-                     G_CALLBACK(info_update_received),
-                     (gpointer) ctk_object);
+    for (i = 0; i < ctk_object->num_info_entries; i++) {
+        InfoEntryData *entryData = __info_entry_data+i;
+        InfoEntry *entry = ctk_object->info_entries+i;
+
+        if (entryData->register_events_func) {
+            entryData->register_events_func(entry);
+        }
+    }
 
     return GTK_WIDGET(object);
 
@@ -463,6 +458,7 @@ GtkTextBuffer *ctk_display_device_create_help(GtkTextTagTable *table,
     GtkTextIter i;
     GtkTextBuffer *b;
     GtkTooltipsData *td;
+    int j;
 
     b = gtk_text_buffer_new(table);
 
@@ -473,20 +469,12 @@ GtkTextBuffer *ctk_display_device_create_help(GtkTextTagTable *table,
     ctk_help_heading(b, &i, "Device Information");
     ctk_help_para(b, &i, __info_help);
 
-    ctk_help_term(b, &i, "Chip Location");
-    ctk_help_para(b, &i, __info_chip_location_help);
+    for (j = 0; j < ARRAY_LEN(__info_entry_data); j++) {
+        InfoEntryData *entryData = __info_entry_data+j;
 
-    ctk_help_term(b, &i, "Link");
-    ctk_help_para(b, &i, __info_link_help);
-
-    ctk_help_term(b, &i, "Signal");
-    ctk_help_para(b, &i, __info_signal_help);
-
-    ctk_help_term(b, &i, "Native Resolution");
-    ctk_help_para(b, &i, __native_res_help);
-
-    ctk_help_term(b, &i, "Refresh Rate");
-    ctk_help_para(b, &i, __refresh_rate_help);
+        ctk_help_term(b, &i, entryData->str);
+        ctk_help_para(b, &i, *entryData->tooltip);
+    }
 
     add_acquire_edid_help(b, &i);
 
@@ -509,53 +497,183 @@ GtkTextBuffer *ctk_display_device_create_help(GtkTextTagTable *table,
 } /* ctk_display_device_create_help() */
 
 
-static void update_link(CtkDisplayDevice *ctk_object)
+
+
+
+static void update_chip_info(InfoEntry *entry)
 {
+    CtkDisplayDevice *ctk_object = entry->ctk_object;
     ReturnStatus ret;
-    gint val, signal_type = ctk_object->signal_type;
-    const char *link = "Unknown";
+    gint val;
+    const gchar *str;
+
+    ret = NvCtrlGetAttribute(ctk_object->handle,
+                             NV_CTRL_FLATPANEL_CHIP_LOCATION, &val);
+    if (ret != NvCtrlSuccess) {
+        gtk_widget_hide(entry->hbox);
+        return;
+    }
+
+    switch (val) {
+    case NV_CTRL_FLATPANEL_CHIP_LOCATION_INTERNAL:
+        str = "Internal";
+        break;
+    case NV_CTRL_FLATPANEL_CHIP_LOCATION_EXTERNAL:
+        str = "External";
+        break;
+    default:
+        str = "Unknown";
+        break;
+    }
+
+    gtk_label_set_text(GTK_LABEL(entry->txt), str);
+    gtk_widget_show(entry->hbox);
+}
+
+
+
+static void update_signal_info(InfoEntry *entry)
+{
+    CtkDisplayDevice *ctk_object = entry->ctk_object;
+    ReturnStatus ret;
+    gint val;
+    const char *str;
+
+    ret = NvCtrlGetAttribute(ctk_object->handle, NV_CTRL_FLATPANEL_SIGNAL,
+                             &val);
+    if (ret != NvCtrlSuccess) {
+        gtk_widget_hide(entry->hbox);
+        return;
+    }
+
+    switch (val) {
+    case NV_CTRL_FLATPANEL_SIGNAL_LVDS:
+        str = "LVDS";
+        break;
+    case NV_CTRL_FLATPANEL_SIGNAL_TMDS:
+        str = "TMDS";
+        break;
+    case NV_CTRL_FLATPANEL_SIGNAL_DISPLAYPORT:
+        str = "DisplayPort";
+        break;
+    default:
+        str = "Unknown";
+        break;
+    }
+
+    gtk_label_set_text(GTK_LABEL(entry->txt), str);
+    gtk_widget_show(entry->hbox);
+
+    ctk_object->signal_type = val;
+}
+
+
+/* NOTE: Link information is dependent on signal type, and this function
+ * assumes the signal type is querried first.
+ */
+static void update_link_info(InfoEntry *entry)
+{
+    CtkDisplayDevice *ctk_object = entry->ctk_object;
+    ReturnStatus ret;
+    gint val;
+    const char *link;
     char tmp[32];
 
     ret = NvCtrlGetAttribute(ctk_object->handle, NV_CTRL_FLATPANEL_LINK, &val);
-    if (ret == NvCtrlSuccess) {
-        if (signal_type == NV_CTRL_FLATPANEL_SIGNAL_DISPLAYPORT) {
-            int lanes;
+    if (ret != NvCtrlSuccess) {
+        gtk_widget_hide(entry->hbox);
+        return;
+    }
 
-            lanes = val + 1;
+    if (ctk_object->signal_type == NV_CTRL_FLATPANEL_SIGNAL_DISPLAYPORT) {
+        int lanes;
 
-            ret = NvCtrlGetAttribute(ctk_object->handle,
-                                     NV_CTRL_DISPLAYPORT_LINK_RATE, &val);
-            if ((ret == NvCtrlSuccess) &&
-                (val == NV_CTRL_DISPLAYPORT_LINK_RATE_DISABLED)) {
-                link = "Disabled";
-            } else {
-                if (ret != NvCtrlSuccess) {
-                    val = 0;
-                }
+        lanes = val + 1;
 
-                if (val > 0) {
-                    snprintf(tmp, 32, "%d lane%s @ %.2f Gbps", lanes, lanes == 1 ? "" : "s",
-                             val * 0.27);
-                } else {
-                    snprintf(tmp, 32, "%d lane%s @ unknown bandwidth", lanes,
-                             lanes == 1 ? "" : "s");
-                }
-                link = tmp;
-            }
+        ret = NvCtrlGetAttribute(ctk_object->handle,
+                                 NV_CTRL_DISPLAYPORT_LINK_RATE, &val);
+        if ((ret == NvCtrlSuccess) &&
+            (val == NV_CTRL_DISPLAYPORT_LINK_RATE_DISABLED)) {
+            link = "Disabled";
         } else {
-            // LVDS or TMDS
-            switch(val) {
-            case NV_CTRL_FLATPANEL_LINK_SINGLE:
-                link = "Single";
-                break;
-            case NV_CTRL_FLATPANEL_LINK_DUAL:
-                link = "Dual";
-                break;
+            if (ret != NvCtrlSuccess) {
+                val = 0;
             }
+
+            if (val > 0) {
+                snprintf(tmp, 32, "%d lane%s @ %.2f Gbps", lanes, lanes == 1 ? "" : "s",
+                         val * 0.27);
+            } else {
+                snprintf(tmp, 32, "%d lane%s @ unknown bandwidth", lanes,
+                         lanes == 1 ? "" : "s");
+            }
+            link = tmp;
+        }
+    } else {
+        // LVDS or TMDS
+        switch(val) {
+        case NV_CTRL_FLATPANEL_LINK_SINGLE:
+            link = "Single";
+            break;
+        case NV_CTRL_FLATPANEL_LINK_DUAL:
+            link = "Dual";
+            break;
+        default:
+            link = "Unknown";
+            break;
         }
     }
 
-    gtk_label_set_text(GTK_LABEL(ctk_object->txt_link), link);
+    gtk_label_set_text(GTK_LABEL(entry->txt), link);
+    gtk_widget_show(entry->hbox);
+}
+
+
+
+static void update_native_resolution(InfoEntry *entry)
+{
+    CtkDisplayDevice *ctk_object = entry->ctk_object;
+    ReturnStatus ret;
+    gint val;
+    char *str;
+
+    ret = NvCtrlGetAttribute(ctk_object->handle,
+                             NV_CTRL_FLATPANEL_NATIVE_RESOLUTION, &val);
+    if (ret != NvCtrlSuccess) {
+        gtk_widget_hide(entry->hbox);
+        return;
+    }
+
+    str = g_strdup_printf("%dx%d", (val >> 16), (val & 0xFFFF));
+    gtk_label_set_text(GTK_LABEL(entry->txt), str);
+    g_free(str);
+
+    gtk_widget_show(entry->hbox);
+}
+
+
+
+static void update_refresh_rate(InfoEntry *entry)
+{
+    CtkDisplayDevice *ctk_object = entry->ctk_object;
+    ReturnStatus ret;
+    gint val;
+    char *str;
+    float fvalue;
+
+    ret = NvCtrlGetAttribute(ctk_object->handle, NV_CTRL_REFRESH_RATE, &val);
+    if (ret != NvCtrlSuccess) {
+        gtk_widget_hide(entry->hbox);
+        return;
+    }
+
+    fvalue = ((float)(val)) / 100.0f;
+    str = g_strdup_printf("%.2f Hz", fvalue);
+
+    gtk_label_set_text(GTK_LABEL(entry->txt), str);
+    g_free(str);
+
+    gtk_widget_show(entry->hbox);
 }
 
 
@@ -565,76 +683,29 @@ static void update_link(CtkDisplayDevice *ctk_object)
  */
 static void update_device_info(CtkDisplayDevice *ctk_object)
 {
-    ReturnStatus ret;
-    gint val;
-    gchar *str;
+    int i;
+    int max_width;
+    GtkRequisition req;
 
-    /* Chip location */
 
-    str = "Unknown";
-    ret = NvCtrlGetAttribute(ctk_object->handle,
-                             NV_CTRL_FLATPANEL_CHIP_LOCATION, &val);
-    if (ret == NvCtrlSuccess) {
-        switch (val) {
-        case NV_CTRL_FLATPANEL_CHIP_LOCATION_INTERNAL:
-            str = "Internal";
-            break;
-        case NV_CTRL_FLATPANEL_CHIP_LOCATION_EXTERNAL:
-            str = "External";
-            break;
+    max_width = 0;
+    for (i = 0; i < ctk_object->num_info_entries; i++) {
+        InfoEntryData *entryData = __info_entry_data+i;
+        InfoEntry *entry = ctk_object->info_entries+i;
+
+        entryData->update_func(entry);
+
+        if (GTK_WIDGET_VISIBLE(entry->hbox)) {
+            gtk_widget_size_request(entry->label, &req);
+            if (max_width < req.width) {
+                max_width = req.width;
+            }
         }
     }
-    gtk_label_set_text(GTK_LABEL(ctk_object->txt_chip_location), str);
 
-    /* Signal */
-
-    str = "Unknown";
-    ret = NvCtrlGetAttribute(ctk_object->handle, NV_CTRL_FLATPANEL_SIGNAL,
-                             &val);
-    if (ret == NvCtrlSuccess) {
-        switch (val) {
-        case NV_CTRL_FLATPANEL_SIGNAL_LVDS:
-            str = "LVDS";
-            break;
-        case NV_CTRL_FLATPANEL_SIGNAL_TMDS:
-            str = "TMDS";
-            break;
-        case NV_CTRL_FLATPANEL_SIGNAL_DISPLAYPORT:
-            str = "DisplayPort";
-            break;
-        }
-    }
-    gtk_label_set_text(GTK_LABEL(ctk_object->txt_signal), str);
-    ctk_object->signal_type = val;
-
-    /* Link */
-
-    update_link(ctk_object);
-
-    /* Native Resolution */
-
-    ret = NvCtrlGetAttribute(ctk_object->handle,
-                             NV_CTRL_FLATPANEL_NATIVE_RESOLUTION, &val);
-    if (ret == NvCtrlSuccess) {
-        str = g_strdup_printf("%dx%d", (val >> 16), (val & 0xFFFF));
-        gtk_label_set_text(GTK_LABEL(ctk_object->txt_native_resolution),
-                           str);
-        g_free(str);
-    } else {
-        gtk_label_set_text(GTK_LABEL(ctk_object->txt_native_resolution),
-                           "Unknown");
-    }
-
-    /* Refresh Rate */
-
-    ret = NvCtrlGetAttribute(ctk_object->handle, NV_CTRL_REFRESH_RATE, &val);
-    if (ret == NvCtrlSuccess) {
-        float fvalue = ((float)(val)) / 100.0f;
-        str = g_strdup_printf("%.2f Hz", fvalue);
-        gtk_label_set_text(GTK_LABEL(ctk_object->txt_refresh_rate), str);
-        g_free(str);
-    } else {
-        gtk_label_set_text(GTK_LABEL(ctk_object->txt_refresh_rate), "Unknown");
+    for (i = 0; i < ctk_object->num_info_entries; i++) {
+        InfoEntry *entry = ctk_object->info_entries+i;
+        gtk_widget_set_size_request(entry->label, max_width, -1);
     }
 
 } /* update_device_info() */
@@ -674,12 +745,29 @@ static void display_device_setup(CtkDisplayDevice *ctk_object)
 
 
 
-static void callback_link_changed(GtkObject *object, gpointer arg1,
-                                  gpointer user_data)
+static void register_link_events(InfoEntry *entry)
 {
-    CtkDisplayDevice *ctk_object = CTK_DISPLAY_DEVICE(user_data);
+    CtkDisplayDevice *ctk_object = entry->ctk_object;
 
-    update_link(ctk_object);
+    g_signal_connect(G_OBJECT(ctk_object->ctk_event),
+                     CTK_EVENT_NAME(NV_CTRL_FLATPANEL_LINK),
+                     G_CALLBACK(callback_link_changed),
+                     (gpointer) entry);
+
+    g_signal_connect(G_OBJECT(ctk_object->ctk_event),
+                     CTK_EVENT_NAME(NV_CTRL_DISPLAYPORT_LINK_RATE),
+                     G_CALLBACK(callback_link_changed),
+                     (gpointer) entry);
+}
+
+static void register_refresh_rate_events(InfoEntry *entry)
+{
+    CtkDisplayDevice *ctk_object = entry->ctk_object;
+
+    g_signal_connect(G_OBJECT(ctk_object->ctk_event),
+                     CTK_EVENT_NAME(NV_CTRL_REFRESH_RATE),
+                     G_CALLBACK(callback_refresh_rate_changed),
+                     (gpointer) entry);
 }
 
 
@@ -701,13 +789,19 @@ static void enabled_displays_received(GtkObject *object, gpointer arg1,
 } /* enabled_displays_received() */
 
 
-/*
- * Update UI when display information changed.
- */
-static void info_update_received(GtkObject *object, gpointer arg1,
-                                 gpointer user_data)
+static void callback_link_changed(GtkObject *object, gpointer arg1,
+                                  gpointer user_data)
 {
-    CtkDisplayDevice *ctk_object = CTK_DISPLAY_DEVICE(user_data);
+    InfoEntry *entry = (InfoEntry *)user_data;
 
-    update_device_info(ctk_object);
+    update_link_info(entry);
+}
+
+
+static void callback_refresh_rate_changed(GtkObject *object, gpointer arg1,
+                                          gpointer user_data)
+{
+    InfoEntry *entry = (InfoEntry *)user_data;
+
+    update_refresh_rate(entry);
 }

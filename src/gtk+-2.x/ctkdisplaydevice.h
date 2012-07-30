@@ -49,6 +49,15 @@ G_BEGIN_DECLS
 typedef struct _CtkDisplayDevice       CtkDisplayDevice;
 typedef struct _CtkDisplayDeviceClass  CtkDisplayDeviceClass;
 
+typedef struct InfoEntryRec {
+    GtkWidget *hbox;
+    GtkWidget *label;
+    GtkWidget *txt;
+
+    struct _CtkDisplayDevice *ctk_object;
+
+} InfoEntry;
+
 struct _CtkDisplayDevice
 {
     GtkVBox parent;
@@ -62,11 +71,8 @@ struct _CtkDisplayDevice
     GtkWidget *dithering_controls;
     GtkWidget *color_controls;
 
-    GtkWidget *txt_chip_location;
-    GtkWidget *txt_link;
-    GtkWidget *txt_signal;
-    GtkWidget *txt_native_resolution;
-    GtkWidget *txt_refresh_rate;
+    InfoEntry *info_entries;
+    int num_info_entries;
 
     gboolean display_enabled;
     unsigned int active_attributes;
@@ -83,7 +89,7 @@ struct _CtkDisplayDeviceClass
 GType       ctk_display_device_get_type  (void) G_GNUC_CONST;
 GtkWidget*  ctk_display_device_new       (NvCtrlAttributeHandle *,
                                           CtkConfig *, CtkEvent *,
-                                          char *, char *);
+                                          CtkEvent *, char *, char *);
 
 GtkTextBuffer *ctk_display_device_create_help(GtkTextTagTable *,
                                               CtkDisplayDevice *);

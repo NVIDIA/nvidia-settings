@@ -57,6 +57,7 @@ struct _CtkMultisample
     GtkWidget *fsaa_app_override_check_button;
     GtkWidget *fsaa_menu;
     GtkWidget *fsaa_scale;
+    GtkWidget *fxaa_enable_check_button;
     GtkWidget *log_aniso_app_override_check_button;
     GtkWidget *log_aniso_scale;
     GtkWidget *texture_sharpening_button;

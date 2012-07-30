@@ -3195,8 +3195,17 @@
  */
 #define NV_CTRL_FRAMELOCK_INCOMING_HOUSE_SYNC_RATE              389 /* R--F */
 
+/*
+ * NV_CTRL_FXAA - enables FXAA. A pixel shader based anti-  
+ * aliasing method.
+ */
+#define NV_CTRL_FXAA                                            390 /* RW-X */
+#define NV_CTRL_FXAA_DISABLE                                    0
+#define NV_CTRL_FXAA_ENABLE                                     1
+  
 
-#define NV_CTRL_LAST_ATTRIBUTE NV_CTRL_FRAMELOCK_INCOMING_HOUSE_SYNC_RATE
+
+#define NV_CTRL_LAST_ATTRIBUTE NV_CTRL_FXAA
 
 /**************************************************************************/
 

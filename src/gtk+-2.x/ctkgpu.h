@@ -57,6 +57,7 @@ struct _CtkGpu
 
     NvCtrlAttributeHandle *handle;
     CtkConfig *ctk_config;
+    CtkEvent *ctk_event;
 
     GtkWidget *displays;
     gint gpu_cores;
