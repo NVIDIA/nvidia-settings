@@ -36,6 +36,9 @@ static const char *__image_sharpening_help = "The Image Sharpening slider "
 "alters the level of Image Sharpening for this display device.";
 
 
+static void ctk_image_sliders_class_init(CtkImageSliders *ctk_object_class);
+static void ctk_image_sliders_finalize(GObject *object);
+
 static GtkWidget * add_scale(CtkConfig *ctk_config,
                              int attribute,
                              char *name,
@@ -64,7 +67,7 @@ GType ctk_image_sliders_get_type(void)
             sizeof (CtkImageSlidersClass),
             NULL, /* base_init */
             NULL, /* base_finalize */
-            NULL, /* class_init, */
+            (GClassInitFunc) ctk_image_sliders_class_init,
             NULL, /* class_finalize */
             NULL, /* class_data */
             sizeof (CtkImageSliders),
@@ -79,6 +82,30 @@ GType ctk_image_sliders_get_type(void)
 
     return ctk_image_sliders_type;
 }
+
+static void ctk_image_sliders_class_init(
+    CtkImageSliders *ctk_object_class
+)
+{
+    GObjectClass *gobject_class = (GObjectClass *)ctk_object_class;
+    gobject_class->finalize = ctk_image_sliders_finalize;
+}
+
+static void ctk_image_sliders_finalize(
+    GObject *object
+)
+{
+    CtkImageSliders *ctk_image_sliders = CTK_IMAGE_SLIDERS(object);
+
+    g_signal_handlers_disconnect_matched(G_OBJECT(ctk_image_sliders->ctk_event),
+                                         G_SIGNAL_MATCH_DATA,
+                                         0, /* signal_id */
+                                         0, /* detail */
+                                         NULL, /* closure */
+                                         NULL, /* func */
+                                         (gpointer) ctk_image_sliders);
+}
+
 
 
 GtkWidget* ctk_image_sliders_new(NvCtrlAttributeHandle *handle,

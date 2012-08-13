@@ -65,6 +65,7 @@ struct _CtkDisplayDevice
     NvCtrlAttributeHandle *handle;
     CtkConfig *ctk_config;
     CtkEvent *ctk_event;
+    CtkEvent *ctk_event_gpu;
     GtkWidget *image_sliders;
     GtkWidget *reset_button;
     GtkWidget *edid;

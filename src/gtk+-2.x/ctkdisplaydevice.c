@@ -62,7 +62,9 @@ static void update_native_resolution(InfoEntry *entry);
 static void update_refresh_rate(InfoEntry *entry);
 
 static void register_link_events(InfoEntry *entry);
+static void unregister_link_events(InfoEntry *entry);
 static void register_refresh_rate_events(InfoEntry *entry);
+static void unregister_refresh_rate_events(InfoEntry *entry);
 
 
 #define FRAME_PADDING 5
@@ -101,7 +103,7 @@ typedef struct {
     const gchar **tooltip;
     InfoEntryFunc update_func;
     InfoEntryFunc register_events_func;
-
+    InfoEntryFunc unregister_events_func;
 } InfoEntryData;
 
 static InfoEntryData __info_entry_data[] = {
@@ -110,11 +112,13 @@ static InfoEntryData __info_entry_data[] = {
         &__info_chip_location_help,
         update_chip_info,
         NULL,
+        NULL,
     },
     {
         "Signal",
         &__info_signal_help,
         update_signal_info,
+        NULL,
         NULL,
     },
     {
@@ -122,11 +126,13 @@ static InfoEntryData __info_entry_data[] = {
         &__info_link_help,
         update_link_info,
         register_link_events,
+        unregister_link_events,
     },
     {
         "Native Resolution",
         &__native_res_help,
         update_native_resolution,
+        NULL,
         NULL,
     },
     {
@@ -134,6 +140,7 @@ static InfoEntryData __info_entry_data[] = {
         &__refresh_rate_help,
         update_refresh_rate,
         register_refresh_rate_events,
+        unregister_refresh_rate_events,
     },
 };
 
@@ -176,14 +183,26 @@ static void ctk_display_device_finalize(
 )
 {
     CtkDisplayDevice *ctk_object = CTK_DISPLAY_DEVICE(object);
-    g_free(ctk_object->name);
-    g_signal_handlers_disconnect_matched(ctk_object->ctk_event,
+    int i;
+
+    g_signal_handlers_disconnect_matched(G_OBJECT(ctk_object->ctk_event_gpu),
                                          G_SIGNAL_MATCH_DATA,
                                          0,
                                          0,
                                          NULL,
                                          NULL,
                                          (gpointer) ctk_object);
+
+    for (i = 0; i < ctk_object->num_info_entries; i++) {
+        InfoEntryData *entryData = &__info_entry_data[i];
+        InfoEntry *entry = &ctk_object->info_entries[i];
+
+        if (entryData->unregister_events_func) {
+            entryData->unregister_events_func(entry);
+        }
+    }
+
+    g_free(ctk_object->name);
 }
 
 
@@ -219,6 +238,7 @@ GtkWidget* ctk_display_device_new(NvCtrlAttributeHandle *handle,
     ctk_object = CTK_DISPLAY_DEVICE(object);
     ctk_object->handle = handle;
     ctk_object->ctk_event = ctk_event;
+    ctk_object->ctk_event_gpu = ctk_event_gpu;
     ctk_object->ctk_config = ctk_config;
     ctk_object->name = g_strdup(name);
 
@@ -760,6 +780,19 @@ static void register_link_events(InfoEntry *entry)
                      (gpointer) entry);
 }
 
+static void unregister_link_events(InfoEntry *entry)
+{
+    CtkDisplayDevice *ctk_object = entry->ctk_object;
+
+    g_signal_handlers_disconnect_matched(G_OBJECT(ctk_object->ctk_event),
+                                         G_SIGNAL_MATCH_DATA,
+                                         0, /* signal_id */
+                                         0, /* detail */
+                                         NULL, /* closure */
+                                         NULL, /* func */
+                                         (gpointer) entry);
+}
+
 static void register_refresh_rate_events(InfoEntry *entry)
 {
     CtkDisplayDevice *ctk_object = entry->ctk_object;
@@ -768,6 +801,19 @@ static void register_refresh_rate_events(InfoEntry *entry)
                      CTK_EVENT_NAME(NV_CTRL_REFRESH_RATE),
                      G_CALLBACK(callback_refresh_rate_changed),
                      (gpointer) entry);
+}
+
+static void unregister_refresh_rate_events(InfoEntry *entry)
+{
+    CtkDisplayDevice *ctk_object = entry->ctk_object;
+
+    g_signal_handlers_disconnect_matched(G_OBJECT(ctk_object->ctk_event),
+                                         G_SIGNAL_MATCH_DATA,
+                                         0, /* signal_id */
+                                         0, /* detail */
+                                         NULL, /* closure */
+                                         NULL, /* func */
+                                         (gpointer) entry);
 }
 
 

@@ -105,6 +105,11 @@ static void texture_sharpening_update_received(GtkObject *object,
                                                gpointer arg1,
                                                gpointer user_data);
 
+static void update_fxaa_from_fsaa_change(CtkMultisample *ctk_multisample,
+                                         int fsaa_value);
+static void update_fsaa_from_fxaa_change(CtkMultisample *ctk_multisample,
+                                         gboolean fxaa_enabled);
+
 static const char *__aa_override_app_help =
 "Enable the Antialiasing \"Override Application Setting\" "
 "checkbox to make the antialiasing slider active and "
@@ -117,7 +122,8 @@ static const char *__aa_menu_help =
 "the slider.";
 
 static const char *__aa_slider_help =
-"The Antialiasing slider controls the level of antialiasing.";
+"The Antialiasing slider controls the level of antialiasing. Using "
+"antialiasing disables FXAA.";
 
 static const char *__aniso_override_app_help =
 "Enable the Anisotropic Filtering \"Override Application Setting\" "
@@ -131,7 +137,9 @@ static const char *__aniso_slider_help =
 
 static const char *__fxaa_enable_help = 
 "Enable Fast Approximate Anti-Aliasing. This option is applied to "
-"OpenGL applications that are started after this option is set.";
+"OpenGL applications that are started after this option is set. Enabling "
+"FXAA disables antialiasing and other antialiasing setting methods. FXAA "
+"is not allowed when Unified Back Buffers are enabled.";
 
 static const char *__texture_sharpening_help =
 "To improve image quality, select this option "
@@ -215,7 +223,7 @@ GtkWidget *ctk_multisample_new(NvCtrlAttributeHandle *handle,
     GtkObject *adjustment;
     gint min, max;
     
-    gint val, app_control, override, enhance, i;
+    gint val, app_control, override, enhance, mode, i;
     
     NVCTRLAttributeValidValuesRec valid;
 
@@ -248,9 +256,9 @@ GtkWidget *ctk_multisample_new(NvCtrlAttributeHandle *handle,
         
         build_fsaa_translation_table(ctk_multisample, valid);
         
-        ret = NvCtrlGetAttribute(handle, NV_CTRL_FSAA_MODE, &val);
+        ret = NvCtrlGetAttribute(handle, NV_CTRL_FSAA_MODE, &mode);
         
-        val = map_nv_ctrl_fsaa_value_to_slider(ctk_multisample, val);
+        val = map_nv_ctrl_fsaa_value_to_slider(ctk_multisample, mode);
 
         ret0 = NvCtrlGetAttribute(handle,
                                   NV_CTRL_FSAA_APPLICATION_CONTROLLED,
@@ -371,7 +379,23 @@ GtkWidget *ctk_multisample_new(NvCtrlAttributeHandle *handle,
             check_button = gtk_check_button_new_with_label("Enable FXAA");
 
             ret = NvCtrlGetAttribute(handle, NV_CTRL_FXAA, &val);
-            gtk_toggle_button_set_active(GTK_TOGGLE_BUTTON(check_button),val);
+
+            ctk_multisample->fxaa_available = 
+                (ret != NvCtrlAttributeNotAvailable);
+
+            if (mode != NV_CTRL_FSAA_MODE_NONE || 
+                !ctk_multisample->fxaa_available) {
+                val = NV_CTRL_FXAA_DISABLE;
+            }
+
+            if (val == NV_CTRL_FXAA_ENABLE) {
+                gtk_widget_set_sensitive(GTK_WIDGET(scale), FALSE);
+            }
+
+            gtk_widget_set_sensitive(GTK_WIDGET(check_button),
+                                     (mode == NV_CTRL_FSAA_MODE_NONE) &&
+                                     (ctk_multisample->fxaa_available));
+            gtk_toggle_button_set_active(GTK_TOGGLE_BUTTON(check_button), val);
 
             g_signal_connect(G_OBJECT(check_button), "toggled",
                              G_CALLBACK(fxaa_checkbox_toggled),
@@ -739,9 +763,15 @@ static GtkWidget *create_fsaa_setting_menu(CtkMultisample *ctk_multisample,
 static void post_fsaa_setting_changed(CtkMultisample *ctk_multisample,
                                       gboolean override, gboolean enhance)
 {
+    GtkWidget *fxaa_checkbox = ctk_multisample->fxaa_enable_check_button;
+    gboolean fxaa_value = 
+        gtk_toggle_button_get_active(GTK_TOGGLE_BUTTON(fxaa_checkbox));
+
     if (ctk_multisample->fsaa_scale) {
         gtk_widget_set_sensitive
-            (GTK_WIDGET(ctk_multisample->fsaa_scale), override);
+            (GTK_WIDGET(ctk_multisample->fsaa_scale), 
+            (override &&
+            (fxaa_value == NV_CTRL_FXAA_DISABLE)));
     }
 
     ctk_config_statusbar_message(ctk_multisample->ctk_config,
@@ -785,6 +815,9 @@ static void update_fsaa_setting(CtkMultisample *ctk_multisample,
         g_signal_handlers_unblock_by_func(G_OBJECT(range),
                                           G_CALLBACK(fsaa_value_changed),
                                           (gpointer) ctk_multisample);
+
+        update_fxaa_from_fsaa_change(ctk_multisample,
+                                     NV_CTRL_FSAA_MODE_NONE);
     }
 
     post_fsaa_setting_changed(ctk_multisample, override, enhance);
@@ -952,6 +985,89 @@ static void post_fsaa_value_changed(CtkMultisample *ctk_multisample, gint val)
 } /* post_fsaa_value_changed() */
 
 
+/*
+ * update_fxaa_from_fsaa_change - helper function for changes to fsaa in order
+ * to update fxaa and enable/disable fxaa or fsaa widgets based on the new 
+ * value of fsaa.
+ */
+
+static void update_fxaa_from_fsaa_change(CtkMultisample *ctk_multisample,
+                                         int fsaa_value)
+{
+    GtkRange *fsaa_range = GTK_RANGE(ctk_multisample->fsaa_scale);
+    GtkWidget *fsaa_menu = ctk_multisample->fsaa_menu;
+    GtkWidget *fxaa_checkbox = ctk_multisample->fxaa_enable_check_button;
+    gboolean fxaa_value;
+
+    /* The FSAA dropdown menu is: 0 == app, 1 == override, 2 == enhance */
+    gint fsaa_idx = gtk_option_menu_get_history(GTK_OPTION_MENU(fsaa_menu)) ;
+    
+    if (fsaa_value != NV_CTRL_FSAA_MODE_NONE) {
+        g_signal_handlers_block_by_func(G_OBJECT(fxaa_checkbox),
+                                        G_CALLBACK(fxaa_checkbox_toggled),
+                                        (gpointer) ctk_multisample);
+
+        gtk_toggle_button_set_active(GTK_TOGGLE_BUTTON(fxaa_checkbox), FALSE);
+
+        g_signal_handlers_unblock_by_func(G_OBJECT(fxaa_checkbox),
+                                          G_CALLBACK(fxaa_checkbox_toggled),
+                                          (gpointer) ctk_multisample);
+    }
+
+    fxaa_value = gtk_toggle_button_get_active(GTK_TOGGLE_BUTTON(fxaa_checkbox));
+
+    gtk_widget_set_sensitive(GTK_WIDGET(fsaa_range), 
+                             (fsaa_idx != 0) && // not app controlled
+                             (fxaa_value == NV_CTRL_FXAA_DISABLE));
+    gtk_widget_set_sensitive(GTK_WIDGET(fxaa_checkbox),
+                             fsaa_value == NV_CTRL_FSAA_MODE_NONE &&
+                             ctk_multisample->fxaa_available);
+} /* update_fxaa_from_fsaa_change() */
+
+/*
+ * update_fsaa_from_fxaa_change - helper function for changes to fxaa in order
+ * to update fsaa and enable/disable fxaa or fsaa widgets based on the new 
+ * value of fxaa.
+ */
+
+static void update_fsaa_from_fxaa_change (CtkMultisample *ctk_multisample,
+                                          gboolean fxaa_enabled)
+{
+    GtkWidget *fxaa_checkbox = ctk_multisample->fxaa_enable_check_button;
+    GtkRange *fsaa_range = GTK_RANGE(ctk_multisample->fsaa_scale);
+    gint fsaa_value_none = map_nv_ctrl_fsaa_value_to_slider(ctk_multisample, 0);
+    GtkWidget *fsaa_menu = ctk_multisample->fsaa_menu;
+
+    /* The FSAA dropdown menu is: 0 == app, 1 == override, 2 == enhance */
+    gint fsaa_idx = gtk_option_menu_get_history(GTK_OPTION_MENU(fsaa_menu)) ;
+    
+    gint fsaa_val;
+
+    if (fxaa_enabled == NV_CTRL_FXAA_ENABLE) {
+        g_signal_handlers_block_by_func(G_OBJECT(fsaa_range),
+                                        G_CALLBACK(fsaa_value_changed),
+                                        (gpointer) ctk_multisample);
+
+        gtk_range_set_value(fsaa_range, fsaa_value_none);
+
+        g_signal_handlers_unblock_by_func(G_OBJECT(fsaa_range),
+                                          G_CALLBACK(fsaa_value_changed),
+                                          (gpointer) ctk_multisample);
+    }
+
+    fsaa_val = gtk_range_get_value(fsaa_range);
+    if (fsaa_val > NV_CTRL_FSAA_MODE_MAX) fsaa_val = NV_CTRL_FSAA_MODE_MAX;
+    if (fsaa_val < 0) fsaa_val = 0;
+    fsaa_val = ctk_multisample->fsaa_translation_table[fsaa_val];
+
+    gtk_widget_set_sensitive(GTK_WIDGET(fxaa_checkbox), 
+                             ((fxaa_enabled == NV_CTRL_FXAA_ENABLE) || 
+                             (fsaa_val == NV_CTRL_FSAA_MODE_NONE)) &&
+                             (ctk_multisample->fxaa_available));
+    gtk_widget_set_sensitive(GTK_WIDGET(fsaa_range), 
+                             (fsaa_idx != 0) && // not app controlled
+                             (fxaa_enabled == NV_CTRL_FXAA_DISABLE));
+} /* update_fsaa_from_fxaa_change */
 
 /*
  * fsaa_value_changed() - callback for the "value-changed" signal from
@@ -971,6 +1087,8 @@ static void fsaa_value_changed(GtkRange *range, gpointer user_data)
     val = ctk_multisample->fsaa_translation_table[val];
 
     NvCtrlSetAttribute(ctk_multisample->handle, NV_CTRL_FSAA_MODE, val);
+
+    update_fxaa_from_fsaa_change(ctk_multisample, val);
     
     post_fsaa_value_changed(ctk_multisample, val);
 
@@ -990,6 +1108,8 @@ static void fxaa_checkbox_toggled(GtkWidget *widget,
     enabled = gtk_toggle_button_get_active(GTK_TOGGLE_BUTTON(widget));
 
     NvCtrlSetAttribute(ctk_multisample->handle, NV_CTRL_FXAA, enabled);
+
+    update_fsaa_from_fxaa_change(ctk_multisample, enabled);
 
     post_fxaa_toggled(ctk_multisample, enabled);
 
@@ -1015,6 +1135,8 @@ static void fxaa_update_received(GtkObject *object,
                                     (gpointer) ctk_multisample);
 
     gtk_toggle_button_set_active(GTK_TOGGLE_BUTTON(check_button), fxaa_value);
+    
+    update_fsaa_from_fxaa_change(ctk_multisample, fxaa_value);
 
     g_signal_handlers_unblock_by_func(G_OBJECT(check_button),
                                       G_CALLBACK(fxaa_checkbox_toggled),
@@ -1067,6 +1189,8 @@ static void fsaa_update_received(GtkObject *object,
                                     (gpointer) ctk_multisample);
     
     gtk_range_set_value(range, val);
+
+    update_fxaa_from_fsaa_change(ctk_multisample, event_struct->value);
     
     g_signal_handlers_unblock_by_func(G_OBJECT(range),
                                       G_CALLBACK(fsaa_value_changed),

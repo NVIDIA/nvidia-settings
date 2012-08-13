@@ -2200,10 +2200,6 @@ nvDisplayPtr gpu_add_display_from_server(nvGpuPtr gpu,
     }
 
 
-    /* Add the display at the end of gpu's display list */
-    gpu_add_display(gpu, display);
-
-
     /* Query the modelines for the display device */
     if (!display_add_modelines_from_server(display, err_str)) {
         nv_warning_msg("Failed to add modelines to display device %d "
@@ -2213,6 +2209,8 @@ nvDisplayPtr gpu_add_display_from_server(nvGpuPtr gpu,
         goto fail;
     }
 
+    /* Add the display at the end of gpu's display list */
+    gpu_add_display(gpu, display);
 
     return display;
 

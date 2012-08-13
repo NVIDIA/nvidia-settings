@@ -66,6 +66,7 @@ struct _CtkMultisample
 
     gint fsaa_translation_table[NV_CTRL_FSAA_MODE_MAX + 1];
     gint fsaa_translation_table_size;
+    gboolean fxaa_available;
 };
 
 struct _CtkMultisampleClass

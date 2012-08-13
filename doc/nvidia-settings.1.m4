@@ -317,7 +317,8 @@ For example:
 .fi
 .PP
 Multiple queries and assignments may be specified on the command line for a single invocation of
-.B nvidia\-settings.
+.B nvidia\-settings. 
+Assignments are processed in the order they are entered on the command line. If multiple assignments are made to the same attribute or to multiple attributes with dependencies, then the later assignments will have priority.
 .PP
 If either the
 .B \-\-query
