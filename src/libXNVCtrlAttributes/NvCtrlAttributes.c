@@ -2,7 +2,7 @@
  * nvidia-settings: A tool for configuring the NVIDIA X driver on Unix
  * and Linux systems.
  *
- * Copyright (C) 2004 NVIDIA Corporation.
+ * Copyright (C) 2004,2012 NVIDIA Corporation.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms and conditions of the GNU General Public License,
@@ -29,6 +29,7 @@
 #include <stdlib.h>
 #include <string.h>
 #include <stdio.h>
+#include <math.h> /* pow(3) */
 
 #include <sys/utsname.h>
 
@@ -96,18 +97,16 @@ NvCtrlAttributeHandle *NvCtrlAttributeInit(Display *dpy, int target_type,
         if (subsystems & NV_CTRL_ATTRIBUTES_GLX_SUBSYSTEM) {
             h->glx = NvCtrlInitGlxAttributes(h);
         }
-        
-        /*
-         * initialize the XRandR extension and attributes; it is OK if
-         * this fails
-         */
-        
-        if (subsystems & NV_CTRL_ATTRIBUTES_XRANDR_SUBSYSTEM) {
-            h->xrandr = NvCtrlInitXrandrAttributes(h);
-        }
-
     } /* X Screen target type attribute subsystems */
-  
+
+    /*
+     * initialize the XRandR extension and attributes; this does not
+     * require an X screen and it is OK if this fails
+     */
+    if (subsystems & NV_CTRL_ATTRIBUTES_XRANDR_SUBSYSTEM) {
+        h->xrandr = NvCtrlInitXrandrAttributes(h);
+    }
+
     return (NvCtrlAttributeHandle *) h;
 
  failed:
@@ -551,7 +550,12 @@ NvCtrlGetDisplayAttribute64(NvCtrlAttributeHandle *handle,
         }
         return NvCtrlSuccess;
     }
-    
+
+    if (attr >= NV_CTRL_ATTR_RANDR_BASE &&
+        attr <= NV_CTRL_ATTR_RANDR_LAST_ATTRIBUTE) {
+        return NvCtrlXrandrGetAttribute(h, display_mask, attr, val);
+    }
+
     if (((attr >= 0) && (attr <= NV_CTRL_LAST_ATTRIBUTE)) ||
         ((attr >= NV_CTRL_ATTR_NV_BASE) &&
          (attr <= NV_CTRL_ATTR_NV_LAST_ATTRIBUTE))) {
@@ -930,3 +934,206 @@ const char *NvCtrlGetMultisampleModeName(int multisample_mode)
     return mode_names[multisample_mode];
 
 } /* NvCtrlGetMultisampleModeName  */
+
+
+ReturnStatus NvCtrlGetColorAttributes(NvCtrlAttributeHandle *handle,
+                                      float contrast[3],
+                                      float brightness[3],
+                                      float gamma[3])
+{
+    NvCtrlAttributePrivateHandle *h = (NvCtrlAttributePrivateHandle *) handle;
+
+    if (h->target_type == NV_CTRL_TARGET_TYPE_X_SCREEN) {
+        return NvCtrlVidModeGetColorAttributes(h, contrast, brightness, gamma);
+    } else if (h->target_type == NV_CTRL_TARGET_TYPE_DISPLAY) {
+        return NvCtrlXrandrGetColorAttributes(h, contrast, brightness, gamma);
+    }
+
+    return NvCtrlBadHandle;
+}
+
+ReturnStatus NvCtrlSetColorAttributes(NvCtrlAttributeHandle *handle,
+                                      float c[3],
+                                      float b[3],
+                                      float g[3],
+                                      unsigned int bitmask)
+{
+    NvCtrlAttributePrivateHandle *h = (NvCtrlAttributePrivateHandle *) handle;
+
+    if (h->target_type == NV_CTRL_TARGET_TYPE_X_SCREEN) {
+        return NvCtrlVidModeSetColorAttributes(h, c, b, g, bitmask);
+    } else if (h->target_type == NV_CTRL_TARGET_TYPE_DISPLAY) {
+        return NvCtrlXrandrSetColorAttributes(h, c, b, g, bitmask);
+    }
+
+    return NvCtrlBadHandle;
+}
+
+
+ReturnStatus NvCtrlGetColorRamp(NvCtrlAttributeHandle *handle,
+                                unsigned int channel,
+                                uint16_t **lut,
+                                int *n)
+{
+    NvCtrlAttributePrivateHandle *h = (NvCtrlAttributePrivateHandle *) handle;
+
+    if (h->target_type == NV_CTRL_TARGET_TYPE_X_SCREEN) {
+        return NvCtrlVidModeGetColorRamp(h, channel, lut, n);
+    } else if (h->target_type == NV_CTRL_TARGET_TYPE_DISPLAY) {
+        return NvCtrlXrandrGetColorRamp(h, channel, lut, n);
+    }
+
+    return NvCtrlBadHandle;
+}
+
+
+/* helper functions private to the libXNVCtrlAttributes backend */
+
+void NvCtrlInitGammaInputStruct(NvCtrlGammaInput *pGammaInput)
+{
+    int ch;
+
+    for (ch = FIRST_COLOR_CHANNEL; ch <= LAST_COLOR_CHANNEL; ch++) {
+        pGammaInput->brightness[ch] = BRIGHTNESS_DEFAULT;
+        pGammaInput->contrast[ch]   = CONTRAST_DEFAULT;
+        pGammaInput->gamma[ch]      = GAMMA_DEFAULT;
+    }
+}
+
+/*
+ * Compute the gammaRamp entry given its index, and the contrast,
+ * brightness, and gamma.
+ */
+static unsigned short ComputeGammaRampVal(int gammaRampSize,
+                                          int i,
+                                          float contrast,
+                                          float brightness,
+                                          float gamma)
+{
+    double j, half, scale;
+    int shift, val, num;
+
+    num = gammaRampSize - 1;
+    shift = 16 - (ffs(gammaRampSize) - 1);
+
+    scale = (double) num / 3.0; /* how much brightness and contrast
+                                   affect the value */
+    j = (double) i;
+
+    /* contrast */
+
+    contrast *= scale;
+
+    if (contrast > 0.0) {
+        half = ((double) num / 2.0) - 1.0;
+        j -= half;
+        j *= half / (half - contrast);
+        j += half;
+    } else {
+        half = (double) num / 2.0;
+        j -= half;
+        j *= (half + contrast) / half;
+        j += half;
+    }
+
+    if (j < 0.0) j = 0.0;
+
+    /* gamma */
+
+    gamma = 1.0 / (double) gamma;
+
+    if (gamma == 1.0) {
+        val = (int) j;
+    } else {
+        val = (int) (pow (j / (double)num, gamma) * (double)num + 0.5);
+    }
+
+    /* brightness */
+
+    brightness *= scale;
+
+    val += (int)brightness;
+    if (val > num) val = num;
+    if (val < 0) val = 0;
+
+    val <<= shift;
+    return (unsigned short) val;
+}
+
+void NvCtrlUpdateGammaRamp(const NvCtrlGammaInput *pGammaInput,
+                           int gammaRampSize,
+                           unsigned short *gammaRamp[3],
+                           unsigned int bitmask)
+{
+    int i, ch;
+
+    /* update the requested channels within the gammaRamp */
+
+    for (ch = FIRST_COLOR_CHANNEL; ch <= LAST_COLOR_CHANNEL; ch++) {
+
+        /* only update requested channels */
+
+        if ((bitmask & (1 << ch)) == 0) {
+            continue;
+        }
+
+        for (i = 0; i < gammaRampSize; i++) {
+            gammaRamp[ch][i] =
+                ComputeGammaRampVal(gammaRampSize,
+                                    i,
+                                    pGammaInput->contrast[ch],
+                                    pGammaInput->brightness[ch],
+                                    pGammaInput->gamma[ch]);
+        }
+    }
+}
+
+void NvCtrlAssignGammaInput(NvCtrlGammaInput *pGammaInput,
+                            const float inContrast[3],
+                            const float inBrightness[3],
+                            const float inGamma[3],
+                            const unsigned int bitmask)
+{
+    int ch;
+
+    /* clamp input, but only the input specified in the bitmask */
+
+    for (ch = FIRST_COLOR_CHANNEL; ch <= LAST_COLOR_CHANNEL; ch++) {
+
+        /* only update requested channels */
+
+        if ((bitmask & (1 << ch)) == 0) {
+            continue;
+        }
+
+        if (bitmask & CONTRAST_VALUE) {
+            if (inContrast[ch] > CONTRAST_MAX) {
+                pGammaInput->contrast[ch] = CONTRAST_MAX;
+            } else if (inContrast[ch] < CONTRAST_MIN) {
+                pGammaInput->contrast[ch] = CONTRAST_MIN;
+            } else {
+                pGammaInput->contrast[ch] = inContrast[ch];
+            }
+        }
+
+        if (bitmask & BRIGHTNESS_VALUE) {
+            if (inBrightness[ch] > BRIGHTNESS_MAX) {
+                pGammaInput->brightness[ch] = BRIGHTNESS_MAX;
+            } else if (inBrightness[ch] < BRIGHTNESS_MIN) {
+                pGammaInput->brightness[ch] = BRIGHTNESS_MIN;
+            } else {
+                pGammaInput->brightness[ch] = inBrightness[ch];
+            }
+        }
+
+        if (bitmask & GAMMA_VALUE) {
+            if (inGamma[ch] > GAMMA_MAX) {
+                pGammaInput->gamma[ch] = GAMMA_MAX;
+            } else if (inGamma[ch] < GAMMA_MIN) {
+                pGammaInput->gamma[ch] = GAMMA_MIN;
+            } else {
+                pGammaInput->gamma[ch] = inGamma[ch];
+            }
+        }
+    }
+}

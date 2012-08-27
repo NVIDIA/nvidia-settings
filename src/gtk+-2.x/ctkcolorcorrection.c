@@ -25,7 +25,6 @@
 #include "red_xpm.h"
 #include "green_xpm.h"
 #include "blue_xpm.h"
-#include "ctkbanner.h"
 
 #include "ctkcurve.h"
 #include "ctkscale.h"
@@ -186,7 +185,6 @@ GtkWidget* ctk_color_correction_new(NvCtrlAttributeHandle *handle,
 
     GtkWidget *menu;
     GtkWidget *image;
-    GtkWidget *banner;
     GtkWidget *label;
     GtkWidget *scale;
     GtkWidget *curve;
@@ -201,20 +199,7 @@ GtkWidget* ctk_color_correction_new(NvCtrlAttributeHandle *handle,
     GtkWidget *widget;
     GtkWidget *hsep;
     GtkWidget *eventbox;
-    ReturnStatus ret;
-    gint val;
 
-    /* check if the VidMode extension is present */
-
-    ret = NvCtrlGetAttribute(handle, NV_CTRL_ATTR_EXT_VM_PRESENT, &val);
-    if ((ret != NvCtrlSuccess) || (val == FALSE)) return NULL;
-    
-    /* check if the noScanout mode enabled */
-
-    ret = NvCtrlGetAttribute(handle, NV_CTRL_NO_SCANOUT, &val);
-    if ((ret == NvCtrlSuccess) && (val == NV_CTRL_NO_SCANOUT_ENABLED))
-        return NULL;
-    
     object = g_object_new(CTK_TYPE_COLOR_CORRECTION, NULL);
 
     ctk_color_correction = CTK_COLOR_CORRECTION(object);
@@ -226,16 +211,6 @@ GtkWidget* ctk_color_correction_new(NvCtrlAttributeHandle *handle,
     apply_parsed_attribute_list(ctk_color_correction, p);
 
     gtk_box_set_spacing(GTK_BOX(ctk_color_correction), 10);
-
-    /*
-     * Banner: TOP - LEFT -> RIGHT
-     *
-     * This image serves as a visual reference for basic color_box correction
-     * purposes.
-     */
-
-    banner = ctk_banner_image_new(BANNER_ARTWORK_COLOR);
-    gtk_box_pack_start(GTK_BOX(ctk_color_correction), banner, FALSE, FALSE, 0);
 
     /* create the main hbox and the two main vboxes*/
 
@@ -1039,7 +1014,9 @@ static gboolean do_confirm_countdown(gpointer data)
 } /* do_confirm_countdown() */
 
 
-GtkTextBuffer *ctk_color_correction_create_help(GtkTextTagTable *table)
+GtkTextBuffer *ctk_color_correction_create_help(GtkTextTagTable *table,
+                                                const gchar *title,
+                                                gboolean randr)
 {
     GtkTextIter i;
     GtkTextBuffer *b;
@@ -1048,7 +1025,7 @@ GtkTextBuffer *ctk_color_correction_create_help(GtkTextTagTable *table)
     
     gtk_text_buffer_get_iter_at_offset(b, &i, 0);
     
-    ctk_help_title(b, &i, "X Server Color Correction Help");
+    ctk_help_title(b, &i, "%s Help", title);
 
     ctk_help_heading(b, &i, "Active Color Channel");
     ctk_help_para(b, &i, __active_color_help);
@@ -1072,10 +1049,14 @@ GtkTextBuffer *ctk_color_correction_create_help(GtkTextTagTable *table)
     
     ctk_help_para(b, &i, __color_curve_help);
 
-    ctk_help_para(b, &i, "Note that the X Server Color Correction page uses "
-                  "the XF86VidMode extension to manipulate the X screen's "
-                  "color ramps.");
-    
+    if (randr) {
+        ctk_help_para(b, &i, "The %s tab uses the RandR extension to "
+                      "manipulate an RandR CRTC's gamma ramp.", title);
+    } else {
+        ctk_help_para(b, &i, "The %s page uses the XF86VidMode extension "
+                      "to manipulate the X screen's gamma ramps", title);
+    }
+
     ctk_help_heading(b, &i, "Confirm Current Changes");
     ctk_help_para(b, &i, __confirm_button_help);
     

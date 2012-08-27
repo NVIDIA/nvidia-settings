@@ -2,7 +2,7 @@
  * nvidia-settings: A tool for configuring the NVIDIA X driver on Unix
  * and Linux systems.
  *
- * Copyright (C) 2004 NVIDIA Corporation.
+ * Copyright (C) 2004,2012 NVIDIA Corporation.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms and conditions of the GNU General Public License,
@@ -23,6 +23,7 @@
 #include "NvCtrlAttributes.h"
 #include "NVCtrl.h"
 #include <GL/glx.h> /* GLX #defines */
+#include <X11/extensions/Xrandr.h> /* Xrandr */
 
 
 #define EXTENSION_NV_CONTROL  0x1
@@ -80,6 +81,12 @@ typedef struct __NvCtrlXvBlitterAttributes NvCtrlXvBlitterAttributes;
 typedef struct __NvCtrlXvAttribute NvCtrlXvAttribute;
 typedef struct __NvCtrlXrandrAttributes NvCtrlXrandrAttributes;
 
+typedef struct {
+    float brightness[3];
+    float contrast[3];
+    float gamma[3];
+} NvCtrlGammaInput;
+
 struct __NvCtrlNvControlAttributes {
     int event_base;
     int error_base;
@@ -88,14 +95,11 @@ struct __NvCtrlNvControlAttributes {
 };
 
 struct __NvCtrlVidModeAttributes {
-    int n;
-    int sigbits;
     int major_version;
     int minor_version;
     unsigned short *lut[3];
-    float brightness[3];
-    float contrast[3];
-    float gamma[3];
+    int gammaRampSize;
+    NvCtrlGammaInput gammaInput;
 };
 
 struct __NvCtrlXvAttributes {
@@ -111,6 +115,10 @@ struct __NvCtrlXrandrAttributes {
     int error_base;
     int major_version;
     int minor_version;
+    Bool gammaAvailable;
+    RRCrtc gammaCrtc;
+    NvCtrlGammaInput gammaInput;
+    XRRCrtcGamma *pGammaRamp;
 };
 
 struct __NvCtrlAttributePrivateHandle {
@@ -177,12 +185,47 @@ NvCtrlXrandrGetStringAttribute (NvCtrlAttributePrivateHandle *,
                                 unsigned int, int, char **);
 
 
+ReturnStatus NvCtrlXrandrGetColorAttributes(NvCtrlAttributePrivateHandle *h,
+                                            float contrast[3],
+                                            float brightness[3],
+                                            float gamma[3]);
+
+ReturnStatus NvCtrlXrandrSetColorAttributes(NvCtrlAttributePrivateHandle *h,
+                                            float c[3],
+                                            float b[3],
+                                            float g[3],
+                                            unsigned int bitmask);
+
+ReturnStatus NvCtrlXrandrGetColorRamp(NvCtrlAttributePrivateHandle *h,
+                                      unsigned int channel,
+                                      uint16_t **lut,
+                                      int *n);
+
 /* XF86 Video Mode extension attribute functions */
+
+ReturnStatus NvCtrlVidModeGetColorAttributes(NvCtrlAttributePrivateHandle *h,
+                                             float contrast[3],
+                                             float brightness[3],
+                                             float gamma[3]);
+
+ReturnStatus NvCtrlVidModeSetColorAttributes(NvCtrlAttributePrivateHandle *h,
+                                             float c[3],
+                                             float b[3],
+                                             float g[3],
+                                             unsigned int bitmask);
+
+ReturnStatus NvCtrlVidModeGetColorRamp(NvCtrlAttributePrivateHandle *h,
+                                       unsigned int channel,
+                                       uint16_t **lut,
+                                       int *n);
 
 ReturnStatus
 NvCtrlVidModeGetStringAttribute (NvCtrlAttributePrivateHandle *,
                                    unsigned int, int, char **);
 
+ReturnStatus
+NvCtrlXrandrGetAttribute(NvCtrlAttributePrivateHandle *h,
+                         unsigned int display_mask, int attr, int64_t *val);
 
 /* Generic attribute functions */
 
@@ -229,5 +272,20 @@ ReturnStatus
 NvCtrlNvControlStringOperation (NvCtrlAttributePrivateHandle *h,
                                 unsigned int display_mask, int attr,
                                 char *ptrIn, char **ptrOut);
+
+/* helper functions for XV86VidMode and RandR backends */
+
+void NvCtrlInitGammaInputStruct(NvCtrlGammaInput *pGammaInput);
+
+void NvCtrlUpdateGammaRamp(const NvCtrlGammaInput *pGammaInput,
+                           int gammaRampSize,
+                           unsigned short *gammaRamp[3],
+                           unsigned int bitmask);
+
+void NvCtrlAssignGammaInput(NvCtrlGammaInput *pGammaInput,
+                            const float inContrast[3],
+                            const float inBrightness[3],
+                            const float inGamma[3],
+                            const unsigned int bitmask);
 
 #endif /* __NVCTRL_ATTRIBUTES_PRIVATE__ */

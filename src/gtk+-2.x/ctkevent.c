@@ -329,6 +329,7 @@ static void ctk_event_class_init(CtkEventClass *ctk_event_class)
     MAKE_SIGNAL(NV_CTRL_DISPLAY_ENABLED);
     MAKE_SIGNAL(NV_CTRL_FRAMELOCK_INCOMING_HOUSE_SYNC_RATE);
     MAKE_SIGNAL(NV_CTRL_FXAA);
+    MAKE_SIGNAL(NV_CTRL_DISPLAY_RANDR_OUTPUT_ID);
 #undef MAKE_SIGNAL
     
     /*
@@ -338,7 +339,7 @@ static void ctk_event_class_init(CtkEventClass *ctk_event_class)
      * knows about.
      */
 
-#if NV_CTRL_LAST_ATTRIBUTE != NV_CTRL_FXAA
+#if NV_CTRL_LAST_ATTRIBUTE != NV_CTRL_DISPLAY_RANDR_OUTPUT_ID
 #warning "There are attributes that do not emit signals!"
 #endif
 

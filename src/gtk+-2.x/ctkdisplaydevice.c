@@ -33,6 +33,7 @@
 #include "ctkcolorcontrols.h"
 #include "ctkimagesliders.h"
 #include "ctkedid.h"
+#include "ctkcolorcorrection.h"
 #include "ctkconfig.h"
 #include "ctkhelp.h"
 #include "ctkutils.h"
@@ -66,6 +67,10 @@ static void unregister_link_events(InfoEntry *entry);
 static void register_refresh_rate_events(InfoEntry *entry);
 static void unregister_refresh_rate_events(InfoEntry *entry);
 
+static void add_color_correction_tab(CtkDisplayDevice *ctk_object,
+                                     CtkConfig *ctk_config,
+                                     CtkEvent *ctk_event,
+                                     GtkWidget *notebook);
 
 #define FRAME_PADDING 5
 
@@ -253,19 +258,6 @@ GtkWidget* ctk_display_device_new(NvCtrlAttributeHandle *handle,
     }
     gtk_box_pack_start(GTK_BOX(object), banner, FALSE, FALSE, 0);
 
-    /* Reset button */
-
-    button = gtk_button_new_with_label("Reset Hardware Defaults");
-    str = ctk_help_create_reset_hardware_defaults_text(typeBaseName,
-                                                       name);
-    ctk_config_set_tooltip(ctk_config, button, str);
-    ctk_object->reset_button = button;
-
-    alignment = gtk_alignment_new(1, 1, 0, 0);
-    gtk_container_add(GTK_CONTAINER(alignment), button);
-    gtk_box_pack_end(GTK_BOX(object), alignment, FALSE, FALSE, 0);
-
-
     /* Create tabbed notebook for widget */
 
     notebook = gtk_notebook_new();
@@ -400,6 +392,18 @@ GtkWidget* ctk_display_device_new(NvCtrlAttributeHandle *handle,
                            FALSE, FALSE, 0);
     }
 
+    /* pack the reset button */
+
+    button = gtk_button_new_with_label("Reset Hardware Defaults");
+    str = ctk_help_create_reset_hardware_defaults_text(typeBaseName,
+                                                       name);
+    ctk_config_set_tooltip(ctk_config, button, str);
+    ctk_object->reset_button = button;
+
+    alignment = gtk_alignment_new(1, 1, 0, 0);
+    gtk_container_add(GTK_CONTAINER(alignment), button);
+    gtk_box_pack_end(GTK_BOX(nbox), alignment, FALSE, FALSE, 0);
+
     /* If no controls are created, don't add a controls tab */
 
     if (ctk_object->color_controls ||
@@ -408,6 +412,10 @@ GtkWidget* ctk_display_device_new(NvCtrlAttributeHandle *handle,
         gtk_notebook_append_page(GTK_NOTEBOOK(notebook), nbox,
                                  gtk_label_new("Controls"));
     }
+
+    /* add the color correction tab if RandR is available */
+
+    add_color_correction_tab(ctk_object, ctk_config, ctk_event, notebook);
 
     /* Update the GUI */
 
@@ -850,4 +858,42 @@ static void callback_refresh_rate_changed(GtkObject *object, gpointer arg1,
     InfoEntry *entry = (InfoEntry *)user_data;
 
     update_refresh_rate(entry);
+}
+
+
+static void add_color_correction_tab(CtkDisplayDevice *ctk_object,
+                                     CtkConfig *ctk_config,
+                                     CtkEvent *ctk_event,
+                                     GtkWidget *notebook)
+{
+    ReturnStatus ret;
+    gint val;
+    GtkWidget *ctk_color_correction;
+    GtkWidget *box;
+
+    ret = NvCtrlGetAttribute(ctk_object->handle,
+                             NV_CTRL_ATTR_RANDR_GAMMA_AVAILABLE, &val);
+
+    if (ret != NvCtrlSuccess) {
+        return;
+    }
+
+    if (val != 1) {
+        return;
+    }
+
+    ctk_color_correction = ctk_color_correction_new(ctk_object->handle,
+                                                    ctk_config,
+                                                    NULL /* ParsedAttribute*/,
+                                                    ctk_event);
+    if (ctk_color_correction == NULL) {
+        return;
+    }
+
+    box = gtk_hbox_new(FALSE, 0);
+    gtk_container_set_border_width(GTK_CONTAINER(box), FRAME_PADDING);
+    gtk_box_pack_start(GTK_BOX(box), ctk_color_correction, TRUE, TRUE, 0);
+
+    gtk_notebook_append_page(GTK_NOTEBOOK(notebook), box,
+                             gtk_label_new("Color Correction"));
 }

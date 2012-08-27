@@ -30,6 +30,7 @@
 #include "ctkhelp.h"
 #include "ctkdisplaylayout.h"
 #include "ctkdisplayconfig-utils.h"
+#include "ctkutils.h"
 
 
 
@@ -455,11 +456,12 @@ static Bool get_modify_info(CtkDisplayLayout *ctk_object)
  *
  **/
 
-static void sync_scaling(CtkDisplayLayout *ctk_object)
+static Bool sync_scaling(CtkDisplayLayout *ctk_object)
 {
     int *dim = ctk_object->layout->dim;
     float wscale;
     float hscale;
+    float prev_scale = ctk_object->scale;
 
     wscale = (float)(ctk_object->img_dim[W]) / (float)(dim[W]);
     hscale = (float)(ctk_object->img_dim[H]) / (float)(dim[H]);
@@ -469,6 +471,8 @@ static void sync_scaling(CtkDisplayLayout *ctk_object)
     } else {
         ctk_object->scale = wscale;
     }
+
+    return (prev_scale != ctk_object->scale);
 
 } /* sync_scaling() */
 
@@ -1116,7 +1120,7 @@ static void recenter_screen(nvScreenPtr screen)
  *
  **/
 
-static void set_screen_metamode(nvLayoutPtr layout, nvScreenPtr screen,
+static Bool set_screen_metamode(nvLayoutPtr layout, nvScreenPtr screen,
                                 int new_metamode_idx)
 {
     nvDisplayPtr display;
@@ -1135,7 +1139,12 @@ static void set_screen_metamode(nvLayoutPtr layout, nvScreenPtr screen,
 
     /* Recalculate the layout dimensions */
     calc_layout(layout);
-    offset_layout(layout, -layout->dim[X], -layout->dim[Y]);
+    if (layout->dim[X] || layout->dim[Y]) {
+        offset_layout(layout, -layout->dim[X], -layout->dim[Y]);
+        return TRUE;
+    }
+
+    return FALSE;
 
 } /* set_screen_metamode() */
 
@@ -1149,11 +1158,12 @@ static void set_screen_metamode(nvLayoutPtr layout, nvScreenPtr screen,
  *
  **/
 
-static void recenter_layout(nvLayoutPtr layout)
+static Bool recenter_layout(nvLayoutPtr layout)
 {
     nvScreenPtr screen;
     int real_metamode_idx;
     int metamode_idx;
+    Bool modified = FALSE;
 
     for (screen = layout->screens; screen; screen = screen->next_in_layout) {
 
@@ -1165,11 +1175,17 @@ static void recenter_layout(nvLayoutPtr layout)
 
             if (metamode_idx == real_metamode_idx) continue;
 
-            set_screen_metamode(layout, screen, metamode_idx);
+            if (set_screen_metamode(layout, screen, metamode_idx)) {
+                modified = TRUE;
+            }
         }
 
-        set_screen_metamode(layout, screen, real_metamode_idx);
+        if (set_screen_metamode(layout, screen, real_metamode_idx)) {
+            modified = TRUE;
+        }
     }
+
+    return modified;
 
 } /* recenter_layout() */
 
@@ -2015,8 +2031,12 @@ static int move_selected(CtkDisplayLayout *ctk_object, int x, int y, int snap)
         modified = 1;
     }
 
-    recenter_layout(layout);
-    sync_scaling(ctk_object);
+    if (recenter_layout(layout)) {
+        modified = 1;
+    }
+    if (sync_scaling(ctk_object)) {
+        modified = 1;
+    }
 
 
     /* If what we moved required the layout to be shifted, offset
@@ -2174,9 +2194,12 @@ static int pan_selected(CtkDisplayLayout *ctk_object, int x, int y, int snap)
         modified = 1;
     }
 
-    recenter_layout(layout);
-    sync_scaling(ctk_object);
-
+    if (recenter_layout(layout)) {
+        modified = 1;
+    }
+    if (sync_scaling(ctk_object)) {
+        modified = 1;
+    }
 
     /* Check if the item being moved has a new position */
     /* Report if anything changed */
@@ -2613,6 +2636,7 @@ static int click_layout(CtkDisplayLayout *ctk_object, int x, int y)
     nvDisplayPtr display;
     nvScreenPtr screen;
     int *sdim;
+    GdkModifierType state;
 
 
     /* Assume user didn't actually click inside a display for now */
@@ -2620,6 +2644,9 @@ static int click_layout(CtkDisplayLayout *ctk_object, int x, int y)
     ctk_object->selected_display = NULL;
     ctk_object->selected_screen = NULL;
 
+    gdk_window_get_pointer
+        (GTK_WIDGET(ctk_get_parent_window(ctk_object->drawing_area))->window,
+         NULL, NULL, &state);
 
     /* Look through the Z-order for the next element */
     for (i = 0; i < ctk_object->Zcount; i++) {
@@ -2643,6 +2670,10 @@ static int click_layout(CtkDisplayLayout *ctk_object, int x, int y)
         }
     }
 
+    /* Select display's X screen when CTRL is held down on click */
+    if (ctk_object->selected_screen && (state & GDK_CONTROL_MASK)) {
+        ctk_object->selected_display = NULL;
+    }
 
     /* Don't allow clicking outside - reselect what was last selected */
     if (ctk_object->clicked_outside) {
@@ -4264,7 +4295,7 @@ motion_event_callback(GtkWidget *widget, GdkEventMotion *event, gpointer data)
     }
 
     /* Swap between panning and moving  */
-    if (ctk_object->advanced_mode && (state & ShiftMask)) {
+    if (ctk_object->advanced_mode && (state & GDK_SHIFT_MASK)) {
         modify_panning = 1;
     } else {
         modify_panning = 0;

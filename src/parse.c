@@ -305,6 +305,7 @@ AttributeTableEntry attributeTable[] = {
     { "CurrentMetaModeID",          NV_CTRL_CURRENT_METAMODE_ID,           N,     "The ID of the current MetaMode." },
     { "CurrentMetaMode",            NV_CTRL_STRING_CURRENT_METAMODE_VERSION_2, S|N, "Controls the current MetaMode." },
     { "XineramaInfoOrder",          NV_CTRL_STRING_NVIDIA_XINERAMA_INFO_ORDER, S|N, "Controls the nvidiaXineramaInfoOrder." },
+    { "RandROutputID",              NV_CTRL_DISPLAY_RANDR_OUTPUT_ID,       N,     "The RandR Output ID that corresponds to the display device." },
 
     /* TV */
     { "TVOverScan",      NV_CTRL_TV_OVERSCAN,       0, "Adjusts the amount of overscan on the specified display device." },
@@ -367,7 +368,7 @@ AttributeTableEntry attributeTable[] = {
  * about.
  */
 
-#if NV_CTRL_LAST_ATTRIBUTE != NV_CTRL_FXAA
+#if NV_CTRL_LAST_ATTRIBUTE != NV_CTRL_DISPLAY_RANDR_OUTPUT_ID
 #warning "Have you forgotten to add a new integer attribute to attributeTable?"
 #endif
 

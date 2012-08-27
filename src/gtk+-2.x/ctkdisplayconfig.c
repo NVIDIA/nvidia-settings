@@ -1807,6 +1807,18 @@ GtkWidget* ctk_display_config_new(NvCtrlAttributeHandle *handle,
         gtk_box_pack_start(GTK_BOX(ctk_object), vbox, FALSE, FALSE, 0);
         ctk_object->screen_page = vbox;
 
+        /* Info on how to drag X screens around */
+        hbox = gtk_hbox_new(FALSE, 5);
+        gtk_box_pack_start(GTK_BOX(vbox), hbox, FALSE, FALSE, 5);
+
+        label = gtk_label_new("");
+        labels = g_slist_append(labels, label);
+        gtk_box_pack_start(GTK_BOX(hbox), label, FALSE, TRUE, 5);
+
+        label = gtk_label_new("(CTRL-Click + Drag to move X screens)");
+        gtk_box_pack_start(GTK_BOX(hbox), label, FALSE, TRUE, 5);
+        ctk_object->box_screen_drag_info = hbox;
+
         /* X screen virtual size */
         label = gtk_label_new("Virtual Size:");
         labels = g_slist_append(labels, label);
@@ -2011,7 +2023,10 @@ GtkTextBuffer *ctk_display_config_create_help(GtkTextTagTable *table,
                   "that display devices and X screens have to each other.  "
                   "You may drag display devices around to reposition them.  "
                   "When in advanced view, the display's panning domain may "
-                  "be resized by holding shift while dragging.");
+                  "be resized by holding SHIFT while dragging.  Also, The "
+                  "X screen a display belongs to may be selected by holding "
+                  "down the CONTROL key while clicking on the display, and can "
+                  "be moved by holding CONTROL-Click and dragging.");
     ctk_help_heading(b, &i, "Layout Hidden Label");
     ctk_help_para(b, &i, __layout_hidden_label_help);
     ctk_help_heading(b, &i, "Enable Xinerama");
@@ -3752,6 +3767,12 @@ static void setup_screen_page(CtkDisplayConfig *ctk_object)
     /* Enable display widgets and setup widget information */
     gtk_widget_set_sensitive(ctk_object->screen_page, True);
 
+    if (screen->layout->num_screens > 1) {
+        gtk_widget_show(ctk_object->box_screen_drag_info);
+    } else {
+        gtk_widget_hide(ctk_object->box_screen_drag_info);
+    }
+
     setup_screen_virtual_size(ctk_object);
     setup_screen_depth_dropdown(ctk_object);
     setup_screen_stereo_dropdown(ctk_object);
@@ -3765,8 +3786,8 @@ static void setup_screen_page(CtkDisplayConfig *ctk_object)
 /** validation_fix_crowded_metamodes() *******************************
  *
  * Goes through each screen's metamodes and ensures that at most
- * two display devices are active (have a modeline set) per metamode.
- * This function also checks to make sure that there is at least
+ * (max supported) display devices are active (have a modeline set) per
+ * metamode.  This function also checks to make sure that there is at least
  * one display device active for each metamode.
  *
  **/
@@ -3872,54 +3893,6 @@ static gint validation_fix_crowded_metamodes(CtkDisplayConfig *ctk_object,
 
 
 
-/** validation_fix_crowded_metamodes() *******************************
- *
- * Goes through each screen's metamodes and ensures that each
- * metamode string is unique.  If a metamode string is not unique,
- * the duplicate metamode is removed.
- *
- **/
-
-static gint validation_remove_dupe_metamodes(CtkDisplayConfig *ctk_object,
-                                            nvScreenPtr screen)
-{
-    int i, j;
-    char *metamode_str;
-
-    /* Verify each metamode with the metamodes that come before it */
-    for (i = 1; i < screen->num_metamodes; i++) {
-
-        metamode_str = screen_get_metamode_str(screen, i, 0);
-        for (j = 0; j < i; j++) {
-            char *tmp;
-            tmp = screen_get_metamode_str(screen, j, 0);
-            
-            /* Remove duplicates */
-            if (!strcmp(metamode_str, tmp)) {
-                
-                /* Delete the metamode */
-                ctk_display_layout_delete_screen_metamode
-                    (CTK_DISPLAY_LAYOUT(ctk_object->obj_layout), screen, i,
-                     TRUE);
-                
-                nv_info_msg(TAB, "Removed MetaMode %d on Screen %d (Is "
-                            "Duplicate of MetaMode %d)\n", i+1, screen->scrnum,
-                            j+1);
-                g_free(tmp);
-                i--; /* Check the new metamode in i'th position */
-                break;
-            }
-            g_free(tmp);
-        }
-        g_free(metamode_str);
-    }
-
-    return 1;
-
-} /* validation_remove_dupe_metamodes() */
-
-
-
 /** validation_auto_fix_screen() *************************************
  *
  * Do what we can to make this screen conform to validation.
@@ -3932,7 +3905,6 @@ static gint validation_auto_fix_screen(CtkDisplayConfig *ctk_object,
     gint status = 1;
 
     status &= validation_fix_crowded_metamodes(ctk_object, screen);
-    status &= validation_remove_dupe_metamodes(ctk_object, screen);
 
     return status;
 
@@ -3988,9 +3960,8 @@ static gint validation_auto_fix(CtkDisplayConfig *ctk_object)
  *
  * - Have at least 1 display device activated for all metamodes.
  *
- * - Have at most 2 display devices activated for all metamodes.
- *
- * - All metamodes must be unique.
+ * - Have at most (max supported) display devices activated for all
+ *   metamodes.
  *
  * - All metamodes must have a coherent offset (The top left corner
  *   of the bounding box of all the metamodes must be the same.)
@@ -4007,7 +3978,6 @@ static gchar * validate_screen(nvScreenPtr screen)
     nvModePtr mode;
     int i, j;
     int num_displays;
-    char *metamode_str;
     gchar *err_str = NULL;
     gchar *tmp;
     gchar *tmp2;
@@ -4063,29 +4033,6 @@ static gchar * validate_screen(nvScreenPtr screen)
             g_free(tmp);
             err_str = tmp2;
         }
-
-
-        /* Verify that the metamode is unique */
-        metamode_str = screen_get_metamode_str(screen, i, 0);
-        for (j = 0; j < i; j++) {
-            char *tmp = screen_get_metamode_str(screen, j, 0);
-
-            /* Make sure the metamode is unique */
-            if (!strcmp(metamode_str, tmp)) {
-                g_free(tmp);
-                tmp = g_strdup_printf("%s MetaMode %d of Screen %d is the "
-                                      "same as MetaMode %d.  All MetaModes "
-                                      "must be unique.\n\n",
-                                      bullet, i+1, screen->scrnum, j+1);
-                tmp2 = g_strconcat((err_str ? err_str : ""), tmp, NULL);
-                g_free(err_str);
-                err_str = tmp2;
-                g_free(tmp);
-                break;
-            }
-            g_free(tmp);
-        }
-        g_free(metamode_str);
     }
 
     return err_str;

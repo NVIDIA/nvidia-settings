@@ -3203,9 +3203,15 @@
 #define NV_CTRL_FXAA_DISABLE                                    0
 #define NV_CTRL_FXAA_ENABLE                                     1
   
+/*
+ * NV_CTRL_DISPLAY_RANDR_OUTPUT_ID - the RandR Output ID (type RROutput)
+ * that corresponds to the specified Display Device target.  If a new
+ * enough version of RandR is not available in the X server,
+ * DISPLAY_RANDR_OUTPUT_ID will be 0.
+ */
+#define NV_CTRL_DISPLAY_RANDR_OUTPUT_ID                         391 /* R-D- */
 
-
-#define NV_CTRL_LAST_ATTRIBUTE NV_CTRL_FXAA
+#define NV_CTRL_LAST_ATTRIBUTE NV_CTRL_DISPLAY_RANDR_OUTPUT_ID
 
 /**************************************************************************/
 

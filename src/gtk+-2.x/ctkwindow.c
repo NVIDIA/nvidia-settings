@@ -44,6 +44,7 @@
 #include "ctkslimm.h"
 #include "ctkgpu.h"
 #include "ctkcolorcorrection.h"
+#include "ctkcolorcorrectionpage.h"
 #include "ctkxvideo.h"
 #include "ctkcursorshadow.h"
 #include "ctkopengl.h"
@@ -382,6 +383,16 @@ static gboolean tree_view_key_event(GtkWidget *tree_view, GdkEvent *event,
 } /* tree_view_key_event() */
 
 
+static gboolean has_randr_gamma(NvCtrlAttributeHandle *handle)
+{
+    ReturnStatus ret;
+    int val;
+
+    ret = NvCtrlGetAttribute(handle, NV_CTRL_ATTR_RANDR_GAMMA_AVAILABLE, &val);
+
+    return ((ret == NvCtrlSuccess) && (val == 1));
+}
+
 /*
  * ctk_window_new() - create a new CtkWindow widget
  */
@@ -666,15 +677,22 @@ GtkWidget *ctk_window_new(ParsedAttribute *p, ConfigProperties *conf,
             }
         }
 
-        /* color correction */
+        /*
+         * color correction, if RandR per-CRTC color correction is not
+         * available
+         */
 
-        child = ctk_color_correction_new(screen_handle, ctk_config,
-                                         ctk_window->attribute_list,
-                                         ctk_event);
-        if (child) {
-            help = ctk_color_correction_create_help(tag_table);
-            add_page(child, help, ctk_window, &iter, NULL,
-                     "X Server Color Correction", NULL, NULL, NULL);
+        if (!has_randr_gamma(screen_handle)) {
+
+            child = ctk_color_correction_page_new(screen_handle, ctk_config,
+                                                  ctk_window->attribute_list,
+                                                  ctk_event);
+            if (child) {
+                const char *title = "X Server Color Correction";
+                help = ctk_color_correction_page_create_help(tag_table, title);
+                add_page(child, help, ctk_window, &iter, NULL,
+                         title, NULL, NULL, NULL);
+            }
         }
 
         /* xvideo settings  */
@@ -1396,7 +1414,8 @@ static void add_display_devices(CtkWindow *ctk_window, GtkTreeIter *iter,
             NvCtrlAttributeInit(NvCtrlGetDisplayPtr(gpu_handle),
                                 NV_CTRL_TARGET_TYPE_DISPLAY,
                                 display_id,
-                                NV_CTRL_ATTRIBUTES_NV_CONTROL_SUBSYSTEM);
+                                NV_CTRL_ATTRIBUTES_NV_CONTROL_SUBSYSTEM |
+                                NV_CTRL_ATTRIBUTES_XRANDR_SUBSYSTEM);
         if (!display_handle) {
             continue;
         }

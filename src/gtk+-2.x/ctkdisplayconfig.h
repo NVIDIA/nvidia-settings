@@ -130,6 +130,8 @@ typedef struct _CtkDisplayConfig
     GtkWidget *screen_page;
 
     /* X Screen - Settings */
+    GtkWidget *box_screen_drag_info;
+
     GtkWidget *box_screen_virtual_size;
     GtkWidget *txt_screen_virtual_size;
 
