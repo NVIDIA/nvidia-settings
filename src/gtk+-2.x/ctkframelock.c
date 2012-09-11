@@ -1216,8 +1216,6 @@ static void list_entry_update_display_controls(CtkFramelock *ctk_framelock,
 {
     nvDisplayDataPtr data = (nvDisplayDataPtr)(entry->data);
     gboolean framelock_enabled = ctk_framelock->framelock_enabled;
-    gboolean server_checked;
-    gboolean client_checked;
     gboolean sensitive;
     
     nvListTreePtr tree = (nvListTreePtr)(ctk_framelock->tree);
@@ -1232,11 +1230,6 @@ static void list_entry_update_display_controls(CtkFramelock *ctk_framelock,
         }
     }
 
-    server_checked = gtk_toggle_button_get_active
-        (GTK_TOGGLE_BUTTON(data->server_checkbox));
-    client_checked = gtk_toggle_button_get_active
-        (GTK_TOGGLE_BUTTON(data->client_checkbox));
-    
     /* Server Checkbox is unavailable when framelock is enabled,
      * this display cannot be master
      * (display is driven by GPU that is connected through a
@@ -4439,11 +4432,7 @@ static void ctk_framelock_class_init(
     CtkFramelockClass *ctk_framelock_class
 )
 {
-    GObjectClass *gobject_class;
-
-    gobject_class = (GObjectClass *) ctk_framelock_class;
     parent_class = g_type_class_peek_parent(ctk_framelock_class);
-
 }
 
 

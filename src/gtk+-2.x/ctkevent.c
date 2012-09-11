@@ -105,10 +105,7 @@ GType ctk_event_get_type(void)
 
 static void ctk_event_class_init(CtkEventClass *ctk_event_class)
 {
-    GObjectClass *gobject_class;
     gint i;
-
-    gobject_class = (GObjectClass *) ctk_event_class;
 
     /* clear the signal array */
 

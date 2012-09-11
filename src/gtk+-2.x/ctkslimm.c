@@ -229,8 +229,6 @@ static XConfigPtr xconfig_generate(XConfigPtr xconfCur,
     gint x_displays,y_displays;
     gint h_overlap, v_overlap;
 
-    gint x_total, y_total;
-
     gchar *metamode_str = NULL;
     gchar *tmpstr;
 
@@ -262,12 +260,6 @@ static XConfigPtr xconfig_generate(XConfigPtr xconfCur,
 
         h_overlap = gtk_spin_button_get_value_as_int(GTK_SPIN_BUTTON(ctk_object->spbtn_hedge_overlap));
         v_overlap = gtk_spin_button_get_value_as_int(GTK_SPIN_BUTTON(ctk_object->spbtn_vedge_overlap));
-
-        /* Total X Screen Size Calculation */
-        x_total = x_displays * ctk_object->cur_modeline->data.hdisplay - 
-                  (x_displays - 1) * h_overlap;
-        y_total = y_displays * ctk_object->cur_modeline->data.vdisplay - 
-                  (y_displays - 1) * v_overlap;
 
         for (yctr = 0; yctr < y_displays;yctr++) {
             for (xctr = 0; xctr < x_displays;xctr++) {
@@ -563,8 +555,6 @@ static void setup_display_refresh_dropdown(CtkSLIMM *ctk_object)
         nvModeLinePtr m;
         int count_ref; /* # modelines with similar refresh rates */
         int num_ref;   /* Modeline # in a group of similar refresh rates */
-        int is_doublescan;
-        int is_interlaced;
 
         gchar *extra = NULL;
         gchar *tmp;
@@ -576,8 +566,6 @@ static void setup_display_refresh_dropdown(CtkSLIMM *ctk_object)
         }
 
         modeline_rate = modeline->refresh_rate;
-        is_doublescan = (modeline->data.flags & V_DBLSCAN);
-        is_interlaced = (modeline->data.flags & V_INTERLACE);
 
         name = g_strdup_printf("%.0f Hz", modeline_rate);
 
@@ -1286,7 +1274,6 @@ GtkWidget* ctk_slimm_new(NvCtrlAttributeHandle *handle,
     int grid_menu_selected_id;
     int count;
 
-    Bool valid_layout = FALSE;
     Bool trust_slimm_available = FALSE;
     int vcs_target_count;
 
@@ -1398,11 +1385,11 @@ GtkWidget* ctk_slimm_new(NvCtrlAttributeHandle *handle,
             layout = NULL;
 
         } else {
-            valid_layout = parse_slimm_layout(ctk_slimm,
-                                              layout,
-                                              &hoverlap,
-                                              &voverlap,
-                                              &grid_config_id);
+            parse_slimm_layout(ctk_slimm,
+                               layout,
+                               &hoverlap,
+                               &voverlap,
+                               &grid_config_id);
         }
     }
     

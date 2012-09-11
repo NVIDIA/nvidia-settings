@@ -1179,17 +1179,9 @@ static void sync_mode_changed(CtkDropDownMenu *menu, gpointer user_data)
 {
     CtkGvoSync *ctk_gvo_sync = CTK_GVO_SYNC(user_data);
     gint value;
-    char *name;
-    
+
     value = ctk_drop_down_menu_get_current_value(menu);
-    
-    switch (value) {
-    case NV_CTRL_GVO_SYNC_MODE_FREE_RUNNING: name = "Free Running"; break;
-    case NV_CTRL_GVO_SYNC_MODE_GENLOCK:      name = "GenLock";      break;
-    case NV_CTRL_GVO_SYNC_MODE_FRAMELOCK:    name = "FrameLock";    break;
-    default: return;
-    }
-    
+
     NvCtrlSetAttribute(ctk_gvo_sync->handle, NV_CTRL_GVO_SYNC_MODE, value);
     
     if (value != NV_CTRL_GVO_SYNC_MODE_FREE_RUNNING) {

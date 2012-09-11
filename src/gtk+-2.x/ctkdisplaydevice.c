@@ -360,6 +360,18 @@ GtkWidget* ctk_display_device_new(NvCtrlAttributeHandle *handle,
     nbox = gtk_vbox_new(FALSE, FRAME_PADDING);
     gtk_container_set_border_width(GTK_CONTAINER(nbox), FRAME_PADDING);
 
+    /* pack the reset button */
+
+    button = gtk_button_new_with_label("Reset Hardware Defaults");
+    str = ctk_help_create_reset_hardware_defaults_text(typeBaseName,
+                                                       name);
+    ctk_config_set_tooltip(ctk_config, button, str);
+    ctk_object->reset_button = button;
+
+    alignment = gtk_alignment_new(1, 1, 0, 0);
+    gtk_container_add(GTK_CONTAINER(alignment), button);
+    gtk_box_pack_end(GTK_BOX(nbox), alignment, FALSE, FALSE, 0);
+
     /* pack the color controls */
 
     ctk_object->color_controls =
@@ -391,18 +403,6 @@ GtkWidget* ctk_display_device_new(NvCtrlAttributeHandle *handle,
         gtk_box_pack_start(GTK_BOX(nbox), ctk_object->image_sliders,
                            FALSE, FALSE, 0);
     }
-
-    /* pack the reset button */
-
-    button = gtk_button_new_with_label("Reset Hardware Defaults");
-    str = ctk_help_create_reset_hardware_defaults_text(typeBaseName,
-                                                       name);
-    ctk_config_set_tooltip(ctk_config, button, str);
-    ctk_object->reset_button = button;
-
-    alignment = gtk_alignment_new(1, 1, 0, 0);
-    gtk_container_add(GTK_CONTAINER(alignment), button);
-    gtk_box_pack_end(GTK_BOX(nbox), alignment, FALSE, FALSE, 0);
 
     /* If no controls are created, don't add a controls tab */
 

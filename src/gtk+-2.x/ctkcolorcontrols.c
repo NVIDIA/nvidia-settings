@@ -599,6 +599,9 @@ static gboolean setup_color_range_dropdown(CtkColorControls *ctk_color_controls)
     ret = NvCtrlGetValidAttributeValues(ctk_color_controls->handle,
                                         NV_CTRL_COLOR_RANGE,
                                         &valid);
+    if (ret != NvCtrlSuccess) {
+        return FALSE;
+    }
 
     if (valid.type != ATTRIBUTE_TYPE_INT_BITS) {
         return FALSE;

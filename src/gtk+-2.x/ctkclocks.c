@@ -793,7 +793,6 @@ static void overclocking_state_toggled(GtkWidget *widget, gpointer user_data)
 {
     CtkClocks *ctk_object = CTK_CLOCKS(user_data);
     gboolean enabled;
-    ReturnStatus ret;
     int value;
     gint result;
     
@@ -836,10 +835,10 @@ static void overclocking_state_toggled(GtkWidget *widget, gpointer user_data)
 
     
     /* Update the server */
-    
-    ret = NvCtrlSetAttribute(ctk_object->handle,
-                             NV_CTRL_GPU_OVERCLOCKING_STATE, value);
-    
+
+    NvCtrlSetAttribute(ctk_object->handle,
+                       NV_CTRL_GPU_OVERCLOCKING_STATE, value);
+
     /* Update the GUI */
     
     overclocking_state_update_gui(ctk_object);
@@ -1250,18 +1249,17 @@ static void reset_clocks_clicked(GtkWidget *widget, gpointer user_data)
 static void detect_clocks_clicked(GtkWidget *widget, gpointer user_data)
 {
     CtkClocks *ctk_object = CTK_CLOCKS(user_data);
-    ReturnStatus ret;
     gint result;
-    
+
 
     if ( ctk_object->probing_optimal ) {
 
         /* Stop the test for optimal clock freqs */
-        ret = NvCtrlSetAttribute(ctk_object->handle,
-                                 NV_CTRL_GPU_OPTIMAL_CLOCK_FREQS_DETECTION,
-                                 NV_CTRL_GPU_OPTIMAL_CLOCK_FREQS_DETECTION_CANCEL);
+        NvCtrlSetAttribute(ctk_object->handle,
+                           NV_CTRL_GPU_OPTIMAL_CLOCK_FREQS_DETECTION,
+                           NV_CTRL_GPU_OPTIMAL_CLOCK_FREQS_DETECTION_CANCEL);
     } else {
-        
+
         /* User must hit the OK button to start the testing */
 
         gtk_widget_show_all(ctk_object->detect_dialog);
@@ -1273,9 +1271,9 @@ static void detect_clocks_clicked(GtkWidget *widget, gpointer user_data)
         case GTK_RESPONSE_ACCEPT:
 
             /* Start the test for optimal clock freqs */
-            ret = NvCtrlSetAttribute(ctk_object->handle,
-                                     NV_CTRL_GPU_OPTIMAL_CLOCK_FREQS_DETECTION,
-                                     NV_CTRL_GPU_OPTIMAL_CLOCK_FREQS_DETECTION_START);
+            NvCtrlSetAttribute(ctk_object->handle,
+                               NV_CTRL_GPU_OPTIMAL_CLOCK_FREQS_DETECTION,
+                               NV_CTRL_GPU_OPTIMAL_CLOCK_FREQS_DETECTION_START);
             break;
 
         case GTK_RESPONSE_REJECT:

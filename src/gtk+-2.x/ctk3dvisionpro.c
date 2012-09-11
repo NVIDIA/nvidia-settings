@@ -170,10 +170,6 @@ static const char** get_signal_strength_icon(int signal_strength)
 static void ctk_3d_vision_pro_class_init(Ctk3DVisionProClass
                                          *ctk_3d_vision_pro_class)
 {
-    GObjectClass *gobject_class;
-
-    gobject_class = (GObjectClass *) ctk_3d_vision_pro_class;
-
     __signals[CHANGED] = g_signal_new("changed",
                        G_OBJECT_CLASS_TYPE(ctk_3d_vision_pro_class),
                        G_SIGNAL_RUN_LAST,
@@ -396,7 +392,7 @@ static void create_glasses_info_table(GlassesInfoTable *table, GlassesInfo** gla
                                       GtkWidget *pack_in, CtkConfig *ctk_config)
 {
     GtkWidget *hbox, *hbox1;
-    GtkWidget *vbox, *vbox2;
+    GtkWidget *vbox;
     GtkWidget *label;
     GtkWidget *hseparator;
     GtkWidget *data_viewport, *full_viewport;
@@ -417,7 +413,6 @@ static void create_glasses_info_table(GlassesInfoTable *table, GlassesInfo** gla
 
     hbox  = gtk_hbox_new(FALSE, 0);
     vbox  = gtk_vbox_new(FALSE, 5);
-    vbox2 = gtk_vbox_new(FALSE, 5);
     vpan  = gtk_vpaned_new();
 
     data_viewport = gtk_viewport_new(NULL, NULL);

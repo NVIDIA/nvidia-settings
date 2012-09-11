@@ -318,6 +318,14 @@ int nv_write_config_file(const char *filename, CtrlHandles *h,
             
             if (a->flags & NV_PARSER_TYPE_COLOR_ATTRIBUTE) {
                 float c[3], b[3], g[3];
+
+                /*
+                 * if we are using RandR gamma, skip saving the color info
+                 */
+ 
+                status = NvCtrlGetAttribute(t->h, NV_CTRL_ATTR_RANDR_GAMMA_AVAILABLE, &val);
+                if (status == NvCtrlSuccess && val) continue;
+
                 status = NvCtrlGetColorAttributes(t->h, c, b, g);
                 if (status != NvCtrlSuccess) continue;
                 fprintf(stream, "%s%c%s=%f\n",
@@ -497,8 +505,7 @@ static ParsedAttributeWrapper *parse_config_file(char *buf, const char *file,
         
         while (((c - buf) < length) &&
                (*c != '\n') &&
-               (*c != '\0') &&
-               (*c != EOF)) {
+               (*c != '\0')) {
             if (comment) { c++; continue; }
             if (*c == '#') { comment = c; continue; }
             if (!isspace(*c)) has_data = NV_TRUE;
@@ -543,9 +550,9 @@ static ParsedAttributeWrapper *parse_config_file(char *buf, const char *file,
             }
         }
 
-        if (((c - buf) >= length) || (*c == '\0') || (*c == EOF)) cur = NULL;
+        if (((c - buf) >= length) || (*c == '\0')) cur = NULL;
         else cur = c + 1;
-        
+
         line++;
     }
     free(tmp);
@@ -576,7 +583,7 @@ static int process_config_file_attributes(const char *file,
                                           ParsedAttributeWrapper *w,
                                           const char *display_name)
 {
-    int i, j, ret, found, n = 0;
+    int i, j, found, n = 0;
     CtrlHandles **h = NULL;
     
     int old_verbosity = __verbosity;
@@ -632,9 +639,9 @@ static int process_config_file_attributes(const char *file,
 
     for (i = 0; w[i].line != -1; i++) {
 
-        ret = nv_process_parsed_attribute(&w[i].a, w[i].h, NV_TRUE, NV_FALSE,
-                                          "on line %d of configuration file "
-                                          "'%s'", w[i].line, file);
+        nv_process_parsed_attribute(&w[i].a, w[i].h, NV_TRUE, NV_FALSE,
+                                    "on line %d of configuration file "
+                                    "'%s'", w[i].line, file);
         /*
          * We do not fail if processing the attribute failed.  If the
          * GPU or the X config changed (for example stereo is

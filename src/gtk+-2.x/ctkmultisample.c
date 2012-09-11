@@ -138,8 +138,7 @@ static const char *__aniso_slider_help =
 static const char *__fxaa_enable_help = 
 "Enable Fast Approximate Anti-Aliasing. This option is applied to "
 "OpenGL applications that are started after this option is set. Enabling "
-"FXAA disables antialiasing and other antialiasing setting methods. FXAA "
-"is not allowed when Unified Back Buffers are enabled.";
+"FXAA disables antialiasing and other antialiasing setting methods.";
 
 static const char *__texture_sharpening_help =
 "To improve image quality, select this option "
@@ -378,23 +377,16 @@ GtkWidget *ctk_multisample_new(NvCtrlAttributeHandle *handle,
 
             check_button = gtk_check_button_new_with_label("Enable FXAA");
 
-            ret = NvCtrlGetAttribute(handle, NV_CTRL_FXAA, &val);
-
-            ctk_multisample->fxaa_available = 
-                (ret != NvCtrlAttributeNotAvailable);
-
-            if (mode != NV_CTRL_FSAA_MODE_NONE || 
-                !ctk_multisample->fxaa_available) {
+            if (mode == NV_CTRL_FSAA_MODE_NONE) {
+                ret = NvCtrlGetAttribute(handle, NV_CTRL_FXAA, &val);
+                if (val == NV_CTRL_FXAA_ENABLE) {
+                    gtk_widget_set_sensitive(GTK_WIDGET(scale), FALSE);
+                }
+            } else {
                 val = NV_CTRL_FXAA_DISABLE;
             }
-
-            if (val == NV_CTRL_FXAA_ENABLE) {
-                gtk_widget_set_sensitive(GTK_WIDGET(scale), FALSE);
-            }
-
             gtk_widget_set_sensitive(GTK_WIDGET(check_button),
-                                     (mode == NV_CTRL_FSAA_MODE_NONE) &&
-                                     (ctk_multisample->fxaa_available));
+                                     (mode == NV_CTRL_FSAA_MODE_NONE));
             gtk_toggle_button_set_active(GTK_TOGGLE_BUTTON(check_button), val);
 
             g_signal_connect(G_OBJECT(check_button), "toggled",
@@ -907,8 +899,13 @@ static void fsaa_setting_update_received(GtkObject *object,
             ret = NvCtrlGetAttribute(ctk_multisample->handle,
                                      NV_CTRL_FSAA_APPLICATION_ENHANCED,
                                      &val);
-            enhance = val;
-            idx = enhance ? 2 : 1;
+            if (ret == NvCtrlSuccess) {
+                enhance = val;
+                idx = enhance ? 2 : 1;
+            } else {
+                enhance = FALSE;
+                idx = 0;
+            }
         } else {
             idx = 1;
         }
@@ -920,7 +917,11 @@ static void fsaa_setting_update_received(GtkObject *object,
         ret = NvCtrlGetAttribute(ctk_multisample->handle,
                                  NV_CTRL_FSAA_APPLICATION_CONTROLLED,
                                  &val);
-        override = !val; /* = !app_controlled */
+        if (ret == NvCtrlSuccess) {
+            override = !val; /* = !app_controlled */
+        } else {
+            override = FALSE;
+        }
 
         if (override) {
             idx = enhance ? 2 : 1;
@@ -1020,8 +1021,7 @@ static void update_fxaa_from_fsaa_change(CtkMultisample *ctk_multisample,
                              (fsaa_idx != 0) && // not app controlled
                              (fxaa_value == NV_CTRL_FXAA_DISABLE));
     gtk_widget_set_sensitive(GTK_WIDGET(fxaa_checkbox),
-                             fsaa_value == NV_CTRL_FSAA_MODE_NONE &&
-                             ctk_multisample->fxaa_available);
+                             fsaa_value == NV_CTRL_FSAA_MODE_NONE);
 } /* update_fxaa_from_fsaa_change() */
 
 /*
@@ -1061,9 +1061,8 @@ static void update_fsaa_from_fxaa_change (CtkMultisample *ctk_multisample,
     fsaa_val = ctk_multisample->fsaa_translation_table[fsaa_val];
 
     gtk_widget_set_sensitive(GTK_WIDGET(fxaa_checkbox), 
-                             ((fxaa_enabled == NV_CTRL_FXAA_ENABLE) || 
-                             (fsaa_val == NV_CTRL_FSAA_MODE_NONE)) &&
-                             (ctk_multisample->fxaa_available));
+                             (fxaa_enabled == NV_CTRL_FXAA_ENABLE) || 
+                             (fsaa_val == NV_CTRL_FSAA_MODE_NONE));
     gtk_widget_set_sensitive(GTK_WIDGET(fsaa_range), 
                              (fsaa_idx != 0) && // not app controlled
                              (fxaa_enabled == NV_CTRL_FXAA_DISABLE));

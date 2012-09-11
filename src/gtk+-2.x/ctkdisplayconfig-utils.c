@@ -249,6 +249,7 @@ void apply_screen_info_token(char *token, char *value, void *data)
  *
  **/
 static nvModeLinePtr modeline_parse(nvDisplayPtr display,
+                                    nvGpuPtr gpu,
                                     const char *modeline_str,
                                     const int broken_doublescan_modelines)
 {
@@ -358,15 +359,15 @@ static nvModeLinePtr modeline_parse(nvDisplayPtr display,
     }
 
     modeline->refresh_rate = 0;
-    if (display->is_sdi && display->gpu->num_gvo_modes) {
+    if (display->is_sdi && gpu->num_gvo_modes) {
         /* Fetch the SDI refresh rate of the mode from the gvo mode table */
         int i;
-        for (i = 0; i < display->gpu->num_gvo_modes; i++) {
-            if (display->gpu->gvo_mode_data[i].id &&
-                display->gpu->gvo_mode_data[i].name &&
-                !strcmp(display->gpu->gvo_mode_data[i].name,
+        for (i = 0; i < gpu->num_gvo_modes; i++) {
+            if (gpu->gvo_mode_data[i].id &&
+                gpu->gvo_mode_data[i].name &&
+                !strcmp(gpu->gvo_mode_data[i].name,
                         modeline->data.identifier)) {
-                modeline->refresh_rate = display->gpu->gvo_mode_data[i].rate;
+                modeline->refresh_rate = gpu->gvo_mode_data[i].rate;
                 modeline->refresh_rate /= 1000.0;
                 break;
             }
@@ -961,7 +962,8 @@ static void display_remove_modelines(nvDisplayPtr display)
  * Queries the display's current modepool (modelines list).
  *
  **/
-Bool display_add_modelines_from_server(nvDisplayPtr display, gchar **err_str)
+Bool display_add_modelines_from_server(nvDisplayPtr display, nvGpuPtr gpu,
+                                       gchar **err_str)
 {
     nvModeLinePtr modeline;
     char *modeline_strs = NULL;
@@ -1014,7 +1016,8 @@ Bool display_add_modelines_from_server(nvDisplayPtr display, gchar **err_str)
     str = modeline_strs;
     while (strlen(str)) {
 
-        modeline = modeline_parse(display, str, broken_doublescan_modelines);
+        modeline = modeline_parse(display, gpu, str,
+                                  broken_doublescan_modelines);
         if (!modeline) {
             *err_str = g_strdup_printf("Failed to parse the following "
                                        "modeline of display device\n"
@@ -2201,7 +2204,7 @@ nvDisplayPtr gpu_add_display_from_server(nvGpuPtr gpu,
 
 
     /* Query the modelines for the display device */
-    if (!display_add_modelines_from_server(display, err_str)) {
+    if (!display_add_modelines_from_server(display, gpu, err_str)) {
         nv_warning_msg("Failed to add modelines to display device %d "
                        "'%s'\nconnected to GPU-%d '%s'.",
                        display_id, display->logName,
@@ -3159,7 +3162,6 @@ static int save_xconfig_file(SaveXConfDlg *dlg,
 {
     gchar *backup_filename = NULL;
     FILE *fp = NULL;
-    size_t size;
     gchar *err_msg = NULL;
     struct stat st;
 
@@ -3167,8 +3169,6 @@ static int save_xconfig_file(SaveXConfDlg *dlg,
 
 
     if (!buf || !filename) goto done;
-
-    size = strlen(buf) ;
 
     /* Backup any existing file */
     if ((access(filename, F_OK) == 0)) {

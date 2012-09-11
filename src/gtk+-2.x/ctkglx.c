@@ -233,7 +233,7 @@ GtkWidget* ctk_glx_new(NvCtrlAttributeHandle *handle,
     GtkWidget *banner;
     GtkWidget *hseparator;
     GtkWidget *hbox;
-    GtkWidget *vbox, *vbox2;
+    GtkWidget *vbox;
     GtkWidget *scrollWin;
     GtkWidget *event;    /* For setting the background color to white */
     GtkWidget *data_table, *header_table;
@@ -369,7 +369,6 @@ GtkWidget* ctk_glx_new(NvCtrlAttributeHandle *handle,
 
     hbox      = gtk_hbox_new(FALSE, 0);
     vbox      = gtk_vbox_new(FALSE, 10);
-    vbox2     = gtk_vbox_new(FALSE, 10);
 
     data_viewport = gtk_viewport_new(NULL, NULL);
     gtk_widget_set_size_request(data_viewport, 400, 50);

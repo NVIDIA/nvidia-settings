@@ -563,9 +563,9 @@ void xconfigPrint(MsgType t, const char *msg)
         }
     }
     
-    if (newline) printf("\n");
-    printf("%s %s\n", prefix, msg);
-    if (newline) printf("\n");
+    if (newline) fprintf(stream, "\n");
+    fprintf(stream, "%s %s\n", prefix, msg);
+    if (newline) fprintf(stream, "\n");
     
 } /* xconfigPrint */
 
@@ -2536,9 +2536,6 @@ static void setup_display_refresh_dropdown(CtkDisplayConfig *ctk_object)
         nvModeLinePtr m;
         int count_ref; /* # modelines with similar refresh rates */ 
         int num_ref;   /* Modeline # in a group of similar refresh rates */
-        int is_doublescan;
-        int is_interlaced;
-        
 
         /* Ignore modelines of different resolution */
         if (modeline->data.hdisplay != cur_modeline->data.hdisplay ||
@@ -2550,9 +2547,6 @@ static void setup_display_refresh_dropdown(CtkDisplayConfig *ctk_object)
         if (IS_NVIDIA_DEFAULT_MODE(modeline)) {
             continue;
         }
-
-        is_doublescan = (modeline->data.flags & V_DBLSCAN);
-        is_interlaced = (modeline->data.flags & V_INTERLACE);
 
         name = g_strdup_printf("%0.*f Hz", (display->is_sdi ? 3 : 0),
                                modeline->refresh_rate);
@@ -3213,11 +3207,8 @@ static void setup_primary_display(CtkDisplayConfig *ctk_object)
 static void setup_display_panning(CtkDisplayConfig *ctk_object)
 {
     char *tmp_str;
-    nvLayoutPtr layout;
     nvDisplayPtr display;
     nvModePtr mode;
-
-    layout = ctk_object->layout;
 
     display = ctk_display_layout_get_selected_display
         (CTK_DISPLAY_LAYOUT(ctk_object->obj_layout));
@@ -4998,7 +4989,7 @@ static void display_config_changed(GtkWidget *widget, gpointer user_data)
                                   NV_CTRL_STRING_OPERATION_BUILD_MODEPOOL,
                                   "", &tokens);
             update = TRUE;
-            if (!display_add_modelines_from_server(display, &err_str)) {
+            if (!display_add_modelines_from_server(display, display->gpu, &err_str)) {
                 nv_warning_msg(err_str);
                 g_free(err_str);
                 return;

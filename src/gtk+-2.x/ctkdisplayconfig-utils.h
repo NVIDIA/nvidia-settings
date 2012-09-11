@@ -62,7 +62,8 @@ void modeline_free(nvModeLinePtr m);
 int display_find_closest_mode_matching_modeline(nvDisplayPtr display,
                                                 nvModeLinePtr modeline);
 Bool display_has_modeline(nvDisplayPtr display, nvModeLinePtr modeline);
-Bool display_add_modelines_from_server(nvDisplayPtr display, gchar **err_str);
+Bool display_add_modelines_from_server(nvDisplayPtr display, nvGpuPtr gpu,
+                                       gchar **err_str);
 void display_remove_modes(nvDisplayPtr display);
 
 

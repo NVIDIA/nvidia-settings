@@ -175,11 +175,9 @@ GType ctk_window_get_type(void)
 
 static void ctk_window_class_init(CtkWindowClass *ctk_window_class)
 {
-    GObjectClass *gobject_class;
     GtkObjectClass *object_class;
 
     object_class = (GtkObjectClass *) ctk_window_class;
-    gobject_class = (GObjectClass *) ctk_window_class;
 
     parent_class = g_type_class_peek_parent(ctk_window_class);
 

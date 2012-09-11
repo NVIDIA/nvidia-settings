@@ -429,7 +429,6 @@ static void cooler_control_state_toggled(GtkWidget *widget, gpointer user_data)
 {
     CtkThermal *ctk_thermal = CTK_THERMAL(user_data);
     gboolean enabled;
-    ReturnStatus ret;
     int value;
     gint result;
 
@@ -473,8 +472,8 @@ static void cooler_control_state_toggled(GtkWidget *widget, gpointer user_data)
 
     /* Update the server */
 
-    ret = NvCtrlSetAttribute(ctk_thermal->attribute_handle,
-                             NV_CTRL_GPU_COOLER_MANUAL_CONTROL, value);
+    NvCtrlSetAttribute(ctk_thermal->attribute_handle,
+                       NV_CTRL_GPU_COOLER_MANUAL_CONTROL, value);
 
     /* Update the GUI */
 

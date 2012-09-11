@@ -158,10 +158,6 @@ static void
 ctk_color_correction_class_init(CtkColorCorrectionClass
                                 *ctk_color_correction_class)
 {
-    GObjectClass *gobject_class;
-
-    gobject_class = (GObjectClass *) ctk_color_correction_class;
-
     signals[CHANGED] =
         g_signal_new("changed",
                      G_OBJECT_CLASS_TYPE(ctk_color_correction_class),
@@ -170,8 +166,6 @@ ctk_color_correction_class_init(CtkColorCorrectionClass
                      NULL, NULL,
                      g_cclosure_marshal_VOID__VOID,
                      G_TYPE_NONE, 0);
-
-
 }
 
 
