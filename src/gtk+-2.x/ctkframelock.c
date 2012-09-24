@@ -258,11 +258,11 @@ static gchar *syncEdgeStrings[] = {
 /* Tooltips */
 
 static const char * __add_devices_button_help =
-"The Add Devices button adds to the frame lock group all G-Sync devices found "
-"on the specified X Server.";
+"The Add Devices button adds to the frame lock group all Quadro Sync devices "
+"found on the specified X Server.";
 
 static const char * __remove_devices_button_help =
-"The Remove Devices button allows you to remove G-Sync, GPU or display "
+"The Remove Devices button allows you to remove Quadro Sync, GPU or display "
 "devices from the frame lock group.  Any device removed from the frame lock "
 "group will no longer be controlled.";
 
@@ -275,8 +275,8 @@ static const char * __expand_all_button_help =
 "list.";
 
 static const char * __use_house_sync_button_help =
-"The Use House Sync if Present checkbox tells the server G-Sync device to "
-"generate the master frame lock signal from the incoming house sync signal "
+"The Use House Sync if Present checkbox tells the server Quadro Sync device "
+"to generate the master frame lock signal from the incoming house sync signal "
 "(if a house sync signal is detected) instead of using internal timing from "
 "the server GPU/display device.";
 
@@ -292,9 +292,9 @@ static const char * __sync_edge_combo_help =
 
 static const char * __video_mode_help =
 "The Video Mode drop-down allows you to select which video mode the server "
-"G-Sync device will use to decode the incoming house sync signal.  On some "
-"G-Sync devices, this will be auto-detected and will be reported as "
-"read-only information.";
+"Quadro Sync device will use to decode the incoming house sync signal.  On "
+"some Quadro Sync devices, this will be auto-detected and will be reported "
+"as read-only information.";
 
 static const char * __detect_video_mode_button_help =
 "The Detect Video Mode button will attempt to automatically detect the format "
@@ -308,7 +308,7 @@ static const char * __test_link_button_help =
 
 static const char * __sync_enable_button_help =
 "The Enable/Disable Frame Lock button will enable/disable frame lock on all "
-"devices listed in the G-Sync group.  Enabling frame lock will lock the "
+"devices listed in the Quadro Sync group.  Enabling frame lock will lock the "
 "refresh rates of all members in the frame lock group.";
 
 static const char * __server_checkbox_help =
@@ -894,7 +894,7 @@ static gchar *get_gpu_name(nvGPUDataPtr data, gboolean simple)
 
 /** get_framelock_name() *********************************************
  *
- * Returns the name of the given frame lock (G-Sync) device.
+ * Returns the name of the given frame lock (Quadro Sync) device.
  *
  */
 static char *get_framelock_name(nvFrameLockDataPtr data, gboolean simple)
@@ -909,7 +909,7 @@ static char *get_framelock_name(nvFrameLockDataPtr data, gboolean simple)
      */
     server_name = NvCtrlGetDisplayName(data->handle);
 
-    snprintf(tmp, 32, " (G-Sync %d)", NvCtrlGetTargetId(data->handle));
+    snprintf(tmp, 32, " (Quadro Sync %d)", NvCtrlGetTargetId(data->handle));
     
     name = g_strconcat(server_name?server_name:"Unknown X Server", tmp, NULL);
 
@@ -959,7 +959,7 @@ static void update_entry_label(CtkFramelock *ctk_framelock,
     case ENTRY_DATA_FRAMELOCK:
         gtk_label_set_text(GTK_LABEL
                            (((nvFrameLockDataPtr)(entry->data))->label),
-                           str?str:"Unknown G-Sync");
+                           str?str:"Unknown Quadro Sync");
         break;
     case ENTRY_DATA_GPU:
         gtk_label_set_text(GTK_LABEL
@@ -1124,7 +1124,7 @@ static nvListEntryPtr get_display_server_entry(nvListTreePtr tree)
 
 /** list_entry_update_framelock_controls() ***************************
  *
- * Updates a G-Sync list entry's GUI controls based on the current
+ * Updates a Quadro Sync list entry's GUI controls based on the current
  * frame lock status.
  *
  */
@@ -1360,7 +1360,7 @@ static void update_framelock_controls(CtkFramelock *ctk_framelock)
     tree = (nvListTreePtr)(ctk_framelock->tree);
     enabled = ctk_framelock->framelock_enabled;
 
-    /* G-Sync Buttons */
+    /* Quadro Sync Buttons */
     gtk_widget_set_sensitive(ctk_framelock->remove_devices_button,
                              tree->selected_entry != NULL);
 
@@ -1408,7 +1408,7 @@ static void update_framelock_controls(CtkFramelock *ctk_framelock)
     gtk_widget_set_sensitive(ctk_framelock->test_link_button,
                              (enabled && tree->server_entry));
 
-    /* Update the frame lock G-Sync frame */
+    /* Update the frame lock Quadro Sync frame */
     list_entry_update_controls(ctk_framelock, tree->entries);
 
     /* House Sync */
@@ -3675,10 +3675,11 @@ static void list_entry_update_gpu_status(CtkFramelock *ctk_framelock,
     /* Update the Timing LED:
      *
      * We should disable the GPU Timing LED (which reports the sync status
-     * between the GPU and the G-Sync device) when we don't care if the
-     * GPU is in sync with the G-Sync device.  This occurs when Frame Lock
+     * between the GPU and the Quadro Sync device) when we don't care if the
+     * GPU is in sync with the Quadro Sync device.  This occurs when Frame Lock
      * is disabled, or when there are no devices selected for the GPU, or
-     * in cases where the GPU is driving the sync signal to the G-Sync device.
+     * in cases where the GPU is driving the sync signal to the Quadro Sync
+     * device.
      */
     if (!framelock_enabled ||               // Frame Lock is disabled.
         (!has_server && !has_client) ||     // No devices selected on GPU.
@@ -3820,7 +3821,7 @@ static gboolean update_framelock_status(gpointer user_data)
  * Queries ethernet status for all frame lock devices and reports
  * on any error.
  *
- * XXX This assumes that the frame lock (G-Sync) devices are
+ * XXX This assumes that the frame lock (Quadro Sync) devices are
  *     top-level list entries, such that they are all siblings.
  *
  */
@@ -4737,10 +4738,10 @@ GtkWidget* ctk_framelock_new(NvCtrlAttributeHandle *handle,
     banner = ctk_banner_image_new(BANNER_ARTWORK_FRAMELOCK);
     gtk_box_pack_start(GTK_BOX(ctk_framelock), banner, FALSE, FALSE, 0);
 
-    /* G-Sync Frame */
+    /* Quadro Sync Frame */
     
     frame = gtk_frame_new(NULL);
-    gtk_frame_set_label(GTK_FRAME(frame), "G-Sync Devices");
+    gtk_frame_set_label(GTK_FRAME(frame), "Quadro Sync Devices");
     gtk_box_pack_start(GTK_BOX(ctk_framelock), frame, TRUE, TRUE, 0);
 
     /* scrollable window */
@@ -5429,7 +5430,7 @@ static void add_framelock_devices(CtkFramelock *ctk_framelock,
     ReturnStatus        ret;
 
 
-    /* Get number of G-Sync devices on this server */
+    /* Get number of Quadro Sync devices on this server */
 
     ret = NvCtrlQueryTargetCount(handle,
                                  NV_CTRL_TARGET_TYPE_FRAMELOCK,
@@ -5517,7 +5518,7 @@ static void add_framelock_devices(CtkFramelock *ctk_framelock,
         update_entry_label(ctk_framelock, entry);
         list_entry_update_status(ctk_framelock, entry);
 
-        /* Add GPUs tied to this G-Sync */
+        /* Add GPUs tied to this Quadro Sync */
         add_gpu_devices(ctk_framelock, entry);
         if (entry->children) {
             int i;
@@ -5903,16 +5904,16 @@ GtkTextBuffer *ctk_framelock_create_help(GtkTextTagTable *table)
                   "manage an entire cluster of workstations in a frame lock "
                   "group.");
 
-    /* G-Sync Frame Help */
+    /* Quadro Sync Frame Help */
 
-    ctk_help_heading(b, &i, "G-Sync Section");
-    ctk_help_para(b, &i, "The G-Sync section allows you to configure the "
+    ctk_help_heading(b, &i, "Quadro Sync Section");
+    ctk_help_para(b, &i, "The Quadro Sync section allows you to configure the "
                   "individual devices that make up the frame lock group.");
 
-    ctk_help_heading(b, &i, "G-Sync Device Entry Information");
-    ctk_help_para(b, &i, "G-Sync (frame lock board) device entries display "
-                  "the following information:");
-    ctk_help_para(b, &i, "The X server name and G-Sync board ID.");
+    ctk_help_heading(b, &i, "Quadro Sync Device Entry Information");
+    ctk_help_para(b, &i, "Quadro Sync (frame lock board) device entries "
+                  "display the following information:");
+    ctk_help_para(b, &i, "The X server name and Quadro Sync board ID.");
     ctk_help_para(b, &i, "Receiving LED: This indicates whether the frame "
                   "lock board is receiving a sync pulse.  Green means a "
                   "signal is detected; red means a signal is not detected.  "
@@ -5936,11 +5937,11 @@ GtkTextBuffer *ctk_framelock_create_help(GtkTextTagTable *table)
 
     ctk_help_heading(b, &i, "GPU Device Entry Information");
     ctk_help_para(b, &i, "GPU Device entries display the GPU name and number "
-                  "of a GPU connected to a G-Sync device.  Display devices "
-                  "driven by the GPU will be listed under this entry.");
+                  "of a GPU connected to a Quadro Sync device.  Display "
+                  "devices driven by the GPU will be listed under this entry.");
     ctk_help_para(b, &i, "Timing LED: This indicates that the GPU "
                   "is synchronized with the incoming timing signal from the "
-                  "G-Sync device");
+                  "Quadro Sync device");
 
     ctk_help_heading(b, &i, "Display Device Entry Information");
     ctk_help_para(b, &i, "Display Device entries display information and "
@@ -5952,9 +5953,9 @@ GtkTextBuffer *ctk_framelock_create_help(GtkTextTagTable *table)
     ctk_help_para(b, &i, __client_checkbox_help);
     ctk_help_para(b, &i, "Stereo LED: This indicates whether or not the "
                   "display device is sync'ed to the stereo signal coming from "
-                  "the G-Sync device.  This LED is only available to display "
-                  "devices set as clients when frame lock is enabled.  The "
-                  "Stereo LED is dependent on the parent GPU being in sync "
+                  "the Quadro Sync device.  This LED is only available to "
+                  "display devices set as clients when frame lock is enabled.  "
+                  "The Stereo LED is dependent on the parent GPU being in sync "
                   "with the input timing signal.");
 
     ctk_help_heading(b, &i, "Adding Devices");
@@ -5970,7 +5971,7 @@ GtkTextBuffer *ctk_framelock_create_help(GtkTextTagTable *table)
 
     ctk_help_heading(b, &i, "House Sync Section");
     ctk_help_para(b, &i, "The House Sync section allows you to configure "
-                  "the selected server G-Sync board for using an incoming "
+                  "the selected server Quadro Sync board for using an incoming "
                   "house sync signal instead of internal GPU timings.  This "
                   "section is only accesible by selecting a server display "
                   "device (See Display Device Information above.");
@@ -5978,8 +5979,9 @@ GtkTextBuffer *ctk_framelock_create_help(GtkTextTagTable *table)
     ctk_help_heading(b, &i, "Use House Sync on Server");
     ctk_help_para(b, &i, __use_house_sync_button_help);
     ctk_help_para(b, &i, "If this option is checked and no house signal "
-                  "is detected (House LED is red), the G-Sync device will "
-                  "fall back to using internal timings from the primary GPU.");
+                  "is detected (House LED is red), the Quadro Sync device "
+                  "will fall back to using internal timings from the primary "
+                  "GPU.");
 
     ctk_help_heading(b, &i, "Sync Interval");
     ctk_help_para(b, &i, __sync_interval_scale_help);

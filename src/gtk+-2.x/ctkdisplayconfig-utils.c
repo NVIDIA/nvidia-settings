@@ -42,6 +42,7 @@
 
 static void xconfig_update_buffer(GtkWidget *widget, gpointer user_data);
 static gchar *display_pick_config_name(nvDisplayPtr display, int be_generic);
+static Bool screen_check_metamodes(nvScreenPtr screen);
 
 
 
@@ -1563,8 +1564,11 @@ static Bool screen_add_metamode(nvScreenPtr screen, const char *metamode_str,
         /* Make the mode part of the metamode */
         mode->metamode = metamode;
 
-        /* Make the display part of the screen */
+        /* Make the display part of the screen, and make sure it has the
+         * right number of modes.
+         */
         screen_link_display(screen, display);
+        screen_check_metamodes(screen);
 
         /* Set the panning offset */
         mode->pan[X] = mode->dim[X];

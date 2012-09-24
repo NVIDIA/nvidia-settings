@@ -77,7 +77,7 @@ major differences:
       slaves of a Frame Lock group.
 
     - Frame Lock attributes should now be set/queried on GPUs 
-      (NV_CTRL_TARGET_TYPE_GPU) and G-Sync (Frame Lock) devices
+      (NV_CTRL_TARGET_TYPE_GPU) and Quadro Sync (Frame Lock) devices
       (NV_CTRL_TARGET_TYPE_FRAMELOCK) using the new NV-CONTROL targeting API.
 
 Please see the sample NV-CONTROL clients in the "samples" directory
@@ -93,17 +93,17 @@ is used.
 
 Querying frame lock capabilities of a system:
 
-    - Query the number of G-Sync devices on the system by passing
+    - Query the number of Quadro Sync devices on the system by passing
       NV_CTRL_TARGET_TYPE_FRAMELOCK to XNVCTRLQueryTargetCount()
 
-    - Query the GPUs attached to each g-sync device by querying the
-      NV_CTRL_GPUS_USING_FRAMELOCK attribute for each g-sync device.
+    - Query the GPUs attached to each Quadro Sync device by querying the
+      NV_CTRL_GPUS_USING_FRAMELOCK attribute for each Quadro Sync device.
 
     - Query the enabled (available) display devices on each GPU through
       the NV_CTRL_ENABLED_DISPLAYS attribute.
 
 Configuring the Frame Lock group (This must be done while Frame Lock Sync is
-disabled on the GPU/G-Sync Device):
+disabled on the GPU/Quadro Sync Device):
 
     - Set the Frame Lock Master Display Device on one of the GPUs through the
       NV_CTRL_FRAMELOCK_MASTER attribute.
@@ -112,16 +112,16 @@ disabled on the GPU/G-Sync Device):
       NV_CTRL_FRAMELOCK_SLAVES attribute.
 
     - Set NV_CTRL_USE_HOUSE_SYNC to NV_CTRL_USE_HOUSE_SYNC_TRUE or
-      NV_CTRL_USE_HOUSE_SYNC_FALSE on the master g-sync device (this is the
-      g-sync device that is attached to the GPU that contains the display
-      device currently set as the frame lock master.)  Depending on whether
-      or not you will be using a House Sync signal.
+      NV_CTRL_USE_HOUSE_SYNC_FALSE on the master Quadro Sync device (this is
+      the Quadro Sync device that is attached to the GPU that contains the
+      display device currently set as the frame lock master.)  Depending on
+      whether or not you will be using a House Sync signal.
 
-    - Set NV_CTRL_FRAMELOCK_POLARITY for each slave G-Sync device in the
+    - Set NV_CTRL_FRAMELOCK_POLARITY for each slave Quadro Sync device in the
       cluster; most likely you want NV_CTRL_FRAMELOCK_POLARITY_RISING_EDGE.
 
-    - Set NV_CTRL_FRAMELOCK_SYNC_DELAY as appropriate for each G-Sync device.
-      Most likely you want 0.
+    - Set NV_CTRL_FRAMELOCK_SYNC_DELAY as appropriate for each Quadro Sync
+      device. Most likely you want 0.
 
     - Set NV_CTRL_FRAMELOCK_SYNC_INTERVAL as appropriate if you
       are using house sync.  Most likely, you just want 0.

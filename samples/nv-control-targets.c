@@ -88,7 +88,7 @@ int main(int argc, char *argv[])
 
     int major, minor;
 
-    int num_gpus, num_screens, num_gsyncs;
+    int num_gpus, num_screens, num_syncs;
     int num_vcs;
     int num_gvis;
     int num_coolers;
@@ -159,12 +159,12 @@ int main(int argc, char *argv[])
     /* Get the number of Frame Lock devices in the system */
 
     ret = XNVCTRLQueryTargetCount(dpy, NV_CTRL_TARGET_TYPE_FRAMELOCK,
-                                  &num_gsyncs);
+                                  &num_syncs);
     if (!ret) {
         fprintf(stderr, "Failed to query number of xscreens\n");
         return 1;
     }
-    printf("  number of Frame Lock Devices: %d\n", num_gsyncs);
+    printf("  number of Frame Lock Devices: %d\n", num_syncs);
 
 
     /* Get the number of Visual Computing System devices in

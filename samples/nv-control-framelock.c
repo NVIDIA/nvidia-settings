@@ -59,7 +59,7 @@ static void do_help(void)
 /*
  * do_query()
  *
- * Prints information for all frame lock (g-sync) devices found on
+ * Prints information for all frame lock (Quadro Sync) devices found on
  * the given X server.
  *
  */
@@ -284,7 +284,7 @@ static void do_enable(Display *dpy)
         for (i = 1; i <= data[0]; i++) {
             gpu = data[i];
         
-            printf("  - Enabling G-Sync Device %d - GPU %d... ",
+            printf("  - Enabling Quadro Sync Device %d - GPU %d... ",
                    framelock, gpu);
             
             /* Make sure frame lock is disabled */
@@ -501,7 +501,7 @@ static void do_disable(Display *dpy)
         for (i = 1; i <= data[0]; i++) {
             gpu = data[i];
         
-            printf("  - Disabling G-Sync Device %d - GPU %d... ",
+            printf("  - Disabling Quadro Sync Device %d - GPU %d... ",
                    framelock, gpu);
 
             XNVCTRLSetTargetAttribute(dpy,

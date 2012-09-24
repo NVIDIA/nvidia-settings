@@ -1449,7 +1449,7 @@ static int query_all_targets(const char *display_name, const int target_index)
             /* for framelock, create the product name */
 
             product_name = malloc(32);
-            snprintf(product_name, 32, "G-Sync %d", i);
+            snprintf(product_name, 32, "Quadro Sync %d", i);
 
         } else if (target_index == VCS_TARGET) {
 

@@ -449,7 +449,7 @@
  * USAGE NODE: NV_CTRL_FRAMELOCK_SYNC_DELAY_MAX and
  *             NV_CTRL_FRAMELOCK_SYNC_DELAY_FACTOR are deprecated.
  *             The Sync Delay _MAX and _FACTOR are different for different
- *             GSync products and so, to be correct, the valid values for
+ *             Quadro Sync products and so, to be correct, the valid values for
  *             NV_CTRL_FRAMELOCK_SYNC_DELAY must be queried to get the range
  *             of acceptable sync delay values, and 
  *             NV_CTRL_FRAMELOCK_SYNC_DELAY_RESOLUTION must be queried to
