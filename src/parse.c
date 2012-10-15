@@ -456,6 +456,38 @@ TargetTypeEntry targetTypeTable[] = {
     { NULL, NULL, 0, 0, 0, 0, 0, 0 },
 };
 
+TargetTypeEntry *nv_get_target_type_entry_by_nvctrl(int nvctrl)
+{
+    TargetTypeEntry *targetTypeEntry;
+
+    for (targetTypeEntry = targetTypeTable;
+         targetTypeEntry->name;
+         targetTypeEntry++) {
+
+        if (targetTypeEntry->nvctrl == nvctrl) {
+            return targetTypeEntry;
+        }
+    }
+
+    return NULL;
+}
+
+TargetTypeEntry *nv_get_target_type_entry_by_name(const char *name)
+{
+    TargetTypeEntry *targetTypeEntry;
+
+    for (targetTypeEntry = targetTypeTable;
+         targetTypeEntry->name;
+         targetTypeEntry++) {
+
+        if (nv_strcasecmp(targetTypeEntry->parsed_name, name)) {
+            return targetTypeEntry;
+        }
+    }
+
+    return NULL;
+}
+
 
 
 /*
@@ -681,8 +713,9 @@ static int nv_parse_display_and_target(char *start,
                                        char *end, /* exclusive */
                                        ParsedAttribute *a)
 {
-    int digits_only, i, target_type, target_id, len;
+    int digits_only, target_id, len;
     char *tmp, *s, *pOpen, *pClose, *colon;
+    TargetTypeEntry *targetTypeEntry;
 
     /*
      * are all characters numeric? compute the target_id integer as we
@@ -759,24 +792,18 @@ static int nv_parse_display_and_target(char *start,
          */
 
         *colon = '\0';
-        target_type = -1;
 
-        for (i = 0; targetTypeTable[i].name; i++) {
-            if (nv_strcasecmp(tmp, targetTypeTable[i].parsed_name)) {
-                target_type = targetTypeTable[i].nvctrl;
-                break;
-            }
-        }
-        
+        targetTypeEntry = nv_get_target_type_entry_by_name(tmp);
+
         *colon = ':';
-        
+
         /* if we did not find a matching target name, give up */
-        
-        if (target_type == -1) {
+
+        if (!targetTypeEntry) {
             free(tmp);
             return NV_PARSER_STATUS_TARGET_SPEC_BAD_TARGET;
         }
-        
+
         /*
          * check that we have something between the colon and the end
          * of the temp string
@@ -808,7 +835,7 @@ static int nv_parse_display_and_target(char *start,
          * this is a target type-specific name.
          */
 
-        a->target_type = target_type;
+        a->target_type = targetTypeEntry->nvctrl;
 
         if (digits_only) {
             a->target_id = target_id;

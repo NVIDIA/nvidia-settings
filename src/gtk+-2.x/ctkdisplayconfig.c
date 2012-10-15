@@ -159,7 +159,7 @@ static int __position_table[] = { CONF_ADJ_ABSOLUTE,
 /* Layout tooltips */
 
 static const char * __layout_hidden_label_help =
-"To select a display, use the \"Model\" dropdown menu.";
+"To select a display, use the \"Selection\" dropdown menu.";
 
 static const char * __layout_xinerama_button_help =
 "The Enable Xinerama checkbox enables the Xinerama X extension; changing "
@@ -232,19 +232,19 @@ static const char * __screen_stereo_help =
 "screen; changing this option will require restarting your X server.";
 
 static const char * __screen_position_type_help =
-"The Position Type drop-down appears when two or more display devices are active.  "
+"The Position Type drop-down appears when two or more X screens are active.  "
 "This allows you to set how the selected screen "
 "is placed within the X server layout; changing this option will require "
 "restarting your X server.";
 
 static const char * __screen_position_relative_help =
-"The Position Relative drop-down appears when two or more display devices "
+"The Position Relative drop-down appears when two or more X screens "
 "are active.  This allows you to set which other Screen "
 "the selected screen should be relative to; changing this option will "
 "require restarting your X server.";
 
 static const char * __screen_position_offset_help =
-"The Position Offset drop-down appears when two or more display devices "
+"The Position Offset drop-down appears when two or more X screens "
 "are active.  This identifies the top left of the selected Screen as "
 "an offset from the top left of the X server layout in absolute coordinates; "
 "changing this option will require restarting your X server.";
@@ -634,7 +634,9 @@ static int generate_xconf_metamode_str(CtkDisplayConfig *ctk_object,
         int metamode_len;
 
         /* Only write out metamodes that were specified by the user */
-        if (!(metamode->source & METAMODE_SOURCE_USER)) continue;
+        if (!IS_METAMODE_SOURCE_USER(metamode->source)) {
+            continue;
+        }
 
         /* The current mode was already included */
         if (!ctk_object->advanced_mode &&
@@ -2036,11 +2038,10 @@ GtkTextBuffer *ctk_display_config_create_help(GtkTextTagTable *table,
     ctk_help_para(b, &i, __selected_item_help);
 
     ctk_help_para(b, &i, "");
-    ctk_help_heading(b, &i, "Display Section");
-    ctk_help_para(b, &i, "This section shows information and configuration "
-                  "settings for the currently selected display device.");
-    ctk_help_heading(b, &i, "Model");
-    ctk_help_para(b, &i, "The Model name is the name of the display device.");
+    ctk_help_heading(b, &i, "Display Options");
+    ctk_help_para(b, &i, "The following options are available when a display "
+                  "device is selected in the Selection drop-down to configure "
+                  "the settings for that display device.");
     ctk_help_heading(b, &i, "Resolution");
     ctk_help_para(b, &i, __dpy_resolution_mnu_help);
     ctk_help_heading(b, &i, "Refresh");
@@ -2064,9 +2065,10 @@ GtkTextBuffer *ctk_display_config_create_help(GtkTextTagTable *table,
 
 
     ctk_help_para(b, &i, "");
-    ctk_help_heading(b, &i, "X Screen Section");
-    ctk_help_para(b, &i, "This section shows information and configuration "
-                  "settings for the currently selected X screen.");
+    ctk_help_heading(b, &i, "X Screen Options");
+    ctk_help_para(b, &i, "The following options are available when an X "
+                  "screen is selected in the Selection drop-down to configure "
+                  "the settings for that X screen.");
     ctk_help_heading(b, &i, "Virtual Size");
     ctk_help_para(b, &i, "%s  The Virtual screen size must be at least "
                   "304x200, and the width must be a multiple of 8.",

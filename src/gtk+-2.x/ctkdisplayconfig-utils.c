@@ -128,16 +128,18 @@ void apply_metamode_token(char *token, char *value, void *data)
             metamode->id = atoi(value);
         }
 
-    /* Modeline Source */
+    /* Source */
     } else if (!strcasecmp("source", token)) {
         if (!value || !strlen(value)) {
             nv_warning_msg("MetaMode 'source' token requires a value!");
         } else if (!strcasecmp("xconfig", value)) {
-            metamode->source |= METAMODE_SOURCE_XCONFIG;
+            metamode->source = METAMODE_SOURCE_XCONFIG;
         } else if (!strcasecmp("implicit", value)) {
-            metamode->source |= METAMODE_SOURCE_IMPLICIT;
+            metamode->source = METAMODE_SOURCE_IMPLICIT;
         } else if (!strcasecmp("nv-control", value)) {
-            metamode->source |= METAMODE_SOURCE_NVCONTROL;
+            metamode->source = METAMODE_SOURCE_NVCONTROL;
+        } else if (!strcasecmp("randr", value)) {
+            metamode->source = METAMODE_SOURCE_RANDR;
         } else {
             nv_warning_msg("Unknown MetaMode source '%s'", value);
         }

@@ -57,7 +57,6 @@
 #include "ctkpowersavings.h"
 #include "ctk3dvisionpro.h"
 
-#include "ctkdisplaydevice-tv.h"
 #include "ctkdisplaydevice.h"
 
 #include "ctkdisplayconfig.h"
@@ -122,7 +121,8 @@ static void add_display_devices(CtkWindow *ctk_window, GtkTreeIter *iter,
                                 NvCtrlAttributeHandle *handle,
                                 CtkEvent *ctk_event,
                                 GtkTextTagTable *tag_table,
-                                UpdateDisplaysData *data);
+                                UpdateDisplaysData *data,
+                                ParsedAttribute *p);
 
 static void update_display_devices(GtkObject *object, gpointer arg1,
                                    gpointer user_data);
@@ -876,7 +876,7 @@ GtkWidget *ctk_window_new(ParsedAttribute *p, ConfigProperties *conf,
                          (gpointer) data);
 
         add_display_devices(ctk_window, &iter, gpu_handle, ctk_event, tag_table,
-                            data);
+                            data, ctk_window->attribute_list);
     }
 
     /* add the per-vcs (e.g. Quadro Plex) entries into the tree model */
@@ -1369,7 +1369,8 @@ static void add_display_devices(CtkWindow *ctk_window, GtkTreeIter *iter,
                                 NvCtrlAttributeHandle *gpu_handle,
                                 CtkEvent *ctk_event_gpu,
                                 GtkTextTagTable *tag_table,
-                                UpdateDisplaysData *data)
+                                UpdateDisplaysData *data,
+                                ParsedAttribute *p)
 {
     GtkTextBuffer *help;
     ReturnStatus ret;
@@ -1407,13 +1408,21 @@ static void add_display_devices(CtkWindow *ctk_window, GtkTreeIter *iter,
         GtkWidget *widget;
         gchar *title;
         CtkEvent *ctk_event;
+        CtrlHandles *handles = ctk_window->ctk_config->pCtrlHandles;
 
-        display_handle =
-            NvCtrlAttributeInit(NvCtrlGetDisplayPtr(gpu_handle),
-                                NV_CTRL_TARGET_TYPE_DISPLAY,
-                                display_id,
-                                NV_CTRL_ATTRIBUTES_NV_CONTROL_SUBSYSTEM |
-                                NV_CTRL_ATTRIBUTES_XRANDR_SUBSYSTEM);
+        /* 
+         * Get the ctrl handle that was passed into ctk_main so that updated
+         * backend color slider values, cached in the handle itself, can be 
+         * saved to the RC file when the UI is closed.
+         */
+
+        if (handles) {
+            display_handle = 
+                handles->targets[NV_CTRL_TARGET_TYPE_DISPLAY].t[display_id].h;
+        } else {
+            display_handle = NULL;
+        }
+
         if (!display_handle) {
             continue;
         }
@@ -1449,27 +1458,16 @@ static void add_display_devices(CtkWindow *ctk_window, GtkTreeIter *iter,
         XFree(logName);
         XFree(typeIdName);
 
-        /* Create the appropriate page for the display */
-        if (strcmp(typeBaseName, "TV") == 0) {
-            widget = ctk_display_device_tv_new
-                (display_handle, ctk_window->ctk_config, ctk_event, title);
-            help = ctk_display_device_tv_create_help
-                (tag_table, CTK_DISPLAY_DEVICE_TV(widget));
-        } else if ((strcmp(typeBaseName, "DFP") == 0) ||
-                   (strcmp(typeBaseName, "CRT") == 0)) {
-            widget = ctk_display_device_new(display_handle,
-                                            ctk_window->ctk_config, ctk_event,
-                                            ctk_event_gpu,
-                                            title, typeBaseName);
-            help = ctk_display_device_create_help(tag_table,
-                                                  CTK_DISPLAY_DEVICE(widget));
-        } else {
-            widget = NULL;
-        }
-
-        if (!widget) {
+        /* Create the page for the display */
+        widget = ctk_display_device_new(display_handle,
+                                        ctk_window->ctk_config, ctk_event,
+                                        ctk_event_gpu,
+                                        title, typeBaseName, p);
+        if (widget == NULL) {
             NvCtrlAttributeClose(display_handle);
         } else {
+            help = ctk_display_device_create_help(tag_table,
+                                                  CTK_DISPLAY_DEVICE(widget));
             add_page(widget, help, ctk_window, iter,
                      &(data->display_iters[data->num_displays]), title,
                      NULL, NULL, NULL);
@@ -1543,7 +1541,7 @@ static void update_display_devices(GtkObject *object, gpointer arg1,
 
     add_display_devices(ctk_window, &parent_iter, gpu_handle,
                         CTK_GPU(widget)->ctk_event,
-                        tag_table, data);
+                        tag_table, data, ctk_window->attribute_list);
 
     /* Expand the GPU entry if it used to be */
     if (parent_expanded) {

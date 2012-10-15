@@ -2,7 +2,7 @@
  * nvidia-settings: A tool for configuring the NVIDIA X driver on Unix
  * and Linux systems.
  *
- * Copyright (C) 2004 NVIDIA Corporation.
+ * Copyright (C) 2004,2012 NVIDIA Corporation.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms and conditions of the GNU General Public License,
@@ -22,8 +22,6 @@
 #include <string.h>
 #include <stdio.h>
 #include <stdlib.h>
-
-#include "common-utils.h"
 
 #include "ctkbanner.h"
 
@@ -56,27 +54,32 @@ static void callback_link_changed(GtkObject *object, gpointer arg1,
 static void callback_refresh_rate_changed(GtkObject *object, gpointer arg1,
                                           gpointer user_data);
 
-static void update_chip_info(InfoEntry *entry);
-static void update_signal_info(InfoEntry *entry);
-static void update_link_info(InfoEntry *entry);
-static void update_native_resolution(InfoEntry *entry);
-static void update_refresh_rate(InfoEntry *entry);
+static gboolean update_tv_encoder_info(InfoEntry *entry);
+static gboolean update_chip_info(InfoEntry *entry);
+static gboolean update_signal_info(InfoEntry *entry);
+static gboolean update_link_info(InfoEntry *entry);
+static gboolean update_native_resolution(InfoEntry *entry);
+static gboolean update_refresh_rate(InfoEntry *entry);
 
-static void register_link_events(InfoEntry *entry);
-static void unregister_link_events(InfoEntry *entry);
-static void register_refresh_rate_events(InfoEntry *entry);
-static void unregister_refresh_rate_events(InfoEntry *entry);
+static gboolean register_link_events(InfoEntry *entry);
+static gboolean unregister_link_events(InfoEntry *entry);
+static gboolean register_refresh_rate_events(InfoEntry *entry);
+static gboolean unregister_refresh_rate_events(InfoEntry *entry);
 
 static void add_color_correction_tab(CtkDisplayDevice *ctk_object,
                                      CtkConfig *ctk_config,
                                      CtkEvent *ctk_event,
-                                     GtkWidget *notebook);
+                                     GtkWidget *notebook,
+                                     ParsedAttribute *p);
 
 #define FRAME_PADDING 5
 
 static const char *__info_help =
 "This section describes basic information about the connection to the display "
 "device.";
+
+static const char* __tv_encoder_name_help =
+"The TV Encoder name displays the name of the TV Encoder.";
 
 static const char *__info_chip_location_help =
 "Report whether the display device is driven by the on-chip controller "
@@ -101,17 +104,24 @@ static const char * __refresh_rate_help =
 "The refresh rate displays the rate at which the screen is currently "
 "refreshing the image.";
 
-typedef void (*InfoEntryFunc)(InfoEntry *entry);
+typedef gboolean (*InfoEntryFunc)(InfoEntry *entry);
 
 typedef struct {
     const char *str;
     const gchar **tooltip;
-    InfoEntryFunc update_func;
+    InfoEntryFunc update_func; /* return FALSE if not present */
     InfoEntryFunc register_events_func;
     InfoEntryFunc unregister_events_func;
 } InfoEntryData;
 
 static InfoEntryData __info_entry_data[] = {
+    {
+        "TV Encoder:",
+        &__tv_encoder_name_help,
+        update_tv_encoder_info,
+        NULL,
+        NULL,
+    },
     {
         "Chip Location",
         &__info_chip_location_help,
@@ -220,7 +230,8 @@ GtkWidget* ctk_display_device_new(NvCtrlAttributeHandle *handle,
                                   CtkEvent *ctk_event,
                                   CtkEvent *ctk_event_gpu,
                                   char *name,
-                                  char *typeBaseName)
+                                  char *typeBaseName,
+                                  ParsedAttribute *p)
 {
     GObject *object;
     CtkDisplayDevice *ctk_object;
@@ -415,7 +426,7 @@ GtkWidget* ctk_display_device_new(NvCtrlAttributeHandle *handle,
 
     /* add the color correction tab if RandR is available */
 
-    add_color_correction_tab(ctk_object, ctk_config, ctk_event, notebook);
+    add_color_correction_tab(ctk_object, ctk_config, ctk_event, notebook, p);
 
     /* Update the GUI */
 
@@ -499,9 +510,12 @@ GtkTextBuffer *ctk_display_device_create_help(GtkTextTagTable *table,
 
     for (j = 0; j < ARRAY_LEN(__info_entry_data); j++) {
         InfoEntryData *entryData = __info_entry_data+j;
+        InfoEntry *entry = ctk_object->info_entries+j;
 
-        ctk_help_term(b, &i, entryData->str);
-        ctk_help_para(b, &i, *entryData->tooltip);
+        if (entry->present) {
+            ctk_help_term(b, &i, entryData->str);
+            ctk_help_para(b, &i, *entryData->tooltip);
+        }
     }
 
     add_acquire_edid_help(b, &i);
@@ -525,10 +539,28 @@ GtkTextBuffer *ctk_display_device_create_help(GtkTextTagTable *table,
 } /* ctk_display_device_create_help() */
 
 
+static gboolean update_tv_encoder_info(InfoEntry *entry)
+{
+    CtkDisplayDevice *ctk_object = entry->ctk_object;
+    ReturnStatus ret;
+    char *str;
+
+    ret = NvCtrlGetStringDisplayAttribute(ctk_object->handle, 0,
+                                          NV_CTRL_STRING_TV_ENCODER_NAME, &str);
+    if (ret != NvCtrlSuccess) {
+        return FALSE;
+    }
+
+    gtk_label_set_text(GTK_LABEL(entry->txt), str);
+
+    XFree(str);
+
+    return TRUE;
+}
 
 
 
-static void update_chip_info(InfoEntry *entry)
+static gboolean update_chip_info(InfoEntry *entry)
 {
     CtkDisplayDevice *ctk_object = entry->ctk_object;
     ReturnStatus ret;
@@ -538,8 +570,7 @@ static void update_chip_info(InfoEntry *entry)
     ret = NvCtrlGetAttribute(ctk_object->handle,
                              NV_CTRL_FLATPANEL_CHIP_LOCATION, &val);
     if (ret != NvCtrlSuccess) {
-        gtk_widget_hide(entry->hbox);
-        return;
+        return FALSE;
     }
 
     switch (val) {
@@ -555,12 +586,13 @@ static void update_chip_info(InfoEntry *entry)
     }
 
     gtk_label_set_text(GTK_LABEL(entry->txt), str);
-    gtk_widget_show(entry->hbox);
+
+    return TRUE;
 }
 
 
 
-static void update_signal_info(InfoEntry *entry)
+static gboolean update_signal_info(InfoEntry *entry)
 {
     CtkDisplayDevice *ctk_object = entry->ctk_object;
     ReturnStatus ret;
@@ -570,8 +602,7 @@ static void update_signal_info(InfoEntry *entry)
     ret = NvCtrlGetAttribute(ctk_object->handle, NV_CTRL_FLATPANEL_SIGNAL,
                              &val);
     if (ret != NvCtrlSuccess) {
-        gtk_widget_hide(entry->hbox);
-        return;
+        return FALSE;
     }
 
     switch (val) {
@@ -590,16 +621,17 @@ static void update_signal_info(InfoEntry *entry)
     }
 
     gtk_label_set_text(GTK_LABEL(entry->txt), str);
-    gtk_widget_show(entry->hbox);
 
     ctk_object->signal_type = val;
+
+    return TRUE;
 }
 
 
 /* NOTE: Link information is dependent on signal type, and this function
  * assumes the signal type is querried first.
  */
-static void update_link_info(InfoEntry *entry)
+static gboolean update_link_info(InfoEntry *entry)
 {
     CtkDisplayDevice *ctk_object = entry->ctk_object;
     ReturnStatus ret;
@@ -609,8 +641,7 @@ static void update_link_info(InfoEntry *entry)
 
     ret = NvCtrlGetAttribute(ctk_object->handle, NV_CTRL_FLATPANEL_LINK, &val);
     if (ret != NvCtrlSuccess) {
-        gtk_widget_hide(entry->hbox);
-        return;
+        return FALSE;
     }
 
     if (ctk_object->signal_type == NV_CTRL_FLATPANEL_SIGNAL_DISPLAYPORT) {
@@ -653,12 +684,13 @@ static void update_link_info(InfoEntry *entry)
     }
 
     gtk_label_set_text(GTK_LABEL(entry->txt), link);
-    gtk_widget_show(entry->hbox);
+
+    return TRUE;
 }
 
 
 
-static void update_native_resolution(InfoEntry *entry)
+static gboolean update_native_resolution(InfoEntry *entry)
 {
     CtkDisplayDevice *ctk_object = entry->ctk_object;
     ReturnStatus ret;
@@ -668,20 +700,19 @@ static void update_native_resolution(InfoEntry *entry)
     ret = NvCtrlGetAttribute(ctk_object->handle,
                              NV_CTRL_FLATPANEL_NATIVE_RESOLUTION, &val);
     if (ret != NvCtrlSuccess) {
-        gtk_widget_hide(entry->hbox);
-        return;
+        return FALSE;
     }
 
     str = g_strdup_printf("%dx%d", (val >> 16), (val & 0xFFFF));
     gtk_label_set_text(GTK_LABEL(entry->txt), str);
     g_free(str);
 
-    gtk_widget_show(entry->hbox);
+    return TRUE;
 }
 
 
 
-static void update_refresh_rate(InfoEntry *entry)
+static gboolean update_refresh_rate(InfoEntry *entry)
 {
     CtkDisplayDevice *ctk_object = entry->ctk_object;
     ReturnStatus ret;
@@ -691,8 +722,7 @@ static void update_refresh_rate(InfoEntry *entry)
 
     ret = NvCtrlGetAttribute(ctk_object->handle, NV_CTRL_REFRESH_RATE, &val);
     if (ret != NvCtrlSuccess) {
-        gtk_widget_hide(entry->hbox);
-        return;
+        return FALSE;
     }
 
     fvalue = ((float)(val)) / 100.0f;
@@ -701,7 +731,7 @@ static void update_refresh_rate(InfoEntry *entry)
     gtk_label_set_text(GTK_LABEL(entry->txt), str);
     g_free(str);
 
-    gtk_widget_show(entry->hbox);
+    return TRUE;
 }
 
 
@@ -721,19 +751,24 @@ static void update_device_info(CtkDisplayDevice *ctk_object)
         InfoEntryData *entryData = __info_entry_data+i;
         InfoEntry *entry = ctk_object->info_entries+i;
 
-        entryData->update_func(entry);
+        entry->present = entryData->update_func(entry);
 
-        if (GTK_WIDGET_VISIBLE(entry->hbox)) {
+        if (entry->present) {
+            gtk_widget_show(entry->hbox);
             gtk_widget_size_request(entry->label, &req);
             if (max_width < req.width) {
                 max_width = req.width;
             }
+        } else {
+            gtk_widget_hide(entry->hbox);
         }
     }
 
     for (i = 0; i < ctk_object->num_info_entries; i++) {
         InfoEntry *entry = ctk_object->info_entries+i;
-        gtk_widget_set_size_request(entry->label, max_width, -1);
+        if (entry->present) {
+            gtk_widget_set_size_request(entry->label, max_width, -1);
+        }
     }
 
 } /* update_device_info() */
@@ -773,7 +808,7 @@ static void display_device_setup(CtkDisplayDevice *ctk_object)
 
 
 
-static void register_link_events(InfoEntry *entry)
+static gboolean register_link_events(InfoEntry *entry)
 {
     CtkDisplayDevice *ctk_object = entry->ctk_object;
 
@@ -786,9 +821,11 @@ static void register_link_events(InfoEntry *entry)
                      CTK_EVENT_NAME(NV_CTRL_DISPLAYPORT_LINK_RATE),
                      G_CALLBACK(callback_link_changed),
                      (gpointer) entry);
+
+    return TRUE;
 }
 
-static void unregister_link_events(InfoEntry *entry)
+static gboolean unregister_link_events(InfoEntry *entry)
 {
     CtkDisplayDevice *ctk_object = entry->ctk_object;
 
@@ -799,9 +836,10 @@ static void unregister_link_events(InfoEntry *entry)
                                          NULL, /* closure */
                                          NULL, /* func */
                                          (gpointer) entry);
+    return TRUE;
 }
 
-static void register_refresh_rate_events(InfoEntry *entry)
+static gboolean register_refresh_rate_events(InfoEntry *entry)
 {
     CtkDisplayDevice *ctk_object = entry->ctk_object;
 
@@ -809,9 +847,10 @@ static void register_refresh_rate_events(InfoEntry *entry)
                      CTK_EVENT_NAME(NV_CTRL_REFRESH_RATE),
                      G_CALLBACK(callback_refresh_rate_changed),
                      (gpointer) entry);
+    return TRUE;
 }
 
-static void unregister_refresh_rate_events(InfoEntry *entry)
+static gboolean unregister_refresh_rate_events(InfoEntry *entry)
 {
     CtkDisplayDevice *ctk_object = entry->ctk_object;
 
@@ -822,6 +861,7 @@ static void unregister_refresh_rate_events(InfoEntry *entry)
                                          NULL, /* closure */
                                          NULL, /* func */
                                          (gpointer) entry);
+    return TRUE;
 }
 
 
@@ -864,7 +904,8 @@ static void callback_refresh_rate_changed(GtkObject *object, gpointer arg1,
 static void add_color_correction_tab(CtkDisplayDevice *ctk_object,
                                      CtkConfig *ctk_config,
                                      CtkEvent *ctk_event,
-                                     GtkWidget *notebook)
+                                     GtkWidget *notebook,
+                                     ParsedAttribute *p)
 {
     ReturnStatus ret;
     gint val;
@@ -884,7 +925,7 @@ static void add_color_correction_tab(CtkDisplayDevice *ctk_object,
 
     ctk_color_correction = ctk_color_correction_new(ctk_object->handle,
                                                     ctk_config,
-                                                    NULL /* ParsedAttribute*/,
+                                                    p,
                                                     ctk_event);
     if (ctk_color_correction == NULL) {
         return;

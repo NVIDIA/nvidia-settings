@@ -126,6 +126,14 @@ GtkWidget* ctk_dithering_controls_new(NvCtrlAttributeHandle *handle,
     CtkDitheringControls *ctk_dithering_controls;
     GtkWidget *frame, *vbox, *hbox, *label;
     GtkWidget *menu, *table, *menu_item = NULL, *separator;
+    ReturnStatus ret;
+    int tmp;
+
+    /* test that dithering is available before creating the widget */
+    ret = NvCtrlGetAttribute(handle, NV_CTRL_DITHERING, &tmp);
+    if (ret != NvCtrlSuccess) {
+        return NULL;
+    }
 
     /* create the object */
     object = g_object_new(CTK_TYPE_DITHERING_CONTROLS, NULL);
@@ -851,6 +859,10 @@ void add_dithering_controls_help(CtkDitheringControls *ctk_dithering_controls,
                                  GtkTextBuffer *b,
                                  GtkTextIter *i)
 {
+    if (ctk_dithering_controls == NULL) {
+        return;
+    }
+
     ctk_help_heading(b, i, "Dithering Controls");
     ctk_help_para(b, i, __dithering_help);
 

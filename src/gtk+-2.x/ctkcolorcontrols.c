@@ -510,6 +510,10 @@ void add_color_controls_help(CtkColorControls *ctk_color_controls,
                              GtkTextBuffer *b,
                              GtkTextIter *i)
 {
+    if (ctk_color_controls == NULL) {
+        return;
+    }
+
     ctk_help_heading(b, i, "Color Controls");
     ctk_help_para(b, i, __color_controls_help);
 

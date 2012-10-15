@@ -143,8 +143,9 @@ static gboolean button_release_event_callback (GtkWidget *widget,
                                                GdkEventButton *event,
                                                gpointer data);
 
-
 static void calc_metamode(nvScreenPtr screen, nvMetaModePtr metamode);
+
+static Bool sync_layout(nvLayoutPtr layout);
 
 
 
@@ -2023,17 +2024,10 @@ static int move_selected(CtkDisplayLayout *ctk_object, int x, int y, int snap)
     }
 
     /* Recalculate layout dimensions and scaling */
-    calc_layout(layout);
-
-    /* If layout needs to offset, it was modified */
-    if (layout->dim[X] || layout->dim[Y]) {
-        offset_layout(layout, -layout->dim[X], -layout->dim[Y]);
+    if (sync_layout(layout)) {
         modified = 1;
     }
 
-    if (recenter_layout(layout)) {
-        modified = 1;
-    }
     if (sync_scaling(ctk_object)) {
         modified = 1;
     }
@@ -2186,17 +2180,10 @@ static int pan_selected(CtkDisplayLayout *ctk_object, int x, int y, int snap)
 
 
     /* Recalculate layout dimensions and scaling */
-    calc_layout(layout);
-
-    /* If layout needs to offset, something moved */
-    if (layout->dim[X] || layout->dim[Y]) {
-        offset_layout(layout, -layout->dim[X], -layout->dim[Y]);
+    if (sync_layout(layout)) {
         modified = 1;
     }
 
-    if (recenter_layout(layout)) {
-        modified = 1;
-    }
     if (sync_scaling(ctk_object)) {
         modified = 1;
     }
@@ -2758,13 +2745,14 @@ GtkWidget* ctk_display_layout_new(NvCtrlAttributeHandle *handle,
     ctk_object->Zorder = NULL;
     ctk_object->Zcount = 0;
 
+
     /* Setup widget properties */
     ctk_object->ctk_config = ctk_config;
 
     ctk_object->handle = handle;
     ctk_object->layout = layout;
 
-    calc_layout(layout);
+    sync_layout(layout);
     sync_scaling(ctk_object);
     zorder_layout(ctk_object);
     select_default_item(ctk_object);
@@ -3315,6 +3303,34 @@ static void clear_layout(CtkDisplayLayout *ctk_object)
 
 
 
+/** sync_layout() ****************************************************
+ *
+ * Recalculates the X screen positions in the layout such that the
+ * top-left most X screen is at 0x0.
+ *
+ **/
+
+static Bool sync_layout(nvLayoutPtr layout)
+{
+    Bool modified = FALSE;
+
+    calc_layout(layout);
+
+    /* If layout needs to offset, it was modified */
+    if (layout->dim[X] || layout->dim[Y]) {
+        offset_layout(layout, -layout->dim[X], -layout->dim[Y]);
+        modified = TRUE;
+    }
+
+    if (recenter_layout(layout)) {
+        modified = TRUE;
+    }
+
+    return modified;
+}
+
+
+
 /** ctk_display_layout_update() **************************************
  *
  * Causes a recalculation of the layout.
@@ -3326,9 +3342,7 @@ void ctk_display_layout_update(CtkDisplayLayout *ctk_object)
     nvLayoutPtr layout = ctk_object->layout;
 
     /* Recalculate layout dimensions and scaling */
-    calc_layout(layout);
-    offset_layout(layout, -layout->dim[X], -layout->dim[Y]);
-    recenter_layout(layout);
+    sync_layout(layout);
     sync_scaling(ctk_object);
     ctk_object->modify_info.modify_dirty = 1;
 

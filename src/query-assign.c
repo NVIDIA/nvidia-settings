@@ -120,19 +120,26 @@ CtrlHandles *nv_alloc_ctrl_handles(const char *display)
     ReturnStatus status;
     CtrlHandles *h, *pQueryHandle = NULL;
     NvCtrlAttributeHandle *handle;
-    int target, i, j, val, d, c, len;
+    int i, val, d, c, len;
     char *tmp;
     int *pData = NULL;
+    TargetTypeEntry *targetTypeEntry;
 
     /* allocate the CtrlHandles struct */
-    
+
     h = calloc(1, sizeof(CtrlHandles));
-    
+    if (!h) {
+        return NULL;
+    }
+
     /* store any given X display name */
 
-    if (display) h->display = strdup(display);
-    else h->display = NULL;
-    
+    if (display) {
+        h->display = strdup(display);
+    } else {
+        h->display = NULL;
+    }
+
     /* open the X display connection */
 
     h->dpy = XOpenDisplay(h->display);
@@ -141,38 +148,39 @@ CtrlHandles *nv_alloc_ctrl_handles(const char *display)
         nv_error_msg("Cannot open display '%s'.", XDisplayName(h->display));
         return h;
     }
-    
+
     /*
      * loop over each target type and setup the appropriate
      * information
      */
-    
-    for (j = 0; targetTypeTable[j].name; j++) {
-        
-        /* extract the target index from the table */
 
-        target = targetTypeTable[j].target_index;
-        
-        /* 
+    for (targetTypeEntry = targetTypeTable;
+         targetTypeEntry->name;
+         targetTypeEntry++) {
+
+        int target = targetTypeEntry->target_index;
+        CtrlHandleTargets *targets = &(h->targets[target]);
+
+        /*
          * get the number of targets of this type; if this is an X
          * screen target, just use Xlib's ScreenCount() (note: to
          * support Xinerama: we'll want to use
          * NvCtrlQueryTargetCount() rather than ScreenCount()); for
          * other target types, use NvCtrlQueryTargetCount().
          */
-        
+
         if (target == X_SCREEN_TARGET) {
-            
-            h->targets[target].n = ScreenCount(h->dpy);
-            
+
+            targets->n = ScreenCount(h->dpy);
+
         } else {
-    
+
             /*
              * note: pQueryHandle should be assigned below by a
              * previous iteration of this loop; depends on X screen
              * targets getting handled first
              */
-            
+
             if (pQueryHandle) {
 
                 /*
@@ -191,13 +199,13 @@ CtrlHandles *nv_alloc_ctrl_handles(const char *display)
                                           &minor);
 
                 if ((ret1 == NvCtrlSuccess) && (ret2 == NvCtrlSuccess) &&
-                    ((major > targetTypeTable[j].major) ||
-                     ((major == targetTypeTable[j].major) &&
-                      (minor >= targetTypeTable[j].minor)))) {
+                    ((major > targetTypeEntry->major) ||
+                     ((major == targetTypeEntry->major) &&
+                      (minor >= targetTypeEntry->minor)))) {
 
                     if (target != DISPLAY_TARGET) {
                         status = NvCtrlQueryTargetCount
-                            (pQueryHandle, targetTypeTable[j].nvctrl,
+                            (pQueryHandle, targetTypeEntry->nvctrl,
                              &val);
                     } else {
                         /* For targets that aren't simply enumerated,
@@ -222,35 +230,34 @@ CtrlHandles *nv_alloc_ctrl_handles(const char *display)
             if (status != NvCtrlSuccess) {
                 nv_warning_msg("Unable to determine number of NVIDIA "
                              "%ss on '%s'.",
-                             targetTypeTable[j].name,
+                             targetTypeEntry->name,
                              XDisplayName(h->display));
                 val = 0;
             }
-            
-            h->targets[target].n = val;
+
+            targets->n = val;
         }
-    
+
         /* if there are no targets of this type, skip */
 
-        if (h->targets[target].n == 0) {
-            if (pData) {
-                XFree(pData);
-                pData = NULL;
-            }
-            continue;
+        if (targets->n == 0) {
+            goto next_target_type;
         }
 
         /* allocate an array of CtrlHandleTarget's */
 
-        h->targets[target].t =
-            calloc(h->targets[target].n, sizeof(CtrlHandleTarget));
-        
+        targets->t = calloc(targets->n, sizeof(CtrlHandleTarget));
+        if (!targets->t) {
+            targets->n = 0;
+            goto next_target_type;
+        }
+
         /*
          * loop over all the targets of this type and setup the
          * CtrlHandleTarget's
          */
 
-        for (i = 0; i < h->targets[target].n; i++) {
+        for (i = 0; i < targets->n; i++) {
             int targetId;
 
             switch (target) {
@@ -271,23 +278,19 @@ CtrlHandles *nv_alloc_ctrl_handles(const char *display)
             }
 
             /* allocate the handle */
-            
+
             handle = NvCtrlAttributeInit(h->dpy,
-                                         targetTypeTable[j].nvctrl, targetId,
+                                         targetTypeEntry->nvctrl, targetId,
                                          NV_CTRL_ATTRIBUTES_ALL_SUBSYSTEMS);
-            
-            h->targets[target].t[i].h = handle;
-            
+
+            targets->t[i].h = handle;
+
             /*
              * silently fail: this might happen if not all X screens
              * are NVIDIA X screens
              */
 
             if (!handle) {
-                if (pData) {
-                    XFree(pData);
-                    pData = NULL;
-                }
                 continue;
             }
 
@@ -301,21 +304,21 @@ CtrlHandles *nv_alloc_ctrl_handles(const char *display)
             tmp = NvCtrlGetDisplayName(handle);
             
             if (target == X_SCREEN_TARGET) {
-                h->targets[target].t[i].name = tmp;
+                targets->t[i].name = tmp;
             } else {
-                len = strlen(tmp) + strlen(targetTypeTable[j].parsed_name) +16;
-                h->targets[target].t[i].name = malloc(len);
+                len = strlen(tmp) + strlen(targetTypeEntry->parsed_name) +16;
+                targets->t[i].name = malloc(len);
 
-                if (h->targets[target].t[i].name) {
-                    snprintf(h->targets[target].t[i].name, len, "%s[%s:%d]",
-                             tmp, targetTypeTable[j].parsed_name, i);
+                if (targets->t[i].name) {
+                    snprintf(targets->t[i].name, len, "%s[%s:%d]",
+                             tmp, targetTypeEntry->parsed_name, i);
                     free(tmp);
                 } else {
-                    h->targets[target].t[i].name = tmp;
+                    targets->t[i].name = tmp;
                 }
 
                 if (target == DISPLAY_TARGET) {
-                    query_display_target_names(&(h->targets[target].t[i]));
+                    query_display_target_names(&(targets->t[i]));
                 }
             }
 
@@ -325,14 +328,14 @@ CtrlHandles *nv_alloc_ctrl_handles(const char *display)
              * (framelock), we just assign this to 0.
              */
 
-            if (targetTypeTable[j].uses_display_devices) {
+            if (targetTypeEntry->uses_display_devices) {
                 
                 status = NvCtrlGetAttribute(handle,
                                             NV_CTRL_ENABLED_DISPLAYS, &d);
         
                 if (status != NvCtrlSuccess) {
                     nv_error_msg("Error querying enabled displays on "
-                                 "%s %d (%s).", targetTypeTable[j].name, i,
+                                 "%s %d (%s).", targetTypeEntry->name, i,
                                  NvCtrlAttributesStrError(status));
                     d = 0;
                 }
@@ -342,7 +345,7 @@ CtrlHandles *nv_alloc_ctrl_handles(const char *display)
         
                 if (status != NvCtrlSuccess) {
                     nv_error_msg("Error querying connected displays on "
-                                 "%s %d (%s).", targetTypeTable[j].name, i,
+                                 "%s %d (%s).", targetTypeEntry->name, i,
                                  NvCtrlAttributesStrError(status));
                     c = 0;
                 }
@@ -350,9 +353,9 @@ CtrlHandles *nv_alloc_ctrl_handles(const char *display)
                 d = 0;
                 c = 0;
             }
-             
-            h->targets[target].t[i].d = d;
-            h->targets[target].t[i].c = c;
+
+            targets->t[i].d = d;
+            targets->t[i].c = c;
 
             /*
              * store this handle so that we can use it to query other
@@ -362,12 +365,13 @@ CtrlHandles *nv_alloc_ctrl_handles(const char *display)
             if (!pQueryHandle) pQueryHandle = handle;
         }
 
+    next_target_type:
         if (pData) {
             XFree(pData);
             pData = NULL;
         }
     }
-    
+
     return h;
 
 } /* nv_alloc_ctrl_handles() */
@@ -380,7 +384,7 @@ CtrlHandles *nv_alloc_ctrl_handles(const char *display)
 
 void nv_free_ctrl_handles(CtrlHandles *h)
 {
-    int i, j, target;
+    TargetTypeEntry *targetTypeEntry;
 
     if (!h) return;
 
@@ -399,12 +403,16 @@ void nv_free_ctrl_handles(CtrlHandles *h)
         XCloseDisplay(h->dpy);
         h->dpy = NULL;
 
-        for (j = 0; targetTypeTable[j].name; j++) {
+        for (targetTypeEntry = targetTypeTable;
+             targetTypeEntry->name;
+             targetTypeEntry++) {
 
-            target = targetTypeTable[j].target_index;
+            CtrlHandleTargets *targets =
+                &(h->targets[targetTypeEntry->target_index]);
+            int i;
 
-            for (i = 0; i < h->targets[target].n; i++) {
-                CtrlHandleTarget *t = &(h->targets[target].t[i]);
+            for (i = 0; i < targets->n; i++) {
+                CtrlHandleTarget *t = &(targets->t[i]);
                 int n;
 
                 NvCtrlAttributeClose(t->h);
@@ -417,11 +425,9 @@ void nv_free_ctrl_handles(CtrlHandles *h)
 
                 memset(t, 0, sizeof(*t));
             }
-
-            if (h->targets[target].t) free(h->targets[target].t);
+            free(targets->t);
         }
     }
-
     free(h);
 
 } /* nv_free_ctrl_handles() */
@@ -528,6 +534,9 @@ static int process_attribute_queries(int num, char **queries,
         /* allocate the CtrlHandles */
 
         h = nv_alloc_ctrl_handles(a.display);
+        if (!h) {
+            goto done;
+        }
 
         /* call the processing engine to process the parsed query */
 
@@ -602,7 +611,10 @@ static int process_attribute_assignments(int num, char **assignments,
         /* allocate the CtrlHandles */
 
         h = nv_alloc_ctrl_handles(a.display);
-        
+        if (!h) {
+            goto done;
+        }
+
         /* call the processing engine to process the parsed assignment */
 
         ret = nv_process_parsed_attribute(&a, h, NV_TRUE, NV_TRUE,
@@ -638,11 +650,12 @@ static int process_attribute_assignments(int num, char **assignments,
 static int validate_value(CtrlHandleTarget *t, ParsedAttribute *a, uint32 d,
                           int target_type, char *whence)
 {
-    int i, bad_val = NV_FALSE;
+    int bad_val = NV_FALSE;
     NVCTRLAttributeValidValuesRec valid;
     ReturnStatus status;
     char d_str[256];
     char *tmp_d_str;
+    TargetTypeEntry *targetTypeEntry;
 
     status = NvCtrlGetValidDisplayAttributeValues(t->h, d, a->attr, &valid);
    
@@ -709,16 +722,14 @@ static int validate_value(CtrlHandleTarget *t, ParsedAttribute *a, uint32 d,
 
     /* is this value available for this target type? */
 
-    for (i = 0; targetTypeTable[i].name; i++) {
-        if ((targetTypeTable[i].target_index == target_type) &&
-            !(targetTypeTable[i].permission_bit & valid.permissions)) {
-            bad_val = NV_TRUE;
-            break;
-        }
+    targetTypeEntry = nv_get_target_type_entry_by_nvctrl(target_type);
+    if (!targetTypeEntry ||
+        !(targetTypeEntry->permission_bit & valid.permissions)) {
+        bad_val = NV_TRUE;
     }
 
     /* if the value is bad, print why */
-    
+
     if (bad_val) {
         if (a->flags & NV_PARSER_TYPE_PACKED_ATTRIBUTE) {
             nv_warning_msg("The value pair %d,%d for attribute '%s' (%s%s) "
@@ -749,12 +760,13 @@ static int validate_value(CtrlHandleTarget *t, ParsedAttribute *a, uint32 d,
 static void print_valid_values(char *name, int attr, uint32 flags,
                                NVCTRLAttributeValidValuesRec valid)
 {
-    int bit, print_bit, last, last2, i, n;
+    int bit, print_bit, last, last2, n;
     char str[256];
     char *c;
     char str2[256];
     char *c2; 
     char **at;
+    TargetTypeEntry *targetTypeEntry;
 
     /* do not print any valid values information when we are in 'terse' mode */
 
@@ -862,23 +874,25 @@ static void print_valid_values(char *name, int attr, uint32 flags,
     }
 
     /* print the valid target types */
-    
+
     c = str;
     n = 0;
-    
-    for (i = 0; targetTypeTable[i].name; i++) {
-        if (valid.permissions & targetTypeTable[i].permission_bit) {
+
+    for (targetTypeEntry = targetTypeTable;
+         targetTypeEntry->name;
+         targetTypeEntry++) {
+        if (valid.permissions & targetTypeEntry->permission_bit) {
             if (n > 0) c += sprintf(c, ", ");
-            c += sprintf(c, "%s", targetTypeTable[i].name);
+            c += sprintf(c, "%s", targetTypeEntry->name);
             n++;
         }
     }
-        
+
     if (n == 0) sprintf(c, "None");
-    
+
     nv_msg(INDENT, "'%s' can use the following target types: %s.",
            name, str);
-   
+
     if (__verbosity >= VERBOSITY_ALL)
         print_additional_info(name, attr, valid, INDENT);
 
@@ -1036,28 +1050,36 @@ static void print_additional_info(const char *name,
 
 static int query_all(const char *display_name)
 {
-    int bit, entry, target_id, val;
-    int target_type;
+    int bit, entry, val;
     uint32 mask;
     ReturnStatus status;
     AttributeTableEntry *a;
     NVCTRLAttributeValidValuesRec valid;
     CtrlHandles *h;
-    CtrlHandleTarget *t;
-    
+    TargetTypeEntry *targetTypeEntry;
+
     h = nv_alloc_ctrl_handles(display_name);
+    if (!h) {
+        return NV_FALSE;
+    }
 
 #define INDENT "  "
-    
+
     /*
      * Loop through all target types.
      */
 
-    for (target_type = 0; target_type < MAX_TARGET_TYPES; target_type++) {
-        
-        for (target_id = 0; target_id < h->targets[target_type].n; target_id++) {
+    for (targetTypeEntry = targetTypeTable;
+         targetTypeEntry->name;
+         targetTypeEntry++) {
 
-            t = &h->targets[target_type].t[target_id];
+        CtrlHandleTargets *targets =
+            &(h->targets[targetTypeEntry->target_index]);
+        int i;
+
+        for (i = 0; i < targets->n; i++) {
+
+            CtrlHandleTarget *t = &targets->t[i];
 
             if (!t->h) continue;
 
@@ -1086,14 +1108,17 @@ static int query_all(const char *display_name)
                      * display devices), skip to the next bit
                      */
 
-                    if (((t->d & mask) == 0x0) && (t->d)) continue;
+                    if (targetTypeEntry->uses_display_devices &&
+                        ((t->d & mask) == 0x0) && (t->d)) continue;
 
                     if (a->flags & NV_PARSER_TYPE_STRING_ATTRIBUTE) {
                         char *tmp_str = NULL;
 
                         status = NvCtrlGetValidStringDisplayAttributeValues(t->h, mask,
                                                                             a->attr, &valid);
-                        if (status == NvCtrlAttributeNotAvailable) goto exit_bit_loop;
+                        if (status == NvCtrlAttributeNotAvailable) {
+                            goto exit_bit_loop;
+                        }
 
                         if (status != NvCtrlSuccess) {
                             nv_error_msg("Error while querying valid values for "
@@ -1102,10 +1127,12 @@ static int query_all(const char *display_name)
                                          NvCtrlAttributesStrError(status));
                             goto exit_bit_loop;
                         }
-                        
+
                         status = NvCtrlGetStringDisplayAttribute(t->h, mask, a->attr, &tmp_str);
 
-                        if (status == NvCtrlAttributeNotAvailable) goto exit_bit_loop;
+                        if (status == NvCtrlAttributeNotAvailable) {
+                            goto exit_bit_loop;
+                        }
 
                         if (status != NvCtrlSuccess) {
                             nv_error_msg("Error while querying attribute '%s' "
@@ -1124,7 +1151,7 @@ static int query_all(const char *display_name)
                         tmp_str = NULL;
 
                     } else {
-                        
+
                         status = NvCtrlGetValidDisplayAttributeValues(t->h, mask, a->attr, &valid);
 
                         if (status == NvCtrlAttributeNotAvailable) goto exit_bit_loop;
@@ -1166,15 +1193,15 @@ static int query_all(const char *display_name)
 
 exit_bit_loop:
 
-                    bit = 25; /* XXX force us out of the display device loop */
+                    break; /* XXX force us out of the display device loop */
 
                 } /* bit */
 
             } /* entry */
 
-        } /* target_id */
+        } /* i (targets) */
 
-    } /* target_type */
+    } /* target types */
 
 #undef INDENT
 
@@ -1371,26 +1398,19 @@ static int query_all_targets(const char *display_name, const int target_index)
 {
     CtrlHandles *h;
     CtrlHandleTarget *t;
-    int i, table_index;
-    char *str, *name, *product_name;
-    
-    /* find the index into targetTypeTable[] for target_index */
+    char *str, *name;
+    int i;
+    TargetTypeEntry *targetTypeEntry;
 
-    table_index = -1;
-    
-    for (i = 0; targetTypeTable[i].name; i++) {
-        if (targetTypeTable[i].target_index == target_index) {
-            table_index = i;
-            break;
-        }
-    }
-
-    if (table_index == -1) return NV_FALSE;
+    targetTypeEntry = &(targetTypeTable[target_index]);
 
     /* create handles */
 
     h = nv_alloc_ctrl_handles(display_name);
-    
+    if (!h) {
+        return NV_FALSE;
+    }
+
     /* build the standard X server name */
     
     str = nv_standardize_screen_name(XDisplayName(h->display), -2);
@@ -1398,10 +1418,7 @@ static int query_all_targets(const char *display_name, const int target_index)
     /* warn if we don't have any of the target type */
     
     if (h->targets[target_index].n <= 0) {
-        
-        nv_warning_msg("No %ss on %s",
-                       targetTypeTable[table_index].name, str);
-        
+        nv_warning_msg("No %ss on %s", targetTypeEntry->name, str);
         free(str);
         nv_free_ctrl_handles(h);
         return NV_FALSE;
@@ -1411,7 +1428,7 @@ static int query_all_targets(const char *display_name, const int target_index)
     
     nv_msg(NULL, "%d %s%s on %s",
            h->targets[target_index].n,
-           targetTypeTable[table_index].name,
+           targetTypeEntry->name,
            (h->targets[target_index].n > 1) ? "s" : "",
            str);
     nv_msg(NULL, "");
@@ -1421,58 +1438,32 @@ static int query_all_targets(const char *display_name, const int target_index)
     /* print information per target */
 
     for (i = 0; i < h->targets[target_index].n; i++) {
-        
+        char product_name[32];
+        Bool is_x_name = NV_FALSE;
+        char *x_name = NULL;
+
         t = &h->targets[target_index].t[i];
-        
+
         str = NULL;
         if (target_index == NVIDIA_3D_VISION_PRO_TRANSCEIVER_TARGET) {
-            /* for 3D Vision Pro transceiver, create the product name */
-
-            product_name = malloc(32);
             snprintf(product_name, 32, "3D Vision Pro Transceiver %d", i);
-
         } else if (target_index == THERMAL_SENSOR_TARGET) {
-            /* for sensor, create the product name */
-
-            product_name = malloc(32);
             snprintf(product_name, 32, "Thermal Sensor %d", i);
-
         } else if (target_index == COOLER_TARGET) {
-
-            /* for cooler, create the product name */
-
-            product_name = malloc(32);
             snprintf(product_name, 32, "Fan %d", i);
-
         } else if (target_index == FRAMELOCK_TARGET) {
-
-            /* for framelock, create the product name */
-
-            product_name = malloc(32);
             snprintf(product_name, 32, "Quadro Sync %d", i);
-
         } else if (target_index == VCS_TARGET) {
-
-            product_name = get_product_name(t->h,
-                                            NV_CTRL_STRING_VCSC_PRODUCT_NAME);
-
+            x_name = get_product_name(t->h, NV_CTRL_STRING_VCSC_PRODUCT_NAME);
+            is_x_name = NV_TRUE;
         } else if (target_index == GVI_TARGET) {
-            
-            /* for gvi, create the product name */
-
-            product_name = malloc(32);
             snprintf(product_name, 32, "SDI Input %d", i);
-
         } else if (target_index == DISPLAY_TARGET) {
-
-            product_name = get_product_name(t->h,
-                                            NV_CTRL_STRING_DISPLAY_DEVICE_NAME);
-
+            x_name = get_product_name(t->h, NV_CTRL_STRING_DISPLAY_DEVICE_NAME);
+            is_x_name = NV_TRUE;
         } else {
-
-            /* for X_SCREEN_TARGET or GPU_TARGET, query the product name */
-            product_name = get_product_name(t->h, NV_CTRL_STRING_PRODUCT_NAME);
-
+            x_name = get_product_name(t->h, NV_CTRL_STRING_PRODUCT_NAME);
+            is_x_name = NV_TRUE;
         }
 
         /*
@@ -1487,14 +1478,17 @@ static int query_all_targets(const char *display_name, const int target_index)
             name = "Not NVIDIA";
         }
 
-        nv_msg("    ", "[%d] %s (%s)", i, name, product_name);
+        nv_msg("    ", "[%d] %s (%s)", i, name,
+               is_x_name ? x_name : product_name);
         nv_msg(NULL, "");
-        
-        free(product_name);
+
+        if (x_name) {
+            XFree(x_name);
+        }
 
         /* Print connectivity information */
         if (__verbosity >= VERBOSITY_ALL) {
-            if (targetTypeTable[table_index].uses_display_devices) {
+            if (targetTypeEntry->uses_display_devices) {
                 print_target_display_connections(t);
             }
 
@@ -1732,12 +1726,13 @@ int nv_process_parsed_attribute(ParsedAttribute *a, CtrlHandles *h,
                                 int assign, int verbose,
                                 char *whence_fmt, ...)
 {
-    int i, target, start, end, bit, ret, val, target_type_index;
-    char *whence, *tmp_d_str0, *tmp_d_str1, *target_type_name;
+    int i, target, start, end, bit, ret, val;
+    char *whence, *tmp_d_str0, *tmp_d_str1;
     uint32 display_devices, mask;
     ReturnStatus status;
     NVCTRLAttributeValidValuesRec valid;
     CtrlHandleTarget *t;
+    TargetTypeEntry *targetTypeEntry;
 
     val = NV_FALSE;
 
@@ -1760,29 +1755,23 @@ int nv_process_parsed_attribute(ParsedAttribute *a, CtrlHandles *h,
      * if a target was specified, make sure it is valid, and setup
      * the variables 'start', 'end', and 'target'.
      */
-    
+
     if (a->flags & NV_PARSER_HAS_TARGET) {
-        
+        char *target_type_name;
+
         /*
          * look up the target index for the target type specified in
          * the ParsedAttribute
          */
-        
-        target = -1;
-        target_type_name = "?";
-        
-        for (i = 0; targetTypeTable[i].name; i++) {
-            if (targetTypeTable[i].nvctrl == a->target_type) {
-                target = targetTypeTable[i].target_index;
-                target_type_name = targetTypeTable[i].name;
-                break;
-            }
-        }
-        
-        if (target == -1) {
+
+        targetTypeEntry = nv_get_target_type_entry_by_nvctrl(a->target_type);
+        if (!targetTypeEntry) {
             nv_error_msg("Invalid target specified %s.", whence);
-            goto done; 
+            goto done;
         }
+
+        target = targetTypeEntry->target_index;
+        target_type_name = targetTypeEntry->name;
 
         /*
          * If the target was named, match it to one of the probed targets
@@ -1858,7 +1847,7 @@ int nv_process_parsed_attribute(ParsedAttribute *a, CtrlHandles *h,
         end = a->target_id + 1;
         
     } else {
-        
+
         /*
          * no target was specified; assume a target type of
          * X_SCREEN_TARGET, and assign 'start' and 'end' such that we
@@ -1866,23 +1855,13 @@ int nv_process_parsed_attribute(ParsedAttribute *a, CtrlHandles *h,
          * correct default target type for each attribute and default
          * to that rather than assume X_SCREEN_TARGET.
          */
-        
+
+        targetTypeEntry = &(targetTypeTable[X_SCREEN_TARGET]);
         target = X_SCREEN_TARGET;
         start = 0;
         end = h->targets[target].n;
     }
 
-    /* find the target type index */
-
-    target_type_index = 0;
-    
-    for (i = 0; targetTypeTable[i].name; i++) {
-        if (targetTypeTable[i].target_index == target) {
-            target_type_index = i;
-            break;
-        }
-    }
-    
     /* loop over the requested targets */
     
     for (i = start; i < end; i++) {
@@ -2230,7 +2209,7 @@ int nv_process_parsed_attribute(ParsedAttribute *a, CtrlHandles *h,
             mask = (1 << bit);
 
             if (((mask & display_devices) == 0x0) &&
-                (targetTypeTable[target_type_index].uses_display_devices) &&
+                (targetTypeEntry->uses_display_devices) &&
                 (t->d)) {
                 continue;
             }
@@ -2288,9 +2267,9 @@ int nv_process_parsed_attribute(ParsedAttribute *a, CtrlHandles *h,
              * does not have display devices, then once through this loop
              * is enough.
              */
-            
+
             if ((!(valid.permissions & ATTRIBUTE_TYPE_DISPLAY)) ||
-                (!(targetTypeTable[target_type_index].uses_display_devices)) ||
+                (!(targetTypeEntry->uses_display_devices)) ||
                 (!(t->d))) {
                 break;
             }

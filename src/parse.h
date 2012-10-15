@@ -140,8 +140,8 @@ extern AttributeTableEntry attributeTable[];
 
 
 /*
- * Indices into CtrlHandles->targets[] array; stored in
- * TargetTypeEntry.target_index.
+ * Indices into both targetTypeTable[] and CtrlHandles->targets[] array; stored
+ * in TargetTypeEntry.target_index.
  */
 
 #define X_SCREEN_TARGET  0
@@ -192,6 +192,14 @@ typedef struct {
  */
 
 extern TargetTypeEntry targetTypeTable[];
+
+/*
+ * accessor functions for getting target type info based on NV-CONTROL
+ * attribute type or by a name.
+ */
+TargetTypeEntry *nv_get_target_type_entry_by_nvctrl(int nvctrl);
+TargetTypeEntry *nv_get_target_type_entry_by_name(const char *name);
+
 
 /* nv_get_sdi_csc_matrxi() - Returns an array of floats that specifies
  * all the color, offset and scale values for specifing one of the

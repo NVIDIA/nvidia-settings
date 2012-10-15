@@ -50,6 +50,7 @@ typedef struct _CtkDisplayDevice       CtkDisplayDevice;
 typedef struct _CtkDisplayDeviceClass  CtkDisplayDeviceClass;
 
 typedef struct InfoEntryRec {
+    gboolean present;
     GtkWidget *hbox;
     GtkWidget *label;
     GtkWidget *txt;
@@ -90,7 +91,8 @@ struct _CtkDisplayDeviceClass
 GType       ctk_display_device_get_type  (void) G_GNUC_CONST;
 GtkWidget*  ctk_display_device_new       (NvCtrlAttributeHandle *,
                                           CtkConfig *, CtkEvent *,
-                                          CtkEvent *, char *, char *);
+                                          CtkEvent *, char *, char *,
+                                          ParsedAttribute *);
 
 GtkTextBuffer *ctk_display_device_create_help(GtkTextTagTable *,
                                               CtkDisplayDevice *);

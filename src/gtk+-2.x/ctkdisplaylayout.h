@@ -96,15 +96,6 @@ G_BEGIN_DECLS
   ((MODELINE_SOURCE_XCONFIG)|(MODELINE_SOURCE_NVCONTROL))
 
 
-/* NV-CONTROL metamode sources */
-#define METAMODE_SOURCE_XCONFIG   0x001
-#define METAMODE_SOURCE_IMPLICIT  0x002
-#define METAMODE_SOURCE_NVCONTROL 0x004
-
-#define METAMODE_SOURCE_USER  \
-  ((METAMODE_SOURCE_XCONFIG)|(METAMODE_SOURCE_NVCONTROL))
-
-
 
 
 /*** M A C R O S *************************************************************/
@@ -123,6 +114,11 @@ G_BEGIN_DECLS
 #define GET_MODELINE_HSYNC(m)                                        \
 (((double)((m)->data.clock)) / (2.0f * (double)((m)->data.htotal)))
 
+/* Determines if the metamode was created/modified by the user */
+#define IS_METAMODE_SOURCE_USER(s)      \
+(((s) == METAMODE_SOURCE_XCONFIG) ||    \
+ ((s) == METAMODE_SOURCE_NVCONTROL) ||  \
+ ((s) == METAMODE_SOURCE_RANDR))
 
 
 
@@ -134,6 +130,12 @@ typedef enum {
     PASSIVE_STEREO_EYE_RIGHT,
 } PassiveStereoEye;
 
+typedef enum {
+    METAMODE_SOURCE_XCONFIG = 0,
+    METAMODE_SOURCE_IMPLICIT,
+    METAMODE_SOURCE_NVCONTROL,
+    METAMODE_SOURCE_RANDR,
+} MetaModeSource;
 
 typedef struct nvModeLineRec {
     struct nvModeLineRec *next;
@@ -216,7 +218,7 @@ typedef struct nvMetaModeRec {
     struct nvMetaModeRec *next;
 
     int id;     /* Magic id */
-    int source; /* Source of the metamode */
+    MetaModeSource source; /* Source of the metamode */
     Bool switchable; /* Can the metamode be accessed through Ctrl Alt +- */
 
     // Used for drawing & moving metamode boxes

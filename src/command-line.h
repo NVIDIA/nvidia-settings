@@ -20,16 +20,10 @@
 #ifndef __COMMAND_LINE_H__
 #define __COMMAND_LINE_H__
 
+#include "common-utils.h"
+
 #define DEFAULT_RC_FILE "~/.nvidia-settings-rc"
 #define CONFIG_FILE_OPTION 1
-
-
-#define VERBOSITY_NONE     0 /* nothing */
-#define VERBOSITY_ERROR    1 /* errors only */
-#define VERBOSITY_WARNING  2 /* errors and warnings */
-#define VERBOSITY_ALL      3 /* errors, warnings and other info */
-
-#define VERBOSITY_DEFAULT  VERBOSITY_ERROR
 
 /*
  * Options structure -- stores the parameters specified on the

@@ -922,6 +922,25 @@ static void apply_parsed_attribute_list(
     }
 
     if (attr) {
+
+        int i;
+
+        /*
+         * if all the separate color channels are the same for an
+         * attribute, propagate the value to ALL_CHANNELS for that
+         * attribute
+         */
+        for (i = CONTRAST; i <= GAMMA; i++) {
+            float val = ctk_color_correction->cur_slider_val[i][RED];
+
+            if ((ctk_color_correction->cur_slider_val[i][GREEN] == val) &&
+                (ctk_color_correction->cur_slider_val[i][BLUE] == val)) {
+                set_color_state(ctk_color_correction, i,
+                                ALL_CHANNELS, val, TRUE);
+                attr |= ALL_CHANNELS;
+            }
+        }
+
         NvCtrlSetColorAttributes(ctk_color_correction->handle,
                                  ctk_color_correction->cur_slider_val[CONTRAST],
                                  ctk_color_correction->cur_slider_val[BRIGHTNESS],

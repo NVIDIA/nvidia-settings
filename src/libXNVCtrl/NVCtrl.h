@@ -339,6 +339,7 @@
 #define NV_CTRL_STEREO_INVERSE_CHECKERBOARD_PATTERN             9
 #define NV_CTRL_STEREO_3D_VISION                                10
 #define NV_CTRL_STEREO_3D_VISION_PRO                            11
+#define NV_CTRL_STEREO_HDMI_3D                                  12
 
 /*
  * NV_CTRL_EMULATE - controls OpenGL software emulation of future
@@ -776,58 +777,49 @@
 
 
 /*
- * NV_CTRL_TV_OVERSCAN adjusts the amount of overscan on the specified
- * display device.
+ * NV_CTRL_TV_OVERSCAN - not supported
  */
 
 #define NV_CTRL_TV_OVERSCAN                                     53  /* RWDG */
 
 
 /*
- * NV_CTRL_TV_FLICKER_FILTER adjusts the amount of flicker filter on
- * the specified display device.
+ * NV_CTRL_TV_FLICKER_FILTER - not supported
  */
 
 #define NV_CTRL_TV_FLICKER_FILTER                               54  /* RWDG */
 
 
 /*
- * NV_CTRL_TV_BRIGHTNESS adjusts the amount of brightness on the
- * specified display device.
+ * NV_CTRL_TV_BRIGHTNESS  - not supported
  */
 
 #define NV_CTRL_TV_BRIGHTNESS                                   55  /* RWDG */
 
 
 /*
- * NV_CTRL_TV_HUE adjusts the amount of hue on the specified display
- * device.
+ * NV_CTRL_TV_HUE - not supported
  */
 
 #define NV_CTRL_TV_HUE                                          56  /* RWDG */
 
 
 /*
- * NV_CTRL_TV_CONTRAST adjusts the amount of contrast on the specified
- * display device.
+ * NV_CTRL_TV_CONTRAST - not suppoerted
  */
 
 #define NV_CTRL_TV_CONTRAST                                     57  /* RWDG */
 
 
 /*
- * NV_CTRL_TV_SATURATION adjusts the amount of saturation on the
- * specified display device.
+ * NV_CTRL_TV_SATURATION - not supported
  */
 
 #define NV_CTRL_TV_SATURATION                                   58  /* RWDG */
 
 
 /*
- * NV_CTRL_TV_RESET_SETTINGS - this write-only attribute can be used
- * to request that all TV Settings be reset to their default values;
- * typical usage would be that this attribute be sent, and then all
- * the TV attributes be queried to retrieve their new values.
+ * NV_CTRL_TV_RESET_SETTINGS - not supported
  */
 
 #define NV_CTRL_TV_RESET_SETTINGS                               59  /* -WDG */
