@@ -60,6 +60,8 @@ struct _CtkGpu
     CtkEvent *ctk_event;
 
     GtkWidget *displays;
+    GtkWidget *gpu_memory_used_label;
+    gint gpu_memory;
     gint gpu_cores;
     gint memory_interface;
     gboolean pcie_gen_queriable;
@@ -83,6 +85,9 @@ void get_bus_id_str(NvCtrlAttributeHandle *handle,
 
 GtkTextBuffer *ctk_gpu_create_help(GtkTextTagTable *,
                                    CtkGpu *);
+
+void ctk_gpu_page_select(GtkWidget *);
+void ctk_gpu_page_unselect(GtkWidget *);
 
 G_END_DECLS
 

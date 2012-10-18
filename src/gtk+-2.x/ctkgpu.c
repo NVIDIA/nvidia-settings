@@ -35,7 +35,10 @@
 
 static void probe_displays_received(GtkObject *object, gpointer arg1,
                                     gpointer user_data);
+static gboolean update_gpu_memory_used(gpointer);
+
 #define ARRAY_ELEMENTS 16
+#define DEFAULT_UPDATE_GPU_INFO_TIME_INTERVAL 3000
 
 GType ctk_gpu_get_type(
     void
@@ -188,7 +191,7 @@ GtkWidget* ctk_gpu_new(
     GtkWidget *hseparator;
     GtkWidget *table;
 
-    char *product_name, *vbios_version, *video_ram, *irq;
+    char *product_name, *vbios_version, *video_ram, *gpu_memory_text, *irq;
     gchar *pci_bus_id;
     gchar pci_device_id[ARRAY_ELEMENTS];
     gchar pci_vendor_id[ARRAY_ELEMENTS];
@@ -212,7 +215,8 @@ GtkWidget* ctk_gpu_new(
     int len;
     int i;
     int row = 0;
-    int total_rows = 19;
+    int total_rows = 21;
+    int gpu_memory;
 
 
     /*
@@ -267,6 +271,16 @@ GtkWidget* ctk_gpu_new(
         video_ram = NULL;
     } else {
         video_ram = g_strdup_printf("%d MB", tmp >> 10);
+    }
+
+    /* NV_CTRL_TOTAL_DEDICATED_GPU_MEMORY */
+
+    ret = NvCtrlGetAttribute(handle, NV_CTRL_TOTAL_DEDICATED_GPU_MEMORY, 
+                             &gpu_memory);
+    if (ret != NvCtrlSuccess) {
+        gpu_memory_text = NULL;
+    } else {
+        gpu_memory_text = g_strdup_printf("%d MB", gpu_memory);
     }
     
     /* NV_CTRL_GPU_CORES */
@@ -363,6 +377,7 @@ GtkWidget* ctk_gpu_new(
     ctk_gpu->ctk_config = ctk_config;
     ctk_gpu->ctk_event = ctk_event;
     ctk_gpu->pcie_gen_queriable = FALSE;
+    ctk_gpu->gpu_memory = gpu_memory;
 
     /* set container properties of the object */
 
@@ -424,8 +439,16 @@ GtkWidget* ctk_gpu_new(
                   0, 0.5, "VBIOS Version:",
                   0, 0.5, vbios_version);
     add_table_row(table, row++,
-                  0, 0.5, "Memory:",
+                  0, 0.5, "Total Memory:",
                   0, 0.5, video_ram);
+    add_table_row(table, row++,
+                  0, 0.5, "Total Dedicated Memory:",
+                  0, 0.5, gpu_memory_text);
+    ctk_gpu->gpu_memory_used_label = 
+        add_table_row(table, row++,
+                      0, 0.5, "Used Dedicated Memory:",
+                      0, 0.5, NULL);
+    update_gpu_memory_used(ctk_gpu);
     if ( ctk_gpu->memory_interface ) {
         gtk_table_resize(GTK_TABLE(table), ++total_rows, 2);
         add_table_row(table, row++,
@@ -491,6 +514,7 @@ GtkWidget* ctk_gpu_new(
     g_free(screens);
     g_free(displays);
     g_free(bus);
+    g_free(gpu_memory_text);
 
     gtk_widget_show_all(GTK_WIDGET(object));
     
@@ -500,6 +524,16 @@ GtkWidget* ctk_gpu_new(
                      CTK_EVENT_NAME(NV_CTRL_PROBE_DISPLAYS),
                      G_CALLBACK(probe_displays_received),
                      (gpointer) ctk_gpu);
+
+    tmp_str = g_strdup_printf("Memory Used (GPU %d)",
+                              NvCtrlGetTargetId(handle));
+
+    ctk_config_add_timer(ctk_gpu->ctk_config,
+                         DEFAULT_UPDATE_GPU_INFO_TIME_INTERVAL,
+                         tmp_str,
+                         (GSourceFunc) update_gpu_memory_used,
+                         (gpointer) ctk_gpu);
+    g_free(tmp_str);
 
     return GTK_WIDGET(object);
 }
@@ -534,7 +568,7 @@ GtkTextBuffer *ctk_gpu_create_help(GtkTextTagTable *table,
     ctk_help_heading(b, &i, "VBIOS Version");
     ctk_help_para(b, &i, "This is the Video BIOS version.");
     
-    ctk_help_heading(b, &i, "Memory"); 
+    ctk_help_heading(b, &i, "Total Memory"); 
     ctk_help_para(b, &i, "This is the overall amount of memory "
                   "available to your GPU.  With TurboCache(TM) GPUs, "
                   "this value may exceed the amount of video "
@@ -542,6 +576,14 @@ GtkTextBuffer *ctk_gpu_create_help(GtkTextTagTable *table,
                   "integrated GPUs, the value may exceed the amount of "
                   "dedicated system memory set aside by the system "
                   "BIOS for use by the integrated GPU.");
+
+    ctk_help_heading(b, &i, "Total Dedicated Memory"); 
+    ctk_help_para(b, &i, "This is the amount of memory dedicated "
+                  "exclusively to your GPU.");
+
+    ctk_help_heading(b, &i, "Used Dedicated Memory"); 
+    ctk_help_para(b, &i, "This is the amount of dedicated memory used "
+                  "by your GPU.");
 
     if (ctk_gpu->memory_interface) {
         ctk_help_heading(b, &i, "Memory Interface");
@@ -622,4 +664,60 @@ static void probe_displays_received(GtkObject *object, gpointer arg1,
     g_free(str);
 }
 
+static gboolean update_gpu_memory_used(gpointer user_data)
+{
+    CtkGpu *ctk_gpu;
+    gchar *memory_text;
+    ReturnStatus ret;
+    int value;
+    static int num_failures = 0;
+
+    ctk_gpu = CTK_GPU(user_data);
+
+    ret = NvCtrlGetAttribute(ctk_gpu->handle, 
+                             NV_CTRL_USED_DEDICATED_GPU_MEMORY, 
+                             &value);
+    if (ret != NvCtrlSuccess || value > ctk_gpu->gpu_memory || value < 0) {
+        gtk_label_set_text(GTK_LABEL(ctk_gpu->gpu_memory_used_label), "Unknown");
+        if(num_failures++ >= 10) {
+            return FALSE;
+        }
+    } else {
+        if (ctk_gpu->gpu_memory > 0) {
+            memory_text = g_strdup_printf("%d MB (%.0f%%)", 
+                                          value, 
+                                          100.0 * (double) value / 
+                                              (double) ctk_gpu->gpu_memory);
+        } else {
+            memory_text = g_strdup_printf("%d MB", value);
+        }
+
+        gtk_label_set_text(GTK_LABEL(ctk_gpu->gpu_memory_used_label), memory_text);
+        g_free(memory_text);
+    }
+
+    return TRUE;
+}
+
+void ctk_gpu_page_select(GtkWidget *widget)
+{
+    CtkGpu *ctk_gpu = CTK_GPU(widget);
+
+    /* Start the gpu timer */
+
+    ctk_config_start_timer(ctk_gpu->ctk_config,
+                           (GSourceFunc) update_gpu_memory_used,
+                           (gpointer) ctk_gpu);
+}
+
+void ctk_gpu_page_unselect(GtkWidget *widget)
+{
+    CtkGpu *ctk_gpu = CTK_GPU(widget);
+
+    /* Stop the gpu timer */
+
+    ctk_config_stop_timer(ctk_gpu->ctk_config,
+                          (GSourceFunc) update_gpu_memory_used,
+                          (gpointer) ctk_gpu);
+}
 

@@ -197,7 +197,7 @@
 
 
 /*
- * NV_CTRL_VIDEO_RAM - returns the total amount of memory available
+ * NV_CTRL_TOTAL_GPU_MEMORY - returns the total amount of memory available
  * to the specified GPU (or the GPU driving the specified X
  * screen).  Note: if the GPU supports TurboCache(TM), the value
  * reported may exceed the amount of video memory installed on the
@@ -206,7 +206,8 @@
  * BIOS for use by the integrated GPU.
  */
 
-#define NV_CTRL_VIDEO_RAM                                       6  /* R--G */
+#define NV_CTRL_TOTAL_GPU_MEMORY                                6  /* R--G */
+#define NV_CTRL_VIDEO_RAM                NV_CTRL_TOTAL_GPU_MEMORY 
 
 
 /*
@@ -3211,7 +3212,22 @@
  */
 #define NV_CTRL_DISPLAY_RANDR_OUTPUT_ID                         391 /* R-D- */
 
-#define NV_CTRL_LAST_ATTRIBUTE NV_CTRL_DISPLAY_RANDR_OUTPUT_ID
+/*
+ * NV_CTRL_TOTAL_DEDICATED_GPU_MEMORY - Returns the total amount of dedicated
+ * GPU video memory, in MB, on the specified GPU. This excludes any TurboCache
+ * padding included in the value returned by NV_CTRL_TOTAL_GPU_MEMORY.
+ */
+#define NV_CTRL_TOTAL_DEDICATED_GPU_MEMORY                      393 /* R--G */
+
+/*
+ * NV_CTRL_USED_DEDICATED_GPU_MEMORY- Returns the amount of video memory 
+ * currently used on the graphics card in MB.
+ */
+#define NV_CTRL_USED_DEDICATED_GPU_MEMORY                       394 /* R--G */
+
+
+
+#define NV_CTRL_LAST_ATTRIBUTE NV_CTRL_USED_DEDICATED_GPU_MEMORY
 
 /**************************************************************************/
 

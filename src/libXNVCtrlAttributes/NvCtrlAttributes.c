@@ -958,11 +958,18 @@ ReturnStatus NvCtrlSetColorAttributes(NvCtrlAttributeHandle *handle,
                                       float g[3],
                                       unsigned int bitmask)
 {
+    ReturnStatus status;
+    int val = 0;
+
     NvCtrlAttributePrivateHandle *h = (NvCtrlAttributePrivateHandle *) handle;
 
-    if (h->target_type == NV_CTRL_TARGET_TYPE_X_SCREEN) {
+    status = NvCtrlGetAttribute(h, NV_CTRL_ATTR_RANDR_GAMMA_AVAILABLE, &val);
+
+    if ((status != NvCtrlSuccess || !val) && 
+        h->target_type == NV_CTRL_TARGET_TYPE_X_SCREEN) {
         return NvCtrlVidModeSetColorAttributes(h, c, b, g, bitmask);
-    } else if (h->target_type == NV_CTRL_TARGET_TYPE_DISPLAY) {
+    } else if (status == NvCtrlSuccess && val &&
+               h->target_type == NV_CTRL_TARGET_TYPE_DISPLAY) {
         return NvCtrlXrandrSetColorAttributes(h, c, b, g, bitmask);
     }
 

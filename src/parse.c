@@ -143,6 +143,8 @@ AttributeTableEntry attributeTable[] = {
     { "PCIECurrentLinkSpeed",   NV_CTRL_GPU_PCIE_CURRENT_LINK_SPEED,   N,   "Returns the current PCIe link speed, in gigatransfers per second (GT/s)." },
     { "PCIECurrentLinkWidth",   NV_CTRL_GPU_PCIE_CURRENT_LINK_WIDTH,   N,   "Returns the current PCIe link width of the GPU, in number of lanes." },
     { "VideoRam",               NV_CTRL_VIDEO_RAM,                     N,   "Returns the total amount of memory available to the specified GPU (or the GPU driving the specified X screen).  Note: if the GPU supports TurboCache(TM), the value reported may exceed the amount of video memory installed on the GPU.  The value reported for integrated GPUs may likewise exceed the amount of dedicated system memory set aside by the system BIOS for use by the integrated GPU." },
+    { "TotalDedicatedGPUMemory",NV_CTRL_TOTAL_DEDICATED_GPU_MEMORY,    N,   "Returns the amount of total dedicated memory on the specified GPU in MB." },
+    { "UsedDedicatedGPUMemory", NV_CTRL_USED_DEDICATED_GPU_MEMORY,     N,   "Returns the amount of dedicated memory used on the specified GPU in MB." },
     { "Irq",                    NV_CTRL_IRQ,                           N,   "Returns the interrupt request line used by the specified device.  If the target is an X screen, then it uses the GPU driving the X screen as the device." },
     { "CUDACores",              NV_CTRL_GPU_CORES,                     N,   "Returns number of CUDA cores supported by the graphics pipeline." },
     { "GPUMemoryInterface",     NV_CTRL_GPU_MEMORY_BUS_WIDTH,          N,   "Returns bus bandwidth of the GPU's memory interface." },
@@ -368,7 +370,7 @@ AttributeTableEntry attributeTable[] = {
  * about.
  */
 
-#if NV_CTRL_LAST_ATTRIBUTE != NV_CTRL_DISPLAY_RANDR_OUTPUT_ID
+#if NV_CTRL_LAST_ATTRIBUTE != NV_CTRL_USED_DEDICATED_GPU_MEMORY
 #warning "Have you forgotten to add a new integer attribute to attributeTable?"
 #endif
 

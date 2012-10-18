@@ -70,7 +70,8 @@ static void unregister_refresh_rate_events(InfoEntry *entry);
 static void add_color_correction_tab(CtkDisplayDevice *ctk_object,
                                      CtkConfig *ctk_config,
                                      CtkEvent *ctk_event,
-                                     GtkWidget *notebook);
+                                     GtkWidget *notebook,
+                                     ParsedAttribute *p);
 
 #define FRAME_PADDING 5
 
@@ -220,7 +221,8 @@ GtkWidget* ctk_display_device_new(NvCtrlAttributeHandle *handle,
                                   CtkEvent *ctk_event,
                                   CtkEvent *ctk_event_gpu,
                                   char *name,
-                                  char *typeBaseName)
+                                  char *typeBaseName,
+                                  ParsedAttribute *p)
 {
     GObject *object;
     CtkDisplayDevice *ctk_object;
@@ -415,7 +417,7 @@ GtkWidget* ctk_display_device_new(NvCtrlAttributeHandle *handle,
 
     /* add the color correction tab if RandR is available */
 
-    add_color_correction_tab(ctk_object, ctk_config, ctk_event, notebook);
+    add_color_correction_tab(ctk_object, ctk_config, ctk_event, notebook, p);
 
     /* Update the GUI */
 
@@ -864,7 +866,8 @@ static void callback_refresh_rate_changed(GtkObject *object, gpointer arg1,
 static void add_color_correction_tab(CtkDisplayDevice *ctk_object,
                                      CtkConfig *ctk_config,
                                      CtkEvent *ctk_event,
-                                     GtkWidget *notebook)
+                                     GtkWidget *notebook,
+                                     ParsedAttribute *p)
 {
     ReturnStatus ret;
     gint val;
@@ -884,7 +887,7 @@ static void add_color_correction_tab(CtkDisplayDevice *ctk_object,
 
     ctk_color_correction = ctk_color_correction_new(ctk_object->handle,
                                                     ctk_config,
-                                                    NULL /* ParsedAttribute*/,
+                                                    p,
                                                     ctk_event);
     if (ctk_color_correction == NULL) {
         return;

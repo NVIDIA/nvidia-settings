@@ -38,13 +38,6 @@
 #include "msg.h"
 #include "parse.h"
 
-/* Make sure we are compiling with XRandR version 1.1 or greater */
-#define MIN_RANDR_MAJOR 1
-#define MIN_RANDR_MINOR 1
-#if (RANDR_MAJOR < MIN_RANDR_MAJOR) || ((RANDR_MAJOR == MIN_RANDR_MAJOR) && (RANDR_MINOR < MIN_RANDR_MINOR))
-#error XRandR version 1.1 or greater is required.
-#endif
-
 typedef struct __libXrandrInfoRec {
 
     /* libXrandr.so library handle */

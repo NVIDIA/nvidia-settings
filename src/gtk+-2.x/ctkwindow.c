@@ -122,7 +122,8 @@ static void add_display_devices(CtkWindow *ctk_window, GtkTreeIter *iter,
                                 NvCtrlAttributeHandle *handle,
                                 CtkEvent *ctk_event,
                                 GtkTextTagTable *tag_table,
-                                UpdateDisplaysData *data);
+                                UpdateDisplaysData *data,
+                                ParsedAttribute *p);
 
 static void update_display_devices(GtkObject *object, gpointer arg1,
                                    gpointer user_data);
@@ -819,6 +820,12 @@ GtkWidget *ctk_window_new(ParsedAttribute *p, ConfigProperties *conf,
         gtk_tree_store_set(ctk_window->tree_store, &iter,
                            CTK_WINDOW_CONFIG_FILE_ATTRIBUTES_FUNC_COLUMN,
                            NULL, -1);
+        gtk_tree_store_set(ctk_window->tree_store, &iter,
+                           CTK_WINDOW_SELECT_WIDGET_FUNC_COLUMN,
+                           ctk_gpu_page_select, -1);
+        gtk_tree_store_set(ctk_window->tree_store, &iter,
+                           CTK_WINDOW_UNSELECT_WIDGET_FUNC_COLUMN,
+                           ctk_gpu_page_unselect, -1);
 
         /* power savings */
 
@@ -876,7 +883,7 @@ GtkWidget *ctk_window_new(ParsedAttribute *p, ConfigProperties *conf,
                          (gpointer) data);
 
         add_display_devices(ctk_window, &iter, gpu_handle, ctk_event, tag_table,
-                            data);
+                            data, ctk_window->attribute_list);
     }
 
     /* add the per-vcs (e.g. Quadro Plex) entries into the tree model */
@@ -1369,7 +1376,8 @@ static void add_display_devices(CtkWindow *ctk_window, GtkTreeIter *iter,
                                 NvCtrlAttributeHandle *gpu_handle,
                                 CtkEvent *ctk_event_gpu,
                                 GtkTextTagTable *tag_table,
-                                UpdateDisplaysData *data)
+                                UpdateDisplaysData *data,
+                                ParsedAttribute *p)
 {
     GtkTextBuffer *help;
     ReturnStatus ret;
@@ -1407,13 +1415,21 @@ static void add_display_devices(CtkWindow *ctk_window, GtkTreeIter *iter,
         GtkWidget *widget;
         gchar *title;
         CtkEvent *ctk_event;
+        CtrlHandles *handles = ctk_window->ctk_config->pCtrlHandles;
 
-        display_handle =
-            NvCtrlAttributeInit(NvCtrlGetDisplayPtr(gpu_handle),
-                                NV_CTRL_TARGET_TYPE_DISPLAY,
-                                display_id,
-                                NV_CTRL_ATTRIBUTES_NV_CONTROL_SUBSYSTEM |
-                                NV_CTRL_ATTRIBUTES_XRANDR_SUBSYSTEM);
+        /* 
+         * Get the ctrl handle that was passed into ctk_main so that updated
+         * backend color slider values, cached in the handle itself, can be 
+         * saved to the RC file when the UI is closed.
+         */
+
+        if (handles) {
+            display_handle = 
+                handles->targets[NV_CTRL_TARGET_TYPE_DISPLAY].t[display_id].h;
+        } else {
+            display_handle = NULL;
+        }
+
         if (!display_handle) {
             continue;
         }
@@ -1460,7 +1476,7 @@ static void add_display_devices(CtkWindow *ctk_window, GtkTreeIter *iter,
             widget = ctk_display_device_new(display_handle,
                                             ctk_window->ctk_config, ctk_event,
                                             ctk_event_gpu,
-                                            title, typeBaseName);
+                                            title, typeBaseName, p);
             help = ctk_display_device_create_help(tag_table,
                                                   CTK_DISPLAY_DEVICE(widget));
         } else {
@@ -1543,7 +1559,7 @@ static void update_display_devices(GtkObject *object, gpointer arg1,
 
     add_display_devices(ctk_window, &parent_iter, gpu_handle,
                         CTK_GPU(widget)->ctk_event,
-                        tag_table, data);
+                        tag_table, data, ctk_window->attribute_list);
 
     /* Expand the GPU entry if it used to be */
     if (parent_expanded) {

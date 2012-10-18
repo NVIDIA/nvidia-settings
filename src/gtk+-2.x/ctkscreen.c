@@ -101,75 +101,13 @@ GType ctk_screen_get_type(
 
 
 
-/* Generates a list of display device names for those display devices that
- * are enabled on the given GPU and, if Xinerama is disabled, are also
- * associated to the given X screen (handle).
- */
-static gchar *make_gpu_display_device_list(NvCtrlAttributeHandle *handle,
-                                           int gpu_id,
-                                           int xinerama_enabled)
-{
-    return create_display_name_list_string(handle,
-                                           NV_CTRL_BINARY_DATA_DISPLAYS_ENABLED_ON_XSCREEN);
-}
-
-
-
 /* Generates a list of display devices for the logical X screen
  * given as "handle".
  */
 static gchar *make_display_device_list(NvCtrlAttributeHandle *handle)
 {
-    ReturnStatus ret;
-    int len;
-    int i;
-    int *pData;
-    gchar *displays = NULL;
-    int xinerama_enabled;
-
-
-    /* See if Xinerama is enabled */
-    ret = NvCtrlGetAttribute(handle, NV_CTRL_XINERAMA, &xinerama_enabled);
-    if (ret != NvCtrlSuccess) {
-        goto done;
-    }
-
-    /* Get all GPUs driving this X screen */
-    ret = NvCtrlGetBinaryAttribute(handle,
-                                   0,
-                                   NV_CTRL_BINARY_DATA_GPUS_USED_BY_LOGICAL_XSCREEN,
-                                   (unsigned char **)(&pData),
-                                   &len);
-    if (ret != NvCtrlSuccess) {
-        goto done;
-    }
-
-    /* Generate the list of display device names that display this X screen */
-    for (i = 1; i <= pData[0]; i++) {
-        gchar *new_str;
-        gchar *tmp_str;
-
-        new_str = make_gpu_display_device_list(handle, pData[i],
-                                               xinerama_enabled);
-        if (new_str) {
-            if (displays) {
-                tmp_str = g_strdup_printf("%s,\n%s", displays, new_str);
-                g_free(displays);
-                g_free(new_str);
-                displays = tmp_str;
-            } else {
-                displays = new_str;
-            }
-        }
-    }
-
- done:
-    if (!displays) {
-        displays = g_strdup("None");
-    }
-
-    return displays;
-
+    return create_display_name_list_string(handle,
+                                           NV_CTRL_BINARY_DATA_DISPLAYS_ENABLED_ON_XSCREEN);
 } /* make_display_device_list() */
 
 
