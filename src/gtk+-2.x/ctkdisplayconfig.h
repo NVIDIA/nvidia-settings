@@ -100,6 +100,8 @@ typedef struct _CtkDisplayConfig
     GtkWidget *mnu_display_config_twinview;
 
     /* Display - Settings */
+    GtkWidget *box_screen_drag_info_display;
+
     GtkWidget *box_display_resolution;
     GtkWidget *mnu_display_resolution;
     nvModeLinePtr *resolution_table;
@@ -130,7 +132,7 @@ typedef struct _CtkDisplayConfig
     GtkWidget *screen_page;
 
     /* X Screen - Settings */
-    GtkWidget *box_screen_drag_info;
+    GtkWidget *box_screen_drag_info_screen;
 
     GtkWidget *box_screen_virtual_size;
     GtkWidget *txt_screen_virtual_size;

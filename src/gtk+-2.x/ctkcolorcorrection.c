@@ -1019,13 +1019,28 @@ GtkTextBuffer *ctk_color_correction_create_help(GtkTextTagTable *table,
     
     gtk_text_buffer_get_iter_at_offset(b, &i, 0);
     
-    ctk_help_title(b, &i, "%s Help", title);
+    ctk_color_correction_tab_help(b, &i, title, randr);
+    
+    ctk_help_heading(b, &i, "Reset Hardware Defaults");
+    ctk_help_para(b, &i, __resest_button_help);
 
-    ctk_help_heading(b, &i, "Active Color Channel");
-    ctk_help_para(b, &i, __active_color_help);
+    ctk_help_finish(b);
 
-    ctk_help_heading(b, &i, "Brightness, Contrast and Gamma");
-    ctk_help_para(b, &i, "The Brightness, Contrast and Gamma sliders "
+    return b;
+}
+
+
+void ctk_color_correction_tab_help(GtkTextBuffer *b, GtkTextIter *i,
+                                   const gchar *title,
+                                   gboolean randr)
+{
+    ctk_help_title(b, i, "%s Help", title);
+
+    ctk_help_heading(b, i, "Active Color Channel");
+    ctk_help_para(b, i, __active_color_help);
+
+    ctk_help_heading(b, i, "Brightness, Contrast and Gamma");
+    ctk_help_para(b, i, "The Brightness, Contrast and Gamma sliders "
                   "allow you to adjust the brightness, contrast, "
                   "or gamma values for the selected color channel(s).  This "
                   "helps you to compensate "
@@ -1036,28 +1051,21 @@ GtkTextBuffer *ctk_color_correction_create_help(GtkTextTagTable *table,
                   "as photographs) when they are displayed on your "
                   "monitor.");
 
-    ctk_help_para(b, &i, "Also, many 3D-accelerated games may appear too "
+    ctk_help_para(b, i, "Also, many 3D-accelerated games may appear too "
                   "dark to play.  Increasing the brightness and/or gamma "
                   "value equally across all channels will make these games "
                   "appear brighter, making them more playable.");
-    
-    ctk_help_para(b, &i, __color_curve_help);
+
+    ctk_help_para(b, i, __color_curve_help);
 
     if (randr) {
-        ctk_help_para(b, &i, "The %s tab uses the RandR extension to "
+        ctk_help_para(b, i, "The %s tab uses the RandR extension to "
                       "manipulate an RandR CRTC's gamma ramp.", title);
     } else {
-        ctk_help_para(b, &i, "The %s page uses the XF86VidMode extension "
+        ctk_help_para(b, i, "The %s page uses the XF86VidMode extension "
                       "to manipulate the X screen's gamma ramps", title);
     }
 
-    ctk_help_heading(b, &i, "Confirm Current Changes");
-    ctk_help_para(b, &i, __confirm_button_help);
-    
-    ctk_help_heading(b, &i, "Reset Hardware Defaults");
-    ctk_help_para(b, &i, __resest_button_help);
-
-    ctk_help_finish(b);
-
-    return b;
+    ctk_help_heading(b, i, "Confirm Current Changes");
+    ctk_help_para(b, i, __confirm_button_help);
 }

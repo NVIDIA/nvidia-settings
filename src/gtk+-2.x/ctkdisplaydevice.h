@@ -71,6 +71,9 @@ struct _CtkDisplayDevice
     GtkWidget *edid;
     GtkWidget *dithering_controls;
     GtkWidget *color_controls;
+    GtkWidget *color_correction_tab;
+
+    gboolean color_correction_available;
 
     InfoEntry *info_entries;
     int num_info_entries;

@@ -1696,6 +1696,18 @@ GtkWidget* ctk_display_config_new(NvCtrlAttributeHandle *handle,
         gtk_box_pack_start(GTK_BOX(ctk_object), vbox, FALSE, FALSE, 0);
         ctk_object->display_page = vbox;
 
+        /* Info on how to drag X screens around */
+        hbox = gtk_hbox_new(FALSE, 5);
+        gtk_box_pack_start(GTK_BOX(vbox), hbox, FALSE, FALSE, 5);
+
+        label = gtk_label_new("");
+        labels = g_slist_append(labels, label);
+        gtk_box_pack_start(GTK_BOX(hbox), label, FALSE, TRUE, 5);
+
+        label = gtk_label_new("(CTRL-Click + Drag to move X screens)");
+        gtk_box_pack_start(GTK_BOX(hbox), label, FALSE, TRUE, 5);
+        ctk_object->box_screen_drag_info_display = hbox;
+
         /* Display Configuration */
         label = gtk_label_new("Configuration:");
         labels = g_slist_append(labels, label);
@@ -1817,7 +1829,7 @@ GtkWidget* ctk_display_config_new(NvCtrlAttributeHandle *handle,
 
         label = gtk_label_new("(CTRL-Click + Drag to move X screens)");
         gtk_box_pack_start(GTK_BOX(hbox), label, FALSE, TRUE, 5);
-        ctk_object->box_screen_drag_info = hbox;
+        ctk_object->box_screen_drag_info_screen = hbox;
 
         /* X screen virtual size */
         label = gtk_label_new("Virtual Size:");
@@ -2327,6 +2339,7 @@ static void setup_selected_item_dropdown(CtkDisplayConfig *ctk_object)
     }
 
     gtk_widget_set_sensitive(ctk_object->mnu_selected_item, True);
+    gtk_widget_show(ctk_object->mnu_selected_item);
 
     menu = generate_selected_item_dropdown(ctk_object, display, screen,
                                            &cur_idx);
@@ -3261,6 +3274,12 @@ static void setup_display_page(CtkDisplayConfig *ctk_object)
     /* Enable display widgets and setup widget information */
     gtk_widget_set_sensitive(ctk_object->display_page, True);
 
+    if (display->gpu->layout->num_screens > 1) {
+        gtk_widget_show(ctk_object->box_screen_drag_info_display);
+    } else {
+        gtk_widget_hide(ctk_object->box_screen_drag_info_display);
+    }
+
     setup_display_config(ctk_object);
     setup_display_modename(ctk_object);
     setup_display_resolution_dropdown(ctk_object);
@@ -3759,9 +3778,9 @@ static void setup_screen_page(CtkDisplayConfig *ctk_object)
     gtk_widget_set_sensitive(ctk_object->screen_page, True);
 
     if (screen->layout->num_screens > 1) {
-        gtk_widget_show(ctk_object->box_screen_drag_info);
+        gtk_widget_show(ctk_object->box_screen_drag_info_screen);
     } else {
-        gtk_widget_hide(ctk_object->box_screen_drag_info);
+        gtk_widget_hide(ctk_object->box_screen_drag_info_screen);
     }
 
     setup_screen_virtual_size(ctk_object);
