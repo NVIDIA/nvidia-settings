@@ -48,6 +48,8 @@ void apply_screen_info_token(char *token, char *value, void *data);
 
 /* Mode functions */
 
+void mode_set_dims_from_modeline(nvModePtr mode, nvModeLinePtr modeline);
+Bool mode_set_rotation(nvModePtr mode, Rotation rotation);
 nvModePtr mode_parse(nvDisplayPtr display, const char *mode_str);
 
 /* ModeLine functions */
@@ -65,6 +67,7 @@ Bool display_has_modeline(nvDisplayPtr display, nvModeLinePtr modeline);
 Bool display_add_modelines_from_server(nvDisplayPtr display, nvGpuPtr gpu,
                                        gchar **err_str);
 void display_remove_modes(nvDisplayPtr display);
+Bool display_set_modes_rotation(nvDisplayPtr display, Rotation rotation);
 
 
 /* Metamode functions */

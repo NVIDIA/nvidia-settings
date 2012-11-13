@@ -171,6 +171,7 @@ static const char *__texture_sharpening_help =
 #define __FSAA_32x        (__FSAA << NV_CTRL_FSAA_MODE_32x)
 #define __FSAA_64xS       (__FSAA << NV_CTRL_FSAA_MODE_64xS)
 #define __FSAA_ENHANCE    (__FSAA << (NV_CTRL_FSAA_MODE_MAX + 1))
+#define __FXAA            (__FSAA << (NV_CTRL_FSAA_MODE_MAX + 2))
 
 #define FRAME_PADDING 5
 
@@ -371,7 +372,7 @@ GtkWidget *ctk_multisample_new(NvCtrlAttributeHandle *handle,
 
             for (i = 0; i < ctk_multisample->fsaa_translation_table_size; i++)
                 ctk_multisample->active_attributes |=
-                    (1 << (__FSAA+ctk_multisample->fsaa_translation_table[i]));
+                    (__FSAA << ctk_multisample->fsaa_translation_table[i]);
 
             /* FXAA Option button */
 
@@ -401,6 +402,8 @@ GtkWidget *ctk_multisample_new(NvCtrlAttributeHandle *handle,
             ctk_config_set_tooltip(ctk_config, check_button,
                                    __fxaa_enable_help);
             gtk_box_pack_start(GTK_BOX(vbox), check_button, FALSE, FALSE, 0);
+
+            ctk_multisample->active_attributes |= __FXAA;
             ctk_multisample->fxaa_enable_check_button = check_button;
         }
     }
@@ -1639,6 +1642,11 @@ GtkTextBuffer *ctk_multisample_create_help(GtkTextTagTable *table,
                           "(4xSS, 8xMS) mode.  This mode offers better image "
                           "quality than the 16x mode.");
         }
+    }
+
+    if (ctk_multisample->active_attributes & __FXAA) {
+        ctk_help_term(b, &i, "Enable FXAA");
+        ctk_help_para(b, &i, __fxaa_enable_help);
     }
 
     if (ctk_multisample->active_attributes & __LOG_ANISO_RANGE) {

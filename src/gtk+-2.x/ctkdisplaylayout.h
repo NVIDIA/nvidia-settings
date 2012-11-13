@@ -131,6 +131,20 @@ typedef enum {
 } PassiveStereoEye;
 
 typedef enum {
+    ROTATION_0 = 0,
+    ROTATION_90,
+    ROTATION_180,
+    ROTATION_270,
+} Rotation;
+
+typedef enum {
+    REFLECTION_NONE = 0,
+    REFLECTION_X,
+    REFLECTION_Y,
+    REFLECTION_XY,
+} Reflection;
+
+typedef enum {
     METAMODE_SOURCE_XCONFIG = 0,
     METAMODE_SOURCE_IMPLICIT,
     METAMODE_SOURCE_NVCONTROL,
@@ -152,7 +166,13 @@ typedef struct nvModeLineRec {
 
 
 
-/* Mode (A particular configuration for a display within an X screen) */
+/* Mode (A particular configuration for a display within an X screen)
+ *
+ * NOTE: When metamodes are duplicated, the modes are memcpy'ed over, so
+ *       if new variables are added to the nvModeRec that shouldn't (just)
+ *       be copied, be sure to update this in
+ *       ctk_display_layout_add_screen_metamode().
+ */
 typedef struct nvModeRec {
     struct nvModeRec *next;
 
@@ -169,13 +189,19 @@ typedef struct nvModeRec {
     struct nvModeLineRec *modeline;     /* Modeline this mode references */
     int dummy;                          /* Dummy mode, don't print out */
 
-    int dim[4];                         /* Viewport (absolute) */
+    int viewPortIn[4];                  /* Viewport In (absolute) */
     int pan[4];                         /* Panning Domain (absolute) */
+
+    int viewPortOut[4];                 /* ViewPort Out (WH) */
 
     int position_type;                  /* Relative, Absolute, etc. */
     struct nvDisplayRec *relative_to;   /* Display Relative/RightOf etc */
 
     PassiveStereoEye passive_stereo_eye; /* Stereo mode 4 per-dpy setting */
+
+
+    Rotation rotation;
+    Reflection reflection;
 
 } nvMode, *nvModePtr;
 
@@ -494,6 +520,14 @@ void ctk_display_layout_set_mode_modeline (CtkDisplayLayout *,
                                            nvModePtr mode,
                                            nvModeLinePtr modeline);
 
+void ctk_display_layout_set_mode_viewport_in(CtkDisplayLayout *ctk_object,
+                                             nvModePtr mode,
+                                             int w, int h);
+
+void ctk_display_layout_set_mode_viewport_out(CtkDisplayLayout *ctk_object,
+                                              nvModePtr mode,
+                                              int x, int y, int w, int h);
+
 void ctk_display_layout_set_display_position (CtkDisplayLayout *ctk_object,
                                               nvDisplayPtr display,
                                               int position_type,
@@ -502,6 +536,15 @@ void ctk_display_layout_set_display_position (CtkDisplayLayout *ctk_object,
 void ctk_display_layout_set_display_panning (CtkDisplayLayout *ctk_object,
                                              nvDisplayPtr display,
                                              int width, int height);
+
+void ctk_display_layout_set_display_rotation (CtkDisplayLayout *ctk_object,
+                                              nvDisplayPtr display,
+                                              Rotation rotation);
+
+void ctk_display_layout_set_display_reflection (CtkDisplayLayout *ctk_object,
+                                                nvDisplayPtr display,
+                                                Reflection reflection);
+
 void ctk_display_layout_select_display (CtkDisplayLayout *ctk_object,
                                         nvDisplayPtr display);
 void ctk_display_layout_select_screen (CtkDisplayLayout *ctk_object,

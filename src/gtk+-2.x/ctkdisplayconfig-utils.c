@@ -435,6 +435,93 @@ static nvModeLinePtr modeline_parse(nvDisplayPtr display,
 /** MODE FUNCTIONS ***********************************************************/
 /*****************************************************************************/
 
+void mode_set_dims_from_modeline(nvModePtr mode, nvModeLinePtr modeline)
+{
+    int newW;
+    int newH;
+
+
+    mode->viewPortOut[X] = 0;
+    mode->viewPortOut[Y] = 0;
+    if (modeline) {
+        mode->viewPortOut[W] = modeline->data.hdisplay;
+        mode->viewPortOut[H] = modeline->data.vdisplay;
+    } else {
+        mode->viewPortOut[W] = 800;
+        mode->viewPortOut[H] = 600;
+    }
+
+    /* Determine new dimensions to use */
+    if ((mode->rotation == ROTATION_90) ||
+        (mode->rotation == ROTATION_270)) {
+        newW = mode->viewPortOut[H];
+        newH = mode->viewPortOut[W];
+    } else {
+        newW = mode->viewPortOut[W];
+        newH = mode->viewPortOut[H];
+    }
+
+    /* Resolve and clamp the panning domain */
+    if ((mode->pan[W] == mode->viewPortIn[W]) ||
+        mode->pan[W] < newW) {
+        mode->pan[W] = newW;
+    }
+    if ((mode->pan[H] == mode->viewPortIn[H]) ||
+        mode->pan[H] < newH) {
+        mode->pan[H] = newH;
+    }
+    mode->viewPortIn[W] = newW;
+    mode->viewPortIn[H] = newH;
+}
+
+
+/*!
+ * Sets the mode to have the specified rotation
+ *
+ * \param[in]  mode      The mode to modify
+ * \param[in]  rotation  The rotation to set
+ *
+ * \return  TRUE if a new rotation was set, FALSE if the mode was already
+ *          set to the rotation given.
+ */
+Bool mode_set_rotation(nvModePtr mode, Rotation rotation)
+{
+    Bool old_is_horiz;
+    Bool new_is_horiz;
+    int tmp;
+
+    if (mode->rotation == rotation) {
+        return FALSE;
+    }
+
+    /* Set the new rotation orientation and swap if we need to*/
+    old_is_horiz = ((mode->rotation == ROTATION_0) ||
+                    (mode->rotation == ROTATION_180)) ? TRUE : FALSE;
+
+    new_is_horiz = ((rotation == ROTATION_0) ||
+                    (rotation == ROTATION_180)) ? TRUE : FALSE;
+
+    mode->rotation = rotation;
+
+    if (old_is_horiz != new_is_horiz) {
+        tmp = mode->viewPortIn[W];
+        mode->viewPortIn[W] = mode->viewPortIn[H];
+        mode->viewPortIn[H] = tmp;
+
+        tmp = mode->pan[W];
+        mode->pan[W] = mode->pan[H];
+        mode->pan[H] = tmp;
+    }
+
+    /* Mark mode as being modified */
+    if (mode->metamode) {
+        mode->metamode->source = METAMODE_SOURCE_NVCONTROL;
+    }
+
+    return TRUE;
+}
+
+
 
 /** apply_mode_attribute_token() *************************************
  *
@@ -460,7 +547,52 @@ static void apply_mode_attribute_token(char *token, char *value, void *data)
         } else if (!strcasecmp("PassiveRight", value)) {
             mode->passive_stereo_eye = PASSIVE_STEREO_EYE_RIGHT;
         }
-        return;
+
+    /* ViewPort In */
+    } else if (!strcasecmp("viewportin", token)) {
+        parse_read_integer_pair(value, 'x',
+                                &(mode->viewPortIn[W]),
+                                &(mode->viewPortIn[H]));
+
+    /* ViewPort Out */
+    } else if (!strcasecmp("viewportout", token)) {
+        const char *str;
+
+        str = parse_read_integer_pair(value, 'x',
+                                      &(mode->viewPortOut[W]),
+                                      &(mode->viewPortOut[H]));
+
+        str = parse_read_integer_pair(str, 0,
+                                      &(mode->viewPortOut[X]),
+                                      &(mode->viewPortOut[Y]));
+    }
+
+    /* Rotation */
+    if (!strcasecmp("rotation", token)) {
+        if (!strcasecmp("left", value) ||
+            !strcasecmp("CCW", value) ||
+            !strcasecmp("90", value)) {
+            mode->rotation = ROTATION_90;
+        } else if (!strcasecmp("invert", value) ||
+                   !strcasecmp("inverted", value) ||
+                   !strcasecmp("180", value)) {
+            mode->rotation = ROTATION_180;
+        } else if (!strcasecmp("right", value) ||
+                   !strcasecmp("CW", value) ||
+                   !strcasecmp("270", value)) {
+            mode->rotation = ROTATION_270;
+        }
+    }
+
+    /* Reflection */
+    if (!strcasecmp("reflection", token)) {
+        if (!strcasecmp("x", value)) {
+            mode->reflection = REFLECTION_X;
+        } else if (!strcasecmp("y", value)) {
+            mode->reflection = REFLECTION_Y;
+        } else if (!strcasecmp("xy", value)) {
+            mode->reflection = REFLECTION_XY;
+        }
     }
 
 } /* apply_mode_attribute_token() */
@@ -495,6 +627,12 @@ nvModePtr mode_parse(nvDisplayPtr display, const char *mode_str)
 
     mode->display = display;
 
+    /* Set default values */
+    mode->rotation = ROTATION_0;
+    mode->reflection = REFLECTION_NONE;
+    mode->passive_stereo_eye = PASSIVE_STEREO_EYE_NONE;
+    mode->position_type = CONF_ADJ_ABSOLUTE;
+
 
     /* Read the mode name */
     str = parse_read_name(str, &mode_name, 0);
@@ -509,12 +647,11 @@ nvModePtr mode_parse(nvDisplayPtr display, const char *mode_str)
         }
         mode->modeline = mode->modeline->next;
     }
-    free(mode_name);
 
-
-    /* If we can't find a matching modeline, show device as off
-     * using the width & height of whatever the first modeline is.
-     * XXX Hopefully this is the default width/height.
+    /* If we can't find a matching modeline, don't add this mode.  If the
+     * metamode has other (valid) displays, a NULL mode will be added for this
+     * display at that time - this is done to avoid potentially adding a
+     * metamode with no active displays.
      */
     if (!mode->modeline) {
         if (strcmp(mode_str, "NULL")) {
@@ -522,19 +659,17 @@ nvModePtr mode_parse(nvDisplayPtr display, const char *mode_str)
                            "display device '%s' in modeline '%s'.",
                            mode_name, display->logName, mode_str);
         }
-        mode->dim[W] = display->modelines->data.hdisplay;
-        mode->dim[H] = display->modelines->data.vdisplay;
-        mode->pan[W] = mode->dim[W];
-        mode->pan[H] = mode->dim[H];
+        free(mode_name);
+
+        mode_set_dims_from_modeline(mode, display->modelines);
+
         return mode;
     }
+    free(mode_name);
 
 
-    /* Setup default size and panning of display */
-    mode->dim[W] = mode->modeline->data.hdisplay;
-    mode->dim[H] = mode->modeline->data.vdisplay;
-    mode->pan[W] = mode->dim[W];
-    mode->pan[H] = mode->dim[H];
+    /* Setup default size and panning of display values */
+    mode_set_dims_from_modeline(mode, mode->modeline);
 
 
     /* Read mode information */
@@ -551,7 +686,8 @@ nvModePtr mode_parse(nvDisplayPtr display, const char *mode_str)
         else if (*str == '+') {
             str++;
             str = parse_read_integer_pair(str, 0,
-                                          &(mode->dim[X]), &(mode->dim[Y]));
+                                          &(mode->viewPortIn[X]),
+                                          &(mode->viewPortIn[Y]));
         }
 
         /* Read extra params */
@@ -584,18 +720,25 @@ nvModePtr mode_parse(nvDisplayPtr display, const char *mode_str)
         if (!str) goto fail;
     }
 
-
-    /* These are the same for now */
-    mode->pan[X] = mode->dim[X];
-    mode->pan[Y] = mode->dim[Y];
-
-
-    /* Panning can't be smaller than dimensions */
-    if (mode->pan[W] < mode->dim[W]) {
-        mode->pan[W] = mode->dim[W];
+    /* If rotation is specified, swap W/H if they are still set to the
+     * modeline's unrotated dimentions.  Panning should not be rotated
+     * here since it is returned rotated by the X driver.
+     */
+    if (((mode->rotation == ROTATION_90) ||
+         (mode->rotation == ROTATION_270)) &&
+        (mode->viewPortIn[W] == mode->viewPortOut[W]) &&
+        (mode->viewPortIn[H] == mode->viewPortOut[H])) {
+        int tmp = mode->viewPortIn[W];
+        mode->viewPortIn[W] = mode->viewPortIn[H];
+        mode->viewPortIn[H] = tmp;
     }
-    if (mode->pan[W] < mode->dim[W]) {
-        mode->pan[W] = mode->dim[W];
+
+    /* Clamp the panning domain */
+    if (mode->pan[W] < mode->viewPortIn[W]) {
+        mode->pan[W] = mode->viewPortIn[W];
+    }
+    if (mode->pan[H] < mode->viewPortIn[H]) {
+        mode->pan[H] = mode->viewPortIn[H];
     }
 
     return mode;
@@ -669,8 +812,8 @@ static gchar *mode_get_str(nvModePtr mode, int be_generic)
 
 
     /* Panning domain */
-    if (!be_generic || (mode->pan[W] != mode->dim[W] ||
-                        mode->pan[H] != mode->dim[H])) {
+    if (!be_generic || (mode->pan[W] != mode->viewPortIn[W] ||
+                        mode->pan[H] != mode->viewPortIn[H])) {
         tmp = g_strdup_printf("%s @%dx%d",
                               mode_str, mode->pan[W], mode->pan[H]);
         g_free(mode_str);
@@ -685,10 +828,10 @@ static gchar *mode_get_str(nvModePtr mode, int be_generic)
      *     the metamodes are generated:
      *
      *   Programability:
-     *     make mode->dim relative to screen->dim
+     *     make mode->viewPortIn relative to screen->dim
      *
      *   Coherency:
-     *     make mode->dim relative to mode->metamode->edim
+     *     make mode->viewPortIn relative to mode->metamode->edim
      *
      *
      * XXX Also, we may want to take in consideration the
@@ -699,8 +842,8 @@ static gchar *mode_get_str(nvModePtr mode, int be_generic)
     tmp = g_strdup_printf("%s +%d+%d",
                           mode_str,
                           /* Make mode position relative */
-                          mode->dim[X] - mode->metamode->edim[X],
-                          mode->dim[Y] - mode->metamode->edim[Y]);
+                          mode->viewPortIn[X] - mode->metamode->edim[X],
+                          mode->viewPortIn[Y] - mode->metamode->edim[Y]);
     g_free(mode_str);
     mode_str = tmp;
 
@@ -709,27 +852,123 @@ static gchar *mode_get_str(nvModePtr mode, int be_generic)
     flags_str = NULL;
 
     /* Passive Stereo Eye */
-    if (screen->stereo_supported && screen->stereo == 4) {
-        const char *eye;
+    if (screen->stereo_supported &&
+        (screen->stereo == NV_CTRL_STEREO_PASSIVE_EYE_PER_DPY)) {
+        const char *str = NULL;
 
         switch (mode->passive_stereo_eye) {
         case PASSIVE_STEREO_EYE_LEFT:
-            eye = "PassiveLeft";
+            str = "PassiveLeft";
             break;
         case PASSIVE_STEREO_EYE_RIGHT:
-            eye = "PassiveRight";
+            str = "PassiveRight";
             break;
         case 0:
         default:
-            eye = NULL;
+            str = NULL;
             break;
         }
 
-        if (eye) {
-            tmp = g_strdup_printf("%s, stereo=%s", (flags_str ? flags_str : ""), eye);
+        if (str) {
+            tmp = g_strdup_printf("%s, stereo=%s", (flags_str ? flags_str : ""),
+                                  str);
             g_free(flags_str);
             flags_str = tmp;
         }
+    }
+
+    /* Rotation */
+    if (mode->rotation != ROTATION_0) {
+        const char *str = NULL;
+
+        switch (mode->rotation) {
+        case ROTATION_90:
+            str = "90";
+            break;
+        case ROTATION_180:
+            str = "180";
+            break;
+        case ROTATION_270:
+            str = "270";
+            break;
+        default:
+            break;
+        }
+
+        if (str) {
+            tmp = g_strdup_printf("%s, rotation=%s",
+                                  (flags_str ? flags_str : ""), str);
+            g_free(flags_str);
+            flags_str = tmp;
+        }
+    }
+
+    /* Reflection */
+    if (mode->reflection != REFLECTION_NONE) {
+        const char *str = NULL;
+
+        switch (mode->reflection) {
+        case REFLECTION_X:
+            str = "X";
+            break;
+        case REFLECTION_Y:
+            str = "Y";
+            break;
+        case REFLECTION_XY:
+            str = "XY";
+            break;
+        default:
+            break;
+        }
+
+        if (str) {
+            tmp = g_strdup_printf("%s, reflection=%s",
+                                  (flags_str ? flags_str : ""), str);
+            g_free(flags_str);
+            flags_str = tmp;
+        }
+    }
+
+    /* ViewPort in */
+    {
+        int width;
+        int height;
+
+        /* Only write out the ViewPortIn if it is specified and differes from
+         * the viewport out.
+         */
+        if ((mode->rotation == ROTATION_90) ||
+            (mode->rotation == ROTATION_270)) {
+            width = mode->viewPortOut[H];
+            height = mode->viewPortOut[W];
+        } else {
+            width = mode->viewPortOut[W];
+            height = mode->viewPortOut[H];
+        }
+
+        if (mode->viewPortIn[W] && mode->viewPortIn[H] &&
+            ((mode->viewPortIn[W] != width) ||
+             (mode->viewPortIn[H] != height))) {
+            tmp = g_strdup_printf("%s, viewportin=%dx%d",
+                                  (flags_str ? flags_str : ""),
+                                  mode->viewPortIn[W], mode->viewPortIn[H]);
+            g_free(flags_str);
+            flags_str = tmp;
+        }
+    }
+
+    /* ViewPort out */
+    if (mode->viewPortOut[X] ||
+        mode->viewPortOut[Y] ||
+        (mode->viewPortOut[W] && mode->viewPortOut[H] &&
+         ((mode->viewPortOut[W] != mode->modeline->data.hdisplay) ||
+          (mode->viewPortOut[H] != mode->modeline->data.vdisplay)))) {
+        tmp = g_strdup_printf("%s, viewportout=%dx%d%+d%+d",
+                              (flags_str ? flags_str : ""),
+                              mode->viewPortOut[W], mode->viewPortOut[H],
+                              mode->viewPortOut[X], mode->viewPortOut[Y]);
+        g_free(flags_str);
+        flags_str = tmp;
     }
 
     if (flags_str) {
@@ -837,6 +1076,9 @@ int display_find_closest_mode_matching_modeline(nvDisplayPtr display,
 
     mode_idx = 0;
     for (mode = display->modes; mode; mode = mode->next) {
+        if (!mode->modeline) {
+            continue;
+        }
         if (mode->modeline->data.vdisplay == modeline->data.vdisplay &&
             mode->modeline->data.hdisplay == modeline->data.hdisplay) {
             match_idx = mode_idx;
@@ -1105,6 +1347,31 @@ void display_remove_modes(nvDisplayPtr display)
 
 
 
+/*!
+ * Sets all the modes on the display to the specified rotation
+ *
+ * \param[in]  mode      The display who's modes are to be modified
+ * \param[in]  rotation  The rotation to set
+ *
+ * \return  TRUE if a new rotation was set for at least one mode, FALSE if all
+ *          of the modes on the display were already set to the rotation given.
+ */
+Bool display_set_modes_rotation(nvDisplayPtr display, Rotation rotation)
+{
+    nvModePtr mode;
+    Bool modified = FALSE;
+
+    for (mode = display->modes; mode; mode = mode->next) {
+        if (mode_set_rotation(mode, rotation)) {
+            modified = TRUE;
+        }
+    }
+
+    return modified;
+}
+
+
+
 /** display_free() ***************************************************
  *
  * Frees memory used by a display
@@ -1289,6 +1556,45 @@ void screen_unlink_display(nvDisplayPtr display)
     display->screen = NULL;
 
 } /* screen_unlink_display() */
+
+
+static void screen_link_displays(nvScreenPtr screen)
+{
+    ReturnStatus ret;
+    int *pData;
+    int len;
+    int i;
+
+    ret = NvCtrlGetBinaryAttribute
+        (screen->handle, 0, NV_CTRL_BINARY_DATA_DISPLAYS_ASSIGNED_TO_XSCREEN,
+         (unsigned char **)(&pData), &len);
+
+    if (ret != NvCtrlSuccess) {
+        nv_warning_msg("Failed to query list of displays assigned to X screen "
+                       " %d.",
+                        NvCtrlGetTargetId(screen->handle));
+        return;
+    }
+
+    // For each id in pData
+    for (i = 0; i < pData[0]; i++) {
+        nvDisplayPtr display;
+
+        display = layout_get_display(screen->layout, pData[i+1]);
+        if (!display) {
+            nv_warning_msg("Failed to find display %d assigned to X screen "
+                           " %d.",
+                           pData[i+1],
+                           NvCtrlGetTargetId(screen->handle));
+            continue;
+        }
+
+        screen_link_display(screen, display);
+    }
+
+    XFree(pData);
+}
+
 
 
 
@@ -1566,15 +1872,18 @@ static Bool screen_add_metamode(nvScreenPtr screen, const char *metamode_str,
         /* Make the mode part of the metamode */
         mode->metamode = metamode;
 
-        /* Make the display part of the screen, and make sure it has the
-         * right number of modes.
-         */
+        /* On older X driver NV_CTRL_BINARY_DATA_DISPLAYS_ASSIGNED_TO_XSCREEN
+         * attribute is Not Available so we are unable to link displays to
+         * the screen implicitly.
+         * To avoid display->cur_mode = NULL link displays explicitly.
+         */ 
         screen_link_display(screen, display);
+        /* Make sure each display has the right number of (NULL) modes */
         screen_check_metamodes(screen);
 
         /* Set the panning offset */
-        mode->pan[X] = mode->dim[X];
-        mode->pan[Y] = mode->dim[Y];
+        mode->pan[X] = mode->viewPortIn[X];
+        mode->pan[Y] = mode->viewPortIn[Y];
 
         /* Add the mode at the end of the display's mode list */
         xconfigAddListItem((GenericListPtr *)(&display->modes),
@@ -1658,8 +1967,8 @@ static Bool screen_check_metamodes(nvScreenPtr screen)
 
             /* Duplicate position information of the last mode */
             if (last_mode) {
-                mode->dim[X] = last_mode->dim[X];
-                mode->dim[Y] = last_mode->dim[Y];
+                mode->viewPortIn[X] = last_mode->viewPortIn[X];
+                mode->viewPortIn[Y] = last_mode->viewPortIn[Y];
                 mode->pan[X] = last_mode->pan[X];
                 mode->pan[Y] = last_mode->pan[Y];
                 mode->position_type = last_mode->position_type;
@@ -1711,10 +2020,11 @@ static void screen_assign_dummy_metamode_positions(nvScreenPtr screen)
         if (ok_mode) {
             for (mode = display->modes; mode; mode = mode->next) {
                 if (!mode->dummy) continue;
-                mode->dim[X] = ok_mode->dim[X];
-                mode->pan[X] = ok_mode->dim[X];
-                mode->dim[Y] = ok_mode->dim[Y];
-                mode->pan[Y] = ok_mode->dim[Y];
+                mode->viewPortIn[X] = ok_mode->viewPortIn[X];
+                mode->viewPortIn[Y] = ok_mode->viewPortIn[Y];
+
+                mode->pan[X]        = ok_mode->viewPortIn[X];
+                mode->pan[Y]        = ok_mode->viewPortIn[Y];
             }
         }
     }
@@ -2311,10 +2621,7 @@ Bool gpu_add_screenless_modes_to_displays(nvGpuPtr gpu)
         mode->display = display;
         mode->dummy = 1;
 
-        mode->dim[W] = 800;
-        mode->dim[H] = 600;
-        mode->pan[W] = mode->dim[W];
-        mode->pan[H] = mode->dim[H];
+        mode_set_dims_from_modeline(mode, NULL);
 
         /* Add the mode to the display */
         display->modes = mode;
@@ -2748,6 +3055,13 @@ static Bool layout_add_screen_from_server(nvLayoutPtr layout,
     if (ret == NvCtrlSuccess) {
         screen->stereo_supported = TRUE;
         screen->stereo = val;
+
+        /* XXX For now, if stereo is off, don't show configuration options
+         * until we work out interactions with composite.
+         */
+        if (val == NV_CTRL_STEREO_OFF) {
+            screen->stereo_supported = FALSE;
+        }
     } else {
         screen->stereo_supported = FALSE;
     }
@@ -2817,6 +3131,9 @@ static Bool layout_add_screen_from_server(nvLayoutPtr layout,
 
     /* Add the screen to the layout */
     layout_add_screen(layout, screen);
+
+    /* Link displays to the screen */
+    screen_link_displays(screen);
 
     /* Parse the screen's metamodes (ties displays on the gpu to the screen) */
     if (!screen->no_scanout) {

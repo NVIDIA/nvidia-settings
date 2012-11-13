@@ -197,7 +197,7 @@
 
 
 /*
- * NV_CTRL_VIDEO_RAM - returns the total amount of memory available
+ * NV_CTRL_TOTAL_GPU_MEMORY - returns the total amount of memory available
  * to the specified GPU (or the GPU driving the specified X
  * screen).  Note: if the GPU supports TurboCache(TM), the value
  * reported may exceed the amount of video memory installed on the
@@ -206,7 +206,8 @@
  * BIOS for use by the integrated GPU.
  */
 
-#define NV_CTRL_VIDEO_RAM                                       6  /* R--G */
+#define NV_CTRL_TOTAL_GPU_MEMORY                                6  /* R--G */
+#define NV_CTRL_VIDEO_RAM                NV_CTRL_TOTAL_GPU_MEMORY 
 
 
 /*
@@ -3203,7 +3204,22 @@
  */
 #define NV_CTRL_DISPLAY_RANDR_OUTPUT_ID                         391 /* R-D- */
 
-#define NV_CTRL_LAST_ATTRIBUTE NV_CTRL_DISPLAY_RANDR_OUTPUT_ID
+/*
+ * NV_CTRL_TOTAL_DEDICATED_GPU_MEMORY - Returns the total amount of dedicated
+ * GPU video memory, in MB, on the specified GPU. This excludes any TurboCache
+ * padding included in the value returned by NV_CTRL_TOTAL_GPU_MEMORY.
+ */
+#define NV_CTRL_TOTAL_DEDICATED_GPU_MEMORY                      393 /* R--G */
+
+/*
+ * NV_CTRL_USED_DEDICATED_GPU_MEMORY- Returns the amount of video memory 
+ * currently used on the graphics card in MB.
+ */
+#define NV_CTRL_USED_DEDICATED_GPU_MEMORY                       394 /* R--G */
+
+
+
+#define NV_CTRL_LAST_ATTRIBUTE NV_CTRL_USED_DEDICATED_GPU_MEMORY
 
 /**************************************************************************/
 
@@ -4235,9 +4251,25 @@
 
 #define NV_CTRL_BINARY_DATA_DISPLAYS_ENABLED_ON_XSCREEN      17  /* R--- */
 
+/*
+ * NV_CTRL_BINARY_DATA_DISPLAYS_ASSIGNED_TO_XSCREEN - Returns the list of
+ * display devices that are currently assigned the X screen target.
+ *
+ * The format of the returned data is:
+ *
+ *     4       CARD32 number of display devices
+ *     4 * n   CARD32 display device indices
+ *
+ * This attribute can only be queried through XNVCTRLQueryTargetBinaryData()
+ * using a NV_CTRL_TARGET_TYPE_X_SCREEN target.
+ */
+
+#define NV_CTRL_BINARY_DATA_DISPLAYS_ASSIGNED_TO_XSCREEN     18  /* R--- */
+
+
 
 #define NV_CTRL_BINARY_DATA_LAST_ATTRIBUTE \
-        NV_CTRL_BINARY_DATA_DISPLAYS_ENABLED_ON_XSCREEN
+        NV_CTRL_BINARY_DATA_DISPLAYS_ASSIGNED_TO_XSCREEN
 
 
 /**************************************************************************/
@@ -4428,9 +4460,17 @@
 #define NV_CTRL_STRING_OPERATION_GVI_CONFIGURE_STREAMS         4 /* RW-I */
 
 
-#define NV_CTRL_STRING_OPERATION_LAST_ATTRIBUTE \
-        NV_CTRL_STRING_OPERATION_GVI_CONFIGURE_STREAMS
+/*
+ * NV_CTRL_STRING_OPERATION_PARSE_METAMODE - Parses the given MetaMode string
+ * and returns the validated MetaMode string - possibly re-calculating various
+ * values such as ViewPortIn.  If the MetaMode matches an existing MetaMode,
+ * the details of the existing MetaMode are returned.  If the MetaMode fails to
+ * be parsed, NULL is returned.
+ */
+#define NV_CTRL_STRING_OPERATION_PARSE_METAMODE                5 /* R--- */
 
+#define NV_CTRL_STRING_OPERATION_LAST_ATTRIBUTE \
+        NV_CTRL_STRING_OPERATION_PARSE_METAMODE
 
 
 

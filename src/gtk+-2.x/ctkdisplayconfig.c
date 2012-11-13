@@ -61,20 +61,23 @@ static void display_resolution_changed(GtkWidget *widget, gpointer user_data);
 static void display_refresh_changed(GtkWidget *widget, gpointer user_data);
 
 static void display_stereo_changed(GtkWidget *widget, gpointer user_data);
+static void display_rotation_changed(GtkWidget *widget, gpointer user_data);
+static void display_reflection_changed(GtkWidget *widget, gpointer user_data);
 
 static void display_position_type_changed(GtkWidget *widget, gpointer user_data);
 static void display_position_offset_activate(GtkWidget *widget, gpointer user_data);
 static void display_position_relative_changed(GtkWidget *widget, gpointer user_data);
 
-static void display_panning_activate(GtkWidget *widget, gpointer user_data);
-static gboolean display_panning_focus_out(GtkWidget *widget, GdkEvent *event,
+static void display_viewport_in_activate(GtkWidget *widget, gpointer user_data);
+static void display_viewport_out_activate(GtkWidget *widget,
                                           gpointer user_data);
+static void display_panning_activate(GtkWidget *widget, gpointer user_data);
 
 static void setup_screen_page(CtkDisplayConfig *ctk_object);
 
 static void screen_virtual_size_activate(GtkWidget *widget, gpointer user_data);
-static gboolean screen_virtual_size_focus_out(GtkWidget *widget, GdkEvent *event,
-                                              gpointer user_data);
+static gboolean txt_focus_out(GtkWidget *widget, GdkEvent *event,
+                              gpointer user_data);
 
 static void screen_depth_changed(GtkWidget *widget, gpointer user_data);
 
@@ -188,7 +191,24 @@ static const char * __dpy_refresh_mnu_help =
 static const char * __dpy_stereo_help =
 "The Display Passive Stereo Eye drop-down allows you to select a desired "
 "stereo eye the display should output when Passive Stereo (Mode 4) is "
-"selected enabled.";
+"enabled.";
+
+static const char * __dpy_rotation_help =
+"The Display Rotation drop-down allows you to select the desired orientation "
+"for the display.";
+
+static const char * __dpy_reflection_help =
+"The Display Reflection drop-down allows you to choose the axes across which "
+"monitor contents should be reflected.";
+
+static const char * __dpy_viewport_in_help =
+"This defines the width and height in pixels of the region that should be "
+"displayed from the desktop.";
+
+static const char * __dpy_viewport_out_help =
+"This defines the width, height, and offset of the output region in raster "
+"space, into which the ViewPortIn is to be displayed (along with any "
+"transform, such as rotation, reflection, etc.)";
 
 static const char * __dpy_position_type_help =
 "The Position Type drop-down allows you to set how the selected display "
@@ -1385,6 +1405,44 @@ GtkWidget* ctk_display_config_new(NvCtrlAttributeHandle *handle,
                      "changed", G_CALLBACK(display_stereo_changed),
                      (gpointer) ctk_object);
 
+    /* Display rotation dropdown */
+    ctk_object->mnu_display_rotation = gtk_option_menu_new();
+    menu = gtk_menu_new();
+    menu_item = gtk_menu_item_new_with_label("No Rotation");
+    gtk_menu_shell_append(GTK_MENU_SHELL(menu), menu_item);
+    menu_item = gtk_menu_item_new_with_label("Rotate 90");
+    gtk_menu_shell_append(GTK_MENU_SHELL(menu), menu_item);
+    menu_item = gtk_menu_item_new_with_label("Rotate 180");
+    gtk_menu_shell_append(GTK_MENU_SHELL(menu), menu_item);
+    menu_item = gtk_menu_item_new_with_label("Rotate 270");
+    gtk_menu_shell_append(GTK_MENU_SHELL(menu), menu_item);
+    gtk_option_menu_set_menu
+        (GTK_OPTION_MENU(ctk_object->mnu_display_rotation), menu);
+    ctk_config_set_tooltip(ctk_config, ctk_object->mnu_display_rotation,
+                           __dpy_rotation_help);
+    g_signal_connect(G_OBJECT(ctk_object->mnu_display_rotation),
+                     "changed", G_CALLBACK(display_rotation_changed),
+                     (gpointer) ctk_object);
+
+    /* Display reflection dropdown */
+    ctk_object->mnu_display_reflection = gtk_option_menu_new();
+    menu = gtk_menu_new();
+    menu_item = gtk_menu_item_new_with_label("No Reflection");
+    gtk_menu_shell_append(GTK_MENU_SHELL(menu), menu_item);
+    menu_item = gtk_menu_item_new_with_label("Reflect along X");
+    gtk_menu_shell_append(GTK_MENU_SHELL(menu), menu_item);
+    menu_item = gtk_menu_item_new_with_label("Reflect along Y");
+    gtk_menu_shell_append(GTK_MENU_SHELL(menu), menu_item);
+    menu_item = gtk_menu_item_new_with_label("Reflect along XY");
+    gtk_menu_shell_append(GTK_MENU_SHELL(menu), menu_item);
+    gtk_option_menu_set_menu
+        (GTK_OPTION_MENU(ctk_object->mnu_display_reflection), menu);
+    ctk_config_set_tooltip(ctk_config, ctk_object->mnu_display_reflection,
+                           __dpy_reflection_help);
+    g_signal_connect(G_OBJECT(ctk_object->mnu_display_reflection),
+                     "changed", G_CALLBACK(display_reflection_changed),
+                     (gpointer) ctk_object);
+
     /* Display Position Type (Absolute/Relative Menu) */
     ctk_object->mnu_display_position_type = gtk_option_menu_new();
     menu = gtk_menu_new();
@@ -1426,6 +1484,28 @@ GtkWidget* ctk_display_config_new(NvCtrlAttributeHandle *handle,
                      "activate", G_CALLBACK(display_position_offset_activate),
                      (gpointer) ctk_object);
 
+    /* Display ViewPort In */
+    ctk_object->txt_display_viewport_in = gtk_entry_new();
+    ctk_config_set_tooltip(ctk_config, ctk_object->txt_display_viewport_in,
+                           __dpy_viewport_in_help);
+    g_signal_connect(G_OBJECT(ctk_object->txt_display_viewport_in), "activate",
+                     G_CALLBACK(display_viewport_in_activate),
+                     (gpointer) ctk_object);
+    g_signal_connect(G_OBJECT(ctk_object->txt_display_viewport_in), "focus-out-event",
+                     G_CALLBACK(txt_focus_out),
+                     (gpointer) ctk_object);
+
+    /* Display ViewPort Out */
+    ctk_object->txt_display_viewport_out = gtk_entry_new();
+    ctk_config_set_tooltip(ctk_config, ctk_object->txt_display_viewport_out,
+                           __dpy_viewport_out_help);
+    g_signal_connect(G_OBJECT(ctk_object->txt_display_viewport_out), "activate",
+                     G_CALLBACK(display_viewport_out_activate),
+                     (gpointer) ctk_object);
+    g_signal_connect(G_OBJECT(ctk_object->txt_display_viewport_out), "focus-out-event",
+                     G_CALLBACK(txt_focus_out),
+                     (gpointer) ctk_object);
+
     /* Display Panning */
     ctk_object->txt_display_panning = gtk_entry_new();
     ctk_config_set_tooltip(ctk_config, ctk_object->txt_display_panning,
@@ -1434,7 +1514,7 @@ GtkWidget* ctk_display_config_new(NvCtrlAttributeHandle *handle,
                      G_CALLBACK(display_panning_activate),
                      (gpointer) ctk_object);
     g_signal_connect(G_OBJECT(ctk_object->txt_display_panning), "focus-out-event",
-                     G_CALLBACK(display_panning_focus_out),
+                     G_CALLBACK(txt_focus_out),
                      (gpointer) ctk_object);
 
     /* X screen virtual size */
@@ -1446,7 +1526,7 @@ GtkWidget* ctk_display_config_new(NvCtrlAttributeHandle *handle,
                      (gpointer) ctk_object);
     g_signal_connect(G_OBJECT(ctk_object->txt_screen_virtual_size),
                      "focus-out-event",
-                     G_CALLBACK(screen_virtual_size_focus_out),
+                     G_CALLBACK(txt_focus_out),
                      (gpointer) ctk_object);
 
     /* X screen depth */
@@ -1698,6 +1778,18 @@ GtkWidget* ctk_display_config_new(NvCtrlAttributeHandle *handle,
         gtk_box_pack_start(GTK_BOX(ctk_object), vbox, FALSE, FALSE, 0);
         ctk_object->display_page = vbox;
 
+        /* Info on how to drag X screens around */
+        hbox = gtk_hbox_new(FALSE, 5);
+        gtk_box_pack_start(GTK_BOX(vbox), hbox, FALSE, FALSE, 5);
+
+        label = gtk_label_new("");
+        labels = g_slist_append(labels, label);
+        gtk_box_pack_start(GTK_BOX(hbox), label, FALSE, TRUE, 5);
+
+        label = gtk_label_new("(CTRL-Click + Drag to move X screens)");
+        gtk_box_pack_start(GTK_BOX(hbox), label, FALSE, TRUE, 5);
+        ctk_object->box_screen_drag_info_display = hbox;
+
         /* Display Configuration */
         label = gtk_label_new("Configuration:");
         labels = g_slist_append(labels, label);
@@ -1733,11 +1825,6 @@ GtkWidget* ctk_display_config_new(NvCtrlAttributeHandle *handle,
                            FALSE, FALSE, 0);
         ctk_object->box_display_modename = hbox;
 
-        /*
-         * XXX Disabled until we have support for identifying and handling
-         * Stereo vs Composite incompatibility.
-         */
-        #if 0
         /* Display passive stereo eye dropdown */
         label = gtk_label_new("Stereo Eye:");
         labels = g_slist_append(labels, label);
@@ -1748,9 +1835,28 @@ GtkWidget* ctk_display_config_new(NvCtrlAttributeHandle *handle,
         gtk_box_pack_start(GTK_BOX(hbox), ctk_object->mnu_display_stereo,
                            TRUE, TRUE, 0);
         ctk_object->box_display_stereo = hbox;
-        #else
-        ctk_object->box_display_stereo = NULL;
-        #endif
+
+        /* Display rotation & reflection dropdowns */
+        {
+            GtkWidget *hbox2 = gtk_hbox_new(TRUE, 0);
+
+            label = gtk_label_new("Orientation:");
+            labels = g_slist_append(labels, label);
+
+            hbox = gtk_hbox_new(FALSE, 5);
+            gtk_box_pack_start(GTK_BOX(hbox2), hbox, FALSE, TRUE, 0);
+            gtk_box_pack_start(GTK_BOX(hbox), label, FALSE, TRUE, 5);
+            gtk_box_pack_start(GTK_BOX(hbox), ctk_object->mnu_display_rotation,
+                               TRUE, TRUE, 0);
+
+            hbox = gtk_hbox_new(FALSE, 5);
+            gtk_box_pack_end(GTK_BOX(hbox2), hbox, FALSE, TRUE, 0);
+            gtk_box_pack_start(GTK_BOX(hbox), ctk_object->mnu_display_reflection,
+                               TRUE, TRUE, 0);
+
+            gtk_box_pack_start(GTK_BOX(vbox), hbox2, FALSE, TRUE, 0);
+            ctk_object->box_display_orientation = hbox2;
+        }
 
         /* Display positioning */
         label = gtk_label_new("Position:");
@@ -1769,6 +1875,30 @@ GtkWidget* ctk_display_config_new(NvCtrlAttributeHandle *handle,
                            ctk_object->txt_display_position_offset,
                            TRUE, TRUE, 0);
         ctk_object->box_display_position = hbox;
+
+        /* Display ViewPort In */
+        label = gtk_label_new("ViewPort In:");
+        labels = g_slist_append(labels, label);
+
+        hbox = gtk_hbox_new(FALSE, 5);
+        gtk_box_pack_start(GTK_BOX(vbox), hbox, FALSE, FALSE, 0);
+        gtk_box_pack_start(GTK_BOX(hbox), label, FALSE, TRUE, 5);
+        gtk_box_pack_start(GTK_BOX(hbox),
+                           ctk_object->txt_display_viewport_in,
+                           TRUE, TRUE, 0);
+        ctk_object->box_display_viewport_in = hbox;
+
+        /* Display ViewPort Out */
+        label = gtk_label_new("ViewPort Out:");
+        labels = g_slist_append(labels, label);
+
+        hbox = gtk_hbox_new(FALSE, 5);
+        gtk_box_pack_start(GTK_BOX(vbox), hbox, FALSE, FALSE, 0);
+        gtk_box_pack_start(GTK_BOX(hbox), label, FALSE, TRUE, 5);
+        gtk_box_pack_start(GTK_BOX(hbox),
+                           ctk_object->txt_display_viewport_out,
+                           TRUE, TRUE, 0);
+        ctk_object->box_display_viewport_out = hbox;
 
         /* Display panning text entry */
         label = gtk_label_new("Panning:");
@@ -1819,7 +1949,7 @@ GtkWidget* ctk_display_config_new(NvCtrlAttributeHandle *handle,
 
         label = gtk_label_new("(CTRL-Click + Drag to move X screens)");
         gtk_box_pack_start(GTK_BOX(hbox), label, FALSE, TRUE, 5);
-        ctk_object->box_screen_drag_info = hbox;
+        ctk_object->box_screen_drag_info_screen = hbox;
 
         /* X screen virtual size */
         label = gtk_label_new("Virtual Size:");
@@ -1843,11 +1973,6 @@ GtkWidget* ctk_display_config_new(NvCtrlAttributeHandle *handle,
                            TRUE, TRUE, 0);
         ctk_object->box_screen_depth = hbox;
 
-        /*
-         * XXX Disabled until we have support for identifying and handling
-         * Stereo vs Composite incompatibility.
-         */
-        #if 0
         /* X screen stereo dropdown */
         label = gtk_label_new("Stereo Mode:");
         labels = g_slist_append(labels, label);
@@ -1858,9 +1983,6 @@ GtkWidget* ctk_display_config_new(NvCtrlAttributeHandle *handle,
         gtk_box_pack_start(GTK_BOX(hbox), ctk_object->mnu_screen_stereo,
                            TRUE, TRUE, 0);
         ctk_object->box_screen_stereo = hbox;
-        #else
-        ctk_object->box_screen_stereo = NULL;
-        #endif
 
         /* X screen positioning */
         label = gtk_label_new("Position:");
@@ -2007,9 +2129,9 @@ GtkTextBuffer *ctk_display_config_create_help(GtkTextTagTable *table,
     GtkTextIter i;
     GtkTextBuffer *b;
 
-    
+
     b = gtk_text_buffer_new(table);
-    
+
     gtk_text_buffer_get_iter_at_offset(b, &i, 0);
 
     ctk_help_title(b, &i, "Display Configuration Help");
@@ -2051,12 +2173,23 @@ GtkTextBuffer *ctk_display_config_create_help(GtkTextTagTable *table,
     ctk_help_para(b, &i, "The Mode name is the name of the modeline that is "
                   "currently chosen for the selected display device.  "
                   "This is only available when advanced view is enabled.");
+    ctk_help_heading(b, &i, "Stereo Eye");
+    ctk_help_para(b, &i, __dpy_stereo_help);
+    ctk_help_heading(b, &i, "Orientation");
+    ctk_help_para(b, &i, "The Orientation drop-downs control how the desktop "
+                  "image is rotated and/or reflected.  %s  %s  Note that "
+                  "reflection is applied before rotation.",
+                  __dpy_rotation_help, __dpy_reflection_help);
     ctk_help_heading(b, &i, "Position Type");
     ctk_help_para(b, &i, __dpy_position_type_help);
     ctk_help_heading(b, &i, "Position Relative");
     ctk_help_para(b, &i, __dpy_position_relative_help);
     ctk_help_heading(b, &i, "Position Offset");
     ctk_help_para(b, &i, __dpy_position_offset_help);
+    ctk_help_heading(b, &i, "ViewPort In");
+    ctk_help_para(b, &i, __dpy_viewport_in_help);
+    ctk_help_heading(b, &i, "ViewPort Out");
+    ctk_help_para(b, &i, __dpy_viewport_out_help);
     ctk_help_heading(b, &i, "Panning");
     ctk_help_para(b, &i, "%s  This is only available when advanced "
                   "view is enabled.", __dpy_panning_help);
@@ -2075,6 +2208,8 @@ GtkTextBuffer *ctk_display_config_create_help(GtkTextTagTable *table,
                   __screen_virtual_size_help);
     ctk_help_heading(b, &i, "Color Depth");
     ctk_help_para(b, &i, __screen_depth_help);
+    ctk_help_heading(b, &i, "Stereo Mode");
+    ctk_help_para(b, &i, __screen_stereo_help);
     ctk_help_heading(b, &i, "Position Type");
     ctk_help_para(b, &i, __screen_position_type_help);
     ctk_help_heading(b, &i, "Position Relative");
@@ -2090,8 +2225,8 @@ GtkTextBuffer *ctk_display_config_create_help(GtkTextTagTable *table,
     ctk_help_heading(b, &i, "Delete Metamode");
     ctk_help_para(b, &i, "%s This is only available when advanced view "
                   "is enabled.", __screen_metamode_delete_button_help);
-    
-    
+
+
     ctk_help_para(b, &i, "");
     ctk_help_heading(b, &i, "Buttons");
     ctk_help_heading(b, &i, "Apply");
@@ -2329,6 +2464,7 @@ static void setup_selected_item_dropdown(CtkDisplayConfig *ctk_object)
     }
 
     gtk_widget_set_sensitive(ctk_object->mnu_selected_item, True);
+    gtk_widget_show(ctk_object->mnu_selected_item);
 
     menu = generate_selected_item_dropdown(ctk_object, display, screen,
                                            &cur_idx);
@@ -2403,8 +2539,6 @@ static void setup_display_config(CtkDisplayConfig *ctk_object)
         (CTK_DISPLAY_LAYOUT(ctk_object->obj_layout));
     nvScreenPtr screen = NULL;
     int num_screens_on_gpu = 0;
-
-    if (!display) return;
 
     /* Don't allow disabling the last display device */
     if (ctk_object->layout->num_screens == 1 &&
@@ -2724,7 +2858,7 @@ static void setup_display_resolution_dropdown(CtkDisplayConfig *ctk_object)
 
 
     /* Get selection information */
-    if (!display || !display->screen || !display->cur_mode) {
+    if (!display->screen || !display->cur_mode) {
         gtk_widget_hide(ctk_object->box_display_resolution);
         return;
     }
@@ -2865,8 +2999,8 @@ static void setup_display_resolution_dropdown(CtkDisplayConfig *ctk_object)
 
 /** setup_display_stereo_dropdown() **********************************
  *
- * Configures the screen stereo mode dropdown to reflect the
- * stereo mode for the currently selected screen.
+ * Configures the display stereo mode dropdown to reflect the
+ * stereo eye for the currently selected display.
  *
  **/
 
@@ -2879,10 +3013,9 @@ static void setup_display_stereo_dropdown(CtkDisplayConfig *ctk_object)
     nvModePtr mode;
     int idx;
 
-    if (!ctk_object->box_display_stereo) return;
-
-    if (!display || !display->cur_mode || !screen ||
-        !screen->stereo_supported || (screen->stereo != 4)) {
+    if (!display->cur_mode || !screen ||
+        !screen->stereo_supported ||
+        (screen->stereo != NV_CTRL_STEREO_PASSIVE_EYE_PER_DPY)) {
         gtk_widget_hide(ctk_object->box_display_stereo);
         return;
     }
@@ -2919,6 +3052,209 @@ static void setup_display_stereo_dropdown(CtkDisplayConfig *ctk_object)
     gtk_widget_show(ctk_object->box_display_stereo);
 
 } /* setup_display_stereo_dropdown() */
+
+
+
+/** setup_display_rotation_dropdown() ********************************
+ *
+ * Configures the display rotation dropdown to reflect the current
+ * rotation configuration.
+ *
+ **/
+
+static void setup_display_rotation_dropdown(CtkDisplayConfig *ctk_object)
+{
+    nvDisplayPtr display = ctk_display_layout_get_selected_display
+        (CTK_DISPLAY_LAYOUT(ctk_object->obj_layout));
+    int idx;
+
+    if (!display->screen) {
+        gtk_widget_hide(ctk_object->box_display_orientation);
+        return;
+    }
+    gtk_widget_show(ctk_object->box_display_orientation);
+
+    if (!display->cur_mode || !display->cur_mode->modeline) {
+        gtk_widget_set_sensitive(ctk_object->box_display_orientation, FALSE);
+        return;
+    }
+    gtk_widget_set_sensitive(ctk_object->box_display_orientation, TRUE);
+
+    /* Set the selected rotation */
+    g_signal_handlers_block_by_func
+        (G_OBJECT(ctk_object->mnu_display_rotation),
+         G_CALLBACK(display_rotation_changed), (gpointer) ctk_object);
+
+    switch (display->cur_mode->rotation) {
+    default:
+        /* Oops */
+    case ROTATION_0:
+        idx = 0;
+        break;
+    case ROTATION_90:
+        idx = 1;
+        break;
+    case ROTATION_180:
+        idx = 2;
+        break;
+    case ROTATION_270:
+        idx = 3;
+        break;
+    }
+
+    gtk_option_menu_set_history
+        (GTK_OPTION_MENU(ctk_object->mnu_display_rotation), idx);
+
+    g_signal_handlers_unblock_by_func
+        (G_OBJECT(ctk_object->mnu_display_rotation),
+         G_CALLBACK(display_rotation_changed), (gpointer) ctk_object);
+
+} /* setup_display_rotation_dropdown() */
+
+
+
+/** setup_display_reflection_dropdown() ******************************
+ *
+ * Configures the display reflection dropdown to reflect the current
+ * reflection configuration.
+ *
+ **/
+
+static void setup_display_reflection_dropdown(CtkDisplayConfig *ctk_object)
+{
+    nvDisplayPtr display = ctk_display_layout_get_selected_display
+        (CTK_DISPLAY_LAYOUT(ctk_object->obj_layout));
+    int idx;
+
+    if (!display->screen) {
+        gtk_widget_hide(ctk_object->box_display_orientation);
+        return;
+    }
+    gtk_widget_show(ctk_object->box_display_orientation);
+
+    if (!display->cur_mode || !display->cur_mode->modeline) {
+        gtk_widget_set_sensitive(ctk_object->box_display_orientation, FALSE);
+        return;
+    }
+    gtk_widget_set_sensitive(ctk_object->box_display_orientation, TRUE);
+
+    /* Set the selected reflection */
+    g_signal_handlers_block_by_func
+        (G_OBJECT(ctk_object->mnu_display_reflection),
+         G_CALLBACK(display_reflection_changed), (gpointer) ctk_object);
+
+    switch (display->cur_mode->reflection) {
+    default:
+        /* Oops */
+    case REFLECTION_NONE:
+        idx = 0;
+        break;
+    case REFLECTION_X:
+        idx = 1;
+        break;
+    case REFLECTION_Y:
+        idx = 2;
+        break;
+    case REFLECTION_XY:
+        idx = 3;
+        break;
+    }
+
+    gtk_option_menu_set_history
+        (GTK_OPTION_MENU(ctk_object->mnu_display_reflection), idx);
+
+    g_signal_handlers_unblock_by_func
+        (G_OBJECT(ctk_object->mnu_display_reflection),
+         G_CALLBACK(display_reflection_changed), (gpointer) ctk_object);
+
+} /* setup_display_reflection_dropdown() */
+
+
+
+/** setup_display_viewport_in() **************************************
+ *
+ * Sets up the display viewport in text entry to reflect the currently
+ * selected display device/mode.
+ *
+ **/
+
+static void setup_display_viewport_in(CtkDisplayConfig *ctk_object)
+{
+    char *tmp_str;
+    nvDisplayPtr display = ctk_display_layout_get_selected_display
+        (CTK_DISPLAY_LAYOUT(ctk_object->obj_layout));
+    nvModePtr mode;
+
+    if (!display || !display->screen || !ctk_object->advanced_mode) {
+        gtk_widget_hide(ctk_object->box_display_viewport_in);
+        return;
+    }
+    gtk_widget_show(ctk_object->box_display_viewport_in);
+
+    if (!display->cur_mode || !display->cur_mode->modeline) {
+        gtk_widget_set_sensitive(ctk_object->box_display_viewport_in, FALSE);
+        return;
+    }
+    gtk_widget_set_sensitive(ctk_object->box_display_viewport_in, TRUE);
+
+    /* Update the text */
+    mode = display->cur_mode;
+
+    tmp_str = g_strdup_printf("%dx%d",
+                              mode->viewPortIn[W],
+                              mode->viewPortIn[H]);
+
+    gtk_entry_set_text(GTK_ENTRY(ctk_object->txt_display_viewport_in),
+                       tmp_str);
+
+    g_free(tmp_str);
+
+} /* setup_display_viewport_in() */
+
+
+
+/** setup_display_viewport_out() *************************************
+ *
+ * Sets up the display viewport out text entry to reflect the currently
+ * selected display device/mode.
+ *
+ **/
+
+static void setup_display_viewport_out(CtkDisplayConfig *ctk_object)
+{
+    char *tmp_str;
+    nvDisplayPtr display = ctk_display_layout_get_selected_display
+        (CTK_DISPLAY_LAYOUT(ctk_object->obj_layout));
+    nvModePtr mode;
+
+    if (!display || !display->screen || !ctk_object->advanced_mode) {
+        gtk_widget_hide(ctk_object->box_display_viewport_out);
+        return;
+    }
+    gtk_widget_show(ctk_object->box_display_viewport_out);
+
+    if (!display->cur_mode || !display->cur_mode->modeline) {
+        gtk_widget_set_sensitive(ctk_object->box_display_viewport_out, FALSE);
+        return;
+    }
+    gtk_widget_set_sensitive(ctk_object->box_display_viewport_out, TRUE);
+
+
+    /* Update the text */
+    mode = display->cur_mode;
+
+    tmp_str = g_strdup_printf("%dx%d%+d%+d",
+                              mode->viewPortOut[W],
+                              mode->viewPortOut[H],
+                              mode->viewPortOut[X],
+                              mode->viewPortOut[Y]);
+
+    gtk_entry_set_text(GTK_ENTRY(ctk_object->txt_display_viewport_out),
+                       tmp_str);
+
+    g_free(tmp_str);
+
+} /* setup_display_viewport_out() */
 
 
 
@@ -3101,8 +3437,8 @@ static void setup_display_position_offset(CtkDisplayConfig *ctk_object)
     mode = display->cur_mode;
 
     tmp_str = g_strdup_printf("%+d%+d",
-                              mode->dim[X] - mode->metamode->edim[X],
-                              mode->dim[Y] - mode->metamode->edim[Y]);
+                              mode->viewPortIn[X] - mode->metamode->edim[X],
+                              mode->viewPortIn[Y] - mode->metamode->edim[Y]);
 
     gtk_entry_set_text(GTK_ENTRY(ctk_object->txt_display_position_offset),
                        tmp_str);
@@ -3164,13 +3500,13 @@ static void setup_primary_display(CtkDisplayConfig *ctk_object)
 {
     nvDisplayPtr display = ctk_display_layout_get_selected_display
         (CTK_DISPLAY_LAYOUT(ctk_object->obj_layout));
-    
+
     /* Hide the checkbox if this screen only has one display */
-    if (!display || !display->screen || display->screen->num_displays <= 1) {
+    if (!display->screen || display->screen->num_displays <= 1) {
         gtk_widget_hide(ctk_object->chk_primary_display);
         return;
     }
-    
+
     gtk_widget_show(ctk_object->chk_primary_display);
 
     g_signal_handlers_block_by_func
@@ -3263,10 +3599,20 @@ static void setup_display_page(CtkDisplayConfig *ctk_object)
     /* Enable display widgets and setup widget information */
     gtk_widget_set_sensitive(ctk_object->display_page, True);
 
+    if (display->gpu->layout->num_screens > 1) {
+        gtk_widget_show(ctk_object->box_screen_drag_info_display);
+    } else {
+        gtk_widget_hide(ctk_object->box_screen_drag_info_display);
+    }
+
     setup_display_config(ctk_object);
     setup_display_modename(ctk_object);
     setup_display_resolution_dropdown(ctk_object);
     setup_display_stereo_dropdown(ctk_object);
+    setup_display_rotation_dropdown(ctk_object);
+    setup_display_reflection_dropdown(ctk_object);
+    setup_display_viewport_in(ctk_object);
+    setup_display_viewport_out(ctk_object);
     setup_display_position(ctk_object);
     setup_display_panning(ctk_object);
     setup_primary_display(ctk_object);
@@ -3761,9 +4107,9 @@ static void setup_screen_page(CtkDisplayConfig *ctk_object)
     gtk_widget_set_sensitive(ctk_object->screen_page, True);
 
     if (screen->layout->num_screens > 1) {
-        gtk_widget_show(ctk_object->box_screen_drag_info);
+        gtk_widget_show(ctk_object->box_screen_drag_info_screen);
     } else {
-        gtk_widget_hide(ctk_object->box_screen_drag_info);
+        gtk_widget_hide(ctk_object->box_screen_drag_info_screen);
     }
 
     setup_screen_virtual_size(ctk_object);
@@ -4239,17 +4585,12 @@ void layout_modified_callback(nvLayoutPtr layout, void *data)
     /* Sync the information displayed by the GUI to match the settings
      * of the currently selected display device.
      */
-
-    /* Setup position */
+    setup_display_viewport_in(ctk_object);
+    setup_display_viewport_out(ctk_object);
     setup_display_position(ctk_object);
-
-
-    /* Setup panning */
     setup_display_panning(ctk_object);
 
     setup_screen_position(ctk_object);
-
-    /* Setup screen virtual size */
     setup_screen_virtual_size(ctk_object);
 
     /* If the positioning of the X screen changes, we cannot apply */
@@ -4335,10 +4676,8 @@ static void do_enable_display_for_xscreen(CtkDisplayConfig *ctk_object,
     mode->metamode = metamode;
 
     /* XXX Hopefully display->modelines is 'nvidia-auto-select' */
-    mode->dim[W] = display->modelines->data.hdisplay;
-    mode->dim[H] = display->modelines->data.vdisplay;
-    mode->pan[W] = mode->dim[W];
-    mode->pan[H] = mode->dim[H];
+    mode_set_dims_from_modeline(mode, display->modelines);
+
     mode->position_type = CONF_ADJ_ABSOLUTE;
 
 
@@ -4373,14 +4712,14 @@ static void do_enable_display_for_xscreen(CtkDisplayConfig *ctk_object,
     if (rightmost) {
         screen->position_type = CONF_ADJ_RIGHTOF;
         screen->relative_to = rightmost;
-        screen->dim[X] = mode->dim[X] = rightmost->dim[X];
-        screen->dim[Y] = mode->dim[Y] = rightmost->dim[Y];
+        screen->dim[X] = mode->viewPortIn[X] = rightmost->dim[X];
+        screen->dim[Y] = mode->viewPortIn[Y] = rightmost->dim[Y];
 
     } else {
         screen->position_type = CONF_ADJ_ABSOLUTE;
         screen->relative_to = NULL;
-        screen->dim[X] = mode->dim[X];
-        screen->dim[Y] = mode->dim[Y];
+        screen->dim[X] = mode->viewPortIn[X];
+        screen->dim[Y] = mode->viewPortIn[Y];
     }
 
 
@@ -4529,8 +4868,8 @@ static void do_enable_display_for_twinview(CtkDisplayConfig *ctk_object,
         for (other = screen->displays; other; other = other->next_in_screen) {
             for (mode = other->modes; mode; mode = mode->next) {
                 if (!rightmost ||
-                    ((mode->dim[X] + mode->dim[W]) >
-                     (rightmost->dim[X] + rightmost->dim[W]))) {
+                    ((mode->viewPortIn[X] + mode->viewPortIn[W]) >
+                     (rightmost->viewPortIn[X] + rightmost->viewPortIn[W]))) {
                     rightmost = mode;
                 }
             }
@@ -4552,17 +4891,17 @@ static void do_enable_display_for_twinview(CtkDisplayConfig *ctk_object,
         if (rightmost) {
             mode->position_type = CONF_ADJ_RIGHTOF;
             mode->relative_to = rightmost->display;
-            mode->dim[X] = rightmost->display->cur_mode->dim[X];
-            mode->dim[Y] = rightmost->display->cur_mode->dim[Y];
-            mode->pan[X] = mode->dim[X];
-            mode->pan[Y] = mode->dim[Y];
+            mode->viewPortIn[X] = rightmost->display->cur_mode->viewPortIn[X];
+            mode->viewPortIn[Y] = rightmost->display->cur_mode->viewPortIn[Y];
+            mode->pan[X] = mode->viewPortIn[X];
+            mode->pan[Y] = mode->viewPortIn[Y];
         } else {
             mode->position_type = CONF_ADJ_ABSOLUTE;
             mode->relative_to = NULL;
-            mode->dim[X] = metamode->dim[X] + metamode->dim[W];
-            mode->dim[Y] = metamode->dim[Y];
-            mode->pan[X] = mode->dim[X];
-            mode->pan[Y] = mode->dim[Y];
+            mode->viewPortIn[X] = metamode->dim[X] + metamode->dim[W];
+            mode->viewPortIn[Y] = metamode->dim[Y];
+            mode->pan[X] = mode->viewPortIn[X];
+            mode->pan[Y] = mode->viewPortIn[Y];
         }
 
 
@@ -4806,17 +5145,17 @@ static void do_configure_display_for_twinview(CtkDisplayConfig *ctk_object,
             if (metamode == use_screen->cur_metamode) {
                 display->cur_mode = mode;
             }
-            
+
             /* Duplicate position information of the last mode */
             if (last_mode) {
-                mode->dim[X] = last_mode->dim[X];
-                mode->dim[Y] = last_mode->dim[Y];
+                mode->viewPortIn[X] = last_mode->viewPortIn[X];
+                mode->viewPortIn[Y] = last_mode->viewPortIn[Y];
                 mode->pan[X] = last_mode->pan[X];
                 mode->pan[Y] = last_mode->pan[Y];
                 mode->position_type = last_mode->position_type;
                 mode->relative_to = last_mode->relative_to;
             }
-            
+
             /* Add the mode at the end of display's mode list */
             xconfigAddListItem((GenericListPtr *)(&display->modes),
                                (GenericListPtr)mode);
@@ -5172,17 +5511,12 @@ static void display_resolution_changed(GtkWidget *widget, gpointer user_data)
          display->cur_mode, modeline);
 
 
-    /* Regenerate the refresh menu */
+    /* Update the UI */
     setup_display_refresh_dropdown(ctk_object);
-
-
-    /* Sync the display position */
+    setup_display_viewport_in(ctk_object);
+    setup_display_viewport_out(ctk_object);
     setup_display_position(ctk_object);
-
-
-    /* Sync the panning domain */
     setup_display_panning(ctk_object);
-
 
     user_changed_attributes(ctk_object);
 
@@ -5225,7 +5559,104 @@ static void display_stereo_changed(GtkWidget *widget, gpointer user_data)
         }
     }
 
+    user_changed_attributes(ctk_object);
+
 } /* display_stereo_changed() */
+
+
+
+/** display_rotation_changed() ***************************************
+ *
+ * Called when user selects a new rotation orientation.
+ *
+ **/
+static void display_rotation_changed(GtkWidget *widget, gpointer user_data)
+{
+    CtkDisplayConfig *ctk_object = CTK_DISPLAY_CONFIG(user_data);
+    nvDisplayPtr display;
+    gint idx;
+    Rotation rotation;
+
+
+    /* Update the current mode on the selected display */
+    display = ctk_display_layout_get_selected_display
+        (CTK_DISPLAY_LAYOUT(ctk_object->obj_layout));
+
+    if (!display ||
+        !display->cur_mode ||
+        !display->cur_mode->modeline) {
+        return;
+    }
+
+    idx = gtk_option_menu_get_history(GTK_OPTION_MENU(widget));
+    switch (idx) {
+    case 1:
+        rotation = ROTATION_90;
+        break;
+    case 2:
+        rotation = ROTATION_180;
+        break;
+    case 3:
+        rotation = ROTATION_270;
+        break;
+    default:
+    case 0:
+        rotation = ROTATION_0;
+        break;
+    }
+
+    ctk_display_layout_set_display_rotation
+        (CTK_DISPLAY_LAYOUT(ctk_object->obj_layout),
+         display, rotation);
+
+} /* display_rotation_changed() */
+
+
+
+/** display_reflection_changed() *************************************
+ *
+ * Called when user selectes a new reflection axis.
+ *
+ **/
+static void display_reflection_changed(GtkWidget *widget, gpointer user_data)
+{
+    CtkDisplayConfig *ctk_object = CTK_DISPLAY_CONFIG(user_data);
+    nvDisplayPtr display;
+    gint idx;
+    Reflection reflection;
+
+    /* Update the current mode on the selected display */
+    display = ctk_display_layout_get_selected_display
+        (CTK_DISPLAY_LAYOUT(ctk_object->obj_layout));
+
+    if (!display ||
+        !display->cur_mode ||
+        !display->cur_mode->modeline) {
+        return;
+    }
+
+    idx = gtk_option_menu_get_history(GTK_OPTION_MENU(widget));
+    switch (idx) {
+    case 1:
+        reflection = REFLECTION_X;
+        break;
+    case 2:
+        reflection = REFLECTION_Y;
+        break;
+    case 3:
+        reflection = REFLECTION_XY;
+        break;
+    default:
+    case 0:
+        reflection = REFLECTION_NONE;
+        break;
+    }
+
+    ctk_display_layout_set_display_reflection
+        (CTK_DISPLAY_LAYOUT(ctk_object->obj_layout),
+         display, reflection);
+
+} /* display_reflection_changed() */
 
 
 
@@ -5266,13 +5697,13 @@ static void display_position_type_changed(GtkWidget *widget,
 
         relative_to =
             ctk_object->display_position_table[relative_to_idx];
-        
+
         /* Update the layout */
         ctk_display_layout_set_display_position
             (CTK_DISPLAY_LAYOUT(ctk_object->obj_layout),
              display, position_type, relative_to,
-             display->cur_mode->dim[X],
-             display->cur_mode->dim[Y]);
+             display->cur_mode->viewPortIn[X],
+             display->cur_mode->viewPortIn[Y]);
     }
 
 
@@ -5387,6 +5818,79 @@ static void display_position_offset_activate(GtkWidget *widget,
 
 
 
+/** display_viewport_in_activate() ***********************************
+ *
+ * Called when user modifies the display viewport in text entry.
+ *
+ **/
+
+static void display_viewport_in_activate(GtkWidget *widget, gpointer user_data)
+{
+    CtkDisplayConfig *ctk_object = CTK_DISPLAY_CONFIG(user_data);
+    const gchar *str = gtk_entry_get_text(GTK_ENTRY(widget));
+    int w, h;
+    nvDisplayPtr display = ctk_display_layout_get_selected_display
+        (CTK_DISPLAY_LAYOUT(ctk_object->obj_layout));
+
+
+    if (!display || !display->cur_mode) {
+        return;
+    }
+
+    str = parse_read_integer_pair(str, 'x', &w, &h);
+    if (!str) {
+        /* Reset the mode's viewport in */
+        setup_display_viewport_in(ctk_object);
+        return;
+    }
+
+    ctk_display_layout_set_mode_viewport_in
+        (CTK_DISPLAY_LAYOUT(ctk_object->obj_layout), display->cur_mode, w, h);
+
+} /* display_viewport_in_activate() */
+
+
+
+/** display_viewport_out_activate() **********************************
+ *
+ * Called when user modifies the display viewport out text entry.
+ *
+ **/
+
+static void display_viewport_out_activate(GtkWidget *widget, gpointer user_data)
+{
+    CtkDisplayConfig *ctk_object = CTK_DISPLAY_CONFIG(user_data);
+    const gchar *str = gtk_entry_get_text(GTK_ENTRY(widget));
+    int w, h, x, y;
+    nvDisplayPtr display = ctk_display_layout_get_selected_display
+        (CTK_DISPLAY_LAYOUT(ctk_object->obj_layout));
+
+
+    if (!display || !display->cur_mode) {
+        return;
+    }
+
+    str = parse_read_integer_pair(str, 'x', &w, &h);
+    if (!str) {
+        /* Reset the mode's viewport out */
+        setup_display_viewport_out(ctk_object);
+        return;
+    }
+    str = parse_read_integer_pair(str, 0, &x, &y);
+    if (!str) {
+        /* Reset the mode's viewport out */
+        setup_display_viewport_out(ctk_object);
+        return;
+    }
+
+    ctk_display_layout_set_mode_viewport_out
+        (CTK_DISPLAY_LAYOUT(ctk_object->obj_layout), display->cur_mode,
+         x, y, w, h);
+
+} /* display_viewport_out_activate() */
+
+
+
 /** display_panning_activate() ***************************************
  *
  * Called when user modifies the display position text entry.
@@ -5405,7 +5909,7 @@ static void display_panning_activate(GtkWidget *widget, gpointer user_data)
     if (!display) {
         return;
     }
-    
+
     str = parse_read_integer_pair(str, 'x', &x, &y);
     if (!str) {
         /* Reset the display panning */
@@ -5417,23 +5921,6 @@ static void display_panning_activate(GtkWidget *widget, gpointer user_data)
         (CTK_DISPLAY_LAYOUT(ctk_object->obj_layout), display, x, y);
 
 } /* display_panning_activate() */
-
-
-
-/** display_panning_focus_out() **************************************
- *
- * Called when user leaves the panning entry
- *
- **/
-
-static gboolean display_panning_focus_out(GtkWidget *widget, GdkEvent *event,
-                                          gpointer user_data)
-{
-    display_panning_activate(widget, user_data);
-
-    return FALSE;
-
-} /* display_panning_focus_out() */
 
 
 
@@ -5472,21 +5959,30 @@ static void screen_virtual_size_activate(GtkWidget *widget, gpointer user_data)
 
 
 
-/** screen_virtual_size_focus_out() **********************************
+/** txt_focus_out() **************************************************
  *
- * Called when user leaves the screen virtual size entry
+ * Called when user leaves a txt entry
  *
  **/
 
-static gboolean screen_virtual_size_focus_out(GtkWidget *widget,
-                                              GdkEvent *event,
-                                              gpointer user_data)
+static gboolean txt_focus_out(GtkWidget *widget, GdkEvent *event,
+                              gpointer user_data)
 {
-    screen_virtual_size_activate(widget, user_data);
+    CtkDisplayConfig *ctk_object = CTK_DISPLAY_CONFIG(user_data);
+
+    if (widget == ctk_object->txt_display_viewport_in) {
+        display_viewport_in_activate(widget, user_data);
+    } else if (widget == ctk_object->txt_display_viewport_out) {
+        display_viewport_out_activate(widget, user_data);
+    } else if (widget == ctk_object->txt_display_panning) {
+        display_panning_activate(widget, user_data);
+    } else if (widget == ctk_object->txt_screen_virtual_size) {
+        screen_virtual_size_activate(widget, user_data);
+    }
 
     return FALSE;
 
-} /* screen_virtual_size_focus_out() */
+} /* txt_focus_out() */
 
 
 
@@ -6128,39 +6624,30 @@ static Bool switch_to_current_metamode(CtkDisplayConfig *ctk_object,
 
 
 
-/** find_metamode_string() *******************************************
+/** find_metamode_string_by_id() *************************************
  *
- * Finds "metamode_str" in the list of strings in metamode_strs.
- * If metamode_str is found, a pointer to the full metamode string
- * is returned (including tokens, if any.)
- *
- * if "metamode_str" is not found in "metamode_strs", NULL is
- * returned.
+ * Looks in the list of strings (metamode_strs) for a metamode with
+ * the given id (defined by string 'id_str') and returns the pointer
+ * to it, or NULL if not found.
  *
  **/
 
-static char *find_metamode_string(char *metamode_str, char *metamode_strs)
+static char *find_metamode_string_by_id(char *metamode_strs, int match_id)
 {
     char *m;
-    const char *str;
 
     for (m = metamode_strs; m && strlen(m); m += strlen(m) +1) {
-
-        /* Skip tokens if any */
-        str = strstr(m, "::");
+        char *str = strstr(m, "id=");
         if (str) {
-            str = parse_skip_whitespace(str +2);
-        } else {
-            str = m;
+            int id = atoi(str+3);
+            if (id && (id == match_id)) {
+                return m;
+            }
         }
-
-        /* See if metamode strings match */
-        if (!strcmp(str, metamode_str)) return m;
     }
 
     return NULL;
-
-} /* find_metamode_string() */
+}
 
 
 
@@ -6184,7 +6671,7 @@ static void preprocess_metamodes(nvScreenPtr screen, char *metamode_strs)
 {
     nvMetaModePtr metamode;
     ReturnStatus ret;
-    char *str = NULL;
+    char *str;
     char *tokens;
     int metamode_idx;
 
@@ -6197,33 +6684,35 @@ static void preprocess_metamodes(nvScreenPtr screen, char *metamode_strs)
         free(metamode->string);
         metamode->string = screen_get_metamode_str(screen, metamode_idx, 0);
         if (!metamode->string) continue;
-        
-        /* Look for the metamode string in metamode_strs */
-        str = find_metamode_string(metamode->string, metamode_strs);
-        if (str) {
 
-            /* Grab the metamode id from the tokens */
-            tokens = strdup(str);
-            if (tokens) {
-                char *tmp = strstr(tokens, "::");
-                if (tmp) {
-                    *tmp = '\0';
-                    parse_token_value_pairs(tokens, apply_metamode_token,
-                                            metamode);
-                }
-                free(tokens);
-            }
+        /* See if the metamode already exists and if so, get its ID */
+        ret = NvCtrlStringOperation(screen->handle, 0,
+                                    NV_CTRL_STRING_OPERATION_PARSE_METAMODE,
+                                    metamode->string, &str);
+        if (ret == NvCtrlSuccess) {
+            char *tmp;
 
-            /* The metamode was found, white out the metamode string
-             * so it does not get deleted and continue.
+            /* XXX Later, we'll ask X to parse this metamode on updates
+             * and already have an ID so we'll know already which metamodes
+             * need to be deleted/added/moved.
              */
-            while (*str) {
-                *str = ' ';
-                str++;
+
+            tmp = strstr(str, "id=");
+            if (tmp) {
+                int id = atoi(tmp+3);
+                tmp = find_metamode_string_by_id(metamode_strs, id);
+                if (tmp) {
+                    metamode->id = id;
+                    while (*tmp) {
+                        *tmp = ' ';
+                        tmp++;
+                    }
+                    /* Process the next metamode */
+                    continue;
+                }
             }
-            continue;
         }
-        
+
         /* The metamode was not found, so add it to the X screen's list */
         tokens = NULL;
         ret = NvCtrlStringOperation(screen->handle, 0,
@@ -6374,12 +6863,12 @@ static int update_screen_metamodes(CtkDisplayConfig *ctk_object,
      *  - Delete any unused mode
      *  - Move metamodes to the correct location
      **/
-  
+
     /* Get the list of the current metamodes */
 
     ret = NvCtrlGetBinaryAttribute(screen->handle,
                                    0,
-                                   NV_CTRL_BINARY_DATA_METAMODES,
+                                   NV_CTRL_BINARY_DATA_METAMODES_VERSION_2,
                                    (unsigned char **)&metamode_strs,
                                    &len);
     if (ret != NvCtrlSuccess) goto done;
@@ -6387,7 +6876,7 @@ static int update_screen_metamodes(CtkDisplayConfig *ctk_object,
     /* Get the current metamode for the screen */
 
     ret = NvCtrlGetStringAttribute(screen->handle,
-                                   NV_CTRL_STRING_CURRENT_METAMODE,
+                                   NV_CTRL_STRING_CURRENT_METAMODE_VERSION_2,
                                    &cur_metamode_str);
     if (ret != NvCtrlSuccess) goto done;
 
@@ -6402,7 +6891,7 @@ static int update_screen_metamodes(CtkDisplayConfig *ctk_object,
     /* Preprocess the new metamodes list */
 
     preprocess_metamodes(screen, metamode_strs);
-    
+
     /* If we need to switch metamodes, do so now */
 
     if (strcmp(screen->cur_metamode->string, metamode_str)) {
@@ -6413,7 +6902,7 @@ static int update_screen_metamodes(CtkDisplayConfig *ctk_object,
                                          "Switched to MetaMode %dx%d.",
                                          screen->cur_metamode->edim[W],
                                          screen->cur_metamode->edim[H]);
-            
+
             nv_info_msg(TAB, "Using   > %s", screen->cur_metamode->string);
 
             clear_apply = 1;

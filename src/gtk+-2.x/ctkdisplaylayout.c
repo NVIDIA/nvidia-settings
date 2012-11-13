@@ -409,7 +409,7 @@ static Bool get_modify_info(CtkDisplayLayout *ctk_object)
         if (ctk_object->modify_info.modify_panning) {
             info->target_dim = info->display->cur_mode->pan;
         } else {
-            info->target_dim = info->display->cur_mode->dim;
+            info->target_dim = info->display->cur_mode->viewPortIn;
         }
         info->gpu = info->display->gpu;
     } else {
@@ -559,10 +559,10 @@ static int get_point_relative_position(int *dim, int x, int y)
 /* Offset a single mode */
 static void offset_mode(nvModePtr mode, int x, int y)
 {
-    mode->dim[X] += x;
-    mode->dim[Y] += y;
-    mode->pan[X] = mode->dim[X];
-    mode->pan[Y] = mode->dim[Y];
+    mode->viewPortIn[X] += x;
+    mode->viewPortIn[Y] += y;
+    mode->pan[X] = mode->viewPortIn[X];
+    mode->pan[Y] = mode->viewPortIn[Y];
 }
 
 /* Offset a display by offsetting the current mode */
@@ -720,8 +720,8 @@ static void resolve_displays_in_screen(nvScreenPtr screen,
         for (mode_idx = first_idx; mode_idx <= last_idx; mode_idx++) {
             if (resolve_display(display, mode_idx, pos)) {
                 nvModePtr mode = get_mode(display, mode_idx);
-                mode->dim[X] = pos[X];
-                mode->dim[Y] = pos[Y];
+                mode->viewPortIn[X] = pos[X];
+                mode->viewPortIn[Y] = pos[Y];
                 mode->pan[X] = pos[X];
                 mode->pan[Y] = pos[Y];
             }
@@ -910,7 +910,7 @@ static void calc_metamode(nvScreenPtr screen, nvMetaModePtr metamode)
             if (mode->metamode == metamode) break;
         }
         if (!mode) continue;
-        
+
         if (init) {
             dim[X] = mode->pan[X];
             dim[Y] = mode->pan[Y];
@@ -918,11 +918,11 @@ static void calc_metamode(nvScreenPtr screen, nvMetaModePtr metamode)
             dim[H] = mode->pan[Y] +mode->pan[H];
             init = 0;
         } else {
-            dim[X] = MIN(dim[X], mode->dim[X]);
-            dim[Y] = MIN(dim[Y], mode->dim[Y]);
-            dim[W] = MAX(dim[W], mode->dim[X] +mode->pan[W]);
-            dim[H] = MAX(dim[H], mode->dim[Y] +mode->pan[H]);
-        }        
+            dim[X] = MIN(dim[X], mode->viewPortIn[X]);
+            dim[Y] = MIN(dim[Y], mode->viewPortIn[Y]);
+            dim[W] = MAX(dim[W], mode->viewPortIn[X] +mode->pan[W]);
+            dim[H] = MAX(dim[H], mode->viewPortIn[Y] +mode->pan[H]);
+        }
 
         /* Don't include NULL modes in the effective dimension calculation */
         if (!mode->modeline) continue;
@@ -934,10 +934,10 @@ static void calc_metamode(nvScreenPtr screen, nvMetaModePtr metamode)
             edim[H] = mode->pan[Y] +mode->pan[H];
             einit = 0;
         } else {
-            edim[X] = MIN(edim[X], mode->dim[X]);
-            edim[Y] = MIN(edim[Y], mode->dim[Y]);
-            edim[W] = MAX(edim[W], mode->dim[X] +mode->pan[W]);
-            edim[H] = MAX(edim[H], mode->dim[Y] +mode->pan[H]);
+            edim[X] = MIN(edim[X], mode->viewPortIn[X]);
+            edim[Y] = MIN(edim[Y], mode->viewPortIn[Y]);
+            edim[W] = MAX(edim[W], mode->viewPortIn[X] +mode->pan[W]);
+            edim[H] = MAX(edim[H], mode->viewPortIn[Y] +mode->pan[H]);
         }
     }
 
@@ -1068,14 +1068,14 @@ static void calc_layout(nvLayoutPtr layout)
              display = display->next_on_gpu) {
             if (display->screen) continue;
 
-            display->cur_mode->dim[X] = x;
+            display->cur_mode->viewPortIn[X] = x;
             display->cur_mode->pan[X] = x;
-            display->cur_mode->dim[Y] = y;
+            display->cur_mode->viewPortIn[Y] = y;
             display->cur_mode->pan[Y] = y;
 
-            x += display->cur_mode->dim[W];
-            dim[W] += display->cur_mode->dim[W];
-            dim[H] = MAX(dim[H], display->cur_mode->dim[H]);
+            x += display->cur_mode->viewPortIn[W];
+            dim[W] += display->cur_mode->viewPortIn[W];
+            dim[H] = MAX(dim[H], display->cur_mode->viewPortIn[H]);
         }
     }
 
@@ -1503,7 +1503,7 @@ static void snap_move(CtkDisplayLayout *ctk_object)
             /* Snap to other display's dimensions */
             snap_dim_to_dim(info->dst_dim,
                             info->src_dim,
-                            other->cur_mode->dim,
+                            other->cur_mode->viewPortIn,
                             ctk_object->snap_strength, bv, bh);
         }
 
@@ -1542,7 +1542,7 @@ static void snap_move(CtkDisplayLayout *ctk_object)
          */
         if (!bh &&
             info->display &&
-            info->display->cur_mode->dim[Y] == info->screen->dim[Y]) {
+            info->display->cur_mode->viewPortIn[Y] == info->screen->dim[Y]) {
             bv = NULL;
         }
 
@@ -1563,7 +1563,7 @@ static void snap_move(CtkDisplayLayout *ctk_object)
          */
         if (!bv &&
             info->display &&
-            info->display->cur_mode->dim[X] == info->screen->dim[X]) {
+            info->display->cur_mode->viewPortIn[X] == info->screen->dim[X]) {
             bh = NULL;
         }
 
@@ -1626,34 +1626,34 @@ static void snap_pan(CtkDisplayLayout *ctk_object)
 
 
     if (info->display) {
+        int *cur_mode_dim = info->display->cur_mode->viewPortIn;
+
         /* Snap to multiples of the display's dimensions */
         bh = &(info->best_snap_h);
         bv = &(info->best_snap_v);
 
-        dist = info->src_dim[W] % info->display->cur_mode->dim[W];
+        dist = info->src_dim[W] % cur_mode_dim[W];
         if (dist < *bh) {
-            info->dst_dim[W] = info->display->cur_mode->dim[W] *
-                (int)(info->src_dim[W] / info->display->cur_mode->dim[W]);
+            info->dst_dim[W] = cur_mode_dim[W] *
+                (int)(info->src_dim[W] / cur_mode_dim[W]);
             *bh = dist;
         }
-        dist = info->display->cur_mode->dim[W] -
-            (info->src_dim[W] % info->display->cur_mode->dim[W]);
+        dist = cur_mode_dim[W] - (info->src_dim[W] % cur_mode_dim[W]);
         if (dist < *bh) {
-            info->dst_dim[W] = info->display->cur_mode->dim[W] *
-                (1 + (int)(info->src_dim[W] / info->display->cur_mode->dim[W]));
+            info->dst_dim[W] = cur_mode_dim[W] *
+                (1 + (int)(info->src_dim[W] / cur_mode_dim[W]));
             *bh = dist;
         }
-        dist = abs(info->src_dim[H] % info->display->cur_mode->dim[H]);
+        dist = abs(info->src_dim[H] % cur_mode_dim[H]);
         if (dist < *bv) {
-            info->dst_dim[H] = info->display->cur_mode->dim[H] *
-                (int)(info->src_dim[H] / info->display->cur_mode->dim[H]);
+            info->dst_dim[H] = cur_mode_dim[H] *
+                (int)(info->src_dim[H] / cur_mode_dim[H]);
             *bv = dist;
         }
-        dist = info->display->cur_mode->dim[H] -
-            (info->src_dim[H] % info->display->cur_mode->dim[H]);
+        dist = cur_mode_dim[H] - (info->src_dim[H] % cur_mode_dim[H]);
         if (dist < *bv) {
-            info->dst_dim[H] = info->display->cur_mode->dim[H] *
-                (1 + (int)(info->src_dim[H] / info->display->cur_mode->dim[H]));
+            info->dst_dim[H] = cur_mode_dim[H] *
+                (1 + (int)(info->src_dim[H] / cur_mode_dim[H]));
             *bv = dist;
         }
     }
@@ -1729,11 +1729,11 @@ static void snap_pan(CtkDisplayLayout *ctk_object)
                          info->src_dim,
                          other->cur_mode->pan,
                          bv, bh);
-        
+
         /* Snap to other display dimensions */
         snap_side_to_dim(info->dst_dim,
                          info->src_dim,
-                         other->cur_mode->dim,
+                         other->cur_mode->viewPortIn,
                          bv, bh);
     }
 
@@ -1842,7 +1842,7 @@ static int move_selected(CtkDisplayLayout *ctk_object, int x, int y, int snap)
             ctk_object->scale;
 
         if (info->display) {
-            dim = info->display->cur_mode->relative_to->cur_mode->dim;
+            dim = info->display->cur_mode->relative_to->cur_mode->viewPortIn;
         } else {
             dim = get_screen_dim(info->screen->relative_to, 0);
         }
@@ -1978,8 +1978,8 @@ static int move_selected(CtkDisplayLayout *ctk_object, int x, int y, int snap)
 
         } else {
             /* Move the display to its destination */
-            info->display->cur_mode->dim[X] = info->dst_dim[X];
-            info->display->cur_mode->dim[Y] = info->dst_dim[Y];
+            info->display->cur_mode->viewPortIn[X] = info->dst_dim[X];
+            info->display->cur_mode->viewPortIn[Y] = info->dst_dim[Y];
             info->display->cur_mode->pan[X] = info->dst_dim[X];
             info->display->cur_mode->pan[Y] = info->dst_dim[Y];
 
@@ -2092,7 +2092,7 @@ static int pan_selected(CtkDisplayLayout *ctk_object, int x, int y, int snap)
 
     /* Don't allow the panning domain to get too small */
     if (info->display) {
-        dim = info->display->cur_mode->dim;
+        dim = info->display->cur_mode->viewPortIn;
         if (info->modify_dim[W] < dim[W]) {
             info->modify_dim[W] = dim[W];
         }
@@ -2158,8 +2158,8 @@ static int pan_selected(CtkDisplayLayout *ctk_object, int x, int y, int snap)
 
     /* Panning domain can never be smaller then the display viewport */
     if (info->display) {
-        dim = info->display->cur_mode->dim;
-        if (info->dst_dim[W] < dim[W]) {   
+        dim = info->display->cur_mode->viewPortIn;
+        if (info->dst_dim[W] < dim[W]) {
             info->dst_dim[W] = dim[W];
         }
         if (info->dst_dim[H] < dim[H]) {
@@ -2359,7 +2359,7 @@ static void select_default_item(CtkDisplayLayout *ctk_object)
     int best_dst = -1; // Distance squared to element.
     int dst;
 
-    
+
     for (i = 0; i < ctk_object->Zcount; i++) {
 
         if (ctk_object->Zorder[i].type == ZNODE_TYPE_DISPLAY) {
@@ -2368,13 +2368,13 @@ static void select_default_item(CtkDisplayLayout *ctk_object)
             /* Ignore disabled displays */
             if (!display->cur_mode) continue;
 
-            dst = DIST_SQR(display->cur_mode->dim);
+            dst = DIST_SQR(display->cur_mode->viewPortIn);
             if (best_dst < 0 || dst < best_dst) {
                 best_dst = dst;
                 sel_display = display;
                 sel_screen = NULL;
             }
-            
+
         } else if (ctk_object->Zorder[i].type == ZNODE_TYPE_SCREEN) {
             screen = ctk_object->Zorder[i].u.screen;
 
@@ -3048,21 +3048,22 @@ static void draw_display(CtkDisplayLayout *ctk_object,
 
     /* Draw viewport */
     color_idx = base_color_idx + ((mode->modeline) ? BG_SCR_ON : BG_SCR_OFF);
-    draw_rect(ctk_object, mode->dim, &(ctk_object->color_palettes[color_idx]),
+    draw_rect(ctk_object, mode->viewPortIn, &(ctk_object->color_palettes[color_idx]),
               1);
-    draw_rect(ctk_object, mode->dim, &(ctk_object->fg_color), 0);
+    draw_rect(ctk_object, mode->viewPortIn, &(ctk_object->fg_color), 0);
 
 
     /* Draw text information */
     if (!mode->display->screen) {
         tmp_str = g_strdup("(Disabled)");
     } else if (mode->modeline) {
-        tmp_str = g_strdup_printf("%dx%d", mode->dim[W], mode->dim[H]);
+        tmp_str = g_strdup_printf("%dx%d", mode->viewPortIn[W],
+                                  mode->viewPortIn[H]);
     } else {
         tmp_str = g_strdup("(Off)");
     }
     draw_rect_strs(ctk_object,
-                   mode->dim,
+                   mode->viewPortIn,
                    &(ctk_object->fg_color),
                    display->logName,
                    tmp_str);
@@ -3165,7 +3166,7 @@ static void draw_layout(CtkDisplayLayout *ctk_object)
         int *dim;
 
         if (ctk_object->selected_display) {
-            dim = ctk_object->selected_display->cur_mode->dim;
+            dim = ctk_object->selected_display->cur_mode->viewPortIn;
         } else {
             dim = get_screen_dim(ctk_object->selected_screen, 0);
         }
@@ -3217,7 +3218,7 @@ static void draw_layout(CtkDisplayLayout *ctk_object)
                 // with display devices that are "off"
                 gdk_color_parse("#0000FF", &bg_color);
                 draw_rect(ctk_object,
-                          ctk_object->selected_screen->cur_metamode->dim,
+                          ctk_object->selected_screen->cur_metamode->viewPortIn,
                           &(bg_color), 0);
 
                 // Shows the current screen dimensions used for relative
@@ -3363,6 +3364,9 @@ void ctk_display_layout_set_layout(CtkDisplayLayout *ctk_object,
 {
     /* Setup for the new layout */
     ctk_object->layout = layout;
+
+    sync_layout(layout);
+    sync_scaling(ctk_object);
     zorder_layout(ctk_object);
     select_default_item(ctk_object);
 
@@ -3462,7 +3466,6 @@ void ctk_display_layout_set_screen_metamode(CtkDisplayLayout *ctk_object,
     set_screen_metamode(ctk_object->layout, screen, new_metamode_idx);
     recenter_layout(ctk_object->layout);
     sync_scaling(ctk_object);
-    ctk_object->modify_info.modify_dirty = 1;
 
     /* Update the layout */
     ctk_display_layout_update(ctk_object);
@@ -3511,24 +3514,13 @@ void ctk_display_layout_add_screen_metamode(CtkDisplayLayout *ctk_object,
         mode = (nvModePtr)calloc(1, sizeof(nvMode));
         if (!mode) goto fail;
 
+        /* Duplicate the currently selected mode */
+        if (display->cur_mode) {
+            memcpy(mode, display->cur_mode, sizeof(*mode));
+        }
+
         /* Link the mode to the metamode */
         mode->metamode = metamode;
-
-        /* Duplicate the currently selected mode */
-        mode->display = display;
-        if (display->cur_mode) {
-            mode->modeline = display->cur_mode->modeline;
-            mode->dim[X] = display->cur_mode->dim[X];
-            mode->dim[Y] = display->cur_mode->dim[Y];
-            mode->dim[W] = display->cur_mode->dim[W];
-            mode->dim[H] = display->cur_mode->dim[H];
-            mode->pan[X] = display->cur_mode->pan[X];
-            mode->pan[Y] = display->cur_mode->pan[Y];
-            mode->pan[W] = display->cur_mode->pan[W];
-            mode->pan[H] = display->cur_mode->pan[H];
-            mode->position_type = display->cur_mode->position_type;
-            mode->relative_to = display->cur_mode->relative_to;
-        }
 
         /* Add the mode after the currently selected mode */
         mode->next = display->cur_mode->next;
@@ -3718,32 +3710,10 @@ void ctk_display_layout_set_mode_modeline(CtkDisplayLayout *ctk_object,
 
     /* Setup the mode's dimensions based on the modeline */
     if (modeline) {
-        mode->dim[W] = modeline->data.hdisplay;
-        mode->dim[H] = modeline->data.vdisplay;
-
-        if (mode->pan[W] < modeline->data.hdisplay) {
-            mode->pan[W] = modeline->data.hdisplay;
-        }
-        if (mode->pan[H] < modeline->data.vdisplay) {
-            mode->pan[H] = modeline->data.vdisplay;
-        }
-
-        /* If the old modeline did not have panning dimensions */
-        if (!old_modeline ||
-            (mode->pan[W] == old_modeline->data.hdisplay)) {
-            mode->pan[W] = modeline->data.hdisplay;
-        }
-        if (!old_modeline ||
-            (mode->pan[H] == old_modeline->data.vdisplay)) {
-            mode->pan[H] = modeline->data.vdisplay;
-        }
-
+        mode_set_dims_from_modeline(mode, modeline);
     } else if (mode->display) {
         /* Display is being turned off, set the default width/height */
-        mode->dim[W] = mode->display->modelines->data.hdisplay;
-        mode->dim[H] = mode->display->modelines->data.vdisplay;
-        mode->pan[W] = mode->display->modelines->data.hdisplay;
-        mode->pan[H] = mode->display->modelines->data.vdisplay;
+        mode_set_dims_from_modeline(mode, mode->display->modelines);
     }
 
     /* In advanced mode, changing the resolution a display uses for a
@@ -3760,6 +3730,137 @@ void ctk_display_layout_set_mode_modeline(CtkDisplayLayout *ctk_object,
     ctk_display_layout_update(ctk_object);
 
 } /* ctk_display_layout_set_display_modeline() */
+
+
+/*!
+ * Sets the ViewPort In for the given mode.
+ *
+ * If a modification occurs, this function will call the modified_callback
+ * handler registered, if any.
+ *
+ * \param[in]  ctk_object  The Display Layout object
+ * \param[in]  mode        The mode to be modified
+ * \param[in]  w           The width of the ViewPort In to set
+ * \param[in]  h           The height of the ViewPort In to set
+ */
+void ctk_display_layout_set_mode_viewport_in(CtkDisplayLayout *ctk_object,
+                                             nvModePtr mode,
+                                             int w, int h)
+{
+    Bool modified = TRUE;
+
+    if (!mode || !mode->modeline) {
+        return;
+    }
+
+    if (w < 1) {
+        w = 1;
+    }
+    if (h < 1) {
+        h = 1;
+    }
+
+    mode->viewPortIn[W] = w;
+    mode->viewPortIn[H] = h;
+
+    /* Clamp the panning domain to the new viewport dimensions */
+    if (mode->pan[W] < mode->viewPortIn[W]) {
+        mode->pan[W] = mode->viewPortIn[W];
+    }
+    if (mode->pan[H] < mode->viewPortIn[H]) {
+        mode->pan[H] = mode->viewPortIn[H];
+    }
+
+    if (modified) {
+        /* Update the layout */
+        ctk_display_layout_update(ctk_object);
+
+        /* Notify the modification */
+        if (ctk_object->modified_callback) {
+            ctk_object->modified_callback(ctk_object->layout,
+                                          ctk_object->modified_callback_data);
+        }
+    }
+}
+
+
+/*!
+ * Sets the ViewPort Out for the given mode.
+ *
+ * If a modification occurs, this function will call the modified_callback
+ * handler registered, if any.
+ *
+ * \param[in]  ctk_object  The Display Layout object
+ * \param[in]  mode        The mode to be modified
+ * \param[in]  x           The X offset of the ViewPort Out to set
+ * \param[in]  y           The Y offset of the ViewPort Out to set
+ * \param[in]  w           The width of the ViewPort Out to set
+ * \param[in]  h           The height of the ViewPort Out to set
+ */
+void ctk_display_layout_set_mode_viewport_out(CtkDisplayLayout *ctk_object,
+                                              nvModePtr mode,
+                                              int x, int y, int w, int h)
+{
+    Bool modified = TRUE;
+    int extra;
+
+    if (!mode || !mode->modeline) {
+        return;
+    }
+
+    /* Clamp ViewPortOut to raster size.  If the ViewPortOut extends past the
+     * raster size, reduce the ViewPortOut offset before reducing the
+     * dimensions
+     */
+    extra = (x + w) - mode->modeline->data.hdisplay;
+    if (extra > 0) {
+        if (extra > x) {
+            w = mode->modeline->data.hdisplay;
+            x = 0;
+        } else {
+            x -= extra;
+        }
+    }
+
+    extra = (y + h) - mode->modeline->data.vdisplay;
+    if (extra > 0) {
+        if (extra > y) {
+            h = mode->modeline->data.vdisplay;
+            y = 0;
+        } else {
+            y -= extra;
+        }
+    }
+
+    if (w < 1) {
+        w = 1;
+    }
+    if (h < 1) {
+        h = 1;
+    }
+    if (x < 0) {
+        x = 0;
+    }
+    if (y < 0) {
+        y = 0;
+    }
+
+    mode->viewPortOut[X] = x;
+    mode->viewPortOut[Y] = y;
+    mode->viewPortOut[W] = w;
+    mode->viewPortOut[H] = h;
+
+    if (modified) {
+        /* Update the layout */
+        ctk_display_layout_update(ctk_object);
+
+        /* Notify the modification */
+        if (ctk_object->modified_callback) {
+            ctk_object->modified_callback(ctk_object->layout,
+                                          ctk_object->modified_callback_data);
+        }
+    }
+}
 
 
 
@@ -3838,15 +3939,15 @@ void ctk_display_layout_set_display_position(CtkDisplayLayout *ctk_object,
         /* Do the move by offsetting */
         ctk_object->modify_info.modify_dirty = 1;
         modified = move_selected(ctk_object,
-                                 x - display->cur_mode->dim[X],
-                                 y - display->cur_mode->dim[Y],
+                                 x - display->cur_mode->viewPortIn[X],
+                                 y - display->cur_mode->viewPortIn[Y],
                                  0);
 
         /* Report back result of move */
         if (ctk_object->modified_callback &&
             (modified ||
-             x != display->cur_mode->dim[X] ||
-             y != display->cur_mode->dim[Y])) {
+             x != display->cur_mode->viewPortIn[X] ||
+             y != display->cur_mode->viewPortIn[Y])) {
             ctk_object->modified_callback
                 (ctk_object->layout, ctk_object->modified_callback_data);
         }
@@ -3901,6 +4002,112 @@ void ctk_display_layout_set_display_panning(CtkDisplayLayout *ctk_object,
     queue_layout_redraw(ctk_object);
 
 } /* ctk_display_layout_set_display_panning() */
+
+
+
+/*!
+ * Sets the rotation orientation for the display.
+ *
+ * In basic mode, this function will make all modes on the display have the
+ * same rotation.  In advanced mode, only the current mode will have its
+ * rotation orientation modified.
+ *
+ * If a modification occurs, this function will call the modified_callback
+ * handler registered, if any.
+ *
+ * \param[in]  ctk_object  The Display Layout object
+ * \param[in]  display     The display who's modes are to be modified
+ * \param[in]  rotation    The rotation to set
+ */
+void ctk_display_layout_set_display_rotation(CtkDisplayLayout *ctk_object,
+                                             nvDisplayPtr display,
+                                             Rotation rotation)
+{
+    Bool modified;
+
+
+    if (!display->cur_mode ||
+        !display->cur_mode->modeline) {
+        return;
+    }
+
+    if (ctk_object->advanced_mode) {
+        /* In advanced mode, only set the rotation of the current mode */
+        modified = mode_set_rotation(display->cur_mode, rotation);
+    } else {
+        /* In basic mode, make all the modes have the same rotation */
+        modified = display_set_modes_rotation(display, rotation);
+    }
+
+    if (modified) {
+        /* Update the layout */
+        ctk_display_layout_update(ctk_object);
+
+        /* Notify the modification */
+        if (ctk_object->modified_callback) {
+            ctk_object->modified_callback(ctk_object->layout,
+                                          ctk_object->modified_callback_data);
+        }
+    }
+}
+
+
+
+/*!
+ * Sets the reflection orientation for the display.
+ *
+ * In basic mode, this function will make all modes on the display have the
+ * same reflection.  In advanced mode, only the current mode will have its
+ * reflection orientation modified.
+ *
+ * If a modification occurs, this function will call the modified_callback
+ * handler registered, if any.
+ *
+ * \param[in]  ctk_object  The Display Layout object
+ * \param[in]  display     The display who's modes are to be modified
+ * \param[in]  reflection  The reflection to set
+ */
+void ctk_display_layout_set_display_reflection(CtkDisplayLayout *ctk_object,
+                                               nvDisplayPtr display,
+                                               Reflection reflection)
+{
+    Bool modified;
+
+
+    if (!display->cur_mode ||
+        !display->cur_mode->modeline) {
+        return;
+    }
+
+    if (ctk_object->advanced_mode) {
+        /* In advanced mode, only set the reflection of the current mode */
+        if (display->cur_mode->reflection != reflection) {
+            modified = TRUE;
+        }
+        display->cur_mode->reflection = reflection;
+    } else {
+        nvModePtr mode;
+
+        /* In basic mode, make all the modes have the same reflection */
+        for (mode = display->modes; mode; mode = mode->next) {
+            if (mode->reflection != reflection) {
+                mode->reflection = reflection;
+                modified = TRUE;
+            }
+        }
+    }
+
+    if (modified) {
+        /* Update the layout */
+        ctk_display_layout_update(ctk_object);
+
+        /* Notify the modification */
+        if (ctk_object->modified_callback) {
+            ctk_object->modified_callback(ctk_object->layout,
+                                          ctk_object->modified_callback_data);
+        }
+    }
+}
 
 
 

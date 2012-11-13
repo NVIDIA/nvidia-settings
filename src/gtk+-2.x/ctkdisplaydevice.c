@@ -257,6 +257,7 @@ GtkWidget* ctk_display_device_new(NvCtrlAttributeHandle *handle,
     ctk_object->ctk_event_gpu = ctk_event_gpu;
     ctk_object->ctk_config = ctk_config;
     ctk_object->name = g_strdup(name);
+    ctk_object->color_correction_available = FALSE;
 
     gtk_box_set_spacing(GTK_BOX(object), 10);
 
@@ -528,6 +529,10 @@ GtkTextBuffer *ctk_display_device_create_help(GtkTextTagTable *table,
 
     add_image_sliders_help
         (CTK_IMAGE_SLIDERS(ctk_object->image_sliders), b, &i);
+
+    if (ctk_object->color_correction_available) {
+        ctk_color_correction_tab_help(b, &i, "X Server Color Correction", TRUE);
+    }
 
     td = gtk_tooltips_data_get(GTK_WIDGET(ctk_object->reset_button));
     ctk_help_reset_hardware_defaults(b, &i, td->tip_text);
@@ -930,6 +935,7 @@ static void add_color_correction_tab(CtkDisplayDevice *ctk_object,
     if (ctk_color_correction == NULL) {
         return;
     }
+    ctk_object->color_correction_available = TRUE;
 
     box = gtk_hbox_new(FALSE, 0);
     gtk_container_set_border_width(GTK_CONTAINER(box), FRAME_PADDING);

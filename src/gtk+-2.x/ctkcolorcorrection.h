@@ -82,6 +82,9 @@ GtkWidget*  ctk_color_correction_new       (NvCtrlAttributeHandle *,
 GtkTextBuffer *ctk_color_correction_create_help(GtkTextTagTable *,
                                                 const gchar *title,
                                                 gboolean randr);
+void ctk_color_correction_tab_help(GtkTextBuffer *b, GtkTextIter *i,
+                                   const gchar *title,
+                                   gboolean randr);
 G_END_DECLS
 
 #endif /* __CTK_COLOR_CORRECTION_H__ */

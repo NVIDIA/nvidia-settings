@@ -100,6 +100,8 @@ typedef struct _CtkDisplayConfig
     GtkWidget *mnu_display_config_twinview;
 
     /* Display - Settings */
+    GtkWidget *box_screen_drag_info_display;
+
     GtkWidget *box_display_resolution;
     GtkWidget *mnu_display_resolution;
     nvModeLinePtr *resolution_table;
@@ -114,6 +116,19 @@ typedef struct _CtkDisplayConfig
 
     GtkWidget *box_display_stereo;
     GtkWidget *mnu_display_stereo;
+
+    GtkWidget *box_display_orientation;
+    GtkWidget *mnu_display_rotation;
+    GtkWidget *mnu_display_reflection;
+
+    GtkWidget *box_display_viewport;
+
+    GtkWidget *box_display_viewport_in;
+    GtkWidget *txt_display_viewport_in;
+
+    GtkWidget *box_display_viewport_out;
+    GtkWidget *txt_display_viewport_out;
+
 
     GtkWidget *box_display_position;
     GtkWidget *mnu_display_position_type;     /* Absolute, Right of... */
@@ -130,7 +145,7 @@ typedef struct _CtkDisplayConfig
     GtkWidget *screen_page;
 
     /* X Screen - Settings */
-    GtkWidget *box_screen_drag_info;
+    GtkWidget *box_screen_drag_info_screen;
 
     GtkWidget *box_screen_virtual_size;
     GtkWidget *txt_screen_virtual_size;
