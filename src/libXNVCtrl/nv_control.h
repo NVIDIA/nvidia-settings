@@ -66,7 +66,7 @@
 #define NV_CONTROL_NAME "NV-CONTROL"
 
 #define NV_CONTROL_MAJOR 1
-#define NV_CONTROL_MINOR 28
+#define NV_CONTROL_MINOR 29
 
 #define X_nvCtrlQueryExtension                      0
 #define X_nvCtrlIsNv                                1
@@ -101,8 +101,9 @@
 #define X_nvCtrlQueryStringAttributePermissions          30
 #define X_nvCtrlQueryBinaryDataAttributePermissions      31
 #define X_nvCtrlQueryStringOperationAttributePermissions 32
+#define X_nvCtrlBindWarpPixmapName                       33
 
-#define X_nvCtrlLastRequest (X_nvCtrlQueryStringOperationAttributePermissions + 1)
+#define X_nvCtrlLastRequest (X_nvCtrlBindWarpPixmapName + 1)
 
 
 /* Define 32 bit floats */
@@ -531,6 +532,18 @@ typedef struct {
     CARD32 padl7 B32;
 } xnvCtrlStringOperationReply;
 #define sz_xnvCtrlStringOperationReply 32
+
+typedef struct {
+    CARD8 reqType;
+    CARD8 nvReqType;
+    CARD16 length B16;
+    CARD32 screen B32;
+    CARD32 pixmap B32;
+    CARD32 num_bytes B32; /* Length of string */
+    CARD32 dataType B32;
+    CARD32 vertexCount B32;
+} xnvCtrlBindWarpPixmapNameReq;
+#define sz_xnvCtrlBindWarpPixmapNameReq 24
 
 typedef struct {
     union {

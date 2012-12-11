@@ -406,21 +406,13 @@
 
 
 /*
- * NV_CTRL_FRAMELOCK_MASTER - get/set which display device to use
- * as the frame lock master for the entire sync group.  Note that only
- * one node in the sync group should be configured as the master.
- *
- * This attribute can only be queried through XNVCTRLQueryTargetAttribute()
- * using a NV_CTRL_TARGET_TYPE_GPU target.  This attribute cannot be
- * queried using a NV_CTRL_TARGET_TYPE_X_SCREEN.
+ * NV_CTRL_FRAMELOCK_MASTER is deprecated; NV_CTRL_FRAMELOCK_DISPLAY_CONFIG
+ * should be used instead.
  */
 
 #define NV_CTRL_FRAMELOCK_MASTER                                22 /* RW-G */
-
-/* These are deprecated.  NV_CTRL_FRAMELOCK_MASTER now takes and
-   returns a display mask as value. */
-#define NV_CTRL_FRAMELOCK_MASTER_FALSE                          0
-#define NV_CTRL_FRAMELOCK_MASTER_TRUE                           1
+#define NV_CTRL_FRAMELOCK_MASTER_FALSE                          0 // deprecated
+#define NV_CTRL_FRAMELOCK_MASTER_TRUE                           1 // deprecated
 
 
 /*
@@ -520,7 +512,7 @@
 /*
  * NV_CTRL_FRAMELOCK_SYNC - enable/disable the syncing of display
  * devices to the frame lock pulse as specified by previous calls to
- * NV_CTRL_FRAMELOCK_MASTER and NV_CTRL_FRAMELOCK_SLAVES.
+ * NV_CTRL_FRAMELOCK_DISPLAY_CONFIG.
  *
  * This attribute can only be queried through XNVCTRLQueryTargetAttribute()
  * using a NV_CTRL_TARGET_TYPE_GPU target.  This attribute cannot be
@@ -1708,24 +1700,15 @@
 #define NV_CTRL_ASSOCIATED_DISPLAY_DEVICES                       231 /* RW- */
 
 /*
- * NV_CTRL_FRAMELOCK_SLAVES - get/set whether the display device(s)
- * given should listen or ignore the master's sync signal.
- *
- * This attribute can only be queried through XNVCTRLQueryTargetAttribute()
- * using a NV_CTRL_TARGET_TYPE_GPU target.  This attribute cannot be
- * queried using a NV_CTRL_TARGET_TYPE_X_SCREEN.
+ * NV_CTRL_FRAMELOCK_SLAVES is deprecated; NV_CTRL_FRAMELOCK_DISPLAY_CONFIG
+ * should be used instead.
  */
 
 #define NV_CTRL_FRAMELOCK_SLAVES                                 232 /* RW-G */
 
 /*
- * NV_CTRL_FRAMELOCK_MASTERABLE - Can any of the given display devices
- * be set as master of the frame lock group.  Returns a bitmask of the
- * corresponding display devices that can be set as master.
- *
- * This attribute can only be queried through XNVCTRLQueryTargetAttribute()
- * using a NV_CTRL_TARGET_TYPE_GPU target.  This attribute cannot be
- * queried using a NV_CTRL_TARGET_TYPE_X_SCREEN.
+ * NV_CTRL_FRAMELOCK_MASTERABLE is deprecated; NV_CTRL_FRAMELOCK_DISPLAY_CONFIG
+ * should be used instead.
  */
 
 #define NV_CTRL_FRAMELOCK_MASTERABLE                             233 /* R-DG */
@@ -2307,10 +2290,9 @@
 
 #define NV_CTRL_GVO_CSC_CHANGED_EVENT                           294 /* --- */
 
-/* 
- * NV_CTRL_FRAMELOCK_SLAVEABLE - Returns a bitmask of the display devices
- * that are (currently) allowed to be selected as slave devices for the
- * given GPU
+/*
+ * NV_CTRL_FRAMELOCK_SLAVEABLE is deprecated; NV_CTRL_FRAMELOCK_DISPLAY_CONFIG
+ * should be used instead.
  */
 
 #define NV_CTRL_FRAMELOCK_SLAVEABLE                             295 /* R-DG */
@@ -3203,6 +3185,24 @@
  * DISPLAY_RANDR_OUTPUT_ID will be 0.
  */
 #define NV_CTRL_DISPLAY_RANDR_OUTPUT_ID                         391 /* R-D- */
+
+/*
+ * NV_CTRL_FRAMELOCK_DISPLAY_CONFIG - Configures whether the display device
+ * should listen, ignore or drive the framelock sync signal.
+ *
+ * Note that whether or not a display device may be set as a client/server
+ * depends on the current configuration.  For example, only one server may be
+ * set per Quadro Sync device, and displays can only be configured as a client
+ * if their refresh rate sufficiently matches the refresh rate of the server
+ * device.
+ *
+ * Note that when querying the ValidValues for this data type, the values are
+ * reported as bits within a bitmask (ATTRIBUTE_TYPE_INT_BITS);
+ */
+#define NV_CTRL_FRAMELOCK_DISPLAY_CONFIG                        392 /* RWD */
+#define NV_CTRL_FRAMELOCK_DISPLAY_CONFIG_DISABLED                 0
+#define NV_CTRL_FRAMELOCK_DISPLAY_CONFIG_CLIENT                   1
+#define NV_CTRL_FRAMELOCK_DISPLAY_CONFIG_SERVER                   2
 
 /*
  * NV_CTRL_TOTAL_DEDICATED_GPU_MEMORY - Returns the total amount of dedicated
@@ -4611,6 +4611,14 @@ typedef struct _NVCTRLAttributePermissions {
 #define TARGET_ATTRIBUTE_AVAILABILITY_CHANGED_EVENT 2
 #define TARGET_STRING_ATTRIBUTE_CHANGED_EVENT       3
 #define TARGET_BINARY_ATTRIBUTE_CHANGED_EVENT       4
+
+/*
+ * To be used with XNVCTRLBindWarpPixmapName to specify the data type.
+ */
+
+#define NV_CTRL_WARP_DATA_TYPE_BLEND_OR_OFFSET_TEXTURE     0
+#define NV_CTRL_WARP_DATA_TYPE_MESH_TRIANGLESTRIP_XYUVRQ   1
+#define NV_CTRL_WARP_DATA_TYPE_MESH_TRIANGLES_XYUVRQ       2
 
 
 #endif /* __NVCTRL_H */

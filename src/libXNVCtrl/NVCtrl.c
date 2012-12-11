@@ -1129,6 +1129,49 @@ Bool XNVCTRLStringOperation (
     return ret;
 }
 
+Bool XNVCTRLBindWarpPixmapName (
+    Display *dpy,
+    int screen,
+    Pixmap pix,
+    const char *name,
+    unsigned int dataType,
+    unsigned int vertexCount
+) {
+    XExtDisplayInfo *info = find_display(dpy);
+    xnvCtrlBindWarpPixmapNameReq *req;
+    unsigned int nameLen;
+
+    if (!XextHasExtension(info))
+        return False;
+
+    if (!name)
+        return False;
+
+    nameLen = strlen(name) + 1;
+
+    XNVCTRLCheckExtension(dpy, info, False);
+
+    LockDisplay(dpy);
+    GetReq(nvCtrlBindWarpPixmapName, req);
+
+    req->reqType = info->codes->major_opcode;
+    req->nvReqType = X_nvCtrlBindWarpPixmapName;
+
+    req->length += ((nameLen + 3) & ~3) >> 2;
+    req->num_bytes = nameLen;
+
+    req->screen = screen;
+    req->pixmap = pix;
+    req->dataType = dataType;
+    req->vertexCount = vertexCount;
+
+    Data(dpy, name, nameLen);
+
+    UnlockDisplay(dpy);
+    SyncHandle();
+
+    return True;
+}
 
 static Bool wire_to_event (Display *dpy, XEvent *host, xEvent *wire)
 {

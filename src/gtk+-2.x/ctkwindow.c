@@ -888,7 +888,7 @@ GtkWidget *ctk_window_new(ParsedAttribute *p, ConfigProperties *conf,
     /* add the per-vcs (e.g. Quadro Plex) entries into the tree model */
 
     for (i = 0; i < h->targets[VCS_TARGET].n; i++) {
-        
+
         gchar *vcs_product_name;
         gchar *vcs_name;
         GtkWidget *child;
@@ -906,16 +906,17 @@ GtkWidget *ctk_window_new(ParsedAttribute *p, ConfigProperties *conf,
             vcs_name = g_strdup_printf("VCS %d - (%s)",
                                         NvCtrlGetTargetId(vcs_handle),
                                         vcs_product_name);
+            XFree(vcs_product_name);
         } else {
             vcs_name =  g_strdup_printf("VCS %d - (Unknown)",
                                         NvCtrlGetTargetId(vcs_handle));
         }
         if (!vcs_name) continue;
-        
+
         /* create the object for receiving NV-CONTROL events */
-        
+
         ctk_event = CTK_EVENT(ctk_event_new(vcs_handle));
-        
+
         /* create the vcs entry */
 
         gtk_tree_store_append(ctk_window->tree_store, &iter, NULL);

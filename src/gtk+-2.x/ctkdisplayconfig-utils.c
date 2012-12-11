@@ -548,13 +548,13 @@ static void apply_mode_attribute_token(char *token, char *value, void *data)
             mode->passive_stereo_eye = PASSIVE_STEREO_EYE_RIGHT;
         }
 
-    /* ViewPort In */
+    /* ViewPortIn */
     } else if (!strcasecmp("viewportin", token)) {
         parse_read_integer_pair(value, 'x',
                                 &(mode->viewPortIn[W]),
                                 &(mode->viewPortIn[H]));
 
-    /* ViewPort Out */
+    /* ViewPortOut */
     } else if (!strcasecmp("viewportout", token)) {
         const char *str;
 
@@ -668,10 +668,6 @@ nvModePtr mode_parse(nvDisplayPtr display, const char *mode_str)
     free(mode_name);
 
 
-    /* Setup default size and panning of display values */
-    mode_set_dims_from_modeline(mode, mode->modeline);
-
-
     /* Read mode information */
     while (*str) {
 
@@ -718,6 +714,16 @@ nvModePtr mode_parse(nvDisplayPtr display, const char *mode_str)
 
         /* Catch errors */
         if (!str) goto fail;
+    }
+
+    /* Initialize defaults for the viewports if unspecified */
+    if ((mode->viewPortOut[W] == 0) || (mode->viewPortOut[H] == 0)) {
+        mode->viewPortOut[W] = mode->modeline->data.hdisplay;
+        mode->viewPortOut[H] = mode->modeline->data.vdisplay;
+    }
+    if ((mode->viewPortIn[W] == 0) || (mode->viewPortIn[H] == 0)) {
+        mode->viewPortIn[W] = mode->viewPortOut[W];
+        mode->viewPortIn[H] = mode->viewPortOut[H];
     }
 
     /* If rotation is specified, swap W/H if they are still set to the
@@ -929,13 +935,13 @@ static gchar *mode_get_str(nvModePtr mode, int be_generic)
         }
     }
 
-    /* ViewPort in */
+    /* ViewPortIn */
     {
         int width;
         int height;
 
         /* Only write out the ViewPortIn if it is specified and differes from
-         * the viewport out.
+         * the ViewPortOut.
          */
         if ((mode->rotation == ROTATION_90) ||
             (mode->rotation == ROTATION_270)) {
@@ -957,7 +963,7 @@ static gchar *mode_get_str(nvModePtr mode, int be_generic)
         }
     }
 
-    /* ViewPort out */
+    /* ViewPortOut */
     if (mode->viewPortOut[X] ||
         mode->viewPortOut[Y] ||
         (mode->viewPortOut[W] && mode->viewPortOut[H] &&

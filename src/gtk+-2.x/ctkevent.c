@@ -327,10 +327,11 @@ static void ctk_event_class_init(CtkEventClass *ctk_event_class)
     MAKE_SIGNAL(NV_CTRL_FRAMELOCK_INCOMING_HOUSE_SYNC_RATE);
     MAKE_SIGNAL(NV_CTRL_FXAA);
     MAKE_SIGNAL(NV_CTRL_DISPLAY_RANDR_OUTPUT_ID);
+    MAKE_SIGNAL(NV_CTRL_FRAMELOCK_DISPLAY_CONFIG);
     MAKE_SIGNAL(NV_CTRL_TOTAL_DEDICATED_GPU_MEMORY);
     MAKE_SIGNAL(NV_CTRL_USED_DEDICATED_GPU_MEMORY);
 #undef MAKE_SIGNAL
-    
+
     /*
      * When new integer attributes are added to NVCtrl.h, a
      * MAKE_SIGNAL() line should be added above.  The below #if should

@@ -22,6 +22,7 @@
 
 #include "ctkevent.h"
 #include "ctkconfig.h"
+#include "ctkdropdownmenu.h"
 
 G_BEGIN_DECLS
 
@@ -61,6 +62,7 @@ struct _CtkMultisample
     GtkWidget *log_aniso_app_override_check_button;
     GtkWidget *log_aniso_scale;
     GtkWidget *texture_sharpening_button;
+    CtkDropDownMenu *d;
     
     guint active_attributes;
 

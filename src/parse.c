@@ -308,6 +308,7 @@ AttributeTableEntry attributeTable[] = {
     { "CurrentMetaMode",            NV_CTRL_STRING_CURRENT_METAMODE_VERSION_2, S|N, "Controls the current MetaMode." },
     { "XineramaInfoOrder",          NV_CTRL_STRING_NVIDIA_XINERAMA_INFO_ORDER, S|N, "Controls the nvidiaXineramaInfoOrder." },
     { "RandROutputID",              NV_CTRL_DISPLAY_RANDR_OUTPUT_ID,       N,     "The RandR Output ID that corresponds to the display device." },
+    { "FrameLockDisplayConfig",     NV_CTRL_FRAMELOCK_DISPLAY_CONFIG,      N,     "Controls the FrameLock mode of operation for the display device." },
 
     /* TV */
     { "TVOverScan",      NV_CTRL_TV_OVERSCAN,       0, "Adjusts the amount of overscan on the specified display device." },

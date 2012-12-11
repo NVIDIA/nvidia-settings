@@ -47,6 +47,7 @@ G_BEGIN_DECLS
 
 
 #define CTK_DROP_DOWN_MENU_FLAG_MONOSPACE 0x1
+#define CTK_DROP_DOWN_MENU_FLAG_COMBO     0x2
 
 
 typedef struct _CtkDropDownMenu       CtkDropDownMenu;
@@ -57,6 +58,7 @@ typedef struct _CtkDropDownMenuValue  CtkDropDownMenuValue;
 struct _CtkDropDownMenuValue {
     GtkWidget *menu_item;
     gint value;
+    gchar *glist_item;
 };
 
 
@@ -70,6 +72,11 @@ struct _CtkDropDownMenu
     guint flags;
 
     gint num_entries;
+    gint current_selected_item;
+
+    GList *glist;
+    // currently selected item in the drop down
+    GtkWidget *current_selected_item_widget;
     CtkDropDownMenuValue *values;
 };
 
@@ -91,7 +98,7 @@ void       ctk_drop_down_menu_set_value_sensitive (CtkDropDownMenu *d,
                                                    gboolean sensitive);
 void       ctk_drop_down_menu_reset               (CtkDropDownMenu *d);
 
-
+GObject *ctk_drop_down_menu_change_object(GtkWidget* widget);
 
 G_END_DECLS
 

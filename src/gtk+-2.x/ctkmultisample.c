@@ -49,7 +49,7 @@ static GtkWidget *create_fsaa_setting_menu(CtkMultisample *ctk_multisample,
 static void fsaa_setting_checkbox_toggled(GtkWidget *widget,
                                           gpointer user_data);
 
-static void fsaa_setting_menu_changed(GtkWidget *widget, gpointer user_data);
+static void fsaa_setting_menu_changed(GtkObject *object, gpointer user_data);
 
 static void fsaa_setting_update_received(GtkObject *object,
                                          gpointer arg1,
@@ -109,6 +109,11 @@ static void update_fxaa_from_fsaa_change(CtkMultisample *ctk_multisample,
                                          int fsaa_value);
 static void update_fsaa_from_fxaa_change(CtkMultisample *ctk_multisample,
                                          gboolean fxaa_enabled);
+static gchar *applicationSettings[] = {
+    "Use Application Settings",
+    "Override Application Settings",
+    "Enhance Application Settings"
+};
 
 static const char *__aa_override_app_help =
 "Enable the Antialiasing \"Override Application Setting\" "
@@ -138,7 +143,8 @@ static const char *__aniso_slider_help =
 static const char *__fxaa_enable_help = 
 "Enable Fast Approximate Anti-Aliasing. This option is applied to "
 "OpenGL applications that are started after this option is set. Enabling "
-"FXAA disables antialiasing and other antialiasing setting methods.";
+"FXAA disables triple buffering, antialiasing, and other antialiasing "
+"setting methods.";
 
 static const char *__texture_sharpening_help =
 "To improve image quality, select this option "
@@ -690,30 +696,18 @@ static GtkWidget *create_fsaa_setting_menu(CtkMultisample *ctk_multisample,
                                            CtkEvent *ctk_event,
                                            gboolean override, gboolean enhance)
 {
-    GtkWidget *omenu;
-    GtkWidget *menu;
-    GtkWidget *menu_item;
-    gint idx;
+    CtkDropDownMenu *d;
+
+    gint idx, i;
 
     /* Create the menu */
 
-    omenu = gtk_option_menu_new();
-
-    menu = gtk_menu_new();
+    d = (CtkDropDownMenu *)
+        ctk_drop_down_menu_new(CTK_DROP_DOWN_MENU_FLAG_COMBO);
     
-    menu_item = gtk_menu_item_new_with_label("Use Application Settings");
-    gtk_menu_shell_append(GTK_MENU_SHELL(menu), menu_item);
-    gtk_widget_show(menu_item);
-
-    menu_item = gtk_menu_item_new_with_label("Override Application Settings");
-    gtk_menu_shell_append(GTK_MENU_SHELL(menu), menu_item);
-    gtk_widget_show(menu_item);
-
-    menu_item = gtk_menu_item_new_with_label("Enhance Application Settings");
-    gtk_menu_shell_append(GTK_MENU_SHELL(menu), menu_item);
-    gtk_widget_show(menu_item);
-
-    /* Set the state of the menu */
+    for (i = 0; i < ARRAY_LEN(applicationSettings); i++) {
+        ctk_drop_down_menu_append_item(d, applicationSettings[i], i);
+    }
 
     if (!override) {
         idx = 0;
@@ -725,14 +719,14 @@ static GtkWidget *create_fsaa_setting_menu(CtkMultisample *ctk_multisample,
         }
     }
 
-    gtk_option_menu_set_menu(GTK_OPTION_MENU(omenu), menu);
+    /* set the menu item */
+    ctk_drop_down_menu_set_current_value(d, idx);
 
-    gtk_option_menu_set_history(GTK_OPTION_MENU(omenu), idx);
-
-    ctk_config_set_tooltip(ctk_multisample->ctk_config, omenu,
+    ctk_config_set_tooltip(ctk_multisample->ctk_config, d->menu,
                            __aa_menu_help);
 
-    g_signal_connect(G_OBJECT(omenu), "changed",
+    g_signal_connect(ctk_drop_down_menu_change_object(GTK_WIDGET(d)),
+                     "changed",
                      G_CALLBACK(fsaa_setting_menu_changed),
                      (gpointer) ctk_multisample);
 
@@ -742,7 +736,7 @@ static GtkWidget *create_fsaa_setting_menu(CtkMultisample *ctk_multisample,
                      G_CALLBACK(fsaa_setting_update_received),
                      (gpointer) ctk_multisample);
 
-    return omenu;
+    return GTK_WIDGET(d);
 
 } /* create_fsaa_setting_menu() */
 
@@ -847,15 +841,18 @@ static void fsaa_setting_checkbox_toggled(GtkWidget *widget,
  * the fsaa slider.
  */
 
-static void fsaa_setting_menu_changed(GtkWidget *widget, gpointer user_data)
+static void fsaa_setting_menu_changed(GtkObject *object, gpointer user_data)
 {
     CtkMultisample *ctk_multisample = CTK_MULTISAMPLE(user_data);
     gint idx;
     gboolean override;
     gboolean enhance;
-
-    idx = gtk_option_menu_get_history(GTK_OPTION_MENU(widget));
-
+    
+    CTK_DROP_DOWN_MENU(ctk_multisample->fsaa_menu)->current_selected_item_widget
+        = GTK_WIDGET(object);
+    idx = ctk_drop_down_menu_get_current_value
+        (CTK_DROP_DOWN_MENU(ctk_multisample->fsaa_menu)); 
+    
     /* The FSAA dropdown menu is setup this way:
      *
      * 0 == app
@@ -943,13 +940,16 @@ static void fsaa_setting_update_received(GtkObject *object,
         GtkWidget *menu = ctk_multisample->fsaa_menu;
 
         g_signal_handlers_block_by_func
-            (G_OBJECT(menu), G_CALLBACK(fsaa_setting_menu_changed),
+            (ctk_drop_down_menu_change_object(GTK_WIDGET(menu)),
+             G_CALLBACK(fsaa_setting_menu_changed),
              (gpointer) ctk_multisample);
-        
-        gtk_option_menu_set_history(GTK_OPTION_MENU(menu), idx);
+
+        ctk_drop_down_menu_set_current_value
+            (CTK_DROP_DOWN_MENU(ctk_multisample->fsaa_menu), idx);
         
         g_signal_handlers_unblock_by_func
-            (G_OBJECT(menu), G_CALLBACK(fsaa_setting_menu_changed),
+            (ctk_drop_down_menu_change_object(GTK_WIDGET(menu)),
+             G_CALLBACK(fsaa_setting_menu_changed),
              (gpointer) ctk_multisample);
     } else {
         /* Update the checkbox */
@@ -1004,7 +1004,7 @@ static void update_fxaa_from_fsaa_change(CtkMultisample *ctk_multisample,
     gboolean fxaa_value;
 
     /* The FSAA dropdown menu is: 0 == app, 1 == override, 2 == enhance */
-    gint fsaa_idx = gtk_option_menu_get_history(GTK_OPTION_MENU(fsaa_menu)) ;
+    gint fsaa_idx = CTK_DROP_DOWN_MENU(fsaa_menu)->current_selected_item;
     
     if (fsaa_value != NV_CTRL_FSAA_MODE_NONE) {
         g_signal_handlers_block_by_func(G_OBJECT(fxaa_checkbox),
@@ -1042,7 +1042,7 @@ static void update_fsaa_from_fxaa_change (CtkMultisample *ctk_multisample,
     GtkWidget *fsaa_menu = ctk_multisample->fsaa_menu;
 
     /* The FSAA dropdown menu is: 0 == app, 1 == override, 2 == enhance */
-    gint fsaa_idx = gtk_option_menu_get_history(GTK_OPTION_MENU(fsaa_menu)) ;
+    gint fsaa_idx = CTK_DROP_DOWN_MENU(fsaa_menu)->current_selected_item;
     
     gint fsaa_val;
 

@@ -632,7 +632,66 @@ Bool XNVCTRLStringOperation (
     char **ppOut
 );
 
+/*
+ * XNVCTRLBindWarpPixmapName -
+ *
+ * Binds a Pixmap to a string name and some meta-data. If the Pixmap is None,
+ * a previously bound name will be released from its Pixmap.
+ *
+ * These names are to be used with the "WarpMesh", "BlendTexture" and
+ * "OffsetTexture" MetaMode attributes.
+ *
+ * Returns True if successful, or False if the screen is not
+ * controlled by the NVIDIA driver.
+ *
+ * dataType should be one of:
+ *  - NV_CTRL_WARP_DATA_TYPE_BLEND_OR_OFFSET_TEXTURE
+ *  - NV_CTRL_WARP_DATA_TYPE_MESH_TRIANGLESTRIP_XYUVRQ
+ *  - NV_CTRL_WARP_DATA_TYPE_MESH_TRIANGLES_XYUVRQ
+ *
+ * For dataType = NV_CTRL_WARP_DATA_TYPE_MESH_*, the named Pixmap is expected
+ * to have a width multiple of 1024 pixels, have a depth of 32 and contain a
+ * binary representation of a list of six-component vertices. Each of these
+ * components is a 32-bit floating point value.
+ *
+ * The XY components should contain normalized vertex coordinates, to be
+ * rendered as a triangle list or strip.  The X and Y components' [0,1] range
+ * map to the display's MetaMode ViewportOut X and Y, respectively.
+ *
+ * The U, V, R, and Q components should contain normalized, projective texture
+ * coordinates:
+ * U, V: 2D texture coordinate.  U and V components' [0,1] range maps to the
+ *       display's MetaMode ViewportIn X and Y, respectively.
+ * R: unused
+ * Q: Used for interpolation purposes.  This is typically the third component
+ *    of the result of a multiplication by a 3x3 projective transform matrix.
+ *
+ * vertexCount should contain the amount of vertices represented by the Pixmap
+ * and is ignored if dataType = NV_CTRL_WARP_DATA_TYPE_BLEND_OR_OFFSET_TEXTURE.
+ *
+ *  Possible errors:
+ *     BadValue - The screen index is out of range
+ *     BadMatch - The screen isn't being driven by the NVIDIA driver
+ *     BadMatch - If pixmap_id is None, couldn't find the name to release.
+ *     BadPixmap - Couldn't find the Pixmap referenced by pixmap_id.
+ *     BadMatch - pixmap_id names a Pixmap owned by a different screen.
+ *     BadValue - dataType isn't one of NV_CTRL_WARP_DATA_TYPE_*.
+ *     BadAlloc - Insufficient resources to fulfill the request.
+ *  Possible errors if dataType is NV_CTRL_WARP_DATA_TYPE_MESH_*:
+ *     BadMatch - The Pixmap's width isn't a multiple of 1024.
+ *     BadMatch - The Pixmap's depth isn't 32.
+ *     BadMatch - The Pixmap cannot contain vertexCount XYUVRQ vertices.
+ *     BadValue - Invalid vertexCount for the data type.
+ */
 
+Bool XNVCTRLBindWarpPixmapName (
+    Display *dpy,
+    int screen,
+    Pixmap pixmap_id,
+    const char *name,
+    unsigned int dataType,
+    unsigned int vertexCount
+);
 
 /*
  * XNVCtrlSelectNotify -

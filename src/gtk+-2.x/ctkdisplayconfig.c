@@ -1484,7 +1484,7 @@ GtkWidget* ctk_display_config_new(NvCtrlAttributeHandle *handle,
                      "activate", G_CALLBACK(display_position_offset_activate),
                      (gpointer) ctk_object);
 
-    /* Display ViewPort In */
+    /* Display ViewPortIn */
     ctk_object->txt_display_viewport_in = gtk_entry_new();
     ctk_config_set_tooltip(ctk_config, ctk_object->txt_display_viewport_in,
                            __dpy_viewport_in_help);
@@ -1495,7 +1495,7 @@ GtkWidget* ctk_display_config_new(NvCtrlAttributeHandle *handle,
                      G_CALLBACK(txt_focus_out),
                      (gpointer) ctk_object);
 
-    /* Display ViewPort Out */
+    /* Display ViewPortOut */
     ctk_object->txt_display_viewport_out = gtk_entry_new();
     ctk_config_set_tooltip(ctk_config, ctk_object->txt_display_viewport_out,
                            __dpy_viewport_out_help);
@@ -1876,8 +1876,8 @@ GtkWidget* ctk_display_config_new(NvCtrlAttributeHandle *handle,
                            TRUE, TRUE, 0);
         ctk_object->box_display_position = hbox;
 
-        /* Display ViewPort In */
-        label = gtk_label_new("ViewPort In:");
+        /* Display ViewPortIn */
+        label = gtk_label_new("ViewPortIn:");
         labels = g_slist_append(labels, label);
 
         hbox = gtk_hbox_new(FALSE, 5);
@@ -1888,8 +1888,8 @@ GtkWidget* ctk_display_config_new(NvCtrlAttributeHandle *handle,
                            TRUE, TRUE, 0);
         ctk_object->box_display_viewport_in = hbox;
 
-        /* Display ViewPort Out */
-        label = gtk_label_new("ViewPort Out:");
+        /* Display ViewPortOut */
+        label = gtk_label_new("ViewPortOut:");
         labels = g_slist_append(labels, label);
 
         hbox = gtk_hbox_new(FALSE, 5);
@@ -2186,9 +2186,9 @@ GtkTextBuffer *ctk_display_config_create_help(GtkTextTagTable *table,
     ctk_help_para(b, &i, __dpy_position_relative_help);
     ctk_help_heading(b, &i, "Position Offset");
     ctk_help_para(b, &i, __dpy_position_offset_help);
-    ctk_help_heading(b, &i, "ViewPort In");
+    ctk_help_heading(b, &i, "ViewPortIn");
     ctk_help_para(b, &i, __dpy_viewport_in_help);
-    ctk_help_heading(b, &i, "ViewPort Out");
+    ctk_help_heading(b, &i, "ViewPortOut");
     ctk_help_para(b, &i, __dpy_viewport_out_help);
     ctk_help_heading(b, &i, "Panning");
     ctk_help_para(b, &i, "%s  This is only available when advanced "
@@ -3173,7 +3173,7 @@ static void setup_display_reflection_dropdown(CtkDisplayConfig *ctk_object)
 
 /** setup_display_viewport_in() **************************************
  *
- * Sets up the display viewport in text entry to reflect the currently
+ * Sets up the display ViewPortIn text entry to reflect the currently
  * selected display device/mode.
  *
  **/
@@ -3215,7 +3215,7 @@ static void setup_display_viewport_in(CtkDisplayConfig *ctk_object)
 
 /** setup_display_viewport_out() *************************************
  *
- * Sets up the display viewport out text entry to reflect the currently
+ * Sets up the display ViewPortOut text entry to reflect the currently
  * selected display device/mode.
  *
  **/
@@ -5820,7 +5820,7 @@ static void display_position_offset_activate(GtkWidget *widget,
 
 /** display_viewport_in_activate() ***********************************
  *
- * Called when user modifies the display viewport in text entry.
+ * Called when user modifies the display ViewPortIn text entry.
  *
  **/
 
@@ -5839,7 +5839,7 @@ static void display_viewport_in_activate(GtkWidget *widget, gpointer user_data)
 
     str = parse_read_integer_pair(str, 'x', &w, &h);
     if (!str) {
-        /* Reset the mode's viewport in */
+        /* Reset the mode's ViewPortIn */
         setup_display_viewport_in(ctk_object);
         return;
     }
@@ -5853,7 +5853,7 @@ static void display_viewport_in_activate(GtkWidget *widget, gpointer user_data)
 
 /** display_viewport_out_activate() **********************************
  *
- * Called when user modifies the display viewport out text entry.
+ * Called when user modifies the display ViewPortOut text entry.
  *
  **/
 
@@ -5872,13 +5872,13 @@ static void display_viewport_out_activate(GtkWidget *widget, gpointer user_data)
 
     str = parse_read_integer_pair(str, 'x', &w, &h);
     if (!str) {
-        /* Reset the mode's viewport out */
+        /* Reset the mode's ViewPortOut */
         setup_display_viewport_out(ctk_object);
         return;
     }
     str = parse_read_integer_pair(str, 0, &x, &y);
     if (!str) {
-        /* Reset the mode's viewport out */
+        /* Reset the mode's ViewPortOut */
         setup_display_viewport_out(ctk_object);
         return;
     }

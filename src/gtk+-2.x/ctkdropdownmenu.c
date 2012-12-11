@@ -18,6 +18,7 @@
  */
 
 #include <gtk/gtk.h>
+#include <string.h>
 
 #include "ctkdropdownmenu.h"
 
@@ -86,7 +87,7 @@ ctk_drop_down_menu_class_init(CtkDropDownMenuClass *ctk_drop_down_menu_class)
  * changed() - emit the "changed" signal
  */
 
-static void changed(GtkOptionMenu *option_menu, gpointer user_data)
+static void changed(GtkWidget *menu, gpointer user_data)
 {
     CtkDropDownMenu *d = CTK_DROP_DOWN_MENU(user_data);
     
@@ -113,6 +114,47 @@ static void ctk_drop_down_menu_free(GObject *object)
 
 
 
+/* 
+ * ctk_drop_down_menu_change_object() - abstract out the actual widget
+ * that is being used, so that users of CtkDropDownMenu don't have to
+ * know if the gtk widget is GtkCombo or GtkOptionMenu or anything else.
+ */
+
+GObject *ctk_drop_down_menu_change_object(GtkWidget* widget)
+{
+    CtkDropDownMenu *d = CTK_DROP_DOWN_MENU(widget);
+
+    if (d->flags & CTK_DROP_DOWN_MENU_FLAG_COMBO) {
+        return G_OBJECT(GTK_EDITABLE(GTK_COMBO(d->menu)->entry));
+    } else {
+        return G_OBJECT(d->option_menu);
+    }
+} /* ctk_drop_down_menu_change_object() */
+
+
+
+/* 
+ * ctk_drop_down_menu_changed() - callback function for GtkCombo menu
+ * changed.
+ */
+
+static void ctk_drop_down_menu_changed(GtkEditable *editable, gpointer user_data)
+{
+    int i;
+    CtkDropDownMenu *d = CTK_DROP_DOWN_MENU(user_data);
+    const gchar *str = gtk_entry_get_text(GTK_ENTRY(editable));
+
+    for (i = 0; i < d->num_entries; i++) {
+        if (strcmp(d->values[i].glist_item, str) == 0) {
+            d->current_selected_item = i;
+            break;
+        }
+    }
+    g_signal_emit(G_OBJECT(d), __signals[DROP_DOWN_MENU_CHANGED_SIGNAL], 0);
+}
+
+
+
 /*
  * ctk_drop_down_menu_new() - constructor for the CtkDropDownMenu widget
  */
@@ -121,6 +163,7 @@ GtkWidget* ctk_drop_down_menu_new(guint flags)
 {
     GObject *object;
     CtkDropDownMenu *d;
+    GtkWidget *menu_widget; // used to emit "changed" signal
     
     object = g_object_new(CTK_TYPE_DROP_DOWN_MENU, NULL);
     
@@ -129,17 +172,26 @@ GtkWidget* ctk_drop_down_menu_new(guint flags)
     d->flags = flags;
     d->values = NULL;
     d->num_entries = 0;
-    
-    d->option_menu = gtk_option_menu_new();
-    d->menu = gtk_menu_new();
 
-    gtk_option_menu_set_menu(GTK_OPTION_MENU(d->option_menu), d->menu);
+    if (flags & CTK_DROP_DOWN_MENU_FLAG_COMBO) {
+        d->menu = gtk_combo_new();
+        menu_widget = d->menu;
+        g_signal_connect(G_OBJECT(GTK_EDITABLE(GTK_COMBO(d->menu)->entry)),
+                         "changed",
+                         G_CALLBACK(ctk_drop_down_menu_changed),
+                         (gpointer) d);
+    } else { 
+        d->option_menu = gtk_option_menu_new();
+        d->menu = gtk_menu_new();
+        gtk_option_menu_set_menu(GTK_OPTION_MENU(d->option_menu), d->menu);
+        menu_widget = d->option_menu;
+        g_signal_connect(G_OBJECT(d->option_menu), "changed",
+                         G_CALLBACK(changed), (gpointer) d);
+
+    }
 
     gtk_box_set_spacing(GTK_BOX(d), 0);
-    gtk_box_pack_start(GTK_BOX(d), d->option_menu, FALSE, FALSE, 0);
-
-    g_signal_connect(G_OBJECT(d->option_menu), "changed",
-                     G_CALLBACK(changed), (gpointer) d);
+    gtk_box_pack_start(GTK_BOX(d), menu_widget, FALSE, FALSE, 0);
 
     return GTK_WIDGET(d);
     
@@ -153,8 +205,14 @@ GtkWidget* ctk_drop_down_menu_new(guint flags)
 
 void ctk_drop_down_menu_reset(CtkDropDownMenu *d)
 {
-    g_free(d->values);
-    d->values = NULL;
+    if (d->glist) {
+        g_free(d->glist);
+        d->glist = NULL;
+    }
+    if (d->values) {
+        g_free(d->values);
+        d->values = NULL;
+    }
 
     d->num_entries = 0;
     
@@ -175,30 +233,41 @@ GtkWidget *ctk_drop_down_menu_append_item(CtkDropDownMenu *d,
                                           const gchar *name,
                                           const gint value)
 {
-    GtkWidget *menu_item, *label, *alignment;
-    gchar *str;
-    
-    menu_item = gtk_menu_item_new();
-    gtk_menu_shell_append(GTK_MENU_SHELL(d->menu), menu_item);
-    
-    if (d->flags & CTK_DROP_DOWN_MENU_FLAG_MONOSPACE) {
-        str = g_strconcat("<tt><small>", name, "</small></tt>", NULL);
-        label = gtk_label_new(NULL);
-        gtk_label_set_markup(GTK_LABEL(label), str);
-        g_free(str);
-    } else {
-        label = gtk_label_new(name);
-    }
-    
-    alignment = gtk_alignment_new(0, 0, 0, 0);
-    gtk_container_add(GTK_CONTAINER(alignment), label);
-    gtk_container_add(GTK_CONTAINER(menu_item), alignment);
+    GtkWidget *label = NULL;
     
     d->values = g_realloc(d->values,
                           sizeof(CtkDropDownMenuValue) * (d->num_entries + 1));
-    d->values[d->num_entries].menu_item = menu_item;
-    d->values[d->num_entries].value = value;
     
+    if (d->flags & CTK_DROP_DOWN_MENU_FLAG_COMBO) {
+        d->glist = g_list_append(d->glist,
+                                 g_strdup(name));
+
+        gtk_combo_set_popdown_strings(GTK_COMBO(d->menu), d->glist);
+        gtk_editable_set_editable(GTK_EDITABLE(GTK_COMBO(d->menu)->entry), FALSE);
+        d->values[d->num_entries].glist_item = g_strdup(name);
+    } else {
+        GtkWidget *menu_item, *alignment;
+        gchar *str;
+
+        menu_item = gtk_menu_item_new();
+        gtk_menu_shell_append(GTK_MENU_SHELL(d->menu), menu_item);
+
+        if (d->flags & CTK_DROP_DOWN_MENU_FLAG_MONOSPACE) {
+            str = g_strconcat("<tt><small>", name, "</small></tt>", NULL);
+            label = gtk_label_new(NULL);
+            gtk_label_set_markup(GTK_LABEL(label), str);
+            g_free(str);
+        } else {
+            label = gtk_label_new(name);
+        }
+        alignment = gtk_alignment_new(0, 0, 0, 0);
+        gtk_container_add(GTK_CONTAINER(alignment), label);
+        gtk_container_add(GTK_CONTAINER(menu_item), alignment);
+        d->values[d->num_entries].menu_item = menu_item;
+        
+    }
+
+    d->values[d->num_entries].value = value;
     d->num_entries++;
 
     return label;
@@ -215,15 +284,18 @@ GtkWidget *ctk_drop_down_menu_append_item(CtkDropDownMenu *d,
 gint ctk_drop_down_menu_get_current_value(CtkDropDownMenu *d)
 {
     gint i;
-    
-    i = gtk_option_menu_get_history(GTK_OPTION_MENU(d->option_menu));
-    
-    if (i < d->num_entries) {
-        return d->values[i].value;
+
+    if (d->flags & CTK_DROP_DOWN_MENU_FLAG_COMBO) {
+        return d->current_selected_item;
     } else {
-        return 0; /* XXX??? */
+        i = gtk_option_menu_get_history(GTK_OPTION_MENU(d->option_menu));
+
+        if (i < d->num_entries) {
+            return d->values[i].value;
+        } 
     }
-    
+    return 0; /* XXX??? */
+
 } /* ctk_drop_down_menu_get_current_value() */
 
 
@@ -239,7 +311,13 @@ void ctk_drop_down_menu_set_current_value(CtkDropDownMenu *d, gint value)
     
     for (i = 0; i < d->num_entries; i++) {
         if (d->values[i].value == value) {
-            gtk_option_menu_set_history(GTK_OPTION_MENU(d->option_menu), i);
+            if (d->flags & CTK_DROP_DOWN_MENU_FLAG_COMBO) {
+                gtk_entry_set_text
+                    (GTK_ENTRY(GTK_COMBO(d->menu)->entry),
+                     d->values[i].glist_item);
+            } else {
+                gtk_option_menu_set_history(GTK_OPTION_MENU(d->option_menu), i);
+            }
             return;
         }
     }
@@ -255,12 +333,18 @@ void ctk_drop_down_menu_set_current_value(CtkDropDownMenu *d, gint value)
 void ctk_drop_down_menu_set_value_sensitive(CtkDropDownMenu *d,
                                             gint value, gboolean sensitive)
 {
-    gint i;
-    
-    for (i = 0; i < d->num_entries; i++) {
-        if (d->values[i].value == value) {
-            gtk_widget_set_sensitive(d->values[i].menu_item, sensitive);
-            return;
+
+    if (d->flags & CTK_DROP_DOWN_MENU_FLAG_COMBO) {
+        ctk_drop_down_menu_set_current_value(d, value);
+        gtk_widget_set_sensitive(GTK_WIDGET(GTK_COMBO(d->menu)->entry),
+                                 sensitive);
+    } else {
+        gint i;
+        for (i = 0; i < d->num_entries; i++) {
+            if (d->values[i].value == value) {
+                gtk_widget_set_sensitive(d->values[i].menu_item, sensitive);
+                return;
+            }
         }
     }
 } /* ctk_drop_down_menu_set_value_sensitive() */

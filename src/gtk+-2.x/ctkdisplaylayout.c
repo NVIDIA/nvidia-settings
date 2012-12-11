@@ -2156,7 +2156,7 @@ static int pan_selected(CtkDisplayLayout *ctk_object, int x, int y, int snap)
         info->dst_dim[H] = y;
     }
 
-    /* Panning domain can never be smaller then the display viewport */
+    /* Panning domain can never be smaller then the display ViewPortIn */
     if (info->display) {
         dim = info->display->cur_mode->viewPortIn;
         if (info->dst_dim[W] < dim[W]) {
@@ -3046,7 +3046,7 @@ static void draw_display(CtkDisplayLayout *ctk_object,
     draw_rect(ctk_object, mode->pan, &(ctk_object->fg_color), 0);
 
 
-    /* Draw viewport */
+    /* Draw ViewPortIn */
     color_idx = base_color_idx + ((mode->modeline) ? BG_SCR_ON : BG_SCR_OFF);
     draw_rect(ctk_object, mode->viewPortIn, &(ctk_object->color_palettes[color_idx]),
               1);
@@ -3733,15 +3733,15 @@ void ctk_display_layout_set_mode_modeline(CtkDisplayLayout *ctk_object,
 
 
 /*!
- * Sets the ViewPort In for the given mode.
+ * Sets the ViewPortIn for the given mode.
  *
  * If a modification occurs, this function will call the modified_callback
  * handler registered, if any.
  *
  * \param[in]  ctk_object  The Display Layout object
  * \param[in]  mode        The mode to be modified
- * \param[in]  w           The width of the ViewPort In to set
- * \param[in]  h           The height of the ViewPort In to set
+ * \param[in]  w           The width of the ViewPortIn to set
+ * \param[in]  h           The height of the ViewPortIn to set
  */
 void ctk_display_layout_set_mode_viewport_in(CtkDisplayLayout *ctk_object,
                                              nvModePtr mode,
@@ -3763,7 +3763,7 @@ void ctk_display_layout_set_mode_viewport_in(CtkDisplayLayout *ctk_object,
     mode->viewPortIn[W] = w;
     mode->viewPortIn[H] = h;
 
-    /* Clamp the panning domain to the new viewport dimensions */
+    /* Clamp the panning domain to the new ViewPortIn dimensions */
     if (mode->pan[W] < mode->viewPortIn[W]) {
         mode->pan[W] = mode->viewPortIn[W];
     }
@@ -3785,17 +3785,17 @@ void ctk_display_layout_set_mode_viewport_in(CtkDisplayLayout *ctk_object,
 
 
 /*!
- * Sets the ViewPort Out for the given mode.
+ * Sets the ViewPortOut for the given mode.
  *
  * If a modification occurs, this function will call the modified_callback
  * handler registered, if any.
  *
  * \param[in]  ctk_object  The Display Layout object
  * \param[in]  mode        The mode to be modified
- * \param[in]  x           The X offset of the ViewPort Out to set
- * \param[in]  y           The Y offset of the ViewPort Out to set
- * \param[in]  w           The width of the ViewPort Out to set
- * \param[in]  h           The height of the ViewPort Out to set
+ * \param[in]  x           The X offset of the ViewPortOut to set
+ * \param[in]  y           The Y offset of the ViewPortOut to set
+ * \param[in]  w           The width of the ViewPortOut to set
+ * \param[in]  h           The height of the ViewPortOut to set
  */
 void ctk_display_layout_set_mode_viewport_out(CtkDisplayLayout *ctk_object,
                                               nvModePtr mode,
