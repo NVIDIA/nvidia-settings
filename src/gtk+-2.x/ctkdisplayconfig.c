@@ -3055,6 +3055,46 @@ static void setup_display_stereo_dropdown(CtkDisplayConfig *ctk_object)
 
 
 
+/** are_display_composition_transformations_allowed() ****************
+ *
+ * Checks whether display composition transformations are allowed
+ * given the list of GPU flags.
+ *
+ **/
+
+static Bool are_display_composition_transformations_allowed(nvScreenPtr screen)
+{
+    int i;
+    Bool ret = TRUE;
+
+    if (!screen || !screen->gpu) {
+        return FALSE;
+    }
+
+    for (i = 0; i < screen->gpu->num_flags; i++)
+    {
+        switch (screen->gpu->flags[i]) {
+        case NV_CTRL_BINARY_DATA_GPU_FLAGS_STEREO_DISPLAY_TRANSFORM_EXCLUSIVE:
+            if (screen->stereo != NV_CTRL_STEREO_OFF) {
+                ret = FALSE;
+            }
+            break;
+        case NV_CTRL_BINARY_DATA_GPU_FLAGS_OVERLAY_DISPLAY_TRANSFORM_EXCLUSIVE:
+            if (screen->overlay != NV_CTRL_OVERLAY_OFF) {
+                ret = FALSE;
+            }
+            break;
+        default:
+            /* We don't care about other flags */
+            break;
+        }
+    }
+
+    return ret;
+}
+
+
+
 /** setup_display_rotation_dropdown() ********************************
  *
  * Configures the display rotation dropdown to reflect the current
@@ -3074,11 +3114,12 @@ static void setup_display_rotation_dropdown(CtkDisplayConfig *ctk_object)
     }
     gtk_widget_show(ctk_object->box_display_orientation);
 
-    if (!display->cur_mode || !display->cur_mode->modeline) {
-        gtk_widget_set_sensitive(ctk_object->box_display_orientation, FALSE);
+    if (!display->cur_mode || !display->cur_mode->modeline ||
+        !are_display_composition_transformations_allowed(display->screen)) {
+        gtk_widget_set_sensitive(ctk_object->mnu_display_rotation, FALSE);
         return;
     }
-    gtk_widget_set_sensitive(ctk_object->box_display_orientation, TRUE);
+    gtk_widget_set_sensitive(ctk_object->mnu_display_rotation, TRUE);
 
     /* Set the selected rotation */
     g_signal_handlers_block_by_func
@@ -3132,11 +3173,12 @@ static void setup_display_reflection_dropdown(CtkDisplayConfig *ctk_object)
     }
     gtk_widget_show(ctk_object->box_display_orientation);
 
-    if (!display->cur_mode || !display->cur_mode->modeline) {
-        gtk_widget_set_sensitive(ctk_object->box_display_orientation, FALSE);
+    if (!display->cur_mode || !display->cur_mode->modeline ||
+        !are_display_composition_transformations_allowed(display->screen)) {
+        gtk_widget_set_sensitive(ctk_object->mnu_display_reflection, FALSE);
         return;
     }
-    gtk_widget_set_sensitive(ctk_object->box_display_orientation, TRUE);
+    gtk_widget_set_sensitive(ctk_object->mnu_display_reflection, TRUE);
 
     /* Set the selected reflection */
     g_signal_handlers_block_by_func
@@ -6457,7 +6499,8 @@ static gboolean do_display_confirm_countdown(gpointer data)
  **/
 
 static Bool switch_to_current_metamode(CtkDisplayConfig *ctk_object,
-                                       nvScreenPtr screen)
+                                       nvScreenPtr screen,
+                                       const char *cur_metamode_str)
 {
     ReturnStatus ret;
     gint result;
@@ -6470,6 +6513,7 @@ static Bool switch_to_current_metamode(CtkDisplayConfig *ctk_object,
     GtkWidget *dlg;
     GtkWidget *parent;
     gchar *msg;
+    Bool modified_current_metamode;
 
 
     if (!screen->handle || !screen->cur_metamode) goto fail;
@@ -6479,8 +6523,8 @@ static Bool switch_to_current_metamode(CtkDisplayConfig *ctk_object,
     new_width = metamode->edim[W];
     new_height = metamode->edim[H];
     new_rate = metamode->id;
-    
-    
+
+
     /* Find the parent window for displaying dialogs */
 
     parent = ctk_get_parent_window(GTK_WIDGET(ctk_object));
@@ -6500,16 +6544,33 @@ static Bool switch_to_current_metamode(CtkDisplayConfig *ctk_object,
     }
 
     nv_info_msg(TAB, "Current mode (id: %d)", old_rate);
-    
+    nv_info_msg(TAB, "Current mode string: %s", cur_metamode_str);
+
 
     /* Switch to the new mode */
 
-    nv_info_msg(TAB, "Switching to mode: %dx%d (id: %d)...",
-                new_width, new_height, new_rate);
+    if (new_rate > 0 ) {
+        nv_info_msg(TAB, "Switching to mode: %dx%d (id: %d)...",
+                    new_width, new_height, new_rate);
 
-    ret = NvCtrlSetDisplayAttributeWithReply(screen->handle, 0,
-                                             NV_CTRL_CURRENT_METAMODE_ID,
-                                             new_rate);
+        ret = NvCtrlSetAttribute(screen->handle,
+                                 NV_CTRL_CURRENT_METAMODE_ID,
+                                 new_rate);
+        modified_current_metamode = FALSE;
+    } else {
+        nv_info_msg(TAB, "Modifying current MetaMode to: %s...",
+                    metamode->string);
+
+        ret = NvCtrlSetStringAttribute(screen->handle,
+                                       NV_CTRL_STRING_CURRENT_METAMODE,
+                                       metamode->string,
+                                       NULL);
+        if (ret == NvCtrlSuccess) {
+            metamode->id = old_rate;
+        }
+        modified_current_metamode = TRUE;
+    }
+
     if (ret != NvCtrlSuccess) {
 
         nv_warning_msg("Failed to set MetaMode (%d) '%s' "
@@ -6606,12 +6667,28 @@ static Bool switch_to_current_metamode(CtkDisplayConfig *ctk_object,
     case GTK_RESPONSE_REJECT:
     default:
         /* Fall back to previous settings */
-        nv_info_msg(TAB, "Switching back to mode (id: %d)...", old_rate);
+        if (!modified_current_metamode) {
+            nv_info_msg(TAB, "Switching back to mode (id: %d)...", old_rate);
 
-        ret = NvCtrlSetDisplayAttributeWithReply(screen->handle, 0,
-                                                 NV_CTRL_CURRENT_METAMODE_ID,
-                                                 old_rate);
-        /* Good luck! */
+            ret = NvCtrlSetAttribute(screen->handle,
+                                     NV_CTRL_CURRENT_METAMODE_ID,
+                                     old_rate);
+        } else {
+            nv_info_msg(TAB, "Re-writing previous current MetaMode to: %s...",
+                        cur_metamode_str);
+
+            ret = NvCtrlSetStringAttribute(screen->handle,
+                                           NV_CTRL_STRING_CURRENT_METAMODE,
+                                           cur_metamode_str,
+                                           NULL);
+            if (ret != NvCtrlSuccess) {
+                nv_warning_msg("Failed to re-write current MetaMode (%d) to "
+                               "'%s' on X screen $d!",
+                               old_rate,
+                               cur_metamode_str,
+                               NvCtrlGetTargetId(screen->handle));
+            }
+        }
         goto fail;
     }
 
@@ -6632,8 +6709,10 @@ static Bool switch_to_current_metamode(CtkDisplayConfig *ctk_object,
  *
  **/
 
-static char *find_metamode_string_by_id(char *metamode_strs, int match_id)
+static char *find_metamode_string_by_id(char *metamode_strs, int match_id,
+                                        int *match_idx)
 {
+    int idx = 0;
     char *m;
 
     for (m = metamode_strs; m && strlen(m); m += strlen(m) +1) {
@@ -6641,12 +6720,75 @@ static char *find_metamode_string_by_id(char *metamode_strs, int match_id)
         if (str) {
             int id = atoi(str+3);
             if (id && (id == match_id)) {
+                if (match_idx) {
+                    *match_idx = idx;
+                }
                 return m;
             }
         }
+        idx++;
     }
 
     return NULL;
+}
+
+
+
+/** add_cpl_metamode_to_X() ******************************************
+ *
+ * Adds the given metamode to the given X screen.
+ *
+ **/
+
+static Bool add_cpl_metamode_to_X(nvScreenPtr screen, nvMetaModePtr metamode,
+                                  int metamode_idx)
+{
+    ReturnStatus ret;
+    char *tokens;
+
+    ret = NvCtrlStringOperation(screen->handle, 0,
+                                NV_CTRL_STRING_OPERATION_ADD_METAMODE,
+                                metamode->string, &tokens);
+
+    /* Grab the metamode ID from the returned tokens */
+    if ((ret != NvCtrlSuccess) || !tokens) {
+        nv_error_msg("Failed to add MetaMode '%s' to X for "
+                     "screen %d (GPU:%s)",
+                     metamode->string,
+                     screen->scrnum, screen->gpu->name);
+        return FALSE;
+    }
+
+    parse_token_value_pairs(tokens, apply_metamode_token,
+                            metamode);
+    XFree(tokens);
+
+    metamode->x_idx = metamode_idx;
+
+    nv_info_msg(TAB, "Added MetaMode   (# %d,  ID: %d) > [%s]",
+                metamode_idx,
+                metamode->id,
+                metamode->string);
+
+    return TRUE;
+}
+
+
+
+/** stub_metamode_str() **********************************************
+ *
+ * Stubs out a metamode string.
+ *
+ **/
+
+static void stub_metamode_str(char *str)
+{
+    if (str) {
+        while (*str) {
+            *str = ' ';
+            str++;
+        }
+    }
 }
 
 
@@ -6659,20 +6801,23 @@ static char *find_metamode_string_by_id(char *metamode_strs, int match_id)
  *   that will be used for creating the metamode list on the X
  *   Server.
  *
- * - Whites out each string in the metamode_strs list that should
+ * - Stubs out each string in the metamode_strs list that should
  *   not be deleted (it has a matching metamode in "screen".)
  *
  * - Adds new metamodes to the X server screen that are specified
- *   in "screen".
+ *   in "screen" but not found in metamode_strs.
  *
  **/
 
-static void preprocess_metamodes(nvScreenPtr screen, char *metamode_strs)
+static void preprocess_metamodes(nvScreenPtr screen, char *metamode_strs,
+                                 char *cur_metamode_str,
+                                 int num_metamodes_in_X,
+                                 int cur_metamode_idx)
 {
     nvMetaModePtr metamode;
     ReturnStatus ret;
     char *str;
-    char *tokens;
+    char *tmp;
     int metamode_idx;
 
 
@@ -6682,6 +6827,8 @@ static void preprocess_metamodes(nvScreenPtr screen, char *metamode_strs)
 
         /* Generate the metamode's string */
         free(metamode->string);
+        metamode->id = -1;
+        metamode->x_idx = -1;
         metamode->string = screen_get_metamode_str(screen, metamode_idx, 0);
         if (!metamode->string) continue;
 
@@ -6689,49 +6836,159 @@ static void preprocess_metamodes(nvScreenPtr screen, char *metamode_strs)
         ret = NvCtrlStringOperation(screen->handle, 0,
                                     NV_CTRL_STRING_OPERATION_PARSE_METAMODE,
                                     metamode->string, &str);
-        if (ret == NvCtrlSuccess) {
-            char *tmp;
+        if (ret != NvCtrlSuccess) {
+            /* XXX Something's wrong with the metamode, ignore it for now. */
+            continue;
+        }
 
-            /* XXX Later, we'll ask X to parse this metamode on updates
-             * and already have an ID so we'll know already which metamodes
-             * need to be deleted/added/moved.
-             */
+        /* XXX Later, we'll ask X to parse this metamode on updates
+         * and already have an ID so we'll know already which metamodes
+         * need to be deleted/added/moved.
+         */
 
-            tmp = strstr(str, "id=");
+        tmp = strstr(str, "id=");
+        if (tmp) {
+            int id = atoi(tmp+3);
+            tmp = find_metamode_string_by_id(metamode_strs, id,
+                                             &(metamode->x_idx));
             if (tmp) {
-                int id = atoi(tmp+3);
-                tmp = find_metamode_string_by_id(metamode_strs, id);
-                if (tmp) {
-                    metamode->id = id;
-                    while (*tmp) {
-                        *tmp = ' ';
-                        tmp++;
-                    }
-                    /* Process the next metamode */
-                    continue;
-                }
+                metamode->id = id;
+
+                /* We matched a CPL metamode with an X metamode, so stub the
+                 * metamode from the X list so we don't delete it later.
+                 */
+                stub_metamode_str(tmp);
+
+                /*
+                nv_info_msg(TAB, "%3d - Matched MetaMode   (ID:%3d, X idx:%3d) > [%s]",
+                            metamode_idx,
+                            metamode->id,
+                            metamode->x_idx,
+                            metamode->string);
+                */
+
+                /* Process the next metamode */
+                continue;
             }
         }
 
-        /* The metamode was not found, so add it to the X screen's list */
-        tokens = NULL;
-        ret = NvCtrlStringOperation(screen->handle, 0,
-                                    NV_CTRL_STRING_OPERATION_ADD_METAMODE,
-                                    metamode->string, &tokens);
+        /* If the CPL metamode did not match any of the metamodes in X, we
+         * should add it.  Note, however, that since we have not yet gone
+         * through the whole list of CPL MetaModes (the currently active
+         * MetaMode in X may match a CPL MetaMode we have not yet encountered),
+         * we don't yet know if the current metamode should be modified via
+         * NV_CTRL_STRING_CURRENT_METAMODE, or added then swapped to, so ignore
+         * it for now and handle it once we've gone through all the CPL
+         * MetaModes.
+         */
+        if (metamode == screen->cur_metamode) {
+            continue;
+        }
 
-        /* Grab the metamode ID from the returned tokens */
-        if (ret == NvCtrlSuccess) {
-            if (tokens) {
-                parse_token_value_pairs(tokens, apply_metamode_token,
-                                        metamode);
-                free(tokens);
+        /* The metamode was not found, so add it to the X screen's list */
+        if (add_cpl_metamode_to_X(screen, metamode, num_metamodes_in_X)) {
+            num_metamodes_in_X++;
+        }
+    }
+
+    /* If the currently selected MetaMode in the CPL did not match any metamode
+     * in X, and the current active MetaMode (in X) was linked to another CPL
+     * MetaMode, then we will need to add the CPL's current MetaMode so we can
+     * switch to it later.
+     *
+     * Note: if a mode was matched above, then the current metamode pointer
+     * should now point to a stubbed out entry, and this is what we check for
+     * here.
+     */
+    if ((screen->cur_metamode->id < 0)) {
+        const char *ctmp = parse_skip_whitespace(cur_metamode_str);
+
+        if (!*ctmp) {
+            if (add_cpl_metamode_to_X(screen, screen->cur_metamode,
+                                      num_metamodes_in_X)) {
+                num_metamodes_in_X++;
             }
-            nv_info_msg(TAB, "Added   > %s", metamode->string);
+        } else {
+            /* Current metamode will be overriden, so stub it here so that it
+             * does not get deleted later.
+             */
+            stub_metamode_str(cur_metamode_str);
+            screen->cur_metamode->x_idx = cur_metamode_idx;
         }
     }
 
 } /* preprocess_metamodes() */
 
+
+
+/** screen_move_metamode() *******************************************
+ *
+ * Updates the X ordering of the given metamode so that it appears at
+ * 'metamode_idx'.
+ *
+ **/
+
+static Bool screen_move_metamode(nvScreenPtr screen, nvMetaModePtr metamode,
+                                 int metamode_idx)
+{
+    char *update_str;
+    int len;
+    ReturnStatus ret;
+
+    if (!metamode->string) {
+        goto fail;
+    }
+
+    /* Append the index we want */
+    len = 24 + strlen(metamode->string);
+    update_str = malloc(len);
+    snprintf(update_str, len, "index=%d :: %s", metamode_idx,
+             metamode->string);
+
+    ret = NvCtrlSetStringAttribute(screen->handle,
+                                   NV_CTRL_STRING_MOVE_METAMODE,
+                                   update_str, NULL);
+    if (ret != NvCtrlSuccess) {
+        goto fail;
+    }
+
+    nv_info_msg(TAB, "Moved MetaMode (id:%d from idx: %d to idx %d) > %s",
+                metamode->id,
+                metamode->x_idx,
+                metamode_idx,
+                metamode->string);
+
+    /* We moved the metamode to position metamode_idx, so bump the
+     * index of all metamodes from the new position to the old one.
+     * This assumes that metamodes are always moved forward in the
+     * the list and not backwards.
+     */
+    {
+        int from_idx = metamode_idx;  // New position
+        int to_idx = metamode->x_idx; // Old position
+        nvMetaModePtr m;
+
+        for (m = screen->metamodes;
+             m;
+             m = m->next) {
+            if ((m->x_idx >= from_idx) &&
+                (m->x_idx < to_idx)) {
+                m->x_idx++;
+            }
+        }
+        /* Note the new location of the metamode */
+        metamode->x_idx = metamode_idx;
+    }
+    return TRUE;
+
+ fail:
+    nv_error_msg("Failed to move MetaMode (id:%d from idx: %d to idx %d) > %s",
+                 metamode->id,
+                 metamode->x_idx,
+                 metamode_idx,
+                 metamode->string ? metamode->string : "NULL");
+    return FALSE;
+}
 
 
 /** order_metamodes() ************************************************
@@ -6745,33 +7002,18 @@ static void order_metamodes(nvScreenPtr screen)
 {
     nvMetaModePtr metamode;
     int metamode_idx;
-    char *metamode_str;
-    char *update_str;
-    int len;
-    ReturnStatus ret;
 
 
     for (metamode = screen->metamodes, metamode_idx = 0;
          metamode;
          metamode = metamode->next, metamode_idx++) {
 
-        metamode_str = screen_get_metamode_str(screen, metamode_idx,
-                                               0);
-        if (!metamode_str) continue;
-        
-        /* Append the index we want */
-        len = 24 + strlen(metamode_str);
-        update_str = malloc(len);
-        snprintf(update_str, len, "index=%d :: %s", metamode_idx,
-                 metamode_str);
-        
-        ret = NvCtrlSetStringAttribute(screen->handle,
-                                       NV_CTRL_STRING_MOVE_METAMODE,
-                                       update_str, NULL);
-        if (ret == NvCtrlSuccess) {
-            nv_info_msg(TAB, "Moved   > %s", metamode_str);
+        /* MetaMode is already in correct spot */
+        if (metamode_idx == metamode->x_idx) {
+            continue;
         }
-        free(metamode_str);
+
+        screen_move_metamode(screen, metamode, metamode_idx);
     }
 
 } /* order_metamodes() */
@@ -6791,12 +7033,13 @@ static void postprocess_metamodes(nvScreenPtr screen, char *metamode_strs)
     char *metamode_str, *tmp;
     const char *str;
     ReturnStatus ret;
+    int idx;
 
 
     /* Delete metamodes that were not cleared out from the metamode_strs */
-    for (metamode_str = metamode_strs;
+    for (metamode_str = metamode_strs, idx = 0;
          metamode_str && strlen(metamode_str);
-         metamode_str += strlen(metamode_str) +1) {
+         metamode_str += strlen(metamode_str) +1, idx++) {
 
         /* Skip tokens */
         str = strstr(metamode_str, "::");
@@ -6811,7 +7054,20 @@ static void postprocess_metamodes(nvScreenPtr screen, char *metamode_strs)
                                        NV_CTRL_STRING_DELETE_METAMODE,
                                        tmp, NULL);
         if (ret == NvCtrlSuccess) {
-            nv_info_msg(TAB, "Removed > %s", str);
+            nvMetaModePtr metamode;
+
+            nv_info_msg(TAB, "Removed MetaMode > %s", str);
+
+            /* MetaModes after the one that was deleted will have
+             * moved up an index, so update the book keeping here.
+             */
+            for (metamode = screen->metamodes;
+                 metamode;
+                 metamode = metamode->next) {
+                if (metamode->x_idx >= idx) {
+                    metamode->x_idx--;
+                }
+            }
         }
 
         free(tmp);
@@ -6834,8 +7090,13 @@ static int update_screen_metamodes(CtkDisplayConfig *ctk_object,
                                    nvScreenPtr screen)
 {
     char *metamode_strs = NULL;
-    char *cur_metamode_str = NULL;
-    const char *metamode_str;
+    char *cur_full_metamode_str = NULL;
+    char *cur_metamode_ptr = NULL; /* Pointer into metamode_strs */
+    int cur_metamode_id; /* ID of current MetaMode on X screen */
+    int cur_metamode_idx;
+    int num_metamodes_in_X;
+    char *str;
+    const char *cur_metamode_str;
     int len;
 
     int clear_apply = 0; /* Set if we should clear the apply button */
@@ -6862,7 +7123,7 @@ static int update_screen_metamodes(CtkDisplayConfig *ctk_object,
      * (postprocess)
      *  - Delete any unused mode
      *  - Move metamodes to the correct location
-     **/
+     */
 
     /* Get the list of the current metamodes */
 
@@ -6877,26 +7138,90 @@ static int update_screen_metamodes(CtkDisplayConfig *ctk_object,
 
     ret = NvCtrlGetStringAttribute(screen->handle,
                                    NV_CTRL_STRING_CURRENT_METAMODE_VERSION_2,
-                                   &cur_metamode_str);
+                                   &cur_full_metamode_str);
+    if (ret != NvCtrlSuccess) goto done;
+
+    /* Get the current metamode index for the screen */
+
+    ret = NvCtrlGetAttribute(screen->handle,
+                             NV_CTRL_CURRENT_METAMODE_ID,
+                             &cur_metamode_id);
     if (ret != NvCtrlSuccess) goto done;
 
     /* Skip tokens */
-    metamode_str = strstr(cur_metamode_str, "::");
-    if (metamode_str) {
-        metamode_str = parse_skip_whitespace(metamode_str +2);
+    cur_metamode_str = strstr(cur_full_metamode_str, "::");
+    if (cur_metamode_str) {
+        cur_metamode_str = parse_skip_whitespace(cur_metamode_str +2);
     } else {
-        metamode_str = cur_metamode_str;
+        cur_metamode_str = cur_full_metamode_str;
     }
 
-    /* Preprocess the new metamodes list */
+    /* Count the number of metamodes in X */
+    num_metamodes_in_X = 0;
+    for (str = metamode_strs;
+         str && strlen(str);
+         str += strlen(str) +1) {
+        num_metamodes_in_X++;
+    }
 
-    preprocess_metamodes(screen, metamode_strs);
+    /* Find cur_metamode_str inside metamode_strs */
+    cur_metamode_ptr = NULL;
+    cur_metamode_idx = 0;
+    for (str = metamode_strs;
+         str && strlen(str);
+         str += strlen(str) +1) {
+        const char *tmp;
 
-    /* If we need to switch metamodes, do so now */
+        tmp = strstr(str, "::");
+        if (!tmp) continue;
+        tmp = parse_skip_whitespace(tmp +2);
+        if (!tmp) continue;
 
-    if (strcmp(screen->cur_metamode->string, metamode_str)) {
+        if (!strcasecmp(tmp, cur_metamode_str)) {
+            cur_metamode_ptr = str;
+            break;
+        }
+        cur_metamode_idx++;
+    }
 
-        if (switch_to_current_metamode(ctk_object, screen)) {
+    if (!cur_metamode_ptr) {
+        nv_error_msg("Failed to identify current MetaMode in X list of "
+                     "MetaModes for screen %d (GPU:%s)", screen->scrnum,
+                     screen->gpu->name);
+        return 1;
+    }
+
+    /* Add new metamodes and relate MetaModes from CPL to X */
+
+    preprocess_metamodes(screen, metamode_strs, cur_metamode_ptr,
+                         num_metamodes_in_X,
+                         cur_metamode_idx);
+
+    /* Update the current metamode.
+     *
+     * At this point, the metamode we want to set as the current metamode should
+     * exist in the X server, or we will need to clobber the current X
+     * metamode with new data.
+     *
+     * - If the current CPL MetaMode is the same as the current X MetaMode,
+     *   do nothing.
+     *
+     * - If the current CPL MetaMode is a different X MetaMode, switch to it.
+     *
+     * - If the current CPL MetaMode is not the same as the current X MetaMode.
+     *   and both the CPL MetaMode is not some other X MetaMode, and the current
+     *   X MetaMode is not some other CPL MetaMode, then we can modify the
+     *   current X MetaMode to be the CPL MetaMode.
+     *
+     * - If the current CPL MetaMode is not the same as the current X MetaMode,
+     *   and we matched the current X MetaMode to some other CPL MetaMode, then
+     *   we should add the current CPL MetaMode to X and switch to it.
+     */
+
+    if (screen->cur_metamode->id != cur_metamode_id) {
+
+        if (switch_to_current_metamode(ctk_object, screen,
+                                       cur_metamode_str)) {
 
             ctk_config_statusbar_message(ctk_object->ctk_config,
                                          "Switched to MetaMode %dx%d.",
@@ -6918,7 +7243,7 @@ static int update_screen_metamodes(CtkDisplayConfig *ctk_object,
  done:
 
     XFree(metamode_strs);
-    XFree(cur_metamode_str);
+    XFree(cur_full_metamode_str);
 
     return clear_apply;
 

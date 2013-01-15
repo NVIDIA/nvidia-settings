@@ -244,6 +244,7 @@ typedef struct nvMetaModeRec {
     struct nvMetaModeRec *next;
 
     int id;     /* Magic id */
+    int x_idx;  /* Used to re-order metamodes on apply */
     MetaModeSource source; /* Source of the metamode */
     Bool switchable; /* Can the metamode be accessed through Ctrl Alt +- */
 
@@ -283,6 +284,7 @@ typedef struct nvScreenRec {
 
     int depth;      /* Depth of the screen */
     int stereo;     /* Stereo mode enabled on this screen */
+    int overlay;    /* Overlay enabled on this screen */
 
     nvDisplayPtr displays; /* List of displays using this screen */
     int num_displays; /* # of displays using this screen */
@@ -338,6 +340,10 @@ typedef struct nvGpuRec {
 
     GvoModeData *gvo_mode_data; /* Information about GVO modes available */
     unsigned int num_gvo_modes;
+
+    unsigned int *flags_memory; /* Pointer to memory alloced for flags */
+    unsigned int *flags; /* Array of flags queried from the X server */
+    int num_flags;
 
     nvDisplayPtr displays; /* Linked list of displays connected to GPU */
     int num_displays;

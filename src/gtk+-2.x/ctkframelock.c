@@ -181,6 +181,7 @@ struct _nvDisplayDataRec {
     /* Rate in milliHz */
     guint      rate_mHz;
     guint      rate_precision;
+    gboolean   hdmi3D;
 
     GtkWidget *stereo_label;
     GtkWidget *stereo_hbox; /* LED */
@@ -4020,7 +4021,13 @@ static void update_display_rate_txt(nvDisplayDataPtr data,
     data->rate_mHz = rate_mHz;
 
     fvalue = ((float)(data->rate_mHz)) / 1000.0f;
-    snprintf(str, 32, "%.*f Hz", precision, fvalue);
+
+    if (data->hdmi3D) {
+        fvalue /= 2;
+    }
+
+    snprintf(str, 32, "%.*f Hz%s", precision, fvalue,
+             data->hdmi3D ? " (Doubled for HDMI 3D)" : "");
 
     gtk_label_set_text(GTK_LABEL(data->rate_text), str);
 }
@@ -5171,6 +5178,7 @@ static void add_display_devices(CtkFramelock *ctk_framelock,
     while (display_mask) {
         int rate;
         int precision;
+        gboolean hdmi3D;
 
         if (display_mask & enabled_displays) {
 
@@ -5223,6 +5231,12 @@ static void add_display_devices(CtkFramelock *ctk_framelock,
             /* Add display to GPU entry */
             list_entry_add_child(gpu_entry, entry);
 
+            /* Determine if display is HDMI 3D */
+            ret = NvCtrlGetDisplayAttribute(display_data->handle,
+                                            display_data->device_mask,
+                                            NV_CTRL_DPY_HDMI_3D, &hdmi3D);
+
+            display_data->hdmi3D = hdmi3D;
 
             /* Refresh Rate */
             ret = NvCtrlGetDisplayAttribute(display_data->handle,

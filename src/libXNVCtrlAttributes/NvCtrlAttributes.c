@@ -516,7 +516,7 @@ ReturnStatus NvCtrlGetStringAttribute(NvCtrlAttributeHandle *handle,
 
 
 ReturnStatus NvCtrlSetStringAttribute(NvCtrlAttributeHandle *handle,
-                                      int attr, char *ptr, int *ret)
+                                      int attr, const char *ptr, int *ret)
 {
     if (!handle) return NvCtrlBadArgument;
     return NvCtrlSetStringDisplayAttribute(handle, 0, attr, ptr, ret);
@@ -795,7 +795,7 @@ NvCtrlGetStringDisplayAttribute(NvCtrlAttributeHandle *handle,
 ReturnStatus
 NvCtrlSetStringDisplayAttribute(NvCtrlAttributeHandle *handle,
                                 unsigned int display_mask,
-                                int attr, char *ptr, int *ret)
+                                int attr, const char *ptr, int *ret)
 {
     NvCtrlAttributePrivateHandle *h;
 
@@ -808,8 +808,7 @@ NvCtrlSetStringDisplayAttribute(NvCtrlAttributeHandle *handle,
     }
 
     return NvCtrlNoAttribute;
-
-} /* NvCtrlSetStringDisplayAttribute() */
+}
 
 
 ReturnStatus
@@ -829,12 +828,12 @@ NvCtrlGetBinaryAttribute(NvCtrlAttributeHandle *handle,
 ReturnStatus
 NvCtrlStringOperation(NvCtrlAttributeHandle *handle,
                       unsigned int display_mask, int attr,
-                      char *ptrIn, char **ptrOut)
+                      const char *ptrIn, char **ptrOut)
 {
     NvCtrlAttributePrivateHandle *h;
-    
+
     h = (NvCtrlAttributePrivateHandle *) handle;
-    
+
     if ((attr >= 0) && (attr <= NV_CTRL_STRING_OPERATION_LAST_ATTRIBUTE)) {
         if (!h->nv) return NvCtrlMissingExtension;
         return NvCtrlNvControlStringOperation(h, display_mask, attr, ptrIn,
@@ -842,8 +841,7 @@ NvCtrlStringOperation(NvCtrlAttributeHandle *handle,
     }
 
     return NvCtrlNoAttribute;
-
-} /* NvCtrlStringOperation() */
+}
 
 
 char *NvCtrlAttributesStrError(ReturnStatus status)

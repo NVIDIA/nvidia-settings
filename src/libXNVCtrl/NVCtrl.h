@@ -3217,9 +3217,52 @@
  */
 #define NV_CTRL_USED_DEDICATED_GPU_MEMORY                       394 /* R--G */
 
+/*
+ * NV_CTRL_GPU_DOUBLE_PRECISION_BOOST_IMMEDIATE
+ * Some GPUs can make a tradeoff between double-precision floating-point
+ * performance and clock speed.  Enabling double-precision floating point
+ * performance may benefit CUDA or OpenGL applications that require high
+ * bandwidth double-precision performance.  Disabling this feature may benefit
+ * graphics applications that require higher clock speeds.
+ *
+ * This attribute is only available when toggling double precision boost
+ * can be done immediately (without need for a rebooot).
+ */
+#define NV_CTRL_GPU_DOUBLE_PRECISION_BOOST_IMMEDIATE            395 /* RW-G */
+#define NV_CTRL_GPU_DOUBLE_PRECISION_BOOST_IMMEDIATE_DISABLED     0
+#define NV_CTRL_GPU_DOUBLE_PRECISION_BOOST_IMMEDIATE_ENABLED      1
 
+/*
+ * NV_CTRL_GPU_DOUBLE_PRECISION_BOOST_REBOOT
+ * Some GPUs can make a tradeoff between double-precision floating-point
+ * performance and clock speed.  Enabling double-precision floating point
+ * performance may benefit CUDA or OpenGL applications that require high
+ * bandwidth double-precision performance.  Disabling this feature may benefit
+ * graphics applications that require higher clock speeds.
+ *
+ * This attribute is only available when toggling double precision boost
+ * requires a reboot.
+ */
 
-#define NV_CTRL_LAST_ATTRIBUTE NV_CTRL_USED_DEDICATED_GPU_MEMORY
+#define NV_CTRL_GPU_DOUBLE_PRECISION_BOOST_REBOOT              396 /* RW-G */
+#define NV_CTRL_GPU_DOUBLE_PRECISION_BOOST_REBOOT_DISABLED       0
+#define NV_CTRL_GPU_DOUBLE_PRECISION_BOOST_REBOOT_ENALED         1
+
+/*
+ * NV_CTRL_DPY_HDMI_3D - Returns whether the specified display device is
+ * currently using HDMI 3D Frame Packed Stereo mode. Clients may use this
+ * to help interpret the refresh rate returned by NV_CTRL_REFRESH_RATE or
+ * NV_CTRL_REFRESH_RATE_3, which will be doubled when using HDMI 3D mode.
+ *
+ * This attribute may be queried through XNVCTRLQueryTargetAttribute()
+ * using a NV_CTRL_TARGET_TYPE_GPU target.
+ */
+
+#define NV_CTRL_DPY_HDMI_3D                                     397 /* R-DG */
+#define NV_CTRL_DPY_HDMI_3D_DISABLED                            0
+#define NV_CTRL_DPY_HDMI_3D_ENABLED                             1
+
+#define NV_CTRL_LAST_ATTRIBUTE NV_CTRL_DPY_HDMI_3D
 
 /**************************************************************************/
 
@@ -4266,10 +4309,28 @@
 
 #define NV_CTRL_BINARY_DATA_DISPLAYS_ASSIGNED_TO_XSCREEN     18  /* R--- */
 
+/*
+ * NV_CTRL_BINARY_DATA_GPU_FLAGS - Returns a list of flags for the
+ * given GPU.  A flag can, for instance, be a capability which enables
+ * of disables some features according to the GPU state.
+ *
+ * The format of the returned data is:
+ *
+ *     4       CARD32 number of GPU flags
+ *     4 * n   CARD32 GPU flag
+ *
+ * This attribute can only be queried through XNVCTRLQueryTargetBinaryData()
+ * using a NV_CTRL_TARGET_TYPE_GPU target.
+ */
+#define NV_CTRL_BINARY_DATA_GPU_FLAGS                        19  /* R--- */
+
+/* Stereo and display composition transformations are mutually exclusive. */
+#define NV_CTRL_BINARY_DATA_GPU_FLAGS_STEREO_DISPLAY_TRANSFORM_EXCLUSIVE     0
+/* Overlay and display composition transformations are mutually exclusive. */
+#define NV_CTRL_BINARY_DATA_GPU_FLAGS_OVERLAY_DISPLAY_TRANSFORM_EXCLUSIVE    1
 
 
-#define NV_CTRL_BINARY_DATA_LAST_ATTRIBUTE \
-        NV_CTRL_BINARY_DATA_DISPLAYS_ASSIGNED_TO_XSCREEN
+#define NV_CTRL_BINARY_DATA_LAST_ATTRIBUTE NV_CTRL_BINARY_DATA_GPU_FLAGS
 
 
 /**************************************************************************/
@@ -4619,6 +4680,5 @@ typedef struct _NVCTRLAttributePermissions {
 #define NV_CTRL_WARP_DATA_TYPE_BLEND_OR_OFFSET_TEXTURE     0
 #define NV_CTRL_WARP_DATA_TYPE_MESH_TRIANGLESTRIP_XYUVRQ   1
 #define NV_CTRL_WARP_DATA_TYPE_MESH_TRIANGLES_XYUVRQ       2
-
 
 #endif /* __NVCTRL_H */

@@ -64,6 +64,13 @@ struct _CtkPowermizer
     GtkWidget *powermizer_menu;
     GtkWidget *box_powermizer_menu;
 
+    GtkWidget *configuration_button;
+    gboolean  dp_enabled;
+    gboolean  dp_toggle_warning_dlg_shown;
+    gint      attribute;
+    gchar     *dp_enabled_string;
+    GtkWidget *status;
+
     GtkWidget *link_width;
     GtkWidget *link_speed;
     gboolean  pcie_gen_queriable;

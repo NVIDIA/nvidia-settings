@@ -722,6 +722,7 @@ static gboolean update_refresh_rate(InfoEntry *entry)
     CtkDisplayDevice *ctk_object = entry->ctk_object;
     ReturnStatus ret;
     gint val;
+    gboolean hdmi3D;
     char *str;
     float fvalue;
 
@@ -730,8 +731,18 @@ static gboolean update_refresh_rate(InfoEntry *entry)
         return FALSE;
     }
 
+    ret = NvCtrlGetAttribute(ctk_object->handle, NV_CTRL_DPY_HDMI_3D, &hdmi3D);
+    if (ret != NvCtrlSuccess) {
+        return FALSE;
+    }
+
     fvalue = ((float)(val)) / 100.0f;
-    str = g_strdup_printf("%.2f Hz", fvalue);
+
+    if (hdmi3D) {
+        fvalue /= 2;
+    }
+
+    str = g_strdup_printf("%.2f Hz%s", fvalue, hdmi3D ? " (HDMI 3D)" : "");
 
     gtk_label_set_text(GTK_LABEL(entry->txt), str);
     g_free(str);

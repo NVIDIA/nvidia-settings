@@ -70,7 +70,7 @@ SAMPLE_SOURCES        += nv-control-targets.c
 SAMPLE_SOURCES        += nv-control-framelock.c
 SAMPLE_SOURCES        += nv-control-gvi.c
 SAMPLE_SOURCES        += nv-control-3dvisionpro.c
-
+SAMPLE_SOURCES        += nv-control-warpblend.c
 
 ##############################################################################
 # build rules

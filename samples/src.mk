@@ -13,6 +13,8 @@ SAMPLES_EXTRA_DIST += nv-control-events.c
 SAMPLES_EXTRA_DIST += nv-control-gvi.c
 SAMPLES_EXTRA_DIST += nv-control-targets.c
 SAMPLES_EXTRA_DIST += nv-control-framelock.c
+SAMPLES_EXTRA_DIST += nv-control-warpblend.c
+SAMPLES_EXTRA_DIST += nv-control-warpblend.h
 SAMPLES_EXTRA_DIST += nv-control-screen.h
 SAMPLES_EXTRA_DIST += src.mk
 

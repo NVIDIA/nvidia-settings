@@ -336,7 +336,7 @@ NvCtrlNvControlGetStringAttribute (NvCtrlAttributePrivateHandle *h,
 ReturnStatus
 NvCtrlNvControlSetStringAttribute (NvCtrlAttributePrivateHandle *h,
                                    unsigned int display_mask,
-                                   int attr, char *ptr, int *ret)
+                                   int attr, const char *ptr, int *ret)
 {
     int tmp_int; /* Temp storage if ret is not specified */
 
@@ -357,7 +357,7 @@ NvCtrlNvControlSetStringAttribute (NvCtrlAttributePrivateHandle *h,
             return NvCtrlAttributeNotAvailable;
         }
     }
-      
+
     return NvCtrlNoAttribute;
 
 } /* NvCtrlNvControlSetStringAttribute() */
@@ -393,7 +393,7 @@ NvCtrlNvControlGetBinaryAttribute(NvCtrlAttributePrivateHandle *h,
 ReturnStatus
 NvCtrlNvControlStringOperation(NvCtrlAttributePrivateHandle *h,
                                unsigned int display_mask, int attr,
-                               char *ptrIn, char **ptrOut)
+                               const char *ptrIn, char **ptrOut)
 {
     if (attr <= NV_CTRL_STRING_OPERATION_LAST_ATTRIBUTE) {
         if (XNVCTRLStringOperation (h->dpy, h->target_type,

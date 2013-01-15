@@ -187,6 +187,9 @@ AttributeTableEntry attributeTable[] = {
     { "ThermalSensorReading",   NV_CTRL_THERMAL_SENSOR_READING,           N,   "Returns the thermal sensor's current reading." },
     { "ThermalSensorProvider",  NV_CTRL_THERMAL_SENSOR_PROVIDER,          N,   "Returns the hardware device that provides the thermal sensor." },
     { "ThermalSensorTarget",    NV_CTRL_THERMAL_SENSOR_TARGET,            N,   "Returns what hardware component the thermal sensor is measuring." },  
+    { "GPUDoublePrecisionBoostImmediate", NV_CTRL_GPU_DOUBLE_PRECISION_BOOST_IMMEDIATE, N,   "Toggles GPU double precision; the change is applied immediately.  Only available when the change can be made immediately." },
+    { "GPUDoublePrecisionBoostReboot",    NV_CTRL_GPU_DOUBLE_PRECISION_BOOST_REBOOT,    N,   "Toggles GPU double precision; the change is applied on the next reboot.  Only available when the change requires a reboot." },
+    
     /* Framelock */
     { "FrameLockAvailable",    NV_CTRL_FRAMELOCK,                   N|F|G,   "Returns whether the underlying GPU supports Frame Lock.  All of the other frame lock attributes are only applicable if this attribute is enabled (Supported)." },
     { "FrameLockMaster",       NV_CTRL_FRAMELOCK_MASTER,            N|F|G|D, "Get/set which display device to use as the frame lock master for the entire sync group.  Note that only one node in the sync group should be configured as the master." },
@@ -309,6 +312,7 @@ AttributeTableEntry attributeTable[] = {
     { "XineramaInfoOrder",          NV_CTRL_STRING_NVIDIA_XINERAMA_INFO_ORDER, S|N, "Controls the nvidiaXineramaInfoOrder." },
     { "RandROutputID",              NV_CTRL_DISPLAY_RANDR_OUTPUT_ID,       N,     "The RandR Output ID that corresponds to the display device." },
     { "FrameLockDisplayConfig",     NV_CTRL_FRAMELOCK_DISPLAY_CONFIG,      N,     "Controls the FrameLock mode of operation for the display device." },
+    { "Hdmi3D",                     NV_CTRL_DPY_HDMI_3D,                   N,     "Returns whether the specified display device is currently using HDMI 3D Frame Packed Stereo mode. If so, the result of refresh rate queries will be doubled." },
 
     /* TV */
     { "TVOverScan",      NV_CTRL_TV_OVERSCAN,       0, "Adjusts the amount of overscan on the specified display device." },
@@ -371,7 +375,7 @@ AttributeTableEntry attributeTable[] = {
  * about.
  */
 
-#if NV_CTRL_LAST_ATTRIBUTE != NV_CTRL_USED_DEDICATED_GPU_MEMORY
+#if NV_CTRL_LAST_ATTRIBUTE != NV_CTRL_DPY_HDMI_3D
 #warning "Have you forgotten to add a new integer attribute to attributeTable?"
 #endif
 
