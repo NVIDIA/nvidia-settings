@@ -106,6 +106,27 @@ static void query_display_target_names(CtrlHandleTarget *t)
                              &(t->protoNames[NV_DPY_PROTO_NAME_RANDR]));
 }
 
+NvCtrlAttributeHandle *nv_get_target_handle(CtrlHandles *handles,
+                                            int target_type,
+                                            int target_id)
+{
+    CtrlHandleTargets *targets;
+    int i;
+
+    if (target_type < 0 || target_type >= MAX_TARGET_TYPES) {
+        return NULL;
+    }
+
+    targets = handles->targets + target_type;
+    for (i = 0; i < targets->n; i++) {
+        CtrlHandleTarget *target = targets->t + i;
+        if (NvCtrlGetTargetId(target->h) == target_id) {
+            return target->h;
+        }
+    }
+
+    return NULL;
+}
 
 
 /*

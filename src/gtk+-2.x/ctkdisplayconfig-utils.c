@@ -548,13 +548,13 @@ static void apply_mode_attribute_token(char *token, char *value, void *data)
             mode->passive_stereo_eye = PASSIVE_STEREO_EYE_RIGHT;
         }
 
-    /* ViewPort In */
+    /* ViewPortIn */
     } else if (!strcasecmp("viewportin", token)) {
         parse_read_integer_pair(value, 'x',
                                 &(mode->viewPortIn[W]),
                                 &(mode->viewPortIn[H]));
 
-    /* ViewPort Out */
+    /* ViewPortOut */
     } else if (!strcasecmp("viewportout", token)) {
         const char *str;
 
@@ -668,10 +668,6 @@ nvModePtr mode_parse(nvDisplayPtr display, const char *mode_str)
     free(mode_name);
 
 
-    /* Setup default size and panning of display values */
-    mode_set_dims_from_modeline(mode, mode->modeline);
-
-
     /* Read mode information */
     while (*str) {
 
@@ -718,6 +714,16 @@ nvModePtr mode_parse(nvDisplayPtr display, const char *mode_str)
 
         /* Catch errors */
         if (!str) goto fail;
+    }
+
+    /* Initialize defaults for the viewports if unspecified */
+    if ((mode->viewPortOut[W] == 0) || (mode->viewPortOut[H] == 0)) {
+        mode->viewPortOut[W] = mode->modeline->data.hdisplay;
+        mode->viewPortOut[H] = mode->modeline->data.vdisplay;
+    }
+    if ((mode->viewPortIn[W] == 0) || (mode->viewPortIn[H] == 0)) {
+        mode->viewPortIn[W] = mode->viewPortOut[W];
+        mode->viewPortIn[H] = mode->viewPortOut[H];
     }
 
     /* If rotation is specified, swap W/H if they are still set to the
@@ -929,13 +935,13 @@ static gchar *mode_get_str(nvModePtr mode, int be_generic)
         }
     }
 
-    /* ViewPort in */
+    /* ViewPortIn */
     {
         int width;
         int height;
 
         /* Only write out the ViewPortIn if it is specified and differes from
-         * the viewport out.
+         * the ViewPortOut.
          */
         if ((mode->rotation == ROTATION_90) ||
             (mode->rotation == ROTATION_270)) {
@@ -957,7 +963,7 @@ static gchar *mode_get_str(nvModePtr mode, int be_generic)
         }
     }
 
-    /* ViewPort out */
+    /* ViewPortOut */
     if (mode->viewPortOut[X] ||
         mode->viewPortOut[Y] ||
         (mode->viewPortOut[W] && mode->viewPortOut[H] &&
@@ -1063,31 +1069,71 @@ static gchar *display_pick_config_name(nvDisplayPtr display, int be_generic)
  *
  * A best match is:
  *
- * - The modelines are the same.
  * - The modelines match in width & height.
+ * - Then, the modelines match the ViewPortIn.
+ * - Then, the modelines match the ViewPortOut.
  *
  **/
 int display_find_closest_mode_matching_modeline(nvDisplayPtr display,
                                                 nvModeLinePtr modeline)
 {
-    nvModePtr mode;
+    const int targetWidth = modeline->data.hdisplay;
+    const int targetHeight = modeline->data.vdisplay;
+
+    nvModePtr mode, best_mode = NULL;
     int mode_idx;
-    int match_idx = -1;
+    int best_idx = -1;
 
     mode_idx = 0;
     for (mode = display->modes; mode; mode = mode->next) {
         if (!mode->modeline) {
             continue;
+        } else if (mode->modeline->data.hdisplay == targetWidth &&
+                   mode->modeline->data.vdisplay == targetHeight) {
+            nvModePtr tmp_mode = mode;
+            int tmp_idx = mode_idx;
+
+            /* We already have a match.  Let's figure out if the
+             * currently considered mode is the closer to what we
+             * want.
+             */
+            if (best_mode) {
+                Bool current_match_vpin =
+                    (mode->viewPortIn[W] == targetWidth &&
+                     mode->viewPortIn[H] == targetHeight);
+                Bool best_match_vpin =
+                    (best_mode->viewPortIn[W] == targetWidth &&
+                     best_mode->viewPortIn[H] == targetHeight);
+                Bool best_match_vpout =
+                    (best_mode->viewPortOut[W] == targetWidth &&
+                     best_mode->viewPortOut[H] == targetHeight);
+
+                /* Try to find reasons why we should prefer the
+                 * previous match over the currently considered
+                 * mode.
+                 *
+                 * We first check which one has a matching ViewPortIn
+                 * If it's the case for both of them, then we compare
+                 * ViewPortOut.
+                 *
+                 * If both are equally close, we keep our previous
+                 * match.
+                 */
+                if ((!current_match_vpin && best_match_vpin) ||
+                    (current_match_vpin && best_match_vpin &&
+                     best_match_vpout)) {
+                    tmp_mode = best_mode;
+                    tmp_idx = best_idx;
+                }
+                /* Fallthrough. */
+            }
+            best_mode = tmp_mode;
+            best_idx = tmp_idx;
         }
-        if (mode->modeline->data.vdisplay == modeline->data.vdisplay &&
-            mode->modeline->data.hdisplay == modeline->data.hdisplay) {
-            match_idx = mode_idx;
-        }
-        if (mode->modeline == modeline) break;
         mode_idx++;
     }
 
-    return match_idx;
+    return best_idx;
 
 } /* display_find_closest_mode_matching_modeline() */
 

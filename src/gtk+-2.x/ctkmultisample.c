@@ -138,7 +138,8 @@ static const char *__aniso_slider_help =
 static const char *__fxaa_enable_help = 
 "Enable Fast Approximate Anti-Aliasing. This option is applied to "
 "OpenGL applications that are started after this option is set. Enabling "
-"FXAA disables antialiasing and other antialiasing setting methods.";
+"FXAA disables triple buffering, antialiasing, and other antialiasing "
+"setting methods.";
 
 static const char *__texture_sharpening_help =
 "To improve image quality, select this option "

@@ -308,6 +308,7 @@ AttributeTableEntry attributeTable[] = {
     { "CurrentMetaMode",            NV_CTRL_STRING_CURRENT_METAMODE_VERSION_2, S|N, "Controls the current MetaMode." },
     { "XineramaInfoOrder",          NV_CTRL_STRING_NVIDIA_XINERAMA_INFO_ORDER, S|N, "Controls the nvidiaXineramaInfoOrder." },
     { "RandROutputID",              NV_CTRL_DISPLAY_RANDR_OUTPUT_ID,       N,     "The RandR Output ID that corresponds to the display device." },
+    { "Hdmi3D",                     NV_CTRL_DPY_HDMI_3D,                   N,     "Returns whether the specified display device is currently using HDMI 3D Frame Packed Stereo mode. If so, the result of refresh rate queries will be doubled." },
 
     /* TV */
     { "TVOverScan",      NV_CTRL_TV_OVERSCAN,       0, "Adjusts the amount of overscan on the specified display device." },
@@ -370,7 +371,7 @@ AttributeTableEntry attributeTable[] = {
  * about.
  */
 
-#if NV_CTRL_LAST_ATTRIBUTE != NV_CTRL_USED_DEDICATED_GPU_MEMORY
+#if NV_CTRL_LAST_ATTRIBUTE != NV_CTRL_DPY_HDMI_3D
 #warning "Have you forgotten to add a new integer attribute to attributeTable?"
 #endif
 

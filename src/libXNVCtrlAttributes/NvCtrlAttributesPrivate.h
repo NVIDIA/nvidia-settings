@@ -268,7 +268,7 @@ NvCtrlNvControlGetStringAttribute (NvCtrlAttributePrivateHandle *,
 
 ReturnStatus
 NvCtrlNvControlSetStringAttribute (NvCtrlAttributePrivateHandle *,
-                                   unsigned int, int, char *, int *);
+                                   unsigned int, int, const char *, int *);
 
 ReturnStatus
 NvCtrlNvControlGetBinaryAttribute(NvCtrlAttributePrivateHandle *h,
@@ -278,7 +278,7 @@ NvCtrlNvControlGetBinaryAttribute(NvCtrlAttributePrivateHandle *h,
 ReturnStatus
 NvCtrlNvControlStringOperation (NvCtrlAttributePrivateHandle *h,
                                 unsigned int display_mask, int attr,
-                                char *ptrIn, char **ptrOut);
+                                const char *ptrIn, char **ptrOut);
 
 /* helper functions for XV86VidMode and RandR backends */
 

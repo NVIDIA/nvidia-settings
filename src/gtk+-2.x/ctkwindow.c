@@ -69,6 +69,7 @@
 
 #include "msg.h"
 #include "common-utils.h"
+#include "query-assign.h"
 
 
 /* column enumeration */
@@ -1416,15 +1417,16 @@ static void add_display_devices(CtkWindow *ctk_window, GtkTreeIter *iter,
         CtkEvent *ctk_event;
         CtrlHandles *handles = ctk_window->ctk_config->pCtrlHandles;
 
-        /* 
+        /*
          * Get the ctrl handle that was passed into ctk_main so that updated
-         * backend color slider values, cached in the handle itself, can be 
+         * backend color slider values, cached in the handle itself, can be
          * saved to the RC file when the UI is closed.
          */
 
         if (handles) {
-            display_handle = 
-                handles->targets[NV_CTRL_TARGET_TYPE_DISPLAY].t[display_id].h;
+            display_handle = nv_get_target_handle(handles,
+                                                  NV_CTRL_TARGET_TYPE_DISPLAY,
+                                                  display_id);
         } else {
             display_handle = NULL;
         }

@@ -393,7 +393,7 @@ ReturnStatus NvCtrlGetStringAttribute (NvCtrlAttributeHandle *handle,
  */
 
 ReturnStatus NvCtrlSetStringAttribute (NvCtrlAttributeHandle *handle,
-                                       int attr, char *ptr, int *ret);
+                                       int attr, const char *ptr, int *ret);
 
 /*
  * The following four functions are identical to the above five,
@@ -438,7 +438,7 @@ NvCtrlGetStringDisplayAttribute (NvCtrlAttributeHandle *handle,
 ReturnStatus
 NvCtrlSetStringDisplayAttribute (NvCtrlAttributeHandle *handle,
                                  unsigned int display_mask,
-                                 int attr, char *ptr, int *ret);
+                                 int attr, const char *ptr, int *ret);
 
 ReturnStatus
 NvCtrlGetBinaryAttribute(NvCtrlAttributeHandle *handle,
@@ -455,7 +455,7 @@ NvCtrlGetBinaryAttribute(NvCtrlAttributeHandle *handle,
 ReturnStatus
 NvCtrlStringOperation(NvCtrlAttributeHandle *handle,
                       unsigned int display_mask, int attr,
-                      char *ptrIn, char **ptrOut);
+                      const char *ptrIn, char **ptrOut);
 
 /*
  * NvCtrl[SG]etGvoColorConversion() - get and set the color conversion

@@ -244,6 +244,7 @@ typedef struct nvMetaModeRec {
     struct nvMetaModeRec *next;
 
     int id;     /* Magic id */
+    int x_idx;  /* Used to re-order metamodes on apply */
     MetaModeSource source; /* Source of the metamode */
     Bool switchable; /* Can the metamode be accessed through Ctrl Alt +- */
 

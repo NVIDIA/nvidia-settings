@@ -73,6 +73,10 @@ int nv_process_assignments_and_queries(Options *op);
 CtrlHandles *nv_alloc_ctrl_handles(const char *display);
 void nv_free_ctrl_handles(CtrlHandles *h);
 
+NvCtrlAttributeHandle *nv_get_target_handle(CtrlHandles *handles,
+                                            int target_type,
+                                            int target_id);
+
 int nv_process_parsed_attribute(ParsedAttribute*, CtrlHandles *h,
                                 int, int, char*, ...);
 

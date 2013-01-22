@@ -326,13 +326,13 @@ Bool XNVCTRLQueryTargetStringAttribute (
  *     BadMatch - The NVIDIA driver is not present on that screen.
  *     BadAlloc - Insufficient resources to fulfill the request.
  */
- 
+
 Bool XNVCTRLSetStringAttribute (
     Display *dpy,
     int screen,
     unsigned int display_mask,
     unsigned int attribute,
-    char *ptr
+    const char *ptr
 );
 
 
@@ -346,14 +346,14 @@ Bool XNVCTRLSetStringAttribute (
  *     BadMatch - The NVIDIA driver is not present on that screen.
  *     BadAlloc - Insufficient resources to fulfill the request.
  */
- 
+
 Bool XNVCTRLSetTargetStringAttribute (
     Display *dpy,
     int target_type,
     int target_id,
     unsigned int display_mask,
     unsigned int attribute,
-    char *ptr
+    const char *ptr
 );
 
 
@@ -628,7 +628,7 @@ Bool XNVCTRLStringOperation (
     int target_id,
     unsigned int display_mask,
     unsigned int attribute,
-    char *pIn,
+    const char *pIn,
     char **ppOut
 );
 

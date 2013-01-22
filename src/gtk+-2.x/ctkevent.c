@@ -329,6 +329,7 @@ static void ctk_event_class_init(CtkEventClass *ctk_event_class)
     MAKE_SIGNAL(NV_CTRL_DISPLAY_RANDR_OUTPUT_ID);
     MAKE_SIGNAL(NV_CTRL_TOTAL_DEDICATED_GPU_MEMORY);
     MAKE_SIGNAL(NV_CTRL_USED_DEDICATED_GPU_MEMORY);
+    MAKE_SIGNAL(NV_CTRL_DPY_HDMI_3D);
 #undef MAKE_SIGNAL
     
     /*
@@ -338,7 +339,7 @@ static void ctk_event_class_init(CtkEventClass *ctk_event_class)
      * knows about.
      */
 
-#if NV_CTRL_LAST_ATTRIBUTE != NV_CTRL_USED_DEDICATED_GPU_MEMORY
+#if NV_CTRL_LAST_ATTRIBUTE != NV_CTRL_DPY_HDMI_3D
 #warning "There are attributes that do not emit signals!"
 #endif
 

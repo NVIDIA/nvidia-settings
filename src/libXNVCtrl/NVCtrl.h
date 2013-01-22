@@ -3218,8 +3218,21 @@
 #define NV_CTRL_USED_DEDICATED_GPU_MEMORY                       394 /* R--G */
 
 
+/*
+ * NV_CTRL_DPY_HDMI_3D - Returns whether the specified display device is
+ * currently using HDMI 3D Frame Packed Stereo mode. Clients may use this
+ * to help interpret the refresh rate returned by NV_CTRL_REFRESH_RATE or
+ * NV_CTRL_REFRESH_RATE_3, which will be doubled when using HDMI 3D mode.
+ *
+ * This attribute may be queried through XNVCTRLQueryTargetAttribute()
+ * using a NV_CTRL_TARGET_TYPE_GPU target.
+ */
 
-#define NV_CTRL_LAST_ATTRIBUTE NV_CTRL_USED_DEDICATED_GPU_MEMORY
+#define NV_CTRL_DPY_HDMI_3D                                     397 /* R-DG */
+#define NV_CTRL_DPY_HDMI_3D_DISABLED                            0
+#define NV_CTRL_DPY_HDMI_3D_ENABLED                             1
+
+#define NV_CTRL_LAST_ATTRIBUTE NV_CTRL_DPY_HDMI_3D
 
 /**************************************************************************/
 
