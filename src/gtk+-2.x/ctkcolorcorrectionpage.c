@@ -123,8 +123,7 @@ GtkWidget* ctk_color_correction_page_new(NvCtrlAttributeHandle *handle,
 }
 
 
-GtkTextBuffer *ctk_color_correction_page_create_help(GtkTextTagTable *table,
-                                                     const gchar *title)
+GtkTextBuffer *ctk_color_correction_page_create_help(GtkTextTagTable *table)
 {
-    return ctk_color_correction_create_help(table, title, FALSE /* randr */);
+    return ctk_color_correction_create_help(table);
 }

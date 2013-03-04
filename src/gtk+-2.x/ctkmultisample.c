@@ -372,7 +372,7 @@ GtkWidget *ctk_multisample_new(NvCtrlAttributeHandle *handle,
 
             for (i = 0; i < ctk_multisample->fsaa_translation_table_size; i++)
                 ctk_multisample->active_attributes |=
-                    (1 << (__FSAA+ctk_multisample->fsaa_translation_table[i]));
+                    (__FSAA << ctk_multisample->fsaa_translation_table[i]);
 
             /* FXAA Option button */
 

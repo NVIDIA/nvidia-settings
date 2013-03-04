@@ -897,7 +897,6 @@ static void add_color_correction_tab(CtkDisplayDevice *ctk_object,
     if (ctk_color_correction == NULL) {
         return;
     }
-    ctk_object->color_correction_tab = ctk_color_correction;
     ctk_object->color_correction_available = TRUE;
 
     box = gtk_hbox_new(FALSE, 0);

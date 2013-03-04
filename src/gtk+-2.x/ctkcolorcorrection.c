@@ -1008,18 +1008,19 @@ static gboolean do_confirm_countdown(gpointer data)
 } /* do_confirm_countdown() */
 
 
-GtkTextBuffer *ctk_color_correction_create_help(GtkTextTagTable *table,
-                                                const gchar *title,
-                                                gboolean randr)
+GtkTextBuffer *ctk_color_correction_create_help(GtkTextTagTable *table)
 {
     GtkTextIter i;
     GtkTextBuffer *b;
-
+    const gchar *title = "X Server Color Correction";
+    
     b = gtk_text_buffer_new(table);
     
     gtk_text_buffer_get_iter_at_offset(b, &i, 0);
     
-    ctk_color_correction_tab_help(b, &i, title, randr);
+    ctk_help_title(b, &i, "%s Help", title);
+
+    ctk_color_correction_tab_help(b, &i, title, FALSE /* randr */);
     
     ctk_help_heading(b, &i, "Reset Hardware Defaults");
     ctk_help_para(b, &i, __resest_button_help);
@@ -1034,12 +1035,12 @@ void ctk_color_correction_tab_help(GtkTextBuffer *b, GtkTextIter *i,
                                    const gchar *title,
                                    gboolean randr)
 {
-    ctk_help_title(b, i, "%s Help", title);
+    ctk_help_heading(b, i, "Color Correction");
 
-    ctk_help_heading(b, i, "Active Color Channel");
+    ctk_help_term(b, i, "Active Color Channel");
     ctk_help_para(b, i, __active_color_help);
 
-    ctk_help_heading(b, i, "Brightness, Contrast and Gamma");
+    ctk_help_term(b, i, "Brightness, Contrast and Gamma");
     ctk_help_para(b, i, "The Brightness, Contrast and Gamma sliders "
                   "allow you to adjust the brightness, contrast, "
                   "or gamma values for the selected color channel(s).  This "
@@ -1066,6 +1067,6 @@ void ctk_color_correction_tab_help(GtkTextBuffer *b, GtkTextIter *i,
                       "to manipulate the X screen's gamma ramps", title);
     }
 
-    ctk_help_heading(b, i, "Confirm Current Changes");
+    ctk_help_term(b, i, "Confirm Current Changes");
     ctk_help_para(b, i, __confirm_button_help);
 }

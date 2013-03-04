@@ -687,10 +687,9 @@ GtkWidget *ctk_window_new(ParsedAttribute *p, ConfigProperties *conf,
                                                   ctk_window->attribute_list,
                                                   ctk_event);
             if (child) {
-                const char *title = "X Server Color Correction";
-                help = ctk_color_correction_page_create_help(tag_table, title);
+                help = ctk_color_correction_page_create_help(tag_table);
                 add_page(child, help, ctk_window, &iter, NULL,
-                         title, NULL, NULL, NULL);
+                         "X Server Color Correction", NULL, NULL, NULL);
             }
         }
 
