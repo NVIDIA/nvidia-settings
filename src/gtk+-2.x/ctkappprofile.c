@@ -1781,7 +1781,7 @@ static void edit_rule_dialog_save_changes(GtkWidget *widget, gpointer user_data)
     g_string_assign(dialog->matches, gtk_entry_get_text(GTK_ENTRY(dialog->matches_entry)));
     g_string_assign(dialog->source_file, gtk_entry_get_text(GTK_ENTRY(source_file_entry)));
 
-    // Chceck for inconsistencies and errors
+    // Check for inconsistencies and errors
     if (!edit_rule_dialog_validate(dialog)) {
         return;
     }

@@ -328,7 +328,7 @@ NvCtrlGlxAttributesClose (NvCtrlAttributePrivateHandle *h)
  * Returns an array of GLX Frame Buffer Configuration Attributes for the
  * given Display/Screen.
  *
- * NOTE: A seperate display connection is used to avoid the dependence on
+ * NOTE: A separate display connection is used to avoid the dependence on
  *       libGL when an XCloseDisplay is issued.   If we did not, calling
  *       XCloseDisplay AFTER the libGL library has been dlclose'ed (after
  *       having made at least one GLX call) would cause a segfault.
@@ -614,7 +614,7 @@ NvCtrlGlxGetVoidAttribute (NvCtrlAttributePrivateHandle *h,
  * NvCtrlGlxGetStringAttribute()
  *
  *
- * Retrieves a particular GLX information string by calling the appropreate
+ * Retrieves a particular GLX information string by calling the appropriate
  * OpenGL/GLX function.
  *
  *
@@ -622,7 +622,7 @@ NvCtrlGlxGetVoidAttribute (NvCtrlAttributePrivateHandle *h,
  * context such that valid information may be retrieved. (Having a context is
  * required for getting OpenGL and 'Direct rendering' information.)
  *
- * NOTE: A seperate display connection is used to avoid the dependence on
+ * NOTE: A separate display connection is used to avoid the dependence on
  *       libGL when an XCloseDisplay is issued.   If we did not, calling
  *       XCloseDisplay AFTER the libGL library has been dlclose'ed (after
  *       having made at least one GLX call) would cause a segfault.

@@ -403,7 +403,7 @@ GtkWidget* ctk_gpu_new(
     /*
      * GPU information: TOP->MIDDLE - LEFT->RIGHT
      *
-     * This displays basic display adatper information, including
+     * This displays basic display adapter information, including
      * product name, bios version, bus type, video ram and interrupt
      * line.
      */
@@ -602,7 +602,7 @@ GtkTextBuffer *ctk_gpu_create_help(GtkTextTagTable *table,
                   "in X configuration file 'BusID' format: "
                   "\"bus:device:function\", or, if the PCI domain of the GPU "
                   "is non-zero, \"bus@domain:device:function\".  Note "
-                  "that all values are in decimal (as opposed to hexidecimal, "
+                  "that all values are in decimal (as opposed to hexadecimal, "
                   "which is how `lspci` formats its BusID values).");
 
     ctk_help_heading(b, &i, "PCI Device ID");

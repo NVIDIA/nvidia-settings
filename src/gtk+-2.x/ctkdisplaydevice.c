@@ -366,7 +366,7 @@ GtkWidget* ctk_display_device_new(NvCtrlAttributeHandle *handle,
 
     /*
      * Create layout for second tab for controls but don't add the tab until we
-     * make sure its required
+     * make sure it's required
      */
 
     nbox = gtk_vbox_new(FALSE, FRAME_PADDING);
@@ -634,7 +634,7 @@ static gboolean update_signal_info(InfoEntry *entry)
 
 
 /* NOTE: Link information is dependent on signal type, and this function
- * assumes the signal type is querried first.
+ * assumes the signal type is queried first.
  */
 static gboolean update_link_info(InfoEntry *entry)
 {

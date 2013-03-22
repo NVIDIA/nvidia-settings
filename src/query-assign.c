@@ -159,7 +159,7 @@ static void load_display_target_proto_names(CtrlHandleTarget *t)
 
 
 /*!
- * Adds the default names for the given target to the list of protocal names.
+ * Adds the default names for the given target to the list of protocol names.
  *
  * \param[in]  t  The CtrlHandleTarget to load names for.
  */
@@ -184,7 +184,7 @@ static void load_default_target_proto_name(CtrlHandleTarget *t)
 
 
 /*!
- * Adds the all the appropriate names for the given target to the list of protocal names.
+ * Adds the all the appropriate names for the given target to the list of protocol names.
  *
  * \param[in]  t  The CtrlHandleTarget to load names for.
  */
@@ -612,10 +612,10 @@ static int target_has_qualification(const CtrlHandleTarget *t,
  * \param[out] targetName  Assigned the target name, or NULL for all target
  *                         names.
  *
- * \return  Returns NV_PARSER_STATUS_SUCCESS if sAAA and sBBB were successfuly
+ * \return  Returns NV_PARSER_STATUS_SUCCESS if sAAA and sBBB were successfully
  *          parsed into at target specification; else, returns
  *          NV_PARSER_STATUS_TARGET_SPEC_BAD_TARGET if a parsing failure
- *          occured.
+ *          occurred.
  */
 
 static int parse_single_target_specification(const char *sAAA,
@@ -697,7 +697,7 @@ static int parse_single_target_specification(const char *sAAA,
  * \param[in]     h  The list of targets to choose from.
  *
  * \return  Returns NV_PARSER_STATUS_SUCCESS if the ParsedAttribute's target
- *          specification string was successfully prased into a list of targets
+ *          specification string was successfully parsed into a list of targets
  *          (though this list could be empty, if no targets are found to
  *          match!); else, returns one of the other NV_PARSER_STATUS_XXX
  *          error codes that detail the particular parsing error.
@@ -2404,7 +2404,7 @@ static int query_all_targets(const char *display_name, const int target_index,
         }
 
         /*
-         * use the name for the target handle, or "Unknown" if we
+         * use the name for the target handle, or "Not NVIDIA" if we
          * don't have a target handle name (this can happen for a
          * non-NVIDIA X screen)
          */
@@ -2634,8 +2634,8 @@ static int process_parsed_attribute_internal(CtrlHandleTarget *t,
  * devices) is the same, regardless of what sort of processing we
  * actually need to do (thus this shared function).
  *
- * To accomodate the differences in processing needed for each of the
- * callers of this function, the paramenters 'assign' and 'verbose'
+ * To accommodate the differences in processing needed for each of the
+ * callers of this function, the parameters 'assign' and 'verbose'
  * are used; if assign is TRUE, then the attribute will be assigned
  * during processing, otherwise it will be queried.  If verbose is
  * TRUE, then a message will be printed out during each assignment (or
@@ -2810,7 +2810,7 @@ int nv_process_parsed_attribute(ParsedAttribute *a, CtrlHandles *h,
 
             /*
              * if we are hotkey switching, check against all connected
-             * displays; otherwise, check agains the currently active
+             * displays; otherwise, check against the currently active
              * display devices
              */
 
@@ -2886,7 +2886,7 @@ int nv_process_parsed_attribute(ParsedAttribute *a, CtrlHandles *h,
             status = NvCtrlGetAttribute(t->h, NV_CTRL_FRAMELOCK, &available);
             if (status != NvCtrlSuccess) {
                 nv_error_msg("The attribute '%s' specified %s cannot be "
-                             "%s; error querying frame lock availablity on "
+                             "%s; error querying frame lock availability on "
                              "%s (%s).",
                              a->name, whence, assign ? "assigned" : "queried",
                              t->name, NvCtrlAttributesStrError(status));
@@ -2948,7 +2948,7 @@ int nv_process_parsed_attribute(ParsedAttribute *a, CtrlHandles *h,
                                         &available);
             if (status != NvCtrlSuccess) {
                 nv_error_msg("The attribute '%s' specified %s cannot be "
-                             "%s; error querying SDI availablity on "
+                             "%s; error querying SDI availability on "
                              "%s (%s).",
                              a->name, whence, assign ? "assigned" : "queried",
                              t->name, NvCtrlAttributesStrError(status));

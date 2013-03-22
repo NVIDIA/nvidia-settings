@@ -118,12 +118,12 @@ static gchar *applicationSettings[] = {
 static const char *__aa_override_app_help =
 "Enable the Antialiasing \"Override Application Setting\" "
 "checkbox to make the antialiasing slider active and "
-"override any appliation antialiasing setting with the "
+"override any application antialiasing setting with the "
 "value of the slider.";
 
 static const char *__aa_menu_help =
 "The Application Antialiasing Settings Menu allows the antialiasing "
-"setting of OpenGL applications to be overriden with the value of "
+"setting of OpenGL applications to be overridden with the value of "
 "the slider.";
 
 static const char *__aa_slider_help =
@@ -133,7 +133,7 @@ static const char *__aa_slider_help =
 static const char *__aniso_override_app_help =
 "Enable the Anisotropic Filtering \"Override Application Setting\" "
 "checkbox to make the anisotropic filtering slider "
-"active and override any appliation anisotropic "
+"active and override any application anisotropic "
 "filtering setting with the value of the slider.";
 
 static const char *__aniso_slider_help =
@@ -1516,7 +1516,7 @@ GtkTextBuffer *ctk_multisample_create_help(GtkTextTagTable *table,
                       "rendering may decrease performance.");
 
         ctk_help_para(b, &i, "You can also configure Antialiasing "
-                      "using the __GL_FSAA_MODE environment varible (see "
+                      "using the __GL_FSAA_MODE environment variable (see "
                       "the README for details).  The __GL_FSAA_MODE "
                       "environment variable overrides the value in "
                       "nvidia-settings.");
@@ -1662,7 +1662,7 @@ GtkTextBuffer *ctk_multisample_create_help(GtkTextTagTable *table,
                       "expense of some performance.");
 
         ctk_help_para(b, &i, "You can also configure Anisotropic filtering "
-                      "using the __GL_LOG_MAX_ANISO environment varible "
+                      "using the __GL_LOG_MAX_ANISO environment variable "
                       "(see the README for details).  The "
                       "__GL_LOG_MAX_ANISO environment variable overrides "
                       "the value in nvidia-settings.");

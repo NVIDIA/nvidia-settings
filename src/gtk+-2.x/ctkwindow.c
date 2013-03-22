@@ -343,7 +343,7 @@ static void tree_selection_changed(GtkTreeSelection *selection,
 
 /*
  * tree_view_key_event() - callback for additional keyboard events we
- * want to track (space and Return) to expand and collapse collapsable
+ * want to track (space and Return) to expand and collapse collapsible
  * categories in the treeview.
  */
 

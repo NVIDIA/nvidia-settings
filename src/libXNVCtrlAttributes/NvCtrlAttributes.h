@@ -258,7 +258,7 @@ typedef struct GLXFBConfigAttrRec {
 
 
 /*
- * NvCtrlAttributeInit() - intializes the control panel backend; this
+ * NvCtrlAttributeInit() - initializes the control panel backend; this
  * includes probing for the various extensions, downloading the
  * initial state of attributes, etc.  Takes a Display pointer and
  * screen number, and returns an opaque handle on success; returns
@@ -338,7 +338,7 @@ ReturnStatus NvCtrlQueryTargetCount(NvCtrlAttributeHandle *handle,
 /*
  * NvCtrlGetAttribute()/NvCtrlSetAttribute() - these get and set
  * functions can be used to query and modify all integer attributes.
- * Modifications made via SetAttribute() are made immediatedly.  The
+ * Modifications made via SetAttribute() are made immediately.  The
  * attr argument is the attribute to query/modify; valid attributes
  * are those listed in NVCtrl.h and the NV_CTRL_ attributes #define'd
  * above.  NvCtrlGetAttribute64() behaves like NvCtrlGetAttribute(),

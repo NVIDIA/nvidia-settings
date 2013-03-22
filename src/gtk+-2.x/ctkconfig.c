@@ -55,7 +55,7 @@ static const char *__x_display_names_help =
 "When the current settings are saved to the "
 "configuration file, the attributes can either be "
 "qualified with just the screen to which the attribute "
-"should be applied, or the attribute can be qualifed with "
+"should be applied, or the attribute can be qualified with "
 "the entire X Display name.  If you want to be able to "
 "use the same configuration file across multiple "
 "computers, be sure to leave this option unchecked.  "
@@ -216,7 +216,7 @@ GtkWidget* ctk_config_new(ConfigProperties *conf, CtrlHandles *pCtrlHandles)
     gtk_statusbar_set_has_resize_grip
         (GTK_STATUSBAR(ctk_config->status_bar.widget), FALSE);
     
-    /* XXX force the status bar window to be vertially centered */
+    /* XXX force the status bar window to be vertically centered */
 
     gtk_misc_set_alignment
         (GTK_MISC(GTK_STATUSBAR(ctk_config->status_bar.widget)->label),

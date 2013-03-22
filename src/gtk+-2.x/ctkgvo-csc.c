@@ -101,7 +101,7 @@ static void apply_button_clicked            (GtkButton *button,
 static void initialize_csc_dropdown_changed (CtkDropDownMenu *combo,
                                              gpointer user_data);
 
-static void set_apply_button_senstive       (CtkGvoCsc *ctk_gvo_csc);
+static void set_apply_button_sensitive      (CtkGvoCsc *ctk_gvo_csc);
 
 static void apply_csc_values                (CtkGvoCsc *ctk_gvo_csc);
 
@@ -141,7 +141,7 @@ static const char * __initialize_help =
 "values from the selected standard.";
 
 static const char * __csc_help =
-"The color space conversion matrix defines the paramaters used for "
+"The color space conversion matrix defines the parameters used for "
 "converting the color data.";
 
 static const char * __apply_immediately_help =
@@ -849,7 +849,7 @@ static void spin_button_value_changed(GtkWidget *button,
      * the data has changed, make sure the apply button is sensitive
      */
 
-    set_apply_button_senstive(ctk_gvo_csc);
+    set_apply_button_sensitive(ctk_gvo_csc);
 
     /* if we are supposed to apply immediately, send the data now */
 
@@ -965,7 +965,7 @@ static void initialize_csc_dropdown_changed(CtkDropDownMenu *menu,
      * the data has changed, make sure the apply button is sensitive
      */
 
-    set_apply_button_senstive(ctk_gvo_csc);
+    set_apply_button_sensitive(ctk_gvo_csc);
 
     /* if we are supposed to apply immediately, send the data now */
 
@@ -978,10 +978,10 @@ static void initialize_csc_dropdown_changed(CtkDropDownMenu *menu,
 
 
 /*
- * set_apply_button_senstive() - make the "Apply" button sensitive
+ * set_apply_button_sensitive() - make the "Apply" button sensitive
  */
 
-static void set_apply_button_senstive(CtkGvoCsc *ctk_gvo_csc)
+static void set_apply_button_sensitive(CtkGvoCsc *ctk_gvo_csc)
 {
     /* if data is applied immediately, then we don't */
 
@@ -989,7 +989,7 @@ static void set_apply_button_senstive(CtkGvoCsc *ctk_gvo_csc)
     
     gtk_widget_set_sensitive(ctk_gvo_csc->applyButton, TRUE);
     
-} /* set_apply_button_senstive() */
+} /* set_apply_button_sensitive() */
 
 
 
@@ -1116,7 +1116,7 @@ static void gvo_csc_event_received(GtkObject *object,
         break;
     }
 
-} /* gvo_csc_event_recieved() */
+}
 
 
 
@@ -1268,17 +1268,17 @@ GtkTextBuffer *ctk_gvo_csc_create_help(GtkTextTagTable *table,
                   "Scb = Cb Scaling factor\n"
                   "Scr = Cr Scaling factor");
     ctk_help_para(b, &i,
-                  "Ry  = Red coeficient for Y\n"
-                  "Rcb = Red coeficient for Cb\n"
-                  "Rcr = Red coeficient for Cr");
+                  "Ry  = Red coefficient for Y\n"
+                  "Rcb = Red coefficient for Cb\n"
+                  "Rcr = Red coefficient for Cr");
     ctk_help_para(b, &i,
-                  "Gy  = Green coeficient for Y\n"
-                  "Gcb = Green coeficient for Cb\n"
-                  "Gcr = Green coeficient for Cr");
+                  "Gy  = Green coefficient for Y\n"
+                  "Gcb = Green coefficient for Cb\n"
+                  "Gcr = Green coefficient for Cr");
     ctk_help_para(b, &i,
-                  "By  = Blue coeficient for Y\n"
-                  "Bcb = Blue coeficient for Cb\n"
-                  "Bcr = Blue coeficient for Cr");
+                  "By  = Blue coefficient for Y\n"
+                  "Bcb = Blue coefficient for Cb\n"
+                  "Bcr = Blue coefficient for Cr");
 
     if (ctk_gvo_csc->caps & NV_CTRL_GVO_CAPABILITIES_APPLY_CSC_IMMEDIATELY) {
         ctk_help_heading(b, &i, "Apply Changes Immediately");

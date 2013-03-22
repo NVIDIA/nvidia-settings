@@ -624,7 +624,7 @@ GtkWidget* ctk_vcs_new(NvCtrlAttributeHandle *handle,
                                   &psu_str)  == NvCtrlSuccess)) {
         GtkWidget *vbox_padding;
 
-        /* Show the additonal queried information */
+        /* Show the additional queried information */
 
 
         /* Populate scrolling window with data */

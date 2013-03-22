@@ -66,7 +66,7 @@ GType ctk_server_get_type(void)
  *
  ***********************************************************************
  * 
- * xdpyinfo - print information about X display connecton
+ * xdpyinfo - print information about X display connection
  *
  * 
 Copyright 1988, 1998  The Open Group

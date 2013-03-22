@@ -692,7 +692,7 @@ gint ctk_gvo_banner_probe(gpointer data)
 
 
     // XXX We could get notified of these (sync source/mode) and
-    //     not have to probe - ie, it could be the job of the
+    //     not have to probe - i.e., it could be the job of the
     //     caller/user of the ctk_gvo_banner widget to notify the
     //     banner when these change.  We don't however since doing
     //     that could be prone to bitrot.

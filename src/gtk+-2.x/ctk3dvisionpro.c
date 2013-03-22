@@ -1845,8 +1845,8 @@ GtkTextBuffer *ctk_3d_vision_pro_create_help(GtkTextTagTable *table)
                          "You can reduce the hub range to limit the experience "
                          "to a small group, or increase the range to include "
                          "everyone in a large room.\n"
-                         "Possible values for transeiver range are 'Short Range' "
-                         "'Medium Range' and 'Long Range'.");
+                         "Possible values for transceiver range are 'Short "
+                         "Range' 'Medium Range' and 'Long Range'.");
     ctk_help_para(b, &i, "Short Range: \n"
                          "Allows glasses within a 5-meter (16.5-foot) range to "
                          "be synced with the hub. This range is typically used "

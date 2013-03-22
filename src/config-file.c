@@ -288,7 +288,7 @@ int nv_write_config_file(const char *filename, CtrlHandles *h,
 
         /*
          * construct the prefix that will be printed in the config
-         * file infront of each attribute on this screen; this will
+         * file in front of each attribute on this screen; this will
          * either be "[screen]" or "[displayname]".
          */
 
@@ -340,7 +340,7 @@ int nv_write_config_file(const char *filename, CtrlHandles *h,
                 mask = 1 << bit;
 
                 /*
-                 * if this bit is not present in the screens's enabled
+                 * if this bit is not present in the screen's enabled
                  * display device mask (and the X screen has enabled
                  * display devices), skip to the next bit
                  */
@@ -390,7 +390,7 @@ int nv_write_config_file(const char *filename, CtrlHandles *h,
     } /* screen */
 
     /*
-     * Write attributes addresssable to display targets
+     * Write attributes addressable to display targets
      */
 
     for (display = 0; display < h->targets[DISPLAY_TARGET].n; display++) {
@@ -683,8 +683,8 @@ static int process_config_file_attributes(const char *file,
          * We do not fail if processing the attribute failed.  If the
          * GPU or the X config changed (for example stereo is
          * disabled), some attributes written in the config file may
-         * not be advertised by the the NVCTRL extension (for example
-         * the control to force stereo)
+         * not be advertised by the NVCTRL extension (for example the
+         * control to force stereo)
          */
     }
     

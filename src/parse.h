@@ -218,7 +218,7 @@ const TargetTypeEntry *nv_get_target_type_entry_by_name(const char *name);
 
 
 /* nv_get_sdi_csc_matrxi() - Returns an array of floats that specifies
- * all the color, offset and scale values for specifing one of the
+ * all the color, offset and scale values for specifying one of the
  * Standard CSC. 's' is a string that names the matrix values to return.
  * The values are placed in the float buffer like so:
  *
@@ -240,7 +240,7 @@ const float * nv_get_sdi_csc_matrix(char *s);
  * the default X server is used.  If no X screen is specified, then
  * all X screens on the X server are used.
  *
- * {screen}/ may be specified by itself (ie: without the
+ * {screen}/ may be specified by itself (i.e.: without the
  * "{host}:{display}." part).
  *
  * Additionally, instead of specifying a screen, a target
@@ -263,7 +263,7 @@ const float * nv_get_sdi_csc_matrix(char *s);
  *
  * The query parameter controls whether the attribute string is parsed
  * for setting or querying.  If query == NV_PARSER_SET, then the
- * attribute string will be interpretted as described above.  If query
+ * attribute string will be interpreted as described above.  If query
  * == NV_PARSER_QUERY, the "={value}" portion of the string should be
  * omitted.
  *
@@ -303,7 +303,7 @@ char *remove_spaces(const char *o);
 char *replace_characters(const char *o, const char c, const char r);
 
 /*
- * diaplay_mask/display_name conversions: the NV-CONTROL X extension
+ * display_mask/display_name conversions: the NV-CONTROL X extension
  * identifies a display device by a bit in a display device mask.  The
  * below functions translate between a display mask, and a string
  * describing the display devices.

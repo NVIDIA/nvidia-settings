@@ -412,7 +412,7 @@ static void do_enable(Display *dpy)
             printf("    - Frame Lock Sync Enabled.\n");
             
             /* If we just enabled the server, also toggle the test signal
-             * to guarentee accuracy of the universal frame count (as
+             * to guarantee accuracy of the universal frame count (as
              * returned by the glXQueryFrameCountNV() function in the
              * GLX_NV_swap_group extension).
              */

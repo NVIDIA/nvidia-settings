@@ -390,7 +390,7 @@ static void cooler_control_state_update_gui(CtkThermal *ctk_thermal)
 
 
     /* We need to check the cooler control state status with 
-     * the server everytime someone tries to change the state
+     * the server every time someone tries to change the state
      * because the set might have failed.
      */
 
@@ -1269,7 +1269,7 @@ GtkWidget* ctk_thermal_new(NvCtrlAttributeHandle *handle,
             cur_sensor_idx++;
         }
     } else {
-        /* GPU Core Treshold Temperature */
+        /* GPU Core Threshold Temperature */
 
         vbox1 = gtk_vbox_new(FALSE, 0);
         hbox1 = gtk_hbox_new(FALSE, 0);

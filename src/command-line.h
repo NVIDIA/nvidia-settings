@@ -45,13 +45,13 @@ typedef struct {
     
     char *config;        /*
                           * The name of the configuration file (to be
-                          * read from, and to be writen to); defaults
+                          * read from, and to be written to); defaults
                           * to the value of the constant
                           * DEFAULT_RC_FILE.
                           */
 
     char **assignments;  /*
-                          * Dyanamically allocated array of assignment
+                          * Dynamically allocated array of assignment
                           * strings specified on the commandline.
                           */
     
@@ -61,7 +61,7 @@ typedef struct {
                           */
     
     char **queries;      /*
-                          * Dyanamically allocated array of query
+                          * Dynamically allocated array of query
                           * strings specified on the commandline.
                           */
     

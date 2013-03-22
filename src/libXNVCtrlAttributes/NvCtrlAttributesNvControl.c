@@ -55,7 +55,7 @@ NvCtrlInitNvControlAttributes (NvCtrlAttributePrivateHandle *h)
 
     if (major < NV_MINMAJOR || (major == NV_MINMAJOR && minor < NV_MINMINOR)) {
         nv_error_msg("NV-CONTROL extension version %d.%d is too old; "
-                     "the minimimum required version is %d.%d.",
+                     "the minimum required version is %d.%d.",
                      major, minor, NV_MINMAJOR, NV_MINMINOR);
         return NULL;
     }
