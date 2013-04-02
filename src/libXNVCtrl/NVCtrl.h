@@ -704,6 +704,7 @@
 #define NV_CTRL_ARCHITECTURE_X86                                 0
 #define NV_CTRL_ARCHITECTURE_X86_64                              1
 #define NV_CTRL_ARCHITECTURE_IA64                                2
+#define NV_CTRL_ARCHITECTURE_ARM                                 3
 
 
 /*

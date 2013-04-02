@@ -166,6 +166,18 @@ typedef struct nvModeLineRec {
 
 
 
+typedef struct nvSelectedModeRec {
+    struct nvSelectedModeRec *next;
+
+    GtkWidget *label;       /* Label shown in dropdown menu */
+
+    nvModeLinePtr modeline; /* Modeline this mode references */
+
+    Bool isSpecial;         /* Whether this mode is "Off" or "Auto" */
+} nvSelectedMode, *nvSelectedModePtr;
+
+
+
 /* Mode (A particular configuration for a display within an X screen)
  *
  * NOTE: When metamodes are duplicated, the modes are memcpy'ed over, so
@@ -230,6 +242,10 @@ typedef struct nvDisplayRec {
 
     nvModeLinePtr       modelines;      /* Modelines validated by X */
     int                 num_modelines;
+
+    nvSelectedModePtr   selected_modes; /* List of modes to show in the dropdown menu */
+    int                 num_selected_modes;
+    nvSelectedModePtr   cur_selected_mode; /* Current mode selected in the dropdown menu */
 
     nvModePtr           modes;          /* List of modes this display uses */
     int                 num_modes;

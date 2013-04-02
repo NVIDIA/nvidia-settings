@@ -104,7 +104,7 @@ typedef struct _CtkDisplayConfig
 
     GtkWidget *box_display_resolution;
     GtkWidget *mnu_display_resolution;
-    nvModeLinePtr *resolution_table;
+    nvSelectedModePtr *resolution_table;
     int resolution_table_len;
 
     GtkWidget *mnu_display_refresh;

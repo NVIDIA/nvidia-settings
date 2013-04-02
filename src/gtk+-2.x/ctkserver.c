@@ -295,6 +295,7 @@ GtkWidget* ctk_server_new(NvCtrlAttributeHandle *handle,
         if      (tmp == NV_CTRL_ARCHITECTURE_X86) arch = "x86";
         else if (tmp == NV_CTRL_ARCHITECTURE_X86_64) arch = "x86_64";
         else if (tmp == NV_CTRL_ARCHITECTURE_IA64) arch = "ia64";
+        else if (tmp == NV_CTRL_ARCHITECTURE_ARM) arch = "ARM";
     }
     if (!arch) arch = "Unknown";
     os = g_strdup_printf("%s-%s", os, arch);
