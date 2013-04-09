@@ -200,6 +200,44 @@ char *nvstrtolower(char *s)
 
 
 /*
+ * nvstrtoupper() - convert the given string to uppercase.
+ */
+
+char *nvstrtoupper(char *s)
+{
+    char *start = s;
+
+    if (s == NULL) return NULL;
+
+    while (*s) {
+        *s = toupper(*s);
+        s++;
+    }
+
+    return start;
+
+} /* nvstrtoupper() */
+
+
+
+/*
+ * nvasprintf() - implementation of asprintf() that checks return values; if an
+ * error occurs, an error is printed to stderr and exit is called.
+ * -- this function will only return on success.
+ */
+char *nvasprintf(const char *fmt, ...)
+{
+    char *str;
+
+    NV_VSNPRINTF(str, fmt);
+
+    return str;
+
+} /* nvasprintf() */
+
+
+
+/*
  * nvfree() - frees memory allocated with nvalloc(), provided
  * a non-NULL pointer is provided.
  */
@@ -645,4 +683,13 @@ char *fget_next_line(FILE *fp, int *eof)
     } /* while (1) */
 
     return NULL; /* should never get here */
+}
+
+char *nvstrchrnul(char *s, int c)
+{
+    char *result = strchr(s, c);
+    if (!result) {
+        return (s + strlen(s));
+    }
+    return result;
 }

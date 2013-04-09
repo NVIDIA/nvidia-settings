@@ -22,6 +22,11 @@
 
 #include "common-utils.h"
 
+/*
+ * Forward declaration to break circular dependancy with query-assign.h
+ */
+struct _CtrlHandlesArray;
+
 #define DEFAULT_RC_FILE "~/.nvidia-settings-rc"
 #define CONFIG_FILE_OPTION 1
 
@@ -89,6 +94,7 @@ typedef struct {
 } Options;
 
 
-Options *parse_command_line(int argc, char *argv[], char *dpy);
+Options *parse_command_line(int argc, char *argv[], char *dpy, 
+                            struct _CtrlHandlesArray *handles_array);
 
 #endif /* __COMMAND_LINE_H__ */

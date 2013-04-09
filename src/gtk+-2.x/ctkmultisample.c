@@ -157,27 +157,28 @@ static const char *__texture_sharpening_help =
  * help
  */
 
-#define __LOG_ANISO_RANGE (1 << 2)
-#define __TEXTURE_SHARPEN (1 << 3)
-#define __FSAA            (1 << 4)
-#define __FSAA_NONE       (__FSAA << NV_CTRL_FSAA_MODE_NONE)
-#define __FSAA_2x         (__FSAA << NV_CTRL_FSAA_MODE_2x)
-#define __FSAA_2x_5t      (__FSAA << NV_CTRL_FSAA_MODE_2x_5t)
-#define __FSAA_15x15      (__FSAA << NV_CTRL_FSAA_MODE_15x15)
-#define __FSAA_2x2        (__FSAA << NV_CTRL_FSAA_MODE_2x2)
-#define __FSAA_4x         (__FSAA << NV_CTRL_FSAA_MODE_4x)
-#define __FSAA_4x_9t      (__FSAA << NV_CTRL_FSAA_MODE_4x_9t)
-#define __FSAA_8x         (__FSAA << NV_CTRL_FSAA_MODE_8x)
-#define __FSAA_16x        (__FSAA << NV_CTRL_FSAA_MODE_16x)
-#define __FSAA_8xS        (__FSAA << NV_CTRL_FSAA_MODE_8xS)
-#define __FSAA_8xQ        (__FSAA << NV_CTRL_FSAA_MODE_8xQ)
-#define __FSAA_16xS       (__FSAA << NV_CTRL_FSAA_MODE_16xS)
-#define __FSAA_16xQ       (__FSAA << NV_CTRL_FSAA_MODE_16xQ)
-#define __FSAA_32xS       (__FSAA << NV_CTRL_FSAA_MODE_32xS)
-#define __FSAA_32x        (__FSAA << NV_CTRL_FSAA_MODE_32x)
-#define __FSAA_64xS       (__FSAA << NV_CTRL_FSAA_MODE_64xS)
-#define __FSAA_ENHANCE    (__FSAA << (NV_CTRL_FSAA_MODE_MAX + 1))
-#define __FXAA            (__FSAA << (NV_CTRL_FSAA_MODE_MAX + 2))
+#define __FSAA_NONE       (1 << NV_CTRL_FSAA_MODE_NONE)
+#define __FSAA_2x         (1 << NV_CTRL_FSAA_MODE_2x)
+#define __FSAA_2x_5t      (1 << NV_CTRL_FSAA_MODE_2x_5t)
+#define __FSAA_15x15      (1 << NV_CTRL_FSAA_MODE_15x15)
+#define __FSAA_2x2        (1 << NV_CTRL_FSAA_MODE_2x2)
+#define __FSAA_4x         (1 << NV_CTRL_FSAA_MODE_4x)
+#define __FSAA_4x_9t      (1 << NV_CTRL_FSAA_MODE_4x_9t)
+#define __FSAA_8x         (1 << NV_CTRL_FSAA_MODE_8x)
+#define __FSAA_16x        (1 << NV_CTRL_FSAA_MODE_16x)
+#define __FSAA_8xS        (1 << NV_CTRL_FSAA_MODE_8xS)
+#define __FSAA_8xQ        (1 << NV_CTRL_FSAA_MODE_8xQ)
+#define __FSAA_16xS       (1 << NV_CTRL_FSAA_MODE_16xS)
+#define __FSAA_16xQ       (1 << NV_CTRL_FSAA_MODE_16xQ)
+#define __FSAA_32xS       (1 << NV_CTRL_FSAA_MODE_32xS)
+#define __FSAA_32x        (1 << NV_CTRL_FSAA_MODE_32x)
+#define __FSAA_64xS       (1 << NV_CTRL_FSAA_MODE_64xS)
+#define __FSAA            (1 << (NV_CTRL_FSAA_MODE_MAX + 1))
+#define __FSAA_ENHANCE    (1 << (NV_CTRL_FSAA_MODE_MAX + 2))
+#define __FXAA            (1 << (NV_CTRL_FSAA_MODE_MAX + 3))
+#define __LOG_ANISO_RANGE (1 << (NV_CTRL_FSAA_MODE_MAX + 4))
+#define __TEXTURE_SHARPEN (1 << (NV_CTRL_FSAA_MODE_MAX + 5))
+
 
 #define FRAME_PADDING 5
 
@@ -378,7 +379,7 @@ GtkWidget *ctk_multisample_new(NvCtrlAttributeHandle *handle,
 
             for (i = 0; i < ctk_multisample->fsaa_translation_table_size; i++)
                 ctk_multisample->active_attributes |=
-                    (__FSAA << ctk_multisample->fsaa_translation_table[i]);
+                    (1 << ctk_multisample->fsaa_translation_table[i]);
 
             /* FXAA Option button */
 
@@ -725,7 +726,7 @@ static GtkWidget *create_fsaa_setting_menu(CtkMultisample *ctk_multisample,
     ctk_config_set_tooltip(ctk_multisample->ctk_config, d->menu,
                            __aa_menu_help);
 
-    g_signal_connect(ctk_drop_down_menu_change_object(GTK_WIDGET(d)),
+    g_signal_connect(G_OBJECT(d),
                      "changed",
                      G_CALLBACK(fsaa_setting_menu_changed),
                      (gpointer) ctk_multisample);
@@ -940,7 +941,7 @@ static void fsaa_setting_update_received(GtkObject *object,
         GtkWidget *menu = ctk_multisample->fsaa_menu;
 
         g_signal_handlers_block_by_func
-            (ctk_drop_down_menu_change_object(GTK_WIDGET(menu)),
+            (G_OBJECT(menu),
              G_CALLBACK(fsaa_setting_menu_changed),
              (gpointer) ctk_multisample);
 
@@ -948,7 +949,7 @@ static void fsaa_setting_update_received(GtkObject *object,
             (CTK_DROP_DOWN_MENU(ctk_multisample->fsaa_menu), idx);
         
         g_signal_handlers_unblock_by_func
-            (ctk_drop_down_menu_change_object(GTK_WIDGET(menu)),
+            (G_OBJECT(menu),
              G_CALLBACK(fsaa_setting_menu_changed),
              (gpointer) ctk_multisample);
     } else {

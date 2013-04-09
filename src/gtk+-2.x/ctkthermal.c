@@ -1661,7 +1661,7 @@ next_help:
     ctk_help_heading(b, &i, "ID");
     ctk_help_para(b, &i, __fan_id_help);
 
-    ctk_help_heading(b, &i, "Speed (%)");
+    ctk_help_heading(b, &i, "Speed (%%)");
     ctk_help_para(b, &i, __fan_speed_help);
 
     ctk_help_heading(b, &i, "Type");

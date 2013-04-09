@@ -121,6 +121,11 @@ typedef struct _CtkDisplayConfig
     GtkWidget *mnu_display_rotation;
     GtkWidget *mnu_display_reflection;
 
+    GtkWidget *box_display_underscan;
+    GtkWidget *txt_display_underscan;
+    GtkWidget *sld_display_underscan;
+    GtkObject *adj_display_underscan;
+
     GtkWidget *box_display_viewport;
 
     GtkWidget *box_display_viewport_in;
@@ -205,7 +210,7 @@ typedef struct _CtkDisplayConfig
     gboolean notify_user_of_reset; /* User was notified of reset requirement */
     gboolean ignore_reset_events; /* Ignore reset-causing events */
 
-    int cur_screen_pos[2]; /* Keep track of the selected X screen's position */
+    GdkPoint cur_screen_pos; /* Keep track of the selected X screen's position */
 
     GtkWidget *btn_save;
     GtkWidget *btn_probe;

@@ -311,23 +311,22 @@ static nvModePtr get_mode(nvDisplayPtr display, int mode_idx)
 
 
 
-/** get_screen_dim ***************************************************
+/** get_screen_rect **************************************************
  *
  * Returns the dimension array to use as the screen's dimensions.
  *
  **/
 
-static int *get_screen_dim(nvScreenPtr screen, Bool edim)
+static GdkRectangle *get_screen_rect(nvScreenPtr screen, Bool edim)
 {
     if (!screen) return NULL;
 
     if (screen->no_scanout || !screen->cur_metamode) {
-        return screen->dim;
+        return &(screen->dim);
     }
 
-    return edim ? screen->cur_metamode->edim : screen->cur_metamode->dim;
-
-} /* get_screen_dim() */
+    return edim ? &(screen->cur_metamode->edim) : &(screen->cur_metamode->dim);
+}
 
 
 
@@ -343,7 +342,7 @@ static Bool get_modify_info(CtkDisplayLayout *ctk_object)
 {
     ModifyInfo *info = &(ctk_object->modify_info);
     Bool use_screen_instead;
-    int *sdim;
+    GdkRectangle *screen_rect;
 
 
     info->screen = ctk_object->selected_screen;
@@ -365,11 +364,8 @@ static Bool get_modify_info(CtkDisplayLayout *ctk_object)
 
 
     /* Gather the initial screen dimensions */
-    sdim = get_screen_dim(info->screen, 0);
-    info->orig_screen_dim[X] = sdim[X];
-    info->orig_screen_dim[Y] = sdim[Y];
-    info->orig_screen_dim[W] = sdim[W];
-    info->orig_screen_dim[H] = sdim[H];
+    screen_rect = get_screen_rect(info->screen, 0);
+    info->orig_screen_dim = *(screen_rect);
 
 
     /* If a display device is being moved (not panned) and
@@ -406,30 +402,18 @@ static Bool get_modify_info(CtkDisplayLayout *ctk_object)
     if (info->display) {
         info->target_position_type =
             &(info->display->cur_mode->position_type);
-        if (ctk_object->modify_info.modify_panning) {
-            info->target_dim = info->display->cur_mode->pan;
-        } else {
-            info->target_dim = info->display->cur_mode->viewPortIn;
-        }
+        info->target_dim = &(info->display->cur_mode->pan);
         info->gpu = info->display->gpu;
     } else {
         info->target_position_type = &(info->screen->position_type);
-        info->target_dim = sdim;
+        info->target_dim = screen_rect;
         info->gpu = info->screen->gpu;
     }
     info->orig_position_type = *(info->target_position_type);
-    info->orig_dim[X] = info->target_dim[X];
-    info->orig_dim[Y] = info->target_dim[Y];
-    info->orig_dim[W] = info->target_dim[W];
-    info->orig_dim[H] = info->target_dim[H];
-
+    info->orig_dim = *(info->target_dim);
 
     /* Initialize where we moved to */
-    info->dst_dim[X] = info->orig_dim[X];
-    info->dst_dim[Y] = info->orig_dim[Y];
-    info->dst_dim[W] = info->orig_dim[W];
-    info->dst_dim[H] = info->orig_dim[H];
-
+    info->dst_dim = info->orig_dim;
 
     /* Initialize snapping */
     info->best_snap_v = ctk_object->snap_strength +1;
@@ -438,10 +422,7 @@ static Bool get_modify_info(CtkDisplayLayout *ctk_object)
 
     /* Make sure the modify dim is up to date */
     if (info->modify_dirty) {
-        info->modify_dim[X] = info->orig_dim[X];
-        info->modify_dim[Y] = info->orig_dim[Y];
-        info->modify_dim[W] = info->orig_dim[W];
-        info->modify_dim[H] = info->orig_dim[H];
+        info->modify_dim = info->orig_dim;
         info->modify_dirty = 0;
     }
 
@@ -459,15 +440,15 @@ static Bool get_modify_info(CtkDisplayLayout *ctk_object)
 
 static Bool sync_scaling(CtkDisplayLayout *ctk_object)
 {
-    int *dim = ctk_object->layout->dim;
+    GdkRectangle *dim = &(ctk_object->layout->dim);
     float wscale;
     float hscale;
     float prev_scale = ctk_object->scale;
 
-    wscale = (float)(ctk_object->img_dim[W]) / (float)(dim[W]);
-    hscale = (float)(ctk_object->img_dim[H]) / (float)(dim[H]);
+    wscale = (float)(ctk_object->img_dim.width) / (float)(dim->width);
+    hscale = (float)(ctk_object->img_dim.height) / (float)(dim->height);
 
-    if (wscale * dim[H] > ctk_object->img_dim[H]) {
+    if (wscale * dim->height > ctk_object->img_dim.height) {
         ctk_object->scale = hscale;
     } else {
         ctk_object->scale = wscale;
@@ -485,27 +466,42 @@ static Bool sync_scaling(CtkDisplayLayout *ctk_object)
  *
  **/
 
-static int point_in_dim(int *dim, int x, int y)
+static int point_in_rect(const GdkRectangle *rect, int x, int y)
 {
-    if (x > dim[X] && x < (dim[X] + dim[W]) &&
-        y > dim[Y] && y < (dim[Y] + dim[H])) {
+    if (x > rect->x && x < (rect->x + rect->width) &&
+        y > rect->y && y < (rect->y + rect->height)) {
         return 1;
     }
-    
-    return 0;
 
-} /*  point_in_dim() */
+    return 0;
+}
+
+static int point_in_display(nvDisplayPtr display, int x, int y)
+{
+    if (!display->cur_mode) {
+        return 0;
+    }
+
+    return point_in_rect(&(display->cur_mode->pan), x, y);
+}
+
+static int point_in_screen(nvScreenPtr screen, int x, int y)
+{
+    GdkRectangle *screen_rect = get_screen_rect(screen, 1);
+
+    return point_in_rect(screen_rect, x, y);
+}
 
 
 
 /** get_point_relative_position() ************************************
  *
- * Determines the relative position of a point to the given dimensions
- * of a box.
+ * Returns where the point (x, y) is, relative to the given rectangle
+ * as: above, below, left-of, right-of, inside/clones.
  *
  **/
 
-static int get_point_relative_position(int *dim, int x, int y)
+static int get_point_relative_position(GdkRectangle *rect, int x, int y)
 {
     float m1, b1;
     float m2, b2;
@@ -513,30 +509,30 @@ static int get_point_relative_position(int *dim, int x, int y)
 
 
     /* Point insize dim */
-    if ((x >= dim[X]) && (x <= dim[X] + dim[W]) &&
-        (y >= dim[Y]) && (y <= dim[Y] + dim[H])) {
+    if (point_in_rect(rect, x, y)) {
         return CONF_ADJ_RELATIVE;
     }
-    
+
     /* Compute cross lines of dimensions */
-    m1 = ((float) dim[H]) / ((float) dim[W]);
-    b1 = ((float) dim[Y]) - (m1 * ((float) dim[X]));
-    
+    m1 = ((float) rect->height) / ((float) rect->width);
+    b1 = ((float) rect->y) - (m1 * ((float) rect->x));
+
     m2 = -m1;
-    b2 = ((float) dim[Y]) + ((float) dim[H]) - (m2 * ((float) dim[X]));
-    
+    b2 = ((float) rect->y) + ((float) rect->height) -
+        (m2 * ((float) rect->x));
+
     /* Compute where point is relative to cross lines */
     l1 = m1 * ((float) x) + b1 - ((float) y);
     l2 = m2 * ((float) x) + b2 - ((float) y);
-    
+
     if (l1 > 0.0f) {
-        if (l2 > 0.0f) { 
+        if (l2 > 0.0f) {
             return CONF_ADJ_ABOVE;
         } else {
             return CONF_ADJ_RIGHTOF;
         }
     } else {
-        if (l2 > 0.0f) { 
+        if (l2 > 0.0f) {
             return CONF_ADJ_LEFTOF;
         } else {
             return CONF_ADJ_BELOW;
@@ -559,10 +555,8 @@ static int get_point_relative_position(int *dim, int x, int y)
 /* Offset a single mode */
 static void offset_mode(nvModePtr mode, int x, int y)
 {
-    mode->viewPortIn[X] += x;
-    mode->viewPortIn[Y] += y;
-    mode->pan[X] = mode->viewPortIn[X];
-    mode->pan[Y] = mode->viewPortIn[Y];
+    mode->pan.x += x;
+    mode->pan.y += y;
 }
 
 /* Offset a display by offsetting the current mode */
@@ -579,14 +573,14 @@ static void offset_screen(nvScreenPtr screen, int x, int y)
 {
     nvMetaModePtr metamode;
 
-    screen->dim[X] += x;
-    screen->dim[Y] += y;
-    
+    screen->dim.x += x;
+    screen->dim.y += y;
+
     for (metamode = screen->metamodes; metamode; metamode = metamode->next) {
-        metamode->dim[X] += x;
-        metamode->dim[Y] += y;
-        metamode->edim[X] += x;
-        metamode->edim[Y] += y;
+        metamode->dim.x += x;
+        metamode->dim.y += y;
+        metamode->edim.x += x;
+        metamode->edim.y += y;
     }
 }
 
@@ -597,8 +591,8 @@ static void offset_layout(nvLayoutPtr layout, int x, int y)
     nvScreenPtr screen;
     nvDisplayPtr display;
 
-    layout->dim[X] += x;
-    layout->dim[Y] += y;
+    layout->dim.x += x;
+    layout->dim.y += y;
 
     /* Offset screens */
     for (screen = layout->screens; screen; screen = screen->next_in_layout) {
@@ -628,60 +622,60 @@ static void offset_layout(nvLayoutPtr layout, int x, int y)
  **/
 
 static int resolve_display(nvDisplayPtr display, int mode_idx,
-                           int pos[4])
+                           GdkRectangle *pos)
 {
     nvModePtr mode = get_mode(display, mode_idx);
-    int relative_pos[4];
-    
+    GdkRectangle relative_pos;
+
     if (!mode) return 0;
 
 
     /* Set the dimensions */
-    pos[W] = mode->pan[W];
-    pos[H] = mode->pan[H];
+    pos->width  = mode->pan.width;
+    pos->height = mode->pan.height;
 
 
     /* Find the position */
     switch (mode->position_type) {
     case CONF_ADJ_ABSOLUTE:
-        pos[X] = mode->pan[X];
-        pos[Y] = mode->pan[Y];
+        pos->x = mode->pan.x;
+        pos->y = mode->pan.y;
         break;
 
     case CONF_ADJ_RIGHTOF:
-        resolve_display(mode->relative_to, mode_idx, relative_pos);
-        pos[X] = relative_pos[X] + relative_pos[W];
-        pos[Y] = relative_pos[Y];
+        resolve_display(mode->relative_to, mode_idx, &relative_pos);
+        pos->x = relative_pos.x + relative_pos.width;
+        pos->y = relative_pos.y;
         break;
 
     case CONF_ADJ_LEFTOF:
-        resolve_display(mode->relative_to, mode_idx, relative_pos);
-        pos[X] = relative_pos[X] - pos[W];
-        pos[Y] = relative_pos[Y];
+        resolve_display(mode->relative_to, mode_idx, &relative_pos);
+        pos->x = relative_pos.x - pos->width;
+        pos->y = relative_pos.y;
         break;
 
     case CONF_ADJ_BELOW:
-        resolve_display(mode->relative_to, mode_idx, relative_pos);
-        pos[X] = relative_pos[X];
-        pos[Y] = relative_pos[Y] + relative_pos[H];
+        resolve_display(mode->relative_to, mode_idx, &relative_pos);
+        pos->x = relative_pos.x;
+        pos->y = relative_pos.y + relative_pos.height;
         break;
 
     case CONF_ADJ_ABOVE:
-        resolve_display(mode->relative_to, mode_idx, relative_pos);
-        pos[X] = relative_pos[X];
-        pos[Y] = relative_pos[Y] - pos[H];
+        resolve_display(mode->relative_to, mode_idx, &relative_pos);
+        pos->x = relative_pos.x;
+        pos->y = relative_pos.y - pos->height;
         break;
 
     case CONF_ADJ_RELATIVE: /* Clone */
-        resolve_display(mode->relative_to, mode_idx, relative_pos);
-        pos[X] = relative_pos[X];
-        pos[Y] = relative_pos[Y];
+        resolve_display(mode->relative_to, mode_idx, &relative_pos);
+        pos->x = relative_pos.x;
+        pos->y = relative_pos.y;
         break;
 
     default:
         return 0;
     }
-    
+
     return 1;
 
 } /* resolve_display() */
@@ -699,7 +693,7 @@ static void resolve_displays_in_screen(nvScreenPtr screen,
                                        int resolve_all_modes)
 {
     nvDisplayPtr display;
-    int pos[4];
+    GdkRectangle rect;
     int first_idx;
     int last_idx;
     int mode_idx;
@@ -718,12 +712,10 @@ static void resolve_displays_in_screen(nvScreenPtr screen,
          display = display->next_in_screen) {
 
         for (mode_idx = first_idx; mode_idx <= last_idx; mode_idx++) {
-            if (resolve_display(display, mode_idx, pos)) {
+            if (resolve_display(display, mode_idx, &rect)) {
                 nvModePtr mode = get_mode(display, mode_idx);
-                mode->viewPortIn[X] = pos[X];
-                mode->viewPortIn[Y] = pos[Y];
-                mode->pan[X] = pos[X];
-                mode->pan[Y] = pos[Y];
+                mode->pan.x = rect.x;
+                mode->pan.y = rect.y;
             }
         }
     }
@@ -746,61 +738,60 @@ static void resolve_displays_in_screen(nvScreenPtr screen,
  *
  **/
 
-static int resolve_screen(nvScreenPtr screen, int pos[4])
+static int resolve_screen(nvScreenPtr screen, GdkRectangle *pos)
 {
-    int *sdim = get_screen_dim(screen, 0);
-    int relative_pos[4];
-    
+    GdkRectangle *screen_rect = get_screen_rect(screen, 0);
+    GdkRectangle relative_pos;
 
-    if (!sdim) return 0;
+    if (!screen_rect) return 0;
 
 
     /* Set the dimensions */
-    pos[W] = sdim[W];
-    pos[H] = sdim[H];
+    pos->width  = screen_rect->width;
+    pos->height = screen_rect->height;
 
 
     /* Find the position */
     switch (screen->position_type) {
     case CONF_ADJ_ABSOLUTE:
-        pos[X] = sdim[X];
-        pos[Y] = sdim[Y];
+        pos->x = screen_rect->x;
+        pos->y = screen_rect->y;
         break;
 
     case CONF_ADJ_RIGHTOF:
-        resolve_screen(screen->relative_to, relative_pos);
-        pos[X] = relative_pos[X] + relative_pos[W];
-        pos[Y] = relative_pos[Y];
+        resolve_screen(screen->relative_to, &relative_pos);
+        pos->x = relative_pos.x + relative_pos.width;
+        pos->y = relative_pos.y;
         break;
 
     case CONF_ADJ_LEFTOF:
-        resolve_screen(screen->relative_to, relative_pos);
-        pos[X] = relative_pos[X] - pos[W];
-        pos[Y] = relative_pos[Y];
+        resolve_screen(screen->relative_to, &relative_pos);
+        pos->x = relative_pos.x - pos->width;
+        pos->y = relative_pos.y;
         break;
 
     case CONF_ADJ_BELOW:
-        resolve_screen(screen->relative_to, relative_pos);
-        pos[X] = relative_pos[X];
-        pos[Y] = relative_pos[Y] + relative_pos[H];
+        resolve_screen(screen->relative_to, &relative_pos);
+        pos->x = relative_pos.x;
+        pos->y = relative_pos.y + relative_pos.height;
         break;
 
     case CONF_ADJ_ABOVE:
-        resolve_screen(screen->relative_to, relative_pos);
-        pos[X] = relative_pos[X];
-        pos[Y] = relative_pos[Y] - pos[H];
+        resolve_screen(screen->relative_to, &relative_pos);
+        pos->x = relative_pos.x;
+        pos->y = relative_pos.y - pos->height;
         break;
 
     case CONF_ADJ_RELATIVE: /* Clone */
-        resolve_screen(screen->relative_to, relative_pos);
-        pos[X] = relative_pos[X];
-        pos[Y] = relative_pos[Y];
+        resolve_screen(screen->relative_to, &relative_pos);
+        pos->x = relative_pos.x;
+        pos->y = relative_pos.y;
         break;
 
     default:
         return 0;
     }
-    
+
     return 1;
 
 } /* resolve_screen() */
@@ -817,19 +808,19 @@ static int resolve_screen(nvScreenPtr screen, int pos[4])
 static void resolve_screen_in_layout(nvScreenPtr screen)
 {
     nvDisplayPtr display;
-    int pos[4];
+    GdkRectangle pos;
     int x, y;
-    int *sdim;
+    GdkRectangle *screen_rect;
 
 
     /* Resolve the current screen location */
-    if (resolve_screen(screen, pos)) {
+    if (resolve_screen(screen, &pos)) {
 
         /* Move the screen and the displays by offsetting */
-        sdim = get_screen_dim(screen, 0);
+        screen_rect = get_screen_rect(screen, 0);
 
-        x = pos[X] - sdim[X];
-        y = pos[Y] - sdim[Y];
+        x = pos.x - screen_rect->x;
+        y = pos.y - screen_rect->y;
 
         offset_screen(screen, x, y);
 
@@ -884,23 +875,20 @@ static void calc_metamode(nvScreenPtr screen, nvMetaModePtr metamode)
     nvModePtr mode;
     int init = 1;
     int einit = 1;
-    int *dim;  // Bounding box for all modes, including NULL modes.
-    int *edim; // Bounding box for non-NULL modes.
+    GdkRectangle *dim;  // Bounding box for all modes, including NULL modes.
+    GdkRectangle *edim; // Bounding box for non-NULL modes.
 
 
     if (!screen || !metamode) {
         return;
     }
 
-    dim = metamode->dim;
-    edim = metamode->edim;
+    dim = &(metamode->dim);
+    edim = &(metamode->edim);
 
-    dim[X] = edim[X] = 0;
-    dim[Y] = edim[Y] = 0;
-    dim[W] = edim[W] = 0;
-    dim[H] = edim[H] = 0;
+    memset(dim, 0, sizeof(*dim));
+    memset(edim, 0, sizeof(*edim));
 
-    /* Calculate its dimensions */
     for (display = screen->displays;
          display;
          display = display->next_in_screen) {
@@ -912,42 +900,23 @@ static void calc_metamode(nvScreenPtr screen, nvMetaModePtr metamode)
         if (!mode) continue;
 
         if (init) {
-            dim[X] = mode->pan[X];
-            dim[Y] = mode->pan[Y];
-            dim[W] = mode->pan[X] +mode->pan[W];
-            dim[H] = mode->pan[Y] +mode->pan[H];
+            *dim = mode->pan;
             init = 0;
         } else {
-            dim[X] = MIN(dim[X], mode->viewPortIn[X]);
-            dim[Y] = MIN(dim[Y], mode->viewPortIn[Y]);
-            dim[W] = MAX(dim[W], mode->viewPortIn[X] +mode->pan[W]);
-            dim[H] = MAX(dim[H], mode->viewPortIn[Y] +mode->pan[H]);
+            gdk_rectangle_union(dim, &(mode->pan), dim);
         }
 
         /* Don't include NULL modes in the effective dimension calculation */
         if (!mode->modeline) continue;
 
         if (einit) {
-            edim[X] = mode->pan[X];
-            edim[Y] = mode->pan[Y];
-            edim[W] = mode->pan[X] +mode->pan[W];
-            edim[H] = mode->pan[Y] +mode->pan[H];
+            *edim = mode->pan;
             einit = 0;
         } else {
-            edim[X] = MIN(edim[X], mode->viewPortIn[X]);
-            edim[Y] = MIN(edim[Y], mode->viewPortIn[Y]);
-            edim[W] = MAX(edim[W], mode->viewPortIn[X] +mode->pan[W]);
-            edim[H] = MAX(edim[H], mode->viewPortIn[Y] +mode->pan[H]);
+            gdk_rectangle_union(edim, &(mode->pan), edim);
         }
     }
-
-    dim[W] = dim[W] - dim[X];
-    dim[H] = dim[H] - dim[Y];
-
-    edim[W] = edim[W] - edim[X];
-    edim[H] = edim[H] - edim[Y];
-
-} /* calc_metamode() */
+}
 
 
 
@@ -963,43 +932,31 @@ static void calc_metamode(nvScreenPtr screen, nvMetaModePtr metamode)
 static void calc_screen(nvScreenPtr screen)
 {
     nvMetaModePtr metamode;
-    int *dim;
+    GdkRectangle *dim;
 
 
     if (!screen || screen->no_scanout) return;
 
-    dim = screen->dim;
+    dim = &(screen->dim);
     metamode = screen->metamodes;
 
     if (!metamode) {
-        dim[X] = 0;
-        dim[Y] = 0;
-        dim[W] = 0;
-        dim[H] = 0;
+        memset(dim, 0, sizeof(*dim));
         return;
     }
 
+    /* Init screen dimensions to size of first metamode */
     calc_metamode(screen, metamode);
-    dim[X] = metamode->dim[X];
-    dim[Y] = metamode->dim[Y];
-    dim[W] = metamode->dim[X] +metamode->dim[W];
-    dim[H] = metamode->dim[Y] +metamode->dim[H];
-   
+    *dim = metamode->dim;
+
     for (metamode = metamode->next;
          metamode;
          metamode = metamode->next) {
 
         calc_metamode(screen, metamode);
-        dim[X] = MIN(dim[X], metamode->dim[X]);
-        dim[Y] = MIN(dim[Y], metamode->dim[Y]);
-        dim[W] = MAX(dim[W], metamode->dim[X] +metamode->dim[W]);
-        dim[H] = MAX(dim[H], metamode->dim[Y] +metamode->dim[H]);
+        gdk_rectangle_union(dim, &(metamode->dim), dim);
     }
-
-    dim[W] = dim[W] - dim[X];
-    dim[H] = dim[H] - dim[Y];
-
-} /* calc_screen() */
+}
 
 
 
@@ -1020,7 +977,7 @@ static void calc_layout(nvLayoutPtr layout)
     nvScreenPtr screen;
     nvDisplayPtr display;
     int init = 1;
-    int *dim;
+    GdkRectangle *dim;
     int x, y;
 
 
@@ -1028,58 +985,41 @@ static void calc_layout(nvLayoutPtr layout)
 
     resolve_layout(layout);
 
-    dim = layout->dim;
-    dim[X] = 0;
-    dim[Y] = 0;
-    dim[W] = 0;
-    dim[H] = 0;
+    dim = &(layout->dim);
+    memset(dim, 0, sizeof(*dim));
 
     for (screen = layout->screens; screen; screen = screen->next_in_layout) {
-        int *sdim;
+        GdkRectangle *screem_rect;
 
         calc_screen(screen);
-        sdim = get_screen_dim(screen, 0);
+        screem_rect = get_screen_rect(screen, 0);
 
         if (init) {
-            dim[X] = sdim[X];
-            dim[Y] = sdim[Y];
-            dim[W] = sdim[X] +sdim[W];
-            dim[H] = sdim[Y] +sdim[H];
+            *dim = *screem_rect;
             init = 0;
             continue;
         }
-
-        dim[X] = MIN(dim[X], sdim[X]);
-        dim[Y] = MIN(dim[Y], sdim[Y]);
-        dim[W] = MAX(dim[W], sdim[X] +sdim[W]);
-        dim[H] = MAX(dim[H], sdim[Y] +sdim[H]);
+        gdk_rectangle_union(dim, screem_rect, dim);
     }
 
-    dim[W] = dim[W] - dim[X];
-    dim[H] = dim[H] - dim[Y];
-
-
     /* Position disabled display devices off to the top right */
-    x = dim[W] + dim[X];
-    y = dim[Y];
+    x = dim->x + dim->width;
+    y = dim->y;
     for (gpu = layout->gpus; gpu; gpu = gpu->next_in_layout) {
         for (display = gpu->displays;
              display;
              display = display->next_on_gpu) {
             if (display->screen) continue;
 
-            display->cur_mode->viewPortIn[X] = x;
-            display->cur_mode->pan[X] = x;
-            display->cur_mode->viewPortIn[Y] = y;
-            display->cur_mode->pan[Y] = y;
+            display->cur_mode->pan.x = x;
+            display->cur_mode->pan.y = y;
 
-            x += display->cur_mode->viewPortIn[W];
-            dim[W] += display->cur_mode->viewPortIn[W];
-            dim[H] = MAX(dim[H], display->cur_mode->viewPortIn[H]);
+            x += display->cur_mode->pan.width;
+            dim->width += display->cur_mode->pan.width;
+            dim->height = MAX(dim->height, display->cur_mode->pan.height);
         }
     }
-
-} /* calc_layout() */
+}
 
 
 
@@ -1101,8 +1041,8 @@ static void recenter_screen(nvScreenPtr screen)
         nvModePtr mode;
 
         for (mode = display->modes; mode; mode = mode->next) {
-            int offset_x = (screen->dim[X] - mode->metamode->dim[X]);
-            int offset_y = (screen->dim[Y] - mode->metamode->dim[Y]);
+            int offset_x = (screen->dim.x - mode->metamode->dim.x);
+            int offset_y = (screen->dim.y - mode->metamode->dim.y);
             offset_mode(mode, offset_x, offset_y);
         }
     }
@@ -1140,8 +1080,8 @@ static Bool set_screen_metamode(nvLayoutPtr layout, nvScreenPtr screen,
 
     /* Recalculate the layout dimensions */
     calc_layout(layout);
-    if (layout->dim[X] || layout->dim[Y]) {
-        offset_layout(layout, -layout->dim[X], -layout->dim[Y]);
+    if (layout->dim.x || layout->dim.y) {
+        offset_layout(layout, -layout->dim.x, -layout->dim.y);
         return TRUE;
     }
 
@@ -1204,8 +1144,8 @@ static Bool recenter_layout(nvLayoutPtr layout)
 
 static void reposition_screen(nvScreenPtr screen, int resolve_all_modes)
 {
-    int orig_screen_x = screen->dim[X];
-    int orig_screen_y = screen->dim[Y];
+    int orig_screen_x = screen->dim.x;
+    int orig_screen_y = screen->dim.y;
 
     /* Resolve new relative positions.  In basic mode,
      * relative position changes apply to all modes of a
@@ -1215,8 +1155,8 @@ static void reposition_screen(nvScreenPtr screen, int resolve_all_modes)
     resolve_displays_in_screen(screen, resolve_all_modes);
 
     /* Reestablish the screen's original position */
-    screen->dim[X] = orig_screen_x;
-    screen->dim[Y] = orig_screen_y;
+    screen->dim.x = orig_screen_x;
+    screen->dim.y = orig_screen_y;
     recenter_screen(screen);
 
 } /* reposition_screen() */
@@ -1247,7 +1187,7 @@ static void switch_screen_to_absolute(nvScreenPtr screen)
 
 /** snap_dim_to_dim() ***********************************************
  *
- * Snaps the sides of two rectangles together.  
+ * Snaps the sides of two rectangles together.
  *
  * Snaps the dimensions of "src" to those of "snap" if any part
  * of the "src" rectangle is within "snap_strength" of the "snap"
@@ -1260,7 +1200,8 @@ static void switch_screen_to_absolute(nvScreenPtr screen)
  *
  **/
 
-static void snap_dim_to_dim(int *dst, int *src, int *snap, int snap_strength,
+static void snap_dim_to_dim(GdkRectangle *dst, GdkRectangle *src,
+                            GdkRectangle *snap, int snap_strength,
                             int *best_vert, int *best_horz)
 {
     int dist;
@@ -1270,43 +1211,43 @@ static void snap_dim_to_dim(int *dst, int *src, int *snap, int snap_strength,
     if (best_vert) {
 
         /* Snap top side to top side */
-        dist = abs(snap[Y] - src[Y]);
+        dist = abs(snap->y - src->y);
         if (dist < *best_vert) {
-            dst[Y] = snap[Y];
+            dst->y = snap->y;
             *best_vert = dist;
         }
-        
+
         /* Snap top side to bottom side */
-        dist = abs((snap[Y] + snap[H]) - src[Y]);
+        dist = abs((snap->y + snap->height) - src->y);
         if (dist < *best_vert) {
-            dst[Y] = snap[Y] + snap[H];
+            dst->y = snap->y + snap->height;
             *best_vert = dist;
         }
-        
+
         /* Snap bottom side to top side */
-        dist = abs(snap[Y] - (src[Y] + src[H]));
+        dist = abs(snap->y - (src->y + src->height));
         if (dist < *best_vert) {
-            dst[Y] = snap[Y] - src[H];
+            dst->y = snap->y - src->height;
             *best_vert = dist;
         }
-        
+
         /* Snap bottom side to bottom side */
-        dist = abs((snap[Y] + snap[H]) - (src[Y] + src[H]));
+        dist = abs((snap->y + snap->height) - (src->y + src->height));
         if (dist < *best_vert) {
-            dst[Y] = snap[Y] + snap[H] - src[H];
+            dst->y = snap->y + snap->height - src->height;
             *best_vert = dist;
         }
-        
+
         /* Snap midlines */
         if (/* Top of 'src' is above bottom of 'snap' */
-            (src[Y]          <= snap[Y] + snap[H] + snap_strength) &&
+            (src->y <= snap->y + snap->height + snap_strength) &&
             /* Bottom of 'src' is below top of 'snap' */
-            (src[Y] + src[H] >= snap[Y] - snap_strength)) {
-            
+            (src->y + src->height >= snap->y - snap_strength)) {
+
             /* Snap vertically */
-            dist = abs((snap[Y] + snap[H]/2) - (src[Y]+src[H]/2));
+            dist = abs((snap->y + snap->height/2) - (src->y + src->height/2));
             if (dist < *best_vert) {
-                dst[Y] = snap[Y] + snap[H]/2 - src[H]/2;
+                dst->y = snap->y + snap->height/2 - src->height/2;
                 *best_vert = dist;
             }
         }
@@ -1315,45 +1256,45 @@ static void snap_dim_to_dim(int *dst, int *src, int *snap, int snap_strength,
 
     /* Snap horizontally */
     if (best_horz) {
-        
+
         /* Snap left side to left side */
-        dist = abs(snap[X] - src[X]);
+        dist = abs(snap->x - src->x);
         if (dist < *best_horz) {
-            dst[X] = snap[X];
+            dst->x = snap->x;
             *best_horz = dist;
         }
-        
+
         /* Snap left side to right side */
-        dist = abs((snap[X] + snap[W]) - src[X]);
+        dist = abs((snap->x + snap->width) - src->x);
         if (dist < *best_horz) {
-            dst[X] = snap[X] + snap[W];
+            dst->x = snap->x + snap->width;
             *best_horz = dist;
         }
-        
+
         /* Snap right side to left side */
-        dist = abs(snap[X] - (src[X] + src[W]));
+        dist = abs(snap->x - (src->x + src->width));
         if (dist < *best_horz) {
-            dst[X] = snap[X] - src[W];
+            dst->x = snap->x - src->width;
             *best_horz = dist;
         }
-        
+
         /* Snap right side to right side */
-        dist = abs((snap[X] + snap[W]) - (src[X]+src[W]));
+        dist = abs((snap->x + snap->width) - (src->x + src->width));
         if (dist < *best_horz) {
-            dst[X] = snap[X] + snap[W] - src[W];
+            dst->x = snap->x + snap->width - src->width;
             *best_horz = dist;
         }
-        
+
         /* Snap midlines */
         if (/* Left of 'src' is before right of 'snap' */
-            (src[X]          <= snap[X] + snap[W] + snap_strength) &&
+            (src->x <= snap->x + snap->width + snap_strength) &&
             /* Right of 'src' is after left of 'snap' */
-            (src[X] + src[W] >= snap[X] - snap_strength)) {
-            
+            (src->x + src->width >= snap->x - snap_strength)) {
+
             /* Snap vertically */
-            dist = abs((snap[X] + snap[W]/2) - (src[X]+src[W]/2));
+            dist = abs((snap->x + snap->width/2) - (src->x + src->width/2));
             if (dist < *best_horz) {
-                dst[X] = snap[X] + snap[W]/2 - src[W]/2;
+                dst->x = snap->x + snap->width/2 - src->width/2;
                 *best_horz = dist;
             }
         }
@@ -1371,26 +1312,27 @@ static void snap_dim_to_dim(int *dst, int *src, int *snap, int snap_strength,
  *
  **/
 
-static void snap_side_to_dim(int *dst, int *src, int *snap,
+static void snap_side_to_dim(GdkRectangle *dst, GdkRectangle *src,
+                             GdkRectangle *snap,
                              int *best_vert, int *best_horz)
 {
     int dist;
- 
+
 
     /* Snap vertically */
     if (best_vert) {
 
         /* Snap side to top side */
-        dist = abs(snap[Y] - (src[Y] + src[H]));
+        dist = abs(snap->y - (src->y + src->height));
         if (dist < *best_vert) {
-            dst[H] = snap[Y] - src[Y];
+            dst->height = snap->y - src->y;
             *best_vert = dist;
         }
-    
+
         /* Snap side to bottom side */
-        dist = abs((snap[Y] + snap[H]) - (src[Y] + src[H]));
+        dist = abs((snap->y + snap->height) - (src->y + src->height));
         if (dist < *best_vert) {
-            dst[H] = snap[Y] + snap[H] - src[Y];
+            dst->height = snap->y + snap->height - src->y;
             *best_vert = dist;
         }
     }
@@ -1400,16 +1342,16 @@ static void snap_side_to_dim(int *dst, int *src, int *snap,
     if (best_horz) {
 
         /* Snap side to left side */
-        dist = abs(snap[X] - (src[X] + src[W]));
+        dist = abs(snap->x - (src->x + src->width));
         if (dist < *best_horz) {
-            dst[W] = snap[X] - src[X];
+            dst->width = snap->x - src->x;
             *best_horz = dist;
         }
-        
+
         /* Snap side to right side */
-        dist = abs((snap[X] + snap[W]) - (src[X] + src[W]));
+        dist = abs((snap->x + snap->width) - (src->x + src->width));
         if (dist < *best_horz) {
-            dst[W] = snap[X] + snap[W] - src[X];
+            dst->width = snap->x + snap->width - src->x;
             *best_horz = dist;
         }
     }
@@ -1438,15 +1380,15 @@ static void snap_move(CtkDisplayLayout *ctk_object)
     nvLayoutPtr layout = ctk_object->layout;
     nvScreenPtr screen;
     nvDisplayPtr other;
-    int *sdim;
+    GdkRectangle *screen_rect;
 
 
     /* Snap to other display's modes */
     if (info->display) {
         for (i = 0; i < ctk_object->Zcount; i++) {
-            
+
             if (ctk_object->Zorder[i].type != ZNODE_TYPE_DISPLAY) continue;
-            
+
             other = ctk_object->Zorder[i].u.display;
 
             /* Other display must have a mode */
@@ -1493,18 +1435,22 @@ static void snap_move(CtkDisplayLayout *ctk_object)
                 (info->screen->relative_to == other->screen)) {
                 bv = NULL;
             }
-            
+
             /* Snap to other display's panning dimensions */
-            snap_dim_to_dim(info->dst_dim,
-                            info->src_dim,
-                            other->cur_mode->pan,
+            snap_dim_to_dim(&(info->dst_dim),
+                            &(info->src_dim),
+                            &(other->cur_mode->pan),
                             ctk_object->snap_strength, bv, bh);
 
             /* Snap to other display's dimensions */
-            snap_dim_to_dim(info->dst_dim,
-                            info->src_dim,
-                            other->cur_mode->viewPortIn,
-                            ctk_object->snap_strength, bv, bh);
+            {
+                GdkRectangle rect;
+                get_viewportin_rect(other->cur_mode, &rect);
+                snap_dim_to_dim(&(info->dst_dim),
+                                &(info->src_dim),
+                                &rect,
+                                ctk_object->snap_strength, bv, bh);
+            }
         }
 
     } /* Done snapping to other displays */
@@ -1542,7 +1488,7 @@ static void snap_move(CtkDisplayLayout *ctk_object)
          */
         if (!bh &&
             info->display &&
-            info->display->cur_mode->viewPortIn[Y] == info->screen->dim[Y]) {
+            info->display->cur_mode->pan.y == info->screen->dim.y) {
             bv = NULL;
         }
 
@@ -1563,14 +1509,14 @@ static void snap_move(CtkDisplayLayout *ctk_object)
          */
         if (!bv &&
             info->display &&
-            info->display->cur_mode->viewPortIn[X] == info->screen->dim[X]) {
+            info->display->cur_mode->pan.x == info->screen->dim.x) {
             bh = NULL;
         }
 
-        sdim = get_screen_dim(screen, 0);
-        snap_dim_to_dim(info->dst_dim,
-                        info->src_dim,
-                        sdim,
+        screen_rect = get_screen_rect(screen, 0);
+        snap_dim_to_dim(&(info->dst_dim),
+                        &(info->src_dim),
+                        screen_rect,
                         ctk_object->snap_strength, bv, bh);
     }
 
@@ -1579,18 +1525,18 @@ static void snap_move(CtkDisplayLayout *ctk_object)
     bh = &info->best_snap_h;
 
     if (info->display) {
-        dist = abs( (info->screen->dim[X] + info->gpu->max_width)
-                   -(info->src_dim[X] + info->src_dim[W]));
+        dist = abs( (info->screen->dim.x + info->gpu->max_width)
+                   -(info->src_dim.x + info->src_dim.width));
         if (dist < *bh) {
-            info->dst_dim[X] =
-                info->screen->dim[X] + info->gpu->max_width - info->src_dim[W];
+            info->dst_dim.x = info->screen->dim.x + info->gpu->max_width -
+                info->src_dim.width;
             *bh = dist;
         }
-        dist = abs( (info->screen->dim[Y] + info->gpu->max_height)
-                   -(info->src_dim[Y] + info->src_dim[H]));
+        dist = abs( (info->screen->dim.y + info->gpu->max_height)
+                   -(info->src_dim.y + info->src_dim.height));
         if (dist < *bv) {
-            info->dst_dim[Y] =
-                info->screen->dim[Y] + info->gpu->max_height - info->src_dim[H];
+            info->dst_dim.y = info->screen->dim.y + info->gpu->max_height -
+                info->src_dim.height;
             *bv = dist;
         }
     }
@@ -1622,38 +1568,40 @@ static void snap_pan(CtkDisplayLayout *ctk_object)
     nvLayoutPtr layout = ctk_object->layout;
     nvScreenPtr screen;
     nvDisplayPtr other;
-    int *sdim;
+    GdkRectangle *screen_rect;
 
 
     if (info->display) {
-        int *cur_mode_dim = info->display->cur_mode->viewPortIn;
-
         /* Snap to multiples of the display's dimensions */
+        const nvSize *cur_mode_size = &(info->display->cur_mode->viewPortIn);
+
         bh = &(info->best_snap_h);
         bv = &(info->best_snap_v);
 
-        dist = info->src_dim[W] % cur_mode_dim[W];
+        dist = info->src_dim.width % cur_mode_size->width;
         if (dist < *bh) {
-            info->dst_dim[W] = cur_mode_dim[W] *
-                (int)(info->src_dim[W] / cur_mode_dim[W]);
+            info->dst_dim.width = cur_mode_size->width *
+                (int)(info->src_dim.width / cur_mode_size->width);
             *bh = dist;
         }
-        dist = cur_mode_dim[W] - (info->src_dim[W] % cur_mode_dim[W]);
+        dist = cur_mode_size->width -
+            (info->src_dim.width % cur_mode_size->width);
         if (dist < *bh) {
-            info->dst_dim[W] = cur_mode_dim[W] *
-                (1 + (int)(info->src_dim[W] / cur_mode_dim[W]));
+            info->dst_dim.width = cur_mode_size->width *
+                (1 + (int)(info->src_dim.width / cur_mode_size->width));
             *bh = dist;
         }
-        dist = abs(info->src_dim[H] % cur_mode_dim[H]);
+        dist = abs(info->src_dim.height % cur_mode_size->height);
         if (dist < *bv) {
-            info->dst_dim[H] = cur_mode_dim[H] *
-                (int)(info->src_dim[H] / cur_mode_dim[H]);
+            info->dst_dim.height = cur_mode_size->height *
+                (int)(info->src_dim.height / cur_mode_size->height);
             *bv = dist;
         }
-        dist = cur_mode_dim[H] - (info->src_dim[H] % cur_mode_dim[H]);
+        dist = cur_mode_size->height -
+            (info->src_dim.height % cur_mode_size->height);
         if (dist < *bv) {
-            info->dst_dim[H] = cur_mode_dim[H] *
-                (1 + (int)(info->src_dim[H] / cur_mode_dim[H]));
+            info->dst_dim.height = cur_mode_size->height *
+                (1 + (int)(info->src_dim.height / cur_mode_size->height));
             *bv = dist;
         }
     }
@@ -1725,16 +1673,20 @@ static void snap_pan(CtkDisplayLayout *ctk_object)
         }
 
         /* Snap to other display panning dimensions */
-        snap_side_to_dim(info->dst_dim,
-                         info->src_dim,
-                         other->cur_mode->pan,
+        snap_side_to_dim(&(info->dst_dim),
+                         &(info->src_dim),
+                         &(other->cur_mode->pan),
                          bv, bh);
 
         /* Snap to other display dimensions */
-        snap_side_to_dim(info->dst_dim,
-                         info->src_dim,
-                         other->cur_mode->viewPortIn,
-                         bv, bh);
+        {
+            GdkRectangle rect;
+            get_viewportin_rect(other->cur_mode, &rect);
+            snap_side_to_dim(&(info->dst_dim),
+                             &(info->src_dim),
+                             &rect,
+                             bv, bh);
+        }
     }
 
 
@@ -1772,10 +1724,10 @@ static void snap_pan(CtkDisplayLayout *ctk_object)
             bv = NULL;
         }
 
-        sdim = get_screen_dim(screen, 0);
-        snap_side_to_dim(info->dst_dim,
-                         info->src_dim,
-                         sdim,
+        screen_rect = get_screen_rect(screen, 0);
+        snap_side_to_dim(&(info->dst_dim),
+                         &(info->src_dim),
+                         screen_rect,
                          bv, bh);
     }
 
@@ -1783,20 +1735,20 @@ static void snap_pan(CtkDisplayLayout *ctk_object)
     bv = &(info->best_snap_v);
 
     /* Snap to the maximum screen width */
-    dist = abs((info->screen->dim[X] + info->gpu->max_width)
-               -(info->src_dim[X] + info->src_dim[W]));
+    dist = abs((info->screen->dim.x + info->gpu->max_width)
+               -(info->src_dim.x + info->src_dim.width));
     if (dist < *bh) {
-        info->dst_dim[W] = info->screen->dim[X] + info->gpu->max_width -
-            info->src_dim[X];
+        info->dst_dim.width = info->screen->dim.x + info->gpu->max_width -
+            info->src_dim.x;
         *bh = dist;
     }
 
     /* Snap to the maximum screen height */
-    dist = abs((info->screen->dim[Y] + info->gpu->max_height)
-               -(info->src_dim[Y] + info->src_dim[H]));
+    dist = abs((info->screen->dim.y + info->gpu->max_height)
+               -(info->src_dim.y + info->src_dim.height));
     if (dist < *bv) {
-        info->dst_dim[H] = info->screen->dim[Y] + info->gpu->max_height -
-            info->src_dim[Y];
+        info->dst_dim.height = info->screen->dim.y + info->gpu->max_height -
+            info->src_dim.y;
         *bv = dist;
     }
 
@@ -1820,8 +1772,8 @@ static int move_selected(CtkDisplayLayout *ctk_object, int x, int y, int snap)
     ModifyInfo *info = &(ctk_object->modify_info);
     int modified = 0;
 
-    int *dim; /* Temp dimensions */
-    int *sdim; /* Temp screen dimensions */
+    GdkRectangle *dim; /* Temp dimensions */
+    GdkRectangle *sdim; /* Temp screen dimensions */
 
 
     info->modify_panning = 0;
@@ -1836,15 +1788,15 @@ static int move_selected(CtkDisplayLayout *ctk_object, int x, int y, int snap)
      * fairly cleanly with common code, so do that here.
      */
     if (info->orig_position_type != CONF_ADJ_ABSOLUTE) {
-        int p_x = (ctk_object->mouse_x - ctk_object->img_dim[X]) /
+        int p_x = (ctk_object->mouse_x - ctk_object->img_dim.x) /
             ctk_object->scale;
-        int p_y = (ctk_object->mouse_y - ctk_object->img_dim[Y]) /
+        int p_y = (ctk_object->mouse_y - ctk_object->img_dim.y) /
             ctk_object->scale;
 
         if (info->display) {
-            dim = info->display->cur_mode->relative_to->cur_mode->viewPortIn;
+            dim = &(info->display->cur_mode->relative_to->cur_mode->pan);
         } else {
-            dim = get_screen_dim(info->screen->relative_to, 0);
+            dim = get_screen_rect(info->screen->relative_to, 0);
         }
 
         if (dim) {
@@ -1876,87 +1828,77 @@ static int move_selected(CtkDisplayLayout *ctk_object, int x, int y, int snap)
         /* Move via absolute positioning */
 
         /* Compute pre-snap dimensions */
-        info->modify_dim[X] += x;
-        info->modify_dim[Y] += y;
+        info->modify_dim.x += x;
+        info->modify_dim.y += y;
 
-        info->dst_dim[X] = info->modify_dim[X];
-        info->dst_dim[Y] = info->modify_dim[Y];
-        info->dst_dim[W] = info->modify_dim[W];
-        info->dst_dim[H] = info->modify_dim[H];
+        info->dst_dim = info->modify_dim;
 
 
         /* Snap to other screens and displays */
         if (snap && ctk_object->snap_strength) {
 
-            info->src_dim[X] = info->dst_dim[X];
-            info->src_dim[Y] = info->dst_dim[Y];
-            info->src_dim[W] = info->dst_dim[W];
-            info->src_dim[H] = info->dst_dim[H];
-
+            info->src_dim = info->dst_dim;
             snap_move(ctk_object);
 
             if (info->display) {
 
                 /* Also snap display's panning box to other screens/displays */
-                info->src_dim[W] = info->display->cur_mode->pan[W];
-                info->src_dim[H] = info->display->cur_mode->pan[H];
-                info->dst_dim[W] = info->src_dim[W];
-                info->dst_dim[H] = info->src_dim[H];
+                info->src_dim.width  = info->display->cur_mode->pan.width;
+                info->src_dim.height = info->display->cur_mode->pan.height;
+
+                info->dst_dim.width  = info->src_dim.width;
+                info->dst_dim.height = info->src_dim.height;
 
                 snap_move(ctk_object);
             }
         }
 
         /* Get the bounding dimensions of what is being moved */
-        if (info->display) {
-            dim = info->display->cur_mode->pan;
-        } else {
-            dim = info->target_dim;
-        }
-        sdim = get_screen_dim(info->screen, 1);
+        dim = info->target_dim;
+        sdim = get_screen_rect(info->screen, 1);
 
         /* Prevent moving out of the max layout bounds */
-        x = MAX_LAYOUT_WIDTH - dim[W];
-        if (info->dst_dim[X] > x) {
-            info->modify_dim[X] += x - info->dst_dim[X];
-            info->dst_dim[X] = x;
+        x = MAX_LAYOUT_WIDTH - dim->width;
+        if (info->dst_dim.x > x) {
+            info->modify_dim.x += x - info->dst_dim.x;
+            info->dst_dim.x = x;
         }
-        y = MAX_LAYOUT_HEIGHT - dim[H];
-        if (info->dst_dim[Y] > y) {
-            info->modify_dim[Y] += y - info->dst_dim[Y];
-            info->dst_dim[Y] = y;
+        y = MAX_LAYOUT_HEIGHT - dim->height;
+        if (info->dst_dim.y > y) {
+            info->modify_dim.y += y - info->dst_dim.y;
+            info->dst_dim.y = y;
         }
-        x = layout->dim[W] - MAX_LAYOUT_WIDTH;
-        if (info->dst_dim[X] < x) {
-            info->modify_dim[X] += x - info->dst_dim[X];
-            info->dst_dim[X] = x;
+        x = layout->dim.width - MAX_LAYOUT_WIDTH;
+        if (info->dst_dim.x < x) {
+            info->modify_dim.x += x - info->dst_dim.x;
+            info->dst_dim.x = x;
         }
-        y = layout->dim[H] - MAX_LAYOUT_HEIGHT;
-        if (info->dst_dim[Y] < y) {
-            info->modify_dim[Y] += y - info->dst_dim[Y];
-            info->dst_dim[Y] = y;
+        y = layout->dim.height - MAX_LAYOUT_HEIGHT;
+        if (info->dst_dim.y < y) {
+            info->modify_dim.y += y - info->dst_dim.y;
+            info->dst_dim.y = y;
         }
 
         /* Prevent screen from growing too big */
-        x = sdim[X] + info->gpu->max_width - dim[W]; 
-        if (info->dst_dim[X] > x) {
-            info->modify_dim[X] += x - info->dst_dim[X];
-            info->dst_dim[X] = x;
+        x = sdim->x + info->gpu->max_width - dim->width;
+        if (info->dst_dim.x > x) {
+            info->modify_dim.x += x - info->dst_dim.x;
+            info->dst_dim.x = x;
         }
-        y = sdim[Y] + info->gpu->max_height - dim[H];
-        if (info->dst_dim[Y] > y) {
-            info->modify_dim[Y] += y - info->dst_dim[Y];
-            info->dst_dim[Y] = y;
+        y = sdim->y + info->gpu->max_height - dim->height;
+        if (info->dst_dim.y > y) {
+            info->modify_dim.y += y - info->dst_dim.y;
+            info->dst_dim.y = y;
         }
-        x = sdim[X] + sdim[W] - info->gpu->max_width;
-        if (info->dst_dim[X] < x) {
-            info->modify_dim[X] += x - info->dst_dim[X];
-            info->dst_dim[X] = x;
+        x = sdim->x + sdim->width - info->gpu->max_width;
+        if (info->dst_dim.x < x) {
+            info->modify_dim.x += x - info->dst_dim.x;
+            info->dst_dim.x = x;
         }
-        y = sdim[Y] + sdim[H] - info->gpu->max_height;
-        if (info->dst_dim[Y] < y) {
-            info->modify_dim[Y] += y - info->dst_dim[Y];
-            info->dst_dim[Y] = y;
+        y = sdim->y + sdim->height - info->gpu->max_height;
+        if (info->dst_dim.y < y) {
+            info->modify_dim.y += y - info->dst_dim.y;
+            info->dst_dim.y = y;
         }
 
 
@@ -1965,8 +1907,8 @@ static int move_selected(CtkDisplayLayout *ctk_object, int x, int y, int snap)
             /* Move the screen */
             nvDisplayPtr display;
 
-            x = info->dst_dim[X] - info->orig_dim[X];
-            y = info->dst_dim[Y] - info->orig_dim[Y];
+            x = info->dst_dim.x - info->orig_dim.x;
+            y = info->dst_dim.y - info->orig_dim.y;
 
             /* Offset the screen and all its displays */
             offset_screen(info->screen, x, y);
@@ -1978,10 +1920,8 @@ static int move_selected(CtkDisplayLayout *ctk_object, int x, int y, int snap)
 
         } else {
             /* Move the display to its destination */
-            info->display->cur_mode->viewPortIn[X] = info->dst_dim[X];
-            info->display->cur_mode->viewPortIn[Y] = info->dst_dim[Y];
-            info->display->cur_mode->pan[X] = info->dst_dim[X];
-            info->display->cur_mode->pan[Y] = info->dst_dim[Y];
+            info->display->cur_mode->pan.x = info->dst_dim.x;
+            info->display->cur_mode->pan.y = info->dst_dim.y;
 
             /* If the screen of the display that was moved is using absolute
              * positioning, we should check to see if the position of the
@@ -1997,8 +1937,8 @@ static int move_selected(CtkDisplayLayout *ctk_object, int x, int y, int snap)
 
                 resolve_displays_in_screen(info->screen, 0);
                 calc_metamode(info->screen, info->screen->cur_metamode);
-                x = info->screen->cur_metamode->dim[X] - info->orig_screen_dim[X];
-                y = info->screen->cur_metamode->dim[Y] - info->orig_screen_dim[Y];
+                x = info->screen->cur_metamode->dim.x - info->orig_screen_dim.x;
+                y = info->screen->cur_metamode->dim.y - info->orig_screen_dim.y;
 
                 if (x || y) {
                     nvDisplayPtr other;
@@ -2036,17 +1976,17 @@ static int move_selected(CtkDisplayLayout *ctk_object, int x, int y, int snap)
     /* If what we moved required the layout to be shifted, offset
      * the modify dim (used for snapping) by the same displacement.
      */
-    x = info->target_dim[X] - info->dst_dim[X];
-    y = info->target_dim[Y] - info->dst_dim[Y];
+    x = info->target_dim->x - info->dst_dim.x;
+    y = info->target_dim->y - info->dst_dim.y;
     if (x || y) {
-        info->modify_dim[X] += x;
-        info->modify_dim[Y] += y;
+        info->modify_dim.x += x;
+        info->modify_dim.y += y;
     }
 
     /* Check if the item being moved has a new position */
     if (*(info->target_position_type) != info->orig_position_type ||
-        info->target_dim[X] != info->orig_dim[X] ||
-        info->target_dim[Y] != info->orig_dim[Y]) {
+        info->target_dim->x != info->orig_dim.x ||
+        info->target_dim->y != info->orig_dim.y) {
         modified = 1;
     }
 
@@ -2070,7 +2010,7 @@ static int pan_selected(CtkDisplayLayout *ctk_object, int x, int y, int snap)
     ModifyInfo *info = &(ctk_object->modify_info);
     int modified = 0;
 
-    int *dim;
+    GdkRectangle *dim;
     int extra;
 
 
@@ -2087,96 +2027,69 @@ static int pan_selected(CtkDisplayLayout *ctk_object, int x, int y, int snap)
 
 
     /* Compute pre-snap dimensions */
-    info->modify_dim[W] += x;
-    info->modify_dim[H] += y;
+    info->modify_dim.width += x;
+    info->modify_dim.height += y;
 
-    /* Don't allow the panning domain to get too small */
+    /* Don't allow the thing being modified to get too small */
     if (info->display) {
-        dim = info->display->cur_mode->viewPortIn;
-        if (info->modify_dim[W] < dim[W]) {
-            info->modify_dim[W] = dim[W];
-        }
-        if (info->modify_dim[H] < dim[H]) {
-            info->modify_dim[H] = dim[H];
-        }
+        clamp_rect_to_viewportin(&(info->modify_dim), info->display->cur_mode);
     } else if (info->screen->no_scanout) {
-        if (info->modify_dim[W] < 304) {
-            info->modify_dim[W] = 304;
-        }
-        if (info->modify_dim[H] < 200) {
-            info->modify_dim[H] = 200;
-        }
+        clamp_screen_size_rect(&(info->modify_dim));
     }
 
-    info->dst_dim[W] = info->modify_dim[W];
-    info->dst_dim[H] = info->modify_dim[H];
+    info->dst_dim.width = info->modify_dim.width;
+    info->dst_dim.height = info->modify_dim.height;
 
 
     /* Snap to other screens and dimensions */
     if (snap && ctk_object->snap_strength) {
-
-        info->src_dim[X] = info->dst_dim[X];
-        info->src_dim[Y] = info->dst_dim[Y];
-        info->src_dim[W] = info->dst_dim[W];
-        info->src_dim[H] = info->dst_dim[H];
-
+        info->src_dim = info->dst_dim;
         snap_pan(ctk_object);
     }
 
     /* Make sure no-scanout virtual screen width is at least a multiple of 8 */
     if (info->screen->no_scanout) {
-        extra = (info->dst_dim[W] % 8);
+        extra = (info->dst_dim.width % 8);
         if (extra > 0) {
-            info->dst_dim[W] += (8 - extra);
+            info->dst_dim.width += (8 - extra);
         }
     }
 
     /* Panning should not cause us to exceed the maximum layout dimensions */
-    x = MAX_LAYOUT_WIDTH - info->dst_dim[X];
-    if (info->dst_dim[W] > x) {
-        info->modify_dim[W] += x - info->dst_dim[W];
-        info->dst_dim[W] = x;
+    x = MAX_LAYOUT_WIDTH - info->dst_dim.x;
+    if (info->dst_dim.width > x) {
+        info->modify_dim.width += x - info->dst_dim.width;
+        info->dst_dim.width = x;
     }
-    y = MAX_LAYOUT_HEIGHT - info->dst_dim[Y];
-    if (info->dst_dim[H] > y) {
-        info->modify_dim[H] += y - info->dst_dim[H];
-        info->dst_dim[H] = y;
+    y = MAX_LAYOUT_HEIGHT - info->dst_dim.y;
+    if (info->dst_dim.height > y) {
+        info->modify_dim.height += y - info->dst_dim.height;
+        info->dst_dim.height = y;
     }
 
     /* Panning should not cause us to exceed the maximum screen dimensions */
-    dim = get_screen_dim(info->screen, 1);
-    x = dim[X] + info->gpu->max_width - info->dst_dim[X];
-    if (info->dst_dim[W] > x) {
-        info->modify_dim[W] += x - info->dst_dim[W];
-        info->dst_dim[W] = x;
+    dim = get_screen_rect(info->screen, 1);
+    x = dim->x + info->gpu->max_width - info->dst_dim.x;
+    if (info->dst_dim.width > x) {
+        info->modify_dim.width += x - info->dst_dim.width;
+        info->dst_dim.width = x;
     }
-    y = dim[Y] + info->gpu->max_height - info->dst_dim[Y];
-    if (info->dst_dim[H] > y) {
-        info->modify_dim[H] += y - info->dst_dim[H];
-        info->dst_dim[H] = y;
+    y = dim->y + info->gpu->max_height - info->dst_dim.y;
+    if (info->dst_dim.height > y) {
+        info->modify_dim.height += y - info->dst_dim.height;
+        info->dst_dim.height = y;
     }
 
     /* Panning domain can never be smaller then the display ViewPortIn */
     if (info->display) {
-        dim = info->display->cur_mode->viewPortIn;
-        if (info->dst_dim[W] < dim[W]) {
-            info->dst_dim[W] = dim[W];
-        }
-        if (info->dst_dim[H] < dim[H]) {
-            info->dst_dim[H] = dim[H];
-        }
+        clamp_rect_to_viewportin(&(info->dst_dim), info->display->cur_mode);
     } else if (info->screen->no_scanout) {
-        if (info->dst_dim[W] < 304) {
-            info->dst_dim[W] = 304;
-        }
-        if (info->dst_dim[H] < 200) {
-            info->dst_dim[H] = 200;
-        }
+        clamp_screen_size_rect(&(info->dst_dim));
     }
 
     /* Assign the new size */
-    info->target_dim[W] = info->dst_dim[W];
-    info->target_dim[H] = info->dst_dim[H];
+    info->target_dim->width = info->dst_dim.width;
+    info->target_dim->height = info->dst_dim.height;
 
 
     /* Recalculate layout dimensions and scaling */
@@ -2190,8 +2103,8 @@ static int pan_selected(CtkDisplayLayout *ctk_object, int x, int y, int snap)
 
     /* Check if the item being moved has a new position */
     /* Report if anything changed */
-    if (info->target_dim[W] != info->orig_dim[W] ||
-        info->target_dim[H] != info->orig_dim[H]) {
+    if (info->target_dim->width != info->orig_dim.width ||
+        info->target_dim->height != info->orig_dim.height) {
         modified = 1;
     }
 
@@ -2347,7 +2260,7 @@ static void select_display(CtkDisplayLayout *ctk_object, nvDisplayPtr display)
  *
  */
 
-#define DIST_SQR(D) (((D)[X] * (D)[X]) + ((D)[Y] * (D)[Y]))
+#define DIST_SQR(D) (((D).x * (D).x) + ((D).y * (D).y))
 
 static void select_default_item(CtkDisplayLayout *ctk_object)
 {
@@ -2368,7 +2281,7 @@ static void select_default_item(CtkDisplayLayout *ctk_object)
             /* Ignore disabled displays */
             if (!display->cur_mode) continue;
 
-            dst = DIST_SQR(display->cur_mode->viewPortIn);
+            dst = DIST_SQR(display->cur_mode->pan);
             if (best_dst < 0 || dst < best_dst) {
                 best_dst = dst;
                 sel_display = display;
@@ -2554,21 +2467,19 @@ static char *get_tooltip_under_mouse(CtkDisplayLayout *ctk_object,
     nvDisplayPtr display = NULL;
     nvScreenPtr screen = NULL;
     char *tip = NULL;
-    int *sdim;
-    
- 
+
+
     /* Scale and offset x & y so they reside in clickable area */
-    x = (x -ctk_object->img_dim[X]) / ctk_object->scale;
-    y = (y -ctk_object->img_dim[Y]) / ctk_object->scale;
+    x = (x -ctk_object->img_dim.x) / ctk_object->scale;
+    y = (y -ctk_object->img_dim.y) / ctk_object->scale;
 
 
     /* Go through the Z-order looking for what we are under */
     for (i = 0; i < ctk_object->Zcount; i++) {
-        
+
         if (ctk_object->Zorder[i].type == ZNODE_TYPE_DISPLAY) {
             display = ctk_object->Zorder[i].u.display;
-            if (display->cur_mode &&
-                point_in_dim(display->cur_mode->pan, x, y)) {
+            if (point_in_display(display, x, y)) {
                 screen = NULL;
                 if (display == last_display) {
                     goto found;
@@ -2579,8 +2490,7 @@ static char *get_tooltip_under_mouse(CtkDisplayLayout *ctk_object,
 
         } else if (ctk_object->Zorder[i].type == ZNODE_TYPE_SCREEN) {
             screen = ctk_object->Zorder[i].u.screen;
-            sdim = get_screen_dim(screen, 1);
-            if (point_in_dim(sdim, x, y)) {
+            if (point_in_screen(screen, x, y)) {
                 display = NULL;
                 if (screen == last_screen) {
                     goto found;
@@ -2622,7 +2532,6 @@ static int click_layout(CtkDisplayLayout *ctk_object, int x, int y)
     nvScreenPtr cur_selected_screen = ctk_object->selected_screen;
     nvDisplayPtr display;
     nvScreenPtr screen;
-    int *sdim;
     GdkModifierType state;
 
 
@@ -2639,17 +2548,14 @@ static int click_layout(CtkDisplayLayout *ctk_object, int x, int y)
     for (i = 0; i < ctk_object->Zcount; i++) {
         if (ctk_object->Zorder[i].type == ZNODE_TYPE_DISPLAY) {
             display = ctk_object->Zorder[i].u.display;
-            if (display->cur_mode &&
-                point_in_dim(display->cur_mode->pan, x, y)) {
-
+            if (point_in_display(display, x, y)) {
                 select_display(ctk_object, display);
                 ctk_object->clicked_outside = 0;
                 break;
             }
         } else if (ctk_object->Zorder[i].type == ZNODE_TYPE_SCREEN) {
             screen = ctk_object->Zorder[i].u.screen;
-            sdim = get_screen_dim(screen, 1);
-            if (point_in_dim(sdim, x, y)) {
+            if (point_in_screen(screen, x, y)) {
                 select_screen(ctk_object, screen);
                 ctk_object->clicked_outside = 0;
                 break;
@@ -2874,15 +2780,12 @@ static GdkGC *get_widget_fg_gc(GtkWidget *widget)
  **/
 
 static void draw_rect(CtkDisplayLayout *ctk_object,
-                      int *dim,
+                      GdkRectangle *rect,
                       GdkColor *color,
                       int fill)
 {
     GtkWidget *drawing_area = ctk_object->drawing_area;
     GdkGC *fg_gc = get_widget_fg_gc(drawing_area);
-
-    int w = (int)(ctk_object->scale * (dim[X] + dim[W])) - (int)(ctk_object->scale * (dim[X]));
-    int h = (int)(ctk_object->scale * (dim[Y] + dim[H])) - (int)(ctk_object->scale * (dim[Y]));
 
     /* Setup color to use */
     gdk_gc_set_rgb_fg_color(fg_gc, color);
@@ -2891,10 +2794,10 @@ static void draw_rect(CtkDisplayLayout *ctk_object,
     gdk_draw_rectangle(ctk_object->pixmap,
                        fg_gc,
                        fill,
-                       ctk_object->img_dim[X] + ctk_object->scale * dim[X],
-                       ctk_object->img_dim[Y] + ctk_object->scale * dim[Y],
-                       w,
-                       h);
+                       ctk_object->img_dim.x + ctk_object->scale * rect->x,
+                       ctk_object->img_dim.y + ctk_object->scale * rect->y,
+                       ctk_object->scale * rect->width,
+                       ctk_object->scale * rect->height);
 
 } /* draw_rect() */
 
@@ -2908,7 +2811,7 @@ static void draw_rect(CtkDisplayLayout *ctk_object,
  **/
 
 static void draw_rect_strs(CtkDisplayLayout *ctk_object,
-                           int *dim,
+                           GdkRectangle *rect,
                            GdkColor *color,
                            const char *str_1,
                            const char *str_2)
@@ -2929,8 +2832,8 @@ static void draw_rect_strs(CtkDisplayLayout *ctk_object,
         pango_layout_set_text(ctk_object->pango_layout, str_1, -1);
         pango_layout_get_pixel_size(ctk_object->pango_layout, &txt_w, &txt_h);
 
-        if (txt_w +8 <= ctk_object->scale * dim[W] &&
-            txt_h +8 <= ctk_object->scale * dim[H]) {
+        if (txt_w +8 <= ctk_object->scale * rect->width &&
+            txt_h +8 <= ctk_object->scale * rect->height) {
             draw_1 = 1;
         }
     }
@@ -2939,8 +2842,8 @@ static void draw_rect_strs(CtkDisplayLayout *ctk_object,
         pango_layout_set_text(ctk_object->pango_layout, str_2, -1);
         pango_layout_get_pixel_size(ctk_object->pango_layout, &txt_w, &txt_h);
 
-        if (txt_w +8 <= ctk_object->scale * dim[W] &&
-            txt_h +8 <= ctk_object->scale * dim[H]) {
+        if (txt_w +8 <= ctk_object->scale * rect->width &&
+            txt_h +8 <= ctk_object->scale * rect->height) {
             draw_2 = 1;
         }
 
@@ -2950,7 +2853,7 @@ static void draw_rect_strs(CtkDisplayLayout *ctk_object,
         pango_layout_get_pixel_size(ctk_object->pango_layout, &txt_w, &txt_h);
 
         if (draw_1 && draw_2 &&
-            txt_h +8 > ctk_object->scale * dim[H]) {
+            txt_h +8 > ctk_object->scale * rect->height) {
             draw_2 = 0;
         }
 
@@ -2961,16 +2864,16 @@ static void draw_rect_strs(CtkDisplayLayout *ctk_object,
         pango_layout_set_text(ctk_object->pango_layout, str_1, -1);
         pango_layout_get_pixel_size(ctk_object->pango_layout, &txt_w, &txt_h);
 
-        txt_x1 = ctk_object->scale*(dim[X] + dim[W] / 2) - (txt_w / 2);
-        txt_y1 = ctk_object->scale*(dim[Y] + dim[H] / 2) - (txt_h / 2);
+        txt_x1 = ctk_object->scale*(rect->x + rect->width / 2) - (txt_w / 2);
+        txt_y1 = ctk_object->scale*(rect->y + rect->height / 2) - (txt_h / 2);
 
         /* Write name */
         gdk_gc_set_rgb_fg_color(fg_gc, color);
 
         gdk_draw_layout(ctk_object->pixmap,
                         fg_gc,
-                        ctk_object->img_dim[X] + txt_x1,
-                        ctk_object->img_dim[Y] + txt_y1,
+                        ctk_object->img_dim.x + txt_x1,
+                        ctk_object->img_dim.y + txt_y1,
                         ctk_object->pango_layout);
     }
 
@@ -2978,16 +2881,16 @@ static void draw_rect_strs(CtkDisplayLayout *ctk_object,
         pango_layout_set_text(ctk_object->pango_layout, str_2, -1);
         pango_layout_get_pixel_size(ctk_object->pango_layout, &txt_w, &txt_h);
 
-        txt_x2 = ctk_object->scale*(dim[X] + dim[W] / 2) - (txt_w / 2);
-        txt_y2 = ctk_object->scale*(dim[Y] + dim[H] / 2) - (txt_h / 2);
+        txt_x2 = ctk_object->scale*(rect->x + rect->width / 2) - (txt_w / 2);
+        txt_y2 = ctk_object->scale*(rect->y + rect->height / 2) - (txt_h / 2);
 
         /* Write dimensions */
         gdk_gc_set_rgb_fg_color(fg_gc, color);
 
         gdk_draw_layout(ctk_object->pixmap,
                         fg_gc,
-                        ctk_object->img_dim[X] + txt_x2,
-                        ctk_object->img_dim[Y] + txt_y2,
+                        ctk_object->img_dim.x + txt_x2,
+                        ctk_object->img_dim.y + txt_y2,
                         ctk_object->pango_layout);
     }
 
@@ -2997,16 +2900,16 @@ static void draw_rect_strs(CtkDisplayLayout *ctk_object,
         pango_layout_set_text(ctk_object->pango_layout, str, -1);
         pango_layout_get_pixel_size(ctk_object->pango_layout, &txt_w, &txt_h);
 
-        txt_x = ctk_object->scale*(dim[X] + dim[W] / 2) - (txt_w / 2);
-        txt_y = ctk_object->scale*(dim[Y] + dim[H] / 2) - (txt_h / 2);
+        txt_x = ctk_object->scale*(rect->x + rect->width / 2) - (txt_w / 2);
+        txt_y = ctk_object->scale*(rect->y + rect->height / 2) - (txt_h / 2);
 
         /* Write both */
         gdk_gc_set_rgb_fg_color(fg_gc, color);
 
         gdk_draw_layout(ctk_object->pixmap,
                         fg_gc,
-                        ctk_object->img_dim[X] + txt_x,
-                        ctk_object->img_dim[Y] + txt_y,
+                        ctk_object->img_dim.x + txt_x,
+                        ctk_object->img_dim.y + txt_y,
                         ctk_object->pango_layout);
 
         g_free(str);
@@ -3029,6 +2932,7 @@ static void draw_display(CtkDisplayLayout *ctk_object,
     int base_color_idx;
     int color_idx;
     char *tmp_str;
+    GdkRectangle rect;
 
     if (!display || !(display->cur_mode)) {
         return;
@@ -3041,29 +2945,29 @@ static void draw_display(CtkDisplayLayout *ctk_object,
 
     /* Draw panning */
     color_idx = base_color_idx + ((mode->modeline) ? BG_PAN_ON : BG_PAN_OFF);
-    draw_rect(ctk_object, mode->pan, &(ctk_object->color_palettes[color_idx]),
-              1);
-    draw_rect(ctk_object, mode->pan, &(ctk_object->fg_color), 0);
+    draw_rect(ctk_object, &(mode->pan),
+              &(ctk_object->color_palettes[color_idx]), 1);
+    draw_rect(ctk_object, &(mode->pan), &(ctk_object->fg_color), 0);
 
 
     /* Draw ViewPortIn */
+    get_viewportin_rect(mode, &rect);
     color_idx = base_color_idx + ((mode->modeline) ? BG_SCR_ON : BG_SCR_OFF);
-    draw_rect(ctk_object, mode->viewPortIn, &(ctk_object->color_palettes[color_idx]),
-              1);
-    draw_rect(ctk_object, mode->viewPortIn, &(ctk_object->fg_color), 0);
+    draw_rect(ctk_object, &rect, &(ctk_object->color_palettes[color_idx]), 1);
+    draw_rect(ctk_object, &rect, &(ctk_object->fg_color), 0);
 
 
     /* Draw text information */
     if (!mode->display->screen) {
         tmp_str = g_strdup("(Disabled)");
     } else if (mode->modeline) {
-        tmp_str = g_strdup_printf("%dx%d", mode->viewPortIn[W],
-                                  mode->viewPortIn[H]);
+        tmp_str = g_strdup_printf("%dx%d", mode->viewPortIn.width,
+                                  mode->viewPortIn.height);
     } else {
         tmp_str = g_strdup("(Off)");
     }
     draw_rect_strs(ctk_object,
-                   mode->viewPortIn,
+                   &rect,
                    &(ctk_object->fg_color),
                    display->logName,
                    tmp_str);
@@ -3085,7 +2989,7 @@ static void draw_screen(CtkDisplayLayout *ctk_object,
     GtkWidget *drawing_area = ctk_object->drawing_area;
     GdkGC *fg_gc = get_widget_fg_gc(drawing_area);
 
-    int *sdim; /* Screen dimensions */
+    GdkRectangle *sdim; /* Screen dimensions */
     GdkColor bg_color; /* Background color */
     GdkColor bd_color; /* Border color */
     char *tmp_str;
@@ -3098,7 +3002,7 @@ static void draw_screen(CtkDisplayLayout *ctk_object,
     gdk_color_parse("#888888", &bg_color);
     gdk_color_parse("#777777", &bd_color);
 
-    sdim = get_screen_dim(screen, 1);
+    sdim = get_screen_rect(screen, 1);
 
     /* Draw the screen background */
     draw_rect(ctk_object, sdim, &bg_color, 1);
@@ -3108,16 +3012,16 @@ static void draw_screen(CtkDisplayLayout *ctk_object,
                                GDK_CAP_NOT_LAST, GDK_JOIN_ROUND);
 
     draw_rect(ctk_object, sdim, &(ctk_object->fg_color), 0);
-    
+
     gdk_gc_set_line_attributes(fg_gc, 1, GDK_LINE_SOLID,
                                GDK_CAP_NOT_LAST, GDK_JOIN_ROUND);
 
     /* Show the name of the screen if no-scanout is selected */
     if (screen->no_scanout) {
         tmp_str = g_strdup_printf("X Screen %d", screen->scrnum);
-        
+
         draw_rect_strs(ctk_object,
-                       screen->dim,
+                       &(screen->dim),
                        &(ctk_object->fg_color),
                        tmp_str,
                        "(No Scanout)");
@@ -3163,17 +3067,20 @@ static void draw_layout(CtkDisplayLayout *ctk_object)
         int w, h;
         int size; /* Hilite line size */
         int offset; /* Hilite box offset */
-        int *dim;
+        GdkRectangle vpiRect;
+        GdkRectangle *rect;
 
         if (ctk_object->selected_display) {
-            dim = ctk_object->selected_display->cur_mode->viewPortIn;
+            get_viewportin_rect(ctk_object->selected_display->cur_mode,
+                                &vpiRect);
+            rect = &vpiRect;
         } else {
-            dim = get_screen_dim(ctk_object->selected_screen, 0);
+            rect = get_screen_rect(ctk_object->selected_screen, 0);
         }
 
         /* Draw red selection border */
-        w  = (int)(ctk_object->scale * (dim[X] + dim[W])) - (int)(ctk_object->scale * (dim[X]));
-        h  = (int)(ctk_object->scale * (dim[Y] + dim[H])) - (int)(ctk_object->scale * (dim[Y]));
+        w  = (int)(ctk_object->scale * rect->width);
+        h  = (int)(ctk_object->scale * rect->height);
 
         /* Setup color to use */
         gdk_gc_set_rgb_fg_color(fg_gc, &(ctk_object->select_color));
@@ -3183,8 +3090,8 @@ static void draw_layout(CtkDisplayLayout *ctk_object)
         offset = (size/2) +1;
 
         if ((w -(2* offset) < 0) || (h -(2 *offset) < 0)) {
-            draw_rect(ctk_object, dim, &(ctk_object->select_color), 1);
-            draw_rect(ctk_object, dim, &(ctk_object->fg_color), 0);
+            draw_rect(ctk_object, rect, &(ctk_object->select_color), 1);
+            draw_rect(ctk_object, rect, &(ctk_object->fg_color), 0);
 
         } else {
             gdk_gc_set_line_attributes(fg_gc, size, GDK_LINE_SOLID,
@@ -3193,8 +3100,8 @@ static void draw_layout(CtkDisplayLayout *ctk_object)
             gdk_draw_rectangle(ctk_object->pixmap,
                                fg_gc,
                                0,
-                               ctk_object->img_dim[X] +(ctk_object->scale * dim[X]) +offset,
-                               ctk_object->img_dim[Y] +(ctk_object->scale * dim[Y]) +offset,
+                               ctk_object->img_dim.x +(ctk_object->scale * rect->x) +offset,
+                               ctk_object->img_dim.y +(ctk_object->scale * rect->y) +offset,
                                w -(2 * offset),
                                h -(2 * offset));
 
@@ -3218,14 +3125,14 @@ static void draw_layout(CtkDisplayLayout *ctk_object)
                 // with display devices that are "off"
                 gdk_color_parse("#0000FF", &bg_color);
                 draw_rect(ctk_object,
-                          ctk_object->selected_screen->cur_metamode->viewPortIn,
+                          &(ctk_object->selected_screen->cur_metamode->viewPortIn),
                           &(bg_color), 0);
 
                 // Shows the current screen dimensions used for relative
                 // positioning of the screen (w/o displays that are "off")
                 gdk_color_parse("#FF00FF", &bg_color);
                 draw_rect(ctk_object,
-                          ctk_object->selected_screen->cur_metamode->edim,
+                          &(ctk_object->selected_screen->cur_metamode->edim),
                           &(bg_color), 0);
             }
         }
@@ -3318,8 +3225,8 @@ static Bool sync_layout(nvLayoutPtr layout)
     calc_layout(layout);
 
     /* If layout needs to offset, it was modified */
-    if (layout->dim[X] || layout->dim[Y]) {
-        offset_layout(layout, -layout->dim[X], -layout->dim[Y]);
+    if (layout->dim.x || layout->dim.y) {
+        offset_layout(layout, -layout->dim.x, -layout->dim.y);
         modified = TRUE;
     }
 
@@ -3689,13 +3596,15 @@ void ctk_display_layout_disable_display(CtkDisplayLayout *ctk_object,
 
 /** ctk_display_layout_set_mode_modeline() ***************************
  *
- * Sets which modeline the mode should use.
+ * Sets which modeline, ViewPortIn and ViewPortOut the mode should use.
  *
  **/
 
 void ctk_display_layout_set_mode_modeline(CtkDisplayLayout *ctk_object,
                                           nvModePtr mode,
-                                          nvModeLinePtr modeline)
+                                          nvModeLinePtr modeline,
+                                          const nvSize *viewPortIn,
+                                          const GdkRectangle *viewPortOut)
 {
     nvModeLinePtr old_modeline;
 
@@ -3705,16 +3614,8 @@ void ctk_display_layout_set_mode_modeline(CtkDisplayLayout *ctk_object,
 
     /* Set the new modeline */
     old_modeline = mode->modeline;
-    mode->modeline = modeline;
 
-
-    /* Setup the mode's dimensions based on the modeline */
-    if (modeline) {
-        mode_set_dims_from_modeline(mode, modeline);
-    } else if (mode->display) {
-        /* Display is being turned off, set the default width/height */
-        mode_set_dims_from_modeline(mode, mode->display->modelines);
-    }
+    mode_set_modeline(mode, modeline, viewPortIn, viewPortOut);
 
     /* In advanced mode, changing the resolution a display uses for a
      * particular metamode should make this metamode non-implicit.
@@ -3745,7 +3646,8 @@ void ctk_display_layout_set_mode_modeline(CtkDisplayLayout *ctk_object,
  */
 void ctk_display_layout_set_mode_viewport_in(CtkDisplayLayout *ctk_object,
                                              nvModePtr mode,
-                                             int w, int h)
+                                             int w, int h,
+                                             Bool update_panning_size)
 {
     Bool modified = TRUE;
 
@@ -3760,16 +3662,15 @@ void ctk_display_layout_set_mode_viewport_in(CtkDisplayLayout *ctk_object,
         h = 1;
     }
 
-    mode->viewPortIn[W] = w;
-    mode->viewPortIn[H] = h;
+    mode->viewPortIn.width  = w;
+    mode->viewPortIn.height = h;
 
-    /* Clamp the panning domain to the new ViewPortIn dimensions */
-    if (mode->pan[W] < mode->viewPortIn[W]) {
-        mode->pan[W] = mode->viewPortIn[W];
+    if (update_panning_size) {
+        mode->pan.width  = w;
+        mode->pan.height = h;
     }
-    if (mode->pan[H] < mode->viewPortIn[H]) {
-        mode->pan[H] = mode->viewPortIn[H];
-    }
+
+    clamp_mode_panning(mode);
 
     if (modified) {
         /* Update the layout */
@@ -3845,10 +3746,10 @@ void ctk_display_layout_set_mode_viewport_out(CtkDisplayLayout *ctk_object,
         y = 0;
     }
 
-    mode->viewPortOut[X] = x;
-    mode->viewPortOut[Y] = y;
-    mode->viewPortOut[W] = w;
-    mode->viewPortOut[H] = h;
+    mode->viewPortOut.x      = x;
+    mode->viewPortOut.y      = y;
+    mode->viewPortOut.width  = w;
+    mode->viewPortOut.height = h;
 
     if (modified) {
         /* Update the layout */
@@ -3939,15 +3840,15 @@ void ctk_display_layout_set_display_position(CtkDisplayLayout *ctk_object,
         /* Do the move by offsetting */
         ctk_object->modify_info.modify_dirty = 1;
         modified = move_selected(ctk_object,
-                                 x - display->cur_mode->viewPortIn[X],
-                                 y - display->cur_mode->viewPortIn[Y],
+                                 x - display->cur_mode->pan.x,
+                                 y - display->cur_mode->pan.y,
                                  0);
 
         /* Report back result of move */
         if (ctk_object->modified_callback &&
             (modified ||
-             x != display->cur_mode->viewPortIn[X] ||
-             y != display->cur_mode->viewPortIn[Y])) {
+             x != display->cur_mode->pan.x ||
+             y != display->cur_mode->pan.y)) {
             ctk_object->modified_callback
                 (ctk_object->layout, ctk_object->modified_callback_data);
         }
@@ -3986,15 +3887,15 @@ void ctk_display_layout_set_display_panning(CtkDisplayLayout *ctk_object,
     /* Change the panning */
     ctk_object->modify_info.modify_dirty = 1;
     modified = pan_selected(ctk_object,
-                            width  - display->cur_mode->pan[W],
-                            height - display->cur_mode->pan[H],
+                            width  - display->cur_mode->pan.width,
+                            height - display->cur_mode->pan.height,
                             0);
 
     /* Report back result of move */
     if (ctk_object->modified_callback &&
         (modified ||
-         width  != display->cur_mode->pan[W] ||
-         height != display->cur_mode->pan[H])) {
+         width  != display->cur_mode->pan.width ||
+         height != display->cur_mode->pan.height)) {
         ctk_object->modified_callback(ctk_object->layout,
                                       ctk_object->modified_callback_data);
     }
@@ -4213,14 +4114,14 @@ void ctk_display_layout_set_screen_virtual_size(CtkDisplayLayout *ctk_object,
     //     what is selected.
     ctk_object->modify_info.modify_dirty = 1;
     modified = pan_selected(ctk_object,
-                            width - screen->dim[W],
-                            height - screen->dim[H],
+                            width - screen->dim.width,
+                            height - screen->dim.height,
                             0);
 
     if (ctk_object->modified_callback &&
         (modified ||
-         width != screen->dim[W] ||
-         height != screen->dim[H])) {
+         width != screen->dim.width ||
+         height != screen->dim.height)) {
         ctk_object->modified_callback(ctk_object->layout,
                                       ctk_object->modified_callback_data);
     }
@@ -4297,9 +4198,9 @@ void ctk_display_layout_set_screen_position(CtkDisplayLayout *ctk_object,
     case CONF_ADJ_ABSOLUTE:
         {
             nvDisplayPtr other;
-            int x_offset = x - screen->dim[X];
-            int y_offset = y - screen->dim[Y];
-            int *sdim;
+            int x_offset = x - screen->dim.x;
+            int y_offset = y - screen->dim.y;
+            GdkRectangle *sdim;
 
             /* Make sure this screen use absolute positioning */
             switch_screen_to_absolute(screen);
@@ -4316,8 +4217,8 @@ void ctk_display_layout_set_screen_position(CtkDisplayLayout *ctk_object,
             ctk_display_layout_update(ctk_object);
 
             /* Report back result of move */
-            sdim = get_screen_dim(screen, 1);
-            if (x != sdim[X] || y != sdim[Y]) {
+            sdim = get_screen_rect(screen, 1);
+            if (x != sdim->x || y != sdim->y) {
                 modified = 1;
             }
 
@@ -4474,10 +4375,10 @@ configure_event_callback(GtkWidget *widget, GdkEventConfigure *event,
     int width = widget->allocation.width;
     int height = widget->allocation.height;
 
-    ctk_object->img_dim[X] = LAYOUT_IMG_OFFSET + LAYOUT_IMG_BORDER_PADDING;
-    ctk_object->img_dim[Y] = LAYOUT_IMG_OFFSET + LAYOUT_IMG_BORDER_PADDING;
-    ctk_object->img_dim[W] = width  -2*(ctk_object->img_dim[X]);
-    ctk_object->img_dim[H] = height -2*(ctk_object->img_dim[Y]);
+    ctk_object->img_dim.x      = LAYOUT_IMG_OFFSET + LAYOUT_IMG_BORDER_PADDING;
+    ctk_object->img_dim.y      = LAYOUT_IMG_OFFSET + LAYOUT_IMG_BORDER_PADDING;
+    ctk_object->img_dim.width  = width  -2*(ctk_object->img_dim.x);
+    ctk_object->img_dim.height = height -2*(ctk_object->img_dim.y);
 
     sync_scaling(ctk_object);
 
@@ -4602,8 +4503,8 @@ button_press_event_callback(GtkWidget *widget, GdkEventButton *event,
     CtkDisplayLayout *ctk_object = CTK_DISPLAY_LAYOUT(data);
 
     /* Scale and offset x & y so they reside in the clickable area */
-    int x = (event->x -ctk_object->img_dim[X]) / ctk_object->scale;
-    int y = (event->y -ctk_object->img_dim[Y]) / ctk_object->scale;
+    int x = (event->x -ctk_object->img_dim.x) / ctk_object->scale;
+    int y = (event->y -ctk_object->img_dim.y) / ctk_object->scale;
 
     GdkEvent *next_event;
 

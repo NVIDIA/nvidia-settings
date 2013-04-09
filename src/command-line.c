@@ -78,7 +78,7 @@ static void print_version(void)
 
 static void print_attribute_help(char *attr)
 {
-    AttributeTableEntry *entry;
+    const AttributeTableEntry *entry;
     int found = 0;
     int list_all = 0;
     int show_desc = 1;
@@ -181,15 +181,14 @@ void print_help(void)
  * even use the gui.
  */
 
-Options *parse_command_line(int argc, char *argv[], char *dpy)
+Options *parse_command_line(int argc, char *argv[], char *dpy, 
+                            CtrlHandlesArray *handles_array)
 {
     Options *op;
     int n, c;
     char *strval;
 
-    op = malloc(sizeof(Options));
-    memset(op, 0, sizeof (Options));
-    
+    op = nvalloc(sizeof(Options));
     op->config = DEFAULT_RC_FILE;
     
     /*
@@ -240,18 +239,19 @@ Options *parse_command_line(int argc, char *argv[], char *dpy)
             break;
         case 'a':
             n = op->num_assignments;
-            op->assignments = realloc(op->assignments, sizeof(char *) * (n+1));
+            op->assignments = nvrealloc(op->assignments,
+                                        sizeof(char *) * (n+1));
             op->assignments[n] = strval;
             op->num_assignments++;
             break;
         case 'q':
             n = op->num_queries;
-            op->queries = realloc(op->queries, sizeof(char *) * (n+1));
+            op->queries = nvrealloc(op->queries, sizeof(char *) * (n+1));
             op->queries[n] = strval;
             op->num_queries++;
             break;
         case CONFIG_FILE_OPTION: op->config = strval; break;
-        case 'g': print_glxinfo(NULL); exit(0); break;
+        case 'g': print_glxinfo(NULL, handles_array); exit(0); break;
         case 't': __terse = NV_TRUE; break;
         case 'd': __display_device_string = NV_TRUE; break;
         case 'e': print_attribute_help(strval); exit(0); break;

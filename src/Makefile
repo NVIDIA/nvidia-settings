@@ -42,8 +42,6 @@ endif
 
 X_CFLAGS              ?=
 
-GL_INCLUDE_PATH       ?= /usr/include
-
 PKG_CONFIG            ?= pkg-config
 
 ifndef GTK_CFLAGS
@@ -54,22 +52,37 @@ ifndef GTK_LDFLAGS
   GTK_LDFLAGS         := $(shell $(PKG_CONFIG) --libs gtk+-2.0)
 endif
 
+ifndef VDPAU_CFLAGS
+  VDPAU_CFLAGS        := $(shell $(PKG_CONFIG) --cflags vdpau 2> /dev/null)
+  ifeq ($(VDPAU_CFLAGS),)
+    VDPAU_CFLAGS       = -I /usr/include
+  endif
+endif
+
+ifndef JANSSON_CFLAGS
+  JANSSON_CFLAGS = -Wno-cast-qual
+  ifeq ($(TARGET_ARCH),armv7l)
+    JANSSON_CFLAGS += -Wno-unused-but-set-variable
+  endif
+endif
 
 ##############################################################################
 # The XF86Config-parser, libXNVCtrl, and common-utils directories may
 # be in one of two places: either elsewhere in the driver source tree
 # when building nvidia-settings as part of the NVIDIA driver build (in
-# which case, XNVCTRL_DIR, XNVCTRL_ARCHIVE, XCONFIG_PARSER_DIR and
-# COMMON_UTILS_DIR should be defined by the calling makefile), or
-# directly in the source directory when building from the
+# which case, XNVCTRL_DIR, XNVCTRL_ARCHIVE, XCONFIG_PARSER_DIR,
+# COMMON_UTILS_DIR and COMMON_UNIX_DIR should be defined by the calling
+# makefile), or directly in the source directory when building from the
 # nvidia-settings source tarball (in which case, the below conditional
 # assignments should be used)
 ##############################################################################
 
-XNVCTRL_DIR           ?= libXNVCtrl
-XNVCTRL_ARCHIVE       ?= $(XNVCTRL_DIR)/libXNVCtrl.a
-XCONFIG_PARSER_DIR    ?= XF86Config-parser
-COMMON_UTILS_DIR      ?= common-utils
+XNVCTRL_DIR             ?= libXNVCtrl
+XNVCTRL_ARCHIVE         ?= $(XNVCTRL_DIR)/libXNVCtrl.a
+XCONFIG_PARSER_DIR      ?= XF86Config-parser
+COMMON_UTILS_DIR        ?= common-utils
+COMMON_UNIX_DIR         ?= common-unix
+VIRTUAL_RESOLUTIONS_DIR ?= $(COMMON_UNIX_DIR)/virtual-resolutions
 
 ##############################################################################
 # assign variables
@@ -85,6 +98,7 @@ CFLAGS += $(X_CFLAGS)
 
 ifeq ($(TARGET_OS),SunOS)
   LDFLAGS += -Wl,-rpath=/usr/X11R6/lib
+  LIBS += -lscf
 endif
 
 LDFLAGS += $(X_LDFLAGS)
@@ -125,6 +139,9 @@ SRC        += $(addprefix $(XCONFIG_PARSER_DIR)/,$(XCONFIG_PARSER_SRC))
 include $(COMMON_UTILS_DIR)/src.mk
 SRC        += $(addprefix $(COMMON_UTILS_DIR)/,$(COMMON_UTILS_SRC))
 
+include $(VIRTUAL_RESOLUTIONS_DIR)/src.mk
+SRC        += $(addprefix $(VIRTUAL_RESOLUTIONS_DIR)/,$(VIRTUAL_RESOLUTIONS_SRC))
+
 SRC        += $(STAMP_C)
 
 OBJS        = $(call BUILD_OBJECT_LIST,$(SRC))
@@ -136,11 +153,16 @@ CFLAGS     += -I $(XCONFIG_PARSER_DIR)/..
 CFLAGS     += -I libXNVCtrlAttributes
 CFLAGS     += -I xpm_data
 CFLAGS     += -I gtk+-2.x
+CFLAGS     += -I jansson
 CFLAGS     += -I $(COMMON_UTILS_DIR)
+CFLAGS     += -I $(VIRTUAL_RESOLUTIONS_DIR)
 CFLAGS     += -I $(OUTPUTDIR)
+CFLAGS     += $(VDPAU_CFLAGS)
 CFLAGS     += -DPROGRAM_NAME=\"nvidia-setttings\"
 
 $(call BUILD_OBJECT_LIST,$(GTK_SRC)): CFLAGS += $(GTK_CFLAGS)
+
+$(call BUILD_OBJECT_LIST,$(JANSSON_SRC)): CFLAGS += $(JANSSON_CFLAGS)
 
 
 ##############################################################################

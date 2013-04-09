@@ -33,13 +33,6 @@ G_BEGIN_DECLS
 
 /* Token parsing handlers */
 
-typedef struct _ScreenInfo {
-    int x;
-    int y;
-    int width;
-    int height;
-} ScreenInfo;
-
 void apply_modeline_token(char *token, char *value, void *data);
 void apply_metamode_token(char *token, char *value, void *data);
 void apply_monitor_token(char *token, char *value, void *data);
@@ -48,14 +41,36 @@ void apply_screen_info_token(char *token, char *value, void *data);
 
 /* Mode functions */
 
-void mode_set_dims_from_modeline(nvModePtr mode, nvModeLinePtr modeline);
+void clamp_rect_to_viewportin(GdkRectangle *rect, const nvMode *mode);
+void clamp_mode_panning(nvModePtr mode);
+void get_viewportin_rect(const nvMode *mode, GdkRectangle *rect);
+void mode_set_modeline(nvModePtr mode,
+                       nvModeLinePtr modeline,
+                       const nvSize *providedViewPortIn,
+                       const GdkRectangle *providedViewPortOut);
 Bool mode_set_rotation(nvModePtr mode, Rotation rotation);
 nvModePtr mode_parse(nvDisplayPtr display, const char *mode_str);
+void apply_underscan_to_viewportout(const nvSize raster_size,
+                                    const int hpixel_value,
+                                    GdkRectangle *viewPortOut);
+void get_underscan_settings_from_viewportout(const nvSize raster_size,
+                                             const GdkRectangle viewPortOut,
+                                             gfloat *percent_value,
+                                             gint *pixel_value);
 
 /* ModeLine functions */
 
 Bool modelines_match(nvModeLinePtr modeline1, nvModeLinePtr modeline2);
 void modeline_free(nvModeLinePtr m);
+
+
+
+/* ViewPort functions */
+
+Bool viewports_in_match(const nvSize viewPortIn1,
+                        const nvSize viewPortIn2);
+Bool viewports_out_match(const GdkRectangle viewPortOut1,
+                         const GdkRectangle viewPortOut2);
 
 
 
@@ -75,6 +90,7 @@ Bool display_set_modes_rotation(nvDisplayPtr display, Rotation rotation);
 
 /* Screen functions */
 
+void clamp_screen_size_rect(GdkRectangle *rect);
 void renumber_xscreens(nvLayoutPtr layout);
 void screen_unlink_display(nvDisplayPtr display);
 void screen_link_display(nvScreenPtr screen, nvDisplayPtr display);

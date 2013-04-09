@@ -29,6 +29,9 @@
 #include <string.h>
 #include <inttypes.h>
 
+#include <X11/Xlib.h>
+#include "NVCtrlLib.h"
+
 #include "parse.h"
 #include "msg.h"
 #include "query-assign.h"
@@ -40,14 +43,18 @@ extern int __display_device_string;
 
 /* local prototypes */
 
-static int process_attribute_queries(int, char**, const char *);
+static int process_attribute_queries(int, char**, const char *,
+                                     CtrlHandlesArray *);
 
-static int process_attribute_assignments(int, char**, const char *);
+static int process_attribute_assignments(int, char**, const char *,
+                                     CtrlHandlesArray *);
 
-static int query_all(const char *);
-static int query_all_targets(const char *display_name, const int target_index);
+static int query_all(const char *, CtrlHandlesArray *);
+static int query_all_targets(const char *display_name, const int target_index,
+                             CtrlHandlesArray *);
 
-static void print_valid_values(char *, int, uint32, NVCTRLAttributeValidValuesRec);
+static void print_valid_values(const char *, int, uint32,
+                               NVCTRLAttributeValidValuesRec);
 
 static void print_additional_info(const char *name,
                                   int attr,
@@ -57,26 +64,33 @@ static void print_additional_info(const char *name,
 static int validate_value(CtrlHandleTarget *t, ParsedAttribute *a, uint32 d,
                           int target_type, char *whence);
 
+static CtrlHandles *nv_alloc_ctrl_handles(const char *display);
+
+static void nv_free_ctrl_handles(CtrlHandles *h);
+
 /*
  * nv_process_assignments_and_queries() - process any assignments or
  * queries specified on the commandline.  If an error occurs, return
  * NV_FALSE.  On success return NV_TRUE.
  */
 
-int nv_process_assignments_and_queries(Options *op)
+int nv_process_assignments_and_queries(const Options *op, 
+                                       CtrlHandlesArray *handles_array)
 {
     int ret;
 
     if (op->num_queries) {
         ret = process_attribute_queries(op->num_queries,
-                                        op->queries, op->ctrl_display);
+                                        op->queries, op->ctrl_display,
+                                        handles_array);
         if (!ret) return NV_FALSE;
     }
 
     if (op->num_assignments) {
         ret = process_attribute_assignments(op->num_assignments,
                                             op->assignments,
-                                            op->ctrl_display);
+                                            op->ctrl_display,
+                                            handles_array);
         if (!ret) return NV_FALSE;
     }
     
@@ -86,31 +100,129 @@ int nv_process_assignments_and_queries(Options *op)
 
 
 
-/*
- * query_display_target_names() - retrieves the list of display device names
- * for the given target.
+/*!
+ * Queries the NV-CONTROL string attribute and returns the string as a simple
+ * char *.  This is useful to avoid having to track how strings are allocated
+ * so we can cleanup all strings via nvfree().
+ *
+ * \param[in]  t     The CtrlHandleTarget to query the string on.
+ * \param[in]  attr  The NV-CONTROL string to query.
+ *
+ * \return  Return a nvalloc()'ed copy of the NV-CONTROL string; else, returns
+ *          NULL.
  */
-static void query_display_target_names(CtrlHandleTarget *t)
+
+static char *query_x_name(const CtrlHandleTarget *t, int attr)
 {
-    NvCtrlGetStringAttribute(t->h, NV_CTRL_STRING_DISPLAY_NAME_TYPE_BASENAME,
-                             &(t->protoNames[NV_DPY_PROTO_NAME_TYPE_BASENAME]));
-    NvCtrlGetStringAttribute(t->h, NV_CTRL_STRING_DISPLAY_NAME_TYPE_ID,
-                             &(t->protoNames[NV_DPY_PROTO_NAME_TYPE_ID]));
-    NvCtrlGetStringAttribute(t->h, NV_CTRL_STRING_DISPLAY_NAME_DP_GUID,
-                             &(t->protoNames[NV_DPY_PROTO_NAME_DP_GUID]));
-    NvCtrlGetStringAttribute(t->h, NV_CTRL_STRING_DISPLAY_NAME_EDID_HASH,
-                             &(t->protoNames[NV_DPY_PROTO_NAME_EDID_HASH]));
-    NvCtrlGetStringAttribute(t->h, NV_CTRL_STRING_DISPLAY_NAME_TARGET_INDEX,
-                             &(t->protoNames[NV_DPY_PROTO_NAME_TARGET_INDEX]));
-    NvCtrlGetStringAttribute(t->h, NV_CTRL_STRING_DISPLAY_NAME_RANDR,
-                             &(t->protoNames[NV_DPY_PROTO_NAME_RANDR]));
+    ReturnStatus status;
+    char *x_str;
+    char *str = NULL;
+
+    status = NvCtrlGetStringAttribute(t->h, attr, &x_str);
+    if (status == NvCtrlSuccess) {
+        str = nvstrdup(x_str);
+        XFree(x_str);
+    }
+
+    return str;
 }
 
-NvCtrlAttributeHandle *nv_get_target_handle(CtrlHandles *handles,
-                                            int target_type,
-                                            int target_id)
+
+
+/*!
+ * Retrieves and adds all the display device names for the given target.
+ *
+ * \param[in]  t  The CtrlHandleTarget to load names for.
+ */
+
+static void load_display_target_proto_names(CtrlHandleTarget *t)
 {
-    CtrlHandleTargets *targets;
+    t->protoNames[NV_DPY_PROTO_NAME_TYPE_BASENAME] =
+        query_x_name(t, NV_CTRL_STRING_DISPLAY_NAME_TYPE_BASENAME);
+
+    t->protoNames[NV_DPY_PROTO_NAME_TYPE_ID] =
+        query_x_name(t, NV_CTRL_STRING_DISPLAY_NAME_TYPE_ID);
+
+    t->protoNames[NV_DPY_PROTO_NAME_DP_GUID] =
+        query_x_name(t, NV_CTRL_STRING_DISPLAY_NAME_DP_GUID);
+
+    t->protoNames[NV_DPY_PROTO_NAME_EDID_HASH] =
+        query_x_name(t, NV_CTRL_STRING_DISPLAY_NAME_EDID_HASH);
+
+    t->protoNames[NV_DPY_PROTO_NAME_TARGET_INDEX] =
+        query_x_name(t, NV_CTRL_STRING_DISPLAY_NAME_TARGET_INDEX);
+
+    t->protoNames[NV_DPY_PROTO_NAME_RANDR] =
+        query_x_name(t, NV_CTRL_STRING_DISPLAY_NAME_RANDR);
+}
+
+
+
+/*!
+ * Adds the default names for the given target to the list of protocal names.
+ *
+ * \param[in]  t  The CtrlHandleTarget to load names for.
+ */
+
+static void load_default_target_proto_name(CtrlHandleTarget *t)
+{
+    const int target_type = NvCtrlGetTargetType(t->h);
+    const int target_id = NvCtrlGetTargetId(t->h);
+
+
+    const TargetTypeEntry *targetTypeEntry =
+        nv_get_target_type_entry_by_nvctrl(target_type);
+
+    if (targetTypeEntry) {
+        t->protoNames[0] = nvasprintf("%s-%d",
+                                      targetTypeEntry->parsed_name,
+                                      target_id);
+        nvstrtoupper(t->protoNames[0]);
+    }
+}
+
+
+
+/*!
+ * Adds the all the appropriate names for the given target to the list of protocal names.
+ *
+ * \param[in]  t  The CtrlHandleTarget to load names for.
+ */
+
+static void load_target_proto_names(CtrlHandleTarget *t)
+{
+    const int target_type = NvCtrlGetTargetType(t->h);
+
+    switch (target_type) {
+    case NV_CTRL_TARGET_TYPE_DISPLAY:
+        load_display_target_proto_names(t);
+        break;
+
+    default:
+        load_default_target_proto_name(t);
+        break;
+    }
+}
+
+
+
+/*!
+ * Returns the CtrlHandleTarget from CtrlHandles with the given target type/
+ * target id.
+ *
+ * \param[in]  handles      Container for all the CtrlHandleTargets to search.
+ * \param[in]  target_type  The target type of the CtrlHandleTarget to search.
+ * \param[in]  target_id    The target id of the CtrlHandleTarget to search.
+ *
+ * \return  Returns the matching CtrlHandleTarget from CtrlHandles on success;
+ *          else, returns NULL.
+ */
+
+static CtrlHandleTarget *nv_get_target(const CtrlHandles *handles,
+                                       int target_type,
+                                       int target_id)
+{
+    const CtrlHandleTargets *targets;
     int i;
 
     if (target_type < 0 || target_type >= MAX_TARGET_TYPES) {
@@ -121,12 +233,607 @@ NvCtrlAttributeHandle *nv_get_target_handle(CtrlHandles *handles,
     for (i = 0; i < targets->n; i++) {
         CtrlHandleTarget *target = targets->t + i;
         if (NvCtrlGetTargetId(target->h) == target_id) {
-            return target->h;
+            return target;
         }
     }
 
     return NULL;
 }
+
+
+
+/*!
+ * Returns the NvCtrlAttributeHandle from CtrlHandles with the given target
+ * type/target id.
+ *
+ * \param[in]  handles      Container for all the CtrlHandleTargets to search.
+ * \param[in]  target_type  The target type of the CtrlHandleTarget to search.
+ * \param[in]  target_id    The target id of the CtrlHandleTarget to search.
+ *
+ * \return  Returns the NvCtrlAttributeHandle from the matching
+ *          CtrlHandleTarget from CtrlHandles on success; else, returns NULL.
+ */
+
+NvCtrlAttributeHandle *nv_get_target_handle(const CtrlHandles *handles,
+                                            int target_type,
+                                            int target_id)
+{
+    CtrlHandleTarget *target;
+
+    target = nv_get_target(handles, target_type, target_id);
+    if (target) {
+        return target->h;
+    }
+
+    return NULL;
+}
+
+
+
+/*!
+ * Returns the first node (sentry) for tracking CtrlHandleTarget lists.
+ *
+ * \return  Returns the sentry node to be used for tracking CtrlHandleTarget
+ *          list.
+ */
+
+static CtrlHandleTargetNode *nv_target_list_init(void)
+{
+    return nvalloc(sizeof(CtrlHandleTargetNode));
+}
+
+
+
+/*!
+ * Appends the given CtrlHandleTarget 'target' to the end of the
+ * CtrlHandleTarget list 'head' if 'target' is not already in the list.
+ *
+ * \param[in/out]  head    The first node in the CtrlHandleTarget list, to which
+ *                         target should be inserted.
+ * \param[in]      target  The CtrlHandleTarget to add to the list.
+ */
+
+static void nv_target_list_add(CtrlHandleTargetNode *head,
+                               CtrlHandleTarget *target)
+{
+    CtrlHandleTargetNode *t;
+
+    for (t = head; t->next; t = t->next) {
+        if (t->t == target) {
+            /* Already in list, ignore */
+            return;
+        }
+    }
+
+    t->next = nv_target_list_init();
+    t->t = target;
+}
+
+
+
+/*!
+ * Frees the memory used for tracking a list of CtrlHandleTargets.
+ *
+ * \param[in\out]  head  The first node in the CtrlHandleTarget list that is to
+ *                       be freed.
+ */
+
+void nv_target_list_free(CtrlHandleTargetNode *head)
+{
+    CtrlHandleTargetNode *n;
+
+    while (head) {
+        n = head->next;
+        free(head);
+        head = n;
+    }
+}
+
+
+
+/*!
+ * Adds all the targets (of target type 'targetType') that are both present
+ * in the CtrlHandle, and known to be associated to 't' by querying the list
+ * of associated targets to 't' from NV-CONTROL via binary attribute 'attr',
+ * and possibly reciprocally adding the reverse relationship.
+ *
+ * \param[in\out]  h                    The list of all managed targets from
+ *                                      which associations are to be made to/
+ *                                      from.
+ * \param[in\out]  t                    The target to which association(s) are
+ *                                      being made.
+ * \param[in]      targetType           The target type of the associated
+ *                                      targets being considered (queried.)
+ * \param[in]      attr                 The NV-CONTROL binary attribute that
+ *                                      should be queried to retrieve the list
+ *                                      of 'targetType' targets that are
+ *                                      associated to the (CtrlHandleTarget)
+ *                                      target 't'.
+ * \param[in]      implicit_reciprocal  Whether or not to reciprocally add the
+ *                                      reverse relationship to the matching
+ *                                      targets.
+ */
+
+static void add_target_relationships(const CtrlHandles *h, CtrlHandleTarget *t,
+                                     int targetType, int attr,
+                                     int implicit_reciprocal)
+{
+    ReturnStatus status;
+    int *pData;
+    int len;
+    int i;
+
+    status =
+        NvCtrlGetBinaryAttribute(t->h, 0,
+                                 attr,
+                                 (unsigned char **)(&pData), &len);
+    if ((status != NvCtrlSuccess) || !pData) {
+        nv_error_msg("Error querying target relations");
+        return;
+    }
+
+    for (i = 0; i < pData[0]; i++) {
+        int targetId = pData[i+1];
+        CtrlHandleTarget *r;
+
+        r = nv_get_target(h, targetType, targetId);
+        if (r) {
+            nv_target_list_add(t->relations, r);
+
+            if (implicit_reciprocal == NV_TRUE) {
+                nv_target_list_add(r->relations, t);
+            }
+        }
+    }
+
+    XFree(pData);
+}
+
+
+
+/*!
+ * Adds all associations to/from an X screen target.
+ *
+ * \param[in\out]  h  The list of all managed targets from which associations
+ *                    are to be made to/from.
+ * \param[in\out]  t  The X screen target to which association(s) are being
+ *                    made.
+ */
+
+static void load_screen_target_relationships(CtrlHandles *h,
+                                             CtrlHandleTarget *t)
+{
+    add_target_relationships(h, t, NV_CTRL_TARGET_TYPE_GPU,
+                             NV_CTRL_BINARY_DATA_GPUS_USED_BY_LOGICAL_XSCREEN,
+                             NV_TRUE);
+    add_target_relationships(h, t, NV_CTRL_TARGET_TYPE_DISPLAY,
+                             NV_CTRL_BINARY_DATA_DISPLAYS_ASSIGNED_TO_XSCREEN,
+                             NV_TRUE);
+}
+
+
+
+/*!
+ * Adds all associations to/from a GPU target.
+ *
+ * \param[in\out]  h  The list of all managed targets from which associations
+ *                    are to be made to/from.
+ * \param[in\out]  t  The GPU target to which association(s) are being made.
+ */
+
+static void load_gpu_target_relationships(CtrlHandles *h, CtrlHandleTarget *t)
+{
+    add_target_relationships(h, t, NV_CTRL_TARGET_TYPE_FRAMELOCK,
+                             NV_CTRL_BINARY_DATA_FRAMELOCKS_USED_BY_GPU,
+                             NV_FALSE);
+    add_target_relationships(h, t, NV_CTRL_TARGET_TYPE_VCSC,
+                             NV_CTRL_BINARY_DATA_VCSCS_USED_BY_GPU,
+                             NV_FALSE);
+    add_target_relationships(h, t, NV_CTRL_TARGET_TYPE_COOLER,
+                             NV_CTRL_BINARY_DATA_COOLERS_USED_BY_GPU,
+                             NV_TRUE);
+    add_target_relationships(h, t, NV_CTRL_TARGET_TYPE_THERMAL_SENSOR,
+                             NV_CTRL_BINARY_DATA_THERMAL_SENSORS_USED_BY_GPU,
+                             NV_TRUE);
+    add_target_relationships(h, t, NV_CTRL_TARGET_TYPE_DISPLAY,
+                             NV_CTRL_BINARY_DATA_DISPLAYS_CONNECTED_TO_GPU,
+                             NV_TRUE);
+}
+
+
+
+/*!
+ * Adds all associations to/from a FrameLock target.
+ *
+ * \param[in\out]  h  The list of all managed targets from which associations
+ *                    are to be made to/from.
+ * \param[in\out]  t  The FrameLock target to which association(s) are being
+ *                    made.
+ */
+
+static void load_framelock_target_relationships(CtrlHandles *h,
+                                                CtrlHandleTarget *t)
+{
+    add_target_relationships(h, t, NV_CTRL_TARGET_TYPE_GPU,
+                             NV_CTRL_BINARY_DATA_GPUS_USING_FRAMELOCK,
+                             NV_FALSE);
+}
+
+
+
+/*!
+ * Adds all associations to/from a VCS target.
+ *
+ * \param[in\out]  h  The list of all managed targets from which associations
+ *                    are to be made to/from.
+ * \param[in\out]  t  The VCS target to which association(s) are being made.
+ */
+
+static void load_vcs_target_relationships(CtrlHandles *h, CtrlHandleTarget *t)
+{
+    add_target_relationships(h, t, NV_CTRL_TARGET_TYPE_GPU,
+                             NV_CTRL_BINARY_DATA_GPUS_USING_VCSC,
+                             NV_FALSE);
+}
+
+
+
+/*!
+ * Adds all associations to/from a target.
+ *
+ * \param[in\out]  h  The list of all managed targets from which associations
+ *                    are to be made to/from.
+ * \param[in\out]  t  The target to which association(s) are being made.
+ */
+
+static void load_target_relationships(CtrlHandles *h, CtrlHandleTarget *t)
+{
+    int target_type = NvCtrlGetTargetType(t->h);
+
+    switch (target_type) {
+    case NV_CTRL_TARGET_TYPE_X_SCREEN:
+        load_screen_target_relationships(h, t);
+        break;
+
+    case NV_CTRL_TARGET_TYPE_GPU:
+        load_gpu_target_relationships(h, t);
+        break;
+
+    case NV_CTRL_TARGET_TYPE_FRAMELOCK:
+        load_framelock_target_relationships(h, t);
+        break;
+
+    case NV_CTRL_TARGET_TYPE_VCSC:
+        load_vcs_target_relationships(h, t);
+        break;
+
+    default:
+        break;
+    }
+}
+
+
+
+/*!
+ * Determines if the target 't' has the name 'name'.
+ *
+ * \param[in]  t     The target being considered.
+ * \param[in]  name  The name to match against.
+ *
+ * \return  Returns NV_TRUE if the given target 't' has the name 'name'; else
+ *          returns NV_FALSE.
+ */
+
+static int nv_target_has_name(const CtrlHandleTarget *t, const char *name)
+{
+    int n;
+
+    for (n = 0; n < NV_DPY_PROTO_NAME_MAX; n++) {
+        if (t->protoNames[n] &&
+            nv_strcasecmp(t->protoNames[n], name)) {
+            return NV_TRUE;
+        }
+    }
+
+    return NV_FALSE;
+}
+
+
+
+/*!
+ * Determines if the target 't' matches a given target type, target id, and/or
+ * target name.
+ *
+ * \param[in]  t     The target being considered.
+ * \param[in]  name  The name to match against.
+ *
+ * \return  Returns NV_TRUE if the given target 't' has the name 'name'; else
+ *          returns NV_FALSE.
+ */
+
+static int target_has_qualification(const CtrlHandleTarget *t,
+                                    int matchTargetType,
+                                    int matchTargetId,
+                                    const char *matchTargetName)
+{
+    const CtrlHandleTargetNode *n;
+
+    /* If no qualifications given, all targets match */
+    if ((matchTargetType < 0) && (matchTargetId < 0) && (!matchTargetName)) {
+        return NV_TRUE;
+    }
+
+    /* Look for any matching relationship */
+    for (n = t->relations;
+         n->next;
+         n = n->next) {
+        const CtrlHandleTarget *r = n->t;
+
+        if (matchTargetType >= 0 &&
+            (matchTargetType != NvCtrlGetTargetType(r->h))) {
+            continue;
+        }
+
+        if ((matchTargetId >= 0) &&
+            matchTargetId != NvCtrlGetTargetId(r->h)) {
+            continue;
+        }
+
+        if (matchTargetName &&
+            !nv_target_has_name(r, matchTargetName)) {
+            continue;
+        }
+
+        return NV_TRUE;
+    }
+
+    return NV_FALSE;
+}
+
+
+
+/*!
+ * Resolves the two given strings sAAA and sBBB into a target type, target id,
+ * and/or target name.  The following target specifications are supported:
+ *
+ * "AAA" (BBB = NULL)
+ *    - All targets of type AAA, if AAA names a target type, or
+ *    - All targets named AAA if AAA does not name a target type.
+ *
+ * "BBB:AAA"
+ *    - All targets of type BBB with either target id AAA if AAA is a numerical
+ *      value, or target(s) named AAA otherwise.
+ *
+ * \param[in]  sAAA        If sBBB is NULL, this is either the target name,
+ *                         or a target type.
+ * \param[in]  sBBB        If not NULL, this is the target type as a string.
+ * \param[out] targetType  Assigned the target type, or -1 for all target types.
+ * \param[out] targetId    Assigned the target id, or -1 for all targets.
+ * \param[out] targetName  Assigned the target name, or NULL for all target
+ *                         names.
+ *
+ * \return  Returns NV_PARSER_STATUS_SUCCESS if sAAA and sBBB were successfuly
+ *          parsed into at target specification; else, returns
+ *          NV_PARSER_STATUS_TARGET_SPEC_BAD_TARGET if a parsing failure
+ *          occured.
+ */
+
+static int parse_single_target_specification(const char *sAAA,
+                                             const char *sBBB,
+                                             int *targetType,
+                                             int *targetId,
+                                             const char **targetName)
+{
+    const TargetTypeEntry *targetTypeEntry;
+
+    *targetType = -1;   // Match all target types
+    *targetId = -1;     // Match all target ids
+    *targetName = NULL; // Match all target names
+
+    if (sBBB) {
+
+        /* If BBB is specified, then it must name a target type */
+        targetTypeEntry = nv_get_target_type_entry_by_name(sBBB);
+        if (!targetTypeEntry) {
+            return NV_PARSER_STATUS_TARGET_SPEC_BAD_TARGET;
+        }
+        *targetType = targetTypeEntry->nvctrl;
+
+        /* AAA can either be a name, or a target id */
+        if (!nv_parse_numerical(sAAA, NULL, targetId)) {
+            *targetName = sAAA;
+        }
+
+    } else {
+
+        /* If BBB is unspecified, then AAA could possibly name a target type */
+        targetTypeEntry = nv_get_target_type_entry_by_name(sAAA);
+        if (targetTypeEntry) {
+            *targetType = targetTypeEntry->nvctrl;
+        } else {
+            /* If not, then AAA is a target name */
+            *targetName = sAAA;
+        }
+    }
+
+    return NV_PARSER_STATUS_SUCCESS;
+}
+
+
+
+
+/*!
+ * Computes the list of targets from the list of CtrlHandles 'h' that match the
+ * ParsedAttribute's target specification string.
+ *
+ * The following target specifications string formats are supported:
+ *
+ * "AAA"
+ *    - All targets of type AAA, if AAA names a target type, or
+ *    - All targets named AAA if AAA does not name a target type.
+ *
+ * "BBB:AAA"
+ *    - All targets of type BBB with either target id AAA if AAA is a numerical
+ *      value, or target(s) named AAA otherwise.
+ *
+ * "CCC.AAA"
+ *    - All target types (and/or names) AAA that have a relation to any target
+ *      types (and/or names) CCC.
+ *
+ * "CCC.BBB:AAA"
+ *    - All the targets named (or target id) AAA of the target type BBB that are
+ *      related to target type (and or name) CCC.
+ *
+ * "DDD:CCC.AAA"
+ *    - All target types (and/or names) AAA that are related to targets named
+ *      (or target id) CCC of the target type DDD.
+ *
+ * "DDD:CCC.BBB:AAA"
+ *    - All the targets named (or target id) AAA of the target type BBB that are
+ *      related to targets named (or target id) CCC of the target type DDD.
+ *
+ * \param[in/ou]  a  The ParsedAttribute whose target specification string
+ *                   should be analyzed and converted into a list of targets.
+ * \param[in]     h  The list of targets to choose from.
+ *
+ * \return  Returns NV_PARSER_STATUS_SUCCESS if the ParsedAttribute's target
+ *          specification string was successfully prased into a list of targets
+ *          (though this list could be empty, if no targets are found to
+ *          match!); else, returns one of the other NV_PARSER_STATUS_XXX
+ *          error codes that detail the particular parsing error.
+ */
+
+static int nv_infer_targets_from_specification(ParsedAttribute *a,
+                                               CtrlHandles *h)
+{
+    int ret = NV_PARSER_STATUS_SUCCESS;
+
+    /* specification as: "XXX.YYY" or "XXX" */
+    char *sXXX = NULL; // Target1 string
+    char *sYYY = NULL; // Target2 string
+
+    /* XXX as: "BBB:AAA" or "AAA" */
+    char *sAAA = NULL; // Target1 name
+    char *sBBB = NULL; // Target1 type name
+
+    /* YYY as: "DDD:CCC" or "CCC" */
+    char *sCCC = NULL; // Target2 name
+    char *sDDD = NULL; // Target2type name
+
+    char *s;
+    char *tmp;
+
+    int i, j;
+
+    int matchTargetType;
+    int matchTargetId;
+    const char *matchTargetName;
+
+    int matchQualifierTargetType;
+    int matchQualifierTargetId;
+    const char *matchQualifierTargetName;
+
+
+    tmp = nvstrdup(a->target_specification);
+
+    /* Parse for 'YYY.XXX' or 'XXX' */
+    s = strchr(tmp, '.');
+    if (s) {
+        *s = '\0';
+        sXXX = s+1;
+        sYYY = tmp;
+    } else {
+        sXXX = tmp;
+    }
+
+    /* Parse for 'BBB:AAA' or 'AAA' (in XXX above) */
+    s = strchr(sXXX, ':');
+    if (s) {
+        *s = '\0';
+        sBBB = sXXX;
+        sAAA = s+1;
+    } else {
+        /* AAA is either a target type name, or a target name */
+        sAAA = sXXX;
+    }
+
+    /* Parse for 'DDD:CCC' or 'CCC' (in YYY above) */
+    if (sYYY) {
+        s = strchr(sYYY, ':');
+        if (s) {
+            *s = '\0';
+            sDDD = sYYY;
+            sCCC = s+1;
+        } else {
+            /* CCC is either a target type name, or a target name */
+            sCCC = sYYY;
+        }
+    }
+
+    /* Get target matching criteria */
+
+    ret = parse_single_target_specification(sAAA, sBBB,
+                                            &matchTargetType,
+                                            &matchTargetId,
+                                            &matchTargetName);
+    if (ret != NV_PARSER_STATUS_SUCCESS) {
+        goto done;
+    }
+
+    /* Get target qualifier matching criteria */
+
+    ret = parse_single_target_specification(sCCC, sDDD,
+                                            &matchQualifierTargetType,
+                                            &matchQualifierTargetId,
+                                            &matchQualifierTargetName);
+    if (ret != NV_PARSER_STATUS_SUCCESS) {
+        goto done;
+    }
+
+    /* Iterate over the target types */
+    for (i = 0; i < targetTypeTableLen; i++) {
+        const TargetTypeEntry *targetTypeEntry = &(targetTypeTable[i]);
+        CtrlHandleTargets *hts;
+
+        if (matchTargetType >= 0 &&
+            (matchTargetType != targetTypeEntry->nvctrl)) {
+            continue;
+        }
+
+        /* For each target of this type, match the id and/or name */
+        hts = &(h->targets[targetTypeEntry->target_index]);
+        for (j = 0; j < hts->n; j++) {
+            CtrlHandleTarget *t = &(hts->t[j]);
+
+            if ((matchTargetId >= 0) &&
+                matchTargetId != NvCtrlGetTargetId(t->h)) {
+                continue;
+            }
+            if (matchTargetName &&
+                !nv_target_has_name(t, matchTargetName)) {
+                continue;
+            }
+
+            if (!target_has_qualification(t,
+                                          matchQualifierTargetType,
+                                          matchQualifierTargetId,
+                                          matchQualifierTargetName)) {
+                continue;
+            }
+
+            /* Target matches, add it to the list */
+            nv_target_list_add(a->targets, t);
+            a->flags |= NV_PARSER_HAS_TARGET;
+        }
+    }
+
+ done:
+    if (tmp) {
+        free(tmp);
+    }
+    return ret;
+}
+
 
 
 /*
@@ -141,17 +848,13 @@ CtrlHandles *nv_alloc_ctrl_handles(const char *display)
     ReturnStatus status;
     CtrlHandles *h, *pQueryHandle = NULL;
     NvCtrlAttributeHandle *handle;
-    int i, val, d, c, len;
+    int i, j, val, d, c, len;
     char *tmp;
     int *pData = NULL;
-    TargetTypeEntry *targetTypeEntry;
 
     /* allocate the CtrlHandles struct */
 
-    h = calloc(1, sizeof(CtrlHandles));
-    if (!h) {
-        return NULL;
-    }
+    h = nvalloc(sizeof(CtrlHandles));
 
     /* store any given X display name */
 
@@ -175,10 +878,8 @@ CtrlHandles *nv_alloc_ctrl_handles(const char *display)
      * information
      */
 
-    for (targetTypeEntry = targetTypeTable;
-         targetTypeEntry->name;
-         targetTypeEntry++) {
-
+    for (j = 0; j < targetTypeTableLen; j++) {
+        const TargetTypeEntry *targetTypeEntry = &targetTypeTable[j];
         int target = targetTypeEntry->target_index;
         CtrlHandleTargets *targets = &(h->targets[target]);
 
@@ -267,11 +968,7 @@ CtrlHandles *nv_alloc_ctrl_handles(const char *display)
 
         /* allocate an array of CtrlHandleTarget's */
 
-        targets->t = calloc(targets->n, sizeof(CtrlHandleTarget));
-        if (!targets->t) {
-            targets->n = 0;
-            goto next_target_type;
-        }
+        targets->t = nvalloc(targets->n * sizeof(CtrlHandleTarget));
 
         /*
          * loop over all the targets of this type and setup the
@@ -279,6 +976,7 @@ CtrlHandles *nv_alloc_ctrl_handles(const char *display)
          */
 
         for (i = 0; i < targets->n; i++) {
+            CtrlHandleTarget *t = &(targets->t[i]);
             int targetId;
 
             switch (target) {
@@ -304,7 +1002,7 @@ CtrlHandles *nv_alloc_ctrl_handles(const char *display)
                                          targetTypeEntry->nvctrl, targetId,
                                          NV_CTRL_ATTRIBUTES_ALL_SUBSYSTEMS);
 
-            targets->t[i].h = handle;
+            t->h = handle;
 
             /*
              * silently fail: this might happen if not all X screens
@@ -325,23 +1023,23 @@ CtrlHandles *nv_alloc_ctrl_handles(const char *display)
             tmp = NvCtrlGetDisplayName(handle);
             
             if (target == X_SCREEN_TARGET) {
-                targets->t[i].name = tmp;
+                t->name = tmp;
             } else {
                 len = strlen(tmp) + strlen(targetTypeEntry->parsed_name) +16;
-                targets->t[i].name = malloc(len);
+                t->name = nvalloc(len);
 
-                if (targets->t[i].name) {
-                    snprintf(targets->t[i].name, len, "%s[%s:%d]",
-                             tmp, targetTypeEntry->parsed_name, i);
+                if (t->name) {
+                    snprintf(t->name, len, "%s[%s:%d]",
+                             tmp, targetTypeEntry->parsed_name, targetId);
                     free(tmp);
                 } else {
-                    targets->t[i].name = tmp;
-                }
-
-                if (target == DISPLAY_TARGET) {
-                    query_display_target_names(&(targets->t[i]));
+                    t->name = tmp;
                 }
             }
+
+            load_target_proto_names(t);
+            t->relations = nv_target_list_init();
+
 
             /*
              * get the enabled display device mask; for X screens and
@@ -375,8 +1073,8 @@ CtrlHandles *nv_alloc_ctrl_handles(const char *display)
                 c = 0;
             }
 
-            targets->t[i].d = d;
-            targets->t[i].c = c;
+            t->d = d;
+            t->c = c;
 
             /*
              * store this handle so that we can use it to query other
@@ -393,9 +1091,50 @@ CtrlHandles *nv_alloc_ctrl_handles(const char *display)
         }
     }
 
+
+    /* Load relationships to other targets */
+
+    for (i = 0; i < MAX_TARGET_TYPES; i++) {
+        CtrlHandleTargets *targets = &(h->targets[i]);
+        for (j = 0; j < targets->n; j++) {
+            CtrlHandleTarget *t = &(targets->t[j]);
+            load_target_relationships(h, t);
+        }
+    }
+
     return h;
 
 } /* nv_alloc_ctrl_handles() */
+
+
+/*
+ * nv_alloc_ctrl_handles_and_add_to_array() - if it doesn't exist, allocate a new 
+ * CtrlHandles structure via nv_alloc_ctrl_handles and add it to the 
+ * CtrlHandlesArray given and return the newly allocated handle. If it
+ * does exist, simply return the existing handle.
+ */
+
+CtrlHandles *
+    nv_alloc_ctrl_handles_and_add_to_array(const char *display, 
+                                           CtrlHandlesArray *handles_array)
+{
+    CtrlHandles *handle = nv_get_ctrl_handles(display, handles_array);
+
+    if (handle == NULL) {
+        handle = nv_alloc_ctrl_handles(display);
+
+        if (handle) {
+            handles_array->array = nvrealloc(handles_array->array, 
+                                             sizeof(CtrlHandles *)  
+                                             * (handles_array->n + 1));
+            handles_array->array[handles_array->n] = handle;
+            handles_array->n++;
+        }
+    }       
+    
+    return handle;
+}
+
 
 
 /*
@@ -403,15 +1142,14 @@ CtrlHandles *nv_alloc_ctrl_handles(const char *display)
  * by nv_alloc_ctrl_handles()
  */
 
-void nv_free_ctrl_handles(CtrlHandles *h)
+static void nv_free_ctrl_handles(CtrlHandles *h)
 {
-    TargetTypeEntry *targetTypeEntry;
-
     if (!h) return;
 
     if (h->display) free(h->display);
 
     if (h->dpy) {
+        int i;
 
         /*
          * XXX It is unfortunate that the display connection needs
@@ -424,16 +1162,14 @@ void nv_free_ctrl_handles(CtrlHandles *h)
         XCloseDisplay(h->dpy);
         h->dpy = NULL;
 
-        for (targetTypeEntry = targetTypeTable;
-             targetTypeEntry->name;
-             targetTypeEntry++) {
+        for (i = 0; i < targetTypeTableLen; i++) {
 
             CtrlHandleTargets *targets =
-                &(h->targets[targetTypeEntry->target_index]);
-            int i;
+                &(h->targets[targetTypeTable[i].target_index]);
+            int j;
 
-            for (i = 0; i < targets->n; i++) {
-                CtrlHandleTarget *t = &(targets->t[i]);
+            for (j = 0; j < targets->n; j++) {
+                CtrlHandleTarget *t = &(targets->t[j]);
                 int n;
 
                 NvCtrlAttributeClose(t->h);
@@ -454,6 +1190,209 @@ void nv_free_ctrl_handles(CtrlHandles *h)
 } /* nv_free_ctrl_handles() */
 
 
+/*
+ * nv_free_ctrl_handles_array() - free an array of CtrlHandles. 
+ */
+
+void nv_free_ctrl_handles_array(CtrlHandlesArray *handles_array)
+{
+    int i;
+
+    for (i = 0; i < handles_array->n; i++) {
+        nv_free_ctrl_handles(handles_array->array[i]);
+    }
+
+    if (handles_array->array) {
+        free(handles_array->array);
+    }
+
+    handles_array->n = 0;
+    handles_array->array = NULL;
+}    
+
+
+/*
+ * nv_get_ctrl_handles() - return the CtrlHandles matching the given string.
+ */
+CtrlHandles *nv_get_ctrl_handles(const char *display, 
+                                 CtrlHandlesArray *handles_array)
+{
+    int i;
+
+    for (i=0; i < handles_array->n; i++) {
+        if (nv_strcasecmp(display, handles_array->array[i]->display)) {
+            return handles_array->array[i];
+        }
+    }
+
+    return NULL;
+}
+
+
+/*!
+ * Adds all the targets of the target type (specified via a target type index)
+ * to the list of targets to process for the ParsedAttribute.
+ *
+ * \param[in/out]  a          The ParsedAttribute to add targets to.
+ * \param[in]      h          The list of targets to add from.
+ * \param[in]      targetIdx  The target type index of the targets to add.
+ */
+
+static void include_target_idx_targets(ParsedAttribute *a, const CtrlHandles *h,
+                                       int targetIdx)
+{
+    const CtrlHandleTargets *targets = &(h->targets[targetIdx]);
+    int i;
+
+    for (i = 0; i < targets->n; i++) {
+        CtrlHandleTarget *target = &(targets->t[i]);
+        nv_target_list_add(a->targets, target);
+        a->flags |= NV_PARSER_HAS_TARGET;
+    }
+}
+
+
+/*!
+ * Queries the permissions for the given attribute.
+ * \param[in]   a      The attribute to query permissions for.
+ * \param[in]   h      CtrlHandles used to communicate with the X server.
+ * \param[out]  perms  The permissions of the attribute.
+ *
+ * \return  Returns TRUE if the permissions were queried successfully; else,
+ *          returns FALSE.
+ */
+static Bool query_attribute_perms(ParsedAttribute *a, CtrlHandles *h,
+                                  NVCTRLAttributePermissionsRec *perms)
+{
+    memset(perms, 0, sizeof(*perms));
+
+    if (a->flags & NV_PARSER_TYPE_COLOR_ATTRIBUTE) {
+        /* Allow non NV-CONTROL attributes to be read/written on X screen
+         * targets
+         */
+        perms->type = ATTRIBUTE_TYPE_INTEGER;
+        perms->permissions =
+            ATTRIBUTE_TYPE_READ |
+            ATTRIBUTE_TYPE_WRITE |
+            ATTRIBUTE_TYPE_X_SCREEN;
+
+        return NV_TRUE;
+    }
+
+    if (a->flags & NV_PARSER_TYPE_STRING_ATTRIBUTE) {
+        return XNVCTRLQueryStringAttributePermissions(h->dpy, a->attr, perms);
+    }
+
+    return XNVCTRLQueryAttributePermissions(h->dpy, a->attr, perms);
+}
+
+
+
+/*!
+ * Converts the ParsedAttribute 'a''s target specification (and/or target type
+ * + id) into a list of CtrlHandleTarget to operate on.  If the ParsedAttribute
+ * has a target specification set, this is used to generate the list; Otherwise,
+ * the target type and target id are used.  If nothing is specified, all the
+ * valid targets for the attribute are included.
+ *
+ * \param[in/out]  a  ParsedAttribute to resolve.
+ * \param[in]      h  CtrlHandles to resolve the target specification against.
+ *
+ * \return  Return NV_PARSER_STATUS_SUCCESS if the attribute's target
+ *          specification was successfully parsed into a list of targets to
+ *          operate on; else, returns one of the other NV_PARSER_STATUS_XXX
+ *          error codes that detail the particular parsing error.
+ */
+
+static int resolve_attribute_targets(ParsedAttribute *a, CtrlHandles *h)
+{
+    NVCTRLAttributePermissionsRec perms;
+    Bool status;
+    int ret = NV_PARSER_STATUS_SUCCESS;
+    int i;
+
+    if (a->targets) {
+        // Oops already parsed?
+        // XXX thrown another error here?
+        return NV_PARSER_STATUS_BAD_ARGUMENT;
+    }
+
+    a->targets = nv_target_list_init();
+
+
+
+    /* If a target specification string was given, use that to determine the
+     * list of targets to include.
+     */
+    if (a->target_specification) {
+        ret = nv_infer_targets_from_specification(a, h);
+        goto done;
+    }
+
+
+    /* If the target type and target id was given, use that. */
+    if (a->target_type >= 0 && a->target_id >= 0) {
+        CtrlHandleTarget *target = nv_get_target(h, a->target_type,
+                                                 a->target_id);
+        if (!target) {
+            return NV_PARSER_STATUS_TARGET_SPEC_NO_TARGETS;
+        }
+
+        nv_target_list_add(a->targets, target);
+        a->flags |= NV_PARSER_HAS_TARGET;
+        goto done;
+    }
+
+
+    /* If a target type was given, but no target id, process all the targets
+     * of that type.
+     */
+    if (a->target_type >= 0) {
+        const TargetTypeEntry *targetTypeEntry =
+            nv_get_target_type_entry_by_nvctrl(a->target_type);
+
+        if (!targetTypeEntry) {
+            return NV_PARSER_STATUS_TARGET_SPEC_BAD_TARGET;
+        }
+
+        include_target_idx_targets(a, h, targetTypeEntry->target_index);
+        goto done;
+    }
+
+
+    /* If no target type was given, assume all the appropriate targets for the
+     * attribute by querying its permissions.
+     */
+    status = query_attribute_perms(a, h, &perms);
+    if (!status) {
+        // XXX Throw other error here...?
+        return NV_PARSER_STATUS_TARGET_SPEC_NO_TARGETS;
+    }
+
+    for (i = 0; i < MAX_TARGET_TYPES; i++) {
+        int permBit = targetTypeTable[i].permission_bit;
+
+        if (!(perms.permissions & permBit)) {
+            continue;
+        }
+
+        /* Add all targets of type that are valid for this attribute */
+        include_target_idx_targets(a, h, i);
+    }
+
+
+ done:
+    /* Make sure at least one target was resolved */
+    if (ret == NV_PARSER_STATUS_SUCCESS) {
+        if (!(a->flags & NV_PARSER_HAS_TARGET)) {
+            return NV_PARSER_STATUS_TARGET_SPEC_NO_TARGETS;
+        }
+    }
+
+    return ret;
+}
+
+
 
 /*
  * process_attribute_queries() - parse the list of queries, and call
@@ -461,14 +1400,11 @@ void nv_free_ctrl_handles(CtrlHandles *h)
  *
  * If any errors are encountered, an error message is printed and
  * NV_FALSE is returned.  Otherwise, NV_TRUE is returned.
- *
- * XXX rather than call nv_alloc_ctrl_handles()/nv_free_ctrl_handles()
- * for every query, we should share the code in
- * process_config_file_attributes() to collapse the list of handles.
  */
 
 static int process_attribute_queries(int num, char **queries,
-                                     const char *display_name)
+                                     const char *display_name,
+                                     CtrlHandlesArray *handles_array)
 {
     int query, ret, val;
     ParsedAttribute a;
@@ -487,7 +1423,7 @@ static int process_attribute_queries(int num, char **queries,
         /* special case the "all" query */
 
         if (nv_strcasecmp(queries[query], "all")) {
-            query_all(display_name);
+            query_all(display_name, handles_array);
             continue;
         }
 
@@ -495,47 +1431,49 @@ static int process_attribute_queries(int num, char **queries,
         
         if (nv_strcasecmp(queries[query], "screens") ||
             nv_strcasecmp(queries[query], "xscreens")) {
-            query_all_targets(display_name, X_SCREEN_TARGET);
+            query_all_targets(display_name, X_SCREEN_TARGET, handles_array);
             continue;
         }
         
         if (nv_strcasecmp(queries[query], "gpus")) {
-            query_all_targets(display_name, GPU_TARGET);
+            query_all_targets(display_name, GPU_TARGET, handles_array);
             continue;
         }
 
         if (nv_strcasecmp(queries[query], "framelocks")) {
-            query_all_targets(display_name, FRAMELOCK_TARGET);
+            query_all_targets(display_name, FRAMELOCK_TARGET, handles_array);
             continue;
         }
 
         if (nv_strcasecmp(queries[query], "vcs")) {
-            query_all_targets(display_name, VCS_TARGET);
+            query_all_targets(display_name, VCS_TARGET, handles_array);
             continue;
         }
 
         if (nv_strcasecmp(queries[query], "gvis")) {
-            query_all_targets(display_name, GVI_TARGET);
+            query_all_targets(display_name, GVI_TARGET, handles_array);
             continue;
         }
 
         if (nv_strcasecmp(queries[query], "fans")) {
-            query_all_targets(display_name, COOLER_TARGET);
+            query_all_targets(display_name, COOLER_TARGET, handles_array);
             continue;
         }
 
         if (nv_strcasecmp(queries[query], "thermalsensors")) {
-            query_all_targets(display_name, THERMAL_SENSOR_TARGET);
+            query_all_targets(display_name, THERMAL_SENSOR_TARGET, handles_array);
             continue;
         }
 
         if (nv_strcasecmp(queries[query], "svps")) {
-            query_all_targets(display_name, NVIDIA_3D_VISION_PRO_TRANSCEIVER_TARGET);
+            query_all_targets(display_name, 
+                              NVIDIA_3D_VISION_PRO_TRANSCEIVER_TARGET, 
+                              handles_array);
             continue;
         }
 
         if (nv_strcasecmp(queries[query], "dpys")) {
-            query_all_targets(display_name, DISPLAY_TARGET);
+            query_all_targets(display_name, DISPLAY_TARGET, handles_array);
             continue;
         }
 
@@ -554,7 +1492,7 @@ static int process_attribute_queries(int num, char **queries,
 
         /* allocate the CtrlHandles */
 
-        h = nv_alloc_ctrl_handles(a.display);
+        h = nv_alloc_ctrl_handles_and_add_to_array(a.display, handles_array);
         if (!h) {
             goto done;
         }
@@ -563,10 +1501,6 @@ static int process_attribute_queries(int num, char **queries,
 
         ret = nv_process_parsed_attribute(&a, h, NV_FALSE, NV_FALSE,
                                           "in query '%s'", queries[query]);
-        /* free the CtrlHandles */
-
-        nv_free_ctrl_handles(h);
-
         if (ret == NV_FALSE) goto done;
         
         /* print a newline at the end */
@@ -591,14 +1525,11 @@ static int process_attribute_queries(int num, char **queries,
  *
  * If any errors are encountered, an error message is printed and
  * NV_FALSE is returned.  Otherwise, NV_TRUE is returned.
- *
- * XXX rather than call nv_alloc_ctrl_handles()/nv_free_ctrl_handles()
- * for every assignment, we should share the code in
- * process_config_file_attributes() to collapse the list of handles.
  */
 
 static int process_attribute_assignments(int num, char **assignments,
-                                         const char *display_name)
+                                         const char *display_name,
+                                         CtrlHandlesArray *handles_array)
 {
     int assignment, ret, val;
     ParsedAttribute a;
@@ -631,7 +1562,7 @@ static int process_attribute_assignments(int num, char **assignments,
 
         /* allocate the CtrlHandles */
 
-        h = nv_alloc_ctrl_handles(a.display);
+        h = nv_alloc_ctrl_handles_and_add_to_array(a.display, handles_array);
         if (!h) {
             goto done;
         }
@@ -641,10 +1572,6 @@ static int process_attribute_assignments(int num, char **assignments,
         ret = nv_process_parsed_attribute(&a, h, NV_TRUE, NV_TRUE,
                                           "in assignment '%s'",
                                           assignments[assignment]);
-        /* free the CtrlHandles */
-
-        nv_free_ctrl_handles(h);
-
         if (ret == NV_FALSE) goto done;
 
         /* print a newline at the end */
@@ -676,7 +1603,7 @@ static int validate_value(CtrlHandleTarget *t, ParsedAttribute *a, uint32 d,
     ReturnStatus status;
     char d_str[256];
     char *tmp_d_str;
-    TargetTypeEntry *targetTypeEntry;
+    const TargetTypeEntry *targetTypeEntry;
 
     status = NvCtrlGetValidDisplayAttributeValues(t->h, d, a->attr, &valid);
    
@@ -778,16 +1705,15 @@ static int validate_value(CtrlHandleTarget *t, ParsedAttribute *a, uint32 d,
  * attribute.
  */
 
-static void print_valid_values(char *name, int attr, uint32 flags,
+static void print_valid_values(const char *name, int attr, uint32 flags,
                                NVCTRLAttributeValidValuesRec valid)
 {
-    int bit, print_bit, last, last2, n;
+    int bit, print_bit, last, last2, n, i;
     char str[256];
     char *c;
     char str2[256];
     char *c2; 
     char **at;
-    TargetTypeEntry *targetTypeEntry;
 
     /* do not print any valid values information when we are in 'terse' mode */
 
@@ -899,12 +1825,10 @@ static void print_valid_values(char *name, int attr, uint32 flags,
     c = str;
     n = 0;
 
-    for (targetTypeEntry = targetTypeTable;
-         targetTypeEntry->name;
-         targetTypeEntry++) {
-        if (valid.permissions & targetTypeEntry->permission_bit) {
+    for (i = 0; i < targetTypeTableLen; i++) {
+        if (valid.permissions & targetTypeTable[i].permission_bit) {
             if (n > 0) c += sprintf(c, ", ");
-            c += sprintf(c, "%s", targetTypeEntry->name);
+            c += sprintf(c, "%s", targetTypeTable[i].name);
             n++;
         }
     }
@@ -1069,17 +1993,15 @@ static void print_additional_info(const char *name,
  * returned; if successful, NV_TRUE is returned.
  */
 
-static int query_all(const char *display_name)
+static int query_all(const char *display_name, CtrlHandlesArray *handles_array)
 {
-    int bit, entry, val;
+    int bit, entry, val, i;
     uint32 mask;
     ReturnStatus status;
-    AttributeTableEntry *a;
     NVCTRLAttributeValidValuesRec valid;
     CtrlHandles *h;
-    TargetTypeEntry *targetTypeEntry;
 
-    h = nv_alloc_ctrl_handles(display_name);
+    h = nv_alloc_ctrl_handles_and_add_to_array(display_name, handles_array);
     if (!h) {
         return NV_FALSE;
     }
@@ -1090,17 +2012,14 @@ static int query_all(const char *display_name)
      * Loop through all target types.
      */
 
-    for (targetTypeEntry = targetTypeTable;
-         targetTypeEntry->name;
-         targetTypeEntry++) {
-
+    for (i = 0; i < targetTypeTableLen; i++) {
         CtrlHandleTargets *targets =
-            &(h->targets[targetTypeEntry->target_index]);
-        int i;
+            &(h->targets[targetTypeTable[i].target_index]);
+        int j;
 
-        for (i = 0; i < targets->n; i++) {
+        for (j = 0; j < targets->n; j++) {
 
-            CtrlHandleTarget *t = &targets->t[i];
+            CtrlHandleTarget *t = &targets->t[j];
 
             if (!t->h) continue;
 
@@ -1109,8 +2028,7 @@ static int query_all(const char *display_name)
             if (!__terse) nv_msg(NULL, "");
 
             for (entry = 0; attributeTable[entry].name; entry++) {
-
-                a = &attributeTable[entry];
+                const AttributeTableEntry *a = &attributeTable[entry];
 
                 /* skip the color attributes */
 
@@ -1129,7 +2047,7 @@ static int query_all(const char *display_name)
                      * display devices), skip to the next bit
                      */
 
-                    if (targetTypeEntry->uses_display_devices &&
+                    if (targetTypeTable[i].uses_display_devices &&
                         ((t->d & mask) == 0x0) && (t->d)) continue;
 
                     if (a->flags & NV_PARSER_TYPE_STRING_ATTRIBUTE) {
@@ -1220,13 +2138,11 @@ exit_bit_loop:
 
             } /* entry */
 
-        } /* i (targets) */
+        } /* j (targets) */
 
-    } /* target types */
+    } /* i (target types) */
 
 #undef INDENT
-
-    nv_free_ctrl_handles(h);
 
     return NV_TRUE;
 
@@ -1267,7 +2183,7 @@ static int print_target_display_connections(CtrlHandleTarget *t)
         if (status != NvCtrlSuccess) name = strdup("Unknown");
         
         tmp_d_str = display_device_mask_to_display_device_name(bit);
-        nv_msg("        ", "%s (%s: 0x%0.8X)", name, tmp_d_str, bit);
+        nv_msg("        ", "%s (%s: 0x%.8X)", name, tmp_d_str, bit);
         
         free(name);
         free(tmp_d_str);
@@ -1415,19 +2331,20 @@ static int print_target_connections(CtrlHandles *h,
  * specified type) accessible via the Display connection.
  */
 
-static int query_all_targets(const char *display_name, const int target_index)
+static int query_all_targets(const char *display_name, const int target_index,
+                             CtrlHandlesArray *handles_array)
 {
     CtrlHandles *h;
     CtrlHandleTarget *t;
     char *str, *name;
     int i;
-    TargetTypeEntry *targetTypeEntry;
+    const TargetTypeEntry *targetTypeEntry;
 
     targetTypeEntry = &(targetTypeTable[target_index]);
 
     /* create handles */
 
-    h = nv_alloc_ctrl_handles(display_name);
+    h = nv_alloc_ctrl_handles_and_add_to_array(display_name, handles_array);
     if (!h) {
         return NV_FALSE;
     }
@@ -1441,7 +2358,6 @@ static int query_all_targets(const char *display_name, const int target_index)
     if (h->targets[target_index].n <= 0) {
         nv_warning_msg("No %ss on %s", targetTypeEntry->name, str);
         free(str);
-        nv_free_ctrl_handles(h);
         return NV_FALSE;
     }
     
@@ -1570,8 +2486,6 @@ static int query_all_targets(const char *display_name, const int target_index)
             }
         }
     }
-    
-    nv_free_ctrl_handles(h);
     
     return NV_TRUE;
     
@@ -1747,13 +2661,11 @@ int nv_process_parsed_attribute(ParsedAttribute *a, CtrlHandles *h,
                                 int assign, int verbose,
                                 char *whence_fmt, ...)
 {
-    int i, target, start, end, bit, ret, val;
+    int bit, ret, val;
     char *whence, *tmp_d_str0, *tmp_d_str1;
-    uint32 display_devices, mask;
+    uint32 display_devices;
     ReturnStatus status;
-    NVCTRLAttributeValidValuesRec valid;
-    CtrlHandleTarget *t;
-    TargetTypeEntry *targetTypeEntry;
+    CtrlHandleTargetNode *n;
 
     val = NV_FALSE;
 
@@ -1771,125 +2683,33 @@ int nv_process_parsed_attribute(ParsedAttribute *a, CtrlHandles *h,
                      a->name, whence);
         goto done;
     }
-    
-    /*
-     * if a target was specified, make sure it is valid, and setup
-     * the variables 'start', 'end', and 'target'.
+
+    /* Resolve any target specifications against the CtrlHandles that were
+     * allocated.
      */
 
-    if (a->flags & NV_PARSER_HAS_TARGET) {
-        char *target_type_name;
-
-        /*
-         * look up the target index for the target type specified in
-         * the ParsedAttribute
-         */
-
-        targetTypeEntry = nv_get_target_type_entry_by_nvctrl(a->target_type);
-        if (!targetTypeEntry) {
-            nv_error_msg("Invalid target specified %s.", whence);
-            goto done;
-        }
-
-        target = targetTypeEntry->target_index;
-        target_type_name = targetTypeEntry->name;
-
-        /*
-         * If the target was named, match it to one of the probed targets
-         * to obtain the target_id
-         */
-
-        if (a->target_name) {
-            Bool found = FALSE;
-            for (i = 0; i < h->targets[target].n; i++) {
-                int j;
-                t = &(h->targets[target].t[i]);
-                for (j = 0; j < NV_DPY_PROTO_NAME_MAX; j++) {
-                    char *name = t->protoNames[j];
-                    if (!name) continue;
-                    if (strcasecmp(name, a->target_name) == 0) {
-                        a->target_id = NvCtrlGetTargetId(t->h);
-                        found = TRUE;
-                        break;
-                    }
-                }
-                if (found) break;
-            }
-
-            if (!found) {
-                nv_error_msg("Invalid name '%s' specified for %s "
-                             "specified %s.", a->target_name,
-                             target_type_name, whence);
-                goto done;
-            }
-        }
-
-        
-        /* make sure the target_id is in range */
-        
-        if (a->target_id >= h->targets[target].n) {
-            
-            if (h->targets[target].n == 1) {
-                nv_error_msg("Invalid %s %d specified %s (there is only "
-                             "1 %s on this Display).",
-                             target_type_name,
-                             a->target_id, whence, target_type_name);
-            } else {
-                nv_error_msg("Invalid %s %d specified %s "
-                             "(there are only %d %ss on this Display).",
-                             target_type_name,
-                             a->target_id, whence,
-                             h->targets[target].n,
-                             target_type_name);
-            }
-            goto done;
-        }
-        
-        /*
-         * make sure we have a handle for this target; missing a
-         * handle should only happen for X screens because not all X
-         * screens will be controlled by NVIDIA
-         */
-
-        if (!h->targets[target].t[a->target_id].h) {
-            nv_warning_msg("Invalid %s %d specified %s (NV-CONTROL extension "
-                         "not supported on %s %d).",
-                         target_type_name,
-                         a->target_id, whence,
-                         target_type_name, a->target_id);
-        }
-        
-        /*
-         * assign 'start' and 'end' such that the below loop only uses
-         * this target.
-         */
-        
-        start = a->target_id;
-        end = a->target_id + 1;
-        
-    } else {
-
-        /*
-         * no target was specified; assume a target type of
-         * X_SCREEN_TARGET, and assign 'start' and 'end' such that we
-         * loop over all the screens; we could potentially store the
-         * correct default target type for each attribute and default
-         * to that rather than assume X_SCREEN_TARGET.
-         */
-
-        targetTypeEntry = &(targetTypeTable[X_SCREEN_TARGET]);
-        target = X_SCREEN_TARGET;
-        start = 0;
-        end = h->targets[target].n;
+    ret = resolve_attribute_targets(a, h);
+    if (ret != NV_PARSER_STATUS_SUCCESS) {
+        nv_error_msg("Error resolving target specification '%s' "
+                     "(%s), specified %s.",
+                     a->target_specification ? a->target_specification : "",
+                     nv_parse_strerror(ret),
+                     whence);
+        goto done;
     }
 
     /* loop over the requested targets */
-    
-    for (i = start; i < end; i++) {
-        
-        t = &h->targets[target].t[i];
+
+    for (n = a->targets; n->next; n = n->next) {
+
+        CtrlHandleTarget *t = n->t;
+        int target_type;
+        const TargetTypeEntry *targetTypeEntry;
 
         if (!t->h) continue; /* no handle on this target; silently skip */
+
+        target_type = NvCtrlGetTargetType(t->h);
+        targetTypeEntry = nv_get_target_type_entry_by_nvctrl(target_type);
 
         /* validate any specified display device mask */
 
@@ -1933,7 +2753,7 @@ int nv_process_parsed_attribute(ParsedAttribute *a, CtrlHandles *h,
             }
             
         } else {
-            
+            /* Just use the display device mask for this target */
             display_devices = t->d;
         }
         
@@ -2060,7 +2880,7 @@ int nv_process_parsed_attribute(ParsedAttribute *a, CtrlHandles *h,
          */
 
         if ((a->flags & NV_PARSER_TYPE_FRAMELOCK) &&
-            (NvCtrlGetTargetType(t->h) != NV_CTRL_TARGET_TYPE_FRAMELOCK)) {
+            (target_type != NV_CTRL_TARGET_TYPE_FRAMELOCK)) {
             int available;
             
             status = NvCtrlGetAttribute(t->h, NV_CTRL_FRAMELOCK, &available);
@@ -2121,7 +2941,7 @@ int nv_process_parsed_attribute(ParsedAttribute *a, CtrlHandles *h,
          */
 
         if (a->flags & NV_PARSER_TYPE_SDI &&
-            target != NV_CTRL_TARGET_TYPE_GVI) {
+            target_type != NV_CTRL_TARGET_TYPE_GVI) {
             int available;
 
             status = NvCtrlGetAttribute(t->h, NV_CTRL_GVO_SUPPORTED,
@@ -2198,19 +3018,19 @@ int nv_process_parsed_attribute(ParsedAttribute *a, CtrlHandles *h,
 
                 nv_msg(INDENT, "   Red       Green     Blue      Offset    Scale");
                 nv_msg(INDENT, "----------------------------------------------------");
-                nv_msg(INDENT, " Y % -0.6f % -0.6f %  -0.6f % -0.6f % -0.6f",
+                nv_msg(INDENT, " Y % -.6f % -.6f % -.6f % -.6f % -.6f",
                        colorMatrix[0][0],
                        colorMatrix[0][1],
                        colorMatrix[0][2],
                        colorOffset[0],
                        colorScale[0]);
-                nv_msg(INDENT, "Cr % -0.6f % -0.6f %  -0.6f % -0.6f % -0.6f",
+                nv_msg(INDENT, "Cr % -.6f % -.6f % -.6f % -.6f % -.6f",
                        colorMatrix[1][0],
                        colorMatrix[1][1],
                        colorMatrix[1][2],
                        colorOffset[1],
                        colorScale[1]);
-                nv_msg(INDENT, "Cb % -0.6f % -0.6f %  -0.6f % -0.6f % -0.6f",
+                nv_msg(INDENT, "Cb % -.6f % -.6f % -.6f % -.6f % -.6f",
                        colorMatrix[2][0],
                        colorMatrix[2][1],
                        colorMatrix[2][2],
@@ -2226,6 +3046,9 @@ int nv_process_parsed_attribute(ParsedAttribute *a, CtrlHandles *h,
         /* loop over the display devices */
 
         for (bit = 0; bit < 24; bit++) {
+            uint32 mask;
+            NVCTRLAttributeValidValuesRec valid;
+
             
             mask = (1 << bit);
 
@@ -2277,11 +3100,12 @@ int nv_process_parsed_attribute(ParsedAttribute *a, CtrlHandles *h,
                              a->name, whence);
                 goto done;
             }
-            
-            ret = process_parsed_attribute_internal(t, a, mask, target, assign,
-                                                    verbose, whence, valid);
+
+            ret = process_parsed_attribute_internal(t, a, mask, target_type,
+                                                    assign, verbose, whence,
+                                                    valid);
             if (ret == NV_FALSE) goto done;
-            
+
             /*
              * if this attribute is not per-display device, or this
              * target does not know about display devices, or this target
@@ -2296,11 +3120,11 @@ int nv_process_parsed_attribute(ParsedAttribute *a, CtrlHandles *h,
             }
 
         } /* bit */
-        
-    } /* i - done looping over requested targets */
-    
+
+    } /* done looping over requested targets */
+
     val = NV_TRUE;
-    
+
  done:
     if (whence) free(whence);
     return val;

@@ -79,9 +79,7 @@ GType       ctk_color_correction_get_type  (void) G_GNUC_CONST;
 GtkWidget*  ctk_color_correction_new       (NvCtrlAttributeHandle *,
                                             CtkConfig *, ParsedAttribute *,
                                             CtkEvent *);
-GtkTextBuffer *ctk_color_correction_create_help(GtkTextTagTable *,
-                                                const gchar *title,
-                                                gboolean randr);
+GtkTextBuffer *ctk_color_correction_create_help(GtkTextTagTable *);
 void ctk_color_correction_tab_help(GtkTextBuffer *b, GtkTextIter *i,
                                    const gchar *title,
                                    gboolean randr);

@@ -22,6 +22,8 @@
 
 #include <gtk/gtk.h>
 
+#include "common-utils.h"
+
 
 G_BEGIN_DECLS
 
@@ -45,6 +47,7 @@ G_BEGIN_DECLS
 
 typedef struct _CtkHelp       CtkHelp;
 typedef struct _CtkHelpClass  CtkHelpClass;
+typedef struct _CtkHelpDataItem CtkHelpDataItem;
 
 struct _CtkHelp
 {
@@ -57,6 +60,18 @@ struct _CtkHelp
     GtkWidget              *toggle_button;
 };
 
+struct _CtkHelpDataItem
+{
+    // Header for the help section (usually corresponds to a label)
+    gchar *label;
+
+    // A brief summary of the contents
+    gchar *help_text;
+
+    // If non-NULL, elaborates on help_text above
+    gchar *extended_help_text;
+};
+
 struct _CtkHelpClass
 {
     GtkWindowClass parent_class;
@@ -67,14 +82,24 @@ GtkWidget        *ctk_help_new               (GtkWidget *, GtkTextTagTable *);
 void              ctk_help_set_page          (CtkHelp *, GtkTextBuffer *);
 GtkTextTagTable  *ctk_help_create_tag_table  (void);
 
-void ctk_help_title   (GtkTextBuffer *, GtkTextIter *, const gchar *, ...);
-void ctk_help_para    (GtkTextBuffer *, GtkTextIter *, const gchar *, ...);
-void ctk_help_heading (GtkTextBuffer *, GtkTextIter *, const gchar *, ...);
-void ctk_help_term    (GtkTextBuffer *, GtkTextIter *, const gchar *, ...);
+void ctk_help_title   (GtkTextBuffer *, GtkTextIter *, const gchar *, ...) NV_ATTRIBUTE_PRINTF(3, 4);
+void ctk_help_para    (GtkTextBuffer *, GtkTextIter *, const gchar *, ...) NV_ATTRIBUTE_PRINTF(3, 4);
+void ctk_help_heading (GtkTextBuffer *, GtkTextIter *, const gchar *, ...) NV_ATTRIBUTE_PRINTF(3, 4);
+void ctk_help_term    (GtkTextBuffer *, GtkTextIter *, const gchar *, ...) NV_ATTRIBUTE_PRINTF(3, 4);
 void ctk_help_finish  (GtkTextBuffer *);
 
 void ctk_help_reset_hardware_defaults(GtkTextBuffer *, GtkTextIter *, gchar *);
 gchar *ctk_help_create_reset_hardware_defaults_text(gchar*, gchar *);
+
+void ctk_help_data_list_prepend(GList **list,
+                                const gchar *label,
+                                const gchar *help_text,
+                                const gchar *extended_help_text);
+void ctk_help_data_list_free_full(GList *list);
+void ctk_help_data_list_print_terms(GtkTextBuffer *b, GtkTextIter *i,
+                                    GList *help_data_list);
+void ctk_help_data_list_print_sections(GtkTextBuffer *b, GtkTextIter *i,
+                                       GList *help_data_list);
 
 
 #define CTK_HELP_TITLE_TAG                "title"

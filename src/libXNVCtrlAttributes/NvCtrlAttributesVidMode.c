@@ -20,6 +20,7 @@
 #include "NvCtrlAttributes.h"
 #include "NvCtrlAttributesPrivate.h"
 
+#include "common-utils.h"
 #include "msg.h"
 
 #include <X11/extensions/xf86vmode.h>
@@ -43,7 +44,7 @@ NvCtrlInitVidModeAttributes(NvCtrlAttributePrivateHandle *h)
     ret = XF86VidModeQueryExtension(h->dpy, &event, &error);
     if (!ret) goto failed;
 
-    vm = calloc(1, sizeof(NvCtrlVidModeAttributes));
+    vm = nvalloc(sizeof(NvCtrlVidModeAttributes));
 
     ret = XF86VidModeQueryVersion(h->dpy, &(vm->major_version), &(vm->minor_version));
     if (!ret) goto failed;
@@ -76,15 +77,9 @@ NvCtrlInitVidModeAttributes(NvCtrlAttributePrivateHandle *h)
 
     if (!ret) goto failed;
 
-    vm->lut[RED_CHANNEL_INDEX]   = malloc(sizeof(unsigned short) * size);
-    vm->lut[GREEN_CHANNEL_INDEX] = malloc(sizeof(unsigned short) * size);
-    vm->lut[BLUE_CHANNEL_INDEX]  = malloc(sizeof(unsigned short) * size);
-
-    if ((vm->lut[RED_CHANNEL_INDEX] == NULL) ||
-        (vm->lut[GREEN_CHANNEL_INDEX] == NULL) ||
-        (vm->lut[BLUE_CHANNEL_INDEX] == NULL)) {
-        goto failed;
-    }
+    vm->lut[RED_CHANNEL_INDEX]   = nvalloc(sizeof(unsigned short) * size);
+    vm->lut[GREEN_CHANNEL_INDEX] = nvalloc(sizeof(unsigned short) * size);
+    vm->lut[BLUE_CHANNEL_INDEX]  = nvalloc(sizeof(unsigned short) * size);
 
     vm->gammaRampSize = size;
 

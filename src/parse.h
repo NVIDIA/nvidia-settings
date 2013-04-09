@@ -84,7 +84,7 @@
 #define NV_PARSER_STATUS_TARGET_SPEC_NO_TARGET_ID           13
 #define NV_PARSER_STATUS_TARGET_SPEC_BAD_TARGET_ID          14
 #define NV_PARSER_STATUS_TARGET_SPEC_TRAILING_GARBAGE       15
-
+#define NV_PARSER_STATUS_TARGET_SPEC_NO_TARGETS             16
 
 /*
  * define useful types
@@ -115,6 +115,15 @@ typedef struct _AttributeTableEntry {
 typedef struct _ParsedAttribute {
     char *display;
     char *name;
+    char *target_specification;
+    /*
+     * The target_type and target_id here are mostly set by the GUI to store
+     * target-specific information, as well as the cmd line for handling the
+     * case where an X screen is specified as part of the display (e.g.
+     * "localhost:0.1").  Note that if the target_specification is specified,
+     * the target_type and target_id are ignored when resolving to the list of
+     * targets that should be operated on.
+     */
     int target_type;
     int target_id;
     char *target_name;
@@ -128,6 +137,12 @@ typedef struct _ParsedAttribute {
     uint32 display_device_mask;
     uint32 flags;
     struct _ParsedAttribute *next;
+    /*
+     * Upon being resolved, the ParsedAttribute's target_type and target_id,
+     * and/or target_specification get converted into a list of targets to
+     * which the attribute should be processed.
+     */
+    struct _CtrlHandleTargetNode *targets;
 } ParsedAttribute;
 
 
@@ -136,7 +151,7 @@ typedef struct _ParsedAttribute {
  * Attribute table; defined in parse.c
  */
 
-extern AttributeTableEntry attributeTable[];
+extern const AttributeTableEntry attributeTable[];
 
 
 /*
@@ -191,14 +206,15 @@ typedef struct {
  * TargetType table; defined in parse.c
  */
 
-extern TargetTypeEntry targetTypeTable[];
+extern const TargetTypeEntry targetTypeTable[];
+extern const int targetTypeTableLen;
 
 /*
  * accessor functions for getting target type info based on NV-CONTROL
  * attribute type or by a name.
  */
-TargetTypeEntry *nv_get_target_type_entry_by_nvctrl(int nvctrl);
-TargetTypeEntry *nv_get_target_type_entry_by_name(const char *name);
+const TargetTypeEntry *nv_get_target_type_entry_by_nvctrl(int nvctrl);
+const TargetTypeEntry *nv_get_target_type_entry_by_name(const char *name);
 
 
 /* nv_get_sdi_csc_matrxi() - Returns an array of floats that specifies
@@ -278,7 +294,7 @@ void nv_assign_default_display(ParsedAttribute *a, const char *display);
  * describing the error.
  */
 
-char *nv_parse_strerror(int);
+const char *nv_parse_strerror(int);
 
 int nv_strcasecmp(const char *, const char *);
 
@@ -333,6 +349,7 @@ char *nv_standardize_screen_name(const char *display_name, int screen);
 
 /* General parsing functions */
 
+int nv_parse_numerical(const char *start, const char *end, int *val);
 const char *parse_skip_whitespace(const char *str);
 void parse_chop_whitespace(char *str);
 const char *parse_skip_integer(const char *str);

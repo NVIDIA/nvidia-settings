@@ -110,6 +110,10 @@ static void ctk_drop_down_menu_free(GObject *object)
     
     g_free(d->values);
     
+    if (d->glist) {
+        g_list_free(d->glist);
+    }
+    
 } /* ctk_drop_down_menu_free() */
 
 
@@ -206,7 +210,7 @@ GtkWidget* ctk_drop_down_menu_new(guint flags)
 void ctk_drop_down_menu_reset(CtkDropDownMenu *d)
 {
     if (d->glist) {
-        g_free(d->glist);
+        g_list_free(d->glist);
         d->glist = NULL;
     }
     if (d->values) {
@@ -215,11 +219,12 @@ void ctk_drop_down_menu_reset(CtkDropDownMenu *d)
     }
 
     d->num_entries = 0;
-    
-    d->menu = gtk_menu_new();
 
-    gtk_option_menu_set_menu(GTK_OPTION_MENU(d->option_menu), d->menu);
-    
+    if (!(d->flags & CTK_DROP_DOWN_MENU_FLAG_COMBO)) {
+        d->menu = gtk_menu_new();
+        gtk_option_menu_set_menu(GTK_OPTION_MENU(d->option_menu), d->menu);
+    }
+
 } /* ctk_drop_down_menu_reset() */
 
 
@@ -278,7 +283,7 @@ GtkWidget *ctk_drop_down_menu_append_item(CtkDropDownMenu *d,
 
 /*
  * ctk_drop_down_menu_get_current_value() - return the current value
- * selected in the drop down menu.
+ * selected in the drop down menu, or 0 if the current item is undefined.
  */
 
 gint ctk_drop_down_menu_get_current_value(CtkDropDownMenu *d)
@@ -286,19 +291,43 @@ gint ctk_drop_down_menu_get_current_value(CtkDropDownMenu *d)
     gint i;
 
     if (d->flags & CTK_DROP_DOWN_MENU_FLAG_COMBO) {
-        return d->current_selected_item;
+        i = d->current_selected_item;
     } else {
         i = gtk_option_menu_get_history(GTK_OPTION_MENU(d->option_menu));
-
-        if (i < d->num_entries) {
-            return d->values[i].value;
-        } 
     }
-    return 0; /* XXX??? */
+
+    if (i < d->num_entries) {
+        return d->values[i].value;
+    } else { 
+        return 0; /* XXX??? */
+    }
 
 } /* ctk_drop_down_menu_get_current_value() */
 
 
+/*
+ * ctk_drop_down_menu_get_current_name() - get the current name in the menu, or
+ * an empty string if the current item is undefined. The returned string points
+ * to internally allocated storage in the widget and must not be modified,
+ * freed, or stored.
+ */
+const char *ctk_drop_down_menu_get_current_name(CtkDropDownMenu *d)
+{
+    gint i;
+
+    if (d->flags & CTK_DROP_DOWN_MENU_FLAG_COMBO) {
+        i = d->current_selected_item;
+    } else {
+        i = gtk_option_menu_get_history(GTK_OPTION_MENU(d->option_menu));
+
+    }
+
+    if (i < d->num_entries) {
+        return d->values[i].glist_item;
+    } else { 
+        return ""; /* XXX??? */
+    }
+}
 
 /*
  * ctk_drop_down_menu_set_current_value() - set the current value in

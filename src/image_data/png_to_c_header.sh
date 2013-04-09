@@ -20,6 +20,8 @@
 ##       errors/warnings are tied to the right line
 ##       number.
 
+set -e
+
 
 ##
 ## Make sure we were given a png file.
@@ -79,7 +81,8 @@ TMP_CODE="$0.code.c"
 
 echo "Generating conversion code '$TMP_CODE' ..."
 
-let L="`wc -l < $0` - 3" # Skip the first three lines!
+L=`wc -l < $0`
+L=`expr $L - 3` # Skip the first three lines!
 echo "#include \"$INC_HEADER\"" >   $TMP_CODE
 echo ""                         >>  $TMP_CODE
 echo "/""**"                    >>  $TMP_CODE
@@ -135,7 +138,8 @@ REGEXP="s/^  \(.*\/\* pixel_data.*\)/  ${NAME}_pixel_data \/\* pixel_data \*\//"
 
 # gdk-pixbuf-csource adds 2 extra empty lines so get rid of one of them.
 L=`wc -l < $TMP_HEADER`
-let L="$L - `tail -n 2 $TMP_HEADER | grep '^[ \t]*$' | wc -l`"
+M=`tail -n 2 $TMP_HEADER | grep '^[ \t]*$' | wc -l`
+L=`expr $L - $M`
 
 head -n $L $TMP_HEADER | \
 sed -n '/^  \"/ !p' | \

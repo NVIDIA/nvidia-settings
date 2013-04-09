@@ -34,10 +34,14 @@ int main(int argc, char **argv)
     ConfigProperties conf;
     ParsedAttribute *p;
     CtrlHandles *h;
+    CtrlHandlesArray handles_array;
     Options *op;
     int ret;
     char *dpy = NULL;
     int gui = 0;
+
+    handles_array.n = 0; 
+    handles_array.array = NULL;
 
     /*
      * initialize the ui
@@ -58,7 +62,7 @@ int main(int argc, char **argv)
     
     /* parse the commandline */
     
-    op = parse_command_line(argc, argv, dpy);
+    op = parse_command_line(argc, argv, dpy, &handles_array);
 
     /* quit here if we don't have a ctrl_display - TY 2005-05-27 */
 
@@ -68,10 +72,15 @@ int main(int argc, char **argv)
         return 1;
     }
 
+    /* Allocate handle for ctrl_display */
+
+    nv_alloc_ctrl_handles_and_add_to_array(op->ctrl_display, &handles_array);
+
     /* process any query or assignment commandline options */
 
     if (op->num_assignments || op->num_queries) {
-        ret = nv_process_assignments_and_queries(op);
+        ret = nv_process_assignments_and_queries(op, &handles_array);
+        nv_free_ctrl_handles_array(&handles_array);
         return ret ? 0 : 1;
     }
     
@@ -90,10 +99,10 @@ int main(int argc, char **argv)
 
     if (op->rewrite) {
         nv_parsed_attribute_clean(p);
-        h = nv_alloc_ctrl_handles(op->ctrl_display);
+        h = nv_get_ctrl_handles(op->ctrl_display, &handles_array);
         if(!h || !h->dpy) return 1;
         ret = nv_write_config_file(op->config, h, p, &conf);
-        nv_free_ctrl_handles(h);
+        nv_free_ctrl_handles_array(&handles_array);
         nv_parsed_attribute_free(p);
         free(op);
         op = NULL;
@@ -103,7 +112,8 @@ int main(int argc, char **argv)
     /* upload the data from the config file */
     
     if (!op->no_load) {
-        ret = nv_read_config_file(op->config, op->ctrl_display, p, &conf);
+        ret = nv_read_config_file(op->config, op->ctrl_display, 
+                                  p, &conf, &handles_array);
     } else {
         ret = 1;
     }
@@ -128,9 +138,9 @@ int main(int argc, char **argv)
         return 1;
     }
 
-    /* allocate the CtrlHandles for this X screen */
+    /* Get the CtrlHandles for this X screen */
 
-    h = nv_alloc_ctrl_handles(op->ctrl_display);
+    h = nv_get_ctrl_handles(op->ctrl_display, &handles_array);
     
     if (!h || !h->dpy) {
         return 1;
@@ -146,7 +156,7 @@ int main(int argc, char **argv)
 
     /* cleanup */
 
-    nv_free_ctrl_handles(h);
+    nv_free_ctrl_handles_array(&handles_array);
     nv_parsed_attribute_free(p);
 
     return 0;

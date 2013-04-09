@@ -65,10 +65,7 @@ format_extension_list(const char *ext)
     * Allocate buffer that will hold the extension string with
     * commas in it 
     */
-   extTmp = malloc( (strlen(ext) +i +1) *sizeof(char) );
-   if ( extTmp == NULL ) {
-       return NULL;
-   }
+   extTmp = nvalloc( (strlen(ext) +i +1) *sizeof(char) );
 
    /* Copy extension string to buffer, adding commas */
    i = 0;
@@ -276,7 +273,7 @@ if ( (m) != NULL ) { \
 #define NULL_TO_EMPTY(s) \
 ((s)!=NULL)?(s):""
 
-void print_glxinfo(const char *display_name)
+void print_glxinfo(const char *display_name, CtrlHandlesArray *handles_array)
 {
     int              screen;
     CtrlHandles     *h;
@@ -300,7 +297,7 @@ void print_glxinfo(const char *display_name)
 
     char            *formated_ext_str  = NULL;
 
-    h = nv_alloc_ctrl_handles(display_name);
+    h = nv_alloc_ctrl_handles_and_add_to_array(display_name, handles_array);
     if ( h == NULL ) {
         return;
     }
@@ -489,7 +486,7 @@ void print_glxinfo(const char *display_name)
     SAFE_FREE(opengl_version);
     SAFE_FREE(opengl_extensions);
     SAFE_FREE(fbconfig_attribs);
-    
-    nv_free_ctrl_handles(h);
 
+    nv_free_ctrl_handles_array(handles_array);
+    
 } /* print_glxinfo() */

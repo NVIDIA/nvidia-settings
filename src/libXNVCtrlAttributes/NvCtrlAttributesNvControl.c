@@ -22,6 +22,7 @@
 
 #include "NVCtrlLib.h"
 
+#include "common-utils.h"
 #include "msg.h"
 
 #include <stdlib.h>
@@ -67,8 +68,8 @@ NvCtrlInitNvControlAttributes (NvCtrlAttributePrivateHandle *h)
             return NULL;
         }
     }
-    
-    nv = calloc(1, sizeof(NvCtrlNvControlAttributes));
+
+    nv = nvalloc(sizeof(NvCtrlNvControlAttributes));
 
     ret = XNVCtrlSelectTargetNotify(h->dpy, h->target_type, h->target_id,
                                     TARGET_ATTRIBUTE_CHANGED_EVENT, True);
@@ -210,37 +211,7 @@ ReturnStatus NvCtrlNvControlSetAttribute (NvCtrlAttributePrivateHandle *h,
     }
 
     return NvCtrlNoAttribute;
-
-} /* NvCtrlNvControlSetAttribute() */
-
-
-ReturnStatus
-NvCtrlNvControlSetAttributeWithReply(NvCtrlAttributePrivateHandle *h,
-                                     unsigned int display_mask,
-                                     int attr, int val)
-{
-    Bool bRet;
-
-    /* XNVCTRLSetAttributeAndGetStatus() only works on X screens */
-    
-    if (h->target_type != NV_CTRL_TARGET_TYPE_X_SCREEN) {
-        return NvCtrlError;
-    }
-
-    if (attr <= NV_CTRL_LAST_ATTRIBUTE) {
-        bRet = XNVCTRLSetAttributeAndGetStatus(h->dpy, h->target_id,
-                                               display_mask, attr, val);
-        if (bRet) {
-            return NvCtrlSuccess;
-        } else {
-            return NvCtrlError;
-        }
-    }
-    
-    return NvCtrlNoAttribute;
-    
-} /* NvCtrlNvControlSetAttributeWithReply() */
-
+}
 
 
 ReturnStatus NvCtrlNvControlGetValidAttributeValues
@@ -340,17 +311,29 @@ NvCtrlNvControlSetStringAttribute (NvCtrlAttributePrivateHandle *h,
 {
     int tmp_int; /* Temp storage if ret is not specified */
 
-    if (h->target_type != NV_CTRL_TARGET_TYPE_X_SCREEN) {
-        return NvCtrlBadHandle;
-    }
-
     if (attr <= NV_CTRL_LAST_ATTRIBUTE) {
         if ( !ret ) {
             ret = &tmp_int;
         }
-        *ret =
-            XNVCTRLSetStringAttribute (h->dpy, h->target_id, display_mask,
-                                       attr, ptr);
+
+        /* NV-CONTROL 1.19 and above has support for setting string attributes
+         * on targets other than X screens.
+         */
+        if (h->nv->major_version > 1 ||
+            (h->nv->major_version == 1 && h->nv->minor_version  >= 19)) {
+            *ret =
+                XNVCTRLSetTargetStringAttribute(h->dpy, h->target_type,
+                                                h->target_id, display_mask,
+                                                attr, ptr);
+        } else {
+            if (h->target_type != NV_CTRL_TARGET_TYPE_X_SCREEN) {
+                return NvCtrlBadHandle;
+            }
+            *ret =
+                XNVCTRLSetStringAttribute(h->dpy, h->target_id, display_mask,
+                                          attr, ptr);
+        }
+
         if ( *ret ) {
             return NvCtrlSuccess;
         } else {

@@ -60,6 +60,9 @@ struct _CtkStatusBar
 {
     GtkWidget *widget;
     guint prev_message_id;
+
+    // determines if ctk_config_statusbar_message() will update the statusbar
+    gboolean enabled;
 };
 
 struct _CtkToolTips
@@ -81,6 +84,7 @@ struct _CtkConfig
     GtkWidget *rc_file_selector;
     gboolean timer_list_visible;
     CtrlHandles *pCtrlHandles;
+    GList *help_data;
 };
 
 struct _CtkConfigClass
@@ -90,11 +94,11 @@ struct _CtkConfigClass
 
 GType      ctk_config_get_type            (void) G_GNUC_CONST;
 GtkWidget* ctk_config_new                 (ConfigProperties *, CtrlHandles*);
-void       ctk_config_statusbar_message   (CtkConfig *, const char *, ...);
+void       ctk_config_statusbar_message   (CtkConfig *, const char *, ...) NV_ATTRIBUTE_PRINTF(2, 3);
 GtkWidget* ctk_config_get_statusbar       (CtkConfig *);
 void       ctk_config_set_tooltip         (CtkConfig *, GtkWidget *,
                                            const gchar *);
-GtkTextBuffer *ctk_config_create_help     (GtkTextTagTable *);
+GtkTextBuffer *ctk_config_create_help     (CtkConfig *, GtkTextTagTable *);
 
 void ctk_config_add_timer(CtkConfig *, guint, gchar *, GSourceFunc, gpointer);
 void ctk_config_remove_timer(CtkConfig *, GSourceFunc);
@@ -103,6 +107,13 @@ void ctk_config_start_timer(CtkConfig *, GSourceFunc, gpointer);
 void ctk_config_stop_timer(CtkConfig *, GSourceFunc, gpointer);
 
 gboolean ctk_config_slider_text_entry_shown(CtkConfig *);
+
+void ctk_config_set_tooltip_and_add_help_data(CtkConfig *config,
+                                              GtkWidget *widget,
+                                              GList **help_data_list,
+                                              const gchar *label,
+                                              const gchar *help_text,
+                                              const gchar *extended_help_text);
 
 G_END_DECLS
 

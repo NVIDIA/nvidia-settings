@@ -35,6 +35,7 @@
 #define CONFIG_PROPERTIES_SLIDER_TEXT_ENTRIES                 (1<<2)
 #define CONFIG_PROPERTIES_INCLUDE_DISPLAY_NAME_IN_CONFIG_FILE (1<<3)
 #define CONFIG_PROPERTIES_SHOW_QUIT_DIALOG                    (1<<4)
+#define CONFIG_PROPERTIES_UPDATE_RULES_ON_PROFILE_NAME_CHANGE (1<<5)
 
 typedef struct _TimerConfigProperty {
     char *description;
@@ -53,7 +54,8 @@ typedef struct {
 void init_config_properties(ConfigProperties *conf);
 
 int nv_read_config_file(const char *, const char *,
-                        ParsedAttribute *, ConfigProperties *);
+                        ParsedAttribute *, ConfigProperties *,
+                        CtrlHandlesArray *);
 
 int nv_write_config_file(const char *, CtrlHandles *,
                          ParsedAttribute *, ConfigProperties *);

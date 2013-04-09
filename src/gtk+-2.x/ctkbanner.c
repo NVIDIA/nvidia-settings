@@ -39,7 +39,6 @@
 #include "color_pixdata.h"
 #include "config_pixdata.h"
 #include "crt_pixdata.h"
-#include "cursor_shadow_pixdata.h"
 #include "dfp_pixdata.h"
 #include "display_config_pixdata.h"
 #include "framelock_pixdata.h"
@@ -54,8 +53,8 @@
 #include "slimm_pixdata.h"
 #include "solaris_pixdata.h"
 #include "thermal_pixdata.h"
-#include "tv_pixdata.h"
 #include "vcs_pixdata.h"
+#include "vdpau_pixdata.h"
 #include "x_pixdata.h"
 #include "xvideo_pixdata.h"
 #include "svp_3dvp_pixdata.h"
@@ -355,7 +354,6 @@ static gboolean select_artwork(BannerArtworkType artwork,
         { BANNER_ARTWORK_COLOR,          FALSE, 16, &color_pixdata          },
         { BANNER_ARTWORK_CONFIG,         FALSE, 16, &config_pixdata         },
         { BANNER_ARTWORK_CRT,            FALSE, 16, &crt_pixdata            },
-        { BANNER_ARTWORK_CURSOR_SHADOW,  FALSE, 16, &cursor_shadow_pixdata  },
         { BANNER_ARTWORK_DFP,            FALSE, 16, &dfp_pixdata            },
         { BANNER_ARTWORK_DISPLAY_CONFIG, FALSE, 16, &display_config_pixdata },
         { BANNER_ARTWORK_FRAMELOCK,      FALSE, 16, &framelock_pixdata      },
@@ -370,8 +368,8 @@ static gboolean select_artwork(BannerArtworkType artwork,
         { BANNER_ARTWORK_SLIMM,          FALSE, 16, &slimm_pixdata          },
         { BANNER_ARTWORK_SOLARIS,        TRUE,  16, &solaris_pixdata        },
         { BANNER_ARTWORK_THERMAL,        FALSE, 16, &thermal_pixdata        },
-        { BANNER_ARTWORK_TV,             FALSE, 16, &tv_pixdata             },
         { BANNER_ARTWORK_VCS,            FALSE, 16, &vcs_pixdata            },
+        { BANNER_ARTWORK_VDPAU,          FALSE, 16, &vdpau_pixdata          },
         { BANNER_ARTWORK_X,              FALSE, 16, &x_pixdata              },
         { BANNER_ARTWORK_XVIDEO,         FALSE, 16, &xvideo_pixdata         },
         { BANNER_ARTWORK_SVP,            FALSE, 16, &svp_3dvp_pixdata       },

@@ -35,6 +35,7 @@
 #include "NvCtrlAttributesPrivate.h"
 #include "NVCtrlLib.h"
 
+#include "common-utils.h"
 #include "msg.h"
 #include "parse.h"
 
@@ -89,13 +90,9 @@ static Bool open_libxrandr(void)
 
     /* Initialize bookkeeping structure */
     if ( !__libXrandr ) {
-        __libXrandr = calloc(1, sizeof(__libXrandrInfo));
-        if ( !__libXrandr ) {
-            error_str = "Could not allocate memory.";
-            goto fail;
-        }
+        __libXrandr = nvalloc(sizeof(__libXrandrInfo));
     }
-    
+
     /* Library was already opened */
     if ( __libXrandr->handle ) {
         __libXrandr->ref_count++;
@@ -295,12 +292,8 @@ NvCtrlInitXrandrAttributes (NvCtrlAttributePrivateHandle *h)
 
 
     /* Create storage for XRandR attributes */
-    xrandr =
-        calloc(1, sizeof(NvCtrlXrandrAttributes));
-    if ( !xrandr ) {
-        goto fail;
-    }
-    
+    xrandr = nvalloc(sizeof(NvCtrlXrandrAttributes));
+
 
     /* Verify server support of XRandR extension */
     if ( !__libXrandr->XRRQueryExtension(h->dpy,

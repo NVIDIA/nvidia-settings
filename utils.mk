@@ -29,7 +29,7 @@
 CC                    ?= gcc
 LD                    ?= ld
 # only set these warnings and optimizations if CFLAGS is unset
-CFLAGS                ?= -Wall -Wno-unused-parameter -O2
+CFLAGS                ?= -Wall -O2
 # always set these -f CFLAGS
 CFLAGS                += -fno-strict-aliasing -fno-omit-frame-pointer
 CC_ONLY_CFLAGS        ?=
@@ -41,6 +41,10 @@ HOST_LD               ?= $(LD)
 HOST_CFLAGS           ?= $(CFLAGS)
 HOST_LDFLAGS          ?= $(LDFLAGS)
 HOST_BIN_LDFLAGS      ?=
+
+# always disable warnings that will break the build
+CFLAGS                += -Wno-unused-parameter -Wno-format-zero-length
+HOST_CFLAGS           += -Wno-unused-parameter -Wno-format-zero-length
 
 ifeq ($(DEBUG),1)
   STRIP_CMD           ?= true

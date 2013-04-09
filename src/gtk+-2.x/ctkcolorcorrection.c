@@ -857,64 +857,75 @@ static void apply_parsed_attribute_list(
     target_id = NvCtrlGetTargetId(ctk_color_correction->handle);
 
     while (p) {
+        CtrlHandleTargetNode *node;
 
         if (!p->next) goto next_attribute;
         
         if (!(p->flags & NV_PARSER_TYPE_COLOR_ATTRIBUTE)) goto next_attribute;
         
         /*
-         * if this parsed attribute's target_type, target_id does not match the
-         * current target_type and target_id then ignore
+         * Apply the parsed attribute's settings only if the color 
+         * correction's target matches one of the (parse attribute's)
+         * specification targets.
          */
         
-        if ((p->target_type != target_type) ||
-            (p->target_id != target_id)) goto next_attribute;
+        for (node = p->targets; node && node->next; node = node->next) {
+
+            int attr_target_type = NvCtrlGetTargetType(node->t->h);
+            int attr_target_id = NvCtrlGetTargetId(node->t->h);
+
+            if ((attr_target_type != target_type) ||
+                (attr_target_id != target_id)) {
+                continue;
+            }
+            
+            switch (p->attr & (ALL_VALUES | ALL_CHANNELS)) {
+            case (CONTRAST_VALUE | RED_CHANNEL):
+                set_color_state(ctk_color_correction, CONTRAST,
+                                RED_CHANNEL, p->val.f, TRUE); break;
+            case (CONTRAST_VALUE | GREEN_CHANNEL):
+                set_color_state(ctk_color_correction, CONTRAST,
+                                GREEN_CHANNEL, p->val.f, TRUE); break;
+            case (CONTRAST_VALUE | BLUE_CHANNEL):
+                set_color_state(ctk_color_correction, CONTRAST,
+                                BLUE_CHANNEL, p->val.f, TRUE); break;
+            case (CONTRAST_VALUE | ALL_CHANNELS):
+                set_color_state(ctk_color_correction, CONTRAST,
+                                ALL_CHANNELS, p->val.f, TRUE); break;
+
+            case (BRIGHTNESS_VALUE | RED_CHANNEL):
+                set_color_state(ctk_color_correction, BRIGHTNESS,
+                                RED_CHANNEL, p->val.f, TRUE); break;
+            case (BRIGHTNESS_VALUE | GREEN_CHANNEL):
+                set_color_state(ctk_color_correction, BRIGHTNESS,
+                                GREEN_CHANNEL, p->val.f, TRUE); break;
+            case (BRIGHTNESS_VALUE | BLUE_CHANNEL):
+                set_color_state(ctk_color_correction, BRIGHTNESS,
+                                BLUE_CHANNEL, p->val.f, TRUE); break;
+            case (BRIGHTNESS_VALUE | ALL_CHANNELS):
+                set_color_state(ctk_color_correction, BRIGHTNESS,
+                                ALL_CHANNELS, p->val.f, TRUE); break;
+
+            case (GAMMA_VALUE | RED_CHANNEL):
+                set_color_state(ctk_color_correction, GAMMA,
+                                RED_CHANNEL, p->val.f, TRUE); break;
+            case (GAMMA_VALUE | GREEN_CHANNEL):
+                set_color_state(ctk_color_correction, GAMMA,
+                                GREEN_CHANNEL, p->val.f, TRUE); break;
+            case (GAMMA_VALUE | BLUE_CHANNEL):
+                set_color_state(ctk_color_correction, GAMMA,
+                                BLUE_CHANNEL, p->val.f, TRUE); break;
+            case (GAMMA_VALUE | ALL_CHANNELS):
+                set_color_state(ctk_color_correction, GAMMA,
+                                ALL_CHANNELS, p->val.f, TRUE); break;
+
+            default:
+                continue;
+            }
         
-        switch (p->attr & (ALL_VALUES | ALL_CHANNELS)) {
-        case (CONTRAST_VALUE | RED_CHANNEL):
-            set_color_state(ctk_color_correction, CONTRAST,
-                            RED_CHANNEL, p->val.f, TRUE); break;
-        case (CONTRAST_VALUE | GREEN_CHANNEL):
-            set_color_state(ctk_color_correction, CONTRAST,
-                            GREEN_CHANNEL, p->val.f, TRUE); break;
-        case (CONTRAST_VALUE | BLUE_CHANNEL):
-            set_color_state(ctk_color_correction, CONTRAST,
-                            BLUE_CHANNEL, p->val.f, TRUE); break;
-        case (CONTRAST_VALUE | ALL_CHANNELS):
-            set_color_state(ctk_color_correction, CONTRAST,
-                            ALL_CHANNELS, p->val.f, TRUE); break;
+            attr |= (p->attr & (ALL_VALUES | ALL_CHANNELS));
 
-        case (BRIGHTNESS_VALUE | RED_CHANNEL):
-            set_color_state(ctk_color_correction, BRIGHTNESS,
-                            RED_CHANNEL, p->val.f, TRUE); break;
-        case (BRIGHTNESS_VALUE | GREEN_CHANNEL):
-            set_color_state(ctk_color_correction, BRIGHTNESS,
-                            GREEN_CHANNEL, p->val.f, TRUE); break;
-        case (BRIGHTNESS_VALUE | BLUE_CHANNEL):
-            set_color_state(ctk_color_correction, BRIGHTNESS,
-                            BLUE_CHANNEL, p->val.f, TRUE); break;
-        case (BRIGHTNESS_VALUE | ALL_CHANNELS):
-            set_color_state(ctk_color_correction, BRIGHTNESS,
-                            ALL_CHANNELS, p->val.f, TRUE); break;
-
-        case (GAMMA_VALUE | RED_CHANNEL):
-            set_color_state(ctk_color_correction, GAMMA,
-                            RED_CHANNEL, p->val.f, TRUE); break;
-        case (GAMMA_VALUE | GREEN_CHANNEL):
-            set_color_state(ctk_color_correction, GAMMA,
-                            GREEN_CHANNEL, p->val.f, TRUE); break;
-        case (GAMMA_VALUE | BLUE_CHANNEL):
-            set_color_state(ctk_color_correction, GAMMA,
-                            BLUE_CHANNEL, p->val.f, TRUE); break;
-        case (GAMMA_VALUE | ALL_CHANNELS):
-            set_color_state(ctk_color_correction, GAMMA,
-                            ALL_CHANNELS, p->val.f, TRUE); break;
-
-        default:
-            goto next_attribute;
         }
-        
-        attr |= (p->attr & (ALL_VALUES | ALL_CHANNELS));
         
     next_attribute:
         
@@ -1027,20 +1038,19 @@ static gboolean do_confirm_countdown(gpointer data)
 } /* do_confirm_countdown() */
 
 
-GtkTextBuffer *ctk_color_correction_create_help(GtkTextTagTable *table,
-                                                const gchar *title,
-                                                gboolean randr)
+GtkTextBuffer *ctk_color_correction_create_help(GtkTextTagTable *table)
 {
     GtkTextIter i;
     GtkTextBuffer *b;
-
+    const gchar *title = "X Server Color Correction";
+    
     b = gtk_text_buffer_new(table);
     
     gtk_text_buffer_get_iter_at_offset(b, &i, 0);
     
     ctk_help_title(b, &i, "%s Help", title);
 
-    ctk_color_correction_tab_help(b, &i, title, randr);
+    ctk_color_correction_tab_help(b, &i, title, FALSE /* randr */);
     
     ctk_help_heading(b, &i, "Reset Hardware Defaults");
     ctk_help_para(b, &i, __resest_button_help);

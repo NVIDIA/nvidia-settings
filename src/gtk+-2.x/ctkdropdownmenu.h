@@ -68,7 +68,7 @@ struct _CtkDropDownMenu
 
     GtkWidget *menu;
     GtkWidget *option_menu;
-    
+
     guint flags;
 
     gint num_entries;
@@ -90,8 +90,9 @@ GtkWidget* ctk_drop_down_menu_new                 (guint flags);
 GtkWidget* ctk_drop_down_menu_append_item         (CtkDropDownMenu *d,
                                                    const gchar *name,
                                                    const gint value);
-gint       ctk_drop_down_menu_get_current_value   (CtkDropDownMenu *d);
-void       ctk_drop_down_menu_set_current_value   (CtkDropDownMenu *d,
+gint        ctk_drop_down_menu_get_current_value  (CtkDropDownMenu *d);
+const char *ctk_drop_down_menu_get_current_name   (CtkDropDownMenu *d);
+void        ctk_drop_down_menu_set_current_value  (CtkDropDownMenu *d,
                                                    gint value);
 void       ctk_drop_down_menu_set_value_sensitive (CtkDropDownMenu *d,
                                                    gint value,

@@ -72,6 +72,12 @@ static const char *__save_current_config_help =
 "by default).  Use this button to save the current X server "
 "configuration immediately, optionally to a different file.";
 
+static const char *__update_rules_on_profile_name_change_help =
+"If this option is enabled, changing the name of a profile in the "
+"Application Profile page of nvidia-settings will cause any rules "
+"that refer to that profile to also be updated to refer to the new "
+"profile name.";
+
 static void ctk_config_class_init(CtkConfigClass *ctk_config_class);
 
 static void display_status_bar_toggled(GtkWidget *, gpointer);
@@ -79,6 +85,9 @@ static void tooltips_toggled(GtkWidget *, gpointer);
 static void slider_text_entries_toggled(GtkWidget *, gpointer);
 static void display_name_toggled(GtkWidget *widget, gpointer user_data);
 static void show_quit_dialog_toggled(GtkWidget *widget, gpointer user_data);
+static void update_rules_on_profile_name_change_toggled(GtkWidget *widget,
+                                                        gpointer user_data);
+
 static void save_rc_clicked(GtkWidget *widget, gpointer user_data);
 
 static GtkWidget *create_timer_list(CtkConfig *);
@@ -112,8 +121,16 @@ GType ctk_config_get_type(
     return ctk_config_type;
 }
 
+static void config_finalize(GObject *object)
+{
+    CtkConfig *ctk_config = CTK_CONFIG(object);
+    ctk_help_data_list_free_full(ctk_config->help_data);
+}
+
 static void ctk_config_class_init(CtkConfigClass *ctk_config_class)
 {
+    GObjectClass *gobject_class = G_OBJECT_CLASS(ctk_config_class);
+    gobject_class->finalize = config_finalize;
     signals[0] = g_signal_new("slider_text_entry_toggled",                   
                               G_OBJECT_CLASS_TYPE(ctk_config_class),
                               G_SIGNAL_RUN_LAST, 0, NULL, NULL,
@@ -123,6 +140,7 @@ static void ctk_config_class_init(CtkConfigClass *ctk_config_class)
 
 GtkWidget* ctk_config_new(ConfigProperties *conf, CtrlHandles *pCtrlHandles)
 {
+    gint i;
     GObject *object;
     CtkConfig *ctk_config;
     GtkWidget *hbox;
@@ -133,6 +151,52 @@ GtkWidget* ctk_config_new(ConfigProperties *conf, CtrlHandles *pCtrlHandles)
     GtkWidget *check_button;
     GtkWidget *alignment;
     gboolean b;
+
+    struct {
+        const char *label;
+        unsigned int mask;
+        GCallback toggled_callback;
+        const char *help_text;
+    } config_check_button_entries[] =
+    {
+        { 
+           "Enable ToolTips",
+           CONFIG_PROPERTIES_TOOLTIPS,
+           G_CALLBACK(tooltips_toggled),
+           __tooltip_help
+         },
+        {
+            "Display Status Bar",
+            CONFIG_PROPERTIES_DISPLAY_STATUS_BAR,
+            G_CALLBACK(display_status_bar_toggled),
+            __status_bar_help
+        },
+        {
+            "Slider Text Entries",
+            CONFIG_PROPERTIES_SLIDER_TEXT_ENTRIES,
+            G_CALLBACK(slider_text_entries_toggled),
+            __slider_text_entries_help
+        },
+        {
+            "Include X Display Names in the Config File",
+            CONFIG_PROPERTIES_INCLUDE_DISPLAY_NAME_IN_CONFIG_FILE,
+            G_CALLBACK(display_name_toggled),
+            __x_display_names_help
+        },
+        {
+            "Show \"Really Quit?\" Dialog",
+            CONFIG_PROPERTIES_SHOW_QUIT_DIALOG,
+            G_CALLBACK(show_quit_dialog_toggled),
+            __show_quit_dialog_help
+        },
+        {
+            "Update Rules when an Application Profile Name changes",
+            CONFIG_PROPERTIES_UPDATE_RULES_ON_PROFILE_NAME_CHANGE,
+            G_CALLBACK(update_rules_on_profile_name_change_toggled),
+            __update_rules_on_profile_name_change_help
+        },
+
+    };
 
     object = g_object_new(CTK_TYPE_CONFIG, NULL);
 
@@ -147,6 +211,7 @@ GtkWidget* ctk_config_new(ConfigProperties *conf, CtrlHandles *pCtrlHandles)
 
     ctk_config->status_bar.widget = gtk_statusbar_new();
     ctk_config->status_bar.prev_message_id = 0;
+    ctk_config->status_bar.enabled = TRUE;
     
     gtk_statusbar_set_has_resize_grip
         (GTK_STATUSBAR(ctk_config->status_bar.widget), FALSE);
@@ -183,101 +248,36 @@ GtkWidget* ctk_config_new(ConfigProperties *conf, CtrlHandles *pCtrlHandles)
     vbox = gtk_vbox_new(FALSE, 2);
     gtk_box_pack_start(GTK_BOX(ctk_config), vbox, FALSE, FALSE, 0);
 
-    /* enable tooltips */
-    
-    label = gtk_label_new("Enable ToolTips");
+    ctk_config->help_data = NULL;
 
-    check_button = gtk_check_button_new();
-    gtk_container_add(GTK_CONTAINER(check_button), label);
-    
-    b = !!(ctk_config->conf->booleans & CONFIG_PROPERTIES_TOOLTIPS);
+    for (i = 0; i < ARRAY_LEN(config_check_button_entries); i++) {
+        label = gtk_label_new(config_check_button_entries[i].label);
 
-    if (b) {
-        gtk_tooltips_enable(ctk_config->tooltips.object);
-    } else {
-        gtk_tooltips_disable(ctk_config->tooltips.object);
+        check_button = gtk_check_button_new();
+        gtk_container_add(GTK_CONTAINER(check_button), label);
+
+        b = !!(ctk_config->conf->booleans & config_check_button_entries[i].mask);
+        if (config_check_button_entries[i].mask == CONFIG_PROPERTIES_TOOLTIPS) {
+            if (b) {
+                gtk_tooltips_enable(ctk_config->tooltips.object);
+            } else {
+                gtk_tooltips_disable(ctk_config->tooltips.object);
+            }
+        }
+        gtk_toggle_button_set_active(GTK_TOGGLE_BUTTON(check_button), b);
+        gtk_box_pack_start(GTK_BOX(vbox), check_button, FALSE, FALSE, 0);
+        g_signal_connect(G_OBJECT(check_button), "toggled",
+                         config_check_button_entries[i].toggled_callback,
+                         ctk_config);
+        ctk_config_set_tooltip_and_add_help_data(ctk_config,
+                                                 check_button,
+                                                 &ctk_config->help_data,
+                                                 config_check_button_entries[i].label,
+                                                 config_check_button_entries[i].help_text,
+                                                 NULL);
     }
 
-    gtk_toggle_button_set_active(GTK_TOGGLE_BUTTON(check_button), b);
-    gtk_box_pack_start(GTK_BOX(vbox), check_button, FALSE, FALSE, 0);
-   
-    g_signal_connect(G_OBJECT(check_button), "toggled",
-                     G_CALLBACK(tooltips_toggled), ctk_config);
-    
-    ctk_config_set_tooltip(ctk_config, check_button, __tooltip_help);
-
-    /* display status bar */
-
-    label = gtk_label_new("Display Status Bar");
-
-    check_button = gtk_check_button_new();
-    gtk_container_add(GTK_CONTAINER(check_button), label);
-    
-    b = !!(ctk_config->conf->booleans & CONFIG_PROPERTIES_DISPLAY_STATUS_BAR);
-
-    gtk_toggle_button_set_active(GTK_TOGGLE_BUTTON(check_button), b);
-    gtk_box_pack_start(GTK_BOX(vbox), check_button, FALSE, FALSE, 0);
-    
-    g_signal_connect(G_OBJECT(check_button), "toggled",
-                     G_CALLBACK(display_status_bar_toggled), ctk_config);
-
-    ctk_config_set_tooltip(ctk_config, check_button, __status_bar_help);
-    
-    /* display the slider text entries */
-
-    label = gtk_label_new("Slider Text Entries");
-    
-    check_button = gtk_check_button_new();
-    gtk_container_add(GTK_CONTAINER(check_button), label);
-    
-    b = !!(ctk_config->conf->booleans & CONFIG_PROPERTIES_SLIDER_TEXT_ENTRIES);
-
-    gtk_toggle_button_set_active(GTK_TOGGLE_BUTTON(check_button), b);
-    gtk_box_pack_start(GTK_BOX(vbox), check_button, FALSE, FALSE, 0);
-
-    g_signal_connect(G_OBJECT(check_button), "toggled",
-                     G_CALLBACK(slider_text_entries_toggled), ctk_config);
-
-    ctk_config_set_tooltip(ctk_config, check_button,
-                           __slider_text_entries_help);
-
-    /* specify display name in config file */
-
-    label = gtk_label_new("Include X Display Names in the Config File");
-
-    check_button = gtk_check_button_new();
-    gtk_container_add(GTK_CONTAINER(check_button), label);
-
-    b = !!(ctk_config->conf->booleans &
-           CONFIG_PROPERTIES_INCLUDE_DISPLAY_NAME_IN_CONFIG_FILE);
-
-    gtk_toggle_button_set_active(GTK_TOGGLE_BUTTON(check_button), b);
-    
-    gtk_box_pack_start(GTK_BOX(vbox), check_button, FALSE, FALSE, 0);
-
-    g_signal_connect(G_OBJECT(check_button), "toggled",
-                     G_CALLBACK(display_name_toggled), ctk_config);
-
-    ctk_config_set_tooltip(ctk_config, check_button, __x_display_names_help);
-
-    /* show quit dialog */
-
-    label = gtk_label_new("Show \"Really Quit?\" Dialog");
-
-    check_button = gtk_check_button_new();
-    gtk_container_add(GTK_CONTAINER(check_button), label);
-
-    b = !!(ctk_config->conf->booleans & CONFIG_PROPERTIES_SHOW_QUIT_DIALOG);
-
-    gtk_toggle_button_set_active(GTK_TOGGLE_BUTTON(check_button), b);
-    
-    gtk_box_pack_start(GTK_BOX(vbox), check_button, FALSE, FALSE, 0);
-
-    g_signal_connect(G_OBJECT(check_button), "toggled",
-                     G_CALLBACK(show_quit_dialog_toggled), ctk_config);
-
-    ctk_config_set_tooltip(ctk_config, check_button, __show_quit_dialog_help);
-    
+    ctk_config->help_data = g_list_reverse(ctk_config->help_data);
     
     /* timer list */
     
@@ -360,6 +360,7 @@ void ctk_config_statusbar_message(CtkConfig *ctk_config, const char *fmt, ...)
     gchar *str;
 
     if ((!ctk_config) ||
+        (!ctk_config->status_bar.enabled) ||
         (!ctk_config->status_bar.widget) ||
         (!(ctk_config->conf->booleans &
            CONFIG_PROPERTIES_DISPLAY_STATUS_BAR))) {
@@ -411,6 +412,7 @@ static void display_status_bar_toggled(
     if (gtk_toggle_button_get_active(GTK_TOGGLE_BUTTON(widget))) {
         gtk_widget_show(ctk_config->status_bar.widget);
         ctk_config->conf->booleans |= CONFIG_PROPERTIES_DISPLAY_STATUS_BAR;
+        ctk_config_statusbar_message(ctk_config, "Status bar enabled.");
     } else {
         gtk_widget_hide(ctk_config->status_bar.widget);
 
@@ -428,26 +430,35 @@ static void display_status_bar_toggled(
 static void tooltips_toggled(GtkWidget *widget, gpointer user_data)
 {
     CtkConfig *ctk_config = CTK_CONFIG(user_data);
+    gboolean active = gtk_toggle_button_get_active(GTK_TOGGLE_BUTTON(widget));
 
-    if (gtk_toggle_button_get_active(GTK_TOGGLE_BUTTON(widget))) {
+    if (active) {
         gtk_tooltips_enable(ctk_config->tooltips.object);
         ctk_config->conf->booleans |= CONFIG_PROPERTIES_TOOLTIPS;
     } else {
         gtk_tooltips_disable(ctk_config->tooltips.object);
         ctk_config->conf->booleans &= ~CONFIG_PROPERTIES_TOOLTIPS;
     }
+
+    ctk_config_statusbar_message(ctk_config, "Tooltips %s.", 
+                                 active ? "enabled" : "disabled");
 }
 
 
 static void slider_text_entries_toggled(GtkWidget *widget, gpointer user_data)
 {
     CtkConfig *ctk_config = CTK_CONFIG(user_data);
+    gboolean active = gtk_toggle_button_get_active(GTK_TOGGLE_BUTTON(widget));
 
-    if (gtk_toggle_button_get_active(GTK_TOGGLE_BUTTON(widget))) {
+    if (active) {
         ctk_config->conf->booleans |= CONFIG_PROPERTIES_SLIDER_TEXT_ENTRIES;
     } else {
         ctk_config->conf->booleans &= ~CONFIG_PROPERTIES_SLIDER_TEXT_ENTRIES;
     }
+
+    ctk_config_statusbar_message(ctk_config, 
+                                 "Slider text entries %s.",
+                                 active ? "enabled" : "disabled");
     
     g_signal_emit(ctk_config, signals[0], 0);
 }
@@ -455,25 +466,55 @@ static void slider_text_entries_toggled(GtkWidget *widget, gpointer user_data)
 static void display_name_toggled(GtkWidget *widget, gpointer user_data)
 {
     CtkConfig *ctk_config = CTK_CONFIG(user_data);
+    gboolean active = gtk_toggle_button_get_active(GTK_TOGGLE_BUTTON(widget));
 
-    if (gtk_toggle_button_get_active(GTK_TOGGLE_BUTTON(widget))) {
+    if (active) {
         ctk_config->conf->booleans |=
             CONFIG_PROPERTIES_INCLUDE_DISPLAY_NAME_IN_CONFIG_FILE;
     } else {
         ctk_config->conf->booleans &=
             ~CONFIG_PROPERTIES_INCLUDE_DISPLAY_NAME_IN_CONFIG_FILE;
     }
+
+    ctk_config_statusbar_message(ctk_config, 
+                                 "Including X Display Names in Config File %s.",
+                                 active ? "enabled" : "disabled");
 }
 
 static void show_quit_dialog_toggled(GtkWidget *widget, gpointer user_data)
 {
     CtkConfig *ctk_config = CTK_CONFIG(user_data);
+    gboolean active = gtk_toggle_button_get_active(GTK_TOGGLE_BUTTON(widget));
 
-    if (gtk_toggle_button_get_active(GTK_TOGGLE_BUTTON(widget))) {
+    if (active) {
         ctk_config->conf->booleans |= CONFIG_PROPERTIES_SHOW_QUIT_DIALOG;
     } else {
         ctk_config->conf->booleans &= ~CONFIG_PROPERTIES_SHOW_QUIT_DIALOG;
     }
+
+    ctk_config_statusbar_message(ctk_config, 
+                                 "Quit confirmation dialog %s.",
+                                 active ? "enabled" : "disabled");
+}
+
+static void update_rules_on_profile_name_change_toggled(GtkWidget *widget,
+                                                        gpointer user_data)
+{
+    CtkConfig *ctk_config = CTK_CONFIG(user_data);
+    gboolean active = gtk_toggle_button_get_active(GTK_TOGGLE_BUTTON(widget));
+
+    if (active) {
+        ctk_config->conf->booleans |=
+            CONFIG_PROPERTIES_UPDATE_RULES_ON_PROFILE_NAME_CHANGE;
+    } else {
+        ctk_config->conf->booleans &=
+            ~CONFIG_PROPERTIES_UPDATE_RULES_ON_PROFILE_NAME_CHANGE;
+    }
+
+    ctk_config_statusbar_message(ctk_config,
+                                 "Updating rules when an application profile "
+                                 "name changes is %s.",
+                                 active ? "enabled" : "disabled");
 }
 
 
@@ -483,7 +524,7 @@ gboolean ctk_config_slider_text_entry_shown(CtkConfig *ctk_config)
               CONFIG_PROPERTIES_SLIDER_TEXT_ENTRIES);
 }
 
-GtkTextBuffer *ctk_config_create_help(GtkTextTagTable *table)
+GtkTextBuffer *ctk_config_create_help(CtkConfig *ctk_config, GtkTextTagTable *table)
 {
     GtkTextIter i;
     GtkTextBuffer *b;
@@ -493,21 +534,8 @@ GtkTextBuffer *ctk_config_create_help(GtkTextTagTable *table)
     gtk_text_buffer_get_iter_at_offset(b, &i, 0);
 
     ctk_help_title(b, &i, "nvidia-settings Configuration Help");
-    
-    ctk_help_heading(b, &i, "Enable ToolTips");
-    ctk_help_para(b, &i, __tooltip_help);
 
-    ctk_help_heading(b, &i, "Display Status Bar");
-    ctk_help_para(b, &i, __status_bar_help);
-
-    ctk_help_heading(b, &i, "Slider Text Entries");
-    ctk_help_para(b, &i, __slider_text_entries_help);
-    
-    ctk_help_heading(b, &i, "Include X Display Names in the Config File");
-    ctk_help_para(b, &i, __x_display_names_help);
-    
-    ctk_help_heading(b, &i, "Show \"Really Quit?\" Dialog");
-    ctk_help_para(b, &i, __show_quit_dialog_help);
+    ctk_help_data_list_print_sections(b, &i, ctk_config->help_data);
     
     ctk_help_heading(b, &i, "Active Timers");
     ctk_help_para(b, &i, "Some attributes are polled periodically "
@@ -815,6 +843,11 @@ static void timer_enable_toggled(GtkCellRendererToggle *cell,
             g_source_remove(handle);
         }
     }
+
+    ctk_config_statusbar_message(ctk_config, "Timer \"%s\" %s.",
+                                 timer_config->description,
+                                 timer_config->user_enabled ? 
+                                     "enabled" : "disabled");
 }
 
 void ctk_config_add_timer(CtkConfig *ctk_config,
@@ -988,4 +1021,19 @@ void ctk_config_stop_timer(CtkConfig *ctk_config, GSourceFunc function, gpointer
         }
         valid = gtk_tree_model_iter_next(model, &iter);
     }
+}
+
+/*
+ * Helper function to add a tooltip to a widget *and* append a section to the
+ * help text for that widget, for pages which use CtkHelpDataItem lists
+ */
+void ctk_config_set_tooltip_and_add_help_data(CtkConfig *config,
+                                              GtkWidget *widget,
+                                              GList **help_data_list,
+                                              const gchar *label,
+                                              const gchar *help_text,
+                                              const gchar *extended_help_text)
+{
+    ctk_help_data_list_prepend(help_data_list, label, help_text, extended_help_text); 
+    ctk_config_set_tooltip(config, widget, help_text);
 }

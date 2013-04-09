@@ -65,6 +65,7 @@ struct _CtkGvi
 
     GtkWidget *show_detailed_info_btn;
     unsigned int cur_jack_channel;
+    unsigned int *jack_channel_table;
 };
 
 struct _CtkGviClass

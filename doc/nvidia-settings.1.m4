@@ -222,32 +222,23 @@ for a complete list of available attributes, what the current value is, what val
 Additionally, individual attributes may be specified like this:
 .nf
 
-        nvidia-settings --query CursorShadow
+        nvidia-settings --query Overlay
 
 .fi
-Attributes that may differ per display device (for example, DigitalVibrance can be set independently on each display device when in TwinView) can be appended with a "display device name" within brackets; e.g.:
+An attribute name may be prepended with an X Display name and a forward slash to indicate a different X Display; e.g.:
 .nf
 
-        nvidia-settings --query DigitalVibrance[CRT-0]
-
-.fi
-If an attribute is display device specific, but the query does not specify a display device, then the attribute value for all display devices will be queried.
-.PP
-An attribute name may be prepended with an X Display name and a forward slash
-to indicate a different X Display; e.g.:
-.nf
-
-        nvidia-settings --query localhost:0.0/DigitalVibrance[DFP-1]
+        nvidia-settings --query localhost:0.0/Overlay
 
 .fi
 An attribute name may also just be prepended with the screen number and a forward slash:
 .nf
 
-        nvidia-settings --query 0/DigitalVibrance[DFP-1]
+        nvidia-settings --query 0/Overlay
 
 .fi
 in which case the default X Display will be used, but you can indicate to which X screen to direct the query (if your X server has multiple X screens).
-If no X screen is specified, then the attribute value will be queried for all X screens.
+If no X screen is specified, then the attribute value will be queried for all valid targets of the attribute (eg GPUs, Displays X screens, etc).
 .PP
 Attributes can be addressed through "target types".
 A target type indicates the object that is queried when you query an attribute.
@@ -256,15 +247,18 @@ The default target type is an X screen, but other possible target types are GPUs
 Target types give you different granularities with which to perform queries and assignments.
 Since X screens can span multiple GPUs (in the case of Xinerama, or SLI), and multiple X screens can exist on the same GPU, it is sometimes useful to address attributes by GPU rather than X screen.
 .PP
-A target specification is contained within brackets and consists of a target type name, a colon, and the target id.
+A target specification is contained within brackets and may consist of a target type name, a colon, and the target id.
 The target type name can be one of
 .B screen,
 .B gpu,
 .B framelock,
 .B vcs,
 .B gvi,
+.B fan,
+.B thermalsensor,
+.B svp,
 or
-.B fan;
+.B dpy;
 the target id is the index into the list of targets (for that target type).
 Target specifications can be used wherever an X screen is used in query and assignment commands; the target specification can be used either by itself on the left side of the forward slash, or as part of an X Display name.
 .PP
@@ -284,6 +278,53 @@ To address GPU 0 instead, you can use either of:
         nvidia-settings --query localhost:0[gpu:0]/VideoRam
 
 .fi
+Note that if a target specification is present, it will override any X screen specified in the display name as the target to process.
+For example, the following query would address GPU 0, and not X screen 1:
+.nf
+
+	nvidia-settings --query localhost:0.1[gpu:0]/VideoRam
+
+.fi
+.PP
+A target name may be used instead of a target id, in which case all targets with matching names are processed.
+.PP
+For example, querying the DigitalVibrance of display device DVI-I-1 may be done like so:
+.nf
+
+	nvidia-settings --query [dpy:DVI-I-1]/DigitalVibrance
+
+.fi
+When a target name is specified, the target type name may be omitted, though this should be used with caution since the name will be matched across all target types.  The above example could be written as:
+.nf
+
+	nvidia-settings --query [DVI-I-1]/DigitalVibrance
+
+.fi
+The target name may also simply be a target type name, in which case all targets of that type will be queried.
+.PP
+For exmple, querying the BusRate of all GPUs may be done like so:
+.nf
+
+	nvidia-settings --query [gpu]/BusRate
+
+.fi
+.PP
+The target specification may also include a target qualifier.  This is useful to limit processing to a subset of targets, based on an existing relationship(s) to other targets.
+The target qualifier is specified by prepending a target type name, a colon, the target id, and a period to the existing specification.  Only one qualitfer may be specified.
+.PP
+For example, querying the RefreshRate of all DFP devices on GPU 1 may be done like so:
+.nf
+
+	nvidia-settings --query [GPU:1.DPY:DFP]/RefreshRate
+
+.fi
+Likewise, a simple target name (or target type name) may be used as the qualifier.  For example, to query the BusType of all GPUs that have DFPs can be done like so:
+.nf
+
+	nvidia-settings --query [DFP.GPU]/BusType
+
+.fi
+.PP
 See the output of
 .nf
 
@@ -312,7 +353,7 @@ For example:
 .nf
 
         nvidia-settings --assign FSAA=2
-        nvidia-settings --assign 0/DigitalVibrance[CRT-1]=9
+        nvidia-settings --assign [CRT-1]/DigitalVibrance=9
         nvidia-settings --assign [gpu:0]/DigitalVibrance=0
 .fi
 .PP

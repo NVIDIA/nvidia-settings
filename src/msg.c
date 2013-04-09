@@ -166,7 +166,7 @@ static void format(FILE *stream, const char *prefix,
 
     if (prefix) {
         prefix_len = strlen(prefix);
-        local_prefix = malloc(prefix_len+1);
+        local_prefix = nvalloc(prefix_len+1);
         strcpy(local_prefix, prefix);
     } else {
         prefix_len = 0;
@@ -216,7 +216,7 @@ static void format(FILE *stream, const char *prefix,
          */
 
         len = b-a;
-        line = malloc(len+1);
+        line = nvalloc(len+1);
         strncpy(line, a, len);
         line[len] = '\0';
         if (local_prefix) {

@@ -26,6 +26,7 @@
 #include "ctkbanner.h"
 
 #include <stdlib.h>
+#include <assert.h>
 
 static GtkTextBuffer *create_default_help(CtkHelp *ctk_help);
 static void close_button_clicked(GtkButton *button, gpointer user_data);
@@ -416,3 +417,82 @@ void ctk_help_reset_hardware_defaults(GtkTextBuffer *b, GtkTextIter *i,
     ctk_help_para(b, i, text);
 }
 
+
+static void help_data_list_free_cb(gpointer data, gpointer user_data)
+{
+    CtkHelpDataItem *item = (CtkHelpDataItem *)data;
+    free(item->label);
+    free(item->help_text);
+    free(item);
+}
+
+void ctk_help_data_list_prepend(GList **list,
+                                const gchar *label,
+                                const gchar *help_text,
+                                const gchar *extended_help_text)
+{
+    CtkHelpDataItem *item = nvalloc(sizeof(CtkHelpDataItem));
+
+    assert(label);
+    assert(help_text);
+
+    item->label = nvstrdup(label);
+    item->help_text = nvstrdup(help_text);
+    item->extended_help_text = extended_help_text ?
+        nvstrdup(extended_help_text) : NULL;
+
+    *list = g_list_prepend(*list, item);
+}
+
+void ctk_help_data_list_free_full(GList *list)
+{
+    g_list_foreach(list, help_data_list_free_cb, NULL);
+    g_list_free(list);
+}
+
+static void help_data_list_print_helper(GtkTextBuffer *b,
+                                        GtkTextIter *i,
+                                        GList *help_data_list,
+                                        gboolean use_headings)
+{
+    CtkHelpDataItem *item;
+    GList *cur;
+    GString *temp_string;
+
+    temp_string = g_string_new("");
+    for (cur = help_data_list; cur; cur = cur->next) {
+        item = (CtkHelpDataItem *)cur->data;
+        if (use_headings) {
+            ctk_help_heading(b, i, item->label);
+        } else {
+            ctk_help_term(b, i, item->label);
+        }
+        g_string_printf(temp_string, "%s", item->help_text);
+        if (item->extended_help_text) {
+            g_string_append_printf(temp_string, " %s",
+                                   item->extended_help_text);
+        }
+        ctk_help_para(b, i, temp_string->str);
+    }
+
+    g_string_free(temp_string, TRUE);
+}
+
+void ctk_help_data_list_print_terms(GtkTextBuffer *b,
+                                    GtkTextIter *i,
+                                    GList *help_data_list)
+{
+    help_data_list_print_helper(b, i,
+                                help_data_list,
+                                FALSE);
+}
+
+void ctk_help_data_list_print_sections(GtkTextBuffer *b,
+                                       GtkTextIter *i,
+                                       GList *help_data_list)
+{
+    help_data_list_print_helper(b, i,
+                                help_data_list,
+                                TRUE);
+
+}

@@ -26,6 +26,7 @@
 #include <string.h>
 #include <dlfcn.h>
 
+#include "common-utils.h"
 #include "msg.h"
 
 typedef struct __libXvInfoRec {
@@ -57,13 +58,9 @@ static Bool open_libxv(void)
 
     /* Initialize bookkeeping structure */
     if ( !__libXv ) {
-        __libXv = calloc(1, sizeof(__libXvInfo));
-        if ( !__libXv ) {
-            error_str = "Could not allocate memory.";
-            goto fail;
-        }
+        __libXv = nvalloc(sizeof(__libXvInfo));
     }
-    
+
 
     /* Library was already opened */
     if ( __libXv->handle ) {
@@ -171,11 +168,7 @@ NvCtrlXvAttributes * NvCtrlInitXvAttributes(NvCtrlAttributePrivateHandle *h)
 
 
     /* Allocate the attributes structure */
-    xv = calloc(1, sizeof(NvCtrlXvAttributes));
-    if ( xv == NULL ) {
-        error_str = "Out of memory.";
-        goto fail;
-    }
+    xv = nvalloc(sizeof(NvCtrlXvAttributes));
 
 
     /* Verify server support of Xv extension */

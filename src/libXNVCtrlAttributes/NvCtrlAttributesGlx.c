@@ -22,6 +22,7 @@
 
 #include "NVCtrlLib.h"
 
+#include "common-utils.h"
 #include "msg.h"
 
 #include "parse.h"
@@ -130,13 +131,9 @@ static Bool open_libgl(void)
 
     /* Initialize bookkeeping structure */
     if ( !__libGL ) {
-        __libGL = calloc(1, sizeof(__libGLInfo));
-        if ( !__libGL ) {
-            error_str = "Could not allocate memory.";
-            goto fail;
-        }
+        __libGL = nvalloc(sizeof(__libGLInfo));
     }
-    
+
 
     /* Library was already opened */
     if ( __libGL->handle ) {
@@ -365,10 +362,7 @@ get_fbconfig_attribs(NvCtrlAttributePrivateHandle *h)
     }
 
     /* Allocate to hold the fbconfig attributes */
-    fbcas = calloc(nfbconfigs + 1, sizeof(GLXFBConfigAttr));
-    if ( fbcas == NULL ) {
-        goto fail;        
-    }
+    fbcas = nvalloc((nfbconfigs + 1) * sizeof(GLXFBConfigAttr));
 
     /* Query each fbconfig's attributes and populate the attrib array */
     for ( i = 0; i < nfbconfigs; i++ ) {

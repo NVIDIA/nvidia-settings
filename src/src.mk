@@ -20,6 +20,7 @@ SRC_SRC += msg.c
 SRC_SRC += nvidia-settings.c
 SRC_SRC += parse.c
 SRC_SRC += query-assign.c
+SRC_SRC += app-profiles.c
 SRC_SRC += glxinfo.c
 
 NVIDIA_SETTINGS_SRC += $(SRC_SRC)
@@ -32,6 +33,7 @@ SRC_EXTRA_DIST += lscf.h
 SRC_EXTRA_DIST += msg.h
 SRC_EXTRA_DIST += parse.h
 SRC_EXTRA_DIST += query-assign.h
+SRC_EXTRA_DIST += app-profiles.h
 SRC_EXTRA_DIST += glxinfo.h
 SRC_EXTRA_DIST += gen-manpage-opts.c
 
@@ -62,8 +64,6 @@ IMAGE_DATA_EXTRA_DIST += image_data/config.png
 IMAGE_DATA_EXTRA_DIST += image_data/config_pixdata.h
 IMAGE_DATA_EXTRA_DIST += image_data/crt.png
 IMAGE_DATA_EXTRA_DIST += image_data/crt_pixdata.h
-IMAGE_DATA_EXTRA_DIST += image_data/cursor_shadow.png
-IMAGE_DATA_EXTRA_DIST += image_data/cursor_shadow_pixdata.h
 IMAGE_DATA_EXTRA_DIST += image_data/dfp.png
 IMAGE_DATA_EXTRA_DIST += image_data/dfp_pixdata.h
 IMAGE_DATA_EXTRA_DIST += image_data/display_config.png
@@ -113,10 +113,10 @@ IMAGE_DATA_EXTRA_DIST += image_data/svp_3dvp.png
 IMAGE_DATA_EXTRA_DIST += image_data/svp_3dvp_pixdata.h
 IMAGE_DATA_EXTRA_DIST += image_data/thermal.png
 IMAGE_DATA_EXTRA_DIST += image_data/thermal_pixdata.h
-IMAGE_DATA_EXTRA_DIST += image_data/tv.png
-IMAGE_DATA_EXTRA_DIST += image_data/tv_pixdata.h
 IMAGE_DATA_EXTRA_DIST += image_data/vcs.png
 IMAGE_DATA_EXTRA_DIST += image_data/vcs_pixdata.h
+IMAGE_DATA_EXTRA_DIST += image_data/vdpau.png
+IMAGE_DATA_EXTRA_DIST += image_data/vdpau_pixdata.h
 IMAGE_DATA_EXTRA_DIST += image_data/x.png
 IMAGE_DATA_EXTRA_DIST += image_data/x_pixdata.h
 IMAGE_DATA_EXTRA_DIST += image_data/xvideo.png
@@ -173,7 +173,6 @@ NVIDIA_SETTINGS_EXTRA_DIST += $(LIB_XPM_DATA_EXTRA_DIST)
 #
 
 GTK_SRC += gtk+-2.x/ctkxvideo.c
-GTK_SRC += gtk+-2.x/ctkcursorshadow.c
 GTK_SRC += gtk+-2.x/ctkui.c
 GTK_SRC += gtk+-2.x/ctkframelock.c
 GTK_SRC += gtk+-2.x/ctkgauge.c
@@ -214,13 +213,16 @@ GTK_SRC += gtk+-2.x/ctkpowersavings.c
 GTK_SRC += gtk+-2.x/ctkgvi.c
 GTK_SRC += gtk+-2.x/ctklicense.c
 GTK_SRC += gtk+-2.x/ctkecc.c
+GTK_SRC += gtk+-2.x/ctkappprofile.c
+GTK_SRC += gtk+-2.x/ctkapcprofilemodel.c
+GTK_SRC += gtk+-2.x/ctkapcrulemodel.c
 GTK_SRC += gtk+-2.x/ctkcolorcontrols.c
 GTK_SRC += gtk+-2.x/ctk3dvisionpro.c
+GTK_SRC += gtk+-2.x/ctkvdpau.c
 
 NVIDIA_SETTINGS_SRC += $(GTK_SRC)
 
 GTK_EXTRA_DIST += gtk+-2.x/ctkxvideo.h
-GTK_EXTRA_DIST += gtk+-2.x/ctkcursorshadow.h
 GTK_EXTRA_DIST += gtk+-2.x/ctkui.h
 GTK_EXTRA_DIST += gtk+-2.x/ctkframelock.h
 GTK_EXTRA_DIST += gtk+-2.x/ctkgauge.h
@@ -262,10 +264,39 @@ GTK_EXTRA_DIST += gtk+-2.x/ctkgvo-sync.h
 GTK_EXTRA_DIST += gtk+-2.x/ctkgvi.h
 GTK_EXTRA_DIST += gtk+-2.x/ctklicense.h
 GTK_EXTRA_DIST += gtk+-2.x/ctkecc.h
+GTK_EXTRA_DIST += gtk+-2.x/ctkappprofile.h
+GTK_EXTRA_DIST += gtk+-2.x/ctkapcprofilemodel.h
+GTK_EXTRA_DIST += gtk+-2.x/ctkapcrulemodel.h
 GTK_EXTRA_DIST += gtk+-2.x/ctkcolorcontrols.h
 GTK_EXTRA_DIST += gtk+-2.x/ctk3dvisionpro.h
+GTK_EXTRA_DIST += gtk+-2.x/ctkvdpau.h
 
 NVIDIA_SETTINGS_EXTRA_DIST += $(GTK_EXTRA_DIST)
+
+#
+# files in the src/jansson directory of nvidia-settings
+#
+JANSSON_SRC += jansson/load.c
+JANSSON_SRC += jansson/value.c
+JANSSON_SRC += jansson/pack_unpack.c
+JANSSON_SRC += jansson/utf.c
+JANSSON_SRC += jansson/dump.c
+JANSSON_SRC += jansson/strconv.c
+JANSSON_SRC += jansson/strbuffer.c
+JANSSON_SRC += jansson/memory.c
+JANSSON_SRC += jansson/error.c
+JANSSON_SRC += jansson/hashtable.c
+
+NVIDIA_SETTINGS_SRC += $(JANSSON_SRC)
+
+JANSSON_EXTRA_DIST += jansson/utf.h
+JANSSON_EXTRA_DIST += jansson/jansson_config.h
+JANSSON_EXTRA_DIST += jansson/strbuffer.h
+JANSSON_EXTRA_DIST += jansson/jansson.h
+JANSSON_EXTRA_DIST += jansson/hashtable.h
+JANSSON_EXTRA_DIST += jansson/jansson_private.h
+
+NVIDIA_SETTINGS_EXTRA_DIST += $(JANSSON_EXTRA_DIST)
 
 NVIDIA_SETTINGS_DIST_FILES += $(NVIDIA_SETTINGS_SRC)
 NVIDIA_SETTINGS_DIST_FILES += $(NVIDIA_SETTINGS_EXTRA_DIST)

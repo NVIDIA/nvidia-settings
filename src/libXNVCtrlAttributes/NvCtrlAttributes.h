@@ -412,11 +412,6 @@ NvCtrlGetDisplayAttribute64 (NvCtrlAttributeHandle *handle,
                              unsigned int display_mask, int attr, int64_t *val);
 
 ReturnStatus
-NvCtrlSetDisplayAttributeWithReply (NvCtrlAttributeHandle *handle,
-                                    unsigned int display_mask,
-                                    int attr, int val);
-
-ReturnStatus
 NvCtrlGetVoidDisplayAttribute (NvCtrlAttributeHandle *handle,
                                unsigned int display_mask,
                                int attr, void **val);

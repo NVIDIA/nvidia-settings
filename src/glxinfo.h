@@ -21,6 +21,7 @@
 #define __GLXINFO_H__
 
 #include <GL/glx.h>
+#include "query-assign.h"
 
 
 #ifndef GLX_VERSION_1_3
@@ -33,7 +34,7 @@ const char * caveat_abbrev(int caveat);
 #endif
 
 
-void print_glxinfo(const char *display_name);
+void print_glxinfo(const char *display_name, CtrlHandlesArray *handles_array);
 
 
 #endif /* __GLXINFO_H__ */

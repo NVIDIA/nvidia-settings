@@ -34,6 +34,7 @@
 #include "ctkdisplayconfig-utils.h"
 #include "ctkhelp.h"
 #include "ctkutils.h"
+#include "ctkdropdownmenu.h"
 
 
 /* Static function declarations */
@@ -221,6 +222,7 @@ static XConfigPtr xconfig_generate(XConfigPtr xconfCur,
                                    void *callback_data)
 {
     CtkSLIMM *ctk_object = (CtkSLIMM *)callback_data;
+    CtkDropDownMenu *menu = CTK_DROP_DOWN_MENU(ctk_object->mnu_display_config);
 
     gint idx;
 
@@ -246,7 +248,7 @@ static XConfigPtr xconfig_generate(XConfigPtr xconfCur,
     if (checkbox_state) {
         GridConfig *grid_config;
         /* SLI MM needs to be enabled */
-        idx = gtk_option_menu_get_history(GTK_OPTION_MENU(ctk_object->mnu_display_config));
+        idx = ctk_drop_down_menu_get_current_value(menu);
 
         /* Get grid configuration values from index */
 
@@ -300,12 +302,15 @@ static Bool compute_screen_size(CtkSLIMM *ctk_object, gint *width,
     gint x_displays,y_displays;
     gint h_overlap, v_overlap;
 
+    CtkDropDownMenu *menu;
+
 
     if (!ctk_object->cur_modeline) {
         return FALSE;
     }
 
-    config_idx = gtk_option_menu_get_history(GTK_OPTION_MENU(ctk_object->mnu_display_config));
+    menu = CTK_DROP_DOWN_MENU(ctk_object->mnu_display_config);
+    config_idx = ctk_drop_down_menu_get_current_value(menu);
 
     /* Get grid configuration values from index */
     grid_config = get_ith_valid_grid_config(config_idx);
@@ -403,10 +408,11 @@ static void display_config_changed(GtkWidget *widget, gpointer user_data)
 static void display_refresh_changed(GtkWidget *widget, gpointer user_data)
 {
     CtkSLIMM *ctk_object = CTK_SLIMM(user_data);
+    CtkDropDownMenu *menu = CTK_DROP_DOWN_MENU(widget);
     gint idx;
 
     /* Get the modeline and display to set */
-    idx = gtk_option_menu_get_history(GTK_OPTION_MENU(widget));
+    idx = ctk_drop_down_menu_get_current_value(menu);
 
     /* Select the new modeline as current modeline */
     ctk_object->cur_modeline = ctk_object->refresh_table[idx];
@@ -416,12 +422,13 @@ static void display_refresh_changed(GtkWidget *widget, gpointer user_data)
 static void display_resolution_changed(GtkWidget *widget, gpointer user_data)
 {
     CtkSLIMM *ctk_object = CTK_SLIMM(user_data);
+    CtkDropDownMenu *menu = CTK_DROP_DOWN_MENU(widget);
 
     gint idx;
     nvModeLinePtr modeline;
 
     /* Get the modeline and display to set */
-    idx = gtk_option_menu_get_history(GTK_OPTION_MENU(widget));
+    idx = ctk_drop_down_menu_get_current_value(menu);
     modeline = ctk_object->resolution_table[idx];
 
     /* Ignore selecting same resolution */
@@ -516,8 +523,7 @@ static void setup_total_size_label(CtkSLIMM *ctk_object)
 
 static void setup_display_refresh_dropdown(CtkSLIMM *ctk_object)
 {
-    GtkWidget *menu;
-    GtkWidget *menu_item;
+    CtkDropDownMenu *menu;
     nvModeLinePtr modeline;
     float cur_rate; /* Refresh Rate */
     int cur_idx = 0; /* Currently selected modeline */
@@ -546,7 +552,13 @@ static void setup_display_refresh_dropdown(CtkSLIMM *ctk_object)
 
 
     /* Generate the refresh dropdown */
-    menu = gtk_menu_new();
+    menu = CTK_DROP_DOWN_MENU(ctk_object->mnu_display_refresh);
+    
+    ctk_drop_down_menu_reset(menu);
+
+    g_signal_handlers_block_by_func
+        (G_OBJECT(ctk_object->mnu_display_refresh),
+         G_CALLBACK(display_refresh_changed), (gpointer) ctk_object);
 
     /* Generate the refresh rate dropdown from the modelines list */
     for (modeline = ctk_object->modelines; modeline; modeline = modeline->next) {
@@ -650,22 +662,14 @@ static void setup_display_refresh_dropdown(CtkSLIMM *ctk_object)
 
 
         /* Add the modeline entry to the dropdown */
-        menu_item = gtk_menu_item_new_with_label(name);
+        ctk_drop_down_menu_append_item(menu, name, ctk_object->refresh_table_len);
         g_free(name);
-        gtk_menu_shell_append(GTK_MENU_SHELL(menu), menu_item);
-        gtk_widget_show(menu_item);
         ctk_object->refresh_table[ctk_object->refresh_table_len++] = modeline;
     }
 
     /* Setup the menu and select the current mode */
-    g_signal_handlers_block_by_func
-        (G_OBJECT(ctk_object->mnu_display_refresh),
-         G_CALLBACK(display_refresh_changed), (gpointer) ctk_object);
-
     ctk_object->cur_modeline = ctk_object->refresh_table[cur_idx];
-
-    gtk_option_menu_set_menu(GTK_OPTION_MENU(ctk_object->mnu_display_refresh), menu);
-    gtk_option_menu_set_history(GTK_OPTION_MENU(ctk_object->mnu_display_refresh), cur_idx);
+    ctk_drop_down_menu_set_current_value(menu, cur_idx);
     gtk_widget_set_sensitive(ctk_object->mnu_display_refresh, True);
 
     g_signal_handlers_unblock_by_func
@@ -693,8 +697,7 @@ static void setup_display_refresh_dropdown(CtkSLIMM *ctk_object)
 
 static void setup_display_resolution_dropdown(CtkSLIMM *ctk_object)
 {
-    GtkWidget *menu;
-    GtkWidget *menu_item;
+    CtkDropDownMenu *menu;
 
     nvModeLinePtr  modeline;
     nvModeLinePtr  cur_modeline = ctk_object->cur_modeline;
@@ -713,11 +716,14 @@ static void setup_display_resolution_dropdown(CtkSLIMM *ctk_object)
     }
 
     /* Start the menu generation */
-    menu = gtk_menu_new();
+    menu = CTK_DROP_DOWN_MENU(ctk_object->mnu_display_resolution);
 
     modeline = ctk_object->modelines;
     cur_idx = 0;
 
+    g_signal_handlers_block_by_func
+        (G_OBJECT(ctk_object->mnu_display_resolution),
+         G_CALLBACK(display_resolution_changed), (gpointer) ctk_object);
     /* Generate the resolution menu */
 
     while (modeline) {
@@ -748,10 +754,9 @@ static void setup_display_resolution_dropdown(CtkSLIMM *ctk_object)
 
             name = g_strdup_printf("%dx%d", modeline->data.hdisplay,
                                    modeline->data.vdisplay);
-            menu_item = gtk_menu_item_new_with_label(name);
+            ctk_drop_down_menu_append_item(menu, name,
+                                           ctk_object->resolution_table_len);
             g_free(name);
-            gtk_menu_shell_append(GTK_MENU_SHELL(menu), menu_item);
-            gtk_widget_show(menu_item);
             ctk_object->resolution_table[ctk_object->resolution_table_len++] =
                 modeline;
         }
@@ -759,15 +764,8 @@ static void setup_display_resolution_dropdown(CtkSLIMM *ctk_object)
     }
 
     /* Setup the menu and select the current mode */
-    g_signal_handlers_block_by_func
-        (G_OBJECT(ctk_object->mnu_display_resolution),
-         G_CALLBACK(display_resolution_changed), (gpointer) ctk_object);
 
-    gtk_option_menu_set_menu
-        (GTK_OPTION_MENU(ctk_object->mnu_display_resolution), menu);
-
-    gtk_option_menu_set_history
-        (GTK_OPTION_MENU(ctk_object->mnu_display_resolution), cur_idx);
+    ctk_drop_down_menu_set_current_value(menu, cur_idx);
 
     /* If dropdown has only one item, disable menu selection */
     if (ctk_object->resolution_table_len > 1) {
@@ -784,9 +782,6 @@ static void setup_display_resolution_dropdown(CtkSLIMM *ctk_object)
 
     /* Handle failures */
  fail:
-
-    gtk_option_menu_remove_menu
-        (GTK_OPTION_MENU(ctk_object->mnu_display_resolution));
 
     gtk_widget_set_sensitive(ctk_object->mnu_display_resolution, False);
 
@@ -1256,8 +1251,9 @@ GtkWidget* ctk_slimm_new(NvCtrlAttributeHandle *handle,
     GtkWidget *table;
     GtkWidget *button;
 
-    GtkWidget *optionmenu, *menu, *menuitem, *spinbutton;
+    GtkWidget *spinbutton;
     CtkSLIMM *ctk_object;
+    CtkDropDownMenu *menu;
 
     gchar *err_str = NULL;
     gchar *tmp;
@@ -1489,9 +1485,9 @@ GtkWidget* ctk_slimm_new(NvCtrlAttributeHandle *handle,
     hbox = gtk_hbox_new(FALSE, 0);
 
     /* Option menu for Display Grid Configuration */
-    optionmenu = gtk_option_menu_new();
-    ctk_slimm->mnu_display_config = optionmenu;
-    menu = gtk_menu_new();
+    menu = (CtkDropDownMenu *)
+        ctk_drop_down_menu_new(CTK_DROP_DOWN_MENU_FLAG_COMBO);
+    ctk_slimm->mnu_display_config = GTK_WIDGET(menu);
 
     grid_menu_selected_id = 0;
     count = 0;
@@ -1502,9 +1498,7 @@ GtkWidget* ctk_slimm_new(NvCtrlAttributeHandle *handle,
                               gridConfigs[iter].rows,
                               gridConfigs[iter].columns);
 
-        menuitem = gtk_menu_item_new_with_label(tmp);
-        gtk_menu_shell_append(GTK_MENU_SHELL(menu), menuitem);
-        gtk_widget_show(menuitem);
+        ctk_drop_down_menu_append_item(menu, tmp, count);
 
         /* Update grid_config_id to set menu history */
         if (iter == grid_config_id) {
@@ -1513,9 +1507,7 @@ GtkWidget* ctk_slimm_new(NvCtrlAttributeHandle *handle,
         count++;
     }
 
-    gtk_option_menu_set_menu(GTK_OPTION_MENU(optionmenu), menu);
-    gtk_option_menu_set_history(GTK_OPTION_MENU(ctk_slimm->mnu_display_config),
-                                grid_menu_selected_id);
+    ctk_drop_down_menu_set_current_value(menu, grid_menu_selected_id);
 
     g_signal_connect(G_OBJECT(ctk_object->mnu_display_config), "changed",
                      G_CALLBACK(display_config_changed),
@@ -1523,7 +1515,7 @@ GtkWidget* ctk_slimm_new(NvCtrlAttributeHandle *handle,
 
     label = gtk_label_new("");
     gtk_box_pack_start(GTK_BOX(hbox), label, FALSE, FALSE, 5);
-    gtk_box_pack_start(GTK_BOX(hbox), optionmenu, TRUE, TRUE, 5);
+    gtk_box_pack_start(GTK_BOX(hbox), GTK_WIDGET(menu), TRUE, TRUE, 5);
     gtk_box_pack_start(GTK_BOX(vbox), hbox, FALSE, FALSE, 0);
  
     table = gtk_table_new(20, 2, FALSE);
@@ -1554,8 +1546,8 @@ GtkWidget* ctk_slimm_new(NvCtrlAttributeHandle *handle,
 
     /* Option menu for resolutions */
     hbox = gtk_hbox_new(FALSE, 0);
-    optionmenu = gtk_option_menu_new();
-    ctk_slimm->mnu_display_resolution = optionmenu;
+    ctk_slimm->mnu_display_resolution =
+        ctk_drop_down_menu_new(CTK_DROP_DOWN_MENU_FLAG_COMBO);
 
     /* Create a drop down menu */
     setup_display_resolution_dropdown(ctk_object);
@@ -1571,9 +1563,9 @@ GtkWidget* ctk_slimm_new(NvCtrlAttributeHandle *handle,
 
 
     /* Option menu for refresh rates */
-    optionmenu = gtk_option_menu_new();
     hbox = gtk_hbox_new(FALSE, 0);
-    ctk_slimm->mnu_display_refresh = optionmenu;
+    ctk_slimm->mnu_display_refresh =
+        ctk_drop_down_menu_new(CTK_DROP_DOWN_MENU_FLAG_COMBO);
     setup_display_refresh_dropdown(ctk_object);
     g_signal_connect(G_OBJECT(ctk_object->mnu_display_refresh), "changed",
                      G_CALLBACK(display_refresh_changed),
@@ -1581,7 +1573,7 @@ GtkWidget* ctk_slimm_new(NvCtrlAttributeHandle *handle,
 
     label = gtk_label_new("");
     gtk_box_pack_start(GTK_BOX(hbox), label, FALSE, FALSE, 5);
-    gtk_box_pack_end(GTK_BOX(hbox), optionmenu, TRUE, TRUE, 0);
+    gtk_box_pack_end(GTK_BOX(hbox), ctk_slimm->mnu_display_refresh, TRUE, TRUE, 0);
 
     gtk_table_attach(GTK_TABLE(table), hbox, 1, 2, 3, 4, GTK_EXPAND | GTK_FILL,
                      GTK_EXPAND | GTK_FILL, 0.5, 0.5);

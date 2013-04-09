@@ -31,6 +31,7 @@
 #include "ctkgvi.h"
 #include "ctkgpu.h"
 #include "ctkbanner.h"
+#include "ctkdropdownmenu.h"
 
 #define DEFAULT_UPDATE_VIDEO_FORMAT_INFO_TIME_INTERVAL 1000
 
@@ -260,20 +261,17 @@ static void update_sdi_input_info_simple(CtkGvi *ctk_gvi)
 }
 
 
-static void jack_channel_changed(GtkOptionMenu *optionmenu,
+static void jack_channel_changed(GtkWidget *widget,
                                  gpointer user_data)
 {
     CtkGvi *ctk_gvi = CTK_GVI(user_data);
-    GtkWidget *menu;
-    GtkWidget *menu_item;
+    CtkDropDownMenu *menu = CTK_DROP_DOWN_MENU(widget);
+    gint idx;
 
     /* Track new selection */
-    menu = gtk_option_menu_get_menu(optionmenu);
-    menu_item = gtk_menu_get_active(GTK_MENU(menu));
-
-    ctk_gvi->cur_jack_channel =
-        GPOINTER_TO_UINT(g_object_get_data(G_OBJECT(menu_item),
-                                           "JACK_CHANNEL"));
+    idx = ctk_drop_down_menu_get_current_value(menu);
+    
+    ctk_gvi->cur_jack_channel = ctk_gvi->jack_channel_table[idx];
 
     update_sdi_input_info(ctk_gvi);
 }
@@ -281,9 +279,7 @@ static void jack_channel_changed(GtkOptionMenu *optionmenu,
 
 static GtkWidget *create_jack_channel_menu(CtkGvi *ctk_gvi)
 {
-    GtkWidget *omenu;
-    GtkWidget *menu;
-    GtkWidget *menu_item;
+    CtkDropDownMenu *menu;
     gint idx;
     gchar *label_str;
     gint jack;
@@ -293,9 +289,8 @@ static GtkWidget *create_jack_channel_menu(CtkGvi *ctk_gvi)
 
     /* Create the menu */
 
-    omenu = gtk_option_menu_new();
-
-    menu = gtk_menu_new();
+    menu = (CtkDropDownMenu *)
+        ctk_drop_down_menu_new(CTK_DROP_DOWN_MENU_FLAG_COMBO);
     
     /* Just show all jack/channel pairs in dropdown */
 
@@ -310,16 +305,11 @@ static GtkWidget *create_jack_channel_menu(CtkGvi *ctk_gvi)
 
             label_str = g_strdup_printf("Jack %d, Channel %d",
                                         jack+1, channel+1);
-            menu_item = gtk_menu_item_new_with_label(label_str);
+            ctk_drop_down_menu_append_item(menu, label_str, idx);
             g_free(label_str);
 
-            g_object_set_data(G_OBJECT(menu_item),
-                              "JACK_CHANNEL",
-                              GUINT_TO_POINTER(jack_channel));
-
-            gtk_menu_shell_append(GTK_MENU_SHELL(menu), menu_item);
-            gtk_widget_show(menu_item);
-
+            ctk_gvi->jack_channel_table[idx] = jack_channel;
+            
             if (jack_channel == ctk_gvi->cur_jack_channel) {
                 selected_idx = idx;
             }
@@ -328,15 +318,13 @@ static GtkWidget *create_jack_channel_menu(CtkGvi *ctk_gvi)
         }
     }
 
-    gtk_option_menu_set_menu(GTK_OPTION_MENU(omenu), menu);
+    ctk_drop_down_menu_set_current_value(menu, selected_idx);
 
-    gtk_option_menu_set_history(GTK_OPTION_MENU(omenu), selected_idx);
-
-    g_signal_connect(G_OBJECT(omenu), "changed",
+    g_signal_connect(G_OBJECT(menu), "changed",
                      G_CALLBACK(jack_channel_changed),
                      (gpointer) ctk_gvi);
 
-    return omenu;
+    return GTK_WIDGET(menu);
 }
 
 
@@ -662,6 +650,14 @@ GtkWidget* ctk_gvi_new(NvCtrlAttributeHandle *handle,
 
     hsep = gtk_hseparator_new();
     gtk_box_pack_start(GTK_BOX(hbox), hsep, TRUE, TRUE, 5);
+    
+    /* Create look up table to store jack chanel */
+    if (ctk_gvi->jack_channel_table) {
+        free(ctk_gvi->jack_channel_table);
+    }
+    ctk_gvi->jack_channel_table =
+                calloc(ctk_gvi->max_channels_per_jack * ctk_gvi->num_jacks,
+                       sizeof(unsigned int));
 
     /* Jack+Channel selection dropdown (hidden in condensed view) */
     

@@ -1,4 +1,7 @@
 
+If you are adding a new banner image for an nvidia-settings page, the
+image should be <= 60 pixels high (or <= 110 pixels high for the tall banner).
+
 If I have a png, how do I build it into nvidia-settings?
 
     - make sure you have the gdk-pixbuf-csource binary somewhere
@@ -7,7 +10,8 @@ If I have a png, how do I build it into nvidia-settings?
     - run './png_to_c_header.sh foo.png' This will generate the foo_pixdata.h
       header file that can then be included in the nvidia-settings source code.
 
-    - add a foo_pixdata.h entry to the .../image_data/Makefile.inc
+    - add a foo_pixdata.h entry to the IMAGE_DATA_EXTRA_DIST variable
+      in .../src.mk
 
     (Also follow these next steps if this image is to be used in the banner)
 

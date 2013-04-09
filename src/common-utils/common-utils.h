@@ -40,6 +40,18 @@
 
 #define VERBOSITY_DEFAULT  VERBOSITY_ERROR
 
+/*
+ * Define a printf format attribute macro.  This definition is based on the one
+ * from Xfuncproto.h, available in the 'xproto' package at
+ * http://xorg.freedesktop.org/releases/individual/proto/
+ */
+
+#if defined(__GNUC__) && ((__GNUC__ * 100 + __GNUC_MINOR__) >= 203)
+# define NV_ATTRIBUTE_PRINTF(x,y) __attribute__((__format__(__printf__,x,y)))
+#else /* not gcc >= 2.3 */
+# define NV_ATTRIBUTE_PRINTF(x,y)
+#endif
+
 typedef struct {
     char **t; /* the text rows */
     int n;    /* number of rows */
@@ -52,6 +64,9 @@ void *nvrealloc(void *ptr, size_t size);
 char *nvstrdup(const char *s);
 char *nvstrndup(const char *s, size_t n);
 char *nvstrtolower(char *s);
+char *nvstrtoupper(char *s);
+char *nvstrchrnul(char *s, int c);
+char *nvasprintf(const char *fmt, ...) NV_ATTRIBUTE_PRINTF(1, 2);
 void nvfree(void *s);
 
 char *tilde_expansion(const char *str);
@@ -66,11 +81,11 @@ void nv_free_text_rows(TextRows *t);
 void reset_current_terminal_width(unsigned short new_val);
 
 void silence_fmt(int val);
-void fmtout(const char *fmt, ...);
-void fmtoutp(const char *prefix, const char *fmt, ...);
-void fmterr(const char *fmt, ...);
-void fmtwarn(const char *fmt, ...);
-void fmt(FILE *stream, const char *prefix, const char *fmt, ...);
+void fmtout(const char *fmt, ...)                                NV_ATTRIBUTE_PRINTF(1, 2);
+void fmtoutp(const char *prefix, const char *fmt, ...)           NV_ATTRIBUTE_PRINTF(2, 3);
+void fmterr(const char *fmt, ...)                                NV_ATTRIBUTE_PRINTF(1, 2);
+void fmtwarn(const char *fmt, ...)                               NV_ATTRIBUTE_PRINTF(1, 2);
+void fmt(FILE *stream, const char *prefix, const char *fmt, ...) NV_ATTRIBUTE_PRINTF(3, 4);
 
 char *fget_next_line(FILE *fp, int *eof);
 
@@ -99,9 +114,9 @@ do {                                                            \
         va_list ap;                                             \
         int len, current_len = NV_FMT_BUF_LEN;                  \
                                                                 \
-        (buf) = malloc(current_len);                            \
-                                                                \
         while (1) {                                             \
+            (buf) = nvalloc(current_len);                       \
+                                                                \
             va_start(ap, fmt);                                  \
             len = vsnprintf((buf), current_len, (fmt), ap);     \
             va_end(ap);                                         \
@@ -113,8 +128,8 @@ do {                                                            \
             } else {                                            \
                 current_len += NV_FMT_BUF_LEN;                  \
             }                                                   \
-            free(buf);                                          \
-            (buf) = malloc(current_len);                        \
+                                                                \
+            nvfree(buf);                                        \
         }                                                       \
     }                                                           \
 } while (0)

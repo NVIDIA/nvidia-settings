@@ -27,6 +27,12 @@
 
 G_BEGIN_DECLS
 
+// GValues must be initialized before they are used. This macro is
+// only available since glib 2.30
+#ifndef G_VALUE_INIT
+# define G_VALUE_INIT { 0, { { 0 } } }
+#endif
+
 gchar *get_pcie_generation_string(NvCtrlAttributeHandle *handle);
 
 gchar *get_pcie_link_width_string(NvCtrlAttributeHandle *handle,

@@ -721,18 +721,22 @@
 #define NV_CTRL_TEXTURE_CLAMPING_SPEC                            1
 
 
+/*
+ * The NV_CTRL_CURSOR_SHADOW attributes are no longer supported; use
+ * an ARGB cursor instead.
+ */
 
-#define NV_CTRL_CURSOR_SHADOW                                   43  /* RW- */
+#define NV_CTRL_CURSOR_SHADOW                                   43  /* --- */
 #define NV_CTRL_CURSOR_SHADOW_DISABLE                            0
 #define NV_CTRL_CURSOR_SHADOW_ENABLE                             1
 
-#define NV_CTRL_CURSOR_SHADOW_ALPHA                             44  /* RW- */
-#define NV_CTRL_CURSOR_SHADOW_RED                               45  /* RW- */
-#define NV_CTRL_CURSOR_SHADOW_GREEN                             46  /* RW- */
-#define NV_CTRL_CURSOR_SHADOW_BLUE                              47  /* RW- */
+#define NV_CTRL_CURSOR_SHADOW_ALPHA                             44  /* --- */
+#define NV_CTRL_CURSOR_SHADOW_RED                               45  /* --- */
+#define NV_CTRL_CURSOR_SHADOW_GREEN                             46  /* --- */
+#define NV_CTRL_CURSOR_SHADOW_BLUE                              47  /* --- */
 
-#define NV_CTRL_CURSOR_SHADOW_X_OFFSET                          48  /* RW- */
-#define NV_CTRL_CURSOR_SHADOW_Y_OFFSET                          49  /* RW- */
+#define NV_CTRL_CURSOR_SHADOW_X_OFFSET                          48  /* --- */
+#define NV_CTRL_CURSOR_SHADOW_Y_OFFSET                          49  /* --- */
 
 
 
@@ -3606,15 +3610,16 @@
 
 
 /*
- * NV_CTRL_STRING_XINERAMA_SCREEN_INFO - returns the physical X Screen's
- * initial position and size (in absolute coordinates) within the Xinerama
+ * NV_CTRL_STRING_SCREEN_RECTANGLE - returns the physical X Screen's
+ * initial position and size (in absolute coordinates) within the
  * desktop as the "token=value" string:  "x=#, y=#, width=#, height=#"
  *
- * Querying this attribute returns FALSE if NV_CTRL_XINERAMA is not
- * NV_CTRL_XINERAMA_ON.
+ * Querying this attribute returns success only when Xinerama is enabled
+ * or the X server ABI is greater than equal to 12.
  */
 
-#define NV_CTRL_STRING_XINERAMA_SCREEN_INFO                    26   /* R--- */
+#define NV_CTRL_STRING_XINERAMA_SCREEN_INFO                    26  /* renamed */
+#define NV_CTRL_STRING_SCREEN_RECTANGLE                        26  /* R--- */
 
 
 /*
@@ -4329,6 +4334,8 @@
 #define NV_CTRL_BINARY_DATA_GPU_FLAGS_STEREO_DISPLAY_TRANSFORM_EXCLUSIVE     0
 /* Overlay and display composition transformations are mutually exclusive. */
 #define NV_CTRL_BINARY_DATA_GPU_FLAGS_OVERLAY_DISPLAY_TRANSFORM_EXCLUSIVE    1
+/* Depth 8 and display composition transformations are mutually exclusive. */
+#define NV_CTRL_BINARY_DATA_GPU_FLAGS_DEPTH_8_DISPLAY_TRANSFORM_EXCLUSIVE    2
 
 
 #define NV_CTRL_BINARY_DATA_LAST_ATTRIBUTE NV_CTRL_BINARY_DATA_GPU_FLAGS

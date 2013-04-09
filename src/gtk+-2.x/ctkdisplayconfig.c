@@ -33,6 +33,8 @@
 #include "parse.h"
 #include "lscf.h"
 
+#include "nvvr.h"
+
 #include "ctkutils.h"
 
 #include "ctkbanner.h"
@@ -63,6 +65,10 @@ static void display_refresh_changed(GtkWidget *widget, gpointer user_data);
 static void display_stereo_changed(GtkWidget *widget, gpointer user_data);
 static void display_rotation_changed(GtkWidget *widget, gpointer user_data);
 static void display_reflection_changed(GtkWidget *widget, gpointer user_data);
+
+static void display_underscan_value_changed(GtkAdjustment *adjustment,
+                                           gpointer user_data);
+static void display_underscan_activate(GtkWidget *widget, gpointer user_data);
 
 static void display_position_type_changed(GtkWidget *widget, gpointer user_data);
 static void display_position_offset_activate(GtkWidget *widget, gpointer user_data);
@@ -149,6 +155,10 @@ typedef struct SwitchModeCallbackInfoRec {
 #define DPY_CFG_SEPARATE_X_SCREEN 1
 #define DPY_CFG_TWINVIEW          2
 
+/* Underscan range of values */
+#define UNDERSCAN_MIN_PERCENT 0
+#define UNDERSCAN_MAX_PERCENT 35
+
 /*** G L O B A L S ***********************************************************/
 
 static int __position_table[] = { CONF_ADJ_ABSOLUTE,
@@ -220,6 +230,10 @@ static const char * __dpy_position_relative_help =
 "device (within the X screen) the selected display device should be "
 "relative to.  This is only available when multiple display "
 "devices are present.";
+
+static const char * __dpy_underscan_text_help =
+"The Underscan feature allows configuration of an underscan border "
+"(in pixels) around the ViewPortOut.";
 
 static const char * __dpy_position_offset_help =
 "The Position Offset identifies the top left of the display device "
@@ -322,11 +336,11 @@ static void get_cur_screen_pos(CtkDisplayConfig *ctk_object)
 {
     nvScreenPtr screen = ctk_display_layout_get_selected_screen
         (CTK_DISPLAY_LAYOUT(ctk_object->obj_layout));
-    
+
     if (!screen) return;
 
-    ctk_object->cur_screen_pos[X] = screen->dim[X];
-    ctk_object->cur_screen_pos[Y] = screen->dim[Y];
+    ctk_object->cur_screen_pos.x = screen->dim.x;
+    ctk_object->cur_screen_pos.y = screen->dim.y;
 
 } /* get_cur_screen_pos() */
 
@@ -341,17 +355,17 @@ static void get_cur_screen_pos(CtkDisplayConfig *ctk_object)
 
 static void check_screen_pos_changed(CtkDisplayConfig *ctk_object)
 {
-    int old_dim[2];
+    GdkPoint old_pos;
 
     /* Cache the old position */
-    old_dim[X] = ctk_object->cur_screen_pos[X];
-    old_dim[Y] = ctk_object->cur_screen_pos[Y];
+    old_pos.x = ctk_object->cur_screen_pos.x;
+    old_pos.y = ctk_object->cur_screen_pos.y;
 
     /* Get the new position */
     get_cur_screen_pos(ctk_object);
 
-    if (old_dim[X] != ctk_object->cur_screen_pos[X] ||
-        old_dim[Y] != ctk_object->cur_screen_pos[Y]) {
+    if (old_pos.x != ctk_object->cur_screen_pos.x ||
+        old_pos.y != ctk_object->cur_screen_pos.y) {
         ctk_object->apply_possible = FALSE;
     }
 
@@ -640,17 +654,17 @@ static int generate_xconf_metamode_str(CtkDisplayConfig *ctk_object,
         metamode_strs = screen_get_metamode_str(screen,
                                                 screen->cur_metamode_idx, 1);
         len = strlen(metamode_strs);
-        start_width = screen->cur_metamode->edim[W];
-        start_height = screen->cur_metamode->edim[H];
+        start_width = screen->cur_metamode->edim.width;
+        start_height = screen->cur_metamode->edim.height;
     } else {
-        start_width = screen->metamodes->edim[W];
-        start_height = screen->metamodes->edim[H];        
+        start_width = screen->metamodes->edim.width;
+        start_height = screen->metamodes->edim.height;
     }
 
     for (metamode_idx = 0, metamode = screen->metamodes;
          (metamode_idx < screen->num_metamodes) && metamode;
          metamode_idx++, metamode = metamode->next) {
-        
+
         int metamode_len;
 
         /* Only write out metamodes that were specified by the user */
@@ -670,21 +684,21 @@ static int generate_xconf_metamode_str(CtkDisplayConfig *ctk_object,
          *     in an unwanted panning domain being setup for the first mode.
          */
         if ((!ctk_object->advanced_mode) &&
-            ((metamode->edim[W] > start_width) ||
-             (metamode->edim[H] > start_height)))
+            ((metamode->edim.width > start_width) ||
+             (metamode->edim.height > start_height)))
             continue;
-        
+
         metamode_str = screen_get_metamode_str(screen, metamode_idx, 1);
 
         if (!metamode_str) continue;
-        
+
         metamode_len = strlen(metamode_str);
         if (!longStringsOK && (len + metamode_len > 900)) {
             GtkWidget *dlg;
             gchar *msg;
             GtkWidget *parent;
             gint result;
-            
+
             msg = g_strdup_printf
                 ("Truncate the MetaMode list?\n"
                  "\n"
@@ -758,9 +772,10 @@ static int generate_xconf_metamode_str(CtkDisplayConfig *ctk_object,
  *
  * Assign the initial position of the X screens.
  *
- * - If Xinerama is enabled, query the XINERAMA_SCREEN_INFO.
+ * - If Xinerama is enabled or the X server ABI >= 12,
+     query to the SCREEN_RECTANGLE returns position.
  *
- * - If Xinerama is disabled, assume "right-of" orientation. (bleh!)
+ * - Otherwise assume "right-of" orientation.
  *
  **/
 
@@ -769,28 +784,20 @@ static void assign_screen_positions(CtkDisplayConfig *ctk_object)
     nvLayoutPtr layout = ctk_object->layout;
     nvScreenPtr prev_screen = NULL;
     nvScreenPtr screen;
-    int xinerama;
-    int initialize = 0;
 
     char *screen_info;
-    ScreenInfo screen_parsed_info;
+    GdkRectangle screen_parsed_info;
     ReturnStatus ret;
 
-
-    /* If xinerama is enabled, we can get the screen size! */
-    ret = NvCtrlGetAttribute(ctk_object->handle, NV_CTRL_XINERAMA, &xinerama);
-    if (ret != NvCtrlSuccess) {
-        initialize = 1; /* Fallback to right-of positioning */
-    }
 
     /* Setup screen positions */
     for (screen = layout->screens; screen; screen = screen->next_in_layout) {
 
         screen_info = NULL;
-        if (screen->handle && !initialize) {
+        if (screen->handle) {
             ret = NvCtrlGetStringAttribute
                 (screen->handle,
-                 NV_CTRL_STRING_XINERAMA_SCREEN_INFO,
+                 NV_CTRL_STRING_SCREEN_RECTANGLE,
                  &screen_info);
 
             if (ret != NvCtrlSuccess) {
@@ -1443,6 +1450,31 @@ GtkWidget* ctk_display_config_new(NvCtrlAttributeHandle *handle,
                      "changed", G_CALLBACK(display_reflection_changed),
                      (gpointer) ctk_object);
 
+    /* Display Underscan text box and slider */
+    ctk_object->txt_display_underscan = gtk_entry_new_with_max_length(6);
+    gtk_entry_set_width_chars(GTK_ENTRY(ctk_object->txt_display_underscan), 6);
+    gtk_entry_set_text(GTK_ENTRY(ctk_object->txt_display_underscan), "0");
+    ctk_config_set_tooltip(ctk_config, ctk_object->txt_display_underscan,
+                           __dpy_underscan_text_help);
+    g_signal_connect(G_OBJECT(ctk_object->txt_display_underscan), "activate",
+                              G_CALLBACK(display_underscan_activate),
+                              (gpointer) ctk_object);
+
+    ctk_object->adj_display_underscan =
+        gtk_adjustment_new(0,
+                           UNDERSCAN_MIN_PERCENT,
+                           UNDERSCAN_MAX_PERCENT,
+                           1, 1, 0.0);
+    ctk_object->sld_display_underscan =
+        gtk_hscale_new(GTK_ADJUSTMENT(ctk_object->adj_display_underscan));
+    gtk_scale_set_draw_value(GTK_SCALE(ctk_object->sld_display_underscan),
+                             FALSE);
+    ctk_config_set_tooltip(ctk_config, ctk_object->sld_display_underscan,
+                           __dpy_underscan_text_help);
+    g_signal_connect(G_OBJECT(ctk_object->adj_display_underscan), "value_changed",
+                              G_CALLBACK(display_underscan_value_changed),
+                              (gpointer) ctk_object);
+
     /* Display Position Type (Absolute/Relative Menu) */
     ctk_object->mnu_display_position_type = gtk_option_menu_new();
     menu = gtk_menu_new();
@@ -1563,6 +1595,8 @@ GtkWidget* ctk_display_config_new(NvCtrlAttributeHandle *handle,
     menu_item = gtk_menu_item_new_with_label("NVIDIA 3D Vision");
     gtk_menu_shell_append(GTK_MENU_SHELL(menu), menu_item);
     menu_item = gtk_menu_item_new_with_label("NVIDIA 3D Vision Pro");
+    gtk_menu_shell_append(GTK_MENU_SHELL(menu), menu_item);
+    menu_item = gtk_menu_item_new_with_label("HDMI 3D");
     gtk_menu_shell_append(GTK_MENU_SHELL(menu), menu_item);
     gtk_option_menu_set_menu
         (GTK_OPTION_MENU(ctk_object->mnu_screen_stereo), menu);
@@ -1856,6 +1890,27 @@ GtkWidget* ctk_display_config_new(NvCtrlAttributeHandle *handle,
 
             gtk_box_pack_start(GTK_BOX(vbox), hbox2, FALSE, TRUE, 0);
             ctk_object->box_display_orientation = hbox2;
+        }
+
+        /* Display underscan */
+        {
+            GtkWidget *hbox2 = gtk_hbox_new(TRUE, 0);
+            label = gtk_label_new("Underscan:");
+            labels = g_slist_append(labels, label);
+
+            hbox = gtk_hbox_new(FALSE, 5);
+            gtk_box_pack_start(GTK_BOX(hbox2), hbox, FALSE, TRUE, 0);
+            gtk_box_pack_start(GTK_BOX(hbox), label, FALSE, TRUE, 5);
+            gtk_box_pack_start(GTK_BOX(hbox),
+                               ctk_object->txt_display_underscan,
+                               FALSE, FALSE, 0);
+
+            gtk_box_pack_start(GTK_BOX(hbox),
+                               ctk_object->sld_display_underscan,
+                               TRUE, TRUE, 3);
+
+            gtk_box_pack_start(GTK_BOX(vbox), hbox2, FALSE, TRUE, 0);
+            ctk_object->box_display_underscan = hbox2;
         }
 
         /* Display positioning */
@@ -2180,6 +2235,11 @@ GtkTextBuffer *ctk_display_config_create_help(GtkTextTagTable *table,
                   "image is rotated and/or reflected.  %s  %s  Note that "
                   "reflection is applied before rotation.",
                   __dpy_rotation_help, __dpy_reflection_help);
+    ctk_help_heading(b, &i, "Underscan");
+    ctk_help_para(b, &i, "%s  The aspect ratio of the ViewPortOut is preserved "
+                  " and the ViewPortIn is updated to exactly match this new "
+                  "size.  This feature is formerly known as Overscan "
+                  "Compensation.", __dpy_underscan_text_help);
     ctk_help_heading(b, &i, "Position Type");
     ctk_help_para(b, &i, __dpy_position_type_help);
     ctk_help_heading(b, &i, "Position Relative");
@@ -2834,6 +2894,31 @@ static void setup_display_refresh_dropdown(CtkDisplayConfig *ctk_object)
 
 
 
+/** get_default_modeline() *******************************************
+ *
+ * Finds the default modeline in the list of modelines.
+ *
+ * Returns the default modeline if found, NULL otherwise.
+ *
+ */
+
+static nvModeLinePtr get_default_modeline(const nvDisplayPtr display)
+{
+    nvModeLinePtr modeline = display->modelines;
+
+    while (modeline) {
+        if (IS_NVIDIA_DEFAULT_MODE(modeline)) {
+            return modeline;
+        }
+
+        modeline = modeline->next;
+    }
+
+    return NULL;
+}
+
+
+
 /** allocate_selected_mode() *****************************************
  *
  * Allocates, fills and returns a nvSelectedModePtr.
@@ -2843,7 +2928,9 @@ static void setup_display_refresh_dropdown(CtkDisplayConfig *ctk_object)
 static nvSelectedModePtr
 allocate_selected_mode(char *name,
                        nvModeLinePtr modeline,
-                       Bool isSpecial)
+                       Bool isSpecial,
+                       NVVRSize *viewPortIn,
+                       NVVRBoxRecXYWH *viewPortOut)
 {
     nvSelectedModePtr selected_mode;
 
@@ -2853,6 +2940,19 @@ allocate_selected_mode(char *name,
 
     selected_mode->modeline = modeline;
     selected_mode->isSpecial = isSpecial;
+    selected_mode->isScaled = (viewPortIn || viewPortOut);
+
+    if (viewPortIn) {
+        selected_mode->viewPortIn.width = viewPortIn->w;
+        selected_mode->viewPortIn.height = viewPortIn->h;
+    }
+
+    if (viewPortOut) {
+        selected_mode->viewPortOut.x = viewPortOut->x;
+        selected_mode->viewPortOut.y = viewPortOut->y;
+        selected_mode->viewPortOut.width = viewPortOut->w;
+        selected_mode->viewPortOut.height = viewPortOut->h;
+    }
 
     return selected_mode;
 }
@@ -2880,8 +2980,9 @@ free_selected_modes(nvSelectedModePtr selected_mode)
  *
  * Appends a selected mode to the given list only if it doesn't already exist.
  * Special modes ("Auto", "Off") are not checked.  Two selected modes are unique
- * if their [hv]display differ.  Returns TRUE if the selected mode has been
- * added, FALSE otherwise.
+ * if their [hv]display differ in the case of regular modes, or if the
+ * ViewPortIn of the given mode doesn't match any existing [hv]display.
+ * Returns TRUE if the selected mode has been added, FALSE otherwise.
  *
  */
 
@@ -2889,21 +2990,47 @@ static Bool
 append_unique_selected_mode(nvSelectedModePtr head,
                             const nvSelectedModePtr mode)
 {
+    int targetWidth, targetHeight;
     nvSelectedModePtr iter, prev = NULL;
 
-    nvModeLinePtr ml1 = mode->modeline;
-    iter = head;
-    while (iter)
-    {
-        nvModeLinePtr ml2 = iter->modeline;
+    if (mode->isScaled) {
+        targetWidth = mode->viewPortIn.width;
+        targetHeight = mode->viewPortIn.height;
+    } else {
+        targetWidth = mode->modeline->data.hdisplay;
+        targetHeight = mode->modeline->data.vdisplay;
+    }
 
-        if (ml1 && ml2 &&
-            !iter->isSpecial && !mode->isSpecial &&
-            (ml1->data.hdisplay == ml2->data.hdisplay) &&
-            (ml1->data.vdisplay == ml2->data.vdisplay)) {
+    /* Keep the list sorted by targetted resolution */
+    iter = head;
+    while (iter) {
+        int currentWidth, currentHeight;
+        nvModeLinePtr ml = iter->modeline;
+
+        if (!ml || iter->isSpecial) {
+            goto next;
+        }
+
+        if (iter->isScaled) {
+            currentWidth = iter->viewPortIn.width;
+            currentHeight = iter->viewPortIn.height;
+        } else {
+            currentWidth = ml->data.hdisplay;
+            currentHeight = ml->data.vdisplay;
+        }
+
+        /* If we are past the sort order, stop looping */
+        if ((targetWidth > currentWidth) ||
+            ((targetWidth == currentWidth) && (targetHeight > currentHeight))) {
+            break;
+        }
+
+        if (ml && !mode->isSpecial &&
+            (targetWidth == currentWidth) && (targetHeight == currentHeight)) {
             return FALSE;
         }
 
+next:
         prev = iter;
         iter = iter->next;
     }
@@ -2912,6 +3039,8 @@ append_unique_selected_mode(nvSelectedModePtr head,
         return FALSE;
     }
 
+    /* Insert the selected mode */
+    mode->next = prev->next;
     prev->next = mode;
 
     return TRUE;
@@ -2923,37 +3052,76 @@ append_unique_selected_mode(nvSelectedModePtr head,
  *
  * Checks whether the provided selected mode matches the current mode.
  *
+ * We need to distinguish between custom modes and scaled modes.
+ *
+ * Custom modes are modes with custom ViewPort settings, such as an
+ * Underscan configuration.  These modes don't have an entry in the
+ * resolution dropdown menu.  Instead, the corresponding modeline must be
+ * selected.
+ *
+ * Scaled modes are generated by the CPL, have a fixed ViewPort{In,Out}
+ * configuration and are displayed in the dropdown menu in basic mode.
+ *
+ * Therefore, we compare the raster size and the ViewPorts first, then only
+ * the raster size.  This works because the list of selected_modes is
+ * generated before the scaled ones.  The latter can then overwrite the
+ * cur_selected_mode if we find a better match.
+ *
  * Returns TRUE if the provided selected mode matches the current mode, FALSE
  * otherwise.
  *
  */
 
 static Bool matches_current_selected_mode(const nvDisplayPtr display,
-                                          const nvSelectedModePtr selected_mode)
+                                          const nvSelectedModePtr selected_mode,
+                                          const Bool compare_viewports)
 {
     nvModeLinePtr ml1, ml2;
+    nvModePtr cur_mode;
+    Bool mode_match;
 
     if (!display || !display->cur_mode || !selected_mode) {
         return FALSE;
     }
 
-    ml1 = display->cur_mode->modeline;
+    cur_mode = display->cur_mode;
+    ml1 = cur_mode->modeline;
     ml2 = selected_mode->modeline;
 
     if (!ml1 || !ml2) {
         return FALSE;
     }
 
-    return (!IS_NVIDIA_DEFAULT_MODE(ml1) &&
-            (ml1->data.hdisplay == ml2->data.hdisplay) &&
-            (ml1->data.vdisplay == ml2->data.vdisplay));
+    mode_match = ((ml1->data.hdisplay == ml2->data.hdisplay) &&
+                  (ml1->data.vdisplay == ml2->data.vdisplay));
+
+    if (compare_viewports) {
+        nvSize rotatedViewPortIn;
+
+        memcpy(&rotatedViewPortIn, &selected_mode->viewPortIn, sizeof(nvSize));
+
+        if (cur_mode->rotation == ROTATION_90 ||
+            cur_mode->rotation == ROTATION_270) {
+            int temp = rotatedViewPortIn.width;
+            rotatedViewPortIn.width = rotatedViewPortIn.height;
+            rotatedViewPortIn.height = temp;
+        }
+
+        return (mode_match &&
+                viewports_in_match(cur_mode->viewPortIn,
+                                   rotatedViewPortIn) &&
+                viewports_out_match(cur_mode->viewPortOut,
+                                    selected_mode->viewPortOut));
+    } else {
+        return (!IS_NVIDIA_DEFAULT_MODE(ml1) && mode_match);
+    }
 }
 
 
 
 /** generate_selected_modes() ****************************************
  *
- * Generates a list of selected mode.  The list is generated by parsing
+ * Generates a list of selected modes.  The list is generated by parsing
  * modelines.  This function makes sure that each item of the list is unique
  * and sorted.
  *
@@ -2967,7 +3135,9 @@ static void generate_selected_modes(const nvDisplayPtr display)
     /* Add the off item */
     selected_mode = allocate_selected_mode("Off",
                                            NULL /* modeline */,
-                                           TRUE /* isSpecial */);
+                                           TRUE /* isSpecial */,
+                                           NULL /* viewPortIn */,
+                                           NULL /* viewPortOut */);
 
     display->num_selected_modes = 1;
     display->selected_modes = selected_mode;
@@ -2987,14 +3157,17 @@ static void generate_selected_modes(const nvDisplayPtr display)
             isSpecial = FALSE;
         }
 
-        selected_mode = allocate_selected_mode(name, modeline, isSpecial);
+        selected_mode = allocate_selected_mode(name, modeline, isSpecial,
+                                               NULL /* viewPortIn */,
+                                               NULL /* viewPortOut */);
         g_free(name);
 
         if (append_unique_selected_mode(display->selected_modes,
                                         selected_mode)) {
             display->num_selected_modes++;
 
-            if (matches_current_selected_mode(display, selected_mode)) {
+            if (matches_current_selected_mode(display, selected_mode,
+                                              FALSE /* compare_viewports */)) {
                 display->cur_selected_mode = selected_mode;
             }
         } else {
@@ -3002,6 +3175,76 @@ static void generate_selected_modes(const nvDisplayPtr display)
         }
 
         modeline = modeline->next;
+    }
+}
+
+
+
+/** generate_scaled_selected_modes() *********************************
+ *
+ * Appends a list of scaled selected modes.  The list is generated by parsing
+ * an array of common resolutions.  This function makes sure that each item
+ * of the list is unique and sorted.  The generated items are appended to the
+ * list of selected modes returned by generate_selected_modes().
+ *
+ */
+
+static void generate_scaled_selected_modes(const nvDisplayPtr display)
+{
+    int resIndex;
+    nvModeLinePtr default_modeline;
+    nvSelectedModePtr selected_mode = NULL;
+    const NVVRSize *commonResolutions;
+    NVVRSize raster;
+    gchar *name;
+
+    if (!display || !display->modelines) {
+        return;
+    }
+
+    default_modeline = get_default_modeline(display);
+    if (default_modeline == NULL) {
+        return;
+    }
+
+    raster.w = default_modeline->data.hdisplay;
+    raster.h = default_modeline->data.vdisplay;
+
+    commonResolutions = NVVRGetCommonResolutions();
+
+    resIndex = 0;
+    while ((commonResolutions[resIndex].w != -1) &&
+           (commonResolutions[resIndex].h != -1)) {
+        NVVRBoxRecXYWH viewPortOut;
+        NVVRSize viewPortIn = commonResolutions[resIndex];
+
+        resIndex++;
+
+        /* Skip resolutions that are bigger than the maximum raster size */
+        if ((viewPortIn.w > raster.w) || (viewPortIn.h > raster.h)) {
+            continue;
+        }
+
+        viewPortOut = NVVRGetScaledViewPortOut(&raster, &viewPortIn,
+                                               NVVR_SCALING_ASPECT_SCALED);
+
+        name = g_strdup_printf("%dx%d (scaled)", viewPortIn.w, viewPortIn.h);
+        selected_mode = allocate_selected_mode(name, default_modeline,
+                                               FALSE /* isSpecial */,
+                                               &viewPortIn, &viewPortOut);
+        g_free(name);
+
+        if (append_unique_selected_mode(display->selected_modes,
+                                        selected_mode)) {
+            display->num_selected_modes++;
+
+            if (matches_current_selected_mode(display, selected_mode,
+                                              TRUE /* compare_viewports */)) {
+                display->cur_selected_mode = selected_mode;
+            }
+        } else {
+            free(selected_mode);
+        }
     }
 }
 
@@ -3040,6 +3283,10 @@ static void setup_display_resolution_dropdown(CtkDisplayConfig *ctk_object)
     /* Create the selected modes lookup table for the dropdown */
     display->cur_selected_mode = NULL;
     generate_selected_modes(display);
+
+    if (!ctk_object->advanced_mode) {
+        generate_scaled_selected_modes(display);
+    }
 
     if (ctk_object->resolution_table) {
         free(ctk_object->resolution_table);
@@ -3239,19 +3486,6 @@ static void setup_display_rotation_dropdown(CtkDisplayConfig *ctk_object)
         (CTK_DISPLAY_LAYOUT(ctk_object->obj_layout));
     int idx;
 
-    if (!display->screen) {
-        gtk_widget_hide(ctk_object->box_display_orientation);
-        return;
-    }
-    gtk_widget_show(ctk_object->box_display_orientation);
-
-    if (!display->cur_mode || !display->cur_mode->modeline ||
-        !are_display_composition_transformations_allowed(display->screen)) {
-        gtk_widget_set_sensitive(ctk_object->mnu_display_rotation, FALSE);
-        return;
-    }
-    gtk_widget_set_sensitive(ctk_object->mnu_display_rotation, TRUE);
-
     /* Set the selected rotation */
     g_signal_handlers_block_by_func
         (G_OBJECT(ctk_object->mnu_display_rotation),
@@ -3298,19 +3532,6 @@ static void setup_display_reflection_dropdown(CtkDisplayConfig *ctk_object)
         (CTK_DISPLAY_LAYOUT(ctk_object->obj_layout));
     int idx;
 
-    if (!display->screen) {
-        gtk_widget_hide(ctk_object->box_display_orientation);
-        return;
-    }
-    gtk_widget_show(ctk_object->box_display_orientation);
-
-    if (!display->cur_mode || !display->cur_mode->modeline ||
-        !are_display_composition_transformations_allowed(display->screen)) {
-        gtk_widget_set_sensitive(ctk_object->mnu_display_reflection, FALSE);
-        return;
-    }
-    gtk_widget_set_sensitive(ctk_object->mnu_display_reflection, TRUE);
-
     /* Set the selected reflection */
     g_signal_handlers_block_by_func
         (G_OBJECT(ctk_object->mnu_display_reflection),
@@ -3344,6 +3565,119 @@ static void setup_display_reflection_dropdown(CtkDisplayConfig *ctk_object)
 
 
 
+/** setup_display_orientation() **************************************
+ *
+ * Sets up the display orientation section to reflect the rotation
+ * and reflection settings for the currently selected display.
+ *
+ **/
+
+static void setup_display_orientation(CtkDisplayConfig *ctk_object)
+{
+    nvDisplayPtr display = ctk_display_layout_get_selected_display
+        (CTK_DISPLAY_LAYOUT(ctk_object->obj_layout));
+
+
+    /* Display needs to be included in an X screen to show widgets */
+    if (!display || !display->screen) {
+        gtk_widget_hide(ctk_object->box_display_orientation);
+        return;
+    }
+    gtk_widget_show(ctk_object->box_display_orientation);
+
+    /* If the display is off, disable the orientation widgets */
+    if (!display->cur_mode || !display->cur_mode->modeline ||
+        !are_display_composition_transformations_allowed(display->screen)) {
+        gtk_widget_set_sensitive(ctk_object->box_display_orientation, FALSE);
+        return;
+    }
+    gtk_widget_set_sensitive(ctk_object->box_display_orientation, TRUE);
+
+    /* Setup the display orientation widgets */
+    setup_display_rotation_dropdown(ctk_object);
+    setup_display_reflection_dropdown(ctk_object);
+}
+
+
+
+/** setup_display_underscan() *****************************************
+ *
+ * Sets up the display underscan to reflect the ViewPortOut settings
+ * for the currently selected display.
+ *
+ * Tries to detect whether the current ViewPortOut configuration
+ * corresponds to a border; then sets the underscan text entry and
+ * slider accordingly.  Defaults to 0.
+ **/
+
+static void setup_display_underscan(CtkDisplayConfig *ctk_object)
+{
+    nvDisplayPtr display = ctk_display_layout_get_selected_display
+        (CTK_DISPLAY_LAYOUT(ctk_object->obj_layout));
+    nvModePtr cur_mode;
+    nvSize raster_size;
+    gfloat adj_value;
+    gint hpixel_value;
+    gchar *txt_entry;
+
+    if (!display || !display->screen || ctk_object->advanced_mode) {
+        gtk_widget_hide(ctk_object->box_display_underscan);
+        return;
+    }
+    gtk_widget_show(ctk_object->box_display_underscan);
+
+    cur_mode = display->cur_mode;
+
+    /*
+     * If the display is off or a scaled mode is selected, disable the
+     * underscan widget.
+     */
+    if (!cur_mode || !cur_mode->modeline ||
+        (display->cur_selected_mode && display->cur_selected_mode->isScaled)) {
+        gtk_widget_set_sensitive(ctk_object->box_display_underscan, FALSE);
+        return;
+    }
+    gtk_widget_set_sensitive(ctk_object->box_display_underscan, TRUE);
+
+    raster_size.height = cur_mode->modeline->data.vdisplay;
+    raster_size.width = cur_mode->modeline->data.hdisplay;
+
+    get_underscan_settings_from_viewportout(raster_size, cur_mode->viewPortOut,
+                                            &adj_value, &hpixel_value);
+
+    /* Setup the slider */
+    g_signal_handlers_block_by_func
+        (G_OBJECT(ctk_object->adj_display_underscan),
+         G_CALLBACK(display_underscan_value_changed), (gpointer) ctk_object);
+
+    gtk_adjustment_set_value(GTK_ADJUSTMENT(ctk_object->adj_display_underscan),
+                             (adj_value < 0) ? 0 : adj_value);
+
+    g_signal_handlers_unblock_by_func
+        (G_OBJECT(ctk_object-> adj_display_underscan),
+         G_CALLBACK(display_underscan_value_changed), (gpointer) ctk_object);
+
+
+    /* Setup the text entry */
+    g_signal_handlers_block_by_func
+        (G_OBJECT(ctk_object->txt_display_underscan),
+         G_CALLBACK(display_underscan_activate), (gpointer) ctk_object);
+
+    if (hpixel_value < 0) {
+        txt_entry = g_strdup_printf("n/a");
+    } else {
+        txt_entry = g_strdup_printf("%d", hpixel_value);
+    }
+    gtk_entry_set_text(GTK_ENTRY(ctk_object->txt_display_underscan), txt_entry);
+    g_free(txt_entry);
+
+    g_signal_handlers_unblock_by_func
+        (G_OBJECT(ctk_object-> txt_display_underscan),
+         G_CALLBACK(display_underscan_activate), (gpointer) ctk_object);
+} /* setup_display_underscan() */
+
+
+
 /** setup_display_viewport_in() **************************************
  *
  * Sets up the display ViewPortIn text entry to reflect the currently
@@ -3374,8 +3708,8 @@ static void setup_display_viewport_in(CtkDisplayConfig *ctk_object)
     mode = display->cur_mode;
 
     tmp_str = g_strdup_printf("%dx%d",
-                              mode->viewPortIn[W],
-                              mode->viewPortIn[H]);
+                              mode->viewPortIn.width,
+                              mode->viewPortIn.height);
 
     gtk_entry_set_text(GTK_ENTRY(ctk_object->txt_display_viewport_in),
                        tmp_str);
@@ -3417,10 +3751,10 @@ static void setup_display_viewport_out(CtkDisplayConfig *ctk_object)
     mode = display->cur_mode;
 
     tmp_str = g_strdup_printf("%dx%d%+d%+d",
-                              mode->viewPortOut[W],
-                              mode->viewPortOut[H],
-                              mode->viewPortOut[X],
-                              mode->viewPortOut[Y]);
+                              mode->viewPortOut.width,
+                              mode->viewPortOut.height,
+                              mode->viewPortOut.x,
+                              mode->viewPortOut.y);
 
     gtk_entry_set_text(GTK_ENTRY(ctk_object->txt_display_viewport_out),
                        tmp_str);
@@ -3610,8 +3944,8 @@ static void setup_display_position_offset(CtkDisplayConfig *ctk_object)
     mode = display->cur_mode;
 
     tmp_str = g_strdup_printf("%+d%+d",
-                              mode->viewPortIn[X] - mode->metamode->edim[X],
-                              mode->viewPortIn[Y] - mode->metamode->edim[Y]);
+                              mode->pan.x - mode->metamode->edim.x,
+                              mode->pan.y - mode->metamode->edim.y);
 
     gtk_entry_set_text(GTK_ENTRY(ctk_object->txt_display_position_offset),
                        tmp_str);
@@ -3741,7 +4075,7 @@ static void setup_display_panning(CtkDisplayConfig *ctk_object)
 
     /* Update the panning text */
     mode    = display->cur_mode;
-    tmp_str = g_strdup_printf("%dx%d", mode->pan[W], mode->pan[H]);
+    tmp_str = g_strdup_printf("%dx%d", mode->pan.width, mode->pan.height);
 
     gtk_entry_set_text(GTK_ENTRY(ctk_object->txt_display_panning),
                        tmp_str);
@@ -3753,8 +4087,8 @@ static void setup_display_panning(CtkDisplayConfig *ctk_object)
 
 /** setup_display_page() ********************************************
  *
- * Sets up the display frame to reflect the currently selected
- * display.
+ * Updates the display frame to reflect the current state of the
+ * currently selected display.
  *
  **/
 
@@ -3782,8 +4116,8 @@ static void setup_display_page(CtkDisplayConfig *ctk_object)
     setup_display_modename(ctk_object);
     setup_display_resolution_dropdown(ctk_object);
     setup_display_stereo_dropdown(ctk_object);
-    setup_display_rotation_dropdown(ctk_object);
-    setup_display_reflection_dropdown(ctk_object);
+    setup_display_orientation(ctk_object);
+    setup_display_underscan(ctk_object);
     setup_display_viewport_in(ctk_object);
     setup_display_viewport_out(ctk_object);
     setup_display_position(ctk_object);
@@ -3819,12 +4153,12 @@ static void setup_screen_virtual_size(CtkDisplayConfig *ctk_object)
 
 
     /* Update the virtual size text */
-    tmp_str = g_strdup_printf("%dx%d", screen->dim[W], screen->dim[H]);
+    tmp_str = g_strdup_printf("%dx%d", screen->dim.width, screen->dim.height);
 
     gtk_entry_set_text(GTK_ENTRY(ctk_object->txt_screen_virtual_size),
                        tmp_str);
     g_free(tmp_str);
-    
+
 } /* setup_screen_virtual_size() */
 
 
@@ -4178,7 +4512,7 @@ static void setup_screen_position_offset(CtkDisplayConfig *ctk_object)
 
 
     /* Update the position text */
-    tmp_str = g_strdup_printf("%+d%+d", screen->dim[X], screen->dim[Y]);
+    tmp_str = g_strdup_printf("%+d%+d", screen->dim.x, screen->dim.y);
 
     gtk_entry_set_text(GTK_ENTRY(ctk_object->txt_screen_position_offset),
                        tmp_str);
@@ -4305,7 +4639,7 @@ static void setup_screen_page(CtkDisplayConfig *ctk_object)
  **/
 
 static gint validation_fix_crowded_metamodes(CtkDisplayConfig *ctk_object,
-                                            nvScreenPtr screen)
+                                             nvScreenPtr screen)
 {
     nvDisplayPtr display;
     nvModePtr first_mode = NULL;
@@ -4350,7 +4684,10 @@ static gint validation_fix_crowded_metamodes(CtkDisplayConfig *ctk_object,
             if (num > screen->gpu->max_displays) {
                 ctk_display_layout_set_mode_modeline
                     (CTK_DISPLAY_LAYOUT(ctk_object->obj_layout),
-                     mode, NULL);
+                     mode,
+                     NULL /* modeline */,
+                     NULL /* viewPortIn */,
+                     NULL /* viewPortOut */);
 
                 nv_info_msg(TAB, "Setting display device '%s' as Off "
                             "for MetaMode %d on Screen %d.  (There are "
@@ -4388,7 +4725,9 @@ static gint validation_fix_crowded_metamodes(CtkDisplayConfig *ctk_object,
                 ctk_display_layout_set_mode_modeline
                     (CTK_DISPLAY_LAYOUT(ctk_object->obj_layout),
                      first_mode,
-                     first_mode->display->modelines);
+                     first_mode->display->modelines,
+                     NULL /* viewPortIn */,
+                     NULL /* viewPortOut */);
 
                 nv_info_msg(TAB, "Activating display device '%s' for MetaMode "
                             "%d on Screen %d.  (Minimally, a Screen must have "
@@ -4844,12 +5183,11 @@ static void do_enable_display_for_xscreen(CtkDisplayConfig *ctk_object,
 
     /* Setup the mode */
     mode = display->modes;
-
-    mode->modeline = display->modelines;
     mode->metamode = metamode;
 
-    /* XXX Hopefully display->modelines is 'nvidia-auto-select' */
-    mode_set_dims_from_modeline(mode, display->modelines);
+    mode_set_modeline(mode, display->modelines,
+                      NULL /* viewPortIn */,
+                      NULL /* viewPortOut */);
 
     mode->position_type = CONF_ADJ_ABSOLUTE;
 
@@ -4875,8 +5213,8 @@ static void do_enable_display_for_xscreen(CtkDisplayConfig *ctk_object,
     /* Compute the right-most screen */
     for (other = layout->screens; other; other = other->next_in_layout) {
         if (!rightmost ||
-            ((other->dim[X] + other->dim[W]) >
-             (rightmost->dim[X] + rightmost->dim[W]))) {
+            ((other->dim.x + other->dim.width) >
+             (rightmost->dim.x + rightmost->dim.width))) {
             rightmost = other;
         }
     }
@@ -4885,14 +5223,14 @@ static void do_enable_display_for_xscreen(CtkDisplayConfig *ctk_object,
     if (rightmost) {
         screen->position_type = CONF_ADJ_RIGHTOF;
         screen->relative_to = rightmost;
-        screen->dim[X] = mode->viewPortIn[X] = rightmost->dim[X];
-        screen->dim[Y] = mode->viewPortIn[Y] = rightmost->dim[Y];
+        screen->dim.x = mode->pan.x = rightmost->dim.x;
+        screen->dim.y = mode->pan.y = rightmost->dim.y;
 
     } else {
         screen->position_type = CONF_ADJ_ABSOLUTE;
         screen->relative_to = NULL;
-        screen->dim[X] = mode->viewPortIn[X];
-        screen->dim[Y] = mode->viewPortIn[Y];
+        screen->dim.x = mode->pan.x;
+        screen->dim.y = mode->pan.y;
     }
 
 
@@ -5041,8 +5379,8 @@ static void do_enable_display_for_twinview(CtkDisplayConfig *ctk_object,
         for (other = screen->displays; other; other = other->next_in_screen) {
             for (mode = other->modes; mode; mode = mode->next) {
                 if (!rightmost ||
-                    ((mode->viewPortIn[X] + mode->viewPortIn[W]) >
-                     (rightmost->viewPortIn[X] + rightmost->viewPortIn[W]))) {
+                    ((mode->pan.x + mode->pan.width) >
+                     (rightmost->pan.x + rightmost->pan.width))) {
                     rightmost = mode;
                 }
             }
@@ -5064,17 +5402,13 @@ static void do_enable_display_for_twinview(CtkDisplayConfig *ctk_object,
         if (rightmost) {
             mode->position_type = CONF_ADJ_RIGHTOF;
             mode->relative_to = rightmost->display;
-            mode->viewPortIn[X] = rightmost->display->cur_mode->viewPortIn[X];
-            mode->viewPortIn[Y] = rightmost->display->cur_mode->viewPortIn[Y];
-            mode->pan[X] = mode->viewPortIn[X];
-            mode->pan[Y] = mode->viewPortIn[Y];
+            mode->pan.x = rightmost->display->cur_mode->pan.x;
+            mode->pan.y = rightmost->display->cur_mode->pan.y;
         } else {
             mode->position_type = CONF_ADJ_ABSOLUTE;
             mode->relative_to = NULL;
-            mode->viewPortIn[X] = metamode->dim[X] + metamode->dim[W];
-            mode->viewPortIn[Y] = metamode->dim[Y];
-            mode->pan[X] = mode->viewPortIn[X];
-            mode->pan[Y] = mode->viewPortIn[Y];
+            mode->pan.x = metamode->dim.x + metamode->dim.width;
+            mode->pan.y = metamode->dim.y;
         }
 
 
@@ -5321,10 +5655,8 @@ static void do_configure_display_for_twinview(CtkDisplayConfig *ctk_object,
 
             /* Duplicate position information of the last mode */
             if (last_mode) {
-                mode->viewPortIn[X] = last_mode->viewPortIn[X];
-                mode->viewPortIn[Y] = last_mode->viewPortIn[Y];
-                mode->pan[X] = last_mode->pan[X];
-                mode->pan[Y] = last_mode->pan[Y];
+                mode->pan.x = last_mode->pan.x;
+                mode->pan.y = last_mode->pan.y;
                 mode->position_type = last_mode->position_type;
                 mode->relative_to = last_mode->relative_to;
             }
@@ -5618,8 +5950,9 @@ static void display_refresh_changed(GtkWidget *widget, gpointer user_data)
     /* Update the display's currently selected mode */
     ctk_display_layout_set_mode_modeline
         (CTK_DISPLAY_LAYOUT(ctk_object->obj_layout),
-         display->cur_mode, modeline);
-
+         display->cur_mode, modeline,
+         &display->cur_mode->viewPortIn,
+         &display->cur_mode->viewPortOut);
 
     /* Update the modename */
     setup_display_modename(ctk_object);
@@ -5655,7 +5988,7 @@ static void display_resolution_changed(GtkWidget *widget, gpointer user_data)
     /* cache the selected index */
     last_idx = ctk_object->last_resolution_idx;
     ctk_object->last_resolution_idx = idx;
-    
+
     /* Ignore selecting same resolution */
     if (idx == last_idx) {
         return;
@@ -5677,20 +6010,26 @@ static void display_resolution_changed(GtkWidget *widget, gpointer user_data)
                  display->screen, metamode_idx);
         }
     }
-    
 
     /* Select the new modeline for its resolution */
-    ctk_display_layout_set_mode_modeline
-        (CTK_DISPLAY_LAYOUT(ctk_object->obj_layout),
-         display->cur_mode, selected_mode->modeline);
-
+    if (selected_mode->isScaled) {
+        ctk_display_layout_set_mode_modeline
+            (CTK_DISPLAY_LAYOUT(ctk_object->obj_layout),
+             display->cur_mode,
+             selected_mode->modeline,
+             &selected_mode->viewPortIn,
+             &selected_mode->viewPortOut);
+    } else {
+        ctk_display_layout_set_mode_modeline
+            (CTK_DISPLAY_LAYOUT(ctk_object->obj_layout),
+             display->cur_mode,
+             selected_mode->modeline,
+             NULL /* viewPortIn */,
+             NULL /* viewPortOut */);
+    }
 
     /* Update the UI */
-    setup_display_refresh_dropdown(ctk_object);
-    setup_display_viewport_in(ctk_object);
-    setup_display_viewport_out(ctk_object);
-    setup_display_position(ctk_object);
-    setup_display_panning(ctk_object);
+    setup_display_page(ctk_object);
 
     user_changed_attributes(ctk_object);
 
@@ -5834,6 +6173,140 @@ static void display_reflection_changed(GtkWidget *widget, gpointer user_data)
 
 
 
+/** post_display_underscan_value_changed() ****************************
+ *
+ * Modifies the ViewPortOut of the current mode according to the value
+ * of the Underscan slider.
+ *
+ **/
+static void post_display_underscan_value_changed(CtkDisplayConfig *ctk_object,
+                                                 const int hpixel_value)
+{
+    CtkDisplayLayout *ctk_display;
+    nvDisplayPtr display;
+    nvModePtr cur_mode;
+    nvSize raster_size;
+
+    ctk_display = CTK_DISPLAY_LAYOUT(ctk_object->obj_layout);
+    display = ctk_display_layout_get_selected_display(ctk_display);
+
+    cur_mode = display->cur_mode;
+
+    if (!cur_mode || !cur_mode->modeline) {
+        return;
+    }
+
+    raster_size.height = cur_mode->modeline->data.vdisplay;
+    raster_size.width = cur_mode->modeline->data.hdisplay;
+
+    /* Update ViewPortOut, ViewPortIn and panning. Erase previous data */
+    apply_underscan_to_viewportout(raster_size, hpixel_value,
+                                   &cur_mode->viewPortOut);
+
+    ctk_display_layout_set_mode_viewport_in(ctk_display,
+                                            cur_mode,
+                                            cur_mode->viewPortOut.width,
+                                            cur_mode->viewPortOut.height,
+                                            TRUE /* update_panning_size */);
+
+    /* Enable the apply button */
+    gtk_widget_set_sensitive(ctk_object->btn_apply, TRUE);
+
+    /* Update status bar */
+    ctk_config_statusbar_message(ctk_object->ctk_config,
+                                 "Underscan set to %d horizontal pixels.",
+                                 hpixel_value);
+}
+
+
+
+/** display_underscan_value_changed() *********************************
+ *
+ * Called when user modifies the value of the Underscan slider.
+ *
+ **/
+static void display_underscan_value_changed(GtkAdjustment *adjustment,
+                                           gpointer user_data)
+{
+    CtkDisplayConfig *ctk_object = CTK_DISPLAY_CONFIG(user_data);
+    nvDisplayPtr display;
+    nvModePtr cur_mode;
+    int hpixel_value;
+    gfloat value;
+    gchar *txt_entry;
+
+    display = ctk_display_layout_get_selected_display
+        (CTK_DISPLAY_LAYOUT(ctk_object->obj_layout));
+
+    if (!display) {
+        return;
+    }
+
+    cur_mode = display->cur_mode;
+
+    if (!cur_mode || !cur_mode->modeline) {
+        return;
+    }
+
+    value = (gfloat) gtk_adjustment_get_value(adjustment);
+    hpixel_value = cur_mode->modeline->data.hdisplay * (value / 100);
+
+    txt_entry = g_strdup_printf("%d", hpixel_value);
+    gtk_entry_set_text(GTK_ENTRY(ctk_object->txt_display_underscan), txt_entry);
+    g_free(txt_entry);
+
+    post_display_underscan_value_changed(ctk_object, hpixel_value);
+}
+
+
+
+/** display_underscan_activate() **************************************
+ *
+ * Called when user modifies the display Underscan text entry.
+ *
+ * This then calls display_underscan_value_changed() by
+ * modifying the value of the Underscan slider.
+ *
+ **/
+static void display_underscan_activate(GtkWidget *widget,
+                                      gpointer user_data)
+{
+    CtkDisplayConfig *ctk_object = CTK_DISPLAY_CONFIG(user_data);
+    const gchar *txt_entry = gtk_entry_get_text(GTK_ENTRY(widget));
+    nvDisplayPtr display;
+    nvModePtr cur_mode;
+    int hdisplay, hpixel_value;
+    gfloat adj_value;
+
+    display = ctk_display_layout_get_selected_display
+        (CTK_DISPLAY_LAYOUT(ctk_object->obj_layout));
+
+    if (!display) {
+        return;
+    }
+
+    cur_mode = display->cur_mode;
+
+    if (!cur_mode || !cur_mode->modeline) {
+        return;
+    }
+
+    parse_read_integer(txt_entry, &hpixel_value);
+
+    hdisplay = cur_mode->modeline->data.hdisplay;
+    adj_value = ((gfloat) hpixel_value / hdisplay) * 100;
+
+    /* Sanitize adjustment value */
+    adj_value = MIN(adj_value, UNDERSCAN_MAX_PERCENT);
+    adj_value = MAX(adj_value, UNDERSCAN_MIN_PERCENT);
+
+    /* This sends a value_changed signal to the adjustment object */
+    gtk_adjustment_set_value(GTK_ADJUSTMENT(ctk_object->adj_display_underscan),
+                             adj_value);
+}
+
+
+
 /** display_position_type_changed() **********************************
  *
  * Called when user selects a new display position method (relative/
@@ -5876,8 +6349,8 @@ static void display_position_type_changed(GtkWidget *widget,
         ctk_display_layout_set_display_position
             (CTK_DISPLAY_LAYOUT(ctk_object->obj_layout),
              display, position_type, relative_to,
-             display->cur_mode->viewPortIn[X],
-             display->cur_mode->viewPortIn[Y]);
+             display->cur_mode->pan.x,
+             display->cur_mode->pan.y);
     }
 
 
@@ -5977,8 +6450,8 @@ static void display_position_offset_activate(GtkWidget *widget,
     }
 
     /* Make coordinates relative to top left of Screen */
-    x += display->cur_mode->metamode->edim[X];
-    y += display->cur_mode->metamode->edim[Y];
+    x += display->cur_mode->metamode->edim.x;
+    y += display->cur_mode->metamode->edim.y;
 
 
     /* Update the absolute position */
@@ -6019,7 +6492,8 @@ static void display_viewport_in_activate(GtkWidget *widget, gpointer user_data)
     }
 
     ctk_display_layout_set_mode_viewport_in
-        (CTK_DISPLAY_LAYOUT(ctk_object->obj_layout), display->cur_mode, w, h);
+        (CTK_DISPLAY_LAYOUT(ctk_object->obj_layout), display->cur_mode, w, h,
+         FALSE /* update_panning_size */);
 
 } /* display_viewport_in_activate() */
 
@@ -6285,8 +6759,8 @@ static void screen_position_type_changed(GtkWidget *widget,
         ctk_display_layout_set_screen_position
             (CTK_DISPLAY_LAYOUT(ctk_object->obj_layout),
              screen, position_type, relative_to,
-             screen->dim[X],
-             screen->dim[Y]);
+             screen->dim.x,
+             screen->dim.y);
     }
 
 
@@ -6652,8 +7126,8 @@ static Bool switch_to_current_metamode(CtkDisplayConfig *ctk_object,
 
     metamode = screen->cur_metamode;
 
-    new_width = metamode->edim[W];
-    new_height = metamode->edim[H];
+    new_width = metamode->edim.width;
+    new_height = metamode->edim.height;
     new_rate = metamode->id;
 
 
@@ -6787,7 +7261,7 @@ static Bool switch_to_current_metamode(CtkDisplayConfig *ctk_object,
     gtk_widget_grab_focus(ctk_object->btn_display_apply_cancel);
     result = gtk_dialog_run(GTK_DIALOG(ctk_object->dlg_display_confirm));
     gtk_widget_hide(ctk_object->dlg_display_confirm);
-    
+
     /* Kill the timer */
     g_source_remove(ctk_object->display_confirm_timer);
 
@@ -6795,7 +7269,7 @@ static Bool switch_to_current_metamode(CtkDisplayConfig *ctk_object,
     {
     case GTK_RESPONSE_ACCEPT:
         break;
-        
+
     case GTK_RESPONSE_REJECT:
     default:
         /* Fall back to previous settings */
@@ -6815,7 +7289,7 @@ static Bool switch_to_current_metamode(CtkDisplayConfig *ctk_object,
                                            NULL);
             if (ret != NvCtrlSuccess) {
                 nv_warning_msg("Failed to re-write current MetaMode (%d) to "
-                               "'%s' on X screen $d!",
+                               "'%s' on X screen %d!",
                                old_rate,
                                cur_metamode_str,
                                NvCtrlGetTargetId(screen->handle));
@@ -7357,8 +7831,8 @@ static int update_screen_metamodes(CtkDisplayConfig *ctk_object,
 
             ctk_config_statusbar_message(ctk_object->ctk_config,
                                          "Switched to MetaMode %dx%d.",
-                                         screen->cur_metamode->edim[W],
-                                         screen->cur_metamode->edim[H]);
+                                         screen->cur_metamode->edim.width,
+                                         screen->cur_metamode->edim.height);
 
             nv_info_msg(TAB, "Using   > %s", screen->cur_metamode->string);
 
@@ -7769,9 +8243,9 @@ static Bool add_display_to_screen(nvScreenPtr screen,
     /* Configure the virtual screen size */
     if (screen->no_scanout) {
         conf_display = conf_screen->displays;
-        
-        conf_display->virtualX = screen->dim[W];
-        conf_display->virtualY = screen->dim[H];
+
+        conf_display->virtualX = screen->dim.width;
+        conf_display->virtualY = screen->dim.height;
     }
 
     /* XXX Don't do any further tweaking to the display subsection.
@@ -7786,7 +8260,7 @@ static Bool add_display_to_screen(nvScreenPtr screen,
     xconfigFreeDisplayList(&conf_screen->displays);
 
     return FALSE;
-    
+
 } /* add_display_to_screen() */
 
 
@@ -8074,11 +8548,11 @@ static Bool add_adjacency_to_xconfig(nvScreenPtr screen, XConfigPtr config)
     adj->scrnum = screen->scrnum;
     adj->screen = screen->conf_screen;
     adj->screen_name = xconfigStrdup(screen->conf_screen->identifier);
-    
+
     /* Position the X screen */
     if (screen->position_type == CONF_ADJ_ABSOLUTE) {
-        adj->x = screen->dim[X];
-        adj->y = screen->dim[Y];
+        adj->x = screen->dim.x;
+        adj->y = screen->dim.y;
     } else {
         adj->where = screen->position_type;
         adj->refscreen =

@@ -65,7 +65,8 @@ static ParsedAttributeWrapper *parse_config_file(char *buf,
 
 static int process_config_file_attributes(const char *file,
                                           ParsedAttributeWrapper *w,
-                                          const char *display_name);
+                                          const char *display_name,
+                                          CtrlHandlesArray *handles_array);
 
 static void save_gui_parsed_attributes(ParsedAttributeWrapper *w,
                                        ParsedAttribute *p);
@@ -101,7 +102,8 @@ extern int __verbosity_level_changed;
  */
 
 int nv_read_config_file(const char *file, const char *display_name,
-                        ParsedAttribute *p, ConfigProperties *conf)
+                        ParsedAttribute *p, ConfigProperties *conf,
+                        CtrlHandlesArray *handles_array)
 {
     int fd, ret, length;
     struct stat stat_buf;
@@ -180,7 +182,8 @@ int nv_read_config_file(const char *file, const char *display_name,
 
     /* process the parsed attributes */
 
-    ret = process_config_file_attributes(file, w, display_name);
+    ret = process_config_file_attributes(file, w, display_name, 
+                                         handles_array);
 
     /*
      * add any relevant parsed attributes back to the list to be
@@ -214,7 +217,6 @@ int nv_write_config_file(const char *filename, CtrlHandles *h,
     int screen, ret, entry, bit, val, display, randr_gamma_available;
     FILE *stream;
     time_t now;
-    AttributeTableEntry *a;
     ReturnStatus status;
     NVCTRLAttributeValidValuesRec valid;
     uint32 mask;
@@ -301,9 +303,8 @@ int nv_write_config_file(const char *filename, CtrlHandles *h,
         /* loop over all the entries in the table */
 
         for (entry = 0; attributeTable[entry].name; entry++) {
+            const AttributeTableEntry *a = &attributeTable[entry];
 
-            a = &attributeTable[entry];
-            
             /* 
              * skip all attributes that are not supposed to be written
              * to the config file
@@ -422,9 +423,8 @@ int nv_write_config_file(const char *filename, CtrlHandles *h,
         /* loop over all the entries in the table */
 
         for (entry = 0; attributeTable[entry].name; entry++) {
+            const AttributeTableEntry *a = &attributeTable[entry];
 
-            a = &attributeTable[entry];
-            
             /* 
              * skip all attributes that are not supposed to be written
              * to the config file
@@ -487,7 +487,7 @@ int nv_write_config_file(const char *filename, CtrlHandles *h,
         if ((p->flags & NV_PARSER_HAS_TARGET) &&
             (p->target_type != NV_CTRL_TARGET_TYPE_X_SCREEN)) {
 
-            TargetTypeEntry *targetTypeEntry;
+            const TargetTypeEntry *targetTypeEntry;
 
             /* Find the target name of the target type */
             targetTypeEntry = nv_get_target_type_entry_by_nvctrl(p->target_type);
@@ -584,7 +584,7 @@ static ParsedAttributeWrapper *parse_config_file(char *buf, const char *file,
                 if (tmp) {
                     free(tmp);
                 }
-                tmp = malloc(sizeof(char) * current_tmp_len);
+                tmp = nvalloc(sizeof(char) * current_tmp_len);
             }
 
             strncpy (tmp, cur, len);
@@ -594,7 +594,7 @@ static ParsedAttributeWrapper *parse_config_file(char *buf, const char *file,
 
             if (!parse_config_property(file, tmp, conf)) {
                 
-                w = realloc(w, sizeof(ParsedAttributeWrapper) * (n+1));
+                w = nvrealloc(w, sizeof(ParsedAttributeWrapper) * (n+1));
             
                 ret = nv_parse_attribute_string(tmp,
                                                 NV_PARSER_ASSIGNMENT,
@@ -619,7 +619,7 @@ static ParsedAttributeWrapper *parse_config_file(char *buf, const char *file,
     free(tmp);
     /* mark the end of the array */
 
-    w = realloc(w, sizeof(ParsedAttributeWrapper) * (n+1));
+    w = nvrealloc(w, sizeof(ParsedAttributeWrapper) * (n+1));
     w[n].line = -1;
     
     return w;
@@ -642,10 +642,10 @@ static ParsedAttributeWrapper *parse_config_file(char *buf, const char *file,
 
 static int process_config_file_attributes(const char *file,
                                           ParsedAttributeWrapper *w,
-                                          const char *display_name)
+                                          const char *display_name,
+                                          CtrlHandlesArray *handles_array)
 {
-    int i, j, found, n = 0;
-    CtrlHandles **h = NULL;
+    int i;
     
     int old_verbosity = __verbosity;
 
@@ -668,32 +668,8 @@ static int process_config_file_attributes(const char *file,
     /* build the list of CtrlHandles */
     
     for (i = 0; w[i].line != -1; i++) {
-        found = NV_FALSE;
-        for (j = 0; j < n; j++) {
-            if (nv_strcasecmp(h[j]->display, w[i].a.display)) {
-                w[i].h = h[j];
-                found = NV_TRUE;
-                break;
-            }
-        }
-
-        /*
-         * no handle found for this display, need to create a new
-         * handle.
-         *
-         * XXX we should really just build a list of what ctrl_handles
-         * we need, and what attributes on which ctrl_handles, so that
-         * we don't have to pass NV_CTRL_ATTRIBUTES_ALL_SUBSYSTEMS to
-         * NvCtrlAttributeInit (done in nv_alloc_ctrl_handles())
-         * unless we really need it.
-         */
-
-        if (!found) {
-            h = realloc(h, sizeof(CtrlHandles *) * (n + 1));
-            h[n] = nv_alloc_ctrl_handles(w[i].a.display);
-            w[i].h = h[n];
-            n++;
-        }
+        w[i].h = nv_alloc_ctrl_handles_and_add_to_array(w[i].a.display, 
+                                                        handles_array);
     }
     
     /* now process each attribute, passing in the correct CtrlHandles */
@@ -717,15 +693,6 @@ static int process_config_file_attributes(const char *file,
     if (!__verbosity_level_changed) {
         __verbosity = old_verbosity;
     }
-
-    /* free all the CtrlHandles we allocated */
-
-    for (i = 0; i < n; i++) {
-        nv_free_ctrl_handles(h[i]);
-    }
-    
-    if (h) free(h);
-
 
     return NV_TRUE;
     
@@ -791,6 +758,8 @@ ConfigPropertiesTableEntry configPropertyTable[] = {
     { "IncludeDisplayNameInConfigFile",
       CONFIG_PROPERTIES_INCLUDE_DISPLAY_NAME_IN_CONFIG_FILE },
     { "ShowQuitDialog", CONFIG_PROPERTIES_SHOW_QUIT_DIALOG },
+    { "UpdateRulesOnProfileNameChange",
+      CONFIG_PROPERTIES_UPDATE_RULES_ON_PROFILE_NAME_CHANGE },
     { NULL, 0 }
 };
 
@@ -838,23 +807,9 @@ static int parse_config_property(const char *file, const char *line, ConfigPrope
         if (!token)
             goto done;
 
-        c = malloc(sizeof(TimerConfigProperty));
-        if (!c) {
-            nv_warning_msg("Error parsing configuration file '%s': could "
-                           "not allocate memory for timer '%s'.",
-                           file, timer);
-            ret = NV_TRUE;
-            goto done;
-        }
+        c = nvalloc(sizeof(TimerConfigProperty));
 
         c->description = replace_characters(token, '_', ' ');
-        if (!c->description) {
-            nv_warning_msg("Error parsing configuration file '%s': could "
-                           "not allocate memory for timer '%s'.",
-                           file, timer);
-            ret = NV_TRUE;
-            goto done;
-        }
 
         token = strtok(NULL, ",");
         if (!token)
@@ -940,8 +895,6 @@ static void write_config_properties(FILE *stream, ConfigProperties *conf, char *
 
     for (c = conf->timers; (c != NULL); c = c->next) {
         description = replace_characters(c->description, ' ', '_');
-        if (!description)
-            continue;
         fprintf(stream, "Timer = %s,%s,%u\n",
                 description, c->user_enabled ? "Yes" : "No",
                 c->interval);
@@ -964,7 +917,8 @@ void init_config_properties(ConfigProperties *conf)
         (CONFIG_PROPERTIES_TOOLTIPS |
          CONFIG_PROPERTIES_DISPLAY_STATUS_BAR |
          CONFIG_PROPERTIES_SLIDER_TEXT_ENTRIES |
-         CONFIG_PROPERTIES_SHOW_QUIT_DIALOG);
+         CONFIG_PROPERTIES_SHOW_QUIT_DIALOG |
+         CONFIG_PROPERTIES_UPDATE_RULES_ON_PROFILE_NAME_CHANGE);
 
     conf->locale = strdup(setlocale(LC_NUMERIC, NULL));
 

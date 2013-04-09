@@ -79,8 +79,7 @@ GType       ctk_color_correction_page_get_type  (void) G_GNUC_CONST;
 GtkWidget*  ctk_color_correction_page_new       (NvCtrlAttributeHandle *,
                                                  CtkConfig *, ParsedAttribute *,
                                                  CtkEvent *);
-GtkTextBuffer *ctk_color_correction_page_create_help(GtkTextTagTable *,
-                                                     const gchar *title);
+GtkTextBuffer *ctk_color_correction_page_create_help(GtkTextTagTable *);
 
 G_END_DECLS
 

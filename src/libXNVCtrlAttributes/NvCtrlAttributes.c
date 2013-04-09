@@ -22,6 +22,7 @@
 
 #include "NVCtrlLib.h"
 
+#include "common-utils.h"
 #include "msg.h"
 
 #include "parse.h"
@@ -45,11 +46,7 @@ NvCtrlAttributeHandle *NvCtrlAttributeInit(Display *dpy, int target_type,
 {
     NvCtrlAttributePrivateHandle *h = NULL;
 
-    h = calloc(1, sizeof (NvCtrlAttributePrivateHandle));
-    if (!h) {
-        nv_error_msg("Memory allocation failure!");
-        goto failed;
-    }
+    h = nvalloc(sizeof (NvCtrlAttributePrivateHandle));
 
     /* initialize the display and screen to the parameter values */
 
@@ -589,32 +586,12 @@ NvCtrlSetDisplayAttribute(NvCtrlAttributeHandle *handle,
     NvCtrlAttributePrivateHandle *h;
 
     h = (NvCtrlAttributePrivateHandle *) handle;
-    
+
     if ((attr >= 0) && (attr <= NV_CTRL_LAST_ATTRIBUTE)) {
         if (!h->nv) return NvCtrlMissingExtension;
         return NvCtrlNvControlSetAttribute(h, display_mask, attr, val);
     }
 
-    return NvCtrlNoAttribute;
-
-} /* NvCtrlSetDisplayAttribute() */
-
-
-ReturnStatus
-NvCtrlSetDisplayAttributeWithReply(NvCtrlAttributeHandle *handle,
-                                   unsigned int display_mask,
-                                   int attr, int val)
-{
-    NvCtrlAttributePrivateHandle *h;
-    
-    h = (NvCtrlAttributePrivateHandle *) handle;
-    
-    if ((attr >= 0) && (attr <= NV_CTRL_LAST_ATTRIBUTE)) {
-        if (!h->nv) return NvCtrlMissingExtension;
-        return NvCtrlNvControlSetAttributeWithReply(h, display_mask,
-                                                    attr, val);
-    }
-    
     return NvCtrlNoAttribute;
 }
 

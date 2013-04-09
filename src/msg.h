@@ -23,10 +23,12 @@
 #include <stdarg.h>
 #include <stdio.h>
 
-void  nv_error_msg(const char*, ...);
-void  nv_warning_msg(const char*, ...);
-void  nv_info_msg(const char*, const char*, ...);
-void  nv_msg(const char*, const char*, ...);
-void  nv_msg_preserve_whitespace(const char*, const char*, ...);
+#include "common-utils.h"
+
+void nv_error_msg(const char*, ...)                            NV_ATTRIBUTE_PRINTF(1, 2);
+void nv_warning_msg(const char*, ...)                          NV_ATTRIBUTE_PRINTF(1, 2);
+void nv_info_msg(const char*, const char*, ...)                NV_ATTRIBUTE_PRINTF(2, 3);
+void nv_msg(const char*, const char*, ...)                     NV_ATTRIBUTE_PRINTF(2, 3);
+void nv_msg_preserve_whitespace(const char*, const char*, ...) NV_ATTRIBUTE_PRINTF(2, 3);
 
 #endif /* __MSG_H__ */

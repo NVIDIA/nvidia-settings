@@ -31,6 +31,7 @@
 #include "ctkhelp.h"
 #include "ctkevent.h"
 #include "ctkconstants.h"
+#include "ctkdropdownmenu.h"
 
 
 
@@ -69,7 +70,7 @@ static void set_clocks_value(CtkClocks *ctk_object, int clocks,
 static void adjustment_value_changed(GtkAdjustment *adjustment,
                                      gpointer user_data);
 
-static void clock_menu_changed(GtkOptionMenu *option_menu, gpointer user_data);
+static void clock_menu_changed(GtkWidget *widget, gpointer user_data);
 
 static void apply_clocks_clicked(GtkWidget *widget, gpointer user_data);
 static void detect_clocks_clicked(GtkWidget *widget, gpointer user_data);
@@ -191,8 +192,7 @@ GtkWidget* ctk_clocks_new(NvCtrlAttributeHandle *handle,
     GtkObject *adjustment;
     GtkWidget *alignment;
     GtkWidget *scale;
-    GtkWidget *menu;
-    GtkWidget *menu_item;
+    CtkDropDownMenu *menu;
 
     GtkWidget *label;   
 
@@ -203,7 +203,7 @@ GtkWidget* ctk_clocks_new(NvCtrlAttributeHandle *handle,
 
 
     ReturnStatus ret;  /* NvCtrlxxx function return value */
-    int value;
+    int value, i = 0;
     int clocks_2D;
     NVCTRLAttributeValidValuesRec ranges_2D;
     NVCTRLAttributeValidValuesRec range_detection;
@@ -294,21 +294,19 @@ GtkWidget* ctk_clocks_new(NvCtrlAttributeHandle *handle,
 
     /* Create the Clock menu widget */
 
-    menu = gtk_menu_new();
+    menu = (CtkDropDownMenu *)
+        ctk_drop_down_menu_new(CTK_DROP_DOWN_MENU_FLAG_COMBO);
+    i = 0;
         
     if ( can_access_2d_clocks ) {
-        menu_item = gtk_menu_item_new_with_label("2D Clock Frequencies");
-        gtk_menu_shell_append(GTK_MENU_SHELL(menu), menu_item);
+            ctk_drop_down_menu_append_item(menu, "2D Clock Frequencies", i++);
     }
 
     if ( can_access_3d_clocks ) {
-        menu_item = gtk_menu_item_new_with_label("3D Clock Frequencies");
-        gtk_menu_shell_append(GTK_MENU_SHELL(menu), menu_item);
+            ctk_drop_down_menu_append_item(menu, "3D Clock Frequencies", i++);
     }
     
-    ctk_object->clock_menu = gtk_option_menu_new ();
-    gtk_option_menu_set_menu
-        (GTK_OPTION_MENU(ctk_object->clock_menu), menu);
+    ctk_object->clock_menu = GTK_WIDGET(menu);
 
     g_signal_connect(G_OBJECT(ctk_object->clock_menu), "changed",
                      G_CALLBACK(clock_menu_changed),
@@ -915,7 +913,9 @@ static void sync_gui_to_modify_clocks(CtkClocks *ctk_object, int which_clocks)
     int clk_values;
     int default_clk_values;
     NVCTRLAttributeValidValuesRec clk_ranges;
-
+    CtkDropDownMenu *menu;
+    
+    menu = CTK_DROP_DOWN_MENU(ctk_object->clock_menu);
 
 
     /* Obtain the current value and range of the desired clocks */
@@ -975,8 +975,7 @@ static void sync_gui_to_modify_clocks(CtkClocks *ctk_object, int which_clocks)
                                     G_CALLBACK(clock_menu_changed),
                                     (gpointer) ctk_object);
 
-    gtk_option_menu_set_history(GTK_OPTION_MENU(ctk_object->clock_menu),
-                                (which_clocks==CLOCKS_2D)?0:1);
+    ctk_drop_down_menu_set_current_value(menu, (which_clocks==CLOCKS_2D)?0:1);
 
     g_signal_handlers_unblock_by_func(G_OBJECT(ctk_object->clock_menu),
                                       G_CALLBACK(clock_menu_changed),
@@ -1084,15 +1083,16 @@ static void adjustment_value_changed(GtkAdjustment *adjustment,
  * Signal handler - User selected a clock set from the clock menu.
  *
  */
-static void clock_menu_changed(GtkOptionMenu *option_menu, gpointer user_data)
+static void clock_menu_changed(GtkWidget *widget, gpointer user_data)
 {
     CtkClocks *ctk_object = CTK_CLOCKS(user_data);
+    CtkDropDownMenu *menu = CTK_DROP_DOWN_MENU(widget);
     gint history;
 
 
     /* Sync to allow user to modify the clocks */
 
-    history = gtk_option_menu_get_history(option_menu);
+    history = ctk_drop_down_menu_get_current_value(menu);
     switch (history) {
     default:
         /* Fall throught */

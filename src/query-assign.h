@@ -54,6 +54,8 @@ typedef struct {
     uint32 c;                 /* Connected display device mask for target */
     char *name;               /* Name for this target */
     char *protoNames[NV_DPY_PROTO_NAME_MAX];  /* List of valid names for this target */
+
+    struct _CtrlHandleTargetNode *relations; /* List of associated targets */
 } CtrlHandleTarget;
 
 typedef struct {
@@ -67,17 +69,35 @@ typedef struct {
     CtrlHandleTargets targets[MAX_TARGET_TYPES];
 } CtrlHandles;
 
+/* Used to keep track of lists of targets */
+typedef struct _CtrlHandleTargetNode {
+    struct _CtrlHandleTargetNode *next;
+    CtrlHandleTarget *t;
+} CtrlHandleTargetNode;
 
-int nv_process_assignments_and_queries(Options *op);
+typedef struct _CtrlHandlesArray {
+    int n;               /* number of CtrlHandles */
+    CtrlHandles **array; /* dynamically allocated array of CtrlHandles */
+} CtrlHandlesArray;
 
-CtrlHandles *nv_alloc_ctrl_handles(const char *display);
-void nv_free_ctrl_handles(CtrlHandles *h);
+int nv_process_assignments_and_queries(const Options *op, 
+                                       CtrlHandlesArray *handles_array);
 
-NvCtrlAttributeHandle *nv_get_target_handle(CtrlHandles *handles,
+CtrlHandles *
+    nv_alloc_ctrl_handles_and_add_to_array(const char *display, 
+                                           CtrlHandlesArray *handles_array);
+
+void nv_free_ctrl_handles_array(CtrlHandlesArray *handles_array);
+
+CtrlHandles *nv_get_ctrl_handles(const char *display, 
+                                 CtrlHandlesArray *handles_array);
+
+NvCtrlAttributeHandle *nv_get_target_handle(const CtrlHandles *handles,
                                             int target_type,
                                             int target_id);
 
 int nv_process_parsed_attribute(ParsedAttribute*, CtrlHandles *h,
-                                int, int, char*, ...);
+                                int, int, char*, ...) NV_ATTRIBUTE_PRINTF(5, 6);
 
+void nv_target_list_free(CtrlHandleTargetNode *head);
 #endif /* __QUERY_ASSIGN_H__ */

@@ -46,7 +46,6 @@
 #include "ctkcolorcorrection.h"
 #include "ctkcolorcorrectionpage.h"
 #include "ctkxvideo.h"
-#include "ctkcursorshadow.h"
 #include "ctkopengl.h"
 #include "ctkglx.h"
 #include "ctkmultisample.h"
@@ -62,6 +61,9 @@
 #include "ctkdisplayconfig.h"
 #include "ctkserver.h"
 #include "ctkecc.h"
+#include "ctkvdpau.h"
+
+#include "ctkappprofile.h"
 
 #include "ctkhelp.h"
 #include "ctkevent.h"
@@ -687,10 +689,9 @@ GtkWidget *ctk_window_new(ParsedAttribute *p, ConfigProperties *conf,
                                                   ctk_window->attribute_list,
                                                   ctk_event);
             if (child) {
-                const char *title = "X Server Color Correction";
-                help = ctk_color_correction_page_create_help(tag_table, title);
+                help = ctk_color_correction_page_create_help(tag_table);
                 add_page(child, help, ctk_window, &iter, NULL,
-                         title, NULL, NULL, NULL);
+                         "X Server Color Correction", NULL, NULL, NULL);
             }
         }
 
@@ -701,16 +702,6 @@ GtkWidget *ctk_window_new(ParsedAttribute *p, ConfigProperties *conf,
             help = ctk_xvideo_create_help(tag_table, CTK_XVIDEO(child));
             add_page(child, help, ctk_window, &iter, NULL,
                      "X Server XVideo Settings", NULL, NULL, NULL);
-        }
-
-        /* cursor shadow */
-
-        child = ctk_cursor_shadow_new(screen_handle, ctk_config, ctk_event);
-        if (child) {
-            help = ctk_cursor_shadow_create_help(tag_table,
-                                                 CTK_CURSOR_SHADOW(child));
-            add_page(child, help, ctk_window, &iter, NULL, "Cursor Shadow",
-                     NULL, NULL, NULL);
         }
 
         /* opengl settings */
@@ -744,6 +735,14 @@ GtkWidget *ctk_window_new(ParsedAttribute *p, ConfigProperties *conf,
         }
 
 
+        /* VDPAU Information */
+        child = ctk_vdpau_new(screen_handle, ctk_config, ctk_event);
+        if (child) {
+            help = ctk_vdpau_create_help(tag_table, CTK_VDPAU(child));
+            add_page(child, help, ctk_window, &iter, NULL, "VDPAU Information",
+                     NULL, NULL, NULL);
+        }
+        
         /* gvo (Graphics To Video Out) */
         
         child = ctk_gvo_new(screen_handle, ctk_config, ctk_event);
@@ -1035,11 +1034,17 @@ GtkWidget *ctk_window_new(ParsedAttribute *p, ConfigProperties *conf,
                  ctk_3d_vision_pro_select, ctk_3d_vision_pro_unselect);
     }
 
+    /* app profile configuration */
+    widget = ctk_app_profile_new(ctk_config);
+
+    add_page(widget, ctk_app_profile_create_help(CTK_APP_PROFILE(widget), tag_table),
+             ctk_window, NULL, NULL, "Application Profiles",
+             NULL, NULL, NULL);
 
     /* nvidia-settings configuration */
 
     add_page(GTK_WIDGET(ctk_window->ctk_config),
-             ctk_config_create_help(tag_table),
+             ctk_config_create_help(ctk_config, tag_table),
              ctk_window, NULL, NULL, "nvidia-settings Configuration",
              NULL, NULL, NULL);
 
@@ -1211,15 +1216,19 @@ static void add_page(GtkWidget *widget, GtkTextBuffer *help,
     if (!child_iter) child_iter = &tmp_child_iter;
 
     /*
-     * add another reference to the widget, so that it doesn't get
-     * destroyed the next time it gets hidden (removed from the page
-     * viewer).
+     * Add a reference to the object and sink (remove) the floating (gtk)
+     * reference.  This sink needs to happen before the page gets packed
+     * to ensure that we become the propper owner of these widgets.  This way,
+     * page will not be destroyed when they are hidden (removed from the page
+     * viewer), and we can properly destroy them when needed (for example, the
+     * display device pages are destroyed/recreated on hotplug events.)
      */
-    
-    gtk_object_ref(GTK_OBJECT(widget));
-    
+
+    g_object_ref(G_OBJECT(widget));
+    gtk_object_sink(GTK_OBJECT(widget));
+
     gtk_tree_store_append(ctk_window->tree_store, child_iter, iter);
-    
+
     gtk_tree_store_set(ctk_window->tree_store, child_iter,
                        CTK_WINDOW_LABEL_COLUMN, label, -1);
     gtk_tree_store_set(ctk_window->tree_store, child_iter,
