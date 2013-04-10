@@ -6,8 +6,8 @@
 
 /* Interface to the Solaris Service Management Facility.
  * This facility is responsible for running programs and services
- * and store their configuration informations (named properties)
- * The configuration informations for the X server are managed by 
+ * and store their configuration information (named properties)
+ * The configuration information for the X server are managed by 
  * this facility. The functions in this source file use the library 
  * libscf (Service Configuration Facility) to access and modify 
  * the properties for the X server, more specifically the default depth. 
@@ -135,8 +135,8 @@ static int lscf_select(scf_handle_t *scf_handle,
 {
     scf_service_t *svc;
     
-    // Services are childrens of a  scope, and 
-    // contain configuration informations for 
+    // Services are children of a scope, and 
+    // contain configuration information for 
     // the service. 
     svc = scf_service_create(scf_handle);
     if (svc == NULL) {

@@ -138,7 +138,7 @@ CFLAGS     += -I xpm_data
 CFLAGS     += -I gtk+-2.x
 CFLAGS     += -I $(COMMON_UTILS_DIR)
 CFLAGS     += -I $(OUTPUTDIR)
-CFLAGS     += -DPROGRAM_NAME=\"nvidia-setttings\"
+CFLAGS     += -DPROGRAM_NAME=\"nvidia-settings\"
 
 $(call BUILD_OBJECT_LIST,$(GTK_SRC)): CFLAGS += $(GTK_CFLAGS)
 

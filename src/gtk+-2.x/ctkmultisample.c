@@ -123,7 +123,7 @@ static const char *__aa_override_app_help =
 
 static const char *__aa_menu_help =
 "The Application Antialiasing Settings Menu allows the antialiasing "
-"setting of OpenGL applications to be overriden with the value of "
+"setting of OpenGL applications to be overridden with the value of "
 "the slider.";
 
 static const char *__aa_slider_help =

@@ -2066,7 +2066,7 @@ int nv_process_parsed_attribute(ParsedAttribute *a, CtrlHandles *h,
             status = NvCtrlGetAttribute(t->h, NV_CTRL_FRAMELOCK, &available);
             if (status != NvCtrlSuccess) {
                 nv_error_msg("The attribute '%s' specified %s cannot be "
-                             "%s; error querying frame lock availablity on "
+                             "%s; error querying frame lock availability on "
                              "%s (%s).",
                              a->name, whence, assign ? "assigned" : "queried",
                              t->name, NvCtrlAttributesStrError(status));
@@ -2128,7 +2128,7 @@ int nv_process_parsed_attribute(ParsedAttribute *a, CtrlHandles *h,
                                         &available);
             if (status != NvCtrlSuccess) {
                 nv_error_msg("The attribute '%s' specified %s cannot be "
-                             "%s; error querying SDI availablity on "
+                             "%s; error querying SDI availability on "
                              "%s (%s).",
                              a->name, whence, assign ? "assigned" : "queried",
                              t->name, NvCtrlAttributesStrError(status));
