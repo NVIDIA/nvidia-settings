@@ -115,6 +115,11 @@ void ctk_config_set_tooltip_and_add_help_data(CtkConfig *config,
                                               const gchar *help_text,
                                               const gchar *extended_help_text);
 
+// Helper functions for other components which use CtkStatusBar
+void ctk_statusbar_init(CtkStatusBar *status_bar);
+void ctk_statusbar_message(CtkStatusBar *status_bar, const gchar *str);
+void ctk_statusbar_clear(CtkStatusBar *status_bar);
+
 G_END_DECLS
 
 #endif /* __CTK_CONFIG_H__ */

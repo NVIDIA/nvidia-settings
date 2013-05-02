@@ -319,6 +319,19 @@ char *tilde_expansion(const char *str)
 } /* tilde_expansion() */
 
 
+/*
+ * nv_prepend_to_string_list() - add a new string to a string list, delimited
+ * by the given string delimiter. The original list is freed.
+ */
+
+char *nv_prepend_to_string_list(char *list, const char *item, const char *delim)
+{
+    char *new_list = nvstrcat(item, list ? delim : NULL, list, NULL);
+    nvfree(list);
+    return new_list;
+}
+
+
 /****************************************************************************/
 /* TextRows helper functions */
 /****************************************************************************/
@@ -692,4 +705,90 @@ char *nvstrchrnul(char *s, int c)
         return (s + strlen(s));
     }
     return result;
+}
+
+
+/****************************************************************************/
+/* string helper functions */
+/****************************************************************************/
+
+/*
+ * nv_trim_space() - remove any leading and trailing whitespace from a string
+ * and return a pointer to the modified string. The original string may be
+ * modified; the returned value should *NOT* be deallocated with free(), since
+ * it may point somewhere other than the beginning of the original string. If
+ * the original string was a malloc()ed buffer, that string should be stored
+ * separately from the returned value of nv_strip_space, and freed.
+ */
+
+char *nv_trim_space(char *string) {
+    char *ret, *end;
+
+    for (ret = string; *ret && isspace(*ret); ret++);
+    for (end = ret + strlen(ret); end >= ret && isspace(*end); end--) {
+        *end = '\0';
+    }
+
+    return ret;
+}
+
+/*
+ * trim_char() - helper function to remove a character from the initial and
+ * final positions of a string, and optionally report how many replacements
+ * were made. The returned value should not be free()d (see nv_trim_space()).
+ */
+
+static char *trim_char(char *string, char trim, int *count) {
+    int len, replaced = 0;
+
+    if (!string || trim == '\0') {
+        return NULL;
+    }
+
+    len = strlen(string);
+
+    if (string[0] == trim) {
+        string++;
+        replaced++;
+    }
+
+    if (string[len - 1] == trim) {
+        string[len - 1] = '\0';
+        replaced++;
+    }
+
+    if (count) {
+        *count = replaced;
+    }
+
+    return string;
+}
+
+/*
+ * nv_trim_char() - remove a character from the initial and final positions of
+ * a string. The returned value should not be free()d (see nv_trim_space()).
+ */
+
+char *nv_trim_char(char *string, char trim) {
+    return trim_char(string, trim, NULL);
+}
+
+/*
+ * nv_trim_char_strict() - remove a character from the initial and final
+ * positions of a string. If no replacements were made, or if replacements were
+ * made at both positions, return the modified string. Otherwise, return NULL.
+ * The returned value should not be free()d (see nv_trim_space()).
+ */
+
+char *nv_trim_char_strict(char *string, char trim) {
+    int count = 0;
+    char *trimmed;
+
+    trimmed = trim_char(string, trim, &count);
+
+    if (count == 0 || count == 2) {
+        return trimmed;
+    }
+
+    return NULL;
 }

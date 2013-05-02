@@ -191,7 +191,9 @@ static const char * __dpy_configuration_mnu_help =
 
 static const char * __dpy_resolution_mnu_help =
 "The Resolution drop-down allows you to select a desired resolution "
-"for the currently selected display device.";
+"for the currently selected display device.  The 'scaled' qualifier indicates "
+"an aspect-scaled common resolution simulated through a MetaMode ViewPort "
+"configuration.";
 
 static const char * __dpy_refresh_mnu_help =
 "The Refresh drop-down allows you to select a desired refresh rate "
@@ -5519,17 +5521,35 @@ static void do_configure_display_for_xscreen(CtkDisplayConfig *ctk_object,
     }
 
 
-    /* Translate mode positional relationships to screen relationships */
+    /* Set the position of all the new screens to the position of the displays
+     * for the current mode.
+     */
     for (display = gpu->displays; display; display = display->next_on_gpu) {
+        nvModePtr cur_mode;
 
         if (!display->screen) continue;
 
+        cur_mode = display->cur_mode;
+        if (!cur_mode) {
+            continue;
+        }
+
+        /* Translate the positional relationship of the current mode from
+         * the display to its screen.
+         */
+        if (cur_mode->relative_to &&
+            (cur_mode->relative_to->gpu == cur_mode->display->gpu)) {
+            display->screen->position_type = cur_mode->position_type;
+            display->screen->relative_to = cur_mode->relative_to->screen;
+        }
+
+        /* Position the modes of the display to be where the current mode is,
+         * and to use absolute positioning since it should now be the only
+         * display in the X screen.
+         */
         for (mode = display->modes; mode; mode = mode->next) {
-            if (mode->relative_to &&
-                (mode->relative_to->gpu == mode->display->gpu)) {
-                display->screen->position_type = mode->position_type;
-                display->screen->relative_to = mode->relative_to->screen;
-            }
+            mode->pan.x = cur_mode->pan.x;
+            mode->pan.y = cur_mode->pan.y;
             mode->position_type = CONF_ADJ_ABSOLUTE;
             mode->relative_to = NULL;
         }

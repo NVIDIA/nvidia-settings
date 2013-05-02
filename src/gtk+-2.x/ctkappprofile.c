@@ -178,6 +178,7 @@ enum {
 typedef struct _WidgetDataItem {
     gchar *label;
     GtkWidget *widget;
+    guint flags;
 } WidgetDataItem;
 
 /*
@@ -188,10 +189,13 @@ typedef struct _ToolbarItemTemplate {
     const gchar *icon_id;
     GCallback callback;
     gpointer user_data;
+    guint flags;
 
     const gchar *help_text;
     const gchar *extended_help_text;
 } ToolbarItemTemplate;
+
+#define TOOLBAR_ITEM_GHOST_IF_NOTHING_SELECTED (1 << 0)
 
 /*
  * Template used to construct tree view columns and generate help text with
@@ -395,13 +399,29 @@ static void widget_data_list_free_full(GList *list)
     g_list_free(list);
 }
 
+static void tree_view_cursor_changed_toolbar_item_ghost(GtkTreeView *tree_view,
+                                                        gpointer user_data)
+{
+    GtkTreePath *path;
+    GtkWidget *widget = (GtkWidget *)user_data;
+
+    gtk_tree_view_get_cursor(tree_view, &path, NULL);
+    if (path) {
+        gtk_widget_set_sensitive(widget, TRUE);
+    } else {
+        gtk_widget_set_sensitive(widget, FALSE);
+    }
+    gtk_tree_path_free(path);
+}
+
 
 /* Simple helper function to fill a toolbar with buttons from a table */
 static void populate_toolbar(GtkToolbar *toolbar,
                              const ToolbarItemTemplate *item,
                              size_t num_items,
                              GList **help_data,
-                             GList **widget_data)
+                             GList **widget_data,
+                             GtkTreeView *selection_tree_view)
 {
     WidgetDataItem *widget_data_item;
     GtkWidget *widget;
@@ -439,6 +459,16 @@ static void populate_toolbar(GtkToolbar *toolbar,
             widget_data_item->widget = widget;
             *widget_data = g_list_prepend(*widget_data, widget_data_item);
         }
+
+        if (item->flags & TOOLBAR_ITEM_GHOST_IF_NOTHING_SELECTED) {
+            assert(selection_tree_view);
+            g_signal_connect(G_OBJECT(selection_tree_view), "cursor-changed",
+                G_CALLBACK(tree_view_cursor_changed_toolbar_item_ghost),
+                (gpointer)widget);
+            tree_view_cursor_changed_toolbar_item_ghost(selection_tree_view,
+                                                        (gpointer)widget);
+        }
+
         item++;
     }
 
@@ -1834,6 +1864,7 @@ static ToolbarItemTemplate *get_edit_rule_dialog_toolbar_items(EditRuleDialog *d
             .icon_id = GTK_STOCK_SAVE,
             .callback = G_CALLBACK(edit_rule_dialog_save_changes),
             .user_data = dialog,
+            .flags = 0,
         },
         {
             .text = "Cancel",
@@ -1841,6 +1872,7 @@ static ToolbarItemTemplate *get_edit_rule_dialog_toolbar_items(EditRuleDialog *d
             .icon_id = GTK_STOCK_CANCEL,
             .callback = G_CALLBACK(edit_rule_dialog_cancel),
             .user_data = dialog,
+            .flags = 0,
         }
     };
 
@@ -2038,12 +2070,15 @@ static EditRuleDialog* edit_rule_dialog_new(CtkAppProfile *ctk_app_profile)
                      edit_rule_dialog_toolbar_items,
                      num_edit_rule_dialog_toolbar_items,
                      &toolbar_help_items,
-                     &toolbar_widget_items);
+                     &toolbar_widget_items,
+                     NULL);
 
     dialog->help_data = g_list_concat(dialog->help_data, toolbar_help_items);
 
     // Save off the "Update Rule" button for later use
     dialog->add_edit_rule_button = find_widget_in_widget_data_list(toolbar_widget_items, UPDATE_RULE_LABEL);
+
+    widget_data_list_free_full(toolbar_widget_items);
 
     free(edit_rule_dialog_toolbar_items);
 
@@ -2377,6 +2412,7 @@ static void get_profile_dialog_toolbar_items(EditProfileDialog *dialog,
             .icon_id = GTK_STOCK_ADD,
             .callback = G_CALLBACK(edit_profile_dialog_add_setting),
             .user_data = dialog,
+            .flags = 0,
         },
         {
             .text = "Delete Setting",
@@ -2386,6 +2422,7 @@ static void get_profile_dialog_toolbar_items(EditProfileDialog *dialog,
             .icon_id = GTK_STOCK_REMOVE,
             .callback = G_CALLBACK(edit_profile_dialog_delete_setting),
             .user_data = dialog,
+            .flags = TOOLBAR_ITEM_GHOST_IF_NOTHING_SELECTED
         },
         {
             .text = "Edit Setting",
@@ -2395,6 +2432,7 @@ static void get_profile_dialog_toolbar_items(EditProfileDialog *dialog,
             .icon_id = GTK_STOCK_PREFERENCES,
             .callback = G_CALLBACK(edit_profile_dialog_edit_setting),
             .user_data = dialog,
+            .flags = TOOLBAR_ITEM_GHOST_IF_NOTHING_SELECTED
         },
     };
 
@@ -2405,6 +2443,7 @@ static void get_profile_dialog_toolbar_items(EditProfileDialog *dialog,
             .icon_id = GTK_STOCK_SAVE,
             .callback = G_CALLBACK(edit_profile_dialog_save_changes),
             .user_data = dialog,
+            .flags = 0,
         },
         {
             .text = "Cancel",
@@ -2412,6 +2451,7 @@ static void get_profile_dialog_toolbar_items(EditProfileDialog *dialog,
             .icon_id = GTK_STOCK_CANCEL,
             .callback = G_CALLBACK(edit_profile_dialog_cancel),
             .user_data = dialog,
+            .flags = 0,
         }
     };
 
@@ -2424,6 +2464,26 @@ static void get_profile_dialog_toolbar_items(EditProfileDialog *dialog,
     *num_dialog_items = ARRAY_LEN(dialog_items);
 }
 
+static void edit_profile_dialog_statusbar_message(EditProfileDialog *dialog,
+                                                  const char *fmt, ...)
+{
+    va_list ap;
+    gchar *str;
+
+    va_start(ap, fmt);
+    str = g_strdup_vprintf(fmt, ap);
+    va_end(ap);
+
+    ctk_statusbar_message(&dialog->error_statusbar, str);
+
+    g_free(str);
+}
+
+static void edit_profile_dialog_statusbar_clear(EditProfileDialog *dialog)
+{
+    ctk_statusbar_clear(&dialog->error_statusbar);
+}
+
 
 static void setting_key_edited(GtkCellRendererText *renderer,
                                gchar               *path_s,
@@ -2434,7 +2494,6 @@ static void setting_key_edited(GtkCellRendererText *renderer,
     GtkTreePath *path;
     GtkTreeIter iter;
     json_t *setting;
-    GString *error_string;
     const gchar *canonical_key;
 
     if (dialog->setting_update_canceled) {
@@ -2449,19 +2508,17 @@ static void setting_key_edited(GtkCellRendererText *renderer,
         return;
     }
 
+    edit_profile_dialog_statusbar_clear(dialog);
+
     gtk_tree_model_get(GTK_TREE_MODEL(dialog->settings_store), &iter,
                        SETTING_LIST_STORE_COL_SETTING, &setting, -1);
 
     canonical_key = get_canonical_setting_key(new_text);
     if (!canonical_key) {
-        error_string = g_string_new("");
-        g_string_printf(error_string, "The key [%s] is not recognized by nvidia-settings."
-                                      "Please check for spelling errors (keys "
-                                      "are NOT case sensitive).", new_text);
-        gtk_statusbar_push(GTK_STATUSBAR(dialog->error_statusbar),
-                           dialog->setting_error_context_id,
-                           error_string->str);
-        g_string_free(error_string, TRUE);
+        edit_profile_dialog_statusbar_message(dialog,
+            "The key [%s] is not recognized by nvidia-settings. "
+            "Please check for spelling errors (keys "
+            "are NOT case sensitive).", new_text);
     }
 
     if (canonical_key) {
@@ -2511,7 +2568,7 @@ static void setting_value_edited(GtkCellRendererText *renderer,
     json_t *setting;
     json_t *value;
     json_error_t error;
-    GString *error_string;
+    gboolean update_value = TRUE;
 
     if (dialog->setting_update_canceled) {
         // Don't update anything
@@ -2524,6 +2581,8 @@ static void setting_value_edited(GtkCellRendererText *renderer,
         return;
     }
 
+    edit_profile_dialog_statusbar_clear(dialog);
+
     gtk_tree_model_get(GTK_TREE_MODEL(dialog->settings_store), &iter,
                        SETTING_LIST_STORE_COL_SETTING, &setting, -1);
 
@@ -2531,26 +2590,23 @@ static void setting_value_edited(GtkCellRendererText *renderer,
     value = json_loads(new_text_in_json, JSON_DECODE_ANY, &error);
 
     if (!value) {
-        error_string = g_string_new("");
-        g_string_printf(error_string, "The value [%s] was not understood by the JSON parser.",
-                        new_text);
-        gtk_statusbar_push(GTK_STATUSBAR(dialog->error_statusbar),
-                           dialog->setting_error_context_id,
-                           error_string->str);
-        g_string_free(error_string, TRUE);
-        value = json_false();
+        edit_profile_dialog_statusbar_message(dialog,
+            "The value [%s] was not understood by the JSON parser.",
+            new_text);
+        update_value = FALSE;
     } else if (!is_valid_setting_value(value, &invalid_type_str)) {
-        error_string = g_string_new("");
-        g_string_printf(error_string, "A value of type \"%s\" is not allowed in the configuration.",
-                        invalid_type_str);
-        gtk_statusbar_push(GTK_STATUSBAR(dialog->error_statusbar),
-                           dialog->setting_error_context_id,
-                           error_string->str);
-        g_string_free(error_string, TRUE);
-        value = json_false();
+        edit_profile_dialog_statusbar_message(dialog,
+            "A value of type \"%s\" is not allowed in the configuration.",
+            invalid_type_str);
+        update_value = FALSE;
     }
 
-    json_object_set_new(setting, "value", value);
+    if (update_value) {
+        json_object_set_new(setting, "value", value);
+    } else {
+        json_decref(value);
+    }
+
     free(new_text_in_json);
     gtk_tree_path_free(path);
 }
@@ -2618,8 +2674,6 @@ static gboolean profile_settings_tree_view_key_press_event(GtkWidget *widget,
             edit_profile_dialog_delete_setting_common(dialog);
             propagate = TRUE;
         }
-
-        gtk_statusbar_pop(GTK_STATUSBAR(dialog->error_statusbar), dialog->setting_error_context_id);
     }
 
     return propagate;
@@ -2669,7 +2723,6 @@ static EditProfileDialog *edit_profile_dialog_new(CtkAppProfile *ctk_app_profile
     GtkWidget *tree_view;
     GtkWidget *scroll_win;
     GtkWidget *alignment;
-    GtkWidget *statusbar;
     GtkWidget *button;
     GList *toolbar_widget_items;
 
@@ -2765,15 +2818,17 @@ static EditProfileDialog *edit_profile_dialog_new(CtkAppProfile *ctk_app_profile
     gtk_box_pack_start(GTK_BOX(main_vbox), container, FALSE, FALSE, 0);
 
     toolbar = gtk_toolbar_new();
+    tree_view = gtk_tree_view_new_with_model(GTK_TREE_MODEL(dialog->settings_store));
+
     populate_toolbar(GTK_TOOLBAR(toolbar),
                      edit_profile_settings_toolbar_items,
                      num_edit_profile_settings_toolbar_items,
                      &dialog->setting_toolbar_help_data,
-                     NULL);
+                     NULL,
+                     GTK_TREE_VIEW(tree_view));
 
     gtk_box_pack_start(GTK_BOX(main_vbox), toolbar, FALSE, FALSE, 0);
 
-    tree_view = gtk_tree_view_new_with_model(GTK_TREE_MODEL(dialog->settings_store));
     populate_tree_view(GTK_TREE_VIEW(tree_view),
                        settings_tree_view_columns,
                        ctk_app_profile,
@@ -2794,20 +2849,20 @@ static EditProfileDialog *edit_profile_dialog_new(CtkAppProfile *ctk_app_profile
 
     dialog->setting_update_canceled = FALSE;
 
-    dialog->error_statusbar = statusbar = gtk_statusbar_new();
-    gtk_box_pack_start(GTK_BOX(main_vbox), statusbar, FALSE, FALSE, 0);
+    ctk_statusbar_init(&dialog->error_statusbar);
 
-    dialog->setting_error_context_id =
-        gtk_statusbar_get_context_id(GTK_STATUSBAR(statusbar),
-                                     "Profile Settings");
+    gtk_box_pack_start(GTK_BOX(main_vbox), dialog->error_statusbar.widget,
+                       FALSE, FALSE, 0);
 
     alignment = gtk_alignment_new(1.0, 0.5, 0.0, 0.0);
     toolbar = gtk_toolbar_new();
+
     populate_toolbar(GTK_TOOLBAR(toolbar),
                      edit_profile_dialog_toolbar_items,
                      num_edit_profile_dialog_toolbar_items,
                      &dialog->bottom_help_data,
-                     &toolbar_widget_items);
+                     &toolbar_widget_items,
+                     NULL);
 
     // Save off the "Update Profile" button for later use
     dialog->add_edit_profile_button = find_widget_in_widget_data_list(toolbar_widget_items, UPDATE_PROFILE_LABEL);
@@ -2864,14 +2919,16 @@ static GtkWidget* create_rules_page(CtkAppProfile *ctk_app_profile)
                                   "information on adding new rules.",
             .icon_id = GTK_STOCK_ADD,
             .callback = (GCallback)add_rule_callback,
-            .user_data = ctk_app_profile
+            .user_data = ctk_app_profile,
+            .flags = 0,
         },
         {
             .text = "Delete Rule",
             .help_text = "The Delete Rule button allows you to remove a highlighted rule from the list.",
             .icon_id = GTK_STOCK_REMOVE,
             .callback = (GCallback)delete_rule_callback,
-            .user_data = ctk_app_profile
+            .user_data = ctk_app_profile,
+            .flags = TOOLBAR_ITEM_GHOST_IF_NOTHING_SELECTED
         },
         {
             .text = "Increase Rule Priority",
@@ -2885,7 +2942,8 @@ static GtkWidget* create_rules_page(CtkAppProfile *ctk_app_profile)
                                   "a particular priority.",
             .icon_id = GTK_STOCK_GO_UP,
             .callback = (GCallback)increase_rule_priority_callback,
-            .user_data = ctk_app_profile
+            .user_data = ctk_app_profile,
+            .flags = TOOLBAR_ITEM_GHOST_IF_NOTHING_SELECTED
         },
         {
             .text = "Decrease Rule Priority",
@@ -2894,7 +2952,8 @@ static GtkWidget* create_rules_page(CtkAppProfile *ctk_app_profile)
                          "take on the setting value of the highest-priority rule (lowest number) in the list.",
             .icon_id = GTK_STOCK_GO_DOWN,
             .callback = (GCallback)decrease_rule_priority_callback,
-            .user_data = ctk_app_profile
+            .user_data = ctk_app_profile,
+            .flags = TOOLBAR_ITEM_GHOST_IF_NOTHING_SELECTED
         },
         {
             .text = "Edit Rule",
@@ -2905,7 +2964,8 @@ static GtkWidget* create_rules_page(CtkAppProfile *ctk_app_profile)
             // available from 2.6 onwards...
             .icon_id = GTK_STOCK_PREFERENCES,
             .callback = (GCallback)edit_rule_callback,
-            .user_data = ctk_app_profile
+            .user_data = ctk_app_profile,
+            .flags = TOOLBAR_ITEM_GHOST_IF_NOTHING_SELECTED
         },
     };
 
@@ -2957,22 +3017,24 @@ static GtkWidget* create_rules_page(CtkAppProfile *ctk_app_profile)
 
     vbox = gtk_vbox_new(FALSE, 0);
 
-    /* Create the toolbar */
+    /* Create the toolbar and main tree view */
     toolbar = gtk_toolbar_new();
+
+    model = GTK_TREE_MODEL(ctk_app_profile->apc_rule_model);
+    tree_view = gtk_tree_view_new_with_model(model);
+
     populate_toolbar(GTK_TOOLBAR(toolbar),
                      rules_toolbar_items,
                      ARRAY_LEN(rules_toolbar_items),
                      &ctk_app_profile->rules_help_data,
-                     NULL);
+                     NULL,
+                     GTK_TREE_VIEW(tree_view));
 
     gtk_box_pack_start(GTK_BOX(vbox), toolbar, FALSE, FALSE, 0);
 
-    /* Create the main tree view */
     scroll_win = gtk_scrolled_window_new(NULL, NULL);
 
-    model = GTK_TREE_MODEL(ctk_app_profile->apc_rule_model);
 
-    tree_view = gtk_tree_view_new_with_model(model);
 
     populate_tree_view(GTK_TREE_VIEW(tree_view),
                        rules_tree_view_columns,
@@ -3250,14 +3312,16 @@ static GtkWidget* create_profiles_page(CtkAppProfile *ctk_app_profile)
                                   "information on adding new profiles.",
             .icon_id = GTK_STOCK_ADD,
             .callback = (GCallback)add_profile_callback,
-            .user_data = ctk_app_profile
+            .user_data = ctk_app_profile,
+            .flags = 0
         },
         {
             .text = "Delete Profile",
             .help_text = "The Delete Profile button allows you to remove a highlighted profile from the list.",
             .icon_id = GTK_STOCK_REMOVE,
             .callback = (GCallback)delete_profile_callback,
-            .user_data = ctk_app_profile
+            .user_data = ctk_app_profile,
+            .flags = TOOLBAR_ITEM_GHOST_IF_NOTHING_SELECTED
         },
         {
             .text = "Edit Profile",
@@ -3268,7 +3332,8 @@ static GtkWidget* create_profiles_page(CtkAppProfile *ctk_app_profile)
             // available from 2.6 onwards...
             .icon_id = GTK_STOCK_PREFERENCES,
             .callback = (GCallback)edit_profile_callback,
-            .user_data = ctk_app_profile
+            .user_data = ctk_app_profile,
+            .flags = TOOLBAR_ITEM_GHOST_IF_NOTHING_SELECTED
         },
     };
 
@@ -3303,21 +3368,22 @@ static GtkWidget* create_profiles_page(CtkAppProfile *ctk_app_profile)
 
     vbox = gtk_vbox_new(FALSE, 0);
 
-    /* Create the toolbar */
+    /* Create the toolbar and main tree view */
     toolbar = gtk_toolbar_new();
+
+    model = GTK_TREE_MODEL(ctk_app_profile->apc_profile_model);
+    tree_view = gtk_tree_view_new_with_model(model);
+
     populate_toolbar(GTK_TOOLBAR(toolbar),
                      profiles_toolbar_items,
                      ARRAY_LEN(profiles_toolbar_items),
                      &ctk_app_profile->profiles_help_data,
-                     NULL);
+                     NULL,
+                     GTK_TREE_VIEW(tree_view));
 
     gtk_box_pack_start(GTK_BOX(vbox), toolbar, FALSE, FALSE, 0);
 
-    /* Create the main tree view */
     scroll_win = gtk_scrolled_window_new(NULL, NULL);
-
-    model = GTK_TREE_MODEL(ctk_app_profile->apc_profile_model);
-    tree_view = gtk_tree_view_new_with_model(model);
 
     populate_tree_view(GTK_TREE_VIEW(tree_view),
                        profiles_tree_view_columns,
@@ -3480,7 +3546,8 @@ static ToolbarItemTemplate *get_save_reload_toolbar_items(CtkAppProfile *ctk_app
                                   "should make backup copies of the original files before overwriting existing files.",
             .icon_id = GTK_STOCK_SAVE,
             .callback = (GCallback)save_changes_callback,
-            .user_data = ctk_app_profile
+            .user_data = ctk_app_profile,
+            .flags = 0,
         },
         {
             .text = "Reload",
@@ -3490,7 +3557,8 @@ static ToolbarItemTemplate *get_save_reload_toolbar_items(CtkAppProfile *ctk_app
                                   "display a dialog box to warn you before attempting to reload.",
             .icon_id = GTK_STOCK_REFRESH,
             .callback = (GCallback)reload_callback,
-            .user_data = ctk_app_profile
+            .user_data = ctk_app_profile,
+            .flags = 0,
         }
     };
 
@@ -3588,6 +3656,7 @@ static ToolbarItemTemplate *get_save_app_profile_changes_toolbar_items(SaveAppPr
             .icon_id = GTK_STOCK_SAVE,
             .callback = G_CALLBACK(save_app_profile_changes_dialog_save_changes),
             .user_data = dialog,
+            .flags = 0,
         },
         {
             .text = "Cancel",
@@ -3595,6 +3664,7 @@ static ToolbarItemTemplate *get_save_app_profile_changes_toolbar_items(SaveAppPr
             .icon_id = GTK_STOCK_CANCEL,
             .callback = G_CALLBACK(save_app_profile_changes_dialog_cancel),
             .user_data = dialog,
+            .flags = 0,
         }
     };
 
@@ -3792,8 +3862,7 @@ static SaveAppProfileChangesDialog *save_app_profile_changes_dialog_new(CtkAppPr
     populate_toolbar(GTK_TOOLBAR(toolbar),
                      toolbar_items,
                      num_toolbar_items,
-                     NULL,
-                     NULL);
+                     NULL, NULL, NULL);
     free(toolbar_items);
 
     gtk_container_add(GTK_CONTAINER(alignment), toolbar);
@@ -4139,7 +4208,7 @@ GtkWidget* ctk_app_profile_new(CtkConfig *ctk_config)
                      save_reload_toolbar_items,
                      num_save_reload_toolbar_items,
                      &ctk_app_profile->save_reload_help_data,
-                     NULL);
+                     NULL, NULL);
     free(save_reload_toolbar_items);
 
     gtk_container_add(GTK_CONTAINER(alignment), toolbar);

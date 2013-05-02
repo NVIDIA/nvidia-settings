@@ -70,6 +70,7 @@ char *nvasprintf(const char *fmt, ...) NV_ATTRIBUTE_PRINTF(1, 2);
 void nvfree(void *s);
 
 char *tilde_expansion(const char *str);
+char *nv_prepend_to_string_list(char *list, const char *item, const char *delim);
 
 TextRows *nv_format_text_rows(const char *prefix,
                               const char *str,
@@ -88,6 +89,10 @@ void fmtwarn(const char *fmt, ...)                               NV_ATTRIBUTE_PR
 void fmt(FILE *stream, const char *prefix, const char *fmt, ...) NV_ATTRIBUTE_PRINTF(3, 4);
 
 char *fget_next_line(FILE *fp, int *eof);
+
+char *nv_trim_space(char *string);
+char *nv_trim_char(char *string, char trim);
+char *nv_trim_char_strict(char *string, char trim);
 
 /*
  * NV_VSNPRINTF(): macro that assigns buf using vsnprintf().  This is

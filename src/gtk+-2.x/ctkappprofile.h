@@ -114,8 +114,7 @@ typedef struct _EditProfileDialog {
     // the model.
     gboolean setting_update_canceled;
 
-    GtkWidget *error_statusbar;
-    guint setting_error_context_id;
+    CtkStatusBar error_statusbar;
 
     // Data for constructing the help text for this dialog
     GList *top_help_data;

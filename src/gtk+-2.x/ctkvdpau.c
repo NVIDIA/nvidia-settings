@@ -1429,7 +1429,7 @@ GtkWidget* ctk_vdpau_new(NvCtrlAttributeHandle *handle,
     gtk_box_pack_start(GTK_BOX(ctk_vdpau), banner, FALSE, FALSE, 0);
 
     /* open VDPAU library */
-    vdpau_handle = dlopen("libvdpau.so", RTLD_NOW);
+    vdpau_handle = dlopen("libvdpau.so.1", RTLD_NOW);
     if (!vdpau_handle) {
         goto fail;
     }

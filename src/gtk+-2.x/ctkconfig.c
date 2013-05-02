@@ -138,6 +138,23 @@ static void ctk_config_class_init(CtkConfigClass *ctk_config_class)
                               G_TYPE_NONE, 0);
 }
 
+void ctk_statusbar_init(CtkStatusBar *status_bar)
+{
+
+    status_bar->widget = gtk_statusbar_new();
+    status_bar->prev_message_id = 0;
+    status_bar->enabled = TRUE;
+    
+    gtk_statusbar_set_has_resize_grip
+        (GTK_STATUSBAR(status_bar->widget), FALSE);
+    
+    /* XXX force the status bar window to be vertically centered */
+
+    gtk_misc_set_alignment
+        (GTK_MISC(GTK_STATUSBAR(status_bar->widget)->label),
+         0.0, 0.5);
+}
+
 GtkWidget* ctk_config_new(ConfigProperties *conf, CtrlHandles *pCtrlHandles)
 {
     gint i;
@@ -207,21 +224,17 @@ GtkWidget* ctk_config_new(ConfigProperties *conf, CtrlHandles *pCtrlHandles)
 
     gtk_box_set_spacing(GTK_BOX(ctk_config), 10);
     
-    /* initialize the statusbar widget */
 
-    ctk_config->status_bar.widget = gtk_statusbar_new();
-    ctk_config->status_bar.prev_message_id = 0;
-    ctk_config->status_bar.enabled = TRUE;
+    /* initialize the statusbar widget */
+    ctk_statusbar_init(&ctk_config->status_bar);
     
-    gtk_statusbar_set_has_resize_grip
-        (GTK_STATUSBAR(ctk_config->status_bar.widget), FALSE);
-    
-    /* XXX force the status bar window to be vertially centered */
+    /* XXX force the status bar window to be vertically centered */
 
     gtk_misc_set_alignment
         (GTK_MISC(GTK_STATUSBAR(ctk_config->status_bar.widget)->label),
          0.0, 0.5);
     
+
     /* initialize the tooltips widget */
 
     ctk_config->tooltips.object = gtk_tooltips_new();
@@ -353,36 +366,61 @@ static void save_rc_clicked(GtkWidget *widget, gpointer user_data)
                          ctk_window->attribute_list, ctk_config->conf);
 }
 
+void ctk_statusbar_clear(CtkStatusBar *status_bar)
+{
+    if ((!status_bar->enabled) ||
+        (!status_bar->widget)) {
+        return;
+    }
 
-void ctk_config_statusbar_message(CtkConfig *ctk_config, const char *fmt, ...)
+    if (status_bar->prev_message_id) {
+        gtk_statusbar_remove(GTK_STATUSBAR(status_bar->widget),
+                             1, status_bar->prev_message_id);
+    }
+}
+
+void ctk_statusbar_message(CtkStatusBar *status_bar,
+                           const gchar *str)
+{
+
+    if ((!status_bar->enabled) ||
+        (!status_bar->widget)) {
+        return;
+    }
+
+    if (status_bar->prev_message_id) {
+        gtk_statusbar_remove(GTK_STATUSBAR(status_bar->widget),
+                             1, status_bar->prev_message_id);
+    }
+
+    status_bar->prev_message_id =
+        gtk_statusbar_push
+        (GTK_STATUSBAR(status_bar->widget), 1, str);
+
+} /* ctk_config_statusbar_message() */
+
+void ctk_config_statusbar_message(CtkConfig *ctk_config,
+                                  const char *fmt,
+                                  ...)
 {
     va_list ap;
     gchar *str;
 
     if ((!ctk_config) ||
-        (!ctk_config->status_bar.enabled) ||
-        (!ctk_config->status_bar.widget) ||
         (!(ctk_config->conf->booleans &
            CONFIG_PROPERTIES_DISPLAY_STATUS_BAR))) {
         return;
     }
 
-    if (ctk_config->status_bar.prev_message_id) {
-        gtk_statusbar_remove(GTK_STATUSBAR(ctk_config->status_bar.widget),
-                             1, ctk_config->status_bar.prev_message_id);
-    }
-
     va_start(ap, fmt);
     str = g_strdup_vprintf(fmt, ap);
     va_end(ap);
-    
-    ctk_config->status_bar.prev_message_id =
-        gtk_statusbar_push
-        (GTK_STATUSBAR(ctk_config->status_bar.widget), 1, str);
+
+    ctk_statusbar_message(&ctk_config->status_bar,
+                          str);
 
     g_free(str);
-    
-} /* ctk_config_statusbar_message() */
+}
 
 
 
