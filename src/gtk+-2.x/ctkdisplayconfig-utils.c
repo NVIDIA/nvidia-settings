@@ -196,32 +196,28 @@ void apply_monitor_token(char *token, char *value, void *data)
 
 /** apply_screen_info_token() ****************************************
  *
- * Modifies the ScreenInfo structure (pointed to by data) with
+ * Modifies the GdkRectangle structure (pointed to by data) with
  * information from the token-value pair given.  Currently accepts
  * position and width/height data.
  *
  **/
 void apply_screen_info_token(char *token, char *value, void *data)
 {
-    ScreenInfo *screen_info = (ScreenInfo *)data;
+    GdkRectangle *screen_info = (GdkRectangle *)data;
 
     if (!screen_info || !token || !strlen(token)) {
         return;
     }
 
-    /* X */
     if (!strcasecmp("x", token)) {
         screen_info->x = atoi(value);
 
-    /* Y */
     } else if (!strcasecmp("y", token)) {
         screen_info->y = atoi(value);
 
-    /* Width */
     } else if (!strcasecmp("width", token)) {
         screen_info->width = atoi(value);
 
-    /* Height */
     } else if (!strcasecmp("height", token)) {
         screen_info->height = atoi(value);
 
@@ -230,8 +226,7 @@ void apply_screen_info_token(char *token, char *value, void *data)
         nv_warning_msg("Unknown screen info token value pair: %s=%s",
                        token, value);
     }
-
-} /* apply_screen_info_token() */
+}
 
 
 
@@ -435,43 +430,127 @@ static nvModeLinePtr modeline_parse(nvDisplayPtr display,
 /** MODE FUNCTIONS ***********************************************************/
 /*****************************************************************************/
 
-void mode_set_dims_from_modeline(nvModePtr mode, nvModeLinePtr modeline)
+
+/*!
+ * Clamps the given dimensions to be no smaller than the mode's viewPortIn
+ *
+ * \param[in, out]  rect  The GdkRectangle to clamp.
+ * \param[in]       mode  The mode to clamp against.
+ */
+void clamp_rect_to_viewportin(GdkRectangle *rect, const nvMode *mode)
 {
-    int newW;
-    int newH;
+    if (rect->width < mode->viewPortIn.width) {
+        rect->width = mode->viewPortIn.width;
+    }
+    if (rect->height < mode->viewPortIn.height) {
+        rect->height = mode->viewPortIn.height;
+    }
+}
 
 
-    mode->viewPortOut[X] = 0;
-    mode->viewPortOut[Y] = 0;
-    if (modeline) {
-        mode->viewPortOut[W] = modeline->data.hdisplay;
-        mode->viewPortOut[H] = modeline->data.vdisplay;
+
+/*!
+ * Clamps the mode's panning domain to the mode's viewPortIn dimensions
+ *
+ * \param[in, out]  mode  The mode who's panning to clamp.
+ */
+void clamp_mode_panning(nvModePtr mode)
+{
+    clamp_rect_to_viewportin(&(mode->pan), mode);
+}
+
+
+
+/*!
+ * Fills a rectangle struct with both position and size information of the
+ * given mode's viewPortIn.
+ *
+ * \param[in]       mode  The mode to return information for.
+ * \param[in, out]  rect  The GdkRectangle structure to populate.
+ */
+void get_viewportin_rect(const nvMode *mode, GdkRectangle *rect)
+{
+    rect->x = mode->pan.x;
+    rect->y = mode->pan.y;
+    rect->width = mode->viewPortIn.width;
+    rect->height = mode->viewPortIn.height;
+}
+
+
+
+void mode_set_modeline(nvModePtr mode,
+                       nvModeLinePtr modeline,
+                       const nvSize *providedViewPortIn,
+                       const GdkRectangle *providedViewPortOut)
+{
+    int width;
+    int height;
+    Bool panning_modified;
+
+    /* Figure out what dimensions to use */
+    if (providedViewPortIn) {
+        width = providedViewPortIn->width;
+        height = providedViewPortIn->height;
+    } else if (modeline) {
+        width = modeline->data.hdisplay;
+        height = modeline->data.vdisplay;
     } else {
-        mode->viewPortOut[W] = 800;
-        mode->viewPortOut[H] = 600;
+        /* NULL modeline given (display is being turned off), use a default
+         * resolution to show the display.
+         */
+        if (mode->display->modelines) {
+            // XXX assumes that the first modeline in the display's list is the
+            //     default (nvidia-auto-select).
+            width = mode->display->modelines->data.hdisplay;
+            height = mode->display->modelines->data.vdisplay;
+        } else {
+            /* display has no modelines, 800x600 seems reasonable */
+            width = 800;
+            height = 600;
+        }
     }
 
-    /* Determine new dimensions to use */
+    /* Reset the viewPortOut to match the full visible size of the modeline */
+    // XXX Only do this if viewport out has not been tweaked?
+    // XXX - Should we do any clamping?
+    if (providedViewPortOut) {
+        mode->viewPortOut = *providedViewPortOut;
+    } else {
+        mode->viewPortOut.x = 0;
+        mode->viewPortOut.y = 0;
+        mode->viewPortOut.width = width;
+        mode->viewPortOut.height = height;
+    }
+
+    /* Oriented the dimensions to use for the viewPortIn and Panning */
     if ((mode->rotation == ROTATION_90) ||
         (mode->rotation == ROTATION_270)) {
-        newW = mode->viewPortOut[H];
-        newH = mode->viewPortOut[W];
-    } else {
-        newW = mode->viewPortOut[W];
-        newH = mode->viewPortOut[H];
+        int temp = width;
+        width = height;
+        height = temp;
     }
 
-    /* Resolve and clamp the panning domain */
-    if ((mode->pan[W] == mode->viewPortIn[W]) ||
-        mode->pan[W] < newW) {
-        mode->pan[W] = newW;
+    /* XXX Later, keep a flag in nvModePtr to track if the panning has
+     * been modified */
+    panning_modified =
+        (mode->pan.width != mode->viewPortIn.width) ||
+        (mode->pan.height != mode->viewPortIn.height);
+
+    /* XXX Only set this if the user has not modified viewPortIn... */
+    {
+        mode->viewPortIn.width = width;
+        mode->viewPortIn.height = height;
+        /* Panning domain must include viewPortIn */
+        clamp_mode_panning(mode);
     }
-    if ((mode->pan[H] == mode->viewPortIn[H]) ||
-        mode->pan[H] < newH) {
-        mode->pan[H] = newH;
+
+    /* Only set this if the user has not modified panning... */
+    if (!panning_modified) {
+        mode->pan.width = width;
+        mode->pan.height = height;
     }
-    mode->viewPortIn[W] = newW;
-    mode->viewPortIn[H] = newH;
+
+    mode->modeline = modeline;
 }
 
 
@@ -504,13 +583,13 @@ Bool mode_set_rotation(nvModePtr mode, Rotation rotation)
     mode->rotation = rotation;
 
     if (old_is_horiz != new_is_horiz) {
-        tmp = mode->viewPortIn[W];
-        mode->viewPortIn[W] = mode->viewPortIn[H];
-        mode->viewPortIn[H] = tmp;
+        tmp = mode->viewPortIn.width;
+        mode->viewPortIn.width = mode->viewPortIn.height;
+        mode->viewPortIn.height = tmp;
 
-        tmp = mode->pan[W];
-        mode->pan[W] = mode->pan[H];
-        mode->pan[H] = tmp;
+        tmp = mode->pan.width;
+        mode->pan.width = mode->pan.height;
+        mode->pan.height = tmp;
     }
 
     /* Mark mode as being modified */
@@ -551,20 +630,20 @@ static void apply_mode_attribute_token(char *token, char *value, void *data)
     /* ViewPortIn */
     } else if (!strcasecmp("viewportin", token)) {
         parse_read_integer_pair(value, 'x',
-                                &(mode->viewPortIn[W]),
-                                &(mode->viewPortIn[H]));
+                                &(mode->viewPortIn.width),
+                                &(mode->viewPortIn.height));
 
     /* ViewPortOut */
     } else if (!strcasecmp("viewportout", token)) {
         const char *str;
 
         str = parse_read_integer_pair(value, 'x',
-                                      &(mode->viewPortOut[W]),
-                                      &(mode->viewPortOut[H]));
+                                      &(mode->viewPortOut.width),
+                                      &(mode->viewPortOut.height));
 
         str = parse_read_integer_pair(str, 0,
-                                      &(mode->viewPortOut[X]),
-                                      &(mode->viewPortOut[Y]));
+                                      &(mode->viewPortOut.x),
+                                      &(mode->viewPortOut.y));
     }
 
     /* Rotation */
@@ -615,6 +694,7 @@ nvModePtr mode_parse(nvDisplayPtr display, const char *mode_str)
     nvModePtr   mode;
     char       *mode_name; /* Modeline reference name */
     const char *str = mode_str;
+    nvModeLinePtr modeline;
 
 
 
@@ -639,21 +719,17 @@ nvModePtr mode_parse(nvDisplayPtr display, const char *mode_str)
     if (!str || !mode_name) goto fail;
 
 
-    /* Match the mode name to one of the modelines */
-    mode->modeline = display->modelines;
-    while (mode->modeline) {
-        if (!strcmp(mode_name, mode->modeline->data.identifier)) {
+    /* Find the display's modeline that matches the given mode name */
+    modeline = display->modelines;
+    while (modeline) {
+        if (!strcmp(mode_name, modeline->data.identifier)) {
             break;
         }
-        mode->modeline = mode->modeline->next;
+        modeline = modeline->next;
     }
 
-    /* If we can't find a matching modeline, don't add this mode.  If the
-     * metamode has other (valid) displays, a NULL mode will be added for this
-     * display at that time - this is done to avoid potentially adding a
-     * metamode with no active displays.
-     */
-    if (!mode->modeline) {
+    /* If we can't find a matching modeline, set the NULL mode. */
+    if (!modeline) {
         if (strcmp(mode_str, "NULL")) {
             nv_warning_msg("Mode name '%s' does not match any modelines for "
                            "display device '%s' in modeline '%s'.",
@@ -661,11 +737,19 @@ nvModePtr mode_parse(nvDisplayPtr display, const char *mode_str)
         }
         free(mode_name);
 
-        mode_set_dims_from_modeline(mode, display->modelines);
+        mode_set_modeline(mode,
+                          NULL /* modeline */,
+                          NULL /* viewPortIn */,
+                          NULL /* viewPortOut */);
 
         return mode;
     }
     free(mode_name);
+
+    /* Don't call mode_set_modeline() here since we want to apply the values
+     * from the string we're parsing, so just link the modeline
+     */
+    mode->modeline = modeline;
 
 
     /* Read mode information */
@@ -675,15 +759,16 @@ nvModePtr mode_parse(nvDisplayPtr display, const char *mode_str)
         if (*str == '@') {
             str++;
             str = parse_read_integer_pair(str, 'x',
-                                          &(mode->pan[W]), &(mode->pan[H]));
+                                          &(mode->pan.width),
+                                          &(mode->pan.height));
         }
 
         /* Read position */
         else if (*str == '+') {
             str++;
             str = parse_read_integer_pair(str, 0,
-                                          &(mode->viewPortIn[X]),
-                                          &(mode->viewPortIn[Y]));
+                                          &(mode->pan.x),
+                                          &(mode->pan.y));
         }
 
         /* Read extra params */
@@ -717,13 +802,13 @@ nvModePtr mode_parse(nvDisplayPtr display, const char *mode_str)
     }
 
     /* Initialize defaults for the viewports if unspecified */
-    if ((mode->viewPortOut[W] == 0) || (mode->viewPortOut[H] == 0)) {
-        mode->viewPortOut[W] = mode->modeline->data.hdisplay;
-        mode->viewPortOut[H] = mode->modeline->data.vdisplay;
+    if ((mode->viewPortOut.width == 0) || (mode->viewPortOut.height == 0)) {
+        mode->viewPortOut.width = mode->modeline->data.hdisplay;
+        mode->viewPortOut.height = mode->modeline->data.vdisplay;
     }
-    if ((mode->viewPortIn[W] == 0) || (mode->viewPortIn[H] == 0)) {
-        mode->viewPortIn[W] = mode->viewPortOut[W];
-        mode->viewPortIn[H] = mode->viewPortOut[H];
+    if ((mode->viewPortIn.width == 0) || (mode->viewPortIn.height == 0)) {
+        mode->viewPortIn.width = mode->viewPortOut.width;
+        mode->viewPortIn.height = mode->viewPortOut.height;
     }
 
     /* If rotation is specified, swap W/H if they are still set to the
@@ -732,20 +817,15 @@ nvModePtr mode_parse(nvDisplayPtr display, const char *mode_str)
      */
     if (((mode->rotation == ROTATION_90) ||
          (mode->rotation == ROTATION_270)) &&
-        (mode->viewPortIn[W] == mode->viewPortOut[W]) &&
-        (mode->viewPortIn[H] == mode->viewPortOut[H])) {
-        int tmp = mode->viewPortIn[W];
-        mode->viewPortIn[W] = mode->viewPortIn[H];
-        mode->viewPortIn[H] = tmp;
+        (mode->viewPortIn.width == mode->viewPortOut.width) &&
+        (mode->viewPortIn.height == mode->viewPortOut.height)) {
+        int tmp = mode->viewPortIn.width;
+        mode->viewPortIn.width = mode->viewPortIn.height;
+        mode->viewPortIn.height = tmp;
     }
 
     /* Clamp the panning domain */
-    if (mode->pan[W] < mode->viewPortIn[W]) {
-        mode->pan[W] = mode->viewPortIn[W];
-    }
-    if (mode->pan[H] < mode->viewPortIn[H]) {
-        mode->pan[H] = mode->viewPortIn[H];
-    }
+    clamp_mode_panning(mode);
 
     return mode;
 
@@ -818,10 +898,10 @@ static gchar *mode_get_str(nvModePtr mode, int be_generic)
 
 
     /* Panning domain */
-    if (!be_generic || (mode->pan[W] != mode->viewPortIn[W] ||
-                        mode->pan[H] != mode->viewPortIn[H])) {
+    if (!be_generic || (mode->pan.width != mode->viewPortIn.width ||
+                        mode->pan.height != mode->viewPortIn.height)) {
         tmp = g_strdup_printf("%s @%dx%d",
-                              mode_str, mode->pan[W], mode->pan[H]);
+                              mode_str, mode->pan.width, mode->pan.height);
         g_free(mode_str);
         mode_str = tmp;
     }
@@ -848,8 +928,8 @@ static gchar *mode_get_str(nvModePtr mode, int be_generic)
     tmp = g_strdup_printf("%s +%d+%d",
                           mode_str,
                           /* Make mode position relative */
-                          mode->viewPortIn[X] - mode->metamode->edim[X],
-                          mode->viewPortIn[Y] - mode->metamode->edim[Y]);
+                          mode->pan.x - mode->metamode->edim.x,
+                          mode->pan.y - mode->metamode->edim.y);
     g_free(mode_str);
     mode_str = tmp;
 
@@ -945,34 +1025,35 @@ static gchar *mode_get_str(nvModePtr mode, int be_generic)
          */
         if ((mode->rotation == ROTATION_90) ||
             (mode->rotation == ROTATION_270)) {
-            width = mode->viewPortOut[H];
-            height = mode->viewPortOut[W];
+            width = mode->viewPortOut.height;
+            height = mode->viewPortOut.width;
         } else {
-            width = mode->viewPortOut[W];
-            height = mode->viewPortOut[H];
+            width = mode->viewPortOut.width;
+            height = mode->viewPortOut.height;
         }
 
-        if (mode->viewPortIn[W] && mode->viewPortIn[H] &&
-            ((mode->viewPortIn[W] != width) ||
-             (mode->viewPortIn[H] != height))) {
+        if (mode->viewPortIn.width && mode->viewPortIn.height &&
+            ((mode->viewPortIn.width != width) ||
+             (mode->viewPortIn.height != height))) {
             tmp = g_strdup_printf("%s, viewportin=%dx%d",
                                   (flags_str ? flags_str : ""),
-                                  mode->viewPortIn[W], mode->viewPortIn[H]);
+                                  mode->viewPortIn.width,
+                                  mode->viewPortIn.height);
             g_free(flags_str);
             flags_str = tmp;
         }
     }
 
     /* ViewPortOut */
-    if (mode->viewPortOut[X] ||
-        mode->viewPortOut[Y] ||
-        (mode->viewPortOut[W] && mode->viewPortOut[H] &&
-         ((mode->viewPortOut[W] != mode->modeline->data.hdisplay) ||
-          (mode->viewPortOut[H] != mode->modeline->data.vdisplay)))) {
+    if (mode->viewPortOut.x ||
+        mode->viewPortOut.y ||
+        (mode->viewPortOut.width && mode->viewPortOut.height &&
+         ((mode->viewPortOut.width != mode->modeline->data.hdisplay) ||
+          (mode->viewPortOut.height != mode->modeline->data.vdisplay)))) {
         tmp = g_strdup_printf("%s, viewportout=%dx%d%+d%+d",
                               (flags_str ? flags_str : ""),
-                              mode->viewPortOut[W], mode->viewPortOut[H],
-                              mode->viewPortOut[X], mode->viewPortOut[Y]);
+                              mode->viewPortOut.width, mode->viewPortOut.height,
+                              mode->viewPortOut.x, mode->viewPortOut.y);
         g_free(flags_str);
         flags_str = tmp;
     }
@@ -1099,14 +1180,14 @@ int display_find_closest_mode_matching_modeline(nvDisplayPtr display,
              */
             if (best_mode) {
                 Bool current_match_vpin =
-                    (mode->viewPortIn[W] == targetWidth &&
-                     mode->viewPortIn[H] == targetHeight);
+                    (mode->viewPortIn.width == targetWidth &&
+                     mode->viewPortIn.height == targetHeight);
                 Bool best_match_vpin =
-                    (best_mode->viewPortIn[W] == targetWidth &&
-                     best_mode->viewPortIn[H] == targetHeight);
+                    (best_mode->viewPortIn.width == targetWidth &&
+                     best_mode->viewPortIn.height == targetHeight);
                 Bool best_match_vpout =
-                    (best_mode->viewPortOut[W] == targetWidth &&
-                     best_mode->viewPortOut[H] == targetHeight);
+                    (best_mode->viewPortOut.width == targetWidth &&
+                     best_mode->viewPortOut.height == targetHeight);
 
                 /* Try to find reasons why we should prefer the
                  * previous match over the currently considered
@@ -1200,6 +1281,38 @@ Bool modelines_match(nvModeLinePtr modeline1,
         return FALSE;
     }
 } /* modelines_match() */
+
+
+
+/** viewport_in_match() **********************************************
+ * 
+ * Helper function that returns TRUE of FALSE based on whether
+ * the ViewPortIn arguments match each other.
+ *
+ **/
+Bool viewports_in_match(const nvSize viewPortIn1,
+                        const nvSize viewPortIn2)
+{
+    return ((viewPortIn1.width == viewPortIn2.width) &&
+            (viewPortIn1.height == viewPortIn2.height));
+}
+
+
+
+/** viewport_out_match() *********************************************
+ * 
+ * Helper function that returns TRUE of FALSE based on whether
+ * the ViewPortOut arguments match each other.
+ *
+ **/
+Bool viewports_out_match(const GdkRectangle viewPortOut1,
+                         const GdkRectangle viewPortOut2)
+{
+    return ((viewPortOut1.x == viewPortOut2.x) &&
+            (viewPortOut1.y == viewPortOut2.y) &&
+            (viewPortOut1.width == viewPortOut2.width) &&
+            (viewPortOut1.height == viewPortOut2.height));
+}
 
 
 
@@ -1446,6 +1559,23 @@ static void display_free(nvDisplayPtr display)
 /*****************************************************************************/
 /** SCREEN FUNCTIONS *********************************************************/
 /*****************************************************************************/
+
+
+/*!
+ * Clamps the given (screen) dimensions to the minimum allowed screen size.
+ *
+ * \param[in, out]  rect  The dimensions to clamp
+ */
+void clamp_screen_size_rect(GdkRectangle *rect)
+{
+    if (rect->width < 304) {
+        rect->width = 304;
+    }
+    if (rect->height < 200) {
+        rect->height = 200;
+    }
+}
+
 
 
 /** screen_find_named_display() **************************************
@@ -1927,10 +2057,6 @@ static Bool screen_add_metamode(nvScreenPtr screen, const char *metamode_str,
         /* Make sure each display has the right number of (NULL) modes */
         screen_check_metamodes(screen);
 
-        /* Set the panning offset */
-        mode->pan[X] = mode->viewPortIn[X];
-        mode->pan[Y] = mode->viewPortIn[Y];
-
         /* Add the mode at the end of the display's mode list */
         xconfigAddListItem((GenericListPtr *)(&display->modes),
                            (GenericListPtr)mode);
@@ -2013,10 +2139,8 @@ static Bool screen_check_metamodes(nvScreenPtr screen)
 
             /* Duplicate position information of the last mode */
             if (last_mode) {
-                mode->viewPortIn[X] = last_mode->viewPortIn[X];
-                mode->viewPortIn[Y] = last_mode->viewPortIn[Y];
-                mode->pan[X] = last_mode->pan[X];
-                mode->pan[Y] = last_mode->pan[Y];
+                mode->pan.x = last_mode->pan.x;
+                mode->pan.y = last_mode->pan.y;
                 mode->position_type = last_mode->position_type;
                 mode->relative_to = last_mode->relative_to;
             }
@@ -2066,11 +2190,8 @@ static void screen_assign_dummy_metamode_positions(nvScreenPtr screen)
         if (ok_mode) {
             for (mode = display->modes; mode; mode = mode->next) {
                 if (!mode->dummy) continue;
-                mode->viewPortIn[X] = ok_mode->viewPortIn[X];
-                mode->viewPortIn[Y] = ok_mode->viewPortIn[Y];
-
-                mode->pan[X]        = ok_mode->viewPortIn[X];
-                mode->pan[Y]        = ok_mode->viewPortIn[Y];
+                mode->pan.x = ok_mode->pan.x;
+                mode->pan.y = ok_mode->pan.y;
             }
         }
     }
@@ -2667,7 +2788,10 @@ Bool gpu_add_screenless_modes_to_displays(nvGpuPtr gpu)
         mode->display = display;
         mode->dummy = 1;
 
-        mode_set_dims_from_modeline(mode, NULL);
+        mode_set_modeline(mode,
+                          NULL /* modeline */,
+                          NULL /* viewPortIn */,
+                          NULL /* viewPortOut */);
 
         /* Add the mode to the display */
         display->modes = mode;
@@ -3172,8 +3296,8 @@ static Bool layout_add_screen_from_server(nvLayoutPtr layout,
     screen->depth = NvCtrlGetScreenPlanes(screen->handle);
 
     /* Initialize the virtual X screen size */
-    screen->dim[W] = NvCtrlGetScreenWidth(screen->handle);
-    screen->dim[H] = NvCtrlGetScreenHeight(screen->handle);
+    screen->dim.width = NvCtrlGetScreenWidth(screen->handle);
+    screen->dim.height = NvCtrlGetScreenHeight(screen->handle);
 
     /* Add the screen to the layout */
     layout_add_screen(layout, screen);

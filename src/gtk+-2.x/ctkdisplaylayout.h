@@ -57,17 +57,6 @@ G_BEGIN_DECLS
 #define MAX_DEVICES 8  /* Max number of GPUs */
 
 
-/* Rectangle/Dim data positions */
-#define LEFT         0
-#define TOP          1
-#define WIDTH        2
-#define HEIGHT       3
-#define X         LEFT
-#define Y          TOP
-#define W        WIDTH
-#define H       HEIGHT
-
-
 /* XF86VIDMODE */
 #define V_PHSYNC        0x0001 
 #define V_NHSYNC        0x0002
@@ -151,6 +140,13 @@ typedef enum {
     METAMODE_SOURCE_RANDR,
 } MetaModeSource;
 
+
+typedef struct nvSizeRec {
+    int width;
+    int height;
+} nvSize;
+
+
 typedef struct nvModeLineRec {
     struct nvModeLineRec *next;
 
@@ -163,6 +159,22 @@ typedef struct nvModeLineRec {
     char *xconfig_name;
 
 } nvModeLine, *nvModeLinePtr;
+
+
+
+typedef struct nvSelectedModeRec {
+    struct nvSelectedModeRec *next;
+
+    GtkWidget *label;       /* Label shown in dropdown menu */
+
+    nvModeLinePtr modeline; /* Modeline this mode references */
+
+    Bool isSpecial;         /* Whether this mode is "Off" or "Auto" */
+    Bool isScaled;          /* Whether custom viewports are set */
+
+    nvSize viewPortIn;
+    GdkRectangle viewPortOut;
+} nvSelectedMode, *nvSelectedModePtr;
 
 
 
@@ -189,10 +201,10 @@ typedef struct nvModeRec {
     struct nvModeLineRec *modeline;     /* Modeline this mode references */
     int dummy;                          /* Dummy mode, don't print out */
 
-    int viewPortIn[4];                  /* Viewport In (absolute) */
-    int pan[4];                         /* Panning Domain (absolute) */
+    nvSize viewPortIn;                  /* Viewport In */
+    GdkRectangle pan;                   /* Panning Domain (absolute) */
 
-    int viewPortOut[4];                 /* ViewPort Out (WH) */
+    GdkRectangle viewPortOut;           /* ViewPort Out (WH) */
 
     int position_type;                  /* Relative, Absolute, etc. */
     struct nvDisplayRec *relative_to;   /* Display Relative/RightOf etc */
@@ -231,6 +243,10 @@ typedef struct nvDisplayRec {
     nvModeLinePtr       modelines;      /* Modelines validated by X */
     int                 num_modelines;
 
+    nvSelectedModePtr   selected_modes; /* List of modes to show in the dropdown menu */
+    int                 num_selected_modes;
+    nvSelectedModePtr   cur_selected_mode; /* Current mode selected in the dropdown menu */
+
     nvModePtr           modes;          /* List of modes this display uses */
     int                 num_modes;
     nvModePtr           cur_mode;       /* Current mode display uses */
@@ -249,10 +265,10 @@ typedef struct nvMetaModeRec {
     Bool switchable; /* Can the metamode be accessed through Ctrl Alt +- */
 
     // Used for drawing & moving metamode boxes
-    int dim[4]; /* Bounding box of all modes */
+    GdkRectangle dim; /* Bounding box of all modes */
 
     // Used for applying and generating metamodes (effective dimensions)
-    int edim[4]; /* Bounding box of all non-NULL modes */
+    GdkRectangle edim; /* Bounding box of all non-NULL modes */
 
     char *string; /* Temp string used for modifying the metamode list */
 
@@ -294,7 +310,7 @@ typedef struct nvScreenRec {
     int cur_metamode_idx;        /* Current metamode to display */
     nvDisplayPtr primaryDisplay;
     // Used for generating metamode strings.
-    int dim[4]; /* Bounding box of all metamodes (Absolute coords) */
+    GdkRectangle dim; /* Bounding box of all metamodes (Absolute coords) */
 
     int position_type;                /* Relative, Absolute, etc. */
     struct nvScreenRec *relative_to;  /* Screen Relative/RightOf etc */
@@ -361,7 +377,7 @@ typedef struct nvLayoutRec {
     int num_screens;
 
     /* Used for drawing the layout */
-    int dim[4]; /* Bounding box of All X screens (Absolute coords) */
+    GdkRectangle dim; /* Bounding box of All X screens (Absolute coords) */
 
     int xinerama_enabled;
 
@@ -382,14 +398,14 @@ typedef struct ModifyInfoRec {
     /* What to move */
     nvDisplayPtr display;
     nvScreenPtr screen;
-    int orig_screen_dim[4]; // Used when moding display = moding screen.
+    GdkRectangle orig_screen_dim; // Used when moding display = moding screen.
     nvGpuPtr gpu;
 
     int orig_position_type; // Original values of what is being
-    int orig_dim[4];        // modified.
+    GdkRectangle orig_dim;  // modified.
 
     int *target_position_type; // Pointers to values of thing that
-    int *target_dim;           // is being modified.
+    GdkRectangle *target_dim;  // is being modified.
 
 
     /* Snapping */
@@ -397,12 +413,12 @@ typedef struct ModifyInfoRec {
     int best_snap_v;
     int best_snap_h;
 
-    int modify_dirty;   // Sync the modify_dim before moving/panning.
-    int modify_panning; // Modifying panning (instead of position)
-    int modify_dim[4];  // Dimensions to snap from
+    int modify_dirty;         // Sync the modify_dim before moving/panning.
+    int modify_panning;       // Modifying panning (instead of position)
+    GdkRectangle modify_dim;  // Dimensions to snap from
 
-    int src_dim[4]; // Pre-snap (To allow snapping of pan box on move)
-    int dst_dim[4]; // Post-snap position
+    GdkRectangle src_dim; // Pre-snap (To allow snapping of pan box on move)
+    GdkRectangle dst_dim; // Post-snap position
 
 } ModifyInfo;
 
@@ -442,8 +458,8 @@ typedef struct _CtkDisplayLayout
     GdkPixmap *pixmap;
 
     /* Image information */
-    int        img_dim[4];      /* Dimensions used to draw in */
-    float      scale;
+    GdkRectangle img_dim;
+    float scale;
 
     /* Colors */
     GdkColor  *color_palettes;  /* Colors to use to display screens */
@@ -517,9 +533,11 @@ nvScreenPtr ctk_display_layout_get_selected_screen (CtkDisplayLayout *);
 nvGpuPtr ctk_display_layout_get_selected_gpu (CtkDisplayLayout *);
 
 
-void ctk_display_layout_set_mode_modeline (CtkDisplayLayout *,
-                                           nvModePtr mode,
-                                           nvModeLinePtr modeline);
+void ctk_display_layout_set_mode_modeline(CtkDisplayLayout *,
+                                          nvModePtr mode,
+                                          nvModeLinePtr modeline,
+                                          const nvSize *viewPortIn,
+                                          const GdkRectangle *viewPortOut);
 
 void ctk_display_layout_set_mode_viewport_in(CtkDisplayLayout *ctk_object,
                                              nvModePtr mode,

@@ -181,7 +181,9 @@ static const char * __dpy_configuration_mnu_help =
 
 static const char * __dpy_resolution_mnu_help =
 "The Resolution drop-down allows you to select a desired resolution "
-"for the currently selected display device.";
+"for the currently selected display device.  The 'scaled' qualifier indicates "
+"an aspect-scaled common resolution simulated through a MetaMode ViewPort "
+"configuration.";
 
 static const char * __dpy_refresh_mnu_help =
 "The Refresh drop-down allows you to select a desired refresh rate "
@@ -322,11 +324,11 @@ static void get_cur_screen_pos(CtkDisplayConfig *ctk_object)
 {
     nvScreenPtr screen = ctk_display_layout_get_selected_screen
         (CTK_DISPLAY_LAYOUT(ctk_object->obj_layout));
-    
+
     if (!screen) return;
 
-    ctk_object->cur_screen_pos[X] = screen->dim[X];
-    ctk_object->cur_screen_pos[Y] = screen->dim[Y];
+    ctk_object->cur_screen_pos.x = screen->dim.x;
+    ctk_object->cur_screen_pos.y = screen->dim.y;
 
 } /* get_cur_screen_pos() */
 
@@ -341,17 +343,17 @@ static void get_cur_screen_pos(CtkDisplayConfig *ctk_object)
 
 static void check_screen_pos_changed(CtkDisplayConfig *ctk_object)
 {
-    int old_dim[2];
+    GdkPoint old_pos;
 
     /* Cache the old position */
-    old_dim[X] = ctk_object->cur_screen_pos[X];
-    old_dim[Y] = ctk_object->cur_screen_pos[Y];
+    old_pos.x = ctk_object->cur_screen_pos.x;
+    old_pos.y = ctk_object->cur_screen_pos.y;
 
     /* Get the new position */
     get_cur_screen_pos(ctk_object);
 
-    if (old_dim[X] != ctk_object->cur_screen_pos[X] ||
-        old_dim[Y] != ctk_object->cur_screen_pos[Y]) {
+    if (old_pos.x != ctk_object->cur_screen_pos.x ||
+        old_pos.y != ctk_object->cur_screen_pos.y) {
         ctk_object->apply_possible = FALSE;
     }
 
@@ -640,17 +642,17 @@ static int generate_xconf_metamode_str(CtkDisplayConfig *ctk_object,
         metamode_strs = screen_get_metamode_str(screen,
                                                 screen->cur_metamode_idx, 1);
         len = strlen(metamode_strs);
-        start_width = screen->cur_metamode->edim[W];
-        start_height = screen->cur_metamode->edim[H];
+        start_width = screen->cur_metamode->edim.width;
+        start_height = screen->cur_metamode->edim.height;
     } else {
-        start_width = screen->metamodes->edim[W];
-        start_height = screen->metamodes->edim[H];        
+        start_width = screen->metamodes->edim.width;
+        start_height = screen->metamodes->edim.height;
     }
 
     for (metamode_idx = 0, metamode = screen->metamodes;
          (metamode_idx < screen->num_metamodes) && metamode;
          metamode_idx++, metamode = metamode->next) {
-        
+
         int metamode_len;
 
         /* Only write out metamodes that were specified by the user */
@@ -670,21 +672,21 @@ static int generate_xconf_metamode_str(CtkDisplayConfig *ctk_object,
          *     in an unwanted panning domain being setup for the first mode.
          */
         if ((!ctk_object->advanced_mode) &&
-            ((metamode->edim[W] > start_width) ||
-             (metamode->edim[H] > start_height)))
+            ((metamode->edim.width > start_width) ||
+             (metamode->edim.height > start_height)))
             continue;
-        
+
         metamode_str = screen_get_metamode_str(screen, metamode_idx, 1);
 
         if (!metamode_str) continue;
-        
+
         metamode_len = strlen(metamode_str);
         if (!longStringsOK && (len + metamode_len > 900)) {
             GtkWidget *dlg;
             gchar *msg;
             GtkWidget *parent;
             gint result;
-            
+
             msg = g_strdup_printf
                 ("Truncate the MetaMode list?\n"
                  "\n"
@@ -773,7 +775,7 @@ static void assign_screen_positions(CtkDisplayConfig *ctk_object)
     int initialize = 0;
 
     char *screen_info;
-    ScreenInfo screen_parsed_info;
+    GdkRectangle screen_parsed_info;
     ReturnStatus ret;
 
 
@@ -2834,6 +2836,432 @@ static void setup_display_refresh_dropdown(CtkDisplayConfig *ctk_object)
 
 
 
+/** get_default_modeline() *******************************************
+ *
+ * Finds the default modeline in the list of modelines.
+ *
+ * Returns the default modeline if found, NULL otherwise.
+ *
+ */
+
+static nvModeLinePtr get_default_modeline(const nvDisplayPtr display)
+{
+    nvModeLinePtr modeline = display->modelines;
+
+    while (modeline) {
+        if (IS_NVIDIA_DEFAULT_MODE(modeline)) {
+            return modeline;
+        }
+
+        modeline = modeline->next;
+    }
+
+    return NULL;
+}
+
+
+
+/** allocate_selected_mode() *****************************************
+ *
+ * Allocates, fills and returns a nvSelectedModePtr.
+ *
+ */
+
+static nvSelectedModePtr
+allocate_selected_mode(char *name,
+                       nvModeLinePtr modeline,
+                       Bool isSpecial,
+                       nvSize *viewPortIn,
+                       GdkRectangle *viewPortOut)
+{
+    nvSelectedModePtr selected_mode;
+
+    selected_mode = (nvSelectedModePtr)nvalloc(sizeof(nvSelectedMode));
+
+    selected_mode->label = gtk_menu_item_new_with_label(name);
+
+    selected_mode->modeline = modeline;
+    selected_mode->isSpecial = isSpecial;
+    selected_mode->isScaled = (viewPortIn || viewPortOut);
+
+    if (viewPortIn) {
+        selected_mode->viewPortIn.width = viewPortIn->width;
+        selected_mode->viewPortIn.height = viewPortIn->height;
+    }
+
+    if (viewPortOut) {
+        selected_mode->viewPortOut.x = viewPortOut->x;
+        selected_mode->viewPortOut.y = viewPortOut->y;
+        selected_mode->viewPortOut.width = viewPortOut->width;
+        selected_mode->viewPortOut.height = viewPortOut->height;
+    }
+
+    return selected_mode;
+}
+
+
+
+/** free_selected_modes() ********************************************
+ *
+ * Recursively frees each item of a list of selected modes.
+ *
+ */
+
+static void
+free_selected_modes(nvSelectedModePtr selected_mode)
+{
+    if (selected_mode) {
+        free_selected_modes(selected_mode->next);
+        free(selected_mode);
+    }
+}
+
+
+
+/** append_unique_selected_mode() ************************************
+ *
+ * Appends a selected mode to the given list only if it doesn't already exist.
+ * Special modes ("Auto", "Off") are not checked.  Two selected modes are unique
+ * if their [hv]display differ in the case of regular modes, or if the
+ * ViewPortIn of the given mode doesn't match any existing [hv]display.
+ * Returns TRUE if the selected mode has been added, FALSE otherwise.
+ *
+ */
+
+static Bool
+append_unique_selected_mode(nvSelectedModePtr head,
+                            const nvSelectedModePtr mode)
+{
+    int targetWidth, targetHeight;
+    nvSelectedModePtr iter, prev = NULL;
+
+    if (mode->isScaled) {
+        targetWidth = mode->viewPortIn.width;
+        targetHeight = mode->viewPortIn.height;
+    } else {
+        targetWidth = mode->modeline->data.hdisplay;
+        targetHeight = mode->modeline->data.vdisplay;
+    }
+
+    /* Keep the list sorted by targetted resolution */
+    iter = head;
+    while (iter) {
+        int currentWidth, currentHeight;
+        nvModeLinePtr ml = iter->modeline;
+
+        if (!ml || iter->isSpecial) {
+            goto next;
+        }
+
+        if (iter->isScaled) {
+            currentWidth = iter->viewPortIn.width;
+            currentHeight = iter->viewPortIn.height;
+        } else {
+            currentWidth = ml->data.hdisplay;
+            currentHeight = ml->data.vdisplay;
+        }
+
+        /* If we are past the sort order, stop looping */
+        if ((targetWidth > currentWidth) ||
+            ((targetWidth == currentWidth) && (targetHeight > currentHeight))) {
+            break;
+        }
+
+        if (ml && !mode->isSpecial &&
+            (targetWidth == currentWidth) && (targetHeight == currentHeight)) {
+            return FALSE;
+        }
+
+next:
+        prev = iter;
+        iter = iter->next;
+    }
+
+    if (prev == NULL) {
+        return FALSE;
+    }
+
+    /* Insert the selected mode */
+    mode->next = prev->next;
+    prev->next = mode;
+
+    return TRUE;
+}
+
+
+
+/** matches_current_selected_mode() **********************************
+ *
+ * Checks whether the provided selected mode matches the current mode.
+ *
+ * We need to distinguish between custom modes and scaled modes.
+ *
+ * Custom modes are modes with custom ViewPort settings, such as an
+ * Underscan configuration.  These modes don't have an entry in the
+ * resolution dropdown menu.  Instead, the corresponding modeline must be
+ * selected.
+ *
+ * Scaled modes are generated by the CPL, have a fixed ViewPort{In,Out}
+ * configuration and are displayed in the dropdown menu in basic mode.
+ *
+ * Therefore, we compare the raster size and the ViewPorts first, then only
+ * the raster size.  This works because the list of selected_modes is
+ * generated before the scaled ones.  The latter can then overwrite the
+ * cur_selected_mode if we find a better match.
+ *
+ * Returns TRUE if the provided selected mode matches the current mode, FALSE
+ * otherwise.
+ *
+ */
+
+static Bool matches_current_selected_mode(const nvDisplayPtr display,
+                                          const nvSelectedModePtr selected_mode,
+                                          const Bool compare_viewports)
+{
+    nvModeLinePtr ml1, ml2;
+    nvModePtr cur_mode;
+    Bool mode_match;
+
+    if (!display || !display->cur_mode || !selected_mode) {
+        return FALSE;
+    }
+
+    cur_mode = display->cur_mode;
+    ml1 = cur_mode->modeline;
+    ml2 = selected_mode->modeline;
+
+    if (!ml1 || !ml2) {
+        return FALSE;
+    }
+
+    mode_match = ((ml1->data.hdisplay == ml2->data.hdisplay) &&
+                  (ml1->data.vdisplay == ml2->data.vdisplay));
+
+    if (compare_viewports) {
+        nvSize rotatedViewPortIn;
+
+        memcpy(&rotatedViewPortIn, &selected_mode->viewPortIn, sizeof(nvSize));
+
+        if (cur_mode->rotation == ROTATION_90 ||
+            cur_mode->rotation == ROTATION_270) {
+            int temp = rotatedViewPortIn.width;
+            rotatedViewPortIn.width = rotatedViewPortIn.height;
+            rotatedViewPortIn.height = temp;
+        }
+
+        return (mode_match &&
+                viewports_in_match(cur_mode->viewPortIn,
+                                   rotatedViewPortIn) &&
+                viewports_out_match(cur_mode->viewPortOut,
+                                    selected_mode->viewPortOut));
+    } else {
+        return (!IS_NVIDIA_DEFAULT_MODE(ml1) && mode_match);
+    }
+}
+
+
+
+/** get_common_resolutions() *****************************************
+ *
+ * Returns a constant array of a (-1, -1) terminated list of common
+ * resolutions.
+ *
+ */
+static const nvSize* get_common_resolutions(void)
+{
+    static const nvSize commonRes[] = {
+        { 3840, 2400 },
+        { 2560, 1600 },
+        { 2560, 1440 },
+        { 1920, 1200 },
+        { 1920, 1080 },
+        { 1680, 1050 },
+        { 1600, 1200 },
+        { 1440, 900  },
+        { 1366, 768  },
+        { 1280, 1024 },
+        { 1280, 800  },
+        { 1280, 720  },
+        { 1024, 768  },
+        { 800,  600  },
+        { 640,  480  },
+        { -1,   -1   },
+    };
+
+    return commonRes;
+}
+
+
+
+/** get_scaled_viewportout() *****************************************
+ *
+ * Computes ViewPortOut, given raster size and ViewPortIn size.
+ *
+ * ViewPortOut should fit within the raster size, scaled to the raster
+ * size in one dimension, and scaled in the other dimension such that
+ * the aspect ratio of ViewPortIn is preserved.
+ *
+ */
+static GdkRectangle get_scaled_viewportout(const nvSize *raster,
+                                    const nvSize *viewPortIn)
+{
+    GdkRectangle viewPortOut;
+    float scaleX, scaleY;
+
+    memset(&viewPortOut, 0, sizeof(viewPortOut));
+
+    scaleX = (float) raster->width / (float) viewPortIn->width;
+    scaleY = (float) raster->height / (float) viewPortIn->height;
+
+    if (scaleX < scaleY) {
+        viewPortOut.width = raster->width;
+        viewPortOut.height = viewPortIn->height * scaleX;
+        viewPortOut.x = 0;
+        viewPortOut.y = (raster->height - viewPortOut.height) / 2;
+    } else {
+        viewPortOut.width = viewPortIn->width * scaleY;
+        viewPortOut.height = raster->height;
+        viewPortOut.x = (raster->width - viewPortOut.width) / 2;
+        viewPortOut.y = 0;
+    }
+
+    return viewPortOut;
+}
+
+
+
+/** generate_selected_modes() ****************************************
+ *
+ * Generates a list of selected modes.  The list is generated by parsing
+ * modelines.  This function makes sure that each item of the list is unique
+ * and sorted.
+ *
+ */
+
+static void generate_selected_modes(const nvDisplayPtr display)
+{
+    nvSelectedModePtr selected_mode = NULL;
+    nvModeLinePtr modeline;
+
+    /* Add the off item */
+    selected_mode = allocate_selected_mode("Off",
+                                           NULL /* modeline */,
+                                           TRUE /* isSpecial */,
+                                           NULL /* viewPortIn */,
+                                           NULL /* viewPortOut */);
+
+    display->num_selected_modes = 1;
+    display->selected_modes = selected_mode;
+
+    modeline = display->modelines;
+    while (modeline) {
+        gchar *name;
+        Bool isSpecial;
+
+        if (IS_NVIDIA_DEFAULT_MODE(modeline)) {
+            name = g_strdup_printf("Auto");
+            isSpecial = TRUE;
+        } else {
+            name = g_strdup_printf("%dx%d",
+                                   modeline->data.hdisplay,
+                                   modeline->data.vdisplay);
+            isSpecial = FALSE;
+        }
+
+        selected_mode = allocate_selected_mode(name, modeline, isSpecial,
+                                               NULL /* viewPortIn */,
+                                               NULL /* viewPortOut */);
+        g_free(name);
+
+        if (append_unique_selected_mode(display->selected_modes,
+                                        selected_mode)) {
+            display->num_selected_modes++;
+
+            if (matches_current_selected_mode(display, selected_mode,
+                                              FALSE /* compare_viewports */)) {
+                display->cur_selected_mode = selected_mode;
+            }
+        } else {
+            free(selected_mode);
+        }
+
+        modeline = modeline->next;
+    }
+}
+
+
+
+/** generate_scaled_selected_modes() *********************************
+ *
+ * Appends a list of scaled selected modes.  The list is generated by parsing
+ * an array of common resolutions.  This function makes sure that each item
+ * of the list is unique and sorted.  The generated items are appended to the
+ * list of selected modes returned by generate_selected_modes().
+ *
+ */
+
+static void generate_scaled_selected_modes(const nvDisplayPtr display)
+{
+    int resIndex;
+    nvModeLinePtr default_modeline;
+    nvSelectedModePtr selected_mode = NULL;
+    const nvSize *commonResolutions;
+    nvSize raster;
+    gchar *name;
+
+    if (!display || !display->modelines) {
+        return;
+    }
+
+    default_modeline = get_default_modeline(display);
+    if (default_modeline == NULL) {
+        return;
+    }
+
+    raster.width = default_modeline->data.hdisplay;
+    raster.height = default_modeline->data.vdisplay;
+
+    commonResolutions = get_common_resolutions();
+
+    resIndex = 0;
+    while ((commonResolutions[resIndex].width != -1) &&
+           (commonResolutions[resIndex].height != -1)) {
+        GdkRectangle viewPortOut;
+        nvSize viewPortIn = commonResolutions[resIndex];
+
+        resIndex++;
+
+        /* Skip resolutions that are bigger than the maximum raster size */
+        if ((viewPortIn.width > raster.width) ||
+            (viewPortIn.height > raster.height)) {
+            continue;
+        }
+
+        viewPortOut = get_scaled_viewportout(&raster, &viewPortIn);
+
+        name = g_strdup_printf("%dx%d (scaled)", viewPortIn.width,
+                               viewPortIn.height);
+        selected_mode = allocate_selected_mode(name, default_modeline,
+                                               FALSE /* isSpecial */,
+                                               &viewPortIn, &viewPortOut);
+        g_free(name);
+
+        if (append_unique_selected_mode(display->selected_modes,
+                                        selected_mode)) {
+            display->num_selected_modes++;
+
+            if (matches_current_selected_mode(display, selected_mode,
+                                              TRUE /* compare_viewports */)) {
+                display->cur_selected_mode = selected_mode;
+            }
+        } else {
+            free(selected_mode);
+        }
+    }
+}
+
+
+
 /** setup_display_resolution_dropdown() ******************************
  *
  * Generates the resolution dropdown based on the currently selected
@@ -2849,13 +3277,9 @@ static void setup_display_resolution_dropdown(CtkDisplayConfig *ctk_object)
     nvDisplayPtr display = ctk_display_layout_get_selected_display
         (CTK_DISPLAY_LAYOUT(ctk_object->obj_layout));
 
-    nvModeLinePtr  modeline;
-    nvModeLinePtr  modelines;
-    nvModeLinePtr  cur_modeline;
+    nvSelectedModePtr selected_mode;
 
     int cur_idx = 0;  /* Currently selected modeline (resolution) */
-
-
 
     /* Get selection information */
     if (!display->screen || !display->cur_mode) {
@@ -2865,94 +3289,60 @@ static void setup_display_resolution_dropdown(CtkDisplayConfig *ctk_object)
     gtk_widget_show(ctk_object->box_display_resolution);
     gtk_widget_set_sensitive(ctk_object->box_display_resolution, TRUE);
 
-    
-    cur_modeline = display->cur_mode->modeline;
+    /* Generate dropdown content */
+    free_selected_modes(display->selected_modes);
 
-    /* Create the modeline lookup table for the dropdown */
+    /* Create the selected modes lookup table for the dropdown */
+    display->cur_selected_mode = NULL;
+    generate_selected_modes(display);
+
+    if (!ctk_object->advanced_mode) {
+        generate_scaled_selected_modes(display);
+    }
+
     if (ctk_object->resolution_table) {
         free(ctk_object->resolution_table);
         ctk_object->resolution_table_len = 0;
     }
     ctk_object->resolution_table =
-        calloc(display->num_modelines + 1, sizeof(nvModeLinePtr));
+        calloc(display->num_selected_modes, sizeof(nvSelectedModePtr));
     if (!ctk_object->resolution_table) {
         goto fail;
     }
 
 
-    /* Start the menu generation */
-    menu = gtk_menu_new();
-
-
-    /* Add the off mode */
-    menu_item = gtk_menu_item_new_with_label("Off");
-    if (display->screen->num_displays <= 1) {
-        gtk_widget_set_sensitive(menu_item, False);
-    }
-    gtk_menu_shell_append(GTK_MENU_SHELL(menu), menu_item);
-    gtk_widget_show(menu_item);
-    ctk_object->resolution_table[ctk_object->resolution_table_len++] = NULL;
-
-
-    /* Add the 'nvidia-auto-select' modeline */
-    modelines = display->modelines;
-    if (IS_NVIDIA_DEFAULT_MODE(modelines)) {
-        menu_item = gtk_menu_item_new_with_label("Auto");
-        gtk_menu_shell_append(GTK_MENU_SHELL(menu), menu_item);
-        gtk_widget_show(menu_item);
-        ctk_object->resolution_table[ctk_object->resolution_table_len++] =
-            modelines;
-        modelines = modelines->next;
-    }
-
-    /* Set the selected modeline index */
-    if (cur_modeline) {
+    if (display->cur_mode->modeline) {
         cur_idx = 1; /* Modeline is set, start off as 'nvidia-auto-select' */
     } else {
         cur_idx = 0; /* Modeline not set, start off as 'off'. */
     }
-    
 
-    /* Generate the resolution menu */
-    modeline = modelines;
-    while (modeline) {
-        nvModeLinePtr m;
-        gchar *name;
-        
-        /* Find the first resolution that matches the current res W & H */
-        m = modelines;
-        while (m != modeline) {
-            if (modeline->data.hdisplay == m->data.hdisplay &&
-                modeline->data.vdisplay == m->data.vdisplay) {
-                break;
-            }
-            m = m->next;
+    /* Start the menu generation */
+    menu = gtk_menu_new();
+
+    /* Fill dropdown menu */
+    selected_mode = display->selected_modes;
+    while (selected_mode) {
+        menu_item = selected_mode->label;
+
+        gtk_menu_shell_append(GTK_MENU_SHELL(menu), menu_item);
+        gtk_widget_show(menu_item);
+        ctk_object->resolution_table[ctk_object->resolution_table_len] =
+            selected_mode;
+
+        if (selected_mode == display->cur_selected_mode) {
+            cur_idx = ctk_object->resolution_table_len;
         }
 
-        /* Add resolution if it is the first of its kind */
-        if (m == modeline) {
-
-            /* Set the current modeline idx if not already set by default */
-            if (cur_modeline) {
-                if (!IS_NVIDIA_DEFAULT_MODE(cur_modeline) &&
-                    cur_modeline->data.hdisplay == modeline->data.hdisplay &&
-                    cur_modeline->data.vdisplay == modeline->data.vdisplay) {
-                    cur_idx = ctk_object->resolution_table_len;
-                }
-            }
-
-            name = g_strdup_printf("%dx%d", modeline->data.hdisplay,
-                                   modeline->data.vdisplay);
-            menu_item = gtk_menu_item_new_with_label(name);
-            g_free(name);
-            gtk_menu_shell_append(GTK_MENU_SHELL(menu), menu_item);
-            gtk_widget_show(menu_item);
-            ctk_object->resolution_table[ctk_object->resolution_table_len++] =
-                modeline;
+        if (selected_mode->isSpecial &&
+            !selected_mode->modeline &&
+            display->screen->num_displays <= 1) {
+            gtk_widget_set_sensitive(menu_item, FALSE);
         }
-        modeline = modeline->next;
+
+        ctk_object->resolution_table_len++;
+        selected_mode = selected_mode->next;
     }
-    
 
     /* Setup the menu and select the current mode */
     g_signal_handlers_block_by_func
@@ -3201,8 +3591,8 @@ static void setup_display_viewport_in(CtkDisplayConfig *ctk_object)
     mode = display->cur_mode;
 
     tmp_str = g_strdup_printf("%dx%d",
-                              mode->viewPortIn[W],
-                              mode->viewPortIn[H]);
+                              mode->viewPortIn.width,
+                              mode->viewPortIn.height);
 
     gtk_entry_set_text(GTK_ENTRY(ctk_object->txt_display_viewport_in),
                        tmp_str);
@@ -3244,10 +3634,10 @@ static void setup_display_viewport_out(CtkDisplayConfig *ctk_object)
     mode = display->cur_mode;
 
     tmp_str = g_strdup_printf("%dx%d%+d%+d",
-                              mode->viewPortOut[W],
-                              mode->viewPortOut[H],
-                              mode->viewPortOut[X],
-                              mode->viewPortOut[Y]);
+                              mode->viewPortOut.width,
+                              mode->viewPortOut.height,
+                              mode->viewPortOut.x,
+                              mode->viewPortOut.y);
 
     gtk_entry_set_text(GTK_ENTRY(ctk_object->txt_display_viewport_out),
                        tmp_str);
@@ -3437,8 +3827,8 @@ static void setup_display_position_offset(CtkDisplayConfig *ctk_object)
     mode = display->cur_mode;
 
     tmp_str = g_strdup_printf("%+d%+d",
-                              mode->viewPortIn[X] - mode->metamode->edim[X],
-                              mode->viewPortIn[Y] - mode->metamode->edim[Y]);
+                              mode->pan.x - mode->metamode->edim.x,
+                              mode->pan.y - mode->metamode->edim.y);
 
     gtk_entry_set_text(GTK_ENTRY(ctk_object->txt_display_position_offset),
                        tmp_str);
@@ -3568,7 +3958,7 @@ static void setup_display_panning(CtkDisplayConfig *ctk_object)
 
     /* Update the panning text */
     mode    = display->cur_mode;
-    tmp_str = g_strdup_printf("%dx%d", mode->pan[W], mode->pan[H]);
+    tmp_str = g_strdup_printf("%dx%d", mode->pan.width, mode->pan.height);
 
     gtk_entry_set_text(GTK_ENTRY(ctk_object->txt_display_panning),
                        tmp_str);
@@ -3646,12 +4036,12 @@ static void setup_screen_virtual_size(CtkDisplayConfig *ctk_object)
 
 
     /* Update the virtual size text */
-    tmp_str = g_strdup_printf("%dx%d", screen->dim[W], screen->dim[H]);
+    tmp_str = g_strdup_printf("%dx%d", screen->dim.width, screen->dim.height);
 
     gtk_entry_set_text(GTK_ENTRY(ctk_object->txt_screen_virtual_size),
                        tmp_str);
     g_free(tmp_str);
-    
+
 } /* setup_screen_virtual_size() */
 
 
@@ -4005,7 +4395,7 @@ static void setup_screen_position_offset(CtkDisplayConfig *ctk_object)
 
 
     /* Update the position text */
-    tmp_str = g_strdup_printf("%+d%+d", screen->dim[X], screen->dim[Y]);
+    tmp_str = g_strdup_printf("%+d%+d", screen->dim.x, screen->dim.y);
 
     gtk_entry_set_text(GTK_ENTRY(ctk_object->txt_screen_position_offset),
                        tmp_str);
@@ -4132,7 +4522,7 @@ static void setup_screen_page(CtkDisplayConfig *ctk_object)
  **/
 
 static gint validation_fix_crowded_metamodes(CtkDisplayConfig *ctk_object,
-                                            nvScreenPtr screen)
+                                             nvScreenPtr screen)
 {
     nvDisplayPtr display;
     nvModePtr first_mode = NULL;
@@ -4177,7 +4567,10 @@ static gint validation_fix_crowded_metamodes(CtkDisplayConfig *ctk_object,
             if (num > screen->gpu->max_displays) {
                 ctk_display_layout_set_mode_modeline
                     (CTK_DISPLAY_LAYOUT(ctk_object->obj_layout),
-                     mode, NULL);
+                     mode,
+                     NULL /* modeline */,
+                     NULL /* viewPortIn */,
+                     NULL /* viewPortOut */);
 
                 nv_info_msg(TAB, "Setting display device '%s' as Off "
                             "for MetaMode %d on Screen %d.  (There are "
@@ -4215,7 +4608,9 @@ static gint validation_fix_crowded_metamodes(CtkDisplayConfig *ctk_object,
                 ctk_display_layout_set_mode_modeline
                     (CTK_DISPLAY_LAYOUT(ctk_object->obj_layout),
                      first_mode,
-                     first_mode->display->modelines);
+                     first_mode->display->modelines,
+                     NULL /* viewPortIn */,
+                     NULL /* viewPortOut */);
 
                 nv_info_msg(TAB, "Activating display device '%s' for MetaMode "
                             "%d on Screen %d.  (Minimally, a Screen must have "
@@ -4671,12 +5066,11 @@ static void do_enable_display_for_xscreen(CtkDisplayConfig *ctk_object,
 
     /* Setup the mode */
     mode = display->modes;
-
-    mode->modeline = display->modelines;
     mode->metamode = metamode;
 
-    /* XXX Hopefully display->modelines is 'nvidia-auto-select' */
-    mode_set_dims_from_modeline(mode, display->modelines);
+    mode_set_modeline(mode, display->modelines,
+                      NULL /* viewPortIn */,
+                      NULL /* viewPortOut */);
 
     mode->position_type = CONF_ADJ_ABSOLUTE;
 
@@ -4702,8 +5096,8 @@ static void do_enable_display_for_xscreen(CtkDisplayConfig *ctk_object,
     /* Compute the right-most screen */
     for (other = layout->screens; other; other = other->next_in_layout) {
         if (!rightmost ||
-            ((other->dim[X] + other->dim[W]) >
-             (rightmost->dim[X] + rightmost->dim[W]))) {
+            ((other->dim.x + other->dim.width) >
+             (rightmost->dim.x + rightmost->dim.width))) {
             rightmost = other;
         }
     }
@@ -4712,14 +5106,14 @@ static void do_enable_display_for_xscreen(CtkDisplayConfig *ctk_object,
     if (rightmost) {
         screen->position_type = CONF_ADJ_RIGHTOF;
         screen->relative_to = rightmost;
-        screen->dim[X] = mode->viewPortIn[X] = rightmost->dim[X];
-        screen->dim[Y] = mode->viewPortIn[Y] = rightmost->dim[Y];
+        screen->dim.x = mode->pan.x = rightmost->dim.x;
+        screen->dim.y = mode->pan.y = rightmost->dim.y;
 
     } else {
         screen->position_type = CONF_ADJ_ABSOLUTE;
         screen->relative_to = NULL;
-        screen->dim[X] = mode->viewPortIn[X];
-        screen->dim[Y] = mode->viewPortIn[Y];
+        screen->dim.x = mode->pan.x;
+        screen->dim.y = mode->pan.y;
     }
 
 
@@ -4868,8 +5262,8 @@ static void do_enable_display_for_twinview(CtkDisplayConfig *ctk_object,
         for (other = screen->displays; other; other = other->next_in_screen) {
             for (mode = other->modes; mode; mode = mode->next) {
                 if (!rightmost ||
-                    ((mode->viewPortIn[X] + mode->viewPortIn[W]) >
-                     (rightmost->viewPortIn[X] + rightmost->viewPortIn[W]))) {
+                    ((mode->pan.x + mode->pan.width) >
+                     (rightmost->pan.x + rightmost->pan.width))) {
                     rightmost = mode;
                 }
             }
@@ -4891,17 +5285,13 @@ static void do_enable_display_for_twinview(CtkDisplayConfig *ctk_object,
         if (rightmost) {
             mode->position_type = CONF_ADJ_RIGHTOF;
             mode->relative_to = rightmost->display;
-            mode->viewPortIn[X] = rightmost->display->cur_mode->viewPortIn[X];
-            mode->viewPortIn[Y] = rightmost->display->cur_mode->viewPortIn[Y];
-            mode->pan[X] = mode->viewPortIn[X];
-            mode->pan[Y] = mode->viewPortIn[Y];
+            mode->pan.x = rightmost->display->cur_mode->pan.x;
+            mode->pan.y = rightmost->display->cur_mode->pan.y;
         } else {
             mode->position_type = CONF_ADJ_ABSOLUTE;
             mode->relative_to = NULL;
-            mode->viewPortIn[X] = metamode->dim[X] + metamode->dim[W];
-            mode->viewPortIn[Y] = metamode->dim[Y];
-            mode->pan[X] = mode->viewPortIn[X];
-            mode->pan[Y] = mode->viewPortIn[Y];
+            mode->pan.x = metamode->dim.x + metamode->dim.width;
+            mode->pan.y = metamode->dim.y;
         }
 
 
@@ -5148,10 +5538,8 @@ static void do_configure_display_for_twinview(CtkDisplayConfig *ctk_object,
 
             /* Duplicate position information of the last mode */
             if (last_mode) {
-                mode->viewPortIn[X] = last_mode->viewPortIn[X];
-                mode->viewPortIn[Y] = last_mode->viewPortIn[Y];
-                mode->pan[X] = last_mode->pan[X];
-                mode->pan[Y] = last_mode->pan[Y];
+                mode->pan.x = last_mode->pan.x;
+                mode->pan.y = last_mode->pan.y;
                 mode->position_type = last_mode->position_type;
                 mode->relative_to = last_mode->relative_to;
             }
@@ -5445,8 +5833,10 @@ static void display_refresh_changed(GtkWidget *widget, gpointer user_data)
     /* Update the display's currently selected mode */
     ctk_display_layout_set_mode_modeline
         (CTK_DISPLAY_LAYOUT(ctk_object->obj_layout),
-         display->cur_mode, modeline);
-
+         display->cur_mode,
+         modeline,
+         NULL /* viewPortIn */,
+         NULL /* viewPortOut */);
 
     /* Update the modename */
     setup_display_modename(ctk_object);
@@ -5468,13 +5858,13 @@ static void display_resolution_changed(GtkWidget *widget, gpointer user_data)
     CtkDisplayConfig *ctk_object = CTK_DISPLAY_CONFIG(user_data);
     gint idx;
     gint last_idx;
-    nvModeLinePtr modeline;
+    nvSelectedModePtr selected_mode;
     nvDisplayPtr display;
 
 
     /* Get the modeline and display to set */
     idx = gtk_option_menu_get_history(GTK_OPTION_MENU(widget));
-    modeline = ctk_object->resolution_table[idx];
+    selected_mode = ctk_object->resolution_table[idx];
     display = ctk_display_layout_get_selected_display
         (CTK_DISPLAY_LAYOUT(ctk_object->obj_layout));
 
@@ -5494,7 +5884,8 @@ static void display_resolution_changed(GtkWidget *widget, gpointer user_data)
      */
     if (!ctk_object->advanced_mode && (display->screen->num_displays == 1)) {
         int metamode_idx =
-            display_find_closest_mode_matching_modeline(display, modeline);
+            display_find_closest_mode_matching_modeline(display,
+                                                        selected_mode->modeline);
 
         /* Select the new metamode */
         if (metamode_idx >= 0) {
@@ -5506,10 +5897,21 @@ static void display_resolution_changed(GtkWidget *widget, gpointer user_data)
     
 
     /* Select the new modeline for its resolution */
-    ctk_display_layout_set_mode_modeline
-        (CTK_DISPLAY_LAYOUT(ctk_object->obj_layout),
-         display->cur_mode, modeline);
-
+    if (selected_mode->isScaled) {
+        ctk_display_layout_set_mode_modeline
+            (CTK_DISPLAY_LAYOUT(ctk_object->obj_layout),
+             display->cur_mode,
+             selected_mode->modeline,
+             &selected_mode->viewPortIn,
+             &selected_mode->viewPortOut);
+    } else {
+        ctk_display_layout_set_mode_modeline
+            (CTK_DISPLAY_LAYOUT(ctk_object->obj_layout),
+             display->cur_mode,
+             selected_mode->modeline,
+             NULL /* viewPortIn */,
+             NULL /* viewPortOut */);
+    }
 
     /* Update the UI */
     setup_display_refresh_dropdown(ctk_object);
@@ -5702,8 +6104,8 @@ static void display_position_type_changed(GtkWidget *widget,
         ctk_display_layout_set_display_position
             (CTK_DISPLAY_LAYOUT(ctk_object->obj_layout),
              display, position_type, relative_to,
-             display->cur_mode->viewPortIn[X],
-             display->cur_mode->viewPortIn[Y]);
+             display->cur_mode->pan.x,
+             display->cur_mode->pan.y);
     }
 
 
@@ -5803,8 +6205,8 @@ static void display_position_offset_activate(GtkWidget *widget,
     }
 
     /* Make coordinates relative to top left of Screen */
-    x += display->cur_mode->metamode->edim[X];
-    y += display->cur_mode->metamode->edim[Y];
+    x += display->cur_mode->metamode->edim.x;
+    y += display->cur_mode->metamode->edim.y;
 
 
     /* Update the absolute position */
@@ -6111,8 +6513,8 @@ static void screen_position_type_changed(GtkWidget *widget,
         ctk_display_layout_set_screen_position
             (CTK_DISPLAY_LAYOUT(ctk_object->obj_layout),
              screen, position_type, relative_to,
-             screen->dim[X],
-             screen->dim[Y]);
+             screen->dim.x,
+             screen->dim.y);
     }
 
 
@@ -6478,8 +6880,8 @@ static Bool switch_to_current_metamode(CtkDisplayConfig *ctk_object,
 
     metamode = screen->cur_metamode;
 
-    new_width = metamode->edim[W];
-    new_height = metamode->edim[H];
+    new_width = metamode->edim.width;
+    new_height = metamode->edim.height;
     new_rate = metamode->id;
 
 
@@ -7183,8 +7585,8 @@ static int update_screen_metamodes(CtkDisplayConfig *ctk_object,
 
             ctk_config_statusbar_message(ctk_object->ctk_config,
                                          "Switched to MetaMode %dx%d.",
-                                         screen->cur_metamode->edim[W],
-                                         screen->cur_metamode->edim[H]);
+                                         screen->cur_metamode->edim.width,
+                                         screen->cur_metamode->edim.height);
 
             nv_info_msg(TAB, "Using   > %s", screen->cur_metamode->string);
 
@@ -7595,9 +7997,9 @@ static Bool add_display_to_screen(nvScreenPtr screen,
     /* Configure the virtual screen size */
     if (screen->no_scanout) {
         conf_display = conf_screen->displays;
-        
-        conf_display->virtualX = screen->dim[W];
-        conf_display->virtualY = screen->dim[H];
+
+        conf_display->virtualX = screen->dim.width;
+        conf_display->virtualY = screen->dim.height;
     }
 
     /* XXX Don't do any further tweaking to the display subsection.
@@ -7612,7 +8014,7 @@ static Bool add_display_to_screen(nvScreenPtr screen,
     xconfigFreeDisplayList(&conf_screen->displays);
 
     return FALSE;
-    
+
 } /* add_display_to_screen() */
 
 
@@ -7900,11 +8302,11 @@ static Bool add_adjacency_to_xconfig(nvScreenPtr screen, XConfigPtr config)
     adj->scrnum = screen->scrnum;
     adj->screen = screen->conf_screen;
     adj->screen_name = xconfigStrdup(screen->conf_screen->identifier);
-    
+
     /* Position the X screen */
     if (screen->position_type == CONF_ADJ_ABSOLUTE) {
-        adj->x = screen->dim[X];
-        adj->y = screen->dim[Y];
+        adj->x = screen->dim.x;
+        adj->y = screen->dim.y;
     } else {
         adj->where = screen->position_type;
         adj->refscreen =

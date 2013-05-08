@@ -104,7 +104,7 @@ typedef struct _CtkDisplayConfig
 
     GtkWidget *box_display_resolution;
     GtkWidget *mnu_display_resolution;
-    nvModeLinePtr *resolution_table;
+    nvSelectedModePtr *resolution_table;
     int resolution_table_len;
 
     GtkWidget *mnu_display_refresh;
@@ -205,7 +205,7 @@ typedef struct _CtkDisplayConfig
     gboolean notify_user_of_reset; /* User was notified of reset requirement */
     gboolean ignore_reset_events; /* Ignore reset-causing events */
 
-    int cur_screen_pos[2]; /* Keep track of the selected X screen's position */
+    GdkPoint cur_screen_pos; /* Keep track of the selected X screen's position */
 
     GtkWidget *btn_save;
     GtkWidget *btn_probe;
