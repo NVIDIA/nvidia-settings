@@ -53,7 +53,7 @@ static const char *__confirm_button_help = "Some color correction settings "
 "button by then to accept the changes, it will restore your previous values.";
 
 static const char *__color_curve_help = "The color curve graph changes to "
-"reflect your adjustments made with the Brightness, Constrast, and Gamma "
+"reflect your adjustments made with the Brightness, Contrast, and Gamma "
 "sliders.";
 
 static void
@@ -963,7 +963,7 @@ static void apply_parsed_attribute_list(
 
 /** update_confirm_text() ************************************
  *
- * Generates the text used to lable confirmation button.
+ * Generates the text used to label confirmation button.
  *
  **/
 

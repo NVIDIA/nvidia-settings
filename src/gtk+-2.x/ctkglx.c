@@ -109,7 +109,7 @@ static const char * __cav_help =
   "cav (Caveats) - Caveats for this configuration.  A frame buffer "
   "configuration may have the following caveats: 'NonC' if it supports "
   "any non-conformant visual extension.  'Slow' if it has reduced "
-  "preformance.  '-' if it has no caveats.";
+  "performance.  '-' if it has no caveats.";
 static const char * __pbw_help =
   "pbw (Pbuffer width) - Width of pbuffer (in hexadecimal).";
 static const char * __pbh_help =
@@ -120,15 +120,15 @@ static const char * __pbp_help =
 static const char * __trt_help =
   "trt (Transparency type) - Type of transparency (RGBA or Index).";
 static const char * __trr_help =
-  "trr (Transparency red value) - Red value consided transparent.";
+  "trr (Transparency red value) - Red value considered transparent.";
 static const char * __trg_help =
-  "trg (Transparency green value) - Green value consided transparent.";
+  "trg (Transparency green value) - Green value considered transparent.";
 static const char * __trb_help =
-  "trb (Transparency blue value) - Blue value consided transparent.";
+  "trb (Transparency blue value) - Blue value considered transparent.";
 static const char * __tra_help =
-  "tra (Transparency alpha value) - Alpha value consided transparent.";
+  "tra (Transparency alpha value) - Alpha value considered transparent.";
 static const char * __tri_help =
-  "tri (Transparency index value) - Color index value consided transparent.";
+  "tri (Transparency index value) - Color index value considered transparent.";
 
 
 GType ctk_glx_get_type(void)

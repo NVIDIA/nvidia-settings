@@ -598,7 +598,7 @@ GtkTextBuffer *ctk_clocks_create_help(GtkTextTagTable *table,
                   "also reduce the life expectancy of your components and "
                   "void manufacturer warranties.  DO THIS AT YOUR OWN RISK."
                   );
-    ctk_help_heading(b, &i, "Enabeling Clock Frequencies");
+    ctk_help_heading(b, &i, "Enabling Clock Frequencies");
     ctk_help_para(b, &i, __enable_button_help);
     ctk_help_para(b, &i,
                   "GPU Overclocking functionality is currently limited to "
@@ -621,8 +621,8 @@ GtkTextBuffer *ctk_clocks_create_help(GtkTextTagTable *table,
     ctk_help_para(b, &i, __apply_button_help);
     ctk_help_heading(b, &i, "Auto Detect Optimal 3D Clock Frequencies");
     ctk_help_para(b, &i, __detect_button_help);
-    ctk_help_heading(b, &i, "Canceling Optimal 3D Clock Frequency Auto "
-                     "Dection.");
+    ctk_help_heading(b, &i, "Canceling Optimal 3D Clock Frequency Auto-"
+                     "detection.");
     ctk_help_para(b, &i, __cancel_button_help);
     ctk_help_para(b, &i,
                   "This button is only available if the Optimal "
@@ -730,7 +730,7 @@ static void overclocking_state_update_gui(CtkClocks *ctk_object)
 
 
     /* We need to check the overclocking state status with 
-     * the server everytime someone tries to change the state
+     * the server every time someone tries to change the state
      * because the set might have failed.
      */
 
@@ -1095,7 +1095,7 @@ static void clock_menu_changed(GtkWidget *widget, gpointer user_data)
     history = ctk_drop_down_menu_get_current_value(menu);
     switch (history) {
     default:
-        /* Fall throught */
+        /* Fall through */
     case 0: /* 2D */
         sync_gui_to_modify_clocks(ctk_object, CLOCKS_2D);
         break;

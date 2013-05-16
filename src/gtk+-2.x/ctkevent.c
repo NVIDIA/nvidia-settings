@@ -828,7 +828,7 @@ static gboolean ctk_event_dispatch(GSource *source,
 
 
 /* ctk_event_emit() - Emits signal(s) on a registered ctk_event object.
- * This function is primarly used to simulate NV-CONTROL events such
+ * This function is primarily used to simulate NV-CONTROL events such
  * that various parts of nvidia-settings can communicate (internally)
  */
 void ctk_event_emit(CtkEvent *ctk_event,
@@ -853,7 +853,7 @@ void ctk_event_emit(CtkEvent *ctk_event,
     if (!source) return;
 
 
-    /* Broadcast event to all relavent ctk_event objects */
+    /* Broadcast event to all relevant ctk_event objects */
     event.attribute = attrib;
     event.value = value;
     event.display_mask = mask;
@@ -869,7 +869,7 @@ void ctk_event_emit(CtkEvent *ctk_event,
 
 
 /* ctk_event_emit_string() - Emits signal(s) on a registered ctk_event object.
- * This function is primarly used to simulate NV-CONTROL events such
+ * This function is primarily used to simulate NV-CONTROL events such
  * that various parts of nvidia-settings can communicate (internally)
  */
 void ctk_event_emit_string(CtkEvent *ctk_event,
@@ -894,7 +894,7 @@ void ctk_event_emit_string(CtkEvent *ctk_event,
     if (!source) return;
 
 
-    /* Broadcast event to all relavent ctk_event objects */
+    /* Broadcast event to all relevant ctk_event objects */
 
     event.attribute = attrib;
     event.value = 0;

@@ -234,7 +234,7 @@ static void ecc_set_config_status(CtkEcc *ctk_ecc)
 
 /*
  * ecc_configuration_update_received() - this function is called when the
- * NV_CTRL_GPU_ECC_CONFIGURATION atribute is changed by another
+ * NV_CTRL_GPU_ECC_CONFIGURATION attribute is changed by another
  * NV-CONTROL client.
  */
 
@@ -246,7 +246,7 @@ static void ecc_configuration_update_received(GtkObject *object,
 
     ctk_ecc->ecc_configured = event_struct->value;
  
-    /* set ECC configuration buttion status */
+    /* set ECC configuration button status */
     ecc_set_config_status(ctk_ecc);
 
     /* Update status bar message */

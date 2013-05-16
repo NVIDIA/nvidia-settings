@@ -42,7 +42,7 @@
 
 
 /*
- * display_device_name() - return the display device name correspoding
+ * display_device_name() - return the display device name corresponding
  * to the display device mask.
  */
 

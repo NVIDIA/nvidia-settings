@@ -607,7 +607,7 @@ static int nv_parse_special_xscreen_target(ParsedAttribute *a,
  * before the DISPLAY_NAME_SEPARATOR.
  *
  * \param[in]  start  Start of the string to parse.
- * \param[in]  end    End of the the string to parse.
+ * \param[in]  end    End of the string to parse.
  * \param[out] a      ParsedAttribute to be modified with the X Display and/or
  *                    target type + target id or generic specification
  *                    information.
@@ -1191,7 +1191,7 @@ uint32 expand_display_device_mask_wildcards(const uint32 d, const uint32 e)
 
 /*
  * nv_assign_default_display() - assign an X display, if none has been
- * assigned already.  Also, parse the the display name to find any
+ * assigned already.  Also, parse the display name to find any
  * specified X screen.
  */
 
@@ -1212,7 +1212,7 @@ void nv_assign_default_display(ParsedAttribute *a, const char *display)
             if (dot) {
 
                 /*
-                 * if all characters afer the '.' are digits, interpret it as a
+                 * if all characters after the '.' are digits, interpret it as a
                  * screen number.
                  */
                 nv_parse_special_xscreen_target(a, dot + 1, NULL);
@@ -1446,7 +1446,7 @@ char *remove_spaces(const char *o)
 
 /*
  * allocate an output string and copy the input string to this
- * output string, replacing any occurances of the character
+ * output string, replacing any occurrences of the character
  * 'c' with the character 'r'.
  */
 
@@ -1513,7 +1513,7 @@ static char **nv_strtok(char *s, char c, int *n)
     delims[count] = (char *) strchr(s, '\0');
     
     /*
-     * so now, we have pointers to each deliminator; copy what's in between
+     * so now, we have pointers to each delimiter; copy what's in between
      * the divisions (the tokens) into the dynamic array of strings
      */
     
@@ -1741,7 +1741,7 @@ const char *parse_read_name(const char *str, char **name, char term)
  *
  * Convert a 'CRT-1' style display device name into a device_mask
  * '0x00000002' bitmask.  The location where parsing stopped is returned
- * or NULL if an error occured.
+ * or NULL if an error occurred.
  *
  **/
 const char *parse_read_display_name(const char *str, unsigned int *mask)
@@ -1781,7 +1781,7 @@ const char *parse_read_display_name(const char *str, unsigned int *mask)
  *
  * Convert a 'DPY-#' style display device name into a display device
  * id.  The location where parsing stopped is returned or NULL if an
- * error occured.
+ * error occurred.
  *
  **/
 const char *parse_read_display_id(const char *str, unsigned int *id)
@@ -1812,7 +1812,7 @@ const char *parse_read_display_id(const char *str, unsigned int *id)
 
 /** parse_read_float_range() *****************************************
  *
- * Reads the maximun/minimum information from a string in the
+ * Reads the maximum/minimum information from a string in the
  * following format:
  *     "MIN-MAX"
  * or
@@ -1842,7 +1842,7 @@ int parse_read_float_range(const char *str, float *min, float *max)
 /** parse_token_value_pairs() ****************************************
  *
  * Parses the given string for "token=value, token=value, ..." pairs
- * and dispatches the handeling of tokens to the given function with
+ * and dispatches the handling of tokens to the given function with
  * the given data as an extra argument.
  *
  * Note that the value may be in parentheses:  "token=(value), ..."

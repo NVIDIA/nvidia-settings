@@ -188,7 +188,7 @@ typedef struct nvSelectedModeRec {
 typedef struct nvModeRec {
     struct nvModeRec *next;
 
-    /* Defines a single mode for a dispay device as part of an X screen's
+    /* Defines a single mode for a display device as part of an X screen's
      * metamode.
      *
      * "WxH_Hz +x+y @WxH"

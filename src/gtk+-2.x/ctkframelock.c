@@ -283,7 +283,7 @@ static const char * __use_house_sync_button_help =
 
 static const char * __sync_interval_scale_help =
 "The Sync Interval allows you to set the number of incoming house sync "
-"pulses the master frame lock board recieves before generating an outgoing "
+"pulses the master frame lock board receives before generating an outgoing "
 "frame lock sync pulse.  A value of 0 means a frame lock sync pulse is sent "
 "for every house sync pulse.";
 
@@ -378,7 +378,7 @@ static void framelock_state_received(GtkObject *object,
 /************************************************************************/
 
 /*
- * Widget creation hepher functions
+ * Widget creation helper functions
  */
 
 
@@ -906,7 +906,7 @@ static char *get_framelock_name(nvFrameLockDataPtr data, gboolean simple)
 
     /* NOTE: The display name of a non-X Screen target will
      *       return the server name and server # only.
-     *       (ie, it does not return a screen #)
+     *       (i.e., it does not return a screen #)
      */
     server_name = NvCtrlGetDisplayName(data->handle);
 
@@ -1632,7 +1632,7 @@ static void list_entry_clicked(GtkWidget *widget, GdkEventButton *event,
 
 /** expander_button_clicked() ****************************************
  *
- * - Handles button clicks on an nvListEntry's expantion button
+ * - Handles button clicks on an nvListEntry's expansion button
  *   widget.
  *
  *   This function either shows or hides the list entry's children
@@ -1881,7 +1881,7 @@ static void list_entry_add_child(nvListEntryPtr parent, nvListEntryPtr child)
         return;
     }
 
-    /* Add the child into the paren't child list */
+    /* Add the child into the parent's child list */
     
     child->parent = parent;
     child->tree   = parent->tree;
@@ -2750,7 +2750,7 @@ static void expand_all_clicked(GtkWidget *widget, gpointer data)
     /* expand or collapse all the entries */
     list_entry_expand_collapse(tree->entries, !ctk_framelock->is_expanded);
 
-    /* update the expand_all button stattus */
+    /* update the expand_all button status */
     update_expand_all_button_status(ctk_framelock);
 }
 
@@ -3172,7 +3172,7 @@ static gint test_link_done(gpointer data)
     gdk_window_set_cursor((GTK_WIDGET(ctk_framelock->parent_window))->window,
                           NULL);
 
-    /* un-press the testlink button */
+    /* un-press the test link button */
    
     g_signal_handlers_block_by_func
         (G_OBJECT(ctk_framelock->test_link_button),
@@ -3601,7 +3601,7 @@ static void list_entry_update_framelock_status(CtkFramelock *ctk_framelock,
     snprintf(str, 32, "%.2f uS", fvalue); // 10.2f
     gtk_label_set_text(GTK_LABEL(data->delay_text), str);
 
-    /* Incomming signal rate */
+    /* Incoming signal rate */
     gtk_widget_set_sensitive(data->house_sync_rate_label, framelock_enabled);
     gtk_widget_set_sensitive(data->house_sync_rate_text, framelock_enabled);
 
@@ -3745,7 +3745,7 @@ static void list_entry_update_display_status(CtkFramelock *ctk_framelock,
         gint timing = TRUE;
         gint stereo_sync;
 
-        /* If the display's GPU is not recieving timing, activate the
+        /* If the display's GPU is not receiving timing, activate the
          * stereo label but make sure to gray out the LED.
          */
         gtk_widget_set_sensitive(data->stereo_label, TRUE);
@@ -3819,7 +3819,7 @@ static gboolean update_framelock_status(gpointer user_data)
 
 /** check_for_ethernet() *********************************************
  *
- * Queries ethernet status for all frame lock devices and reports
+ * Queries Ethernet status for all frame lock devices and reports
  * on any error.
  *
  * XXX This assumes that the frame lock (Quadro Sync) devices are
@@ -3835,7 +3835,7 @@ static gboolean check_for_ethernet(gpointer user_data)
     
 
     /* Look through the framelock entries and check the
-     * ethernet status on each one
+     * Ethernet status on each one
      */
     entry = ((nvListTreePtr)(ctk_framelock->tree))->entries;
     while (entry) {
@@ -3888,7 +3888,7 @@ static gboolean check_for_ethernet(gpointer user_data)
 
 /** update_house_sync_controls() *************************************
  *
- * Queries the X Server for hosue sync status information for the
+ * Queries the X Server for house sync status information for the
  * currently selected frame lock server and updates the GUI.
  *
  */
@@ -4156,7 +4156,7 @@ static void gpu_state_received(GtkObject *object,
                  G_CALLBACK(toggle_client),
                  (gpointer) display_entry);
             
-            /* If there is an inconsistensy, unselect the server */
+            /* If there is an inconsistency, unselect the server */
 
             if (checked && !sensitive && gpu_entry->tree->server_entry) {
                 
@@ -4240,7 +4240,7 @@ static void gpu_state_received(GtkObject *object,
                  NULL);
             break;
         default:
-            /* Unknwon state, ignore */
+            /* Unknown state, ignore */
             break;
         }
 
@@ -5707,8 +5707,8 @@ static void add_devices(CtkFramelock *ctk_framelock,
 
 /** add_entry_to_parsed_attributes() *********************************
  *
- * Adds information reguarding a list entry (GPU or Frame Lock
- * device) to the parsed attribute list.
+ * Adds information regarding a list entry (GPU or Frame Lock device)
+ * to the parsed attribute list.
  *
  */
 #define __ADD_ATTR(x,y,z)                               \
@@ -5794,7 +5794,7 @@ static void add_entry_to_parsed_attributes(nvListEntryPtr entry,
         break;
 
     case ENTRY_DATA_DISPLAY:
-        /* Nothign to save */
+        /* Nothing to save */
         break;
 
     default:
@@ -5850,7 +5850,7 @@ void ctk_framelock_config_file_attributes(GtkWidget *w,
     add_entries_to_parsed_attributes
         (((nvListTreePtr)(ctk_framelock->tree))->entries, head);
 
-    /* Save the frame lock server's hous esync settings */
+    /* Save the frame lock server's house sync settings */
     add_entry_to_parsed_attributes
         (get_framelock_server_entry((nvListTreePtr)(ctk_framelock->tree)),
          head);
@@ -5959,14 +5959,14 @@ GtkTextBuffer *ctk_framelock_create_help(GtkTextTagTable *table)
 
     ctk_help_heading(b, &i, "Display Device Entry Information");
     ctk_help_para(b, &i, "Display Device entries display information and "
-                  "configuration options for configuring how the dislay "
+                  "configuration options for configuring how the display "
                   "device should behave in the frame lock group.  Setting  of "
                   "options is only available while frame lock is disabled.  "
                   "The following options are available:");
     ctk_help_para(b, &i, __server_checkbox_help);
     ctk_help_para(b, &i, __client_checkbox_help);
     ctk_help_para(b, &i, "Stereo LED: This indicates whether or not the "
-                  "display device is sync'ed to the stereo signal coming from "
+                  "display device is synced to the stereo signal coming from "
                   "the Quadro Sync device.  This LED is only available to "
                   "display devices set as clients when frame lock is enabled.  "
                   "The Stereo LED is dependent on the parent GPU being in sync "
@@ -5987,7 +5987,7 @@ GtkTextBuffer *ctk_framelock_create_help(GtkTextTagTable *table)
     ctk_help_para(b, &i, "The House Sync section allows you to configure "
                   "the selected server Quadro Sync board for using an incoming "
                   "house sync signal instead of internal GPU timings.  This "
-                  "section is only accesible by selecting a server display "
+                  "section is only accessible by selecting a server display "
                   "device (See Display Device Information above.");
 
     ctk_help_heading(b, &i, "Use House Sync on Server");

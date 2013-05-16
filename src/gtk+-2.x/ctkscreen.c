@@ -115,13 +115,13 @@ static gchar *make_display_device_list(NvCtrlAttributeHandle *handle)
 
 /*
  * Calculations of the screen dimensions and resolution are based on
- * the dxpyinfo utility code.
+ * the xdpyinfo utility code.
  *
  * Copyright Information for xdpyinfo:
  *
  ***********************************************************************
  * 
- * xdpyinfo - print information about X display connecton
+ * xdpyinfo - print information about X display connection
  *
  * 
 Copyright 1988, 1998  The Open Group
@@ -482,7 +482,7 @@ static void associated_displays_received(GtkObject *object, gpointer arg1,
 
 
 /*
- * When the  number of gpu errors occured changes,
+ * When the number of gpu errors occurred changes,
  * update the count showed on the page.
  */
 

@@ -191,7 +191,7 @@ static void add_slimm_options(XConfigPtr xconf, gchar *metamode_str)
 
     /* 
      * Now fix up the screen in the Device section (to prevent failure with
-     * seperate x screen config
+     * separate x screen config
      *
      */
     xconf->layouts->adjacencies->screen->device->screen = -1;
@@ -1063,7 +1063,7 @@ static Bool parse_slimm_layout(CtkSLIMM *ctk_slimm,
         }
 
 
-        /* Calculte column overlap */
+        /* Calculate column overlap */
         *hoverlap = 0;
         found = 0;
         if (cols > 1) {
@@ -1290,7 +1290,7 @@ GtkWidget* ctk_slimm_new(NvCtrlAttributeHandle *handle,
 
     /*
      * Check for NV-CONTROL protocol version.
-     * This used for not trust old X drivers which always reported
+     * This is used to not trust old X drivers which always reported
      * it available (on NV50+).
      */
     ret = NvCtrlGetAttribute(handle,
@@ -1367,7 +1367,7 @@ GtkWidget* ctk_slimm_new(NvCtrlAttributeHandle *handle,
             }
         }
 
-        /* Make sure we have enough dislays for the minimum config */
+        /* Make sure we have enough displays for the minimum config */
         if (num_valid <= 0) {
             err_str = g_strdup_printf("Not enough display devices to "
                                       "configure SLI Mosaic Mode.\nYou must "

@@ -812,7 +812,7 @@ nvModePtr mode_parse(nvDisplayPtr display, const char *mode_str)
     }
 
     /* If rotation is specified, swap W/H if they are still set to the
-     * modeline's unrotated dimentions.  Panning should not be rotated
+     * modeline's unrotated dimensions.  Panning should not be rotated
      * here since it is returned rotated by the X driver.
      */
     if (((mode->rotation == ROTATION_90) ||
@@ -987,7 +987,7 @@ static gchar *mode_get_str(nvModePtr mode, int be_generic)
      * XXX Later, we'll want to allow the user to select how
      *     the metamodes are generated:
      *
-     *   Programability:
+     *   Programmability:
      *     make mode->viewPortIn relative to screen->dim
      *
      *   Coherency:
@@ -1094,8 +1094,8 @@ static gchar *mode_get_str(nvModePtr mode, int be_generic)
         int width;
         int height;
 
-        /* Only write out the ViewPortIn if it is specified and differes from
-         * the ViewPortOut.
+        /* Only write out the ViewPortIn if it is specified and differs from the
+         * ViewPortOut.
          */
         if ((mode->rotation == ROTATION_90) ||
             (mode->rotation == ROTATION_270)) {
@@ -1988,7 +1988,7 @@ static void screen_remove_metamodes(nvScreenPtr screen)
  *
  * Special strtok function for parsing modes.  This function ignores
  * anything between curly braces, including commas when parsing tokens
- * deliminated by commas.
+ * delimited by commas.
  *
  **/
 static char *mode_strtok(char *str)
@@ -2203,10 +2203,10 @@ static Bool screen_check_metamodes(nvScreenPtr screen)
             }
         }
 
-        /* Each display must have as many modes as it's screen has metamodes */
+        /* Each display must have as many modes as its screen has metamodes */
         while (metamode) {
 
-            /* Create a dumy mode */
+            /* Create a dummy mode */
             mode = mode_parse(display, "NULL");
             mode->dummy = 1;
             mode->metamode = metamode;
@@ -3422,7 +3422,7 @@ static Bool layout_add_screen_from_server(nvLayoutPtr layout,
         if (ret == NvCtrlSuccess && primary_str) {
             char *str;
 
-            /* The TwinView Xinerana Info Order string may be a comma-separated
+            /* The TwinView Xinerama Info Order string may be a comma-separated
              * list of display device names, though we could add full support
              * for ordering these, just keep track of a single display here.
              */
@@ -3562,7 +3562,7 @@ nvLayoutPtr layout_load_from_server(NvCtrlAttributeHandle *handle,
     layout->handle = handle;
 
 
-    /* Is Xinerma enabled? */
+    /* Is Xinerama enabled? */
     ret = NvCtrlGetAttribute(handle, NV_CTRL_XINERAMA,
                              &layout->xinerama_enabled);
     if (ret != NvCtrlSuccess) {
@@ -3823,7 +3823,7 @@ static int save_xconfig_file(SaveXConfDlg *dlg,
     ret = 1;
 
  done:
-    /* Display any errors that might have occured */
+    /* Display any errors that might have occurred */
     if (err_msg) {
         ctk_display_error_msg(ctk_get_parent_window(GTK_WIDGET(dlg->parent)),
                               err_msg);
@@ -3975,7 +3975,7 @@ static void update_xconfig_save_buffer(SaveXConfDlg *dlg)
                 }
             }
 
-            /* If we're not actualy doing a merge, close the file */
+            /* If we're not actually doing a merge, close the file */
             if (!merge && xconfCur) {
                 xconfigFreeConfig(&xconfCur);
             }

@@ -1165,9 +1165,9 @@ static void reposition_screen(nvScreenPtr screen, int resolve_all_modes)
 
 /** switch_screen_to_absolute() **************************************
  *
- * Prepair a screen for using absolute positioning.  This is needed
+ * Prepare a screen for using absolute positioning.  This is needed
  * since screens using relative positioning may not have all their
- * metamodes's top left corner coincideat the same place.  This
+ * metamodes's top left corner coincident the same place.  This
  * function makes sure that all metamodes in the screen have the
  * same top left corner by offsetting the modes of metamodes that
  * are offset from the screen's bounding box top left corner.
@@ -1308,7 +1308,7 @@ static void snap_dim_to_dim(GdkRectangle *dst, GdkRectangle *src,
  *
  * Snaps the sides of src to snap and stores the result in dst
  *
- * Returns 1 if a snap occured.
+ * Returns 1 if a snap occurred.
  *
  **/
 
@@ -1405,10 +1405,10 @@ static void snap_move(CtkDisplayLayout *ctk_object)
                 continue;
             }
 
-            /* NOTE: When the display devices's screens are relative to each
+            /* NOTE: When the display devices' screens are relative to each
              *       other, we may still want to allow snapping of the non-
              *       related edges.  This is useful, for example, when two
-             *       screens have a right of/left of relationtship and
+             *       screens have a right of/left of relationship and
              *       one of them is taller.
              */
             bv = &info->best_snap_v;
@@ -1461,10 +1461,10 @@ static void snap_move(CtkDisplayLayout *ctk_object)
 
         if (screen == info->screen) continue;
 
-        /* NOTE: When the (display devices's) screens are relative to
+        /* NOTE: When the (display devices') screens are relative to
          *       each other, we may still want to allow snapping of the
          *       non-related edges.  This is useful, for example, when
-         *       two screens have a right of/left of relationtship and
+         *       two screens have a right of/left of relationship and
          *       one of them is taller.
          */
 
@@ -1554,7 +1554,7 @@ static void snap_move(CtkDisplayLayout *ctk_object)
  * of the snap are placed into the destination dimensions (dst_dim).
  *
  * This is used for changing both the panning domain of a display
- * device as well as setting a (no-scannout) screen's virtual size.
+ * device as well as setting a (no-scanout) screen's virtual size.
  *
  **/
 
@@ -1622,7 +1622,7 @@ static void snap_pan(CtkDisplayLayout *ctk_object)
         /* NOTE: When display devices are relative to each other,
          *       we may still want to allow snapping of the non-related
          *       edges.  This is useful, for example, when two
-         *       displays have a right of/left of relationtship and
+         *       displays have a right of/left of relationship and
          *       one of the displays is taller.
          */
         bv = &info->best_snap_v;
@@ -4270,7 +4270,7 @@ void ctk_display_layout_set_screen_position(CtkDisplayLayout *ctk_object,
 /** ctk_display_layout_set_advanced_mode() ***************************
  *
  * Enables/Disables the user's ability to modify advanced layout
- * bells and whisles.
+ * bells and whistles.
  *
  * In advanced mode the user has access to:
  *
@@ -4297,7 +4297,7 @@ void ctk_display_layout_set_advanced_mode(CtkDisplayLayout *ctk_object,
 
 /** ctk_display_layout_register_callbacks() **************************
  *
- * Sets up callbacks so users of the display layout can recieve
+ * Sets up callbacks so users of the display layout can receive
  * notifications.
  *
  **/
@@ -4532,7 +4532,7 @@ button_press_event_callback(GtkWidget *widget, GdkEventButton *event,
         return TRUE;
     }
 
-    /* XXX Ignore tripple clicks */
+    /* XXX Ignore triple clicks */
     if (event->type != GDK_BUTTON_PRESS) return TRUE;
 
     switch (event->button) {

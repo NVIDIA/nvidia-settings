@@ -1110,7 +1110,7 @@ static void slider_changed(GtkAdjustment *adjustment, gpointer user_data)
 
 /*
  * aa_line_gamma_update_received() - this function is called when the
- * NV_CTRL_OPENGL_AA_LINE_GAMMA_VALUE atribute is changed by another NV-CONTROL
+ * NV_CTRL_OPENGL_AA_LINE_GAMMA_VALUE attribute is changed by another NV-CONTROL
  * client.
  */
 

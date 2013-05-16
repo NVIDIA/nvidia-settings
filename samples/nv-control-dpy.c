@@ -1237,7 +1237,7 @@ int main(int argc, char *argv[])
 
         /*
          * we have added a new MetaMode for this X screen, and we know
-         * it's id.  The last step is to use the XRandR extension to
+         * its id.  The last step is to use the XRandR extension to
          * switch to this mode; see the Xrandr(3) manpage for details.
          *
          * For demonstration purposes, just use the xrandr commandline
@@ -1401,7 +1401,7 @@ int main(int argc, char *argv[])
 
 
 /*
- * display_device_name() - return the display device name correspoding
+ * display_device_name() - return the display device name corresponding
  * to the specified display device mask.
  */
 

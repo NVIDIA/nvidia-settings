@@ -123,7 +123,7 @@ GtkWidget* ctk_image_sliders_new(NvCtrlAttributeHandle *handle,
     gint val;
 
     /*
-     * now that we know that we will have atleast one attribute,
+     * now that we know that we will have at least one attribute,
      * create the object
      */
 

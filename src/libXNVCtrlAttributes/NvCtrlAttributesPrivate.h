@@ -130,7 +130,7 @@ struct __NvCtrlXrandrAttributes {
 
 struct __NvCtrlAttributePrivateHandle {
     Display *dpy;                   /* display connection */
-    int target_type;                /* Type of target this handle conrols */
+    int target_type;                /* Type of target this handle controls */
     int target_id;                  /* screen num, gpu num (etc) of target */
 
     /* Common attributes */

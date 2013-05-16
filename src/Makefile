@@ -158,7 +158,7 @@ CFLAGS     += -I $(COMMON_UTILS_DIR)
 CFLAGS     += -I $(VIRTUAL_RESOLUTIONS_DIR)
 CFLAGS     += -I $(OUTPUTDIR)
 CFLAGS     += $(VDPAU_CFLAGS)
-CFLAGS     += -DPROGRAM_NAME=\"nvidia-setttings\"
+CFLAGS     += -DPROGRAM_NAME=\"nvidia-settings\"
 
 $(call BUILD_OBJECT_LIST,$(GTK_SRC)): CFLAGS += $(GTK_CFLAGS)
 

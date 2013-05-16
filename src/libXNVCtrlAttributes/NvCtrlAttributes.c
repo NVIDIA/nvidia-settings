@@ -122,7 +122,7 @@ NvCtrlAttributeHandle *NvCtrlAttributeInit(Display *dpy, int target_type,
  * NvCtrlAttributeHandle.  This is done by getting the string that
  * describes the display connection, and then substituting the correct
  * screen number.  If no hostname is present in the display string,
- * uname.nodename is prepended.  Returns NULL if any error occors.
+ * uname.nodename is prepended.  Returns NULL if any error occurs.
  */
 
 char *NvCtrlGetDisplayName(NvCtrlAttributeHandle *handle)
@@ -658,7 +658,7 @@ GetValidStringDisplayAttributeValuesExtraAttr(NVCTRLAttributeValidValuesRec
 
 /*
  * NvCtrlGetValidStringDisplayAttributeValues() -fill the
- * NVCTRLAttributeValidValuesRec strucure for String atrributes
+ * NVCTRLAttributeValidValuesRec structure for String attributes
  */
 
 ReturnStatus
@@ -875,7 +875,7 @@ void NvCtrlAttributeClose(NvCtrlAttributeHandle *handle)
 
 
 /*
- * NvCtrlGetMultisampleModeName() - lookup a string desribing the
+ * NvCtrlGetMultisampleModeName() - lookup a string describing the
  * NV-CONTROL constant.
 */
 

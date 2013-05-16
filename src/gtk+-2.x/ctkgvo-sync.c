@@ -676,7 +676,7 @@ GtkWidget* ctk_gvo_sync_new(NvCtrlAttributeHandle *handle,
 
 
 /*
- * start_menu() - Start the creation of a labled dropdown menu.  (Packs
+ * start_menu() - Start the creation of a labeled dropdown menu.  (Packs
  * the dropdown label into the table row.
  */
 
@@ -902,7 +902,7 @@ static void register_for_gvo_sync_events(CtkGvoSync *ctk_gvo_sync)
 
 /*
  * update_gvo_sync_sensitivity() - Updates the sensitivity of various UI
- * wigets based on whether or not an input sync signal is detected.
+ * widgets based on whether or not an input sync signal is detected.
  *
  */
 
@@ -1007,7 +1007,7 @@ static void post_sync_mode_menu_changed(CtkGvoSync *ctk_gvo_sync, gint value)
 
 
 /*
- * post_sync_format_menu_changed() - Call this function after teh sync
+ * post_sync_format_menu_changed() - Call this function after the sync
  * format has changed.
  */
 
