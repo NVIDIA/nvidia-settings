@@ -725,7 +725,7 @@ char *nv_trim_space(char *string) {
     char *ret, *end;
 
     for (ret = string; *ret && isspace(*ret); ret++);
-    for (end = ret + strlen(ret); end >= ret && isspace(*end); end--) {
+    for (end = ret + strlen(ret) - 1; end >= ret && isspace(*end); end--) {
         *end = '\0';
     }
 
@@ -745,12 +745,12 @@ static char *trim_char(char *string, char trim, int *count) {
         return NULL;
     }
 
-    len = strlen(string);
-
     if (string[0] == trim) {
         string++;
         replaced++;
     }
+
+    len = strlen(string);
 
     if (string[len - 1] == trim) {
         string[len - 1] = '\0';

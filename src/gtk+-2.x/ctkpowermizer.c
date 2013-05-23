@@ -936,16 +936,6 @@ static void powermizer_menu_changed(GtkWidget *widget,
     ctk_config_statusbar_message(ctk_powermizer->ctk_config, 
                                  "Preferred Mode set to %s.",
                                  __powermizer_modes[history].label);
-
-    g_signal_handlers_block_by_func(G_OBJECT(ctk_powermizer->powermizer_menu),
-                                    G_CALLBACK(powermizer_menu_changed),
-                                    (gpointer) ctk_powermizer);
-
-    ctk_drop_down_menu_set_current_value(menu, powerMizerMode);
-
-    g_signal_handlers_unblock_by_func(G_OBJECT(ctk_powermizer->powermizer_menu),
-                                      G_CALLBACK(powermizer_menu_changed),
-                                      (gpointer) ctk_powermizer);
 }
 
 
