@@ -285,6 +285,9 @@ NvCtrlAttributeHandle *NvCtrlAttributeInit(Display *dpy, int target_type,
                                            int target_id,
                                            unsigned int subsystems);
 
+void NvCtrlAttributeRebuildSubsystems(NvCtrlAttributeHandle *handle,
+                                      unsigned int subsystem);
+
 char *NvCtrlGetDisplayName(NvCtrlAttributeHandle *handle);
 Display *NvCtrlGetDisplayPtr(NvCtrlAttributeHandle *handle);
 int NvCtrlGetScreen(NvCtrlAttributeHandle *handle);

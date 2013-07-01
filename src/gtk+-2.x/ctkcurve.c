@@ -249,6 +249,8 @@ GtkWidget* ctk_curve_new(NvCtrlAttributeHandle *handle, GtkWidget *color)
     
     ctk_curve->gdk_colormap = gdk_colormap = gdk_colormap_get_system();
 
+    g_object_ref(gdk_colormap);
+
     gdk_color = &ctk_curve->gdk_color_red;
     memset(gdk_color, 0, sizeof(GdkColor));
     gdk_color->red = 65535;

@@ -23,6 +23,22 @@
 #include "ctkutils.h"
 #include "msg.h"
 
+/*
+ * This function checks that the GTK+ library in use is at least as new as the
+ * given version number. Note this differs from gtk_check_version(), which
+ * checks that the library in use is "compatible" with the given version (which
+ * requires the library in use have both (1) a newer or equal version number and
+ * (2) an equal major version number).
+ */
+gboolean ctk_check_min_gtk_version(guint required_major,
+                                   guint required_minor,
+                                   guint required_micro)
+{
+    return (NV_VERSION3(required_major, required_minor,
+                        required_micro) <=
+            NV_VERSION3(gtk_major_version, gtk_minor_version,
+                        gtk_micro_version));
+}
 
 
 gchar *get_pcie_generation_string(NvCtrlAttributeHandle *handle)
@@ -370,3 +386,51 @@ void ctk_empty_container(GtkWidget *container)
     g_list_free(list);
 
 } /* ctk_empty_container() */
+
+
+/* Updates the widget to use the text colors ('text' and 'base') for the
+ * foreground and background colors.
+ */
+static void widget_use_text_colors_for_state(GtkWidget *widget,
+                                             GtkStateType state)
+{
+    gtk_widget_modify_fg(widget, state, &(widget->style->text[state]));
+    gtk_widget_modify_bg(widget, state, &(widget->style->base[state]));
+
+}
+
+
+/* Callback for the "style-set" event, used to ensure that widgets that should
+ * use the text colors for drawing still do so after a Theme update.
+ */
+static void force_text_colors_handler(GtkWidget *widget,
+                                      GtkStyle *previous_style,
+                                      gpointer user_data)
+{
+    g_signal_handlers_block_by_func
+        (G_OBJECT(widget),
+         G_CALLBACK(force_text_colors_handler), user_data);
+
+    /* Use text colors for foreground and background */
+    widget_use_text_colors_for_state(widget, GTK_STATE_NORMAL);
+    widget_use_text_colors_for_state(widget, GTK_STATE_ACTIVE);
+    widget_use_text_colors_for_state(widget, GTK_STATE_PRELIGHT);
+    widget_use_text_colors_for_state(widget, GTK_STATE_SELECTED);
+    widget_use_text_colors_for_state(widget, GTK_STATE_INSENSITIVE);
+
+    g_signal_handlers_unblock_by_func
+        (G_OBJECT(widget),
+         G_CALLBACK(force_text_colors_handler), user_data);
+}
+
+void ctk_force_text_colors_on_widget(GtkWidget *widget)
+{
+    /* Set the intial state */
+    force_text_colors_handler(widget, NULL, NULL);
+
+    /* Ensure state is updated when style changes */
+    g_signal_connect(G_OBJECT(widget),
+                     "style-set", G_CALLBACK(force_text_colors_handler),
+                     (gpointer) NULL);
+}
+

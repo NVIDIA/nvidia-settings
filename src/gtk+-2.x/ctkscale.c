@@ -23,6 +23,8 @@
 #include "ctkscale.h"
 #include <stdio.h>
 
+static void ctk_scale_finalize(GObject *object);
+static void ctk_scale_init(CtkScaleClass *ctk_object_class);
 
 enum {
     PROP_0,
@@ -41,7 +43,7 @@ GType ctk_scale_get_type(
             sizeof (CtkScaleClass),
             NULL, /* base_init */
             NULL, /* base_finalize */
-            NULL, /* class_init, */
+            (GClassInitFunc) ctk_scale_init, /* class_init, */
             NULL, /* class_finalize */
             NULL, /* class_data */
             sizeof (CtkScale),
@@ -57,6 +59,26 @@ GType ctk_scale_get_type(
     return ctk_scale_type;
 }
 
+
+static void ctk_scale_init(CtkScaleClass *ctk_object_class)
+{
+    GObjectClass *gobject_class = (GObjectClass *)ctk_object_class;
+    gobject_class->finalize = ctk_scale_finalize;
+}
+
+static void ctk_scale_finalize(GObject *object)
+{
+    CtkScale *ctk_scale = CTK_SCALE(object);
+
+    g_signal_handlers_disconnect_matched(G_OBJECT(ctk_scale->ctk_config),
+                                         G_SIGNAL_MATCH_DATA,
+                                         0,
+                                         0,
+                                         NULL,
+                                         NULL,
+                                         (gpointer) G_OBJECT(ctk_scale));
+
+}
 
 
 /*
@@ -185,46 +207,46 @@ GtkWidget* ctk_scale_new(GtkAdjustment *gtk_adjustment,
     GtkWidget *label;
     GtkWidget *frame;
     GtkWidget *hbox;
-    
+
     g_return_val_if_fail(GTK_IS_ADJUSTMENT(gtk_adjustment), NULL);
     g_return_val_if_fail(label_text != NULL, NULL);
-    
+
     /* create and initialize the object */
 
     object = g_object_new(CTK_TYPE_SCALE, NULL);
-    
+
     ctk_scale = CTK_SCALE(object);
 
     ctk_scale->gtk_adjustment = gtk_adjustment;
     ctk_scale->label = label_text;
     ctk_scale->ctk_config = ctk_config;
     ctk_scale->value_type = value_type;
-    
+
     gtk_box_set_spacing (GTK_BOX (object), 2);
-    
+
     /* scale label */
-    
+
     label = gtk_label_new(ctk_scale->label);
     gtk_box_pack_start(GTK_BOX (object), label, FALSE, FALSE, 0);
-    
+
     gtk_misc_set_alignment(GTK_MISC(label), 0, 0.5);
-    
+
     /* frame around slider and text box */
-    
+
     frame = gtk_frame_new(NULL);
     gtk_box_pack_start(GTK_BOX(object), frame, TRUE, TRUE, 0);
     ctk_scale->tooltip_widget = frame;
-    
+
     /* hbox to contain slider and text box */
 
     hbox = gtk_hbox_new(FALSE, 0);
     gtk_container_add(GTK_CONTAINER(ctk_scale->tooltip_widget), hbox);
 
     /* text entry */
-    
+
     ctk_scale->text_entry = gtk_entry_new_with_max_length(6);
     gtk_entry_set_width_chars(GTK_ENTRY(ctk_scale->text_entry), 6);
-    
+
     /* text entry container */
 
     ctk_scale->text_entry_container = gtk_frame_new(NULL);
@@ -232,16 +254,16 @@ GtkWidget* ctk_scale_new(GtkAdjustment *gtk_adjustment,
                               GTK_SHADOW_NONE);
     gtk_container_set_border_width
         (GTK_CONTAINER(ctk_scale->text_entry_container), 0);
-                                    
+
 
     gtk_container_add(GTK_CONTAINER(ctk_scale->text_entry_container),
                       ctk_scale->text_entry);
     ctk_scale->text_entry_packed = TRUE;
     g_object_ref(G_OBJECT(ctk_scale->text_entry));
-    
+
     gtk_box_pack_start(GTK_BOX(hbox),
                        ctk_scale->text_entry_container, FALSE, FALSE, 0);
-    
+
     text_entry_toggled(ctk_scale->ctk_config, (gpointer) ctk_scale);
 
     /* wire up the adjustment events */
@@ -255,7 +277,7 @@ GtkWidget* ctk_scale_new(GtkAdjustment *gtk_adjustment,
     g_signal_connect(G_OBJECT(ctk_scale->text_entry), "activate",
                      G_CALLBACK(text_entry_activate),
                      (gpointer) ctk_scale);
-                     
+
     g_signal_connect(G_OBJECT(ctk_config), "slider_text_entry_toggled",
                      G_CALLBACK(text_entry_toggled),
                      (gpointer) ctk_scale);
@@ -264,17 +286,17 @@ GtkWidget* ctk_scale_new(GtkAdjustment *gtk_adjustment,
 
     ctk_scale->gtk_scale =
         gtk_hscale_new(GTK_ADJUSTMENT(ctk_scale->gtk_adjustment));
-    
+
     gtk_scale_set_draw_value(GTK_SCALE(ctk_scale->gtk_scale), FALSE);
-    
+
     gtk_scale_set_digits(GTK_SCALE(ctk_scale->gtk_scale), 0);
 
 
     gtk_box_pack_start(GTK_BOX(hbox), ctk_scale->gtk_scale, TRUE, TRUE, 3);
-    
+
     g_signal_connect(ctk_scale->gtk_scale, "key_press_event",
                      G_CALLBACK(ctk_scale_key_event), G_OBJECT(ctk_scale));
-    
+
     return GTK_WIDGET (object);
-    
+
 } /* ctk_scale_new() */

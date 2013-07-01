@@ -107,8 +107,6 @@ static void print_attribute_help(char *attr)
                     nv_msg(NULL, "  - Attribute is not written to the rc file.");
                 if (entry->flags & NV_PARSER_TYPE_GUI_ATTRIBUTE)
                     nv_msg(NULL, "  - Is GUI attribute.");
-                if (entry->flags & NV_PARSER_TYPE_XVIDEO_ATTRIBUTE)
-                    nv_msg(NULL, "  - Is X Video attribute.");
                 if (entry->flags & NV_PARSER_TYPE_PACKED_ATTRIBUTE)
                     nv_msg(NULL, "  - Attribute value is packed integer.");
                 if (entry->flags & NV_PARSER_TYPE_VALUE_IS_DISPLAY)

@@ -40,6 +40,15 @@ enum {
     NV_DPY_PROTO_NAME_MAX,
 };
 
+enum {
+    NV_GPU_PROTO_NAME_TYPE_ID = 0,
+    NV_GPU_PROTO_NAME_UUID,
+    NV_GPU_PROTO_NAME_MAX,
+};
+
+#define NV_PROTO_NAME_MAX (NV_MAX((int)NV_DPY_PROTO_NAME_MAX, (int)NV_GPU_PROTO_NAME_MAX))
+
+
 /*
  * The CtrlHandles struct contains an array of target types for an X
  * server.  For each target type, we store the number of those targets
@@ -53,7 +62,7 @@ typedef struct {
     uint32 d;                 /* display device mask for this target */
     uint32 c;                 /* Connected display device mask for target */
     char *name;               /* Name for this target */
-    char *protoNames[NV_DPY_PROTO_NAME_MAX];  /* List of valid names for this target */
+    char *protoNames[NV_PROTO_NAME_MAX];  /* List of valid names for this target */
 
     struct _CtrlHandleTargetNode *relations; /* List of associated targets */
 } CtrlHandleTarget;

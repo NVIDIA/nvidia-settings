@@ -27,6 +27,7 @@
 #include "ctkconfig.h"
 #include "ctkhelp.h"
 #include "ctkdropdownmenu.h"
+#include "ctkutils.h"
 
 #include <string.h>
 #include <stdlib.h>
@@ -447,16 +448,8 @@ static void create_glasses_info_table(GlassesInfoTable *table, GlassesInfo** gla
     /* Create the data table */
     data_table = gtk_table_new(table->rows, table->columns, FALSE);
     event = gtk_event_box_new();
-
-    gtk_widget_modify_fg(data_table, GTK_STATE_NORMAL,
-                         &(data_table->style->text[GTK_STATE_NORMAL]));
-    gtk_widget_modify_bg(data_table, GTK_STATE_NORMAL,
-                         &(data_table->style->base[GTK_STATE_NORMAL]));
+    ctk_force_text_colors_on_widget(event);
     gtk_container_add (GTK_CONTAINER(event), data_table);
-    gtk_widget_modify_fg(event, GTK_STATE_NORMAL,
-                         &(event->style->text[GTK_STATE_NORMAL]));
-    gtk_widget_modify_bg(event, GTK_STATE_NORMAL,
-                         &(event->style->base[GTK_STATE_NORMAL]));
     gtk_container_add(GTK_CONTAINER(data_viewport), event);
 
     /* Pack the glasses info header and data tables */

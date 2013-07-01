@@ -70,11 +70,7 @@ struct _CtkPowermizer
     GtkWidget *configuration_button;
     gboolean  dp_enabled;
     gboolean  dp_toggle_warning_dlg_shown;
-    gboolean  hasDecoupledClock;
     gint      attribute;
-    gint      nvclock;
-    gint      memclock;
-    gint      processorclock;
     GtkWidget *status;
 
     GtkWidget *link_width;

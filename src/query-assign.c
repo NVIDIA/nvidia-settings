@@ -132,7 +132,7 @@ static char *query_x_name(const CtrlHandleTarget *t, int attr)
 /*!
  * Retrieves and adds all the display device names for the given target.
  *
- * \param[in]  t  The CtrlHandleTarget to load names for.
+ * \param[in/out]  t  The CtrlHandleTarget to load names for.
  */
 
 static void load_display_target_proto_names(CtrlHandleTarget *t)
@@ -159,34 +159,57 @@ static void load_display_target_proto_names(CtrlHandleTarget *t)
 
 
 /*!
- * Adds the default names for the given target to the list of protocol names.
+ * Adds the default name for the given target to the list of protocol names at
+ * the given proto name index.
  *
- * \param[in]  t  The CtrlHandleTarget to load names for.
+ * \param[in/out]  t          The CtrlHandleTarget to load names for.
+ * \param[in]      proto_idx  The name index where to add the name.
  */
 
-static void load_default_target_proto_name(CtrlHandleTarget *t)
+static void load_default_target_proto_name(CtrlHandleTarget *t,
+                                           const int proto_idx)
 {
     const int target_type = NvCtrlGetTargetType(t->h);
     const int target_id = NvCtrlGetTargetId(t->h);
 
-
     const TargetTypeEntry *targetTypeEntry =
         nv_get_target_type_entry_by_nvctrl(target_type);
 
+    if (proto_idx >= NV_PROTO_NAME_MAX) {
+        return;
+    }
+
     if (targetTypeEntry) {
-        t->protoNames[0] = nvasprintf("%s-%d",
-                                      targetTypeEntry->parsed_name,
-                                      target_id);
-        nvstrtoupper(t->protoNames[0]);
+        t->protoNames[proto_idx] = nvasprintf("%s-%d",
+                                              targetTypeEntry->parsed_name,
+                                              target_id);
+        nvstrtoupper(t->protoNames[proto_idx]);
     }
 }
 
 
 
 /*!
- * Adds the all the appropriate names for the given target to the list of protocol names.
+ * Adds the GPU names to the given target to the list of protocol names.
  *
- * \param[in]  t  The CtrlHandleTarget to load names for.
+ * \param[in/out]  t  The CtrlHandleTarget to load names for.
+ */
+
+static void load_gpu_target_proto_names(CtrlHandleTarget *t)
+{
+    load_default_target_proto_name(t, NV_GPU_PROTO_NAME_TYPE_ID);
+
+    t->protoNames[NV_GPU_PROTO_NAME_UUID] =
+        query_x_name(t, NV_CTRL_STRING_GPU_UUID);
+}
+
+
+
+/*!
+ * Adds the all the appropriate names for the given target to the list of
+ * protocol names.
+ *
+ * \param[in/out]  t  The CtrlHandleTarget to load names for.
  */
 
 static void load_target_proto_names(CtrlHandleTarget *t)
@@ -198,8 +221,12 @@ static void load_target_proto_names(CtrlHandleTarget *t)
         load_display_target_proto_names(t);
         break;
 
+    case NV_CTRL_TARGET_TYPE_GPU:
+        load_gpu_target_proto_names(t);
+        break;
+
     default:
-        load_default_target_proto_name(t);
+        load_default_target_proto_name(t, 0);
         break;
     }
 }
@@ -528,7 +555,7 @@ static int nv_target_has_name(const CtrlHandleTarget *t, const char *name)
 {
     int n;
 
-    for (n = 0; n < NV_DPY_PROTO_NAME_MAX; n++) {
+    for (n = 0; n < NV_PROTO_NAME_MAX; n++) {
         if (t->protoNames[n] &&
             nv_strcasecmp(t->protoNames[n], name)) {
             return NV_TRUE;
@@ -1174,7 +1201,7 @@ static void nv_free_ctrl_handles(CtrlHandles *h)
 
                 NvCtrlAttributeClose(t->h);
                 free(t->name);
-                for (n = 0; n < NV_DPY_PROTO_NAME_MAX; n++) {
+                for (n = 0; n < NV_PROTO_NAME_MAX; n++) {
                     if (t->protoNames[n]) {
                         XFree(t->protoNames[n]);
                     }

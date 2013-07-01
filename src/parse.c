@@ -50,7 +50,6 @@ static int count_number_of_chars(char *o, char d);
 #define C NV_PARSER_TYPE_COLOR_ATTRIBUTE
 #define N NV_PARSER_TYPE_NO_CONFIG_WRITE
 #define G NV_PARSER_TYPE_GUI_ATTRIBUTE
-#define V NV_PARSER_TYPE_XVIDEO_ATTRIBUTE
 #define P NV_PARSER_TYPE_PACKED_ATTRIBUTE
 #define D NV_PARSER_TYPE_VALUE_IS_DISPLAY
 #define A NV_PARSER_TYPE_NO_QUERY_ALL
@@ -128,6 +127,7 @@ const AttributeTableEntry attributeTable[] = {
     { "StereoEyesExchange",         NV_CTRL_STEREO_EYES_EXCHANGE,             0,   "Swaps the left and right eyes of stereo images." },
     { "SLIMode",                    NV_CTRL_STRING_SLI_MODE,                  S|N, "Returns a string describing the current SLI mode, if any." },
     { "SliMosaicModeAvailable",     NV_CTRL_SLI_MOSAIC_MODE_AVAILABLE,        N,   "Returns whether or not SLI Mosaic Mode is supported." },
+    { "MultiGpuMode",               NV_CTRL_STRING_MULTIGPU_MODE,             S|N, "Returns a string describing the current MultiGPU mode, if any." },
 
     /* GPU */
     { "BusType",                NV_CTRL_BUS_TYPE,                      N,   "Returns the type of bus connecting the specified device to the computer.  If the target is an X screen, then it uses the GPU driving the X screen as the device." },
@@ -183,7 +183,10 @@ const AttributeTableEntry attributeTable[] = {
     { "ThermalSensorTarget",    NV_CTRL_THERMAL_SENSOR_TARGET,            N,   "Returns what hardware component the thermal sensor is measuring." },  
     { "GPUDoublePrecisionBoostImmediate", NV_CTRL_GPU_DOUBLE_PRECISION_BOOST_IMMEDIATE, N,   "Toggles GPU double precision; the change is applied immediately.  Only available when the change can be made immediately." },
     { "GPUDoublePrecisionBoostReboot",    NV_CTRL_GPU_DOUBLE_PRECISION_BOOST_REBOOT,    N,   "Toggles GPU double precision; the change is applied on the next reboot.  Only available when the change requires a reboot." },
-    
+    { "BaseMosaic",             NV_CTRL_BASE_MOSAIC,                      N,  "Returns the current Base Mosaic configuration." },
+    { "GpuUUID",                NV_CTRL_STRING_GPU_UUID,                 S|N, "Returns the global unique identifier of the GPU." },
+    { "MultiGpuMasterPossible", NV_CTRL_MULTIGPU_MASTER_POSSIBLE,         N,  "Returns whether or not the GPU can be configured as the master GPU for a Multi GPU configuration (SLI, SLI Mosaic, Base Mosaic, ...)." },
+
     /* Framelock */
     { "FrameLockAvailable",    NV_CTRL_FRAMELOCK,                   N|F|G,   "Returns whether the underlying GPU supports Frame Lock.  All of the other frame lock attributes are only applicable if this attribute is enabled (Supported)." },
     { "FrameLockMaster",       NV_CTRL_FRAMELOCK_MASTER,            N|F|G|D, "Get/set which display device to use as the frame lock master for the entire sync group.  Note that only one node in the sync group should be configured as the master." },

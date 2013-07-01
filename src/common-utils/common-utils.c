@@ -492,8 +492,6 @@ void nv_text_rows_append(TextRows *t, const char *msg)
  * result in t0
  */
 
-#define NV_MAX(x,y) ((x) > (y) ? (x) : (y))
-
 void nv_concat_text_rows(TextRows *t0, TextRows *t1)
 {
     int n, i;
@@ -707,6 +705,107 @@ char *nvstrchrnul(char *s, int c)
     return result;
 }
 
+/****************************************************************************/
+/* file helper functions */
+/****************************************************************************/
+
+/*
+ * nv_open() - open(2) wrapper; prints an error message if open(2)
+ * fails and calls exit().  This function only returns on success.
+ */
+
+int nv_open(const char *pathname, int flags, mode_t mode)
+{
+    int fd;
+    fd = open(pathname, flags, mode);
+    if (fd == -1) {
+        fprintf(stderr, "Failure opening %s (%s).\n",
+                pathname, strerror(errno));
+        exit(1);
+    }
+    return fd;
+
+} /* nv_name() */
+
+
+
+/*
+ * nv_get_file_length() - stat(2) wrapper; prints an error message if
+ * the system call fails and calls exit().  This function only returns
+ * on success.
+ */
+
+int nv_get_file_length(const char *filename)
+{
+    struct stat stat_buf;
+    int ret;
+ 
+    ret = stat(filename, &stat_buf);
+    if (ret == -1) {
+        fprintf(stderr, "Unable to determine '%s' file length (%s).\n",
+                filename, strerror(errno));
+        exit(1);
+    }
+    return stat_buf.st_size;
+
+} /* nv_get_file_length() */
+
+
+
+/*
+ * nv_set_file_length() - wrapper for lseek() and write(); prints an
+ * error message if the system calls fail and calls exit().  This
+ * function only returns on success.
+ */
+
+void nv_set_file_length(const char *filename, int fd, int len)
+{
+    if ((lseek(fd, len - 1, SEEK_SET) == -1) ||
+        (write(fd, "", 1) == -1)) {
+        fprintf(stderr, "Unable to set file '%s' length %d (%s).\n",
+                filename, fd, strerror(errno));
+        exit(1);
+    }
+} /* nv_set_file_length() */
+
+
+
+/*
+ * nv_mmap() - mmap(2) wrapper; prints an error message if mmap(2)
+ * fails and calls exit().  This function only returns on success.
+ */
+
+void *nv_mmap(const char *filename, size_t len, int prot, int flags, int fd)
+{
+    void *ret;
+
+    ret = mmap(0, len, prot, flags, fd, 0);
+    if (ret == (void *) -1) {
+        fprintf(stderr, "Unable to mmap file %s (%s).\n",
+                filename, strerror(errno));
+        exit(1);
+    }
+    return ret;
+
+} /* nv_mmap() */
+
+
+/*
+ * nv_basename() - alternative to basename(3) which avoids differences in
+ * behavior from different implementations: this implementation never modifies
+ * the original string, and the return value can always be passed to free(3).
+ */
+
+char *nv_basename(const char *path)
+{
+    char *last_slash = strrchr(path, '/');
+    if (last_slash) {
+        return strdup(last_slash+1);
+    } else {
+        return strdup(path);
+    }
+}
+
 
 /****************************************************************************/
 /* string helper functions */
@@ -741,8 +840,12 @@ char *nv_trim_space(char *string) {
 static char *trim_char(char *string, char trim, int *count) {
     int len, replaced = 0;
 
-    if (!string || trim == '\0') {
-        return NULL;
+    if (count) {
+        *count = 0;
+    }
+
+    if (string == NULL || trim == '\0') {
+        return string;
     }
 
     if (string[0] == trim) {
@@ -781,7 +884,7 @@ char *nv_trim_char(char *string, char trim) {
  */
 
 char *nv_trim_char_strict(char *string, char trim) {
-    int count = 0;
+    int count;
     char *trimmed;
 
     trimmed = trim_char(string, trim, &count);
@@ -792,3 +895,4 @@ char *nv_trim_char_strict(char *string, char trim) {
 
     return NULL;
 }
+

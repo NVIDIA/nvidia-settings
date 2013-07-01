@@ -112,6 +112,28 @@ NvCtrlAttributeHandle *NvCtrlAttributeInit(Display *dpy, int target_type,
 
 } /* NvCtrlAttributeInit() */
 
+/*
+ * NvCtrlAttributeRebuildSubsystems() - Rebuild specified private subsystem handles
+ */
+void NvCtrlAttributeRebuildSubsystems(NvCtrlAttributeHandle *handle,
+                                      unsigned int subsystem)
+{
+    NvCtrlAttributePrivateHandle *h;
+
+    if (!handle) {
+        return;
+    }
+
+    h = (NvCtrlAttributePrivateHandle*)handle;
+
+    if (subsystem & NV_CTRL_ATTRIBUTES_XRANDR_SUBSYSTEM) {
+        NvCtrlXrandrAttributesClose(h);
+        h->xrandr = NvCtrlInitXrandrAttributes(h);
+    }
+
+} /* NvCtrlAttributeRebuildSubsystems() */
+
+
 
 /*
  * NvCtrlGetDisplayName() - return a string of the form:

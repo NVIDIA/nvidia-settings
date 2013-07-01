@@ -310,10 +310,9 @@ GtkWidget* ctk_glx_new(NvCtrlAttributeHandle *handle,
     hbox = gtk_hbox_new(FALSE, 0);
     vbox = gtk_vbox_new(FALSE, 5);
     event = gtk_event_box_new();
+    ctk_force_text_colors_on_widget(event);
     gtk_scrolled_window_set_policy(GTK_SCROLLED_WINDOW(scrollWin),
                                    GTK_POLICY_NEVER, GTK_POLICY_ALWAYS);
-    gtk_widget_modify_fg(event, GTK_STATE_NORMAL, &(event->style->text[GTK_STATE_NORMAL]));
-    gtk_widget_modify_bg(event, GTK_STATE_NORMAL, &(event->style->base[GTK_STATE_NORMAL]));
     gtk_container_add(GTK_CONTAINER(event), hbox);
     gtk_scrolled_window_add_with_viewport(GTK_SCROLLED_WINDOW(scrollWin),
                                           event);
@@ -407,16 +406,8 @@ GtkWidget* ctk_glx_new(NvCtrlAttributeHandle *handle,
 
     data_table = gtk_table_new(num_fbconfigs, NUM_FBCONFIG_ATTRIBS, FALSE);
     event = gtk_event_box_new();
-    
-    gtk_widget_modify_fg(data_table, GTK_STATE_NORMAL, 
-                         &(data_table->style->text[GTK_STATE_NORMAL]));
-    gtk_widget_modify_bg(data_table, GTK_STATE_NORMAL, 
-                         &(data_table->style->base[GTK_STATE_NORMAL]));
+    ctk_force_text_colors_on_widget(event);
     gtk_container_add (GTK_CONTAINER(event), data_table);
-    gtk_widget_modify_fg(event, GTK_STATE_NORMAL, 
-                         &(event->style->text[GTK_STATE_NORMAL]));
-    gtk_widget_modify_bg(event, GTK_STATE_NORMAL, 
-                         &(event->style->base[GTK_STATE_NORMAL]));
     gtk_container_add(GTK_CONTAINER(data_viewport), event);
 
     /* Pack the fbconfig header and data tables */

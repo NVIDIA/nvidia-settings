@@ -203,6 +203,8 @@ GtkWidget* ctk_gauge_new(gint lower, gint upper)
 
     ctk_gauge->gdk_colormap = gdk_colormap = gdk_colormap_get_system();
 
+    g_object_ref(gdk_colormap);
+
     gdk_color = &ctk_gauge->gdk_color_gray;
     memset(gdk_color, 0, sizeof(GdkColor));
     gdk_color->red   = 32768;

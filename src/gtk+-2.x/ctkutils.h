@@ -75,6 +75,12 @@ void ctk_empty_container(GtkWidget *);
 void update_display_enabled_flag(NvCtrlAttributeHandle *handle,
                                  gboolean *display_enabled);
 
+gboolean ctk_check_min_gtk_version(guint required_major,
+                                   guint required_minor,
+                                   guint required_micro);
+
+void ctk_force_text_colors_on_widget(GtkWidget *widget);
+
 G_END_DECLS
 
 #endif /* __CTK_UTILS_H__ */

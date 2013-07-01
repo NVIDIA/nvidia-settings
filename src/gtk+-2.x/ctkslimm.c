@@ -294,6 +294,32 @@ static XConfigPtr xconfig_generate(XConfigPtr xconfCur,
 
 
 
+static void set_overlap_controls_status(CtkSLIMM *ctk_object)
+{
+    CtkDropDownMenu *menu;
+    GridConfig *grid_config;
+    gint config_idx, x_displays, y_displays;
+
+    menu = CTK_DROP_DOWN_MENU(ctk_object->mnu_display_config);
+    config_idx = ctk_drop_down_menu_get_current_value(menu);
+
+    /* Get grid configuration values from index */
+    grid_config = get_ith_valid_grid_config(config_idx);
+    if (grid_config) {
+        x_displays = grid_config->columns;
+        y_displays = grid_config->rows;
+    } else {
+        x_displays = y_displays = 0;
+    }
+
+    gtk_widget_set_sensitive(ctk_object->spbtn_hedge_overlap,
+                             x_displays > 1 ? True : False);
+    gtk_widget_set_sensitive(ctk_object->spbtn_vedge_overlap,
+                             y_displays > 1 ? True : False);
+}
+
+
+
 static Bool compute_screen_size(CtkSLIMM *ctk_object, gint *width,
                                 gint *height)
 {
@@ -320,11 +346,6 @@ static Bool compute_screen_size(CtkSLIMM *ctk_object, gint *width,
     } else {
         x_displays = y_displays = 0;
     }
-    
-    gtk_widget_set_sensitive(ctk_object->spbtn_hedge_overlap,
-                             x_displays > 1 ? True : False);
-    gtk_widget_set_sensitive(ctk_object->spbtn_vedge_overlap,
-                             y_displays > 1 ? True : False);
 
     h_overlap = gtk_spin_button_get_value_as_int(GTK_SPIN_BUTTON(ctk_object->spbtn_hedge_overlap));
     v_overlap = gtk_spin_button_get_value_as_int(GTK_SPIN_BUTTON(ctk_object->spbtn_vedge_overlap));
@@ -402,6 +423,9 @@ static void display_config_changed(GtkWidget *widget, gpointer user_data)
     CtkSLIMM *ctk_object = CTK_SLIMM(user_data);
     /* Update total size label */
     setup_total_size_label(ctk_object);
+
+    /* Update the sensitivity of the overlap controls */
+    set_overlap_controls_status(ctk_object);
 }
 
 
@@ -472,9 +496,8 @@ static void slimm_checkbox_toggled(GtkWidget *widget, gpointer user_data)
         }
         gtk_widget_set_sensitive(ctk_object->mnu_display_resolution, True);
         gtk_widget_set_sensitive(ctk_object->mnu_display_config, True);
-        gtk_widget_set_sensitive(ctk_object->spbtn_hedge_overlap, True);
-        gtk_widget_set_sensitive(ctk_object->spbtn_vedge_overlap, True);
         gtk_widget_set_sensitive(ctk_object->box_total_size, True);
+        set_overlap_controls_status(ctk_object);
     } else {
         if (GTK_WIDGET_SENSITIVE(ctk_object->mnu_display_refresh)) {
             ctk_object->mnu_refresh_disabled = True;
@@ -1698,6 +1721,8 @@ GtkWidget* ctk_slimm_new(NvCtrlAttributeHandle *handle,
     ret = NvCtrlGetStringAttribute(ctk_slimm->handle,
                                    NV_CTRL_STRING_SLI_MODE,
                                    &sli_mode);
+
+    set_overlap_controls_status(ctk_slimm);
 
     if ((ret != NvCtrlSuccess) ||
         (ret == NvCtrlSuccess && g_ascii_strcasecmp(sli_mode, "Mosaic"))) {

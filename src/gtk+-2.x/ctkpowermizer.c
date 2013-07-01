@@ -37,7 +37,7 @@
 #define DEFAULT_UPDATE_POWERMIZER_INFO_TIME_INTERVAL 1000
 
 static gboolean update_powermizer_info(gpointer);
-static void update_powermizer_menu_info(gpointer);
+static void update_powermizer_menu_info(CtkPowermizer *ctk_powermizer);
 static void powermizer_menu_changed(GtkWidget*, gpointer);
 static void update_powermizer_menu_event(GtkObject *object,
                                          gpointer arg1,
@@ -146,12 +146,6 @@ typedef struct {
     gint nvclock;
     gint memclock;
     gint processorclock;
-    gint nvclockmin;
-    gint nvclockmax;
-    gint memclockmin;
-    gint memclockmax;
-    gint processorclockmin;
-    gint processorclockmax;
 } perfModeEntry, * perfModeEntryPtr;
 
 
@@ -163,22 +157,10 @@ static void apply_perf_mode_token(char *token, char *value, void *data)
         pEntry->perf_level = atoi(value);
     } else if (!strcasecmp("nvclock", token)) {
         pEntry->nvclock = atoi(value);
-    } else if (!strcasecmp("nvclockmin", token)) {
-        pEntry->nvclockmin = atoi(value);
-    } else if (!strcasecmp("nvclockmax", token)) {
-        pEntry->nvclockmax = atoi(value);
     } else if (!strcasecmp("memclock", token)) {
         pEntry->memclock = atoi(value);
-    } else if (!strcasecmp("memclockmin", token)) {
-        pEntry->memclockmin = atoi(value);
-    } else if (!strcasecmp("memclockmax", token)) {
-        pEntry->memclockmax = atoi(value);
     } else if (!strcasecmp("processorclock", token)) {
         pEntry->processorclock = atoi(value);
-    } else if (!strcasecmp("processorclockmin", token)) {
-        pEntry->processorclockmin = atoi(value);
-    } else if (!strcasecmp("processorclockmax", token)) {
-        pEntry->processorclockmax = atoi(value);
     } else {
         nv_warning_msg("Unknown Perf Mode token value pair: %s=%s",
                        token, value);
@@ -192,228 +174,97 @@ static void update_perf_mode_table(CtkPowermizer *ctk_powermizer,
     GtkWidget *table;
     GtkWidget *label;
     char *perf_modes = NULL;
-    char *tmp_perf_modes = NULL;
     char *tokens;
     char tmp_str[24];
+    perfModeEntry entry;
     gint ret;
-    gint row_idx = 0; /* Where to insert into the perf mode table */
+    gint row_idx; /* Where to insert into the perf mode table */
     gboolean active;
-    GtkWidget *vsep;
-    perfModeEntryPtr pEntry = NULL;
-    perfModeEntryPtr tmpEntry = NULL;
-    gint index = 0;
-    gint i = 0;
-
-    /* Get the current list of perf levels */
-
-    ret = NvCtrlGetStringAttribute(ctk_powermizer->attribute_handle,
-                                   NV_CTRL_STRING_PERFORMANCE_MODES,
-                                   &perf_modes);
-
-    if (ret != NvCtrlSuccess) {
-        /* Bail */
-        return;
-    }
-
-    /* Calculate the number of rows we needed vseparator in the table */
-    tmp_perf_modes = g_strdup(perf_modes);
-    for (tokens = strtok(tmp_perf_modes, ";");
-         tokens;
-         tokens = strtok(NULL, ";")) {
-
-        tmpEntry = realloc(pEntry, sizeof(*pEntry) * (index + 1));
-
-        if (!tmpEntry) {
-            continue;
-        }
-        pEntry = tmpEntry;
-        tmpEntry = NULL;
-
-        /* Invalidate perf mode entry */
-        memset(pEntry + index, -1, sizeof(*pEntry));
-
-        parse_token_value_pairs(tokens, apply_perf_mode_token,
-                                (void *) &pEntry[index]);
-
-        /* Only add complete perf mode entries */
-        if ((pEntry[index].perf_level != -1) &&
-            (pEntry[index].nvclockmax != -1) &&
-            (pEntry[index].memclockmax != -1)) {
-            /* Set hasDecoupledClocks flag to decide new/old clock
-             * interface to show.
-             */
-            if (!ctk_powermizer->hasDecoupledClock &&
-                ((pEntry[index].nvclockmax != pEntry[index].nvclockmin) ||
-                 (pEntry[index].memclockmax != pEntry[index].memclockmin) ||
-                 (pEntry[index].processorclockmax !=
-                  pEntry[index].processorclockmin))) {
-                ctk_powermizer->hasDecoupledClock = TRUE;
-            }
-            row_idx++;
-        }
-        index++;
-    }
-    g_free(tmp_perf_modes);
 
     /* Since table cell management in GTK lacks, just remove and rebuild
      * the table from scratch.
      */
-
+    
     /* Dump out the old table */
 
     ctk_empty_container(ctk_powermizer->performance_table_hbox);
     
     /* Generate a new table */
 
-    if (ctk_powermizer->hasDecoupledClock) {
-        table = gtk_table_new(2, 15, FALSE);
-        row_idx = row_idx + 3;
-        gtk_table_set_row_spacings(GTK_TABLE(table), 3);
-        gtk_table_set_col_spacings(GTK_TABLE(table), 15);
-        gtk_container_set_border_width(GTK_CONTAINER(table), 5);
+    table = gtk_table_new(1, 4, FALSE);
+    gtk_table_set_row_spacings(GTK_TABLE(table), 3);
+    gtk_table_set_col_spacings(GTK_TABLE(table), 15);
+    gtk_container_set_border_width(GTK_CONTAINER(table), 5);
 
-        gtk_box_pack_start(GTK_BOX(ctk_powermizer->performance_table_hbox),
-                           table, FALSE, FALSE, 0);
+    gtk_box_pack_start(GTK_BOX(ctk_powermizer->performance_table_hbox),
+                       table, FALSE, FALSE, 0);
 
-        if (ctk_powermizer->performance_level) {
-            label = gtk_label_new("Level");
-            gtk_misc_set_alignment(GTK_MISC(label), 0.0f, 0.5f);
-            gtk_table_attach(GTK_TABLE(table), label, 0, 1, 1, 2,
-                             GTK_FILL, GTK_FILL | GTK_EXPAND, 5, 0);
-            
-            /* Vertical separator */
-            vsep = gtk_vseparator_new();
-            gtk_table_attach(GTK_TABLE(table), vsep, 1, 2, 0, row_idx,
-                             GTK_FILL, GTK_FILL | GTK_EXPAND, 0, 0);
-        }
+    if (ctk_powermizer->performance_level) {
+        label = gtk_label_new("Performance Level");
+        gtk_misc_set_alignment(GTK_MISC(label), 0.0f, 0.5f);
+        gtk_table_attach(GTK_TABLE(table), label, 0, 1, 0, 1,
+                         GTK_FILL, GTK_FILL | GTK_EXPAND, 5, 0);
+    }
 
-        if (ctk_powermizer->gpu_clock && ctk_powermizer->memory_clock) {
-            /* Graphics clock */
-            label = gtk_label_new("Graphics Clock");
-            gtk_misc_set_alignment(GTK_MISC(label), 0.0f, 0.5f);
-            gtk_table_attach(GTK_TABLE(table), label, 2, 5, 0, 1,
-                             GTK_FILL, GTK_FILL | GTK_EXPAND, 5, 0);
-            label = gtk_label_new("Current");
-            gtk_misc_set_alignment(GTK_MISC(label), 0.0f, 0.5f);
-            gtk_table_attach(GTK_TABLE(table), label, 2, 3, 1, 2,
-                             GTK_FILL, GTK_FILL | GTK_EXPAND, 5, 0);
-            label = gtk_label_new("Min");
-            gtk_misc_set_alignment(GTK_MISC(label), 0.0f, 0.5f);
-            gtk_table_attach(GTK_TABLE(table), label, 3, 4, 1, 2,
-                             GTK_FILL, GTK_FILL | GTK_EXPAND, 5, 0);
-            label = gtk_label_new("Max");
-            gtk_misc_set_alignment(GTK_MISC(label), 0.0f, 0.5f);
-            gtk_table_attach(GTK_TABLE(table), label, 4, 5, 1, 2,
-                             GTK_FILL, GTK_FILL | GTK_EXPAND, 5, 0);
+    if (ctk_powermizer->gpu_clock && ctk_powermizer->memory_clock) {
+        label = gtk_label_new("Graphics Clock");
+        gtk_misc_set_alignment(GTK_MISC(label), 0.0f, 0.5f);
+        gtk_table_attach(GTK_TABLE(table), label, 1, 2, 0, 1,
+                         GTK_FILL, GTK_FILL | GTK_EXPAND, 5, 0);
 
-            /* Vertical separator */
-            vsep = gtk_vseparator_new();
-            gtk_table_attach(GTK_TABLE(table), vsep, 5, 6, 0, row_idx,
-                             GTK_FILL, GTK_FILL | GTK_EXPAND, 0, 0);
-            
-            /* Memory clock */
-            label = gtk_label_new("Memory Clock");
-            gtk_misc_set_alignment(GTK_MISC(label), 0.0f, 0.5f);
-            gtk_table_attach(GTK_TABLE(table), label, 6, 9, 0, 1,
-                             GTK_FILL, GTK_FILL | GTK_EXPAND, 5, 0);
-            label = gtk_label_new("Current");
-            gtk_misc_set_alignment(GTK_MISC(label), 0.0f, 0.5f);
-            gtk_table_attach(GTK_TABLE(table), label, 6, 7, 1, 2,
-                             GTK_FILL, GTK_FILL | GTK_EXPAND, 5, 0);
-            label = gtk_label_new("Min");
-            gtk_misc_set_alignment(GTK_MISC(label), 0.0f, 0.5f);
-            gtk_table_attach(GTK_TABLE(table), label, 7, 8, 1, 2,
-                             GTK_FILL, GTK_FILL | GTK_EXPAND, 5, 0);
-            label = gtk_label_new("Max");
-            gtk_misc_set_alignment(GTK_MISC(label), 0.0f, 0.5f);
-            gtk_table_attach(GTK_TABLE(table), label, 8, 9, 1, 2,
-                             GTK_FILL, GTK_FILL | GTK_EXPAND, 5, 0);
-            
-            /* Vertical separator */
-            vsep = gtk_vseparator_new();
-            gtk_table_attach(GTK_TABLE(table), vsep, 9, 10, 0, row_idx,
-                             GTK_FILL, GTK_FILL | GTK_EXPAND, 0, 0);
-        }
-        if (ctk_powermizer->processor_clock) {
-            /* Processor clock */
-            label = gtk_label_new("Processor Clock");
-            gtk_misc_set_alignment(GTK_MISC(label), 0.0f, 0.5f);
-            gtk_table_attach(GTK_TABLE(table), label, 10, 11, 0, 1,
-                             GTK_FILL, GTK_FILL | GTK_EXPAND, 5, 0);
-            label = gtk_label_new("Current");
-            gtk_misc_set_alignment(GTK_MISC(label), 0.0f, 0.5f);
-            gtk_table_attach(GTK_TABLE(table), label, 11, 12, 1, 2,
-                             GTK_FILL, GTK_FILL | GTK_EXPAND, 5, 0);
-            label = gtk_label_new("Min");
-            gtk_misc_set_alignment(GTK_MISC(label), 0.0f, 0.5f);
-            gtk_table_attach(GTK_TABLE(table), label, 12, 13, 1, 2,
-                             GTK_FILL, GTK_FILL | GTK_EXPAND, 5, 0);
-            label = gtk_label_new("Max");
-            gtk_misc_set_alignment(GTK_MISC(label), 0.0f, 0.5f);
-            gtk_table_attach(GTK_TABLE(table), label, 13, 14, 1, 2,
-                             GTK_FILL, GTK_FILL | GTK_EXPAND, 5, 0);
-            
-            /* Vertical separator */
-            vsep = gtk_vseparator_new();
-            gtk_table_attach(GTK_TABLE(table), vsep, 14, 15, 0, row_idx,
-                             GTK_FILL, GTK_FILL | GTK_EXPAND, 0, 0);
-        }
-    } else {
+        label = gtk_label_new("Memory Clock");
+        gtk_misc_set_alignment(GTK_MISC(label), 0.0f, 0.5f);
+        gtk_table_attach(GTK_TABLE(table), label, 2, 3, 0, 1,
+                         GTK_FILL, GTK_FILL | GTK_EXPAND, 5, 0);
+    }
 
-        table = gtk_table_new(1, 4, FALSE);
-        gtk_table_set_row_spacings(GTK_TABLE(table), 3);
-        gtk_table_set_col_spacings(GTK_TABLE(table), 15);
-        gtk_container_set_border_width(GTK_CONTAINER(table), 5);
+    if (ctk_powermizer->processor_clock) {
+        label = gtk_label_new("Processor Clock");
+        gtk_misc_set_alignment(GTK_MISC(label), 0.0f, 0.5f);
+        gtk_table_attach(GTK_TABLE(table), label, 3, 4, 0, 1,
+                         GTK_FILL, GTK_FILL | GTK_EXPAND, 5, 0);
+    }
+    /* Get the current list of perf levels */
 
-        gtk_box_pack_start(GTK_BOX(ctk_powermizer->performance_table_hbox),
-                           table, FALSE, FALSE, 0);
+    ret = NvCtrlGetStringAttribute(ctk_powermizer->attribute_handle,
+                                   NV_CTRL_STRING_PERFORMANCE_MODES,
+                                   &perf_modes); 
 
-        if (ctk_powermizer->performance_level) {
-            label = gtk_label_new("Performance Level");
-            gtk_misc_set_alignment(GTK_MISC(label), 0.0f, 0.5f);
-            gtk_table_attach(GTK_TABLE(table), label, 0, 1, 0, 1,
-                             GTK_FILL, GTK_FILL | GTK_EXPAND, 5, 0);
-        }
-
-        if (ctk_powermizer->gpu_clock && ctk_powermizer->memory_clock) {
-            label = gtk_label_new("Graphics Clock");
-            gtk_misc_set_alignment(GTK_MISC(label), 0.0f, 0.5f);
-            gtk_table_attach(GTK_TABLE(table), label, 1, 2, 0, 1,
-                             GTK_FILL, GTK_FILL | GTK_EXPAND, 5, 0);
-
-
-            label = gtk_label_new("Memory Clock");
-            gtk_misc_set_alignment(GTK_MISC(label), 0.0f, 0.5f);
-            gtk_table_attach(GTK_TABLE(table), label, 2, 3, 0, 1,
-                             GTK_FILL, GTK_FILL | GTK_EXPAND, 5, 0);
-        }
-
-        if (ctk_powermizer->processor_clock) {
-            label = gtk_label_new("Processor Clock");
-            gtk_misc_set_alignment(GTK_MISC(label), 0.0f, 0.5f);
-            gtk_table_attach(GTK_TABLE(table), label, 3, 4, 0, 1,
-                             GTK_FILL, GTK_FILL | GTK_EXPAND, 5, 0);
-        }
+    if (ret != NvCtrlSuccess) {
+        gtk_widget_show_all(table);
+        /* Bail */
+        return;
     }
 
     /* Parse the perf levels and populate the table */
-    row_idx = 0; //reset value used to calculate vseparator.
-    row_idx = 3;
-    for (i = 0; i < index; i++) {   
+
+    row_idx = 1;
+    for (tokens = strtok(perf_modes, ";");
+         tokens;
+         tokens = strtok(NULL, ";")) {
+
+        /* Invalidate perf mode entry */
+        entry.perf_level = -1;
+        entry.nvclock = -1;
+        entry.memclock = -1;
+        entry.processorclock = -1;
+        
+        parse_token_value_pairs(tokens, apply_perf_mode_token,
+                                &entry);
+        
         /* Only add complete perf mode entries */
-        if (ctk_powermizer->hasDecoupledClock &&
-            (pEntry[i].perf_level != -1) &&
-            (pEntry[i].nvclockmax != -1) &&
-            (pEntry[i].memclockmax != -1)) {
-
-            active = (pEntry[i].perf_level == perf_level);
+        if ((entry.perf_level != -1) &&
+            (entry.nvclock != -1) &&
+            (entry.memclock != -1)) {
+            
+            active = (entry.perf_level == perf_level);
 
             /* XXX Assume the perf levels are sorted by the server */
 
-            gtk_table_resize(GTK_TABLE(table), row_idx+1, 10);
+            gtk_table_resize(GTK_TABLE(table), row_idx+1, 4);
 
             if (ctk_powermizer->performance_level) {
-                g_snprintf(tmp_str, 24, "%d", pEntry[i].perf_level);
+                g_snprintf(tmp_str, 24, "%d", entry.perf_level);
                 label = gtk_label_new(tmp_str);
                 gtk_widget_set_sensitive(label, active);
                 gtk_misc_set_alignment(GTK_MISC(label), 0.0f, 0.5f);
@@ -423,101 +274,7 @@ static void update_perf_mode_table(CtkPowermizer *ctk_powermizer,
             }
 
             if (ctk_powermizer->gpu_clock && ctk_powermizer->memory_clock) {
-                if (active) {
-                    g_snprintf(tmp_str, 24, "%d MHz", ctk_powermizer->nvclock);
-                    label = gtk_label_new(tmp_str);
-                    gtk_widget_set_sensitive(label, active);
-                    gtk_misc_set_alignment(GTK_MISC(label), 0.0f, 0.5f);
-                    gtk_table_attach(GTK_TABLE(table), label, 2, 3,
-                                     row_idx, row_idx+1,
-                                     GTK_FILL, GTK_FILL | GTK_EXPAND, 5, 0);
-                }
-                g_snprintf(tmp_str, 24, "%d MHz", pEntry[i].nvclockmin);
-                label = gtk_label_new(tmp_str);
-                gtk_widget_set_sensitive(label, active);
-                gtk_misc_set_alignment(GTK_MISC(label), 0.0f, 0.5f);
-                gtk_table_attach(GTK_TABLE(table), label, 3, 4,
-                                 row_idx, row_idx+1,
-                                 GTK_FILL, GTK_FILL | GTK_EXPAND, 5, 0);
-                g_snprintf(tmp_str, 24, "%d MHz", pEntry[i].nvclockmax);
-                label = gtk_label_new(tmp_str);
-                gtk_widget_set_sensitive(label, active);
-                gtk_misc_set_alignment(GTK_MISC(label), 0.0f, 0.5f);
-                gtk_table_attach(GTK_TABLE(table), label, 4, 5,
-                                 row_idx, row_idx+1,
-                                 GTK_FILL, GTK_FILL | GTK_EXPAND, 5, 0);
-
-                if (active) {
-                    g_snprintf(tmp_str, 24, "%d MHz", ctk_powermizer->memclock);
-                    label = gtk_label_new(tmp_str);
-                    gtk_widget_set_sensitive(label, active);
-                    gtk_misc_set_alignment(GTK_MISC(label), 0.0f, 0.5f);
-                    gtk_table_attach(GTK_TABLE(table), label, 6, 7,
-                                     row_idx, row_idx+1,
-                                     GTK_FILL, GTK_FILL | GTK_EXPAND, 5, 0);
-                }
-                g_snprintf(tmp_str, 24, "%d MHz", pEntry[i].memclockmin);
-                label = gtk_label_new(tmp_str);
-                gtk_widget_set_sensitive(label, active);
-                gtk_misc_set_alignment(GTK_MISC(label), 0.0f, 0.5f);
-                gtk_table_attach(GTK_TABLE(table), label, 7, 8,
-                                 row_idx, row_idx+1,
-                                 GTK_FILL, GTK_FILL | GTK_EXPAND, 5, 0);
-                g_snprintf(tmp_str, 24, "%d MHz", pEntry[i].memclockmax);
-                label = gtk_label_new(tmp_str);
-                gtk_widget_set_sensitive(label, active);
-                gtk_misc_set_alignment(GTK_MISC(label), 0.0f, 0.5f);
-                gtk_table_attach(GTK_TABLE(table), label, 8, 9,
-                                 row_idx, row_idx+1,
-                                 GTK_FILL, GTK_FILL | GTK_EXPAND, 5, 0);
-            }
-            if (ctk_powermizer->processor_clock) {
-                if (active) {
-                    g_snprintf(tmp_str, 24, "%d MHz", ctk_powermizer->processorclock);
-                    label = gtk_label_new(tmp_str);
-                    gtk_widget_set_sensitive(label, active);
-                    gtk_misc_set_alignment(GTK_MISC(label), 0.0f, 0.5f);
-                    gtk_table_attach(GTK_TABLE(table), label, 11, 12, row_idx, row_idx+1,
-                                     GTK_FILL, GTK_FILL | GTK_EXPAND, 5, 0);
-                }
-                g_snprintf(tmp_str, 24, "%d MHz", pEntry[i].processorclockmin);
-                label = gtk_label_new(tmp_str);
-                gtk_widget_set_sensitive(label, active);
-                gtk_misc_set_alignment(GTK_MISC(label), 0.0f, 0.5f);
-                gtk_table_attach(GTK_TABLE(table), label, 12, 13,
-                                 row_idx, row_idx+1,
-                                 GTK_FILL, GTK_FILL | GTK_EXPAND, 5, 0);
-                g_snprintf(tmp_str, 24, "%d MHz", pEntry[i].processorclockmax);
-                label = gtk_label_new(tmp_str);
-                gtk_widget_set_sensitive(label, active);
-                gtk_misc_set_alignment(GTK_MISC(label), 0.0f, 0.5f);
-                gtk_table_attach(GTK_TABLE(table), label, 13, 14,
-                                 row_idx, row_idx+1,
-                                 GTK_FILL, GTK_FILL | GTK_EXPAND, 5, 0);
-            }
-            row_idx++;
-        } else if ((pEntry[i].perf_level != -1) &&
-                   (pEntry[i].nvclock != -1) &&
-                   (pEntry[i].memclock != -1)) {
-
-            active = (pEntry[i].perf_level == perf_level);
-
-            /* XXX Assume the perf levels are sorted by the server */
-
-            gtk_table_resize(GTK_TABLE(table), row_idx+1, 10);
-
-            if (ctk_powermizer->performance_level) {
-                g_snprintf(tmp_str, 24, "%d", pEntry[i].perf_level);
-                label = gtk_label_new(tmp_str);
-                gtk_widget_set_sensitive(label, active);
-                gtk_misc_set_alignment(GTK_MISC(label), 0.0f, 0.5f);
-                gtk_table_attach(GTK_TABLE(table), label, 0, 1,
-                                 row_idx, row_idx+1,
-                                 GTK_FILL, GTK_FILL | GTK_EXPAND, 5, 0);
-            }
-
-            if (ctk_powermizer->gpu_clock && ctk_powermizer->memory_clock) {
-                g_snprintf(tmp_str, 24, "%d MHz", pEntry[i].nvclock);
+                g_snprintf(tmp_str, 24, "%d MHz", entry.nvclock);
                 label = gtk_label_new(tmp_str);
                 gtk_widget_set_sensitive(label, active);
                 gtk_misc_set_alignment(GTK_MISC(label), 0.0f, 0.5f);
@@ -525,7 +282,7 @@ static void update_perf_mode_table(CtkPowermizer *ctk_powermizer,
                                  row_idx, row_idx+1,
                                  GTK_FILL, GTK_FILL | GTK_EXPAND, 5, 0);
 
-                g_snprintf(tmp_str, 24, "%d MHz", pEntry[i].memclock);
+                g_snprintf(tmp_str, 24, "%d MHz", entry.memclock);
                 label = gtk_label_new(tmp_str);
                 gtk_widget_set_sensitive(label, active);
                 gtk_misc_set_alignment(GTK_MISC(label), 0.0f, 0.5f);
@@ -534,7 +291,7 @@ static void update_perf_mode_table(CtkPowermizer *ctk_powermizer,
                                  GTK_FILL, GTK_FILL | GTK_EXPAND, 5, 0);
             }
             if (ctk_powermizer->processor_clock) {
-                g_snprintf(tmp_str, 24, "%d MHz", pEntry[i].processorclock);
+                g_snprintf(tmp_str, 24, "%d MHz", entry.processorclock);
                 label = gtk_label_new(tmp_str);
                 gtk_widget_set_sensitive(label, active);
                 gtk_misc_set_alignment(GTK_MISC(label), 0.0f, 0.5f);
@@ -545,16 +302,14 @@ static void update_perf_mode_table(CtkPowermizer *ctk_powermizer,
         } else {
             nv_warning_msg("Incomplete Perf Mode (perf=%d, nvclock=%d,"
                            " memclock=%d)",
-                           pEntry[i].perf_level, pEntry[i].nvclock,
-                           pEntry[i].memclock);
+                           entry.perf_level, entry.nvclock,
+                           entry.memclock);
         }
     }
 
     gtk_widget_show_all(table);
 
     XFree(perf_modes);
-    XFree(pEntry);
-    pEntry = NULL;
 }
 
 
@@ -598,9 +353,6 @@ static gboolean update_powermizer_info(gpointer user_data)
         memory_clock = clockret & 0x0000FFFF;
         gpu_clock = (clockret >> 16);
 
-        ctk_powermizer->nvclock = gpu_clock;
-        ctk_powermizer->memclock = memory_clock;
-
         s = g_strdup_printf("%d Mhz", gpu_clock);
         gtk_label_set_text(GTK_LABEL(ctk_powermizer->gpu_clock), s);
         g_free(s);
@@ -614,7 +366,6 @@ static gboolean update_powermizer_info(gpointer user_data)
                              NV_CTRL_GPU_CURRENT_PROCESSOR_CLOCK_FREQS,
                              &processor_clock);
     if (ret == NvCtrlSuccess && ctk_powermizer->processor_clock) {
-        ctk_powermizer->processorclock = processor_clock;
         s = g_strdup_printf("%d Mhz", processor_clock);
         gtk_label_set_text(GTK_LABEL(ctk_powermizer->processor_clock), s);
         g_free(s);
@@ -808,7 +559,7 @@ GtkWidget* ctk_powermizer_new(NvCtrlAttributeHandle *handle,
     if (ret == NvCtrlSuccess) {
         pcie_gen_queriable = TRUE;
     }
-    
+
     /* return early if query to attributes fail */
     if (!power_source_available && !perf_level_available &&
         !adaptive_clock_state_available && clock_freqs_available &&
@@ -823,7 +574,6 @@ GtkWidget* ctk_powermizer_new(NvCtrlAttributeHandle *handle,
     ctk_powermizer->attribute_handle = handle;
     ctk_powermizer->ctk_config = ctk_config;
     ctk_powermizer->pcie_gen_queriable = pcie_gen_queriable;
-    ctk_powermizer->hasDecoupledClock = FALSE;
 
     /* set container properties for the CtkPowermizer widget */
 
@@ -1237,18 +987,36 @@ GtkWidget* ctk_powermizer_new(NvCtrlAttributeHandle *handle,
     return GTK_WIDGET(ctk_powermizer);
 }
 
+
+
+static void post_powermizer_menu_update(CtkPowermizer *ctk_powermizer)
+{
+    CtkDropDownMenu *menu =
+        CTK_DROP_DOWN_MENU(ctk_powermizer->powermizer_menu);
+    const char *label = ctk_drop_down_menu_get_current_name(menu);
+
+    ctk_config_statusbar_message(ctk_powermizer->ctk_config,
+                                 "Preferred Mode set to %s.", label);
+}
+
+
+
 static void update_powermizer_menu_event(GtkObject *object,
                                          gpointer arg1,
                                          gpointer user_data)
 {
-    update_powermizer_menu_info(user_data);
+    CtkPowermizer *ctk_powermizer = CTK_POWERMIZER(user_data);
+
+    update_powermizer_menu_info(ctk_powermizer);
+
+    post_powermizer_menu_update(ctk_powermizer);
 }
 
-static void update_powermizer_menu_info(gpointer user_data)
-{
-    CtkPowermizer *ctk_powermizer = CTK_POWERMIZER(user_data);
-    gint powerMizerMode, defaultPowerMizerMode, actualPowerMizerMode;
 
+
+static void update_powermizer_menu_info(CtkPowermizer *ctk_powermizer)
+{
+    gint powerMizerMode, defaultPowerMizerMode, actualPowerMizerMode;
     gchar* label;
     ReturnStatus ret1, ret2;
     CtkDropDownMenu *menu;
@@ -1290,32 +1058,33 @@ static void update_powermizer_menu_info(gpointer user_data)
     }
 }
 
+
+
 static void powermizer_menu_changed(GtkWidget *widget,
                                     gpointer user_data)
 {
-    CtkPowermizer *ctk_powermizer;
-    guint powerMizerMode;
+    CtkPowermizer *ctk_powermizer = CTK_POWERMIZER(user_data);
     CtkDropDownMenu *menu = CTK_DROP_DOWN_MENU(widget);
+    guint powerMizerMode;
+    ReturnStatus ret;
     const char *label = ctk_drop_down_menu_get_current_name(menu);
 
-    ctk_powermizer = CTK_POWERMIZER(user_data);
 
     powerMizerMode = ctk_drop_down_menu_get_current_value(menu);
 
-    if (NvCtrlSuccess != NvCtrlSetAttribute(ctk_powermizer->attribute_handle,
-                                            NV_CTRL_GPU_POWER_MIZER_MODE,
-                                            powerMizerMode)) {
+    ret = NvCtrlSetAttribute(ctk_powermizer->attribute_handle,
+                             NV_CTRL_GPU_POWER_MIZER_MODE,
+                             powerMizerMode);
+    if (ret != NvCtrlSuccess) {
         ctk_config_statusbar_message(ctk_powermizer->ctk_config,
                                      "Unable to set Preferred Mode to %s.",
                                      label);
         return;
     }
 
-    ctk_config_statusbar_message(ctk_powermizer->ctk_config, 
-                                 "Preferred Mode set to %s.",
-                                 label);
-
     update_powermizer_menu_info(user_data);
+
+    post_powermizer_menu_update(ctk_powermizer);
 }
 
 

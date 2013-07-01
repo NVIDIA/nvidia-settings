@@ -724,11 +724,15 @@ static void populate_tree_view(GtkTreeView *tree_view,
             g_signal_connect(G_OBJECT(cell_renderer), "edited", column_template->edit_callback,
                              column_template->func_data);
 
-            // Generic code to implement navigating between fields with tab/shift-tab
-            g_signal_connect_data(G_OBJECT(cell_renderer), "editing-started",
-                                  G_CALLBACK(cell_renderer_register_key_shortcuts),
-                                  (gpointer)rk_data, destroy_cell_renderer_register_key_data,
-                                  0);
+            // Generic code to implement navigating between fields with
+            // tab/shift-tab. The "editing-started" signal is only available
+            // in GTK+ versions >= 2.6.
+            if (ctk_check_min_gtk_version(2, 6, 0)) {
+                g_signal_connect_data(G_OBJECT(cell_renderer), "editing-started",
+                                      G_CALLBACK(cell_renderer_register_key_shortcuts),
+                                      (gpointer)rk_data, destroy_cell_renderer_register_key_data,
+                                      0);
+            }
         }
 
         if (help_data) {

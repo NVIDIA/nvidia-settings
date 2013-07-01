@@ -91,12 +91,15 @@ Bool display_set_modes_rotation(nvDisplayPtr display, Rotation rotation);
 /* Screen functions */
 
 void clamp_screen_size_rect(GdkRectangle *rect);
+int get_screen_max_displays(nvScreenPtr screen);
 void renumber_xscreens(nvLayoutPtr layout);
 void screen_unlink_display(nvDisplayPtr display);
 void screen_link_display(nvScreenPtr screen, nvDisplayPtr display);
 void screen_remove_display(nvDisplayPtr display);
 gchar * screen_get_metamode_str(nvScreenPtr screen, int metamode_idx,
-                                int be_generic);
+                                int force_target_id_name);
+void link_screen_to_gpu(nvScreenPtr screen, nvGpuPtr gpu);
+Bool screen_has_gpu(nvScreenPtr screen, nvGpuPtr match_gpu);
 
 
 /* GPU functions */

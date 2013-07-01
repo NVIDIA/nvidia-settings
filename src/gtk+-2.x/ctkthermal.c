@@ -1389,7 +1389,7 @@ sensor_end:
     /* Create cooler level control sliders/checkbox */
     
     ctk_thermal->cooler_control = (CoolerControlPtr)
-        malloc(ctk_thermal->cooler_count * sizeof(CoolerControlRec));
+        calloc(ctk_thermal->cooler_count, sizeof(CoolerControlRec));
 
     for (j = 1; j <= ctk_thermal->cooler_count; j++) {
         cooler_handle = h->targets[COOLER_TARGET].t[pDataCooler[j]].h;
@@ -1471,8 +1471,8 @@ sensor_end:
             gtk_widget_set_sensitive(ctk_thermal->cooler_control
                                      [cur_cooler_idx].widget,
                                      cooler_control_enabled);
-            cur_cooler_idx++;
         }
+        cur_cooler_idx++;
     }
     
     if ( ctk_thermal->cooler_count && ctk_thermal->show_fan_control_frame ) {

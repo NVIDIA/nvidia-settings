@@ -192,6 +192,7 @@ GtkWidget* ctk_gpu_new(
     GtkWidget *table;
 
     char *product_name, *vbios_version, *video_ram, *gpu_memory_text, *irq;
+    char *gpu_uuid;
     gchar *pci_bus_id;
     gchar pci_device_id[ARRAY_ELEMENTS];
     gchar pci_vendor_id[ARRAY_ELEMENTS];
@@ -237,8 +238,16 @@ GtkWidget* ctk_gpu_new(
 
     ret = NvCtrlGetStringAttribute(handle, NV_CTRL_STRING_PRODUCT_NAME,
                                    &product_name);
-    if (ret != NvCtrlSuccess) product_name = NULL;
-    
+    if (ret != NvCtrlSuccess) {
+        product_name = NULL;
+    }
+
+    ret = NvCtrlGetStringAttribute(handle, NV_CTRL_STRING_GPU_UUID,
+                                   &gpu_uuid);
+    if (ret != NvCtrlSuccess) {
+        gpu_uuid = NULL;
+    }
+
     /* Get Bus related information */
     
     get_bus_id_str(handle, &pci_bus_id);
@@ -429,6 +438,9 @@ GtkWidget* ctk_gpu_new(
     add_table_row(table, row++,
                   0, 0.5, "Graphics Processor:",
                   0, 0.5, product_name);
+    add_table_row(table, row++,
+                  0, 0.5, "GPU UUID:",
+                  0, 0.5, gpu_uuid);
     if ( ctk_gpu->gpu_cores ) {
         gtk_table_resize(GTK_TABLE(table), ++total_rows, 2);
         add_table_row(table, row++,

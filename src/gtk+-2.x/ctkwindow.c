@@ -881,6 +881,11 @@ GtkWidget *ctk_window_new(ParsedAttribute *p, ConfigProperties *conf,
                          G_CALLBACK(update_display_devices),
                          (gpointer) data);
 
+        g_signal_connect(G_OBJECT(ctk_event),
+                         CTK_EVENT_NAME(NV_CTRL_MODE_SET_EVENT),
+                         G_CALLBACK(update_display_devices),
+                         (gpointer) data);
+
         add_display_devices(ctk_window, &iter, gpu_handle, ctk_event, tag_table,
                             data, ctk_window->attribute_list);
     }
@@ -1445,6 +1450,12 @@ static void add_display_devices(CtkWindow *ctk_window, GtkTreeIter *iter,
             continue;
         }
 
+        /*
+         * Rebuild Sub-systems of display handle
+         */
+        NvCtrlAttributeRebuildSubsystems(display_handle,
+                                         NV_CTRL_ATTRIBUTES_ALL_SUBSYSTEMS);
+
         ctk_event = CTK_EVENT(ctk_event_new(display_handle));
 
         /* Query display's names */
@@ -1498,6 +1509,35 @@ static void add_display_devices(CtkWindow *ctk_window, GtkTreeIter *iter,
 } /* add_display_devices() */
 
 
+/*
+ * Select display page whose name is passed through 'name' parameter
+ */
+static void select_display_page(UpdateDisplaysData *data, gchar *name)
+{
+    CtkWindow *ctk_window = data->window;
+    GtkTreeSelection *tree_selection =
+        gtk_tree_view_get_selection(ctk_window->treeview);
+    gint num_displays = data->num_displays;
+
+    while (num_displays) {
+        GtkTreeIter *iter = &(data->display_iters[num_displays -1]);
+        CtkDisplayDevice *ctk_obj = NULL;
+        GtkWidget *widget = NULL;
+
+        gtk_tree_model_get(GTK_TREE_MODEL(ctk_window->tree_store), iter,
+                           CTK_WINDOW_WIDGET_COLUMN, &widget, -1);
+
+        ctk_obj = CTK_DISPLAY_DEVICE(widget);
+
+        if (strcmp(name, ctk_obj->name) == 0) {
+            gtk_tree_selection_select_iter(tree_selection, iter);
+            break;
+        }
+
+        num_displays--;
+    }
+
+}
 
 /*
  * update_display_devices() - Callback handler for the NV_CTRL_PROBE_DISPLAYS
@@ -1520,6 +1560,7 @@ static void update_display_devices(GtkObject *object, gpointer arg1,
     GtkTreeSelection *tree_selection =
         gtk_tree_view_get_selection(ctk_window->treeview);
     GtkWidget *widget;
+    gchar *selected_display_name = NULL;
 
 
     /* Keep track if the parent row is expanded */
@@ -1534,16 +1575,23 @@ static void update_display_devices(GtkObject *object, gpointer arg1,
     while (data->num_displays) {
 
         GtkTreeIter *iter = &(data->display_iters[data->num_displays -1]);
+        gboolean is_selected = FALSE;
 
         /* Select the parent (GPU) iter if we're removing the selected page */
         if (gtk_tree_selection_iter_is_selected(tree_selection, iter)) {
+            is_selected = TRUE;
             gtk_tree_selection_select_iter(tree_selection, &parent_iter);
         }
 
         /* Remove the entry */
         gtk_tree_model_get(GTK_TREE_MODEL(ctk_window->tree_store), iter,
                            CTK_WINDOW_WIDGET_COLUMN, &widget, -1);
-       
+
+        if (is_selected) {
+            CtkDisplayDevice *ctk_obj = CTK_DISPLAY_DEVICE(widget);
+            selected_display_name = g_strdup(ctk_obj->name);
+        }
+
         gtk_tree_store_remove(ctk_window->tree_store, iter);
 
         /* unref the page so we don't leak memory */
@@ -1564,6 +1612,11 @@ static void update_display_devices(GtkObject *object, gpointer arg1,
     /* Expand the GPU entry if it used to be */
     if (parent_expanded) {
         gtk_tree_view_expand_row(ctk_window->treeview, parent_path, TRUE);
+    }
+
+    if (selected_display_name) {
+        select_display_page(data, selected_display_name);
+        g_free(selected_display_name);
     }
 
 } /* update_display_devices() */

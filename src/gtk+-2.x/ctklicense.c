@@ -23,6 +23,7 @@
 #include <NvCtrlAttributes.h>
 
 #include "ctklicense.h"
+#include "ctkutils.h"
 
 #include "ctkconfig.h"
 #include "ctkhelp.h"
@@ -264,12 +265,8 @@ GtkWidget* ctk_license_dialog_new(GtkWidget *parent, gchar *panel_name)
     hbox = gtk_hbox_new(FALSE, 0);
     label = gtk_label_new("");
     event = gtk_event_box_new();
+    ctk_force_text_colors_on_widget(event);
     ctk_license_dialog->window = scrollWin;
-
-    gtk_widget_modify_fg(event, GTK_STATE_NORMAL,
-                         &(event->style->text[GTK_STATE_NORMAL]));
-    gtk_widget_modify_bg(event, GTK_STATE_NORMAL,
-                         &(event->style->base[GTK_STATE_NORMAL]));
 
     gtk_label_set_line_wrap(GTK_LABEL(label), TRUE);
     gtk_label_set_use_markup(GTK_LABEL(label), TRUE);

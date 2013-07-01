@@ -49,8 +49,8 @@ NvCtrlInitVidModeAttributes(NvCtrlAttributePrivateHandle *h)
     ret = XF86VidModeQueryVersion(h->dpy, &(vm->major_version), &(vm->minor_version));
     if (!ret) goto failed;
 
-    if (vm->major_version < VM_MINMAJOR ||
-        (vm->major_version == VM_MINMAJOR && vm->minor_version < VM_MINMINOR)) {
+    if (NV_VERSION2(vm->major_version, vm->minor_version) <
+        NV_VERSION2(VM_MINMAJOR, VM_MINMINOR)) {
         nv_warning_msg("The version of the XF86VidMode extension present "
                        "on this display (%d.%d) does not support updating "
                        "gamma ramps.  If you'd like to be able to adjust "

@@ -228,13 +228,6 @@ GtkWidget* ctk_config_new(ConfigProperties *conf, CtrlHandles *pCtrlHandles)
     /* initialize the statusbar widget */
     ctk_statusbar_init(&ctk_config->status_bar);
     
-    /* XXX force the status bar window to be vertically centered */
-
-    gtk_misc_set_alignment
-        (GTK_MISC(GTK_STATUSBAR(ctk_config->status_bar.widget)->label),
-         0.0, 0.5);
-    
-
     /* initialize the tooltips widget */
 
     ctk_config->tooltips.object = gtk_tooltips_new();

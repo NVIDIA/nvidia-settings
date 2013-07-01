@@ -199,16 +199,6 @@ static char *nv_dirname(const char *path)
     }
 }
 
-static char *nv_basename(const char *path)
-{
-    char *last_slash = strrchr(path, '/');
-    if (last_slash) {
-        return strdup(last_slash+1);
-    } else {
-        return strdup(path);
-    }
-}
-
 static json_t *app_profile_config_insert_file_object(AppProfileConfig *config, json_t *new_file)
 {
     json_t *json_filename, *json_new_filename;
@@ -770,8 +760,8 @@ static json_t *app_profile_config_load_global_options(const char *global_config_
     json_t *options_from_file;
     json_t *option;
 
-    // By default, app profiles are disabled
-    json_object_set_new(options, "enabled", json_false());
+    // By default, app profiles are enabled
+    json_object_set_new(options, "enabled", json_true());
 
     if (!global_config_file) {
         return options;

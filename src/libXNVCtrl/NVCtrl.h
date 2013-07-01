@@ -3273,6 +3273,26 @@
 #define NV_CTRL_DPY_HDMI_3D_ENABLED                             1
 
 /*
+ * NV_CTRL_BASE_MOSAIC - Returns whether Base Mosaic is currently enabled on the
+ * given GPU.  Querying the valid values of this attribute returns capabilities.
+ */
+
+#define NV_CTRL_BASE_MOSAIC                                     398 /* R--G */
+#define NV_CTRL_BASE_MOSAIC_DISABLED                            0
+#define NV_CTRL_BASE_MOSAIC_FULL                                1
+#define NV_CTRL_BASE_MOSAIC_LIMITED                             2
+
+/*
+ * NV_CTRL_MULTIGPU_MASTER_POSSIBLE - Returns whether the GPU can be configured
+ * as the master GPU in a Multi GPU configuration (SLI, SLI Mosaic,
+ * Base Mosaic).
+ */
+
+#define NV_CTRL_MULTIGPU_MASTER_POSSIBLE                        399 /* R--G */
+#define NV_CTRL_MULTIGPU_MASTER_POSSIBLE_FALSE                  0
+#define NV_CTRL_MULTIGPU_MASTER_POSSIBLE_TRUE                   1
+
+/*
  * NV_CTRL_GPU_POWER_MIZER_DEFAULT_MODE - Returns the default PowerMizer mode
  * for the given GPU.
  */
@@ -3663,37 +3683,20 @@
  * NV_CTRL_STRING_PERFORMANCE_MODES - returns a string with all the
  * performance modes defined for this GPU along with their associated
  * NV Clock and Memory Clock values.
- * Not all tokens will be reported on all GPUs, and additional tokens
- * may be added in the future.
- * For backwards compatibility we still provide nvclock, memclock, and
- * processorclock those are the same as nvclockmin, memclockmin and
- * processorclockmin.
  *
  * Each performance modes are returned as a comma-separated list of
  * "token=value" pairs.  Each set of performance mode tokens are separated
  * by a ";".  Valid tokens:
  *
- *    Token       Value
- *   "perf"       integer   - the Performance level
- *   "nvclock"      integer   - the GPU clocks (in MHz) for the perf level
- *   "nvclockmin"   integer   - the GPU clocks min (in MHz) for the perf level
- *   "nvclockmax"   integer   - the GPU clocks max (in MHz) for the perf level
- *   "memclock"     integer   - the memory clocks (in MHz) for the perf level
- *   "memclockmin"  integer   - the memory clocks min (in MHz) for the perf level
- *   "memclockmax"  integer   - the memory clocks max (in MHz) for the perf level
- *   "processorclock"     integer  - the processor clocks (in MHz)
- *                                 for the perf level
- *   "processorclockmin"  integer  - the processor clocks min (in MHz)
- *                                 for the perf level
- *   "processorclockmax"  integer  - the processor clocks max (in MHz)
- *                                 for the perf level
+ *    Token      Value
+ *   "perf"      integer   - the Performance level
+ *   "nvclock"   integer   - the GPU clocks (in MHz) for the perf level
+ *   "memclock"  integer   - the memory clocks (in MHz) for the perf level
+ *
  *
  * Example:
  *
- * perf=0, nvclock=324, nvclockmin=324, nvclockmax=324, memclock=324,
- * memclockmin=324, memclockmax=324 ;
- * perf=1, nvclock=324, nvclockmin=324, nvclockmax=640, memclock=810,
- * memclockmin=810, memclockmax=810 ;  
+ *   perf=0, nvclock=500, memclock=505 ; perf=1, nvclock=650, memclock=505
  *
  * This attribute may be queried through XNVCTRLQueryTargetStringAttribute()
  * using a NV_CTRL_TARGET_TYPE_GPU or NV_CTRL_TARGET_TYPE_X_SCREEN target.
@@ -3805,9 +3808,7 @@
  * NV_CTRL_STRING_GPU_CURRENT_CLOCK_FREQS - returns a string with the
  * associated NV Clock, Memory Clock and Processor Clock values.
  * 
- * Current valid tokens are "nvclock", "nvclockmin", "nvclockmax",
- * "memclock", "memclockmin", "memclockmax", "processorclock",
- * "processorclockmin" and "processorclockmax".
+ * Current valid tokens are "nvclock", "memclock", and "processorclock".
  * Not all tokens will be reported on all GPUs, and additional tokens
  * may be added in the future.
  *
@@ -3815,24 +3816,17 @@
  * "token=value" pairs.
  * Valid tokens:
  *
- *    Token      Value
- *   "nvclock"     integer   - the GPU clocks (in MHz) for the perf level
- *   "nvclockmin"  integer   - the GPU clocks min (in MHz) for the perf level
- *   "nvclockmax"  integer   - the GPU clocks max (in MHz) for the perf level
- *   "memclock"    integer   - the memory clocks (in MHz) for the perf level
- *   "memclockmin" integer   - the memory clocks min (in MHz) for the perf level
- *   "memclockmax" integer   - the memory clocks (max in MHz) for the perf level
- *   "processorclock"     integer  - the processor clocks (in MHz)
- *                                 for the perf level
- *   "processorclockmin"  integer  - the processor clocks min (in MHz)
- *                                 for the perf level
- *   "processorclockmax"  integer  - the processor clocks max (in MHz)
- *                                 for the perf level
+ *    Token           Value
+ *   "nvclock"        integer - the GPU clocks (in MHz) for the current
+ *                              perf level
+ *   "memclock"       integer - the memory clocks (in MHz) for the current
+ *                              perf level
+ *   "processorclock" integer - the processor clocks (in MHz) for the perf level
+ *
  *
  * Example:
  *
- *    nvclock=324, nvclockmin=324, nvclockmax=324,
- *    memclock=324, memclockmin=324, memclockmax=324
+ *    nvclock=459, memclock=400, processorclock=918
  *
  * This attribute may be queried through XNVCTRLQueryTargetStringAttribute()
  * using an NV_CTRL_TARGET_TYPE_GPU or NV_CTRL_TARGET_TYPE_X_SCREEN target.
@@ -3972,8 +3966,22 @@
  */
 #define NV_CTRL_STRING_DISPLAY_NAME_RANDR                           51 /* R-D- */
 
+
+/*
+ * NV_CTRL_STRING_GPU_UUID - Returns the UUID of the given GPU.
+ */
+#define NV_CTRL_STRING_GPU_UUID                                     52 /* R--G */
+
+
+/*
+ * NV_CTRL_STRING_MULTIGPU_MODE - returns a string describing the current
+ * MULTIGPU mode, if any, or FALSE if MULTIGPU is not currently enabled.
+ */
+#define NV_CTRL_STRING_MULTIGPU_MODE                                54 /* R--- */
+
+
 #define NV_CTRL_STRING_LAST_ATTRIBUTE \
-    NV_CTRL_STRING_DISPLAY_NAME_RANDR
+    NV_CTRL_STRING_MULTIGPU_MODE
 
 
 /**************************************************************************/

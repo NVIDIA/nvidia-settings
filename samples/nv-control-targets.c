@@ -238,8 +238,22 @@ int main(int argc, char *argv[])
             return 1;
         }
         printf("   Product Name                    : %s\n", str);
+        XFree(str);
+        str = NULL;
 
-        
+        /* GPU UUID */
+
+        ret = XNVCTRLQueryTargetStringAttribute(dpy,
+                                                NV_CTRL_TARGET_TYPE_GPU,
+                                                gpu, // target_id
+                                                0, // display_mask
+                                                NV_CTRL_STRING_GPU_UUID,
+                                                &str);
+        printf("   GPU UUID                        : %s\n",
+               (ret ? str : "Unknown"));
+        XFree(str);
+        str = NULL;
+
         /* Connected Display Devices on GPU */
 
         ret = XNVCTRLQueryTargetAttribute(dpy,

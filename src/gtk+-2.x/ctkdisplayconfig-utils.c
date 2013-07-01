@@ -41,7 +41,8 @@
 
 
 static void xconfig_update_buffer(GtkWidget *widget, gpointer user_data);
-static gchar *display_pick_config_name(nvDisplayPtr display, int be_generic);
+static gchar *display_pick_config_name(nvDisplayPtr display,
+                                       int force_target_id_name);
 static Bool screen_check_metamodes(nvScreenPtr screen);
 
 
@@ -866,8 +867,8 @@ void apply_underscan_to_viewportout(const nvSize raster_size,
     viewPortOut->height = (gint) (raster_size.height - (2 * y_offset));
 
     /* Limit ViewPortOut to a minimum size */
-    viewPortOut->width  = MAX(viewPortOut->width, 10);
-    viewPortOut->height = MAX(viewPortOut->height, 10);
+    viewPortOut->width  = NV_MAX(viewPortOut->width, 10);
+    viewPortOut->height = NV_MAX(viewPortOut->height, 10);
 }
 
 
@@ -923,7 +924,7 @@ void get_underscan_settings_from_viewportout(const nvSize raster_size,
  * "mode_name @WxH +X+Y"
  *
  **/
-static gchar *mode_get_str(nvModePtr mode, int be_generic)
+static gchar *mode_get_str(nvModePtr mode, int force_target_id_name)
 {
     gchar *mode_str;
     gchar *tmp;
@@ -937,8 +938,8 @@ static gchar *mode_get_str(nvModePtr mode, int be_generic)
         return NULL;
     }
 
-    /* Don't display dummy modes */
-    if (be_generic && mode->dummy && !mode->modeline) {
+    /* Don't include dummy modes */
+    if (mode->dummy && !mode->modeline) {
         return NULL;
     }
 
@@ -949,7 +950,7 @@ static gchar *mode_get_str(nvModePtr mode, int be_generic)
     }
 
     /* Pick a suitable display name qualifier */
-    mode_str = display_pick_config_name(display, be_generic);
+    mode_str = display_pick_config_name(display, force_target_id_name);
     if (mode_str[0] != '\0') {
         tmp = mode_str;
         mode_str = g_strconcat(tmp, ": ", NULL);
@@ -972,8 +973,8 @@ static gchar *mode_get_str(nvModePtr mode, int be_generic)
 
 
     /* Panning domain */
-    if (!be_generic || (mode->pan.width != mode->viewPortIn.width ||
-                        mode->pan.height != mode->viewPortIn.height)) {
+    if ((mode->pan.width != mode->viewPortIn.width) ||
+        (mode->pan.height != mode->viewPortIn.height)) {
         tmp = g_strdup_printf("%s @%dx%d",
                               mode_str, mode->pan.width, mode->pan.height);
         g_free(mode_str);
@@ -1043,13 +1044,13 @@ static gchar *mode_get_str(nvModePtr mode, int be_generic)
 
         switch (mode->rotation) {
         case ROTATION_90:
-            str = "90";
+            str = "left";
             break;
         case ROTATION_180:
-            str = "180";
+            str = "invert";
             break;
         case ROTATION_270:
-            str = "270";
+            str = "right";
             break;
         default:
             break;
@@ -1182,37 +1183,39 @@ static Bool display_names_match(const char *name1, const char *name2)
  * of other display devices.
  *
  **/
-static gchar *display_pick_config_name(nvDisplayPtr display, int be_generic)
+static gchar *display_pick_config_name(nvDisplayPtr display,
+                                       int force_target_id_name)
 {
-    nvDisplayPtr other;
+    nvScreenPtr screen;
+    nvGpuPtr gpu;
 
-    /* Be specific */
-    if (!be_generic) {
-        goto return_specific;
+    /* Use target ID name for talking to X server */
+    if (force_target_id_name) {
+        return g_strdup(display->targetIdName);
     }
 
-    /* Only one display, so no need for a qualifier */
-    if (display->gpu->num_displays == 1) {
+    screen = display->screen;
+    gpu = display->gpu;
+
+
+    /* If one of the Mosaic Modes is configured, and the X server supports
+     * GPU UUIDs, qualify the display device with the GPU UUID.
+     */
+    if (screen->num_gpus >= 1 &&
+        gpu->mosaic_enabled &&
+        gpu->uuid) {
+        return g_strconcat(gpu->uuid, ".", display->randrName, NULL);
+    }
+
+    /* If the X screen is driven by a single display on a single GPU, omit the
+     * display name qualifier, so the configuration will be portable.
+     */
+    if (screen->num_displays == 1 && gpu->num_displays == 1) {
         return g_strdup("");
     }
 
-    /* Find the best generic name possible.  If any display connected to the
-     * GPU has the same typeBaseName, then return the typeIdName instead
-     */
-    for (other = display->gpu->displays; other; other = other->next_on_gpu) {
-        if (other == display) continue;
-        if (strcmp(other->typeBaseName, display->typeBaseName) == 0) {
-            goto return_specific;
-        }
-    }
-
-    /* No other display device on the GPU shares the same type basename,
-     * so we can use it
-     */
-    return g_strdup(display->typeBaseName);
-
- return_specific:
-    return g_strdup(display->typeIdName);
+    /* Otherwise, use the RandR based name */
+    return g_strdup(display->randrName);
 }
 
 
@@ -1537,7 +1540,7 @@ Bool display_add_modelines_from_server(nvDisplayPtr display, nvGpuPtr gpu,
  *
  **/
 static gchar *display_get_mode_str(nvDisplayPtr display, int mode_idx,
-                                   int be_generic)
+                                   int force_target_id_name)
 {
     nvModePtr mode = display->modes;
 
@@ -1547,7 +1550,7 @@ static gchar *display_get_mode_str(nvDisplayPtr display, int mode_idx,
     }
 
     if (mode) {
-        return mode_get_str(mode, be_generic);
+        return mode_get_str(mode, force_target_id_name);
     }
 
     return NULL;
@@ -1648,6 +1651,36 @@ void clamp_screen_size_rect(GdkRectangle *rect)
     if (rect->height < 200) {
         rect->height = 200;
     }
+}
+
+
+
+/** get_screen_max_displays () ***************************************
+ *
+ * Returns the maximum number of allowable enabled displays for the X screen.
+ * This is based on the screen's driving GPU's max number of enabled displays,
+ * in conjunction with whether or not Mosaic mode is enabled and which type.
+ * Limited Base Mosaic mode only supports up to 3 enabled display devices,
+ * while other Mosaic Modes (Base Mosaic and SLI Mosaic) support unlimited
+ * displays.
+ *
+ **/
+
+int get_screen_max_displays(nvScreenPtr screen)
+{
+    nvGpuPtr gpu = screen->display_owner_gpu;
+
+    /* If mosaic is enabled, check the type so we can properly limit the number
+     * of display devices
+     */
+    if (gpu->mosaic_enabled) {
+        if (gpu->mosaic_type == MOSAIC_TYPE_BASE_MOSAIC_LIMITED) {
+            return 3;
+        }
+        return -1; /* Not limited */
+    }
+
+    return screen->max_displays;
 }
 
 
@@ -1918,7 +1951,7 @@ static void screen_remove_displays(nvScreenPtr screen)
  *
  **/
 gchar *screen_get_metamode_str(nvScreenPtr screen, int metamode_idx,
-                               int be_generic)
+                               int force_target_id_name)
 {
     nvDisplayPtr display;
 
@@ -1930,7 +1963,8 @@ gchar *screen_get_metamode_str(nvScreenPtr screen, int metamode_idx,
          display;
          display = display->next_in_screen) {
 
-        mode_str = display_get_mode_str(display, metamode_idx, be_generic);
+        mode_str = display_get_mode_str(display, metamode_idx,
+                                        force_target_id_name);
         if (!mode_str) continue;
 
         if (!metamode_str) {
@@ -2041,8 +2075,9 @@ static Bool screen_add_metamode(nvScreenPtr screen, const char *metamode_str,
     nvMetaModePtr metamode = NULL;
     int mode_count = 0;
 
-
-    if (!screen || !screen->gpu || !metamode_str) goto fail;
+    if (!screen || !metamode_str) {
+        goto fail;
+    }
 
 
     metamode = (nvMetaModePtr)calloc(1, sizeof(nvMetaMode));
@@ -2143,11 +2178,9 @@ static Bool screen_add_metamode(nvScreenPtr screen, const char *metamode_str,
 
     /* Make sure something was added */
     if (mode_count == 0) {
-        nv_warning_msg("Failed to find any display on screen %d (on GPU-%d)\n"
+        nv_warning_msg("Failed to find any display on screen %d\n"
                        "while parsing metamode:\n\n'%s'",
-                       screen->scrnum,
-                       NvCtrlGetTargetId(screen->gpu->handle),
-                       metamode_str);
+                       screen->scrnum, metamode_str);
         goto fail;
     }
 
@@ -2301,9 +2334,7 @@ static Bool screen_add_metamodes(nvScreenPtr screen, gchar **err_str)
                                    &len);
     if (ret != NvCtrlSuccess) {
         *err_str = g_strdup_printf("Failed to query list of metamodes on\n"
-                                   "screen %d (on GPU-%d).",
-                                   screen->scrnum,
-                                   NvCtrlGetTargetId(screen->gpu->handle));
+                                   "screen %d.", screen->scrnum);
         nv_error_msg(*err_str);
         goto fail;
     }
@@ -2315,9 +2346,7 @@ static Bool screen_add_metamodes(nvScreenPtr screen, gchar **err_str)
                                    &cur_metamode_str);
     if (ret != NvCtrlSuccess) {
         *err_str = g_strdup_printf("Failed to query current metamode of\n"
-                                   "screen %d (on GPU-%d).",
-                                   screen->scrnum,
-                                   NvCtrlGetTargetId(screen->gpu->handle));
+                                   "screen %d.", screen->scrnum);
         nv_error_msg(*err_str);
         goto fail;
     }
@@ -2336,10 +2365,8 @@ static Bool screen_add_metamodes(nvScreenPtr screen, gchar **err_str)
          * This populates the display device's mode list.
          */
         if (!screen_add_metamode(screen, str, err_str)) {
-            nv_warning_msg("Failed to add metamode '%s' to screen %d (on "
-                           "GPU-%d).",
-                           str, screen->scrnum,
-                           NvCtrlGetTargetId(screen->gpu->handle));
+            nv_warning_msg("Failed to add metamode '%s' to screen %d.",
+                           str, screen->scrnum);
             continue;
         }
 
@@ -2358,9 +2385,8 @@ static Bool screen_add_metamodes(nvScreenPtr screen, gchar **err_str)
     metamode_strs = NULL;
 
     if (!screen->metamodes) {
-        nv_warning_msg("Failed to add any metamode to screen %d (on GPU-%d).",
-                       screen->scrnum,
-                       NvCtrlGetTargetId(screen->gpu->handle));
+        nv_warning_msg("Failed to add any metamode to screen %d.",
+                       screen->scrnum);
         goto fail;
     }
 
@@ -2418,11 +2444,86 @@ static void screen_free(nvScreenPtr screen)
             NvCtrlAttributeClose(screen->handle);
         }
 
+        nvfree(screen->gpus);
+        screen->num_gpus = 0;
+
+        XFree(screen->sli_mode);
+        XFree(screen->multigpu_mode);
         free(screen);
     }
 
 } /* screen_free() */
 
+
+
+/** link_screen_to_gpu() *********************************************
+ *
+ * Updates the X screen to track the given GPU as a driver.
+ *
+ **/
+void link_screen_to_gpu(nvScreenPtr screen, nvGpuPtr gpu)
+{
+    screen->num_gpus++;
+    screen->gpus = nvrealloc(screen->gpus,
+                             screen->num_gpus * sizeof(nvGpuPtr));
+
+    screen->gpus[screen->num_gpus -1] = gpu;
+
+    /* Consolidate screen's capabilities based on all GPUs involved */
+    if (screen->num_gpus == 1) {
+        screen->max_width = gpu->max_width;
+        screen->max_height = gpu->max_height;
+        screen->max_displays = gpu->max_displays;
+        screen->allow_depth_30 = gpu->allow_depth_30;
+        screen->display_owner_gpu = gpu;
+        return;
+    }
+
+    screen->max_width = MIN(screen->max_width, gpu->max_width);
+    screen->max_height = MIN(screen->max_height, gpu->max_height);
+    screen->max_displays = MIN(screen->max_displays, gpu->max_displays);
+    screen->allow_depth_30 = screen->allow_depth_30 && gpu->allow_depth_30;
+
+    /* Set the display owner GPU. */
+    if (screen->display_owner_gpu_id >= 0) {
+        /* Link to the multi GPU display owner, if it is specified */
+        if (screen->display_owner_gpu_id == NvCtrlGetTargetId(gpu->handle)) {
+            screen->display_owner_gpu = gpu;
+        }
+    } else if (gpu->multigpu_master_possible &&
+               !screen->display_owner_gpu->multigpu_master_possible) {
+        /* Pick the best GPU to be the display owner.  This is the first
+         * GPU that can be a multigpu master, or the first linked GPU,
+         * if none of the GPU(s) can be set as master.
+         */
+        screen->display_owner_gpu = gpu;
+    }
+}
+
+
+
+/** screen_has_gpu() *************************************************
+ *
+ * Returns whether or not the screen is driven by the given GPU.
+ *
+ **/
+
+Bool screen_has_gpu(nvScreenPtr screen, nvGpuPtr gpu)
+{
+    int i;
+
+    if (!gpu) {
+        return FALSE;
+    }
+
+    for (i = 0; i < screen->num_gpus; i++) {
+        if (gpu == screen->gpus[i]) {
+            return TRUE;
+        }
+    }
+
+    return FALSE;
+}
 
 
 
@@ -2890,6 +2991,7 @@ static void gpu_free(nvGpuPtr gpu)
         gpu_remove_displays(gpu);
 
         XFree(gpu->name);
+        XFree(gpu->uuid);
         XFree(gpu->flags_memory);
         g_free(gpu->pci_bus_id);
         free(gpu->gvo_mode_data);
@@ -3049,6 +3151,7 @@ static Bool layout_add_gpu_from_server(nvLayoutPtr layout, unsigned int gpu_id,
     nvGpuPtr gpu = NULL;
     unsigned int *pData;
     int len;
+    int val;
 
 
     /* Create the GPU structure */
@@ -3079,6 +3182,15 @@ static Bool layout_add_gpu_from_server(nvLayoutPtr layout, unsigned int gpu_id,
                                    gpu_id);
         nv_error_msg(*err_str);
         goto fail;
+    }
+
+    ret = NvCtrlGetStringAttribute(gpu->handle, NV_CTRL_STRING_GPU_UUID,
+                                   &gpu->uuid);
+    if (ret != NvCtrlSuccess) {
+        nv_warning_msg("Failed to query GPU UUID of GPU-%d '%s'.  GPU UUID "
+                       "qualifiers will not be used.",
+                       gpu_id, gpu->name);
+        gpu->uuid = NULL;
     }
 
     get_bus_id_str(gpu->handle, &(gpu->pci_bus_id));
@@ -3117,6 +3229,12 @@ static Bool layout_add_gpu_from_server(nvLayoutPtr layout, unsigned int gpu_id,
         gpu->allow_depth_30 = FALSE;
     }
 
+    ret = NvCtrlGetAttribute(gpu->handle, NV_CTRL_MULTIGPU_MASTER_POSSIBLE,
+                             &(gpu->multigpu_master_possible));
+    if (ret != NvCtrlSuccess) {
+        gpu->multigpu_master_possible = FALSE;
+    }
+
     ret = NvCtrlGetBinaryAttribute(gpu->handle,
                                    0,
                                    NV_CTRL_BINARY_DATA_GPU_FLAGS,
@@ -3130,6 +3248,59 @@ static Bool layout_add_gpu_from_server(nvLayoutPtr layout, unsigned int gpu_id,
         gpu->flags_memory = pData;
         gpu->num_flags = pData[0];
         gpu->flags = &pData[1];
+    }
+
+
+    /* Determine available and current Mosaic configuration */
+
+    gpu->mosaic_type = MOSAIC_TYPE_UNSUPPORTED;
+    gpu->mosaic_enabled = FALSE;
+
+    ret = NvCtrlGetAttribute(gpu->handle,
+                             NV_CTRL_SLI_MOSAIC_MODE_AVAILABLE,
+                             &(val));
+
+    if ((ret == NvCtrlSuccess) &&
+        (val == NV_CTRL_SLI_MOSAIC_MODE_AVAILABLE_TRUE)) {
+        char *sli_str;
+
+        gpu->mosaic_type = MOSAIC_TYPE_SLI_MOSAIC;
+
+        ret = NvCtrlGetStringAttribute(gpu->handle,
+                                       NV_CTRL_STRING_SLI_MODE,
+                                       &sli_str);
+        if ((ret == NvCtrlSuccess) && sli_str) {
+            if (!strcasecmp(sli_str, "Mosaic")) {
+                gpu->mosaic_enabled = TRUE;
+            }
+            XFree(sli_str);
+        }
+
+    } else {
+        NVCTRLAttributeValidValuesRec valid;
+
+        ret = NvCtrlGetValidAttributeValues(gpu->handle,
+                                            NV_CTRL_BASE_MOSAIC,
+                                            &valid);
+        if ((ret == NvCtrlSuccess) &&
+            (valid.type == ATTRIBUTE_TYPE_INT_BITS)) {
+
+            if (valid.u.bits.ints & NV_CTRL_BASE_MOSAIC_FULL) {
+                gpu->mosaic_type = MOSAIC_TYPE_BASE_MOSAIC;
+            } else if (valid.u.bits.ints & NV_CTRL_BASE_MOSAIC_LIMITED) {
+                gpu->mosaic_type = MOSAIC_TYPE_BASE_MOSAIC_LIMITED;
+            }
+
+            if (gpu->mosaic_type != MOSAIC_TYPE_UNSUPPORTED) {
+                ret = NvCtrlGetAttribute(gpu->handle, NV_CTRL_BASE_MOSAIC,
+                                         &(val));
+                if ((ret == NvCtrlSuccess) &&
+                    (val == NV_CTRL_BASE_MOSAIC_FULL ||
+                     val == NV_CTRL_BASE_MOSAIC_LIMITED)) {
+                    gpu->mosaic_enabled = TRUE;
+                }
+            }
+        }
     }
 
     /* Add the display devices to the GPU */
@@ -3218,56 +3389,71 @@ static void layout_remove_screens(nvLayoutPtr layout)
 
 
 
-/** link_screen_to_gpu() *********************************************
+/** link_screen_to_gpus() ********************************************
  *
- * Finds the GPU driving the screen and links the two.
+ * Finds the GPU(s) driving the screen and tracks the link(s).
  *
  **/
 
-static Bool link_screen_to_gpu(nvLayoutPtr layout, nvScreenPtr screen)
+static Bool link_screen_to_gpus(nvLayoutPtr layout, nvScreenPtr screen)
 {
-    int val;
+    Bool status = FALSE;
     ReturnStatus ret;
-    nvGpuPtr gpu;
+    int *pData = NULL;
+    int len;
+    int i;
+    int scrnum = NvCtrlGetTargetId(screen->handle);
 
     /* Link the screen to the display owner GPU.  If there is no display owner,
      * which is the case when SLI Mosaic Mode is configured, link screen
-     * to the first GPU we find.
+     * to the first (multi gpu master possible) GPU we find.
      */
     ret = NvCtrlGetAttribute(screen->handle, NV_CTRL_MULTIGPU_DISPLAY_OWNER,
-                             &val);
+                             &(screen->display_owner_gpu_id));
     if (ret != NvCtrlSuccess) {
-        int *pData = NULL;
-        int len;
+        screen->display_owner_gpu_id = -1;
+    }
 
-        ret = NvCtrlGetBinaryAttribute(screen->handle,
-                                       0,
-                                       NV_CTRL_BINARY_DATA_GPUS_USED_BY_XSCREEN,
-                                       (unsigned char **)(&pData),
-                                       &len);
-        if (ret != NvCtrlSuccess || !pData) {
-            return FALSE;
-        }
-        if (pData[0] < 1) {
-            XFree(pData);
-            return FALSE;
-        }
+    ret = NvCtrlGetBinaryAttribute(screen->handle,
+                                   0,
+                                   NV_CTRL_BINARY_DATA_GPUS_USED_BY_XSCREEN,
+                                   (unsigned char **)(&pData),
+                                   &len);
+    if ((ret != NvCtrlSuccess) || !pData || (pData[0] < 1)) {
+        goto done;
+    }
 
-        /* Pick the first GPU */
-        val = pData[1];
+    /* Point to all the gpus */
+
+    for (i = 0; i < pData[0]; i++) {
+        nvGpuPtr gpu;
+
+        for (gpu = layout->gpus; gpu; gpu = gpu->next_in_layout) {
+            int gpuid = NvCtrlGetTargetId(gpu->handle);
+
+            if (gpuid != pData[1+i]) {
+                continue;
+            }
+
+            link_screen_to_gpu(screen, gpu);
+        }
+    }
+
+    /* Make sure a display owner was picked */
+    if (screen->num_gpus <= 0) {
+        nv_error_msg("Failed to link X screen %d to any GPU.", scrnum);
+        goto done;
+    }
+
+    status = TRUE;
+
+ done:
+    if (pData) {
         XFree(pData);
     }
 
-    for (gpu = layout->gpus; gpu; gpu = gpu->next_in_layout) {
-        if (val == NvCtrlGetTargetId(gpu->handle)) {
-            screen->gpu = gpu;
-            return TRUE;
-        }
-    }
-
-    return FALSE;
-
-} /* link_screen_to_gpu() */
+    return status;
+}
 
 
 
@@ -3372,8 +3558,8 @@ static Bool layout_add_screen_from_server(nvLayoutPtr layout,
         goto fail;
     }
 
-    /* Link screen to the GPU driving it */
-    if (!link_screen_to_gpu(layout, screen)) {
+    /* Link screen to the GPUs driving it */
+    if (!link_screen_to_gpus(layout, screen)) {
         *err_str = g_strdup_printf("Failed to find GPU that drives screen %d.",
                                    screen_id);
         nv_warning_msg(*err_str);
@@ -3387,10 +3573,24 @@ static Bool layout_add_screen_from_server(nvLayoutPtr layout,
 
     screen->sli = (ret == NvCtrlSuccess);
 
+    /* Query SLI mode */
+    ret = NvCtrlGetStringAttribute(screen->handle,
+                                   NV_CTRL_STRING_SLI_MODE,
+                                   &screen->sli_mode);
+    if (ret != NvCtrlSuccess) {
+        screen->sli_mode = NULL;
+    }
+
+    /* Query MULTIGPU mode */
+    ret = NvCtrlGetStringAttribute(screen->handle,
+                                   NV_CTRL_STRING_MULTIGPU_MODE,
+                                   &screen->multigpu_mode);
+    if (ret != NvCtrlSuccess) {
+        screen->multigpu_mode = NULL;
+    }
 
     /* Listen to NV-CONTROL events on this screen handle */
     screen->ctk_event = CTK_EVENT(ctk_event_new(screen->handle));
-
 
     /* Query the depth of the screen */
     screen->depth = NvCtrlGetScreenPlanes(screen->handle);
@@ -3625,17 +3825,27 @@ nvScreenPtr layout_get_a_screen(nvLayoutPtr layout, nvGpuPtr preferred_gpu)
 {
     nvScreenPtr screen = NULL;
     nvScreenPtr cur;
+    Bool found_preferred_gpu;
 
     if (!layout || !layout->screens) return NULL;
 
     screen = layout->screens;
+    found_preferred_gpu = screen_has_gpu(screen, preferred_gpu);
+
     for (cur = screen->next_in_layout; cur; cur = cur->next_in_layout) {
-        if (cur->gpu == preferred_gpu) {
-            if (screen->gpu != preferred_gpu) {
+        Bool gpu_match = screen_has_gpu(cur, preferred_gpu);
+
+        /* Pick screens that are driven by the preferred gpu */
+        if (gpu_match) {
+            if (!found_preferred_gpu) {
                 screen = cur;
                 continue;
             }
+        } else if (found_preferred_gpu) {
+            continue;
         }
+
+        /* Pick lower numbered screens */
         if (screen->scrnum > cur->scrnum) {
             screen = cur;
         }

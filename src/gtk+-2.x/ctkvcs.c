@@ -567,10 +567,9 @@ GtkWidget* ctk_vcs_new(NvCtrlAttributeHandle *handle,
     hbox_scroll = gtk_hbox_new(FALSE, 0);
     vbox_scroll = gtk_vbox_new(FALSE, 5);
     event = gtk_event_box_new();
+    ctk_force_text_colors_on_widget(event);
     gtk_scrolled_window_set_policy(GTK_SCROLLED_WINDOW(scrollWin),
                                    GTK_POLICY_NEVER, GTK_POLICY_ALWAYS);
-    gtk_widget_modify_fg(event, GTK_STATE_NORMAL, &(event->style->text[GTK_STATE_NORMAL]));
-    gtk_widget_modify_bg(event, GTK_STATE_NORMAL, &(event->style->base[GTK_STATE_NORMAL]));
     gtk_container_add(GTK_CONTAINER(event), hbox_scroll);
     gtk_scrolled_window_add_with_viewport(GTK_SCROLLED_WINDOW(scrollWin),
                                           event);

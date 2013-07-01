@@ -19,6 +19,8 @@
 
 #include <stdio.h>
 #include <stdarg.h>
+#include <sys/types.h>
+#include <stdint.h>
 
 #if !defined(TRUE)
 #define TRUE 1
@@ -29,6 +31,9 @@
 #endif
 
 #define ARRAY_LEN(_arr) (sizeof(_arr) / sizeof(_arr[0]))
+
+#define NV_MIN(x,y) ((x) < (y) ? (x) : (y))
+#define NV_MAX(x,y) ((x) > (y) ? (x) : (y))
 
 #define TAB "  "
 #define BIGTAB "      "
@@ -90,6 +95,12 @@ void fmt(FILE *stream, const char *prefix, const char *fmt, ...) NV_ATTRIBUTE_PR
 
 char *fget_next_line(FILE *fp, int *eof);
 
+int nv_open(const char *pathname, int flags, mode_t mode);
+int nv_get_file_length(const char *filename);
+void nv_set_file_length(const char *filename, int fd, int len);
+void *nv_mmap(const char *filename, size_t len, int prot, int flags, int fd);
+char *nv_basename(const char *path);
+
 char *nv_trim_space(char *string);
 char *nv_trim_char(char *string, char trim);
 char *nv_trim_char_strict(char *string, char trim);
@@ -138,5 +149,39 @@ do {                                                            \
         }                                                       \
     }                                                           \
 } while (0)
+
+#if defined(__GNUC__)
+# define NV_INLINE __inline__
+#else
+# define NV_INLINE
+#endif
+
+/*
+ * Simple function which encodes a version number, given as major, minor, micro,
+ * and nano, as a 64-bit unsigned integer. This is defined in an inline function
+ * rather than as a macro for convenience so it can be examined by the debugger.
+ * Encoded version numbers can be compared directly in version checks.
+ */
+static NV_INLINE uint64_t nv_encode_version(unsigned int major,
+                                            unsigned int minor,
+                                            unsigned int micro,
+                                            unsigned int nano)
+{
+    return (((uint64_t)(nano  & 0xFFFF)) |
+           (((uint64_t)(micro & 0xFFFF)) << 16) |
+           (((uint64_t)(minor & 0xFFFF)) << 32) |
+           (((uint64_t)(major & 0xFFFF)) << 48));
+}
+
+/*
+ * Wrapper macros for nv_encode_version(). For K in {2,3,4}, NV_VERSIONK() takes
+ * a K-part version number.
+ */
+#define NV_VERSION2(major, minor)              \
+    nv_encode_version(major, minor, 0, 0)
+#define NV_VERSION3(major, minor, micro)       \
+    nv_encode_version(major, minor, micro, 0)
+#define NV_VERSION4(major, minor, micro, nano) \
+    nv_encode_version(major, minor, micro, nano)
 
 #endif /* __COMMON_UTILS_H__ */

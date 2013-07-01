@@ -80,6 +80,9 @@ static int parse_config_property(const char *file, const char *line,
 static void write_config_properties(FILE *stream, ConfigProperties *conf,
                                     char *locale);
 
+static char *create_display_device_target_string(CtrlHandleTarget *t,
+                                                 ConfigProperties *conf);
+
 extern int __verbosity;
 extern int __verbosity_level_changed;
 
@@ -413,12 +416,9 @@ int nv_write_config_file(const char *filename, CtrlHandles *h,
             randr_gamma_available = 0;
         }
 
-        /*
-         * use the full display name as the prefix for display targets
-         * until we can parse other display target names
-         */
+        /* Get the prefix we want to use for the display device target */
 
-        prefix = t->name;
+        prefix = create_display_device_target_string(t, conf);
 
         /* loop over all the entries in the table */
 
@@ -449,6 +449,8 @@ int nv_write_config_file(const char *filename, CtrlHandles *h,
                         get_color_value(a->attr, c, b, g));
             } 
         }
+
+        free(prefix);
     }
     
     /*
@@ -923,3 +925,61 @@ void init_config_properties(ConfigProperties *conf)
     conf->locale = strdup(setlocale(LC_NUMERIC, NULL));
 
 } /* init_config_properties() */
+
+
+/*
+ * create_display_device_target_string() - create the string
+ * to specify the display device target in the config file.
+ */
+
+static char *create_display_device_target_string(CtrlHandleTarget *t,
+                                                 ConfigProperties *conf)
+{
+    char *target_name = NULL;
+    char *target_prefix_name = NULL;
+    char *display_name = NULL;
+    char *s;
+    int target_type;
+
+    if (t->protoNames[NV_DPY_PROTO_NAME_RANDR]) {
+        target_name = t->protoNames[NV_DPY_PROTO_NAME_RANDR];
+    }
+
+    /* If we don't have a target name here, use the full name and return. */
+    if (!target_name) {
+        return nvstrdup(t->name);
+    }
+
+    /* Get the display name if the user requested it to be used. */
+    if (conf->booleans &
+        CONFIG_PROPERTIES_INCLUDE_DISPLAY_NAME_IN_CONFIG_FILE) {
+        display_name = NvCtrlGetDisplayName(t->h);
+    }
+
+    /* Get the target type prefix. */
+    target_type = NvCtrlGetTargetType(t->h);
+    if (target_type >= 0) {
+        target_prefix_name =
+            nvstrdup(targetTypeTable[target_type].parsed_name);
+        nvstrtoupper(target_prefix_name);
+    }
+
+    /* Build the string */
+
+    if (display_name && target_prefix_name) {
+        s = nvasprintf("%s[%s:%s]", display_name,
+                       target_prefix_name, target_name);
+    } else if (target_prefix_name) {
+        s = nvasprintf("[%s:%s]", target_prefix_name, target_name);
+    } else if (display_name) {
+        s = nvasprintf("%s[%s]", display_name, target_name);
+    } else {
+        s = nvasprintf("[%s]", target_name);
+    }
+
+    free(target_prefix_name);
+    free(display_name);
+
+    return s;
+}
+

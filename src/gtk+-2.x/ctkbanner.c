@@ -25,6 +25,7 @@
 #include <stdio.h>
 
 #include "ctkbanner.h"
+#include "common-utils.h"
 
 /* pixdata headers */
 
@@ -220,9 +221,9 @@ static gboolean ctk_banner_configure_event(
 
     /* copy the base image into the backing pixbuf */
 
-    w = MIN(ctk_banner->background->w, ctk_banner->back.w);
-    h = MIN(ctk_banner->background->h, ctk_banner->back.h);
-    
+    w = NV_MIN(ctk_banner->background->w, ctk_banner->back.w);
+    h = NV_MIN(ctk_banner->background->h, ctk_banner->back.h);
+
 
     gdk_pixbuf_copy_area(ctk_banner->background->pixbuf,  // src
                          0,                               // src_x
@@ -320,12 +321,12 @@ static void ctk_banner_size_request(
 {
     CtkBanner *ctk_banner = CTK_BANNER(widget);
 
-    requisition->width = MAX(400,
-                             ctk_banner->logo->w +
-                             ctk_banner->artwork.w +
-                             ctk_banner->logo_pad_x +
-                             ctk_banner->artwork_pad_x);
-    
+    requisition->width = NV_MAX(400,
+                                ctk_banner->logo->w +
+                                ctk_banner->artwork.w +
+                                ctk_banner->logo_pad_x +
+                                ctk_banner->artwork_pad_x);
+
     requisition->height = ctk_banner->background->h;
 }
 

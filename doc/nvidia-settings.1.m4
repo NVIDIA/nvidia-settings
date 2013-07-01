@@ -294,7 +294,8 @@ For example, querying the DigitalVibrance of display device DVI-I-1 may be done 
 	nvidia-settings --query [dpy:DVI-I-1]/DigitalVibrance
 
 .fi
-When a target name is specified, the target type name may be omitted, though this should be used with caution since the name will be matched across all target types.  The above example could be written as:
+When a target name is specified, the target type name may be omitted, though this should be used with caution since the name will be matched across all target types.
+The above example could be written as:
 .nf
 
 	nvidia-settings --query [DVI-I-1]/DigitalVibrance
@@ -309,8 +310,10 @@ For exmple, querying the BusRate of all GPUs may be done like so:
 
 .fi
 .PP
-The target specification may also include a target qualifier.  This is useful to limit processing to a subset of targets, based on an existing relationship(s) to other targets.
-The target qualifier is specified by prepending a target type name, a colon, the target id, and a period to the existing specification.  Only one qualitfer may be specified.
+The target specification may also include a target qualifier.
+This is useful to limit processing to a subset of targets, based on an existing relationship(s) to other targets.
+The target qualifier is specified by prepending a target type name, a colon, the target id, and a period to the existing specification.
+Only one qualitfer may be specified.
 .PP
 For example, querying the RefreshRate of all DFP devices on GPU 1 may be done like so:
 .nf
@@ -318,7 +321,8 @@ For example, querying the RefreshRate of all DFP devices on GPU 1 may be done li
 	nvidia-settings --query [GPU:1.DPY:DFP]/RefreshRate
 
 .fi
-Likewise, a simple target name (or target type name) may be used as the qualifier.  For example, to query the BusType of all GPUs that have DFPs can be done like so:
+Likewise, a simple target name (or target type name) may be used as the qualifier.
+For example, to query the BusType of all GPUs that have DFPs can be done like so:
 .nf
 
 	nvidia-settings --query [DFP.GPU]/BusType
@@ -358,8 +362,9 @@ For example:
 .fi
 .PP
 Multiple queries and assignments may be specified on the command line for a single invocation of
-.B nvidia\-settings. 
-Assignments are processed in the order they are entered on the command line. If multiple assignments are made to the same attribute or to multiple attributes with dependencies, then the later assignments will have priority.
+.B nvidia\-settings.
+Assignments are processed in the order they are entered on the command line.
+If multiple assignments are made to the same attribute or to multiple attributes with dependencies, then the later assignments will have priority.
 .PP
 If either the
 .B \-\-query

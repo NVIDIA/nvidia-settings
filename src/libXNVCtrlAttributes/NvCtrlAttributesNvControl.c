@@ -53,13 +53,13 @@ NvCtrlInitNvControlAttributes (NvCtrlAttributePrivateHandle *h)
         return NULL;
     }
 
-    if (major < NV_MINMAJOR || (major == NV_MINMAJOR && minor < NV_MINMINOR)) {
+    if (NV_VERSION2(major, minor) < NV_VERSION2(NV_MINMAJOR, NV_MINMINOR)) {
         nv_error_msg("NV-CONTROL extension version %d.%d is too old; "
                      "the minimum required version is %d.%d.",
                      major, minor, NV_MINMAJOR, NV_MINMINOR);
         return NULL;
     }
-    
+
     if (h->target_type == NV_CTRL_TARGET_TYPE_X_SCREEN) {
         ret = XNVCTRLIsNvScreen (h->dpy, h->target_id);
         if (ret != True) {
@@ -83,7 +83,7 @@ NvCtrlInitNvControlAttributes (NvCtrlAttributePrivateHandle *h)
      * 1.15
      */
 
-    if (((major > 1) || ((major == 1) && (minor >= 15)))) {
+    if (NV_VERSION2(major, minor) >= NV_VERSION2(1, 15)) {
         ret = XNVCtrlSelectTargetNotify(h->dpy, h->target_type, h->target_id,
                                         TARGET_ATTRIBUTE_AVAILABILITY_CHANGED_EVENT,
                                         True);
@@ -98,7 +98,7 @@ NvCtrlInitNvControlAttributes (NvCtrlAttributePrivateHandle *h)
      * 1.16
      */
     
-    if (((major > 1) || ((major == 1) && (minor >= 16)))) {
+    if (NV_VERSION2(major, minor) >= NV_VERSION2(1, 16)) {
         ret = XNVCtrlSelectTargetNotify(h->dpy, h->target_type, h->target_id,
                                         TARGET_STRING_ATTRIBUTE_CHANGED_EVENT,
                                         True);
@@ -112,7 +112,7 @@ NvCtrlInitNvControlAttributes (NvCtrlAttributePrivateHandle *h)
      * TARGET_BINARY_ATTRIBUTE_CHANGED_EVENT was added in NV-CONTROL
      * 1.17
      */
-    if (((major > 1) || ((major == 1) && (minor >= 17)))) {
+    if (NV_VERSION2(major, minor) >= NV_VERSION2(1, 17)) {
         ret = XNVCtrlSelectTargetNotify(h->dpy, h->target_type, h->target_id,
                                         TARGET_BINARY_ATTRIBUTE_CHANGED_EVENT,
                                         True);
@@ -155,7 +155,7 @@ ReturnStatus NvCtrlNvControlGetAttribute (NvCtrlAttributePrivateHandle *h,
     minor = h->nv->minor_version;
 
     if (attr <= NV_CTRL_LAST_ATTRIBUTE) {
-        if ((major > 1) || ((major == 1) && (minor > 20))) {
+        if (NV_VERSION2(major, minor) > NV_VERSION2(1, 20)) {
             status = XNVCTRLQueryTargetAttribute64(h->dpy, h->target_type,
                                                    h->target_id,
                                                    display_mask, attr,
@@ -241,8 +241,8 @@ NvCtrlNvControlGetValidStringDisplayAttributeValues
                                         int attr, NVCTRLAttributeValidValuesRec *val)
 {
     if (attr <= NV_CTRL_STRING_LAST_ATTRIBUTE) {
-        if ((h->nv->major_version > 1) ||
-            ((h->nv->major_version == 1) && (h->nv->minor_version >= 22))) {
+        if (NV_VERSION2(h->nv->major_version, h->nv->minor_version)
+            >= NV_VERSION2(1, 22)) {
             if (XNVCTRLQueryValidTargetStringAttributeValues (h->dpy,
                                                               h->target_type,
                                                               h->target_id,
@@ -319,8 +319,8 @@ NvCtrlNvControlSetStringAttribute (NvCtrlAttributePrivateHandle *h,
         /* NV-CONTROL 1.19 and above has support for setting string attributes
          * on targets other than X screens.
          */
-        if (h->nv->major_version > 1 ||
-            (h->nv->major_version == 1 && h->nv->minor_version  >= 19)) {
+        if (NV_VERSION2(h->nv->major_version, h->nv->minor_version) >=
+            NV_VERSION2(1, 19)) {
             *ret =
                 XNVCTRLSetTargetStringAttribute(h->dpy, h->target_type,
                                                 h->target_id, display_mask,
@@ -357,8 +357,8 @@ NvCtrlNvControlGetBinaryAttribute(NvCtrlAttributePrivateHandle *h,
     
     /* the X_nvCtrlQueryBinaryData opcode was added in 1.7 */
 
-    if ((h->nv->major_version < 1) ||
-        ((h->nv->major_version == 1) && (h->nv->minor_version < 7))) {
+    if (NV_VERSION2(h->nv->major_version, h->nv->minor_version) <
+        NV_VERSION2(1, 7)) {
         return NvCtrlNoAttribute;
     }
     

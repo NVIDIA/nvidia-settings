@@ -90,10 +90,6 @@ G_BEGIN_DECLS
 /*** M A C R O S *************************************************************/
 
 
-#define NV_MIN(A, B) ((A)<(B)?(A):(B))
-#define NV_MAX(A, B) ((A)>(B)?(A):(B))
-
-
 /* Determines if the mode is the nvidia-auto-select mode. */
 #define IS_NVIDIA_DEFAULT_MODE(m)                        \
 (!strcmp(( m )->data.identifier, "nvidia-auto-select"))
@@ -140,12 +136,17 @@ typedef enum {
     METAMODE_SOURCE_RANDR,
 } MetaModeSource;
 
+typedef enum {
+    MOSAIC_TYPE_UNSUPPORTED = 0,
+    MOSAIC_TYPE_SLI_MOSAIC,
+    MOSAIC_TYPE_BASE_MOSAIC,
+    MOSAIC_TYPE_BASE_MOSAIC_LIMITED,
+} MosaicType;
 
 typedef struct nvSizeRec {
     int width;
     int height;
 } nvSize;
-
 
 typedef struct nvModeLineRec {
     struct nvModeLineRec *next;
@@ -296,7 +297,16 @@ typedef struct nvScreenRec {
     int scrnum;
 
     struct nvLayoutRec *layout; /* Layout this X screen belongs to */
-    struct nvGpuRec *gpu;  /* GPU driving this X screen */
+    struct nvGpuRec **gpus; /* List of GPUs driving this screen */
+    int num_gpus;
+
+    int display_owner_gpu_id; /* Display owner GPU, or -1 */
+    struct nvGpuRec *display_owner_gpu; /* GPU to use for Device section */
+
+    int max_width;  /* Max based on all GPUs */
+    int max_height;
+    int max_displays;
+    Bool allow_depth_30;
 
     int depth;      /* Depth of the screen */
     int stereo;     /* Stereo mode enabled on this screen */
@@ -319,6 +329,8 @@ typedef struct nvScreenRec {
     int y_offset;
 
     Bool sli;
+    char *sli_mode;
+    char *multigpu_mode;
     Bool dynamic_twinview;  /* This screen supports dynamic twinview */
     Bool no_scanout;        /* This screen has no display devices */
     Bool stereo_supported;  /* Can stereo be configured on this screen */
@@ -349,8 +361,13 @@ typedef struct nvGpuRec {
     int max_height;
     int max_displays;
     Bool allow_depth_30;
+    Bool multigpu_master_possible;
+
+    MosaicType mosaic_type;
+    Bool mosaic_enabled;
 
     char *name;  /* Name of the GPU */
+    char *uuid;  /* e.g. "GPU-11111111-1111-1111-1111-111111111111" */
 
     gchar *pci_bus_id;
 
@@ -404,7 +421,6 @@ typedef struct ModifyInfoRec {
     nvDisplayPtr display;
     nvScreenPtr screen;
     GdkRectangle orig_screen_dim; // Used when moding display = moding screen.
-    nvGpuPtr gpu;
 
     int orig_position_type; // Original values of what is being
     GdkRectangle orig_dim;  // modified.
@@ -490,8 +506,6 @@ typedef struct _CtkDisplayLayout
                                 /* - multiple modes */
 
     /* State */
-    void      *first_selected_display; /* First thing clicked on (used to cycle) */
-    void      *first_selected_screen;
     int        clicked_outside; /* User clicked outside displays, don't move */
     ModifyInfo modify_info;     /* Used to move/pan screens/displays */
 
@@ -535,7 +549,6 @@ void ctk_display_layout_update_zorder(CtkDisplayLayout *ctk_object);
 
 nvDisplayPtr ctk_display_layout_get_selected_display (CtkDisplayLayout *);
 nvScreenPtr ctk_display_layout_get_selected_screen (CtkDisplayLayout *);
-nvGpuPtr ctk_display_layout_get_selected_gpu (CtkDisplayLayout *);
 
 
 void ctk_display_layout_set_mode_modeline(CtkDisplayLayout *,

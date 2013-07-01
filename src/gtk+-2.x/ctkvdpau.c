@@ -200,12 +200,8 @@ static int queryBaseInfo(CtkVDPAU *ctk_vdpau, VdpDevice device,
 
     vbox = gtk_vbox_new(FALSE, 0);
     eventbox = gtk_event_box_new();
+    ctk_force_text_colors_on_widget(eventbox);
     gtk_container_add(GTK_CONTAINER(eventbox), vbox);
-    gtk_widget_modify_fg(eventbox, GTK_STATE_NORMAL,
-                         &(eventbox->style->text[GTK_STATE_NORMAL]));
-    gtk_widget_modify_bg(eventbox, GTK_STATE_NORMAL,
-                         &(eventbox->style->base[GTK_STATE_NORMAL]));
-
     gtk_notebook_append_page(GTK_NOTEBOOK(ctk_vdpau->notebook), eventbox,
                              gtk_label_new("Base Information"));
 
@@ -223,11 +219,8 @@ static int queryBaseInfo(CtkVDPAU *ctk_vdpau, VdpDevice device,
 
     label = gtk_label_new("Supported Codecs:");
     event = gtk_event_box_new();
+    ctk_force_text_colors_on_widget(event);
     gtk_container_add(GTK_CONTAINER(event), label);
-    gtk_widget_modify_fg(event, GTK_STATE_NORMAL,
-                         &(event->style->text[GTK_STATE_NORMAL]));
-    gtk_widget_modify_bg(event, GTK_STATE_NORMAL,
-                         &(event->style->base[GTK_STATE_NORMAL]));
     ctk_config_set_tooltip(ctk_vdpau->ctk_config, event,
                            __supported_codecs_help);
     gtk_label_set_selectable(GTK_LABEL(label), TRUE);
@@ -331,16 +324,10 @@ static int queryVideoSurface(CtkVDPAU *ctk_vdpau, VdpDevice device,
     hbox     = gtk_hbox_new(FALSE, 0);
     label    = gtk_label_new("Video Surface:");
     eventbox = gtk_event_box_new();
-    gtk_widget_modify_fg(eventbox, GTK_STATE_NORMAL,
-                         &(eventbox->style->text[GTK_STATE_NORMAL]));
-    gtk_widget_modify_bg(eventbox, GTK_STATE_NORMAL,
-                         &(eventbox->style->base[GTK_STATE_NORMAL]));
+    ctk_force_text_colors_on_widget(eventbox);
     event = gtk_event_box_new();
+    ctk_force_text_colors_on_widget(event);
     gtk_container_add(GTK_CONTAINER(event), label);
-    gtk_widget_modify_fg(event, GTK_STATE_NORMAL,
-                         &(event->style->text[GTK_STATE_NORMAL]));
-    gtk_widget_modify_bg(event, GTK_STATE_NORMAL,
-                         &(event->style->base[GTK_STATE_NORMAL]));
     ctk_config_set_tooltip(ctk_vdpau->ctk_config, event,
                            __video_surface_help);
     hseparator = gtk_hseparator_new();
@@ -521,11 +508,8 @@ static int queryDecoderCaps(CtkVDPAU *ctk_vdpau, VdpDevice device,
 
     vbox      = gtk_vbox_new(FALSE, 0);
     eventbox = gtk_event_box_new();
+    ctk_force_text_colors_on_widget(eventbox);
     gtk_container_add(GTK_CONTAINER(eventbox), vbox);
-    gtk_widget_modify_fg(eventbox, GTK_STATE_NORMAL,
-                         &(eventbox->style->text[GTK_STATE_NORMAL]));
-    gtk_widget_modify_bg(eventbox, GTK_STATE_NORMAL,
-                         &(eventbox->style->base[GTK_STATE_NORMAL]));
 
     /* Add tab to notebook */
 
@@ -535,14 +519,10 @@ static int queryDecoderCaps(CtkVDPAU *ctk_vdpau, VdpDevice device,
     /* Generate a new table */
 
     table = gtk_table_new(2, 5, FALSE);
+    ctk_force_text_colors_on_widget(table);
     gtk_table_set_row_spacings(GTK_TABLE(table), 3);
     gtk_table_set_col_spacings(GTK_TABLE(table), 15);
     gtk_container_set_border_width(GTK_CONTAINER(table), 5);
-
-    gtk_widget_modify_fg(table, GTK_STATE_NORMAL,
-                         &(table->style->text[GTK_STATE_NORMAL]));
-    gtk_widget_modify_bg(table, GTK_STATE_NORMAL,
-                         &(table->style->base[GTK_STATE_NORMAL]));
 
     label = gtk_label_new("Name");
     gtk_label_set_selectable(GTK_LABEL(label), TRUE);
@@ -675,11 +655,8 @@ static int queryOutputSurface(CtkVDPAU *ctk_vdpau, VdpDevice device,
     hbox       = gtk_hbox_new(FALSE, 0);
     label      = gtk_label_new("Output Surface:");
     eventbox = gtk_event_box_new();
+    ctk_force_text_colors_on_widget(eventbox);
     gtk_container_add(GTK_CONTAINER(eventbox), label);
-    gtk_widget_modify_fg(eventbox, GTK_STATE_NORMAL,
-                         &(eventbox->style->text[GTK_STATE_NORMAL]));
-    gtk_widget_modify_bg(eventbox, GTK_STATE_NORMAL,
-                         &(eventbox->style->base[GTK_STATE_NORMAL]));
     ctk_config_set_tooltip(ctk_vdpau->ctk_config, eventbox,
                            __ouput_surface_help);
     hseparator = gtk_hseparator_new();
@@ -829,11 +806,8 @@ static int queryBitmapSurface(CtkVDPAU *ctk_vdpau, VdpDevice device,
     hbox       = gtk_hbox_new(FALSE, 0);
     label      = gtk_label_new("Bitmap Surface:");
     eventbox = gtk_event_box_new();
+    ctk_force_text_colors_on_widget(eventbox);
     gtk_container_add(GTK_CONTAINER(eventbox), label);
-    gtk_widget_modify_fg(eventbox, GTK_STATE_NORMAL,
-                         &(eventbox->style->text[GTK_STATE_NORMAL]));
-    gtk_widget_modify_bg(eventbox, GTK_STATE_NORMAL,
-                         &(eventbox->style->base[GTK_STATE_NORMAL]));
     ctk_config_set_tooltip(ctk_vdpau->ctk_config, eventbox,
                            __bitmap_surface_help);
     hseparator = gtk_hseparator_new();
@@ -1062,23 +1036,17 @@ static int queryVideoMixer(CtkVDPAU *ctk_vdpau, VdpDevice device,
     vbox      = gtk_vbox_new(FALSE, 0);
     label      = gtk_label_new("Video Mixer:");
     eventbox = gtk_event_box_new();
+    ctk_force_text_colors_on_widget(eventbox);
     gtk_container_add(GTK_CONTAINER(eventbox), label);
-    gtk_widget_modify_fg(eventbox, GTK_STATE_NORMAL,
-                         &(eventbox->style->text[GTK_STATE_NORMAL]));
-    gtk_widget_modify_bg(eventbox, GTK_STATE_NORMAL,
-                         &(eventbox->style->base[GTK_STATE_NORMAL]));
     ctk_config_set_tooltip(ctk_vdpau->ctk_config, eventbox,
                            __video_mixer_help);
 
     scrollWin = gtk_scrolled_window_new(NULL, NULL);
     hbox = gtk_hbox_new(FALSE, 0);
     event = gtk_event_box_new();
+    ctk_force_text_colors_on_widget(event);
     gtk_scrolled_window_set_policy(GTK_SCROLLED_WINDOW(scrollWin),
                                    GTK_POLICY_NEVER, GTK_POLICY_ALWAYS);
-    gtk_widget_modify_fg(event, GTK_STATE_NORMAL,
-                         &(event->style->text[GTK_STATE_NORMAL]));
-    gtk_widget_modify_bg(event, GTK_STATE_NORMAL,
-                         &(event->style->base[GTK_STATE_NORMAL]));
     gtk_container_add(GTK_CONTAINER(event), hbox);
     gtk_scrolled_window_add_with_viewport(GTK_SCROLLED_WINDOW(scrollWin),
                                           event);
@@ -1093,25 +1061,19 @@ static int queryVideoMixer(CtkVDPAU *ctk_vdpau, VdpDevice device,
     /* Generate a new table */
 
     table = gtk_table_new(2, 5, FALSE);
+    ctk_force_text_colors_on_widget(table);
     gtk_table_set_row_spacings(GTK_TABLE(table), 3);
     gtk_table_set_col_spacings(GTK_TABLE(table), 15);
     gtk_container_set_border_width(GTK_CONTAINER(table), 5);
-    gtk_widget_modify_fg(table, GTK_STATE_NORMAL,
-                         &(table->style->text[GTK_STATE_NORMAL]));
-    gtk_widget_modify_bg(table, GTK_STATE_NORMAL,
-                         &(table->style->base[GTK_STATE_NORMAL]));
 
     label = gtk_label_new("Feature Name");
     eventbox = gtk_event_box_new();
+    ctk_force_text_colors_on_widget(eventbox);
     gtk_container_add(GTK_CONTAINER(eventbox), label);
     gtk_label_set_selectable(GTK_LABEL(label), TRUE);
     gtk_misc_set_alignment(GTK_MISC(label), 0.0f, 0.5f);
     gtk_table_attach(GTK_TABLE(table), eventbox, 0, 1, 0, 1,
                      GTK_FILL, GTK_FILL | GTK_EXPAND, 5, 0);
-    gtk_widget_modify_fg(eventbox, GTK_STATE_NORMAL,
-                         &(eventbox->style->text[GTK_STATE_NORMAL]));
-    gtk_widget_modify_bg(eventbox, GTK_STATE_NORMAL,
-                         &(eventbox->style->base[GTK_STATE_NORMAL]));
     ctk_config_set_tooltip(ctk_vdpau->ctk_config, eventbox,
                            __video_mixer_feature_help);
 
@@ -1181,14 +1143,11 @@ static int queryVideoMixer(CtkVDPAU *ctk_vdpau, VdpDevice device,
 
     label = gtk_label_new("Parameter Name");
     eventbox = gtk_event_box_new();
+    ctk_force_text_colors_on_widget(eventbox);
     gtk_container_add(GTK_CONTAINER(eventbox), label);
     gtk_misc_set_alignment(GTK_MISC(label), 0.0f, 0.5f);
     gtk_table_attach(GTK_TABLE(table), eventbox, 0, 1, 0, 1,
                      GTK_FILL, GTK_FILL | GTK_EXPAND, 5, 0);
-    gtk_widget_modify_fg(eventbox, GTK_STATE_NORMAL,
-                         &(eventbox->style->text[GTK_STATE_NORMAL]));
-    gtk_widget_modify_bg(eventbox, GTK_STATE_NORMAL,
-                         &(eventbox->style->base[GTK_STATE_NORMAL]));
     ctk_config_set_tooltip(ctk_vdpau->ctk_config, eventbox,
                            __video_mixer_parameter_help);
 
@@ -1275,15 +1234,12 @@ static int queryVideoMixer(CtkVDPAU *ctk_vdpau, VdpDevice device,
 
     label = gtk_label_new("Attribute Name");
     eventbox = gtk_event_box_new();
+    ctk_force_text_colors_on_widget(eventbox);
     gtk_container_add(GTK_CONTAINER(eventbox), label);
     gtk_label_set_selectable(GTK_LABEL(label), TRUE);
     gtk_misc_set_alignment(GTK_MISC(label), 0.0f, 0.5f);
     gtk_table_attach(GTK_TABLE(table), eventbox, 0, 1, 0, 1,
                      GTK_FILL, GTK_FILL | GTK_EXPAND, 5, 0);
-    gtk_widget_modify_fg(eventbox, GTK_STATE_NORMAL,
-                         &(eventbox->style->text[GTK_STATE_NORMAL]));
-    gtk_widget_modify_bg(eventbox, GTK_STATE_NORMAL,
-                         &(eventbox->style->base[GTK_STATE_NORMAL]));
     ctk_config_set_tooltip(ctk_vdpau->ctk_config, eventbox,
                            __video_mixer_attribute_help);
 
@@ -1481,12 +1437,9 @@ GtkWidget* ctk_vdpau_new(NvCtrlAttributeHandle *handle,
     scrollWin = gtk_scrolled_window_new(NULL, NULL);
     hbox = gtk_hbox_new(FALSE, 0);
     event = gtk_event_box_new();
+    ctk_force_text_colors_on_widget(event);
     gtk_scrolled_window_set_policy(GTK_SCROLLED_WINDOW(scrollWin),
                                    GTK_POLICY_NEVER, GTK_POLICY_ALWAYS);
-    gtk_widget_modify_fg(event, GTK_STATE_NORMAL,
-                         &(event->style->text[GTK_STATE_NORMAL]));
-    gtk_widget_modify_bg(event, GTK_STATE_NORMAL,
-                         &(event->style->base[GTK_STATE_NORMAL]));
     gtk_container_add(GTK_CONTAINER(event), hbox);
     gtk_scrolled_window_add_with_viewport(GTK_SCROLLED_WINDOW(scrollWin),
                                           event);

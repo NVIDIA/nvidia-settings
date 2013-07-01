@@ -63,6 +63,16 @@ typedef struct SelectableItemRec {
     } u;
 } SelectableItem;
 
+/* Display configuration special index */
+#define DPY_CFG_DISABLED     0
+#define DPY_CFG_X_SCREEN     1
+#define DPY_CFG_NEW_X_SCREEN 2
+
+typedef struct DisplayConfigOptionRec {
+    int config;
+    nvScreenPtr screen;
+} DisplayConfigOption;
+
 
 typedef struct _CtkDisplayConfig
 {
@@ -78,6 +88,7 @@ typedef struct _CtkDisplayConfig
     GtkWidget *obj_layout;
     GtkWidget *label_layout;
 
+    GtkWidget *chk_mosaic_enabled;
     GtkWidget *chk_xinerama_enabled;
     GtkWidget *chk_primary_display;
     gboolean primary_display_changed;
@@ -95,9 +106,8 @@ typedef struct _CtkDisplayConfig
 
     GtkWidget *box_display_config;
     GtkWidget *mnu_display_config;
-    GtkWidget *mnu_display_config_disabled;
-    GtkWidget *mnu_display_config_xscreen;
-    GtkWidget *mnu_display_config_twinview;
+    DisplayConfigOption *display_config_table;
+    int display_config_table_len;
 
     /* Display - Settings */
     GtkWidget *box_screen_drag_info_display;
