@@ -57,6 +57,8 @@ struct _CtkDitheringControls
     char *name;
     GtkWidget *reset_button;
 
+    CtkEvent *ctk_event;
+
     GtkWidget *dithering_controls_box;
     GtkWidget *dithering_mode_box;
     GtkWidget *dithering_depth_box;

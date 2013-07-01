@@ -54,6 +54,7 @@ struct _CtkColorControls
 
     NvCtrlAttributeHandle *handle;
     CtkConfig *ctk_config;
+    CtkEvent *ctk_event;
     GtkWidget *reset_button;
     GtkWidget *color_controls_box;
 

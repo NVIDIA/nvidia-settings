@@ -35,6 +35,11 @@
 #include "ctkdropdownmenu.h"
 
 /* function prototypes */
+static void
+ctk_dither_controls_class_init(CtkDitheringControlsClass *ctk_object_class);
+
+static void ctk_dither_controls_finalize(GObject *object);
+
 static gboolean build_dithering_mode_table(CtkDitheringControls *ctk_dithering_controls);
 
 static gint map_nvctrl_value_to_table(CtkDitheringControls *ctk_dithering_controls,
@@ -107,7 +112,7 @@ GType ctk_dithering_controls_get_type(void)
             sizeof (CtkDitheringControlsClass),
             NULL, /* base_init */
             NULL, /* base_finalize */
-            NULL, /* class_init, */
+            (GClassInitFunc) ctk_dither_controls_class_init, /* class_init, */
             NULL, /* class_finalize */
             NULL, /* class_data */
             sizeof (CtkDitheringControls),
@@ -124,6 +129,26 @@ GType ctk_dithering_controls_get_type(void)
 
     return ctk_dithering_controls_type;
 } /* ctk_dithering_controls_get_type() */
+
+static void
+ctk_dither_controls_class_init(CtkDitheringControlsClass *ctk_object_class)
+{
+    GObjectClass *gobject_class = (GObjectClass *)ctk_object_class;
+    gobject_class->finalize = ctk_dither_controls_finalize;
+}
+
+static void ctk_dither_controls_finalize(GObject *object)
+{
+    CtkDitheringControls *ctk_object = CTK_DITHERING_CONTROLS(object);
+
+    g_signal_handlers_disconnect_matched(G_OBJECT(ctk_object->ctk_event),
+                                         G_SIGNAL_MATCH_DATA,
+                                         0,
+                                         0,
+                                         NULL,
+                                         NULL,
+                                         (gpointer) ctk_object);
+}
 
 GtkWidget* ctk_dithering_controls_new(NvCtrlAttributeHandle *handle,
                                       CtkConfig *ctk_config,
@@ -153,6 +178,7 @@ GtkWidget* ctk_dithering_controls_new(NvCtrlAttributeHandle *handle,
 
     ctk_dithering_controls = CTK_DITHERING_CONTROLS(object);
     ctk_dithering_controls->handle = handle;
+    ctk_dithering_controls->ctk_event = ctk_event;
     ctk_dithering_controls->ctk_config = ctk_config;
     ctk_dithering_controls->reset_button = reset_button;
     ctk_dithering_controls->name = strdup(name);

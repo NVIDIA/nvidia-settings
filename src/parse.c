@@ -165,6 +165,7 @@ const AttributeTableEntry attributeTable[] = {
     { "GPUAdaptiveClockState",  NV_CTRL_GPU_ADAPTIVE_CLOCK_STATE,      N,   "Reports if Adaptive Clocking is Enabled on the GPU driving the X screen." },
     { "GPUPerfModes",           NV_CTRL_STRING_PERFORMANCE_MODES,      S|N, "Returns a string with all the performance modes defined for this GPU along with their associated NV Clock and Memory Clock values." },
     { "GPUPowerMizerMode",      NV_CTRL_GPU_POWER_MIZER_MODE,          0,   "Allows setting different GPU powermizer modes." },
+    { "GPUPowerMizerDefaultMode", NV_CTRL_GPU_POWER_MIZER_DEFAULT_MODE, N,  "Reports the default powermizer mode of the GPU, if any." },
     { "ECCSupported",           NV_CTRL_GPU_ECC_SUPPORTED,             N,   "Reports whether the underlying GPU supports ECC.  All of the other ECC attributes are only applicable if this attribute indicates that ECC is supported." },
     { "ECCStatus",              NV_CTRL_GPU_ECC_STATUS,                N,   "Reports whether ECC is enabled." },
     { "ECCConfigurationSupported", NV_CTRL_GPU_ECC_CONFIGURATION_SUPPORTED, N,   "Reports whether ECC whether the ECC configuration setting can be changed." },
@@ -368,7 +369,7 @@ const AttributeTableEntry attributeTable[] = {
  * about.
  */
 
-#if NV_CTRL_LAST_ATTRIBUTE != NV_CTRL_DPY_HDMI_3D
+#if NV_CTRL_LAST_ATTRIBUTE != NV_CTRL_GPU_POWER_MIZER_DEFAULT_MODE
 #warning "Have you forgotten to add a new integer attribute to attributeTable?"
 #endif
 

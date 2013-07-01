@@ -35,6 +35,11 @@
 #include "ctkdropdownmenu.h"
 
 /* function prototypes */
+static void
+ctk_color_controls_class_init(CtkColorControlsClass *ctk_object_class);
+
+static void ctk_color_controls_finalize(GObject *object);
+
 static gboolean build_color_space_table(CtkColorControls *ctk_color_controls,
                                         NVCTRLAttributeValidValuesRec valid);
 
@@ -87,7 +92,7 @@ GType ctk_color_controls_get_type(void)
             sizeof (CtkColorControlsClass),
             NULL, /* base_init */
             NULL, /* base_finalize */
-            NULL, /* class_init, */
+            (GClassInitFunc) ctk_color_controls_class_init, /* class_init, */
             NULL, /* class_finalize */
             NULL, /* class_data */
             sizeof (CtkColorControls),
@@ -104,6 +109,32 @@ GType ctk_color_controls_get_type(void)
 
     return ctk_color_controls_type;
 } /* ctk_color_controls_get_type() */
+
+
+
+static void
+ctk_color_controls_class_init(CtkColorControlsClass *ctk_object_class)
+{
+    GObjectClass *gobject_class = (GObjectClass *)ctk_object_class;
+    gobject_class->finalize = ctk_color_controls_finalize;
+}
+
+
+
+static void ctk_color_controls_finalize(GObject *object)
+{
+    CtkColorControls *ctk_object = CTK_COLOR_CONTROLS(object);
+
+    g_signal_handlers_disconnect_matched(G_OBJECT(ctk_object->ctk_event),
+                                         G_SIGNAL_MATCH_DATA,
+                                         0,
+                                         0,
+                                         NULL,
+                                         NULL,
+                                         (gpointer) ctk_object);
+}
+
+
 
 GtkWidget* ctk_color_controls_new(NvCtrlAttributeHandle *handle,
                                   CtkConfig *ctk_config,
@@ -141,6 +172,7 @@ GtkWidget* ctk_color_controls_new(NvCtrlAttributeHandle *handle,
     ctk_color_controls = CTK_COLOR_CONTROLS(object);
     ctk_color_controls->handle = handle;
     ctk_color_controls->ctk_config = ctk_config;
+    ctk_color_controls->ctk_event = ctk_event;
     ctk_color_controls->reset_button = reset_button;
     ctk_color_controls->name = strdup(name);
 

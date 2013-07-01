@@ -62,13 +62,19 @@ struct _CtkPowermizer
     GtkWidget *performance_level;
     GtkWidget *performance_table_hbox;
     GtkWidget *powermizer_menu;
+    GtkWidget *powermizer_txt;
     GtkWidget *box_powermizer_menu;
+
+    gchar     *powermizer_menu_help;
 
     GtkWidget *configuration_button;
     gboolean  dp_enabled;
     gboolean  dp_toggle_warning_dlg_shown;
+    gboolean  hasDecoupledClock;
     gint      attribute;
-    gchar     *dp_enabled_string;
+    gint      nvclock;
+    gint      memclock;
+    gint      processorclock;
     GtkWidget *status;
 
     GtkWidget *link_width;

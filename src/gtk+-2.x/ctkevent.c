@@ -326,6 +326,7 @@ static void ctk_event_class_init(CtkEventClass *ctk_event_class)
     MAKE_SIGNAL(NV_CTRL_GPU_DOUBLE_PRECISION_BOOST_IMMEDIATE);
     MAKE_SIGNAL(NV_CTRL_GPU_DOUBLE_PRECISION_BOOST_REBOOT);
     MAKE_SIGNAL(NV_CTRL_DPY_HDMI_3D);
+    MAKE_SIGNAL(NV_CTRL_GPU_POWER_MIZER_DEFAULT_MODE);
 #undef MAKE_SIGNAL
 
     /*
@@ -335,7 +336,7 @@ static void ctk_event_class_init(CtkEventClass *ctk_event_class)
      * knows about.
      */
 
-#if NV_CTRL_LAST_ATTRIBUTE != NV_CTRL_DPY_HDMI_3D
+#if NV_CTRL_LAST_ATTRIBUTE != NV_CTRL_GPU_POWER_MIZER_DEFAULT_MODE
 #warning "There are attributes that do not emit signals!"
 #endif
 

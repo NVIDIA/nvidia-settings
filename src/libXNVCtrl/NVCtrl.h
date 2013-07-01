@@ -2679,16 +2679,21 @@
  * NV_CTRL_GPU_POWER_MIZER_MODE - Provides a hint to the driver
  * as to how to manage the performance of the GPU.
  *
- * ADAPTIVE                     - adjust GPU clocks based on GPU
- *                                utilization
- * PREFER_MAXIMUM_PERFORMANCE   - raise GPU clocks to favor
- *                                maximum performance, to the extent
- *                                that thermal and other constraints
- *                                allow
+ * ADAPTIVE                      - adjust GPU clocks based on GPU
+ *                                 utilization
+ * PREFER_MAXIMUM_PERFORMANCE    - raise GPU clocks to favor
+ *                                 maximum performance, to the extent
+ *                                 that thermal and other constraints
+ *                                 allow
+ * AUTO                          - let the driver choose the performance
+ *                                 policy
+ * PREFER_CONSISTENT_PERFORMANCE - lock to GPU base clocks
  */
-#define NV_CTRL_GPU_POWER_MIZER_MODE                            334 /* RW-G */
-#define NV_CTRL_GPU_POWER_MIZER_MODE_ADAPTIVE                     0
-#define NV_CTRL_GPU_POWER_MIZER_MODE_PREFER_MAXIMUM_PERFORMANCE   1
+#define NV_CTRL_GPU_POWER_MIZER_MODE                             334 /* RW-G */
+#define NV_CTRL_GPU_POWER_MIZER_MODE_ADAPTIVE                      0
+#define NV_CTRL_GPU_POWER_MIZER_MODE_PREFER_MAXIMUM_PERFORMANCE    1
+#define NV_CTRL_GPU_POWER_MIZER_MODE_AUTO                          2
+#define NV_CTRL_GPU_POWER_MIZER_MODE_PREFER_CONSISTENT_PERFORMANCE 3
 
 /*
  * NV_CTRL_GVI_SYNC_OUTPUT_FORMAT - Returns the output sync signal
@@ -3267,7 +3272,13 @@
 #define NV_CTRL_DPY_HDMI_3D_DISABLED                            0
 #define NV_CTRL_DPY_HDMI_3D_ENABLED                             1
 
-#define NV_CTRL_LAST_ATTRIBUTE NV_CTRL_DPY_HDMI_3D
+/*
+ * NV_CTRL_GPU_POWER_MIZER_DEFAULT_MODE - Returns the default PowerMizer mode
+ * for the given GPU.
+ */
+#define NV_CTRL_GPU_POWER_MIZER_DEFAULT_MODE                    400 /* R--G */
+
+#define NV_CTRL_LAST_ATTRIBUTE NV_CTRL_GPU_POWER_MIZER_DEFAULT_MODE
 
 /**************************************************************************/
 
@@ -3652,20 +3663,37 @@
  * NV_CTRL_STRING_PERFORMANCE_MODES - returns a string with all the
  * performance modes defined for this GPU along with their associated
  * NV Clock and Memory Clock values.
+ * Not all tokens will be reported on all GPUs, and additional tokens
+ * may be added in the future.
+ * For backwards compatibility we still provide nvclock, memclock, and
+ * processorclock those are the same as nvclockmin, memclockmin and
+ * processorclockmin.
  *
  * Each performance modes are returned as a comma-separated list of
  * "token=value" pairs.  Each set of performance mode tokens are separated
  * by a ";".  Valid tokens:
  *
- *    Token      Value
- *   "perf"      integer   - the Performance level
- *   "nvclock"   integer   - the GPU clocks (in MHz) for the perf level
- *   "memclock"  integer   - the memory clocks (in MHz) for the perf level
- *
+ *    Token       Value
+ *   "perf"       integer   - the Performance level
+ *   "nvclock"      integer   - the GPU clocks (in MHz) for the perf level
+ *   "nvclockmin"   integer   - the GPU clocks min (in MHz) for the perf level
+ *   "nvclockmax"   integer   - the GPU clocks max (in MHz) for the perf level
+ *   "memclock"     integer   - the memory clocks (in MHz) for the perf level
+ *   "memclockmin"  integer   - the memory clocks min (in MHz) for the perf level
+ *   "memclockmax"  integer   - the memory clocks max (in MHz) for the perf level
+ *   "processorclock"     integer  - the processor clocks (in MHz)
+ *                                 for the perf level
+ *   "processorclockmin"  integer  - the processor clocks min (in MHz)
+ *                                 for the perf level
+ *   "processorclockmax"  integer  - the processor clocks max (in MHz)
+ *                                 for the perf level
  *
  * Example:
  *
- *   perf=0, nvclock=500, memclock=505 ; perf=1, nvclock=650, memclock=505
+ * perf=0, nvclock=324, nvclockmin=324, nvclockmax=324, memclock=324,
+ * memclockmin=324, memclockmax=324 ;
+ * perf=1, nvclock=324, nvclockmin=324, nvclockmax=640, memclock=810,
+ * memclockmin=810, memclockmax=810 ;  
  *
  * This attribute may be queried through XNVCTRLQueryTargetStringAttribute()
  * using a NV_CTRL_TARGET_TYPE_GPU or NV_CTRL_TARGET_TYPE_X_SCREEN target.
@@ -3777,7 +3805,9 @@
  * NV_CTRL_STRING_GPU_CURRENT_CLOCK_FREQS - returns a string with the
  * associated NV Clock, Memory Clock and Processor Clock values.
  * 
- * Current valid tokens are "nvclock", "memclock", and "processorclock".
+ * Current valid tokens are "nvclock", "nvclockmin", "nvclockmax",
+ * "memclock", "memclockmin", "memclockmax", "processorclock",
+ * "processorclockmin" and "processorclockmax".
  * Not all tokens will be reported on all GPUs, and additional tokens
  * may be added in the future.
  *
@@ -3785,17 +3815,24 @@
  * "token=value" pairs.
  * Valid tokens:
  *
- *    Token           Value
- *   "nvclock"        integer - the GPU clocks (in MHz) for the current
- *                              perf level
- *   "memclock"       integer - the memory clocks (in MHz) for the current
- *                              perf level
- *   "processorclock" integer - the processor clocks (in MHz) for the perf level
- *
+ *    Token      Value
+ *   "nvclock"     integer   - the GPU clocks (in MHz) for the perf level
+ *   "nvclockmin"  integer   - the GPU clocks min (in MHz) for the perf level
+ *   "nvclockmax"  integer   - the GPU clocks max (in MHz) for the perf level
+ *   "memclock"    integer   - the memory clocks (in MHz) for the perf level
+ *   "memclockmin" integer   - the memory clocks min (in MHz) for the perf level
+ *   "memclockmax" integer   - the memory clocks (max in MHz) for the perf level
+ *   "processorclock"     integer  - the processor clocks (in MHz)
+ *                                 for the perf level
+ *   "processorclockmin"  integer  - the processor clocks min (in MHz)
+ *                                 for the perf level
+ *   "processorclockmax"  integer  - the processor clocks max (in MHz)
+ *                                 for the perf level
  *
  * Example:
  *
- *    nvclock=459, memclock=400, processorclock=918
+ *    nvclock=324, nvclockmin=324, nvclockmax=324,
+ *    memclock=324, memclockmin=324, memclockmax=324
  *
  * This attribute may be queried through XNVCTRLQueryTargetStringAttribute()
  * using an NV_CTRL_TARGET_TYPE_GPU or NV_CTRL_TARGET_TYPE_X_SCREEN target.
