@@ -3890,7 +3890,7 @@ void ctk_display_layout_set_display_reflection(CtkDisplayLayout *ctk_object,
                                                nvDisplayPtr display,
                                                Reflection reflection)
 {
-    Bool modified;
+    Bool modified = FALSE;
 
 
     if (!display->cur_mode ||

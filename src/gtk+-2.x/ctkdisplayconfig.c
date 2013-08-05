@@ -187,14 +187,14 @@ static const char * __dpy_configuration_mnu_help =
 "for the currently selected display device.";
 
 static const char * __layout_sli_mosaic_button_help =
-"The Enable SLI Mosaic checkbox enables SLI Mosaic Mode for all GPUs";
+"The Enable SLI Mosaic checkbox enables SLI Mosaic for all GPUs";
 
-static const char * __layout_base_mosaic_limited_button_help =
-"The Enable Base Mosaic (Limited) checkbox enables Limited Base Mosaic Mode.  "
-"In limited Base Mosaic, only 3 displays are supported.";
+static const char * __layout_base_mosaic_surround_button_help =
+"The Enable Base Mosaic (Surround) checkbox enables Surround, where up to 3 "
+"displays are supported.";
 
 static const char * __layout_base_mosaic_full_button_help =
-"The Enable Base Mosaic checkbox enables Base Mosaic Mode.";
+"The Enable Base Mosaic checkbox enables Base Mosaic.";
 
 static const char * __dpy_resolution_mnu_help =
 "The Resolution drop-down allows you to select a desired resolution "
@@ -2134,6 +2134,14 @@ GtkWidget* ctk_display_config_new(NvCtrlAttributeHandle *handle,
     }
 
 
+    /* If mosaic mode is enabled, start in advanced mode */
+    if (ctk_object->layout &&
+        ctk_object->layout->gpus &&
+        ctk_object->layout->gpus->mosaic_enabled) {
+        advanced_clicked(ctk_object->btn_advanced, ctk_object);
+    }
+
+
     /* Show the GUI */
     gtk_widget_show_all(GTK_WIDGET(ctk_object));
 
@@ -2321,15 +2329,15 @@ static void setup_mosaic_config(CtkDisplayConfig *ctk_object)
     switch (gpu->mosaic_type) {
     case MOSAIC_TYPE_SLI_MOSAIC:
         tooltip = __layout_sli_mosaic_button_help;
-        label = "Enable SLI Mosaic Mode";
+        label = "Enable SLI Mosaic";
         break;
     case MOSAIC_TYPE_BASE_MOSAIC:
         tooltip = __layout_base_mosaic_full_button_help;
-        label = "Enable Base Mosaic Mode";
+        label = "Enable Base Mosaic";
         break;
     case MOSAIC_TYPE_BASE_MOSAIC_LIMITED:
-        tooltip = __layout_base_mosaic_limited_button_help;
-        label = "Enable Base Mosaic Mode (Limited)";
+        tooltip = __layout_base_mosaic_surround_button_help;
+        label = "Enable Base Mosaic (Surround)";
         break;
     default:
         gtk_widget_hide(ctk_object->chk_mosaic_enabled);

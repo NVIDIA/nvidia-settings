@@ -1198,7 +1198,7 @@ static gchar *display_pick_config_name(nvDisplayPtr display,
     gpu = display->gpu;
 
 
-    /* If one of the Mosaic Modes is configured, and the X server supports
+    /* If one of the Mosaic modes is configured, and the X server supports
      * GPU UUIDs, qualify the display device with the GPU UUID.
      */
     if (screen->num_gpus >= 1 &&
@@ -1659,10 +1659,9 @@ void clamp_screen_size_rect(GdkRectangle *rect)
  *
  * Returns the maximum number of allowable enabled displays for the X screen.
  * This is based on the screen's driving GPU's max number of enabled displays,
- * in conjunction with whether or not Mosaic mode is enabled and which type.
- * Limited Base Mosaic mode only supports up to 3 enabled display devices,
- * while other Mosaic Modes (Base Mosaic and SLI Mosaic) support unlimited
- * displays.
+ * in conjunction with whether or not Mosaic is enabled and which type.
+ * Surround (Base Mosaic) only supports up to 3 enabled display devices,
+ * while other modes (Base Mosaic and SLI Mosaic) support unlimited displays.
  *
  **/
 
@@ -2481,8 +2480,13 @@ void link_screen_to_gpu(nvScreenPtr screen, nvGpuPtr gpu)
 
     screen->max_width = MIN(screen->max_width, gpu->max_width);
     screen->max_height = MIN(screen->max_height, gpu->max_height);
-    screen->max_displays = MIN(screen->max_displays, gpu->max_displays);
     screen->allow_depth_30 = screen->allow_depth_30 && gpu->allow_depth_30;
+
+    if (screen->max_displays <= 0) {
+        screen->max_displays = gpu->max_displays;
+    } else if (gpu->max_displays > 0) {
+        screen->max_displays = MIN(screen->max_displays, gpu->max_displays);
+    }
 
     /* Set the display owner GPU. */
     if (screen->display_owner_gpu_id >= 0) {
@@ -3405,8 +3409,8 @@ static Bool link_screen_to_gpus(nvLayoutPtr layout, nvScreenPtr screen)
     int scrnum = NvCtrlGetTargetId(screen->handle);
 
     /* Link the screen to the display owner GPU.  If there is no display owner,
-     * which is the case when SLI Mosaic Mode is configured, link screen
-     * to the first (multi gpu master possible) GPU we find.
+     * which is the case when SLI Mosaic is configured, link the screen to the
+     * first (multi gpu master possible) GPU we find.
      */
     ret = NvCtrlGetAttribute(screen->handle, NV_CTRL_MULTIGPU_DISPLAY_OWNER,
                              &(screen->display_owner_gpu_id));
