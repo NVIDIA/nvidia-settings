@@ -3681,6 +3681,12 @@
  *   "memclock"     integer   - the memory clocks (in MHz) for the perf level
  *   "memclockmin"  integer   - the memory clocks min (in MHz) for the perf level
  *   "memclockmax"  integer   - the memory clocks max (in MHz) for the perf level
+ *   "memtransferrate"    integer  - the memory transfer rate (in MHz)
+ *                                 for the perf level
+ *   "memtransferratemin" integer  - the memory transfer rate min (in MHz)
+ *                                 for the perf level
+ *   "memtransferratemax" integer  - the memory transfer rate max (in MHz)
+ *                                 for the perf level
  *   "processorclock"     integer  - the processor clocks (in MHz)
  *                                 for the perf level
  *   "processorclockmin"  integer  - the processor clocks min (in MHz)
@@ -3691,9 +3697,11 @@
  * Example:
  *
  * perf=0, nvclock=324, nvclockmin=324, nvclockmax=324, memclock=324,
- * memclockmin=324, memclockmax=324 ;
+ * memclockmin=324, memclockmax=324, memtransferrate=648,
+ * memtransferratemin=648,memtransferratemax=648 ;
  * perf=1, nvclock=324, nvclockmin=324, nvclockmax=640, memclock=810,
- * memclockmin=810, memclockmax=810 ;  
+ * memclockmin=810, memclockmax=810, memtransferrate=1620,
+ * memtransferrate=1620, memtransferrate=1620 ;  
  *
  * This attribute may be queried through XNVCTRLQueryTargetStringAttribute()
  * using a NV_CTRL_TARGET_TYPE_GPU or NV_CTRL_TARGET_TYPE_X_SCREEN target.
@@ -3822,6 +3830,12 @@
  *   "memclock"    integer   - the memory clocks (in MHz) for the perf level
  *   "memclockmin" integer   - the memory clocks min (in MHz) for the perf level
  *   "memclockmax" integer   - the memory clocks (max in MHz) for the perf level
+ *   "memtransferrate"    integer  - the memory transfer rate (in MHz)
+ *                                 for the perf level
+ *   "memtransferratemin" integer  - the memory transfer rate min (in MHz)
+ *                                 for the perf level
+ *   "memtransferratemax" integer  - the memory transfer rate max (in MHz)
+ *                                 for the perf level
  *   "processorclock"     integer  - the processor clocks (in MHz)
  *                                 for the perf level
  *   "processorclockmin"  integer  - the processor clocks min (in MHz)
@@ -3832,7 +3846,7 @@
  * Example:
  *
  *    nvclock=324, nvclockmin=324, nvclockmax=324,
- *    memclock=324, memclockmin=324, memclockmax=324
+ *    memclock=324, memclockmin=324, memclockmax=324, memtrasferrate=628
  *
  * This attribute may be queried through XNVCTRLQueryTargetStringAttribute()
  * using an NV_CTRL_TARGET_TYPE_GPU or NV_CTRL_TARGET_TYPE_X_SCREEN target.
