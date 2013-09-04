@@ -414,7 +414,7 @@ void ctk_help_reset_hardware_defaults(GtkTextBuffer *b, GtkTextIter *i,
                                       gchar *text)
 {
     ctk_help_heading(b, i, "Reset Hardware Defaults");
-    ctk_help_para(b, i, text);
+    ctk_help_para(b, i, "%s", text);
 }
 
 
@@ -463,16 +463,16 @@ static void help_data_list_print_helper(GtkTextBuffer *b,
     for (cur = help_data_list; cur; cur = cur->next) {
         item = (CtkHelpDataItem *)cur->data;
         if (use_headings) {
-            ctk_help_heading(b, i, item->label);
+            ctk_help_heading(b, i, "%s", item->label);
         } else {
-            ctk_help_term(b, i, item->label);
+            ctk_help_term(b, i, "%s", item->label);
         }
         g_string_printf(temp_string, "%s", item->help_text);
         if (item->extended_help_text) {
             g_string_append_printf(temp_string, " %s",
                                    item->extended_help_text);
         }
-        ctk_help_para(b, i, temp_string->str);
+        ctk_help_para(b, i, "%s", temp_string->str);
     }
 
     g_string_free(temp_string, TRUE);

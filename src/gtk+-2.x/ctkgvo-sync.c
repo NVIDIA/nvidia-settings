@@ -1502,30 +1502,30 @@ GtkTextBuffer* ctk_gvo_sync_create_help(GtkTextTagTable *table,
                   "SDI synchronization options.");
 
     ctk_help_heading(b, &i, "Input Video Format");
-    ctk_help_para(b, &i, __input_video_format_help);
+    ctk_help_para(b, &i, "%s", __input_video_format_help);
     ctk_help_heading(b, &i, "Input Video Format Detect");
-    ctk_help_para(b, &i, __input_video_format_detect_help);
+    ctk_help_para(b, &i, "%s", __input_video_format_detect_help);
     ctk_help_heading(b, &i, "Composite Termination");
     ctk_help_para(b, &i, "%s.  This allows the composite signal to be daisy "
                   "chained from a server load.",
                   __composite_termination_help);
     ctk_help_heading(b, &i, "Sync Mode");
-    ctk_help_para(b, &i, __sync_mode_help);
+    ctk_help_para(b, &i, "%s", __sync_mode_help);
     ctk_help_heading(b, &i, "Sync Format");
-    ctk_help_para(b, &i, __sync_format_help);
+    ctk_help_para(b, &i, "%s", __sync_format_help);
     ctk_help_heading(b, &i, "Sync Status");
-    ctk_help_para(b, &i, __sync_status_help);
+    ctk_help_para(b, &i, "%s", __sync_status_help);
 
     if ( ctk_gvo_sync->caps & NV_CTRL_GVO_CAPABILITIES_ADVANCE_SYNC_SKEW ) {
         ctk_help_heading(b, &i, "HSync Advance");
-        ctk_help_para(b, &i, __hsync_advance_help);
+        ctk_help_para(b, &i, "%s", __hsync_advance_help);
         ctk_help_heading(b, &i, "VSync Advance");
-        ctk_help_para(b, &i, __vsync_advance_help);
+        ctk_help_para(b, &i, "%s", __vsync_advance_help);
     } else {
         ctk_help_heading(b, &i, "HSync Delay");
-        ctk_help_para(b, &i, __hsync_delay_help);
+        ctk_help_para(b, &i, "%s", __hsync_delay_help);
         ctk_help_heading(b, &i, "VSync Delay");
-        ctk_help_para(b, &i, __vsync_delay_help);
+        ctk_help_para(b, &i, "%s", __vsync_delay_help);
     }
 
     ctk_help_finish(b);

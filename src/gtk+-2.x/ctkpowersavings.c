@@ -222,7 +222,7 @@ GtkTextBuffer *ctk_power_savings_create_help(GtkTextTagTable *table,
     ctk_help_title(b, &i, "Power Savings Help");
 
     ctk_help_heading(b, &i, "On-Demand VBlank Interrupts");
-    ctk_help_para(b, &i, __vblank_control_help);
+    ctk_help_para(b, &i, "%s", __vblank_control_help);
 
     ctk_help_finish(b);
 

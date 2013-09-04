@@ -717,7 +717,7 @@ static int generate_xconf_metamode_str(CtkDisplayConfig *ctk_object,
             
             parent = ctk_get_parent_window(GTK_WIDGET(ctk_object));
             if (!parent) {
-                nv_warning_msg(msg);
+                nv_warning_msg("%s", msg);
                 g_free(msg);
                 break;
             }
@@ -2209,12 +2209,12 @@ GtkTextBuffer *ctk_display_config_create_help(GtkTextTagTable *table,
                   "down the CONTROL key while clicking on the display, and can "
                   "be moved by holding CONTROL-Click and dragging.");
     ctk_help_heading(b, &i, "Layout Hidden Label");
-    ctk_help_para(b, &i, __layout_hidden_label_help);
+    ctk_help_para(b, &i, "%s", __layout_hidden_label_help);
     ctk_help_heading(b, &i, "Enable Xinerama");
     ctk_help_para(b, &i, "%s  This setting is only available when multiple "
                   "X screens are present.", __layout_xinerama_button_help);
     ctk_help_heading(b, &i, "Selection");
-    ctk_help_para(b, &i, __selected_item_help);
+    ctk_help_para(b, &i, "%s", __selected_item_help);
 
     ctk_help_para(b, &i, "");
     ctk_help_heading(b, &i, "Display Options");
@@ -2222,7 +2222,7 @@ GtkTextBuffer *ctk_display_config_create_help(GtkTextTagTable *table,
                   "device is selected in the Selection drop-down to configure "
                   "the settings for that display device.");
     ctk_help_heading(b, &i, "Resolution");
-    ctk_help_para(b, &i, __dpy_resolution_mnu_help);
+    ctk_help_para(b, &i, "%s", __dpy_resolution_mnu_help);
     ctk_help_heading(b, &i, "Refresh");
     ctk_help_para(b, &i, "The Refresh drop-down is to the right of the "
                   "Resolution drop-down.  %s", __dpy_refresh_mnu_help);
@@ -2231,7 +2231,7 @@ GtkTextBuffer *ctk_display_config_create_help(GtkTextTagTable *table,
                   "currently chosen for the selected display device.  "
                   "This is only available when advanced view is enabled.");
     ctk_help_heading(b, &i, "Stereo Eye");
-    ctk_help_para(b, &i, __dpy_stereo_help);
+    ctk_help_para(b, &i, "%s", __dpy_stereo_help);
     ctk_help_heading(b, &i, "Orientation");
     ctk_help_para(b, &i, "The Orientation drop-downs control how the desktop "
                   "image is rotated and/or reflected.  %s  %s  Note that "
@@ -2243,20 +2243,20 @@ GtkTextBuffer *ctk_display_config_create_help(GtkTextTagTable *table,
                   "size.  This feature is formerly known as Overscan "
                   "Compensation.", __dpy_underscan_text_help);
     ctk_help_heading(b, &i, "Position Type");
-    ctk_help_para(b, &i, __dpy_position_type_help);
+    ctk_help_para(b, &i, "%s", __dpy_position_type_help);
     ctk_help_heading(b, &i, "Position Relative");
-    ctk_help_para(b, &i, __dpy_position_relative_help);
+    ctk_help_para(b, &i, "%s", __dpy_position_relative_help);
     ctk_help_heading(b, &i, "Position Offset");
-    ctk_help_para(b, &i, __dpy_position_offset_help);
+    ctk_help_para(b, &i, "%s", __dpy_position_offset_help);
     ctk_help_heading(b, &i, "ViewPortIn");
-    ctk_help_para(b, &i, __dpy_viewport_in_help);
+    ctk_help_para(b, &i, "%s", __dpy_viewport_in_help);
     ctk_help_heading(b, &i, "ViewPortOut");
-    ctk_help_para(b, &i, __dpy_viewport_out_help);
+    ctk_help_para(b, &i, "%s", __dpy_viewport_out_help);
     ctk_help_heading(b, &i, "Panning");
     ctk_help_para(b, &i, "%s  This is only available when advanced "
                   "view is enabled.", __dpy_panning_help);
     ctk_help_heading(b, &i, "Primary Display");
-    ctk_help_para(b, &i, __dpy_primary_help);
+    ctk_help_para(b, &i, "%s", __dpy_primary_help);
 
 
     ctk_help_para(b, &i, "");
@@ -2269,15 +2269,15 @@ GtkTextBuffer *ctk_display_config_create_help(GtkTextTagTable *table,
                   "304x200, and the width must be a multiple of 8.",
                   __screen_virtual_size_help);
     ctk_help_heading(b, &i, "Color Depth");
-    ctk_help_para(b, &i, __screen_depth_help);
+    ctk_help_para(b, &i, "%s", __screen_depth_help);
     ctk_help_heading(b, &i, "Stereo Mode");
-    ctk_help_para(b, &i, __screen_stereo_help);
+    ctk_help_para(b, &i, "%s", __screen_stereo_help);
     ctk_help_heading(b, &i, "Position Type");
-    ctk_help_para(b, &i, __screen_position_type_help);
+    ctk_help_para(b, &i, "%s", __screen_position_type_help);
     ctk_help_heading(b, &i, "Position Relative");
-    ctk_help_para(b, &i, __screen_position_relative_help);
+    ctk_help_para(b, &i, "%s", __screen_position_relative_help);
     ctk_help_heading(b, &i, "Position Offset");
-    ctk_help_para(b, &i, __screen_position_offset_help);
+    ctk_help_para(b, &i, "%s", __screen_position_offset_help);
     ctk_help_heading(b, &i, "MetaMode Selection");
     ctk_help_para(b, &i, "%s  This is only available when advanced view "
                   "is enabled.", __screen_metamode_help);
@@ -2300,16 +2300,16 @@ GtkTextBuffer *ctk_display_config_create_help(GtkTextTagTable *table,
                   "screen, adding/removing an X screen, and changing the X "
                   "screen color depth.", __apply_button_help);
     ctk_help_heading(b, &i, "Detect Displays");
-    ctk_help_para(b, &i, __detect_displays_button_help);
+    ctk_help_para(b, &i, "%s", __detect_displays_button_help);
     ctk_help_heading(b, &i, "Advanced/Basic...");
     ctk_help_para(b, &i, "%s  The Basic view modifies the currently active "
                   "MetaMode for an X screen, while the advanced view exposes "
                   "all the MetaModes available on an X screen, and lets you "
                   "modify each of them.", __advanced_button_help);
     ctk_help_heading(b, &i, "Reset");
-    ctk_help_para(b, &i, __reset_button_help);
+    ctk_help_para(b, &i, "%s", __reset_button_help);
     ctk_help_heading(b, &i, "Save to X Configuration File");
-    ctk_help_para(b, &i, __save_button_help);
+    ctk_help_para(b, &i, "%s", __save_button_help);
 
     ctk_help_finish(b);
 
@@ -5856,7 +5856,7 @@ static void display_config_changed(GtkWidget *widget, gpointer user_data)
                                   "", &tokens);
             update = TRUE;
             if (!display_add_modelines_from_server(display, display->gpu, &err_str)) {
-                nv_warning_msg(err_str);
+                nv_warning_msg("%s", err_str);
                 g_free(err_str);
                 return;
             }
@@ -8936,7 +8936,7 @@ static void reset_layout(CtkDisplayConfig *ctk_object)
     /* Handle errors loading the new layout */
     if (!layout || err_str) {
         if (err_str) {
-            nv_error_msg(err_str);
+            nv_error_msg("%s", err_str);
             g_free(err_str);
         }
         return;

@@ -523,13 +523,13 @@ void add_color_controls_help(CtkColorControls *ctk_color_controls,
     }
 
     ctk_help_heading(b, i, "Color Controls");
-    ctk_help_para(b, i, __color_controls_help);
+    ctk_help_para(b, i, "%s", __color_controls_help);
 
     ctk_help_term(b, i, "Color Space");
-    ctk_help_para(b, i, __color_space_help);
+    ctk_help_para(b, i, "%s", __color_space_help);
 
     ctk_help_term(b, i, "Color Range");
-    ctk_help_para(b, i, __color_range_help);
+    ctk_help_para(b, i, "%s", __color_range_help);
 } /* add_color_controls_help() */
 
 

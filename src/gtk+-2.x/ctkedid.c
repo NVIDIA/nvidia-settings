@@ -421,6 +421,6 @@ static gboolean write_edid_to_file(CtkConfig *ctk_config, const gchar *filename,
 void add_acquire_edid_help(GtkTextBuffer *b, GtkTextIter *i)
 {
     ctk_help_heading(b, i, "Acquire EDID");
-    ctk_help_para(b, i, __acquire_edid_help);
+    ctk_help_para(b, i, "%s", __acquire_edid_help);
 
 } /* add_acquire_edid_help() */

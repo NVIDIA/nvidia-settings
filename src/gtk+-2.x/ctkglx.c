@@ -945,7 +945,7 @@ GtkTextBuffer *ctk_glx_create_help(GtkTextTagTable *table,
                  );
 
     ctk_help_heading(b, &i, "Show GLX Frame Buffer Configurations");
-    ctk_help_para(b, &i, __show_fbc_help);
+    ctk_help_para(b, &i, "%s", __show_fbc_help);
 
     ctk_help_heading(b, &i, "GLX Frame Buffer Configurations");
     ctk_help_para(b, &i, "This table lists the supported frame buffer "

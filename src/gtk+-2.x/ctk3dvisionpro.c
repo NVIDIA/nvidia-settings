@@ -1778,7 +1778,7 @@ GtkTextBuffer *ctk_3d_vision_pro_create_help(GtkTextTagTable *table)
                          "with the hub.");
 
     ctk_help_heading(b, &i, "Add glasses");
-    ctk_help_para(b, &i, __add_glasses_tooltip);
+    ctk_help_para(b, &i, "%s", __add_glasses_tooltip);
     ctk_help_para(b, &i, "This action is used to set up new 3D Vision Pro Glasses. "
                          "On clicking this button the hub enters into pairing mode. "
                          "Follow the instructions on Add Glasses dialog box. "
@@ -1787,7 +1787,7 @@ GtkTextBuffer *ctk_3d_vision_pro_create_help(GtkTextTagTable *table)
                          " glasses or 'Cancel' if do not wish to store them.");
 
     ctk_help_heading(b, &i, "Refresh Glasses' Information");
-    ctk_help_para(b, &i, __refresh_tooltip);
+    ctk_help_para(b, &i, "%s", __refresh_tooltip);
     ctk_help_para(b, &i, "Refresh glasses information is typically required when- \n"
                          "o Glasses move in and out of the range.\n"
                          "o Get the updated battery level of all the glasses.");
@@ -1799,18 +1799,18 @@ GtkTextBuffer *ctk_3d_vision_pro_create_help(GtkTextTagTable *table)
                          "for a few seconds.");
 
     ctk_help_heading(b, &i, "Rename glasses");
-    ctk_help_para(b, &i, __rename_tooltip);
+    ctk_help_para(b, &i, "%s", __rename_tooltip);
     ctk_help_para(b, &i, "Select the glasses from the list of paired glasses "
                          "that you want to rename and provide an unique new name.");
 
     ctk_help_heading(b, &i, "Remove glasses");
-    ctk_help_para(b, &i, __remove_glasses_tooltip);
+    ctk_help_para(b, &i, "%s", __remove_glasses_tooltip);
     ctk_help_para(b, &i, "Select the glasses from the list of paired glasses "
                          "that you want to remove. On removal glasses get "
                          "unpaired and will not sync to the hub.");
 
     ctk_help_heading(b, &i, "Glasses Information");
-    ctk_help_para(b, &i, __goggle_info_tooltip);
+    ctk_help_para(b, &i, "%s", __goggle_info_tooltip);
 
     ctk_help_heading(b, &i, "Glasses Name");
     ctk_help_para(b, &i, "Each pair of glasses has an unique name and the name should "
@@ -1839,7 +1839,7 @@ GtkTextBuffer *ctk_3d_vision_pro_create_help(GtkTextTagTable *table)
                          "\tNo Signal\t\t [0%%]");
 
     ctk_help_heading(b, &i, "Hub Range");
-    ctk_help_para(b, &i, __channel_range_tooltip);
+    ctk_help_para(b, &i, "%s", __channel_range_tooltip);
     ctk_help_para(b, &i, "The hub range is the farthest distance that the "
                          "glasses can synchronize with the 3D Vision Pro Hub. "
                          "You can reduce the hub range to limit the experience "

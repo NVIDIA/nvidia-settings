@@ -300,7 +300,7 @@ void ctk_display_error_msg(GtkWidget *parent, gchar * msg)
     GtkWidget *dlg;
     
     if (msg) {
-        nv_error_msg(msg);
+        nv_error_msg("%s", msg);
 
         if (parent) {
             dlg = gtk_message_dialog_new
@@ -328,7 +328,7 @@ void ctk_display_warning_msg(GtkWidget *parent, gchar * msg)
     GtkWidget *dlg;
     
     if (msg) {
-        nv_warning_msg(msg);
+        nv_warning_msg("%s", msg);
 
         if (parent) {
             dlg = gtk_message_dialog_new

@@ -1206,7 +1206,7 @@ GtkTextBuffer *ctk_opengl_create_help(GtkTextTagTable *table,
 
     if (ctk_opengl->active_attributes & __SYNC_TO_VBLANK) {
         ctk_help_heading(b, &i, "Sync to VBlank");
-        ctk_help_para(b, &i, __sync_to_vblank_help);
+        ctk_help_para(b, &i, "%s", __sync_to_vblank_help);
     }
 
     if (ctk_opengl->active_attributes & __ALLOW_FLIPPING) {
@@ -1228,17 +1228,17 @@ GtkTextBuffer *ctk_opengl_create_help(GtkTextTagTable *table,
 
     if (ctk_opengl->active_attributes & __FORCE_STEREO) {
         ctk_help_heading(b, &i, "Force Stereo Flipping");
-        ctk_help_para(b, &i, __force_stereo_help);
+        ctk_help_para(b, &i, "%s", __force_stereo_help);
     }
     
     if (ctk_opengl->active_attributes & __XINERAMA_STEREO) {
         ctk_help_heading(b, &i, "Allow Xinerama Stereo Flipping");
-        ctk_help_para(b, &i, __xinerama_stereo_help);
+        ctk_help_para(b, &i, "%s", __xinerama_stereo_help);
     }
     
     if (ctk_opengl->active_attributes & __STEREO_EYES_EXCHANGE) {
         ctk_help_heading(b, &i, "Exchange Stereo Eyes");
-        ctk_help_para(b, &i, __stereo_eyes_exchange_help);
+        ctk_help_para(b, &i, "%s", __stereo_eyes_exchange_help);
     }
     
     if (ctk_opengl->active_attributes & __IMAGE_SETTINGS) {
@@ -1277,18 +1277,18 @@ GtkTextBuffer *ctk_opengl_create_help(GtkTextTagTable *table,
     if (ctk_opengl->active_attributes & __AA_LINE_GAMMA) {
         ctk_help_heading(b, &i, "Enable gamma correction for "
                          "antialiased lines");
-        ctk_help_para(b, &i, __aa_line_gamma_checkbox_help );
+        ctk_help_para(b, &i, "%s", __aa_line_gamma_checkbox_help );
     }
 
     if (ctk_opengl->active_attributes & __AA_LINE_GAMMA_VALUE) {
         ctk_help_heading(b, &i, "Set gamma correction for "
                          "antialiased lines");
-        ctk_help_para(b, &i, __aa_line_gamma_slider_help);
+        ctk_help_para(b, &i, "%s", __aa_line_gamma_slider_help);
     }
 
     if (ctk_opengl->active_attributes & __CONFORMANT_CLAMPING) {
         ctk_help_heading(b, &i, "Use Conformant Texture Clamping");
-        ctk_help_para(b, &i, __use_conformant_clamping_help);
+        ctk_help_para(b, &i, "%s", __use_conformant_clamping_help);
     }
 
     if (ctk_opengl->active_attributes & __SHOW_SLI_VISUAL_INDICATOR) {

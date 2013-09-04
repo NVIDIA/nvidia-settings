@@ -454,7 +454,7 @@ static int queryVideoSurface(CtkVDPAU *ctk_vdpau, VdpDevice device,
                     str1 = g_string_append(str1, s);
                 }
             }
-            label = gtk_label_new(g_strdup_printf(str1->str));
+            label = gtk_label_new(g_strdup_printf("%s", str1->str));
             gtk_label_set_selectable(GTK_LABEL(label), TRUE);
             gtk_misc_set_alignment(GTK_MISC(label), 0.0f, 0.5f);
             gtk_table_attach(GTK_TABLE(table), label, 3, 4, count+1, count+2,
@@ -792,7 +792,7 @@ static int queryOutputSurface(CtkVDPAU *ctk_vdpau, VdpDevice device,
                     str1 = g_string_append(str1, s);
                 }
             }
-            label = gtk_label_new(g_strdup_printf(str1->str));
+            label = gtk_label_new(g_strdup_printf("%s", str1->str));
             gtk_label_set_selectable(GTK_LABEL(label), TRUE);
             gtk_misc_set_alignment(GTK_MISC(label), 0.0f, 0.5f);
             gtk_table_attach(GTK_TABLE(table), label, 4, 5, count+1, count+2,
@@ -1541,43 +1541,43 @@ GtkTextBuffer *ctk_vdpau_create_help(GtkTextTagTable *table,
     gtk_text_buffer_get_iter_at_offset(b, &i, 0);
 
     ctk_help_title(b, &i, "VDPAU Information Help");
-    ctk_help_para(b, &i, __vdpau_information_label_help);
+    ctk_help_para(b, &i, "%s", __vdpau_information_label_help);
 
     ctk_help_heading(b, &i, "Base Information");
-    ctk_help_para(b, &i, __base_information_help);
+    ctk_help_para(b, &i, "%s", __base_information_help);
 
     ctk_help_heading(b, &i, "API Version");
-    ctk_help_para(b, &i, __vdpau_api_version_help);
+    ctk_help_para(b, &i, "%s", __vdpau_api_version_help);
 
     ctk_help_heading(b, &i, "Supported Codecs");
-    ctk_help_para(b, &i, __supported_codecs_help);
+    ctk_help_para(b, &i, "%s", __supported_codecs_help);
 
     ctk_help_heading(b, &i, "Surface Limits");
-    ctk_help_para(b, &i, __surface_limits_help);
+    ctk_help_para(b, &i, "%s", __surface_limits_help);
 
     ctk_help_heading(b, &i, "Video Surface");
-    ctk_help_para(b, &i, __video_surface_help);
+    ctk_help_para(b, &i, "%s", __video_surface_help);
 
     ctk_help_heading(b, &i, "Output Surface");
-    ctk_help_para(b, &i, __ouput_surface_help);
+    ctk_help_para(b, &i, "%s", __ouput_surface_help);
 
     ctk_help_heading(b, &i, "Bitmap Surface");
-    ctk_help_para(b, &i, __bitmap_surface_help);
+    ctk_help_para(b, &i, "%s", __bitmap_surface_help);
 
     ctk_help_heading(b, &i, "Decoder Limits");
-    ctk_help_para(b, &i, __decoder_limits_help);
+    ctk_help_para(b, &i, "%s", __decoder_limits_help);
 
     ctk_help_heading(b, &i, "Video Mixer");
-    ctk_help_para(b, &i, __video_mixer_help);
+    ctk_help_para(b, &i, "%s", __video_mixer_help);
 
     ctk_help_term(b, &i, "Feature");
-    ctk_help_para(b, &i, __video_mixer_feature_help);
+    ctk_help_para(b, &i, "%s", __video_mixer_feature_help);
 
     ctk_help_term(b, &i, "Parameter");
-    ctk_help_para(b, &i, __video_mixer_parameter_help);
+    ctk_help_para(b, &i, "%s", __video_mixer_parameter_help);
 
     ctk_help_term(b, &i, "Attribute");
-    ctk_help_para(b, &i, __video_mixer_attribute_help);
+    ctk_help_para(b, &i, "%s", __video_mixer_attribute_help);
 
     ctk_help_finish(b);
     return b;

@@ -879,16 +879,16 @@ void add_dithering_controls_help(CtkDitheringControls *ctk_dithering_controls,
     }
 
     ctk_help_heading(b, i, "Dithering Controls");
-    ctk_help_para(b, i, __dithering_help);
+    ctk_help_para(b, i, "%s", __dithering_help);
 
     ctk_help_term(b, i, "Dithering");
-    ctk_help_para(b, i, __dithering_config_help);
+    ctk_help_para(b, i, "%s", __dithering_config_help);
 
     ctk_help_term(b, i, "Mode");
-    ctk_help_para(b, i, __dithering_mode_help);
+    ctk_help_para(b, i, "%s", __dithering_mode_help);
 
     ctk_help_term(b, i, "Depth");
-    ctk_help_para(b, i, __dithering_depth_help);
+    ctk_help_para(b, i, "%s", __dithering_depth_help);
 } /* add_dithering_controls_help() */
 
 

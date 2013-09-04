@@ -599,7 +599,7 @@ GtkTextBuffer *ctk_clocks_create_help(GtkTextTagTable *table,
                   "void manufacturer warranties.  DO THIS AT YOUR OWN RISK."
                   );
     ctk_help_heading(b, &i, "Enabling Clock Frequencies");
-    ctk_help_para(b, &i, __enable_button_help);
+    ctk_help_para(b, &i, "%s", __enable_button_help);
     ctk_help_para(b, &i,
                   "GPU Overclocking functionality is currently limited to "
                   "GeForce FX and newer non-mobile GPUs."
@@ -614,21 +614,21 @@ GtkTextBuffer *ctk_clocks_create_help(GtkTextTagTable *table,
                   "frequencies used when running 3D applications."
                   );
     ctk_help_heading(b, &i, "Graphics Clock Frequency");
-    ctk_help_para(b, &i, __graphics_clock_help);
+    ctk_help_para(b, &i, "%s", __graphics_clock_help);
     ctk_help_heading(b, &i, "Memory Clock Frequency");
-    ctk_help_para(b, &i, __mem_clock_help);
+    ctk_help_para(b, &i, "%s", __mem_clock_help);
     ctk_help_heading(b, &i, "Applying Custom Clock Frequencies");
-    ctk_help_para(b, &i, __apply_button_help);
+    ctk_help_para(b, &i, "%s", __apply_button_help);
     ctk_help_heading(b, &i, "Auto Detect Optimal 3D Clock Frequencies");
-    ctk_help_para(b, &i, __detect_button_help);
+    ctk_help_para(b, &i, "%s", __detect_button_help);
     ctk_help_heading(b, &i, "Canceling Optimal 3D Clock Frequency Auto-"
                      "detection.");
-    ctk_help_para(b, &i, __cancel_button_help);
+    ctk_help_para(b, &i, "%s", __cancel_button_help);
     ctk_help_para(b, &i,
                   "This button is only available if the Optimal "
                   "clocks are currently being probed.");
     ctk_help_heading(b, &i, "Restoring Hardware Default Frequencies");
-    ctk_help_para(b, &i, __reset_button_help);
+    ctk_help_para(b, &i, "%s", __reset_button_help);
 
     ctk_help_finish(b);
 
@@ -886,10 +886,10 @@ static void auto_detection_state_received(GtkObject *object,
     /* Update the status bar */
 
     if ( ctk_object->probing_optimal ) {
-        ctk_config_statusbar_message(ctk_object->ctk_config,
+        ctk_config_statusbar_message(ctk_object->ctk_config, "%s",
                                      __detect_wait_msg);
     } else {
-        ctk_config_statusbar_message(ctk_object->ctk_config,
+        ctk_config_statusbar_message(ctk_object->ctk_config, "%s",
                                      __canceled_msg);
     }
 
@@ -1379,7 +1379,7 @@ void ctk_clocks_select(GtkWidget *widget)
 
     if ( ret == NvCtrlSuccess &&
          value == NV_CTRL_GPU_OPTIMAL_CLOCK_FREQS_DETECTION_STATE_BUSY ) {
-        ctk_config_statusbar_message(ctk_object->ctk_config,
+        ctk_config_statusbar_message(ctk_object->ctk_config, "%s",
                                      __detect_wait_msg);
     }
 }

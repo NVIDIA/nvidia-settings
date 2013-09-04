@@ -507,15 +507,15 @@ GtkTextBuffer *ctk_display_device_create_help(GtkTextTagTable *table,
     ctk_help_title(b, &i, "%s Help", ctk_object->name);
 
     ctk_help_heading(b, &i, "Device Information");
-    ctk_help_para(b, &i, __info_help);
+    ctk_help_para(b, &i, "%s", __info_help);
 
     for (j = 0; j < ARRAY_LEN(__info_entry_data); j++) {
         InfoEntryData *entryData = __info_entry_data+j;
         InfoEntry *entry = ctk_object->info_entries+j;
 
         if (entry->present) {
-            ctk_help_term(b, &i, entryData->str);
-            ctk_help_para(b, &i, *entryData->tooltip);
+            ctk_help_term(b, &i, "%s", entryData->str);
+            ctk_help_para(b, &i, "%s", *entryData->tooltip);
         }
     }
 

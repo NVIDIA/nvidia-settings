@@ -532,7 +532,7 @@ GtkTextBuffer *ctk_xvideo_create_help(GtkTextTagTable *table,
     
     if (ctk_xvideo->active_attributes & __XV_SYNC_TO_DISPLAY) {
         ctk_help_heading(b, &i, "Sync to this display device");
-        ctk_help_para(b, &i, __xv_sync_to_display_help);
+        ctk_help_para(b, &i, "%s", __xv_sync_to_display_help);
     }
     
     ctk_help_finish(b);
