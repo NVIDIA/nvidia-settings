@@ -74,7 +74,7 @@ install: MANPAGE_install
 
 MANPAGE_install: $(MANPAGE)
 	$(MKDIR) $(MANDIR)
-	$(INSTALL) $(INSTALL_BIN_ARGS) $< $(MANDIR)/$(notdir $<)
+	$(INSTALL) $(INSTALL_DOC_ARGS) $< $(MANDIR)/$(notdir $<)
 
 clean clobber:
 	rm -rf $(MANPAGE) *~ $(OUTPUTDIR)/*.o $(OUTPUTDIR)/*.d \
