@@ -415,21 +415,21 @@ void print_glxinfo(const char *display_name, CtrlHandlesArray *handles_array)
         /* Print results */
         nv_msg(TAB, "direct rendering: %s", NULL_TO_EMPTY(direct_rendering));
         nv_msg(TAB, "GLX extensions:");
-        nv_msg("    ", NULL_TO_EMPTY(glx_extensions));
+        nv_msg("    ", "%s", NULL_TO_EMPTY(glx_extensions));
         nv_msg(" ", "\n");
         nv_msg(TAB, "server glx vendor string: %s",
                NULL_TO_EMPTY(server_vendor));
         nv_msg(TAB, "server glx version string: %s",
                NULL_TO_EMPTY(server_version));
         nv_msg(TAB, "server glx extensions:");
-        nv_msg("    ", NULL_TO_EMPTY(server_extensions));
+        nv_msg("    ", "%s", NULL_TO_EMPTY(server_extensions));
         nv_msg(" ", "\n");
         nv_msg(TAB, "client glx vendor string: %s",
                NULL_TO_EMPTY(client_vendor));
         nv_msg(TAB, "client glx version string: %s",
                NULL_TO_EMPTY(client_version));
         nv_msg(TAB, "client glx extensions:");
-        nv_msg("    ", NULL_TO_EMPTY(client_extensions));
+        nv_msg("    ", "%s", NULL_TO_EMPTY(client_extensions));
         nv_msg(" ", "\n");
         nv_msg(TAB, "OpenGL vendor string: %s",
                NULL_TO_EMPTY(opengl_vendor));
@@ -438,7 +438,7 @@ void print_glxinfo(const char *display_name, CtrlHandlesArray *handles_array)
         nv_msg(TAB, "OpenGL version string: %s",
                NULL_TO_EMPTY(opengl_version));
         nv_msg(TAB, "OpenGL extensions:");
-        nv_msg("    ", NULL_TO_EMPTY(opengl_extensions));
+        nv_msg("    ", "%s", NULL_TO_EMPTY(opengl_extensions));
 #ifdef GLX_VERSION_1_3        
         if ( fbconfig_attribs != NULL ) {
             nv_msg(" ", "\n");

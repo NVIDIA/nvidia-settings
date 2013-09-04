@@ -1488,7 +1488,7 @@ Bool display_add_modelines_from_server(nvDisplayPtr display, nvGpuPtr gpu,
                                   "device %d '%s'.",
                                    NvCtrlGetTargetId(display->handle),
                                    display->logName);
-        nv_error_msg(*err_str);
+        nv_error_msg("%s", *err_str);
         goto fail;
     }
 
@@ -1506,7 +1506,7 @@ Bool display_add_modelines_from_server(nvDisplayPtr display, nvGpuPtr gpu,
                                        NvCtrlGetTargetId(display->handle),
                                        display->logName,
                                        str);
-            nv_error_msg(*err_str);
+            nv_error_msg("%s", *err_str);
             goto fail;
         }
 
@@ -2334,7 +2334,7 @@ static Bool screen_add_metamodes(nvScreenPtr screen, gchar **err_str)
     if (ret != NvCtrlSuccess) {
         *err_str = g_strdup_printf("Failed to query list of metamodes on\n"
                                    "screen %d.", screen->scrnum);
-        nv_error_msg(*err_str);
+        nv_error_msg("%s", *err_str);
         goto fail;
     }
 
@@ -2346,7 +2346,7 @@ static Bool screen_add_metamodes(nvScreenPtr screen, gchar **err_str)
     if (ret != NvCtrlSuccess) {
         *err_str = g_strdup_printf("Failed to query current metamode of\n"
                                    "screen %d.", screen->scrnum);
-        nv_error_msg(*err_str);
+        nv_error_msg("%s", *err_str);
         goto fail;
     }
 
@@ -2717,7 +2717,7 @@ static Bool display_add_name_from_server(nvDisplayPtr display,
                                    "device DPY-%d.",
                                    displayNameInfo->nameDescription,
                                    NvCtrlGetTargetId(display->handle));
-        nv_error_msg(*err_str);
+        nv_error_msg("%s", *err_str);
         return FALSE;
     }
 
@@ -2756,7 +2756,7 @@ nvDisplayPtr gpu_add_display_from_server(nvGpuPtr gpu,
                                    "display %d (on GPU-%d).",
                                    display_id,
                                    NvCtrlGetTargetId(gpu->handle));
-        nv_error_msg(*err_str);
+        nv_error_msg("%s", *err_str);
         goto fail;
     }
 
@@ -2913,7 +2913,7 @@ static Bool gpu_add_displays_from_server(nvGpuPtr gpu, gchar **err_str)
         *err_str = g_strdup_printf("Failed to query list of displays \n"
                                    "connected to GPU-%d '%s'.",
                                    NvCtrlGetTargetId(gpu->handle), gpu->name);
-        nv_error_msg(*err_str);
+        nv_error_msg("%s", *err_str);
         goto fail;
     }
 
@@ -3171,7 +3171,7 @@ static Bool layout_add_gpu_from_server(nvLayoutPtr layout, unsigned int gpu_id,
     if (!gpu->handle) {
         *err_str = g_strdup_printf("Failed to create NV-CONTROL handle for "
                                    "GPU-%d.", gpu_id);
-        nv_error_msg(*err_str);
+        nv_error_msg("%s", *err_str);
         goto fail;
     }
 
@@ -3184,7 +3184,7 @@ static Bool layout_add_gpu_from_server(nvLayoutPtr layout, unsigned int gpu_id,
     if (ret != NvCtrlSuccess) {
         *err_str = g_strdup_printf("Failed to query GPU name of GPU-%d.",
                                    gpu_id);
-        nv_error_msg(*err_str);
+        nv_error_msg("%s", *err_str);
         goto fail;
     }
 
@@ -3204,7 +3204,7 @@ static Bool layout_add_gpu_from_server(nvLayoutPtr layout, unsigned int gpu_id,
     if (ret != NvCtrlSuccess) {
         *err_str = g_strdup_printf("Failed to query MAX SCREEN WIDTH on "
                                    "GPU-%d '%s'.", gpu_id, gpu->name);
-        nv_error_msg(*err_str);
+        nv_error_msg("%s", *err_str);
         goto fail;
     }
 
@@ -3213,7 +3213,7 @@ static Bool layout_add_gpu_from_server(nvLayoutPtr layout, unsigned int gpu_id,
     if (ret != NvCtrlSuccess) {
         *err_str = g_strdup_printf("Failed to query MAX SCREEN HEIGHT on "
                                    "GPU-%d '%s'.", gpu_id, gpu->name);
-        nv_error_msg(*err_str);
+        nv_error_msg("%s", *err_str);
         goto fail;
     }
 
@@ -3222,7 +3222,7 @@ static Bool layout_add_gpu_from_server(nvLayoutPtr layout, unsigned int gpu_id,
     if (ret != NvCtrlSuccess) {
         *err_str = g_strdup_printf("Failed to query MAX DISPLAYS on "
                                    "GPU-%d '%s'.", gpu_id, gpu->name);
-        nv_error_msg(*err_str);
+        nv_error_msg("%s", *err_str);
         goto fail;
     }
 
@@ -3351,7 +3351,7 @@ static int layout_add_gpus_from_server(nvLayoutPtr layout, gchar **err_str)
     if (ret != NvCtrlSuccess || !ngpus) {
         *err_str = g_strdup("Failed to query number of GPUs (or no GPUs "
                             "found) in the system.");
-        nv_error_msg(*err_str);
+        nv_error_msg("%s", *err_str);
         goto fail;
     }
 
@@ -3497,7 +3497,7 @@ static Bool layout_add_screen_from_server(nvLayoutPtr layout,
         *err_str = g_strdup_printf("Failed to create NV-CONTROL handle for\n"
                                    "screen %d.",
                                    screen_id);
-        nv_error_msg(*err_str);
+        nv_error_msg("%s", *err_str);
         goto fail;
     }
 
@@ -3532,7 +3532,7 @@ static Bool layout_add_screen_from_server(nvLayoutPtr layout,
         *err_str = g_strdup_printf("Failed to query Dynamic TwinView for "
                                    "screen %d.",
                                    screen_id);
-        nv_warning_msg(*err_str);
+        nv_warning_msg("%s", *err_str);
         goto fail;
     }
     screen->dynamic_twinview = !!val;
@@ -3549,7 +3549,7 @@ static Bool layout_add_screen_from_server(nvLayoutPtr layout,
         *err_str = g_strdup_printf("Failed to query NoScanout for "
                                    "screen %d.",
                                    screen_id);
-        nv_warning_msg(*err_str);
+        nv_warning_msg("%s", *err_str);
 
         g_free(*err_str);
         *err_str = NULL;
@@ -3565,7 +3565,7 @@ static Bool layout_add_screen_from_server(nvLayoutPtr layout,
                                    "support scanout screens (%d) that have "
                                    "dynamic twinview disabled.",
                                    screen_id);
-        nv_warning_msg(*err_str);
+        nv_warning_msg("%s", *err_str);
         goto fail;
     }
 
@@ -3573,7 +3573,7 @@ static Bool layout_add_screen_from_server(nvLayoutPtr layout,
     if (!link_screen_to_gpus(layout, screen)) {
         *err_str = g_strdup_printf("Failed to find GPU that drives screen %d.",
                                    screen_id);
-        nv_warning_msg(*err_str);
+        nv_warning_msg("%s", *err_str);
         goto fail;
     }
 
@@ -3686,7 +3686,7 @@ static int layout_add_screens_from_server(nvLayoutPtr layout, gchar **err_str)
     if (ret != NvCtrlSuccess || !nscreens) {
         *err_str = g_strdup("Failed to query number of X screens (or no X "
                             "screens found) in the system.");
-        nv_error_msg(*err_str);
+        nv_error_msg("%s", *err_str);
         nscreens = 0;
         goto fail;
     }
@@ -3778,7 +3778,7 @@ nvLayoutPtr layout_load_from_server(NvCtrlAttributeHandle *handle,
                              &layout->xinerama_enabled);
     if (ret != NvCtrlSuccess) {
         *err_str = g_strdup("Failed to query status of Xinerama.");
-        nv_error_msg(*err_str);
+        nv_error_msg("%s", *err_str);
         goto fail;
     }
 
@@ -3791,7 +3791,7 @@ nvLayoutPtr layout_load_from_server(NvCtrlAttributeHandle *handle,
                                    "Display Configuration page.",
                                    displayName ? displayName : "this X server");
         free(displayName);
-        nv_warning_msg(*err_str);
+        nv_warning_msg("%s", *err_str);
         goto fail;
     }
 

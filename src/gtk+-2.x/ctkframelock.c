@@ -5963,8 +5963,8 @@ GtkTextBuffer *ctk_framelock_create_help(GtkTextTagTable *table)
                   "device should behave in the frame lock group.  Setting  of "
                   "options is only available while frame lock is disabled.  "
                   "The following options are available:");
-    ctk_help_para(b, &i, __server_checkbox_help);
-    ctk_help_para(b, &i, __client_checkbox_help);
+    ctk_help_para(b, &i, "%s", __server_checkbox_help);
+    ctk_help_para(b, &i, "%s", __client_checkbox_help);
     ctk_help_para(b, &i, "Stereo LED: This indicates whether or not the "
                   "display device is synced to the stereo signal coming from "
                   "the Quadro Sync device.  This LED is only available to "
@@ -5973,13 +5973,13 @@ GtkTextBuffer *ctk_framelock_create_help(GtkTextTagTable *table)
                   "with the input timing signal.");
 
     ctk_help_heading(b, &i, "Adding Devices");
-    ctk_help_para(b, &i, __add_devices_button_help);
+    ctk_help_para(b, &i, "%s", __add_devices_button_help);
     ctk_help_para(b, &i, "If the X Server is remote, be sure you have "
                   "configured remote access (via `xhost`, for example) "
                   "such that you are allowed to establish a connection.");
     
     ctk_help_heading(b, &i, "Removing Devices");
-    ctk_help_para(b, &i, __remove_devices_button_help);
+    ctk_help_para(b, &i, "%s", __remove_devices_button_help);
 
     /* House Sync Frame Help */
 
@@ -5991,17 +5991,17 @@ GtkTextBuffer *ctk_framelock_create_help(GtkTextTagTable *table)
                   "device (See Display Device Information above.");
 
     ctk_help_heading(b, &i, "Use House Sync on Server");
-    ctk_help_para(b, &i, __use_house_sync_button_help);
+    ctk_help_para(b, &i, "%s", __use_house_sync_button_help);
     ctk_help_para(b, &i, "If this option is checked and no house signal "
                   "is detected (House LED is red), the Quadro Sync device "
                   "will fall back to using internal timings from the primary "
                   "GPU.");
 
     ctk_help_heading(b, &i, "Sync Interval");
-    ctk_help_para(b, &i, __sync_interval_scale_help);
+    ctk_help_para(b, &i, "%s", __sync_interval_scale_help);
 
     ctk_help_heading(b, &i, "Sync Edge");
-    ctk_help_para(b, &i, __sync_edge_combo_help);
+    ctk_help_para(b, &i, "%s", __sync_edge_combo_help);
     ctk_help_para(b, &i, "Syncing to the rising (leading) edge should be "
                   "suitable for bi-level and TTL signals.  Syncing to the "
                   "falling edge should be used for tri-level signals.  "
@@ -6010,10 +6010,10 @@ GtkTextBuffer *ctk_framelock_create_help(GtkTextTagTable *table)
                   "only.");
 
     ctk_help_heading(b, &i, "Video Mode");
-    ctk_help_para(b, &i, __video_mode_help);
+    ctk_help_para(b, &i, "%s", __video_mode_help);
 
     ctk_help_heading(b, &i, "Video Mode Detect");
-    ctk_help_para(b, &i, __detect_video_mode_button_help);
+    ctk_help_para(b, &i, "%s", __detect_video_mode_button_help);
 
     /* Button Help */
     
@@ -6026,7 +6026,7 @@ GtkTextBuffer *ctk_framelock_create_help(GtkTextTagTable *table)
                   "be changed until you disable Test Link.");
 
     ctk_help_heading(b, &i, "Enable Frame Lock");
-    ctk_help_para(b, &i, __sync_enable_button_help);
+    ctk_help_para(b, &i, "%s", __sync_enable_button_help);
     ctk_help_para(b, &i, "Only devices selected as clients or server will be "
                   "enabled.");
 

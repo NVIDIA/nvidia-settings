@@ -4072,8 +4072,8 @@ GtkTextBuffer *ctk_app_profile_create_help(CtkAppProfile *ctk_app_profile, GtkTe
     ctk_help_para(b, &i, "This NVIDIA® Linux Graphics Driver supports detection of the following features:");
 
     for (j = 0; j < NUM_RULE_FEATURES; j++) {
-        ctk_help_term(b, &i, rule_feature_label_strings[j]);
-        ctk_help_para(b, &i, rule_feature_help_text[j]);
+        ctk_help_term(b, &i, "%s", rule_feature_label_strings[j]);
+        ctk_help_para(b, &i, "%s", rule_feature_help_text[j]);
     }
 
     ctk_help_heading(b, &i, "Supported Setting Keys");
@@ -4082,8 +4082,8 @@ GtkTextBuffer *ctk_app_profile_create_help(CtkAppProfile *ctk_app_profile, GtkTe
                          "keys. For more information on a given key, please consult the README.");
 
     for (j = 0; j < NUM_PROFILE_SETTINGS; j++) {
-        ctk_help_term(b, &i, profile_setting_keys[j]);
-        ctk_help_para(b, &i, profile_setting_descriptions[j]);
+        ctk_help_term(b, &i, "%s", profile_setting_keys[j]);
+        ctk_help_para(b, &i, "%s", profile_setting_descriptions[j]);
     }
 
     ctk_help_finish(b);

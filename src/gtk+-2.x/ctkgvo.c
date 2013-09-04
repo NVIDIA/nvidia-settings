@@ -783,16 +783,16 @@ GtkTextBuffer* ctk_gvo_create_help(GtkTextTagTable *table)
     ctk_help_para(b, &i, "This section shows information about the SDI device "
                   "that is associated with the X screen.");
     ctk_help_heading(b, &i, "Firmware Version");
-    ctk_help_para(b, &i, __general_firmware_version_help);
+    ctk_help_para(b, &i, "%s", __general_firmware_version_help);
     ctk_help_heading(b, &i, "Current SDI Resolution");
-    ctk_help_para(b, &i, __general_current_sdi_resolution_help);
+    ctk_help_para(b, &i, "%s", __general_current_sdi_resolution_help);
     ctk_help_heading(b, &i, "Current SDI State");
-    ctk_help_para(b, &i, __general_current_sdi_state_help);
+    ctk_help_para(b, &i, "%s", __general_current_sdi_state_help);
 
     ctk_help_heading(b, &i, "Requested SDI Video Format");
-    ctk_help_para(b, &i, __requested_sdi_video_format_help);
+    ctk_help_para(b, &i, "%s", __requested_sdi_video_format_help);
     ctk_help_heading(b, &i, "Requested SDI Data Format");
-    ctk_help_para(b, &i, __requested_sdi_data_format_help);
+    ctk_help_para(b, &i, "%s", __requested_sdi_data_format_help);
 
     ctk_help_finish(b);
 

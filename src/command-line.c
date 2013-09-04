@@ -59,7 +59,7 @@ extern const char *pNV_ID;
 static void print_version(void)
 {
     nv_msg(NULL, "");
-    nv_msg(NULL, pNV_ID);
+    nv_msg(NULL, "%s", pNV_ID);
     nv_msg(TAB, "The NVIDIA X Server Settings tool.");
     nv_msg(NULL, "");
     nv_msg(TAB, "This program is used to configure the "
@@ -126,7 +126,7 @@ static void print_attribute_help(char *attr)
                 if (entry->flags & NV_PARSER_TYPE_VALUE_IS_SWITCH_DISPLAY)
                     nv_msg(NULL, "  - Attribute value is switch display.");
 
-                nv_msg(TAB, entry->desc);
+                nv_msg(TAB, "%s", entry->desc);
                 nv_msg(NULL, "");
             } else {
                 nv_msg(NULL, "%s", entry->name);
@@ -146,8 +146,8 @@ static void print_attribute_help(char *attr)
 
 static void print_help_helper(const char *name, const char *description)
 {
-    nv_msg(TAB, name);
-    nv_msg_preserve_whitespace(BIGTAB, description);
+    nv_msg(TAB, "%s", name);
+    nv_msg_preserve_whitespace(BIGTAB, "%s", description);
     nv_msg(NULL, "");
 }
 

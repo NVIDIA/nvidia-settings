@@ -207,7 +207,7 @@ static void post_ecc_configuration_update(CtkEcc *ctk_ecc)
         snprintf(message, sizeof(message), "ECC %s.", conf_string);
     }
 
-    ctk_config_statusbar_message(ctk_ecc->ctk_config, message);
+    ctk_config_statusbar_message(ctk_ecc->ctk_config, "%s", message);
 } /* post_ecc_configuration_update() */
 
 
@@ -677,36 +677,36 @@ GtkTextBuffer *ctk_ecc_create_help(GtkTextTagTable *table,
     gtk_text_buffer_get_iter_at_offset(b, &i, 0);
 
     ctk_help_heading(b, &i, "ECC Settings Help");
-    ctk_help_para(b, &i, __ecc_settings_help);
+    ctk_help_para(b, &i, "%s", __ecc_settings_help);
     
     ctk_help_heading(b, &i, "ECC");
-    ctk_help_para(b, &i, __ecc_status_help);
+    ctk_help_para(b, &i, "%s", __ecc_status_help);
 
     if (ctk_ecc->dbit_error_available) {
         ctk_help_heading(b, &i, "Double-bit ECC Errors");
-        ctk_help_para(b, &i, __dbit_error_help);
+        ctk_help_para(b, &i, "%s", __dbit_error_help);
     }
     if (ctk_ecc->aggregate_dbit_error_available) {
         ctk_help_heading(b, &i, "Aggregate Double-bit ECC Errors");
-        ctk_help_para(b, &i, __aggregate_dbit_error_help);
+        ctk_help_para(b, &i, "%s", __aggregate_dbit_error_help);
     }
     ctk_help_heading(b, &i, "ECC Configuration");
-    ctk_help_para(b, &i, __configuration_status_help);
+    ctk_help_para(b, &i, "%s", __configuration_status_help);
 
     ctk_help_heading(b, &i, "Enable ECC");
-    ctk_help_para(b, &i, __ecc_status_help);
+    ctk_help_para(b, &i, "%s", __ecc_status_help);
 
     if (ctk_ecc->dbit_error_available) {
         ctk_help_heading(b, &i, "Clear ECC Errors");
-        ctk_help_para(b, &i, __clear_button_help);
+        ctk_help_para(b, &i, "%s", __clear_button_help);
     }
     if (ctk_ecc->aggregate_dbit_error_available) {
         ctk_help_heading(b, &i, "Clear Aggregate ECC Errors");
-        ctk_help_para(b, &i, __clear_aggregate_button_help);
+        ctk_help_para(b, &i, "%s", __clear_aggregate_button_help);
     }
     
     ctk_help_heading(b, &i, "Reset Default Configuration");
-    ctk_help_para(b, &i, __reset_default_config_button_help);
+    ctk_help_para(b, &i, "%s", __reset_default_config_button_help);
 
     ctk_help_finish(b);
 

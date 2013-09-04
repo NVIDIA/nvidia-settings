@@ -1623,32 +1623,32 @@ GtkTextBuffer *ctk_thermal_create_help(GtkTextTagTable *table,
 
     if (!ctk_thermal->thermal_sensor_target_type_supported) {
         ctk_help_heading(b, &i, "Slowdown Threshold");
-        ctk_help_para(b, &i, __core_threshold_help);
+        ctk_help_para(b, &i, "%s", __core_threshold_help);
 
         ctk_help_heading(b, &i, "Core Temperature");
-        ctk_help_para(b, &i, __core_temp_help);
+        ctk_help_para(b, &i, "%s", __core_temp_help);
 
         if (ctk_thermal->ambient_label) {
             ctk_help_heading(b, &i, "Ambient Temperature");
-            ctk_help_para(b, &i, __ambient_temp_help);
+            ctk_help_para(b, &i, "%s", __ambient_temp_help);
         }
     } else {
         ctk_help_title(b, &i, "Thermal Sensor Information Help");
 
         ctk_help_heading(b, &i, "ID");
-        ctk_help_para(b, &i, __thermal_sensor_id_help);
+        ctk_help_para(b, &i, "%s", __thermal_sensor_id_help);
 
         ctk_help_heading(b, &i, "Temperature");
-        ctk_help_para(b, &i, __thermal_sensor_reading_help);
+        ctk_help_para(b, &i, "%s", __thermal_sensor_reading_help);
 
         ctk_help_heading(b, &i, "Target");
-        ctk_help_para(b, &i, __thermal_sensor_target_help);
+        ctk_help_para(b, &i, "%s", __thermal_sensor_target_help);
         
         ctk_help_heading(b, &i, "Provider");
-        ctk_help_para(b, &i, __thermal_sensor_provider_help);
+        ctk_help_para(b, &i, "%s", __thermal_sensor_provider_help);
     }
     ctk_help_heading(b, &i, "Level");
-    ctk_help_para(b, &i, __temp_level_help);
+    ctk_help_para(b, &i, "%s", __temp_level_help);
 
 next_help:
     /* if Fan not available skip online help */
@@ -1659,26 +1659,26 @@ next_help:
     ctk_help_title(b, &i, "GPU Fan Settings Help");
 
     ctk_help_heading(b, &i, "ID");
-    ctk_help_para(b, &i, __fan_id_help);
+    ctk_help_para(b, &i, "%s", __fan_id_help);
 
     ctk_help_heading(b, &i, "Speed (%%)");
-    ctk_help_para(b, &i, __fan_speed_help);
+    ctk_help_para(b, &i, "%s", __fan_speed_help);
 
     ctk_help_heading(b, &i, "Type");
-    ctk_help_para(b, &i, __fan_control_type_help);
+    ctk_help_para(b, &i, "%s", __fan_control_type_help);
 
     ctk_help_heading(b, &i, "Cooling Target");
-    ctk_help_para(b, &i, __fan_cooling_target_help);
+    ctk_help_para(b, &i, "%s", __fan_cooling_target_help);
 
     ctk_help_heading(b, &i, "Enable GPU Fan Settings");
-    ctk_help_para(b, &i, __enable_button_help);
+    ctk_help_para(b, &i, "%s", __enable_button_help);
 
     if ( ctk_thermal->show_fan_control_frame ) {
         ctk_help_heading(b, &i, "Enable GPU Fan Settings");
-        ctk_help_para(b, &i, __apply_button_help);
+        ctk_help_para(b, &i, "%s", __apply_button_help);
 
         ctk_help_heading(b, &i, "Enable GPU Fan Settings");
-        ctk_help_para(b, &i, __reset_button_help);
+        ctk_help_para(b, &i, "%s", __reset_button_help);
     }
 done:
     ctk_help_finish(b);

@@ -1245,10 +1245,10 @@ GtkTextBuffer *ctk_gvo_csc_create_help(GtkTextTagTable *table,
                   "the SDI (GVO) color space conversion.");
 
     ctk_help_heading(b, &i, "Override default Color Space Conversion");
-    ctk_help_para(b, &i, __override_help);
+    ctk_help_para(b, &i, "%s", __override_help);
 
     ctk_help_heading(b, &i, "Initialize Color Space Conversion");
-    ctk_help_para(b, &i, __initialize_help);
+    ctk_help_para(b, &i, "%s", __initialize_help);
 
     ctk_help_heading(b, &i, "Color Space Conversion Matrix, Offset and Scale");
     ctk_help_para(b, &i, "%s  RGB color is converted to YCrCb in the "
@@ -1282,11 +1282,11 @@ GtkTextBuffer *ctk_gvo_csc_create_help(GtkTextTagTable *table,
 
     if (ctk_gvo_csc->caps & NV_CTRL_GVO_CAPABILITIES_APPLY_CSC_IMMEDIATELY) {
         ctk_help_heading(b, &i, "Apply Changes Immediately");
-        ctk_help_para(b, &i, __apply_immediately_help);
+        ctk_help_para(b, &i, "%s", __apply_immediately_help);
     }
 
     ctk_help_heading(b, &i, "Apply");
-    ctk_help_para(b, &i, __apply_help);
+    ctk_help_para(b, &i, "%s", __apply_help);
 
     ctk_help_finish(b);
 

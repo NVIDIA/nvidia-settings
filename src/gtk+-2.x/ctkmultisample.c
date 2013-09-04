@@ -1524,7 +1524,7 @@ GtkTextBuffer *ctk_multisample_create_help(GtkTextTagTable *table,
         ctk_help_term(b, &i, "Application Antialiasing Settings");
         
         if (ctk_multisample->active_attributes & __FSAA_ENHANCE) {
-            ctk_help_para(b, &i, __aa_menu_help);
+            ctk_help_para(b, &i, "%s", __aa_menu_help);
             ctk_help_para(b, &i, "Use Application Settings will let applications "
                           "choose the AA mode.");
             ctk_help_para(b, &i, "Override Application Settings will override "
@@ -1535,7 +1535,7 @@ GtkTextBuffer *ctk_multisample_create_help(GtkTextTagTable *table,
                           "antialiasing mode use the mode selected by the "
                           "slider.");
         } else {
-            ctk_help_para(b, &i, __aa_override_app_help);
+            ctk_help_para(b, &i, "%s", __aa_override_app_help);
         }
 
         if (ctk_multisample->active_attributes & __FSAA_NONE) {
@@ -1647,7 +1647,7 @@ GtkTextBuffer *ctk_multisample_create_help(GtkTextTagTable *table,
 
     if (ctk_multisample->active_attributes & __FXAA) {
         ctk_help_term(b, &i, "Enable FXAA");
-        ctk_help_para(b, &i, __fxaa_enable_help);
+        ctk_help_para(b, &i, "%s", __fxaa_enable_help);
     }
 
     if (ctk_multisample->active_attributes & __LOG_ANISO_RANGE) {
@@ -1669,14 +1669,14 @@ GtkTextBuffer *ctk_multisample_create_help(GtkTextTagTable *table,
         
         ctk_help_term(b, &i, "Override Application Setting");
         
-        ctk_help_para(b, &i, __aniso_override_app_help);
+        ctk_help_para(b, &i, "%s", __aniso_override_app_help);
         
-        ctk_help_para(b, &i, __aniso_slider_help);
+        ctk_help_para(b, &i, "%s", __aniso_slider_help);
     }
 
     if (ctk_multisample->active_attributes & __TEXTURE_SHARPEN) {
         ctk_help_heading(b, &i, "Texture Sharpening");
-        ctk_help_para(b, &i, __texture_sharpening_help);
+        ctk_help_para(b, &i, "%s", __texture_sharpening_help);
     }
 
     ctk_help_finish(b);

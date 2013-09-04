@@ -1385,7 +1385,7 @@ static void post_dp_configuration_update(CtkPowermizer *ctk_powermizer)
                  conf_string);
     }
 
-    ctk_config_statusbar_message(ctk_powermizer->ctk_config, message);
+    ctk_config_statusbar_message(ctk_powermizer->ctk_config, "%s", message);
 } /* post_dp_configuration_update() */
 
 
@@ -1516,7 +1516,7 @@ GtkTextBuffer *ctk_powermizer_create_help(GtkTextTagTable *table,
 
     if (ctk_powermizer->adaptive_clock_status) {
         ctk_help_heading(b, &i, "Adaptive Clocking");
-        ctk_help_para(b, &i, __adaptive_clock_help);
+        ctk_help_para(b, &i, "%s", __adaptive_clock_help);
     }
 
     if (ctk_powermizer->gpu_clock && ctk_powermizer->memory_clock) {
@@ -1528,36 +1528,36 @@ GtkTextBuffer *ctk_powermizer_create_help(GtkTextTagTable *table,
             s = "This indicates the GPU's current Graphics Clock and "
                 "Memory Clock frequencies.";
         }
-        ctk_help_para(b, &i, s);
+        ctk_help_para(b, &i, "%s", s);
     }
 
     if (ctk_powermizer->power_source) {
         ctk_help_heading(b, &i, "Power Source");
-        ctk_help_para(b, &i, __power_source_help);
+        ctk_help_para(b, &i, "%s", __power_source_help);
     }
 
     if (ctk_powermizer->pcie_gen_queriable) {
         ctk_help_heading(b, &i, "Current PCIe link width");
-        ctk_help_para(b, &i, __current_pcie_link_width_help);
+        ctk_help_para(b, &i, "%s", __current_pcie_link_width_help);
         ctk_help_heading(b, &i, "Current PCIe link speed");
-        ctk_help_para(b, &i, __current_pcie_link_speed_help);
+        ctk_help_para(b, &i, "%s", __current_pcie_link_speed_help);
     }
 
     if (ctk_powermizer->performance_level) {
         ctk_help_heading(b, &i, "Performance Level");
-        ctk_help_para(b, &i, __performance_level_help);
+        ctk_help_para(b, &i, "%s", __performance_level_help);
         ctk_help_heading(b, &i, "Performance Levels (Table)");
-        ctk_help_para(b, &i, __performance_levels_table_help);
+        ctk_help_para(b, &i, "%s", __performance_levels_table_help);
     }
 
     if (ctk_powermizer->powermizer_menu) {
         ctk_help_heading(b, &i, "PowerMizer Settings");
-        ctk_help_para(b, &i, ctk_powermizer->powermizer_menu_help);
+        ctk_help_para(b, &i, "%s", ctk_powermizer->powermizer_menu_help);
     }
 
     if (ctk_powermizer->configuration_button) {
         ctk_help_heading(b, &i, "CUDA - Double precision");
-        ctk_help_para(b, &i, __dp_configuration_button_help);
+        ctk_help_para(b, &i, "%s", __dp_configuration_button_help);
     }
 
     ctk_help_finish(b);

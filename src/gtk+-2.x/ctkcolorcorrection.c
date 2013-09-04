@@ -1053,7 +1053,7 @@ GtkTextBuffer *ctk_color_correction_create_help(GtkTextTagTable *table)
     ctk_color_correction_tab_help(b, &i, title, FALSE /* randr */);
     
     ctk_help_heading(b, &i, "Reset Hardware Defaults");
-    ctk_help_para(b, &i, __resest_button_help);
+    ctk_help_para(b, &i, "%s", __resest_button_help);
 
     ctk_help_finish(b);
 
@@ -1068,7 +1068,7 @@ void ctk_color_correction_tab_help(GtkTextBuffer *b, GtkTextIter *i,
     ctk_help_heading(b, i, "Color Correction");
 
     ctk_help_term(b, i, "Active Color Channel");
-    ctk_help_para(b, i, __active_color_help);
+    ctk_help_para(b, i, "%s", __active_color_help);
 
     ctk_help_term(b, i, "Brightness, Contrast and Gamma");
     ctk_help_para(b, i, "The Brightness, Contrast and Gamma sliders "
@@ -1087,7 +1087,7 @@ void ctk_color_correction_tab_help(GtkTextBuffer *b, GtkTextIter *i,
                   "value equally across all channels will make these games "
                   "appear brighter, making them more playable.");
 
-    ctk_help_para(b, i, __color_curve_help);
+    ctk_help_para(b, i, "%s", __color_curve_help);
 
     if (randr) {
         ctk_help_para(b, i, "The %s tab uses the RandR extension to "
@@ -1098,5 +1098,5 @@ void ctk_color_correction_tab_help(GtkTextBuffer *b, GtkTextIter *i,
     }
 
     ctk_help_term(b, i, "Confirm Current Changes");
-    ctk_help_para(b, i, __confirm_button_help);
+    ctk_help_para(b, i, "%s", __confirm_button_help);
 }
