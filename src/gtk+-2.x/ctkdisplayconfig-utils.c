@@ -3541,11 +3541,18 @@ static Bool layout_add_screen_from_server(nvLayoutPtr layout,
     /* See if the screen is set to not scanout */
     ret = NvCtrlGetAttribute(screen->handle, NV_CTRL_NO_SCANOUT, &val);
     if (ret != NvCtrlSuccess) {
+        /* Don't make it a fatal error if NV_CTRL_NO_SCANOUT can't be
+         * queried, since some drivers may not support this attribute. */
+
+        val = NV_CTRL_NO_SCANOUT_DISABLED;
+
         *err_str = g_strdup_printf("Failed to query NoScanout for "
                                    "screen %d.",
                                    screen_id);
         nv_warning_msg(*err_str);
-        goto fail;
+
+        g_free(*err_str);
+        *err_str = NULL;
     }
     screen->no_scanout = (val == NV_CTRL_NO_SCANOUT_ENABLED);
 
