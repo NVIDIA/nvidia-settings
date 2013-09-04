@@ -25,7 +25,7 @@ nvidia\-settings \- configure the NVIDIA graphics driver
 .BI "nvidia\-settings [" "options" "] \-\-glxinfo"
 .PP
 Options:
-.BI "[-vh] [\-\-config=" configfile "] [\-c " ctrl-display "]"
+.BI "[\-vh] [\-\-config=" configfile "] [\-c " ctrl-display "]"
 .br
 .I "         \fB[\-\-verbose=\fP{\fIerrors \fP|\fI warnings \fP|\fI all\fP}\fB]"
 .br
@@ -162,7 +162,7 @@ Your
 file, which controls what X applications should be started when you log into X (or startx), might look something like this:
 .nf
 
-     nvidia-settings --load-config-only &
+     nvidia\-settings \-\-load\-config\-only &
      xterm &
      evilwm
 
@@ -170,8 +170,8 @@ file, which controls what X applications should be started when you log into X (
 or:
 .nf
 
-     nvidia-settings --load-config-only &
-     gnome-session
+     nvidia\-settings \-\-load\-config\-only &
+     gnome\-session
 
 .fi
 If you do not already have an
@@ -192,7 +192,7 @@ upload your settings, you could create an
 with the contents:
 .nf
 
-     nvidia-settings --load-config-only &
+     nvidia\-settings \-\-load\-config\-only &
      . /etc/X11/xinit/xinitrc
 
 .fi
@@ -222,19 +222,19 @@ for a complete list of available attributes, what the current value is, what val
 Additionally, individual attributes may be specified like this:
 .nf
 
-        nvidia-settings --query Overlay
+        nvidia\-settings \-\-query Overlay
 
 .fi
 An attribute name may be prepended with an X Display name and a forward slash to indicate a different X Display; e.g.:
 .nf
 
-        nvidia-settings --query localhost:0.0/Overlay
+        nvidia\-settings \-\-query localhost:0.0/Overlay
 
 .fi
 An attribute name may also just be prepended with the screen number and a forward slash:
 .nf
 
-        nvidia-settings --query 0/Overlay
+        nvidia\-settings \-\-query 0/Overlay
 
 .fi
 in which case the default X Display will be used, but you can indicate to which X screen to direct the query (if your X server has multiple X screens).
@@ -265,24 +265,24 @@ Target specifications can be used wherever an X screen is used in query and assi
 For example, the following queries address X screen 0 on the localhost:
 .nf
 
-        nvidia-settings --query 0/VideoRam
-        nvidia-settings --query localhost:0.0/VideoRam
-        nvidia-settings --query [screen:0]/VideoRam
-        nvidia-settings --query localhost:0[screen:0]/VideoRam
+        nvidia\-settings \-\-query 0/VideoRam
+        nvidia\-settings \-\-query localhost:0.0/VideoRam
+        nvidia\-settings \-\-query [screen:0]/VideoRam
+        nvidia\-settings \-\-query localhost:0[screen:0]/VideoRam
 
 .fi
 To address GPU 0 instead, you can use either of:
 .nf
 
-        nvidia-settings --query [gpu:0]/VideoRam
-        nvidia-settings --query localhost:0[gpu:0]/VideoRam
+        nvidia\-settings \-\-query [gpu:0]/VideoRam
+        nvidia\-settings \-\-query localhost:0[gpu:0]/VideoRam
 
 .fi
 Note that if a target specification is present, it will override any X screen specified in the display name as the target to process.
 For example, the following query would address GPU 0, and not X screen 1:
 .nf
 
-	nvidia-settings --query localhost:0.1[gpu:0]/VideoRam
+	nvidia\-settings \-\-query localhost:0.1[gpu:0]/VideoRam
 
 .fi
 .PP
@@ -291,14 +291,14 @@ A target name may be used instead of a target id, in which case all targets with
 For example, querying the DigitalVibrance of display device DVI-I-1 may be done like so:
 .nf
 
-	nvidia-settings --query [dpy:DVI-I-1]/DigitalVibrance
+	nvidia\-settings \-\-query [dpy:DVI\-I\-1]/DigitalVibrance
 
 .fi
 When a target name is specified, the target type name may be omitted, though this should be used with caution since the name will be matched across all target types.
 The above example could be written as:
 .nf
 
-	nvidia-settings --query [DVI-I-1]/DigitalVibrance
+	nvidia\-settings \-\-query [DVI\-I\-1]/DigitalVibrance
 
 .fi
 The target name may also simply be a target type name, in which case all targets of that type will be queried.
@@ -306,7 +306,7 @@ The target name may also simply be a target type name, in which case all targets
 For exmple, querying the BusRate of all GPUs may be done like so:
 .nf
 
-	nvidia-settings --query [gpu]/BusRate
+	nvidia\-settings \-\-query [gpu]/BusRate
 
 .fi
 .PP
@@ -318,28 +318,28 @@ Only one qualitfer may be specified.
 For example, querying the RefreshRate of all DFP devices on GPU 1 may be done like so:
 .nf
 
-	nvidia-settings --query [GPU:1.DPY:DFP]/RefreshRate
+	nvidia\-settings \-\-query [GPU:1.DPY:DFP]/RefreshRate
 
 .fi
 Likewise, a simple target name (or target type name) may be used as the qualifier.
 For example, to query the BusType of all GPUs that have DFPs can be done like so:
 .nf
 
-	nvidia-settings --query [DFP.GPU]/BusType
+	nvidia\-settings \-\-query [DFP.GPU]/BusType
 
 .fi
 .PP
 See the output of
 .nf
 
-        nvidia-settings --query all
+        nvidia\-settings \-\-query all
 
 .fi
 for what targets types can be used with each attribute.
 See the output of
 .nf
 
-        nvidia-settings --query screens --query gpus --query framelocks --query vcs --query gvis --query fans
+        nvidia\-settings \-\-query screens \-\-query gpus \-\-query framelocks \-\-query vcs \-\-query gvis \-\-query fans
 
 .fi
 for lists of targets for each target type.
@@ -356,9 +356,9 @@ with the additional requirement that assignments also have an equal sign and the
 For example:
 .nf
 
-        nvidia-settings --assign FSAA=2
-        nvidia-settings --assign [CRT-1]/DigitalVibrance=9
-        nvidia-settings --assign [gpu:0]/DigitalVibrance=0
+        nvidia\-settings \-\-assign FSAA=2
+        nvidia\-settings \-\-assign [CRT\-1]/DigitalVibrance=9
+        nvidia\-settings \-\-assign [gpu:0]/DigitalVibrance=0
 .fi
 .PP
 Multiple queries and assignments may be specified on the command line for a single invocation of
@@ -376,9 +376,9 @@ the GUI will not be presented, and
 .B nvidia\-settings
 will exit after processing the assignments and/or queries.
 In this case, settings contained within the
-.I ~/.nvidia\-settings-rc
+.I ~/.nvidia\-settings\-rc
 configuration file will not be automatically uploaded to the X server, nor will the
-.I ~/.nvidia\-settings-rc
+.I ~/.nvidia\-settings\-rc
 configuration file be automatically updated to reflect attribute assignments made via the
 .B \-\-assign
 option.
@@ -389,21 +389,21 @@ screen qualifier, or with a full X Display name.
 For example:
 .nf
 
-        nvidia-settings --query FSAA
-        nvidia-settings --query 0/FSAA
-        nvidia-settings --query stravinsky.nvidia.com:0/FSAA
+        nvidia\-settings \-\-query FSAA
+        nvidia\-settings \-\-query 0/FSAA
+        nvidia\-settings \-\-query stravinsky.nvidia.com:0/FSAA
 
 .fi
 In the first two cases, the default X Display will be used, in the second case, the screen from the default X Display can be overridden, and in the third case, the entire default X Display can be overridden.
 .PP
 The same possibilities are available in the
-.I ~/.nvidia\-settings-rc
+.I ~/.nvidia\-settings\-rc
 configuration file.
 .PP
 For example, in a computer lab environment, you might log into any of multiple
 workstations, and your home directory is NFS mounted to each workstation.
 In such a situation, you might want your
-.I ~/.nvidia\-settings-rc
+.I ~/.nvidia\-settings\-rc
 file to be applicable to all the workstations.
 Therefore, you would not want your config file to qualify each attribute with an X Display Name.
 Leave the "Include X Display Names in the Config File" option unchecked on the
@@ -425,12 +425,12 @@ For example, you might run
 on the computer stravinsky.nvidia.com, export the display to the computer bartok.nvidia.com, but be configuring the X server on the computer schoenberg.nvidia.com:
 .nf
 
-        nvidia-settings --display=bartok.nvidia.com:0 \\
-            --ctrl-display=schoenberg.nvidia.com:0
+        nvidia\-settings \-\-display=bartok.nvidia.com:0 \\
+            \-\-ctrl\-display=schoenberg.nvidia.com:0
 
 .fi
 If
-.B \-\-ctrl-display
+.B \-\-ctrl\-display
 is not specified, then the X Display to control is what
 .B \-\-display
 indicates.
@@ -491,7 +491,7 @@ as an example.
 Documentation on the NV-CONTROL extension and additional sample clients are available in the
 .B nvidia\-settings
 source tarball.
-Patches can be submitted to linux-bugs@nvidia.com.
+Patches can be submitted to linux\-bugs@nvidia.com.
 .SS 8. TODO
 There are many things still to be added to
 .B nvidia\-settings,
@@ -511,7 +511,7 @@ write a design document explaining how
 .B nvidia\-settings
 is designed; presumably this would make it easier for people to become familiar with the code base.
 .PP
-If there are other things you would like to see added (or better yet, would like to add yourself), please contact linux-bugs@nvidia.com.
+If there are other things you would like to see added (or better yet, would like to add yourself), please contact linux\-bugs@nvidia.com.
 .SH FILES
 .TP
 .I ~/.nvidia\-settings\-rc
