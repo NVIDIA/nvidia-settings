@@ -2210,6 +2210,7 @@ GtkTextBuffer *ctk_display_config_create_help(GtkTextTagTable *table,
                   "be moved by holding CONTROL-Click and dragging.");
     ctk_help_heading(b, &i, "Layout Hidden Label");
     ctk_help_para(b, &i, "%s", __layout_hidden_label_help);
+
     ctk_help_heading(b, &i, "Enable Xinerama");
     ctk_help_para(b, &i, "%s  This setting is only available when multiple "
                   "X screens are present.", __layout_xinerama_button_help);
@@ -5856,7 +5857,7 @@ static void display_config_changed(GtkWidget *widget, gpointer user_data)
                                   "", &tokens);
             update = TRUE;
             if (!display_add_modelines_from_server(display, display->gpu, &err_str)) {
-                nv_warning_msg("%s", err_str);
+                nv_warning_msg(err_str);
                 g_free(err_str);
                 return;
             }
