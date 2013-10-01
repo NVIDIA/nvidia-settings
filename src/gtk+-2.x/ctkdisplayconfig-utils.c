@@ -3342,7 +3342,7 @@ static Bool layout_add_screen_from_server(nvLayoutPtr layout,
         *err_str = g_strdup_printf("Failed to query Dynamic TwinView for "
                                    "screen %d.",
                                    screen_id);
-        nv_warning_msg(*err_str);
+        nv_warning_msg("%s", *err_str);
         goto fail;
     }
     screen->dynamic_twinview = !!val;
@@ -3368,7 +3368,7 @@ static Bool layout_add_screen_from_server(nvLayoutPtr layout,
                                    "support scanout screens (%d) that have "
                                    "dynamic twinview disabled.",
                                    screen_id);
-        nv_warning_msg(*err_str);
+        nv_warning_msg("%s", *err_str);
         goto fail;
     }
 

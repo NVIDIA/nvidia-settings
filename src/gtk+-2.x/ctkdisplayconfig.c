@@ -5857,7 +5857,7 @@ static void display_config_changed(GtkWidget *widget, gpointer user_data)
                                   "", &tokens);
             update = TRUE;
             if (!display_add_modelines_from_server(display, display->gpu, &err_str)) {
-                nv_warning_msg(err_str);
+                nv_warning_msg("%s", err_str);
                 g_free(err_str);
                 return;
             }
