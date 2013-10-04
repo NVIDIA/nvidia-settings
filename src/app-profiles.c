@@ -866,10 +866,19 @@ static int file_in_search_path(AppProfileConfig *config, const char *filename)
     return FALSE;
 }
 
+// Print an error message and optionally capture the error string for later use
+// Note: this assumes fmt is a string literal!
+#define LOG_ERROR(error_str, fmt, ...) do {                   \
+    if (error_str) {                                          \
+        nv_append_sprintf(error_str, fmt "\n", __VA_ARGS__);  \
+    }                                                         \
+    nv_error_msg(fmt, __VA_ARGS__);                           \
+} while (0)
+
 /*
  * Creates parent directories as needed, similarly to "mkdir -p"
  */
-static int nv_mkdirp(const char *dirname)
+static int nv_mkdirp(const char *dirname, char **error_str)
 {
     int ret = 0;
     char *parent_name;
@@ -881,8 +890,10 @@ static int nv_mkdirp(const char *dirname)
         parent_name = nvstrndup(dirname, next - dirname);
         ret = mkdir(parent_name, 0777);
         if ((ret < 0) && (errno != EEXIST)) {
-            nv_error_msg("Could not create parent directory \"%s\" for full path \"%s\" (%s)",
-                         parent_name, dirname, strerror(errno));
+            LOG_ERROR(error_str,
+                      "Could not create parent directory \"%s\" "
+                      "for full path \"%s\" (%s)",
+                      parent_name, dirname, strerror(errno));
             free(parent_name);
             return ret;
         }
@@ -893,15 +904,15 @@ static int nv_mkdirp(const char *dirname)
     ret = mkdir(dirname, 0777);
     if (ret < 0) {
         if (errno != EEXIST) {
-            nv_error_msg("Could not create directory \"%s\" (%s)",
-                         dirname, strerror(errno));
+            LOG_ERROR(error_str, "Could not create directory \"%s\" (%s)",
+                      dirname, strerror(errno));
         } else {
             ret = stat(dirname, &stat_buf);
             if (ret == 0) {
                 if (!S_ISDIR(stat_buf.st_mode)) {
-                    nv_error_msg("Could not create directory \"%s\" (file "
-                                 "exists, but not as a directory)",
-                                 dirname);
+                    LOG_ERROR(error_str, "Could not create directory \"%s\" "
+                              "(file exists, but not as a directory)",
+                              dirname);
                     ret = -1;
                 }
             }
@@ -941,16 +952,17 @@ char *nv_app_profile_config_get_backup_filename(AppProfileConfig *config, const 
 }
 
 static int app_profile_config_backup_file(AppProfileConfig *config,
-                                          const char *filename)
+                                          const char *filename,
+                                          char **error_str)
 {
     int ret;
     char *backup_name = nv_app_profile_config_get_backup_filename(config, filename);
     char *backup_dirname = nv_dirname(backup_name);
 
-    ret = nv_mkdirp(backup_dirname);
+    ret = nv_mkdirp(backup_dirname, error_str);
     if (ret < 0) {
-        nv_error_msg("Could not create backup directory \"%s\" (%s)",
-                     backup_name, strerror(errno));
+        LOG_ERROR(error_str, "Could not create backup directory \"%s\" (%s)",
+                  backup_name, strerror(errno));
         goto done;
     }
 
@@ -960,8 +972,8 @@ static int app_profile_config_backup_file(AppProfileConfig *config,
             // Clear the error; the file does not exist
             ret = 0;
         } else {
-            nv_error_msg("Could not rename file \"%s\" to \"%s\" for backup (%s)",
-                         filename, backup_name, strerror(errno));
+            LOG_ERROR(error_str, "Could not rename file \"%s\" to \"%s\" for backup (%s)",
+                      filename, backup_name, strerror(errno));
         }
     }
 
@@ -973,10 +985,12 @@ done:
     return ret;
 }
 
+
 static int app_profile_config_save_updates_to_file(AppProfileConfig *config,
                                                    const char *filename,
                                                    const char *update_text,
-                                                   int backup)
+                                                   int backup,
+                                                   char **error_str)
 {
     int file_is_new = FALSE;
     struct stat stat_buf;
@@ -987,7 +1001,8 @@ static int app_profile_config_save_updates_to_file(AppProfileConfig *config,
     ret = stat(filename, &stat_buf);
 
     if ((ret < 0) && (errno != ENOENT)) {
-        nv_error_msg("Could not stat file \"%s\" (%s)", filename, strerror(errno));
+        LOG_ERROR(error_str, "Could not stat file \"%s\" (%s)",
+                  filename, strerror(errno));
         goto done;
     } else if ((ret < 0) && (errno == ENOENT)) {
         file_is_new = TRUE;
@@ -998,11 +1013,12 @@ static int app_profile_config_save_updates_to_file(AppProfileConfig *config,
             // This file is in a directory in the search path
             ret = stat(dirname, &stat_buf);
             if ((ret < 0) && (errno != ENOENT)) {
-                nv_error_msg("Could not stat file \"%s\" (%s)", dirname, strerror(errno));
+                LOG_ERROR(error_str, "Could not stat file \"%s\" (%s)",
+                          dirname, strerror(errno));
                 goto done;
             } else if ((ret < 0) && errno == ENOENT) {
                 // Attempt to create the directory in the search path
-                ret = nv_mkdirp(dirname);
+                ret = nv_mkdirp(dirname, error_str);
                 if (ret < 0) {
                     goto done;
                 }
@@ -1010,24 +1026,27 @@ static int app_profile_config_save_updates_to_file(AppProfileConfig *config,
                 // If the search path entry is currently a regular file,
                 // unlink it and create a directory instead
                 if (backup) {
-                    ret = app_profile_config_backup_file(config, dirname);
+                    ret = app_profile_config_backup_file(config, dirname,
+                                                         error_str);
                     if (ret < 0) {
                         goto done;
                     }
                 }
                 ret = unlink(dirname);
                 if (ret < 0) {
-                    nv_error_msg("Could not remove the file \"%s\" (%s)", dirname, strerror(errno));
+                    LOG_ERROR(error_str,
+                              "Could not remove the file \"%s\" (%s)",
+                              dirname, strerror(errno));
                     goto done;
                 }
-                ret = nv_mkdirp(dirname);
+                ret = nv_mkdirp(dirname, error_str);
                 if (ret < 0) {
                     goto done;
                 }
             }
         } else {
             // Attempt to create parent directories for this file
-            ret = nv_mkdirp(dirname);
+            ret = nv_mkdirp(dirname, error_str);
             if (ret < 0) {
                 goto done;
             }
@@ -1037,18 +1056,23 @@ static int app_profile_config_save_updates_to_file(AppProfileConfig *config,
         // but that seems a little dangerous. Instead, complain and bail out
         // here.
         ret = -1;
-        nv_error_msg("Refusing to write to file \"%s\" since it is not a regular file", filename);
+        LOG_ERROR(error_str,
+                  "Refusing to write to file \"%s\" "
+                  "since it is not a regular file", filename);
+        goto done;
     }
 
     if (!file_is_new && backup) {
-        ret = app_profile_config_backup_file(config, filename);
+        ret = app_profile_config_backup_file(config, filename,
+                                             error_str);
         if (ret < 0) {
             goto done;
         }
     }
     ret = open_and_stat(filename, "w", &fp, &stat_buf);
     if (ret < 0) {
-        nv_error_msg("Could not write to the file \"%s\" (%s)", filename, strerror(errno));
+        LOG_ERROR(error_str, "Could not write to the file \"%s\" (%s)",
+                  filename, strerror(errno));
         goto done;
     }
     nv_info_msg("", "Writing to configuration file \"%s\"\n", filename);
@@ -1060,24 +1084,44 @@ done:
     return ret;
 }
 
-int nv_app_profile_config_save_updates(AppProfileConfig *config, json_t *updates, int backup)
+int nv_app_profile_config_save_updates(AppProfileConfig *config,
+                                       json_t *updates,
+                                       int backup,
+                                       char **error_str)
 {
     json_t *update;
     const char *filename;
     const char *update_text;
     size_t i, size;
     int ret = 0;
+    int all_ret = 0;
 
-    for (i = 0, size = json_array_size(updates); (ret == 0) && (i < size); i++) {
+    if (error_str) {
+        *error_str = NULL;
+    }
+
+    for (i = 0, size = json_array_size(updates); i < size; i++) {
         update = json_array_get(updates, i);
         filename = json_string_value(json_object_get(update, "filename"));
         update_text = json_string_value(json_object_get(update, "text"));
-        ret = app_profile_config_save_updates_to_file(config, filename, update_text, backup);
+        ret = app_profile_config_save_updates_to_file(config,
+                                                      filename,
+                                                      update_text,
+                                                      backup,
+                                                      error_str);
+        if (ret < 0) {
+            all_ret = -1;
+        }
     }
 
-    assert(ret <= 0);
+    assert(all_ret <= 0);
 
-    return ret;
+    // This asserts an error string is set iff we are returning an error
+    assert(!error_str ||
+           (!(*error_str) && (all_ret == 0)) ||
+           ((*error_str) && (all_ret < 0)));
+
+    return all_ret;
 }
 
 AppProfileConfig *nv_app_profile_config_dup(AppProfileConfig *config)

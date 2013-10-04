@@ -54,7 +54,8 @@ struct _CtkXVideo
     NvCtrlAttributeHandle *handle;
     CtkConfig *ctk_config;
 
-    GtkWidget *xv_sync_to_display_buttons[24];
+    GtkWidget *xv_sync_to_display_buttons; /* first button in group */
+
     GtkWidget *xv_sync_to_display_button_box;
     unsigned int active_attributes;
 };
@@ -65,8 +66,8 @@ struct _CtkXVideoClass
 };
 
 GType       ctk_xvideo_get_type  (void) G_GNUC_CONST;
-GtkWidget*  ctk_xvideo_new       (NvCtrlAttributeHandle *, CtkConfig *, 
-                                  CtkEvent *ctk_event);
+GtkWidget*  ctk_xvideo_new       (NvCtrlAttributeHandle *handle,
+                                  CtkConfig *ctk_config, CtkEvent *ctk_event);
 
 GtkTextBuffer *ctk_xvideo_create_help(GtkTextTagTable *, CtkXVideo *);
 

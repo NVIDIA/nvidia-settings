@@ -217,14 +217,14 @@ int nv_read_config_file(const char *file, const char *display_name,
 int nv_write_config_file(const char *filename, CtrlHandles *h,
                          ParsedAttribute *p, ConfigProperties *conf)
 {
-    int screen, ret, entry, bit, val, display, randr_gamma_available;
+    int screen, ret, entry, val, display, randr_gamma_available;
     FILE *stream;
     time_t now;
     ReturnStatus status;
+    NVCTRLAttributePermissionsRec perms;
     NVCTRLAttributeValidValuesRec valid;
-    uint32 mask;
     CtrlHandleTarget *t;
-    char *tmp_d_str, *prefix, scratch[4];
+    char *prefix, scratch[4];
     const char *tmp;
     char *locale = "C";
 
@@ -337,59 +337,43 @@ int nv_write_config_file(const char *filename, CtrlHandles *h,
                         get_color_value(a->attr, c, b, g));
                 continue;
             }
-            
-            for (bit = 0; bit < 24; bit++) {
-                
-                mask = 1 << bit;
 
-                /*
-                 * if this bit is not present in the screen's enabled
-                 * display device mask (and the X screen has enabled
-                 * display devices), skip to the next bit
-                 */
+            /* Ignore display attributes, they are written later on */
 
-                if (((t->d & mask) == 0x0) && (t->d)) continue;
+            ret = nv_get_attribute_perms(h, a->attr, a->flags, &perms);
+            if (!ret || (perms.permissions & ATTRIBUTE_TYPE_DISPLAY)) {
+                continue;
+            }
 
-                status = NvCtrlGetValidDisplayAttributeValues
-                    (t->h, mask, a->attr, &valid);
+            /* Only write attributes that can be written */
 
-                if (status != NvCtrlSuccess) goto exit_bit_loop;
-                
-                if ((valid.permissions & ATTRIBUTE_TYPE_WRITE) == 0x0)
-                    goto exit_bit_loop;
-                
-                status = NvCtrlGetDisplayAttribute(t->h, mask, a->attr, &val);
-                
-                if (status != NvCtrlSuccess) goto exit_bit_loop;
-                
-                if (valid.permissions & ATTRIBUTE_TYPE_DISPLAY) {
+            status = NvCtrlGetValidAttributeValues(t->h, a->attr, &valid);
+            if (status != NvCtrlSuccess ||
+                !(valid.permissions & ATTRIBUTE_TYPE_WRITE) ||
+                (valid.permissions & ATTRIBUTE_TYPE_DISPLAY)) {;
+                continue;
+            }
 
-                    tmp_d_str =
-                        display_device_mask_to_display_device_name(mask);
+            status = NvCtrlGetAttribute(t->h, a->attr, &val);
+            if (status != NvCtrlSuccess) {
+                continue;
+            }
 
-                    fprintf(stream, "%s%c%s[%s]=%d\n", prefix,
-                            DISPLAY_NAME_SEPARATOR, a->name, tmp_d_str, val);
-                    
-                    free(tmp_d_str);
-                    
-                    continue;
-                    
-                } else {
-
-                    fprintf(stream, "%s%c%s=%d\n", prefix,
-                            DISPLAY_NAME_SEPARATOR, a->name, val);
-
-                    /* fall through to exit_bit_loop */
+            if (a->flags & NV_PARSER_TYPE_VALUE_IS_DISPLAY_ID) {
+                const char *name =
+                    nv_get_display_target_config_name(h, val);
+                if (name) {
+                    fprintf(stream, "%s%c%s=%s\n", prefix,
+                            DISPLAY_NAME_SEPARATOR, a->name, name);
                 }
-                
-            exit_bit_loop:
+                continue;
+            }
 
-                bit = 25; /* XXX force us out of the display device loop */
-                
-            } /* bit */
-            
+            fprintf(stream, "%s%c%s=%d\n", prefix,
+                    DISPLAY_NAME_SEPARATOR, a->name, val);
+
         } /* entry */
-        
+
     } /* screen */
 
     /*
@@ -447,7 +431,28 @@ int nv_write_config_file(const char *filename, CtrlHandles *h,
                 fprintf(stream, "%s%c%s=%f\n",
                         prefix, DISPLAY_NAME_SEPARATOR, a->name,
                         get_color_value(a->attr, c, b, g));
-            } 
+                continue;
+            }
+
+            /* Make sure this is a display attribute */
+
+            ret = nv_get_attribute_perms(h, a->attr, a->flags, &perms);
+            if (!ret || !(perms.permissions & ATTRIBUTE_TYPE_DISPLAY)) {
+                continue;
+            }
+
+            status = NvCtrlGetValidAttributeValues(t->h, a->attr, &valid);
+            if (status != NvCtrlSuccess ||
+                !(valid.permissions & ATTRIBUTE_TYPE_WRITE) ||
+                !(valid.permissions & ATTRIBUTE_TYPE_DISPLAY)) {
+                continue;
+            }
+
+            status = NvCtrlGetAttribute(t->h, a->attr, &val);
+            if (status == NvCtrlSuccess) {
+                fprintf(stream, "%s%c%s=%d\n", prefix,
+                        DISPLAY_NAME_SEPARATOR, a->name, val);
+            }
         }
 
         free(prefix);
@@ -499,21 +504,15 @@ int nv_write_config_file(const char *filename, CtrlHandles *h,
             }
         }
 
-        if (p->display_device_mask) {
-
-            tmp_d_str = display_device_mask_to_display_device_name
-                (p->display_device_mask);
-
-            fprintf(stream, "%s%s%c%s[%s]=%d\n", p->display, target_str,
-                    DISPLAY_NAME_SEPARATOR, tmp, tmp_d_str, p->val.i);
-
-            free(tmp_d_str);
-
+        if (p->flags & NV_PARSER_TYPE_HIJACK_DISPLAY_DEVICE) {
+            fprintf(stream, "%s%s%c%s[0x%08x]=%d\n", p->display, target_str,
+                    DISPLAY_NAME_SEPARATOR, tmp, p->display_device_mask,
+                    p->val.i);
         } else {
-
             fprintf(stream, "%s%s%c%s=%d\n", p->display, target_str,
                     DISPLAY_NAME_SEPARATOR, tmp, p->val.i);
         }
+
 
         p = p->next;
     }

@@ -72,6 +72,7 @@ char *nvstrtolower(char *s);
 char *nvstrtoupper(char *s);
 char *nvstrchrnul(char *s, int c);
 char *nvasprintf(const char *fmt, ...) NV_ATTRIBUTE_PRINTF(1, 2);
+void nv_append_sprintf(char **buf, const char *fmt, ...) NV_ATTRIBUTE_PRINTF(2, 3);
 void nvfree(void *s);
 
 char *tilde_expansion(const char *str);
@@ -183,5 +184,21 @@ static NV_INLINE uint64_t nv_encode_version(unsigned int major,
     nv_encode_version(major, minor, micro, 0)
 #define NV_VERSION4(major, minor, micro, nano) \
     nv_encode_version(major, minor, micro, nano)
+
+/*
+ * Helper enum that can be used for boolean values that might or might not be
+ * set. Care should be taken to avoid simple boolean testing, as a value of
+ * NV_OPTIONAL_BOOL_DEFAULT would evaluate as true.
+ *
+ * The user is responsible for unconditionally initializing the default value of
+ * any such booleans to NV_OPTIONAL_BOOL_DEFAULT, before any code path that
+ * might optionally set their values is executed.
+ */
+
+typedef enum {
+    NV_OPTIONAL_BOOL_DEFAULT = -1,
+    NV_OPTIONAL_BOOL_FALSE   = FALSE,
+    NV_OPTIONAL_BOOL_TRUE    = TRUE
+} NVOptionalBool;
 
 #endif /* __COMMON_UTILS_H__ */

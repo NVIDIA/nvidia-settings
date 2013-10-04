@@ -3583,13 +3583,15 @@ static void save_app_profile_changes_dialog_save_changes(GtkWidget *widget, gpoi
     GtkWidget *error_dialog;
     SaveAppProfileChangesDialog *dialog = (SaveAppProfileChangesDialog *)user_data;
     CtkAppProfile *ctk_app_profile = CTK_APP_PROFILE(dialog->parent);
+    char *write_errors = NULL;
     static const char config_files_changed_string[] =
         "nvidia-settings has detected that configuration files have changed "
         "since the configuration was last loaded. Saving the configuration "
         "may cause these changes to be permanently lost. Continue anyway?\n";
-    static const char write_errors_occurred_string[] =
-        "nvidia-settings encountered errors when writing to the configuration. "
-        "Some changes may not have been saved. Reload the configuration anyway?\n";
+    static const char write_errors_occurred_prefix[] =
+        "nvidia-settings encountered errors when writing to the configuration:\n";
+    static const char write_errors_occurred_suffix[] =
+        "\nSome changes may not have been saved. Reload the configuration anyway?\n";
 
     // First check for possible conflicts
     if (nv_app_profile_config_check_backing_files(ctk_app_profile->cur_config)) {
@@ -3608,20 +3610,31 @@ static void save_app_profile_changes_dialog_save_changes(GtkWidget *widget, gpoi
     do_backup = gtk_toggle_button_get_active(GTK_TOGGLE_BUTTON(dialog->backup_check_button));
 
     if (do_save) {
-        ret = nv_app_profile_config_save_updates(ctk_app_profile->cur_config, dialog->updates,
-                                                 do_backup);
+        ret = nv_app_profile_config_save_updates(ctk_app_profile->cur_config,
+                                                 dialog->updates,
+                                                 do_backup, &write_errors);
         if (ret < 0) {
-            error_dialog = gtk_message_dialog_new(GTK_WINDOW(dialog->top_window),
-                                                  GTK_DIALOG_MODAL | GTK_DIALOG_DESTROY_WITH_PARENT,
-                                                  GTK_MESSAGE_QUESTION,
-                                                  GTK_BUTTONS_YES_NO,
-                                                  "%s", write_errors_occurred_string);
+            if (!write_errors) {
+                write_errors = strdup("Unknown error.");
+            }
+            error_dialog =
+                gtk_message_dialog_new(GTK_WINDOW(dialog->top_window),
+                                       GTK_DIALOG_MODAL |
+                                           GTK_DIALOG_DESTROY_WITH_PARENT,
+                                       GTK_MESSAGE_QUESTION,
+                                       GTK_BUTTONS_YES_NO,
+                                       "%s%s%s",
+                                       write_errors_occurred_prefix,
+                                       write_errors,
+                                       write_errors_occurred_suffix);
             result = gtk_dialog_run(GTK_DIALOG(error_dialog));
             if (result != GTK_RESPONSE_YES) {
                 do_reload = FALSE;
             }
             gtk_widget_destroy(error_dialog);
         }
+
+        free(write_errors);
 
         if (do_reload) {
             app_profile_reload(CTK_APP_PROFILE(dialog->parent));

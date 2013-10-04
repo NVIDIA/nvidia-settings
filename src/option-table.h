@@ -170,6 +170,16 @@ static const NVGetoptOption __options[] = {
       "The first page with a name matching the &PAGE& argument will be used.  "
       "By default, the \"X Server Information\" page is displayed." },
 
+    { "list-targets-only", 'L', NVGETOPT_HELP_ALWAYS, NULL,
+      "When performing an attribute query (from the '--query' command line "
+      "option) or an attribute assignment (from the '--assign' command line "
+      "option or when loading an ~/.nvidia-settings-rc file), nvidia-settings "
+      "identifies one or more targets on which to query/assign the attribute.\n"
+      "\n"
+      "'--list-targets-only' will cause nvidia-settings to list the targets on "
+      " which the query/assign operation would have been performed, without "
+      "actually performing the operation(s), and exit." },
+
     { NULL, 0, 0, NULL, NULL},
 };
 

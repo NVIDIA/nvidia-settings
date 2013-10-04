@@ -1891,19 +1891,7 @@
 
 
 /*
- * NV_CTRL_FLATPANEL_NATIVE_RESOLUTION - Returns the dimensions of the
- * native resolution of the flat panel as determined by the
- * NVIDIA X Driver.
- *
- * The native resolution is the resolution at which a flat panel
- * must display any image.  All other resolutions must be scaled to this
- * resolution through GPU scaling or the DFP's native scaling capabilities 
- * in order to be displayed.
- *
- * This attribute is only valid for flat panel (DFP) display devices.
- *
- * This attribute is a packed integer; the width is packed in the upper
- * 16-bits and the height is packed in the lower 16-bits.
+ * NV_CTRL_FLATPANEL_NATIVE_RESOLUTION - not supported
  */
 
 #define NV_CTRL_FLATPANEL_NATIVE_RESOLUTION                      251 /* R-DG */
@@ -3298,7 +3286,25 @@
  */
 #define NV_CTRL_GPU_POWER_MIZER_DEFAULT_MODE                    400 /* R--G */
 
-#define NV_CTRL_LAST_ATTRIBUTE NV_CTRL_GPU_POWER_MIZER_DEFAULT_MODE
+/*
+ * NV_CTRL_XV_SYNC_TO_DISPLAY_ID - When XVideo Sync To VBlank is enabled, this
+ * controls which display device will be synched to.
+ */
+#define NV_CTRL_XV_SYNC_TO_DISPLAY_ID                           401 /* RW-  */
+
+/*
+ * NV_CTRL_BACKLIGHT_BRIGHTNESS - The backlight brightness of an internal panel.
+ */
+#define NV_CTRL_BACKLIGHT_BRIGHTNESS                            402 /* RWD- */
+
+/*
+ * NV_CTRL_THERMAL_COOLER_SPEED - Returns cooler's current operating speed in
+ * rotations per minute (RPM).
+ */
+
+#define NV_CTRL_THERMAL_COOLER_SPEED                            405 /* R--C */
+
+#define NV_CTRL_LAST_ATTRIBUTE NV_CTRL_THERMAL_COOLER_SPEED
 
 /**************************************************************************/
 
@@ -3701,6 +3707,12 @@
  *   "memclock"     integer   - the memory clocks (in MHz) for the perf level
  *   "memclockmin"  integer   - the memory clocks min (in MHz) for the perf level
  *   "memclockmax"  integer   - the memory clocks max (in MHz) for the perf level
+ *   "memtransferrate"    integer  - the memory transfer rate (in MHz)
+ *                                 for the perf level
+ *   "memtransferratemin" integer  - the memory transfer rate min (in MHz)
+ *                                 for the perf level
+ *   "memtransferratemax" integer  - the memory transfer rate max (in MHz)
+ *                                 for the perf level
  *   "processorclock"     integer  - the processor clocks (in MHz)
  *                                 for the perf level
  *   "processorclockmin"  integer  - the processor clocks min (in MHz)
@@ -3711,9 +3723,11 @@
  * Example:
  *
  * perf=0, nvclock=324, nvclockmin=324, nvclockmax=324, memclock=324,
- * memclockmin=324, memclockmax=324 ;
+ * memclockmin=324, memclockmax=324, memtransferrate=648,
+ * memtransferratemin=648,memtransferratemax=648 ;
  * perf=1, nvclock=324, nvclockmin=324, nvclockmax=640, memclock=810,
- * memclockmin=810, memclockmax=810 ;  
+ * memclockmin=810, memclockmax=810, memtransferrate=1620,
+ * memtransferrate=1620, memtransferrate=1620 ;  
  *
  * This attribute may be queried through XNVCTRLQueryTargetStringAttribute()
  * using a NV_CTRL_TARGET_TYPE_GPU or NV_CTRL_TARGET_TYPE_X_SCREEN target.
@@ -3842,6 +3856,12 @@
  *   "memclock"    integer   - the memory clocks (in MHz) for the perf level
  *   "memclockmin" integer   - the memory clocks min (in MHz) for the perf level
  *   "memclockmax" integer   - the memory clocks (max in MHz) for the perf level
+ *   "memtransferrate"    integer  - the memory transfer rate (in MHz)
+ *                                 for the perf level
+ *   "memtransferratemin" integer  - the memory transfer rate min (in MHz)
+ *                                 for the perf level
+ *   "memtransferratemax" integer  - the memory transfer rate max (in MHz)
+ *                                 for the perf level
  *   "processorclock"     integer  - the processor clocks (in MHz)
  *                                 for the perf level
  *   "processorclockmin"  integer  - the processor clocks min (in MHz)
@@ -3852,7 +3872,7 @@
  * Example:
  *
  *    nvclock=324, nvclockmin=324, nvclockmax=324,
- *    memclock=324, memclockmin=324, memclockmax=324
+ *    memclock=324, memclockmin=324, memclockmax=324, memtrasferrate=628
  *
  * This attribute may be queried through XNVCTRLQueryTargetStringAttribute()
  * using an NV_CTRL_TARGET_TYPE_GPU or NV_CTRL_TARGET_TYPE_X_SCREEN target.
@@ -3997,6 +4017,34 @@
  * NV_CTRL_STRING_GPU_UUID - Returns the UUID of the given GPU.
  */
 #define NV_CTRL_STRING_GPU_UUID                                     52 /* R--G */
+
+/*
+ * NV_CTRL_STRING_GPU_UTILIZATION - Returns the current percentage usage
+ * of the various components of the GPU.
+ *
+ * Current valid tokens are "graphics", "memory", "video" and "PCIe".
+ * Not all tokens will be reported on all GPUs, and additional tokens
+ * may be added in the future.
+ *
+ * Utilization values are returned as a comma-separated list of
+ * "token=value" pairs.
+ * Valid tokens:
+ *
+ *    Token      Value
+ *   "graphics"  integer - the percentage usage of graphics engine.
+ *   "memory"    integer - the percentage usage of FB.
+ *   "video"     integer - the percentage usage of video engine.
+ *   "PCIe"      integer - the percentage usage of PCIe bandwidth.
+ *
+ *
+ * Example:
+ *
+ *    graphics=45, memory=6, video=0, PCIe=0
+ *
+ * This attribute may be queried through XNVCTRLQueryTargetStringAttribute()
+ * using an NV_CTRL_TARGET_TYPE_GPU.
+ */
+#define NV_CTRL_STRING_GPU_UTILIZATION                              53 /* R--G */
 
 
 /*

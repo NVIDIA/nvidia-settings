@@ -20,7 +20,9 @@
 #include <gtk/gtk.h>
 #include <gdk-pixbuf/gdk-pixdata.h>
 
-#include <NvCtrlAttributes.h>
+#include "NvCtrlAttributes.h"
+#include "NVCtrlLib.h"
+
 #include <stdlib.h>
 #include <stdio.h>
 #include <string.h>
@@ -73,6 +75,19 @@ enum
 };
 
 /*
+ * These signals get hooked up (to the display_state_received() function)
+ * for all frame lock display devices that are included in the list.  When the
+ * entry is removed, these signals also get removed.
+ */
+
+const char *__DisplaySignals[] =
+    {
+        CTK_EVENT_NAME(NV_CTRL_REFRESH_RATE),
+        CTK_EVENT_NAME(NV_CTRL_REFRESH_RATE_3),
+        CTK_EVENT_NAME(NV_CTRL_FRAMELOCK_DISPLAY_CONFIG),
+    };
+
+/*
  * These signals get hooked up (to the gpu_state_received() function)
  * for all frame lock devices that are included in the list.  When the
  * frame lock device entry is removed, these signals also get removed for
@@ -81,13 +96,8 @@ enum
 
 const char *__GPUSignals[] =
     {
-        CTK_EVENT_NAME(NV_CTRL_FRAMELOCK_MASTER),
-        CTK_EVENT_NAME(NV_CTRL_FRAMELOCK_SLAVES),
         CTK_EVENT_NAME(NV_CTRL_FRAMELOCK_SYNC),
         CTK_EVENT_NAME(NV_CTRL_FRAMELOCK_TEST_SIGNAL),
-        CTK_EVENT_NAME(NV_CTRL_REFRESH_RATE),
-        CTK_EVENT_NAME(NV_CTRL_REFRESH_RATE_3),
-        CTK_EVENT_NAME(NV_CTRL_FRAMELOCK_SLAVEABLE)
     };
 
 /*
@@ -102,7 +112,7 @@ const char *__FrameLockSignals[] =
         CTK_EVENT_NAME(NV_CTRL_USE_HOUSE_SYNC),
         CTK_EVENT_NAME(NV_CTRL_FRAMELOCK_SYNC_INTERVAL),
         CTK_EVENT_NAME(NV_CTRL_FRAMELOCK_POLARITY),
-        CTK_EVENT_NAME(NV_CTRL_FRAMELOCK_VIDEO_MODE)
+        CTK_EVENT_NAME(NV_CTRL_FRAMELOCK_VIDEO_MODE),
     };
 
 typedef struct _nvListTreeRec      nvListTreeRec, *nvListTreePtr;
@@ -161,8 +171,11 @@ struct _nvListTreeRec {
 
 
 struct _nvDisplayDataRec {
-    
-    gpointer  handle; /* NV-CONTROL GPU Target */
+
+    gpointer  handle; /* NV-CONTROL Display Target */
+
+    gboolean  serverable;
+    gboolean  clientable;
 
     GtkWidget *label;
 
@@ -191,8 +204,6 @@ struct _nvGPUDataRec {
 
     gpointer   handle; /* NV-CONTROL GPU Target */
 
-    guint      server_mask;
-    guint      clients_mask;
     gboolean   enabled; /* Sync enabled */
 
     GtkWidget *timing_label;
@@ -821,30 +832,37 @@ static gchar *get_display_name(nvDisplayDataPtr data, gboolean simple)
 {
     ReturnStatus  ret;
     char         *display_name;
-    char         *display_type;
+    char         *display_type = NULL;
     char         *name;
-    
-    ret = NvCtrlGetStringDisplayAttribute(data->handle,
-                                          data->device_mask,
-                                          NV_CTRL_STRING_DISPLAY_DEVICE_NAME,
-                                          &display_name);
+
+    ret = NvCtrlGetStringAttribute(data->handle,
+                                   NV_CTRL_STRING_DISPLAY_DEVICE_NAME,
+                                   &display_name);
     if (ret != NvCtrlSuccess) {
         display_name = NULL;
     }
 
-    display_type =
-        display_device_mask_to_display_device_name(data->device_mask);
+    if (!simple) {
+        ret =
+            NvCtrlGetStringAttribute(data->handle,
+                                     NV_CTRL_STRING_DISPLAY_NAME_RANDR,
+                                     &display_type);
+        if (ret != NvCtrlSuccess) {
+            display_type = NULL;
+        }
+    }
 
-    if (simple) {
-        name = g_strconcat(display_name?display_name:"Unknown Display",
-                           NULL);
-    } else {
-        name = g_strconcat(display_name?display_name:"Unknown Display",
+    if (display_type) {
+        name = g_strconcat((display_name ? display_name : "Unknown Display"),
                            " (", display_type, ")", NULL);
+        XFree(display_type);
+    } else {
+        name = g_strconcat((display_name ? display_name : "Unknown Display"),
+                           NULL);
     }
 
     if (display_name) {
-        free(display_name);
+        XFree(display_name);
     }
 
     return name;
@@ -1123,6 +1141,24 @@ static nvListEntryPtr get_display_server_entry(nvListTreePtr tree)
 
 
 
+/** get_display_server_data() ****************************************
+ *
+ * Retrieves the display list entry'sdata that is the currently
+ * selected server.
+ *
+ */
+static nvDisplayDataPtr get_display_server_data(nvListTreePtr tree)
+{
+    nvListEntryPtr entry = get_display_server_entry(tree);
+    if (!entry) {
+        return NULL;
+    }
+
+    return (nvDisplayDataPtr)entry->data;
+}
+
+
+
 /** list_entry_update_framelock_controls() ***************************
  *
  * Updates a Quadro Sync list entry's GUI controls based on the current
@@ -1166,27 +1202,7 @@ static void list_entry_update_framelock_controls(CtkFramelock *ctk_framelock,
 static void list_entry_update_gpu_controls(CtkFramelock *ctk_framelock,
                                            nvListEntryPtr entry)
 {
-    nvGPUDataPtr data = (nvGPUDataPtr)(entry->data);
-    int slaveables;
-    nvDisplayDataPtr display_data;
-    nvListEntryPtr child;
-    ReturnStatus ret;
-    
-
-    ret = NvCtrlGetDisplayAttribute(data->handle,
-                                    ~0, /* Query all displays */
-                                    NV_CTRL_FRAMELOCK_SLAVEABLE,
-                                    &slaveables);
-
-    /* Update the slaveable flag of the GPU's display devices */
-    child = entry->children;
-    while (child) {
-        display_data = (nvDisplayDataPtr)(child->data);
-        /* Assume device is slaveable if slaveable query fails. */
-        display_data->slaveable = ((ret != NvCtrlSuccess) ||
-                                   (display_data->device_mask & slaveables));
-        child = child->next_sibling;
-    }
+    /* No controls to update */
 }
 
 static gboolean framelock_refresh_rates_compatible(int server, int client)
@@ -1215,64 +1231,52 @@ static gboolean framelock_refresh_rates_compatible(int server, int client)
 static void list_entry_update_display_controls(CtkFramelock *ctk_framelock,
                                                nvListEntryPtr entry)
 {
-    nvDisplayDataPtr data = (nvDisplayDataPtr)(entry->data);
+    nvDisplayDataPtr display_data = (nvDisplayDataPtr)(entry->data);
     gboolean framelock_enabled = ctk_framelock->framelock_enabled;
     gboolean sensitive;
-    
-    nvListTreePtr tree = (nvListTreePtr)(ctk_framelock->tree);
-    nvListEntryPtr server_entry = get_display_server_entry(tree);
-    nvDisplayDataPtr server_data = NULL;
-    
+    nvDisplayDataPtr server_data = get_display_server_data(entry->tree);
 
-    if (server_entry) {
-        server_data = (nvDisplayDataPtr)(server_entry->data);
-        if (!server_data) {
-            return; /* Oops */
-        }
-    }
 
-    /* Server Checkbox is unavailable when framelock is enabled,
-     * this display cannot be master
-     * (display is driven by GPU that is connected through a
-     * secondary connector.).
+    /* Display can be set as the server if Framelock is disabled and the
+     * display is serverable.
      */
-    sensitive = (!framelock_enabled && data->masterable);
-    gtk_widget_set_sensitive(data->server_label, sensitive);
-    gtk_widget_set_sensitive(data->server_checkbox, sensitive);
-    
-    /* When a server is selected, this display can only become a
-     * client if the X server reports that it can frame lock this
-     * client correctly.
-     */
-    sensitive = (!framelock_enabled && data->slaveable);
-    gtk_widget_set_sensitive(data->client_label, sensitive);
-    gtk_widget_set_sensitive(data->client_checkbox, sensitive);
+    sensitive = (!framelock_enabled && display_data->serverable);
+    gtk_widget_set_sensitive(display_data->server_label, sensitive);
+    gtk_widget_set_sensitive(display_data->server_checkbox, sensitive);
 
-    /* Gray out the display device's refresh rate when it is not
-     * the same as the current server's, or the X server tells us
-     * the client cannot be frame locked.
+    /* Display can be set as a client if Framelock is disabled and the
+     * display is clientable.  Noce that if a server is currently selected,
+     * and this display does not match the refresh rate, we still allow users
+     * to select this display as a client - at which point we'll implicitly
+     * disable the server.
      */
-    sensitive = (data->slaveable &&
-        (!server_data ||
-         framelock_refresh_rates_compatible(server_data->rate_mHz,
-                                            data->rate_mHz)));
-    gtk_widget_set_sensitive(data->rate_label, sensitive);
-    gtk_widget_set_sensitive(data->rate_text, sensitive);
-    gtk_widget_set_sensitive(data->label, sensitive);
+    sensitive = (!framelock_enabled && display_data->clientable);
+    gtk_widget_set_sensitive(display_data->client_label, sensitive);
+    gtk_widget_set_sensitive(display_data->client_checkbox, sensitive);
 
-    ctk_config_set_tooltip(entry->tree->ctk_framelock->ctk_config, entry->ebox,
+    /* Gray out the display device's refresh rate when it is not the same as
+     * the current server's, or the X server tells us the client cannot be
+     * framelocked.
+     */
+    sensitive = (display_data->clientable &&
+                 (!server_data ||
+                  framelock_refresh_rates_compatible(server_data->rate_mHz,
+                                                     display_data->rate_mHz)));
+    gtk_widget_set_sensitive(display_data->rate_label, sensitive);
+    gtk_widget_set_sensitive(display_data->rate_text, sensitive);
+    gtk_widget_set_sensitive(display_data->label, sensitive);
+
+
+    ctk_config_set_tooltip(ctk_framelock->ctk_config, entry->ebox,
                            sensitive ? NULL : "This display device cannot be "
                            "included in the frame lock group since it has a "
                            "different refresh rate than that of the server.");
 
-    /* Remove display device from the GPU's clients list */
+    /* If display cannot be a client, make sure it is not set as such */
     if (!sensitive && gtk_toggle_button_get_active
-        (GTK_TOGGLE_BUTTON(data->client_checkbox))) {
+        (GTK_TOGGLE_BUTTON(display_data->client_checkbox))) {
         gtk_toggle_button_set_active
-            (GTK_TOGGLE_BUTTON(data->client_checkbox),
-             FALSE);
-        ((nvGPUDataPtr)(entry->parent->data))->clients_mask &=
-            data->device_mask;
+            (GTK_TOGGLE_BUTTON(display_data->client_checkbox), FALSE);
     }
 }
 
@@ -1315,30 +1319,84 @@ static void list_entry_update_controls(CtkFramelock *ctk_framelock,
 
 
 
-/** any_gpu_has_selection() ******************************************
+/** has_client_selected() ********************************************
  *
- * Returns TRUE if any of the gpus have a server/client selected
+ * Returns TRUE if any of the displays in the tree are configured as
+ * clients.
  *
  */
-static gboolean any_gpu_has_selection(nvListEntryPtr entry)
+static gboolean has_client_selected(nvListEntryPtr entry)
 {
     if (!entry) return FALSE;
 
-    if (entry->data_type == ENTRY_DATA_GPU &&
-        (((nvGPUDataPtr)(entry->data))->server_mask ||
-         ((nvGPUDataPtr)(entry->data))->clients_mask)) {
+    if (entry->data_type == ENTRY_DATA_DISPLAY) {
+        nvDisplayDataPtr data = (nvDisplayDataPtr) entry->data;
+
+        if (gtk_toggle_button_get_active(GTK_TOGGLE_BUTTON(data->client_checkbox))) {
+            return TRUE;
+        }
+    }
+
+    if (has_client_selected(entry->children)) {
         return TRUE;
     }
 
-    if (any_gpu_has_selection(entry->children)) {
+    return has_client_selected(entry->next_sibling);
+}
+
+
+
+/** has_server_selected() ********************************************
+ *
+ * Returns TRUE if any of the displays in the tree are configured as
+ * the server.
+ *
+ */
+static gboolean has_server_selected(nvListEntryPtr entry)
+{
+    if (!entry) return FALSE;
+
+    if (entry->data_type == ENTRY_DATA_DISPLAY) {
+        nvDisplayDataPtr data = (nvDisplayDataPtr) entry->data;
+
+        if (gtk_toggle_button_get_active(GTK_TOGGLE_BUTTON(data->server_checkbox))) {
+            return TRUE;
+        }
+    }
+
+    if (has_server_selected(entry->children)) {
         return TRUE;
     }
 
-    if (any_gpu_has_selection(entry->next_sibling)) {
+    return has_server_selected(entry->next_sibling);
+}
+
+
+
+/** has_display_selected() *******************************************
+ *
+ * Returns TRUE if any of the displays are selected as a server or
+ * client.
+ *
+ */
+static gboolean has_display_selected(nvListEntryPtr entry)
+{
+    if (!entry) return FALSE;
+
+    if (entry->data_type == ENTRY_DATA_DISPLAY) {
+        nvDisplayDataPtr data = (nvDisplayDataPtr) entry->data;
+
+        if (gtk_toggle_button_get_active(GTK_TOGGLE_BUTTON(data->client_checkbox)) ||
+            gtk_toggle_button_get_active(GTK_TOGGLE_BUTTON(data->server_checkbox))) {
+            return TRUE;
+        }
+    }
+
+    if (has_display_selected(entry->children)) {
         return TRUE;
     }
 
-    return FALSE;
+    return has_display_selected(entry->next_sibling);
 }
 
 
@@ -1354,12 +1412,12 @@ static gboolean any_gpu_has_selection(nvListEntryPtr entry)
 static void update_framelock_controls(CtkFramelock *ctk_framelock)
 {
     nvListTreePtr tree;
-    gboolean enabled;
+    gboolean framelock_enabled;
     gboolean something_selected;
 
 
     tree = (nvListTreePtr)(ctk_framelock->tree);
-    enabled = ctk_framelock->framelock_enabled;
+    framelock_enabled = ctk_framelock->framelock_enabled;
 
     /* Quadro Sync Buttons */
     gtk_widget_set_sensitive(ctk_framelock->remove_devices_button,
@@ -1372,18 +1430,17 @@ static void update_framelock_controls(CtkFramelock *ctk_framelock)
         (G_OBJECT(ctk_framelock->sync_state_button),
          G_CALLBACK(toggle_sync_enable),
          (gpointer) ctk_framelock);
-    
-    something_selected =
-        any_gpu_has_selection(((nvListTreePtr)ctk_framelock->tree)->entries);
+
+    something_selected = has_display_selected(tree->entries);
 
     gtk_widget_set_sensitive(ctk_framelock->sync_state_button,
-                             tree->nentries && something_selected);
+                             something_selected);
 
     gtk_container_remove
         (GTK_CONTAINER(ctk_framelock->sync_state_button),
          ctk_framelock->selected_syncing_label);
 
-    if (tree->nentries && enabled) {
+    if (tree->nentries && framelock_enabled) {
         ctk_framelock->selected_syncing_label =
             ctk_framelock->disable_syncing_label;
         gtk_toggle_button_set_active
@@ -1407,7 +1464,7 @@ static void update_framelock_controls(CtkFramelock *ctk_framelock)
 
     /* Test link */
     gtk_widget_set_sensitive(ctk_framelock->test_link_button,
-                             (enabled && tree->server_entry));
+                             (framelock_enabled && tree->server_entry));
 
     /* Update the frame lock Quadro Sync frame */
     list_entry_update_controls(ctk_framelock, tree->entries);
@@ -1417,41 +1474,6 @@ static void update_framelock_controls(CtkFramelock *ctk_framelock)
 
     /* Update the expand/collapse all button status */
     update_expand_all_button_status(ctk_framelock);
-}
-
-
-
-/** get_display_on_gpu() *********************************************
- *
- * Returns the display list entry that matches the device mask and
- * is connected to the gpu list entry.
- *
- */
-static nvListEntryPtr get_display_on_gpu(nvListEntryPtr gpu_entry,
-                                         guint device_mask)
-{
-    nvListEntryPtr   display_entry;
-    nvDisplayDataPtr display_data;
-    
-    if (!device_mask) {
-        return NULL;
-    }
-
-    /* Gather bitmask of server/clients */
-    display_entry = gpu_entry->children;
-    for (display_entry = gpu_entry->children; display_entry;
-         display_entry = display_entry->next_sibling) {
-
-        if (display_entry->data_type != ENTRY_DATA_DISPLAY) {
-            continue;
-        }
-
-        display_data = (nvDisplayDataPtr)(display_entry->data);
-        if (display_data->device_mask & device_mask) {
-            return display_entry;
-        }
-    }
-    return NULL;
 }
 
 
@@ -1743,7 +1765,7 @@ static void list_entry_remove_expander_button(nvListEntryPtr entry)
  *   a tree keep their parent-child relationship.
  *
  */
-static nvListEntryPtr list_entry_new(void)
+static nvListEntryPtr list_entry_new(nvListTreePtr tree)
 {
     nvListEntryPtr entry;
 
@@ -1751,6 +1773,8 @@ static nvListEntryPtr list_entry_new(void)
     if (!entry) {
         return NULL;
     }
+
+    entry->tree = tree;
 
     /* Create the vertical box that holds this entry and its children */
     entry->vbox = gtk_vbox_new(FALSE, 0);
@@ -2057,7 +2081,8 @@ static void list_entry_remove_children(nvListEntryPtr entry)
  *   data.
  *
  */
-static nvListEntryPtr list_entry_new_with_framelock(nvFrameLockDataPtr data)
+static nvListEntryPtr list_entry_new_with_framelock(nvFrameLockDataPtr data,
+                                                    nvListTreePtr tree)
 {
     nvListEntryPtr entry;
 
@@ -2067,7 +2092,7 @@ static nvListEntryPtr list_entry_new_with_framelock(nvFrameLockDataPtr data)
     GtkWidget *padding;
 
 
-    entry = list_entry_new();
+    entry = list_entry_new(tree);
     if (!entry) {
         return NULL;
     }
@@ -2160,7 +2185,8 @@ static nvListEntryPtr list_entry_new_with_framelock(nvFrameLockDataPtr data)
  * - Creates a new list entry that will hold the given gpu data.
  *
  */
-static nvListEntryPtr list_entry_new_with_gpu(nvGPUDataPtr data)
+static nvListEntryPtr list_entry_new_with_gpu(nvGPUDataPtr data,
+                                              nvListTreePtr tree)
 {
     nvListEntryPtr entry;
 
@@ -2169,7 +2195,7 @@ static nvListEntryPtr list_entry_new_with_gpu(nvGPUDataPtr data)
     GtkWidget *padding;
 
 
-    entry = list_entry_new();
+    entry = list_entry_new(tree);
     if (!entry) {
         return NULL;
     }
@@ -2206,7 +2232,8 @@ static nvListEntryPtr list_entry_new_with_gpu(nvGPUDataPtr data)
  * - Creates a new list entry that will hold the given display data.
  *
  */
-static nvListEntryPtr list_entry_new_with_display(nvDisplayDataPtr data)
+static nvListEntryPtr list_entry_new_with_display(nvDisplayDataPtr data,
+                                                  nvListTreePtr tree)
 {
     nvListEntryPtr entry;
 
@@ -2216,12 +2243,13 @@ static nvListEntryPtr list_entry_new_with_display(nvDisplayDataPtr data)
     GtkWidget *padding;
 
 
-    entry = list_entry_new();
+    entry = list_entry_new(tree);
     if (!entry) {
         return NULL;
     }
     entry->data = (gpointer)(data);
     entry->data_type = ENTRY_DATA_DISPLAY;
+    entry->ctk_event = CTK_EVENT(ctk_event_new(data->handle));
 
    /* Pack the data's widgets into the list entry data hbox */
 
@@ -2303,7 +2331,7 @@ static void list_tree_add_entry(nvListTreePtr tree, nvListEntryPtr entry)
 {
     nvListEntryPtr e;
 
-    if (!tree || !entry || entry->tree) {
+    if (!tree || !entry) {
         return;
     }
     entry->tree         = tree;
@@ -2763,17 +2791,27 @@ static void expand_all_clicked(GtkWidget *widget, gpointer data)
  */
 static void toggle_server(GtkWidget *widget, gpointer data)
 {
-    nvListEntryPtr entry = (nvListEntryPtr)data;
-    nvListEntryPtr server_entry = NULL;
-    nvDisplayDataPtr display_data = (nvDisplayDataPtr)(entry->data);
-    nvDisplayDataPtr server_entry_display_data = NULL;
-    nvListTreePtr tree = (nvListTreePtr)(entry->tree);
-    nvGPUDataPtr gpu_data = (nvGPUDataPtr)(entry->parent->data);
+    nvListEntryPtr display_entry = (nvListEntryPtr)data;
+    nvDisplayDataPtr display_data;
+    nvGPUDataPtr gpu_data;
+    nvListTreePtr tree;
+    CtkFramelock *ctk_framelock;
     gboolean server_checked;
 
-    if (entry->data_type != ENTRY_DATA_DISPLAY) {
+    if (display_entry->data_type != ENTRY_DATA_DISPLAY) {
         return;
     }
+
+    display_data = (nvDisplayDataPtr)(display_entry->data);
+    gpu_data = (nvGPUDataPtr)(display_entry->parent->data);
+    tree = (nvListTreePtr)(display_entry->tree);
+    ctk_framelock = tree->ctk_framelock;
+
+    /* Make sure FrameLock is disabled on the GPU */
+    NvCtrlSetAttribute(gpu_data->handle, NV_CTRL_FRAMELOCK_SYNC,
+                       NV_CTRL_FRAMELOCK_SYNC_DISABLE);
+    gpu_data->enabled = FALSE;
+    ctk_framelock->framelock_enabled = any_gpu_enabled(tree->entries);
 
     server_checked = gtk_toggle_button_get_active
         (GTK_TOGGLE_BUTTON(display_data->server_checkbox));
@@ -2784,35 +2822,35 @@ static void toggle_server(GtkWidget *widget, gpointer data)
      * it was selected as server before.
      */
     if (server_checked) {
+        nvDisplayDataPtr server_data =
+            get_display_server_data(display_entry->tree);
+        if (server_data &&
+            (server_data != display_data)) {
+            gtk_toggle_button_set_active
+                (GTK_TOGGLE_BUTTON(server_data->server_checkbox), FALSE);
+        }
+        tree->server_entry = display_entry;
+
         gtk_toggle_button_set_active
             (GTK_TOGGLE_BUTTON(display_data->client_checkbox), FALSE);
-        server_entry = get_display_server_entry(tree);
-        if (server_entry) {
-            server_entry_display_data = (nvDisplayDataPtr)server_entry->data;
-            gtk_toggle_button_set_active
-                (GTK_TOGGLE_BUTTON(server_entry_display_data->server_checkbox),
-                 FALSE);
+
+        NvCtrlSetAttribute(display_data->handle,
+                           NV_CTRL_FRAMELOCK_DISPLAY_CONFIG,
+                           NV_CTRL_FRAMELOCK_DISPLAY_CONFIG_SERVER);
+    } else {
+        if (tree->server_entry == display_entry) {
+            tree->server_entry = NULL;
         }
+
+        NvCtrlSetAttribute(display_data->handle,
+                           NV_CTRL_FRAMELOCK_DISPLAY_CONFIG,
+                           NV_CTRL_FRAMELOCK_DISPLAY_CONFIG_DISABLED);
     }
 
-    entry->tree->server_entry = (server_checked ? entry : NULL);
-    gpu_data->server_mask = (server_checked ? display_data->device_mask : 0);
-
-    /* Update X server state, making sure FrameLock sync is disabled */
-    NvCtrlSetAttribute(gpu_data->handle, NV_CTRL_FRAMELOCK_SYNC,
-                       NV_CTRL_FRAMELOCK_SYNC_DISABLE);
-
-    NvCtrlSetAttribute(gpu_data->handle, NV_CTRL_FRAMELOCK_MASTER,
-                       gpu_data->server_mask);
-
-    gpu_data->enabled = FALSE;
-    entry->tree->ctk_framelock->framelock_enabled = 
-        any_gpu_enabled(entry->tree->entries);
-
     /* Update GUI state */
-    update_framelock_controls(entry->tree->ctk_framelock);
+    update_framelock_controls(ctk_framelock);
 
-    ctk_config_statusbar_message(entry->tree->ctk_framelock->ctk_config,
+    ctk_config_statusbar_message(ctk_framelock->ctk_config,
                                  "%s frame lock server device.",
                                  (server_checked ? "Selected" : "Unselected"));
 }
@@ -2827,47 +2865,53 @@ static void toggle_server(GtkWidget *widget, gpointer data)
  */
 static void toggle_client(GtkWidget *widget, gpointer data)
 {
-    nvListEntryPtr entry = (nvListEntryPtr)data;
-    nvDisplayDataPtr display_data = (nvDisplayDataPtr)(entry->data);
-    nvGPUDataPtr gpu_data = (nvGPUDataPtr)(entry->parent->data);
+    nvListEntryPtr display_entry = (nvListEntryPtr)data;
+    nvDisplayDataPtr display_data;
+    nvGPUDataPtr gpu_data;
+    nvListTreePtr tree;
+    CtkFramelock *ctk_framelock;
     gboolean client_checked;
 
-    if (entry->data_type != ENTRY_DATA_DISPLAY) {
+    if (display_entry->data_type != ENTRY_DATA_DISPLAY) {
         return;
     }
 
+    display_data = (nvDisplayDataPtr)(display_entry->data);
+    gpu_data = (nvGPUDataPtr)(display_entry->parent->data);
+    tree = (nvListTreePtr)(display_entry->tree);
+    ctk_framelock = tree->ctk_framelock;
+
+    /* Make sure FrameLock is disabled on the GPU */
+    NvCtrlSetAttribute(gpu_data->handle, NV_CTRL_FRAMELOCK_SYNC,
+                       NV_CTRL_FRAMELOCK_SYNC_DISABLE);
+    gpu_data->enabled = FALSE;
+    ctk_framelock->framelock_enabled = any_gpu_enabled(tree->entries);
+
     client_checked = gtk_toggle_button_get_active
         (GTK_TOGGLE_BUTTON(display_data->client_checkbox));
-    
-    if (client_checked) {
-        gpu_data->clients_mask |= display_data->device_mask;
 
-        /*
-         * if the device is selected as client, uncheck the server box
-         * for the same.
-         */
+    /*
+     * if the device is selected as client, uncheck the server box
+     * for the same.
+     */
+    if (client_checked) {
 
         gtk_toggle_button_set_active
             (GTK_TOGGLE_BUTTON(display_data->server_checkbox), FALSE);
+
+        NvCtrlSetAttribute(display_data->handle,
+                           NV_CTRL_FRAMELOCK_DISPLAY_CONFIG,
+                           NV_CTRL_FRAMELOCK_DISPLAY_CONFIG_CLIENT);
     } else {
-        gpu_data->clients_mask &= ~(display_data->device_mask);
+        NvCtrlSetAttribute(display_data->handle,
+                           NV_CTRL_FRAMELOCK_DISPLAY_CONFIG,
+                           NV_CTRL_FRAMELOCK_DISPLAY_CONFIG_DISABLED);
     }
 
-    /* Update X server state, make sure FrameLock Sync is disabled */
-    NvCtrlSetAttribute(gpu_data->handle, NV_CTRL_FRAMELOCK_SYNC,
-                       NV_CTRL_FRAMELOCK_SYNC_DISABLE);
-
-    NvCtrlSetAttribute(gpu_data->handle, NV_CTRL_FRAMELOCK_SLAVES,
-                       gpu_data->clients_mask);
-
-    gpu_data->enabled = FALSE;
-    entry->tree->ctk_framelock->framelock_enabled = 
-        any_gpu_enabled(entry->tree->entries);
-
     /* Update GUI state */
-    update_framelock_controls(entry->tree->ctk_framelock);
+    update_framelock_controls(ctk_framelock);
 
-    ctk_config_statusbar_message(entry->tree->ctk_framelock->ctk_config,
+    ctk_config_statusbar_message(ctk_framelock->ctk_config,
                                  "%s frame lock client device.",
                                  (client_checked ? "Selected" : "Unselected"));
 }
@@ -2932,7 +2976,7 @@ static gboolean set_enable_sync_clients(nvListEntryPtr entry_list,
     /* Go through all entries and activate/disable all entries that
      * aren't the server.
      */
-    
+
     for (entry = entry_list; entry; entry = entry->next_sibling) {
         nvGPUDataPtr data;
 
@@ -2941,19 +2985,20 @@ static gboolean set_enable_sync_clients(nvListEntryPtr entry_list,
                                                         enable);
             framelock_enabled = (framelock_enabled || something_enabled);
         }
-        
+
         if (entry == server_gpu_entry || entry->data_type != ENTRY_DATA_GPU) {
             continue;
         }
 
         data = (nvGPUDataPtr)(entry->data);
-        
+
         /* Only send protocol if there is something to enable */
-        if (!data->clients_mask) continue;
+        if (!has_client_selected(entry)) continue;
 
         ret = NvCtrlSetAttribute(data->handle, NV_CTRL_FRAMELOCK_SYNC, enable);
         if (ret != NvCtrlSuccess) continue;
 
+        /* Verify state w/ the server */
         ret = NvCtrlGetAttribute(data->handle, NV_CTRL_FRAMELOCK_SYNC,
                                  &(something_enabled));
         if (ret != NvCtrlSuccess) continue;
@@ -3534,7 +3579,7 @@ static void toggle_detect_video_mode(GtkToggleButton *button,
 
 /** list_entry_update_framelock_status() *****************************
  *
- * Updates the state of the GUI for a frame lock list entry by
+ * Updates the dynamic state of the GUI for a frame lock list entry by
  * querying the current state of the X Server.
  *
  */
@@ -3642,8 +3687,8 @@ static void list_entry_update_framelock_status(CtkFramelock *ctk_framelock,
 
 /** list_entry_update_gpu_status() ***********************************
  *
- * Updates the state of the GUI for a gpu list entry by querying the
- * current state of the X Server.
+ * Updates the dynamic state of the GUI for a gpu list entry by
+ * querying the current state of the X Server.
  *
  */
 static void list_entry_update_gpu_status(CtkFramelock *ctk_framelock,
@@ -3670,8 +3715,8 @@ static void list_entry_update_gpu_status(CtkFramelock *ctk_framelock,
                            &house);
     }
 
-    has_client = data->clients_mask;
-    has_server = data->server_mask;
+    has_client = has_client_selected(entry);
+    has_server = has_server_selected(entry);
 
     /* Update the Timing LED:
      *
@@ -3702,8 +3747,8 @@ static void list_entry_update_gpu_status(CtkFramelock *ctk_framelock,
 
 /** list_entry_update_display_status() *******************************
  *
- * Updates the state of the GUI for a display list entry by querying
- * the current state of the X Server.
+ * Updates the dynamic state of the GUI for a display list entry by
+ * querying the current state of the X Server.
  *
  */
 static void list_entry_update_display_status(CtkFramelock *ctk_framelock,
@@ -3741,28 +3786,30 @@ static void list_entry_update_display_status(CtkFramelock *ctk_framelock,
         gtk_widget_set_sensitive(data->stereo_label, FALSE);
         update_image(data->stereo_hbox, ctk_framelock->led_grey_pixbuf);
     } else {
-        nvGPUDataPtr gpu_data;
-        gint timing = TRUE;
-        gint stereo_sync;
-
         /* If the display's GPU is not receiving timing, activate the
          * stereo label but make sure to gray out the LED.
          */
         gtk_widget_set_sensitive(data->stereo_label, TRUE);
 
         if (entry->parent) {
-            gpu_data = (nvGPUDataPtr)(entry->parent->data);
-            NvCtrlGetAttribute(gpu_data->handle, NV_CTRL_FRAMELOCK_TIMING,
-                               &timing);
-        }
-        if (!timing) {
-            update_image(data->stereo_hbox, ctk_framelock->led_grey_pixbuf);
-        } else {
-            NvCtrlGetAttribute(data->handle, NV_CTRL_FRAMELOCK_STEREO_SYNC,
-                               &stereo_sync);
-            update_image(data->stereo_hbox,
-                         (stereo_sync ? ctk_framelock->led_green_pixbuf :
-                          ctk_framelock->led_red_pixbuf));
+            GdkPixbuf *pixbuf = ctk_framelock->led_grey_pixbuf;
+            nvGPUDataPtr gpu_data = (nvGPUDataPtr)(entry->parent->data);
+            ReturnStatus ret;
+            int val;
+
+            ret = NvCtrlGetAttribute(gpu_data->handle, NV_CTRL_FRAMELOCK_TIMING,
+                                     &val);
+            if ((ret == NvCtrlSuccess) &&
+                (val == NV_CTRL_FRAMELOCK_TIMING_TRUE)) {
+                ret = NvCtrlGetAttribute(gpu_data->handle,
+                                         NV_CTRL_FRAMELOCK_STEREO_SYNC, &val);
+                if (ret == NvCtrlSuccess) {
+                    pixbuf = (val == NV_CTRL_FRAMELOCK_STEREO_SYNC_TRUE) ?
+                        ctk_framelock->led_green_pixbuf :
+                        ctk_framelock->led_red_pixbuf;
+                }
+            }
+            update_image(data->stereo_hbox, pixbuf);
         }
     }
 }
@@ -4034,6 +4081,229 @@ static void update_display_rate_txt(nvDisplayDataPtr data,
 
 
 
+/** validate_clients_against_server() ********************************
+ *
+ * Validates that the given client entries (siblings and any children
+ * of 'entry') match the server display's refresh rate, and disables
+ * any client entries that don't.
+ *
+ */
+
+static void validate_clients_against_server(nvListEntryPtr entry,
+                                            nvDisplayDataPtr server_display_data)
+{
+    nvDisplayDataPtr display_data;
+
+    if (!entry || !server_display_data) return;
+
+    if (entry->data_type == ENTRY_DATA_DISPLAY) {
+        display_data = (nvDisplayDataPtr)entry->data;
+
+        if ((display_data != server_display_data) &&
+            (!framelock_refresh_rates_compatible(server_display_data->rate_mHz,
+                                                 display_data->rate_mHz))) {
+            gtk_toggle_button_set_active
+                (GTK_TOGGLE_BUTTON(display_data->client_checkbox), FALSE);
+        }
+    }
+
+    validate_clients_against_server(entry->children,
+                                    server_display_data);
+
+    validate_clients_against_server(entry->next_sibling,
+                                    server_display_data);
+}
+
+
+
+/** update_display_config() ******************************************
+ *
+ * Updates the UI to reflect the current configuration of a display
+ * device.  This function is meant to be used as a handler for
+ * NV_CTRL_FRAMELOCK_DISPLAY_CONFIG events, as well as initialization.
+ *
+ * As a side effect, calling this function may possibly disable the
+ * currently selected server, incompatible clients, and/or framelock sync.
+ * This occurs if a new framelock server is being configured, or a client is
+ * selected that does not properly match the currently selected server's
+ * refresh rate.
+ *
+ */
+
+static void update_display_config(nvListEntryPtr display_entry, int config)
+{
+    nvDisplayDataPtr display_data = (nvDisplayDataPtr)display_entry->data;
+    ReturnStatus ret;
+    NVCTRLAttributeValidValuesRec valid_config;
+    gboolean serverable = FALSE;
+    gboolean clientable = FALSE;
+
+    nvDisplayDataPtr old_server_display_data;
+
+
+    /* Get what is possible */
+    ret = NvCtrlGetValidAttributeValues(display_data->handle,
+                                        NV_CTRL_FRAMELOCK_DISPLAY_CONFIG,
+                                        &valid_config);
+
+    if (ret == NvCtrlSuccess &&
+        (valid_config.type == ATTRIBUTE_TYPE_INT_BITS)) {
+        if (valid_config.u.bits.ints &
+            (1<<NV_CTRL_FRAMELOCK_DISPLAY_CONFIG_CLIENT)) {
+            clientable = TRUE;
+        }
+        if (valid_config.u.bits.ints &
+            (1<<NV_CTRL_FRAMELOCK_DISPLAY_CONFIG_SERVER)) {
+            serverable = TRUE;
+        }
+    }
+
+    display_data->serverable = serverable;
+    display_data->clientable = clientable;
+
+    if (!clientable && config == NV_CTRL_FRAMELOCK_DISPLAY_CONFIG_CLIENT) {
+        config = NV_CTRL_FRAMELOCK_DISPLAY_CONFIG_DISABLED;
+    }
+    if (!serverable && config == NV_CTRL_FRAMELOCK_DISPLAY_CONFIG_SERVER) {
+        config = NV_CTRL_FRAMELOCK_DISPLAY_CONFIG_DISABLED;
+    }
+
+    gtk_widget_set_sensitive(display_data->client_label, clientable);
+    gtk_widget_set_sensitive(display_data->client_checkbox, clientable);
+
+    gtk_widget_set_sensitive(display_data->server_label, serverable);
+    gtk_widget_set_sensitive(display_data->server_checkbox, serverable);
+
+
+    /* Ensure we'll end up in a valid configuration.
+     *
+     * If a client is being enabled:
+     * - Disable the server if its refresh rate does not match. (It will be
+     *   up to the client to re-select a propper server.)
+     *
+     * If a (new) server is being enabled:
+     * - Disable any previous server.
+     * - Disable any configured clients that do not match the new server's
+     *   refresh rate.
+     *
+     */
+
+    old_server_display_data = get_display_server_data(display_entry->tree);
+
+    if (config == NV_CTRL_FRAMELOCK_DISPLAY_CONFIG_CLIENT) {
+        /* Disable existing server if the rates don't match, and make user re-
+         * select the server.
+         */
+        if (old_server_display_data &&
+            (display_data != old_server_display_data) &&
+            (!framelock_refresh_rates_compatible(old_server_display_data->rate_mHz,
+                                                 display_data->rate_mHz))) {
+            gtk_toggle_button_set_active
+                (GTK_TOGGLE_BUTTON(old_server_display_data->server_checkbox),
+                 FALSE);
+        }
+
+    } else if (config == NV_CTRL_FRAMELOCK_DISPLAY_CONFIG_SERVER) {
+        /* Disable any previous servers */
+        if (old_server_display_data &&
+            (display_data != old_server_display_data)) {
+            gtk_toggle_button_set_active
+                (GTK_TOGGLE_BUTTON(old_server_display_data->server_checkbox),
+                 FALSE);
+        }
+
+        /* Disable any configured clients that don't match the new refresh
+         * rate.
+         */
+        validate_clients_against_server(display_entry->tree->entries,
+                                        display_data);
+    }
+
+
+    /* Apply the setting to the display device */
+
+    g_signal_handlers_block_matched(G_OBJECT(display_entry->ctk_event),
+                                    G_SIGNAL_MATCH_DATA,
+                                    0, 0, NULL, NULL,
+                                    (gpointer)display_entry);
+
+    if (config == NV_CTRL_FRAMELOCK_DISPLAY_CONFIG_CLIENT) {
+        gtk_toggle_button_set_active
+            (GTK_TOGGLE_BUTTON(display_data->client_checkbox), TRUE);
+    } else {
+        gtk_toggle_button_set_active
+            (GTK_TOGGLE_BUTTON(display_data->client_checkbox), FALSE);
+    }
+
+    if (config == NV_CTRL_FRAMELOCK_DISPLAY_CONFIG_SERVER) {
+        gtk_toggle_button_set_active
+            (GTK_TOGGLE_BUTTON(display_data->server_checkbox), TRUE);
+    } else {
+        gtk_toggle_button_set_active
+            (GTK_TOGGLE_BUTTON(display_data->server_checkbox), FALSE);
+    }
+
+    g_signal_handlers_unblock_matched(G_OBJECT(display_entry->ctk_event),
+                                      G_SIGNAL_MATCH_DATA,
+                                      0, 0, NULL, NULL,
+                                      (gpointer)display_entry);
+}
+
+
+
+/** display_state_received() *****************************************
+ *
+ * Signal handler for display target events.
+ *
+ */
+static void display_state_received(GtkObject *object,
+                               gpointer arg1, gpointer user_data)
+{
+    CtkEventStruct *event = (CtkEventStruct *) arg1;
+    nvListEntryPtr display_entry = (nvListEntryPtr) user_data;
+    nvDisplayDataPtr display_data;
+    nvListTreePtr tree;
+    CtkFramelock *ctk_framelock;
+
+    int rateMultiplier = 1;
+    int precision = 3;
+
+    if (!display_entry ||
+        !display_entry->data ||
+        !display_entry->data_type != ENTRY_DATA_DISPLAY) {
+        return;
+    }
+
+    display_data = (nvDisplayDataPtr) display_entry->data;
+    tree = display_entry->tree;
+    ctk_framelock = tree->ctk_framelock;
+
+    switch (event->attribute) {
+
+    case NV_CTRL_REFRESH_RATE:
+        rateMultiplier = 10;
+        precision = 2;
+        /* fallthrough */
+    case NV_CTRL_REFRESH_RATE_3:
+        update_display_rate_txt(display_data,
+                                event->value * rateMultiplier, /* rate_mHz */
+                                precision);
+
+        /* Update the UI */
+        update_framelock_controls(ctk_framelock);
+        break;
+
+    case NV_CTRL_FRAMELOCK_DISPLAY_CONFIG:
+        update_display_config(display_entry, event->value);
+
+        /* Update the UI */
+        update_framelock_controls(ctk_framelock);
+        break;
+    }
+}
+
+
+
 /** gpu_state_received() *********************************************
  *
  * Signal handler for gpu target events.
@@ -4044,166 +4314,29 @@ static void gpu_state_received(GtkObject *object,
 {
     CtkEventStruct *event = (CtkEventStruct *) arg1;
     nvListEntryPtr gpu_entry = (nvListEntryPtr) user_data;
-    nvGPUDataPtr gpu_data = (nvGPUDataPtr) gpu_entry->data;
+    nvGPUDataPtr gpu_data;
+    nvListTreePtr tree;
+    CtkFramelock *ctk_framelock;
 
-    nvListEntryPtr display_entry = NULL;
-    nvDisplayDataPtr display_data = NULL;
+    if (!gpu_entry ||
+        !gpu_entry->data ||
+        !gpu_entry->data_type != ENTRY_DATA_GPU) {
+        return;
+    }
 
-    CtkFramelock *ctk_framelock = gpu_entry->tree->ctk_framelock;
-    gboolean sensitive;
-    gboolean checked;
-    int rateMultiplier = 1;
-    int precision = 3;
+    gpu_data = (nvGPUDataPtr) gpu_entry->data;
+    tree = gpu_entry->tree;
+    ctk_framelock = tree->ctk_framelock;
 
     switch (event->attribute) {
-    case NV_CTRL_FRAMELOCK_MASTER:
-
-        /* Unset the previous master */
-        display_entry = get_display_server_entry(gpu_entry->tree);
-        if (display_entry) {
-            display_data = (nvDisplayDataPtr)(display_entry->data);
-            
-            /* Clear the server checkbox */
-            g_signal_handlers_block_by_func
-                (G_OBJECT(display_data->server_checkbox),
-                 G_CALLBACK(toggle_server),
-                 (gpointer) display_entry);
-            
-            gtk_toggle_button_set_active
-                (GTK_TOGGLE_BUTTON(display_data->server_checkbox), 0);
-            
-            g_signal_handlers_unblock_by_func
-                (G_OBJECT(display_data->server_checkbox),
-                 G_CALLBACK(toggle_server),
-                 (gpointer) display_entry);
-
-            /* If the server display device is on another gpu, tell the
-             * X Server we are unsetting it.
-             */
-            if (display_entry->parent != gpu_entry) {
-                nvGPUDataPtr gpu_data =
-                    (nvGPUDataPtr)(display_entry->parent->data);
-
-                NvCtrlSetAttribute(gpu_data->handle, NV_CTRL_FRAMELOCK_SYNC,
-                                   NV_CTRL_FRAMELOCK_SYNC_DISABLE);
-                gpu_data->enabled = FALSE;
-                
-                NvCtrlSetAttribute(display_data->handle,
-                                   NV_CTRL_FRAMELOCK_MASTER, 0);
-            }
-            ((nvGPUDataPtr)(display_entry->parent->data))->server_mask = 0;
-            gpu_entry->tree->server_entry = NULL;
-        }
-
-        /* Set the new master */
-        display_entry = get_display_on_gpu(gpu_entry, event->value);
-        if (display_entry) {
-            display_data = (nvDisplayDataPtr)(display_entry->data);
-
-            /* Set the server checkbox */
-            g_signal_handlers_block_by_func
-                (G_OBJECT(display_data->server_checkbox),
-                 G_CALLBACK(toggle_server),
-                 (gpointer) display_entry);
-            
-            gtk_toggle_button_set_active
-                (GTK_TOGGLE_BUTTON(display_data->server_checkbox), 1);
-            
-            g_signal_handlers_unblock_by_func
-                (G_OBJECT(display_data->server_checkbox),
-                 G_CALLBACK(toggle_server),
-                 (gpointer) display_entry);
-            
-            gpu_entry->tree->server_entry = display_entry;
-        }
-        
-        gpu_data->server_mask = event->value;
-
-        /* See if anything was disabled */
-        ctk_framelock->framelock_enabled =
-            any_gpu_enabled(gpu_entry->tree->entries);
-
-        update_framelock_controls(gpu_entry->tree->ctk_framelock);
-        break;
-
-    case NV_CTRL_FRAMELOCK_SLAVES:
-        
-        /* Set all client devices on this GPU.  If a client is found
-         * to not match the selected server's refresh rate, unselect
-         * the server.  The user will have to reselect the server.
-         */
-        for (display_entry = gpu_entry->children; display_entry;
-             display_entry = display_entry->next_sibling) {
-            display_data =
-                (nvDisplayDataPtr)(display_entry->data);
-            
-            sensitive = 
-                GTK_WIDGET_IS_SENSITIVE(display_data->client_checkbox);
-            checked = ((display_data->device_mask) & event->value);
-            
-            /* Update the display list entry gui */
-            
-            g_signal_handlers_block_by_func
-                (G_OBJECT(display_data->client_checkbox),
-                 G_CALLBACK(toggle_client),
-                 (gpointer) display_entry);
-            
-            gtk_toggle_button_set_active
-                (GTK_TOGGLE_BUTTON(display_data->client_checkbox), checked);
-            
-            g_signal_handlers_unblock_by_func
-                (G_OBJECT(display_data->client_checkbox),
-                 G_CALLBACK(toggle_client),
-                 (gpointer) display_entry);
-            
-            /* If there is an inconsistency, unselect the server */
-
-            if (checked && !sensitive && gpu_entry->tree->server_entry) {
-                
-                nvListEntryPtr server_entry =
-                    get_display_server_entry(gpu_entry->tree);
-                nvDisplayDataPtr server_data = 
-                     (nvDisplayDataPtr)(server_entry->data);
-                
-                /* Clear the server checkbox */
-                g_signal_handlers_block_by_func
-                    (G_OBJECT(server_data->server_checkbox),
-                     G_CALLBACK(toggle_server),
-                     (gpointer) display_entry);
-                
-                gtk_toggle_button_set_active
-                    (GTK_TOGGLE_BUTTON(server_data->server_checkbox), 0);
-                
-                g_signal_handlers_unblock_by_func
-                    (G_OBJECT(server_data->server_checkbox),
-                     G_CALLBACK(toggle_server),
-                     (gpointer) display_entry);
-
-                NvCtrlSetAttribute(server_data->handle,
-                                   NV_CTRL_FRAMELOCK_MASTER, 0);
-                ((nvGPUDataPtr)(server_entry->parent->data))->server_mask = 0;
-                gpu_entry->tree->server_entry = NULL;
-            }
-        }
-
-        /* Save the client state */
-        gpu_data->clients_mask = event->value;
-
-        /* See if anything was disabled */
-        ctk_framelock->framelock_enabled =
-            any_gpu_enabled(gpu_entry->tree->entries);
-
-        update_framelock_controls(gpu_entry->tree->ctk_framelock);
-        break;
-        
 
     case NV_CTRL_FRAMELOCK_SYNC:
         /* Cache the enable/disable state of the gpu sync */
         gpu_data->enabled = event->value;
-        
+
         /* Look to see if any gpu is enabled/disabled */
         ctk_framelock->framelock_enabled =
-            any_gpu_enabled(gpu_entry->tree->entries);
+            any_gpu_enabled(tree->entries);
 
         g_signal_handlers_block_by_func
             (G_OBJECT(ctk_framelock->sync_state_button),
@@ -4219,9 +4352,8 @@ static void gpu_state_received(GtkObject *object,
              G_CALLBACK(toggle_sync_enable),
              (gpointer) ctk_framelock);
 
-        update_framelock_controls(gpu_entry->tree->ctk_framelock);
+        update_framelock_controls(ctk_framelock);
         break;
-
 
     case NV_CTRL_FRAMELOCK_TEST_SIGNAL:
         switch (event->value) {
@@ -4248,11 +4380,11 @@ static void gpu_state_received(GtkObject *object,
             (G_OBJECT(ctk_framelock->test_link_button),
              G_CALLBACK(toggle_test_link),
              (gpointer) ctk_framelock);
-        
+
         gtk_toggle_button_set_active
             (GTK_TOGGLE_BUTTON(ctk_framelock->test_link_button),
              ctk_framelock->test_link_enabled);
-    
+
         g_signal_handlers_unblock_by_func
             (G_OBJECT(ctk_framelock->test_link_button),
              G_CALLBACK(toggle_test_link),
@@ -4264,39 +4396,11 @@ static void gpu_state_received(GtkObject *object,
                                       "Test link complete."));
         break;
 
-
-    case NV_CTRL_REFRESH_RATE:
-        rateMultiplier = 10;
-        precision = 2;
-        /* fallthrough */
-    case NV_CTRL_REFRESH_RATE_3:
-        /* Update the display device's refresh rate */
-        display_entry = get_display_on_gpu(gpu_entry, event->display_mask);
-        if (display_entry && display_entry->data) {
-            display_data =
-                (nvDisplayDataPtr)(display_entry->data);
-
-            update_display_rate_txt(display_data,
-                                    event->value * rateMultiplier,
-                                    precision);
-        }
-
-        /* Make sure the framelock controls are in a consistent state */
-        update_framelock_controls(ctk_framelock);
-        break;
-
-
-    case NV_CTRL_FRAMELOCK_SLAVEABLE:
-        /* Update slaveable relationships in the GUI */
-        update_framelock_controls(ctk_framelock);
-        break;
-
-
     default:
         /* Oops */
         break;
     }
-    
+
 } /* gpu_state_received() */
 
 
@@ -5088,235 +5192,200 @@ static void remove_devices_response(GtkWidget *button, gint response,
 
 
 
+/** add_display_device() *********************************************
+ *
+ * Adds an display device to the give GPU entry.
+ *
+ */
+static gboolean add_display_device(CtkFramelock *ctk_framelock,
+                                   nvListEntryPtr gpu_entry,
+                                   int display_id)
+{
+    nvGPUDataPtr gpu_data = (nvGPUDataPtr)(gpu_entry->data);
+    nvDisplayDataPtr display_data = NULL;
+    nvListEntryPtr entry = NULL;
+    nvListTreePtr tree = (nvListTreePtr)(ctk_framelock->tree);
+
+    ReturnStatus ret;
+    int val;
+    int rate;
+    int precision;
+    gboolean hdmi3D;
+    int i;
+
+
+    display_data = (nvDisplayDataPtr) calloc(1, sizeof(nvDisplayDataRec));
+    if (!display_data) {
+        goto fail;
+    }
+
+    display_data->handle =
+        NvCtrlAttributeInit(NvCtrlGetDisplayPtr(gpu_data->handle),
+                            NV_CTRL_TARGET_TYPE_DISPLAY,
+                            display_id,
+                            NV_CTRL_ATTRIBUTES_NV_CONTROL_SUBSYSTEM);
+    if (!display_data->handle) {
+        goto fail;
+    }
+
+
+    /* Create, pack and link the display device UI widgets */
+
+    display_data->label           = gtk_label_new("");
+
+    display_data->server_label    = gtk_label_new("Server");
+    display_data->server_checkbox = gtk_check_button_new();
+    ctk_config_set_tooltip(ctk_framelock->ctk_config,
+                           display_data->server_checkbox,
+                           __server_checkbox_help);
+
+    display_data->client_label    = gtk_label_new("Client");
+    display_data->client_checkbox = gtk_check_button_new();
+    ctk_config_set_tooltip(ctk_framelock->ctk_config,
+                           display_data->client_checkbox,
+                           __client_checkbox_help);
+
+    display_data->rate_label      = gtk_label_new("Refresh:");
+    display_data->rate_text       = gtk_label_new("");
+
+    display_data->stereo_label    = gtk_label_new("Stereo");
+    display_data->stereo_hbox     = gtk_hbox_new(FALSE, 0);
+
+    entry = list_entry_new_with_display(display_data, tree);
+    if (!entry) {
+        goto fail;
+    }
+
+    list_entry_add_child(gpu_entry, entry);
+
+
+    /* Query current configuration */
+
+    /* Name */
+    update_entry_label(ctk_framelock, entry);
+
+    /* Refresh rate */
+    ret = NvCtrlGetAttribute(display_data->handle, NV_CTRL_REFRESH_RATE_3,
+                             &rate);
+    if (ret != NvCtrlSuccess) {
+        ret = NvCtrlGetAttribute(display_data->handle, NV_CTRL_REFRESH_RATE,
+                                 &rate);
+        if (ret != NvCtrlSuccess) {
+            rate = 0;
+            precision = 0;
+        } else {
+            rate = rate * 10;
+            precision = 2;
+        }
+    } else {
+        precision = 3;
+    }
+    update_display_rate_txt(display_data, rate, precision);
+
+    /* HDMI 3D */
+    ret = NvCtrlGetDisplayAttribute(display_data->handle,
+                                    display_data->device_mask,
+                                    NV_CTRL_DPY_HDMI_3D, &hdmi3D);
+    display_data->hdmi3D = hdmi3D;
+
+    /* Configuration */
+    ret = NvCtrlGetAttribute(display_data->handle,
+                             NV_CTRL_FRAMELOCK_DISPLAY_CONFIG,
+                             &val);
+    if (ret != NvCtrlSuccess) {
+        val = NV_CTRL_FRAMELOCK_DISPLAY_CONFIG_DISABLED;
+    }
+
+    if (val == NV_CTRL_FRAMELOCK_DISPLAY_CONFIG_SERVER) {
+        tree->server_entry = entry;
+    }
+
+    update_display_config(entry, val);
+
+
+    /* Update status (LEDs) based on current state */
+
+    list_entry_update_status(ctk_framelock, entry);
+
+
+    /* Listen to events */
+
+    for (i = 0; i < ARRAY_LEN(__DisplaySignals); i++) {
+        g_signal_connect(G_OBJECT(entry->ctk_event),
+                         __DisplaySignals[i],
+                         G_CALLBACK(display_state_received),
+                         (gpointer) entry);
+    }
+
+    g_signal_connect(G_OBJECT(display_data->server_checkbox),
+                     "toggled",
+                     G_CALLBACK(toggle_server),
+                     (gpointer) entry);
+
+    g_signal_connect(G_OBJECT(display_data->client_checkbox),
+                     "toggled",
+                     G_CALLBACK(toggle_client),
+                     (gpointer) entry);
+    return TRUE;
+
+ fail:
+    if (entry) {
+        list_entry_free(entry);
+    } else if (display_data) {
+        display_data_free(display_data);
+    }
+    return FALSE;
+}
+
+
+
 /** add_display_devices() ********************************************
  *
  * Adds (as children list entries) all enabled display devices that
- * are bound to the given GPU List Entry.
+ * are bound to the given GPU entry.
  *
  */
 static void add_display_devices(CtkFramelock *ctk_framelock,
                                 nvListEntryPtr gpu_entry)
 {
-    nvDisplayDataPtr  display_data = NULL;
-
-    nvGPUDataPtr      gpu_data;
-    nvListEntryPtr    entry;
-    ReturnStatus      ret;
-
-    unsigned int enabled_displays;
-    unsigned int display_mask;
-
-    unsigned int master_mask;
-    unsigned int slaves_mask;
-
-    nvListEntryPtr   server_entry = NULL;
-
+    nvGPUDataPtr gpu_data;
+    ReturnStatus ret;
+    int *pData;
 
     if (!gpu_entry || gpu_entry->data_type != ENTRY_DATA_GPU) {
-        goto fail;
+        return;
     }
-
-    server_entry =
-        get_display_server_entry((nvListTreePtr)(ctk_framelock->tree));
 
     gpu_data = (nvGPUDataPtr)(gpu_entry->data);
+    ret =
+        NvCtrlGetBinaryAttribute(gpu_data->handle, 0,
+                                 NV_CTRL_BINARY_DATA_DISPLAYS_CONNECTED_TO_GPU,
+                                 (unsigned char **)(&pData),
+                                 NULL);
+    if (ret == NvCtrlSuccess) {
+        int i;
 
-    /* Query list of devices on this GPU. */
-    ret = NvCtrlGetAttribute(gpu_data->handle,
-                             NV_CTRL_ENABLED_DISPLAYS,
-                             (int *)&enabled_displays);
-    if (ret != NvCtrlSuccess || !enabled_displays) {
-        goto fail;
-    }
+        for (i = 0; i < pData[0]; i++) {
+            int display_id = pData[1+i];
+            Bool valid;
+            int enabled;
 
-    /* Query master device */
-    ret = NvCtrlGetAttribute(gpu_data->handle,
-                             NV_CTRL_FRAMELOCK_MASTER,
-                             (int *)&master_mask);
-    if (ret != NvCtrlSuccess) {
-        goto fail;
-    }
-
-    /* Query slave devices */
-    ret = NvCtrlGetAttribute(gpu_data->handle,
-                             NV_CTRL_FRAMELOCK_SLAVES,
-                             (int *)&slaves_mask);
-    if (ret != NvCtrlSuccess) {
-        goto fail;
-    }
-    
-    /* If the tree already has a master and this display is also set
-     * as master, unset this entry and make it a slave. */
-    if (server_entry && master_mask) {
-
-        /* Ensure FrameLock sync is disabled before setting server/clients */
-        NvCtrlSetAttribute(gpu_data->handle, NV_CTRL_FRAMELOCK_SYNC,
-                           NV_CTRL_FRAMELOCK_SYNC_DISABLE);
-        gpu_data->enabled = FALSE;
-
-        ret = NvCtrlSetAttribute(gpu_data->handle,
-                                 NV_CTRL_FRAMELOCK_MASTER, 0);
-        if (ret != NvCtrlSuccess) {
-            goto fail;
+            /* Only add enabled display devices */
+            valid =
+                XNVCTRLQueryTargetAttribute(NvCtrlGetDisplayPtr(gpu_data->handle),
+                                            NV_CTRL_TARGET_TYPE_DISPLAY,
+                                            display_id,
+                                            0,
+                                            NV_CTRL_DISPLAY_ENABLED,
+                                            &enabled);
+            if (valid && enabled) {
+                add_display_device(ctk_framelock, gpu_entry, display_id);
+            }
         }
-        slaves_mask |= master_mask;
-        master_mask = 0;
-        ret = NvCtrlSetAttribute(gpu_data->handle,
-                                 NV_CTRL_FRAMELOCK_SLAVES, slaves_mask);
-        if (ret != NvCtrlSuccess) {
-            goto fail;
-        }
+        XFree(pData);
     }
-
-    /* Cache the server/clients masks */
-    gpu_data->server_mask = master_mask;
-    gpu_data->clients_mask = slaves_mask;
-
-
-    /* Add all enabled displays found on the GPU */
-    display_mask = 1;
-    while (display_mask) {
-        int rate;
-        int precision;
-        gboolean hdmi3D;
-
-        if (display_mask & enabled_displays) {
-
-            /* Create the display structure */
-            display_data =
-                (nvDisplayDataPtr) calloc(1, sizeof(nvDisplayDataRec));
-            if (!display_data) {
-                goto fail;
-            }
-
-            /* Setup the display information */
-            display_data->handle      = gpu_data->handle;
-            display_data->device_mask = display_mask;
-
-            ret = NvCtrlGetDisplayAttribute(gpu_data->handle,
-                                            display_mask,
-                                            NV_CTRL_FRAMELOCK_MASTERABLE,
-                                            &(display_data->masterable));
-            if (ret != NvCtrlSuccess) {
-                goto fail;
-            }
-
-            display_data->label           = gtk_label_new("");
-
-            display_data->server_label    = gtk_label_new("Server");
-            display_data->server_checkbox = gtk_check_button_new();
-            ctk_config_set_tooltip(ctk_framelock->ctk_config,
-                                   display_data->server_checkbox,
-                                   __server_checkbox_help);
-
-            display_data->client_label    = gtk_label_new("Client");
-            display_data->client_checkbox = gtk_check_button_new();
-            ctk_config_set_tooltip(ctk_framelock->ctk_config,
-                                   display_data->client_checkbox,
-                                   __client_checkbox_help);
-
-
-            display_data->rate_label      = gtk_label_new("Refresh:");
-            display_data->rate_text       = gtk_label_new("");
-
-            display_data->stereo_label    = gtk_label_new("Stereo");
-            display_data->stereo_hbox     = gtk_hbox_new(FALSE, 0);
-
-            /* Create the display entry */
-            entry = list_entry_new_with_display(display_data);
-
-            update_entry_label(ctk_framelock, entry);
-            list_entry_update_status(ctk_framelock, entry);
-
-            /* Add display to GPU entry */
-            list_entry_add_child(gpu_entry, entry);
-
-            /* Determine if display is HDMI 3D */
-            ret = NvCtrlGetDisplayAttribute(display_data->handle,
-                                            display_data->device_mask,
-                                            NV_CTRL_DPY_HDMI_3D, &hdmi3D);
-
-            display_data->hdmi3D = hdmi3D;
-
-            /* Refresh Rate */
-            ret = NvCtrlGetDisplayAttribute(display_data->handle,
-                                            display_data->device_mask,
-                                            NV_CTRL_REFRESH_RATE_3, &rate);
-            if (ret != NvCtrlSuccess) {
-                ret = NvCtrlGetDisplayAttribute(display_data->handle,
-                                                display_data->device_mask,
-                                                NV_CTRL_REFRESH_RATE, &rate);
-                if (ret != NvCtrlSuccess) {
-                    rate = 0;
-                    precision = 0;
-                } else {
-                    rate = rate * 10;
-                    precision = 2;
-                }
-            } else {
-                precision = 3;
-            }
-            update_display_rate_txt(display_data, rate, precision);
-
-            /* Setup state */
-            if (!display_data->masterable) {
-                gtk_widget_set_sensitive(display_data->server_label, FALSE);
-                gtk_widget_set_sensitive(display_data->server_checkbox, FALSE);
-
-            } else if (master_mask & display_mask) {
-                
-                /* If this entry is the new master, make the tree point
-                 * point to it so other displays that may have the master
-                 * mask aren't added as masters too by mistake.
-                 *
-                 * NOTE: At this point the entry will not actually
-                 *       be in the tree.  This gets resolved since
-                 *       by adding this display device the parent
-                 *       GPU and frame lock devices will also be
-                 *       added.  If this changes (display device
-                 *       gets added but for some reason the GPU/
-                 *       frame lock device get thrown out), then
-                 *       more code will be required to make sure
-                 *       the tree->selected_entry is set to NULL
-                 *       (if it was NULL before.)
-                 */
-                ((nvListTreePtr)(ctk_framelock->tree))->server_entry =
-                    entry;
-                gtk_toggle_button_set_active
-                    (GTK_TOGGLE_BUTTON(display_data->server_checkbox), TRUE);
-                gtk_widget_set_sensitive(display_data->client_label, FALSE);
-                gtk_widget_set_sensitive(display_data->client_checkbox, FALSE);
-            }
-
-            /* Set display device as slave */
-            if (slaves_mask & display_mask) {
-                gtk_toggle_button_set_active
-                    (GTK_TOGGLE_BUTTON(display_data->client_checkbox), TRUE);
-                gtk_widget_set_sensitive(display_data->server_label, FALSE);
-                gtk_widget_set_sensitive(display_data->server_checkbox, FALSE);
-            }
-            
-            /* Connect signals */
-            g_signal_connect(G_OBJECT(display_data->server_checkbox),
-                             "toggled",
-                             G_CALLBACK(toggle_server),
-                             (gpointer) entry);
-            
-            g_signal_connect(G_OBJECT(display_data->client_checkbox),
-                             "toggled",
-                             G_CALLBACK(toggle_client),
-                             (gpointer) entry);
-        }
-        display_mask <<= 1;
-    }
-
-    return;
-
-
-    /* Handle failures */
- fail:
-    display_data_free(display_data);
 }
+
 
 
 
@@ -5381,8 +5450,9 @@ static void add_gpu_devices(CtkFramelock *ctk_framelock,
         gpu_data->timing_hbox = gtk_hbox_new(FALSE, 0);
 
         /* Create the GPU list entry */
-        entry = list_entry_new_with_gpu(gpu_data);
-        
+        entry = list_entry_new_with_gpu(gpu_data,
+                                        (nvListTreePtr)(ctk_framelock->tree));
+
         update_entry_label(ctk_framelock, entry);
         list_entry_update_status(ctk_framelock, entry);
 
@@ -5527,7 +5597,8 @@ static void add_framelock_devices(CtkFramelock *ctk_framelock,
         framelock_data->server_id = server_id;
 
         /* Create the frame lock list entry */
-        entry = list_entry_new_with_framelock(framelock_data);
+        entry = list_entry_new_with_framelock(framelock_data,
+                                              (nvListTreePtr)(ctk_framelock->tree));
 
         update_entry_label(ctk_framelock, entry);
         list_entry_update_status(ctk_framelock, entry);
@@ -5711,13 +5782,13 @@ static void add_devices(CtkFramelock *ctk_framelock,
  * to the parsed attribute list.
  *
  */
-#define __ADD_ATTR(x,y,z)                               \
+#define __ADD_ATTR(ATTR,VAL)                            \
         a.display              = display_name;          \
         a.target_type          = target_type;           \
         a.target_id            = target_id;             \
-        a.attr                 = (x);                   \
-        a.val.i                = (y);                   \
-        a.display_device_mask  = (z);                   \
+        a.attr                 = (ATTR);                \
+        a.val.i                = (VAL);                 \
+        a.display_device_mask  = 0;                     \
         a.flags               |= NV_PARSER_HAS_TARGET;  \
         nv_parsed_attribute_add(head, &a);
 
@@ -5744,18 +5815,18 @@ static void add_entry_to_parsed_attributes(nvListEntryPtr entry,
             display_name = NvCtrlGetDisplayName(data->handle);
             target_type = NV_CTRL_TARGET_TYPE_FRAMELOCK;
             target_id = NvCtrlGetTargetId(data->handle);
-            
+
             NvCtrlGetAttribute(data->handle, NV_CTRL_USE_HOUSE_SYNC,
                                &use_house_sync);
 
-            __ADD_ATTR(NV_CTRL_USE_HOUSE_SYNC, use_house_sync, 0);
+            __ADD_ATTR(NV_CTRL_USE_HOUSE_SYNC, use_house_sync);
 
             /* If use house sync is enabled, also save other house sync info */
             if (use_house_sync) {
                 int sync_interval;
                 int sync_edge;
                 int video_mode;
-                
+
                 NvCtrlGetAttribute(data->handle,
                                    NV_CTRL_FRAMELOCK_SYNC_INTERVAL,
                                    &sync_interval);
@@ -5766,35 +5837,40 @@ static void add_entry_to_parsed_attributes(nvListEntryPtr entry,
                                    NV_CTRL_FRAMELOCK_VIDEO_MODE,
                                    &video_mode);
 
-                __ADD_ATTR(NV_CTRL_FRAMELOCK_SYNC_INTERVAL, sync_interval, 0);
-                __ADD_ATTR(NV_CTRL_FRAMELOCK_POLARITY, sync_edge, 0);
-                __ADD_ATTR(NV_CTRL_FRAMELOCK_VIDEO_MODE, video_mode, 0);
+                __ADD_ATTR(NV_CTRL_FRAMELOCK_SYNC_INTERVAL, sync_interval);
+                __ADD_ATTR(NV_CTRL_FRAMELOCK_POLARITY, sync_edge);
+                __ADD_ATTR(NV_CTRL_FRAMELOCK_VIDEO_MODE, video_mode);
             }
 
             if (display_name) {
                 free(display_name);
             }
-        } 
+        }
         break;
 
     case ENTRY_DATA_GPU:
-        {
-            nvGPUDataPtr data = (nvGPUDataPtr)(entry->data);
-            display_name = NvCtrlGetDisplayName(data->handle);
-            target_type = NV_CTRL_TARGET_TYPE_GPU;
-            target_id = NvCtrlGetTargetId(data->handle);
-
-            __ADD_ATTR(NV_CTRL_FRAMELOCK_MASTER, data->server_mask, 0);
-            __ADD_ATTR(NV_CTRL_FRAMELOCK_SLAVES, data->clients_mask, 0);
-
-            if (display_name) {
-                free(display_name);
-            }
-        }   
+        /* Nothing to save for GPU targets */
         break;
 
     case ENTRY_DATA_DISPLAY:
-        /* Nothing to save */
+        {
+        nvDisplayDataPtr data = (nvDisplayDataPtr)(entry->data);
+        int config;
+        ReturnStatus ret;
+
+        display_name = NvCtrlGetDisplayName(data->handle);
+
+        ret = NvCtrlGetAttribute(data->handle,
+                                 NV_CTRL_FRAMELOCK_DISPLAY_CONFIG,
+                                 &config);
+        if (ret != NvCtrlSuccess) {
+            config = NV_CTRL_FRAMELOCK_DISPLAY_CONFIG_DISABLED;
+        }
+        target_type = NV_CTRL_TARGET_TYPE_DISPLAY;
+        target_id = NvCtrlGetTargetId(data->handle);
+
+        __ADD_ATTR(NV_CTRL_FRAMELOCK_DISPLAY_CONFIG, config);
+        }
         break;
 
     default:
@@ -5816,17 +5892,13 @@ static void add_entry_to_parsed_attributes(nvListEntryPtr entry,
 static void add_entries_to_parsed_attributes(nvListEntryPtr entry,
                                              ParsedAttribute *head)
 {
-    if (!entry) return;
-
-    /* Add GPU entries to parsed attributes list */
-    if (entry->data_type == ENTRY_DATA_GPU) {
-        add_entry_to_parsed_attributes(entry, head);
+    if (!entry) {
+        return;
     }
-    
-    /* add children */
-    add_entries_to_parsed_attributes(entry->children, head);
 
-    /* add siblings */
+    add_entry_to_parsed_attributes(entry, head);
+
+    add_entries_to_parsed_attributes(entry->children, head);
     add_entries_to_parsed_attributes(entry->next_sibling, head);
 }
 
@@ -5837,8 +5909,9 @@ static void add_entries_to_parsed_attributes(nvListEntryPtr entry,
  * Add to the ParsedAttribute list any attributes that we want saved
  * in the config file.
  *
- * This includes all the clients/server bitmasks for all GPUs and
- * the house sync settings of the selected master frame lock device.
+ * This includes all the clients/server display configurations for all
+ * GPUs and the house sync settings of the selected master frame lock
+ * device.
  *
  */
 void ctk_framelock_config_file_attributes(GtkWidget *w,

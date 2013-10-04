@@ -54,7 +54,7 @@ G_BEGIN_DECLS
 
 
 /* Maximums */
-#define MAX_DEVICES 8  /* Max number of GPUs */
+#define MAX_DEVICES 64  /* Max number of GPUs */
 
 
 /* XF86VIDMODE */
@@ -271,7 +271,10 @@ typedef struct nvMetaModeRec {
     // Used for applying and generating metamodes (effective dimensions)
     GdkRectangle edim; /* Bounding box of all non-NULL modes */
 
-    char *string; /* Temp string used for modifying the metamode list */
+    /* Used to apply the metamode to the running X server */
+    char *cpl_str; /* metamode string from CPL */
+    char *x_str;   /* parsed CPL string from X */
+    char *x_str_entry; /* Points to string in metamode strings buffer */
 
 } nvMetaMode, *nvMetaModePtr;
 
@@ -311,6 +314,8 @@ typedef struct nvScreenRec {
     int depth;      /* Depth of the screen */
     int stereo;     /* Stereo mode enabled on this screen */
     int overlay;    /* Overlay enabled on this screen */
+    int hw_overlay;
+    int ubb;
 
     nvDisplayPtr displays; /* List of displays using this screen */
     int num_displays; /* # of displays using this screen */
@@ -331,7 +336,6 @@ typedef struct nvScreenRec {
     Bool sli;
     char *sli_mode;
     char *multigpu_mode;
-    Bool dynamic_twinview;  /* This screen supports dynamic twinview */
     Bool no_scanout;        /* This screen has no display devices */
     Bool stereo_supported;  /* Can stereo be configured on this screen */
 

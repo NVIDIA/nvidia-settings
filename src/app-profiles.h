@@ -122,8 +122,12 @@ typedef struct AppProfileConfigRec {
  * backup indicates whether this should also make backups of the original files
  * before saving.
  * Returns 0 if successful, or a negative integer if an error was encountered.
+ * If error_str is non-NULL, *error_str is set to NULL on success, or a
+ * dynamically-allocated string if an error occurred.
  */
-int nv_app_profile_config_save_updates(AppProfileConfig *config, json_t *updates, int backup);
+int nv_app_profile_config_save_updates(AppProfileConfig *config,
+                                       json_t *updates, int backup,
+                                       char **error_str);
 
 /*
  * Load an application profile configuration from disk, using a list of files specified by search_path.

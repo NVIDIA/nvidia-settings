@@ -78,7 +78,7 @@
  * XNVCTRLSetScanoutWarping
  *
  * xDpy:         valid X display connection
- * screenId:     X protocol screen number; typically 0 in "TwinView" or "Mosaic"
+ * screenId:     X protocol screen number
  * nvDpyId:      NV-CONTROL display target index; can be enumerated with the
  *               NV_CTRL_BINARY_DATA_DISPLAYS_ENABLED_ON_XSCREEN request.
  * warpDatatype: NV_CTRL_WARP_DATA_TYPE_MESH_TRIANGLESTRIP_XYUVRQ or
@@ -107,7 +107,7 @@ XNVCTRLSetScanoutWarping(
  * XNVCTRLSetScanout[Intensity/Offset]
  *
  * xDpy:     valid X display connection
- * screenId: X protocol screen number; typically 0 in "TwinView" or "Mosaic"
+ * screenId: X protocol screen number
  * nvDpyId:  NV-CONTROL display target index; can be enumerated with the
  *           NV_CTRL_BINARY_DATA_DISPLAYS_ENABLED_ON_XSCREEN request.
  * pixmap:   XID naming a valid Pixmap to be used as Intensity/Offset data.

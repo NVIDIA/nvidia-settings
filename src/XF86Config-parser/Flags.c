@@ -59,6 +59,7 @@
 #include "xf86tokens.h"
 #include "Configint.h"
 #include <math.h>
+#include "common-utils.h"
 
 extern LexRec val;
 
@@ -503,4 +504,88 @@ xconfigPrintOptionList(FILE *fp, XConfigOptionPtr list, int tabs)
             fputc('\n', fp);
         list = list->next;
     }
+}
+
+/*
+ * Determines if the Composite extension should be disabled or not.
+ *
+ * - If the extension can be enabled, this function returns NULL.
+ *
+ * - If the extension should be disabled, this function returns a
+ *   string that lists the conflicting options that are enabled.
+ */
+
+const char *xconfigValidateComposite(XConfigPtr config,
+                                     GenerateOptions *gop,
+                                     int composite_specified,
+                                     int xinerama_enabled,
+                                     int depth,
+                                     int overlay_enabled,
+                                     int cioverlay_enabled,
+                                     int ubb_enabled,
+                                     int stereo_enabled)
+{
+    int i, n, disable_composite;
+    static char err_str[256];
+    int size = 256;
+    char *s;
+
+    const struct {
+        const char *name;
+        int value;
+
+    } composite_incompatible_options[] = {
+        { "Xinerama", xinerama_enabled },
+        { "Overlay",  overlay_enabled },
+        { "CIOverlay", cioverlay_enabled },
+        { "UBB", ubb_enabled },
+        { "Stereo", stereo_enabled },
+    };
+
+    /*
+     * We need to be careful to only set the option value if the X
+     * server is going to recognize the Extension section and the
+     * composite option.  We guess whether the server will recognize
+     * the option: if get_xserver_in_use() thinks the X server
+     * supports the "Composite" extension, or the current config
+     * already has an extension section, or the user specified the
+     * composite option.
+     */
+    if (!gop->supports_extension_section &&
+        !config->extensions &&
+        !composite_specified) {
+        /* Composite can't be set in X config, so bail */
+        return NULL;
+    }
+
+    disable_composite = FALSE;
+    s = err_str;
+    n = 0;
+    err_str[0] = '\0';
+
+    for (i = 0; i < ARRAY_LEN(composite_incompatible_options); i++) {
+        int value = composite_incompatible_options[i].value;
+        const char *name = composite_incompatible_options[i].name;
+        int wrote;
+
+        if (value) {
+            disable_composite = TRUE;
+            n++;
+
+            wrote = snprintf(s, size, "%s%s", (n > 1) ? " or " : "", name);
+            if (wrote <= 0) {
+                break;
+            }
+            size -= wrote;
+            s += wrote;
+        }
+    }
+
+    /* Special case checking for depth 8 */
+
+    if (depth <= 8) {
+        snprintf(s, size, "%sdepth=8", (n > 1) ? " or " : "");
+    }
+
+    return disable_composite ? err_str : NULL;
 }

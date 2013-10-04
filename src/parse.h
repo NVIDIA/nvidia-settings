@@ -54,6 +54,7 @@
 #define NV_PARSER_TYPE_1000Hz                  (1<<28)
 #define NV_PARSER_TYPE_SDI                     (1<<29)
 #define NV_PARSER_TYPE_SDI_CSC                 (1<<30)
+#define NV_PARSER_TYPE_VALUE_IS_DISPLAY_ID     (1<<31)
 
 #define NV_PARSER_ASSIGNMENT 0
 #define NV_PARSER_QUERY 1
@@ -328,9 +329,8 @@ char *replace_characters(const char *o, const char c, const char r);
 
 
 char *display_device_mask_to_display_device_name(const uint32);
-uint32 display_device_name_to_display_device_mask(const char *);
 
-uint32 expand_display_device_mask_wildcards(const uint32, const uint32);
+uint32 expand_display_device_mask_wildcards(const uint32);
 
 ParsedAttribute *nv_parsed_attribute_init(void);
 

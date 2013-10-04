@@ -40,8 +40,11 @@
 extern int __verbosity;
 extern int __terse;
 extern int __display_device_string;
+extern int __list_targets;
 
 /* local prototypes */
+
+#define PRODUCT_NAME_LEN 64
 
 static int process_attribute_queries(int, char**, const char *,
                                      CtrlHandlesArray *);
@@ -252,7 +255,7 @@ static CtrlHandleTarget *nv_get_target(const CtrlHandles *handles,
     const CtrlHandleTargets *targets;
     int i;
 
-    if (target_type < 0 || target_type >= MAX_TARGET_TYPES) {
+    if (!handles || target_type < 0 || target_type >= MAX_TARGET_TYPES) {
         return NULL;
     }
 
@@ -265,6 +268,34 @@ static CtrlHandleTarget *nv_get_target(const CtrlHandles *handles,
     }
 
     return NULL;
+}
+
+
+/*!
+ * Returns the RandR name of the matching display target from the given
+ * target ID and the list of target handles.
+ *
+ * \param[in]  handles      Container for all the CtrlHandleTargets to search.
+ * \param[in]  target_id    The target id of the display CtrlHandleTarget to
+ *                          search.
+ *
+ * \return  Returns the NV_DPY_PROTO_NAME_RANDR name string  from the matching
+ *          (display) CtrlHandleTarget from CtrlHandles on success; else,
+ *          returns NULL.
+ *
+ */
+const char *nv_get_display_target_config_name(const CtrlHandles *handles,
+                                              int target_id)
+{
+    CtrlHandleTarget *t = nv_get_target(handles,
+                                        NV_CTRL_TARGET_TYPE_DISPLAY,
+                                        target_id);
+
+    if (!t) {
+        return NULL;
+    }
+
+    return t->protoNames[NV_DPY_PROTO_NAME_RANDR];
 }
 
 
@@ -862,6 +893,126 @@ static int nv_infer_targets_from_specification(ParsedAttribute *a,
 }
 
 
+/*
+ * nv_init_target() - Given the Display pointer, create an attribute
+ * handle and initialize the handle target.
+ */
+
+static void nv_init_target(Display *dpy, CtrlHandleTarget *t,
+                               int target, int targetId)
+{
+    NvCtrlAttributeHandle *handle;
+    ReturnStatus status;
+    char *tmp;
+    int len, d, c;
+
+    /* allocate the handle */
+
+    handle = NvCtrlAttributeInit(dpy,
+                                 targetTypeTable[target].nvctrl, targetId,
+                                 NV_CTRL_ATTRIBUTES_ALL_SUBSYSTEMS);
+
+    t->h = handle;
+
+    /*
+     * silently fail: this might happen if not all X screens
+     * are NVIDIA X screens
+     */
+
+    if (!handle) {
+        return;
+    }
+
+    /*
+     * get a name for this target; in the case of
+     * X_SCREEN_TARGET targets, just use the string returned
+     * from NvCtrlGetDisplayName(); for other target types,
+     * append a target specification.
+     */
+
+    tmp = NvCtrlGetDisplayName(t->h);
+
+    if (target == X_SCREEN_TARGET) {
+        t->name = tmp;
+    } else {
+        len = strlen(tmp) + strlen(targetTypeTable[target].parsed_name) + 16;
+        t->name = nvalloc(len);
+
+        if (t->name) {
+            snprintf(t->name, len, "%s[%s:%d]",
+                     tmp, targetTypeTable[target].parsed_name, targetId);
+            free(tmp);
+        } else {
+            t->name = tmp;
+        }
+    }
+
+    load_target_proto_names(t);
+    t->relations = nv_target_list_init();
+
+    /*
+     * get the enabled display device mask; for X screens and
+     * GPUs we query NV-CONTROL; for anything else
+     * (framelock), we just assign this to 0.
+     */
+
+    if (targetTypeTable[target].uses_display_devices) {
+
+        status = NvCtrlGetAttribute(t->h,
+                                    NV_CTRL_ENABLED_DISPLAYS, &d);
+
+        if (status != NvCtrlSuccess) {
+            nv_error_msg("Error querying enabled displays on "
+                         "%s %d (%s).", targetTypeTable[target].name, targetId,
+                         NvCtrlAttributesStrError(status));
+            d = 0;
+        }
+
+        status = NvCtrlGetAttribute(t->h,
+                                    NV_CTRL_CONNECTED_DISPLAYS, &c);
+
+        if (status != NvCtrlSuccess) {
+            nv_error_msg("Error querying connected displays on "
+                         "%s %d (%s).", targetTypeTable[target].name, targetId,
+                         NvCtrlAttributesStrError(status));
+            c = 0;
+        }
+    } else {
+        d = 0;
+        c = 0;
+    }
+
+    t->d = d;
+    t->c = c;
+
+}
+
+
+/*
+ * nv_add_ctrl_handle_target() - add a CtrlHandleTarget to the array
+ * of Targets for the given target_index. This is used for dynamically
+ * created targets that don't exist when the CtrlHandles are initialized.
+ */
+
+NvCtrlAttributeHandle *nv_add_target(CtrlHandles *handles, Display *dpy,
+                                     int target_index, int display_id)
+{
+    CtrlHandleTargets *dt;
+    CtrlHandleTarget *t;
+
+    if (!handles) {
+        return NULL;
+    }
+
+    dt = &handles->targets[target_index];
+
+    dt->t = nvrealloc(dt->t, (dt->n+1) * sizeof(CtrlHandleTarget));
+    t = &dt->t[dt->n];
+    dt->n++;
+
+    nv_init_target(dpy, t, target_index, display_id);
+    return t->h;
+}
 
 /*
  * nv_alloc_ctrl_handles() - allocate a new CtrlHandles structure,
@@ -874,9 +1025,7 @@ CtrlHandles *nv_alloc_ctrl_handles(const char *display)
 {
     ReturnStatus status;
     CtrlHandles *h, *pQueryHandle = NULL;
-    NvCtrlAttributeHandle *handle;
-    int i, j, val, d, c, len;
-    char *tmp;
+    int i, j, val, len;
     int *pData = NULL;
 
     /* allocate the CtrlHandles struct */
@@ -1023,92 +1172,16 @@ CtrlHandles *nv_alloc_ctrl_handles(const char *display)
                 targetId = i;
             }
 
-            /* allocate the handle */
-
-            handle = NvCtrlAttributeInit(h->dpy,
-                                         targetTypeEntry->nvctrl, targetId,
-                                         NV_CTRL_ATTRIBUTES_ALL_SUBSYSTEMS);
-
-            t->h = handle;
+            nv_init_target(h->dpy, t, target, targetId);
 
             /*
-             * silently fail: this might happen if not all X screens
-             * are NVIDIA X screens
+             * store this handle, if it exists, so that we can use it to 
+             * query other target counts later
              */
 
-            if (!handle) {
-                continue;
+            if (!pQueryHandle && t->h) {
+                pQueryHandle = t->h;
             }
-
-            /*
-             * get a name for this target; in the case of
-             * X_SCREEN_TARGET targets, just use the string returned
-             * from NvCtrlGetDisplayName(); for other target types,
-             * append a target specification.
-             */
-            
-            tmp = NvCtrlGetDisplayName(handle);
-            
-            if (target == X_SCREEN_TARGET) {
-                t->name = tmp;
-            } else {
-                len = strlen(tmp) + strlen(targetTypeEntry->parsed_name) +16;
-                t->name = nvalloc(len);
-
-                if (t->name) {
-                    snprintf(t->name, len, "%s[%s:%d]",
-                             tmp, targetTypeEntry->parsed_name, targetId);
-                    free(tmp);
-                } else {
-                    t->name = tmp;
-                }
-            }
-
-            load_target_proto_names(t);
-            t->relations = nv_target_list_init();
-
-
-            /*
-             * get the enabled display device mask; for X screens and
-             * GPUs we query NV-CONTROL; for anything else
-             * (framelock), we just assign this to 0.
-             */
-
-            if (targetTypeEntry->uses_display_devices) {
-                
-                status = NvCtrlGetAttribute(handle,
-                                            NV_CTRL_ENABLED_DISPLAYS, &d);
-        
-                if (status != NvCtrlSuccess) {
-                    nv_error_msg("Error querying enabled displays on "
-                                 "%s %d (%s).", targetTypeEntry->name, i,
-                                 NvCtrlAttributesStrError(status));
-                    d = 0;
-                }
-                
-                status = NvCtrlGetAttribute(handle,
-                                            NV_CTRL_CONNECTED_DISPLAYS, &c);
-        
-                if (status != NvCtrlSuccess) {
-                    nv_error_msg("Error querying connected displays on "
-                                 "%s %d (%s).", targetTypeEntry->name, i,
-                                 NvCtrlAttributesStrError(status));
-                    c = 0;
-                }
-            } else {
-                d = 0;
-                c = 0;
-            }
-
-            t->d = d;
-            t->c = c;
-
-            /*
-             * store this handle so that we can use it to query other
-             * target counts later
-             */
-            
-            if (!pQueryHandle) pQueryHandle = handle;
         }
 
     next_target_type:
@@ -1281,19 +1354,21 @@ static void include_target_idx_targets(ParsedAttribute *a, const CtrlHandles *h,
 
 /*!
  * Queries the permissions for the given attribute.
- * \param[in]   a      The attribute to query permissions for.
+ *
  * \param[in]   h      CtrlHandles used to communicate with the X server.
+ * \param[in]   attr   The attribute to query permissions for.
+ * \param[in]   flags  The attribute flags to query permissions for.
  * \param[out]  perms  The permissions of the attribute.
  *
  * \return  Returns TRUE if the permissions were queried successfully; else,
  *          returns FALSE.
  */
-static Bool query_attribute_perms(ParsedAttribute *a, CtrlHandles *h,
-                                  NVCTRLAttributePermissionsRec *perms)
+Bool nv_get_attribute_perms(CtrlHandles *h, int attr, uint32 flags,
+                            NVCTRLAttributePermissionsRec *perms)
 {
     memset(perms, 0, sizeof(*perms));
 
-    if (a->flags & NV_PARSER_TYPE_COLOR_ATTRIBUTE) {
+    if (flags & NV_PARSER_TYPE_COLOR_ATTRIBUTE) {
         /* Allow non NV-CONTROL attributes to be read/written on X screen
          * targets
          */
@@ -1306,11 +1381,11 @@ static Bool query_attribute_perms(ParsedAttribute *a, CtrlHandles *h,
         return NV_TRUE;
     }
 
-    if (a->flags & NV_PARSER_TYPE_STRING_ATTRIBUTE) {
-        return XNVCTRLQueryStringAttributePermissions(h->dpy, a->attr, perms);
+    if (flags & NV_PARSER_TYPE_STRING_ATTRIBUTE) {
+        return XNVCTRLQueryStringAttributePermissions(h->dpy, attr, perms);
     }
 
-    return XNVCTRLQueryAttributePermissions(h->dpy, a->attr, perms);
+    return XNVCTRLQueryAttributePermissions(h->dpy, attr, perms);
 }
 
 
@@ -1321,6 +1396,10 @@ static Bool query_attribute_perms(ParsedAttribute *a, CtrlHandles *h,
  * has a target specification set, this is used to generate the list; Otherwise,
  * the target type and target id are used.  If nothing is specified, all the
  * valid targets for the attribute are included.
+ *
+ * If this is a display attribute, and a (legacy) display mask string is given,
+ * all non-display targets are further resolved into the corresponding display
+ * targets that match the names represented by the display mask string.
  *
  * \param[in/out]  a  ParsedAttribute to resolve.
  * \param[in]      h  CtrlHandles to resolve the target specification against.
@@ -1344,8 +1423,15 @@ static int resolve_attribute_targets(ParsedAttribute *a, CtrlHandles *h)
         return NV_PARSER_STATUS_BAD_ARGUMENT;
     }
 
-    a->targets = nv_target_list_init();
 
+    status = nv_get_attribute_perms(h, a->attr, a->flags, &perms);
+    if (!status) {
+        // XXX Throw other error here...?
+        return NV_PARSER_STATUS_TARGET_SPEC_NO_TARGETS;
+    }
+
+
+    a->targets = nv_target_list_init();
 
 
     /* If a target specification string was given, use that to determine the
@@ -1390,12 +1476,6 @@ static int resolve_attribute_targets(ParsedAttribute *a, CtrlHandles *h)
     /* If no target type was given, assume all the appropriate targets for the
      * attribute by querying its permissions.
      */
-    status = query_attribute_perms(a, h, &perms);
-    if (!status) {
-        // XXX Throw other error here...?
-        return NV_PARSER_STATUS_TARGET_SPEC_NO_TARGETS;
-    }
-
     for (i = 0; i < MAX_TARGET_TYPES; i++) {
         int permBit = targetTypeTable[i].permission_bit;
 
@@ -1407,8 +1487,100 @@ static int resolve_attribute_targets(ParsedAttribute *a, CtrlHandles *h)
         include_target_idx_targets(a, h, i);
     }
 
-
  done:
+
+    /* If this attribute is a display attribute, include the related display
+     * targets of the (resolved) non display targets.  If a display mask is
+     * specified via either name string or value, use that to limit the
+     * displays added, otherwise include all related display targets.
+     */
+    if (!(a->flags & NV_PARSER_TYPE_HIJACK_DISPLAY_DEVICE) &&
+        (perms.permissions & ATTRIBUTE_TYPE_DISPLAY)) {
+        CtrlHandleTargetNode *head = nv_target_list_init();
+        CtrlHandleTargetNode *n;
+
+        uint32 display_mask;
+        int bit, i;
+
+        char *name_list[32];
+        int num_names = 0;
+
+
+        /* Convert user string into display device mask */
+        if (a->flags & NV_PARSER_HAS_DISPLAY_DEVICE) {
+            display_mask =
+                expand_display_device_mask_wildcards(a->display_device_mask);
+        } else {
+            display_mask = VALID_DISPLAY_DEVICES_MASK;
+        }
+
+        /* Convert the bitmask into a list of names */
+        for (bit = 0; bit < 24; bit++) {
+            uint32 mask = (1 << bit);
+
+            if (!(mask & display_mask)) {
+                continue;
+            }
+
+            name_list[num_names] = display_device_mask_to_display_device_name(mask);
+            if (name_list[num_names]) {
+                num_names++;
+            }
+        }
+
+        /* Look at attribute's target list... */
+        for (n = a->targets; n->next; n = n->next) {
+            CtrlHandleTarget *t = n->t;
+            CtrlHandleTargetNode *n_other;
+            int target_type;
+
+            if (!t->h) {
+                continue;
+            }
+
+            target_type = NvCtrlGetTargetType(t->h);
+
+            /* Include display targets */
+            if (target_type == NV_CTRL_TARGET_TYPE_DISPLAY) {
+                /* Make sure to include display targets in final list */
+                nv_target_list_add(head, t);
+                continue;
+            }
+
+            /* Include non-display target's related display targets, if any */
+            for (n_other = t->relations;
+                 n_other->next;
+                 n_other = n_other->next) {
+                CtrlHandleTarget *t_other = n_other->t;
+
+                if (!t_other->h) {
+                    continue;
+                }
+                target_type = NvCtrlGetTargetType(t_other->h);
+                if (target_type != NV_CTRL_TARGET_TYPE_DISPLAY) {
+                    continue;
+                }
+
+                for (i = 0; i < num_names; i++) {
+                    if (nv_strcasecmp(name_list[i],
+                                      t_other->protoNames[NV_DPY_PROTO_NAME_TYPE_ID])) {
+                        nv_target_list_add(head, t_other);
+                        break;
+                    }
+                }
+            }
+        }
+
+        /* Cleanup */
+        for (i = 0; i < num_names; i++) {
+            nvfree(name_list[i]);
+        }
+
+        /* Apply the new targets list */
+        nv_target_list_free(a->targets);
+        a->targets = head;
+    }
+
     /* Make sure at least one target was resolved */
     if (ret == NV_PARSER_STATUS_SUCCESS) {
         if (!(a->flags & NV_PARSER_HAS_TARGET)) {
@@ -1885,7 +2057,8 @@ typedef enum {
     VerboseLevelVerbose,
 } VerboseLevel;
 
-static void print_queried_value(CtrlHandleTarget *t,
+static void print_queried_value(const CtrlHandles *handles,
+                                CtrlHandleTarget *t,
                                 NVCTRLAttributeValidValuesRec *v,
                                 int val,
                                 uint32 flags,
@@ -1898,7 +2071,15 @@ static void print_queried_value(CtrlHandleTarget *t,
 
     /* assign val_str */
 
-    if ((flags & NV_PARSER_TYPE_VALUE_IS_DISPLAY) &&
+    if ((flags & NV_PARSER_TYPE_VALUE_IS_DISPLAY_ID) &&
+        (__display_device_string)) {
+        const char *name = nv_get_display_target_config_name(handles, val);
+        if (name) {
+            snprintf(val_str, 64, "%s", name);
+        } else {
+            snprintf(val_str, 64, "%d", val);
+        }
+    } else if ((flags & NV_PARSER_TYPE_VALUE_IS_DISPLAY) &&
         (__display_device_string)) {
         tmp_d_str = display_device_mask_to_display_device_name(val);
         snprintf(val_str, 64, "%s", tmp_d_str);
@@ -2141,8 +2322,8 @@ static int query_all(const char *display_name, CtrlHandlesArray *handles_array)
                             goto exit_bit_loop;
                         }
 
-                        print_queried_value(t, &valid, val, a->flags, a->name,
-                                            mask, INDENT, __terse ?
+                        print_queried_value(h, t, &valid, val, a->flags,
+                                            a->name, mask, INDENT, __terse ?
                                             VerboseLevelAbbreviated :
                                             VerboseLevelVerbose);
 
@@ -2178,52 +2359,6 @@ exit_bit_loop:
 
 
 /*
- * print_target_display_connections() - Print a list of all the
- * display devices connected to the given target (GPU/X Screen)
- */
-
-static int print_target_display_connections(CtrlHandleTarget *t)
-{
-    unsigned int bit;
-    char *tmp_d_str, *name;
-    ReturnStatus status;
-    int plural;
-
-    if (t->c == 0) {
-        nv_msg("      ", "Is not connected to any display devices.");
-        nv_msg(NULL, "");
-        return NV_TRUE;
-    }
-
-    plural = (t->c & (t->c - 1)); /* Is more than one bit set? */
-
-    nv_msg("      ", "Is connected to the following display device%s:",
-           plural ? "s" : "");
-
-    for (bit = 1; bit; bit <<= 1) {
-        if (!(bit & t->c)) continue;
-        
-        status =
-            NvCtrlGetStringDisplayAttribute(t->h, bit,
-                                            NV_CTRL_STRING_DISPLAY_DEVICE_NAME,
-                                            &name);
-        if (status != NvCtrlSuccess) name = strdup("Unknown");
-        
-        tmp_d_str = display_device_mask_to_display_device_name(bit);
-        nv_msg("        ", "%s (%s: 0x%.8X)", name, tmp_d_str, bit);
-        
-        free(name);
-        free(tmp_d_str);
-    }
-    nv_msg(NULL, "");
-
-    return NV_TRUE;
-
-} /* print_target_display_connections() */
-
-
-
-/*
  * get_product_name() Returns the (GPU, X screen, display device or VCS)
  * product name of the given target.
  */
@@ -2238,8 +2373,40 @@ static char * get_product_name(NvCtrlAttributeHandle *h, int attr)
     if (status != NvCtrlSuccess) return strdup("Unknown");
 
     return product_name;
+}
 
-} /* get_product_name() */
+
+
+/*
+ * Returns the (RandR) display device name to use for printing the given
+ * display target.  If 'show_connected_state' is true, "connected" will be
+ * appended to the name.
+ */
+
+static void get_display_product_name(CtrlHandleTarget *t, char *buf, int len,
+                                     Bool show_connect_state)
+{
+    const CtrlHandleTargetNode *n;
+    const char *connected_str = "";
+
+    /* Check to see if display is connected (has a GPU relation) */
+    if (show_connect_state) {
+        for (n = t->relations;
+             n->next;
+             n = n->next) {
+            int target_type = NvCtrlGetTargetType(n->t->h);
+
+            if (target_type == NV_CTRL_TARGET_TYPE_GPU) {
+                connected_str = ") (connected";
+                break;
+            }
+        }
+    }
+
+    snprintf(buf, len, "%s%s",
+             t->protoNames[NV_DPY_PROTO_NAME_RANDR],
+             connected_str);
+}
 
 
 
@@ -2251,6 +2418,7 @@ static char * get_product_name(NvCtrlAttributeHandle *h, int attr)
 
 static int print_target_connections(CtrlHandles *h,
                                     CtrlHandleTarget *t,
+                                    const char *relation_str,
                                     unsigned int attrib,
                                     unsigned int target_index)
 {
@@ -2259,6 +2427,12 @@ static int print_target_connections(CtrlHandles *h,
     ReturnStatus status;
     char *product_name;
     char *target_name;
+    const TargetTypeEntry *targetTypeEntry;
+    Bool show_dpy_connection_state =
+        (attrib == NV_CTRL_BINARY_DATA_DISPLAYS_ASSIGNED_TO_XSCREEN) ?
+        NV_TRUE : NV_FALSE;
+
+    targetTypeEntry = &(targetTypeTable[target_index]);
 
 
     /* Query the connected targets */
@@ -2270,45 +2444,45 @@ static int print_target_connections(CtrlHandles *h,
     if (status != NvCtrlSuccess) return NV_FALSE;
 
     if (pData[0] == 0) {
-        nv_msg("      ", "Is not connected to any %s.",
-               targetTypeTable[target_index].name);
+        nv_msg("      ", "Is not %s any %s.",
+               relation_str,
+               targetTypeEntry->name);
         nv_msg(NULL, "");
 
         XFree(pData);
         return NV_TRUE;
     }
 
-    nv_msg("      ", "Is connected to the following %s%s:",
-           targetTypeTable[target_index].name,
+    nv_msg("      ", "Is %s the following %s%s:",
+           relation_str,
+           targetTypeEntry->name,
            ((pData[0] > 1) ? "s" : ""));
-
 
     /* List the connected targets */
 
     for (i = 1; i <= pData[0]; i++) {
-        
-        if (pData[i] >= 0 &&
-            pData[i] < h->targets[target_index].n) {
+        CtrlHandleTarget *target =
+            nv_get_target(h, targetTypeEntry->nvctrl, pData[i]);
 
-            target_name = h->targets[target_index].t[ pData[i] ].name;
+        if (target) {
+            target_name = target->name;
 
             switch (target_index) {
             case GPU_TARGET:
                 product_name =
-                    get_product_name(h->targets[target_index].t[ pData[i] ].h,
-                                     NV_CTRL_STRING_PRODUCT_NAME);
+                    get_product_name(target->h, NV_CTRL_STRING_PRODUCT_NAME);
                 break;
-                
+
             case VCS_TARGET:
                 product_name =
-                    get_product_name(h->targets[target_index].t[ pData[i] ].h,
+                    get_product_name(target->h,
                                      NV_CTRL_STRING_VCSC_PRODUCT_NAME);
                 break;
 
             case DISPLAY_TARGET:
-                product_name =
-                    get_product_name(h->targets[target_index].t[ pData[i] ].h,
-                                     NV_CTRL_STRING_DISPLAY_DEVICE_NAME);
+                product_name = nvalloc(PRODUCT_NAME_LEN);
+                get_display_product_name(target, product_name, PRODUCT_NAME_LEN,
+                                         show_dpy_connection_state);
                 break;
 
             case NVIDIA_3D_VISION_PRO_TRANSCEIVER_TARGET:
@@ -2328,17 +2502,17 @@ static int print_target_connections(CtrlHandles *h,
         }
 
         if (!target_name) {
-            nv_msg("        ", "[?] Unknown %s",
-                   targetTypeTable[target_index].name);
+            nv_msg("        ", "Unknown %s",
+                   targetTypeEntry->name);
 
         } else if (product_name) {
-            nv_msg("        ", "[%d] %s (%s)",
-                   pData[i], target_name, product_name);
+            nv_msg("        ", "%s (%s)",
+                   target_name, product_name);
 
         } else {
-            nv_msg("        ", "[%d] %s (%s %d)",
-                   pData[i], target_name,
-                   targetTypeTable[target_index].name,
+            nv_msg("        ", "%s (%s %d)",
+                   target_name,
+                   targetTypeEntry->name,
                    pData[i]);
         }
 
@@ -2402,7 +2576,7 @@ static int query_all_targets(const char *display_name, const int target_index,
     /* print information per target */
 
     for (i = 0; i < h->targets[target_index].n; i++) {
-        char product_name[32];
+        char product_name[PRODUCT_NAME_LEN];
         Bool is_x_name = NV_FALSE;
         char *x_name = NULL;
 
@@ -2410,21 +2584,26 @@ static int query_all_targets(const char *display_name, const int target_index,
 
         str = NULL;
         if (target_index == NVIDIA_3D_VISION_PRO_TRANSCEIVER_TARGET) {
-            snprintf(product_name, 32, "3D Vision Pro Transceiver %d", i);
+            snprintf(product_name, PRODUCT_NAME_LEN,
+                     "3D Vision Pro Transceiver %d", i);
         } else if (target_index == THERMAL_SENSOR_TARGET) {
-            snprintf(product_name, 32, "Thermal Sensor %d", i);
+            snprintf(product_name, PRODUCT_NAME_LEN,
+                     "Thermal Sensor %d", i);
         } else if (target_index == COOLER_TARGET) {
-            snprintf(product_name, 32, "Fan %d", i);
+            snprintf(product_name, PRODUCT_NAME_LEN,
+                     "Fan %d", i);
         } else if (target_index == FRAMELOCK_TARGET) {
-            snprintf(product_name, 32, "Quadro Sync %d", i);
+            snprintf(product_name, PRODUCT_NAME_LEN,
+                     "Quadro Sync %d", i);
         } else if (target_index == VCS_TARGET) {
             x_name = get_product_name(t->h, NV_CTRL_STRING_VCSC_PRODUCT_NAME);
             is_x_name = NV_TRUE;
         } else if (target_index == GVI_TARGET) {
-            snprintf(product_name, 32, "SDI Input %d", i);
+            snprintf(product_name, PRODUCT_NAME_LEN,
+                     "SDI Input %d", i);
         } else if (target_index == DISPLAY_TARGET) {
-            x_name = get_product_name(t->h, NV_CTRL_STRING_DISPLAY_DEVICE_NAME);
-            is_x_name = NV_TRUE;
+            get_display_product_name(t, product_name, PRODUCT_NAME_LEN,
+                                     NV_FALSE);
         } else {
             x_name = get_product_name(t->h, NV_CTRL_STRING_PRODUCT_NAME);
             is_x_name = NV_TRUE;
@@ -2452,59 +2631,82 @@ static int query_all_targets(const char *display_name, const int target_index,
 
         /* Print connectivity information */
         if (__verbosity >= VERBOSITY_ALL) {
-            if (targetTypeEntry->uses_display_devices) {
-                print_target_display_connections(t);
-            }
-
             switch (target_index) {
             case GPU_TARGET:
                 print_target_connections
-                    (h, t, NV_CTRL_BINARY_DATA_XSCREENS_USING_GPU,
+                    (h, t,
+                     "driving",
+                     NV_CTRL_BINARY_DATA_XSCREENS_USING_GPU,
                      X_SCREEN_TARGET);
                 print_target_connections
-                    (h, t, NV_CTRL_BINARY_DATA_FRAMELOCKS_USED_BY_GPU,
+                    (h, t,
+                     "connected to",
+                     NV_CTRL_BINARY_DATA_DISPLAYS_CONNECTED_TO_GPU,
+                     DISPLAY_TARGET);
+                print_target_connections
+                    (h, t,
+                     "connected to",
+                     NV_CTRL_BINARY_DATA_FRAMELOCKS_USED_BY_GPU,
                      FRAMELOCK_TARGET);
                 print_target_connections
-                    (h, t, NV_CTRL_BINARY_DATA_VCSCS_USED_BY_GPU,
+                    (h, t,
+                     "connected to",
+                     NV_CTRL_BINARY_DATA_VCSCS_USED_BY_GPU,
                      VCS_TARGET);
                 print_target_connections
-                    (h, t, NV_CTRL_BINARY_DATA_COOLERS_USED_BY_GPU,
+                    (h, t,
+                     "connected to",
+                     NV_CTRL_BINARY_DATA_COOLERS_USED_BY_GPU,
                      COOLER_TARGET);
                 print_target_connections
-                    (h, t, NV_CTRL_BINARY_DATA_THERMAL_SENSORS_USED_BY_GPU,
+                    (h, t,
+                     "connected to",
+                     NV_CTRL_BINARY_DATA_THERMAL_SENSORS_USED_BY_GPU,
                      THERMAL_SENSOR_TARGET);
-                print_target_connections
-                    (h, t, NV_CTRL_BINARY_DATA_DISPLAYS_CONNECTED_TO_GPU,
-                     GPU_TARGET);
                 break;
 
             case X_SCREEN_TARGET:
                 print_target_connections
-                    (h, t, NV_CTRL_BINARY_DATA_GPUS_USED_BY_XSCREEN,
+                    (h, t,
+                     "driven by",
+                     NV_CTRL_BINARY_DATA_GPUS_USED_BY_XSCREEN,
                      GPU_TARGET);
+                print_target_connections
+                    (h, t,
+                     "assigned",
+                     NV_CTRL_BINARY_DATA_DISPLAYS_ASSIGNED_TO_XSCREEN,
+                     DISPLAY_TARGET);
                 break;
 
             case FRAMELOCK_TARGET:
                 print_target_connections
-                    (h, t, NV_CTRL_BINARY_DATA_GPUS_USING_FRAMELOCK,
+                    (h, t,
+                     "connected to",
+                     NV_CTRL_BINARY_DATA_GPUS_USING_FRAMELOCK,
                      GPU_TARGET);
                 break;
 
             case VCS_TARGET:
                 print_target_connections
-                    (h, t, NV_CTRL_BINARY_DATA_GPUS_USING_VCSC,
+                    (h, t,
+                     "connected to",
+                     NV_CTRL_BINARY_DATA_GPUS_USING_VCSC,
                      GPU_TARGET);
                 break;
 
             case COOLER_TARGET:
                 print_target_connections
-                    (h, t, NV_CTRL_BINARY_DATA_COOLERS_USED_BY_GPU,
+                    (h, t,
+                     "connected to",
+                     NV_CTRL_BINARY_DATA_COOLERS_USED_BY_GPU,
                      COOLER_TARGET);
                 break;
 
             case THERMAL_SENSOR_TARGET:
                 print_target_connections
-                    (h, t, NV_CTRL_BINARY_DATA_THERMAL_SENSORS_USED_BY_GPU,
+                    (h, t,
+                     "connected to",
+                     NV_CTRL_BINARY_DATA_THERMAL_SENSORS_USED_BY_GPU,
                      THERMAL_SENSOR_TARGET);
                 break;
 
@@ -2528,7 +2730,8 @@ static int query_all_targets(const char *display_name, const int target_index,
  * returned; if successful, NV_TRUE is returned.
  */
 
-static int process_parsed_attribute_internal(CtrlHandleTarget *t,
+static int process_parsed_attribute_internal(const CtrlHandles *handles,
+                                             CtrlHandleTarget *t,
                                              ParsedAttribute *a, uint32 d,
                                              int target_type, int assign,
                                              int verbose, char *whence,
@@ -2620,8 +2823,8 @@ static int process_parsed_attribute_internal(CtrlHandleTarget *t,
                              NvCtrlAttributesStrError(status));
                 return NV_FALSE;
             } else {
-                print_queried_value(t, &valid, a->val.i, a->flags, a->name, d,
-                                    "  ", __terse ?
+                print_queried_value(handles, t, &valid, a->val.i, a->flags,
+                                    a->name, d, "  ", __terse ?
                                     VerboseLevelTerse : VerboseLevelVerbose);
                 print_valid_values(a->name, a->attr, a->flags, valid);
             }
@@ -2688,11 +2891,12 @@ int nv_process_parsed_attribute(ParsedAttribute *a, CtrlHandles *h,
                                 int assign, int verbose,
                                 char *whence_fmt, ...)
 {
-    int bit, ret, val;
+    int ret, val;
     char *whence, *tmp_d_str0, *tmp_d_str1;
-    uint32 display_devices;
     ReturnStatus status;
     CtrlHandleTargetNode *n;
+    NVCTRLAttributeValidValuesRec valid;
+
 
     val = NV_FALSE;
 
@@ -2731,61 +2935,36 @@ int nv_process_parsed_attribute(ParsedAttribute *a, CtrlHandles *h,
 
         CtrlHandleTarget *t = n->t;
         int target_type;
-        const TargetTypeEntry *targetTypeEntry;
+        uint32 mask;
 
         if (!t->h) continue; /* no handle on this target; silently skip */
 
         target_type = NvCtrlGetTargetType(t->h);
-        targetTypeEntry = nv_get_target_type_entry_by_nvctrl(target_type);
 
-        /* validate any specified display device mask */
 
-        if ((a->flags & NV_PARSER_HAS_DISPLAY_DEVICE) &&
-            !(a->flags & NV_PARSER_TYPE_HIJACK_DISPLAY_DEVICE)) {
+        if (__list_targets) {
+            const char *name = t->protoNames[0];
+            const char *randr_name = NULL;
 
-            /* Expand any wildcards in the display device mask */
-        
-            display_devices = expand_display_device_mask_wildcards
-                (a->display_device_mask, t->d);
-            
-            if ((display_devices == 0) || (display_devices & ~t->d)) {
-
-                /*
-                 * use a->display_device_mask rather than
-                 * display_devices when building the string (so that
-                 * display_device_mask_to_display_device_name() can
-                 * use wildcards if present).
-                 */
-
-                tmp_d_str0 = display_device_mask_to_display_device_name
-                    (a->display_device_mask);
-                tmp_d_str1 = display_device_mask_to_display_device_name(t->d);
-
-                if (tmp_d_str1 && (*tmp_d_str1 != '\0')) {
-                    nv_error_msg("Invalid display device %s specified "
-                                 "%s (the currently enabled display devices "
-                                 "are %s on %s).",
-                                 tmp_d_str0, whence, tmp_d_str1, t->name);
-                } else {
-                    nv_error_msg("Invalid display device %s specified "
-                                 "%s (there are currently no enabled display "
-                                 "devices on %s).",
-                                 tmp_d_str0, whence, t->name);
-                }
-
-                free(tmp_d_str0);
-                free(tmp_d_str1);
-                
-                goto done;
+            if (target_type == NV_CTRL_TARGET_TYPE_DISPLAY) {
+                name = t->protoNames[NV_DPY_PROTO_NAME_TARGET_INDEX];
+                randr_name =t->protoNames[NV_DPY_PROTO_NAME_RANDR];
             }
-            
-        } else {
-            /* Just use the display device mask for this target */
-            display_devices = t->d;
+
+            nv_msg(TAB, "%s '%s' on %s%s%s%s\n",
+                   assign ? "Assign" : "Query",
+                   a->name,
+                   name,
+                   randr_name ? " (" : "",
+                   randr_name ? randr_name : "",
+                   randr_name ? ")" : ""
+                   );
+            continue;
         }
-        
+
+
         /* special case the color attributes */
-        
+
         if (a->flags & NV_PARSER_TYPE_COLOR_ATTRIBUTE) {
             float v[3];
             if (!assign) {
@@ -2816,7 +2995,7 @@ int nv_process_parsed_attribute(ParsedAttribute *a, CtrlHandles *h,
 
         /*
          * If we are assigning, and the value for this attribute is a
-         * display device, then we need to validate the value against
+         * display device mask, then we need to validate the value against
          * either the mask of enabled display devices or the mask of
          * connected display devices.
          */
@@ -2870,6 +3049,79 @@ int nv_process_parsed_attribute(ParsedAttribute *a, CtrlHandles *h,
                 continue;
             }
         }
+
+
+        /*
+         * If we are assigning, and the value for this attribute is a display
+         * device id/name string, then we need to validate and convert the
+         * given string against list of available display devices.  The resulting
+         * id, if any, is then fed back into the ParsedAttrinute's value as an
+         * int which is ultimately written out to NV-CONTROL.
+         */
+        if (assign && (a->flags & NV_PARSER_TYPE_VALUE_IS_DISPLAY_ID)) {
+            CtrlHandleTargets *dpy_targets = &(h->targets[DISPLAY_TARGET]);
+            int i;
+            int found = NV_FALSE;
+            int multi_match = NV_FALSE;
+            int is_id;
+            char *tmp = NULL;
+            int id;
+
+
+            /* See if value is a simple number */
+            id = strtol(a->val.str, &tmp, 0);
+            is_id = (tmp &&
+                     (tmp != a->val.str) &&
+                     (*tmp == '\0'));
+
+            for (i = 0; i < dpy_targets->n; i++) {
+                CtrlHandleTarget *dpy_target = dpy_targets->t + i;
+
+                if (is_id) {
+                    /* Value given as display device (target) ID */
+                    if (id == NvCtrlGetTargetId(dpy_target->h)) {
+                        found = NV_TRUE;
+                        break;
+                    }
+                } else {
+                    /* Value given as display device name */
+                    if (nv_target_has_name(dpy_target, a->val.str)) {
+                        if (found) {
+                            multi_match = TRUE;
+                            break;
+                        }
+                        id = NvCtrlGetTargetId(dpy_target->h);
+                        found = NV_TRUE;
+
+                        /* Keep looking to make sure the name doesn't alias to
+                         * another display device.
+                         */
+                        continue;
+                    }
+                }
+            }
+
+            if (multi_match) {
+                nv_error_msg("The attribute '%s' specified %s cannot be "
+                             "assigned the value of '%s' (This name matches "
+                             "multiple display devices, please use a non-"
+                             "ambiguous name.",
+                             a->name, whence, a->val.str);
+                continue;
+            }
+
+            if (!found) {
+                nv_error_msg("The attribute '%s' specified %s cannot be "
+                             "assigned the value of '%s' (This does not "
+                             "name an available display device).",
+                             a->name, whence, a->val.str);
+                continue;
+            }
+
+            /* Put converted id back into a->val */
+            a->val.i = id;
+        }
+
 
         /*
          * If we are assigning, and the value for this attribute is
@@ -3070,84 +3322,63 @@ int nv_process_parsed_attribute(ParsedAttribute *a, CtrlHandles *h,
         }
 
 
-        /* loop over the display devices */
+        /*
+         * special case the display device mask in the case that it
+         * was "hijacked" for something other than a display device:
+         * assign mask here so that it will be passed through to
+         * process_parsed_attribute_internal() unfiltered
+         */
 
-        for (bit = 0; bit < 24; bit++) {
-            uint32 mask;
-            NVCTRLAttributeValidValuesRec valid;
+        if (a->flags & NV_PARSER_TYPE_HIJACK_DISPLAY_DEVICE) {
+            mask = a->display_device_mask;
+        } else {
+            mask = 0;
+        }
 
-            
-            mask = (1 << bit);
+        if (a->flags & NV_PARSER_TYPE_STRING_ATTRIBUTE) {
+            status = NvCtrlGetValidStringDisplayAttributeValues(t->h,
+                                                                mask,
+                                                                a->attr,
+                                                                &valid);
+        } else {
+            status = NvCtrlGetValidDisplayAttributeValues(t->h,
+                                                          mask,
+                                                          a->attr,
+                                                          &valid);
+        }
 
-            if (((mask & display_devices) == 0x0) &&
-                (targetTypeEntry->uses_display_devices) &&
-                (t->d)) {
-                continue;
-            }
-
-            /*
-             * special case the display device mask in the case that it
-             * was "hijacked" for something other than a display device:
-             * assign mask here so that it will be passed through to
-             * process_parsed_attribute_internal() unfiltered
-             */
-
-            if (a->flags & NV_PARSER_TYPE_HIJACK_DISPLAY_DEVICE) {
-                mask = a->display_device_mask;
-            }
-
-            if (a->flags & NV_PARSER_TYPE_STRING_ATTRIBUTE) {
-                status = NvCtrlGetValidStringDisplayAttributeValues(t->h, mask, a->attr, &valid);
+        if (status != NvCtrlSuccess) {
+            if (status == NvCtrlAttributeNotAvailable) {
+                nv_warning_msg("Attribute '%s' specified %s is not "
+                               "available on %s.",
+                               a->name, whence, t->name);
             } else {
-                status = NvCtrlGetValidDisplayAttributeValues(t->h, mask, a->attr, &valid);
+                nv_error_msg("Error querying valid values for attribute "
+                             "'%s' on %s specified %s (%s).",
+                             a->name, t->name, whence,
+                             NvCtrlAttributesStrError(status));
             }
+            continue;
+        }
 
-            if (status != NvCtrlSuccess) {
-                if (status == NvCtrlAttributeNotAvailable) {
-                    nv_warning_msg("Attribute '%s' specified %s is not "
-                                   "available on %s.",
-                                   a->name, whence, t->name);
-                } else {
-                    nv_error_msg("Error querying valid values for attribute "
-                                 "'%s' on %s specified %s (%s).",
-                                 a->name, t->name, whence,
-                                 NvCtrlAttributesStrError(status));
-                }
-                goto done;
-            }
-            
-            /*
-             * if this attribute is going to be assigned, then check
-             * that the attribute is writable; if it's not, give up
-             */
+        /*
+         * if this attribute is going to be assigned, then check
+         * that the attribute is writable; if it's not, give up
+         */
 
-            if ((assign) && (!(valid.permissions & ATTRIBUTE_TYPE_WRITE))) {
-                nv_error_msg("The attribute '%s' specified %s cannot be "
-                             "assigned (it is a read-only attribute).",
-                             a->name, whence);
-                goto done;
-            }
+        if (assign && !(valid.permissions & ATTRIBUTE_TYPE_WRITE)) {
+            nv_error_msg("The attribute '%s' specified %s cannot be "
+                         "assigned (it is a read-only attribute).",
+                         a->name, whence);
+            continue;
+        }
 
-            ret = process_parsed_attribute_internal(t, a, mask, target_type,
-                                                    assign, verbose, whence,
-                                                    valid);
-            if (ret == NV_FALSE) goto done;
-
-            /*
-             * if this attribute is not per-display device, or this
-             * target does not know about display devices, or this target
-             * does not have display devices, then once through this loop
-             * is enough.
-             */
-
-            if ((!(valid.permissions & ATTRIBUTE_TYPE_DISPLAY)) ||
-                (!(targetTypeEntry->uses_display_devices)) ||
-                (!(t->d))) {
-                break;
-            }
-
-        } /* bit */
-
+        ret = process_parsed_attribute_internal(h, t, a, mask, target_type,
+                                                assign, verbose, whence,
+                                                valid);
+        if (ret == NV_FALSE) {
+            continue;
+        }
     } /* done looping over requested targets */
 
     val = NV_TRUE;

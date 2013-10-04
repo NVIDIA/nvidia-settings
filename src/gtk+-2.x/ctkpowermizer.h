@@ -56,7 +56,7 @@ struct _CtkPowermizer
 
     GtkWidget *adaptive_clock_status;
     GtkWidget *gpu_clock;
-    GtkWidget *memory_clock;
+    GtkWidget *memory_transfer_rate;
     GtkWidget *processor_clock;
     GtkWidget *power_source;
     GtkWidget *performance_level;
@@ -72,9 +72,7 @@ struct _CtkPowermizer
     gboolean  dp_toggle_warning_dlg_shown;
     gboolean  hasDecoupledClock;
     gint      attribute;
-    gint      nvclock;
-    gint      memclock;
-    gint      processorclock;
+    gint      powermizer_default_mode;
     GtkWidget *status;
 
     GtkWidget *link_width;

@@ -341,47 +341,27 @@ static void tree_selection_changed(GtkTreeSelection *selection,
 
 
 
-/*
- * tree_view_key_event() - callback for additional keyboard events we
- * want to track (space and Return) to expand and collapse collapsible
- * categories in the treeview.
+/* 
+ * row_activated_event() - callback for row-activated event
+ * - handles key presses automatically
+ * - allows the mouse to collapse/expand the menu even when the
+ *   expand button/triangle is not working.
  */
 
-static gboolean tree_view_key_event(GtkWidget *tree_view, GdkEvent *event, 
-                                    gpointer user_data)
+static void row_activated_event(GtkTreeView        *view,
+                                GtkTreePath        *path,
+                                GtkTreeViewColumn  *col,
+                                gpointer            user_data)
 {
-    GdkEventKey *key_event = (GdkEventKey *) event;
     CtkWindow *ctk_window = CTK_WINDOW(user_data);
-
-    if ((key_event->keyval == GDK_space) ||
-        (key_event->keyval == GDK_Return)) {
-        
-        GtkTreeSelection* selection;
-        GtkTreeModel *model;
-        GtkTreeIter iter;
-        GtkTreePath* path;
-
-        selection = gtk_tree_view_get_selection(ctk_window->treeview);
-        
-        if (!gtk_tree_selection_get_selected(selection, &model, &iter))
-            return FALSE;
-        
-        path = gtk_tree_model_get_path(model, &iter);
-
-        if (gtk_tree_view_row_expanded(ctk_window->treeview, path)) {
-            gtk_tree_view_collapse_row(ctk_window->treeview, path);
-        } else {
-            gtk_tree_view_expand_row(ctk_window->treeview, path, FALSE);
-        }
-
-        gtk_tree_path_free(path);
-
-        return TRUE;
+    
+    if (gtk_tree_view_row_expanded(ctk_window->treeview, path)) {
+        gtk_tree_view_collapse_row(ctk_window->treeview, path);
+    } else {
+        gtk_tree_view_expand_row(ctk_window->treeview, path, FALSE);
     }
-    
-    return FALSE;
-    
-} /* tree_view_key_event() */
+}
+
 
 
 static gboolean has_randr_gamma(NvCtrlAttributeHandle *handle)
@@ -544,10 +524,10 @@ GtkWidget *ctk_window_new(ParsedAttribute *p, ConfigProperties *conf,
     ctk_window->treeview = GTK_TREE_VIEW(gtk_tree_view_new_with_model(model));
     g_object_unref(ctk_window->tree_store);
 
-    /* catch keyboard events to the tree view */
+    /* Added row activated event to the tree view */
 
-    g_signal_connect(ctk_window->treeview, "key_press_event",
-                     G_CALLBACK(tree_view_key_event), GTK_OBJECT(ctk_window));
+    g_signal_connect(ctk_window->treeview, "row_activated",
+                     G_CALLBACK(row_activated_event), GTK_OBJECT(ctk_window));
 
     selection = gtk_tree_view_get_selection(ctk_window->treeview);
 
@@ -660,8 +640,10 @@ GtkWidget *ctk_window_new(ParsedAttribute *p, ConfigProperties *conf,
         gtk_tree_store_set(ctk_window->tree_store, &iter,
                            CTK_WINDOW_WIDGET_COLUMN, child, -1);
         gtk_tree_store_set(ctk_window->tree_store, &iter,
-                           CTK_WINDOW_HELP_COLUMN, 
-                           ctk_screen_create_help(tag_table, screen_name), -1);
+                           CTK_WINDOW_HELP_COLUMN,
+                           ctk_screen_create_help(tag_table, CTK_SCREEN(child),
+                                                  screen_name),
+                           -1);
         gtk_tree_store_set(ctk_window->tree_store, &iter,
                            CTK_WINDOW_CONFIG_FILE_ATTRIBUTES_FUNC_COLUMN,
                            NULL, -1);
@@ -1438,16 +1420,18 @@ static void add_display_devices(CtkWindow *ctk_window, GtkTreeIter *iter,
          * saved to the RC file when the UI is closed.
          */
 
-        if (handles) {
-            display_handle = nv_get_target_handle(handles,
-                                                  NV_CTRL_TARGET_TYPE_DISPLAY,
-                                                  display_id);
-        } else {
-            display_handle = NULL;
-        }
+        display_handle = nv_get_target_handle(handles,
+                                              NV_CTRL_TARGET_TYPE_DISPLAY,
+                                              display_id);
 
         if (!display_handle) {
-            continue;
+            display_handle =
+                nv_add_target(handles, NvCtrlGetDisplayPtr(gpu_handle),
+                              NV_CTRL_TARGET_TYPE_DISPLAY, display_id);
+
+            if (!display_handle) {
+                continue;
+            }
         }
 
         /*

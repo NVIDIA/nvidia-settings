@@ -29,6 +29,9 @@
 #include <stdlib.h>
 
 
+extern int __list_targets;
+
+
 int main(int argc, char **argv)
 {
     ConfigProperties conf;
@@ -119,11 +122,11 @@ int main(int argc, char **argv)
     }
 
     /*
-     * if the user requested that we only load the config file, then
-     * exit now
+     * if the user requested that we only load the config file, or that
+     * we only list the resolved targets, then exit now.
      */
-    
-    if (op->only_load) {
+
+    if (op->only_load || __list_targets) {
         return ret ? 0 : 1;
     }
 

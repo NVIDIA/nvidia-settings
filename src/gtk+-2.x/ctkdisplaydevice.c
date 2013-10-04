@@ -58,7 +58,6 @@ static gboolean update_tv_encoder_info(InfoEntry *entry);
 static gboolean update_chip_info(InfoEntry *entry);
 static gboolean update_signal_info(InfoEntry *entry);
 static gboolean update_link_info(InfoEntry *entry);
-static gboolean update_native_resolution(InfoEntry *entry);
 static gboolean update_refresh_rate(InfoEntry *entry);
 
 static gboolean register_link_events(InfoEntry *entry);
@@ -94,11 +93,6 @@ static const char *__info_link_help =
 static const char *__info_signal_help =
 "Report whether the flat panel is driven by an LVDS, TMDS, or DisplayPort "
 "signal.";
-
-static const char * __native_res_help =
-"The Native Resolution is the width and height in pixels that the display "
-"device uses to display the image.  All other resolutions must be scaled "
-"to this resolution by the GPU and/or the device's built-in scaler.";
 
 static const char * __refresh_rate_help =
 "The refresh rate displays the rate at which the screen is currently "
@@ -142,13 +136,6 @@ static InfoEntryData __info_entry_data[] = {
         update_link_info,
         register_link_events,
         unregister_link_events,
-    },
-    {
-        "Native Resolution",
-        &__native_res_help,
-        update_native_resolution,
-        NULL,
-        NULL,
     },
     {
         "Refresh Rate",
@@ -689,28 +676,6 @@ static gboolean update_link_info(InfoEntry *entry)
     }
 
     gtk_label_set_text(GTK_LABEL(entry->txt), link);
-
-    return TRUE;
-}
-
-
-
-static gboolean update_native_resolution(InfoEntry *entry)
-{
-    CtkDisplayDevice *ctk_object = entry->ctk_object;
-    ReturnStatus ret;
-    gint val;
-    char *str;
-
-    ret = NvCtrlGetAttribute(ctk_object->handle,
-                             NV_CTRL_FLATPANEL_NATIVE_RESOLUTION, &val);
-    if (ret != NvCtrlSuccess) {
-        return FALSE;
-    }
-
-    str = g_strdup_printf("%dx%d", (val >> 16), (val & 0xFFFF));
-    gtk_label_set_text(GTK_LABEL(entry->txt), str);
-    g_free(str);
 
     return TRUE;
 }

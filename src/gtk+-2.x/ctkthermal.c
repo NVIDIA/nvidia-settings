@@ -97,8 +97,11 @@ static const char * __enable_button_help =
 static const char * __fan_id_help =
 "This shows the GPU Fan's index.";
 
+static const char * __fan_rpm_help =
+"This shows the current GPU Fan Speed in rotations per minute (RPM).";
+
 static const char * __fan_speed_help =
-"This shows the current GPU Fan Speed.";
+"This shows the current GPU Fan Speed level as a percentage.";
 
 static const char * __fan_control_type_help =
 "Fan Type indicates if and how this fan may be controlled.  Possible "
@@ -155,7 +158,7 @@ GType ctk_thermal_get_type(void)
  */
 static gboolean update_cooler_info(gpointer user_data)
 {
-    int i, level, cooler_type, cooler_target;
+    int i, speed, level, cooler_type, cooler_target;
     gchar *tmp_str;
     CtkThermal *ctk_thermal;
     GtkWidget *table, *label, *eventbox;
@@ -190,10 +193,18 @@ static gboolean update_cooler_info(gpointer user_data)
     gtk_container_add(GTK_CONTAINER(eventbox), label);
     ctk_config_set_tooltip(ctk_thermal->ctk_config, eventbox, __fan_id_help);
 
-    label = gtk_label_new("Speed (%)");
+    label = gtk_label_new("Speed (RPM)");
     gtk_misc_set_alignment(GTK_MISC(label), 0.0f, 0.5f);
     eventbox = gtk_event_box_new();
     gtk_table_attach(GTK_TABLE(table), eventbox, 1, 2, 0, 1,
+                     GTK_FILL, GTK_FILL | GTK_EXPAND, 5, 0);
+    gtk_container_add(GTK_CONTAINER(eventbox), label);
+    ctk_config_set_tooltip(ctk_thermal->ctk_config, eventbox, __fan_rpm_help);
+
+    label = gtk_label_new("Speed (%)");
+    gtk_misc_set_alignment(GTK_MISC(label), 0.0f, 0.5f);
+    eventbox = gtk_event_box_new();
+    gtk_table_attach(GTK_TABLE(table), eventbox, 2, 3, 0, 1,
                      GTK_FILL, GTK_FILL | GTK_EXPAND, 5, 0);
     gtk_container_add(GTK_CONTAINER(eventbox), label);
     ctk_config_set_tooltip(ctk_thermal->ctk_config, eventbox, __fan_speed_help);
@@ -201,7 +212,7 @@ static gboolean update_cooler_info(gpointer user_data)
     label = gtk_label_new("Control Type");
     gtk_misc_set_alignment(GTK_MISC(label), 0.0f, 0.5f);
     eventbox = gtk_event_box_new();
-    gtk_table_attach(GTK_TABLE(table), eventbox, 2, 3, 0, 1,
+    gtk_table_attach(GTK_TABLE(table), eventbox, 3, 4, 0, 1,
                      GTK_FILL, GTK_FILL | GTK_EXPAND, 5, 0);
     gtk_container_add(GTK_CONTAINER(eventbox), label);
     ctk_config_set_tooltip(ctk_thermal->ctk_config, eventbox,
@@ -210,7 +221,7 @@ static gboolean update_cooler_info(gpointer user_data)
     label = gtk_label_new("Cooling Target");
     gtk_misc_set_alignment(GTK_MISC(label), 0.0f, 0.5f);
     eventbox = gtk_event_box_new();
-    gtk_table_attach(GTK_TABLE(table), eventbox, 3, 4, 0, 1,
+    gtk_table_attach(GTK_TABLE(table), eventbox, 4, 5, 0, 1,
                      GTK_FILL, GTK_FILL | GTK_EXPAND, 5, 0);
     gtk_container_add(GTK_CONTAINER(eventbox), label);
     ctk_config_set_tooltip(ctk_thermal->ctk_config, eventbox,
@@ -220,12 +231,27 @@ static gboolean update_cooler_info(gpointer user_data)
     for (i = 0; i < ctk_thermal->cooler_count; i++) {
         row_idx = i+1;
 
-        gtk_table_resize(GTK_TABLE(table), row_idx+1, 4);
+        gtk_table_resize(GTK_TABLE(table), row_idx+1, 5);
 
         tmp_str = g_strdup_printf("%d", i);
         label = gtk_label_new(tmp_str);
         gtk_misc_set_alignment(GTK_MISC(label), 0.0f, 0.5f);
         gtk_table_attach(GTK_TABLE(table), label, 0, 1, row_idx, row_idx+1,
+                         GTK_FILL, GTK_FILL | GTK_EXPAND, 5, 0);
+        free(tmp_str);
+
+        ret = NvCtrlGetAttribute(ctk_thermal->cooler_control[i].handle,
+                                 NV_CTRL_THERMAL_COOLER_SPEED,
+                                 &speed);
+        if (ret == NvCtrlSuccess) {
+            tmp_str = g_strdup_printf("%d", speed);
+        }
+        else {
+            tmp_str = g_strdup_printf("Unsupported");
+        }
+        label = gtk_label_new(tmp_str);
+        gtk_misc_set_alignment(GTK_MISC(label), 0.0f, 0.5f);
+        gtk_table_attach(GTK_TABLE(table), label, 1, 2, row_idx, row_idx+1,
                          GTK_FILL, GTK_FILL | GTK_EXPAND, 5, 0);
         free(tmp_str);
 
@@ -239,7 +265,7 @@ static gboolean update_cooler_info(gpointer user_data)
         tmp_str = g_strdup_printf("%d", level);
         label = gtk_label_new(tmp_str);
         gtk_misc_set_alignment(GTK_MISC(label), 0.0f, 0.5f);
-        gtk_table_attach(GTK_TABLE(table), label, 1, 2, row_idx, row_idx+1,
+        gtk_table_attach(GTK_TABLE(table), label, 2, 3, row_idx, row_idx+1,
                          GTK_FILL, GTK_FILL | GTK_EXPAND, 5, 0);
         free(tmp_str);
 
@@ -259,7 +285,7 @@ static gboolean update_cooler_info(gpointer user_data)
         }
         label = gtk_label_new(tmp_str);
         gtk_misc_set_alignment(GTK_MISC(label), 0.0f, 0.5f);
-        gtk_table_attach(GTK_TABLE(table), label, 2, 3, row_idx, row_idx+1,
+        gtk_table_attach(GTK_TABLE(table), label, 3, 4, row_idx, row_idx+1,
                          GTK_FILL, GTK_FILL | GTK_EXPAND, 5, 0);
         free(tmp_str);
 
@@ -288,7 +314,7 @@ static gboolean update_cooler_info(gpointer user_data)
         }
         label = gtk_label_new(tmp_str);
         gtk_misc_set_alignment(GTK_MISC(label), 0.0f, 0.5f);
-        gtk_table_attach(GTK_TABLE(table), label, 3, 4, row_idx, row_idx+1,
+        gtk_table_attach(GTK_TABLE(table), label, 4, 5, row_idx, row_idx+1,
                          GTK_FILL, GTK_FILL | GTK_EXPAND, 5, 0);
         free(tmp_str);
     }
@@ -1660,6 +1686,9 @@ next_help:
 
     ctk_help_heading(b, &i, "ID");
     ctk_help_para(b, &i, "%s", __fan_id_help);
+
+    ctk_help_heading(b, &i, "Speed (RPM)");
+    ctk_help_para(b, &i,"%s", __fan_rpm_help);
 
     ctk_help_heading(b, &i, "Speed (%%)");
     ctk_help_para(b, &i, "%s", __fan_speed_help);

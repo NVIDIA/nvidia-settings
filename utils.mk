@@ -31,7 +31,7 @@ LD                    ?= ld
 # only set these warnings and optimizations if CFLAGS is unset
 CFLAGS                ?= -Wall -O2
 # always set these -f CFLAGS
-CFLAGS                += -fno-strict-aliasing -fno-omit-frame-pointer
+CFLAGS                += -fno-strict-aliasing -fno-omit-frame-pointer -Wformat=2
 CC_ONLY_CFLAGS        ?=
 LDFLAGS               ?=
 BIN_LDFLAGS           ?=

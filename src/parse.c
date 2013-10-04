@@ -39,6 +39,9 @@ static void nv_free_strtoks(char **s, int n);
 static int ctoi(const char c);
 static int count_number_of_chars(char *o, char d);
 
+static uint32 display_device_name_to_display_device_mask(const char *str);
+
+
 /*
  * Table of all attribute names recognized by the attribute string
  * parser.  Binds attribute names to attribute integers (for use in
@@ -61,6 +64,7 @@ static int count_number_of_chars(char *o, char d);
 #define W NV_PARSER_TYPE_VALUE_IS_SWITCH_DISPLAY
 #define M NV_PARSER_TYPE_SDI_CSC
 #define T NV_PARSER_TYPE_HIJACK_DISPLAY_DEVICE
+#define V NV_PARSER_TYPE_VALUE_IS_DISPLAY_ID
 
 const AttributeTableEntry attributeTable[] = {
 
@@ -88,7 +92,6 @@ const AttributeTableEntry attributeTable[] = {
     { "AssociatedDisplays",            NV_CTRL_ASSOCIATED_DISPLAY_DEVICES,        N|D,   "Display device mask indicating which display devices are \"associated\" with the specified X screen (i.e., are available for displaying the desktop)." },
     { "ProbeDisplays",                 NV_CTRL_PROBE_DISPLAYS,                    A|D,   "When this attribute is queried, the X driver re-probes the hardware to detect which display devices are connected to the GPU or DPU driving the specified X screen.  Returns a display mask of the currently connected display devices." },
     { "InitialPixmapPlacement",        NV_CTRL_INITIAL_PIXMAP_PLACEMENT,          N,     "Controls where X pixmaps are initially created." },
-    { "DynamicTwinview",               NV_CTRL_DYNAMIC_TWINVIEW,                  N,     "Does the X screen support dynamic TwinView." },
     { "MultiGpuDisplayOwner",          NV_CTRL_MULTIGPU_DISPLAY_OWNER,            N,     "GPU ID of the GPU that has the display device(s) used for showing the X screen." },
     { "HWOverlay",                     NV_CTRL_HWOVERLAY,                         0,     "When a workstation overlay is in use, this value is 1 if the hardware overlay is used, or 0 if the overlay is emulated." },
     { "OnDemandVBlankInterrupts",      NV_CTRL_ONDEMAND_VBLANK_INTERRUPTS,        0,     "Enable/Disable/Query of on-demand vertical blanking interrupt control on the GPU.  The 'OnDemandVBlankInterrupts' X server configuration option must be enabled for this option to be available." },
@@ -174,8 +177,9 @@ const AttributeTableEntry attributeTable[] = {
     { "ECCDoubleBitErrors",          NV_CTRL_GPU_ECC_DOUBLE_BIT_ERRORS,           N, "Returns the number of double-bit ECC errors detected by the targeted GPU since the last POST." },
     { "ECCAggregateDoubleBitErrors", NV_CTRL_GPU_ECC_AGGREGATE_DOUBLE_BIT_ERRORS, N, "Returns the number of double-bit ECC errors detected by the targeted GPU since the last counter reset." },
     { "GPUFanControlState",     NV_CTRL_GPU_COOLER_MANUAL_CONTROL,        N,   "The current fan control state; the value of this attribute controls the availability of additional fan control attributes.  Note that this attribute is unavailable unless fan control support has been enabled by setting the \"Coolbits\" X config option." },
-    { "GPUCurrentFanSpeed",     NV_CTRL_THERMAL_COOLER_LEVEL,             N,   "Returns the GPU fan's current speed." },
+    { "GPUCurrentFanSpeed",     NV_CTRL_THERMAL_COOLER_LEVEL,             N,   "Returns the GPU fan's currently programmed speed, as a percentage of the maximum speed." },
     { "GPUResetFanSpeed",       NV_CTRL_THERMAL_COOLER_LEVEL_SET_DEFAULT, N,   "Resets the GPU fan's speed to its default." },
+    { "GPUCurrentFanSpeedRPM",  NV_CTRL_THERMAL_COOLER_SPEED,             N,   "Returns the GPU fan's tachometer-measured speed in rotations per minute (RPM)." },
     { "GPUFanControlType",      NV_CTRL_THERMAL_COOLER_CONTROL_TYPE,      N,   "Returns how the GPU fan is controlled.  '1' means the fan can only be toggled on and off; '2' means the fan has variable speed.  '0' means the fan is restricted and cannot be adjusted under end user control." },
     { "GPUFanTarget",           NV_CTRL_THERMAL_COOLER_TARGET,            N,   "Returns the objects the fan cools.  '1' means the GPU, '2' means video memory, '4' means the power supply, and '7' means all of the above." },
     { "ThermalSensorReading",   NV_CTRL_THERMAL_SENSOR_READING,           N,   "Returns the thermal sensor's current reading." },
@@ -310,6 +314,7 @@ const AttributeTableEntry attributeTable[] = {
     { "RandROutputID",              NV_CTRL_DISPLAY_RANDR_OUTPUT_ID,       N,     "The RandR Output ID that corresponds to the display device." },
     { "FrameLockDisplayConfig",     NV_CTRL_FRAMELOCK_DISPLAY_CONFIG,      N,     "Controls the FrameLock mode of operation for the display device." },
     { "Hdmi3D",                     NV_CTRL_DPY_HDMI_3D,                   N,     "Returns whether the specified display device is currently using HDMI 3D Frame Packed Stereo mode. If so, the result of refresh rate queries will be doubled." },
+    { "BacklightBrightness",        NV_CTRL_BACKLIGHT_BRIGHTNESS,          N,     "Controls the backlight brightness of an internal panel." },
 
     /* TV */
     { "TVOverScan",      NV_CTRL_TV_OVERSCAN,       0, "Adjusts the amount of overscan on the specified display device." },
@@ -320,7 +325,8 @@ const AttributeTableEntry attributeTable[] = {
     { "TVSaturation",    NV_CTRL_TV_SATURATION,     0, "Adjusts the amount of saturation on the specified display device." },
 
     /* X Video */
-    { "XVideoSyncToDisplay",       NV_CTRL_XV_SYNC_TO_DISPLAY,             D|Z, "Controls which display device is synced to by the texture and blitter adaptors when they are set to synchronize to the vertical blanking." },
+    { "XVideoSyncToDisplay",       NV_CTRL_XV_SYNC_TO_DISPLAY,           D|Z|N, "Controls which display device is synced to by the texture and blitter adaptors when they are set to synchronize to the vertical blanking." },
+    { "XVideoSyncToDisplayID",     NV_CTRL_XV_SYNC_TO_DISPLAY_ID,           V, "Controls which display device is synced to by the texture and blitter adaptors when they are set to synchronize to the vertical blanking." },
 
     /* 3D Vision Pro */
     {"3DVisionProResetTransceiverToFactorySettings", NV_CTRL_3D_VISION_PRO_RESET_TRANSCEIVER_TO_FACTORY_SETTINGS, N,     "Resets the 3D Vision Pro transceiver to its factory settings."},
@@ -346,6 +352,7 @@ const AttributeTableEntry attributeTable[] = {
     {"3DVisionProGlassesFirmwareDateA",              NV_CTRL_STRING_3D_VISION_PRO_GLASSES_FIRMWARE_DATE_A,        S|N|T, "Returns the date of the firmware of chip A of the glasses."},
     {"3DVisionProGlassesAddress",                    NV_CTRL_STRING_3D_VISION_PRO_GLASSES_ADDRESS,                S|N|T, "Returns the RF address of the glasses."},
     {"3DVisionProGlassesName",                       NV_CTRL_STRING_3D_VISION_PRO_GLASSES_NAME,                   S|N|T, "Controls the name the glasses should use."},
+    {"GPUUtilization",                               NV_CTRL_STRING_GPU_UTILIZATION,                              S|N,   "Returns the current percentage utilization of the GPU components." },
 
     { NULL, 0, 0, NULL }
 };
@@ -354,7 +361,6 @@ const AttributeTableEntry attributeTable[] = {
 #undef C
 #undef N
 #undef G
-#undef V
 #undef P
 #undef D
 #undef A
@@ -364,6 +370,9 @@ const AttributeTableEntry attributeTable[] = {
 #undef S
 #undef I
 #undef W
+#undef M
+#undef T
+#undef V
 
 /*
  * When new integer attributes are added to NVCtrl.h, an entry should
@@ -372,7 +381,7 @@ const AttributeTableEntry attributeTable[] = {
  * about.
  */
 
-#if NV_CTRL_LAST_ATTRIBUTE != NV_CTRL_GPU_POWER_MIZER_DEFAULT_MODE
+#if NV_CTRL_LAST_ATTRIBUTE != NV_CTRL_THERMAL_COOLER_SPEED
 #warning "Have you forgotten to add a new integer attribute to attributeTable?"
 #endif
 
@@ -845,7 +854,8 @@ int nv_parse_attribute_string(const char *str, int query, ParsedAttribute *a)
         if (a->flags & NV_PARSER_TYPE_COLOR_ATTRIBUTE) {
             /* color attributes are floating point */
             a->val.f = strtod(s, &tmp);
-        } else if (a->flags & NV_PARSER_TYPE_STRING_ATTRIBUTE) {
+        } else if ((a->flags & NV_PARSER_TYPE_STRING_ATTRIBUTE) ||
+                   (a->flags & NV_PARSER_TYPE_VALUE_IS_DISPLAY_ID)) {
             a->val.str = strdup(s);
             tmp = s + strlen(s);
         } else if (a->flags & NV_PARSER_TYPE_PACKED_ATTRIBUTE) {
@@ -999,7 +1009,7 @@ int nv_strcasecmp(const char *a, const char *b)
  
  */
 
-uint32 display_device_name_to_display_device_mask(const char *str)
+static uint32 display_device_name_to_display_device_mask(const char *str)
 {
     uint32 mask = 0;
     char *s, **toks, *endptr;
@@ -1179,17 +1189,16 @@ char *display_device_mask_to_display_device_name(const uint32 mask)
  * mask.
  */
 
-uint32 expand_display_device_mask_wildcards(const uint32 d, const uint32 e)
+uint32 expand_display_device_mask_wildcards(const uint32 d)
 {
     uint32 mask = d & VALID_DISPLAY_DEVICES_MASK;
 
-    if (d & DISPLAY_DEVICES_WILDCARD_CRT) mask |= (e & BITMASK_ALL_CRT);
-    if (d & DISPLAY_DEVICES_WILDCARD_TV)  mask |= (e & BITMASK_ALL_TV);
-    if (d & DISPLAY_DEVICES_WILDCARD_DFP) mask |= (e & BITMASK_ALL_DFP);
-    
-    return mask;
+    if (d & DISPLAY_DEVICES_WILDCARD_CRT) mask |= BITMASK_ALL_CRT;
+    if (d & DISPLAY_DEVICES_WILDCARD_TV)  mask |= BITMASK_ALL_TV;
+    if (d & DISPLAY_DEVICES_WILDCARD_DFP) mask |= BITMASK_ALL_DFP;
 
-} /* expand_display_device_mask_wildcards() */
+    return mask;
+}
 
 
 

@@ -34,8 +34,8 @@
 
 /*
  * indicates that the option is a boolean value; the presence of the
- * option will be interpretted as a TRUE value; if the option is
- * prepended with '--no-', the option will be interpretted as a FALSE
+ * option will be interpreted as a TRUE value; if the option is
+ * prepended with '--no-', the option will be interpreted as a FALSE
  * value.  On success, nvgetopt will return the parsed boolean value
  * through 'boolval'.
  */

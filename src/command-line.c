@@ -49,6 +49,7 @@ int __verbosity = VERBOSITY_DEFAULT;
 int __terse = NV_FALSE;
 int __display_device_string = NV_FALSE;
 int __verbosity_level_changed = NV_FALSE;
+int __list_targets = NV_FALSE;
 
 /*
  * print_version() - print version information
@@ -101,31 +102,45 @@ static void print_attribute_help(char *attr)
             if (show_desc) {
                 nv_msg(NULL, "Attribute '%s':", entry->name);
 
-                if (entry->flags & NV_PARSER_TYPE_FRAMELOCK)
+                if (entry->flags & NV_PARSER_TYPE_FRAMELOCK) {
                     nv_msg(NULL, "  - Is Frame Lock attribute.");
-                if (entry->flags & NV_PARSER_TYPE_NO_CONFIG_WRITE)
+                }
+                if (entry->flags & NV_PARSER_TYPE_NO_CONFIG_WRITE) {
                     nv_msg(NULL, "  - Attribute is not written to the rc file.");
-                if (entry->flags & NV_PARSER_TYPE_GUI_ATTRIBUTE)
+                }
+                if (entry->flags & NV_PARSER_TYPE_GUI_ATTRIBUTE) {
                     nv_msg(NULL, "  - Is GUI attribute.");
-                if (entry->flags & NV_PARSER_TYPE_PACKED_ATTRIBUTE)
+                }
+                if (entry->flags & NV_PARSER_TYPE_PACKED_ATTRIBUTE) {
                     nv_msg(NULL, "  - Attribute value is packed integer.");
-                if (entry->flags & NV_PARSER_TYPE_VALUE_IS_DISPLAY)
+                }
+                if (entry->flags & NV_PARSER_TYPE_VALUE_IS_DISPLAY) {
                     nv_msg(NULL, "  - Attribute value is a display mask.");
-                if (entry->flags & NV_PARSER_TYPE_NO_QUERY_ALL)
+                }
+                if (entry->flags & NV_PARSER_TYPE_NO_QUERY_ALL) {
                     nv_msg(NULL, "  - Attribute not queried in 'query all'.");
-                if (entry->flags & NV_PARSER_TYPE_NO_ZERO_VALUE)
+                }
+                if (entry->flags & NV_PARSER_TYPE_NO_ZERO_VALUE) {
                     nv_msg(NULL, "  - Attribute cannot be zero.");
-                if (entry->flags & NV_PARSER_TYPE_100Hz)
+                }
+                if (entry->flags & NV_PARSER_TYPE_100Hz) {
                     nv_msg(NULL, "  - Attribute value is in units of Centihertz (1/100Hz).");
-                if (entry->flags & NV_PARSER_TYPE_1000Hz)
+                }
+                if (entry->flags & NV_PARSER_TYPE_1000Hz) {
                     nv_msg(NULL, "  - Attribute value is in units of Milihertz (1/1000 Hz).");
-                if (entry->flags & NV_PARSER_TYPE_STRING_ATTRIBUTE)
+                }
+                if (entry->flags & NV_PARSER_TYPE_STRING_ATTRIBUTE) {
                     nv_msg(NULL, "  - Attribute value is string.");
-                if (entry->flags & NV_PARSER_TYPE_SDI)
+                }
+                if (entry->flags & NV_PARSER_TYPE_SDI) {
                     nv_msg(NULL, "  - Is SDI attribute.");
-                if (entry->flags & NV_PARSER_TYPE_VALUE_IS_SWITCH_DISPLAY)
+                }
+                if (entry->flags & NV_PARSER_TYPE_VALUE_IS_SWITCH_DISPLAY) {
                     nv_msg(NULL, "  - Attribute value is switch display.");
-
+                }
+                if (entry->flags & NV_PARSER_TYPE_VALUE_IS_DISPLAY_ID) {
+                    nv_msg(NULL, "  - Attribute value is a display id.");
+                }
                 nv_msg(TAB, "%s", entry->desc);
                 nv_msg(NULL, "");
             } else {
@@ -253,6 +268,7 @@ Options *parse_command_line(int argc, char *argv[], char *dpy,
         case 't': __terse = NV_TRUE; break;
         case 'd': __display_device_string = NV_TRUE; break;
         case 'e': print_attribute_help(strval); exit(0); break;
+        case 'L': __list_targets = NV_TRUE; break;
         default:
             nv_error_msg("Invalid commandline, please run `%s --help` "
                          "for usage information.\n", argv[0]);

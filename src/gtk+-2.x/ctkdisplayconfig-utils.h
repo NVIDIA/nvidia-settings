@@ -87,6 +87,8 @@ Bool display_set_modes_rotation(nvDisplayPtr display, Rotation rotation);
 
 /* Metamode functions */
 
+void cleanup_metamode(nvMetaModePtr metamode);
+
 
 /* Screen functions */
 

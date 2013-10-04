@@ -48,7 +48,6 @@ static const _CtkStereoMode stereoMode[] = {
     { NV_CTRL_STEREO_3D_VISION,                    "NVIDIA 3D Vision Stereo" },
     { NV_CTRL_STEREO_3D_VISION_PRO,                "NVIDIA 3D Vision Pro Stereo" },
     { NV_CTRL_STEREO_HDMI_3D,                      "HDMI 3D Stereo" },
-    { -1, NULL},
 };
 
 void ctk_screen_event_handler(GtkWidget *widget,
@@ -64,7 +63,7 @@ static void info_update_gpu_error(GtkObject *object, gpointer arg1,
 static const char *get_stereo_mode_string(int stereo_mode)
 {
     int i;
-    for (i = 0; stereoMode[i].name; i++) {
+    for (i = 0; i < ARRAY_LEN(stereoMode); i++) {
         if (stereoMode[i].stereo_mode == stereo_mode) {
             return stereoMode[i].name;
         }
@@ -273,12 +272,6 @@ GtkWidget* ctk_screen_new(NvCtrlAttributeHandle *handle,
 
     snprintf(tmp, 16, "%d", gpu_errors);
 
-    /* get the stereo mode set for this X screen */
-    ret = NvCtrlGetAttribute(handle, NV_CTRL_STEREO, (int *)&stereo_mode);
-    if (ret != NvCtrlSuccess) {
-        stereo_mode = -1;
-    }
-
     /* now, create the object */
     
     object = g_object_new(CTK_TYPE_SCREEN, NULL);
@@ -287,6 +280,10 @@ GtkWidget* ctk_screen_new(NvCtrlAttributeHandle *handle,
     /* cache the attribute handle */
 
     ctk_screen->handle = handle;
+
+    /* get the stereo mode set for this X screen */
+    ret = NvCtrlGetAttribute(handle, NV_CTRL_STEREO, (int *)&stereo_mode);
+    ctk_screen->stereo_available = (ret == NvCtrlSuccess);
 
     /* set container properties of the object */
 
@@ -340,8 +337,10 @@ GtkWidget* ctk_screen_new(NvCtrlAttributeHandle *handle,
     /* gpu errors */
     ctk_screen->gpu_errors =
         add_table_row(table, 19, 0, 0, "Recovered GPU Errors:", 0, 0, tmp);
-    add_table_row(table, 20, 0, 0, "Stereo Mode:", 0, 0,
-                  get_stereo_mode_string(stereo_mode));
+    if (ctk_screen->stereo_available) {
+        add_table_row(table, 20, 0, 0, "Stereo Mode:", 0, 0,
+                      get_stereo_mode_string(stereo_mode));
+    }
 
     g_free(screen_number);
     free(display_name);
@@ -376,6 +375,7 @@ GtkWidget* ctk_screen_new(NvCtrlAttributeHandle *handle,
 
     
 GtkTextBuffer *ctk_screen_create_help(GtkTextTagTable *table,
+                                      CtkScreen *ctk_screen,
                                       const gchar *screen_name)
 {
     GtkTextIter i;
@@ -428,8 +428,10 @@ GtkTextBuffer *ctk_screen_create_help(GtkTextTagTable *table,
                   "GPU received and the NVIDIA X driver successfully recovered "
                   "from.");
 
-    ctk_help_heading(b, &i, "Stereo Mode");
-    ctk_help_para(b, &i, "This is the stereo mode set for the X screen.");
+    if (ctk_screen->stereo_available) {
+        ctk_help_heading(b, &i, "Stereo Mode");
+        ctk_help_para(b, &i, "This is the stereo mode set for the X screen.");
+    }
 
     ctk_help_finish(b);
 

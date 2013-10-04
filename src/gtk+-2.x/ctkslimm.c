@@ -1259,6 +1259,19 @@ static nvDisplayPtr intersect_modelines(nvLayoutPtr layout)
     return display;
 }
 
+#define STEREO_IS_3D_VISION(stereo) \
+    (((stereo) == NV_CTRL_STEREO_3D_VISION) || \
+     ((stereo) == NV_CTRL_STEREO_3D_VISION_PRO))
+
+static int get_display_stereo_mode(nvDisplayPtr display)
+{
+    if ((display->screen == NULL) ||
+        (display->screen->stereo_supported == FALSE)) {
+        return NV_CTRL_STEREO_OFF;
+    } else {
+        return display->screen->stereo;
+    }
+}
 
 GtkWidget* ctk_slimm_new(NvCtrlAttributeHandle *handle,
                           CtkEvent *ctk_event, CtkConfig *ctk_config)
@@ -1279,6 +1292,7 @@ GtkWidget* ctk_slimm_new(NvCtrlAttributeHandle *handle,
     CtkDropDownMenu *menu;
 
     gchar *err_str = NULL;
+    gchar *str;
     gchar *tmp;
     gchar *sli_mode = NULL;
     ReturnStatus ret;
@@ -1415,41 +1429,66 @@ GtkWidget* ctk_slimm_new(NvCtrlAttributeHandle *handle,
 
     /* If we failed to load, tell the user why */
     if (err_str || !layout) {
-        gchar *str;
-
-        if (!err_str) {
-            str = g_strdup("Unable to load SLI Mosaic Mode Settings page.");
-        } else {
-            str = g_strdup_printf("Unable to load SLI Mosaic Mode Settings "
-                                  "page:\n\n%s", err_str);
-            g_free(err_str);
-        }
-
-        label = gtk_label_new(str);
-        g_free(str);
-        gtk_label_set_selectable(GTK_LABEL(label), TRUE);
-        gtk_container_add(GTK_CONTAINER(object), label);
-
-        /* Show the GUI */
-        gtk_widget_show_all(GTK_WIDGET(ctk_object));
-
-        return GTK_WIDGET(ctk_object);
+        goto slimm_fail;
     }
 
     display = intersect_modelines(layout);
 
     if (display == NULL) {
-        gchar *str = g_strdup("Unable to find active display with "
-                              "intersected modelines.");
-        label = gtk_label_new(str);
-        g_free(str);
-        gtk_label_set_selectable(GTK_LABEL(label), TRUE);
-        gtk_container_add(GTK_CONTAINER(object), label);
+        err_str = g_strdup("Unable to find active display with "
+                           "intersected modelines.");
+        goto slimm_fail;
+    } else if ((display->modelines == NULL) &&
+               (display->cur_mode->modeline == NULL)) {
+        /* The modepool for the active display did not have any modes in
+         * its modepool matching any of the modes on the modepool of any
+         * other display in the layout, causing intersect_modelines to
+         * remove every mode from the list of available modes for SLI mosaic
+         * mode.
+         *
+         * This can happen if one display had its modepool trimmed and modified
+         * to support 3D vision, while other displays (either on X screens
+         * without stereo currently enabled, or on screenless GPUs) did not.
+         * Find if that is the case, and display an informative message if so.
+         */
+        nvGpuPtr gpu;
+        nvDisplayPtr d;
+        int stereo = get_display_stereo_mode(display);
 
-        /* Show the GUI */
-        gtk_widget_show_all(GTK_WIDGET(ctk_object));
+        for (gpu = layout->gpus; gpu; gpu = gpu->next_in_layout) {
+            for (d = gpu->displays; d; d = d->next_on_gpu) {
+                int other_stereo;
 
-        return GTK_WIDGET(ctk_object);
+                if (display == d) {
+                    continue;
+                }
+
+                other_stereo = get_display_stereo_mode(d);
+
+                if ((STEREO_IS_3D_VISION(stereo) &&
+                    !STEREO_IS_3D_VISION(other_stereo)) ||
+                    (!STEREO_IS_3D_VISION(stereo) &&
+                     STEREO_IS_3D_VISION(other_stereo))) {
+
+                    err_str = g_strdup("Unable to find common modelines between\n"
+                                       "all connected displays due to 3D vision\n"
+                                       "being enabled on some displays and not\n"
+                                       "others. Please make sure that 3D vision\n"
+                                       "is enabled on all connected displays\n"
+                                       "before enabling SLI mosaic mode.");
+
+                    goto slimm_fail;
+                }
+            }
+        }
+
+        /* The intersected modepool was empty, but not because of a mismatch
+         * in 3D Vision settings.
+         */
+        err_str = g_strdup("Unable to find find common modelines between "
+                           "all connected displays.");
+
+        goto slimm_fail;
     }
 
 
@@ -1457,11 +1496,8 @@ GtkWidget* ctk_slimm_new(NvCtrlAttributeHandle *handle,
     ctk_object->modelines = display->modelines;
     if (display->cur_mode->modeline) {
         ctk_object->cur_modeline = display->cur_mode->modeline; 
-    } else if (ctk_object->modelines) {
-        ctk_object->cur_modeline = ctk_object->modelines;
     } else {
-        /* This is an error. */
-        return NULL;
+        ctk_object->cur_modeline = ctk_object->modelines;
     }
     ctk_object->num_modelines = display->num_modelines;
 
@@ -1737,6 +1773,30 @@ GtkWidget* ctk_slimm_new(NvCtrlAttributeHandle *handle,
     gtk_widget_show_all(GTK_WIDGET(object));    
 
     return GTK_WIDGET(object);
+
+slimm_fail:
+
+    if (layout) {
+        layout_free(layout);
+    }
+
+    if (!err_str) {
+        str = g_strdup("Unable to load SLI Mosaic Mode Settings page.");
+    } else {
+        str = g_strdup_printf("Unable to load SLI Mosaic Mode Settings "
+                              "page:\n\n%s", err_str);
+        g_free(err_str);
+    }
+
+    label = gtk_label_new(str);
+    g_free(str);
+    gtk_label_set_selectable(GTK_LABEL(label), TRUE);
+    gtk_container_add(GTK_CONTAINER(object), label);
+
+    /* Show the GUI */
+    gtk_widget_show_all(GTK_WIDGET(ctk_object));
+
+    return GTK_WIDGET(ctk_object);
 }
 
 

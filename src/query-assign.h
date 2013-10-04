@@ -105,8 +105,18 @@ NvCtrlAttributeHandle *nv_get_target_handle(const CtrlHandles *handles,
                                             int target_type,
                                             int target_id);
 
+Bool nv_get_attribute_perms(CtrlHandles *h, int attr, uint32 flags,
+                            NVCTRLAttributePermissionsRec *perms);
+
 int nv_process_parsed_attribute(ParsedAttribute*, CtrlHandles *h,
                                 int, int, char*, ...) NV_ATTRIBUTE_PRINTF(5, 6);
 
 void nv_target_list_free(CtrlHandleTargetNode *head);
+
+NvCtrlAttributeHandle *nv_add_target(CtrlHandles *handles, Display *dpy,
+                                     int target_index, int display_id);
+
+const char *nv_get_display_target_config_name(const CtrlHandles *handles,
+                                              int target_id);
+
 #endif /* __QUERY_ASSIGN_H__ */

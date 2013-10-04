@@ -45,7 +45,6 @@
 static char *display_device_name(int mask);
 static unsigned int display_device_mask(char *str);
 static char *remove_whitespace(char *str);
-static int count_bits(unsigned int mask);
 static void parse_mode_string(char *modeString, char **modeName,
                               unsigned int *mask);
 static char *find_modeline(char *modeString, char *pModeLines,
@@ -1096,158 +1095,6 @@ int main(int argc, char *argv[])
             }
         }
     }
-    
-
-    /*
-     * demonstrate how to programmatically transition into TwinView
-     * using NV-CONTROL and XRandR; the process is roughly:
-     *
-     * - probe for new display devices
-     *
-     * - if we found any new display devices, create a mode pool for
-     *   the new display devices
-     *
-     * - associate any new display devices to the X screen, so that
-     *   they are available for MetaMode assignment.
-     *
-     * - add a new MetaMode 
-     *
-     * We have skipped error checking, and checking for things like if
-     * we are already using multiple display devices, but this gives
-     * the general idea.
-     */
-
-    else if (strcmp(argv[1], "--dynamic-twinview") == 0) {
-        
-        char *pOut;
-        int id;
-
-        /*
-         * first, probe for new display devices; while
-         * NV_CTRL_CONNECTED_DISPLAYS reports what the NVIDIA X driver
-         * believes is currently connected to the GPU,
-         * NV_CTRL_PROBE_DISPLAYS forces the driver to redetect what
-         * is connected.
-         */
-        
-        XNVCTRLQueryAttribute(dpy,
-                              screen,
-                              0,
-                              NV_CTRL_PROBE_DISPLAYS,
-                              &display_devices);
-        
-        /*
-         * if we don't have atleast two display devices, there is
-         * nothing to do
-         */
-
-        printf("probed display device mask: 0x%08x\n\n", display_devices);
-        
-        if (count_bits(display_devices) < 2) {
-            printf("only one display device found; cannot enable "
-                   "TwinView.\n\n");
-            return 1;
-        }
-        
-        
-        /*
-         * next, make sure all display devices have a modepool; a more
-         * sophisticated client could use
-         * NV_CTRL_BINARY_DATA_MODELINES to query if a pool of
-         * modelines already exist on each display device we care
-         * about.
-         */
-        
-        for (mask = 1; mask < (1 << 24); mask <<= 1) {
-            
-            if (!(display_devices & mask)) continue;
-            
-            XNVCTRLStringOperation(dpy,
-                                   NV_CTRL_TARGET_TYPE_X_SCREEN,
-                                   screen,
-                                   mask,
-                                   NV_CTRL_STRING_OPERATION_BUILD_MODEPOOL,
-                                   NULL,
-                                   NULL);
-        }
-        
-        printf("all display devices should now have a mode pool.\n\n");
-        
-
-        /*
-         * associate all the probed display devices to the X screen;
-         * this makes the display devices available for MetaMode
-         * assignment
-         */
-        
-        ret =
-            XNVCTRLSetAttributeAndGetStatus(dpy,
-                                            screen,
-                                            0,
-                                            NV_CTRL_ASSOCIATED_DISPLAY_DEVICES,
-                                            display_devices);
-        
-        if (!ret) {
-            printf("unable to assign the associated display devices to "
-                   "0x%08x.\n\n", display_devices);
-            return 1;
-        }
-
-        printf("associated display devices 0x%08x.\n\n", display_devices);
-
-
-        /*
-         * next, we add a new MetaMode; a more sophisticated client
-         * would actually select a modeline from
-         * NV_CTRL_BINARY_DATA_MODELINES on each display device, but
-         * for demonstration purposes, we assume that
-         * "nvidia-auto-select" is a valid mode on each display
-         * device.
-         */
-        
-        pOut = NULL;
-
-        ret = XNVCTRLStringOperation(dpy,
-                                     NV_CTRL_TARGET_TYPE_X_SCREEN,
-                                     screen,
-                                     0,
-                                     NV_CTRL_STRING_OPERATION_ADD_METAMODE,
-                                     "nvidia-auto-select, nvidia-auto-select",
-                                     &pOut);
-        
-        if (!ret || !pOut) {
-            printf("failed to add MetaMode; this may be because the MetaMode "
-                   "already exists for this X screen.\n\n");
-            return 1;
-        }
-        
-        /*
-         * retrieve the id of the added MetaMode from the return
-         * string; a more sophisticated client should do actual
-         * parsing of the returned string, which is defined to be a
-         * comma-separated list of "token=value" pairs as output.
-         * Currently, the only output token is "id", which indicates
-         * the id that was assigned to the MetaMode.
-         */
-
-        sscanf(pOut, "id=%d", &id);
-        
-        XFree(pOut);
-
-
-        /*
-         * we have added a new MetaMode for this X screen, and we know
-         * its id.  The last step is to use the XRandR extension to
-         * switch to this mode; see the Xrandr(3) manpage for details.
-         *
-         * For demonstration purposes, just use the xrandr commandline
-         * utility to switch to the mode with the refreshrate that
-         * matches the id.
-         */
-        
-        printf("The id of the new MetaMode is %d; use xrandr to "
-               "switch to it.\n\n", id);
-    }
 
 
     /* Display all names each display device goes by
@@ -1382,9 +1229,6 @@ int main(int argc, char *argv[])
         printf("  --print-used-modelines: print the modeline for each display "
                "device for each MetaMode on the X screen.\n\n");
 
-        printf("  --dynamic-twinview: demonstrates the process of "
-               "dynamically transitioning into TwinView.\n\n");
-
         printf("  --print-display-names: print all the names associated with "
                "each display device on the server\n\n");
     }
@@ -1507,25 +1351,6 @@ static char *remove_whitespace(char *str)
     return ret;
     
 } /* remove_whitespace() */
-
-
-
-/*
- * count the number of bits set in the specified mask
- */
-
-static int count_bits(unsigned int mask)
-{
-    int n = 0;
-    
-    while (mask) {
-        n++;
-        mask &= (mask - 1) ;
-    }
-
-    return n;
-    
-} /* count_bits() */
 
 
 

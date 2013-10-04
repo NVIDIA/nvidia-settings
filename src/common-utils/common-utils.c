@@ -235,6 +235,28 @@ char *nvasprintf(const char *fmt, ...)
 
 } /* nvasprintf() */
 
+/*
+ * nv_append_sprintf() - similar to glib's g_string_append_printf(), except
+ * instead of operating on a GString it operates on a (char **). Appends a
+ * formatted string to the end of the dynamically-allocated string pointed to by
+ * *buf (or the empty string if *buf is NULL), potentially reallocating the
+ * string in the process.  This function only returns on succcess.
+ */
+void nv_append_sprintf(char **buf, const char *fmt, ...)
+{
+    char *prefix, *suffix;
+
+    prefix = *buf;
+    NV_VSNPRINTF(suffix, fmt);
+
+    if (!prefix) {
+        *buf = suffix;
+    } else {
+        *buf = nvstrcat(prefix, suffix, NULL);
+        free(prefix);
+        free(suffix);
+    }
+}
 
 
 /*
@@ -413,7 +435,7 @@ TextRows *nv_format_text_rows(const char *prefix,
             }
         }
 
-        /* look for any newline inbetween a and b, and move b to it */
+        /* look for any newline between a and b, and move b to it */
 
         for (c = a; c < b; c++) if (*c == '\n') { b = c; break; }
 

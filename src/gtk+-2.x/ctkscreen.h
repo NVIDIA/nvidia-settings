@@ -57,6 +57,8 @@ struct _CtkScreen
     GtkWidget *dimensions;
     GtkWidget *displays;
     GtkWidget *gpu_errors;
+
+    int stereo_available;
 };
 
 struct _CtkScreenClass
@@ -73,7 +75,8 @@ GType       ctk_screen_get_type (void) G_GNUC_CONST;
 GtkWidget*  ctk_screen_new      (NvCtrlAttributeHandle *handle,
                                  CtkEvent *ctk_event);
 
-GtkTextBuffer *ctk_screen_create_help(GtkTextTagTable *, const gchar *);
+GtkTextBuffer *ctk_screen_create_help(GtkTextTagTable *, CtkScreen *,
+                                      const gchar *);
 
 G_END_DECLS
 

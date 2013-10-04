@@ -1976,9 +1976,36 @@ gchar *screen_get_metamode_str(nvScreenPtr screen, int metamode_idx,
         }
     }
 
+    if (!metamode_str) {
+        metamode_str = strdup("NULL");
+    }
+
     return metamode_str;
 
 } /* screen_get_metamode_str() */
+
+
+
+/** cleanup_metamode() ***********************************************
+ *
+ * Frees any internal memory used by the metamode.
+ *
+ **/
+
+void cleanup_metamode(nvMetaModePtr metamode)
+{
+    if (metamode->cpl_str) {
+        free(metamode->cpl_str);
+        metamode->cpl_str = NULL;
+    }
+
+    if (metamode->x_str) {
+        XFree(metamode->x_str);
+        metamode->x_str = NULL;
+    }
+
+    metamode->x_str_entry = NULL;
+}
 
 
 
@@ -2006,7 +2033,7 @@ static void screen_remove_metamodes(nvScreenPtr screen)
     while (screen->metamodes) {
         metamode = screen->metamodes;
         screen->metamodes = metamode->next;
-        free(metamode->string);
+        cleanup_metamode(metamode);
         free(metamode);
     }
     screen->num_metamodes = 0;
@@ -2070,7 +2097,6 @@ static Bool screen_add_metamode(nvScreenPtr screen, const char *metamode_str,
     char *mode_str_itr;
     const char *tokens_end;
     const char *metamode_modes;
-    char *metamode_copy = NULL;
     nvMetaModePtr metamode = NULL;
     int mode_count = 0;
 
@@ -2105,82 +2131,82 @@ static Bool screen_add_metamode(nvScreenPtr screen, const char *metamode_str,
         }
     }
 
-    /* Process each mode in the metamode string */
-    metamode_copy = strdup(metamode_modes);
-    if (!metamode_copy) goto fail;
+    metamode_modes = parse_skip_whitespace(metamode_modes);
 
-    for (mode_str_itr = mode_strtok(metamode_copy);
-         mode_str_itr;
-         mode_str_itr = mode_strtok(NULL)) {
+    if (strcmp(metamode_modes, "NULL")) {
+        /* Process each mode in the metamode string */
+        char *metamode_copy = strdup(metamode_modes);
+        if (!metamode_copy) goto fail;
 
-        nvModePtr     mode;
-        nvDisplayPtr  display;
-        unsigned int  display_id;
-        const char *orig_mode_str = parse_skip_whitespace(mode_str_itr);
-        const char *mode_str;
+        for (mode_str_itr = mode_strtok(metamode_copy);
+             mode_str_itr;
+             mode_str_itr = mode_strtok(NULL)) {
 
-        /* Parse the display device (NV-CONTROL target) id from the name */
-        mode_str = parse_read_display_id(mode_str_itr, &display_id);
-        if (!mode_str) {
-            nv_warning_msg("Failed to read a display device name on screen %d "
+            nvModePtr     mode;
+            nvDisplayPtr  display;
+            unsigned int  display_id;
+            const char *orig_mode_str = parse_skip_whitespace(mode_str_itr);
+            const char *mode_str;
+
+            /* Parse the display device (NV-CONTROL target) id from the name */
+            mode_str = parse_read_display_id(mode_str_itr, &display_id);
+            if (!mode_str) {
+                nv_warning_msg("Failed to read a display device name on screen "
+                               "%d while parsing metamode:\n\n'%s'",
+                               screen->scrnum, orig_mode_str);
+                continue;
+            }
+
+            /* Match device id to an existing display */
+            display = layout_get_display(screen->layout, display_id);
+            if (!display) {
+                nv_warning_msg("Failed to find display device %d on screen %d "
+                               "while parsing metamode:\n\n'%s'",
+                               display_id,
+                               screen->scrnum,
+                               orig_mode_str);
+                continue;
+            }
+
+            /* Parse the mode */
+            mode = mode_parse(display, mode_str);
+            if (!mode) {
+                nv_warning_msg("Failed to parse mode '%s'\non screen %d\n"
+                               "from metamode:\n\n'%s'",
+                               mode_str,
+                               screen->scrnum,
+                               orig_mode_str);
+                continue;
+            }
+
+            /* Make the mode part of the metamode */
+            mode->metamode = metamode;
+
+            /* On older X driver NV_CTRL_BINARY_DATA_DISPLAYS_ASSIGNED_TO_XSCREEN
+             * attribute is Not Available so we are unable to link displays to
+             * the screen implicitly.
+             * To avoid display->cur_mode = NULL link displays explicitly.
+             */
+            screen_link_display(screen, display);
+            /* Make sure each display has the right number of (NULL) modes */
+            screen_check_metamodes(screen);
+
+            /* Add the mode at the end of the display's mode list */
+            xconfigAddListItem((GenericListPtr *)(&display->modes),
+                               (GenericListPtr)mode);
+            display->num_modes++;
+            mode_count++;
+        }
+
+        free(metamode_copy);
+
+        /* Make sure something was added */
+        if (mode_count == 0) {
+            nv_warning_msg("Failed to find any display on screen %d\n"
                            "while parsing metamode:\n\n'%s'",
-                           screen->scrnum,
-
-                           orig_mode_str);
-            continue;
+                           screen->scrnum, metamode_str);
+            goto fail;
         }
-
-        /* Match device id to an existing display */
-        display = layout_get_display(screen->layout, display_id);
-        if (!display) {
-            nv_warning_msg("Failed to find display device %d on screen %d "
-                           "while parsing metamode:\n\n'%s'",
-                           display_id,
-                           screen->scrnum,
-
-                           orig_mode_str);
-            continue;
-        }
-
-        /* Parse the mode */
-        mode = mode_parse(display, mode_str);
-        if (!mode) {
-            nv_warning_msg("Failed to parse mode '%s'\non screen %d\n"
-                           "from metamode:\n\n'%s'",
-                           mode_str,
-                           screen->scrnum,
-                           orig_mode_str);
-            continue;
-        }
-
-        /* Make the mode part of the metamode */
-        mode->metamode = metamode;
-
-        /* On older X driver NV_CTRL_BINARY_DATA_DISPLAYS_ASSIGNED_TO_XSCREEN
-         * attribute is Not Available so we are unable to link displays to
-         * the screen implicitly.
-         * To avoid display->cur_mode = NULL link displays explicitly.
-         */ 
-        screen_link_display(screen, display);
-        /* Make sure each display has the right number of (NULL) modes */
-        screen_check_metamodes(screen);
-
-        /* Add the mode at the end of the display's mode list */
-        xconfigAddListItem((GenericListPtr *)(&display->modes),
-                           (GenericListPtr)mode);
-        display->num_modes++;
-        mode_count++;
-    }
-
-    free(metamode_copy);
-    metamode_copy = NULL;
-
-    /* Make sure something was added */
-    if (mode_count == 0) {
-        nv_warning_msg("Failed to find any display on screen %d\n"
-                       "while parsing metamode:\n\n'%s'",
-                       screen->scrnum, metamode_str);
-        goto fail;
     }
 
     /* Add the metamode to the end of the screen's metamode list */
@@ -2194,9 +2220,6 @@ static Bool screen_add_metamode(nvScreenPtr screen, const char *metamode_str,
     /* Cleanup */
     if (metamode) {
         free(metamode);
-    }
-    if (metamode_copy) {
-        free(metamode_copy);
     }
 
     return FALSE;
@@ -3197,7 +3220,7 @@ static Bool layout_add_gpu_from_server(nvLayoutPtr layout, unsigned int gpu_id,
         gpu->uuid = NULL;
     }
 
-    get_bus_id_str(gpu->handle, &(gpu->pci_bus_id));
+    gpu->pci_bus_id = get_bus_id_str(gpu->handle);
 
     ret = NvCtrlGetAttribute(gpu->handle, NV_CTRL_MAX_SCREEN_WIDTH,
                              (int *)&(gpu->max_width));
@@ -3507,13 +3530,6 @@ static Bool layout_add_screen_from_server(nvLayoutPtr layout,
     if (ret == NvCtrlSuccess) {
         screen->stereo_supported = TRUE;
         screen->stereo = val;
-
-        /* XXX For now, if stereo is off, don't show configuration options
-         * until we work out interactions with composite.
-         */
-        if (val == NV_CTRL_STEREO_OFF) {
-            screen->stereo_supported = FALSE;
-        }
     } else {
         screen->stereo_supported = FALSE;
     }
@@ -3526,17 +3542,20 @@ static Bool layout_add_screen_from_server(nvLayoutPtr layout,
         screen->overlay = NV_CTRL_OVERLAY_OFF;
     }
 
-    /* See if the screen supports dynamic twinview */
-    ret = NvCtrlGetAttribute(screen->handle, NV_CTRL_DYNAMIC_TWINVIEW, &val);
-    if (ret != NvCtrlSuccess) {
-        *err_str = g_strdup_printf("Failed to query Dynamic TwinView for "
-                                   "screen %d.",
-                                   screen_id);
-        nv_warning_msg("%s", *err_str);
-        goto fail;
+    ret = NvCtrlGetAttribute(screen->handle, NV_CTRL_HWOVERLAY, &val);
+    if (ret == NvCtrlSuccess) {
+        screen->hw_overlay = val;
+    } else {
+        screen->hw_overlay = NV_CTRL_HWOVERLAY_FALSE;
     }
-    screen->dynamic_twinview = !!val;
 
+    /* Query the current UBB state */
+    ret = NvCtrlGetAttribute(screen->handle, NV_CTRL_UBB, &val);
+    if (ret == NvCtrlSuccess) {
+        screen->ubb = val;
+    } else {
+        screen->ubb = NV_CTRL_UBB_OFF;
+    }
 
     /* See if the screen is set to not scanout */
     ret = NvCtrlGetAttribute(screen->handle, NV_CTRL_NO_SCANOUT, &val);
@@ -3556,18 +3575,6 @@ static Bool layout_add_screen_from_server(nvLayoutPtr layout,
     }
     screen->no_scanout = (val == NV_CTRL_NO_SCANOUT_ENABLED);
 
-
-    /* XXX Currently there is no support for screens that are scanning
-     *     out but have TwinView disabled.
-     */
-    if (!screen->dynamic_twinview && !screen->no_scanout) {
-        *err_str = g_strdup_printf("nvidia-settings currently does not "
-                                   "support scanout screens (%d) that have "
-                                   "dynamic twinview disabled.",
-                                   screen_id);
-        nv_warning_msg("%s", *err_str);
-        goto fail;
-    }
 
     /* Link screen to the GPUs driving it */
     if (!link_screen_to_gpus(layout, screen)) {

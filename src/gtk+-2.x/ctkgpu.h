@@ -61,8 +61,13 @@ struct _CtkGpu
 
     GtkWidget *displays;
     GtkWidget *gpu_memory_used_label;
+    GtkWidget *gpu_utilization_label;
+    GtkWidget *video_utilization_label;
+    GtkWidget *pcie_utilization_label;
     gint gpu_memory;
+    gint gpu_utilization;
     gint gpu_cores;
+    gint gpu_uuid;
     gint memory_interface;
     gboolean pcie_gen_queriable;
 };
@@ -80,8 +85,7 @@ GtkWidget*  ctk_gpu_new      (NvCtrlAttributeHandle *handle,
 
 void get_bus_type_str(NvCtrlAttributeHandle *handle,
                       gchar **bus);
-void get_bus_id_str(NvCtrlAttributeHandle *handle,
-                    gchar **pci_bus_id);
+gchar *get_bus_id_str(NvCtrlAttributeHandle *handle);
 
 GtkTextBuffer *ctk_gpu_create_help(GtkTextTagTable *,
                                    CtkGpu *);

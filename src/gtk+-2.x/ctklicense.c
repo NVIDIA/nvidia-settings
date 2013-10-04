@@ -29,11 +29,6 @@
 #include "ctkhelp.h"
 #include "ctkbanner.h"
 
-static const char * __enable_confirm_msg =
-"To use the features on the %s panel you\n"
-"must agree to the terms of the preceding license agreement.\n"
-"Do you accept this agreement?";
-
 static const char * __license_pre_msg =
 "Please read and accept the following license agreement:";
 
@@ -284,7 +279,10 @@ GtkWidget* ctk_license_dialog_new(GtkWidget *parent, gchar *panel_name)
     gtk_box_pack_start(GTK_BOX(GTK_DIALOG(ctk_license_dialog->dialog)->vbox),
                        hbox, TRUE, TRUE, 10);
     hbox = gtk_hbox_new(FALSE, 10);
-    enable_message = g_strdup_printf(__enable_confirm_msg, panel_name);
+    enable_message = g_strdup_printf("To use the features on the %s panel you\n"
+                                     "must agree to the terms of the preceding "
+                                     "license agreement.\nDo you accept this "
+                                     "agreement?", panel_name);
     label = gtk_label_new(enable_message);
     g_free(enable_message);
 

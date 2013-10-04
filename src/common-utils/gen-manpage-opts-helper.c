@@ -89,7 +89,7 @@ static void print_option(const NVGetoptOption *o)
      * '^' : toggles bold on and off
      * '-' : is backslashified: "\-"
      *
-     * Whitespace is omited when italics or bold is on
+     * Whitespace is omitted when italics or bold is on
      */
 
     italics = 0;

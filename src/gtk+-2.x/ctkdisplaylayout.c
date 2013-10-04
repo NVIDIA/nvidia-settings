@@ -61,61 +61,82 @@
 #define NUM_COLORS_PER_PALETTE 4 /* Number of colors in a device's palette */
 #define NUM_COLORS ((NUM_COLOR_PALETTES) * (NUM_COLORS_PER_PALETTE))
 
-#if MAX_DEVICES != 8
+#define COLOR_PALETTE_STEP_VALUE 0x181818
+
+#if MAX_DEVICES != 64
 #warning "Each GPU needs a color palette!"
 #endif
 
 /* Each device will need a unique color palette */
-char *__palettes_color_names[NUM_COLORS] = {
+int __palettes_color_names[NUM_COLORS] = {
+    0xD9DBF4, /* Blue */
+    0xFFDB94, /* Orange */
+    0xE2D4F0, /* Purple */
+    0xEAF1C9, /* Beige */
+    0x96E562, /* Green */
+    0xFFD6E9, /* Pink */
+    0xEEEE7E, /* Yellow */
+    0xC9EAF1, /* Teal */
 
-    /* Blue */
-    "#D9DBF4", /* View    - Has modeline set */
-    "#C9CBE4", /* Panning - Has modeline set */
-    "#BABCD5", /* View    - Off/Disabled */
-    "#A3A5BE", /* Panning - OFf/Disabled */
+    0xB9F282,
+    0xB298FE,
+    0x84FAE3,
+    0xE1928D,
+    0xFF8FE6,
+    0xB2F9BF,
+    0xA2E0FC,
+    0xFEBBAF,
 
-    /* Orange */
-    "#FFDB94",
-    "#E8C47D",
-    "#C9A55E",
-    "#A6823B",
+    0xF5B2FA,
+    0xA2B4F7,
+    0x96FA94,
+    0xE0F7A8,
+    0xFFFE9E,
+    0xF096BA,
+    0xB0FFE9,
+    0xFD8B9E,
+    0xB996DA,
+    0x83F3B0,
+    0xFFAF8C,
+    0xE086FE,
+    0xC4E1CB,
+    0xCDA3F7,
+    0xF1CEBE,
+    0xC0CFFF,
 
-    /* Purple */
-    "#E2D4F0",
-    "#CFC1DD",
-    "#B7A9C5",
-    "#9D8FAB",
-
-    /* Beige */
-    "#EAF1C9",
-    "#CBD2AA",
-    "#ADB48C",
-    "#838A62",
-
-    /* Green */
-    "#96E562",
-    "#70BF3C",
-    "#5BAA27",
-    "#3C8B08",
-
-    /* Pink */
-    "#FFD6E9",
-    "#E1B8CB",
-    "#C79EB1",
-    "#A87F92",
-
-    /* Yellow */
-    "#EEEE7E",
-    "#E0E070",
-    "#D5D565",
-    "#C4C454",
-
-    /* Teal */
-    "#C9EAF1",
-    "#A2C3CA",
-    "#8DAEB5",
-    "#76979E"
-    };
+    0x8A8AFA,
+    0xE8D399,
+    0xE381B6,
+    0xABB7A3,
+    0xDFE4E0,
+    0xA6FCD2,
+    0xFD85CC,
+    0x98E387,
+    0xF1E8AF,
+    0x82C2FF,
+    0xCCF599,
+    0xAA83F9,
+    0xD3FCC4,
+    0xFCB4CE,
+    0x8FECF8,
+    0xA8F4A5,
+    0xB0F1FF,
+    0x91A5FA,
+    0xB3C6EF,
+    0xE1B6EC,
+    0xD3C1FB,
+    0xDEE4BD,
+    0xD9F982,
+    0xFEE5C4,
+    0xEAB6B9,
+    0xB6E5E7,
+    0x81DCF2,
+    0x81F08F,
+    0xDCAACC,
+    0xCCF0D7,
+    0xF49FD4,
+    0xC0B7C2
+};
 
 
 
@@ -2570,7 +2591,7 @@ GtkWidget* ctk_display_layout_new(NvCtrlAttributeHandle *handle,
     CtkDisplayLayout *ctk_object;
     GtkWidget *tmp;
     PangoFontDescription *font_description;
-    int i;
+    int i, j;
 
 
     /* Make sure we have a handle */
@@ -2619,9 +2640,24 @@ GtkWidget* ctk_display_layout_new(NvCtrlAttributeHandle *handle,
 
     /* Parse the device color palettes */
     ctk_object->color_palettes = calloc(NUM_COLORS, sizeof(GdkColor));
-    for (i = 0; i < NUM_COLORS; i++) {
-        gdk_color_parse(__palettes_color_names[i],
-                        &(ctk_object->color_palettes[i]));
+    for (i = 0; i < NUM_COLOR_PALETTES; i++) {
+        for (j = 0; j < NUM_COLORS_PER_PALETTE; j++) {
+
+            int color = __palettes_color_names[i] -
+                        (j * COLOR_PALETTE_STEP_VALUE);
+            int index = i * NUM_COLORS_PER_PALETTE + j;
+
+            /*
+             * Convert the reference 24 bit 0xRRGGBB hex value to the GdkColor
+             * struct that uses 16 bit ints for each color value. We also need
+             * to shift the color values to the most significant end of these
+             * fields.
+             */
+
+            ctk_object->color_palettes[index].red   = (color & 0xff0000) >> 8;
+            ctk_object->color_palettes[index].green = (color & 0xff00);
+            ctk_object->color_palettes[index].blue  = (color & 0xff) << 8;
+        }
     }
 
 
@@ -3426,6 +3462,7 @@ void ctk_display_layout_delete_screen_metamode(CtkDisplayLayout *ctk_object,
         screen->cur_metamode_idx = screen->num_metamodes -1;
     }
 
+    cleanup_metamode(metamode);
     free(metamode);
 
 
