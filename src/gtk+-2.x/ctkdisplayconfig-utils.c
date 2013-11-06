@@ -822,28 +822,65 @@ static gchar *display_pick_config_name(nvDisplayPtr display, int be_generic)
  *
  * A best match is:
  *
- * - The modelines are the same.
  * - The modelines match in width & height.
+ * - Then, the modelines match the ViewPortIn.
  *
  **/
 int display_find_closest_mode_matching_modeline(nvDisplayPtr display,
                                                 nvModeLinePtr modeline)
 {
-    nvModePtr mode;
+    const int targetWidth = modeline->data.hdisplay;
+    const int targetHeight = modeline->data.vdisplay;
+
+    nvModePtr mode, best_mode = NULL;
     int mode_idx;
-    int match_idx = -1;
+    int best_idx = -1;
 
     mode_idx = 0;
     for (mode = display->modes; mode; mode = mode->next) {
-        if (mode->modeline->data.vdisplay == modeline->data.vdisplay &&
-            mode->modeline->data.hdisplay == modeline->data.hdisplay) {
-            match_idx = mode_idx;
+        if (!mode->modeline) {
+            continue;
         }
-        if (mode->modeline == modeline) break;
+        
+        if (mode->modeline->data.hdisplay == targetWidth &&
+            mode->modeline->data.vdisplay == targetHeight) {
+            nvModePtr tmp_mode = mode;
+            int tmp_idx = mode_idx;
+
+            /* We already have a match.  Let's figure out if the
+             * currently considered mode is the closer to what we
+             * want.
+             */
+            if (best_mode) {
+                Bool current_match_vpin =
+                    (mode->dim[W] == targetWidth &&
+                     mode->dim[H] == targetHeight);
+                Bool best_match_vpin =
+                    (best_mode->dim[W] == targetWidth &&
+                     best_mode->dim[H] == targetHeight);
+
+                /* Try to find reasons why we should prefer the
+                 * previous match over the currently considered
+                 * mode by checking which one has a matching
+                 * ViewPortIn.
+                 *
+                 * If both are equally close, we keep our previous
+                 * match.
+                 */
+                if ((!current_match_vpin && best_match_vpin) ||
+                    (current_match_vpin && best_match_vpin)) {
+                    tmp_mode = best_mode;
+                    tmp_idx = best_idx;
+                }
+                /* Fallthrough. */
+            }
+            best_mode = tmp_mode;
+            best_idx = tmp_idx;
+        }
         mode_idx++;
     }
 
-    return match_idx;
+    return best_idx;
 
 } /* display_find_closest_mode_matching_modeline() */
 

@@ -48,6 +48,7 @@ char *nvstrtolower(char *s);
 void nvfree(void *s);
 
 char *tilde_expansion(const char *str);
+char *nv_prepend_to_string_list(char *list, const char *item, const char *delim);
 
 TextRows *nv_format_text_rows(const char *prefix,
                               const char *str,

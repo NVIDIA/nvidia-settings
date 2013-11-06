@@ -281,6 +281,19 @@ char *tilde_expansion(const char *str)
 } /* tilde_expansion() */
 
 
+/*
+ * nv_prepend_to_string_list() - add a new string to a string list, delimited
+ * by the given string delimiter. The original list is freed.
+ */
+
+char *nv_prepend_to_string_list(char *list, const char *item, const char *delim)
+{
+    char *new_list = nvstrcat(item, list ? delim : NULL, list, NULL);
+    nvfree(list);
+    return new_list;
+}
+
+
 /****************************************************************************/
 /* TextRows helper functions */
 /****************************************************************************/
