@@ -27,7 +27,7 @@ nvidia\-settings \- configure the NVIDIA graphics driver
 Options:
 .BI "[\-vh] [\-\-config=" configfile "] [\-c " ctrl-display "]"
 .br
-.I "         \fB[\-\-verbose=\fP{\fIerrors \fP|\fI warnings \fP|\fI all\fP}\fB]"
+.I "         \fB[\-\-verbose=\fP{\fInone \fP|\fI errors \fP|\fI deprecations \fP|\fI warnings \fP|\fI all\fP}\fB]"
 .br
 .I "         \fB[\-\-describe=\fP{\fIall \fP|\fI list \fP|\fI attribute_name\fP}\fB]"
 .PP

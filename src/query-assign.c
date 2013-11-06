@@ -1410,7 +1410,8 @@ Bool nv_get_attribute_perms(CtrlHandles *h, int attr, uint32 flags,
  *          error codes that detail the particular parsing error.
  */
 
-static int resolve_attribute_targets(ParsedAttribute *a, CtrlHandles *h)
+static int resolve_attribute_targets(ParsedAttribute *a, CtrlHandles *h,
+                                     const char *whence)
 {
     NVCTRLAttributePermissionsRec perms;
     Bool status;
@@ -1510,6 +1511,14 @@ static int resolve_attribute_targets(ParsedAttribute *a, CtrlHandles *h)
         if (a->flags & NV_PARSER_HAS_DISPLAY_DEVICE) {
             display_mask =
                 expand_display_device_mask_wildcards(a->display_device_mask);
+
+            /* Warn that this usage is deprecated */
+
+            nv_warning_msg("Display mask usage as specified %s has been "
+                           "deprecated and will be removed in the future."
+                           "Please use display names and/or display target "
+                           "specification instead.",
+                           whence);
         } else {
             display_mask = VALID_DISPLAY_DEVICES_MASK;
         }
@@ -2919,7 +2928,7 @@ int nv_process_parsed_attribute(ParsedAttribute *a, CtrlHandles *h,
      * allocated.
      */
 
-    ret = resolve_attribute_targets(a, h);
+    ret = resolve_attribute_targets(a, h, whence);
     if (ret != NV_PARSER_STATUS_SUCCESS) {
         nv_error_msg("Error resolving target specification '%s' "
                      "(%s), specified %s.",

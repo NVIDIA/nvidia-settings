@@ -45,7 +45,7 @@ static void print_help(void);
  * information (used by msg.c).
  */
 
-int __verbosity = VERBOSITY_DEFAULT;
+int __verbosity = VERBOSITY_DEPRECATED;
 int __terse = NV_FALSE;
 int __display_device_string = NV_FALSE;
 int __verbosity_level_changed = NV_FALSE;
@@ -238,6 +238,8 @@ Options *parse_command_line(int argc, char *argv[], char *dpy,
                 __verbosity = VERBOSITY_NONE;
             } else if (nv_strcasecmp(strval, "errors") == NV_TRUE) {
                 __verbosity = VERBOSITY_ERROR;
+            } else if (nv_strcasecmp(strval, "deprecations") == NV_TRUE) {
+                __verbosity = VERBOSITY_DEPRECATED;
             } else if (nv_strcasecmp(strval, "warnings") == NV_TRUE) {
                 __verbosity = VERBOSITY_WARNING;
             } else if (nv_strcasecmp(strval, "all") == NV_TRUE) {

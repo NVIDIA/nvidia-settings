@@ -40,8 +40,9 @@
 
 #define VERBOSITY_NONE     0 /* nothing */
 #define VERBOSITY_ERROR    1 /* errors only */
-#define VERBOSITY_WARNING  2 /* errors and warnings */
-#define VERBOSITY_ALL      3 /* errors, warnings and other info */
+#define VERBOSITY_DEPRECATED 2 /* errors, deprecation messages and warnings */
+#define VERBOSITY_WARNING  3 /* errors and warnings */
+#define VERBOSITY_ALL      4 /* errors, warnings and other info */
 
 #define VERBOSITY_DEFAULT  VERBOSITY_ERROR
 

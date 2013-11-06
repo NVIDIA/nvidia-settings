@@ -26,6 +26,7 @@
 #include "common-utils.h"
 
 void nv_error_msg(const char*, ...)                            NV_ATTRIBUTE_PRINTF(1, 2);
+void nv_deprecated_msg(const char*, ...)                       NV_ATTRIBUTE_PRINTF(1, 2);
 void nv_warning_msg(const char*, ...)                          NV_ATTRIBUTE_PRINTF(1, 2);
 void nv_info_msg(const char*, const char*, ...)                NV_ATTRIBUTE_PRINTF(2, 3);
 void nv_msg(const char*, const char*, ...)                     NV_ATTRIBUTE_PRINTF(2, 3);

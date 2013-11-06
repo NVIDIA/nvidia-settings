@@ -68,11 +68,12 @@ static const NVGetoptOption __options[] = {
     { "verbose", 'V',
       NVGETOPT_STRING_ARGUMENT | NVGETOPT_ARGUMENT_IS_OPTIONAL |
       NVGETOPT_HELP_ALWAYS, NULL,
-      "Controls how much information is printed.  By default, the verbosity "
-      "is ^errors^ and only error messages are printed.  Valid values are "
-      "^'none'^ (do not print messages), ^'errors'^ (print error messages), "
-      "^'warnings'^ (print error and warning messages), and "
-      "^'all'^ (print error, warning and other informational messages)." },
+      "Controls how much information is printed.  Valid values are ^'none'^ "
+      "(do not print status messages), ^'errors'^ (print error messages), "
+      "^'deprecations'^ (print error and deprecation messages), ^'warnings'^ "
+      "(print error, deprecation, and warning messages), and ^'all'^ (print "
+      "error, deprecation, warning and other informational messages).  By "
+      "default, ^'deprecations'^ is set." },
 
     { "assign", 'a', NVGETOPT_STRING_ARGUMENT | NVGETOPT_HELP_ALWAYS, NULL,
       "The &ASSIGN& argument to the ^'--assign'^ command line option is of the "

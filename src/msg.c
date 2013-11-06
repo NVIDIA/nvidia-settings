@@ -69,6 +69,26 @@ void nv_error_msg(const char *fmt, ...)
 
 
 /*
+ * nv_deprecated_msg() - print a deprecation message, nicely formatted using
+ * the format() function.
+ *
+ * This function should be used for all deprecation messages.
+ */
+
+void nv_deprecated_msg(const char *fmt, ...)
+{
+    if (__verbosity < VERBOSITY_DEPRECATED) return;
+
+    fprintf(stderr, "\n");
+
+    NV_FORMAT(stderr, "DEPRECATED: ", fmt, False);
+
+    fprintf(stderr, "\n");
+}
+
+
+
+/*
  * nv_warning_msg() - print a warning message, nicely formatted using
  * the format() function.
  *
