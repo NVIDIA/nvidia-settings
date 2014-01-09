@@ -79,6 +79,13 @@ endif
 
 XNVCTRL_DIR             ?= libXNVCtrl
 XNVCTRL_ARCHIVE         ?= $(XNVCTRL_DIR)/libXNVCtrl.a
+XNVCTRL_SHARED          ?= $(XNVCTRL_DIR)/libXNVCtrl.so.0
+
+ifeq ($(XNVCTRL_LIB_STATIC),0)
+  XNVCTRL_LIB           ?= $(XNVCTRL_SHARED)
+endif
+XNVCTRL_LIB             ?= $(XNVCTRL_ARCHIVE)
+
 XCONFIG_PARSER_DIR      ?= XF86Config-parser
 COMMON_UTILS_DIR        ?= common-utils
 COMMON_UNIX_DIR         ?= common-unix
@@ -179,9 +186,12 @@ NVIDIA_SETTINGS_install: $(NVIDIA_SETTINGS)
 	$(MKDIR) $(BINDIR)
 	$(INSTALL) $(INSTALL_BIN_ARGS) $< $(BINDIR)/$(notdir $<)
 
-$(NVIDIA_SETTINGS): $(OBJS) $(XNVCTRL_ARCHIVE)
+$(XNVCTRL_ARCHIVE) $(XNVCTRL_SHARED):
+	$(MAKE) -C $(XNVCTRL_DIR)
+
+$(NVIDIA_SETTINGS): $(OBJS) $(XNVCTRL_LIB)
 	$(call quiet_cmd,LINK) $(CFLAGS) $(LDFLAGS) $(BIN_LDFLAGS) -o $@ $(OBJS) \
-	    $(XNVCTRL_ARCHIVE) $(LIBS)
+	    $(XNVCTRL_LIB) $(LIBS)
 	$(call quiet_cmd,STRIP_CMD) $@
 
 # define the rule to build each object file
@@ -191,6 +201,7 @@ $(foreach src,$(SRC),$(eval $(call DEFINE_OBJECT_RULE,TARGET,$(src))))
 $(eval $(call DEFINE_STAMP_C_RULE, $(OBJS),$(NVIDIA_SETTINGS_PROGRAM_NAME)))
 
 clean clobber:
+	$(MAKE) -C $(XNVCTRL_DIR) clean
 	rm -rf $(NVIDIA_SETTINGS) *~ $(STAMP_C) \
 		$(OUTPUTDIR)/*.o $(OUTPUTDIR)/*.d
 
