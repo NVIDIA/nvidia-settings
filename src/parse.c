@@ -171,6 +171,8 @@ const AttributeTableEntry attributeTable[] = {
     { "GPUPowerMizerDefaultMode", NV_CTRL_GPU_POWER_MIZER_DEFAULT_MODE, N,  "Reports the default powermizer mode of the GPU, if any." },
     { "ECCSupported",           NV_CTRL_GPU_ECC_SUPPORTED,             N,   "Reports whether the underlying GPU supports ECC.  All of the other ECC attributes are only applicable if this attribute indicates that ECC is supported." },
     { "ECCStatus",              NV_CTRL_GPU_ECC_STATUS,                N,   "Reports whether ECC is enabled." },
+    { "GPULogoBrightness",      NV_CTRL_GPU_LOGO_BRIGHTNESS,           0,   "Controls brightness of the logo on the GPU, if any.  The value is variable from 0% - 100%." },
+    { "GPUSLIBridgeLogoBrightness", NV_CTRL_GPU_SLI_LOGO_BRIGHTNESS,   0,   "Controls brightness of the logo on the SLI bridge, if any.  The value is variable from 0% - 100%." },
     { "ECCConfigurationSupported", NV_CTRL_GPU_ECC_CONFIGURATION_SUPPORTED, N,   "Reports whether ECC whether the ECC configuration setting can be changed." },
     { "ECCConfiguration",            NV_CTRL_GPU_ECC_CONFIGURATION,               N, "Returns the current ECC configuration setting." },
     { "ECCDefaultConfiguration",     NV_CTRL_GPU_ECC_DEFAULT_CONFIGURATION,       N, "Returns the default ECC configuration setting." },
@@ -812,6 +814,7 @@ int nv_parse_attribute_string(const char *str, int query, ParsedAttribute *a)
             a->name = t->name;
             a->attr = t->attr;
             a->flags |= t->flags;
+            a->attr_entry = t;
             break;
         }
     }

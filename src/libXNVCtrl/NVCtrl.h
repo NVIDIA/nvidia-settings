@@ -3298,6 +3298,18 @@
 #define NV_CTRL_BACKLIGHT_BRIGHTNESS                            402 /* RWD- */
 
 /*
+ * NV_CTRL_GPU_LOGO_BRIGHTNESS - Controls brightness
+ * of the logo on the GPU, if any.  The value is variable from 0% - 100%.
+ */ 
+#define NV_CTRL_GPU_LOGO_BRIGHTNESS                             403 /* RW-G */
+
+/*
+ * NV_CTRL_GPU_SLI_LOGO_BRIGHTNESS - Controls brightness of the logo
+ * on the SLI bridge, if any.  The value is variable from 0% - 100%.
+ */  
+#define NV_CTRL_GPU_SLI_LOGO_BRIGHTNESS                         404 /* RW-G */
+
+/*
  * NV_CTRL_THERMAL_COOLER_SPEED - Returns cooler's current operating speed in
  * rotations per minute (RPM).
  */

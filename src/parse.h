@@ -128,6 +128,7 @@ typedef struct _ParsedAttribute {
     int target_id;
     char *target_name;
     int attr;
+    const AttributeTableEntry *attr_entry;
     union {
         int i;
         float f;

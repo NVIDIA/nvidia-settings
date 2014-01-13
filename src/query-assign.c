@@ -1514,11 +1514,11 @@ static int resolve_attribute_targets(ParsedAttribute *a, CtrlHandles *h,
 
             /* Warn that this usage is deprecated */
 
-            nv_warning_msg("Display mask usage as specified %s has been "
-                           "deprecated and will be removed in the future."
-                           "Please use display names and/or display target "
-                           "specification instead.",
-                           whence);
+            nv_deprecated_msg("Display mask usage as specified %s has been "
+                              "deprecated and will be removed in the future."
+                              "Please use display names and/or display target "
+                              "specification instead.",
+                              whence);
         } else {
             display_mask = VALID_DISPLAY_DEVICES_MASK;
         }
@@ -2922,6 +2922,19 @@ int nv_process_parsed_attribute(ParsedAttribute *a, CtrlHandles *h,
                      "connection).", assign ? "assign" : "query",
                      a->name, whence);
         goto done;
+    }
+
+    /* Print deprecation messages */
+    if (strncmp(a->attr_entry->desc, "DEPRECATED", 10) == 0) {
+        const char *str = a->attr_entry->desc + 10;
+        while (*str &&
+               (*str == ':' || *str == '.')) {
+            str++;
+        }
+        nv_deprecated_msg("The attribute '%s' is deprecated%s%s",
+                          a->name,
+                          *str ? "," : ".",
+                          *str ? str : "");
     }
 
     /* Resolve any target specifications against the CtrlHandles that were
