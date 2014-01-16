@@ -19,15 +19,31 @@
 # OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 # SOFTWARE.
 
+VERSION_MK := $(wildcard $(OUTPUTDIR)/version.mk version.mk)
+include $(VERSION_MK)
+
+ifndef NVIDIA_VERSION
+$(error NVIDIA_VERSION undefined)
+endif
+
 RANLIB ?= ranlib
 CFLAGS += -fPIC
 
+all: libXNVCtrl.a libXNVCtrl.so
+
 libXNVCtrl.a : libXNVCtrl.a(NVCtrl.o)
 	$(RANLIB) $@
+
+libXNVCtrl.so: NVCtrl.o
+	$(RM) $@ $@.*
+	$(CC) -shared -Wl,-soname=$@.0 -o $@.$(NVIDIA_VERSION) $(LDFLAGS) $^ -lXext -lX11
+	ln -s $@.$(NVIDIA_VERSION) $@.0
+	ln -s $@.0 $@
 
 NVCtrl.o : NVCtrl.h nv_control.h NVCtrlLib.h
 .INTERMEDIATE: NVCtrl.o
 
 clean ::
 	rm -f libXNVCtrl.a *.o
+	rm -f libXNVCtrl.so libXNVCtrl.so.*
 .PHONY: clean
