@@ -1183,6 +1183,10 @@ GtkWidget* ctk_display_config_new(NvCtrlAttributeHandle *handle,
     gchar *sli_mode = NULL;
     ReturnStatus ret;
 
+    const char *stereo_mode_str;
+    NVCTRLAttributeValidValuesRec valid;
+    int stereo_mode, stereo_mode_max = NV_CTRL_STEREO_MAX;
+
     /*
      * Get SLI Mode.  If SLI Mode is "Mosaic", do not
      * load this page
@@ -1546,41 +1550,57 @@ GtkWidget* ctk_display_config_new(NvCtrlAttributeHandle *handle,
                      (gpointer) ctk_object);
 
     /* Screen Stereo Mode */
-    ctk_object->mnu_screen_stereo = gtk_option_menu_new();
-    menu = gtk_menu_new();
-    menu_item = gtk_menu_item_new_with_label("Disabled");
-    gtk_menu_shell_append(GTK_MENU_SHELL(menu), menu_item);
-    menu_item = gtk_menu_item_new_with_label("DCC Glasses");
-    gtk_menu_shell_append(GTK_MENU_SHELL(menu), menu_item);
-    menu_item = gtk_menu_item_new_with_label("BlueLine Glasses");
-    gtk_menu_shell_append(GTK_MENU_SHELL(menu), menu_item);
-    menu_item = gtk_menu_item_new_with_label("Onboard (DIN)");
-    gtk_menu_shell_append(GTK_MENU_SHELL(menu), menu_item);
-    menu_item = gtk_menu_item_new_with_label("Passive Eye Per Display");
-    gtk_menu_shell_append(GTK_MENU_SHELL(menu), menu_item);
-    menu_item = gtk_menu_item_new_with_label("Vertical Interlaced");
-    gtk_menu_shell_append(GTK_MENU_SHELL(menu), menu_item);
-    menu_item = gtk_menu_item_new_with_label("Color Interleaved");
-    gtk_menu_shell_append(GTK_MENU_SHELL(menu), menu_item);
-    menu_item = gtk_menu_item_new_with_label("Horizontal Interlaced");
-    gtk_menu_shell_append(GTK_MENU_SHELL(menu), menu_item);
-    menu_item = gtk_menu_item_new_with_label("Checkerboard 3D DLP");
-    gtk_menu_shell_append(GTK_MENU_SHELL(menu), menu_item);
-    menu_item = gtk_menu_item_new_with_label("Inverse Checkerboard 3D DLP");
-    gtk_menu_shell_append(GTK_MENU_SHELL(menu), menu_item);
-    menu_item = gtk_menu_item_new_with_label("NVIDIA 3D Vision");
-    gtk_menu_shell_append(GTK_MENU_SHELL(menu), menu_item);
-    menu_item = gtk_menu_item_new_with_label("NVIDIA 3D Vision Pro");
-    gtk_menu_shell_append(GTK_MENU_SHELL(menu), menu_item);
-    menu_item = gtk_menu_item_new_with_label("HDMI 3D");
-    gtk_menu_shell_append(GTK_MENU_SHELL(menu), menu_item);
-    gtk_option_menu_set_menu
-        (GTK_OPTION_MENU(ctk_object->mnu_screen_stereo), menu);
-    ctk_config_set_tooltip(ctk_config, ctk_object->mnu_screen_stereo,
-                           __screen_stereo_help);
-    g_signal_connect(G_OBJECT(ctk_object->mnu_screen_stereo),
-                     "changed", G_CALLBACK(screen_stereo_changed),
-                     (gpointer) ctk_object);
+    ret = NvCtrlGetValidAttributeValues(handle, NV_CTRL_STEREO, &valid);
+
+    if (ret == NvCtrlSuccess) {
+
+        ctk_object->mnu_screen_stereo = gtk_option_menu_new();
+        menu = gtk_menu_new();
+
+        ctk_object->stereo_table_size = 0;
+        memset(ctk_object->stereo_table, 0,
+               sizeof(int) * ARRAY_LEN(ctk_object->stereo_table));
+
+        /*
+         * The current driver will return type _INT_BITS that we can use to
+         * list the available stereo modes. Older drivers will return the type
+         * _INTEGER that we can use as a flag to list all possible stereo modes
+         * before the change was made. The newest at that time was HDMI_3D.
+         */
+
+        if (valid.type == ATTRIBUTE_TYPE_INTEGER) {
+            stereo_mode_max = NV_CTRL_STEREO_HDMI_3D;
+        }
+
+        for (stereo_mode = NV_CTRL_STEREO_OFF;
+             stereo_mode <= stereo_mode_max;
+             stereo_mode++) {
+            stereo_mode_str = NvCtrlGetStereoModeNameIfExists(stereo_mode);
+
+            if (stereo_mode_str == (const char *) -1) {
+                break;
+            }
+
+            if (stereo_mode_str && (valid.type == ATTRIBUTE_TYPE_INTEGER ||
+                                    (valid.type == ATTRIBUTE_TYPE_INT_BITS &&
+                                     valid.u.bits.ints & (1 << stereo_mode)))) {
+                ctk_object->stereo_table[ctk_object->stereo_table_size++] =
+                    stereo_mode;
+                menu_item = gtk_menu_item_new_with_label(stereo_mode_str);
+                gtk_menu_shell_append(GTK_MENU_SHELL(menu), menu_item);
+            }
+        }
+
+        gtk_option_menu_set_menu
+            (GTK_OPTION_MENU(ctk_object->mnu_screen_stereo), menu);
+        ctk_config_set_tooltip(ctk_config, ctk_object->mnu_screen_stereo,
+                               __screen_stereo_help);
+        g_signal_connect(G_OBJECT(ctk_object->mnu_screen_stereo),
+                         "changed", G_CALLBACK(screen_stereo_changed),
+                         (gpointer) ctk_object);
+    } else {
+        ctk_object->mnu_screen_stereo = NULL;
+    }
 
     /* Screen Position Type (Absolute/Relative Menu) */
     ctk_object->mnu_screen_position_type = gtk_option_menu_new();
@@ -2009,15 +2029,19 @@ GtkWidget* ctk_display_config_new(NvCtrlAttributeHandle *handle,
         ctk_object->box_screen_depth = hbox;
 
         /* X screen stereo dropdown */
-        label = gtk_label_new("Stereo Mode:");
-        labels = g_slist_append(labels, label);
+        if (ctk_object->mnu_screen_stereo) {
+            label = gtk_label_new("Stereo Mode:");
+            labels = g_slist_append(labels, label);
 
-        hbox = gtk_hbox_new(FALSE, 5);
-        gtk_box_pack_start(GTK_BOX(vbox), hbox, FALSE, FALSE, 0);
-        gtk_box_pack_start(GTK_BOX(hbox), label, FALSE, TRUE, 5);
-        gtk_box_pack_start(GTK_BOX(hbox), ctk_object->mnu_screen_stereo,
-                           TRUE, TRUE, 0);
-        ctk_object->box_screen_stereo = hbox;
+            hbox = gtk_hbox_new(FALSE, 5);
+            gtk_box_pack_start(GTK_BOX(vbox), hbox, FALSE, FALSE, 0);
+            gtk_box_pack_start(GTK_BOX(hbox), label, FALSE, TRUE, 5);
+            gtk_box_pack_start(GTK_BOX(hbox), ctk_object->mnu_screen_stereo,
+                               TRUE, TRUE, 0);
+            ctk_object->box_screen_stereo = hbox;
+        } else {
+            ctk_object->box_screen_stereo = NULL;
+        }
 
         /* X screen positioning */
         label = gtk_label_new("Position:");
@@ -4428,6 +4452,7 @@ static void setup_screen_stereo_dropdown(CtkDisplayConfig *ctk_object)
 {
     nvScreenPtr screen = ctk_display_layout_get_selected_screen
         (CTK_DISPLAY_LAYOUT(ctk_object->obj_layout));
+    int i, index = screen->stereo;
 
     if (!ctk_object->box_screen_stereo) return;
 
@@ -4437,6 +4462,14 @@ static void setup_screen_stereo_dropdown(CtkDisplayConfig *ctk_object)
         return;
     }
 
+    /* translation from stereo mode to dropdown index */
+    for (i = 0; i < ctk_object->stereo_table_size; i++) {
+        if (ctk_object->stereo_table[i] == screen->stereo) {
+            index = i;
+            break;
+        }
+    }
+
     /* Set the selected positioning type */
     g_signal_handlers_block_by_func
         (G_OBJECT(ctk_object->mnu_screen_stereo),
@@ -4444,7 +4477,7 @@ static void setup_screen_stereo_dropdown(CtkDisplayConfig *ctk_object)
 
     gtk_option_menu_set_history
         (GTK_OPTION_MENU(ctk_object->mnu_screen_stereo),
-         screen->stereo);
+         index);
 
     g_signal_handlers_unblock_by_func
         (G_OBJECT(ctk_object->mnu_screen_stereo),
@@ -6635,6 +6668,12 @@ static void screen_stereo_changed(GtkWidget *widget, gpointer user_data)
 
     screen->stereo = idx;
 
+    if (idx >= 0 && idx < ctk_object->stereo_table_size) {
+
+        /* translation from dropdown index to stereo mode */
+        screen->stereo = ctk_object->stereo_table[idx];
+    }
+
     /* Can't apply screen stereo changes */
     ctk_object->apply_possible = FALSE;
 
@@ -7925,10 +7964,6 @@ static void apply_clicked(GtkWidget *widget, gpointer user_data)
         if (!screen->handle) continue;
         if (screen->no_scanout) continue;
 
-        if (!update_screen_metamodes(ctk_object, screen)) {
-            clear_apply = FALSE;
-        }
-
         if (screen->primaryDisplay && ctk_object->primary_display_changed) {
             ret = NvCtrlSetStringAttribute(screen->handle,
                                            NV_CTRL_STRING_NVIDIA_XINERAMA_INFO_ORDER,
@@ -7944,6 +7979,11 @@ static void apply_clicked(GtkWidget *widget, gpointer user_data)
                 ctk_object->primary_display_changed = FALSE;
             }
         }
+        
+        if (!update_screen_metamodes(ctk_object, screen)) {
+            clear_apply = FALSE;
+        }
+
     }
 
     /* Clear the apply button if all went well, and we were able to apply
@@ -8750,7 +8790,7 @@ static int generateXConfig(CtkDisplayConfig *ctk_object, XConfigPtr *pConfig)
 
     /* Check if composite should be disabled */
     {
-        const char *composite_disabled_str = NULL;
+        char *composite_disabled_str = NULL;
         nvScreenPtr screen;
 
         /* See if any X screens have overlay, cioverlay, ubb or stereo enabled,
@@ -8781,6 +8821,7 @@ static int generateXConfig(CtkDisplayConfig *ctk_object, XConfigPtr *pConfig)
             xconfigRemoveNamedOption(&(config->extensions->options), "Composite",
                                      NULL);
             xconfigAddNewOption(&config->extensions->options, "Composite", "Disable");
+            nvfree(composite_disabled_str);
         }
     }
 

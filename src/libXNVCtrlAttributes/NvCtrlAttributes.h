@@ -474,6 +474,9 @@ NvCtrlGetGvoColorConversion(NvCtrlAttributeHandle *handle,
                             float colorOffset[3],
                             float colorScale[3]);
 
+const char *NvCtrlGetStereoModeNameIfExists(int stereo_mode);
+const char *NvCtrlGetStereoModeName(int stereo_mode);
+
 const char *NvCtrlGetMultisampleModeName(int multisample_mode);
 
 char *NvCtrlAttributesStrError (ReturnStatus status);

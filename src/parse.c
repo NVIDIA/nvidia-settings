@@ -34,8 +34,6 @@
 
 /* local helper functions */
 
-static char **nv_strtok(char *s, char c, int *n);
-static void nv_free_strtoks(char **s, int n);
 static int ctoi(const char c);
 static int count_number_of_chars(char *o, char d);
 
@@ -49,343 +47,380 @@ static uint32 display_device_name_to_display_device_mask(const char *str);
  * attribute.
  */
 
-#define F NV_PARSER_TYPE_FRAMELOCK
-#define C NV_PARSER_TYPE_COLOR_ATTRIBUTE
-#define N NV_PARSER_TYPE_NO_CONFIG_WRITE
-#define G NV_PARSER_TYPE_GUI_ATTRIBUTE
-#define P NV_PARSER_TYPE_PACKED_ATTRIBUTE
-#define D NV_PARSER_TYPE_VALUE_IS_DISPLAY
-#define A NV_PARSER_TYPE_NO_QUERY_ALL
-#define Z NV_PARSER_TYPE_NO_ZERO_VALUE
-#define H NV_PARSER_TYPE_100Hz
-#define K NV_PARSER_TYPE_1000Hz
-#define S NV_PARSER_TYPE_STRING_ATTRIBUTE
-#define I NV_PARSER_TYPE_SDI
-#define W NV_PARSER_TYPE_VALUE_IS_SWITCH_DISPLAY
-#define M NV_PARSER_TYPE_SDI_CSC
-#define T NV_PARSER_TYPE_HIJACK_DISPLAY_DEVICE
-#define V NV_PARSER_TYPE_VALUE_IS_DISPLAY_ID
+#define INT_ATTR NV_PARSER_ATTRIBUTE_TYPE_INTEGER
+#define STR_ATTR NV_PARSER_ATTRIBUTE_TYPE_STRING
+#define COL_ATTR NV_PARSER_ATTRIBUTE_TYPE_COLOR
+#define CSC_ATTR NV_PARSER_ATTRIBUTE_TYPE_SDI_CSC
+#define SOP_ATTR NV_PARSER_ATTRIBUTE_TYPE_STRING_OPERATION
 
 const AttributeTableEntry attributeTable[] = {
 
-    /* name                    constant                             flags                 description */
+    /* name                              attribute                                      type    common flags   special flags                     description
+     *
+     *                                                                                                                           .-------------- is_100Hz
+     *                                                                               no_query_all -----------.                   | .------------ is_1000Hz
+     *                                                                            no_config_write ---------. |                   | | .---------- is_packed
+     *                                                                      hijack_display_device -------. | |                   | | | .-------- is_display_mask
+     *                                                                           is_sdi_attribute -----. | | |                   | | | | .------ is_display_id
+     *                                                                     is_framelock_attribute ---. | | | |                   | | | | | .---- no_zero
+     *                                                                           is_gui_attribute -. | | | | |                   | | | | | | .-- is_switch_display
+     *                                                                                             | | | | | |                   | | | | | | |
+     */
 
     /* Version information */
-    { "OperatingSystem",     NV_CTRL_OPERATING_SYSTEM,             N,   "The operating system on which the X server is running.  0-Linux, 1-FreeBSD, 2-SunOS." },
-    { "NvidiaDriverVersion", NV_CTRL_STRING_NVIDIA_DRIVER_VERSION, S|N, "The NVIDIA X driver version." },
-    { "NvControlVersion",    NV_CTRL_STRING_NV_CONTROL_VERSION,    S|N, "The NV-CONTROL X driver extension version." },
-    { "GLXServerVersion",    NV_CTRL_STRING_GLX_SERVER_VERSION,    S|N, "The GLX X server extension version." },
-    { "GLXClientVersion",    NV_CTRL_STRING_GLX_CLIENT_VERSION,    S|N, "The GLX client version." },
-    { "OpenGLVersion",       NV_CTRL_STRING_GLX_OPENGL_VERSION,    S|N, "The OpenGL version." },
-    { "XRandRVersion",       NV_CTRL_STRING_XRANDR_VERSION,        S|N, "The X RandR version." },
-    { "XF86VidModeVersion",  NV_CTRL_STRING_XF86VIDMODE_VERSION,   S|N, "The XF86 Video Mode X extension version." },
-    { "XvVersion",           NV_CTRL_STRING_XV_VERSION,            S|N, "The Xv X extension version." },
-    { "ScreenPosition",      NV_CTRL_STRING_SCREEN_RECTANGLE,      S|N, "Returns the physical X Screen's initial position and size (in absolute coordinates) within the desktop as the \"token=value \" string:  \"x=#, y=#, width=#, height=#\"." },
- 
+    { "OperatingSystem",                  NV_CTRL_OPERATING_SYSTEM,                     INT_ATTR, {0,0,0,0,1,0}, { .int_flags = {0,0,0,0,0,0,0} }, "The operating system on which the X server is running.  0-Linux, 1-FreeBSD, 2-SunOS." },
+    { "NvidiaDriverVersion",              NV_CTRL_STRING_NVIDIA_DRIVER_VERSION,         STR_ATTR, {0,0,0,0,1,0}, {}, "The NVIDIA X driver version." },
+    { "NvControlVersion",                 NV_CTRL_STRING_NV_CONTROL_VERSION,            STR_ATTR, {0,0,0,0,1,0}, {}, "The NV-CONTROL X driver extension version." },
+    { "GLXServerVersion",                 NV_CTRL_STRING_GLX_SERVER_VERSION,            STR_ATTR, {0,0,0,0,1,0}, {}, "The GLX X server extension version." },
+    { "GLXClientVersion",                 NV_CTRL_STRING_GLX_CLIENT_VERSION,            STR_ATTR, {0,0,0,0,1,0}, {}, "The GLX client version." },
+    { "OpenGLVersion",                    NV_CTRL_STRING_GLX_OPENGL_VERSION,            STR_ATTR, {0,0,0,0,1,0}, {}, "The OpenGL version." },
+    { "XRandRVersion",                    NV_CTRL_STRING_XRANDR_VERSION,                STR_ATTR, {0,0,0,0,1,0}, {}, "The X RandR version." },
+    { "XF86VidModeVersion",               NV_CTRL_STRING_XF86VIDMODE_VERSION,           STR_ATTR, {0,0,0,0,1,0}, {}, "The XF86 Video Mode X extension version." },
+    { "XvVersion",                        NV_CTRL_STRING_XV_VERSION,                    STR_ATTR, {0,0,0,0,1,0}, {}, "The Xv X extension version." },
+
     /* X screen */
-    { "Ubb",                           NV_CTRL_UBB,                               0,     "Is UBB enabled for the specified X screen." },
-    { "Overlay",                       NV_CTRL_OVERLAY,                           0,     "Is the RGB overlay enabled for the specified X screen." },
-    { "Stereo",                        NV_CTRL_STEREO,                            0,     "The stereo mode for the specified X screen." },
-    { "TwinView",                      NV_CTRL_TWINVIEW,                          0,     "Is TwinView enabled for the specified X screen." },
-    { "ConnectedDisplays",             NV_CTRL_CONNECTED_DISPLAYS,                D,     "DEPRECATED: use \"-q dpys\" instead." },
-    { "EnabledDisplays",               NV_CTRL_ENABLED_DISPLAYS,                  D,     "DEPRECATED: use \"-q dpys\" instead." },
-    { "AssociatedDisplays",            NV_CTRL_ASSOCIATED_DISPLAY_DEVICES,        N|D,   "DEPRECATED: use \"-q xscreens -V all\" instead." },
-    { "ProbeDisplays",                 NV_CTRL_PROBE_DISPLAYS,                    A|D,   "When this attribute is queried, the X driver re-probes the hardware to detect which display devices are connected to the GPU or DPU driving the specified X screen." },
-    { "InitialPixmapPlacement",        NV_CTRL_INITIAL_PIXMAP_PLACEMENT,          N,     "Controls where X pixmaps are initially created." },
-    { "MultiGpuDisplayOwner",          NV_CTRL_MULTIGPU_DISPLAY_OWNER,            N,     "GPU ID of the GPU that has the display device(s) used for showing the X screen." },
-    { "HWOverlay",                     NV_CTRL_HWOVERLAY,                         0,     "When a workstation overlay is in use, this value is 1 if the hardware overlay is used, or 0 if the overlay is emulated." },
-    { "OnDemandVBlankInterrupts",      NV_CTRL_ONDEMAND_VBLANK_INTERRUPTS,        0,     "Enable/Disable/Query of on-demand vertical blanking interrupt control on the GPU.  The 'OnDemandVBlankInterrupts' X server configuration option must be enabled for this option to be available." },
-    { "GlyphCache",                    NV_CTRL_GLYPH_CACHE,                       N,     "Enable or disable caching of glyphs (text) in video memory." },
-    { "SwitchToDisplays",              NV_CTRL_SWITCH_TO_DISPLAYS,                D|N|W, "Used to set which displays should be active." },
-    { "NotebookDisplayChangeLidEvent", NV_CTRL_NOTEBOOK_DISPLAY_CHANGE_LID_EVENT, N,     "Reports notebook lid open/close events." },
-    { "NotebookInternalLCD",           NV_CTRL_NOTEBOOK_INTERNAL_LCD,             N|D,   "DEPRECATED." },
-    { "Depth30Allowed",                NV_CTRL_DEPTH_30_ALLOWED,                  N,     "Returns whether the NVIDIA X driver supports depth 30 on the specified X screen or GPU." },
-    { "NoScanout",                     NV_CTRL_NO_SCANOUT,                        N,     "Returns whether the special \"NoScanout\" mode is enabled on the specified X screen or GPU." },
-    { "XServerUniqueId",               NV_CTRL_X_SERVER_UNIQUE_ID,                N,     "Returns a pseudo-unique identification number for the X server." },
-    { "PixmapCache",                   NV_CTRL_PIXMAP_CACHE,                      N,     "Controls whether pixmaps are allocated in a cache." },
-    { "PixmapCacheRoundSizeKB",        NV_CTRL_PIXMAP_CACHE_ROUNDING_SIZE_KB,     N,     "Controls the number of kilobytes to add to the pixmap cache when there is not enough room." },
-    { "AccelerateTrapezoids",          NV_CTRL_ACCELERATE_TRAPEZOIDS,             N,     "Enable or disable GPU acceleration of RENDER Trapezoids." },
+    { "Ubb",                              NV_CTRL_UBB,                                  INT_ATTR, {0,0,0,0,0,0}, { .int_flags = {0,0,0,0,0,0,0} }, "Is UBB enabled for the specified X screen." },
+    { "Overlay",                          NV_CTRL_OVERLAY,                              INT_ATTR, {0,0,0,0,0,0}, { .int_flags = {0,0,0,0,0,0,0} }, "Is the RGB overlay enabled for the specified X screen." },
+    { "Stereo",                           NV_CTRL_STEREO,                               INT_ATTR, {0,0,0,0,0,0}, { .int_flags = {0,0,0,0,0,0,0} }, "The stereo mode for the specified X screen." },
+    { "TwinView",                         NV_CTRL_TWINVIEW,                             INT_ATTR, {0,0,0,0,0,0}, { .int_flags = {0,0,0,0,0,0,0} }, "Is TwinView enabled for the specified X screen." },
+    { "ConnectedDisplays",                NV_CTRL_CONNECTED_DISPLAYS,                   INT_ATTR, {0,0,0,0,0,0}, { .int_flags = {0,0,0,1,0,0,0} }, "DEPRECATED: use \"-q dpys\" instead." },
+    { "EnabledDisplays",                  NV_CTRL_ENABLED_DISPLAYS,                     INT_ATTR, {0,0,0,0,0,0}, { .int_flags = {0,0,0,1,0,0,0} }, "DEPRECATED: use \"-q dpys\" instead." },
+    { "AssociatedDisplays",               NV_CTRL_ASSOCIATED_DISPLAY_DEVICES,           INT_ATTR, {0,0,0,0,1,0}, { .int_flags = {0,0,0,1,0,0,0} }, "DEPRECATED: use \"-q xscreens -V all\" instead." },
+    { "ProbeDisplays",                    NV_CTRL_PROBE_DISPLAYS,                       INT_ATTR, {0,0,0,0,0,1}, { .int_flags = {0,0,0,1,0,0,0} }, "When this attribute is queried, the X driver re-probes the hardware to detect which display devices are connected to the GPU or DPU driving the specified X screen." },
+    { "InitialPixmapPlacement",           NV_CTRL_INITIAL_PIXMAP_PLACEMENT,             INT_ATTR, {0,0,0,0,1,0}, { .int_flags = {0,0,0,0,0,0,0} }, "Controls where X pixmaps are initially created." },
+    { "MultiGpuDisplayOwner",             NV_CTRL_MULTIGPU_DISPLAY_OWNER,               INT_ATTR, {0,0,0,0,1,0}, { .int_flags = {0,0,0,0,0,0,0} }, "GPU ID of the GPU that has the display device(s) used for showing the X screen." },
+    { "HWOverlay",                        NV_CTRL_HWOVERLAY,                            INT_ATTR, {0,0,0,0,0,0}, { .int_flags = {0,0,0,0,0,0,0} }, "When a workstation overlay is in use, this value is 1 if the hardware overlay is used, or 0 if the overlay is emulated." },
+    { "OnDemandVBlankInterrupts",         NV_CTRL_ONDEMAND_VBLANK_INTERRUPTS,           INT_ATTR, {0,0,0,0,0,0}, { .int_flags = {0,0,0,0,0,0,0} }, "Enable/Disable/Query of on-demand vertical blanking interrupt control on the GPU.  The 'OnDemandVBlankInterrupts' X server configuration option must be enabled for this option to be available." },
+    { "GlyphCache",                       NV_CTRL_GLYPH_CACHE,                          INT_ATTR, {0,0,0,0,1,0}, { .int_flags = {0,0,0,0,0,0,0} }, "Enable or disable caching of glyphs (text) in video memory." },
+    { "SwitchToDisplays",                 NV_CTRL_SWITCH_TO_DISPLAYS,                   INT_ATTR, {0,0,0,0,1,0}, { .int_flags = {0,0,0,1,0,0,1} }, "Used to set which displays should be active." },
+    { "NotebookDisplayChangeLidEvent",    NV_CTRL_NOTEBOOK_DISPLAY_CHANGE_LID_EVENT,    INT_ATTR, {0,0,0,0,1,0}, { .int_flags = {0,0,0,0,0,0,0} }, "Reports notebook lid open/close events." },
+    { "NotebookInternalLCD",              NV_CTRL_NOTEBOOK_INTERNAL_LCD,                INT_ATTR, {0,0,0,0,1,0}, { .int_flags = {0,0,0,1,0,0,0} }, "DEPRECATED." },
+    { "Depth30Allowed",                   NV_CTRL_DEPTH_30_ALLOWED,                     INT_ATTR, {0,0,0,0,1,0}, { .int_flags = {0,0,0,0,0,0,0} }, "Returns whether the NVIDIA X driver supports depth 30 on the specified X screen or GPU." },
+    { "NoScanout",                        NV_CTRL_NO_SCANOUT,                           INT_ATTR, {0,0,0,0,1,0}, { .int_flags = {0,0,0,0,0,0,0} }, "Returns whether the special \"NoScanout\" mode is enabled on the specified X screen or GPU." },
+    { "XServerUniqueId",                  NV_CTRL_X_SERVER_UNIQUE_ID,                   INT_ATTR, {0,0,0,0,1,0}, { .int_flags = {0,0,0,0,0,0,0} }, "Returns a pseudo-unique identification number for the X server." },
+    { "PixmapCache",                      NV_CTRL_PIXMAP_CACHE,                         INT_ATTR, {0,0,0,0,1,0}, { .int_flags = {0,0,0,0,0,0,0} }, "Controls whether pixmaps are allocated in a cache." },
+    { "PixmapCacheRoundSizeKB",           NV_CTRL_PIXMAP_CACHE_ROUNDING_SIZE_KB,        INT_ATTR, {0,0,0,0,1,0}, { .int_flags = {0,0,0,0,0,0,0} }, "Controls the number of kilobytes to add to the pixmap cache when there is not enough room." },
+    { "AccelerateTrapezoids",             NV_CTRL_ACCELERATE_TRAPEZOIDS,                INT_ATTR, {0,0,0,0,1,0}, { .int_flags = {0,0,0,0,0,0,0} }, "Enable or disable GPU acceleration of RENDER Trapezoids." },
+    { "ScreenPosition",                   NV_CTRL_STRING_SCREEN_RECTANGLE,              STR_ATTR, {0,0,0,0,1,0}, {}, "Returns the physical X Screen's initial position and size (in absolute coordinates) within the desktop as the \"token=value \" string:  \"x=#, y=#, width=#, height=#\"." },
+    { "AddMetaMode",                      NV_CTRL_STRING_OPERATION_ADD_METAMODE,        SOP_ATTR, {0,0,0,0,1,1}, {}, "Adds the given MetaMode to the X screen." },
+    { "ParseMetaMode",                    NV_CTRL_STRING_OPERATION_ADD_METAMODE,        SOP_ATTR, {0,0,0,0,1,1}, {}, "Parses and validates a given MetaMode." },
 
     /* OpenGL */
-    { "SyncToVBlank",               NV_CTRL_SYNC_TO_VBLANK,                   0,   "Enables sync to vertical blanking for OpenGL clients.  This setting only takes effect on OpenGL clients started after it is set." },
-    { "LogAniso",                   NV_CTRL_LOG_ANISO,                        0,   "Enables anisotropic filtering for OpenGL clients; on some NVIDIA hardware, this can only be enabled or disabled; on other hardware different levels of anisotropic filtering can be specified.  This setting only takes effect on OpenGL clients started after it is set." },
-    { "FSAA",                       NV_CTRL_FSAA_MODE,                        0,   "The full screen antialiasing setting for OpenGL clients.  This setting only takes effect on OpenGL clients started after it is set. Enabling antialiasing will disable FXAA." },
-    { "TextureSharpen",             NV_CTRL_TEXTURE_SHARPEN,                  0,   "Enables texture sharpening for OpenGL clients.  This setting only takes effect on OpenGL clients started after it is set." },
-    { "ForceGenericCpu",            NV_CTRL_FORCE_GENERIC_CPU,                N,   "Inhibit the use of CPU-specific features such as MMX, SSE, or 3DNOW! for OpenGL clients; this option may result in performance loss, but may be useful in conjunction with software such as the Valgrind memory debugger.  This setting only takes effect on OpenGL clients started after it is set." },
-    { "GammaCorrectedAALines",      NV_CTRL_OPENGL_AA_LINE_GAMMA,             0,   "For OpenGL clients, allow gamma-corrected antialiased lines to consider variances in the color display capabilities of output devices when rendering smooth lines.  Only available on recent Quadro GPUs.  This setting only takes effect on OpenGL clients started after it is set." },
-    { "TextureClamping",            NV_CTRL_TEXTURE_CLAMPING,                 0,   "Define the behavior of OpenGL texture clamping for unbordered textures.  If enabled (1), the conformant behavior is used.  If disabled (0), GL_CLAMP is remapped to GL_CLAMP_TO_EDGE to avoid seams in applications that rely on this behavior, which was the only option in some very old hardware." },
-    { "FXAA",                       NV_CTRL_FXAA,                             0,   "Enables or disables the use of FXAA, Fast Approximate Anti-Aliasing. Enabling FXAA will disable regular antialiasing modes." },
-
-    { "AllowFlipping",              NV_CTRL_FLIPPING_ALLOWED,                 0,   "Defines the swap behavior of OpenGL.  When 1, OpenGL will swap by flipping when possible;  When 0, OpenGL will always swap by blitting." },
-    { "FSAAAppControlled",          NV_CTRL_FSAA_APPLICATION_CONTROLLED,      0,   "When Application Control for FSAA is enabled, then what the application requests is used, and the FSAA attribute is ignored.  If this is disabled, then any application setting is overridden with the FSAA attribute." },
-    { "LogAnisoAppControlled",      NV_CTRL_LOG_ANISO_APPLICATION_CONTROLLED, 0,   "When Application Control for LogAniso is enabled, then what the application requests is used, and the LogAniso attribute is ignored.  If this is disabled, then any application setting is overridden with the LogAniso attribute." },
-    { "ForceStereoFlipping",        NV_CTRL_FORCE_STEREO,                     0,   "When 1, OpenGL will force stereo flipping even when no stereo drawables are visible (if the device is configured to support it, see the \"Stereo\" X config option).  When 0, fall back to the default behavior of only flipping when a stereo drawable is visible." },
-    { "OpenGLImageSettings",        NV_CTRL_IMAGE_SETTINGS,                   0,   "The image quality setting for OpenGL clients.  This setting only takes effect on OpenGL clients started after it is set." },
-    { "XineramaStereoFlipping",     NV_CTRL_XINERAMA_STEREO,                  0,   "When 1, OpenGL will allow stereo flipping on multiple X screens configured with Xinerama.  When 0, flipping is allowed only on one X screen at a time." },
-    { "ShowSLIHUD",                 NV_CTRL_SHOW_SLI_HUD,                     0,   "If this is enabled (1), the driver will draw information about the current SLI mode into a \"heads-up display\" inside OpenGL windows accelerated with SLI.  This setting only takes effect on OpenGL clients started after it is set." },
-    { "ShowSLIVisualIndicator",     NV_CTRL_SHOW_SLI_VISUAL_INDICATOR,        0,   "If this is enabled (1), the driver will draw information about the current SLI mode into a \"visual indicator\" inside OpenGL windows accelerated with SLI.  This setting only takes effect on OpenGL clients started after it is set." },
-    { "ShowMultiGpuVisualIndicator", NV_CTRL_SHOW_MULTIGPU_VISUAL_INDICATOR,  0,   "If this is enabled (1), the driver will draw information about the current MultiGPU mode into a \"visual indicator\" inside OpenGL windows accelerated with SLI.  This setting only takes effect on OpenGL clients started after it is set." },
-    { "FSAAAppEnhanced",            NV_CTRL_FSAA_APPLICATION_ENHANCED,        0,   "Controls how the FSAA attribute is applied when FSAAAppControlled is disabled.  When FSAAAppEnhanced is disabled, OpenGL applications will be forced to use the FSAA mode specified by the FSAA attribute.  When the FSAAAppEnhanced attribute is enabled, only those applications that have selected a multisample FBConfig will be made to use the FSAA mode specified." },
-    { "GammaCorrectedAALinesValue", NV_CTRL_OPENGL_AA_LINE_GAMMA_VALUE,       0,   "Returns the gamma value used by OpenGL when gamma-corrected antialiased lines are enabled." },
-    { "StereoEyesExchange",         NV_CTRL_STEREO_EYES_EXCHANGE,             0,   "Swaps the left and right eyes of stereo images." },
-    { "SLIMode",                    NV_CTRL_STRING_SLI_MODE,                  S|N, "Returns a string describing the current SLI mode, if any." },
-    { "SliMosaicModeAvailable",     NV_CTRL_SLI_MOSAIC_MODE_AVAILABLE,        N,   "Returns whether or not SLI Mosaic Mode is supported." },
-    { "MultiGpuMode",               NV_CTRL_STRING_MULTIGPU_MODE,             S|N, "Returns a string describing the current MultiGPU mode, if any." },
+    { "SyncToVBlank",                     NV_CTRL_SYNC_TO_VBLANK,                       INT_ATTR, {0,0,0,0,0,0}, { .int_flags = {0,0,0,0,0,0,0} }, "Enables sync to vertical blanking for OpenGL clients.  This setting only takes effect on OpenGL clients started after it is set." },
+    { "LogAniso",                         NV_CTRL_LOG_ANISO,                            INT_ATTR, {0,0,0,0,0,0}, { .int_flags = {0,0,0,0,0,0,0} }, "Enables anisotropic filtering for OpenGL clients; on some NVIDIA hardware, this can only be enabled or disabled; on other hardware different levels of anisotropic filtering can be specified.  This setting only takes effect on OpenGL clients started after it is set." },
+    { "FSAA",                             NV_CTRL_FSAA_MODE,                            INT_ATTR, {0,0,0,0,0,0}, { .int_flags = {0,0,0,0,0,0,0} }, "The full screen antialiasing setting for OpenGL clients.  This setting only takes effect on OpenGL clients started after it is set. Enabling antialiasing will disable FXAA." },
+    { "TextureSharpen",                   NV_CTRL_TEXTURE_SHARPEN,                      INT_ATTR, {0,0,0,0,0,0}, { .int_flags = {0,0,0,0,0,0,0} }, "Enables texture sharpening for OpenGL clients.  This setting only takes effect on OpenGL clients started after it is set." },
+    { "ForceGenericCpu",                  NV_CTRL_FORCE_GENERIC_CPU,                    INT_ATTR, {0,0,0,0,1,0}, { .int_flags = {0,0,0,0,0,0,0} }, "Inhibit the use of CPU-specific features such as MMX, SSE, or 3DNOW! for OpenGL clients; this option may result in performance loss, but may be useful in conjunction with software such as the Valgrind memory debugger.  This setting only takes effect on OpenGL clients started after it is set." },
+    { "GammaCorrectedAALines",            NV_CTRL_OPENGL_AA_LINE_GAMMA,                 INT_ATTR, {0,0,0,0,0,0}, { .int_flags = {0,0,0,0,0,0,0} }, "For OpenGL clients, allow gamma-corrected antialiased lines to consider variances in the color display capabilities of output devices when rendering smooth lines.  Only available on recent Quadro GPUs.  This setting only takes effect on OpenGL clients started after it is set." },
+    { "TextureClamping",                  NV_CTRL_TEXTURE_CLAMPING,                     INT_ATTR, {0,0,0,0,0,0}, { .int_flags = {0,0,0,0,0,0,0} }, "Define the behavior of OpenGL texture clamping for unbordered textures.  If enabled (1), the conformant behavior is used.  If disabled (0), GL_CLAMP is remapped to GL_CLAMP_TO_EDGE to avoid seams in applications that rely on this behavior, which was the only option in some very old hardware." },
+    { "FXAA",                             NV_CTRL_FXAA,                                 INT_ATTR, {0,0,0,0,0,0}, { .int_flags = {0,0,0,0,0,0,0} }, "Enables or disables the use of FXAA, Fast Approximate Anti-Aliasing. Enabling FXAA will disable regular antialiasing modes." },
+    { "AllowFlipping",                    NV_CTRL_FLIPPING_ALLOWED,                     INT_ATTR, {0,0,0,0,0,0}, { .int_flags = {0,0,0,0,0,0,0} }, "Defines the swap behavior of OpenGL.  When 1, OpenGL will swap by flipping when possible;  When 0, OpenGL will always swap by blitting." },
+    { "FSAAAppControlled",                NV_CTRL_FSAA_APPLICATION_CONTROLLED,          INT_ATTR, {0,0,0,0,0,0}, { .int_flags = {0,0,0,0,0,0,0} }, "When Application Control for FSAA is enabled, then what the application requests is used, and the FSAA attribute is ignored.  If this is disabled, then any application setting is overridden with the FSAA attribute." },
+    { "LogAnisoAppControlled",            NV_CTRL_LOG_ANISO_APPLICATION_CONTROLLED,     INT_ATTR, {0,0,0,0,0,0}, { .int_flags = {0,0,0,0,0,0,0} }, "When Application Control for LogAniso is enabled, then what the application requests is used, and the LogAniso attribute is ignored.  If this is disabled, then any application setting is overridden with the LogAniso attribute." },
+    { "ForceStereoFlipping",              NV_CTRL_FORCE_STEREO,                         INT_ATTR, {0,0,0,0,0,0}, { .int_flags = {0,0,0,0,0,0,0} }, "When 1, OpenGL will force stereo flipping even when no stereo drawables are visible (if the device is configured to support it, see the \"Stereo\" X config option).  When 0, fall back to the default behavior of only flipping when a stereo drawable is visible." },
+    { "OpenGLImageSettings",              NV_CTRL_IMAGE_SETTINGS,                       INT_ATTR, {0,0,0,0,0,0}, { .int_flags = {0,0,0,0,0,0,0} }, "The image quality setting for OpenGL clients.  This setting only takes effect on OpenGL clients started after it is set." },
+    { "XineramaStereoFlipping",           NV_CTRL_XINERAMA_STEREO,                      INT_ATTR, {0,0,0,0,0,0}, { .int_flags = {0,0,0,0,0,0,0} }, "When 1, OpenGL will allow stereo flipping on multiple X screens configured with Xinerama.  When 0, flipping is allowed only on one X screen at a time." },
+    { "ShowSLIHUD",                       NV_CTRL_SHOW_SLI_HUD,                         INT_ATTR, {0,0,0,0,0,0}, { .int_flags = {0,0,0,0,0,0,0} }, "If this is enabled (1), the driver will draw information about the current SLI mode into a \"heads-up display\" inside OpenGL windows accelerated with SLI.  This setting only takes effect on OpenGL clients started after it is set." },
+    { "ShowSLIVisualIndicator",           NV_CTRL_SHOW_SLI_VISUAL_INDICATOR,            INT_ATTR, {0,0,0,0,0,0}, { .int_flags = {0,0,0,0,0,0,0} }, "If this is enabled (1), the driver will draw information about the current SLI mode into a \"visual indicator\" inside OpenGL windows accelerated with SLI.  This setting only takes effect on OpenGL clients started after it is set." },
+    { "ShowMultiGpuVisualIndicator",      NV_CTRL_SHOW_MULTIGPU_VISUAL_INDICATOR,       INT_ATTR, {0,0,0,0,0,0}, { .int_flags = {0,0,0,0,0,0,0} }, "If this is enabled (1), the driver will draw information about the current MultiGPU mode into a \"visual indicator\" inside OpenGL windows accelerated with SLI.  This setting only takes effect on OpenGL clients started after it is set." },
+    { "FSAAAppEnhanced",                  NV_CTRL_FSAA_APPLICATION_ENHANCED,            INT_ATTR, {0,0,0,0,0,0}, { .int_flags = {0,0,0,0,0,0,0} }, "Controls how the FSAA attribute is applied when FSAAAppControlled is disabled.  When FSAAAppEnhanced is disabled, OpenGL applications will be forced to use the FSAA mode specified by the FSAA attribute.  When the FSAAAppEnhanced attribute is enabled, only those applications that have selected a multisample FBConfig will be made to use the FSAA mode specified." },
+    { "GammaCorrectedAALinesValue",       NV_CTRL_OPENGL_AA_LINE_GAMMA_VALUE,           INT_ATTR, {0,0,0,0,0,0}, { .int_flags = {0,0,0,0,0,0,0} }, "Returns the gamma value used by OpenGL when gamma-corrected antialiased lines are enabled." },
+    { "StereoEyesExchange",               NV_CTRL_STEREO_EYES_EXCHANGE,                 INT_ATTR, {0,0,0,0,0,0}, { .int_flags = {0,0,0,0,0,0,0} }, "Swaps the left and right eyes of stereo images." },
+    { "SliMosaicModeAvailable",           NV_CTRL_SLI_MOSAIC_MODE_AVAILABLE,            INT_ATTR, {0,0,0,0,1,0}, { .int_flags = {0,0,0,0,0,0,0} }, "Returns whether or not SLI Mosaic Mode is supported." },
+    { "SLIMode",                          NV_CTRL_STRING_SLI_MODE,                      STR_ATTR, {0,0,0,0,1,0}, {}, "Returns a string describing the current SLI mode, if any." },
+    { "MultiGpuMode",                     NV_CTRL_STRING_MULTIGPU_MODE,                 STR_ATTR, {0,0,0,0,1,0}, {}, "Returns a string describing the current MultiGPU mode, if any." },
 
     /* GPU */
-    { "BusType",                NV_CTRL_BUS_TYPE,                      N,   "Returns the type of bus connecting the specified device to the computer.  If the target is an X screen, then it uses the GPU driving the X screen as the device." },
-    { "PCIEMaxLinkSpeed",       NV_CTRL_GPU_PCIE_MAX_LINK_SPEED,       N,   "Returns the maximum speed that the PCIe link between the GPU and the system may be trained to.  This is expressed in gigatransfers per second (GT/s).  The link may be dynamically trained to a slower speed, based on the GPU's utilization and performance settings." },
-    { "PCIEMaxLinkWidth",       NV_CTRL_GPU_PCIE_MAX_LINK_WIDTH,       N,   "Returns the maximum width that the PCIe link between the GPU and the system may be trained to.  This is expressed in number of lanes.  The trained link width may vary dynamically and possibly be narrower based on the GPU's utilization and performance settings." },
-    { "PCIECurrentLinkSpeed",   NV_CTRL_GPU_PCIE_CURRENT_LINK_SPEED,   N,   "Returns the current PCIe link speed, in gigatransfers per second (GT/s)." },
-    { "PCIECurrentLinkWidth",   NV_CTRL_GPU_PCIE_CURRENT_LINK_WIDTH,   N,   "Returns the current PCIe link width of the GPU, in number of lanes." },
-    { "VideoRam",               NV_CTRL_VIDEO_RAM,                     N,   "Returns the total amount of memory available to the specified GPU (or the GPU driving the specified X screen).  Note: if the GPU supports TurboCache(TM), the value reported may exceed the amount of video memory installed on the GPU.  The value reported for integrated GPUs may likewise exceed the amount of dedicated system memory set aside by the system BIOS for use by the integrated GPU." },
-    { "TotalDedicatedGPUMemory",NV_CTRL_TOTAL_DEDICATED_GPU_MEMORY,    N,   "Returns the amount of total dedicated memory on the specified GPU in MB." },
-    { "UsedDedicatedGPUMemory", NV_CTRL_USED_DEDICATED_GPU_MEMORY,     N,   "Returns the amount of dedicated memory used on the specified GPU in MB." },
-    { "Irq",                    NV_CTRL_IRQ,                           N,   "Returns the interrupt request line used by the specified device.  If the target is an X screen, then it uses the GPU driving the X screen as the device." },
-    { "CUDACores",              NV_CTRL_GPU_CORES,                     N,   "Returns number of CUDA cores supported by the graphics pipeline." },
-    { "GPUMemoryInterface",     NV_CTRL_GPU_MEMORY_BUS_WIDTH,          N,   "Returns bus bandwidth of the GPU's memory interface." },
-    { "GPUCoreTemp",            NV_CTRL_GPU_CORE_TEMPERATURE,          N,   "Reports the current core temperature in Celsius of the GPU driving the X screen." },
-    { "GPUAmbientTemp",         NV_CTRL_AMBIENT_TEMPERATURE,           N,   "Reports the current temperature in Celsius of the immediate neighborhood of the GPU driving the X screen." },
-    { "GPUOverclockingState",   NV_CTRL_GPU_OVERCLOCKING_STATE,        N,   "The current overclocking state; the value of this attribute controls the availability of additional overclocking attributes.  Note that this attribute is unavailable unless overclocking support has been enabled by the system administrator." },
-    { "GPU2DClockFreqs",        NV_CTRL_GPU_2D_CLOCK_FREQS,            N|P, "The GPU and memory clock frequencies when operating in 2D mode.  New clock frequencies are tested before being applied, and may be rejected.  Note that if the target clocks are too aggressive, their testing may render the system unresponsive.  Also note that while this attribute may always be queried, it cannot be set unless GPUOverclockingState is set to MANUAL.  Since the target clocks may be rejected, the requester should read this attribute after the set to determine success or failure." },
-    { "GPU3DClockFreqs",        NV_CTRL_GPU_3D_CLOCK_FREQS,            N|P, "The GPU and memory clock frequencies  when operating in 3D mode.  New clock frequencies are tested before being applied, and may be rejected.  Note that if the target clocks are too aggressive, their testing may render the system unresponsive.  Also note that while this attribute may always be queried, it cannot be set unless GPUOverclockingState is set to MANUAL.  Since the target clocks may be rejected, the requester should read this attribute after the set to determine success or failure." },
-    { "GPUDefault2DClockFreqs", NV_CTRL_GPU_DEFAULT_2D_CLOCK_FREQS,    N|P, "Returns the default memory and GPU core clocks when operating in 2D mode." },
-    { "GPUDefault3DClockFreqs", NV_CTRL_GPU_DEFAULT_3D_CLOCK_FREQS,    N|P, "Returns the default memory and GPU core clocks when operating in 3D mode." },
-    { "GPUCurrentClockFreqs",   NV_CTRL_GPU_CURRENT_CLOCK_FREQS,       N|P, "Returns the current GPU and memory clocks of the graphics device driving the X screen." },
-    { "GPUCurrentProcessorClockFreqs", NV_CTRL_GPU_CURRENT_PROCESSOR_CLOCK_FREQS, N, "Returns the current processor clock of the graphics device driving the X screen." },
-    { "GPUCurrentClockFreqsString", NV_CTRL_STRING_GPU_CURRENT_CLOCK_FREQS, S|N, "Returns the current GPU, memory and Processor clocks of the graphics device driving the X screen." },
-    { "BusRate",                NV_CTRL_BUS_RATE,                      N,   "If the device is on an AGP bus, then BusRate returns the configured AGP rate.  If the device is on a PCI Express bus, then this attribute returns the width of the physical link." },
-    { "PCIDomain",              NV_CTRL_PCI_DOMAIN,                    N,   "Returns the PCI domain number for the specified device." },
-    { "PCIBus",                 NV_CTRL_PCI_BUS,                       N,   "Returns the PCI bus number for the specified device." },
-    { "PCIDevice",              NV_CTRL_PCI_DEVICE,                    N,   "Returns the PCI device number for the specified device." },
-    { "PCIFunc",                NV_CTRL_PCI_FUNCTION,                  N,   "Returns the PCI function number for the specified device." },
-    { "PCIID",                  NV_CTRL_PCI_ID,                        N|P, "Returns the PCI vendor and device ID of the specified device." },
-    { "PCIEGen",                NV_CTRL_GPU_PCIE_GENERATION,           N,   "Returns the PCIe generation that this GPU, in this system, is compliant with." },
-    { "GPUErrors",              NV_CTRL_NUM_GPU_ERRORS_RECOVERED,      N,   "Returns the number of GPU errors occurred." },
-    { "GPUPowerSource",         NV_CTRL_GPU_POWER_SOURCE,              N,   "Reports the type of power source of the GPU." },
-    { "GPUCurrentPerfMode",     NV_CTRL_GPU_CURRENT_PERFORMANCE_MODE,  N,   "Reports the current performance mode of the GPU driving the X screen.  Running a 3D app, for example, will change this performance mode if Adaptive Clocking is enabled." },
-    { "GPUCurrentPerfLevel",    NV_CTRL_GPU_CURRENT_PERFORMANCE_LEVEL, N,   "Reports the current Performance level of the GPU driving the X screen.  Each Performance level has associated NVClock and Mem Clock values." },
-    { "GPUAdaptiveClockState",  NV_CTRL_GPU_ADAPTIVE_CLOCK_STATE,      N,   "Reports if Adaptive Clocking is Enabled on the GPU driving the X screen." },
-    { "GPUPerfModes",           NV_CTRL_STRING_PERFORMANCE_MODES,      S|N, "Returns a string with all the performance modes defined for this GPU along with their associated NV Clock and Memory Clock values." },
-    { "GPUPowerMizerMode",      NV_CTRL_GPU_POWER_MIZER_MODE,          0,   "Allows setting different GPU powermizer modes." },
-    { "GPUPowerMizerDefaultMode", NV_CTRL_GPU_POWER_MIZER_DEFAULT_MODE, N,  "Reports the default powermizer mode of the GPU, if any." },
-    { "ECCSupported",           NV_CTRL_GPU_ECC_SUPPORTED,             N,   "Reports whether the underlying GPU supports ECC.  All of the other ECC attributes are only applicable if this attribute indicates that ECC is supported." },
-    { "ECCStatus",              NV_CTRL_GPU_ECC_STATUS,                N,   "Reports whether ECC is enabled." },
-    { "GPULogoBrightness",      NV_CTRL_GPU_LOGO_BRIGHTNESS,           0,   "Controls brightness of the logo on the GPU, if any.  The value is variable from 0% - 100%." },
-    { "GPUSLIBridgeLogoBrightness", NV_CTRL_GPU_SLI_LOGO_BRIGHTNESS,   0,   "Controls brightness of the logo on the SLI bridge, if any.  The value is variable from 0% - 100%." },
-    { "ECCConfigurationSupported", NV_CTRL_GPU_ECC_CONFIGURATION_SUPPORTED, N,   "Reports whether ECC whether the ECC configuration setting can be changed." },
-    { "ECCConfiguration",            NV_CTRL_GPU_ECC_CONFIGURATION,               N, "Returns the current ECC configuration setting." },
-    { "ECCDefaultConfiguration",     NV_CTRL_GPU_ECC_DEFAULT_CONFIGURATION,       N, "Returns the default ECC configuration setting." },
-    { "ECCDoubleBitErrors",          NV_CTRL_GPU_ECC_DOUBLE_BIT_ERRORS,           N, "Returns the number of double-bit ECC errors detected by the targeted GPU since the last POST." },
-    { "ECCAggregateDoubleBitErrors", NV_CTRL_GPU_ECC_AGGREGATE_DOUBLE_BIT_ERRORS, N, "Returns the number of double-bit ECC errors detected by the targeted GPU since the last counter reset." },
-    { "GPUFanControlState",     NV_CTRL_GPU_COOLER_MANUAL_CONTROL,        N,   "The current fan control state; the value of this attribute controls the availability of additional fan control attributes.  Note that this attribute is unavailable unless fan control support has been enabled by setting the \"Coolbits\" X config option." },
-    { "GPUCurrentFanSpeed",     NV_CTRL_THERMAL_COOLER_LEVEL,             N,   "Returns the GPU fan's currently programmed speed, as a percentage of the maximum speed." },
-    { "GPUResetFanSpeed",       NV_CTRL_THERMAL_COOLER_LEVEL_SET_DEFAULT, N,   "Resets the GPU fan's speed to its default." },
-    { "GPUCurrentFanSpeedRPM",  NV_CTRL_THERMAL_COOLER_SPEED,             N,   "Returns the GPU fan's tachometer-measured speed in rotations per minute (RPM)." },
-    { "GPUFanControlType",      NV_CTRL_THERMAL_COOLER_CONTROL_TYPE,      N,   "Returns how the GPU fan is controlled.  '1' means the fan can only be toggled on and off; '2' means the fan has variable speed.  '0' means the fan is restricted and cannot be adjusted under end user control." },
-    { "GPUFanTarget",           NV_CTRL_THERMAL_COOLER_TARGET,            N,   "Returns the objects the fan cools.  '1' means the GPU, '2' means video memory, '4' means the power supply, and '7' means all of the above." },
-    { "ThermalSensorReading",   NV_CTRL_THERMAL_SENSOR_READING,           N,   "Returns the thermal sensor's current reading." },
-    { "ThermalSensorProvider",  NV_CTRL_THERMAL_SENSOR_PROVIDER,          N,   "Returns the hardware device that provides the thermal sensor." },
-    { "ThermalSensorTarget",    NV_CTRL_THERMAL_SENSOR_TARGET,            N,   "Returns what hardware component the thermal sensor is measuring." },  
-    { "GPUDoublePrecisionBoostImmediate", NV_CTRL_GPU_DOUBLE_PRECISION_BOOST_IMMEDIATE, N,   "Toggles GPU double precision; the change is applied immediately.  Only available when the change can be made immediately." },
-    { "GPUDoublePrecisionBoostReboot",    NV_CTRL_GPU_DOUBLE_PRECISION_BOOST_REBOOT,    N,   "Toggles GPU double precision; the change is applied on the next reboot.  Only available when the change requires a reboot." },
-    { "BaseMosaic",             NV_CTRL_BASE_MOSAIC,                      N,  "Returns the current Base Mosaic configuration." },
-    { "GpuUUID",                NV_CTRL_STRING_GPU_UUID,                 S|N, "Returns the global unique identifier of the GPU." },
-    { "MultiGpuMasterPossible", NV_CTRL_MULTIGPU_MASTER_POSSIBLE,         N,  "Returns whether or not the GPU can be configured as the master GPU for a Multi GPU configuration (SLI, SLI Mosaic, Base Mosaic, ...)." },
+    { "BusType",                          NV_CTRL_BUS_TYPE,                             INT_ATTR, {0,0,0,0,1,0}, { .int_flags = {0,0,0,0,0,0,0} }, "Returns the type of bus connecting the specified device to the computer.  If the target is an X screen, then it uses the GPU driving the X screen as the device." },
+    { "PCIEMaxLinkSpeed",                 NV_CTRL_GPU_PCIE_MAX_LINK_SPEED,              INT_ATTR, {0,0,0,0,1,0}, { .int_flags = {0,0,0,0,0,0,0} }, "Returns the maximum speed that the PCIe link between the GPU and the system may be trained to.  This is expressed in gigatransfers per second (GT/s).  The link may be dynamically trained to a slower speed, based on the GPU's utilization and performance settings." },
+    { "PCIEMaxLinkWidth",                 NV_CTRL_GPU_PCIE_MAX_LINK_WIDTH,              INT_ATTR, {0,0,0,0,1,0}, { .int_flags = {0,0,0,0,0,0,0} }, "Returns the maximum width that the PCIe link between the GPU and the system may be trained to.  This is expressed in number of lanes.  The trained link width may vary dynamically and possibly be narrower based on the GPU's utilization and performance settings." },
+    { "PCIECurrentLinkSpeed",             NV_CTRL_GPU_PCIE_CURRENT_LINK_SPEED,          INT_ATTR, {0,0,0,0,1,0}, { .int_flags = {0,0,0,0,0,0,0} }, "Returns the current PCIe link speed, in gigatransfers per second (GT/s)." },
+    { "PCIECurrentLinkWidth",             NV_CTRL_GPU_PCIE_CURRENT_LINK_WIDTH,          INT_ATTR, {0,0,0,0,1,0}, { .int_flags = {0,0,0,0,0,0,0} }, "Returns the current PCIe link width of the GPU, in number of lanes." },
+    { "VideoRam",                         NV_CTRL_VIDEO_RAM,                            INT_ATTR, {0,0,0,0,1,0}, { .int_flags = {0,0,0,0,0,0,0} }, "Returns the total amount of memory available to the specified GPU (or the GPU driving the specified X screen).  Note: if the GPU supports TurboCache(TM), the value reported may exceed the amount of video memory installed on the GPU.  The value reported for integrated GPUs may likewise exceed the amount of dedicated system memory set aside by the system BIOS for use by the integrated GPU." },
+    { "TotalDedicatedGPUMemory",          NV_CTRL_TOTAL_DEDICATED_GPU_MEMORY,           INT_ATTR, {0,0,0,0,1,0}, { .int_flags = {0,0,0,0,0,0,0} }, "Returns the amount of total dedicated memory on the specified GPU in MB." },
+    { "UsedDedicatedGPUMemory",           NV_CTRL_USED_DEDICATED_GPU_MEMORY,            INT_ATTR, {0,0,0,0,1,0}, { .int_flags = {0,0,0,0,0,0,0} }, "Returns the amount of dedicated memory used on the specified GPU in MB." },
+    { "Irq",                              NV_CTRL_IRQ,                                  INT_ATTR, {0,0,0,0,1,0}, { .int_flags = {0,0,0,0,0,0,0} }, "Returns the interrupt request line used by the specified device.  If the target is an X screen, then it uses the GPU driving the X screen as the device." },
+    { "CUDACores",                        NV_CTRL_GPU_CORES,                            INT_ATTR, {0,0,0,0,1,0}, { .int_flags = {0,0,0,0,0,0,0} }, "Returns number of CUDA cores supported by the graphics pipeline." },
+    { "GPUMemoryInterface",               NV_CTRL_GPU_MEMORY_BUS_WIDTH,                 INT_ATTR, {0,0,0,0,1,0}, { .int_flags = {0,0,0,0,0,0,0} }, "Returns bus bandwidth of the GPU's memory interface." },
+    { "GPUCoreTemp",                      NV_CTRL_GPU_CORE_TEMPERATURE,                 INT_ATTR, {0,0,0,0,1,0}, { .int_flags = {0,0,0,0,0,0,0} }, "Reports the current core temperature in Celsius of the GPU driving the X screen." },
+    { "GPUAmbientTemp",                   NV_CTRL_AMBIENT_TEMPERATURE,                  INT_ATTR, {0,0,0,0,1,0}, { .int_flags = {0,0,0,0,0,0,0} }, "Reports the current temperature in Celsius of the immediate neighborhood of the GPU driving the X screen." },
+    { "GPUOverclockingState",             NV_CTRL_GPU_OVERCLOCKING_STATE,               INT_ATTR, {0,0,0,0,1,0}, { .int_flags = {0,0,0,0,0,0,0} }, "The current overclocking state; the value of this attribute controls the availability of additional overclocking attributes.  Note that this attribute is unavailable unless overclocking support has been enabled by the system administrator." },
+    { "GPU2DClockFreqs",                  NV_CTRL_GPU_2D_CLOCK_FREQS,                   INT_ATTR, {0,0,0,0,1,0}, { .int_flags = {0,0,1,0,0,0,0} }, "The GPU and memory clock frequencies when operating in 2D mode.  New clock frequencies are tested before being applied, and may be rejected.  Note that if the target clocks are too aggressive, their testing may render the system unresponsive.  Also note that while this attribute may always be queried, it cannot be set unless GPUOverclockingState is set to MANUAL.  Since the target clocks may be rejected, the requester should read this attribute after the set to determine success or failure." },
+    { "GPU3DClockFreqs",                  NV_CTRL_GPU_3D_CLOCK_FREQS,                   INT_ATTR, {0,0,0,0,1,0}, { .int_flags = {0,0,1,0,0,0,0} }, "The GPU and memory clock frequencies  when operating in 3D mode.  New clock frequencies are tested before being applied, and may be rejected.  Note that if the target clocks are too aggressive, their testing may render the system unresponsive.  Also note that while this attribute may always be queried, it cannot be set unless GPUOverclockingState is set to MANUAL.  Since the target clocks may be rejected, the requester should read this attribute after the set to determine success or failure." },
+    { "GPUDefault2DClockFreqs",           NV_CTRL_GPU_DEFAULT_2D_CLOCK_FREQS,           INT_ATTR, {0,0,0,0,1,0}, { .int_flags = {0,0,1,0,0,0,0} }, "Returns the default memory and GPU core clocks when operating in 2D mode." },
+    { "GPUDefault3DClockFreqs",           NV_CTRL_GPU_DEFAULT_3D_CLOCK_FREQS,           INT_ATTR, {0,0,0,0,1,0}, { .int_flags = {0,0,1,0,0,0,0} }, "Returns the default memory and GPU core clocks when operating in 3D mode." },
+    { "GPUCurrentClockFreqs",             NV_CTRL_GPU_CURRENT_CLOCK_FREQS,              INT_ATTR, {0,0,0,0,1,0}, { .int_flags = {0,0,1,0,0,0,0} }, "Returns the current GPU and memory clocks of the graphics device driving the X screen." },
+    { "GPUCurrentProcessorClockFreqs",    NV_CTRL_GPU_CURRENT_PROCESSOR_CLOCK_FREQS,    INT_ATTR, {0,0,0,0,1,0}, { .int_flags = {0,0,0,0,0,0,0} }, "Returns the current processor clock of the graphics device driving the X screen." },
+    { "BusRate",                          NV_CTRL_BUS_RATE,                             INT_ATTR, {0,0,0,0,1,0}, { .int_flags = {0,0,0,0,0,0,0} }, "If the device is on an AGP bus, then BusRate returns the configured AGP rate.  If the device is on a PCI Express bus, then this attribute returns the width of the physical link." },
+    { "PCIDomain",                        NV_CTRL_PCI_DOMAIN,                           INT_ATTR, {0,0,0,0,1,0}, { .int_flags = {0,0,0,0,0,0,0} }, "Returns the PCI domain number for the specified device." },
+    { "PCIBus",                           NV_CTRL_PCI_BUS,                              INT_ATTR, {0,0,0,0,1,0}, { .int_flags = {0,0,0,0,0,0,0} }, "Returns the PCI bus number for the specified device." },
+    { "PCIDevice",                        NV_CTRL_PCI_DEVICE,                           INT_ATTR, {0,0,0,0,1,0}, { .int_flags = {0,0,0,0,0,0,0} }, "Returns the PCI device number for the specified device." },
+    { "PCIFunc",                          NV_CTRL_PCI_FUNCTION,                         INT_ATTR, {0,0,0,0,1,0}, { .int_flags = {0,0,0,0,0,0,0} }, "Returns the PCI function number for the specified device." },
+    { "PCIID",                            NV_CTRL_PCI_ID,                               INT_ATTR, {0,0,0,0,1,0}, { .int_flags = {0,0,1,0,0,0,0} }, "Returns the PCI vendor and device ID of the specified device." },
+    { "PCIEGen",                          NV_CTRL_GPU_PCIE_GENERATION,                  INT_ATTR, {0,0,0,0,1,0}, { .int_flags = {0,0,0,0,0,0,0} }, "Returns the PCIe generation that this GPU, in this system, is compliant with." },
+    { "GPUErrors",                        NV_CTRL_NUM_GPU_ERRORS_RECOVERED,             INT_ATTR, {0,0,0,0,1,0}, { .int_flags = {0,0,0,0,0,0,0} }, "Returns the number of GPU errors occurred." },
+    { "GPUPowerSource",                   NV_CTRL_GPU_POWER_SOURCE,                     INT_ATTR, {0,0,0,0,1,0}, { .int_flags = {0,0,0,0,0,0,0} }, "Reports the type of power source of the GPU." },
+    { "GPUCurrentPerfMode",               NV_CTRL_GPU_CURRENT_PERFORMANCE_MODE,         INT_ATTR, {0,0,0,0,1,0}, { .int_flags = {0,0,0,0,0,0,0} }, "Reports the current performance mode of the GPU driving the X screen.  Running a 3D app, for example, will change this performance mode if Adaptive Clocking is enabled." },
+    { "GPUCurrentPerfLevel",              NV_CTRL_GPU_CURRENT_PERFORMANCE_LEVEL,        INT_ATTR, {0,0,0,0,1,0}, { .int_flags = {0,0,0,0,0,0,0} }, "Reports the current Performance level of the GPU driving the X screen.  Each Performance level has associated NVClock and Mem Clock values." },
+    { "GPUAdaptiveClockState",            NV_CTRL_GPU_ADAPTIVE_CLOCK_STATE,             INT_ATTR, {0,0,0,0,1,0}, { .int_flags = {0,0,0,0,0,0,0} }, "Reports if Adaptive Clocking is Enabled on the GPU driving the X screen." },
+    { "GPUPowerMizerMode",                NV_CTRL_GPU_POWER_MIZER_MODE,                 INT_ATTR, {0,0,0,0,0,0}, { .int_flags = {0,0,0,0,0,0,0} }, "Allows setting different GPU powermizer modes." },
+    { "GPUPowerMizerDefaultMode",         NV_CTRL_GPU_POWER_MIZER_DEFAULT_MODE,         INT_ATTR, {0,0,0,0,1,0}, { .int_flags = {0,0,0,0,0,0,0} }, "Reports the default powermizer mode of the GPU, if any." },
+    { "ECCSupported",                     NV_CTRL_GPU_ECC_SUPPORTED,                    INT_ATTR, {0,0,0,0,1,0}, { .int_flags = {0,0,0,0,0,0,0} }, "Reports whether the underlying GPU supports ECC.  All of the other ECC attributes are only applicable if this attribute indicates that ECC is supported." },
+    { "ECCStatus",                        NV_CTRL_GPU_ECC_STATUS,                       INT_ATTR, {0,0,0,0,1,0}, { .int_flags = {0,0,0,0,0,0,0} }, "Reports whether ECC is enabled." },
+    { "GPULogoBrightness",                NV_CTRL_GPU_LOGO_BRIGHTNESS,                  INT_ATTR, {0,0,0,0,0,0}, { .int_flags = {0,0,0,0,0,0,0} }, "Controls brightness of the logo on the GPU, if any.  The value is variable from 0% - 100%." },
+    { "GPUSLIBridgeLogoBrightness",       NV_CTRL_GPU_SLI_LOGO_BRIGHTNESS,              INT_ATTR, {0,0,0,0,0,0}, { .int_flags = {0,0,0,0,0,0,0} }, "Controls brightness of the logo on the SLI bridge, if any.  The value is variable from 0% - 100%." },
+    { "ECCConfigurationSupported",        NV_CTRL_GPU_ECC_CONFIGURATION_SUPPORTED,      INT_ATTR, {0,0,0,0,1,0}, { .int_flags = {0,0,0,0,0,0,0} }, "Reports whether ECC whether the ECC configuration setting can be changed." },
+    { "ECCConfiguration",                 NV_CTRL_GPU_ECC_CONFIGURATION,                INT_ATTR, {0,0,0,0,1,0}, { .int_flags = {0,0,0,0,0,0,0} }, "Returns the current ECC configuration setting." },
+    { "ECCDefaultConfiguration",          NV_CTRL_GPU_ECC_DEFAULT_CONFIGURATION,        INT_ATTR, {0,0,0,0,1,0}, { .int_flags = {0,0,0,0,0,0,0} }, "Returns the default ECC configuration setting." },
+    { "ECCDoubleBitErrors",               NV_CTRL_GPU_ECC_DOUBLE_BIT_ERRORS,            INT_ATTR, {0,0,0,0,1,0}, { .int_flags = {0,0,0,0,0,0,0} }, "Returns the number of double-bit ECC errors detected by the targeted GPU since the last POST." },
+    { "ECCAggregateDoubleBitErrors",      NV_CTRL_GPU_ECC_AGGREGATE_DOUBLE_BIT_ERRORS,  INT_ATTR, {0,0,0,0,1,0}, { .int_flags = {0,0,0,0,0,0,0} }, "Returns the number of double-bit ECC errors detected by the targeted GPU since the last counter reset." },
+    { "GPUFanControlState",               NV_CTRL_GPU_COOLER_MANUAL_CONTROL,            INT_ATTR, {0,0,0,0,1,0}, { .int_flags = {0,0,0,0,0,0,0} }, "The current fan control state; the value of this attribute controls the availability of additional fan control attributes.  Note that this attribute is unavailable unless fan control support has been enabled by setting the \"Coolbits\" X config option." },
+    { "GPUCurrentFanSpeed",               NV_CTRL_THERMAL_COOLER_LEVEL,                 INT_ATTR, {0,0,0,0,1,0}, { .int_flags = {0,0,0,0,0,0,0} }, "Returns the GPU fan's current speed." },
+    { "GPUResetFanSpeed",                 NV_CTRL_THERMAL_COOLER_LEVEL_SET_DEFAULT,     INT_ATTR, {0,0,0,0,1,0}, { .int_flags = {0,0,0,0,0,0,0} }, "Resets the GPU fan's speed to its default." },
+    { "GPUCurrentFanSpeedRPM",            NV_CTRL_THERMAL_COOLER_SPEED,                 INT_ATTR, {0,0,0,0,1,0}, { .int_flags = {0,0,0,0,0,0,0} }, "Returns the GPU fan's tachometer-measured speed in rotations per minute (RPM)." },
+    { "GPUFanControlType",                NV_CTRL_THERMAL_COOLER_CONTROL_TYPE,          INT_ATTR, {0,0,0,0,1,0}, { .int_flags = {0,0,0,0,0,0,0} }, "Returns how the GPU fan is controlled.  '1' means the fan can only be toggled on and off; '2' means the fan has variable speed.  '0' means the fan is restricted and cannot be adjusted under end user control." },
+    { "GPUFanTarget",                     NV_CTRL_THERMAL_COOLER_TARGET,                INT_ATTR, {0,0,0,0,1,0}, { .int_flags = {0,0,0,0,0,0,0} }, "Returns the objects the fan cools.  '1' means the GPU, '2' means video memory, '4' means the power supply, and '7' means all of the above." },
+    { "ThermalSensorReading",             NV_CTRL_THERMAL_SENSOR_READING,               INT_ATTR, {0,0,0,0,1,0}, { .int_flags = {0,0,0,0,0,0,0} }, "Returns the thermal sensor's current reading." },
+    { "ThermalSensorProvider",            NV_CTRL_THERMAL_SENSOR_PROVIDER,              INT_ATTR, {0,0,0,0,1,0}, { .int_flags = {0,0,0,0,0,0,0} }, "Returns the hardware device that provides the thermal sensor." },
+    { "ThermalSensorTarget",              NV_CTRL_THERMAL_SENSOR_TARGET,                INT_ATTR, {0,0,0,0,1,0}, { .int_flags = {0,0,0,0,0,0,0} }, "Returns what hardware component the thermal sensor is measuring." },  
+    { "GPUDoublePrecisionBoostImmediate", NV_CTRL_GPU_DOUBLE_PRECISION_BOOST_IMMEDIATE, INT_ATTR, {0,0,0,0,1,0}, { .int_flags = {0,0,0,0,0,0,0} }, "Toggles GPU double precision; the change is applied immediately.  Only available when the change can be made immediately." },
+    { "GPUDoublePrecisionBoostReboot",    NV_CTRL_GPU_DOUBLE_PRECISION_BOOST_REBOOT,    INT_ATTR, {0,0,0,0,1,0}, { .int_flags = {0,0,0,0,0,0,0} }, "Toggles GPU double precision; the change is applied on the next reboot.  Only available when the change requires a reboot." },
+    { "BaseMosaic",                       NV_CTRL_BASE_MOSAIC,                          INT_ATTR, {0,0,0,0,1,0}, { .int_flags = {0,0,0,0,0,0,0} }, "Returns the current Base Mosaic configuration." },
+    { "MultiGpuMasterPossible",           NV_CTRL_MULTIGPU_MASTER_POSSIBLE,             INT_ATTR, {0,0,0,0,1,0}, { .int_flags = {0,0,0,0,0,0,0} }, "Returns whether or not the GPU can be configured as the master GPU for a Multi GPU configuration (SLI, SLI Mosaic, Base Mosaic, ...)." },
+    { "GPUCurrentClockFreqsString",       NV_CTRL_STRING_GPU_CURRENT_CLOCK_FREQS,       STR_ATTR, {0,0,0,0,1,0}, {}, "Returns the current GPU, memory and Processor clocks of the graphics device driving the X screen." },
+    { "GPUPerfModes",                     NV_CTRL_STRING_PERFORMANCE_MODES,             STR_ATTR, {0,0,0,0,1,0}, {}, "Returns a string with all the performance modes defined for this GPU along with their associated NV Clock and Memory Clock values." },
+    { "GpuUUID",                          NV_CTRL_STRING_GPU_UUID,                      STR_ATTR, {0,0,0,0,1,0}, {}, "Returns the global unique identifier of the GPU." },
+    { "GPUUtilization",                   NV_CTRL_STRING_GPU_UTILIZATION,               STR_ATTR, {0,0,0,0,1,0}, {}, "Returns the current percentage utilization of the GPU components." },
 
     /* Framelock */
-    { "FrameLockAvailable",    NV_CTRL_FRAMELOCK,                   N|F|G,   "Returns whether the underlying GPU supports Frame Lock.  All of the other frame lock attributes are only applicable if this attribute is enabled (Supported)." },
-    { "FrameLockMaster",       NV_CTRL_FRAMELOCK_MASTER,            N|F|G|D, "DEPRECATED: use \"FrameLockDisplayConfig\" instead." },
-    { "FrameLockPolarity",     NV_CTRL_FRAMELOCK_POLARITY,          N|F|G,   "Sync to the rising edge of the Frame Lock pulse, the falling edge of the Frame Lock pulse, or both." },
-    { "FrameLockSyncDelay",    NV_CTRL_FRAMELOCK_SYNC_DELAY,        N|F|G,   "Returns the delay between the frame lock pulse and the GPU sync.  This is an 11 bit value which is multiplied by 7.81 to determine the sync delay in microseconds." },
-    { "FrameLockSyncInterval", NV_CTRL_FRAMELOCK_SYNC_INTERVAL,     N|F|G,   "This defines the number of house sync pulses for each Frame Lock sync period.  This only applies to the server, and only when recieving house sync.  A value of zero means every house sync pulse is one frame period." },
-    { "FrameLockPort0Status",  NV_CTRL_FRAMELOCK_PORT0_STATUS,      N|F|G,   "Input/Output status of the RJ45 port0." },
-    { "FrameLockPort1Status",  NV_CTRL_FRAMELOCK_PORT1_STATUS,      N|F|G,   "Input/Output status of the RJ45 port1." },
-    { "FrameLockHouseStatus",  NV_CTRL_FRAMELOCK_HOUSE_STATUS,      N|F|G,   "Returns whether or not the house sync signal was detected on the BNC connector of the frame lock board." },
-    { "FrameLockEnable",       NV_CTRL_FRAMELOCK_SYNC,              N|F|G,   "Enable/disable the syncing of display devices to the frame lock pulse as specified by previous calls to FrameLockMaster and FrameLockSlaves." },
-    { "FrameLockSyncReady",    NV_CTRL_FRAMELOCK_SYNC_READY,        N|F|G,   "Reports whether a slave frame lock board is receiving sync, whether or not any display devices are using the signal." },
-    { "FrameLockStereoSync",   NV_CTRL_FRAMELOCK_STEREO_SYNC,       N|F|G,   "This indicates that the GPU stereo signal is in sync with the frame lock stereo signal." },
-    { "FrameLockTestSignal",   NV_CTRL_FRAMELOCK_TEST_SIGNAL,       N|F|G,   "To test the connections in the sync group, tell the master to enable a test signal, then query port[01] status and sync_ready on all slaves.  When done, tell the master to disable the test signal.  Test signal should only be manipulated while FrameLockEnable is enabled.  The FrameLockTestSignal is also used to reset the Universal Frame Count (as returned by the glXQueryFrameCountNV() function in the GLX_NV_swap_group extension).  Note: for best accuracy of the Universal Frame Count, it is recommended to toggle the FrameLockTestSignal on and off after enabling frame lock." },
-    { "FrameLockEthDetected",  NV_CTRL_FRAMELOCK_ETHERNET_DETECTED, N|F|G,   "The frame lock boards are cabled together using regular cat5 cable, connecting to RJ45 ports on the backplane of the card.  There is some concern that users may think these are Ethernet ports and connect them to a router/hub/etc.  The hardware can detect this and will shut off to prevent damage (either to itself or to the router).  FrameLockEthDetected may be called to find out if Ethernet is connected to one of the RJ45 ports.  An appropriate error message should then be displayed." },
-    { "FrameLockVideoMode",    NV_CTRL_FRAMELOCK_VIDEO_MODE,        N|F|G,   "Get/set what video mode is used to interpret the house sync signal.  This should only be set on the master." },
-    { "FrameLockSyncRate",     NV_CTRL_FRAMELOCK_SYNC_RATE,         N|F|G,   "Returns the refresh rate that the frame lock board is sending to the GPU, in mHz (Millihertz) (i.e., to get the refresh rate in Hz, divide the returned value by 1000)." },
-    { "FrameLockTiming",       NV_CTRL_FRAMELOCK_TIMING,            N|F|G,   "This is 1 when the GPU is both receiving and locked to an input timing signal.  Timing information may come from the following places: another frame lock device that is set to master, the house sync signal, or the GPU's internal timing from a display device." },
-    { "FramelockUseHouseSync", NV_CTRL_USE_HOUSE_SYNC,              N|F|G,   "When 1, the server (master) frame lock device will propagate the incoming house sync signal as the outgoing frame lock sync signal.  If the frame lock device cannot detect a frame lock sync signal, it will default to using the internal timings from the GPU connected to the primary connector." },
-    { "FrameLockSlaves",       NV_CTRL_FRAMELOCK_SLAVES,            N|F|G|D, "DEPRECATED: use \"FrameLockDisplayConfig\" instead." },
-    { "FrameLockMasterable",   NV_CTRL_FRAMELOCK_MASTERABLE,        N|F|G|D, "DEPRECATED: use \"FrameLockDisplayConfig\" instead." },
-    { "FrameLockSlaveable",    NV_CTRL_FRAMELOCK_SLAVEABLE,         N|F|G|D, "DEPRECATED: use \"FrameLockDisplayConfig\" instead." },
-    { "FrameLockFPGARevision", NV_CTRL_FRAMELOCK_FPGA_REVISION,     N|F|G,   "Returns the FPGA revision of the Frame Lock device." },
-    { "FrameLockSyncRate4",    NV_CTRL_FRAMELOCK_SYNC_RATE_4,       N|F|G,   "Returns the refresh rate that the frame lock board is sending to the GPU in 1/10000 Hz (i.e., to get the refresh rate in Hz, divide the returned value by 10000)." },
-    { "FrameLockSyncDelayResolution", NV_CTRL_FRAMELOCK_SYNC_DELAY_RESOLUTION, N|F|G, "Returns the number of nanoseconds that one unit of FrameLockSyncDelay corresponds to." },
-    { "FrameLockIncomingHouseSyncRate", NV_CTRL_FRAMELOCK_INCOMING_HOUSE_SYNC_RATE, N|F|G, "Returns the rate of the incoming house sync signal to the frame lock board, in mHz (Millihertz) (i.e., to get the house sync rate in Hz, divide the returned value by 1000)." },
+    { "FrameLockAvailable",               NV_CTRL_FRAMELOCK,                            INT_ATTR, {1,1,0,0,1,0}, { .int_flags = {0,0,0,0,0,0,0} }, "Returns whether the underlying GPU supports Frame Lock.  All of the other frame lock attributes are only applicable if this attribute is enabled (Supported)." },
+    { "FrameLockMaster",                  NV_CTRL_FRAMELOCK_MASTER,                     INT_ATTR, {1,1,0,0,1,0}, { .int_flags = {0,0,0,1,0,0,0} }, "DEPRECATED: use \"FrameLockDisplayConfig\" instead." },
+    { "FrameLockPolarity",                NV_CTRL_FRAMELOCK_POLARITY,                   INT_ATTR, {1,1,0,0,1,0}, { .int_flags = {0,0,0,0,0,0,0} }, "Sync to the rising edge of the Frame Lock pulse, the falling edge of the Frame Lock pulse, or both." },
+    { "FrameLockSyncDelay",               NV_CTRL_FRAMELOCK_SYNC_DELAY,                 INT_ATTR, {1,1,0,0,1,0}, { .int_flags = {0,0,0,0,0,0,0} }, "Returns the delay between the frame lock pulse and the GPU sync.  This is an 11 bit value which is multiplied by 7.81 to determine the sync delay in microseconds." },
+    { "FrameLockSyncInterval",            NV_CTRL_FRAMELOCK_SYNC_INTERVAL,              INT_ATTR, {1,1,0,0,1,0}, { .int_flags = {0,0,0,0,0,0,0} }, "This defines the number of house sync pulses for each Frame Lock sync period.  This only applies to the server, and only when recieving house sync.  A value of zero means every house sync pulse is one frame period." },
+    { "FrameLockPort0Status",             NV_CTRL_FRAMELOCK_PORT0_STATUS,               INT_ATTR, {1,1,0,0,1,0}, { .int_flags = {0,0,0,0,0,0,0} }, "Input/Output status of the RJ45 port0." },
+    { "FrameLockPort1Status",             NV_CTRL_FRAMELOCK_PORT1_STATUS,               INT_ATTR, {1,1,0,0,1,0}, { .int_flags = {0,0,0,0,0,0,0} }, "Input/Output status of the RJ45 port1." },
+    { "FrameLockHouseStatus",             NV_CTRL_FRAMELOCK_HOUSE_STATUS,               INT_ATTR, {1,1,0,0,1,0}, { .int_flags = {0,0,0,0,0,0,0} }, "Returns whether or not the house sync signal was detected on the BNC connector of the frame lock board." },
+    { "FrameLockEnable",                  NV_CTRL_FRAMELOCK_SYNC,                       INT_ATTR, {1,1,0,0,1,0}, { .int_flags = {0,0,0,0,0,0,0} }, "Enable/disable the syncing of display devices to the frame lock pulse as specified by previous calls to FrameLockMaster and FrameLockSlaves." },
+    { "FrameLockSyncReady",               NV_CTRL_FRAMELOCK_SYNC_READY,                 INT_ATTR, {1,1,0,0,1,0}, { .int_flags = {0,0,0,0,0,0,0} }, "Reports whether a slave frame lock board is receiving sync, whether or not any display devices are using the signal." },
+    { "FrameLockStereoSync",              NV_CTRL_FRAMELOCK_STEREO_SYNC,                INT_ATTR, {1,1,0,0,1,0}, { .int_flags = {0,0,0,0,0,0,0} }, "This indicates that the GPU stereo signal is in sync with the frame lock stereo signal." },
+    { "FrameLockTestSignal",              NV_CTRL_FRAMELOCK_TEST_SIGNAL,                INT_ATTR, {1,1,0,0,1,0}, { .int_flags = {0,0,0,0,0,0,0} }, "To test the connections in the sync group, tell the master to enable a test signal, then query port[01] status and sync_ready on all slaves.  When done, tell the master to disable the test signal.  Test signal should only be manipulated while FrameLockEnable is enabled.  The FrameLockTestSignal is also used to reset the Universal Frame Count (as returned by the glXQueryFrameCountNV() function in the GLX_NV_swap_group extension).  Note: for best accuracy of the Universal Frame Count, it is recommended to toggle the FrameLockTestSignal on and off after enabling frame lock." },
+    { "FrameLockEthDetected",             NV_CTRL_FRAMELOCK_ETHERNET_DETECTED,          INT_ATTR, {1,1,0,0,1,0}, { .int_flags = {0,0,0,0,0,0,0} }, "The frame lock boards are cabled together using regular cat5 cable, connecting to RJ45 ports on the backplane of the card.  There is some concern that users may think these are Ethernet ports and connect them to a router/hub/etc.  The hardware can detect this and will shut off to prevent damage (either to itself or to the router).  FrameLockEthDetected may be called to find out if Ethernet is connected to one of the RJ45 ports.  An appropriate error message should then be displayed." },
+    { "FrameLockVideoMode",               NV_CTRL_FRAMELOCK_VIDEO_MODE,                 INT_ATTR, {1,1,0,0,1,0}, { .int_flags = {0,0,0,0,0,0,0} }, "Get/set what video mode is used to interpret the house sync signal.  This should only be set on the master." },
+    { "FrameLockSyncRate",                NV_CTRL_FRAMELOCK_SYNC_RATE,                  INT_ATTR, {1,1,0,0,1,0}, { .int_flags = {0,0,0,0,0,0,0} }, "Returns the refresh rate that the frame lock board is sending to the GPU, in mHz (Millihertz) (i.e., to get the refresh rate in Hz, divide the returned value by 1000)." },
+    { "FrameLockTiming",                  NV_CTRL_FRAMELOCK_TIMING,                     INT_ATTR, {1,1,0,0,1,0}, { .int_flags = {0,0,0,0,0,0,0} }, "This is 1 when the GPU is both receiving and locked to an input timing signal.  Timing information may come from the following places: another frame lock device that is set to master, the house sync signal, or the GPU's internal timing from a display device." },
+    { "FramelockUseHouseSync",            NV_CTRL_USE_HOUSE_SYNC,                       INT_ATTR, {1,1,0,0,1,0}, { .int_flags = {0,0,0,0,0,0,0} }, "When 1, the server (master) frame lock device will propagate the incoming house sync signal as the outgoing frame lock sync signal.  If the frame lock device cannot detect a frame lock sync signal, it will default to using the internal timings from the GPU connected to the primary connector." },
+    { "FrameLockSlaves",                  NV_CTRL_FRAMELOCK_SLAVES,                     INT_ATTR, {1,1,0,0,1,0}, { .int_flags = {0,0,0,1,0,0,0} }, "DEPRECATED: use \"FrameLockDisplayConfig\" instead." },
+    { "FrameLockMasterable",              NV_CTRL_FRAMELOCK_MASTERABLE,                 INT_ATTR, {1,1,0,0,1,0}, { .int_flags = {0,0,0,1,0,0,0} }, "DEPRECATED: use \"FrameLockDisplayConfig\" instead." },
+    { "FrameLockSlaveable",               NV_CTRL_FRAMELOCK_SLAVEABLE,                  INT_ATTR, {1,1,0,0,1,0}, { .int_flags = {0,0,0,1,0,0,0} }, "DEPRECATED: use \"FrameLockDisplayConfig\" instead." },
+    { "FrameLockFPGARevision",            NV_CTRL_FRAMELOCK_FPGA_REVISION,              INT_ATTR, {1,1,0,0,1,0}, { .int_flags = {0,0,0,0,0,0,0} }, "Returns the FPGA revision of the Frame Lock device." },
+    { "FrameLockSyncRate4",               NV_CTRL_FRAMELOCK_SYNC_RATE_4,                INT_ATTR, {1,1,0,0,1,0}, { .int_flags = {0,0,0,0,0,0,0} }, "Returns the refresh rate that the frame lock board is sending to the GPU in 1/10000 Hz (i.e., to get the refresh rate in Hz, divide the returned value by 10000)." },
+    { "FrameLockSyncDelayResolution",     NV_CTRL_FRAMELOCK_SYNC_DELAY_RESOLUTION,      INT_ATTR, {1,1,0,0,1,0}, { .int_flags = {0,0,0,0,0,0,0} }, "Returns the number of nanoseconds that one unit of FrameLockSyncDelay corresponds to." },
+    { "FrameLockIncomingHouseSyncRate",   NV_CTRL_FRAMELOCK_INCOMING_HOUSE_SYNC_RATE,   INT_ATTR, {1,1,0,0,1,0}, { .int_flags = {0,0,0,0,0,0,0} }, "Returns the rate of the incoming house sync signal to the frame lock board, in mHz (Millihertz) (i.e., to get the house sync rate in Hz, divide the returned value by 1000)." },
+    { "FrameLockDisplayConfig",           NV_CTRL_FRAMELOCK_DISPLAY_CONFIG,             INT_ATTR, {1,1,0,0,1,0}, { .int_flags = {0,0,0,0,0,0,0} }, "Controls the FrameLock mode of operation for the display device." },
 
-    /* GVO */
-    { "GvoSupported",                    NV_CTRL_GVO_SUPPORTED,                        I|N,   "Returns whether this X screen supports GVO; if this screen does not support GVO output, then all other GVO attributes are unavailable." },
-    { "GvoSyncMode",                     NV_CTRL_GVO_SYNC_MODE,                        I,     "Selects the GVO sync mode; possible values are: FREE_RUNNING - GVO does not sync to any external signal.  GENLOCK - the GVO output is genlocked to an incoming sync signal; genlocking locks at hsync.  This requires that the output video format exactly match the incoming sync video format.  FRAMELOCK - the GVO output is frame locked to an incoming sync signal; frame locking locks at vsync.  This requires that the output video format have the same refresh rate as the incoming sync video format." },
-    { "GvoSyncSource",                   NV_CTRL_GVO_SYNC_SOURCE,                      I,     "If the GVO sync mode is set to either GENLOCK or FRAMELOCK, this controls which sync source is used as the incoming sync signal (either Composite or SDI).  If the GVO sync mode is FREE_RUNNING, this attribute has no effect." },
-    { "GvioRequestedVideoFormat",        NV_CTRL_GVIO_REQUESTED_VIDEO_FORMAT,          I,     "Specifies the requested output video format for a GVO device, or the requested capture format for a GVI device." },
-    { "GvoOutputVideoFormat",            NV_CTRL_GVIO_REQUESTED_VIDEO_FORMAT,          I|A,   "DEPRECATED: use \"GvioRequestedVideoFormat\" instead." },
-    { "GviSyncOutputFormat",             NV_CTRL_GVI_SYNC_OUTPUT_FORMAT,               I|N,   "Returns the output sync signal from the GVI device." },
-    { "GvioDetectedVideoFormat",         NV_CTRL_GVIO_DETECTED_VIDEO_FORMAT,           I|N,   "Returns the input video format detected by the GVO or GVI device.  For GVI devices, the jack+channel must be passed through via the display mask param where the jack number is in the lower 16 bits and the channel number is in the upper 16 bits." },
-    { "GvoInputVideoFormat",             NV_CTRL_GVIO_DETECTED_VIDEO_FORMAT,           I|N|A, "DEPRECATED: use \"GvioDetectedVideoFormat\" instead." },
-    { "GvoDataFormat",                   NV_CTRL_GVO_DATA_FORMAT,                      I,     "Configures how the data in the source (either the X screen or the GLX pbuffer) is interpreted and displayed by the GVO device." },
-    { "GvoCompositeSyncInputDetected",   NV_CTRL_GVO_COMPOSITE_SYNC_INPUT_DETECTED,    I|N,   "Indicates whether Composite Sync input is detected." },
-    { "GvoCompositeSyncInputDetectMode", NV_CTRL_GVO_COMPOSITE_SYNC_INPUT_DETECT_MODE, I|N,   "Get/set the Composite Sync input detect mode." },
-    { "GvoSdiSyncInputDetected",         NV_CTRL_GVO_SDI_SYNC_INPUT_DETECTED,          I|N,   "Indicates whether SDI Sync input is detected, and what type." },
-    { "GvoVideoOutputs",                 NV_CTRL_GVO_VIDEO_OUTPUTS,                    I|N,   "Indicates which GVO video output connectors are currently transmitting data." },
-    { "GvoSyncDelayPixels",              NV_CTRL_GVO_SYNC_DELAY_PIXELS,                I,     "Controls the skew between the input sync and the output sync in numbers of pixels from hsync; this is a 12-bit value.  If the GVO Capabilities has the Advanced Sync Skew bit set, then setting this value will set a sync advance instead of a delay." },
-    { "GvoSyncDelayLines",               NV_CTRL_GVO_SYNC_DELAY_LINES,                 I,     "Controls the skew between the input sync and the output sync in numbers of lines from vsync; this is a 12-bit value.  If the GVO Capabilities has the Advanced Sync Skew bit set, then setting this value will set a sync advance instead of a delay." },
-    { "GvoInputVideoFormatReacquire",    NV_CTRL_GVO_INPUT_VIDEO_FORMAT_REACQUIRE,     I|N,   "Forces input detection to reacquire the input format." },
-    { "GvoGlxLocked",                    NV_CTRL_GVO_GLX_LOCKED,                       I|N,   "Indicates that GVO configuration is locked by GLX;  this occurs when the GLX_NV_video_out function calls glXGetVideoDeviceNV().  All GVO output resources are locked until either glXReleaseVideoDeviceNV() is called or the X Display used when calling glXGetVideoDeviceNV() is closed." },
-    { "GvoOverrideHwCsc",                NV_CTRL_GVO_OVERRIDE_HW_CSC,                  I,     "Override the SDI hardware's Color Space Conversion with the values controlled through XNVCTRLSetGvoColorConversion() and XNVCTRLGetGvoColorConversion()." },
-    { "GvoCapabilities",                 NV_CTRL_GVO_CAPABILITIES,                     I|N,   "Returns a description of the GVO capabilities that differ between NVIDIA SDI products.  This value is a bitmask where each bit indicates whether that capability is available." },
-    { "GvoCompositeTermination",         NV_CTRL_GVO_COMPOSITE_TERMINATION,            I,     "Enable or disable 75 ohm termination of the SDI composite input signal." },
-    { "GvoFlipQueueSize",                NV_CTRL_GVO_FLIP_QUEUE_SIZE,                  I,     "Sets/Returns the GVO flip queue size.  This value is used by the GLX_NV_video_out extension to determine the size of the internal flip queue when pbuffers are sent to the video device (via glXSendPbufferToVideoNV()).  This attribute is applied to GLX when glXGetVideoDeviceNV() is called by the application." },
-    { "GvoLockOwner",                    NV_CTRL_GVO_LOCK_OWNER,                       I|N,   "Indicates that the GVO device is available or in use (by GLX, Clone Mode, or TwinView)." },
-    { "GvoOutputVideoLocked",            NV_CTRL_GVO_OUTPUT_VIDEO_LOCKED,              I|N,   "Returns whether or not the GVO output video is locked to the GPU output signal." },
-    { "GvoSyncLockStatus",               NV_CTRL_GVO_SYNC_LOCK_STATUS,                 I|N,   "Returns whether or not the GVO device is locked to the input reference signal." },
-    { "GvoANCTimeCodeGeneration",        NV_CTRL_GVO_ANC_TIME_CODE_GENERATION,         I,     "Controls whether the GVO device generates time codes in the ANC region of the SDI video output stream." },
-    { "GvoComposite",                    NV_CTRL_GVO_COMPOSITE,                        I,     "Enables/Disables SDI compositing.  This attribute is only available when an SDI input source is detected and is in genlock mode." },
-    { "GvoCompositeAlphaKey",            NV_CTRL_GVO_COMPOSITE_ALPHA_KEY,              I,     "When SDI compositing is enabled, this enables/disables alpha blending." },
-    { "GvoCompositeNumKeyRanges",        NV_CTRL_GVO_COMPOSITE_NUM_KEY_RANGES,         I|N,   "Returns the number of ranges available for each channel (Y/Luma, Cr, and Cb) that are used SDI compositing through color keying." },
-    { "GvioFirmwareVersion",             NV_CTRL_STRING_GVIO_FIRMWARE_VERSION,         I|S|N, "Indicates the version of the firmware on the GVO or GVI device." },
-    { "GvoFirmwareVersion",              NV_CTRL_STRING_GVIO_FIRMWARE_VERSION,         I|S|N|A,"DEPRECATED: use \"GvioFirmwareVersion\" instead." },
-    { "GvoSyncToDisplay",                NV_CTRL_GVO_SYNC_TO_DISPLAY,                  I|N,   "Controls synchronization of the non-SDI display to the SDI display when both are active." },
-    { "GvoFullRangeColor",               NV_CTRL_GVO_FULL_RANGE_COLOR,                 I,     "Allow full range color data [4-1019].  If disabled, color data is clamped to [64-940]." },
-    { "IsGvoDisplay",                    NV_CTRL_IS_GVO_DISPLAY,                       N|D,   "Returns whether or not the given display device is driven by the GVO device." },
-    { "GvoEnableRGBData",                NV_CTRL_GVO_ENABLE_RGB_DATA,                  I,     "Indicates that RGB data is being sent via a PASSTHU mode." },
-    { "GvoAudioBlanking",                NV_CTRL_GVO_AUDIO_BLANKING,                   I,     "Indicates that the GVO device should drop audio ancillary data packets when frames are repeated." },
-    { "GviNumJacks",                          NV_CTRL_GVI_NUM_JACKS,                            I|N, "Returns the number of input (BNC) jacks on a GVI device that can read video streams." },
-    { "GviMaxLinksPerStream",                 NV_CTRL_GVI_MAX_LINKS_PER_STREAM,                 I|N, "Returns the maximum number of links that can make up a stream." },
-    { "GviDetectedChannelBitsPerComponent",   NV_CTRL_GVI_DETECTED_CHANNEL_BITS_PER_COMPONENT,  I|N, "Returns the detected bits per component on the given jack+channel of the GVI device.  The jack+channel must be passed through via the display mask param where the jack number is in the lower 16 bits and the channel number is in the upper 16 bits." },
-    { "GviRequestedStreamBitsPerComponent",   NV_CTRL_GVI_REQUESTED_STREAM_BITS_PER_COMPONENT,  I,   "Indicates the number of bits per component for a capture stream." },
-    { "GviDetectedChannelComponentSampling",  NV_CTRL_GVI_DETECTED_CHANNEL_COMPONENT_SAMPLING,  I|N, "Returns the detected sampling format on the given jack+channel of the GVI device.  The jack+channel must be passed through via the display mask param where the jack number is in the lower 16 bits and the channel number is in the upper 16 bits." },
-    { "GviRequestedStreamComponentSampling",  NV_CTRL_GVI_REQUESTED_STREAM_COMPONENT_SAMPLING,  I,   "Indicates the sampling format for a capture stream." },
-    { "GviRequestedStreamChromaExpand",       NV_CTRL_GVI_REQUESTED_STREAM_CHROMA_EXPAND,       I,   "Indicates whether 4:2:2 -> 4:4:4 chroma expansion is enabled for the capture stream." },
-    { "GviDetectedChannelColorSpace",         NV_CTRL_GVI_DETECTED_CHANNEL_COLOR_SPACE,         I|N, "Returns the detected color space (RGB, YCRCB, etc) for the given jack+channel of the GVI device.  The jack+channel must be passed through via the display mask param where the jack number is in the lower 16 bits and the channel number is in the upper 16 bits." },
-    { "GviDetectedChannelLinkID",             NV_CTRL_GVI_DETECTED_CHANNEL_LINK_ID,             I|N, "Returns the detected link identifier for the given jack+channel of the GVI device.  The jack+channel must be passed through via the display mask param where the jack number is in the lower 16 bits and the channel number is in the upper 16 bits." },
-    { "GviDetectedChannelSMPTE352Identifier", NV_CTRL_GVI_DETECTED_CHANNEL_SMPTE352_IDENTIFIER, I|N, "Returns the detected 4-byte SMPTE 352 identifier from the given jack+channel of the GVI device.  The jack+channel must be passed through via the display mask param where the jack number is in the lower 16 bits and the channel number is in the upper 16 bits." },
-    { "GviGlobalIdentifier",                  NV_CTRL_GVI_GLOBAL_IDENTIFIER,                    I|N, "Returns the global identifier for the given NV-CONTROL GVI device." },
-    { "GviMaxChannelsPerJack",                NV_CTRL_GVI_MAX_CHANNELS_PER_JACK,                I|N, "Returns the maximum supported number of channels per single jack on a GVI device." },
-    { "GviMaxStreams",                        NV_CTRL_GVI_MAX_STREAMS,                          I|N, "Returns the maximum supported number of streams that can be configured on a GVI device." },
-    { "GviNumCaptureSurfaces",                NV_CTRL_GVI_NUM_CAPTURE_SURFACES,                 I|N, "Controls the number of capture buffers for storing incoming video from the GVI device." },
-    { "GviBoundGpu",                          NV_CTRL_GVI_BOUND_GPU,                            I|N, "Returns the target index of the GPU currently attached to the GVI device." },
-    { "GviTestMode",                          NV_CTRL_GVI_TEST_MODE,                            I|N, "Enable or disable GVI test mode." },
-    { "GvoCSCMatrix",                         0,                                                I|M|N, "Sets the GVO Color Space Conversion (CSC) matrix.  Accepted values are \"ITU_601\", \"ITU_709\", \"ITU_177\", and \"Identity\"." },
+    /* GVIO */
+    { "GvoSupported",                         NV_CTRL_GVO_SUPPORTED,                            INT_ATTR, {0,0,1,0,1,0}, { .int_flags = {0,0,0,0,0,0,0} }, "Returns whether this X screen supports GVO; if this screen does not support GVO output, then all other GVO attributes are unavailable." },
+    { "GvoSyncMode",                          NV_CTRL_GVO_SYNC_MODE,                            INT_ATTR, {0,0,1,0,0,0}, { .int_flags = {0,0,0,0,0,0,0} }, "Selects the GVO sync mode; possible values are: FREE_RUNNING - GVO does not sync to any external signal.  GENLOCK - the GVO output is genlocked to an incoming sync signal; genlocking locks at hsync.  This requires that the output video format exactly match the incoming sync video format.  FRAMELOCK - the GVO output is frame locked to an incoming sync signal; frame locking locks at vsync.  This requires that the output video format have the same refresh rate as the incoming sync video format." },
+    { "GvoSyncSource",                        NV_CTRL_GVO_SYNC_SOURCE,                          INT_ATTR, {0,0,1,0,0,0}, { .int_flags = {0,0,0,0,0,0,0} }, "If the GVO sync mode is set to either GENLOCK or FRAMELOCK, this controls which sync source is used as the incoming sync signal (either Composite or SDI).  If the GVO sync mode is FREE_RUNNING, this attribute has no effect." },
+    { "GvioRequestedVideoFormat",             NV_CTRL_GVIO_REQUESTED_VIDEO_FORMAT,              INT_ATTR, {0,0,1,0,0,0}, { .int_flags = {0,0,0,0,0,0,0} }, "Specifies the requested output video format for a GVO device, or the requested capture format for a GVI device." },
+    { "GvoOutputVideoFormat",                 NV_CTRL_GVIO_REQUESTED_VIDEO_FORMAT,              INT_ATTR, {0,0,1,0,0,1}, { .int_flags = {0,0,0,0,0,0,0} }, "DEPRECATED: use \"GvioRequestedVideoFormat\" instead." },
+    { "GviSyncOutputFormat",                  NV_CTRL_GVI_SYNC_OUTPUT_FORMAT,                   INT_ATTR, {0,0,1,0,1,0}, { .int_flags = {0,0,0,0,0,0,0} }, "Returns the output sync signal from the GVI device." },
+    { "GvioDetectedVideoFormat",              NV_CTRL_GVIO_DETECTED_VIDEO_FORMAT,               INT_ATTR, {0,0,1,0,1,0}, { .int_flags = {0,0,0,0,0,0,0} }, "Returns the input video format detected by the GVO or GVI device.  For GVI devices, the jack+channel must be passed through via the display mask param where the jack number is in the lower 16 bits and the channel number is in the upper 16 bits." },
+    { "GvoInputVideoFormat",                  NV_CTRL_GVIO_DETECTED_VIDEO_FORMAT,               INT_ATTR, {0,0,1,0,1,1}, { .int_flags = {0,0,0,0,0,0,0} }, "DEPRECATED: use \"GvioDetectedVideoFormat\" instead." },
+    { "GvoDataFormat",                        NV_CTRL_GVO_DATA_FORMAT,                          INT_ATTR, {0,0,1,0,0,0}, { .int_flags = {0,0,0,0,0,0,0} }, "Configures how the data in the source (either the X screen or the GLX pbuffer) is interpreted and displayed by the GVO device." },
+    { "GvoCompositeSyncInputDetected",        NV_CTRL_GVO_COMPOSITE_SYNC_INPUT_DETECTED,        INT_ATTR, {0,0,1,0,1,0}, { .int_flags = {0,0,0,0,0,0,0} }, "Indicates whether Composite Sync input is detected." },
+    { "GvoCompositeSyncInputDetectMode",      NV_CTRL_GVO_COMPOSITE_SYNC_INPUT_DETECT_MODE,     INT_ATTR, {0,0,1,0,1,0}, { .int_flags = {0,0,0,0,0,0,0} }, "Get/set the Composite Sync input detect mode." },
+    { "GvoSdiSyncInputDetected",              NV_CTRL_GVO_SDI_SYNC_INPUT_DETECTED,              INT_ATTR, {0,0,1,0,1,0}, { .int_flags = {0,0,0,0,0,0,0} }, "Indicates whether SDI Sync input is detected, and what type." },
+    { "GvoVideoOutputs",                      NV_CTRL_GVO_VIDEO_OUTPUTS,                        INT_ATTR, {0,0,1,0,1,0}, { .int_flags = {0,0,0,0,0,0,0} }, "Indicates which GVO video output connectors are currently transmitting data." },
+    { "GvoSyncDelayPixels",                   NV_CTRL_GVO_SYNC_DELAY_PIXELS,                    INT_ATTR, {0,0,1,0,0,0}, { .int_flags = {0,0,0,0,0,0,0} }, "Controls the skew between the input sync and the output sync in numbers of pixels from hsync; this is a 12-bit value.  If the GVO Capabilities has the Advanced Sync Skew bit set, then setting this value will set a sync advance instead of a delay." },
+    { "GvoSyncDelayLines",                    NV_CTRL_GVO_SYNC_DELAY_LINES,                     INT_ATTR, {0,0,1,0,0,0}, { .int_flags = {0,0,0,0,0,0,0} }, "Controls the skew between the input sync and the output sync in numbers of lines from vsync; this is a 12-bit value.  If the GVO Capabilities has the Advanced Sync Skew bit set, then setting this value will set a sync advance instead of a delay." },
+    { "GvoInputVideoFormatReacquire",         NV_CTRL_GVO_INPUT_VIDEO_FORMAT_REACQUIRE,         INT_ATTR, {0,0,1,0,1,0}, { .int_flags = {0,0,0,0,0,0,0} }, "Forces input detection to reacquire the input format." },
+    { "GvoGlxLocked",                         NV_CTRL_GVO_GLX_LOCKED,                           INT_ATTR, {0,0,1,0,1,0}, { .int_flags = {0,0,0,0,0,0,0} }, "DEPRECATED: use \"GvoLockOwner\" instead." },
+    { "GvoOverrideHwCsc",                     NV_CTRL_GVO_OVERRIDE_HW_CSC,                      INT_ATTR, {0,0,1,0,0,0}, { .int_flags = {0,0,0,0,0,0,0} }, "Override the SDI hardware's Color Space Conversion with the values controlled through XNVCTRLSetGvoColorConversion() and XNVCTRLGetGvoColorConversion()." },
+    { "GvoCapabilities",                      NV_CTRL_GVO_CAPABILITIES,                         INT_ATTR, {0,0,1,0,1,0}, { .int_flags = {0,0,0,0,0,0,0} }, "Returns a description of the GVO capabilities that differ between NVIDIA SDI products.  This value is a bitmask where each bit indicates whether that capability is available." },
+    { "GvoCompositeTermination",              NV_CTRL_GVO_COMPOSITE_TERMINATION,                INT_ATTR, {0,0,1,0,0,0}, { .int_flags = {0,0,0,0,0,0,0} }, "Enable or disable 75 ohm termination of the SDI composite input signal." },
+    { "GvoFlipQueueSize",                     NV_CTRL_GVO_FLIP_QUEUE_SIZE,                      INT_ATTR, {0,0,1,0,0,0}, { .int_flags = {0,0,0,0,0,0,0} }, "Sets/Returns the GVO flip queue size.  This value is used by the GLX_NV_video_out extension to determine the size of the internal flip queue when pbuffers are sent to the video device (via glXSendPbufferToVideoNV()).  This attribute is applied to GLX when glXGetVideoDeviceNV() is called by the application." },
+    { "GvoLockOwner",                         NV_CTRL_GVO_LOCK_OWNER,                           INT_ATTR, {0,0,1,0,1,0}, { .int_flags = {0,0,0,0,0,0,0} }, "Indicates that the GVO device is available or in use (by GLX, Clone Mode, or TwinView)." },
+    { "GvoOutputVideoLocked",                 NV_CTRL_GVO_OUTPUT_VIDEO_LOCKED,                  INT_ATTR, {0,0,1,0,1,0}, { .int_flags = {0,0,0,0,0,0,0} }, "Returns whether or not the GVO output video is locked to the GPU output signal." },
+    { "GvoSyncLockStatus",                    NV_CTRL_GVO_SYNC_LOCK_STATUS,                     INT_ATTR, {0,0,1,0,1,0}, { .int_flags = {0,0,0,0,0,0,0} }, "Returns whether or not the GVO device is locked to the input reference signal." },
+    { "GvoANCTimeCodeGeneration",             NV_CTRL_GVO_ANC_TIME_CODE_GENERATION,             INT_ATTR, {0,0,1,0,0,0}, { .int_flags = {0,0,0,0,0,0,0} }, "Controls whether the GVO device generates time codes in the ANC region of the SDI video output stream." },
+    { "GvoComposite",                         NV_CTRL_GVO_COMPOSITE,                            INT_ATTR, {0,0,1,0,0,0}, { .int_flags = {0,0,0,0,0,0,0} }, "Enables/Disables SDI compositing.  This attribute is only available when an SDI input source is detected and is in genlock mode." },
+    { "GvoCompositeAlphaKey",                 NV_CTRL_GVO_COMPOSITE_ALPHA_KEY,                  INT_ATTR, {0,0,1,0,0,0}, { .int_flags = {0,0,0,0,0,0,0} }, "When SDI compositing is enabled, this enables/disables alpha blending." },
+    { "GvoCompositeNumKeyRanges",             NV_CTRL_GVO_COMPOSITE_NUM_KEY_RANGES,             INT_ATTR, {0,0,1,0,1,0}, { .int_flags = {0,0,0,0,0,0,0} }, "Returns the number of ranges available for each channel (Y/Luma, Cr, and Cb) that are used SDI compositing through color keying." },
+    { "GvoSyncToDisplay",                     NV_CTRL_GVO_SYNC_TO_DISPLAY,                      INT_ATTR, {0,0,1,0,1,0}, { .int_flags = {0,0,0,0,0,0,0} }, "Controls synchronization of the non-SDI display to the SDI display when both are active." },
+    { "GvoFullRangeColor",                    NV_CTRL_GVO_FULL_RANGE_COLOR,                     INT_ATTR, {0,0,1,0,0,0}, { .int_flags = {0,0,0,0,0,0,0} }, "Allow full range color data [4-1019].  If disabled, color data is clamped to [64-940]." },
+    { "IsGvoDisplay",                         NV_CTRL_IS_GVO_DISPLAY,                           INT_ATTR, {0,0,0,0,1,0}, { .int_flags = {0,0,0,1,0,0,0} }, "Returns whether or not the given display device is driven by the GVO device." },
+    { "GvoEnableRGBData",                     NV_CTRL_GVO_ENABLE_RGB_DATA,                      INT_ATTR, {0,0,1,0,0,0}, { .int_flags = {0,0,0,0,0,0,0} }, "Indicates that RGB data is being sent via a PASSTHU mode." },
+    { "GvoAudioBlanking",                     NV_CTRL_GVO_AUDIO_BLANKING,                       INT_ATTR, {0,0,1,0,0,0}, { .int_flags = {0,0,0,0,0,0,0} }, "Indicates that the GVO device should drop audio ancillary data packets when frames are repeated." },
+    { "GviNumJacks",                          NV_CTRL_GVI_NUM_JACKS,                            INT_ATTR, {0,0,1,0,1,0}, { .int_flags = {0,0,0,0,0,0,0} }, "Returns the number of input (BNC) jacks on a GVI device that can read video streams." },
+    { "GviMaxLinksPerStream",                 NV_CTRL_GVI_MAX_LINKS_PER_STREAM,                 INT_ATTR, {0,0,1,0,1,0}, { .int_flags = {0,0,0,0,0,0,0} }, "Returns the maximum number of links that can make up a stream." },
+    { "GviDetectedChannelBitsPerComponent",   NV_CTRL_GVI_DETECTED_CHANNEL_BITS_PER_COMPONENT,  INT_ATTR, {0,0,1,0,1,0}, { .int_flags = {0,0,0,0,0,0,0} }, "Returns the detected bits per component on the given jack+channel of the GVI device.  The jack+channel must be passed through via the display mask param where the jack number is in the lower 16 bits and the channel number is in the upper 16 bits." },
+    { "GviRequestedStreamBitsPerComponent",   NV_CTRL_GVI_REQUESTED_STREAM_BITS_PER_COMPONENT,  INT_ATTR, {0,0,1,0,0,0}, { .int_flags = {0,0,0,0,0,0,0} }, "Indicates the number of bits per component for a capture stream." },
+    { "GviDetectedChannelComponentSampling",  NV_CTRL_GVI_DETECTED_CHANNEL_COMPONENT_SAMPLING,  INT_ATTR, {0,0,1,0,1,0}, { .int_flags = {0,0,0,0,0,0,0} }, "Returns the detected sampling format on the given jack+channel of the GVI device.  The jack+channel must be passed through via the display mask param where the jack number is in the lower 16 bits and the channel number is in the upper 16 bits." },
+    { "GviRequestedStreamComponentSampling",  NV_CTRL_GVI_REQUESTED_STREAM_COMPONENT_SAMPLING,  INT_ATTR, {0,0,1,0,0,0}, { .int_flags = {0,0,0,0,0,0,0} }, "Indicates the sampling format for a capture stream." },
+    { "GviRequestedStreamChromaExpand",       NV_CTRL_GVI_REQUESTED_STREAM_CHROMA_EXPAND,       INT_ATTR, {0,0,1,0,0,0}, { .int_flags = {0,0,0,0,0,0,0} }, "Indicates whether 4:2:2 -> 4:4:4 chroma expansion is enabled for the capture stream." },
+    { "GviDetectedChannelColorSpace",         NV_CTRL_GVI_DETECTED_CHANNEL_COLOR_SPACE,         INT_ATTR, {0,0,1,0,1,0}, { .int_flags = {0,0,0,0,0,0,0} }, "Returns the detected color space (RGB, YCRCB, etc) for the given jack+channel of the GVI device.  The jack+channel must be passed through via the display mask param where the jack number is in the lower 16 bits and the channel number is in the upper 16 bits." },
+    { "GviDetectedChannelLinkID",             NV_CTRL_GVI_DETECTED_CHANNEL_LINK_ID,             INT_ATTR, {0,0,1,0,1,0}, { .int_flags = {0,0,0,0,0,0,0} }, "Returns the detected link identifier for the given jack+channel of the GVI device.  The jack+channel must be passed through via the display mask param where the jack number is in the lower 16 bits and the channel number is in the upper 16 bits." },
+    { "GviDetectedChannelSMPTE352Identifier", NV_CTRL_GVI_DETECTED_CHANNEL_SMPTE352_IDENTIFIER, INT_ATTR, {0,0,1,0,1,0}, { .int_flags = {0,0,0,0,0,0,0} }, "Returns the detected 4-byte SMPTE 352 identifier from the given jack+channel of the GVI device.  The jack+channel must be passed through via the display mask param where the jack number is in the lower 16 bits and the channel number is in the upper 16 bits." },
+    { "GviGlobalIdentifier",                  NV_CTRL_GVI_GLOBAL_IDENTIFIER,                    INT_ATTR, {0,0,1,0,1,0}, { .int_flags = {0,0,0,0,0,0,0} }, "Returns the global identifier for the given NV-CONTROL GVI device." },
+    { "GviMaxChannelsPerJack",                NV_CTRL_GVI_MAX_CHANNELS_PER_JACK,                INT_ATTR, {0,0,1,0,1,0}, { .int_flags = {0,0,0,0,0,0,0} }, "Returns the maximum supported number of channels per single jack on a GVI device." },
+    { "GviMaxStreams",                        NV_CTRL_GVI_MAX_STREAMS,                          INT_ATTR, {0,0,1,0,1,0}, { .int_flags = {0,0,0,0,0,0,0} }, "Returns the maximum supported number of streams that can be configured on a GVI device." },
+    { "GviNumCaptureSurfaces",                NV_CTRL_GVI_NUM_CAPTURE_SURFACES,                 INT_ATTR, {0,0,1,0,1,0}, { .int_flags = {0,0,0,0,0,0,0} }, "Controls the number of capture buffers for storing incoming video from the GVI device." },
+    { "GviBoundGpu",                          NV_CTRL_GVI_BOUND_GPU,                            INT_ATTR, {0,0,1,0,1,0}, { .int_flags = {0,0,0,0,0,0,0} }, "Returns the target index of the GPU currently attached to the GVI device." },
+    { "GviTestMode",                          NV_CTRL_GVI_TEST_MODE,                            INT_ATTR, {0,0,1,0,1,0}, { .int_flags = {0,0,0,0,0,0,0} }, "Enable or disable GVI test mode." },
+    { "GvioFirmwareVersion",                  NV_CTRL_STRING_GVIO_FIRMWARE_VERSION,             STR_ATTR, {0,0,1,0,1,0}, {}, "Indicates the version of the firmware on the GVO or GVI device." },
+    { "GvoFirmwareVersion",                   NV_CTRL_STRING_GVIO_FIRMWARE_VERSION,             STR_ATTR, {0,0,1,0,1,1}, {}, "DEPRECATED: use \"GvioFirmwareVersion\" instead." },
+    { "GvoCSCMatrix",                         0,                                                CSC_ATTR, {0,0,1,0,1,0}, {}, "Sets the GVO Color Space Conversion (CSC) matrix.  Accepted values are \"ITU_601\", \"ITU_709\", \"ITU_177\", and \"Identity\"." },
 
     /* Display */
-    { "Brightness",                 BRIGHTNESS_VALUE|ALL_CHANNELS,         N|C|G, "Controls the overall brightness of the display." },
-    { "RedBrightness",              BRIGHTNESS_VALUE|RED_CHANNEL,          C|G,   "Controls the brightness of the color red in the display." },
-    { "GreenBrightness",            BRIGHTNESS_VALUE|GREEN_CHANNEL,        C|G,   "Controls the brightness of the color green in the display." },
-    { "BlueBrightness",             BRIGHTNESS_VALUE|BLUE_CHANNEL,         C|G,   "Controls the brightness of the color blue in the display." },
-    { "Contrast",                   CONTRAST_VALUE|ALL_CHANNELS,           N|C|G, "Controls the overall contrast of the display." },
-    { "RedContrast",                CONTRAST_VALUE|RED_CHANNEL,            C|G,   "Controls the contrast of the color red in the display." },
-    { "GreenContrast",              CONTRAST_VALUE|GREEN_CHANNEL,          C|G,   "Controls the contrast of the color green in the display." },
-    { "BlueContrast",               CONTRAST_VALUE|BLUE_CHANNEL,           C|G,   "Controls the contrast of the color blue in the display." },
-    { "Gamma",                      GAMMA_VALUE|ALL_CHANNELS,              N|C|G, "Controls the overall gamma of the display." },
-    { "RedGamma",                   GAMMA_VALUE|RED_CHANNEL,               C|G,   "Controls the gamma of the color red in the display." },
-    { "GreenGamma",                 GAMMA_VALUE|GREEN_CHANNEL,             C|G,   "Controls the gamma of the color green in the display." },
-    { "BlueGamma",                  GAMMA_VALUE|BLUE_CHANNEL,              C|G,   "Controls the gamma of the color blue in the display." },
-    { "Dithering",                  NV_CTRL_DITHERING,                     0,     "Controls the dithering: auto (0), enabled (1), disabled (2)." },
-    { "CurrentDithering",           NV_CTRL_CURRENT_DITHERING,             0,     "Returns the current dithering state: enabled (1), disabled (0)." },
-    { "DitheringMode",              NV_CTRL_DITHERING_MODE,                0,     "Controls the dithering mode when CurrentDithering=1; auto (0), temporally repeating dithering pattern (1), static dithering pattern (2), temporally stochastic dithering (3)." },
-    { "CurrentDitheringMode",       NV_CTRL_CURRENT_DITHERING_MODE,        0,     "Returns the current dithering mode: none (0), temporally repeating dithering pattern (1), static dithering pattern (2), temporally stochastic dithering (3)." },
-    { "DitheringDepth",             NV_CTRL_DITHERING_DEPTH,               0,     "Controls the dithering depth when CurrentDithering=1; auto (0), 6 bits per channel (1), 8 bits per channel (2)." },
-    { "CurrentDitheringDepth",      NV_CTRL_CURRENT_DITHERING_DEPTH,       0,     "Returns the current dithering depth: none (0), 6 bits per channel (1), 8 bits per channel (2)." },
-    { "DigitalVibrance",            NV_CTRL_DIGITAL_VIBRANCE,              0,     "Sets the digital vibrance level of the display device." },
-    { "ImageSharpening",            NV_CTRL_IMAGE_SHARPENING,              0,     "Adjusts the sharpness of the display's image quality by amplifying high frequency content." },
-    { "ImageSharpeningDefault",     NV_CTRL_IMAGE_SHARPENING_DEFAULT,      0,     "Returns default value of image sharpening." },
-    { "FrontendResolution",         NV_CTRL_FRONTEND_RESOLUTION,           N|P,   "Returns the dimensions of the frontend (current) resolution as determined by the NVIDIA X Driver.  This attribute is a packed integer; the width is packed in the upper 16 bits and the height is packed in the lower 16-bits." },
-    { "BackendResolution",          NV_CTRL_BACKEND_RESOLUTION,            N|P,   "Returns the dimensions of the backend resolution as determined by the NVIDIA X Driver.  The backend resolution is the resolution (supported by the display device) the GPU is set to scale to.  If this resolution matches the frontend resolution, GPU scaling will not be needed/used.  This attribute is a packed integer; the width is packed in the upper 16-bits and the height is packed in the lower 16-bits." },
-    { "FlatpanelNativeResolution",  NV_CTRL_FLATPANEL_NATIVE_RESOLUTION,   N|P,   "Returns the dimensions of the native resolution of the flat panel as determined by the NVIDIA X Driver.  The native resolution is the resolution at which a flat panel must display any image.  All other resolutions must be scaled to this resolution through GPU scaling or the DFP's native scaling capabilities in order to be displayed.  This attribute is only valid for flat panel (DFP) display devices.  This attribute is a packed integer; the width is packed in the upper 16-bits and the height is packed in the lower 16-bits." },
-    { "FlatpanelBestFitResolution", NV_CTRL_FLATPANEL_BEST_FIT_RESOLUTION, N|P,   "Returns the dimensions of the resolution, selected by the X driver, from the DFP's EDID that most closely matches the frontend resolution of the current mode.  The best fit resolution is selected on a per-mode basis.  This attribute is only valid for flat panel (DFP) display devices.  This attribute is a packed integer; the width is packed in the upper 16-bits and the height is packed in the lower 16-bits." },
-    { "DFPScalingActive",           NV_CTRL_DFP_SCALING_ACTIVE,            N,     "Returns the current state of DFP scaling.  DFP scaling is mode-specific (meaning it may vary depending on which mode is currently set).  DFP scaling is active if the GPU is set to scale to the best fit resolution (GPUScaling is set to use FlatpanelBestFitResolution) and the best fit and native resolutions are different." },
-    { "GPUScaling",                 NV_CTRL_GPU_SCALING,                   P,     "Controls what the GPU scales to and how.  This attribute is a packed integer; the scaling target (native/best fit) is packed in the upper 16-bits and the scaling method is packed in the lower 16-bits." },
-    { "GPUScalingDefaultTarget",    NV_CTRL_GPU_SCALING_DEFAULT_TARGET,    0,     "Returns the default gpu scaling target for the Flatpanel." },
-    { "GPUScalingDefaultMethod",    NV_CTRL_GPU_SCALING_DEFAULT_METHOD,    0,     "Returns the default gpu scaling method for the Flatpanel." },
-    { "GPUScalingActive",           NV_CTRL_GPU_SCALING_ACTIVE,            N,     "Returns the current state of GPU scaling.  GPU scaling is mode-specific (meaning it may vary depending on which mode is currently set).  GPU scaling is active if the frontend timing (current resolution) is different than the target resolution.  The target resolution is either the native resolution of the flat panel or the best fit resolution supported by the flat panel.  What (and how) the GPU should scale to is controlled through the GPUScaling attribute." },
-    { "RefreshRate",                NV_CTRL_REFRESH_RATE,                  N|H,   "Returns the refresh rate of the specified display device in cHz (Centihertz) (to get the refresh rate in Hz, divide the returned value by 100)." },
-    { "RefreshRate3",               NV_CTRL_REFRESH_RATE_3,                N|K,   "Returns the refresh rate of the specified display device in mHz (Millihertz) (to get the refresh rate in Hz, divide the returned value by 1000)." },
-    { "OverscanCompensation",       NV_CTRL_OVERSCAN_COMPENSATION,         0,     "Adjust the amount of overscan compensation scaling, in pixels, to apply to the specified display device." },
-    { "ColorSpace",                 NV_CTRL_COLOR_SPACE,                   0,     "Sets the color space of the signal sent to the display device." },
-    { "ColorRange",                 NV_CTRL_COLOR_RANGE,                   0,     "Sets the color range of the signal sent to the display device." },
-    { "SynchronousPaletteUpdates",  NV_CTRL_SYNCHRONOUS_PALETTE_UPDATES,   0,     "Controls whether colormap updates are synchronized with X rendering." },
-    { "CurrentMetaModeID",          NV_CTRL_CURRENT_METAMODE_ID,           N,     "The ID of the current MetaMode." },
-    { "CurrentMetaMode",            NV_CTRL_STRING_CURRENT_METAMODE_VERSION_2, S|N, "Controls the current MetaMode." },
-    { "XineramaInfoOrder",          NV_CTRL_STRING_NVIDIA_XINERAMA_INFO_ORDER, S|N, "Controls the nvidiaXineramaInfoOrder." },
-    { "RandROutputID",              NV_CTRL_DISPLAY_RANDR_OUTPUT_ID,       N,     "The RandR Output ID that corresponds to the display device." },
-    { "FrameLockDisplayConfig",     NV_CTRL_FRAMELOCK_DISPLAY_CONFIG,      N,     "Controls the FrameLock mode of operation for the display device." },
-    { "Hdmi3D",                     NV_CTRL_DPY_HDMI_3D,                   N,     "Returns whether the specified display device is currently using HDMI 3D Frame Packed Stereo mode. If so, the result of refresh rate queries will be doubled." },
-    { "BacklightBrightness",        NV_CTRL_BACKLIGHT_BRIGHTNESS,          N,     "Controls the backlight brightness of an internal panel." },
+    { "Brightness",                       BRIGHTNESS_VALUE|ALL_CHANNELS,                COL_ATTR, {1,0,0,0,1,0}, {}, "Controls the overall brightness of the display." },
+    { "RedBrightness",                    BRIGHTNESS_VALUE|RED_CHANNEL,                 COL_ATTR, {1,0,0,0,0,0}, {}, "Controls the brightness of the color red in the display." },
+    { "GreenBrightness",                  BRIGHTNESS_VALUE|GREEN_CHANNEL,               COL_ATTR, {1,0,0,0,0,0}, {}, "Controls the brightness of the color green in the display." },
+    { "BlueBrightness",                   BRIGHTNESS_VALUE|BLUE_CHANNEL,                COL_ATTR, {1,0,0,0,0,0}, {}, "Controls the brightness of the color blue in the display." },
+    { "Contrast",                         CONTRAST_VALUE|ALL_CHANNELS,                  COL_ATTR, {1,0,0,0,1,0}, {}, "Controls the overall contrast of the display." },
+    { "RedContrast",                      CONTRAST_VALUE|RED_CHANNEL,                   COL_ATTR, {1,0,0,0,0,0}, {}, "Controls the contrast of the color red in the display." },
+    { "GreenContrast",                    CONTRAST_VALUE|GREEN_CHANNEL,                 COL_ATTR, {1,0,0,0,0,0}, {}, "Controls the contrast of the color green in the display." },
+    { "BlueContrast",                     CONTRAST_VALUE|BLUE_CHANNEL,                  COL_ATTR, {1,0,0,0,0,0}, {}, "Controls the contrast of the color blue in the display." },
+    { "Gamma",                            GAMMA_VALUE|ALL_CHANNELS,                     COL_ATTR, {1,0,0,0,1,0}, {}, "Controls the overall gamma of the display." },
+    { "RedGamma",                         GAMMA_VALUE|RED_CHANNEL,                      COL_ATTR, {1,0,0,0,0,0}, {}, "Controls the gamma of the color red in the display." },
+    { "GreenGamma",                       GAMMA_VALUE|GREEN_CHANNEL,                    COL_ATTR, {1,0,0,0,0,0}, {}, "Controls the gamma of the color green in the display." },
+    { "BlueGamma",                        GAMMA_VALUE|BLUE_CHANNEL,                     COL_ATTR, {1,0,0,0,0,0}, {},"Controls the gamma of the color blue in the display." },
+    { "Dithering",                        NV_CTRL_DITHERING,                            INT_ATTR, {0,0,0,0,0,0}, { .int_flags = {0,0,0,0,0,0,0} }, "Controls the dithering: auto (0), enabled (1), disabled (2)." },
+    { "CurrentDithering",                 NV_CTRL_CURRENT_DITHERING,                    INT_ATTR, {0,0,0,0,0,0}, { .int_flags = {0,0,0,0,0,0,0} }, "Returns the current dithering state: enabled (1), disabled (0)." },
+    { "DitheringMode",                    NV_CTRL_DITHERING_MODE,                       INT_ATTR, {0,0,0,0,0,0}, { .int_flags = {0,0,0,0,0,0,0} }, "Controls the dithering mode when CurrentDithering=1; auto (0), temporally repeating dithering pattern (1), static dithering pattern (2), temporally stochastic dithering (3)." },
+    { "CurrentDitheringMode",             NV_CTRL_CURRENT_DITHERING_MODE,               INT_ATTR, {0,0,0,0,0,0}, { .int_flags = {0,0,0,0,0,0,0} }, "Returns the current dithering mode: none (0), temporally repeating dithering pattern (1), static dithering pattern (2), temporally stochastic dithering (3)." },
+    { "DitheringDepth",                   NV_CTRL_DITHERING_DEPTH,                      INT_ATTR, {0,0,0,0,0,0}, { .int_flags = {0,0,0,0,0,0,0} }, "Controls the dithering depth when CurrentDithering=1; auto (0), 6 bits per channel (1), 8 bits per channel (2)." },
+    { "CurrentDitheringDepth",            NV_CTRL_CURRENT_DITHERING_DEPTH,              INT_ATTR, {0,0,0,0,0,0}, { .int_flags = {0,0,0,0,0,0,0} }, "Returns the current dithering depth: none (0), 6 bits per channel (1), 8 bits per channel (2)." },
+    { "DigitalVibrance",                  NV_CTRL_DIGITAL_VIBRANCE,                     INT_ATTR, {0,0,0,0,0,0}, { .int_flags = {0,0,0,0,0,0,0} }, "Sets the digital vibrance level of the display device." },
+    { "ImageSharpening",                  NV_CTRL_IMAGE_SHARPENING,                     INT_ATTR, {0,0,0,0,0,0}, { .int_flags = {0,0,0,0,0,0,0} }, "Adjusts the sharpness of the display's image quality by amplifying high frequency content." },
+    { "ImageSharpeningDefault",           NV_CTRL_IMAGE_SHARPENING_DEFAULT,             INT_ATTR, {0,0,0,0,0,0}, { .int_flags = {0,0,0,0,0,0,0} }, "Returns default value of image sharpening." },
+    { "FrontendResolution",               NV_CTRL_FRONTEND_RESOLUTION,                  INT_ATTR, {0,0,0,0,1,0}, { .int_flags = {0,0,1,0,0,0,0} }, "Returns the dimensions of the frontend (current) resolution as determined by the NVIDIA X Driver.  This attribute is a packed integer; the width is packed in the upper 16 bits and the height is packed in the lower 16-bits." },
+    { "BackendResolution",                NV_CTRL_BACKEND_RESOLUTION,                   INT_ATTR, {0,0,0,0,1,0}, { .int_flags = {0,0,1,0,0,0,0} }, "Returns the dimensions of the backend resolution as determined by the NVIDIA X Driver.  The backend resolution is the resolution (supported by the display device) the GPU is set to scale to.  If this resolution matches the frontend resolution, GPU scaling will not be needed/used.  This attribute is a packed integer; the width is packed in the upper 16-bits and the height is packed in the lower 16-bits." },
+    { "FlatpanelNativeResolution",        NV_CTRL_FLATPANEL_NATIVE_RESOLUTION,          INT_ATTR, {0,0,0,0,1,0}, { .int_flags = {0,0,1,0,0,0,0} }, "Returns the dimensions of the native resolution of the flat panel as determined by the NVIDIA X Driver.  The native resolution is the resolution at which a flat panel must display any image.  All other resolutions must be scaled to this resolution through GPU scaling or the DFP's native scaling capabilities in order to be displayed.  This attribute is only valid for flat panel (DFP) display devices.  This attribute is a packed integer; the width is packed in the upper 16-bits and the height is packed in the lower 16-bits." },
+    { "FlatpanelBestFitResolution",       NV_CTRL_FLATPANEL_BEST_FIT_RESOLUTION,        INT_ATTR, {0,0,0,0,1,0}, { .int_flags = {0,0,1,0,0,0,0} }, "Returns the dimensions of the resolution, selected by the X driver, from the DFP's EDID that most closely matches the frontend resolution of the current mode.  The best fit resolution is selected on a per-mode basis.  This attribute is only valid for flat panel (DFP) display devices.  This attribute is a packed integer; the width is packed in the upper 16-bits and the height is packed in the lower 16-bits." },
+    { "DFPScalingActive",                 NV_CTRL_DFP_SCALING_ACTIVE,                   INT_ATTR, {0,0,0,0,1,0}, { .int_flags = {0,0,0,0,0,0,0} }, "Returns the current state of DFP scaling.  DFP scaling is mode-specific (meaning it may vary depending on which mode is currently set).  DFP scaling is active if the GPU is set to scale to the best fit resolution (GPUScaling is set to use FlatpanelBestFitResolution) and the best fit and native resolutions are different." },
+    { "GPUScaling",                       NV_CTRL_GPU_SCALING,                          INT_ATTR, {0,0,0,0,0,0}, { .int_flags = {0,0,1,0,0,0,0} }, "Controls what the GPU scales to and how.  This attribute is a packed integer; the scaling target (native/best fit) is packed in the upper 16-bits and the scaling method is packed in the lower 16-bits." },
+    { "GPUScalingDefaultTarget",          NV_CTRL_GPU_SCALING_DEFAULT_TARGET,           INT_ATTR, {0,0,0,0,0,0}, { .int_flags = {0,0,0,0,0,0,0} }, "Returns the default gpu scaling target for the Flatpanel." },
+    { "GPUScalingDefaultMethod",          NV_CTRL_GPU_SCALING_DEFAULT_METHOD,           INT_ATTR, {0,0,0,0,0,0}, { .int_flags = {0,0,0,0,0,0,0} }, "Returns the default gpu scaling method for the Flatpanel." },
+    { "GPUScalingActive",                 NV_CTRL_GPU_SCALING_ACTIVE,                   INT_ATTR, {0,0,0,0,1,0}, { .int_flags = {0,0,0,0,0,0,0} }, "Returns the current state of GPU scaling.  GPU scaling is mode-specific (meaning it may vary depending on which mode is currently set).  GPU scaling is active if the frontend timing (current resolution) is different than the target resolution.  The target resolution is either the native resolution of the flat panel or the best fit resolution supported by the flat panel.  What (and how) the GPU should scale to is controlled through the GPUScaling attribute." },
+    { "RefreshRate",                      NV_CTRL_REFRESH_RATE,                         INT_ATTR, {0,0,0,0,1,0}, { .int_flags = {1,0,0,0,0,0,0} }, "Returns the refresh rate of the specified display device in cHz (Centihertz) (to get the refresh rate in Hz, divide the returned value by 100)." },
+    { "RefreshRate3",                     NV_CTRL_REFRESH_RATE_3,                       INT_ATTR, {0,0,0,0,1,0}, { .int_flags = {0,1,0,0,0,0,0} }, "Returns the refresh rate of the specified display device in mHz (Millihertz) (to get the refresh rate in Hz, divide the returned value by 1000)." },
+    { "OverscanCompensation",             NV_CTRL_OVERSCAN_COMPENSATION,                INT_ATTR, {0,0,0,0,0,0}, { .int_flags = {0,0,0,0,0,0,0} }, "Adjust the amount of overscan compensation scaling, in pixels, to apply to the specified display device." },
+    { "ColorSpace",                       NV_CTRL_COLOR_SPACE,                          INT_ATTR, {0,0,0,0,0,0}, { .int_flags = {0,0,0,0,0,0,0} }, "Sets the color space of the signal sent to the display device." },
+    { "ColorRange",                       NV_CTRL_COLOR_RANGE,                          INT_ATTR, {0,0,0,0,0,0}, { .int_flags = {0,0,0,0,0,0,0} }, "Sets the color range of the signal sent to the display device." },
+    { "SynchronousPaletteUpdates",        NV_CTRL_SYNCHRONOUS_PALETTE_UPDATES,          INT_ATTR, {0,0,0,0,0,0}, { .int_flags = {0,0,0,0,0,0,0} }, "Controls whether colormap updates are synchronized with X rendering." },
+    { "CurrentMetaModeID",                NV_CTRL_CURRENT_METAMODE_ID,                  INT_ATTR, {0,0,0,0,1,0}, { .int_flags = {0,0,0,0,0,0,0} }, "The ID of the current MetaMode." },
+    { "RandROutputID",                    NV_CTRL_DISPLAY_RANDR_OUTPUT_ID,              INT_ATTR, {0,0,0,0,1,0}, { .int_flags = {0,0,0,0,0,0,0} }, "The RandR Output ID that corresponds to the display device." },
+    { "Hdmi3D",                           NV_CTRL_DPY_HDMI_3D,                          INT_ATTR, {0,0,0,0,1,0}, { .int_flags = {0,0,0,0,0,0,0} }, "Returns whether the specified display device is currently using HDMI 3D Frame Packed Stereo mode. If so, the result of refresh rate queries will be doubled." },
+    { "BacklightBrightness",              NV_CTRL_BACKLIGHT_BRIGHTNESS,                 INT_ATTR, {0,0,0,0,1,0}, { .int_flags = {0,0,0,0,0,0,0} }, "Controls the backlight brightness of an internal panel." },
+    { "CurrentMetaMode",                  NV_CTRL_STRING_CURRENT_METAMODE_VERSION_2,    STR_ATTR, {0,0,0,0,1,0}, {}, "Controls the current MetaMode." },
+    { "XineramaInfoOrder",                NV_CTRL_STRING_NVIDIA_XINERAMA_INFO_ORDER,    STR_ATTR, {0,0,0,0,1,0}, {}, "Controls the nvidiaXineramaInfoOrder." },
+    { "BuildModepool",                    NV_CTRL_STRING_OPERATION_BUILD_MODEPOOL,      SOP_ATTR, {0,0,0,0,1,1}, {}, "Build the modepool of the display device if it does not already have one." },
 
     /* TV */
-    { "TVOverScan",      NV_CTRL_TV_OVERSCAN,       0, "Adjusts the amount of overscan on the specified display device." },
-    { "TVFlickerFilter", NV_CTRL_TV_FLICKER_FILTER, 0, "Adjusts the amount of flicker filter on the specified display device." },
-    { "TVBrightness",    NV_CTRL_TV_BRIGHTNESS,     0, "Adjusts the amount of brightness on the specified display device." },
-    { "TVHue",           NV_CTRL_TV_HUE,            0, "Adjusts the amount of hue on the specified display device." },
-    { "TVContrast",      NV_CTRL_TV_CONTRAST,       0, "Adjusts the amount of contrast on the specified display device." },
-    { "TVSaturation",    NV_CTRL_TV_SATURATION,     0, "Adjusts the amount of saturation on the specified display device." },
+    { "TVOverScan",                       NV_CTRL_TV_OVERSCAN,                          INT_ATTR, {0,0,0,0,0,0}, { .int_flags = {0,0,0,0,0,0,0} }, "Adjusts the amount of overscan on the specified display device." },
+    { "TVFlickerFilter",                  NV_CTRL_TV_FLICKER_FILTER,                    INT_ATTR, {0,0,0,0,0,0}, { .int_flags = {0,0,0,0,0,0,0} }, "Adjusts the amount of flicker filter on the specified display device." },
+    { "TVBrightness",                     NV_CTRL_TV_BRIGHTNESS,                        INT_ATTR, {0,0,0,0,0,0}, { .int_flags = {0,0,0,0,0,0,0} }, "Adjusts the amount of brightness on the specified display device." },
+    { "TVHue",                            NV_CTRL_TV_HUE,                               INT_ATTR, {0,0,0,0,0,0}, { .int_flags = {0,0,0,0,0,0,0} }, "Adjusts the amount of hue on the specified display device." },
+    { "TVContrast",                       NV_CTRL_TV_CONTRAST,                          INT_ATTR, {0,0,0,0,0,0}, { .int_flags = {0,0,0,0,0,0,0} }, "Adjusts the amount of contrast on the specified display device." },
+    { "TVSaturation",                     NV_CTRL_TV_SATURATION,                        INT_ATTR, {0,0,0,0,0,0}, { .int_flags = {0,0,0,0,0,0,0} }, "Adjusts the amount of saturation on the specified display device." },
 
     /* X Video */
-    { "XVideoSyncToDisplay",       NV_CTRL_XV_SYNC_TO_DISPLAY,           D|Z|N, "Controls which display device is synced to by the texture and blitter adaptors when they are set to synchronize to the vertical blanking." },
-    { "XVideoSyncToDisplayID",     NV_CTRL_XV_SYNC_TO_DISPLAY_ID,           V, "Controls which display device is synced to by the texture and blitter adaptors when they are set to synchronize to the vertical blanking." },
+    { "XVideoSyncToDisplay",              NV_CTRL_XV_SYNC_TO_DISPLAY,                   INT_ATTR, {0,0,0,0,1,0}, { .int_flags = {0,0,0,1,0,1,0} }, "Controls which display device is synced to by the texture and blitter adaptors when they are set to synchronize to the vertical blanking." },
+    { "XVideoSyncToDisplayID",            NV_CTRL_XV_SYNC_TO_DISPLAY_ID,                INT_ATTR, {0,0,0,0,0,0}, { .int_flags = {0,0,0,0,1,0,0} }, "Controls which display device is synced to by the texture and blitter adaptors when they are set to synchronize to the vertical blanking." },
 
     /* 3D Vision Pro */
-    {"3DVisionProResetTransceiverToFactorySettings", NV_CTRL_3D_VISION_PRO_RESET_TRANSCEIVER_TO_FACTORY_SETTINGS, N,     "Resets the 3D Vision Pro transceiver to its factory settings."},
-    {"3DVisionProTransceiverChannel",                NV_CTRL_3D_VISION_PRO_TRANSCEIVER_CHANNEL,                   N,     "Controls the channel that is currently used by the 3D Vision Pro transceiver."},
-    {"3DVisionProTransceiverMode",                   NV_CTRL_3D_VISION_PRO_TRANSCEIVER_MODE,                      N,     "Controls the mode in which the 3D Vision Pro transceiver operates."},
-    {"3DVisionProTransceiverChannelFrequency",       NV_CTRL_3D_VISION_PRO_TRANSCEIVER_CHANNEL_FREQUENCY,         N|T,   "Returns the frequency of the channel(in kHz) of the 3D Vision Pro transceiver."},
-    {"3DVisionProTransceiverChannelQuality",         NV_CTRL_3D_VISION_PRO_TRANSCEIVER_CHANNEL_QUALITY,           N|T,   "Returns the quality of the channel(in percentage) of the 3D Vision Pro transceiver."},
-    {"3DVisionProTransceiverChannelCount",           NV_CTRL_3D_VISION_PRO_TRANSCEIVER_CHANNEL_COUNT,             N,     "Returns the number of channels on the 3D Vision Pro transceiver."},
-    {"3DVisionProPairGlasses",                       NV_CTRL_3D_VISION_PRO_PAIR_GLASSES,                          N,     "Puts the 3D Vision Pro transceiver into pairing mode to gather additional glasses."},
-    {"3DVisionProUnpairGlasses",                     NV_CTRL_3D_VISION_PRO_UNPAIR_GLASSES,                        N,     "Tells a specific pair of glasses to unpair."},
-    {"3DVisionProDiscoverGlasses",                   NV_CTRL_3D_VISION_PRO_DISCOVER_GLASSES,                      N,     "Tells the 3D Vision Pro transceiver about the glasses that have been paired using NV_CTRL_3D_VISION_PRO_PAIR_GLASSES_BEACON."},
-    {"3DVisionProIdentifyGlasses",                   NV_CTRL_3D_VISION_PRO_IDENTIFY_GLASSES,                      N,     "Causes glasses LEDs to flash for a short period of time."},
-    {"3DVisionProGlassesSyncCycle",                  NV_CTRL_3D_VISION_PRO_GLASSES_SYNC_CYCLE,                    N|T,   "Controls the sync cycle duration(in milliseconds) of the glasses."},
-    {"3DVisionProGlassesMissedSyncCycles",           NV_CTRL_3D_VISION_PRO_GLASSES_MISSED_SYNC_CYCLES,            N|T,   "Returns the number of state sync cycles recently missed by the glasses."},
-    {"3DVisionProGlassesBatteryLevel",               NV_CTRL_3D_VISION_PRO_GLASSES_BATTERY_LEVEL,                 N|T,   "Returns the battery level(in percentage) of the glasses."},
-    {"3DVisionProTransceiverHardwareRevision",       NV_CTRL_STRING_3D_VISION_PRO_TRANSCEIVER_HARDWARE_REVISION,  S|N,   "Returns the hardware revision of the 3D Vision Pro transceiver."},
-    {"3DVisionProTransceiverFirmwareVersionA",       NV_CTRL_STRING_3D_VISION_PRO_TRANSCEIVER_FIRMWARE_VERSION_A, S|N,   "Returns the firmware version of chip A of the 3D Vision Pro transceiver."},
-    {"3DVisionProTransceiverFirmwareDateA",          NV_CTRL_STRING_3D_VISION_PRO_TRANSCEIVER_FIRMWARE_DATE_A,    S|N,   "Returns the date of the firmware of chip A of the 3D Vision Pro transceiver."},
-    {"3DVisionProTransceiverFirmwareVersionB",       NV_CTRL_STRING_3D_VISION_PRO_TRANSCEIVER_FIRMWARE_VERSION_B, S|N,   "Returns the firmware version of chip B of the 3D Vision Pro transceiver."},
-    {"3DVisionProTransceiverFirmwareDateB",          NV_CTRL_STRING_3D_VISION_PRO_TRANSCEIVER_FIRMWARE_DATE_B,    S|N,   "Returns the date of the firmware of chip B of the 3D Vision Pro transceiver."},
-    {"3DVisionProTransceiverAddress",                NV_CTRL_STRING_3D_VISION_PRO_TRANSCEIVER_ADDRESS,            S|N,   "Returns the RF address of the 3D Vision Pro transceiver."},
-    {"3DVisionProGlassesFirmwareVersionA",           NV_CTRL_STRING_3D_VISION_PRO_GLASSES_FIRMWARE_VERSION_A,     S|N|T, "Returns the firmware version of chip A of the glasses."},
-    {"3DVisionProGlassesFirmwareDateA",              NV_CTRL_STRING_3D_VISION_PRO_GLASSES_FIRMWARE_DATE_A,        S|N|T, "Returns the date of the firmware of chip A of the glasses."},
-    {"3DVisionProGlassesAddress",                    NV_CTRL_STRING_3D_VISION_PRO_GLASSES_ADDRESS,                S|N|T, "Returns the RF address of the glasses."},
-    {"3DVisionProGlassesName",                       NV_CTRL_STRING_3D_VISION_PRO_GLASSES_NAME,                   S|N|T, "Controls the name the glasses should use."},
-    {"GPUUtilization",                               NV_CTRL_STRING_GPU_UTILIZATION,                              S|N,   "Returns the current percentage utilization of the GPU components." },
+    { "3DVisionProResetTransceiverToFactorySettings", NV_CTRL_3D_VISION_PRO_RESET_TRANSCEIVER_TO_FACTORY_SETTINGS, INT_ATTR, {0,0,0,0,1,0}, { .int_flags = {0,0,0,0,0,0,0} }, "Resets the 3D Vision Pro transceiver to its factory settings."},
+    { "3DVisionProTransceiverChannel",                NV_CTRL_3D_VISION_PRO_TRANSCEIVER_CHANNEL,                   INT_ATTR, {0,0,0,0,1,0}, { .int_flags = {0,0,0,0,0,0,0} }, "Controls the channel that is currently used by the 3D Vision Pro transceiver."},
+    { "3DVisionProTransceiverMode",                   NV_CTRL_3D_VISION_PRO_TRANSCEIVER_MODE,                      INT_ATTR, {0,0,0,0,1,0}, { .int_flags = {0,0,0,0,0,0,0} }, "Controls the mode in which the 3D Vision Pro transceiver operates."},
+    { "3DVisionProTransceiverChannelFrequency",       NV_CTRL_3D_VISION_PRO_TRANSCEIVER_CHANNEL_FREQUENCY,         INT_ATTR, {0,0,0,1,1,0}, { .int_flags = {0,0,0,0,0,0,0} }, "Returns the frequency of the channel(in kHz) of the 3D Vision Pro transceiver."},
+    { "3DVisionProTransceiverChannelQuality",         NV_CTRL_3D_VISION_PRO_TRANSCEIVER_CHANNEL_QUALITY,           INT_ATTR, {0,0,0,1,1,0}, { .int_flags = {0,0,0,0,0,0,0} }, "Returns the quality of the channel(in percentage) of the 3D Vision Pro transceiver."},
+    { "3DVisionProTransceiverChannelCount",           NV_CTRL_3D_VISION_PRO_TRANSCEIVER_CHANNEL_COUNT,             INT_ATTR, {0,0,0,0,1,0}, { .int_flags = {0,0,0,0,0,0,0} }, "Returns the number of channels on the 3D Vision Pro transceiver."},
+    { "3DVisionProPairGlasses",                       NV_CTRL_3D_VISION_PRO_PAIR_GLASSES,                          INT_ATTR, {0,0,0,0,1,0}, { .int_flags = {0,0,0,0,0,0,0} }, "Puts the 3D Vision Pro transceiver into pairing mode to gather additional glasses."},
+    { "3DVisionProUnpairGlasses",                     NV_CTRL_3D_VISION_PRO_UNPAIR_GLASSES,                        INT_ATTR, {0,0,0,0,1,0}, { .int_flags = {0,0,0,0,0,0,0} }, "Tells a specific pair of glasses to unpair."},
+    { "3DVisionProDiscoverGlasses",                   NV_CTRL_3D_VISION_PRO_DISCOVER_GLASSES,                      INT_ATTR, {0,0,0,0,1,0}, { .int_flags = {0,0,0,0,0,0,0} }, "Tells the 3D Vision Pro transceiver about the glasses that have been paired using NV_CTRL_3D_VISION_PRO_PAIR_GLASSES_BEACON."},
+    { "3DVisionProIdentifyGlasses",                   NV_CTRL_3D_VISION_PRO_IDENTIFY_GLASSES,                      INT_ATTR, {0,0,0,0,1,0}, { .int_flags = {0,0,0,0,0,0,0} }, "Causes glasses LEDs to flash for a short period of time."},
+    { "3DVisionProGlassesSyncCycle",                  NV_CTRL_3D_VISION_PRO_GLASSES_SYNC_CYCLE,                    INT_ATTR, {0,0,0,1,1,0}, { .int_flags = {0,0,0,0,0,0,0} }, "Controls the sync cycle duration(in milliseconds) of the glasses."},
+    { "3DVisionProGlassesMissedSyncCycles",           NV_CTRL_3D_VISION_PRO_GLASSES_MISSED_SYNC_CYCLES,            INT_ATTR, {0,0,0,1,1,0}, { .int_flags = {0,0,0,0,0,0,0} }, "Returns the number of state sync cycles recently missed by the glasses."},
+    { "3DVisionProGlassesBatteryLevel",               NV_CTRL_3D_VISION_PRO_GLASSES_BATTERY_LEVEL,                 INT_ATTR, {0,0,0,1,1,0}, { .int_flags = {0,0,0,0,0,0,0} }, "Returns the battery level(in percentage) of the glasses."},
+    { "3DVisionProTransceiverHardwareRevision",       NV_CTRL_STRING_3D_VISION_PRO_TRANSCEIVER_HARDWARE_REVISION,  STR_ATTR, {0,0,0,0,1,0}, {}, "Returns the hardware revision of the 3D Vision Pro transceiver."},
+    { "3DVisionProTransceiverFirmwareVersionA",       NV_CTRL_STRING_3D_VISION_PRO_TRANSCEIVER_FIRMWARE_VERSION_A, STR_ATTR, {0,0,0,0,1,0}, {}, "Returns the firmware version of chip A of the 3D Vision Pro transceiver."},
+    { "3DVisionProTransceiverFirmwareDateA",          NV_CTRL_STRING_3D_VISION_PRO_TRANSCEIVER_FIRMWARE_DATE_A,    STR_ATTR, {0,0,0,0,1,0}, {}, "Returns the date of the firmware of chip A of the 3D Vision Pro transceiver."},
+    { "3DVisionProTransceiverFirmwareVersionB",       NV_CTRL_STRING_3D_VISION_PRO_TRANSCEIVER_FIRMWARE_VERSION_B, STR_ATTR, {0,0,0,0,1,0}, {}, "Returns the firmware version of chip B of the 3D Vision Pro transceiver."},
+    { "3DVisionProTransceiverFirmwareDateB",          NV_CTRL_STRING_3D_VISION_PRO_TRANSCEIVER_FIRMWARE_DATE_B,    STR_ATTR, {0,0,0,0,1,0}, {}, "Returns the date of the firmware of chip B of the 3D Vision Pro transceiver."},
+    { "3DVisionProTransceiverAddress",                NV_CTRL_STRING_3D_VISION_PRO_TRANSCEIVER_ADDRESS,            STR_ATTR, {0,0,0,0,1,0}, {}, "Returns the RF address of the 3D Vision Pro transceiver."},
+    { "3DVisionProGlassesFirmwareVersionA",           NV_CTRL_STRING_3D_VISION_PRO_GLASSES_FIRMWARE_VERSION_A,     STR_ATTR, {0,0,0,1,1,0}, {}, "Returns the firmware version of chip A of the glasses."},
+    { "3DVisionProGlassesFirmwareDateA",              NV_CTRL_STRING_3D_VISION_PRO_GLASSES_FIRMWARE_DATE_A,        STR_ATTR, {0,0,0,1,1,0}, {}, "Returns the date of the firmware of chip A of the glasses."},
+    { "3DVisionProGlassesAddress",                    NV_CTRL_STRING_3D_VISION_PRO_GLASSES_ADDRESS,                STR_ATTR, {0,0,0,1,1,0}, {}, "Returns the RF address of the glasses."},
+    { "3DVisionProGlassesName",                       NV_CTRL_STRING_3D_VISION_PRO_GLASSES_NAME,                   STR_ATTR, {0,0,0,1,1,0}, {}, "Controls the name the glasses should use."},
 
-    { NULL, 0, 0, NULL }
+    /* Misc */
+    { "GTFModeline",                      NV_CTRL_STRING_OPERATION_GTF_MODELINE,        SOP_ATTR, {0,0,0,0,1,1}, { }, "Builds a modeline using the GTF formula." },
+    { "CVTModeline",                      NV_CTRL_STRING_OPERATION_CVT_MODELINE,        SOP_ATTR, {0,0,0,0,1,1}, { }, "Builds a modeline using the CVT formula." },
+
 };
 
-#undef F
-#undef C
-#undef N
-#undef G
-#undef P
-#undef D
-#undef A
-#undef Z
-#undef H
-#undef K
-#undef S
-#undef I
-#undef W
-#undef M
-#undef T
-#undef V
+const int attributeTableLen = ARRAY_LEN(attributeTable);
 
 /*
- * When new integer attributes are added to NVCtrl.h, an entry should
- * be added in the above attributeTable[].  The below #if should also
- * be updated to indicate the last attribute that the table knows
- * about.
+ * When new attributes are added to NVCtrl.h, an entry should be added in the
+ * above attributeTable[].  The below #if should also be updated to indicate
+ * the last attribute that the table knows about.
  */
 
 #if NV_CTRL_LAST_ATTRIBUTE != NV_CTRL_THERMAL_COOLER_SPEED
 #warning "Have you forgotten to add a new integer attribute to attributeTable?"
 #endif
+
+#if NV_CTRL_STRING_LAST_ATTRIBUTE != NV_CTRL_STRING_MULTIGPU_MODE
+#warning "Have you forgotten to add a new string attribute to attributeTable?"
+#endif
+
+#if NV_CTRL_STRING_OPERATION_LAST_ATTRIBUTE != NV_CTRL_STRING_OPERATION_PARSE_METAMODE
+#warning "Have you forgotten to add a new string operation attribute to attributeTable?"
+#endif
+
+
+
+/*
+ * returns the corresponding attribute entry for the given attribute constant.
+ *
+ */
+const AttributeTableEntry *nv_get_attribute_entry(const int attr,
+                                                  const AttributeType type)
+{
+    int i;
+
+    for (i = 0; i < attributeTableLen; i++) {
+        const AttributeTableEntry *a = attributeTable + i;
+        if ((a->attr == attr) && (a->type == type)) {
+            return a;
+        }
+    }
+
+    return NULL;
+}
+
+
+/*
+ * returns the corresponding attribute entry for the given attribute
+ * name.
+ *
+ */
+static const AttributeTableEntry *nv_get_attribute_entry_by_name(const char *name)
+{
+    int i;
+
+    for (i = 0; i < attributeTableLen; i++) {
+        const AttributeTableEntry *t = attributeTable + i;
+        if (nv_strcasecmp(name, t->name)) {
+            return t;
+        }
+    }
+
+    return NULL;
+}
 
 
 
@@ -580,29 +615,29 @@ int nv_parse_numerical(const char *start, const char *end, int *val)
  * Parse the string as a (special case) X screen number.
  *
  * Return whether the string defined by 'start' and 'end' is a simple numerical
- * value that was applied to the ParsedAttribute 'a' as an X screen target
+ * value that was applied to the ParsedAttribute 'p' as an X screen target
  * type/id.
  *
  * \param[in]  start  Start of the string to parse.
  * \param[in]  end    End of the string to parse, or NULL if the string is NULL-
  *                    terminated.
- * \param[out] a      ParsedAttribute to set as an X screen target if the string
+ * \param[out] p      ParsedAttribute to set as an X screen target if the string
  *                    is found to be a simple numeric.
  *
  * \return  Return NV_TRUE if the string was a simple numerical value and 'a'
  *          was modified; else, return NV_FALSE.
  */
 
-static int nv_parse_special_xscreen_target(ParsedAttribute *a,
+static int nv_parse_special_xscreen_target(ParsedAttribute *p,
                                            const char *start,
                                            const char *end)
 {
-    if (!nv_parse_numerical(start, end, &(a->target_id))) {
+    if (!nv_parse_numerical(start, end, &(p->target_id))) {
         return FALSE;
     }
 
-    a->flags |= NV_PARSER_HAS_TARGET;
-    a->target_type = NV_CTRL_TARGET_TYPE_X_SCREEN;
+    p->parser_flags.has_target = NV_TRUE;
+    p->target_type = NV_CTRL_TARGET_TYPE_X_SCREEN;
 
     return NV_TRUE;
 }
@@ -623,7 +658,7 @@ static int nv_parse_special_xscreen_target(ParsedAttribute *a,
  *
  * \param[in]  start  Start of the string to parse.
  * \param[in]  end    End of the string to parse.
- * \param[out] a      ParsedAttribute to be modified with the X Display and/or
+ * \param[out] p      ParsedAttribute to be modified with the X Display and/or
  *                    target type + target id or generic specification
  *                    information.
  *
@@ -634,7 +669,7 @@ static int nv_parse_special_xscreen_target(ParsedAttribute *a,
 
 static int nv_parse_display_and_target(const char *start,
                                        const char *end, /* exclusive */
-                                       ParsedAttribute *a)
+                                       ParsedAttribute *p)
 {
     int len;
     const char *s, *pOpen, *pClose;
@@ -643,20 +678,19 @@ static int nv_parse_display_and_target(const char *start,
 
     /* Set target specification related defaults */
 
-    a->display = NULL;
-    a->target_id = -1;
-    a->target_type = -1;
-    a->target_name = NULL;
-    a->target_specification = NULL;
-    a->flags &= ~(NV_PARSER_HAS_X_DISPLAY |
-                  NV_PARSER_HAS_TARGET);
+    p->display = NULL;
+    p->target_id = -1;
+    p->target_type = -1;
+    p->target_specification = NULL;
+    p->parser_flags.has_x_display = NV_FALSE;
+    p->parser_flags.has_target = NV_FALSE;
 
     /*
      * If the string consists of digits only, then this is a special case where
      * the X screen number is being specified.
      */
 
-    if (nv_parse_special_xscreen_target(a, start, end)) {
+    if (nv_parse_special_xscreen_target(p, start, end)) {
         return NV_PARSER_STATUS_SUCCESS;
     }
 
@@ -694,7 +728,7 @@ static int nv_parse_display_and_target(const char *start,
 
         len = pClose - pOpen - 1;
 
-        a->target_specification = nvstrndup(pOpen + 1, len);
+        p->target_specification = nvstrndup(pOpen + 1, len);
 
         /*
          * The X Display name should end on the opening bracket of the target
@@ -708,16 +742,16 @@ static int nv_parse_display_and_target(const char *start,
 
     if (startDisplayName < endDisplayName) {
 
-        a->display = nvstrndup(startDisplayName,
+        p->display = nvstrndup(startDisplayName,
                                endDisplayName - startDisplayName);
-        a->flags |= NV_PARSER_HAS_X_DISPLAY;
+        p->parser_flags.has_x_display = NV_TRUE;
 
         /*
          * this will attempt to parse out any screen number from the
          * display name
          */
 
-        nv_assign_default_display(a, NULL);
+        nv_assign_default_display(p, NULL);
     }
 
     return NV_PARSER_STATUS_SUCCESS;
@@ -729,21 +763,24 @@ static int nv_parse_display_and_target(const char *start,
  * nv_parse_attribute_string() - see comments in parse.h
  */
 
-int nv_parse_attribute_string(const char *str, int query, ParsedAttribute *a)
+int nv_parse_attribute_string(const char *str, int query, ParsedAttribute *p)
 {
-    char *s, *tmp, *name, *start, *display_device_name, *equal_sign, *no_spaces = NULL;
+    char *s, *tmp, *name, *start, *equal_sign, *no_spaces = NULL;
     char tmpname[NV_PARSER_MAX_NAME_LEN];
-    const AttributeTableEntry *t;
     int len, ret;
+    const AttributeTableEntry *a;
 
 #define stop(x) { if (no_spaces) free(no_spaces); return (x); }
-    if (!a) stop(NV_PARSER_STATUS_BAD_ARGUMENT);
+
+    if (!p) {
+        stop(NV_PARSER_STATUS_BAD_ARGUMENT);
+    }
 
     /* clear the ParsedAttribute struct */
 
-    memset((void *) a, 0, sizeof(ParsedAttribute));
-    a->target_id = -1;
-    a->target_type = -1;
+    memset((void *) p, 0, sizeof(ParsedAttribute));
+    p->target_id = -1;
+    p->target_type = -1;
 
     /* remove any white space from the string, to simplify parsing */
 
@@ -778,7 +815,7 @@ int nv_parse_attribute_string(const char *str, int query, ParsedAttribute *a)
 
     if ((s) && (s != no_spaces)) {
 
-        ret = nv_parse_display_and_target(no_spaces, s, a);
+        ret = nv_parse_display_and_target(no_spaces, s, p);
 
         if (ret != NV_PARSER_STATUS_SUCCESS) {
             stop(ret);
@@ -806,112 +843,137 @@ int nv_parse_attribute_string(const char *str, int query, ParsedAttribute *a)
 
     strncpy(tmpname, name, len);
     tmpname[len] = '\0';
-    
-    /* look up the requested name */
 
-    for (t = attributeTable; t->name; t++) {
-        if (nv_strcasecmp(tmpname, t->name)) {
-            a->name = t->name;
-            a->attr = t->attr;
-            a->flags |= t->flags;
-            a->attr_entry = t;
-            break;
-        }
+    /* look up the requested attribute */
+
+    a = nv_get_attribute_entry_by_name(tmpname);
+    if (!a) {
+        stop(NV_PARSER_STATUS_UNKNOWN_ATTR_NAME);
     }
-    
-    if (!a->name) stop(NV_PARSER_STATUS_UNKNOWN_ATTR_NAME);
-    
-    /* read the display device name, if any */
-    
+
+    p->attr_entry = a;
+
+    /* read the display device specification */
+
     if (*s == '[') {
+        char *mask_str;
         s++;
         start = s;
-        while (*s && *s != ']') s++;
-        display_device_name = nvstrndup(start, s - start);
-        a->display_device_mask =
-            display_device_name_to_display_device_mask(display_device_name);
-        /*
-         * stop parsing if the display device mask is invalid (and the
-         * display device mask is not hijacked for something other than
-         * display)
-         */
+        while (*s && *s != ']') {
+            s++;
+        }
+        tmp = nvstrndup(start, s - start);
+        mask_str = remove_spaces(tmp);
+        nvfree(tmp);
 
-        if ((a->display_device_mask == INVALID_DISPLAY_DEVICE_MASK) &&
-            !(a->flags & NV_PARSER_TYPE_HIJACK_DISPLAY_DEVICE))
-            stop(NV_PARSER_STATUS_BAD_DISPLAY_DEVICE);
-
-        a->flags |= NV_PARSER_HAS_DISPLAY_DEVICE;
-        if (*s == ']') s++;
+        p->display_device_mask = strtoul(mask_str, &tmp, 0);
+        if (*mask_str != '\0' &&
+            tmp &&
+            *tmp == '\0') {
+            /* specification given as integer */
+            nvfree(mask_str);
+        } else {
+            /* specification given as string (list of display names) */
+            if (a->flags.hijack_display_device) {
+                /* If the display specification (mask) is being hijacked, the
+                 * value should have been a valid integer.
+                 */
+                stop(NV_PARSER_STATUS_BAD_DISPLAY_DEVICE);
+            }
+            p->display_device_specification = mask_str;
+        }
+        p->parser_flags.has_display_device = NV_TRUE;
+        if (*s == ']') {
+            s++;
+        }
     }
-    
+
     if (query == NV_PARSER_ASSIGNMENT) {
-        
+
         /* there should be an equal sign */
-    
+
         if (*s == '=') s++;
         else stop(NV_PARSER_STATUS_MISSING_EQUAL_SIGN);
-        
+
         /* read the value */
-    
+
         tmp = s;
-        if (a->flags & NV_PARSER_TYPE_COLOR_ATTRIBUTE) {
-            /* color attributes are floating point */
-            a->val.f = strtod(s, &tmp);
-        } else if ((a->flags & NV_PARSER_TYPE_STRING_ATTRIBUTE) ||
-                   (a->flags & NV_PARSER_TYPE_VALUE_IS_DISPLAY_ID)) {
-            a->val.str = strdup(s);
-            tmp = s + strlen(s);
-        } else if (a->flags & NV_PARSER_TYPE_PACKED_ATTRIBUTE) {
-            /*
-             * Either a single 32-bit integer or two 16-bit
-             * integers, separated by ','.
-             * Passing base as 0 allows packed values to be specified 
-             * in hex (Bug 377242)
-             */
-            a->val.i = strtol(s, &tmp, 0);
-            
-            if (tmp && *tmp == ',') {
-                a->val.i = (a->val.i & 0xffff) << 16;
-                a->val.i |= strtol((tmp + 1), &tmp, 0) & 0xffff;
-            }
-        } else if (a->flags & NV_PARSER_TYPE_VALUE_IS_DISPLAY) {
-            if (nv_strcasecmp(s, "alldisplays")) {
-                a->flags |= NV_PARSER_TYPE_ASSIGN_ALL_DISPLAYS;
-                tmp = s + strlen(s);
-            } else {
-                uint32 mask = 0;
-                mask = display_device_name_to_display_device_mask(s);
-                if (mask && (mask != INVALID_DISPLAY_DEVICE_MASK) &&
-                    ((mask & (DISPLAY_DEVICES_WILDCARD_CRT |
-                              DISPLAY_DEVICES_WILDCARD_TV |
-                              DISPLAY_DEVICES_WILDCARD_DFP)) == 0)) {
-                    a->val.i = mask;
+        switch (a->type) {
+        case NV_PARSER_ATTRIBUTE_TYPE_INTEGER:
+            if (a->f.int_flags.is_packed) {
+                /*
+                 * Either a single 32-bit integer or two 16-bit integers,
+                 * separated by ','.  Passing base as 0 allows packed values to
+                 * be specified in hex.
+                 */
+                p->val.i = strtol(s, &tmp, 0);
+                if (tmp && *tmp == ',') {
+                    p->val.i = (p->val.i & 0xffff) << 16;
+                    p->val.i |= strtol((tmp + 1), &tmp, 0) & 0xffff;
+                }
+            } else if (a->f.int_flags.is_display_mask) {
+                /* Value is a display mask (as a string or integer */
+                if (nv_strcasecmp(s, "alldisplays")) {
+                    p->parser_flags.assign_all_displays = NV_TRUE;
                     tmp = s + strlen(s);
                 } else {
-                   a->val.i = strtol(s, &tmp, 0);
+                    uint32 mask = 0;
+                    mask = display_device_name_to_display_device_mask(s);
+                    if (mask && (mask != INVALID_DISPLAY_DEVICE_MASK) &&
+                        ((mask & (DISPLAY_DEVICES_WILDCARD_CRT |
+                                  DISPLAY_DEVICES_WILDCARD_TV |
+                                  DISPLAY_DEVICES_WILDCARD_DFP)) == 0)) {
+                        p->val.i = mask;
+                        tmp = s + strlen(s);
+                    } else {
+                        p->val.i = strtol(s, &tmp, 0);
+                    }
                 }
+            } else if (a->f.int_flags.is_display_id) {
+                /* Value is Dispaly ID that can use the display names */
+                p->val.str = nvstrdup(s);
+                tmp = s + strlen(s);
+            } else {
+                /* Read just an integer */
+                p->val.i = strtol(s, &tmp, 0);
             }
-        } else if (a->flags & NV_PARSER_TYPE_SDI_CSC) {
-            /* String that names a standard CSC matrix */
-            a->val.pf = nv_get_sdi_csc_matrix(s);
+            break;
+
+        case NV_PARSER_ATTRIBUTE_TYPE_STRING:
+            /* Fall through */
+        case NV_PARSER_ATTRIBUTE_TYPE_STRING_OPERATION:
+            p->val.str = nvstrdup(s);
             tmp = s + strlen(s);
-        } else {
-            /* all other attributes are integer */
-            a->val.i = strtol(s, &tmp, 0);
+            break;
+
+        case  NV_PARSER_ATTRIBUTE_TYPE_COLOR:
+            /* color attributes are floating point */
+            p->val.f = strtod(s, &tmp);
+            break;
+
+        case NV_PARSER_ATTRIBUTE_TYPE_SDI_CSC:
+            /* String that names a standard CSC matrix */
+            p->val.pf = nv_get_sdi_csc_matrix(s);
+            tmp = s + strlen(s);
+            break;
         }
-         
-        if (tmp && (s != tmp)) a->flags |= NV_PARSER_HAS_VAL;
+
+        if (tmp && (s != tmp)) {
+            p->parser_flags.has_value = NV_TRUE;
+        }
         s = tmp;
-        
-        if (!(a->flags & NV_PARSER_HAS_VAL)) stop(NV_PARSER_STATUS_NO_VALUE);
+
+        if (!(p->parser_flags.has_value)) {
+            stop(NV_PARSER_STATUS_NO_VALUE);
+        }
     }
-    
+
     /* this should be the end of the string */
 
     if (*s != '\0') stop(NV_PARSER_STATUS_TRAILING_GARBAGE);
 
     stop(NV_PARSER_STATUS_SUCCESS);
-    
+
 } /* nv_parse_attribute_string() */
 
 
@@ -1186,43 +1248,22 @@ char *display_device_mask_to_display_device_name(const uint32 mask)
 
 
 /*
- * expand_display_device_mask_wildcards() - build a display mask by
- * taking any of the real display mask bits; if there are any wildcard
- * flags set, or in all display devices of that type into the display
- * mask.
- */
-
-uint32 expand_display_device_mask_wildcards(const uint32 d)
-{
-    uint32 mask = d & VALID_DISPLAY_DEVICES_MASK;
-
-    if (d & DISPLAY_DEVICES_WILDCARD_CRT) mask |= BITMASK_ALL_CRT;
-    if (d & DISPLAY_DEVICES_WILDCARD_TV)  mask |= BITMASK_ALL_TV;
-    if (d & DISPLAY_DEVICES_WILDCARD_DFP) mask |= BITMASK_ALL_DFP;
-
-    return mask;
-}
-
-
-
-/*
  * nv_assign_default_display() - assign an X display, if none has been
  * assigned already.  Also, parse the display name to find any
  * specified X screen.
  */
 
-void nv_assign_default_display(ParsedAttribute *a, const char *display)
+void nv_assign_default_display(ParsedAttribute *p, const char *display)
 {
     char *colon, *dot;
 
-    if (!(a->flags & NV_PARSER_HAS_X_DISPLAY)) {
-        if (display) a->display = strdup(display);
-        else a->display = NULL;
-        a->flags |= NV_PARSER_HAS_X_DISPLAY;
+    if (!(p->parser_flags.has_x_display)) {
+        p->display = display ? nvstrdup(display) : NULL;
+        p->parser_flags.has_x_display = NV_TRUE;
     }
 
-    if (!(a->flags & NV_PARSER_HAS_TARGET) && a->display) {
-        colon = strchr(a->display, ':');
+    if (!(p->parser_flags.has_target) && p->display) {
+        colon = strchr(p->display, ':');
         if (colon) {
             dot = strchr(colon, '.');
             if (dot) {
@@ -1231,7 +1272,7 @@ void nv_assign_default_display(ParsedAttribute *a, const char *display)
                  * if all characters after the '.' are digits, interpret it as a
                  * screen number.
                  */
-                nv_parse_special_xscreen_target(a, dot + 1, NULL);
+                nv_parse_special_xscreen_target(p, dot + 1, NULL);
             }
         }
     }
@@ -1256,26 +1297,46 @@ ParsedAttribute *nv_parsed_attribute_init(void)
  * linked list
  */
 
-void nv_parsed_attribute_add(ParsedAttribute *head, ParsedAttribute *a)
+void nv_parsed_attribute_add(ParsedAttribute *head, ParsedAttribute *p)
 {
-    ParsedAttribute *p, *t;
-
-    p = nvalloc(sizeof(ParsedAttribute));
+    ParsedAttribute *t;
 
     for (t = head; t->next; t = t->next);
 
-    t->next = p;
+    t->next                 = nvalloc(sizeof(ParsedAttribute));
 
-    if (a->display) t->display = strdup(a->display);
-    else t->display = NULL;
+    t->display              = p->display ? nvstrdup(p->display) : NULL;
+    t->target_specification = p->target_specification;
+    t->target_type          = p->target_type;
+    t->target_id            = p->target_id;
+    t->attr_entry           = p->attr_entry;
+    t->val                  = p->val;
+    t->display_device_mask  = p->display_device_mask;
+    t->parser_flags         = p->parser_flags;
+    t->targets              = p->targets;
+}
 
-    t->target_type         = a->target_type;
-    t->target_id           = a->target_id;
-    t->attr                = a->attr;
-    t->val                 = a->val;
-    t->display_device_mask = a->display_device_mask;
-    t->flags               = a->flags;
-    t->targets             = a->targets;
+
+
+/*
+ * Frees memory used by the parsed attribute members
+ */
+
+static void nv_parsed_attribute_free_members(ParsedAttribute *p)
+{
+    const AttributeTableEntry *a = p->attr_entry;
+
+    nvfree(p->display);
+    nvfree(p->target_specification);
+
+    if (a &&
+	((a->type == NV_PARSER_ATTRIBUTE_TYPE_STRING) ||
+         ((a->type == NV_PARSER_ATTRIBUTE_TYPE_INTEGER) &&
+          (a->f.int_flags.is_display_id)))) {
+        nvfree(p->val.str);
+    }
+
+    nv_target_list_free(p->targets);
 }
 
 
@@ -1288,10 +1349,11 @@ void nv_parsed_attribute_free(ParsedAttribute *p)
 {
     ParsedAttribute *n;
 
-    while(p) {
+    while (p) {
         n = p->next;
-        if (p->display) free(p->display);
-        nv_target_list_free(p->targets);
+
+        nv_parsed_attribute_free_members(p);
+
         free(p);
         p = n;
     }
@@ -1308,36 +1370,11 @@ void nv_parsed_attribute_clean(ParsedAttribute *p)
 {
     nv_parsed_attribute_free(p->next);
 
-    if (p->display) free(p->display);
-    if (p->name) free(p->name);
-    free(p->target_name);
+    nv_parsed_attribute_free_members(p);
 
     memset(p, 0, sizeof(*p));
 
 } /* nv_parsed_attribute_clean() */
-
-
-
-/*
- * nv_get_attribute_name() - scan the attributeTable for the name that
- * corresponds to the attribute constant.
- */
-
-const char *nv_get_attribute_name(const int attr, const int flagsMask,
-                                  const int flags)
-{
-    int i;
-
-    for (i = 0; attributeTable[i].name; i++) {
-        if (attributeTable[i].attr == attr &&
-            (attributeTable[i].flags & flagsMask) == (flags & flagsMask)) {
-            return attributeTable[i].name;
-        }
-    }
-
-    return NULL;
-    
-} /* nv_get_attribute_name() */
 
 
 
@@ -1507,7 +1544,7 @@ char *replace_characters(const char *o, const char c, const char r)
  * memory allocated here.
  */
 
-static char **nv_strtok(char *s, char c, int *n)
+char **nv_strtok(char *s, char c, int *n)
 {
     int count, i, len;
     char **delims, **tokens, *m;
@@ -1556,7 +1593,7 @@ static char **nv_strtok(char *s, char c, int *n)
  * allocated and returned by nv_strtok()
  */
 
-static void nv_free_strtoks(char **s, int n)
+void nv_free_strtoks(char **s, int n)
 {
     int i;
     for (i = 0; i < n; i++) free(s[i]);

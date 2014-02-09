@@ -1321,7 +1321,8 @@ static int get_xserver_information(const char *versionString,
                                    int *isXorg,
                                    int *isModular,
                                    int *autoloadsGLX,
-                                   int *supportsExtensionSection)
+                                   int *supportsExtensionSection,
+                                   int *xineramaPlusCompositeWorks)
 {
 #define XSERVER_VERSION_FORMAT_1 "X Window System Version"
 #define XSERVER_VERSION_FORMAT_2 "X.Org X Server"
@@ -1336,6 +1337,7 @@ static int get_xserver_information(const char *versionString,
         *isModular = FALSE;
         *autoloadsGLX = FALSE;
         *supportsExtensionSection = FALSE;
+        *xineramaPlusCompositeWorks = FALSE;
         return TRUE;
     }
 
@@ -1400,6 +1402,17 @@ static int get_xserver_information(const char *versionString,
         *autoloadsGLX = TRUE;
     }
 
+    /*
+     * support for Xinerama and Composite at the same time works on X.Org
+     * xserver 1.15.
+     */
+
+    if ((major == 6) || (major == 7) || ((major == 1) && (minor < 15))) {
+        *xineramaPlusCompositeWorks = FALSE;
+    } else {
+        *xineramaPlusCompositeWorks = TRUE;
+    }
+
     return TRUE;
 
 } /* get_xserver_information() */
@@ -1435,6 +1448,7 @@ void xconfigGetXServerInUse(GenerateOptions *gop)
 
     gop->supports_extension_section = FALSE;
     gop->autoloads_glx = FALSE;
+    gop->xinerama_plus_composite_works = FALSE;
 
     /* run `X -version` with a PATH that hopefully includes the X binary */
 
@@ -1464,7 +1478,8 @@ void xconfigGetXServerInUse(GenerateOptions *gop)
                                         &isXorg,
                                         &dummy, /* isModular */
                                         &gop->autoloads_glx,
-                                        &gop->supports_extension_section);
+                                        &gop->supports_extension_section,
+                                        &gop->xinerama_plus_composite_works);
 
         if (found) {
             if (isXorg) {

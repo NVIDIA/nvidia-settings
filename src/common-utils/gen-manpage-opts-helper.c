@@ -17,16 +17,18 @@
 #include <stdio.h>
 #include <ctype.h>
 #include <string.h>
+#include <stdlib.h>
 
 #include "nvgetopt.h"
 #include "gen-manpage-opts-helper.h"
+#include "common-utils.h"
 
 static void print_option(const NVGetoptOption *o)
 {
     char scratch[64], *s;
     int j, len;
 
-    int italics, bold, omitWhiteSpace;
+    int italics, bold, omitWhiteSpace, firstchar;
 
     /* if we are going to need the argument, process it now */
     if (o->flags & NVGETOPT_HAS_ARGUMENT) {
@@ -88,13 +90,15 @@ static void print_option(const NVGetoptOption *o)
      * '&' : toggles italics on and off
      * '^' : toggles bold on and off
      * '-' : is backslashified: "\-"
+     * '.' : must not be the first character of a line
      *
-     * Whitespace is omitted when italics or bold is on
+     * Trailing whitespace is omitted when italics or bold is on
      */
 
-    italics = 0;
-    bold = 0;
-    omitWhiteSpace = 0;
+    italics = FALSE;
+    bold = FALSE;
+    omitWhiteSpace = FALSE;
+    firstchar = TRUE;
 
     for (s = o->description; s && *s; s++) {
 
@@ -107,6 +111,7 @@ static void print_option(const NVGetoptOption *o)
               }
               omitWhiteSpace = italics;
               italics = !italics;
+              firstchar = TRUE;
               break;
           case '^':
               if (bold) {
@@ -116,19 +121,33 @@ static void print_option(const NVGetoptOption *o)
               }
               omitWhiteSpace = bold;
               bold = !bold;
+              firstchar = TRUE;
               break;
           case '-':
               printf("\\-");
-              omitWhiteSpace = 0;
+              omitWhiteSpace = FALSE;
+              firstchar = FALSE;
               break;
           case ' ':
               if (!omitWhiteSpace) {
                   printf(" ");
+                  firstchar = FALSE;
               }
               break;
+          case '.':
+              if (firstchar) {
+                  fprintf(stderr, "Error: *roff can't start a line with '.' "
+                          "If you used '&' or '^' to format text in the "
+                          "description of the '%s' option, please add some "
+                          "text before the end of the sentence, so that a "
+                          "valid manpage can be generated.\n", o->name);
+                  exit(1);
+              }
+              /* fall through */
           default:
               printf("%c", *s);
-              omitWhiteSpace = 0;
+              omitWhiteSpace = FALSE;
+              firstchar = FALSE;
               break;
         }
     }

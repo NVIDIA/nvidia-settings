@@ -169,9 +169,29 @@ static const char** get_signal_strength_icon(int signal_strength)
     return NULL;
 }
 
+
+
+static void ctk_3d_vision_pro_finalize(GObject *object)
+{
+    Ctk3DVisionPro *ctk_object = CTK_3D_VISION_PRO(object);
+
+    g_signal_handlers_disconnect_matched(G_OBJECT(ctk_object->ctk_event),
+                                         G_SIGNAL_MATCH_DATA,
+                                         0,
+                                         0,
+                                         NULL,
+                                         NULL,
+                                         (gpointer) ctk_object);
+}
+
+
+
 static void ctk_3d_vision_pro_class_init(Ctk3DVisionProClass
                                          *ctk_3d_vision_pro_class)
 {
+    GObjectClass *gobject_class = (GObjectClass *)ctk_3d_vision_pro_class;
+    gobject_class->finalize = ctk_3d_vision_pro_finalize;
+    
     __signals[CHANGED] = g_signal_new("changed",
                        G_OBJECT_CLASS_TYPE(ctk_3d_vision_pro_class),
                        G_SIGNAL_RUN_LAST,
@@ -179,6 +199,8 @@ static void ctk_3d_vision_pro_class_init(Ctk3DVisionProClass
                        NULL, NULL, g_cclosure_marshal_VOID__VOID,
                        G_TYPE_NONE, 0);
 }
+
+
 
 GType ctk_3d_vision_pro_get_type(void)
 {
@@ -674,7 +696,7 @@ static void enable_widgets(Ctk3DVisionPro *ctk_3d_vision_pro, Bool enable)
     gtk_widget_set_sensitive(ctk_3d_vision_pro->table.hscrollbar, enable);
 }
 
-static void svp_config_changed(GtkWidget *widget, gpointer arg1,
+static void svp_config_changed(GtkObject *object, gpointer arg1,
                                gpointer user_data)
 {
     CtkEventStruct *event_struct;
@@ -696,7 +718,7 @@ static void svp_config_changed(GtkWidget *widget, gpointer arg1,
     case NV_CTRL_3D_VISION_PRO_TRANSCEIVER_MODE:
         {
             SVP_RANGE range;
-            CtkDropDownMenu *menu = CTK_DROP_DOWN_MENU(widget);
+            CtkDropDownMenu *menu = CTK_DROP_DOWN_MENU(ctk_3d_vision_pro->menu);
             range = ctk_drop_down_menu_get_current_value(menu);
 
             if (range != CHANNEL_RANGE_TO_OPTION_MENU_IDX(event_struct->value)) {
@@ -1458,6 +1480,7 @@ GtkWidget* ctk_3d_vision_pro_new(NvCtrlAttributeHandle *handle,
 
     ctk_3d_vision_pro->handle = handle;
     ctk_3d_vision_pro->ctk_config = ctk_config;
+    ctk_3d_vision_pro->ctk_event = ctk_event;
     ctk_3d_vision_pro->add_glasses_dlg = NULL;
 
     // populate ctk_3d_vision_pro...

@@ -624,6 +624,7 @@ typedef struct {
 
     int supports_extension_section;
     int autoloads_glx;
+    int xinerama_plus_composite_works;
 
 } GenerateOptions;
 
@@ -762,15 +763,15 @@ void xconfigGenerateLoadDefaultOptions(GenerateOptions *gop);
 
 void xconfigGetXServerInUse(GenerateOptions *gop);
 
-const char *xconfigValidateComposite(XConfigPtr config,
-                                     GenerateOptions *gop,
-                                     int composite_enabled,
-                                     int xinerama_enabled,
-                                     int depth,
-                                     int overlay_enabled,
-                                     int cioverlay_enabled,
-                                     int ubb_enabled,
-                                     int stereo);
+char *xconfigValidateComposite(XConfigPtr config,
+                               GenerateOptions *gop,
+                               int composite_enabled,
+                               int xinerama_enabled,
+                               int depth,
+                               int overlay_enabled,
+                               int cioverlay_enabled,
+                               int ubb_enabled,
+                               int stereo);
 
 /*
  * check (and update, if necessary) the inputs in the specified layout

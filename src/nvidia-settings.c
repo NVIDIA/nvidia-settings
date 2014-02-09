@@ -29,9 +29,6 @@
 #include <stdlib.h>
 
 
-extern int __list_targets;
-
-
 int main(int argc, char **argv)
 {
     ConfigProperties conf;
@@ -45,6 +42,8 @@ int main(int argc, char **argv)
 
     handles_array.n = 0; 
     handles_array.array = NULL;
+
+    nv_set_verbosity(NV_VERBOSITY_DEPRECATED);
 
     /*
      * initialize the ui
@@ -115,7 +114,7 @@ int main(int argc, char **argv)
     /* upload the data from the config file */
     
     if (!op->no_load) {
-        ret = nv_read_config_file(op->config, op->ctrl_display, 
+        ret = nv_read_config_file(op, op->config, op->ctrl_display, 
                                   p, &conf, &handles_array);
     } else {
         ret = 1;
@@ -126,7 +125,7 @@ int main(int argc, char **argv)
      * we only list the resolved targets, then exit now.
      */
 
-    if (op->only_load || __list_targets) {
+    if (op->only_load || op->list_targets) {
         return ret ? 0 : 1;
     }
 
@@ -155,7 +154,9 @@ int main(int argc, char **argv)
     
     /* write the configuration file */
 
-    nv_write_config_file(op->config, h, p, &conf);
+    if (op->write_config) {
+        nv_write_config_file(op->config, h, p, &conf);
+    }
 
     /* cleanup */
 

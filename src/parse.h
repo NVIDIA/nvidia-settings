@@ -25,37 +25,6 @@
 #define __PARSE_H__
 
 
-/*
- * Flag values used in the flags field of the ParsedAttribute struct.
- */
-
-#define NV_PARSER_HAS_X_DISPLAY                (1<<0)
-#define NV_PARSER_HAS_TARGET                   (1<<2)
-#define NV_PARSER_HAS_DISPLAY_DEVICE           (1<<3)
-#define NV_PARSER_HAS_VAL                      (1<<4)
-
-/*
- * Flag values used in the flags field of the AttributeTableEntry struct.
- */
-
-#define NV_PARSER_TYPE_HIJACK_DISPLAY_DEVICE   (1<<15)
-#define NV_PARSER_TYPE_FRAMELOCK               (1<<16)
-#define NV_PARSER_TYPE_COLOR_ATTRIBUTE         (1<<17)
-#define NV_PARSER_TYPE_NO_CONFIG_WRITE         (1<<18)
-#define NV_PARSER_TYPE_GUI_ATTRIBUTE           (1<<19)
-#define NV_PARSER_TYPE_PACKED_ATTRIBUTE        (1<<20)
-#define NV_PARSER_TYPE_VALUE_IS_DISPLAY        (1<<21)
-#define NV_PARSER_TYPE_NO_QUERY_ALL            (1<<22)
-#define NV_PARSER_TYPE_NO_ZERO_VALUE           (1<<23)
-#define NV_PARSER_TYPE_100Hz                   (1<<24)
-#define NV_PARSER_TYPE_STRING_ATTRIBUTE        (1<<25)
-#define NV_PARSER_TYPE_ASSIGN_ALL_DISPLAYS     (1<<26)
-#define NV_PARSER_TYPE_VALUE_IS_SWITCH_DISPLAY (1<<27)
-#define NV_PARSER_TYPE_1000Hz                  (1<<28)
-#define NV_PARSER_TYPE_SDI                     (1<<29)
-#define NV_PARSER_TYPE_SDI_CSC                 (1<<30)
-#define NV_PARSER_TYPE_VALUE_IS_DISPLAY_ID     (1<<31)
-
 #define NV_PARSER_ASSIGNMENT 0
 #define NV_PARSER_QUERY 1
 
@@ -94,6 +63,49 @@ typedef unsigned int uint32;
 
 
 /*
+ * attribute types used to know how to access each attribute (eg, to know which
+ * of the NvCtrlXXX() backend functions to call).
+ */
+
+typedef enum {
+    NV_PARSER_ATTRIBUTE_TYPE_INTEGER,
+    NV_PARSER_ATTRIBUTE_TYPE_STRING,
+    NV_PARSER_ATTRIBUTE_TYPE_COLOR,
+    NV_PARSER_ATTRIBUTE_TYPE_SDI_CSC,
+    NV_PARSER_ATTRIBUTE_TYPE_STRING_OPERATION,
+} AttributeType;
+
+
+/*
+ * flags common to all attributes ('flags' in AttributeTableEntry)
+ */
+
+typedef struct AttributeFlagsRec {
+    int is_gui_attribute       : 1;
+    int is_framelock_attribute : 1;
+    int is_sdi_attribute       : 1;
+    int hijack_display_device  : 1;
+    int no_config_write        : 1;
+    int no_query_all           : 1;
+} AttributeFlags;
+
+
+/*
+ * flags specific to integer attributes ('type_flags' in AttributeTableEntry)
+ */
+
+typedef struct AttributeIntFlagsRec {
+    int is_100Hz          : 1;
+    int is_1000Hz         : 1;
+    int is_packed         : 1;
+    int is_display_mask   : 1;
+    int is_display_id     : 1;
+    int no_zero           : 1;
+    int is_switch_display : 1;
+} AttributeIntFlags;
+
+
+/*
  * The valid attribute names, and their corresponding protocol
  * attribute identifiers are stored in an array of
  * AttributeTableEntries.
@@ -102,7 +114,13 @@ typedef unsigned int uint32;
 typedef struct _AttributeTableEntry {
     char *name;
     int attr;
-    uint32 flags;
+
+    AttributeType type;
+    AttributeFlags flags;
+    union {
+        AttributeIntFlags int_flags;
+    } f;
+
     char *desc;
 } AttributeTableEntry;
 
@@ -113,8 +131,9 @@ typedef struct _AttributeTableEntry {
  */
 
 typedef struct _ParsedAttribute {
+    struct _ParsedAttribute *next;
+
     char *display;
-    char *name;
     char *target_specification;
     /*
      * The target_type and target_id here are mostly set by the GUI to store
@@ -126,8 +145,6 @@ typedef struct _ParsedAttribute {
      */
     int target_type;
     int target_id;
-    char *target_name;
-    int attr;
     const AttributeTableEntry *attr_entry;
     union {
         int i;
@@ -135,9 +152,17 @@ typedef struct _ParsedAttribute {
         const float *pf;
         char *str;
     } val;
+    char *display_device_specification;
     uint32 display_device_mask;
-    uint32 flags;
-    struct _ParsedAttribute *next;
+
+    struct {
+        int has_x_display       : 1;
+        int has_target          : 1;
+        int has_display_device  : 1;
+        int has_value           : 1;
+        int assign_all_displays : 1;
+    } parser_flags;
+
     /*
      * Upon being resolved, the ParsedAttribute's target_type and target_id,
      * and/or target_specification get converted into a list of targets to
@@ -153,6 +178,7 @@ typedef struct _ParsedAttribute {
  */
 
 extern const AttributeTableEntry attributeTable[];
+extern const int attributeTableLen;
 
 
 /*
@@ -286,7 +312,7 @@ int nv_parse_attribute_string(const char *, int, ParsedAttribute *);
  * field, if a screen is specified in the display name.
  */
 
-void nv_assign_default_display(ParsedAttribute *a, const char *display);
+void nv_assign_default_display(ParsedAttribute *p, const char *display);
 
 
 /*
@@ -335,13 +361,13 @@ uint32 expand_display_device_mask_wildcards(const uint32);
 
 ParsedAttribute *nv_parsed_attribute_init(void);
 
-void nv_parsed_attribute_add(ParsedAttribute *head, ParsedAttribute *a);
+void nv_parsed_attribute_add(ParsedAttribute *head, ParsedAttribute *p);
 
 void nv_parsed_attribute_free(ParsedAttribute *p);
 void nv_parsed_attribute_clean(ParsedAttribute *p);
 
-const char *nv_get_attribute_name(const int attr, const int flagsMask,
-                                  const int flags);
+const AttributeTableEntry *nv_get_attribute_entry(const int attr,
+                                                  const AttributeType type);
 
 char *nv_standardize_screen_name(const char *display_name, int screen);
 
@@ -360,6 +386,8 @@ const char *parse_read_name(const char *str, char **name, char term);
 const char *parse_read_display_name(const char *str, unsigned int *mask);
 const char *parse_read_display_id(const char *str, unsigned int *id);
 int parse_read_float_range(const char *str, float *min, float *max);
+char **nv_strtok(char *s, char c, int *n);
+void nv_free_strtoks(char **s, int n);
 int count_number_of_bits(unsigned int mask);
 
 /* Token parsing functions */

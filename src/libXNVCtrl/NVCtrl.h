@@ -341,6 +341,7 @@
 #define NV_CTRL_STEREO_3D_VISION                                10
 #define NV_CTRL_STEREO_3D_VISION_PRO                            11
 #define NV_CTRL_STEREO_HDMI_3D                                  12
+#define NV_CTRL_STEREO_MAX NV_CTRL_STEREO_HDMI_3D
 
 /*
  * NV_CTRL_EMULATE - controls OpenGL software emulation of future
@@ -4468,8 +4469,23 @@
 /* Depth 8 and display composition transformations are mutually exclusive. */
 #define NV_CTRL_BINARY_DATA_GPU_FLAGS_DEPTH_8_DISPLAY_TRANSFORM_EXCLUSIVE    2
 
+/*
+ * NV_CTRL_BINARY_DATA_DISPLAYS_ON_GPU - Returns the list of valid
+ * display devices that can be connected to the GPU target.
+ *
+ * The format of the returned data is:
+ *
+ *     4       CARD32 number of display devices
+ *     4 * n   CARD32 display device indices
+ *
+ * This attribute can only be queried through XNVCTRLQueryTargetBinaryData()
+ * using a NV_CTRL_TARGET_TYPE_GPU target.
+ */
 
-#define NV_CTRL_BINARY_DATA_LAST_ATTRIBUTE NV_CTRL_BINARY_DATA_GPU_FLAGS
+#define NV_CTRL_BINARY_DATA_DISPLAYS_ON_GPU                  20  /* R--G */
+
+#define NV_CTRL_BINARY_DATA_LAST_ATTRIBUTE \
+    NV_CTRL_BINARY_DATA_DISPLAYS_ON_GPU
 
 
 /**************************************************************************/

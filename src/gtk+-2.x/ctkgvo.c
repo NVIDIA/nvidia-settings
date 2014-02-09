@@ -772,12 +772,12 @@ GtkTextBuffer* ctk_gvo_create_help(GtkTextTagTable *table)
     GtkTextBuffer *b;
 
     b = gtk_text_buffer_new(table);
-    
+
     gtk_text_buffer_get_iter_at_offset(b, &i, 0);
 
     ctk_help_title(b, &i, "GVO (Graphics to Video Out) Help");
-    ctk_help_para(b, &i, "This page gives access to general information about "
-                  "the SDI device as well as configuration of Clone Mode.");
+    ctk_help_para(b, &i, "This page reports general information about the SDI "
+                  "device.");
 
     ctk_help_heading(b, &i, "General Information");
     ctk_help_para(b, &i, "This section shows information about the SDI device "

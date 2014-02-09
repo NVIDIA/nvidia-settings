@@ -932,6 +932,54 @@ const char *NvCtrlGetMultisampleModeName(int multisample_mode)
 
 } /* NvCtrlGetMultisampleModeName  */
 
+/*
+ * NvCtrlGetStereoModeNameIfExists() - lookup string describing the STEREO
+ * Mode. If is doesn't exist, return NULL.
+ */
+
+const char *NvCtrlGetStereoModeNameIfExists(int stereo_mode)
+{
+    static const char *stereo_modes[] = {
+        [NV_CTRL_STEREO_OFF]                          = "Disabled",
+        [NV_CTRL_STEREO_DDC]                          = "DDC",
+        [NV_CTRL_STEREO_BLUELINE]                     = "Blueline",
+        [NV_CTRL_STEREO_DIN]                          = "Onboard DIN",
+        [NV_CTRL_STEREO_PASSIVE_EYE_PER_DPY]          = "Passive One-Eye-per-Display",
+        [NV_CTRL_STEREO_VERTICAL_INTERLACED]          = "Vertical Interlaced",
+        [NV_CTRL_STEREO_COLOR_INTERLACED]             = "Color Interleaved",
+        [NV_CTRL_STEREO_HORIZONTAL_INTERLACED]        = "Horizontal Interlaced",
+        [NV_CTRL_STEREO_CHECKERBOARD_PATTERN]         = "Checkerboard Pattern",
+        [NV_CTRL_STEREO_INVERSE_CHECKERBOARD_PATTERN] = "Inverse Checkerboard",
+        [NV_CTRL_STEREO_3D_VISION]                    = "NVIDIA 3D Vision",
+        [NV_CTRL_STEREO_3D_VISION_PRO]                = "NVIDIA 3D Vision Pro",
+        [NV_CTRL_STEREO_HDMI_3D]                      = "HDMI 3D",
+    };
+
+
+    if ((stereo_mode < 0) || (stereo_mode >= ARRAY_LEN(stereo_modes))) {
+        return (const char *) -1;
+    }
+
+    return stereo_modes[stereo_mode];
+}
+
+/*
+ * NvCtrlGetStereoModeName() - lookup string describing the STEREO
+ * Mode. If is doesn't exist, return descriptive text that the mode
+ * was not found.
+ */
+
+const char *NvCtrlGetStereoModeName(int stereo_mode)
+{
+    const char *c = NvCtrlGetStereoModeNameIfExists(stereo_mode);
+
+    if (!c || (c == (const char *) -1)) {
+        c = "Unknown Mode";
+    }
+
+    return c;
+}
+
 
 ReturnStatus NvCtrlGetColorAttributes(NvCtrlAttributeHandle *handle,
                                       float contrast[3],
@@ -1040,7 +1088,17 @@ static unsigned short ComputeGammaRampVal(int gammaRampSize,
         j += half;
     }
 
-    if (j < 0.0) j = 0.0;
+    /* brightness */
+
+    brightness *= scale;
+
+    j += brightness;
+    if (j > (double)num) {
+        j = (double)num;
+    }
+    if (j < 0.0) {
+        j = 0.0;
+    }
 
     /* gamma */
 
@@ -1051,14 +1109,6 @@ static unsigned short ComputeGammaRampVal(int gammaRampSize,
     } else {
         val = (int) (pow (j / (double)num, gamma) * (double)num + 0.5);
     }
-
-    /* brightness */
-
-    brightness *= scale;
-
-    val += (int)brightness;
-    if (val > num) val = num;
-    if (val < 0) val = 0;
 
     val <<= shift;
     return (unsigned short) val;

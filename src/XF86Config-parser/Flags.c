@@ -512,30 +512,29 @@ xconfigPrintOptionList(FILE *fp, XConfigOptionPtr list, int tabs)
  * - If the extension can be enabled, this function returns NULL.
  *
  * - If the extension should be disabled, this function returns a
- *   string that lists the conflicting options that are enabled.
+ *   string that lists the conflicting options that are enabled. The string
+ *   returned has to be freed by the caller.
  */
 
-const char *xconfigValidateComposite(XConfigPtr config,
-                                     GenerateOptions *gop,
-                                     int composite_specified,
-                                     int xinerama_enabled,
-                                     int depth,
-                                     int overlay_enabled,
-                                     int cioverlay_enabled,
-                                     int ubb_enabled,
-                                     int stereo_enabled)
+char *xconfigValidateComposite(XConfigPtr config,
+                               GenerateOptions *gop,
+                               int composite_specified,
+                               int xinerama_enabled,
+                               int depth,
+                               int overlay_enabled,
+                               int cioverlay_enabled,
+                               int ubb_enabled,
+                               int stereo_enabled)
 {
-    int i, n, disable_composite;
-    static char err_str[256];
-    int size = 256;
-    char *s;
+    int i, n;
+    char *err_str;
 
     const struct {
         const char *name;
         int value;
 
     } composite_incompatible_options[] = {
-        { "Xinerama", xinerama_enabled },
+        { "Xinerama", xinerama_enabled && !gop->xinerama_plus_composite_works },
         { "Overlay",  overlay_enabled },
         { "CIOverlay", cioverlay_enabled },
         { "UBB", ubb_enabled },
@@ -558,34 +557,26 @@ const char *xconfigValidateComposite(XConfigPtr config,
         return NULL;
     }
 
-    disable_composite = FALSE;
-    s = err_str;
     n = 0;
-    err_str[0] = '\0';
+    err_str = NULL;
 
     for (i = 0; i < ARRAY_LEN(composite_incompatible_options); i++) {
         int value = composite_incompatible_options[i].value;
         const char *name = composite_incompatible_options[i].name;
-        int wrote;
 
         if (value) {
-            disable_composite = TRUE;
+            err_str = nv_prepend_to_string_list(err_str, name,
+                                                (n > 1) ? ", " : " or ");
             n++;
-
-            wrote = snprintf(s, size, "%s%s", (n > 1) ? " or " : "", name);
-            if (wrote <= 0) {
-                break;
-            }
-            size -= wrote;
-            s += wrote;
         }
     }
 
     /* Special case checking for depth 8 */
 
     if (depth <= 8) {
-        snprintf(s, size, "%sdepth=8", (n > 1) ? " or " : "");
+        err_str = nv_prepend_to_string_list(err_str, "depth=8",
+                                            (n > 1) ? ", " : " or ");
     }
 
-    return disable_composite ? err_str : NULL;
+    return err_str;
 }

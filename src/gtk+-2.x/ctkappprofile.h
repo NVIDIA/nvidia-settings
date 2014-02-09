@@ -109,6 +109,8 @@ typedef struct _EditProfileDialog {
 
     GtkWidget *add_edit_profile_button;
 
+    GtkWidget *registry_key_combo;
+
     // Used in the special case where a currently edited row
     // will be deleted, in which case we don't want to update
     // the model.
@@ -157,6 +159,7 @@ struct _CtkAppProfile
     CtkConfig *ctk_config;
 
     AppProfileConfig *gold_config, *cur_config;
+    json_t *key_docs;
 
     // Interfaces layered on top of the config object for use with GtkTreeView
     CtkApcProfileModel *apc_profile_model;
@@ -193,7 +196,7 @@ struct _CtkAppProfileClass
 };
 
 GType          ctk_app_profile_get_type    (void) G_GNUC_CONST;
-GtkWidget*     ctk_app_profile_new         (CtkConfig *);
+GtkWidget*     ctk_app_profile_new         (CtkConfig *, const gchar *);
 GtkTextBuffer* ctk_app_profile_create_help (CtkAppProfile *, GtkTextTagTable *);
 
 char *serialize_settings(const json_t *settings, gboolean add_markup);

@@ -88,6 +88,9 @@ static void gvo_event_received(GtkObject *object,
                                gpointer arg1,
                                gpointer user_data);
 
+static void ctk_gvo_banner_class_init(CtkGvoBannerClass *ctk_object_class);
+static void ctk_gvo_banner_finalize(GObject *object);
+
 
 
 /*
@@ -103,7 +106,7 @@ GType ctk_gvo_banner_get_type(void)
             sizeof (CtkGvoBannerClass),
             NULL, /* base_init */
             NULL, /* base_finalize */
-            NULL, /* constructor */
+            (GClassInitFunc) ctk_gvo_banner_class_init, /* class_init, */
             NULL, /* class_finalize */
             NULL, /* class_data */
             sizeof (CtkGvoBanner),
@@ -120,6 +123,29 @@ GType ctk_gvo_banner_get_type(void)
     return ctk_gvo_banner_type;
     
 } /* ctk_gvo_banner_get_type() */
+
+
+
+static void ctk_gvo_banner_class_init(CtkGvoBannerClass *ctk_object_class)
+{
+    GObjectClass *gobject_class = (GObjectClass *)ctk_object_class;
+    gobject_class->finalize = ctk_gvo_banner_finalize;
+}
+
+
+
+static void ctk_gvo_banner_finalize(GObject *object)
+{
+    CtkGvoBanner *ctk_object = CTK_GVO_BANNER(object);
+
+    g_signal_handlers_disconnect_matched(G_OBJECT(ctk_object->ctk_event),
+                                         G_SIGNAL_MATCH_DATA,
+                                         0,
+                                         0,
+                                         NULL,
+                                         NULL,
+                                         (gpointer) ctk_object);
+}
 
 
 

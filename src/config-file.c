@@ -63,7 +63,8 @@ static ParsedAttributeWrapper *parse_config_file(char *buf,
                                                  const int length,
                                                  ConfigProperties *);
 
-static int process_config_file_attributes(const char *file,
+static int process_config_file_attributes(const Options *op,
+                                          const char *file,
                                           ParsedAttributeWrapper *w,
                                           const char *display_name,
                                           CtrlHandlesArray *handles_array);
@@ -83,8 +84,18 @@ static void write_config_properties(FILE *stream, ConfigProperties *conf,
 static char *create_display_device_target_string(CtrlHandleTarget *t,
                                                  ConfigProperties *conf);
 
-extern int __verbosity;
-extern int __verbosity_level_changed;
+/*
+ * set_dynamic_verbosity() - Sets the __dynamic_verbosity variable which
+ * allows temporary toggling of the verbosity level to hide some output
+ * messages when verbosity has not been explicitly set by the user.
+ */
+
+static int __dynamic_verbosity = NV_TRUE;
+
+void set_dynamic_verbosity(int dynamic)
+{
+    __dynamic_verbosity = dynamic;
+}
 
 /*
  * nv_read_config_file() - read the specified config file, building a
@@ -104,7 +115,8 @@ extern int __verbosity_level_changed;
  * problems in the future?
  */
 
-int nv_read_config_file(const char *file, const char *display_name,
+int nv_read_config_file(const Options *op, const char *file,
+                        const char *display_name,
                         ParsedAttribute *p, ConfigProperties *conf,
                         CtrlHandlesArray *handles_array)
 {
@@ -185,7 +197,7 @@ int nv_read_config_file(const char *file, const char *display_name,
 
     /* process the parsed attributes */
 
-    ret = process_config_file_attributes(file, w, display_name, 
+    ret = process_config_file_attributes(op, file, w, display_name, 
                                          handles_array);
 
     /*
@@ -225,7 +237,6 @@ int nv_write_config_file(const char *filename, CtrlHandles *h,
     NVCTRLAttributeValidValuesRec valid;
     CtrlHandleTarget *t;
     char *prefix, scratch[4];
-    const char *tmp;
     char *locale = "C";
 
     if (!filename) {
@@ -305,28 +316,30 @@ int nv_write_config_file(const char *filename, CtrlHandles *h,
 
         /* loop over all the entries in the table */
 
-        for (entry = 0; attributeTable[entry].name; entry++) {
+        for (entry = 0; entry < attributeTableLen; entry++) {
             const AttributeTableEntry *a = &attributeTable[entry];
 
-            /* 
+            /*
              * skip all attributes that are not supposed to be written
              * to the config file
              */
 
-            if (a->flags & NV_PARSER_TYPE_NO_CONFIG_WRITE) continue;
+            if (a->flags.no_config_write) {
+                continue;
+            }
 
             /*
              * special case the color attributes because we want to
              * print floats
              */
-            
-            if (a->flags & NV_PARSER_TYPE_COLOR_ATTRIBUTE) {
+
+            if (a->type == NV_PARSER_ATTRIBUTE_TYPE_COLOR) {
                 float c[3], b[3], g[3];
 
                 /*
                  * if we are using RandR gamma, skip saving the color info
                  */
- 
+
                 status = NvCtrlGetAttribute(t->h, NV_CTRL_ATTR_RANDR_GAMMA_AVAILABLE, &val);
                 if (status == NvCtrlSuccess && val) continue;
 
@@ -338,9 +351,16 @@ int nv_write_config_file(const char *filename, CtrlHandles *h,
                 continue;
             }
 
+            /* Only write out integer attributes, string and SDI CSC attributes
+             * aren't written here.
+             */
+            if (a->type != NV_PARSER_ATTRIBUTE_TYPE_INTEGER) {
+                continue;
+            }
+
             /* Ignore display attributes, they are written later on */
 
-            ret = nv_get_attribute_perms(h, a->attr, a->flags, &perms);
+            ret = nv_get_attribute_perms(h, a, &perms);
             if (!ret || (perms.permissions & ATTRIBUTE_TYPE_DISPLAY)) {
                 continue;
             }
@@ -359,7 +379,7 @@ int nv_write_config_file(const char *filename, CtrlHandles *h,
                 continue;
             }
 
-            if (a->flags & NV_PARSER_TYPE_VALUE_IS_DISPLAY_ID) {
+            if (a->f.int_flags.is_display_id) {
                 const char *name =
                     nv_get_display_target_config_name(h, val);
                 if (name) {
@@ -406,21 +426,23 @@ int nv_write_config_file(const char *filename, CtrlHandles *h,
 
         /* loop over all the entries in the table */
 
-        for (entry = 0; attributeTable[entry].name; entry++) {
+        for (entry = 0; entry < attributeTableLen; entry++) {
             const AttributeTableEntry *a = &attributeTable[entry];
 
-            /* 
+            /*
              * skip all attributes that are not supposed to be written
              * to the config file
              */
 
-            if (a->flags & NV_PARSER_TYPE_NO_CONFIG_WRITE) continue;
+            if (a->flags.no_config_write) {
+                continue;
+            }
 
-            /* 
+            /*
              * for the display target we only write color attributes for now
              */
 
-            if (a->flags & NV_PARSER_TYPE_COLOR_ATTRIBUTE) {
+            if (a->type == NV_PARSER_ATTRIBUTE_TYPE_COLOR) {
                 float c[3], b[3], g[3];
 
                 if (!randr_gamma_available) continue;
@@ -434,9 +456,16 @@ int nv_write_config_file(const char *filename, CtrlHandles *h,
                 continue;
             }
 
+            /* Only write out integer attributes, string and SDI CSC attributes
+             * aren't written here.
+             */
+            if (a->type != NV_PARSER_ATTRIBUTE_TYPE_INTEGER) {
+                continue;
+            }
+
             /* Make sure this is a display attribute */
 
-            ret = nv_get_attribute_perms(h, a->attr, a->flags, &perms);
+            ret = nv_get_attribute_perms(h, a, &perms);
             if (!ret || !(perms.permissions & ATTRIBUTE_TYPE_DISPLAY)) {
                 continue;
             }
@@ -469,16 +498,9 @@ int nv_write_config_file(const char *filename, CtrlHandles *h,
 
     while (p) {
         char target_str[64];
+        const AttributeTableEntry *a = p->attr_entry;
 
         if (!p->next) {
-            p = p->next;
-            continue;
-        }
-
-        tmp = nv_get_attribute_name(p->attr, NV_PARSER_TYPE_STRING_ATTRIBUTE,
-                                    p->flags);
-        if (!tmp) {
-            nv_error_msg("Failure to save unknown attribute %d.", p->attr);
             p = p->next;
             continue;
         }
@@ -491,7 +513,7 @@ int nv_write_config_file(const char *filename, CtrlHandles *h,
 
         target_str[0] = '\0';
 
-        if ((p->flags & NV_PARSER_HAS_TARGET) &&
+        if (p->parser_flags.has_target &&
             (p->target_type != NV_CTRL_TARGET_TYPE_X_SCREEN)) {
 
             const TargetTypeEntry *targetTypeEntry;
@@ -504,13 +526,14 @@ int nv_write_config_file(const char *filename, CtrlHandles *h,
             }
         }
 
-        if (p->flags & NV_PARSER_TYPE_HIJACK_DISPLAY_DEVICE) {
+        if (a->flags.hijack_display_device) {
             fprintf(stream, "%s%s%c%s[0x%08x]=%d\n", p->display, target_str,
-                    DISPLAY_NAME_SEPARATOR, tmp, p->display_device_mask,
+                    DISPLAY_NAME_SEPARATOR, a->name,
+                    p->display_device_mask,
                     p->val.i);
         } else {
             fprintf(stream, "%s%s%c%s=%d\n", p->display, target_str,
-                    DISPLAY_NAME_SEPARATOR, tmp, p->val.i);
+                    DISPLAY_NAME_SEPARATOR, a->name, p->val.i);
         }
 
 
@@ -641,20 +664,21 @@ static ParsedAttributeWrapper *parse_config_file(char *buf, const char *file,
  * file.
  */
 
-static int process_config_file_attributes(const char *file,
+static int process_config_file_attributes(const Options *op,
+                                          const char *file,
                                           ParsedAttributeWrapper *w,
                                           const char *display_name,
                                           CtrlHandlesArray *handles_array)
 {
     int i;
     
-    int old_verbosity = __verbosity;
+    NvVerbosity old_verbosity = nv_get_verbosity();
 
     /* Override the verbosity in the default behavior so
      * nvidia-settings isn't so alarmist when loading the RC file.
      */
-    if (!__verbosity_level_changed) {
-        __verbosity = VERBOSITY_NONE;
+    if (__dynamic_verbosity) {
+        nv_set_verbosity(NV_VERBOSITY_NONE);
     }
 
     /*
@@ -677,7 +701,7 @@ static int process_config_file_attributes(const char *file,
 
     for (i = 0; w[i].line != -1; i++) {
 
-        nv_process_parsed_attribute(&w[i].a, w[i].h, NV_TRUE, NV_FALSE,
+        nv_process_parsed_attribute(op, &w[i].a, w[i].h, NV_TRUE, NV_FALSE,
                                     "on line %d of configuration file "
                                     "'%s'", w[i].line, file);
         /*
@@ -691,8 +715,8 @@ static int process_config_file_attributes(const char *file,
     
     /* Reset the default verbosity */
 
-    if (!__verbosity_level_changed) {
-        __verbosity = old_verbosity;
+    if (__dynamic_verbosity) {
+        nv_set_verbosity(old_verbosity);
     }
 
     return NV_TRUE;
@@ -708,16 +732,17 @@ static int process_config_file_attributes(const char *file,
  */
 
 static void save_gui_parsed_attributes(ParsedAttributeWrapper *w,
-                                       ParsedAttribute *p)
+                                       ParsedAttribute *p_list)
 {
     int i;
 
     for (i = 0; w[i].line != -1; i++) {
-        if (w[i].a.flags & NV_PARSER_TYPE_GUI_ATTRIBUTE) {
-            nv_parsed_attribute_add(p, &w[i].a);            
+        ParsedAttribute *p = &(w[i].a);
+        if (p->attr_entry->flags.is_gui_attribute) {
+            nv_parsed_attribute_add(p_list, p);
         }
     }
-} /* save_gui_parsed_attributes() */
+}
 
 
 

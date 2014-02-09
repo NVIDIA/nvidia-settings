@@ -34,22 +34,6 @@
 #include "ctkutils.h"
 #include "ctkbanner.h"
 
-static const _CtkStereoMode stereoMode[] = {
-    { NV_CTRL_STEREO_OFF,                          "Stereo Disabled" },
-    { NV_CTRL_STEREO_DDC,                          "DDC Stereo" },
-    { NV_CTRL_STEREO_BLUELINE,                     "Blueline Stereo" },
-    { NV_CTRL_STEREO_DIN,                          "Onboard DIN Stereo" },
-    { NV_CTRL_STEREO_PASSIVE_EYE_PER_DPY,          "Passive One-Eye-per-Display Stereo" },
-    { NV_CTRL_STEREO_VERTICAL_INTERLACED,          "Vertical Interlaced Stereo" },
-    { NV_CTRL_STEREO_COLOR_INTERLACED,             "Color Interleaved Stereo" },
-    { NV_CTRL_STEREO_HORIZONTAL_INTERLACED,        "Horizontal Interlaced Stereo" },
-    { NV_CTRL_STEREO_CHECKERBOARD_PATTERN,         "Checkerboard Pattern Stereo" },
-    { NV_CTRL_STEREO_INVERSE_CHECKERBOARD_PATTERN, "Inverse Checkerboard Stereo" },
-    { NV_CTRL_STEREO_3D_VISION,                    "NVIDIA 3D Vision Stereo" },
-    { NV_CTRL_STEREO_3D_VISION_PRO,                "NVIDIA 3D Vision Pro Stereo" },
-    { NV_CTRL_STEREO_HDMI_3D,                      "HDMI 3D Stereo" },
-};
-
 void ctk_screen_event_handler(GtkWidget *widget,
                               XRRScreenChangeNotifyEvent *ev,
                               gpointer data);
@@ -59,17 +43,6 @@ static void associated_displays_received(GtkObject *object, gpointer arg1,
 
 static void info_update_gpu_error(GtkObject *object, gpointer arg1,
                                       gpointer user_data);
-
-static const char *get_stereo_mode_string(int stereo_mode)
-{
-    int i;
-    for (i = 0; i < ARRAY_LEN(stereoMode); i++) {
-        if (stereoMode[i].stereo_mode == stereo_mode) {
-            return stereoMode[i].name;
-        }
-    }
-    return "Unknown";
-}
 
 GType ctk_screen_get_type(
     void
@@ -339,7 +312,7 @@ GtkWidget* ctk_screen_new(NvCtrlAttributeHandle *handle,
         add_table_row(table, 19, 0, 0, "Recovered GPU Errors:", 0, 0, tmp);
     if (ctk_screen->stereo_available) {
         add_table_row(table, 20, 0, 0, "Stereo Mode:", 0, 0,
-                      get_stereo_mode_string(stereo_mode));
+                      NvCtrlGetStereoModeName(stereo_mode));
     }
 
     g_free(screen_number);

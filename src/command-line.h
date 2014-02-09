@@ -91,6 +91,25 @@ typedef struct {
                           * when started.
                           */
 
+    int list_targets;    /*
+                          * If true, list resolved targets of operations
+                          * (from query/assign or rc file) and exit.
+                          */
+
+    int terse;           /*
+                          * If true, output minimal information to query
+                          * operations.
+                          */
+
+    int dpy_string;      /*
+                          * If true, output the display device mask as a list
+                          * of display device names instead of a number.
+                          */
+
+    int write_config;    /*
+                          * If true, write out the configuration file on exit.
+                          */
+
 } Options;
 
 

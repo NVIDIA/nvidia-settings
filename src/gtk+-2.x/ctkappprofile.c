@@ -21,6 +21,7 @@
 
 #include <stdlib.h>
 #include <assert.h>
+#include <unistd.h>
 #include <string.h>
 #include <gtk/gtk.h>
 #include <gdk/gdk.h>
@@ -36,103 +37,6 @@
 #define UPDATE_PROFILE_LABEL "Update Profile"
 
 #define STATUSBAR_UPDATE_WARNING "This will take effect after changes are saved."
-
-enum {
-    PROFILE_SETTING_GL_FSAA_MODE,
-    PROFILE_SETTING_GL_LOG_MAX_ANISO,
-    PROFILE_SETTING_GL_NO_DSO_FINALIZER,
-    PROFILE_SETTING_GL_SINGLE_THREADED,
-    PROFILE_SETTING_GL_SYNC_DISPLAY_DEVICE,
-    PROFILE_SETTING_GL_SYNC_TO_VBLANK,
-    PROFILE_SETTING_GL_SORT_FBCONFIGS,
-    PROFILE_SETTING_GL_ALLOW_UNOFFICIAL_PROTOCOL,
-    PROFILE_SETTING_GL_SELINUX_BOOLEANS,
-    PROFILE_SETTING_GL_SHADER_DISK_CACHE,
-    PROFILE_SETTING_GL_SHADER_DISK_CACHE_PATH,
-    PROFILE_SETTING_GL_YIELD,
-    PROFILE_SETTING_GL_THREADED_OPTIMIZATIONS,
-    PROFILE_SETTING_GL_DOOM3,
-    PROFILE_SETTING_GL_EXTENSION_STRING_VERSION,
-    NUM_PROFILE_SETTINGS
-};
-
-static const char *profile_setting_keys[] = {
-    "GLFSAAMode",                   // PROFILE_SETTING_GL_FSAA_MODE
-    "GLLogMaxAniso",                // PROFILE_SETTING_GL_LOG_MAX_ANISO
-    "GLNoDsoFinalizer",             // PROFILE_SETTING_GL_NO_DSO_FINALIZER
-    "GLSingleThreaded",             // PROFILE_SETTING_GL_SINGLE_THREADED
-    "GLSyncDisplayDevice",          // PROFILE_SETTING_GL_SYNC_DISPLAY_DEVICE
-    "GLSyncToVblank",               // PROFILE_SETTING_GL_SYNC_TO_VBLANK
-    "GLSortFbconfigs",              // PROFILE_SETTING_GL_SORT_FBCONFIGS
-    "GLAllowUnofficialProtocol",    // PROFILE_SETTING_GL_ALLOW_UNOFFICIAL_PROTOCOL
-    "GLSELinuxBooleans",            // PROFILE_SETTING_GL_SELINUX_BOOLEANS
-    "GLShaderDiskCache",            // PROFILE_SETTING_GL_SHADER_DISK_CACHE
-    "GLShaderDiskCachePath",        // PROFILE_SETTING_GL_SHADER_DISK_CACHE_PATH
-    "GLYield",                      // PROFILE_SETTING_GL_YIELD
-    "GLThreadedOptimizations",      // PROFILE_SETTING_GL_THREADED_OPTIMIZATIONS
-    "GLDoom3",                      // PROFILE_SETTING_GL_DOOM3
-    "GLExtensionStringVersion"      // PROFILE_SETTING_GL_EXTENSION_STRING_VERSION
-};
-
-/*
- * XXX: it might be a good idea to generate some of these descriptions
- * dynamically based on other tables used by nvidia-settings
- */
-static const char *profile_setting_descriptions[] = {
-    // PROFILE_SETTING_GL_FSAA_MODE
-    "This setting enables full-scene antialiasing in a process using OpenGL. This expects "
-    "the same integer value that can be used to configure FSAA through nvidia-settings "
-    "and the NV-CONTROL X extension. To see available FSAA values, run:\n\n"
-    "\tnvidia-settings --query=fsaa --verbose",
-    // PROFILE_SETTING_GL_LOG_MAX_ANISO
-    "This enables anisotropic texture filtering. The possible values are:\n\n"
-    "\t0\tNo anisotropic filtering\n"
-    "\t1\t2x anisotropic filtering\n"
-    "\t2\t4x anisotropic filtering\n"
-    "\t3\t8x anisotropic filtering\n"
-    "\t4\t16x anisotropic filtering",
-    // PROFILE_SETTING_GL_NO_DSO_FINALIZER
-    "This works around problems with certain multithreaded applications in which "
-    "one thread exits while others are executing OpenGL code. This may be set to true or false.",
-    // PROFILE_SETTING_GL_SINGLE_THREADED
-    "This works around some legacy dynamic loaders which can cause applications linked against pthreads "
-    "which dlopen() libGL multiple times to crash. This may be set to true or false. ",
-    // PROFILE_SETTING_GL_SYNC_DISPLAY_DEVICE
-    "This allows an application to specify target a display device to sync with if sync to vblank is enabled. "
-    "This should be set to a string containing a valid display device name (for example, \"CRT-1\").",
-    // PROFILE_SETTING_GL_SYNC_TO_VBLANK
-    "This enables sync to vblank for an application. This may be set to true or false. ",
-    // PROFILE_SETTING_GL_SORT_FBCONFIGS
-    "By default the NVIDIA GLX implementation will sort FBConfigs as described by the specification. This "
-    "may be set to false to disable this behavior.",
-    // PROFILE_SETTING_GL_ALLOW_UNOFFICIAL_PROTOCOL
-    "Setting this to true will allow the client-side NVIDIA GLX implementation to send \"incomplete\" GLX protocol.",
-    // PROFILE_SETTING_GL_SELINUX_BOOLEANS
-    "This allows the user to override driver detection of specific SELinux policy booleans, which may "
-    "work around problems when running the driver under SELinux in permissive mode. This should be set to a "
-    "string value; see __GL_SELINUX_BOOLEANS in the README for a description of legal string formats.",
-    // PROFILE_SETTING_GL_SHADER_DISK_CACHE
-    "This enables the shader disk cache for direct rendering. This value may be set to true or false.",
-    // PROFILE_SETTING_GL_SHADER_DISK_CACHE_PATH
-    "This setting affects where shader caches are stored on disk for a given application. "
-    "This value should be set to a string containing a valid pathname.",
-    // PROFILE_SETTING_GL_YIELD
-    "This controls how the NVIDIA graphics driver will perform a yield. This may be set to one of the following strings:\n\n"
-    "\t\"USLEEP\"\tOpenGL will call usleep(0) to yield\n"
-    "\t\"NOTHING\"\tOpenGL will never yield\n"
-    "\t<any other value>\tOpenGL will call sched_yield() to yield (default)",
-    // PROFILE_SETTING_GL_THREADED_OPTIMIZATIONS
-    "This setting enables multi-threaded optimizations in the OpenGL driver which may improve application performance. "
-    "This may be set to true or false.",
-    // PROFILE_SETTING_GL_DOOM3
-    "This enables optimal SLI and Multi-GPU settings for games such as Doom 3 and Quake 4. "
-    "This may be set to true or false.",
-    // PROFILE_SETTING_GL_EXTENSION_STRING_VERSION
-    "This forces the extension string returned by glXQueryExtensionsString() to one that appeared in an earlier "
-    "version of the NVIDIA graphics driver. This may work around bugs in certain applications which expect an extension "
-    "string to be smaller than a certain size. This value should be set to a string value or integer containing the "
-    "desired version number (e.g. \"17700\" to force the extension string in the 177.* driver series).",
-};
 
 enum {
    RULE_FEATURE_PROCNAME,
@@ -189,6 +93,8 @@ typedef struct _ToolbarItemTemplate {
     const gchar *icon_id;
     GCallback callback;
     gpointer user_data;
+    GtkWidget *(* init_callback)(gpointer);
+    gpointer init_data;
     guint flags;
 
     const gchar *help_text;
@@ -196,6 +102,7 @@ typedef struct _ToolbarItemTemplate {
 } ToolbarItemTemplate;
 
 #define TOOLBAR_ITEM_GHOST_IF_NOTHING_SELECTED (1 << 0)
+#define TOOLBAR_ITEM_USE_WIDGET                (1 << 1)
 
 /*
  * Template used to construct tree view columns and generate help text with
@@ -415,6 +322,42 @@ static void tree_view_cursor_changed_toolbar_item_ghost(GtkTreeView *tree_view,
 }
 
 
+static GtkWidget *populate_registry_key_combo_callback(gpointer init_data)
+{
+    CtkAppProfile *ctk_app_profile;
+    CtkDropDownMenu *menu = NULL;
+    json_t *key_docs;
+    int i;
+    EditProfileDialog *dialog = (EditProfileDialog *) init_data;
+
+    if (!dialog || dialog->registry_key_combo) {
+        return NULL;
+    }
+
+    ctk_app_profile = CTK_APP_PROFILE(dialog->parent);
+    key_docs = ctk_app_profile->key_docs;
+
+    if (json_array_size(key_docs) <= 0) {
+        dialog->registry_key_combo = NULL;
+        return NULL;
+    }
+
+    menu = (CtkDropDownMenu *)
+        ctk_drop_down_menu_new(CTK_DROP_DOWN_MENU_FLAG_COMBO);
+    dialog->registry_key_combo = GTK_WIDGET(menu);
+
+    ctk_drop_down_menu_append_item(menu, "Custom", -1);
+    for (i = 0; i < json_array_size(key_docs); i++) {
+        json_t *json_key_object = json_array_get(key_docs, i);
+        json_t *json_name = json_object_get(json_key_object, "key");
+        ctk_drop_down_menu_append_item(menu,
+                                       json_string_value(json_name),
+                                       i);
+    }
+
+    return dialog->registry_key_combo;
+}
+
 /* Simple helper function to fill a toolbar with buttons from a table */
 static void populate_toolbar(GtkToolbar *toolbar,
                              const ToolbarItemTemplate *item,
@@ -440,13 +383,26 @@ static void populate_toolbar(GtkToolbar *toolbar,
         } else {
             icon = NULL;
         }
-        widget = gtk_toolbar_append_item(toolbar,
-                                         item->text,
-                                         item->help_text,
-                                         NULL,
-                                         icon,
-                                         item->callback,
-                                         item->user_data);
+
+        if (item->flags & TOOLBAR_ITEM_USE_WIDGET) {
+            widget = (*item->init_callback)(item->init_data);
+            if (widget) {
+                gtk_toolbar_append_widget(toolbar, widget,
+                                          item->help_text, NULL);
+            } else {
+                item++;
+                continue;
+            }
+        } else {
+            widget = gtk_toolbar_append_item(toolbar,
+                                             item->text,
+                                             item->help_text,
+                                             NULL,
+                                             icon,
+                                             item->callback,
+                                             item->user_data);
+        }
+
         if (help_data) {
             ctk_help_data_list_prepend(help_data,
                                        item->text,
@@ -1644,6 +1600,63 @@ static GtkWidget *create_rule_profile_name_entry(EditRuleDialog *dialog)
     return hbox;
 }
 
+
+/*
+ * The following two functions use the JSON data types to convert data or
+ * provide data per type. For types that don't match known types we use '-1'
+ * since we support unspecified types for unknown keys. Also since JSON doesn't
+ * have a proper boolean type, we use JSON_FALSE
+ */
+
+static int get_type_from_string(const char *s)
+{
+    if (!strcmp(s, "boolean")) {
+        return JSON_FALSE;
+    } else if (!strcmp(s, "integer")) {
+        return JSON_INTEGER;
+    } else if (!strcmp(s, "string")) {
+        return JSON_STRING;
+    } else if (!strcmp(s, "float")) {
+        return JSON_REAL;
+    } else {
+        return -1;
+    }
+}
+
+static json_t *get_default_json_from_type(int type)
+{
+    switch (type) {
+    case -1:
+    case JSON_TRUE:
+    case JSON_FALSE:
+    default:
+        return json_false();
+    case JSON_INTEGER:
+        return json_integer(0);
+    case JSON_REAL:
+        return json_real(0.0);
+    case JSON_STRING:
+        return json_string("");
+    }
+}
+
+static const char *get_expected_type_string_from_key(json_t *key_docs,
+                                                     const char *key)
+{
+    int i;
+    for (i = 0; i < json_array_size(key_docs); i++) {
+        json_t *json_obj = json_array_get(key_docs, i);
+        json_t *json_key = json_object_get(json_obj, "key");
+        const char * name = json_string_value(json_key);
+        if (!strcmp(name, key)) {
+            json_key = json_object_get(json_obj, "type");
+            return json_string_value(json_key);
+        }
+    }
+    return "unspecified";
+}
+
+
 static void setting_key_renderer_func(GtkTreeViewColumn *tree_column,
                                       GtkCellRenderer   *cell,
                                       GtkTreeModel      *model,
@@ -1656,6 +1669,23 @@ static void setting_key_renderer_func(GtkTreeViewColumn *tree_column,
     key = json_string_value(json_object_get(setting, "key"));
     g_object_set(cell, "text", key, NULL);
 }
+
+static void setting_expected_type_renderer_func(GtkTreeViewColumn *tree_column,
+                                                GtkCellRenderer   *cell,
+                                                GtkTreeModel      *model,
+                                                GtkTreeIter       *iter,
+                                                gpointer           data)
+{
+    json_t *key_docs = (json_t *) data;
+    const char *expected_type = NULL;
+    json_t *setting;
+    gtk_tree_model_get(model, iter,
+                       SETTING_LIST_STORE_COL_SETTING, &setting, -1);
+    expected_type = get_expected_type_string_from_key(key_docs,
+                        json_string_value(json_object_get(setting, "key")));
+    g_object_set(cell, "text", expected_type, NULL);
+}
+
 
 static void setting_type_renderer_func(GtkTreeViewColumn *tree_column,
                                        GtkCellRenderer   *cell,
@@ -1673,14 +1703,14 @@ static void setting_type_renderer_func(GtkTreeViewColumn *tree_column,
             type = "string";
             break;
         case JSON_INTEGER:
-            type = "int";
+            type = "integer";
             break;
         case JSON_REAL:
             type = "float";
             break;
         case JSON_TRUE:
         case JSON_FALSE:
-            type = "bool";
+            type = "boolean";
             break;
         default:
             assert(0);
@@ -1926,11 +1956,20 @@ static EditRuleDialog* edit_rule_dialog_new(CtkAppProfile *ctk_app_profile)
             .help_text = "Each entry in the \"Key\" column describes a key for a setting."
         },
         {
-            .title = "Type",
+            .title = "Expected Type",
+            .renderer_func = setting_expected_type_renderer_func,
+            .min_width = 80,
+            .func_data = ctk_app_profile->key_docs,
+            .help_text = "Each entry in the \"Expected Type\" column describes the type "
+                         "expected for a known setting key. Unrecognized keys may have an "
+                         "unspecified type."
+        },
+        {
+            .title = "Current Type",
             .renderer_func = setting_type_renderer_func,
-            .min_width = 100,
+            .min_width = 80,
             .func_data = NULL,
-            .help_text = "Each entry in the \"Type\" column describes the underlying JSON type for "
+            .help_text = "Each entry in the \"Current Type\" column describes the current type for "
                          "a setting value."
         },
         {
@@ -2101,32 +2140,86 @@ static void edit_rule_dialog_destroy(EditRuleDialog *dialog)
     free(dialog);
 }
 
+static int lookup_column_number_by_name(GtkTreeView *tree_view,
+                                        const char *name)
+{
+    int i;
+    GtkTreeViewColumn *column;
+    GtkLabel *label;
+
+    for (i = 0, column = gtk_tree_view_get_column(tree_view, i);
+         column;
+         column = gtk_tree_view_get_column(tree_view, ++i)) {
+        label = GTK_LABEL(gtk_tree_view_column_get_widget(column));
+        if (label) {
+            const char *s = gtk_label_get_text(label);
+            if (!strcmp(s, name)) {
+                return i;
+            }
+        }
+    }
+
+    return 0; // Default to the first column if not found.
+}
+
 static void edit_profile_dialog_settings_new_row(GtkTreeView *tree_view,
                                                  GtkTreeModel *tree_model,
                                                  GtkTreePath **path,
-                                                 GtkTreeViewColumn **column)
+                                                 GtkTreeViewColumn **column,
+                                                 json_t *key_docs,
+                                                 int key_index)
 {
     GtkTreeIter iter;
     json_t *setting = json_object();
-    json_object_set(setting, "key", json_string(""));
-    json_object_set(setting, "value", json_false());
+    const char *s;
+    int expected_type;
+    int column_to_edit;
+
+    if (json_array_size(key_docs) > 0 && key_index >= 0) {
+        json_t *key_obj = json_array_get(key_docs, key_index);
+        s = json_string_value(json_object_get(key_obj, "key"));
+
+        expected_type = get_type_from_string(get_expected_type_string_from_key(key_docs, s));
+        column_to_edit = lookup_column_number_by_name(tree_view, "Value");
+    } else {
+        s = "";
+        expected_type = -1;
+        column_to_edit = lookup_column_number_by_name(tree_view, "Key");
+    }
+
+    json_object_set_new(setting, "key", json_string(s));
+    json_object_set_new(setting, "value",
+                        get_default_json_from_type(expected_type));
+
     gtk_list_store_append(GTK_LIST_STORE(tree_model), &iter);
-    gtk_list_store_set(GTK_LIST_STORE(tree_model), &iter, SETTING_LIST_STORE_COL_SETTING, setting, -1);
+    gtk_list_store_set(GTK_LIST_STORE(tree_model), &iter, 
+                       SETTING_LIST_STORE_COL_SETTING, setting, -1);
 
     *path = gtk_tree_model_get_path(tree_model, &iter);
-    *column = gtk_tree_view_get_column(tree_view, 0);
+    *column = gtk_tree_view_get_column(tree_view, column_to_edit);
 }
 
 static void edit_profile_dialog_add_setting(GtkWidget *widget, gpointer user_data)
 {
     EditProfileDialog *dialog = (EditProfileDialog *)user_data;
+    CtkAppProfile *ctk_app_profile = CTK_APP_PROFILE(dialog->parent);
     GtkTreePath *path;
     GtkTreeViewColumn *column;
+    CtkDropDownMenu *menu = CTK_DROP_DOWN_MENU(dialog->registry_key_combo);
+    int key_index;
+
+    if (menu) {
+        key_index = ctk_drop_down_menu_get_current_value(menu);
+    } else {
+        key_index = -1;
+    }
 
     edit_profile_dialog_settings_new_row(dialog->settings_view,
-                                    GTK_TREE_MODEL(dialog->settings_store),
-                                    &path,
-                                    &column);
+                                         GTK_TREE_MODEL(dialog->settings_store),
+                                         &path,
+                                         &column,
+                                         ctk_app_profile->key_docs,
+                                         key_index);
 
     gtk_widget_grab_focus(GTK_WIDGET(dialog->settings_view));
     gtk_tree_view_set_cursor(dialog->settings_view, path, column, TRUE);
@@ -2230,26 +2323,31 @@ static gboolean widget_get_visible(GtkWidget *widget)
     return visible;
 }
 
-static const gchar *get_canonical_setting_key(const gchar *key)
+static const gchar *get_canonical_setting_key(const gchar *key,
+                                              json_t *key_docs)
 {
     size_t i;
-    for (i = 0; i < NUM_PROFILE_SETTINGS; i++) {
-        if (!strcasecmp(key, profile_setting_keys[i])) {
-            return profile_setting_keys[i];
+    for (i = 0; i < json_array_size(key_docs); i++) {
+        json_t *key_obj = json_array_get(key_docs, i);
+        json_t *key_name = json_object_get(key_obj, "key");
+        if (json_is_string(key_name) &&
+            !strcasecmp(key, json_string_value(key_name))) {
+            return json_string_value(key_name);
         }
     }
     return NULL;
 }
 
-static gboolean check_unrecognized_setting_keys(const json_t *settings)
+static gboolean check_unrecognized_setting_keys(const json_t *settings,
+                                                json_t *key_docs)
 {
     const json_t *setting;
-    const char *setting_key;
+    const char *key;
     size_t i, size;
     for (i = 0, size = json_array_size(settings); i < size; i++) {
         setting = json_array_get(settings, i);
-        setting_key = json_string_value(json_object_get(setting, "key"));
-        if (!get_canonical_setting_key(setting_key)) {
+        key = json_string_value(json_object_get(setting, "key"));
+        if (!get_canonical_setting_key(key, key_docs)) {
             return TRUE;
         }
     }
@@ -2297,7 +2395,7 @@ static gboolean edit_profile_dialog_validate(EditProfileDialog *dialog)
         free(reason);
     }
 
-    if (check_unrecognized_setting_keys(dialog->settings)) {
+    if (check_unrecognized_setting_keys(dialog->settings, ctk_app_profile->key_docs)) {
         g_string_append_printf(nonfatal_errors, "%s\tThis profile has settings with keys that may not be recognized "
                                                 "by the NVIDIA graphics driver. Consult the on-line help for a list "
                                                 "of valid keys.\n", get_bullet());
@@ -2411,6 +2509,13 @@ static void get_profile_dialog_toolbar_items(EditProfileDialog *dialog,
 {
     const ToolbarItemTemplate settings_items[] = {
         {
+            .text = "Choose Key Drop Down",
+            .help_text = "The Key Drop Down allows you to select the registry setting key to add.",
+            .init_callback = populate_registry_key_combo_callback,
+            .init_data = dialog,
+            .flags = TOOLBAR_ITEM_USE_WIDGET
+        },
+        {
             .text = "Add Setting",
             .help_text = "The Add Setting button allows you to create a new setting in the profile.",
             .icon_id = GTK_STOCK_ADD,
@@ -2495,6 +2600,7 @@ static void setting_key_edited(GtkCellRendererText *renderer,
                                gpointer            user_data)
 {
     EditProfileDialog *dialog = (EditProfileDialog *)user_data;
+    CtkAppProfile *ctk_app_profile = CTK_APP_PROFILE(dialog->parent);
     GtkTreePath *path;
     GtkTreeIter iter;
     json_t *setting;
@@ -2517,7 +2623,8 @@ static void setting_key_edited(GtkCellRendererText *renderer,
     gtk_tree_model_get(GTK_TREE_MODEL(dialog->settings_store), &iter,
                        SETTING_LIST_STORE_COL_SETTING, &setting, -1);
 
-    canonical_key = get_canonical_setting_key(new_text);
+    canonical_key = get_canonical_setting_key(new_text,
+                                              ctk_app_profile->key_docs);
     if (!canonical_key) {
         edit_profile_dialog_statusbar_message(dialog,
             "The key [%s] is not recognized by nvidia-settings. "
@@ -2532,6 +2639,27 @@ static void setting_key_edited(GtkCellRendererText *renderer,
     }
 
     gtk_tree_path_free(path);
+}
+
+static gboolean is_expected_setting_value(json_t *value, int expected_type)
+{
+    switch (json_typeof(value)) {
+
+        // Allowed Types
+        case JSON_STRING:
+            return (expected_type == -1 || expected_type == JSON_STRING);
+        case JSON_TRUE:
+        case JSON_FALSE:
+            return (expected_type == -1 ||
+                    expected_type == JSON_FALSE ||
+                    expected_type == JSON_TRUE);
+        case JSON_REAL:
+            return (expected_type == -1 || expected_type == JSON_REAL);
+        case JSON_INTEGER:
+            return (expected_type == -1 || expected_type == JSON_INTEGER);
+        default:
+            return FALSE;
+    }
 }
 
 static gboolean is_valid_setting_value(json_t *value, char **invalid_type_str)
@@ -2567,12 +2695,15 @@ static void setting_value_edited(GtkCellRendererText *renderer,
     gchar *invalid_type_str = NULL;
     gchar *new_text_in_json;
     EditProfileDialog *dialog = (EditProfileDialog *)user_data;
+    CtkAppProfile *ctk_app_profile = CTK_APP_PROFILE(dialog->parent);
     GtkTreePath *path;
     GtkTreeIter iter;
     json_t *setting;
     json_t *value;
     json_error_t error;
     gboolean update_value = TRUE;
+    const char *type_str = NULL;
+    int expected_type;
 
     if (dialog->setting_update_canceled) {
         // Don't update anything
@@ -2581,7 +2712,7 @@ static void setting_value_edited(GtkCellRendererText *renderer,
 
     path = gtk_tree_path_new_from_string(path_s);
     if (!gtk_tree_model_get_iter(GTK_TREE_MODEL(dialog->settings_store),
-                            &iter, path)) {
+                                 &iter, path)) {
         return;
     }
 
@@ -2590,7 +2721,10 @@ static void setting_value_edited(GtkCellRendererText *renderer,
     gtk_tree_model_get(GTK_TREE_MODEL(dialog->settings_store), &iter,
                        SETTING_LIST_STORE_COL_SETTING, &setting, -1);
 
-    new_text_in_json = nv_app_profile_cfg_file_syntax_to_json(new_text);
+    type_str = json_string_value(json_object_get(setting, "key"));
+    expected_type = get_type_from_string(get_expected_type_string_from_key(ctk_app_profile->key_docs, type_str));
+
+    new_text_in_json = nv_app_profile_file_syntax_to_json(new_text);
     value = json_loads(new_text_in_json, JSON_DECODE_ANY, &error);
 
     if (!value) {
@@ -2603,6 +2737,10 @@ static void setting_value_edited(GtkCellRendererText *renderer,
             "A value of type \"%s\" is not allowed in the configuration.",
             invalid_type_str);
         update_value = FALSE;
+    } else if (!is_expected_setting_value(value, expected_type)) {
+        edit_profile_dialog_statusbar_message(dialog,
+            "The parsed type of the value entered does not match the type "
+            "expected.");
     }
 
     if (update_value) {
@@ -2619,6 +2757,7 @@ static TreeViewColumnTemplate *get_profile_settings_tree_view_columns(EditProfil
                                                                       size_t *num_columns)
 {
     TreeViewColumnTemplate *settings_tree_view_columns_copy;
+    CtkAppProfile *ctk_app_profile = CTK_APP_PROFILE(dialog->parent);
     const TreeViewColumnTemplate settings_tree_view_columns[] = {
         {
             .title = "Key",
@@ -2635,11 +2774,20 @@ static TreeViewColumnTemplate *get_profile_settings_tree_view_columns(EditProfil
                          "on the cell containing the key."
         },
         {
-            .title = "Type",
+            .title = "Expected Type",
+            .renderer_func = setting_expected_type_renderer_func,
+            .min_width = 80,
+            .func_data = ctk_app_profile->key_docs,
+            .help_text = "Each entry in the \"Expected Type\" column describes the type "
+                         "expected for a known setting key. Unrecognized keys may have an "
+                         "unspecified type. This column is read-only"
+        },
+        {
+            .title = "Current Type",
             .renderer_func = setting_type_renderer_func,
-            .min_width = 100,
+            .min_width = 80,
             .func_data = NULL,
-            .help_text = "Each entry in the \"Type\" column describes the underlying JSON type for "
+            .help_text = "Each entry in the \"Current Type\" column describes the underlying JSON type for "
                          "a setting value. Supported JSON types are: string, true, false, and number. "
                          "This column is read-only."
         },
@@ -2741,6 +2889,8 @@ static EditProfileDialog *edit_profile_dialog_new(CtkAppProfile *ctk_app_profile
         return NULL;
     }
 
+    dialog->parent = GTK_WIDGET(ctk_app_profile);
+
     settings_tree_view_columns = get_profile_settings_tree_view_columns(dialog, &num_settings_tree_view_columns);
 
     get_profile_dialog_toolbar_items(dialog,
@@ -2749,7 +2899,6 @@ static EditProfileDialog *edit_profile_dialog_new(CtkAppProfile *ctk_app_profile
                                      &edit_profile_dialog_toolbar_items,
                                      &num_edit_profile_dialog_toolbar_items);
 
-    dialog->parent = GTK_WIDGET(ctk_app_profile);
     dialog->top_window = gtk_window_new(GTK_WINDOW_TOPLEVEL);
 
     dialog->top_help_data = NULL;
@@ -2823,6 +2972,8 @@ static EditProfileDialog *edit_profile_dialog_new(CtkAppProfile *ctk_app_profile
 
     toolbar = gtk_toolbar_new();
     tree_view = gtk_tree_view_new_with_model(GTK_TREE_MODEL(dialog->settings_store));
+
+    dialog->registry_key_combo = NULL;
 
     populate_toolbar(GTK_TOOLBAR(toolbar),
                      edit_profile_settings_toolbar_items,
@@ -3427,6 +3578,37 @@ static char *get_default_global_config_file(void)
     }
 }
 
+static char *get_default_keys_file(const char *driver_version)
+{
+    char *file = NULL;
+    const char *file_noversion = "/usr/share/nvidia/nvidia-application-"
+                                 "profiles-key-documentation";
+
+    if (driver_version) {
+        file = nvstrcat("/usr/share/nvidia/nvidia-application-profiles-",
+                        driver_version, "-key-documentation", NULL);
+    }
+
+    if (file && access(file, F_OK) != -1) {
+        return file;
+    } else if (access(file_noversion, F_OK) != -1) {
+        /* On some systems, this file is installed without a version number */
+
+        free(file);
+        return nvstrdup(file_noversion);
+    } else {
+        nv_error_msg("nvidia-settings could not find the registry key file. "
+                     "This file should have been installed along with this "
+                     "driver at either %s or %s. The application profiles "
+                     "will continue to work, but values cannot be "
+                     "preopulated or validated, and will not be listed in "
+                     "the help text. Please see the README for possible "
+                     "values and descriptions.", file, file_noversion);
+        free(file);
+        return NULL;
+    }
+}
+
 #define SEARCH_PATH_NUM_FILES 4
 
 static char **get_default_search_path(size_t *num_files)
@@ -4000,6 +4182,7 @@ GtkTextBuffer *ctk_app_profile_create_help(CtkAppProfile *ctk_app_profile, GtkTe
     size_t j;
     GtkTextIter i;
     GtkTextBuffer *b;
+    json_t * key_docs = ctk_app_profile->key_docs;
 
     b = gtk_text_buffer_new(table);
     gtk_text_buffer_get_iter_at_offset(b, &i, 0);
@@ -4091,12 +4274,21 @@ GtkTextBuffer *ctk_app_profile_create_help(CtkAppProfile *ctk_app_profile, GtkTe
 
     ctk_help_heading(b, &i, "Supported Setting Keys");
 
-    ctk_help_para(b, &i, "This NVIDIA® Linux Graphics Driver supports the following application profile setting "
-                         "keys. For more information on a given key, please consult the README.");
+    if (json_array_size(key_docs) > 0) {
+        ctk_help_para(b, &i, "This NVIDIA® Linux Graphics Driver supports the following application profile setting "
+                             "keys. For more information on a given key, please consult the README.");
 
-    for (j = 0; j < NUM_PROFILE_SETTINGS; j++) {
-        ctk_help_term(b, &i, "%s", profile_setting_keys[j]);
-        ctk_help_para(b, &i, "%s", profile_setting_descriptions[j]);
+        for (j = 0; j < json_array_size(key_docs); j++) {
+            json_t *key_obj = json_array_get(key_docs, j);
+            json_t *key_name = json_object_get(key_obj, "key");
+            json_t *key_desc = json_object_get(key_obj, "description");
+            ctk_help_term(b, &i, "%s", json_string_value(key_name));
+            ctk_help_para(b, &i, "%s", json_string_value(key_desc));
+        }
+    } else {
+        ctk_help_para(b, &i, "There was an error reading the application profile setting "
+                             "keys resource file. For information on available keys, please "
+                             "consult the README.");
     }
 
     ctk_help_finish(b);
@@ -4119,7 +4311,8 @@ static void enabled_check_button_toggled(GtkToggleButton *toggle_button,
                                  STATUSBAR_UPDATE_WARNING);
 }
 
-GtkWidget* ctk_app_profile_new(CtkConfig *ctk_config)
+GtkWidget* ctk_app_profile_new(CtkConfig *ctk_config,
+                               const gchar *driver_version)
 {
     GObject *object;
     CtkAppProfile *ctk_app_profile;
@@ -4133,6 +4326,7 @@ GtkWidget* ctk_app_profile_new(CtkConfig *ctk_config)
     GtkWidget *toolbar;
 
     char *global_config_file;
+    char *keys_file;
     char **search_path;
     size_t search_path_size;
     ToolbarItemTemplate *save_reload_toolbar_items;
@@ -4146,6 +4340,11 @@ GtkWidget* ctk_app_profile_new(CtkConfig *ctk_config)
     ctk_app_profile->ctk_config = ctk_config;
 
     gtk_box_set_spacing(GTK_BOX(ctk_app_profile), 10);
+
+    /* Load registry keys resource file */
+    keys_file = get_default_keys_file(driver_version);
+    ctk_app_profile->key_docs = nv_app_profile_key_documentation_load(keys_file);
+    free(keys_file);
 
     /* Load app profile settings */
     // TODO only load this if the page is exposed

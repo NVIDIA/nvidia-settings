@@ -64,6 +64,11 @@ typedef struct {
     char *name;               /* Name for this target */
     char *protoNames[NV_PROTO_NAME_MAX];  /* List of valid names for this target */
 
+    struct {
+        Bool connected;           /* Connection state of display device */
+        Bool enabled;             /* Enabled state of display device */
+    } display;
+
     struct _CtrlHandleTargetNode *relations; /* List of associated targets */
 } CtrlHandleTarget;
 
@@ -105,11 +110,12 @@ NvCtrlAttributeHandle *nv_get_target_handle(const CtrlHandles *handles,
                                             int target_type,
                                             int target_id);
 
-Bool nv_get_attribute_perms(CtrlHandles *h, int attr, uint32 flags,
+Bool nv_get_attribute_perms(CtrlHandles *h, const AttributeTableEntry *a,
                             NVCTRLAttributePermissionsRec *perms);
 
-int nv_process_parsed_attribute(ParsedAttribute*, CtrlHandles *h,
-                                int, int, char*, ...) NV_ATTRIBUTE_PRINTF(5, 6);
+int nv_process_parsed_attribute(const Options *op,
+                                ParsedAttribute*, CtrlHandles *h,
+                                int, int, char*, ...) NV_ATTRIBUTE_PRINTF(6, 7);
 
 void nv_target_list_free(CtrlHandleTargetNode *head);
 

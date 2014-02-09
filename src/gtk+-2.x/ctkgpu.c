@@ -44,8 +44,13 @@ static gboolean update_gpu_usage(gpointer);
 
 typedef struct {
     gint graphics;
+    gboolean graphics_specified;
+
     gint video;
+    gboolean video_specified;
+
     gint pcie;
+    gboolean pcie_specified;
 } utilizationEntry, * utilizationEntryPtr;
 
 GType ctk_gpu_get_type(
@@ -181,6 +186,23 @@ gchar *get_bus_id_str(NvCtrlAttributeHandle *handle)
 }
 
 
+static void apply_gpu_utilization_token(char *token, char *value, void *data)
+{
+    utilizationEntryPtr pEntry = (utilizationEntryPtr) data;
+
+    if (!strcasecmp("graphics", token)) {
+        pEntry->graphics = atoi(value);
+        pEntry->graphics_specified = TRUE;
+    } else if (!strcasecmp("video", token)) {
+        pEntry->video = atoi(value);
+        pEntry->video_specified = TRUE;
+    } else if (!strcasecmp("pcie", token)) {
+        pEntry->pcie = atoi(value);
+        pEntry->pcie_specified = TRUE;
+    }
+}
+
+
 
 GtkWidget* ctk_gpu_new(
     NvCtrlAttributeHandle *handle,
@@ -225,6 +247,7 @@ GtkWidget* ctk_gpu_new(
     int row = 0;
     int total_rows = 21;
     int gpu_memory;
+    utilizationEntry entry;
 
 
     /*
@@ -322,6 +345,19 @@ GtkWidget* ctk_gpu_new(
     } else {
         irq = g_strdup_printf("%d", tmp);
     }
+
+    /* NV_CTRL_STRING_GPU_UTILIZATION */
+
+    memset(&entry, 0, sizeof(entry));
+
+    ret = NvCtrlGetStringAttribute(handle,
+                                   NV_CTRL_STRING_GPU_UTILIZATION,
+                                   &tmp_str);
+    if (ret == NvCtrlSuccess) {
+        parse_token_value_pairs(tmp_str, apply_gpu_utilization_token, &entry);
+        XFree(tmp_str);
+    }
+    
     
     /* List of X Screens using the GPU */
 
@@ -475,14 +511,22 @@ GtkWidget* ctk_gpu_new(
                       0, 0.5, "Memory Interface:",
                       0, 0.5, memory_interface);
     }
-    ctk_gpu->gpu_utilization_label =
-        add_table_row(table, row++,
-                      0, 0.5, "GPU Utilization:",
-                      0, 0.5, NULL);
-    ctk_gpu->video_utilization_label =
-        add_table_row(table, row++,
-                      0, 0.5, "Video Engine Utilization:",
-                      0, 0.5, NULL);
+
+    /* GPU utilization */
+
+    if (entry.graphics_specified) {
+        ctk_gpu->gpu_utilization_label =
+            add_table_row(table, row++,
+                          0, 0.5, "GPU Utilization:",
+                          0, 0.5, NULL);
+    }
+    if (entry.video_specified) {
+        ctk_gpu->video_utilization_label =
+            add_table_row(table, row++,
+                          0, 0.5, "Video Engine Utilization:",
+                          0, 0.5, NULL);
+    }
+
     /* spacing */
     row += 3;
     add_table_row(table, row++,
@@ -725,24 +769,6 @@ static void probe_displays_received(GtkObject *object, gpointer arg1,
 
 
 
-static void apply_gpu_utilization_token(char *token, char *value, void *data)
-{
-    utilizationEntryPtr pEntry = (utilizationEntryPtr) data;
-
-    if (!strcasecmp("graphics", token)) {
-        pEntry->graphics = atoi(value);
-    } else if (!strcasecmp("video", token)) {
-        pEntry->video = atoi(value);
-    } else if (!strcasecmp("pcie", token)) {
-        pEntry->pcie = atoi(value);
-    } else {
-        nv_warning_msg("Unknown GPU utilization token value pair: %s=%s",
-                       token, value);
-    }
-}
-
-
-
 static gboolean update_gpu_usage(gpointer user_data)
 {
     CtkGpu *ctk_gpu;
@@ -780,42 +806,54 @@ static gboolean update_gpu_usage(gpointer user_data)
                                    NV_CTRL_STRING_GPU_UTILIZATION,
                                    &utilizationStr);
     if (ret != NvCtrlSuccess) {
-        gtk_label_set_text(GTK_LABEL(ctk_gpu->gpu_utilization_label), "Unknown");
-        gtk_label_set_text(GTK_LABEL(ctk_gpu->video_utilization_label),
-                           "Unknown");
+        if (ctk_gpu->gpu_utilization_label) {
+            gtk_label_set_text(GTK_LABEL(ctk_gpu->gpu_utilization_label),
+                               "Unknown");
+        }
+        if (ctk_gpu->video_utilization_label) {
+            gtk_label_set_text(GTK_LABEL(ctk_gpu->video_utilization_label),
+                               "Unknown");
+        }
         if (ctk_gpu->pcie_utilization_label) {
             gtk_label_set_text(GTK_LABEL(ctk_gpu->pcie_utilization_label),
                                "Unknown");
         }
         return FALSE;
-    } else {
-        memset(&entry, -1, sizeof(&entry));
-        parse_token_value_pairs(utilizationStr, apply_gpu_utilization_token,
-                                &entry);
-        if (entry.graphics != -1) {
-            utilization_text = g_strdup_printf("%d %%",
-                                               entry.graphics);                                     
+    }
 
-            gtk_label_set_text(GTK_LABEL(ctk_gpu->gpu_utilization_label),
-                               utilization_text);
-        }
-        if (entry.video != -1) {
-            utilization_text = g_strdup_printf("%d %%",
-                                               entry.video);
+    memset(&entry, 0, sizeof(entry));
+    parse_token_value_pairs(utilizationStr, apply_gpu_utilization_token,
+                            &entry);
+    if ((entry.graphics_specified) &&
+        (ctk_gpu->gpu_utilization_label)) {
+        utilization_text = g_strdup_printf("%d %%",
+                                           entry.graphics);
 
-            gtk_label_set_text(GTK_LABEL(ctk_gpu->video_utilization_label),
-                               utilization_text);
-        }
-        if ((entry.pcie != -1) &&
-            (ctk_gpu->pcie_utilization_label)) {
-            utilization_text = g_strdup_printf("%d %%",
-                                               entry.pcie);
-
-            gtk_label_set_text(GTK_LABEL(ctk_gpu->pcie_utilization_label),
-                               utilization_text);
-        }
+        gtk_label_set_text(GTK_LABEL(ctk_gpu->gpu_utilization_label),
+                           utilization_text);
         g_free(utilization_text);
     }
+    if ((entry.video_specified) &&
+        (ctk_gpu->video_utilization_label)) {
+        utilization_text = g_strdup_printf("%d %%",
+                                           entry.video);
+
+        gtk_label_set_text(GTK_LABEL(ctk_gpu->video_utilization_label),
+                           utilization_text);
+        g_free(utilization_text);
+    }
+    if ((entry.pcie_specified) &&
+        (ctk_gpu->pcie_utilization_label)) {
+        utilization_text = g_strdup_printf("%d %%",
+                                           entry.pcie);
+
+        gtk_label_set_text(GTK_LABEL(ctk_gpu->pcie_utilization_label),
+                           utilization_text);
+        g_free(utilization_text);
+    }
+
+    XFree(utilizationStr);
+
     return TRUE;
 }
 

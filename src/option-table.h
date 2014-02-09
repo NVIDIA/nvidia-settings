@@ -184,6 +184,9 @@ static const NVGetoptOption __options[] = {
       " which the query/assign operation would have been performed, without "
       "actually performing the operation(s), and exit." },
 
+    { "write-config", 'w', NVGETOPT_IS_BOOLEAN | NVGETOPT_HELP_ALWAYS, NULL,
+      "Save the configuration file on exit (enabled by default)." },
+
     { NULL, 0, 0, NULL, NULL},
 };
 

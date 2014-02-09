@@ -51,9 +51,11 @@ typedef struct {
 } ConfigProperties;
 
 
+void set_dynamic_verbosity(int dynamic);
+
 void init_config_properties(ConfigProperties *conf);
 
-int nv_read_config_file(const char *, const char *,
+int nv_read_config_file(const Options *, const char *, const char *,
                         ParsedAttribute *, ConfigProperties *,
                         CtrlHandlesArray *);
 

@@ -137,6 +137,11 @@ AppProfileConfig *nv_app_profile_config_load(const char *global_config_file,
                                              size_t search_path_count);
 
 /*
+ * Load the registry keys documentation from the installed file.
+ */
+json_t *nv_app_profile_key_documentation_load(const char *key_docs_file);
+
+/*
  * Duplicate the configuration; the copy can then be edited and compared against
  * the original.
  */
@@ -279,7 +284,7 @@ int nv_app_profile_config_check_backing_files(AppProfileConfig *config);
  * Utility function to strip comments and translate hex/octal values to decimal
  * so the JSON parser can understand.
  */
-char *nv_app_profile_cfg_file_syntax_to_json(const char *orig_s);
+char *nv_app_profile_file_syntax_to_json(const char *orig_s);
 
 int nv_app_profile_config_check_valid_source_file(AppProfileConfig *config,
                                                   const char *filename,

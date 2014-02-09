@@ -58,7 +58,7 @@ static void color_range_menu_changed(GtkWidget *widget,
 
 static void color_control_update_received(GtkObject *object, gpointer arg1,
                                           gpointer user_data);
-static gboolean setup_color_range_dropdown(CtkColorControls *ctk_color_controls);
+static void setup_color_range_dropdown(CtkColorControls *ctk_color_controls);
 static
 void post_color_range_update(CtkColorControls *ctk_color_controls,
                              gint color_range);
@@ -399,11 +399,7 @@ static gboolean update_color_space_menu_info(CtkColorControls *ctk_color_control
          (gpointer) ctk_color_controls);
 
     /* dynamically regenerate color range dropdown */
-    if (!setup_color_range_dropdown(ctk_color_controls)) {
-        gtk_widget_set_sensitive(ctk_color_controls->color_range_menu, FALSE);
-    } else {
-        gtk_widget_set_sensitive(ctk_color_controls->color_range_menu, TRUE);
-    }
+    setup_color_range_dropdown(ctk_color_controls);
 
     return TRUE;
 
@@ -482,8 +478,9 @@ static void color_space_menu_changed(GtkWidget *widget,
     color_space = map_nvctrl_value_to_table(ctk_color_controls,
                                             color_space);
 
-    /* reflecting the change in color space to other widgets & reset button */
-    ctk_color_controls_setup(ctk_color_controls);
+    /* Regenerate the color range dropdown to reflect the new color space */
+    setup_color_range_dropdown(ctk_color_controls);
+
     post_color_space_update(ctk_color_controls, color_space);
 
 } /* color_space_menu_changed() */
@@ -600,10 +597,11 @@ static gboolean build_color_space_table(CtkColorControls *ctk_color_controls,
  * setup_color_range_dropdown() - dynamically generate dropdown list for
  * color range depending on selected color space.
  */
-static gboolean setup_color_range_dropdown(CtkColorControls *ctk_color_controls)
+static void setup_color_range_dropdown(CtkColorControls *ctk_color_controls)
 {
     gint i, n = 0, color_range_count = 0;
     gint mask, val;
+    gboolean enable = FALSE;
     ReturnStatus ret;
     NVCTRLAttributeValidValuesRec valid;
     CtkDropDownMenu *d;
@@ -612,11 +610,11 @@ static gboolean setup_color_range_dropdown(CtkColorControls *ctk_color_controls)
                                         NV_CTRL_COLOR_RANGE,
                                         &valid);
     if (ret != NvCtrlSuccess) {
-        return FALSE;
+        goto done;
     }
 
     if (valid.type != ATTRIBUTE_TYPE_INT_BITS) {
-        return FALSE;
+        goto done;
     }
     mask = valid.u.bits.ints;
     /* count no. of supported color space */
@@ -633,7 +631,7 @@ static gboolean setup_color_range_dropdown(CtkColorControls *ctk_color_controls)
     ctk_color_controls->color_range_table =
         calloc(color_range_count, sizeof(ctk_color_controls->color_range_table[0]));
     if (!ctk_color_controls->color_range_table) {
-        return FALSE;
+        goto done;
     }
 
     for (i = 0, n = 0; n < ctk_color_controls->color_range_table_size; i++) {
@@ -682,11 +680,12 @@ static gboolean setup_color_range_dropdown(CtkColorControls *ctk_color_controls)
 
     /* If dropdown only has one item, disable it */
     if (ctk_color_controls->color_range_table_size <= 1) {
-        return FALSE;
+        goto done;
     }
+    enable = TRUE;
 
-    return TRUE;
-
+done:
+    gtk_widget_set_sensitive(ctk_color_controls->color_range_menu, enable);
 } /* setup_color_range_dropdown() */
 
 

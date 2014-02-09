@@ -181,9 +181,6 @@ static void apply_perf_mode_token(char *token, char *value, void *data)
         pEntry->processorclockmin = atoi(value);
     } else if (!strcasecmp("processorclockmax", token)) {
         pEntry->processorclockmax = atoi(value);
-    } else {
-        nv_warning_msg("Unknown Perf Mode token value pair: %s=%s",
-                       token, value);
     }
 }
 

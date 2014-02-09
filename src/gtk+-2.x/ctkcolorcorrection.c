@@ -83,6 +83,8 @@ flush_attribute_channel_values (CtkColorCorrection *, gint, gint);
 static void
 ctk_color_correction_class_init(CtkColorCorrectionClass *);
 
+static void ctk_color_correction_finalize(GObject *);
+
 static void
 apply_parsed_attribute_list(CtkColorCorrection *, ParsedAttribute *);
 
@@ -154,10 +156,13 @@ GType ctk_color_correction_get_type(
 }
 
 
+
 static void
 ctk_color_correction_class_init(CtkColorCorrectionClass
                                 *ctk_color_correction_class)
 {
+    GObjectClass *gobject_class = (GObjectClass *)ctk_color_correction_class;
+
     signals[CHANGED] =
         g_signal_new("changed",
                      G_OBJECT_CLASS_TYPE(ctk_color_correction_class),
@@ -166,7 +171,26 @@ ctk_color_correction_class_init(CtkColorCorrectionClass
                      NULL, NULL,
                      g_cclosure_marshal_VOID__VOID,
                      G_TYPE_NONE, 0);
+    gobject_class->finalize = ctk_color_correction_finalize;
 }
+
+
+
+static void ctk_color_correction_finalize(GObject *object)
+{
+    CtkColorCorrection *ctk_object = CTK_COLOR_CORRECTION(object);
+
+    g_signal_handlers_disconnect_matched(G_OBJECT(ctk_object->ctk_event),
+                                         G_SIGNAL_MATCH_DATA,
+                                         0,
+                                         0,
+                                         NULL,
+                                         NULL,
+                                         (gpointer) ctk_object);
+
+
+}
+
 
 
 GtkWidget* ctk_color_correction_new(NvCtrlAttributeHandle *handle,
@@ -199,6 +223,7 @@ GtkWidget* ctk_color_correction_new(NvCtrlAttributeHandle *handle,
     ctk_color_correction = CTK_COLOR_CORRECTION(object);
     ctk_color_correction->handle = handle;
     ctk_color_correction->ctk_config = ctk_config;
+    ctk_color_correction->ctk_event = ctk_event;
     ctk_color_correction->confirm_timer = 0;
     ctk_color_correction->confirm_countdown =
         DEFAULT_CONFIRM_COLORCORRECTION_TIMEOUT;
@@ -858,11 +883,14 @@ static void apply_parsed_attribute_list(
 
     while (p) {
         CtrlHandleTargetNode *node;
+        const AttributeTableEntry *a = p->attr_entry;
 
         if (!p->next) goto next_attribute;
-        
-        if (!(p->flags & NV_PARSER_TYPE_COLOR_ATTRIBUTE)) goto next_attribute;
-        
+
+        if (a->type != NV_PARSER_ATTRIBUTE_TYPE_COLOR) {
+            goto next_attribute;
+        }
+
         /*
          * Apply the parsed attribute's settings only if the color 
          * correction's target matches one of the (parse attribute's)
@@ -878,8 +906,8 @@ static void apply_parsed_attribute_list(
                 (attr_target_id != target_id)) {
                 continue;
             }
-            
-            switch (p->attr & (ALL_VALUES | ALL_CHANNELS)) {
+
+            switch (a->attr & (ALL_VALUES | ALL_CHANNELS)) {
             case (CONTRAST_VALUE | RED_CHANNEL):
                 set_color_state(ctk_color_correction, CONTRAST,
                                 RED_CHANNEL, p->val.f, TRUE); break;
@@ -922,13 +950,13 @@ static void apply_parsed_attribute_list(
             default:
                 continue;
             }
-        
-            attr |= (p->attr & (ALL_VALUES | ALL_CHANNELS));
+
+            attr |= (a->attr & (ALL_VALUES | ALL_CHANNELS));
 
         }
-        
+
     next_attribute:
-        
+
         p = p->next;
     }
 

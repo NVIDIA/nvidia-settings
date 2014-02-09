@@ -74,7 +74,7 @@ static void splice_string(char **s, size_t b, size_t e, const char *replace)
 
 #define HEX_DIGITS "0123456789abcdefABCDEF"
 
-char *nv_app_profile_cfg_file_syntax_to_json(const char *orig_s)
+char *nv_app_profile_file_syntax_to_json(const char *orig_s)
 {
     char *s = strdup(orig_s);
 
@@ -428,6 +428,119 @@ static json_t *json_settings_parse(json_t *old_settings, const char *filename)
 }
 
 /*
+ * Load app profile key documentation from file.
+ */
+json_t *nv_app_profile_key_documentation_load(const char *key_docs_file)
+{
+    json_t *key_docs = NULL;
+    int ret, i;
+    struct stat stat_buf;
+    FILE *fp = NULL;
+
+    char *orig_text = NULL;
+    char *json_text = NULL;
+    json_t *orig_file = NULL;
+    json_t *orig_json_keys = NULL;
+    json_error_t error;
+
+    if (!key_docs_file) {
+        goto done;
+    }
+
+    ret = open_and_stat(key_docs_file, "r", &fp, &stat_buf);
+    if (ret < 0) {
+        goto done;
+    }
+
+    orig_text = slurp(fp);
+
+    if (!orig_text) {
+        nv_error_msg("Could not read from file %s", key_docs_file);
+        goto done;
+    }
+
+    // Convert the file contents to JSON
+    json_text = nv_app_profile_file_syntax_to_json(orig_text);
+
+    if (!json_text) {
+        nv_error_msg("App profile parse error in %s: "
+                     "text is not valid app profile key "
+                     "documentation syntax", key_docs_file);
+        goto done;
+    }
+
+    // Parse the resulting JSON
+    orig_file = json_loads(json_text, 0, &error);
+
+    if (!orig_file) {
+        nv_error_msg("App profile parse error in %s: %s on %s, line %d\n",
+                       key_docs_file, error.text, error.source, error.line);
+        goto done;
+    }
+
+    // Process the array of key objects within the top level object
+    orig_json_keys = json_object_get(orig_file, "registry_keys");
+
+    if (orig_json_keys) {
+        int size = json_array_size(orig_json_keys);
+
+        key_docs = json_array();
+
+        for (i = 0; i < size; i++) {
+            json_t *json_name, *json_description, *json_type;
+            json_t *json_key_object = json_array_get(orig_json_keys, i);
+
+            if (!json_is_object(json_key_object)) {
+                nv_error_msg("App profile parse error in %s: "
+                             "Object expected in 'registry_keys' array "
+                             "at position %d",
+                             key_docs_file, i);
+                continue;
+            }
+
+            json_name        = json_object_get(json_key_object, "key");
+            json_description = json_object_get(json_key_object, "description");
+            json_type        = json_object_get(json_key_object, "type");
+
+            /*
+             * Any invalid and non-string type for any fields per key will
+             * cause the key's data to not be added.
+             */
+            if (json_is_string(json_name) &&
+                json_is_string(json_description) &&
+                json_is_string(json_type)) {
+
+                json_t *new_json_key_object = json_object();
+
+                json_object_set(new_json_key_object, "key", json_name);
+                json_object_set(new_json_key_object, "description",
+                                json_description);
+                json_object_set(new_json_key_object, "type", json_type);
+
+                json_array_append_new(key_docs, new_json_key_object);
+            }
+        }
+    }
+
+
+done:
+    if (json_array_size(key_docs) == 0) {
+        json_decref(key_docs);
+        key_docs = NULL;
+    }
+
+    free(orig_text);
+    free(json_text);
+    json_decref(orig_file);
+
+    if (fp) {
+        fclose(fp);
+    }
+
+    return key_docs;
+}
+
+/*
  * Load app profile settings from an already-open file. This operation is
  * atomic: either all of the settings from the file are added to the
  * configuration, or none are.
@@ -462,7 +575,7 @@ static void app_profile_config_load_file(AppProfileConfig *config,
     }
 
     // Convert the file contents to JSON
-    json_text = nv_app_profile_cfg_file_syntax_to_json(orig_text);
+    json_text = nv_app_profile_file_syntax_to_json(orig_text);
 
     if (!json_text) {
         nv_error_msg("App profile parse error in %s: text is not valid app profile configuration syntax", filename);

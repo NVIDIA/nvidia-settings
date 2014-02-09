@@ -53,7 +53,7 @@ ifeq ($(MANPAGE_GZIP),1)
 else
   MANPAGE               = $(MANPAGE_not_gzipped)
 endif
-GEN_MANPAGE_OPTS        = $(OUTPUTDIR)/gen-manpage-opts
+GEN_MANPAGE_OPTS        = $(OUTPUTDIR_ABSOLUTE)/gen-manpage-opts
 OPTIONS_1_INC           = $(OUTPUTDIR)/options.1.inc
 
 common_cflags += -I $(COMMON_UTILS_DIR)
@@ -102,7 +102,7 @@ $(GEN_MANPAGE_OPTS): $(GEN_MANPAGE_OPTS_OBJS)
 	    $(HOST_CFLAGS) $(HOST_LDFLAGS) $(HOST_BIN_LDFLAGS) $^ -o $@
 
 $(OPTIONS_1_INC): $(GEN_MANPAGE_OPTS)
-	@./$< > $@
+	@$< > $@
 
 $(MANPAGE_not_gzipped): nvidia-settings.1.m4 $(OPTIONS_1_INC) $(VERSION_MK)
 	$(call quiet_cmd,M4) \

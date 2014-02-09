@@ -55,6 +55,7 @@ struct _CtkColorCorrection
     GtkVBox parent;
     NvCtrlAttributeHandle *handle;
     CtkConfig *ctk_config;
+    CtkEvent  *ctk_event;
     GtkWidget *option_menu;
     GtkObject *brightness_adjustment;
     GtkObject *contrast_adjustment;

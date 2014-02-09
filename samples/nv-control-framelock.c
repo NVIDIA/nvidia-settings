@@ -68,15 +68,19 @@ static void do_query(Display *dpy)
     Bool ret;
     int num_framelocks;
     int framelock;
-    int gpu;
-    int mask;
-    char *name;
-    
-    int *data;
-    int len;
-    int i;
 
+    int gpu, display;
+    int *gpu_data, *display_data;
+    char *gpu_name, *display_name;
+
+    int len;
+    int i, j;
     int enabled;
+
+    int current_config;
+    int display_enabled;
+
+    const char *current_str;
 
 
     /* Query the number of frame lock devices on the server */
@@ -95,7 +99,7 @@ static void do_query(Display *dpy)
     /* Display information for all frame lock devices found */
 
     for (framelock = 0; framelock < num_framelocks; framelock++) {
-        
+
         printf("\n");
         printf("- Frame Lock Board %d :\n", framelock);
 
@@ -107,7 +111,7 @@ static void do_query(Display *dpy)
              framelock, // target_id
              0, // display_mask
              NV_CTRL_BINARY_DATA_GPUS_USING_FRAMELOCK,
-             (unsigned char **) &data,
+             (unsigned char **) &gpu_data,
              &len);
         if (!ret) {
             printf("  - Failed to query list of GPUs!\n");
@@ -116,32 +120,33 @@ static void do_query(Display *dpy)
 
         /* Display information for all GPUs connected to frame lock device */
 
-        if ( !data[0] ) {
+        if ( !gpu_data[0] ) {
             printf("  - No GPUs found!\n");
         } else {
-            printf("  - Found %d GPU(s).\n", data[0]);
+            printf("  - Found %d GPU(s).\n", gpu_data[0]);
         }
 
-        for (i = 1; i <= data[0]; i++) {
-            gpu = data[i];
-        
+        for (i = 1; i <= gpu_data[0]; i++) {
+            gpu = gpu_data[i];
+
             /* Query GPU product name */
-            
+
             ret = XNVCTRLQueryTargetStringAttribute(dpy,
                                                     NV_CTRL_TARGET_TYPE_GPU,
                                                     gpu, // target_id
                                                     0, // display_mask
                                                     NV_CTRL_STRING_PRODUCT_NAME,
-                                                    &name);
+                                                    &gpu_name);
             if (!ret) {
                 printf("  - Failed to query GPU %d product name.\n", gpu);
                 continue;
-            } 
-            printf("  - GPU %d (%s) :\n", gpu, name);
+            }
+            printf("  - GPU %d (%s) :\n", gpu, gpu_name);
+            XFree(gpu_name);
 
             /* Query GPU sync state */
 
-            printf("    - Sync          : ");
+            printf("    - Sync    : ");
             ret = XNVCTRLQueryTargetAttribute(dpy,
                                               NV_CTRL_TARGET_TYPE_GPU,
                                               gpu, // target_id
@@ -156,52 +161,97 @@ static void do_query(Display *dpy)
 
             /* Query GPU displays */
 
-            printf("    - Displays Mask : ");
-            ret = XNVCTRLQueryTargetAttribute(dpy,
-                                              NV_CTRL_TARGET_TYPE_GPU,
-                                              gpu, // target_id
-                                              0, // display_mask
-                                              NV_CTRL_ENABLED_DISPLAYS,
-                                              &mask);
+            ret = XNVCTRLQueryTargetBinaryData
+                (dpy,
+                 NV_CTRL_TARGET_TYPE_GPU,
+                 gpu,
+                 0,
+                 NV_CTRL_BINARY_DATA_DISPLAYS_CONNECTED_TO_GPU,
+                 (unsigned char **) &display_data,
+                 &len);
+
             if (!ret) {
-                printf("Failed to query enabled displays.\n");
-            } else {
-                printf("0x%08x\n", mask);
+                printf("    - Failed to query connected displays.\n");
+                continue;
             }
 
-            /* Query GPU server (master) */
-
-            printf("    - Server Mask   : ");
-            ret = XNVCTRLQueryTargetAttribute(dpy,
-                                              NV_CTRL_TARGET_TYPE_GPU,
-                                              gpu, // target_id
-                                              0, // display_mask
-                                              NV_CTRL_FRAMELOCK_MASTER,
-                                              &mask);
-            if (!ret) {
-                printf("Failed to query server mask.\n");
-            } else {
-                printf("0x%08x\n", mask);
+            if (!display_data[0]) {
+                printf("    - No Connected Displays found.\n");
             }
 
-            /* Query GPU clients (slaves) */
+            for (j = 1; j <= display_data[0]; j++) {
 
-            printf("    - Clients Mask  : ");
-            ret = XNVCTRLQueryTargetAttribute(dpy,
-                                              NV_CTRL_TARGET_TYPE_GPU,
-                                              gpu, // target_id
-                                              0, // display_mask
-                                              NV_CTRL_FRAMELOCK_SLAVES,
-                                              &mask);
-            if (!ret) {
-                printf("Failed to query clients mask.\n");
-            } else {
-                printf("0x%08x\n", mask);
+                display = display_data[j];
+
+                /* Query if this display is enabled. Silently skip if not */
+
+                ret = XNVCTRLQueryTargetAttribute
+                    (dpy,
+                     NV_CTRL_TARGET_TYPE_DISPLAY,
+                     display,
+                     0,
+                     NV_CTRL_DISPLAY_ENABLED,
+                     &display_enabled);
+
+                if (!ret) {
+                    printf("    - Failed to query enabled displays.\n");
+                    continue;
+                }
+
+                if (!display_enabled) {
+                    continue;
+                }
+
+                /* Query current framelock config for this display */
+
+                ret = XNVCTRLQueryTargetAttribute
+                    (dpy,
+                     NV_CTRL_TARGET_TYPE_DISPLAY,
+                     display,
+                     0,
+                     NV_CTRL_FRAMELOCK_DISPLAY_CONFIG,
+                     &current_config);
+
+                if (!ret) {
+                    current_config = -1;
+                }
+
+                if (current_config == NV_CTRL_FRAMELOCK_DISPLAY_CONFIG_SERVER) {
+                    current_str = " - Server";
+                } else if (current_config ==
+                               NV_CTRL_FRAMELOCK_DISPLAY_CONFIG_CLIENT) {
+                    current_str = " - Client";
+                } else if (current_config ==
+                               NV_CTRL_FRAMELOCK_DISPLAY_CONFIG_DISABLED) {
+                    current_str = " - Disabled";
+                } else {
+                    current_str = " - Unknown";
+                }
+
+                /* Query Display name */
+
+                ret = XNVCTRLQueryTargetStringAttribute
+                    (dpy,
+                     NV_CTRL_TARGET_TYPE_DISPLAY,
+                     display,
+                     0,
+                     NV_CTRL_STRING_DISPLAY_NAME_RANDR,
+                     &display_name);
+
+                if (ret && display_name) {
+                    printf("    - Display : %s%s\n", display_name, current_str);
+                    XFree(display_name);
+                } else {
+                    printf("    - Display : 0x%08x%s\n", display, current_str);
+                }
+
             }
+
+            XFree(display_data);
 
         } /* Done disabling GPUs */
 
-        XFree(data);
+        XFree(gpu_data);
 
     } /* Done disabling Frame Lock Devices */
 
@@ -213,8 +263,8 @@ static void do_query(Display *dpy)
  * do_enable()
  *
  * Enables frame lock on the X Server by setting the first capable/available
- * display device as the frame lock server (master) and setting all other
- * display devices as clients (slaves).
+ * display device as the frame lock server and setting all other display
+ * devices as clients.
  *
  * NOTE: It is up to the user to ensure that each display device is set with
  *       the same refresh rate (mode timings).
@@ -225,18 +275,20 @@ static void do_enable(Display *dpy)
     Bool ret;
     int num_framelocks;
     int framelock;
-    int gpu;
-    unsigned int mask;
 
-    int *data;
+    int gpu, display;
+    int *gpu_data, *display_data;
+    char *display_name;
+
     int len;
-    int i;
+    int i, j;
 
     int enabled;
-    int masterable;
+    int serverable;
     int pick_server = 1;
     int server_set = 0;
 
+    NVCTRLAttributeValidValuesRec values;
 
     /* Query the number of frame lock devices to enable */
 
@@ -252,41 +304,41 @@ static void do_enable(Display *dpy)
     }
 
     /* Enable frame lock on all GPUs connected to each frame lock device */
-    
+
     for (framelock = 0; framelock < num_framelocks; framelock++) {
-        
+
         printf("\n");
         printf("- Frame Lock Board %d :\n", framelock);
 
         /* Query the GPUs connected to this frame lock device */
-        
+
         ret = XNVCTRLQueryTargetBinaryData
             (dpy,
              NV_CTRL_TARGET_TYPE_FRAMELOCK,
              framelock, // target_id
              0, // display_mask
              NV_CTRL_BINARY_DATA_GPUS_USING_FRAMELOCK,
-             (unsigned char **) &data,
+             (unsigned char **) &gpu_data,
              &len);
         if (!ret) {
             printf("  - Failed to query list of GPUs!\n");
             continue;
         }
-        
+
         /* Enable frame lock on all GPUs connected to the frame lock device */
-        
-        if ( !data[0] ) {
+
+        if ( !gpu_data[0] ) {
             printf("  - No GPUs found!\n");
         } else {
-            printf("  - Found %d GPU(s).\n", data[0]);
+            printf("  - Found %d GPU(s).\n", gpu_data[0]);
         }
 
-        for (i = 1; i <= data[0]; i++) {
-            gpu = data[i];
-        
-            printf("  - Enabling Quadro Sync Device %d - GPU %d... ",
+        for (i = 1; i <= gpu_data[0]; i++) {
+            gpu = gpu_data[i];
+
+            printf("  - Enabling Quadro Sync Device %d - GPU %d...\n",
                    framelock, gpu);
-            
+
             /* Make sure frame lock is disabled */
 
             XNVCTRLQueryTargetAttribute(dpy,
@@ -296,109 +348,129 @@ static void do_enable(Display *dpy)
                                         NV_CTRL_FRAMELOCK_SYNC,
                                         &enabled);
             if (enabled != NV_CTRL_FRAMELOCK_SYNC_DISABLE) {
-                printf("Frame lock already enabled!\n");
+                printf("    - Frame lock already enabled!\n");
                 continue;
             }
 
             /* Get the list of displays to enable */
 
-            ret = XNVCTRLQueryTargetAttribute(dpy,
-                                              NV_CTRL_TARGET_TYPE_GPU,
-                                              gpu, // target_id
-                                              0, // display_mask
-                                              NV_CTRL_ENABLED_DISPLAYS,
-                                              (int *)&mask);
+            ret = XNVCTRLQueryTargetBinaryData
+                (dpy,
+                 NV_CTRL_TARGET_TYPE_GPU,
+                 gpu,
+                 0,
+                 NV_CTRL_BINARY_DATA_DISPLAYS_CONNECTED_TO_GPU,
+                 (unsigned char **) &display_data,
+                 &len);
+
             if (!ret) {
-                printf("Failed to query enabled displays!\n");
+                printf("    - Failed to query enabled displays.\n");
                 continue;
             }
 
-            /* Query if any of the enabled displays can be set as a
-             * master on this GPU.
-             */
-
-            ret = XNVCTRLQueryTargetAttribute(dpy,
-                                              NV_CTRL_TARGET_TYPE_GPU,
-                                              gpu, // target_id
-                                              mask, // display_mask
-                                              NV_CTRL_FRAMELOCK_MASTERABLE,
-                                              &masterable);
-            if (!ret) {
-                printf("Failed to query masterable!\n");
-                continue;
+            if (!display_data[0]) {
+                printf("    - No Connected Displays found!\n");
             }
-            
-            /* Clear the master setting if any */
-            
-            if (masterable) {
-                XNVCTRLSetTargetAttribute(dpy,
-                                          NV_CTRL_TARGET_TYPE_GPU,
-                                          gpu, // target_id
-                                          0, // display_mask
-                                          NV_CTRL_FRAMELOCK_MASTER,
-                                          0);
-            }
-            
-            /* Clear the slaves setting if any */
 
-            XNVCTRLSetTargetAttribute(dpy,
-                                      NV_CTRL_TARGET_TYPE_GPU,
-                                      gpu, // target_id
-                                      0, // display_mask
-                                      NV_CTRL_FRAMELOCK_SLAVES,
-                                      0);
+            for (j = 1; j <= display_data[0]; j++) {
 
-            printf("\n");
-            
-            /* Pick the first available/capable display device as master */
+                display = display_data[j];
 
-            if (pick_server && masterable) {
-                
-                /* Just pick the first enabled display */
-                
-                unsigned int master = (1<<31);
-                while (master && !(master & masterable)) {
-                    master >>= 1;
+                /* Query if display is enabled. Silently continue if not */
+
+                ret = XNVCTRLQueryTargetAttribute
+                    (dpy,
+                     NV_CTRL_TARGET_TYPE_DISPLAY,
+                     display,
+                     0,
+                     NV_CTRL_DISPLAY_ENABLED,
+                     &enabled);
+
+                if (!ret) {
+                    printf("    - Failed to query enabled displays.\n");
+                    continue;
                 }
-                
-                if (master) {
-                    mask &= ~master;
+
+                if (!enabled) {
+                    continue;
+                }
+
+                /* Query possible framelock configs for this display */
+
+                ret = XNVCTRLQueryValidTargetAttributeValues
+                    (dpy,
+                     NV_CTRL_TARGET_TYPE_DISPLAY,
+                     display,
+                     0,
+                     NV_CTRL_FRAMELOCK_DISPLAY_CONFIG,
+                     &values);
+
+                if (!ret) {
+                    continue;
+                }
+
+                serverable = (values.u.bits.ints &
+                    (1 << NV_CTRL_FRAMELOCK_DISPLAY_CONFIG_SERVER));
+
+                /* Query Display name */
+
+                ret = XNVCTRLQueryTargetStringAttribute
+                    (dpy,
+                     NV_CTRL_TARGET_TYPE_DISPLAY,
+                     display,
+                     0,
+                     NV_CTRL_STRING_DISPLAY_NAME_RANDR,
+                     &display_name);
+
+                if (ret && display_name) {
+                    printf("    - Display %s", display_name);
+                    XFree(display_name);
+                } else {
+                    printf("    - Display 0x%08x", display);
+                }
+
+                /* Pick the first capable display device as the server */
+
+                if (pick_server && serverable) {
 
                     /* Make sure we're not using the House Sync signal. */
-                    
+
                     XNVCTRLSetTargetAttribute(dpy,
                                               NV_CTRL_TARGET_TYPE_FRAMELOCK,
                                               framelock, // target_id
                                               0, // display_mask
                                               NV_CTRL_USE_HOUSE_SYNC,
                                               NV_CTRL_USE_HOUSE_SYNC_FALSE);
-                    
-                    /* Set the master */
-                    
-                    XNVCTRLSetTargetAttribute(dpy,
-                                              NV_CTRL_TARGET_TYPE_GPU,
-                                              gpu, // target_id
-                                              0, // display_mask
-                                              NV_CTRL_FRAMELOCK_MASTER,
-                                              master);
 
-                    printf("    - Set Server Display    : 0x%08x\n", master);
-                    pick_server = 0;
+                    XNVCTRLSetTargetAttribute
+                        (dpy,
+                         NV_CTRL_TARGET_TYPE_DISPLAY,
+                         display,
+                         0,
+                         NV_CTRL_FRAMELOCK_DISPLAY_CONFIG,
+                         NV_CTRL_FRAMELOCK_DISPLAY_CONFIG_SERVER);
+
                     server_set = 1;
+                    pick_server = 0;
+
+                    printf(" - Set as Server\n");
+
+                } else {
+
+                    XNVCTRLSetTargetAttribute
+                        (dpy,
+                         NV_CTRL_TARGET_TYPE_DISPLAY,
+                         display,
+                         0,
+                         NV_CTRL_FRAMELOCK_DISPLAY_CONFIG,
+                         NV_CTRL_FRAMELOCK_DISPLAY_CONFIG_CLIENT);
+
+                    printf(" - Set as Client\n");
+
                 }
             }
 
-            /* Set rest of enabled display devices as clients (slaves) */
-
-            if (mask) {
-                XNVCTRLSetTargetAttribute(dpy,
-                                          NV_CTRL_TARGET_TYPE_GPU,
-                                          gpu, // target_id
-                                          0, // display_mask
-                                          NV_CTRL_FRAMELOCK_SLAVES,
-                                          mask);
-                printf("    - Set Client Display(s) : 0x%08x\n", mask);
-            }
+            XFree(display_data);
 
             /* Enable frame lock */
 
@@ -410,7 +482,7 @@ static void do_enable(Display *dpy)
                                       NV_CTRL_FRAMELOCK_SYNC_ENABLE);
             XFlush(dpy);
             printf("    - Frame Lock Sync Enabled.\n");
-            
+
             /* If we just enabled the server, also toggle the test signal
              * to guarantee accuracy of the universal frame count (as
              * returned by the glXQueryFrameCountNV() function in the
@@ -423,7 +495,7 @@ static void do_enable(Display *dpy)
                                           0, // display_mask
                                           NV_CTRL_FRAMELOCK_TEST_SIGNAL,
                                           NV_CTRL_FRAMELOCK_TEST_SIGNAL_ENABLE);
-                                          
+
                 XNVCTRLSetTargetAttribute(dpy,
                                           NV_CTRL_TARGET_TYPE_GPU,
                                           gpu, // target_id
@@ -437,7 +509,7 @@ static void do_enable(Display *dpy)
 
         } /* Done enabling GPUs */
 
-        XFree(data);
+        XFree(gpu_data);
 
     } /* Done enabling framelocks */
 }
@@ -471,7 +543,7 @@ static void do_disable(Display *dpy)
     /* Disable frame lock on all GPUs connected to each frame lock device */
 
     for (framelock = 0; framelock < num_framelocks; framelock++) {
-        
+
         printf("\n");
         printf("- Frame Lock Board %d :\n", framelock);
 
@@ -491,7 +563,7 @@ static void do_disable(Display *dpy)
         }
 
         /* Disable frame lock on all GPUs connected to the frame lock device */
-        
+
         if ( !data[0] ) {
             printf("  - No GPUs found!\n");
         } else {
@@ -500,7 +572,7 @@ static void do_disable(Display *dpy)
 
         for (i = 1; i <= data[0]; i++) {
             gpu = data[i];
-        
+
             printf("  - Disabling Quadro Sync Device %d - GPU %d... ",
                    framelock, gpu);
 
@@ -533,13 +605,13 @@ int main(int argc, char *argv[])
      * Open a display connection, and make sure the NV-CONTROL X
      * extension is present on the screen we want to use.
      */
-    
+
     dpy = XOpenDisplay(NULL);
     if (!dpy) {
         printf("Cannot open display '%s'.\n", XDisplayName(NULL));
         return 1;
     }
-    
+
     /* Query the NV-CONTROL version */
 
     ret = XNVCTRLQueryVersion(dpy, &major, &minor);
@@ -548,7 +620,7 @@ int main(int argc, char *argv[])
                 XDisplayName(NULL));
         return 1;
     }
-    
+
     /* Print some information */
 
     printf("Using NV-CONTROL extension %d.%d on %s\n\n",
@@ -559,7 +631,7 @@ int main(int argc, char *argv[])
                " is required for configuring Frame Lock via target types.\n");
         return 1;
     }
-    
+
     /* Do what the user wants */
 
     if (argc <= 1 || (strcmp(argv[1], "-q") == 0)) {

@@ -82,8 +82,6 @@ void apply_modeline_token(char *token, char *value, void *data)
             modeline->source |=  MODELINE_SOURCE_EDID;
         } else if (!strcasecmp("nv-control", value)) {
             modeline->source |=  MODELINE_SOURCE_NVCONTROL;
-        } else {
-            nv_warning_msg("Unknown modeline source '%s'", value);
         }
 
     /* X config name */
@@ -141,8 +139,6 @@ void apply_metamode_token(char *token, char *value, void *data)
             metamode->source = METAMODE_SOURCE_NVCONTROL;
         } else if (!strcasecmp("randr", value)) {
             metamode->source = METAMODE_SOURCE_RANDR;
-        } else {
-            nv_warning_msg("Unknown MetaMode source '%s'", value);
         }
 
     /* Switchable */
@@ -156,14 +152,8 @@ void apply_metamode_token(char *token, char *value, void *data)
                 metamode->switchable = FALSE;
             }
         }
-
-    /* Unknown token */
-    } else {
-        nv_warning_msg("Unknown MetaMode token value pair: %s=%s",
-                       token, value);
     }
-
-} /* apply_metamode_token() */
+}
 
 
 
@@ -184,14 +174,8 @@ void apply_monitor_token(char *token, char *value, void *data)
     if (!strcasecmp("source", token)) {
         if (*source) free(*source);
         *source = strdup(value);
-
-    /* Unknown token */
-    } else {
-        nv_warning_msg("Unknown monitor range token value pair: %s=%s",
-                       token, value);
     }
-
-} /* apply_monitor_token() */
+}
 
 
 
@@ -221,11 +205,6 @@ void apply_screen_info_token(char *token, char *value, void *data)
 
     } else if (!strcasecmp("height", token)) {
         screen_info->height = atoi(value);
-
-    /* Unknown token */
-    } else {
-        nv_warning_msg("Unknown screen info token value pair: %s=%s",
-                       token, value);
     }
 }
 
@@ -645,10 +624,9 @@ static void apply_mode_attribute_token(char *token, char *value, void *data)
         str = parse_read_integer_pair(str, 0,
                                       &(mode->viewPortOut.x),
                                       &(mode->viewPortOut.y));
-    }
 
     /* Rotation */
-    if (!strcasecmp("rotation", token)) {
+    } else if (!strcasecmp("rotation", token)) {
         if (!strcasecmp("left", value) ||
             !strcasecmp("CCW", value) ||
             !strcasecmp("90", value)) {
@@ -662,10 +640,9 @@ static void apply_mode_attribute_token(char *token, char *value, void *data)
                    !strcasecmp("270", value)) {
             mode->rotation = ROTATION_270;
         }
-    }
 
     /* Reflection */
-    if (!strcasecmp("reflection", token)) {
+    } else if (!strcasecmp("reflection", token)) {
         if (!strcasecmp("x", value)) {
             mode->reflection = REFLECTION_X;
         } else if (!strcasecmp("y", value)) {
@@ -674,8 +651,7 @@ static void apply_mode_attribute_token(char *token, char *value, void *data)
             mode->reflection = REFLECTION_XY;
         }
     }
-
-} /* apply_mode_attribute_token() */
+}
 
 
 

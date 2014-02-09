@@ -108,6 +108,7 @@ struct _Ctk3DVisionPro
     NvCtrlAttributeHandle  *handle;
     GtkWindow              *parent_wnd;
     CtkConfig              *ctk_config;
+    CtkEvent               *ctk_event;
     GtkWidget              *menu;
     guint                   num_htu;
     HtuInfo**               htu_info;

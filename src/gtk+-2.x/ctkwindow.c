@@ -405,11 +405,14 @@ GtkWidget *ctk_window_new(ParsedAttribute *p, ConfigProperties *conf,
 
     GtkTextBuffer *help;
         
+    NvCtrlAttributeHandle *server_handle = NULL;
+
     CtkEvent *ctk_event;
     CtkConfig *ctk_config;
     
     gint column_offset, i;
     gboolean slimm_page_added; /* XXX Kludge to only show one SLIMM page */
+    gchar *driver_version;
     
     /* create the new object */
 
@@ -564,27 +567,26 @@ GtkWidget *ctk_window_new(ParsedAttribute *p, ConfigProperties *conf,
 
     if (h->targets[X_SCREEN_TARGET].n) {
 
-        NvCtrlAttributeHandle *screen_handle = NULL;
         GtkWidget *child;
         int i;
 
         /*
          * XXX For now, just use the first handle in the list
          *     to communicate with the X server for these two
-         *     pages.
+         *     pages and the app profile page below.
          */
 
         for (i = 0 ; i < h->targets[X_SCREEN_TARGET].n; i++) {
             if (h->targets[X_SCREEN_TARGET].t[i].h) {
-                screen_handle = h->targets[X_SCREEN_TARGET].t[i].h;
+                server_handle = h->targets[X_SCREEN_TARGET].t[i].h;
                 break;
             }
         }
-        if (screen_handle) {
+        if (server_handle) {
 
             /* X Server information */
             
-            child = ctk_server_new(screen_handle, ctk_config);
+            child = ctk_server_new(server_handle, ctk_config);
             add_page(child,
                      ctk_server_create_help(tag_table,
                                             CTK_SERVER(child)),
@@ -593,7 +595,7 @@ GtkWidget *ctk_window_new(ParsedAttribute *p, ConfigProperties *conf,
 
             /* X Server Display Configuration */
 
-            child = ctk_display_config_new(screen_handle, ctk_config);
+            child = ctk_display_config_new(server_handle, ctk_config);
             if (child) {
                 add_page(child,
                          ctk_display_config_create_help(tag_table,
@@ -1022,7 +1024,18 @@ GtkWidget *ctk_window_new(ParsedAttribute *p, ConfigProperties *conf,
     }
 
     /* app profile configuration */
-    widget = ctk_app_profile_new(ctk_config);
+    if (server_handle)
+    {
+        ReturnStatus ret = NvCtrlGetStringAttribute(server_handle,
+                               NV_CTRL_STRING_NVIDIA_DRIVER_VERSION,
+                               &driver_version);
+        if (ret != NvCtrlSuccess) {
+            driver_version = NULL;
+        }
+    }
+
+    widget = ctk_app_profile_new(ctk_config, driver_version);
+    XFree(driver_version);
 
     add_page(widget, ctk_app_profile_create_help(CTK_APP_PROFILE(widget), tag_table),
              ctk_window, NULL, NULL, "Application Profiles",

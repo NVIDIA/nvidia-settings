@@ -5782,20 +5782,26 @@ static void add_devices(CtkFramelock *ctk_framelock,
  * to the parsed attribute list.
  *
  */
-#define __ADD_ATTR(ATTR,VAL)                            \
-        a.display              = display_name;          \
-        a.target_type          = target_type;           \
-        a.target_id            = target_id;             \
-        a.attr                 = (ATTR);                \
-        a.val.i                = (VAL);                 \
-        a.display_device_mask  = 0;                     \
-        a.flags               |= NV_PARSER_HAS_TARGET;  \
-        nv_parsed_attribute_add(head, &a);
+#define __ADD_ATTR(ATTR, VAL)                        \
+    {                                                \
+        ParsedAttribute a;                           \
+                                                     \
+        memset(&a, 0, sizeof(a));                    \
+                                                     \
+        a.display      = display_name;               \
+        a.target_type  = target_type;                \
+        a.target_id    = target_id;                  \
+        a.attr_entry   =                             \
+            nv_get_attribute_entry((ATTR), NV_PARSER_ATTRIBUTE_TYPE_INTEGER); \
+        a.val.i        = (VAL);                      \
+        a.parser_flags.has_target = NV_TRUE;         \
+                                                     \
+        nv_parsed_attribute_add(head, &a);           \
+    }
 
 static void add_entry_to_parsed_attributes(nvListEntryPtr entry,
                                              ParsedAttribute *head)
 {
-    ParsedAttribute a;
     char *display_name = NULL;
     int target_type = 0;
     int target_id = 0;
@@ -5804,14 +5810,13 @@ static void add_entry_to_parsed_attributes(nvListEntryPtr entry,
         return;
     }
 
-    memset(&a, 0, sizeof(a));
-
     switch (entry->data_type) {
 
     case ENTRY_DATA_FRAMELOCK:
         {
             int use_house_sync;
             nvFrameLockDataPtr data = (nvFrameLockDataPtr)(entry->data);
+
             display_name = NvCtrlGetDisplayName(data->handle);
             target_type = NV_CTRL_TARGET_TYPE_FRAMELOCK;
             target_id = NvCtrlGetTargetId(data->handle);
@@ -5854,22 +5859,26 @@ static void add_entry_to_parsed_attributes(nvListEntryPtr entry,
 
     case ENTRY_DATA_DISPLAY:
         {
-        nvDisplayDataPtr data = (nvDisplayDataPtr)(entry->data);
-        int config;
-        ReturnStatus ret;
+            nvDisplayDataPtr data = (nvDisplayDataPtr)(entry->data);
+            int config;
+            ReturnStatus ret;
 
-        display_name = NvCtrlGetDisplayName(data->handle);
+            display_name = NvCtrlGetDisplayName(data->handle);
+            target_type = NV_CTRL_TARGET_TYPE_DISPLAY;
+            target_id = NvCtrlGetTargetId(data->handle);
 
-        ret = NvCtrlGetAttribute(data->handle,
-                                 NV_CTRL_FRAMELOCK_DISPLAY_CONFIG,
-                                 &config);
-        if (ret != NvCtrlSuccess) {
-            config = NV_CTRL_FRAMELOCK_DISPLAY_CONFIG_DISABLED;
-        }
-        target_type = NV_CTRL_TARGET_TYPE_DISPLAY;
-        target_id = NvCtrlGetTargetId(data->handle);
+            ret = NvCtrlGetAttribute(data->handle,
+                                     NV_CTRL_FRAMELOCK_DISPLAY_CONFIG,
+                                     &config);
+            if (ret != NvCtrlSuccess) {
+                config = NV_CTRL_FRAMELOCK_DISPLAY_CONFIG_DISABLED;
+            }
 
-        __ADD_ATTR(NV_CTRL_FRAMELOCK_DISPLAY_CONFIG, config);
+            __ADD_ATTR(NV_CTRL_FRAMELOCK_DISPLAY_CONFIG, config);
+
+            if (display_name) {
+                free(display_name);
+            }
         }
         break;
 
@@ -5947,18 +5956,25 @@ static void apply_parsed_attribute_list(CtkFramelock *ctk_framelock,
     /* Add frame lock devices for all servers */
 
     for (p = list; p && p->next; p = p->next) {
+
+        /* Only process Frame Lock attributes */
+        if (!(p->attr_entry->flags.is_framelock_attribute)) {
+            continue;
+        }
+
+        /* Check to see if the server is already added */
         if (server_name) {
             free(server_name);
         }
         server_name = nv_standardize_screen_name(p->display, -2);
-        if (!server_name) continue;
-    
-        /* Not a frame lock attribute */
-        if (!(p->flags & NV_PARSER_TYPE_FRAMELOCK)) continue;
+        if (!server_name) {
+            continue;
+        }
 
-        /* Server already added */
-        if (find_server_by_name
-            ((nvListTreePtr)(ctk_framelock->tree), server_name)) continue;
+        if (find_server_by_name((nvListTreePtr)(ctk_framelock->tree),
+                                server_name)) {
+            continue;
+        }
 
         /* Add all the devices from this attribute's server */
         add_devices(ctk_framelock, server_name, FALSE);

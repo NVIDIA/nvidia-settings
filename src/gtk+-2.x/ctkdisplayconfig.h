@@ -126,6 +126,8 @@ typedef struct _CtkDisplayConfig
 
     GtkWidget *box_display_stereo;
     GtkWidget *mnu_display_stereo;
+    int stereo_table[NV_CTRL_STEREO_MAX + 1];
+    int stereo_table_size;
 
     GtkWidget *box_display_orientation;
     GtkWidget *mnu_display_rotation;

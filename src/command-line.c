@@ -34,22 +34,12 @@
 #include "NvCtrlAttributes.h"
 
 #include "common-utils.h"
+#include "config-file.h"
 
 /* local prototypes */
 
 static void print_attribute_help(char *attr);
 static void print_help(void);
-
-/*
- * verbosity, controls output of errors, warnings and other
- * information (used by msg.c).
- */
-
-int __verbosity = VERBOSITY_DEPRECATED;
-int __terse = NV_FALSE;
-int __display_device_string = NV_FALSE;
-int __verbosity_level_changed = NV_FALSE;
-int __list_targets = NV_FALSE;
 
 /*
  * print_version() - print version information
@@ -79,7 +69,7 @@ static void print_version(void)
 
 static void print_attribute_help(char *attr)
 {
-    const AttributeTableEntry *entry;
+    int i;
     int found = 0;
     int list_all = 0;
     int show_desc = 1;
@@ -95,52 +85,86 @@ static void print_attribute_help(char *attr)
 
     nv_msg(NULL, "");
 
-    for (entry = attributeTable; entry->name; entry++) {
+    for (i = 0; i < attributeTableLen; i++) {
+        const AttributeTableEntry *entry = attributeTable + i;
 
         if (list_all || !strcasecmp(attr, entry->name)) {
 
             if (show_desc) {
                 nv_msg(NULL, "Attribute '%s':", entry->name);
 
-                if (entry->flags & NV_PARSER_TYPE_FRAMELOCK) {
-                    nv_msg(NULL, "  - Is Frame Lock attribute.");
+                /* Attribute type (value) information */
+
+                switch (entry->type) {
+                case NV_PARSER_ATTRIBUTE_TYPE_INTEGER:
+                    nv_msg(NULL, "  - Attribute value is an integer.");
+                    break;
+                case NV_PARSER_ATTRIBUTE_TYPE_STRING:
+                case NV_PARSER_ATTRIBUTE_TYPE_STRING_OPERATION:
+                    nv_msg(NULL, "  - Attribute value is a string.");
+                    break;
+                case NV_PARSER_ATTRIBUTE_TYPE_COLOR:
+                    nv_msg(NULL, "  - Attribute value is a color.");
+                    break;
+                case NV_PARSER_ATTRIBUTE_TYPE_SDI_CSC:
+                    nv_msg(NULL, "  - Attribute value is a SDI CSC matrix.");
+                    break;
                 }
-                if (entry->flags & NV_PARSER_TYPE_NO_CONFIG_WRITE) {
-                    nv_msg(NULL, "  - Attribute is not written to the rc file.");
-                }
-                if (entry->flags & NV_PARSER_TYPE_GUI_ATTRIBUTE) {
+
+                /* Attribute flags (common) */
+
+                if (entry->flags.is_gui_attribute) {
                     nv_msg(NULL, "  - Is GUI attribute.");
                 }
-                if (entry->flags & NV_PARSER_TYPE_PACKED_ATTRIBUTE) {
-                    nv_msg(NULL, "  - Attribute value is packed integer.");
+                if (entry->flags.is_framelock_attribute) {
+                    nv_msg(NULL, "  - Is Frame Lock attribute.");
                 }
-                if (entry->flags & NV_PARSER_TYPE_VALUE_IS_DISPLAY) {
-                    nv_msg(NULL, "  - Attribute value is a display mask.");
-                }
-                if (entry->flags & NV_PARSER_TYPE_NO_QUERY_ALL) {
-                    nv_msg(NULL, "  - Attribute not queried in 'query all'.");
-                }
-                if (entry->flags & NV_PARSER_TYPE_NO_ZERO_VALUE) {
-                    nv_msg(NULL, "  - Attribute cannot be zero.");
-                }
-                if (entry->flags & NV_PARSER_TYPE_100Hz) {
-                    nv_msg(NULL, "  - Attribute value is in units of Centihertz (1/100Hz).");
-                }
-                if (entry->flags & NV_PARSER_TYPE_1000Hz) {
-                    nv_msg(NULL, "  - Attribute value is in units of Milihertz (1/1000 Hz).");
-                }
-                if (entry->flags & NV_PARSER_TYPE_STRING_ATTRIBUTE) {
-                    nv_msg(NULL, "  - Attribute value is string.");
-                }
-                if (entry->flags & NV_PARSER_TYPE_SDI) {
+                if (entry->flags.is_sdi_attribute) {
                     nv_msg(NULL, "  - Is SDI attribute.");
                 }
-                if (entry->flags & NV_PARSER_TYPE_VALUE_IS_SWITCH_DISPLAY) {
-                    nv_msg(NULL, "  - Attribute value is switch display.");
+                if (entry->flags.no_config_write) {
+                    nv_msg(NULL, "  - Attribute is not written to the rc file.");
                 }
-                if (entry->flags & NV_PARSER_TYPE_VALUE_IS_DISPLAY_ID) {
-                    nv_msg(NULL, "  - Attribute value is a display id.");
+                if (entry->flags.no_query_all) {
+                    nv_msg(NULL, "  - Attribute not queried in 'query all'.");
                 }
+
+                /* Attribute type-specific flags */
+
+                switch (entry->type) {
+                case NV_PARSER_ATTRIBUTE_TYPE_INTEGER:
+                    if (entry->f.int_flags.is_100Hz) {
+                        nv_msg(NULL, "  - Attribute value is in units of Centihertz "
+                               "(1/100Hz).");
+                    }
+                    if (entry->f.int_flags.is_1000Hz) {
+                        nv_msg(NULL, "  - Attribute value is in units of Milihertz "
+                               "(1/1000 Hz).");
+                    }
+                    if (entry->f.int_flags.is_packed) {
+                        nv_msg(NULL, "  - Attribute value is packed integer.");
+                    }
+                    if (entry->f.int_flags.is_display_mask) {
+                        nv_msg(NULL, "  - Attribute value is a display mask.");
+                    }
+                    if (entry->f.int_flags.is_display_id) {
+                        nv_msg(NULL, "  - Attribute value is a display ID.");
+                    }
+                    if (entry->f.int_flags.no_zero) {
+                        nv_msg(NULL, "  - Attribute cannot be zero.");
+                    }
+                    if (entry->f.int_flags.is_switch_display) {
+                        nv_msg(NULL, "  - Attribute value is switch display.");
+                    }
+                    break;
+                case NV_PARSER_ATTRIBUTE_TYPE_STRING:
+                case NV_PARSER_ATTRIBUTE_TYPE_COLOR:
+                case NV_PARSER_ATTRIBUTE_TYPE_SDI_CSC:
+                case NV_PARSER_ATTRIBUTE_TYPE_STRING_OPERATION:
+                    /* Nothing specific to report for these */
+                    break;
+                }
+
                 nv_msg(TAB, "%s", entry->desc);
                 nv_msg(NULL, "");
             } else {
@@ -200,10 +224,12 @@ Options *parse_command_line(int argc, char *argv[], char *dpy,
     Options *op;
     int n, c;
     char *strval;
+    int boolval;
 
     op = nvalloc(sizeof(Options));
     op->config = DEFAULT_RC_FILE;
-    
+    op->write_config = NV_TRUE;
+
     /*
      * initialize the controlled display to the gui display name
      * passed in.
@@ -213,7 +239,7 @@ Options *parse_command_line(int argc, char *argv[], char *dpy,
     
     while (1) {
         c = nvgetopt(argc, argv, __options, &strval,
-                     NULL,  /* boolval */
+                     &boolval,  /* boolval */
                      NULL,  /* intval */
                      NULL,  /* doubleval */
                      NULL); /* disable_val */
@@ -230,27 +256,27 @@ Options *parse_command_line(int argc, char *argv[], char *dpy,
         case 'c': op->ctrl_display = strval; break;
         case 'p': op->page = strval; break;
         case 'V':
-            __verbosity = VERBOSITY_DEFAULT;
+            nv_set_verbosity(NV_VERBOSITY_DEFAULT);
             if (!strval) {
                 /* user didn't give argument, assume "all" */
-                __verbosity = VERBOSITY_ALL;
+                nv_set_verbosity(NV_VERBOSITY_ALL);
             } else if (nv_strcasecmp(strval, "none") == NV_TRUE) {
-                __verbosity = VERBOSITY_NONE;
+                nv_set_verbosity(NV_VERBOSITY_NONE);
             } else if (nv_strcasecmp(strval, "errors") == NV_TRUE) {
-                __verbosity = VERBOSITY_ERROR;
+                nv_set_verbosity(NV_VERBOSITY_ERROR);
             } else if (nv_strcasecmp(strval, "deprecations") == NV_TRUE) {
-                __verbosity = VERBOSITY_DEPRECATED;
+                nv_set_verbosity(NV_VERBOSITY_DEPRECATED);
             } else if (nv_strcasecmp(strval, "warnings") == NV_TRUE) {
-                __verbosity = VERBOSITY_WARNING;
+                nv_set_verbosity(NV_VERBOSITY_WARNING);
             } else if (nv_strcasecmp(strval, "all") == NV_TRUE) {
-                __verbosity = VERBOSITY_ALL;
+                nv_set_verbosity(NV_VERBOSITY_ALL);
             } else {
                 nv_error_msg("Invalid verbosity level '%s'.  Please run "
                              "`%s --help` for usage information.\n",
                              strval, argv[0]);
                 exit(0);
             }
-            __verbosity_level_changed = NV_TRUE;
+            set_dynamic_verbosity(NV_FALSE);
             break;
         case 'a':
             n = op->num_assignments;
@@ -267,10 +293,11 @@ Options *parse_command_line(int argc, char *argv[], char *dpy,
             break;
         case CONFIG_FILE_OPTION: op->config = strval; break;
         case 'g': print_glxinfo(NULL, handles_array); exit(0); break;
-        case 't': __terse = NV_TRUE; break;
-        case 'd': __display_device_string = NV_TRUE; break;
+        case 't': op->terse = NV_TRUE; break;
+        case 'd': op->dpy_string = NV_TRUE; break;
         case 'e': print_attribute_help(strval); exit(0); break;
-        case 'L': __list_targets = NV_TRUE; break;
+        case 'L': op->list_targets = NV_TRUE; break;
+        case 'w': op->write_config = boolval; break;
         default:
             nv_error_msg("Invalid commandline, please run `%s --help` "
                          "for usage information.\n", argv[0]);

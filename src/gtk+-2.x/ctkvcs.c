@@ -50,9 +50,6 @@ static void apply_fan_entry_token(char *token, char *value, void *data)
         pFanEntry->fan_speed = atoi(value);
     } else if (!strcasecmp("fail", token)) {
         pFanEntry->fan_failed = atoi(value);
-    } else {
-        nv_warning_msg("Unknown Fan Entry token value pair: %s=%s",
-                       token, value);
     }
 }
 
@@ -66,9 +63,6 @@ static void apply_thermal_entry_token(char *token, char *value, void *data)
         pThermalEntry->exhaust_temp = atoi(value);
     } else if (!strcasecmp("board", token)) {
         pThermalEntry->board_temp = atoi(value);
-    } else {
-        nv_warning_msg("Unknown Thermal Entry token value pair: %s=%s",
-                       token, value);
     }
 }
 
@@ -96,9 +90,6 @@ static void apply_psu_entry_token(char *token, char *value, void *data)
         } else {
             pPSUEntry->psu_state = VCS_PSU_STATE_ABNORMAL;
         }
-    } else {
-        nv_warning_msg("Unknown PSU Entry token value pair: %s=%s",
-                       token, value);
     }
 }
 
