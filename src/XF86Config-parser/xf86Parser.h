@@ -624,6 +624,7 @@ typedef struct {
 
     int supports_extension_section;
     int autoloads_glx;
+    int xinerama_plus_composite_works;
 
 } GenerateOptions;
 

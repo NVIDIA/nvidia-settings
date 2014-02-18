@@ -48,6 +48,7 @@ static const _CtkStereoMode stereoMode[] = {
     { NV_CTRL_STEREO_3D_VISION,                    "NVIDIA 3D Vision Stereo" },
     { NV_CTRL_STEREO_3D_VISION_PRO,                "NVIDIA 3D Vision Pro Stereo" },
     { NV_CTRL_STEREO_HDMI_3D,                      "HDMI 3D Stereo" },
+    { NV_CTRL_STEREO_TRIDELITY_SL,                 "Tridelity SL Stereo" },
 };
 
 void ctk_screen_event_handler(GtkWidget *widget,

@@ -1574,6 +1574,8 @@ GtkWidget* ctk_display_config_new(NvCtrlAttributeHandle *handle,
     gtk_menu_shell_append(GTK_MENU_SHELL(menu), menu_item);
     menu_item = gtk_menu_item_new_with_label("HDMI 3D");
     gtk_menu_shell_append(GTK_MENU_SHELL(menu), menu_item);
+    menu_item = gtk_menu_item_new_with_label("Tridelity SL");
+    gtk_menu_shell_append(GTK_MENU_SHELL(menu), menu_item);
     gtk_option_menu_set_menu
         (GTK_OPTION_MENU(ctk_object->mnu_screen_stereo), menu);
     ctk_config_set_tooltip(ctk_config, ctk_object->mnu_screen_stereo,

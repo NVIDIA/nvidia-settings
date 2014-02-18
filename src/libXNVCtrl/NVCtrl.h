@@ -341,6 +341,7 @@
 #define NV_CTRL_STEREO_3D_VISION                                10
 #define NV_CTRL_STEREO_3D_VISION_PRO                            11
 #define NV_CTRL_STEREO_HDMI_3D                                  12
+#define NV_CTRL_STEREO_TRIDELITY_SL                             13
 
 /*
  * NV_CTRL_EMULATE - controls OpenGL software emulation of future
