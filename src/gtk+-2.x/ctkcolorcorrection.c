@@ -180,6 +180,12 @@ static void ctk_color_correction_finalize(GObject *object)
 {
     CtkColorCorrection *ctk_object = CTK_COLOR_CORRECTION(object);
 
+    /* kill the timer */
+    if (ctk_object->confirm_timer) {
+        g_source_remove(ctk_object->confirm_timer);
+        ctk_object->confirm_timer = 0;
+    }
+
     g_signal_handlers_disconnect_matched(G_OBJECT(ctk_object->ctk_event),
                                          G_SIGNAL_MATCH_DATA,
                                          0,

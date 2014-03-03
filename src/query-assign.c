@@ -3639,7 +3639,7 @@ static ReturnStatus get_framelock_sync_state(NvCtrlAttributeHandle *t,
                                              int *enabled)
 {
     NVCTRLAttributePermissionsRec perms;
-    ReturnStatus status;
+    Bool status;
     int permBit;
     int target_type = NvCtrlGetTargetType (t);
 
@@ -3667,8 +3667,8 @@ query:
     status = XNVCTRLQueryAttributePermissions(h->dpy,
                                               NV_CTRL_FRAMELOCK_SYNC,
                                               &perms);
-    if (status != NvCtrlSuccess) {
-        return status;
+    if (!status) {
+        return NvCtrlError;
     }
 
     permBit = targetTypeTable[GPU_TARGET].permission_bit;

@@ -3756,12 +3756,15 @@ static void list_entry_update_display_status(CtkFramelock *ctk_framelock,
 {
     nvDisplayDataPtr data = (nvDisplayDataPtr)(entry->data);
     gboolean framelock_enabled;
+    gboolean stereo_enabled = FALSE;
     gboolean is_server;
     gboolean is_client;
     gboolean gpu_is_server;
     gboolean use_house_sync;
     nvListTreePtr tree = (nvListTreePtr)(ctk_framelock->tree);
     nvListEntryPtr gpu_server_entry = get_gpu_server_entry(tree);
+    ReturnStatus ret;
+    int val;
 
     framelock_enabled = ctk_framelock->framelock_enabled;
 
@@ -3776,11 +3779,18 @@ static void list_entry_update_display_status(CtkFramelock *ctk_framelock,
 
     gpu_is_server = (gpu_server_entry && (gpu_server_entry == entry->parent));
 
-    /* Check Stereo Sync.  If frame lock is disabled or this display device
-     * is neither a client/server or the display device is a server and the
-     * GPU driving it is not using the house sync signal, gray out the LED.
+    ret = NvCtrlGetAttribute(ctk_framelock->attribute_handle, NV_CTRL_STEREO,
+                             &val);
+    if ((ret == NvCtrlSuccess) &&
+        (val != NV_CTRL_STEREO_OFF)) {
+        stereo_enabled = TRUE;
+    }
+
+    /* Check Stereo Sync.  If stereo or frame lock is disabled or this display
+     * device is neither a client/server or the display device is a server and
+     * the GPU driving it is not using the house sync signal, gray out the LED.
      */
-    if (!framelock_enabled ||
+    if (!framelock_enabled || !stereo_enabled ||
         (!is_server && !is_client) ||
         (is_server && gpu_is_server && !use_house_sync)) {
         gtk_widget_set_sensitive(data->stereo_label, FALSE);
@@ -3794,8 +3804,6 @@ static void list_entry_update_display_status(CtkFramelock *ctk_framelock,
         if (entry->parent) {
             GdkPixbuf *pixbuf = ctk_framelock->led_grey_pixbuf;
             nvGPUDataPtr gpu_data = (nvGPUDataPtr)(entry->parent->data);
-            ReturnStatus ret;
-            int val;
 
             ret = NvCtrlGetAttribute(gpu_data->handle, NV_CTRL_FRAMELOCK_TIMING,
                                      &val);
