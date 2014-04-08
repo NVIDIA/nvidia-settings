@@ -19,15 +19,52 @@
 # OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 # SOFTWARE.
 
-RANLIB ?= ranlib
+
+##############################################################################
+# include common variables and functions
+##############################################################################
+
+include utils.mk
+
+
+##############################################################################
+# assign variables
+##############################################################################
+
+LIBXNVCTRL = libXNVCtrl.a
+
+LIBXNVCTRL_PROGRAM_NAME = "libXNVCtrl"
+
+LIBXNVCTRL_VERSION := $(NVIDIA_VERSION)
+
+CFLAGS += -I .
 CFLAGS += -fPIC
+CFLAGS += -I $(OUTPUTDIR)
+CFLAGS += -DPROGRAM_NAME=\"$(LIBXNVCTRL_PROGRAM_NAME)\"
 
-libXNVCtrl.a : libXNVCtrl.a(NVCtrl.o)
-	$(RANLIB) $@
+SRC += NVCtrl.c
+SRC += $(STAMP_C)
 
-NVCtrl.o : NVCtrl.h nv_control.h NVCtrlLib.h
-.INTERMEDIATE: NVCtrl.o
+OBJS = $(call BUILD_OBJECT_LIST,$(SRC))
 
-clean ::
-	rm -f libXNVCtrl.a *.o
+
+##############################################################################
+# build rules
+##############################################################################
+
 .PHONY: clean
+
+all: $(LIBXNVCTRL)
+
+$(LIBXNVCTRL) : $(OBJS)
+	$(AR) ru $@ $(OBJS)
+
+# define the rule to build each object file
+$(foreach src,$(SRC),$(eval $(call DEFINE_OBJECT_RULE,TARGET,$(src))))
+
+# define the rule to generate $(STAMP_C)
+$(eval $(call DEFINE_STAMP_C_RULE, $(OBJS),$(LIBXNVCTRL_PROGRAM_NAME)))
+
+clean:
+	rm -rf $(LIBXNVCTRL) *~ $(STAMP_C) \
+		$(OUTPUTDIR)/*.o $(OUTPUTDIR)/*.d

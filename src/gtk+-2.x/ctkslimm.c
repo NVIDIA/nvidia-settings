@@ -577,11 +577,11 @@ static void setup_display_refresh_dropdown(CtkSLIMM *ctk_object)
     /* Generate the refresh dropdown */
     menu = CTK_DROP_DOWN_MENU(ctk_object->mnu_display_refresh);
     
-    ctk_drop_down_menu_reset(menu);
-
     g_signal_handlers_block_by_func
         (G_OBJECT(ctk_object->mnu_display_refresh),
          G_CALLBACK(display_refresh_changed), (gpointer) ctk_object);
+
+    ctk_drop_down_menu_reset(menu);
 
     /* Generate the refresh rate dropdown from the modelines list */
     for (modeline = ctk_object->modelines; modeline; modeline = modeline->next) {
@@ -1545,7 +1545,7 @@ GtkWidget* ctk_slimm_new(NvCtrlAttributeHandle *handle,
 
     /* Option menu for Display Grid Configuration */
     menu = (CtkDropDownMenu *)
-        ctk_drop_down_menu_new(CTK_DROP_DOWN_MENU_FLAG_COMBO);
+        ctk_drop_down_menu_new(CTK_DROP_DOWN_MENU_FLAG_READONLY);
     ctk_slimm->mnu_display_config = GTK_WIDGET(menu);
 
     grid_menu_selected_id = 0;
@@ -1606,7 +1606,7 @@ GtkWidget* ctk_slimm_new(NvCtrlAttributeHandle *handle,
     /* Option menu for resolutions */
     hbox = gtk_hbox_new(FALSE, 0);
     ctk_slimm->mnu_display_resolution =
-        ctk_drop_down_menu_new(CTK_DROP_DOWN_MENU_FLAG_COMBO);
+        ctk_drop_down_menu_new(CTK_DROP_DOWN_MENU_FLAG_READONLY);
 
     /* Create a drop down menu */
     setup_display_resolution_dropdown(ctk_object);
@@ -1624,7 +1624,7 @@ GtkWidget* ctk_slimm_new(NvCtrlAttributeHandle *handle,
     /* Option menu for refresh rates */
     hbox = gtk_hbox_new(FALSE, 0);
     ctk_slimm->mnu_display_refresh =
-        ctk_drop_down_menu_new(CTK_DROP_DOWN_MENU_FLAG_COMBO);
+        ctk_drop_down_menu_new(CTK_DROP_DOWN_MENU_FLAG_READONLY);
     setup_display_refresh_dropdown(ctk_object);
     g_signal_connect(G_OBJECT(ctk_object->mnu_display_refresh), "changed",
                      G_CALLBACK(display_refresh_changed),
@@ -1851,6 +1851,10 @@ GtkTextBuffer *ctk_slimm_create_help(GtkTextTagTable *table,
     ctk_help_heading(b, &i, "Total Size");
     ctk_help_para(b, &i, "This is the total size of the X screen formed using all "
                   "displays in SLI Mosaic Mode.");
+
+    ctk_help_heading(b, &i, "Maximum Size");
+    ctk_help_para(b, &i, "This is the maximum allowable size of the X screen "
+                  "formed using all displays in SLI Mosaic Mode.");
 
     ctk_help_heading(b, &i, "Save to X Configuration File");
     ctk_help_para(b, &i, "Clicking this button saves the selected SLI Mosaic Mode "

@@ -53,7 +53,6 @@
 #include "ctkpowermizer.h"
 #include "ctkclocks.h"
 #include "ctkvcs.h"
-#include "ctkpowersavings.h"
 #include "ctk3dvisionpro.h"
 
 #include "ctkdisplaydevice.h"
@@ -638,7 +637,7 @@ GtkWidget *ctk_window_new(ParsedAttribute *p, ConfigProperties *conf,
         screen_name = NvCtrlGetDisplayName(screen_handle);
 
         child = ctk_screen_new(screen_handle, ctk_event);
-        gtk_object_ref(GTK_OBJECT(child));
+        g_object_ref(GTK_OBJECT(child));
         gtk_tree_store_set(ctk_window->tree_store, &iter,
                            CTK_WINDOW_WIDGET_COLUMN, child, -1);
         gtk_tree_store_set(ctk_window->tree_store, &iter,
@@ -794,7 +793,7 @@ GtkWidget *ctk_window_new(ParsedAttribute *p, ConfigProperties *conf,
         child = ctk_gpu_new(gpu_handle, h->targets[X_SCREEN_TARGET].t, ctk_event,
                             ctk_config);
 
-        gtk_object_ref(GTK_OBJECT(child));
+        g_object_ref(GTK_OBJECT(child));
         gtk_tree_store_set(ctk_window->tree_store, &iter,
                            CTK_WINDOW_WIDGET_COLUMN, child, -1);
         gtk_tree_store_set(ctk_window->tree_store, &iter,
@@ -809,15 +808,6 @@ GtkWidget *ctk_window_new(ParsedAttribute *p, ConfigProperties *conf,
         gtk_tree_store_set(ctk_window->tree_store, &iter,
                            CTK_WINDOW_UNSELECT_WIDGET_FUNC_COLUMN,
                            ctk_gpu_page_unselect, -1);
-
-        /* power savings */
-
-        child = ctk_power_savings_new(gpu_handle, ctk_config, ctk_event);
-        if (child) {
-            help = ctk_power_savings_create_help(tag_table, CTK_POWER_SAVINGS(child));
-            add_page(child, help, ctk_window, &iter, NULL,
-                     "Power Savings Settings", NULL, NULL, NULL);
-        }
 
         /* thermal information */
 
@@ -912,7 +902,7 @@ GtkWidget *ctk_window_new(ParsedAttribute *p, ConfigProperties *conf,
         gtk_tree_store_set(ctk_window->tree_store, &iter,
                            CTK_WINDOW_LABEL_COLUMN, vcs_name, -1);
         child = ctk_vcs_new(vcs_handle, ctk_config);
-        gtk_object_ref(GTK_OBJECT(child));
+        g_object_ref(GTK_OBJECT(child));
         gtk_tree_store_set(ctk_window->tree_store, &iter,
                            CTK_WINDOW_WIDGET_COLUMN, child, -1);
         gtk_tree_store_set(ctk_window->tree_store, &iter,
@@ -961,7 +951,7 @@ GtkWidget *ctk_window_new(ParsedAttribute *p, ConfigProperties *conf,
         gtk_tree_store_set(ctk_window->tree_store, &iter,
                            CTK_WINDOW_LABEL_COLUMN, gvi_name, -1);
         child = ctk_gvi_new(gvi_handle, ctk_config, ctk_event);
-        gtk_object_ref(GTK_OBJECT(child));
+        g_object_ref(GTK_OBJECT(child));
         gtk_tree_store_set(ctk_window->tree_store, &iter,
                            CTK_WINDOW_WIDGET_COLUMN, child, -1);
         gtk_tree_store_set(ctk_window->tree_store, &iter,
@@ -1035,7 +1025,10 @@ GtkWidget *ctk_window_new(ParsedAttribute *p, ConfigProperties *conf,
     }
 
     widget = ctk_app_profile_new(ctk_config, driver_version);
-    XFree(driver_version);
+
+    if (driver_version) {
+        XFree(driver_version);
+    }
 
     add_page(widget, ctk_app_profile_create_help(CTK_APP_PROFILE(widget), tag_table),
              ctk_window, NULL, NULL, "Application Profiles",

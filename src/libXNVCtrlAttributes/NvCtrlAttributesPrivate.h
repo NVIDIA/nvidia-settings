@@ -149,6 +149,9 @@ NvCtrlInitNvControlAttributes (NvCtrlAttributePrivateHandle *);
 NvCtrlVidModeAttributes *
 NvCtrlInitVidModeAttributes (NvCtrlAttributePrivateHandle *);
 
+ReturnStatus
+NvCtrlFreeVidModeAttributes (NvCtrlAttributePrivateHandle *);
+
 
 /* Xv attribute functions */
 
@@ -208,6 +211,8 @@ ReturnStatus NvCtrlXrandrGetColorRamp(NvCtrlAttributePrivateHandle *h,
                                       uint16_t **lut,
                                       int *n);
 
+ReturnStatus NvCtrlXrandrReloadColorRamp(NvCtrlAttributePrivateHandle *h);
+
 /* XF86 Video Mode extension attribute functions */
 
 ReturnStatus NvCtrlVidModeGetColorAttributes(NvCtrlAttributePrivateHandle *h,
@@ -225,6 +230,8 @@ ReturnStatus NvCtrlVidModeGetColorRamp(NvCtrlAttributePrivateHandle *h,
                                        unsigned int channel,
                                        uint16_t **lut,
                                        int *n);
+
+ReturnStatus NvCtrlVidModeReloadColorRamp(NvCtrlAttributePrivateHandle *h);
 
 ReturnStatus
 NvCtrlVidModeGetStringAttribute (NvCtrlAttributePrivateHandle *,

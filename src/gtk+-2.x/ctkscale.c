@@ -244,7 +244,8 @@ GtkWidget* ctk_scale_new(GtkAdjustment *gtk_adjustment,
 
     /* text entry */
 
-    ctk_scale->text_entry = gtk_entry_new_with_max_length(6);
+    ctk_scale->text_entry = gtk_entry_new();
+    gtk_entry_set_max_length(GTK_ENTRY(ctk_scale->text_entry), 6);
     gtk_entry_set_width_chars(GTK_ENTRY(ctk_scale->text_entry), 6);
 
     /* text entry container */

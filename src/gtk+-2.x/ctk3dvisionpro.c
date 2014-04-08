@@ -282,7 +282,7 @@ static GtkWidget *create_glasses_list_menu(Ctk3DVisionPro *ctk_3d_vision_pro,
     int i;
 
     mnu_glasses_name = (CtkDropDownMenu *)
-        ctk_drop_down_menu_new(CTK_DROP_DOWN_MENU_FLAG_COMBO);
+        ctk_drop_down_menu_new(CTK_DROP_DOWN_MENU_FLAG_READONLY);
     g_signal_connect(G_OBJECT(mnu_glasses_name), "changed",
                      G_CALLBACK(glasses_name_changed),
                      (gpointer) dlg);
@@ -1687,7 +1687,7 @@ GtkWidget* ctk_3d_vision_pro_new(NvCtrlAttributeHandle *handle,
 
     hbox = gtk_hbox_new(FALSE, 5);
     menu = (CtkDropDownMenu *)
-        ctk_drop_down_menu_new(CTK_DROP_DOWN_MENU_FLAG_COMBO);
+        ctk_drop_down_menu_new(CTK_DROP_DOWN_MENU_FLAG_READONLY);
     ctk_drop_down_menu_append_item(menu, "Short Range (up to 5 meters)", 0);
     ctk_drop_down_menu_append_item(menu, "Medium Range (up to 15 meters)", 1);
     ctk_drop_down_menu_append_item(menu, "Long Range", 2);

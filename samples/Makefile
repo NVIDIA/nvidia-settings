@@ -48,13 +48,15 @@ endif
 
 X_CFLAGS              ?=
 
-LIBXNVCTRL_DIR        ?= ../src/libXNVCtrl
+XNVCTRL_DIR           ?= ../src/libXNVCtrl
+XNVCTRL_MAKEFILE      ?= Makefile
+XNVCTRL_ARCHIVE       ?= $(XNVCTRL_DIR)/libXNVCtrl.a
 
 CFLAGS                += $(X_CFLAGS)
-CFLAGS                += -I $(LIBXNVCTRL_DIR)
+CFLAGS                += -I $(XNVCTRL_DIR)
 
 LDFLAGS               += $(X_LDFLAGS)
-LDFLAGS               += -L $(LIBXNVCTRL_DIR)
+LDFLAGS               += -L $(XNVCTRL_DIR)
 LIBS                  += -lXNVCtrl -lXext -lX11
 
 
@@ -76,14 +78,14 @@ SAMPLE_SOURCES        += nv-control-warpblend.c
 # build rules
 ##############################################################################
 
-.PHONY: all clean clobber install
+.PHONY: all clean clobber install build-xnvctrl
 
 # define the rule to build each object file
 $(foreach src, $(SAMPLE_SOURCES), $(eval $(call DEFINE_OBJECT_RULE,TARGET,$(src))))
 
 # define the rule to link each sample app from its corresponding object file
 define link_sample_from_object
-  $$(OUTPUTDIR)/$(1:.c=): $$(call BUILD_OBJECT_LIST,$(1))
+  $$(OUTPUTDIR)/$(1:.c=): $$(call BUILD_OBJECT_LIST,$(1)) $(XNVCTRL_ARCHIVE)
 	$$(call quiet_cmd,LINK) $$(CFLAGS) $$(LDFLAGS) $$(BIN_LDFLAGS) -o $$@ $$< $$(LIBS)
   all:: $$(OUTPUTDIR)/$(1:.c=)
   SAMPLES += $$(OUTPUTDIR)/$(1:.c=)
@@ -91,8 +93,15 @@ endef
 
 $(foreach sample,$(SAMPLE_SOURCES),$(eval $(call link_sample_from_object,$(sample))))
 
+# define the rule to build $(XNVCTRL_ARCHIVE)
+$(XNVCTRL_ARCHIVE): build-xnvctrl
+
+build-xnvctrl:
+	@$(MAKE) -C $(XNVCTRL_DIR) -f $(XNVCTRL_MAKEFILE)
+
 clean clobber:
 	rm -rf *~ $(OUTPUTDIR)/*.o $(OUTPUTDIR)/*.d $(SAMPLES)
+	@$(MAKE) -C $(XNVCTRL_DIR) -f $(XNVCTRL_MAKEFILE) clean
 
 install:
 	@# don't install samples, this is just to satisfy the top-level

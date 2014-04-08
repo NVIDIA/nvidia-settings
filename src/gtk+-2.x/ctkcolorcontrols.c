@@ -198,7 +198,7 @@ GtkWidget* ctk_color_controls_new(NvCtrlAttributeHandle *handle,
 
     /* dropdown list for color space */
     menu = (CtkDropDownMenu *)
-        ctk_drop_down_menu_new(CTK_DROP_DOWN_MENU_FLAG_COMBO);
+        ctk_drop_down_menu_new(CTK_DROP_DOWN_MENU_FLAG_READONLY);
 
     for (i = 0; i < ctk_color_controls->color_space_table_size; i++) {
         switch (ctk_color_controls->color_space_table[i]) {
@@ -257,7 +257,7 @@ GtkWidget* ctk_color_controls_new(NvCtrlAttributeHandle *handle,
     /* dropdown list for color range */
     
     ctk_color_controls->color_range_menu =
-        ctk_drop_down_menu_new(CTK_DROP_DOWN_MENU_FLAG_COMBO);
+        ctk_drop_down_menu_new(CTK_DROP_DOWN_MENU_FLAG_READONLY);
     
     ctk_config_set_tooltip(ctk_config, 
                            ctk_color_controls->color_range_menu,

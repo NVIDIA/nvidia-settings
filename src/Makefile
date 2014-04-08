@@ -60,7 +60,10 @@ ifndef VDPAU_CFLAGS
 endif
 
 ifndef JANSSON_CFLAGS
-  JANSSON_CFLAGS = -Wno-cast-qual
+  JANSSON_CFLAGS  = -Wno-cast-qual
+  JANSSON_CFLAGS += -Wno-strict-prototypes
+  JANSSON_CFLAGS += -Wno-unused-function
+  JANSSON_CFLAGS += -DHAVE_CONFIG_H
   ifeq ($(TARGET_ARCH),armv7l)
     JANSSON_CFLAGS += -Wno-unused-but-set-variable
   endif
@@ -78,6 +81,7 @@ endif
 ##############################################################################
 
 XNVCTRL_DIR             ?= libXNVCtrl
+XNVCTRL_MAKEFILE        ?= Makefile
 XNVCTRL_ARCHIVE         ?= $(XNVCTRL_DIR)/libXNVCtrl.a
 XCONFIG_PARSER_DIR      ?= XF86Config-parser
 COMMON_UTILS_DIR        ?= common-utils
@@ -169,7 +173,7 @@ $(call BUILD_OBJECT_LIST,$(JANSSON_SRC)): CFLAGS += $(JANSSON_CFLAGS)
 # build rules
 ##############################################################################
 
-.PNONY: all install NVIDIA_SETTINGS_install clean clobber
+.PHONY: all install NVIDIA_SETTINGS_install clean clobber build-xnvctrl
 
 all: $(NVIDIA_SETTINGS)
 
@@ -190,7 +194,14 @@ $(foreach src,$(SRC),$(eval $(call DEFINE_OBJECT_RULE,TARGET,$(src))))
 # define the rule to generate $(STAMP_C)
 $(eval $(call DEFINE_STAMP_C_RULE, $(OBJS),$(NVIDIA_SETTINGS_PROGRAM_NAME)))
 
+# define the rule to build $(XNVCTRL_ARCHIVE)
+$(XNVCTRL_ARCHIVE): build-xnvctrl
+
+build-xnvctrl:
+	@$(MAKE) -C $(XNVCTRL_DIR) -f $(XNVCTRL_MAKEFILE)
+
 clean clobber:
 	rm -rf $(NVIDIA_SETTINGS) *~ $(STAMP_C) \
 		$(OUTPUTDIR)/*.o $(OUTPUTDIR)/*.d
+	@$(MAKE) -C $(XNVCTRL_DIR) -f $(XNVCTRL_MAKEFILE) clean
 

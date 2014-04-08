@@ -1314,7 +1314,8 @@ GtkWidget* ctk_thermal_new(NvCtrlAttributeHandle *handle,
         eventbox = gtk_event_box_new();
         gtk_box_pack_start(GTK_BOX(hbox2), eventbox, FALSE, FALSE, 0);
 
-        entry = gtk_entry_new_with_max_length(5);
+        entry = gtk_entry_new();
+        gtk_entry_set_max_length(GTK_ENTRY(entry), 5);
         gtk_container_add(GTK_CONTAINER(eventbox), entry);
         gtk_widget_set_sensitive(entry, FALSE);
         gtk_entry_set_width_chars(GTK_ENTRY(entry), 5);

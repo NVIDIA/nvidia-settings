@@ -487,8 +487,8 @@ GtkWidget* ctk_gvo_sync_new(NvCtrlAttributeHandle *handle,
     
     ctk_gvo_sync->sync_mode_menu = menu;
 
-    ctk_config_set_tooltip(ctk_config, CTK_DROP_DOWN_MENU(menu)->option_menu,
-                           __sync_mode_help);
+    ctk_drop_down_menu_set_tooltip(ctk_config, CTK_DROP_DOWN_MENU(menu),
+                                   __sync_mode_help);
 
     ctk_drop_down_menu_set_current_value
         (CTK_DROP_DOWN_MENU(ctk_gvo_sync->sync_mode_menu),
@@ -512,8 +512,8 @@ GtkWidget* ctk_gvo_sync_new(NvCtrlAttributeHandle *handle,
 
     ctk_gvo_sync->sync_format_menu = menu;
 
-    ctk_config_set_tooltip(ctk_config, CTK_DROP_DOWN_MENU(menu)->option_menu,
-                           __sync_format_help);
+    ctk_drop_down_menu_set_tooltip(ctk_config, CTK_DROP_DOWN_MENU(menu),
+                                   __sync_format_help);
 
     init_sync_format_menu(ctk_gvo_sync);
 
@@ -693,7 +693,7 @@ static GtkWidget *start_menu(const gchar *name, GtkWidget *table,
                      alignment, 0, 1, row, row+1, GTK_FILL, GTK_FILL,
                      TABLE_PADDING, TABLE_PADDING);
     
-    menu = ctk_drop_down_menu_new(CTK_DROP_DOWN_MENU_FLAG_MONOSPACE);
+    menu = ctk_drop_down_menu_new(CTK_DROP_DOWN_MENU_FLAG_READONLY);
     
     return menu;
 }

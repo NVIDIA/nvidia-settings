@@ -295,7 +295,7 @@ GtkWidget* ctk_clocks_new(NvCtrlAttributeHandle *handle,
     /* Create the Clock menu widget */
 
     menu = (CtkDropDownMenu *)
-        ctk_drop_down_menu_new(CTK_DROP_DOWN_MENU_FLAG_COMBO);
+        ctk_drop_down_menu_new(CTK_DROP_DOWN_MENU_FLAG_READONLY);
     i = 0;
         
     if ( can_access_2d_clocks ) {

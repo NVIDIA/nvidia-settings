@@ -1175,9 +1175,6 @@ GtkWidget* ctk_display_config_new(NvCtrlAttributeHandle *handle,
     GSList *slitem;
     gint max_width;
 
-    GtkWidget *menu;
-    GtkWidget *menu_item;
-
     gchar *err_str = NULL;
     gchar *layout_str = NULL;
     gchar *sli_mode = NULL;
@@ -1319,7 +1316,7 @@ GtkWidget* ctk_display_config_new(NvCtrlAttributeHandle *handle,
                      (gpointer) ctk_object);
 
     /* Selected display/X screen dropdown */
-    ctk_object->mnu_selected_item = gtk_option_menu_new();
+    ctk_object->mnu_selected_item = gtk_combo_box_new_text();
     ctk_config_set_tooltip(ctk_config, ctk_object->mnu_selected_item,
                            __selected_item_help);
     g_signal_connect(G_OBJECT(ctk_object->mnu_selected_item), "changed",
@@ -1327,7 +1324,7 @@ GtkWidget* ctk_display_config_new(NvCtrlAttributeHandle *handle,
                      (gpointer) ctk_object);
 
     /* Display configuration (Disabled, TwinView, Separate X screen) */
-    ctk_object->mnu_display_config = gtk_option_menu_new();
+    ctk_object->mnu_display_config = gtk_combo_box_new_text();
     ctk_config_set_tooltip(ctk_config, ctk_object->mnu_display_config,
                            __dpy_configuration_mnu_help);
     g_signal_connect(G_OBJECT(ctk_object->mnu_display_config), "changed",
@@ -1355,7 +1352,7 @@ GtkWidget* ctk_display_config_new(NvCtrlAttributeHandle *handle,
 
 
     /* Display resolution */
-    ctk_object->mnu_display_resolution = gtk_option_menu_new();
+    ctk_object->mnu_display_resolution = gtk_combo_box_new_text();
     ctk_config_set_tooltip(ctk_config, ctk_object->mnu_display_resolution,
                            __dpy_resolution_mnu_help);
     g_signal_connect(G_OBJECT(ctk_object->mnu_display_resolution), "changed",
@@ -1364,7 +1361,7 @@ GtkWidget* ctk_display_config_new(NvCtrlAttributeHandle *handle,
 
 
     /* Display refresh */
-    ctk_object->mnu_display_refresh = gtk_option_menu_new();
+    ctk_object->mnu_display_refresh = gtk_combo_box_new_text();
     ctk_config_set_tooltip(ctk_config, ctk_object->mnu_display_refresh,
                             __dpy_refresh_mnu_help);
     g_signal_connect(G_OBJECT(ctk_object->mnu_display_refresh), "changed",
@@ -1376,16 +1373,13 @@ GtkWidget* ctk_display_config_new(NvCtrlAttributeHandle *handle,
     gtk_label_set_selectable(GTK_LABEL(ctk_object->txt_display_modename), TRUE);
 
     /* Display passive stereo eye dropdown */
-    ctk_object->mnu_display_stereo = gtk_option_menu_new();
-    menu = gtk_menu_new();
-    menu_item = gtk_menu_item_new_with_label("None");
-    gtk_menu_shell_append(GTK_MENU_SHELL(menu), menu_item);
-    menu_item = gtk_menu_item_new_with_label("Left");
-    gtk_menu_shell_append(GTK_MENU_SHELL(menu), menu_item);
-    menu_item = gtk_menu_item_new_with_label("Right");
-    gtk_menu_shell_append(GTK_MENU_SHELL(menu), menu_item);
-    gtk_option_menu_set_menu
-        (GTK_OPTION_MENU(ctk_object->mnu_display_stereo), menu);
+    ctk_object->mnu_display_stereo = gtk_combo_box_new_text();
+    gtk_combo_box_append_text(GTK_COMBO_BOX(ctk_object->mnu_display_stereo),
+                              "None");
+    gtk_combo_box_append_text(GTK_COMBO_BOX(ctk_object->mnu_display_stereo),
+                              "Left");
+    gtk_combo_box_append_text(GTK_COMBO_BOX(ctk_object->mnu_display_stereo),
+                              "Right");
     ctk_config_set_tooltip(ctk_config, ctk_object->mnu_display_stereo,
                            __dpy_stereo_help);
     g_signal_connect(G_OBJECT(ctk_object->mnu_display_stereo),
@@ -1393,18 +1387,15 @@ GtkWidget* ctk_display_config_new(NvCtrlAttributeHandle *handle,
                      (gpointer) ctk_object);
 
     /* Display rotation dropdown */
-    ctk_object->mnu_display_rotation = gtk_option_menu_new();
-    menu = gtk_menu_new();
-    menu_item = gtk_menu_item_new_with_label("No Rotation");
-    gtk_menu_shell_append(GTK_MENU_SHELL(menu), menu_item);
-    menu_item = gtk_menu_item_new_with_label("Rotate Left");
-    gtk_menu_shell_append(GTK_MENU_SHELL(menu), menu_item);
-    menu_item = gtk_menu_item_new_with_label("Invert");
-    gtk_menu_shell_append(GTK_MENU_SHELL(menu), menu_item);
-    menu_item = gtk_menu_item_new_with_label("Rotate Right");
-    gtk_menu_shell_append(GTK_MENU_SHELL(menu), menu_item);
-    gtk_option_menu_set_menu
-        (GTK_OPTION_MENU(ctk_object->mnu_display_rotation), menu);
+    ctk_object->mnu_display_rotation = gtk_combo_box_new_text();
+    gtk_combo_box_append_text(GTK_COMBO_BOX(ctk_object->mnu_display_rotation),
+                              "No Rotation");
+    gtk_combo_box_append_text(GTK_COMBO_BOX(ctk_object->mnu_display_rotation),
+                              "Rotate Left");
+    gtk_combo_box_append_text(GTK_COMBO_BOX(ctk_object->mnu_display_rotation),
+                              "Invert");
+    gtk_combo_box_append_text(GTK_COMBO_BOX(ctk_object->mnu_display_rotation),
+                              "Rotate Right");
     ctk_config_set_tooltip(ctk_config, ctk_object->mnu_display_rotation,
                            __dpy_rotation_help);
     g_signal_connect(G_OBJECT(ctk_object->mnu_display_rotation),
@@ -1412,18 +1403,15 @@ GtkWidget* ctk_display_config_new(NvCtrlAttributeHandle *handle,
                      (gpointer) ctk_object);
 
     /* Display reflection dropdown */
-    ctk_object->mnu_display_reflection = gtk_option_menu_new();
-    menu = gtk_menu_new();
-    menu_item = gtk_menu_item_new_with_label("No Reflection");
-    gtk_menu_shell_append(GTK_MENU_SHELL(menu), menu_item);
-    menu_item = gtk_menu_item_new_with_label("Reflect along X");
-    gtk_menu_shell_append(GTK_MENU_SHELL(menu), menu_item);
-    menu_item = gtk_menu_item_new_with_label("Reflect along Y");
-    gtk_menu_shell_append(GTK_MENU_SHELL(menu), menu_item);
-    menu_item = gtk_menu_item_new_with_label("Reflect along XY");
-    gtk_menu_shell_append(GTK_MENU_SHELL(menu), menu_item);
-    gtk_option_menu_set_menu
-        (GTK_OPTION_MENU(ctk_object->mnu_display_reflection), menu);
+    ctk_object->mnu_display_reflection = gtk_combo_box_new_text();
+    gtk_combo_box_append_text(GTK_COMBO_BOX(ctk_object->mnu_display_reflection),
+                              "No Reflection");
+    gtk_combo_box_append_text(GTK_COMBO_BOX(ctk_object->mnu_display_reflection),
+                              "Reflect along X");
+    gtk_combo_box_append_text(GTK_COMBO_BOX(ctk_object->mnu_display_reflection),
+                              "Reflect along Y");
+    gtk_combo_box_append_text(GTK_COMBO_BOX(ctk_object->mnu_display_reflection),
+                              "Reflect along XY");
     ctk_config_set_tooltip(ctk_config, ctk_object->mnu_display_reflection,
                            __dpy_reflection_help);
     g_signal_connect(G_OBJECT(ctk_object->mnu_display_reflection),
@@ -1431,7 +1419,8 @@ GtkWidget* ctk_display_config_new(NvCtrlAttributeHandle *handle,
                      (gpointer) ctk_object);
 
     /* Display Underscan text box and slider */
-    ctk_object->txt_display_underscan = gtk_entry_new_with_max_length(6);
+    ctk_object->txt_display_underscan = gtk_entry_new();
+    gtk_entry_set_max_length(GTK_ENTRY(ctk_object->txt_display_underscan), 6);
     gtk_entry_set_width_chars(GTK_ENTRY(ctk_object->txt_display_underscan), 6);
     gtk_entry_set_text(GTK_ENTRY(ctk_object->txt_display_underscan), "0");
     ctk_config_set_tooltip(ctk_config, ctk_object->txt_display_underscan,
@@ -1456,22 +1445,19 @@ GtkWidget* ctk_display_config_new(NvCtrlAttributeHandle *handle,
                               (gpointer) ctk_object);
 
     /* Display Position Type (Absolute/Relative Menu) */
-    ctk_object->mnu_display_position_type = gtk_option_menu_new();
-    menu = gtk_menu_new();
-    menu_item = gtk_menu_item_new_with_label("Absolute");
-    gtk_menu_shell_append(GTK_MENU_SHELL(menu), menu_item);
-    menu_item = gtk_menu_item_new_with_label("Right of");
-    gtk_menu_shell_append(GTK_MENU_SHELL(menu), menu_item);
-    menu_item = gtk_menu_item_new_with_label("Left of");
-    gtk_menu_shell_append(GTK_MENU_SHELL(menu), menu_item);
-    menu_item = gtk_menu_item_new_with_label("Above");
-    gtk_menu_shell_append(GTK_MENU_SHELL(menu), menu_item);
-    menu_item = gtk_menu_item_new_with_label("Below");
-    gtk_menu_shell_append(GTK_MENU_SHELL(menu), menu_item);
-    menu_item = gtk_menu_item_new_with_label("Clones");
-    gtk_menu_shell_append(GTK_MENU_SHELL(menu), menu_item);
-    gtk_option_menu_set_menu
-        (GTK_OPTION_MENU(ctk_object->mnu_display_position_type), menu);
+    ctk_object->mnu_display_position_type = gtk_combo_box_new_text();
+    gtk_combo_box_append_text(GTK_COMBO_BOX(ctk_object->mnu_display_position_type),
+                              "Absolute");
+    gtk_combo_box_append_text(GTK_COMBO_BOX(ctk_object->mnu_display_position_type),
+                              "Right of");
+    gtk_combo_box_append_text(GTK_COMBO_BOX(ctk_object->mnu_display_position_type),
+                              "Left of");
+    gtk_combo_box_append_text(GTK_COMBO_BOX(ctk_object->mnu_display_position_type),
+                              "Above");
+    gtk_combo_box_append_text(GTK_COMBO_BOX(ctk_object->mnu_display_position_type),
+                              "Below");
+    gtk_combo_box_append_text(GTK_COMBO_BOX(ctk_object->mnu_display_position_type),
+                              "Same as");
     ctk_config_set_tooltip(ctk_config, ctk_object->mnu_display_position_type,
                            __dpy_position_type_help);
     g_signal_connect(G_OBJECT(ctk_object->mnu_display_position_type),
@@ -1479,7 +1465,7 @@ GtkWidget* ctk_display_config_new(NvCtrlAttributeHandle *handle,
                      (gpointer) ctk_object);
 
     /* Display Position Relative (Display device to be relative to) */
-    ctk_object->mnu_display_position_relative = gtk_option_menu_new();
+    ctk_object->mnu_display_position_relative = gtk_combo_box_new_text();
     ctk_config_set_tooltip(ctk_config,
                            ctk_object->mnu_display_position_relative,
                            __dpy_position_relative_help);
@@ -1542,7 +1528,7 @@ GtkWidget* ctk_display_config_new(NvCtrlAttributeHandle *handle,
                      (gpointer) ctk_object);
 
     /* X screen depth */
-    ctk_object->mnu_screen_depth = gtk_option_menu_new();
+    ctk_object->mnu_screen_depth = gtk_combo_box_new_text();
     ctk_config_set_tooltip(ctk_config, ctk_object->mnu_screen_depth,
                            __screen_depth_help);
     g_signal_connect(G_OBJECT(ctk_object->mnu_screen_depth), "changed",
@@ -1554,8 +1540,7 @@ GtkWidget* ctk_display_config_new(NvCtrlAttributeHandle *handle,
 
     if (ret == NvCtrlSuccess) {
 
-        ctk_object->mnu_screen_stereo = gtk_option_menu_new();
-        menu = gtk_menu_new();
+        ctk_object->mnu_screen_stereo = gtk_combo_box_new_text();
 
         ctk_object->stereo_table_size = 0;
         memset(ctk_object->stereo_table, 0,
@@ -1586,13 +1571,12 @@ GtkWidget* ctk_display_config_new(NvCtrlAttributeHandle *handle,
                                      valid.u.bits.ints & (1 << stereo_mode)))) {
                 ctk_object->stereo_table[ctk_object->stereo_table_size++] =
                     stereo_mode;
-                menu_item = gtk_menu_item_new_with_label(stereo_mode_str);
-                gtk_menu_shell_append(GTK_MENU_SHELL(menu), menu_item);
+                gtk_combo_box_append_text(
+                    GTK_COMBO_BOX(ctk_object->mnu_screen_stereo),
+                    stereo_mode_str);
             }
         }
 
-        gtk_option_menu_set_menu
-            (GTK_OPTION_MENU(ctk_object->mnu_screen_stereo), menu);
         ctk_config_set_tooltip(ctk_config, ctk_object->mnu_screen_stereo,
                                __screen_stereo_help);
         g_signal_connect(G_OBJECT(ctk_object->mnu_screen_stereo),
@@ -1603,23 +1587,20 @@ GtkWidget* ctk_display_config_new(NvCtrlAttributeHandle *handle,
     }
 
     /* Screen Position Type (Absolute/Relative Menu) */
-    ctk_object->mnu_screen_position_type = gtk_option_menu_new();
-    menu = gtk_menu_new();
-    menu_item = gtk_menu_item_new_with_label("Absolute");
-    gtk_menu_shell_append(GTK_MENU_SHELL(menu), menu_item);
-    menu_item = gtk_menu_item_new_with_label("Right of");
-    gtk_menu_shell_append(GTK_MENU_SHELL(menu), menu_item);
-    menu_item = gtk_menu_item_new_with_label("Left of");
-    gtk_menu_shell_append(GTK_MENU_SHELL(menu), menu_item);
-    menu_item = gtk_menu_item_new_with_label("Above");
-    gtk_menu_shell_append(GTK_MENU_SHELL(menu), menu_item);
-    menu_item = gtk_menu_item_new_with_label("Below");
-    gtk_menu_shell_append(GTK_MENU_SHELL(menu), menu_item);
+    ctk_object->mnu_screen_position_type = gtk_combo_box_new_text();
+    gtk_combo_box_append_text(GTK_COMBO_BOX(ctk_object->mnu_screen_position_type),
+                              "Absolute");
+    gtk_combo_box_append_text(GTK_COMBO_BOX(ctk_object->mnu_screen_position_type),
+                              "Right of");
+    gtk_combo_box_append_text(GTK_COMBO_BOX(ctk_object->mnu_screen_position_type),
+                              "Left of");
+    gtk_combo_box_append_text(GTK_COMBO_BOX(ctk_object->mnu_screen_position_type),
+                              "Above");
+    gtk_combo_box_append_text(GTK_COMBO_BOX(ctk_object->mnu_screen_position_type),
+                              "Below");
     // XXX Add better support for this later.
-    //menu_item = gtk_menu_item_new_with_label("Relative to");
-    //gtk_menu_shell_append(GTK_MENU_SHELL(menu), menu_item);
-    gtk_option_menu_set_menu
-        (GTK_OPTION_MENU(ctk_object->mnu_screen_position_type), menu);
+    //gtk_combo_box_append_text(GTK_COMBO_BOX(ctk_object->mnu_screen_position_type),
+    //                          "Relative to");
     ctk_config_set_tooltip(ctk_config, ctk_object->mnu_screen_position_type,
                            __screen_position_type_help);
     g_signal_connect(G_OBJECT(ctk_object->mnu_screen_position_type),
@@ -1627,7 +1608,7 @@ GtkWidget* ctk_display_config_new(NvCtrlAttributeHandle *handle,
                      (gpointer) ctk_object);
 
     /* Screen Position Relative (Screen to be relative to) */
-    ctk_object->mnu_screen_position_relative = gtk_option_menu_new();
+    ctk_object->mnu_screen_position_relative = gtk_combo_box_new_text();
     ctk_config_set_tooltip(ctk_config,
                            ctk_object->mnu_screen_position_relative,
                            __screen_position_relative_help);
@@ -2498,13 +2479,11 @@ static void update_selected_page(CtkDisplayConfig *ctk_object)
  *
  **/
 
-static GtkWidget* generate_selected_item_dropdown(CtkDisplayConfig *ctk_object,
-                                                  nvDisplayPtr cur_display,
-                                                  nvScreenPtr cur_screen,
-                                                  int *cur_idx)
+static void generate_selected_item_dropdown(CtkDisplayConfig *ctk_object,
+                                            nvDisplayPtr cur_display,
+                                            nvScreenPtr cur_screen,
+                                            int *cur_idx)
 {
-    GtkWidget *menu;
-    GtkWidget *menu_item;
     nvLayoutPtr layout = ctk_object->layout;
     nvGpuPtr gpu;
     nvDisplayPtr display;
@@ -2529,17 +2508,17 @@ static GtkWidget* generate_selected_item_dropdown(CtkDisplayConfig *ctk_object,
         calloc(ctk_object->selected_item_table_len,
                sizeof(SelectableItem));
 
+    gtk_list_store_clear(GTK_LIST_STORE(gtk_combo_box_get_model(
+        GTK_COMBO_BOX(ctk_object->mnu_selected_item))));
+
     if (!ctk_object->selected_item_table) {
         ctk_object->selected_item_table_len = 0;
-        gtk_option_menu_remove_menu
-            (GTK_OPTION_MENU(ctk_object->mnu_selected_item));
         gtk_widget_set_sensitive(ctk_object->mnu_selected_item, False);
-        return NULL;
+        return;
     }
 
     /* Create the dropdown menu and fill the lookup table */
 
-    menu = gtk_menu_new();
     idx = 0;
     show_gpu_info = ((layout->num_gpus > 1) || ctk_object->advanced_mode) ? True : False;
 
@@ -2551,10 +2530,9 @@ static GtkWidget* generate_selected_item_dropdown(CtkDisplayConfig *ctk_object,
 
         str = g_strdup_printf("X screen %d", screen->scrnum);
 
-        menu_item = gtk_menu_item_new_with_label(str);
+        gtk_combo_box_append_text(GTK_COMBO_BOX(ctk_object->mnu_selected_item),
+                                  str);
         g_free(str);
-        gtk_menu_shell_append(GTK_MENU_SHELL(menu), menu_item);
-        gtk_widget_show(menu_item);
 
         ctk_object->selected_item_table[idx].type = SELECTABLE_ITEM_SCREEN;
         ctk_object->selected_item_table[idx].u.screen = screen;
@@ -2581,18 +2559,15 @@ static GtkWidget* generate_selected_item_dropdown(CtkDisplayConfig *ctk_object,
             str = g_strdup_printf("%s)", tmp);
             g_free(tmp);
 
-            menu_item = gtk_menu_item_new_with_label(str);
+            gtk_combo_box_append_text(
+                GTK_COMBO_BOX(ctk_object->mnu_selected_item), str);
             g_free(str);
-            gtk_menu_shell_append(GTK_MENU_SHELL(menu), menu_item);
-            gtk_widget_show(menu_item);
 
             ctk_object->selected_item_table[idx].type = SELECTABLE_ITEM_DISPLAY;
             ctk_object->selected_item_table[idx].u.display = display;
             idx++;
         }
     }
-
-    return menu;
 
 } /* generate_selected_item_dropdown() */
 
@@ -2606,13 +2581,11 @@ static GtkWidget* generate_selected_item_dropdown(CtkDisplayConfig *ctk_object,
 
 static void setup_selected_item_dropdown(CtkDisplayConfig *ctk_object)
 {
-    GtkWidget *menu;
     nvDisplayPtr display = ctk_display_layout_get_selected_display
         (CTK_DISPLAY_LAYOUT(ctk_object->obj_layout));
     nvScreenPtr screen = ctk_display_layout_get_selected_screen
         (CTK_DISPLAY_LAYOUT(ctk_object->obj_layout));
     int cur_idx = 0;
-
 
     if (!display && !screen) {
         gtk_widget_set_sensitive(ctk_object->mnu_selected_item, False);
@@ -2623,23 +2596,15 @@ static void setup_selected_item_dropdown(CtkDisplayConfig *ctk_object)
     gtk_widget_set_sensitive(ctk_object->mnu_selected_item, True);
     gtk_widget_show(ctk_object->mnu_selected_item);
 
-    menu = generate_selected_item_dropdown(ctk_object, display, screen,
-                                           &cur_idx);
-    if (!menu) {
-        gtk_widget_set_sensitive(ctk_object->mnu_selected_item, False);
-        return;
-    }
-
     /* Setup the menu and select the current model */
     g_signal_handlers_block_by_func
         (G_OBJECT(ctk_object->mnu_selected_item),
          G_CALLBACK(selected_item_changed), (gpointer) ctk_object);
 
-    gtk_option_menu_set_menu
-        (GTK_OPTION_MENU(ctk_object->mnu_selected_item), menu);
+    generate_selected_item_dropdown(ctk_object, display, screen, &cur_idx);
 
-    gtk_option_menu_set_history
-        (GTK_OPTION_MENU(ctk_object->mnu_selected_item), cur_idx);
+    gtk_combo_box_set_active
+        (GTK_COMBO_BOX(ctk_object->mnu_selected_item), cur_idx);
 
     g_signal_handlers_unblock_by_func
         (G_OBJECT(ctk_object->mnu_selected_item),
@@ -2669,14 +2634,14 @@ static void setup_display_modename(CtkDisplayConfig *ctk_object)
 
 
     if (!display->cur_mode || !display->cur_mode->modeline) {
-        gtk_label_set(GTK_LABEL(ctk_object->txt_display_modename), "");
+        gtk_label_set_text(GTK_LABEL(ctk_object->txt_display_modename), "");
         gtk_widget_set_sensitive(ctk_object->box_display_modename, FALSE);
         return;
     }
     gtk_widget_set_sensitive(ctk_object->box_display_modename, TRUE);
 
 
-    gtk_label_set(GTK_LABEL(ctk_object->txt_display_modename),
+    gtk_label_set_text(GTK_LABEL(ctk_object->txt_display_modename),
                   display->cur_mode->modeline->data.identifier);
 
 } /* setup_display_modename() */
@@ -2763,43 +2728,40 @@ static void setup_display_config(CtkDisplayConfig *ctk_object)
     ctk_object->display_config_table_len = num_options;
 
     {
-        GtkWidget *menu = gtk_menu_new();
         int i;
         gchar *label;
-
-        for (i = 0; i < num_options; i++) {
-            GtkWidget *menu_item = NULL;
-
-            switch (options[i].config) {
-            case DPY_CFG_DISABLED:
-                menu_item = gtk_menu_item_new_with_label("Disabled");
-                break;
-            case DPY_CFG_NEW_X_SCREEN:
-                menu_item =
-                    gtk_menu_item_new_with_label("New X screen (requires X "
-                                                 "restart)");
-                break;
-            case DPY_CFG_X_SCREEN:
-                label = g_strdup_printf("X screen %d",
-                                        options[i].screen->scrnum);
-                menu_item = gtk_menu_item_new_with_label(label);
-                g_free(label);
-                break;
-            }
-            if (menu_item) {
-                gtk_menu_shell_append(GTK_MENU_SHELL(menu), menu_item);
-                gtk_widget_show(menu_item);
-            }
-        }
 
         g_signal_handlers_block_by_func(G_OBJECT(ctk_object->mnu_display_config),
                                         G_CALLBACK(display_config_changed),
                                         (gpointer) ctk_object);
 
-        gtk_option_menu_set_menu
-            (GTK_OPTION_MENU(ctk_object->mnu_display_config), menu);
-        gtk_option_menu_set_history(GTK_OPTION_MENU(ctk_object->mnu_display_config),
-                                    cur_option);
+        gtk_list_store_clear(GTK_LIST_STORE(gtk_combo_box_get_model
+            (GTK_COMBO_BOX(ctk_object->mnu_display_config))));
+
+        for (i = 0; i < num_options; i++) {
+
+            switch (options[i].config) {
+            case DPY_CFG_DISABLED:
+                gtk_combo_box_append_text(
+                    GTK_COMBO_BOX(ctk_object->mnu_display_config), "Disabled");
+                break;
+            case DPY_CFG_NEW_X_SCREEN:
+                gtk_combo_box_append_text(
+                    GTK_COMBO_BOX(ctk_object->mnu_display_config),
+                    "New X screen (requires X restart)");
+                break;
+            case DPY_CFG_X_SCREEN:
+                label = g_strdup_printf("X screen %d",
+                                        options[i].screen->scrnum);
+                gtk_combo_box_append_text(
+                    GTK_COMBO_BOX(ctk_object->mnu_display_config), label);
+                g_free(label);
+                break;
+            }
+        }
+
+        gtk_combo_box_set_active(GTK_COMBO_BOX(ctk_object->mnu_display_config),
+                                 cur_option);
         gtk_widget_set_sensitive(ctk_object->mnu_display_config, TRUE);
 
         g_signal_handlers_unblock_by_func(G_OBJECT(ctk_object->mnu_display_config),
@@ -2820,8 +2782,7 @@ static void setup_display_config(CtkDisplayConfig *ctk_object)
 
 static void setup_display_refresh_dropdown(CtkDisplayConfig *ctk_object)
 {
-    GtkWidget *menu;
-    GtkWidget *menu_item;
+    GtkComboBox *combo_box = GTK_COMBO_BOX(ctk_object->mnu_display_refresh);
     nvModeLinePtr modeline;
     nvModeLinePtr auto_modeline;
     nvModeLinePtr modelines;
@@ -2860,14 +2821,16 @@ static void setup_display_refresh_dropdown(CtkDisplayConfig *ctk_object)
 
 
     /* Generate the refresh dropdown */
-    menu = gtk_menu_new();
+    g_signal_handlers_block_by_func(G_OBJECT(ctk_object->mnu_display_refresh),
+                                    G_CALLBACK(display_refresh_changed),
+                                    (gpointer) ctk_object);
 
+    gtk_list_store_clear(GTK_LIST_STORE(gtk_combo_box_get_model
+        (GTK_COMBO_BOX(ctk_object->mnu_display_refresh))));
 
     /* Special case the 'nvidia-auto-select' mode. */
     if (IS_NVIDIA_DEFAULT_MODE(cur_modeline)) {
-        menu_item = gtk_menu_item_new_with_label("Auto");
-        gtk_menu_shell_append(GTK_MENU_SHELL(menu), menu_item);
-        gtk_widget_show(menu_item);
+        gtk_combo_box_append_text(combo_box, "Auto");
         ctk_object->refresh_table[ctk_object->refresh_table_len++] =
             cur_modeline;
         modelines = NULL; /* Skip building rest of refresh dropdown */
@@ -2995,23 +2958,17 @@ static void setup_display_refresh_dropdown(CtkDisplayConfig *ctk_object)
 
         
         /* Add the modeline entry to the dropdown */
-        menu_item = gtk_menu_item_new_with_label(name);
+        gtk_combo_box_append_text(combo_box, name);
         g_free(name);
-        gtk_menu_shell_append(GTK_MENU_SHELL(menu), menu_item);
-        gtk_widget_show(menu_item);
         ctk_object->refresh_table[ctk_object->refresh_table_len++] = modeline;
     }
 
     
 
 
-    /* Setup the menu and select the current modeline */
-    g_signal_handlers_block_by_func(G_OBJECT(ctk_object->mnu_display_refresh),
-                                    G_CALLBACK(display_refresh_changed),
-                                    (gpointer) ctk_object);
-    gtk_option_menu_set_menu
-        (GTK_OPTION_MENU(ctk_object->mnu_display_refresh), menu);
-    gtk_option_menu_set_history(GTK_OPTION_MENU(ctk_object->mnu_display_refresh), cur_idx);
+    /* Select the current modeline */
+    gtk_combo_box_set_active(GTK_COMBO_BOX(ctk_object->mnu_display_refresh),
+                             cur_idx);
     gtk_widget_set_sensitive(ctk_object->mnu_display_refresh, True);
 
     g_signal_handlers_unblock_by_func(G_OBJECT(ctk_object->mnu_display_refresh),
@@ -3084,7 +3041,7 @@ allocate_selected_mode(char *name,
 
     selected_mode = (nvSelectedModePtr)nvalloc(sizeof(nvSelectedMode));
 
-    selected_mode->label = gtk_menu_item_new_with_label(name);
+    selected_mode->text = g_strdup(name);
 
     selected_mode->modeline = modeline;
     selected_mode->isSpecial = isSpecial;
@@ -3118,6 +3075,7 @@ free_selected_modes(nvSelectedModePtr selected_mode)
 {
     if (selected_mode) {
         free_selected_modes(selected_mode->next);
+        g_free(selected_mode->text);
         free(selected_mode);
     }
 }
@@ -3280,20 +3238,26 @@ static void generate_selected_modes(const nvDisplayPtr display)
     nvSelectedModePtr selected_mode = NULL;
     nvModeLinePtr modeline;
 
-    /* Add the off item */
-    selected_mode = allocate_selected_mode("Off",
-                                           NULL /* modeline */,
-                                           TRUE /* isSpecial */,
-                                           NULL /* viewPortIn */,
-                                           NULL /* viewPortOut */);
+    display->num_selected_modes = 0;
+    display->selected_modes = NULL;
 
-    display->num_selected_modes = 1;
-    display->selected_modes = selected_mode;
+    /* Add the off item if we have more than one display */
+    if (display->screen->num_displays > 1) {
+        selected_mode = allocate_selected_mode("Off",
+                                               NULL /* modeline */,
+                                               TRUE /* isSpecial */,
+                                               NULL /* viewPortIn */,
+                                               NULL /* viewPortOut */);
+
+        display->num_selected_modes = 1;
+        display->selected_modes = selected_mode;
+    }
 
     modeline = display->modelines;
     while (modeline) {
         gchar *name;
         Bool isSpecial;
+        Bool mode_added;
 
         if (IS_NVIDIA_DEFAULT_MODE(modeline)) {
             name = g_strdup_printf("Auto");
@@ -3310,8 +3274,15 @@ static void generate_selected_modes(const nvDisplayPtr display)
                                                NULL /* viewPortOut */);
         g_free(name);
 
-        if (append_unique_selected_mode(display->selected_modes,
-                                        selected_mode)) {
+        if (!display->selected_modes) {
+            display->selected_modes = selected_mode;
+            mode_added = TRUE;
+        } else {
+            mode_added = append_unique_selected_mode(display->selected_modes,
+                                                     selected_mode);
+        }
+
+        if (mode_added) {
             display->num_selected_modes++;
 
             if (matches_current_selected_mode(display, selected_mode,
@@ -3407,9 +3378,6 @@ static void generate_scaled_selected_modes(const nvDisplayPtr display)
 
 static void setup_display_resolution_dropdown(CtkDisplayConfig *ctk_object)
 {
-    GtkWidget *menu;
-    GtkWidget *menu_item;
-
     nvDisplayPtr display = ctk_display_layout_get_selected_display
         (CTK_DISPLAY_LAYOUT(ctk_object->obj_layout));
 
@@ -3447,22 +3415,36 @@ static void setup_display_resolution_dropdown(CtkDisplayConfig *ctk_object)
     }
 
 
-    if (display->cur_mode->modeline) {
-        cur_idx = 1; /* Modeline is set, start off as 'nvidia-auto-select' */
+    if (display->cur_mode->modeline && display->screen->num_displays > 1) {
+        /*
+         * Modeline is set and we have more than 1 display, start off as
+         * 'nvidia-auto-select'
+         */
+        cur_idx = 1;
     } else {
-        cur_idx = 0; /* Modeline not set, start off as 'off'. */
+        /*
+         * Modeline not set, start off as 'off'. If we do not have more than
+         * 1 display, 'auto' will be at index 0.
+         */
+        cur_idx = 0;
     }
 
-    /* Start the menu generation */
-    menu = gtk_menu_new();
+    /* Setup the menu */
+    g_signal_handlers_block_by_func
+        (G_OBJECT(ctk_object->mnu_display_resolution),
+         G_CALLBACK(display_resolution_changed), (gpointer) ctk_object);
+
+    gtk_list_store_clear(GTK_LIST_STORE(gtk_combo_box_get_model
+        (GTK_COMBO_BOX(ctk_object->mnu_display_resolution))));
 
     /* Fill dropdown menu */
     selected_mode = display->selected_modes;
     while (selected_mode) {
-        menu_item = selected_mode->label;
 
-        gtk_menu_shell_append(GTK_MENU_SHELL(menu), menu_item);
-        gtk_widget_show(menu_item);
+        gtk_combo_box_append_text(
+            GTK_COMBO_BOX(ctk_object->mnu_display_resolution),
+            selected_mode->text);
+
         ctk_object->resolution_table[ctk_object->resolution_table_len] =
             selected_mode;
 
@@ -3470,26 +3452,13 @@ static void setup_display_resolution_dropdown(CtkDisplayConfig *ctk_object)
             cur_idx = ctk_object->resolution_table_len;
         }
 
-        if (selected_mode->isSpecial &&
-            !selected_mode->modeline &&
-            display->screen->num_displays <= 1) {
-            gtk_widget_set_sensitive(menu_item, FALSE);
-        }
-
         ctk_object->resolution_table_len++;
         selected_mode = selected_mode->next;
     }
 
-    /* Setup the menu and select the current mode */
-    g_signal_handlers_block_by_func
-        (G_OBJECT(ctk_object->mnu_display_resolution),
-         G_CALLBACK(display_resolution_changed), (gpointer) ctk_object);
-
-    gtk_option_menu_set_menu
-        (GTK_OPTION_MENU(ctk_object->mnu_display_resolution), menu);
-
-    gtk_option_menu_set_history
-        (GTK_OPTION_MENU(ctk_object->mnu_display_resolution), cur_idx);
+    /* Select the current mode */
+    gtk_combo_box_set_active
+        (GTK_COMBO_BOX(ctk_object->mnu_display_resolution), cur_idx);
     ctk_object->last_resolution_idx = cur_idx;
 
     /* If dropdown has only one item, disable menu selection */
@@ -3510,8 +3479,8 @@ static void setup_display_resolution_dropdown(CtkDisplayConfig *ctk_object)
 
     /* Handle failures */
  fail:
-    gtk_option_menu_remove_menu
-        (GTK_OPTION_MENU(ctk_object->mnu_display_resolution));
+    gtk_list_store_clear(GTK_LIST_STORE(gtk_combo_box_get_model(
+        GTK_COMBO_BOX(ctk_object->mnu_display_resolution))));
 
     gtk_widget_set_sensitive(ctk_object->mnu_display_resolution, FALSE);
 
@@ -3566,8 +3535,8 @@ static void setup_display_stereo_dropdown(CtkDisplayConfig *ctk_object)
         break;
     }
 
-    gtk_option_menu_set_history
-        (GTK_OPTION_MENU(ctk_object->mnu_display_stereo), idx);
+    gtk_combo_box_set_active
+        (GTK_COMBO_BOX(ctk_object->mnu_display_stereo), idx);
 
     g_signal_handlers_unblock_by_func
         (G_OBJECT(ctk_object->mnu_display_stereo),
@@ -3657,8 +3626,8 @@ static void setup_display_rotation_dropdown(CtkDisplayConfig *ctk_object)
         break;
     }
 
-    gtk_option_menu_set_history
-        (GTK_OPTION_MENU(ctk_object->mnu_display_rotation), idx);
+    gtk_combo_box_set_active
+        (GTK_COMBO_BOX(ctk_object->mnu_display_rotation), idx);
 
     g_signal_handlers_unblock_by_func
         (G_OBJECT(ctk_object->mnu_display_rotation),
@@ -3703,8 +3672,8 @@ static void setup_display_reflection_dropdown(CtkDisplayConfig *ctk_object)
         break;
     }
 
-    gtk_option_menu_set_history
-        (GTK_OPTION_MENU(ctk_object->mnu_display_reflection), idx);
+    gtk_combo_box_set_active
+        (GTK_COMBO_BOX(ctk_object->mnu_display_reflection), idx);
 
     g_signal_handlers_unblock_by_func
         (G_OBJECT(ctk_object->mnu_display_reflection),
@@ -3942,8 +3911,8 @@ static void setup_display_position_type(CtkDisplayConfig *ctk_object)
         (G_OBJECT(ctk_object->mnu_display_position_type),
          G_CALLBACK(display_position_type_changed), (gpointer) ctk_object);
 
-    gtk_option_menu_set_history
-        (GTK_OPTION_MENU(ctk_object->mnu_display_position_type),
+    gtk_combo_box_set_active
+        (GTK_COMBO_BOX(ctk_object->mnu_display_position_type),
          display->cur_mode->position_type);
 
     g_signal_handlers_unblock_by_func
@@ -3966,8 +3935,6 @@ static void setup_display_position_relative(CtkDisplayConfig *ctk_object)
     nvDisplayPtr relative_to;
     int idx;
     int selected_idx;
-    GtkWidget *menu;
-    GtkWidget *menu_item;
 
     display = ctk_display_layout_get_selected_display
         (CTK_DISPLAY_LAYOUT(ctk_object->obj_layout));
@@ -3996,9 +3963,15 @@ static void setup_display_position_relative(CtkDisplayConfig *ctk_object)
 
 
     /* Generate the lookup table and display dropdown */
+    g_signal_handlers_block_by_func
+        (G_OBJECT(ctk_object->mnu_display_position_relative),
+         G_CALLBACK(display_position_relative_changed), (gpointer) ctk_object);
+
+    gtk_list_store_clear(GTK_LIST_STORE(gtk_combo_box_get_model
+        (GTK_COMBO_BOX(ctk_object->mnu_display_position_relative))));
+
     idx = 0;
     selected_idx = 0;
-    menu = gtk_menu_new();
     for (relative_to = display->screen->displays;
          relative_to;
          relative_to = relative_to->next_in_screen) {
@@ -4011,23 +3984,16 @@ static void setup_display_position_relative(CtkDisplayConfig *ctk_object)
 
         ctk_object->display_position_table[idx] = relative_to;
 
-        menu_item = gtk_menu_item_new_with_label(relative_to->logName);
-        gtk_menu_shell_append(GTK_MENU_SHELL(menu), menu_item);
-        gtk_widget_show(menu_item);
+        gtk_combo_box_append_text
+            (GTK_COMBO_BOX(ctk_object->mnu_display_position_relative),
+             relative_to->logName);
         idx++;
     }
 
 
     /* Set the menu and the selected display */
-    g_signal_handlers_block_by_func
-        (G_OBJECT(ctk_object->mnu_display_position_relative),
-         G_CALLBACK(display_position_relative_changed), (gpointer) ctk_object);
-
-    gtk_option_menu_set_menu
-        (GTK_OPTION_MENU(ctk_object->mnu_display_position_relative), menu);
-
-    gtk_option_menu_set_history
-        (GTK_OPTION_MENU(ctk_object->mnu_display_position_relative),
+    gtk_combo_box_set_active
+        (GTK_COMBO_BOX(ctk_object->mnu_display_position_relative),
          selected_idx);
 
     g_signal_handlers_unblock_by_func
@@ -4346,8 +4312,6 @@ static gboolean grow_screen_depth_table(CtkDisplayConfig *ctk_object)
 
 static void setup_screen_depth_dropdown(CtkDisplayConfig *ctk_object)
 {
-    GtkWidget *menu;
-    GtkWidget *menu_item;
     int cur_idx;
     gboolean add_depth_30_option;
     nvScreenPtr screen = ctk_display_layout_get_selected_screen
@@ -4363,7 +4327,13 @@ static void setup_screen_depth_dropdown(CtkDisplayConfig *ctk_object)
     ctk_object->screen_depth_table = NULL;
     ctk_object->screen_depth_table_len = 0;
 
-    menu  = gtk_menu_new();
+    g_signal_handlers_block_by_func(G_OBJECT(ctk_object->mnu_screen_depth),
+                                    G_CALLBACK(screen_depth_changed),
+                                    (gpointer) ctk_object);
+
+    gtk_list_store_clear(GTK_LIST_STORE(gtk_combo_box_get_model
+        (GTK_COMBO_BOX(ctk_object->mnu_screen_depth))));
+
 
     /* If Xinerama is enabled, only allow depth 30 if all
      * gpu/screens have support for depth 30.
@@ -4378,54 +4348,42 @@ static void setup_screen_depth_dropdown(CtkDisplayConfig *ctk_object)
     if (add_depth_30_option) {
 
         if (grow_screen_depth_table(ctk_object)) {
-            menu_item = gtk_menu_item_new_with_label
-                ("1.1 Billion Colors (Depth 30) - Experimental");
-            gtk_menu_shell_append(GTK_MENU_SHELL(menu), menu_item);
-            gtk_widget_show(menu_item);
-
+            gtk_combo_box_append_text
+                (GTK_COMBO_BOX(ctk_object->mnu_screen_depth),
+                 "1.1 Billion Colors (Depth 30) - Experimental");
             ctk_object->screen_depth_table[ctk_object->screen_depth_table_len-1] = 30;
         }
     }
 
     if (grow_screen_depth_table(ctk_object)) {
-        menu_item = gtk_menu_item_new_with_label("16.7 Million Colors (Depth 24)");
-        gtk_menu_shell_append(GTK_MENU_SHELL(menu), menu_item);
-        gtk_widget_show(menu_item);
+        gtk_combo_box_append_text(GTK_COMBO_BOX(ctk_object->mnu_screen_depth),
+                                  "16.7 Million Colors (Depth 24)");
         ctk_object->screen_depth_table[ctk_object->screen_depth_table_len-1] = 24;
     }
 
     if (grow_screen_depth_table(ctk_object)) {
-        menu_item = gtk_menu_item_new_with_label("65,536 Colors (Depth 16)");
-        gtk_menu_shell_append(GTK_MENU_SHELL(menu), menu_item);
-        gtk_widget_show(menu_item);
+        gtk_combo_box_append_text(GTK_COMBO_BOX(ctk_object->mnu_screen_depth),
+                                  "65,536 Colors (Depth 16)");
         ctk_object->screen_depth_table[ctk_object->screen_depth_table_len-1] = 16;
     }
 
     if (grow_screen_depth_table(ctk_object)) {
-        menu_item = gtk_menu_item_new_with_label("32,768 Colors (Depth 15)");
-        gtk_menu_shell_append(GTK_MENU_SHELL(menu), menu_item);
-        gtk_widget_show(menu_item);
+        gtk_combo_box_append_text(GTK_COMBO_BOX(ctk_object->mnu_screen_depth),
+                                  "32,768 Colors (Depth 15)");
         ctk_object->screen_depth_table[ctk_object->screen_depth_table_len-1] = 15;
     }
 
     if (grow_screen_depth_table(ctk_object)) {
-        menu_item = gtk_menu_item_new_with_label("256 Colors (Depth 8)");
-        gtk_menu_shell_append(GTK_MENU_SHELL(menu), menu_item);
-        gtk_widget_show(menu_item);
+        gtk_combo_box_append_text(GTK_COMBO_BOX(ctk_object->mnu_screen_depth),
+                                  "256 Colors (Depth 8)");
         ctk_object->screen_depth_table[ctk_object->screen_depth_table_len-1] = 8;
     }
 
-    g_signal_handlers_block_by_func(G_OBJECT(ctk_object->mnu_screen_depth),
-                                    G_CALLBACK(screen_depth_changed),
-                                    (gpointer) ctk_object);
-
-    gtk_option_menu_set_menu
-        (GTK_OPTION_MENU(ctk_object->mnu_screen_depth), menu);
     
     for (cur_idx = 0; cur_idx < ctk_object->screen_depth_table_len; cur_idx++) {
         if (screen->depth == ctk_object->screen_depth_table[cur_idx]) {
-            gtk_option_menu_set_history
-                (GTK_OPTION_MENU(ctk_object->mnu_screen_depth), cur_idx);
+            gtk_combo_box_set_active
+                (GTK_COMBO_BOX(ctk_object->mnu_screen_depth), cur_idx);
         }
     }
 
@@ -4475,8 +4433,8 @@ static void setup_screen_stereo_dropdown(CtkDisplayConfig *ctk_object)
         (G_OBJECT(ctk_object->mnu_screen_stereo),
          G_CALLBACK(screen_stereo_changed), (gpointer) ctk_object);
 
-    gtk_option_menu_set_history
-        (GTK_OPTION_MENU(ctk_object->mnu_screen_stereo),
+    gtk_combo_box_set_active
+        (GTK_COMBO_BOX(ctk_object->mnu_screen_stereo),
          index);
 
     g_signal_handlers_unblock_by_func
@@ -4515,8 +4473,8 @@ static void setup_screen_position_type(CtkDisplayConfig *ctk_object)
         (G_OBJECT(ctk_object->mnu_screen_position_type),
          G_CALLBACK(screen_position_type_changed), (gpointer) ctk_object);
 
-    gtk_option_menu_set_history
-        (GTK_OPTION_MENU(ctk_object->mnu_screen_position_type),
+    gtk_combo_box_set_active
+        (GTK_COMBO_BOX(ctk_object->mnu_screen_position_type),
          screen->position_type);
 
     g_signal_handlers_unblock_by_func
@@ -4540,8 +4498,6 @@ static void setup_screen_position_relative(CtkDisplayConfig *ctk_object)
     nvScreenPtr relative_to;
     int idx;
     int selected_idx;
-    GtkWidget *menu;
-    GtkWidget *menu_item;
 
     screen = ctk_display_layout_get_selected_screen
         (CTK_DISPLAY_LAYOUT(ctk_object->obj_layout));
@@ -4571,9 +4527,15 @@ static void setup_screen_position_relative(CtkDisplayConfig *ctk_object)
 
 
     /* Generate the lookup table and screen dropdown */
+    g_signal_handlers_block_by_func
+        (G_OBJECT(ctk_object->mnu_screen_position_relative),
+         G_CALLBACK(screen_position_relative_changed), (gpointer) ctk_object);
+
+    gtk_list_store_clear(GTK_LIST_STORE(gtk_combo_box_get_model
+        (GTK_COMBO_BOX(ctk_object->mnu_screen_position_relative))));
+
     idx = 0;
     selected_idx = 0;
-    menu = gtk_menu_new();
 
     for (relative_to = layout->screens;
          relative_to;
@@ -4591,24 +4553,16 @@ static void setup_screen_position_relative(CtkDisplayConfig *ctk_object)
 
         tmp_str = g_strdup_printf("X screen %d",
                                   relative_to->scrnum);
-        menu_item = gtk_menu_item_new_with_label(tmp_str);
+        gtk_combo_box_append_text
+            (GTK_COMBO_BOX(ctk_object->mnu_screen_position_relative), tmp_str);
         g_free(tmp_str);
-        gtk_menu_shell_append(GTK_MENU_SHELL(menu), menu_item);
-        gtk_widget_show(menu_item);
         idx++;
     }
 
 
     /* Set the menu and the selected display */
-    g_signal_handlers_block_by_func
-        (G_OBJECT(ctk_object->mnu_screen_position_relative),
-         G_CALLBACK(screen_position_relative_changed), (gpointer) ctk_object);
-
-    gtk_option_menu_set_menu
-        (GTK_OPTION_MENU(ctk_object->mnu_screen_position_relative), menu);
-
-    gtk_option_menu_set_history
-        (GTK_OPTION_MENU(ctk_object->mnu_screen_position_relative),
+    gtk_combo_box_set_active
+        (GTK_COMBO_BOX(ctk_object->mnu_screen_position_relative),
          selected_idx);
 
     g_signal_handlers_unblock_by_func
@@ -5289,7 +5243,7 @@ static void selected_item_changed(GtkWidget *widget, gpointer user_data)
     gint idx;
     SelectableItem *item;
 
-    idx = gtk_option_menu_get_history(GTK_OPTION_MENU(widget));
+    idx = gtk_combo_box_get_active(GTK_COMBO_BOX(widget));
     item = &(ctk_object->selected_item_table[idx]);
 
     switch (item->type) {
@@ -5792,7 +5746,7 @@ static void display_config_changed(GtkWidget *widget, gpointer user_data)
     }
 
     table_idx =
-        gtk_option_menu_get_history(GTK_OPTION_MENU(ctk_object->mnu_display_config));
+        gtk_combo_box_get_active(GTK_COMBO_BOX(ctk_object->mnu_display_config));
     option = &(ctk_object->display_config_table[table_idx]);
 
     switch (option->config) {
@@ -5880,7 +5834,7 @@ static void display_refresh_changed(GtkWidget *widget, gpointer user_data)
 
 
     /* Get the modeline and display to set */
-    idx = gtk_option_menu_get_history(GTK_OPTION_MENU(widget));
+    idx = gtk_combo_box_get_active(GTK_COMBO_BOX(widget));
     modeline = ctk_object->refresh_table[idx];
     display = ctk_display_layout_get_selected_display
         (CTK_DISPLAY_LAYOUT(ctk_object->obj_layout));
@@ -5934,7 +5888,7 @@ static void display_resolution_changed(GtkWidget *widget, gpointer user_data)
 
 
     /* Get the modeline and display to set */
-    idx = gtk_option_menu_get_history(GTK_OPTION_MENU(widget));
+    idx = gtk_combo_box_get_active(GTK_COMBO_BOX(widget));
     selected_mode = ctk_object->resolution_table[idx];
     display = ctk_display_layout_get_selected_display
         (CTK_DISPLAY_LAYOUT(ctk_object->obj_layout));
@@ -6012,7 +5966,7 @@ static void display_stereo_changed(GtkWidget *widget, gpointer user_data)
     if (display && display->cur_mode) {
         mode = display->cur_mode;
 
-        idx = gtk_option_menu_get_history(GTK_OPTION_MENU(widget));
+        idx = gtk_combo_box_get_active(GTK_COMBO_BOX(widget));
         switch (idx) {
         case 1:
             mode->passive_stereo_eye = PASSIVE_STEREO_EYE_LEFT;
@@ -6056,7 +6010,7 @@ static void display_rotation_changed(GtkWidget *widget, gpointer user_data)
         return;
     }
 
-    idx = gtk_option_menu_get_history(GTK_OPTION_MENU(widget));
+    idx = gtk_combo_box_get_active(GTK_COMBO_BOX(widget));
     switch (idx) {
     case 1:
         rotation = ROTATION_90;
@@ -6103,7 +6057,7 @@ static void display_reflection_changed(GtkWidget *widget, gpointer user_data)
         return;
     }
 
-    idx = gtk_option_menu_get_history(GTK_OPTION_MENU(widget));
+    idx = gtk_combo_box_get_active(GTK_COMBO_BOX(widget));
     switch (idx) {
     case 1:
         reflection = REFLECTION_X;
@@ -6293,14 +6247,14 @@ static void display_position_type_changed(GtkWidget *widget,
 
     /* Get the new position type */
     position_idx =
-        gtk_option_menu_get_history
-        (GTK_OPTION_MENU(ctk_object->mnu_display_position_type));
+        gtk_combo_box_get_active
+        (GTK_COMBO_BOX(ctk_object->mnu_display_position_type));
 
     position_type = __position_table[position_idx];
 
     relative_to_idx =
-        gtk_option_menu_get_history
-        (GTK_OPTION_MENU(ctk_object->mnu_display_position_relative));
+        gtk_combo_box_get_active
+        (GTK_COMBO_BOX(ctk_object->mnu_display_position_relative));
 
     if (relative_to_idx >= 0 &&
         relative_to_idx < ctk_object->display_position_table_len) {
@@ -6353,13 +6307,13 @@ static void display_position_relative_changed(GtkWidget *widget,
         (CTK_DISPLAY_LAYOUT(ctk_object->obj_layout));
 
     /* Get the new display to be relative to */
-    position_idx = gtk_option_menu_get_history
-                    (GTK_OPTION_MENU(ctk_object->mnu_display_position_type));
+    position_idx = gtk_combo_box_get_active
+                    (GTK_COMBO_BOX(ctk_object->mnu_display_position_type));
 
     position_type = __position_table[position_idx];
 
-    relative_to_idx = gtk_option_menu_get_history
-        (GTK_OPTION_MENU(ctk_object->mnu_display_position_relative));
+    relative_to_idx = gtk_combo_box_get_active
+        (GTK_COMBO_BOX(ctk_object->mnu_display_position_relative));
 
     if (relative_to_idx >= 0 &&
         relative_to_idx < ctk_object->display_position_table_len) {
@@ -6606,7 +6560,7 @@ static gboolean txt_focus_out(GtkWidget *widget, GdkEvent *event,
 static void screen_depth_changed(GtkWidget *widget, gpointer user_data)
 {
     CtkDisplayConfig *ctk_object = CTK_DISPLAY_CONFIG(user_data);
-    gint idx = gtk_option_menu_get_history(GTK_OPTION_MENU(widget));
+    gint idx = gtk_combo_box_get_active(GTK_COMBO_BOX(widget));
     int depth;
     nvScreenPtr screen = ctk_display_layout_get_selected_screen
         (CTK_DISPLAY_LAYOUT(ctk_object->obj_layout));
@@ -6660,7 +6614,7 @@ static void screen_depth_changed(GtkWidget *widget, gpointer user_data)
 static void screen_stereo_changed(GtkWidget *widget, gpointer user_data)
 {
     CtkDisplayConfig *ctk_object = CTK_DISPLAY_CONFIG(user_data);
-    gint idx = gtk_option_menu_get_history(GTK_OPTION_MENU(widget));
+    gint idx = gtk_combo_box_get_active(GTK_COMBO_BOX(widget));
     nvScreenPtr screen = ctk_display_layout_get_selected_screen
         (CTK_DISPLAY_LAYOUT(ctk_object->obj_layout));
 
@@ -6709,14 +6663,14 @@ static void screen_position_type_changed(GtkWidget *widget,
 
     /* Get the new position type */
     position_idx =
-        gtk_option_menu_get_history
-        (GTK_OPTION_MENU(ctk_object->mnu_screen_position_type));
+        gtk_combo_box_get_active
+        (GTK_COMBO_BOX(ctk_object->mnu_screen_position_type));
 
     position_type = __position_table[position_idx];
 
     relative_to_idx =
-        gtk_option_menu_get_history
-        (GTK_OPTION_MENU(ctk_object->mnu_screen_position_relative));
+        gtk_combo_box_get_active
+        (GTK_COMBO_BOX(ctk_object->mnu_screen_position_relative));
 
     if (relative_to_idx >= 0 &&
         relative_to_idx < ctk_object->screen_position_table_len) {
@@ -6769,13 +6723,13 @@ static void screen_position_relative_changed(GtkWidget *widget,
     if (!screen) return;
 
     /* Get the new X screen to be relative to */
-    position_idx = gtk_option_menu_get_history
-        (GTK_OPTION_MENU(ctk_object->mnu_screen_position_type));
+    position_idx = gtk_combo_box_get_active
+        (GTK_COMBO_BOX(ctk_object->mnu_screen_position_type));
 
     position_type = __position_table[position_idx];
 
-    relative_to_idx = gtk_option_menu_get_history
-        (GTK_OPTION_MENU(ctk_object->mnu_screen_position_relative));
+    relative_to_idx = gtk_combo_box_get_active
+        (GTK_COMBO_BOX(ctk_object->mnu_screen_position_relative));
 
     if (relative_to_idx >= 0 &&
         relative_to_idx < ctk_object->screen_position_table_len) {

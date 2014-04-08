@@ -114,10 +114,10 @@ GtkWidget* ctk_color_correction_page_new(NvCtrlAttributeHandle *handle,
     gtk_box_pack_start(GTK_BOX(ctk_color_correction_page),
                        banner, FALSE, FALSE, 0);
 
+    gtk_widget_show_all(GTK_WIDGET(object));
+
     gtk_box_pack_start(GTK_BOX(ctk_color_correction_page),
                        ctk_color_correction, TRUE, TRUE, 0);
-
-    gtk_widget_show_all(GTK_WIDGET(object));
 
     return GTK_WIDGET(object);
 }

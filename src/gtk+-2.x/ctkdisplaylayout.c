@@ -514,7 +514,7 @@ static int point_in_screen(nvScreenPtr screen, int x, int y)
 /** get_point_relative_position() ************************************
  *
  * Returns where the point (x, y) is, relative to the given rectangle
- * as: above, below, left-of, right-of, inside/clones.
+ * as: above, below, left-of, right-of, inside.
  *
  **/
 
@@ -710,7 +710,7 @@ static int resolve_display(nvDisplayPtr display, int mode_idx,
         pos->y = relative_pos.y - pos->height;
         break;
 
-    case CONF_ADJ_RELATIVE: /* Clone */
+    case CONF_ADJ_RELATIVE: /* Inside */
         resolve_display(mode->relative_to, mode_idx, &relative_pos);
         pos->x = relative_pos.x;
         pos->y = relative_pos.y;
@@ -826,7 +826,7 @@ static int resolve_screen(nvScreenPtr screen, GdkRectangle *pos)
         pos->y = relative_pos.y - pos->height;
         break;
 
-    case CONF_ADJ_RELATIVE: /* Clone */
+    case CONF_ADJ_RELATIVE: /* Inside */
         resolve_screen(screen->relative_to, &relative_pos);
         pos->x = relative_pos.x;
         pos->y = relative_pos.y;
@@ -4152,13 +4152,13 @@ void ctk_display_layout_set_screen_position(CtkDisplayLayout *ctk_object,
          *     circular setup
          *
          *     eg. CRT-0  left of  CRT-1
-         *         CRT-1  clones   CRT-0  <- Shouldn't allow this
+         *         CRT-1  same as  CRT-0  <- Shouldn't allow this
          *
          *     also:
          *
          *  CRT-0 left of CRT-1
          *  CRT-1 left of CRT-2
-         *  CRT-2 clones  CRT-0 ...  Eep!
+         *  CRT-2 same as CRT-0 ...  Eep!
          */
 
         /* Recalculate the layout */
@@ -4252,12 +4252,12 @@ expose_event_callback(GtkWidget *widget, GdkEventExpose *event, gpointer data)
 
     gdk_gc_set_values(fg_gc, &old_gc_values, GDK_GC_FOREGROUND);
 
-    gdk_draw_pixmap(widget->window,
-                    fg_gc,
-                    ctk_object->pixmap,
-                    event->area.x, event->area.y,
-                    event->area.x, event->area.y,
-                    event->area.width, event->area.height);
+    gdk_draw_drawable(widget->window,
+                      fg_gc,
+                      ctk_object->pixmap,
+                      event->area.x, event->area.y,
+                      event->area.x, event->area.y,
+                      event->area.width, event->area.height);
 
     gdk_window_end_paint(widget->window);
 

@@ -201,7 +201,7 @@ GtkWidget* ctk_dithering_controls_new(NvCtrlAttributeHandle *handle,
     /* Build Dithering widgets & pack them in table */
     /* dropdown list for dithering configuration */
     menu = (CtkDropDownMenu *)
-        ctk_drop_down_menu_new(CTK_DROP_DOWN_MENU_FLAG_COMBO);
+        ctk_drop_down_menu_new(CTK_DROP_DOWN_MENU_FLAG_READONLY);
 
     ctk_drop_down_menu_append_item(menu, "Auto", 0);
     ctk_drop_down_menu_append_item(menu, "Enabled", 1);
@@ -258,7 +258,7 @@ GtkWidget* ctk_dithering_controls_new(NvCtrlAttributeHandle *handle,
 
     /* dropdown list for dithering modes - populated in setup */
     ctk_dithering_controls->dithering_mode_menu = 
-                ctk_drop_down_menu_new(CTK_DROP_DOWN_MENU_FLAG_COMBO);
+                ctk_drop_down_menu_new(CTK_DROP_DOWN_MENU_FLAG_READONLY);
     ctk_config_set_tooltip(ctk_config, 
                            ctk_dithering_controls->dithering_mode_menu, 
                            __dithering_mode_help);
@@ -309,7 +309,7 @@ GtkWidget* ctk_dithering_controls_new(NvCtrlAttributeHandle *handle,
 
     /* dithering depth */
     menu = (CtkDropDownMenu *)
-        ctk_drop_down_menu_new(CTK_DROP_DOWN_MENU_FLAG_COMBO);
+        ctk_drop_down_menu_new(CTK_DROP_DOWN_MENU_FLAG_READONLY);
 
     ctk_drop_down_menu_append_item(menu, "Auto", 0);
     ctk_drop_down_menu_append_item(menu, "6 bpc", 1);

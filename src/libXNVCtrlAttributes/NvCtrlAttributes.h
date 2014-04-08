@@ -330,6 +330,13 @@ ReturnStatus NvCtrlGetColorRamp (NvCtrlAttributeHandle *handle,
                                  int *n);
 
 /*
+ * NvCtrlReloadColorRamp() - Reloads the current color ramp for all
+ * channels for the given handle.
+ */
+
+ReturnStatus NvCtrlReloadColorRamp (NvCtrlAttributeHandle *handle);
+
+/*
  * NvCtrlQueryTargetCount() - query the number of targets available
  * on the server of the given target type.  This is used, for example
  * to return the number of GPUs the server knows about.

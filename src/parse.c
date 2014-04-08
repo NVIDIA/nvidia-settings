@@ -90,9 +90,8 @@ const AttributeTableEntry attributeTable[] = {
     { "InitialPixmapPlacement",           NV_CTRL_INITIAL_PIXMAP_PLACEMENT,             INT_ATTR, {0,0,0,0,1,0}, { .int_flags = {0,0,0,0,0,0,0} }, "Controls where X pixmaps are initially created." },
     { "MultiGpuDisplayOwner",             NV_CTRL_MULTIGPU_DISPLAY_OWNER,               INT_ATTR, {0,0,0,0,1,0}, { .int_flags = {0,0,0,0,0,0,0} }, "GPU ID of the GPU that has the display device(s) used for showing the X screen." },
     { "HWOverlay",                        NV_CTRL_HWOVERLAY,                            INT_ATTR, {0,0,0,0,0,0}, { .int_flags = {0,0,0,0,0,0,0} }, "When a workstation overlay is in use, this value is 1 if the hardware overlay is used, or 0 if the overlay is emulated." },
-    { "OnDemandVBlankInterrupts",         NV_CTRL_ONDEMAND_VBLANK_INTERRUPTS,           INT_ATTR, {0,0,0,0,0,0}, { .int_flags = {0,0,0,0,0,0,0} }, "Enable/Disable/Query of on-demand vertical blanking interrupt control on the GPU.  The 'OnDemandVBlankInterrupts' X server configuration option must be enabled for this option to be available." },
     { "GlyphCache",                       NV_CTRL_GLYPH_CACHE,                          INT_ATTR, {0,0,0,0,1,0}, { .int_flags = {0,0,0,0,0,0,0} }, "Enable or disable caching of glyphs (text) in video memory." },
-    { "SwitchToDisplays",                 NV_CTRL_SWITCH_TO_DISPLAYS,                   INT_ATTR, {0,0,0,0,1,0}, { .int_flags = {0,0,0,1,0,0,1} }, "Used to set which displays should be active." },
+    { "SwitchToDisplays",                 NV_CTRL_SWITCH_TO_DISPLAYS,                   INT_ATTR, {0,0,0,0,1,0}, { .int_flags = {0,0,0,1,0,0,1} }, "DEPRECATED." },
     { "NotebookDisplayChangeLidEvent",    NV_CTRL_NOTEBOOK_DISPLAY_CHANGE_LID_EVENT,    INT_ATTR, {0,0,0,0,1,0}, { .int_flags = {0,0,0,0,0,0,0} }, "Reports notebook lid open/close events." },
     { "NotebookInternalLCD",              NV_CTRL_NOTEBOOK_INTERNAL_LCD,                INT_ATTR, {0,0,0,0,1,0}, { .int_flags = {0,0,0,1,0,0,0} }, "DEPRECATED." },
     { "Depth30Allowed",                   NV_CTRL_DEPTH_30_ALLOWED,                     INT_ATTR, {0,0,0,0,1,0}, { .int_flags = {0,0,0,0,0,0,0} }, "Returns whether the NVIDIA X driver supports depth 30 on the specified X screen or GPU." },
@@ -110,7 +109,7 @@ const AttributeTableEntry attributeTable[] = {
     { "LogAniso",                         NV_CTRL_LOG_ANISO,                            INT_ATTR, {0,0,0,0,0,0}, { .int_flags = {0,0,0,0,0,0,0} }, "Enables anisotropic filtering for OpenGL clients; on some NVIDIA hardware, this can only be enabled or disabled; on other hardware different levels of anisotropic filtering can be specified.  This setting only takes effect on OpenGL clients started after it is set." },
     { "FSAA",                             NV_CTRL_FSAA_MODE,                            INT_ATTR, {0,0,0,0,0,0}, { .int_flags = {0,0,0,0,0,0,0} }, "The full screen antialiasing setting for OpenGL clients.  This setting only takes effect on OpenGL clients started after it is set. Enabling antialiasing will disable FXAA." },
     { "TextureSharpen",                   NV_CTRL_TEXTURE_SHARPEN,                      INT_ATTR, {0,0,0,0,0,0}, { .int_flags = {0,0,0,0,0,0,0} }, "Enables texture sharpening for OpenGL clients.  This setting only takes effect on OpenGL clients started after it is set." },
-    { "ForceGenericCpu",                  NV_CTRL_FORCE_GENERIC_CPU,                    INT_ATTR, {0,0,0,0,1,0}, { .int_flags = {0,0,0,0,0,0,0} }, "Inhibit the use of CPU-specific features such as MMX, SSE, or 3DNOW! for OpenGL clients; this option may result in performance loss, but may be useful in conjunction with software such as the Valgrind memory debugger.  This setting only takes effect on OpenGL clients started after it is set." },
+    { "ForceGenericCpu",                  NV_CTRL_FORCE_GENERIC_CPU,                    INT_ATTR, {0,0,0,0,1,0}, { .int_flags = {0,0,0,0,0,0,0} }, "DEPRECATED." },
     { "GammaCorrectedAALines",            NV_CTRL_OPENGL_AA_LINE_GAMMA,                 INT_ATTR, {0,0,0,0,0,0}, { .int_flags = {0,0,0,0,0,0,0} }, "For OpenGL clients, allow gamma-corrected antialiased lines to consider variances in the color display capabilities of output devices when rendering smooth lines.  Only available on recent Quadro GPUs.  This setting only takes effect on OpenGL clients started after it is set." },
     { "TextureClamping",                  NV_CTRL_TEXTURE_CLAMPING,                     INT_ATTR, {0,0,0,0,0,0}, { .int_flags = {0,0,0,0,0,0,0} }, "Define the behavior of OpenGL texture clamping for unbordered textures.  If enabled (1), the conformant behavior is used.  If disabled (0), GL_CLAMP is remapped to GL_CLAMP_TO_EDGE to avoid seams in applications that rely on this behavior, which was the only option in some very old hardware." },
     { "FXAA",                             NV_CTRL_FXAA,                                 INT_ATTR, {0,0,0,0,0,0}, { .int_flags = {0,0,0,0,0,0,0} }, "Enables or disables the use of FXAA, Fast Approximate Anti-Aliasing. Enabling FXAA will disable regular antialiasing modes." },
@@ -160,7 +159,7 @@ const AttributeTableEntry attributeTable[] = {
     { "PCIEGen",                          NV_CTRL_GPU_PCIE_GENERATION,                  INT_ATTR, {0,0,0,0,1,0}, { .int_flags = {0,0,0,0,0,0,0} }, "Returns the PCIe generation that this GPU, in this system, is compliant with." },
     { "GPUErrors",                        NV_CTRL_NUM_GPU_ERRORS_RECOVERED,             INT_ATTR, {0,0,0,0,1,0}, { .int_flags = {0,0,0,0,0,0,0} }, "Returns the number of GPU errors occurred." },
     { "GPUPowerSource",                   NV_CTRL_GPU_POWER_SOURCE,                     INT_ATTR, {0,0,0,0,1,0}, { .int_flags = {0,0,0,0,0,0,0} }, "Reports the type of power source of the GPU." },
-    { "GPUCurrentPerfMode",               NV_CTRL_GPU_CURRENT_PERFORMANCE_MODE,         INT_ATTR, {0,0,0,0,1,0}, { .int_flags = {0,0,0,0,0,0,0} }, "Reports the current performance mode of the GPU driving the X screen.  Running a 3D app, for example, will change this performance mode if Adaptive Clocking is enabled." },
+    { "GPUCurrentPerfMode",               NV_CTRL_GPU_CURRENT_PERFORMANCE_MODE,         INT_ATTR, {0,0,0,0,1,0}, { .int_flags = {0,0,0,0,0,0,0} }, "DEPRECATED." },
     { "GPUCurrentPerfLevel",              NV_CTRL_GPU_CURRENT_PERFORMANCE_LEVEL,        INT_ATTR, {0,0,0,0,1,0}, { .int_flags = {0,0,0,0,0,0,0} }, "Reports the current Performance level of the GPU driving the X screen.  Each Performance level has associated NVClock and Mem Clock values." },
     { "GPUAdaptiveClockState",            NV_CTRL_GPU_ADAPTIVE_CLOCK_STATE,             INT_ATTR, {0,0,0,0,1,0}, { .int_flags = {0,0,0,0,0,0,0} }, "Reports if Adaptive Clocking is Enabled on the GPU driving the X screen." },
     { "GPUPowerMizerMode",                NV_CTRL_GPU_POWER_MIZER_MODE,                 INT_ATTR, {0,0,0,0,0,0}, { .int_flags = {0,0,0,0,0,0,0} }, "Allows setting different GPU powermizer modes." },
@@ -187,6 +186,7 @@ const AttributeTableEntry attributeTable[] = {
     { "GPUDoublePrecisionBoostReboot",    NV_CTRL_GPU_DOUBLE_PRECISION_BOOST_REBOOT,    INT_ATTR, {0,0,0,0,1,0}, { .int_flags = {0,0,0,0,0,0,0} }, "Toggles GPU double precision; the change is applied on the next reboot.  Only available when the change requires a reboot." },
     { "BaseMosaic",                       NV_CTRL_BASE_MOSAIC,                          INT_ATTR, {0,0,0,0,1,0}, { .int_flags = {0,0,0,0,0,0,0} }, "Returns the current Base Mosaic configuration." },
     { "MultiGpuMasterPossible",           NV_CTRL_MULTIGPU_MASTER_POSSIBLE,             INT_ATTR, {0,0,0,0,1,0}, { .int_flags = {0,0,0,0,0,0,0} }, "Returns whether or not the GPU can be configured as the master GPU for a Multi GPU configuration (SLI, SLI Mosaic, Base Mosaic, ...)." },
+    { "VideoEncoderUtilization",          NV_CTRL_VIDEO_ENCODER_UTILIZATION,            INT_ATTR, {0,0,0,0,1,0}, { .int_flags = {0,0,0,0,0,0,0} }, "Returns the video encoder engine utilization as a percentage." },
     { "GPUCurrentClockFreqsString",       NV_CTRL_STRING_GPU_CURRENT_CLOCK_FREQS,       STR_ATTR, {0,0,0,0,1,0}, {}, "Returns the current GPU, memory and Processor clocks of the graphics device driving the X screen." },
     { "GPUPerfModes",                     NV_CTRL_STRING_PERFORMANCE_MODES,             STR_ATTR, {0,0,0,0,1,0}, {}, "Returns a string with all the performance modes defined for this GPU along with their associated NV Clock and Memory Clock values." },
     { "GpuUUID",                          NV_CTRL_STRING_GPU_UUID,                      STR_ATTR, {0,0,0,0,1,0}, {}, "Returns the global unique identifier of the GPU." },
@@ -307,8 +307,8 @@ const AttributeTableEntry attributeTable[] = {
     { "RefreshRate",                      NV_CTRL_REFRESH_RATE,                         INT_ATTR, {0,0,0,0,1,0}, { .int_flags = {1,0,0,0,0,0,0} }, "Returns the refresh rate of the specified display device in cHz (Centihertz) (to get the refresh rate in Hz, divide the returned value by 100)." },
     { "RefreshRate3",                     NV_CTRL_REFRESH_RATE_3,                       INT_ATTR, {0,0,0,0,1,0}, { .int_flags = {0,1,0,0,0,0,0} }, "Returns the refresh rate of the specified display device in mHz (Millihertz) (to get the refresh rate in Hz, divide the returned value by 1000)." },
     { "OverscanCompensation",             NV_CTRL_OVERSCAN_COMPENSATION,                INT_ATTR, {0,0,0,0,0,0}, { .int_flags = {0,0,0,0,0,0,0} }, "Adjust the amount of overscan compensation scaling, in pixels, to apply to the specified display device." },
-    { "ColorSpace",                       NV_CTRL_COLOR_SPACE,                          INT_ATTR, {0,0,0,0,0,0}, { .int_flags = {0,0,0,0,0,0,0} }, "Sets the color space of the signal sent to the display device." },
-    { "ColorRange",                       NV_CTRL_COLOR_RANGE,                          INT_ATTR, {0,0,0,0,0,0}, { .int_flags = {0,0,0,0,0,0,0} }, "Sets the color range of the signal sent to the display device." },
+    { "ColorSpace",                       NV_CTRL_COLOR_SPACE,                          INT_ATTR, {1,0,0,0,0,0}, { .int_flags = {0,0,0,0,0,0,0} }, "Sets the color space of the signal sent to the display device." },
+    { "ColorRange",                       NV_CTRL_COLOR_RANGE,                          INT_ATTR, {1,0,0,0,0,0}, { .int_flags = {0,0,0,0,0,0,0} }, "Sets the color range of the signal sent to the display device." },
     { "SynchronousPaletteUpdates",        NV_CTRL_SYNCHRONOUS_PALETTE_UPDATES,          INT_ATTR, {0,0,0,0,0,0}, { .int_flags = {0,0,0,0,0,0,0} }, "Controls whether colormap updates are synchronized with X rendering." },
     { "CurrentMetaModeID",                NV_CTRL_CURRENT_METAMODE_ID,                  INT_ATTR, {0,0,0,0,1,0}, { .int_flags = {0,0,0,0,0,0,0} }, "The ID of the current MetaMode." },
     { "RandROutputID",                    NV_CTRL_DISPLAY_RANDR_OUTPUT_ID,              INT_ATTR, {0,0,0,0,1,0}, { .int_flags = {0,0,0,0,0,0,0} }, "The RandR Output ID that corresponds to the display device." },
@@ -327,7 +327,7 @@ const AttributeTableEntry attributeTable[] = {
     { "TVSaturation",                     NV_CTRL_TV_SATURATION,                        INT_ATTR, {0,0,0,0,0,0}, { .int_flags = {0,0,0,0,0,0,0} }, "Adjusts the amount of saturation on the specified display device." },
 
     /* X Video */
-    { "XVideoSyncToDisplay",              NV_CTRL_XV_SYNC_TO_DISPLAY,                   INT_ATTR, {0,0,0,0,1,0}, { .int_flags = {0,0,0,1,0,1,0} }, "Controls which display device is synced to by the texture and blitter adaptors when they are set to synchronize to the vertical blanking." },
+    { "XVideoSyncToDisplay",              NV_CTRL_XV_SYNC_TO_DISPLAY,                   INT_ATTR, {0,0,0,0,1,0}, { .int_flags = {0,0,0,1,0,1,0} }, "DEPRECATED: Use \"XVideoSyncToDisplayID\" instead." },
     { "XVideoSyncToDisplayID",            NV_CTRL_XV_SYNC_TO_DISPLAY_ID,                INT_ATTR, {0,0,0,0,0,0}, { .int_flags = {0,0,0,0,1,0,0} }, "Controls which display device is synced to by the texture and blitter adaptors when they are set to synchronize to the vertical blanking." },
 
     /* 3D Vision Pro */
@@ -369,7 +369,7 @@ const int attributeTableLen = ARRAY_LEN(attributeTable);
  * the last attribute that the table knows about.
  */
 
-#if NV_CTRL_LAST_ATTRIBUTE != NV_CTRL_THERMAL_COOLER_SPEED
+#if NV_CTRL_LAST_ATTRIBUTE != NV_CTRL_GPU_MEM_TRANSFER_RATE_OFFSET
 #warning "Have you forgotten to add a new integer attribute to attributeTable?"
 #endif
 

@@ -290,7 +290,7 @@ static GtkWidget *create_jack_channel_menu(CtkGvi *ctk_gvi)
     /* Create the menu */
 
     menu = (CtkDropDownMenu *)
-        ctk_drop_down_menu_new(CTK_DROP_DOWN_MENU_FLAG_COMBO);
+        ctk_drop_down_menu_new(CTK_DROP_DOWN_MENU_FLAG_READONLY);
     
     /* Just show all jack/channel pairs in dropdown */
 

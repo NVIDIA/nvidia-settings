@@ -431,10 +431,13 @@ void ctk_help_data_list_prepend(GList **list,
                                 const gchar *help_text,
                                 const gchar *extended_help_text)
 {
-    CtkHelpDataItem *item = nvalloc(sizeof(CtkHelpDataItem));
+    CtkHelpDataItem *item;
 
-    assert(label);
-    assert(help_text);
+    if (!label || !help_text) {
+        return;
+    }
+
+    item = nvalloc(sizeof(CtkHelpDataItem));
 
     item->label = nvstrdup(label);
     item->help_text = nvstrdup(help_text);

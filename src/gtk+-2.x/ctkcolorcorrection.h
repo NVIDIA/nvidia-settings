@@ -56,10 +56,13 @@ struct _CtkColorCorrection
     NvCtrlAttributeHandle *handle;
     CtkConfig *ctk_config;
     CtkEvent  *ctk_event;
-    GtkWidget *option_menu;
+    GtkWidget *color_channel;
     GtkObject *brightness_adjustment;
     GtkObject *contrast_adjustment;
     GtkObject *gamma_adjustment;
+    GtkWidget *curve;
+    GtkWidget *warning_container;
+    GtkWidget *reset_button;
     GtkWidget *confirm_button;
     GtkWidget *confirm_label;
     gint confirm_countdown;
@@ -67,6 +70,7 @@ struct _CtkColorCorrection
     gfloat cur_slider_val[3][4];  // as [attribute][channel]
     gfloat prev_slider_val[3][4]; // as [attribute][channel]
     guint enabled_display_devices;
+    int num_expected_updates;
 };
 
 struct _CtkColorCorrectionClass

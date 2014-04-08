@@ -330,11 +330,11 @@ GtkWidget* ctk_gvo_csc_new(NvCtrlAttributeHandle *handle,
     
     
     ctk_gvo_csc->initializeDropDown =
-        ctk_drop_down_menu_new(CTK_DROP_DOWN_MENU_FLAG_MONOSPACE);
+        ctk_drop_down_menu_new(CTK_DROP_DOWN_MENU_FLAG_READONLY);
 
-    ctk_config_set_tooltip
+    ctk_drop_down_menu_set_tooltip
         (ctk_config,
-         CTK_DROP_DOWN_MENU(ctk_gvo_csc->initializeDropDown)->option_menu,
+         CTK_DROP_DOWN_MENU(ctk_gvo_csc->initializeDropDown),
          __initialize_help);
     
     ctk_drop_down_menu_append_item

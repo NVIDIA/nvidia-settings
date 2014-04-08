@@ -420,6 +420,7 @@ GtkWidget* ctk_ecc_new(NvCtrlAttributeHandle *handle,
     gboolean ecc_default_status;
     ReturnStatus ret;
     gchar *ecc_enabled_string;
+    gchar *str = NULL;
 
     /* make sure we have a handle */
 
@@ -652,12 +653,16 @@ GtkWidget* ctk_ecc_new(NvCtrlAttributeHandle *handle,
                      (gpointer) ctk_ecc);
 
     /* Register a timer callback to update Ecc status info */
+    str = g_strdup_printf("ECC Settings (GPU %d)",
+                        NvCtrlGetTargetId(handle));
 
     ctk_config_add_timer(ctk_ecc->ctk_config,
                          DEFAULT_UPDATE_ECC_STATUS_INFO_TIME_INTERVAL,
-                         "ECC Settings",
+                         str,
                          (GSourceFunc) update_ecc_info,
                          (gpointer) ctk_ecc);
+
+    g_free(str);
     
     gtk_widget_show_all(GTK_WIDGET(ctk_ecc));
 

@@ -207,7 +207,6 @@ GTK_SRC += gtk+-2.x/ctkvcs.c
 GTK_SRC += gtk+-2.x/ctkdisplayconfig-utils.c
 GTK_SRC += gtk+-2.x/ctkgvo-banner.c
 GTK_SRC += gtk+-2.x/ctkgvo-sync.c
-GTK_SRC += gtk+-2.x/ctkpowersavings.c
 GTK_SRC += gtk+-2.x/ctkgvi.c
 GTK_SRC += gtk+-2.x/ctklicense.c
 GTK_SRC += gtk+-2.x/ctkecc.c
@@ -256,7 +255,6 @@ GTK_EXTRA_DIST += gtk+-2.x/ctkgpu.h
 GTK_EXTRA_DIST += gtk+-2.x/ctkbanner.h
 GTK_EXTRA_DIST += gtk+-2.x/ctkvcs.h
 GTK_EXTRA_DIST += gtk+-2.x/ctkdisplayconfig-utils.h
-GTK_EXTRA_DIST += gtk+-2.x/ctkpowersavings.h
 GTK_EXTRA_DIST += gtk+-2.x/ctkgvo-banner.h
 GTK_EXTRA_DIST += gtk+-2.x/ctkgvo-sync.h
 GTK_EXTRA_DIST += gtk+-2.x/ctkgvi.h
@@ -274,25 +272,28 @@ NVIDIA_SETTINGS_EXTRA_DIST += $(GTK_EXTRA_DIST)
 #
 # files in the src/jansson directory of nvidia-settings
 #
-JANSSON_SRC += jansson/load.c
-JANSSON_SRC += jansson/value.c
-JANSSON_SRC += jansson/pack_unpack.c
-JANSSON_SRC += jansson/utf.c
 JANSSON_SRC += jansson/dump.c
-JANSSON_SRC += jansson/strconv.c
-JANSSON_SRC += jansson/strbuffer.c
-JANSSON_SRC += jansson/memory.c
 JANSSON_SRC += jansson/error.c
 JANSSON_SRC += jansson/hashtable.c
+JANSSON_SRC += jansson/hashtable_seed.c
+JANSSON_SRC += jansson/load.c
+JANSSON_SRC += jansson/memory.c
+JANSSON_SRC += jansson/pack_unpack.c
+JANSSON_SRC += jansson/strbuffer.c
+JANSSON_SRC += jansson/strconv.c
+JANSSON_SRC += jansson/utf.c
+JANSSON_SRC += jansson/value.c
 
 NVIDIA_SETTINGS_SRC += $(JANSSON_SRC)
 
-JANSSON_EXTRA_DIST += jansson/utf.h
-JANSSON_EXTRA_DIST += jansson/jansson_config.h
-JANSSON_EXTRA_DIST += jansson/strbuffer.h
-JANSSON_EXTRA_DIST += jansson/jansson.h
 JANSSON_EXTRA_DIST += jansson/hashtable.h
+JANSSON_EXTRA_DIST += jansson/jansson_config.h
+JANSSON_EXTRA_DIST += jansson/jansson.h
+JANSSON_EXTRA_DIST += jansson/jansson_private_config.h
 JANSSON_EXTRA_DIST += jansson/jansson_private.h
+JANSSON_EXTRA_DIST += jansson/lookup3.h
+JANSSON_EXTRA_DIST += jansson/strbuffer.h
+JANSSON_EXTRA_DIST += jansson/utf.h
 
 NVIDIA_SETTINGS_EXTRA_DIST += $(JANSSON_EXTRA_DIST)
 

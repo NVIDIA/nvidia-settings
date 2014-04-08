@@ -94,16 +94,28 @@ NvCtrlInitVidModeAttributes(NvCtrlAttributePrivateHandle *h)
     return vm;
 
  failed:
-    if (vm) {
-        free(vm->lut[RED_CHANNEL_INDEX]);
-        free(vm->lut[GREEN_CHANNEL_INDEX]);
-        free(vm->lut[BLUE_CHANNEL_INDEX]);
-        free(vm);
-    }
+    NvCtrlFreeVidModeAttributes(h);
 
     return NULL;
 
 } /* NvCtrlInitVidModeAttributes() */
+
+
+ReturnStatus NvCtrlFreeVidModeAttributes(NvCtrlAttributePrivateHandle *h)
+{
+    if (!h || !h->vm) {
+        return NvCtrlBadHandle;
+    }
+
+    free(h->vm->lut[RED_CHANNEL_INDEX]);
+    free(h->vm->lut[GREEN_CHANNEL_INDEX]);
+    free(h->vm->lut[BLUE_CHANNEL_INDEX]);
+    free(h->vm);
+
+    h->vm = NULL;
+    
+    return NvCtrlSuccess;
+}
 
 
 ReturnStatus NvCtrlVidModeGetColorAttributes(NvCtrlAttributePrivateHandle *h,
@@ -199,6 +211,15 @@ ReturnStatus NvCtrlVidModeGetColorRamp(NvCtrlAttributePrivateHandle *h,
     }
     
     return NvCtrlSuccess;
+}
+
+ReturnStatus NvCtrlVidModeReloadColorRamp(NvCtrlAttributePrivateHandle *h)
+{
+    NvCtrlFreeVidModeAttributes(h);
+
+    h->vm = NvCtrlInitVidModeAttributes(h);
+
+    return h->vm ? NvCtrlSuccess : NvCtrlError;
 }
 
 /*

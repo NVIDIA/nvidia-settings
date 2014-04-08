@@ -47,53 +47,15 @@
 #include "nv-control-screen.h"
 
 
-/*
- * display_device_name() - return the display device name correspoding
- * to the display device mask.
- */
-
-static char *display_device_name(int mask)
-{
-    switch (mask) {
-    case (1 <<  0): return "CRT-0"; break;
-    case (1 <<  1): return "CRT-1"; break;
-    case (1 <<  2): return "CRT-2"; break;
-    case (1 <<  3): return "CRT-3"; break;
-    case (1 <<  4): return "CRT-4"; break;
-    case (1 <<  5): return "CRT-5"; break;
-    case (1 <<  6): return "CRT-6"; break;
-    case (1 <<  7): return "CRT-7"; break;
-
-    case (1 <<  8): return "TV-0"; break;
-    case (1 <<  9): return "TV-1"; break;
-    case (1 << 10): return "TV-2"; break;
-    case (1 << 11): return "TV-3"; break;
-    case (1 << 12): return "TV-4"; break;
-    case (1 << 13): return "TV-5"; break;
-    case (1 << 14): return "TV-6"; break;
-    case (1 << 15): return "TV-7"; break;
-
-    case (1 << 16): return "DFP-0"; break;
-    case (1 << 17): return "DFP-1"; break;
-    case (1 << 18): return "DFP-2"; break;
-    case (1 << 19): return "DFP-3"; break;
-    case (1 << 20): return "DFP-4"; break;
-    case (1 << 21): return "DFP-5"; break;
-    case (1 << 22): return "DFP-6"; break;
-    case (1 << 23): return "DFP-7"; break;
-    default: return "Unknown";
-    }
-} /* display_device_name() */
-
-
-
 int main(int argc, char *argv[])
 {
     Display *dpy;
     Bool ret;
     int screen, retval, setval = -1;
-    int display_devices, mask;
     NVCTRLAttributeValidValuesRec valid_values;
+    int *data;
+    int len;
+    int i;
 
     /*
      * If there is a commandline argument, interpret it as the value
@@ -120,14 +82,16 @@ int main(int argc, char *argv[])
 
 
     /*
-     * Get the bitmask of enabled display devices
+     * Get the list of enabled display devices on the X screen
      */
 
-    ret = XNVCTRLQueryAttribute(dpy,
-                                screen,
-                                0,
-                                NV_CTRL_ENABLED_DISPLAYS,
-                                &display_devices);
+    ret = XNVCTRLQueryTargetBinaryData(dpy,
+                                       NV_CTRL_TARGET_TYPE_X_SCREEN,
+                                       screen,
+                                       0,
+                                       NV_CTRL_BINARY_DATA_DISPLAYS_ENABLED_ON_XSCREEN,
+                                       (unsigned char **)&data,
+                                       &len);
     if (!ret) {
         fprintf(stderr, "Unable to determine enabled display devices for "
                 "screen %d of '%s'\n", screen, XDisplayName(NULL));
@@ -139,24 +103,25 @@ int main(int argc, char *argv[])
      * loop over each enabled display device
      */
 
-    for (mask = 1; mask < (1<<24); mask <<= 1) {
+    for (i = 1; i <= data[0]; i++) {
 
-        if (!(mask & display_devices)) continue;
+        int dpyId = data[i];
 
         /*
          * Query the valid values for NV_CTRL_DIGITAL_VIBRANCE
          */
 
-        ret = XNVCTRLQueryValidAttributeValues(dpy,
-                                               screen,
-                                               mask,
-                                               NV_CTRL_DIGITAL_VIBRANCE,
-                                               &valid_values);
+        ret = XNVCTRLQueryValidTargetAttributeValues(dpy,
+                                                     NV_CTRL_TARGET_TYPE_DISPLAY,
+                                                     dpyId,
+                                                     0,
+                                                     NV_CTRL_DIGITAL_VIBRANCE,
+                                                     &valid_values);
         if (!ret) {
             fprintf(stderr, "Unable to query the valid values for "
-                    "NV_CTRL_DIGITAL_VIBRANCE on display device %s of "
+                    "NV_CTRL_DIGITAL_VIBRANCE on display device DPY-%d of "
                     "screen %d of '%s'.\n",
-                    display_device_name(mask),
+                    dpyId,
                     screen, XDisplayName(NULL));
             return 1;
         }
@@ -182,29 +147,29 @@ int main(int argc, char *argv[])
         
         if (setval != -1) {
         
-            XNVCTRLSetAttribute(dpy,
-                                screen,
-                                mask,
-                                NV_CTRL_DIGITAL_VIBRANCE,
-                                setval);
+            XNVCTRLSetTargetAttribute(dpy,
+                                      NV_CTRL_TARGET_TYPE_DISPLAY,
+                                      dpyId,
+                                      0,
+                                      NV_CTRL_DIGITAL_VIBRANCE,
+                                      setval);
             XFlush(dpy);
 
             printf("Set NV_CTRL_DIGITAL_VIBRANCE to %d on display device "
-                   "%s of screen %d of '%s'.\n", setval,
-                   display_device_name(mask),
-                   screen, XDisplayName(NULL));
+                   "DPY-%d of screen %d of '%s'.\n", setval, dpyId, screen,
+                   XDisplayName(NULL));
         } else {
         
-            ret = XNVCTRLQueryAttribute(dpy,
-                                        screen,
-                                        mask,
-                                        NV_CTRL_DIGITAL_VIBRANCE,
-                                        &retval);
+            ret = XNVCTRLQueryTargetAttribute(dpy,
+                                              NV_CTRL_TARGET_TYPE_DISPLAY,
+                                              dpyId,
+                                              0,
+                                              NV_CTRL_DIGITAL_VIBRANCE,
+                                              &retval);
 
             printf("The current value of NV_CTRL_DIGITAL_VIBRANCE "
-                   "is %d on display device %s of screen %d of '%s'.\n",
-                   retval, display_device_name(mask),
-                   screen, XDisplayName(NULL));
+                   "is %d on display device DPY-%d of screen %d of '%s'.\n",
+                   retval, dpyId, screen, XDisplayName(NULL));
         }
     }
     

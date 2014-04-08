@@ -212,9 +212,7 @@ static void ctk_curve_size_request(
     requisition->height = REQUESTED_HEIGHT;
 }
 
-static void color_changed(
-    GtkWidget *widget
-)
+void ctk_curve_color_changed(GtkWidget *widget)
 {
     GdkRectangle rectangle;
 
@@ -268,7 +266,8 @@ GtkWidget* ctk_curve_new(NvCtrlAttributeHandle *handle, GtkWidget *color)
 
 
     g_signal_connect_swapped(G_OBJECT(ctk_curve->color), "changed",
-                             G_CALLBACK(color_changed), (gpointer) ctk_curve);
+                             G_CALLBACK(ctk_curve_color_changed),
+                             (gpointer) ctk_curve);
 
     return GTK_WIDGET(object);
 }

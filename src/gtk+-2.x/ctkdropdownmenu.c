@@ -18,6 +18,7 @@
  */
 
 #include <gtk/gtk.h>
+#include <assert.h>
 #include <string.h>
 
 #include "ctkdropdownmenu.h"
@@ -34,6 +35,8 @@ static void
 ctk_drop_down_menu_class_init(CtkDropDownMenuClass *ctk_drop_down_menu_class);
 
 static void ctk_drop_down_menu_free(GObject *object);
+
+static void ctk_drop_down_menu_set_current_index(CtkDropDownMenu *d, gint index);
 
 
 GType ctk_drop_down_menu_get_type(
@@ -87,7 +90,7 @@ ctk_drop_down_menu_class_init(CtkDropDownMenuClass *ctk_drop_down_menu_class)
  * changed() - emit the "changed" signal
  */
 
-static void changed(GtkWidget *menu, gpointer user_data)
+static void changed(GtkWidget *combo_box, gpointer user_data)
 {
     CtkDropDownMenu *d = CTK_DROP_DOWN_MENU(user_data);
     
@@ -109,11 +112,7 @@ static void ctk_drop_down_menu_free(GObject *object)
     d = CTK_DROP_DOWN_MENU(object);
     
     g_free(d->values);
-    
-    if (d->glist) {
-        g_list_free(d->glist);
-    }
-    
+
 } /* ctk_drop_down_menu_free() */
 
 
@@ -128,17 +127,17 @@ GObject *ctk_drop_down_menu_change_object(GtkWidget* widget)
 {
     CtkDropDownMenu *d = CTK_DROP_DOWN_MENU(widget);
 
-    if (d->flags & CTK_DROP_DOWN_MENU_FLAG_COMBO) {
-        return G_OBJECT(GTK_EDITABLE(GTK_COMBO(d->menu)->entry));
+    if (d->flags & CTK_DROP_DOWN_MENU_FLAG_READWRITE) {
+        return G_OBJECT(GTK_EDITABLE(GTK_BIN(d->combo_box)->child));
     } else {
-        return G_OBJECT(d->option_menu);
+        return G_OBJECT(d->combo_box);
     }
 } /* ctk_drop_down_menu_change_object() */
 
 
 
 /* 
- * ctk_drop_down_menu_changed() - callback function for GtkCombo menu
+ * ctk_drop_down_menu_changed() - callback function for GtkCombo combo box
  * changed.
  */
 
@@ -167,7 +166,6 @@ GtkWidget* ctk_drop_down_menu_new(guint flags)
 {
     GObject *object;
     CtkDropDownMenu *d;
-    GtkWidget *menu_widget; // used to emit "changed" signal
     
     object = g_object_new(CTK_TYPE_DROP_DOWN_MENU, NULL);
     
@@ -176,26 +174,23 @@ GtkWidget* ctk_drop_down_menu_new(guint flags)
     d->flags = flags;
     d->values = NULL;
     d->num_entries = 0;
+    d->current_selected_item = -1;
 
-    if (flags & CTK_DROP_DOWN_MENU_FLAG_COMBO) {
-        d->menu = gtk_combo_new();
-        menu_widget = d->menu;
-        g_signal_connect(G_OBJECT(GTK_EDITABLE(GTK_COMBO(d->menu)->entry)),
+    if (flags & CTK_DROP_DOWN_MENU_FLAG_READWRITE) {
+        d->combo_box = gtk_combo_box_entry_new_text();
+        g_signal_connect(G_OBJECT(GTK_EDITABLE(GTK_BIN(d->combo_box)->child)),
                          "changed",
                          G_CALLBACK(ctk_drop_down_menu_changed),
                          (gpointer) d);
     } else { 
-        d->option_menu = gtk_option_menu_new();
-        d->menu = gtk_menu_new();
-        gtk_option_menu_set_menu(GTK_OPTION_MENU(d->option_menu), d->menu);
-        menu_widget = d->option_menu;
-        g_signal_connect(G_OBJECT(d->option_menu), "changed",
+        d->combo_box = gtk_combo_box_new_text();
+        g_signal_connect(G_OBJECT(d->combo_box), "changed",
                          G_CALLBACK(changed), (gpointer) d);
 
     }
 
     gtk_box_set_spacing(GTK_BOX(d), 0);
-    gtk_box_pack_start(GTK_BOX(d), menu_widget, FALSE, FALSE, 0);
+    gtk_box_pack_start(GTK_BOX(d), d->combo_box, FALSE, FALSE, 0);
 
     return GTK_WIDGET(d);
     
@@ -204,15 +199,13 @@ GtkWidget* ctk_drop_down_menu_new(guint flags)
 
 
 /*
- * ctk_drop_down_menu_reset() - Clears the internal menu
+ * ctk_drop_down_menu_reset() - Clears the internal combo box
  */
 
 void ctk_drop_down_menu_reset(CtkDropDownMenu *d)
 {
-    if (d->glist) {
-        g_list_free(d->glist);
-        d->glist = NULL;
-    }
+    GtkComboBox *combobox = GTK_COMBO_BOX(d->combo_box);
+
     if (d->values) {
         g_free(d->values);
         d->values = NULL;
@@ -220,10 +213,7 @@ void ctk_drop_down_menu_reset(CtkDropDownMenu *d)
 
     d->num_entries = 0;
 
-    if (!(d->flags & CTK_DROP_DOWN_MENU_FLAG_COMBO)) {
-        d->menu = gtk_menu_new();
-        gtk_option_menu_set_menu(GTK_OPTION_MENU(d->option_menu), d->menu);
-    }
+    gtk_list_store_clear(GTK_LIST_STORE(gtk_combo_box_get_model(combobox)));
 
 } /* ctk_drop_down_menu_reset() */
 
@@ -231,7 +221,7 @@ void ctk_drop_down_menu_reset(CtkDropDownMenu *d)
 
 /*
  * ctk_drop_down_menu_append_item() - add a new entry to the drop down
- * menu
+ * combo box
  */
 
 GtkWidget *ctk_drop_down_menu_append_item(CtkDropDownMenu *d,
@@ -239,118 +229,132 @@ GtkWidget *ctk_drop_down_menu_append_item(CtkDropDownMenu *d,
                                           const gint value)
 {
     GtkWidget *label = NULL;
-    
+
     d->values = g_realloc(d->values,
                           sizeof(CtkDropDownMenuValue) * (d->num_entries + 1));
-    
-    if (d->flags & CTK_DROP_DOWN_MENU_FLAG_COMBO) {
-        d->glist = g_list_append(d->glist,
-                                 g_strdup(name));
 
-        gtk_combo_set_popdown_strings(GTK_COMBO(d->menu), d->glist);
-        gtk_editable_set_editable(GTK_EDITABLE(GTK_COMBO(d->menu)->entry), FALSE);
-        d->values[d->num_entries].glist_item = g_strdup(name);
-    } else {
-        GtkWidget *menu_item, *alignment;
-        gchar *str;
-
-        menu_item = gtk_menu_item_new();
-        gtk_menu_shell_append(GTK_MENU_SHELL(d->menu), menu_item);
-
-        if (d->flags & CTK_DROP_DOWN_MENU_FLAG_MONOSPACE) {
-            str = g_strconcat("<tt><small>", name, "</small></tt>", NULL);
-            label = gtk_label_new(NULL);
-            gtk_label_set_markup(GTK_LABEL(label), str);
-            g_free(str);
-        } else {
-            label = gtk_label_new(name);
-        }
-        alignment = gtk_alignment_new(0, 0, 0, 0);
-        gtk_container_add(GTK_CONTAINER(alignment), label);
-        gtk_container_add(GTK_CONTAINER(menu_item), alignment);
-        d->values[d->num_entries].menu_item = menu_item;
-        
-    }
+    gtk_combo_box_append_text(GTK_COMBO_BOX(d->combo_box), name);
+    d->values[d->num_entries].glist_item = g_strdup(name);
 
     d->values[d->num_entries].value = value;
     d->num_entries++;
 
+    if (d->num_entries == 1) {
+        /*
+         * If this is the first item, make this the current item.
+         */
+        ctk_drop_down_menu_set_current_index(d, 0);
+    }
+
     return label;
-    
+
 } /* ctk_drop_down_menu_append_item() */
 
 
 
 /*
- * ctk_drop_down_menu_get_current_value() - return the current value
- * selected in the drop down menu, or 0 if the current item is undefined.
+ * ctk_drop_down_menu_get_current_value() - return the current value selected in
+ * the drop down combo box.  In the case where no current item is selected and
+ * the menu has one or more valid items, this has the side effect of selecting
+ * the first item from the menu as its current item, then returning its value.
+ *
+ * In the case where the menu has no valid items, this function returns 0.
  */
-
 gint ctk_drop_down_menu_get_current_value(CtkDropDownMenu *d)
 {
     gint i;
 
-    if (d->flags & CTK_DROP_DOWN_MENU_FLAG_COMBO) {
+    if (d->flags & CTK_DROP_DOWN_MENU_FLAG_READWRITE) {
         i = d->current_selected_item;
     } else {
-        i = gtk_option_menu_get_history(GTK_OPTION_MENU(d->option_menu));
+        /* This returns -1 if no item is active */
+        i = gtk_combo_box_get_active(GTK_COMBO_BOX(d->combo_box));
     }
 
-    if (i < d->num_entries) {
+    if (d->num_entries > 0) {
+        /* Default to the first item if the current selection is invalid */
+        if ((i < 0) || (i >= d->num_entries)) {
+            i = 0;
+            ctk_drop_down_menu_set_current_index(d, 0);
+        }
         return d->values[i].value;
-    } else { 
-        return 0; /* XXX??? */
+    } else {
+        return 0;
     }
 
 } /* ctk_drop_down_menu_get_current_value() */
 
 
 /*
- * ctk_drop_down_menu_get_current_name() - get the current name in the menu, or
- * an empty string if the current item is undefined. The returned string points
- * to internally allocated storage in the widget and must not be modified,
- * freed, or stored.
+ * ctk_drop_down_menu_get_current_name() - get the current name in the combo
+ * box.  In the case where no current item is selected and the menu has one
+ * or more valid items, this has the side effect of selecting the first item
+ * from the menu as its current item, then returning its name.
+ *
+ * In the case where the menu has no valid items, this will return an empty
+ * string.
+ *
+ * The returned string points to internally allocated storage in the widget
+ * and must not be modified, freed, or stored.
  */
 const char *ctk_drop_down_menu_get_current_name(CtkDropDownMenu *d)
 {
     gint i;
 
-    if (d->flags & CTK_DROP_DOWN_MENU_FLAG_COMBO) {
+    if (d->flags & CTK_DROP_DOWN_MENU_FLAG_READWRITE) {
         i = d->current_selected_item;
     } else {
-        i = gtk_option_menu_get_history(GTK_OPTION_MENU(d->option_menu));
-
+        /* This returns -1 if no item is active */
+        i = gtk_combo_box_get_active(GTK_COMBO_BOX(d->combo_box));
     }
 
-    if (i < d->num_entries) {
+    if (d->num_entries > 0) {
+        /* Default to the first item if the current selection is invalid */
+        if ((i < 0) || (i >= d->num_entries)) {
+            i = 0;
+            ctk_drop_down_menu_set_current_index(d, 0);
+        }
         return d->values[i].glist_item;
-    } else { 
-        return ""; /* XXX??? */
+    } else {
+        return "";
     }
 }
 
 /*
  * ctk_drop_down_menu_set_current_value() - set the current value in
- * the menu
+ * the combo box
  */
 
 void ctk_drop_down_menu_set_current_value(CtkDropDownMenu *d, gint value)
 {
     gint i;
-    
+
     for (i = 0; i < d->num_entries; i++) {
         if (d->values[i].value == value) {
-            if (d->flags & CTK_DROP_DOWN_MENU_FLAG_COMBO) {
-                gtk_entry_set_text
-                    (GTK_ENTRY(GTK_COMBO(d->menu)->entry),
-                     d->values[i].glist_item);
-            } else {
-                gtk_option_menu_set_history(GTK_OPTION_MENU(d->option_menu), i);
-            }
+            ctk_drop_down_menu_set_current_index(d, i);
             return;
         }
     }
 } /* ctk_drop_down_menu_set_current_value() */
+
+/*
+ * ctk_drop_down_menu_set_current_index() - set the current item (name/value)
+ * in the combo box to the item at the given index.  Caller is expected to
+ * pass in a valid index argument.
+ */
+void ctk_drop_down_menu_set_current_index(CtkDropDownMenu *d, gint index)
+{
+    assert((index >= 0) && (index < d->num_entries));
+
+    if (d->flags & CTK_DROP_DOWN_MENU_FLAG_READWRITE) {
+        gtk_entry_set_text
+            (GTK_ENTRY(GTK_BIN(d->combo_box)->child),
+             d->values[index].glist_item);
+        d->current_selected_item = index;
+    } else {
+        gtk_combo_box_set_active(GTK_COMBO_BOX(d->combo_box), index);
+    }
+} /* ctk_drop_down_menu_set_current_index() */
 
 
 
@@ -363,9 +367,9 @@ void ctk_drop_down_menu_set_value_sensitive(CtkDropDownMenu *d,
                                             gint value, gboolean sensitive)
 {
 
-    if (d->flags & CTK_DROP_DOWN_MENU_FLAG_COMBO) {
+    if (d->flags & CTK_DROP_DOWN_MENU_FLAG_READWRITE) {
         ctk_drop_down_menu_set_current_value(d, value);
-        gtk_widget_set_sensitive(GTK_WIDGET(GTK_COMBO(d->menu)->entry),
+        gtk_widget_set_sensitive(GTK_WIDGET(GTK_BIN(d->combo_box)->child),
                                  sensitive);
     } else {
         gint i;
@@ -377,3 +381,16 @@ void ctk_drop_down_menu_set_value_sensitive(CtkDropDownMenu *d,
         }
     }
 } /* ctk_drop_down_menu_set_value_sensitive() */
+
+
+/*
+ * ctk_drop_down_menu_set_tooltip() - adds the tooltip to the widget used
+ * for the drop down combo box
+ */
+
+void ctk_drop_down_menu_set_tooltip(CtkConfig *ctk_config, CtkDropDownMenu *d,
+                                    const gchar *text)
+{
+    ctk_config_set_tooltip(ctk_config, GTK_WIDGET(d->combo_box), text);
+}
+

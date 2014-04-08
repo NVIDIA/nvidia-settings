@@ -1039,6 +1039,20 @@ ReturnStatus NvCtrlGetColorRamp(NvCtrlAttributeHandle *handle,
 }
 
 
+ReturnStatus NvCtrlReloadColorRamp(NvCtrlAttributeHandle *handle)
+{
+    NvCtrlAttributePrivateHandle *h = (NvCtrlAttributePrivateHandle *) handle;
+
+    if (h->target_type == NV_CTRL_TARGET_TYPE_X_SCREEN) {
+        return NvCtrlVidModeReloadColorRamp(h);
+    } else if (h->target_type == NV_CTRL_TARGET_TYPE_DISPLAY) {
+        return NvCtrlXrandrReloadColorRamp(h);
+    }
+
+    return NvCtrlBadHandle;
+}
+
+
 /* helper functions private to the libXNVCtrlAttributes backend */
 
 void NvCtrlInitGammaInputStruct(NvCtrlGammaInput *pGammaInput)

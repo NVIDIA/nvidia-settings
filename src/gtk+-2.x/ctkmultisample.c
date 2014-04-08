@@ -704,7 +704,7 @@ static GtkWidget *create_fsaa_setting_menu(CtkMultisample *ctk_multisample,
     /* Create the menu */
 
     d = (CtkDropDownMenu *)
-        ctk_drop_down_menu_new(CTK_DROP_DOWN_MENU_FLAG_COMBO);
+        ctk_drop_down_menu_new(CTK_DROP_DOWN_MENU_FLAG_READONLY);
     
     for (i = 0; i < ARRAY_LEN(applicationSettings); i++) {
         ctk_drop_down_menu_append_item(d, applicationSettings[i], i);
@@ -723,8 +723,8 @@ static GtkWidget *create_fsaa_setting_menu(CtkMultisample *ctk_multisample,
     /* set the menu item */
     ctk_drop_down_menu_set_current_value(d, idx);
 
-    ctk_config_set_tooltip(ctk_multisample->ctk_config, d->menu,
-                           __aa_menu_help);
+    ctk_drop_down_menu_set_tooltip(ctk_multisample->ctk_config, d,
+                                   __aa_menu_help);
 
     g_signal_connect(G_OBJECT(d),
                      "changed",

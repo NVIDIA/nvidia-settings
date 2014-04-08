@@ -43,7 +43,6 @@ G_BEGIN_DECLS
 #define CTK_POWERMIZER_GET_CLASS(obj) \
     (G_TYPE_INSTANCE_GET_CLASS ((obj), CTK_TYPE_POWERMIZER, CtkPowermizerClass))
 
-
 typedef struct _CtkPowermizer       CtkPowermizer;
 typedef struct _CtkPowermizerClass  CtkPowermizerClass;
 
@@ -61,6 +60,7 @@ struct _CtkPowermizer
     GtkWidget *power_source;
     GtkWidget *performance_level;
     GtkWidget *performance_table_hbox;
+    GtkWidget *performance_table_hbox1;
     GtkWidget *powermizer_menu;
     GtkWidget *powermizer_txt;
     GtkWidget *box_powermizer_menu;
@@ -71,9 +71,16 @@ struct _CtkPowermizer
     gboolean  dp_enabled;
     gboolean  dp_toggle_warning_dlg_shown;
     gboolean  hasDecoupledClock;
+    gboolean  hasEditablePerfLevel;
+    gboolean  license_accepted;
     gint      attribute;
     gint      powermizer_default_mode;
     GtkWidget *status;
+
+    GtkWidget *enable_dialog;
+    GtkWidget *enable_checkbox;
+    GtkWidget *editable_perf_level_table;
+    gint      num_perf_levels;
 
     GtkWidget *link_width;
     GtkWidget *link_speed;

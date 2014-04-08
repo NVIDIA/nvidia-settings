@@ -359,7 +359,7 @@ static void toggle_client(GtkWidget *, gpointer);
 static void toggle_sync_enable(GtkWidget *, gpointer);
 static void toggle_test_link(GtkWidget *, gpointer);
 static void sync_interval_changed(GtkRange *, gpointer);
-static void changed_video_mode(GtkEditable *, gpointer);
+static void changed_video_mode(GtkComboBox *, gpointer);
 static void toggle_detect_video_mode(GtkToggleButton *, gpointer);
 
 static gboolean update_framelock_status(gpointer);
@@ -495,7 +495,7 @@ static GtkWidget *create_sync_state_button(CtkFramelock *ctk_framelock)
      * gtk_container_remove() later, it doesn't get destroyed
      */
 
-    gtk_object_ref(GTK_OBJECT(hbox2));
+    g_object_ref(GTK_OBJECT(hbox2));
 
     ctk_framelock->enable_syncing_label = hbox2;
     
@@ -524,7 +524,7 @@ static GtkWidget *create_sync_state_button(CtkFramelock *ctk_framelock)
      * gtk_container_remove() later, it doesn't get destroyed
      */
 
-    gtk_object_ref(GTK_OBJECT(hbox2));
+    g_object_ref(GTK_OBJECT(hbox2));
     
     ctk_framelock->disable_syncing_label = hbox2;
     
@@ -3363,26 +3363,23 @@ static gchar *format_sync_interval(GtkScale *scale, gdouble arg1,
  * sync edge.
  *
  */
-static void changed_sync_edge(GtkEditable *editable, gpointer user_data)
+static void changed_sync_edge(GtkComboBox *combo_box, gpointer user_data)
 {
     CtkFramelock *ctk_framelock = (CtkFramelock *)user_data;
     nvListTreePtr tree = (nvListTreePtr)(ctk_framelock->tree);
     nvListEntryPtr entry = get_framelock_server_entry(tree);
     nvFrameLockDataPtr data;
-    const gchar *str = gtk_entry_get_text(GTK_ENTRY(editable));
-    gint edge;
 
-    if (!entry || !str) return;
+    /* sync_edge values are 1..n but combo indexes are 0..n-1 */
+    gint edge = gtk_combo_box_get_active(combo_box) + 1;
+
+    if (!entry || edge < 0) {
+        return;
+    }
 
     data = (nvFrameLockDataPtr) entry->data;
 
-    for (edge = NV_CTRL_FRAMELOCK_POLARITY_RISING_EDGE;
-         edge <= NV_CTRL_FRAMELOCK_POLARITY_BOTH_EDGES; edge++) {
-        if (strcmp(syncEdgeStrings[edge], str) == 0) {
-            NvCtrlSetAttribute(data->handle, NV_CTRL_FRAMELOCK_POLARITY, edge);
-            return;
-        }
-    }
+    NvCtrlSetAttribute(data->handle, NV_CTRL_FRAMELOCK_POLARITY, edge);
 }
 
 
@@ -3393,28 +3390,21 @@ static void changed_sync_edge(GtkEditable *editable, gpointer user_data)
  * mode.
  *
  */
-static void changed_video_mode(GtkEditable *editable, gpointer user_data)
+static void changed_video_mode(GtkComboBox *combo_box, gpointer user_data)
 {
     CtkFramelock *ctk_framelock = (CtkFramelock *)user_data;
     nvListTreePtr tree = (nvListTreePtr)(ctk_framelock->tree);
     nvListEntryPtr entry = get_framelock_server_entry(tree);
     nvFrameLockDataPtr data;
-    const gchar *str = gtk_entry_get_text(GTK_ENTRY(editable));
-    gint mode;
+    gint mode = gtk_combo_box_get_active(combo_box);
 
-    if (!entry || !str) return;
+    if (!entry || mode < 0) {
+        return;
+    }
 
     data = (nvFrameLockDataPtr) entry->data;
 
-    for (mode = NV_CTRL_FRAMELOCK_VIDEO_MODE_NONE;
-         mode <= NV_CTRL_FRAMELOCK_VIDEO_MODE_HDTV; mode++) {
-        
-        if (strcmp(houseFormatStrings[mode], str) == 0) {
-            NvCtrlSetAttribute(data->handle,
-                               NV_CTRL_FRAMELOCK_VIDEO_MODE, mode);
-            return;
-        }
-    }
+    NvCtrlSetAttribute(data->handle, NV_CTRL_FRAMELOCK_VIDEO_MODE, mode);
 }
 
 
@@ -4038,9 +4028,9 @@ static void update_house_sync_controls(CtkFramelock *ctk_framelock)
         if (sync_edge > NV_CTRL_FRAMELOCK_POLARITY_BOTH_EDGES)
             sync_edge = NV_CTRL_FRAMELOCK_POLARITY_BOTH_EDGES;
 
-        gtk_entry_set_text
-            (GTK_ENTRY(GTK_COMBO(ctk_framelock->sync_edge_combo)->entry),
-             syncEdgeStrings[sync_edge]);
+        /* sync_edge values are 1..n but combo indexes are 0..n-1 */
+        gtk_combo_box_set_active(GTK_COMBO_BOX(ctk_framelock->sync_edge_combo),
+                                 sync_edge - 1);
 
         if (house_format < NV_CTRL_FRAMELOCK_VIDEO_MODE_NONE)
             house_format = NV_CTRL_FRAMELOCK_VIDEO_MODE_NONE;
@@ -4048,9 +4038,8 @@ static void update_house_sync_controls(CtkFramelock *ctk_framelock)
             house_format = NV_CTRL_FRAMELOCK_VIDEO_MODE_HDTV;
 
         if (!ctk_framelock->video_mode_read_only) {
-            gtk_entry_set_text
-                (GTK_ENTRY(GTK_COMBO(ctk_framelock->video_mode_widget)->entry),
-                 houseFormatStrings[house_format]);
+            gtk_combo_box_set_active(
+                GTK_COMBO_BOX(ctk_framelock->video_mode_widget), house_format);
         } else {
             gtk_label_set_text(GTK_LABEL(ctk_framelock->video_mode_widget),
                                houseFormatStrings[house_format]);
@@ -4478,16 +4467,16 @@ static void framelock_state_received(GtkObject *object,
             sync_edge = NV_CTRL_FRAMELOCK_POLARITY_BOTH_EDGES;
 
        g_signal_handlers_block_by_func
-            (G_OBJECT(GTK_COMBO(ctk_framelock->sync_edge_combo)->entry),
+            (G_OBJECT(GTK_COMBO_BOX(ctk_framelock->sync_edge_combo)),
              G_CALLBACK(changed_sync_edge),
              (gpointer) ctk_framelock);
 
-        gtk_entry_set_text
-            (GTK_ENTRY(GTK_COMBO(ctk_framelock->sync_edge_combo)->entry),
-             syncEdgeStrings[sync_edge]);
+        /* sync_edge values are 1..n but combo indexes are 0..n-1 */
+        gtk_combo_box_set_active(GTK_COMBO_BOX(ctk_framelock->sync_edge_combo),
+                                 sync_edge - 1);
 
         g_signal_handlers_unblock_by_func
-            (G_OBJECT(GTK_COMBO(ctk_framelock->sync_edge_combo)->entry),
+            (G_OBJECT(GTK_COMBO_BOX(ctk_framelock->sync_edge_combo)),
              G_CALLBACK(changed_sync_edge),
              (gpointer) ctk_framelock);
 
@@ -4502,16 +4491,15 @@ static void framelock_state_received(GtkObject *object,
 
         if (!ctk_framelock->video_mode_read_only) {
             g_signal_handlers_block_by_func
-                (G_OBJECT(GTK_COMBO(ctk_framelock->video_mode_widget)->entry),
+                (G_OBJECT(GTK_COMBO_BOX(ctk_framelock->video_mode_widget)),
                  G_CALLBACK(changed_video_mode),
                  (gpointer) ctk_framelock);
 
-            gtk_entry_set_text
-                (GTK_ENTRY(GTK_COMBO(ctk_framelock->video_mode_widget)->entry),
-                 houseFormatStrings[house_format]);
+            gtk_combo_box_set_active(
+                GTK_COMBO_BOX(ctk_framelock->video_mode_widget), house_format);
 
             g_signal_handlers_unblock_by_func
-                (G_OBJECT(GTK_COMBO(ctk_framelock->video_mode_widget)->entry),
+                (G_OBJECT(GTK_COMBO_BOX(ctk_framelock->video_mode_widget)),
                  G_CALLBACK(changed_video_mode),
                  (gpointer) ctk_framelock);
         } else {
@@ -4620,8 +4608,7 @@ GtkWidget* ctk_framelock_new(NvCtrlAttributeHandle *handle,
     GtkWidget *hbox;
     GtkWidget *vbox;
     GtkWidget *label;
-    GtkWidget *combo;
-    GList *glist;
+    GtkWidget *combo_box;
     GtkWidget *button;
     GtkWidget *image;
     NVCTRLAttributeValidValuesRec valid;
@@ -4770,26 +4757,22 @@ GtkWidget* ctk_framelock_new(NvCtrlAttributeHandle *handle,
     }
 
     if (!ctk_framelock->video_mode_read_only) {
-        combo = gtk_combo_new();
-        glist = NULL;
-        glist = g_list_append
-            (glist,
-             houseFormatStrings[NV_CTRL_FRAMELOCK_VIDEO_MODE_COMPOSITE_AUTO]);
-        glist = g_list_append
-            (glist,
-             houseFormatStrings[NV_CTRL_FRAMELOCK_VIDEO_MODE_COMPOSITE_BI_LEVEL]);
-        glist = g_list_append
-            (glist,
-             houseFormatStrings[NV_CTRL_FRAMELOCK_VIDEO_MODE_COMPOSITE_TRI_LEVEL]);
-        glist = g_list_append
-            (glist, houseFormatStrings[NV_CTRL_FRAMELOCK_VIDEO_MODE_TTL]);
+        combo_box = gtk_combo_box_new_text();
+        gtk_combo_box_append_text(GTK_COMBO_BOX(combo_box),
+            houseFormatStrings[NV_CTRL_FRAMELOCK_VIDEO_MODE_COMPOSITE_AUTO]);
+        gtk_combo_box_append_text(GTK_COMBO_BOX(combo_box),
+            houseFormatStrings[NV_CTRL_FRAMELOCK_VIDEO_MODE_TTL]);
+        gtk_combo_box_append_text(GTK_COMBO_BOX(combo_box),
+            houseFormatStrings[NV_CTRL_FRAMELOCK_VIDEO_MODE_COMPOSITE_BI_LEVEL]);
+        gtk_combo_box_append_text(GTK_COMBO_BOX(combo_box),
+            houseFormatStrings[NV_CTRL_FRAMELOCK_VIDEO_MODE_COMPOSITE_TRI_LEVEL]);
 
-        gtk_combo_set_popdown_strings(GTK_COMBO(combo), glist);
-        gtk_editable_set_editable(GTK_EDITABLE(GTK_COMBO(combo)->entry), FALSE);
-        g_signal_connect(G_OBJECT(GTK_EDITABLE(GTK_COMBO(combo)->entry)),
+        gtk_combo_box_set_active(GTK_COMBO_BOX(combo_box), 0);
+
+        g_signal_connect(G_OBJECT(GTK_COMBO_BOX(combo_box)),
                          "changed", G_CALLBACK(changed_video_mode),
                          (gpointer) ctk_framelock);
-        ctk_framelock->video_mode_widget = combo;
+        ctk_framelock->video_mode_widget = combo_box;
     } else {
         ctk_framelock->video_mode_widget = gtk_label_new("None");
     } 
@@ -4797,26 +4780,22 @@ GtkWidget* ctk_framelock_new(NvCtrlAttributeHandle *handle,
                            __video_mode_help);
 
 
-    combo = gtk_combo_new();
-    glist = NULL;
-    glist = g_list_append
-        (glist,
+    combo_box = gtk_combo_box_new_text();
+    gtk_combo_box_append_text(GTK_COMBO_BOX(combo_box),
          syncEdgeStrings[NV_CTRL_FRAMELOCK_POLARITY_RISING_EDGE]);
-    glist = g_list_append
-        (glist,
+    gtk_combo_box_append_text(GTK_COMBO_BOX(combo_box),
          syncEdgeStrings[NV_CTRL_FRAMELOCK_POLARITY_FALLING_EDGE]);
-    glist = g_list_append
-        (glist,
+    gtk_combo_box_append_text(GTK_COMBO_BOX(combo_box),
          syncEdgeStrings[NV_CTRL_FRAMELOCK_POLARITY_BOTH_EDGES]);
 
-    gtk_combo_set_popdown_strings(GTK_COMBO(combo), glist);
-    gtk_editable_set_editable(GTK_EDITABLE(GTK_COMBO(combo)->entry), FALSE);
-    g_signal_connect(G_OBJECT(GTK_EDITABLE(GTK_COMBO(combo)->entry)),
+    gtk_combo_box_set_active(GTK_COMBO_BOX(combo_box), 0);
+
+    g_signal_connect(G_OBJECT(GTK_COMBO_BOX(combo_box)),
                      "changed", G_CALLBACK(changed_sync_edge),
                      (gpointer) ctk_framelock);
-    ctk_config_set_tooltip(ctk_config, combo,
+    ctk_config_set_tooltip(ctk_config, combo_box,
                            __sync_edge_combo_help);
-    ctk_framelock->sync_edge_combo = combo;
+    ctk_framelock->sync_edge_combo = combo_box;
 
 
     /* Cache images */

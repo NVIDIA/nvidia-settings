@@ -529,3 +529,25 @@ ReturnStatus NvCtrlXrandrGetColorRamp(NvCtrlAttributePrivateHandle *h,
 
     return NvCtrlSuccess;
 }
+
+ReturnStatus NvCtrlXrandrReloadColorRamp(NvCtrlAttributePrivateHandle *h)
+{
+    if ((h->xrandr->pGammaRamp != NULL) &&
+        (__libXrandr->XRRFreeGamma != NULL)) {
+        __libXrandr->XRRFreeGamma(h->xrandr->pGammaRamp);
+    } else {
+        assert(!"There should already be a Gamma Ramp");
+    }
+
+    if ((h->xrandr->gammaCrtc != None) && (__libXrandr->XRRGetCrtcGamma != NULL)) {
+        h->xrandr->pGammaRamp =
+            __libXrandr->XRRGetCrtcGamma(h->dpy, h->xrandr->gammaCrtc);
+        NvCtrlInitGammaInputStruct(&h->xrandr->gammaInput);
+    } else {
+        return NvCtrlError;
+    }
+
+    return h->xrandr->pGammaRamp ? NvCtrlSuccess : NvCtrlError;
+
+}
+

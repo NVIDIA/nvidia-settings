@@ -150,14 +150,15 @@
 
 
 /*
- * NV_CTRL_FLATPANEL_DITHERING is deprecated; NV_CTRL_DITHERING should
- * be used instead.
+ * NV_CTRL_FLATPANEL_DITHERING - deprecated
+ *
+ * NV_CTRL_DITHERING should be used instead.
  */
 
 #define NV_CTRL_FLATPANEL_DITHERING                             3  /* RWDG */
-#define NV_CTRL_FLATPANEL_DITHERING_DEFAULT                     0
-#define NV_CTRL_FLATPANEL_DITHERING_ENABLED                     1
-#define NV_CTRL_FLATPANEL_DITHERING_DISABLED                    2
+#define NV_CTRL_FLATPANEL_DITHERING_DEFAULT                     0 /* deprecated */
+#define NV_CTRL_FLATPANEL_DITHERING_ENABLED                     1 /* deprecated */
+#define NV_CTRL_FLATPANEL_DITHERING_DISABLED                    2 /* deprecated */
 
 /*
  * NV_CTRL_DITHERING - the requested dithering configuration;
@@ -364,27 +365,31 @@
 
 
 /*
- * NV_CTRL_CONNECTED_DISPLAYS - returns a display mask indicating the last
- * cached state of the display devices connected to the GPU or GPU driving
- * the specified X screen.
+ * NV_CTRL_CONNECTED_DISPLAYS - deprecated
  *
- * This attribute may be queried through XNVCTRLQueryTargetAttribute()
- * using a NV_CTRL_TARGET_TYPE_GPU or NV_CTRL_TARGET_TYPE_X_SCREEN target.
+ * NV_CTRL_BINARY_DATA_DISPLAYS_CONNECTED_TO_GPU and
+ * NV_CTRL_BINARY_DATA_DISPLAYS_ASSIGNED_TO_XSCREEN should be used instead.
  */
 
 #define NV_CTRL_CONNECTED_DISPLAYS                              19 /* R--G */
 
 
 /*
- * NV_CTRL_ENABLED_DISPLAYS - returns a display mask indicating what
- * display devices are enabled for use on the specified X screen or
- * GPU.
+ * NV_CTRL_ENABLED_DISPLAYS - Event that notifies when one or more display
+ * devices are enabled or disabled on a GPU and/or X screen.
  *
  * This attribute may be queried through XNVCTRLQueryTargetAttribute()
  * using a NV_CTRL_TARGET_TYPE_GPU or NV_CTRL_TARGET_TYPE_X_SCREEN target.
+ *
+ * Note: Querying this value has been deprecated.
+ *       NV_CTRL_BINARY_DATA_DISPLAYS_CONNECTED_TO_GPU,
+ *       NV_CTRL_DISPLAY_ENABLED, and
+ *       NV_CTRL_BINARY_DATA_DISPLAYS_ENABLED_ON_XSCREEN should be used
+ *       instead to obtain the list of enabled displays.
  */
 
-#define NV_CTRL_ENABLED_DISPLAYS                                20 /* R--G */
+#define NV_CTRL_ENABLED_DISPLAYS                                20 /* ---G */
+
 
 /**************************************************************************/
 /*
@@ -408,13 +413,14 @@
 
 
 /*
- * NV_CTRL_FRAMELOCK_MASTER is deprecated; NV_CTRL_FRAMELOCK_DISPLAY_CONFIG
- * should be used instead.
+ * NV_CTRL_FRAMELOCK_MASTER - deprecated
+ *
+ * NV_CTRL_FRAMELOCK_DISPLAY_CONFIG should be used instead.
  */
 
 #define NV_CTRL_FRAMELOCK_MASTER                                22 /* RW-G */
-#define NV_CTRL_FRAMELOCK_MASTER_FALSE                          0 // deprecated
-#define NV_CTRL_FRAMELOCK_MASTER_TRUE                           1 // deprecated
+#define NV_CTRL_FRAMELOCK_MASTER_FALSE                          0 /* deprecated */
+#define NV_CTRL_FRAMELOCK_MASTER_TRUE                           1 /* deprecated */
 
 
 /*
@@ -453,8 +459,8 @@
  */
 
 #define NV_CTRL_FRAMELOCK_SYNC_DELAY                            24 /* RW-F */
-#define NV_CTRL_FRAMELOCK_SYNC_DELAY_MAX                        2047 // deprecated
-#define NV_CTRL_FRAMELOCK_SYNC_DELAY_FACTOR                     7.81 // deprecated
+#define NV_CTRL_FRAMELOCK_SYNC_DELAY_MAX                        2047 /* deprecated */
+#define NV_CTRL_FRAMELOCK_SYNC_DELAY_FACTOR                     7.81 /* deprecated */
 
 
 /*
@@ -643,20 +649,14 @@
 /**************************************************************************/
 
 /*
- * NV_CTRL_FORCE_GENERIC_CPU - inhibit the use of CPU specific
- * features such as MMX, SSE, or 3DNOW! for OpenGL clients; this
- * option may result in performance loss, but may be useful in
- * conjunction with software such as the Valgrind memory debugger.
- * This setting is only applied to OpenGL clients that are started
- * after this setting is applied.
+ * NV_CTRL_FORCE_GENERIC_CPU - deprecated
  *
- * USAGE NOTE: This attribute is deprecated. CPU compatibility is now
- *             checked each time during initialization.
+ * CPU compatibility is now checked each time during initialization.
  */
 
 #define NV_CTRL_FORCE_GENERIC_CPU                               37 /* RW-X */
-#define NV_CTRL_FORCE_GENERIC_CPU_DISABLE                        0
-#define NV_CTRL_FORCE_GENERIC_CPU_ENABLE                         1
+#define NV_CTRL_FORCE_GENERIC_CPU_DISABLE                        0 /* deprecated */
+#define NV_CTRL_FORCE_GENERIC_CPU_ENABLE                         1 /* deprecated */
 
 
 /*
@@ -707,6 +707,7 @@
 #define NV_CTRL_ARCHITECTURE_X86_64                              1
 #define NV_CTRL_ARCHITECTURE_IA64                                2
 #define NV_CTRL_ARCHITECTURE_ARM                                 3
+#define NV_CTRL_ARCHITECTURE_AARCH64                             4
 
 
 /*
@@ -1141,9 +1142,11 @@
 #define NV_CTRL_GVIO_DETECTED_VIDEO_FORMAT                      71  /* R--I */
 
 /*
- * The following is deprecated.  Use NV_CTRL_GVIO_DETECTED_VIDEO_FORMAT,
- * instead.
+ * NV_CTRL_GVO_INPUT_VIDEO_FORMAT - deprecated
+ *
+ * NV_CTRL_GVIO_DETECTED_VIDEO_FORMAT should be used instead.
  */
+
 #define NV_CTRL_GVO_INPUT_VIDEO_FORMAT                          71  /* R-- */
 
 /*
@@ -1252,9 +1255,9 @@
 
 
 /*
- * NV_CTRL_GVO_FPGA_VERSION - indicates the version of the Firmware on
- * the GVO device.  Deprecated; use
- * NV_CTRL_STRING_GVIO_FIRMWARE_VERSION instead.
+ * NV_CTRL_GVO_FPGA_VERSION - deprecated
+ *
+ * NV_CTRL_STRING_GVIO_FIRMWARE_VERSION should be used instead.
  */
 
 #define NV_CTRL_GVO_FIRMWARE_VERSION                            78  /* R-- */
@@ -1299,28 +1302,14 @@
 
 
 /*
- * NV_CTRL_GVO_GLX_LOCKED - indicates that GVO configurability is
- * locked by GLX; this occurs when either glXGetVideoDeviceNV (part of
- * GLX_NV_video_out) or glXBindVideoDeviceNV (part of
- * GLX_NV_present_video) is called.  All GVO output resources are
- * locked until released by the GLX_NV_video_out/GLX_NV_present_video
- * client.
+ * NV_CTRL_GVO_GLX_LOCKED - deprecated
  *
- * When GVO is locked, setting of the following GVO NV-CONTROL attributes will
- * not happen immediately and will instead be cached.  The GVO resource will
- * need to be disabled/released and re-enabled/claimed for the values to be
- * flushed. These attributes are:
- *    NV_CTRL_GVIO_REQUESTED_VIDEO_FORMAT
- *    NV_CTRL_GVO_DATA_FORMAT
- *    NV_CTRL_GVO_FLIP_QUEUE_SIZE
- *
- * This attribute is deprecated and may be removed in a future release.  Its
- * functionality has been replaced by NV_CTRL_GVO_LOCK_OWNER.
+ * NV_CTRL_GVO_LOCK_OWNER should be used instead.
  */
 
 #define NV_CTRL_GVO_GLX_LOCKED                                  82  /* R-- */
-#define NV_CTRL_GVO_GLX_LOCKED_FALSE                            0
-#define NV_CTRL_GVO_GLX_LOCKED_TRUE                             1
+#define NV_CTRL_GVO_GLX_LOCKED_FALSE                            0 /* deprecated */
+#define NV_CTRL_GVO_GLX_LOCKED_TRUE                             1 /* deprecated */
 
 
 /*
@@ -1614,9 +1603,9 @@
 #define NV_CTRL_SHOW_SLI_VISUAL_INDICATOR_TRUE                    1
 
 /*
- * NV_CTRL_XV_SYNC_TO_DISPLAY - this control is valid when TwinView and 
- * XVideo Sync To VBlank are enabled.
- * It controls which display device will be synched to.
+ * NV_CTRL_XV_SYNC_TO_DISPLAY - deprecated
+ *
+ * NV_CTRL_XV_SYNC_TO_DISPLAY_ID should be used instead.
  */
 
 #define NV_CTRL_XV_SYNC_TO_DISPLAY                               226  /* RW- */
@@ -1630,9 +1619,10 @@
 
 #define NV_CTRL_GVIO_REQUESTED_VIDEO_FORMAT2                    227  /* ---GI */
 
-/* 
- * The following is deprecated; use NV_CTRL_GVIO_REQUESTED_VIDEO_FORMAT2,
- * instead
+/*
+ * NV_CTRL_GVO_OUTPUT_VIDEO_FORMAT2 - deprecated
+ *
+ * NV_CTRL_GVIO_REQUESTED_VIDEO_FORMAT2 should be used instead.
  */
 #define NV_CTRL_GVO_OUTPUT_VIDEO_FORMAT2                         227  /* --- */
 
@@ -1699,23 +1689,25 @@
 
 
 /*
- * NV_CTRL_ASSOCIATED_DISPLAY_DEVICES - display device mask indicating
- * which display devices are "associated" with the specified X screen
- * (ie: are available to the X screen for displaying the X screen).
+ * NV_CTRL_ASSOCIATED_DISPLAY_DEVICES - deprecated
+ *
+ * NV_CTRL_BINARY_DATA_DISPLAYS_ASSIGNED_TO_XSCREEN should be used instead.
  */
- 
+
 #define NV_CTRL_ASSOCIATED_DISPLAY_DEVICES                       231 /* RW- */
 
 /*
- * NV_CTRL_FRAMELOCK_SLAVES is deprecated; NV_CTRL_FRAMELOCK_DISPLAY_CONFIG
- * should be used instead.
+ * NV_CTRL_FRAMELOCK_SLAVES - deprecated
+ *
+ * NV_CTRL_FRAMELOCK_DISPLAY_CONFIG should be used instead.
  */
 
 #define NV_CTRL_FRAMELOCK_SLAVES                                 232 /* RW-G */
 
 /*
- * NV_CTRL_FRAMELOCK_MASTERABLE is deprecated; NV_CTRL_FRAMELOCK_DISPLAY_CONFIG
- * should be used instead.
+ * NV_CTRL_FRAMELOCK_MASTERABLE - deprecated
+ *
+ * NV_CTRL_FRAMELOCK_DISPLAY_CONFIG should be used instead.
  */
 
 #define NV_CTRL_FRAMELOCK_MASTERABLE                             233 /* R-DG */
@@ -1723,7 +1715,7 @@
 /*
  * NV_CTRL_PROBE_DISPLAYS - re-probes the hardware to detect what
  * display devices are connected to the GPU or GPU driving the
- * specified X screen.  Returns a display mask.
+ * specified X screen.  The return value is deprecated and should not be used.
  *
  * This attribute may be queried through XNVCTRLQueryTargetAttribute()
  * using a NV_CTRL_TARGET_TYPE_GPU or NV_CTRL_TARGET_TYPE_X_SCREEN target.
@@ -1835,12 +1827,12 @@
 
 
 /*
- * NV_CTRL_MAX_DISPLAYS - the maximum number of display devices that
+ * NV_CTRL_MAX_DISPLAYS - The maximum number of display devices that
  * can be driven simultaneously on a GPU (e.g., that can be used in a
  * MetaMode at once).  Note that this does not indicate the maximum
- * number of bits that can be set in NV_CTRL_CONNECTED_DISPLAYS,
- * because more display devices can be connected than are actively in
- * use.
+ * number of displays that are listed in NV_CTRL_BINARY_DATA_DISPLAYS_ON_GPU
+ * and NV_CTRL_BINARY_DATA_DISPLAYS_CONNECTED_TO_GPU because more display
+ * devices can be connected than are actively in use.
  */
 
 #define NV_CTRL_MAX_DISPLAYS                                     245 /* R--G */
@@ -2010,10 +2002,7 @@
 
 
 /*
- * NV_CTRL_ONDEMAND_VBLANK_INTERRUPTS - if the OnDemandVBlankInterrupts
- * X driver option is set to true, this attribute can be used to
- * determine if on-demand VBlank interrupt control is enabled on the
- * specified GPU, as well as to enable or disable this feature.
+ * NV_CTRL_ONDEMAND_VBLANK_INTERRUPTS - not supported
  */
 
 #define NV_CTRL_ONDEMAND_VBLANK_INTERRUPTS                      261 /* RW-G */
@@ -2032,12 +2021,12 @@
 
 
 /*
- * NV_CTRL_GPU_CURRENT_PERFORMANCE_MODE is deprecated
+ * NV_CTRL_GPU_CURRENT_PERFORMANCE_MODE - deprecated
  */
 
 #define NV_CTRL_GPU_CURRENT_PERFORMANCE_MODE                    263 /* R--G */
-#define NV_CTRL_GPU_CURRENT_PERFORMANCE_MODE_DESKTOP              0
-#define NV_CTRL_GPU_CURRENT_PERFORMANCE_MODE_MAXPERF              1
+#define NV_CTRL_GPU_CURRENT_PERFORMANCE_MODE_DESKTOP              0 /* deprecated */
+#define NV_CTRL_GPU_CURRENT_PERFORMANCE_MODE_MAXPERF              1 /* deprecated */
 
 
 /* NV_CTRL_GLYPH_CACHE - Enables RENDER Glyph Caching to VRAM */
@@ -2183,8 +2172,7 @@
 
 
 /*
- * NV_CTRL_SWITCH_TO_DISPLAYS - Can be used to select which displays
- * to switch to (as a hotkey event).
+ * NV_CTRL_SWITCH_TO_DISPLAYS - deprecated
  */
 
 #define NV_CTRL_SWITCH_TO_DISPLAYS                              276 /* -W- */
@@ -2202,8 +2190,7 @@
 #define NV_CTRL_NOTEBOOK_DISPLAY_CHANGE_LID_EVENT_OPEN            1
 
 /*
- * NV_CTRL_NOTEBOOK_INTERNAL_LCD - Returns the display device mask of
- * the intenal LCD of a notebook.
+ * NV_CTRL_NOTEBOOK_INTERNAL_LCD - deprecated
  */
 
 #define NV_CTRL_NOTEBOOK_INTERNAL_LCD                           278 /* R-- */
@@ -2286,8 +2273,9 @@
 #define NV_CTRL_GVO_CSC_CHANGED_EVENT                           294 /* --- */
 
 /*
- * NV_CTRL_FRAMELOCK_SLAVEABLE is deprecated; NV_CTRL_FRAMELOCK_DISPLAY_CONFIG
- * should be used instead.
+ * NV_CTRL_FRAMELOCK_SLAVEABLE - deprecated
+ *
+ * NV_CTRL_FRAMELOCK_DISPLAY_CONFIG should be used instead.
  */
 
 #define NV_CTRL_FRAMELOCK_SLAVEABLE                             295 /* R-DG */
@@ -3318,7 +3306,65 @@
 
 #define NV_CTRL_THERMAL_COOLER_SPEED                            405 /* R--C */
 
-#define NV_CTRL_LAST_ATTRIBUTE NV_CTRL_THERMAL_COOLER_SPEED
+/*
+ * NV_CTRL_PALETTE_UPDATE_EVENT - The Color Palette has been changed and the
+ * color correction info needs to be updated.
+ */
+
+#define NV_CTRL_PALETTE_UPDATE_EVENT                            406 /* --- */
+
+/*
+ * NV_CTRL_VIDEO_ENCODER_UTILIZATION - Returns the video encoder engine
+ * utilization as a percentage.
+ */
+#define NV_CTRL_VIDEO_ENCODER_UTILIZATION                       407 /* R--G */
+
+/*
+ * NV_CTRL_GSYNC_ALLOWED - when TRUE, OpenGL will enable G-SYNC when possible;
+ * when FALSE, OpenGL will always use a fixed monitor refresh rate.
+ */
+
+#define NV_CTRL_GSYNC_ALLOWED                                   408 /* RW-X */
+#define NV_CTRL_GSYNC_ALLOWED_FALSE                               0
+#define NV_CTRL_GSYNC_ALLOWED_TRUE                                1
+
+/*
+ * NV_CTRL_GPU_NVCLOCK_OFFSET - This attribute controls the GPU clock offsets
+ * (in MHz) used for overclocking per performance level.
+ * Use the display_mask parameter to specify the performance level.
+ *
+ * Note: To enable overclocking support, set the X configuration
+ * option "Coolbits" to value "8".
+ *
+ * This offset can have any integer value between
+ * NVCTRLAttributeValidValues.u.range.min and
+ * NVCTRLAttributeValidValues.u.range.max (inclusive).
+ *
+ * This attribute is available on GeForce GTX 400 series and later
+ * Geforce GPUs.
+ */
+#define NV_CTRL_GPU_NVCLOCK_OFFSET                              409 /* RW-G */
+
+/*
+ * NV_CTRL_GPU_MEM_TRANSFER_RATE_OFFSET - This attribute controls
+ * the memory transfer rate offsets (in MHz) used for overclocking
+ * per performance level.
+ * Use the display_mask parameter to specify the performance level.
+ *
+ * Note: To enable overclocking support, set the X configuration
+ * option "Coolbits" to value "8".
+ *
+ * This offset can have any integer value between
+ * NVCTRLAttributeValidValues.u.range.min and
+ * NVCTRLAttributeValidValues.u.range.max (inclusive).
+ *
+ * This attribute is available on GeForce GTX 400 series and later
+ * Geforce GPUs.
+ */
+#define NV_CTRL_GPU_MEM_TRANSFER_RATE_OFFSET                  410 /* RW-G */
+
+#define NV_CTRL_LAST_ATTRIBUTE NV_CTRL_GPU_MEM_TRANSFER_RATE_OFFSET
+
 
 /**************************************************************************/
 
@@ -3394,8 +3440,9 @@
 #define NV_CTRL_STRING_GVIO_FIRMWARE_VERSION                    8  /* R--I */
 
 /*
- * The following is deprecated; use NV_CTRL_STRING_GVIO_FIRMWARE_VERSION,
- * instead
+ * NV_CTRL_STRING_GVO_FIRMWARE_VERSION - deprecated
+ *
+ * NV_CTRL_STRING_GVIO_FIRMWARE_VERSION should be used instead.
  */
 #define NV_CTRL_STRING_GVO_FIRMWARE_VERSION                     8  /* R-- */
 
@@ -3709,6 +3756,10 @@
  * processorclock those are the same as nvclockmin, memclockmin and
  * processorclockmin.
  *
+ * Note: These clock values take into account the offset
+ * set by clients through NV_CTRL_GPU_NVCLOCK_OFFSET and
+ * NV_CTRL_GPU_MEM_TRANSFER_RATE_OFFSET.
+ *
  * Each performance modes are returned as a comma-separated list of
  * "token=value" pairs.  Each set of performance mode tokens are separated
  * by a ";".  Valid tokens:
@@ -3718,30 +3769,40 @@
  *   "nvclock"      integer   - the GPU clocks (in MHz) for the perf level
  *   "nvclockmin"   integer   - the GPU clocks min (in MHz) for the perf level
  *   "nvclockmax"   integer   - the GPU clocks max (in MHz) for the perf level
+ *   "nvclockeditable"    integer - if the GPU clock domain is editable
+ *                                  for the perf level
  *   "memclock"     integer   - the memory clocks (in MHz) for the perf level
  *   "memclockmin"  integer   - the memory clocks min (in MHz) for the perf level
  *   "memclockmax"  integer   - the memory clocks max (in MHz) for the perf level
+ *   "memclockeditable"   integer - if the memory clock domain is editable
+ *                                  for the perf level
  *   "memtransferrate"    integer  - the memory transfer rate (in MHz)
  *                                 for the perf level
  *   "memtransferratemin" integer  - the memory transfer rate min (in MHz)
  *                                 for the perf level
  *   "memtransferratemax" integer  - the memory transfer rate max (in MHz)
  *                                 for the perf level
- *   "processorclock"     integer  - the processor clocks (in MHz)
- *                                 for the perf level
- *   "processorclockmin"  integer  - the processor clocks min (in MHz)
- *                                 for the perf level
- *   "processorclockmax"  integer  - the processor clocks max (in MHz)
- *                                 for the perf level
+ *   "memtransferrateeditable" integer - if the memory transfer rate is editable
+ *                                       for the perf level
+ *   "processorclock"         integer - the processor clocks (in MHz)
+ *                                       for the perf level
+ *   "processorclockmin"      integer - the processor clocks min (in MHz)
+ *                                       for the perf level
+ *   "processorclockmax"      integer - the processor clocks max (in MHz)
+ *                                      for the perf level
+ *   "processorclockeditable" integer - if the processor clock domain is editable
+ *                                      for the perf level
  *
  * Example:
  *
- * perf=0, nvclock=324, nvclockmin=324, nvclockmax=324, memclock=324,
- * memclockmin=324, memclockmax=324, memtransferrate=648,
- * memtransferratemin=648,memtransferratemax=648 ;
- * perf=1, nvclock=324, nvclockmin=324, nvclockmax=640, memclock=810,
- * memclockmin=810, memclockmax=810, memtransferrate=1620,
- * memtransferrate=1620, memtransferrate=1620 ;  
+ * perf=0, nvclock=324, nvclockmin=324, nvclockmax=324, nvclockeditable=0,
+ * memclock=324, memclockmin=324, memclockmax=324, memclockeditable=0,
+ * memtransferrate=648, memtransferratemin=648, memtransferratemax=648,
+ * memtransferrateeditable=0 ;
+ * perf=1, nvclock=324, nvclockmin=324, nvclockmax=640, nvclockeditable=0,
+ * memclock=810, memclockmin=810, memclockmax=810, memclockeditable=0,
+ * memtransferrate=1620, memtransferrate=1620, memtransferrate=1620,
+ * memtransferrateeditable=0 ;
  *
  * This attribute may be queried through XNVCTRLQueryTargetStringAttribute()
  * using a NV_CTRL_TARGET_TYPE_GPU or NV_CTRL_TARGET_TYPE_X_SCREEN target.
@@ -3843,8 +3904,9 @@
 #define NV_CTRL_STRING_GVIO_VIDEO_FORMAT_NAME                  33  /* R--GI */
 
 /*
- * The following is deprecated; use NV_CTRL_STRING_GVIO_VIDEO_FORMAT_NAME,
- * instead
+ * NV_CTRL_STRING_GVO_VIDEO_FORMAT_NAME - deprecated
+ *
+ * NV_CTRL_STRING_GVIO_VIDEO_FORMAT_NAME should be used instead.
  */
 #define NV_CTRL_STRING_GVO_VIDEO_FORMAT_NAME                   33  /* R--- */
 
@@ -3852,12 +3914,16 @@
 /*
  * NV_CTRL_STRING_GPU_CURRENT_CLOCK_FREQS - returns a string with the
  * associated NV Clock, Memory Clock and Processor Clock values.
- * 
+ *
  * Current valid tokens are "nvclock", "nvclockmin", "nvclockmax",
  * "memclock", "memclockmin", "memclockmax", "processorclock",
  * "processorclockmin" and "processorclockmax".
  * Not all tokens will be reported on all GPUs, and additional tokens
  * may be added in the future.
+ *
+ * Note: These clock values take into account the offset
+ * set by clients through NV_CTRL_GPU_NVCLOCK_OFFSET and
+ * NV_CTRL_GPU_MEM_TRANSFER_RATE_OFFSET.
  *
  * Clock values are returned as a comma-separated list of
  * "token=value" pairs.
@@ -3867,26 +3933,35 @@
  *   "nvclock"     integer   - the GPU clocks (in MHz) for the perf level
  *   "nvclockmin"  integer   - the GPU clocks min (in MHz) for the perf level
  *   "nvclockmax"  integer   - the GPU clocks max (in MHz) for the perf level
+ *   "nvclockeditable" integer - if the GPU clock domain is editable
+ *                                  for the perf level
  *   "memclock"    integer   - the memory clocks (in MHz) for the perf level
  *   "memclockmin" integer   - the memory clocks min (in MHz) for the perf level
  *   "memclockmax" integer   - the memory clocks (max in MHz) for the perf level
+ *   "memclockeditable"   integer  - if the memory clock domain is editable
+ *                                  for the perf level
  *   "memtransferrate"    integer  - the memory transfer rate (in MHz)
  *                                 for the perf level
  *   "memtransferratemin" integer  - the memory transfer rate min (in MHz)
  *                                 for the perf level
  *   "memtransferratemax" integer  - the memory transfer rate max (in MHz)
  *                                 for the perf level
+ *   "memtransferrateeditable" integer - if the memory transfer rate is editable
+ *                                       for the perf level
  *   "processorclock"     integer  - the processor clocks (in MHz)
  *                                 for the perf level
  *   "processorclockmin"  integer  - the processor clocks min (in MHz)
  *                                 for the perf level
  *   "processorclockmax"  integer  - the processor clocks max (in MHz)
  *                                 for the perf level
+ *   "processorclockeditable" integer - if the processor clock domain is editable
+ *                                      for the perf level
  *
  * Example:
  *
- *    nvclock=324, nvclockmin=324, nvclockmax=324,
- *    memclock=324, memclockmin=324, memclockmax=324, memtrasferrate=628
+ *    nvclock=324, nvclockmin=324, nvclockmax=324, nvclockeditable=0
+ *    memclock=324, memclockmin=324, memclockmax=324, memclockeditable=0
+ *    memtrasferrate=628
  *
  * This attribute may be queried through XNVCTRLQueryTargetStringAttribute()
  * using an NV_CTRL_TARGET_TYPE_GPU or NV_CTRL_TARGET_TYPE_X_SCREEN target.

@@ -38,9 +38,6 @@ void ctk_screen_event_handler(GtkWidget *widget,
                               XRRScreenChangeNotifyEvent *ev,
                               gpointer data);
 
-static void associated_displays_received(GtkObject *object, gpointer arg1,
-                                         gpointer user_data);
-
 static void info_update_gpu_error(GtkObject *object, gpointer arg1,
                                       gpointer user_data);
 
@@ -322,12 +319,6 @@ GtkWidget* ctk_screen_new(NvCtrlAttributeHandle *handle,
     g_free(depth);
     g_free(gpus);
     g_free(displays);
-    
-    /* Handle updates to the list of associated display devices */
-    g_signal_connect(G_OBJECT(ctk_event),
-                     CTK_EVENT_NAME(NV_CTRL_ASSOCIATED_DISPLAY_DEVICES),
-                     G_CALLBACK(associated_displays_received),
-                     (gpointer) ctk_screen);
 
     /* Setup widget to handle XRRScreenChangeNotify events */
     g_signal_connect(G_OBJECT(ctk_event), "CTK_EVENT_RRScreenChangeNotify",
@@ -435,25 +426,6 @@ void ctk_screen_event_handler(GtkWidget *widget,
 
 } /* ctk_screen_event_handler() */
 
-
-
-/*
- * When the list of associated displays on this screen changes, we should
- * update the display device list shown on the page.
- */
-static void associated_displays_received(GtkObject *object, gpointer arg1,
-                                         gpointer user_data)
-{
-    CtkScreen *ctk_object = CTK_SCREEN(user_data);
-    gchar *str;
-
-    str = make_display_device_list(ctk_object->handle);
-
-    gtk_label_set_text(GTK_LABEL(ctk_object->displays), str);
-
-    g_free(str);
-
-} /* associated_displays_received() */
 
 
 /*

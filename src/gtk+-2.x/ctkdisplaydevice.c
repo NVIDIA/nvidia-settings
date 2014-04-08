@@ -54,6 +54,7 @@ static void callback_link_changed(GtkObject *object, gpointer arg1,
 static void callback_refresh_rate_changed(GtkObject *object, gpointer arg1,
                                           gpointer user_data);
 
+static gboolean update_guid_info(InfoEntry *entry);
 static gboolean update_tv_encoder_info(InfoEntry *entry);
 static gboolean update_chip_info(InfoEntry *entry);
 static gboolean update_signal_info(InfoEntry *entry);
@@ -76,6 +77,9 @@ static void add_color_correction_tab(CtkDisplayDevice *ctk_object,
 static const char *__info_help =
 "This section describes basic information about the connection to the display "
 "device.";
+
+static const char*__guid_help =
+"The Global Unique Identifier for the display port display device.";
 
 static const char* __tv_encoder_name_help =
 "The TV Encoder name displays the name of the TV Encoder.";
@@ -110,7 +114,14 @@ typedef struct {
 
 static InfoEntryData __info_entry_data[] = {
     {
-        "TV Encoder:",
+        "GUID",
+        &__guid_help,
+        update_guid_info,
+        NULL,
+        NULL,
+    },
+    {
+        "TV Encoder",
         &__tv_encoder_name_help,
         update_tv_encoder_info,
         NULL,
@@ -412,13 +423,19 @@ GtkWidget* ctk_display_device_new(NvCtrlAttributeHandle *handle,
                                  gtk_label_new("Controls"));
     }
 
+    /*
+     * Show all widgets on this page so far. After this, the color correction
+     * tab and other widgets can control their own visibility.
+     */
+
+    gtk_widget_show_all(GTK_WIDGET(object));
+
     /* add the color correction tab if RandR is available */
 
     add_color_correction_tab(ctk_object, ctk_config, ctk_event, notebook, p);
 
     /* Update the GUI */
 
-    gtk_widget_show_all(GTK_WIDGET(object));
     display_device_setup(ctk_object);
 
     /* Listen to events */
@@ -529,6 +546,28 @@ GtkTextBuffer *ctk_display_device_create_help(GtkTextTagTable *table,
     return b;
 
 } /* ctk_display_device_create_help() */
+
+
+
+static gboolean update_guid_info(InfoEntry *entry)
+{
+    CtkDisplayDevice *ctk_object = entry->ctk_object;
+    ReturnStatus ret;
+    char *str;
+
+    ret = NvCtrlGetStringDisplayAttribute(ctk_object->handle, 0,
+                                          NV_CTRL_STRING_DISPLAY_NAME_DP_GUID, &str);
+    if (ret != NvCtrlSuccess) {
+        return FALSE;
+    }
+
+    gtk_label_set_text(GTK_LABEL(entry->txt), str);
+
+    XFree(str);
+
+    return TRUE;
+}
+
 
 
 static gboolean update_tv_encoder_info(InfoEntry *entry)
@@ -919,4 +958,5 @@ static void add_color_correction_tab(CtkDisplayDevice *ctk_object,
 
     gtk_notebook_append_page(GTK_NOTEBOOK(notebook), box,
                              gtk_label_new("Color Correction"));
+    gtk_widget_show(box);
 }

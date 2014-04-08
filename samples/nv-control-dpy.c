@@ -42,15 +42,12 @@
 
 #include "nv-control-screen.h"
 
-static char *display_device_name(int mask);
-static unsigned int display_device_mask(char *str);
 static char *remove_whitespace(char *str);
+static char *mode_strtok(char *str);
 static void parse_mode_string(char *modeString, char **modeName,
-                              unsigned int *mask);
+                              int *dpyId);
 static char *find_modeline(char *modeString, char *pModeLines,
                            int ModeLineLen);
-
-
 
 static void print_display_name(Display *dpy, int target_id, int attr,
                                char *name)
@@ -72,19 +69,15 @@ static void print_display_name(Display *dpy, int target_id, int attr,
     XFree(str);
 }
 
-
-
-
 int main(int argc, char *argv[])
 {
     Display *dpy;
     Bool ret;
-    int screen, display_devices, mask, major, minor, len, j;
+    int screen, major, minor, len, i, j;
     char *str, *start, *str0, *str1;
-    char *displayDeviceNames[8];
-    int nDisplayDevice;
-    
-    
+    int *enabledDpyIds;
+
+
     /*
      * Open a display connection, and make sure the NV-CONTROL X
      * extension is present on the screen we want to use.
@@ -105,40 +98,43 @@ int main(int argc, char *argv[])
         return 1;
     }
 
-    printf("\nUsing NV-CONTROL extension %d.%d on %s\n",
+    printf("\nUsing NV-CONTROL extension %d.%d on %s\n\n",
            major, minor, XDisplayName(NULL));
-    
-    
+
+
     /*
-     * query the connected display devices on this X screen and print
-     * basic information about each X screen
+     * query the enabled display devices on this X screen and print basic
+     * information about each X screen.
      */
 
-    ret = XNVCTRLQueryAttribute(dpy, screen, 0,
-                                NV_CTRL_CONNECTED_DISPLAYS, &display_devices);
-
-    if (!ret) {
+    ret = XNVCTRLQueryTargetBinaryData(dpy,
+                                       NV_CTRL_TARGET_TYPE_X_SCREEN,
+                                       screen,
+                                       0,
+                                       NV_CTRL_BINARY_DATA_DISPLAYS_ENABLED_ON_XSCREEN,
+                                       (unsigned char **) &enabledDpyIds,
+                                       &len);
+    if (!ret || (len < sizeof(enabledDpyIds[0]))) {
         fprintf(stderr, "Failed to query the enabled Display Devices.\n\n");
         return 1;
     }
 
-    printf("Connected Display Devices:\n");
-    
-    nDisplayDevice = 0;
-    for (mask = 1; mask < (1 << 24); mask <<= 1) {
-        
-        if (display_devices & mask) {
-            
-            XNVCTRLQueryStringAttribute(dpy, screen, mask,
-                                        NV_CTRL_STRING_DISPLAY_DEVICE_NAME,
-                                        &str);
-            
-            displayDeviceNames[nDisplayDevice++] = str;
-            
-            printf("  %s (0x%08x): %s\n",
-                   display_device_name(mask), mask, str);
-        }
+    printf("Enabled Display Devices:\n");
+
+    for (i = 0; i < enabledDpyIds[0]; i++) {
+        int dpyId = enabledDpyIds[i+1];
+
+        XNVCTRLQueryTargetStringAttribute(dpy,
+                                          NV_CTRL_TARGET_TYPE_DISPLAY,
+                                          dpyId,
+                                          0,
+                                          NV_CTRL_STRING_DISPLAY_DEVICE_NAME,
+                                          &str);
+
+        printf("  DPY-%d : %s\n", dpyId, str);
+        XFree(str);
     }
+
     printf("\n");
     
     
@@ -151,23 +147,22 @@ int main(int argc, char *argv[])
 
 
     /*
-     * for each connected display device on this X screen, query the
-     * list of modelines in the mode pool using
-     * NV_CTRL_BINARY_DATA_MODELINES, then print the results
+     * for each enabled display device on this X screen, query the list of
+     * modelines in the mode pool using NV_CTRL_BINARY_DATA_MODELINES, then
+     * print the results.
      */
-    
+
     if (strcmp(argv[1], "--print-modelines") == 0) {
 
-        nDisplayDevice = 0;
-        
-        for (mask = 1; mask < (1 << 24); mask <<= 1) {
-            
-            if (!(display_devices & mask)) continue;
-                
-            ret = XNVCTRLQueryBinaryData(dpy, screen, mask,
-                                         NV_CTRL_BINARY_DATA_MODELINES,
-                                         (void *) &str, &len);
-                
+        for (i = 0; i < enabledDpyIds[0]; i++) {
+            int dpyId = enabledDpyIds[i+1];
+
+            ret = XNVCTRLQueryTargetBinaryData(dpy,
+                                               NV_CTRL_TARGET_TYPE_DISPLAY,
+                                               dpyId,
+                                               0,
+                                               NV_CTRL_BINARY_DATA_MODELINES,
+                                               (void *) &str, &len);
             if (!ret) {
                 fprintf(stderr, "Failed to query ModeLines.\n\n");
                 return 1;
@@ -180,48 +175,44 @@ int main(int argc, char *argv[])
              *
              * so walk from one "\0" to the next to print each ModeLine.
              */
-            
-            printf("Modelines for %s:\n",
-                   displayDeviceNames[nDisplayDevice++]);
-                
+
+            printf("Modelines for DPY-%d:\n", dpyId);
+
             start = str;
             for (j = 0; j < len; j++) {
                 if (str[j] == '\0') {
                     printf("  %s\n", start);
                     start = &str[j+1];
-                    }
+                }
             }
-            
+
             XFree(str);
         }
     }
-    
+
 
     /*
-     * for each connected display device on this X screen, query the
-     * current modeline using NV_CTRL_STRING_CURRENT_MODELINE
+     * for each enabled display device on this X screen, query the current
+     * modeline using NV_CTRL_STRING_CURRENT_MODELINE.
      */
-    
+
     else if (strcmp(argv[1], "--print-current-modeline") == 0) {
 
-        nDisplayDevice = 0;
+       for (i = 0; i < enabledDpyIds[0]; i++) {
+            int dpyId = enabledDpyIds[i+1];
 
-        for (mask = 1; mask < (1 << 24); mask <<= 1) {
-            
-            if (!(display_devices & mask)) continue;
-
-            ret =
-                XNVCTRLQueryStringAttribute(dpy, screen, mask,
-                                            NV_CTRL_STRING_CURRENT_MODELINE,
-                                            &str);
-                
+            ret = XNVCTRLQueryTargetStringAttribute(dpy,
+                                                    NV_CTRL_TARGET_TYPE_DISPLAY,
+                                                    dpyId,
+                                                    0,
+                                                    NV_CTRL_STRING_CURRENT_MODELINE,
+                                                    &str);
             if (!ret) {
                 fprintf(stderr, "Failed to query current ModeLine.\n\n");
                 return 1;
             }
-                
-            printf("Current Modeline for %s:\n",
-                   displayDeviceNames[nDisplayDevice++]);
+
+            printf("Current Modeline for DPY-%d:\n", dpyId);
             printf("  %s\n\n", str);
 
             XFree(str);
@@ -237,22 +228,23 @@ int main(int argc, char *argv[])
     else if ((strcmp(argv[1], "--add-modeline") == 0) &&
              argv[2] && argv[3]) {
         
-        mask = strtol(argv[2], NULL, 0);
+        int dpyId = strtol(argv[2], NULL, 0);
 
-        ret = XNVCTRLSetStringAttribute(dpy,
-                                        screen,
-                                        mask,
-                                        NV_CTRL_STRING_ADD_MODELINE,
-                                        argv[3]);
+        ret = XNVCTRLSetTargetStringAttribute(dpy,
+                                              NV_CTRL_TARGET_TYPE_DISPLAY,
+                                              dpyId,
+                                              0,
+                                              NV_CTRL_STRING_ADD_MODELINE,
+                                              argv[3]);
         
         if (!ret) {
-            fprintf(stderr, "Failed to add the modeline \"%s\" to %s's "
-                    "mode pool.\n\n", argv[3], display_device_name(mask));
+            fprintf(stderr, "Failed to add the modeline \"%s\" to DPY-%d's "
+                    "mode pool.\n\n", argv[3], dpyId);
             return 1;
         }
         
-        printf("Added modeline \"%s\" to %s's mode pool.\n\n",
-               argv[3], display_device_name(mask));
+        printf("Added modeline \"%s\" to DPY-%d's mode pool.\n\n",
+               argv[3], dpyId);
     }
 
     
@@ -264,22 +256,23 @@ int main(int argc, char *argv[])
     else if ((strcmp(argv[1], "--delete-modeline") == 0) &&
              argv[2] && argv[3]) {
         
-        mask = strtol(argv[2], NULL, 0);
+        int dpyId = strtol(argv[2], NULL, 0);
     
-        ret = XNVCTRLSetStringAttribute(dpy,
-                                        screen,
-                                        mask,
-                                        NV_CTRL_STRING_DELETE_MODELINE,
-                                        argv[3]);
+        ret = XNVCTRLSetTargetStringAttribute(dpy,
+                                              NV_CTRL_TARGET_TYPE_DISPLAY,
+                                              dpyId,
+                                              0,
+                                              NV_CTRL_STRING_DELETE_MODELINE,
+                                              argv[3]);
         
         if (!ret) {
-            fprintf(stderr, "Failed to delete the mode \"%s\" from %s's "
-                    "mode pool.\n\n", argv[3], display_device_name(mask));
+            fprintf(stderr, "Failed to delete the mode \"%s\" from DPY-%d's "
+                    "mode pool.\n\n", argv[3], dpyId);
             return 1;
         }
         
-        printf("Deleted modeline \"%s\" from %s's mode pool.\n\n",
-               argv[3], display_device_name(mask));
+        printf("Deleted modeline \"%s\" from DPY-%d's mode pool.\n\n",
+               argv[3], dpyId);
     }
     
     
@@ -435,7 +428,7 @@ int main(int argc, char *argv[])
     
     else if (strcmp(argv[1], "--print-current-metamode") == 0) {
         
-        ret = XNVCTRLQueryStringAttribute(dpy, screen, mask,
+        ret = XNVCTRLQueryStringAttribute(dpy, screen, 0,
                                           NV_CTRL_STRING_CURRENT_METAMODE,
                                           &str);
         
@@ -459,7 +452,7 @@ int main(int argc, char *argv[])
 
     else if (strcmp(argv[1], "--print-current-metamode-version2") == 0) {
 
-        ret = XNVCTRLQueryStringAttribute(dpy, screen, mask,
+        ret = XNVCTRLQueryStringAttribute(dpy, screen, 0,
                                           NV_CTRL_STRING_CURRENT_METAMODE_VERSION_2,
                                           &str);
 
@@ -491,9 +484,9 @@ int main(int argc, char *argv[])
      *                         "nvidia-auto-select, nvidia-auto-select"
      *
      * Using NV-CONTROL extension 1.12 on :0
-     * Connected Display Devices:
-     *   CRT-0 (0x00000001): EIZO F931
-     *   CRT-1 (0x00000002): ViewSonic P815-4
+     * Enabled Display Devices:
+     *   DPY-0 : EIZO F931
+     *   DPY-1 : ViewSonic P815-4
      *
      * Added MetaMode "nvidia-auto-select, nvidia-auto-select"; 
      * pOut: "id=52"
@@ -563,42 +556,37 @@ int main(int argc, char *argv[])
      */
     
     else if (strcmp(argv[1], "--get-valid-freq-ranges") == 0) {
-        
-        nDisplayDevice = 0;
 
-        for (mask = 1; mask < (1 << 24); mask <<= 1) {
+        for (i = 0; i < enabledDpyIds[0]; i++) {
+            int dpyId = enabledDpyIds[i+1];
 
-            if (!(display_devices & mask)) continue;
-            
-            ret = XNVCTRLQueryStringAttribute
-                (dpy, screen, mask,
+            ret = XNVCTRLQueryTargetStringAttribute
+                (dpy, NV_CTRL_TARGET_TYPE_DISPLAY, dpyId, 0,
                  NV_CTRL_STRING_VALID_HORIZ_SYNC_RANGES,
                  &str0);
-                
+
             if (!ret) {
-                fprintf(stderr, "Failed to query HorizSync for %s.\n\n",
-                        display_device_name(mask));
+                fprintf(stderr, "Failed to query HorizSync for DPY-%d.\n\n",
+                        dpyId);
                 return 1;
             }
-                    
 
-            ret = XNVCTRLQueryStringAttribute
-                (dpy, screen, mask,
+            ret = XNVCTRLQueryTargetStringAttribute
+                (dpy, NV_CTRL_TARGET_TYPE_DISPLAY, dpyId, 0,
                  NV_CTRL_STRING_VALID_VERT_REFRESH_RANGES,
                  &str1);
-                
+
             if (!ret) {
-                fprintf(stderr, "Failed to query VertRefresh for %s.\n\n",
-                        display_device_name(mask));
+                fprintf(stderr, "Failed to query VertRefresh for DPY-%d.\n\n",
+                        dpyId);
                 XFree(str0);
                 return 1;
             }
-                
-            printf("frequency information for %s:\n",
-                   displayDeviceNames[nDisplayDevice++]);
+
+            printf("frequency information for DPY-%d:\n", dpyId);
             printf("  HorizSync   : \"%s\"\n", str0);
             printf("  VertRefresh : \"%s\"\n\n", str1);
-            
+
             XFree(str0);
             XFree(str1);
         }
@@ -611,85 +599,64 @@ int main(int argc, char *argv[])
      */
     
     else if (strcmp(argv[1], "--build-modepool") == 0) {
-        
-        for (mask = 1; mask < (1 << 24); mask <<= 1) {
-            
-            if (!(display_devices & mask)) continue;
-            
+
+        for (i = 0; i < enabledDpyIds[0]; i++) {
+            int dpyId = enabledDpyIds[i+1];
+
             ret = XNVCTRLStringOperation
                 (dpy,
-                 NV_CTRL_TARGET_TYPE_X_SCREEN,
-                 screen,
-                 mask,
+                 NV_CTRL_TARGET_TYPE_DISPLAY,
+                 dpyId,
+                 0,
                  NV_CTRL_STRING_OPERATION_BUILD_MODEPOOL,
                  argv[2],
                  &str0);
-            
+
             if (!ret) {
-                fprintf(stderr, "Failed to build modepool for %s (it most "
-                        "likely already has a modepool).\n\n",
-                        display_device_name(mask));
+                fprintf(stderr, "Failed to build modepool for DPY-%d (it most "
+                        "likely already has a modepool).\n\n", dpyId);
             } else {
-                printf("Built modepool for %s.\n\n",
-                       display_device_name(mask));
+                printf("Built modepool for DPY-%d.\n\n", dpyId);
             }
         }
     }
 
     
     /*
-     * query the associated display devices on this X screen; these
-     * are the display devices that are available to the X screen for
-     * use by MetaModes.
+     * query the assigned display devices on this X screen; these are the
+     * display devices that are available to the X screen for use by MetaModes.
      */
-    
-    else if (strcmp(argv[1], "--get-associated-dpys") == 0) {
-        
-        ret = XNVCTRLQueryAttribute(dpy,
-                                    screen,
-                                    0,
-                                    NV_CTRL_ASSOCIATED_DISPLAY_DEVICES,
-                                    &mask);
-        
-        if (ret) {
-            printf("associated display device mask: 0x%08x\n\n", mask);
-        } else {
-            fprintf(stderr, "failed to query the associated display device "
-                    "mask.\n\n");
+
+    else if (strcmp(argv[1], "--get-assigned-dpys") == 0) {
+
+        int *pData = NULL;
+        int len;
+
+        ret = XNVCTRLQueryTargetBinaryData(dpy,
+                                           NV_CTRL_TARGET_TYPE_X_SCREEN,
+                                           screen,
+                                           0,
+                                           NV_CTRL_BINARY_DATA_DISPLAYS_ASSIGNED_TO_XSCREEN,
+                                           (unsigned char **) &pData,
+                                           &len);
+        if (!ret || (len < sizeof(pData[0]))) {
+            fprintf(stderr, "failed to query the assigned display "
+                    "devices.\n\n");
             return 1;
         }
-        
-    }
-    
-    
-    /*
-     * assign the associated display device mask for this X screen;
-     * these are the display devices that are available to the X
-     * screen for use by MetaModes.
-     */
-    
-    else if ((strcmp(argv[1], "--set-associated-dpys") == 0) && (argv[2])) {
 
-        mask = strtol(argv[2], NULL, 0);
+        printf("Assigned display devices:\n");
 
-        ret = XNVCTRLSetAttributeAndGetStatus
-            (dpy,
-             screen,
-             0,
-             NV_CTRL_ASSOCIATED_DISPLAY_DEVICES,
-             mask);
-        
-        if (ret) {
-            printf("set the associated display device mask to 0x%08x\n\n",
-                   mask);
-        } else {
-            fprintf(stderr, "failed to set the associated display device "
-                    "mask to 0x%08x\n\n", mask);
-            return 1;
+        for (i = 0; i < pData[0]; i++) {
+            int dpyId = pData[i+1];
+
+            printf("  DPY-%d\n", dpyId);
         }
+
+        printf("\n");
+        XFree(pData);
     }
 
-    
     /*
      * query information about the GPUs in the system
      */
@@ -697,7 +664,7 @@ int main(int argc, char *argv[])
     else if (strcmp(argv[1], "--query-gpus") == 0) {
 
         int num_gpus, num_screens, i;
-        unsigned int *pData;
+        int *pData;
 
         printf("GPU Information:\n");
 
@@ -725,7 +692,7 @@ int main(int argc, char *argv[])
                  (unsigned char **) &pData,
                  &len);
             
-            if (!ret) {
+            if (!ret || (len < sizeof(pData[0]))) {
                 fprintf(stderr, "Failed to query list of X Screens\n");
                 return 1;
             }
@@ -775,7 +742,7 @@ int main(int argc, char *argv[])
                  (unsigned char **) &pData,
                  &len);
             
-            if (!ret) {
+            if (!ret || (len < sizeof(pData[0]))) {
                 fprintf(stderr, "Failed to query list of gpus\n\n");
                 return 1;
             }
@@ -823,6 +790,8 @@ int main(int argc, char *argv[])
         /* Probe and list the Display devices */
         
         for (i = 0; i < num_gpus; i++) {
+            int deprecated;
+            int *pData;
             
             /* Get the gpu name */
             
@@ -841,7 +810,7 @@ int main(int argc, char *argv[])
                                               NV_CTRL_TARGET_TYPE_GPU, i,
                                               0,
                                               NV_CTRL_PROBE_DISPLAYS,
-                                              &display_devices);
+                                              &deprecated);
             
             if (!ret) {
                 fprintf(stderr, "Failed to probe the enabled Display "
@@ -853,21 +822,32 @@ int main(int argc, char *argv[])
             XFree(str);
         
             /* Report results */
-            
-            for (mask = 1; mask < (1 << 24); mask <<= 1) {
-                
-                if (display_devices & mask) {
-                    
-                    XNVCTRLQueryTargetStringAttribute
-                        (dpy, NV_CTRL_TARGET_TYPE_GPU, i, mask,
-                         NV_CTRL_STRING_DISPLAY_DEVICE_NAME,
-                         &str);
-                    
-                    printf("    %s (0x%08x): %s\n",
-                           display_device_name(mask), mask, str);
-                }
+
+            ret = XNVCTRLQueryTargetBinaryData(dpy,
+                                               NV_CTRL_TARGET_TYPE_GPU, i,
+                                               0,
+                                               NV_CTRL_BINARY_DATA_DISPLAYS_CONNECTED_TO_GPU,
+                                               (unsigned char **) &pData,
+                                               &len);
+            if (!ret || (len < sizeof(pData[0]))) {
+                fprintf(stderr, "Failed to query the connected Display Devices.\n\n");
+                return 1;
             }
-            
+
+            for (j = 0; j < pData[0]; j++) {
+                int dpyId = pData[j+1];
+
+                XNVCTRLQueryTargetStringAttribute(dpy,
+                                                  NV_CTRL_TARGET_TYPE_DISPLAY,
+                                                  dpyId,
+                                                  0,
+                                                  NV_CTRL_STRING_DISPLAY_DEVICE_NAME,
+                                                  &str);
+
+                printf("    DPY-%d : %s\n", dpyId, str);
+                XFree(str);
+            }
+
             printf("\n");
         }
         
@@ -986,34 +966,32 @@ int main(int argc, char *argv[])
 
         char *pMetaModes, *pModeLines[8], *tmp, *modeString;
         char *modeLine, *modeName, *noWhiteSpace;
-        int MetaModeLen, ModeLineLen[8];
-        unsigned int thisMask;
-        
+        int MetaModeLen, ModeLineLen[8], ModeLineDpyId[8];
+        int dpyId;
+
         /* first, we query the MetaModes on this X screen */
         
-        XNVCTRLQueryBinaryData(dpy, screen, 0, // n/a
-                               NV_CTRL_BINARY_DATA_METAMODES,
+        XNVCTRLQueryBinaryData(dpy, screen, 0,
+                               NV_CTRL_BINARY_DATA_METAMODES_VERSION_2,
                                (void *) &pMetaModes, &MetaModeLen);
         
         /*
          * then, we query the ModeLines for each display device on
          * this X screen; we'll need these later
          */
-        
-        nDisplayDevice = 0;
 
-        for (mask = 1; mask < (1 << 24); mask <<= 1) {
-            
-            if (!(display_devices & mask)) continue;
-                
-            XNVCTRLQueryBinaryData(dpy, screen, mask,
-                                   NV_CTRL_BINARY_DATA_MODELINES,
-                                   (void *) &str, &len);
-                
-            pModeLines[nDisplayDevice] = str;
-            ModeLineLen[nDisplayDevice] = len;
+        for (i = 0; i < enabledDpyIds[0]; i++) {
+            dpyId = enabledDpyIds[i+1];
 
-            nDisplayDevice++;
+            XNVCTRLQueryTargetBinaryData(dpy, NV_CTRL_TARGET_TYPE_DISPLAY,
+                                         dpyId,
+                                         0,
+                                         NV_CTRL_BINARY_DATA_MODELINES,
+                                         (void *) &str, &len);
+
+            pModeLines[i] = str;
+            ModeLineLen[i] = len;
+            ModeLineDpyId[i] = dpyId;
         }
         
         /* now, parse each MetaMode */
@@ -1051,40 +1029,40 @@ int main(int argc, char *argv[])
                     tmp = noWhiteSpace;
                 }
 
-                /* split the MetaMode string by comma */
+                /* Parse each mode from the metamode */
 
-                for (modeString = strtok(tmp, ",");
+                for (modeString = mode_strtok(tmp);
                      modeString;
-                     modeString = strtok(NULL, ",")) {
+                     modeString = mode_strtok(NULL)) {
 
                     /*
-                     * retrieve the modeName and display device mask
+                     * retrieve the modeName and display device id
                      * for this segment of the Metamode
                      */
 
-                    parse_mode_string(modeString, &modeName, &thisMask);
+                    parse_mode_string(modeString, &modeName, &dpyId);
 
                     /* lookup the modeline that matches */
-                    
-                    nDisplayDevice = 0;
-                    
-                    if (thisMask) {
-                        for (mask = 1; mask < (1 << 24); mask <<= 1) {
-                            if (!(display_devices & mask)) continue;
-                            if (thisMask & mask) break;
-                            nDisplayDevice++;
+
+                    for (i = 0; i < enabledDpyIds[0]; i++) {
+                        if (ModeLineDpyId[i] == dpyId) {
+                            break;
                         }
                     }
-
+                    if ( i >= enabledDpyIds[0] ) {
+                        fprintf(stderr, "  Failed to find modelines for "
+                                "DPY-%d.\n\n",
+                                dpyId);
+                        continue;
+                    }
 
                     modeLine = find_modeline(modeName,
-                                             pModeLines[nDisplayDevice],
-                                             ModeLineLen[nDisplayDevice]);
-                    
-                    printf("  %s: %s\n",
-                           display_device_name(thisMask), modeLine);
+                                             pModeLines[i],
+                                             ModeLineLen[i]);
+
+                    printf("  DPY-%d: %s\n", dpyId, modeLine);
                 }
-                
+
                 printf("\n");
 
                 free(noWhiteSpace);
@@ -1100,7 +1078,7 @@ int main(int argc, char *argv[])
     /* Display all names each display device goes by
      */
     else if (strcmp(argv[1], "--print-display-names") == 0) {
-        unsigned int *pData;
+        int *pData;
         int len, i;
 
         printf("Display Device Information:\n");
@@ -1112,7 +1090,7 @@ int main(int argc, char *argv[])
                                            NV_CTRL_BINARY_DATA_DISPLAY_TARGETS,
                                            (unsigned char **) &pData,
                                            &len);
-        if (!ret) {
+        if (!ret || (len < sizeof(pData[0]))) {
             fprintf(stderr, "Failed to query number of display devices.\n\n");
             return 1;
         }
@@ -1163,10 +1141,10 @@ int main(int argc, char *argv[])
         printf("  --print-current-modeline: print the current modeline "
                "for each Display Device.\n\n");
 
-        printf("  --add-modeline [dpy mask] [modeline]: "
+        printf("  --add-modeline [dpy id] [modeline]: "
                "add new modeline.\n\n");
         
-        printf("  --delete-modeline [dpy mask] [modename]: "
+        printf("  --delete-modeline [dpy id] [modename]: "
                "delete modeline with modename.\n\n");
         
         printf("  --generate-gtf-modeline [width] [height] [refreshrate]:"
@@ -1206,11 +1184,8 @@ int main(int argc, char *argv[])
         printf("  --build-modepool: build a modepool for any display device "
                "that does not already have one.\n\n");
                 
-        printf("  --get-associated-dpys: query the associated display device "
-               "mask for this X screen\n\n");
-        
-        printf("  --set-associated-dpys [mask]: set the associated display "
-               "device mask for this X screen\n\n");
+        printf("  --get-assigned-dpys: query the assigned display device for "
+               "this X screen\n\n");
         
         printf("  --query-gpus: print GPU information and relationship to "
                "X screens.\n\n");
@@ -1245,87 +1220,6 @@ int main(int argc, char *argv[])
 
 
 /*
- * display_device_name() - return the display device name corresponding
- * to the specified display device mask.
- */
-
-static char *display_device_name(int mask)
-{
-    switch (mask) {
-    case (1 <<  0): return "CRT-0"; break;
-    case (1 <<  1): return "CRT-1"; break;
-    case (1 <<  2): return "CRT-2"; break;
-    case (1 <<  3): return "CRT-3"; break;
-    case (1 <<  4): return "CRT-4"; break;
-    case (1 <<  5): return "CRT-5"; break;
-    case (1 <<  6): return "CRT-6"; break;
-    case (1 <<  7): return "CRT-7"; break;
-
-    case (1 <<  8): return "TV-0"; break;
-    case (1 <<  9): return "TV-1"; break;
-    case (1 << 10): return "TV-2"; break;
-    case (1 << 11): return "TV-3"; break;
-    case (1 << 12): return "TV-4"; break;
-    case (1 << 13): return "TV-5"; break;
-    case (1 << 14): return "TV-6"; break;
-    case (1 << 15): return "TV-7"; break;
-
-    case (1 << 16): return "DFP-0"; break;
-    case (1 << 17): return "DFP-1"; break;
-    case (1 << 18): return "DFP-2"; break;
-    case (1 << 19): return "DFP-3"; break;
-    case (1 << 20): return "DFP-4"; break;
-    case (1 << 21): return "DFP-5"; break;
-    case (1 << 22): return "DFP-6"; break;
-    case (1 << 23): return "DFP-7"; break;
-    default: return "Unknown";
-    }
-    
-} /* display_device_name() */
-
-
-
-/*
- * display_device_mask() - given a display device name, translate to
- * the display device mask
- */
-
-static unsigned int display_device_mask(char *str)
-{
-    if (strcmp(str, "CRT-0") == 0) return (1 <<  0);
-    if (strcmp(str, "CRT-1") == 0) return (1 <<  1);
-    if (strcmp(str, "CRT-2") == 0) return (1 <<  2);
-    if (strcmp(str, "CRT-3") == 0) return (1 <<  3);
-    if (strcmp(str, "CRT-4") == 0) return (1 <<  4);
-    if (strcmp(str, "CRT-5") == 0) return (1 <<  5);
-    if (strcmp(str, "CRT-6") == 0) return (1 <<  6);
-    if (strcmp(str, "CRT-7") == 0) return (1 <<  7);
-
-    if (strcmp(str, "TV-0") == 0)  return (1 <<  8);
-    if (strcmp(str, "TV-1") == 0)  return (1 <<  9);
-    if (strcmp(str, "TV-2") == 0)  return (1 << 10);
-    if (strcmp(str, "TV-3") == 0)  return (1 << 11);
-    if (strcmp(str, "TV-4") == 0)  return (1 << 12);
-    if (strcmp(str, "TV-5") == 0)  return (1 << 13);
-    if (strcmp(str, "TV-6") == 0)  return (1 << 14);
-    if (strcmp(str, "TV-7") == 0)  return (1 << 15);
-    
-    if (strcmp(str, "DFP-0") == 0) return (1 << 16);
-    if (strcmp(str, "DFP-1") == 0) return (1 << 17);
-    if (strcmp(str, "DFP-2") == 0) return (1 << 18);
-    if (strcmp(str, "DFP-3") == 0) return (1 << 19);
-    if (strcmp(str, "DFP-4") == 0) return (1 << 20);
-    if (strcmp(str, "DFP-5") == 0) return (1 << 21);
-    if (strcmp(str, "DFP-6") == 0) return (1 << 22);
-    if (strcmp(str, "DFP-7") == 0) return (1 << 23);
-    
-    return 0;
-
-} /* display_device_mask() */
-
-
-
-/*
  * remove_whitespace() - return an allocated copy of the given string,
  * with any whitespace removed
  */
@@ -1355,28 +1249,61 @@ static char *remove_whitespace(char *str)
 
 
 /*
+ * Special strtok function for parsing modes.  This function ignores
+ * anything between curly braces, including commas when parsing tokens
+ * delimited by commas.
+ */
+static char *mode_strtok(char *str)
+{
+    static char *intStr = NULL;
+    char *start;
+
+    if (str) {
+        intStr = str;
+    }
+
+    if (!intStr || *intStr == '\0') {
+        return NULL;
+    }
+
+    /* Mark off the next token value */
+    start = intStr;
+    while (*intStr != '\0') {
+        if (*intStr == '{') {
+            while (*intStr != '}' && *intStr != '\0') {
+                intStr++;
+            }
+        }
+        if (*intStr == ',') {
+            *intStr = '\0';
+            intStr++;
+            break;
+        }
+        intStr++;
+    }
+
+    return start;
+}
+
+
+
+/*
  * parse_mode_string() - extract the modeName and the display device
- * mask for the per-display device MetaMode string in 'modeString'
+ * id for the per-display device MetaMode string in 'modeString'
  */
 
 static void parse_mode_string(char *modeString, char **modeName,
-                              unsigned int *mask)
+                             int *dpyId)
 {
     char *colon, *s, tmp;
 
     colon = strchr(modeString, ':');
-                    
-    if (colon) {
-        
-        *colon = '\0';
-        *mask = display_device_mask(modeString);
-        *colon = ':';
-        
-        modeString = colon + 1;
-    } else {
-        *mask = 0;
-    }
-    
+    *colon = '\0';
+    *dpyId = strtol(modeString+4, NULL, 0);
+    *colon = ':';
+
+    modeString = colon + 1;
+
     /*
      * find the modename; trim off any panning domain or
      * offsets
