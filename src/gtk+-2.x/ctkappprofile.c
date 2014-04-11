@@ -221,11 +221,7 @@ typedef struct _TreeViewColumnTemplate {
     const gchar *extended_help_text;
 } TreeViewColumnTemplate;
 
-#if JSON_INTEGER_IS_LONG_LONG
-# define JSON_INTEGER_HEX_FORMAT "llx"
-#else
-# define JSON_INTEGER_HEX_FORMAT "lx"
-#endif
+#define JSON_INTEGER_HEX_FORMAT "llx"
 
 /*
  * Function prototypes

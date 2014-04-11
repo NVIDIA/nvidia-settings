@@ -60,7 +60,10 @@ ifndef VDPAU_CFLAGS
 endif
 
 ifndef JANSSON_CFLAGS
-  JANSSON_CFLAGS = -Wno-cast-qual
+  JANSSON_CFLAGS  = -Wno-cast-qual
+  JANSSON_CFLAGS += -Wno-strict-prototypes
+  JANSSON_CFLAGS += -Wno-unused-function
+  JANSSON_CFLAGS += -DHAVE_CONFIG_H
   ifeq ($(TARGET_ARCH),armv7l)
     JANSSON_CFLAGS += -Wno-unused-but-set-variable
   endif

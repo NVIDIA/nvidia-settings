@@ -83,6 +83,8 @@ flush_attribute_channel_values (CtkColorCorrection *, gint, gint);
 static void
 ctk_color_correction_class_init(CtkColorCorrectionClass *);
 
+static void ctk_color_correction_finalize(GObject *);
+
 static void
 apply_parsed_attribute_list(CtkColorCorrection *, ParsedAttribute *);
 
@@ -158,6 +160,8 @@ static void
 ctk_color_correction_class_init(CtkColorCorrectionClass
                                 *ctk_color_correction_class)
 {
+    GObjectClass *gobject_class = (GObjectClass *)ctk_color_correction_class;
+
     signals[CHANGED] =
         g_signal_new("changed",
                      G_OBJECT_CLASS_TYPE(ctk_color_correction_class),
@@ -166,6 +170,50 @@ ctk_color_correction_class_init(CtkColorCorrectionClass
                      NULL, NULL,
                      g_cclosure_marshal_VOID__VOID,
                      G_TYPE_NONE, 0);
+    gobject_class->finalize = ctk_color_correction_finalize;
+}
+
+
+static void ctk_color_correction_finalize(GObject *object)
+{
+    CtkColorCorrection *ctk_color_correction = CTK_COLOR_CORRECTION(object);
+
+    if (ctk_color_correction->confirm_timer) {
+        /*
+         * This situation comes, if user perform VT-switching
+         * without confirmation of color-correction settings.
+         */
+        gint attr, ch;
+        unsigned int channels = 0;
+        unsigned int attributes = 0;
+
+        /* kill the timer */
+        g_source_remove(ctk_color_correction->confirm_timer);
+        ctk_color_correction->confirm_timer = 0;
+
+        /*
+         * Reset color settings to previous state,
+         * since user did not confirm settings yet.
+         */
+        for (attr = CONTRAST_INDEX; attr <= GAMMA_INDEX; attr++) {
+            for (ch = RED; ch <= ALL_CHANNELS_INDEX; ch++) {
+                    /* Check for attribute channel value change. */
+                    int index = attr - CONTRAST_INDEX;
+
+                    ctk_color_correction->cur_slider_val[index][ch] =
+                        ctk_color_correction->prev_slider_val[index][ch];
+
+                    attributes |= (1 << attr);
+                    channels |= (1 << ch);
+            }
+        }
+
+        NvCtrlSetColorAttributes(ctk_color_correction->handle,
+                                 ctk_color_correction->cur_slider_val[CONTRAST],
+                                 ctk_color_correction->cur_slider_val[BRIGHTNESS],
+                                 ctk_color_correction->cur_slider_val[GAMMA],
+                                 attributes | channels);
+    }
 }
 
 
