@@ -283,7 +283,7 @@ static void post_set_attribute_offset_value(CtkPowermizer *ctk_powermizer,
     }
 
     ctk_config_statusbar_message(ctk_powermizer->ctk_config,
-                                 "The %s offset set to %d.", str, val);
+                                 "%s offset set to %d.", str, val);
 }
 
 
@@ -308,8 +308,6 @@ static void enable_perf_level_editing_toggled(GtkWidget *widget,
         switch (result) {
         case GTK_RESPONSE_ACCEPT:
             ctk_powermizer->license_accepted = TRUE;
-            gtk_widget_set_sensitive(ctk_powermizer->editable_perf_level_table,
-                                     TRUE);
             break;
         case GTK_RESPONSE_REJECT:
         default:
@@ -326,6 +324,8 @@ static void enable_perf_level_editing_toggled(GtkWidget *widget,
             return;
         }
     }
+    gtk_widget_set_sensitive(ctk_powermizer->editable_perf_level_table,
+                             enabled);
 }
 
 

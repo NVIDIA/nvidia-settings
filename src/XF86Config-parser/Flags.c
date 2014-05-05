@@ -537,8 +537,6 @@ char *xconfigValidateComposite(XConfigPtr config,
         { "Xinerama", xinerama_enabled && !gop->xinerama_plus_composite_works },
         { "Overlay",  overlay_enabled },
         { "CIOverlay", cioverlay_enabled },
-        { "UBB", ubb_enabled },
-        { "Stereo", stereo_enabled },
     };
 
     /*

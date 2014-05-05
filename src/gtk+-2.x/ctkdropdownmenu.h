@@ -73,8 +73,6 @@ struct _CtkDropDownMenu
     gint num_entries;
     gint current_selected_item;
 
-    // currently selected item in the drop down
-    GtkWidget *current_selected_item_widget;
     CtkDropDownMenuValue *values;
 };
 

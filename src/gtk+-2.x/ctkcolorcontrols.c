@@ -319,7 +319,7 @@ static void setup_reset_button(CtkColorControls *ctk_color_controls)
 
     /* The color space menu is always available */
     color_space_menu = CTK_DROP_DOWN_MENU(ctk_color_controls->color_space_menu);
-    history = color_space_menu->current_selected_item;
+    history = ctk_drop_down_menu_get_current_value(color_space_menu);
 
     val = ctk_color_controls->color_space_table[history];
     if (val != NV_CTRL_COLOR_SPACE_RGB) {
@@ -330,7 +330,7 @@ static void setup_reset_button(CtkColorControls *ctk_color_controls)
     if (GTK_WIDGET_SENSITIVE(ctk_color_controls->color_range_menu)) {
         color_range_menu = 
             CTK_DROP_DOWN_MENU(ctk_color_controls->color_range_menu);
-        history = color_range_menu->current_selected_item; 
+        history = ctk_drop_down_menu_get_current_value(color_range_menu);
         val = ctk_color_controls->color_range_table[history];
         if (val != NV_CTRL_COLOR_RANGE_FULL) {
             goto enable;

@@ -344,6 +344,31 @@ See the output of
 .fi
 for lists of targets for each target type.
 .PP
+To enable support for the "GPUGraphicsClockOffset" and "GPUMemoryTransferRateOffset" attributes, ensure that the "Coolbits" X configuration option includes the value "8" in the bitmask.
+For more details, refer to the documentation of the "Coolbits" option in the NVIDIA driver README.
+Query the "GPUPerfModes" string attribute to see a list of the available performance modes:
+.PP
+.nf
+
+	nvidia\-settings \-\-query GPUPerfModes 
+
+.fi
+.PP
+Each performance mode is presented as a comma-separated list of "token=value" pairs.
+Each set of performance mode tokens is separated by a ";".
+The "perf" token indicates the performance level.
+The "*editable" tokens indicate which domains within the performance level can have an offset applied. 
+The "GPUGraphicsClockOffset" and "GPUMemoryTransferRateOffset" attributes map respectively to the "nvclock" and "memtransferrate" tokens of performance levels in the "GPUPerfModes" string.
+.PP
+Note that the clock manipulation attributes "GPUGraphicsClockOffset" and "GPUMemoryTransferRateOffset" apply to the offsets of specific performance levels.
+The performance level is specified in square brackets after the attribute name.
+For example, to query the "GPUGraphicsClockOffset" for performance level 2:
+.PP
+.nf
+
+	nvidia\-settings \-\-query GPUGraphicsClockOffset[2]
+
+.fi
 The
 .B \-\-assign
 option can be used to assign a new value to an attribute.
@@ -359,6 +384,7 @@ For example:
         nvidia\-settings \-\-assign FSAA=2
         nvidia\-settings \-\-assign [CRT\-1]/DigitalVibrance=9
         nvidia\-settings \-\-assign [gpu:0]/DigitalVibrance=0
+        nvidia\-settings \-\-assign [gpu:0]/GPUGraphicsClockOffset[2]=10
 .fi
 .PP
 Multiple queries and assignments may be specified on the command line for a single invocation of

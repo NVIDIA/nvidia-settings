@@ -180,9 +180,9 @@ static const NVGetoptOption __options[] = {
       "option or when loading an ~/.nvidia-settings-rc file), nvidia-settings "
       "identifies one or more targets on which to query/assign the attribute.\n"
       "\n"
-      "'--list-targets-only' will cause nvidia-settings to list the targets on "
-      " which the query/assign operation would have been performed, without "
-      "actually performing the operation(s), and exit." },
+      "The '--list-targets-only' option will cause nvidia-settings to list the "
+      "targets on which the query/assign operation would have been performed, "
+      "without actually performing the operation(s), and exit." },
 
     { "write-config", 'w', NVGETOPT_IS_BOOLEAN | NVGETOPT_HELP_ALWAYS, NULL,
       "Save the configuration file on exit (enabled by default)." },

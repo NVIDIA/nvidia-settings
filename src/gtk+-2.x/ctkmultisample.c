@@ -848,12 +848,10 @@ static void fsaa_setting_menu_changed(GtkObject *object, gpointer user_data)
     gint idx;
     gboolean override;
     gboolean enhance;
-    
-    CTK_DROP_DOWN_MENU(ctk_multisample->fsaa_menu)->current_selected_item_widget
-        = GTK_WIDGET(object);
+
     idx = ctk_drop_down_menu_get_current_value
-        (CTK_DROP_DOWN_MENU(ctk_multisample->fsaa_menu)); 
-    
+        (CTK_DROP_DOWN_MENU(ctk_multisample->fsaa_menu));
+
     /* The FSAA dropdown menu is setup this way:
      *
      * 0 == app
@@ -1005,7 +1003,8 @@ static void update_fxaa_from_fsaa_change(CtkMultisample *ctk_multisample,
     gboolean fxaa_value;
 
     /* The FSAA dropdown menu is: 0 == app, 1 == override, 2 == enhance */
-    gint fsaa_idx = CTK_DROP_DOWN_MENU(fsaa_menu)->current_selected_item;
+    gint fsaa_idx =
+        ctk_drop_down_menu_get_current_value(CTK_DROP_DOWN_MENU(fsaa_menu));
     
     if (fsaa_value != NV_CTRL_FSAA_MODE_NONE) {
         g_signal_handlers_block_by_func(G_OBJECT(fxaa_checkbox),
@@ -1043,7 +1042,8 @@ static void update_fsaa_from_fxaa_change (CtkMultisample *ctk_multisample,
     GtkWidget *fsaa_menu = ctk_multisample->fsaa_menu;
 
     /* The FSAA dropdown menu is: 0 == app, 1 == override, 2 == enhance */
-    gint fsaa_idx = CTK_DROP_DOWN_MENU(fsaa_menu)->current_selected_item;
+    gint fsaa_idx =
+        ctk_drop_down_menu_get_current_value(CTK_DROP_DOWN_MENU(fsaa_menu));
     
     gint fsaa_val;
 
