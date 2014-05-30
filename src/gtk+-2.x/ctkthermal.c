@@ -25,14 +25,11 @@
 #include "ctkscale.h"
 #include "ctkhelp.h"
 #include "ctkthermal.h"
-#include "ctklicense.h"
 #include "ctkgauge.h"
 #include "ctkbanner.h"
 
 #define FRAME_PADDING 10
 #define DEFAULT_UPDATE_THERMAL_INFO_TIME_INTERVAL 1000
-
-static gboolean __license_accepted = FALSE;
 
 static gboolean update_thermal_info(gpointer);
 static gboolean update_cooler_info(gpointer);
@@ -456,45 +453,12 @@ static void cooler_control_state_toggled(GtkWidget *widget, gpointer user_data)
     CtkThermal *ctk_thermal = CTK_THERMAL(user_data);
     gboolean enabled;
     int value;
-    gint result;
 
     /* Get enabled state */
 
     enabled = gtk_toggle_button_get_active(GTK_TOGGLE_BUTTON(widget));
     value = (enabled==1) ? NV_CTRL_GPU_COOLER_MANUAL_CONTROL_TRUE :
         NV_CTRL_GPU_COOLER_MANUAL_CONTROL_FALSE;
-
-    /* Verify user knows the risks involved */
-
-    if ( enabled && !__license_accepted ) {
-
-        result =
-            ctk_license_run_dialog(CTK_LICENSE_DIALOG(ctk_thermal->enable_dialog));
-
-        switch (result) {
-        case GTK_RESPONSE_ACCEPT:
-            __license_accepted = TRUE;
-            break;
-
-        case GTK_RESPONSE_REJECT:
-        default:
-            /* Cancel */
-            g_signal_handlers_block_by_func(G_OBJECT(
-                                    ctk_thermal->enable_checkbox),
-                                    G_CALLBACK(cooler_control_state_toggled),
-                                    (gpointer) ctk_thermal);
-
-            gtk_toggle_button_set_active(GTK_TOGGLE_BUTTON(widget),
-                                         FALSE);
-
-            g_signal_handlers_unblock_by_func(G_OBJECT(
-                                    ctk_thermal->enable_checkbox),
-                                    G_CALLBACK(cooler_control_state_toggled),
-                                    (gpointer) ctk_thermal);
-            return;
-        }
-    }
-
 
     /* Update the server */
 
@@ -1215,10 +1179,6 @@ GtkWidget* ctk_thermal_new(NvCtrlAttributeHandle *handle,
     ctk_thermal->cooler_control_enabled = cooler_control_enabled;
     ctk_thermal->enable_reset_button = FALSE;
     
-    if ( cooler_control_enabled ) {
-        __license_accepted = TRUE;
-    }
-
     /* Retrieve CtrlHandles from ctk_config */
 
     h = ctk_config->pCtrlHandles;
@@ -1503,11 +1463,6 @@ sensor_end:
     }
     
     if ( ctk_thermal->cooler_count && ctk_thermal->show_fan_control_frame ) {
-        /* Create the enable dialog */
-
-        ctk_thermal->enable_dialog = ctk_license_dialog_new(GTK_WIDGET(ctk_thermal),
-                                                            "Thermal Settings");
-
         /* Create the Enable Cooler control checkbox widget */
 
         ctk_thermal->enable_checkbox =

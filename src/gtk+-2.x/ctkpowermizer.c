@@ -28,7 +28,6 @@
 #include "ctkutils.h"
 #include "ctkhelp.h"
 #include "ctkpowermizer.h"
-#include "ctklicense.h"
 #include "ctkbanner.h"
 #include "ctkdropdownmenu.h"
 
@@ -64,9 +63,6 @@ static void offset_value_changed_event_received(GtkObject *object,
 
 static void update_editable_perf_level_info(CtkPowermizer *ctk_powermizer);
 
-static void enable_perf_level_editing_toggled(GtkWidget *widget,
-                                              gpointer user_data);
-
 static const char *__adaptive_clock_help =
 "The Adaptive Clocking status describes if this feature "
 "is currently enabled in this GPU.";
@@ -100,12 +96,6 @@ static const char *__performance_levels_table_help =
 "the Graphics, Memory and Processor clocks for that level.  The currently active "
 "performance level is shown in regular text.  All other performance "
 "levels are shown in gray.";
-
-static const char * __enable_button_help =
-"The 'Enable Performance Level Editing' checkbox allows manipulation "
-"of an over- and under-clocking offset.  This option is only available "
-"when the 'Coolbits' X configuration option is set to '8'."
-"  Overclocking your GPU is not recommended and is done at your own risk.";
 
 static const char *__editable_performance_levels_table_help =
 "Each Performance Level that allows clock modifications will allow custom "
@@ -288,48 +278,6 @@ static void post_set_attribute_offset_value(CtkPowermizer *ctk_powermizer,
 
 
 
-static void enable_perf_level_editing_toggled(GtkWidget *widget,
-                                              gpointer user_data)
-{
-    CtkPowermizer *ctk_powermizer = CTK_POWERMIZER(user_data);
-    gboolean enabled;
-    gint result;
-
-    /* Get enabled state */
-
-    enabled = gtk_toggle_button_get_active(GTK_TOGGLE_BUTTON(widget));
-
-    /* Verify user knows the risks involved */
-
-    if (enabled && !ctk_powermizer->license_accepted) {
-
-        result = ctk_license_run_dialog(CTK_LICENSE_DIALOG(ctk_powermizer->enable_dialog));
-
-        switch (result) {
-        case GTK_RESPONSE_ACCEPT:
-            ctk_powermizer->license_accepted = TRUE;
-            break;
-        case GTK_RESPONSE_REJECT:
-        default:
-            /* Cancel */
-            g_signal_handlers_block_by_func(G_OBJECT(widget),
-                                            G_CALLBACK(enable_perf_level_editing_toggled),
-                                            (gpointer) ctk_powermizer);
-
-            gtk_toggle_button_set_active(GTK_TOGGLE_BUTTON(widget), FALSE);
-
-            g_signal_handlers_unblock_by_func(G_OBJECT(widget),
-                                              G_CALLBACK(enable_perf_level_editing_toggled),
-                                              (gpointer) ctk_powermizer);
-            return;
-        }
-    }
-    gtk_widget_set_sensitive(ctk_powermizer->editable_perf_level_table,
-                             enabled);
-}
-
-
-
 static void set_attribute_offset_value(GtkWidget *widget,
                                        gpointer user_data)
 {
@@ -409,38 +357,9 @@ static void update_editable_perf_level_info(CtkPowermizer *ctk_powermizer)
     gtk_box_pack_start(GTK_BOX(ctk_powermizer->performance_table_hbox1),
                        vbox, FALSE, FALSE, 0);
 
-    /* Create the enable dialog */
-
-    ctk_powermizer->enable_dialog =
-        ctk_license_dialog_new(GTK_WIDGET(ctk_powermizer),
-                               "Performance Level Editing");
-
-    /* Create the Enable Performance Level Editing checkbox widget */
-
-    ctk_powermizer->enable_checkbox =
-        gtk_check_button_new_with_label("Enable Performance Level Editing");
-
-    gtk_toggle_button_set_active
-        (GTK_TOGGLE_BUTTON(ctk_powermizer->enable_checkbox),
-         FALSE);
-
-    g_signal_connect(G_OBJECT(ctk_powermizer->enable_checkbox), "toggled",
-                     G_CALLBACK(enable_perf_level_editing_toggled),
-                     (gpointer) ctk_powermizer);
-
-    ctk_config_set_tooltip(ctk_powermizer->ctk_config, ctk_powermizer->enable_checkbox,
-                           __enable_button_help);
-
-    hbox = gtk_hbox_new(FALSE, 0);
-    gtk_box_pack_start(GTK_BOX(hbox), ctk_powermizer->enable_checkbox, TRUE, TRUE, 5);
-    gtk_box_pack_start(GTK_BOX(vbox), hbox, FALSE, FALSE, 5);
     gtk_box_pack_start(GTK_BOX(vbox),
                        table, FALSE, FALSE, 5);
 
-    /* Enable access to overclock settings only if license accepted */
-    if (!ctk_powermizer->license_accepted) {
-        gtk_widget_set_sensitive(GTK_WIDGET(table), FALSE);
-    }
     /* create the editable performance level table */
     ctk_powermizer->editable_perf_level_table = table;
 
@@ -1326,7 +1245,6 @@ GtkWidget* ctk_powermizer_new(NvCtrlAttributeHandle *handle,
     ctk_powermizer->pcie_gen_queriable = pcie_gen_queriable;
     ctk_powermizer->hasDecoupledClock = FALSE;
     ctk_powermizer->hasEditablePerfLevel = FALSE;
-    ctk_powermizer->license_accepted = FALSE;
 
     /* set container properties for the CtkPowermizer widget */
 
@@ -2095,8 +2013,6 @@ GtkTextBuffer *ctk_powermizer_create_help(GtkTextTagTable *table,
         ctk_help_para(b, &i, "%s", __performance_levels_table_help);
     }
 
-    ctk_help_heading(b, &i, "Enable overclock Settings");
-    ctk_help_para(b, &i, "%s", __enable_button_help);
     if (ctk_powermizer->hasEditablePerfLevel) {
         ctk_help_heading(b, &i, "Editable Performance Levels (Table)");
         ctk_help_para(b, &i, "%s", __editable_performance_levels_table_help);

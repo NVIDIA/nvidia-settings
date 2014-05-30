@@ -57,11 +57,7 @@ struct _CtkClocks
     NvCtrlAttributeHandle *handle;
     CtkConfig *ctk_config;
 
-    GtkWidget *license_dialog;
     GtkWidget *detect_dialog;
-
-    GtkWidget *license_window;
-
 
     GtkWidget *enable_checkbox;  /* Overclocking available */
     GtkWidget *clock_menu;       /* 2D/3D dropdown selector */

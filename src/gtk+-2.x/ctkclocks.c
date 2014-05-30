@@ -26,7 +26,6 @@
 
 #include "ctkclocks.h"
 
-#include "ctklicense.h"
 #include "ctkscale.h"
 #include "ctkhelp.h"
 #include "ctkevent.h"
@@ -82,8 +81,6 @@ static void clocks_received(GtkObject *object, gpointer arg1,
 
 
 /**** GLOBALS ****************************************************************/
-
-static gboolean __license_accepted = FALSE;
 
 /* Tooltips */
 
@@ -288,10 +285,6 @@ GtkWidget* ctk_clocks_new(NvCtrlAttributeHandle *handle,
     ctk_object->auto_detection_available  = auto_detection_available;
     ctk_object->probing_optimal      = probing_optimal;
 
-    if ( overclocking_enabled ) {
-        __license_accepted = TRUE;
-    }
-
     /* Create the Clock menu widget */
 
     menu = (CtkDropDownMenu *)
@@ -450,11 +443,6 @@ GtkWidget* ctk_clocks_new(NvCtrlAttributeHandle *handle,
                            __reset_button_help);
 
     gtk_widget_set_sensitive(ctk_object->reset_button, False);
-
-    /* Create the enable dialog */
-
-    ctk_object->license_dialog = ctk_license_dialog_new(GTK_WIDGET(ctk_object),
-                                                        "Clock Frequencies");
 
     /* Create the auto detect dialog */
 
@@ -792,7 +780,6 @@ static void overclocking_state_toggled(GtkWidget *widget, gpointer user_data)
     CtkClocks *ctk_object = CTK_CLOCKS(user_data);
     gboolean enabled;
     int value;
-    gint result;
     
     /* Get enabled state */
 
@@ -801,37 +788,6 @@ static void overclocking_state_toggled(GtkWidget *widget, gpointer user_data)
     value = (enabled==1) ? NV_CTRL_GPU_OVERCLOCKING_STATE_MANUAL :
         NV_CTRL_GPU_OVERCLOCKING_STATE_NONE;
 
-    /* Verify user knows the risks involved */
-
-    if ( enabled && !__license_accepted ) {
-
-        result = 
-            ctk_license_run_dialog(CTK_LICENSE_DIALOG(ctk_object->license_dialog)); 
-        
-        switch (result)
-        {
-        case GTK_RESPONSE_ACCEPT:
-            __license_accepted = TRUE;
-            break;
-            
-        case GTK_RESPONSE_REJECT:
-        default:
-            /* Cancel */
-            g_signal_handlers_block_by_func(G_OBJECT(ctk_object->enable_checkbox),
-                                            G_CALLBACK(overclocking_state_toggled),
-                                            (gpointer) ctk_object);
-            
-            gtk_toggle_button_set_active(GTK_TOGGLE_BUTTON(widget),
-                                         FALSE);
-            
-            g_signal_handlers_unblock_by_func(G_OBJECT(ctk_object->enable_checkbox),
-                                              G_CALLBACK(overclocking_state_toggled),
-                                              (gpointer) ctk_object);
-            return;
-        }
-    }
-
-    
     /* Update the server */
 
     NvCtrlSetAttribute(ctk_object->handle,

@@ -975,6 +975,9 @@ static void populate_source_combo_box(CtkAppProfile *ctk_app_profile,
     size_t i, size;
     json_t *json_filename, *json_filenames;
 
+    gtk_list_store_clear(GTK_LIST_STORE(gtk_combo_box_get_model(
+        GTK_COMBO_BOX(combo_box_entry))));
+
     json_filenames = nv_app_profile_config_get_source_filenames(ctk_app_profile->cur_config);
 
     for (i = 0, size = json_array_size(json_filenames); i < size; i++) {
@@ -1053,6 +1056,10 @@ static void edit_rule_dialog_load_profile(EditRuleDialog *dialog,
 
     // profile name
     combo_box_entry = GTK_COMBO_BOX_ENTRY(dialog->profile_name_combo);
+
+    gtk_list_store_clear(GTK_LIST_STORE(gtk_combo_box_get_model(
+        GTK_COMBO_BOX(combo_box_entry))));
+
     gtk_tree_model_foreach(GTK_TREE_MODEL(ctk_app_profile->apc_profile_model),
                            append_profile_name,
                            (gpointer)combo_box_entry);

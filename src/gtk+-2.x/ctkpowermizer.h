@@ -72,13 +72,10 @@ struct _CtkPowermizer
     gboolean  dp_toggle_warning_dlg_shown;
     gboolean  hasDecoupledClock;
     gboolean  hasEditablePerfLevel;
-    gboolean  license_accepted;
     gint      attribute;
     gint      powermizer_default_mode;
     GtkWidget *status;
 
-    GtkWidget *enable_dialog;
-    GtkWidget *enable_checkbox;
     GtkWidget *editable_perf_level_table;
     gint      num_perf_levels;
 

@@ -88,8 +88,6 @@ struct _CtkThermal
     GtkWidget *apply_button;
     GtkWidget *reset_button;
     GtkWidget *enable_checkbox;
-    GtkWidget *enable_dialog;
-    GtkWidget *license_window;
     GtkWidget *fan_control_frame;
     GtkWidget *adaptive_clock_status;
     GtkWidget *fan_target;
