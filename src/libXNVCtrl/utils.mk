@@ -230,7 +230,7 @@ NV_MODULE_LOGGING_NAME ?=
 
 ifeq ($(NV_VERBOSE),0)
   quiet_cmd = @$(PRINTF) \
-    " $(if $(NV_MODULE_LOGGING_NAME),[ %-17.17s ])  $(quiet_$(1))\n" \
+    " $(if $(NV_MODULE_LOGGING_NAME),[ %-17.17s ],%s) $(quiet_$(1))\n" \
     "$(NV_MODULE_LOGGING_NAME)" && $($(1))
 else
   quiet_cmd = $($(1))
@@ -343,11 +343,12 @@ define DEFINE_STAMP_C_RULE
     $$(call BUILD_OBJECT_LIST,$$(STAMP_C)),$(1)) \
     $$(VERSION_MK)
 	@ $$(RM) $$@
-	@ $$(PRINTF) "const char NV_ID[] = \"nvidia id: "                  >> $$@
-	@ $$(PRINTF) "$(2):  "                                             >> $$@
-	@ $$(PRINTF) "version $$(NVIDIA_VERSION)  "                        >> $$@
-	@ $$(PRINTF) "($$(shell $$(WHOAMI))@$$(shell $$(HOSTNAME_CMD)))  " >> $$@
-	@ $$(PRINTF) "$$(shell $(DATE))\";\n"                              >> $$@
-	@ $$(PRINTF) "const char *pNV_ID = NV_ID + 11;\n"                  >> $$@
+	@ $$(PRINTF) "%s"   "const char NV_ID[] = \"nvidia id: "        >> $$@
+	@ $$(PRINTF) "%s"   "$(2):  "                                   >> $$@
+	@ $$(PRINTF) "%s"   "version $$(NVIDIA_VERSION)  "              >> $$@
+	@ $$(PRINTF) "%s"   "($$(shell $$(WHOAMI))"                     >> $$@
+	@ $$(PRINTF) "%s"   "@$$(shell $$(HOSTNAME_CMD)))  "            >> $$@
+	@ $$(PRINTF) "%s\n" "$$(shell $(DATE))\";"                      >> $$@
+	@ $$(PRINTF) "%s\n" "const char *pNV_ID = NV_ID + 11;"          >> $$@
 
 endef

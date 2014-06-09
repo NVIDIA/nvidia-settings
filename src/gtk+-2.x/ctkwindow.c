@@ -1022,6 +1022,8 @@ GtkWidget *ctk_window_new(ParsedAttribute *p, ConfigProperties *conf,
         if (ret != NvCtrlSuccess) {
             driver_version = NULL;
         }
+    } else {
+        driver_version = NULL;
     }
 
     widget = ctk_app_profile_new(ctk_config, driver_version);

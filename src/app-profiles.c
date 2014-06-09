@@ -40,6 +40,24 @@
 #include "app-profiles.h"
 #include "msg.h"
 
+/*
+ * Define a wrapper around json_object_foreach() for compatibility with older
+ * versions of libjansson.
+ */
+#if JANSSON_VERSION_HEX < 0x020200
+# error "nvidia-settings requires jansson version 2.2 or later.  Please update"
+# error "your version of jansson, or set NV_USE_BUNDLED_LIBJANSSON=1 to build"
+# error "with the version of jansson included with the nvidia-settings source"
+# error "code."
+#elif JANSSON_VERSION_HEX < 0x020300
+# define NV_JSON_OBJECT_FOREACH(object, key, value) \
+    for(key = json_object_iter_key(json_object_iter(object)); \
+        key && (value = json_object_iter_value(json_object_iter_at(object, key))); \
+        key = json_object_iter_key(json_object_iter_next(object, json_object_iter_at(object, key))))
+#else
+# define NV_JSON_OBJECT_FOREACH(object, key, value) json_object_foreach(object, key, value)
+#endif
+
 static char *slurp(FILE *fp)
 {
     int eof = FALSE;
@@ -787,7 +805,7 @@ static void app_profile_config_load_file(AppProfileConfig *config,
     {
         const char *key;
         json_t *value;
-        json_object_foreach(new_json_profiles, key, value) {
+        NV_JSON_OBJECT_FOREACH(new_json_profiles, key, value) {
             json_object_set_new(config->profile_locations, key, json_string(filename));
         }
     }
@@ -1412,7 +1430,7 @@ static char *config_to_cfg_file_syntax(json_t *old_rules, json_t *old_profiles)
     }
 
     if (old_profiles) {
-        json_object_foreach(old_profiles, profile_name, old_profile) {
+        NV_JSON_OBJECT_FOREACH(old_profiles, profile_name, old_profile) {
             new_profile = app_profile_config_profile_output(profile_name, old_profile);
             json_array_append_new(profiles_array, new_profile);
         }
@@ -1487,7 +1505,7 @@ json_t *nv_app_profile_config_validate(AppProfileConfig *new_config,
     add_files_from_config(old_config, all_files, changed_files);
 
     // For each file in the set, determine if it needs to be updated
-    json_object_foreach(all_files, filename, unused) {
+    NV_JSON_OBJECT_FOREACH(all_files, filename, unused) {
         app_profile_config_get_per_file_config(new_config, filename, &new_file, &new_rules, &new_profiles);
         app_profile_config_get_per_file_config(old_config, filename, &old_file, &old_rules, &old_profiles);
 
@@ -1498,7 +1516,7 @@ json_t *nv_app_profile_config_validate(AppProfileConfig *new_config,
     }
 
     // For each file that changed, generate an update record with the new JSON
-    json_object_foreach(changed_files, filename, unused) {
+    NV_JSON_OBJECT_FOREACH(changed_files, filename, unused) {
         update = json_object();
 
         json_object_set_new(update, "filename", json_string(filename));

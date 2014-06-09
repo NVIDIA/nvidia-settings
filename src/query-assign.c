@@ -2799,6 +2799,21 @@ static int query_all_targets(const char *display_name, const int target_index,
             nvfree(extra_str);
         }
 
+        /* Print the valid protocal names for the target */
+        if (t->protoNames[0]) {
+            int idx;
+
+            nv_msg("      ", "Has the following name%s:",
+                   t->protoNames[1] ? "s" : "");
+            for (idx = 0; idx < NV_PROTO_NAME_MAX; idx++) {
+                if (t->protoNames[idx]) {
+                    nv_msg("        ", "%s", t->protoNames[idx]);
+                }
+            }
+
+            nv_msg(NULL, "");
+        }
+
         /* Print connectivity information */
         if (nv_get_verbosity() >= NV_VERBOSITY_ALL) {
             switch (target_index) {

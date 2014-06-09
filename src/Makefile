@@ -59,6 +59,7 @@ ifndef VDPAU_CFLAGS
   endif
 endif
 
+# These will be unused if nvidia-settings links dynamically against jansson
 ifndef JANSSON_CFLAGS
   JANSSON_CFLAGS  = -Wno-cast-qual
   JANSSON_CFLAGS += -Wno-strict-prototypes
@@ -112,10 +113,23 @@ LDFLAGS += $(X_LDFLAGS)
 # static library libXxf86vm.a.  Statically link against libXxf86vm
 # when building nvidia-settings within the NVIDIA driver build, but
 # dynamically link against libXxf86vm in the public builds.
-ifdef NV_LINK_LIBXXF86VM_STATICALLY
+NV_LINK_LIBXXF86VM_STATICALLY ?= 0
+
+ifneq ($(NV_LINK_LIBXXF86VM_STATICALLY),0)
     LIBS += -Wl,-Bstatic -lXxf86vm -Wl,-Bdynamic
 else
     LIBS += -lXxf86vm
+endif
+
+# nvidia-settings depends on libjansson >= 2.2.  If NV_USE_BUNDLED_LIBJANSSON is
+# set to a non-zero value, then nvidia-settings is linked statically against the
+# copy of libjansson bundled in the source tarball; if it is set to 0,
+# nvidia-settings is linked dynamically against the copy of libjansson on the
+# host system.  By default, nvidia-settings is linked against the bundled copy.
+NV_USE_BUNDLED_LIBJANSSON ?= 1
+
+ifeq ($(NV_USE_BUNDLED_LIBJANSSON),0)
+    LIBS += -ljansson
 endif
 
 # Preferably, we would use pkg-config's "--libs-only-l" and
@@ -157,7 +171,11 @@ CFLAGS     += -I $(XCONFIG_PARSER_DIR)/..
 CFLAGS     += -I libXNVCtrlAttributes
 CFLAGS     += -I xpm_data
 CFLAGS     += -I gtk+-2.x
-CFLAGS     += -I jansson
+
+ifneq ($(NV_USE_BUNDLED_LIBJANSSON),0)
+  CFLAGS     += -I jansson
+endif
+
 CFLAGS     += -I $(COMMON_UTILS_DIR)
 CFLAGS     += -I $(VIRTUAL_RESOLUTIONS_DIR)
 CFLAGS     += -I $(OUTPUTDIR)
@@ -166,7 +184,9 @@ CFLAGS     += -DPROGRAM_NAME=\"nvidia-settings\"
 
 $(call BUILD_OBJECT_LIST,$(GTK_SRC)): CFLAGS += $(GTK_CFLAGS)
 
-$(call BUILD_OBJECT_LIST,$(JANSSON_SRC)): CFLAGS += $(JANSSON_CFLAGS)
+ifneq ($(NV_USE_BUNDLED_LIBJANSSON),0)
+  $(call BUILD_OBJECT_LIST,$(JANSSON_SRC)): CFLAGS += $(JANSSON_CFLAGS)
+endif
 
 
 ##############################################################################

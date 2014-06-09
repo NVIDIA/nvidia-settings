@@ -3041,7 +3041,7 @@ allocate_selected_mode(char *name,
 
     selected_mode = (nvSelectedModePtr)nvalloc(sizeof(nvSelectedMode));
 
-    selected_mode->text = g_strdup(name);
+    selected_mode->label = gtk_menu_item_new_with_label(name);
 
     selected_mode->modeline = modeline;
     selected_mode->isSpecial = isSpecial;
@@ -3075,7 +3075,6 @@ free_selected_modes(nvSelectedModePtr selected_mode)
 {
     if (selected_mode) {
         free_selected_modes(selected_mode->next);
-        g_free(selected_mode->text);
         free(selected_mode);
     }
 }
@@ -3238,26 +3237,20 @@ static void generate_selected_modes(const nvDisplayPtr display)
     nvSelectedModePtr selected_mode = NULL;
     nvModeLinePtr modeline;
 
-    display->num_selected_modes = 0;
-    display->selected_modes = NULL;
+    /* Add the off item */
+    selected_mode = allocate_selected_mode("Off",
+                                           NULL /* modeline */,
+                                           TRUE /* isSpecial */,
+                                           NULL /* viewPortIn */,
+                                           NULL /* viewPortOut */);
 
-    /* Add the off item if we have more than one display */
-    if (display->screen->num_displays > 1) {
-        selected_mode = allocate_selected_mode("Off",
-                                               NULL /* modeline */,
-                                               TRUE /* isSpecial */,
-                                               NULL /* viewPortIn */,
-                                               NULL /* viewPortOut */);
-
-        display->num_selected_modes = 1;
-        display->selected_modes = selected_mode;
-    }
+    display->num_selected_modes = 1;
+    display->selected_modes = selected_mode;
 
     modeline = display->modelines;
     while (modeline) {
         gchar *name;
         Bool isSpecial;
-        Bool mode_added;
 
         if (IS_NVIDIA_DEFAULT_MODE(modeline)) {
             name = g_strdup_printf("Auto");
@@ -3274,15 +3267,8 @@ static void generate_selected_modes(const nvDisplayPtr display)
                                                NULL /* viewPortOut */);
         g_free(name);
 
-        if (!display->selected_modes) {
-            display->selected_modes = selected_mode;
-            mode_added = TRUE;
-        } else {
-            mode_added = append_unique_selected_mode(display->selected_modes,
-                                                     selected_mode);
-        }
-
-        if (mode_added) {
+        if (append_unique_selected_mode(display->selected_modes,
+                                        selected_mode)) {
             display->num_selected_modes++;
 
             if (matches_current_selected_mode(display, selected_mode,
@@ -3415,18 +3401,10 @@ static void setup_display_resolution_dropdown(CtkDisplayConfig *ctk_object)
     }
 
 
-    if (display->cur_mode->modeline && display->screen->num_displays > 1) {
-        /*
-         * Modeline is set and we have more than 1 display, start off as
-         * 'nvidia-auto-select'
-         */
-        cur_idx = 1;
+    if (display->cur_mode->modeline) {
+        cur_idx = 1; /* Modeline is set, start off as 'nvidia-auto-select' */
     } else {
-        /*
-         * Modeline not set, start off as 'off'. If we do not have more than
-         * 1 display, 'auto' will be at index 0.
-         */
-        cur_idx = 0;
+        cur_idx = 0; /* Modeline not set, start off as 'off'. */
     }
 
     /* Setup the menu */
@@ -3440,16 +3418,24 @@ static void setup_display_resolution_dropdown(CtkDisplayConfig *ctk_object)
     /* Fill dropdown menu */
     selected_mode = display->selected_modes;
     while (selected_mode) {
+        GtkWidget *menu_item = selected_mode->label;
+        const gchar *label_text = gtk_label_get_text(
+            GTK_LABEL(gtk_bin_get_child(GTK_BIN(selected_mode->label))));
 
         gtk_combo_box_append_text(
-            GTK_COMBO_BOX(ctk_object->mnu_display_resolution),
-            selected_mode->text);
+            GTK_COMBO_BOX(ctk_object->mnu_display_resolution), label_text);
 
         ctk_object->resolution_table[ctk_object->resolution_table_len] =
             selected_mode;
 
         if (selected_mode == display->cur_selected_mode) {
             cur_idx = ctk_object->resolution_table_len;
+        }
+
+        if (selected_mode->isSpecial &&
+            !selected_mode->modeline &&
+            display->screen->num_displays <= 1) {
+            gtk_widget_set_sensitive(menu_item, FALSE);
         }
 
         ctk_object->resolution_table_len++;

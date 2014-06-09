@@ -334,6 +334,7 @@ static void ctk_event_class_init(CtkEventClass *ctk_event_class)
     MAKE_SIGNAL(NV_CTRL_THERMAL_COOLER_SPEED);
     MAKE_SIGNAL(NV_CTRL_PALETTE_UPDATE_EVENT);
     MAKE_SIGNAL(NV_CTRL_VIDEO_ENCODER_UTILIZATION);
+    MAKE_SIGNAL(NV_CTRL_GSYNC_ALLOWED);
     MAKE_SIGNAL(NV_CTRL_GPU_NVCLOCK_OFFSET);
     MAKE_SIGNAL(NV_CTRL_GPU_MEM_TRANSFER_RATE_OFFSET);
 #undef MAKE_SIGNAL
@@ -733,6 +734,7 @@ static gboolean ctk_event_dispatch(GSource *source,
             event_struct.value        = nvctrlevent->value;
             event_struct.display_mask = nvctrlevent->display_mask;
             event_struct.is_availability_changed = TRUE;
+            event_struct.availability = nvctrlevent->availability;
 
             /*
              * XXX Is emitting a signal with g_signal_emit() really

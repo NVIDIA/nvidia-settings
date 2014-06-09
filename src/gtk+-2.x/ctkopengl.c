@@ -34,6 +34,8 @@ static void post_vblank_sync_button_toggled(CtkOpenGL *, gboolean);
 
 static void post_allow_flipping_button_toggled(CtkOpenGL *, gboolean);
 
+static void post_allow_gsync_button_toggled(CtkOpenGL *, gboolean);
+
 static void post_force_stereo_button_toggled(CtkOpenGL *, gboolean);
 
 static void post_show_sli_visual_indicator_button_toggled(CtkOpenGL *,
@@ -51,6 +53,8 @@ static void post_aa_line_gamma_toggled(CtkOpenGL *, gboolean);
 static void post_use_conformant_clamping_button_toggled(CtkOpenGL *, gint);
 
 static void allow_flipping_button_toggled(GtkWidget *, gpointer);
+
+static void allow_gsync_button_toggled(GtkWidget *, gpointer);
 
 static void force_stereo_button_toggled (GtkWidget *, gpointer);
 
@@ -164,6 +168,7 @@ static const char *__use_conformant_clamping_help =
 #define __STEREO_EYES_EXCHANGE (1 << 10)
 #define __SHOW_MULTIGPU_VISUAL_INDICATOR    (1 << 11)
 #define __CONFORMANT_CLAMPING (1 << 12)
+#define __ALLOW_GSYNC         (1 << 13)
 
 
 
@@ -212,6 +217,7 @@ GtkWidget* ctk_opengl_new(NvCtrlAttributeHandle *handle,
 
     gint sync_to_vblank;
     gint flipping_allowed;
+    gint gsync_allowed;
     gint force_stereo;
     gint xinerama_stereo;
     gint stereo_eyes_exchange;
@@ -224,6 +230,7 @@ GtkWidget* ctk_opengl_new(NvCtrlAttributeHandle *handle,
 
     ReturnStatus ret_sync_to_vblank;
     ReturnStatus ret_flipping_allowed;
+    ReturnStatus ret_gsync_allowed;
     ReturnStatus ret_force_stereo;
     ReturnStatus ret_xinerama_stereo;
     ReturnStatus ret_stereo_eyes_exchange;
@@ -241,6 +248,10 @@ GtkWidget* ctk_opengl_new(NvCtrlAttributeHandle *handle,
     ret_flipping_allowed =
         NvCtrlGetAttribute(handle, NV_CTRL_FLIPPING_ALLOWED,
                            &flipping_allowed);
+
+    ret_gsync_allowed =
+        NvCtrlGetAttribute(handle, NV_CTRL_GSYNC_ALLOWED,
+                           &gsync_allowed);
 
     ret_force_stereo =
         NvCtrlGetAttribute(handle, NV_CTRL_FORCE_STEREO, &force_stereo);
@@ -281,6 +292,7 @@ GtkWidget* ctk_opengl_new(NvCtrlAttributeHandle *handle,
     /* There are no OpenGL settings to change (OpenGL disabled?) */
     if ((ret_sync_to_vblank != NvCtrlSuccess) &&
         (ret_flipping_allowed != NvCtrlSuccess) &&
+        (ret_gsync_allowed != NvCtrlSuccess) &&
         (ret_force_stereo != NvCtrlSuccess) &&
         (ret_xinerama_stereo != NvCtrlSuccess) &&
         (ret_stereo_eyes_exchange != NvCtrlSuccess) &&
@@ -394,7 +406,41 @@ GtkWidget* ctk_opengl_new(NvCtrlAttributeHandle *handle,
         
         ctk_opengl->allow_flipping_button = check_button;
     }
-    
+
+    /*
+     * allow G-SYNC
+     *
+     * Always create the checkbox, but only show it if the attribute starts out
+     * available.
+     */
+
+    label = gtk_label_new("Allow G-SYNC");
+
+    check_button = gtk_check_button_new();
+    gtk_container_add(GTK_CONTAINER(check_button), label);
+
+    gtk_toggle_button_set_active(GTK_TOGGLE_BUTTON(check_button),
+                                 gsync_allowed);
+
+    gtk_box_pack_start(GTK_BOX(vbox), check_button, FALSE, FALSE, 0);
+
+    g_signal_connect(G_OBJECT(check_button), "toggled",
+                     G_CALLBACK(allow_gsync_button_toggled),
+                     (gpointer) ctk_opengl);
+
+    g_signal_connect(G_OBJECT(ctk_event),
+                     CTK_EVENT_NAME(NV_CTRL_GSYNC_ALLOWED),
+                     G_CALLBACK(value_changed), (gpointer) ctk_opengl);
+
+    ctk_config_set_tooltip(ctk_config, check_button,
+                           "Enabling this option allows OpenGL to flip "
+                           "using G-SYNC when possible.  This option is "
+                           "applied immediately.");
+
+    ctk_opengl->active_attributes |= __ALLOW_GSYNC;
+
+    ctk_opengl->allow_gsync_button = check_button;
+
     if (ret_force_stereo == NvCtrlSuccess) {
 
         label = gtk_label_new("Force Stereo Flipping");
@@ -675,6 +721,14 @@ GtkWidget* ctk_opengl_new(NvCtrlAttributeHandle *handle,
 
     gtk_widget_show_all(GTK_WIDGET(object));
 
+    /*
+     * If GSYNC is not currently available, start out with the GSYNC button
+     * hidden.
+     */
+    if (ret_gsync_allowed != NvCtrlSuccess) {
+        gtk_widget_hide(GTK_WIDGET(ctk_opengl->allow_gsync_button));
+    }
+
     return GTK_WIDGET(object);
 }
 
@@ -694,6 +748,14 @@ static void post_allow_flipping_button_toggled(CtkOpenGL *ctk_opengl,
 {
     ctk_config_statusbar_message(ctk_opengl->ctk_config,
                                  "OpenGL Flipping %s.",
+                                 enabled ? "allowed" : "not allowed");
+}
+
+static void post_allow_gsync_button_toggled(CtkOpenGL *ctk_opengl,
+                                          gboolean enabled)
+{
+    ctk_config_statusbar_message(ctk_opengl->ctk_config,
+                                 "G-SYNC %s.",
                                  enabled ? "allowed" : "not allowed");
 }
 
@@ -788,6 +850,20 @@ static void allow_flipping_button_toggled(GtkWidget *widget,
     NvCtrlSetAttribute(ctk_opengl->handle, NV_CTRL_FLIPPING_ALLOWED, enabled);
     post_allow_flipping_button_toggled(ctk_opengl, enabled);
     
+}
+
+static void allow_gsync_button_toggled(GtkWidget *widget,
+                                     gpointer user_data)
+{
+    CtkOpenGL *ctk_opengl;
+    gboolean enabled;
+
+    ctk_opengl = CTK_OPENGL(user_data);
+
+    enabled = gtk_toggle_button_get_active(GTK_TOGGLE_BUTTON(widget));
+
+    NvCtrlSetAttribute(ctk_opengl->handle, NV_CTRL_GSYNC_ALLOWED, enabled);
+    post_allow_gsync_button_toggled(ctk_opengl, enabled);
 }
 
 static void force_stereo_button_toggled(GtkWidget *widget,
@@ -915,6 +991,7 @@ static void value_changed(GtkObject *object, gpointer arg1, gpointer user_data)
     CtkEventStruct *event_struct;
     CtkOpenGL *ctk_opengl;
     gboolean enabled;
+    gboolean check_available = FALSE;
     GtkToggleButton *button;
     GCallback func;
 
@@ -931,6 +1008,12 @@ static void value_changed(GtkObject *object, gpointer arg1, gpointer user_data)
         button = GTK_TOGGLE_BUTTON(ctk_opengl->allow_flipping_button);
         func = G_CALLBACK(allow_flipping_button_toggled);
         post_allow_flipping_button_toggled(ctk_opengl, event_struct->value);
+        break;
+    case NV_CTRL_GSYNC_ALLOWED:
+        button = GTK_TOGGLE_BUTTON(ctk_opengl->allow_gsync_button);
+        func = G_CALLBACK(allow_gsync_button_toggled);
+        post_allow_gsync_button_toggled(ctk_opengl, event_struct->value);
+        check_available = TRUE;
         break;
     case NV_CTRL_FORCE_STEREO:
         button = GTK_TOGGLE_BUTTON(ctk_opengl->force_stereo_button);
@@ -987,7 +1070,15 @@ static void value_changed(GtkObject *object, gpointer arg1, gpointer user_data)
         gtk_toggle_button_set_active(button, event_struct->value);
         g_signal_handlers_unblock_by_func(button, func, ctk_opengl);
     }
-    
+
+    if (check_available && event_struct->is_availability_changed) {
+        if (event_struct->availability) {
+            gtk_widget_show(GTK_WIDGET(button));
+        } else {
+            gtk_widget_hide(GTK_WIDGET(button));
+        }
+    }
+
 } /* value_changed() */
 
 
@@ -1224,6 +1315,25 @@ GtkTextBuffer *ctk_opengl_create_help(GtkTextTagTable *table,
                       "unlike most other OpenGL options which are only "
                       "applied to OpenGL applications that are started "
                       "after the option is set.");
+    }
+
+    if (ctk_opengl->active_attributes & __ALLOW_GSYNC) {
+        ctk_help_heading(b, &i, "Allow G-SYNC");
+        ctk_help_para(b, &i, "Enabling this option allows OpenGL to use G-SYNC "
+                      "when available.  G-SYNC is a technology that allows a "
+                      "monitor to delay updating the screen until the GPU is "
+                      "ready to display a new frame.  Without G-SYNC, the GPU "
+                      "waits for the display to be ready to accept a new frame "
+                      "instead.");
+
+        ctk_help_para(b, &i, "Note that this option is applied immediately, "
+                      "unlike most other OpenGL options which are only "
+                      "applied to OpenGL applications that are started "
+                      "after the option is set.");
+
+        ctk_help_para(b, &i, "This option can be overridden on a "
+                      "per-application basis using the GLGSYNCAllowed "
+                      "application profile key.");
     }
 
     if (ctk_opengl->active_attributes & __FORCE_STEREO) {

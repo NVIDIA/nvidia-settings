@@ -55,6 +55,7 @@ struct _CtkOpenGL
 
     GtkWidget *sync_to_vblank_button;
     GtkWidget *allow_flipping_button;
+    GtkWidget *allow_gsync_button;
     GtkWidget *use_conformant_clamping_button;
     GtkWidget *force_stereo_button;
     GtkWidget *xinerama_stereo_button;

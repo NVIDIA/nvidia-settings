@@ -282,7 +282,14 @@ JANSSON_SRC += jansson/strconv.c
 JANSSON_SRC += jansson/utf.c
 JANSSON_SRC += jansson/value.c
 
-NVIDIA_SETTINGS_SRC += $(JANSSON_SRC)
+NV_USE_BUNDLED_LIBJANSSON ?= 1
+
+ifneq ($(NV_USE_BUNDLED_LIBJANSSON),0)
+  NVIDIA_SETTINGS_SRC += $(JANSSON_SRC)
+else
+  # Continue to distribute jansson source files, but don't build them
+  NVIDIA_SETTINGS_EXTRA_DIST += $(JANSSON_SRC)
+endif
 
 JANSSON_EXTRA_DIST += jansson/hashtable.h
 JANSSON_EXTRA_DIST += jansson/jansson_config.h

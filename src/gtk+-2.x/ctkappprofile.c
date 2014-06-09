@@ -2702,6 +2702,50 @@ static gboolean is_valid_setting_value(json_t *value, char **invalid_type_str)
     }
 }
 
+static json_t *decode_setting_value(const gchar *text, json_error_t *perror)
+{
+#if JANSSON_VERSION_HEX >= 0x020300
+    /*
+     * For jansson >= 2.3, we can simply use the JSON_DECODE_ANY
+     * flag to let Jansson handle this value.
+     */
+    return json_loads(text, JSON_DECODE_ANY, perror);
+#else
+    /*
+     * We have to enclose the string in an dummy array so jansson
+     * won't throw a parse error if the value is not an array or
+     * object (not compliant with RFC 4627).
+     */
+    char *wraptext = NULL;
+    json_t *wrapval = NULL;
+    json_t *val = NULL;
+
+    wraptext = nvstrcat("[", text, "]", NULL);
+    if (!wraptext) {
+        goto parse_done;
+    }
+
+    wrapval = json_loads(wraptext, 0, perror);
+    if (!wrapval ||
+        !json_is_array(wrapval) ||
+        json_array_size(wrapval) != 1) {
+        goto parse_done;
+    }
+
+    val = json_array_get(wrapval, 0);
+    if (val) {
+        /* Save a copy, since the wrapper object will be freed */
+        val = json_deep_copy(val);
+    }
+
+parse_done:
+    free(wraptext);
+    json_decref(wrapval);
+
+    return val;
+#endif
+}
+
 static void setting_value_edited(GtkCellRendererText *renderer,
                                  gchar               *path_s,
                                  gchar               *new_text,
@@ -2740,7 +2784,7 @@ static void setting_value_edited(GtkCellRendererText *renderer,
     expected_type = get_type_from_string(get_expected_type_string_from_key(ctk_app_profile->key_docs, type_str));
 
     new_text_in_json = nv_app_profile_file_syntax_to_json(new_text);
-    value = json_loads(new_text_in_json, JSON_DECODE_ANY, &error);
+    value = decode_setting_value(new_text_in_json, &error);
 
     if (!value) {
         edit_profile_dialog_statusbar_message(dialog,
@@ -3604,13 +3648,22 @@ static char *get_default_keys_file(const char *driver_version)
         free(file);
         return nvstrdup(file_noversion);
     } else {
+        char *expected_file_paths;
+        if (file) {
+            expected_file_paths = nvstrcat("either ", file, " or ", file_noversion, NULL);
+        } else {
+            expected_file_paths = nvstrdup(file_noversion);
+        }
+
         nv_error_msg("nvidia-settings could not find the registry key file. "
                      "This file should have been installed along with this "
-                     "driver at either %s or %s. The application profiles "
+                     "driver at %s. The application profiles "
                      "will continue to work, but values cannot be "
                      "preopulated or validated, and will not be listed in "
                      "the help text. Please see the README for possible "
-                     "values and descriptions.", file, file_noversion);
+                     "values and descriptions.", expected_file_paths);
+
+        free(expected_file_paths);
         free(file);
         return NULL;
     }

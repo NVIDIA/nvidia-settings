@@ -65,6 +65,7 @@ struct _CtkEventStruct
     gint value;
     guint display_mask;
     gboolean is_availability_changed;
+    gboolean availability;
 };
 
 GType       ctk_event_get_type  (void) G_GNUC_CONST;
