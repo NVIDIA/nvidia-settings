@@ -106,7 +106,11 @@ typedef void (*unselect_widget_func_t)(GtkWidget *);
 
 static void ctk_window_class_init(CtkWindowClass *);
 
+#ifdef CTK_GTK3
+static void ctk_window_real_destroy(GtkWidget *);
+#else
 static void ctk_window_real_destroy(GtkObject *);
+#endif
 
 static void add_page(GtkWidget *, GtkTextBuffer *, CtkWindow *,
                      GtkTreeIter *, GtkTreeIter *, const gchar *,
@@ -126,11 +130,8 @@ static void add_display_devices(CtkWindow *ctk_window, GtkTreeIter *iter,
                                 UpdateDisplaysData *data,
                                 ParsedAttribute *p);
 
-static void update_display_devices(GtkObject *object, gpointer arg1,
+static void update_display_devices(GtkWidget *object, gpointer arg1,
                                    gpointer user_data);
-
-static void ctk_window_destroyed(GtkObject *object, gpointer arg1,
-                                 gpointer user_data);
 
 
 static GObjectClass *parent_class;
@@ -177,6 +178,15 @@ GType ctk_window_get_type(void)
 
 static void ctk_window_class_init(CtkWindowClass *ctk_window_class)
 {
+#ifdef CTK_GTK3
+    GtkWidgetClass *widget_class;
+
+    widget_class = (GtkWidgetClass *) ctk_window_class;
+
+    parent_class = g_type_class_peek_parent(ctk_window_class);
+
+    widget_class->destroy = ctk_window_real_destroy;
+#else
     GtkObjectClass *object_class;
 
     object_class = (GtkObjectClass *) ctk_window_class;
@@ -184,7 +194,7 @@ static void ctk_window_class_init(CtkWindowClass *ctk_window_class)
     parent_class = g_type_class_peek_parent(ctk_window_class);
 
     object_class->destroy = ctk_window_real_destroy;
-
+#endif
 } /* ctk_window_class_init() */
 
 
@@ -194,25 +204,41 @@ static void ctk_window_class_init(CtkWindowClass *ctk_window_class)
  * the configuration file here?
  */
 
+#ifdef CTK_GTK3
+static void ctk_window_real_destroy(GtkWidget *object)
+{
+    GTK_WIDGET_CLASS(parent_class)->destroy(object);
+    gtk_main_quit();
+
+} /* ctk_window_real_destroy() */
+#else
 static void ctk_window_real_destroy(GtkObject *object)
 {
     GTK_OBJECT_CLASS(parent_class)->destroy(object);
     gtk_main_quit();
 
 } /* ctk_window_real_destroy() */
+#endif
 
 
 
-/* 
- * ctk_window_destroyed() - called when ctk_window destroyed.
+/*
+ * confirm_quit_and_save() - Shows the user the quit dialog and
+ * saves configuration information before exiting.
  */
 
-static void ctk_window_destroyed(GtkObject *object, gpointer arg1,
-                                 gpointer user_data)
+static void confirm_quit_and_save(CtkWindow *ctk_window)
 {
-    CtkWindow *ctk_window = CTK_WINDOW(object);
-    save_settings_and_exit(ctk_window);
-} /* ctk_window_destroyed() */
+    CtkConfig *ctk_config = ctk_window->ctk_config;
+
+    if (ctk_config->conf->booleans & CONFIG_PROPERTIES_SHOW_QUIT_DIALOG) {
+        /* ask for confirmation */
+        gtk_widget_show_all(ctk_window->quit_dialog);
+    } else {
+        /* doesn't return */
+        save_settings_and_exit(ctk_window);
+    }
+}
 
 
 
@@ -223,16 +249,24 @@ static void ctk_window_destroyed(GtkObject *object, gpointer arg1,
 static void close_button_clicked(GtkButton *button, gpointer user_data)
 {
     CtkWindow *ctk_window = CTK_WINDOW(user_data);
-    CtkConfig *ctk_config = ctk_window->ctk_config;
 
-    if (ctk_config->conf->booleans & CONFIG_PROPERTIES_SHOW_QUIT_DIALOG) {
-        /* ask for confirmation */
-        gtk_widget_show_all(ctk_window->quit_dialog);
-    } else {
-        /* doesn't return */
-        save_settings_and_exit(ctk_window);
-    }
-} /* close_button_clicked() */
+    confirm_quit_and_save(ctk_window);
+}
+
+
+
+static gboolean ctk_window_delete_event(GObject *object)
+{
+    CtkWindow *ctk_window = CTK_WINDOW(object);
+
+    confirm_quit_and_save(ctk_window);
+
+    /* gtk_main_quit() will be called above if the user really wants to quit,
+     * so halt the progress of the delete-event here so we don't exit
+     * prematurely.
+     */
+    return TRUE;
+}
 
 
 
@@ -259,7 +293,7 @@ static void help_button_toggled(GtkToggleButton *button, gpointer user_data)
         }
         gtk_widget_show_all(ctk_window->ctk_help);
     } else {
-        gtk_widget_hide_all(ctk_window->ctk_help);
+        gtk_widget_hide(ctk_window->ctk_help);
     }
 
 } /* help_button_toggled() */
@@ -529,7 +563,7 @@ GtkWidget *ctk_window_new(ParsedAttribute *p, ConfigProperties *conf,
     /* Added row activated event to the tree view */
 
     g_signal_connect(ctk_window->treeview, "row_activated",
-                     G_CALLBACK(row_activated_event), GTK_OBJECT(ctk_window));
+                     G_CALLBACK(row_activated_event), GTK_WIDGET(ctk_window));
 
     selection = gtk_tree_view_get_selection(ctk_window->treeview);
 
@@ -637,7 +671,7 @@ GtkWidget *ctk_window_new(ParsedAttribute *p, ConfigProperties *conf,
         screen_name = NvCtrlGetDisplayName(screen_handle);
 
         child = ctk_screen_new(screen_handle, ctk_event);
-        g_object_ref(GTK_OBJECT(child));
+        g_object_ref(G_OBJECT(child));
         gtk_tree_store_set(ctk_window->tree_store, &iter,
                            CTK_WINDOW_WIDGET_COLUMN, child, -1);
         gtk_tree_store_set(ctk_window->tree_store, &iter,
@@ -793,7 +827,7 @@ GtkWidget *ctk_window_new(ParsedAttribute *p, ConfigProperties *conf,
         child = ctk_gpu_new(gpu_handle, h->targets[X_SCREEN_TARGET].t, ctk_event,
                             ctk_config);
 
-        g_object_ref(GTK_OBJECT(child));
+        g_object_ref(G_OBJECT(child));
         gtk_tree_store_set(ctk_window->tree_store, &iter,
                            CTK_WINDOW_WIDGET_COLUMN, child, -1);
         gtk_tree_store_set(ctk_window->tree_store, &iter,
@@ -902,7 +936,7 @@ GtkWidget *ctk_window_new(ParsedAttribute *p, ConfigProperties *conf,
         gtk_tree_store_set(ctk_window->tree_store, &iter,
                            CTK_WINDOW_LABEL_COLUMN, vcs_name, -1);
         child = ctk_vcs_new(vcs_handle, ctk_config);
-        g_object_ref(GTK_OBJECT(child));
+        g_object_ref(G_OBJECT(child));
         gtk_tree_store_set(ctk_window->tree_store, &iter,
                            CTK_WINDOW_WIDGET_COLUMN, child, -1);
         gtk_tree_store_set(ctk_window->tree_store, &iter,
@@ -951,7 +985,7 @@ GtkWidget *ctk_window_new(ParsedAttribute *p, ConfigProperties *conf,
         gtk_tree_store_set(ctk_window->tree_store, &iter,
                            CTK_WINDOW_LABEL_COLUMN, gvi_name, -1);
         child = ctk_gvi_new(gvi_handle, ctk_config, ctk_event);
-        g_object_ref(GTK_OBJECT(child));
+        g_object_ref(G_OBJECT(child));
         gtk_tree_store_set(ctk_window->tree_store, &iter,
                            CTK_WINDOW_WIDGET_COLUMN, child, -1);
         gtk_tree_store_set(ctk_window->tree_store, &iter,
@@ -1057,7 +1091,7 @@ GtkWidget *ctk_window_new(ParsedAttribute *p, ConfigProperties *conf,
      */
 
     g_signal_connect(selection, "changed", G_CALLBACK(tree_selection_changed),
-                     GTK_OBJECT(ctk_window));
+                     GTK_WIDGET(ctk_window));
 
     gtk_widget_show_all(GTK_WIDGET(ctk_window->treeview));
     gtk_tree_view_expand_all(ctk_window->treeview);
@@ -1083,17 +1117,18 @@ GtkWidget *ctk_window_new(ParsedAttribute *p, ConfigProperties *conf,
      */
 
     label = gtk_label_new("XXXXXX Server Display ConfigurationXXXX");
-    gtk_widget_size_request(label, &req);
+    gtk_widget_show(label);
+    ctk_widget_get_preferred_size(label, &req);
     width = req.width;
     gtk_widget_destroy(label);
 
     /* Get the width of the tree view scroll window */
-    gtk_widget_size_request(sw, &req);
+    ctk_widget_get_preferred_size(sw, &req);
 
     /* If the scroll window is too wide, make it slimmer and
      * allow users to scroll horizontally (also allow resizing).
      */
-    if ( width < req.width ) {
+    if (width < req.width && width > 0) {
         gtk_widget_set_size_request(sw, width, -1);
         gtk_scrolled_window_set_policy(GTK_SCROLLED_WINDOW(sw),
                                        GTK_POLICY_AUTOMATIC,
@@ -1102,8 +1137,8 @@ GtkWidget *ctk_window_new(ParsedAttribute *p, ConfigProperties *conf,
 
     /* Add callback when window destroyed */
 
-    g_signal_connect(G_OBJECT(ctk_window), "destroy",
-                     G_CALLBACK(ctk_window_destroyed), (gpointer) ctk_window);
+    g_signal_connect(G_OBJECT(ctk_window), "delete-event",
+                     G_CALLBACK(ctk_window_delete_event), (gpointer) ctk_window);
     
     return GTK_WIDGET(object);
 
@@ -1220,7 +1255,7 @@ static void add_page(GtkWidget *widget, GtkTextBuffer *help,
      */
 
     g_object_ref(G_OBJECT(widget));
-    gtk_object_sink(GTK_OBJECT(widget));
+    ctk_g_object_ref_sink(G_OBJECT(widget));
 
     gtk_tree_store_append(ctk_window->tree_store, child_iter, iter);
 
@@ -1260,24 +1295,23 @@ static GtkWidget *create_quit_dialog(CtkWindow *ctk_window)
     dialog = gtk_dialog_new_with_buttons("Really quit?",
                                          GTK_WINDOW(ctk_window),
                                          GTK_DIALOG_MODAL |
-                                         GTK_DIALOG_DESTROY_WITH_PARENT |
-                                         GTK_DIALOG_NO_SEPARATOR,
+                                         GTK_DIALOG_DESTROY_WITH_PARENT,
                                          GTK_STOCK_CANCEL,
                                          GTK_RESPONSE_CANCEL,
                                          GTK_STOCK_QUIT,
                                          GTK_RESPONSE_OK,
                                          NULL);
 
-    g_signal_connect(GTK_OBJECT(dialog), "response",
+    g_signal_connect(GTK_WIDGET(dialog), "response",
                      G_CALLBACK(quit_response),
-                     GTK_OBJECT(ctk_window));
+                     GTK_WIDGET(ctk_window));
 
     gtk_container_set_border_width(GTK_CONTAINER(dialog), 6);
     gtk_window_set_resizable(GTK_WINDOW(dialog), FALSE);
     
     hbox = gtk_hbox_new(FALSE, 5);
     gtk_container_set_border_width(GTK_CONTAINER(hbox), 6);
-    gtk_container_add(GTK_CONTAINER(GTK_DIALOG(dialog)->vbox), hbox);
+    gtk_container_add(GTK_CONTAINER(ctk_dialog_get_content_area(GTK_DIALOG(dialog))), hbox);
     
     pixbuf = gtk_widget_render_icon(dialog, GTK_STOCK_DIALOG_QUESTION,
                                     GTK_ICON_SIZE_DIALOG, NULL);
@@ -1330,7 +1364,7 @@ static void quit_response(GtkWidget *button, gint response, gpointer user_data)
         save_settings_and_exit(ctk_window);
     }
 
-    gtk_widget_hide_all(ctk_window->quit_dialog);
+    gtk_widget_hide(ctk_window->quit_dialog);
 
 } /* quit_response() */
 
@@ -1538,7 +1572,7 @@ static void select_display_page(UpdateDisplaysData *data, gchar *name)
  *
  */
 
-static void update_display_devices(GtkObject *object, gpointer arg1,
+static void update_display_devices(GtkWidget *object, gpointer arg1,
                                    gpointer user_data)
 {
     UpdateDisplaysData *data = (UpdateDisplaysData *) user_data;
@@ -1587,7 +1621,7 @@ static void update_display_devices(GtkObject *object, gpointer arg1,
         gtk_tree_store_remove(ctk_window->tree_store, iter);
 
         /* unref the page so we don't leak memory */
-        g_object_unref(GTK_OBJECT(widget)); 
+        g_object_unref(G_OBJECT(widget));
 
         data->num_displays--;
     }

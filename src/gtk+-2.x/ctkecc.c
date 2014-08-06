@@ -67,7 +67,7 @@ static const char *__reset_default_config_button_help =
 static void ecc_config_button_toggled(GtkWidget *, gpointer);
 static void show_ecc_toggle_warning_dlg(CtkEcc *);
 static void ecc_set_config_status(CtkEcc *);
-static void ecc_configuration_update_received(GtkObject *, gpointer, gpointer);
+static void ecc_configuration_update_received(GObject *, gpointer, gpointer);
 static void post_ecc_configuration_update(CtkEcc *);
 
 GType ctk_ecc_get_type(void)
@@ -238,7 +238,7 @@ static void ecc_set_config_status(CtkEcc *ctk_ecc)
  * NV-CONTROL client.
  */
 
-static void ecc_configuration_update_received(GtkObject *object,
+static void ecc_configuration_update_received(GObject *object,
                                               gpointer arg1, gpointer user_data)
 {
     CtkEventStruct *event_struct = (CtkEventStruct *) arg1;

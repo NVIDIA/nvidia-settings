@@ -49,6 +49,10 @@
 #define LAYOUT_IMG_BG_COLOR         "#AAAAAA"
 #define LAYOUT_IMG_SELECT_COLOR     "#FF8888"
 
+#ifdef CTK_GTK3
+#define LENGTH_DASH_ARRAY 2
+static const double dashes[] = {4.0, 4.0};
+#endif
 
 /* Device (GPU) Coloring */
 
@@ -144,9 +148,15 @@ int __palettes_color_names[NUM_COLORS] = {
 /*** P R O T O T Y P E S *****************************************************/
 
 
+#ifdef CTK_GTK3
+static gboolean draw_event_callback (GtkWidget *widget,
+                                     cairo_t *cr,
+                                     gpointer data);
+#else
 static gboolean expose_event_callback (GtkWidget *widget,
                                        GdkEventExpose *event,
                                        gpointer data);
+#endif
 
 static gboolean configure_event_callback (GtkWidget *widget,
                                           GdkEventConfigure *event,
@@ -184,21 +194,23 @@ static Bool sync_layout(CtkDisplayLayout *ctk_object);
 static void queue_layout_redraw(CtkDisplayLayout *ctk_object)
 {
     GtkWidget *drawing_area = ctk_object->drawing_area;
-    GtkAllocation *allocation = &(drawing_area->allocation);
+    GdkWindow *window = ctk_widget_get_window(drawing_area);
+    GtkAllocation allocation;
     GdkRectangle rect;
 
-
-    if (!drawing_area->window) {
+    if (!window) {
         return;
     }
 
-    /* Queue an expose event */
-    rect.x = allocation->x;
-    rect.y = allocation->x;
-    rect.width = allocation->width;
-    rect.height = allocation->height;
+    ctk_widget_get_allocation(drawing_area, &allocation);
 
-    gdk_window_invalidate_rect(drawing_area->window, &rect, TRUE);
+    /* Queue an expose event */
+    rect.x = allocation.x;
+    rect.y = allocation.x;
+    rect.width = allocation.width;
+    rect.height = allocation.height;
+
+    gdk_window_invalidate_rect(window, &rect, TRUE);
 
 } /* queue_layout_redraw() */
 
@@ -2482,7 +2494,8 @@ static char *get_tooltip_under_mouse(CtkDisplayLayout *ctk_object,
  *
  **/
 
-static int click_layout(CtkDisplayLayout *ctk_object, int x, int y)
+static int click_layout(CtkDisplayLayout *ctk_object,
+                        GdkDevice *device, int x, int y)
 {
     int i;
     nvDisplayPtr cur_selected_display = ctk_object->selected_display;
@@ -2497,9 +2510,16 @@ static int click_layout(CtkDisplayLayout *ctk_object, int x, int y)
     ctk_object->selected_display = NULL;
     ctk_object->selected_screen = NULL;
 
+#ifdef CTK_GTK3
+    gdk_window_get_device_position
+        (ctk_widget_get_window(
+             GTK_WIDGET(ctk_get_parent_window(ctk_object->drawing_area))),
+         device, NULL, NULL, &state);
+#else
     gdk_window_get_pointer
         (GTK_WIDGET(ctk_get_parent_window(ctk_object->drawing_area))->window,
          NULL, NULL, &state);
+#endif
 
     /* Look through the Z-order for the next element */
     for (i = 0; i < ctk_object->Zcount; i++) {
@@ -2674,27 +2694,33 @@ GtkWidget* ctk_display_layout_new(NvCtrlAttributeHandle *handle,
                           GDK_POINTER_MOTION_MASK |
                           GDK_POINTER_MOTION_HINT_MASK);
 
-    g_signal_connect (G_OBJECT (tmp), "expose_event",  
+#ifdef CTK_GTK3
+    g_signal_connect (G_OBJECT (tmp), "draw",
+                      G_CALLBACK (draw_event_callback),
+                      (gpointer)(ctk_object));
+#else
+    g_signal_connect (G_OBJECT (tmp), "expose_event",
                       G_CALLBACK (expose_event_callback),
                       (gpointer)(ctk_object));
+#endif
 
-    g_signal_connect (G_OBJECT (tmp), "configure_event",  
+    g_signal_connect (G_OBJECT (tmp), "configure_event",
                       G_CALLBACK (configure_event_callback),
                       (gpointer)(ctk_object));
 
-    g_signal_connect (G_OBJECT (tmp), "motion_notify_event",  
+    g_signal_connect (G_OBJECT (tmp), "motion_notify_event",
                       G_CALLBACK (motion_event_callback),
                       (gpointer)(ctk_object));
 
-    g_signal_connect (G_OBJECT (tmp), "button_press_event",  
+    g_signal_connect (G_OBJECT (tmp), "button_press_event",
                       G_CALLBACK (button_press_event_callback),
                       (gpointer)(ctk_object));
 
-    g_signal_connect (G_OBJECT (tmp), "button_release_event",  
+    g_signal_connect (G_OBJECT (tmp), "button_release_event",
                       G_CALLBACK (button_release_event_callback),
                       (gpointer)(ctk_object));
 
-    GTK_WIDGET_SET_FLAGS(tmp, GTK_DOUBLE_BUFFERED);
+    gtk_widget_set_double_buffered(tmp, TRUE);
 
     ctk_object->drawing_area = tmp;
     gtk_widget_set_size_request(tmp, width, height);
@@ -2704,12 +2730,17 @@ GtkWidget* ctk_display_layout_new(NvCtrlAttributeHandle *handle,
     gtk_box_set_spacing(GTK_BOX(ctk_object), 0);
 
     ctk_object->tooltip_area  = gtk_event_box_new();
+
+#ifdef CTK_GTK3
+    gtk_widget_set_tooltip_text(ctk_object->tooltip_area, "*** No Display ***");
+#else
     ctk_object->tooltip_group = gtk_tooltips_new();
 
     gtk_tooltips_enable(ctk_object->tooltip_group);
     gtk_tooltips_set_tip(ctk_object->tooltip_group,
                          ctk_object->tooltip_area,
                          "*** No Display ***", NULL);
+#endif
 
     gtk_container_add(GTK_CONTAINER(ctk_object->tooltip_area), tmp);
     gtk_box_pack_start(GTK_BOX(object), ctk_object->tooltip_area,
@@ -2721,7 +2752,32 @@ GtkWidget* ctk_display_layout_new(NvCtrlAttributeHandle *handle,
 
 
 
-/** get_widget_fg_gc() ***********************************************
+/** set_drawing_color() *************************************************
+ *
+ * Sets the color passed in to the context given. This function
+ * hides the implementation differences between GTK 2 and 3 from
+ * the callers.
+ *
+ **/
+#ifdef CTK_GTK3
+static void set_drawing_color(cairo_t *cr, GdkColor *c)
+{
+    cairo_set_source_rgba(cr,
+                          c->red   / 65535.0,
+                          c->green / 65535.0,
+                          c->blue  / 65535.0,
+                          1.0);
+}
+#else
+static void set_drawing_color(GdkGC *gc, GdkColor *c)
+{
+    gdk_gc_set_rgb_fg_color(gc, c);
+}
+#endif
+
+
+
+/** get_drawing_context() ***********************************************
  *
  * Returns the foreground graphics context of the given widget.  If
  * this function returns NULL, then drawing on this widget is not
@@ -2729,15 +2785,22 @@ GtkWidget* ctk_display_layout_new(NvCtrlAttributeHandle *handle,
  *
  **/
 
-static GdkGC *get_widget_fg_gc(GtkWidget *widget)
+#ifdef CTK_GTK3
+static cairo_t *get_drawing_context(CtkDisplayLayout *ctk_object)
 {
-    GtkStyle *style = gtk_widget_get_style(widget);
+    return ctk_object->c_context;
+}
+#else
+static GdkGC *get_drawing_context(CtkDisplayLayout *ctk_object)
+{
+    GtkStyle *style = gtk_widget_get_style(ctk_object->drawing_area);
 
     if (!style) return NULL;
 
-    return style->fg_gc[GTK_WIDGET_STATE(widget)];
+    return style->fg_gc[GTK_WIDGET_STATE(ctk_object->drawing_area)];
 
-} /* get_widget_fg_gc() */
+}
+#endif
 
 
 
@@ -2753,13 +2816,33 @@ static void draw_rect(CtkDisplayLayout *ctk_object,
                       GdkColor *color,
                       int fill)
 {
-    GtkWidget *drawing_area = ctk_object->drawing_area;
-    GdkGC *fg_gc = get_widget_fg_gc(drawing_area);
+#ifdef CTK_GTK3
+    cairo_t *fg_gc;
+#else
+    GdkGC *fg_gc;
+#endif
+
+    fg_gc = get_drawing_context(ctk_object);
 
     /* Setup color to use */
-    gdk_gc_set_rgb_fg_color(fg_gc, color);
+    set_drawing_color(fg_gc, color);
 
     /* Draw the rectangle */
+#ifdef CTK_GTK3
+    cairo_set_antialias(fg_gc, CAIRO_ANTIALIAS_NONE);
+    cairo_rectangle(fg_gc,
+                    ctk_object->img_dim.x + ctk_object->scale * rect->x,
+                    ctk_object->img_dim.y + ctk_object->scale * rect->y,
+                    ctk_object->scale * rect->width,
+                    ctk_object->scale * rect->height);
+
+    if (fill) {
+        cairo_fill(fg_gc);
+    } else {
+        cairo_stroke(fg_gc);
+    }
+
+#else
     gdk_draw_rectangle(ctk_object->pixmap,
                        fg_gc,
                        fill,
@@ -2767,7 +2850,7 @@ static void draw_rect(CtkDisplayLayout *ctk_object,
                        ctk_object->img_dim.y + ctk_object->scale * rect->y,
                        ctk_object->scale * rect->width,
                        ctk_object->scale * rect->height);
-
+#endif
 } /* draw_rect() */
 
 
@@ -2785,8 +2868,11 @@ static void draw_rect_strs(CtkDisplayLayout *ctk_object,
                            const char *str_1,
                            const char *str_2)
 {
-    GtkWidget *drawing_area = ctk_object->drawing_area;
-    GdkGC *fg_gc = get_widget_fg_gc(drawing_area);
+#ifdef CTK_GTK3
+    cairo_t *fg_gc;
+#else
+    GdkGC *fg_gc;
+#endif
     char *str;
 
     int txt_w;
@@ -2796,6 +2882,8 @@ static void draw_rect_strs(CtkDisplayLayout *ctk_object,
 
     int draw_1 = 0;
     int draw_2 = 0;
+
+    fg_gc = get_drawing_context(ctk_object);
 
     if (str_1) {
         pango_layout_set_text(ctk_object->pango_layout, str_1, -1);
@@ -2837,13 +2925,20 @@ static void draw_rect_strs(CtkDisplayLayout *ctk_object,
         txt_y1 = ctk_object->scale*(rect->y + rect->height / 2) - (txt_h / 2);
 
         /* Write name */
-        gdk_gc_set_rgb_fg_color(fg_gc, color);
+        set_drawing_color(fg_gc, color);
 
+#ifdef CTK_GTK3
+        cairo_move_to(fg_gc,
+                      ctk_object->img_dim.x + txt_x1,
+                      ctk_object->img_dim.y + txt_y1);
+        pango_cairo_show_layout(fg_gc, ctk_object->pango_layout);
+#else
         gdk_draw_layout(ctk_object->pixmap,
                         fg_gc,
                         ctk_object->img_dim.x + txt_x1,
                         ctk_object->img_dim.y + txt_y1,
                         ctk_object->pango_layout);
+#endif
     }
 
     else if (!draw_1 && draw_2) {
@@ -2854,13 +2949,20 @@ static void draw_rect_strs(CtkDisplayLayout *ctk_object,
         txt_y2 = ctk_object->scale*(rect->y + rect->height / 2) - (txt_h / 2);
 
         /* Write dimensions */
-        gdk_gc_set_rgb_fg_color(fg_gc, color);
+        set_drawing_color(fg_gc, color);
 
+#ifdef CTK_GTK3
+        cairo_move_to(fg_gc,
+                      ctk_object->img_dim.x + txt_x2,
+                      ctk_object->img_dim.y + txt_y2);
+        pango_cairo_show_layout(fg_gc, ctk_object->pango_layout);
+#else
         gdk_draw_layout(ctk_object->pixmap,
                         fg_gc,
                         ctk_object->img_dim.x + txt_x2,
                         ctk_object->img_dim.y + txt_y2,
                         ctk_object->pango_layout);
+#endif
     }
 
     else if (draw_1 && draw_2) {
@@ -2873,13 +2975,20 @@ static void draw_rect_strs(CtkDisplayLayout *ctk_object,
         txt_y = ctk_object->scale*(rect->y + rect->height / 2) - (txt_h / 2);
 
         /* Write both */
-        gdk_gc_set_rgb_fg_color(fg_gc, color);
+        set_drawing_color(fg_gc, color);
 
+#ifdef CTK_GTK3
+        cairo_move_to(fg_gc,
+                      ctk_object->img_dim.x + txt_x,
+                      ctk_object->img_dim.y + txt_y);
+        pango_cairo_show_layout(fg_gc, ctk_object->pango_layout);
+#else
         gdk_draw_layout(ctk_object->pixmap,
                         fg_gc,
                         ctk_object->img_dim.x + txt_x,
                         ctk_object->img_dim.y + txt_y,
                         ctk_object->pango_layout);
+#endif
 
         g_free(str);
     }
@@ -2955,8 +3064,11 @@ static void draw_display(CtkDisplayLayout *ctk_object,
 static void draw_screen(CtkDisplayLayout *ctk_object,
                         nvScreenPtr screen)
 {
-    GtkWidget *drawing_area = ctk_object->drawing_area;
-    GdkGC *fg_gc = get_widget_fg_gc(drawing_area);
+#ifdef CTK_GTK3
+    cairo_t *fg_gc;
+#else
+    GdkGC *fg_gc;
+#endif
 
     GdkRectangle *sdim; /* Screen dimensions */
     GdkColor bg_color; /* Background color */
@@ -2966,6 +3078,8 @@ static void draw_screen(CtkDisplayLayout *ctk_object,
 
     if (!screen)  return;
 
+
+    fg_gc = get_drawing_context(ctk_object);
 
     /* Draw the screen effective size */
     gdk_color_parse("#888888", &bg_color);
@@ -2977,13 +3091,25 @@ static void draw_screen(CtkDisplayLayout *ctk_object,
     draw_rect(ctk_object, sdim, &bg_color, 1);
 
     /* Draw the screen border with dashed lines */
+
+#ifdef CTK_GTK3
+    cairo_set_line_width(fg_gc, 1);
+    cairo_set_line_cap(fg_gc, CAIRO_LINE_CAP_BUTT);
+    cairo_set_line_join(fg_gc, CAIRO_LINE_JOIN_MITER);
+    cairo_set_dash(fg_gc, dashes, LENGTH_DASH_ARRAY, 0);
+#else
     gdk_gc_set_line_attributes(fg_gc, 1, GDK_LINE_ON_OFF_DASH,
                                GDK_CAP_NOT_LAST, GDK_JOIN_ROUND);
+#endif
 
     draw_rect(ctk_object, sdim, &(ctk_object->fg_color), 0);
 
+#ifdef CTK_GTK3
+    cairo_set_dash(fg_gc, NULL, 0, 0);
+#else
     gdk_gc_set_line_attributes(fg_gc, 1, GDK_LINE_SOLID,
                                GDK_CAP_NOT_LAST, GDK_JOIN_ROUND);
+#endif
 
     /* Show the name of the screen if no-scanout is selected */
     if (screen->no_scanout) {
@@ -3009,13 +3135,17 @@ static void draw_screen(CtkDisplayLayout *ctk_object,
 
 static void draw_layout(CtkDisplayLayout *ctk_object)
 {
-    GtkWidget *drawing_area = ctk_object->drawing_area;
-    GdkGC *fg_gc = get_widget_fg_gc(drawing_area);
+#ifdef CTK_GTK3
+    cairo_t *fg_gc;
+#else
+    GdkGC *fg_gc;
+#endif
 
     GdkColor bg_color; /* Background color */
     GdkColor bd_color; /* Border color */
     int i;
 
+    fg_gc = get_drawing_context(ctk_object);
 
     gdk_color_parse("#888888", &bg_color);
     gdk_color_parse("#777777", &bd_color);
@@ -3052,7 +3182,7 @@ static void draw_layout(CtkDisplayLayout *ctk_object)
         h  = (int)(ctk_object->scale * rect->height);
 
         /* Setup color to use */
-        gdk_gc_set_rgb_fg_color(fg_gc, &(ctk_object->select_color));
+        set_drawing_color(fg_gc, &(ctk_object->select_color));
 
         /* If dislay is too small, just color the whole thing */
         size = 3;
@@ -3063,6 +3193,22 @@ static void draw_layout(CtkDisplayLayout *ctk_object)
             draw_rect(ctk_object, rect, &(ctk_object->fg_color), 0);
 
         } else {
+#ifdef CTK_GTK3
+            double line_width = cairo_get_line_width(fg_gc);
+            cairo_set_line_width(fg_gc, size);
+            cairo_set_line_cap(fg_gc, CAIRO_LINE_CAP_ROUND);
+            cairo_set_line_join(fg_gc, CAIRO_LINE_JOIN_MITER);
+            cairo_set_antialias(fg_gc, CAIRO_ANTIALIAS_NONE);
+
+            cairo_rectangle(fg_gc,
+                            ctk_object->img_dim.x + (ctk_object->scale * rect->x) + offset,
+                            ctk_object->img_dim.y + (ctk_object->scale * rect->y) + offset,
+                            (ctk_object->scale * rect->width)  - (2 * offset),
+                            (ctk_object->scale * rect->height) - (2 * offset));
+            cairo_stroke(fg_gc);
+
+            cairo_set_line_width(fg_gc, line_width);
+#else
             gdk_gc_set_line_attributes(fg_gc, size, GDK_LINE_SOLID,
                                        GDK_CAP_ROUND, GDK_JOIN_ROUND);
 
@@ -3076,6 +3222,8 @@ static void draw_layout(CtkDisplayLayout *ctk_object)
 
             gdk_gc_set_line_attributes(fg_gc, 1, GDK_LINE_SOLID, GDK_CAP_ROUND,
                                        GDK_JOIN_ROUND);
+#endif
+
         }
 
 
@@ -3136,45 +3284,84 @@ static void draw_layout(CtkDisplayLayout *ctk_object)
 
 static void clear_layout(CtkDisplayLayout *ctk_object)
 {
-    GtkWidget *drawing_area = ctk_object->drawing_area;
-    GtkAllocation *allocation = &(drawing_area->allocation);
-    GdkGC *fg_gc = get_widget_fg_gc(drawing_area);
+    GtkAllocation allocation;
     GdkColor color;
+#ifdef CTK_GTK3
+    cairo_t *fg_gc;
+#else
+    GdkGC *fg_gc;
+#endif
+
+    fg_gc = get_drawing_context(ctk_object);
+
+    ctk_widget_get_allocation(GTK_WIDGET(ctk_object->drawing_area),
+                              &allocation);
 
 
     /* Clear to background color */
-    gdk_gc_set_rgb_fg_color(fg_gc, &(ctk_object->bg_color));
+    set_drawing_color(fg_gc, &(ctk_object->bg_color));
 
+#ifdef CTK_GTK3
+    cairo_set_antialias(fg_gc, CAIRO_ANTIALIAS_NONE);
+
+    cairo_rectangle(fg_gc,
+                    2,
+                    2,
+                    allocation.width  - 4,
+                    allocation.height - 4);
+    cairo_fill(fg_gc);
+#else
     gdk_draw_rectangle(ctk_object->pixmap,
                        fg_gc,
                        TRUE,
                        2,
                        2,
-                       allocation->width  -4,
-                       allocation->height -4);
+                       allocation.width  - 4,
+                       allocation.height - 4);
+#endif
 
 
     /* Add white trim */
     gdk_color_parse("white", &color);
-    gdk_gc_set_rgb_fg_color(fg_gc, &color);
+    set_drawing_color(fg_gc, &color);
+
+#ifdef CTK_GTK3
+    cairo_rectangle(fg_gc,
+                    1,
+                    1,
+                    allocation.width  - 3,
+                    allocation.height - 3);
+    cairo_stroke(fg_gc);
+#else
     gdk_draw_rectangle(ctk_object->pixmap,
                        fg_gc,
                        FALSE,
                        1,
                        1,
-                       allocation->width  -3,
-                       allocation->height -3);
+                       allocation.width  - 3,
+                       allocation.height - 3);
+#endif
 
 
     /* Add layout border */
-    gdk_gc_set_rgb_fg_color(fg_gc, &(ctk_object->fg_color));
+    set_drawing_color(fg_gc, &(ctk_object->fg_color));
+
+#ifdef CTK_GTK3
+    cairo_rectangle(fg_gc,
+                    0,
+                    0,
+                    allocation.width  - 1,
+                    allocation.height - 1);
+    cairo_stroke(fg_gc);
+#else
     gdk_draw_rectangle(ctk_object->pixmap,
                        fg_gc,
                        FALSE,
                        0,
                        0,
-                       allocation->width  -1,
-                       allocation->height -1);
+                       allocation.width  - 1,
+                       allocation.height - 1);
+#endif
 
 } /* clear_layout() */
 
@@ -4223,6 +4410,28 @@ void ctk_display_layout_register_callbacks(CtkDisplayLayout *ctk_object,
 
 
 
+#ifdef CTK_GTK3
+/** draw_event_callback() ******************************************
+ *
+ * Handles GTK 3 draw events.
+ *
+ **/
+
+static gboolean
+draw_event_callback(GtkWidget *widget, cairo_t *cr, gpointer data)
+{
+    CtkDisplayLayout *ctk_object = CTK_DISPLAY_LAYOUT(data);
+
+    ctk_object->c_context = cr;
+    clear_layout(ctk_object);
+    draw_layout(ctk_object);
+    ctk_object->c_context = NULL;
+
+    return TRUE;
+
+} /* draw_event_callback() */
+
+#else
 /** expose_event_callback() ******************************************
  *
  * Handles expose events.
@@ -4233,16 +4442,16 @@ static gboolean
 expose_event_callback(GtkWidget *widget, GdkEventExpose *event, gpointer data)
 {
     CtkDisplayLayout *ctk_object = CTK_DISPLAY_LAYOUT(data);
-    GdkGC *fg_gc = get_widget_fg_gc(widget);
+    GdkGC *fg_gc = get_drawing_context(ctk_object);
     GdkGCValues old_gc_values;
 
 
-    if (event->count || !widget->window || !fg_gc) {
+    if (event->count || !ctk_widget_get_window(widget) || !fg_gc) {
         return TRUE;
     }
 
     /* Redraw the layout */
-    gdk_window_begin_paint_rect(widget->window, &event->area);
+    gdk_window_begin_paint_rect(ctk_widget_get_window(widget), &event->area);
 
     gdk_gc_get_values(fg_gc, &old_gc_values);
 
@@ -4259,11 +4468,12 @@ expose_event_callback(GtkWidget *widget, GdkEventExpose *event, gpointer data)
                       event->area.x, event->area.y,
                       event->area.width, event->area.height);
 
-    gdk_window_end_paint(widget->window);
+    gdk_window_end_paint(ctk_widget_get_window(widget));
 
     return TRUE;
 
 } /* expose_event_callback() */
+#endif
 
 
 
@@ -4278,8 +4488,13 @@ configure_event_callback(GtkWidget *widget, GdkEventConfigure *event,
                          gpointer data)
 {
     CtkDisplayLayout *ctk_object = CTK_DISPLAY_LAYOUT(data);
-    int width = widget->allocation.width;
-    int height = widget->allocation.height;
+    GtkAllocation allocation;
+    int width, height;
+
+    ctk_widget_get_allocation(widget, &allocation);
+
+    width = allocation.width;
+    height = allocation.height;
 
     ctk_object->img_dim.x      = LAYOUT_IMG_OFFSET + LAYOUT_IMG_BORDER_PADDING;
     ctk_object->img_dim.y      = LAYOUT_IMG_OFFSET + LAYOUT_IMG_BORDER_PADDING;
@@ -4288,7 +4503,9 @@ configure_event_callback(GtkWidget *widget, GdkEventConfigure *event,
 
     sync_scaling(ctk_object);
 
+#ifndef CTK_GTK3
     ctk_object->pixmap = gdk_pixmap_new(widget->window, width, height, -1);
+#endif
 
     return TRUE;
 
@@ -4315,7 +4532,11 @@ motion_event_callback(GtkWidget *widget, GdkEventMotion *event, gpointer data)
 
     /* Handle hints so we don't get overwhelmed with motion events */
     if (event->is_hint) {
+#ifdef CTK_GTK3
+        gdk_window_get_device_position(event->window, event->device, &x, &y, &state);
+#else
         gdk_window_get_pointer(event->window, &x, &y, &state);
+#endif
     } else {
         x = event->x;
         y = event->y;
@@ -4366,17 +4587,21 @@ motion_event_callback(GtkWidget *widget, GdkEventMotion *event, gpointer data)
 
             /* Queue and process expose event so we redraw ASAP */
             queue_layout_redraw(ctk_object);
-            gdk_window_process_updates(drawing_area->window, TRUE);
+            gdk_window_process_updates(ctk_widget_get_window(drawing_area), TRUE);
         }
 
     /* Update the tooltip under the mouse */
     } else {
         char *tip = get_tooltip_under_mouse(ctk_object, x, y);
         if (tip) {
+#ifdef CTK_GTK3
+            gtk_widget_set_tooltip_text(ctk_object->tooltip_area, tip);
+#else
             gtk_tooltips_set_tip(ctk_object->tooltip_group,
                                  ctk_object->tooltip_area,
                                  tip, NULL);
             gtk_tooltips_force_window(ctk_object->tooltip_group);
+#endif
             g_free(tip);
         }
     }
@@ -4440,7 +4665,7 @@ button_press_event_callback(GtkWidget *widget, GdkEventButton *event,
     /* Handle selection of displays/X screens */
     case Button1:
         ctk_object->button1 = 1;
-        click_layout(ctk_object, x, y);
+        click_layout(ctk_object, event->device, x, y);
 
         /* Report back selection event */
         if (ctk_object->selected_callback) {

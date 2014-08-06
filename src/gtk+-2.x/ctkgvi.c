@@ -450,7 +450,7 @@ static gboolean update_sdi_input_info(gpointer user_data)
     ctk_empty_container(ctk_gvi->input_info_vbox);
 
     if (!show_detailed_info) {
-        gtk_widget_hide_all(GTK_WIDGET(ctk_gvi->jack_channel_omenu));
+        gtk_widget_hide(GTK_WIDGET(ctk_gvi->jack_channel_omenu));
         update_sdi_input_info_simple(ctk_gvi);
     } else {
         gtk_widget_show_all(GTK_WIDGET(ctk_gvi->jack_channel_omenu));
@@ -492,7 +492,7 @@ static gchar* gpu_name_string(gint gpu, CtrlHandles *handle)
     return gpu_name;
 }
 
-static void bound_gpu_changed(GtkObject *object, gpointer arg1,
+static void bound_gpu_changed(GObject *object, gpointer arg1,
                               gpointer user_data)
 {
     CtkGvi *ctk_gvi = (CtkGvi *) user_data;
@@ -695,7 +695,7 @@ GtkWidget* ctk_gvi_new(NvCtrlAttributeHandle *handle,
     
     g_signal_connect(G_OBJECT(button), "toggled",
                      G_CALLBACK(show_detailed_info_button_toggled),
-                     GTK_OBJECT(ctk_gvi));
+                     G_OBJECT(ctk_gvi));
 
     g_signal_connect(G_OBJECT(ctk_event),
                      CTK_EVENT_NAME(NV_CTRL_GVI_BOUND_GPU),

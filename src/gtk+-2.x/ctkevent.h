@@ -50,13 +50,13 @@ typedef struct _CtkEventStruct CtkEventStruct;
 
 struct _CtkEvent
 {
-    GtkObject               parent;
+    GObject               parent;
     NvCtrlAttributeHandle  *handle;
 };
 
 struct _CtkEventClass
 {
-    GtkObjectClass parent_class;
+    GtkWidgetClass parent_class;
 };
 
 struct _CtkEventStruct
@@ -69,7 +69,7 @@ struct _CtkEventStruct
 };
 
 GType       ctk_event_get_type  (void) G_GNUC_CONST;
-GtkObject*  ctk_event_new       (NvCtrlAttributeHandle*);
+GObject*    ctk_event_new       (NvCtrlAttributeHandle*);
 
 void ctk_event_emit(CtkEvent *ctk_event,
                     unsigned int mask, int attrib, int value);

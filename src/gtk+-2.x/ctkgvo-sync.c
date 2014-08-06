@@ -29,6 +29,7 @@
 
 #include "ctkconfig.h"
 #include "ctkhelp.h"
+#include "ctkutils.h"
 
 #include "ctkdropdownmenu.h"
 
@@ -92,7 +93,7 @@ static void hsync_delay_changed(GtkSpinButton *spinbutton, gpointer user_data);
 static void vsync_delay_changed(GtkSpinButton *spinbutton, gpointer user_data);
 
 
-static void gvo_sync_event_received(GtkObject *object,
+static void gvo_sync_event_received(GObject *object,
                                     gpointer arg1,
                                     gpointer user_data);
 static gint gvo_sync_probe_callback(gpointer data);
@@ -358,7 +359,7 @@ GtkWidget* ctk_gvo_sync_new(NvCtrlAttributeHandle *handle,
     if ( !query_init_gvo_sync_state(ctk_gvo_sync) ) {
         // Free the object
         g_object_ref(object);
-        gtk_object_sink(GTK_OBJECT(object));
+        ctk_g_object_ref_sink(G_OBJECT(object));
         g_object_unref(object);
         return NULL;
     }
@@ -1062,7 +1063,7 @@ static void detect_input_toggled(GtkToggleButton *togglebutton,
     /* change the cursor */
 
     gdk_window_set_cursor
-        ((GTK_WIDGET(ctk_gvo_sync->parent_window))->window,
+        (ctk_widget_get_window(GTK_WIDGET(ctk_gvo_sync->parent_window)),
          ctk_gvo_sync->wait_cursor);
     
     /* make all other widgets insensitive */
@@ -1134,7 +1135,7 @@ static gint detect_input_done(gpointer data)
 
     /* restore the cursor */
 
-    gdk_window_set_cursor((GTK_WIDGET(ctk_gvo_sync->parent_window))->window,
+    gdk_window_set_cursor(ctk_widget_get_window(GTK_WIDGET(ctk_gvo_sync->parent_window)),
                           NULL);
 
     /* ungrab the server */
@@ -1292,7 +1293,7 @@ static void vsync_delay_changed(GtkSpinButton *spinbutton, gpointer user_data)
  * NV-CONTROL events.
  */
 
-static void gvo_sync_event_received(GtkObject *object,
+static void gvo_sync_event_received(GObject *object,
                                     gpointer arg1,
                                     gpointer user_data)
 {

@@ -32,6 +32,7 @@
 
 #include "ctkconfig.h"
 #include "ctkhelp.h"
+#include "ctkutils.h"
 
 #include <string.h>
 #include <stdlib.h>
@@ -91,7 +92,7 @@ apply_parsed_attribute_list(CtkColorCorrection *, ParsedAttribute *);
 static gboolean
 do_confirm_countdown (gpointer);
 
-static void callback_palette_update(GtkObject *object, gpointer arg1,
+static void callback_palette_update(GObject *object, gpointer arg1,
                                     gpointer user_data);
 
 static void
@@ -116,18 +117,18 @@ static guint signals[LAST_SIGNAL] = { 0 };
 
 #define DEFAULT_CONFIRM_COLORCORRECTION_TIMEOUT 10
 
-#define CREATE_COLOR_ADJUSTMENT(adj, attr, min, max)          \
-{                                                             \
-    gdouble _step_incr, _page_incr, _def;                     \
-                                                              \
-    _step_incr = ((gdouble)((max) - (min)))/250.0;            \
-    _page_incr = ((gdouble)((max) - (min)))/25.0;             \
-                                                              \
-    _def = get_attribute_channel_value(ctk_color_correction,  \
-                                       (attr), ALL_CHANNELS); \
-                                                              \
-    (adj) = gtk_adjustment_new(_def, (min), (max),            \
-                               _step_incr, _page_incr, 0.0);  \
+#define CREATE_COLOR_ADJUSTMENT(adj, attr, min, max)                         \
+{                                                                            \
+    gdouble _step_incr, _page_incr, _def;                                    \
+                                                                             \
+    _step_incr = ((gdouble)((max) - (min)))/250.0;                           \
+    _page_incr = ((gdouble)((max) - (min)))/25.0;                            \
+                                                                             \
+    _def = get_attribute_channel_value(ctk_color_correction,                 \
+                                       (attr), ALL_CHANNELS);                \
+                                                                             \
+    (adj) = GTK_ADJUSTMENT(gtk_adjustment_new(_def, (min), (max),            \
+                                              _step_incr, _page_incr, 0.0)); \
 }
 
 GType ctk_color_correction_get_type(
@@ -557,8 +558,8 @@ GtkWidget* ctk_color_correction_new(NvCtrlAttributeHandle *handle,
      *  "%d Seconds to Confirm"
      */
 
-    gtk_widget_size_request(ctk_color_correction->confirm_label,
-                            &requisition);
+    ctk_widget_get_preferred_size(ctk_color_correction->confirm_label,
+                                  &requisition);
     gtk_widget_set_size_request(ctk_color_correction->confirm_label,
                                 requisition.width, -1);
 
@@ -576,7 +577,7 @@ static void color_channel_changed(
     gpointer user_data
 )
 {
-    GtkObject *adjustment;
+    GtkAdjustment *adjustment;
     gint history, attribute, channel;
     CtkColorCorrection *ctk_color_correction;
     gfloat value;
@@ -1208,7 +1209,7 @@ void ctk_color_correction_tab_help(GtkTextBuffer *b, GtkTextIter *i,
 }
 
 
-static void callback_palette_update(GtkObject *object, gpointer arg1,
+static void callback_palette_update(GObject *object, gpointer arg1,
                                     gpointer user_data)
 {
     gboolean reload_needed;

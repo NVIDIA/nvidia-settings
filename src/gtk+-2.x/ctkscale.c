@@ -21,7 +21,12 @@
 #include <gdk/gdkkeysyms.h>
 
 #include "ctkscale.h"
+#include "ctkutils.h"
 #include <stdio.h>
+
+#ifdef CTK_GTK3
+#include <gdk/gdkkeysyms-compat.h>
+#endif
 
 static void ctk_scale_finalize(GObject *object);
 static void ctk_scale_init(CtkScaleClass *ctk_object_class);
@@ -95,6 +100,9 @@ static gboolean ctk_scale_key_event(GtkWidget *widget, GdkEvent *event,
     GdkEventKey *key_event = (GdkEventKey *) event;
     GtkAdjustment *adjustment = GTK_ADJUSTMENT(ctk_scale->gtk_adjustment);
     gdouble newval;
+    gdouble value = gtk_adjustment_get_value(adjustment);
+    gdouble step_increment = ctk_adjustment_get_step_increment(adjustment);
+    gdouble page_increment = ctk_adjustment_get_page_increment(adjustment);
     
     switch (key_event->keyval) {
 
@@ -102,24 +110,24 @@ static gboolean ctk_scale_key_event(GtkWidget *widget, GdkEvent *event,
     case GDK_KP_Left:
     case GDK_Down:
     case GDK_KP_Down:
-        newval = adjustment->value - adjustment->step_increment;
+        newval = value - step_increment;
         break;
-        
+
     case GDK_Right:
     case GDK_KP_Right:
     case GDK_Up:
     case GDK_KP_Up:
-        newval = adjustment->value + adjustment->step_increment;
+        newval = value + step_increment;
         break;
 
     case GDK_Page_Down:
     case GDK_KP_Page_Down:
-        newval = adjustment->value - adjustment->page_increment;
+        newval = value - page_increment;
         break;
 
     case GDK_Page_Up:
     case GDK_KP_Page_Up:
-        newval = adjustment->value + adjustment->page_increment;
+        newval = value + page_increment;
         break;
 
     default:
@@ -142,11 +150,11 @@ static void adjustment_value_changed(
     
     switch (ctk_scale->value_type) {
     case G_TYPE_INT:
-        g_snprintf(text, 6, "%d", (gint) adjustment->value);
+        g_snprintf(text, 6, "%d", (gint) gtk_adjustment_get_value(adjustment));
         break;
     case G_TYPE_DOUBLE:
     default:
-        g_snprintf(text, 6, "%2.3f", adjustment->value);
+        g_snprintf(text, 6, "%2.3f", gtk_adjustment_get_value(adjustment));
         break;
     }
     

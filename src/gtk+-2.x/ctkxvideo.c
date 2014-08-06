@@ -303,7 +303,7 @@ static void xv_sync_to_display_rebuild_buttons(CtkXVideo *ctk_xvideo,
  * Handles NV_CTRL_ENABLED_DISPLAYS events and updates
  * the list of displays in the UI.
  */
-static void  enabled_displays_handler(GtkObject *object, gpointer arg1,
+static void  enabled_displays_handler(GObject *object, gpointer arg1,
                                       gpointer user_data)
 {
      CtkXVideo *ctk_xvideo = CTK_XVIDEO(user_data);
@@ -316,7 +316,7 @@ static void  enabled_displays_handler(GtkObject *object, gpointer arg1,
 /*
  * Handler for NV_CTRL_XV_SYNC_TO_DISPLAY_ID events.
  */
-static void xv_sync_to_display_id_handler(GtkObject *object,
+static void xv_sync_to_display_id_handler(GObject *object,
                                           gpointer arg1,
                                           gpointer user_data)
 {

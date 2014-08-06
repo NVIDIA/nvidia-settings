@@ -105,7 +105,7 @@ static void set_apply_button_sensitive      (CtkGvoCsc *ctk_gvo_csc);
 
 static void apply_csc_values                (CtkGvoCsc *ctk_gvo_csc);
 
-static void gvo_csc_event_received          (GtkObject *object,
+static void gvo_csc_event_received          (GObject *object,
                                              gpointer arg1,
                                              gpointer user_data);
 
@@ -258,7 +258,7 @@ GtkWidget* ctk_gvo_csc_new(NvCtrlAttributeHandle *handle,
     ctk_config_set_tooltip(ctk_config, ctk_gvo_csc->overrideButton,
                            __override_help);
     
-    g_signal_connect(GTK_OBJECT(ctk_gvo_csc->overrideButton), "toggled",
+    g_signal_connect(G_OBJECT(ctk_gvo_csc->overrideButton), "toggled",
                      G_CALLBACK(override_button_toggled), ctk_gvo_csc);
     
     frame = gtk_frame_new(NULL);
@@ -535,7 +535,7 @@ GtkWidget* ctk_gvo_csc_new(NvCtrlAttributeHandle *handle,
         gtk_toggle_button_set_active
             (GTK_TOGGLE_BUTTON(ctk_gvo_csc->applyImmediateButton), FALSE);
 
-        g_signal_connect(GTK_OBJECT(ctk_gvo_csc->applyImmediateButton),
+        g_signal_connect(G_OBJECT(ctk_gvo_csc->applyImmediateButton),
                          "toggled",
                          G_CALLBACK(apply_immediate_button_toggled),
                          ctk_gvo_csc);
@@ -556,7 +556,7 @@ GtkWidget* ctk_gvo_csc_new(NvCtrlAttributeHandle *handle,
     
     ctk_config_set_tooltip(ctk_config, ctk_gvo_csc->applyButton, __apply_help);
     
-    g_signal_connect(GTK_OBJECT(ctk_gvo_csc->applyButton),
+    g_signal_connect(G_OBJECT(ctk_gvo_csc->applyButton),
                      "clicked",
                      G_CALLBACK(apply_button_clicked),
                      ctk_gvo_csc);
@@ -1017,7 +1017,7 @@ static void apply_csc_values(CtkGvoCsc *ctk_gvo_csc)
  * GVO CSC event handler.
  */
 
-static void gvo_csc_event_received(GtkObject *object,
+static void gvo_csc_event_received(GObject *object,
                                    gpointer arg1,
                                    gpointer user_data)
 {

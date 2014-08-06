@@ -1010,15 +1010,21 @@ ReturnStatus NvCtrlSetColorAttributes(NvCtrlAttributeHandle *handle,
 
     status = NvCtrlGetAttribute(h, NV_CTRL_ATTR_RANDR_GAMMA_AVAILABLE, &val);
 
-    if ((status != NvCtrlSuccess || !val) && 
-        h->target_type == NV_CTRL_TARGET_TYPE_X_SCREEN) {
+    if (status == NvCtrlSuccess && val) {
+        switch (h->target_type) {
+        case NV_CTRL_TARGET_TYPE_X_SCREEN:
+            return NvCtrlVidModeSetColorAttributes(h, c, b, g, bitmask);
+        case NV_CTRL_TARGET_TYPE_DISPLAY:
+            return NvCtrlXrandrSetColorAttributes(h, c, b, g, bitmask);
+        default:
+            return NvCtrlBadHandle;
+        }
+    } else if ((status != NvCtrlSuccess || !val) &&
+               h->target_type == NV_CTRL_TARGET_TYPE_X_SCREEN) {
         return NvCtrlVidModeSetColorAttributes(h, c, b, g, bitmask);
-    } else if (status == NvCtrlSuccess && val &&
-               h->target_type == NV_CTRL_TARGET_TYPE_DISPLAY) {
-        return NvCtrlXrandrSetColorAttributes(h, c, b, g, bitmask);
     }
 
-    return NvCtrlBadHandle;
+    return NvCtrlError;
 }
 
 

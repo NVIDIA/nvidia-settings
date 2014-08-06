@@ -33,6 +33,10 @@
 #include "common-utils.h"
 #include "msg.h"
 
+#ifdef CTK_GTK3
+#include <gdk/gdkkeysyms-compat.h>
+#endif
+
 #define UPDATE_RULE_LABEL "Update Rule"
 #define UPDATE_PROFILE_LABEL "Update Profile"
 
@@ -376,8 +380,10 @@ static void populate_toolbar(GtkToolbar *toolbar,
     WidgetDataItem *widget_data_item;
     GtkWidget *widget;
     GtkWidget *icon;
-    GtkTooltips *tooltips = gtk_tooltips_new();
     GtkToolItem *tool_item;
+#ifndef CTK_GTK3
+    GtkTooltips *tooltips = gtk_tooltips_new();
+#endif
 
     if (help_data) {
         *help_data = NULL;
@@ -397,8 +403,12 @@ static void populate_toolbar(GtkToolbar *toolbar,
             widget = (*item->init_callback)(item->init_data);
             if (widget) {
                 tool_item = gtk_tool_item_new();
+#ifdef CTK_GTK3
+                gtk_tool_item_set_tooltip_text(tool_item, item->help_text);
+#else
                 gtk_tool_item_set_tooltip(tool_item, tooltips,
                                           item->help_text, NULL);
+#endif
                 gtk_container_add(GTK_CONTAINER(tool_item), widget);
                 gtk_toolbar_insert(toolbar, tool_item, -1);
             } else {
@@ -413,8 +423,12 @@ static void populate_toolbar(GtkToolbar *toolbar,
             gtk_toolbar_insert(toolbar, GTK_TOOL_ITEM(widget), -1);
         } else {
             tool_item = GTK_TOOL_ITEM(gtk_tool_button_new(icon, item->text));
+#ifdef CTK_GTK3
+            gtk_tool_item_set_tooltip_text(tool_item, item->help_text);
+#else
             gtk_tool_item_set_tooltip(tool_item, tooltips,
                                       item->help_text, NULL);
+#endif
 
             g_signal_connect(G_OBJECT(tool_item), "clicked",
                              G_CALLBACK(item->callback),
@@ -507,7 +521,11 @@ static void cell_renderer_editable(gpointer data, gpointer user_data)
 static gboolean tree_view_column_is_editable(GtkTreeViewColumn *tree_column)
 {
     gboolean editable = FALSE;
+#ifdef CTK_GTK3
+    GList *renderers = gtk_cell_layout_get_cells(GTK_CELL_LAYOUT(tree_column));
+#else
     GList *renderers = gtk_tree_view_column_get_cell_renderers(tree_column);
+#endif
     g_list_foreach(renderers, cell_renderer_editable, &editable);
     return editable;
 }
@@ -970,7 +988,7 @@ static void string_list_free_full(GList *list)
 }
 
 static void populate_source_combo_box(CtkAppProfile *ctk_app_profile,
-                                      GtkComboBoxEntry *combo_box_entry)
+                                      GtkComboBox *combo_box_entry)
 {
     size_t i, size;
     json_t *json_filename, *json_filenames;
@@ -982,8 +1000,8 @@ static void populate_source_combo_box(CtkAppProfile *ctk_app_profile,
 
     for (i = 0, size = json_array_size(json_filenames); i < size; i++) {
         json_filename = json_array_get(json_filenames, i);
-        gtk_combo_box_append_text(GTK_COMBO_BOX(combo_box_entry),
-                                  strdup(json_string_value(json_filename)));
+        ctk_combo_box_text_append_text(GTK_WIDGET(combo_box_entry),
+                                       strdup(json_string_value(json_filename)));
     }
 
     json_decref(json_filenames);
@@ -994,12 +1012,12 @@ static gboolean append_profile_name(GtkTreeModel *model,
                                     GtkTreeIter *iter,
                                     gpointer data)
 {
-    GtkComboBoxEntry *combo_box = GTK_COMBO_BOX_ENTRY(data);
+    GtkWidget *combo_box = GTK_WIDGET(data);
     gchar *profile_name;
 
     gtk_tree_model_get(model, iter, CTK_APC_PROFILE_MODEL_COL_NAME, &profile_name, -1);
 
-    gtk_combo_box_append_text(GTK_COMBO_BOX(combo_box), profile_name);
+    ctk_combo_box_text_append_text(combo_box, profile_name);
 
     return FALSE;
 }
@@ -1052,10 +1070,10 @@ static void edit_rule_dialog_load_profile(EditRuleDialog *dialog,
                                           const char *profile_name)
 {
     CtkAppProfile *ctk_app_profile = CTK_APP_PROFILE(dialog->parent);
-    GtkComboBoxEntry *combo_box_entry;
+    GtkComboBox *combo_box_entry;
 
     // profile name
-    combo_box_entry = GTK_COMBO_BOX_ENTRY(dialog->profile_name_combo);
+    combo_box_entry = GTK_COMBO_BOX(dialog->profile_name_combo);
 
     gtk_list_store_clear(GTK_LIST_STORE(gtk_combo_box_get_model(
         GTK_COMBO_BOX(combo_box_entry))));
@@ -1069,10 +1087,10 @@ static void edit_rule_dialog_load_profile(EditRuleDialog *dialog,
         gtk_combo_box_set_active(GTK_COMBO_BOX(combo_box_entry), 0);
         g_string_assign(dialog->profile_name,
                         gtk_entry_get_text(
-                            GTK_ENTRY(GTK_BIN(combo_box_entry)->child)));
+                            GTK_ENTRY(gtk_bin_get_child(GTK_BIN(combo_box_entry)))));
     } else {
         g_string_assign(dialog->profile_name, profile_name);
-        gtk_entry_set_text(GTK_ENTRY(GTK_BIN(combo_box_entry)->child),
+        gtk_entry_set_text(GTK_ENTRY(gtk_bin_get_child(GTK_BIN(combo_box_entry))),
                            dialog->profile_name->str);
     }
 
@@ -1084,7 +1102,7 @@ static void edit_rule_dialog_load_profile(EditRuleDialog *dialog,
 
 static void edit_rule_dialog_load_values(EditRuleDialog *dialog)
 {
-    GtkComboBoxEntry *combo_box_entry;
+    GtkComboBox *combo_box_entry;
     char *profile_name_copy;
 
     // window title
@@ -1097,17 +1115,17 @@ static void edit_rule_dialog_load_values(EditRuleDialog *dialog)
         dialog->new_rule ? GTK_STOCK_ADD : GTK_STOCK_PREFERENCES);
 
     // source file
-    combo_box_entry = GTK_COMBO_BOX_ENTRY(dialog->source_file_combo);
+    combo_box_entry = GTK_COMBO_BOX(dialog->source_file_combo);
     populate_source_combo_box(CTK_APP_PROFILE(dialog->parent), combo_box_entry);
 
     gtk_combo_box_set_active(GTK_COMBO_BOX(combo_box_entry), 0);
 
     if (dialog->new_rule) {
         g_string_assign(dialog->source_file,
-                        gtk_entry_get_text(GTK_ENTRY(GTK_BIN(combo_box_entry)->child)));
+                        gtk_entry_get_text(GTK_ENTRY(gtk_bin_get_child(GTK_BIN(combo_box_entry)))));
     }
 
-    gtk_entry_set_text(GTK_ENTRY(GTK_BIN(combo_box_entry)->child),
+    gtk_entry_set_text(GTK_ENTRY(gtk_bin_get_child(GTK_BIN(combo_box_entry))),
                        dialog->source_file->str);
 
     // feature and matches
@@ -1130,7 +1148,7 @@ static void edit_rule_dialog_show(EditRuleDialog *dialog)
     g_signal_handler_block(G_OBJECT(dialog->feature_menu),
                            dialog->feature_changed_signal);
     g_signal_handler_block(
-        G_OBJECT(GTK_ENTRY(GTK_BIN(dialog->profile_name_combo)->child)),
+        G_OBJECT(GTK_ENTRY(gtk_bin_get_child(GTK_BIN(dialog->profile_name_combo)))),
         dialog->rule_profile_name_changed_signal);
 
     edit_rule_dialog_load_values(dialog);
@@ -1138,7 +1156,7 @@ static void edit_rule_dialog_show(EditRuleDialog *dialog)
     g_signal_handler_unblock(G_OBJECT(dialog->feature_menu),
                              dialog->feature_changed_signal);
     g_signal_handler_unblock(
-        G_OBJECT(GTK_ENTRY(GTK_BIN(dialog->profile_name_combo)->child)),
+        G_OBJECT(GTK_ENTRY(gtk_bin_get_child(GTK_BIN(dialog->profile_name_combo)))),
         dialog->rule_profile_name_changed_signal);
 
     // disable focusing to main window until this window closed
@@ -1327,15 +1345,15 @@ static gboolean rule_browse_button_clicked(GtkWidget *widget, gpointer user_data
     gtk_window_set_transient_for(GTK_WINDOW(dialog->file_sel),
                                  GTK_WINDOW(dialog->top_window));
 
-    gtk_file_selection_set_filename(GTK_FILE_SELECTION(dialog->file_sel), filename);
+    gtk_file_chooser_set_filename(GTK_FILE_CHOOSER(dialog->file_sel), filename);
 
     result = gtk_dialog_run(GTK_DIALOG(dialog->file_sel));
 
     switch (result) {
     case GTK_RESPONSE_ACCEPT:
     case GTK_RESPONSE_OK:
-        filename = gtk_file_selection_get_filename(GTK_FILE_SELECTION(dialog->file_sel));
-        gtk_entry_set_text(GTK_ENTRY(GTK_BIN(dialog->source_file_combo)->child),
+        filename = gtk_file_chooser_get_filename(GTK_FILE_CHOOSER(dialog->file_sel));
+        gtk_entry_set_text(GTK_ENTRY(gtk_bin_get_child(GTK_BIN(dialog->source_file_combo))),
                            filename);
     default:
         break;
@@ -1354,15 +1372,15 @@ static gboolean profile_browse_button_clicked(GtkWidget *widget, gpointer user_d
     gtk_window_set_transient_for(GTK_WINDOW(dialog->file_sel),
                                  GTK_WINDOW(dialog->top_window));
 
-    gtk_file_selection_set_filename(GTK_FILE_SELECTION(dialog->file_sel), filename);
+    gtk_file_chooser_set_filename(GTK_FILE_CHOOSER(dialog->file_sel), filename);
 
     result = gtk_dialog_run(GTK_DIALOG(dialog->file_sel));
 
     switch (result) {
     case GTK_RESPONSE_ACCEPT:
     case GTK_RESPONSE_OK:
-        filename = gtk_file_selection_get_filename(GTK_FILE_SELECTION(dialog->file_sel));
-        gtk_entry_set_text(GTK_ENTRY(GTK_BIN(dialog->source_file_combo)->child),
+        filename = gtk_file_chooser_get_filename(GTK_FILE_CHOOSER(dialog->file_sel));
+        gtk_entry_set_text(GTK_ENTRY(gtk_bin_get_child(GTK_BIN(dialog->source_file_combo))),
                            filename);
     default:
         break;
@@ -1427,7 +1445,7 @@ static void config_create_source_file_entry(CtkConfig *ctk_config,
                                          help_string->str,
                                          NULL);
 
-    combo_box_entry = gtk_combo_box_entry_new_text();
+    combo_box_entry = ctk_combo_box_text_new_with_entry();
     browse_button = gtk_button_new();
 
     button_set_label_and_stock_icon(GTK_BUTTON(browse_button),
@@ -1587,12 +1605,12 @@ static GtkWidget *create_rule_profile_name_entry(EditRuleDialog *dialog)
     gtk_misc_set_alignment(GTK_MISC(label), 0, 0.5);
     gtk_box_pack_start(GTK_BOX(hbox), label, FALSE, FALSE, 0);
 
-    dialog->profile_name_combo = combo_box_entry = gtk_combo_box_entry_new_text();
+    dialog->profile_name_combo = combo_box_entry = ctk_combo_box_text_new_with_entry();
 
     gtk_box_pack_start(GTK_BOX(hbox), combo_box_entry, TRUE, TRUE, 0);
 
     dialog->rule_profile_name_changed_signal =
-        g_signal_connect(G_OBJECT(GTK_BIN(combo_box_entry)->child), "changed",
+        g_signal_connect(G_OBJECT(gtk_bin_get_child(GTK_BIN(combo_box_entry))), "changed",
                          G_CALLBACK(rule_profile_name_changed),
                          (gpointer)dialog);
 
@@ -1848,7 +1866,7 @@ static void edit_rule_dialog_save_changes(GtkWidget *widget, gpointer user_data)
 {
     EditRuleDialog *dialog = (EditRuleDialog *)user_data;
     CtkAppProfile *ctk_app_profile = CTK_APP_PROFILE(dialog->parent);
-    GtkWidget *source_file_entry = GTK_BIN(dialog->source_file_combo)->child;
+    GtkWidget *source_file_entry = gtk_bin_get_child(GTK_BIN(dialog->source_file_combo));
     json_t *rule_json = json_object();
     json_t *pattern_json = json_object();
 
@@ -2015,7 +2033,12 @@ static EditRuleDialog* edit_rule_dialog_new(CtkAppProfile *ctk_app_profile)
     dialog->matches = g_string_new("");
     dialog->profile_name = g_string_new("");
     dialog->profile_settings_store = gtk_list_store_new(SETTING_LIST_STORE_NUM_COLS, G_TYPE_POINTER);
-    dialog->file_sel = gtk_file_selection_new("Please select a source file for the rule");
+    dialog->file_sel = gtk_file_chooser_dialog_new("Please select a source file for the rule",
+                                                   GTK_WINDOW(NULL), GTK_FILE_CHOOSER_ACTION_SAVE,
+                                                   GTK_STOCK_CANCEL, GTK_RESPONSE_CANCEL,
+                                                   GTK_STOCK_OPEN, GTK_RESPONSE_ACCEPT,
+                                                   NULL);
+
 
     gtk_widget_set_size_request(dialog->top_window, 500, 480);
     gtk_container_set_border_width(GTK_CONTAINER(dialog->top_window), 8);
@@ -2430,9 +2453,9 @@ static void edit_profile_dialog_save_changes(GtkWidget *widget, gpointer user_da
     EditRuleDialog *rule_dialog;
     CtkAppProfile *ctk_app_profile = CTK_APP_PROFILE(profile_dialog->parent);
     GtkWidget *source_file_entry =
-        GTK_BIN(profile_dialog->source_file_combo)->child;
+        gtk_bin_get_child(GTK_BIN(profile_dialog->source_file_combo));
     json_t *profile_json = json_object();
-    GtkComboBoxEntry *combo_box_entry;
+    GtkComboBox *combo_box_entry;
     gboolean rules_fixed_up = FALSE;
 
     rule_dialog = ctk_app_profile->edit_rule_dialog;
@@ -2482,9 +2505,9 @@ static void edit_profile_dialog_save_changes(GtkWidget *widget, gpointer user_da
     if (widget_get_visible(rule_dialog->top_window)) {
         // XXX could this be abstracted?
         edit_rule_dialog_load_profile(rule_dialog, profile_dialog->name->str);
-        combo_box_entry = GTK_COMBO_BOX_ENTRY(rule_dialog->source_file_combo);
+        combo_box_entry = GTK_COMBO_BOX(rule_dialog->source_file_combo);
         populate_source_combo_box(ctk_app_profile, combo_box_entry);
-        gtk_entry_set_text(GTK_ENTRY(GTK_BIN(combo_box_entry)->child),
+        gtk_entry_set_text(GTK_ENTRY(gtk_bin_get_child(GTK_BIN(combo_box_entry))),
                            rule_dialog->source_file->str);
     }
 
@@ -2977,7 +3000,11 @@ static EditProfileDialog *edit_profile_dialog_new(CtkAppProfile *ctk_app_profile
     dialog->settings = json_array();
 
     dialog->settings_store = gtk_list_store_new(SETTING_LIST_STORE_NUM_COLS, G_TYPE_POINTER);
-    dialog->file_sel = gtk_file_selection_new("Please select a source file for the profile");
+    dialog->file_sel = gtk_file_chooser_dialog_new("Please select a source file for the profile",
+                                                   GTK_WINDOW(NULL), GTK_FILE_CHOOSER_ACTION_SAVE,
+                                                   GTK_STOCK_CANCEL, GTK_RESPONSE_CANCEL,
+                                                   GTK_STOCK_OPEN, GTK_RESPONSE_ACCEPT,
+                                                   NULL);
 
     main_vbox = gtk_vbox_new(FALSE, 0);
     gtk_box_set_spacing(GTK_BOX(main_vbox), 8);
@@ -3362,8 +3389,6 @@ static gboolean profiles_tree_view_key_press_event(GtkWidget *widget,
 
 static void edit_profile_dialog_load_values(EditProfileDialog *dialog)
 {
-    GtkComboBoxEntry *combo_box_entry;
-
     // window title
     gtk_window_set_title(GTK_WINDOW(dialog->top_window),
                          dialog->new_profile ? "Add new profile" : "Edit existing profile");
@@ -3378,17 +3403,19 @@ static void edit_profile_dialog_load_values(EditProfileDialog *dialog)
     gtk_entry_set_text(GTK_ENTRY(dialog->name_entry), dialog->name->str);
 
     // source file
-    combo_box_entry = GTK_COMBO_BOX_ENTRY(dialog->source_file_combo);
-    populate_source_combo_box(CTK_APP_PROFILE(dialog->parent), combo_box_entry);
+    populate_source_combo_box(CTK_APP_PROFILE(dialog->parent),
+                              GTK_COMBO_BOX(dialog->source_file_combo));
 
-    gtk_combo_box_set_active(GTK_COMBO_BOX(combo_box_entry), 0);
+    gtk_combo_box_set_active(GTK_COMBO_BOX(dialog->source_file_combo), 0);
 
     if (dialog->new_profile) {
         g_string_assign(dialog->source_file,
-                        gtk_entry_get_text(GTK_ENTRY(GTK_BIN(combo_box_entry)->child)));
+                        gtk_entry_get_text(GTK_ENTRY(gtk_bin_get_child(
+                            GTK_BIN(dialog->source_file_combo)))));
     }
 
-    gtk_entry_set_text(GTK_ENTRY(GTK_BIN(combo_box_entry)->child),
+    gtk_entry_set_text(GTK_ENTRY(gtk_bin_get_child(
+                           GTK_BIN(dialog->source_file_combo))),
                        dialog->source_file->str);
 
     // profile settings
@@ -4058,7 +4085,7 @@ static SaveAppProfileChangesDialog *save_app_profile_changes_dialog_new(CtkAppPr
 
     hbox = gtk_hbox_new(FALSE, 8);
 
-    dialog->preview_file_menu = menu = ctk_drop_down_menu_new(CTK_DROP_DOWN_MENU_FLAG_READONLY);
+    dialog->preview_file_menu = menu = ctk_drop_down_menu_new(CTK_DROP_DOWN_MENU_FLAG_READWRITE);
     gtk_box_pack_start(GTK_BOX(hbox), menu, TRUE, TRUE, 0);
 
     dialog->preview_changed_signal =

@@ -70,7 +70,7 @@ static void show_sli_visual_indicator_button_toggled (GtkWidget *, gpointer);
 
 static void show_multigpu_visual_indicator_button_toggled (GtkWidget *, gpointer);
 
-static void value_changed                (GtkObject *, gpointer, gpointer);
+static void value_changed (GObject *, gpointer, gpointer);
 
 static const gchar *get_image_settings_string(gint val);
 
@@ -79,14 +79,14 @@ static gchar *format_image_settings_value(GtkScale *scale, gdouble arg1,
 
 static void post_slider_value_changed(CtkOpenGL *ctk_opengl, gint val);
 
-static void aa_line_gamma_update_received(GtkObject *object,
+static void aa_line_gamma_update_received(GObject *object,
                                          gpointer arg1, gpointer user_data);
 
 static void post_image_settings_value_changed(CtkOpenGL *ctk_opengl, gint val);
 
 static void image_settings_value_changed(GtkRange *range, gpointer user_data);
 
-static void image_settings_update_received(GtkObject *object,
+static void image_settings_update_received(GObject *object,
                                            gpointer arg1, gpointer user_data);
 
 static GtkWidget *create_slider(CtkOpenGL *ctk_opengl,
@@ -213,7 +213,7 @@ GtkWidget* ctk_opengl_new(NvCtrlAttributeHandle *handle,
     GtkWidget *vbox;
     GtkWidget *check_button;
     GtkWidget *scale;
-    GtkObject *adjustment;
+    GtkAdjustment *adjustment;
 
     gint sync_to_vblank;
     gint flipping_allowed;
@@ -537,10 +537,11 @@ GtkWidget* ctk_opengl_new(NvCtrlAttributeHandle *handle,
         gtk_container_add(GTK_CONTAINER(frame), hbox);
 
         /* create the slider */
-        adjustment = gtk_adjustment_new(image_settings_value,
-                                        image_settings_valid.u.range.min,
-                                        image_settings_valid.u.range.max,
-                                        1, 1, 0.0);
+        adjustment = GTK_ADJUSTMENT(
+                         gtk_adjustment_new(image_settings_value,
+                                            image_settings_valid.u.range.min,
+                                            image_settings_valid.u.range.max,
+                                            1, 1, 0.0));
         scale = gtk_hscale_new(GTK_ADJUSTMENT(adjustment));
         gtk_adjustment_set_value(GTK_ADJUSTMENT(adjustment), image_settings_value);
 
@@ -986,7 +987,7 @@ static void use_conformant_clamping_button_toggled(GtkWidget *widget,
  * value_changed() - callback function for changed OpenGL settings.
  */
 
-static void value_changed(GtkObject *object, gpointer arg1, gpointer user_data)
+static void value_changed(GObject *object, gpointer arg1, gpointer user_data)
 {
     CtkEventStruct *event_struct;
     CtkOpenGL *ctk_opengl;
@@ -1146,7 +1147,7 @@ static void image_settings_value_changed(GtkRange *range, gpointer user_data)
  * NV_CTRL_IMAGE_SETTINGS atribute is changed by another NV-CONTROL client.
  */
 
-static void image_settings_update_received(GtkObject *object,
+static void image_settings_update_received(GObject *object,
                                           gpointer arg1, gpointer user_data)
 {
     CtkEventStruct *event_struct = (CtkEventStruct *) arg1;
@@ -1193,7 +1194,7 @@ static void slider_changed(GtkAdjustment *adjustment, gpointer user_data)
     gint attribute, value;
     user_data = g_object_get_data(G_OBJECT(adjustment), "opengl_attribute");
     attribute = GPOINTER_TO_INT(user_data);
-    value = (gint) adjustment->value;
+    value = (gint) gtk_adjustment_get_value(adjustment);
     NvCtrlSetAttribute(ctk_opengl->handle, attribute, value);
     post_slider_value_changed(ctk_opengl, value);
 } /* slider_changed() */
@@ -1205,7 +1206,7 @@ static void slider_changed(GtkAdjustment *adjustment, gpointer user_data)
  * client.
  */
 
-static void aa_line_gamma_update_received(GtkObject *object,
+static void aa_line_gamma_update_received(GObject *object,
                                          gpointer arg1, gpointer user_data)
 {
     CtkEventStruct *event_struct = (CtkEventStruct *) arg1;
@@ -1236,7 +1237,7 @@ static GtkWidget *create_slider(CtkOpenGL *ctk_opengl,
                                 gint attribute,
                                 unsigned int bit)
 {
-    GtkObject *adjustment;
+    GtkAdjustment *adjustment;
     GtkWidget *scale, *widget;
     gint min, max, val, step_incr, page_incr;
     NVCTRLAttributeValidValuesRec range;
@@ -1259,8 +1260,8 @@ static GtkWidget *create_slider(CtkOpenGL *ctk_opengl,
     if (page_incr <= 0) page_incr = 1;
 
     /* create the slider */
-    adjustment = gtk_adjustment_new(val, min, max,
-                                    step_incr, page_incr, 0.0);
+    adjustment = GTK_ADJUSTMENT(gtk_adjustment_new(val, min, max,
+                                                   step_incr, page_incr, 0.0));
 
     g_object_set_data(G_OBJECT(adjustment), "opengl_attribute",
                       GINT_TO_POINTER(attribute));

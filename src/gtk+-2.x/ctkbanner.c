@@ -26,6 +26,7 @@
 
 #include "ctkbanner.h"
 #include "common-utils.h"
+#include "ctkutils.h"
 
 /* pixdata headers */
 
@@ -66,12 +67,22 @@ ctk_banner_class_init    (CtkBannerClass *);
 
 static void
 ctk_banner_finalize      (GObject *);
+#ifdef CTK_GTK3
+static gboolean
+ctk_banner_draw_event  (GtkWidget *, cairo_t *);
 
+static void
+ctk_banner_get_preferred_width (GtkWidget *, gint *, gint *);
+
+static void
+ctk_banner_get_preferred_height(GtkWidget *, gint *, gint *);
+#else
 static gboolean
 ctk_banner_expose_event  (GtkWidget *, GdkEventExpose *);
 
 static void
 ctk_banner_size_request  (GtkWidget *, GtkRequisition *);
+#endif
 
 static gboolean
 ctk_banner_configure_event  (GtkWidget *, GdkEventConfigure *);
@@ -128,8 +139,14 @@ static void ctk_banner_class_init(
 
     gobject_class->finalize = ctk_banner_finalize;
 
+#ifdef CTK_GTK3
+    widget_class->draw = ctk_banner_draw_event;
+    widget_class->get_preferred_width  = ctk_banner_get_preferred_width;
+    widget_class->get_preferred_height = ctk_banner_get_preferred_height;
+#else
     widget_class->expose_event = ctk_banner_expose_event;
     widget_class->size_request = ctk_banner_size_request;
+#endif
     widget_class->configure_event = ctk_banner_configure_event;
 }
 
@@ -152,6 +169,34 @@ static void ctk_banner_finalize(
         g_object_unref(ctk_banner->background->pixbuf);
 }
 
+#ifdef CTK_GTK3
+static gboolean ctk_banner_draw_event(
+    GtkWidget *widget,
+    cairo_t *cr_i
+)
+{
+    CtkBanner *ctk_banner = CTK_BANNER(widget);
+    cairo_t *cr = gdk_cairo_create(gtk_widget_get_window(widget));
+    cairo_rectangle_list_t *rects;
+    int i;
+
+    /* copy the backing pixbuf into the exposed portion of the window */
+
+    rects = cairo_copy_clip_rectangle_list(cr);
+
+    for (i = 0; i < rects->num_rectangles; i++) {
+        gdk_cairo_set_source_pixbuf(cr, ctk_banner->back.pixbuf,
+                                    rects->rectangles[i].x,
+                                    rects->rectangles[i].y);
+        cairo_paint(cr);
+    }
+    cairo_destroy(cr);
+
+    g_free(rects);
+
+    return FALSE;
+}
+#else
 static gboolean ctk_banner_expose_event(
     GtkWidget *widget,
     GdkEventExpose *event
@@ -180,6 +225,7 @@ static gboolean ctk_banner_expose_event(
 
     return FALSE;
 }
+#endif
 
 
 
@@ -329,6 +375,30 @@ static void ctk_banner_size_request(
 
     requisition->height = ctk_banner->background->h;
 }
+
+#ifdef CTK_GTK3
+static void ctk_banner_get_preferred_width(
+    GtkWidget *widget,
+    gint *minimum_width,
+    gint *natural_width
+)
+{
+    GtkRequisition requisition;
+    ctk_banner_size_request(widget, &requisition);
+    *minimum_width = *natural_width = requisition.width;
+}
+
+static void ctk_banner_get_preferred_height(
+    GtkWidget *widget,
+    gint *minimum_height,
+    gint *natural_height
+)
+{
+    GtkRequisition requisition;
+    ctk_banner_size_request(widget, &requisition);
+    *minimum_height = *natural_height = requisition.height;
+}
+#endif
 
 
 

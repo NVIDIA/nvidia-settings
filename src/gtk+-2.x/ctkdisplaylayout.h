@@ -166,7 +166,7 @@ typedef struct nvModeLineRec {
 typedef struct nvSelectedModeRec {
     struct nvSelectedModeRec *next;
 
-    GtkWidget *label;       /* Label shown in dropdown menu */
+    gchar *text;            /* Text shown in dropdown menu */
 
     nvModeLinePtr modeline; /* Modeline this mode references */
 
@@ -474,13 +474,19 @@ typedef struct _CtkDisplayLayout
 
     GtkWidget   *drawing_area;   /* Drawing area */
     GtkWidget   *tooltip_area;   /* Tooltip area */
+#ifndef CTK_GTK3
     GtkTooltips *tooltip_group;  /* Tooltip group */
+#endif
 
     /* Layout configuration */
     nvLayoutPtr layout;
 
     /* Double buffering of layout image */
+#ifdef CTK_GTK3
+    cairo_t *c_context;
+#else
     GdkPixmap *pixmap;
+#endif
 
     /* Image information */
     GdkRectangle img_dim;

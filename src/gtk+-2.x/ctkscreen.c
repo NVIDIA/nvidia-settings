@@ -38,7 +38,7 @@ void ctk_screen_event_handler(GtkWidget *widget,
                               XRRScreenChangeNotifyEvent *ev,
                               gpointer data);
 
-static void info_update_gpu_error(GtkObject *object, gpointer arg1,
+static void info_update_gpu_error(GObject *object, gpointer arg1,
                                       gpointer user_data);
 
 GType ctk_screen_get_type(
@@ -433,7 +433,7 @@ void ctk_screen_event_handler(GtkWidget *widget,
  * update the count showed on the page.
  */
 
-static void info_update_gpu_error(GtkObject *object, gpointer arg1,
+static void info_update_gpu_error(GObject *object, gpointer arg1,
                                          gpointer data)
 {
     CtkScreen *ctk_screen = (CtkScreen *) data;

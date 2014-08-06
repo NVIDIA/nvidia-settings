@@ -119,13 +119,15 @@ GtkWidget* ctk_edid_new(NvCtrlAttributeHandle *handle,
     ctk_edid->name = name;
     ctk_edid->filename = DEFAULT_EDID_FILENAME_BINARY;
     ctk_edid->file_format = FILE_FORMAT_BINARY;
-    ctk_edid->file_selector = gtk_file_selection_new("Please select file where "
-                                                     "EDID data will be "
-                                                     "saved.");
-
-    gtk_file_selection_set_select_multiple
-        (GTK_FILE_SELECTION(ctk_edid->file_selector),
-         FALSE);
+    ctk_edid->file_selector =
+        gtk_file_chooser_dialog_new("Please select file where "
+                                    "EDID data will be saved.",
+                                    NULL, GTK_FILE_CHOOSER_ACTION_SAVE,
+                                    GTK_STOCK_CANCEL, GTK_RESPONSE_CANCEL,
+                                    GTK_STOCK_SAVE, GTK_RESPONSE_ACCEPT,
+                                    NULL);
+    gtk_file_chooser_set_current_name(GTK_FILE_CHOOSER(ctk_edid->file_selector),
+                                      ctk_edid->filename);
 
     /* create the frame and vbox */
     
@@ -160,12 +162,6 @@ GtkWidget* ctk_edid_new(NvCtrlAttributeHandle *handle,
     /* adding file format selection option to file selector dialog */
 
     frame = gtk_frame_new(NULL);
-    gtk_box_pack_start
-        (GTK_BOX(GTK_FILE_SELECTION(ctk_edid->file_selector)->main_vbox),
-         frame, FALSE, FALSE, 15);
-    gtk_box_reorder_child
-        (GTK_BOX(GTK_FILE_SELECTION(ctk_edid->file_selector)->main_vbox),
-         frame, 0);
 
     hbox = gtk_hbox_new(FALSE, 10);
     gtk_container_set_border_width(GTK_CONTAINER(hbox), FRAME_PADDING);
@@ -192,11 +188,11 @@ GtkWidget* ctk_edid_new(NvCtrlAttributeHandle *handle,
                      "toggled", G_CALLBACK(file_format_changed),
                      (gpointer) ctk_edid);
 
-    gtk_window_set_resizable(GTK_WINDOW(ctk_edid->file_selector),
-                             FALSE);
     gtk_toggle_button_set_active
         (GTK_TOGGLE_BUTTON(ctk_edid->file_format_binary_radio_button), TRUE);
-    gtk_widget_show_all(GTK_FILE_SELECTION(ctk_edid->file_selector)->main_vbox);
+    gtk_widget_show_all(frame);
+    gtk_file_chooser_set_extra_widget(GTK_FILE_CHOOSER(ctk_edid->file_selector),
+                                      frame);
 
     gtk_widget_show_all(GTK_WIDGET(object));
 
@@ -214,8 +210,11 @@ static void normalize_filename(CtkEdid *ctk_edid)
     int len = 0, n;
 
     ctk_edid->filename =
-        gtk_file_selection_get_filename(GTK_FILE_SELECTION(ctk_edid->file_selector));
+        gtk_file_chooser_get_filename(GTK_FILE_CHOOSER(ctk_edid->file_selector));
 
+    if (!ctk_edid->filename) {
+        goto done;
+    }
     len = strlen(ctk_edid->filename);
     filename = malloc(len + 1);
     if (!filename) {
@@ -270,9 +269,17 @@ static void normalize_filename(CtkEdid *ctk_edid)
         snprintf(buffer + n, 5, ".txt");
     }
 
+    /* find the last forward slash (or the start of the filename) */
+    slash = strrchr(buffer, '/');
+    if (!slash) {
+        slash = filename;
+    } else {
+        slash++;
+    }
+
     /* modify the file name as per the format selected */
-    gtk_file_selection_set_filename(GTK_FILE_SELECTION(ctk_edid->file_selector),
-                                    buffer);
+    gtk_file_chooser_set_current_name(GTK_FILE_CHOOSER(ctk_edid->file_selector),
+                                      slash);
  done:
     free(filename);
     free(buffer);
@@ -306,8 +313,8 @@ static void button_clicked(GtkButton *button, gpointer user_data)
 
         /* Ask user for filename */
         
-        gtk_file_selection_set_filename(GTK_FILE_SELECTION(ctk_edid->file_selector),
-                                        ctk_edid->filename);
+        gtk_file_chooser_set_filename(GTK_FILE_CHOOSER(ctk_edid->file_selector),
+                                      ctk_edid->filename);
 
         result = gtk_dialog_run(GTK_DIALOG(ctk_edid->file_selector));
         gtk_widget_hide(ctk_edid->file_selector);
@@ -318,7 +325,7 @@ static void button_clicked(GtkButton *button, gpointer user_data)
 
             normalize_filename(ctk_edid);
             ctk_edid->filename =
-                gtk_file_selection_get_filename(GTK_FILE_SELECTION(ctk_edid->file_selector));
+                gtk_file_chooser_get_filename(GTK_FILE_CHOOSER(ctk_edid->file_selector));
             
             write_edid_to_file(ctk_edid->ctk_config, ctk_edid->filename,
                                ctk_edid->file_format, data, len);

@@ -84,7 +84,7 @@ static gboolean update_gvo_banner_led_images_shared_sync_bnc(gpointer data);
 
 static void update_gvo_banner_led_state(CtkGvoBanner *ctk_gvo_banner);
 
-static void gvo_event_received(GtkObject *object,
+static void gvo_event_received(GObject *object,
                                gpointer arg1,
                                gpointer user_data);
 
@@ -400,13 +400,13 @@ static void update_led_image(CtkGvoBanner *banner, int led, int color)
     banner->img[led] = color;
 
     /* Draw the LED and tell gdk to draw it to the window */
-    if (ctk_banner && ctk_banner->window) {
+    if (ctk_banner && ctk_widget_get_window(ctk_banner)) {
 
         draw_led(CTK_BANNER(ctk_banner), led, color);
 
         rec.x = CTK_BANNER(ctk_banner)->artwork_x + __led_pos_x[led];
         rec.y = CTK_BANNER(ctk_banner)->artwork_y + __led_pos_y;
-        gdk_window_invalidate_rect(ctk_banner->window, &rec, TRUE);
+        gdk_window_invalidate_rect(ctk_widget_get_window(ctk_banner), &rec, TRUE);
     }
 
 } /* update_led_image() */
@@ -817,7 +817,7 @@ gint ctk_gvo_banner_probe(gpointer data)
  * for event-driven NV-CONTROL attributes.
  */
 
-static void gvo_event_received(GtkObject *object,
+static void gvo_event_received(GObject *object,
                                gpointer arg1,
                                gpointer user_data)
 {

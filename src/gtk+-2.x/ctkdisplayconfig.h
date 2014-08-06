@@ -136,7 +136,7 @@ typedef struct _CtkDisplayConfig
     GtkWidget *box_display_underscan;
     GtkWidget *txt_display_underscan;
     GtkWidget *sld_display_underscan;
-    GtkObject *adj_display_underscan;
+    GtkAdjustment *adj_display_underscan;
 
     GtkWidget *box_display_viewport;
 

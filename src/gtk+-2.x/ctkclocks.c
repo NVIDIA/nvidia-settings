@@ -31,6 +31,7 @@
 #include "ctkevent.h"
 #include "ctkconstants.h"
 #include "ctkdropdownmenu.h"
+#include "ctkutils.h"
 
 
 
@@ -56,10 +57,10 @@
 
 static void overclocking_state_update_gui(CtkClocks *ctk_object);
 static void overclocking_state_toggled(GtkWidget *widget, gpointer user_data);
-static void overclocking_state_received(GtkObject *object, gpointer arg1,
+static void overclocking_state_received(GObject *object, gpointer arg1,
                                         gpointer user_data);
 
-static void auto_detection_state_received(GtkObject *object, gpointer arg1,
+static void auto_detection_state_received(GObject *object, gpointer arg1,
                                           gpointer user_data);
 
 static void sync_gui_to_modify_clocks(CtkClocks *ctk_object, int which_clocks);
@@ -75,7 +76,7 @@ static void apply_clocks_clicked(GtkWidget *widget, gpointer user_data);
 static void detect_clocks_clicked(GtkWidget *widget, gpointer user_data);
 static void reset_clocks_clicked(GtkWidget *widget, gpointer user_data);
 
-static void clocks_received(GtkObject *object, gpointer arg1,
+static void clocks_received(GObject *object, gpointer arg1,
                             gpointer user_data);
 
 
@@ -186,7 +187,7 @@ GtkWidget* ctk_clocks_new(NvCtrlAttributeHandle *handle,
 {
     GObject *object;
     CtkClocks *ctk_object;
-    GtkObject *adjustment;
+    GtkAdjustment *adjustment;
     GtkWidget *alignment;
     GtkWidget *scale;
     CtkDropDownMenu *menu;
@@ -315,17 +316,17 @@ GtkWidget* ctk_clocks_new(NvCtrlAttributeHandle *handle,
 
     if ( can_access_2d_clocks ) {
         adjustment =
-            gtk_adjustment_new(GET_GPU_CLOCK(clocks_2D),
-                               GET_GPU_CLOCK(ranges_2D.u.range.min),
-                               GET_GPU_CLOCK(ranges_2D.u.range.max),
-                               1, 5, 0.0);
+            GTK_ADJUSTMENT(gtk_adjustment_new(GET_GPU_CLOCK(clocks_2D),
+                                              GET_GPU_CLOCK(ranges_2D.u.range.min),
+                                              GET_GPU_CLOCK(ranges_2D.u.range.max),
+                                              1, 5, 0.0));
         ctk_object->clocks_being_modified = CLOCKS_2D;
     } else {
         adjustment =
-            gtk_adjustment_new(GET_GPU_CLOCK(clocks_3D),
-                               GET_GPU_CLOCK(ranges_3D.u.range.min),
-                               GET_GPU_CLOCK(ranges_3D.u.range.max),
-                               1, 5, 0.0);
+            GTK_ADJUSTMENT(gtk_adjustment_new(GET_GPU_CLOCK(clocks_3D),
+                                              GET_GPU_CLOCK(ranges_3D.u.range.min),
+                                              GET_GPU_CLOCK(ranges_3D.u.range.max),
+                                              1, 5, 0.0));
         ctk_object->clocks_being_modified = CLOCKS_3D;
     }
 
@@ -348,16 +349,16 @@ GtkWidget* ctk_clocks_new(NvCtrlAttributeHandle *handle,
     
     if ( can_access_2d_clocks ) {
         adjustment =
-            gtk_adjustment_new(GET_MEM_CLOCK(clocks_2D),
-                               GET_MEM_CLOCK(ranges_2D.u.range.min),
-                               GET_MEM_CLOCK(ranges_2D.u.range.max),
-                               1, 5, 0.0);
+            GTK_ADJUSTMENT(gtk_adjustment_new(GET_MEM_CLOCK(clocks_2D),
+                                              GET_MEM_CLOCK(ranges_2D.u.range.min),
+                                              GET_MEM_CLOCK(ranges_2D.u.range.max),
+                                              1, 5, 0.0));
     } else {
         adjustment =
-            gtk_adjustment_new(GET_MEM_CLOCK(clocks_3D),
-                               GET_MEM_CLOCK(ranges_3D.u.range.min),
-                               GET_MEM_CLOCK(ranges_3D.u.range.max),
-                               1, 5, 0.0);
+            GTK_ADJUSTMENT(gtk_adjustment_new(GET_MEM_CLOCK(clocks_3D),
+                                              GET_MEM_CLOCK(ranges_3D.u.range.min),
+                                              GET_MEM_CLOCK(ranges_3D.u.range.max),
+                                              1, 5, 0.0));
     }
 
     scale = ctk_scale_new(GTK_ADJUSTMENT(adjustment), "Memory (MHz)",
@@ -449,7 +450,7 @@ GtkWidget* ctk_clocks_new(NvCtrlAttributeHandle *handle,
     ctk_object->detect_dialog =
         gtk_dialog_new_with_buttons("Auto Detect Optimal 3D Clock Frequencies?",
                                     GTK_WINDOW(gtk_widget_get_parent(GTK_WIDGET(ctk_object))),
-                                    GTK_DIALOG_MODAL |  GTK_DIALOG_DESTROY_WITH_PARENT | GTK_DIALOG_NO_SEPARATOR,
+                                    GTK_DIALOG_MODAL |  GTK_DIALOG_DESTROY_WITH_PARENT,
                                     GTK_STOCK_OK,
                                     GTK_RESPONSE_ACCEPT,
                                     GTK_STOCK_CANCEL,
@@ -462,7 +463,8 @@ GtkWidget* ctk_clocks_new(NvCtrlAttributeHandle *handle,
 
     gtk_box_pack_start(GTK_BOX(hbox), label, FALSE, FALSE, 15);
 
-    gtk_box_pack_start(GTK_BOX(GTK_DIALOG(ctk_object->detect_dialog)->vbox),
+    gtk_box_pack_start(GTK_BOX(ctk_dialog_get_content_area(
+                                   GTK_DIALOG(ctk_object->detect_dialog))),
                        hbox, FALSE, FALSE, 15);
 
     /*
@@ -807,7 +809,7 @@ static void overclocking_state_toggled(GtkWidget *widget, gpointer user_data)
  * overclocking state.
  *
  */
-static void overclocking_state_received(GtkObject *object,
+static void overclocking_state_received(GObject *object,
                                         gpointer arg1, gpointer user_data)
 {
     CtkClocks *ctk_object = CTK_CLOCKS(user_data);
@@ -826,7 +828,7 @@ static void overclocking_state_received(GtkObject *object,
  * an NV-CONTROL client probing for the optimal clocks.
  *
  */
-static void auto_detection_state_received(GtkObject *object,
+static void auto_detection_state_received(GObject *object,
                                           gpointer arg1, gpointer user_data)
 {
     CtkEventStruct *event_struct = (CtkEventStruct *) arg1;
@@ -941,7 +943,7 @@ static void sync_gui_to_modify_clocks(CtkClocks *ctk_object, int which_clocks)
     /* Make GPU and Memory clocks reflect the right range/values */
 
     gtk_range = GTK_RANGE(CTK_SCALE(ctk_object->gpu_clk_scale)->gtk_scale);
-    gtk_adjustment_gpu = GTK_ADJUSTMENT(gtk_range->adjustment);
+    gtk_adjustment_gpu = gtk_range_get_adjustment(gtk_range);
 
     g_signal_handlers_block_by_func(G_OBJECT(gtk_adjustment_gpu),
                                     G_CALLBACK(adjustment_value_changed),
@@ -955,7 +957,7 @@ static void sync_gui_to_modify_clocks(CtkClocks *ctk_object, int which_clocks)
                                       (gpointer) ctk_object);
 
     gtk_range = GTK_RANGE(CTK_SCALE(ctk_object->mem_clk_scale)->gtk_scale);
-    gtk_adjustment_mem = GTK_ADJUSTMENT(gtk_range->adjustment);
+    gtk_adjustment_mem = gtk_range_get_adjustment(gtk_range);
 
     g_signal_handlers_block_by_func(G_OBJECT(gtk_adjustment_mem),
                                     G_CALLBACK(adjustment_value_changed),
@@ -1251,7 +1253,7 @@ static void detect_clocks_clicked(GtkWidget *widget, gpointer user_data)
  * being changed.
  *
  */
-static void clocks_received(GtkObject *object, gpointer arg1,
+static void clocks_received(GObject *object, gpointer arg1,
                             gpointer user_data)
 {
     CtkEventStruct *event_struct = (CtkEventStruct *) arg1;

@@ -190,6 +190,7 @@ const AttributeTableEntry attributeTable[] = {
     { "BaseMosaic",                       NV_CTRL_BASE_MOSAIC,                          INT_ATTR, {0,0,0,0,1,0}, { .int_flags = {0,0,0,0,0,0,0} }, "Returns the current Base Mosaic configuration." },
     { "MultiGpuMasterPossible",           NV_CTRL_MULTIGPU_MASTER_POSSIBLE,             INT_ATTR, {0,0,0,0,1,0}, { .int_flags = {0,0,0,0,0,0,0} }, "Returns whether or not the GPU can be configured as the master GPU for a Multi GPU configuration (SLI, SLI Mosaic, Base Mosaic, ...)." },
     { "VideoEncoderUtilization",          NV_CTRL_VIDEO_ENCODER_UTILIZATION,            INT_ATTR, {0,0,0,0,1,0}, { .int_flags = {0,0,0,0,0,0,0} }, "Returns the video encoder engine utilization as a percentage." },
+    { "VideoDecoderUtilization",          NV_CTRL_VIDEO_DECODER_UTILIZATION,            INT_ATTR, {0,0,0,0,1,0}, { .int_flags = {0,0,0,0,0,0,0} }, "Returns the video decoder engine utilization as a percentage." },
     { "GPUCurrentClockFreqsString",       NV_CTRL_STRING_GPU_CURRENT_CLOCK_FREQS,       STR_ATTR, {0,0,0,0,1,0}, {}, "Returns the current GPU, memory and Processor clocks of the graphics device driving the X screen." },
     { "GPUPerfModes",                     NV_CTRL_STRING_PERFORMANCE_MODES,             STR_ATTR, {0,0,0,0,1,0}, {}, "Returns a string with all the performance modes defined for this GPU along with their associated NV Clock and Memory Clock values." },
     { "GpuUUID",                          NV_CTRL_STRING_GPU_UUID,                      STR_ATTR, {0,0,0,0,1,0}, {}, "Returns the global unique identifier of the GPU." },
@@ -372,7 +373,7 @@ const int attributeTableLen = ARRAY_LEN(attributeTable);
  * the last attribute that the table knows about.
  */
 
-#if NV_CTRL_LAST_ATTRIBUTE != NV_CTRL_GPU_MEM_TRANSFER_RATE_OFFSET
+#if NV_CTRL_LAST_ATTRIBUTE != NV_CTRL_VIDEO_DECODER_UTILIZATION
 #warning "Have you forgotten to add a new integer attribute to attributeTable?"
 #endif
 

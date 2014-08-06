@@ -41,13 +41,13 @@ static void update_powermizer_menu_info(CtkPowermizer *ctk_powermizer);
 static void set_powermizer_menu_label_txt(CtkPowermizer *ctk_powermizer,
                                           gint powerMizerMode);
 static void powermizer_menu_changed(GtkWidget*, gpointer);
-static void update_powermizer_menu_event(GtkObject *object,
+static void update_powermizer_menu_event(GObject *object,
                                          gpointer arg1,
                                          gpointer user_data);
 static void dp_config_button_toggled(GtkWidget *, gpointer);
 static void dp_set_config_status(CtkPowermizer *);
 static void dp_update_config_status(CtkPowermizer *, gboolean);
-static void dp_configuration_update_received(GtkObject *, gpointer, gpointer);
+static void dp_configuration_update_received(GObject *, gpointer, gpointer);
 static void post_dp_configuration_update(CtkPowermizer *);
 static void show_dp_toggle_warning_dlg(CtkPowermizer *ctk_powermizer);
 static void post_set_attribute_offset_value(CtkPowermizer *ctk_powermizer,
@@ -57,7 +57,7 @@ static void offset_entry_set_value(CtkPowermizer *ctk_powermizer,
                                    GtkWidget *widget,
                                    gint offset);
 
-static void offset_value_changed_event_received(GtkObject *object,
+static void offset_value_changed_event_received(GObject *object,
                                                 gpointer arg1,
                                                 gpointer user_data);
 
@@ -239,7 +239,7 @@ static void apply_perf_mode_token(char *token, char *value, void *data)
 
 
 
-static void offset_value_changed_event_received(GtkObject *object,
+static void offset_value_changed_event_received(GObject *object,
                                                 gpointer arg1,
                                                 gpointer user_data)
 {
@@ -1696,7 +1696,7 @@ static void post_powermizer_menu_update(CtkPowermizer *ctk_powermizer)
 
 
 
-static void update_powermizer_menu_event(GtkObject *object,
+static void update_powermizer_menu_event(GObject *object,
                                          gpointer arg1,
                                          gpointer user_data)
 {
@@ -1899,7 +1899,7 @@ static void dp_update_config_status(CtkPowermizer *ctk_powermizer, gboolean val)
  * NV-CONTROL client.
  */
 
-static void dp_configuration_update_received(GtkObject *object,
+static void dp_configuration_update_received(GObject *object,
                                              gpointer arg1, gpointer user_data)
 {
     CtkEventStruct *event_struct = (CtkEventStruct *) arg1;

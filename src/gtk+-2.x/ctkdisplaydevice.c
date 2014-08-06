@@ -45,13 +45,13 @@ static void update_device_info(CtkDisplayDevice *ctk_object);
 
 static void display_device_setup(CtkDisplayDevice *ctk_object);
 
-static void enabled_displays_received(GtkObject *object, gpointer arg1,
+static void enabled_displays_received(GObject *object, gpointer arg1,
                                       gpointer user_data);
 
-static void callback_link_changed(GtkObject *object, gpointer arg1,
+static void callback_link_changed(GObject *object, gpointer arg1,
                                   gpointer user_data);
 
-static void callback_refresh_rate_changed(GtkObject *object, gpointer arg1,
+static void callback_refresh_rate_changed(GObject *object, gpointer arg1,
                                           gpointer user_data);
 
 static gboolean update_guid_info(InfoEntry *entry);
@@ -501,7 +501,7 @@ GtkTextBuffer *ctk_display_device_create_help(GtkTextTagTable *table,
 {
     GtkTextIter i;
     GtkTextBuffer *b;
-    GtkTooltipsData *td;
+    gchar *tip_text;
     int j;
 
     b = gtk_text_buffer_new(table);
@@ -538,8 +538,9 @@ GtkTextBuffer *ctk_display_device_create_help(GtkTextTagTable *table,
         ctk_color_correction_tab_help(b, &i, "X Server Color Correction", TRUE);
     }
 
-    td = gtk_tooltips_data_get(GTK_WIDGET(ctk_object->reset_button));
-    ctk_help_reset_hardware_defaults(b, &i, td->tip_text);
+    tip_text = ctk_widget_get_tooltip_text(GTK_WIDGET(ctk_object->reset_button));
+    ctk_help_reset_hardware_defaults(b, &i, tip_text);
+    g_free(tip_text);
 
     ctk_help_finish(b);
 
@@ -775,7 +776,7 @@ static void update_device_info(CtkDisplayDevice *ctk_object)
 
         if (entry->present) {
             gtk_widget_show(entry->hbox);
-            gtk_widget_size_request(entry->label, &req);
+            ctk_widget_get_preferred_size(entry->label, &req);
             if (max_width < req.width) {
                 max_width = req.width;
             }
@@ -891,7 +892,7 @@ static gboolean unregister_refresh_rate_events(InfoEntry *entry)
  * this page should disable/enable access based on whether
  * or not the display device is enabled.
  */
-static void enabled_displays_received(GtkObject *object, gpointer arg1,
+static void enabled_displays_received(GObject *object, gpointer arg1,
                                       gpointer user_data)
 {
     CtkDisplayDevice *ctk_object = CTK_DISPLAY_DEVICE(user_data);
@@ -903,7 +904,7 @@ static void enabled_displays_received(GtkObject *object, gpointer arg1,
 } /* enabled_displays_received() */
 
 
-static void callback_link_changed(GtkObject *object, gpointer arg1,
+static void callback_link_changed(GObject *object, gpointer arg1,
                                   gpointer user_data)
 {
     InfoEntry *entry = (InfoEntry *)user_data;
@@ -912,7 +913,7 @@ static void callback_link_changed(GtkObject *object, gpointer arg1,
 }
 
 
-static void callback_refresh_rate_changed(GtkObject *object, gpointer arg1,
+static void callback_refresh_rate_changed(GObject *object, gpointer arg1,
                                           gpointer user_data)
 {
     InfoEntry *entry = (InfoEntry *)user_data;

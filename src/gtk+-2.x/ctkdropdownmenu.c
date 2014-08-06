@@ -22,6 +22,7 @@
 #include <string.h>
 
 #include "ctkdropdownmenu.h"
+#include "ctkutils.h"
 
 enum {
     DROP_DOWN_MENU_CHANGED_SIGNAL,
@@ -128,7 +129,7 @@ GObject *ctk_drop_down_menu_change_object(GtkWidget* widget)
     CtkDropDownMenu *d = CTK_DROP_DOWN_MENU(widget);
 
     if (d->flags & CTK_DROP_DOWN_MENU_FLAG_READWRITE) {
-        return G_OBJECT(GTK_EDITABLE(GTK_BIN(d->combo_box)->child));
+        return G_OBJECT(gtk_bin_get_child(GTK_BIN(d->combo_box)));
     } else {
         return G_OBJECT(d->combo_box);
     }
@@ -177,13 +178,13 @@ GtkWidget* ctk_drop_down_menu_new(guint flags)
     d->current_selected_item = -1;
 
     if (flags & CTK_DROP_DOWN_MENU_FLAG_READWRITE) {
-        d->combo_box = gtk_combo_box_entry_new_text();
-        g_signal_connect(G_OBJECT(GTK_EDITABLE(GTK_BIN(d->combo_box)->child)),
+        d->combo_box = ctk_combo_box_text_new_with_entry();
+        g_signal_connect(G_OBJECT(gtk_bin_get_child(GTK_BIN(d->combo_box))),
                          "changed",
                          G_CALLBACK(ctk_drop_down_menu_changed),
                          (gpointer) d);
     } else { 
-        d->combo_box = gtk_combo_box_new_text();
+        d->combo_box = ctk_combo_box_text_new();
         g_signal_connect(G_OBJECT(d->combo_box), "changed",
                          G_CALLBACK(changed), (gpointer) d);
 
@@ -233,7 +234,7 @@ GtkWidget *ctk_drop_down_menu_append_item(CtkDropDownMenu *d,
     d->values = g_realloc(d->values,
                           sizeof(CtkDropDownMenuValue) * (d->num_entries + 1));
 
-    gtk_combo_box_append_text(GTK_COMBO_BOX(d->combo_box), name);
+    ctk_combo_box_text_append_text(d->combo_box, name);
     d->values[d->num_entries].glist_item = g_strdup(name);
 
     d->values[d->num_entries].value = value;
@@ -348,7 +349,7 @@ void ctk_drop_down_menu_set_current_index(CtkDropDownMenu *d, gint index)
 
     if (d->flags & CTK_DROP_DOWN_MENU_FLAG_READWRITE) {
         gtk_entry_set_text
-            (GTK_ENTRY(GTK_BIN(d->combo_box)->child),
+            (GTK_ENTRY(gtk_bin_get_child(GTK_BIN(d->combo_box))),
              d->values[index].glist_item);
         d->current_selected_item = index;
     } else {
@@ -369,7 +370,7 @@ void ctk_drop_down_menu_set_value_sensitive(CtkDropDownMenu *d,
 
     if (d->flags & CTK_DROP_DOWN_MENU_FLAG_READWRITE) {
         ctk_drop_down_menu_set_current_value(d, value);
-        gtk_widget_set_sensitive(GTK_WIDGET(GTK_BIN(d->combo_box)->child),
+        gtk_widget_set_sensitive(GTK_WIDGET(gtk_bin_get_child(GTK_BIN(d->combo_box))),
                                  sensitive);
     } else {
         gint i;

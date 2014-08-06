@@ -34,9 +34,11 @@
 #include <stdio.h>
 #include <string.h>
 
+#ifndef CTK_GTK3
 static const char *__tooltip_help =
 "When ToolTips are enabled, descriptions will be displayed next to options "
 "when the mouse is held over them.";
+#endif
 
 static const char *__status_bar_help =
 "The status bar in the bottom "
@@ -81,7 +83,9 @@ static const char *__update_rules_on_profile_name_change_help =
 static void ctk_config_class_init(CtkConfigClass *ctk_config_class);
 
 static void display_status_bar_toggled(GtkWidget *, gpointer);
+#ifndef CTK_GTK3
 static void tooltips_toggled(GtkWidget *, gpointer);
+#endif
 static void slider_text_entries_toggled(GtkWidget *, gpointer);
 static void display_name_toggled(GtkWidget *widget, gpointer user_data);
 static void show_quit_dialog_toggled(GtkWidget *widget, gpointer user_data);
@@ -144,15 +148,10 @@ void ctk_statusbar_init(CtkStatusBar *status_bar)
     status_bar->widget = gtk_statusbar_new();
     status_bar->prev_message_id = 0;
     status_bar->enabled = TRUE;
-    
+#ifndef CTK_GTK3
     gtk_statusbar_set_has_resize_grip
         (GTK_STATUSBAR(status_bar->widget), FALSE);
-    
-    /* XXX force the status bar window to be vertically centered */
-
-    gtk_misc_set_alignment
-        (GTK_MISC(GTK_STATUSBAR(status_bar->widget)->label),
-         0.0, 0.5);
+#endif
 }
 
 GtkWidget* ctk_config_new(ConfigProperties *conf, CtrlHandles *pCtrlHandles)
@@ -176,12 +175,14 @@ GtkWidget* ctk_config_new(ConfigProperties *conf, CtrlHandles *pCtrlHandles)
         const char *help_text;
     } config_check_button_entries[] =
     {
+#ifndef CTK_GTK3
         { 
            "Enable ToolTips",
            CONFIG_PROPERTIES_TOOLTIPS,
            G_CALLBACK(tooltips_toggled),
            __tooltip_help
          },
+#endif
         {
             "Display Status Bar",
             CONFIG_PROPERTIES_DISPLAY_STATUS_BAR,
@@ -227,10 +228,12 @@ GtkWidget* ctk_config_new(ConfigProperties *conf, CtrlHandles *pCtrlHandles)
 
     /* initialize the statusbar widget */
     ctk_statusbar_init(&ctk_config->status_bar);
-    
+
+#ifndef CTK_GTK3
     /* initialize the tooltips widget */
 
     ctk_config->tooltips.object = gtk_tooltips_new();
+#endif
 
     /* banner */
 
@@ -263,6 +266,7 @@ GtkWidget* ctk_config_new(ConfigProperties *conf, CtrlHandles *pCtrlHandles)
         gtk_container_add(GTK_CONTAINER(check_button), label);
 
         b = !!(ctk_config->conf->booleans & config_check_button_entries[i].mask);
+#ifndef CTK_GTK3
         if (config_check_button_entries[i].mask == CONFIG_PROPERTIES_TOOLTIPS) {
             if (b) {
                 gtk_tooltips_enable(ctk_config->tooltips.object);
@@ -270,6 +274,7 @@ GtkWidget* ctk_config_new(ConfigProperties *conf, CtrlHandles *pCtrlHandles)
                 gtk_tooltips_disable(ctk_config->tooltips.object);
             }
         }
+#endif
         gtk_toggle_button_set_active(GTK_TOGGLE_BUTTON(check_button), b);
         gtk_box_pack_start(GTK_BOX(vbox), check_button, FALSE, FALSE, 0);
         g_signal_connect(G_OBJECT(check_button), "toggled",
@@ -310,14 +315,19 @@ GtkWidget* ctk_config_new(ConfigProperties *conf, CtrlHandles *pCtrlHandles)
 
     /* Create the file selector for rc file */
     ctk_config->rc_file_selector =
-        gtk_file_selection_new ("Please select a file to save to");
+        gtk_file_chooser_dialog_new("Please select a file to save to",
+                                    GTK_WINDOW(ctk_get_parent_window(GTK_WIDGET(ctk_config))),
+                                    GTK_FILE_CHOOSER_ACTION_OPEN,
+                                    "Cancel", GTK_RESPONSE_CANCEL,
+                                    "Open", GTK_RESPONSE_ACCEPT,
+                                    NULL);
 
     g_signal_connect(G_OBJECT(ctk_config->button_save_rc), "clicked",
                      G_CALLBACK(save_rc_clicked),
                      (gpointer) ctk_config);
 
-    gtk_file_selection_set_filename
-        (GTK_FILE_SELECTION(ctk_config->rc_file_selector), DEFAULT_RC_FILE);
+    gtk_file_chooser_set_filename
+        (GTK_FILE_CHOOSER(ctk_config->rc_file_selector), DEFAULT_RC_FILE);
 
     ctk_config_set_tooltip(ctk_config, ctk_config->button_save_rc,
                            __save_current_config_help);
@@ -346,8 +356,8 @@ static void save_rc_clicked(GtkWidget *widget, gpointer user_data)
     switch (result) {
     case GTK_RESPONSE_ACCEPT:
     case GTK_RESPONSE_OK:
-        rc_filename = gtk_file_selection_get_filename
-                          (GTK_FILE_SELECTION(ctk_config->rc_file_selector));
+        rc_filename = gtk_file_chooser_get_filename
+                          (GTK_FILE_CHOOSER(ctk_config->rc_file_selector));
         break;
     default:
         return;
@@ -429,7 +439,11 @@ void ctk_config_set_tooltip(CtkConfig *ctk_config,
                             const gchar *text)
 
 {
+#ifdef CTK_GTK3
+    gtk_widget_set_tooltip_text(widget, text);
+#else
     gtk_tooltips_set_tip(ctk_config->tooltips.object, widget, text, NULL);
+#endif
 }
 
 
@@ -458,6 +472,7 @@ static void display_status_bar_toggled(
     }
 }
 
+#ifndef CTK_GTK3
 static void tooltips_toggled(GtkWidget *widget, gpointer user_data)
 {
     CtkConfig *ctk_config = CTK_CONFIG(user_data);
@@ -474,6 +489,7 @@ static void tooltips_toggled(GtkWidget *widget, gpointer user_data)
     ctk_config_statusbar_message(ctk_config, "Tooltips %s.", 
                                  active ? "enabled" : "disabled");
 }
+#endif
 
 
 static void slider_text_entries_toggled(GtkWidget *widget, gpointer user_data)

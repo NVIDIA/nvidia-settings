@@ -398,7 +398,7 @@ GtkWidget* ctk_glx_new(NvCtrlAttributeHandle *handle,
                          GTK_FILL|GTK_EXPAND, GTK_FILL|GTK_EXPAND, 0, 0);
         
         fbconfig_header_sizes[i].widget = btn;
-        gtk_widget_size_request(btn, &req);
+        ctk_widget_get_preferred_size(btn, &req);
         fbconfig_header_sizes[i].width = req.width;
     }
     
@@ -548,7 +548,7 @@ GtkWidget* ctk_glx_new(NvCtrlAttributeHandle *handle,
                 /* Make sure the table headers are the same width
                  * as their table data column
                  */
-                gtk_widget_size_request(label, &req);
+                ctk_widget_get_preferred_size(label, &req);
                 
                 if ( fbconfig_header_sizes[cell].width > req.width ) {
                     gtk_widget_set_size_request(label,

@@ -25,6 +25,7 @@
 #include "ctkscale.h"
 #include "ctkconfig.h"
 #include "ctkhelp.h"
+#include "ctkutils.h"
 
 
 #define FRAME_PADDING 5
@@ -55,7 +56,7 @@ static void setup_reset_button(CtkImageSliders *ctk_image_sliders);
 static void scale_value_changed(GtkAdjustment *adjustment,
                                      gpointer user_data);
 
-static void scale_value_received(GtkObject *, gpointer arg1, gpointer);
+static void scale_value_received(GObject *, gpointer arg1, gpointer);
 
 
 GType ctk_image_sliders_get_type(void)
@@ -210,11 +211,11 @@ static GtkWidget * add_scale(CtkConfig *ctk_config,
                              gint default_value,
                              gpointer callback_data)
 {
-    GtkObject *adj;
+    GtkAdjustment *adj;
     GtkWidget *scale;
 
 
-    adj = gtk_adjustment_new(0, 0, 10, 1, 1, 0);
+    adj = GTK_ADJUSTMENT(gtk_adjustment_new(0, 0, 10, 1, 1, 0));
 
     g_object_set_data(G_OBJECT(adj), "attribute",
                       GINT_TO_POINTER(attribute));
@@ -302,7 +303,7 @@ void ctk_image_sliders_reset(CtkImageSliders *ctk_image_sliders)
 
     if (!ctk_image_sliders) return;
 
-    if (GTK_WIDGET_SENSITIVE(ctk_image_sliders->digital_vibrance)) {
+    if (ctk_widget_get_sensitive(ctk_image_sliders->digital_vibrance)) {
         adj = CTK_SCALE(ctk_image_sliders->digital_vibrance)->gtk_adjustment;
         val = GPOINTER_TO_INT(g_object_get_data(G_OBJECT(adj),
                                                 "attribute default value"));
@@ -312,7 +313,7 @@ void ctk_image_sliders_reset(CtkImageSliders *ctk_image_sliders)
                            val);
     }
 
-    if (GTK_WIDGET_SENSITIVE(ctk_image_sliders->image_sharpening)) {
+    if (ctk_widget_get_sensitive(ctk_image_sliders->image_sharpening)) {
         adj = CTK_SCALE(ctk_image_sliders->image_sharpening)->gtk_adjustment;
         val = GPOINTER_TO_INT(g_object_get_data(G_OBJECT(adj),
                                                 "attribute default value"));
@@ -353,7 +354,7 @@ void ctk_image_sliders_reset(CtkImageSliders *ctk_image_sliders)
  * NV-CONTROL client changed any of the settings that we care about.
  */
 
-static void scale_value_received(GtkObject *object, gpointer arg1,
+static void scale_value_received(GObject *object, gpointer arg1,
                                  gpointer user_data)
 {
     CtkEventStruct *event_struct;
@@ -454,8 +455,8 @@ static void setup_scale(CtkImageSliders *ctk_image_sliders,
         g_signal_handlers_block_by_func(adj, scale_value_changed,
                                         ctk_image_sliders);
 
-        adj->lower = valid.u.range.min;
-        adj->upper = valid.u.range.max;
+        ctk_adjustment_set_lower(adj, valid.u.range.min);
+        ctk_adjustment_set_upper(adj, valid.u.range.max);
         gtk_adjustment_changed(GTK_ADJUSTMENT(adj));
 
         gtk_adjustment_set_value(GTK_ADJUSTMENT(adj), val);
@@ -485,7 +486,7 @@ static void setup_reset_button(CtkImageSliders *ctk_image_sliders)
      */
 
     scale = ctk_image_sliders->digital_vibrance;
-    if (GTK_WIDGET_SENSITIVE(scale)) {
+    if (ctk_widget_get_sensitive(scale)) {
         adj = CTK_SCALE(scale)->gtk_adjustment;
         current_val = (gint) gtk_adjustment_get_value(adj);
         default_val =
@@ -497,7 +498,7 @@ static void setup_reset_button(CtkImageSliders *ctk_image_sliders)
     }
 
     scale = ctk_image_sliders->image_sharpening;
-    if (GTK_WIDGET_SENSITIVE(scale)) {
+    if (ctk_widget_get_sensitive(scale)) {
         adj = CTK_SCALE(scale)->gtk_adjustment;
         current_val = (gint) gtk_adjustment_get_value(adj);
         default_val =

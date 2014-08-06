@@ -95,7 +95,7 @@ GType ctk_event_get_type(void)
         };
 
         ctk_event_type = g_type_register_static
-            (GTK_TYPE_OBJECT, "CtkEvent", &ctk_event_info, 0);
+            (G_TYPE_OBJECT, "CtkEvent", &ctk_event_info, 0);
     }
 
     return ctk_event_type;
@@ -337,6 +337,7 @@ static void ctk_event_class_init(CtkEventClass *ctk_event_class)
     MAKE_SIGNAL(NV_CTRL_GSYNC_ALLOWED);
     MAKE_SIGNAL(NV_CTRL_GPU_NVCLOCK_OFFSET);
     MAKE_SIGNAL(NV_CTRL_GPU_MEM_TRANSFER_RATE_OFFSET);
+    MAKE_SIGNAL(NV_CTRL_VIDEO_DECODER_UTILIZATION);
 #undef MAKE_SIGNAL
 
     /*
@@ -346,7 +347,7 @@ static void ctk_event_class_init(CtkEventClass *ctk_event_class)
      * knows about.
      */
 
-#if NV_CTRL_LAST_ATTRIBUTE != NV_CTRL_GPU_MEM_TRANSFER_RATE_OFFSET
+#if NV_CTRL_LAST_ATTRIBUTE != NV_CTRL_VIDEO_DECODER_UTILIZATION
 #warning "There are attributes that do not emit signals!"
 #endif
 
@@ -552,7 +553,7 @@ static void ctk_event_register_source(CtkEvent *ctk_event)
 
 
 
-GtkObject *ctk_event_new(NvCtrlAttributeHandle *handle)
+GObject *ctk_event_new(NvCtrlAttributeHandle *handle)
 {
     GObject *object;
     CtkEvent *ctk_event;
@@ -568,7 +569,7 @@ GtkObject *ctk_event_new(NvCtrlAttributeHandle *handle)
 
     ctk_event_register_source(ctk_event);
     
-    return GTK_OBJECT(ctk_event);
+    return G_OBJECT(ctk_event);
 
 } /* ctk_event_new() */
 

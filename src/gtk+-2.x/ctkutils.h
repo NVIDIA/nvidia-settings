@@ -33,6 +33,39 @@ G_BEGIN_DECLS
 # define G_VALUE_INIT { 0, { { 0 } } }
 #endif
 
+/*
+ * GTK 2/3 util functions
+ */
+
+gboolean ctk_widget_is_sensitive(GtkWidget *w);
+gboolean ctk_widget_get_sensitive(GtkWidget *w);
+gboolean ctk_widget_get_visible(GtkWidget *w);
+gboolean ctk_widget_is_drawable(GtkWidget *w);
+GdkWindow *ctk_widget_get_window(GtkWidget *w);
+void ctk_widget_get_allocation(GtkWidget *w, GtkAllocation *a);
+gchar *ctk_widget_get_tooltip_text(GtkWidget *w);
+
+void ctk_widget_get_preferred_size(GtkWidget *w, GtkRequisition *r);
+GtkWidget *ctk_dialog_get_content_area(GtkDialog *d);
+
+gdouble ctk_adjustment_get_page_increment(GtkAdjustment *a);
+gdouble ctk_adjustment_get_step_increment(GtkAdjustment *a);
+gdouble ctk_adjustment_get_page_size(GtkAdjustment *a);
+gdouble ctk_adjustment_get_upper(GtkAdjustment *a);
+void ctk_adjustment_set_upper(GtkAdjustment *a, gdouble x);
+void ctk_adjustment_set_lower(GtkAdjustment *a, gdouble x);
+
+GtkWidget *ctk_scrolled_window_get_vscrollbar(GtkScrolledWindow *sw);
+GtkWidget *ctk_statusbar_get_message_area(GtkStatusbar *statusbar);
+
+GtkWidget *ctk_combo_box_text_new(void);
+GtkWidget *ctk_combo_box_text_new_with_entry(void);
+void ctk_combo_box_text_append_text(GtkWidget *widget, const gchar *text);
+
+void ctk_g_object_ref_sink(gpointer obj);
+
+/* end of GTK 2/3 util functions */
+
 gchar *get_pcie_generation_string(NvCtrlAttributeHandle *handle);
 
 gchar *get_pcie_link_width_string(NvCtrlAttributeHandle *handle,

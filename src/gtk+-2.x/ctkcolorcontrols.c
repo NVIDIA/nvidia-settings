@@ -33,6 +33,7 @@
 #include "ctkhelp.h"
 #include "ctkcolorcontrols.h"
 #include "ctkdropdownmenu.h"
+#include "ctkutils.h"
 
 /* function prototypes */
 static void
@@ -56,7 +57,7 @@ static void color_space_menu_changed(GtkWidget *widget,
 static void color_range_menu_changed(GtkWidget *widget,
                                      gpointer user_data);
 
-static void color_control_update_received(GtkObject *object, gpointer arg1,
+static void color_control_update_received(GObject *object, gpointer arg1,
                                           gpointer user_data);
 static void setup_color_range_dropdown(CtkColorControls *ctk_color_controls);
 static
@@ -312,7 +313,7 @@ static void setup_reset_button(CtkColorControls *ctk_color_controls)
     gint val;
     CtkDropDownMenu *color_space_menu, *color_range_menu;
 
-    if (!GTK_WIDGET_SENSITIVE(ctk_color_controls->color_controls_box)) {
+    if (!ctk_widget_get_sensitive(ctk_color_controls->color_controls_box)) {
         /* Nothing is available, don't bother enabling the reset button yet. */
         return;
     }
@@ -327,7 +328,7 @@ static void setup_reset_button(CtkColorControls *ctk_color_controls)
     }
 
     /* Color range is dependent on the color space */
-    if (GTK_WIDGET_SENSITIVE(ctk_color_controls->color_range_menu)) {
+    if (ctk_widget_get_sensitive(ctk_color_controls->color_range_menu)) {
         color_range_menu = 
             CTK_DROP_DOWN_MENU(ctk_color_controls->color_range_menu);
         history = ctk_drop_down_menu_get_current_value(color_range_menu);
@@ -362,7 +363,7 @@ void ctk_color_controls_setup(CtkColorControls *ctk_color_controls)
     /* color space */
     if (!update_color_space_menu_info(ctk_color_controls)) {
         gtk_widget_set_sensitive(ctk_color_controls->color_controls_box, FALSE);
-        gtk_widget_hide_all(ctk_color_controls->color_controls_box);
+        gtk_widget_hide(ctk_color_controls->color_controls_box);
     }
 
     setup_reset_button(ctk_color_controls);
@@ -535,7 +536,7 @@ void add_color_controls_help(CtkColorControls *ctk_color_controls,
  * we should update the GUI to reflect the current color range
  * and color space.
  */
-static void color_control_update_received(GtkObject *object, gpointer arg1,
+static void color_control_update_received(GObject *object, gpointer arg1,
                                           gpointer user_data)
 {
     CtkColorControls *ctk_object = CTK_COLOR_CONTROLS(user_data);

@@ -3361,9 +3361,15 @@
  * This attribute is available on GeForce GTX 400 series and later
  * Geforce GPUs.
  */
-#define NV_CTRL_GPU_MEM_TRANSFER_RATE_OFFSET                  410 /* RW-G */
+#define NV_CTRL_GPU_MEM_TRANSFER_RATE_OFFSET                    410 /* RW-G */
 
-#define NV_CTRL_LAST_ATTRIBUTE NV_CTRL_GPU_MEM_TRANSFER_RATE_OFFSET
+/*
+ * NV_CTRL_VIDEO_DECODER_UTILIZATION - Returns the video decoder engine
+ * utilization as a percentage.
+ */
+#define NV_CTRL_VIDEO_DECODER_UTILIZATION                       411 /* R--G */
+
+#define NV_CTRL_LAST_ATTRIBUTE NV_CTRL_VIDEO_DECODER_UTILIZATION
 
 
 /**************************************************************************/

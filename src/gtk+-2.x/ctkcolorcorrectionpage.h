@@ -56,9 +56,9 @@ struct _CtkColorCorrectionPage
     NvCtrlAttributeHandle *handle;
     CtkConfig *ctk_config;
     GtkWidget *option_menu;
-    GtkObject *brightness_adjustment;
-    GtkObject *contrast_adjustment;
-    GtkObject *gamma_adjustment;
+    GtkAdjustment *brightness_adjustment;
+    GtkAdjustment *contrast_adjustment;
+    GtkAdjustment *gamma_adjustment;
     GtkWidget *confirm_button;
     GtkWidget *confirm_label;
     gint confirm_countdown;

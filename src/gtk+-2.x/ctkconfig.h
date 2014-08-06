@@ -28,6 +28,10 @@
 
 #include <gtk/gtk.h>
 
+#if GTK_MAJOR_VERSION >= 3
+#define CTK_GTK3
+#endif
+
 #include "config-file.h"
 
 G_BEGIN_DECLS
@@ -65,17 +69,21 @@ struct _CtkStatusBar
     gboolean enabled;
 };
 
+#ifndef CTK_GTK3
 struct _CtkToolTips
 {
     GtkTooltips *object;
 };
+#endif
 
 
 struct _CtkConfig
 {
     GtkVBox parent;
     CtkStatusBar status_bar;
+#ifndef CTK_GTK3
     CtkToolTips tooltips;
+#endif
     GtkListStore *list_store;
     ConfigProperties *conf;
     GtkWidget *timer_list;

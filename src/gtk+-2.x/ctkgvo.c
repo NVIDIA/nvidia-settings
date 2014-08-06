@@ -69,7 +69,7 @@ static void register_for_gvo_events(CtkGvo *ctk_gvo, CtkEvent *ctk_event);
 
 static void update_gvo_current_info(CtkGvo *ctk_gvo);
 
-static void gvo_event_received(GtkObject *object,
+static void gvo_event_received(GObject *object,
                                gpointer arg1,
                                gpointer user_data);
 
@@ -713,7 +713,7 @@ static void update_gvo_current_info(CtkGvo *ctk_gvo)
  * gvo_event_received() - Handles GVO NV-CONTROL events.
  */
 
-static void gvo_event_received(GtkObject *object,
+static void gvo_event_received(GObject *object,
                                gpointer arg1,
                                gpointer user_data)
 {

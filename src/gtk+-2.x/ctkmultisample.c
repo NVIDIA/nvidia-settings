@@ -49,9 +49,9 @@ static GtkWidget *create_fsaa_setting_menu(CtkMultisample *ctk_multisample,
 static void fsaa_setting_checkbox_toggled(GtkWidget *widget,
                                           gpointer user_data);
 
-static void fsaa_setting_menu_changed(GtkObject *object, gpointer user_data);
+static void fsaa_setting_menu_changed(GObject *object, gpointer user_data);
 
-static void fsaa_setting_update_received(GtkObject *object,
+static void fsaa_setting_update_received(GObject *object,
                                          gpointer arg1,
                                          gpointer user_data);
 
@@ -59,13 +59,13 @@ static void post_fsaa_value_changed(CtkMultisample *ctk_multisample, gint val);
 
 static void fsaa_value_changed(GtkRange *range, gpointer user_data);
 
-static void fsaa_update_received(GtkObject *object,
+static void fsaa_update_received(GObject *object,
                                  gpointer arg1, gpointer user_data);
 
 static void fxaa_checkbox_toggled(GtkWidget *widget,
                                   gpointer user_data);
 
-static void fxaa_update_received(GtkObject *object,
+static void fxaa_update_received(GObject *object,
                                  gpointer arg1, gpointer user_data);
 
 static void post_fxaa_toggled(CtkMultisample *ctk_multisample, 
@@ -78,7 +78,7 @@ post_log_aniso_app_override_toggled(CtkMultisample *ctk_multisample,
 static void log_aniso_app_override_toggled(GtkWidget *widget,
                                            gpointer user_data);
 
-static void log_app_override_update_received(GtkObject *object,
+static void log_app_override_update_received(GObject *object,
                                              gpointer arg1,
                                              gpointer user_data);
 
@@ -92,7 +92,7 @@ static void post_log_aniso_value_changed(CtkMultisample *ctk_multisample,
 
 static void log_aniso_value_changed(GtkRange *range, gpointer user_data);
 
-static void log_aniso_range_update_received(GtkObject *object,
+static void log_aniso_range_update_received(GObject *object,
                                             gpointer arg1,
                                             gpointer user_data);
 
@@ -101,7 +101,7 @@ static void post_texture_sharpening_toggled(CtkMultisample *ctk_multisample,
 
 static void texture_sharpening_toggled(GtkWidget *widget, gpointer user_data);
 
-static void texture_sharpening_update_received(GtkObject *object,
+static void texture_sharpening_update_received(GObject *object,
                                                gpointer arg1,
                                                gpointer user_data);
 
@@ -227,7 +227,7 @@ GtkWidget *ctk_multisample_new(NvCtrlAttributeHandle *handle,
     GtkWidget *check_button;
     GtkWidget *menu;
     GtkWidget *scale;
-    GtkObject *adjustment;
+    GtkAdjustment *adjustment;
     gint min, max;
     
     gint val, app_control, override, enhance, mode, i;
@@ -347,7 +347,8 @@ GtkWidget *ctk_multisample_new(NvCtrlAttributeHandle *handle,
             max = ctk_multisample->fsaa_translation_table_size - 1;
 
             /* create the slider */
-            adjustment = gtk_adjustment_new(val, min, max, 1, 1, 0.0);
+            adjustment = GTK_ADJUSTMENT(gtk_adjustment_new(val, min, max,
+                                                           1, 1, 0.0));
             scale = gtk_hscale_new(GTK_ADJUSTMENT(adjustment));
             gtk_adjustment_set_value(GTK_ADJUSTMENT(adjustment), val);
             
@@ -482,7 +483,8 @@ GtkWidget *ctk_multisample_new(NvCtrlAttributeHandle *handle,
             max = valid.u.range.max;
 
             /* create the slider */
-            adjustment = gtk_adjustment_new(val, min, max, 1, 1, 0.0);
+            adjustment = GTK_ADJUSTMENT(gtk_adjustment_new(val, min, max,
+                                                           1, 1, 0.0));
             scale = gtk_hscale_new(GTK_ADJUSTMENT(adjustment));
             gtk_adjustment_set_value(GTK_ADJUSTMENT(adjustment), val);
 
@@ -842,7 +844,7 @@ static void fsaa_setting_checkbox_toggled(GtkWidget *widget,
  * the fsaa slider.
  */
 
-static void fsaa_setting_menu_changed(GtkObject *object, gpointer user_data)
+static void fsaa_setting_menu_changed(GObject *object, gpointer user_data)
 {
     CtkMultisample *ctk_multisample = CTK_MULTISAMPLE(user_data);
     gint idx;
@@ -874,7 +876,7 @@ static void fsaa_setting_menu_changed(GtkObject *object, gpointer user_data)
  * NV-CONTROL client.
  */
 
-static void fsaa_setting_update_received(GtkObject *object,
+static void fsaa_setting_update_received(GObject *object,
                                          gpointer arg1,
                                          gpointer user_data)
 {
@@ -1125,7 +1127,7 @@ static void fxaa_checkbox_toggled(GtkWidget *widget,
  * client.
  */
 
-static void fxaa_update_received(GtkObject *object,
+static void fxaa_update_received(GObject *object,
                                  gpointer arg1, gpointer user_data)
 {
     CtkEventStruct *event_struct = (CtkEventStruct *) arg1;
@@ -1172,7 +1174,7 @@ post_fxaa_toggled(CtkMultisample *ctk_multisample, gboolean enable)
  * client.
  */
 
-static void fsaa_update_received(GtkObject *object,
+static void fsaa_update_received(GObject *object,
                                  gpointer arg1, gpointer user_data)
 {
     CtkEventStruct *event_struct;
@@ -1274,7 +1276,7 @@ static void log_aniso_app_override_toggled(GtkWidget *widget,
  * another NV-CONTROL client.
  */
 
-static void log_app_override_update_received(GtkObject *object,
+static void log_app_override_update_received(GObject *object,
                                              gpointer arg1, gpointer user_data)
 {
     CtkEventStruct *event_struct = (CtkEventStruct *) arg1;
@@ -1378,7 +1380,7 @@ static void log_aniso_value_changed(GtkRange *range, gpointer user_data)
  * client.
  */
 
-static void log_aniso_range_update_received(GtkObject *object,
+static void log_aniso_range_update_received(GObject *object,
                                             gpointer arg1, gpointer user_data)
 {
     CtkEventStruct *event_struct;
@@ -1453,7 +1455,7 @@ static void texture_sharpening_toggled(GtkWidget *widget, gpointer user_data)
  * NV-CONTROL client.
  */
 
-static void texture_sharpening_update_received(GtkObject *object,
+static void texture_sharpening_update_received(GObject *object,
                                                gpointer arg1,
                                                gpointer user_data)
 {

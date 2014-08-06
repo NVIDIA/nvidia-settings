@@ -241,7 +241,7 @@ static GtkWidget * create_error_dialog(CtkVcs *ctk_object)
 
     /* Main horizontal box */
     hbox = gtk_hbox_new(FALSE, 5);
-    gtk_box_pack_start(GTK_BOX(GTK_DIALOG(dialog)->vbox),
+    gtk_box_pack_start(GTK_BOX(ctk_dialog_get_content_area(GTK_DIALOG(dialog))),
                        hbox, TRUE, TRUE, 5);
 
     /* Pack the information icon */
@@ -264,7 +264,7 @@ static GtkWidget * create_error_dialog(CtkVcs *ctk_object)
     gtk_dialog_add_button(GTK_DIALOG(dialog), "OK",
                           GTK_RESPONSE_ACCEPT);
 
-    gtk_widget_show_all(GTK_DIALOG(dialog)->vbox);
+    gtk_widget_show_all(ctk_dialog_get_content_area(GTK_DIALOG(dialog)));
 
     return dialog;
 
@@ -648,7 +648,7 @@ GtkWidget* ctk_vcs_new(NvCtrlAttributeHandle *handle,
 
         label = gtk_label_new("Exhaust Temperature:");
         /* This is the current largest label.  Get its size */
-        gtk_widget_size_request(label, &ctk_object->req);
+        ctk_widget_get_preferred_size(label, &ctk_object->req);
 
         gtk_misc_set_alignment(GTK_MISC(label), 0.0f, 0.5f);
         gtk_table_attach(GTK_TABLE(table), label, 0, 1, 1, 2,

@@ -332,13 +332,27 @@ NvCtrlAttributeHandle *nv_get_target_handle(const CtrlHandles *handles,
  * \param[in/out]  head    The first node in the CtrlHandleTarget list, to which
  *                         target should be inserted.
  * \param[in]      target  The CtrlHandleTarget to add to the list.
+ * \param[in]      enabled_display_check  Whether or not to check that, if the
+ *                                        target is a display target, it is also
+ *                                        enabled.
  */
 
 static void nv_target_list_add(CtrlHandleTargetNode **head,
-                               CtrlHandleTarget *target)
+                               CtrlHandleTarget *target,
+                               Bool enabled_display_check)
 {
     CtrlHandleTargetNode *new_t;
     CtrlHandleTargetNode *t;
+
+    /* Do not add disabled displays to the list */
+    if (enabled_display_check) {
+        int target_type = NvCtrlGetTargetType(target->h);
+
+        if (target_type == NV_CTRL_TARGET_TYPE_DISPLAY &&
+            !target->display.enabled) {
+            return;
+        }
+    }
 
     new_t = nvalloc(sizeof(CtrlHandleTargetNode));
     new_t->t = target;
@@ -433,7 +447,7 @@ static void add_target_relationships(const CtrlHandles *h, CtrlHandleTarget *t,
 
         r = nv_get_target(h, targetType, targetId);
         if (r) {
-            nv_target_list_add(&(t->relations), r);
+            nv_target_list_add(&(t->relations), r, FALSE);
 
             /* Track connection state of display devices */
             if (attr == NV_CTRL_BINARY_DATA_DISPLAYS_CONNECTED_TO_GPU) {
@@ -441,7 +455,7 @@ static void add_target_relationships(const CtrlHandles *h, CtrlHandleTarget *t,
             }
 
             if (implicit_reciprocal == NV_TRUE) {
-                nv_target_list_add(&(r->relations), t);
+                nv_target_list_add(&(r->relations), t, FALSE);
             }
         }
     }
@@ -895,8 +909,7 @@ static int nv_infer_targets_from_specification(ParsedAttribute *p,
             }
 
             /* Target matches, add it to the list */
-
-            nv_target_list_add(&(p->targets), t);
+            nv_target_list_add(&(p->targets), t, TRUE);
             p->parser_flags.has_target = NV_TRUE;
         }
     }
@@ -1374,7 +1387,7 @@ static void include_target_idx_targets(ParsedAttribute *p, const CtrlHandles *h,
 
     for (i = 0; i < targets->n; i++) {
         CtrlHandleTarget *target = &(targets->t[i]);
-        nv_target_list_add(&(p->targets), target);
+        nv_target_list_add(&(p->targets), target, TRUE);
         p->parser_flags.has_target = NV_TRUE;
     }
 }
@@ -1509,7 +1522,7 @@ static void resolve_display_mask_string(ParsedAttribute *p, const char *whence)
 
         /* Include display targets that were previously resolved */
         if (target_type == NV_CTRL_TARGET_TYPE_DISPLAY) {
-            nv_target_list_add(&head, t);
+            nv_target_list_add(&head, t, TRUE);
             continue;
         }
 
@@ -1527,13 +1540,13 @@ static void resolve_display_mask_string(ParsedAttribute *p, const char *whence)
 
             /* Include all displays if no specification was given */
             if (!p->parser_flags.has_display_device) {
-                nv_target_list_add(&head, t_other);
+                nv_target_list_add(&head, t_other, TRUE);
                 continue;
             }
 
             for (i = 0; i < num_names; i++) {
                 if (nv_target_has_name(t_other, name_toks[i])) {
-                    nv_target_list_add(&head, t_other);
+                    nv_target_list_add(&head, t_other, TRUE);
                     break;
                 }
             }
@@ -1615,7 +1628,7 @@ static int resolve_attribute_targets(ParsedAttribute *p, CtrlHandles *h,
             return NV_PARSER_STATUS_TARGET_SPEC_NO_TARGETS;
         }
 
-        nv_target_list_add(&(p->targets), target);
+        nv_target_list_add(&(p->targets), target, TRUE);
         p->parser_flags.has_target = NV_TRUE;
         goto done;
     }
@@ -3144,6 +3157,13 @@ int nv_process_parsed_attribute(const Options *op,
         goto done;
     }
 
+    if (!p->targets) {
+        nv_warning_msg("Failed to match any targets for target specification "
+                       "'%s', specified %s.",
+                       p->target_specification ? p->target_specification : "",
+                       whence);
+    }
+
     /* loop over the requested targets */
 
     for (n = p->targets; n; n = n->next) {
@@ -3183,10 +3203,10 @@ int nv_process_parsed_attribute(const Options *op,
         if (a->type == NV_PARSER_ATTRIBUTE_TYPE_COLOR) {
             float v[3];
             if (!assign) {
-                nv_error_msg("Cannot query attribute '%s'", a->name);
+                nv_msg(NULL, "Attribute '%s' cannot be queried.", a->name);
                 goto done;
             }
-            
+
             /*
              * assign p->val.f to all values in the array; a->attr will
              * tell NvCtrlSetColorAttributes() which indices in the

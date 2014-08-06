@@ -35,7 +35,7 @@
 
 #include "XF86Config-parser/xf86Parser.h"
 
-static void probe_displays_received(GtkObject *object, gpointer arg1,
+static void probe_displays_received(GObject *object, gpointer arg1,
                                     gpointer user_data);
 static gboolean update_gpu_usage(gpointer);
 
@@ -754,7 +754,7 @@ GtkTextBuffer *ctk_gpu_create_help(GtkTextTagTable *table,
 
 
 
-static void probe_displays_received(GtkObject *object, gpointer arg1,
+static void probe_displays_received(GObject *object, gpointer arg1,
                                     gpointer user_data)
 {
     CtkGpu *ctk_object = CTK_GPU(user_data);

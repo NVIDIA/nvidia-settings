@@ -37,7 +37,7 @@ static void sync_gui_sensitivity(CtkThermal *ctk_thermal);
 static void sync_gui_to_modify_cooler_level(CtkThermal *ctk_thermal);
 static gboolean sync_gui_to_update_cooler_event(gpointer user_data);
 static void cooler_control_checkbox_toggled(GtkWidget *widget, gpointer user_data);
-static void cooler_operating_level_changed(GtkObject *object, gpointer arg1,
+static void cooler_operating_level_changed(GObject *object, gpointer arg1,
                                            gpointer user_data);
 static void apply_button_clicked(GtkWidget *widget, gpointer user_data);
 static void reset_button_clicked(GtkWidget *widget, gpointer user_data);
@@ -479,7 +479,7 @@ static void cooler_control_state_toggled(GtkWidget *widget, gpointer user_data)
  * cooler control state.
  *
  */
-static void cooler_control_state_received(GtkObject *object,
+static void cooler_control_state_received(GObject *object,
                                           gpointer arg1, gpointer user_data)
 {
     CtkThermal *ctk_thermal = CTK_THERMAL(user_data);
@@ -808,7 +808,7 @@ static gboolean sync_gui_to_update_cooler_event(gpointer user_data)
  * Callback function when another NV_CONTROL client changed cooler level.
  *
  */
-static void cooler_operating_level_changed(GtkObject *object, gpointer arg1,
+static void cooler_operating_level_changed(GObject *object, gpointer arg1,
                                            gpointer user_data)
 {
     /* sync_gui_to_modify_cooler_level() to be called once when all other
@@ -1043,7 +1043,7 @@ GtkWidget* ctk_thermal_new(NvCtrlAttributeHandle *handle,
     GObject *object;
     CtkThermal *ctk_thermal;
     CtrlHandles *h;
-    GtkObject *adjustment;
+    GtkAdjustment *adjustment;
     GtkWidget *hbox = NULL, *hbox1, *hbox2, *table, *vbox;
     GtkWidget *frame, *banner, *label;
     GtkWidget *vbox1;
@@ -1424,10 +1424,10 @@ sensor_end:
                  NV_CTRL_THERMAL_COOLER_CONTROL_TYPE_VARIABLE)) {
 
                 adjustment =
-                    gtk_adjustment_new(cooler_level,
-                                       cooler_range.u.range.min,
-                                       cooler_range.u.range.max,
-                         1, 5, 0.0);
+                    GTK_ADJUSTMENT(gtk_adjustment_new(cooler_level,
+                                                      cooler_range.u.range.min,
+                                                      cooler_range.u.range.max,
+                                                      1, 5, 0.0));
                 name = g_strdup_printf("Fan %d Speed", cur_cooler_idx);
                 scale = ctk_scale_new(GTK_ADJUSTMENT(adjustment), name,
                                       ctk_config, G_TYPE_INT);

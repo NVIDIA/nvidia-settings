@@ -20,6 +20,8 @@
 #ifndef __CTK_CURVE_H__
 #define __CTK_CURVE_H__
 
+#include "ctkutils.h"
+
 G_BEGIN_DECLS
 
 #define CTK_TYPE_CURVE (ctk_curve_get_type())
@@ -50,6 +52,10 @@ struct _CtkCurve
     NvCtrlAttributeHandle *handle;
     GtkWidget *color;
 
+#ifdef CTK_GTK3
+    cairo_surface_t *c_surface;
+    cairo_t *c_context;
+#else
     GdkColor gdk_color_red;
     GdkColor gdk_color_green;
     GdkColor gdk_color_blue;
@@ -58,6 +64,7 @@ struct _CtkCurve
 
     GdkPixmap *gdk_pixmap;
     GdkGC *gdk_gc;
+#endif
     gint width;
     gint height;
 };

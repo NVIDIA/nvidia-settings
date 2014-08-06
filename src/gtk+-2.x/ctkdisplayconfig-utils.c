@@ -4313,7 +4313,7 @@ static void update_xconfig_save_buffer(SaveXConfDlg *dlg)
 static void xconfig_preview_clicked(GtkWidget *widget, gpointer user_data)
 {
     SaveXConfDlg *dlg = (SaveXConfDlg *)user_data;
-    gboolean show = !GTK_WIDGET_VISIBLE(dlg->box_xconfig_save);
+    gboolean show = !ctk_widget_get_visible(dlg->box_xconfig_save);
 
     if (show) {
         gtk_widget_show_all(dlg->box_xconfig_save);
@@ -4369,8 +4369,8 @@ static void xconfig_file_clicked(GtkWidget *widget, gpointer user_data)
         (GTK_WINDOW(dlg->dlg_xconfig_file),
          GTK_WINDOW(gtk_widget_get_toplevel(GTK_WIDGET(dlg->parent))));
 
-    gtk_file_selection_set_filename
-        (GTK_FILE_SELECTION(dlg->dlg_xconfig_file), filename);
+    gtk_file_chooser_set_filename
+        (GTK_FILE_CHOOSER(dlg->dlg_xconfig_file), filename);
 
     result = gtk_dialog_run(GTK_DIALOG(dlg->dlg_xconfig_file));
     gtk_widget_hide(dlg->dlg_xconfig_file);
@@ -4378,8 +4378,8 @@ static void xconfig_file_clicked(GtkWidget *widget, gpointer user_data)
     switch (result) {
     case GTK_RESPONSE_ACCEPT:
     case GTK_RESPONSE_OK:
-        filename = gtk_file_selection_get_filename
-            (GTK_FILE_SELECTION(dlg->dlg_xconfig_file));
+        filename = gtk_file_chooser_get_filename
+            (GTK_FILE_CHOOSER(dlg->dlg_xconfig_file));
 
         gtk_entry_set_text(GTK_ENTRY(dlg->txt_xconfig_file), filename);
 
@@ -4532,8 +4532,7 @@ SaveXConfDlg *create_save_xconfig_dialog(GtkWidget *parent,
     dlg->dlg_xconfig_save = gtk_dialog_new_with_buttons
         ("Save X Configuration",
          GTK_WINDOW(gtk_widget_get_parent(GTK_WIDGET(parent))),
-         GTK_DIALOG_MODAL |  GTK_DIALOG_DESTROY_WITH_PARENT |
-         GTK_DIALOG_NO_SEPARATOR,
+         GTK_DIALOG_MODAL |  GTK_DIALOG_DESTROY_WITH_PARENT,
          GTK_STOCK_SAVE,
          GTK_RESPONSE_ACCEPT,
          GTK_STOCK_CANCEL,
@@ -4542,8 +4541,6 @@ SaveXConfDlg *create_save_xconfig_dialog(GtkWidget *parent,
 
     gtk_dialog_set_default_response(GTK_DIALOG(dlg->dlg_xconfig_save),
                                     GTK_RESPONSE_REJECT);
-
-    gtk_dialog_set_has_separator(GTK_DIALOG(dlg->dlg_xconfig_save), TRUE);
 
     /* Create the preview button */
     dlg->btn_xconfig_preview = gtk_button_new();
@@ -4578,7 +4575,11 @@ SaveXConfDlg *create_save_xconfig_dialog(GtkWidget *parent,
                      G_CALLBACK(xconfig_file_clicked),
                      (gpointer) dlg);
     dlg->dlg_xconfig_file =
-        gtk_file_selection_new("Please select the X configuration file");
+        gtk_file_chooser_dialog_new("Please select the X configuration file",
+                                    NULL, GTK_FILE_CHOOSER_ACTION_OPEN,
+                                    GTK_STOCK_CANCEL, GTK_RESPONSE_CANCEL,
+                                    GTK_STOCK_OPEN, GTK_RESPONSE_ACCEPT,
+                                    NULL);
 
     /* Create the merge checkbox */
     dlg->btn_xconfig_merge =
@@ -4597,7 +4598,7 @@ SaveXConfDlg *create_save_xconfig_dialog(GtkWidget *parent,
 
     gtk_box_pack_start(GTK_BOX(hbox), dlg->btn_xconfig_preview,
                        FALSE, FALSE, 5);
-    gtk_box_pack_start(GTK_BOX(GTK_DIALOG(dlg->dlg_xconfig_save)->vbox),
+    gtk_box_pack_start(GTK_BOX(ctk_dialog_get_content_area(GTK_DIALOG(dlg->dlg_xconfig_save))),
                        hbox, FALSE, FALSE, 5);
 
     /* Pack the preview window */
@@ -4607,7 +4608,7 @@ SaveXConfDlg *create_save_xconfig_dialog(GtkWidget *parent,
                       dlg->txt_xconfig_save);
     gtk_box_pack_start(GTK_BOX(hbox), dlg->scr_xconfig_save, TRUE, TRUE, 5);
     gtk_box_pack_start
-        (GTK_BOX(GTK_DIALOG(dlg->dlg_xconfig_save)->vbox),
+        (GTK_BOX(ctk_dialog_get_content_area(GTK_DIALOG(dlg->dlg_xconfig_save))),
          hbox,
          TRUE, TRUE, 0);
     dlg->box_xconfig_save = hbox;
@@ -4619,16 +4620,16 @@ SaveXConfDlg *create_save_xconfig_dialog(GtkWidget *parent,
     gtk_box_pack_end(GTK_BOX(hbox2), dlg->btn_xconfig_file, FALSE, FALSE, 0);
     gtk_box_pack_end(GTK_BOX(hbox2), dlg->txt_xconfig_file, TRUE, TRUE, 0);
     gtk_box_pack_end(GTK_BOX(hbox), hbox2, TRUE, TRUE, 5);
-    gtk_box_pack_start(GTK_BOX(GTK_DIALOG(dlg->dlg_xconfig_save)->vbox),
+    gtk_box_pack_start(GTK_BOX(ctk_dialog_get_content_area(GTK_DIALOG(dlg->dlg_xconfig_save))),
                        hbox,
                        FALSE, FALSE, 5);
 
     /* Pack the merge checkbox */
-    gtk_box_pack_start(GTK_BOX(GTK_DIALOG(dlg->dlg_xconfig_save)->vbox),
+    gtk_box_pack_start(GTK_BOX(ctk_dialog_get_content_area(GTK_DIALOG(dlg->dlg_xconfig_save))),
                        dlg->btn_xconfig_merge,
                        FALSE, FALSE, 5);
 
-    gtk_widget_show_all(GTK_DIALOG(dlg->dlg_xconfig_save)->vbox);
+    gtk_widget_show_all(ctk_dialog_get_content_area(GTK_DIALOG(dlg->dlg_xconfig_save)));
 
     return dlg;
 

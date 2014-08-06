@@ -33,6 +33,7 @@
 #include "ctkhelp.h"
 #include "ctkditheringcontrols.h"
 #include "ctkdropdownmenu.h"
+#include "ctkutils.h"
 
 /* function prototypes */
 static void
@@ -64,7 +65,7 @@ static void dithering_mode_menu_changed(GtkWidget *dithering_mode_menu,
 static void dithering_config_menu_changed(GtkWidget *dithering_config_menu,
                                           gpointer user_data);
 
-static void dithering_update_received(GtkObject *object, gpointer arg1,
+static void dithering_update_received(GObject *object, gpointer arg1,
                                       gpointer user_data);
 
 static
@@ -406,7 +407,7 @@ static void setup_reset_button(CtkDitheringControls *ctk_dithering_controls)
     CtkDropDownMenu *dithering_mode_menu;
     CtkDropDownMenu *dithering_depth_menu;
 
-    if (!GTK_WIDGET_SENSITIVE(ctk_dithering_controls->dithering_controls_box)) {
+    if (!ctk_widget_get_sensitive(ctk_dithering_controls->dithering_controls_box)) {
         /* Nothing is available, don't bother enabling the reset button yet. */
         return;
     }
@@ -420,7 +421,7 @@ static void setup_reset_button(CtkDitheringControls *ctk_dithering_controls)
         goto enable;
     }
 
-    if (GTK_WIDGET_SENSITIVE(ctk_dithering_controls->dithering_mode_box)) {
+    if (ctk_widget_get_sensitive(ctk_dithering_controls->dithering_mode_box)) {
         dithering_mode_menu =
             CTK_DROP_DOWN_MENU(ctk_dithering_controls->dithering_mode_menu);
         history = ctk_drop_down_menu_get_current_value(dithering_mode_menu);
@@ -430,7 +431,7 @@ static void setup_reset_button(CtkDitheringControls *ctk_dithering_controls)
         }
     }
 
-    if (GTK_WIDGET_SENSITIVE(ctk_dithering_controls->dithering_depth_box)) {
+    if (ctk_widget_get_sensitive(ctk_dithering_controls->dithering_depth_box)) {
         dithering_depth_menu =
             CTK_DROP_DOWN_MENU(ctk_dithering_controls->dithering_depth_menu);
         history = ctk_drop_down_menu_get_current_value(dithering_depth_menu);
@@ -896,7 +897,7 @@ void add_dithering_controls_help(CtkDitheringControls *ctk_dithering_controls,
  * When dithering configuration is enabled/disabled,
  * we should update the GUI to reflect the current state & mode.
  */
-static void dithering_update_received(GtkObject *object, gpointer arg1,
+static void dithering_update_received(GObject *object, gpointer arg1,
                                       gpointer user_data)
 {
     CtkDitheringControls *ctk_object = CTK_DITHERING_CONTROLS(user_data);

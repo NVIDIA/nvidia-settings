@@ -57,9 +57,9 @@ struct _CtkColorCorrection
     CtkConfig *ctk_config;
     CtkEvent  *ctk_event;
     GtkWidget *color_channel;
-    GtkObject *brightness_adjustment;
-    GtkObject *contrast_adjustment;
-    GtkObject *gamma_adjustment;
+    GtkAdjustment *brightness_adjustment;
+    GtkAdjustment *contrast_adjustment;
+    GtkAdjustment *gamma_adjustment;
     GtkWidget *curve;
     GtkWidget *warning_container;
     GtkWidget *reset_button;

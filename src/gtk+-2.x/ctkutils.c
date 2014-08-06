@@ -24,6 +24,252 @@
 #include "msg.h"
 
 /*
+ * GTK 2/3 util functions - These functions are used in nvidia-settings to hide
+ * function calls that differ between GTK 2 and GTK 3. The naming convention
+ * used is the name of the GTK 3 function, if applicable, with a ctk_ prefix
+ * instead of gtk_.
+ */
+
+gboolean ctk_widget_is_sensitive(GtkWidget *w)
+{
+#ifdef CTK_GTK3
+    /* GTK function added in 2.18 */
+    return gtk_widget_is_sensitive(w);
+#else
+    /* deprecated in 2.20, removed in 3.0 */
+    return GTK_WIDGET_IS_SENSITIVE(w);
+#endif
+}
+
+gboolean ctk_widget_get_sensitive(GtkWidget *w)
+{
+#ifdef CTK_GTK3
+    /* GTK function added in 2.18 */
+    return gtk_widget_get_sensitive(w);
+#else
+    /* deprecated in 2.20, removed in 3.0 */
+    return GTK_WIDGET_SENSITIVE(w);
+#endif
+}
+
+gboolean ctk_widget_get_visible(GtkWidget *w)
+{
+#ifdef CTK_GTK3
+    /* GTK function added in 2.18 */
+    return gtk_widget_get_visible(w);
+#else
+    /* deprecated in 2.20, removed in 3.0 */
+    return GTK_WIDGET_VISIBLE(w);
+#endif
+}
+
+gboolean ctk_widget_is_drawable(GtkWidget *w)
+{
+#ifdef CTK_GTK3
+    /* GTK function added in 2.18 */
+    return gtk_widget_is_drawable(w);
+#else
+    /* deprecated in 2.20, removed in 3.0 */
+    return GTK_WIDGET_DRAWABLE(w);
+#endif
+}
+
+GdkWindow *ctk_widget_get_window(GtkWidget *w)
+{
+#ifdef CTK_GTK3
+    /* GTK function added in 2.14 */
+    return gtk_widget_get_window(w);
+#else
+    /* direct access removed in 3.0 */
+    return w->window;
+#endif
+}
+
+void ctk_widget_get_allocation(GtkWidget *w, GtkAllocation *a)
+{
+#ifdef CTK_GTK3
+    /* GTK function added in 2.14 */
+    gtk_widget_get_allocation(w, a);
+#else
+    /* direct access removed in 3.0 */
+    a->x = w->allocation.x;
+    a->y = w->allocation.y;
+    a->width  = w->allocation.width;
+    a->height = w->allocation.height;
+#endif
+}
+
+void ctk_widget_get_preferred_size(GtkWidget *w, GtkRequisition *r)
+{
+#ifdef CTK_GTK3
+    /* GTK function added in 3.0 */
+    GtkRequisition min_req;
+    gtk_widget_get_preferred_size(w, &min_req, r);
+#else
+    /* deprecated in 3.0 */
+    gtk_widget_size_request(w, r);
+#endif
+}
+
+gchar *ctk_widget_get_tooltip_text(GtkWidget *w)
+{
+#ifdef CTK_GTK3
+    /* GTK function added in 2.12 */
+    return gtk_widget_get_tooltip_text(w);
+#else
+    /* direct access removed in 3.0 */
+    GtkTooltipsData *td = gtk_tooltips_data_get(GTK_WIDGET(w));
+    return g_strdup(td->tip_text);
+#endif
+}
+
+GtkWidget *ctk_dialog_get_content_area(GtkDialog *d)
+{
+#ifdef CTK_GTK3
+    /* GTK function added in 2.14 */
+    return gtk_dialog_get_content_area(d);
+#else
+    /* direct access removed in 3.0 */
+    return d->vbox;
+#endif
+}
+
+gdouble ctk_adjustment_get_page_increment(GtkAdjustment *a)
+{
+#ifdef CTK_GTK3
+    /* GTK function added in 2.14 */
+    return gtk_adjustment_get_page_increment(a);
+#else
+    /* direct access removed in 3.0 */
+    return a->page_increment;
+#endif
+}
+
+gdouble ctk_adjustment_get_step_increment(GtkAdjustment *a)
+{
+#ifdef CTK_GTK3
+    /* GTK function added in 2.14 */
+    return gtk_adjustment_get_step_increment(a);
+#else
+    /* direct access removed in 3.0 */
+    return a->step_increment;
+#endif
+}
+
+gdouble ctk_adjustment_get_page_size(GtkAdjustment *a)
+{
+#ifdef CTK_GTK3
+    /* GTK function added in 2.14 */
+    return gtk_adjustment_get_page_size(a);
+#else
+    /* direct access removed in 3.0 */
+    return a->page_size;
+#endif
+}
+
+gdouble ctk_adjustment_get_upper(GtkAdjustment *a)
+{
+#ifdef CTK_GTK3
+    /* GTK function added in 2.14 */
+    return gtk_adjustment_get_upper(a);
+#else
+    /* direct access removed in 3.0 */
+    return a->upper;
+#endif
+}
+
+void ctk_adjustment_set_upper(GtkAdjustment *a, gdouble x)
+{
+#ifdef CTK_GTK3
+    /* GTK function added in 2.14 */
+    gtk_adjustment_set_upper(a, x);
+#else
+    /* direct access removed in 3.0 */
+    a->upper = x;
+#endif
+}
+
+void ctk_adjustment_set_lower(GtkAdjustment *a, gdouble x)
+{
+#ifdef CTK_GTK3
+    /* GTK function added in 2.14 */
+    gtk_adjustment_set_lower(a, x);
+#else
+    /* direct access removed in 3.0 */
+    a->lower = x;
+#endif
+}
+
+GtkWidget *ctk_scrolled_window_get_vscrollbar(GtkScrolledWindow *sw)
+{
+#ifdef CTK_GTK3
+    /* GTK function added in 2.8 */
+    return gtk_scrolled_window_get_vscrollbar(sw);
+#else
+    /* direct access removed in 3.0 */
+    return sw->vscrollbar;
+#endif
+}
+
+GtkWidget *ctk_statusbar_get_message_area(GtkStatusbar *statusbar)
+{
+#ifdef CTK_GTK3
+    /* GTK function added in 2.20 */
+    return gtk_statusbar_get_message_area(statusbar);
+#else
+    /* direct access removed in 3.0 */
+    return statusbar->label;
+#endif
+}
+
+void ctk_g_object_ref_sink(gpointer obj)
+{
+#ifdef CTK_GTK3
+    /* GTK function added in 2.10 */
+    g_object_ref_sink(obj);
+#else
+    /* function removed in 2.10 */
+    gtk_object_sink(GTK_OBJECT(obj));
+#endif
+}
+
+GtkWidget *ctk_combo_box_text_new(void)
+{
+#ifdef CTK_GTK3
+    /* added in 2.24 */
+    return gtk_combo_box_text_new();
+#else
+    /* added in 2.4, deprecated in 2.24, removed in 3.0 */
+    return gtk_combo_box_new_text();
+#endif
+}
+
+GtkWidget *ctk_combo_box_text_new_with_entry()
+{
+#ifdef CTK_GTK3
+    /* added in 2.24 */
+    return gtk_combo_box_text_new_with_entry();
+#else
+    /* added in 2.4, deprecated in 2.24, removed in 3.0 */
+    return gtk_combo_box_entry_new_text();
+#endif
+}
+
+void ctk_combo_box_text_append_text(GtkWidget *widget, const gchar *text)
+{
+#ifdef CTK_GTK3
+    /* added in 2.24 */
+    gtk_combo_box_text_append_text(GTK_COMBO_BOX_TEXT(widget), text);
+#else
+    /* added in 2.4, deprecated in 2.24, removed in 3.0 */
+    gtk_combo_box_append_text(GTK_COMBO_BOX(widget), text);
+#endif
+}
+
+/* end of GTK2/3 util functions */
+
+
+/*
  * This function checks that the GTK+ library in use is at least as new as the
  * given version number. Note this differs from gtk_check_version(), which
  * checks that the library in use is "compatible" with the given version (which
@@ -394,8 +640,10 @@ void ctk_empty_container(GtkWidget *container)
 static void widget_use_text_colors_for_state(GtkWidget *widget,
                                              GtkStateType state)
 {
-    gtk_widget_modify_fg(widget, state, &(widget->style->text[state]));
-    gtk_widget_modify_bg(widget, state, &(widget->style->base[state]));
+    GtkStyle *style = gtk_widget_get_style(widget);
+
+    gtk_widget_modify_fg(widget, state, &(style->text[state]));
+    gtk_widget_modify_bg(widget, state, &(style->base[state]));
 
 }
 
@@ -428,9 +676,13 @@ void ctk_force_text_colors_on_widget(GtkWidget *widget)
     /* Set the intial state */
     force_text_colors_handler(widget, NULL, NULL);
 
+#ifndef CTK_GTK3
+    /* This behavior is not properly supported in GTK 3 */
+
     /* Ensure state is updated when style changes */
     g_signal_connect(G_OBJECT(widget),
                      "style-set", G_CALLBACK(force_text_colors_handler),
                      (gpointer) NULL);
+#endif
 }
 

@@ -514,8 +514,8 @@ static void init_glasses_info_widgets(GlassesInfo *glasses)
     glasses->image = NULL;
 }
 
-static void callback_glasses_paired(GtkObject *object, gpointer arg1,
-                               gpointer user_data)
+static void callback_glasses_paired(GObject *object, gpointer arg1,
+                                    gpointer user_data)
 {
     int battery_level;
     char *glasses_name = NULL;
@@ -612,7 +612,7 @@ static void callback_glasses_paired(GtkObject *object, gpointer arg1,
     free(glasses_name);
 }
 
-static void callback_glasses_unpaired(GtkObject *object, gpointer arg1,
+static void callback_glasses_unpaired(GObject *object, gpointer arg1,
                                       gpointer user_data)
 {
     int j;
@@ -696,7 +696,7 @@ static void enable_widgets(Ctk3DVisionPro *ctk_3d_vision_pro, Bool enable)
     gtk_widget_set_sensitive(ctk_3d_vision_pro->table.hscrollbar, enable);
 }
 
-static void svp_config_changed(GtkObject *object, gpointer arg1,
+static void svp_config_changed(GObject *object, gpointer arg1,
                                gpointer user_data)
 {
     CtkEventStruct *event_struct;
@@ -856,8 +856,7 @@ static AddGlassesDlg *create_add_glasses_dlg(Ctk3DVisionPro *ctk_3d_vision_pro)
     dlg->dlg_add_glasses = gtk_dialog_new_with_buttons
         ("Add glasses",
          ctk_3d_vision_pro->parent_wnd,
-         GTK_DIALOG_MODAL |  GTK_DIALOG_DESTROY_WITH_PARENT |
-         GTK_DIALOG_NO_SEPARATOR,
+         GTK_DIALOG_MODAL |  GTK_DIALOG_DESTROY_WITH_PARENT,
          GTK_STOCK_SAVE,
          GTK_RESPONSE_ACCEPT,
          GTK_STOCK_CANCEL,
@@ -873,24 +872,24 @@ static AddGlassesDlg *create_add_glasses_dlg(Ctk3DVisionPro *ctk_3d_vision_pro)
     gtk_box_pack_start(GTK_BOX(hbox), label, FALSE, FALSE, 10);
 
     gtk_box_pack_start
-        (GTK_BOX(GTK_DIALOG(dlg->dlg_add_glasses)->vbox),
+        (GTK_BOX(ctk_dialog_get_content_area(GTK_DIALOG(dlg->dlg_add_glasses))),
          hbox, TRUE, TRUE, 5);
 
     hbox = gtk_hbox_new(TRUE, 0);
     gtk_box_pack_start
-        (GTK_BOX(GTK_DIALOG(dlg->dlg_add_glasses)->vbox),
+        (GTK_BOX(ctk_dialog_get_content_area(GTK_DIALOG(dlg->dlg_add_glasses))),
          hbox, TRUE, TRUE, 5);
 
     image = gtk_image_new_from_pixbuf(gdk_pixbuf_new_from_xpm_data(
                 svp_add_glasses_xpm));
-    gtk_box_pack_start(GTK_BOX(GTK_DIALOG(dlg->dlg_add_glasses)->vbox),
+    gtk_box_pack_start(GTK_BOX(ctk_dialog_get_content_area(GTK_DIALOG(dlg->dlg_add_glasses))),
                        image, FALSE, FALSE, 0);
 
     label = gtk_label_new("2. List of glasses connected:");
     hbox = gtk_hbox_new(TRUE, 0);
     gtk_box_pack_start(GTK_BOX(hbox), label, FALSE, FALSE, 5);
     gtk_box_pack_start
-        (GTK_BOX(GTK_DIALOG(dlg->dlg_add_glasses)->vbox),
+        (GTK_BOX(ctk_dialog_get_content_area(GTK_DIALOG(dlg->dlg_add_glasses))),
          hbox, TRUE, TRUE, 5);
 
     //generate menu option for glasses' name
@@ -903,11 +902,10 @@ static AddGlassesDlg *create_add_glasses_dlg(Ctk3DVisionPro *ctk_3d_vision_pro)
                               ctk_3d_vision_pro->ctk_config);
 
     gtk_box_pack_start
-        (GTK_BOX(GTK_DIALOG(dlg->dlg_add_glasses)->vbox),
+        (GTK_BOX(ctk_dialog_get_content_area(GTK_DIALOG(dlg->dlg_add_glasses))),
          hbox, TRUE, TRUE, 5);
-    gtk_dialog_set_has_separator(GTK_DIALOG(dlg->dlg_add_glasses), TRUE);
 
-    gtk_widget_show_all(GTK_DIALOG(dlg->dlg_add_glasses)->vbox);
+    gtk_widget_show_all(ctk_dialog_get_content_area(GTK_DIALOG(dlg->dlg_add_glasses)));
 
     return dlg;
 }
@@ -1000,8 +998,7 @@ static RemoveGlassesDlg *create_remove_glasses_dlg(Ctk3DVisionPro *ctk_3d_vision
     dlg->dlg_remove_glasses = gtk_dialog_new_with_buttons
         ("Remove glasses",
          ctk_3d_vision_pro->parent_wnd,
-         GTK_DIALOG_MODAL |  GTK_DIALOG_DESTROY_WITH_PARENT |
-         GTK_DIALOG_NO_SEPARATOR,
+         GTK_DIALOG_MODAL |  GTK_DIALOG_DESTROY_WITH_PARENT,
          GTK_STOCK_OK,
          GTK_RESPONSE_OK,
          GTK_STOCK_CANCEL,
@@ -1022,12 +1019,10 @@ static RemoveGlassesDlg *create_remove_glasses_dlg(Ctk3DVisionPro *ctk_3d_vision
     gtk_box_pack_start(GTK_BOX(hbox), dlg->mnu_glasses_name,
                        TRUE, TRUE, 0);
     gtk_box_pack_start
-        (GTK_BOX(GTK_DIALOG(dlg->dlg_remove_glasses)->vbox),
+        (GTK_BOX(ctk_dialog_get_content_area(GTK_DIALOG(dlg->dlg_remove_glasses))),
          hbox, TRUE, TRUE, 20);
 
-    gtk_dialog_set_has_separator(GTK_DIALOG(dlg->dlg_remove_glasses), TRUE);
-
-    gtk_widget_show_all(GTK_DIALOG(dlg->dlg_remove_glasses)->vbox);
+    gtk_widget_show_all(ctk_dialog_get_content_area(GTK_DIALOG(dlg->dlg_remove_glasses)));
 
     return dlg;
 }
@@ -1101,8 +1096,7 @@ static IdentifyGlassesDlg *create_identify_glasses_dlg(Ctk3DVisionPro *ctk_3d_vi
     dlg->dlg_identify_glasses = gtk_dialog_new_with_buttons
         ("Identify glasses",
          ctk_3d_vision_pro->parent_wnd,
-         GTK_DIALOG_MODAL |  GTK_DIALOG_DESTROY_WITH_PARENT |
-         GTK_DIALOG_NO_SEPARATOR,
+         GTK_DIALOG_MODAL |  GTK_DIALOG_DESTROY_WITH_PARENT,
          GTK_STOCK_OK,
          GTK_RESPONSE_OK,
          GTK_STOCK_CANCEL,
@@ -1123,12 +1117,10 @@ static IdentifyGlassesDlg *create_identify_glasses_dlg(Ctk3DVisionPro *ctk_3d_vi
     gtk_box_pack_start(GTK_BOX(hbox), dlg->mnu_glasses_name,
                        TRUE, TRUE, 0);
     gtk_box_pack_start
-        (GTK_BOX(GTK_DIALOG(dlg->dlg_identify_glasses)->vbox),
+        (GTK_BOX(ctk_dialog_get_content_area(GTK_DIALOG(dlg->dlg_identify_glasses))),
          hbox, TRUE, TRUE, 20);
 
-    gtk_dialog_set_has_separator(GTK_DIALOG(dlg->dlg_identify_glasses), TRUE);
-
-    gtk_widget_show_all(GTK_DIALOG(dlg->dlg_identify_glasses)->vbox);
+    gtk_widget_show_all(ctk_dialog_get_content_area(GTK_DIALOG(dlg->dlg_identify_glasses)));
 
     return dlg;
 }
@@ -1204,8 +1196,7 @@ static RenameGlassesDlg *create_rename_glasses_dlg(Ctk3DVisionPro *ctk_3d_vision
     dlg->dlg_rename_glasses = gtk_dialog_new_with_buttons
         ("Rename glasses",
          ctk_3d_vision_pro->parent_wnd,
-         GTK_DIALOG_MODAL |  GTK_DIALOG_DESTROY_WITH_PARENT |
-         GTK_DIALOG_NO_SEPARATOR,
+         GTK_DIALOG_MODAL |  GTK_DIALOG_DESTROY_WITH_PARENT,
          GTK_STOCK_SAVE,
          GTK_RESPONSE_ACCEPT,
          GTK_STOCK_CANCEL,
@@ -1228,7 +1219,7 @@ static RenameGlassesDlg *create_rename_glasses_dlg(Ctk3DVisionPro *ctk_3d_vision
                        TRUE, TRUE, 0);
 
     gtk_box_pack_start
-        (GTK_BOX(GTK_DIALOG(dlg->dlg_rename_glasses)->vbox),
+        (GTK_BOX(ctk_dialog_get_content_area(GTK_DIALOG(dlg->dlg_rename_glasses))),
          hbox, TRUE, TRUE, 20);
 
     new_glasses_name = gtk_entry_new();
@@ -1241,12 +1232,10 @@ static RenameGlassesDlg *create_rename_glasses_dlg(Ctk3DVisionPro *ctk_3d_vision
                      G_CALLBACK(new_glasses_name_focus_out),
                      (gpointer) dlg);
 
-    gtk_box_pack_start(GTK_BOX(GTK_DIALOG(dlg->dlg_rename_glasses)->vbox),
+    gtk_box_pack_start(GTK_BOX(ctk_dialog_get_content_area(GTK_DIALOG(dlg->dlg_rename_glasses))),
                        new_glasses_name, TRUE, TRUE, 0);
 
-    gtk_dialog_set_has_separator(GTK_DIALOG(dlg->dlg_rename_glasses), TRUE);
-
-    gtk_widget_show_all(GTK_DIALOG(dlg->dlg_rename_glasses)->vbox);
+    gtk_widget_show_all(ctk_dialog_get_content_area(GTK_DIALOG(dlg->dlg_rename_glasses)));
 
     return dlg;
 }
@@ -1348,8 +1337,7 @@ static ChannelRangeDlg *create_channel_range_change_dlg(Ctk3DVisionPro *ctk_3d_v
     dlg->dlg_channel_range = gtk_dialog_new_with_buttons
         ("Modify Hub Range",
          ctk_3d_vision_pro->parent_wnd,
-         GTK_DIALOG_MODAL |  GTK_DIALOG_DESTROY_WITH_PARENT |
-         GTK_DIALOG_NO_SEPARATOR,
+         GTK_DIALOG_MODAL |  GTK_DIALOG_DESTROY_WITH_PARENT,
          GTK_STOCK_YES,
          GTK_RESPONSE_YES,
          GTK_STOCK_NO,
@@ -1379,12 +1367,10 @@ static ChannelRangeDlg *create_channel_range_change_dlg(Ctk3DVisionPro *ctk_3d_v
     hbox = gtk_hbox_new(TRUE, 0);
     gtk_box_pack_start(GTK_BOX(hbox), label, FALSE, FALSE, 20);
     gtk_box_pack_start
-        (GTK_BOX(GTK_DIALOG(dlg->dlg_channel_range)->vbox),
+        (GTK_BOX(ctk_dialog_get_content_area(GTK_DIALOG(dlg->dlg_channel_range))),
          hbox, TRUE, TRUE, 20);
 
-    gtk_dialog_set_has_separator(GTK_DIALOG(dlg->dlg_channel_range), TRUE);
-
-    gtk_widget_show_all(GTK_DIALOG(dlg->dlg_channel_range)->vbox);
+    gtk_widget_show_all(ctk_dialog_get_content_area(GTK_DIALOG(dlg->dlg_channel_range)));
 
     return dlg;
 }

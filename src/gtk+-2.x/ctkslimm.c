@@ -499,7 +499,7 @@ static void slimm_checkbox_toggled(GtkWidget *widget, gpointer user_data)
         gtk_widget_set_sensitive(ctk_object->box_total_size, True);
         set_overlap_controls_status(ctk_object);
     } else {
-        if (GTK_WIDGET_SENSITIVE(ctk_object->mnu_display_refresh)) {
+        if (ctk_widget_get_sensitive(ctk_object->mnu_display_refresh)) {
             ctk_object->mnu_refresh_disabled = True;
             gtk_widget_set_sensitive(ctk_object->mnu_display_refresh, False);
         }

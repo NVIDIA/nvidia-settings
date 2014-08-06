@@ -20,6 +20,8 @@
 #ifndef __CTK_GAUGE_H__
 #define __CTK_GAUGE_H__
 
+#include "ctkconfig.h"
+
 G_BEGIN_DECLS
 
 #define CTK_TYPE_GAUGE (ctk_gauge_get_type())
@@ -50,15 +52,21 @@ struct _CtkGauge
     gint lower, upper;
     gint current;
 
-    GdkColormap *gdk_colormap;
 
     GdkColor gdk_color_gray;
     GdkColor gdk_color_red;
     GdkColor gdk_color_yellow;
     GdkColor gdk_color_green;
 
+#ifdef CTK_GTK3
+    cairo_surface_t *c_surface;
+    cairo_t *c_context;
+#else
+    GdkColormap *gdk_colormap;
+
     GdkPixmap *gdk_pixmap;
     GdkGC *gdk_gc;
+#endif
 
     PangoLayout *pango_layout;
 

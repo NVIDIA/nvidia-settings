@@ -90,7 +90,9 @@ static void print_option(const NVGetoptOption *o)
      * '&' : toggles italics on and off
      * '^' : toggles bold on and off
      * '-' : is backslashified: "\-"
+     * '\n': resets the first character flag
      * '.' : must not be the first character of a line
+     * '\'': must not be the first character of a line
      *
      * Trailing whitespace is omitted when italics or bold is on
      */
@@ -110,8 +112,8 @@ static void print_option(const NVGetoptOption *o)
                   printf("\n.I ");
               }
               omitWhiteSpace = italics;
+              firstchar = italics;
               italics = !italics;
-              firstchar = TRUE;
               break;
           case '^':
               if (bold) {
@@ -120,8 +122,8 @@ static void print_option(const NVGetoptOption *o)
                   printf("\n.B ");
               }
               omitWhiteSpace = bold;
+              firstchar = bold;
               bold = !bold;
-              firstchar = TRUE;
               break;
           case '-':
               printf("\\-");
@@ -134,6 +136,11 @@ static void print_option(const NVGetoptOption *o)
                   firstchar = FALSE;
               }
               break;
+          case '\n':
+              printf("\n");
+              omitWhiteSpace = FALSE;
+              firstchar = TRUE;
+              break;
           case '.':
               if (firstchar) {
                   fprintf(stderr, "Error: *roff can't start a line with '.' "
@@ -141,6 +148,16 @@ static void print_option(const NVGetoptOption *o)
                           "description of the '%s' option, please add some "
                           "text before the end of the sentence, so that a "
                           "valid manpage can be generated.\n", o->name);
+                  exit(1);
+              }
+              /* fall through */
+          case '\'':
+              if (firstchar) {
+                  fprintf(stderr, "Error: *roff can't start a line with '\''. "
+                          "If you started a line with '\'' in the description "
+                          "of the '%s' option, please add some text at the "
+                          "beginning of the sentence, so that a valid manpage "
+                          "can be generated.\n", o->name);
                   exit(1);
               }
               /* fall through */
