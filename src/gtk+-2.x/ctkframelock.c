@@ -3705,8 +3705,12 @@ static void list_entry_update_gpu_status(CtkFramelock *ctk_framelock,
                            &house);
     }
 
-    has_client = has_client_selected(entry);
-    has_server = has_server_selected(entry);
+    /*
+     * Iterate over this GPU's children (list of displays) to determine
+     * if any child is selected as a framelock client or server.
+     */
+    has_client = has_client_selected(entry->children);
+    has_server = has_server_selected(entry->children);
 
     /* Update the Timing LED:
      *
