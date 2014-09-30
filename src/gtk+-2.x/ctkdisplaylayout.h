@@ -166,7 +166,7 @@ typedef struct nvModeLineRec {
 typedef struct nvSelectedModeRec {
     struct nvSelectedModeRec *next;
 
-    GtkWidget *label;       /* Label shown in dropdown menu */
+    gchar *text;            /* Text shown in dropdown menu */
 
     nvModeLinePtr modeline; /* Modeline this mode references */
 
