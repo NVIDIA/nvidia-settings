@@ -34,7 +34,7 @@ const char * caveat_abbrev(int caveat);
 #endif
 
 
-void print_glxinfo(const char *display_name, CtrlHandlesArray *handles_array);
+void print_glxinfo(const char *display_name, CtrlSystemList *systems);
 
 
 #endif /* __GLXINFO_H__ */

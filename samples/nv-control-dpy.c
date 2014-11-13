@@ -44,7 +44,7 @@
 
 static char *remove_whitespace(char *str);
 static char *mode_strtok(char *str);
-static void parse_mode_string(char *modeString, char **modeName,
+static Bool parse_mode_string(char *modeString, char **modeName,
                               int *dpyId);
 static char *find_modeline(char *modeString, char *pModeLines,
                            int ModeLineLen);
@@ -67,6 +67,22 @@ static void print_display_name(Display *dpy, int target_id, int attr,
 
     printf("    %18s : %s\n", name, str);
     XFree(str);
+}
+
+static void print_display_id_and_name(Display *dpy, int target_id,
+                                      const char *tab)
+{
+    char name_str[64];
+    int len;
+
+    len = snprintf(name_str, sizeof(name_str), "%sDPY-%d", tab, target_id);
+
+    if ((len < 0) || (len >= sizeof(name_str))) {
+        return;
+    }
+
+    print_display_name(dpy, target_id, NV_CTRL_STRING_DISPLAY_DEVICE_NAME,
+                       name_str);
 }
 
 int main(int argc, char *argv[])
@@ -124,15 +140,7 @@ int main(int argc, char *argv[])
     for (i = 0; i < enabledDpyIds[0]; i++) {
         int dpyId = enabledDpyIds[i+1];
 
-        XNVCTRLQueryTargetStringAttribute(dpy,
-                                          NV_CTRL_TARGET_TYPE_DISPLAY,
-                                          dpyId,
-                                          0,
-                                          NV_CTRL_STRING_DISPLAY_DEVICE_NAME,
-                                          &str);
-
-        printf("  DPY-%d : %s\n", dpyId, str);
-        XFree(str);
+        print_display_id_and_name(dpy, dpyId, "  ");
     }
 
     printf("\n");
@@ -837,15 +845,7 @@ int main(int argc, char *argv[])
             for (j = 0; j < pData[0]; j++) {
                 int dpyId = pData[j+1];
 
-                XNVCTRLQueryTargetStringAttribute(dpy,
-                                                  NV_CTRL_TARGET_TYPE_DISPLAY,
-                                                  dpyId,
-                                                  0,
-                                                  NV_CTRL_STRING_DISPLAY_DEVICE_NAME,
-                                                  &str);
-
-                printf("    DPY-%d : %s\n", dpyId, str);
-                XFree(str);
+                print_display_id_and_name(dpy, dpyId, "    ");
             }
 
             printf("\n");
@@ -1040,7 +1040,12 @@ int main(int argc, char *argv[])
                      * for this segment of the Metamode
                      */
 
-                    parse_mode_string(modeString, &modeName, &dpyId);
+                    if (!parse_mode_string(modeString, &modeName, &dpyId)) {
+                        fprintf(stderr, "  Failed to parse mode string '%s'."
+                                "\n\n",
+                                modeString);
+                        continue;
+                    }
 
                     /* lookup the modeline that matches */
 
@@ -1292,12 +1297,15 @@ static char *mode_strtok(char *str)
  * id for the per-display device MetaMode string in 'modeString'
  */
 
-static void parse_mode_string(char *modeString, char **modeName,
-                             int *dpyId)
+static Bool parse_mode_string(char *modeString, char **modeName,
+                              int *dpyId)
 {
     char *colon, *s, tmp;
 
     colon = strchr(modeString, ':');
+    if (!colon) {
+        return False;
+    }
     *colon = '\0';
     *dpyId = strtol(modeString+4, NULL, 0);
     *colon = ':';
@@ -1319,8 +1327,9 @@ static void parse_mode_string(char *modeString, char **modeName,
     *s = '\0';
     *modeName = strdup(modeString);
     *s = tmp;
-    
-} /* parse_mode_string() */
+
+    return True;
+}
 
 
 

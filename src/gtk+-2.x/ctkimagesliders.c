@@ -56,7 +56,7 @@ static void setup_reset_button(CtkImageSliders *ctk_image_sliders);
 static void scale_value_changed(GtkAdjustment *adjustment,
                                      gpointer user_data);
 
-static void scale_value_received(GObject *, gpointer arg1, gpointer);
+static void scale_value_received(GObject *, CtrlEvent *, gpointer);
 
 
 GType ctk_image_sliders_get_type(void)
@@ -109,7 +109,7 @@ static void ctk_image_sliders_finalize(
 
 
 
-GtkWidget* ctk_image_sliders_new(NvCtrlAttributeHandle *handle,
+GtkWidget* ctk_image_sliders_new(CtrlTarget *ctrl_target,
                                  CtkConfig *ctk_config, CtkEvent *ctk_event,
                                  GtkWidget *reset_button,
                                  char *name)
@@ -132,7 +132,7 @@ GtkWidget* ctk_image_sliders_new(NvCtrlAttributeHandle *handle,
     if (!object) return NULL;
 
     ctk_image_sliders = CTK_IMAGE_SLIDERS(object);
-    ctk_image_sliders->handle = handle;
+    ctk_image_sliders->ctrl_target = ctrl_target;
     ctk_image_sliders->ctk_config = ctk_config;
     ctk_image_sliders->ctk_event = ctk_event;
     ctk_image_sliders->reset_button = reset_button;
@@ -166,7 +166,7 @@ GtkWidget* ctk_image_sliders_new(NvCtrlAttributeHandle *handle,
 
     /* Image Sharpening */
 
-    status = NvCtrlGetAttribute(ctk_image_sliders->handle,
+    status = NvCtrlGetAttribute(ctrl_target,
                                 NV_CTRL_IMAGE_SHARPENING_DEFAULT,
                                 &val);
     if (status != NvCtrlSuccess) {
@@ -272,22 +272,21 @@ static void post_scale_value_changed(GtkAdjustment *adjustment,
 static void scale_value_changed(GtkAdjustment *adjustment,
                                      gpointer user_data)
 {
-    CtkImageSliders *ctk_image_sliders =
-        CTK_IMAGE_SLIDERS(user_data);
-    
+    CtkImageSliders *ctk_image_sliders = CTK_IMAGE_SLIDERS(user_data);
+    CtrlTarget *ctrl_target = ctk_image_sliders->ctrl_target;
+
     gint value;
     gint attribute;
-    
+
     value = (gint) gtk_adjustment_get_value(adjustment);
-    
+
     user_data = g_object_get_data(G_OBJECT(adjustment), "attribute");
     attribute = GPOINTER_TO_INT(user_data);
 
-    NvCtrlSetAttribute(ctk_image_sliders->handle,
-                       attribute, (int) value);
+    NvCtrlSetAttribute(ctrl_target, attribute, (int) value);
 
     post_scale_value_changed(adjustment, ctk_image_sliders, value);
-    
+
 } /* scale_value_changed() */
 
 
@@ -298,19 +297,20 @@ static void scale_value_changed(GtkAdjustment *adjustment,
 
 void ctk_image_sliders_reset(CtkImageSliders *ctk_image_sliders)
 {
+    CtrlTarget *ctrl_target;
     GtkAdjustment *adj;
     gint val;
 
     if (!ctk_image_sliders) return;
+
+    ctrl_target = ctk_image_sliders->ctrl_target;
 
     if (ctk_widget_get_sensitive(ctk_image_sliders->digital_vibrance)) {
         adj = CTK_SCALE(ctk_image_sliders->digital_vibrance)->gtk_adjustment;
         val = GPOINTER_TO_INT(g_object_get_data(G_OBJECT(adj),
                                                 "attribute default value"));
 
-        NvCtrlSetAttribute(ctk_image_sliders->handle,
-                           NV_CTRL_DIGITAL_VIBRANCE,
-                           val);
+        NvCtrlSetAttribute(ctrl_target, NV_CTRL_DIGITAL_VIBRANCE, val);
     }
 
     if (ctk_widget_get_sensitive(ctk_image_sliders->image_sharpening)) {
@@ -318,9 +318,7 @@ void ctk_image_sliders_reset(CtkImageSliders *ctk_image_sliders)
         val = GPOINTER_TO_INT(g_object_get_data(G_OBJECT(adj),
                                                 "attribute default value"));
 
-        NvCtrlSetAttribute(ctk_image_sliders->handle,
-                           NV_CTRL_IMAGE_SHARPENING,
-                           val);
+        NvCtrlSetAttribute(ctrl_target, NV_CTRL_IMAGE_SHARPENING, val);
     }
 
     /*
@@ -354,20 +352,21 @@ void ctk_image_sliders_reset(CtkImageSliders *ctk_image_sliders)
  * NV-CONTROL client changed any of the settings that we care about.
  */
 
-static void scale_value_received(GObject *object, gpointer arg1,
+static void scale_value_received(GObject *object,
+                                 CtrlEvent *event,
                                  gpointer user_data)
 {
-    CtkEventStruct *event_struct;
     CtkImageSliders *ctk_image_sliders = CTK_IMAGE_SLIDERS(user_data);
 
     GtkAdjustment *adj;
     GtkWidget *scale;
     gint val;
+
+    if (event->type != CTRL_EVENT_TYPE_INTEGER_ATTRIBUTE) {
+        return;
+    }
     
-
-    event_struct = (CtkEventStruct *) arg1;
-
-    switch (event_struct->attribute) {
+    switch (event->int_attr.attribute) {
     case NV_CTRL_DIGITAL_VIBRANCE:
         scale = ctk_image_sliders->digital_vibrance;
         break;
@@ -378,16 +377,16 @@ static void scale_value_received(GObject *object, gpointer arg1,
         return;
     }
 
-    if (event_struct->is_availability_changed) {
-        setup_scale(ctk_image_sliders, event_struct->attribute, scale);
+    if (event->int_attr.is_availability_changed) {
+        setup_scale(ctk_image_sliders, event->int_attr.attribute, scale);
     }
 
     adj = CTK_SCALE(scale)->gtk_adjustment;
     val = gtk_adjustment_get_value(GTK_ADJUSTMENT(adj));
 
-    if (val != event_struct->value) {
+    if (val != event->int_attr.value) {
         
-        val = event_struct->value;
+        val = event->int_attr.value;
 
         g_signal_handlers_block_by_func(adj, scale_value_changed,
                                         ctk_image_sliders);
@@ -437,17 +436,17 @@ static void setup_scale(CtkImageSliders *ctk_image_sliders,
                         int attribute,
                         GtkWidget *scale)
 {
+    CtrlTarget *ctrl_target = ctk_image_sliders->ctrl_target;
     ReturnStatus ret0, ret1;
     NVCTRLAttributeValidValuesRec valid;
-    NvCtrlAttributeHandle *handle = ctk_image_sliders->handle;
     int val;
     GtkAdjustment *adj = CTK_SCALE(scale)->gtk_adjustment;
 
 
     /* Read settings from X server */
-    ret0 = NvCtrlGetValidAttributeValues(handle, attribute, &valid);
+    ret0 = NvCtrlGetValidAttributeValues(ctrl_target, attribute, &valid);
 
-    ret1 = NvCtrlGetAttribute(handle, attribute, &val);
+    ret1 = NvCtrlGetAttribute(ctrl_target, attribute, &val);
 
     if ((ret0 == NvCtrlSuccess) && (ret1 == NvCtrlSuccess) &&
         (valid.type == ATTRIBUTE_TYPE_RANGE)) {

@@ -55,6 +55,7 @@ endif
 
 INSTALL               ?= install
 INSTALL_BIN_ARGS      ?= -m 755
+INSTALL_LIB_ARGS      ?= -m 644
 INSTALL_DOC_ARGS      ?= -m 644
 
 M4                    ?= m4
@@ -98,6 +99,26 @@ ifndef TARGET_ARCH
   TARGET_ARCH         := $(subst i686,x86,$(TARGET_ARCH))
 endif
 
+ifeq ($(TARGET_ARCH),x86)
+  CFLAGS += -DNV_X86 -DNV_ARCH_BITS=32
+endif
+
+ifeq ($(TARGET_ARCH),x86_64)
+  CFLAGS += -DNV_X86_64 -DNV_ARCH_BITS=64
+endif
+
+ifeq ($(TARGET_ARCH),armv7l)
+  CFLAGS += -DNV_ARMV7 -DNV_ARCH_BITS=32
+endif
+
+ifeq ($(TARGET_ARCH),aarch64)
+  CFLAGS += -DNV_AARCH64 -DNV_ARCH_BITS=64
+endif
+
+ifeq ($(TARGET_ARCH),ppc64le)
+  CFLAGS += -DNV_PPC64LE -DNV_ARCH_BITS=64
+endif
+
 ifeq ($(TARGET_OS),Linux)
   LIBDL_LIBS = -ldl
 else
@@ -112,6 +133,14 @@ ifeq ($(TARGET_ARCH),armv7l)
   TARGET_ARCH_ABI     ?= gnueabi
 endif
 TARGET_ARCH_ABI       ?=
+
+ifeq ($(TARGET_ARCH_ABI),gnueabi)
+  CFLAGS += -DNV_GNUEABI
+endif
+
+ifeq ($(TARGET_ARCH_ABI),gnueabihf)
+  CFLAGS += -DNV_GNUEABIHF
+endif
 
 OUTPUTDIR             ?= _out/$(TARGET_OS)_$(TARGET_ARCH)
 OUTPUTDIR_ABSOLUTE    ?= $(CURDIR)/$(OUTPUTDIR)
@@ -143,6 +172,7 @@ endif
 PREFIX ?= /usr/local
 
 BINDIR = $(DESTDIR)$(PREFIX)/bin
+LIBDIR = $(DESTDIR)$(PREFIX)/lib
 MANDIR = $(DESTDIR)$(PREFIX)/share/man/man1
 
 
@@ -230,7 +260,7 @@ NV_MODULE_LOGGING_NAME ?=
 
 ifeq ($(NV_VERBOSE),0)
   quiet_cmd = @$(PRINTF) \
-    " $(if $(NV_MODULE_LOGGING_NAME),[ %-17.17s ],%s) $(quiet_$(1))\n" \
+    " $(if $(NV_MODULE_LOGGING_NAME),[ %-17.17s ],%s)  $(quiet_$(1))\n" \
     "$(NV_MODULE_LOGGING_NAME)" && $($(1))
 else
   quiet_cmd = $($(1))
@@ -262,32 +292,49 @@ quiet_STRIP_CMD    = $(call define_quiet_cmd,STRIP       ,$@)
 
 ##############################################################################
 # function to generate a list of object files from their corresponding
-# source files; example usage:
+# source files using the specified path. The _WITH_DIR variant takes an
+# output path as the second argument while the BUILD_OBJECT_LIST defaults
+# to using the value of OUTPUTDIR as the output path. example usage:
 #
-# OBJS = $(call BUILD_OBJECT_LIST,$(SRC))
+# OBJS = $(call BUILD_OBJECT_LIST_WITH_DIR,$(SRC),$(DIR))
 ##############################################################################
 
+BUILD_OBJECT_LIST_WITH_DIR = \
+  $(addprefix $(2)/,$(notdir $(addsuffix .o,$(basename $(1)))))
+
 BUILD_OBJECT_LIST = \
-  $(addprefix $(OUTPUTDIR)/,$(notdir $(addsuffix .o,$(basename $(1)))))
+  $(call BUILD_OBJECT_LIST_WITH_DIR,$(1),$(OUTPUTDIR))
 
 
 ##############################################################################
 # function to generate a list of dependency files from their
-# corresponding source files; example usage:
+# corresponding source files using the specified path. The _WITH_DIR
+# variant takes an output path as the second argument while the
+# BUILD_DEPENDENCY_LIST default to using the value of OUTPUTDIR as the
+# output path. example usage:
 #
-# DEPS = $(call BUILD_DEPENDENCY_LIST,$(SRC))
+# DEPS = $(call BUILD_DEPENDENCY_LIST_WITH_DIR,$(SRC),$(DIR))
 ##############################################################################
 
+BUILD_DEPENDENCY_LIST_WITH_DIR = \
+  $(addprefix $(2)/,$(notdir $(addsuffix .d,$(basename $(1)))))
+
 BUILD_DEPENDENCY_LIST = \
-  $(addprefix $(OUTPUTDIR)/,$(notdir $(addsuffix .d,$(basename $(1)))))
+  $(call BUILD_DEPENDENCY_LIST_WITH_DIR,$(1),$(OUTPUTDIR))
 
 
 ##############################################################################
 # functions to define a rule to build an object file; the first
-# argument whether the rule is for the target or host platform ("HOST"
-# or "TARGET"), the second argument is the source file to compile, and
-# the third argument (_WITH_OBJECT_NAME-only) is the object filename
-# to produce.  Example usage:
+# argument for all functions is whether the rule is for the target or
+# host platform ("HOST" or "TARGET"), the second argument for all
+# functions is the source file to compile.
+#
+# The _WITH_OBJECT_NAME and _WITH_DIR function name suffixes describe
+# the third and possibly fourth arguments based on order. The
+# _WITH_OBJECT_NAME argument is the object filename to produce while
+# the _WITH_DIR argument is the destination path for the object file.
+#
+# Example usage:
 #
 #  $(eval $(call DEFINE_OBJECT_RULE,TARGET,foo.c))
 #
@@ -299,26 +346,35 @@ BUILD_DEPENDENCY_LIST = \
 # from the source file name (this is normally what you want).
 ##############################################################################
 
-define DEFINE_OBJECT_RULE_WITH_OBJECT_NAME
+define DEFINE_OBJECT_RULE_WITH_OBJECT_NAME_WITH_DIR
   $(3): $(2)
-	@$(MKDIR) $(OUTPUTDIR)
+	@$(MKDIR) $(4)
 	$$(call quiet_cmd,$(call host_target_cc,$(1))) \
 	  $$($(call host_target_cflags,$(1))) -c $$< -o $$@ \
 	  $(call AUTO_DEP_CMD,$(1),$(2),$(3))
 
-  -include $$(call BUILD_DEPENDENCY_LIST,$(3))
+  -include $$(call BUILD_DEPENDENCY_LIST_WITH_DIR,$(3),$(4))
 
   # declare empty rule for generating dependency file; we generate the
   # dependency files implicitly when compiling the source file (see
   # AUTO_DEP_CMD above), so we don't want gmake to spend time searching
   # for an explicit rule to generate the dependency file
-  $$(call BUILD_DEPENDENCY_LIST,$(3)): ;
+  $$(call BUILD_DEPENDENCY_LIST_WITH_DIR,$(3),$(4)): ;
 
 endef
 
+define DEFINE_OBJECT_RULE_WITH_OBJECT_NAME
+  $$(eval $$(call DEFINE_OBJECT_RULE_WITH_OBJECT_NAME_WITH_DIR,$(1),$(2),\
+    $(3),$(OUTPUTDIR)))
+endef
+
+define DEFINE_OBJECT_RULE_WITH_DIR
+  $$(eval $$(call DEFINE_OBJECT_RULE_WITH_OBJECT_NAME_WITH_DIR,$(1),$(2),\
+    $$(call BUILD_OBJECT_LIST_WITH_DIR,$(2),$(3)),$(3)))
+endef
+
 define DEFINE_OBJECT_RULE
-  $$(eval $$(call DEFINE_OBJECT_RULE_WITH_OBJECT_NAME,$(1),$(2),\
-    $$(call BUILD_OBJECT_LIST,$(2))))
+  $$(eval $$(call DEFINE_OBJECT_RULE_WITH_DIR,$(1),$(2),$(OUTPUTDIR)))
 endef
 
 

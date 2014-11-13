@@ -20,7 +20,6 @@
 #ifndef __CTK_APP_PROFILE_H__
 #define __CTK_APP_PROFILE_H__
 
-#include "NvCtrlAttributes.h"
 #include "app-profiles.h"
 #include "ctkevent.h"
 #include "ctkconfig.h"
@@ -70,7 +69,6 @@ typedef struct _EditRuleDialog {
     GtkEntry *matches_entry;
     GtkWidget *profile_name_combo;
     GtkListStore *profile_settings_store;
-    GtkWidget *file_sel;
 
     GtkWidget *add_edit_rule_button;
 
@@ -105,7 +103,6 @@ typedef struct _EditProfileDialog {
     GtkWidget *generate_name_button;
 
     GtkWidget *source_file_combo;
-    GtkWidget *file_sel;
 
     GtkWidget *add_edit_profile_button;
 
@@ -196,7 +193,7 @@ struct _CtkAppProfileClass
 };
 
 GType          ctk_app_profile_get_type    (void) G_GNUC_CONST;
-GtkWidget*     ctk_app_profile_new         (CtkConfig *, const gchar *);
+GtkWidget*     ctk_app_profile_new         (CtrlTarget *, CtkConfig *);
 GtkTextBuffer* ctk_app_profile_create_help (CtkAppProfile *, GtkTextTagTable *);
 
 char *serialize_settings(const json_t *settings, gboolean add_markup);

@@ -47,11 +47,11 @@ static uint32 display_device_name_to_display_device_mask(const char *str);
  * attribute.
  */
 
-#define INT_ATTR NV_PARSER_ATTRIBUTE_TYPE_INTEGER
-#define STR_ATTR NV_PARSER_ATTRIBUTE_TYPE_STRING
-#define COL_ATTR NV_PARSER_ATTRIBUTE_TYPE_COLOR
-#define CSC_ATTR NV_PARSER_ATTRIBUTE_TYPE_SDI_CSC
-#define SOP_ATTR NV_PARSER_ATTRIBUTE_TYPE_STRING_OPERATION
+#define INT_ATTR CTRL_ATTRIBUTE_TYPE_INTEGER
+#define STR_ATTR CTRL_ATTRIBUTE_TYPE_STRING
+#define COL_ATTR CTRL_ATTRIBUTE_TYPE_COLOR
+#define CSC_ATTR CTRL_ATTRIBUTE_TYPE_SDI_CSC
+#define SOP_ATTR CTRL_ATTRIBUTE_TYPE_STRING_OPERATION
 
 const AttributeTableEntry attributeTable[] = {
 
@@ -109,7 +109,7 @@ const AttributeTableEntry attributeTable[] = {
     { "LogAniso",                         NV_CTRL_LOG_ANISO,                            INT_ATTR, {0,0,0,0,0,0}, { .int_flags = {0,0,0,0,0,0,0} }, "Enables anisotropic filtering for OpenGL clients; on some NVIDIA hardware, this can only be enabled or disabled; on other hardware different levels of anisotropic filtering can be specified.  This setting only takes effect on OpenGL clients started after it is set." },
     { "FSAA",                             NV_CTRL_FSAA_MODE,                            INT_ATTR, {0,0,0,0,0,0}, { .int_flags = {0,0,0,0,0,0,0} }, "The full screen antialiasing setting for OpenGL clients.  This setting only takes effect on OpenGL clients started after it is set. Enabling antialiasing will disable FXAA." },
     { "TextureSharpen",                   NV_CTRL_TEXTURE_SHARPEN,                      INT_ATTR, {0,0,0,0,0,0}, { .int_flags = {0,0,0,0,0,0,0} }, "Enables texture sharpening for OpenGL clients.  This setting only takes effect on OpenGL clients started after it is set." },
-    { "ForceGenericCpu",                  NV_CTRL_FORCE_GENERIC_CPU,                    INT_ATTR, {0,0,0,0,1,0}, { .int_flags = {0,0,0,0,0,0,0} }, "DEPRECATED." },
+    { "ForceGenericCpu",                  NV_CTRL_FORCE_GENERIC_CPU,                    INT_ATTR, {0,0,0,0,1,0}, { .int_flags = {0,0,0,0,0,0,0} }, "NOT SUPPORTED." },
     { "GammaCorrectedAALines",            NV_CTRL_OPENGL_AA_LINE_GAMMA,                 INT_ATTR, {0,0,0,0,0,0}, { .int_flags = {0,0,0,0,0,0,0} }, "For OpenGL clients, allow gamma-corrected antialiased lines to consider variances in the color display capabilities of output devices when rendering smooth lines.  Only available on recent Quadro GPUs.  This setting only takes effect on OpenGL clients started after it is set." },
     { "TextureClamping",                  NV_CTRL_TEXTURE_CLAMPING,                     INT_ATTR, {0,0,0,0,0,0}, { .int_flags = {0,0,0,0,0,0,0} }, "Define the behavior of OpenGL texture clamping for unbordered textures.  If enabled (1), the conformant behavior is used.  If disabled (0), GL_CLAMP is remapped to GL_CLAMP_TO_EDGE to avoid seams in applications that rely on this behavior, which was the only option in some very old hardware." },
     { "FXAA",                             NV_CTRL_FXAA,                                 INT_ATTR, {0,0,0,0,0,0}, { .int_flags = {0,0,0,0,0,0,0} }, "Enables or disables the use of FXAA, Fast Approximate Anti-Aliasing. Enabling FXAA will disable regular antialiasing modes." },
@@ -146,11 +146,13 @@ const AttributeTableEntry attributeTable[] = {
     { "GPUAmbientTemp",                   NV_CTRL_AMBIENT_TEMPERATURE,                  INT_ATTR, {0,0,0,0,1,0}, { .int_flags = {0,0,0,0,0,0,0} }, "Reports the current temperature in Celsius of the immediate neighborhood of the GPU driving the X screen." },
     { "GPUGraphicsClockOffset",           NV_CTRL_GPU_NVCLOCK_OFFSET,                   INT_ATTR, {0,0,0,1,1,1}, { .int_flags = {0,0,0,0,0,0,0} }, "This is the offset amount, in MHz, to over- or under-clock the Graphics Clock.  Specify the performance level in square brackets after the attribute name.  E.g., 'GPUGraphicsClockOffset[2]'." },
     { "GPUMemoryTransferRateOffset",      NV_CTRL_GPU_MEM_TRANSFER_RATE_OFFSET,         INT_ATTR, {0,0,0,1,1,1}, { .int_flags = {0,0,0,0,0,0,0} }, "This is the offset amount, in MHz, to over- or under-clock the Memory Transfer Rate.  Specify the performance level in square brackets after the attribute name.  E.g., 'GPUMemoryTransferRateOffset[2]'." },
-    { "GPUOverclockingState",             NV_CTRL_GPU_OVERCLOCKING_STATE,               INT_ATTR, {0,0,0,0,1,0}, { .int_flags = {0,0,0,0,0,0,0} }, "The current overclocking state; the value of this attribute controls the availability of additional overclocking attributes.  Note that this attribute is unavailable unless overclocking support has been enabled by the system administrator." },
-    { "GPU2DClockFreqs",                  NV_CTRL_GPU_2D_CLOCK_FREQS,                   INT_ATTR, {0,0,0,0,1,0}, { .int_flags = {0,0,1,0,0,0,0} }, "The GPU and memory clock frequencies when operating in 2D mode.  New clock frequencies are tested before being applied, and may be rejected.  Note that if the target clocks are too aggressive, their testing may render the system unresponsive.  Also note that while this attribute may always be queried, it cannot be set unless GPUOverclockingState is set to MANUAL.  Since the target clocks may be rejected, the requester should read this attribute after the set to determine success or failure." },
-    { "GPU3DClockFreqs",                  NV_CTRL_GPU_3D_CLOCK_FREQS,                   INT_ATTR, {0,0,0,0,1,0}, { .int_flags = {0,0,1,0,0,0,0} }, "The GPU and memory clock frequencies  when operating in 3D mode.  New clock frequencies are tested before being applied, and may be rejected.  Note that if the target clocks are too aggressive, their testing may render the system unresponsive.  Also note that while this attribute may always be queried, it cannot be set unless GPUOverclockingState is set to MANUAL.  Since the target clocks may be rejected, the requester should read this attribute after the set to determine success or failure." },
-    { "GPUDefault2DClockFreqs",           NV_CTRL_GPU_DEFAULT_2D_CLOCK_FREQS,           INT_ATTR, {0,0,0,0,1,0}, { .int_flags = {0,0,1,0,0,0,0} }, "Returns the default memory and GPU core clocks when operating in 2D mode." },
-    { "GPUDefault3DClockFreqs",           NV_CTRL_GPU_DEFAULT_3D_CLOCK_FREQS,           INT_ATTR, {0,0,0,0,1,0}, { .int_flags = {0,0,1,0,0,0,0} }, "Returns the default memory and GPU core clocks when operating in 3D mode." },
+    { "GPUCurrentCoreVoltage",            NV_CTRL_GPU_CURRENT_CORE_VOLTAGE,             INT_ATTR, {0,0,0,0,1,0}, { .int_flags = {0,0,0,0,0,0,0} }, "This attribute returns the GPU's current operating voltage, in microvolts (uV)."},
+    { "GPUOverVoltageOffset",             NV_CTRL_GPU_OVER_VOLTAGE_OFFSET,              INT_ATTR, {0,0,0,0,1,0}, { .int_flags = {0,0,0,0,0,0,0} }, "This is the offset, in microvolts (uV), to apply to the GPU's operating voltage."},
+    { "GPUOverclockingState",             NV_CTRL_GPU_OVERCLOCKING_STATE,               INT_ATTR, {0,0,0,0,1,0}, { .int_flags = {0,0,0,0,0,0,0} }, "NOT SUPPORTED." },
+    { "GPU2DClockFreqs",                  NV_CTRL_GPU_2D_CLOCK_FREQS,                   INT_ATTR, {0,0,0,0,1,0}, { .int_flags = {0,0,1,0,0,0,0} }, "NOT SUPPORTED." },
+    { "GPU3DClockFreqs",                  NV_CTRL_GPU_3D_CLOCK_FREQS,                   INT_ATTR, {0,0,0,0,1,0}, { .int_flags = {0,0,1,0,0,0,0} }, "NOT SUPPORTED." },
+    { "GPUDefault2DClockFreqs",           NV_CTRL_GPU_DEFAULT_2D_CLOCK_FREQS,           INT_ATTR, {0,0,0,0,1,0}, { .int_flags = {0,0,1,0,0,0,0} }, "NOT SUPPORTED." },
+    { "GPUDefault3DClockFreqs",           NV_CTRL_GPU_DEFAULT_3D_CLOCK_FREQS,           INT_ATTR, {0,0,0,0,1,0}, { .int_flags = {0,0,1,0,0,0,0} }, "NOT SUPPORTED." },
     { "GPUCurrentClockFreqs",             NV_CTRL_GPU_CURRENT_CLOCK_FREQS,              INT_ATTR, {0,0,0,0,1,0}, { .int_flags = {0,0,1,0,0,0,0} }, "Returns the current GPU and memory clocks of the graphics device driving the X screen." },
     { "GPUCurrentProcessorClockFreqs",    NV_CTRL_GPU_CURRENT_PROCESSOR_CLOCK_FREQS,    INT_ATTR, {0,0,0,0,1,0}, { .int_flags = {0,0,0,0,0,0,0} }, "Returns the current processor clock of the graphics device driving the X screen." },
     { "BusRate",                          NV_CTRL_BUS_RATE,                             INT_ATTR, {0,0,0,0,1,0}, { .int_flags = {0,0,0,0,0,0,0} }, "If the device is on an AGP bus, then BusRate returns the configured AGP rate.  If the device is on a PCI Express bus, then this attribute returns the width of the physical link." },
@@ -162,7 +164,7 @@ const AttributeTableEntry attributeTable[] = {
     { "PCIEGen",                          NV_CTRL_GPU_PCIE_GENERATION,                  INT_ATTR, {0,0,0,0,1,0}, { .int_flags = {0,0,0,0,0,0,0} }, "Returns the PCIe generation that this GPU, in this system, is compliant with." },
     { "GPUErrors",                        NV_CTRL_NUM_GPU_ERRORS_RECOVERED,             INT_ATTR, {0,0,0,0,1,0}, { .int_flags = {0,0,0,0,0,0,0} }, "Returns the number of GPU errors occurred." },
     { "GPUPowerSource",                   NV_CTRL_GPU_POWER_SOURCE,                     INT_ATTR, {0,0,0,0,1,0}, { .int_flags = {0,0,0,0,0,0,0} }, "Reports the type of power source of the GPU." },
-    { "GPUCurrentPerfMode",               NV_CTRL_GPU_CURRENT_PERFORMANCE_MODE,         INT_ATTR, {0,0,0,0,1,0}, { .int_flags = {0,0,0,0,0,0,0} }, "DEPRECATED." },
+    { "GPUCurrentPerfMode",               NV_CTRL_GPU_CURRENT_PERFORMANCE_MODE,         INT_ATTR, {0,0,0,0,1,0}, { .int_flags = {0,0,0,0,0,0,0} }, "NOT SUPPORTED." },
     { "GPUCurrentPerfLevel",              NV_CTRL_GPU_CURRENT_PERFORMANCE_LEVEL,        INT_ATTR, {0,0,0,0,1,0}, { .int_flags = {0,0,0,0,0,0,0} }, "Reports the current Performance level of the GPU driving the X screen.  Each Performance level has associated NVClock and Mem Clock values." },
     { "GPUAdaptiveClockState",            NV_CTRL_GPU_ADAPTIVE_CLOCK_STATE,             INT_ATTR, {0,0,0,0,1,0}, { .int_flags = {0,0,0,0,0,0,0} }, "Reports if Adaptive Clocking is Enabled on the GPU driving the X screen." },
     { "GPUPowerMizerMode",                NV_CTRL_GPU_POWER_MIZER_MODE,                 INT_ATTR, {0,0,0,0,0,0}, { .int_flags = {0,0,0,0,0,0,0} }, "Allows setting different GPU powermizer modes." },
@@ -373,7 +375,7 @@ const int attributeTableLen = ARRAY_LEN(attributeTable);
  * the last attribute that the table knows about.
  */
 
-#if NV_CTRL_LAST_ATTRIBUTE != NV_CTRL_VIDEO_DECODER_UTILIZATION
+#if NV_CTRL_LAST_ATTRIBUTE != NV_CTRL_GPU_CURRENT_CORE_VOLTAGE
 #warning "Have you forgotten to add a new integer attribute to attributeTable?"
 #endif
 
@@ -392,7 +394,7 @@ const int attributeTableLen = ARRAY_LEN(attributeTable);
  *
  */
 const AttributeTableEntry *nv_get_attribute_entry(const int attr,
-                                                  const AttributeType type)
+                                                  const CtrlAttributeType type)
 {
     int i;
 
@@ -420,116 +422,6 @@ static const AttributeTableEntry *nv_get_attribute_entry_by_name(const char *nam
         const AttributeTableEntry *t = attributeTable + i;
         if (nv_strcasecmp(name, t->name)) {
             return t;
-        }
-    }
-
-    return NULL;
-}
-
-
-
-/*
- * targetTypeTable[] - this table stores an association of the values
- * for each attribute target type.
- */
-
-const TargetTypeEntry targetTypeTable[] = {
-
-    { "X Screen",                    /* name */
-      "screen",                      /* parsed_name */
-      X_SCREEN_TARGET,               /* target_index */
-      NV_CTRL_TARGET_TYPE_X_SCREEN,  /* nvctrl */
-      ATTRIBUTE_TYPE_X_SCREEN,       /* permission_bit */
-      NV_TRUE,                       /* uses_display_devices */
-      1, 6 },                        /* required major,minor protocol rev */
-
-    { "GPU",                         /* name */
-      "gpu",                         /* parsed_name */
-      GPU_TARGET,                    /* target_index */
-      NV_CTRL_TARGET_TYPE_GPU,       /* nvctrl */
-      ATTRIBUTE_TYPE_GPU,            /* permission_bit */
-      NV_TRUE,                       /* uses_display_devices */
-      1, 10 },                       /* required major,minor protocol rev */
-
-    { "Frame Lock Device",           /* name */
-      "framelock",                   /* parsed_name */
-      FRAMELOCK_TARGET,              /* target_index */
-      NV_CTRL_TARGET_TYPE_FRAMELOCK, /* nvctrl */
-      ATTRIBUTE_TYPE_FRAMELOCK,      /* permission_bit */
-      NV_FALSE,                      /* uses_display_devices */
-      1, 10 },                       /* required major,minor protocol rev */
-
-    { "VCS",                         /* name */
-      "vcs",                         /* parsed_name */
-      VCS_TARGET,                    /* target_index */
-      NV_CTRL_TARGET_TYPE_VCSC,      /* nvctrl */
-      ATTRIBUTE_TYPE_VCSC,           /* permission_bit */
-      NV_FALSE,                      /* uses_display_devices */
-      1, 12 },                       /* required major,minor protocol rev */
-
-    { "SDI Input Device",            /* name */
-      "gvi",                         /* parsed_name */
-      GVI_TARGET,                    /* target_index */
-      NV_CTRL_TARGET_TYPE_GVI,       /* nvctrl */
-      ATTRIBUTE_TYPE_GVI,            /* permission_bit */
-      NV_FALSE,                      /* uses_display_devices */
-      1, 18 },                       /* required major,minor protocol rev */
-
-    { "Fan",                         /* name */
-      "fan",                         /* parsed_name */
-      COOLER_TARGET,                 /* target_index */
-      NV_CTRL_TARGET_TYPE_COOLER,    /* nvctrl */
-      ATTRIBUTE_TYPE_COOLER,         /* permission_bit */
-      NV_FALSE,                      /* uses_display_devices */
-      1, 20 },                       /* required major,minor protocol rev */
-
-    { "Thermal Sensor",              /* name */
-      "thermalsensor",               /* parsed_name */
-      THERMAL_SENSOR_TARGET,         /* target_index */
-      NV_CTRL_TARGET_TYPE_THERMAL_SENSOR,    /* nvctrl */
-      ATTRIBUTE_TYPE_THERMAL_SENSOR, /* permission_bit */
-      NV_FALSE,                      /* uses_display_devices */
-      1, 23 },                       /* required major,minor protocol rev */
-
-    { "3D Vision Pro Transceiver",                   /* name */
-      "svp",                                         /* parsed_name */
-      NVIDIA_3D_VISION_PRO_TRANSCEIVER_TARGET,       /* target_index */
-      NV_CTRL_TARGET_TYPE_3D_VISION_PRO_TRANSCEIVER, /* nvctrl */
-      ATTRIBUTE_TYPE_3D_VISION_PRO_TRANSCEIVER,      /* permission_bit */
-      NV_FALSE,                                      /* uses_display_devices */
-      1, 25 },                                       /* required major,minor protocol rev */
-
-    { "Display Device",                              /* name */
-      "dpy",                                         /* parsed_name */
-      DISPLAY_TARGET,                                /* target_index */
-      NV_CTRL_TARGET_TYPE_DISPLAY,                   /* nvctrl */
-      ATTRIBUTE_TYPE_DISPLAY,                        /* permission_bit */
-      NV_FALSE,                                      /* uses_display_devices */
-      1, 27 },                                       /* required major,minor protocol rev */
-};
-
-const int targetTypeTableLen = ARRAY_LEN(targetTypeTable);
-
-const TargetTypeEntry *nv_get_target_type_entry_by_nvctrl(int nvctrl)
-{
-    int i;
-
-    for (i = 0; i < targetTypeTableLen; i++) {
-        if (targetTypeTable[i].nvctrl == nvctrl) {
-            return &targetTypeTable[i];
-        }
-    }
-
-    return NULL;
-}
-
-const TargetTypeEntry *nv_get_target_type_entry_by_name(const char *name)
-{
-    int i;
-
-    for (i = 0; i < targetTypeTableLen; i++) {
-        if (nv_strcasecmp(targetTypeTable[i].parsed_name, name)) {
-            return &targetTypeTable[i];
         }
     }
 
@@ -641,7 +533,7 @@ static int nv_parse_special_xscreen_target(ParsedAttribute *p,
     }
 
     p->parser_flags.has_target = NV_TRUE;
-    p->target_type = NV_CTRL_TARGET_TYPE_X_SCREEN;
+    p->target_type = X_SCREEN_TARGET;
 
     return NV_TRUE;
 }
@@ -684,7 +576,7 @@ static int nv_parse_display_and_target(const char *start,
 
     p->display = NULL;
     p->target_id = -1;
-    p->target_type = -1;
+    p->target_type = INVALID_TARGET;
     p->target_specification = NULL;
     p->parser_flags.has_x_display = NV_FALSE;
     p->parser_flags.has_target = NV_FALSE;
@@ -784,7 +676,7 @@ int nv_parse_attribute_string(const char *str, int query, ParsedAttribute *p)
 
     memset((void *) p, 0, sizeof(ParsedAttribute));
     p->target_id = -1;
-    p->target_type = -1;
+    p->target_type = INVALID_TARGET;
 
     /* remove any white space from the string, to simplify parsing */
 
@@ -903,7 +795,7 @@ int nv_parse_attribute_string(const char *str, int query, ParsedAttribute *p)
 
         tmp = s;
         switch (a->type) {
-        case NV_PARSER_ATTRIBUTE_TYPE_INTEGER:
+        case CTRL_ATTRIBUTE_TYPE_INTEGER:
             if (a->f.int_flags.is_packed) {
                 /*
                  * Either a single 32-bit integer or two 16-bit integers,
@@ -943,19 +835,20 @@ int nv_parse_attribute_string(const char *str, int query, ParsedAttribute *p)
             }
             break;
 
-        case NV_PARSER_ATTRIBUTE_TYPE_STRING:
+        case CTRL_ATTRIBUTE_TYPE_STRING:
             /* Fall through */
-        case NV_PARSER_ATTRIBUTE_TYPE_STRING_OPERATION:
+        case CTRL_ATTRIBUTE_TYPE_STRING_OPERATION:
+        case CTRL_ATTRIBUTE_TYPE_BINARY_DATA:
             p->val.str = nvstrdup(s);
             tmp = s + strlen(s);
             break;
 
-        case  NV_PARSER_ATTRIBUTE_TYPE_COLOR:
+        case  CTRL_ATTRIBUTE_TYPE_COLOR:
             /* color attributes are floating point */
             p->val.f = strtod(s, &tmp);
             break;
 
-        case NV_PARSER_ATTRIBUTE_TYPE_SDI_CSC:
+        case CTRL_ATTRIBUTE_TYPE_SDI_CSC:
             /* String that names a standard CSC matrix */
             p->val.pf = nv_get_sdi_csc_matrix(s);
             tmp = s + strlen(s);
@@ -1088,12 +981,17 @@ static uint32 display_device_name_to_display_device_mask(const char *str)
     /* sanity check */
 
     if (!str || !*str) return INVALID_DISPLAY_DEVICE_MASK;
-    
+
     /* remove spaces from the string */
 
     s = remove_spaces(str);
-    if (!s || !*s) return INVALID_DISPLAY_DEVICE_MASK;
-    
+    if (!s || !*s) {
+        if (s) {
+            free(s);
+        }
+        return INVALID_DISPLAY_DEVICE_MASK;
+    }
+
     /*
      * can the string be interpreted as a number? if so, use the number
      * as the mask
@@ -1334,13 +1232,13 @@ static void nv_parsed_attribute_free_members(ParsedAttribute *p)
     nvfree(p->target_specification);
 
     if (a &&
-	((a->type == NV_PARSER_ATTRIBUTE_TYPE_STRING) ||
-         ((a->type == NV_PARSER_ATTRIBUTE_TYPE_INTEGER) &&
+	((a->type == CTRL_ATTRIBUTE_TYPE_STRING) ||
+         ((a->type == CTRL_ATTRIBUTE_TYPE_INTEGER) &&
           (a->f.int_flags.is_display_id)))) {
         nvfree(p->val.str);
     }
 
-    nv_target_list_free(p->targets);
+    NvCtrlTargetListFree(p->targets);
 }
 
 
@@ -1422,7 +1320,10 @@ char *nv_standardize_screen_name(const char *orig, int screen)
             free(display_name);
             display_name = tmp;
             colon = strchr(display_name, ':');
-            if (!colon) return NULL;
+            if (!colon) {
+                nvfree(display_name);
+                return NULL;
+            }
         }
     }
     

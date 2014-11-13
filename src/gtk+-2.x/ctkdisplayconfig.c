@@ -108,8 +108,9 @@ static void advanced_clicked(GtkWidget *widget, gpointer user_data);
 static void reset_clicked(GtkWidget *widget, gpointer user_data);
 static void validation_details_clicked(GtkWidget *widget, gpointer user_data);
 
-static void display_config_attribute_changed(GtkWidget *object, gpointer arg1,
-                                           gpointer user_data);
+static void display_config_attribute_changed(GtkWidget *object,
+                                             CtrlEvent *event,
+                                             gpointer user_data);
 static void reset_layout(CtkDisplayConfig *ctk_object);
 static gboolean force_layout_reset(gpointer user_data);
 static void user_changed_attributes(CtkDisplayConfig *ctk_object);
@@ -421,7 +422,9 @@ static void register_layout_events(CtkDisplayConfig *ctk_object)
     /* Register for GPU events */
     for (gpu = layout->gpus; gpu; gpu = gpu->next_in_layout) {
 
-        if (!gpu->handle) continue;
+        if (gpu->ctrl_target == NULL) {
+            continue;
+        }
 
         g_signal_connect(G_OBJECT(gpu->ctk_event),
                          CTK_EVENT_NAME(NV_CTRL_PROBE_DISPLAYS),
@@ -437,7 +440,9 @@ static void register_layout_events(CtkDisplayConfig *ctk_object)
     /* Register for X screen events */
     for (screen = layout->screens; screen; screen = screen->next_in_layout) {
 
-        if (!screen->handle) continue;
+        if (screen->ctrl_target == NULL) {
+            continue;
+        }
 
         g_signal_connect(G_OBJECT(screen->ctk_event),
                          CTK_EVENT_NAME(NV_CTRL_STRING_NVIDIA_XINERAMA_INFO_ORDER),
@@ -478,7 +483,9 @@ static void unregister_layout_events(CtkDisplayConfig *ctk_object)
     /* Unregister GPU events */
     for (gpu = layout->gpus; gpu; gpu = gpu->next_in_layout) {
 
-        if (!gpu->handle) continue;
+        if (gpu->ctrl_target == NULL) {
+            continue;
+        }
 
         g_signal_handlers_disconnect_matched(G_OBJECT(gpu->ctk_event),
                                              G_SIGNAL_MATCH_FUNC | G_SIGNAL_MATCH_DATA,
@@ -492,7 +499,9 @@ static void unregister_layout_events(CtkDisplayConfig *ctk_object)
     /* Unregister X screen events */
     for (screen = layout->screens; screen; screen = screen->next_in_layout) {
 
-        if (!screen->handle) continue;
+        if (screen->ctrl_target == NULL) {
+            continue;
+        }
 
         g_signal_handlers_disconnect_matched(G_OBJECT(screen->ctk_event),
                                              G_SIGNAL_MATCH_FUNC | G_SIGNAL_MATCH_DATA,
@@ -625,6 +634,7 @@ static int generate_xconf_metamode_str(CtkDisplayConfig *ctk_object,
                                        gchar **pMetamode_strs)
 {
     nvLayoutPtr layout = screen->layout;
+    CtrlTarget *ctrl_target;
     gchar *metamode_strs = NULL;
     gchar *metamode_str;
     gchar *tmp;
@@ -634,12 +644,19 @@ static int generate_xconf_metamode_str(CtkDisplayConfig *ctk_object,
     int start_width;
     int start_height;
 
-    int vendrel = NvCtrlGetVendorRelease(layout->handle);
-    char *vendstr = NvCtrlGetServerVendor(layout->handle);
+    int vendrel;
+    char *vendstr;
     int xorg_major;
     int xorg_minor;
     Bool longStringsOK;
 
+    ctrl_target = NvCtrlGetDefaultTarget(layout->system);
+    if (ctrl_target == NULL) {
+        return XCONFIG_GEN_ABORT;
+    }
+
+    vendrel = NvCtrlGetVendorRelease(ctrl_target);
+    vendstr = NvCtrlGetServerVendor(ctrl_target);
 
     /* Only X.Org 7.2 or > supports long X config lines */
     xorg_major = (vendrel / 10000000);
@@ -801,9 +818,9 @@ static void assign_screen_positions(CtkDisplayConfig *ctk_object)
     for (screen = layout->screens; screen; screen = screen->next_in_layout) {
 
         screen_info = NULL;
-        if (screen->handle) {
+        if (screen->ctrl_target != NULL) {
             ret = NvCtrlGetStringAttribute
-                (screen->handle,
+                (screen->ctrl_target,
                  NV_CTRL_STRING_SCREEN_RECTANGLE,
                  &screen_info);
 
@@ -835,7 +852,7 @@ static void assign_screen_positions(CtkDisplayConfig *ctk_object)
                      screen_parsed_info.x,
                      screen_parsed_info.y);
             }
-            XFree(screen_info);
+            free(screen_info);
 
         } else if (prev_screen) {
             /* Set this screen right of the previous */
@@ -1154,7 +1171,7 @@ static void update_gui(CtkDisplayConfig *ctk_object)
  *
  **/
 
-GtkWidget* ctk_display_config_new(NvCtrlAttributeHandle *handle,
+GtkWidget* ctk_display_config_new(CtrlTarget *ctrl_target,
                                   CtkConfig *ctk_config)
 {
     GObject *object;
@@ -1188,17 +1205,15 @@ GtkWidget* ctk_display_config_new(NvCtrlAttributeHandle *handle,
      * load this page
      *
      */
-    ret = NvCtrlGetStringAttribute(handle,
+    ret = NvCtrlGetStringAttribute(ctrl_target,
                                    NV_CTRL_STRING_SLI_MODE,
                                    &sli_mode);
     if (ret == NvCtrlSuccess && !g_ascii_strcasecmp(sli_mode, "Mosaic")) {
-        XFree(sli_mode);
+        free(sli_mode);
         return NULL;
     }
 
-    if (sli_mode) {
-        XFree(sli_mode);
-    }
+    free(sli_mode);
 
     /*
      * Create the ctk object
@@ -1208,7 +1223,7 @@ GtkWidget* ctk_display_config_new(NvCtrlAttributeHandle *handle,
     object = g_object_new(CTK_TYPE_DISPLAY_CONFIG, NULL);
     ctk_object = CTK_DISPLAY_CONFIG(object);
 
-    ctk_object->handle = handle;
+    ctk_object->ctrl_target = ctrl_target;
     ctk_object->ctk_config = ctk_config;
 
     ctk_object->apply_possible = TRUE;
@@ -1233,9 +1248,9 @@ GtkWidget* ctk_display_config_new(NvCtrlAttributeHandle *handle,
      * Create the display configuration widgets
      *
      */
-    
+
     /* Load the layout structure from the X server */
-    ctk_object->layout = layout_load_from_server(handle, &err_str);
+    ctk_object->layout = layout_load_from_server(ctrl_target, &err_str);
 
     /* If we failed to load, tell the user why */
     if (err_str || !ctk_object->layout) {
@@ -1265,7 +1280,7 @@ GtkWidget* ctk_display_config_new(NvCtrlAttributeHandle *handle,
     register_layout_events(ctk_object);
 
     /* Create the layout widget */
-    ctk_object->obj_layout = ctk_display_layout_new(handle, ctk_config,
+    ctk_object->obj_layout = ctk_display_layout_new(ctk_config,
                                                     ctk_object->layout,
                                                     300, /* min width */
                                                     225); /* min height */
@@ -1533,7 +1548,7 @@ GtkWidget* ctk_display_config_new(NvCtrlAttributeHandle *handle,
                      (gpointer) ctk_object);
 
     /* Screen Stereo Mode */
-    ret = NvCtrlGetValidAttributeValues(handle, NV_CTRL_STEREO, &valid);
+    ret = NvCtrlGetValidAttributeValues(ctrl_target, NV_CTRL_STEREO, &valid);
 
     if (ret == NvCtrlSuccess) {
 
@@ -2546,7 +2561,7 @@ static void generate_selected_item_dropdown(CtkDisplayConfig *ctk_object,
             if (show_gpu_info) {
                 tmp = str;
                 str = g_strdup_printf("%s on GPU-%d", tmp,
-                                      NvCtrlGetTargetId(gpu->handle));
+                                      NvCtrlGetTargetId(gpu->ctrl_target));
                 g_free(tmp);
             }
             tmp = str;
@@ -5552,7 +5567,8 @@ static void do_disable_display(CtkDisplayConfig *ctk_object,
         str = g_strdup_printf("Disable the display device %s (%s) "
                               "on GPU-%d (%s)?",
                               display->logName, display->typeIdName,
-                              NvCtrlGetTargetId(gpu->handle), gpu->name);
+                              NvCtrlGetTargetId(gpu->ctrl_target),
+                              gpu->name);
     } else {
         str = g_strdup_printf("Disable the display device %s (%s)?",
                               display->logName, display->typeIdName);
@@ -5591,10 +5607,10 @@ static Bool display_build_modepool(nvDisplayPtr display, Bool *updated)
         char *tokens = NULL;
         gchar *err_str = NULL;
 
-        NvCtrlStringOperation(display->handle, 0,
+        NvCtrlStringOperation(display->ctrl_target, 0,
                               NV_CTRL_STRING_OPERATION_BUILD_MODEPOOL,
                               "", &tokens);
-        XFree(tokens);
+        free(tokens);
         *updated = TRUE;
         if (!display_add_modelines_from_server(display, display->gpu,
                                                &err_str)) {
@@ -7037,7 +7053,10 @@ static Bool switch_to_current_metamode(CtkDisplayConfig *ctk_object,
     Bool modified_current_metamode;
 
 
-    if (!screen->handle || !screen->cur_metamode) goto fail;
+    if (screen->ctrl_target == NULL ||
+        screen->cur_metamode == NULL) {
+        goto fail;
+    }
 
     metamode = screen->cur_metamode;
 
@@ -7056,7 +7075,8 @@ static Bool switch_to_current_metamode(CtkDisplayConfig *ctk_object,
      * mode switch fails, or the user does not confirm.
      */
 
-    ret = NvCtrlGetAttribute(screen->handle, NV_CTRL_CURRENT_METAMODE_ID,
+    ret = NvCtrlGetAttribute(screen->ctrl_target,
+                             NV_CTRL_CURRENT_METAMODE_ID,
                              (int *)&old_rate);
     if (ret != NvCtrlSuccess) {
         nv_warning_msg("Failed to get current (fallback) mode for "
@@ -7074,7 +7094,7 @@ static Bool switch_to_current_metamode(CtkDisplayConfig *ctk_object,
         nv_info_msg(TAB, "Switching to mode: %dx%d (id: %d)...",
                     new_width, new_height, new_rate);
 
-        ret = NvCtrlSetAttribute(screen->handle,
+        ret = NvCtrlSetAttribute(screen->ctrl_target,
                                  NV_CTRL_CURRENT_METAMODE_ID,
                                  new_rate);
         modified_current_metamode = FALSE;
@@ -7082,10 +7102,9 @@ static Bool switch_to_current_metamode(CtkDisplayConfig *ctk_object,
         nv_info_msg(TAB, "Modifying current MetaMode to: %s...",
                     metamode->cpl_str);
 
-        ret = NvCtrlSetStringAttribute(screen->handle,
+        ret = NvCtrlSetStringAttribute(screen->ctrl_target,
                                        NV_CTRL_STRING_CURRENT_METAMODE,
-                                       metamode->cpl_str,
-                                       NULL);
+                                       metamode->cpl_str);
         if (ret == NvCtrlSuccess) {
             metamode->id = old_rate;
         }
@@ -7099,7 +7118,7 @@ static Bool switch_to_current_metamode(CtkDisplayConfig *ctk_object,
                        screen->cur_metamode_idx+1, metamode->cpl_str,
                        new_width,
                        new_height, new_rate,
-                       NvCtrlGetTargetId(screen->handle));
+                       NvCtrlGetTargetId(screen->ctrl_target));
 
         if (screen->num_metamodes > 1) {
             msg = g_strdup_printf("Failed to set MetaMode (%d) '%s' "
@@ -7108,7 +7127,7 @@ static Bool switch_to_current_metamode(CtkDisplayConfig *ctk_object,
                                   screen->cur_metamode_idx+1,
                                   metamode->cpl_str,
                                   new_width, new_height, new_rate,
-                                  NvCtrlGetTargetId(screen->handle));
+                                  NvCtrlGetTargetId(screen->ctrl_target));
             dlg = gtk_message_dialog_new
                 (GTK_WINDOW(parent),
                  GTK_DIALOG_DESTROY_WITH_PARENT,
@@ -7121,7 +7140,7 @@ static Bool switch_to_current_metamode(CtkDisplayConfig *ctk_object,
                                   screen->cur_metamode_idx+1,
                                   metamode->cpl_str,
                                   new_width, new_height, new_rate,
-                                  NvCtrlGetTargetId(screen->handle));
+                                  NvCtrlGetTargetId(screen->ctrl_target));
             dlg = gtk_message_dialog_new
                 (GTK_WINDOW(parent),
                  GTK_DIALOG_DESTROY_WITH_PARENT,
@@ -7140,7 +7159,7 @@ static Bool switch_to_current_metamode(CtkDisplayConfig *ctk_object,
 
             nv_info_msg(TAB, "Removed MetaMode %d on Screen %d.\n",
                         screen->cur_metamode_idx+1,
-                        NvCtrlGetTargetId(screen));
+                        NvCtrlGetTargetId(screen->ctrl_target));
 
             /* Update the GUI */
             setup_display_page(ctk_object);
@@ -7161,7 +7180,7 @@ static Bool switch_to_current_metamode(CtkDisplayConfig *ctk_object,
 
     /* Setup the counter callback data */
     info.ctk_object = ctk_object;
-    info.screen = NvCtrlGetTargetId(screen->handle);
+    info.screen = NvCtrlGetTargetId(screen->ctrl_target);
 
     /* Start the countdown timer */
     ctk_object->display_confirm_countdown = DEFAULT_SWITCH_MODE_TIMEOUT;
@@ -7194,23 +7213,22 @@ static Bool switch_to_current_metamode(CtkDisplayConfig *ctk_object,
         if (!modified_current_metamode) {
             nv_info_msg(TAB, "Switching back to mode (id: %d)...", old_rate);
 
-            ret = NvCtrlSetAttribute(screen->handle,
+            ret = NvCtrlSetAttribute(screen->ctrl_target,
                                      NV_CTRL_CURRENT_METAMODE_ID,
                                      old_rate);
         } else {
             nv_info_msg(TAB, "Re-writing previous current MetaMode to: %s...",
                         cur_metamode_str);
 
-            ret = NvCtrlSetStringAttribute(screen->handle,
+            ret = NvCtrlSetStringAttribute(screen->ctrl_target,
                                            NV_CTRL_STRING_CURRENT_METAMODE,
-                                           cur_metamode_str,
-                                           NULL);
+                                           cur_metamode_str);
             if (ret != NvCtrlSuccess) {
                 nv_warning_msg("Failed to re-write current MetaMode (%d) to "
                                "'%s' on X screen %d!",
                                old_rate,
                                cur_metamode_str,
-                               NvCtrlGetTargetId(screen->handle));
+                               NvCtrlGetTargetId(screen->ctrl_target));
             }
         }
         goto fail;
@@ -7268,7 +7286,7 @@ static Bool add_cpl_metamode_to_X(nvScreenPtr screen, nvMetaModePtr metamode,
     ReturnStatus ret;
     char *tokens;
 
-    ret = NvCtrlStringOperation(screen->handle, 0,
+    ret = NvCtrlStringOperation(screen->ctrl_target, 0,
                                 NV_CTRL_STRING_OPERATION_ADD_METAMODE,
                                 metamode->cpl_str, &tokens);
 
@@ -7282,7 +7300,7 @@ static Bool add_cpl_metamode_to_X(nvScreenPtr screen, nvMetaModePtr metamode,
 
     parse_token_value_pairs(tokens, apply_metamode_token,
                             metamode);
-    XFree(tokens);
+    free(tokens);
 
     metamode->x_idx = metamode_idx;
 
@@ -7342,7 +7360,7 @@ static void setup_metamodes_for_apply(nvScreenPtr screen,
         }
 
         /* Parse CPL string into X metamode string */
-        ret = NvCtrlStringOperation(screen->handle, 0,
+        ret = NvCtrlStringOperation(screen->ctrl_target, 0,
                                     NV_CTRL_STRING_OPERATION_PARSE_METAMODE,
                                     metamode->cpl_str, &metamode->x_str);
         if ((ret != NvCtrlSuccess) ||
@@ -7567,9 +7585,9 @@ static Bool screen_move_metamode(nvScreenPtr screen, nvMetaModePtr metamode,
     snprintf(update_str, len, "index=%d :: %s", metamode_idx,
              metamode->cpl_str);
 
-    ret = NvCtrlSetStringAttribute(screen->handle,
+    ret = NvCtrlSetStringAttribute(screen->ctrl_target,
                                    NV_CTRL_STRING_MOVE_METAMODE,
-                                   update_str, NULL);
+                                   update_str);
     if (ret != NvCtrlSuccess) {
         goto fail;
     }
@@ -7673,9 +7691,9 @@ static void postprocess_metamodes(nvScreenPtr screen, char *metamode_strs)
         if (!tmp) continue;
 
         /* Delete the metamode */
-        ret = NvCtrlSetStringAttribute(screen->handle,
+        ret = NvCtrlSetStringAttribute(screen->ctrl_target,
                                        NV_CTRL_STRING_DELETE_METAMODE,
-                                       tmp, NULL);
+                                       tmp);
         if (ret == NvCtrlSuccess) {
             nvMetaModePtr metamode;
 
@@ -7728,13 +7746,13 @@ static int update_screen_metamodes(CtkDisplayConfig *ctk_object,
     ReturnStatus ret;
 
 
-    /* Make sure the screen has a valid handle to make the updates */
-    if (!screen->handle) {
+    /* Make sure the screen has a valid target to make the updates */
+    if (screen->ctrl_target == NULL) {
         return 1;
     }
 
     nv_info_msg("", "Updating Screen %d's MetaModes:",
-                NvCtrlGetTargetId(screen->handle));
+                NvCtrlGetTargetId(screen->ctrl_target));
 
     /* To update the metamode list of the screen:
      *
@@ -7752,7 +7770,7 @@ static int update_screen_metamodes(CtkDisplayConfig *ctk_object,
 
     /* Get the list of the current metamodes */
 
-    ret = NvCtrlGetBinaryAttribute(screen->handle,
+    ret = NvCtrlGetBinaryAttribute(screen->ctrl_target,
                                    0,
                                    NV_CTRL_BINARY_DATA_METAMODES_VERSION_2,
                                    (unsigned char **)&metamode_strs,
@@ -7761,14 +7779,14 @@ static int update_screen_metamodes(CtkDisplayConfig *ctk_object,
 
     /* Get the current metamode for the screen */
 
-    ret = NvCtrlGetStringAttribute(screen->handle,
+    ret = NvCtrlGetStringAttribute(screen->ctrl_target,
                                    NV_CTRL_STRING_CURRENT_METAMODE_VERSION_2,
                                    &cur_full_metamode_str);
     if (ret != NvCtrlSuccess) goto done;
 
     /* Get the current metamode index for the screen */
 
-    ret = NvCtrlGetAttribute(screen->handle,
+    ret = NvCtrlGetAttribute(screen->ctrl_target,
                              NV_CTRL_CURRENT_METAMODE_ID,
                              &cur_metamode_id);
     if (ret != NvCtrlSuccess) goto done;
@@ -7866,8 +7884,8 @@ static int update_screen_metamodes(CtkDisplayConfig *ctk_object,
 
  done:
 
-    XFree(metamode_strs);
-    XFree(cur_full_metamode_str);
+    free(metamode_strs);
+    free(cur_full_metamode_str);
 
     return clear_apply;
 
@@ -7907,14 +7925,15 @@ static void apply_clicked(GtkWidget *widget, gpointer user_data)
          screen;
          screen = screen->next_in_layout) {
 
-        if (!screen->handle) continue;
+        if (screen->ctrl_target == NULL) {
+            continue;
+        }
         if (screen->no_scanout) continue;
 
         if (screen->primaryDisplay && ctk_object->primary_display_changed) {
-            ret = NvCtrlSetStringAttribute(screen->handle,
+            ret = NvCtrlSetStringAttribute(screen->ctrl_target,
                                            NV_CTRL_STRING_NVIDIA_XINERAMA_INFO_ORDER,
-                                           screen->primaryDisplay->typeIdName,
-                                           NULL);
+                                           screen->primaryDisplay->typeIdName);
             if (ret != NvCtrlSuccess) {
                 nv_error_msg("Failed to set primary display for screen %d",
                              screen->scrnum);
@@ -8082,7 +8101,7 @@ static Bool add_monitor_to_xconfig(nvDisplayPtr display, XConfigPtr config,
 
     /* Get the Horizontal Sync ranges from nv-control */
 
-    ret = NvCtrlGetStringAttribute(display->handle,
+    ret = NvCtrlGetStringAttribute(display->ctrl_target,
                                    NV_CTRL_STRING_VALID_HORIZ_SYNC_RANGES,
                                    &range_str);
     if (ret != NvCtrlSuccess) {
@@ -8117,7 +8136,7 @@ static Bool add_monitor_to_xconfig(nvDisplayPtr display, XConfigPtr config,
 
     /* Get the Horizontal Sync ranges from nv-control */
 
-    ret = NvCtrlGetStringAttribute(display->handle,
+    ret = NvCtrlGetStringAttribute(display->ctrl_target,
                                    NV_CTRL_STRING_VALID_VERT_REFRESH_RANGES,
                                    &range_str);
     if (ret != NvCtrlSuccess) {
@@ -8696,6 +8715,7 @@ static Bool add_layout_to_xconfig(nvLayoutPtr layout, XConfigPtr config)
 static int generateXConfig(CtkDisplayConfig *ctk_object, XConfigPtr *pConfig)
 {
     nvLayoutPtr layout = ctk_object->layout;
+    CtrlTarget *ctrl_target;
     XConfigPtr config = NULL;
     GenerateOptions go;
     char *server_vendor;
@@ -8710,7 +8730,8 @@ static int generateXConfig(CtkDisplayConfig *ctk_object, XConfigPtr *pConfig)
     xconfigGetXServerInUse(&go);
 
     /* Query actual server X.Org/XFree86 */
-    server_vendor = NvCtrlGetServerVendor(layout->handle);
+    ctrl_target = NvCtrlGetDefaultTarget(layout->system);
+    server_vendor = NvCtrlGetServerVendor(ctrl_target);
     if (server_vendor && g_strrstr(server_vendor, "X.Org")) {
         go.xserver = X_IS_XORG;
     } else {
@@ -8923,13 +8944,15 @@ static void probe_clicked(GtkWidget *widget, gpointer user_data)
     /* Probe each GPU for display changes */
     for (gpu = layout->gpus; gpu; gpu = gpu->next_in_layout) {
 
-        if (!gpu->handle) continue;
+        if (gpu->ctrl_target == NULL) {
+            continue;
+        }
 
-        ret = NvCtrlGetAttribute(gpu->handle, NV_CTRL_PROBE_DISPLAYS,
+        ret = NvCtrlGetAttribute(gpu->ctrl_target, NV_CTRL_PROBE_DISPLAYS,
                                  (int *)&probed_displays);
         if (ret != NvCtrlSuccess) {
             nv_error_msg("Failed to probe for display devices on GPU-%d '%s'.",
-                         NvCtrlGetTargetId(gpu->handle), gpu->name);
+                         NvCtrlGetTargetId(gpu->ctrl_target), gpu->name);
             continue;
         }
 
@@ -8967,7 +8990,8 @@ static gboolean layout_change_is_applyable(const nvLayoutPtr old,
 
             /* This display device had an active mode in the old layout.  See if
              * it's still connected in the new layout. */
-            if (!layout_get_display(new, NvCtrlGetTargetId(dpy->handle))) {
+            if (!layout_get_display(new,
+                                    NvCtrlGetTargetId(dpy->ctrl_target))) {
                 return True;
             }
         }
@@ -8982,18 +9006,14 @@ static gboolean layout_change_is_applyable(const nvLayoutPtr old,
  *
  **/
 
-static void reset_layout(CtkDisplayConfig *ctk_object) 
+static void reset_layout(CtkDisplayConfig *ctk_object)
 {
     gchar *err_str = NULL;
     nvLayoutPtr layout;
     gboolean allow_apply;
 
     /* Load the current layout */
-    layout = layout_load_from_server(ctk_object->handle, &err_str);
-
-    /* See if we should allow the user to press the Apply button to make the new
-     * layout take effect, e.g. if an active display device disappeared. */
-    allow_apply = layout_change_is_applyable(ctk_object->layout, layout);
+    layout = layout_load_from_server(ctk_object->ctrl_target, &err_str);
 
     /* Handle errors loading the new layout */
     if (!layout || err_str) {
@@ -9004,6 +9024,9 @@ static void reset_layout(CtkDisplayConfig *ctk_object)
         return;
     }
 
+    /* See if we should allow the user to press the Apply button to make the new
+     * layout take effect, e.g. if an active display device disappeared. */
+    allow_apply = layout_change_is_applyable(ctk_object->layout, layout);
 
     /* Free existing layout */
     unregister_layout_events(ctk_object);
@@ -9183,7 +9206,8 @@ done:
  *
  **/
 
-static void display_config_attribute_changed(GtkWidget *object, gpointer arg1,
+static void display_config_attribute_changed(GtkWidget *object,
+                                             CtrlEvent *event,
                                              gpointer user_data)
 {
     CtkDisplayConfig *ctk_object = (CtkDisplayConfig *) user_data;

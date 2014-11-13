@@ -38,7 +38,7 @@
 
 /* local prototypes */
 
-static void print_attribute_help(char *attr);
+static void print_attribute_help(const char *attr);
 static void print_help(void);
 
 /*
@@ -67,7 +67,7 @@ static void print_version(void)
  * print_attribute_help() - print information about the specified attribute.
  */
 
-static void print_attribute_help(char *attr)
+static void print_attribute_help(const char *attr)
 {
     int i;
     int found = 0;
@@ -96,17 +96,20 @@ static void print_attribute_help(char *attr)
                 /* Attribute type (value) information */
 
                 switch (entry->type) {
-                case NV_PARSER_ATTRIBUTE_TYPE_INTEGER:
+                case CTRL_ATTRIBUTE_TYPE_INTEGER:
                     nv_msg(NULL, "  - Attribute value is an integer.");
                     break;
-                case NV_PARSER_ATTRIBUTE_TYPE_STRING:
-                case NV_PARSER_ATTRIBUTE_TYPE_STRING_OPERATION:
+                case CTRL_ATTRIBUTE_TYPE_STRING:
+                case CTRL_ATTRIBUTE_TYPE_STRING_OPERATION:
                     nv_msg(NULL, "  - Attribute value is a string.");
                     break;
-                case NV_PARSER_ATTRIBUTE_TYPE_COLOR:
+                case CTRL_ATTRIBUTE_TYPE_BINARY_DATA:
+                    nv_msg(NULL, "  - Attribute value is binary data.");
+                    break;
+                case CTRL_ATTRIBUTE_TYPE_COLOR:
                     nv_msg(NULL, "  - Attribute value is a color.");
                     break;
-                case NV_PARSER_ATTRIBUTE_TYPE_SDI_CSC:
+                case CTRL_ATTRIBUTE_TYPE_SDI_CSC:
                     nv_msg(NULL, "  - Attribute value is a SDI CSC matrix.");
                     break;
                 }
@@ -132,7 +135,7 @@ static void print_attribute_help(char *attr)
                 /* Attribute type-specific flags */
 
                 switch (entry->type) {
-                case NV_PARSER_ATTRIBUTE_TYPE_INTEGER:
+                case CTRL_ATTRIBUTE_TYPE_INTEGER:
                     if (entry->f.int_flags.is_100Hz) {
                         nv_msg(NULL, "  - Attribute value is in units of Centihertz "
                                "(1/100Hz).");
@@ -157,10 +160,11 @@ static void print_attribute_help(char *attr)
                         nv_msg(NULL, "  - Attribute value is switch display.");
                     }
                     break;
-                case NV_PARSER_ATTRIBUTE_TYPE_STRING:
-                case NV_PARSER_ATTRIBUTE_TYPE_COLOR:
-                case NV_PARSER_ATTRIBUTE_TYPE_SDI_CSC:
-                case NV_PARSER_ATTRIBUTE_TYPE_STRING_OPERATION:
+                case CTRL_ATTRIBUTE_TYPE_STRING:
+                case CTRL_ATTRIBUTE_TYPE_COLOR:
+                case CTRL_ATTRIBUTE_TYPE_SDI_CSC:
+                case CTRL_ATTRIBUTE_TYPE_STRING_OPERATION:
+                case CTRL_ATTRIBUTE_TYPE_BINARY_DATA:
                     /* Nothing specific to report for these */
                     break;
                 }
@@ -210,16 +214,14 @@ void print_help(void)
 /*
  * parse_command_line() - malloc an Options structure, initialize it
  * with defaults, and fill in any pertinent data from the commandline
- * arguments.  This must be called after the gui is initialized (so
- * that the gui can remove its commandline arguments from argv).
- *
- * XXX it's unfortunate that we need to init the gui before calling
- * this, because many of the commandline options will cause us to not
- * even use the gui.
+ * arguments.  This must be called before the gui is initialized so
+ * that the correct gui library can be used. Arguments for the gui must
+ * follow a '--' marker. The marker will be removed before passing the
+ * commandline arguments to the gui init function.
  */
 
-Options *parse_command_line(int argc, char *argv[], char *dpy, 
-                            CtrlHandlesArray *handles_array)
+Options *parse_command_line(int argc, char *argv[],
+                            CtrlSystemList *systems)
 {
     Options *op;
     int n, c;
@@ -234,9 +236,7 @@ Options *parse_command_line(int argc, char *argv[], char *dpy,
      * initialize the controlled display to the gui display name
      * passed in.
      */
-    
-    op->ctrl_display = dpy;
-    
+
     while (1) {
         c = nvgetopt(argc, argv, __options, &strval,
                      &boolval,  /* boolval */
@@ -254,6 +254,15 @@ Options *parse_command_line(int argc, char *argv[], char *dpy,
         case 'n': op->no_load = 1; break;
         case 'r': op->rewrite = 1; break;
         case 'c': op->ctrl_display = strval; break;
+        case DISPLAY_OPTION:
+            /*
+             * --ctrl-display and --display can both be specified so only assign
+             * --display to ctrl_display if it is not yet assigned.
+             */
+            if (!op->ctrl_display) {
+                op->ctrl_display = strval;
+            }
+            break;
         case 'p': op->page = strval; break;
         case 'V':
             nv_set_verbosity(NV_VERBOSITY_DEFAULT);
@@ -292,12 +301,14 @@ Options *parse_command_line(int argc, char *argv[], char *dpy,
             op->num_queries++;
             break;
         case CONFIG_FILE_OPTION: op->config = strval; break;
-        case 'g': print_glxinfo(NULL, handles_array); exit(0); break;
+        case 'g': print_glxinfo(NULL, systems); exit(0); break;
         case 't': op->terse = NV_TRUE; break;
         case 'd': op->dpy_string = NV_TRUE; break;
         case 'e': print_attribute_help(strval); exit(0); break;
         case 'L': op->list_targets = NV_TRUE; break;
         case 'w': op->write_config = boolval; break;
+        case 'i': op->use_gtk2 = NV_TRUE; break;
+        case 'I': op->gtk_lib_path = strval; break;
         default:
             nv_error_msg("Invalid commandline, please run `%s --help` "
                          "for usage information.\n", argv[0]);

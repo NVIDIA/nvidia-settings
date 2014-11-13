@@ -93,8 +93,7 @@ static void hsync_delay_changed(GtkSpinButton *spinbutton, gpointer user_data);
 static void vsync_delay_changed(GtkSpinButton *spinbutton, gpointer user_data);
 
 
-static void gvo_sync_event_received(GObject *object,
-                                    gpointer arg1,
+static void gvo_sync_event_received(GObject *object, CtrlEvent *event,
                                     gpointer user_data);
 static gint gvo_sync_probe_callback(gpointer data);
 
@@ -315,7 +314,7 @@ static void update_sync_lock_status_text(CtkGvoSync *ctk_gvo_sync)
  * ctk_gvo_sync_new() - create a CtkGvoSync widget
  */
 
-GtkWidget* ctk_gvo_sync_new(NvCtrlAttributeHandle *handle,
+GtkWidget* ctk_gvo_sync_new(CtrlTarget *ctrl_target,
                             GtkWidget *parent_window,
                             CtkConfig *ctk_config,
                             CtkEvent *ctk_event,
@@ -337,23 +336,23 @@ GtkWidget* ctk_gvo_sync_new(NvCtrlAttributeHandle *handle,
     gint row;
 
     const char *help_text;
-    
 
-    /* make sure we have a handle */
-    
-    g_return_val_if_fail(handle != NULL, NULL);
-    
+    /* make sure we have a valid target */
+
+    g_return_val_if_fail((ctrl_target != NULL) &&
+                         (ctrl_target->h != NULL), NULL);
+
     /* create and initialize the object */
 
     object = g_object_new(CTK_TYPE_GVO_SYNC, NULL);
-    
+
     ctk_gvo_sync = CTK_GVO_SYNC(object);
-    ctk_gvo_sync->handle = handle;
+    ctk_gvo_sync->ctrl_target = ctrl_target;
     ctk_gvo_sync->parent_window = parent_window;
     ctk_gvo_sync->ctk_config = ctk_config;
     ctk_gvo_sync->ctk_event = ctk_event;
     ctk_gvo_sync->gvo_parent = gvo_parent;
-    
+
     /* Query the current GVO state */
 
     if ( !query_init_gvo_sync_state(ctk_gvo_sync) ) {
@@ -550,11 +549,13 @@ GtkWidget* ctk_gvo_sync_new(NvCtrlAttributeHandle *handle,
 
     /* NV_CTRL_GVO_SYNC_DELAY_PIXELS */
 
-    ret = NvCtrlGetValidAttributeValues(handle, NV_CTRL_GVO_SYNC_DELAY_PIXELS,
+    ret = NvCtrlGetValidAttributeValues(ctrl_target,
+                                        NV_CTRL_GVO_SYNC_DELAY_PIXELS,
                                         &valid);
 
     if ((ret == NvCtrlSuccess) && (valid.type == ATTRIBUTE_TYPE_RANGE)) {
-        ret = NvCtrlGetAttribute(handle, NV_CTRL_GVO_SYNC_DELAY_PIXELS, &val);
+        ret = NvCtrlGetAttribute(ctrl_target, NV_CTRL_GVO_SYNC_DELAY_PIXELS,
+                                 &val);
         if (ret != NvCtrlSuccess) val = 0;
 
         if (ctk_gvo_sync->caps & NV_CTRL_GVO_CAPABILITIES_ADVANCE_SYNC_SKEW) {
@@ -602,12 +603,14 @@ GtkWidget* ctk_gvo_sync_new(NvCtrlAttributeHandle *handle,
     }
 
     /* NV_CTRL_GVO_SYNC_DELAY_LINES */
-    
-    ret = NvCtrlGetValidAttributeValues(handle, NV_CTRL_GVO_SYNC_DELAY_LINES,
+
+    ret = NvCtrlGetValidAttributeValues(ctrl_target,
+                                        NV_CTRL_GVO_SYNC_DELAY_LINES,
                                         &valid);
 
     if ((ret == NvCtrlSuccess) && (valid.type == ATTRIBUTE_TYPE_RANGE)) {
-        ret = NvCtrlGetAttribute(handle, NV_CTRL_GVO_SYNC_DELAY_LINES, &val);
+        ret = NvCtrlGetAttribute(ctrl_target, NV_CTRL_GVO_SYNC_DELAY_LINES,
+                                 &val);
         if (ret != NvCtrlSuccess) val = 0;
 
         if (ctk_gvo_sync->caps & NV_CTRL_GVO_CAPABILITIES_ADVANCE_SYNC_SKEW) {
@@ -727,13 +730,14 @@ static void finish_menu(GtkWidget *menu, GtkWidget *table, const gint row)
 
 static gboolean query_init_gvo_sync_state(CtkGvoSync *ctk_gvo_sync)
 {
+    CtrlTarget *ctrl_target = ctk_gvo_sync->ctrl_target;
     gint val;
     ReturnStatus ret;
 
 
     /* Check if this screen supports GVO */
-    
-    ret = NvCtrlGetAttribute(ctk_gvo_sync->handle, NV_CTRL_GVO_SUPPORTED,
+
+    ret = NvCtrlGetAttribute(ctrl_target, NV_CTRL_GVO_SUPPORTED,
                              &val);
     if ((ret != NvCtrlSuccess) || (val != NV_CTRL_GVO_SUPPORTED_TRUE)) {
         /* GVO not available */
@@ -741,15 +745,15 @@ static gboolean query_init_gvo_sync_state(CtkGvoSync *ctk_gvo_sync)
     }
 
     /* Get this GVO device's capabilities */
-    
-    ret = NvCtrlGetAttribute(ctk_gvo_sync->handle, NV_CTRL_GVO_CAPABILITIES,
+
+    ret = NvCtrlGetAttribute(ctrl_target, NV_CTRL_GVO_CAPABILITIES,
                              &val);
     if (ret != NvCtrlSuccess) return FALSE;
     ctk_gvo_sync->caps = val;
 
     /* Query the current input video formats */
 
-    ret = NvCtrlGetAttribute(ctk_gvo_sync->handle,
+    ret = NvCtrlGetAttribute(ctrl_target,
                              NV_CTRL_GVIO_DETECTED_VIDEO_FORMAT, &val);
     if (ret != NvCtrlSuccess) {
         val = NV_CTRL_GVIO_VIDEO_FORMAT_NONE;
@@ -758,7 +762,7 @@ static gboolean query_init_gvo_sync_state(CtkGvoSync *ctk_gvo_sync)
 
     /* Query the sync mode */
 
-    ret = NvCtrlGetAttribute(ctk_gvo_sync->handle, NV_CTRL_GVO_SYNC_MODE,
+    ret = NvCtrlGetAttribute(ctrl_target, NV_CTRL_GVO_SYNC_MODE,
                              &val);
     if (ret != NvCtrlSuccess) {
         val = NV_CTRL_GVO_SYNC_MODE_FREE_RUNNING;
@@ -767,7 +771,7 @@ static gboolean query_init_gvo_sync_state(CtkGvoSync *ctk_gvo_sync)
 
     /* query COMPOSITE_SYNC_INPUT_DETECTED */
 
-    ret = NvCtrlGetAttribute(ctk_gvo_sync->handle,
+    ret = NvCtrlGetAttribute(ctrl_target,
                              NV_CTRL_GVO_COMPOSITE_SYNC_INPUT_DETECTED, &val);
     if (ret != NvCtrlSuccess) {
         val = NV_CTRL_GVO_COMPOSITE_SYNC_INPUT_DETECTED_FALSE;
@@ -776,17 +780,17 @@ static gboolean query_init_gvo_sync_state(CtkGvoSync *ctk_gvo_sync)
 
     /* query COMPOSITE_SYNC_INPUT_DETECT_MODE */
 
-    ret = NvCtrlGetAttribute(ctk_gvo_sync->handle, 
+    ret = NvCtrlGetAttribute(ctrl_target,
                              NV_CTRL_GVO_COMPOSITE_SYNC_INPUT_DETECT_MODE,
                              &val);
     if (ret != NvCtrlSuccess) {
         val = NV_CTRL_GVO_COMPOSITE_SYNC_INPUT_DETECT_MODE_AUTO;
     }
     ctk_gvo_sync->comp_mode = val;
-    
+
     /* query SDI_SYNC_INPUT_DETECTED */
 
-    ret = NvCtrlGetAttribute(ctk_gvo_sync->handle,
+    ret = NvCtrlGetAttribute(ctrl_target,
                              NV_CTRL_GVO_SDI_SYNC_INPUT_DETECTED, &val);
     if (ret != NvCtrlSuccess) {
         val = NV_CTRL_GVO_SDI_SYNC_INPUT_DETECTED_NONE;
@@ -795,7 +799,7 @@ static gboolean query_init_gvo_sync_state(CtkGvoSync *ctk_gvo_sync)
 
     /* query sync source */
 
-    ret = NvCtrlGetAttribute(ctk_gvo_sync->handle,
+    ret = NvCtrlGetAttribute(ctrl_target,
                              NV_CTRL_GVO_SYNC_SOURCE,
                              &val);
     if (ret != NvCtrlSuccess) {
@@ -805,7 +809,7 @@ static gboolean query_init_gvo_sync_state(CtkGvoSync *ctk_gvo_sync)
 
     /* Query framelock/genlock status */
 
-    ret = NvCtrlGetAttribute(ctk_gvo_sync->handle,
+    ret = NvCtrlGetAttribute(ctrl_target,
                              NV_CTRL_GVO_SYNC_LOCK_STATUS,
                              &val);
     if (ret != NvCtrlSuccess) {
@@ -826,17 +830,18 @@ static gboolean query_init_gvo_sync_state(CtkGvoSync *ctk_gvo_sync)
 
 static void init_composite_termination(CtkGvoSync *ctk_gvo_sync)
 {
+    CtrlTarget *ctrl_target = ctk_gvo_sync->ctrl_target;
     ReturnStatus ret;
     gint val;
 
     if (!ctk_gvo_sync->composite_termination_button) return;
 
-    ret = NvCtrlGetAttribute(ctk_gvo_sync->handle,
+    ret = NvCtrlGetAttribute(ctrl_target,
                              NV_CTRL_GVO_COMPOSITE_TERMINATION, &val);
     if (ret != NvCtrlSuccess) {
         val = NV_CTRL_GVO_COMPOSITE_TERMINATION_DISABLE;
     }
-    
+
     gtk_toggle_button_set_active
         (GTK_TOGGLE_BUTTON(ctk_gvo_sync->composite_termination_button),
          val == NV_CTRL_GVO_COMPOSITE_TERMINATION_ENABLE);
@@ -1050,6 +1055,7 @@ static void post_sync_format_menu_changed(CtkGvoSync *ctk_gvo_sync)
 static void detect_input_toggled(GtkToggleButton *togglebutton,
                                  CtkGvoSync *ctk_gvo_sync)
 {
+    CtrlTarget *ctrl_target = ctk_gvo_sync->ctrl_target;
     gboolean enabled;
 
     enabled = gtk_toggle_button_get_active(togglebutton);
@@ -1072,10 +1078,10 @@ static void detect_input_toggled(GtkToggleButton *togglebutton,
     
     /* enable REACQUIRE */
 
-    NvCtrlSetAttribute(ctk_gvo_sync->handle,
+    NvCtrlSetAttribute(ctrl_target,
                        NV_CTRL_GVO_INPUT_VIDEO_FORMAT_REACQUIRE,
                        NV_CTRL_GVO_INPUT_VIDEO_FORMAT_REACQUIRE_TRUE);
-    
+
     /* update the statusbar */
 
     ctk_config_statusbar_message(ctk_gvo_sync->ctk_config,
@@ -1098,13 +1104,14 @@ static void detect_input_toggled(GtkToggleButton *togglebutton,
 static gint detect_input_done(gpointer data)
 {
     CtkGvoSync *ctk_gvo_sync = CTK_GVO_SYNC(data);
-    
+    CtrlTarget *ctrl_target = ctk_gvo_sync->ctrl_target;
+
     /* disable REACQUIRE */
 
-    NvCtrlSetAttribute(ctk_gvo_sync->handle,
+    NvCtrlSetAttribute(ctrl_target,
                        NV_CTRL_GVO_INPUT_VIDEO_FORMAT_REACQUIRE,
                        NV_CTRL_GVO_INPUT_VIDEO_FORMAT_REACQUIRE_FALSE);
-    
+
     /* reprobe */
     
     ctk_gvo_banner_probe((gpointer)(ctk_gvo_sync->gvo_parent->banner));
@@ -1156,11 +1163,12 @@ static gint detect_input_done(gpointer data)
 static void composite_termination_toggled(GtkWidget *button,
                                           CtkGvoSync *ctk_gvo_sync)
 {
+    CtrlTarget *ctrl_target = ctk_gvo_sync->ctrl_target;
     gboolean enabled;
-    
+
     enabled = gtk_toggle_button_get_active(GTK_TOGGLE_BUTTON(button));
 
-    NvCtrlSetAttribute(ctk_gvo_sync->handle,
+    NvCtrlSetAttribute(ctrl_target,
                        NV_CTRL_GVO_COMPOSITE_TERMINATION,
                        (enabled ? NV_CTRL_GVO_COMPOSITE_TERMINATION_ENABLE :
                         NV_CTRL_GVO_COMPOSITE_TERMINATION_DISABLE));
@@ -1179,14 +1187,15 @@ static void composite_termination_toggled(GtkWidget *button,
 static void sync_mode_changed(CtkDropDownMenu *menu, gpointer user_data)
 {
     CtkGvoSync *ctk_gvo_sync = CTK_GVO_SYNC(user_data);
+    CtrlTarget *ctrl_target = ctk_gvo_sync->ctrl_target;
     gint value;
 
     value = ctk_drop_down_menu_get_current_value(menu);
 
-    NvCtrlSetAttribute(ctk_gvo_sync->handle, NV_CTRL_GVO_SYNC_MODE, value);
-    
+    NvCtrlSetAttribute(ctrl_target, NV_CTRL_GVO_SYNC_MODE, value);
+
     if (value != NV_CTRL_GVO_SYNC_MODE_FREE_RUNNING) {
-        NvCtrlSetAttribute(ctk_gvo_sync->handle, NV_CTRL_GVO_SYNC_SOURCE,
+        NvCtrlSetAttribute(ctrl_target, NV_CTRL_GVO_SYNC_SOURCE,
                            ctk_gvo_sync->sync_source);
     }
 
@@ -1206,10 +1215,11 @@ static void sync_mode_changed(CtkDropDownMenu *menu, gpointer user_data)
 static void sync_format_changed(CtkDropDownMenu *menu, gpointer user_data)
 {
     CtkGvoSync *ctk_gvo_sync = CTK_GVO_SYNC(user_data);
+    CtrlTarget *ctrl_target = ctk_gvo_sync->ctrl_target;
     gint value, sync_source, comp_mode;
 
     value = ctk_drop_down_menu_get_current_value(menu);
-    
+
     switch (value) {
     case SYNC_FORMAT_SDI:
         sync_source = NV_CTRL_GVO_SYNC_SOURCE_SDI;
@@ -1234,15 +1244,15 @@ static void sync_format_changed(CtkDropDownMenu *menu, gpointer user_data)
     ctk_gvo_sync->sync_source = sync_source;
     ctk_gvo_sync->comp_mode = comp_mode;
 
-    NvCtrlSetAttribute(ctk_gvo_sync->handle,
+    NvCtrlSetAttribute(ctrl_target,
                        NV_CTRL_GVO_SYNC_SOURCE, sync_source);
 
-    NvCtrlSetAttribute(ctk_gvo_sync->handle, 
+    NvCtrlSetAttribute(ctrl_target,
                        NV_CTRL_GVO_COMPOSITE_SYNC_INPUT_DETECT_MODE,
                        comp_mode);
 
     post_sync_format_menu_changed(ctk_gvo_sync);
-    
+
 } /* sync_format_changed() */
 
 
@@ -1255,13 +1265,13 @@ static void sync_format_changed(CtkDropDownMenu *menu, gpointer user_data)
 static void hsync_delay_changed(GtkSpinButton *spinbutton, gpointer user_data)
 {
     CtkGvoSync *ctk_gvo_sync = CTK_GVO_SYNC(user_data);
+    CtrlTarget *ctrl_target = ctk_gvo_sync->ctrl_target;
     gint val;
-    
+
     val = gtk_spin_button_get_value(spinbutton);
-    
-    NvCtrlSetAttribute(ctk_gvo_sync->handle, NV_CTRL_GVO_SYNC_DELAY_PIXELS,
-                       val);
-    
+
+    NvCtrlSetAttribute(ctrl_target, NV_CTRL_GVO_SYNC_DELAY_PIXELS, val);
+
 } /* hsync_delay_changed() */
 
 
@@ -1274,13 +1284,13 @@ static void hsync_delay_changed(GtkSpinButton *spinbutton, gpointer user_data)
 static void vsync_delay_changed(GtkSpinButton *spinbutton, gpointer user_data)
 {
     CtkGvoSync *ctk_gvo_sync = CTK_GVO_SYNC(user_data);
+    CtrlTarget *ctrl_target = ctk_gvo_sync->ctrl_target;
     gint val;
-    
+
     val = gtk_spin_button_get_value(spinbutton);
-    
-    NvCtrlSetAttribute(ctk_gvo_sync->handle, NV_CTRL_GVO_SYNC_DELAY_LINES,
-                       val);
-    
+
+    NvCtrlSetAttribute(ctrl_target, NV_CTRL_GVO_SYNC_DELAY_LINES, val);
+
 } /* vsync_delay_changed() */
 
 
@@ -1294,17 +1304,21 @@ static void vsync_delay_changed(GtkSpinButton *spinbutton, gpointer user_data)
  */
 
 static void gvo_sync_event_received(GObject *object,
-                                    gpointer arg1,
+                                    CtrlEvent *event,
                                     gpointer user_data)
 {
-    CtkEventStruct *event_struct = (CtkEventStruct *) arg1;
     CtkGvoSync *ctk_gvo_sync = CTK_GVO_SYNC(user_data);
     GtkWidget *widget;    
-    gint attribute = event_struct->attribute;
-    gint value = event_struct->value;
+    gint value;
     gboolean update_sync_format = FALSE;
 
-    switch (attribute) {
+    if (event->type != CTRL_EVENT_TYPE_INTEGER_ATTRIBUTE) {
+        return;
+    }
+
+    value = event->int_attr.value;
+
+    switch (event->int_attr.attribute) {
     case NV_CTRL_GVO_SYNC_MODE:
         ctk_gvo_sync->sync_mode = value;
         widget = ctk_gvo_sync->sync_mode_menu;

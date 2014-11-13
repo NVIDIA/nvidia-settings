@@ -226,7 +226,7 @@ typedef struct nvDisplayRec {
     struct nvDisplayRec *next_in_screen;
     XConfigMonitorPtr    conf_monitor;
 
-    NvCtrlAttributeHandle *handle;      /* NV-CONTROL handle to device */
+    CtrlTarget         *ctrl_target;
 
     struct nvGpuRec    *gpu;            /* GPU the display belongs to */
     struct nvScreenRec *screen;         /* X screen the display is tied to */
@@ -295,7 +295,7 @@ typedef struct nvScreenRec {
      *
      */
 
-    NvCtrlAttributeHandle *handle;  /* NV-CONTROL handle to X screen */
+    CtrlTarget *ctrl_target;
     CtkEvent *ctk_event;
     int scrnum;
 
@@ -356,7 +356,7 @@ typedef struct GvoModeDataRec {
 typedef struct nvGpuRec {
     struct nvGpuRec *next_in_layout; /* List of all GPUs */
 
-    NvCtrlAttributeHandle *handle;  /* NV-CONTROL handle to GPU */
+    CtrlTarget *ctrl_target;
     CtkEvent *ctk_event;
 
     struct nvLayoutRec *layout; /* Layout this GPU belongs to */
@@ -394,7 +394,9 @@ typedef struct nvLayoutRec {
     XConfigLayoutPtr conf_layout;
     char *filename;
 
-    NvCtrlAttributeHandle *handle;
+    CtrlSystemList systems; /* Holds 1 system */
+    CtrlSystem *system;
+
 
     nvGpuPtr gpus;  /* Linked list of GPUs (next_in_layout) */
     int num_gpus;
@@ -469,7 +471,6 @@ typedef struct _CtkDisplayLayout
 {
     GtkVBox parent;
 
-    NvCtrlAttributeHandle *handle;
     CtkConfig             *ctk_config;
 
     GtkWidget   *drawing_area;   /* Drawing area */
@@ -544,8 +545,7 @@ typedef struct _CtkDisplayLayoutClass
 
 GType       ctk_display_layout_get_type  (void) G_GNUC_CONST;
 
-GtkWidget*  ctk_display_layout_new       (NvCtrlAttributeHandle *,
-                                          CtkConfig *,
+GtkWidget*  ctk_display_layout_new       (CtkConfig *,
                                           nvLayoutPtr, /* Layout to display */
                                           int,         /* Width of image */
                                           int          /* Height of image */

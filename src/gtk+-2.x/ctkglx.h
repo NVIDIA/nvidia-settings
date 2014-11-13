@@ -50,7 +50,7 @@ struct _CtkGLX
 {
     GtkVBox parent;
 
-    NvCtrlAttributeHandle *handle;
+    CtrlTarget *ctrl_target;
     CtkConfig *ctk_config;
 
     GtkWidget *glxinfo_vpane;
@@ -65,8 +65,7 @@ struct _CtkGLXClass
 };
 
 GType       ctk_glx_get_type  (void) G_GNUC_CONST;
-GtkWidget*  ctk_glx_new       (NvCtrlAttributeHandle *,
-                               CtkConfig *, CtkEvent *);
+GtkWidget*  ctk_glx_new       (CtrlTarget *, CtkConfig *, CtkEvent *);
 
 GtkTextBuffer *ctk_glx_create_help(GtkTextTagTable *, CtkGLX *);
 

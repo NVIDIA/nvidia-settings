@@ -50,7 +50,7 @@ struct _CtkOpenGL
 {
     GtkVBox parent;
 
-    NvCtrlAttributeHandle *handle;
+    CtrlTarget *ctrl_target;
     CtkConfig *ctk_config;
 
     GtkWidget *sync_to_vblank_button;
@@ -65,7 +65,7 @@ struct _CtkOpenGL
     GtkWidget *aa_line_gamma_scale;
     GtkWidget *show_sli_visual_indicator_button;
     GtkWidget *show_multigpu_visual_indicator_button;
-    
+
     unsigned int active_attributes;
 };
 
@@ -75,8 +75,7 @@ struct _CtkOpenGLClass
 };
 
 GType       ctk_opengl_get_type  (void) G_GNUC_CONST;
-GtkWidget*  ctk_opengl_new       (NvCtrlAttributeHandle *,
-                                  CtkConfig *, CtkEvent *);
+GtkWidget*  ctk_opengl_new       (CtrlTarget *, CtkConfig *, CtkEvent *);
 
 GtkTextBuffer *ctk_opengl_create_help(GtkTextTagTable *, CtkOpenGL *);
 

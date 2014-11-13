@@ -52,7 +52,7 @@ struct _CtkColorControls
 {
     GtkVBox parent;
 
-    NvCtrlAttributeHandle *handle;
+    CtrlTarget *ctrl_target;
     CtkConfig *ctk_config;
     CtkEvent *ctk_event;
     GtkWidget *reset_button;
@@ -76,7 +76,7 @@ struct _CtkColorControlsClass
 };
 
 GType ctk_color_controls_get_type (void) G_GNUC_CONST;
-GtkWidget* ctk_color_controls_new (NvCtrlAttributeHandle *,
+GtkWidget* ctk_color_controls_new (CtrlTarget *,
                                    CtkConfig *, CtkEvent *,
                                    GtkWidget *,
                                    char *);

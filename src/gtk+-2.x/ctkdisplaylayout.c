@@ -2601,8 +2601,7 @@ GType ctk_display_layout_get_type(void)
  * CTK Display Layout widget creation.
  *
  */
-GtkWidget* ctk_display_layout_new(NvCtrlAttributeHandle *handle,
-                                  CtkConfig *ctk_config,
+GtkWidget* ctk_display_layout_new(CtkConfig *ctk_config,
                                   nvLayoutPtr layout,
                                   int width,
                                   int height)
@@ -2612,10 +2611,6 @@ GtkWidget* ctk_display_layout_new(NvCtrlAttributeHandle *handle,
     GtkWidget *tmp;
     PangoFontDescription *font_description;
     int i, j;
-
-
-    /* Make sure we have a handle */
-    g_return_val_if_fail(handle != NULL, NULL);
 
 
     /* Create the ctk object */
@@ -2632,7 +2627,6 @@ GtkWidget* ctk_display_layout_new(NvCtrlAttributeHandle *handle,
     /* Setup widget properties */
     ctk_object->ctk_config = ctk_config;
 
-    ctk_object->handle = handle;
     ctk_object->layout = layout;
 
     sync_layout(ctk_object);
@@ -3018,7 +3012,7 @@ static void draw_display(CtkDisplayLayout *ctk_object,
 
     mode = display->cur_mode;
     base_color_idx =
-        NUM_COLORS_PER_PALETTE * NvCtrlGetTargetId(display->gpu->handle);
+        NUM_COLORS_PER_PALETTE * NvCtrlGetTargetId(display->gpu->ctrl_target);
 
 
     /* Draw panning */

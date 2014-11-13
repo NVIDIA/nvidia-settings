@@ -35,7 +35,7 @@
 #include "ctkbanner.h"
 
 void ctk_screen_event_handler(GtkWidget *widget,
-                              XRRScreenChangeNotifyEvent *ev,
+                              CtrlEvent *event,
                               gpointer data);
 
 static void info_update_gpu_error(GObject *object, gpointer arg1,
@@ -72,11 +72,11 @@ GType ctk_screen_get_type(
 
 
 /* Generates a list of display devices for the logical X screen
- * given as "handle".
+ * given as CtrlTarget.
  */
-static gchar *make_display_device_list(NvCtrlAttributeHandle *handle)
+static gchar *make_display_device_list(CtrlTarget *ctrl_target)
 {
-    return create_display_name_list_string(handle,
+    return create_display_name_list_string(ctrl_target,
                                            NV_CTRL_BINARY_DATA_DISPLAYS_ENABLED_ON_XSCREEN);
 } /* make_display_device_list() */
 
@@ -121,8 +121,7 @@ in this Software without prior written authorization from The Open Group.
  *
  */
 
-GtkWidget* ctk_screen_new(NvCtrlAttributeHandle *handle,
-                          CtkEvent *ctk_event)
+GtkWidget* ctk_screen_new(CtrlTarget *ctrl_target, CtkEvent *ctk_event)
 {
     GObject *object;
     CtkScreen *ctk_screen;
@@ -157,15 +156,15 @@ GtkWidget* ctk_screen_new(NvCtrlAttributeHandle *handle,
      * get the data that we will display below
      */
 
-    screen_number = g_strdup_printf("%d", NvCtrlGetTargetId(handle));
-    
-    display_name = NvCtrlGetDisplayName(handle);
-    
+    screen_number = g_strdup_printf("%d", NvCtrlGetTargetId(ctrl_target));
+
+    display_name = NvCtrlGetDisplayName(ctrl_target);
+
     dimensions = g_strdup_printf("%dx%d pixels (%dx%d millimeters)",
-                                 NvCtrlGetScreenWidth(handle),
-                                 NvCtrlGetScreenHeight(handle),
-                                 NvCtrlGetScreenWidthMM(handle),
-                                 NvCtrlGetScreenHeightMM(handle));
+                                 NvCtrlGetScreenWidth(ctrl_target),
+                                 NvCtrlGetScreenHeight(ctrl_target),
+                                 NvCtrlGetScreenWidthMM(ctrl_target),
+                                 NvCtrlGetScreenHeightMM(ctrl_target));
     
     /*
      * there are 2.54 centimeters to an inch; so there are 25.4 millimeters.
@@ -175,40 +174,42 @@ GtkWidget* ctk_screen_new(NvCtrlAttributeHandle *handle,
      *         = N * 25.4 pixels / M inch
      */
     
-    xres = (((double) NvCtrlGetScreenWidth(handle)) * 25.4) / 
-        ((double) NvCtrlGetScreenWidthMM(handle));
+    xres = (((double) NvCtrlGetScreenWidth(ctrl_target)) * 25.4) / 
+        ((double) NvCtrlGetScreenWidthMM(ctrl_target));
 
-    yres = (((double) NvCtrlGetScreenHeight(handle)) * 25.4) / 
-        ((double) NvCtrlGetScreenHeightMM(handle));
+    yres = (((double) NvCtrlGetScreenHeight(ctrl_target)) * 25.4) / 
+        ((double) NvCtrlGetScreenHeightMM(ctrl_target));
 
     resolution = g_strdup_printf("%dx%d dots per inch", 
                                  (int) (xres + 0.5),
                                  (int) (yres + 0.5));
     
-    depth = g_strdup_printf("%d", NvCtrlGetScreenPlanes(handle));
+    depth = g_strdup_printf("%d", NvCtrlGetScreenPlanes(ctrl_target));
     
     /* get the list of GPUs driving this (logical) X screen */
 
     gpus = NULL;
-    ret = NvCtrlGetBinaryAttribute(handle,
+    ret = NvCtrlGetBinaryAttribute(ctrl_target,
                                    0,
                                    NV_CTRL_BINARY_DATA_GPUS_USED_BY_LOGICAL_XSCREEN,
                                    (unsigned char **)(&pData),
                                    &len);
     if (ret == NvCtrlSuccess) {
         for (i = 1; i <= pData[0]; i++) {
+            CtrlTarget *gpu_target;
             gchar *tmp_str;
             gchar *gpu_name;
-            Bool valid;
 
-            valid =
-                XNVCTRLQueryTargetStringAttribute(NvCtrlGetDisplayPtr(handle),
-                                                  NV_CTRL_TARGET_TYPE_GPU,
-                                                  pData[i],
-                                                  0,
-                                                  NV_CTRL_STRING_PRODUCT_NAME,
-                                                  &gpu_name);
-            if (!valid) {
+            gpu_target = NvCtrlGetTarget(ctrl_target->system,
+                                         GPU_TARGET, pData[i]);
+            if (gpu_target == NULL) {
+                continue;
+            }
+
+            ret = NvCtrlGetStringAttribute(gpu_target,
+                                           NV_CTRL_STRING_PRODUCT_NAME,
+                                           &gpu_name);
+            if (ret != NvCtrlSuccess) {
                 gpu_name = "Unknown";
             }
             if (gpus) {
@@ -217,8 +218,8 @@ GtkWidget* ctk_screen_new(NvCtrlAttributeHandle *handle,
             } else {
                 tmp_str = g_strdup_printf("%s (GPU %d)", gpu_name, pData[i]);
             }
-            if (valid) {
-                XFree(gpu_name);
+            if (ret == NvCtrlSuccess) {
+                free(gpu_name);
             }
             g_free(gpus);
             gpus = tmp_str;
@@ -226,17 +227,17 @@ GtkWidget* ctk_screen_new(NvCtrlAttributeHandle *handle,
         if (!gpus) {
             gpus = g_strdup("None");
         }
-        XFree(pData);
+        free(pData);
     }
 
     /* get the list of Display Devices displaying this X screen */
 
-    displays = make_display_device_list(handle);
+    displays = make_display_device_list(ctrl_target);
 
     /* get the number of gpu errors occurred */
 
     gpu_errors = 0;
-    ret = NvCtrlGetAttribute(handle,
+    ret = NvCtrlGetAttribute(ctrl_target,
                              NV_CTRL_NUM_GPU_ERRORS_RECOVERED,
                              (int *)&gpu_errors);
 
@@ -247,12 +248,12 @@ GtkWidget* ctk_screen_new(NvCtrlAttributeHandle *handle,
     object = g_object_new(CTK_TYPE_SCREEN, NULL);
     ctk_screen = CTK_SCREEN(object);
 
-    /* cache the attribute handle */
+    /* cache the control target */
 
-    ctk_screen->handle = handle;
+    ctk_screen->ctrl_target = ctrl_target;
 
     /* get the stereo mode set for this X screen */
-    ret = NvCtrlGetAttribute(handle, NV_CTRL_STEREO, (int *)&stereo_mode);
+    ret = NvCtrlGetAttribute(ctrl_target, NV_CTRL_STEREO, (int *)&stereo_mode);
     ctk_screen->stereo_available = (ret == NvCtrlSuccess);
 
     /* set container properties of the object */
@@ -410,14 +411,21 @@ GtkTextBuffer *ctk_screen_create_help(GtkTextTagTable *table,
  * with the new screen information.
  */
 void ctk_screen_event_handler(GtkWidget *widget,
-                              XRRScreenChangeNotifyEvent *ev,
+                              CtrlEvent *event,
                               gpointer data)
 {
     CtkScreen *ctk_screen = (CtkScreen *) data;
+    gchar *dimensions;
 
-    gchar *dimensions =  g_strdup_printf("%dx%d pixels (%dx%d millimeters)",
-                                         ev->width, ev->height,
-                                         ev->mwidth, ev->mheight);
+    if (event->type != CTRL_EVENT_TYPE_SCREEN_CHANGE) {
+        return;
+    }
+
+    dimensions =  g_strdup_printf("%dx%d pixels (%dx%d millimeters)",
+                                  event->screen_change.width,
+                                  event->screen_change.height,
+                                  event->screen_change.mwidth,
+                                  event->screen_change.mheight);
 
     gtk_label_set_text(GTK_LABEL(ctk_screen->dimensions),
                        dimensions);
@@ -442,7 +450,7 @@ static void info_update_gpu_error(GObject *object, gpointer arg1,
     char tmp[16];
 
     /* get the number of gpu errors occurred */
-    ret = NvCtrlGetAttribute(ctk_screen->handle,
+    ret = NvCtrlGetAttribute(ctk_screen->ctrl_target,
                              NV_CTRL_NUM_GPU_ERRORS_RECOVERED,
                              (int *)&gpu_errors);
     if (ret == NvCtrlSuccess) {

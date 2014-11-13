@@ -1313,13 +1313,10 @@ static char *xconfigGetDefaultProjectRoot(void)
  * get_xserver_information() - parse the versionString (from `X
  * -version`) and assign relevant information that we infer from the X
  * server version.
- *
- * Note: this implementation should be shared with nvidia-installer
  */
 
 static int get_xserver_information(const char *versionString,
                                    int *isXorg,
-                                   int *isModular,
                                    int *autoloadsGLX,
                                    int *supportsExtensionSection,
                                    int *xineramaPlusCompositeWorks)
@@ -1334,7 +1331,6 @@ static int get_xserver_information(const char *versionString,
 
     if (strstr(versionString, "XFree86 Version")) {
         *isXorg = FALSE;
-        *isModular = FALSE;
         *autoloadsGLX = FALSE;
         *supportsExtensionSection = FALSE;
         *xineramaPlusCompositeWorks = FALSE;
@@ -1363,17 +1359,6 @@ static int get_xserver_information(const char *versionString,
     /* if we can't parse the version, give up */
 
     if (!found) return FALSE;
-
-    /*
-     * isModular: X.Org X11R6.x X servers are monolithic, all others
-     * are modular
-     */
-
-    if (major == 6) {
-        *isModular = FALSE;
-    } else {
-        *isModular = TRUE;
-    }
 
     /*
      * supportsExtensionSection: support for the "Extension" xorg.conf
@@ -1443,7 +1428,7 @@ void xconfigGetXServerInUse(GenerateOptions *gop)
     FILE *stream = NULL;
     int xserver = -1;
     int isXorg;
-    int dummy, len, found;
+    int len, found;
     char *cmd, *ptr, *ret;
 
     gop->supports_extension_section = FALSE;
@@ -1476,7 +1461,6 @@ void xconfigGetXServerInUse(GenerateOptions *gop)
 
         found = get_xserver_information(buf,
                                         &isXorg,
-                                        &dummy, /* isModular */
                                         &gop->autoloads_glx,
                                         &gop->supports_extension_section,
                                         &gop->xinerama_plus_composite_works);

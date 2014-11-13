@@ -843,6 +843,7 @@ static Bool parse_slimm_layout(CtkSLIMM *ctk_slimm,
                                int *voverlap,
                                int *grid_config_id)
 {
+    CtrlTarget *ctrl_target = ctk_slimm->ctrl_target;
     ReturnStatus ret;
     char *metamode_str = NULL;
     char *str;
@@ -898,7 +899,7 @@ static Bool parse_slimm_layout(CtkSLIMM *ctk_slimm,
 
 
     /* Get the current metamode string */
-    ret = NvCtrlGetStringAttribute(ctk_slimm->handle,
+    ret = NvCtrlGetStringAttribute(ctrl_target,
                                    NV_CTRL_STRING_CURRENT_METAMODE,
                                    &metamode_str);
     if ((ret != NvCtrlSuccess) || !metamode_str) {
@@ -1108,8 +1109,8 @@ static Bool parse_slimm_layout(CtkSLIMM *ctk_slimm,
             *hoverlap += (*cur_modeline)->data.hdisplay;
         }
     }
-    
-    XFree(metamode_str);
+
+    free(metamode_str);
     return TRUE;
 
 
@@ -1117,16 +1118,14 @@ static Bool parse_slimm_layout(CtkSLIMM *ctk_slimm,
     *hoverlap = 0;
     *voverlap = 0;
     *grid_config_id = 0;
-    
+
     if (err_msg) {
         nv_warning_msg("Unable to determine current SLI Mosaic Mode "
                        "configuration (will fall back to default): %s\n",
                        err_msg);
     }
 
-    if (metamode_str) {
-        XFree(metamode_str);
-    }
+    free(metamode_str);
 
     return FALSE;
 }
@@ -1273,8 +1272,9 @@ static int get_display_stereo_mode(nvDisplayPtr display)
     }
 }
 
-GtkWidget* ctk_slimm_new(NvCtrlAttributeHandle *handle,
-                          CtkEvent *ctk_event, CtkConfig *ctk_config)
+GtkWidget* ctk_slimm_new(CtrlTarget *ctrl_target,
+                         CtkEvent *ctk_event,
+                         CtkConfig *ctk_config)
 {
     GObject *object;
     CtkSLIMM *ctk_slimm;
@@ -1308,20 +1308,17 @@ GtkWidget* ctk_slimm_new(NvCtrlAttributeHandle *handle,
     int count;
 
     Bool trust_slimm_available = FALSE;
-    int vcs_target_count;
 
     int hoverlap = 0;
     int voverlap = 0;
     int grid_config_id = 0;
 
     /* now, create the object */
-    
+
     object = g_object_new(CTK_TYPE_SLIMM, NULL);
     ctk_slimm = CTK_SLIMM(object);
 
-    /* cache the attribute handle */
-
-    ctk_slimm->handle = handle;
+    ctk_slimm->ctrl_target = ctrl_target;
     ctk_slimm->ctk_config = ctk_config;
     ctk_object = ctk_slimm;
 
@@ -1330,41 +1327,40 @@ GtkWidget* ctk_slimm_new(NvCtrlAttributeHandle *handle,
      * This is used to not trust old X drivers which always reported
      * it available (on NV50+).
      */
-    ret = NvCtrlGetAttribute(handle,
+    ret = NvCtrlGetAttribute(ctrl_target,
                              NV_CTRL_ATTR_NV_MAJOR_VERSION, &major);
-    ret1 = NvCtrlGetAttribute(handle,
+    ret1 = NvCtrlGetAttribute(ctrl_target,
                               NV_CTRL_ATTR_NV_MINOR_VERSION, &minor);
 
     if ((ret == NvCtrlSuccess) && (ret1 == NvCtrlSuccess) &&
         ((major > 1) || ((major == 1) && (minor > 23)))) {
         trust_slimm_available = TRUE;
     }
-    
-    vcs_target_count = ctk_config->pCtrlHandles->targets[VCS_TARGET].n;
 
     /* return on old X drivers if target is other than VCS. */
-    if (!vcs_target_count && !trust_slimm_available) {
+    if (!ctk_config->pCtrlSystem->targets[VCS_TARGET] &&
+        !trust_slimm_available) {
       return NULL;
     }
 
     /* Check if this screen supports SLI Mosaic Mode */
-    ret = NvCtrlGetAttribute(ctk_object->handle,
+    ret = NvCtrlGetAttribute(ctrl_target,
                              NV_CTRL_SLI_MOSAIC_MODE_AVAILABLE, &val);
-    if ((ret == NvCtrlSuccess) && 
+    if ((ret == NvCtrlSuccess) &&
         (val == NV_CTRL_SLI_MOSAIC_MODE_AVAILABLE_FALSE)) {
         /* Mosaic not supported */
         return NULL;
     }
 
     /* Query the maximum screen sizes */
-    ret = NvCtrlGetAttribute(ctk_object->handle,
+    ret = NvCtrlGetAttribute(ctrl_target,
                              NV_CTRL_MAX_SCREEN_WIDTH,
                              &ctk_slimm->max_screen_width);
     if (ret != NvCtrlSuccess) {
         return NULL;
     }
 
-    ret = NvCtrlGetAttribute(ctk_object->handle,
+    ret = NvCtrlGetAttribute(ctrl_target,
                              NV_CTRL_MAX_SCREEN_HEIGHT,
                              &ctk_slimm->max_screen_height);
     if (ret != NvCtrlSuccess) {
@@ -1377,7 +1373,7 @@ GtkWidget* ctk_slimm_new(NvCtrlAttributeHandle *handle,
      */
 
     /* Load the layout structure from the X server */
-    layout = layout_load_from_server(handle, &err_str);
+    layout = layout_load_from_server(ctrl_target, &err_str);
 
     if (!err_str && layout) {
         nvGpuPtr gpu;
@@ -1754,7 +1750,7 @@ GtkWidget* ctk_slimm_new(NvCtrlAttributeHandle *handle,
                      GTK_EXPAND | GTK_FILL, 0, 0);
 
     /* If current SLI Mode != Mosaic, disable UI elements initially */
-    ret = NvCtrlGetStringAttribute(ctk_slimm->handle,
+    ret = NvCtrlGetStringAttribute(ctrl_target,
                                    NV_CTRL_STRING_SLI_MODE,
                                    &sli_mode);
 
@@ -1766,9 +1762,7 @@ GtkWidget* ctk_slimm_new(NvCtrlAttributeHandle *handle,
         slimm_checkbox_toggled(ctk_slimm->cbtn_slimm_enable, (gpointer) ctk_slimm);
     }
 
-    if (sli_mode) {
-        XFree(sli_mode);
-    }
+    free(sli_mode);
 
     gtk_widget_show_all(GTK_WIDGET(object));    
 

@@ -1344,8 +1344,7 @@ GType ctk_vdpau_get_type(void)
 
 
 
-GtkWidget* ctk_vdpau_new(NvCtrlAttributeHandle *handle,
-                         CtkConfig *ctk_config,
+GtkWidget* ctk_vdpau_new(CtrlTarget *ctrl_target, CtkConfig *ctk_config,
                          CtkEvent *ctk_event)
 {
     GObject *object;
@@ -1366,15 +1365,12 @@ GtkWidget* ctk_vdpau_new(NvCtrlAttributeHandle *handle,
 
     /* make sure we have a handle */
 
-    g_return_val_if_fail(handle != NULL, NULL);
+    g_return_val_if_fail((ctrl_target != NULL) &&
+                         (ctrl_target->h != NULL), NULL);
 
     /* Create the ctk vdpau object */
     object = g_object_new(CTK_TYPE_VDPAU, NULL);
     ctk_vdpau = CTK_VDPAU(object);
-
-
-    /* Cache the attribute handle */
-    ctk_vdpau->handle = handle;
 
     /* Set container properties of the object */
     ctk_vdpau->ctk_config = ctk_config;
@@ -1397,8 +1393,8 @@ GtkWidget* ctk_vdpau_new(NvCtrlAttributeHandle *handle,
 
 
     /* get device and ProcAddress */
-    ret = VDPAUDeviceCreateX11(NvCtrlGetDisplayPtr(handle),
-                               NvCtrlGetScreen(handle),
+    ret = VDPAUDeviceCreateX11(NvCtrlGetDisplayPtr(ctrl_target),
+                               NvCtrlGetScreen(ctrl_target),
                                &device, &getProcAddress);
 
     if ((ret != VDP_STATUS_OK) || !device || !getProcAddress) {

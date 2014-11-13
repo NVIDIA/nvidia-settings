@@ -22,7 +22,6 @@
 
 #include <gtk/gtk.h>
 
-#include "NvCtrlAttributes.h"
 #include "ctkevent.h"
 #include "ctkdisplaylayout.h"
 #include "ctkconfig.h"
@@ -56,7 +55,7 @@ struct _CtkSLIMM
 {
     GtkVBox parent;
 
-    NvCtrlAttributeHandle *handle;
+    CtrlTarget *ctrl_target;
     CtkConfig *ctk_config;
 
     GtkWidget *mnu_display_config;
@@ -88,7 +87,7 @@ struct _CtkSLIMMClass
 };
 
 GType       ctk_slimm_get_type (void) G_GNUC_CONST;
-GtkWidget*  ctk_slimm_new      (NvCtrlAttributeHandle *handle,
+GtkWidget*  ctk_slimm_new      (CtrlTarget *ctrl_target,
                                 CtkEvent *ctk_event, CtkConfig *ctk_config);
 
 GtkTextBuffer *ctk_slimm_create_help(GtkTextTagTable *, const gchar *);

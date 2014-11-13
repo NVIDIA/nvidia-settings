@@ -55,9 +55,9 @@ struct _CtkFramelock
 {
     GtkVBox                parent;
 
-    NvCtrlAttributeHandle *attribute_handle;
+    CtrlTarget            *ctrl_target;
     CtkConfig             *ctk_config;
-    
+
     GtkWindow             *parent_window;
 
     GdkCursor             *wait_cursor;
@@ -130,8 +130,8 @@ struct _CtkFramelockClass
 };
 
 GType       ctk_framelock_get_type  (void) G_GNUC_CONST;
-GtkWidget*  ctk_framelock_new       (NvCtrlAttributeHandle *, GtkWidget *,
-                                     CtkConfig *, ParsedAttribute *);
+GtkWidget*  ctk_framelock_new       (CtrlTarget *, GtkWidget *, CtkConfig *,
+                                     ParsedAttribute *);
 
 GtkTextBuffer *ctk_framelock_create_help(GtkTextTagTable *);
 

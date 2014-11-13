@@ -105,7 +105,7 @@ typedef struct _AddGlassesDlg {
 struct _Ctk3DVisionPro
 {
     GtkVBox                 parent;
-    NvCtrlAttributeHandle  *handle;
+    CtrlTarget             *ctrl_target;
     GtkWindow              *parent_wnd;
     CtkConfig              *ctk_config;
     CtkEvent               *ctk_event;
@@ -134,9 +134,8 @@ struct _Ctk3DVisionProClass
 };
 
 GType          ctk_3d_vision_pro_get_type    (void) G_GNUC_CONST;
-GtkWidget*     ctk_3d_vision_pro_new         (NvCtrlAttributeHandle *,
-                                              CtkConfig *, ParsedAttribute *,
-                                              CtkEvent *);
+GtkWidget*     ctk_3d_vision_pro_new         (CtrlTarget *, CtkConfig *,
+                                              ParsedAttribute *, CtkEvent *);
 GtkTextBuffer *ctk_3d_vision_pro_create_help (GtkTextTagTable *);
 void           ctk_3d_vision_pro_select      (GtkWidget *w);
 void           ctk_3d_vision_pro_unselect    (GtkWidget *w);

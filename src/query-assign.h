@@ -30,99 +30,14 @@
 #include "parse.h"
 #include "command-line.h"
 
-enum {
-    NV_DPY_PROTO_NAME_TYPE_BASENAME = 0,
-    NV_DPY_PROTO_NAME_TYPE_ID,
-    NV_DPY_PROTO_NAME_DP_GUID,
-    NV_DPY_PROTO_NAME_EDID_HASH,
-    NV_DPY_PROTO_NAME_TARGET_INDEX,
-    NV_DPY_PROTO_NAME_RANDR,
-    NV_DPY_PROTO_NAME_MAX,
-};
 
-enum {
-    NV_GPU_PROTO_NAME_TYPE_ID = 0,
-    NV_GPU_PROTO_NAME_UUID,
-    NV_GPU_PROTO_NAME_MAX,
-};
-
-#define NV_PROTO_NAME_MAX (NV_MAX((int)NV_DPY_PROTO_NAME_MAX, (int)NV_GPU_PROTO_NAME_MAX))
-
-
-/*
- * The CtrlHandles struct contains an array of target types for an X
- * server.  For each target type, we store the number of those targets
- * on this X server.  Per target, we store a NvCtrlAttributeHandle, a
- * bitmask of what display devices are enabled on that target, and a
- * string description of that target.
- */
-
-typedef struct {
-    NvCtrlAttributeHandle *h; /* handle for this target */
-    uint32 d;                 /* display device mask for this target */
-    uint32 c;                 /* Connected display device mask for target */
-    char *name;               /* Name for this target */
-    char *protoNames[NV_PROTO_NAME_MAX];  /* List of valid names for this target */
-
-    struct {
-        Bool connected;           /* Connection state of display device */
-        Bool enabled;             /* Enabled state of display device */
-    } display;
-
-    struct _CtrlHandleTargetNode *relations; /* List of associated targets */
-} CtrlHandleTarget;
-
-typedef struct {
-    int n;                    /* number of targets */
-    CtrlHandleTarget *t;      /* dynamically allocated array of targets */
-} CtrlHandleTargets;
-
-typedef struct {
-    char *display;            /* string for XOpenDisplay */
-    Display *dpy;             /* X display connection */
-    CtrlHandleTargets targets[MAX_TARGET_TYPES];
-} CtrlHandles;
-
-/* Used to keep track of lists of targets */
-typedef struct _CtrlHandleTargetNode {
-    struct _CtrlHandleTargetNode *next;
-    CtrlHandleTarget *t;
-} CtrlHandleTargetNode;
-
-typedef struct _CtrlHandlesArray {
-    int n;               /* number of CtrlHandles */
-    CtrlHandles **array; /* dynamically allocated array of CtrlHandles */
-} CtrlHandlesArray;
-
-int nv_process_assignments_and_queries(const Options *op, 
-                                       CtrlHandlesArray *handles_array);
-
-CtrlHandles *
-    nv_alloc_ctrl_handles_and_add_to_array(const char *display, 
-                                           CtrlHandlesArray *handles_array);
-
-void nv_free_ctrl_handles_array(CtrlHandlesArray *handles_array);
-
-CtrlHandles *nv_get_ctrl_handles(const char *display, 
-                                 CtrlHandlesArray *handles_array);
-
-NvCtrlAttributeHandle *nv_get_target_handle(const CtrlHandles *handles,
-                                            int target_type,
-                                            int target_id);
-
-Bool nv_get_attribute_perms(CtrlHandles *h, const AttributeTableEntry *a,
-                            NVCTRLAttributePermissionsRec *perms);
+int nv_process_assignments_and_queries(const Options *op,
+                                       CtrlSystemList *systems);
 
 int nv_process_parsed_attribute(const Options *op,
-                                ParsedAttribute*, CtrlHandles *h,
+                                ParsedAttribute*, CtrlSystem *system,
                                 int, int, char*, ...) NV_ATTRIBUTE_PRINTF(6, 7);
 
-void nv_target_list_free(CtrlHandleTargetNode *head);
 
-NvCtrlAttributeHandle *nv_add_target(CtrlHandles *handles, Display *dpy,
-                                     int target_index, int display_id);
-
-const char *nv_get_display_target_config_name(const CtrlHandles *handles,
-                                              int target_id);
 
 #endif /* __QUERY_ASSIGN_H__ */

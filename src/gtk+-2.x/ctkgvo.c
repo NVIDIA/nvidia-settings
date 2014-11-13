@@ -70,7 +70,7 @@ static void register_for_gvo_events(CtkGvo *ctk_gvo, CtkEvent *ctk_event);
 static void update_gvo_current_info(CtkGvo *ctk_gvo);
 
 static void gvo_event_received(GObject *object,
-                               gpointer arg1,
+                               CtrlEvent *event,
                                gpointer user_data);
 
 /*
@@ -355,7 +355,7 @@ GType ctk_gvo_get_type(void)
  * ctk_gvo_new() - constructor for the CtkGvo widget
  */
 
-GtkWidget* ctk_gvo_new(NvCtrlAttributeHandle *handle,
+GtkWidget* ctk_gvo_new(CtrlTarget *ctrl_target,
                        CtkConfig *ctk_config,
                        CtkEvent *ctk_event)
 {
@@ -365,27 +365,28 @@ GtkWidget* ctk_gvo_new(NvCtrlAttributeHandle *handle,
     ReturnStatus ret;
     gchar scratch[64], *firmware, *string;
     gint val;
-    
+
     GtkWidget *frame, *table;
-    
-    /* make sure we have a handle */
-    
-    g_return_val_if_fail(handle != NULL, NULL);
+
+    /* make sure we have a valid target */
+
+    g_return_val_if_fail((ctrl_target != NULL) &&
+                         (ctrl_target->h != NULL), NULL);
 
     /* Check if this screen supports GVO */
 
-    ret = NvCtrlGetAttribute(handle, NV_CTRL_GVO_SUPPORTED, &val);
+    ret = NvCtrlGetAttribute(ctrl_target, NV_CTRL_GVO_SUPPORTED, &val);
     if ((ret != NvCtrlSuccess) || (val != NV_CTRL_GVO_SUPPORTED_TRUE)) {
         /* GVO not available */
         return NULL;
     }
 
     /* create and initialize the object */
-    
+
     object = g_object_new(CTK_TYPE_GVO, NULL);
-    
+
     ctk_gvo = CTK_GVO(object);
-    ctk_gvo->handle = handle;
+    ctk_gvo->ctrl_target = ctrl_target;
 
     /*
      * Query the validness, width, height and refresh rate for each
@@ -405,7 +406,7 @@ GtkWidget* ctk_gvo_new(NvCtrlAttributeHandle *handle,
 
     ctk_gvo->banner_box = hbox;
 
-    ctk_gvo->banner = ctk_gvo_banner_new(handle, ctk_config, ctk_event);
+    ctk_gvo->banner = ctk_gvo_banner_new(ctrl_target, ctk_config, ctk_event);
     g_object_ref(ctk_gvo->banner);
 
     /*
@@ -428,7 +429,7 @@ GtkWidget* ctk_gvo_new(NvCtrlAttributeHandle *handle,
     
     string = NULL;
     
-    ret = NvCtrlGetStringAttribute(handle,
+    ret = NvCtrlGetStringAttribute(ctrl_target,
                                    NV_CTRL_STRING_GVIO_FIRMWARE_VERSION, 
                                    &string);
     
@@ -441,9 +442,9 @@ GtkWidget* ctk_gvo_new(NvCtrlAttributeHandle *handle,
          * older X servers may not know about it; fallback to
          * NV_CTRL_GVO_FIRMWARE_VERSION
          */
-        
-        ret = NvCtrlGetAttribute(handle, NV_CTRL_GVO_FIRMWARE_VERSION, &val);
-        
+
+        ret = NvCtrlGetAttribute(ctrl_target, NV_CTRL_GVO_FIRMWARE_VERSION, &val);
+
         if (ret == NvCtrlSuccess) {
             snprintf(scratch, 64, "1.%02d", val);
             firmware = strdup(scratch);
@@ -521,13 +522,14 @@ GtkWidget* ctk_gvo_new(NvCtrlAttributeHandle *handle,
 
 static void query_video_format_details(CtkGvo *ctk_gvo)
 {
+    CtrlTarget *ctrl_target = ctk_gvo->ctrl_target;
     ReturnStatus ret;
     NVCTRLAttributeValidValuesRec valid;
     gint i, val;
 
     /* Valid output video formats */
 
-    ret = NvCtrlGetValidAttributeValues(ctk_gvo->handle,
+    ret = NvCtrlGetValidAttributeValues(ctrl_target,
                                         NV_CTRL_GVIO_REQUESTED_VIDEO_FORMAT,
                                         &valid);
     if ((ret != NvCtrlSuccess) || (valid.type != ATTRIBUTE_TYPE_INT_BITS)) {
@@ -536,7 +538,7 @@ static void query_video_format_details(CtkGvo *ctk_gvo)
         ctk_gvo->valid_output_video_format_mask[0] = valid.u.bits.ints;
     }
 
-    ret = NvCtrlGetValidAttributeValues(ctk_gvo->handle,
+    ret = NvCtrlGetValidAttributeValues(ctrl_target,
                                         NV_CTRL_GVIO_REQUESTED_VIDEO_FORMAT2,
                                         &valid);
 
@@ -546,7 +548,7 @@ static void query_video_format_details(CtkGvo *ctk_gvo)
         ctk_gvo->valid_output_video_format_mask[1] = valid.u.bits.ints;
     }
 
-    ret = NvCtrlGetValidAttributeValues(ctk_gvo->handle,
+    ret = NvCtrlGetValidAttributeValues(ctrl_target,
                                         NV_CTRL_GVIO_REQUESTED_VIDEO_FORMAT3,
                                         &valid);
 
@@ -557,32 +559,32 @@ static void query_video_format_details(CtkGvo *ctk_gvo)
     }
 
     for (i = 0; videoFormatDetails[i].format != -1; i++) {
-        
-        ret = NvCtrlGetDisplayAttribute(ctk_gvo->handle,
+
+        ret = NvCtrlGetDisplayAttribute(ctrl_target,
                                         videoFormatDetails[i].format,
                                         NV_CTRL_GVIO_VIDEO_FORMAT_REFRESH_RATE,
                                         &val);
-        
+
         if (ret != NvCtrlSuccess) val = 0;
-        
+
         videoFormatDetails[i].rate = val;
-        
-        ret = NvCtrlGetDisplayAttribute(ctk_gvo->handle,
+
+        ret = NvCtrlGetDisplayAttribute(ctrl_target,
                                         videoFormatDetails[i].format,
                                         NV_CTRL_GVIO_VIDEO_FORMAT_WIDTH,
                                         &val);
-        
+
         if (ret != NvCtrlSuccess) val = 0;
-        
+
         videoFormatDetails[i].width = val;
-                                       
-        ret = NvCtrlGetDisplayAttribute(ctk_gvo->handle,
+
+        ret = NvCtrlGetDisplayAttribute(ctrl_target,
                                         videoFormatDetails[i].format,
                                         NV_CTRL_GVIO_VIDEO_FORMAT_HEIGHT,
                                         &val);
-        
+
         if (ret != NvCtrlSuccess) val = 0;
-        
+
         videoFormatDetails[i].height = val; 
     }
 
@@ -625,6 +627,7 @@ static void register_for_gvo_events(CtkGvo *ctk_gvo, CtkEvent *ctk_event)
 
 static void update_gvo_current_info(CtkGvo *ctk_gvo)
 {
+    CtrlTarget *ctrl_target = ctk_gvo->ctrl_target;
     int width;
     int height;
     ReturnStatus ret;
@@ -633,21 +636,21 @@ static void update_gvo_current_info(CtkGvo *ctk_gvo)
     int output_data_format;
     int lock_owner;
 
-    ret = NvCtrlGetAttribute(ctk_gvo->handle,
+    ret = NvCtrlGetAttribute(ctrl_target,
                              NV_CTRL_GVIO_REQUESTED_VIDEO_FORMAT,
                              &output_video_format);
     if (ret != NvCtrlSuccess) {
         output_video_format = NV_CTRL_GVIO_VIDEO_FORMAT_NONE;
     }
 
-    ret = NvCtrlGetAttribute(ctk_gvo->handle,
+    ret = NvCtrlGetAttribute(ctrl_target,
                              NV_CTRL_GVO_DATA_FORMAT,
                              &output_data_format);
     if (ret != NvCtrlSuccess) {
         output_data_format = -1;
     }
 
-    ret = NvCtrlGetAttribute(ctk_gvo->handle,
+    ret = NvCtrlGetAttribute(ctrl_target,
                              NV_CTRL_GVO_LOCK_OWNER,
                              &lock_owner);
     if (ret != NvCtrlSuccess) {
@@ -714,7 +717,7 @@ static void update_gvo_current_info(CtkGvo *ctk_gvo)
  */
 
 static void gvo_event_received(GObject *object,
-                               gpointer arg1,
+                               CtrlEvent *event,
                                gpointer user_data)
 {
     update_gvo_current_info(CTK_GVO(user_data));

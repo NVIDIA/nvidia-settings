@@ -20,7 +20,6 @@
 #ifndef __CTK_GVI_H__
 #define __CTK_GVI_H__
 
-#include "NvCtrlAttributes.h"
 #include "ctkevent.h"
 #include "ctkconfig.h"
 
@@ -51,7 +50,7 @@ struct _CtkGvi
 {
     GtkVBox parent;
 
-    NvCtrlAttributeHandle *handle;
+    CtrlTarget *ctrl_target;
     CtkConfig *ctk_config;
 
     int num_jacks;
@@ -74,8 +73,7 @@ struct _CtkGviClass
 };
 
 GType          ctk_gvi_get_type    (void) G_GNUC_CONST;
-GtkWidget*     ctk_gvi_new         (NvCtrlAttributeHandle *, CtkConfig *,
-                                    CtkEvent *);
+GtkWidget*     ctk_gvi_new         (CtrlTarget *, CtkConfig *, CtkEvent *);
 GtkTextBuffer* ctk_gvi_create_help (GtkTextTagTable *, CtkGvi *);
 
 void           ctk_gvi_start_timer (GtkWidget *);

@@ -70,7 +70,7 @@ static void show_sli_visual_indicator_button_toggled (GtkWidget *, gpointer);
 
 static void show_multigpu_visual_indicator_button_toggled (GtkWidget *, gpointer);
 
-static void value_changed (GObject *, gpointer, gpointer);
+static void value_changed (GObject *, CtrlEvent *, gpointer);
 
 static const gchar *get_image_settings_string(gint val);
 
@@ -79,15 +79,15 @@ static gchar *format_image_settings_value(GtkScale *scale, gdouble arg1,
 
 static void post_slider_value_changed(CtkOpenGL *ctk_opengl, gint val);
 
-static void aa_line_gamma_update_received(GObject *object,
-                                         gpointer arg1, gpointer user_data);
+static void aa_line_gamma_update_received(GObject *object, CtrlEvent *event,
+                                          gpointer user_data);
 
 static void post_image_settings_value_changed(CtkOpenGL *ctk_opengl, gint val);
 
 static void image_settings_value_changed(GtkRange *range, gpointer user_data);
 
-static void image_settings_update_received(GObject *object,
-                                           gpointer arg1, gpointer user_data);
+static void image_settings_update_received(GObject *object, CtrlEvent *event,
+                                           gpointer user_data);
 
 static GtkWidget *create_slider(CtkOpenGL *ctk_opengl,
                                 GtkWidget *vbox,
@@ -200,8 +200,9 @@ GType ctk_opengl_get_type(
 }
 
 
-GtkWidget* ctk_opengl_new(NvCtrlAttributeHandle *handle,
-                          CtkConfig *ctk_config, CtkEvent *ctk_event)
+GtkWidget* ctk_opengl_new(CtrlTarget *ctrl_target,
+                          CtkConfig *ctk_config,
+                          CtkEvent *ctk_event)
 {
     GObject *object;
     CtkOpenGL *ctk_opengl;
@@ -243,51 +244,67 @@ GtkWidget* ctk_opengl_new(NvCtrlAttributeHandle *handle,
     /* Query OpenGL settings */
 
     ret_sync_to_vblank =
-        NvCtrlGetAttribute(handle, NV_CTRL_SYNC_TO_VBLANK, &sync_to_vblank);
+        NvCtrlGetAttribute(ctrl_target,
+                           NV_CTRL_SYNC_TO_VBLANK,
+                           &sync_to_vblank);
 
     ret_flipping_allowed =
-        NvCtrlGetAttribute(handle, NV_CTRL_FLIPPING_ALLOWED,
+        NvCtrlGetAttribute(ctrl_target,
+                           NV_CTRL_FLIPPING_ALLOWED,
                            &flipping_allowed);
 
     ret_gsync_allowed =
-        NvCtrlGetAttribute(handle, NV_CTRL_GSYNC_ALLOWED,
+        NvCtrlGetAttribute(ctrl_target,
+                           NV_CTRL_GSYNC_ALLOWED,
                            &gsync_allowed);
 
     ret_force_stereo =
-        NvCtrlGetAttribute(handle, NV_CTRL_FORCE_STEREO, &force_stereo);
+        NvCtrlGetAttribute(ctrl_target,
+                           NV_CTRL_FORCE_STEREO,
+                           &force_stereo);
 
     ret_xinerama_stereo =
-        NvCtrlGetAttribute(handle, NV_CTRL_XINERAMA_STEREO, &xinerama_stereo);
+        NvCtrlGetAttribute(ctrl_target,
+                           NV_CTRL_XINERAMA_STEREO,
+                           &xinerama_stereo);
 
     ret_stereo_eyes_exchange =
-        NvCtrlGetAttribute(handle, NV_CTRL_STEREO_EYES_EXCHANGE,
+        NvCtrlGetAttribute(ctrl_target,
+                           NV_CTRL_STEREO_EYES_EXCHANGE,
                            &stereo_eyes_exchange);
 
-    ret_image_settings =
-        NvCtrlGetValidAttributeValues(handle, NV_CTRL_IMAGE_SETTINGS,
-                                      &image_settings_valid);
+    ret_image_settings = NvCtrlGetValidAttributeValues(ctrl_target,
+                                                       NV_CTRL_IMAGE_SETTINGS,
+                                                       &image_settings_valid);
     if ((ret_image_settings == NvCtrlSuccess) &&
         (image_settings_valid.type == ATTRIBUTE_TYPE_RANGE)) {
         ret_image_settings =
-            NvCtrlGetAttribute(handle, NV_CTRL_IMAGE_SETTINGS,
+            NvCtrlGetAttribute(ctrl_target,
+                               NV_CTRL_IMAGE_SETTINGS,
                                &image_settings_value);
     } else {
         ret_image_settings = NvCtrlError;
     }
 
-    ret_aa_line_gamma = NvCtrlGetAttribute(handle, NV_CTRL_OPENGL_AA_LINE_GAMMA,
-                                           &aa_line_gamma);
+    ret_aa_line_gamma =
+        NvCtrlGetAttribute(ctrl_target,
+                           NV_CTRL_OPENGL_AA_LINE_GAMMA,
+                           &aa_line_gamma);
 
     ret_use_conformant_clamping =
-        NvCtrlGetAttribute(handle, NV_CTRL_TEXTURE_CLAMPING,
+        NvCtrlGetAttribute(ctrl_target,
+                           NV_CTRL_TEXTURE_CLAMPING,
                            &use_conformant_clamping);
 
-    ret_show_sli_visual_indicator = NvCtrlGetAttribute(handle,
-                                          NV_CTRL_SHOW_SLI_VISUAL_INDICATOR,
-                                          &show_sli_visual_indicator);
-    ret_show_multigpu_visual_indicator = NvCtrlGetAttribute(handle,
-                                          NV_CTRL_SHOW_MULTIGPU_VISUAL_INDICATOR,
-                                          &show_multigpu_visual_indicator);
+    ret_show_sli_visual_indicator =
+        NvCtrlGetAttribute(ctrl_target,
+                           NV_CTRL_SHOW_SLI_VISUAL_INDICATOR,
+                           &show_sli_visual_indicator);
+
+    ret_show_multigpu_visual_indicator =
+        NvCtrlGetAttribute(ctrl_target,
+                           NV_CTRL_SHOW_MULTIGPU_VISUAL_INDICATOR,
+                           &show_multigpu_visual_indicator);
 
     /* There are no OpenGL settings to change (OpenGL disabled?) */
     if ((ret_sync_to_vblank != NvCtrlSuccess) &&
@@ -307,7 +324,7 @@ GtkWidget* ctk_opengl_new(NvCtrlAttributeHandle *handle,
     object = g_object_new(CTK_TYPE_OPENGL, NULL);
 
     ctk_opengl = CTK_OPENGL(object);
-    ctk_opengl->handle = handle;
+    ctk_opengl->ctrl_target = ctrl_target;
     ctk_opengl->ctk_config = ctk_config;
     ctk_opengl->active_attributes = 0;
 
@@ -820,19 +837,16 @@ post_use_conformant_clamping_button_toggled(CtkOpenGL *ctk_opengl,
                                  "" : "Non-");
 }
 
-static void vblank_sync_button_toggled(
-    GtkWidget *widget,
-    gpointer user_data
-)
+static void vblank_sync_button_toggled(GtkWidget *widget,
+                                       gpointer user_data)
 {
-    CtkOpenGL *ctk_opengl;
+    CtkOpenGL *ctk_opengl = CTK_OPENGL(user_data);
+    CtrlTarget *ctrl_target = ctk_opengl->ctrl_target;
     gboolean enabled;
-    
-    ctk_opengl = CTK_OPENGL(user_data);
 
     enabled = gtk_toggle_button_get_active(GTK_TOGGLE_BUTTON(widget));
 
-    NvCtrlSetAttribute(ctk_opengl->handle, NV_CTRL_SYNC_TO_VBLANK, enabled);
+    NvCtrlSetAttribute(ctrl_target, NV_CTRL_SYNC_TO_VBLANK, enabled);
 
     post_vblank_sync_button_toggled(ctk_opengl, enabled);
 }
@@ -841,72 +855,66 @@ static void vblank_sync_button_toggled(
 static void allow_flipping_button_toggled(GtkWidget *widget,
                                           gpointer user_data)
 {
-    CtkOpenGL *ctk_opengl;
+    CtkOpenGL *ctk_opengl = CTK_OPENGL(user_data);
+    CtrlTarget *ctrl_target = ctk_opengl->ctrl_target;
     gboolean enabled;
-    
-    ctk_opengl = CTK_OPENGL(user_data);
 
     enabled = gtk_toggle_button_get_active(GTK_TOGGLE_BUTTON(widget));
-    
-    NvCtrlSetAttribute(ctk_opengl->handle, NV_CTRL_FLIPPING_ALLOWED, enabled);
+
+    NvCtrlSetAttribute(ctrl_target, NV_CTRL_FLIPPING_ALLOWED, enabled);
     post_allow_flipping_button_toggled(ctk_opengl, enabled);
-    
 }
 
 static void allow_gsync_button_toggled(GtkWidget *widget,
                                      gpointer user_data)
 {
-    CtkOpenGL *ctk_opengl;
+    CtkOpenGL *ctk_opengl = CTK_OPENGL(user_data);
+    CtrlTarget *ctrl_target = ctk_opengl->ctrl_target;
     gboolean enabled;
-
-    ctk_opengl = CTK_OPENGL(user_data);
 
     enabled = gtk_toggle_button_get_active(GTK_TOGGLE_BUTTON(widget));
 
-    NvCtrlSetAttribute(ctk_opengl->handle, NV_CTRL_GSYNC_ALLOWED, enabled);
+    NvCtrlSetAttribute(ctrl_target, NV_CTRL_GSYNC_ALLOWED, enabled);
     post_allow_gsync_button_toggled(ctk_opengl, enabled);
 }
 
 static void force_stereo_button_toggled(GtkWidget *widget,
                                          gpointer user_data)
 {
-    CtkOpenGL *ctk_opengl;
+    CtkOpenGL *ctk_opengl = CTK_OPENGL(user_data);
+    CtrlTarget *ctrl_target = ctk_opengl->ctrl_target;
     gboolean enabled;
-    
-    ctk_opengl = CTK_OPENGL(user_data);
 
     enabled = gtk_toggle_button_get_active(GTK_TOGGLE_BUTTON(widget));
 
-    NvCtrlSetAttribute(ctk_opengl->handle, NV_CTRL_FORCE_STEREO, enabled);
+    NvCtrlSetAttribute(ctrl_target, NV_CTRL_FORCE_STEREO, enabled);
     post_force_stereo_button_toggled(ctk_opengl, enabled);
 }
 
 static void show_sli_visual_indicator_button_toggled(GtkWidget *widget,
                                            gpointer user_data)
 {
-    CtkOpenGL *ctk_opengl;
+    CtkOpenGL *ctk_opengl = CTK_OPENGL(user_data);
+    CtrlTarget *ctrl_target = ctk_opengl->ctrl_target;
     gboolean enabled;
-
-    ctk_opengl = CTK_OPENGL(user_data);
 
     enabled = gtk_toggle_button_get_active(GTK_TOGGLE_BUTTON(widget));
 
-    NvCtrlSetAttribute(ctk_opengl->handle,
+    NvCtrlSetAttribute(ctrl_target,
                        NV_CTRL_SHOW_SLI_VISUAL_INDICATOR, enabled);
-    post_show_sli_visual_indicator_button_toggled(ctk_opengl, enabled); 
+    post_show_sli_visual_indicator_button_toggled(ctk_opengl, enabled);
 }
 
 static void show_multigpu_visual_indicator_button_toggled(GtkWidget *widget,
                                                           gpointer user_data)
 {
-    CtkOpenGL *ctk_opengl;
+    CtkOpenGL *ctk_opengl = CTK_OPENGL(user_data);
+    CtrlTarget *ctrl_target = ctk_opengl->ctrl_target;
     gboolean enabled;
-
-    ctk_opengl = CTK_OPENGL(user_data);
 
     enabled = gtk_toggle_button_get_active(GTK_TOGGLE_BUTTON(widget));
 
-    NvCtrlSetAttribute(ctk_opengl->handle,
+    NvCtrlSetAttribute(ctrl_target,
                        NV_CTRL_SHOW_MULTIGPU_VISUAL_INDICATOR, enabled);
     post_show_multigpu_visual_indicator_button_toggled(ctk_opengl, enabled);
 }
@@ -914,47 +922,41 @@ static void show_multigpu_visual_indicator_button_toggled(GtkWidget *widget,
 static void xinerama_stereo_button_toggled(GtkWidget *widget,
                                            gpointer user_data)
 {
-    CtkOpenGL *ctk_opengl;
+    CtkOpenGL *ctk_opengl = CTK_OPENGL(user_data);
+    CtrlTarget *ctrl_target = ctk_opengl->ctrl_target;
     gboolean enabled;
-    
-    ctk_opengl = CTK_OPENGL(user_data);
 
     enabled = gtk_toggle_button_get_active(GTK_TOGGLE_BUTTON(widget));
 
-    NvCtrlSetAttribute(ctk_opengl->handle, NV_CTRL_XINERAMA_STEREO, enabled);
+    NvCtrlSetAttribute(ctrl_target, NV_CTRL_XINERAMA_STEREO, enabled);
     post_xinerama_stereo_button_toggled(ctk_opengl, enabled);
 }
 
 static void stereo_eyes_exchange_button_toggled(GtkWidget *widget,
                                                 gpointer user_data)
 {
-    CtkOpenGL *ctk_opengl;
+    CtkOpenGL *ctk_opengl = CTK_OPENGL(user_data);
+    CtrlTarget *ctrl_target = ctk_opengl->ctrl_target;
     gboolean enabled;
-    
-    ctk_opengl = CTK_OPENGL(user_data);
 
     enabled = gtk_toggle_button_get_active(GTK_TOGGLE_BUTTON(widget));
 
-    NvCtrlSetAttribute(ctk_opengl->handle, NV_CTRL_STEREO_EYES_EXCHANGE,
-                       enabled);
+    NvCtrlSetAttribute(ctrl_target, NV_CTRL_STEREO_EYES_EXCHANGE, enabled);
 
     post_stereo_eyes_exchange_button_toggled(ctk_opengl, enabled);
 }
 
-static void aa_line_gamma_toggled(
-    GtkWidget *widget,
-    gpointer user_data
-)
+static void aa_line_gamma_toggled(GtkWidget *widget,
+                                  gpointer user_data)
 {
-    CtkOpenGL *ctk_opengl;
+    CtkOpenGL *ctk_opengl = CTK_OPENGL(user_data);
+    CtrlTarget *ctrl_target = ctk_opengl->ctrl_target;
     gboolean enabled;
     ReturnStatus ret;
-    
-    ctk_opengl = CTK_OPENGL(user_data);
 
     enabled = gtk_toggle_button_get_active(GTK_TOGGLE_BUTTON(widget));
 
-    ret = NvCtrlSetAttribute(ctk_opengl->handle,
+    ret = NvCtrlSetAttribute(ctrl_target,
                              NV_CTRL_OPENGL_AA_LINE_GAMMA, enabled);
 
     if (ret != NvCtrlSuccess) return;
@@ -966,18 +968,17 @@ static void aa_line_gamma_toggled(
 static void use_conformant_clamping_button_toggled(GtkWidget *widget,
                                                    gpointer user_data)
 {
-    CtkOpenGL *ctk_opengl;
+    CtkOpenGL *ctk_opengl = CTK_OPENGL(user_data);
+    CtrlTarget *ctrl_target = ctk_opengl->ctrl_target;
     int clamping;
-    
-    ctk_opengl = CTK_OPENGL(user_data);
 
     if (gtk_toggle_button_get_active(GTK_TOGGLE_BUTTON(widget))) {
         clamping = NV_CTRL_TEXTURE_CLAMPING_SPEC;
     } else {
         clamping = NV_CTRL_TEXTURE_CLAMPING_EDGE;
     }
-   
-    NvCtrlSetAttribute(ctk_opengl->handle, NV_CTRL_TEXTURE_CLAMPING, clamping);
+
+    NvCtrlSetAttribute(ctrl_target, NV_CTRL_TEXTURE_CLAMPING, clamping);
 
     post_use_conformant_clamping_button_toggled(ctk_opengl, clamping);
 }
@@ -987,77 +988,76 @@ static void use_conformant_clamping_button_toggled(GtkWidget *widget,
  * value_changed() - callback function for changed OpenGL settings.
  */
 
-static void value_changed(GObject *object, gpointer arg1, gpointer user_data)
+static void value_changed(GObject *object, CtrlEvent *event, gpointer user_data)
 {
-    CtkEventStruct *event_struct;
     CtkOpenGL *ctk_opengl;
     gboolean enabled;
     gboolean check_available = FALSE;
     GtkToggleButton *button;
     GCallback func;
+    gint value;
 
-    event_struct = (CtkEventStruct *) arg1;
+    if (event->type != CTRL_EVENT_TYPE_INTEGER_ATTRIBUTE) {
+        return;
+    }
+
     ctk_opengl = CTK_OPENGL(user_data);
+    value = event->int_attr.value;
 
-    switch (event_struct->attribute) {
+    switch (event->int_attr.attribute) {
     case NV_CTRL_SYNC_TO_VBLANK:
         button = GTK_TOGGLE_BUTTON(ctk_opengl->sync_to_vblank_button);
         func = G_CALLBACK(vblank_sync_button_toggled);
-        post_vblank_sync_button_toggled(ctk_opengl, event_struct->value);
+        post_vblank_sync_button_toggled(ctk_opengl, value);
         break;
     case NV_CTRL_FLIPPING_ALLOWED:
         button = GTK_TOGGLE_BUTTON(ctk_opengl->allow_flipping_button);
         func = G_CALLBACK(allow_flipping_button_toggled);
-        post_allow_flipping_button_toggled(ctk_opengl, event_struct->value);
+        post_allow_flipping_button_toggled(ctk_opengl, value);
         break;
     case NV_CTRL_GSYNC_ALLOWED:
         button = GTK_TOGGLE_BUTTON(ctk_opengl->allow_gsync_button);
         func = G_CALLBACK(allow_gsync_button_toggled);
-        post_allow_gsync_button_toggled(ctk_opengl, event_struct->value);
+        post_allow_gsync_button_toggled(ctk_opengl, value);
         check_available = TRUE;
         break;
     case NV_CTRL_FORCE_STEREO:
         button = GTK_TOGGLE_BUTTON(ctk_opengl->force_stereo_button);
         func = G_CALLBACK(force_stereo_button_toggled);
-        post_force_stereo_button_toggled(ctk_opengl, event_struct->value);
+        post_force_stereo_button_toggled(ctk_opengl, value);
         break;
     case NV_CTRL_XINERAMA_STEREO:
         button = GTK_TOGGLE_BUTTON(ctk_opengl->xinerama_stereo_button);
         func = G_CALLBACK(xinerama_stereo_button_toggled);
-        post_xinerama_stereo_button_toggled(ctk_opengl, event_struct->value);
+        post_xinerama_stereo_button_toggled(ctk_opengl, value);
         break;
     case NV_CTRL_STEREO_EYES_EXCHANGE:
         button = GTK_TOGGLE_BUTTON(ctk_opengl->stereo_eyes_exchange_button);
         func = G_CALLBACK(stereo_eyes_exchange_button_toggled);
-        post_stereo_eyes_exchange_button_toggled(ctk_opengl,
-                                                 event_struct->value);
+        post_stereo_eyes_exchange_button_toggled(ctk_opengl, value);
         break;
     case NV_CTRL_OPENGL_AA_LINE_GAMMA:
         button = GTK_TOGGLE_BUTTON(ctk_opengl->aa_line_gamma_button);
         func = G_CALLBACK(aa_line_gamma_toggled);
-        post_aa_line_gamma_toggled(ctk_opengl, event_struct->value);
-        gtk_widget_set_sensitive(ctk_opengl->aa_line_gamma_scale,
-                                 event_struct->value);
+        post_aa_line_gamma_toggled(ctk_opengl, value);
+        gtk_widget_set_sensitive(ctk_opengl->aa_line_gamma_scale, value);
         break;
     case NV_CTRL_TEXTURE_CLAMPING:
         button =
             GTK_TOGGLE_BUTTON(ctk_opengl->use_conformant_clamping_button);
         func = G_CALLBACK(use_conformant_clamping_button_toggled);
-        post_use_conformant_clamping_button_toggled(ctk_opengl,
-                                                    event_struct->value);
+        post_use_conformant_clamping_button_toggled(ctk_opengl, value);
         break;
     case NV_CTRL_SHOW_SLI_VISUAL_INDICATOR:
         button = GTK_TOGGLE_BUTTON(ctk_opengl->show_sli_visual_indicator_button);
         func = G_CALLBACK(show_sli_visual_indicator_button_toggled);
-        post_show_sli_visual_indicator_button_toggled(ctk_opengl,
-                                                      event_struct->value);
+        post_show_sli_visual_indicator_button_toggled(ctk_opengl, value);
         break;
     case NV_CTRL_SHOW_MULTIGPU_VISUAL_INDICATOR:
         button =
             GTK_TOGGLE_BUTTON(ctk_opengl->show_multigpu_visual_indicator_button);
         func = G_CALLBACK(show_multigpu_visual_indicator_button_toggled);
-        post_show_multigpu_visual_indicator_button_toggled(ctk_opengl,
-                                                           event_struct->value);
+        post_show_multigpu_visual_indicator_button_toggled(ctk_opengl, value);
         break;
     default:
         return;
@@ -1065,15 +1065,15 @@ static void value_changed(GObject *object, gpointer arg1, gpointer user_data)
     
     enabled = gtk_toggle_button_get_active(button);
 
-    if (enabled != event_struct->value) {
+    if (enabled != value) {
         
         g_signal_handlers_block_by_func(button, func, ctk_opengl);
-        gtk_toggle_button_set_active(button, event_struct->value);
+        gtk_toggle_button_set_active(button, value);
         g_signal_handlers_unblock_by_func(button, func, ctk_opengl);
     }
 
-    if (check_available && event_struct->is_availability_changed) {
-        if (event_struct->availability) {
+    if (check_available && event->int_attr.is_availability_changed) {
+        if (event->int_attr.availability) {
             gtk_widget_show(GTK_WIDGET(button));
         } else {
             gtk_widget_hide(GTK_WIDGET(button));
@@ -1135,9 +1135,10 @@ static void post_image_settings_value_changed(CtkOpenGL *ctk_opengl, gint val)
 static void image_settings_value_changed(GtkRange *range, gpointer user_data)
 {
     CtkOpenGL *ctk_opengl = CTK_OPENGL(user_data);
+    CtrlTarget *ctrl_target = ctk_opengl->ctrl_target;
     gint val = gtk_range_get_value(range);
 
-    NvCtrlSetAttribute(ctk_opengl->handle, NV_CTRL_IMAGE_SETTINGS, val);
+    NvCtrlSetAttribute(ctrl_target, NV_CTRL_IMAGE_SETTINGS, val);
     post_image_settings_value_changed(ctk_opengl, val);
 
 } /* image_settings_value_changed() */
@@ -1148,18 +1149,22 @@ static void image_settings_value_changed(GtkRange *range, gpointer user_data)
  */
 
 static void image_settings_update_received(GObject *object,
-                                          gpointer arg1, gpointer user_data)
+                                           CtrlEvent *event,
+                                           gpointer user_data)
 {
-    CtkEventStruct *event_struct = (CtkEventStruct *) arg1;
     CtkOpenGL *ctk_opengl = CTK_OPENGL(user_data);
     GtkRange *range = GTK_RANGE(ctk_opengl->image_settings_scale);
+
+    if (event->type != CTRL_EVENT_TYPE_INTEGER_ATTRIBUTE) {
+        return;
+    }
 
     g_signal_handlers_block_by_func(G_OBJECT(range),
                                     G_CALLBACK(image_settings_value_changed),
                                     (gpointer) ctk_opengl);
 
-    gtk_range_set_value(range, event_struct->value);
-    post_image_settings_value_changed(ctk_opengl, event_struct->value);
+    gtk_range_set_value(range, event->int_attr.value);
+    post_image_settings_value_changed(ctk_opengl, event->int_attr.value);
 
     g_signal_handlers_unblock_by_func(G_OBJECT(range),
                                       G_CALLBACK(image_settings_value_changed),
@@ -1191,12 +1196,17 @@ static void post_slider_value_changed(CtkOpenGL *ctk_opengl, gint val)
 static void slider_changed(GtkAdjustment *adjustment, gpointer user_data)
 {
     CtkOpenGL *ctk_opengl = CTK_OPENGL(user_data);
+    CtrlTarget *ctrl_target = ctk_opengl->ctrl_target;
     gint attribute, value;
+
     user_data = g_object_get_data(G_OBJECT(adjustment), "opengl_attribute");
     attribute = GPOINTER_TO_INT(user_data);
     value = (gint) gtk_adjustment_get_value(adjustment);
-    NvCtrlSetAttribute(ctk_opengl->handle, attribute, value);
+
+    NvCtrlSetAttribute(ctrl_target, attribute, value);
+
     post_slider_value_changed(ctk_opengl, value);
+
 } /* slider_changed() */
 
 
@@ -1207,20 +1217,25 @@ static void slider_changed(GtkAdjustment *adjustment, gpointer user_data)
  */
 
 static void aa_line_gamma_update_received(GObject *object,
-                                         gpointer arg1, gpointer user_data)
+                                          CtrlEvent *event,
+                                          gpointer user_data)
 {
-    CtkEventStruct *event_struct = (CtkEventStruct *) arg1;
     CtkOpenGL *ctk_opengl = CTK_OPENGL(user_data);
     CtkScale *scale = CTK_SCALE(ctk_opengl->aa_line_gamma_scale);
     GtkAdjustment *adjustment;
+
+    if (event->type != CTRL_EVENT_TYPE_INTEGER_ATTRIBUTE) {
+        return;
+    }
+
     adjustment = GTK_ADJUSTMENT(scale->gtk_adjustment);
     g_signal_handlers_block_by_func(G_OBJECT(adjustment),
                                     G_CALLBACK(slider_changed),
                                     (gpointer) ctk_opengl);
 
     gtk_adjustment_set_value(GTK_ADJUSTMENT(adjustment),
-                             (gint)event_struct->value);
-    post_slider_value_changed(ctk_opengl, event_struct->value);
+                             (gint)event->int_attr.value);
+    post_slider_value_changed(ctk_opengl, event->int_attr.value);
 
     g_signal_handlers_unblock_by_func(G_OBJECT(adjustment),
                                       G_CALLBACK(slider_changed),
@@ -1237,6 +1252,7 @@ static GtkWidget *create_slider(CtkOpenGL *ctk_opengl,
                                 gint attribute,
                                 unsigned int bit)
 {
+    CtrlTarget *ctrl_target = ctk_opengl->ctrl_target;
     GtkAdjustment *adjustment;
     GtkWidget *scale, *widget;
     gint min, max, val, step_incr, page_incr;
@@ -1244,11 +1260,11 @@ static GtkWidget *create_slider(CtkOpenGL *ctk_opengl,
     ReturnStatus ret;
     /* get the attribute value */
 
-    ret = NvCtrlGetAttribute(ctk_opengl->handle, attribute, &val);
+    ret = NvCtrlGetAttribute(ctrl_target, attribute, &val);
     if (ret != NvCtrlSuccess) return NULL;
     /* get the range for the attribute */
 
-    NvCtrlGetValidAttributeValues(ctk_opengl->handle, attribute, &range);
+    NvCtrlGetValidAttributeValues(ctrl_target, attribute, &range);
 
     if (range.type != ATTRIBUTE_TYPE_RANGE) return NULL;
     min = range.u.range.min;

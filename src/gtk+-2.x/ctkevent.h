@@ -22,7 +22,7 @@
 
 #include <gtk/gtk.h>
 
-#include "NvCtrlAttributes.h"
+#include "query-assign.h"
 
 G_BEGIN_DECLS
 
@@ -46,12 +46,11 @@ G_BEGIN_DECLS
 
 typedef struct _CtkEvent       CtkEvent;
 typedef struct _CtkEventClass  CtkEventClass;
-typedef struct _CtkEventStruct CtkEventStruct;
 
 struct _CtkEvent
 {
-    GObject               parent;
-    NvCtrlAttributeHandle  *handle;
+    GObject     parent;
+    CtrlTarget *ctrl_target;
 };
 
 struct _CtkEventClass
@@ -59,17 +58,9 @@ struct _CtkEventClass
     GtkWidgetClass parent_class;
 };
 
-struct _CtkEventStruct
-{
-    gint attribute;
-    gint value;
-    guint display_mask;
-    gboolean is_availability_changed;
-    gboolean availability;
-};
-
 GType       ctk_event_get_type  (void) G_GNUC_CONST;
-GObject*    ctk_event_new       (NvCtrlAttributeHandle*);
+GObject*    ctk_event_new       (CtrlTarget*);
+void        ctk_event_destroy   (GObject*);
 
 void ctk_event_emit(CtkEvent *ctk_event,
                     unsigned int mask, int attrib, int value);

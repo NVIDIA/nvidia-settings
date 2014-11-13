@@ -16,7 +16,8 @@
  * You should have received a copy of the GNU General Public License
  * along with this program.  If not, see <http://www.gnu.org/licenses>.
  */
- 
+
+#include <stdlib.h>
 #include <gtk/gtk.h>
 #include <NvCtrlAttributes.h>
 #include "NVCtrlLib.h"
@@ -266,6 +267,96 @@ void ctk_combo_box_text_append_text(GtkWidget *widget, const gchar *text)
 #endif
 }
 
+void ctk_cell_renderer_set_alignment(GtkCellRenderer *renderer,
+                                     gfloat x, gfloat y)
+{
+#ifdef CTK_GTK3
+    /* added in 2.18 */
+    gtk_cell_renderer_set_alignment(renderer, x, y);
+#else
+    /* direct access removed in 3.0 */
+    renderer->xalign = x;
+    renderer->yalign = y;
+#endif
+}
+
+GtkWidget *ctk_file_chooser_dialog_new(const gchar *title,
+                                       GtkWindow *parent,
+                                       GtkFileChooserAction action)
+{
+#ifdef CTK_GTK3
+    /* Added in 2.4 */
+    gboolean open = (action == GTK_FILE_CHOOSER_ACTION_OPEN);
+
+    return gtk_file_chooser_dialog_new(title, parent, action,
+                                       GTK_STOCK_CANCEL,
+                                       GTK_RESPONSE_CANCEL,
+                                       open ? GTK_STOCK_OPEN : GTK_STOCK_SAVE,
+                                       GTK_RESPONSE_ACCEPT,
+                                       NULL);
+#else
+    /*
+     * There is an issue on some platforms that causes the UI to hang when
+     * creating a GtkFileChooserDialog from a shared library. For now, we will
+     * continue to use the GtkFileSelection.
+     *
+     * Will return GTK_RESPONSE_OK if not cancelled
+     *
+     * Deprecated in 2.4 and removed in 3.0
+     */
+    return gtk_file_selection_new(title);
+#endif
+}
+
+void ctk_file_chooser_set_filename(GtkWidget *widget, const gchar *filename)
+{
+#ifdef CTK_GTK3
+    GtkFileChooserAction action =
+        gtk_file_chooser_get_action(GTK_FILE_CHOOSER(widget));
+    char *full_filename = tilde_expansion(filename);
+    char *basename = g_path_get_basename(full_filename);
+    char *dirname = NULL;
+
+    if (action == GTK_FILE_CHOOSER_ACTION_SAVE &&
+        (!g_file_test(full_filename, G_FILE_TEST_EXISTS) ||
+         basename[0] == '.')) {
+
+        char *dirname = g_path_get_dirname(full_filename);
+
+        gtk_file_chooser_set_current_folder(GTK_FILE_CHOOSER(widget), dirname);
+        gtk_file_chooser_set_current_name(GTK_FILE_CHOOSER(widget), basename);
+
+    } else {
+        gtk_file_chooser_set_filename(GTK_FILE_CHOOSER(widget), full_filename);
+    }
+
+    free(dirname);
+    free(basename);
+    free(full_filename);
+#else
+    gtk_file_selection_set_filename(GTK_FILE_SELECTION(widget), filename);
+#endif
+}
+
+gchar *ctk_file_chooser_get_filename(GtkWidget *widget)
+{
+#ifdef CTK_GTK3
+    return gtk_file_chooser_get_filename(GTK_FILE_CHOOSER(widget));
+#else
+    return g_strdup(gtk_file_selection_get_filename(GTK_FILE_SELECTION(widget)));
+#endif
+}
+
+void ctk_file_chooser_set_extra_widget(GtkWidget *widget, GtkWidget *extra)
+{
+#ifdef CTK_GTK3
+    gtk_file_chooser_set_extra_widget(GTK_FILE_CHOOSER(widget), extra);
+#else
+    gtk_box_pack_start(GTK_BOX(GTK_FILE_SELECTION(widget)->main_vbox),
+                       extra, FALSE, FALSE, 15);
+#endif
+}
+
 /* end of GTK2/3 util functions */
 
 
@@ -287,27 +378,26 @@ gboolean ctk_check_min_gtk_version(guint required_major,
 }
 
 
-gchar *get_pcie_generation_string(NvCtrlAttributeHandle *handle)
+gchar *get_pcie_generation_string(CtrlTarget *ctrl_target)
 {
     ReturnStatus ret;
     gchar *s = NULL;
     int tmp;
 
-    ret = NvCtrlGetAttribute(handle, NV_CTRL_GPU_PCIE_GENERATION, &tmp);
+    ret = NvCtrlGetAttribute(ctrl_target, NV_CTRL_GPU_PCIE_GENERATION, &tmp);
     if (ret == NvCtrlSuccess) {
         s = g_strdup_printf("Gen%u", tmp);
     }
     return s;
 }
 
-gchar *get_pcie_link_width_string(NvCtrlAttributeHandle *handle,
-                                  int attribute)
+gchar *get_pcie_link_width_string(CtrlTarget *ctrl_target, int attribute)
 {
     ReturnStatus ret;
     gint tmp;
     gchar *s = NULL;
 
-    ret = NvCtrlGetAttribute(handle, attribute, &tmp);
+    ret = NvCtrlGetAttribute(ctrl_target, attribute, &tmp);
     if (ret != NvCtrlSuccess) {
         s = g_strdup_printf("Unknown");
     } else {
@@ -317,14 +407,13 @@ gchar *get_pcie_link_width_string(NvCtrlAttributeHandle *handle,
     return s;
 }
 
-gchar *get_pcie_link_speed_string(NvCtrlAttributeHandle *handle,
-                                  int attribute)
+gchar *get_pcie_link_speed_string(CtrlTarget *ctrl_target, int attribute)
 {
     ReturnStatus ret;
     gint tmp;
     gchar *s = NULL;
 
-    ret = NvCtrlGetAttribute(handle, attribute, &tmp);
+    ret = NvCtrlGetAttribute(ctrl_target, attribute, &tmp);
     if (ret != NvCtrlSuccess) {
         s = g_strdup_printf("Unknown");
     } else {
@@ -336,10 +425,31 @@ gchar *get_pcie_link_speed_string(NvCtrlAttributeHandle *handle,
 
 
 
+gchar *get_nvidia_driver_version(CtrlTarget *ctrl_target)
+{
+    ReturnStatus ret;
+    gchar *driver_version;
+
+    if (ctrl_target == NULL  || ctrl_target->h == NULL) {
+        return NULL;
+    }
+
+    ret = NvCtrlGetStringAttribute(ctrl_target,
+                                   NV_CTRL_STRING_NVIDIA_DRIVER_VERSION,
+                                   &driver_version);
+    if (ret != NvCtrlSuccess) {
+        return NULL;
+    }
+
+    return driver_version;
+}
+
+
+
 /*
  * Used to check if current display enabled or disabled.
  */
-void update_display_enabled_flag(NvCtrlAttributeHandle *handle,
+void update_display_enabled_flag(CtrlTarget *ctrl_target,
                                  gboolean *display_enabled)
 {
     ReturnStatus ret;
@@ -347,7 +457,7 @@ void update_display_enabled_flag(NvCtrlAttributeHandle *handle,
 
     /* Is display enabled? */
 
-    ret = NvCtrlGetAttribute(handle,
+    ret = NvCtrlGetAttribute(ctrl_target,
                              NV_CTRL_DISPLAY_ENABLED,
                              &val);
 
@@ -359,22 +469,22 @@ void update_display_enabled_flag(NvCtrlAttributeHandle *handle,
 
 
 
-gchar* create_gpu_name_string(NvCtrlAttributeHandle *gpu_handle)
+gchar* create_gpu_name_string(CtrlTarget *ctrl_target)
 {
     gchar *gpu_name;
     gchar *gpu_product_name;
     ReturnStatus ret;
 
-    ret = NvCtrlGetStringAttribute(gpu_handle,
+    ret = NvCtrlGetStringAttribute(ctrl_target,
                                    NV_CTRL_STRING_PRODUCT_NAME,
                                    &gpu_product_name);
     if (ret == NvCtrlSuccess && gpu_product_name) {
         gpu_name = g_strdup_printf("GPU %d - (%s)",
-                                   NvCtrlGetTargetId(gpu_handle),
+                                   NvCtrlGetTargetId(ctrl_target),
                                    gpu_product_name);
     } else {
         gpu_name = g_strdup_printf("GPU %d - (Unknown)",
-                                   NvCtrlGetTargetId(gpu_handle));
+                                   NvCtrlGetTargetId(ctrl_target));
     }
     g_free(gpu_product_name);
 
@@ -382,23 +492,20 @@ gchar* create_gpu_name_string(NvCtrlAttributeHandle *gpu_handle)
 }
 
 
-gchar* create_display_name_list_string(NvCtrlAttributeHandle *handle,
+
+gchar* create_display_name_list_string(CtrlTarget *ctrl_target,
                                        unsigned int attr)
 {
     gchar *displays = NULL;
-    gchar *typeIdName;
-    gchar *logName;
-    gchar *tmp_str;
     ReturnStatus ret;
     int *pData;
     int len;
     int i;
-    Bool valid;
 
 
     /* List of Display Device connected on GPU */
 
-    ret = NvCtrlGetBinaryAttribute(handle, 0,
+    ret = NvCtrlGetBinaryAttribute(ctrl_target, 0,
                                    attr,
                                    (unsigned char **)(&pData), &len);
     if (ret != NvCtrlSuccess) {
@@ -406,34 +513,35 @@ gchar* create_display_name_list_string(NvCtrlAttributeHandle *handle,
     }
 
     for (i = 0; i < pData[0]; i++) {
+        CtrlTarget *ctrl_other;
         int display_id = pData[i+1];
+        gchar *logName = NULL;
+        gchar *typeIdName = NULL;
+        gchar *tmp_str;
 
-        valid =
-            XNVCTRLQueryTargetStringAttribute(NvCtrlGetDisplayPtr(handle),
-                                              NV_CTRL_TARGET_TYPE_DISPLAY,
-                                              display_id,
-                                              0,
-                                              NV_CTRL_STRING_DISPLAY_DEVICE_NAME,
-                                              &tmp_str);
-        if (!valid) {
-            logName = g_strdup("Unknown");
-        } else {
-            logName = g_strdup(tmp_str);
-            XFree(tmp_str);
+        ctrl_other = NvCtrlGetTarget(ctrl_target->system, DISPLAY_TARGET,
+                                     display_id);
+        if (ctrl_other) {
+            ret = NvCtrlGetStringAttribute(ctrl_other,
+                                           NV_CTRL_STRING_DISPLAY_DEVICE_NAME,
+                                           &tmp_str);
+            if (ret == NvCtrlSuccess) {
+                logName = g_strdup(tmp_str);
+                free(tmp_str);
+            }
+            ret = NvCtrlGetStringAttribute(ctrl_other,
+                                           NV_CTRL_STRING_DISPLAY_NAME_TYPE_ID,
+                                           &tmp_str);
+            if (ret == NvCtrlSuccess) {
+                typeIdName = g_strdup(tmp_str);
+                free(tmp_str);
+            }
         }
-
-        valid =
-            XNVCTRLQueryTargetStringAttribute(NvCtrlGetDisplayPtr(handle),
-                                              NV_CTRL_TARGET_TYPE_DISPLAY,
-                                              display_id,
-                                              0,
-                                              NV_CTRL_STRING_DISPLAY_NAME_TYPE_ID,
-                                              &tmp_str);
-        if (!valid) {
+        if (!logName) {
+            logName = g_strdup("Unknown");
+        }
+        if (!typeIdName) {
             typeIdName = g_strdup_printf("DPY-%d", display_id);
-        } else {
-            typeIdName = g_strdup(tmp_str);
-            XFree(tmp_str);
         }
 
         tmp_str = g_strdup_printf("%s (%s)", logName, typeIdName);
@@ -458,7 +566,6 @@ gchar* create_display_name_list_string(NvCtrlAttributeHandle *handle,
 
     return displays;
 }
-
 
 
 
@@ -634,6 +741,7 @@ void ctk_empty_container(GtkWidget *container)
 } /* ctk_empty_container() */
 
 
+#ifndef CTK_GTK3
 /* Updates the widget to use the text colors ('text' and 'base') for the
  * foreground and background colors.
  */
@@ -670,14 +778,17 @@ static void force_text_colors_handler(GtkWidget *widget,
         (G_OBJECT(widget),
          G_CALLBACK(force_text_colors_handler), user_data);
 }
+#endif
 
 void ctk_force_text_colors_on_widget(GtkWidget *widget)
 {
+#ifdef CTK_GTK3
+    /* The GTK CSS theme engine will handle updates */
+    GtkStyleContext *context = gtk_widget_get_style_context(widget);
+    gtk_style_context_add_class(context, "entry");
+#else
     /* Set the intial state */
     force_text_colors_handler(widget, NULL, NULL);
-
-#ifndef CTK_GTK3
-    /* This behavior is not properly supported in GTK 3 */
 
     /* Ensure state is updated when style changes */
     g_signal_connect(G_OBJECT(widget),
@@ -685,4 +796,35 @@ void ctk_force_text_colors_on_widget(GtkWidget *widget)
                      (gpointer) NULL);
 #endif
 }
+
+
+/*
+ * Create a dialog to allow the user to specify the name of the file to load
+ * or save.
+ */
+char *ctk_get_filename_from_dialog(const gchar* title,
+                                   GtkWindow *parent,
+                                   const gchar* initial_filename)
+{
+    GtkWidget *dialog;
+    gchar *filename = NULL;
+    gint result;
+
+    dialog =
+        ctk_file_chooser_dialog_new(title, parent,
+                                    GTK_FILE_CHOOSER_ACTION_SAVE);
+
+    ctk_file_chooser_set_filename(dialog, initial_filename);
+
+    result = gtk_dialog_run(GTK_DIALOG(dialog));
+
+    if (result == GTK_RESPONSE_ACCEPT || result == GTK_RESPONSE_OK) {
+        filename = ctk_file_chooser_get_filename(dialog);
+    }
+
+    gtk_widget_destroy(dialog);
+
+    return filename;
+}
+
 

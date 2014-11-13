@@ -52,7 +52,7 @@ struct _CtkDitheringControls
 {
     GtkVBox parent;
 
-    NvCtrlAttributeHandle *handle;
+    CtrlTarget *ctrl_target;
     CtkConfig *ctk_config;
     char *name;
     GtkWidget *reset_button;
@@ -81,7 +81,7 @@ struct _CtkDitheringControlsClass
 };
 
 GType ctk_dithering_controls_get_type (void) G_GNUC_CONST;
-GtkWidget* ctk_dithering_controls_new (NvCtrlAttributeHandle *,
+GtkWidget* ctk_dithering_controls_new (CtrlTarget *,
                                        CtkConfig *, CtkEvent *,
                                        GtkWidget *,
                                        char *);

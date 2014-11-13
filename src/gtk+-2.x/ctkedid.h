@@ -52,7 +52,7 @@ struct _CtkEdid
 {
     GtkVBox parent;
 
-    NvCtrlAttributeHandle *handle;
+    CtrlTarget *ctrl_target;
     CtkConfig *ctk_config;
     GtkWidget *button;
     GtkWidget *file_selector;
@@ -71,7 +71,7 @@ struct _CtkEdidClass
 };
 
 GType       ctk_edid_get_type  (void) G_GNUC_CONST;
-GtkWidget*  ctk_edid_new       (NvCtrlAttributeHandle *,
+GtkWidget*  ctk_edid_new       (CtrlTarget *,
                                 CtkConfig *, CtkEvent *,
                                 char *name);
 

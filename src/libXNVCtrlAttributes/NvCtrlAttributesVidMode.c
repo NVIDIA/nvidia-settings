@@ -37,7 +37,7 @@ NvCtrlInitVidModeAttributes(NvCtrlAttributePrivateHandle *h)
     Bool ret;
 
     /* Check parameters */
-    if (!h || !h->dpy || h->target_type != NV_CTRL_TARGET_TYPE_X_SCREEN) {
+    if (!h || !h->dpy || h->target_type != X_SCREEN_TARGET) {
         goto failed;
     }
 
@@ -118,7 +118,7 @@ ReturnStatus NvCtrlFreeVidModeAttributes(NvCtrlAttributePrivateHandle *h)
 }
 
 
-ReturnStatus NvCtrlVidModeGetColorAttributes(NvCtrlAttributePrivateHandle *h,
+ReturnStatus NvCtrlVidModeGetColorAttributes(const NvCtrlAttributePrivateHandle *h,
                                              float contrast[3],
                                              float brightness[3],
                                              float gamma[3])
@@ -135,15 +135,15 @@ ReturnStatus NvCtrlVidModeGetColorAttributes(NvCtrlAttributePrivateHandle *h,
     
     return NvCtrlSuccess;
     
-} /* NvCtrlGetColorAttributes() */
+}
 
 
 
 
 
 /*
- * NvCtrlSetColorAttributes() - update the color attributes specified
- * by bitmask, recompute the LUT, and send the LUT to the X server.
+ * Update the color attributes specified by bitmask, recompute the LUT,
+ * and send the LUT to the X server.
  *
  * The bitmask parameter is a bitmask of which channels (RED_CHANNEL,
  * GREEN_CHANNEL, and BLUE_CHANNEL) and which values (CONTRAST_VALUE,
@@ -165,7 +165,7 @@ ReturnStatus NvCtrlVidModeSetColorAttributes(NvCtrlAttributePrivateHandle *h,
 {
     Bool ret;
 
-    if (!h || !h->dpy || h->target_type != NV_CTRL_TARGET_TYPE_X_SCREEN) {
+    if (!h || !h->dpy || h->target_type != X_SCREEN_TARGET) {
         return NvCtrlBadHandle;
     }
 
@@ -189,12 +189,12 @@ ReturnStatus NvCtrlVidModeSetColorAttributes(NvCtrlAttributePrivateHandle *h,
 }
 
 
-ReturnStatus NvCtrlVidModeGetColorRamp(NvCtrlAttributePrivateHandle *h,
+ReturnStatus NvCtrlVidModeGetColorRamp(const NvCtrlAttributePrivateHandle *h,
                                        unsigned int channel,
                                        unsigned short **lut,
                                        int *n)
 {
-    if (!h || !h->dpy || h->target_type != NV_CTRL_TARGET_TYPE_X_SCREEN) {
+    if (!h || !h->dpy || h->target_type != X_SCREEN_TARGET) {
         return NvCtrlBadHandle;
     }
     if (!h->vm) {
@@ -227,12 +227,12 @@ ReturnStatus NvCtrlVidModeReloadColorRamp(NvCtrlAttributePrivateHandle *h)
  */
 
 ReturnStatus
-NvCtrlVidModeGetStringAttribute (NvCtrlAttributePrivateHandle *h,
-                                   unsigned int display_mask,
-                                   int attr, char **ptr)
+NvCtrlVidModeGetStringAttribute(const NvCtrlAttributePrivateHandle *h,
+                                unsigned int display_mask,
+                                int attr, char **ptr)
 {
     /* Validate */
-    if ( !h || !h->dpy || h->target_type != NV_CTRL_TARGET_TYPE_X_SCREEN ) {
+    if ( !h || !h->dpy || h->target_type != X_SCREEN_TARGET ) {
         return NvCtrlBadHandle;
     }
 

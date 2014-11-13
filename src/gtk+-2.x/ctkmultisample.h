@@ -52,7 +52,7 @@ typedef struct _CtkMultisampleClass  CtkMultisampleClass;
 struct _CtkMultisample
 {
     GtkVBox parent;
-    NvCtrlAttributeHandle *handle;
+    CtrlTarget *ctrl_target;
     CtkConfig *ctk_config;
 
     GtkWidget *fsaa_app_override_check_button;
@@ -63,7 +63,7 @@ struct _CtkMultisample
     GtkWidget *log_aniso_scale;
     GtkWidget *texture_sharpening_button;
     CtkDropDownMenu *d;
-    
+
     guint active_attributes;
 
     gint fsaa_translation_table[NV_CTRL_FSAA_MODE_MAX + 1];
@@ -76,8 +76,7 @@ struct _CtkMultisampleClass
 };
 
 GType       ctk_multisample_get_type  (void) G_GNUC_CONST;
-GtkWidget*  ctk_multisample_new       (NvCtrlAttributeHandle *,
-                                       CtkConfig *, CtkEvent *);
+GtkWidget*  ctk_multisample_new       (CtrlTarget *, CtkConfig *, CtkEvent *);
 
 GtkTextBuffer *ctk_multisample_create_help(GtkTextTagTable *,
                                            CtkMultisample *);

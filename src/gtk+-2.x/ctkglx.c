@@ -157,14 +157,6 @@ GType ctk_glx_get_type(void)
 } /* ctk_glx_get_type() */
 
 
-static void dummy_button_signal(GtkWidget *widget,
-                                 gpointer user_data)
-{
-    /* This is a dummy function so tooltips are enabled
-     * for the fbconfig table column titles
-     */
-}
-
 
 /*
  * show_fbc_toggled() - called when the show GLX Frame Buffer Configurations
@@ -211,6 +203,138 @@ fbc_window_destroy(GtkWidget *widget, GdkEvent *event, gpointer user_data)
 } /* fbc_window_destroy() */
 
 
+/*
+ * create_fbconfig_model() - called to create and populate the model for
+ * the GLX Frame Buffer Configurations table.
+ */
+static GtkTreeModel *create_fbconfig_model(GLXFBConfigAttr *fbconfig_attribs)
+{
+    GtkListStore *model;
+    GtkTreeIter iter;
+    int i;
+    GValue v = G_VALUE_INIT;
+
+    if (!fbconfig_attribs) {
+        return NULL;
+    }
+
+    g_value_init(&v, G_TYPE_STRING);
+
+    model = gtk_list_store_new(NUM_FBCONFIG_ATTRIBS,
+        G_TYPE_STRING, G_TYPE_STRING, G_TYPE_STRING, G_TYPE_STRING,
+        G_TYPE_STRING, G_TYPE_STRING, G_TYPE_STRING, G_TYPE_STRING,
+        G_TYPE_STRING, G_TYPE_STRING, G_TYPE_STRING, G_TYPE_STRING,
+        G_TYPE_STRING, G_TYPE_STRING, G_TYPE_STRING, G_TYPE_STRING,
+        G_TYPE_STRING, G_TYPE_STRING, G_TYPE_STRING, G_TYPE_STRING,
+        G_TYPE_STRING, G_TYPE_STRING, G_TYPE_STRING, G_TYPE_STRING,
+        G_TYPE_STRING, G_TYPE_STRING, G_TYPE_STRING, G_TYPE_STRING,
+        G_TYPE_STRING, G_TYPE_STRING, G_TYPE_STRING, G_TYPE_STRING);
+
+    /* Populate FBConfig table */
+    i = 0;
+    while ( fbconfig_attribs[i].fbconfig_id != 0 ) {
+        char str[NUM_FBCONFIG_ATTRIBS + 1][16];
+        int  cell = 0; /* Used for putting information into cells */
+
+        if ( fbconfig_attribs[i].fbconfig_id )  {
+            snprintf((char *) (&(str[cell++])), 16, "0x%02X",
+                     fbconfig_attribs[i].fbconfig_id);
+        } else {
+            sprintf((char *) (&(str[cell++])),".");
+        }
+
+        if ( fbconfig_attribs[i].visual_id )  {
+            snprintf((char *) (&(str[cell++])), 16, "0x%02X",
+                     fbconfig_attribs[i].visual_id);
+        } else {
+            sprintf((char *) (&(str[cell++])),".");
+        }
+        snprintf((char *) (&(str[cell++])), 16, "%s",
+                 x_visual_type_abbrev(fbconfig_attribs[i].x_visual_type));
+        snprintf((char *) (&(str[cell++])), 16, "%3d",
+                 fbconfig_attribs[i].buffer_size);
+        snprintf((char *) (&(str[cell++])), 16, "%2d",
+                 fbconfig_attribs[i].level);
+        snprintf((char *) (&(str[cell++])), 16, "%s",
+                 render_type_abbrev(fbconfig_attribs[i].render_type) );
+        snprintf((char *) (&(str[cell++])), 16, "%c",
+                 fbconfig_attribs[i].doublebuffer ? 'y' : '.');
+        snprintf((char *) (&(str[cell++])), 16, "%c",
+                 fbconfig_attribs[i].stereo ? 'y' : '.');
+        snprintf((char *) (&(str[cell++])), 16, "%2d",
+                 fbconfig_attribs[i].red_size);
+        snprintf((char *) (&(str[cell++])), 16, "%2d",
+                 fbconfig_attribs[i].green_size);
+        snprintf((char *) (&(str[cell++])), 16, "%2d",
+                 fbconfig_attribs[i].blue_size);
+        snprintf((char *) (&(str[cell++])), 16, "%2d",
+                 fbconfig_attribs[i].alpha_size);
+        snprintf((char *) (&(str[cell++])), 16, "%2d",
+                 fbconfig_attribs[i].aux_buffers);
+        snprintf((char *) (&(str[cell++])), 16, "%2d",
+                 fbconfig_attribs[i].depth_size);
+        snprintf((char *) (&(str[cell++])), 16, "%2d",
+                 fbconfig_attribs[i].stencil_size);
+        snprintf((char *) (&(str[cell++])), 16, "%2d",
+                 fbconfig_attribs[i].accum_red_size);
+        snprintf((char *) (&(str[cell++])), 16, "%2d",
+                 fbconfig_attribs[i].accum_green_size);
+        snprintf((char *) (&(str[cell++])), 16, "%2d",
+                 fbconfig_attribs[i].accum_blue_size);
+        snprintf((char *) (&(str[cell++])), 16, "%2d",
+                 fbconfig_attribs[i].accum_alpha_size);
+        if (fbconfig_attribs[i].multi_sample_valid) {
+            snprintf((char *) (&(str[cell++])), 16, "%2d",
+                     fbconfig_attribs[i].multi_samples);
+            if (fbconfig_attribs[i].multi_sample_coverage_valid) {
+                snprintf((char *) (&(str[cell++])), 16, "%2d",
+                         fbconfig_attribs[i].multi_samples_color);
+            } else {
+                snprintf((char *) (&(str[cell++])), 16, "%2d",
+                         fbconfig_attribs[i].multi_samples);
+            }
+        } else {
+            snprintf((char *) (&(str[cell++])), 16, " 0");
+            snprintf((char *) (&(str[cell++])), 16, " 0");
+        }
+        snprintf((char *) (&(str[cell++])), 16, "%1d",
+                 fbconfig_attribs[i].multi_sample_buffers);
+        snprintf((char *) (&(str[cell++])), 16, "%s",
+                 caveat_abbrev( fbconfig_attribs[i].config_caveat) );
+        snprintf((char *) (&(str[cell++])), 16, "0x%04X",
+                 fbconfig_attribs[i].pbuffer_width);
+        snprintf((char *) (&(str[cell++])), 16, "0x%04X",
+                 fbconfig_attribs[i].pbuffer_height);
+        snprintf((char *) (&(str[cell++])), 16, "0x%07X",
+                 fbconfig_attribs[i].pbuffer_max);
+        snprintf((char *) (&(str[cell++])), 16, "%s",
+                 transparent_type_abbrev(fbconfig_attribs[i].transparent_type));
+        snprintf((char *) (&(str[cell++])), 16, "%3d",
+                 fbconfig_attribs[i].transparent_red_value);
+        snprintf((char *) (&(str[cell++])), 16, "%3d",
+                 fbconfig_attribs[i].transparent_green_value);
+        snprintf((char *) (&(str[cell++])), 16, "%3d",
+                 fbconfig_attribs[i].transparent_blue_value);
+        snprintf((char *) (&(str[cell++])), 16, "%3d",
+                 fbconfig_attribs[i].transparent_alpha_value);
+        snprintf((char *) (&(str[cell++])), 16, "%3d",
+                 fbconfig_attribs[i].transparent_index_value);
+        str[NUM_FBCONFIG_ATTRIBS][0] = '\0';
+
+        /* Populate cells for this row */
+        gtk_list_store_append (model, &iter);
+        for (cell=0; cell<NUM_FBCONFIG_ATTRIBS; cell++) {
+            g_value_set_string(&v, str[cell]);
+            gtk_list_store_set_value(model, &iter, cell, &v);
+        }
+
+        i++;
+
+    } /* Done - Populating FBconfig table */
+
+    return GTK_TREE_MODEL(model);
+}
+
 /* Creates the GLX information widget
  * 
  * NOTE: The GLX information other than the FBConfigs will
@@ -224,8 +348,9 @@ typedef struct WidgetSizeRec {
     int width;
 } WidgetSize;
 
-GtkWidget* ctk_glx_new(NvCtrlAttributeHandle *handle,
-                       CtkConfig *ctk_config, CtkEvent *ctk_event)
+GtkWidget* ctk_glx_new(CtrlTarget *ctrl_target,
+                       CtkConfig *ctk_config,
+                       CtkEvent *ctk_event)
 {
     GObject *object;
     CtkGLX *ctk_glx;
@@ -236,11 +361,10 @@ GtkWidget* ctk_glx_new(NvCtrlAttributeHandle *handle,
     GtkWidget *vbox;
     GtkWidget *scrollWin;
     GtkWidget *event;    /* For setting the background color to white */
-    GtkWidget *data_table, *header_table;
-    GtkWidget *data_viewport, *full_viewport;
-    GtkWidget *vscrollbar, *hscrollbar;
+    GtkWidget *fbc_scroll_win;
+    GtkWidget *fbc_view;
+    GtkTreeModel *fbc_model;
     GtkWidget *show_fbc_button, *window;
-    GtkRequisition req;
     ReturnStatus ret;
 
     char * glx_info_str = NULL;               /* Test if GLX supported */
@@ -261,8 +385,6 @@ GtkWidget* ctk_glx_new(NvCtrlAttributeHandle *handle,
         "trt",  "trr",  "trg",  "trb",  "tra",  "tri"
     };
 
-    WidgetSize fbconfig_header_sizes[NUM_FBCONFIG_ATTRIBS];
-
     const char *fbconfig_tooltips[NUM_FBCONFIG_ATTRIBS] = {
         __fid_help, __vid_help, __vt_help, __bfs_help, __lvl_help,
         __bf_help,  __db_help,  __st_help,
@@ -282,8 +404,8 @@ GtkWidget* ctk_glx_new(NvCtrlAttributeHandle *handle,
     ctk_glx = CTK_GLX(object);
 
 
-    /* Cache the attribute handle */
-    ctk_glx->handle = handle;
+    /* Cache the target */
+    ctk_glx->ctrl_target = ctrl_target;
 
     /* Set container properties of the object */
     ctk_glx->ctk_config = ctk_config;
@@ -295,7 +417,7 @@ GtkWidget* ctk_glx_new(NvCtrlAttributeHandle *handle,
     gtk_box_pack_start(GTK_BOX(ctk_glx), banner, FALSE, FALSE, 0);
 
     /* Determine if GLX is supported */
-    ret = NvCtrlGetStringAttribute(ctk_glx->handle,
+    ret = NvCtrlGetStringAttribute(ctrl_target,
                                    NV_CTRL_STRING_GLX_SERVER_VENDOR,
                                    &glx_info_str);
     free(glx_info_str);
@@ -325,7 +447,8 @@ GtkWidget* ctk_glx_new(NvCtrlAttributeHandle *handle,
 #ifdef GLX_VERSION_1_3
 
     /* Grab the FBConfigs */
-    ret = NvCtrlGetVoidAttribute(handle, NV_CTRL_ATTR_GLX_FBCONFIG_ATTRIBS,
+    ret = NvCtrlGetVoidAttribute(ctrl_target,
+                                 NV_CTRL_ATTR_GLX_FBCONFIG_ATTRIBS,
                                  (void *)(&fbconfig_attribs));
     if ( ret != NvCtrlSuccess ) {
         err_str = "Failed to query list of GLX frame buffer configurations.";
@@ -340,7 +463,7 @@ GtkWidget* ctk_glx_new(NvCtrlAttributeHandle *handle,
     }
     if ( ! num_fbconfigs ) {
         err_str = "No frame buffer configurations found.";
-        
+
         goto fail;
     }
 
@@ -355,7 +478,7 @@ GtkWidget* ctk_glx_new(NvCtrlAttributeHandle *handle,
     window = gtk_window_new(GTK_WINDOW_TOPLEVEL);
     gtk_window_set_title(GTK_WINDOW(window), "GLX Frame Buffer Configurations");
     gtk_container_set_border_width(GTK_CONTAINER(window), CTK_WINDOW_PAD);
-    gtk_widget_set_size_request(window, 400, 200);
+    gtk_window_set_default_size(GTK_WINDOW(window), 400, 200);
     g_signal_connect(G_OBJECT(window), "destroy-event",
                      G_CALLBACK(fbc_window_destroy),
                      (gpointer) ctk_glx);
@@ -369,64 +492,46 @@ GtkWidget* ctk_glx_new(NvCtrlAttributeHandle *handle,
     hbox      = gtk_hbox_new(FALSE, 0);
     vbox      = gtk_vbox_new(FALSE, 10);
 
-    data_viewport = gtk_viewport_new(NULL, NULL);
-    gtk_widget_set_size_request(data_viewport, 400, 50);
-    vscrollbar = gtk_vscrollbar_new(gtk_viewport_get_vadjustment
-                                        (GTK_VIEWPORT(data_viewport)));
-    
-    full_viewport = gtk_viewport_new(NULL, NULL);
-    gtk_widget_set_size_request(full_viewport, 400, 50);
-    hscrollbar = gtk_hscrollbar_new(gtk_viewport_get_hadjustment
-                                     (GTK_VIEWPORT(full_viewport)));
-    /*
-     * NODE: Because clists have a hard time displaying tooltips in their
-     *       column labels/buttons, we make the fbconfig table using a
-     *       table widget.
-     */
 
-    /* Create the header table */
+    /* Create fbconfig window */
+    fbc_view = gtk_tree_view_new();
 
-    header_table = gtk_table_new(num_fbconfigs, NUM_FBCONFIG_ATTRIBS, FALSE);
-    
+    /* Create columns and column headers with tooltips */
     for ( i = 0; i < NUM_FBCONFIG_ATTRIBS; i++ ) {
-        GtkWidget * btn  = gtk_button_new_with_label(fbconfig_titles[i]);
-        g_signal_connect(G_OBJECT(btn), "clicked",
-                         G_CALLBACK(dummy_button_signal),
-                         (gpointer) ctk_glx);
-        ctk_config_set_tooltip(ctk_config, btn, fbconfig_tooltips[i]);
-        gtk_table_attach(GTK_TABLE(header_table), btn,  i, i+1, 0, 1,
-                         GTK_FILL|GTK_EXPAND, GTK_FILL|GTK_EXPAND, 0, 0);
-        
-        fbconfig_header_sizes[i].widget = btn;
-        ctk_widget_get_preferred_size(btn, &req);
-        fbconfig_header_sizes[i].width = req.width;
+        GtkWidget *label;
+        GtkCellRenderer *renderer;
+        GtkTreeViewColumn *col;
+
+        renderer = gtk_cell_renderer_text_new();
+        ctk_cell_renderer_set_alignment(renderer, 0.5, 0.5);
+
+        col = gtk_tree_view_column_new_with_attributes(fbconfig_titles[i],
+                                                       renderer,
+                                                       "text", i,
+                                                       NULL);
+
+        label = gtk_label_new(fbconfig_titles[i]);
+        ctk_config_set_tooltip(ctk_config, label, fbconfig_tooltips[i]);
+        gtk_widget_show(label);
+
+        gtk_tree_view_column_set_widget(col, label);
+        gtk_tree_view_insert_column(GTK_TREE_VIEW(fbc_view), col, -1);
     }
-    
-    /* Create the data table */
 
-    data_table = gtk_table_new(num_fbconfigs, NUM_FBCONFIG_ATTRIBS, FALSE);
-    event = gtk_event_box_new();
-    ctk_force_text_colors_on_widget(event);
-    gtk_container_add (GTK_CONTAINER(event), data_table);
-    gtk_container_add(GTK_CONTAINER(data_viewport), event);
+    /* Create data model and add view to the window */
+    fbc_model = create_fbconfig_model(fbconfig_attribs);
+    free(fbconfig_attribs);
 
-    /* Pack the fbconfig header and data tables */
+    gtk_tree_view_set_model(GTK_TREE_VIEW(fbc_view), fbc_model);
+    g_object_unref(fbc_model);
 
-    vbox = gtk_vbox_new(FALSE, 0);
-    gtk_box_pack_start(GTK_BOX(vbox), header_table, FALSE, FALSE, 0);
-    gtk_box_pack_start(GTK_BOX(vbox), data_viewport, TRUE, TRUE, 0);
-    gtk_container_add (GTK_CONTAINER(full_viewport), vbox);
+    fbc_scroll_win = gtk_scrolled_window_new(NULL, NULL);
 
-    vbox = gtk_vbox_new(FALSE, 0);
-    gtk_box_pack_start(GTK_BOX(vbox), full_viewport, TRUE, TRUE, 0);
-    gtk_box_pack_start(GTK_BOX(vbox), hscrollbar, FALSE, FALSE, 0);
-    
-    hbox = gtk_hbox_new(FALSE, 0);
-    gtk_box_pack_start(GTK_BOX(hbox), vbox, TRUE, TRUE, 0);
-    gtk_box_pack_start(GTK_BOX(hbox), vscrollbar, FALSE, FALSE, 0);
-    
-    gtk_container_add(GTK_CONTAINER(window), hbox);
+    gtk_container_add (GTK_CONTAINER (fbc_scroll_win), fbc_view);
+    gtk_container_add (GTK_CONTAINER (window), fbc_scroll_win);
 
+
+    /* Create main page layout */
     vbox = gtk_vbox_new(FALSE, 0);
     gtk_box_pack_start(GTK_BOX(vbox), show_fbc_button, FALSE, FALSE, 0);
     hbox = gtk_hbox_new(FALSE, 0);
@@ -440,136 +545,8 @@ GtkWidget* ctk_glx_new(NvCtrlAttributeHandle *handle,
     gtk_box_pack_start(GTK_BOX(vbox), hbox, FALSE, FALSE, 0);
 
     gtk_box_pack_start(GTK_BOX(ctk_glx), vbox, TRUE, TRUE, 0);
-    
-    /* Fill the data table */
-
-    if ( fbconfig_attribs ) {
-
-        /* Populate FBConfig table */
-        i = 0;
-        while ( fbconfig_attribs[i].fbconfig_id != 0 ) {
-            char str[NUM_FBCONFIG_ATTRIBS + 1][16];
-            int  cell = 0; /* Used for putting information into cells */
-            
-            if ( fbconfig_attribs[i].fbconfig_id )  {
-                snprintf((char *) (&(str[cell++])), 16, "0x%02X",
-                         fbconfig_attribs[i].fbconfig_id);
-            } else {
-                sprintf((char *) (&(str[cell++])),".");
-            }
-            
-            if ( fbconfig_attribs[i].visual_id )  {
-                snprintf((char *) (&(str[cell++])), 16, "0x%02X",
-                         fbconfig_attribs[i].visual_id);
-            } else {
-                sprintf((char *) (&(str[cell++])),".");
-            }
-            snprintf((char *) (&(str[cell++])), 16, "%s",
-                     x_visual_type_abbrev(fbconfig_attribs[i].x_visual_type));
-            snprintf((char *) (&(str[cell++])), 16, "%3d",
-                     fbconfig_attribs[i].buffer_size);
-            snprintf((char *) (&(str[cell++])), 16, "%2d",
-                     fbconfig_attribs[i].level);
-            snprintf((char *) (&(str[cell++])), 16, "%s",
-                     render_type_abbrev(fbconfig_attribs[i].render_type) );
-            snprintf((char *) (&(str[cell++])), 16, "%c",
-                     fbconfig_attribs[i].doublebuffer ? 'y' : '.');
-            snprintf((char *) (&(str[cell++])), 16, "%c",
-                     fbconfig_attribs[i].stereo ? 'y' : '.');
-            snprintf((char *) (&(str[cell++])), 16, "%2d",
-                     fbconfig_attribs[i].red_size);
-            snprintf((char *) (&(str[cell++])), 16, "%2d",
-                     fbconfig_attribs[i].green_size);
-            snprintf((char *) (&(str[cell++])), 16, "%2d",
-                     fbconfig_attribs[i].blue_size);
-            snprintf((char *) (&(str[cell++])), 16, "%2d",
-                     fbconfig_attribs[i].alpha_size);
-            snprintf((char *) (&(str[cell++])), 16, "%2d",
-                     fbconfig_attribs[i].aux_buffers);
-            snprintf((char *) (&(str[cell++])), 16, "%2d",
-                     fbconfig_attribs[i].depth_size);
-            snprintf((char *) (&(str[cell++])), 16, "%2d",
-                     fbconfig_attribs[i].stencil_size);
-            snprintf((char *) (&(str[cell++])), 16, "%2d",
-                     fbconfig_attribs[i].accum_red_size);
-            snprintf((char *) (&(str[cell++])), 16, "%2d",
-                     fbconfig_attribs[i].accum_green_size);
-            snprintf((char *) (&(str[cell++])), 16, "%2d",
-                     fbconfig_attribs[i].accum_blue_size);
-            snprintf((char *) (&(str[cell++])), 16, "%2d",
-                     fbconfig_attribs[i].accum_alpha_size);
-            if (fbconfig_attribs[i].multi_sample_valid) {
-                snprintf((char *) (&(str[cell++])), 16, "%2d",
-                         fbconfig_attribs[i].multi_samples);
-                if (fbconfig_attribs[i].multi_sample_coverage_valid) {
-                    snprintf((char *) (&(str[cell++])), 16, "%2d",
-                             fbconfig_attribs[i].multi_samples_color);
-                } else {
-                    snprintf((char *) (&(str[cell++])), 16, "%2d",
-                             fbconfig_attribs[i].multi_samples);
-                }
-            } else {
-                snprintf((char *) (&(str[cell++])), 16, " 0");
-                snprintf((char *) (&(str[cell++])), 16, " 0");
-            }
-            snprintf((char *) (&(str[cell++])), 16, "%1d",
-                     fbconfig_attribs[i].multi_sample_buffers);
-            snprintf((char *) (&(str[cell++])), 16, "%s",
-                     caveat_abbrev( fbconfig_attribs[i].config_caveat) );
-            snprintf((char *) (&(str[cell++])), 16, "0x%04X",
-                     fbconfig_attribs[i].pbuffer_width);
-            snprintf((char *) (&(str[cell++])), 16, "0x%04X",
-                     fbconfig_attribs[i].pbuffer_height);
-            snprintf((char *) (&(str[cell++])), 16, "0x%07X",
-                     fbconfig_attribs[i].pbuffer_max);
-            snprintf((char *) (&(str[cell++])), 16, "%s",
-                     transparent_type_abbrev(fbconfig_attribs[i].transparent_type));
-            snprintf((char *) (&(str[cell++])), 16, "%3d",
-                     fbconfig_attribs[i].transparent_red_value);
-            snprintf((char *) (&(str[cell++])), 16, "%3d",
-                     fbconfig_attribs[i].transparent_green_value);
-            snprintf((char *) (&(str[cell++])), 16, "%3d",
-                     fbconfig_attribs[i].transparent_blue_value);
-            snprintf((char *) (&(str[cell++])), 16, "%3d",
-                     fbconfig_attribs[i].transparent_alpha_value);
-            snprintf((char *) (&(str[cell++])), 16, "%3d",
-                     fbconfig_attribs[i].transparent_index_value);
-            str[NUM_FBCONFIG_ATTRIBS][0] = '\0';
-        
-            /* Populate row cells */
-            for ( cell = 0; cell < NUM_FBCONFIG_ATTRIBS ; cell++) {
-                GtkWidget * label = gtk_label_new( str[cell] );
-                gtk_label_set_justify( GTK_LABEL(label), GTK_JUSTIFY_CENTER);
-                gtk_table_attach(GTK_TABLE(data_table), label,
-                                 cell, cell+1, 
-                                 i+1, i+2,
-                                 GTK_EXPAND, GTK_EXPAND, 0, 0);
-
-                /* Make sure the table headers are the same width
-                 * as their table data column
-                 */
-                ctk_widget_get_preferred_size(label, &req);
-                
-                if ( fbconfig_header_sizes[cell].width > req.width ) {
-                    gtk_widget_set_size_request(label,
-                                                fbconfig_header_sizes[cell].width,
-                                                -1);
-                } else if ( fbconfig_header_sizes[cell].width < req.width ) {
-                    fbconfig_header_sizes[cell].width = req.width + 6;
-                    gtk_widget_set_size_request(fbconfig_header_sizes[cell].widget,
-                                                fbconfig_header_sizes[cell].width,
-                                                -1);
-                }
-            }
-            i++;
-
-        } /* Done - Populating FBconfig table */
 
 
-        free(fbconfig_attribs);
-
-    } /* Done - FBConfigs exist */
-        
 #endif /* GLX_VERSION_1_3 */
 
 
@@ -589,7 +566,7 @@ GtkWidget* ctk_glx_new(NvCtrlAttributeHandle *handle,
 
     /* Free memory that may have been allocated */
     free(fbconfig_attribs);
-    
+
     gtk_widget_show_all(GTK_WIDGET(object));
     return GTK_WIDGET(object);
 
@@ -604,6 +581,7 @@ GtkWidget* ctk_glx_new(NvCtrlAttributeHandle *handle,
 void ctk_glx_probe_info(GtkWidget *widget)
 {
     CtkGLX *ctk_glx = CTK_GLX(widget);
+    CtrlTarget *ctrl_target = ctk_glx->ctrl_target;
 
     ReturnStatus ret;
 
@@ -638,60 +616,60 @@ void ctk_glx_probe_info(GtkWidget *widget)
 
 
     /* Get GLX information */
-    ret = NvCtrlGetStringAttribute(ctk_glx->handle,
+    ret = NvCtrlGetStringAttribute(ctrl_target,
                                    NV_CTRL_STRING_GLX_DIRECT_RENDERING,
                                    &direct_rendering);
     if ( ret != NvCtrlSuccess ) { goto done; }
-    ret = NvCtrlGetStringAttribute(ctk_glx->handle,
+    ret = NvCtrlGetStringAttribute(ctrl_target,
                                    NV_CTRL_STRING_GLX_GLX_EXTENSIONS,
                                    &glx_extensions);
     if ( ret != NvCtrlSuccess ) { goto done; }
 
 
     /* Get Server GLX information */
-    ret = NvCtrlGetStringAttribute(ctk_glx->handle,
+    ret = NvCtrlGetStringAttribute(ctrl_target,
                                    NV_CTRL_STRING_GLX_SERVER_VENDOR,
                                    &server_vendor);
     if ( ret != NvCtrlSuccess ) { goto done; }
-    ret = NvCtrlGetStringAttribute(ctk_glx->handle,
+    ret = NvCtrlGetStringAttribute(ctrl_target,
                                    NV_CTRL_STRING_GLX_SERVER_VERSION,
                                    &server_version);
     if ( ret != NvCtrlSuccess ) { goto done; }
-    ret = NvCtrlGetStringAttribute(ctk_glx->handle,
+    ret = NvCtrlGetStringAttribute(ctrl_target,
                                    NV_CTRL_STRING_GLX_SERVER_EXTENSIONS,
                                    &server_extensions);
     if ( ret != NvCtrlSuccess ) { goto done; }
 
 
     /* Get Client GLX information */
-    ret = NvCtrlGetStringAttribute(ctk_glx->handle,
+    ret = NvCtrlGetStringAttribute(ctrl_target,
                                    NV_CTRL_STRING_GLX_CLIENT_VENDOR,
                                    &client_vendor);
     if ( ret != NvCtrlSuccess ) { goto done; }
-    ret = NvCtrlGetStringAttribute(ctk_glx->handle,
+    ret = NvCtrlGetStringAttribute(ctrl_target,
                                    NV_CTRL_STRING_GLX_CLIENT_VERSION,
                                    &client_version);
     if ( ret != NvCtrlSuccess ) { goto done; }
-    ret = NvCtrlGetStringAttribute(ctk_glx->handle,
+    ret = NvCtrlGetStringAttribute(ctrl_target,
                                    NV_CTRL_STRING_GLX_CLIENT_EXTENSIONS,
                                    &client_extensions);
     if ( ret != NvCtrlSuccess ) { goto done; }
 
 
     /* Get OpenGL information */
-    ret = NvCtrlGetStringAttribute(ctk_glx->handle,
+    ret = NvCtrlGetStringAttribute(ctrl_target,
                                    NV_CTRL_STRING_GLX_OPENGL_VENDOR,
                                    &opengl_vendor);
     if ( ret != NvCtrlSuccess ) { goto done; }
-    ret = NvCtrlGetStringAttribute(ctk_glx->handle,
+    ret = NvCtrlGetStringAttribute(ctrl_target,
                                    NV_CTRL_STRING_GLX_OPENGL_RENDERER,
                                    &opengl_renderer);
     if ( ret != NvCtrlSuccess ) { goto done; }
-    ret = NvCtrlGetStringAttribute(ctk_glx->handle,
+    ret = NvCtrlGetStringAttribute(ctrl_target,
                                    NV_CTRL_STRING_GLX_OPENGL_VERSION,
                                    &opengl_version);
     if ( ret != NvCtrlSuccess ) { goto done; }
-    ret = NvCtrlGetStringAttribute(ctk_glx->handle,
+    ret = NvCtrlGetStringAttribute(ctrl_target,
                                    NV_CTRL_STRING_GLX_OPENGL_EXTENSIONS,
                                    &opengl_extensions);
     if ( ret != NvCtrlSuccess ) { goto done; }
@@ -791,7 +769,7 @@ void ctk_glx_probe_info(GtkWidget *widget)
     gtk_box_pack_start(GTK_BOX(vbox), hbox, FALSE, FALSE, 0);
     gtk_box_pack_start(GTK_BOX(hbox), hbox2, FALSE, FALSE, 5);
     gtk_box_pack_start(GTK_BOX(hbox), table, FALSE, FALSE, 0);
-    
+
 
     /* Add OpenGL information to widget */
     hbox       = gtk_hbox_new(FALSE, 0);
@@ -846,7 +824,7 @@ void ctk_glx_probe_info(GtkWidget *widget)
     free(opengl_renderer);
     free(opengl_version);
     free(opengl_extensions);
-    
+
 } /* ctk_glx_probe_info() */
 
 
@@ -858,7 +836,7 @@ GtkTextBuffer *ctk_glx_create_help(GtkTextTagTable *table,
     GtkTextBuffer *b;
 
     b = gtk_text_buffer_new(table);
-    
+
     gtk_text_buffer_get_iter_at_offset(b, &i, 0);
 
     ctk_help_title(b, &i, "GLX Help");

@@ -45,13 +45,13 @@ static void update_device_info(CtkDisplayDevice *ctk_object);
 
 static void display_device_setup(CtkDisplayDevice *ctk_object);
 
-static void enabled_displays_received(GObject *object, gpointer arg1,
+static void enabled_displays_received(GObject *object, CtrlEvent *event,
                                       gpointer user_data);
 
-static void callback_link_changed(GObject *object, gpointer arg1,
+static void callback_link_changed(GObject *object, CtrlEvent *event,
                                   gpointer user_data);
 
-static void callback_refresh_rate_changed(GObject *object, gpointer arg1,
+static void callback_refresh_rate_changed(GObject *object, CtrlEvent *event,
                                           gpointer user_data);
 
 static gboolean update_guid_info(InfoEntry *entry);
@@ -223,7 +223,7 @@ static void ctk_display_device_finalize(
  * ctk_display_device_new() - constructor for the dissplay device page.
  */
 
-GtkWidget* ctk_display_device_new(NvCtrlAttributeHandle *handle,
+GtkWidget* ctk_display_device_new(CtrlTarget *ctrl_target,
                                   CtkConfig *ctk_config,
                                   CtkEvent *ctk_event,
                                   CtkEvent *ctk_event_gpu,
@@ -250,7 +250,7 @@ GtkWidget* ctk_display_device_new(NvCtrlAttributeHandle *handle,
     if (!object) return NULL;
 
     ctk_object = CTK_DISPLAY_DEVICE(object);
-    ctk_object->handle = handle;
+    ctk_object->ctrl_target = ctrl_target;
     ctk_object->ctk_event = ctk_event;
     ctk_object->ctk_event_gpu = ctk_event_gpu;
     ctk_object->ctk_config = ctk_config;
@@ -351,7 +351,7 @@ GtkWidget* ctk_display_device_new(NvCtrlAttributeHandle *handle,
 
     /* pack the EDID button */
 
-    ctk_object->edid = ctk_edid_new(ctk_object->handle,
+    ctk_object->edid = ctk_edid_new(ctrl_target,
                                     ctk_object->ctk_config,
                                     ctk_object->ctk_event,
                                     ctk_object->name);
@@ -385,7 +385,7 @@ GtkWidget* ctk_display_device_new(NvCtrlAttributeHandle *handle,
     /* pack the color controls */
 
     ctk_object->color_controls =
-        ctk_color_controls_new(handle, ctk_config, ctk_event,
+        ctk_color_controls_new(ctrl_target, ctk_config, ctk_event,
                                ctk_object->reset_button, name);
 
     if (ctk_object->color_controls) {
@@ -396,7 +396,7 @@ GtkWidget* ctk_display_device_new(NvCtrlAttributeHandle *handle,
     /* pack the dithering controls */
 
     ctk_object->dithering_controls =
-        ctk_dithering_controls_new(handle, ctk_config, ctk_event,
+        ctk_dithering_controls_new(ctrl_target, ctk_config, ctk_event,
                                    ctk_object->reset_button, name);
 
     if (ctk_object->dithering_controls) {
@@ -407,7 +407,7 @@ GtkWidget* ctk_display_device_new(NvCtrlAttributeHandle *handle,
     /* pack the image sliders */
 
     ctk_object->image_sliders =
-        ctk_image_sliders_new(handle, ctk_config, ctk_event,
+        ctk_image_sliders_new(ctrl_target, ctk_config, ctk_event,
                               ctk_object->reset_button, name);
     if (ctk_object->image_sliders) {
         gtk_box_pack_start(GTK_BOX(nbox), ctk_object->image_sliders,
@@ -553,18 +553,20 @@ GtkTextBuffer *ctk_display_device_create_help(GtkTextTagTable *table,
 static gboolean update_guid_info(InfoEntry *entry)
 {
     CtkDisplayDevice *ctk_object = entry->ctk_object;
+    CtrlTarget *ctrl_target = ctk_object->ctrl_target;
     ReturnStatus ret;
     char *str;
 
-    ret = NvCtrlGetStringDisplayAttribute(ctk_object->handle, 0,
-                                          NV_CTRL_STRING_DISPLAY_NAME_DP_GUID, &str);
+    ret = NvCtrlGetStringAttribute(ctrl_target,
+                                   NV_CTRL_STRING_DISPLAY_NAME_DP_GUID,
+                                   &str);
     if (ret != NvCtrlSuccess) {
         return FALSE;
     }
 
     gtk_label_set_text(GTK_LABEL(entry->txt), str);
 
-    XFree(str);
+    free(str);
 
     return TRUE;
 }
@@ -574,18 +576,20 @@ static gboolean update_guid_info(InfoEntry *entry)
 static gboolean update_tv_encoder_info(InfoEntry *entry)
 {
     CtkDisplayDevice *ctk_object = entry->ctk_object;
+    CtrlTarget *ctrl_target = ctk_object->ctrl_target;
     ReturnStatus ret;
     char *str;
 
-    ret = NvCtrlGetStringDisplayAttribute(ctk_object->handle, 0,
-                                          NV_CTRL_STRING_TV_ENCODER_NAME, &str);
+    ret = NvCtrlGetStringAttribute(ctrl_target,
+                                   NV_CTRL_STRING_TV_ENCODER_NAME,
+                                   &str);
     if (ret != NvCtrlSuccess) {
         return FALSE;
     }
 
     gtk_label_set_text(GTK_LABEL(entry->txt), str);
 
-    XFree(str);
+    free(str);
 
     return TRUE;
 }
@@ -595,11 +599,12 @@ static gboolean update_tv_encoder_info(InfoEntry *entry)
 static gboolean update_chip_info(InfoEntry *entry)
 {
     CtkDisplayDevice *ctk_object = entry->ctk_object;
+    CtrlTarget *ctrl_target = ctk_object->ctrl_target;
     ReturnStatus ret;
     gint val;
     const gchar *str;
 
-    ret = NvCtrlGetAttribute(ctk_object->handle,
+    ret = NvCtrlGetAttribute(ctrl_target,
                              NV_CTRL_FLATPANEL_CHIP_LOCATION, &val);
     if (ret != NvCtrlSuccess) {
         return FALSE;
@@ -627,12 +632,12 @@ static gboolean update_chip_info(InfoEntry *entry)
 static gboolean update_signal_info(InfoEntry *entry)
 {
     CtkDisplayDevice *ctk_object = entry->ctk_object;
+    CtrlTarget *ctrl_target = ctk_object->ctrl_target;
     ReturnStatus ret;
     gint val;
     const char *str;
 
-    ret = NvCtrlGetAttribute(ctk_object->handle, NV_CTRL_FLATPANEL_SIGNAL,
-                             &val);
+    ret = NvCtrlGetAttribute(ctrl_target, NV_CTRL_FLATPANEL_SIGNAL, &val);
     if (ret != NvCtrlSuccess) {
         return FALSE;
     }
@@ -666,12 +671,13 @@ static gboolean update_signal_info(InfoEntry *entry)
 static gboolean update_link_info(InfoEntry *entry)
 {
     CtkDisplayDevice *ctk_object = entry->ctk_object;
+    CtrlTarget *ctrl_target = ctk_object->ctrl_target;
     ReturnStatus ret;
     gint val;
     const char *link;
     char tmp[32];
 
-    ret = NvCtrlGetAttribute(ctk_object->handle, NV_CTRL_FLATPANEL_LINK, &val);
+    ret = NvCtrlGetAttribute(ctrl_target, NV_CTRL_FLATPANEL_LINK, &val);
     if (ret != NvCtrlSuccess) {
         return FALSE;
     }
@@ -681,8 +687,8 @@ static gboolean update_link_info(InfoEntry *entry)
 
         lanes = val + 1;
 
-        ret = NvCtrlGetAttribute(ctk_object->handle,
-                                 NV_CTRL_DISPLAYPORT_LINK_RATE, &val);
+        ret = NvCtrlGetAttribute(ctrl_target, NV_CTRL_DISPLAYPORT_LINK_RATE,
+                                 &val);
         if ((ret == NvCtrlSuccess) &&
             (val == NV_CTRL_DISPLAYPORT_LINK_RATE_DISABLED)) {
             link = "Disabled";
@@ -725,18 +731,19 @@ static gboolean update_link_info(InfoEntry *entry)
 static gboolean update_refresh_rate(InfoEntry *entry)
 {
     CtkDisplayDevice *ctk_object = entry->ctk_object;
+    CtrlTarget *ctrl_target = ctk_object->ctrl_target;
     ReturnStatus ret;
     gint val;
     gboolean hdmi3D;
     char *str;
     float fvalue;
 
-    ret = NvCtrlGetAttribute(ctk_object->handle, NV_CTRL_REFRESH_RATE, &val);
+    ret = NvCtrlGetAttribute(ctrl_target, NV_CTRL_REFRESH_RATE, &val);
     if (ret != NvCtrlSuccess) {
         return FALSE;
     }
 
-    ret = NvCtrlGetAttribute(ctk_object->handle, NV_CTRL_DPY_HDMI_3D, &hdmi3D);
+    ret = NvCtrlGetAttribute(ctrl_target, NV_CTRL_DPY_HDMI_3D, &hdmi3D);
     if (ret != NvCtrlSuccess) {
         return FALSE;
     }
@@ -802,13 +809,14 @@ static void update_device_info(CtkDisplayDevice *ctk_object)
  */
 static void display_device_setup(CtkDisplayDevice *ctk_object)
 {
+    CtrlTarget *ctrl_target = ctk_object->ctrl_target;
+
     /* Disable the reset button here and allow the controls below to (re)enable
      * it if need be,.
      */
     gtk_widget_set_sensitive(ctk_object->reset_button, FALSE);
 
-    update_display_enabled_flag(ctk_object->handle,
-                                &ctk_object->display_enabled);
+    update_display_enabled_flag(ctrl_target, &ctk_object->display_enabled);
 
     /* Update info */
 
@@ -892,7 +900,8 @@ static gboolean unregister_refresh_rate_events(InfoEntry *entry)
  * this page should disable/enable access based on whether
  * or not the display device is enabled.
  */
-static void enabled_displays_received(GObject *object, gpointer arg1,
+static void enabled_displays_received(GObject *object,
+                                      CtrlEvent *event,
                                       gpointer user_data)
 {
     CtkDisplayDevice *ctk_object = CTK_DISPLAY_DEVICE(user_data);
@@ -904,7 +913,8 @@ static void enabled_displays_received(GObject *object, gpointer arg1,
 } /* enabled_displays_received() */
 
 
-static void callback_link_changed(GObject *object, gpointer arg1,
+static void callback_link_changed(GObject *object,
+                                  CtrlEvent *event,
                                   gpointer user_data)
 {
     InfoEntry *entry = (InfoEntry *)user_data;
@@ -913,7 +923,8 @@ static void callback_link_changed(GObject *object, gpointer arg1,
 }
 
 
-static void callback_refresh_rate_changed(GObject *object, gpointer arg1,
+static void callback_refresh_rate_changed(GObject *object,
+                                          CtrlEvent *event,
                                           gpointer user_data)
 {
     InfoEntry *entry = (InfoEntry *)user_data;
@@ -928,12 +939,13 @@ static void add_color_correction_tab(CtkDisplayDevice *ctk_object,
                                      GtkWidget *notebook,
                                      ParsedAttribute *p)
 {
+    CtrlTarget *ctrl_target = ctk_object->ctrl_target;
     ReturnStatus ret;
     gint val;
     GtkWidget *ctk_color_correction;
     GtkWidget *box;
 
-    ret = NvCtrlGetAttribute(ctk_object->handle,
+    ret = NvCtrlGetAttribute(ctrl_target,
                              NV_CTRL_ATTR_RANDR_GAMMA_AVAILABLE, &val);
 
     if (ret != NvCtrlSuccess) {
@@ -944,7 +956,7 @@ static void add_color_correction_tab(CtkDisplayDevice *ctk_object,
         return;
     }
 
-    ctk_color_correction = ctk_color_correction_new(ctk_object->handle,
+    ctk_color_correction = ctk_color_correction_new(ctrl_target,
                                                     ctk_config,
                                                     p,
                                                     ctk_event);

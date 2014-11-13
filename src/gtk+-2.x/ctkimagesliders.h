@@ -52,7 +52,7 @@ struct _CtkImageSliders
 {
     GtkVBox parent;
 
-    NvCtrlAttributeHandle *handle;
+    CtrlTarget *ctrl_target;
     char *name;
 
     CtkConfig *ctk_config;
@@ -71,7 +71,7 @@ struct _CtkImageSlidersClass
 };
 
 GType       ctk_image_sliders_get_type  (void) G_GNUC_CONST;
-GtkWidget*  ctk_image_sliders_new       (NvCtrlAttributeHandle *,
+GtkWidget*  ctk_image_sliders_new       (CtrlTarget *,
                                          CtkConfig *, CtkEvent *,
                                          GtkWidget *reset_button,
                                          char *name);

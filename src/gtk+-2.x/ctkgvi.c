@@ -128,20 +128,21 @@ typedef struct {
 
 static void query_channel_info(CtkGvi *ctk_gvi, int jack, int channel, ChannelInfo *channel_info)
 {
+    CtrlTarget *ctrl_target = ctk_gvi->ctrl_target;
     gint ret;
     unsigned int jack_channel = ((channel & 0xFFFF) << 16);
     jack_channel |= (jack & 0xFFFF);
 
-            
-    ret = NvCtrlGetDisplayAttribute(ctk_gvi->handle,
+
+    ret = NvCtrlGetDisplayAttribute(ctrl_target,
                                     jack_channel,
                                     NV_CTRL_GVIO_DETECTED_VIDEO_FORMAT,
                                     &(channel_info->video_format));
     if (ret != NvCtrlSuccess) {
         channel_info->video_format = NV_CTRL_GVIO_VIDEO_FORMAT_NONE;
     }
-    
-    ret = NvCtrlGetDisplayAttribute(ctk_gvi->handle,
+
+    ret = NvCtrlGetDisplayAttribute(ctrl_target,
                                     jack_channel,
                                     NV_CTRL_GVI_DETECTED_CHANNEL_COMPONENT_SAMPLING,
                                     &(channel_info->component_sampling));
@@ -149,24 +150,24 @@ static void query_channel_info(CtkGvi *ctk_gvi, int jack, int channel, ChannelIn
         channel_info->component_sampling =
             NV_CTRL_GVI_COMPONENT_SAMPLING_UNKNOWN;
     }
-    
-    ret = NvCtrlGetDisplayAttribute(ctk_gvi->handle,
+
+    ret = NvCtrlGetDisplayAttribute(ctrl_target,
                                     jack_channel,
                                     NV_CTRL_GVI_DETECTED_CHANNEL_COLOR_SPACE,
                                     &(channel_info->color_space));
     if (ret != NvCtrlSuccess) {
         channel_info->color_space = NV_CTRL_GVI_COLOR_SPACE_UNKNOWN;
     }
-    
-    ret = NvCtrlGetDisplayAttribute(ctk_gvi->handle,
+
+    ret = NvCtrlGetDisplayAttribute(ctrl_target,
                                     jack_channel,
                                     NV_CTRL_GVI_DETECTED_CHANNEL_BITS_PER_COMPONENT,
                                     &(channel_info->bpc));
     if (ret != NvCtrlSuccess) {
         channel_info->bpc = NV_CTRL_GVI_BITS_PER_COMPONENT_UNKNOWN;
     }
-    
-    ret = NvCtrlGetDisplayAttribute(ctk_gvi->handle,
+
+    ret = NvCtrlGetDisplayAttribute(ctrl_target,
                                     jack_channel,
                                     NV_CTRL_GVI_DETECTED_CHANNEL_LINK_ID,
                                     &(channel_info->link_id));
@@ -174,7 +175,7 @@ static void query_channel_info(CtkGvi *ctk_gvi, int jack, int channel, ChannelIn
         channel_info->link_id = NV_CTRL_GVI_LINK_ID_UNKNOWN;
     }
 
-    ret = NvCtrlGetDisplayAttribute(ctk_gvi->handle,
+    ret = NvCtrlGetDisplayAttribute(ctrl_target,
                                     jack_channel,
                                     NV_CTRL_GVI_DETECTED_CHANNEL_SMPTE352_IDENTIFIER,
                                     &(channel_info->smpte352_id));
@@ -479,32 +480,40 @@ static void show_detailed_info_button_toggled(GtkWidget *button,
     update_sdi_input_info(ctk_gvi);
 }
 
-static gchar* gpu_name_string(gint gpu, CtrlHandles *handle)
+static gchar* gpu_name_string(gint gpu_id, CtrlSystem *system)
 {
     gchar *gpu_name;
+    CtrlTarget *ctrl_target;
 
-    if ((gpu < 0) || (gpu >= handle->targets[GPU_TARGET].n)) {
+    ctrl_target = NvCtrlGetTarget(system, GPU_TARGET, gpu_id);
+
+    if (ctrl_target == NULL) {
         gpu_name = g_strdup_printf("None");
     } else {
-        NvCtrlAttributeHandle *gpu_handle = handle->targets[GPU_TARGET].t[gpu].h;
-        gpu_name = create_gpu_name_string(gpu_handle);
+        gpu_name = create_gpu_name_string(ctrl_target);
     }
+
     return gpu_name;
 }
 
-static void bound_gpu_changed(GObject *object, gpointer arg1,
+static void bound_gpu_changed(GObject *object,
+                              CtrlEvent *event,
                               gpointer user_data)
 {
     CtkGvi *ctk_gvi = (CtkGvi *) user_data;
-    CtkEventStruct *event_struct = (CtkEventStruct *) arg1;
     gchar *gpu_name;
 
-    gpu_name = gpu_name_string(event_struct->value, ctk_gvi->ctk_config->pCtrlHandles);
-    
+    if (event->type != CTRL_EVENT_TYPE_INTEGER_ATTRIBUTE) {
+        return;
+    }
+
+    gpu_name = gpu_name_string(event->int_attr.value,
+                               ctk_gvi->ctk_config->pCtrlSystem);
+
     gtk_label_set_label(GTK_LABEL(ctk_gvi->gpu_name), gpu_name);
 }
 
-GtkWidget* ctk_gvi_new(NvCtrlAttributeHandle *handle,
+GtkWidget* ctk_gvi_new(CtrlTarget *ctrl_target,
                        CtkConfig *ctk_config,
                        CtkEvent *ctk_event)
 {
@@ -517,18 +526,19 @@ GtkWidget* ctk_gvi_new(NvCtrlAttributeHandle *handle,
     ReturnStatus ret;
     gchar *firmware_version; 
     gchar *s;
-    
-    /* make sure we have a handle */
 
-    g_return_val_if_fail(handle != NULL, NULL);
+    /* make sure we have a target */
+
+    g_return_val_if_fail((ctrl_target != NULL) &&
+                         (ctrl_target->h != NULL), NULL);
 
     /*
      * get the static data that we will display below
      */
 
     /* Firmware Version */
-    
-    ret = NvCtrlGetStringAttribute(handle,
+
+    ret = NvCtrlGetStringAttribute(ctrl_target,
                                    NV_CTRL_STRING_GVIO_FIRMWARE_VERSION,
                                    &firmware_version);
     if (ret != NvCtrlSuccess) {
@@ -537,43 +547,43 @@ GtkWidget* ctk_gvi_new(NvCtrlAttributeHandle *handle,
 
     /* Get Bus related information */
 
-    get_bus_type_str(handle, &bus);
-    pci_bus_id = get_bus_id_str(handle);
+    get_bus_type_str(ctrl_target, &bus);
+    pci_bus_id = get_bus_id_str(ctrl_target);
 
     /* NV_CTRL_IRQ */
 
-    ret = NvCtrlGetAttribute(handle, NV_CTRL_IRQ, &tmp);
+    ret = NvCtrlGetAttribute(ctrl_target, NV_CTRL_IRQ, &tmp);
     if (ret != NvCtrlSuccess) {
         irq = NULL;
     } else {
         irq = g_strdup_printf("%d", tmp);
     }
-   
+
     /* NV_CTRL_GVI_BOUND_GPU */
 
-    ret = NvCtrlGetAttribute(handle, NV_CTRL_GVI_BOUND_GPU, &tmp);
+    ret = NvCtrlGetAttribute(ctrl_target, NV_CTRL_GVI_BOUND_GPU, &tmp);
     if (ret != NvCtrlSuccess) {
         tmp = -1;
     }
-    gpu_name = gpu_name_string(tmp, ctk_config->pCtrlHandles);
+    gpu_name = gpu_name_string(tmp, ctk_config->pCtrlSystem);
 
     /* create the CtkGvi object */
 
     object = g_object_new(CTK_TYPE_GVI, NULL);
-    
+
     ctk_gvi = CTK_GVI(object);
-    ctk_gvi->handle = handle;
+    ctk_gvi->ctrl_target = ctrl_target;
     ctk_gvi->ctk_config = ctk_config;
 
     /* Query static GVI properties */
 
-    ret = NvCtrlGetAttribute(handle, NV_CTRL_GVI_NUM_JACKS,
+    ret = NvCtrlGetAttribute(ctrl_target, NV_CTRL_GVI_NUM_JACKS,
                              &(ctk_gvi->num_jacks));
     if (ret != NvCtrlSuccess) {
         ctk_gvi->num_jacks = 0;
     }
 
-    ret = NvCtrlGetAttribute(handle, NV_CTRL_GVI_MAX_CHANNELS_PER_JACK,
+    ret = NvCtrlGetAttribute(ctrl_target, NV_CTRL_GVI_MAX_CHANNELS_PER_JACK,
                              &(ctk_gvi->max_channels_per_jack));
     if (ret != NvCtrlSuccess) {
         ctk_gvi->max_channels_per_jack = 0;
@@ -674,7 +684,7 @@ GtkWidget* ctk_gvi_new(NvCtrlAttributeHandle *handle,
     
     /* Register a timer callback to update the video format info */
     s = g_strdup_printf("Graphics Video In (GVI %d)",
-                        NvCtrlGetTargetId(handle));
+                        NvCtrlGetTargetId(ctrl_target));
 
     ctk_config_add_timer(ctk_gvi->ctk_config,
                          DEFAULT_UPDATE_VIDEO_FORMAT_INFO_TIME_INTERVAL,

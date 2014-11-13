@@ -57,6 +57,14 @@ void ctk_adjustment_set_lower(GtkAdjustment *a, gdouble x);
 
 GtkWidget *ctk_scrolled_window_get_vscrollbar(GtkScrolledWindow *sw);
 GtkWidget *ctk_statusbar_get_message_area(GtkStatusbar *statusbar);
+void ctk_cell_renderer_set_alignment(GtkCellRenderer *widget,
+                                     gfloat x, gfloat y);
+
+GtkWidget *ctk_file_chooser_dialog_new(const gchar *title, GtkWindow *parent,
+                                       GtkFileChooserAction action);
+void ctk_file_chooser_set_filename(GtkWidget *widget, const gchar *filename);
+gchar *ctk_file_chooser_get_filename(GtkWidget *widget);
+void ctk_file_chooser_set_extra_widget(GtkWidget *widget, GtkWidget *extra);
 
 GtkWidget *ctk_combo_box_text_new(void);
 GtkWidget *ctk_combo_box_text_new_with_entry(void);
@@ -66,17 +74,17 @@ void ctk_g_object_ref_sink(gpointer obj);
 
 /* end of GTK 2/3 util functions */
 
-gchar *get_pcie_generation_string(NvCtrlAttributeHandle *handle);
+gchar *get_pcie_generation_string(CtrlTarget *ctrl_target);
 
-gchar *get_pcie_link_width_string(NvCtrlAttributeHandle *handle,
-                                  gint attribute);
+gchar *get_pcie_link_width_string(CtrlTarget *ctrl_target, gint attribute);
 
-gchar *get_pcie_link_speed_string(NvCtrlAttributeHandle *handle,
-                                  gint attribute);
+gchar *get_pcie_link_speed_string(CtrlTarget *ctrl_target, gint attribute);
 
-gchar* create_gpu_name_string(NvCtrlAttributeHandle *gpu_handle);
+gchar *get_nvidia_driver_version(CtrlTarget *ctrl_target);
 
-gchar* create_display_name_list_string(NvCtrlAttributeHandle *handle,
+gchar* create_gpu_name_string(CtrlTarget *ctrl_target);
+
+gchar* create_display_name_list_string(CtrlTarget *ctrl_target,
                                        unsigned int attr);
 
 GtkWidget *add_table_row_with_help_text(GtkWidget *table,
@@ -105,7 +113,7 @@ void ctk_display_warning_msg(GtkWidget *parent, gchar *msg);
 
 void ctk_empty_container(GtkWidget *);
 
-void update_display_enabled_flag(NvCtrlAttributeHandle *handle,
+void update_display_enabled_flag(CtrlTarget *ctrl_target,
                                  gboolean *display_enabled);
 
 gboolean ctk_check_min_gtk_version(guint required_major,
@@ -113,6 +121,10 @@ gboolean ctk_check_min_gtk_version(guint required_major,
                                    guint required_micro);
 
 void ctk_force_text_colors_on_widget(GtkWidget *widget);
+
+gchar *ctk_get_filename_from_dialog(const gchar* title,
+                                    GtkWindow *parent,
+                                    const gchar* initial_filename);
 
 G_END_DECLS
 

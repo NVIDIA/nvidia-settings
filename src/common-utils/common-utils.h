@@ -62,10 +62,15 @@ int nv_get_file_length(const char *filename);
 void nv_set_file_length(const char *filename, int fd, int len);
 void *nv_mmap(const char *filename, size_t len, int prot, int flags, int fd);
 char *nv_basename(const char *path);
+int nv_mkdir_recursive(const char *path, const mode_t mode,
+                       char **error_str, char **log_str);
 
 char *nv_trim_space(char *string);
 char *nv_trim_char(char *string, char trim);
 char *nv_trim_char_strict(char *string, char trim);
+void remove_trailing_slashes(char *string);
+
+int directory_exists(const char *dir);
 
 #if defined(__GNUC__)
 # define NV_INLINE __inline__

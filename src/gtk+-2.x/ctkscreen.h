@@ -22,7 +22,7 @@
 
 #include <gtk/gtk.h>
 
-#include "NvCtrlAttributes.h"
+#include "query-assign.h"
 #include "ctkevent.h"
 
 G_BEGIN_DECLS
@@ -52,7 +52,7 @@ struct _CtkScreen
 {
     GtkVBox parent;
 
-    NvCtrlAttributeHandle *handle;
+    CtrlTarget *ctrl_target;
 
     GtkWidget *dimensions;
     GtkWidget *displays;
@@ -67,8 +67,7 @@ struct _CtkScreenClass
 };
 
 GType       ctk_screen_get_type (void) G_GNUC_CONST;
-GtkWidget*  ctk_screen_new      (NvCtrlAttributeHandle *handle,
-                                 CtkEvent *ctk_event);
+GtkWidget*  ctk_screen_new      (CtrlTarget *ctrl_target, CtkEvent *ctk_event);
 
 GtkTextBuffer *ctk_screen_create_help(GtkTextTagTable *, CtkScreen *,
                                       const gchar *);

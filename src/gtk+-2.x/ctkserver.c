@@ -96,10 +96,10 @@ in this Software without prior written authorization from The Open Group.
  ***********************************************************************
  *
  */
-static gchar * get_server_vendor_version(NvCtrlAttributeHandle *handle)
+static gchar * get_server_vendor_version(CtrlTarget *ctrl_target)
 {
-    int vendrel = NvCtrlGetVendorRelease(handle);
-    char *vendstr = NvCtrlGetServerVendor(handle);
+    int vendrel = NvCtrlGetVendorRelease(ctrl_target);
+    char *vendstr = NvCtrlGetServerVendor(ctrl_target);
     gchar *version = NULL;
     gchar *tmp;
 
@@ -235,7 +235,7 @@ static gchar * get_server_vendor_version(NvCtrlAttributeHandle *handle)
  * CTK Server widget creation
  *
  */
-GtkWidget* ctk_server_new(NvCtrlAttributeHandle *handle,
+GtkWidget* ctk_server_new(CtrlTarget *ctrl_target,
                           CtkConfig *ctk_config)
 {
     GObject *object;
@@ -251,7 +251,7 @@ GtkWidget* ctk_server_new(NvCtrlAttributeHandle *handle,
     gchar *arch;
     gchar *driver_version;
 
-    gchar *dname = NvCtrlGetDisplayName(handle);
+    gchar *dname = NvCtrlGetDisplayName(ctrl_target);
     gchar *display_name;
     gchar *server_version;
     gchar *vendor_str;
@@ -267,10 +267,11 @@ GtkWidget* ctk_server_new(NvCtrlAttributeHandle *handle,
      * get the data that we will display below
      *
      */
-    
+
     /* NV_CTRL_XINERAMA */
 
-    ret = NvCtrlGetAttribute(handle, NV_CTRL_XINERAMA, &xinerama_enabled);
+    ret = NvCtrlGetAttribute(ctrl_target, NV_CTRL_XINERAMA,
+                             &xinerama_enabled);
     if (ret != NvCtrlSuccess) {
         xinerama_enabled = FALSE;
     }
@@ -278,7 +279,7 @@ GtkWidget* ctk_server_new(NvCtrlAttributeHandle *handle,
     /* NV_CTRL_OPERATING_SYSTEM */
 
     os_val = NV_CTRL_OPERATING_SYSTEM_LINUX;
-    ret = NvCtrlGetAttribute(handle, NV_CTRL_OPERATING_SYSTEM, &os_val);
+    ret = NvCtrlGetAttribute(ctrl_target, NV_CTRL_OPERATING_SYSTEM, &os_val);
     os = NULL;
     if (ret == NvCtrlSuccess) {
         if      (os_val == NV_CTRL_OPERATING_SYSTEM_LINUX) os = "Linux";
@@ -288,8 +289,8 @@ GtkWidget* ctk_server_new(NvCtrlAttributeHandle *handle,
     if (!os) os = "Unknown";
 
     /* NV_CTRL_ARCHITECTURE */
-    
-    ret = NvCtrlGetAttribute(handle, NV_CTRL_ARCHITECTURE, &tmp);
+
+    ret = NvCtrlGetAttribute(ctrl_target, NV_CTRL_ARCHITECTURE, &tmp);
     arch = NULL;
     if (ret == NvCtrlSuccess) {
         if      (tmp == NV_CTRL_ARCHITECTURE_X86) arch = "x86";
@@ -303,10 +304,7 @@ GtkWidget* ctk_server_new(NvCtrlAttributeHandle *handle,
 
     /* NV_CTRL_STRING_NVIDIA_DRIVER_VERSION */
 
-    ret = NvCtrlGetStringAttribute(handle,
-                                   NV_CTRL_STRING_NVIDIA_DRIVER_VERSION,
-                                   &driver_version);
-    if (ret != NvCtrlSuccess) driver_version = NULL;
+    driver_version = get_nvidia_driver_version(ctrl_target);
 
     /* Display Name */
 
@@ -315,42 +313,39 @@ GtkWidget* ctk_server_new(NvCtrlAttributeHandle *handle,
     /* X Server Version */
 
     server_version = g_strdup_printf("%d.%d",
-                                     NvCtrlGetProtocolVersion(handle),
-                                     NvCtrlGetProtocolRevision(handle));
+                                     NvCtrlGetProtocolVersion(ctrl_target),
+                                     NvCtrlGetProtocolRevision(ctrl_target));
 
     /* Server Vendor String */
-    
-    vendor_str = g_strdup(NvCtrlGetServerVendor(handle));
+
+    vendor_str = g_strdup(NvCtrlGetServerVendor(ctrl_target));
 
     /* Server Vendor Version */
 
-    vendor_ver = get_server_vendor_version(handle);
+    vendor_ver = get_server_vendor_version(ctrl_target);
 
     /* NV_CTRL_STRING_NV_CONTROL_VERSION */
 
-    ret = NvCtrlGetStringAttribute(handle,
+    ret = NvCtrlGetStringAttribute(ctrl_target,
                                    NV_CTRL_STRING_NV_CONTROL_VERSION,
                                    &nv_control_server_version);
     if (ret != NvCtrlSuccess) nv_control_server_version = NULL;
-    
+
     /* # Logical X Screens */
-    
+
     if (xinerama_enabled) {
         num_screens = g_strdup_printf("%d (Xinerama)",
-                                      NvCtrlGetScreenCount(handle));
+                                      NvCtrlGetScreenCount(ctrl_target));
     } else {
-        num_screens = g_strdup_printf("%d", NvCtrlGetScreenCount(handle));
+        num_screens = g_strdup_printf("%d",
+                                      NvCtrlGetScreenCount(ctrl_target));
     }
 
-   
+
     /* now, create the object */
-    
+
     object = g_object_new(CTK_TYPE_SERVER, NULL);
     ctk_object = CTK_SERVER(object);
-
-    /* cache the attribute handle */
-
-    ctk_object->handle = handle;
 
     /* set container properties of the object */
 
@@ -469,20 +464,20 @@ GtkWidget* ctk_server_new(NvCtrlAttributeHandle *handle,
         
         gtk_box_pack_start(GTK_BOX(hbox), label, FALSE, FALSE, 0);
     }
-    
+
 
     g_free(display_name);
     g_free(os);
-    XFree(driver_version);
-    
+    free(driver_version);
+
     g_free(server_version);
     g_free(vendor_str);
     g_free(vendor_ver);
-    XFree(nv_control_server_version);
+    free(nv_control_server_version);
     g_free(num_screens);
 
     gtk_widget_show_all(GTK_WIDGET(object));
-    
+
     return GTK_WIDGET(object);
 }
 

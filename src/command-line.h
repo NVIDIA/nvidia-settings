@@ -25,10 +25,11 @@
 /*
  * Forward declaration to break circular dependancy with query-assign.h
  */
-struct _CtrlHandlesArray;
+struct _CtrlSystemList;
 
 #define DEFAULT_RC_FILE "~/.nvidia-settings-rc"
 #define CONFIG_FILE_OPTION 1
+#define DISPLAY_OPTION 2
 
 /*
  * Options structure -- stores the parameters specified on the
@@ -110,10 +111,21 @@ typedef struct {
                           * If true, write out the configuration file on exit.
                           */
 
+    int use_gtk2;        /*
+                          * If true, use GTK+ 2 user interface library
+                          */
+
+    char *gtk_lib_path;  /*
+                          * Path to the user interface library to use or to the
+                          * directory containing the library to use. In the
+                          * former case, the value of the use_gtk2 option is
+                          * ignored.
+                          */
+
 } Options;
 
 
-Options *parse_command_line(int argc, char *argv[], char *dpy, 
-                            struct _CtrlHandlesArray *handles_array);
+Options *parse_command_line(int argc, char *argv[],
+                            struct _CtrlSystemList *systems);
 
 #endif /* __COMMAND_LINE_H__ */

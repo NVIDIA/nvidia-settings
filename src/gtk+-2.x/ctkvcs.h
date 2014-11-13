@@ -73,7 +73,7 @@ typedef struct _CtkVcs
     GtkVBox parent;
 
     CtkConfig *ctk_config;
-    NvCtrlAttributeHandle *handle;
+    CtrlTarget *ctrl_target;
 
     GtkWidget *intake_temp;
     GtkWidget *exhaust_temp;
@@ -96,7 +96,7 @@ typedef struct _CtkVcsClass
 
 
 GType       ctk_vcs_get_type  (void) G_GNUC_CONST;
-GtkWidget*  ctk_vcs_new       (NvCtrlAttributeHandle *, CtkConfig *);
+GtkWidget*  ctk_vcs_new       (CtrlTarget *, CtkConfig *);
 
 GtkTextBuffer *ctk_vcs_create_help(GtkTextTagTable *,
                                     CtkVcs *);

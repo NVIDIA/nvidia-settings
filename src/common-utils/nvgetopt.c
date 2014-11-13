@@ -42,6 +42,7 @@ int nvgetopt(int argc,
     int ret = 0;
     int negate = NVGETOPT_FALSE;
     int disable = NVGETOPT_FALSE;
+    int double_dash = NVGETOPT_FALSE;
     const NVGetoptOption *o = NULL;
     static int argv_index = 0;
 
@@ -65,6 +66,7 @@ int nvgetopt(int argc,
 
     if ((arg[0] == '-') && (arg[1] == '-')) {
         name = arg + 2;
+        double_dash = NVGETOPT_TRUE;
     } else if (arg[0] == '-') {
         name = arg + 1;
     } else {
@@ -80,16 +82,26 @@ int nvgetopt(int argc,
 
     c = name;
     while (*c) {
-        if (*c == '=') { argument = c + 1; *c = '\0'; break; }
+        if (*c == '=') {
+            argument = c + 1;
+            *c = '\0';
+            break;
+        }
         c++;
     }
 
     /*
+     * if there is no character after '--' then stop processing options.
      * if the string is terminated after one character, interpret it
      * as a short option.  Otherwise, interpret it as a long option.
      */
 
-    if (name[1] == '\0') { /* short option */
+    if (name[0] == '\0') {
+        if (double_dash && argument == NULL) { /* option list terminator */
+            ret = -1;
+            goto done;
+        }
+    } else if (name[1] == '\0') { /* short option */
         for (i = 0; options[i].name; i++) {
             if (options[i].val == name[0]) {
                 o = &options[i];

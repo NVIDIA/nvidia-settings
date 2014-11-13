@@ -92,7 +92,7 @@ apply_parsed_attribute_list(CtkColorCorrection *, ParsedAttribute *);
 static gboolean
 do_confirm_countdown (gpointer);
 
-static void callback_palette_update(GObject *object, gpointer arg1,
+static void callback_palette_update(GObject *object, CtrlEvent *event,
                                     gpointer user_data);
 
 static void
@@ -183,6 +183,7 @@ ctk_color_correction_class_init(CtkColorCorrectionClass
 static void ctk_color_correction_finalize(GObject *object)
 {
     CtkColorCorrection *ctk_color_correction = CTK_COLOR_CORRECTION(object);
+    CtrlTarget *ctrl_target = ctk_color_correction->ctrl_target;
 
     if (ctk_color_correction->confirm_timer) {
         /*
@@ -214,7 +215,7 @@ static void ctk_color_correction_finalize(GObject *object)
             }
         }
 
-        NvCtrlSetColorAttributes(ctk_color_correction->handle,
+        NvCtrlSetColorAttributes(ctrl_target,
                                  ctk_color_correction->cur_slider_val[CONTRAST],
                                  ctk_color_correction->cur_slider_val[BRIGHTNESS],
                                  ctk_color_correction->cur_slider_val[GAMMA],
@@ -234,8 +235,9 @@ static void ctk_color_correction_finalize(GObject *object)
 
 
 
-GtkWidget* ctk_color_correction_new(NvCtrlAttributeHandle *handle,
-                                    CtkConfig *ctk_config, ParsedAttribute *p,
+GtkWidget* ctk_color_correction_new(CtrlTarget *ctrl_target,
+                                    CtkConfig *ctk_config,
+                                    ParsedAttribute *p,
                                     CtkEvent *ctk_event)
 {
     GObject *object;
@@ -265,7 +267,7 @@ GtkWidget* ctk_color_correction_new(NvCtrlAttributeHandle *handle,
     object = g_object_new(CTK_TYPE_COLOR_CORRECTION, NULL);
 
     ctk_color_correction = CTK_COLOR_CORRECTION(object);
-    ctk_color_correction->handle = handle;
+    ctk_color_correction->ctrl_target = ctrl_target;
     ctk_color_correction->ctk_config = ctk_config;
     ctk_color_correction->ctk_event = ctk_event;
     ctk_color_correction->confirm_timer = 0;
@@ -362,7 +364,7 @@ GtkWidget* ctk_color_correction_new(NvCtrlAttributeHandle *handle,
     alignment = gtk_alignment_new(0, 0, 1.0, 1.0);
     gtk_box_pack_start(GTK_BOX(leftvbox), alignment, TRUE, TRUE, 0);
 
-    curve = ctk_curve_new(handle, GTK_WIDGET(ctk_color_correction));
+    curve = ctk_curve_new(ctrl_target, GTK_WIDGET(ctk_color_correction));
     eventbox = gtk_event_box_new();
     gtk_container_add(GTK_CONTAINER(eventbox), curve);
     gtk_container_add(GTK_CONTAINER(alignment), eventbox);
@@ -909,14 +911,14 @@ static void flush_attribute_channel_values(
     gint channel
 )
 {
-    NvCtrlAttributeHandle *handle = ctk_color_correction->handle;
-    
-    NvCtrlSetColorAttributes(handle,
+    CtrlTarget *ctrl_target = ctk_color_correction->ctrl_target;
+
+    NvCtrlSetColorAttributes(ctrl_target,
                              ctk_color_correction->cur_slider_val[CONTRAST],
                              ctk_color_correction->cur_slider_val[BRIGHTNESS],
                              ctk_color_correction->cur_slider_val[GAMMA],
                              attribute | channel);
-    
+
     gtk_widget_hide(ctk_color_correction->warning_container);
 
     g_signal_emit(ctk_color_correction, signals[CHANGED], 0);
@@ -928,10 +930,12 @@ static void apply_parsed_attribute_list(
     ParsedAttribute *p
 )
 {
+    CtrlTarget *ctrl_target = ctk_color_correction->ctrl_target;
     int target_type, target_id;
     unsigned int attr = 0;
+
     ctk_color_correction->num_expected_updates = 0;
-    
+
     set_color_state(ctk_color_correction, CONTRAST, ALL_CHANNELS,
                     CONTRAST_DEFAULT, TRUE);
     set_color_state(ctk_color_correction, BRIGHTNESS, ALL_CHANNELS,
@@ -939,21 +943,21 @@ static void apply_parsed_attribute_list(
     set_color_state(ctk_color_correction, GAMMA, ALL_CHANNELS,
                     GAMMA_DEFAULT, TRUE);
 
-    target_type = NvCtrlGetTargetType(ctk_color_correction->handle);
-    target_id = NvCtrlGetTargetId(ctk_color_correction->handle);
+    target_type = NvCtrlGetTargetType(ctrl_target);
+    target_id = NvCtrlGetTargetId(ctrl_target);
 
     while (p) {
-        CtrlHandleTargetNode *node;
+        CtrlTargetNode *node;
         const AttributeTableEntry *a = p->attr_entry;
 
         if (!p->next) goto next_attribute;
 
-        if (a->type != NV_PARSER_ATTRIBUTE_TYPE_COLOR) {
+        if (a->type != CTRL_ATTRIBUTE_TYPE_COLOR) {
             if (a->attr == NV_CTRL_COLOR_SPACE ||
                 a->attr == NV_CTRL_COLOR_RANGE) {
                 for (node = p->targets; node ; node = node->next) {
-                    int attr_target_type = NvCtrlGetTargetType(node->t->h);
-                    int attr_target_id = NvCtrlGetTargetId(node->t->h);
+                    int attr_target_type = NvCtrlGetTargetType(node->t);
+                    int attr_target_id = NvCtrlGetTargetId(node->t);
 
                     if ((attr_target_type == target_type) &&
                         (attr_target_id == target_id)) {
@@ -972,8 +976,8 @@ static void apply_parsed_attribute_list(
 
         for (node = p->targets; node; node = node->next) {
 
-            int attr_target_type = NvCtrlGetTargetType(node->t->h);
-            int attr_target_id = NvCtrlGetTargetId(node->t->h);
+            int attr_target_type = NvCtrlGetTargetType(node->t);
+            int attr_target_id = NvCtrlGetTargetId(node->t);
 
             if ((attr_target_type != target_type) ||
                 (attr_target_id != target_id)) {
@@ -1057,7 +1061,7 @@ static void apply_parsed_attribute_list(
 
         ctk_color_correction->num_expected_updates++;
 
-        NvCtrlSetColorAttributes(ctk_color_correction->handle,
+        NvCtrlSetColorAttributes(ctrl_target,
                                  ctk_color_correction->cur_slider_val[CONTRAST],
                                  ctk_color_correction->cur_slider_val[BRIGHTNESS],
                                  ctk_color_correction->cur_slider_val[GAMMA],
@@ -1209,11 +1213,13 @@ void ctk_color_correction_tab_help(GtkTextBuffer *b, GtkTextIter *i,
 }
 
 
-static void callback_palette_update(GObject *object, gpointer arg1,
+static void callback_palette_update(GObject *object,
+                                    CtrlEvent *event,
                                     gpointer user_data)
 {
     gboolean reload_needed;
     CtkColorCorrection *ctk_color_correction = (CtkColorCorrection *)user_data;
+    CtrlTarget *ctrl_target = ctk_color_correction->ctrl_target;
 
     reload_needed = (ctk_color_correction->num_expected_updates <= 0);
 
@@ -1222,7 +1228,7 @@ static void callback_palette_update(GObject *object, gpointer arg1,
     }
 
     if (reload_needed) {
-        NvCtrlReloadColorRamp(ctk_color_correction->handle);
+        NvCtrlReloadColorRamp(ctrl_target);
 
         ctk_curve_color_changed(ctk_color_correction->curve);
         gtk_widget_set_sensitive(ctk_color_correction->reset_button, TRUE);

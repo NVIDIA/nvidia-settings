@@ -65,7 +65,7 @@ static void dithering_mode_menu_changed(GtkWidget *dithering_mode_menu,
 static void dithering_config_menu_changed(GtkWidget *dithering_config_menu,
                                           gpointer user_data);
 
-static void dithering_update_received(GObject *object, gpointer arg1,
+static void dithering_update_received(GObject *object, CtrlEvent *event,
                                       gpointer user_data);
 
 static
@@ -151,7 +151,7 @@ static void ctk_dither_controls_finalize(GObject *object)
                                          (gpointer) ctk_object);
 }
 
-GtkWidget* ctk_dithering_controls_new(NvCtrlAttributeHandle *handle,
+GtkWidget* ctk_dithering_controls_new(CtrlTarget *ctrl_target,
                                       CtkConfig *ctk_config,
                                       CtkEvent *ctk_event,
                                       GtkWidget *reset_button,
@@ -166,7 +166,7 @@ GtkWidget* ctk_dithering_controls_new(NvCtrlAttributeHandle *handle,
     int tmp;
 
     /* test that dithering is available before creating the widget */
-    ret = NvCtrlGetAttribute(handle, NV_CTRL_DITHERING, &tmp);
+    ret = NvCtrlGetAttribute(ctrl_target, NV_CTRL_DITHERING, &tmp);
     if (ret != NvCtrlSuccess) {
         return NULL;
     }
@@ -178,7 +178,7 @@ GtkWidget* ctk_dithering_controls_new(NvCtrlAttributeHandle *handle,
     }
 
     ctk_dithering_controls = CTK_DITHERING_CONTROLS(object);
-    ctk_dithering_controls->handle = handle;
+    ctk_dithering_controls->ctrl_target = ctrl_target;
     ctk_dithering_controls->ctk_event = ctk_event;
     ctk_dithering_controls->ctk_config = ctk_config;
     ctk_dithering_controls->reset_button = reset_button;
@@ -455,6 +455,7 @@ static void setup_reset_button(CtkDitheringControls *ctk_dithering_controls)
 static void
 setup_dithering_depth_menu(CtkDitheringControls *ctk_dithering_controls)
 {
+    CtrlTarget *ctrl_target = ctk_dithering_controls->ctrl_target;
     CtkDropDownMenu *dithering_depth_menu;
     gint val;
     ReturnStatus ret;
@@ -462,8 +463,7 @@ setup_dithering_depth_menu(CtkDitheringControls *ctk_dithering_controls)
         CTK_DROP_DOWN_MENU(ctk_dithering_controls->dithering_depth_menu);
 
     /* dithering depth */
-    ret = NvCtrlGetAttribute(ctk_dithering_controls->handle,
-                             NV_CTRL_DITHERING_DEPTH, &val);
+    ret = NvCtrlGetAttribute(ctrl_target, NV_CTRL_DITHERING_DEPTH, &val);
     if (ret != NvCtrlSuccess) {
         val = NV_CTRL_DITHERING_DEPTH_AUTO;
     }
@@ -486,6 +486,7 @@ setup_dithering_depth_menu(CtkDitheringControls *ctk_dithering_controls)
 static void
 setup_dithering_mode_menu(CtkDitheringControls *ctk_dithering_controls)
 {
+    CtrlTarget *ctrl_target = ctk_dithering_controls->ctrl_target;
     CtkDropDownMenu *dithering_mode_menu;
     gint val, i;
     ReturnStatus ret;
@@ -523,8 +524,7 @@ setup_dithering_mode_menu(CtkDitheringControls *ctk_dithering_controls)
     }
 
     /* dithering mode */
-    ret = NvCtrlGetAttribute(ctk_dithering_controls->handle,
-                             NV_CTRL_DITHERING_MODE, &val);
+    ret = NvCtrlGetAttribute(ctrl_target, NV_CTRL_DITHERING_MODE, &val);
     if (ret != NvCtrlSuccess) {
         val = NV_CTRL_DITHERING_MODE_AUTO;
     }
@@ -545,6 +545,7 @@ setup_dithering_mode_menu(CtkDitheringControls *ctk_dithering_controls)
 static void
 setup_dithering_config_menu(CtkDitheringControls *ctk_dithering_controls)
 {
+    CtrlTarget *ctrl_target = ctk_dithering_controls->ctrl_target;
     CtkDropDownMenu *dithering_config_menu;
     gint val;
     dithering_config_menu =
@@ -552,7 +553,7 @@ setup_dithering_config_menu(CtkDitheringControls *ctk_dithering_controls)
 
     /* dithering */
     if (NvCtrlSuccess !=
-        NvCtrlGetAttribute(ctk_dithering_controls->handle,
+        NvCtrlGetAttribute(ctrl_target,
                            NV_CTRL_DITHERING, &val)) {
         val = NV_CTRL_DITHERING_AUTO;
         return;
@@ -614,11 +615,11 @@ static Bool update_dithering_info(gpointer user_data)
 {
     CtkDitheringControls *ctk_dithering_controls =
         CTK_DITHERING_CONTROLS(user_data);
+    CtrlTarget *ctrl_target = ctk_dithering_controls->ctrl_target;
     ReturnStatus ret;
     gint val;
 
-    ret = NvCtrlGetAttribute(ctk_dithering_controls->handle,
-                             NV_CTRL_DITHERING, &val);
+    ret = NvCtrlGetAttribute(ctrl_target, NV_CTRL_DITHERING, &val);
     if (ret != NvCtrlSuccess) {
         /* Dithering is not currently available */
         return FALSE;
@@ -638,8 +639,7 @@ static Bool update_dithering_info(gpointer user_data)
     }
 
     /* current dithering */
-    ret = NvCtrlGetAttribute(ctk_dithering_controls->handle,
-                             NV_CTRL_CURRENT_DITHERING, &val);
+    ret = NvCtrlGetAttribute(ctrl_target, NV_CTRL_CURRENT_DITHERING, &val);
     if (ret != NvCtrlSuccess) {
         val = NV_CTRL_CURRENT_DITHERING_DISABLED;
     }
@@ -653,8 +653,8 @@ static Bool update_dithering_info(gpointer user_data)
     }
 
     /* current dithering mode */
-    ret = NvCtrlGetAttribute(ctk_dithering_controls->handle,
-                             NV_CTRL_CURRENT_DITHERING_MODE, &val);
+    ret = NvCtrlGetAttribute(ctrl_target, NV_CTRL_CURRENT_DITHERING_MODE,
+                             &val);
     if (ret != NvCtrlSuccess) {
         val = NV_CTRL_CURRENT_DITHERING_MODE_NONE;
     }
@@ -679,8 +679,8 @@ static Bool update_dithering_info(gpointer user_data)
         break;
     }
     /* current dithering depth */
-    ret = NvCtrlGetAttribute(ctk_dithering_controls->handle,
-                             NV_CTRL_CURRENT_DITHERING_DEPTH, &val);
+    ret = NvCtrlGetAttribute(ctrl_target, NV_CTRL_CURRENT_DITHERING_DEPTH,
+                             &val);
     if (ret != NvCtrlSuccess) {
         val = NV_CTRL_CURRENT_DITHERING_DEPTH_NONE;
     }
@@ -777,6 +777,7 @@ static void dithering_config_menu_changed(GtkWidget *dithering_config_menu,
 {
     CtkDitheringControls *ctk_dithering_controls =
         CTK_DITHERING_CONTROLS(user_data);
+    CtrlTarget *ctrl_target = ctk_dithering_controls->ctrl_target;
     CtkDropDownMenu *menu = CTK_DROP_DOWN_MENU(dithering_config_menu);
     gint history, dithering_config = NV_CTRL_DITHERING_AUTO;
 
@@ -784,9 +785,7 @@ static void dithering_config_menu_changed(GtkWidget *dithering_config_menu,
 
     dithering_config = map_dithering_config_menu_idx_to_nvctrl(history);
 
-    NvCtrlSetAttribute(ctk_dithering_controls->handle,
-                       NV_CTRL_DITHERING,
-                       dithering_config);
+    NvCtrlSetAttribute(ctrl_target, NV_CTRL_DITHERING, dithering_config);
 
     /* reflecting the change in configuration to other widgets & reset button */
     setup_dithering_info(ctk_dithering_controls);
@@ -800,6 +799,7 @@ static void dithering_mode_menu_changed(GtkWidget *dithering_mode_menu,
 {
     CtkDitheringControls *ctk_dithering_controls =
         CTK_DITHERING_CONTROLS(user_data);
+    CtrlTarget *ctrl_target = ctk_dithering_controls->ctrl_target;
     CtkDropDownMenu *menu = CTK_DROP_DOWN_MENU(dithering_mode_menu);
     gint history, dithering_mode = NV_CTRL_DITHERING_MODE_AUTO;
 
@@ -807,9 +807,7 @@ static void dithering_mode_menu_changed(GtkWidget *dithering_mode_menu,
 
     dithering_mode = ctk_dithering_controls->dithering_mode_table[history];
 
-    NvCtrlSetAttribute(ctk_dithering_controls->handle,
-                       NV_CTRL_DITHERING_MODE,
-                       dithering_mode);
+    NvCtrlSetAttribute(ctrl_target, NV_CTRL_DITHERING_MODE, dithering_mode);
 
     dithering_mode = map_nvctrl_value_to_table(ctk_dithering_controls,
                                                dithering_mode);
@@ -824,6 +822,7 @@ static void dithering_depth_menu_changed(GtkWidget *dithering_depth_menu,
 {
     CtkDitheringControls *ctk_dithering_controls =
         CTK_DITHERING_CONTROLS(user_data);
+    CtrlTarget *ctrl_target = ctk_dithering_controls->ctrl_target;
     CtkDropDownMenu *menu = CTK_DROP_DOWN_MENU(dithering_depth_menu);
     gint history, dithering_depth = NV_CTRL_DITHERING_DEPTH_AUTO;
 
@@ -831,8 +830,7 @@ static void dithering_depth_menu_changed(GtkWidget *dithering_depth_menu,
 
     dithering_depth = map_dithering_depth_menu_idx_to_nvctrl(history);
 
-    NvCtrlSetAttribute(ctk_dithering_controls->handle,
-                       NV_CTRL_DITHERING_DEPTH,
+    NvCtrlSetAttribute(ctrl_target, NV_CTRL_DITHERING_DEPTH,
                        dithering_depth);
 
     /* reflecting the change in configuration to other widgets & reset button */
@@ -848,19 +846,23 @@ static void dithering_depth_menu_changed(GtkWidget *dithering_depth_menu,
  */
 void ctk_dithering_controls_reset(CtkDitheringControls *ctk_dithering_controls)
 {
+    CtrlTarget *ctrl_target;
+
     if (!ctk_dithering_controls) {
         return;
     }
 
-    NvCtrlSetAttribute(ctk_dithering_controls->handle,
+    ctrl_target = ctk_dithering_controls->ctrl_target;
+
+    NvCtrlSetAttribute(ctrl_target,
                        NV_CTRL_DITHERING,
                        NV_CTRL_DITHERING_AUTO);
 
-    NvCtrlSetAttribute(ctk_dithering_controls->handle,
+    NvCtrlSetAttribute(ctrl_target,
                        NV_CTRL_DITHERING_MODE,
                        NV_CTRL_DITHERING_MODE_AUTO);
 
-    NvCtrlSetAttribute(ctk_dithering_controls->handle,
+    NvCtrlSetAttribute(ctrl_target,
                        NV_CTRL_DITHERING_DEPTH,
                        NV_CTRL_DITHERING_DEPTH_AUTO);
 
@@ -897,22 +899,29 @@ void add_dithering_controls_help(CtkDitheringControls *ctk_dithering_controls,
  * When dithering configuration is enabled/disabled,
  * we should update the GUI to reflect the current state & mode.
  */
-static void dithering_update_received(GObject *object, gpointer arg1,
+static void dithering_update_received(GObject *object,
+                                      CtrlEvent *event,
                                       gpointer user_data)
 {
     CtkDitheringControls *ctk_object = CTK_DITHERING_CONTROLS(user_data);
-    CtkEventStruct *event_struct = (CtkEventStruct *) arg1;
+
+    if (event->type != CTRL_EVENT_TYPE_INTEGER_ATTRIBUTE) {
+        return;
+    }
 
     ctk_dithering_controls_setup(ctk_object);
 
     /* update status bar message */
-    switch (event_struct->attribute) {
+    switch (event->int_attr.attribute) {
     case NV_CTRL_DITHERING:
-        post_dithering_config_update(ctk_object, event_struct->value); break;
+        post_dithering_config_update(ctk_object, event->int_attr.value);
+        break;
     case NV_CTRL_DITHERING_MODE:
-        post_dithering_mode_update(ctk_object, event_struct->value); break;
+        post_dithering_mode_update(ctk_object, event->int_attr.value);
+        break;
     case NV_CTRL_DITHERING_DEPTH:
-        post_dithering_depth_update(ctk_object, event_struct->value); break;
+        post_dithering_depth_update(ctk_object, event->int_attr.value);
+        break;
     }
 } /* dithering_update_received()  */
 
@@ -923,6 +932,7 @@ static void dithering_update_received(GObject *object, gpointer arg1,
  */
 static gboolean build_dithering_mode_table(CtkDitheringControls *ctk_dithering_controls)
 {
+    CtrlTarget *ctrl_target = ctk_dithering_controls->ctrl_target;
     ReturnStatus ret;
     NVCTRLAttributeValidValuesRec valid;
     gint i, n = 0, num_of_modes = 0, mask;
@@ -934,7 +944,7 @@ static gboolean build_dithering_mode_table(CtkDitheringControls *ctk_dithering_c
     }
 
     ret =
-        NvCtrlGetValidAttributeValues(ctk_dithering_controls->handle,
+        NvCtrlGetValidAttributeValues(ctrl_target,
                                       NV_CTRL_DITHERING_MODE,
                                       &valid);
 

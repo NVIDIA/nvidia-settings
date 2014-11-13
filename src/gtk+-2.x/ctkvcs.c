@@ -125,17 +125,18 @@ static gboolean update_vcs_info(gpointer user_data)
     char *temp_str = NULL;
     char *psu_str = NULL;
     CtkVcs *ctk_object = CTK_VCS(user_data);
+    CtrlTarget *ctrl_target = ctk_object->ctrl_target;
     ThermalEntry thermEntry;
-    PSUEntry psuEntry; 
+    PSUEntry psuEntry;
     gboolean high_perf_mode;
 
     /* These queries should always succeed for Canoas 2.0 and above */
-    if ((NvCtrlGetAttribute(ctk_object->handle, NV_CTRL_VCSC_HIGH_PERF_MODE, 
+    if ((NvCtrlGetAttribute(ctrl_target, NV_CTRL_VCSC_HIGH_PERF_MODE,
                             &high_perf_mode) != NvCtrlSuccess) ||
-        (NvCtrlGetStringAttribute(ctk_object->handle,
+        (NvCtrlGetStringAttribute(ctrl_target,
                                   NV_CTRL_STRING_VCSC_TEMPERATURES,
                                    &temp_str) != NvCtrlSuccess) ||
-        (NvCtrlGetStringAttribute(ctk_object->handle,
+        (NvCtrlGetStringAttribute(ctrl_target,
                                   NV_CTRL_STRING_VCSC_PSU_INFO,
                                   &psu_str) != NvCtrlSuccess)) {
             return FALSE;
@@ -274,12 +275,13 @@ static GtkWidget * create_error_dialog(CtkVcs *ctk_object)
 static void vcs_perf_checkbox_toggled(GtkWidget *widget, gpointer user_data)
 {
     CtkVcs *ctk_object = CTK_VCS(user_data);
+    CtrlTarget *ctrl_target = ctk_object->ctrl_target;
     gint enabled;
     gint ret;
 
     enabled = gtk_toggle_button_get_active(GTK_TOGGLE_BUTTON(widget));
 
-    ret = NvCtrlSetAttribute(ctk_object->handle, NV_CTRL_VCSC_HIGH_PERF_MODE, enabled);
+    ret = NvCtrlSetAttribute(ctrl_target, NV_CTRL_VCSC_HIGH_PERF_MODE, enabled);
 
     if (ret != NvCtrlSuccess) {
         if (ctk_object->error_dialog_label) {
@@ -313,6 +315,7 @@ static void vcs_perf_checkbox_toggled(GtkWidget *widget, gpointer user_data)
 
 static gboolean update_fan_status(CtkVcs *ctk_object)
 {
+    CtrlTarget *ctrl_target = ctk_object->ctrl_target;
     gint ret;
     char *fan_entry_str = NULL;
     char *tokens;
@@ -325,7 +328,7 @@ static gboolean update_fan_status(CtkVcs *ctk_object)
     if (!ctk_object->fan_status_container) {
         return FALSE;
     }
-    ret = NvCtrlGetStringAttribute(ctk_object->handle,
+    ret = NvCtrlGetStringAttribute(ctrl_target,
                                    NV_CTRL_STRING_VCSC_FAN_STATUS,
                                    &fan_entry_str);
     if (ret != NvCtrlSuccess) {
@@ -416,7 +419,7 @@ static gboolean update_fan_status(CtkVcs *ctk_object)
         }
     }
     gtk_widget_show_all(table);
-    XFree(fan_entry_str);
+    free(fan_entry_str);
     return TRUE;
 }
 
@@ -425,8 +428,8 @@ static gboolean update_fan_status(CtkVcs *ctk_object)
  * CTK VCS (Visual Computing System) widget creation
  *
  */
-GtkWidget* ctk_vcs_new(NvCtrlAttributeHandle *handle,
-                        CtkConfig *ctk_config)
+GtkWidget* ctk_vcs_new(CtrlTarget *ctrl_target,
+                       CtkConfig *ctk_config)
 {
     GObject *object;
     CtkVcs *ctk_object;
@@ -462,7 +465,7 @@ GtkWidget* ctk_vcs_new(NvCtrlAttributeHandle *handle,
      */
     
     /* Product Name */
-    ret = NvCtrlGetStringAttribute(handle,
+    ret = NvCtrlGetStringAttribute(ctrl_target,
                                    NV_CTRL_STRING_VCSC_PRODUCT_NAME,
                                    &product_name);
     if (ret != NvCtrlSuccess) {
@@ -470,7 +473,7 @@ GtkWidget* ctk_vcs_new(NvCtrlAttributeHandle *handle,
     }
 
     /* Serial Number */
-    ret = NvCtrlGetStringAttribute(handle,
+    ret = NvCtrlGetStringAttribute(ctrl_target,
                                    NV_CTRL_STRING_VCSC_SERIAL_NUMBER,
                                    &serial_number);
     if (ret != NvCtrlSuccess) {
@@ -478,7 +481,7 @@ GtkWidget* ctk_vcs_new(NvCtrlAttributeHandle *handle,
     }
 
     /* Build Date */
-    ret = NvCtrlGetStringAttribute(handle,
+    ret = NvCtrlGetStringAttribute(ctrl_target,
                                    NV_CTRL_STRING_VCSC_BUILD_DATE,
                                    &build_date);
     if (ret != NvCtrlSuccess) {
@@ -486,7 +489,7 @@ GtkWidget* ctk_vcs_new(NvCtrlAttributeHandle *handle,
     }
 
     /* Product ID */
-    ret = NvCtrlGetStringAttribute(handle,
+    ret = NvCtrlGetStringAttribute(ctrl_target,
                                    NV_CTRL_STRING_VCSC_PRODUCT_ID,
                                    &product_id);
     if (ret != NvCtrlSuccess) {
@@ -494,7 +497,7 @@ GtkWidget* ctk_vcs_new(NvCtrlAttributeHandle *handle,
     }
 
     /* Firmware Version */
-    ret = NvCtrlGetStringAttribute(handle,
+    ret = NvCtrlGetStringAttribute(ctrl_target,
                                    NV_CTRL_STRING_VCSC_FIRMWARE_VERSION,
                                    &firmware_version);
     if (ret != NvCtrlSuccess) {
@@ -502,7 +505,7 @@ GtkWidget* ctk_vcs_new(NvCtrlAttributeHandle *handle,
     }
 
     /* Hardware Version */
-    ret = NvCtrlGetStringAttribute(handle,
+    ret = NvCtrlGetStringAttribute(ctrl_target,
                                    NV_CTRL_STRING_VCSC_HARDWARE_VERSION,
                                    &hardware_version);
     if (ret != NvCtrlSuccess) {
@@ -511,13 +514,13 @@ GtkWidget* ctk_vcs_new(NvCtrlAttributeHandle *handle,
 
 
     /* now, create the object */
-    
+
     object = g_object_new(CTK_TYPE_VCS, NULL);
     ctk_object = CTK_VCS(object);
 
-    /* cache the attribute handle */
+    /* cache the target */
 
-    ctk_object->handle = handle;
+    ctk_object->ctrl_target = ctrl_target;
     ctk_object->ctk_config = ctk_config;
 
     /* set container properties of the object */
@@ -540,7 +543,7 @@ GtkWidget* ctk_vcs_new(NvCtrlAttributeHandle *handle,
     /* General purpose error dialog */
     ctk_object->error_dialog = create_error_dialog(ctk_object);
 
-    if (NvCtrlGetAttribute(ctk_object->handle, NV_CTRL_VCSC_HIGH_PERF_MODE,
+    if (NvCtrlGetAttribute(ctrl_target, NV_CTRL_VCSC_HIGH_PERF_MODE,
                             &high_perf_mode) == NvCtrlSuccess) {
 
         hbox = gtk_hbox_new(FALSE, 0);
@@ -607,9 +610,9 @@ GtkWidget* ctk_vcs_new(NvCtrlAttributeHandle *handle,
 
 
     /* Query Canoas 2.0 specific details */
-    if ((NvCtrlGetAttribute(ctk_object->handle, NV_CTRL_VCSC_HIGH_PERF_MODE, 
-                            &high_perf_mode) == NvCtrlSuccess) && 
-        (NvCtrlGetStringAttribute(ctk_object->handle,
+    if ((NvCtrlGetAttribute(ctrl_target, NV_CTRL_VCSC_HIGH_PERF_MODE,
+                            &high_perf_mode) == NvCtrlSuccess) &&
+        (NvCtrlGetStringAttribute(ctrl_target,
                                   NV_CTRL_STRING_VCSC_PSU_INFO,
                                   &psu_str)  == NvCtrlSuccess)) {
         GtkWidget *vbox_padding;
@@ -775,7 +778,7 @@ GtkWidget* ctk_vcs_new(NvCtrlAttributeHandle *handle,
 
         /* Register a timer callback to update the dynamic information */
         s = g_strdup_printf("VCS Monitor (VCS %d)",
-                            NvCtrlGetTargetId(ctk_object->handle));
+                            NvCtrlGetTargetId(ctrl_target));
 
         ctk_config_add_timer(ctk_object->ctk_config,
                              DEFAULT_UPDATE_VCS_INFO_TIME_INTERVAL,
@@ -788,7 +791,7 @@ GtkWidget* ctk_vcs_new(NvCtrlAttributeHandle *handle,
     }
 
     gtk_widget_show_all(GTK_WIDGET(object));
-    
+
     return GTK_WIDGET(object);
 }
 

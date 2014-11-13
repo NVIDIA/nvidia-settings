@@ -23,12 +23,134 @@
 #include <X11/Xlib.h>
 
 #include "NVCtrl.h"
+#include "common-utils.h"
 
 
 typedef void NvCtrlAttributeHandle;
 
 #define NV_FALSE                0
 #define NV_TRUE                 1
+
+
+/*
+ * Indices into both targetTypeTable[] and CtrlSystem->targets[] array.
+ */
+
+typedef enum {
+    X_SCREEN_TARGET = 0,
+    GPU_TARGET,
+    FRAMELOCK_TARGET,
+    VCS_TARGET,
+    GVI_TARGET,
+    COOLER_TARGET,
+    THERMAL_SENSOR_TARGET,
+    NVIDIA_3D_VISION_PRO_TRANSCEIVER_TARGET,
+    DISPLAY_TARGET,
+
+    MAX_TARGET_TYPES,
+    INVALID_TARGET = -1
+} CtrlTargetType;
+
+
+/*
+ * Defines the values associated with each target type.
+ */
+
+typedef struct {
+    char *name;        /* full name for logging */
+    char *parsed_name; /* name used by parser */
+    int nvctrl;        /* NV-CONTROL target type value (NV_CTRL_TARGET_TYPE) */
+
+    /* flag set in NVCTRLAttributeValidValuesRec.permissions */
+    unsigned int permission_bit;
+
+    /* whether this target type is aware of display devices */
+    int uses_display_devices;
+
+    /*
+     * the minimum NV-CONTROL Protocol version required to use this target
+     * type; note that all future target types should be able to use 1.18,
+     * since that version and later allows NV-CONTROL clients to query the
+     * count of TargetTypes not recognized by the X server
+     */
+
+    int major;
+    int minor;
+
+} CtrlTargetTypeInfo;
+
+
+enum {
+    NV_DPY_PROTO_NAME_TYPE_BASENAME = 0,
+    NV_DPY_PROTO_NAME_TYPE_ID,
+    NV_DPY_PROTO_NAME_DP_GUID,
+    NV_DPY_PROTO_NAME_EDID_HASH,
+    NV_DPY_PROTO_NAME_TARGET_INDEX,
+    NV_DPY_PROTO_NAME_RANDR,
+    NV_DPY_PROTO_NAME_MAX,
+};
+
+enum {
+    NV_GPU_PROTO_NAME_TYPE_ID = 0,
+    NV_GPU_PROTO_NAME_UUID,
+    NV_GPU_PROTO_NAME_MAX,
+};
+
+#define NV_PROTO_NAME_MAX (NV_MAX((int)NV_DPY_PROTO_NAME_MAX, (int)NV_GPU_PROTO_NAME_MAX))
+
+typedef struct _CtrlTarget CtrlTarget;
+typedef struct _CtrlTargetNode CtrlTargetNode;
+typedef struct _CtrlSystem CtrlSystem;
+typedef struct _CtrlSystemList CtrlSystemList;
+
+struct _CtrlTarget {
+    NvCtrlAttributeHandle *h; /* handle for this target */
+
+    CtrlSystem *system; /* the system this target belongs to */
+    const CtrlTargetTypeInfo *targetTypeInfo;
+
+    unsigned int d; /* display device mask for this target */
+    unsigned int c; /* Connected display device mask for target */
+    char *name;     /* Name for this target */
+    char *protoNames[NV_PROTO_NAME_MAX]; /* List of valid names for this target */
+
+    struct {
+        Bool connected; /* Connection state of display device */
+        Bool enabled;   /* Enabled state of display device */
+    } display;
+
+    struct _CtrlTargetNode *relations; /* List of associated targets */
+};
+
+/* Used to keep track of lists of targets */
+struct _CtrlTargetNode {
+    CtrlTargetNode *next;
+    CtrlTarget *t;
+};
+
+/* Tracks all the targets for a single system. Note that
+ * targets[X_SCREEN_TARGET] only holds API X screens targets.
+ * In order to query to physical X screens targets 'physical_screens'
+ * must be used instead. 'physical_screens' do not keep tracking of
+ * target relationships
+ */
+struct _CtrlSystem {
+    /* X system data */
+    char *display;  /* string for XOpenDisplay */
+    Display *dpy;   /* X display connection */
+
+    CtrlTargetNode *targets[MAX_TARGET_TYPES]; /* Shadows targetTypeTable */
+    CtrlTargetNode *physical_screens;
+    CtrlSystemList *system_list; /* pointer to the system list being tracked */
+};
+
+/* Tracks all systems referenced by command line and/or the configuration
+ * file (.nvidia-settings.).
+ */
+struct _CtrlSystemList {
+    int n;              /* number of systems */
+    CtrlSystem **array; /* dynamically allocated array */
+};
 
 
 /*
@@ -71,6 +193,21 @@ typedef void NvCtrlAttributeHandle;
 #define CONTRAST_MAX            1.0
 #define CONTRAST_MIN            -1.0
 #define CONTRAST_DEFAULT        0.0
+
+
+/*
+ * Attribute types used to know how to access each attribute - for example, to
+ * know which of the NvCtrlXXX() backend functions to call.
+ */
+
+typedef enum {
+    CTRL_ATTRIBUTE_TYPE_INTEGER,
+    CTRL_ATTRIBUTE_TYPE_STRING,
+    CTRL_ATTRIBUTE_TYPE_STRING_OPERATION,
+    CTRL_ATTRIBUTE_TYPE_BINARY_DATA,
+    CTRL_ATTRIBUTE_TYPE_COLOR,
+    CTRL_ATTRIBUTE_TYPE_SDI_CSC,
+} CtrlAttributeType;
 
 
 /*
@@ -186,6 +323,72 @@ typedef struct GLXFBConfigAttrRec {
 
 
 /*
+ * Used to pack CtrlAttributePerms.valid_targets
+ */
+#define CTRL_TARGET_PERM_BIT(TARGET_TYPE) (1 << ((int)(TARGET_TYPE)))
+
+typedef struct {
+
+    int read  : 1;
+    int write : 1;
+
+    unsigned int valid_targets;
+
+} CtrlAttributePerms;
+
+
+/*
+ * Event handle and event structure used to provide an event mechanism to
+ * communicate different backends with the frontend
+ */
+typedef void NvCtrlEventHandle;
+
+typedef enum {
+    CTRL_EVENT_TYPE_UNKNOWN = 0,
+    CTRL_EVENT_TYPE_INTEGER_ATTRIBUTE,
+    CTRL_EVENT_TYPE_STRING_ATTRIBUTE,
+    CTRL_EVENT_TYPE_BINARY_ATTRIBUTE,
+    CTRL_EVENT_TYPE_SCREEN_CHANGE
+} CtrlEventType;
+
+typedef struct {
+    int  attribute;
+    int  value;
+    Bool is_availability_changed;
+    Bool availability;
+} CtrlEventIntAttribute;
+
+typedef struct {
+    int attribute;
+} CtrlEventStrAttribute;
+
+typedef struct {
+    int attribute;
+} CtrlEventBinAttribute;
+
+typedef struct {
+    int width;
+    int height;
+    int mwidth;
+    int mheight;
+} CtrlEventScreenChange;
+
+typedef struct {
+    CtrlEventType  type;
+    CtrlTargetType target_type;
+    int            target_id;
+
+    union {
+        CtrlEventIntAttribute int_attr;
+        CtrlEventStrAttribute str_attr;
+        CtrlEventBinAttribute bin_attr;
+        CtrlEventScreenChange screen_change;
+    };
+
+} CtrlEvent;
+
+
+/*
  * Additional NV-CONTROL string attributes for NvCtrlGetStringDisplayAttribute();
  * these are in addition to the ones in NVCtrl.h
  */
@@ -257,14 +460,6 @@ typedef struct GLXFBConfigAttrRec {
 #define NV_CTRL_STRING_XV_LAST_ATTRIBUTE  (NV_CTRL_STRING_XV_VERSION)
 
 
-/*
- * NvCtrlAttributeInit() - initializes the control panel backend; this
- * includes probing for the various extensions, downloading the
- * initial state of attributes, etc.  Takes a Display pointer and
- * screen number, and returns an opaque handle on success; returns
- * NULL if the backend cannot use this screen.
- */
-
 
 #define NV_CTRL_ATTRIBUTES_NV_CONTROL_SUBSYSTEM   0x1
 #define NV_CTRL_ATTRIBUTES_XF86VIDMODE_SUBSYSTEM  0x2
@@ -280,42 +475,68 @@ typedef struct GLXFBConfigAttrRec {
 
 
 
+CtrlSystem *NvCtrlConnectToSystem(const char *display, CtrlSystemList *systems);
+CtrlSystem *NvCtrlGetSystem      (const char *display, CtrlSystemList *systems);
+void        NvCtrlFreeAllSystems (CtrlSystemList *systems);
 
-NvCtrlAttributeHandle *NvCtrlAttributeInit(Display *dpy, int target_type,
-                                           int target_id,
-                                           unsigned int subsystems);
 
-void NvCtrlAttributeRebuildSubsystems(NvCtrlAttributeHandle *handle,
-                                      unsigned int subsystem);
+int         NvCtrlGetTargetTypeCount    (const CtrlSystem *system,
+                                         CtrlTargetType target_type);
+CtrlTarget *NvCtrlGetTarget             (const CtrlSystem *system,
+                                         CtrlTargetType target_type,
+                                         int target_id);
+CtrlTarget *NvCtrlGetDefaultTarget      (const CtrlSystem *system);
+CtrlTarget *NvCtrlGetDefaultTargetByType(const CtrlSystem *system,
+                                         CtrlTargetType target_type);
 
-char *NvCtrlGetDisplayName(NvCtrlAttributeHandle *handle);
-Display *NvCtrlGetDisplayPtr(NvCtrlAttributeHandle *handle);
-int NvCtrlGetScreen(NvCtrlAttributeHandle *handle);
-int NvCtrlGetTargetType(NvCtrlAttributeHandle *handle);
-int NvCtrlGetTargetId(NvCtrlAttributeHandle *handle);
-int NvCtrlGetScreenWidth(NvCtrlAttributeHandle *handle);
-int NvCtrlGetScreenHeight(NvCtrlAttributeHandle *handle);
-int NvCtrlGetEventBase(NvCtrlAttributeHandle *handle);
-int NvCtrlGetXrandrEventBase(NvCtrlAttributeHandle *handle);
-char *NvCtrlGetServerVendor(NvCtrlAttributeHandle *handle);
-int NvCtrlGetVendorRelease(NvCtrlAttributeHandle *handle);
-int NvCtrlGetProtocolVersion(NvCtrlAttributeHandle *handle);
-int NvCtrlGetProtocolRevision(NvCtrlAttributeHandle *handle);
-int NvCtrlGetScreenCount(NvCtrlAttributeHandle *handle);
-int NvCtrlGetScreenWidthMM(NvCtrlAttributeHandle *handle);
-int NvCtrlGetScreenHeightMM(NvCtrlAttributeHandle *handle);
-int NvCtrlGetScreenPlanes(NvCtrlAttributeHandle *handle);
+Bool                      NvCtrlIsTargetTypeValid      (CtrlTargetType target_type);
+const CtrlTargetTypeInfo *NvCtrlGetTargetTypeInfo      (CtrlTargetType target_type);
+const CtrlTargetTypeInfo *NvCtrlGetTargetTypeInfoByName(const char *name);
 
-ReturnStatus NvCtrlGetColorAttributes (NvCtrlAttributeHandle *handle,
-                                       float contrast[3],
-                                       float brightness[3],
-                                       float gamma[3]);
+void NvCtrlTargetListAdd (CtrlTargetNode **head,
+                          CtrlTarget *target,
+                          Bool enabled_display_check);
+void NvCtrlTargetListFree(CtrlTargetNode *head);
 
-ReturnStatus NvCtrlSetColorAttributes (NvCtrlAttributeHandle *handle,
-                                       float contrast[3],
-                                       float brightness[3],
-                                       float gamma[3],
-                                       unsigned int flags);
+/*
+ *  XXX Changes to the system topology should not be allowed directly from the
+ *      front-end
+ */
+CtrlTarget *nv_add_target(CtrlSystem *system, CtrlTargetType target_type, int target_id);
+
+const char *NvCtrlGetDisplayConfigName(const CtrlSystem *system, int target_id);
+
+void NvCtrlRebuildSubsystems(CtrlTarget *ctrl_target, unsigned int subsystem);
+
+Display *NvCtrlGetDisplayPtr (CtrlTarget *ctrl_target);
+char    *NvCtrlGetDisplayName(const CtrlTarget *ctrl_target);
+
+int NvCtrlGetTargetType(const CtrlTarget *ctrl_target);
+int NvCtrlGetTargetId  (const CtrlTarget *ctrl_target);
+
+char *NvCtrlGetServerVendor    (const CtrlTarget *ctrl_target);
+int   NvCtrlGetVendorRelease   (const CtrlTarget *ctrl_target);
+int   NvCtrlGetProtocolVersion (const CtrlTarget *ctrl_target);
+int   NvCtrlGetProtocolRevision(const CtrlTarget *ctrl_target);
+
+int NvCtrlGetScreen        (const CtrlTarget *ctrl_target);
+int NvCtrlGetScreenWidth   (const CtrlTarget *ctrl_target);
+int NvCtrlGetScreenHeight  (const CtrlTarget *ctrl_target);
+int NvCtrlGetScreenCount   (const CtrlTarget *ctrl_target);
+int NvCtrlGetScreenWidthMM (const CtrlTarget *ctrl_target);
+int NvCtrlGetScreenHeightMM(const CtrlTarget *ctrl_target);
+int NvCtrlGetScreenPlanes  (const CtrlTarget *ctrl_target);
+
+ReturnStatus NvCtrlGetColorAttributes(const CtrlTarget *ctrl_target,
+                                      float contrast[3],
+                                      float brightness[3],
+                                      float gamma[3]);
+
+ReturnStatus NvCtrlSetColorAttributes(CtrlTarget *ctrl_target,
+                                      float contrast[3],
+                                      float brightness[3],
+                                      float gamma[3],
+                                      unsigned int flags);
 
 /*
  * NvCtrlGetColorRamp() - get a pointer to the current color ramp for
@@ -324,25 +545,25 @@ ReturnStatus NvCtrlSetColorAttributes (NvCtrlAttributeHandle *handle,
  * will be the number of entries in the color ramp.
  */
 
-ReturnStatus NvCtrlGetColorRamp (NvCtrlAttributeHandle *handle,
-                                 unsigned int channel,
-                                 unsigned short **lut,
-                                 int *n);
+ReturnStatus NvCtrlGetColorRamp(const CtrlTarget *ctrl_target,
+                                unsigned int channel,
+                                unsigned short **lut,
+                                int *n);
 
 /*
  * NvCtrlReloadColorRamp() - Reloads the current color ramp for all
- * channels for the given handle.
+ * channels for the given target.
  */
 
-ReturnStatus NvCtrlReloadColorRamp (NvCtrlAttributeHandle *handle);
+ReturnStatus NvCtrlReloadColorRamp(CtrlTarget *ctrl_target);
 
 /*
  * NvCtrlQueryTargetCount() - query the number of targets available
  * on the server of the given target type.  This is used, for example
  * to return the number of GPUs the server knows about.
  */
-ReturnStatus NvCtrlQueryTargetCount(NvCtrlAttributeHandle *handle,
-                                    int target_type,
+ReturnStatus NvCtrlQueryTargetCount(const CtrlTarget *ctrl_target,
+                                    CtrlTargetType target_type,
                                     int *val);
 
 /*
@@ -355,14 +576,13 @@ ReturnStatus NvCtrlQueryTargetCount(NvCtrlAttributeHandle *handle,
  * but supports 64-bit integer attributes.
  */
 
-ReturnStatus NvCtrlGetAttribute (NvCtrlAttributeHandle *handle,
-                                 int attr, int *val);
+ReturnStatus NvCtrlGetAttribute(const CtrlTarget *ctrl_target,
+                                int attr, int *val);
 
-ReturnStatus NvCtrlSetAttribute (NvCtrlAttributeHandle *handle,
-                                 int attr, int val);
+ReturnStatus NvCtrlSetAttribute(CtrlTarget *ctrl_target, int attr, int val);
 
-ReturnStatus NvCtrlGetAttribute64 (NvCtrlAttributeHandle *handle,
-                                   int attr, int64_t *val);
+ReturnStatus NvCtrlGetAttribute64(const CtrlTarget *ctrl_target,
+                                  int attr, int64_t *val);
 
 
 /*
@@ -372,8 +592,8 @@ ReturnStatus NvCtrlGetAttribute64 (NvCtrlAttributeHandle *handle,
  * are requesting.
  */
 
-ReturnStatus NvCtrlGetVoidAttribute (NvCtrlAttributeHandle *handle,
-                                     int attr, void **ptr);
+ReturnStatus NvCtrlGetVoidAttribute(const CtrlTarget *ctrl_target,
+                                    int attr, void **ptr);
 
 
 /*
@@ -382,8 +602,19 @@ ReturnStatus NvCtrlGetVoidAttribute (NvCtrlAttributeHandle *handle,
  * NVCTRLAttributeValidValuesRec in NVCtrl.h.
  */
 
-ReturnStatus NvCtrlGetValidAttributeValues (NvCtrlAttributeHandle *handle,
-                                 int attr, NVCTRLAttributeValidValuesRec *val);
+ReturnStatus NvCtrlGetValidAttributeValues(const CtrlTarget *ctrl_target,
+                                           int attr,
+                                           NVCTRLAttributeValidValuesRec *val);
+
+
+/*
+ * NvCtrlGetAttributePerms() - get the attribute permissions.
+ */
+
+ReturnStatus NvCtrlGetAttributePerms(const CtrlTarget *ctrl_target,
+                                     int attr_type,
+                                     int attr,
+                                     CtrlAttributePerms *perms);
 
 
 /*
@@ -392,63 +623,58 @@ ReturnStatus NvCtrlGetValidAttributeValues (NvCtrlAttributeHandle *handle,
  * #defines in NVCtrl.h.
  */
 
-ReturnStatus NvCtrlGetStringAttribute (NvCtrlAttributeHandle *handle,
-                                       int attr, char **ptr);
+ReturnStatus NvCtrlGetStringAttribute(const CtrlTarget *ctrl_target,
+                                      int attr, char **ptr);
 
 /*
  * NvCtrlSetStringAttribute() - Set the string associated with the
  * specified attribute, where valid values are the NV_CTRL_STRING_
- * #defines in NVCtrl.h that have the 'W' (Write) flag set.  If 'ret'
- * is specified, (integer) result information is returned.
+ * #defines in NVCtrl.h that have the 'W' (Write) flag set.
  */
 
-ReturnStatus NvCtrlSetStringAttribute (NvCtrlAttributeHandle *handle,
-                                       int attr, const char *ptr, int *ret);
+ReturnStatus NvCtrlSetStringAttribute(CtrlTarget *ctrl_target,
+                                      int attr, const char *ptr);
 
 /*
  * The following four functions are identical to the above five,
  * except that they specify a particular display mask.
  */
 
-ReturnStatus
-NvCtrlGetDisplayAttribute (NvCtrlAttributeHandle *handle,
-                           unsigned int display_mask, int attr, int *val);
-ReturnStatus
-NvCtrlSetDisplayAttribute (NvCtrlAttributeHandle *handle,
-                           unsigned int display_mask, int attr, int val);
+ReturnStatus NvCtrlGetDisplayAttribute(const CtrlTarget *ctrl_target,
+                                       unsigned int display_mask,
+                                       int attr, int *val);
+ReturnStatus NvCtrlSetDisplayAttribute(CtrlTarget *ctrl_target,
+                                       unsigned int display_mask,
+                                       int attr, int val);
+
+ReturnStatus NvCtrlGetDisplayAttribute64(const CtrlTarget *ctrl_target,
+                                         unsigned int display_mask,
+                                         int attr, int64_t *val);
+
+ReturnStatus NvCtrlGetVoidDisplayAttribute(const CtrlTarget *ctrl_target,
+                                           unsigned int display_mask,
+                                           int attr, void **val);
 
 ReturnStatus
-NvCtrlGetDisplayAttribute64 (NvCtrlAttributeHandle *handle,
-                             unsigned int display_mask, int attr, int64_t *val);
-
+NvCtrlGetValidDisplayAttributeValues(const CtrlTarget *ctrl_target,
+                                     unsigned int display_mask, int attr,
+                                     NVCTRLAttributeValidValuesRec *val);
 ReturnStatus
-NvCtrlGetVoidDisplayAttribute (NvCtrlAttributeHandle *handle,
-                               unsigned int display_mask,
-                               int attr, void **val);
+NvCtrlGetValidStringDisplayAttributeValues(const CtrlTarget *ctrl_target,
+                                           unsigned int display_mask, int attr,
+                                           NVCTRLAttributeValidValuesRec *val);
 
-ReturnStatus
-NvCtrlGetValidDisplayAttributeValues (NvCtrlAttributeHandle *handle,
+ReturnStatus NvCtrlGetStringDisplayAttribute(const CtrlTarget *ctrl_target,
+                                             unsigned int display_mask,
+                                             int attr, char **ptr);
+
+ReturnStatus NvCtrlSetStringDisplayAttribute(CtrlTarget *ctrl_target,
+                                             unsigned int display_mask,
+                                             int attr, const char *ptr);
+
+ReturnStatus NvCtrlGetBinaryAttribute(const CtrlTarget *ctrl_target,
                                       unsigned int display_mask, int attr,
-                                      NVCTRLAttributeValidValuesRec *val);
-ReturnStatus
-NvCtrlGetValidStringDisplayAttributeValues (NvCtrlAttributeHandle *handle,
-                                            unsigned int display_mask, int attr,
-                                            NVCTRLAttributeValidValuesRec *val);
-
-ReturnStatus
-NvCtrlGetStringDisplayAttribute (NvCtrlAttributeHandle *handle,
-                                 unsigned int display_mask,
-                                 int attr, char **ptr);
-
-ReturnStatus
-NvCtrlSetStringDisplayAttribute (NvCtrlAttributeHandle *handle,
-                                 unsigned int display_mask,
-                                 int attr, const char *ptr, int *ret);
-
-ReturnStatus
-NvCtrlGetBinaryAttribute(NvCtrlAttributeHandle *handle,
-                         unsigned int display_mask, int attr,
-                         unsigned char **data, int *len);
+                                      unsigned char **data, int *len);
 
 /*
  * NvCtrlStringOperation() - Performs the string operation associated
@@ -457,10 +683,9 @@ NvCtrlGetBinaryAttribute(NvCtrlAttributeHandle *handle,
  * is specified, (string) result information is returned.
  */
 
-ReturnStatus
-NvCtrlStringOperation(NvCtrlAttributeHandle *handle,
-                      unsigned int display_mask, int attr,
-                      const char *ptrIn, char **ptrOut);
+ReturnStatus NvCtrlStringOperation(CtrlTarget *ctrl_target,
+                                   unsigned int display_mask, int attr,
+                                   const char *ptrIn, char **ptrOut);
 
 /*
  * NvCtrl[SG]etGvoColorConversion() - get and set the color conversion
@@ -469,17 +694,15 @@ NvCtrlStringOperation(NvCtrlAttributeHandle *handle,
  * attribute is TRUE.
  */
 
-ReturnStatus
-NvCtrlSetGvoColorConversion(NvCtrlAttributeHandle *handle,
-                            float colorMatrix[3][3],
-                            float colorOffset[3],
-                            float colorScale[3]);
+ReturnStatus NvCtrlSetGvoColorConversion(CtrlTarget *ctrl_target,
+                                         float colorMatrix[3][3],
+                                         float colorOffset[3],
+                                         float colorScale[3]);
 
-ReturnStatus
-NvCtrlGetGvoColorConversion(NvCtrlAttributeHandle *handle,
-                            float colorMatrix[3][3],
-                            float colorOffset[3],
-                            float colorScale[3]);
+ReturnStatus NvCtrlGetGvoColorConversion(const CtrlTarget *ctrl_target,
+                                         float colorMatrix[3][3],
+                                         float colorOffset[3],
+                                         float colorScale[3]);
 
 const char *NvCtrlGetStereoModeNameIfExists(int stereo_mode);
 const char *NvCtrlGetStereoModeName(int stereo_mode);
@@ -489,5 +712,42 @@ const char *NvCtrlGetMultisampleModeName(int multisample_mode);
 char *NvCtrlAttributesStrError (ReturnStatus status);
 
 void NvCtrlAttributeClose(NvCtrlAttributeHandle *handle);
+
+
+/*
+ * NvCtrlGetEventHandle() - Returns the unique event handle associated with the
+ * specified control target. If it does not exist, creates a new one.
+ */
+NvCtrlEventHandle *NvCtrlGetEventHandle(const CtrlTarget *ctrl_target);
+
+/*
+ * NvCtrlCloseEventHandle() - Closes and frees the previously allocated
+ * resources of the specified event handle.
+ */
+ReturnStatus
+NvCtrlCloseEventHandle(NvCtrlEventHandle *handle);
+
+/*
+ * NvCtrlEventHandleGetFD() - Get the file descriptor associated with the
+ * specified event handle.
+ */
+ReturnStatus
+NvCtrlEventHandleGetFD(NvCtrlEventHandle *handle, int *fd);
+
+/*
+ * NvCtrlEventHandlePending() - Check whether there are pending events or not in
+ * the specified event handle.
+ */
+ReturnStatus
+NvCtrlEventHandlePending(NvCtrlEventHandle *handle, Bool *pending);
+
+/*
+ * NvCtrlEventHandleNextEvent() - Get the next event data in the specified event
+ * handle.
+ */
+ReturnStatus
+NvCtrlEventHandleNextEvent(NvCtrlEventHandle *handle, CtrlEvent *event);
+
+
 
 #endif /* __NVCTRL_ATTRIBUTES__ */

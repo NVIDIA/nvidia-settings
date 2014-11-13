@@ -55,7 +55,7 @@ struct _CtkGvoCsc
 {
     GtkVBox parent;
 
-    NvCtrlAttributeHandle *handle;
+    CtrlTarget *ctrl_target;
     CtkConfig *ctk_config;
     CtkEvent *ctk_event;
 
@@ -92,8 +92,8 @@ struct _CtkGvoCscClass
 };
 
 GType       ctk_gvo_csc_get_type  (void) G_GNUC_CONST;
-GtkWidget*  ctk_gvo_csc_new       (NvCtrlAttributeHandle *,
-                                   CtkConfig *, CtkEvent *, CtkGvo *);
+GtkWidget*  ctk_gvo_csc_new       (CtrlTarget *, CtkConfig *, CtkEvent *,
+                                   CtkGvo *);
 
 GtkTextBuffer *ctk_gvo_csc_create_help(GtkTextTagTable *, CtkGvoCsc *);
 

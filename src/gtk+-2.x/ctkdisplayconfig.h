@@ -78,7 +78,7 @@ typedef struct _CtkDisplayConfig
 {
     GtkVBox parent;
 
-    NvCtrlAttributeHandle *handle;
+    CtrlTarget *ctrl_target;
     CtkConfig *ctk_config;
 
     gboolean page_selected; /* Is the display config page selected in the UI */
@@ -243,8 +243,7 @@ typedef struct _CtkDisplayConfigClass
 
 
 GType       ctk_display_config_get_type  (void) G_GNUC_CONST;
-GtkWidget*  ctk_display_config_new       (NvCtrlAttributeHandle *,
-                                          CtkConfig *);
+GtkWidget*  ctk_display_config_new       (CtrlTarget *, CtkConfig *);
 
 GtkTextBuffer *ctk_display_config_create_help(GtkTextTagTable *,
                                               CtkDisplayConfig *);

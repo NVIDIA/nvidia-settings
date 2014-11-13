@@ -20,7 +20,6 @@
 #ifndef __CTK_GVO_H__
 #define __CTK_GVO_H__
 
-#include "NvCtrlAttributes.h"
 #include "ctkconfig.h"
 #include "ctkevent.h"
 #include "ctkgvo-banner.h"
@@ -54,7 +53,7 @@ typedef struct _CtkGvoClass  CtkGvoClass;
 struct _CtkGvo
 {
     GtkVBox parent;
-    NvCtrlAttributeHandle *handle;
+    CtrlTarget *ctrl_target;
 
     /* State */
 
@@ -93,8 +92,7 @@ typedef struct {
 
 
 GType          ctk_gvo_get_type    (void) G_GNUC_CONST;
-GtkWidget*     ctk_gvo_new         (NvCtrlAttributeHandle *,
-                                    CtkConfig *, CtkEvent *);
+GtkWidget*     ctk_gvo_new         (CtrlTarget *, CtkConfig *, CtkEvent *);
 void           ctk_gvo_select      (GtkWidget *);
 void           ctk_gvo_unselect    (GtkWidget *);
 GtkTextBuffer* ctk_gvo_create_help (GtkTextTagTable *);

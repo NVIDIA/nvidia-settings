@@ -57,10 +57,8 @@ typedef struct __CtkEventNodeRec {
 /* dpys should have a single event source object */
 typedef struct __CtkEventSourceRec {
     GSource source;
-    Display *dpy;
+    NvCtrlEventHandle *event_handle;
     GPollFD event_poll_fd;
-    int event_base;
-    int randr_event_base;
 
     CtkEventNode *ctk_events;
     struct __CtkEventSourceRec *next;
@@ -190,11 +188,6 @@ static void ctk_event_class_init(CtkEventClass *ctk_event_class)
     MAKE_SIGNAL(NV_CTRL_GVIO_VIDEO_FORMAT_WIDTH);
     MAKE_SIGNAL(NV_CTRL_GVIO_VIDEO_FORMAT_HEIGHT);
     MAKE_SIGNAL(NV_CTRL_GVIO_VIDEO_FORMAT_REFRESH_RATE);
-    MAKE_SIGNAL(NV_CTRL_GPU_OVERCLOCKING_STATE);
-    MAKE_SIGNAL(NV_CTRL_GPU_2D_CLOCK_FREQS);
-    MAKE_SIGNAL(NV_CTRL_GPU_3D_CLOCK_FREQS);
-    MAKE_SIGNAL(NV_CTRL_GPU_OPTIMAL_CLOCK_FREQS);
-    MAKE_SIGNAL(NV_CTRL_GPU_OPTIMAL_CLOCK_FREQS_DETECTION_STATE);
     MAKE_SIGNAL(NV_CTRL_FLATPANEL_LINK);
     MAKE_SIGNAL(NV_CTRL_USE_HOUSE_SYNC);
     MAKE_SIGNAL(NV_CTRL_IMAGE_SETTINGS);
@@ -338,6 +331,8 @@ static void ctk_event_class_init(CtkEventClass *ctk_event_class)
     MAKE_SIGNAL(NV_CTRL_GPU_NVCLOCK_OFFSET);
     MAKE_SIGNAL(NV_CTRL_GPU_MEM_TRANSFER_RATE_OFFSET);
     MAKE_SIGNAL(NV_CTRL_VIDEO_DECODER_UTILIZATION);
+    MAKE_SIGNAL(NV_CTRL_GPU_OVER_VOLTAGE_OFFSET);
+    MAKE_SIGNAL(NV_CTRL_GPU_CURRENT_CORE_VOLTAGE);
 #undef MAKE_SIGNAL
 
     /*
@@ -347,7 +342,7 @@ static void ctk_event_class_init(CtkEventClass *ctk_event_class)
      * knows about.
      */
 
-#if NV_CTRL_LAST_ATTRIBUTE != NV_CTRL_VIDEO_DECODER_UTILIZATION
+#if NV_CTRL_LAST_ATTRIBUTE != NV_CTRL_GPU_CURRENT_CORE_VOLTAGE
 #warning "There are attributes that do not emit signals!"
 #endif
 
@@ -455,40 +450,50 @@ static void ctk_event_class_init(CtkEventClass *ctk_event_class)
 
 
 
-/* - ctk_event_register_source()
- *
- * Keep track of event sources globally to support
- * dispatching events on a dpy to multiple CtkEvent
- * objects.  Since the driver only sends out one event
- * notification per dpy (client), there should only be one
- * event source attached per unique dpy.  When an event
- * is received, the dispatching function should then
- * emit a signal to every CtkEvent object that
- * requests event notification from the dpy for the
- * given target type/id (X screen, GPU etc).
- */
-static void ctk_event_register_source(CtkEvent *ctk_event)
+static CtkEventSource* find_event_source(NvCtrlEventHandle *event_handle)
 {
-    Display *dpy = NvCtrlGetDisplayPtr(ctk_event->handle);
-    CtkEventSource *event_source;
-    CtkEventNode *event_node;
-
-    if (!dpy) {
-        return;
-    }
-
-    /* Do we already have an event source for this dpy? */
-    event_source = event_sources;
+    CtkEventSource *event_source = event_sources;
     while (event_source) {
-        if (event_source->dpy == dpy) {
+        if (event_source->event_handle == event_handle) {
             break;
         }
         event_source = event_source->next;
     }
+    return event_source;
+}
+
+
+
+/* - ctk_event_register_source()
+ *
+ * Keep track of event sources globally to support
+ * dispatching events on an event handle to multiple CtkEvent
+ * objects.  Since the driver only sends out one event
+ * notification per event handle (client), there should only be one
+ * event source attached per unique event handle.  When an event
+ * is received, the dispatching function should then
+ * emit a signal to every CtkEvent object that
+ * requests event notification from the event handle for the
+ * given target type/id (X screen, GPU etc).
+ */
+static void ctk_event_register_source(CtkEvent *ctk_event)
+{
+    CtrlTarget *ctrl_target = ctk_event->ctrl_target;
+    NvCtrlEventHandle *event_handle = NvCtrlGetEventHandle(ctrl_target);
+    CtkEventSource *event_source;
+    CtkEventNode *event_node;
+
+    if (!event_handle) {
+        return;
+    }
+
+    /* Do we already have an event source for this event handle? */
+    event_source = find_event_source(event_handle);
 
     /* create a new input source */
     if (!event_source) {
         GSource *source;
+        int event_fd;
 
         static GSourceFuncs ctk_source_funcs = {
             ctk_event_prepare,
@@ -505,12 +510,10 @@ static void ctk_event_register_source(CtkEvent *ctk_event)
             return;
         }
         
-        event_source->dpy = dpy;
-        event_source->event_poll_fd.fd = ConnectionNumber(dpy);
+        NvCtrlEventHandleGetFD(event_handle, &event_fd);
+        event_source->event_handle = event_handle;
+        event_source->event_poll_fd.fd = event_fd;
         event_source->event_poll_fd.events = G_IO_IN;
-        event_source->event_base = NvCtrlGetEventBase(ctk_event->handle);
-        event_source->randr_event_base =
-            NvCtrlGetXrandrEventBase(ctk_event->handle);
         
         /* add the input source to the glib main loop */
         
@@ -531,29 +534,93 @@ static void ctk_event_register_source(CtkEvent *ctk_event)
         return;
     }
     event_node->ctk_event = ctk_event;
-    event_node->target_type = NvCtrlGetTargetType(ctk_event->handle);
-    event_node->target_id = NvCtrlGetTargetId(ctk_event->handle);
+    event_node->target_type = NvCtrlGetTargetType(ctrl_target);
+    event_node->target_id = NvCtrlGetTargetId(ctrl_target);
     event_node->next = event_source->ctk_events;
     event_source->ctk_events = event_node;
-    /*
-     * This next bit of code is to make sure that the randr_event_base
-     * for this event source is valid in the case where a NON X Screen
-     * target type handle is used to create the initial event source
-     * (Resulting in randr_event_base being == -1), followed by an
-     * X Screen target type handle registering itself to receive
-     * XRandR events on the existing dpy/event source.
-     */
-    if (event_source->randr_event_base == -1 &&
-        event_node->target_type == NV_CTRL_TARGET_TYPE_X_SCREEN) {
-        event_source->randr_event_base =
-            NvCtrlGetXrandrEventBase(ctk_event->handle);
-    }
 
 } /* ctk_event_register_source() */
 
 
 
-GObject *ctk_event_new(NvCtrlAttributeHandle *handle)
+/*
+ * Unregister a previously registered CtkEvent from its corresponding event
+ * source. If the event source becomes empty (no CtkEvents attached to it), this
+ * function also destroys the event source and its corresponding event handle.
+ */
+static void ctk_event_unregister_source(CtkEvent *ctk_event)
+{
+    CtrlTarget *ctrl_target = ctk_event->ctrl_target;
+    NvCtrlEventHandle *event_handle = NvCtrlGetEventHandle(ctrl_target);
+    CtkEventSource *event_source;
+    CtkEventNode *event_node;
+
+    if (!event_handle) {
+        return;
+    }
+
+    /* Do we have an event source for this event handle? */
+    event_source = find_event_source(event_handle);
+
+    if (!event_source) {
+        return;
+    }
+
+
+    /* Remove the ctk_event object from the source's list of event objects */
+
+    event_node = event_source->ctk_events;
+    if (event_node->ctk_event == ctk_event) {
+        event_source->ctk_events = event_node->next;
+    }
+    else {
+        CtkEventNode *prev = event_node;
+        event_node = event_node->next;
+        while (event_node) {
+            if (event_node->ctk_event == ctk_event) {
+                prev->next = event_node->next;
+                break;
+            }
+            prev = event_node;
+            event_node = event_node->next;
+        }
+    }
+
+    if (!event_node) {
+        return;
+    }
+
+    g_free(event_node);
+
+
+    /* destroy the event source if empty */
+
+    if (event_source->ctk_events == NULL) {
+        GSource *source = (GSource *)event_source;
+
+        if (event_sources == event_source) {
+            event_sources = event_source->next;
+        }
+        else {
+            CtkEventSource *cur;
+            for (cur = event_sources; cur; cur = cur->next) {
+                if (cur->next == event_source) {
+                    cur->next = event_source->next;
+                    break;
+                }
+            }
+        }
+
+        NvCtrlCloseEventHandle(event_source->event_handle);
+        g_source_remove_poll(source, &(event_source->event_poll_fd));
+        g_source_destroy(source);
+        g_source_unref(source);
+    }
+}
+
+
+
+GObject *ctk_event_new(CtrlTarget *ctrl_target)
 {
     GObject *object;
     CtkEvent *ctk_event;
@@ -563,7 +630,7 @@ GObject *ctk_event_new(NvCtrlAttributeHandle *handle)
     object = g_object_new(CTK_TYPE_EVENT, NULL);
 
     ctk_event = CTK_EVENT(object);
-    ctk_event->handle = handle;
+    ctk_event->ctrl_target = ctrl_target;
     
     /* Register to receive (dpy) events */
 
@@ -575,22 +642,51 @@ GObject *ctk_event_new(NvCtrlAttributeHandle *handle)
 
 
 
+void ctk_event_destroy(GObject *object)
+{
+    CtkEvent *ctk_event;
+
+    if (object == NULL || !CTK_IS_EVENT(object)) {
+        return;
+    }
+
+    ctk_event = CTK_EVENT(object);
+
+    /* Unregister to stop receiving (dpy) events */
+
+    ctk_event_unregister_source(ctk_event);
+
+    /* Unref the CtkEvent object */
+
+    g_object_unref(object);
+}
+
+
+
 static gboolean ctk_event_prepare(GSource *source, gint *timeout)
 {
+    ReturnStatus status;
+    Bool pending;
     CtkEventSource *event_source = (CtkEventSource *) source;
     *timeout = -1;
 
     /*
-     * Check if any events are pending on the Display connection
+     * Check if any events are pending on the event handle
      */
+    status = NvCtrlEventHandlePending(event_source->event_handle, &pending);
+    if (status == NvCtrlSuccess) {
+        return pending;
+    }
 
-    return XPending(event_source->dpy);
+    return FALSE;
 }
 
 
 
 static gboolean ctk_event_check(GSource *source)
 {
+    ReturnStatus status;
+    Bool pending;
     CtkEventSource *event_source = (CtkEventSource *) source;
 
     /*
@@ -598,244 +694,118 @@ static gboolean ctk_event_check(GSource *source)
      * but doing so caused some events to be missed as they came in with only
      * the G_IO_OUT flag set which is odd.
      */
-    return XPending(event_source->dpy);
-}
-
-
-
-static int get_screen_of_root(Display *dpy, Window root)
-{
-    int screen = -1;
-
-    /* Find the screen the window belongs to */
-    screen = XScreenCount(dpy);
-
-    while (screen > 0) {
-        screen--;
-        if (root == RootWindow(dpy, screen)) {
-            break;
-        }
+    status = NvCtrlEventHandlePending(event_source->event_handle, &pending);
+    if (status == NvCtrlSuccess) {
+        return pending;
     }
-    
-    return screen;
+
+    return FALSE;
 }
 
 
 
-#define CTK_EVENT_BROADCAST(ES, SIG, PTR, TYPE, ID)   \
-do {                                                  \
-    CtkEventNode *e = (ES)->ctk_events;               \
-    while  (e) {                                      \
-        if (e->target_type == (TYPE) &&               \
-            e->target_id == (ID)) {                   \
-            g_signal_emit(e->ctk_event, SIG, 0, PTR); \
-        }                                             \
-        e = e->next;                                  \
-    }                                                 \
+#define CTK_EVENT_BROADCAST(ES, SIG, CEVT)             \
+do {                                                   \
+    CtkEventNode *e = (ES)->ctk_events;                \
+    while  (e) {                                       \
+        if (e->target_type == (CEVT)->target_type &&   \
+            e->target_id == (CEVT)->target_id) {       \
+            g_signal_emit(e->ctk_event, SIG, 0, CEVT); \
+        }                                              \
+        e = e->next;                                   \
+    }                                                  \
 } while (0)
 
 static gboolean ctk_event_dispatch(GSource *source,
-                                   GSourceFunc callback, gpointer user_data)
+                                   GSourceFunc callback,
+                                   gpointer user_data)
 {
-    XEvent event;
+    ReturnStatus status;
+    CtrlEvent event;
     CtkEventSource *event_source = (CtkEventSource *) source;
-    CtkEventStruct event_struct;
-
-    memset(&event_struct, 0, sizeof(event_struct));
 
     /*
      * if ctk_event_dispatch() is called, then either
      * ctk_event_prepare() or ctk_event_check() returned TRUE, so we
      * know there is an event pending
      */
-    
-    XNextEvent(event_source->dpy, &event);
+    status = NvCtrlEventHandleNextEvent(event_source->event_handle, &event);
+    if (status != NvCtrlSuccess) {
+        return FALSE;
+    }
 
-    /* 
-     * Handle the ATTRIBUTE_CHANGED_EVENT NV-CONTROL event
-     */
+    if (event.type != CTRL_EVENT_TYPE_UNKNOWN) {
 
-    if (event_source->event_base != -1 &&
-        (event.type == (event_source->event_base + ATTRIBUTE_CHANGED_EVENT))) {
+        /* 
+         * Handle the CTRL_EVENT_TYPE_INTEGER_ATTRIBUTE event
+         */
+        if (event.type == CTRL_EVENT_TYPE_INTEGER_ATTRIBUTE) {
 
-        XNVCtrlAttributeChangedEvent *nvctrlevent =
-            (XNVCtrlAttributeChangedEvent *) &event;
+            /* make sure the attribute is in our signal array */
+            if ((event.int_attr.attribute <= NV_CTRL_LAST_ATTRIBUTE) &&
+                (signals[event.int_attr.attribute] != 0)) {
 
-        /* make sure the attribute is in our signal array */
-
-        if ((nvctrlevent->attribute <= NV_CTRL_LAST_ATTRIBUTE) &&
-            (signals[nvctrlevent->attribute] != 0)) {
-            
-            event_struct.attribute    = nvctrlevent->attribute;
-            event_struct.value        = nvctrlevent->value;
-            event_struct.display_mask = nvctrlevent->display_mask;
-
-            /*
-             * XXX Is emitting a signal with g_signal_emit() really
-             * the "correct" way of dispatching the event?
-             */
-
-            CTK_EVENT_BROADCAST(event_source,
-                                signals[nvctrlevent->attribute],
-                                &event_struct,
-                                NV_CTRL_TARGET_TYPE_X_SCREEN,
-                                nvctrlevent->screen);
+                /*
+                 * XXX Is emitting a signal with g_signal_emit() really
+                 * the "correct" way of dispatching the event?
+                 */
+                CTK_EVENT_BROADCAST(event_source,
+                                    signals[event.int_attr.attribute],
+                                    &event);
+            }
         }
+        
+        /* 
+         * Handle the CTRL_EVENT_TYPE_STRING_ATTRIBUTE event
+         */
+        else if (event.type == CTRL_EVENT_TYPE_STRING_ATTRIBUTE) {
 
-    /* 
-     * Handle the TARGET_ATTRIBUTE_CHANGED_EVENT NV-CONTROL event
-     */
+            /* make sure the attribute is in our string signal array */
 
-    } else if (event_source->event_base != -1 &&
-               (event.type == (event_source->event_base
-                               +TARGET_ATTRIBUTE_CHANGED_EVENT))) {
+            if ((event.str_attr.attribute <= NV_CTRL_STRING_LAST_ATTRIBUTE) &&
+                (string_signals[event.str_attr.attribute] != 0)) {
 
-        XNVCtrlAttributeChangedEventTarget *nvctrlevent =
-            (XNVCtrlAttributeChangedEventTarget *) &event;
-
-        /* make sure the attribute is in our signal array */
-
-        if ((nvctrlevent->attribute <= NV_CTRL_LAST_ATTRIBUTE) &&
-            (signals[nvctrlevent->attribute] != 0)) {
-            
-            event_struct.attribute    = nvctrlevent->attribute;
-            event_struct.value        = nvctrlevent->value;
-            event_struct.display_mask = nvctrlevent->display_mask;
-
-            /*
-             * XXX Is emitting a signal with g_signal_emit() really
-             * the "correct" way of dispatching the event?
-             */
-
-            CTK_EVENT_BROADCAST(event_source,
-                                signals[nvctrlevent->attribute],
-                                &event_struct,
-                                nvctrlevent->target_type,
-                                nvctrlevent->target_id);
+                /*
+                 * XXX Is emitting a signal with g_signal_emit() really
+                 * the "correct" way of dispatching the event
+                 */
+                CTK_EVENT_BROADCAST(event_source,
+                                    string_signals[event.str_attr.attribute],
+                                    &event);
+            }
         }
 
         /*
-         * Handle the TARGET_ATTRIBUTE_AVAILABILITY_CHANGED_EVENT
-         * NV-CONTROL event.
+         * Handle the CTRL_EVENT_TYPE_BINARY_ATTRIBUTE event
          */
+        else if (event.type == CTRL_EVENT_TYPE_BINARY_ATTRIBUTE) {
 
-    } else if (event_source->event_base != -1 &&
-               (event.type == (event_source->event_base
-                               + TARGET_ATTRIBUTE_AVAILABILITY_CHANGED_EVENT))) {
+            /* make sure the attribute is in our binary signal array */
+            if ((event.bin_attr.attribute <= NV_CTRL_BINARY_DATA_LAST_ATTRIBUTE) &&
+                (binary_signals[event.bin_attr.attribute] != 0)) {
 
-        XNVCtrlAttributeChangedEventTargetAvailability *nvctrlevent =
-            (XNVCtrlAttributeChangedEventTargetAvailability *) &event;
-
-        /* make sure the attribute is in our signal array */
-
-        if ((nvctrlevent->attribute <= NV_CTRL_LAST_ATTRIBUTE) &&
-            (signals[nvctrlevent->attribute] != 0)) {
-            
-            event_struct.attribute    = nvctrlevent->attribute;
-            event_struct.value        = nvctrlevent->value;
-            event_struct.display_mask = nvctrlevent->display_mask;
-            event_struct.is_availability_changed = TRUE;
-            event_struct.availability = nvctrlevent->availability;
-
-            /*
-             * XXX Is emitting a signal with g_signal_emit() really
-             * the "correct" way of dispatching the event?
-             */
-
-            CTK_EVENT_BROADCAST(event_source,
-                                signals[nvctrlevent->attribute],
-                                &event_struct,
-                                nvctrlevent->target_type,
-                                nvctrlevent->target_id);
+                /*
+                 * XXX Is emitting a signal with g_signal_emit() really
+                 * the "correct" way of dispatching the event
+                 */
+                CTK_EVENT_BROADCAST(event_source,
+                                    binary_signals[event.bin_attr.attribute],
+                                    &event);
+            }
         }
-        /*
-         * Handle the TARGET_STRING_ATTRIBUTE_CHANGED_EVENT
-         * NV-CONTROL event.
-         */
-    } else if (event_source->event_base != -1 &&
-               (event.type == (event_source->event_base
-                               + TARGET_STRING_ATTRIBUTE_CHANGED_EVENT))) {
-        XNVCtrlStringAttributeChangedEventTarget *nvctrlevent =
-            (XNVCtrlStringAttributeChangedEventTarget *) &event;
-
-        /* make sure the attribute is in our signal array */
-        
-        if ((nvctrlevent->attribute <= NV_CTRL_STRING_LAST_ATTRIBUTE) &&
-            (string_signals[nvctrlevent->attribute] != 0)) {
-
-            event_struct.attribute    = nvctrlevent->attribute;
-            event_struct.value        = 0;
-            event_struct.display_mask = nvctrlevent->display_mask;
-            /*
-             * XXX Is emitting a signal with g_signal_emit() really
-             * the "correct" way of dispatching the event
-             */
-
-            CTK_EVENT_BROADCAST(event_source,
-                                string_signals[nvctrlevent->attribute],
-                                &event_struct,
-                                nvctrlevent->target_type,
-                                nvctrlevent->target_id);
-        }
-         /*
-          * Handle the TARGET_BINARY_ATTRIBUTE_CHANGED_EVENT
-          * NV-CONTROL event.
-          */
-    } else if (event_source->event_base != -1 &&
-               (event.type == (event_source->event_base
-                               + TARGET_BINARY_ATTRIBUTE_CHANGED_EVENT))) {
-        XNVCtrlBinaryAttributeChangedEventTarget *nvctrlevent =
-            (XNVCtrlBinaryAttributeChangedEventTarget *) &event;
-
-        /* make sure the attribute is in our signal array */
-        if ((nvctrlevent->attribute <= NV_CTRL_BINARY_DATA_LAST_ATTRIBUTE) &&
-            (binary_signals[nvctrlevent->attribute] != 0)) {
-
-            event_struct.attribute    = nvctrlevent->attribute;
-            event_struct.value        = 0;
-            event_struct.display_mask = nvctrlevent->display_mask;
-            /*
-             * XXX Is emitting a signal with g_signal_emit() really
-             * the "correct" way of dispatching the event
-             */
-
-            CTK_EVENT_BROADCAST(event_source,
-                                binary_signals[nvctrlevent->attribute],
-                                &event_struct,
-                                nvctrlevent->target_type,
-                                nvctrlevent->target_id);
-        }
-
 
         /*
-         * Also handle XRandR events.
+         * Handle the CTRL_EVENT_TYPE_SCREEN_CHANGE event
          */
+        else if (event.type == CTRL_EVENT_TYPE_SCREEN_CHANGE) {
 
-    } else if (event_source->randr_event_base != -1 &&
-               (event.type ==
-                (event_source->randr_event_base + RRScreenChangeNotify))) {
-        
-        XRRScreenChangeNotifyEvent *xrandrevent =
-            (XRRScreenChangeNotifyEvent *)&event;
-        int screen;
-        
-        /* Find the screen the window belongs to */
-        screen = get_screen_of_root(xrandrevent->display, xrandrevent->root);
-        if (screen >= 0) {
-            CTK_EVENT_BROADCAST(event_source,
-                                signal_RRScreenChangeNotify,
-                                &event,
-                                NV_CTRL_TARGET_TYPE_X_SCREEN,
-                                screen);
+            /* make sure the target_id is valid */
+            if (event.target_id >= 0) {
+                CTK_EVENT_BROADCAST(event_source,
+                                    signal_RRScreenChangeNotify,
+                                    &event);
+            }
         }
-
-    /*
-     * Trap events that get registered but are not handled
-     * properly.
-     */
-
-    } else {
-        nv_warning_msg("Unknown event type %d.", event.type);
     }
     
     return TRUE;
@@ -849,11 +819,14 @@ static gboolean ctk_event_dispatch(GSource *source,
  * that various parts of nvidia-settings can communicate (internally)
  */
 void ctk_event_emit(CtkEvent *ctk_event,
-                    unsigned int mask, int attrib, int value)
+                    unsigned int mask,
+                    int attrib,
+                    int value)
 {
-    CtkEventStruct event;
+    CtrlEvent event;
     CtkEventSource *source;
-    Display *dpy = NvCtrlGetDisplayPtr(ctk_event->handle);
+    CtrlTarget *ctrl_target = ctk_event->ctrl_target;
+    NvCtrlEventHandle *event_handle = NvCtrlGetEventHandle(ctrl_target);
 
 
     if (attrib > NV_CTRL_LAST_ATTRIBUTE) return;
@@ -862,7 +835,7 @@ void ctk_event_emit(CtkEvent *ctk_event,
     /* Find the event source */
     source = event_sources;
     while (source) {
-        if (source->dpy == dpy) {
+        if (source->event_handle == event_handle) {
             break;
         }
         source = source->next;
@@ -871,15 +844,16 @@ void ctk_event_emit(CtkEvent *ctk_event,
 
 
     /* Broadcast event to all relevant ctk_event objects */
-    event.attribute = attrib;
-    event.value = value;
-    event.display_mask = mask;
+    memset(&event, 0, sizeof(CtrlEvent));
 
-    CTK_EVENT_BROADCAST(source,
-                        signals[attrib],
-                        &event,
-                        NvCtrlGetTargetType(ctk_event->handle),
-                        NvCtrlGetTargetId(ctk_event->handle));
+    event.type        = CTRL_EVENT_TYPE_INTEGER_ATTRIBUTE;
+    event.target_type = NvCtrlGetTargetType(ctrl_target);
+    event.target_id   = NvCtrlGetTargetId(ctrl_target);
+
+    event.int_attr.attribute = attrib;
+    event.int_attr.value     = value;
+
+    CTK_EVENT_BROADCAST(source, signals[attrib], &event);
 
 } /* ctk_event_emit() */
 
@@ -890,11 +864,13 @@ void ctk_event_emit(CtkEvent *ctk_event,
  * that various parts of nvidia-settings can communicate (internally)
  */
 void ctk_event_emit_string(CtkEvent *ctk_event,
-                    unsigned int mask, int attrib)
+                           unsigned int mask,
+                           int attrib)
 {
-    CtkEventStruct event;
+    CtrlEvent event;
     CtkEventSource *source;
-    Display *dpy = NvCtrlGetDisplayPtr(ctk_event->handle);
+    CtrlTarget *ctrl_target = ctk_event->ctrl_target;
+    NvCtrlEventHandle *event_handle = NvCtrlGetEventHandle(ctrl_target);
 
 
     if (attrib > NV_CTRL_STRING_LAST_ATTRIBUTE) return;
@@ -903,7 +879,7 @@ void ctk_event_emit_string(CtkEvent *ctk_event,
     /* Find the event source */
     source = event_sources;
     while (source) {
-        if (source->dpy == dpy) {
+        if (source->event_handle == event_handle) {
             break;
         }
         source = source->next;
@@ -912,16 +888,15 @@ void ctk_event_emit_string(CtkEvent *ctk_event,
 
 
     /* Broadcast event to all relevant ctk_event objects */
+    memset(&event, 0, sizeof(CtrlEvent));
 
-    event.attribute = attrib;
-    event.value = 0;
-    event.display_mask = mask;
+    event.type        = CTRL_EVENT_TYPE_STRING_ATTRIBUTE;
+    event.target_type = NvCtrlGetTargetType(ctrl_target);
+    event.target_id   = NvCtrlGetTargetId(ctrl_target);
 
-    CTK_EVENT_BROADCAST(source,
-                        string_signals[attrib],
-                        &event,
-                        NvCtrlGetTargetType(ctk_event->handle),
-                        NvCtrlGetTargetId(ctk_event->handle));
+    event.str_attr.attribute = attrib;
+
+    CTK_EVENT_BROADCAST(source, signals[attrib], &event);
 
 } /* ctk_event_emit_string() */
 

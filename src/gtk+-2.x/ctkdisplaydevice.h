@@ -63,7 +63,7 @@ struct _CtkDisplayDevice
 {
     GtkVBox parent;
 
-    NvCtrlAttributeHandle *handle;
+    CtrlTarget *ctrl_target;
     CtkConfig *ctk_config;
     CtkEvent *ctk_event;
     CtkEvent *ctk_event_gpu;
@@ -91,8 +91,7 @@ struct _CtkDisplayDeviceClass
 };
 
 GType       ctk_display_device_get_type  (void) G_GNUC_CONST;
-GtkWidget*  ctk_display_device_new       (NvCtrlAttributeHandle *,
-                                          CtkConfig *, CtkEvent *,
+GtkWidget*  ctk_display_device_new       (CtrlTarget *, CtkConfig *, CtkEvent *,
                                           CtkEvent *, char *, char *,
                                           ParsedAttribute *);
 

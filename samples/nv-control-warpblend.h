@@ -152,6 +152,7 @@ RemoveAttributeFromDisplayOfCurrentMetaMode(
     char *newMetaMode = NULL;
     int error = 1;
     int attributeLen;
+    Bool ret;
 
     if (!attribute) {
         goto cleanup;
@@ -159,11 +160,15 @@ RemoveAttributeFromDisplayOfCurrentMetaMode(
 
     attributeLen = strlen(attribute);
 
-    XNVCTRLQueryStringAttribute(xDpy,
-                                screenId,
-                                0, // displayMask
-                                NV_CTRL_STRING_CURRENT_METAMODE_VERSION_2,
-                                &pOldCurrentMetaMode);
+    ret = XNVCTRLQueryStringAttribute(xDpy,
+                                      screenId,
+                                      0, // displayMask
+                                      NV_CTRL_STRING_CURRENT_METAMODE_VERSION_2,
+                                      &pOldCurrentMetaMode);
+
+    if (!ret || !pOldCurrentMetaMode) {
+        goto cleanup;
+    }
 
     // Discard the metadata from the beginning of the MetaMode.
     pCurrentMetaMode = strstr(pOldCurrentMetaMode, "::");

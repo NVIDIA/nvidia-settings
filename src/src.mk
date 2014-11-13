@@ -132,6 +132,8 @@ LIB_XNVCTRL_ATTRIBUTES_SRC += libXNVCtrlAttributes/NvCtrlAttributesVidMode.c
 LIB_XNVCTRL_ATTRIBUTES_SRC += libXNVCtrlAttributes/NvCtrlAttributesXv.c
 LIB_XNVCTRL_ATTRIBUTES_SRC += libXNVCtrlAttributes/NvCtrlAttributesGlx.c
 LIB_XNVCTRL_ATTRIBUTES_SRC += libXNVCtrlAttributes/NvCtrlAttributesXrandr.c
+LIB_XNVCTRL_ATTRIBUTES_SRC += libXNVCtrlAttributes/NvCtrlAttributesUtils.c
+LIB_XNVCTRL_ATTRIBUTES_SRC += libXNVCtrlAttributes/NvCtrlAttributesNvml.c
 
 NVIDIA_SETTINGS_SRC += $(LIB_XNVCTRL_ATTRIBUTES_SRC)
 
@@ -169,6 +171,9 @@ NVIDIA_SETTINGS_EXTRA_DIST += $(LIB_XPM_DATA_EXTRA_DIST)
 #
 # files in the src/gtk+-2.x directory of nvidia-settings
 #
+# The GTK_SRC files are not added to NVIDIA_SETTINGS_SRC so that we can build
+# the GTK 2 and 3 GUI libraries from the same source.
+#
 
 GTK_SRC += gtk+-2.x/ctkxvideo.c
 GTK_SRC += gtk+-2.x/ctkui.c
@@ -193,7 +198,6 @@ GTK_SRC += gtk+-2.x/ctkpowermizer.c
 GTK_SRC += gtk+-2.x/ctkgvo.c
 GTK_SRC += gtk+-2.x/ctkgvo-csc.c
 GTK_SRC += gtk+-2.x/ctkdropdownmenu.c
-GTK_SRC += gtk+-2.x/ctkclocks.c
 GTK_SRC += gtk+-2.x/ctkutils.c
 GTK_SRC += gtk+-2.x/ctkedid.c
 GTK_SRC += gtk+-2.x/ctkserver.c
@@ -216,7 +220,6 @@ GTK_SRC += gtk+-2.x/ctkcolorcontrols.c
 GTK_SRC += gtk+-2.x/ctk3dvisionpro.c
 GTK_SRC += gtk+-2.x/ctkvdpau.c
 
-NVIDIA_SETTINGS_SRC += $(GTK_SRC)
 
 GTK_EXTRA_DIST += gtk+-2.x/ctkxvideo.h
 GTK_EXTRA_DIST += gtk+-2.x/ctkui.h
@@ -242,7 +245,6 @@ GTK_EXTRA_DIST += gtk+-2.x/ctkpowermizer.h
 GTK_EXTRA_DIST += gtk+-2.x/ctkgvo.h
 GTK_EXTRA_DIST += gtk+-2.x/ctkgvo-csc.h
 GTK_EXTRA_DIST += gtk+-2.x/ctkdropdownmenu.h
-GTK_EXTRA_DIST += gtk+-2.x/ctkclocks.h
 GTK_EXTRA_DIST += gtk+-2.x/ctkutils.h
 GTK_EXTRA_DIST += gtk+-2.x/ctkedid.h
 GTK_EXTRA_DIST += gtk+-2.x/ctkserver.h
@@ -303,4 +305,5 @@ JANSSON_EXTRA_DIST += jansson/utf.h
 NVIDIA_SETTINGS_EXTRA_DIST += $(JANSSON_EXTRA_DIST)
 
 NVIDIA_SETTINGS_DIST_FILES += $(NVIDIA_SETTINGS_SRC)
+NVIDIA_SETTINGS_DIST_FILES += $(GTK_SRC)
 NVIDIA_SETTINGS_DIST_FILES += $(NVIDIA_SETTINGS_EXTRA_DIST)

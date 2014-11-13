@@ -177,22 +177,13 @@ static gboolean ctk_banner_draw_event(
 {
     CtkBanner *ctk_banner = CTK_BANNER(widget);
     cairo_t *cr = gdk_cairo_create(gtk_widget_get_window(widget));
-    cairo_rectangle_list_t *rects;
-    int i;
 
     /* copy the backing pixbuf into the exposed portion of the window */
 
-    rects = cairo_copy_clip_rectangle_list(cr);
+    gdk_cairo_set_source_pixbuf(cr, ctk_banner->back.pixbuf, 0, 0);
+    cairo_paint(cr);
 
-    for (i = 0; i < rects->num_rectangles; i++) {
-        gdk_cairo_set_source_pixbuf(cr, ctk_banner->back.pixbuf,
-                                    rects->rectangles[i].x,
-                                    rects->rectangles[i].y);
-        cairo_paint(cr);
-    }
     cairo_destroy(cr);
-
-    g_free(rects);
 
     return FALSE;
 }

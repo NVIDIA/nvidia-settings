@@ -153,7 +153,7 @@ NvCtrlXvAttributes * NvCtrlInitXvAttributes(NvCtrlAttributePrivateHandle *h)
     
 
     /* Check parameters */
-    if ( !h || !h->dpy || h->target_type != NV_CTRL_TARGET_TYPE_X_SCREEN ) {
+    if ( !h || !h->dpy || h->target_type != X_SCREEN_TARGET ) {
         goto fail;
     }
 
@@ -221,13 +221,12 @@ NvCtrlXvAttributes * NvCtrlInitXvAttributes(NvCtrlAttributePrivateHandle *h)
  * Get Xv String Attribute values 
  */
 
-ReturnStatus
-NvCtrlXvGetStringAttribute(NvCtrlAttributePrivateHandle *h,
-                           unsigned int display_mask,
-                           int attr, char **ptr)
+ReturnStatus NvCtrlXvGetStringAttribute(const NvCtrlAttributePrivateHandle *h,
+                                        unsigned int display_mask,
+                                        int attr, char **ptr)
 {
     /* Validate */
-    if ( !h || !h->dpy || h->target_type != NV_CTRL_TARGET_TYPE_X_SCREEN ) {
+    if ( !h || !h->dpy || h->target_type != X_SCREEN_TARGET ) {
         return NvCtrlBadHandle;
     }
     if ( !h->xv || !__libXv ) {

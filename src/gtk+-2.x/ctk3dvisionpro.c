@@ -514,7 +514,8 @@ static void init_glasses_info_widgets(GlassesInfo *glasses)
     glasses->image = NULL;
 }
 
-static void callback_glasses_paired(GObject *object, gpointer arg1,
+static void callback_glasses_paired(GObject *object,
+                                    CtrlEvent *event,
                                     gpointer user_data)
 {
     int battery_level;
@@ -522,15 +523,18 @@ static void callback_glasses_paired(GObject *object, gpointer arg1,
     unsigned int glasses_id;
     GlassesInfo *glasses;
     ReturnStatus ret;
-    CtkEventStruct *event_struct;
     char temp[64]; //scratchpad memory used to construct labels.
     int index;
 
     Ctk3DVisionPro *ctk_3d_vision_pro = CTK_3D_VISION_PRO(user_data);
+    CtrlTarget *ctrl_target = ctk_3d_vision_pro->ctrl_target;
     AddGlassesDlg  *dlg = ctk_3d_vision_pro->add_glasses_dlg;
-    event_struct = (CtkEventStruct *) arg1;
 
-    glasses_id = event_struct->value;
+    if (event->type != CTRL_EVENT_TYPE_INTEGER_ATTRIBUTE) {
+        return;
+    }
+
+    glasses_id = event->int_attr.value;
 
     /* It is possible for the user to accidentally try pairing a glass even if 
      * it is already paired leading to multiple entries. To avoid this, return if 
@@ -545,14 +549,14 @@ static void callback_glasses_paired(GObject *object, gpointer arg1,
         }
     }
 
-    ret = NvCtrlGetStringDisplayAttribute(ctk_3d_vision_pro->handle, glasses_id,
+    ret = NvCtrlGetStringDisplayAttribute(ctrl_target, glasses_id,
                                           NV_CTRL_STRING_3D_VISION_PRO_GLASSES_NAME,
                                           &glasses_name);
     if (ret != NvCtrlSuccess) {
         glasses_name = NULL;
     }
 
-    ret = NvCtrlGetDisplayAttribute(ctk_3d_vision_pro->handle, glasses_id,
+    ret = NvCtrlGetDisplayAttribute(ctrl_target, glasses_id,
                                     NV_CTRL_3D_VISION_PRO_GLASSES_BATTERY_LEVEL,
                                     (int *)&battery_level);
     if (ret != NvCtrlSuccess) {
@@ -612,20 +616,23 @@ static void callback_glasses_paired(GObject *object, gpointer arg1,
     free(glasses_name);
 }
 
-static void callback_glasses_unpaired(GObject *object, gpointer arg1,
+static void callback_glasses_unpaired(GObject *object,
+                                      CtrlEvent *event,
                                       gpointer user_data)
 {
     int j;
     unsigned int glasses_id = 0;
     GlassesInfo *glasses = NULL;
     char temp[64]; //scratchpad memory used to construct labels.
-    CtkEventStruct *event_struct;
     int overwrite = FALSE;
 
     Ctk3DVisionPro *ctk_3d_vision_pro = CTK_3D_VISION_PRO(user_data);
-    event_struct = (CtkEventStruct *) arg1;
 
-    glasses_id = event_struct->value;
+    if (event->type != CTRL_EVENT_TYPE_INTEGER_ATTRIBUTE) {
+        return;
+    }
+
+    glasses_id = event->int_attr.value;
 
     for (j = 0; j < (HTU(0)->num_glasses); j++) {
         if (!overwrite && HTU(0)->glasses_info[j]->glasses_id == glasses_id) {
@@ -664,6 +671,7 @@ static void callback_glasses_unpaired(GObject *object, gpointer arg1,
 static gboolean poll_pairing(gpointer user_data)
 {
     Ctk3DVisionPro *ctk_3d_vision_pro = CTK_3D_VISION_PRO(user_data);
+    CtrlTarget *ctrl_target = ctk_3d_vision_pro->ctrl_target;
 
     if (ctk_3d_vision_pro->add_glasses_dlg->pairing_attempts >
         PAIRING_DURATION / POLL_PAIRING_CYCLE) {
@@ -672,13 +680,13 @@ static gboolean poll_pairing(gpointer user_data)
 
     if (ctk_3d_vision_pro->add_glasses_dlg->in_pairing) {
         /* Enable pairing for PAIRING_TIMEOUT seconds */
-        NvCtrlSetAttribute(ctk_3d_vision_pro->handle,
+        NvCtrlSetAttribute(ctrl_target,
                            NV_CTRL_3D_VISION_PRO_PAIR_GLASSES,
                            PAIRING_TIMEOUT);
-        XFlush(NvCtrlGetDisplayPtr(ctk_3d_vision_pro->handle));
+        XFlush(NvCtrlGetDisplayPtr(ctrl_target));
     }
 
-    ctk_3d_vision_pro->add_glasses_dlg->in_pairing = 
+    ctk_3d_vision_pro->add_glasses_dlg->in_pairing =
         !(ctk_3d_vision_pro->add_glasses_dlg->in_pairing);
     ctk_3d_vision_pro->add_glasses_dlg->pairing_attempts++;
     return TRUE;
@@ -696,89 +704,99 @@ static void enable_widgets(Ctk3DVisionPro *ctk_3d_vision_pro, Bool enable)
     gtk_widget_set_sensitive(ctk_3d_vision_pro->table.hscrollbar, enable);
 }
 
-static void svp_config_changed(GObject *object, gpointer arg1,
+static void svp_config_changed(GObject *object,
+                               CtrlEvent *event,
                                gpointer user_data)
 {
-    CtkEventStruct *event_struct;
     Ctk3DVisionPro *ctk_3d_vision_pro;
+    CtrlTarget *ctrl_target;
     char temp[64];
 
-    event_struct = (CtkEventStruct *) arg1;
     ctk_3d_vision_pro = CTK_3D_VISION_PRO(user_data);
+    ctrl_target = ctk_3d_vision_pro->ctrl_target;
 
-    switch (event_struct->attribute) {
-    case NV_CTRL_3D_VISION_PRO_TRANSCEIVER_CHANNEL:
-        if (HTU(0)->channel_num != event_struct->value) {
-            HTU(0)->channel_num = event_struct->value;
-            snprintf(temp, sizeof(temp), "%d", HTU(0)->channel_num);
-            gtk_label_set_text(ctk_3d_vision_pro->channel_num_label, temp);
-            gtk_widget_show_all(GTK_WIDGET(ctk_3d_vision_pro->channel_num_label));
-        }
-        break;
-    case NV_CTRL_3D_VISION_PRO_TRANSCEIVER_MODE:
-        {
-            SVP_RANGE range;
-            CtkDropDownMenu *menu = CTK_DROP_DOWN_MENU(ctk_3d_vision_pro->menu);
-            range = ctk_drop_down_menu_get_current_value(menu);
+    if (event->type == CTRL_EVENT_TYPE_INTEGER_ATTRIBUTE) {
+        gint value = event->int_attr.value;
 
-            if (range != CHANNEL_RANGE_TO_OPTION_MENU_IDX(event_struct->value)) {
-                g_signal_handlers_block_by_func(ctk_3d_vision_pro->menu,
-                    channel_range_changed, ctk_3d_vision_pro);
-                HTU(0)->channel_range = event_struct->value;
-                ctk_drop_down_menu_set_current_value(menu,
-                    CHANNEL_RANGE_TO_OPTION_MENU_IDX(event_struct->value));
-                enable_widgets(ctk_3d_vision_pro,
-                    (HTU(0)->channel_range == SVP_LONG_RANGE ? FALSE : TRUE));
-                g_signal_handlers_unblock_by_func(ctk_3d_vision_pro->menu,
-                    channel_range_changed, ctk_3d_vision_pro);
+        switch (event->int_attr.attribute) {
+        case NV_CTRL_3D_VISION_PRO_TRANSCEIVER_CHANNEL:
+            if (HTU(0)->channel_num != value) {
+                HTU(0)->channel_num = value;
+                snprintf(temp, sizeof(temp), "%d", HTU(0)->channel_num);
+                gtk_label_set_text(ctk_3d_vision_pro->channel_num_label, temp);
+                gtk_widget_show_all(GTK_WIDGET(ctk_3d_vision_pro->channel_num_label));
             }
             break;
-        }
-    case NV_CTRL_3D_VISION_PRO_TRANSCEIVER_CHANNEL_QUALITY:
-        if (HTU(0)->signal_strength != event_struct->value) {
-            const char **signal_strength_icon;
-            GdkPixbuf *pixbuf;
+        case NV_CTRL_3D_VISION_PRO_TRANSCEIVER_MODE:
+            {
+                SVP_RANGE range;
+                CtkDropDownMenu *menu = CTK_DROP_DOWN_MENU(ctk_3d_vision_pro->menu);
+                range = ctk_drop_down_menu_get_current_value(menu);
 
-            HTU(0)->signal_strength = event_struct->value;
-            snprintf(temp, sizeof(temp), "[%d%%]", HTU(0)->signal_strength);
-            gtk_label_set_text(ctk_3d_vision_pro->signal_strength_label, temp);
-
-            signal_strength_icon = get_signal_strength_icon(HTU(0)->signal_strength);
-            pixbuf = gdk_pixbuf_new_from_xpm_data(signal_strength_icon);
-            gtk_image_set_from_pixbuf(GTK_IMAGE(ctk_3d_vision_pro->signal_strength_image), pixbuf);
-
-            gtk_widget_show_all(GTK_WIDGET(ctk_3d_vision_pro->signal_strength_label));
-            gtk_widget_show_all(GTK_WIDGET(ctk_3d_vision_pro->signal_strength_image));
-        }
-        break;
-    case NV_CTRL_STRING_3D_VISION_PRO_GLASSES_NAME:
-        {
-            int i;
-            for (i = 0; i < HTU(0)->num_glasses; i++) {
-                ReturnStatus ret;
-                char *glasses_name = NULL;
-                GlassesInfo *glasses = glasses = HTU(0)->glasses_info[i];
-
-                ret = NvCtrlGetStringDisplayAttribute(ctk_3d_vision_pro->handle,
-                                                      glasses->glasses_id,
-                                                      NV_CTRL_STRING_3D_VISION_PRO_GLASSES_NAME,
-                                                      &glasses_name);
-
-                if (ret != NvCtrlSuccess || glasses_name == NULL) {
-                    continue;
+                if (range != CHANNEL_RANGE_TO_OPTION_MENU_IDX(value)) {
+                    g_signal_handlers_block_by_func(ctk_3d_vision_pro->menu,
+                        channel_range_changed, ctk_3d_vision_pro);
+                    HTU(0)->channel_range = value;
+                    ctk_drop_down_menu_set_current_value(menu,
+                        CHANNEL_RANGE_TO_OPTION_MENU_IDX(value));
+                    enable_widgets(ctk_3d_vision_pro,
+                        (HTU(0)->channel_range == SVP_LONG_RANGE ? FALSE : TRUE));
+                    g_signal_handlers_unblock_by_func(ctk_3d_vision_pro->menu,
+                        channel_range_changed, ctk_3d_vision_pro);
                 }
-                strncpy(glasses->name, glasses_name, sizeof(glasses->name));
-                glasses->name[sizeof(glasses->name)-1] = '\0';
-                free(glasses_name);
+                break;
             }
-            update_glasses_info_data_table(&(ctk_3d_vision_pro->table), HTU(0)->glasses_info);
-            gtk_widget_show_all(GTK_WIDGET(ctk_3d_vision_pro->table.data_table));
-            break;
-        }
-    default:
-        ;
-    }
+        case NV_CTRL_3D_VISION_PRO_TRANSCEIVER_CHANNEL_QUALITY:
+            if (HTU(0)->signal_strength != value) {
+                const char **signal_strength_icon;
+                GdkPixbuf *pixbuf;
 
+                HTU(0)->signal_strength = value;
+                snprintf(temp, sizeof(temp), "[%d%%]", HTU(0)->signal_strength);
+                gtk_label_set_text(ctk_3d_vision_pro->signal_strength_label, temp);
+
+                signal_strength_icon = get_signal_strength_icon(HTU(0)->signal_strength);
+                pixbuf = gdk_pixbuf_new_from_xpm_data(signal_strength_icon);
+                gtk_image_set_from_pixbuf(GTK_IMAGE(ctk_3d_vision_pro->signal_strength_image), pixbuf);
+
+                gtk_widget_show_all(GTK_WIDGET(ctk_3d_vision_pro->signal_strength_label));
+                gtk_widget_show_all(GTK_WIDGET(ctk_3d_vision_pro->signal_strength_image));
+            }
+            break;
+        default:
+            ;
+        }
+    }
+    else if (event->type == CTRL_EVENT_TYPE_STRING_ATTRIBUTE) {
+        switch (event->str_attr.attribute) {
+        case NV_CTRL_STRING_3D_VISION_PRO_GLASSES_NAME:
+            {
+                int i;
+                for (i = 0; i < HTU(0)->num_glasses; i++) {
+                    ReturnStatus ret;
+                    char *glasses_name = NULL;
+                    GlassesInfo *glasses = glasses = HTU(0)->glasses_info[i];
+
+                    ret = NvCtrlGetStringDisplayAttribute(ctrl_target,
+                                                          glasses->glasses_id,
+                                                          NV_CTRL_STRING_3D_VISION_PRO_GLASSES_NAME,
+                                                          &glasses_name);
+
+                    if (ret != NvCtrlSuccess || glasses_name == NULL) {
+                        continue;
+                    }
+                    strncpy(glasses->name, glasses_name, sizeof(glasses->name));
+                    glasses->name[sizeof(glasses->name)-1] = '\0';
+                    free(glasses_name);
+                }
+                update_glasses_info_data_table(&(ctk_3d_vision_pro->table), HTU(0)->glasses_info);
+                gtk_widget_show_all(GTK_WIDGET(ctk_3d_vision_pro->table.data_table));
+                break;
+            }
+        default:
+            ;
+        }
+    }
 }
 
 /******************************************************************************
@@ -790,6 +808,7 @@ static void svp_config_changed(GObject *object, gpointer arg1,
 static void refresh_button_clicked(GtkButton *button, gpointer user_data)
 {
     Ctk3DVisionPro *ctk_3d_vision_pro = CTK_3D_VISION_PRO(user_data);
+    CtrlTarget *ctrl_target = ctk_3d_vision_pro->ctrl_target;
     int i;
     char temp[64];
     const char **signal_strength_icon;
@@ -800,7 +819,7 @@ static void refresh_button_clicked(GtkButton *button, gpointer user_data)
         int battery_level;
         GlassesInfo *glasses = glasses = HTU(0)->glasses_info[i];
 
-        ret = NvCtrlGetDisplayAttribute(ctk_3d_vision_pro->handle,
+        ret = NvCtrlGetDisplayAttribute(ctrl_target,
                                         glasses->glasses_id,
                                         NV_CTRL_3D_VISION_PRO_GLASSES_BATTERY_LEVEL,
                                         (int *)&battery_level);
@@ -813,7 +832,7 @@ static void refresh_button_clicked(GtkButton *button, gpointer user_data)
     update_glasses_info_data_table(&(ctk_3d_vision_pro->table), HTU(0)->glasses_info);
     gtk_widget_show_all(GTK_WIDGET(ctk_3d_vision_pro->table.data_table));
 
-    ret = NvCtrlGetDisplayAttribute(ctk_3d_vision_pro->handle,
+    ret = NvCtrlGetDisplayAttribute(ctrl_target,
                                     HTU(0)->channel_num,
                                     NV_CTRL_3D_VISION_PRO_TRANSCEIVER_CHANNEL_QUALITY,
                                     (int *)&(HTU(0)->signal_strength));
@@ -913,6 +932,7 @@ static AddGlassesDlg *create_add_glasses_dlg(Ctk3DVisionPro *ctk_3d_vision_pro)
 static void add_glasses_button_clicked(GtkButton *button, gpointer user_data)
 {
     Ctk3DVisionPro *ctk_3d_vision_pro = CTK_3D_VISION_PRO(user_data);
+    CtrlTarget *ctrl_target = ctk_3d_vision_pro->ctrl_target;
     AddGlassesDlg *dlg;
     gint result;
     int i;
@@ -966,7 +986,7 @@ static void add_glasses_button_clicked(GtkButton *button, gpointer user_data)
         break;
     default:
         for (i = 0; i < dlg->new_glasses; i++) {
-            NvCtrlSetAttribute(ctk_3d_vision_pro->handle,
+            NvCtrlSetAttribute(ctrl_target,
                                NV_CTRL_3D_VISION_PRO_UNPAIR_GLASSES,
                                dlg->glasses_info[i]->glasses_id);
         }
@@ -1030,6 +1050,7 @@ static RemoveGlassesDlg *create_remove_glasses_dlg(Ctk3DVisionPro *ctk_3d_vision
 static void remove_button_clicked(GtkButton *button, gpointer user_data)
 {
     Ctk3DVisionPro *ctk_3d_vision_pro = CTK_3D_VISION_PRO(user_data);
+    CtrlTarget *ctrl_target = ctk_3d_vision_pro->ctrl_target;
     CtkDropDownMenu *menu;
     RemoveGlassesDlg *dlg;
     gint result;
@@ -1063,7 +1084,7 @@ static void remove_button_clicked(GtkButton *button, gpointer user_data)
             dlg->glasses_selected_index < HTU(0)->num_glasses) {
             unsigned int glasses_id = HTU(0)->glasses_info[dlg->glasses_selected_index]->glasses_id;
 
-            NvCtrlSetAttribute(ctk_3d_vision_pro->handle,
+            NvCtrlSetAttribute(ctrl_target,
                                NV_CTRL_3D_VISION_PRO_UNPAIR_GLASSES,
                                glasses_id);
         }
@@ -1128,6 +1149,7 @@ static IdentifyGlassesDlg *create_identify_glasses_dlg(Ctk3DVisionPro *ctk_3d_vi
 static void identify_button_clicked(GtkButton *button, gpointer user_data)
 {
     Ctk3DVisionPro *ctk_3d_vision_pro = CTK_3D_VISION_PRO(user_data);
+    CtrlTarget *ctrl_target = ctk_3d_vision_pro->ctrl_target;
     IdentifyGlassesDlg *dlg;
     gint result;
     unsigned int glasses_id;
@@ -1161,7 +1183,7 @@ static void identify_button_clicked(GtkButton *button, gpointer user_data)
             dlg->glasses_selected_index < HTU(0)->num_glasses) {
             glasses_id = HTU(0)->glasses_info[dlg->glasses_selected_index]->glasses_id;
 
-            NvCtrlSetAttribute(ctk_3d_vision_pro->handle,
+            NvCtrlSetAttribute(ctrl_target,
                                NV_CTRL_3D_VISION_PRO_IDENTIFY_GLASSES,
                                glasses_id);
         }
@@ -1243,6 +1265,7 @@ static RenameGlassesDlg *create_rename_glasses_dlg(Ctk3DVisionPro *ctk_3d_vision
 static void rename_button_clicked(GtkButton *button, gpointer user_data)
 {
     Ctk3DVisionPro *ctk_3d_vision_pro = CTK_3D_VISION_PRO(user_data);
+    CtrlTarget *ctrl_target = ctk_3d_vision_pro->ctrl_target;
     RenameGlassesDlg *dlg;
     gint result;
 
@@ -1289,11 +1312,10 @@ static void rename_button_clicked(GtkButton *button, gpointer user_data)
                     ReturnStatus ret;
                     unsigned int glasses_id = HTU(0)->glasses_info[dlg->glasses_selected_index]->glasses_id;
 
-                    ret = NvCtrlSetStringDisplayAttribute(ctk_3d_vision_pro->handle,
+                    ret = NvCtrlSetStringDisplayAttribute(ctrl_target,
                                                           glasses_id,
                                                           NV_CTRL_STRING_3D_VISION_PRO_GLASSES_NAME,
-                                                          dlg->glasses_new_name,
-                                                          NULL);
+                                                          dlg->glasses_new_name);
                     if (ret != NvCtrlSuccess) {
                         continue;
                     }
@@ -1381,6 +1403,7 @@ static void channel_range_changed(
 )
 {
     Ctk3DVisionPro *ctk_3d_vision_pro = CTK_3D_VISION_PRO(user_data);
+    CtrlTarget *ctrl_target = ctk_3d_vision_pro->ctrl_target;
     CtkDropDownMenu *menu = CTK_DROP_DOWN_MENU(widget);
     ChannelRangeDlg *dlg;
     gint result;
@@ -1414,7 +1437,7 @@ static void channel_range_changed(
     case GTK_RESPONSE_YES:
         HTU(0)->channel_range = range;
         /* Send NV-Control command */
-        NvCtrlSetAttribute(ctk_3d_vision_pro->handle,
+        NvCtrlSetAttribute(ctrl_target,
                            NV_CTRL_3D_VISION_PRO_TRANSCEIVER_MODE,
                            (HTU(0)->channel_range));
 
@@ -1434,8 +1457,9 @@ static void channel_range_changed(
 
 //*****************************************************************************
 
-GtkWidget* ctk_3d_vision_pro_new(NvCtrlAttributeHandle *handle,
-                                 CtkConfig *ctk_config, ParsedAttribute *p,
+GtkWidget* ctk_3d_vision_pro_new(CtrlTarget *ctrl_target,
+                                 CtkConfig *ctk_config,
+                                 ParsedAttribute *p,
                                  CtkEvent *ctk_event)
 {
     GObject *object;
@@ -1464,7 +1488,7 @@ GtkWidget* ctk_3d_vision_pro_new(NvCtrlAttributeHandle *handle,
     object = g_object_new(CTK_TYPE_3D_VISION_PRO, NULL);
     ctk_3d_vision_pro = CTK_3D_VISION_PRO(object);
 
-    ctk_3d_vision_pro->handle = handle;
+    ctk_3d_vision_pro->ctrl_target = ctrl_target;
     ctk_3d_vision_pro->ctk_config = ctk_config;
     ctk_3d_vision_pro->ctk_event = ctk_event;
     ctk_3d_vision_pro->add_glasses_dlg = NULL;
@@ -1479,21 +1503,21 @@ GtkWidget* ctk_3d_vision_pro_new(NvCtrlAttributeHandle *handle,
         HTU(i) = htu;
     }
 
-    ret = NvCtrlGetAttribute(handle,
+    ret = NvCtrlGetAttribute(ctrl_target,
                              NV_CTRL_3D_VISION_PRO_TRANSCEIVER_CHANNEL,
                              (int *)&(HTU(0)->channel_num));
     if (ret != NvCtrlSuccess) {
         HTU(0)->channel_num = 0;
     }
 
-    ret = NvCtrlGetDisplayAttribute(handle, HTU(0)->channel_num,
+    ret = NvCtrlGetDisplayAttribute(ctrl_target, HTU(0)->channel_num,
                                     NV_CTRL_3D_VISION_PRO_TRANSCEIVER_CHANNEL_QUALITY,
                                     (int *)&(HTU(0)->signal_strength));
     if (ret != NvCtrlSuccess) {
         HTU(0)->signal_strength = 0;
     }
 
-    ret = NvCtrlGetAttribute(handle,
+    ret = NvCtrlGetAttribute(ctrl_target,
                              NV_CTRL_3D_VISION_PRO_TRANSCEIVER_MODE,
                              (int *)&(HTU(0)->channel_range));
     if (ret != NvCtrlSuccess ||
@@ -1503,7 +1527,7 @@ GtkWidget* ctk_3d_vision_pro_new(NvCtrlAttributeHandle *handle,
         HTU(0)->channel_range = SVP_SHORT_RANGE;
     }
 
-    ret = NvCtrlGetBinaryAttribute(handle, 0,
+    ret = NvCtrlGetBinaryAttribute(ctrl_target, 0,
                                    NV_CTRL_BINARY_DATA_GLASSES_PAIRED_TO_3D_VISION_PRO_TRANSCEIVER,
                                    &paired_glasses_list, &len);
 
@@ -1524,14 +1548,14 @@ GtkWidget* ctk_3d_vision_pro_new(NvCtrlAttributeHandle *handle,
 
         HTU(0)->glasses_info[i] = glasses;
 
-        ret = NvCtrlGetStringDisplayAttribute(handle, glasses_id,
+        ret = NvCtrlGetStringDisplayAttribute(ctrl_target, glasses_id,
                                               NV_CTRL_STRING_3D_VISION_PRO_GLASSES_NAME,
                                               &glasses_name);
         if (ret != NvCtrlSuccess) {
             glasses_name = NULL;
         }
 
-        ret = NvCtrlGetDisplayAttribute(handle,  glasses_id,
+        ret = NvCtrlGetDisplayAttribute(ctrl_target,  glasses_id,
                                         NV_CTRL_3D_VISION_PRO_GLASSES_BATTERY_LEVEL,
                                         (int *)&battery_level);
         if (ret != NvCtrlSuccess) {

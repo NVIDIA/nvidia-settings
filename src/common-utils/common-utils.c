@@ -522,6 +522,68 @@ char *nv_basename(const char *path)
 }
 
 
+/*
+ * nv_mkdir_recursive() - make a directory and all parent directories as needed.
+ * dir_list is an optional arguments that if not empty, will be set to a string
+ * containing a newline separated list of all directories created.
+ */
+int nv_mkdir_recursive(const char *path, const mode_t mode,
+                       char **error_str, char **dir_list)
+{
+    char *c, *tmp, ch, *list;
+    int success = FALSE;
+
+    if (!path || !path[0]) {
+        return FALSE;
+    }
+
+    tmp = nvstrdup(path);
+    remove_trailing_slashes(tmp);
+
+    list = NULL;
+
+    c = tmp;
+    do {
+        c++;
+        if ((*c == '/') || (*c == '\0')) {
+            ch = *c;
+            *c = '\0';
+            if (!directory_exists(tmp)) {
+                char *tmplist;
+                if (mkdir(tmp, mode) != 0) {
+                    *error_str =
+                        nvasprintf("Failure creating directory '%s' : (%s)",
+                                   tmp, strerror(errno));
+                    goto done;
+                }
+                /* Prepend the created directory path to a running list */
+                if (dir_list) {
+                    tmplist = list;
+                    list = nvstrcat(tmp, "\n", tmplist, NULL);
+                    free(tmplist);
+                }
+            }
+            *c = ch;
+        }
+    } while (*c);
+
+    /* Log any created directories */
+    if (dir_list && list) {
+        *dir_list = list;
+    }
+
+    success = TRUE;
+
+ done:
+
+    if (!dir_list) {
+        free(list);
+    }
+    free(tmp);
+    return success;
+}
+
+
 /****************************************************************************/
 /* string helper functions */
 /****************************************************************************/
@@ -609,5 +671,41 @@ char *nv_trim_char_strict(char *string, char trim) {
     }
 
     return NULL;
+}
+
+/*
+ * directory_exists() - test whether the given directory exists
+ */
+
+int directory_exists(const char *dir)
+{
+    struct stat stat_buf;
+
+    if ((stat (dir, &stat_buf) == -1) || (!S_ISDIR(stat_buf.st_mode))) {
+        return FALSE;
+    } else {
+        return TRUE;
+    }
+}
+
+/*
+ * remove_trailing_slashes() - begin at the end of the given string,
+ * and overwrite slashes with NULL as long as we find slashes.
+ */
+
+void remove_trailing_slashes(char *string)
+{
+    int len;
+
+    if (string == NULL) {
+        return;
+    }
+
+    len = strlen(string);
+
+    while (string[len-1] == '/') {
+        string[--len] = '\0';
+    }
+
 }
 

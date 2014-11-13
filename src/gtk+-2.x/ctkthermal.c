@@ -37,7 +37,7 @@ static void sync_gui_sensitivity(CtkThermal *ctk_thermal);
 static void sync_gui_to_modify_cooler_level(CtkThermal *ctk_thermal);
 static gboolean sync_gui_to_update_cooler_event(gpointer user_data);
 static void cooler_control_checkbox_toggled(GtkWidget *widget, gpointer user_data);
-static void cooler_operating_level_changed(GObject *object, gpointer arg1,
+static void cooler_operating_level_changed(GObject *object, CtrlEvent *event,
                                            gpointer user_data);
 static void apply_button_clicked(GtkWidget *widget, gpointer user_data);
 static void reset_button_clicked(GtkWidget *widget, gpointer user_data);
@@ -46,7 +46,6 @@ static void adjustment_value_changed(GtkAdjustment *adjustment,
 
 static void draw_sensor_gui(GtkWidget *vbox1, CtkThermal *ctk_thermal,
                             gboolean new_target_type, gint cur_sensor_idx,
-                            NvCtrlAttributeHandle *sensor_handle,
                             gint reading, gint lower, gint upper,
                             gint target, gint provider);
 static GtkWidget *pack_gauge(GtkWidget *hbox, gint lower, gint upper,
@@ -237,7 +236,7 @@ static gboolean update_cooler_info(gpointer user_data)
                          GTK_FILL, GTK_FILL | GTK_EXPAND, 5, 0);
         free(tmp_str);
 
-        ret = NvCtrlGetAttribute(ctk_thermal->cooler_control[i].handle,
+        ret = NvCtrlGetAttribute(ctk_thermal->cooler_control[i].ctrl_target,
                                  NV_CTRL_THERMAL_COOLER_SPEED,
                                  &speed);
         if (ret == NvCtrlSuccess) {
@@ -252,7 +251,7 @@ static gboolean update_cooler_info(gpointer user_data)
                          GTK_FILL, GTK_FILL | GTK_EXPAND, 5, 0);
         free(tmp_str);
 
-        ret = NvCtrlGetAttribute(ctk_thermal->cooler_control[i].handle,
+        ret = NvCtrlGetAttribute(ctk_thermal->cooler_control[i].ctrl_target,
                                  NV_CTRL_THERMAL_COOLER_LEVEL,
                                  &level);
         if (ret != NvCtrlSuccess) {
@@ -266,7 +265,7 @@ static gboolean update_cooler_info(gpointer user_data)
                          GTK_FILL, GTK_FILL | GTK_EXPAND, 5, 0);
         free(tmp_str);
 
-        ret = NvCtrlGetAttribute(ctk_thermal->cooler_control[i].handle,
+        ret = NvCtrlGetAttribute(ctk_thermal->cooler_control[i].ctrl_target,
                                  NV_CTRL_THERMAL_COOLER_CONTROL_TYPE,
                                  &cooler_type);
         if (ret != NvCtrlSuccess) {
@@ -286,7 +285,7 @@ static gboolean update_cooler_info(gpointer user_data)
                          GTK_FILL, GTK_FILL | GTK_EXPAND, 5, 0);
         free(tmp_str);
 
-        ret = NvCtrlGetAttribute(ctk_thermal->cooler_control[i].handle,
+        ret = NvCtrlGetAttribute(ctk_thermal->cooler_control[i].ctrl_target,
                                  NV_CTRL_THERMAL_COOLER_TARGET,
                                  &cooler_target);
         if (ret != NvCtrlSuccess) {
@@ -331,17 +330,15 @@ static gboolean update_cooler_info(gpointer user_data)
 static gboolean update_thermal_info(gpointer user_data)
 {
     gint reading, ambient;
-    CtkThermal *ctk_thermal;
-    NvCtrlAttributeHandle *handle;
+    CtkThermal *ctk_thermal = CTK_THERMAL(user_data);
     gint ret, i, core;
     gchar *s;
 
-    ctk_thermal = CTK_THERMAL(user_data);
-
     if (!ctk_thermal->thermal_sensor_target_type_supported) {
-        handle = ctk_thermal->attribute_handle;
+        CtrlTarget *ctrl_target = ctk_thermal->ctrl_target;
 
-        ret = NvCtrlGetAttribute(handle, NV_CTRL_GPU_CORE_TEMPERATURE, &core);
+        ret = NvCtrlGetAttribute(ctrl_target, NV_CTRL_GPU_CORE_TEMPERATURE,
+                                 &core);
         if (ret != NvCtrlSuccess) {
             /* thermal information no longer available */
             return FALSE;
@@ -355,7 +352,8 @@ static gboolean update_thermal_info(gpointer user_data)
         ctk_gauge_draw(CTK_GAUGE(ctk_thermal->core_gauge));
 
         if (ctk_thermal->ambient_label) {
-            ret = NvCtrlGetAttribute(handle, NV_CTRL_AMBIENT_TEMPERATURE,
+            ret = NvCtrlGetAttribute(ctrl_target,
+                                     NV_CTRL_AMBIENT_TEMPERATURE,
                                      &ambient);
             if (ret != NvCtrlSuccess) {
                 /* thermal information no longer available */
@@ -367,9 +365,10 @@ static gboolean update_thermal_info(gpointer user_data)
         }
     } else {
         for (i = 0; i < ctk_thermal->sensor_count; i++) {
-            handle = ctk_thermal->sensor_info[i].handle;
+            CtrlTarget *ctrl_target = ctk_thermal->sensor_info[i].ctrl_target;
 
-            ret = NvCtrlGetAttribute(handle, NV_CTRL_THERMAL_SENSOR_READING,
+            ret = NvCtrlGetAttribute(ctrl_target,
+                                     NV_CTRL_THERMAL_SENSOR_READING,
                                      &reading);
             /* querying THERMAL_SENSOR_READING failed: assume the temperature is 0 */
             if (ret != NvCtrlSuccess) {
@@ -407,6 +406,7 @@ static gboolean update_thermal_info(gpointer user_data)
  */
 static void cooler_control_state_update_gui(CtkThermal *ctk_thermal)
 {
+    CtrlTarget *ctrl_target = ctk_thermal->ctrl_target;
     ReturnStatus ret;
     int value;
     gboolean enabled;
@@ -417,7 +417,7 @@ static void cooler_control_state_update_gui(CtkThermal *ctk_thermal)
      * because the set might have failed.
      */
 
-    ret = NvCtrlGetAttribute(ctk_thermal->attribute_handle,
+    ret = NvCtrlGetAttribute(ctrl_target,
                              NV_CTRL_GPU_COOLER_MANUAL_CONTROL,
                              &value);
     if (ret != NvCtrlSuccess) {
@@ -451,6 +451,7 @@ static void cooler_control_state_update_gui(CtkThermal *ctk_thermal)
 static void cooler_control_state_toggled(GtkWidget *widget, gpointer user_data)
 {
     CtkThermal *ctk_thermal = CTK_THERMAL(user_data);
+    CtrlTarget *ctrl_target = ctk_thermal->ctrl_target;
     gboolean enabled;
     int value;
 
@@ -462,8 +463,8 @@ static void cooler_control_state_toggled(GtkWidget *widget, gpointer user_data)
 
     /* Update the server */
 
-    NvCtrlSetAttribute(ctk_thermal->attribute_handle,
-                       NV_CTRL_GPU_COOLER_MANUAL_CONTROL, value);
+    NvCtrlSetAttribute(ctrl_target, NV_CTRL_GPU_COOLER_MANUAL_CONTROL,
+                       value);
 
     /* Update the GUI */
 
@@ -480,7 +481,8 @@ static void cooler_control_state_toggled(GtkWidget *widget, gpointer user_data)
  *
  */
 static void cooler_control_state_received(GObject *object,
-                                          gpointer arg1, gpointer user_data)
+                                          CtrlEvent *event,
+                                          gpointer user_data)
 {
     CtkThermal *ctk_thermal = CTK_THERMAL(user_data);
 
@@ -571,9 +573,10 @@ static void apply_button_clicked(GtkWidget *widget, gpointer user_data)
                 }
             }
 
-            ret = NvCtrlSetAttribute(ctk_thermal->cooler_control[i].handle,
-                                     NV_CTRL_THERMAL_COOLER_LEVEL,
-                                     cooler_level);
+            ret =
+                NvCtrlSetAttribute(ctk_thermal->cooler_control[i].ctrl_target,
+                                   NV_CTRL_THERMAL_COOLER_LEVEL,
+                                   cooler_level);
 
             if ( ret != NvCtrlSuccess ) {
                 ctk_config_statusbar_message(ctk_thermal->ctk_config,
@@ -619,7 +622,7 @@ static void reset_button_clicked(GtkWidget *widget, gpointer user_data)
     /* Set cooler related values to default */
 
     for (i = 0; i < ctk_thermal->cooler_count; i++) {
-        ret = NvCtrlSetAttribute(ctk_thermal->cooler_control[i].handle,
+        ret = NvCtrlSetAttribute(ctk_thermal->cooler_control[i].ctrl_target,
                                  NV_CTRL_THERMAL_COOLER_LEVEL_SET_DEFAULT,
                                  NV_CTRL_THERMAL_COOLER_LEVEL_SET_DEFAULT);
         if ( ret != NvCtrlSuccess ) {
@@ -708,7 +711,7 @@ static void sync_gui_to_modify_cooler_level(CtkThermal *ctk_thermal)
     for (i = 0; i < ctk_thermal->cooler_count; i++) {
         /* Obtain the current value and range of the fan speed */
         
-        ret = NvCtrlGetAttribute(ctk_thermal->cooler_control[i].handle,
+        ret = NvCtrlGetAttribute(ctk_thermal->cooler_control[i].ctrl_target,
                                  NV_CTRL_THERMAL_COOLER_LEVEL,
                                  &cooler_level);
         if ( ret != NvCtrlSuccess ) {
@@ -721,7 +724,7 @@ static void sync_gui_to_modify_cooler_level(CtkThermal *ctk_thermal)
             if ( ctk_thermal->cooler_control[i].adjustment ) {
 
                 ret = NvCtrlGetValidAttributeValues
-                    (ctk_thermal->cooler_control[i].handle,
+                    (ctk_thermal->cooler_control[i].ctrl_target,
                      NV_CTRL_THERMAL_COOLER_LEVEL,
                      &cooler_range);
                 if ( ret != NvCtrlSuccess ) {
@@ -808,7 +811,8 @@ static gboolean sync_gui_to_update_cooler_event(gpointer user_data)
  * Callback function when another NV_CONTROL client changed cooler level.
  *
  */
-static void cooler_operating_level_changed(GObject *object, gpointer arg1,
+static void cooler_operating_level_changed(GObject *object,
+                                           CtrlEvent *event,
                                            gpointer user_data)
 {
     /* sync_gui_to_modify_cooler_level() to be called once when all other
@@ -932,7 +936,6 @@ static GtkWidget *pack_gauge(GtkWidget *hbox, gint lower, gint upper,
  */
 static void draw_sensor_gui(GtkWidget *vbox1, CtkThermal *ctk_thermal,
                             gboolean new_target_type, gint cur_sensor_idx,
-                            NvCtrlAttributeHandle *sensor_handle,
                             gint reading, gint lower, gint upper,
                             gint target, gint provider)
 {
@@ -1036,13 +1039,13 @@ static void draw_sensor_gui(GtkWidget *vbox1, CtkThermal *ctk_thermal,
 
 
 
-GtkWidget* ctk_thermal_new(NvCtrlAttributeHandle *handle,
+GtkWidget* ctk_thermal_new(CtrlTarget *ctrl_target,
                            CtkConfig *ctk_config,
                            CtkEvent *ctk_event)
 {
     GObject *object;
     CtkThermal *ctk_thermal;
-    CtrlHandles *h;
+    CtrlSystem *system;
     GtkAdjustment *adjustment;
     GtkWidget *hbox = NULL, *hbox1, *hbox2, *table, *vbox;
     GtkWidget *frame, *banner, *label;
@@ -1054,8 +1057,8 @@ GtkWidget* ctk_thermal_new(NvCtrlAttributeHandle *handle,
     GtkWidget *alignment;
     ReturnStatus ret;
     ReturnStatus ret1;
-    NvCtrlAttributeHandle *cooler_handle;
-    NvCtrlAttributeHandle *sensor_handle;
+    CtrlTarget *cooler_target;
+    CtrlTarget *sensor_target;
     NVCTRLAttributeValidValuesRec cooler_range;
     NVCTRLAttributeValidValuesRec sensor_range;
     gint trigger, core, ambient;
@@ -1077,7 +1080,8 @@ GtkWidget* ctk_thermal_new(NvCtrlAttributeHandle *handle,
 
     /* make sure we have a handle */
 
-    g_return_val_if_fail(handle != NULL, NULL);
+    g_return_val_if_fail((ctrl_target != NULL) &&
+                         (ctrl_target->h != NULL), NULL);
 
     /* 
      * Check for NV-CONTROL protocol version. 
@@ -1085,9 +1089,9 @@ GtkWidget* ctk_thermal_new(NvCtrlAttributeHandle *handle,
      * This used for backward compatibility between new nvidia-settings
      * and older X driver
      */ 
-    ret = NvCtrlGetAttribute(handle,
+    ret = NvCtrlGetAttribute(ctrl_target,
                              NV_CTRL_ATTR_NV_MAJOR_VERSION, &major);
-    ret1 = NvCtrlGetAttribute(handle,
+    ret1 = NvCtrlGetAttribute(ctrl_target,
                               NV_CTRL_ATTR_NV_MINOR_VERSION, &minor);
 
     if ((ret == NvCtrlSuccess) && (ret1 == NvCtrlSuccess) &&
@@ -1098,19 +1102,22 @@ GtkWidget* ctk_thermal_new(NvCtrlAttributeHandle *handle,
     if (!thermal_sensor_target_type_supported) {
         /* check if this screen supports thermal querying */
 
-        ret = NvCtrlGetAttribute(handle, NV_CTRL_GPU_CORE_TEMPERATURE, &core);
+        ret = NvCtrlGetAttribute(ctrl_target, NV_CTRL_GPU_CORE_TEMPERATURE,
+                                 &core);
         if (ret != NvCtrlSuccess) {
             /* thermal information unavailable */
             return NULL;
         }
 
-        ret = NvCtrlGetAttribute(handle, NV_CTRL_GPU_MAX_CORE_THRESHOLD, &upper);
+        ret = NvCtrlGetAttribute(ctrl_target, NV_CTRL_GPU_MAX_CORE_THRESHOLD,
+                                 &upper);
         if (ret != NvCtrlSuccess) {
             /* thermal information unavailable */
             return NULL;
         }
 
-        ret = NvCtrlGetAttribute(handle, NV_CTRL_GPU_CORE_THRESHOLD, &trigger);
+        ret = NvCtrlGetAttribute(ctrl_target, NV_CTRL_GPU_CORE_THRESHOLD,
+                                 &trigger);
         if (ret != NvCtrlSuccess) {
             /* thermal information unavailable */
             return NULL;
@@ -1118,16 +1125,16 @@ GtkWidget* ctk_thermal_new(NvCtrlAttributeHandle *handle,
     }
     /* Query the list of sensors attached to this GPU */
 
-    ret = NvCtrlGetBinaryAttribute(handle, 0,
+    ret = NvCtrlGetBinaryAttribute(ctrl_target, 0,
                                    NV_CTRL_BINARY_DATA_THERMAL_SENSORS_USED_BY_GPU,
                                    (unsigned char **)(&pDataSensor), &len);
     if ( ret == NvCtrlSuccess ) {
         sensor_count = pDataSensor[0];
     }
-    
+
     /* Query the list of coolers attached to this GPU */
 
-    ret = NvCtrlGetBinaryAttribute(handle, 0,
+    ret = NvCtrlGetBinaryAttribute(ctrl_target, 0,
                                    NV_CTRL_BINARY_DATA_COOLERS_USED_BY_GPU,
                                    (unsigned char **)(&pDataCooler), &len);
     if ( ret == NvCtrlSuccess ) {
@@ -1137,24 +1144,24 @@ GtkWidget* ctk_thermal_new(NvCtrlAttributeHandle *handle,
     /* return if sensor and Fan information not available */
     if ((thermal_sensor_target_type_supported && !sensor_count) &&
         !cooler_count) {
-        XFree(pDataSensor);
-        XFree(pDataCooler);
+        free(pDataSensor);
+        free(pDataCooler);
         return NULL;
     }
 
     /* create the CtkThermal object */
 
     object = g_object_new(CTK_TYPE_THERMAL, NULL);
-    
+
     ctk_thermal = CTK_THERMAL(object);
-    ctk_thermal->attribute_handle = handle;
+    ctk_thermal->ctrl_target = ctrl_target;
     ctk_thermal->ctk_config = ctk_config;
     ctk_thermal->settings_changed = FALSE;
     ctk_thermal->show_fan_control_frame = TRUE;
     ctk_thermal->cooler_count = cooler_count;
     ctk_thermal->sensor_count = sensor_count;
     ctk_thermal->thermal_sensor_target_type_supported = thermal_sensor_target_type_supported;
-    
+
     /* set container properties for the CtkThermal widget */
 
     gtk_box_set_spacing(GTK_BOX(ctk_thermal), 10);
@@ -1166,7 +1173,7 @@ GtkWidget* ctk_thermal_new(NvCtrlAttributeHandle *handle,
 
     /* Check if we can control cooler state */
 
-    ret = NvCtrlGetAttribute(handle, NV_CTRL_GPU_COOLER_MANUAL_CONTROL,
+    ret = NvCtrlGetAttribute(ctrl_target, NV_CTRL_GPU_COOLER_MANUAL_CONTROL,
                              &value);
     if ( ret != NvCtrlSuccess ) {
         ctk_thermal->show_fan_control_frame = FALSE;
@@ -1178,10 +1185,10 @@ GtkWidget* ctk_thermal_new(NvCtrlAttributeHandle *handle,
     can_access_cooler_level = TRUE;
     ctk_thermal->cooler_control_enabled = cooler_control_enabled;
     ctk_thermal->enable_reset_button = FALSE;
-    
-    /* Retrieve CtrlHandles from ctk_config */
 
-    h = ctk_config->pCtrlHandles;
+    /* Retrieve CtrlSystem from ctk_config */
+
+    system = ctk_config->pCtrlSystem;
 
     /* Thermal Information */
 
@@ -1208,40 +1215,42 @@ GtkWidget* ctk_thermal_new(NvCtrlAttributeHandle *handle,
 
         for (j = 1; j <= ctk_thermal->sensor_count; j++) {
             gint reading, target, provider;
-            sensor_handle =
-                h->targets[THERMAL_SENSOR_TARGET].t[pDataSensor[j]].h;
 
-            if ( !sensor_handle ) {
+            sensor_target = NvCtrlGetTarget(system, THERMAL_SENSOR_TARGET,
+                                            pDataSensor[j]);
+            if (sensor_target == NULL) {
                 continue;
             }
 
-            ctk_thermal->sensor_info[cur_sensor_idx].handle = sensor_handle;
+            ctk_thermal->sensor_info[cur_sensor_idx].ctrl_target =
+                sensor_target;
 
             /* check if this screen supports thermal querying */
 
-            ret = NvCtrlGetAttribute(sensor_handle, NV_CTRL_THERMAL_SENSOR_READING,
+            ret = NvCtrlGetAttribute(sensor_target, NV_CTRL_THERMAL_SENSOR_READING,
                                      &reading);
             if (ret != NvCtrlSuccess) {
                 /* sensor information unavailable */
                 reading = 0;
             }
 
-            ret = NvCtrlGetValidAttributeValues(sensor_handle,
-                                                NV_CTRL_THERMAL_SENSOR_READING, 
+            ret = NvCtrlGetValidAttributeValues(sensor_target,
+                                                NV_CTRL_THERMAL_SENSOR_READING,
                                                 &sensor_range);
             if (ret != NvCtrlSuccess) {
                 /* sensor information unavailable */
                 sensor_range.u.range.min = sensor_range.u.range.max = 0;
             }
 
-            ret = NvCtrlGetAttribute(sensor_handle, NV_CTRL_THERMAL_SENSOR_TARGET,
+            ret = NvCtrlGetAttribute(sensor_target,
+                                     NV_CTRL_THERMAL_SENSOR_TARGET,
                                      &target);
             if (ret != NvCtrlSuccess) {
                 /* sensor information unavailable */
                 target = 0;
             }
 
-            ret = NvCtrlGetAttribute(sensor_handle, NV_CTRL_THERMAL_SENSOR_PROVIDER,
+            ret = NvCtrlGetAttribute(sensor_target, NV_CTRL_THERMAL_SENSOR_PROVIDER,
                                      &provider);
             if (ret != NvCtrlSuccess) {
                 /* sensor information unavailable */
@@ -1249,7 +1258,7 @@ GtkWidget* ctk_thermal_new(NvCtrlAttributeHandle *handle,
             }
             /* print sensor related information */
             draw_sensor_gui(vbox, ctk_thermal, thermal_sensor_target_type_supported,
-                            cur_sensor_idx, sensor_handle,
+                            cur_sensor_idx,
                             reading, sensor_range.u.range.min,
                             sensor_range.u.range.max, target, provider);
             cur_sensor_idx++;
@@ -1314,7 +1323,8 @@ GtkWidget* ctk_thermal_new(NvCtrlAttributeHandle *handle,
 
         /* Ambient Temperature */
 
-        ret = NvCtrlGetAttribute(handle, NV_CTRL_AMBIENT_TEMPERATURE, &ambient);
+        ret = NvCtrlGetAttribute(ctrl_target, NV_CTRL_AMBIENT_TEMPERATURE,
+                                 &ambient);
 
         if (ret == NvCtrlSuccess) {
             hbox2 = gtk_hbox_new(FALSE, 0);
@@ -1379,47 +1389,47 @@ sensor_end:
         calloc(ctk_thermal->cooler_count, sizeof(CoolerControlRec));
 
     for (j = 1; j <= ctk_thermal->cooler_count; j++) {
-        cooler_handle = h->targets[COOLER_TARGET].t[pDataCooler[j]].h;
-        
-        if ( !cooler_handle ) {    
+
+        cooler_target = NvCtrlGetTarget(system, COOLER_TARGET, pDataCooler[j]);
+        if (cooler_target == NULL) {
             continue;
         }
 
         /* Get current cooler level and range */
-        
-        ret = NvCtrlGetAttribute(cooler_handle, 
+
+        ret = NvCtrlGetAttribute(cooler_target,
                                  NV_CTRL_THERMAL_COOLER_LEVEL,
                                  &cooler_level);
         if ( ret != NvCtrlSuccess ) {
             can_access_cooler_level = FALSE;
         }
 
-        ret = NvCtrlGetValidAttributeValues(cooler_handle,
+        ret = NvCtrlGetValidAttributeValues(cooler_target,
                                             NV_CTRL_THERMAL_COOLER_LEVEL,
                                             &cooler_range);
         if ( ret != NvCtrlSuccess ) {
             can_access_cooler_level = FALSE;
         }
-        
+
         ctk_thermal->cooler_control[cur_cooler_idx].level = cooler_level; 
         ctk_thermal->cooler_control[cur_cooler_idx].range = cooler_range;
-        ctk_thermal->cooler_control[cur_cooler_idx].handle = cooler_handle;
-        
+        ctk_thermal->cooler_control[cur_cooler_idx].ctrl_target = cooler_target;
+
         /* Create the object for receiving NV-CONTROL events */
-        
+
         ctk_thermal->cooler_control[cur_cooler_idx].event =
-            CTK_EVENT(ctk_event_new(cooler_handle));
-        
+            CTK_EVENT(ctk_event_new(cooler_target));
+
         if ( can_access_cooler_level && ctk_thermal->show_fan_control_frame ) { 
             /* 
              * Get NV_CTRL_THERMAL_COOLER_CONTROL_TYPE to decide cooler
              * control widget should be slider or checkbox.
              */
-            
-            ret = NvCtrlGetAttribute(cooler_handle,
+
+            ret = NvCtrlGetAttribute(cooler_target,
                                      NV_CTRL_THERMAL_COOLER_CONTROL_TYPE,
                                      &cooler_control_type);
-            if ((ret == NvCtrlSuccess) && 
+            if ((ret == NvCtrlSuccess) &&
                 (cooler_control_type ==
                  NV_CTRL_THERMAL_COOLER_CONTROL_TYPE_VARIABLE)) {
 
@@ -1558,12 +1568,12 @@ sensor_end:
     }
 
 end:
-    XFree(pDataSensor);
+    free(pDataSensor);
     pDataSensor = NULL;
-    
-    XFree(pDataCooler);
+
+    free(pDataCooler);
     pDataCooler = NULL;
-    
+
     /* sync GUI to current server settings */
     
     sync_gui_to_modify_cooler_level(ctk_thermal);
@@ -1572,8 +1582,8 @@ end:
     /* Register a timer callback to update the temperatures */
 
     s = g_strdup_printf("Thermal Monitor (GPU %d)",
-                        NvCtrlGetTargetId(handle));
-    
+                        NvCtrlGetTargetId(ctrl_target));
+
     ctk_config_add_timer(ctk_thermal->ctk_config,
                          DEFAULT_UPDATE_THERMAL_INFO_TIME_INTERVAL,
                          s,

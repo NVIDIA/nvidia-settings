@@ -20,7 +20,7 @@
 #ifndef __CTK_XVIDEO_H__
 #define __CTK_XVIDEO_H__
 
-#include "NvCtrlAttributes.h"
+#include "query-assign.h"
 #include "ctkconfig.h"
 #include "ctkevent.h"
 
@@ -51,7 +51,7 @@ struct _CtkXVideo
 {
     GtkVBox parent;
 
-    NvCtrlAttributeHandle *handle;
+    CtrlTarget *ctrl_target;
     CtkConfig *ctk_config;
 
     GtkWidget *xv_sync_to_display_buttons; /* first button in group */
@@ -66,7 +66,7 @@ struct _CtkXVideoClass
 };
 
 GType       ctk_xvideo_get_type  (void) G_GNUC_CONST;
-GtkWidget*  ctk_xvideo_new       (NvCtrlAttributeHandle *handle,
+GtkWidget*  ctk_xvideo_new       (CtrlTarget *ctrl_target,
                                   CtkConfig *ctk_config, CtkEvent *ctk_event);
 
 GtkTextBuffer *ctk_xvideo_create_help(GtkTextTagTable *, CtkXVideo *);

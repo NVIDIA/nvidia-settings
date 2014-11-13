@@ -107,9 +107,6 @@ Bool screen_has_gpu(nvScreenPtr screen, nvGpuPtr match_gpu);
 /* GPU functions */
 
 void gpu_remove_and_free_display(nvDisplayPtr display);
-nvDisplayPtr gpu_add_display_from_server(nvGpuPtr gpu,
-                                         unsigned int display_id,
-                                         gchar **err_str);
 
 Bool gpu_add_screenless_modes_to_displays(nvGpuPtr gpu);
 
@@ -118,7 +115,7 @@ Bool gpu_add_screenless_modes_to_displays(nvGpuPtr gpu);
 
 void layout_free(nvLayoutPtr layout);
 void layout_add_screen(nvLayoutPtr layout, nvScreenPtr screen);
-nvLayoutPtr layout_load_from_server(NvCtrlAttributeHandle *handle,
+nvLayoutPtr layout_load_from_server(CtrlTarget *ctrl_target,
                                     gchar **err_str);
 nvScreenPtr layout_get_a_screen(nvLayoutPtr layout, nvGpuPtr preferred_gpu);
 nvDisplayPtr layout_get_display(const nvLayoutPtr layout,
@@ -152,8 +149,7 @@ typedef struct _SaveXConfDlg {
     GtkWidget *btn_xconfig_merge;    /* Merge with existing X config */
     GtkWidget *btn_xconfig_preview;  /* Show/Hide button */
     GtkWidget *box_xconfig_save;     /* Show/Hide this box */
- 
-    GtkWidget *dlg_xconfig_file; /* File save dialog */
+
     GtkWidget *btn_xconfig_file;
     GtkWidget *txt_xconfig_file;
 

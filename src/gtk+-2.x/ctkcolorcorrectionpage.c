@@ -62,7 +62,7 @@ GType ctk_color_correction_page_get_type(
 }
 
 
-GtkWidget* ctk_color_correction_page_new(NvCtrlAttributeHandle *handle,
+GtkWidget* ctk_color_correction_page_new(CtrlTarget *ctrl_target,
                                          CtkConfig *ctk_config,
                                          ParsedAttribute *p,
                                          CtkEvent *ctk_event)
@@ -76,22 +76,22 @@ GtkWidget* ctk_color_correction_page_new(NvCtrlAttributeHandle *handle,
 
     /* check if the VidMode extension is present */
 
-    ret = NvCtrlGetAttribute(handle, NV_CTRL_ATTR_EXT_VM_PRESENT, &val);
+    ret = NvCtrlGetAttribute(ctrl_target, NV_CTRL_ATTR_EXT_VM_PRESENT, &val);
     if ((ret != NvCtrlSuccess) || (val == FALSE)) {
         return NULL;
     }
 
     /* check if the noScanout mode enabled */
 
-    ret = NvCtrlGetAttribute(handle, NV_CTRL_NO_SCANOUT, &val);
+    ret = NvCtrlGetAttribute(ctrl_target, NV_CTRL_NO_SCANOUT, &val);
     if ((ret == NvCtrlSuccess) && (val == NV_CTRL_NO_SCANOUT_ENABLED)) {
         return NULL;
     }
 
     /* allocate the color correction widget */
 
-    ctk_color_correction =
-        ctk_color_correction_new(handle, ctk_config, p, ctk_event);
+    ctk_color_correction = ctk_color_correction_new(ctrl_target, ctk_config,
+                                                    p, ctk_event);
 
     if (ctk_color_correction == NULL) {
         return NULL;

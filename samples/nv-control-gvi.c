@@ -125,13 +125,13 @@ static char *VideoFormatName(int value)
 static const char *SamplingName(int value)
 {
     switch (value) {
-    default:
         ADD_NVCTRL_CASE(NV_CTRL_GVI_COMPONENT_SAMPLING_UNKNOWN);
         ADD_NVCTRL_CASE(NV_CTRL_GVI_COMPONENT_SAMPLING_4444);
         ADD_NVCTRL_CASE(NV_CTRL_GVI_COMPONENT_SAMPLING_4224);
         ADD_NVCTRL_CASE(NV_CTRL_GVI_COMPONENT_SAMPLING_444);
         ADD_NVCTRL_CASE(NV_CTRL_GVI_COMPONENT_SAMPLING_422);
         ADD_NVCTRL_CASE(NV_CTRL_GVI_COMPONENT_SAMPLING_420);
+    default:
         return "Invalid Value";
     }
 }
@@ -481,11 +481,11 @@ static void do_query(Display *dpy, int use_gvi)
                                      NV_CTRL_STRING_OPERATION_GVI_CONFIGURE_STREAMS,
                                      NULL, // pIn
                                      &pOut);
-        if (!ret || !pOut) {
+        if (!ret) {
             printf("  - Failed to query stream topology configuration of "
                    "GVI %d.\n", gvi);
             continue;
-        } 
+        }
         printf("  - Topology:\n");
         printf("\n      %s\n\n", pOut ? pOut : "No streams are configured.");
 
@@ -547,10 +547,9 @@ static void do_query(Display *dpy, int use_gvi)
                 i++;
                 str++;
             }
+            XFree(pOut);
+            pOut = NULL;
         }
-
-        XFree(pOut);
-        pOut = NULL;
 
     } /* Done Querying information about GVI devices */
 
@@ -588,16 +587,17 @@ static void do_listconfig(Display *dpy, int gvi)
                                  NV_CTRL_STRING_OPERATION_GVI_CONFIGURE_STREAMS,
                                  NULL, // pIn
                                  &pOut);
-    if (!ret || !pOut) {
+    if (!ret) {
         printf("  - Failed to query stream topology configuration of "
                "GVI %d.\n", gvi);
         return;
-    } 
+    }
     printf("- Current Topology:\n\n");
     printf("      %s\n\n", pOut ? pOut : "No streams are configured.");
-    XFree(pOut);
-    pOut = NULL;
-
+    if (pOut) {
+        XFree(pOut);
+        pOut = NULL;
+    }
 
     ret = XNVCTRLQueryValidTargetAttributeValues(dpy,
                                                  NV_CTRL_TARGET_TYPE_GVI,
@@ -788,15 +788,17 @@ static void do_configure(Display *dpy, int use_gvi, char *pIn)
                                  NV_CTRL_STRING_OPERATION_GVI_CONFIGURE_STREAMS,
                                  pIn,
                                  &pOut);
-    if (!ret || !pOut) {
+    if (!ret) {
         printf("  - Failed to configure stream topology of GVI %d.\n",
                use_gvi);
         return;
-    } 
+    }
     printf("Topology:\n\n");
     printf("  %s\n\n", pOut ? pOut : "No streams are configured.");
-    XFree(pOut);
-    pOut = NULL;
+    if (pOut) {
+        XFree(pOut);
+        pOut = NULL;
+    }
 }
 
 

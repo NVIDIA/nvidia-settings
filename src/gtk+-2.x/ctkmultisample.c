@@ -51,22 +51,21 @@ static void fsaa_setting_checkbox_toggled(GtkWidget *widget,
 
 static void fsaa_setting_menu_changed(GObject *object, gpointer user_data);
 
-static void fsaa_setting_update_received(GObject *object,
-                                         gpointer arg1,
+static void fsaa_setting_update_received(GObject *object, CtrlEvent *event,
                                          gpointer user_data);
 
 static void post_fsaa_value_changed(CtkMultisample *ctk_multisample, gint val);
 
 static void fsaa_value_changed(GtkRange *range, gpointer user_data);
 
-static void fsaa_update_received(GObject *object,
-                                 gpointer arg1, gpointer user_data);
+static void fsaa_update_received(GObject *object, CtrlEvent *event,
+                                 gpointer user_data);
 
 static void fxaa_checkbox_toggled(GtkWidget *widget,
                                   gpointer user_data);
 
-static void fxaa_update_received(GObject *object,
-                                 gpointer arg1, gpointer user_data);
+static void fxaa_update_received(GObject *object, CtrlEvent *event,
+                                 gpointer user_data);
 
 static void post_fxaa_toggled(CtkMultisample *ctk_multisample, 
                               gboolean enable);
@@ -78,8 +77,7 @@ post_log_aniso_app_override_toggled(CtkMultisample *ctk_multisample,
 static void log_aniso_app_override_toggled(GtkWidget *widget,
                                            gpointer user_data);
 
-static void log_app_override_update_received(GObject *object,
-                                             gpointer arg1,
+static void log_app_override_update_received(GObject *object, CtrlEvent *event,
                                              gpointer user_data);
 
 static const gchar *get_log_aniso_name(gint val);
@@ -92,8 +90,7 @@ static void post_log_aniso_value_changed(CtkMultisample *ctk_multisample,
 
 static void log_aniso_value_changed(GtkRange *range, gpointer user_data);
 
-static void log_aniso_range_update_received(GObject *object,
-                                            gpointer arg1,
+static void log_aniso_range_update_received(GObject *object, CtrlEvent *event,
                                             gpointer user_data);
 
 static void post_texture_sharpening_toggled(CtkMultisample *ctk_multisample,
@@ -101,8 +98,7 @@ static void post_texture_sharpening_toggled(CtkMultisample *ctk_multisample,
 
 static void texture_sharpening_toggled(GtkWidget *widget, gpointer user_data);
 
-static void texture_sharpening_update_received(GObject *object,
-                                               gpointer arg1,
+static void texture_sharpening_update_received(GObject *object, CtrlEvent *event,
                                                gpointer user_data);
 
 static void update_fxaa_from_fsaa_change(CtkMultisample *ctk_multisample,
@@ -216,8 +212,9 @@ GType ctk_multisample_get_type(
  * ctk_multisample_new() - constructor for the Multisample widget
  */
 
-GtkWidget *ctk_multisample_new(NvCtrlAttributeHandle *handle,
-                               CtkConfig *ctk_config, CtkEvent *ctk_event)
+GtkWidget *ctk_multisample_new(CtrlTarget *ctrl_target,
+                               CtkConfig *ctk_config,
+                               CtkEvent *ctk_event)
 {
     GObject *object;
     CtkMultisample *ctk_multisample;
@@ -229,26 +226,26 @@ GtkWidget *ctk_multisample_new(NvCtrlAttributeHandle *handle,
     GtkWidget *scale;
     GtkAdjustment *adjustment;
     gint min, max;
-    
+
     gint val, app_control, override, enhance, mode, i;
-    
+
     NVCTRLAttributeValidValuesRec valid;
 
     ReturnStatus ret, ret0;
 
     /* create the new object */
-    
+
     object = g_object_new(CTK_TYPE_MULTISAMPLE, NULL);
 
     ctk_multisample = CTK_MULTISAMPLE(object);
-    ctk_multisample->handle = handle;
+    ctk_multisample->ctrl_target = ctrl_target;
     ctk_multisample->ctk_config = ctk_config;
     ctk_multisample->active_attributes = 0;
 
     gtk_box_set_spacing(GTK_BOX(object), 10);
 
     /* banner */
-    
+
     hbox = gtk_hbox_new(FALSE, 0);
     gtk_box_pack_start(GTK_BOX(object), hbox, FALSE, FALSE, 0);
 
@@ -257,17 +254,18 @@ GtkWidget *ctk_multisample_new(NvCtrlAttributeHandle *handle,
 
     /* FSAA slider */
 
-    ret = NvCtrlGetValidAttributeValues(handle, NV_CTRL_FSAA_MODE, &valid);
-    
+    ret = NvCtrlGetValidAttributeValues(ctrl_target, NV_CTRL_FSAA_MODE,
+                                        &valid);
+
     if (ret == NvCtrlSuccess) {
-        
+
         build_fsaa_translation_table(ctk_multisample, valid);
-        
-        ret = NvCtrlGetAttribute(handle, NV_CTRL_FSAA_MODE, &mode);
-        
+
+        ret = NvCtrlGetAttribute(ctrl_target, NV_CTRL_FSAA_MODE, &mode);
+
         val = map_nv_ctrl_fsaa_value_to_slider(ctk_multisample, mode);
 
-        ret0 = NvCtrlGetAttribute(handle,
+        ret0 = NvCtrlGetAttribute(ctrl_target,
                                   NV_CTRL_FSAA_APPLICATION_CONTROLLED,
                                   &app_control);
         /*
@@ -292,10 +290,10 @@ GtkWidget *ctk_multisample_new(NvCtrlAttributeHandle *handle,
             vbox = gtk_vbox_new(FALSE, 5);
             gtk_container_set_border_width(GTK_CONTAINER(vbox), FRAME_PADDING);
             gtk_container_add(GTK_CONTAINER(frame), vbox);
-            
+
             /* "Application Setting" widget */
-            
-            ret = NvCtrlGetAttribute(ctk_multisample->handle,
+
+            ret = NvCtrlGetAttribute(ctrl_target,
                                      NV_CTRL_FSAA_APPLICATION_ENHANCED,
                                      &enhance);
 
@@ -387,7 +385,7 @@ GtkWidget *ctk_multisample_new(NvCtrlAttributeHandle *handle,
             check_button = gtk_check_button_new_with_label("Enable FXAA");
 
             if (mode == NV_CTRL_FSAA_MODE_NONE) {
-                ret = NvCtrlGetAttribute(handle, NV_CTRL_FXAA, &val);
+                ret = NvCtrlGetAttribute(ctrl_target, NV_CTRL_FXAA, &val);
                 if (val == NV_CTRL_FXAA_ENABLE) {
                     gtk_widget_set_sensitive(GTK_WIDGET(scale), FALSE);
                 }
@@ -415,18 +413,18 @@ GtkWidget *ctk_multisample_new(NvCtrlAttributeHandle *handle,
             ctk_multisample->fxaa_enable_check_button = check_button;
         }
     }
-    
+
     /* Anisotropic filtering slider */
 
-    ret = NvCtrlGetValidAttributeValues(handle, NV_CTRL_LOG_ANISO, &valid);
-    
+    ret = NvCtrlGetValidAttributeValues(ctrl_target, NV_CTRL_LOG_ANISO, &valid);
+
     ctk_multisample->log_aniso_scale = NULL;
 
     if (ret == NvCtrlSuccess) {
-        
-        ret = NvCtrlGetAttribute(handle, NV_CTRL_LOG_ANISO, &val);
 
-        ret0 = NvCtrlGetAttribute(handle,
+        ret = NvCtrlGetAttribute(ctrl_target, NV_CTRL_LOG_ANISO, &val);
+
+        ret0 = NvCtrlGetAttribute(ctrl_target,
                                   NV_CTRL_LOG_ANISO_APPLICATION_CONTROLLED,
                                   &app_control);
         /*
@@ -521,8 +519,8 @@ GtkWidget *ctk_multisample_new(NvCtrlAttributeHandle *handle,
      * If one of the supported multisample modes was enabled by the
      * user, this check button controls texture sharpening.
      */
-    
-    ret = NvCtrlGetAttribute(handle, NV_CTRL_TEXTURE_SHARPEN, &val);
+
+    ret = NvCtrlGetAttribute(ctrl_target, NV_CTRL_TEXTURE_SHARPEN, &val);
 
     if (ret == NvCtrlSuccess) {
         
@@ -784,18 +782,19 @@ static void post_fsaa_setting_changed(CtkMultisample *ctk_multisample,
 static void update_fsaa_setting(CtkMultisample *ctk_multisample,
                                 gboolean override, gboolean enhance)
 {
+    CtrlTarget *ctrl_target = ctk_multisample->ctrl_target;
     GtkRange *range = GTK_RANGE(ctk_multisample->fsaa_scale);
 
-    NvCtrlSetAttribute(ctk_multisample->handle,
+    NvCtrlSetAttribute(ctrl_target,
                        NV_CTRL_FSAA_APPLICATION_CONTROLLED, !override);
-    
+
     if (ctk_multisample->active_attributes & __FSAA_ENHANCE) {
-        NvCtrlSetAttribute(ctk_multisample->handle,
+        NvCtrlSetAttribute(ctrl_target,
                            NV_CTRL_FSAA_APPLICATION_ENHANCED, enhance);
     }
 
     if (!override) {
-        NvCtrlSetAttribute(ctk_multisample->handle,
+        NvCtrlSetAttribute(ctrl_target,
                            NV_CTRL_FSAA_MODE, NV_CTRL_FSAA_MODE_NONE);
 
         g_signal_handlers_block_by_func(G_OBJECT(range),
@@ -877,11 +876,11 @@ static void fsaa_setting_menu_changed(GObject *object, gpointer user_data)
  */
 
 static void fsaa_setting_update_received(GObject *object,
-                                         gpointer arg1,
+                                         CtrlEvent *event,
                                          gpointer user_data)
 {
-    CtkEventStruct *event_struct = (CtkEventStruct *) arg1;
     CtkMultisample *ctk_multisample = CTK_MULTISAMPLE(user_data);
+    CtrlTarget *ctrl_target = ctk_multisample->ctrl_target;
     gint idx;
     gboolean override;
     gboolean enhance = FALSE;
@@ -889,15 +888,18 @@ static void fsaa_setting_update_received(GObject *object,
     gint val;
     ReturnStatus ret;
 
+    if (event->type != CTRL_EVENT_TYPE_INTEGER_ATTRIBUTE) {
+        return;
+    }
 
-    switch (event_struct->attribute) {
+    switch (event->int_attr.attribute) {
     case NV_CTRL_FSAA_APPLICATION_CONTROLLED:
-        override = !event_struct->value;
+        override = !event->int_attr.value;
 
         if (!override) {
             idx = 0;
         } else if (ctk_multisample->active_attributes & __FSAA_ENHANCE) {
-            ret = NvCtrlGetAttribute(ctk_multisample->handle,
+            ret = NvCtrlGetAttribute(ctrl_target,
                                      NV_CTRL_FSAA_APPLICATION_ENHANCED,
                                      &val);
             if (ret == NvCtrlSuccess) {
@@ -913,9 +915,9 @@ static void fsaa_setting_update_received(GObject *object,
         break;
 
     case NV_CTRL_FSAA_APPLICATION_ENHANCED:
-        enhance = event_struct->value;
+        enhance = event->int_attr.value;
 
-        ret = NvCtrlGetAttribute(ctk_multisample->handle,
+        ret = NvCtrlGetAttribute(ctrl_target,
                                  NV_CTRL_FSAA_APPLICATION_CONTROLLED,
                                  &val);
         if (ret == NvCtrlSuccess) {
@@ -1081,20 +1083,19 @@ static void update_fsaa_from_fxaa_change (CtkMultisample *ctk_multisample,
 
 static void fsaa_value_changed(GtkRange *range, gpointer user_data)
 {
-    CtkMultisample *ctk_multisample;
+    CtkMultisample *ctk_multisample = CTK_MULTISAMPLE(user_data); 
+    CtrlTarget *ctrl_target = ctk_multisample->ctrl_target;
     gint val;
-
-    ctk_multisample = CTK_MULTISAMPLE(user_data); 
 
     val = gtk_range_get_value(range);
     if (val > NV_CTRL_FSAA_MODE_MAX) val = NV_CTRL_FSAA_MODE_MAX;
     if (val < 0) val = 0;
     val = ctk_multisample->fsaa_translation_table[val];
 
-    NvCtrlSetAttribute(ctk_multisample->handle, NV_CTRL_FSAA_MODE, val);
+    NvCtrlSetAttribute(ctrl_target, NV_CTRL_FSAA_MODE, val);
 
     update_fxaa_from_fsaa_change(ctk_multisample, val);
-    
+
     post_fsaa_value_changed(ctk_multisample, val);
 
 } /* fsaa_value_changed() */
@@ -1108,11 +1109,12 @@ static void fxaa_checkbox_toggled(GtkWidget *widget,
                                   gpointer user_data)
 {
     CtkMultisample *ctk_multisample = CTK_MULTISAMPLE(user_data);
+    CtrlTarget *ctrl_target = ctk_multisample->ctrl_target;
     gboolean enabled;
 
     enabled = gtk_toggle_button_get_active(GTK_TOGGLE_BUTTON(widget));
 
-    NvCtrlSetAttribute(ctk_multisample->handle, NV_CTRL_FXAA, enabled);
+    NvCtrlSetAttribute(ctrl_target, NV_CTRL_FXAA, enabled);
 
     update_fsaa_from_fxaa_change(ctk_multisample, enabled);
 
@@ -1128,12 +1130,18 @@ static void fxaa_checkbox_toggled(GtkWidget *widget,
  */
 
 static void fxaa_update_received(GObject *object,
-                                 gpointer arg1, gpointer user_data)
+                                 CtrlEvent *event,
+                                 gpointer user_data)
 {
-    CtkEventStruct *event_struct = (CtkEventStruct *) arg1;
     CtkMultisample *ctk_multisample = CTK_MULTISAMPLE(user_data);
-    gboolean fxaa_value = event_struct->value;
+    gboolean fxaa_value;
     GtkWidget *check_button = ctk_multisample->fxaa_enable_check_button;
+
+    if (event->type != CTRL_EVENT_TYPE_INTEGER_ATTRIBUTE) {
+        return;
+    }
+
+    fxaa_value = event->int_attr.value;
 
     g_signal_handlers_block_by_func(G_OBJECT(check_button),
                                     G_CALLBACK(fxaa_checkbox_toggled),
@@ -1175,19 +1183,22 @@ post_fxaa_toggled(CtkMultisample *ctk_multisample, gboolean enable)
  */
 
 static void fsaa_update_received(GObject *object,
-                                 gpointer arg1, gpointer user_data)
+                                 CtrlEvent *event,
+                                 gpointer user_data)
 {
-    CtkEventStruct *event_struct;
     CtkMultisample *ctk_multisample;
     GtkRange *range;
     gint val;
 
-    event_struct = (CtkEventStruct *) arg1;
+    if (event->type != CTRL_EVENT_TYPE_INTEGER_ATTRIBUTE) {
+        return;
+    }
+
     ctk_multisample = CTK_MULTISAMPLE(user_data);
     range = GTK_RANGE(ctk_multisample->fsaa_scale);
 
     val = map_nv_ctrl_fsaa_value_to_slider(ctk_multisample,
-                                           event_struct->value);
+                                           event->int_attr.value);
 
     g_signal_handlers_block_by_func(G_OBJECT(range),
                                     G_CALLBACK(fsaa_value_changed),
@@ -1195,13 +1206,13 @@ static void fsaa_update_received(GObject *object,
     
     gtk_range_set_value(range, val);
 
-    update_fxaa_from_fsaa_change(ctk_multisample, event_struct->value);
+    update_fxaa_from_fsaa_change(ctk_multisample, event->int_attr.value);
     
     g_signal_handlers_unblock_by_func(G_OBJECT(range),
                                       G_CALLBACK(fsaa_value_changed),
                                       (gpointer) ctk_multisample);
 
-    post_fsaa_value_changed(ctk_multisample, event_struct->value);
+    post_fsaa_value_changed(ctk_multisample, event->int_attr.value);
 
 } /* fsaa_update_received() */
 
@@ -1242,15 +1253,16 @@ static void log_aniso_app_override_toggled(GtkWidget *widget,
                                            gpointer user_data)
 {
     CtkMultisample *ctk_multisample = CTK_MULTISAMPLE(user_data);
+    CtrlTarget *ctrl_target = ctk_multisample->ctrl_target;
     GtkRange *range = GTK_RANGE(ctk_multisample->log_aniso_scale);
     gboolean override;
 
     override = gtk_toggle_button_get_active(GTK_TOGGLE_BUTTON(widget));
 
-    NvCtrlSetAttribute(ctk_multisample->handle,
+    NvCtrlSetAttribute(ctrl_target,
                        NV_CTRL_LOG_ANISO_APPLICATION_CONTROLLED, !override);
     if (!override) {
-        NvCtrlSetAttribute(ctk_multisample->handle,
+        NvCtrlSetAttribute(ctrl_target,
                            NV_CTRL_LOG_ANISO, 0 /* default(?) */);
 
         g_signal_handlers_block_by_func(G_OBJECT(range),
@@ -1277,12 +1289,18 @@ static void log_aniso_app_override_toggled(GtkWidget *widget,
  */
 
 static void log_app_override_update_received(GObject *object,
-                                             gpointer arg1, gpointer user_data)
+                                             CtrlEvent *event,
+                                             gpointer user_data)
 {
-    CtkEventStruct *event_struct = (CtkEventStruct *) arg1;
     CtkMultisample *ctk_multisample = CTK_MULTISAMPLE(user_data);
-    gboolean override = !event_struct->value;
+    gboolean override;
     GtkWidget *check_button;
+
+    if (event->type != CTRL_EVENT_TYPE_INTEGER_ATTRIBUTE) {
+        return;
+    }
+
+    override = !event->int_attr.value;
 
     check_button = ctk_multisample->log_aniso_app_override_check_button;
 
@@ -1344,10 +1362,15 @@ static gchar *format_log_aniso_value(GtkScale *scale, gdouble arg1,
 static void post_log_aniso_value_changed(CtkMultisample *ctk_multisample,
                                          gint val)
 {
-    ctk_config_statusbar_message(ctk_multisample->ctk_config,
-                                 "Anisotropic Filtering set to %s.",
-                                 get_log_aniso_name(val));
-    
+    gboolean override = gtk_toggle_button_get_active(
+        GTK_TOGGLE_BUTTON(ctk_multisample->log_aniso_app_override_check_button));
+
+    if (override) {
+        ctk_config_statusbar_message(ctk_multisample->ctk_config,
+                                     "Anisotropic Filtering set to %s.",
+                                     get_log_aniso_name(val));
+    }
+
 } /* post_log_aniso_value_changed() */
 
 
@@ -1359,15 +1382,14 @@ static void post_log_aniso_value_changed(CtkMultisample *ctk_multisample,
 
 static void log_aniso_value_changed(GtkRange *range, gpointer user_data)
 {
-    CtkMultisample *ctk_multisample;
+    CtkMultisample *ctk_multisample = CTK_MULTISAMPLE(user_data);
+    CtrlTarget *ctrl_target = ctk_multisample->ctrl_target;
     gint val;
-
-    ctk_multisample = CTK_MULTISAMPLE(user_data);
 
     val = gtk_range_get_value(range);
 
-    NvCtrlSetAttribute(ctk_multisample->handle, NV_CTRL_LOG_ANISO, val);
-    
+    NvCtrlSetAttribute(ctrl_target, NV_CTRL_LOG_ANISO, val);
+
     post_log_aniso_value_changed(ctk_multisample, val);
 
 } /* log_aniso_value_changed() */
@@ -1381,13 +1403,16 @@ static void log_aniso_value_changed(GtkRange *range, gpointer user_data)
  */
 
 static void log_aniso_range_update_received(GObject *object,
-                                            gpointer arg1, gpointer user_data)
+                                            CtrlEvent *event,
+                                            gpointer user_data)
 {
-    CtkEventStruct *event_struct;
     CtkMultisample *ctk_multisample;
     GtkRange *range;
 
-    event_struct = (CtkEventStruct *) arg1;
+    if (event->type != CTRL_EVENT_TYPE_INTEGER_ATTRIBUTE) {
+        return;
+    }
+
     ctk_multisample = CTK_MULTISAMPLE(user_data);
     range = GTK_RANGE(ctk_multisample->log_aniso_scale);
 
@@ -1395,9 +1420,9 @@ static void log_aniso_range_update_received(GObject *object,
                                     G_CALLBACK(log_aniso_value_changed),
                                     (gpointer) ctk_multisample);
     
-    gtk_range_set_value(range, event_struct->value);
+    gtk_range_set_value(range, event->int_attr.value);
     
-    post_log_aniso_value_changed(ctk_multisample, event_struct->value);
+    post_log_aniso_value_changed(ctk_multisample, event->int_attr.value);
 
     g_signal_handlers_unblock_by_func(G_OBJECT(range),
                                       G_CALLBACK(log_aniso_value_changed),
@@ -1433,18 +1458,16 @@ static void post_texture_sharpening_toggled(CtkMultisample *ctk_multisample,
 
 static void texture_sharpening_toggled(GtkWidget *widget, gpointer user_data)
 {
-    CtkMultisample *ctk_multisample;
+    CtkMultisample *ctk_multisample = CTK_MULTISAMPLE(user_data);
+    CtrlTarget *ctrl_target = ctk_multisample->ctrl_target;
     gboolean enabled;
-
-    ctk_multisample = CTK_MULTISAMPLE(user_data);
 
     enabled = gtk_toggle_button_get_active(GTK_TOGGLE_BUTTON(widget));
 
-    NvCtrlSetAttribute(ctk_multisample->handle, NV_CTRL_TEXTURE_SHARPEN,
-                       enabled);
+    NvCtrlSetAttribute(ctrl_target, NV_CTRL_TEXTURE_SHARPEN, enabled);
 
     post_texture_sharpening_toggled(ctk_multisample, enabled);
-    
+
 } /* texture_sharpening_toggled() */
 
 
@@ -1456,14 +1479,16 @@ static void texture_sharpening_toggled(GtkWidget *widget, gpointer user_data)
  */
 
 static void texture_sharpening_update_received(GObject *object,
-                                               gpointer arg1,
+                                               CtrlEvent *event,
                                                gpointer user_data)
 {
-    CtkEventStruct *event_struct;
     CtkMultisample *ctk_multisample;
     GtkToggleButton *button;
+
+    if (event->type != CTRL_EVENT_TYPE_INTEGER_ATTRIBUTE) {
+        return;
+    }
     
-    event_struct = (CtkEventStruct *) arg1;
     ctk_multisample = CTK_MULTISAMPLE(user_data);
     button = GTK_TOGGLE_BUTTON(ctk_multisample->texture_sharpening_button);
 
@@ -1471,9 +1496,9 @@ static void texture_sharpening_update_received(GObject *object,
                                     G_CALLBACK(texture_sharpening_toggled),
                                     (gpointer) ctk_multisample);
 
-    gtk_toggle_button_set_active(button, event_struct->value);
+    gtk_toggle_button_set_active(button, event->int_attr.value);
     
-    post_texture_sharpening_toggled(ctk_multisample, event_struct->value);
+    post_texture_sharpening_toggled(ctk_multisample, event->int_attr.value);
 
     g_signal_handlers_unblock_by_func(G_OBJECT(button), 
                                       G_CALLBACK(texture_sharpening_toggled),

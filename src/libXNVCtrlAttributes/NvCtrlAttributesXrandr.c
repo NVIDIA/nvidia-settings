@@ -191,6 +191,7 @@ static void close_libxrandr(void)
 static RROutput GetRandRCrtcForGamma(NvCtrlAttributePrivateHandle *h,
                                      NvCtrlXrandrAttributes *xrandr)
 {
+    int64_t output_64;
     int output;
     RRCrtc crtc;
     ReturnStatus status;
@@ -199,7 +200,7 @@ static RROutput GetRandRCrtcForGamma(NvCtrlAttributePrivateHandle *h,
 
     /* finding the RandR output only makes sense for display targets */
 
-    if (h->target_type != NV_CTRL_TARGET_TYPE_DISPLAY) {
+    if (h->target_type != DISPLAY_TARGET) {
         return None;
     }
 
@@ -219,11 +220,14 @@ static RROutput GetRandRCrtcForGamma(NvCtrlAttributePrivateHandle *h,
         return None;
     }
 
-    status = NvCtrlGetAttribute(h, NV_CTRL_DISPLAY_RANDR_OUTPUT_ID, &output);
+    status = NvCtrlNvControlGetAttribute(h, 0, NV_CTRL_DISPLAY_RANDR_OUTPUT_ID,
+                                         &output_64);
 
     if (status != NvCtrlSuccess) {
         return None;
     }
+
+    output = (int)output_64;
 
     if (output == 0) {
         return None;
@@ -279,8 +283,8 @@ NvCtrlInitXrandrAttributes (NvCtrlAttributePrivateHandle *h)
     }
 
     /* allow RandR on X_SCREEN and DISPLAY target types */
-    if ((h->target_type != NV_CTRL_TARGET_TYPE_X_SCREEN) &&
-        (h->target_type != NV_CTRL_TARGET_TYPE_DISPLAY)) {
+    if ((h->target_type != X_SCREEN_TARGET) &&
+        (h->target_type != DISPLAY_TARGET)) {
         goto fail;
     }
 
@@ -312,7 +316,7 @@ NvCtrlInitXrandrAttributes (NvCtrlAttributePrivateHandle *h)
     }
    
     /* Register to receive XRandR events if this is an X screen */
-    if (h->target_type == NV_CTRL_TARGET_TYPE_X_SCREEN) {
+    if (h->target_type == X_SCREEN_TARGET) {
         __libXrandr->XRRSelectInput(h->dpy, RootWindow(h->dpy, h->target_id),
                                     RRScreenChangeNotifyMask);
     }
@@ -362,7 +366,7 @@ void
 NvCtrlXrandrAttributesClose (NvCtrlAttributePrivateHandle *h)
 {
     /* Check parameters */
-    if ( !h || !h->xrandr || h->target_type != NV_CTRL_TARGET_TYPE_X_SCREEN ) {
+    if ( !h || !h->xrandr || h->target_type != X_SCREEN_TARGET ) {
         return;
     }
 
@@ -385,12 +389,12 @@ NvCtrlXrandrAttributesClose (NvCtrlAttributePrivateHandle *h)
  */
 
 ReturnStatus
-NvCtrlXrandrGetStringAttribute (NvCtrlAttributePrivateHandle *h,
-                                unsigned int display_mask,
-                                int attr, char **ptr)
+NvCtrlXrandrGetStringAttribute(const NvCtrlAttributePrivateHandle *h,
+                               unsigned int display_mask,
+                               int attr, char **ptr)
 {
     /* Validate */
-    if ( !h || !h->dpy || h->target_type != NV_CTRL_TARGET_TYPE_X_SCREEN ) {
+    if ( !h || !h->dpy || h->target_type != X_SCREEN_TARGET ) {
         return NvCtrlBadHandle;
     }
 
@@ -412,7 +416,7 @@ NvCtrlXrandrGetStringAttribute (NvCtrlAttributePrivateHandle *h,
 
 
 ReturnStatus
-NvCtrlXrandrGetAttribute(NvCtrlAttributePrivateHandle *h,
+NvCtrlXrandrGetAttribute(const NvCtrlAttributePrivateHandle *h,
                          unsigned int display_mask, int attr, int64_t *val)
 {
     if (!h || !h->xrandr) {
@@ -423,7 +427,7 @@ NvCtrlXrandrGetAttribute(NvCtrlAttributePrivateHandle *h,
         return NvCtrlNoAttribute;
     }
 
-    if (h->target_type == NV_CTRL_TARGET_TYPE_X_SCREEN) {
+    if (h->target_type == X_SCREEN_TARGET) {
         *val = h->xrandr->gammaAvailable;
     } else {
         *val = (h->xrandr->pGammaRamp != NULL);
@@ -432,7 +436,7 @@ NvCtrlXrandrGetAttribute(NvCtrlAttributePrivateHandle *h,
     return NvCtrlSuccess;
 }
 
-ReturnStatus NvCtrlXrandrGetColorAttributes(NvCtrlAttributePrivateHandle *h,
+ReturnStatus NvCtrlXrandrGetColorAttributes(const NvCtrlAttributePrivateHandle *h,
                                             float contrast[3],
                                             float brightness[3],
                                             float gamma[3])
@@ -494,7 +498,7 @@ ReturnStatus NvCtrlXrandrSetColorAttributes(NvCtrlAttributePrivateHandle *h,
     return NvCtrlSuccess;
 }
 
-ReturnStatus NvCtrlXrandrGetColorRamp(NvCtrlAttributePrivateHandle *h,
+ReturnStatus NvCtrlXrandrGetColorRamp(const NvCtrlAttributePrivateHandle *h,
                                       unsigned int channel,
                                       uint16_t **lut,
                                       int *n)

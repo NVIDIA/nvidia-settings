@@ -57,7 +57,7 @@ static void color_space_menu_changed(GtkWidget *widget,
 static void color_range_menu_changed(GtkWidget *widget,
                                      gpointer user_data);
 
-static void color_control_update_received(GObject *object, gpointer arg1,
+static void color_control_update_received(GObject *object, CtrlEvent *event,
                                           gpointer user_data);
 static void setup_color_range_dropdown(CtkColorControls *ctk_color_controls);
 static
@@ -137,7 +137,7 @@ static void ctk_color_controls_finalize(GObject *object)
 
 
 
-GtkWidget* ctk_color_controls_new(NvCtrlAttributeHandle *handle,
+GtkWidget* ctk_color_controls_new(CtrlTarget *ctrl_target,
                                   CtkConfig *ctk_config,
                                   CtkEvent *ctk_event,
                                   GtkWidget *reset_button,
@@ -153,10 +153,10 @@ GtkWidget* ctk_color_controls_new(NvCtrlAttributeHandle *handle,
     gint i;
 
     /* check if color configuration is supported */
-    ret1 = NvCtrlGetValidAttributeValues(handle,
+    ret1 = NvCtrlGetValidAttributeValues(ctrl_target,
                                          NV_CTRL_COLOR_SPACE,
                                          &valid1);
-    ret2 = NvCtrlGetValidAttributeValues(handle,
+    ret2 = NvCtrlGetValidAttributeValues(ctrl_target,
                                          NV_CTRL_COLOR_RANGE,
                                          &valid2);
 
@@ -171,7 +171,7 @@ GtkWidget* ctk_color_controls_new(NvCtrlAttributeHandle *handle,
     }
 
     ctk_color_controls = CTK_COLOR_CONTROLS(object);
-    ctk_color_controls->handle = handle;
+    ctk_color_controls->ctrl_target = ctrl_target;
     ctk_color_controls->ctk_config = ctk_config;
     ctk_color_controls->ctk_event = ctk_event;
     ctk_color_controls->reset_button = reset_button;
@@ -373,11 +373,12 @@ void ctk_color_controls_setup(CtkColorControls *ctk_color_controls)
 
 static gboolean update_color_space_menu_info(CtkColorControls *ctk_color_controls)
 {
+    CtrlTarget *ctrl_target = ctk_color_controls->ctrl_target;
     gint color_space = NV_CTRL_COLOR_SPACE_RGB;
 
     /* color space */
     if (NvCtrlSuccess !=
-        NvCtrlGetAttribute(ctk_color_controls->handle,
+        NvCtrlGetAttribute(ctrl_target,
                            NV_CTRL_COLOR_SPACE,
                            &color_space)) {
         return FALSE;
@@ -444,13 +445,14 @@ static void color_range_menu_changed(GtkWidget *widget,
 {
     CtkColorControls *ctk_color_controls =
         CTK_COLOR_CONTROLS(user_data);
+    CtrlTarget *ctrl_target = ctk_color_controls->ctrl_target;
     CtkDropDownMenu *menu = CTK_DROP_DOWN_MENU(widget);
     gint history, color_range = NV_CTRL_COLOR_RANGE_FULL;
 
     history = ctk_drop_down_menu_get_current_value(menu);
     color_range = ctk_color_controls->color_range_table[history];
 
-    NvCtrlSetAttribute(ctk_color_controls->handle,
+    NvCtrlSetAttribute(ctrl_target,
                        NV_CTRL_COLOR_RANGE,
                        color_range);
 
@@ -465,6 +467,7 @@ static void color_space_menu_changed(GtkWidget *widget,
 {
     CtkColorControls *ctk_color_controls =
         CTK_COLOR_CONTROLS(user_data);
+    CtrlTarget *ctrl_target = ctk_color_controls->ctrl_target;
     CtkDropDownMenu *menu = CTK_DROP_DOWN_MENU(widget);
     gint history, color_space = NV_CTRL_COLOR_SPACE_RGB;
     
@@ -472,7 +475,7 @@ static void color_space_menu_changed(GtkWidget *widget,
 
     color_space = ctk_color_controls->color_space_table[history];
 
-    NvCtrlSetAttribute(ctk_color_controls->handle,
+    NvCtrlSetAttribute(ctrl_target,
                        NV_CTRL_COLOR_SPACE,
                        color_space);
 
@@ -493,15 +496,19 @@ static void color_space_menu_changed(GtkWidget *widget,
  */
 void ctk_color_controls_reset(CtkColorControls *ctk_color_controls)
 {
+    CtrlTarget *ctrl_target;
+
     if (!ctk_color_controls) {
         return;
     }
 
-    NvCtrlSetAttribute(ctk_color_controls->handle,
+    ctrl_target = ctk_color_controls->ctrl_target;
+
+    NvCtrlSetAttribute(ctrl_target,
                        NV_CTRL_COLOR_SPACE,
                        NV_CTRL_COLOR_SPACE_RGB);
 
-    NvCtrlSetAttribute(ctk_color_controls->handle,
+    NvCtrlSetAttribute(ctrl_target,
                        NV_CTRL_COLOR_RANGE,
                        NV_CTRL_COLOR_RANGE_FULL);
 
@@ -536,20 +543,26 @@ void add_color_controls_help(CtkColorControls *ctk_color_controls,
  * we should update the GUI to reflect the current color range
  * and color space.
  */
-static void color_control_update_received(GObject *object, gpointer arg1,
+static void color_control_update_received(GObject *object,
+                                          CtrlEvent *event,
                                           gpointer user_data)
 {
     CtkColorControls *ctk_object = CTK_COLOR_CONTROLS(user_data);
-    CtkEventStruct *event_struct = (CtkEventStruct *) arg1;
+
+    if (event->type != CTRL_EVENT_TYPE_INTEGER_ATTRIBUTE) {
+        return;
+    }
 
     ctk_color_controls_setup(ctk_object);
 
     /* update status bar message */
-    switch (event_struct->attribute) {
+    switch (event->int_attr.attribute) {
     case NV_CTRL_COLOR_RANGE:
-        post_color_range_update(ctk_object, event_struct->value); break;
+        post_color_range_update(ctk_object, event->int_attr.value);
+        break;
     case NV_CTRL_COLOR_SPACE:
-        post_color_space_update(ctk_object, event_struct->value); break;
+        post_color_space_update(ctk_object, event->int_attr.value);
+        break;
     }
 } /* color_control_update_received()  */
 
@@ -600,6 +613,7 @@ static gboolean build_color_space_table(CtkColorControls *ctk_color_controls,
  */
 static void setup_color_range_dropdown(CtkColorControls *ctk_color_controls)
 {
+    CtrlTarget *ctrl_target = ctk_color_controls->ctrl_target;
     gint i, n = 0, color_range_count = 0;
     gint mask, val;
     gboolean enable = FALSE;
@@ -607,7 +621,7 @@ static void setup_color_range_dropdown(CtkColorControls *ctk_color_controls)
     NVCTRLAttributeValidValuesRec valid;
     CtkDropDownMenu *d;
 
-    ret = NvCtrlGetValidAttributeValues(ctk_color_controls->handle,
+    ret = NvCtrlGetValidAttributeValues(ctrl_target,
                                         NV_CTRL_COLOR_RANGE,
                                         &valid);
     if (ret != NvCtrlSuccess) {
@@ -666,7 +680,7 @@ static void setup_color_range_dropdown(CtkColorControls *ctk_color_controls)
 
     /* color range */
     if (NvCtrlSuccess !=
-        NvCtrlGetAttribute(ctk_color_controls->handle,
+        NvCtrlGetAttribute(ctrl_target,
                            NV_CTRL_COLOR_RANGE,
                            &val)) {
         val = NV_CTRL_COLOR_RANGE_FULL;

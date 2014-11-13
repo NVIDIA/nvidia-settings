@@ -27,6 +27,7 @@
 #include "ctkscale.h"
 #include "ctkconfig.h"
 #include "ctkhelp.h"
+#include "ctkutils.h"
 
 #include <sys/types.h>
 #include <sys/stat.h>
@@ -85,10 +86,11 @@ GType ctk_edid_get_type(void)
 
 void ctk_edid_setup(CtkEdid *ctk_object)
 {
+    CtrlTarget *ctrl_target = ctk_object->ctrl_target;
     ReturnStatus ret;
     gint val;
 
-    ret = NvCtrlGetAttribute(ctk_object->handle, NV_CTRL_EDID_AVAILABLE, &val);
+    ret = NvCtrlGetAttribute(ctrl_target, NV_CTRL_EDID_AVAILABLE, &val);
 
     if ((ret != NvCtrlSuccess) || (val != NV_CTRL_EDID_AVAILABLE_TRUE)) {
         gtk_widget_set_sensitive(ctk_object->button, FALSE);
@@ -99,7 +101,7 @@ void ctk_edid_setup(CtkEdid *ctk_object)
 }
 
 
-GtkWidget* ctk_edid_new(NvCtrlAttributeHandle *handle,
+GtkWidget* ctk_edid_new(CtrlTarget *ctrl_target,
                         CtkConfig *ctk_config, CtkEvent *ctk_event,
                         char *name)
 {
@@ -114,20 +116,11 @@ GtkWidget* ctk_edid_new(NvCtrlAttributeHandle *handle,
 
     ctk_edid = CTK_EDID(object);
 
-    ctk_edid->handle = handle;
+    ctk_edid->ctrl_target = ctrl_target;
     ctk_edid->ctk_config = ctk_config;
     ctk_edid->name = name;
     ctk_edid->filename = DEFAULT_EDID_FILENAME_BINARY;
     ctk_edid->file_format = FILE_FORMAT_BINARY;
-    ctk_edid->file_selector =
-        gtk_file_chooser_dialog_new("Please select file where "
-                                    "EDID data will be saved.",
-                                    NULL, GTK_FILE_CHOOSER_ACTION_SAVE,
-                                    GTK_STOCK_CANCEL, GTK_RESPONSE_CANCEL,
-                                    GTK_STOCK_SAVE, GTK_RESPONSE_ACCEPT,
-                                    NULL);
-    gtk_file_chooser_set_current_name(GTK_FILE_CHOOSER(ctk_edid->file_selector),
-                                      ctk_edid->filename);
 
     /* create the frame and vbox */
     
@@ -159,41 +152,6 @@ GtkWidget* ctk_edid_new(NvCtrlAttributeHandle *handle,
                      G_CALLBACK(button_clicked),
                      (gpointer) ctk_edid);
 
-    /* adding file format selection option to file selector dialog */
-
-    frame = gtk_frame_new(NULL);
-
-    hbox = gtk_hbox_new(FALSE, 10);
-    gtk_container_set_border_width(GTK_CONTAINER(hbox), FRAME_PADDING);
-    gtk_container_add(GTK_CONTAINER(frame), hbox);
-
-    label = gtk_label_new("EDID File Format: ");
-    gtk_box_pack_start(GTK_BOX(hbox), label, FALSE, FALSE, 0);
-
-    ctk_edid->file_format_binary_radio_button =
-        gtk_radio_button_new_with_label(NULL, "Binary");
-    gtk_box_pack_start(GTK_BOX(hbox), ctk_edid->file_format_binary_radio_button,
-                       FALSE, FALSE, 0);
-    g_signal_connect(G_OBJECT(ctk_edid->file_format_binary_radio_button),
-                     "toggled", G_CALLBACK(file_format_changed),
-                     (gpointer) ctk_edid);
-
-    ctk_edid->file_format_ascii_radio_button =
-        gtk_radio_button_new_with_label_from_widget
-        (GTK_RADIO_BUTTON(ctk_edid->file_format_binary_radio_button),
-         "ASCII");
-    gtk_box_pack_start(GTK_BOX(hbox), ctk_edid->file_format_ascii_radio_button,
-                       FALSE, FALSE, 0);
-    g_signal_connect(G_OBJECT(ctk_edid->file_format_ascii_radio_button),
-                     "toggled", G_CALLBACK(file_format_changed),
-                     (gpointer) ctk_edid);
-
-    gtk_toggle_button_set_active
-        (GTK_TOGGLE_BUTTON(ctk_edid->file_format_binary_radio_button), TRUE);
-    gtk_widget_show_all(frame);
-    gtk_file_chooser_set_extra_widget(GTK_FILE_CHOOSER(ctk_edid->file_selector),
-                                      frame);
-
     gtk_widget_show_all(GTK_WIDGET(object));
 
     ctk_edid_setup(ctk_edid);
@@ -210,7 +168,7 @@ static void normalize_filename(CtkEdid *ctk_edid)
     int len = 0, n;
 
     ctk_edid->filename =
-        gtk_file_chooser_get_filename(GTK_FILE_CHOOSER(ctk_edid->file_selector));
+        ctk_file_chooser_get_filename(ctk_edid->file_selector);
 
     if (!ctk_edid->filename) {
         goto done;
@@ -278,8 +236,7 @@ static void normalize_filename(CtkEdid *ctk_edid)
     }
 
     /* modify the file name as per the format selected */
-    gtk_file_chooser_set_current_name(GTK_FILE_CHOOSER(ctk_edid->file_selector),
-                                      slash);
+    ctk_file_chooser_set_filename(ctk_edid->file_selector, slash);
  done:
     free(filename);
     free(buffer);
@@ -295,14 +252,16 @@ static void button_clicked(GtkButton *button, gpointer user_data)
 {
     ReturnStatus ret;
     CtkEdid *ctk_edid = CTK_EDID(user_data);
+    CtrlTarget *ctrl_target = ctk_edid->ctrl_target;
     unsigned char *data = NULL;
     int len = 0;
     gint result;
-    
+    GtkWidget *file_format_frame, *label, *hbox;
+
 
     /* Grab EDID information */
-    
-    ret = NvCtrlGetBinaryAttribute(ctk_edid->handle, 0,
+
+    ret = NvCtrlGetBinaryAttribute(ctrl_target, 0,
                                    NV_CTRL_BINARY_DATA_EDID,
                                    &data, &len);
     if (ret != NvCtrlSuccess) {
@@ -311,36 +270,83 @@ static void button_clicked(GtkButton *button, gpointer user_data)
                                      ctk_edid->name);
     } else {
 
-        /* Ask user for filename */
+        /* Create a dialog and ask user for filename */
         
-        gtk_file_chooser_set_filename(GTK_FILE_CHOOSER(ctk_edid->file_selector),
+        ctk_edid->file_selector =
+            ctk_file_chooser_dialog_new("Please select file where "
+                                        "EDID data will be saved.",
+                                        NULL, GTK_FILE_CHOOSER_ACTION_SAVE);
+
+        ctk_file_chooser_set_filename(ctk_edid->file_selector,
                                       ctk_edid->filename);
 
-        result = gtk_dialog_run(GTK_DIALOG(ctk_edid->file_selector));
-        gtk_widget_hide(ctk_edid->file_selector);
+        /* adding file format selection option to file selector dialog */
 
-        switch ( result ) {
-        case GTK_RESPONSE_ACCEPT:
-        case GTK_RESPONSE_OK:
+        file_format_frame = gtk_frame_new(NULL);
 
-            normalize_filename(ctk_edid);
-            ctk_edid->filename =
-                gtk_file_chooser_get_filename(GTK_FILE_CHOOSER(ctk_edid->file_selector));
-            
-            write_edid_to_file(ctk_edid->ctk_config, ctk_edid->filename,
-                               ctk_edid->file_format, data, len);
+        hbox = gtk_hbox_new(FALSE, 10);
+        gtk_container_set_border_width(GTK_CONTAINER(hbox), FRAME_PADDING);
+        gtk_container_add(GTK_CONTAINER(file_format_frame), hbox);
 
-            break;
-        default:
-            return;
+        label = gtk_label_new("EDID File Format: ");
+        gtk_box_pack_start(GTK_BOX(hbox), label, FALSE, FALSE, 0);
+
+        ctk_edid->file_format_binary_radio_button =
+            gtk_radio_button_new_with_label(NULL, "Binary");
+        gtk_box_pack_start(GTK_BOX(hbox),
+                           ctk_edid->file_format_binary_radio_button,
+                           FALSE, FALSE, 0);
+        g_signal_connect(G_OBJECT(ctk_edid->file_format_binary_radio_button),
+                         "toggled", G_CALLBACK(file_format_changed),
+                         (gpointer) ctk_edid);
+
+        ctk_edid->file_format_ascii_radio_button =
+            gtk_radio_button_new_with_label_from_widget
+            (GTK_RADIO_BUTTON(ctk_edid->file_format_binary_radio_button),
+             "ASCII");
+        gtk_box_pack_start(GTK_BOX(hbox),
+                           ctk_edid->file_format_ascii_radio_button,
+                           FALSE, FALSE, 0);
+        g_signal_connect(G_OBJECT(ctk_edid->file_format_ascii_radio_button),
+                         "toggled", G_CALLBACK(file_format_changed),
+                         (gpointer) ctk_edid);
+
+        if (ctk_edid->file_format == FILE_FORMAT_BINARY) {
+            gtk_toggle_button_set_active
+                (GTK_TOGGLE_BUTTON(ctk_edid->file_format_binary_radio_button),
+                TRUE);
+        } else {
+            gtk_toggle_button_set_active
+                (GTK_TOGGLE_BUTTON(ctk_edid->file_format_ascii_radio_button),
+                TRUE);
         }
-        
+
+        gtk_widget_show_all(file_format_frame);
+
+        ctk_file_chooser_set_extra_widget(ctk_edid->file_selector,
+                                          file_format_frame);
+
+        /* Run dialog */
+
+        result = gtk_dialog_run(GTK_DIALOG(ctk_edid->file_selector));
+
+        if (result == GTK_RESPONSE_ACCEPT || result == GTK_RESPONSE_OK) {
+                normalize_filename(ctk_edid);
+
+                write_edid_to_file(ctk_edid->ctk_config, ctk_edid->filename,
+                                   ctk_edid->file_format, data, len);
+        }
+
+        gtk_widget_destroy(ctk_edid->file_selector);
+
+        ctk_edid->file_selector = NULL;
+        ctk_edid->file_format_ascii_radio_button = NULL;
+        ctk_edid->file_format_binary_radio_button = NULL;
+
     } /* EDID available */
 
-    if (data) {
-        XFree(data);
-    }
-    
+    free(data);
+
 } /* button_clicked() */
 
 

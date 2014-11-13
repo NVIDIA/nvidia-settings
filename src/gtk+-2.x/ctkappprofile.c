@@ -1340,26 +1340,17 @@ static gboolean rule_browse_button_clicked(GtkWidget *widget, gpointer user_data
 {
     EditRuleDialog *dialog = (EditRuleDialog *)user_data;
     const gchar *filename = dialog->source_file->str;
-    gint result;
+    gchar *selected_filename =
+        ctk_get_filename_from_dialog("Please select a source file for the rule",
+                                     GTK_WINDOW(dialog->top_window),
+                                     filename);
 
-    gtk_window_set_transient_for(GTK_WINDOW(dialog->file_sel),
-                                 GTK_WINDOW(dialog->top_window));
-
-    gtk_file_chooser_set_filename(GTK_FILE_CHOOSER(dialog->file_sel), filename);
-
-    result = gtk_dialog_run(GTK_DIALOG(dialog->file_sel));
-
-    switch (result) {
-    case GTK_RESPONSE_ACCEPT:
-    case GTK_RESPONSE_OK:
-        filename = gtk_file_chooser_get_filename(GTK_FILE_CHOOSER(dialog->file_sel));
+    if (selected_filename) {
         gtk_entry_set_text(GTK_ENTRY(gtk_bin_get_child(GTK_BIN(dialog->source_file_combo))),
-                           filename);
-    default:
-        break;
+                           selected_filename);
+        g_free(selected_filename);
     }
 
-    gtk_widget_hide(dialog->file_sel);
     return FALSE;
 }
 
@@ -1367,26 +1358,16 @@ static gboolean profile_browse_button_clicked(GtkWidget *widget, gpointer user_d
 {
     EditProfileDialog *dialog = (EditProfileDialog *)user_data;
     const gchar *filename = dialog->source_file->str;
-    gint result;
+    gchar *selected_filename =
+        ctk_get_filename_from_dialog("Please select a source file for the profile",
+                                     GTK_WINDOW(dialog->top_window), filename);
 
-    gtk_window_set_transient_for(GTK_WINDOW(dialog->file_sel),
-                                 GTK_WINDOW(dialog->top_window));
-
-    gtk_file_chooser_set_filename(GTK_FILE_CHOOSER(dialog->file_sel), filename);
-
-    result = gtk_dialog_run(GTK_DIALOG(dialog->file_sel));
-
-    switch (result) {
-    case GTK_RESPONSE_ACCEPT:
-    case GTK_RESPONSE_OK:
-        filename = gtk_file_chooser_get_filename(GTK_FILE_CHOOSER(dialog->file_sel));
+    if (selected_filename) {
         gtk_entry_set_text(GTK_ENTRY(gtk_bin_get_child(GTK_BIN(dialog->source_file_combo))),
-                           filename);
-    default:
-        break;
+                           selected_filename);
+        g_free(selected_filename);
     }
 
-    gtk_widget_hide(dialog->file_sel);
     return FALSE;
 }
 
@@ -2033,12 +2014,6 @@ static EditRuleDialog* edit_rule_dialog_new(CtkAppProfile *ctk_app_profile)
     dialog->matches = g_string_new("");
     dialog->profile_name = g_string_new("");
     dialog->profile_settings_store = gtk_list_store_new(SETTING_LIST_STORE_NUM_COLS, G_TYPE_POINTER);
-    dialog->file_sel = gtk_file_chooser_dialog_new("Please select a source file for the rule",
-                                                   GTK_WINDOW(NULL), GTK_FILE_CHOOSER_ACTION_SAVE,
-                                                   GTK_STOCK_CANCEL, GTK_RESPONSE_CANCEL,
-                                                   GTK_STOCK_OPEN, GTK_RESPONSE_ACCEPT,
-                                                   NULL);
-
 
     gtk_widget_set_size_request(dialog->top_window, 500, 480);
     gtk_container_set_border_width(GTK_CONTAINER(dialog->top_window), 8);
@@ -3000,11 +2975,6 @@ static EditProfileDialog *edit_profile_dialog_new(CtkAppProfile *ctk_app_profile
     dialog->settings = json_array();
 
     dialog->settings_store = gtk_list_store_new(SETTING_LIST_STORE_NUM_COLS, G_TYPE_POINTER);
-    dialog->file_sel = gtk_file_chooser_dialog_new("Please select a source file for the profile",
-                                                   GTK_WINDOW(NULL), GTK_FILE_CHOOSER_ACTION_SAVE,
-                                                   GTK_STOCK_CANCEL, GTK_RESPONSE_CANCEL,
-                                                   GTK_STOCK_OPEN, GTK_RESPONSE_ACCEPT,
-                                                   NULL);
 
     main_vbox = gtk_vbox_new(FALSE, 0);
     gtk_box_set_spacing(GTK_BOX(main_vbox), 8);
@@ -4085,7 +4055,7 @@ static SaveAppProfileChangesDialog *save_app_profile_changes_dialog_new(CtkAppPr
 
     hbox = gtk_hbox_new(FALSE, 8);
 
-    dialog->preview_file_menu = menu = ctk_drop_down_menu_new(CTK_DROP_DOWN_MENU_FLAG_READWRITE);
+    dialog->preview_file_menu = menu = ctk_drop_down_menu_new(CTK_DROP_DOWN_MENU_FLAG_READONLY);
     gtk_box_pack_start(GTK_BOX(hbox), menu, TRUE, TRUE, 0);
 
     dialog->preview_changed_signal =
@@ -4402,8 +4372,8 @@ static void enabled_check_button_toggled(GtkToggleButton *toggle_button,
                                  STATUSBAR_UPDATE_WARNING);
 }
 
-GtkWidget* ctk_app_profile_new(CtkConfig *ctk_config,
-                               const gchar *driver_version)
+GtkWidget* ctk_app_profile_new(CtrlTarget *ctrl_target,
+                               CtkConfig *ctk_config)
 {
     GObject *object;
     CtkAppProfile *ctk_app_profile;
@@ -4415,6 +4385,7 @@ GtkWidget* ctk_app_profile_new(CtkConfig *ctk_config,
     GtkWidget *rules_page, *profiles_page;
     GtkWidget *toolbar;
 
+    gchar *driver_version;
     char *global_config_file;
     char *keys_file;
     char **search_path;
@@ -4432,7 +4403,9 @@ GtkWidget* ctk_app_profile_new(CtkConfig *ctk_config,
     gtk_box_set_spacing(GTK_BOX(ctk_app_profile), 10);
 
     /* Load registry keys resource file */
+    driver_version = get_nvidia_driver_version(ctrl_target);
     keys_file = get_default_keys_file(driver_version);
+    free(driver_version);
     ctk_app_profile->key_docs = nv_app_profile_key_documentation_load(keys_file);
     free(keys_file);
 

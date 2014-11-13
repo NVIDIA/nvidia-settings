@@ -89,9 +89,9 @@ struct _CtkConfig
     GtkWidget *timer_list;
     GtkWidget *timer_list_box;
     GtkWidget *button_save_rc;
-    GtkWidget *rc_file_selector;
+    gchar *rc_filename;
     gboolean timer_list_visible;
-    CtrlHandles *pCtrlHandles;
+    CtrlSystem *pCtrlSystem;
     GList *help_data;
 };
 
@@ -101,7 +101,7 @@ struct _CtkConfigClass
 };
 
 GType      ctk_config_get_type            (void) G_GNUC_CONST;
-GtkWidget* ctk_config_new                 (ConfigProperties *, CtrlHandles*);
+GtkWidget* ctk_config_new                 (ConfigProperties *, CtrlSystem *);
 void       ctk_config_statusbar_message   (CtkConfig *, const char *, ...) NV_ATTRIBUTE_PRINTF(2, 3);
 GtkWidget* ctk_config_get_statusbar       (CtkConfig *);
 void       ctk_config_set_tooltip         (CtkConfig *, GtkWidget *,

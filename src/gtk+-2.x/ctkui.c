@@ -39,24 +39,25 @@ char *ctk_get_display(void)
 
 void ctk_main(ParsedAttribute *p,
               ConfigProperties *conf,
-              CtrlHandles *h,
+              CtrlSystem *system,
               const char *page)
 {
-    int i, has_nv_control = FALSE;
+    CtrlTargetNode *node;
+    int has_nv_control = FALSE;
     GList *list = NULL;
     GtkWidget *window;
 
     list = g_list_append (list, gdk_pixbuf_from_pixdata(&nvidia_icon_pixdata, TRUE, NULL));
     gtk_window_set_default_icon_list(list);
-    window = ctk_window_new(p, conf, h);
+    window = ctk_window_new(p, conf, system);
 
-    for (i = 0; i < h->targets[X_SCREEN_TARGET].n; i++) {
-        if (h->targets[X_SCREEN_TARGET].t[i].h) {
+    for (node = system->targets[X_SCREEN_TARGET]; node; node = node->next) {
+        if (node->t->h) {
             has_nv_control = TRUE;
             break;
         }
     }
-    
+
     if (!has_nv_control) {
         GtkWidget *dlg;
         dlg = gtk_message_dialog_new (NULL,

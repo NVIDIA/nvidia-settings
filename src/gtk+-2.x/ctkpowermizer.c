@@ -47,7 +47,7 @@ static void update_powermizer_menu_event(GObject *object,
 static void dp_config_button_toggled(GtkWidget *, gpointer);
 static void dp_set_config_status(CtkPowermizer *);
 static void dp_update_config_status(CtkPowermizer *, gboolean);
-static void dp_configuration_update_received(GObject *, gpointer, gpointer);
+static void dp_configuration_update_received(GObject *, CtrlEvent *, gpointer);
 static void post_dp_configuration_update(CtkPowermizer *);
 static void show_dp_toggle_warning_dlg(CtkPowermizer *ctk_powermizer);
 static void post_set_attribute_offset_value(CtkPowermizer *ctk_powermizer,
@@ -58,7 +58,7 @@ static void offset_entry_set_value(CtkPowermizer *ctk_powermizer,
                                    gint offset);
 
 static void offset_value_changed_event_received(GObject *object,
-                                                gpointer arg1,
+                                                CtrlEvent *event,
                                                 gpointer user_data);
 
 static void update_editable_perf_level_info(CtkPowermizer *ctk_powermizer);
@@ -114,7 +114,8 @@ static const char *__powermizer_menu_help =
 "State for the GPU, provided the GPU has multiple Performance Levels.  "
 "If a single X server is running, the mode selected in nvidia-settings is what "
 "the system will be using; if two or more X servers are running, the behavior "
-"is undefined.  ";
+"is undefined.  The value of this setting does not persist across X server or "
+"system restarts.  ";
 
 static const char *__powermizer_auto_mode_help =
 "'Auto' mode lets the driver choose the best Performance State for your GPU.  ";
@@ -240,16 +241,19 @@ static void apply_perf_mode_token(char *token, char *value, void *data)
 
 
 static void offset_value_changed_event_received(GObject *object,
-                                                gpointer arg1,
+                                                CtrlEvent *event,
                                                 gpointer user_data)
 {
-    CtkEventStruct *event_struct = (CtkEventStruct *) arg1;
     CtkPowermizer *ctk_powermizer = CTK_POWERMIZER(user_data);
+
+    if (event->type != CTRL_EVENT_TYPE_INTEGER_ATTRIBUTE) {
+        return;
+    }
 
     update_editable_perf_level_info(ctk_powermizer);
     post_set_attribute_offset_value(ctk_powermizer,
-                                    event_struct->attribute,
-                                    event_struct->value);
+                                    event->int_attr.attribute,
+                                    event->int_attr.value);
 }
 
 
@@ -282,6 +286,7 @@ static void set_attribute_offset_value(GtkWidget *widget,
                                        gpointer user_data)
 {
     CtkPowermizer *ctk_powermizer = CTK_POWERMIZER(user_data);
+    CtrlTarget *ctrl_target = ctk_powermizer->ctrl_target;
     gint offset;
     gint perf_level, attribute, ret;
     const gchar *txt_entry = gtk_entry_get_text(GTK_ENTRY(widget));
@@ -292,7 +297,7 @@ static void set_attribute_offset_value(GtkWidget *widget,
     user_data = g_object_get_data(G_OBJECT(widget), "perf level");
     perf_level = GPOINTER_TO_INT(user_data);
 
-    ret = NvCtrlSetDisplayAttribute(ctk_powermizer->attribute_handle,
+    ret = NvCtrlSetDisplayAttribute(ctrl_target,
                                     perf_level,
                                     attribute,
                                     offset);
@@ -327,6 +332,7 @@ static void offset_entry_set_value(CtkPowermizer *ctk_powermizer,
 static void update_editable_perf_level_info(CtkPowermizer *ctk_powermizer)
 
 {
+    CtrlTarget *ctrl_target = ctk_powermizer->ctrl_target;
     GtkWidget *table;
     GtkWidget *label;
     char tmp_str[24];
@@ -440,13 +446,13 @@ static void update_editable_perf_level_info(CtkPowermizer *ctk_powermizer)
 
         /* Query GPU clock offset information */
         if (ctk_powermizer->gpu_clock) {
-            ret = NvCtrlGetValidDisplayAttributeValues(ctk_powermizer->attribute_handle,
+            ret = NvCtrlGetValidDisplayAttributeValues(ctrl_target,
                                                        i,
                                                        NV_CTRL_GPU_NVCLOCK_OFFSET,
                                                        &gpu_clock_valid_val);
             if ((ret == NvCtrlSuccess) &&
                 (gpu_clock_valid_val.permissions & ATTRIBUTE_TYPE_WRITE)) {
-                ret = NvCtrlGetDisplayAttribute(ctk_powermizer->attribute_handle,
+                ret = NvCtrlGetDisplayAttribute(ctrl_target,
                                                 i,
                                                 NV_CTRL_GPU_NVCLOCK_OFFSET,
                                                 &gpu_clock_val);
@@ -467,16 +473,18 @@ static void update_editable_perf_level_info(CtkPowermizer *ctk_powermizer)
 
         /* Query Memory transfer rate offset information */
         if (ctk_powermizer->memory_transfer_rate) {
-            ret = NvCtrlGetValidDisplayAttributeValues(ctk_powermizer->attribute_handle,
-                                                   i,
-                                                   NV_CTRL_GPU_MEM_TRANSFER_RATE_OFFSET,
-                                                   &mem_transfer_rate_valid_val);
+            ret =
+                NvCtrlGetValidDisplayAttributeValues(ctrl_target,
+                                                     i,
+                                                     NV_CTRL_GPU_MEM_TRANSFER_RATE_OFFSET,
+                                                     &mem_transfer_rate_valid_val);
             if ((ret == NvCtrlSuccess) &&
                 (mem_transfer_rate_valid_val.permissions & ATTRIBUTE_TYPE_WRITE)) {
-                ret = NvCtrlGetDisplayAttribute(ctk_powermizer->attribute_handle,
-                                                i,
-                                                NV_CTRL_GPU_MEM_TRANSFER_RATE_OFFSET,
-                                                &mem_transfer_rate_val);
+                ret =
+                    NvCtrlGetDisplayAttribute(ctrl_target,
+                                              i,
+                                              NV_CTRL_GPU_MEM_TRANSFER_RATE_OFFSET,
+                                              &mem_transfer_rate_val);
                 if (ret == NvCtrlSuccess) {
                     /* Create input entry field */
                     txt_mem_transfer_rate_offset = gtk_entry_new();
@@ -585,6 +593,7 @@ static void update_editable_perf_level_info(CtkPowermizer *ctk_powermizer)
 static void update_perf_mode_table(CtkPowermizer *ctk_powermizer,
                                    gint perf_level)
 {
+    CtrlTarget *ctrl_target = ctk_powermizer->ctrl_target;
     GtkWidget *table;
     GtkWidget *label;
     char *perf_modes = NULL;
@@ -603,7 +612,7 @@ static void update_perf_mode_table(CtkPowermizer *ctk_powermizer,
 
     /* Get the current list of perf levels */
 
-    ret = NvCtrlGetStringAttribute(ctk_powermizer->attribute_handle,
+    ret = NvCtrlGetStringAttribute(ctrl_target,
                                    NV_CTRL_STRING_PERFORMANCE_MODES,
                                    &perf_modes);
 
@@ -947,8 +956,8 @@ static void update_perf_mode_table(CtkPowermizer *ctk_powermizer,
 
     gtk_widget_show_all(table);
 
-    XFree(perf_modes);
-    XFree(pEntry);
+    free(perf_modes);
+    free(pEntry);
     pEntry = NULL;
 }
 
@@ -959,17 +968,14 @@ static gboolean update_powermizer_info(gpointer user_data)
     gint power_source, adaptive_clock, perf_level;
     gint gpu_clock, memory_transfer_rate;
 
-    CtkPowermizer *ctk_powermizer;
-    NvCtrlAttributeHandle *handle;
+    CtkPowermizer *ctk_powermizer = CTK_POWERMIZER(user_data);
+    CtrlTarget *ctrl_target = ctk_powermizer->ctrl_target;
     gint ret;
     gchar *s;
     char *clock_string = NULL;
     perfModeEntry pEntry;
 
-    ctk_powermizer = CTK_POWERMIZER(user_data);
-    handle = ctk_powermizer->attribute_handle;
-
-    ret = NvCtrlGetAttribute(handle, NV_CTRL_GPU_ADAPTIVE_CLOCK_STATE,
+    ret = NvCtrlGetAttribute(ctrl_target, NV_CTRL_GPU_ADAPTIVE_CLOCK_STATE,
                              &adaptive_clock);
     if (ret == NvCtrlSuccess && ctk_powermizer->adaptive_clock_status) { 
 
@@ -989,7 +995,7 @@ static gboolean update_powermizer_info(gpointer user_data)
 
     /* Get the current values of clocks */
 
-    ret = NvCtrlGetStringAttribute(ctk_powermizer->attribute_handle,
+    ret = NvCtrlGetStringAttribute(ctrl_target,
                                    NV_CTRL_STRING_GPU_CURRENT_CLOCK_FREQS,
                                    &clock_string);
 
@@ -1023,9 +1029,10 @@ static gboolean update_powermizer_info(gpointer user_data)
             g_free(s);
         }
     }
-    XFree(clock_string);
+    free(clock_string);
 
-    ret = NvCtrlGetAttribute(handle, NV_CTRL_GPU_POWER_SOURCE, &power_source);
+    ret = NvCtrlGetAttribute(ctrl_target, NV_CTRL_GPU_POWER_SOURCE,
+                             &power_source);
     if (ret == NvCtrlSuccess && ctk_powermizer->power_source) {
 
         if (power_source == NV_CTRL_GPU_POWER_SOURCE_AC) {
@@ -1044,19 +1051,20 @@ static gboolean update_powermizer_info(gpointer user_data)
 
     if (ctk_powermizer->pcie_gen_queriable) {
         /* NV_CTRL_GPU_PCIE_CURRENT_LINK_WIDTH */
-        s = get_pcie_link_width_string(handle,
+        s = get_pcie_link_width_string(ctrl_target,
                                        NV_CTRL_GPU_PCIE_CURRENT_LINK_WIDTH);
         gtk_label_set_text(GTK_LABEL(ctk_powermizer->link_width), s);
         g_free(s);
 
         /* NV_CTRL_GPU_PCIE_MAX_LINK_SPEED */
-        s = get_pcie_link_speed_string(handle,
+        s = get_pcie_link_speed_string(ctrl_target,
                                        NV_CTRL_GPU_PCIE_CURRENT_LINK_SPEED);
         gtk_label_set_text(GTK_LABEL(ctk_powermizer->link_speed), s);
         g_free(s);
     }
 
-    ret = NvCtrlGetAttribute(handle, NV_CTRL_GPU_CURRENT_PERFORMANCE_LEVEL, 
+    ret = NvCtrlGetAttribute(ctrl_target,
+                             NV_CTRL_GPU_CURRENT_PERFORMANCE_LEVEL,
                              &perf_level);
     if (ret == NvCtrlSuccess && ctk_powermizer->performance_level) {
         s = g_strdup_printf("%d", perf_level);
@@ -1145,7 +1153,7 @@ static void create_powermizer_menu_entry(CtkDropDownMenu *menu,
 
 
 
-GtkWidget* ctk_powermizer_new(NvCtrlAttributeHandle *handle,
+GtkWidget* ctk_powermizer_new(CtrlTarget *ctrl_target,
                               CtkConfig *ctk_config,
                               CtkEvent *ctk_event)
 {
@@ -1172,24 +1180,27 @@ GtkWidget* ctk_powermizer_new(NvCtrlAttributeHandle *handle,
     char *clock_string = NULL;
     perfModeEntry pEntry;
 
-    /* make sure we have a handle */
+    /* make sure we have a valid target */
 
-    g_return_val_if_fail(handle != NULL, NULL);
+    g_return_val_if_fail((ctrl_target != NULL) &&
+                         (ctrl_target->h != NULL), NULL);
 
     /* check if this screen supports powermizer querying */
 
-    ret = NvCtrlGetAttribute(handle, NV_CTRL_GPU_POWER_SOURCE, &val);
+    ret = NvCtrlGetAttribute(ctrl_target, NV_CTRL_GPU_POWER_SOURCE, &val);
     if (ret == NvCtrlSuccess) {
         power_source_available = TRUE;
     }
 
-    ret = NvCtrlGetAttribute(handle, NV_CTRL_GPU_CURRENT_PERFORMANCE_LEVEL, 
+    ret = NvCtrlGetAttribute(ctrl_target,
+                             NV_CTRL_GPU_CURRENT_PERFORMANCE_LEVEL,
                              &val);
     if (ret == NvCtrlSuccess) {
         perf_level_available = TRUE;
     }
 
-    ret = NvCtrlGetAttribute(handle, NV_CTRL_GPU_ADAPTIVE_CLOCK_STATE, 
+    ret = NvCtrlGetAttribute(ctrl_target,
+                             NV_CTRL_GPU_ADAPTIVE_CLOCK_STATE,
                              &val);
     if (ret == NvCtrlSuccess) {
         adaptive_clock_state_available = TRUE;
@@ -1198,7 +1209,7 @@ GtkWidget* ctk_powermizer_new(NvCtrlAttributeHandle *handle,
 
     /* Check if reporting value of the clock supported */
 
-    ret = NvCtrlGetStringAttribute(handle,
+    ret = NvCtrlGetStringAttribute(ctrl_target,
                                    NV_CTRL_STRING_GPU_CURRENT_CLOCK_FREQS,
                                    &clock_string);
 
@@ -1220,15 +1231,15 @@ GtkWidget* ctk_powermizer_new(NvCtrlAttributeHandle *handle,
             processor_clock_available = TRUE;
         }
     }
-    XFree(clock_string);
+    free(clock_string);
 
     /* NV_CTRL_GPU_PCIE_GENERATION */
 
-    ret = NvCtrlGetAttribute(handle, NV_CTRL_GPU_PCIE_GENERATION, &tmp);
+    ret = NvCtrlGetAttribute(ctrl_target, NV_CTRL_GPU_PCIE_GENERATION, &tmp);
     if (ret == NvCtrlSuccess) {
         pcie_gen_queriable = TRUE;
     }
-    
+
     /* return early if query to attributes fail */
     if (!power_source_available && !perf_level_available &&
         !adaptive_clock_state_available && !gpu_clock_available &&
@@ -1240,7 +1251,7 @@ GtkWidget* ctk_powermizer_new(NvCtrlAttributeHandle *handle,
     object = g_object_new(CTK_TYPE_POWERMIZER, NULL);
 
     ctk_powermizer = CTK_POWERMIZER(object);
-    ctk_powermizer->attribute_handle = handle;
+    ctk_powermizer->ctrl_target = ctrl_target;
     ctk_powermizer->ctk_config = ctk_config;
     ctk_powermizer->pcie_gen_queriable = pcie_gen_queriable;
     ctk_powermizer->hasDecoupledClock = FALSE;
@@ -1438,7 +1449,7 @@ GtkWidget* ctk_powermizer_new(NvCtrlAttributeHandle *handle,
     /* Register a timer callback to update the temperatures */
 
     s = g_strdup_printf("PowerMizer Monitor (GPU %d)",
-                        NvCtrlGetTargetId(handle));
+                        NvCtrlGetTargetId(ctrl_target));
 
     ctk_config_add_timer(ctk_powermizer->ctk_config,
                          DEFAULT_UPDATE_POWERMIZER_INFO_TIME_INTERVAL,
@@ -1449,7 +1460,7 @@ GtkWidget* ctk_powermizer_new(NvCtrlAttributeHandle *handle,
 
     /* PowerMizer Settings */
 
-    ret = NvCtrlGetValidAttributeValues(ctk_powermizer->attribute_handle,
+    ret = NvCtrlGetValidAttributeValues(ctrl_target,
                                         NV_CTRL_GPU_POWER_MIZER_MODE,
                                         &valid_modes);
 
@@ -1551,14 +1562,14 @@ GtkWidget* ctk_powermizer_new(NvCtrlAttributeHandle *handle,
      * check if CUDA - Double Precision Boost support available.
      */
 
-    ret = NvCtrlGetAttribute(handle,
+    ret = NvCtrlGetAttribute(ctrl_target,
                              NV_CTRL_GPU_DOUBLE_PRECISION_BOOST_IMMEDIATE,
                              &val);
     if (ret == NvCtrlSuccess) {
         attribute = NV_CTRL_GPU_DOUBLE_PRECISION_BOOST_IMMEDIATE;
         cuda_dp_ui = TRUE;
     } else {
-        ret1 = NvCtrlGetAttribute(handle,
+        ret1 = NvCtrlGetAttribute(ctrl_target,
                                   NV_CTRL_GPU_DOUBLE_PRECISION_BOOST_REBOOT,
                                   &val);
         if (ret1 == NvCtrlSuccess) {
@@ -1730,6 +1741,7 @@ static void set_powermizer_menu_label_txt(CtkPowermizer *ctk_powermizer,
 
 static void update_powermizer_menu_info(CtkPowermizer *ctk_powermizer)
 {
+    CtrlTarget *ctrl_target = ctk_powermizer->ctrl_target;
     gint powerMizerMode, defaultPowerMizerMode;
     ReturnStatus ret1, ret2;
     CtkDropDownMenu *menu;
@@ -1740,11 +1752,11 @@ static void update_powermizer_menu_info(CtkPowermizer *ctk_powermizer)
 
     menu = CTK_DROP_DOWN_MENU(ctk_powermizer->powermizer_menu);
 
-    ret1 = NvCtrlGetAttribute(ctk_powermizer->attribute_handle,
+    ret1 = NvCtrlGetAttribute(ctrl_target,
                              NV_CTRL_GPU_POWER_MIZER_MODE,
                              &powerMizerMode);
 
-    ret2 = NvCtrlGetAttribute(ctk_powermizer->attribute_handle,
+    ret2 = NvCtrlGetAttribute(ctrl_target,
                               NV_CTRL_GPU_POWER_MIZER_DEFAULT_MODE,
                               &defaultPowerMizerMode);
 
@@ -1775,6 +1787,7 @@ static void powermizer_menu_changed(GtkWidget *widget,
                                     gpointer user_data)
 {
     CtkPowermizer *ctk_powermizer = CTK_POWERMIZER(user_data);
+    CtrlTarget *ctrl_target = ctk_powermizer->ctrl_target;
     CtkDropDownMenu *menu = CTK_DROP_DOWN_MENU(widget);
     guint powerMizerMode;
     ReturnStatus ret;
@@ -1783,7 +1796,7 @@ static void powermizer_menu_changed(GtkWidget *widget,
 
     powerMizerMode = ctk_drop_down_menu_get_current_value(menu);
 
-    ret = NvCtrlSetAttribute(ctk_powermizer->attribute_handle,
+    ret = NvCtrlSetAttribute(ctrl_target,
                              NV_CTRL_GPU_POWER_MIZER_MODE,
                              powerMizerMode);
     if (ret != NvCtrlSuccess) {
@@ -1900,12 +1913,16 @@ static void dp_update_config_status(CtkPowermizer *ctk_powermizer, gboolean val)
  */
 
 static void dp_configuration_update_received(GObject *object,
-                                             gpointer arg1, gpointer user_data)
+                                             CtrlEvent *event,
+                                             gpointer user_data)
 {
-    CtkEventStruct *event_struct = (CtkEventStruct *) arg1;
     CtkPowermizer *ctk_powermizer = CTK_POWERMIZER(user_data);
 
-    ctk_powermizer->dp_enabled = event_struct->value;
+    if (event->type != CTRL_EVENT_TYPE_INTEGER_ATTRIBUTE) {
+        return;
+    }
+
+    ctk_powermizer->dp_enabled = event->int_attr.value;
 
     /* set CUDA - Double Precision Boost configuration buttion status */
     dp_set_config_status(ctk_powermizer);
@@ -1925,6 +1942,7 @@ static void dp_config_button_toggled(GtkWidget *widget,
 {
     gboolean enabled;
     CtkPowermizer *ctk_powermizer = CTK_POWERMIZER(user_data);
+    CtrlTarget *ctrl_target = ctk_powermizer->ctrl_target;
     ReturnStatus ret;
 
     enabled = gtk_toggle_button_get_active(GTK_TOGGLE_BUTTON(widget));
@@ -1935,7 +1953,7 @@ static void dp_config_button_toggled(GtkWidget *widget,
     }
 
     /* set the newly specified CUDA - Double Precision Boost value */
-    ret = NvCtrlSetAttribute(ctk_powermizer->attribute_handle,
+    ret = NvCtrlSetAttribute(ctrl_target,
                              ctk_powermizer->attribute,
                              enabled);
     if (ret != NvCtrlSuccess) {

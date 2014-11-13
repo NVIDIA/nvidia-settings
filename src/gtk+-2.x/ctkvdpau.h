@@ -84,7 +84,6 @@ struct _CtkVDPAU
 {
     GtkVBox parent;
 
-    NvCtrlAttributeHandle *handle;
     CtkConfig *ctk_config;
 
     GtkWidget* notebook;
@@ -98,8 +97,7 @@ struct _CtkVDPAUClass
 };
 
 GType          ctk_vdpau_get_type    (void) G_GNUC_CONST;
-GtkWidget*     ctk_vdpau_new         (NvCtrlAttributeHandle *,
-                                      CtkConfig *, CtkEvent *);
+GtkWidget*     ctk_vdpau_new         (CtrlTarget *, CtkConfig *, CtkEvent *);
 GtkTextBuffer* ctk_vdpau_create_help (GtkTextTagTable *, CtkVDPAU *);
 
 G_END_DECLS

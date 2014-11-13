@@ -51,7 +51,6 @@ typedef struct _CtkServer
     GtkVBox parent;
 
     CtkConfig *ctk_config;
-    NvCtrlAttributeHandle *handle;
 
 } CtkServer;
 
@@ -62,7 +61,7 @@ typedef struct _CtkServerClass
 
 
 GType       ctk_server_get_type  (void) G_GNUC_CONST;
-GtkWidget*  ctk_server_new       (NvCtrlAttributeHandle *, CtkConfig *);
+GtkWidget*  ctk_server_new       (CtrlTarget *, CtkConfig *);
 
 GtkTextBuffer *ctk_server_create_help(GtkTextTagTable *,
                                       CtkServer *);

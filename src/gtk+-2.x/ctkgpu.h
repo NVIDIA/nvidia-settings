@@ -26,8 +26,6 @@
 #include "ctkevent.h"
 #include "ctkconfig.h"
 
-#include "NvCtrlAttributes.h"
-
 G_BEGIN_DECLS
 
 #define CTK_TYPE_GPU (ctk_gpu_get_type())
@@ -55,7 +53,7 @@ struct _CtkGpu
 {
     GtkVBox parent;
 
-    NvCtrlAttributeHandle *handle;
+    CtrlTarget *ctrl_target;
     CtkConfig *ctk_config;
     CtkEvent *ctk_event;
 
@@ -78,14 +76,12 @@ struct _CtkGpuClass
 };
 
 GType       ctk_gpu_get_type (void) G_GNUC_CONST;
-GtkWidget*  ctk_gpu_new      (NvCtrlAttributeHandle *handle,
-                              CtrlHandleTarget *t,
+GtkWidget*  ctk_gpu_new      (CtrlTarget *ctrl_target,
                               CtkEvent *ctk_event,
                               CtkConfig *ctk_config);
 
-void get_bus_type_str(NvCtrlAttributeHandle *handle,
-                      gchar **bus);
-gchar *get_bus_id_str(NvCtrlAttributeHandle *handle);
+void get_bus_type_str(CtrlTarget *ctrl_target, gchar **bus);
+gchar *get_bus_id_str(CtrlTarget *ctrl_target);
 
 GtkTextBuffer *ctk_gpu_create_help(GtkTextTagTable *,
                                    CtkGpu *);

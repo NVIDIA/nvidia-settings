@@ -56,7 +56,7 @@ struct _CtkGvoSync
 {
     GtkVBox parent;
 
-    NvCtrlAttributeHandle *handle;
+    CtrlTarget *ctrl_target;
     GtkWidget *parent_window;
     CtkConfig *ctk_config;
     CtkEvent *ctk_event;
@@ -102,8 +102,8 @@ struct _CtkGvoSyncClass
 
 
 GType       ctk_gvo_sync_get_type  (void) G_GNUC_CONST;
-GtkWidget*  ctk_gvo_sync_new       (NvCtrlAttributeHandle *, GtkWidget *,
-                                    CtkConfig *, CtkEvent *, CtkGvo *);
+GtkWidget*  ctk_gvo_sync_new       (CtrlTarget *, GtkWidget *, CtkConfig *,
+                                    CtkEvent *, CtkGvo *);
 
 GtkTextBuffer* ctk_gvo_sync_create_help(GtkTextTagTable *, CtkGvoSync *);
 

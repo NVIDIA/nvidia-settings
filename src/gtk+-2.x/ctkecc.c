@@ -67,7 +67,7 @@ static const char *__reset_default_config_button_help =
 static void ecc_config_button_toggled(GtkWidget *, gpointer);
 static void show_ecc_toggle_warning_dlg(CtkEcc *);
 static void ecc_set_config_status(CtkEcc *);
-static void ecc_configuration_update_received(GObject *, gpointer, gpointer);
+static void ecc_configuration_update_received(GObject *, CtrlEvent *, gpointer);
 static void post_ecc_configuration_update(CtkEcc *);
 
 GType ctk_ecc_get_type(void)
@@ -154,17 +154,18 @@ static GtkWidget *add_table_int_row(CtkConfig *ctk_config, GtkWidget *table,
 static gboolean update_ecc_info(gpointer user_data)
 {
     CtkEcc *ctk_ecc = CTK_ECC(user_data);
+    CtrlTarget *ctrl_target = ctk_ecc->ctrl_target;
     int64_t val;
     ReturnStatus ret;
 
     if ( ctk_ecc->ecc_enabled == FALSE ) {
         return FALSE;
     }
-    
+
     /* Query ECC Errors */
 
     if ( ctk_ecc->dbit_error ) {
-        ret = NvCtrlGetAttribute64(ctk_ecc->handle,
+        ret = NvCtrlGetAttribute64(ctrl_target,
                                    NV_CTRL_GPU_ECC_DOUBLE_BIT_ERRORS,
                                    &val);
         if ( ret != NvCtrlSuccess ) {
@@ -174,7 +175,7 @@ static gboolean update_ecc_info(gpointer user_data)
     }
 
     if ( ctk_ecc->aggregate_dbit_error ) {
-        ret = NvCtrlGetAttribute64(ctk_ecc->handle,
+        ret = NvCtrlGetAttribute64(ctrl_target,
                                    NV_CTRL_GPU_ECC_AGGREGATE_DOUBLE_BIT_ERRORS,
                                    &val);
         if ( ret != NvCtrlSuccess ) {
@@ -239,12 +240,16 @@ static void ecc_set_config_status(CtkEcc *ctk_ecc)
  */
 
 static void ecc_configuration_update_received(GObject *object,
-                                              gpointer arg1, gpointer user_data)
+                                              CtrlEvent *event,
+                                              gpointer user_data)
 {
-    CtkEventStruct *event_struct = (CtkEventStruct *) arg1;
     CtkEcc *ctk_ecc = CTK_ECC(user_data);
 
-    ctk_ecc->ecc_configured = event_struct->value;
+    if (event->type != CTRL_EVENT_TYPE_INTEGER_ATTRIBUTE) {
+        return;
+    }
+
+    ctk_ecc->ecc_configured = event->int_attr.value;
  
     /* set ECC configuration button status */
     ecc_set_config_status(ctk_ecc);
@@ -266,9 +271,10 @@ static void reset_default_config_button_clicked(GtkWidget *widget,
     gboolean status;
     ReturnStatus ret;
     CtkEcc *ctk_ecc = CTK_ECC(user_data);
-    
+    CtrlTarget *ctrl_target = ctk_ecc->ctrl_target;
+
     /* get default status and set it to ECC configuration */
-    ret = NvCtrlGetAttribute(ctk_ecc->handle,
+    ret = NvCtrlGetAttribute(ctrl_target,
                              NV_CTRL_GPU_ECC_DEFAULT_CONFIGURATION,
                              &status);
     if (ret != NvCtrlSuccess) {
@@ -276,7 +282,7 @@ static void reset_default_config_button_clicked(GtkWidget *widget,
                                      "Failed to get default configuration!");
         return;
     }
-    ret =  NvCtrlSetAttribute(ctk_ecc->handle,
+    ret =  NvCtrlSetAttribute(ctrl_target,
                               NV_CTRL_GPU_ECC_CONFIGURATION,
                               status);
     if (ret != NvCtrlSuccess) {
@@ -310,11 +316,12 @@ static void clear_ecc_errors_button_clicked(GtkWidget *widget,
                                             gpointer user_data)
 {
     CtkEcc *ctk_ecc = CTK_ECC(user_data);
-    
-    NvCtrlSetAttribute(ctk_ecc->handle,
+    CtrlTarget *ctrl_target = ctk_ecc->ctrl_target;
+
+    NvCtrlSetAttribute(ctrl_target,
                        NV_CTRL_GPU_ECC_RESET_ERROR_STATUS,
                        NV_CTRL_GPU_ECC_RESET_ERROR_STATUS_VOLATILE);
-    
+
     ctk_config_statusbar_message(ctk_ecc->ctk_config,
                                  "ECC errors cleared.");
 } /* clear_ecc_errors_button_clicked() */
@@ -330,11 +337,12 @@ static void clear_aggregate_ecc_errors_button_clicked(GtkWidget *widget,
                                                       gpointer user_data)
 {
     CtkEcc *ctk_ecc = CTK_ECC(user_data);
-    
-    NvCtrlSetAttribute(ctk_ecc->handle,
+    CtrlTarget *ctrl_target = ctk_ecc->ctrl_target;
+
+    NvCtrlSetAttribute(ctrl_target,
                        NV_CTRL_GPU_ECC_RESET_ERROR_STATUS,
                        NV_CTRL_GPU_ECC_RESET_ERROR_STATUS_AGGREGATE);
-    
+
     ctk_config_statusbar_message(ctk_ecc->ctk_config,
                                  "ECC aggregate errors cleared.");
 } /* clear_aggregate_ecc_errors_button_clicked() */
@@ -375,6 +383,7 @@ static void ecc_config_button_toggled(GtkWidget *widget,
 {
     gboolean enabled;
     CtkEcc *ctk_ecc = CTK_ECC(user_data);
+    CtrlTarget *ctrl_target = ctk_ecc->ctrl_target;
     ReturnStatus ret;
 
     enabled = gtk_toggle_button_get_active(GTK_TOGGLE_BUTTON(widget));
@@ -383,7 +392,7 @@ static void ecc_config_button_toggled(GtkWidget *widget,
     show_ecc_toggle_warning_dlg(ctk_ecc);
 
     /* set the newly specified ECC value */
-    ret = NvCtrlSetAttribute(ctk_ecc->handle,
+    ret = NvCtrlSetAttribute(ctrl_target,
                              NV_CTRL_GPU_ECC_CONFIGURATION,
                              enabled);
     if (ret != NvCtrlSuccess) {
@@ -391,7 +400,7 @@ static void ecc_config_button_toggled(GtkWidget *widget,
                                      "Failed to set ECC configuration!");
         return;
     }
-    
+
     ctk_ecc->ecc_configured = enabled;
 
     gtk_widget_set_sensitive(ctk_ecc->reset_default_config_button, TRUE);
@@ -402,7 +411,7 @@ static void ecc_config_button_toggled(GtkWidget *widget,
 
 
 
-GtkWidget* ctk_ecc_new(NvCtrlAttributeHandle *handle,
+GtkWidget* ctk_ecc_new(CtrlTarget *ctrl_target,
                        CtkConfig *ctk_config,
                        CtkEvent *ctk_event)
 {
@@ -424,13 +433,14 @@ GtkWidget* ctk_ecc_new(NvCtrlAttributeHandle *handle,
 
     /* make sure we have a handle */
 
-    g_return_val_if_fail(handle != NULL, NULL);
+    g_return_val_if_fail((ctrl_target != NULL) &&
+                         (ctrl_target->h != NULL), NULL);
 
     /*
      * check if ECC support available.
      */
 
-    ret = NvCtrlGetAttribute(handle,
+    ret = NvCtrlGetAttribute(ctrl_target,
                              NV_CTRL_GPU_ECC_SUPPORTED,
                              &val);
     if (ret != NvCtrlSuccess || val != NV_CTRL_GPU_ECC_SUPPORTED_TRUE) {
@@ -442,7 +452,7 @@ GtkWidget* ctk_ecc_new(NvCtrlAttributeHandle *handle,
     object = g_object_new(CTK_TYPE_ECC, NULL);
     
     ctk_ecc = CTK_ECC(object);
-    ctk_ecc->handle = handle;
+    ctk_ecc->ctrl_target = ctrl_target;
     ctk_ecc->ctk_config = ctk_config;
     ctk_ecc->ecc_toggle_warning_dlg_shown = FALSE;
 
@@ -454,7 +464,7 @@ GtkWidget* ctk_ecc_new(NvCtrlAttributeHandle *handle,
 
     /* Query ECC Status */
 
-    ret = NvCtrlGetAttribute(handle, NV_CTRL_GPU_ECC_STATUS,
+    ret = NvCtrlGetAttribute(ctrl_target, NV_CTRL_GPU_ECC_STATUS,
                              &val);
     if (ret != NvCtrlSuccess || val == NV_CTRL_GPU_ECC_STATUS_DISABLED) {
         ecc_enabled = FALSE;
@@ -467,7 +477,8 @@ GtkWidget* ctk_ecc_new(NvCtrlAttributeHandle *handle,
 
     /* Query ECC Configuration */
 
-    ret = NvCtrlGetAttribute(handle, NV_CTRL_GPU_ECC_CONFIGURATION, &val);
+    ret = NvCtrlGetAttribute(ctrl_target, NV_CTRL_GPU_ECC_CONFIGURATION,
+                             &val);
     if (ret != NvCtrlSuccess ||
         val == NV_CTRL_GPU_ECC_CONFIGURATION_DISABLED) {
             ctk_ecc->ecc_configured = FALSE;
@@ -476,7 +487,7 @@ GtkWidget* ctk_ecc_new(NvCtrlAttributeHandle *handle,
     }
 
     /* get default status */
-    ret = NvCtrlGetAttribute(handle,
+    ret = NvCtrlGetAttribute(ctrl_target,
                              NV_CTRL_GPU_ECC_DEFAULT_CONFIGURATION,
                              &val);
     if (ret != NvCtrlSuccess ||
@@ -488,14 +499,15 @@ GtkWidget* ctk_ecc_new(NvCtrlAttributeHandle *handle,
 
     /* Query ECC errors */
     
-    ret = NvCtrlGetAttribute64(handle, NV_CTRL_GPU_ECC_DOUBLE_BIT_ERRORS,
-                             &dbit_error);
+    ret = NvCtrlGetAttribute64(ctrl_target,
+                               NV_CTRL_GPU_ECC_DOUBLE_BIT_ERRORS,
+                               &dbit_error);
     if ( ret != NvCtrlSuccess ) {
         dbit_error_available = FALSE;
     }
-    ret = NvCtrlGetAttribute64(handle,
-                             NV_CTRL_GPU_ECC_AGGREGATE_DOUBLE_BIT_ERRORS,
-                             &aggregate_dbit_error);
+    ret = NvCtrlGetAttribute64(ctrl_target,
+                               NV_CTRL_GPU_ECC_AGGREGATE_DOUBLE_BIT_ERRORS,
+                               &aggregate_dbit_error);
     if ( ret != NvCtrlSuccess ) {
         aggregate_dbit_error_available = FALSE;
     }
@@ -503,7 +515,7 @@ GtkWidget* ctk_ecc_new(NvCtrlAttributeHandle *handle,
     ctk_ecc->aggregate_dbit_error_available = aggregate_dbit_error_available;
     /* Query ECC configuration supported */
 
-    ret = NvCtrlGetAttribute(handle,
+    ret = NvCtrlGetAttribute(ctrl_target,
                              NV_CTRL_GPU_ECC_CONFIGURATION_SUPPORTED,
                              &ecc_config_supported);
     if ( ret != NvCtrlSuccess ) {
@@ -654,7 +666,7 @@ GtkWidget* ctk_ecc_new(NvCtrlAttributeHandle *handle,
 
     /* Register a timer callback to update Ecc status info */
     str = g_strdup_printf("ECC Settings (GPU %d)",
-                        NvCtrlGetTargetId(handle));
+                        NvCtrlGetTargetId(ctrl_target));
 
     ctk_config_add_timer(ctk_ecc->ctk_config,
                          DEFAULT_UPDATE_ECC_STATUS_INFO_TIME_INTERVAL,

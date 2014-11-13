@@ -54,7 +54,7 @@
 typedef struct {
     ParsedAttribute a;
     int line;
-    CtrlHandles *h;
+    CtrlSystem *system;
 } ParsedAttributeWrapper;
 
 
@@ -67,7 +67,7 @@ static int process_config_file_attributes(const Options *op,
                                           const char *file,
                                           ParsedAttributeWrapper *w,
                                           const char *display_name,
-                                          CtrlHandlesArray *handles_array);
+                                          CtrlSystemList *system_list);
 
 static void save_gui_parsed_attributes(ParsedAttributeWrapper *w,
                                        ParsedAttribute *p);
@@ -78,11 +78,11 @@ static float get_color_value(int attr,
 static int parse_config_property(const char *file, const char *line,
                                  ConfigProperties *conf);
 
-static void write_config_properties(FILE *stream, ConfigProperties *conf,
+static void write_config_properties(FILE *stream, const ConfigProperties *conf,
                                     char *locale);
 
-static char *create_display_device_target_string(CtrlHandleTarget *t,
-                                                 ConfigProperties *conf);
+static char *create_display_device_target_string(CtrlTarget *t,
+                                                 const ConfigProperties *conf);
 
 /*
  * set_dynamic_verbosity() - Sets the __dynamic_verbosity variable which
@@ -118,11 +118,14 @@ void set_dynamic_verbosity(int dynamic)
 int nv_read_config_file(const Options *op, const char *file,
                         const char *display_name,
                         ParsedAttribute *p, ConfigProperties *conf,
-                        CtrlHandlesArray *handles_array)
+                        CtrlSystemList *systems)
 {
-    int fd, ret, length;
+    int fd = -1;
+    int ret = NV_FALSE;
+    int length;
     struct stat stat_buf;
-    char *buf, *locale;
+    char *buf;
+    char *locale;
     ParsedAttributeWrapper *w = NULL;
 
     if (!file) {
@@ -130,9 +133,9 @@ int nv_read_config_file(const Options *op, const char *file,
          * file is NULL, likely because tilde_expansion() failed and
          * returned NULL; silently fail
          */
-        return NV_FALSE;
+        goto done;
     }
-    
+
     /* open the file */
 
     fd = open(file, O_RDONLY);
@@ -141,25 +144,24 @@ int nv_read_config_file(const Options *op, const char *file,
          * It's OK if the file doesn't exist... but should we print a
          * warning?
          */
-        return NV_FALSE;
+        goto done;
     }
-    
+
     /* get the size of the file */
 
-    ret = fstat(fd, &stat_buf);
-    if (ret == -1) {
+    if (fstat(fd, &stat_buf) == -1) {
         nv_error_msg("Unable to determine size of file '%s' (%s).",
                      file, strerror(errno));
-        return NV_FALSE;
-    }
-
-    if (stat_buf.st_size == 0) {
-        nv_warning_msg("File '%s' has zero size; not reading.", file);
-        close(fd);
-        return NV_TRUE;
+        goto done;
     }
 
     length = stat_buf.st_size;
+
+    if (length == 0) {
+        nv_warning_msg("File '%s' has zero size; not reading.", file);
+        ret = NV_TRUE;
+        goto done;
+    }
 
     /* map the file into memory */
 
@@ -167,11 +169,10 @@ int nv_read_config_file(const Options *op, const char *file,
     if (buf == (void *) -1) {
         nv_error_msg("Unable to mmap file '%s' for reading (%s).",
                      file, strerror(errno));
-        return NV_FALSE;
+        goto done;
     }
 
-
-    /* 
+    /*
      * save the current locale, parse the actual text in the file
      * and restore the saved locale (could be changed).
      */
@@ -185,20 +186,19 @@ int nv_read_config_file(const Options *op, const char *file,
 
     /* unmap and close the file */
 
-    if (munmap (buf, stat_buf.st_size) == -1) {
+    if (munmap(buf, length) == -1) {
         nv_error_msg("Unable to unmap file '%s' after reading (%s).",
                      file, strerror(errno));
-        return NV_FALSE;
+        goto done;
     }
 
-    close(fd);
-    
-    if (!w) return NV_FALSE;
+    if (!w) {
+        goto done;
+    }
 
     /* process the parsed attributes */
 
-    ret = process_config_file_attributes(op, file, w, display_name, 
-                                         handles_array);
+    ret = process_config_file_attributes(op, file, w, display_name, systems);
 
     /*
      * add any relevant parsed attributes back to the list to be
@@ -206,11 +206,13 @@ int nv_read_config_file(const Options *op, const char *file,
      */
 
     save_gui_parsed_attributes(w, p);
-    
-    if (w) free(w);
+
+ done:
+    free(w);
+    close(fd);
 
     return ret;
-    
+
 } /* nv_read_config_file() */
 
 
@@ -226,16 +228,17 @@ int nv_read_config_file(const Options *op, const char *file,
  * write the file (to avoid deleting the existing file).
  */
 
-int nv_write_config_file(const char *filename, CtrlHandles *h,
-                         ParsedAttribute *p, ConfigProperties *conf)
+int nv_write_config_file(const char *filename, const CtrlSystem *system,
+                         const ParsedAttribute *p, const ConfigProperties *conf)
 {
-    int screen, ret, entry, val, display, randr_gamma_available;
+    int ret, entry, val, randr_gamma_available;
     FILE *stream;
     time_t now;
     ReturnStatus status;
-    NVCTRLAttributePermissionsRec perms;
+    CtrlAttributePerms perms;
     NVCTRLAttributeValidValuesRec valid;
-    CtrlHandleTarget *t;
+    CtrlTargetNode *node;
+    CtrlTarget *t;
     char *prefix, scratch[4];
     char *locale = "C";
 
@@ -291,10 +294,10 @@ int nv_write_config_file(const char *filename, CtrlHandles *h,
      * Note: we only save writable attributes addressable by X screen here
      * followed by attributes for display target types.
      */
-    
-    for (screen = 0; screen < h->targets[X_SCREEN_TARGET].n; screen++) {
 
-        t = &h->targets[X_SCREEN_TARGET].t[screen];
+    for (node = system->targets[X_SCREEN_TARGET]; node; node = node->next) {
+
+        t = node->t;
 
         /* skip it if we don't have a handle for this screen */
 
@@ -310,7 +313,7 @@ int nv_write_config_file(const char *filename, CtrlHandles *h,
             CONFIG_PROPERTIES_INCLUDE_DISPLAY_NAME_IN_CONFIG_FILE) {
             prefix = t->name;
         } else {
-            snprintf(scratch, 4, "%d", screen);
+            snprintf(scratch, 4, "%d", NvCtrlGetTargetId(t));
             prefix = scratch;
         }
 
@@ -333,17 +336,19 @@ int nv_write_config_file(const char *filename, CtrlHandles *h,
              * print floats
              */
 
-            if (a->type == NV_PARSER_ATTRIBUTE_TYPE_COLOR) {
+            if (a->type == CTRL_ATTRIBUTE_TYPE_COLOR) {
                 float c[3], b[3], g[3];
 
                 /*
                  * if we are using RandR gamma, skip saving the color info
                  */
 
-                status = NvCtrlGetAttribute(t->h, NV_CTRL_ATTR_RANDR_GAMMA_AVAILABLE, &val);
+                status = NvCtrlGetAttribute(t,
+                                            NV_CTRL_ATTR_RANDR_GAMMA_AVAILABLE,
+                                            &val);
                 if (status == NvCtrlSuccess && val) continue;
 
-                status = NvCtrlGetColorAttributes(t->h, c, b, g);
+                status = NvCtrlGetColorAttributes(t, c, b, g);
                 if (status != NvCtrlSuccess) continue;
                 fprintf(stream, "%s%c%s=%f\n",
                         prefix, DISPLAY_NAME_SEPARATOR, a->name,
@@ -354,34 +359,34 @@ int nv_write_config_file(const char *filename, CtrlHandles *h,
             /* Only write out integer attributes, string and SDI CSC attributes
              * aren't written here.
              */
-            if (a->type != NV_PARSER_ATTRIBUTE_TYPE_INTEGER) {
+            if (a->type != CTRL_ATTRIBUTE_TYPE_INTEGER) {
                 continue;
             }
 
             /* Ignore display attributes, they are written later on */
 
-            ret = nv_get_attribute_perms(h, a, &perms);
-            if (!ret || (perms.permissions & ATTRIBUTE_TYPE_DISPLAY)) {
+            status = NvCtrlGetAttributePerms(t, a->type, a->attr, &perms);
+            if (status != NvCtrlSuccess ||
+                (perms.valid_targets & CTRL_TARGET_PERM_BIT(DISPLAY_TARGET))) {
                 continue;
             }
 
             /* Only write attributes that can be written */
 
-            status = NvCtrlGetValidAttributeValues(t->h, a->attr, &valid);
+            status = NvCtrlGetValidAttributeValues(t, a->attr, &valid);
             if (status != NvCtrlSuccess ||
                 !(valid.permissions & ATTRIBUTE_TYPE_WRITE) ||
                 (valid.permissions & ATTRIBUTE_TYPE_DISPLAY)) {;
                 continue;
             }
 
-            status = NvCtrlGetAttribute(t->h, a->attr, &val);
+            status = NvCtrlGetAttribute(t, a->attr, &val);
             if (status != NvCtrlSuccess) {
                 continue;
             }
 
             if (a->f.int_flags.is_display_id) {
-                const char *name =
-                    nv_get_display_target_config_name(h, val);
+                const char *name = NvCtrlGetDisplayConfigName(system, val);
                 if (name) {
                     fprintf(stream, "%s%c%s=%s\n", prefix,
                             DISPLAY_NAME_SEPARATOR, a->name, name);
@@ -400,9 +405,9 @@ int nv_write_config_file(const char *filename, CtrlHandles *h,
      * Write attributes addressable to display targets
      */
 
-    for (display = 0; display < h->targets[DISPLAY_TARGET].n; display++) {
+    for (node = system->targets[DISPLAY_TARGET]; node; node = node->next) {
 
-        t = &h->targets[DISPLAY_TARGET].t[display];
+        t = node->t;
 
         /* skip it if we don't have a handle for this display */
 
@@ -413,7 +418,7 @@ int nv_write_config_file(const char *filename, CtrlHandles *h,
          * skip writing attributes if it is missing. 
          */
 
-        status = NvCtrlGetAttribute(t->h, 
+        status = NvCtrlGetAttribute(t, 
                                     NV_CTRL_ATTR_RANDR_GAMMA_AVAILABLE,
                                     &randr_gamma_available);
         if (status != NvCtrlSuccess) {
@@ -442,12 +447,12 @@ int nv_write_config_file(const char *filename, CtrlHandles *h,
              * for the display target we only write color attributes for now
              */
 
-            if (a->type == NV_PARSER_ATTRIBUTE_TYPE_COLOR) {
+            if (a->type == CTRL_ATTRIBUTE_TYPE_COLOR) {
                 float c[3], b[3], g[3];
 
                 if (!randr_gamma_available) continue;
 
-                status = NvCtrlGetColorAttributes(t->h, c, b, g);
+                status = NvCtrlGetColorAttributes(t, c, b, g);
                 if (status != NvCtrlSuccess) continue;
 
                 fprintf(stream, "%s%c%s=%f\n",
@@ -459,25 +464,26 @@ int nv_write_config_file(const char *filename, CtrlHandles *h,
             /* Only write out integer attributes, string and SDI CSC attributes
              * aren't written here.
              */
-            if (a->type != NV_PARSER_ATTRIBUTE_TYPE_INTEGER) {
+            if (a->type != CTRL_ATTRIBUTE_TYPE_INTEGER) {
                 continue;
             }
 
             /* Make sure this is a display attribute */
 
-            ret = nv_get_attribute_perms(h, a, &perms);
-            if (!ret || !(perms.permissions & ATTRIBUTE_TYPE_DISPLAY)) {
+            status = NvCtrlGetAttributePerms(t, a->type, a->attr, &perms);
+            if (status != NvCtrlSuccess ||
+                !(perms.valid_targets & CTRL_TARGET_PERM_BIT(DISPLAY_TARGET))) {
                 continue;
             }
 
-            status = NvCtrlGetValidAttributeValues(t->h, a->attr, &valid);
+            status = NvCtrlGetValidAttributeValues(t, a->attr, &valid);
             if (status != NvCtrlSuccess ||
                 !(valid.permissions & ATTRIBUTE_TYPE_WRITE) ||
                 !(valid.permissions & ATTRIBUTE_TYPE_DISPLAY)) {
                 continue;
             }
 
-            status = NvCtrlGetAttribute(t->h, a->attr, &val);
+            status = NvCtrlGetAttribute(t, a->attr, &val);
             if (status == NvCtrlSuccess) {
                 fprintf(stream, "%s%c%s=%d\n", prefix,
                         DISPLAY_NAME_SEPARATOR, a->name, val);
@@ -514,15 +520,15 @@ int nv_write_config_file(const char *filename, CtrlHandles *h,
         target_str[0] = '\0';
 
         if (p->parser_flags.has_target &&
-            (p->target_type != NV_CTRL_TARGET_TYPE_X_SCREEN)) {
+            (p->target_type != X_SCREEN_TARGET)) {
 
-            const TargetTypeEntry *targetTypeEntry;
+            const CtrlTargetTypeInfo *targetTypeInfo;
 
             /* Find the target name of the target type */
-            targetTypeEntry = nv_get_target_type_entry_by_nvctrl(p->target_type);
-            if (targetTypeEntry) {
+            targetTypeInfo = NvCtrlGetTargetTypeInfo(p->target_type);
+            if (targetTypeInfo) {
                 snprintf(target_str, 64, "[%s:%d]",
-                         targetTypeEntry->parsed_name, p->target_id);
+                         targetTypeInfo->parsed_name, p->target_id);
             }
         }
 
@@ -668,7 +674,7 @@ static int process_config_file_attributes(const Options *op,
                                           const char *file,
                                           ParsedAttributeWrapper *w,
                                           const char *display_name,
-                                          CtrlHandlesArray *handles_array)
+                                          CtrlSystemList *systems)
 {
     int i;
     
@@ -689,19 +695,18 @@ static int process_config_file_attributes(const Options *op,
     for (i = 0; w[i].line != -1; i++) {
         nv_assign_default_display(&w[i].a, display_name);
     }
-    
-    /* build the list of CtrlHandles */
-    
+
+    /* connect to all the systems referenced in the config file */
+
     for (i = 0; w[i].line != -1; i++) {
-        w[i].h = nv_alloc_ctrl_handles_and_add_to_array(w[i].a.display, 
-                                                        handles_array);
+        w[i].system = NvCtrlConnectToSystem(w[i].a.display, systems);
     }
-    
-    /* now process each attribute, passing in the correct CtrlHandles */
+
+    /* now process each attribute, passing in the correct system */
 
     for (i = 0; w[i].line != -1; i++) {
 
-        nv_process_parsed_attribute(op, &w[i].a, w[i].h, NV_TRUE, NV_FALSE,
+        nv_process_parsed_attribute(op, &w[i].a, w[i].system, NV_TRUE, NV_FALSE,
                                     "on line %d of configuration file "
                                     "'%s'", w[i].line, file);
         /*
@@ -902,7 +907,7 @@ static int parse_config_property(const char *file, const char *line, ConfigPrope
  * each property is enabled or disabled.
  */
 
-static void write_config_properties(FILE *stream, ConfigProperties *conf, char *locale)
+static void write_config_properties(FILE *stream, const ConfigProperties *conf, char *locale)
 {
     ConfigPropertiesTableEntry *t;
     TimerConfigProperty *c;
@@ -956,14 +961,13 @@ void init_config_properties(ConfigProperties *conf)
  * to specify the display device target in the config file.
  */
 
-static char *create_display_device_target_string(CtrlHandleTarget *t,
-                                                 ConfigProperties *conf)
+static char *create_display_device_target_string(CtrlTarget *t,
+                                                 const ConfigProperties *conf)
 {
     char *target_name = NULL;
     char *target_prefix_name = NULL;
     char *display_name = NULL;
     char *s;
-    int target_type;
 
     if (t->protoNames[NV_DPY_PROTO_NAME_RANDR]) {
         target_name = t->protoNames[NV_DPY_PROTO_NAME_RANDR];
@@ -977,19 +981,14 @@ static char *create_display_device_target_string(CtrlHandleTarget *t,
     /* Get the display name if the user requested it to be used. */
     if (conf->booleans &
         CONFIG_PROPERTIES_INCLUDE_DISPLAY_NAME_IN_CONFIG_FILE) {
-        display_name = NvCtrlGetDisplayName(t->h);
+        display_name = NvCtrlGetDisplayName(t);
     }
 
     /* Get the target type prefix. */
-    target_type = NvCtrlGetTargetType(t->h);
-    if (target_type >= 0) {
-        target_prefix_name =
-            nvstrdup(targetTypeTable[target_type].parsed_name);
-        nvstrtoupper(target_prefix_name);
-    }
+    target_prefix_name = nvstrdup(t->targetTypeInfo->parsed_name);
+    nvstrtoupper(target_prefix_name);
 
     /* Build the string */
-
     if (display_name && target_prefix_name) {
         s = nvasprintf("%s[%s:%s]", display_name,
                        target_prefix_name, target_name);

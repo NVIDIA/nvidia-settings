@@ -20,7 +20,6 @@
 #ifndef __CTK_ECC_H__
 #define __CTK_ECC_H__
 
-#include "NvCtrlAttributes.h"
 #include "ctkevent.h"
 #include "ctkconfig.h"
 
@@ -51,7 +50,7 @@ struct _CtkEcc
 {
     GtkVBox parent;
 
-    NvCtrlAttributeHandle *handle;
+    CtrlTarget *ctrl_target;
     CtkConfig *ctk_config;
 
     GtkWidget* status;
@@ -77,7 +76,7 @@ struct _CtkEccClass
 };
 
 GType          ctk_ecc_get_type    (void) G_GNUC_CONST;
-GtkWidget*     ctk_ecc_new         (NvCtrlAttributeHandle *, CtkConfig *, CtkEvent *);
+GtkWidget*     ctk_ecc_new         (CtrlTarget *, CtkConfig *, CtkEvent *);
 GtkTextBuffer* ctk_ecc_create_help (GtkTextTagTable *, CtkEcc *);
 
 void           ctk_ecc_start_timer (GtkWidget *);

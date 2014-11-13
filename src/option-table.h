@@ -51,6 +51,12 @@ static const NVGetoptOption __options[] = {
       "if that is not given, then the &$DISPLAY& environment "
       "variable is used." },
 
+    /*
+     * This is a silent, hidden option for the GTK argument that we treat
+     * identically to the above "ctrl-display" option.
+     */
+    { "display", DISPLAY_OPTION, NVGETOPT_STRING_ARGUMENT, NULL, NULL },
+
     { "load-config-only", 'l', NVGETOPT_HELP_ALWAYS, NULL,
       "Load the configuration file, send the values specified therein to "
       "the X server, and exit.  This mode of operation is useful to place "
@@ -186,6 +192,19 @@ static const NVGetoptOption __options[] = {
 
     { "write-config", 'w', NVGETOPT_IS_BOOLEAN | NVGETOPT_HELP_ALWAYS, NULL,
       "Save the configuration file on exit (enabled by default)." },
+
+    { "use-gtk2", 'i', NVGETOPT_HELP_ALWAYS, NULL, "Force nvidia-settings to "
+      "use the GTK+ 2 library for the graphical user interface if a user "
+      "interface is required. This option is only available on systems where "
+      "nvidia-settings supports both the GTK+ 2 and GTK+ 3 user "
+      "interfaces.\n" },
+
+    { "gtk-library", 'I', NVGETOPT_STRING_ARGUMENT | NVGETOPT_HELP_ALWAYS, NULL,
+      "Specify the graphical user interface library to use if a "
+      "nvidia-settings user interface is required. This value may be the exact "
+      "location of the library or it may be the directory containing the "
+      "appropriately named library. If this is the exact location, the "
+      "'use-gtk2' option is ignored.\n" },
 
     { NULL, 0, 0, NULL, NULL},
 };

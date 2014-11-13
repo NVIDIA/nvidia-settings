@@ -63,18 +63,17 @@ static char *slurp(FILE *fp)
     int eof = FALSE;
     char *text = strdup("");
     char *new_text;
-    char *line = NULL;
 
     while (text && !eof) {
-        line = fget_next_line(fp, &eof);
-        if (!eof) {
+        char *line = fget_next_line(fp, &eof);
+
+        if (line && *line != '\0' && *line != '\n') {
             new_text = nvstrcat(text, "\n", line, NULL);
             free(text);
             text = new_text;
         }
+        free(line);
     }
-
-    free(line);
 
     return text;
 }
@@ -900,6 +899,9 @@ static json_t *app_profile_config_load_global_options(const char *global_config_
 
     ret = open_and_stat(global_config_file, "r", &fp, &stat_buf);
     if ((ret < 0) || !S_ISREG(stat_buf.st_mode)) {
+        if (ret >= 0) {
+            fclose(fp);
+        }
         return options;
     }
 
@@ -1007,50 +1009,20 @@ static int file_in_search_path(AppProfileConfig *config, const char *filename)
 } while (0)
 
 /*
- * Creates parent directories as needed, similarly to "mkdir -p"
+ * Create parent directories as needed and handle error messages
  */
 static int nv_mkdirp(const char *dirname, char **error_str)
 {
-    int ret = 0;
-    char *parent_name;
-    const char *cur, *next;
-    struct stat stat_buf;
-    cur = dirname;
+    char *tmp_error_str = NULL;
+    int success;
 
-    while (*cur && (next = strchr(cur + 1, '/'))) {
-        parent_name = nvstrndup(dirname, next - dirname);
-        ret = mkdir(parent_name, 0777);
-        if ((ret < 0) && (errno != EEXIST)) {
-            LOG_ERROR(error_str,
-                      "Could not create parent directory \"%s\" "
-                      "for full path \"%s\" (%s)",
-                      parent_name, dirname, strerror(errno));
-            free(parent_name);
-            return ret;
-        }
-        cur = next;
-        free(parent_name);
+    success = nv_mkdir_recursive(dirname, 0777, &tmp_error_str, NULL);
+    if (tmp_error_str) {
+        LOG_ERROR(error_str, "%s", tmp_error_str);
+        free(tmp_error_str);
     }
 
-    ret = mkdir(dirname, 0777);
-    if (ret < 0) {
-        if (errno != EEXIST) {
-            LOG_ERROR(error_str, "Could not create directory \"%s\" (%s)",
-                      dirname, strerror(errno));
-        } else {
-            ret = stat(dirname, &stat_buf);
-            if (ret == 0) {
-                if (!S_ISDIR(stat_buf.st_mode)) {
-                    LOG_ERROR(error_str, "Could not create directory \"%s\" "
-                              "(file exists, but not as a directory)",
-                              dirname);
-                    ret = -1;
-                }
-            }
-        }
-    }
-
-    return ret;
+    return success ? 0 : -1;
 }
 
 char *nv_app_profile_config_get_backup_filename(AppProfileConfig *config, const char *filename)

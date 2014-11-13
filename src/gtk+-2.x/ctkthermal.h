@@ -20,7 +20,6 @@
 #ifndef __CTK_THERMAL_H__
 #define __CTK_THERMAL_H__
 
-#include "NvCtrlAttributes.h"
 #include "ctkconfig.h"
 #include "ctkevent.h"
 
@@ -49,7 +48,7 @@ typedef struct _CtkThermalClass  CtkThermalClass;
 
 typedef struct _CoolerControl {
     NVCTRLAttributeValidValuesRec range;
-    NvCtrlAttributeHandle *handle;
+    CtrlTarget *ctrl_target;
 
     int level;
     Bool changed;              /* Cooler level moved by user */ 
@@ -64,11 +63,11 @@ typedef struct {
 } nvctrlFormatName;
 
 typedef struct _SensorInfo {
-    NvCtrlAttributeHandle *handle;
+    CtrlTarget *ctrl_target;
     int currentTemp;
     int minTemp;
     int maxTemp;
-    
+
     GtkWidget *target_type;
     GtkWidget *provider_type;
     GtkWidget *temp_label;
@@ -79,7 +78,7 @@ struct _CtkThermal
 {
     GtkVBox parent;
 
-    NvCtrlAttributeHandle *attribute_handle;
+    CtrlTarget *ctrl_target;
     CtkConfig *ctk_config;
 
     GtkWidget *core_label;
@@ -113,9 +112,7 @@ struct _CtkThermalClass
 };
 
 GType          ctk_thermal_get_type    (void) G_GNUC_CONST;
-GtkWidget*     ctk_thermal_new         (NvCtrlAttributeHandle *,
-                                        CtkConfig *,
-                                        CtkEvent *);
+GtkWidget*     ctk_thermal_new         (CtrlTarget *, CtkConfig *, CtkEvent *);
 GtkTextBuffer* ctk_thermal_create_help (GtkTextTagTable *, CtkThermal *);
 
 void           ctk_thermal_start_timer (GtkWidget *);

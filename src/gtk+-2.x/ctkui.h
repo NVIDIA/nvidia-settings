@@ -30,7 +30,7 @@ char *ctk_get_display(void);
 
 void ctk_main(ParsedAttribute*,
               ConfigProperties*,
-              CtrlHandles*,
+              CtrlSystem*,
               const char *page);
 
 

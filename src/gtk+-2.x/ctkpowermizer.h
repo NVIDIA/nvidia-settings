@@ -20,7 +20,6 @@
 #ifndef __CTK_POWERMIZER_H__
 #define __CTK_POWERMIZER_H__
 
-#include "NvCtrlAttributes.h"
 #include "ctkconfig.h"
 #include "ctkevent.h"
 
@@ -50,7 +49,7 @@ struct _CtkPowermizer
 {
     GtkVBox parent;
 
-    NvCtrlAttributeHandle *attribute_handle;
+    CtrlTarget *ctrl_target;
     CtkConfig *ctk_config;
 
     GtkWidget *adaptive_clock_status;
@@ -90,8 +89,8 @@ struct _CtkPowermizerClass
 };
 
 GType          ctk_powermizer_get_type    (void) G_GNUC_CONST;
-GtkWidget*     ctk_powermizer_new         (NvCtrlAttributeHandle *,
-                                           CtkConfig *, CtkEvent *);
+GtkWidget*     ctk_powermizer_new         (CtrlTarget *, CtkConfig *,
+                                           CtkEvent *);
 GtkTextBuffer* ctk_powermizer_create_help (GtkTextTagTable *, CtkPowermizer *);
 
 void           ctk_powermizer_start_timer (GtkWidget *);

@@ -106,7 +106,7 @@ static void set_apply_button_sensitive      (CtkGvoCsc *ctk_gvo_csc);
 static void apply_csc_values                (CtkGvoCsc *ctk_gvo_csc);
 
 static void gvo_csc_event_received          (GObject *object,
-                                             gpointer arg1,
+                                             CtrlEvent *event,
                                              gpointer user_data);
 
 static GtkWidget *build_opengl_only_msg     (void);
@@ -185,7 +185,7 @@ GType ctk_gvo_csc_get_type(void)
  * ctk_gvo_csc_new() - create a CtkGvoCsc widget
  */
 
-GtkWidget* ctk_gvo_csc_new(NvCtrlAttributeHandle *handle,
+GtkWidget* ctk_gvo_csc_new(CtrlTarget *ctrl_target,
                            CtkConfig *ctk_config,
                            CtkEvent *ctk_event,
                            CtkGvo *gvo_parent)
@@ -205,21 +205,22 @@ GtkWidget* ctk_gvo_csc_new(NvCtrlAttributeHandle *handle,
     float initialCSCMatrix[3][3];
     float initialCSCOffset[3];
     float initialCSCScale[3];
-    
+
     /* retrieve all the NV-CONTROL attributes that we will need */
-    
-    ret = NvCtrlGetGvoColorConversion(handle,
+
+    ret = NvCtrlGetGvoColorConversion(ctrl_target,
                                       initialCSCMatrix,
                                       initialCSCOffset,
                                       initialCSCScale);
-    
-    if (ret != NvCtrlSuccess) return NULL;
-    
-    ret = NvCtrlGetAttribute(handle, NV_CTRL_GVO_OVERRIDE_HW_CSC, &override);
 
     if (ret != NvCtrlSuccess) return NULL;
 
-    ret = NvCtrlGetAttribute(handle, NV_CTRL_GVO_CAPABILITIES, &caps);
+    ret = NvCtrlGetAttribute(ctrl_target, NV_CTRL_GVO_OVERRIDE_HW_CSC,
+                             &override);
+
+    if (ret != NvCtrlSuccess) return NULL;
+
+    ret = NvCtrlGetAttribute(ctrl_target, NV_CTRL_GVO_CAPABILITIES, &caps);
 
     if (ret != NvCtrlSuccess) return NULL;
 
@@ -228,14 +229,14 @@ GtkWidget* ctk_gvo_csc_new(NvCtrlAttributeHandle *handle,
      * XXX setup to receive events when another NV-CONTROL client
      * changes any of the above attributes
      */
-    
-    
+
+
     /* create the object */
-    
+
     object = g_object_new(CTK_TYPE_GVO_CSC, NULL);
-    
+
     ctk_gvo_csc = CTK_GVO_CSC(object);
-    ctk_gvo_csc->handle = handle;
+    ctk_gvo_csc->ctrl_target = ctrl_target;
     ctk_gvo_csc->ctk_config = ctk_config;
     ctk_gvo_csc->ctk_event = ctk_event;
     ctk_gvo_csc->gvo_parent = gvo_parent;
@@ -684,6 +685,7 @@ static void override_button_toggled(GtkToggleButton *overrideButton,
                                     gpointer user_data)
 {
     CtkGvoCsc *ctk_gvo_csc = (CtkGvoCsc *) user_data;
+    CtrlTarget *ctrl_target = ctk_gvo_csc->ctrl_target;
     gboolean enabled = gtk_toggle_button_get_active(overrideButton);
     override_state_toggled(ctk_gvo_csc, enabled);
 
@@ -693,26 +695,26 @@ static void override_button_toggled(GtkToggleButton *overrideButton,
      * user applies it.  However, if override was disabled, apply that
      * immediately.
      */
-    
+
     if (enabled) {
-    
+
         if (ctk_gvo_csc->applyImmediately) {
-            NvCtrlSetAttribute(ctk_gvo_csc->handle,
+            NvCtrlSetAttribute(ctrl_target,
                                NV_CTRL_GVO_OVERRIDE_HW_CSC,
                                NV_CTRL_GVO_OVERRIDE_HW_CSC_TRUE);
         } else {
-        
+
             // make the "Apply" button hot
-        
+
             gtk_widget_set_sensitive(ctk_gvo_csc->applyButton, TRUE);
         }
 
     } else {
-        NvCtrlSetAttribute(ctk_gvo_csc->handle,
+        NvCtrlSetAttribute(ctrl_target,
                            NV_CTRL_GVO_OVERRIDE_HW_CSC,
                            NV_CTRL_GVO_OVERRIDE_HW_CSC_FALSE);
     }
-    
+
 } /* override_button_toggled() */
 
 
@@ -1000,12 +1002,14 @@ static void set_apply_button_sensitive(CtkGvoCsc *ctk_gvo_csc)
 
 static void apply_csc_values(CtkGvoCsc *ctk_gvo_csc)
 {
-    NvCtrlSetGvoColorConversion(ctk_gvo_csc->handle,
+    CtrlTarget *ctrl_target = ctk_gvo_csc->ctrl_target;
+
+    NvCtrlSetGvoColorConversion(ctrl_target,
                                 ctk_gvo_csc->matrix,
                                 ctk_gvo_csc->offset,
                                 ctk_gvo_csc->scale);
-    
-    NvCtrlSetAttribute(ctk_gvo_csc->handle,
+
+    NvCtrlSetAttribute(ctrl_target,
                        NV_CTRL_GVO_OVERRIDE_HW_CSC,
                        NV_CTRL_GVO_OVERRIDE_HW_CSC_TRUE);
 
@@ -1018,14 +1022,14 @@ static void apply_csc_values(CtkGvoCsc *ctk_gvo_csc)
  */
 
 static void gvo_csc_event_received(GObject *object,
-                                   gpointer arg1,
+                                   CtrlEvent *event,
                                    gpointer user_data)
 {
-    CtkEventStruct *event_struct = (CtkEventStruct *) arg1;
     CtkGvoCsc *ctk_gvo_csc = CTK_GVO_CSC(user_data);
+    CtrlTarget *ctrl_target = ctk_gvo_csc->ctrl_target;
     GtkWidget *widget;
-    gint attribute = event_struct->attribute;
-    gint value = event_struct->value;
+    gint attribute;
+    gint value;
     ReturnStatus ret;    
 
     float newCSCMatrix[3][3];
@@ -1033,6 +1037,12 @@ static void gvo_csc_event_received(GObject *object,
     float newCSCScale[3];
     int row, column;
 
+    if (event->type != CTRL_EVENT_TYPE_INTEGER_ATTRIBUTE) {
+        return;
+    }
+
+    attribute = event->int_attr.attribute;
+    value = event->int_attr.value;
 
     switch (attribute) {
 
@@ -1040,7 +1050,7 @@ static void gvo_csc_event_received(GObject *object,
 
         /* Re-query the GVO CSC matrix */
 
-        ret = NvCtrlGetGvoColorConversion(ctk_gvo_csc->handle,
+        ret = NvCtrlGetGvoColorConversion(ctrl_target,
                                           newCSCMatrix,
                                           newCSCOffset,
                                           newCSCScale);

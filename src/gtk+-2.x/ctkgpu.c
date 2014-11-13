@@ -35,7 +35,7 @@
 
 #include "XF86Config-parser/xf86Parser.h"
 
-static void probe_displays_received(GObject *object, gpointer arg1,
+static void probe_displays_received(GObject *object, CtrlEvent *event,
                                     gpointer user_data);
 static gboolean update_gpu_usage(gpointer);
 
@@ -82,23 +82,22 @@ GType ctk_gpu_get_type(
 }
 
 
-static gchar *make_display_device_list(NvCtrlAttributeHandle *handle)
+static gchar *make_display_device_list(CtrlTarget *ctrl_target)
 {
-    return create_display_name_list_string(handle,
+    return create_display_name_list_string(ctrl_target,
                                            NV_CTRL_BINARY_DATA_DISPLAYS_CONNECTED_TO_GPU);
 
 } /* make_display_device_list() */
 
 
-void get_bus_type_str(NvCtrlAttributeHandle *handle,
-                      gchar **bus)
+void get_bus_type_str(CtrlTarget *ctrl_target, gchar **bus)
 {
     int tmp, ret, bus_type;
     gchar *bus_type_str, *bus_rate, *pcie_gen;
 
     bus_type = 0xffffffff;
     bus_type_str = "Unknown";
-    ret = NvCtrlGetAttribute(handle, NV_CTRL_BUS_TYPE, &bus_type);
+    ret = NvCtrlGetAttribute(ctrl_target, NV_CTRL_BUS_TYPE, &bus_type);
     if (ret == NvCtrlSuccess) {
         if      (bus_type == NV_CTRL_BUS_TYPE_AGP)
             bus_type_str = "AGP";
@@ -115,7 +114,8 @@ void get_bus_type_str(NvCtrlAttributeHandle *handle,
     bus_rate = NULL;
     if (bus_type == NV_CTRL_BUS_TYPE_AGP ||
         bus_type == NV_CTRL_BUS_TYPE_PCI_EXPRESS) {
-        ret = NvCtrlGetAttribute(handle, NV_CTRL_GPU_PCIE_MAX_LINK_WIDTH, &tmp);
+        ret = NvCtrlGetAttribute(ctrl_target, NV_CTRL_GPU_PCIE_MAX_LINK_WIDTH,
+                                 &tmp);
         if (ret == NvCtrlSuccess) {
             if (bus_type == NV_CTRL_BUS_TYPE_PCI_EXPRESS) {
                 bus_rate = g_strdup_printf("x%u", tmp);
@@ -129,7 +129,7 @@ void get_bus_type_str(NvCtrlAttributeHandle *handle,
 
     pcie_gen = NULL;
     if (bus_type == NV_CTRL_BUS_TYPE_PCI_EXPRESS) {
-        pcie_gen = get_pcie_generation_string(handle);
+        pcie_gen = get_pcie_generation_string(ctrl_target);
     }
 
     /* concatenate all the available bus related information */
@@ -146,7 +146,7 @@ void get_bus_type_str(NvCtrlAttributeHandle *handle,
     }
 }
 
-gchar *get_bus_id_str(NvCtrlAttributeHandle *handle)
+gchar *get_bus_id_str(CtrlTarget *ctrl_target)
 {
     int ret;
     int pci_domain, pci_bus, pci_device, pci_func;
@@ -156,22 +156,22 @@ gchar *get_bus_id_str(NvCtrlAttributeHandle *handle)
      * NV_CTRL_PCI_DEVICE & NV__CTRL_PCI_FUNCTION
      */
 
-    ret = NvCtrlGetAttribute(handle, NV_CTRL_PCI_DOMAIN, &pci_domain);
+    ret = NvCtrlGetAttribute(ctrl_target, NV_CTRL_PCI_DOMAIN, &pci_domain);
     if (ret != NvCtrlSuccess) {
         return NULL;
     }
 
-    ret = NvCtrlGetAttribute(handle, NV_CTRL_PCI_BUS, &pci_bus);
+    ret = NvCtrlGetAttribute(ctrl_target, NV_CTRL_PCI_BUS, &pci_bus);
     if (ret != NvCtrlSuccess) {
         return NULL;
     }
 
-    ret = NvCtrlGetAttribute(handle, NV_CTRL_PCI_DEVICE, &pci_device);
+    ret = NvCtrlGetAttribute(ctrl_target, NV_CTRL_PCI_DEVICE, &pci_device);
     if (ret != NvCtrlSuccess) {
         return NULL;
     }
 
-    ret = NvCtrlGetAttribute(handle, NV_CTRL_PCI_FUNCTION, &pci_func);
+    ret = NvCtrlGetAttribute(ctrl_target, NV_CTRL_PCI_FUNCTION, &pci_func);
     if (ret != NvCtrlSuccess) {
         return NULL;
     }
@@ -204,12 +204,9 @@ static void apply_gpu_utilization_token(char *token, char *value, void *data)
 
 
 
-GtkWidget* ctk_gpu_new(
-    NvCtrlAttributeHandle *handle,
-    CtrlHandleTarget *t,
-    CtkEvent *ctk_event,
-    CtkConfig *ctk_config
-)
+GtkWidget* ctk_gpu_new(CtrlTarget *ctrl_target,
+                       CtkEvent *ctk_event,
+                       CtkConfig *ctk_config)
 {
     GObject *object;
     CtkGpu *ctk_gpu;
@@ -252,27 +249,27 @@ GtkWidget* ctk_gpu_new(
 
     /*
      * get the data that we will display below
-     * 
+     *
      * XXX should be able to update any of this if an attribute
      * changes.
      */
 
     /* NV_CTRL_XINERAMA */
-    
-    ret = NvCtrlGetAttribute(handle, NV_CTRL_XINERAMA, &xinerama_enabled);
+
+    ret = NvCtrlGetAttribute(ctrl_target, NV_CTRL_XINERAMA, &xinerama_enabled);
     if (ret != NvCtrlSuccess) {
         xinerama_enabled = FALSE;
     }
 
     /* NV_CTRL_STRING_PRODUCT_NAME */
 
-    ret = NvCtrlGetStringAttribute(handle, NV_CTRL_STRING_PRODUCT_NAME,
+    ret = NvCtrlGetStringAttribute(ctrl_target, NV_CTRL_STRING_PRODUCT_NAME,
                                    &product_name);
     if (ret != NvCtrlSuccess) {
         product_name = NULL;
     }
 
-    ret = NvCtrlGetStringAttribute(handle, NV_CTRL_STRING_GPU_UUID,
+    ret = NvCtrlGetStringAttribute(ctrl_target, NV_CTRL_STRING_GPU_UUID,
                                    &gpu_uuid);
     if (ret != NvCtrlSuccess) {
         gpu_uuid = NULL;
@@ -280,14 +277,14 @@ GtkWidget* ctk_gpu_new(
 
     /* Get Bus related information */
 
-    pci_bus_id = get_bus_id_str(handle);
+    pci_bus_id = get_bus_id_str(ctrl_target);
 
     /* NV_CTRL_PCI_ID */
 
     memset(&pci_device_id, 0, sizeof(pci_device_id));
     memset(&pci_vendor_id, 0, sizeof(pci_vendor_id));
 
-    ret = NvCtrlGetAttribute(handle, NV_CTRL_PCI_ID, &pci_id);
+    ret = NvCtrlGetAttribute(ctrl_target, NV_CTRL_PCI_ID, &pci_id);
 
     if (ret == NvCtrlSuccess) {
         snprintf(pci_device_id, ARRAY_ELEMENTS, "0x%04x", (pci_id & 0xFFFF));
@@ -296,13 +293,13 @@ GtkWidget* ctk_gpu_new(
 
     /* NV_CTRL_STRING_VBIOS_VERSION */
 
-    ret = NvCtrlGetStringAttribute(handle, NV_CTRL_STRING_VBIOS_VERSION,
+    ret = NvCtrlGetStringAttribute(ctrl_target, NV_CTRL_STRING_VBIOS_VERSION,
                                    &vbios_version);
     if (ret != NvCtrlSuccess) vbios_version = NULL;
     
     /* NV_CTRL_VIDEO_RAM */
 
-    ret = NvCtrlGetAttribute(handle, NV_CTRL_VIDEO_RAM, &tmp);
+    ret = NvCtrlGetAttribute(ctrl_target, NV_CTRL_VIDEO_RAM, &tmp);
     if (ret != NvCtrlSuccess) {
         video_ram = NULL;
     } else {
@@ -311,7 +308,7 @@ GtkWidget* ctk_gpu_new(
 
     /* NV_CTRL_TOTAL_DEDICATED_GPU_MEMORY */
 
-    ret = NvCtrlGetAttribute(handle, NV_CTRL_TOTAL_DEDICATED_GPU_MEMORY, 
+    ret = NvCtrlGetAttribute(ctrl_target, NV_CTRL_TOTAL_DEDICATED_GPU_MEMORY, 
                              &gpu_memory);
     if (ret != NvCtrlSuccess) {
         gpu_memory_text = NULL;
@@ -321,7 +318,7 @@ GtkWidget* ctk_gpu_new(
     
     /* NV_CTRL_GPU_CORES */
 
-    ret = NvCtrlGetAttribute(handle, NV_CTRL_GPU_CORES, &tmp);
+    ret = NvCtrlGetAttribute(ctrl_target, NV_CTRL_GPU_CORES, &tmp);
     if (ret != NvCtrlSuccess) {
         gpu_cores = NULL;
     } else {
@@ -330,7 +327,7 @@ GtkWidget* ctk_gpu_new(
 
     /* NV_CTRL_GPU_MEMORY_BUS_WIDTH  */
 
-    ret = NvCtrlGetAttribute(handle, NV_CTRL_GPU_MEMORY_BUS_WIDTH, &tmp);
+    ret = NvCtrlGetAttribute(ctrl_target, NV_CTRL_GPU_MEMORY_BUS_WIDTH, &tmp);
     if (ret != NvCtrlSuccess) {
         memory_interface = NULL;
     } else {
@@ -339,7 +336,7 @@ GtkWidget* ctk_gpu_new(
     
     /* NV_CTRL_IRQ */
     
-    ret = NvCtrlGetAttribute(handle, NV_CTRL_IRQ, &tmp);
+    ret = NvCtrlGetAttribute(ctrl_target, NV_CTRL_IRQ, &tmp);
     if (ret != NvCtrlSuccess) {
         irq = NULL;
     } else {
@@ -350,19 +347,19 @@ GtkWidget* ctk_gpu_new(
 
     memset(&entry, 0, sizeof(entry));
 
-    ret = NvCtrlGetStringAttribute(handle,
+    ret = NvCtrlGetStringAttribute(ctrl_target,
                                    NV_CTRL_STRING_GPU_UTILIZATION,
                                    &tmp_str);
     if (ret == NvCtrlSuccess) {
         parse_token_value_pairs(tmp_str, apply_gpu_utilization_token, &entry);
-        XFree(tmp_str);
+        free(tmp_str);
     }
-    
-    
+
+
     /* List of X Screens using the GPU */
 
     screens = NULL;
-    ret = NvCtrlGetBinaryAttribute(handle,
+    ret = NvCtrlGetBinaryAttribute(ctrl_target,
                                    0,
                                    NV_CTRL_BINARY_DATA_XSCREENS_USING_GPU,
                                    (unsigned char **)(&pData),
@@ -371,7 +368,7 @@ GtkWidget* ctk_gpu_new(
         if (pData[0] == 0) {
             screens = g_strdup("None");
         } else {
-            NvCtrlAttributeHandle *screen_handle;
+            CtrlTarget *screen_target;
 
             if (xinerama_enabled) {
                 screens = g_strdup("Screen 0 (Xinerama)");
@@ -383,7 +380,9 @@ GtkWidget* ctk_gpu_new(
                  *     then we would need to get a handle
                  *     for the correct screen instead.
                  */
-                screen_handle = t[0].h;
+                screen_target = NvCtrlGetDefaultTargetByType(
+                                    ctrl_target->system,
+                                    X_SCREEN_TARGET);
             } else {
                 for (i = 1; i <= pData[0]; i++) {
                     if (screens) {
@@ -395,10 +394,11 @@ GtkWidget* ctk_gpu_new(
                     g_free(screens);
                     screens = tmp_str;
                 }
-                screen_handle = t[pData[1]].h;
+                screen_target = NvCtrlGetTarget(ctrl_target->system,
+                                                X_SCREEN_TARGET, pData[1]);
             }
 
-            ret = NvCtrlGetAttribute(screen_handle,
+            ret = NvCtrlGetAttribute(screen_target,
                                      NV_CTRL_SHOW_SLI_VISUAL_INDICATOR,
                                      &tmp);
             if (ret == NvCtrlSuccess) {
@@ -407,7 +407,7 @@ GtkWidget* ctk_gpu_new(
                 screens = tmp_str;
             }
         }
-        XFree(pData);
+        free(pData);
     }
     if (!screens) {
         screens = g_strdup("Unknown");
@@ -418,9 +418,9 @@ GtkWidget* ctk_gpu_new(
     object = g_object_new(CTK_TYPE_GPU, NULL);
     ctk_gpu = CTK_GPU(object);
 
-    /* cache the attribute handle */
+    /* cache the control target */
 
-    ctk_gpu->handle = handle;
+    ctk_gpu->ctrl_target = ctrl_target;
     ctk_gpu->gpu_cores = (gpu_cores != NULL) ? 1 : 0;
     ctk_gpu->gpu_uuid = (gpu_uuid != NULL) ? 1 : 0;
     ctk_gpu->memory_interface = (memory_interface != NULL) ? 1 : 0;
@@ -439,15 +439,16 @@ GtkWidget* ctk_gpu_new(
     gtk_box_pack_start(GTK_BOX(ctk_gpu), banner, FALSE, FALSE, 0);
 
     /* PCIe link information */
-    get_bus_type_str(handle, &bus);
-    pcie_gen_str = get_pcie_generation_string(handle);
+    get_bus_type_str(ctrl_target, &bus);
+    pcie_gen_str = get_pcie_generation_string(ctrl_target);
     if (pcie_gen_str) {
         ctk_gpu->pcie_gen_queriable = TRUE;
         link_speed_str =
-            get_pcie_link_speed_string(ctk_gpu->handle,
+            get_pcie_link_speed_string(ctrl_target,
                                        NV_CTRL_GPU_PCIE_MAX_LINK_SPEED);
-        link_width_str = get_pcie_link_width_string(ctk_gpu->handle,
-                                                    NV_CTRL_GPU_PCIE_MAX_LINK_WIDTH);
+        link_width_str =
+            get_pcie_link_width_string(ctrl_target,
+                                       NV_CTRL_GPU_PCIE_MAX_LINK_WIDTH);
     }
 
     /*
@@ -582,7 +583,7 @@ GtkWidget* ctk_gpu_new(
                   0, 0, "X Screens:",
                   0, 0, screens);
     /* spacing */
-    displays = make_display_device_list(handle);
+    displays = make_display_device_list(ctrl_target);
 
     row += 3;
     ctk_gpu->displays =
@@ -590,8 +591,8 @@ GtkWidget* ctk_gpu_new(
                       0, 0, "Display Devices:",
                       0, 0, displays);
 
-    XFree(product_name);
-    XFree(vbios_version);
+    free(product_name);
+    free(vbios_version);
     g_free(video_ram);
     g_free(gpu_cores);
     g_free(memory_interface);
@@ -612,7 +613,7 @@ GtkWidget* ctk_gpu_new(
                      (gpointer) ctk_gpu);
 
     tmp_str = g_strdup_printf("Memory Used (GPU %d)",
-                              NvCtrlGetTargetId(handle));
+                              NvCtrlGetTargetId(ctrl_target));
 
     ctk_config_add_timer(ctk_gpu->ctk_config,
                          DEFAULT_UPDATE_GPU_INFO_TIME_INTERVAL,
@@ -754,13 +755,14 @@ GtkTextBuffer *ctk_gpu_create_help(GtkTextTagTable *table,
 
 
 
-static void probe_displays_received(GObject *object, gpointer arg1,
+static void probe_displays_received(GObject *object,
+                                    CtrlEvent *event,
                                     gpointer user_data)
 {
     CtkGpu *ctk_object = CTK_GPU(user_data);
     gchar *str;
 
-    str = make_display_device_list(ctk_object->handle);
+    str = make_display_device_list(ctk_object->ctrl_target);
 
     gtk_label_set_text(GTK_LABEL(ctk_object->displays), str);
 
@@ -778,11 +780,12 @@ static gboolean update_gpu_usage(gpointer user_data)
     gchar *utilizationStr = NULL;
     gint value = 0;
     utilizationEntry entry;
+    CtrlTarget *ctrl_target;
 
     ctk_gpu = CTK_GPU(user_data);
+    ctrl_target = ctk_gpu->ctrl_target;
 
-    ret = NvCtrlGetAttribute(ctk_gpu->handle, 
-                             NV_CTRL_USED_DEDICATED_GPU_MEMORY, 
+    ret = NvCtrlGetAttribute(ctrl_target, NV_CTRL_USED_DEDICATED_GPU_MEMORY,
                              &value);
     if (ret != NvCtrlSuccess || value > ctk_gpu->gpu_memory || value < 0) {
         gtk_label_set_text(GTK_LABEL(ctk_gpu->gpu_memory_used_label), "Unknown");
@@ -802,7 +805,7 @@ static gboolean update_gpu_usage(gpointer user_data)
     }
 
     /* GPU utilization */
-    ret = NvCtrlGetStringAttribute(ctk_gpu->handle,
+    ret = NvCtrlGetStringAttribute(ctrl_target,
                                    NV_CTRL_STRING_GPU_UTILIZATION,
                                    &utilizationStr);
     if (ret != NvCtrlSuccess) {
@@ -852,7 +855,7 @@ static gboolean update_gpu_usage(gpointer user_data)
         g_free(utilization_text);
     }
 
-    XFree(utilizationStr);
+    free(utilizationStr);
 
     return TRUE;
 }

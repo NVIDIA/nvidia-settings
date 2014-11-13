@@ -331,10 +331,12 @@ static nvModeLinePtr modeline_parse(nvDisplayPtr display,
         else {
             nv_warning_msg("Invalid modeline keyword '%s' in modeline '%s'",
                            tmp, modeline_str);
+            free(tmp);
             goto fail;
         }
         free(tmp);
     }
+    free(tmp);
 
     modeline->refresh_rate = 0;
     if (display->is_sdi && gpu->num_gvo_modes) {
@@ -905,14 +907,16 @@ static gchar *mode_get_str(nvModePtr mode, int force_target_id_name)
     gchar *mode_str;
     gchar *tmp;
     gchar *flags_str;
-    nvDisplayPtr display = mode->display;
+    nvDisplayPtr display;
     nvScreenPtr screen;
     nvGpuPtr gpu;
 
     /* Make sure the mode has everything it needs to be displayed */
-    if (!mode || !mode->metamode || !display) {
+    if (!mode || !mode->metamode || !mode->display) {
         return NULL;
     }
+
+    display = mode->display;
 
     /* Don't include dummy modes */
     if (mode->dummy && !mode->modeline) {
@@ -1429,6 +1433,7 @@ Bool display_add_modelines_from_server(nvDisplayPtr display, nvGpuPtr gpu,
     ReturnStatus ret, ret1;
     int major = 0, minor = 0;
     int broken_doublescan_modelines;
+    CtrlTarget *ctrl_target = display->ctrl_target;
 
     /*
      * check the version of the NV-CONTROL protocol -- versions <=
@@ -1440,9 +1445,9 @@ Bool display_add_modelines_from_server(nvDisplayPtr display, nvGpuPtr gpu,
      */
     broken_doublescan_modelines = 1;
 
-    ret = NvCtrlGetAttribute(display->handle,
+    ret = NvCtrlGetAttribute(ctrl_target,
                              NV_CTRL_ATTR_NV_MAJOR_VERSION, &major);
-    ret1 = NvCtrlGetAttribute(display->handle,
+    ret1 = NvCtrlGetAttribute(ctrl_target,
                               NV_CTRL_ATTR_NV_MINOR_VERSION, &minor);
 
     if ((ret == NvCtrlSuccess) && (ret1 == NvCtrlSuccess) &&
@@ -1456,13 +1461,13 @@ Bool display_add_modelines_from_server(nvDisplayPtr display, nvGpuPtr gpu,
 
 
     /* Get the validated modelines for the display */
-    ret = NvCtrlGetBinaryAttribute(display->handle, 0,
+    ret = NvCtrlGetBinaryAttribute(ctrl_target, 0,
                                    NV_CTRL_BINARY_DATA_MODELINES,
                                    (unsigned char **)&modeline_strs, &len);
     if (ret != NvCtrlSuccess) {
         *err_str = g_strdup_printf("Failed to query modelines of display "
                                   "device %d '%s'.",
-                                   NvCtrlGetTargetId(display->handle),
+                                   NvCtrlGetTargetId(ctrl_target),
                                    display->logName);
         nv_error_msg("%s", *err_str);
         goto fail;
@@ -1479,7 +1484,7 @@ Bool display_add_modelines_from_server(nvDisplayPtr display, nvGpuPtr gpu,
             *err_str = g_strdup_printf("Failed to parse the following "
                                        "modeline of display device\n"
                                       "%d '%s' :\n\n%s",
-                                       NvCtrlGetTargetId(display->handle),
+                                       NvCtrlGetTargetId(ctrl_target),
                                        display->logName,
                                        str);
             nv_error_msg("%s", *err_str);
@@ -1495,14 +1500,14 @@ Bool display_add_modelines_from_server(nvDisplayPtr display, nvGpuPtr gpu,
         str += strlen(str) +1;
     }
 
-    XFree(modeline_strs);
+    free(modeline_strs);
     return TRUE;
 
 
     /* Handle the failure case */
  fail:
     display_remove_modelines(display);
-    XFree(modeline_strs);
+    free(modeline_strs);
     return FALSE;
 
 } /* display_add_modelines_from_server() */
@@ -1594,13 +1599,13 @@ static void display_free(nvDisplayPtr display)
     if (display) {
         display_remove_modes(display);
         display_remove_modelines(display);
-        XFree(display->logName);
-        XFree(display->typeBaseName);
-        XFree(display->typeIdName);
-        XFree(display->dpGuidName);
-        XFree(display->edidHashName);
-        XFree(display->targetIdName);
-        XFree(display->randrName);
+        free(display->logName);
+        free(display->typeBaseName);
+        free(display->typeIdName);
+        free(display->dpGuidName);
+        free(display->edidHashName);
+        free(display->targetIdName);
+        free(display->randrName);
         free(display);
     }
 
@@ -1818,39 +1823,28 @@ void screen_unlink_display(nvDisplayPtr display)
 
 static void screen_link_displays(nvScreenPtr screen)
 {
-    ReturnStatus ret;
-    int *pData;
-    int len;
-    int i;
+    CtrlTargetNode *node;
 
-    ret = NvCtrlGetBinaryAttribute
-        (screen->handle, 0, NV_CTRL_BINARY_DATA_DISPLAYS_ASSIGNED_TO_XSCREEN,
-         (unsigned char **)(&pData), &len);
-
-    if (ret != NvCtrlSuccess) {
-        nv_warning_msg("Failed to query list of displays assigned to X screen "
-                       " %d.",
-                        NvCtrlGetTargetId(screen->handle));
-        return;
-    }
-
-    // For each id in pData
-    for (i = 0; i < pData[0]; i++) {
+    for (node = screen->ctrl_target->relations; node; node = node->next) {
+        CtrlTarget *ctrl_target = node->t;
         nvDisplayPtr display;
 
-        display = layout_get_display(screen->layout, pData[i+1]);
+        if (NvCtrlGetTargetType(ctrl_target) != DISPLAY_TARGET) {
+            continue;
+        }
+
+        display = layout_get_display(screen->layout,
+                                     NvCtrlGetTargetId(ctrl_target));
         if (!display) {
             nv_warning_msg("Failed to find display %d assigned to X screen "
                            " %d.",
-                           pData[i+1],
-                           NvCtrlGetTargetId(screen->handle));
+                           NvCtrlGetTargetId(ctrl_target),
+                           NvCtrlGetTargetId(screen->ctrl_target));
             continue;
         }
 
         screen_link_display(screen, display);
     }
-
-    XFree(pData);
 }
 
 
@@ -1970,15 +1964,11 @@ gchar *screen_get_metamode_str(nvScreenPtr screen, int metamode_idx,
 
 void cleanup_metamode(nvMetaModePtr metamode)
 {
-    if (metamode->cpl_str) {
-        free(metamode->cpl_str);
-        metamode->cpl_str = NULL;
-    }
+    free(metamode->cpl_str);
+    metamode->cpl_str = NULL;
 
-    if (metamode->x_str) {
-        XFree(metamode->x_str);
-        metamode->x_str = NULL;
-    }
+    free(metamode->x_str);
+    metamode->x_str = NULL;
 
     metamode->x_str_entry = NULL;
 }
@@ -2326,7 +2316,7 @@ static Bool screen_add_metamodes(nvScreenPtr screen, gchar **err_str)
 
 
     /* Get the list of metamodes for the screen */
-    ret = NvCtrlGetBinaryAttribute(screen->handle, 0,
+    ret = NvCtrlGetBinaryAttribute(screen->ctrl_target, 0,
                                    NV_CTRL_BINARY_DATA_METAMODES_VERSION_2,
                                    (unsigned char **)&metamode_strs,
                                    &len);
@@ -2339,7 +2329,7 @@ static Bool screen_add_metamodes(nvScreenPtr screen, gchar **err_str)
 
 
     /* Get the current metamode for the screen */
-    ret = NvCtrlGetStringAttribute(screen->handle,
+    ret = NvCtrlGetStringAttribute(screen->ctrl_target,
                                    NV_CTRL_STRING_CURRENT_METAMODE_VERSION_2,
                                    &cur_metamode_str);
     if (ret != NvCtrlSuccess) {
@@ -2379,7 +2369,7 @@ static Bool screen_add_metamodes(nvScreenPtr screen, gchar **err_str)
         /* Make sure each display device gets a mode */
         screen_check_metamodes(screen);
     }
-    XFree(metamode_strs);
+    free(metamode_strs);
     metamode_strs = NULL;
 
     if (!screen->metamodes) {
@@ -2419,7 +2409,7 @@ static Bool screen_add_metamodes(nvScreenPtr screen, gchar **err_str)
     /* Remove modes we may have added */
     screen_remove_metamodes(screen);
 
-    XFree(metamode_strs);
+    free(metamode_strs);
     return FALSE;
 
 } /* screen_add_metamodes() */
@@ -2434,19 +2424,16 @@ static Bool screen_add_metamodes(nvScreenPtr screen, gchar **err_str)
 static void screen_free(nvScreenPtr screen)
 {
     if (screen) {
+        ctk_event_destroy(G_OBJECT(screen->ctk_event));
 
         screen_remove_metamodes(screen);
         screen_remove_displays(screen);
 
-        if (screen->handle) {
-            NvCtrlAttributeClose(screen->handle);
-        }
-
         nvfree(screen->gpus);
         screen->num_gpus = 0;
 
-        XFree(screen->sli_mode);
-        XFree(screen->multigpu_mode);
+        free(screen->sli_mode);
+        free(screen->multigpu_mode);
         free(screen);
     }
 
@@ -2490,7 +2477,7 @@ void link_screen_to_gpu(nvScreenPtr screen, nvGpuPtr gpu)
     /* Set the display owner GPU. */
     if (screen->display_owner_gpu_id >= 0) {
         /* Link to the multi GPU display owner, if it is specified */
-        if (screen->display_owner_gpu_id == NvCtrlGetTargetId(gpu->handle)) {
+        if (screen->display_owner_gpu_id == NvCtrlGetTargetId(gpu->ctrl_target)) {
             screen->display_owner_gpu = gpu;
         }
     } else if (gpu->multigpu_master_possible &&
@@ -2647,15 +2634,15 @@ static Bool gpu_query_gvo_mode_info(nvGpuPtr gpu, int mode_id, int table_idx)
 
     data = &(gpu->gvo_mode_data[table_idx]);
 
-    ret1 = NvCtrlGetDisplayAttribute(gpu->handle,
+    ret1 = NvCtrlGetDisplayAttribute(gpu->ctrl_target,
                                      mode_id,
                                      NV_CTRL_GVIO_VIDEO_FORMAT_REFRESH_RATE,
-                                     &(rate));
+                                     &rate);
 
-    ret2 = NvCtrlGetStringDisplayAttribute(gpu->handle,
+    ret2 = NvCtrlGetStringDisplayAttribute(gpu->ctrl_target,
                                            mode_id,
                                            NV_CTRL_STRING_GVIO_VIDEO_FORMAT_NAME,
-                                           &(name));
+                                           &name);
 
     if ((ret1 == NvCtrlSuccess) && (ret2 == NvCtrlSuccess)) {
         data->id = mode_id;
@@ -2664,7 +2651,7 @@ static Bool gpu_query_gvo_mode_info(nvGpuPtr gpu, int mode_id, int table_idx)
         return TRUE;
     }
 
-    XFree(name);
+    free(name);
     return FALSE;
 }
 
@@ -2705,7 +2692,7 @@ static Bool display_add_name_from_server(nvDisplayPtr display,
     ReturnStatus ret;
     char *str;
 
-    ret = NvCtrlGetStringAttribute(display->handle,
+    ret = NvCtrlGetStringAttribute(display->ctrl_target,
                                    displayNameInfo->attr,
                                    &str);
     if (ret == NvCtrlSuccess) {
@@ -2715,7 +2702,7 @@ static Bool display_add_name_from_server(nvDisplayPtr display,
         *err_str = g_strdup_printf("Failed to query name '%s' of display "
                                    "device DPY-%d.",
                                    displayNameInfo->nameDescription,
-                                   NvCtrlGetTargetId(display->handle));
+                                   NvCtrlGetTargetId(display->ctrl_target));
         nv_error_msg("%s", *err_str);
         return FALSE;
     }
@@ -2730,9 +2717,9 @@ static Bool display_add_name_from_server(nvDisplayPtr display,
  *  Adds the display with the device id given to the GPU structure.
  *
  **/
-nvDisplayPtr gpu_add_display_from_server(nvGpuPtr gpu,
-                                         unsigned int display_id,
-                                         gchar **err_str)
+static nvDisplayPtr gpu_add_display_from_server(nvGpuPtr gpu,
+                                                CtrlTarget *ctrl_target,
+                                                gchar **err_str)
 {
     ReturnStatus ret;
     nvDisplayPtr display;
@@ -2743,21 +2730,7 @@ nvDisplayPtr gpu_add_display_from_server(nvGpuPtr gpu,
     display = (nvDisplayPtr)calloc(1, sizeof(nvDisplay));
     if (!display) goto fail;
 
-
-    /* Make an NV-CONTROL handle to talk to the display */
-    display->handle =
-        NvCtrlAttributeInit(NvCtrlGetDisplayPtr(gpu->handle),
-                            NV_CTRL_TARGET_TYPE_DISPLAY,
-                            display_id,
-                            NV_CTRL_ATTRIBUTES_NV_CONTROL_SUBSYSTEM);
-    if (!display->handle) {
-        *err_str = g_strdup_printf("Failed to create NV-CONTROL handle for\n"
-                                   "display %d (on GPU-%d).",
-                                   display_id,
-                                   NvCtrlGetTargetId(gpu->handle));
-        nv_error_msg("%s", *err_str);
-        goto fail;
-    }
+    display->ctrl_target = ctrl_target;
 
 
     /* Query the display information */
@@ -2770,14 +2743,15 @@ nvDisplayPtr gpu_add_display_from_server(nvGpuPtr gpu,
 
 
     /* Query if this display is an SDI display */
-    ret = NvCtrlGetAttribute(display->handle,
+    ret = NvCtrlGetAttribute(ctrl_target,
                              NV_CTRL_IS_GVO_DISPLAY,
                              &(display->is_sdi));
     if (ret != NvCtrlSuccess) {
         nv_warning_msg("Failed to query if display device\n"
                        "%d connected to GPU-%d '%s' is an\n"
                        "SDI device.",
-                       display_id, NvCtrlGetTargetId(gpu->handle),
+                       NvCtrlGetTargetId(ctrl_target),
+                       NvCtrlGetTargetId(gpu->ctrl_target),
                        gpu->name);
         display->is_sdi = FALSE;
     }
@@ -2790,7 +2764,7 @@ nvDisplayPtr gpu_add_display_from_server(nvGpuPtr gpu,
         unsigned int valid3 = 0;
         NVCTRLAttributeValidValuesRec valid;
 
-        ret = NvCtrlGetValidAttributeValues(gpu->handle,
+        ret = NvCtrlGetValidAttributeValues(gpu->ctrl_target,
                                             NV_CTRL_GVIO_REQUESTED_VIDEO_FORMAT,
                                             &valid);
         if ((ret != NvCtrlSuccess) ||
@@ -2800,7 +2774,7 @@ nvDisplayPtr gpu_add_display_from_server(nvGpuPtr gpu,
             valid1 = valid.u.bits.ints;
         }
 
-        ret = NvCtrlGetValidAttributeValues(gpu->handle,
+        ret = NvCtrlGetValidAttributeValues(gpu->ctrl_target,
                                             NV_CTRL_GVIO_REQUESTED_VIDEO_FORMAT2,
                                             &valid);
         if ((ret != NvCtrlSuccess) ||
@@ -2810,7 +2784,7 @@ nvDisplayPtr gpu_add_display_from_server(nvGpuPtr gpu,
             valid2 = valid.u.bits.ints;
         }
 
-        ret = NvCtrlGetValidAttributeValues(gpu->handle,
+        ret = NvCtrlGetValidAttributeValues(gpu->ctrl_target,
                                             NV_CTRL_GVIO_REQUESTED_VIDEO_FORMAT3,
                                             &valid);
         if ((ret != NvCtrlSuccess) ||
@@ -2868,8 +2842,8 @@ nvDisplayPtr gpu_add_display_from_server(nvGpuPtr gpu,
     if (!display_add_modelines_from_server(display, gpu, err_str)) {
         nv_warning_msg("Failed to add modelines to display device %d "
                        "'%s'\nconnected to GPU-%d '%s'.",
-                       display_id, display->logName,
-                       NvCtrlGetTargetId(gpu->handle), gpu->name);
+                       NvCtrlGetTargetId(ctrl_target), display->logName,
+                       NvCtrlGetTargetId(gpu->ctrl_target), gpu->name);
         goto fail;
     }
 
@@ -2895,45 +2869,27 @@ nvDisplayPtr gpu_add_display_from_server(nvGpuPtr gpu,
  **/
 static Bool gpu_add_displays_from_server(nvGpuPtr gpu, gchar **err_str)
 {
-    ReturnStatus ret;
-    int *pData;
-    int len;
-    int i;
+    CtrlTargetNode *node;
 
-
-    /* Clean up the GPU list */
     gpu_remove_displays(gpu);
 
-    /* Get list of displays connected to this GPU */
-    ret = NvCtrlGetBinaryAttribute(gpu->handle, 0,
-                                   NV_CTRL_BINARY_DATA_DISPLAYS_CONNECTED_TO_GPU,
-                                   (unsigned char **)(&pData), &len);
-    if (ret != NvCtrlSuccess) {
-        *err_str = g_strdup_printf("Failed to query list of displays \n"
-                                   "connected to GPU-%d '%s'.",
-                                   NvCtrlGetTargetId(gpu->handle), gpu->name);
-        nv_error_msg("%s", *err_str);
-        goto fail;
-    }
+    for (node = gpu->ctrl_target->relations; node; node = node->next) {
+        CtrlTarget *ctrl_target = node->t;
 
-    /* Add each connected display */
-    for (i = 0; i < pData[0]; i++) {
-        if (!gpu_add_display_from_server(gpu, pData[i+1], err_str)) {
+        if (NvCtrlGetTargetType(ctrl_target) != DISPLAY_TARGET ||
+            !(ctrl_target->display.connected)) {
+            continue;
+        }
+
+        if (!gpu_add_display_from_server(gpu, ctrl_target, err_str)) {
             nv_warning_msg("Failed to add display device %d to GPU-%d "
-
-
-
-
-
                            "'%s'.",
-                           pData[i+1], NvCtrlGetTargetId(gpu->handle),
+                           NvCtrlGetTargetId(ctrl_target),
+                           NvCtrlGetTargetId(gpu->ctrl_target),
                            gpu->name);
-            XFree(pData);
             goto fail;
         }
     }
-
-    XFree(pData);
     return TRUE;
 
  fail:
@@ -2993,15 +2949,13 @@ static void gpu_free(nvGpuPtr gpu)
     if (gpu) {
         gpu_remove_displays(gpu);
 
-        XFree(gpu->name);
-        XFree(gpu->uuid);
-        XFree(gpu->flags_memory);
+        ctk_event_destroy(G_OBJECT(gpu->ctk_event));
+
+        free(gpu->name);
+        free(gpu->uuid);
+        free(gpu->flags_memory);
         g_free(gpu->pci_bus_id);
         free(gpu->gvo_mode_data);
-
-        if (gpu->handle) {
-            NvCtrlAttributeClose(gpu->handle);
-        }
         free(gpu);
     }
 
@@ -3080,10 +3034,12 @@ void layout_add_screen(nvLayoutPtr layout, nvScreenPtr screen)
 
 void layout_remove_and_free_screen(nvScreenPtr screen)
 {
-    nvLayoutPtr layout = screen->layout;
+    nvLayoutPtr layout;
     nvScreenPtr other;
 
     if (!screen) return;
+
+    layout = screen->layout;
 
 
     /* Make sure other screens in the layout aren't relative
@@ -3146,11 +3102,11 @@ static void layout_remove_gpus(nvLayoutPtr layout)
  * Adds a GPU to the layout structure.
  *
  **/
-static Bool layout_add_gpu_from_server(nvLayoutPtr layout, unsigned int gpu_id,
+static Bool layout_add_gpu_from_server(nvLayoutPtr layout,
+                                       CtrlTarget *ctrl_target,
                                        gchar **err_str)
 {
     ReturnStatus ret;
-    Display *dpy;
     nvGpuPtr gpu = NULL;
     unsigned int *pData;
     int len;
@@ -3161,84 +3117,80 @@ static Bool layout_add_gpu_from_server(nvLayoutPtr layout, unsigned int gpu_id,
     gpu = (nvGpuPtr)calloc(1, sizeof(nvGpu));
     if (!gpu) goto fail;
 
-
-    /* Make an NV-CONTROL handle to talk to the GPU */
-    dpy = NvCtrlGetDisplayPtr(layout->handle);
     gpu->layout = layout;
-    gpu->handle = NvCtrlAttributeInit(dpy, NV_CTRL_TARGET_TYPE_GPU, gpu_id,
-                                      NV_CTRL_ATTRIBUTES_NV_CONTROL_SUBSYSTEM);
-    if (!gpu->handle) {
-        *err_str = g_strdup_printf("Failed to create NV-CONTROL handle for "
-                                   "GPU-%d.", gpu_id);
-        nv_error_msg("%s", *err_str);
-        goto fail;
-    }
-
-    gpu->ctk_event = CTK_EVENT(ctk_event_new(gpu->handle));
+    gpu->ctrl_target = ctrl_target;
+    gpu->ctk_event = CTK_EVENT(ctk_event_new(ctrl_target));
 
 
     /* Query the GPU information */
-    ret = NvCtrlGetStringAttribute(gpu->handle, NV_CTRL_STRING_PRODUCT_NAME,
+    ret = NvCtrlGetStringAttribute(ctrl_target, NV_CTRL_STRING_PRODUCT_NAME,
                                    &gpu->name);
     if (ret != NvCtrlSuccess) {
         *err_str = g_strdup_printf("Failed to query GPU name of GPU-%d.",
-                                   gpu_id);
+                                   NvCtrlGetTargetId(ctrl_target));
         nv_error_msg("%s", *err_str);
         goto fail;
     }
 
-    ret = NvCtrlGetStringAttribute(gpu->handle, NV_CTRL_STRING_GPU_UUID,
+    ret = NvCtrlGetStringAttribute(ctrl_target, NV_CTRL_STRING_GPU_UUID,
                                    &gpu->uuid);
     if (ret != NvCtrlSuccess) {
         nv_warning_msg("Failed to query GPU UUID of GPU-%d '%s'.  GPU UUID "
                        "qualifiers will not be used.",
-                       gpu_id, gpu->name);
+                       NvCtrlGetTargetId(ctrl_target),
+                       gpu->name);
         gpu->uuid = NULL;
     }
 
-    gpu->pci_bus_id = get_bus_id_str(gpu->handle);
+    gpu->pci_bus_id = get_bus_id_str(ctrl_target);
 
-    ret = NvCtrlGetAttribute(gpu->handle, NV_CTRL_MAX_SCREEN_WIDTH,
+    ret = NvCtrlGetAttribute(ctrl_target, NV_CTRL_MAX_SCREEN_WIDTH,
                              (int *)&(gpu->max_width));
     if (ret != NvCtrlSuccess) {
         *err_str = g_strdup_printf("Failed to query MAX SCREEN WIDTH on "
-                                   "GPU-%d '%s'.", gpu_id, gpu->name);
+                                   "GPU-%d '%s'.",
+                                   NvCtrlGetTargetId(ctrl_target),
+                                   gpu->name);
         nv_error_msg("%s", *err_str);
         goto fail;
     }
 
-    ret = NvCtrlGetAttribute(gpu->handle, NV_CTRL_MAX_SCREEN_HEIGHT,
+    ret = NvCtrlGetAttribute(ctrl_target, NV_CTRL_MAX_SCREEN_HEIGHT,
                              (int *)&(gpu->max_height));
     if (ret != NvCtrlSuccess) {
         *err_str = g_strdup_printf("Failed to query MAX SCREEN HEIGHT on "
-                                   "GPU-%d '%s'.", gpu_id, gpu->name);
+                                   "GPU-%d '%s'.",
+                                   NvCtrlGetTargetId(ctrl_target),
+                                   gpu->name);
         nv_error_msg("%s", *err_str);
         goto fail;
     }
 
-    ret = NvCtrlGetAttribute(gpu->handle, NV_CTRL_MAX_DISPLAYS,
+    ret = NvCtrlGetAttribute(ctrl_target, NV_CTRL_MAX_DISPLAYS,
                              (int *)&(gpu->max_displays));
     if (ret != NvCtrlSuccess) {
         *err_str = g_strdup_printf("Failed to query MAX DISPLAYS on "
-                                   "GPU-%d '%s'.", gpu_id, gpu->name);
+                                   "GPU-%d '%s'.",
+                                   NvCtrlGetTargetId(ctrl_target),
+                                   gpu->name);
         nv_error_msg("%s", *err_str);
         goto fail;
     }
 
-    ret = NvCtrlGetAttribute(gpu->handle, NV_CTRL_DEPTH_30_ALLOWED,
+    ret = NvCtrlGetAttribute(ctrl_target, NV_CTRL_DEPTH_30_ALLOWED,
                              &(gpu->allow_depth_30));
 
     if (ret != NvCtrlSuccess) {
         gpu->allow_depth_30 = FALSE;
     }
 
-    ret = NvCtrlGetAttribute(gpu->handle, NV_CTRL_MULTIGPU_MASTER_POSSIBLE,
+    ret = NvCtrlGetAttribute(ctrl_target, NV_CTRL_MULTIGPU_MASTER_POSSIBLE,
                              &(gpu->multigpu_master_possible));
     if (ret != NvCtrlSuccess) {
         gpu->multigpu_master_possible = FALSE;
     }
 
-    ret = NvCtrlGetBinaryAttribute(gpu->handle,
+    ret = NvCtrlGetBinaryAttribute(ctrl_target,
                                    0,
                                    NV_CTRL_BINARY_DATA_GPU_FLAGS,
                                    (unsigned char **)&pData,
@@ -3259,7 +3211,7 @@ static Bool layout_add_gpu_from_server(nvLayoutPtr layout, unsigned int gpu_id,
     gpu->mosaic_type = MOSAIC_TYPE_UNSUPPORTED;
     gpu->mosaic_enabled = FALSE;
 
-    ret = NvCtrlGetAttribute(gpu->handle,
+    ret = NvCtrlGetAttribute(ctrl_target,
                              NV_CTRL_SLI_MOSAIC_MODE_AVAILABLE,
                              &(val));
 
@@ -3269,20 +3221,20 @@ static Bool layout_add_gpu_from_server(nvLayoutPtr layout, unsigned int gpu_id,
 
         gpu->mosaic_type = MOSAIC_TYPE_SLI_MOSAIC;
 
-        ret = NvCtrlGetStringAttribute(gpu->handle,
+        ret = NvCtrlGetStringAttribute(ctrl_target,
                                        NV_CTRL_STRING_SLI_MODE,
                                        &sli_str);
         if ((ret == NvCtrlSuccess) && sli_str) {
             if (!strcasecmp(sli_str, "Mosaic")) {
                 gpu->mosaic_enabled = TRUE;
             }
-            XFree(sli_str);
+            free(sli_str);
         }
 
     } else {
         NVCTRLAttributeValidValuesRec valid;
 
-        ret = NvCtrlGetValidAttributeValues(gpu->handle,
+        ret = NvCtrlGetValidAttributeValues(ctrl_target,
                                             NV_CTRL_BASE_MOSAIC,
                                             &valid);
         if ((ret == NvCtrlSuccess) &&
@@ -3295,7 +3247,7 @@ static Bool layout_add_gpu_from_server(nvLayoutPtr layout, unsigned int gpu_id,
             }
 
             if (gpu->mosaic_type != MOSAIC_TYPE_UNSUPPORTED) {
-                ret = NvCtrlGetAttribute(gpu->handle, NV_CTRL_BASE_MOSAIC,
+                ret = NvCtrlGetAttribute(ctrl_target, NV_CTRL_BASE_MOSAIC,
                                          &(val));
                 if ((ret == NvCtrlSuccess) &&
                     (val == NV_CTRL_BASE_MOSAIC_FULL ||
@@ -3309,7 +3261,8 @@ static Bool layout_add_gpu_from_server(nvLayoutPtr layout, unsigned int gpu_id,
     /* Add the display devices to the GPU */
     if (!gpu_add_displays_from_server(gpu, err_str)) {
         nv_warning_msg("Failed to add displays to GPU-%d '%s'.",
-                       gpu_id, gpu->name);
+                       NvCtrlGetTargetId(ctrl_target),
+                       gpu->name);
         goto fail;
     }
 
@@ -3335,30 +3288,16 @@ static Bool layout_add_gpu_from_server(nvLayoutPtr layout, unsigned int gpu_id,
  **/
 static int layout_add_gpus_from_server(nvLayoutPtr layout, gchar **err_str)
 {
-    ReturnStatus ret;
-    int ngpus;
-    int i;
+    CtrlTargetNode *node;
 
-
-    /* Clean up the GPU list */
     layout_remove_gpus(layout);
 
+    for (node = layout->system->targets[GPU_TARGET]; node; node = node->next) {
+        CtrlTarget *ctrl_target = node->t;
 
-    /* Query the number of GPUs on the server */
-    ret = NvCtrlQueryTargetCount(layout->handle, NV_CTRL_TARGET_TYPE_GPU,
-                                 &ngpus);
-    if (ret != NvCtrlSuccess || !ngpus) {
-        *err_str = g_strdup("Failed to query number of GPUs (or no GPUs "
-                            "found) in the system.");
-        nv_error_msg("%s", *err_str);
-        goto fail;
-    }
-
-
-    /* Add each GPU */
-    for (i = 0; i < ngpus; i++) {
-        if (!layout_add_gpu_from_server(layout, i, err_str)) {
-            nv_warning_msg("Failed to add GPU-%d to layout.", i);
+        if (!layout_add_gpu_from_server(layout, ctrl_target, err_str)) {
+            nv_warning_msg("Failed to add GPU-%d to layout.",
+                           NvCtrlGetTargetId(ctrl_target));
             goto fail;
         }
     }
@@ -3366,7 +3305,6 @@ static int layout_add_gpus_from_server(nvLayoutPtr layout, gchar **err_str)
     return layout->num_gpus;
 
 
-    /* Failure case */
  fail:
     layout_remove_gpus(layout);
     return 0;
@@ -3405,19 +3343,20 @@ static Bool link_screen_to_gpus(nvLayoutPtr layout, nvScreenPtr screen)
     int *pData = NULL;
     int len;
     int i;
-    int scrnum = NvCtrlGetTargetId(screen->handle);
+    int scrnum = NvCtrlGetTargetId(screen->ctrl_target);
 
     /* Link the screen to the display owner GPU.  If there is no display owner,
      * which is the case when SLI Mosaic is configured, link the screen to the
      * first (multi gpu master possible) GPU we find.
      */
-    ret = NvCtrlGetAttribute(screen->handle, NV_CTRL_MULTIGPU_DISPLAY_OWNER,
+    ret = NvCtrlGetAttribute(screen->ctrl_target,
+                             NV_CTRL_MULTIGPU_DISPLAY_OWNER,
                              &(screen->display_owner_gpu_id));
     if (ret != NvCtrlSuccess) {
         screen->display_owner_gpu_id = -1;
     }
 
-    ret = NvCtrlGetBinaryAttribute(screen->handle,
+    ret = NvCtrlGetBinaryAttribute(screen->ctrl_target,
                                    0,
                                    NV_CTRL_BINARY_DATA_GPUS_USED_BY_XSCREEN,
                                    (unsigned char **)(&pData),
@@ -3432,7 +3371,7 @@ static Bool link_screen_to_gpus(nvLayoutPtr layout, nvScreenPtr screen)
         nvGpuPtr gpu;
 
         for (gpu = layout->gpus; gpu; gpu = gpu->next_in_layout) {
-            int gpuid = NvCtrlGetTargetId(gpu->handle);
+            int gpuid = NvCtrlGetTargetId(gpu->ctrl_target);
 
             if (gpuid != pData[1+i]) {
                 continue;
@@ -3451,9 +3390,7 @@ static Bool link_screen_to_gpus(nvLayoutPtr layout, nvScreenPtr screen)
     status = TRUE;
 
  done:
-    if (pData) {
-        XFree(pData);
-    }
+    free(pData);
 
     return status;
 }
@@ -3466,10 +3403,9 @@ static Bool link_screen_to_gpus(nvLayoutPtr layout, nvScreenPtr screen)
  *
  **/
 static Bool layout_add_screen_from_server(nvLayoutPtr layout,
-                                          unsigned int screen_id,
+                                          CtrlTarget *ctrl_target,
                                           gchar **err_str)
 {
-    Display *display;
     nvScreenPtr screen;
     int val, tmp;
     ReturnStatus ret;
@@ -3479,30 +3415,12 @@ static Bool layout_add_screen_from_server(nvLayoutPtr layout,
     screen = (nvScreenPtr)calloc(1, sizeof(nvScreen));
     if (!screen) goto fail;
 
-    screen->scrnum = screen_id;
-
-
-    /* Make an NV-CONTROL handle to talk to the screen (use the
-     * first gpu's display)
-     */
-    display = NvCtrlGetDisplayPtr(layout->gpus->handle);
-    screen->handle =
-        NvCtrlAttributeInit(display,
-                            NV_CTRL_TARGET_TYPE_X_SCREEN,
-                            screen_id,
-                            NV_CTRL_ATTRIBUTES_NV_CONTROL_SUBSYSTEM);
-
-    if (!screen->handle) {
-        *err_str = g_strdup_printf("Failed to create NV-CONTROL handle for\n"
-                                   "screen %d.",
-                                   screen_id);
-        nv_error_msg("%s", *err_str);
-        goto fail;
-    }
+    screen->ctrl_target = ctrl_target;
+    screen->scrnum = NvCtrlGetTargetId(ctrl_target);
 
 
     /* Query the current stereo mode */
-    ret = NvCtrlGetAttribute(screen->handle, NV_CTRL_STEREO, &val);
+    ret = NvCtrlGetAttribute(ctrl_target, NV_CTRL_STEREO, &val);
     if (ret == NvCtrlSuccess) {
         screen->stereo_supported = TRUE;
         screen->stereo = val;
@@ -3511,14 +3429,14 @@ static Bool layout_add_screen_from_server(nvLayoutPtr layout,
     }
 
     /* Query the current overlay state */
-    ret = NvCtrlGetAttribute(screen->handle, NV_CTRL_OVERLAY, &val);
+    ret = NvCtrlGetAttribute(ctrl_target, NV_CTRL_OVERLAY, &val);
     if (ret == NvCtrlSuccess) {
         screen->overlay = val;
     } else {
         screen->overlay = NV_CTRL_OVERLAY_OFF;
     }
 
-    ret = NvCtrlGetAttribute(screen->handle, NV_CTRL_HWOVERLAY, &val);
+    ret = NvCtrlGetAttribute(ctrl_target, NV_CTRL_HWOVERLAY, &val);
     if (ret == NvCtrlSuccess) {
         screen->hw_overlay = val;
     } else {
@@ -3526,7 +3444,7 @@ static Bool layout_add_screen_from_server(nvLayoutPtr layout,
     }
 
     /* Query the current UBB state */
-    ret = NvCtrlGetAttribute(screen->handle, NV_CTRL_UBB, &val);
+    ret = NvCtrlGetAttribute(ctrl_target, NV_CTRL_UBB, &val);
     if (ret == NvCtrlSuccess) {
         screen->ubb = val;
     } else {
@@ -3534,7 +3452,7 @@ static Bool layout_add_screen_from_server(nvLayoutPtr layout,
     }
 
     /* See if the screen is set to not scanout */
-    ret = NvCtrlGetAttribute(screen->handle, NV_CTRL_NO_SCANOUT, &val);
+    ret = NvCtrlGetAttribute(ctrl_target, NV_CTRL_NO_SCANOUT, &val);
     if (ret != NvCtrlSuccess) {
         /* Don't make it a fatal error if NV_CTRL_NO_SCANOUT can't be
          * queried, since some drivers may not support this attribute. */
@@ -3543,7 +3461,7 @@ static Bool layout_add_screen_from_server(nvLayoutPtr layout,
 
         *err_str = g_strdup_printf("Failed to query NoScanout for "
                                    "screen %d.",
-                                   screen_id);
+                                   NvCtrlGetTargetId(ctrl_target));
         nv_warning_msg("%s", *err_str);
 
         g_free(*err_str);
@@ -3555,20 +3473,20 @@ static Bool layout_add_screen_from_server(nvLayoutPtr layout,
     /* Link screen to the GPUs driving it */
     if (!link_screen_to_gpus(layout, screen)) {
         *err_str = g_strdup_printf("Failed to find GPU that drives screen %d.",
-                                   screen_id);
+                                   NvCtrlGetTargetId(ctrl_target));
         nv_warning_msg("%s", *err_str);
         goto fail;
     }
 
     /* Query SLI status */
-    ret = NvCtrlGetAttribute(screen->handle,
+    ret = NvCtrlGetAttribute(ctrl_target,
                              NV_CTRL_SHOW_SLI_VISUAL_INDICATOR,
                              &tmp);
 
     screen->sli = (ret == NvCtrlSuccess);
 
     /* Query SLI mode */
-    ret = NvCtrlGetStringAttribute(screen->handle,
+    ret = NvCtrlGetStringAttribute(ctrl_target,
                                    NV_CTRL_STRING_SLI_MODE,
                                    &screen->sli_mode);
     if (ret != NvCtrlSuccess) {
@@ -3576,7 +3494,7 @@ static Bool layout_add_screen_from_server(nvLayoutPtr layout,
     }
 
     /* Query MULTIGPU mode */
-    ret = NvCtrlGetStringAttribute(screen->handle,
+    ret = NvCtrlGetStringAttribute(ctrl_target,
                                    NV_CTRL_STRING_MULTIGPU_MODE,
                                    &screen->multigpu_mode);
     if (ret != NvCtrlSuccess) {
@@ -3584,14 +3502,14 @@ static Bool layout_add_screen_from_server(nvLayoutPtr layout,
     }
 
     /* Listen to NV-CONTROL events on this screen handle */
-    screen->ctk_event = CTK_EVENT(ctk_event_new(screen->handle));
+    screen->ctk_event = CTK_EVENT(ctk_event_new(ctrl_target));
 
     /* Query the depth of the screen */
-    screen->depth = NvCtrlGetScreenPlanes(screen->handle);
+    screen->depth = NvCtrlGetScreenPlanes(ctrl_target);
 
     /* Initialize the virtual X screen size */
-    screen->dim.width = NvCtrlGetScreenWidth(screen->handle);
-    screen->dim.height = NvCtrlGetScreenHeight(screen->handle);
+    screen->dim.width = NvCtrlGetScreenWidth(ctrl_target);
+    screen->dim.height = NvCtrlGetScreenHeight(ctrl_target);
 
     /* Add the screen to the layout */
     layout_add_screen(layout, screen);
@@ -3603,13 +3521,13 @@ static Bool layout_add_screen_from_server(nvLayoutPtr layout,
     if (!screen->no_scanout) {
         if (!screen_add_metamodes(screen, err_str)) {
             nv_warning_msg("Failed to add metamodes to screen %d.",
-                           screen_id);
+                           NvCtrlGetTargetId(ctrl_target));
             goto fail;
         }
 
         /* Query & parse the screen's primary display */
         screen->primaryDisplay = NULL;
-        ret = NvCtrlGetStringAttribute(screen->handle,
+        ret = NvCtrlGetStringAttribute(ctrl_target,
                                        NV_CTRL_STRING_NVIDIA_XINERAMA_INFO_ORDER,
                                        &primary_str);
 
@@ -3626,7 +3544,7 @@ static Bool layout_add_screen_from_server(nvLayoutPtr layout,
             } else {
                 str = nvstrndup(primary_str, str-primary_str);
             }
-            XFree(primary_str);
+            free(primary_str);
 
             screen->primaryDisplay = screen_find_named_display(screen, str);
             nvfree(str);
@@ -3657,37 +3575,24 @@ static Bool layout_add_screen_from_server(nvLayoutPtr layout,
  **/
 static int layout_add_screens_from_server(nvLayoutPtr layout, gchar **err_str)
 {
-    ReturnStatus ret;
-    int i, nscreens;
-
+    CtrlTargetNode *node;
 
     layout_remove_screens(layout);
 
+    for (node = layout->system->physical_screens;
+         node;
+         node = node->next) {
+        CtrlTarget *ctrl_target = node->t;
 
-    ret = NvCtrlQueryTargetCount(layout->handle, NV_CTRL_TARGET_TYPE_X_SCREEN,
-                                 &nscreens);
-    if (ret != NvCtrlSuccess || !nscreens) {
-        *err_str = g_strdup("Failed to query number of X screens (or no X "
-                            "screens found) in the system.");
-        nv_error_msg("%s", *err_str);
-        nscreens = 0;
-        goto fail;
-    }
-
-    for (i = 0; i < nscreens; i++) {
-        if (!layout_add_screen_from_server(layout, i, err_str)) {
-            nv_warning_msg("Failed to add X screen %d to layout.", i);
+        if (!layout_add_screen_from_server(layout, ctrl_target, err_str)) {
+            nv_warning_msg("Failed to add X screen %d to layout.",
+                           NvCtrlGetTargetId(ctrl_target));
             g_free(*err_str);
             *err_str = NULL;
         }
     }
 
-    return nscreens;
-
-
- fail:
-    layout_remove_screens(layout);
-    return 0;
+    return layout->num_screens;
 
 } /* layout_add_screens_from_server() */
 
@@ -3708,7 +3613,7 @@ static Bool layout_add_screenless_modes_to_displays(nvLayoutPtr layout)
         /* Add fake modes to screenless display devices */
         if (!gpu_add_screenless_modes_to_displays(gpu)) {
             nv_warning_msg("Failed to add screenless modes to GPU-%d '%s'.",
-                           NvCtrlGetTargetId(gpu->handle), gpu->name);
+                           NvCtrlGetTargetId(gpu->ctrl_target), gpu->name);
             return FALSE;
         }
     }
@@ -3728,6 +3633,7 @@ void layout_free(nvLayoutPtr layout)
 {
     if (layout) {
         layout_remove_gpus(layout);
+        NvCtrlFreeAllSystems(&layout->systems);
         free(layout);
     }
 
@@ -3740,7 +3646,7 @@ void layout_free(nvLayoutPtr layout)
  * Loads layout information from the X server.
  *
  **/
-nvLayoutPtr layout_load_from_server(NvCtrlAttributeHandle *handle,
+nvLayoutPtr layout_load_from_server(CtrlTarget *ctrl_target,
                                     gchar **err_str)
 {
     nvLayoutPtr layout = NULL;
@@ -3751,13 +3657,15 @@ nvLayoutPtr layout_load_from_server(NvCtrlAttributeHandle *handle,
     layout = (nvLayoutPtr)calloc(1, sizeof(nvLayout));
     if (!layout) goto fail;
 
-
-    /* Cache the handle for talking to the X server */
-    layout->handle = handle;
-
+    /* Duplicate the connection to the system */
+    layout->system = NvCtrlConnectToSystem(ctrl_target->system->display,
+                                           &(layout->systems));
+    if (layout->system == NULL) {
+        goto fail;
+    }
 
     /* Is Xinerama enabled? */
-    ret = NvCtrlGetAttribute(handle, NV_CTRL_XINERAMA,
+    ret = NvCtrlGetAttribute(ctrl_target, NV_CTRL_XINERAMA,
                              &layout->xinerama_enabled);
     if (ret != NvCtrlSuccess) {
         *err_str = g_strdup("Failed to query status of Xinerama.");
@@ -3766,9 +3674,9 @@ nvLayoutPtr layout_load_from_server(NvCtrlAttributeHandle *handle,
     }
 
     /* does the driver know about NV_CTRL_CURRENT_METAMODE_ID? */
-    ret = NvCtrlGetAttribute(handle, NV_CTRL_CURRENT_METAMODE_ID, &tmp);
+    ret = NvCtrlGetAttribute(ctrl_target, NV_CTRL_CURRENT_METAMODE_ID, &tmp);
     if (ret != NvCtrlSuccess) {
-        char *displayName = NvCtrlGetDisplayName(handle);
+        char *displayName = NvCtrlGetDisplayName(ctrl_target);
         *err_str = g_strdup_printf("The NVIDIA X driver on %s is not new\n"
                                    "enough to support the nvidia-settings "
                                    "Display Configuration page.",
@@ -3863,12 +3771,16 @@ nvDisplayPtr layout_get_display(const nvLayoutPtr layout,
     nvGpuPtr gpu;
     nvDisplayPtr display;
 
+    if (!layout) {
+        return NULL;
+    }
+
     for (gpu = layout->gpus; gpu; gpu = gpu->next_in_layout) {
         for (display = gpu->displays;
              display;
              display = display->next_on_gpu) {
 
-            if (NvCtrlGetTargetId(display->handle) == display_id) {
+            if (NvCtrlGetTargetId(display->ctrl_target) == display_id) {
                 return display;
             }
         }
@@ -4089,7 +4001,7 @@ static void update_xconfig_save_buffer(SaveXConfDlg *dlg)
     XConfigPtr xconfGen = NULL;
     XConfigError xconfErr;
 
-    char *tmp_filename;
+    char *tmp_filename = NULL;
     int tmp_fd;
     struct stat st;
     void *buf;
@@ -4243,17 +4155,32 @@ static void update_xconfig_save_buffer(SaveXConfDlg *dlg)
     tmp_fd = mkstemp(tmp_filename);
     if (!tmp_fd) {
         err_msg = g_strdup_printf("Failed to create temp X config file '%s' "
-                                  "for display.",
+                                  "for preview.",
                                   tmp_filename);
-        g_free(tmp_filename);
         goto fail;
     }
     xconfigWriteConfigFile(tmp_filename, xconfGen);
     xconfigFreeConfig(&xconfGen);
 
-    lseek(tmp_fd, 0, SEEK_SET);
-    fstat(tmp_fd, &st);
+    if (lseek(tmp_fd, 0, SEEK_SET) == (off_t)-1) {
+        err_msg = g_strdup_printf("Failed lseek() on temp X config file '%s' "
+                                  "for preview.",
+                                  tmp_filename);
+        goto fail;
+    }
+    if (fstat(tmp_fd, &st) == -1) {
+        err_msg = g_strdup_printf("Failed fstat() on temp X config file '%s' "
+                                  "for preview.",
+                                  tmp_filename);
+        goto fail;
+    }
     buf = mmap(0, st.st_size, PROT_READ, MAP_PRIVATE, tmp_fd, 0);
+    if (buf == MAP_FAILED) {
+        err_msg = g_strdup_printf("Failed mmap() on temp X config file '%s' "
+                                  "for preview.",
+                                  tmp_filename);
+        goto fail;
+    }
 
     /* Clear the GTK buffer */
     gtk_text_buffer_get_bounds
@@ -4296,6 +4223,8 @@ static void update_xconfig_save_buffer(SaveXConfDlg *dlg)
     if (xconfCur) {
         xconfigFreeConfig(&xconfCur);
     }
+
+    g_free(tmp_filename);
 
     return;
 
@@ -4361,32 +4290,20 @@ static void xconfig_file_clicked(GtkWidget *widget, gpointer user_data)
     SaveXConfDlg *dlg = (SaveXConfDlg *)user_data;
     const gchar *filename =
         gtk_entry_get_text(GTK_ENTRY(dlg->txt_xconfig_file));
-    gint result;
-
+    gchar *selected_filename;
 
     /* Ask user for a filename */
-    gtk_window_set_transient_for
-        (GTK_WINDOW(dlg->dlg_xconfig_file),
-         GTK_WINDOW(gtk_widget_get_toplevel(GTK_WIDGET(dlg->parent))));
+    selected_filename =
+        ctk_get_filename_from_dialog("Please select the X configuration file",
+             GTK_WINDOW(gtk_widget_get_toplevel(GTK_WIDGET(dlg->parent))),
+             filename);
 
-    gtk_file_chooser_set_filename
-        (GTK_FILE_CHOOSER(dlg->dlg_xconfig_file), filename);
-
-    result = gtk_dialog_run(GTK_DIALOG(dlg->dlg_xconfig_file));
-    gtk_widget_hide(dlg->dlg_xconfig_file);
-
-    switch (result) {
-    case GTK_RESPONSE_ACCEPT:
-    case GTK_RESPONSE_OK:
-        filename = gtk_file_chooser_get_filename
-            (GTK_FILE_CHOOSER(dlg->dlg_xconfig_file));
-
-        gtk_entry_set_text(GTK_ENTRY(dlg->txt_xconfig_file), filename);
+    if (selected_filename) {
+        gtk_entry_set_text(GTK_ENTRY(dlg->txt_xconfig_file), selected_filename);
 
         update_xconfig_save_buffer(dlg);
-        break;
-    default:
-        return;
+
+        g_free(selected_filename);
     }
 
 } /* xconfig_file_clicked() */
@@ -4406,7 +4323,7 @@ void run_save_xconfig_dialog(SaveXConfDlg *dlg)
 {
     void *buf;
     GtkTextIter buf_start, buf_end;
-    gchar *filename;
+    gchar *filename = NULL;
     const gchar *tmp_filename;
     struct stat st;
 
@@ -4476,7 +4393,6 @@ void run_save_xconfig_dialog(SaveXConfDlg *dlg)
         nv_info_msg("", "Writing X config file '%s'", filename);
         save_xconfig_file(dlg, filename, (char *)buf, 0644);
         g_free(buf);
-        g_free(filename);
         break;
 
     case GTK_RESPONSE_REJECT:
@@ -4484,6 +4400,8 @@ void run_save_xconfig_dialog(SaveXConfDlg *dlg)
         /* do nothing. */
         break;
     }
+
+    g_free(filename);
 
 } /* run_save_xconfig_dialog() */
 
@@ -4574,12 +4492,6 @@ SaveXConfDlg *create_save_xconfig_dialog(GtkWidget *parent,
     g_signal_connect(G_OBJECT(dlg->btn_xconfig_file), "clicked",
                      G_CALLBACK(xconfig_file_clicked),
                      (gpointer) dlg);
-    dlg->dlg_xconfig_file =
-        gtk_file_chooser_dialog_new("Please select the X configuration file",
-                                    NULL, GTK_FILE_CHOOSER_ACTION_OPEN,
-                                    GTK_STOCK_CANCEL, GTK_RESPONSE_CANCEL,
-                                    GTK_STOCK_OPEN, GTK_RESPONSE_ACCEPT,
-                                    NULL);
 
     /* Create the merge checkbox */
     dlg->btn_xconfig_merge =
@@ -4594,14 +4506,13 @@ SaveXConfDlg *create_save_xconfig_dialog(GtkWidget *parent,
 
     /* Pack the preview button */
     hbox = gtk_hbox_new(FALSE, 0);
-    hbox2 = gtk_hbox_new(FALSE, 0);
 
     gtk_box_pack_start(GTK_BOX(hbox), dlg->btn_xconfig_preview,
                        FALSE, FALSE, 5);
     gtk_box_pack_start(GTK_BOX(ctk_dialog_get_content_area(GTK_DIALOG(dlg->dlg_xconfig_save))),
                        hbox, FALSE, FALSE, 5);
 
-    /* Pack the preview window */
+    /* Pack the save window */
     hbox = gtk_hbox_new(TRUE, 0);
 
     gtk_container_add(GTK_CONTAINER(dlg->scr_xconfig_save),

@@ -24,6 +24,8 @@
 #ifndef __PARSE_H__
 #define __PARSE_H__
 
+#include "NvCtrlAttributes.h"
+
 
 #define NV_PARSER_ASSIGNMENT 0
 #define NV_PARSER_QUERY 1
@@ -60,20 +62,6 @@
  */
 
 typedef unsigned int uint32;
-
-
-/*
- * attribute types used to know how to access each attribute (eg, to know which
- * of the NvCtrlXXX() backend functions to call).
- */
-
-typedef enum {
-    NV_PARSER_ATTRIBUTE_TYPE_INTEGER,
-    NV_PARSER_ATTRIBUTE_TYPE_STRING,
-    NV_PARSER_ATTRIBUTE_TYPE_COLOR,
-    NV_PARSER_ATTRIBUTE_TYPE_SDI_CSC,
-    NV_PARSER_ATTRIBUTE_TYPE_STRING_OPERATION,
-} AttributeType;
 
 
 /*
@@ -115,7 +103,7 @@ typedef struct _AttributeTableEntry {
     char *name;
     int attr;
 
-    AttributeType type;
+    CtrlAttributeType type;
     AttributeFlags flags;
     union {
         AttributeIntFlags int_flags;
@@ -168,7 +156,7 @@ typedef struct _ParsedAttribute {
      * and/or target_specification get converted into a list of targets to
      * which the attribute should be processed.
      */
-    struct _CtrlHandleTargetNode *targets;
+    struct _CtrlTargetNode *targets;
 } ParsedAttribute;
 
 
@@ -180,68 +168,6 @@ typedef struct _ParsedAttribute {
 extern const AttributeTableEntry attributeTable[];
 extern const int attributeTableLen;
 
-
-/*
- * Indices into both targetTypeTable[] and CtrlHandles->targets[] array; stored
- * in TargetTypeEntry.target_index.
- */
-
-#define X_SCREEN_TARGET  0
-#define GPU_TARGET       1
-#define FRAMELOCK_TARGET 2
-#define VCS_TARGET       3
-#define GVI_TARGET       4
-#define COOLER_TARGET    5
-#define THERMAL_SENSOR_TARGET 6
-#define NVIDIA_3D_VISION_PRO_TRANSCEIVER_TARGET 7
-#define DISPLAY_TARGET   8
-#define MAX_TARGET_TYPES 9
-
-
-
-/*
- * TargetTypeEntry - an array of these structures defines the values
- * associated with each target type.
- */
-
-typedef struct {
-    char *name;        /* string describing the TargetType */
-    char *parsed_name; /* name used by parser */
-    int target_index;  /* index into the CtrlHandles->targets[] array */
-    int nvctrl;        /* NV-CONTROL target type value (NV_CTRL_TARGET_TYPE) */
-    
-    /* flag set in NVCTRLAttributeValidValuesRec.permissions */
-    unsigned int permission_bit;
-    
-    /* whether this target type is aware of display devices */
-    int uses_display_devices;
-    
-    /*
-     * the minimum NV-CONTROL Protocol version required to use this target
-     * type; note that all future target types should be able to use 1.18,
-     * since that version and later allows NV-CONTROL clients to query the
-     * count of TargetTypes not recognized by the X server
-     */
-
-    int major;
-    int minor;
-
-} TargetTypeEntry;
-
-
-/*
- * TargetType table; defined in parse.c
- */
-
-extern const TargetTypeEntry targetTypeTable[];
-extern const int targetTypeTableLen;
-
-/*
- * accessor functions for getting target type info based on NV-CONTROL
- * attribute type or by a name.
- */
-const TargetTypeEntry *nv_get_target_type_entry_by_nvctrl(int nvctrl);
-const TargetTypeEntry *nv_get_target_type_entry_by_name(const char *name);
 
 
 /* nv_get_sdi_csc_matrxi() - Returns an array of floats that specifies
@@ -367,7 +293,7 @@ void nv_parsed_attribute_free(ParsedAttribute *p);
 void nv_parsed_attribute_clean(ParsedAttribute *p);
 
 const AttributeTableEntry *nv_get_attribute_entry(const int attr,
-                                                  const AttributeType type);
+                                                  const CtrlAttributeType type);
 
 char *nv_standardize_screen_name(const char *display_name, int screen);
 

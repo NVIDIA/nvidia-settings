@@ -49,7 +49,7 @@ struct _CtkCurve
 {
     GtkDrawingArea parent;
 
-    NvCtrlAttributeHandle *handle;
+    CtrlTarget *ctrl_target;
     GtkWidget *color;
 
 #ifdef CTK_GTK3
@@ -75,7 +75,7 @@ struct _CtkCurveClass
 };
 
 GType       ctk_curve_get_type  (void) G_GNUC_CONST;
-GtkWidget*  ctk_curve_new       (NvCtrlAttributeHandle *, GtkWidget *);
+GtkWidget*  ctk_curve_new       (CtrlTarget *, GtkWidget *);
 void        ctk_curve_color_changed(GtkWidget *);
 
 G_END_DECLS

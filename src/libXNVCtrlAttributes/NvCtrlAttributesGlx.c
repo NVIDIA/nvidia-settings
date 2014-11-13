@@ -272,7 +272,7 @@ NvCtrlInitGlxAttributes (NvCtrlAttributePrivateHandle *h)
 
 
     /* Check parameters */
-    if ( !h || !h->dpy || h->target_type != NV_CTRL_TARGET_TYPE_X_SCREEN ) {
+    if ( !h || !h->dpy || h->target_type != X_SCREEN_TARGET ) {
         return False;
     }
 
@@ -338,7 +338,7 @@ NvCtrlGlxAttributesClose (NvCtrlAttributePrivateHandle *h)
 #ifdef GLX_VERSION_1_3
 
 static GLXFBConfigAttr *
-get_fbconfig_attribs(NvCtrlAttributePrivateHandle *h)
+get_fbconfig_attribs(const NvCtrlAttributePrivateHandle *h)
 {
     XVisualInfo     * visinfo;
 
@@ -351,7 +351,7 @@ get_fbconfig_attribs(NvCtrlAttributePrivateHandle *h)
 
 
 
-    assert(h->target_type == NV_CTRL_TARGET_TYPE_X_SCREEN);
+    assert(h->target_type == X_SCREEN_TARGET);
 
 
     /* Get all fbconfigs for the display/screen */
@@ -563,16 +563,15 @@ get_fbconfig_attribs(NvCtrlAttributePrivateHandle *h)
  *
  ****/
 
-ReturnStatus
-NvCtrlGlxGetVoidAttribute (NvCtrlAttributePrivateHandle *h,
-                           unsigned int display_mask,
-                           int attr, void **ptr) 
+ReturnStatus NvCtrlGlxGetVoidAttribute(const NvCtrlAttributePrivateHandle *h,
+                                       unsigned int display_mask,
+                                       int attr, void **ptr) 
 {
     GLXFBConfigAttr * fbconfig_attribs = NULL;
 
 
     /* Validate */
-    if ( !h || !h->dpy || h->target_type != NV_CTRL_TARGET_TYPE_X_SCREEN ) {
+    if ( !h || !h->dpy || h->target_type != X_SCREEN_TARGET ) {
         return NvCtrlBadHandle;
     }
     if ( !h->glx || !__libGL ) {
@@ -635,7 +634,7 @@ NvCtrlGlxGetVoidAttribute (NvCtrlAttributePrivateHandle *h,
  * GLX context and return "Yes" or "No".  Otherwise, create a context and query
  * the GLX implementation for the string specified in prop.
  */
-static const char *getString(NvCtrlAttributePrivateHandle *h,
+static const char *getString(const NvCtrlAttributePrivateHandle *h,
                              Bool getDirect, GLenum prop)
 {
     const char *str = NULL;
@@ -695,15 +694,14 @@ static const char *getString(NvCtrlAttributePrivateHandle *h,
     return str;
 }
 
-ReturnStatus
-NvCtrlGlxGetStringAttribute (NvCtrlAttributePrivateHandle *h,
-                             unsigned int display_mask,
-                             int attr, char **ptr)
+ReturnStatus NvCtrlGlxGetStringAttribute(const NvCtrlAttributePrivateHandle *h,
+                                         unsigned int display_mask,
+                                         int attr, char **ptr)
 {
     const char *str = NULL;
 
     /* Validate */
-    if ( !h || !h->dpy || h->target_type != NV_CTRL_TARGET_TYPE_X_SCREEN ) {
+    if ( !h || !h->dpy || h->target_type != X_SCREEN_TARGET ) {
         return NvCtrlBadHandle;
     }
     if ( !h->glx || !__libGL ) {

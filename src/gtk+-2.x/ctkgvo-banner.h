@@ -20,7 +20,6 @@
 #ifndef __CTK_GVO_BANNER_H__
 #define __CTK_GVO_BANNER_H__
 
-#include "NvCtrlAttributes.h"
 #include "ctkconfig.h"
 #include "ctkevent.h"
 
@@ -60,7 +59,7 @@ struct _CtkGvoBanner
 {
     GtkVBox parent;
 
-    NvCtrlAttributeHandle *handle;
+    CtrlTarget *ctrl_target;
     GtkWidget *parent_box;
     CtkConfig *ctk_config;
     CtkEvent *ctk_event;
@@ -96,7 +95,7 @@ struct _CtkGvoBannerClass
 
 
 GType          ctk_gvo_banner_get_type (void) G_GNUC_CONST;
-GtkWidget*     ctk_gvo_banner_new      (NvCtrlAttributeHandle *, CtkConfig *,
+GtkWidget*     ctk_gvo_banner_new      (CtrlTarget *, CtkConfig *,
                                         CtkEvent *);
 
 gint ctk_gvo_banner_probe(gpointer data);

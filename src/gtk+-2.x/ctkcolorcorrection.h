@@ -53,7 +53,7 @@ typedef struct _CtkColorCorrectionClass  CtkColorCorrectionClass;
 struct _CtkColorCorrection
 {
     GtkVBox parent;
-    NvCtrlAttributeHandle *handle;
+    CtrlTarget *ctrl_target;
     CtkConfig *ctk_config;
     CtkEvent  *ctk_event;
     GtkWidget *color_channel;
@@ -81,7 +81,7 @@ struct _CtkColorCorrectionClass
 };
 
 GType       ctk_color_correction_get_type  (void) G_GNUC_CONST;
-GtkWidget*  ctk_color_correction_new       (NvCtrlAttributeHandle *,
+GtkWidget*  ctk_color_correction_new       (CtrlTarget *,
                                             CtkConfig *, ParsedAttribute *,
                                             CtkEvent *);
 GtkTextBuffer *ctk_color_correction_create_help(GtkTextTagTable *);

@@ -57,9 +57,9 @@ void init_config_properties(ConfigProperties *conf);
 
 int nv_read_config_file(const Options *, const char *, const char *,
                         ParsedAttribute *, ConfigProperties *,
-                        CtrlHandlesArray *);
+                        CtrlSystemList *);
 
-int nv_write_config_file(const char *, CtrlHandles *,
-                         ParsedAttribute *, ConfigProperties *);
+int nv_write_config_file(const char *, const CtrlSystem *,
+                         const ParsedAttribute *, const ConfigProperties *);
 
 #endif /* __CONFIG_FILE_H__ */

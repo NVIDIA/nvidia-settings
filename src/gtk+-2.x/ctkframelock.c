@@ -172,7 +172,7 @@ struct _nvListTreeRec {
 
 struct _nvDisplayDataRec {
 
-    gpointer  handle; /* NV-CONTROL Display Target */
+    CtrlTarget *ctrl_target; /* Display Target */
 
     gboolean  serverable;
     gboolean  clientable;
@@ -202,7 +202,7 @@ struct _nvDisplayDataRec {
 
 struct _nvGPUDataRec {
 
-    gpointer   handle; /* NV-CONTROL GPU Target */
+    CtrlTarget *ctrl_target; /* GPU Target */
 
     gboolean   enabled; /* Sync enabled */
 
@@ -214,7 +214,7 @@ struct _nvGPUDataRec {
 
 struct _nvFrameLockDataRec {
 
-    gpointer   handle; /* NV-CONTROL Frame Lock Target */
+    CtrlTarget *ctrl_target; /* Frame Lock Target */
     int        server_id;
 
     int        sync_delay_resolution;
@@ -336,7 +336,7 @@ static const char * __client_checkbox_help =
 
 
 
-static void add_framelock_devices(CtkFramelock *, gpointer, int);
+static void add_framelock_devices(CtkFramelock *, CtrlSystem *, int);
 static void add_gpu_devices(CtkFramelock *, nvListEntryPtr);
 static void add_display_devices(CtkFramelock *, nvListEntryPtr);
 static void add_devices(CtkFramelock *, const gchar *, gboolean);
@@ -372,10 +372,12 @@ static void update_expand_all_button_status(CtkFramelock *);
 static void apply_parsed_attribute_list(CtkFramelock *ctk_framelock,
                                         ParsedAttribute *list);
 
-static void gpu_state_received(GObject *object,
-                               gpointer arg1, gpointer user_data);
-static void framelock_state_received(GObject *object,
-                                     gpointer arg1, gpointer user_data);
+static void display_state_received(GObject *object, CtrlEvent *event,
+                                   gpointer user_data);
+static void gpu_state_received(GObject *object, CtrlEvent *event,
+                               gpointer user_data);
+static void framelock_state_received(GObject *object, CtrlEvent *event,
+                                     gpointer user_data);
 
 
 /** select_widget() *********************************************
@@ -556,6 +558,7 @@ static GtkWidget *create_sync_state_button(CtkFramelock *ctk_framelock)
  */
 static GtkWidget *create_add_devices_dialog(CtkFramelock *ctk_framelock)
 {
+    CtrlTarget *ctrl_target = ctk_framelock->ctrl_target;
     GtkWidget *dialog;
     GtkWidget *vbox;
     GtkWidget *hbox;
@@ -563,7 +566,7 @@ static GtkWidget *create_add_devices_dialog(CtkFramelock *ctk_framelock)
     GtkWidget *image;
     GdkPixbuf *pixbuf;
     GtkWidget *alignment;
- 
+
     dialog = gtk_dialog_new_with_buttons("Add X Screen",
                                          ctk_framelock->parent_window,
                                          GTK_DIALOG_MODAL |
@@ -607,9 +610,8 @@ static GtkWidget *create_add_devices_dialog(CtkFramelock *ctk_framelock)
                      (gpointer) ctk_framelock);
 
     gtk_entry_set_text(GTK_ENTRY(ctk_framelock->add_devices_entry),
-                       NvCtrlGetDisplayName
-                       (ctk_framelock->attribute_handle));
-    
+                       NvCtrlGetDisplayName(ctrl_target));
+
     gtk_entry_set_width_chars
         (GTK_ENTRY(ctk_framelock->add_devices_entry), 16);
 
@@ -840,8 +842,9 @@ static gchar *get_display_name(nvDisplayDataPtr data, gboolean simple)
     char         *display_name;
     char         *display_type = NULL;
     char         *name;
+    CtrlTarget   *ctrl_target = data->ctrl_target;
 
-    ret = NvCtrlGetStringAttribute(data->handle,
+    ret = NvCtrlGetStringAttribute(ctrl_target,
                                    NV_CTRL_STRING_DISPLAY_DEVICE_NAME,
                                    &display_name);
     if (ret != NvCtrlSuccess) {
@@ -850,7 +853,7 @@ static gchar *get_display_name(nvDisplayDataPtr data, gboolean simple)
 
     if (!simple) {
         ret =
-            NvCtrlGetStringAttribute(data->handle,
+            NvCtrlGetStringAttribute(ctrl_target,
                                      NV_CTRL_STRING_DISPLAY_NAME_RANDR,
                                      &display_type);
         if (ret != NvCtrlSuccess) {
@@ -861,15 +864,13 @@ static gchar *get_display_name(nvDisplayDataPtr data, gboolean simple)
     if (display_type) {
         name = g_strconcat((display_name ? display_name : "Unknown Display"),
                            " (", display_type, ")", NULL);
-        XFree(display_type);
+        free(display_type);
     } else {
         name = g_strconcat((display_name ? display_name : "Unknown Display"),
                            NULL);
     }
 
-    if (display_name) {
-        XFree(display_name);
-    }
+    free(display_name);
 
     return name;
 }
@@ -890,15 +891,16 @@ static gchar *get_gpu_name(nvGPUDataPtr data, gboolean simple)
     char         *product_name;
     char          tmp[32];
     char         *name;
+    CtrlTarget   *ctrl_target = data->ctrl_target;
 
-    ret = NvCtrlGetStringAttribute(data->handle,
+    ret = NvCtrlGetStringAttribute(ctrl_target,
                                    NV_CTRL_STRING_PRODUCT_NAME,
                                    &product_name);
     if (ret != NvCtrlSuccess) {
         product_name = NULL;
     }
 
-    snprintf(tmp, 32, " (GPU %d)", NvCtrlGetTargetId(data->handle));
+    snprintf(tmp, 32, " (GPU %d)", NvCtrlGetTargetId(ctrl_target));
 
     if (simple) {
         name = g_strconcat(product_name?product_name:"Unknown GPU",
@@ -908,9 +910,7 @@ static gchar *get_gpu_name(nvGPUDataPtr data, gboolean simple)
                            tmp, NULL);
     }
 
-    if (product_name) {
-        free(product_name);
-    }
+    free(product_name);
 
     return name;
 }
@@ -924,17 +924,18 @@ static gchar *get_gpu_name(nvGPUDataPtr data, gboolean simple)
  */
 static char *get_framelock_name(nvFrameLockDataPtr data, gboolean simple)
 {
-    char *server_name;
-    char  tmp[32];
-    char *name;
+    char       *server_name;
+    char        tmp[32];
+    char       *name;
+    CtrlTarget *ctrl_target = data->ctrl_target;
 
     /* NOTE: The display name of a non-X Screen target will
      *       return the server name and server # only.
      *       (i.e., it does not return a screen #)
      */
-    server_name = NvCtrlGetDisplayName(data->handle);
+    server_name = NvCtrlGetDisplayName(ctrl_target);
 
-    snprintf(tmp, 32, " (Quadro Sync %d)", NvCtrlGetTargetId(data->handle));
+    snprintf(tmp, 32, " (Quadro Sync %d)", NvCtrlGetTargetId(ctrl_target));
     
     name = g_strconcat(server_name?server_name:"Unknown X Server", tmp, NULL);
 
@@ -1819,41 +1820,6 @@ static nvListEntryPtr list_entry_new(nvListTreePtr tree)
 
 
 
-static void framelock_data_free(nvFrameLockDataPtr data)
-{
-    if (!data) return;
-
-    if (data->handle) {
-        NvCtrlAttributeClose(data->handle);
-    }
-
-    free(data);
-}
-
-
-
-static void gpu_data_free(nvGPUDataPtr data)
-{
-    if (!data) return;
-
-    if (data->handle) {
-        NvCtrlAttributeClose(data->handle);
-    }
-
-    free(data);
-}
-
-
-
-static void display_data_free(nvDisplayDataPtr data)
-{
-    if (!data) return;
-
-    free(data);
-}
-
-
-
 /** list_entry_free() ************************************************
  *
  * - Frees an existing list entry.
@@ -1872,25 +1838,12 @@ static void list_entry_free(nvListEntryPtr entry)
                                              G_SIGNAL_MATCH_DATA,
                                              0, 0, NULL, NULL, (gpointer) entry);
 
-        // XXX Free ctk_event object when we add that functionality.
+        ctk_event_destroy(G_OBJECT(entry->ctk_event));
     }
 
     /* Free any data associated with the entry */
 
-    if (entry->data) {
-        switch (entry->data_type) {
-        case ENTRY_DATA_FRAMELOCK:
-            framelock_data_free((nvFrameLockDataPtr)entry->data);
-            break;
-        case ENTRY_DATA_GPU:
-            gpu_data_free((nvGPUDataPtr)entry->data);
-            break;
-        case ENTRY_DATA_DISPLAY:
-            display_data_free((nvDisplayDataPtr)entry->data);
-            break;
-        }
-    }
-
+    free(entry->data);
     free(entry);
 }
 
@@ -2104,7 +2057,7 @@ static nvListEntryPtr list_entry_new_with_framelock(nvFrameLockDataPtr data,
     }
     entry->data = (gpointer)(data);
     entry->data_type = ENTRY_DATA_FRAMELOCK;
-    entry->ctk_event = CTK_EVENT(ctk_event_new(data->handle));
+    entry->ctk_event = CTK_EVENT(ctk_event_new(data->ctrl_target));
 
     /* Pack the data's widgets into the list entry data hbox */
 
@@ -2207,7 +2160,7 @@ static nvListEntryPtr list_entry_new_with_gpu(nvGPUDataPtr data,
     }
     entry->data = (gpointer)(data);
     entry->data_type = ENTRY_DATA_GPU;
-    entry->ctk_event = CTK_EVENT(ctk_event_new(data->handle));
+    entry->ctk_event = CTK_EVENT(ctk_event_new(data->ctrl_target));
 
     /* Pack the data's widgets into the list entry data hbox */
 
@@ -2255,7 +2208,7 @@ static nvListEntryPtr list_entry_new_with_display(nvDisplayDataPtr data,
     }
     entry->data = (gpointer)(data);
     entry->data_type = ENTRY_DATA_DISPLAY;
-    entry->ctk_event = CTK_EVENT(ctk_event_new(data->handle));
+    entry->ctk_event = CTK_EVENT(ctk_event_new(data->ctrl_target));
 
    /* Pack the data's widgets into the list entry data hbox */
 
@@ -2501,9 +2454,9 @@ static void list_tree_align_titles(nvListTreePtr tree)
 
 /** find_server_by_name() ********************************************
  *
- * - Looks in the list tree for a list entry with a handle to a
+ * - Looks in the list tree for a list entry with a target to a
  *   server with the name 'server_name'.  The first list entry found
- *   with a handle to the named server is returned.
+ *   with a target to the named server is returned.
  *
  */
 static nvListEntryPtr find_server_by_name(nvListTreePtr tree,
@@ -2518,15 +2471,15 @@ static nvListEntryPtr find_server_by_name(nvListTreePtr tree,
         switch (entry->data_type) {
         case ENTRY_DATA_FRAMELOCK:
             name = NvCtrlGetDisplayName
-                (((nvFrameLockDataPtr)(entry->data))->handle);
+                (((nvFrameLockDataPtr)(entry->data))->ctrl_target);
             break;
         case ENTRY_DATA_GPU:
             name = NvCtrlGetDisplayName
-                (((nvGPUDataPtr)(entry->data))->handle);
+                (((nvGPUDataPtr)(entry->data))->ctrl_target);
             break;
         case ENTRY_DATA_DISPLAY:
             name = NvCtrlGetDisplayName
-                (((nvDisplayDataPtr)(entry->data))->handle);
+                (((nvDisplayDataPtr)(entry->data))->ctrl_target);
             break;
         default:
             name = NULL;
@@ -2579,12 +2532,12 @@ static nvListEntryPtr find_server_by_id(nvListTreePtr tree,
  *
  * - Gets the X_SERVER_UNIQUE_ID nv-control attribute
  */
-static gboolean get_server_id(NvCtrlAttributeHandle *handle,
+static gboolean get_server_id(CtrlTarget *ctrl_target,
                               int *server_id)
 {
     ReturnStatus ret;
 
-    ret = NvCtrlGetAttribute(handle, NV_CTRL_X_SERVER_UNIQUE_ID, server_id);
+    ret = NvCtrlGetAttribute(ctrl_target, NV_CTRL_X_SERVER_UNIQUE_ID, server_id);
 
     if (ret != NvCtrlSuccess) {
         return FALSE;
@@ -2614,19 +2567,21 @@ static void toggle_use_house_sync(GtkWidget *widget, gpointer user_data)
     nvListEntryPtr entry;
     gboolean enabled;
     nvFrameLockDataPtr data;
+    CtrlTarget *ctrl_target;
 
     entry = get_framelock_server_entry((nvListTreePtr)(ctk_framelock->tree));
     if (!entry) return;
 
     data = (nvFrameLockDataPtr)(entry->data);
+    ctrl_target = data->ctrl_target;
 
     enabled = gtk_toggle_button_get_active(GTK_TOGGLE_BUTTON(widget));
 
-    NvCtrlSetAttribute(data->handle, NV_CTRL_USE_HOUSE_SYNC, enabled);
+    NvCtrlSetAttribute(ctrl_target, NV_CTRL_USE_HOUSE_SYNC, enabled);
 
     update_house_sync_controls(ctk_framelock);
 
-    NvCtrlGetAttribute(data->handle, NV_CTRL_USE_HOUSE_SYNC, &enabled);
+    NvCtrlGetAttribute(ctrl_target, NV_CTRL_USE_HOUSE_SYNC, &enabled);
 
     ctk_config_statusbar_message(ctk_framelock->ctk_config,
                                  "%s use of house sync signal.",
@@ -2814,7 +2769,7 @@ static void toggle_server(GtkWidget *widget, gpointer data)
     ctk_framelock = tree->ctk_framelock;
 
     /* Make sure FrameLock is disabled on the GPU */
-    NvCtrlSetAttribute(gpu_data->handle, NV_CTRL_FRAMELOCK_SYNC,
+    NvCtrlSetAttribute(gpu_data->ctrl_target, NV_CTRL_FRAMELOCK_SYNC,
                        NV_CTRL_FRAMELOCK_SYNC_DISABLE);
     gpu_data->enabled = FALSE;
     ctk_framelock->framelock_enabled = any_gpu_enabled(tree->entries);
@@ -2840,7 +2795,7 @@ static void toggle_server(GtkWidget *widget, gpointer data)
         gtk_toggle_button_set_active
             (GTK_TOGGLE_BUTTON(display_data->client_checkbox), FALSE);
 
-        NvCtrlSetAttribute(display_data->handle,
+        NvCtrlSetAttribute(display_data->ctrl_target,
                            NV_CTRL_FRAMELOCK_DISPLAY_CONFIG,
                            NV_CTRL_FRAMELOCK_DISPLAY_CONFIG_SERVER);
     } else {
@@ -2848,7 +2803,7 @@ static void toggle_server(GtkWidget *widget, gpointer data)
             tree->server_entry = NULL;
         }
 
-        NvCtrlSetAttribute(display_data->handle,
+        NvCtrlSetAttribute(display_data->ctrl_target,
                            NV_CTRL_FRAMELOCK_DISPLAY_CONFIG,
                            NV_CTRL_FRAMELOCK_DISPLAY_CONFIG_DISABLED);
     }
@@ -2888,7 +2843,7 @@ static void toggle_client(GtkWidget *widget, gpointer data)
     ctk_framelock = tree->ctk_framelock;
 
     /* Make sure FrameLock is disabled on the GPU */
-    NvCtrlSetAttribute(gpu_data->handle, NV_CTRL_FRAMELOCK_SYNC,
+    NvCtrlSetAttribute(gpu_data->ctrl_target, NV_CTRL_FRAMELOCK_SYNC,
                        NV_CTRL_FRAMELOCK_SYNC_DISABLE);
     gpu_data->enabled = FALSE;
     ctk_framelock->framelock_enabled = any_gpu_enabled(tree->entries);
@@ -2905,11 +2860,11 @@ static void toggle_client(GtkWidget *widget, gpointer data)
         gtk_toggle_button_set_active
             (GTK_TOGGLE_BUTTON(display_data->server_checkbox), FALSE);
 
-        NvCtrlSetAttribute(display_data->handle,
+        NvCtrlSetAttribute(display_data->ctrl_target,
                            NV_CTRL_FRAMELOCK_DISPLAY_CONFIG,
                            NV_CTRL_FRAMELOCK_DISPLAY_CONFIG_CLIENT);
     } else {
-        NvCtrlSetAttribute(display_data->handle,
+        NvCtrlSetAttribute(display_data->ctrl_target,
                            NV_CTRL_FRAMELOCK_DISPLAY_CONFIG,
                            NV_CTRL_FRAMELOCK_DISPLAY_CONFIG_DISABLED);
     }
@@ -2936,16 +2891,18 @@ static gboolean set_enable_sync_server(nvListTreePtr tree, gboolean enable)
 {
     nvListEntryPtr entry = get_gpu_server_entry(tree);
     nvGPUDataPtr data;
+    CtrlTarget *ctrl_target;
     ReturnStatus ret;
 
     if (!entry) return FALSE;
 
     data = (nvGPUDataPtr)(entry->data);
+    ctrl_target = data->ctrl_target;
 
-    ret = NvCtrlSetAttribute(data->handle, NV_CTRL_FRAMELOCK_SYNC, enable);
+    ret = NvCtrlSetAttribute(ctrl_target, NV_CTRL_FRAMELOCK_SYNC, enable);
     if (ret != NvCtrlSuccess) return FALSE;
 
-    ret = NvCtrlGetAttribute(data->handle, NV_CTRL_FRAMELOCK_SYNC, &enable);
+    ret = NvCtrlGetAttribute(ctrl_target, NV_CTRL_FRAMELOCK_SYNC, &enable);
     if (ret != NvCtrlSuccess) return FALSE;
 
     data->enabled = enable;
@@ -2985,6 +2942,7 @@ static gboolean set_enable_sync_clients(nvListEntryPtr entry_list,
 
     for (entry = entry_list; entry; entry = entry->next_sibling) {
         nvGPUDataPtr data;
+        CtrlTarget *ctrl_target;
 
         if (entry->children) {
             something_enabled = set_enable_sync_clients(entry->children,
@@ -2997,15 +2955,16 @@ static gboolean set_enable_sync_clients(nvListEntryPtr entry_list,
         }
 
         data = (nvGPUDataPtr)(entry->data);
+        ctrl_target = data->ctrl_target;
 
         /* Only send protocol if there is something to enable */
         if (!has_client_selected(entry)) continue;
 
-        ret = NvCtrlSetAttribute(data->handle, NV_CTRL_FRAMELOCK_SYNC, enable);
+        ret = NvCtrlSetAttribute(ctrl_target, NV_CTRL_FRAMELOCK_SYNC, enable);
         if (ret != NvCtrlSuccess) continue;
 
         /* Verify state w/ the server */
-        ret = NvCtrlGetAttribute(data->handle, NV_CTRL_FRAMELOCK_SYNC,
+        ret = NvCtrlGetAttribute(ctrl_target, NV_CTRL_FRAMELOCK_SYNC,
                                  &(something_enabled));
         if (ret != NvCtrlSuccess) continue;
 
@@ -3148,10 +3107,11 @@ static void toggle_sync_enable(GtkWidget *button, gpointer data)
     entry = get_gpu_server_entry(tree);
     if (enabled && entry && framelock_enabled) {
         nvGPUDataPtr data = (nvGPUDataPtr)(entry->data);
-        NvCtrlSetAttribute(data->handle,
+        CtrlTarget *ctrl_target = data->ctrl_target;
+        NvCtrlSetAttribute(ctrl_target,
                            NV_CTRL_FRAMELOCK_TEST_SIGNAL,
                            NV_CTRL_FRAMELOCK_TEST_SIGNAL_ENABLE);
-        NvCtrlSetAttribute(data->handle,
+        NvCtrlSetAttribute(ctrl_target,
                            NV_CTRL_FRAMELOCK_TEST_SIGNAL,
                            NV_CTRL_FRAMELOCK_TEST_SIGNAL_DISABLE);
     }
@@ -3214,7 +3174,7 @@ static gint test_link_done(gpointer data)
     
     ctk_framelock->test_link_enabled = FALSE;
 
-    NvCtrlSetAttribute(((nvGPUDataPtr)(entry->data))->handle,
+    NvCtrlSetAttribute(((nvGPUDataPtr)(entry->data))->ctrl_target,
                        NV_CTRL_FRAMELOCK_TEST_SIGNAL,
                        NV_CTRL_FRAMELOCK_TEST_SIGNAL_DISABLE);
     
@@ -3292,7 +3252,7 @@ static void toggle_test_link(GtkWidget *button, gpointer data)
         
     gtk_grab_add(button);
     
-    NvCtrlSetAttribute(((nvGPUDataPtr)(entry->data))->handle,
+    NvCtrlSetAttribute(((nvGPUDataPtr)(entry->data))->ctrl_target,
                        NV_CTRL_FRAMELOCK_TEST_SIGNAL,
                        NV_CTRL_FRAMELOCK_TEST_SIGNAL_ENABLE);
     
@@ -3344,7 +3304,7 @@ static void sync_interval_changed(GtkRange *range, gpointer user_data)
 
     data = (nvFrameLockDataPtr)(entry->data);
 
-    NvCtrlSetAttribute(data->handle, NV_CTRL_FRAMELOCK_SYNC_INTERVAL,
+    NvCtrlSetAttribute(data->ctrl_target, NV_CTRL_FRAMELOCK_SYNC_INTERVAL,
                        interval);
 }
 
@@ -3386,7 +3346,7 @@ static void changed_sync_edge(GtkComboBox *combo_box, gpointer user_data)
 
     data = (nvFrameLockDataPtr) entry->data;
 
-    NvCtrlSetAttribute(data->handle, NV_CTRL_FRAMELOCK_POLARITY, edge);
+    NvCtrlSetAttribute(data->ctrl_target, NV_CTRL_FRAMELOCK_POLARITY, edge);
 }
 
 
@@ -3411,7 +3371,7 @@ static void changed_video_mode(GtkComboBox *combo_box, gpointer user_data)
 
     data = (nvFrameLockDataPtr) entry->data;
 
-    NvCtrlSetAttribute(data->handle, NV_CTRL_FRAMELOCK_VIDEO_MODE, mode);
+    NvCtrlSetAttribute(data->ctrl_target, NV_CTRL_FRAMELOCK_VIDEO_MODE, mode);
 }
 
 
@@ -3441,7 +3401,7 @@ static gboolean detect_video_mode_timer(gpointer user_data)
 
     data = (nvFrameLockDataPtr)(entry->data);
 
-    NvCtrlGetAttribute(data->handle, NV_CTRL_FRAMELOCK_HOUSE_STATUS, &house);
+    NvCtrlGetAttribute(data->ctrl_target, NV_CTRL_FRAMELOCK_HOUSE_STATUS, &house);
 
     if (house) {
 
@@ -3493,7 +3453,7 @@ static gboolean detect_video_mode_timer(gpointer user_data)
      * Set the new video format
      */
 
-    NvCtrlSetAttribute(data->handle, NV_CTRL_FRAMELOCK_VIDEO_MODE,
+    NvCtrlSetAttribute(data->ctrl_target, NV_CTRL_FRAMELOCK_VIDEO_MODE,
                        ctk_framelock->current_detect_format);
 
     return TRUE;
@@ -3562,7 +3522,7 @@ static void toggle_detect_video_mode(GtkToggleButton *button,
     ctk_framelock->current_detect_format =
         NV_CTRL_FRAMELOCK_VIDEO_MODE_COMPOSITE_AUTO;
 
-    NvCtrlSetAttribute(data->handle, NV_CTRL_FRAMELOCK_VIDEO_MODE,
+    NvCtrlSetAttribute(data->ctrl_target, NV_CTRL_FRAMELOCK_VIDEO_MODE,
                        ctk_framelock->current_detect_format);
 
     ctk_framelock->video_mode_detect_timer =
@@ -3584,6 +3544,7 @@ static void list_entry_update_framelock_status(CtkFramelock *ctk_framelock,
                                                nvListEntryPtr entry)
 {
     nvFrameLockDataPtr data = (nvFrameLockDataPtr)(entry->data);
+    CtrlTarget *ctrl_target = data->ctrl_target;
     gint rate, delay, house, port0, port1;
     gchar str[32];
     gfloat fvalue;
@@ -3595,10 +3556,10 @@ static void list_entry_update_framelock_status(CtkFramelock *ctk_framelock,
     ReturnStatus ret;
     
     
-    NvCtrlGetAttribute(data->handle, NV_CTRL_FRAMELOCK_SYNC_DELAY, &delay);
-    NvCtrlGetAttribute(data->handle, NV_CTRL_FRAMELOCK_HOUSE_STATUS, &house);
-    NvCtrlGetAttribute(data->handle, NV_CTRL_FRAMELOCK_PORT0_STATUS, &port0);
-    NvCtrlGetAttribute(data->handle, NV_CTRL_FRAMELOCK_PORT1_STATUS, &port1);
+    NvCtrlGetAttribute(ctrl_target, NV_CTRL_FRAMELOCK_SYNC_DELAY, &delay);
+    NvCtrlGetAttribute(ctrl_target, NV_CTRL_FRAMELOCK_HOUSE_STATUS, &house);
+    NvCtrlGetAttribute(ctrl_target, NV_CTRL_FRAMELOCK_PORT0_STATUS, &port0);
+    NvCtrlGetAttribute(ctrl_target, NV_CTRL_FRAMELOCK_PORT1_STATUS, &port1);
 
     use_house_sync = gtk_toggle_button_get_active
         (GTK_TOGGLE_BUTTON(ctk_framelock->use_house_sync));
@@ -3613,7 +3574,7 @@ static void list_entry_update_framelock_status(CtkFramelock *ctk_framelock,
         update_image(data->receiving_hbox, ctk_framelock->led_grey_pixbuf);
     } else {
         gint receiving;
-        NvCtrlGetAttribute(data->handle, NV_CTRL_FRAMELOCK_SYNC_READY,
+        NvCtrlGetAttribute(ctrl_target, NV_CTRL_FRAMELOCK_SYNC_READY,
                            &receiving);
         gtk_widget_set_sensitive(data->receiving_label, TRUE);
         update_image(data->receiving_hbox,
@@ -3626,11 +3587,11 @@ static void list_entry_update_framelock_status(CtkFramelock *ctk_framelock,
     gtk_widget_set_sensitive(data->rate_text, framelock_enabled);
 
     ret =
-        NvCtrlGetAttribute(data->handle, NV_CTRL_FRAMELOCK_SYNC_RATE_4, &rate);
+        NvCtrlGetAttribute(ctrl_target, NV_CTRL_FRAMELOCK_SYNC_RATE_4, &rate);
     if (ret == NvCtrlSuccess) {
         snprintf(str, 32, "%d.%.4d Hz", (rate / 10000), (rate % 10000));
     } else {
-        NvCtrlGetAttribute(data->handle, NV_CTRL_FRAMELOCK_SYNC_RATE, &rate);
+        NvCtrlGetAttribute(ctrl_target, NV_CTRL_FRAMELOCK_SYNC_RATE, &rate);
         snprintf(str, 32, "%d.%.3d Hz", (rate / 1000), (rate % 1000));
     }
     gtk_label_set_text(GTK_LABEL(data->rate_text), str);
@@ -3647,10 +3608,9 @@ static void list_entry_update_framelock_status(CtkFramelock *ctk_framelock,
     gtk_widget_set_sensitive(data->house_sync_rate_label, framelock_enabled);
     gtk_widget_set_sensitive(data->house_sync_rate_text, framelock_enabled);
 
-    ret =
-        NvCtrlGetAttribute(data->handle,
-                           NV_CTRL_FRAMELOCK_INCOMING_HOUSE_SYNC_RATE,
-                           &rate);
+    ret = NvCtrlGetAttribute(ctrl_target,
+                             NV_CTRL_FRAMELOCK_INCOMING_HOUSE_SYNC_RATE,
+                             &rate);
     if (ret == NvCtrlSuccess) {
         snprintf(str, 32, "%d.%.4d Hz", (rate / 10000), (rate % 10000));
     } else {
@@ -3707,7 +3667,7 @@ static void list_entry_update_gpu_status(CtkFramelock *ctk_framelock,
         nvFrameLockDataPtr framelock_data =
             (nvFrameLockDataPtr)(entry->parent->data);
 
-        NvCtrlGetAttribute(framelock_data->handle,
+        NvCtrlGetAttribute(framelock_data->ctrl_target,
                            NV_CTRL_FRAMELOCK_HOUSE_STATUS,
                            &house);
     }
@@ -3736,7 +3696,7 @@ static void list_entry_update_gpu_status(CtkFramelock *ctk_framelock,
         update_image(data->timing_hbox, ctk_framelock->led_grey_pixbuf);
     } else {
         gint timing;
-        NvCtrlGetAttribute(data->handle, NV_CTRL_FRAMELOCK_TIMING, &timing);
+        NvCtrlGetAttribute(data->ctrl_target, NV_CTRL_FRAMELOCK_TIMING, &timing);
         gtk_widget_set_sensitive(data->timing_label, TRUE);
         update_image(data->timing_hbox,
                      (timing ? ctk_framelock->led_green_pixbuf :
@@ -3755,6 +3715,7 @@ static void list_entry_update_gpu_status(CtkFramelock *ctk_framelock,
 static void list_entry_update_display_status(CtkFramelock *ctk_framelock,
                                              nvListEntryPtr entry)
 {
+    CtrlTarget *ctrl_target = ctk_framelock->ctrl_target;
     nvDisplayDataPtr data = (nvDisplayDataPtr)(entry->data);
     gboolean framelock_enabled;
     gboolean stereo_enabled = FALSE;
@@ -3780,8 +3741,7 @@ static void list_entry_update_display_status(CtkFramelock *ctk_framelock,
 
     gpu_is_server = (gpu_server_entry && (gpu_server_entry == entry->parent));
 
-    ret = NvCtrlGetAttribute(ctk_framelock->attribute_handle, NV_CTRL_STEREO,
-                             &val);
+    ret = NvCtrlGetAttribute(ctrl_target, NV_CTRL_STEREO, &val);
     if ((ret == NvCtrlSuccess) &&
         (val != NV_CTRL_STEREO_OFF)) {
         stereo_enabled = TRUE;
@@ -3805,12 +3765,13 @@ static void list_entry_update_display_status(CtkFramelock *ctk_framelock,
         if (entry->parent) {
             GdkPixbuf *pixbuf = ctk_framelock->led_grey_pixbuf;
             nvGPUDataPtr gpu_data = (nvGPUDataPtr)(entry->parent->data);
+            CtrlTarget *ctrl_target = gpu_data->ctrl_target;
 
-            ret = NvCtrlGetAttribute(gpu_data->handle, NV_CTRL_FRAMELOCK_TIMING,
+            ret = NvCtrlGetAttribute(ctrl_target, NV_CTRL_FRAMELOCK_TIMING,
                                      &val);
             if ((ret == NvCtrlSuccess) &&
                 (val == NV_CTRL_FRAMELOCK_TIMING_TRUE)) {
-                ret = NvCtrlGetAttribute(gpu_data->handle,
+                ret = NvCtrlGetAttribute(ctrl_target,
                                          NV_CTRL_FRAMELOCK_STEREO_SYNC, &val);
                 if (ret == NvCtrlSuccess) {
                     pixbuf = (val == NV_CTRL_FRAMELOCK_STEREO_SYNC_TRUE) ?
@@ -3899,7 +3860,7 @@ static gboolean check_for_ethernet(gpointer user_data)
             nvFrameLockDataPtr data = (nvFrameLockDataPtr)(entry->data);
             gint val;
 
-            NvCtrlGetAttribute(data->handle,
+            NvCtrlGetAttribute(data->ctrl_target,
                                NV_CTRL_FRAMELOCK_ETHERNET_DETECTED,
                                &val);
 
@@ -3929,8 +3890,7 @@ static gboolean check_for_ethernet(gpointer user_data)
                       "PC is not turned on.  Either disconnect the LAN "
                       "cable or turn on the linked PC for proper "
                       "operation.",
-                      NvCtrlGetDisplayName(error_data->handle)
-                      );
+                      NvCtrlGetDisplayName(error_data->ctrl_target));
         }
         first_error = FALSE;
     } else {
@@ -3955,7 +3915,7 @@ static void update_house_sync_controls(CtkFramelock *ctk_framelock)
     gboolean use_house;
     ReturnStatus ret;
     nvFrameLockDataPtr data;
-
+    CtrlTarget *ctrl_target;
 
     entry = get_framelock_server_entry((nvListTreePtr)(ctk_framelock->tree));
 
@@ -3968,9 +3928,10 @@ static void update_house_sync_controls(CtkFramelock *ctk_framelock)
 
 
     /* Get the current use house sync state from the X Server */
-    data = (nvFrameLockDataPtr)(entry->data); 
+    data = (nvFrameLockDataPtr)(entry->data);
+    ctrl_target = data->ctrl_target;
 
-    ret = NvCtrlGetAttribute(data->handle, NV_CTRL_USE_HOUSE_SYNC, &use_house);
+    ret = NvCtrlGetAttribute(ctrl_target, NV_CTRL_USE_HOUSE_SYNC, &use_house);
     if (ret != NvCtrlSuccess) {
         use_house = TRUE; /* Can't toggle, attribute always on. */
     }
@@ -4002,21 +3963,24 @@ static void update_house_sync_controls(CtkFramelock *ctk_framelock)
         gint sync_edge;
         gint house_format;
 
-        nvFrameLockDataPtr data;
+        nvFrameLockDataPtr master_data;
         
         gtk_widget_set_sensitive(ctk_framelock->house_sync_vbox, TRUE);
 
-        data = (nvFrameLockDataPtr)(entry->data);
+        master_data = (nvFrameLockDataPtr)(entry->data);
 
         /* Query current house sync settings from master frame lock device */
         
-        NvCtrlGetAttribute(data->handle, NV_CTRL_FRAMELOCK_SYNC_INTERVAL,
+        NvCtrlGetAttribute(master_data->ctrl_target,
+                           NV_CTRL_FRAMELOCK_SYNC_INTERVAL,
                            &sync_interval);
 
-        NvCtrlGetAttribute(data->handle, NV_CTRL_FRAMELOCK_POLARITY,
+        NvCtrlGetAttribute(master_data->ctrl_target,
+                           NV_CTRL_FRAMELOCK_POLARITY,
                            &sync_edge);
 
-        NvCtrlGetAttribute(data->handle, NV_CTRL_FRAMELOCK_VIDEO_MODE,
+        NvCtrlGetAttribute(master_data->ctrl_target,
+                           NV_CTRL_FRAMELOCK_VIDEO_MODE,
                            &house_format);
 
         /* Update GUI to reflect server settings */
@@ -4150,7 +4114,7 @@ static void update_display_config(nvListEntryPtr display_entry, int config)
 
 
     /* Get what is possible */
-    ret = NvCtrlGetValidAttributeValues(display_data->handle,
+    ret = NvCtrlGetValidAttributeValues(display_data->ctrl_target,
                                         NV_CTRL_FRAMELOCK_DISPLAY_CONFIG,
                                         &valid_config);
 
@@ -4265,9 +4229,9 @@ static void update_display_config(nvListEntryPtr display_entry, int config)
  *
  */
 static void display_state_received(GObject *object,
-                               gpointer arg1, gpointer user_data)
+                                   CtrlEvent *event,
+                                   gpointer user_data)
 {
-    CtkEventStruct *event = (CtkEventStruct *) arg1;
     nvListEntryPtr display_entry = (nvListEntryPtr) user_data;
     nvDisplayDataPtr display_data;
     nvListTreePtr tree;
@@ -4275,6 +4239,7 @@ static void display_state_received(GObject *object,
 
     int rateMultiplier = 1;
     int precision = 3;
+    gint value;
 
     if (!display_entry ||
         !display_entry->data ||
@@ -4282,11 +4247,16 @@ static void display_state_received(GObject *object,
         return;
     }
 
+    if (event->type != CTRL_EVENT_TYPE_INTEGER_ATTRIBUTE) {
+        return;
+    }
+
+    value = event->int_attr.value;
     display_data = (nvDisplayDataPtr) display_entry->data;
     tree = display_entry->tree;
     ctk_framelock = tree->ctk_framelock;
 
-    switch (event->attribute) {
+    switch (event->int_attr.attribute) {
 
     case NV_CTRL_REFRESH_RATE:
         rateMultiplier = 10;
@@ -4294,7 +4264,7 @@ static void display_state_received(GObject *object,
         /* fallthrough */
     case NV_CTRL_REFRESH_RATE_3:
         update_display_rate_txt(display_data,
-                                event->value * rateMultiplier, /* rate_mHz */
+                                value * rateMultiplier, /* rate_mHz */
                                 precision);
 
         /* Update the UI */
@@ -4302,7 +4272,7 @@ static void display_state_received(GObject *object,
         break;
 
     case NV_CTRL_FRAMELOCK_DISPLAY_CONFIG:
-        update_display_config(display_entry, event->value);
+        update_display_config(display_entry, value);
 
         /* Update the UI */
         update_framelock_controls(ctk_framelock);
@@ -4318,9 +4288,9 @@ static void display_state_received(GObject *object,
  *
  */
 static void gpu_state_received(GObject *object,
-                               gpointer arg1, gpointer user_data)
+                               CtrlEvent *event,
+                               gpointer user_data)
 {
-    CtkEventStruct *event = (CtkEventStruct *) arg1;
     nvListEntryPtr gpu_entry = (nvListEntryPtr) user_data;
     nvGPUDataPtr gpu_data;
     nvListTreePtr tree;
@@ -4332,15 +4302,19 @@ static void gpu_state_received(GObject *object,
         return;
     }
 
+    if (event->type != CTRL_EVENT_TYPE_INTEGER_ATTRIBUTE) {
+        return;
+    }
+
     gpu_data = (nvGPUDataPtr) gpu_entry->data;
     tree = gpu_entry->tree;
     ctk_framelock = tree->ctk_framelock;
 
-    switch (event->attribute) {
+    switch (event->int_attr.attribute) {
 
     case NV_CTRL_FRAMELOCK_SYNC:
         /* Cache the enable/disable state of the gpu sync */
-        gpu_data->enabled = event->value;
+        gpu_data->enabled = event->int_attr.value;
 
         /* Look to see if any gpu is enabled/disabled */
         ctk_framelock->framelock_enabled =
@@ -4364,7 +4338,7 @@ static void gpu_state_received(GObject *object,
         break;
 
     case NV_CTRL_FRAMELOCK_TEST_SIGNAL:
-        switch (event->value) {
+        switch (event->int_attr.value) {
         case NV_CTRL_FRAMELOCK_TEST_SIGNAL_ENABLE:
             ctk_framelock->test_link_enabled = TRUE;
             gdk_window_set_cursor
@@ -4419,9 +4393,9 @@ static void gpu_state_received(GObject *object,
  *
  */
 static void framelock_state_received(GObject *object,
-                                     gpointer arg1, gpointer user_data)
+                                     CtrlEvent *event,
+                                     gpointer user_data)
 {
-    CtkEventStruct *event = (CtkEventStruct *) arg1;
     nvListEntryPtr entry = (nvListEntryPtr) user_data;
     CtkFramelock *ctk_framelock = entry->tree->ctk_framelock;
 
@@ -4436,9 +4410,13 @@ static void framelock_state_received(GObject *object,
         return;
     }
 
+    if (event->type != CTRL_EVENT_TYPE_INTEGER_ATTRIBUTE) {
+        return;
+    }
+
     /* Process the new frame lock device setting */
 
-    switch (event->attribute) {
+    switch (event->int_attr.attribute) {
     case NV_CTRL_USE_HOUSE_SYNC:
         g_signal_handlers_block_by_func
             (G_OBJECT(ctk_framelock->use_house_sync),
@@ -4447,7 +4425,7 @@ static void framelock_state_received(GObject *object,
         
          gtk_toggle_button_set_active
             (GTK_TOGGLE_BUTTON(ctk_framelock->use_house_sync),
-             event->value);
+             event->int_attr.value);
 
         g_signal_handlers_unblock_by_func
             (G_OBJECT(ctk_framelock->use_house_sync),
@@ -4462,7 +4440,7 @@ static void framelock_state_received(GObject *object,
              (gpointer) ctk_framelock);
 
         gtk_range_set_value(GTK_RANGE(ctk_framelock->sync_interval_scale),
-                            event->value);
+                            event->int_attr.value);
 
         g_signal_handlers_unblock_by_func
             (G_OBJECT(ctk_framelock->sync_interval_scale),
@@ -4471,7 +4449,7 @@ static void framelock_state_received(GObject *object,
         break;
 
     case NV_CTRL_FRAMELOCK_POLARITY:
-        sync_edge = event->value;
+        sync_edge = event->int_attr.value;
         if (sync_edge < NV_CTRL_FRAMELOCK_POLARITY_RISING_EDGE)
             sync_edge = NV_CTRL_FRAMELOCK_POLARITY_RISING_EDGE;
         if (sync_edge > NV_CTRL_FRAMELOCK_POLARITY_BOTH_EDGES)
@@ -4494,7 +4472,7 @@ static void framelock_state_received(GObject *object,
         break;
 
     case NV_CTRL_FRAMELOCK_VIDEO_MODE:
-        house_format = event->value;
+        house_format = event->int_attr.value;
         if (house_format < NV_CTRL_FRAMELOCK_VIDEO_MODE_NONE)
             house_format = NV_CTRL_FRAMELOCK_VIDEO_MODE_NONE;
         if (house_format > NV_CTRL_FRAMELOCK_VIDEO_MODE_HDTV)
@@ -4596,8 +4574,9 @@ GType ctk_framelock_get_type(
  * returns a new instance of the frame lock class.
  *
  */
-GtkWidget* ctk_framelock_new(NvCtrlAttributeHandle *handle,
-                             GtkWidget *parent_window, CtkConfig *ctk_config,
+GtkWidget* ctk_framelock_new(CtrlTarget *ctrl_target,
+                             GtkWidget *parent_window,
+                             CtkConfig *ctk_config,
                              ParsedAttribute *p)
 {
     GObject *object;
@@ -4624,16 +4603,16 @@ GtkWidget* ctk_framelock_new(NvCtrlAttributeHandle *handle,
     GtkWidget *image;
     NVCTRLAttributeValidValuesRec valid;
 
-    
 
-    /* make sure we have a handle */
+    /* make sure we have a valid target */
 
-    g_return_val_if_fail(handle != NULL, NULL);
+    g_return_val_if_fail((ctrl_target != NULL) &&
+                         (ctrl_target->h != NULL), NULL);
 
     /* Only expose frame lock if there are frame lock boards in
      * the system.  This isn't absolutely necessary, because the
      * frame lock control page does not have to include the current
-     * NV-CONTROL handle in the frame lock group.  However, we don't
+     * control target in the frame lock group.  However, we don't
      * want to expose the frame lock page unconditionally (it would
      * only confuse most users), so this is as good a condition as
      * anything else.
@@ -4642,8 +4621,8 @@ GtkWidget* ctk_framelock_new(NvCtrlAttributeHandle *handle,
      * Options page.
      */
 
-    ret = NvCtrlQueryTargetCount(handle,
-                                 NV_CTRL_TARGET_TYPE_FRAMELOCK,
+    ret = NvCtrlQueryTargetCount(ctrl_target,
+                                 FRAMELOCK_TARGET,
                                  (int *)&num_framelocks);
     if (ret != NvCtrlSuccess) return NULL;
     if (!num_framelocks) return NULL;
@@ -4651,11 +4630,11 @@ GtkWidget* ctk_framelock_new(NvCtrlAttributeHandle *handle,
     /* 1. - Create the frame lock widgets */
 
     /* create the frame lock page object */
-    
+
     object = g_object_new(CTK_TYPE_FRAMELOCK, NULL);
-    
+
     ctk_framelock = CTK_FRAMELOCK(object);
-    ctk_framelock->attribute_handle = handle;
+    ctk_framelock->ctrl_target = ctrl_target;
     ctk_framelock->ctk_config = ctk_config;
     ctk_framelock->parent_window = GTK_WINDOW(parent_window);
     ctk_framelock->video_mode_read_only = TRUE;
@@ -4760,7 +4739,7 @@ GtkWidget* ctk_framelock_new(NvCtrlAttributeHandle *handle,
     /* Select video mode widget dropdown/label depending on 
      * video mode is read-only.
      */
-    ret = NvCtrlGetValidAttributeValues(ctk_framelock->attribute_handle,
+    ret = NvCtrlGetValidAttributeValues(ctrl_target,
                                         NV_CTRL_FRAMELOCK_VIDEO_MODE,
                                         &valid);
     if ((ret == NvCtrlSuccess) && (valid.permissions & ATTRIBUTE_TYPE_WRITE)) {
@@ -4928,7 +4907,7 @@ GtkWidget* ctk_framelock_new(NvCtrlAttributeHandle *handle,
     {
         GtkWidget *frame2 = gtk_frame_new(NULL);
 
-        ret = NvCtrlGetValidAttributeValues(ctk_framelock->attribute_handle,
+        ret = NvCtrlGetValidAttributeValues(ctrl_target,
                                             NV_CTRL_FRAMELOCK_SYNC_INTERVAL,
                                             &valid);
         /*
@@ -4943,7 +4922,7 @@ GtkWidget* ctk_framelock_new(NvCtrlAttributeHandle *handle,
         }
 
         if (NvCtrlSuccess !=
-            NvCtrlGetAttribute(ctk_framelock->attribute_handle,
+            NvCtrlGetAttribute(ctrl_target,
                                NV_CTRL_FRAMELOCK_SYNC_INTERVAL,
                                &val)) {
             return NULL;
@@ -5038,7 +5017,7 @@ GtkWidget* ctk_framelock_new(NvCtrlAttributeHandle *handle,
     /* register a timer callback to update the status of the page */
 
     string = g_strdup_printf("Frame Lock Connection Status (Screen %u)",
-                             NvCtrlGetTargetId(handle));
+                             NvCtrlGetTargetId(ctrl_target));
 
     ctk_config_add_timer(ctk_config, DEFAULT_UPDATE_STATUS_TIME_INTERVAL,
                          string,
@@ -5046,11 +5025,11 @@ GtkWidget* ctk_framelock_new(NvCtrlAttributeHandle *handle,
                          (gpointer) ctk_framelock);
 
     g_free(string);
-    
+
     /* register a timer callback to check the rj45 ports */
 
     string = g_strdup_printf("Frame Lock RJ45 Check (Screen %u)",
-                             NvCtrlGetTargetId(handle));
+                             NvCtrlGetTargetId(ctrl_target));
 
     ctk_config_add_timer(ctk_config, DEFAULT_CHECK_FOR_ETHERNET_TIME_INTERVAL,
                          string,
@@ -5193,14 +5172,13 @@ static void remove_devices_response(GtkWidget *button, gint response,
 
 /** add_display_device() *********************************************
  *
- * Adds an display device to the give GPU entry.
+ * Adds a display device to the give GPU entry.
  *
  */
-static gboolean add_display_device(CtkFramelock *ctk_framelock,
-                                   nvListEntryPtr gpu_entry,
-                                   int display_id)
+static void add_display_device(CtkFramelock *ctk_framelock,
+                               nvListEntryPtr gpu_entry,
+                               CtrlTarget *ctrl_target)
 {
-    nvGPUDataPtr gpu_data = (nvGPUDataPtr)(gpu_entry->data);
     nvDisplayDataPtr display_data = NULL;
     nvListEntryPtr entry = NULL;
     nvListTreePtr tree = (nvListTreePtr)(ctk_framelock->tree);
@@ -5212,21 +5190,17 @@ static gboolean add_display_device(CtkFramelock *ctk_framelock,
     gboolean hdmi3D;
     int i;
 
+    /* Only add enabled display devices */
+    if (!ctrl_target->display.enabled) {
+        goto fail;
+    }
 
     display_data = (nvDisplayDataPtr) calloc(1, sizeof(nvDisplayDataRec));
     if (!display_data) {
         goto fail;
     }
 
-    display_data->handle =
-        NvCtrlAttributeInit(NvCtrlGetDisplayPtr(gpu_data->handle),
-                            NV_CTRL_TARGET_TYPE_DISPLAY,
-                            display_id,
-                            NV_CTRL_ATTRIBUTES_NV_CONTROL_SUBSYSTEM);
-    if (!display_data->handle) {
-        goto fail;
-    }
-
+    display_data->ctrl_target = ctrl_target;
 
     /* Create, pack and link the display device UI widgets */
 
@@ -5264,11 +5238,9 @@ static gboolean add_display_device(CtkFramelock *ctk_framelock,
     update_entry_label(ctk_framelock, entry);
 
     /* Refresh rate */
-    ret = NvCtrlGetAttribute(display_data->handle, NV_CTRL_REFRESH_RATE_3,
-                             &rate);
+    ret = NvCtrlGetAttribute(ctrl_target, NV_CTRL_REFRESH_RATE_3, &rate);
     if (ret != NvCtrlSuccess) {
-        ret = NvCtrlGetAttribute(display_data->handle, NV_CTRL_REFRESH_RATE,
-                                 &rate);
+        ret = NvCtrlGetAttribute(ctrl_target, NV_CTRL_REFRESH_RATE, &rate);
         if (ret != NvCtrlSuccess) {
             rate = 0;
             precision = 0;
@@ -5282,13 +5254,13 @@ static gboolean add_display_device(CtkFramelock *ctk_framelock,
     update_display_rate_txt(display_data, rate, precision);
 
     /* HDMI 3D */
-    ret = NvCtrlGetDisplayAttribute(display_data->handle,
+    ret = NvCtrlGetDisplayAttribute(ctrl_target,
                                     display_data->device_mask,
                                     NV_CTRL_DPY_HDMI_3D, &hdmi3D);
     display_data->hdmi3D = hdmi3D;
 
     /* Configuration */
-    ret = NvCtrlGetAttribute(display_data->handle,
+    ret = NvCtrlGetAttribute(ctrl_target,
                              NV_CTRL_FRAMELOCK_DISPLAY_CONFIG,
                              &val);
     if (ret != NvCtrlSuccess) {
@@ -5325,15 +5297,14 @@ static gboolean add_display_device(CtkFramelock *ctk_framelock,
                      "toggled",
                      G_CALLBACK(toggle_client),
                      (gpointer) entry);
-    return TRUE;
+    return;
 
  fail:
     if (entry) {
         list_entry_free(entry);
-    } else if (display_data) {
-        display_data_free(display_data);
+    } else {
+        free(display_data);
     }
-    return FALSE;
 }
 
 
@@ -5348,40 +5319,22 @@ static void add_display_devices(CtkFramelock *ctk_framelock,
                                 nvListEntryPtr gpu_entry)
 {
     nvGPUDataPtr gpu_data;
-    ReturnStatus ret;
-    int *pData;
+    CtrlTargetNode *node;
 
     if (!gpu_entry || gpu_entry->data_type != ENTRY_DATA_GPU) {
         return;
     }
 
     gpu_data = (nvGPUDataPtr)(gpu_entry->data);
-    ret =
-        NvCtrlGetBinaryAttribute(gpu_data->handle, 0,
-                                 NV_CTRL_BINARY_DATA_DISPLAYS_CONNECTED_TO_GPU,
-                                 (unsigned char **)(&pData),
-                                 NULL);
-    if (ret == NvCtrlSuccess) {
-        int i;
+    for (node = gpu_data->ctrl_target->relations; node; node = node->next) {
+        CtrlTarget *ctrl_target = node->t;
 
-        for (i = 0; i < pData[0]; i++) {
-            int display_id = pData[1+i];
-            Bool valid;
-            int enabled;
-
-            /* Only add enabled display devices */
-            valid =
-                XNVCTRLQueryTargetAttribute(NvCtrlGetDisplayPtr(gpu_data->handle),
-                                            NV_CTRL_TARGET_TYPE_DISPLAY,
-                                            display_id,
-                                            0,
-                                            NV_CTRL_DISPLAY_ENABLED,
-                                            &enabled);
-            if (valid && enabled) {
-                add_display_device(ctk_framelock, gpu_entry, display_id);
-            }
+        if (NvCtrlGetTargetType(ctrl_target) != DISPLAY_TARGET ||
+            !(ctrl_target->display.connected)) {
+            continue;
         }
-        XFree(pData);
+
+        add_display_device(ctk_framelock, gpu_entry, ctrl_target);
     }
 }
 
@@ -5397,39 +5350,28 @@ static void add_display_devices(CtkFramelock *ctk_framelock,
 static void add_gpu_devices(CtkFramelock *ctk_framelock,
                             nvListEntryPtr framelock_entry)
 {
-    unsigned int        num_gpus;
-    unsigned int        gpu_id;
-    unsigned int        gpu_idx;
-    nvGPUDataPtr        gpu_data = NULL;
-    nvFrameLockDataPtr  framelock_data;
-    nvListEntryPtr      entry;
-    ReturnStatus        ret;
-    
-    unsigned char *data = NULL;
-    int            len  = 0;
-    int           *gpus;
-    
+    nvGPUDataPtr       gpu_data = NULL;
+    nvFrameLockDataPtr framelock_data;
+    nvListEntryPtr     entry;
+    CtrlTargetNode     *node;
 
     if (!framelock_entry ||
         framelock_entry->data_type != ENTRY_DATA_FRAMELOCK) {
         goto fail;
     }
 
-    /* Get number of GPU devices connected to this frame lock board */
     framelock_data = (nvFrameLockDataPtr)(framelock_entry->data);
-    ret = NvCtrlGetBinaryAttribute(framelock_data->handle,
-                                   0,
-                                   NV_CTRL_BINARY_DATA_GPUS_USING_FRAMELOCK,
-                                   &data,
-                                   &len);
-    if (ret != NvCtrlSuccess) {
-        goto fail;
-    }
 
-    gpus     = (int *)data;
-    num_gpus = gpus[0];
-    for (gpu_idx = 0; gpu_idx < num_gpus; gpu_idx++) {
-        gpu_id = gpus[gpu_idx +1];
+    for (node = framelock_data->ctrl_target->relations;
+         node;
+         node = node->next) {
+
+        CtrlTarget *ctrl_target = node->t;
+
+        if (NvCtrlGetTargetType(ctrl_target) != GPU_TARGET) {
+            continue;
+        }
+
 
         /* Create the GPU data structure */
         gpu_data = (nvGPUDataPtr) calloc(1, sizeof(nvGPUDataRec));
@@ -5438,11 +5380,7 @@ static void add_gpu_devices(CtkFramelock *ctk_framelock,
         }
 
         /* Create the GPU handle and label */
-        gpu_data->handle =
-            NvCtrlAttributeInit(NvCtrlGetDisplayPtr(framelock_data->handle),
-                                NV_CTRL_TARGET_TYPE_GPU,
-                                gpu_id,
-                                NV_CTRL_ATTRIBUTES_NV_CONTROL_SUBSYSTEM);
+        gpu_data->ctrl_target = ctrl_target;
         gpu_data->label = gtk_label_new("");
 
         gpu_data->timing_label = gtk_label_new("Timing");
@@ -5466,7 +5404,7 @@ static void add_gpu_devices(CtkFramelock *ctk_framelock,
              * frame lock is enabled.  This should happen if we are
              * adding a gpu that has FRAMELOCK_SYNC set to enable.
              */
-            NvCtrlGetAttribute(gpu_data->handle,
+            NvCtrlGetAttribute(gpu_data->ctrl_target,
                                NV_CTRL_FRAMELOCK_SYNC,
                                &(gpu_data->enabled));
             ctk_framelock->framelock_enabled |= gpu_data->enabled;
@@ -5483,49 +5421,36 @@ static void add_gpu_devices(CtkFramelock *ctk_framelock,
         }
     }
 
-    XFree(data);
-
     return;
-
 
     /* Handle failures */
  fail:
-    XFree(data);
-    gpu_data_free(gpu_data);
+    free(gpu_data);
 }
 
 
 
 /** add_framelock_devices() ******************************************
  *
- * Adds all frame lock devices found on the given server handle to
+ * Adds all frame lock devices found on the given system to
  * the frame lock group,
  *
  */
 static void add_framelock_devices(CtkFramelock *ctk_framelock,
-                                  gpointer handle,
+                                  CtrlSystem *system,
                                   int server_id)
 {
-    unsigned int        num_framelocks;
-    unsigned int        framelock_id;
-    nvFrameLockDataPtr  framelock_data = NULL;
-    nvListEntryPtr      entry;
-    ReturnStatus        ret;
-
-
-    /* Get number of Quadro Sync devices on this server */
-
-    ret = NvCtrlQueryTargetCount(handle,
-                                 NV_CTRL_TARGET_TYPE_FRAMELOCK,
-                                 (int *)&num_framelocks);
-    if (ret != NvCtrlSuccess) {
-        goto fail;
-    }
+    nvFrameLockDataPtr framelock_data = NULL;
+    CtrlTargetNode *node;
 
     /* Add frame lock devices found */
-    for (framelock_id = 0; framelock_id < num_framelocks; framelock_id++) {
-        int val;
-        char *revision_str = NULL;
+    for (node = system->targets[FRAMELOCK_TARGET]; node; node = node->next) {
+        nvListEntryPtr     entry;
+        ReturnStatus       ret;
+        int                val;
+        char               *revision_str = NULL;
+        CtrlTarget         *ctrl_target = node->t;
+
 
         /* Create the frame lock data structure */
         framelock_data =
@@ -5534,15 +5459,11 @@ static void add_framelock_devices(CtkFramelock *ctk_framelock,
             goto fail;
         }
 
-        /* Create the frame lock handle */
-        framelock_data->handle =
-            NvCtrlAttributeInit(NvCtrlGetDisplayPtr(handle),
-                                NV_CTRL_TARGET_TYPE_FRAMELOCK,
-                                framelock_id,
-                                NV_CTRL_ATTRIBUTES_NV_CONTROL_SUBSYSTEM);
+        /* Get the frame lock target */
+        framelock_data->ctrl_target = ctrl_target;
 
         /* Gather framelock device information */
-        ret = NvCtrlGetAttribute(framelock_data->handle,
+        ret = NvCtrlGetAttribute(ctrl_target,
                                  NV_CTRL_FRAMELOCK_SYNC_DELAY_RESOLUTION,
                                  &val);
         if (ret == NvCtrlSuccess) {
@@ -5554,7 +5475,7 @@ static void add_framelock_devices(CtkFramelock *ctk_framelock,
             framelock_data->sync_delay_resolution = 7810;
         }
 
-        ret = NvCtrlGetAttribute(framelock_data->handle,
+        ret = NvCtrlGetAttribute(ctrl_target,
                                  NV_CTRL_FRAMELOCK_FPGA_REVISION,
                                  &val);
         if (ret != NvCtrlSuccess) {
@@ -5627,7 +5548,7 @@ static void add_framelock_devices(CtkFramelock *ctk_framelock,
 
     /* Handle failures */
  fail:
-    framelock_data_free(framelock_data);
+    free(framelock_data);
 }
 
 
@@ -5642,8 +5563,9 @@ static void add_devices(CtkFramelock *ctk_framelock,
                         const gchar *display_name,
                         gboolean error_dialog)
 {
-    gpointer handle = NULL;
-    Display *display;
+    CtrlSystemList *systems = NULL;
+    CtrlSystem *system = NULL;
+    CtrlTarget *ctrl_target = NULL;
     int server_id = -1;
     char *server_name = NULL;
     char *ptr;
@@ -5684,10 +5606,12 @@ static void add_devices(CtkFramelock *ctk_framelock,
         sprintf(server_name + strlen(server_name), ":0");
     }
   
-    /* open an X Display connection to that X server */
-    
-    display = XOpenDisplay(server_name);
-    if (!display) {
+    /* Connect to the corresponding CtrlSystem */
+
+    systems = ctk_framelock->ctrl_target->system->system_list;
+    system = NvCtrlConnectToSystem(server_name, systems);
+
+    if (!system || !system->dpy) {
         if (error_dialog) {
             error_msg(ctk_framelock, "<span weight=\"bold\" "
                       "size=\"larger\">Unable "
@@ -5700,27 +5624,25 @@ static void add_devices(CtkFramelock *ctk_framelock,
         goto done;
     }
     
-    /* create a new NV-CONTROL handle */
-    
-    handle = NvCtrlAttributeInit(display, NV_CTRL_TARGET_TYPE_X_SCREEN,
-                                 DefaultScreen(display),
-                                 NV_CTRL_ATTRIBUTES_NV_CONTROL_SUBSYSTEM);
-    if (!handle) {
+    /* Get a control target to make queries about the system */
+
+    ctrl_target = NvCtrlGetDefaultTarget(system);
+    if (ctrl_target == NULL) {
         if (error_dialog) {
             error_msg(ctk_framelock, "<span weight=\"bold\" "
                       "size=\"larger\">Unable "
                       "to add devices to frame lock group</span>\n\nUnable to "
-                      "create NV-CONTROL handle.");
+                      "create control target.");
         } else {
             nv_error_msg("Unable to add devices to frame lock group; unable "
-                         "create NV-CONTROL handle.");
+                         "create control target.");
         }
         goto done;
     }
     
     /* Try to prevent users from adding the same X server more than once */
 
-    if (get_server_id(handle, &server_id) &&
+    if (get_server_id(ctrl_target, &server_id) &&
         server_id != -1 &&
         find_server_by_id(ctk_framelock->tree, server_id)) {
         if (error_dialog) {
@@ -5739,7 +5661,7 @@ static void add_devices(CtkFramelock *ctk_framelock,
 
     /* Add frame lock devices found on server */
 
-    add_framelock_devices(ctk_framelock, handle, server_id);
+    add_framelock_devices(ctk_framelock, system, server_id);
     if (!ctk_framelock->tree ||
         !((nvListTreePtr)(ctk_framelock->tree))->nentries) {
         if (error_dialog) {
@@ -5763,12 +5685,7 @@ static void add_devices(CtkFramelock *ctk_framelock,
 
     /* Fall through */
  done:
-    if (server_name) {
-        free(server_name);
-    }
-    if (handle) {
-        NvCtrlAttributeClose(handle);
-    }
+    free(server_name);
 
     return;
 }
@@ -5791,7 +5708,7 @@ static void add_devices(CtkFramelock *ctk_framelock,
         a.target_type  = target_type;                \
         a.target_id    = target_id;                  \
         a.attr_entry   =                             \
-            nv_get_attribute_entry((ATTR), NV_PARSER_ATTRIBUTE_TYPE_INTEGER); \
+            nv_get_attribute_entry((ATTR), CTRL_ATTRIBUTE_TYPE_INTEGER); \
         a.val.i        = (VAL);                      \
         a.parser_flags.has_target = NV_TRUE;         \
                                                      \
@@ -5802,8 +5719,8 @@ static void add_entry_to_parsed_attributes(nvListEntryPtr entry,
                                              ParsedAttribute *head)
 {
     char *display_name = NULL;
-    int target_type = 0;
-    int target_id = 0;
+    int target_type;
+    int target_id;
 
     if (!entry) {
         return;
@@ -5815,12 +5732,13 @@ static void add_entry_to_parsed_attributes(nvListEntryPtr entry,
         {
             int use_house_sync;
             nvFrameLockDataPtr data = (nvFrameLockDataPtr)(entry->data);
+            CtrlTarget *ctrl_target = data->ctrl_target;
 
-            display_name = NvCtrlGetDisplayName(data->handle);
-            target_type = NV_CTRL_TARGET_TYPE_FRAMELOCK;
-            target_id = NvCtrlGetTargetId(data->handle);
+            display_name = NvCtrlGetDisplayName(ctrl_target);
+            target_type = FRAMELOCK_TARGET;
+            target_id = NvCtrlGetTargetId(ctrl_target);
 
-            NvCtrlGetAttribute(data->handle, NV_CTRL_USE_HOUSE_SYNC,
+            NvCtrlGetAttribute(ctrl_target, NV_CTRL_USE_HOUSE_SYNC,
                                &use_house_sync);
 
             __ADD_ATTR(NV_CTRL_USE_HOUSE_SYNC, use_house_sync);
@@ -5831,13 +5749,13 @@ static void add_entry_to_parsed_attributes(nvListEntryPtr entry,
                 int sync_edge;
                 int video_mode;
 
-                NvCtrlGetAttribute(data->handle,
+                NvCtrlGetAttribute(ctrl_target,
                                    NV_CTRL_FRAMELOCK_SYNC_INTERVAL,
                                    &sync_interval);
-                NvCtrlGetAttribute(data->handle,
+                NvCtrlGetAttribute(ctrl_target,
                                    NV_CTRL_FRAMELOCK_POLARITY,
                                    &sync_edge);
-                NvCtrlGetAttribute(data->handle,
+                NvCtrlGetAttribute(ctrl_target,
                                    NV_CTRL_FRAMELOCK_VIDEO_MODE,
                                    &video_mode);
 
@@ -5846,9 +5764,7 @@ static void add_entry_to_parsed_attributes(nvListEntryPtr entry,
                 __ADD_ATTR(NV_CTRL_FRAMELOCK_VIDEO_MODE, video_mode);
             }
 
-            if (display_name) {
-                free(display_name);
-            }
+            free(display_name);
         }
         break;
 
@@ -5859,14 +5775,15 @@ static void add_entry_to_parsed_attributes(nvListEntryPtr entry,
     case ENTRY_DATA_DISPLAY:
         {
             nvDisplayDataPtr data = (nvDisplayDataPtr)(entry->data);
+            CtrlTarget *ctrl_target = data->ctrl_target;
             int config;
             ReturnStatus ret;
 
-            display_name = NvCtrlGetDisplayName(data->handle);
-            target_type = NV_CTRL_TARGET_TYPE_DISPLAY;
-            target_id = NvCtrlGetTargetId(data->handle);
+            display_name = NvCtrlGetDisplayName(ctrl_target);
+            target_type = DISPLAY_TARGET;
+            target_id = NvCtrlGetTargetId(ctrl_target);
 
-            ret = NvCtrlGetAttribute(data->handle,
+            ret = NvCtrlGetAttribute(ctrl_target,
                                      NV_CTRL_FRAMELOCK_DISPLAY_CONFIG,
                                      &config);
             if (ret != NvCtrlSuccess) {
@@ -5875,9 +5792,7 @@ static void add_entry_to_parsed_attributes(nvListEntryPtr entry,
 
             __ADD_ATTR(NV_CTRL_FRAMELOCK_DISPLAY_CONFIG, config);
 
-            if (display_name) {
-                free(display_name);
-            }
+            free(display_name);
         }
         break;
 
@@ -5962,9 +5877,7 @@ static void apply_parsed_attribute_list(CtkFramelock *ctk_framelock,
         }
 
         /* Check to see if the server is already added */
-        if (server_name) {
-            free(server_name);
-        }
+        free(server_name);
         server_name = nv_standardize_screen_name(p->display, -2);
         if (!server_name) {
             continue;
@@ -5979,9 +5892,7 @@ static void apply_parsed_attribute_list(CtkFramelock *ctk_framelock,
         add_devices(ctk_framelock, server_name, FALSE);
     }
 
-    if (server_name) {
-        free(server_name);
-    }
+    free(server_name);
 }
 
 

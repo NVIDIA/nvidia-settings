@@ -77,6 +77,10 @@
 #define NV_DLSYM(handle, symbol) ({ dlerror(); dlsym(handle, symbol); })
 
 
+/* XXX Modify to be TRUE only for target types which actually need NV-CONTROL */
+#define TARGET_TYPE_NEEDS_NVCONTROL(_TARGET_TYPE_) (TRUE)
+
+
 typedef struct __NvCtrlAttributes NvCtrlAttributes;
 typedef struct __NvCtrlVidModeAttributes NvCtrlVidModeAttributes;
 typedef struct __NvCtrlAttributePrivateHandle NvCtrlAttributePrivateHandle;
@@ -87,6 +91,8 @@ typedef struct __NvCtrlXvTextureAttributes NvCtrlXvTextureAttributes;
 typedef struct __NvCtrlXvBlitterAttributes NvCtrlXvBlitterAttributes;
 typedef struct __NvCtrlXvAttribute NvCtrlXvAttribute;
 typedef struct __NvCtrlXrandrAttributes NvCtrlXrandrAttributes;
+typedef struct __NvCtrlEventPrivateHandle NvCtrlEventPrivateHandle;
+typedef struct __NvCtrlEventPrivateHandleNode NvCtrlEventPrivateHandleNode;
 
 typedef struct {
     float brightness[3];
@@ -130,7 +136,7 @@ struct __NvCtrlXrandrAttributes {
 
 struct __NvCtrlAttributePrivateHandle {
     Display *dpy;                   /* display connection */
-    int target_type;                /* Type of target this handle controls */
+    CtrlTargetType target_type;     /* Type of target this handle controls */
     int target_id;                  /* screen num, gpu num (etc) of target */
 
     /* Common attributes */
@@ -142,6 +148,47 @@ struct __NvCtrlAttributePrivateHandle {
     Bool glx;                       /* GLX extension available */
     NvCtrlXrandrAttributes *xrandr; /* XRandR extension info */
 };
+
+struct __NvCtrlEventPrivateHandle {
+    Display *dpy;          /* display connection */
+    int fd;                /* file descriptor to poll for new events */
+    int nvctrl_event_base; /* NV-CONTROL base for indexing & identifying evts */
+    int xrandr_event_base; /* RandR base for indexing & identifying evts */
+};
+
+struct __NvCtrlEventPrivateHandleNode {
+    NvCtrlEventPrivateHandle *handle;
+    NvCtrlEventPrivateHandleNode *next;
+};
+
+
+/* Useful inline functions to deal with control targets */
+
+static inline Bool isTargetValid(const CtrlTarget *ctrl_target)
+{
+    return ((ctrl_target != NULL) && (ctrl_target->h != NULL));
+}
+
+static inline NvCtrlAttributePrivateHandle
+*getPrivateHandle(CtrlTarget *ctrl_target)
+{
+    if (!isTargetValid(ctrl_target)) {
+        return NULL;
+    }
+
+    return (NvCtrlAttributePrivateHandle *)(ctrl_target->h);
+}
+
+static inline const NvCtrlAttributePrivateHandle
+*getPrivateHandleConst(const CtrlTarget *ctrl_target)
+{
+    if (!isTargetValid(ctrl_target)) {
+        return NULL;
+    }
+
+    return (const NvCtrlAttributePrivateHandle *)(ctrl_target->h);
+}
+
 
 NvCtrlNvControlAttributes *
 NvCtrlInitNvControlAttributes (NvCtrlAttributePrivateHandle *);
@@ -161,9 +208,8 @@ NvCtrlInitXvAttributes (NvCtrlAttributePrivateHandle *);
 void
 NvCtrlXvAttributesClose (NvCtrlAttributePrivateHandle *);
 
-ReturnStatus
-NvCtrlXvGetStringAttribute (NvCtrlAttributePrivateHandle *,
-                           unsigned int, int, char **);
+ReturnStatus NvCtrlXvGetStringAttribute(const NvCtrlAttributePrivateHandle *,
+                                        unsigned int, int, char **);
 
 /* GLX extension attribute functions */
 
@@ -173,13 +219,11 @@ NvCtrlInitGlxAttributes (NvCtrlAttributePrivateHandle *);
 void
 NvCtrlGlxAttributesClose (NvCtrlAttributePrivateHandle *);
 
-ReturnStatus
-NvCtrlGlxGetVoidAttribute (NvCtrlAttributePrivateHandle *, unsigned int,
-                           int, void **);
+ReturnStatus NvCtrlGlxGetVoidAttribute(const NvCtrlAttributePrivateHandle *,
+                                       unsigned int, int, void **);
 
-ReturnStatus
-NvCtrlGlxGetStringAttribute (NvCtrlAttributePrivateHandle *, unsigned int,
-                             int, char **);
+ReturnStatus NvCtrlGlxGetStringAttribute(const NvCtrlAttributePrivateHandle *,
+                                         unsigned int, int, char **);
 
 
 /* XRandR extension attribute functions */
@@ -191,11 +235,11 @@ void
 NvCtrlXrandrAttributesClose (NvCtrlAttributePrivateHandle *);
 
 ReturnStatus
-NvCtrlXrandrGetStringAttribute (NvCtrlAttributePrivateHandle *,
-                                unsigned int, int, char **);
+NvCtrlXrandrGetStringAttribute(const NvCtrlAttributePrivateHandle *,
+                               unsigned int, int, char **);
 
 
-ReturnStatus NvCtrlXrandrGetColorAttributes(NvCtrlAttributePrivateHandle *h,
+ReturnStatus NvCtrlXrandrGetColorAttributes(const NvCtrlAttributePrivateHandle *h,
                                             float contrast[3],
                                             float brightness[3],
                                             float gamma[3]);
@@ -206,7 +250,7 @@ ReturnStatus NvCtrlXrandrSetColorAttributes(NvCtrlAttributePrivateHandle *h,
                                             float g[3],
                                             unsigned int bitmask);
 
-ReturnStatus NvCtrlXrandrGetColorRamp(NvCtrlAttributePrivateHandle *h,
+ReturnStatus NvCtrlXrandrGetColorRamp(const NvCtrlAttributePrivateHandle *h,
                                       unsigned int channel,
                                       uint16_t **lut,
                                       int *n);
@@ -215,7 +259,7 @@ ReturnStatus NvCtrlXrandrReloadColorRamp(NvCtrlAttributePrivateHandle *h);
 
 /* XF86 Video Mode extension attribute functions */
 
-ReturnStatus NvCtrlVidModeGetColorAttributes(NvCtrlAttributePrivateHandle *h,
+ReturnStatus NvCtrlVidModeGetColorAttributes(const NvCtrlAttributePrivateHandle *h,
                                              float contrast[3],
                                              float brightness[3],
                                              float gamma[3]);
@@ -226,7 +270,7 @@ ReturnStatus NvCtrlVidModeSetColorAttributes(NvCtrlAttributePrivateHandle *h,
                                              float g[3],
                                              unsigned int bitmask);
 
-ReturnStatus NvCtrlVidModeGetColorRamp(NvCtrlAttributePrivateHandle *h,
+ReturnStatus NvCtrlVidModeGetColorRamp(const NvCtrlAttributePrivateHandle *h,
                                        unsigned int channel,
                                        uint16_t **lut,
                                        int *n);
@@ -234,21 +278,26 @@ ReturnStatus NvCtrlVidModeGetColorRamp(NvCtrlAttributePrivateHandle *h,
 ReturnStatus NvCtrlVidModeReloadColorRamp(NvCtrlAttributePrivateHandle *h);
 
 ReturnStatus
-NvCtrlVidModeGetStringAttribute (NvCtrlAttributePrivateHandle *,
-                                   unsigned int, int, char **);
+NvCtrlVidModeGetStringAttribute(const NvCtrlAttributePrivateHandle *,
+                                unsigned int, int, char **);
 
 ReturnStatus
-NvCtrlXrandrGetAttribute(NvCtrlAttributePrivateHandle *h,
+NvCtrlXrandrGetAttribute(const NvCtrlAttributePrivateHandle *h,
                          unsigned int display_mask, int attr, int64_t *val);
 
 /* Generic attribute functions */
 
-ReturnStatus
-NvCtrlNvControlQueryTargetCount(NvCtrlAttributePrivateHandle *, int, int *);
+NvCtrlAttributeHandle *NvCtrlAttributeInit(CtrlSystem *system,
+                                           CtrlTargetType target_type,
+                                           int target_id,
+                                           unsigned int subsystems);
 
 ReturnStatus
-NvCtrlNvControlGetAttribute (NvCtrlAttributePrivateHandle *, unsigned int,
-                             int, int64_t *);
+NvCtrlNvControlQueryTargetCount(const NvCtrlAttributePrivateHandle *, int,
+                                int *);
+
+ReturnStatus NvCtrlNvControlGetAttribute(const NvCtrlAttributePrivateHandle *,
+                                         unsigned int, int, int64_t *);
 
 ReturnStatus
 NvCtrlNvControlSetAttribute (NvCtrlAttributePrivateHandle *, unsigned int,
@@ -259,26 +308,26 @@ NvCtrlNvControlSetAttributeWithReply (NvCtrlAttributePrivateHandle *,
                                       unsigned int, int, int);
 
 ReturnStatus
-NvCtrlNvControlGetValidAttributeValues (NvCtrlAttributePrivateHandle *,
-                                        unsigned int, int,
-                                        NVCTRLAttributeValidValuesRec *);
-
-ReturnStatus
-NvCtrlNvControlGetValidStringDisplayAttributeValues
-                                      (NvCtrlAttributePrivateHandle *,
+NvCtrlNvControlGetValidAttributeValues(const NvCtrlAttributePrivateHandle *,
                                        unsigned int, int,
                                        NVCTRLAttributeValidValuesRec *);
 
 ReturnStatus
-NvCtrlNvControlGetStringAttribute (NvCtrlAttributePrivateHandle *,
-                                   unsigned int, int, char **);
+NvCtrlNvControlGetValidStringDisplayAttributeValues
+                                      (const NvCtrlAttributePrivateHandle *,
+                                       unsigned int, int,
+                                       NVCTRLAttributeValidValuesRec *);
+
+ReturnStatus
+NvCtrlNvControlGetStringAttribute(const NvCtrlAttributePrivateHandle *,
+                                  unsigned int, int, char **);
 
 ReturnStatus
 NvCtrlNvControlSetStringAttribute (NvCtrlAttributePrivateHandle *,
-                                   unsigned int, int, const char *, int *);
+                                   unsigned int, int, const char *);
 
 ReturnStatus
-NvCtrlNvControlGetBinaryAttribute(NvCtrlAttributePrivateHandle *h,
+NvCtrlNvControlGetBinaryAttribute(const NvCtrlAttributePrivateHandle *h,
                                   unsigned int display_mask, int attr,
                                   unsigned char **data, int *len);
 
@@ -301,5 +350,9 @@ void NvCtrlAssignGammaInput(NvCtrlGammaInput *pGammaInput,
                             const float inBrightness[3],
                             const float inGamma[3],
                             const unsigned int bitmask);
+
+/* NVML backend functions */
+ReturnStatus NvCtrlInitNvml(void);
+ReturnStatus NvCtrlDestroyNvml(void);
 
 #endif /* __NVCTRL_ATTRIBUTES_PRIVATE__ */

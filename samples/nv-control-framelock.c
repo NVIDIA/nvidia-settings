@@ -341,12 +341,16 @@ static void do_enable(Display *dpy)
 
             /* Make sure frame lock is disabled */
 
-            XNVCTRLQueryTargetAttribute(dpy,
-                                        NV_CTRL_TARGET_TYPE_GPU,
-                                        gpu, // target_id
-                                        0, // display_mask
-                                        NV_CTRL_FRAMELOCK_SYNC,
-                                        &enabled);
+            ret = XNVCTRLQueryTargetAttribute(dpy,
+                                              NV_CTRL_TARGET_TYPE_GPU,
+                                              gpu, // target_id
+                                              0, // display_mask
+                                              NV_CTRL_FRAMELOCK_SYNC,
+                                              &enabled);
+            if (!ret) {
+                printf("    - Failed to query Frame lock state.\n");
+                continue;
+            }
             if (enabled != NV_CTRL_FRAMELOCK_SYNC_DISABLE) {
                 printf("    - Frame lock already enabled!\n");
                 continue;

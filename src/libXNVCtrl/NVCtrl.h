@@ -141,24 +141,24 @@
  * NV_CTRL_FLATPANEL_SCALING - not supported
  */
 
-#define NV_CTRL_FLATPANEL_SCALING                               2  /* RWDG */
-#define NV_CTRL_FLATPANEL_SCALING_DEFAULT                       0
-#define NV_CTRL_FLATPANEL_SCALING_NATIVE                        1
-#define NV_CTRL_FLATPANEL_SCALING_SCALED                        2
-#define NV_CTRL_FLATPANEL_SCALING_CENTERED                      3
-#define NV_CTRL_FLATPANEL_SCALING_ASPECT_SCALED                 4
+#define NV_CTRL_FLATPANEL_SCALING                               2 /* not supported */
+#define NV_CTRL_FLATPANEL_SCALING_DEFAULT                       0 /* not supported */
+#define NV_CTRL_FLATPANEL_SCALING_NATIVE                        1 /* not supported */
+#define NV_CTRL_FLATPANEL_SCALING_SCALED                        2 /* not supported */
+#define NV_CTRL_FLATPANEL_SCALING_CENTERED                      3 /* not supported */
+#define NV_CTRL_FLATPANEL_SCALING_ASPECT_SCALED                 4 /* not supported */
 
 
 /*
- * NV_CTRL_FLATPANEL_DITHERING - deprecated
+ * NV_CTRL_FLATPANEL_DITHERING - not supported
  *
  * NV_CTRL_DITHERING should be used instead.
  */
 
-#define NV_CTRL_FLATPANEL_DITHERING                             3  /* RWDG */
-#define NV_CTRL_FLATPANEL_DITHERING_DEFAULT                     0 /* deprecated */
-#define NV_CTRL_FLATPANEL_DITHERING_ENABLED                     1 /* deprecated */
-#define NV_CTRL_FLATPANEL_DITHERING_DISABLED                    2 /* deprecated */
+#define NV_CTRL_FLATPANEL_DITHERING                             3 /* not supported */
+#define NV_CTRL_FLATPANEL_DITHERING_DEFAULT                     0 /* not supported */
+#define NV_CTRL_FLATPANEL_DITHERING_ENABLED                     1 /* not supported */
+#define NV_CTRL_FLATPANEL_DITHERING_DISABLED                    2 /* not supported */
 
 /*
  * NV_CTRL_DITHERING - the requested dithering configuration;
@@ -346,12 +346,11 @@
 #define NV_CTRL_STEREO_MAX NV_CTRL_STEREO_TRIDELITY_SL
 
 /*
- * NV_CTRL_EMULATE - controls OpenGL software emulation of future
- * NVIDIA GPUs.
+ * NV_CTRL_EMULATE - not supported
  */
 
-#define NV_CTRL_EMULATE                                         17 /* RW- */
-#define NV_CTRL_EMULATE_NONE                                    0
+#define NV_CTRL_EMULATE                                         17 /* not supported */
+#define NV_CTRL_EMULATE_NONE                                     0 /* not supported */
 
 
 /*
@@ -371,7 +370,7 @@
  * NV_CTRL_BINARY_DATA_DISPLAYS_ASSIGNED_TO_XSCREEN should be used instead.
  */
 
-#define NV_CTRL_CONNECTED_DISPLAYS                              19 /* R--G */
+#define NV_CTRL_CONNECTED_DISPLAYS                              19 /* deprecated */
 
 
 /*
@@ -418,9 +417,9 @@
  * NV_CTRL_FRAMELOCK_DISPLAY_CONFIG should be used instead.
  */
 
-#define NV_CTRL_FRAMELOCK_MASTER                                22 /* RW-G */
-#define NV_CTRL_FRAMELOCK_MASTER_FALSE                          0 /* deprecated */
-#define NV_CTRL_FRAMELOCK_MASTER_TRUE                           1 /* deprecated */
+#define NV_CTRL_FRAMELOCK_MASTER                                22 /* deprecated */
+#define NV_CTRL_FRAMELOCK_MASTER_FALSE                           0 /* deprecated */
+#define NV_CTRL_FRAMELOCK_MASTER_TRUE                            1 /* deprecated */
 
 
 /*
@@ -448,7 +447,7 @@
  * using a NV_CTRL_TARGET_TYPE_FRAMELOCK or NV_CTRL_TARGET_TYPE_X_SCREEN
  * target.
  *
- * USAGE NODE: NV_CTRL_FRAMELOCK_SYNC_DELAY_MAX and
+ * USAGE NOTE: NV_CTRL_FRAMELOCK_SYNC_DELAY_MAX and
  *             NV_CTRL_FRAMELOCK_SYNC_DELAY_FACTOR are deprecated.
  *             The Sync Delay _MAX and _FACTOR are different for different
  *             Quadro Sync products and so, to be correct, the valid values for
@@ -649,14 +648,12 @@
 /**************************************************************************/
 
 /*
- * NV_CTRL_FORCE_GENERIC_CPU - deprecated
- *
- * CPU compatibility is now checked each time during initialization.
+ * NV_CTRL_FORCE_GENERIC_CPU - not supported
  */
 
-#define NV_CTRL_FORCE_GENERIC_CPU                               37 /* RW-X */
-#define NV_CTRL_FORCE_GENERIC_CPU_DISABLE                        0 /* deprecated */
-#define NV_CTRL_FORCE_GENERIC_CPU_ENABLE                         1 /* deprecated */
+#define NV_CTRL_FORCE_GENERIC_CPU                               37 /* not supported */
+#define NV_CTRL_FORCE_GENERIC_CPU_DISABLE                        0 /* not supported */
+#define NV_CTRL_FORCE_GENERIC_CPU_ENABLE                         1 /* not supported */
 
 
 /*
@@ -725,21 +722,22 @@
 
 
 /*
- * The NV_CTRL_CURSOR_SHADOW attributes are no longer supported; use
- * an ARGB cursor instead.
+ * The NV_CTRL_CURSOR_SHADOW - not supported
+ *
+ * use an ARGB cursor instead.
  */
 
-#define NV_CTRL_CURSOR_SHADOW                                   43  /* --- */
-#define NV_CTRL_CURSOR_SHADOW_DISABLE                            0
-#define NV_CTRL_CURSOR_SHADOW_ENABLE                             1
+#define NV_CTRL_CURSOR_SHADOW                                   43 /* not supported */
+#define NV_CTRL_CURSOR_SHADOW_DISABLE                            0 /* not supported */
+#define NV_CTRL_CURSOR_SHADOW_ENABLE                             1 /* not supported */
 
-#define NV_CTRL_CURSOR_SHADOW_ALPHA                             44  /* --- */
-#define NV_CTRL_CURSOR_SHADOW_RED                               45  /* --- */
-#define NV_CTRL_CURSOR_SHADOW_GREEN                             46  /* --- */
-#define NV_CTRL_CURSOR_SHADOW_BLUE                              47  /* --- */
+#define NV_CTRL_CURSOR_SHADOW_ALPHA                             44 /* not supported */
+#define NV_CTRL_CURSOR_SHADOW_RED                               45 /* not supported */
+#define NV_CTRL_CURSOR_SHADOW_GREEN                             46 /* not supported */
+#define NV_CTRL_CURSOR_SHADOW_BLUE                              47 /* not supported */
 
-#define NV_CTRL_CURSOR_SHADOW_X_OFFSET                          48  /* --- */
-#define NV_CTRL_CURSOR_SHADOW_Y_OFFSET                          49  /* --- */
+#define NV_CTRL_CURSOR_SHADOW_X_OFFSET                          48 /* not supported */
+#define NV_CTRL_CURSOR_SHADOW_Y_OFFSET                          49 /* not supported */
 
 
 
@@ -781,49 +779,49 @@
  * NV_CTRL_TV_OVERSCAN - not supported
  */
 
-#define NV_CTRL_TV_OVERSCAN                                     53  /* RWDG */
+#define NV_CTRL_TV_OVERSCAN                                     53 /* not supported */
 
 
 /*
  * NV_CTRL_TV_FLICKER_FILTER - not supported
  */
 
-#define NV_CTRL_TV_FLICKER_FILTER                               54  /* RWDG */
+#define NV_CTRL_TV_FLICKER_FILTER                               54 /* not supported */
 
 
 /*
  * NV_CTRL_TV_BRIGHTNESS  - not supported
  */
 
-#define NV_CTRL_TV_BRIGHTNESS                                   55  /* RWDG */
+#define NV_CTRL_TV_BRIGHTNESS                                   55 /* not supported */
 
 
 /*
  * NV_CTRL_TV_HUE - not supported
  */
 
-#define NV_CTRL_TV_HUE                                          56  /* RWDG */
+#define NV_CTRL_TV_HUE                                          56 /* not supported */
 
 
 /*
  * NV_CTRL_TV_CONTRAST - not suppoerted
  */
 
-#define NV_CTRL_TV_CONTRAST                                     57  /* RWDG */
+#define NV_CTRL_TV_CONTRAST                                     57 /* not supported */
 
 
 /*
  * NV_CTRL_TV_SATURATION - not supported
  */
 
-#define NV_CTRL_TV_SATURATION                                   58  /* RWDG */
+#define NV_CTRL_TV_SATURATION                                   58 /* not supported */
 
 
 /*
  * NV_CTRL_TV_RESET_SETTINGS - not supported
  */
 
-#define NV_CTRL_TV_RESET_SETTINGS                               59  /* -WDG */
+#define NV_CTRL_TV_RESET_SETTINGS                               59 /* not supported */
 
 
 /*
@@ -1083,51 +1081,51 @@
 #define NV_CTRL_GVIO_VIDEO_FORMAT_2048I_47_96_3G_LEVEL_B_SMPTE372  64
 
 
-/* 
- * The following are deprecated; NV_CTRL_GVIO_REQUESTED_VIDEO_FORMAT and the
+/*
+ * The following have been renamed; NV_CTRL_GVIO_REQUESTED_VIDEO_FORMAT and the
  * corresponding NV_CTRL_GVIO_* formats should be used instead.
  */
-#define NV_CTRL_GVO_OUTPUT_VIDEO_FORMAT                         70  /* RW- */
+#define NV_CTRL_GVO_OUTPUT_VIDEO_FORMAT                         70 /* renamed */
 
-#define NV_CTRL_GVO_VIDEO_FORMAT_NONE                           0
-#define NV_CTRL_GVO_VIDEO_FORMAT_487I_59_94_SMPTE259_NTSC       1
-#define NV_CTRL_GVO_VIDEO_FORMAT_576I_50_00_SMPTE259_PAL        2
-#define NV_CTRL_GVO_VIDEO_FORMAT_720P_59_94_SMPTE296            3
-#define NV_CTRL_GVO_VIDEO_FORMAT_720P_60_00_SMPTE296            4
-#define NV_CTRL_GVO_VIDEO_FORMAT_1035I_59_94_SMPTE260           5
-#define NV_CTRL_GVO_VIDEO_FORMAT_1035I_60_00_SMPTE260           6
-#define NV_CTRL_GVO_VIDEO_FORMAT_1080I_50_00_SMPTE295           7
-#define NV_CTRL_GVO_VIDEO_FORMAT_1080I_50_00_SMPTE274           8
-#define NV_CTRL_GVO_VIDEO_FORMAT_1080I_59_94_SMPTE274           9
-#define NV_CTRL_GVO_VIDEO_FORMAT_1080I_60_00_SMPTE274           10
-#define NV_CTRL_GVO_VIDEO_FORMAT_1080P_23_976_SMPTE274          11
-#define NV_CTRL_GVO_VIDEO_FORMAT_1080P_24_00_SMPTE274           12
-#define NV_CTRL_GVO_VIDEO_FORMAT_1080P_25_00_SMPTE274           13
-#define NV_CTRL_GVO_VIDEO_FORMAT_1080P_29_97_SMPTE274           14
-#define NV_CTRL_GVO_VIDEO_FORMAT_1080P_30_00_SMPTE274           15
-#define NV_CTRL_GVO_VIDEO_FORMAT_720P_50_00_SMPTE296            16
-#define NV_CTRL_GVO_VIDEO_FORMAT_1080I_48_00_SMPTE274           17
-#define NV_CTRL_GVO_VIDEO_FORMAT_1080I_47_96_SMPTE274           18
-#define NV_CTRL_GVO_VIDEO_FORMAT_720P_30_00_SMPTE296            19 
-#define NV_CTRL_GVO_VIDEO_FORMAT_720P_29_97_SMPTE296            20  
-#define NV_CTRL_GVO_VIDEO_FORMAT_720P_25_00_SMPTE296            21 
-#define NV_CTRL_GVO_VIDEO_FORMAT_720P_24_00_SMPTE296            22 
-#define NV_CTRL_GVO_VIDEO_FORMAT_720P_23_98_SMPTE296            23  
-#define NV_CTRL_GVO_VIDEO_FORMAT_1080PSF_25_00_SMPTE274         24
-#define NV_CTRL_GVO_VIDEO_FORMAT_1080PSF_29_97_SMPTE274         25
-#define NV_CTRL_GVO_VIDEO_FORMAT_1080PSF_30_00_SMPTE274         26
-#define NV_CTRL_GVO_VIDEO_FORMAT_1080PSF_24_00_SMPTE274         27
-#define NV_CTRL_GVO_VIDEO_FORMAT_1080PSF_23_98_SMPTE274         28
-#define NV_CTRL_GVO_VIDEO_FORMAT_2048P_30_00_SMPTE372           29
-#define NV_CTRL_GVO_VIDEO_FORMAT_2048P_29_97_SMPTE372           30
-#define NV_CTRL_GVO_VIDEO_FORMAT_2048I_60_00_SMPTE372           31
-#define NV_CTRL_GVO_VIDEO_FORMAT_2048I_59_94_SMPTE372           32
-#define NV_CTRL_GVO_VIDEO_FORMAT_2048P_25_00_SMPTE372           33
-#define NV_CTRL_GVO_VIDEO_FORMAT_2048I_50_00_SMPTE372           34
-#define NV_CTRL_GVO_VIDEO_FORMAT_2048P_24_00_SMPTE372           35
-#define NV_CTRL_GVO_VIDEO_FORMAT_2048P_23_98_SMPTE372           36
-#define NV_CTRL_GVO_VIDEO_FORMAT_2048I_48_00_SMPTE372           37
-#define NV_CTRL_GVO_VIDEO_FORMAT_2048I_47_96_SMPTE372           38
+#define NV_CTRL_GVO_VIDEO_FORMAT_NONE                            0 /* renamed */
+#define NV_CTRL_GVO_VIDEO_FORMAT_487I_59_94_SMPTE259_NTSC        1 /* renamed */
+#define NV_CTRL_GVO_VIDEO_FORMAT_576I_50_00_SMPTE259_PAL         2 /* renamed */
+#define NV_CTRL_GVO_VIDEO_FORMAT_720P_59_94_SMPTE296             3 /* renamed */
+#define NV_CTRL_GVO_VIDEO_FORMAT_720P_60_00_SMPTE296             4 /* renamed */
+#define NV_CTRL_GVO_VIDEO_FORMAT_1035I_59_94_SMPTE260            5 /* renamed */
+#define NV_CTRL_GVO_VIDEO_FORMAT_1035I_60_00_SMPTE260            6 /* renamed */
+#define NV_CTRL_GVO_VIDEO_FORMAT_1080I_50_00_SMPTE295            7 /* renamed */
+#define NV_CTRL_GVO_VIDEO_FORMAT_1080I_50_00_SMPTE274            8 /* renamed */
+#define NV_CTRL_GVO_VIDEO_FORMAT_1080I_59_94_SMPTE274            9 /* renamed */
+#define NV_CTRL_GVO_VIDEO_FORMAT_1080I_60_00_SMPTE274           10 /* renamed */
+#define NV_CTRL_GVO_VIDEO_FORMAT_1080P_23_976_SMPTE274          11 /* renamed */
+#define NV_CTRL_GVO_VIDEO_FORMAT_1080P_24_00_SMPTE274           12 /* renamed */
+#define NV_CTRL_GVO_VIDEO_FORMAT_1080P_25_00_SMPTE274           13 /* renamed */
+#define NV_CTRL_GVO_VIDEO_FORMAT_1080P_29_97_SMPTE274           14 /* renamed */
+#define NV_CTRL_GVO_VIDEO_FORMAT_1080P_30_00_SMPTE274           15 /* renamed */
+#define NV_CTRL_GVO_VIDEO_FORMAT_720P_50_00_SMPTE296            16 /* renamed */
+#define NV_CTRL_GVO_VIDEO_FORMAT_1080I_48_00_SMPTE274           17 /* renamed */
+#define NV_CTRL_GVO_VIDEO_FORMAT_1080I_47_96_SMPTE274           18 /* renamed */
+#define NV_CTRL_GVO_VIDEO_FORMAT_720P_30_00_SMPTE296            19 /* renamed */
+#define NV_CTRL_GVO_VIDEO_FORMAT_720P_29_97_SMPTE296            20 /* renamed */
+#define NV_CTRL_GVO_VIDEO_FORMAT_720P_25_00_SMPTE296            21 /* renamed */
+#define NV_CTRL_GVO_VIDEO_FORMAT_720P_24_00_SMPTE296            22 /* renamed */
+#define NV_CTRL_GVO_VIDEO_FORMAT_720P_23_98_SMPTE296            23 /* renamed */
+#define NV_CTRL_GVO_VIDEO_FORMAT_1080PSF_25_00_SMPTE274         24 /* renamed */
+#define NV_CTRL_GVO_VIDEO_FORMAT_1080PSF_29_97_SMPTE274         25 /* renamed */
+#define NV_CTRL_GVO_VIDEO_FORMAT_1080PSF_30_00_SMPTE274         26 /* renamed */
+#define NV_CTRL_GVO_VIDEO_FORMAT_1080PSF_24_00_SMPTE274         27 /* renamed */
+#define NV_CTRL_GVO_VIDEO_FORMAT_1080PSF_23_98_SMPTE274         28 /* renamed */
+#define NV_CTRL_GVO_VIDEO_FORMAT_2048P_30_00_SMPTE372           29 /* renamed */
+#define NV_CTRL_GVO_VIDEO_FORMAT_2048P_29_97_SMPTE372           30 /* renamed */
+#define NV_CTRL_GVO_VIDEO_FORMAT_2048I_60_00_SMPTE372           31 /* renamed */
+#define NV_CTRL_GVO_VIDEO_FORMAT_2048I_59_94_SMPTE372           32 /* renamed */
+#define NV_CTRL_GVO_VIDEO_FORMAT_2048P_25_00_SMPTE372           33 /* renamed */
+#define NV_CTRL_GVO_VIDEO_FORMAT_2048I_50_00_SMPTE372           34 /* renamed */
+#define NV_CTRL_GVO_VIDEO_FORMAT_2048P_24_00_SMPTE372           35 /* renamed */
+#define NV_CTRL_GVO_VIDEO_FORMAT_2048P_23_98_SMPTE372           36 /* renamed */
+#define NV_CTRL_GVO_VIDEO_FORMAT_2048I_48_00_SMPTE372           37 /* renamed */
+#define NV_CTRL_GVO_VIDEO_FORMAT_2048I_47_96_SMPTE372           38 /* renamed */
 
 /*
  * NV_CTRL_GVIO_DETECTED_VIDEO_FORMAT - indicates the input video format
@@ -1142,12 +1140,12 @@
 #define NV_CTRL_GVIO_DETECTED_VIDEO_FORMAT                      71  /* R--I */
 
 /*
- * NV_CTRL_GVO_INPUT_VIDEO_FORMAT - deprecated
+ * NV_CTRL_GVO_INPUT_VIDEO_FORMAT - renamed
  *
  * NV_CTRL_GVIO_DETECTED_VIDEO_FORMAT should be used instead.
  */
 
-#define NV_CTRL_GVO_INPUT_VIDEO_FORMAT                          71  /* R-- */
+#define NV_CTRL_GVO_INPUT_VIDEO_FORMAT                          71 /* renamed */
 
 /*
  * NV_CTRL_GVO_DATA_FORMAT - This controls how the data in the source
@@ -1169,26 +1167,26 @@
 #define NV_CTRL_GVO_DATA_FORMAT_R8G8B8_TO_YCRCB422              3
 #define NV_CTRL_GVO_DATA_FORMAT_R8G8B8A8_TO_YCRCBA4224          4
 #define NV_CTRL_GVO_DATA_FORMAT_R8G8B8Z10_TO_YCRCBZ4224         5
-#define NV_CTRL_GVO_DATA_FORMAT_R8G8B8_TO_RGB444                6 // renamed
+#define NV_CTRL_GVO_DATA_FORMAT_R8G8B8_TO_RGB444                6  /* renamed */
 #define NV_CTRL_GVO_DATA_FORMAT_X8X8X8_444_PASSTHRU             6
-#define NV_CTRL_GVO_DATA_FORMAT_R8G8B8A8_TO_RGBA4444            7 // renamed
+#define NV_CTRL_GVO_DATA_FORMAT_R8G8B8A8_TO_RGBA4444            7  /* renamed */
 #define NV_CTRL_GVO_DATA_FORMAT_X8X8X8A8_4444_PASSTHRU          7
-#define NV_CTRL_GVO_DATA_FORMAT_R8G8B8Z10_TO_RGBZ4444           8 // renamed
+#define NV_CTRL_GVO_DATA_FORMAT_R8G8B8Z10_TO_RGBZ4444           8  /* renamed */
 #define NV_CTRL_GVO_DATA_FORMAT_X8X8X8Z8_4444_PASSTHRU          8
-#define NV_CTRL_GVO_DATA_FORMAT_Y10CR10CB10_TO_YCRCB444         9 // renamed
+#define NV_CTRL_GVO_DATA_FORMAT_Y10CR10CB10_TO_YCRCB444         9  /* renamed */
 #define NV_CTRL_GVO_DATA_FORMAT_X10X10X10_444_PASSTHRU          9
-#define NV_CTRL_GVO_DATA_FORMAT_Y10CR8CB8_TO_YCRCB444           10 // renamed
+#define NV_CTRL_GVO_DATA_FORMAT_Y10CR8CB8_TO_YCRCB444           10 /* renamed */
 #define NV_CTRL_GVO_DATA_FORMAT_X10X8X8_444_PASSTHRU            10
-#define NV_CTRL_GVO_DATA_FORMAT_Y10CR8CB8A10_TO_YCRCBA4444      11 // renamed
+#define NV_CTRL_GVO_DATA_FORMAT_Y10CR8CB8A10_TO_YCRCBA4444      11 /* renamed */
 #define NV_CTRL_GVO_DATA_FORMAT_X10X8X8A10_4444_PASSTHRU        11
-#define NV_CTRL_GVO_DATA_FORMAT_Y10CR8CB8Z10_TO_YCRCBZ4444      12 // renamed
+#define NV_CTRL_GVO_DATA_FORMAT_Y10CR8CB8Z10_TO_YCRCBZ4444      12 /* renamed */
 #define NV_CTRL_GVO_DATA_FORMAT_X10X8X8Z10_4444_PASSTHRU        12
 #define NV_CTRL_GVO_DATA_FORMAT_DUAL_R8G8B8_TO_DUAL_YCRCB422    13
-#define NV_CTRL_GVO_DATA_FORMAT_DUAL_Y8CR8CB8_TO_DUAL_YCRCB422  14 // renamed
+#define NV_CTRL_GVO_DATA_FORMAT_DUAL_Y8CR8CB8_TO_DUAL_YCRCB422  14 /* renamed */
 #define NV_CTRL_GVO_DATA_FORMAT_DUAL_X8X8X8_TO_DUAL_422_PASSTHRU 14
 #define NV_CTRL_GVO_DATA_FORMAT_R10G10B10_TO_YCRCB422           15
 #define NV_CTRL_GVO_DATA_FORMAT_R10G10B10_TO_YCRCB444           16
-#define NV_CTRL_GVO_DATA_FORMAT_Y12CR12CB12_TO_YCRCB444         17 // renamed
+#define NV_CTRL_GVO_DATA_FORMAT_Y12CR12CB12_TO_YCRCB444         17 /* renamed */
 #define NV_CTRL_GVO_DATA_FORMAT_X12X12X12_444_PASSTHRU          17
 #define NV_CTRL_GVO_DATA_FORMAT_R12G12B12_TO_YCRCB444           18
 #define NV_CTRL_GVO_DATA_FORMAT_X8X8X8_422_PASSTHRU             19
@@ -1202,12 +1200,12 @@
 #define NV_CTRL_GVO_DATA_FORMAT_R12G12B12_TO_YCRCB422           27
 
 /*
- * NV_CTRL_GVO_DISPLAY_X_SCREEN - no longer supported
+ * NV_CTRL_GVO_DISPLAY_X_SCREEN - not supported
  */
 
-#define NV_CTRL_GVO_DISPLAY_X_SCREEN                            73  /* RW- */
-#define NV_CTRL_GVO_DISPLAY_X_SCREEN_ENABLE                     1
-#define NV_CTRL_GVO_DISPLAY_X_SCREEN_DISABLE                    0
+#define NV_CTRL_GVO_DISPLAY_X_SCREEN                            73 /* not supported */
+#define NV_CTRL_GVO_DISPLAY_X_SCREEN_ENABLE                     1  /* not supported */
+#define NV_CTRL_GVO_DISPLAY_X_SCREEN_DISABLE                    0  /* not supported */
 
 
 /*
@@ -1255,12 +1253,12 @@
 
 
 /*
- * NV_CTRL_GVO_FPGA_VERSION - deprecated
+ * NV_CTRL_GVO_FIRMWARE_VERSION - deprecated
  *
  * NV_CTRL_STRING_GVIO_FIRMWARE_VERSION should be used instead.
  */
 
-#define NV_CTRL_GVO_FIRMWARE_VERSION                            78  /* R-- */
+#define NV_CTRL_GVO_FIRMWARE_VERSION                            78 /* deprecated */
 
 
 /*
@@ -1307,9 +1305,9 @@
  * NV_CTRL_GVO_LOCK_OWNER should be used instead.
  */
 
-#define NV_CTRL_GVO_GLX_LOCKED                                  82  /* R-- */
-#define NV_CTRL_GVO_GLX_LOCKED_FALSE                            0 /* deprecated */
-#define NV_CTRL_GVO_GLX_LOCKED_TRUE                             1 /* deprecated */
+#define NV_CTRL_GVO_GLX_LOCKED                                  82 /* deprecated */
+#define NV_CTRL_GVO_GLX_LOCKED_FALSE                             0 /* deprecated */
+#define NV_CTRL_GVO_GLX_LOCKED_TRUE                              1 /* deprecated */
 
 
 /*
@@ -1332,69 +1330,43 @@
 #define NV_CTRL_GVIO_VIDEO_FORMAT_HEIGHT                        84  /* R--I */
 #define NV_CTRL_GVIO_VIDEO_FORMAT_REFRESH_RATE                  85  /* R--I */
 
-/* The following are deprecated; use the NV_CTRL_GVIO_* versions, instead */
-#define NV_CTRL_GVO_VIDEO_FORMAT_WIDTH                          83  /* R-- */
-#define NV_CTRL_GVO_VIDEO_FORMAT_HEIGHT                         84  /* R-- */
-#define NV_CTRL_GVO_VIDEO_FORMAT_REFRESH_RATE                   85  /* R-- */
+/* The following have been renamed; use the NV_CTRL_GVIO_* versions, instead */
+#define NV_CTRL_GVO_VIDEO_FORMAT_WIDTH                          83  /* renamed */
+#define NV_CTRL_GVO_VIDEO_FORMAT_HEIGHT                         84  /* renamed */
+#define NV_CTRL_GVO_VIDEO_FORMAT_REFRESH_RATE                   85  /* renamed */
 
 
 /*
- * NV_CTRL_GVO_X_SCREEN_PAN_[XY] - no longer supported
+ * NV_CTRL_GVO_X_SCREEN_PAN_[XY] - not supported
  */
 
-#define NV_CTRL_GVO_X_SCREEN_PAN_X                              86  /* RW- */
-#define NV_CTRL_GVO_X_SCREEN_PAN_Y                              87  /* RW- */
+#define NV_CTRL_GVO_X_SCREEN_PAN_X                              86 /* not supported */
+#define NV_CTRL_GVO_X_SCREEN_PAN_Y                              87 /* not supported */
 
 
 /*
- * NV_CTRL_GPU_OVERCLOCKING_STATE - query the current or set a new
- * overclocking state; the value of this attribute controls the
- * availability of additional overclocking attributes (see below).
- *
- * Note: this attribute is unavailable unless overclocking support
- * has been enabled in the X server (by the user).
+ * NV_CTRL_GPU_OVERCLOCKING_STATE - not supported
  */
 
-#define NV_CTRL_GPU_OVERCLOCKING_STATE                          88  /* RW-G */
-#define NV_CTRL_GPU_OVERCLOCKING_STATE_NONE                     0
-#define NV_CTRL_GPU_OVERCLOCKING_STATE_MANUAL                   1
+#define NV_CTRL_GPU_OVERCLOCKING_STATE                          88 /* not supported */
+#define NV_CTRL_GPU_OVERCLOCKING_STATE_NONE                      0 /* not supported */
+#define NV_CTRL_GPU_OVERCLOCKING_STATE_MANUAL                    1 /* not supported */
 
 
 /*
- * NV_CTRL_GPU_{2,3}D_CLOCK_FREQS - query or set the GPU and memory
- * clocks of the device driving the X screen.  New clock frequencies
- * are tested before being applied, and may be rejected.
- *
- * Note: if the target clocks are too aggressive, their testing may
- * render the system unresponsive.
- *
- * Note: while this attribute can always be queried, it can't be set
- * unless NV_CTRL_GPU_OVERCLOCKING_STATE is set to _MANUAL.  Since
- * the target clocks may be rejected, the requester should read this
- * attribute after the set to determine success or failure.
- *
- * NV_CTRL_GPU_{2,3}D_CLOCK_FREQS are "packed" integer attributes; the
- * GPU clock is stored in the upper 16 bits of the integer, and the
- * memory clock is stored in the lower 16 bits of the integer.  All
- * clock values are in MHz.
+ * NV_CTRL_GPU_{2,3}D_CLOCK_FREQS - not supported
  */
 
-#define NV_CTRL_GPU_2D_CLOCK_FREQS                              89  /* RW-G */
-#define NV_CTRL_GPU_3D_CLOCK_FREQS                              90  /* RW-G */
+#define NV_CTRL_GPU_2D_CLOCK_FREQS                              89 /* not supported */
+#define NV_CTRL_GPU_3D_CLOCK_FREQS                              90 /* not supported */
 
 
 /*
- * NV_CTRL_GPU_DEFAULT_{2,3}D_CLOCK_FREQS - query the default memory
- * and GPU core clocks of the device driving the X screen.
- *
- * NV_CTRL_GPU_DEFAULT_{2,3}D_CLOCK_FREQS are "packed" integer
- * attributes; the GPU clock is stored in the upper 16 bits of the
- * integer, and the memory clock is stored in the lower 16 bits of the
- * integer.  All clock values are in MHz.
+ * NV_CTRL_GPU_DEFAULT_{2,3}D_CLOCK_FREQS - not supported
  */
 
-#define NV_CTRL_GPU_DEFAULT_2D_CLOCK_FREQS                      91  /* R--G */
-#define NV_CTRL_GPU_DEFAULT_3D_CLOCK_FREQS                      92  /* R--G */
+#define NV_CTRL_GPU_DEFAULT_2D_CLOCK_FREQS                      91 /* not supported */
+#define NV_CTRL_GPU_DEFAULT_3D_CLOCK_FREQS                      92 /* not supported */
 
 
 /*
@@ -1411,52 +1383,29 @@
 
 
 /*
- * NV_CTRL_GPU_OPTIMAL_CLOCK_FREQS - Holds the last calculated
- * optimal 3D clock frequencies found by the
- * NV_CTRL_GPU_OPTIMAL_CLOCK_FREQS_DETECTION process.  Querying this
- * attribute before having probed for the optimal clocks will return
- * NV_CTRL_GPU_OPTIMAL_CLOCK_FREQS_INVALID
- *
- * Note: unless NV_CTRL_GPU_OVERCLOCKING_STATE is set to _MANUAL, the
- * optimal clock detection process is unavailable.
+ * NV_CTRL_GPU_OPTIMAL_CLOCK_FREQS - not supported
  */
 
-#define NV_CTRL_GPU_OPTIMAL_CLOCK_FREQS                         94  /* R--G */
-#define NV_CTRL_GPU_OPTIMAL_CLOCK_FREQS_INVALID                  0
+#define NV_CTRL_GPU_OPTIMAL_CLOCK_FREQS                         94 /* not supported */
+#define NV_CTRL_GPU_OPTIMAL_CLOCK_FREQS_INVALID                  0 /* not supported */
 
 
 /*
- * NV_CTRL_GPU_OPTIMAL_CLOCK_FREQS_DETECTION - set to _START to
- * initiate testing for the optimal 3D clock frequencies.  Once
- * found, the optimal clock frequencies will be returned by the
- * NV_CTRL_GPU_OPTIMAL_CLOCK_FREQS attribute asynchronously
- * (using an X event, see XNVCtrlSelectNotify).
- *
- * To cancel an ongoing test for the optimal clocks, set the
- * NV_CTRL_GPU_OPTIMAL_CLOCK_FREQS_DETECTION attribute to _CANCEL
- *
- * Note: unless NV_CTRL_GPU_OVERCLOCKING_STATE is set to _MANUAL, the
- * optimal clock detection process is unavailable.
+ * NV_CTRL_GPU_OPTIMAL_CLOCK_FREQS_DETECTION - not supported
  */
 
-#define NV_CTRL_GPU_OPTIMAL_CLOCK_FREQS_DETECTION               95  /* -W-G */
-#define NV_CTRL_GPU_OPTIMAL_CLOCK_FREQS_DETECTION_START          0
-#define NV_CTRL_GPU_OPTIMAL_CLOCK_FREQS_DETECTION_CANCEL         1
+#define NV_CTRL_GPU_OPTIMAL_CLOCK_FREQS_DETECTION               95 /* not supported */
+#define NV_CTRL_GPU_OPTIMAL_CLOCK_FREQS_DETECTION_START          0 /* not supported */
+#define NV_CTRL_GPU_OPTIMAL_CLOCK_FREQS_DETECTION_CANCEL         1 /* not supported */
 
 
 /*
- * NV_CTRL_GPU_OPTIMAL_CLOCK_FREQS_DETECTION_STATE - query this
- * variable to know if a test is currently being run to
- * determine the optimal 3D clock frequencies.  _BUSY means a
- * test is currently running, _IDLE means the test is not running.
- *
- * Note: unless NV_CTRL_GPU_OVERCLOCKING_STATE is set to _MANUAL, the
- * optimal clock detection process is unavailable.
+ * NV_CTRL_GPU_OPTIMAL_CLOCK_FREQS_DETECTION_STATE - not supported
  */
 
-#define NV_CTRL_GPU_OPTIMAL_CLOCK_FREQS_DETECTION_STATE         96  /* R--G */
-#define NV_CTRL_GPU_OPTIMAL_CLOCK_FREQS_DETECTION_STATE_IDLE     0
-#define NV_CTRL_GPU_OPTIMAL_CLOCK_FREQS_DETECTION_STATE_BUSY     1
+#define NV_CTRL_GPU_OPTIMAL_CLOCK_FREQS_DETECTION_STATE         96 /* not supported */
+#define NV_CTRL_GPU_OPTIMAL_CLOCK_FREQS_DETECTION_STATE_IDLE     0 /* not supported */
+#define NV_CTRL_GPU_OPTIMAL_CLOCK_FREQS_DETECTION_STATE_BUSY     1 /* not supported */
 
 
 /*
@@ -1608,7 +1557,7 @@
  * NV_CTRL_XV_SYNC_TO_DISPLAY_ID should be used instead.
  */
 
-#define NV_CTRL_XV_SYNC_TO_DISPLAY                               226  /* RW- */
+#define NV_CTRL_XV_SYNC_TO_DISPLAY                               226 /* deprecated */
 
 /*
  * NV_CTRL_GVIO_REQUESTED_VIDEO_FORMAT2 - this attribute is only
@@ -1620,11 +1569,11 @@
 #define NV_CTRL_GVIO_REQUESTED_VIDEO_FORMAT2                    227  /* ---GI */
 
 /*
- * NV_CTRL_GVO_OUTPUT_VIDEO_FORMAT2 - deprecated
+ * NV_CTRL_GVO_OUTPUT_VIDEO_FORMAT2 - renamed
  *
  * NV_CTRL_GVIO_REQUESTED_VIDEO_FORMAT2 should be used instead.
  */
-#define NV_CTRL_GVO_OUTPUT_VIDEO_FORMAT2                         227  /* --- */
+#define NV_CTRL_GVO_OUTPUT_VIDEO_FORMAT2                         227 /* renamed */
 
 
 /*
@@ -1694,7 +1643,7 @@
  * NV_CTRL_BINARY_DATA_DISPLAYS_ASSIGNED_TO_XSCREEN should be used instead.
  */
 
-#define NV_CTRL_ASSOCIATED_DISPLAY_DEVICES                       231 /* RW- */
+#define NV_CTRL_ASSOCIATED_DISPLAY_DEVICES                       231 /* deprecated */
 
 /*
  * NV_CTRL_FRAMELOCK_SLAVES - deprecated
@@ -1702,7 +1651,7 @@
  * NV_CTRL_FRAMELOCK_DISPLAY_CONFIG should be used instead.
  */
 
-#define NV_CTRL_FRAMELOCK_SLAVES                                 232 /* RW-G */
+#define NV_CTRL_FRAMELOCK_SLAVES                                 232 /* deprecated */
 
 /*
  * NV_CTRL_FRAMELOCK_MASTERABLE - deprecated
@@ -1710,7 +1659,7 @@
  * NV_CTRL_FRAMELOCK_DISPLAY_CONFIG should be used instead.
  */
 
-#define NV_CTRL_FRAMELOCK_MASTERABLE                             233 /* R-DG */
+#define NV_CTRL_FRAMELOCK_MASTERABLE                             233 /* deprecated */
 
 /*
  * NV_CTRL_PROBE_DISPLAYS - re-probes the hardware to detect what
@@ -1858,58 +1807,58 @@
  * NV_CTRL_GPU_SCALING - not supported
  */
 
-#define NV_CTRL_GPU_SCALING                                      248 /* RWDG */
+#define NV_CTRL_GPU_SCALING                                      248 /* not supported */
 
-#define NV_CTRL_GPU_SCALING_TARGET_INVALID                       0
-#define NV_CTRL_GPU_SCALING_TARGET_FLATPANEL_BEST_FIT            1
-#define NV_CTRL_GPU_SCALING_TARGET_FLATPANEL_NATIVE              2
+#define NV_CTRL_GPU_SCALING_TARGET_INVALID                         0 /* not supported */
+#define NV_CTRL_GPU_SCALING_TARGET_FLATPANEL_BEST_FIT              1 /* not supported */
+#define NV_CTRL_GPU_SCALING_TARGET_FLATPANEL_NATIVE                2 /* not supported */
 
-#define NV_CTRL_GPU_SCALING_METHOD_INVALID                       0
-#define NV_CTRL_GPU_SCALING_METHOD_STRETCHED                     1
-#define NV_CTRL_GPU_SCALING_METHOD_CENTERED                      2
-#define NV_CTRL_GPU_SCALING_METHOD_ASPECT_SCALED                 3
+#define NV_CTRL_GPU_SCALING_METHOD_INVALID                         0 /* not supported */
+#define NV_CTRL_GPU_SCALING_METHOD_STRETCHED                       1 /* not supported */
+#define NV_CTRL_GPU_SCALING_METHOD_CENTERED                        2 /* not supported */
+#define NV_CTRL_GPU_SCALING_METHOD_ASPECT_SCALED                   3 /* not supported */
 
 
 /*
  * NV_CTRL_FRONTEND_RESOLUTION - not supported
  */
 
-#define NV_CTRL_FRONTEND_RESOLUTION                              249 /* R-DG */
+#define NV_CTRL_FRONTEND_RESOLUTION                              249 /* not supported */
 
 
 /*
  * NV_CTRL_BACKEND_RESOLUTION - not supported
  */
 
-#define NV_CTRL_BACKEND_RESOLUTION                               250 /* R-DG */
+#define NV_CTRL_BACKEND_RESOLUTION                               250 /* not supported */
 
 
 /*
  * NV_CTRL_FLATPANEL_NATIVE_RESOLUTION - not supported
  */
 
-#define NV_CTRL_FLATPANEL_NATIVE_RESOLUTION                      251 /* R-DG */
+#define NV_CTRL_FLATPANEL_NATIVE_RESOLUTION                      251 /* not supported */
 
 
 /*
  * NV_CTRL_FLATPANEL_BEST_FIT_RESOLUTION - not supported
  */
 
-#define NV_CTRL_FLATPANEL_BEST_FIT_RESOLUTION                    252 /* R-DG */
+#define NV_CTRL_FLATPANEL_BEST_FIT_RESOLUTION                    252 /* not supported */
 
 
 /*
  * NV_CTRL_GPU_SCALING_ACTIVE - not supported
  */
 
-#define NV_CTRL_GPU_SCALING_ACTIVE                               253 /* R-DG */
+#define NV_CTRL_GPU_SCALING_ACTIVE                               253 /* not supported */
 
 
 /*
  * NV_CTRL_DFP_SCALING_ACTIVE - not supported
  */
 
-#define NV_CTRL_DFP_SCALING_ACTIVE                               254 /* R-DG */
+#define NV_CTRL_DFP_SCALING_ACTIVE                               254 /* not supported */
 
 
 /*
@@ -1967,7 +1916,7 @@
 #define NV_CTRL_GVO_LOCK_OWNER                                  257 /* R-- */
 #define NV_CTRL_GVO_LOCK_OWNER_NONE                               0
 #define NV_CTRL_GVO_LOCK_OWNER_GLX                                1
-#define NV_CTRL_GVO_LOCK_OWNER_CLONE /* no longer supported */    2
+#define NV_CTRL_GVO_LOCK_OWNER_CLONE                              2 /* not supported */
 #define NV_CTRL_GVO_LOCK_OWNER_X_SCREEN                           3
 
 
@@ -2005,9 +1954,9 @@
  * NV_CTRL_ONDEMAND_VBLANK_INTERRUPTS - not supported
  */
 
-#define NV_CTRL_ONDEMAND_VBLANK_INTERRUPTS                      261 /* RW-G */
-#define NV_CTRL_ONDEMAND_VBLANK_INTERRUPTS_OFF                    0
-#define NV_CTRL_ONDEMAND_VBLANK_INTERRUPTS_ON                     1
+#define NV_CTRL_ONDEMAND_VBLANK_INTERRUPTS                      261 /* not supported */
+#define NV_CTRL_ONDEMAND_VBLANK_INTERRUPTS_OFF                    0 /* not supported */
+#define NV_CTRL_ONDEMAND_VBLANK_INTERRUPTS_ON                     1 /* not supported */
 
 
 /*
@@ -2021,12 +1970,12 @@
 
 
 /*
- * NV_CTRL_GPU_CURRENT_PERFORMANCE_MODE - deprecated
+ * NV_CTRL_GPU_CURRENT_PERFORMANCE_MODE - not supported
  */
 
-#define NV_CTRL_GPU_CURRENT_PERFORMANCE_MODE                    263 /* R--G */
-#define NV_CTRL_GPU_CURRENT_PERFORMANCE_MODE_DESKTOP              0 /* deprecated */
-#define NV_CTRL_GPU_CURRENT_PERFORMANCE_MODE_MAXPERF              1 /* deprecated */
+#define NV_CTRL_GPU_CURRENT_PERFORMANCE_MODE                    263 /* not supported */
+#define NV_CTRL_GPU_CURRENT_PERFORMANCE_MODE_DESKTOP              0 /* not supported */
+#define NV_CTRL_GPU_CURRENT_PERFORMANCE_MODE_MAXPERF              1 /* not supported */
 
 
 /* NV_CTRL_GLYPH_CACHE - Enables RENDER Glyph Caching to VRAM */
@@ -2175,7 +2124,7 @@
  * NV_CTRL_SWITCH_TO_DISPLAYS - deprecated
  */
 
-#define NV_CTRL_SWITCH_TO_DISPLAYS                              276 /* -W- */
+#define NV_CTRL_SWITCH_TO_DISPLAYS                              276 /* deprecated */
 
 
 /*
@@ -2193,7 +2142,7 @@
  * NV_CTRL_NOTEBOOK_INTERNAL_LCD - deprecated
  */
 
-#define NV_CTRL_NOTEBOOK_INTERNAL_LCD                           278 /* R-- */
+#define NV_CTRL_NOTEBOOK_INTERNAL_LCD                           278 /* deprecated */
 
 /*
  * NV_CTRL_DEPTH_30_ALLOWED - returns whether the NVIDIA X driver supports
@@ -2278,7 +2227,7 @@
  * NV_CTRL_FRAMELOCK_DISPLAY_CONFIG should be used instead.
  */
 
-#define NV_CTRL_FRAMELOCK_SLAVEABLE                             295 /* R-DG */
+#define NV_CTRL_FRAMELOCK_SLAVEABLE                             295 /* deprecated */
 
 /*
  * NV_CTRL_GVO_SYNC_TO_DISPLAY This attribute controls whether or not
@@ -2716,7 +2665,7 @@
 /*
  * NV_CTRL_OVERSCAN_COMPENSATION - not supported
  */
-#define NV_CTRL_OVERSCAN_COMPENSATION                           339 /* RWDG */
+#define NV_CTRL_OVERSCAN_COMPENSATION                           339 /* not supported */
 
 /*
  * NV_CTRL_GPU_PCIE_GENERATION - Reports the current PCIe generation.
@@ -2795,11 +2744,15 @@
 
 /*
  * NV_CTRL_GPU_SCALING_DEFAULT_TARGET - not supported
- *
+ */
+
+#define NV_CTRL_GPU_SCALING_DEFAULT_TARGET                      350 /* not supported */
+
+/*
  * NV_CTRL_GPU_SCALING_DEFAULT_METHOD - not supported
  */
-#define NV_CTRL_GPU_SCALING_DEFAULT_TARGET                      350 /* R-DG */
-#define NV_CTRL_GPU_SCALING_DEFAULT_METHOD                      351 /* R-DG */
+
+#define NV_CTRL_GPU_SCALING_DEFAULT_METHOD                      351 /* not supported */
 
 /*
  * NV_CTRL_DITHERING_MODE - Controls the dithering mode, when
@@ -3369,7 +3322,33 @@
  */
 #define NV_CTRL_VIDEO_DECODER_UTILIZATION                       411 /* R--G */
 
-#define NV_CTRL_LAST_ATTRIBUTE NV_CTRL_VIDEO_DECODER_UTILIZATION
+/*
+ * NV_CTRL_GPU_OVER_VOLTAGE_OFFSET - This attribute controls
+ * the overvoltage offset in microvolts (uV).
+ *
+ * Note: To enable overvoltage support, set the X configuration
+ * option "Coolbits" to value "16".
+ *
+ * This offset can have any integer value between
+ * NVCTRLAttributeValidValues.u.range.min and
+ * NVCTRLAttributeValidValues.u.range.max (inclusive).
+ *
+ * This attribute is available on GeForce GTX 400 series and later
+ * Geforce GPUs.
+ */
+
+#define NV_CTRL_GPU_OVER_VOLTAGE_OFFSET                         412 /* RW-G */
+
+/*
+ * NV_CTRL_GPU_CURRENT_CORE_VOLTAGE - This attribute returns the
+ * GPU's current operating voltage in microvolts (uV).
+ *
+ * This attribute is available on GPUs that support
+ * NV_CTRL_GPU_OVER_VOLTAGE_OFFSET.
+ */
+#define NV_CTRL_GPU_CURRENT_CORE_VOLTAGE                 413 /* R--G */
+
+#define NV_CTRL_LAST_ATTRIBUTE NV_CTRL_GPU_CURRENT_CORE_VOLTAGE
 
 
 /**************************************************************************/
@@ -3431,8 +3410,7 @@
 
 
 /*
- * NV_CTRL_STRING_TV_ENCODER_NAME - name of the TV encoder used by the
- * specified display device; only valid if the display device is a TV.
+ * NV_CTRL_STRING_TV_ENCODER_NAME - not supported
  */
 
 #define NV_CTRL_STRING_TV_ENCODER_NAME                          5  /* R-DG */
@@ -3446,11 +3424,11 @@
 #define NV_CTRL_STRING_GVIO_FIRMWARE_VERSION                    8  /* R--I */
 
 /*
- * NV_CTRL_STRING_GVO_FIRMWARE_VERSION - deprecated
+ * NV_CTRL_STRING_GVO_FIRMWARE_VERSION - renamed
  *
  * NV_CTRL_STRING_GVIO_FIRMWARE_VERSION should be used instead.
  */
-#define NV_CTRL_STRING_GVO_FIRMWARE_VERSION                     8  /* R-- */
+#define NV_CTRL_STRING_GVO_FIRMWARE_VERSION                     8 /* renamed */
 
 
 /* 
@@ -3722,8 +3700,15 @@
  * or the X server ABI is greater than equal to 12.
  */
 
-#define NV_CTRL_STRING_XINERAMA_SCREEN_INFO                    26  /* renamed */
 #define NV_CTRL_STRING_SCREEN_RECTANGLE                        26  /* R--- */
+
+/*
+ * NV_CTRL_STRING_XINERAMA_SCREEN_INFO - renamed
+ *
+ * NV_CTRL_STRING_SCREEN_RECTANGLE should be used instead.
+ */
+
+#define NV_CTRL_STRING_XINERAMA_SCREEN_INFO                    26  /* renamed */
 
 
 /*
@@ -3910,11 +3895,11 @@
 #define NV_CTRL_STRING_GVIO_VIDEO_FORMAT_NAME                  33  /* R--GI */
 
 /*
- * NV_CTRL_STRING_GVO_VIDEO_FORMAT_NAME - deprecated
+ * NV_CTRL_STRING_GVO_VIDEO_FORMAT_NAME - renamed
  *
  * NV_CTRL_STRING_GVIO_VIDEO_FORMAT_NAME should be used instead.
  */
-#define NV_CTRL_STRING_GVO_VIDEO_FORMAT_NAME                   33  /* R--- */
+#define NV_CTRL_STRING_GVO_VIDEO_FORMAT_NAME                   33  /* renamed */
 
 
 /*
@@ -4680,7 +4665,6 @@
  *    "HorizSync"
  *    "VertRefresh"
  *    "FlatPanelProperties"
- *    "TVStandard"
  *    "ExactModeTimingsDVI"
  *    "UseEdidFreqs"
  *
