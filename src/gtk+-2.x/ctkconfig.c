@@ -315,19 +315,16 @@ GtkWidget* ctk_config_new(ConfigProperties *conf, CtrlHandles *pCtrlHandles)
 
     /* Create the file selector for rc file */
     ctk_config->rc_file_selector =
-        gtk_file_chooser_dialog_new("Please select a file to save to",
+        ctk_file_chooser_dialog_new("Please select a file to save to",
                                     GTK_WINDOW(ctk_get_parent_window(GTK_WIDGET(ctk_config))),
-                                    GTK_FILE_CHOOSER_ACTION_OPEN,
-                                    "Cancel", GTK_RESPONSE_CANCEL,
-                                    "Open", GTK_RESPONSE_ACCEPT,
-                                    NULL);
+                                    GTK_FILE_CHOOSER_ACTION_SAVE);
 
     g_signal_connect(G_OBJECT(ctk_config->button_save_rc), "clicked",
                      G_CALLBACK(save_rc_clicked),
                      (gpointer) ctk_config);
 
-    gtk_file_chooser_set_filename
-        (GTK_FILE_CHOOSER(ctk_config->rc_file_selector), DEFAULT_RC_FILE);
+    ctk_file_chooser_set_filename(ctk_config->rc_file_selector,
+                                  DEFAULT_RC_FILE);
 
     ctk_config_set_tooltip(ctk_config, ctk_config->button_save_rc,
                            __save_current_config_help);
@@ -356,8 +353,8 @@ static void save_rc_clicked(GtkWidget *widget, gpointer user_data)
     switch (result) {
     case GTK_RESPONSE_ACCEPT:
     case GTK_RESPONSE_OK:
-        rc_filename = gtk_file_chooser_get_filename
-                          (GTK_FILE_CHOOSER(ctk_config->rc_file_selector));
+        rc_filename = ctk_file_chooser_get_filename
+                          (ctk_config->rc_file_selector);
         break;
     default:
         return;

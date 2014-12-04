@@ -27,6 +27,7 @@
 #include "ctkscale.h"
 #include "ctkconfig.h"
 #include "ctkhelp.h"
+#include "ctkutils.h"
 
 #include <sys/types.h>
 #include <sys/stat.h>
@@ -120,14 +121,11 @@ GtkWidget* ctk_edid_new(NvCtrlAttributeHandle *handle,
     ctk_edid->filename = DEFAULT_EDID_FILENAME_BINARY;
     ctk_edid->file_format = FILE_FORMAT_BINARY;
     ctk_edid->file_selector =
-        gtk_file_chooser_dialog_new("Please select file where "
+        ctk_file_chooser_dialog_new("Please select file where "
                                     "EDID data will be saved.",
-                                    NULL, GTK_FILE_CHOOSER_ACTION_SAVE,
-                                    GTK_STOCK_CANCEL, GTK_RESPONSE_CANCEL,
-                                    GTK_STOCK_SAVE, GTK_RESPONSE_ACCEPT,
-                                    NULL);
-    gtk_file_chooser_set_current_name(GTK_FILE_CHOOSER(ctk_edid->file_selector),
-                                      ctk_edid->filename);
+                                    NULL, GTK_FILE_CHOOSER_ACTION_SAVE);
+    ctk_file_chooser_set_filename(ctk_edid->file_selector,
+                                  ctk_edid->filename);
 
     /* create the frame and vbox */
     
@@ -191,8 +189,7 @@ GtkWidget* ctk_edid_new(NvCtrlAttributeHandle *handle,
     gtk_toggle_button_set_active
         (GTK_TOGGLE_BUTTON(ctk_edid->file_format_binary_radio_button), TRUE);
     gtk_widget_show_all(frame);
-    gtk_file_chooser_set_extra_widget(GTK_FILE_CHOOSER(ctk_edid->file_selector),
-                                      frame);
+    ctk_file_chooser_set_extra_widget(ctk_edid->file_selector, frame);
 
     gtk_widget_show_all(GTK_WIDGET(object));
 
@@ -210,7 +207,7 @@ static void normalize_filename(CtkEdid *ctk_edid)
     int len = 0, n;
 
     ctk_edid->filename =
-        gtk_file_chooser_get_filename(GTK_FILE_CHOOSER(ctk_edid->file_selector));
+        ctk_file_chooser_get_filename(ctk_edid->file_selector);
 
     if (!ctk_edid->filename) {
         goto done;
@@ -278,8 +275,7 @@ static void normalize_filename(CtkEdid *ctk_edid)
     }
 
     /* modify the file name as per the format selected */
-    gtk_file_chooser_set_current_name(GTK_FILE_CHOOSER(ctk_edid->file_selector),
-                                      slash);
+    ctk_file_chooser_set_filename(ctk_edid->file_selector, slash);
  done:
     free(filename);
     free(buffer);
@@ -313,7 +309,7 @@ static void button_clicked(GtkButton *button, gpointer user_data)
 
         /* Ask user for filename */
         
-        gtk_file_chooser_set_filename(GTK_FILE_CHOOSER(ctk_edid->file_selector),
+        ctk_file_chooser_set_filename(ctk_edid->file_selector,
                                       ctk_edid->filename);
 
         result = gtk_dialog_run(GTK_DIALOG(ctk_edid->file_selector));
@@ -325,7 +321,7 @@ static void button_clicked(GtkButton *button, gpointer user_data)
 
             normalize_filename(ctk_edid);
             ctk_edid->filename =
-                gtk_file_chooser_get_filename(GTK_FILE_CHOOSER(ctk_edid->file_selector));
+                ctk_file_chooser_get_filename(ctk_edid->file_selector);
             
             write_edid_to_file(ctk_edid->ctk_config, ctk_edid->filename,
                                ctk_edid->file_format, data, len);

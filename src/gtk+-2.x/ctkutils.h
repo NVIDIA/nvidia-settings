@@ -57,6 +57,11 @@ void ctk_adjustment_set_lower(GtkAdjustment *a, gdouble x);
 
 GtkWidget *ctk_scrolled_window_get_vscrollbar(GtkScrolledWindow *sw);
 GtkWidget *ctk_statusbar_get_message_area(GtkStatusbar *statusbar);
+GtkWidget *ctk_file_chooser_dialog_new(const gchar *title, GtkWindow *parent,
+                                       GtkFileChooserAction action);
+void ctk_file_chooser_set_filename(GtkWidget *widget, const gchar *filename);
+const gchar *ctk_file_chooser_get_filename(GtkWidget *widget);
+void ctk_file_chooser_set_extra_widget(GtkWidget *widget, GtkWidget *extra);
 
 GtkWidget *ctk_combo_box_text_new(void);
 GtkWidget *ctk_combo_box_text_new_with_entry(void);

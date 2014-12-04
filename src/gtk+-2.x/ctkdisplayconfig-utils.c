@@ -4369,8 +4369,7 @@ static void xconfig_file_clicked(GtkWidget *widget, gpointer user_data)
         (GTK_WINDOW(dlg->dlg_xconfig_file),
          GTK_WINDOW(gtk_widget_get_toplevel(GTK_WIDGET(dlg->parent))));
 
-    gtk_file_chooser_set_filename
-        (GTK_FILE_CHOOSER(dlg->dlg_xconfig_file), filename);
+    ctk_file_chooser_set_filename(dlg->dlg_xconfig_file, filename);
 
     result = gtk_dialog_run(GTK_DIALOG(dlg->dlg_xconfig_file));
     gtk_widget_hide(dlg->dlg_xconfig_file);
@@ -4378,8 +4377,7 @@ static void xconfig_file_clicked(GtkWidget *widget, gpointer user_data)
     switch (result) {
     case GTK_RESPONSE_ACCEPT:
     case GTK_RESPONSE_OK:
-        filename = gtk_file_chooser_get_filename
-            (GTK_FILE_CHOOSER(dlg->dlg_xconfig_file));
+        filename = ctk_file_chooser_get_filename(dlg->dlg_xconfig_file);
 
         gtk_entry_set_text(GTK_ENTRY(dlg->txt_xconfig_file), filename);
 
@@ -4575,11 +4573,8 @@ SaveXConfDlg *create_save_xconfig_dialog(GtkWidget *parent,
                      G_CALLBACK(xconfig_file_clicked),
                      (gpointer) dlg);
     dlg->dlg_xconfig_file =
-        gtk_file_chooser_dialog_new("Please select the X configuration file",
-                                    NULL, GTK_FILE_CHOOSER_ACTION_OPEN,
-                                    GTK_STOCK_CANCEL, GTK_RESPONSE_CANCEL,
-                                    GTK_STOCK_OPEN, GTK_RESPONSE_ACCEPT,
-                                    NULL);
+        ctk_file_chooser_dialog_new("Please select the X configuration file",
+                                    NULL, GTK_FILE_CHOOSER_ACTION_OPEN);
 
     /* Create the merge checkbox */
     dlg->btn_xconfig_merge =

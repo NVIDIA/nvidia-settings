@@ -266,6 +266,81 @@ void ctk_combo_box_text_append_text(GtkWidget *widget, const gchar *text)
 #endif
 }
 
+GtkWidget *ctk_file_chooser_dialog_new(const gchar *title,
+                                       GtkWindow *parent,
+                                       GtkFileChooserAction action)
+{
+#ifdef CTK_GTK3
+    /* Added in 2.4 */
+    gboolean open = (action == GTK_FILE_CHOOSER_ACTION_OPEN);
+
+    return gtk_file_chooser_dialog_new(title, parent, action,
+                                       GTK_STOCK_CANCEL,
+                                       GTK_RESPONSE_CANCEL,
+                                       open ? GTK_STOCK_OPEN : GTK_STOCK_SAVE,
+                                       GTK_RESPONSE_ACCEPT,
+                                       NULL);
+#else
+    /*
+     * There is an issue on some platforms that causes the UI to hang when
+     * creating a GtkFileChooserDialog from a shared library. For now, we will
+     * continue to use the GtkFileSelection.
+     *
+     * Deprecated in 2.4 and removed in 3.0
+     */
+    return gtk_file_selection_new("FileSelector");
+#endif
+}
+
+void ctk_file_chooser_set_filename(GtkWidget *widget, const gchar *filename)
+{
+#ifdef CTK_GTK3
+    GtkFileChooserAction action =
+        gtk_file_chooser_get_action(GTK_FILE_CHOOSER(widget));
+    char *full_filename = tilde_expansion(filename);
+    char *basename = g_path_get_basename(full_filename);
+    char *dirname = NULL;
+
+    if (action == GTK_FILE_CHOOSER_ACTION_SAVE &&
+        (!g_file_test(full_filename, G_FILE_TEST_EXISTS) ||
+         basename[0] == '.')) {
+
+        char *dirname = g_path_get_dirname(full_filename);
+
+        gtk_file_chooser_set_current_folder(GTK_FILE_CHOOSER(widget), dirname);
+        gtk_file_chooser_set_current_name(GTK_FILE_CHOOSER(widget), basename);
+
+    } else {
+        gtk_file_chooser_set_filename(GTK_FILE_CHOOSER(widget), full_filename);
+    }
+
+    free(dirname);
+    free(basename);
+    free(full_filename);
+#else
+    gtk_file_selection_set_filename(GTK_FILE_SELECTION(widget), filename);
+#endif
+}
+
+const gchar *ctk_file_chooser_get_filename(GtkWidget *widget)
+{
+#ifdef CTK_GTK3
+    return gtk_file_chooser_get_filename(GTK_FILE_CHOOSER(widget));
+#else
+    return gtk_file_selection_get_filename(GTK_FILE_SELECTION(widget));
+#endif
+}
+
+void ctk_file_chooser_set_extra_widget(GtkWidget *widget, GtkWidget *extra)
+{
+#ifdef CTK_GTK3
+    gtk_file_chooser_set_extra_widget(GTK_FILE_CHOOSER(widget), extra);
+#else
+    gtk_box_pack_start(GTK_BOX(GTK_FILE_SELECTION(widget)->main_vbox),
+                       extra, FALSE, FALSE, 15);
+#endif
+}
+
 /* end of GTK2/3 util functions */
 
 

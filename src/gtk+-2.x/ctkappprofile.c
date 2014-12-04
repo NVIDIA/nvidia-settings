@@ -1345,14 +1345,14 @@ static gboolean rule_browse_button_clicked(GtkWidget *widget, gpointer user_data
     gtk_window_set_transient_for(GTK_WINDOW(dialog->file_sel),
                                  GTK_WINDOW(dialog->top_window));
 
-    gtk_file_chooser_set_filename(GTK_FILE_CHOOSER(dialog->file_sel), filename);
+    ctk_file_chooser_set_filename(dialog->file_sel, filename);
 
     result = gtk_dialog_run(GTK_DIALOG(dialog->file_sel));
 
     switch (result) {
     case GTK_RESPONSE_ACCEPT:
     case GTK_RESPONSE_OK:
-        filename = gtk_file_chooser_get_filename(GTK_FILE_CHOOSER(dialog->file_sel));
+        filename = ctk_file_chooser_get_filename(dialog->file_sel);
         gtk_entry_set_text(GTK_ENTRY(gtk_bin_get_child(GTK_BIN(dialog->source_file_combo))),
                            filename);
     default:
@@ -1372,14 +1372,14 @@ static gboolean profile_browse_button_clicked(GtkWidget *widget, gpointer user_d
     gtk_window_set_transient_for(GTK_WINDOW(dialog->file_sel),
                                  GTK_WINDOW(dialog->top_window));
 
-    gtk_file_chooser_set_filename(GTK_FILE_CHOOSER(dialog->file_sel), filename);
+    ctk_file_chooser_set_filename(dialog->file_sel, filename);
 
     result = gtk_dialog_run(GTK_DIALOG(dialog->file_sel));
 
     switch (result) {
     case GTK_RESPONSE_ACCEPT:
     case GTK_RESPONSE_OK:
-        filename = gtk_file_chooser_get_filename(GTK_FILE_CHOOSER(dialog->file_sel));
+        filename = ctk_file_chooser_get_filename(dialog->file_sel);
         gtk_entry_set_text(GTK_ENTRY(gtk_bin_get_child(GTK_BIN(dialog->source_file_combo))),
                            filename);
     default:
@@ -2033,11 +2033,9 @@ static EditRuleDialog* edit_rule_dialog_new(CtkAppProfile *ctk_app_profile)
     dialog->matches = g_string_new("");
     dialog->profile_name = g_string_new("");
     dialog->profile_settings_store = gtk_list_store_new(SETTING_LIST_STORE_NUM_COLS, G_TYPE_POINTER);
-    dialog->file_sel = gtk_file_chooser_dialog_new("Please select a source file for the rule",
-                                                   GTK_WINDOW(NULL), GTK_FILE_CHOOSER_ACTION_SAVE,
-                                                   GTK_STOCK_CANCEL, GTK_RESPONSE_CANCEL,
-                                                   GTK_STOCK_OPEN, GTK_RESPONSE_ACCEPT,
-                                                   NULL);
+    dialog->file_sel =
+        ctk_file_chooser_dialog_new("Please select a source file for the rule",
+                                    NULL, GTK_FILE_CHOOSER_ACTION_SAVE);
 
 
     gtk_widget_set_size_request(dialog->top_window, 500, 480);
@@ -3000,11 +2998,9 @@ static EditProfileDialog *edit_profile_dialog_new(CtkAppProfile *ctk_app_profile
     dialog->settings = json_array();
 
     dialog->settings_store = gtk_list_store_new(SETTING_LIST_STORE_NUM_COLS, G_TYPE_POINTER);
-    dialog->file_sel = gtk_file_chooser_dialog_new("Please select a source file for the profile",
-                                                   GTK_WINDOW(NULL), GTK_FILE_CHOOSER_ACTION_SAVE,
-                                                   GTK_STOCK_CANCEL, GTK_RESPONSE_CANCEL,
-                                                   GTK_STOCK_OPEN, GTK_RESPONSE_ACCEPT,
-                                                   NULL);
+    dialog->file_sel =
+        ctk_file_chooser_dialog_new("Please select a source file for the profile",
+                                    NULL, GTK_FILE_CHOOSER_ACTION_SAVE);
 
     main_vbox = gtk_vbox_new(FALSE, 0);
     gtk_box_set_spacing(GTK_BOX(main_vbox), 8);
