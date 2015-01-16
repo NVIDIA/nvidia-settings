@@ -2126,12 +2126,8 @@
 
 #define NV_CTRL_SWITCH_TO_DISPLAYS                              276 /* deprecated */
 
-
 /*
- * NV_CTRL_NOTEBOOK_DISPLAY_CHANGE_LID_EVENT - Event that notifies
- * when a notebook lid change occurs (i.e. when the lid is opened or
- * closed.)  This attribute can be queried to retrieve the current
- * notebook lid status (opened/closed.)
+ * NV_CTRL_NOTEBOOK_DISPLAY_CHANGE_LID_EVENT - deprecated
  */
 
 #define NV_CTRL_NOTEBOOK_DISPLAY_CHANGE_LID_EVENT               277 /* RW- */

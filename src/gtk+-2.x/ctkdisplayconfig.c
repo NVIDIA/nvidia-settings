@@ -4944,7 +4944,8 @@ static gint validation_auto_fix(CtkDisplayConfig *ctk_object)
  *
  **/
 
-static gchar * validate_screen(nvScreenPtr screen)
+static gchar * validate_screen(nvScreenPtr screen,
+                               gboolean *can_ignore_error)
 {
     nvDisplayPtr display;
     nvModePtr mode;
@@ -4957,6 +4958,7 @@ static gchar * validate_screen(nvScreenPtr screen)
 
     gchar bullet[8]; // UTF8 Bullet string
     int len;
+    gboolean is_implicit;
 
 
 
@@ -4969,6 +4971,7 @@ static gchar * validate_screen(nvScreenPtr screen)
 
         /* Count the number of display devices used in the metamode */
         num_displays = 0;
+        is_implicit = TRUE;
         for (display = screen->displays;
              display;
              display = display->next_in_screen) {
@@ -4979,6 +4982,11 @@ static gchar * validate_screen(nvScreenPtr screen)
             }
             if (mode->modeline) {
                 num_displays++;
+            } else if (mode->metamode) {
+                is_implicit = is_implicit &&
+                    (mode->metamode->source == METAMODE_SOURCE_IMPLICIT);
+            } else {
+                is_implicit = FALSE;
             }
         }
 
@@ -4992,6 +5000,7 @@ static gchar * validate_screen(nvScreenPtr screen)
             g_free(err_str);
             g_free(tmp);
             err_str = tmp2;
+            *can_ignore_error = *can_ignore_error && is_implicit;
         }
 
 
@@ -5005,6 +5014,7 @@ static gchar * validate_screen(nvScreenPtr screen)
             g_free(err_str);
             g_free(tmp);
             err_str = tmp2;
+            *can_ignore_error = FALSE;
         }
     }
 
@@ -5033,11 +5043,12 @@ static int validate_layout(CtkDisplayConfig *ctk_object, int validation_type)
     gchar *tmp;
     gint result;
     int num_absolute = 0;
+    gboolean can_ignore_error = TRUE;
 
 
     /* Validate each screen and count the number of screens using abs. pos. */
     for (screen = layout->screens; screen; screen = screen->next_in_layout) {
-        err_str = validate_screen(screen);
+        err_str = validate_screen(screen, &can_ignore_error);
         if (err_str) {
             tmp = g_strconcat((err_strs ? err_strs : ""), err_str, NULL);
             g_free(err_strs);
@@ -5078,6 +5089,14 @@ static int validate_layout(CtkDisplayConfig *ctk_object, int validation_type)
 
     /* Layout is valid */
     if (!err_strs) {
+        return 1;
+    }
+
+    /* Layout is not valid but inconsistencies are only due to implicit
+     * metamodes not having valid displays so we will ignore them.
+     */
+    if (err_strs && can_ignore_error) {
+        g_free(err_strs);
         return 1;
     }
 
