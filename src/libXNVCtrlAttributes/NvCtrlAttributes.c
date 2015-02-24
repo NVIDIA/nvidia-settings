@@ -393,8 +393,12 @@ int NvCtrlGetScreenWidth(const CtrlTarget *ctrl_target)
         return -1;
     }
 
+    if (h->target_id >= NvCtrlGetScreenCount(ctrl_target)) {
+        return -1;
+    }
+
     return DisplayWidth(h->dpy, h->target_id);
-    
+
 } /* NvCtrlGetScreenWidth() */
 
 
@@ -411,8 +415,12 @@ int NvCtrlGetScreenHeight(const CtrlTarget *ctrl_target)
         return -1;
     }
 
+    if (h->target_id >= NvCtrlGetScreenCount(ctrl_target)) {
+        return -1;
+    }
+
     return DisplayHeight(h->dpy, h->target_id);
-    
+
 } /* NvCtrlGetScreenHeight() */
 
 
@@ -519,8 +527,12 @@ int NvCtrlGetScreenWidthMM(const CtrlTarget *ctrl_target)
         return -1;
     }
 
+    if (h->target_id >= NvCtrlGetScreenCount(ctrl_target)) {
+        return -1;
+    }
+
     return DisplayWidthMM(h->dpy, h->target_id);
-    
+
 } /* NvCtrlGetScreenWidthMM() */
 
 
@@ -537,8 +549,12 @@ int NvCtrlGetScreenHeightMM(const CtrlTarget *ctrl_target)
         return -1;
     }
 
+    if (h->target_id >= NvCtrlGetScreenCount(ctrl_target)) {
+        return -1;
+    }
+
     return DisplayHeightMM(h->dpy, h->target_id);
-    
+
 } /* NvCtrlGetScreenHeightMM() */
 
 
@@ -555,8 +571,12 @@ int NvCtrlGetScreenPlanes(const CtrlTarget *ctrl_target)
         return -1;
     }
 
+    if (h->target_id >= NvCtrlGetScreenCount(ctrl_target)) {
+        return -1;
+    }
+
     return DisplayPlanes(h->dpy, h->target_id);
-    
+
 } /* NvCtrlGetScreenPlanes() */
 
 

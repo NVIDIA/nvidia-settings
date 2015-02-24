@@ -3410,6 +3410,8 @@ static Bool layout_add_screen_from_server(nvLayoutPtr layout,
     int val, tmp;
     ReturnStatus ret;
     gchar *primary_str = NULL;
+    gchar *screen_info = NULL;
+    GdkRectangle screen_parsed_info;
 
 
     screen = (nvScreenPtr)calloc(1, sizeof(nvScreen));
@@ -3508,8 +3510,30 @@ static Bool layout_add_screen_from_server(nvLayoutPtr layout,
     screen->depth = NvCtrlGetScreenPlanes(ctrl_target);
 
     /* Initialize the virtual X screen size */
-    screen->dim.width = NvCtrlGetScreenWidth(ctrl_target);
-    screen->dim.height = NvCtrlGetScreenHeight(ctrl_target);
+    ret = NvCtrlGetStringAttribute(ctrl_target,
+                                   NV_CTRL_STRING_SCREEN_RECTANGLE,
+                                   &screen_info);
+    if (ret != NvCtrlSuccess) {
+        screen_info = NULL;
+    }
+
+    if (screen_info) {
+
+        /* Parse the positioning information */
+        screen_parsed_info.width = -1;
+        screen_parsed_info.height = -1;
+
+        parse_token_value_pairs(screen_info, apply_screen_info_token,
+                                &screen_parsed_info);
+
+        if (screen_parsed_info.width >= 0 &&
+            screen_parsed_info.height >= 0) {
+
+            screen->dim.width = screen_parsed_info.width;
+            screen->dim.height = screen_parsed_info.height;
+        }
+        free(screen_info);
+    }
 
     /* Add the screen to the layout */
     layout_add_screen(layout, screen);
