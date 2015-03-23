@@ -2121,18 +2121,16 @@
 
 
 /*
- * NV_CTRL_SWITCH_TO_DISPLAYS - deprecated
+ * NV_CTRL_SWITCH_TO_DISPLAYS - not supported
  */
 
-#define NV_CTRL_SWITCH_TO_DISPLAYS                              276 /* deprecated */
+#define NV_CTRL_SWITCH_TO_DISPLAYS                              276 /* not supported */
 
 /*
- * NV_CTRL_NOTEBOOK_DISPLAY_CHANGE_LID_EVENT - deprecated
+ * NV_CTRL_NOTEBOOK_DISPLAY_CHANGE_LID_EVENT - not supported
  */
 
-#define NV_CTRL_NOTEBOOK_DISPLAY_CHANGE_LID_EVENT               277 /* RW- */
-#define NV_CTRL_NOTEBOOK_DISPLAY_CHANGE_LID_EVENT_CLOSE           0
-#define NV_CTRL_NOTEBOOK_DISPLAY_CHANGE_LID_EVENT_OPEN            1
+#define NV_CTRL_NOTEBOOK_DISPLAY_CHANGE_LID_EVENT               277 /* not supported */
 
 /*
  * NV_CTRL_NOTEBOOK_INTERNAL_LCD - deprecated
@@ -2477,9 +2475,13 @@
 #define NV_CTRL_GPU_COOLER_MANUAL_CONTROL_FALSE                   0
 #define NV_CTRL_GPU_COOLER_MANUAL_CONTROL_TRUE                    1
 
-/* 
- * NV_CTRL_THERMAL_COOLER_LEVEL - Returns cooler's current operating 
- * level.
+/*
+ * NV_CTRL_THERMAL_COOLER_LEVEL - The cooler's target level.
+ * Normally, the driver dynamically adjusts the cooler based on
+ * the needs of the GPU.  But when NV_CTRL_GPU_COOLER_MANUAL_CONTROL=TRUE,
+ * the driver will attempt to make the cooler achieve the setting in
+ * NV_CTRL_THERMAL_COOLER_LEVEL.  The actual current level of the cooler
+ * is reported in NV_CTRL_THERMAL_COOLER_CURRENT_LEVEL.
  */
 
 #define NV_CTRL_THERMAL_COOLER_LEVEL                            320 /* RW-C */
@@ -2722,8 +2724,11 @@
 #define NV_CTRL_GVI_TEST_MODE_ENABLE                              1
 
 /*
- * NV_CTRL_COLOR_SPACE - This option sets color space of the video
- * signal.
+ * NV_CTRL_COLOR_SPACE - This option controls the preferred color space of the
+ * video signal. This may not match the current color space depending on the
+ * current mode on this display.
+ *
+ * NV_CTRL_CURRENT_COLOR_SPACE will reflect the actual color space in use.
  */
 #define NV_CTRL_COLOR_SPACE                                     348 /* RWDG */
 #define NV_CTRL_COLOR_SPACE_RGB                                   0
@@ -2731,8 +2736,13 @@
 #define NV_CTRL_COLOR_SPACE_YCbCr444                              2
 
 /*
- * NV_CTRL_COLOR_RANGE - This option sets color range of the video
- * signal.
+ * NV_CTRL_COLOR_RANGE - This option controls the preferred color range of the
+ * video signal.
+ *
+ * If the current color space requires it, the actual color range will be
+ * limited.
+ *
+ * NV_CTRL_CURRENT_COLOR_RANGE will reflect the actual color range in use.
  */
 #define NV_CTRL_COLOR_RANGE                                     349 /* RWDG */
 #define NV_CTRL_COLOR_RANGE_FULL                                  0
@@ -3227,9 +3237,12 @@
 
 /*
  * NV_CTRL_XV_SYNC_TO_DISPLAY_ID - When XVideo Sync To VBlank is enabled, this
- * controls which display device will be synched to.
+ * controls which display device will be synched to if the display is enabled.
+ * Returns NV_CTRL_XV_SYNC_TO_DISPLAY_ID_AUTO if no display has been
+ * selected.
  */
 #define NV_CTRL_XV_SYNC_TO_DISPLAY_ID                           401 /* RW-  */
+#define NV_CTRL_XV_SYNC_TO_DISPLAY_ID_AUTO                      0xFFFFFFFF
 
 /*
  * NV_CTRL_BACKLIGHT_BRIGHTNESS - The backlight brightness of an internal panel.
@@ -3342,10 +3355,62 @@
  * This attribute is available on GPUs that support
  * NV_CTRL_GPU_OVER_VOLTAGE_OFFSET.
  */
-#define NV_CTRL_GPU_CURRENT_CORE_VOLTAGE                 413 /* R--G */
+#define NV_CTRL_GPU_CURRENT_CORE_VOLTAGE                        413 /* R--G */
 
-#define NV_CTRL_LAST_ATTRIBUTE NV_CTRL_GPU_CURRENT_CORE_VOLTAGE
+/*
+ * NV_CTRL_CURRENT_COLOR_SPACE - Returns the current color space of the video
+ * signal.
+ *
+ * This will match NV_CTRL_COLOR_SPACE unless the current mode on this display
+ * device is an HDMI 2.0 4K@60Hz mode and the display device or GPU does not
+ * support driving this mode in RGB, in which case YCbCr420 will be returned.
+ */
+#define NV_CTRL_CURRENT_COLOR_SPACE                             414 /* R-DG */
+#define NV_CTRL_CURRENT_COLOR_SPACE_RGB                           0
+#define NV_CTRL_CURRENT_COLOR_SPACE_YCbCr422                      1
+#define NV_CTRL_CURRENT_COLOR_SPACE_YCbCr444                      2
+#define NV_CTRL_CURRENT_COLOR_SPACE_YCbCr420                      3
 
+/*
+ * NV_CTRL_CURRENT_COLOR_RANGE - Returns the current color range of the video
+ * signal.
+ */
+#define NV_CTRL_CURRENT_COLOR_RANGE                             415 /* R-DG */
+#define NV_CTRL_CURRENT_COLOR_RANGE_FULL                          0
+#define NV_CTRL_CURRENT_COLOR_RANGE_LIMITED                       1
+
+/*
+ * NV_CTRL_SHOW_GSYNC_VISUAL_INDICATOR - when TRUE, OpenGL will indicate when
+ * G-SYNC is in use for full-screen applications.
+ */
+
+#define NV_CTRL_SHOW_GSYNC_VISUAL_INDICATOR                     416 /* RW-X */
+#define NV_CTRL_SHOW_GSYNC_VISUAL_INDICATOR_FALSE                 0
+#define NV_CTRL_SHOW_GSYNC_VISUAL_INDICATOR_TRUE                  1
+
+/*
+ * NV_CTRL_THERMAL_COOLER_CURRENT_LEVEL - Returns cooler's current
+ * operating level.  This may fluctuate dynamically.  When
+ * NV_CTRL_GPU_COOLER_MANUAL_CONTROL=TRUE, the driver attempts
+ * to make this match NV_CTRL_THERMAL_COOLER_LEVEL.  When
+ * NV_CTRL_GPU_COOLER_MANUAL_CONTROL=FALSE, the driver adjusts the
+ * current level based on the needs of the GPU.
+ */
+
+#define NV_CTRL_THERMAL_COOLER_CURRENT_LEVEL                    417 /* R--C */
+
+
+
+/*
+ * NV_CTRL_CURRENT_XV_SYNC_TO_DISPLAY_ID - When XVideo Sync To VBlank is
+ * enabled, this returns the display id of the device currently synched to.
+ * Returns NV_CTRL_XV_SYNC_TO_DISPLAY_ID_AUTO if no display is currently
+ * set.
+ */
+
+#define NV_CTRL_CURRENT_XV_SYNC_TO_DISPLAY_ID                   419 /* R--  */
+
+#define NV_CTRL_LAST_ATTRIBUTE NV_CTRL_CURRENT_XV_SYNC_TO_DISPLAY_ID
 
 /**************************************************************************/
 

@@ -934,7 +934,7 @@ static gboolean build_dithering_mode_table(CtkDitheringControls *ctk_dithering_c
 {
     CtrlTarget *ctrl_target = ctk_dithering_controls->ctrl_target;
     ReturnStatus ret;
-    NVCTRLAttributeValidValuesRec valid;
+    CtrlAttributeValidValues valid;
     gint i, n = 0, num_of_modes = 0, mask;
 
     if (ctk_dithering_controls->dithering_mode_table_size > 0 && 
@@ -948,7 +948,8 @@ static gboolean build_dithering_mode_table(CtkDitheringControls *ctk_dithering_c
                                       NV_CTRL_DITHERING_MODE,
                                       &valid);
 
-    if (ret != NvCtrlSuccess || valid.type != ATTRIBUTE_TYPE_INT_BITS) {
+    if ((ret != NvCtrlSuccess) ||
+        (valid.valid_type != CTRL_ATTRIBUTE_VALID_TYPE_INT_BITS)) {
         /* 
          * We do not have valid information to build a mode table
          * so we need to create default data for the placeholder menu.
@@ -966,7 +967,7 @@ static gboolean build_dithering_mode_table(CtkDitheringControls *ctk_dithering_c
     }
 
     /* count no. of supported modes */
-    mask = valid.u.bits.ints;
+    mask = valid.allowed_ints;
     while(mask) {
         mask = mask & (mask - 1);
         num_of_modes++;
@@ -981,7 +982,7 @@ static gboolean build_dithering_mode_table(CtkDitheringControls *ctk_dithering_c
     }
 
     for (i = 0; i < num_of_modes; i++) {
-        if (valid.u.bits.ints & (1 << i)) {
+        if (valid.allowed_ints & (1 << i)) {
             ctk_dithering_controls->dithering_mode_table[n] = i;
             n++;
         }

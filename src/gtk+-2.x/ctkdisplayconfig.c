@@ -1197,7 +1197,7 @@ GtkWidget* ctk_display_config_new(CtrlTarget *ctrl_target,
     ReturnStatus ret;
 
     const char *stereo_mode_str;
-    NVCTRLAttributeValidValuesRec valid;
+    CtrlAttributeValidValues valid;
     int stereo_mode, stereo_mode_max = NV_CTRL_STEREO_MAX;
 
     /*
@@ -1565,7 +1565,7 @@ GtkWidget* ctk_display_config_new(CtrlTarget *ctrl_target,
          * before the change was made. The newest at that time was HDMI_3D.
          */
 
-        if (valid.type == ATTRIBUTE_TYPE_INTEGER) {
+        if (valid.valid_type == CTRL_ATTRIBUTE_VALID_TYPE_INTEGER) {
             stereo_mode_max = NV_CTRL_STEREO_HDMI_3D;
         }
 
@@ -1578,9 +1578,11 @@ GtkWidget* ctk_display_config_new(CtrlTarget *ctrl_target,
                 break;
             }
 
-            if (stereo_mode_str && (valid.type == ATTRIBUTE_TYPE_INTEGER ||
-                                    (valid.type == ATTRIBUTE_TYPE_INT_BITS &&
-                                     valid.u.bits.ints & (1 << stereo_mode)))) {
+            if (stereo_mode_str &&
+                ((valid.valid_type == CTRL_ATTRIBUTE_VALID_TYPE_INTEGER) ||
+                 (((valid.valid_type == CTRL_ATTRIBUTE_VALID_TYPE_INT_BITS) &&
+                   (valid.allowed_ints & (1 << stereo_mode)))))) {
+
                 ctk_object->stereo_table[ctk_object->stereo_table_size++] =
                     stereo_mode;
                 ctk_combo_box_text_append_text(

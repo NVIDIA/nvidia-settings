@@ -77,8 +77,35 @@
 #define NV_DLSYM(handle, symbol) ({ dlerror(); dlsym(handle, symbol); })
 
 
-/* XXX Modify to be TRUE only for target types which actually need NV-CONTROL */
-#define TARGET_TYPE_NEEDS_NVCONTROL(_TARGET_TYPE_) (TRUE)
+/* Useful macros to deal with target types */
+
+#ifndef NVML_AVAILABLE
+#define TARGET_TYPE_IS_NVML_COMPATIBLE(_TARGET_TYPE) (FALSE)
+#else
+/* XXX Modify to be TRUE only for target types which are NVML-related */
+#define TARGET_TYPE_IS_NVML_COMPATIBLE(_TARGET_TYPE_) \
+    (((_TARGET_TYPE_) == GPU_TARGET) ||               \
+     ((_TARGET_TYPE_) == THERMAL_SENSOR_TARGET) ||    \
+     ((_TARGET_TYPE_) == COOLER_TARGET))
+#endif
+
+#define TARGET_TYPE_NEEDS_NVCONTROL(_TARGET_TYPE_)     \
+    (!(TARGET_TYPE_IS_NVML_COMPATIBLE(_TARGET_TYPE_)))
+
+
+/* Useful macros to deal with attribute names */
+
+#define ATTRIBUTE_NAME(_ATTR_, _ATTR_TYPE_)                  \
+    ((nv_get_attribute_entry(_ATTR_, _ATTR_TYPE_) != NULL) ? \
+     (nv_get_attribute_entry(_ATTR_, _ATTR_TYPE_)->name) :   \
+     ("Unknown"))
+
+#define INT_ATTRIBUTE_NAME(_ATTR_) ATTRIBUTE_NAME(_ATTR_, CTRL_ATTRIBUTE_TYPE_INTEGER)
+#define STR_ATTRIBUTE_NAME(_ATTR_) ATTRIBUTE_NAME(_ATTR_, CTRL_ATTRIBUTE_TYPE_STRING)
+#define SOP_ATTRIBUTE_NAME(_ATTR_) ATTRIBUTE_NAME(_ATTR_, CTRL_ATTRIBUTE_TYPE_STRING_OPERATION)
+#define BIN_ATTRIBUTE_NAME(_ATTR_) ATTRIBUTE_NAME(_ATTR_, CTRL_ATTRIBUTE_TYPE_BINARY_DATA)
+#define COL_ATTRIBUTE_NAME(_ATTR_) ATTRIBUTE_NAME(_ATTR_, CTRL_ATTRIBUTE_TYPE_COLOR)
+#define CSC_ATTRIBUTE_NAME(_ATTR_) ATTRIBUTE_NAME(_ATTR_, CTRL_ATTRIBUTE_TYPE_SDI_CSC)
 
 
 typedef struct __NvCtrlAttributes NvCtrlAttributes;
@@ -91,6 +118,7 @@ typedef struct __NvCtrlXvTextureAttributes NvCtrlXvTextureAttributes;
 typedef struct __NvCtrlXvBlitterAttributes NvCtrlXvBlitterAttributes;
 typedef struct __NvCtrlXvAttribute NvCtrlXvAttribute;
 typedef struct __NvCtrlXrandrAttributes NvCtrlXrandrAttributes;
+typedef struct __NvCtrlNvmlAttributes NvCtrlNvmlAttributes;
 typedef struct __NvCtrlEventPrivateHandle NvCtrlEventPrivateHandle;
 typedef struct __NvCtrlEventPrivateHandleNode NvCtrlEventPrivateHandleNode;
 
@@ -134,6 +162,15 @@ struct __NvCtrlXrandrAttributes {
     XRRCrtcGamma *pGammaRamp;
 };
 
+struct __NvCtrlNvmlAttributes {
+    unsigned int deviceIdx; /* XXX Needed while using NV-CONTROL as fallback */
+    unsigned int deviceCount;
+    unsigned int sensorCount;
+    unsigned int *sensorCountPerGPU;
+    unsigned int coolerCount;
+    unsigned int *coolerCountPerGPU;
+};
+
 struct __NvCtrlAttributePrivateHandle {
     Display *dpy;                   /* display connection */
     CtrlTargetType target_type;     /* Type of target this handle controls */
@@ -147,6 +184,9 @@ struct __NvCtrlAttributePrivateHandle {
     NvCtrlXvAttributes *xv;         /* XVideo info */
     Bool glx;                       /* GLX extension available */
     NvCtrlXrandrAttributes *xrandr; /* XRandR extension info */
+
+    /* NVML-specific attributes */
+    NvCtrlNvmlAttributes *nvml;
 };
 
 struct __NvCtrlEventPrivateHandle {
@@ -308,15 +348,20 @@ NvCtrlNvControlSetAttributeWithReply (NvCtrlAttributePrivateHandle *,
                                       unsigned int, int, int);
 
 ReturnStatus
+NvCtrlNvControlGetAttributePerms(const NvCtrlAttributePrivateHandle *,
+                                 CtrlAttributeType, int,
+                                 CtrlAttributePerms *);
+
+ReturnStatus
 NvCtrlNvControlGetValidAttributeValues(const NvCtrlAttributePrivateHandle *,
                                        unsigned int, int,
-                                       NVCTRLAttributeValidValuesRec *);
+                                       CtrlAttributeValidValues *);
 
 ReturnStatus
 NvCtrlNvControlGetValidStringDisplayAttributeValues
                                       (const NvCtrlAttributePrivateHandle *,
                                        unsigned int, int,
-                                       NVCTRLAttributeValidValuesRec *);
+                                       CtrlAttributeValidValues *);
 
 ReturnStatus
 NvCtrlNvControlGetStringAttribute(const NvCtrlAttributePrivateHandle *,
@@ -352,7 +397,33 @@ void NvCtrlAssignGammaInput(NvCtrlGammaInput *pGammaInput,
                             const unsigned int bitmask);
 
 /* NVML backend functions */
+
 ReturnStatus NvCtrlInitNvml(void);
 ReturnStatus NvCtrlDestroyNvml(void);
+
+NvCtrlNvmlAttributes *NvCtrlInitNvmlAttributes(NvCtrlAttributePrivateHandle *);
+void                  NvCtrlNvmlAttributesClose(NvCtrlAttributePrivateHandle *);
+
+ReturnStatus NvCtrlNvmlQueryTargetCount(const CtrlTarget *ctrl_target,
+                                        int target_type, int *val);
+ReturnStatus NvCtrlNvmlGetStringAttribute(const CtrlTarget *ctrl_target,
+                                          int attr, char **ptr);
+ReturnStatus NvCtrlNvmlSetStringAttribute(CtrlTarget *ctrl_target,
+                                          int attr, const char *ptr);
+ReturnStatus NvCtrlNvmlGetAttribute(const CtrlTarget *ctrl_target,
+                                    int attr, int64_t *val);
+ReturnStatus NvCtrlNvmlSetAttribute(CtrlTarget *ctrl_target, int attr,
+                                    int index, int val);
+ReturnStatus
+NvCtrlNvmlGetBinaryAttribute(const CtrlTarget *ctrl_target,
+                             int attr, unsigned char **data, int *len);
+ReturnStatus
+NvCtrlNvmlGetValidStringAttributeValues(const CtrlTarget *ctrl_target,
+                                        int attr,
+                                        CtrlAttributeValidValues *val);
+ReturnStatus
+NvCtrlNvmlGetValidAttributeValues(const CtrlTarget *ctrl_target,
+                                  int attr,
+                                  CtrlAttributeValidValues *val);
 
 #endif /* __NVCTRL_ATTRIBUTES_PRIVATE__ */

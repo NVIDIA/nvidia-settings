@@ -59,14 +59,15 @@ struct _CtkColorControls
     GtkWidget *color_controls_box;
 
     GtkWidget *color_range_menu;
+    GtkWidget *current_color_range_txt;
     GtkWidget *color_space_menu;
+    GtkWidget *current_color_space_txt;
 
     gint *color_space_table;
     gint color_space_table_size;
-    gint *color_range_table;
-    gint color_range_table_size;
     gint default_color_config;
     gint default_color_space;
+    gboolean current_color_attributes_supported;
     char *name;
 };
 

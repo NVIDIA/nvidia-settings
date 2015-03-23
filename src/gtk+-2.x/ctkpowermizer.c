@@ -95,7 +95,8 @@ static const char *__performance_levels_table_help =
 "performance level is indicated by a Performance Level number, along with "
 "the Graphics, Memory and Processor clocks for that level.  The currently active "
 "performance level is shown in regular text.  All other performance "
-"levels are shown in gray.";
+"levels are shown in gray.  Note that multiple performance levels may share "
+"the same range of available clocks.";
 
 static const char *__editable_performance_levels_table_help =
 "Each Performance Level that allows clock modifications will allow custom "
@@ -436,8 +437,8 @@ static void update_editable_perf_level_info(CtkPowermizer *ctk_powermizer)
 
     row_idx = 2; //reset value used to calculate vseparator.
     for (i = 0; i < ctk_powermizer->num_perf_levels; i++) {
-        NVCTRLAttributeValidValuesRec gpu_clock_valid_val;
-        NVCTRLAttributeValidValuesRec mem_transfer_rate_valid_val;
+        CtrlAttributeValidValues gpu_clock_valid_val;
+        CtrlAttributeValidValues mem_transfer_rate_valid_val;
         GtkWidget *txt_nvclock_offset = NULL;
         GtkWidget *txt_mem_transfer_rate_offset = NULL;
         gint gpu_clock_val = 0, mem_transfer_rate_val = 0;
@@ -451,7 +452,8 @@ static void update_editable_perf_level_info(CtkPowermizer *ctk_powermizer)
                                                        NV_CTRL_GPU_NVCLOCK_OFFSET,
                                                        &gpu_clock_valid_val);
             if ((ret == NvCtrlSuccess) &&
-                (gpu_clock_valid_val.permissions & ATTRIBUTE_TYPE_WRITE)) {
+                gpu_clock_valid_val.permissions.write) {
+
                 ret = NvCtrlGetDisplayAttribute(ctrl_target,
                                                 i,
                                                 NV_CTRL_GPU_NVCLOCK_OFFSET,
@@ -479,7 +481,8 @@ static void update_editable_perf_level_info(CtkPowermizer *ctk_powermizer)
                                                      NV_CTRL_GPU_MEM_TRANSFER_RATE_OFFSET,
                                                      &mem_transfer_rate_valid_val);
             if ((ret == NvCtrlSuccess) &&
-                (mem_transfer_rate_valid_val.permissions & ATTRIBUTE_TYPE_WRITE)) {
+                mem_transfer_rate_valid_val.permissions.write) {
+
                 ret =
                     NvCtrlGetDisplayAttribute(ctrl_target,
                                               i,
@@ -533,7 +536,7 @@ static void update_editable_perf_level_info(CtkPowermizer *ctk_powermizer)
                               col_idx+1, col_idx+2, row_idx, row_idx+1,
                               GTK_FILL, GTK_FILL | GTK_EXPAND, 5, 0);
              /* Min */
-             g_snprintf(tmp_str, 24, "%jd MHz", gpu_clock_valid_val.u.range.min);
+             g_snprintf(tmp_str, 24, "%jd MHz", gpu_clock_valid_val.range.min);
              label = gtk_label_new(tmp_str);
              gtk_widget_set_sensitive(label, active);
              gtk_misc_set_alignment(GTK_MISC(label), 0.0f, 0.5f);
@@ -541,7 +544,7 @@ static void update_editable_perf_level_info(CtkPowermizer *ctk_powermizer)
                               col_idx+2, col_idx+3, row_idx, row_idx+1,
                               GTK_FILL, GTK_FILL | GTK_EXPAND, 5, 0);
              /* Max */
-             g_snprintf(tmp_str, 24, "%jd MHz", gpu_clock_valid_val.u.range.max);
+             g_snprintf(tmp_str, 24, "%jd MHz", gpu_clock_valid_val.range.max);
              label = gtk_label_new(tmp_str);
              gtk_widget_set_sensitive(label, active);
              gtk_misc_set_alignment(GTK_MISC(label), 0.0f, 0.5f);
@@ -567,7 +570,7 @@ static void update_editable_perf_level_info(CtkPowermizer *ctk_powermizer)
 
              /* Min */
              g_snprintf(tmp_str, 24, "%jd MHz",
-                        mem_transfer_rate_valid_val.u.range.min);
+                        mem_transfer_rate_valid_val.range.min);
              label = gtk_label_new(tmp_str);
              gtk_widget_set_sensitive(label, active);
              gtk_misc_set_alignment(GTK_MISC(label), 0.0f, 0.5f);
@@ -576,7 +579,7 @@ static void update_editable_perf_level_info(CtkPowermizer *ctk_powermizer)
                               GTK_FILL, GTK_FILL | GTK_EXPAND, 5, 0);
              /* Max */
              g_snprintf(tmp_str, 24, "%jd MHz",
-                        mem_transfer_rate_valid_val.u.range.max);
+                        mem_transfer_rate_valid_val.range.max);
              label = gtk_label_new(tmp_str);
              gtk_widget_set_sensitive(label, active);
              gtk_misc_set_alignment(GTK_MISC(label), 0.0f, 0.5f);
@@ -1176,7 +1179,7 @@ GtkWidget* ctk_powermizer_new(CtrlTarget *ctrl_target,
     gboolean adaptive_clock_state_available = FALSE;
     gboolean cuda_dp_ui = FALSE;
     gboolean pcie_gen_queriable = FALSE;
-    NVCTRLAttributeValidValuesRec valid_modes;
+    CtrlAttributeValidValues valid_modes;
     char *clock_string = NULL;
     perfModeEntry pEntry;
 
@@ -1465,8 +1468,8 @@ GtkWidget* ctk_powermizer_new(CtrlTarget *ctrl_target,
                                         &valid_modes);
 
     if ((ret == NvCtrlSuccess) &&
-        (valid_modes.type == ATTRIBUTE_TYPE_INT_BITS)) {
-        const unsigned int bit_mask = valid_modes.u.bits.ints;
+        (valid_modes.valid_type == CTRL_ATTRIBUTE_VALID_TYPE_INT_BITS)) {
+        const unsigned int bit_mask = valid_modes.allowed_ints;
 
         hbox = gtk_hbox_new(FALSE, 0);
         gtk_box_pack_start(GTK_BOX(vbox), hbox, FALSE, FALSE, 0);

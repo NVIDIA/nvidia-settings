@@ -524,7 +524,7 @@ static void query_video_format_details(CtkGvo *ctk_gvo)
 {
     CtrlTarget *ctrl_target = ctk_gvo->ctrl_target;
     ReturnStatus ret;
-    NVCTRLAttributeValidValuesRec valid;
+    CtrlAttributeValidValues valid;
     gint i, val;
 
     /* Valid output video formats */
@@ -532,30 +532,33 @@ static void query_video_format_details(CtkGvo *ctk_gvo)
     ret = NvCtrlGetValidAttributeValues(ctrl_target,
                                         NV_CTRL_GVIO_REQUESTED_VIDEO_FORMAT,
                                         &valid);
-    if ((ret != NvCtrlSuccess) || (valid.type != ATTRIBUTE_TYPE_INT_BITS)) {
+    if ((ret != NvCtrlSuccess) ||
+        (valid.valid_type != CTRL_ATTRIBUTE_VALID_TYPE_INT_BITS)) {
         ctk_gvo->valid_output_video_format_mask[0] = 0;
     } else {
-        ctk_gvo->valid_output_video_format_mask[0] = valid.u.bits.ints;
+        ctk_gvo->valid_output_video_format_mask[0] = valid.allowed_ints;
     }
 
     ret = NvCtrlGetValidAttributeValues(ctrl_target,
                                         NV_CTRL_GVIO_REQUESTED_VIDEO_FORMAT2,
                                         &valid);
 
-    if ((ret != NvCtrlSuccess) || (valid.type != ATTRIBUTE_TYPE_INT_BITS)) {
+    if ((ret != NvCtrlSuccess) ||
+        (valid.valid_type != CTRL_ATTRIBUTE_VALID_TYPE_INT_BITS)) {
         ctk_gvo->valid_output_video_format_mask[1] = 0;
     } else {
-        ctk_gvo->valid_output_video_format_mask[1] = valid.u.bits.ints;
+        ctk_gvo->valid_output_video_format_mask[1] = valid.allowed_ints;
     }
 
     ret = NvCtrlGetValidAttributeValues(ctrl_target,
                                         NV_CTRL_GVIO_REQUESTED_VIDEO_FORMAT3,
                                         &valid);
 
-    if ((ret != NvCtrlSuccess) || (valid.type != ATTRIBUTE_TYPE_INT_BITS)) {
+    if ((ret != NvCtrlSuccess) ||
+        (valid.valid_type != CTRL_ATTRIBUTE_VALID_TYPE_INT_BITS)) {
         ctk_gvo->valid_output_video_format_mask[2] = 0;
     } else {
-        ctk_gvo->valid_output_video_format_mask[2] = valid.u.bits.ints;
+        ctk_gvo->valid_output_video_format_mask[2] = valid.allowed_ints;
     }
 
     for (i = 0; videoFormatDetails[i].format != -1; i++) {

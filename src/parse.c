@@ -129,6 +129,7 @@ const AttributeTableEntry attributeTable[] = {
     { "SLIMode",                          NV_CTRL_STRING_SLI_MODE,                      STR_ATTR, {0,0,0,0,1,0}, {}, "Returns a string describing the current SLI mode, if any." },
     { "MultiGpuMode",                     NV_CTRL_STRING_MULTIGPU_MODE,                 STR_ATTR, {0,0,0,0,1,0}, {}, "Returns a string describing the current MultiGPU mode, if any." },
     { "AllowGSYNC",                       NV_CTRL_GSYNC_ALLOWED,                        INT_ATTR, {0,0,0,0,0,0}, { .int_flags = {0,0,0,0,0,0,0} }, "Enables or disables the use of G-SYNC when available." },
+    { "ShowGSYNCVisualIndicator",         NV_CTRL_SHOW_GSYNC_VISUAL_INDICATOR,          INT_ATTR, {0,0,0,0,0,0}, { .int_flags = {0,0,0,0,0,0,0} }, "If this is enabled (1), the driver will draw an indicator showing whether G-SYNC is in use, when an application is swapping using flipping." },
 
     /* GPU */
     { "BusType",                          NV_CTRL_BUS_TYPE,                             INT_ATTR, {0,0,0,0,1,0}, { .int_flags = {0,0,0,0,0,0,0} }, "Returns the type of bus connecting the specified device to the computer.  If the target is an X screen, then it uses the GPU driving the X screen as the device." },
@@ -179,7 +180,8 @@ const AttributeTableEntry attributeTable[] = {
     { "ECCDoubleBitErrors",               NV_CTRL_GPU_ECC_DOUBLE_BIT_ERRORS,            INT_ATTR, {0,0,0,0,1,0}, { .int_flags = {0,0,0,0,0,0,0} }, "Returns the number of double-bit ECC errors detected by the targeted GPU since the last POST." },
     { "ECCAggregateDoubleBitErrors",      NV_CTRL_GPU_ECC_AGGREGATE_DOUBLE_BIT_ERRORS,  INT_ATTR, {0,0,0,0,1,0}, { .int_flags = {0,0,0,0,0,0,0} }, "Returns the number of double-bit ECC errors detected by the targeted GPU since the last counter reset." },
     { "GPUFanControlState",               NV_CTRL_GPU_COOLER_MANUAL_CONTROL,            INT_ATTR, {0,0,0,0,1,0}, { .int_flags = {0,0,0,0,0,0,0} }, "The current fan control state; the value of this attribute controls the availability of additional fan control attributes.  Note that this attribute is unavailable unless fan control support has been enabled by setting the \"Coolbits\" X config option." },
-    { "GPUCurrentFanSpeed",               NV_CTRL_THERMAL_COOLER_LEVEL,                 INT_ATTR, {0,0,0,0,1,0}, { .int_flags = {0,0,0,0,0,0,0} }, "Returns the GPU fan's current speed." },
+    { "GPUTargetFanSpeed",                NV_CTRL_THERMAL_COOLER_LEVEL,                 INT_ATTR, {0,0,0,0,1,0}, { .int_flags = {0,0,0,0,0,0,0} }, "Returns the GPU fan's target speed." },
+    { "GPUCurrentFanSpeed",               NV_CTRL_THERMAL_COOLER_CURRENT_LEVEL,         INT_ATTR, {0,0,0,0,1,0}, { .int_flags = {0,0,0,0,0,0,0} }, "Returns the GPU fan's current speed." },
     { "GPUResetFanSpeed",                 NV_CTRL_THERMAL_COOLER_LEVEL_SET_DEFAULT,     INT_ATTR, {0,0,0,0,1,0}, { .int_flags = {0,0,0,0,0,0,0} }, "Resets the GPU fan's speed to its default." },
     { "GPUCurrentFanSpeedRPM",            NV_CTRL_THERMAL_COOLER_SPEED,                 INT_ATTR, {0,0,0,0,1,0}, { .int_flags = {0,0,0,0,0,0,0} }, "Returns the GPU fan's tachometer-measured speed in rotations per minute (RPM)." },
     { "GPUFanControlType",                NV_CTRL_THERMAL_COOLER_CONTROL_TYPE,          INT_ATTR, {0,0,0,0,1,0}, { .int_flags = {0,0,0,0,0,0,0} }, "Returns how the GPU fan is controlled.  '1' means the fan can only be toggled on and off; '2' means the fan has variable speed.  '0' means the fan is restricted and cannot be adjusted under end user control." },
@@ -313,8 +315,10 @@ const AttributeTableEntry attributeTable[] = {
     { "RefreshRate",                      NV_CTRL_REFRESH_RATE,                         INT_ATTR, {0,0,0,0,1,0}, { .int_flags = {1,0,0,0,0,0,0} }, "Returns the refresh rate of the specified display device in cHz (Centihertz) (to get the refresh rate in Hz, divide the returned value by 100)." },
     { "RefreshRate3",                     NV_CTRL_REFRESH_RATE_3,                       INT_ATTR, {0,0,0,0,1,0}, { .int_flags = {0,1,0,0,0,0,0} }, "Returns the refresh rate of the specified display device in mHz (Millihertz) (to get the refresh rate in Hz, divide the returned value by 1000)." },
     { "OverscanCompensation",             NV_CTRL_OVERSCAN_COMPENSATION,                INT_ATTR, {0,0,0,0,0,0}, { .int_flags = {0,0,0,0,0,0,0} }, "Adjust the amount of overscan compensation scaling, in pixels, to apply to the specified display device." },
-    { "ColorSpace",                       NV_CTRL_COLOR_SPACE,                          INT_ATTR, {1,0,0,0,0,0}, { .int_flags = {0,0,0,0,0,0,0} }, "Sets the color space of the signal sent to the display device." },
-    { "ColorRange",                       NV_CTRL_COLOR_RANGE,                          INT_ATTR, {1,0,0,0,0,0}, { .int_flags = {0,0,0,0,0,0,0} }, "Sets the color range of the signal sent to the display device." },
+    { "ColorSpace",                       NV_CTRL_COLOR_SPACE,                          INT_ATTR, {1,0,0,0,0,0}, { .int_flags = {0,0,0,0,0,0,0} }, "Sets the preferred color space of the signal sent to the display device." },
+    { "ColorRange",                       NV_CTRL_COLOR_RANGE,                          INT_ATTR, {1,0,0,0,0,0}, { .int_flags = {0,0,0,0,0,0,0} }, "Sets the preferred color range of the signal sent to the display device." },
+    { "CurrentColorSpace",                NV_CTRL_CURRENT_COLOR_SPACE,                  INT_ATTR, {1,0,0,0,1,0}, { .int_flags = {0,0,0,0,0,0,0} }, "Returns the current color space of the signal sent to the display device." },
+    { "CurrentColorRange",                NV_CTRL_CURRENT_COLOR_RANGE,                  INT_ATTR, {1,0,0,0,1,0}, { .int_flags = {0,0,0,0,0,0,0} }, "Returns the current color range of the signal sent to the display device." },
     { "SynchronousPaletteUpdates",        NV_CTRL_SYNCHRONOUS_PALETTE_UPDATES,          INT_ATTR, {0,0,0,0,0,0}, { .int_flags = {0,0,0,0,0,0,0} }, "Controls whether colormap updates are synchronized with X rendering." },
     { "CurrentMetaModeID",                NV_CTRL_CURRENT_METAMODE_ID,                  INT_ATTR, {0,0,0,0,1,0}, { .int_flags = {0,0,0,0,0,0,0} }, "The ID of the current MetaMode." },
     { "RandROutputID",                    NV_CTRL_DISPLAY_RANDR_OUTPUT_ID,              INT_ATTR, {0,0,0,0,1,0}, { .int_flags = {0,0,0,0,0,0,0} }, "The RandR Output ID that corresponds to the display device." },
@@ -334,7 +338,8 @@ const AttributeTableEntry attributeTable[] = {
 
     /* X Video */
     { "XVideoSyncToDisplay",              NV_CTRL_XV_SYNC_TO_DISPLAY,                   INT_ATTR, {0,0,0,0,1,0}, { .int_flags = {0,0,0,1,0,1,0} }, "DEPRECATED: Use \"XVideoSyncToDisplayID\" instead." },
-    { "XVideoSyncToDisplayID",            NV_CTRL_XV_SYNC_TO_DISPLAY_ID,                INT_ATTR, {0,0,0,0,0,0}, { .int_flags = {0,0,0,0,1,0,0} }, "Controls which display device is synced to by the texture and blitter adaptors when they are set to synchronize to the vertical blanking." },
+    { "XVideoSyncToDisplayID",            NV_CTRL_XV_SYNC_TO_DISPLAY_ID,                INT_ATTR, {0,0,0,0,0,0}, { .int_flags = {0,0,0,0,1,0,0} }, "Controls which display device is synced to by the XVideo texture and blitter adaptors when they are set to synchronize to the vertical blanking." },
+    { "CurrentXVideoSyncToDisplayID",     NV_CTRL_CURRENT_XV_SYNC_TO_DISPLAY_ID,        INT_ATTR, {0,0,0,0,1,0}, { .int_flags = {0,0,0,0,1,0,0} }, "Returns the display device synced to by the XVideo texture and blitter adaptors when they are set to synchronize to the vertical blanking." },
 
     /* 3D Vision Pro */
     { "3DVisionProResetTransceiverToFactorySettings", NV_CTRL_3D_VISION_PRO_RESET_TRANSCEIVER_TO_FACTORY_SETTINGS, INT_ATTR, {0,0,0,0,1,0}, { .int_flags = {0,0,0,0,0,0,0} }, "Resets the 3D Vision Pro transceiver to its factory settings."},
@@ -375,7 +380,7 @@ const int attributeTableLen = ARRAY_LEN(attributeTable);
  * the last attribute that the table knows about.
  */
 
-#if NV_CTRL_LAST_ATTRIBUTE != NV_CTRL_GPU_CURRENT_CORE_VOLTAGE
+#if NV_CTRL_LAST_ATTRIBUTE != NV_CTRL_CURRENT_XV_SYNC_TO_DISPLAY_ID
 #warning "Have you forgotten to add a new integer attribute to attributeTable?"
 #endif
 

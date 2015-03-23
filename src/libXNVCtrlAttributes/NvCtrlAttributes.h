@@ -61,7 +61,7 @@ typedef struct {
     char *parsed_name; /* name used by parser */
     int nvctrl;        /* NV-CONTROL target type value (NV_CTRL_TARGET_TYPE) */
 
-    /* flag set in NVCTRLAttributeValidValuesRec.permissions */
+    /* flag set in CtrlAttributePerms.valid_targets */
     unsigned int permission_bit;
 
     /* whether this target type is aware of display devices */
@@ -268,6 +268,7 @@ typedef enum {
     NvCtrlReadOnlyAttribute,
     NvCtrlWriteOnlyAttribute,
     NvCtrlAttributeNotAvailable,
+    NvCtrlNotSupported,
     NvCtrlError
 } ReturnStatus;
 
@@ -335,6 +336,38 @@ typedef struct {
     unsigned int valid_targets;
 
 } CtrlAttributePerms;
+
+
+/*
+ * Used to return valid values of an attribute
+ */
+typedef enum {
+    CTRL_ATTRIBUTE_VALID_TYPE_UNKNOWN = 0,
+    CTRL_ATTRIBUTE_VALID_TYPE_INTEGER,
+    CTRL_ATTRIBUTE_VALID_TYPE_BITMASK,
+    CTRL_ATTRIBUTE_VALID_TYPE_BOOL,
+    CTRL_ATTRIBUTE_VALID_TYPE_RANGE,
+    CTRL_ATTRIBUTE_VALID_TYPE_INT_BITS,
+    CTRL_ATTRIBUTE_VALID_TYPE_64BIT_INTEGER,
+    CTRL_ATTRIBUTE_VALID_TYPE_STRING,
+    CTRL_ATTRIBUTE_VALID_TYPE_BINARY_DATA,
+    CTRL_ATTRIBUTE_VALID_TYPE_STRING_OPERATION,
+} CtrlAttributeValidType;
+
+typedef struct {
+    CtrlAttributeValidType valid_type;
+    union {
+        /* Only used by RANGE attributes */
+        struct {
+            int64_t min;
+            int64_t max;
+        } range;
+
+        /* Only used by INT_BITS attributes */
+        unsigned int allowed_ints;
+    };
+    CtrlAttributePerms permissions;
+} CtrlAttributeValidValues;
 
 
 /*
@@ -466,12 +499,14 @@ typedef struct {
 #define NV_CTRL_ATTRIBUTES_XVIDEO_SUBSYSTEM       0x4
 #define NV_CTRL_ATTRIBUTES_GLX_SUBSYSTEM          0x8
 #define NV_CTRL_ATTRIBUTES_XRANDR_SUBSYSTEM       0x10
+#define NV_CTRL_ATTRIBUTES_NVML_SUBSYSTEM         0x20
 #define NV_CTRL_ATTRIBUTES_ALL_SUBSYSTEMS    \
  (NV_CTRL_ATTRIBUTES_NV_CONTROL_SUBSYSTEM  | \
   NV_CTRL_ATTRIBUTES_XF86VIDMODE_SUBSYSTEM | \
   NV_CTRL_ATTRIBUTES_XVIDEO_SUBSYSTEM      | \
   NV_CTRL_ATTRIBUTES_GLX_SUBSYSTEM         | \
-  NV_CTRL_ATTRIBUTES_XRANDR_SUBSYSTEM)
+  NV_CTRL_ATTRIBUTES_XRANDR_SUBSYSTEM      | \
+  NV_CTRL_ATTRIBUTES_NVML_SUBSYSTEM)
 
 
 
@@ -598,13 +633,12 @@ ReturnStatus NvCtrlGetVoidAttribute(const CtrlTarget *ctrl_target,
 
 /*
  * NvCtrlGetValidAttributeValues() - get the valid settable values for
- * the specified attribute.  See the description of
- * NVCTRLAttributeValidValuesRec in NVCtrl.h.
+ * the specified attribute.
  */
 
 ReturnStatus NvCtrlGetValidAttributeValues(const CtrlTarget *ctrl_target,
                                            int attr,
-                                           NVCTRLAttributeValidValuesRec *val);
+                                           CtrlAttributeValidValues *val);
 
 
 /*
@@ -612,7 +646,7 @@ ReturnStatus NvCtrlGetValidAttributeValues(const CtrlTarget *ctrl_target,
  */
 
 ReturnStatus NvCtrlGetAttributePerms(const CtrlTarget *ctrl_target,
-                                     int attr_type,
+                                     CtrlAttributeType attr_type,
                                      int attr,
                                      CtrlAttributePerms *perms);
 
@@ -658,11 +692,11 @@ ReturnStatus NvCtrlGetVoidDisplayAttribute(const CtrlTarget *ctrl_target,
 ReturnStatus
 NvCtrlGetValidDisplayAttributeValues(const CtrlTarget *ctrl_target,
                                      unsigned int display_mask, int attr,
-                                     NVCTRLAttributeValidValuesRec *val);
+                                     CtrlAttributeValidValues *val);
 ReturnStatus
 NvCtrlGetValidStringDisplayAttributeValues(const CtrlTarget *ctrl_target,
                                            unsigned int display_mask, int attr,
-                                           NVCTRLAttributeValidValuesRec *val);
+                                           CtrlAttributeValidValues *val);
 
 ReturnStatus NvCtrlGetStringDisplayAttribute(const CtrlTarget *ctrl_target,
                                              unsigned int display_mask,

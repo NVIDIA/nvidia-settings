@@ -149,20 +149,17 @@ static void xv_sync_to_display_set_enabled(CtkXVideo *ctk_xvideo,
 
 
 /*
- * xv_sync_to_display_radio_button_add() - create a radio button and plug it
- * into the xv_sync_display_buttons radio group.
+ * xv_sync_to_display_radio_button_label() - create the label for the radio
+ * button widget specified.
  */
-static GtkWidget *xv_sync_to_display_radio_button_add(CtkXVideo *ctk_xvideo,
-                                                      GtkWidget *last_button,
-                                                      gint display_id)
+static gchar *xv_sync_to_display_radio_button_label(CtkXVideo *ctk_xvideo,
+                                                    gint display_id)
 {
     CtrlTarget *ctrl_target;
     ReturnStatus ret;
     char *name = NULL;
     char *randr = NULL;
     gchar *label;
-    GtkWidget *button;
-    GSList *slist;
 
     ctrl_target = NvCtrlGetTarget(ctk_xvideo->ctrl_target->system,
                                   DISPLAY_TARGET, display_id);
@@ -190,6 +187,27 @@ static GtkWidget *xv_sync_to_display_radio_button_add(CtkXVideo *ctk_xvideo,
 
     free(name);
     free(randr);
+
+    return label;
+}
+
+/*
+ * xv_sync_to_display_radio_button_add() - create a radio button and plug it
+ * into the xv_sync_display_buttons radio group.
+ */
+static GtkWidget *xv_sync_to_display_radio_button_add(CtkXVideo *ctk_xvideo,
+                                                      GtkWidget *last_button,
+                                                      gint display_id)
+{
+    gchar *label;
+    GtkWidget *button;
+    GSList *slist;
+
+    if (display_id == NV_CTRL_XV_SYNC_TO_DISPLAY_ID_AUTO) {
+        label = g_strdup("Auto");
+    } else {
+        label = xv_sync_to_display_radio_button_label(ctk_xvideo, display_id);
+    }
 
     if (last_button) {
         slist = gtk_radio_button_get_group(GTK_RADIO_BUTTON(last_button));
@@ -232,6 +250,7 @@ static void xv_sync_to_display_rebuild_buttons(CtkXVideo *ctk_xvideo,
     int i;
 
     GtkWidget *last_button;
+    GtkWidget *button;
     CtrlTarget *ctrl_target = ctk_xvideo->ctrl_target;
 
 
@@ -262,11 +281,21 @@ static void xv_sync_to_display_rebuild_buttons(CtkXVideo *ctk_xvideo,
     }
 
 
-    /* Add a button for each display device */
-
+    /* Add a button for No Display Specified */
     last_button = NULL;
+    button = xv_sync_to_display_radio_button_add(ctk_xvideo, NULL,
+                                                 NV_CTRL_XV_SYNC_TO_DISPLAY_ID_AUTO);
+
+    if (button) {
+        /* Track the first button */
+        if (!last_button) {
+            ctk_xvideo->xv_sync_to_display_buttons = button;
+        }
+
+        last_button = button;
+    }
+    /* Add a button for each display device */
     for (i = 0; i < pData[0]; i++) {
-        GtkWidget *button;
         int display_id = pData[1+i];
 
         button = xv_sync_to_display_radio_button_add(ctk_xvideo,
@@ -308,6 +337,35 @@ static void  enabled_displays_handler(GObject *object, gpointer arg1,
 }
 
 
+/*
+ * Finds the radio button matching value and selects it and returns 1. If
+ * the value is not found, return 0.
+ */
+static int xv_sync_to_display_enable_index(CtkXVideo *ctk_xvideo, int value)
+{
+    gpointer user_data;
+    GSList *slist = gtk_radio_button_get_group(
+                        GTK_RADIO_BUTTON(ctk_xvideo->xv_sync_to_display_buttons));
+
+    while (slist) {
+        GtkWidget *button = GTK_WIDGET(slist->data);
+
+        user_data = g_object_get_data(G_OBJECT(button), "display_id");
+        if (GPOINTER_TO_INT(user_data) == value &&
+            value != NV_CTRL_XV_SYNC_TO_DISPLAY_ID_AUTO) {
+            xv_sync_to_display_set_enabled(ctk_xvideo, button, TRUE);
+            return 1;
+        } else {
+            xv_sync_to_display_set_enabled(ctk_xvideo, button, FALSE);
+        }
+
+        slist = g_slist_next(slist);
+    }
+
+    return 0;
+
+}
+
 
 /*
  * Handler for NV_CTRL_XV_SYNC_TO_DISPLAY_ID events.
@@ -317,28 +375,47 @@ static void xv_sync_to_display_id_handler(GObject *object,
                                           gpointer user_data)
 {
     CtkXVideo *ctk_xvideo = CTK_XVIDEO(user_data);
-    GSList *slist;
 
     if (event->type != CTRL_EVENT_TYPE_INTEGER_ATTRIBUTE) {
         return;
     }
 
-    /* Find the right button and enable it */
-
-    slist =
-        gtk_radio_button_get_group(GTK_RADIO_BUTTON(ctk_xvideo->xv_sync_to_display_buttons));
-
-    while (slist) {
-        GtkWidget *button = GTK_WIDGET(slist->data);
-
-        user_data = g_object_get_data(G_OBJECT(button), "display_id");
-        if (GPOINTER_TO_INT(user_data) == event->int_attr.value) {
-            xv_sync_to_display_set_enabled(ctk_xvideo, button, TRUE);
-            break;
-        }
-
-        slist = g_slist_next(slist);
+    /*
+     * Find and enable the button for the correct display id, otherwise enable
+     * the unspecified option.
+     */
+    if (!xv_sync_to_display_enable_index(ctk_xvideo, event->int_attr.value))
+    {
+        xv_sync_to_display_enable_index(ctk_xvideo,
+                                        NV_CTRL_XV_SYNC_TO_DISPLAY_ID_AUTO);
     }
+}
+
+
+/*
+ * Handler for NV_CTRL_CURRENT_XV_SYNC_TO_DISPLAY_ID events.
+ */
+static void current_xv_sync_to_display_id_handler(GObject *object,
+                                                  CtrlEvent *event,
+                                                  gpointer user_data)
+{
+    CtkXVideo *ctk_xvideo = CTK_XVIDEO(user_data);
+    gchar *current_sync_name;
+
+    if (event->type != CTRL_EVENT_TYPE_INTEGER_ATTRIBUTE) {
+        return;
+    }
+
+    /*
+     * Find and enable the button for the correct display id, otherwise enable
+     * the unspecified option.
+     */
+    current_sync_name =
+        xv_sync_to_display_radio_button_label(ctk_xvideo, event->int_attr.value);
+
+    gtk_label_set_text(GTK_LABEL(ctk_xvideo->current_xv_sync_to_display_label),
+                       current_sync_name);
+    g_free(current_sync_name);
 }
 
 
@@ -356,9 +433,14 @@ GtkWidget* ctk_xvideo_new(CtrlTarget *ctrl_target,
     GtkWidget *frame;
     GtkWidget *alignment;
     GtkWidget *vbox;
+    GtkWidget *hbox;
+    GtkWidget *label;
+    GtkWidget *hseparator;
     int xv_overlay_present, xv_texture_present, xv_blitter_present;
+    int display_id;
     gboolean show_page;
     ReturnStatus ret;
+    gchar *current_sync_name;
 
     /*
      * before we do anything else, determine if any of the Xv adapters
@@ -391,7 +473,6 @@ GtkWidget* ctk_xvideo_new(CtrlTarget *ctrl_target,
 
     show_page = FALSE;
     if (xv_texture_present || xv_blitter_present) {
-        int display_id;
         ret = NvCtrlGetAttribute(ctrl_target,
                                  NV_CTRL_XV_SYNC_TO_DISPLAY_ID,
                                  &display_id);
@@ -422,6 +503,40 @@ GtkWidget* ctk_xvideo_new(CtrlTarget *ctrl_target,
     banner = ctk_banner_image_new(BANNER_ARTWORK_XVIDEO);
     gtk_box_pack_start(GTK_BOX(object), banner, FALSE, FALSE, 0);
 
+    /* Top Label */
+
+    hbox = gtk_hbox_new(FALSE, 5);
+    gtk_box_pack_start(GTK_BOX(object), hbox, FALSE, FALSE, 0);
+
+    label = gtk_label_new("Xvideo Settings");
+    gtk_box_pack_start(GTK_BOX(hbox), label, FALSE, FALSE, 0);
+
+    hseparator = gtk_hseparator_new();
+    gtk_box_pack_start(GTK_BOX(hbox), hseparator, TRUE, TRUE, 0);
+
+    /* Current Sync Value */
+
+    ret = NvCtrlGetAttribute(ctrl_target,
+                             NV_CTRL_CURRENT_XV_SYNC_TO_DISPLAY_ID,
+                             &display_id);
+    if (ret == NvCtrlSuccess) {
+        hbox = gtk_hbox_new(FALSE, 5);
+        gtk_box_pack_start(GTK_BOX(object), hbox, FALSE, FALSE, 5);
+
+        label = gtk_label_new("Currently synced to display:");
+        gtk_box_pack_start(GTK_BOX(hbox), label, FALSE, FALSE, 5);
+        label = gtk_label_new("");
+        gtk_box_pack_start(GTK_BOX(hbox), label, FALSE, FALSE, 5);
+
+        current_sync_name = xv_sync_to_display_radio_button_label(ctk_xvideo,
+                                                                  display_id);
+        gtk_label_set_text(GTK_LABEL(label), current_sync_name);
+        g_free(current_sync_name);
+
+        ctk_xvideo->current_xv_sync_to_display_label = label;
+    } else {
+        ctk_xvideo->current_xv_sync_to_display_label = NULL;
+    }
 
     /* Sync to display selection */
 
@@ -439,6 +554,13 @@ GtkWidget* ctk_xvideo_new(CtrlTarget *ctrl_target,
                      CTK_EVENT_NAME(NV_CTRL_XV_SYNC_TO_DISPLAY_ID),
                      G_CALLBACK(xv_sync_to_display_id_handler),
                      (gpointer) ctk_xvideo);
+
+    if (ctk_xvideo->current_xv_sync_to_display_label) {
+        g_signal_connect(G_OBJECT(ctk_event),
+                         CTK_EVENT_NAME(NV_CTRL_CURRENT_XV_SYNC_TO_DISPLAY_ID),
+                         G_CALLBACK(current_xv_sync_to_display_id_handler),
+                         (gpointer) ctk_xvideo);
+    }
 
     g_signal_connect(G_OBJECT(ctk_event),
                      CTK_EVENT_NAME(NV_CTRL_ENABLED_DISPLAYS),

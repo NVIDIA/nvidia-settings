@@ -438,7 +438,7 @@ static void setup_scale(CtkImageSliders *ctk_image_sliders,
 {
     CtrlTarget *ctrl_target = ctk_image_sliders->ctrl_target;
     ReturnStatus ret0, ret1;
-    NVCTRLAttributeValidValuesRec valid;
+    CtrlAttributeValidValues valid;
     int val;
     GtkAdjustment *adj = CTK_SCALE(scale)->gtk_adjustment;
 
@@ -449,13 +449,13 @@ static void setup_scale(CtkImageSliders *ctk_image_sliders,
     ret1 = NvCtrlGetAttribute(ctrl_target, attribute, &val);
 
     if ((ret0 == NvCtrlSuccess) && (ret1 == NvCtrlSuccess) &&
-        (valid.type == ATTRIBUTE_TYPE_RANGE)) {
+        (valid.valid_type == CTRL_ATTRIBUTE_VALID_TYPE_RANGE)) {
 
         g_signal_handlers_block_by_func(adj, scale_value_changed,
                                         ctk_image_sliders);
 
-        ctk_adjustment_set_lower(adj, valid.u.range.min);
-        ctk_adjustment_set_upper(adj, valid.u.range.max);
+        ctk_adjustment_set_lower(adj, valid.range.min);
+        ctk_adjustment_set_upper(adj, valid.range.max);
         gtk_adjustment_changed(GTK_ADJUSTMENT(adj));
 
         gtk_adjustment_set_value(GTK_ADJUSTMENT(adj), val);

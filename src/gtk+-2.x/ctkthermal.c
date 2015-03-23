@@ -566,10 +566,10 @@ static void apply_button_clicked(GtkWidget *widget, gpointer user_data)
                 if (gtk_toggle_button_get_active(GTK_TOGGLE_BUTTON(
                                        ctk_thermal->cooler_control[i].widget))) {
                     cooler_level =
-                        ctk_thermal->cooler_control[i].range.u.range.max;
+                        ctk_thermal->cooler_control[i].range.range.max;
                 } else { 
                     cooler_level = 
-                        ctk_thermal->cooler_control[i].range.u.range.min;
+                        ctk_thermal->cooler_control[i].range.range.min;
                 }
             }
 
@@ -583,9 +583,9 @@ static void apply_button_clicked(GtkWidget *widget, gpointer user_data)
                                              "Failed to set new Fan Speed!");
                 return;
             }
+            ctk_thermal->cooler_control[i].changed = FALSE;
         }
     }
-    ctk_thermal->cooler_control[i].changed = FALSE;
     ctk_thermal->settings_changed = FALSE;
     ctk_thermal->enable_reset_button = TRUE;
     
@@ -701,7 +701,7 @@ static void sync_gui_to_modify_cooler_level(CtkThermal *ctk_thermal)
 {
     GtkRange *gtk_range;
     GtkAdjustment *gtk_adjustment_fan;
-    NVCTRLAttributeValidValuesRec cooler_range;
+    CtrlAttributeValidValues cooler_range;
     gboolean can_access_cooler_level = TRUE;
     ReturnStatus ret;
     gint val, i, enabled;
@@ -741,8 +741,8 @@ static void sync_gui_to_modify_cooler_level(CtkThermal *ctk_thermal)
                                         G_CALLBACK(adjustment_value_changed),
                                         (gpointer) ctk_thermal);
                     gtk_range_set_range(gtk_range,
-                      ctk_thermal->cooler_control[i].range.u.range.min,
-                      ctk_thermal->cooler_control[i].range.u.range.max);
+                      ctk_thermal->cooler_control[i].range.range.min,
+                      ctk_thermal->cooler_control[i].range.range.max);
 
                     val = gtk_adjustment_get_value(gtk_adjustment_fan);
                     if (val != ctk_thermal->cooler_control[i].level) {
@@ -1059,8 +1059,8 @@ GtkWidget* ctk_thermal_new(CtrlTarget *ctrl_target,
     ReturnStatus ret1;
     CtrlTarget *cooler_target;
     CtrlTarget *sensor_target;
-    NVCTRLAttributeValidValuesRec cooler_range;
-    NVCTRLAttributeValidValuesRec sensor_range;
+    CtrlAttributeValidValues cooler_range;
+    CtrlAttributeValidValues sensor_range;
     gint trigger, core, ambient;
     gint upper;
     gchar *s;
@@ -1239,7 +1239,7 @@ GtkWidget* ctk_thermal_new(CtrlTarget *ctrl_target,
                                                 &sensor_range);
             if (ret != NvCtrlSuccess) {
                 /* sensor information unavailable */
-                sensor_range.u.range.min = sensor_range.u.range.max = 0;
+                sensor_range.range.min = sensor_range.range.max = 0;
             }
 
             ret = NvCtrlGetAttribute(sensor_target,
@@ -1259,8 +1259,8 @@ GtkWidget* ctk_thermal_new(CtrlTarget *ctrl_target,
             /* print sensor related information */
             draw_sensor_gui(vbox, ctk_thermal, thermal_sensor_target_type_supported,
                             cur_sensor_idx,
-                            reading, sensor_range.u.range.min,
-                            sensor_range.u.range.max, target, provider);
+                            reading, sensor_range.range.min,
+                            sensor_range.range.max, target, provider);
             cur_sensor_idx++;
         }
     } else {
@@ -1435,8 +1435,8 @@ sensor_end:
 
                 adjustment =
                     GTK_ADJUSTMENT(gtk_adjustment_new(cooler_level,
-                                                      cooler_range.u.range.min,
-                                                      cooler_range.u.range.max,
+                                                      cooler_range.range.min,
+                                                      cooler_range.range.max,
                                                       1, 5, 0.0));
                 name = g_strdup_printf("Fan %d Speed", cur_cooler_idx);
                 scale = ctk_scale_new(GTK_ADJUSTMENT(adjustment), name,

@@ -54,6 +54,7 @@ struct _CtkXVideo
     CtrlTarget *ctrl_target;
     CtkConfig *ctk_config;
 
+    GtkWidget *current_xv_sync_to_display_label;
     GtkWidget *xv_sync_to_display_buttons; /* first button in group */
 
     GtkWidget *xv_sync_to_display_button_box;

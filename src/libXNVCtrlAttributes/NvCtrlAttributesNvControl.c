@@ -252,14 +252,152 @@ ReturnStatus NvCtrlNvControlSetAttribute (NvCtrlAttributePrivateHandle *h,
 }
 
 
+/*
+ * Helper function for converting NV-CONTROL specific permission data into
+ * CtrlAttributePerms (API agnostic) permission data that the front-end can use.
+ */
+
+static void convertFromNvCtrlPermissions(CtrlAttributePerms *dst,
+                                         unsigned int permissions)
+{
+    memset(dst, 0, sizeof(*dst));
+
+    dst->read = (permissions & ATTRIBUTE_TYPE_READ) ? NV_TRUE : NV_FALSE;
+    dst->write = (permissions & ATTRIBUTE_TYPE_WRITE) ? NV_TRUE : NV_FALSE;
+
+    if (permissions & ATTRIBUTE_TYPE_X_SCREEN) {
+        dst->valid_targets |= CTRL_TARGET_PERM_BIT(X_SCREEN_TARGET);
+    }
+    if (permissions & ATTRIBUTE_TYPE_DISPLAY) {
+        dst->valid_targets |= CTRL_TARGET_PERM_BIT(DISPLAY_TARGET);
+    }
+    if (permissions & ATTRIBUTE_TYPE_GPU) {
+        dst->valid_targets |= CTRL_TARGET_PERM_BIT(GPU_TARGET);
+    }
+    if (permissions & ATTRIBUTE_TYPE_FRAMELOCK) {
+        dst->valid_targets |= CTRL_TARGET_PERM_BIT(FRAMELOCK_TARGET);
+    }
+    if (permissions & ATTRIBUTE_TYPE_VCSC) {
+        dst->valid_targets |= CTRL_TARGET_PERM_BIT(VCS_TARGET);
+    }
+    if (permissions & ATTRIBUTE_TYPE_GVI) {
+        dst->valid_targets |= CTRL_TARGET_PERM_BIT(GVI_TARGET);
+    }
+    if (permissions & ATTRIBUTE_TYPE_COOLER) {
+        dst->valid_targets |= CTRL_TARGET_PERM_BIT(COOLER_TARGET);
+    }
+    if (permissions & ATTRIBUTE_TYPE_THERMAL_SENSOR) {
+        dst->valid_targets |= CTRL_TARGET_PERM_BIT(THERMAL_SENSOR_TARGET);
+    }
+    if (permissions & ATTRIBUTE_TYPE_3D_VISION_PRO_TRANSCEIVER) {
+        dst->valid_targets |=
+            CTRL_TARGET_PERM_BIT(NVIDIA_3D_VISION_PRO_TRANSCEIVER_TARGET);
+    }
+}
+
+
+ReturnStatus
+NvCtrlNvControlGetAttributePerms(const NvCtrlAttributePrivateHandle *h,
+                                 CtrlAttributeType attr_type, int attr,
+                                 CtrlAttributePerms *perms)
+{
+    NVCTRLAttributePermissionsRec nvctrlPerms;
+
+    switch (attr_type) {
+        case CTRL_ATTRIBUTE_TYPE_INTEGER:
+            XNVCTRLQueryAttributePermissions(h->dpy, attr, &nvctrlPerms);
+            convertFromNvCtrlPermissions(perms, nvctrlPerms.permissions);
+            break;
+
+        case CTRL_ATTRIBUTE_TYPE_STRING:
+            XNVCTRLQueryStringAttributePermissions(h->dpy, attr, &nvctrlPerms);
+            convertFromNvCtrlPermissions(perms, nvctrlPerms.permissions);
+            break;
+
+        case CTRL_ATTRIBUTE_TYPE_BINARY_DATA:
+            XNVCTRLQueryBinaryDataAttributePermissions(h->dpy, attr, &nvctrlPerms);
+            convertFromNvCtrlPermissions(perms, nvctrlPerms.permissions);
+            break;
+
+        case CTRL_ATTRIBUTE_TYPE_STRING_OPERATION:
+            XNVCTRLQueryStringOperationAttributePermissions(h->dpy, attr,
+                                                            &nvctrlPerms);
+            convertFromNvCtrlPermissions(perms, nvctrlPerms.permissions);
+            break;
+
+        default:
+            return NvCtrlBadArgument;
+    }
+
+    return NvCtrlSuccess;
+
+}
+
+
+/*
+ * Helper function for converting NV-CONTROL specific valid values data into
+ * CtrlAttributeValidValues (API agnostic) data that the front-end can use.
+ */
+
+static void
+convertFromNvCtrlValidValues(CtrlAttributeValidValues *dst,
+                             const NVCTRLAttributeValidValuesRec *src)
+{
+    memset(dst, 0, sizeof(*dst));
+
+    switch (src->type) {
+        case ATTRIBUTE_TYPE_INTEGER:
+            dst->valid_type = CTRL_ATTRIBUTE_VALID_TYPE_INTEGER;
+            break;
+        case ATTRIBUTE_TYPE_BITMASK:
+            dst->valid_type = CTRL_ATTRIBUTE_VALID_TYPE_BITMASK;
+            break;
+        case ATTRIBUTE_TYPE_BOOL:
+            dst->valid_type = CTRL_ATTRIBUTE_VALID_TYPE_BOOL;
+            break;
+        case ATTRIBUTE_TYPE_RANGE:
+            dst->valid_type = CTRL_ATTRIBUTE_VALID_TYPE_RANGE;
+            break;
+        case ATTRIBUTE_TYPE_INT_BITS:
+            dst->valid_type = CTRL_ATTRIBUTE_VALID_TYPE_INT_BITS;
+            break;
+        case ATTRIBUTE_TYPE_64BIT_INTEGER:
+            dst->valid_type = CTRL_ATTRIBUTE_VALID_TYPE_64BIT_INTEGER;
+            break;
+        case ATTRIBUTE_TYPE_STRING:
+            dst->valid_type = CTRL_ATTRIBUTE_VALID_TYPE_STRING;
+            break;
+        case ATTRIBUTE_TYPE_BINARY_DATA:
+            dst->valid_type = CTRL_ATTRIBUTE_VALID_TYPE_BINARY_DATA;
+            break;
+        case ATTRIBUTE_TYPE_STRING_OPERATION:
+            dst->valid_type = CTRL_ATTRIBUTE_VALID_TYPE_STRING_OPERATION;
+            break;
+        default:
+            dst->valid_type = CTRL_ATTRIBUTE_VALID_TYPE_UNKNOWN;
+    }
+
+    if (src->type == ATTRIBUTE_TYPE_RANGE) {
+        dst->range.min = src->u.range.min;
+        dst->range.max = src->u.range.max;
+    }
+    else if (src->type == ATTRIBUTE_TYPE_INT_BITS) {
+        dst->allowed_ints = src->u.bits.ints;
+    }
+
+    convertFromNvCtrlPermissions(&(dst->permissions), src->permissions);
+}
+
 ReturnStatus
 NvCtrlNvControlGetValidAttributeValues(const NvCtrlAttributePrivateHandle *h,
                                        unsigned int display_mask,
                                        int attr,
-                                       NVCTRLAttributeValidValuesRec *val)
+                                       CtrlAttributeValidValues *val)
 {
     if (attr <= NV_CTRL_LAST_ATTRIBUTE) {
         const CtrlTargetTypeInfo *targetTypeInfo;
+        NVCTRLAttributeValidValuesRec valid;
+
         targetTypeInfo = NvCtrlGetTargetTypeInfo(h->target_type);
         if (targetTypeInfo == NULL) {
             return NvCtrlBadHandle;
@@ -268,7 +406,10 @@ NvCtrlNvControlGetValidAttributeValues(const NvCtrlAttributePrivateHandle *h,
         if (XNVCTRLQueryValidTargetAttributeValues(h->dpy,
                                                    targetTypeInfo->nvctrl,
                                                    h->target_id, display_mask,
-                                                   attr, val)) {
+                                                   attr, &valid)) {
+            if (val != NULL) {
+                convertFromNvCtrlValidValues(val, &valid);
+            }
             return NvCtrlSuccess;
         } else {
             return NvCtrlAttributeNotAvailable;
@@ -285,13 +426,15 @@ NvCtrlNvControlGetValidStringDisplayAttributeValues
                                        (const NvCtrlAttributePrivateHandle *h,
                                         unsigned int display_mask,
                                         int attr,
-                                        NVCTRLAttributeValidValuesRec *val)
+                                        CtrlAttributeValidValues *val)
 {
     if (attr <= NV_CTRL_STRING_LAST_ATTRIBUTE) {
         if (NV_VERSION2(h->nv->major_version, h->nv->minor_version)
             >= NV_VERSION2(1, 22)) {
 
             const CtrlTargetTypeInfo *targetTypeInfo;
+            NVCTRLAttributeValidValuesRec valid;
+
             targetTypeInfo = NvCtrlGetTargetTypeInfo(h->target_type);
             if (targetTypeInfo == NULL) {
                 return NvCtrlBadHandle;
@@ -301,16 +444,20 @@ NvCtrlNvControlGetValidStringDisplayAttributeValues
                                                              targetTypeInfo->nvctrl,
                                                              h->target_id,
                                                              display_mask,
-                                                             attr, val)) {
+                                                             attr, &valid)) {
+                if (val != NULL) {
+                    convertFromNvCtrlValidValues(val, &valid);
+                }
                 return NvCtrlSuccess;
             } else {
                 return NvCtrlAttributeNotAvailable;
             }
         } else {
             if (val) {
-                memset(val, 0, sizeof(NVCTRLAttributeValidValuesRec));
-                val->type = ATTRIBUTE_TYPE_STRING;
-                val->permissions = ATTRIBUTE_TYPE_READ | ATTRIBUTE_TYPE_X_SCREEN;
+                memset(val, 0, sizeof(*val));
+                val->valid_type = CTRL_ATTRIBUTE_VALID_TYPE_STRING;
+                val->permissions.read = NV_TRUE;
+                val->permissions.valid_targets = CTRL_TARGET_PERM_BIT(X_SCREEN_TARGET);
                 return NvCtrlSuccess;
             } else {
                 return NvCtrlBadArgument;

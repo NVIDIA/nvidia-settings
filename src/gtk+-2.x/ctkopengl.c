@@ -36,6 +36,8 @@ static void post_allow_flipping_button_toggled(CtkOpenGL *, gboolean);
 
 static void post_allow_gsync_button_toggled(CtkOpenGL *, gboolean);
 
+static void post_show_gsync_visual_indicator_button_toggled(CtkOpenGL *, gboolean);
+
 static void post_force_stereo_button_toggled(CtkOpenGL *, gboolean);
 
 static void post_show_sli_visual_indicator_button_toggled(CtkOpenGL *,
@@ -55,6 +57,8 @@ static void post_use_conformant_clamping_button_toggled(CtkOpenGL *, gint);
 static void allow_flipping_button_toggled(GtkWidget *, gpointer);
 
 static void allow_gsync_button_toggled(GtkWidget *, gpointer);
+
+static void show_gsync_visual_indicator_button_toggled(GtkWidget *, gpointer);
 
 static void force_stereo_button_toggled (GtkWidget *, gpointer);
 
@@ -156,6 +160,12 @@ static const char *__use_conformant_clamping_help =
 "seams at the edges of textures in some older games such as "
 "Quake 3.";
 
+static const char *__show_gsync_visual_indicator_help  =
+"Enabling this option causes OpenGL to draw an indicator showing whether "
+"G-SYNC is in use, when an application is swapping using flipping.  This "
+"option is applied to OpenGL applications that are started after this option "
+"is set.";
+
 #define __SYNC_TO_VBLANK      (1 << 1)
 #define __ALLOW_FLIPPING      (1 << 2)
 #define __AA_LINE_GAMMA_VALUE (1 << 3)
@@ -169,6 +179,7 @@ static const char *__use_conformant_clamping_help =
 #define __SHOW_MULTIGPU_VISUAL_INDICATOR    (1 << 11)
 #define __CONFORMANT_CLAMPING (1 << 12)
 #define __ALLOW_GSYNC         (1 << 13)
+#define __SHOW_GSYNC_VISUAL_INDICATOR       (1 << 14)
 
 
 
@@ -219,10 +230,11 @@ GtkWidget* ctk_opengl_new(CtrlTarget *ctrl_target,
     gint sync_to_vblank;
     gint flipping_allowed;
     gint gsync_allowed;
+    gint show_gsync_visual_indicator;
     gint force_stereo;
     gint xinerama_stereo;
     gint stereo_eyes_exchange;
-    NVCTRLAttributeValidValuesRec image_settings_valid;
+    CtrlAttributeValidValues image_settings_valid;
     gint image_settings_value;
     gint aa_line_gamma;
     gint use_conformant_clamping;
@@ -232,6 +244,7 @@ GtkWidget* ctk_opengl_new(CtrlTarget *ctrl_target,
     ReturnStatus ret_sync_to_vblank;
     ReturnStatus ret_flipping_allowed;
     ReturnStatus ret_gsync_allowed;
+    ReturnStatus ret_show_gsync_visual_indicator;
     ReturnStatus ret_force_stereo;
     ReturnStatus ret_xinerama_stereo;
     ReturnStatus ret_stereo_eyes_exchange;
@@ -258,6 +271,11 @@ GtkWidget* ctk_opengl_new(CtrlTarget *ctrl_target,
                            NV_CTRL_GSYNC_ALLOWED,
                            &gsync_allowed);
 
+    ret_show_gsync_visual_indicator =
+        NvCtrlGetAttribute(ctrl_target,
+                           NV_CTRL_SHOW_GSYNC_VISUAL_INDICATOR,
+                           &show_gsync_visual_indicator);
+
     ret_force_stereo =
         NvCtrlGetAttribute(ctrl_target,
                            NV_CTRL_FORCE_STEREO,
@@ -277,7 +295,7 @@ GtkWidget* ctk_opengl_new(CtrlTarget *ctrl_target,
                                                        NV_CTRL_IMAGE_SETTINGS,
                                                        &image_settings_valid);
     if ((ret_image_settings == NvCtrlSuccess) &&
-        (image_settings_valid.type == ATTRIBUTE_TYPE_RANGE)) {
+        (image_settings_valid.valid_type == CTRL_ATTRIBUTE_VALID_TYPE_RANGE)) {
         ret_image_settings =
             NvCtrlGetAttribute(ctrl_target,
                                NV_CTRL_IMAGE_SETTINGS,
@@ -310,6 +328,7 @@ GtkWidget* ctk_opengl_new(CtrlTarget *ctrl_target,
     if ((ret_sync_to_vblank != NvCtrlSuccess) &&
         (ret_flipping_allowed != NvCtrlSuccess) &&
         (ret_gsync_allowed != NvCtrlSuccess) &&
+        (ret_show_gsync_visual_indicator != NvCtrlSuccess) &&
         (ret_force_stereo != NvCtrlSuccess) &&
         (ret_xinerama_stereo != NvCtrlSuccess) &&
         (ret_stereo_eyes_exchange != NvCtrlSuccess) &&
@@ -458,6 +477,39 @@ GtkWidget* ctk_opengl_new(CtrlTarget *ctrl_target,
 
     ctk_opengl->allow_gsync_button = check_button;
 
+    /*
+     * show G-SYNC visual indicator
+     *
+     * Always create the checkbox, but only show it if the attribute starts out
+     * available.
+     */
+
+    label = gtk_label_new("Enable G-SYNC Visual Indicator");
+
+    check_button = gtk_check_button_new();
+    gtk_container_add(GTK_CONTAINER(check_button), label);
+
+    gtk_toggle_button_set_active(GTK_TOGGLE_BUTTON(check_button),
+                                 show_gsync_visual_indicator);
+
+    gtk_box_pack_start(GTK_BOX(vbox), check_button, FALSE, FALSE, 0);
+
+    g_signal_connect(G_OBJECT(check_button), "toggled",
+                     G_CALLBACK(show_gsync_visual_indicator_button_toggled),
+                     (gpointer) ctk_opengl);
+
+    g_signal_connect(G_OBJECT(ctk_event),
+                     CTK_EVENT_NAME(NV_CTRL_SHOW_GSYNC_VISUAL_INDICATOR),
+                     G_CALLBACK(value_changed), (gpointer) ctk_opengl);
+
+    ctk_config_set_tooltip(ctk_config, check_button,
+                           __show_gsync_visual_indicator_help);
+
+    ctk_opengl->active_attributes |= __SHOW_GSYNC_VISUAL_INDICATOR;
+
+    ctk_opengl->show_gsync_visual_indicator_button = check_button;
+
+
     if (ret_force_stereo == NvCtrlSuccess) {
 
         label = gtk_label_new("Force Stereo Flipping");
@@ -556,8 +608,8 @@ GtkWidget* ctk_opengl_new(CtrlTarget *ctrl_target,
         /* create the slider */
         adjustment = GTK_ADJUSTMENT(
                          gtk_adjustment_new(image_settings_value,
-                                            image_settings_valid.u.range.min,
-                                            image_settings_valid.u.range.max,
+                                            image_settings_valid.range.min,
+                                            image_settings_valid.range.max,
                                             1, 1, 0.0));
         scale = gtk_hscale_new(GTK_ADJUSTMENT(adjustment));
         gtk_adjustment_set_value(GTK_ADJUSTMENT(adjustment), image_settings_value);
@@ -746,6 +798,9 @@ GtkWidget* ctk_opengl_new(CtrlTarget *ctrl_target,
     if (ret_gsync_allowed != NvCtrlSuccess) {
         gtk_widget_hide(GTK_WIDGET(ctk_opengl->allow_gsync_button));
     }
+    if (ret_show_gsync_visual_indicator != NvCtrlSuccess) {
+        gtk_widget_hide(GTK_WIDGET(ctk_opengl->show_gsync_visual_indicator_button));
+    }
 
     return GTK_WIDGET(object);
 }
@@ -775,6 +830,14 @@ static void post_allow_gsync_button_toggled(CtkOpenGL *ctk_opengl,
     ctk_config_statusbar_message(ctk_opengl->ctk_config,
                                  "G-SYNC %s.",
                                  enabled ? "allowed" : "not allowed");
+}
+
+static void post_show_gsync_visual_indicator_button_toggled(CtkOpenGL *ctk_opengl,
+                                                            gboolean enabled)
+{
+    ctk_config_statusbar_message(ctk_opengl->ctk_config,
+                                 "G-SYNC visual indicator %s.",
+                                 enabled ? "enabled" : "disabled");
 }
 
 static void post_force_stereo_button_toggled(CtkOpenGL *ctk_opengl, 
@@ -876,6 +939,19 @@ static void allow_gsync_button_toggled(GtkWidget *widget,
 
     NvCtrlSetAttribute(ctrl_target, NV_CTRL_GSYNC_ALLOWED, enabled);
     post_allow_gsync_button_toggled(ctk_opengl, enabled);
+}
+
+static void show_gsync_visual_indicator_button_toggled(GtkWidget *widget,
+                                                       gpointer user_data)
+{
+    CtkOpenGL *ctk_opengl = CTK_OPENGL(user_data);
+    CtrlTarget *ctrl_target = ctk_opengl->ctrl_target;
+    gboolean enabled;
+
+    enabled = gtk_toggle_button_get_active(GTK_TOGGLE_BUTTON(widget));
+
+    NvCtrlSetAttribute(ctrl_target, NV_CTRL_SHOW_GSYNC_VISUAL_INDICATOR, enabled);
+    post_show_gsync_visual_indicator_button_toggled(ctk_opengl, enabled);
 }
 
 static void force_stereo_button_toggled(GtkWidget *widget,
@@ -1019,6 +1095,12 @@ static void value_changed(GObject *object, CtrlEvent *event, gpointer user_data)
         button = GTK_TOGGLE_BUTTON(ctk_opengl->allow_gsync_button);
         func = G_CALLBACK(allow_gsync_button_toggled);
         post_allow_gsync_button_toggled(ctk_opengl, value);
+        check_available = TRUE;
+        break;
+    case NV_CTRL_SHOW_GSYNC_VISUAL_INDICATOR:
+        button = GTK_TOGGLE_BUTTON(ctk_opengl->show_gsync_visual_indicator_button);
+        func = G_CALLBACK(show_gsync_visual_indicator_button_toggled);
+        post_show_gsync_visual_indicator_button_toggled(ctk_opengl, value);
         check_available = TRUE;
         break;
     case NV_CTRL_FORCE_STEREO:
@@ -1256,7 +1338,7 @@ static GtkWidget *create_slider(CtkOpenGL *ctk_opengl,
     GtkAdjustment *adjustment;
     GtkWidget *scale, *widget;
     gint min, max, val, step_incr, page_incr;
-    NVCTRLAttributeValidValuesRec range;
+    CtrlAttributeValidValues range;
     ReturnStatus ret;
     /* get the attribute value */
 
@@ -1266,9 +1348,11 @@ static GtkWidget *create_slider(CtkOpenGL *ctk_opengl,
 
     NvCtrlGetValidAttributeValues(ctrl_target, attribute, &range);
 
-    if (range.type != ATTRIBUTE_TYPE_RANGE) return NULL;
-    min = range.u.range.min;
-    max = range.u.range.max;
+    if (range.valid_type != CTRL_ATTRIBUTE_VALID_TYPE_RANGE) {
+        return NULL;
+    }
+    min = range.range.min;
+    max = range.range.max;
 
     step_incr = ((max) - (min))/10;
     if (step_incr <= 0) step_incr = 1;
@@ -1351,6 +1435,11 @@ GtkTextBuffer *ctk_opengl_create_help(GtkTextTagTable *table,
         ctk_help_para(b, &i, "This option can be overridden on a "
                       "per-application basis using the GLGSYNCAllowed "
                       "application profile key.");
+    }
+
+    if (ctk_opengl->active_attributes & __SHOW_GSYNC_VISUAL_INDICATOR) {
+        ctk_help_heading(b, &i, "G-SYNC Visual Indicator");
+        ctk_help_para(b, &i, "%s", __show_gsync_visual_indicator_help);
     }
 
     if (ctk_opengl->active_attributes & __FORCE_STEREO) {

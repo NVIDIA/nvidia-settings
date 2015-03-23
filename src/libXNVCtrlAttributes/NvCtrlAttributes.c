@@ -46,76 +46,76 @@
 const CtrlTargetTypeInfo targetTypeInfoTable[] = {
 
     [X_SCREEN_TARGET] =
-    { "X Screen",                    /* name */
-      "screen",                      /* parsed_name */
-      NV_CTRL_TARGET_TYPE_X_SCREEN,  /* nvctrl */
-      ATTRIBUTE_TYPE_X_SCREEN,       /* permission_bit */
-      NV_TRUE,                       /* uses_display_devices */
-      1, 6 },                        /* required major,minor protocol rev */
+    { "X Screen",                                                    /* name */
+      "screen",                                                      /* parsed_name */
+      NV_CTRL_TARGET_TYPE_X_SCREEN,                                  /* nvctrl */
+      CTRL_TARGET_PERM_BIT(X_SCREEN_TARGET),                         /* permission_bit */
+      NV_TRUE,                                                       /* uses_display_devices */
+      1, 6 },                                                        /* required major,minor protocol rev */
 
     [GPU_TARGET] =
-    { "GPU",                         /* name */
-      "gpu",                         /* parsed_name */
-      NV_CTRL_TARGET_TYPE_GPU,       /* nvctrl */
-      ATTRIBUTE_TYPE_GPU,            /* permission_bit */
-      NV_TRUE,                       /* uses_display_devices */
-      1, 10 },                       /* required major,minor protocol rev */
+    { "GPU",                                                         /* name */
+      "gpu",                                                         /* parsed_name */
+      NV_CTRL_TARGET_TYPE_GPU,                                       /* nvctrl */
+      CTRL_TARGET_PERM_BIT(GPU_TARGET),                              /* permission_bit */
+      NV_TRUE,                                                       /* uses_display_devices */
+      1, 10 },                                                       /* required major,minor protocol rev */
 
     [FRAMELOCK_TARGET] =
-    { "Frame Lock Device",           /* name */
-      "framelock",                   /* parsed_name */
-      NV_CTRL_TARGET_TYPE_FRAMELOCK, /* nvctrl */
-      ATTRIBUTE_TYPE_FRAMELOCK,      /* permission_bit */
-      NV_FALSE,                      /* uses_display_devices */
-      1, 10 },                       /* required major,minor protocol rev */
+    { "Frame Lock Device",                                           /* name */
+      "framelock",                                                   /* parsed_name */
+      NV_CTRL_TARGET_TYPE_FRAMELOCK,                                 /* nvctrl */
+      CTRL_TARGET_PERM_BIT(FRAMELOCK_TARGET),                        /* permission_bit */
+      NV_FALSE,                                                      /* uses_display_devices */
+      1, 10 },                                                       /* required major,minor protocol rev */
 
     [VCS_TARGET] =
-    { "VCS",                         /* name */
-      "vcs",                         /* parsed_name */
-      NV_CTRL_TARGET_TYPE_VCSC,      /* nvctrl */
-      ATTRIBUTE_TYPE_VCSC,           /* permission_bit */
-      NV_FALSE,                      /* uses_display_devices */
-      1, 12 },                       /* required major,minor protocol rev */
+    { "VCS",                                                         /* name */
+      "vcs",                                                         /* parsed_name */
+      NV_CTRL_TARGET_TYPE_VCSC,                                      /* nvctrl */
+      CTRL_TARGET_PERM_BIT(VCS_TARGET),                              /* permission_bit */
+      NV_FALSE,                                                      /* uses_display_devices */
+      1, 12 },                                                       /* required major,minor protocol rev */
 
     [GVI_TARGET] =
-    { "SDI Input Device",            /* name */
-      "gvi",                         /* parsed_name */
-      NV_CTRL_TARGET_TYPE_GVI,       /* nvctrl */
-      ATTRIBUTE_TYPE_GVI,            /* permission_bit */
-      NV_FALSE,                      /* uses_display_devices */
-      1, 18 },                       /* required major,minor protocol rev */
+    { "SDI Input Device",                                            /* name */
+      "gvi",                                                         /* parsed_name */
+      NV_CTRL_TARGET_TYPE_GVI,                                       /* nvctrl */
+      CTRL_TARGET_PERM_BIT(GVI_TARGET),                              /* permission_bit */
+      NV_FALSE,                                                      /* uses_display_devices */
+      1, 18 },                                                       /* required major,minor protocol rev */
 
     [COOLER_TARGET] =
-    { "Fan",                         /* name */
-      "fan",                         /* parsed_name */
-      NV_CTRL_TARGET_TYPE_COOLER,    /* nvctrl */
-      ATTRIBUTE_TYPE_COOLER,         /* permission_bit */
-      NV_FALSE,                      /* uses_display_devices */
-      1, 20 },                       /* required major,minor protocol rev */
+    { "Fan",                                                         /* name */
+      "fan",                                                         /* parsed_name */
+      NV_CTRL_TARGET_TYPE_COOLER,                                    /* nvctrl */
+      CTRL_TARGET_PERM_BIT(COOLER_TARGET),                           /* permission_bit */
+      NV_FALSE,                                                      /* uses_display_devices */
+      1, 20 },                                                       /* required major,minor protocol rev */
 
     [THERMAL_SENSOR_TARGET] =
-    { "Thermal Sensor",              /* name */
-      "thermalsensor",               /* parsed_name */
-      NV_CTRL_TARGET_TYPE_THERMAL_SENSOR,    /* nvctrl */
-      ATTRIBUTE_TYPE_THERMAL_SENSOR, /* permission_bit */
-      NV_FALSE,                      /* uses_display_devices */
-      1, 23 },                       /* required major,minor protocol rev */
+    { "Thermal Sensor",                                              /* name */
+      "thermalsensor",                                               /* parsed_name */
+      NV_CTRL_TARGET_TYPE_THERMAL_SENSOR,                            /* nvctrl */
+      CTRL_TARGET_PERM_BIT(THERMAL_SENSOR_TARGET),                   /* permission_bit */
+      NV_FALSE,                                                      /* uses_display_devices */
+      1, 23 },                                                       /* required major,minor protocol rev */
 
     [NVIDIA_3D_VISION_PRO_TRANSCEIVER_TARGET] =
-    { "3D Vision Pro Transceiver",                   /* name */
-      "svp",                                         /* parsed_name */
-      NV_CTRL_TARGET_TYPE_3D_VISION_PRO_TRANSCEIVER, /* nvctrl */
-      ATTRIBUTE_TYPE_3D_VISION_PRO_TRANSCEIVER,      /* permission_bit */
-      NV_FALSE,                                      /* uses_display_devices */
-      1, 25 },                                       /* required major,minor protocol rev */
+    { "3D Vision Pro Transceiver",                                   /* name */
+      "svp",                                                         /* parsed_name */
+      NV_CTRL_TARGET_TYPE_3D_VISION_PRO_TRANSCEIVER,                 /* nvctrl */
+      CTRL_TARGET_PERM_BIT(NVIDIA_3D_VISION_PRO_TRANSCEIVER_TARGET), /* permission_bit */
+      NV_FALSE,                                                      /* uses_display_devices */
+      1, 25 },                                                       /* required major,minor protocol rev */
 
     [DISPLAY_TARGET] =
-    { "Display Device",                              /* name */
-      "dpy",                                         /* parsed_name */
-      NV_CTRL_TARGET_TYPE_DISPLAY,                   /* nvctrl */
-      ATTRIBUTE_TYPE_DISPLAY,                        /* permission_bit */
-      NV_FALSE,                                      /* uses_display_devices */
-      1, 27 },                                       /* required major,minor protocol rev */
+    { "Display Device",                                              /* name */
+      "dpy",                                                         /* parsed_name */
+      NV_CTRL_TARGET_TYPE_DISPLAY,                                   /* nvctrl */
+      CTRL_TARGET_PERM_BIT(DISPLAY_TARGET),                          /* permission_bit */
+      NV_FALSE,                                                      /* uses_display_devices */
+      1, 27 },                                                       /* required major,minor protocol rev */
 };
 
 const int targetTypeInfoTableLen = ARRAY_LEN(targetTypeInfoTable);
@@ -245,6 +245,16 @@ NvCtrlAttributeHandle *NvCtrlAttributeInit(CtrlSystem *system,
      */
     if (subsystems & NV_CTRL_ATTRIBUTES_XRANDR_SUBSYSTEM) {
         h->xrandr = NvCtrlInitXrandrAttributes(h);
+    }
+
+    /*
+     * initialize NVML-specific attributes for NVML-related target types.
+     */
+
+    if ((subsystems & NV_CTRL_ATTRIBUTES_NVML_SUBSYSTEM) &&
+        TARGET_TYPE_IS_NVML_COMPATIBLE(target_type)) {
+
+        h->nvml = NvCtrlInitNvmlAttributes(h);
     }
 
     return (NvCtrlAttributeHandle *) h;
@@ -591,8 +601,30 @@ ReturnStatus NvCtrlQueryTargetCount(const CtrlTarget *ctrl_target,
         return NvCtrlBadHandle;
     }
 
-    return NvCtrlNvControlQueryTargetCount(h, target_type, val);
-
+    switch (target_type) {
+        case GPU_TARGET:
+        case THERMAL_SENSOR_TARGET:
+        case COOLER_TARGET:
+            {
+                ReturnStatus ret = NvCtrlNvmlQueryTargetCount(ctrl_target,
+                                                              target_type,
+                                                              val);
+                if ((ret != NvCtrlMissingExtension) &&
+                    (ret != NvCtrlNotSupported)) {
+                    return ret;
+                }
+                /* Fall through */
+            }
+        case DISPLAY_TARGET:
+        case X_SCREEN_TARGET:
+        case FRAMELOCK_TARGET:
+        case VCS_TARGET:
+        case GVI_TARGET:
+        case NVIDIA_3D_VISION_PRO_TRANSCEIVER_TARGET:
+            return NvCtrlNvControlQueryTargetCount(h, target_type, val);
+        default:
+            return NvCtrlBadHandle;
+    }
 } /* NvCtrlQueryTargetCount() */
 
 ReturnStatus NvCtrlGetAttribute(const CtrlTarget *ctrl_target,
@@ -629,118 +661,49 @@ ReturnStatus NvCtrlGetVoidAttribute(const CtrlTarget *ctrl_target,
 
 ReturnStatus NvCtrlGetValidAttributeValues(const CtrlTarget *ctrl_target,
                                            int attr,
-                                           NVCTRLAttributeValidValuesRec *val)
+                                           CtrlAttributeValidValues *val)
 {
     return NvCtrlGetValidDisplayAttributeValues(ctrl_target, 0, attr, val);
     
 } /* NvCtrlGetValidAttributeValues() */
 
 
-
-/*
- * Helper function for converting NV-CONTROL specific permission data into
- * CtrlAttributePerms (API agnostic) permission data that the front-end can use.
- */
-
-static void convert_from_nvctrl_perms(CtrlAttributePerms *dst,
-                                      const NVCTRLAttributePermissionsRec *src)
-{
-    memset(dst, 0, sizeof(*dst));
-
-    dst->read = (src->permissions & ATTRIBUTE_TYPE_READ) ? NV_TRUE : NV_FALSE;
-    dst->write = (src->permissions & ATTRIBUTE_TYPE_WRITE) ? NV_TRUE : NV_FALSE;
-
-    if (src->permissions & ATTRIBUTE_TYPE_X_SCREEN) {
-        dst->valid_targets |= CTRL_TARGET_PERM_BIT(X_SCREEN_TARGET);
-    }
-    if (src->permissions & ATTRIBUTE_TYPE_DISPLAY) {
-        dst->valid_targets |= CTRL_TARGET_PERM_BIT(DISPLAY_TARGET);
-    }
-    if (src->permissions & ATTRIBUTE_TYPE_GPU) {
-        dst->valid_targets |= CTRL_TARGET_PERM_BIT(GPU_TARGET);
-    }
-    if (src->permissions & ATTRIBUTE_TYPE_FRAMELOCK) {
-        dst->valid_targets |= CTRL_TARGET_PERM_BIT(FRAMELOCK_TARGET);
-    }
-    if (src->permissions & ATTRIBUTE_TYPE_VCSC) {
-        dst->valid_targets |= CTRL_TARGET_PERM_BIT(VCS_TARGET);
-    }
-    if (src->permissions & ATTRIBUTE_TYPE_GVI) {
-        dst->valid_targets |= CTRL_TARGET_PERM_BIT(GVI_TARGET);
-    }
-    if (src->permissions & ATTRIBUTE_TYPE_COOLER) {
-        dst->valid_targets |= CTRL_TARGET_PERM_BIT(COOLER_TARGET);
-    }
-    if (src->permissions & ATTRIBUTE_TYPE_THERMAL_SENSOR) {
-        dst->valid_targets |= CTRL_TARGET_PERM_BIT(THERMAL_SENSOR_TARGET);
-    }
-    if (src->permissions & ATTRIBUTE_TYPE_3D_VISION_PRO_TRANSCEIVER) {
-        dst->valid_targets |=
-            CTRL_TARGET_PERM_BIT(NVIDIA_3D_VISION_PRO_TRANSCEIVER_TARGET);
-    }
-}
-
-
-
 ReturnStatus NvCtrlGetAttributePerms(const CtrlTarget *ctrl_target,
-                                     int attr_type,
+                                     CtrlAttributeType attr_type,
                                      int attr,
                                      CtrlAttributePerms *perms)
 {
-    NVCTRLAttributePermissionsRec nvctrlPerms;
     const NvCtrlAttributePrivateHandle *h = getPrivateHandleConst(ctrl_target);
 
     if (h == NULL) {
         return NvCtrlBadHandle;
     }
 
-    memset(&nvctrlPerms, 0, sizeof(nvctrlPerms));
-    memset(perms, 0, sizeof(*perms));
-
-    switch (attr_type) {
-    case CTRL_ATTRIBUTE_TYPE_INTEGER:
-        XNVCTRLQueryAttributePermissions(h->dpy, attr, &nvctrlPerms);
-
-        convert_from_nvctrl_perms(perms, &nvctrlPerms);
-        break;
-
-    case CTRL_ATTRIBUTE_TYPE_STRING:
-        XNVCTRLQueryStringAttributePermissions(h->dpy, attr, &nvctrlPerms);
-        convert_from_nvctrl_perms(perms, &nvctrlPerms);
-        break;
-
-    case CTRL_ATTRIBUTE_TYPE_BINARY_DATA:
-        XNVCTRLQueryBinaryDataAttributePermissions(h->dpy, attr, &nvctrlPerms);
-        convert_from_nvctrl_perms(perms, &nvctrlPerms);
-        break;
-
-    case CTRL_ATTRIBUTE_TYPE_STRING_OPERATION:
-        XNVCTRLQueryStringOperationAttributePermissions(h->dpy, attr,
-                                                        &nvctrlPerms);
-        convert_from_nvctrl_perms(perms, &nvctrlPerms);
-        break;
-
-    case CTRL_ATTRIBUTE_TYPE_COLOR:
-        /* Allow non NV-CONTROL attributes to be read/written on X screen
-         * targets
-         */
-        perms->read = NV_TRUE;
-        perms->write = NV_TRUE;
-        perms->valid_targets |= CTRL_TARGET_PERM_BIT(X_SCREEN_TARGET);
-        break;
-
-    case CTRL_ATTRIBUTE_TYPE_SDI_CSC:
-        /* Allow SDI CSC matrix to be read/written on X screen targets */
-        perms->read = NV_TRUE;
-        perms->write = NV_TRUE;
-        perms->valid_targets |= CTRL_TARGET_PERM_BIT(X_SCREEN_TARGET);
-        break;
-
-    default:
+    if (perms == NULL) {
         return NvCtrlBadArgument;
     }
 
-    return NvCtrlSuccess;
+    switch (attr_type) {
+        case CTRL_ATTRIBUTE_TYPE_INTEGER:
+        case CTRL_ATTRIBUTE_TYPE_STRING:
+        case CTRL_ATTRIBUTE_TYPE_BINARY_DATA:
+        case CTRL_ATTRIBUTE_TYPE_STRING_OPERATION:
+            return NvCtrlNvControlGetAttributePerms(h, attr_type, attr, perms);
+
+        case CTRL_ATTRIBUTE_TYPE_COLOR:
+        case CTRL_ATTRIBUTE_TYPE_SDI_CSC:
+            /*
+             * Allow non NV-CONTROL attributes to be read/written on X screen
+             * targets
+             */
+            perms->read = NV_TRUE;
+            perms->write = NV_TRUE;
+            perms->valid_targets = CTRL_TARGET_PERM_BIT(X_SCREEN_TARGET);
+            return NvCtrlSuccess;
+
+        default:
+            return NvCtrlBadArgument;
+    }
 }
 
 
@@ -798,8 +761,32 @@ ReturnStatus NvCtrlGetDisplayAttribute64(const CtrlTarget *ctrl_target,
     if (((attr >= 0) && (attr <= NV_CTRL_LAST_ATTRIBUTE)) ||
         ((attr >= NV_CTRL_ATTR_NV_BASE) &&
          (attr <= NV_CTRL_ATTR_NV_LAST_ATTRIBUTE))) {
-        if (!h->nv) return NvCtrlMissingExtension;
-        return NvCtrlNvControlGetAttribute(h, display_mask, attr, val);
+
+        switch (h->target_type) {
+            case GPU_TARGET:
+            case THERMAL_SENSOR_TARGET:
+            case COOLER_TARGET:
+                {
+                    ReturnStatus ret = NvCtrlNvmlGetAttribute(ctrl_target,
+                                                              attr,
+                                                              val);
+                    if ((ret != NvCtrlMissingExtension) &&
+                        (ret != NvCtrlNotSupported)) {
+                        return ret;
+                    }
+                    /* Fall through */
+                }
+            case DISPLAY_TARGET:
+            case X_SCREEN_TARGET:
+            case FRAMELOCK_TARGET:
+            case VCS_TARGET:
+            case GVI_TARGET:
+            case NVIDIA_3D_VISION_PRO_TRANSCEIVER_TARGET:
+                if (!h->nv) return NvCtrlMissingExtension;
+                return NvCtrlNvControlGetAttribute(h, display_mask, attr, val);
+            default:
+                return NvCtrlBadHandle;
+        }
     }
 
     return NvCtrlNoAttribute;
@@ -815,7 +802,9 @@ ReturnStatus NvCtrlGetDisplayAttribute(const CtrlTarget *ctrl_target,
 
     status = NvCtrlGetDisplayAttribute64(ctrl_target, display_mask, attr,
                                          &value_64);
-    *val = value_64;
+    if (status == NvCtrlSuccess) {
+        *val = value_64;
+    }
 
     return status;
 
@@ -833,8 +822,35 @@ ReturnStatus NvCtrlSetDisplayAttribute(CtrlTarget *ctrl_target,
     }
 
     if ((attr >= 0) && (attr <= NV_CTRL_LAST_ATTRIBUTE)) {
-        if (!h->nv) return NvCtrlMissingExtension;
-        return NvCtrlNvControlSetAttribute(h, display_mask, attr, val);
+        switch (h->target_type) {
+            case GPU_TARGET:
+            case THERMAL_SENSOR_TARGET:
+            case COOLER_TARGET:
+                {
+                    ReturnStatus ret;
+                    ret = NvCtrlNvmlSetAttribute(ctrl_target,
+                                                 attr,
+                                                 display_mask,
+                                                 val);
+                    if ((ret != NvCtrlMissingExtension) &&
+                        (ret != NvCtrlNotSupported)) {
+                        return ret;
+                    }
+                    /* Fall through */
+                }
+            case DISPLAY_TARGET:
+            case X_SCREEN_TARGET:
+            case FRAMELOCK_TARGET:
+            case VCS_TARGET:
+            case GVI_TARGET:
+            case NVIDIA_3D_VISION_PRO_TRANSCEIVER_TARGET:
+                if (!h->nv) {
+                    return NvCtrlMissingExtension;
+                }
+                return NvCtrlNvControlSetAttribute(h, display_mask, attr, val);
+            default:
+                return NvCtrlBadHandle;
+        }
     }
 
     return NvCtrlNoAttribute;
@@ -865,7 +881,7 @@ ReturnStatus NvCtrlGetVoidDisplayAttribute(const CtrlTarget *ctrl_target,
 ReturnStatus
 NvCtrlGetValidDisplayAttributeValues(const CtrlTarget *ctrl_target,
                                      unsigned int display_mask, int attr,
-                                     NVCTRLAttributeValidValuesRec *val)
+                                     CtrlAttributeValidValues *val)
 {
     const NvCtrlAttributePrivateHandle *h = getPrivateHandleConst(ctrl_target);
 
@@ -874,9 +890,35 @@ NvCtrlGetValidDisplayAttributeValues(const CtrlTarget *ctrl_target,
     }
     
     if ((attr >= 0) && (attr <= NV_CTRL_LAST_ATTRIBUTE)) {
-        if (!h->nv) return NvCtrlMissingExtension;
-        return NvCtrlNvControlGetValidAttributeValues(h, display_mask,
-                                                      attr, val);
+        switch (h->target_type) {
+            case GPU_TARGET:
+            case THERMAL_SENSOR_TARGET:
+            case COOLER_TARGET:
+                {
+                    ReturnStatus ret;
+                    ret = NvCtrlNvmlGetValidAttributeValues(ctrl_target,
+                                                            attr,
+                                                            val);
+                    if ((ret != NvCtrlMissingExtension) &&
+                        (ret != NvCtrlNotSupported)) {
+                        return ret;
+                    }
+                    /* Fall through */
+                }
+            case DISPLAY_TARGET:
+            case X_SCREEN_TARGET:
+            case FRAMELOCK_TARGET:
+            case VCS_TARGET:
+            case GVI_TARGET:
+            case NVIDIA_3D_VISION_PRO_TRANSCEIVER_TARGET:
+                if (!h->nv) {
+                    return NvCtrlMissingExtension;
+                }
+                return NvCtrlNvControlGetValidAttributeValues(h, display_mask,
+                                                              attr, val);
+            default:
+                return NvCtrlBadHandle;
+        }
     }
 
     return NvCtrlNoAttribute;
@@ -886,18 +928,18 @@ NvCtrlGetValidDisplayAttributeValues(const CtrlTarget *ctrl_target,
 
 /*
  * GetValidStringDisplayAttributeValuesExtraAttr() -fill the
- * NVCTRLAttributeValidValuesRec strucure for extra string atrributes i.e.
+ * CtrlAttributeValidValues strucure for extra string atrributes i.e.
  * NvCtrlNvControl*, NvCtrlGlx*, NvCtrlXrandr*, NvCtrlVidMode*, or NvCtrlXv*.
  */
 
 static ReturnStatus
-GetValidStringDisplayAttributeValuesExtraAttr(NVCTRLAttributeValidValuesRec
-                                                    *val)
+GetValidStringDisplayAttributeValuesExtraAttr(CtrlAttributeValidValues *val)
 {
     if (val) {
-        memset(val, 0, sizeof(NVCTRLAttributeValidValuesRec));
-        val->type = ATTRIBUTE_TYPE_STRING;
-        val->permissions = ATTRIBUTE_TYPE_READ | ATTRIBUTE_TYPE_X_SCREEN;
+        memset(val, 0, sizeof(*val));
+        val->valid_type = CTRL_ATTRIBUTE_VALID_TYPE_STRING;
+        val->permissions.read = NV_TRUE;
+        val->permissions.valid_targets = CTRL_TARGET_PERM_BIT(X_SCREEN_TARGET);
         return NvCtrlSuccess;
     } else {
         return NvCtrlBadArgument;
@@ -907,13 +949,13 @@ GetValidStringDisplayAttributeValuesExtraAttr(NVCTRLAttributeValidValuesRec
 
 /*
  * NvCtrlGetValidStringDisplayAttributeValues() -fill the
- * NVCTRLAttributeValidValuesRec structure for String attributes
+ * CtrlAttributeValidValues structure for String attributes
  */
 
 ReturnStatus
 NvCtrlGetValidStringDisplayAttributeValues(const CtrlTarget *ctrl_target,
                                            unsigned int display_mask, int attr,
-                                           NVCTRLAttributeValidValuesRec *val)
+                                           CtrlAttributeValidValues *val)
 {
     const NvCtrlAttributePrivateHandle *h = getPrivateHandleConst(ctrl_target);
 
@@ -922,10 +964,35 @@ NvCtrlGetValidStringDisplayAttributeValues(const CtrlTarget *ctrl_target,
     }
 
     if ((attr >= 0) && (attr <= NV_CTRL_STRING_LAST_ATTRIBUTE)) {
-        if (!h->nv) return NvCtrlMissingExtension;
-        return NvCtrlNvControlGetValidStringDisplayAttributeValues(h,
-                                                                   display_mask,
-                                                                   attr, val);
+        switch (h->target_type) {
+            case GPU_TARGET:
+            case THERMAL_SENSOR_TARGET:
+            case COOLER_TARGET:
+                {
+                    ReturnStatus ret;
+                    ret = NvCtrlNvmlGetValidStringAttributeValues(ctrl_target,
+                                                                  attr,
+                                                                  val);
+                    if ((ret != NvCtrlMissingExtension) &&
+                        (ret != NvCtrlNotSupported)) {
+                        return ret;
+                    }
+                    /* Fall through */
+                }
+            case DISPLAY_TARGET:
+            case X_SCREEN_TARGET:
+            case FRAMELOCK_TARGET:
+            case VCS_TARGET:
+            case GVI_TARGET:
+            case NVIDIA_3D_VISION_PRO_TRANSCEIVER_TARGET:
+                if (!h->nv) {
+                    return NvCtrlMissingExtension;
+                }
+                return NvCtrlNvControlGetValidStringDisplayAttributeValues(
+                           h, display_mask, attr, val);
+            default:
+                return NvCtrlBadHandle;
+        }
     }
 
     /*
@@ -982,42 +1049,66 @@ ReturnStatus NvCtrlGetStringDisplayAttribute(const CtrlTarget *ctrl_target,
         return NvCtrlBadHandle;
     }
 
-    if ((attr >= 0) && (attr <= NV_CTRL_STRING_LAST_ATTRIBUTE)) {
-        if (!h->nv) return NvCtrlMissingExtension;
-        return NvCtrlNvControlGetStringAttribute(h, display_mask, attr, ptr);
-    }
+    switch (h->target_type) {
+        case GPU_TARGET:
+        case THERMAL_SENSOR_TARGET:
+        case COOLER_TARGET:
+            {
+                ReturnStatus ret = NvCtrlNvmlGetStringAttribute(ctrl_target,
+                                                                attr,
+                                                                ptr);
+                if ((ret != NvCtrlMissingExtension) &&
+                    (ret != NvCtrlNotSupported)) {
+                    return ret;
+                }
+                /* Fall through */
+            }
+        case DISPLAY_TARGET:
+        case X_SCREEN_TARGET:
+        case FRAMELOCK_TARGET:
+        case VCS_TARGET:
+        case GVI_TARGET:
+        case NVIDIA_3D_VISION_PRO_TRANSCEIVER_TARGET:
+            if ((attr >= 0) && (attr <= NV_CTRL_STRING_LAST_ATTRIBUTE)) {
+                if (!h->nv) return NvCtrlMissingExtension;
+                return NvCtrlNvControlGetStringAttribute(h, display_mask, attr, ptr);
+            }
 
-    if ((attr >= NV_CTRL_STRING_NV_CONTROL_BASE) &&
-        (attr <= NV_CTRL_STRING_NV_CONTROL_LAST_ATTRIBUTE)) {
-        if (!h->nv) return NvCtrlMissingExtension;
-        return NvCtrlNvControlGetStringAttribute(h, display_mask, attr, ptr);
-    }
+            if ((attr >= NV_CTRL_STRING_NV_CONTROL_BASE) &&
+                (attr <= NV_CTRL_STRING_NV_CONTROL_LAST_ATTRIBUTE)) {
+                if (!h->nv) return NvCtrlMissingExtension;
+                return NvCtrlNvControlGetStringAttribute(h, display_mask, attr, ptr);
+            }
 
-    if ((attr >= NV_CTRL_STRING_GLX_BASE) &&
-        (attr <= NV_CTRL_STRING_GLX_LAST_ATTRIBUTE)) {
-        if (!h->glx) return NvCtrlMissingExtension;
-        return NvCtrlGlxGetStringAttribute(h, display_mask, attr, ptr);
-    }
+            if ((attr >= NV_CTRL_STRING_GLX_BASE) &&
+                (attr <= NV_CTRL_STRING_GLX_LAST_ATTRIBUTE)) {
+                if (!h->glx) return NvCtrlMissingExtension;
+                return NvCtrlGlxGetStringAttribute(h, display_mask, attr, ptr);
+            }
 
-    if ((attr >= NV_CTRL_STRING_XRANDR_BASE) &&
-        (attr <= NV_CTRL_STRING_XRANDR_LAST_ATTRIBUTE)) {
-        if (!h->xrandr) return NvCtrlMissingExtension;
-        return NvCtrlXrandrGetStringAttribute(h, display_mask, attr, ptr);
-    }
+            if ((attr >= NV_CTRL_STRING_XRANDR_BASE) &&
+                (attr <= NV_CTRL_STRING_XRANDR_LAST_ATTRIBUTE)) {
+                if (!h->xrandr) return NvCtrlMissingExtension;
+                return NvCtrlXrandrGetStringAttribute(h, display_mask, attr, ptr);
+            }
 
-    if ((attr >= NV_CTRL_STRING_XF86VIDMODE_BASE) &&
-        (attr <= NV_CTRL_STRING_XF86VIDMODE_LAST_ATTRIBUTE)) {
-        if (!h->vm) return NvCtrlMissingExtension;
-        return NvCtrlVidModeGetStringAttribute(h, display_mask, attr, ptr);
-    }
+            if ((attr >= NV_CTRL_STRING_XF86VIDMODE_BASE) &&
+                (attr <= NV_CTRL_STRING_XF86VIDMODE_LAST_ATTRIBUTE)) {
+                if (!h->vm) return NvCtrlMissingExtension;
+                return NvCtrlVidModeGetStringAttribute(h, display_mask, attr, ptr);
+            }
 
-    if ((attr >= NV_CTRL_STRING_XV_BASE) &&
-        (attr <= NV_CTRL_STRING_XV_LAST_ATTRIBUTE)) {
-        if (!h->xv) return NvCtrlMissingExtension;
-        return NvCtrlXvGetStringAttribute(h, display_mask, attr, ptr);
-    }
+            if ((attr >= NV_CTRL_STRING_XV_BASE) &&
+                (attr <= NV_CTRL_STRING_XV_LAST_ATTRIBUTE)) {
+                if (!h->xv) return NvCtrlMissingExtension;
+                return NvCtrlXvGetStringAttribute(h, display_mask, attr, ptr);
+            }
 
-    return NvCtrlNoAttribute;
+            return NvCtrlNoAttribute;
+
+        default:
+            return NvCtrlBadHandle;
+    }
 
 } /* NvCtrlGetStringDisplayAttribute() */
 
@@ -1033,8 +1124,32 @@ ReturnStatus NvCtrlSetStringDisplayAttribute(CtrlTarget *ctrl_target,
     }
 
     if ((attr >= 0) && (attr <= NV_CTRL_STRING_LAST_ATTRIBUTE)) {
-        if (!h->nv) return NvCtrlMissingExtension;
-        return NvCtrlNvControlSetStringAttribute(h, display_mask, attr, ptr);
+        switch (h->target_type) {
+            case GPU_TARGET:
+            case THERMAL_SENSOR_TARGET:
+            case COOLER_TARGET:
+                {
+                    ReturnStatus ret = NvCtrlNvmlSetStringAttribute(ctrl_target,
+                                                                    attr,
+                                                                    ptr);
+                    if ((ret != NvCtrlMissingExtension) &&
+                        (ret != NvCtrlNotSupported)) {
+                        return ret;
+                    }
+                    /* Fall through */
+                }
+            case DISPLAY_TARGET:
+            case X_SCREEN_TARGET:
+            case FRAMELOCK_TARGET:
+            case VCS_TARGET:
+            case GVI_TARGET:
+            case NVIDIA_3D_VISION_PRO_TRANSCEIVER_TARGET:
+                if (!h->nv) return NvCtrlMissingExtension;
+                return NvCtrlNvControlSetStringAttribute(h, display_mask, attr,
+                                                         ptr);
+            default:
+                return NvCtrlBadHandle;
+        }
     }
 
     return NvCtrlNoAttribute;
@@ -1051,7 +1166,31 @@ ReturnStatus NvCtrlGetBinaryAttribute(const CtrlTarget *ctrl_target,
         return NvCtrlBadHandle;
     }
 
-    return NvCtrlNvControlGetBinaryAttribute(h, display_mask, attr, data, len);
+    switch (h->target_type) {
+        case GPU_TARGET:
+        case THERMAL_SENSOR_TARGET:
+        case COOLER_TARGET:
+            {
+                ReturnStatus ret = NvCtrlNvmlGetBinaryAttribute(ctrl_target,
+                                                                attr,
+                                                                data,
+                                                                len);
+                if ((ret != NvCtrlMissingExtension) &&
+                    (ret != NvCtrlNotSupported)) {
+                    return ret;
+                }
+                /* Fall through */
+            }
+        case DISPLAY_TARGET:
+        case X_SCREEN_TARGET:
+        case FRAMELOCK_TARGET:
+        case VCS_TARGET:
+        case GVI_TARGET:
+        case NVIDIA_3D_VISION_PRO_TRANSCEIVER_TARGET:
+            return NvCtrlNvControlGetBinaryAttribute(h, display_mask, attr, data, len);
+        default:
+            return NvCtrlBadHandle;
+    }
 
 } /* NvCtrlGetBinaryAttribute() */
 
@@ -1095,6 +1234,8 @@ char *NvCtrlAttributesStrError(ReturnStatus status)
           return "Write only attribute"; break;
       case NvCtrlAttributeNotAvailable:
           return "Attribute not available"; break;
+      case NvCtrlNotSupported:
+          return "Operation not supported"; break;
       case NvCtrlError: /* fall through to default */
       default:
         return "Unknown Error"; break;
@@ -1123,6 +1264,9 @@ void NvCtrlAttributeClose(NvCtrlAttributeHandle *handle)
     }
     if ( h->xv ) {
         NvCtrlXvAttributesClose(h);
+    }
+    if ( h->nvml ) {
+        NvCtrlNvmlAttributesClose(h);
     }
 
     free(h);

@@ -818,10 +818,10 @@ static Bool load_system_info(CtrlSystem *system, const char *display)
 {
     ReturnStatus status;
     CtrlTarget *xscreenQueryTarget = NULL;
+    CtrlTarget *nvmlQueryTarget = NULL;
     int i, target_type, val, len, target_count;
     int *pData = NULL;
     const CtrlTargetTypeInfo *targetTypeInfo;
-    Bool nvml_found;
 
     if (!system) {
         return FALSE;
@@ -837,9 +837,13 @@ static Bool load_system_info(CtrlSystem *system, const char *display)
     system->dpy = XOpenDisplay(system->display);
 
     /* Try to initialize the NVML library */
-    nvml_found = (NvCtrlInitNvml() == NvCtrlSuccess);
+    if (NvCtrlInitNvml() == NvCtrlSuccess) {
+        nvmlQueryTarget = nv_alloc_ctrl_target(system, GPU_TARGET, 0,
+                              NV_CTRL_ATTRIBUTES_NV_CONTROL_SUBSYSTEM|
+                              NV_CTRL_ATTRIBUTES_NVML_SUBSYSTEM);
+    }
 
-    if (system->dpy == NULL && !nvml_found) {
+    if ((system->dpy == NULL) && (nvmlQueryTarget == NULL)) {
         nv_error_msg("Unable to load info from any available system");
         return FALSE;
     }
@@ -867,6 +871,18 @@ static Bool load_system_info(CtrlSystem *system, const char *display)
             if (system->dpy != NULL) {
                 target_count = ScreenCount(system->dpy);
             }
+        }
+        else if ((nvmlQueryTarget != NULL) &&
+                 TARGET_TYPE_IS_NVML_COMPATIBLE(target_type)) {
+
+            status = NvCtrlNvmlQueryTargetCount(nvmlQueryTarget,
+                                                target_type, &val);
+            if (status != NvCtrlSuccess) {
+                nv_warning_msg("Unable to determine number of NVIDIA %ss",
+                               targetTypeInfo->name);
+                val = 0;
+            }
+            target_count = val;
         }
         else {
 
@@ -1007,6 +1023,11 @@ static Bool load_system_info(CtrlSystem *system, const char *display)
         }
 
         NvCtrlTargetListAdd(&(system->physical_screens), target, FALSE);
+    }
+
+    /* Clean up */
+    if (nvmlQueryTarget != NULL) {
+        nv_free_ctrl_target(nvmlQueryTarget);
     }
 
     return TRUE;

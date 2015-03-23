@@ -331,7 +331,7 @@ GtkWidget* ctk_gvo_sync_new(CtrlTarget *ctrl_target,
     GtkWidget *table, *menu;
 
     gint val, i;
-    NVCTRLAttributeValidValuesRec valid;
+    CtrlAttributeValidValues valid;
     ReturnStatus ret;
     gint row;
 
@@ -553,7 +553,9 @@ GtkWidget* ctk_gvo_sync_new(CtrlTarget *ctrl_target,
                                         NV_CTRL_GVO_SYNC_DELAY_PIXELS,
                                         &valid);
 
-    if ((ret == NvCtrlSuccess) && (valid.type == ATTRIBUTE_TYPE_RANGE)) {
+    if ((ret == NvCtrlSuccess) &&
+        (valid.valid_type == CTRL_ATTRIBUTE_VALID_TYPE_RANGE)) {
+
         ret = NvCtrlGetAttribute(ctrl_target, NV_CTRL_GVO_SYNC_DELAY_PIXELS,
                                  &val);
         if (ret != NvCtrlSuccess) val = 0;
@@ -571,8 +573,8 @@ GtkWidget* ctk_gvo_sync_new(CtrlTarget *ctrl_target,
                          GTK_FILL, GTK_FILL, TABLE_PADDING, TABLE_PADDING);
 
         ctk_gvo_sync->hsync_delay_spin_button =
-            gtk_spin_button_new_with_range(valid.u.range.min,
-                                           valid.u.range.max, 1);
+            gtk_spin_button_new_with_range(valid.range.min,
+                                           valid.range.max, 1);
 
         ctk_config_set_tooltip(ctk_config,
                                ctk_gvo_sync->hsync_delay_spin_button,
@@ -608,7 +610,9 @@ GtkWidget* ctk_gvo_sync_new(CtrlTarget *ctrl_target,
                                         NV_CTRL_GVO_SYNC_DELAY_LINES,
                                         &valid);
 
-    if ((ret == NvCtrlSuccess) && (valid.type == ATTRIBUTE_TYPE_RANGE)) {
+    if ((ret == NvCtrlSuccess) &&
+        (valid.valid_type == CTRL_ATTRIBUTE_VALID_TYPE_RANGE)) {
+
         ret = NvCtrlGetAttribute(ctrl_target, NV_CTRL_GVO_SYNC_DELAY_LINES,
                                  &val);
         if (ret != NvCtrlSuccess) val = 0;
@@ -626,8 +630,8 @@ GtkWidget* ctk_gvo_sync_new(CtrlTarget *ctrl_target,
                          GTK_FILL, GTK_FILL, TABLE_PADDING, TABLE_PADDING);
 
         ctk_gvo_sync->vsync_delay_spin_button =
-            gtk_spin_button_new_with_range(valid.u.range.min,
-                                           valid.u.range.max, 1);
+            gtk_spin_button_new_with_range(valid.range.min,
+                                           valid.range.max, 1);
 
         ctk_config_set_tooltip(ctk_config,
                                ctk_gvo_sync->vsync_delay_spin_button,

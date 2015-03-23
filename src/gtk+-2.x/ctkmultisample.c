@@ -32,7 +32,7 @@
 /* local prototypes */
 
 static void build_fsaa_translation_table(CtkMultisample *ctk_multisample,
-                                         NVCTRLAttributeValidValuesRec valid);
+                                         CtrlAttributeValidValues valid);
 
 static int map_nv_ctrl_fsaa_value_to_slider(CtkMultisample *ctk_multisample,
                                             int value);
@@ -229,7 +229,7 @@ GtkWidget *ctk_multisample_new(CtrlTarget *ctrl_target,
 
     gint val, app_control, override, enhance, mode, i;
 
-    NVCTRLAttributeValidValuesRec valid;
+    CtrlAttributeValidValues valid;
 
     ReturnStatus ret, ret0;
 
@@ -437,7 +437,7 @@ GtkWidget *ctk_multisample_new(CtrlTarget *ctrl_target,
         override = !app_control;
         
         if ((ret == NvCtrlSuccess) && (ret0 == NvCtrlSuccess) &&
-            (valid.type == ATTRIBUTE_TYPE_RANGE)) {
+            (valid.valid_type == CTRL_ATTRIBUTE_VALID_TYPE_RANGE)) {
             
             /* create "Anisotropic Filtering" frame */
             
@@ -477,8 +477,8 @@ GtkWidget *ctk_multisample_new(CtrlTarget *ctrl_target,
             
             /* Aniso scale */
 
-            min = valid.u.range.min;
-            max = valid.u.range.max;
+            min = valid.range.min;
+            max = valid.range.max;
 
             /* create the slider */
             adjustment = GTK_ADJUSTMENT(gtk_adjustment_new(val, min, max,
@@ -584,21 +584,23 @@ GtkWidget *ctk_multisample_new(CtrlTarget *ctrl_target,
  */
 
 static void build_fsaa_translation_table(CtkMultisample *ctk_multisample,
-                                         NVCTRLAttributeValidValuesRec valid)
+                                         CtrlAttributeValidValues valid)
 {
     gint i, n = 0;
     gint index_8xs = -1;
     gint index_16x = -1;
     gint index_32x = -1;
     gint index_32xs = -1;
-    gint mask = valid.u.bits.ints;
+    gint mask = valid.allowed_ints;
 
     ctk_multisample->fsaa_translation_table_size = 0;
 
     memset(ctk_multisample->fsaa_translation_table, 0,
            sizeof(gint) * (NV_CTRL_FSAA_MODE_MAX + 1));
 
-    if (valid.type != ATTRIBUTE_TYPE_INT_BITS) return;
+    if (valid.valid_type != CTRL_ATTRIBUTE_VALID_TYPE_INT_BITS) {
+        return;
+    }
     
     for (i = 0; i <= NV_CTRL_FSAA_MODE_MAX; i++) {
         if (mask & (1 << i)) {

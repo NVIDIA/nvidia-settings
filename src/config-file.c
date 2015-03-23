@@ -236,7 +236,6 @@ int nv_write_config_file(const char *filename, const CtrlSystem *system,
     time_t now;
     ReturnStatus status;
     CtrlAttributePerms perms;
-    NVCTRLAttributeValidValuesRec valid;
     CtrlTargetNode *node;
     CtrlTarget *t;
     char *prefix, scratch[4];
@@ -363,20 +362,15 @@ int nv_write_config_file(const char *filename, const CtrlSystem *system,
                 continue;
             }
 
-            /* Ignore display attributes, they are written later on */
+            /*
+             * Ignore display attributes (they are written later on) and only
+             * write attributes that can be written for an X screen target
+             */
 
             status = NvCtrlGetAttributePerms(t, a->type, a->attr, &perms);
-            if (status != NvCtrlSuccess ||
+            if (status != NvCtrlSuccess || !(perms.write) ||
+                !(perms.valid_targets & CTRL_TARGET_PERM_BIT(X_SCREEN_TARGET)) ||
                 (perms.valid_targets & CTRL_TARGET_PERM_BIT(DISPLAY_TARGET))) {
-                continue;
-            }
-
-            /* Only write attributes that can be written */
-
-            status = NvCtrlGetValidAttributeValues(t, a->attr, &valid);
-            if (status != NvCtrlSuccess ||
-                !(valid.permissions & ATTRIBUTE_TYPE_WRITE) ||
-                (valid.permissions & ATTRIBUTE_TYPE_DISPLAY)) {;
                 continue;
             }
 
@@ -468,18 +462,11 @@ int nv_write_config_file(const char *filename, const CtrlSystem *system,
                 continue;
             }
 
-            /* Make sure this is a display attribute */
+            /* Make sure this is a display and writable attribute */
 
             status = NvCtrlGetAttributePerms(t, a->type, a->attr, &perms);
-            if (status != NvCtrlSuccess ||
+            if (status != NvCtrlSuccess || !(perms.write) ||
                 !(perms.valid_targets & CTRL_TARGET_PERM_BIT(DISPLAY_TARGET))) {
-                continue;
-            }
-
-            status = NvCtrlGetValidAttributeValues(t, a->attr, &valid);
-            if (status != NvCtrlSuccess ||
-                !(valid.permissions & ATTRIBUTE_TYPE_WRITE) ||
-                !(valid.permissions & ATTRIBUTE_TYPE_DISPLAY)) {
                 continue;
             }
 

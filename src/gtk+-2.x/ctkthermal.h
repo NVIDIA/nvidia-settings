@@ -47,7 +47,7 @@ typedef struct _CtkThermal       CtkThermal;
 typedef struct _CtkThermalClass  CtkThermalClass;
 
 typedef struct _CoolerControl {
-    NVCTRLAttributeValidValuesRec range;
+    CtrlAttributeValidValues range;
     CtrlTarget *ctrl_target;
 
     int level;

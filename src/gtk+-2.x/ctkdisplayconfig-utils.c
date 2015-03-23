@@ -2762,36 +2762,36 @@ static nvDisplayPtr gpu_add_display_from_server(nvGpuPtr gpu,
         unsigned int valid1 = 0;
         unsigned int valid2 = 0;
         unsigned int valid3 = 0;
-        NVCTRLAttributeValidValuesRec valid;
+        CtrlAttributeValidValues valid;
 
         ret = NvCtrlGetValidAttributeValues(gpu->ctrl_target,
                                             NV_CTRL_GVIO_REQUESTED_VIDEO_FORMAT,
                                             &valid);
         if ((ret != NvCtrlSuccess) ||
-            (valid.type != ATTRIBUTE_TYPE_INT_BITS)) {
+            (valid.valid_type != CTRL_ATTRIBUTE_VALID_TYPE_INT_BITS)) {
             valid1 = 0;
         } else {
-            valid1 = valid.u.bits.ints;
+            valid1 = valid.allowed_ints;
         }
 
         ret = NvCtrlGetValidAttributeValues(gpu->ctrl_target,
                                             NV_CTRL_GVIO_REQUESTED_VIDEO_FORMAT2,
                                             &valid);
         if ((ret != NvCtrlSuccess) ||
-            (valid.type != ATTRIBUTE_TYPE_INT_BITS)) {
+            (valid.valid_type != CTRL_ATTRIBUTE_VALID_TYPE_INT_BITS)) {
             valid2 = 0;
         } else {
-            valid2 = valid.u.bits.ints;
+            valid2 = valid.allowed_ints;
         }
 
         ret = NvCtrlGetValidAttributeValues(gpu->ctrl_target,
                                             NV_CTRL_GVIO_REQUESTED_VIDEO_FORMAT3,
                                             &valid);
         if ((ret != NvCtrlSuccess) ||
-            (valid.type != ATTRIBUTE_TYPE_INT_BITS)) {
+            (valid.valid_type != CTRL_ATTRIBUTE_VALID_TYPE_INT_BITS)) {
             valid3 = 0;
         } else {
-            valid3 = valid.u.bits.ints;
+            valid3 = valid.allowed_ints;
         }
 
         /* Count the number of valid modes there are */
@@ -3232,17 +3232,17 @@ static Bool layout_add_gpu_from_server(nvLayoutPtr layout,
         }
 
     } else {
-        NVCTRLAttributeValidValuesRec valid;
+        CtrlAttributeValidValues valid;
 
         ret = NvCtrlGetValidAttributeValues(ctrl_target,
                                             NV_CTRL_BASE_MOSAIC,
                                             &valid);
         if ((ret == NvCtrlSuccess) &&
-            (valid.type == ATTRIBUTE_TYPE_INT_BITS)) {
+            (valid.valid_type == CTRL_ATTRIBUTE_VALID_TYPE_INT_BITS)) {
 
-            if (valid.u.bits.ints & NV_CTRL_BASE_MOSAIC_FULL) {
+            if (valid.allowed_ints & NV_CTRL_BASE_MOSAIC_FULL) {
                 gpu->mosaic_type = MOSAIC_TYPE_BASE_MOSAIC;
-            } else if (valid.u.bits.ints & NV_CTRL_BASE_MOSAIC_LIMITED) {
+            } else if (valid.allowed_ints & NV_CTRL_BASE_MOSAIC_LIMITED) {
                 gpu->mosaic_type = MOSAIC_TYPE_BASE_MOSAIC_LIMITED;
             }
 

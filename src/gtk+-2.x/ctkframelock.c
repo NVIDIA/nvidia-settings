@@ -1214,7 +1214,7 @@ static void list_entry_update_gpu_controls(CtkFramelock *ctk_framelock,
 
 static gboolean framelock_refresh_rates_compatible(int server, int client)
 {
-    int range;
+    double range;
 
     /* client can be 0, e.g. if querying NV_CTRL_REFRESH_RATE{,_3} fails,
      * or if the display device is disabled. */
@@ -1222,11 +1222,11 @@ static gboolean framelock_refresh_rates_compatible(int server, int client)
         return FALSE;
     }
 
-    range = ABS(((int64_t)(server - client) * 1000000) / client);
+    range = ABS(((double)(server - client) * 1000000.0) / client);
 
     /* Framelock can be achieved if the range between refresh rates is less
      * than 50 ppm */
-    return range <= 50;
+    return range <= 50.0;
 }
 
 /** list_entry_update_display_controls() *****************************
@@ -4106,7 +4106,7 @@ static void update_display_config(nvListEntryPtr display_entry, int config)
 {
     nvDisplayDataPtr display_data = (nvDisplayDataPtr)display_entry->data;
     ReturnStatus ret;
-    NVCTRLAttributeValidValuesRec valid_config;
+    CtrlAttributeValidValues valid_config;
     gboolean serverable = FALSE;
     gboolean clientable = FALSE;
 
@@ -4119,12 +4119,12 @@ static void update_display_config(nvListEntryPtr display_entry, int config)
                                         &valid_config);
 
     if (ret == NvCtrlSuccess &&
-        (valid_config.type == ATTRIBUTE_TYPE_INT_BITS)) {
-        if (valid_config.u.bits.ints &
+        (valid_config.valid_type == CTRL_ATTRIBUTE_VALID_TYPE_INT_BITS)) {
+        if (valid_config.allowed_ints &
             (1<<NV_CTRL_FRAMELOCK_DISPLAY_CONFIG_CLIENT)) {
             clientable = TRUE;
         }
-        if (valid_config.u.bits.ints &
+        if (valid_config.allowed_ints &
             (1<<NV_CTRL_FRAMELOCK_DISPLAY_CONFIG_SERVER)) {
             serverable = TRUE;
         }
@@ -4601,7 +4601,7 @@ GtkWidget* ctk_framelock_new(CtrlTarget *ctrl_target,
     GtkWidget *combo_box;
     GtkWidget *button;
     GtkWidget *image;
-    NVCTRLAttributeValidValuesRec valid;
+    CtrlAttributeValidValues valid;
 
 
     /* make sure we have a valid target */
@@ -4742,7 +4742,7 @@ GtkWidget* ctk_framelock_new(CtrlTarget *ctrl_target,
     ret = NvCtrlGetValidAttributeValues(ctrl_target,
                                         NV_CTRL_FRAMELOCK_VIDEO_MODE,
                                         &valid);
-    if ((ret == NvCtrlSuccess) && (valid.permissions & ATTRIBUTE_TYPE_WRITE)) {
+    if ((ret == NvCtrlSuccess) && valid.permissions.write) {
         ctk_framelock->video_mode_read_only = FALSE;
     }
 
@@ -4915,10 +4915,11 @@ GtkWidget* ctk_framelock_new(CtrlTarget *ctrl_target,
          * range from NV-CONTROL
          */
 
-        if ((ret != NvCtrlSuccess) || (valid.type != ATTRIBUTE_TYPE_RANGE)) {
-            valid.type = ATTRIBUTE_TYPE_RANGE;
-            valid.u.range.min = 0;
-            valid.u.range.max = 4;
+        if ((ret != NvCtrlSuccess) ||
+            (valid.valid_type != CTRL_ATTRIBUTE_VALID_TYPE_RANGE)) {
+            valid.valid_type = CTRL_ATTRIBUTE_VALID_TYPE_RANGE;
+            valid.range.min = 0;
+            valid.range.max = 4;
         }
 
         if (NvCtrlSuccess !=
@@ -4931,8 +4932,8 @@ GtkWidget* ctk_framelock_new(CtrlTarget *ctrl_target,
         hbox = gtk_hbox_new(FALSE, 5);
         label = gtk_label_new("Sync Interval:");
 
-        adjustment = GTK_ADJUSTMENT(gtk_adjustment_new(val, valid.u.range.min,
-                                                       valid.u.range.max,
+        adjustment = GTK_ADJUSTMENT(gtk_adjustment_new(val, valid.range.min,
+                                                       valid.range.max,
                                                        1, 1, 0));
         scale = gtk_hscale_new(GTK_ADJUSTMENT(adjustment));
         gtk_adjustment_set_value(GTK_ADJUSTMENT(adjustment), val);

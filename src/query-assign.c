@@ -55,11 +55,11 @@ static int query_all_targets(const char *display_name, const int target_type,
                              CtrlSystemList *);
 
 static void print_valid_values(const Options *op, const AttributeTableEntry *a,
-                               NVCTRLAttributeValidValuesRec valid);
+                               CtrlAttributeValidValues valid);
 
 static void print_additional_info(const char *name,
                                   int attr,
-                                  NVCTRLAttributeValidValuesRec valid,
+                                  CtrlAttributeValidValues valid,
                                   const char *indent);
 
 static ReturnStatus get_framelock_sync_state(CtrlTarget *target,
@@ -910,7 +910,7 @@ static int validate_value(const Options *op, CtrlTarget *t,
                           char *whence)
 {
     int bad_val = NV_FALSE;
-    NVCTRLAttributeValidValuesRec valid;
+    CtrlAttributeValidValues valid;
     ReturnStatus status;
     char d_str[256];
     char *tmp_d_str;
@@ -928,8 +928,10 @@ static int validate_value(const Options *op, CtrlTarget *t,
         return NV_FALSE;
     }
 
-    if (target_type != DISPLAY_TARGET &&
-        valid.permissions & ATTRIBUTE_TYPE_DISPLAY) {
+    if ((target_type != DISPLAY_TARGET) &&
+        (valid.permissions.valid_targets &
+         CTRL_TARGET_PERM_BIT(DISPLAY_TARGET))) {
+
         tmp_d_str = display_device_mask_to_display_device_name(d);
         sprintf(d_str, ", display device: %s", tmp_d_str);
         free(tmp_d_str);
@@ -937,43 +939,43 @@ static int validate_value(const Options *op, CtrlTarget *t,
         d_str[0] = '\0';
     }
 
-    switch (valid.type) {
-    case ATTRIBUTE_TYPE_INTEGER:
-    case ATTRIBUTE_TYPE_BITMASK:
+    switch (valid.valid_type) {
+    case CTRL_ATTRIBUTE_VALID_TYPE_INTEGER:
+    case CTRL_ATTRIBUTE_VALID_TYPE_BITMASK:
         /* don't do any checks on integer or bitmask values */
         break;
-    case ATTRIBUTE_TYPE_BOOL:
+    case CTRL_ATTRIBUTE_VALID_TYPE_BOOL:
         if ((p->val.i < 0) || (p->val.i > 1)) {
             bad_val = NV_TRUE;
         }
         break;
-    case ATTRIBUTE_TYPE_RANGE:
+    case CTRL_ATTRIBUTE_VALID_TYPE_RANGE:
         if (a->f.int_flags.is_packed) {
-            if (((p->val.i >> 16) < (valid.u.range.min >> 16)) ||
-                ((p->val.i >> 16) > (valid.u.range.max >> 16)) ||
-                ((p->val.i & 0xffff) < (valid.u.range.min & 0xffff)) ||
-                ((p->val.i & 0xffff) > (valid.u.range.max & 0xffff)))
+            if (((p->val.i >> 16) < (valid.range.min >> 16)) ||
+                ((p->val.i >> 16) > (valid.range.max >> 16)) ||
+                ((p->val.i & 0xffff) < (valid.range.min & 0xffff)) ||
+                ((p->val.i & 0xffff) > (valid.range.max & 0xffff)))
                 bad_val = NV_TRUE;
         } else {
-            if ((p->val.i < valid.u.range.min) ||
-                (p->val.i > valid.u.range.max))
+            if ((p->val.i < valid.range.min) ||
+                (p->val.i > valid.range.max))
                 bad_val = NV_TRUE;
         }
         break;
-    case ATTRIBUTE_TYPE_INT_BITS:
+    case CTRL_ATTRIBUTE_VALID_TYPE_INT_BITS:
         if (a->f.int_flags.is_packed) {
             unsigned int u, l;
 
              u = (((unsigned int) p->val.i) >> 16);
              l = (p->val.i & 0xffff);
 
-             if ((u > 15) || ((valid.u.bits.ints & (1 << u << 16)) == 0) ||
-                 (l > 15) || ((valid.u.bits.ints & (1 << l)) == 0)) {
+             if ((u > 15) || ((valid.allowed_ints & (1 << u << 16)) == 0) ||
+                 (l > 15) || ((valid.allowed_ints & (1 << l)) == 0)) {
                 bad_val = NV_TRUE;
             }
         } else {
             if ((p->val.i > 31) || (p->val.i < 0) ||
-                ((valid.u.bits.ints & (1<<p->val.i)) == 0)) {
+                ((valid.allowed_ints & (1<<p->val.i)) == 0)) {
                 bad_val = NV_TRUE;
             }
         }
@@ -987,7 +989,7 @@ static int validate_value(const Options *op, CtrlTarget *t,
 
     targetTypeInfo = NvCtrlGetTargetTypeInfo(target_type);
     if (!targetTypeInfo ||
-        !(targetTypeInfo->permission_bit & valid.permissions)) {
+        !(targetTypeInfo->permission_bit & valid.permissions.valid_targets)) {
         bad_val = NV_TRUE;
     }
 
@@ -1021,7 +1023,7 @@ static int validate_value(const Options *op, CtrlTarget *t,
  */
 
 static void print_valid_values(const Options *op, const AttributeTableEntry *a,
-                               NVCTRLAttributeValidValuesRec valid)
+                               CtrlAttributeValidValues valid)
 {
     int bit, print_bit, last, last2, n, i;
     char str[256];
@@ -1039,16 +1041,16 @@ static void print_valid_values(const Options *op, const AttributeTableEntry *a,
 
 #define INDENT "    "
 
-    switch (valid.type) {
-    case ATTRIBUTE_TYPE_STRING:
+    switch (valid.valid_type) {
+    case CTRL_ATTRIBUTE_VALID_TYPE_STRING:
         nv_msg(INDENT, "'%s' is a string attribute.", name);
         break;
 
-    case ATTRIBUTE_TYPE_64BIT_INTEGER:
+    case CTRL_ATTRIBUTE_VALID_TYPE_64BIT_INTEGER:
         nv_msg(INDENT, "'%s' is a 64 bit integer attribute.", name);
         break;
 
-    case ATTRIBUTE_TYPE_INTEGER:
+    case CTRL_ATTRIBUTE_VALID_TYPE_INTEGER:
         if ((a->type == CTRL_ATTRIBUTE_TYPE_INTEGER) &&
             a->f.int_flags.is_packed) {
             nv_msg(INDENT, "'%s' is a packed integer attribute.", name);
@@ -1057,37 +1059,37 @@ static void print_valid_values(const Options *op, const AttributeTableEntry *a,
         }
         break;
 
-    case ATTRIBUTE_TYPE_BITMASK:
+    case CTRL_ATTRIBUTE_VALID_TYPE_BITMASK:
         nv_msg(INDENT, "'%s' is a bitmask attribute.", name);
         break;
 
-    case ATTRIBUTE_TYPE_BOOL:
+    case CTRL_ATTRIBUTE_VALID_TYPE_BOOL:
         nv_msg(INDENT, "'%s' is a boolean attribute; valid values are: "
                "1 (on/true) and 0 (off/false).", name);
         break;
 
-    case ATTRIBUTE_TYPE_RANGE:
+    case CTRL_ATTRIBUTE_VALID_TYPE_RANGE:
         if ((a->type == CTRL_ATTRIBUTE_TYPE_INTEGER) &&
             a->f.int_flags.is_packed) {
             nv_msg(INDENT, "The valid values for '%s' are in the ranges "
                    "%" PRId64 " - %" PRId64 ", %" PRId64 " - %" PRId64
                    " (inclusive).",
-                   name, valid.u.range.min >> 16, valid.u.range.max >> 16,
-                   valid.u.range.min & 0xffff, valid.u.range.max & 0xffff);
+                   name, valid.range.min >> 16, valid.range.max >> 16,
+                   valid.range.min & 0xffff, valid.range.max & 0xffff);
         } else {
             nv_msg(INDENT, "The valid values for '%s' are in the range "
                    "%" PRId64 " - %" PRId64 " (inclusive).", name,
-                   valid.u.range.min, valid.u.range.max);
+                   valid.range.min, valid.range.max);
         }
         break;
 
-    case ATTRIBUTE_TYPE_INT_BITS:
+    case CTRL_ATTRIBUTE_VALID_TYPE_INT_BITS:
         last = last2 = -1;
 
         /* scan through the bitmask once to get the last valid bits */
 
         for (bit = 0; bit < 32; bit++) {
-            if (valid.u.bits.ints & (1 << bit)) {
+            if (valid.allowed_ints & (1 << bit)) {
                 if ((bit > 15) &&
                     (a->type == CTRL_ATTRIBUTE_TYPE_INTEGER) &&
                     a->f.int_flags.is_packed) {
@@ -1116,7 +1118,7 @@ static void print_valid_values(const Options *op, const AttributeTableEntry *a,
                 at = &c;
             }
 
-            if (valid.u.bits.ints & (1 << bit)) {
+            if (valid.allowed_ints & (1 << bit)) {
                 if (*at == str || *at == str2) {
                     *at += sprintf(*at, "%d", print_bit);
                 } else if (bit == last || bit == last2) {
@@ -1135,13 +1137,17 @@ static void print_valid_values(const Options *op, const AttributeTableEntry *a,
             nv_msg(INDENT, "Valid values for '%s' are: %s.", name, str);
         }
         break;
+
+    default:
+        /* This should not be reached */
+        break;
     }
 
-    if (!(valid.permissions & ATTRIBUTE_TYPE_WRITE)) {
+    if (!valid.permissions.write) {
         nv_msg(INDENT, "'%s' is a read-only attribute.", name);
     }
 
-    if (valid.permissions & ATTRIBUTE_TYPE_DISPLAY) {
+    if (valid.permissions.valid_targets & CTRL_TARGET_PERM_BIT(DISPLAY_TARGET)) {
         nv_msg(INDENT, "'%s' is display device specific.", name);
     }
 
@@ -1154,7 +1160,7 @@ static void print_valid_values(const Options *op, const AttributeTableEntry *a,
         const CtrlTargetTypeInfo *targetTypeInfo =
             NvCtrlGetTargetTypeInfo(i);
 
-        if (valid.permissions & targetTypeInfo->permission_bit) {
+        if (valid.permissions.valid_targets & targetTypeInfo->permission_bit) {
             if (n > 0) c += sprintf(c, ", ");
             c += sprintf(c, "%s", targetTypeInfo->name);
             n++;
@@ -1191,7 +1197,7 @@ typedef enum {
 
 static void print_queried_value(const Options *op,
                                 CtrlTarget *target,
-                                NVCTRLAttributeValidValuesRec *v,
+                                CtrlAttributeValidValues *v,
                                 int val,
                                 const AttributeTableEntry *a,
                                 uint32 mask,
@@ -1221,7 +1227,7 @@ static void print_queried_value(const Options *op,
         snprintf(val_str, 64, "%.2f Hz", ((float) val) / 100.0);
     } else if (a->f.int_flags.is_1000Hz) {
         snprintf(val_str, 64, "%.3f Hz", ((float) val) / 1000.0);
-    } else if (v->type == ATTRIBUTE_TYPE_BITMASK) {
+    } else if (v->valid_type == CTRL_ATTRIBUTE_VALID_TYPE_BITMASK) {
         snprintf(val_str, 64, "0x%08x", val);
     } else if (a->f.int_flags.is_packed) {
         snprintf(val_str, 64, "%d,%d", val >> 16, val & 0xffff);
@@ -1232,7 +1238,8 @@ static void print_queried_value(const Options *op,
     /* append the display device name, if necessary */
 
     if ((NvCtrlGetTargetType(target) != DISPLAY_TARGET) &&
-        v->permissions & ATTRIBUTE_TYPE_DISPLAY) {
+        (v->permissions.valid_targets & CTRL_TARGET_PERM_BIT(DISPLAY_TARGET))) {
+
         tmp_d_str = display_device_mask_to_display_device_name(mask);
         snprintf(d_str, 64, "; display device: %s", tmp_d_str);
         free(tmp_d_str);
@@ -1330,18 +1337,18 @@ static void print_additional_fsaa_info(const char *name,
 
 static void print_additional_info(const char *name,
                                   int attr,
-                                  NVCTRLAttributeValidValuesRec valid,
+                                  CtrlAttributeValidValues valid,
                                   const char *indent)
 {
     switch (attr) {
 
     case NV_CTRL_FSAA_MODE:
-        print_additional_fsaa_info(name, valid.u.bits.ints, indent);
+        print_additional_fsaa_info(name, valid.allowed_ints, indent);
         break;
 
     case NV_CTRL_STEREO:
-        if (valid.type == ATTRIBUTE_TYPE_INT_BITS) {
-            print_additional_stereo_info(name, valid.u.bits.ints, indent);
+        if (valid.valid_type == CTRL_ATTRIBUTE_VALID_TYPE_INT_BITS) {
+            print_additional_stereo_info(name, valid.allowed_ints, indent);
         }
         break;
 
@@ -1369,7 +1376,7 @@ static int query_all(const Options *op, const char *display_name,
     int bit, entry, val, i;
     uint32 mask;
     ReturnStatus status;
-    NVCTRLAttributeValidValuesRec valid;
+    CtrlAttributeValidValues valid;
     CtrlSystem *system;
 
     system = NvCtrlConnectToSystem(display_name, systems);
@@ -1516,7 +1523,8 @@ static int query_all(const Options *op, const char *display_name,
                         nv_msg(NULL,"");
                     }
 
-                    if (valid.permissions & ATTRIBUTE_TYPE_DISPLAY) {
+                    if (valid.permissions.valid_targets &
+                        CTRL_TARGET_PERM_BIT(DISPLAY_TARGET)) {
                         continue;
                     }
 
@@ -1608,54 +1616,57 @@ static char *get_display_state_str(CtrlTarget *t)
 static int print_target_connections(CtrlTarget *t,
                                     const char *relation_str,
                                     const char *null_relation_str,
-                                    unsigned int attrib,
-                                    unsigned int target_type)
+                                    CtrlTargetType other_target_type)
 {
-    int *pData;
-    int len, i;
-    ReturnStatus status;
     const CtrlTargetTypeInfo *targetTypeInfo;
+    CtrlTargetNode *node;
+    int count;
 
-    targetTypeInfo = NvCtrlGetTargetTypeInfo(target_type);
+    targetTypeInfo = NvCtrlGetTargetTypeInfo(other_target_type);
 
 
-    /* Query the connected targets */
+    /* Count how many 'other_target_type' targets are related to 't' */
 
-    status =
-        NvCtrlGetBinaryAttribute(t, 0, attrib,
-                                 (unsigned char **) &pData,
-                                 &len);
-    if (status != NvCtrlSuccess) return NV_FALSE;
+    count = 0;
+    for (node = t->relations; node; node = node->next) {
+        if (NvCtrlGetTargetType(node->t) == other_target_type) {
+            count++;
+        }
+    }
 
-    if (pData[0] == 0) {
+
+    if (count == 0) {
         nv_msg("      ", "%s any %s.",
                null_relation_str,
                targetTypeInfo->name);
         nv_msg(NULL, "");
 
-        free(pData);
         return NV_TRUE;
     }
 
     nv_msg("      ", "%s the following %s%s:",
            relation_str,
            targetTypeInfo->name,
-           ((pData[0] > 1) ? "s" : ""));
+           ((count > 1) ? "s" : ""));
 
     /* List the connected targets */
 
-    for (i = 1; i <= pData[0]; i++) {
-        CtrlTarget *other = NvCtrlGetTarget(t->system, target_type, pData[i]);
+    for (node = t->relations; node; node = node->next) {
+        CtrlTarget *other = node->t;
         char *target_name = NULL;
         char *product_name = NULL;
         Bool is_x_name = NV_FALSE;
         char *extra_str = NULL;
 
+        if (NvCtrlGetTargetType(other) != other_target_type) {
+            continue;
+        }
+
 
         if (other) {
             target_name = other->name;
 
-            switch (target_type) {
+            switch (other_target_type) {
             case GPU_TARGET:
                 product_name =
                     get_product_name(other, NV_CTRL_STRING_PRODUCT_NAME);
@@ -1698,7 +1709,7 @@ static int print_target_connections(CtrlTarget *t,
             nv_msg("        ", "%s (%s %d)",
                    target_name,
                    targetTypeInfo->name,
-                   pData[i]);
+                   NvCtrlGetTargetId(other));
         }
 
         if (product_name) {
@@ -1714,7 +1725,6 @@ static int print_target_connections(CtrlTarget *t,
     }
     nv_msg(NULL, "");
 
-    free(pData);
     return NV_TRUE;
 
 } /* print_target_connections() */
@@ -1858,37 +1868,31 @@ static int query_all_targets(const char *display_name, const int target_type,
                     (t,
                      "Is driving",
                      "Is not driving",
-                     NV_CTRL_BINARY_DATA_XSCREENS_USING_GPU,
                      X_SCREEN_TARGET);
                 print_target_connections
                     (t,
                      "Supports",
                      "Does not support",
-                     NV_CTRL_BINARY_DATA_DISPLAYS_ON_GPU,
                      DISPLAY_TARGET);
                 print_target_connections
                     (t,
                      "Is connected to",
                      "Is not connected to",
-                     NV_CTRL_BINARY_DATA_FRAMELOCKS_USED_BY_GPU,
                      FRAMELOCK_TARGET);
                 print_target_connections
                     (t,
                      "Is connected to",
                      "Is not connected to",
-                     NV_CTRL_BINARY_DATA_VCSCS_USED_BY_GPU,
                      VCS_TARGET);
                 print_target_connections
                     (t,
                      "Is connected to",
                      "Is not connected to",
-                     NV_CTRL_BINARY_DATA_COOLERS_USED_BY_GPU,
                      COOLER_TARGET);
                 print_target_connections
                     (t,
                      "Is connected to",
                      "Is not connected to",
-                     NV_CTRL_BINARY_DATA_THERMAL_SENSORS_USED_BY_GPU,
                      THERMAL_SENSOR_TARGET);
                 break;
 
@@ -1897,13 +1901,11 @@ static int query_all_targets(const char *display_name, const int target_type,
                     (t,
                      "Is driven by",
                      "Is not driven by",
-                     NV_CTRL_BINARY_DATA_GPUS_USED_BY_XSCREEN,
                      GPU_TARGET);
                 print_target_connections
                     (t,
                      "Is assigned",
                      "Is not assigned",
-                     NV_CTRL_BINARY_DATA_DISPLAYS_ASSIGNED_TO_XSCREEN,
                      DISPLAY_TARGET);
                 break;
 
@@ -1912,7 +1914,6 @@ static int query_all_targets(const char *display_name, const int target_type,
                     (t,
                      "Is connected to",
                      "Is not connected to",
-                     NV_CTRL_BINARY_DATA_GPUS_USING_FRAMELOCK,
                      GPU_TARGET);
                 break;
 
@@ -1921,7 +1922,6 @@ static int query_all_targets(const char *display_name, const int target_type,
                     (t,
                      "Is connected to",
                      "Is not connected to",
-                     NV_CTRL_BINARY_DATA_GPUS_USING_VCSC,
                      GPU_TARGET);
                 break;
 
@@ -1930,8 +1930,7 @@ static int query_all_targets(const char *display_name, const int target_type,
                     (t,
                      "Is connected to",
                      "Is not connected to",
-                     NV_CTRL_BINARY_DATA_COOLERS_USED_BY_GPU,
-                     COOLER_TARGET);
+                     GPU_TARGET);
                 break;
 
             case THERMAL_SENSOR_TARGET:
@@ -1939,8 +1938,7 @@ static int query_all_targets(const char *display_name, const int target_type,
                     (t,
                      "Is connected to",
                      "Is not connected to",
-                     NV_CTRL_BINARY_DATA_THERMAL_SENSORS_USED_BY_GPU,
-                     THERMAL_SENSOR_TARGET);
+                     GPU_TARGET);
                 break;
 
             default:
@@ -1969,7 +1967,7 @@ static int process_parsed_attribute_internal(const Options *op,
                                              ParsedAttribute *p, uint32 d,
                                              int target_type, int assign,
                                              int verbose, char *whence,
-                                             NVCTRLAttributeValidValuesRec
+                                             CtrlAttributeValidValues
                                              valid)
 {
     ReturnStatus status;
@@ -1977,8 +1975,10 @@ static int process_parsed_attribute_internal(const Options *op,
     int ret;
     const AttributeTableEntry *a = p->attr_entry;
 
-    if (target_type != DISPLAY_TARGET &&
-        valid.permissions & ATTRIBUTE_TYPE_DISPLAY) {
+    if ((target_type != DISPLAY_TARGET) &&
+        (valid.permissions.valid_targets &
+         CTRL_TARGET_PERM_BIT(DISPLAY_TARGET))) {
+
         tmp_d_str = display_device_mask_to_display_device_name(d);
         sprintf(str, ", display device: %s", tmp_d_str);
         free(tmp_d_str);
@@ -2127,8 +2127,9 @@ int nv_process_parsed_attribute(const Options *op,
     char *whence, *tmp_d_str0, *tmp_d_str1;
     ReturnStatus status;
     CtrlTargetNode *n;
-    NVCTRLAttributeValidValuesRec valid;
+    CtrlAttributeValidValues valid;
     const AttributeTableEntry *a = p->attr_entry;
+    int display_id_found = NV_FALSE;
 
 
     val = NV_FALSE;
@@ -2323,12 +2324,14 @@ int nv_process_parsed_attribute(const Options *op,
          * If we are assigning, and the value for this attribute is a display
          * device id/name string, then we need to validate and convert the
          * given string against list of available display devices.  The resulting
-         * id, if any, is then fed back into the ParsedAttrinute's value as an
-         * int which is ultimately written out to NV-CONTROL.
+         * id, if any, is then fed back into the ParsedAttribute's value as an
+         * int which is ultimately written out to NV-CONTROL. Once the string is
+         * converted, we can reuse it for all targets.
          */
         if (assign &&
             (a->type == CTRL_ATTRIBUTE_TYPE_INTEGER) &&
-            a->f.int_flags.is_display_id) {
+            a->f.int_flags.is_display_id &&
+            !display_id_found) {
             CtrlTargetNode *dpy_node;
             int found = NV_FALSE;
             int multi_match = NV_FALSE;
@@ -2389,8 +2392,10 @@ int nv_process_parsed_attribute(const Options *op,
                 continue;
             }
 
-            /* Put converted id back into a->val */
+            /* Put converted id back into p->val */
+            nvfree(p->val.str);
             p->val.i = id;
+            display_id_found = NV_TRUE;
         }
 
 
@@ -2676,7 +2681,7 @@ int nv_process_parsed_attribute(const Options *op,
          * that the attribute is writable; if it's not, give up
          */
 
-        if (assign && !(valid.permissions & ATTRIBUTE_TYPE_WRITE)) {
+        if (assign && !valid.permissions.write) {
             nv_error_msg("The attribute '%s' specified %s cannot be "
                          "assigned (it is a read-only attribute).",
                          a->name, whence);
