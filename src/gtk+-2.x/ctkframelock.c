@@ -1214,7 +1214,7 @@ static void list_entry_update_gpu_controls(CtkFramelock *ctk_framelock,
 
 static gboolean framelock_refresh_rates_compatible(int server, int client)
 {
-    int range;
+    double range;
 
     /* client can be 0, e.g. if querying NV_CTRL_REFRESH_RATE{,_3} fails,
      * or if the display device is disabled. */
@@ -1222,11 +1222,11 @@ static gboolean framelock_refresh_rates_compatible(int server, int client)
         return FALSE;
     }
 
-    range = ABS(((int64_t)(server - client) * 1000000) / client);
+    range = ABS(((double)(server - client) * 1000000.0) / client);
 
     /* Framelock can be achieved if the range between refresh rates is less
      * than 50 ppm */
-    return range <= 50;
+    return range <= 50.0;
 }
 
 /** list_entry_update_display_controls() *****************************
