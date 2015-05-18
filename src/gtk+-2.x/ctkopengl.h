@@ -52,6 +52,7 @@ struct _CtkOpenGL
 
     CtrlTarget *ctrl_target;
     CtkConfig *ctk_config;
+    CtrlEvent *ctk_event;
 
     GtkWidget *sync_to_vblank_button;
     GtkWidget *allow_flipping_button;
@@ -61,11 +62,15 @@ struct _CtkOpenGL
     GtkWidget *force_stereo_button;
     GtkWidget *xinerama_stereo_button;
     GtkWidget *stereo_eyes_exchange_button;
+    GtkWidget *stereo_swap_mode_menu;
     GtkWidget *image_settings_scale;
     GtkWidget *aa_line_gamma_button;
     GtkWidget *aa_line_gamma_scale;
     GtkWidget *show_sli_visual_indicator_button;
     GtkWidget *show_multigpu_visual_indicator_button;
+
+    gint *stereo_swap_mode_table;
+    gint stereo_swap_mode_table_size;
 
     unsigned int active_attributes;
 };

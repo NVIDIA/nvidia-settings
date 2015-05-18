@@ -54,7 +54,9 @@ struct _CtkEcc
     CtkConfig *ctk_config;
 
     GtkWidget* status;
+    GtkWidget* sbit_error;
     GtkWidget* dbit_error;
+    GtkWidget* aggregate_sbit_error;
     GtkWidget* aggregate_dbit_error;
     GtkWidget* ecc_config_supported;
     GtkWidget* clear_button;
@@ -65,7 +67,9 @@ struct _CtkEcc
     gboolean ecc_enabled;
     gboolean ecc_configured;
     gboolean ecc_toggle_warning_dlg_shown;
+    gboolean sbit_error_available;
     gboolean dbit_error_available;
+    gboolean aggregate_sbit_error_available;
     gboolean aggregate_dbit_error_available;
 
 };

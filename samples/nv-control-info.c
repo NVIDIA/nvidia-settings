@@ -36,48 +36,17 @@
 #include "NVCtrl.h"
 #include "NVCtrlLib.h"
 
+#define ARRAY_LEN(_arr) (sizeof(_arr) / sizeof(_arr[0]))
+
 // Used to convert the NV-CONTROL #defines to human readable text.
-#define MAKE_ENTRY(ATTRIBUTE) { ATTRIBUTE, #ATTRIBUTE, NULL }
+#define MAKE_ENTRY(ATTRIBUTE) [ATTRIBUTE] = #ATTRIBUTE
 
-typedef struct {
-    int num;
-    char *str;
-    char *name;
-} AttrEntry;
-
-static const char *attr2str(int n, AttrEntry *tbl)
-{
-    AttrEntry *entry;
-
-    entry = tbl;
-    while (entry->str) {
-        if (entry->num == n) {
-            if (!entry->name) {
-                int len;
-                entry->name = strdup(entry->str + 8);
-                for (len = 0; len < strlen(entry->name); len++) {
-                    entry->name[len] = tolower(entry->name[len]);
-                }
-            }
-            return entry->name;
-        }
-        entry++;
-    }
-
-    return NULL;
-}
-
-// Attribute -> String table, generated using:
-//
-// grep 'define.*\/\*' NVCtrl.h | sed 's/.*define \([^ ]*\).*/    MAKE_ENTRY(\1),/' > DATA | head DATA
-//
-static AttrEntry attr_int_table[] = {
-    MAKE_ENTRY(NV_CTRL_FLATPANEL_SCALING),
-    MAKE_ENTRY(NV_CTRL_FLATPANEL_DITHERING),
+// grep 'define.*\/\*' NVCtrl.h | grep -v NV_CTRL_TARGET_TYPE_ | grep -v "not supported" | grep -v "renamed" | grep -v "deprecated" | grep -v NV_CTRL_STRING_ | grep -v NV_CTRL_BINARY_DATA_ | sed 's/.*define \([^ ]*\).*/    MAKE_ENTRY(\1),/'
+static const char *attr_int_table[NV_CTRL_LAST_ATTRIBUTE + 1] = {
     MAKE_ENTRY(NV_CTRL_DITHERING),
     MAKE_ENTRY(NV_CTRL_DIGITAL_VIBRANCE),
     MAKE_ENTRY(NV_CTRL_BUS_TYPE),
-    MAKE_ENTRY(NV_CTRL_VIDEO_RAM),
+    MAKE_ENTRY(NV_CTRL_TOTAL_GPU_MEMORY),
     MAKE_ENTRY(NV_CTRL_IRQ),
     MAKE_ENTRY(NV_CTRL_OPERATING_SYSTEM),
     MAKE_ENTRY(NV_CTRL_SYNC_TO_VBLANK),
@@ -87,12 +56,9 @@ static AttrEntry attr_int_table[] = {
     MAKE_ENTRY(NV_CTRL_UBB),
     MAKE_ENTRY(NV_CTRL_OVERLAY),
     MAKE_ENTRY(NV_CTRL_STEREO),
-    MAKE_ENTRY(NV_CTRL_EMULATE),
     MAKE_ENTRY(NV_CTRL_TWINVIEW),
-    MAKE_ENTRY(NV_CTRL_CONNECTED_DISPLAYS),
     MAKE_ENTRY(NV_CTRL_ENABLED_DISPLAYS),
     MAKE_ENTRY(NV_CTRL_FRAMELOCK),
-    MAKE_ENTRY(NV_CTRL_FRAMELOCK_MASTER),
     MAKE_ENTRY(NV_CTRL_FRAMELOCK_POLARITY),
     MAKE_ENTRY(NV_CTRL_FRAMELOCK_SYNC_DELAY),
     MAKE_ENTRY(NV_CTRL_FRAMELOCK_SYNC_INTERVAL),
@@ -106,7 +72,6 @@ static AttrEntry attr_int_table[] = {
     MAKE_ENTRY(NV_CTRL_FRAMELOCK_ETHERNET_DETECTED),
     MAKE_ENTRY(NV_CTRL_FRAMELOCK_VIDEO_MODE),
     MAKE_ENTRY(NV_CTRL_FRAMELOCK_SYNC_RATE),
-    MAKE_ENTRY(NV_CTRL_FORCE_GENERIC_CPU),
     MAKE_ENTRY(NV_CTRL_OPENGL_AA_LINE_GAMMA),
     MAKE_ENTRY(NV_CTRL_FRAMELOCK_TIMING),
     MAKE_ENTRY(NV_CTRL_FLIPPING_ALLOWED),
@@ -115,20 +80,11 @@ static AttrEntry attr_int_table[] = {
     MAKE_ENTRY(NV_CTRL_FSAA_APPLICATION_CONTROLLED),
     MAKE_ENTRY(NV_CTRL_LOG_ANISO_APPLICATION_CONTROLLED),
     MAKE_ENTRY(NV_CTRL_IMAGE_SHARPENING),
-    MAKE_ENTRY(NV_CTRL_TV_OVERSCAN),
-    MAKE_ENTRY(NV_CTRL_TV_FLICKER_FILTER),
-    MAKE_ENTRY(NV_CTRL_TV_BRIGHTNESS),
-    MAKE_ENTRY(NV_CTRL_TV_HUE),
-    MAKE_ENTRY(NV_CTRL_TV_CONTRAST),
-    MAKE_ENTRY(NV_CTRL_TV_SATURATION),
-    MAKE_ENTRY(NV_CTRL_TV_RESET_SETTINGS),
     MAKE_ENTRY(NV_CTRL_GPU_CORE_TEMPERATURE),
     MAKE_ENTRY(NV_CTRL_GPU_CORE_THRESHOLD),
     MAKE_ENTRY(NV_CTRL_GPU_DEFAULT_CORE_THRESHOLD),
     MAKE_ENTRY(NV_CTRL_GPU_MAX_CORE_THRESHOLD),
     MAKE_ENTRY(NV_CTRL_AMBIENT_TEMPERATURE),
-    MAKE_ENTRY(NV_CTRL_PBUFFER_SCANOUT_SUPPORTED),
-    MAKE_ENTRY(NV_CTRL_PBUFFER_SCANOUT_XID),
     MAKE_ENTRY(NV_CTRL_GVO_SUPPORTED),
     MAKE_ENTRY(NV_CTRL_GVO_SYNC_MODE),
     MAKE_ENTRY(NV_CTRL_GVO_SYNC_SOURCE),
@@ -139,11 +95,9 @@ static AttrEntry attr_int_table[] = {
     MAKE_ENTRY(NV_CTRL_GVO_COMPOSITE_SYNC_INPUT_DETECT_MODE),
     MAKE_ENTRY(NV_CTRL_GVO_SDI_SYNC_INPUT_DETECTED),
     MAKE_ENTRY(NV_CTRL_GVO_VIDEO_OUTPUTS),
-    MAKE_ENTRY(NV_CTRL_GVO_FIRMWARE_VERSION),
     MAKE_ENTRY(NV_CTRL_GVO_SYNC_DELAY_PIXELS),
     MAKE_ENTRY(NV_CTRL_GVO_SYNC_DELAY_LINES),
     MAKE_ENTRY(NV_CTRL_GVO_INPUT_VIDEO_FORMAT_REACQUIRE),
-    MAKE_ENTRY(NV_CTRL_GVO_GLX_LOCKED),
     MAKE_ENTRY(NV_CTRL_GVIO_VIDEO_FORMAT_WIDTH),
     MAKE_ENTRY(NV_CTRL_GVIO_VIDEO_FORMAT_HEIGHT),
     MAKE_ENTRY(NV_CTRL_GVIO_VIDEO_FORMAT_REFRESH_RATE),
@@ -160,15 +114,11 @@ static AttrEntry attr_int_table[] = {
     MAKE_ENTRY(NV_CTRL_BUS_RATE),
     MAKE_ENTRY(NV_CTRL_SHOW_SLI_VISUAL_INDICATOR),
     MAKE_ENTRY(NV_CTRL_XV_SYNC_TO_DISPLAY),
-    MAKE_ENTRY(NV_CTRL_XV_SYNC_TO_DISPLAY_ID),
     MAKE_ENTRY(NV_CTRL_CURRENT_XV_SYNC_TO_DISPLAY_ID),
     MAKE_ENTRY(NV_CTRL_GVIO_REQUESTED_VIDEO_FORMAT2),
     MAKE_ENTRY(NV_CTRL_GVO_OVERRIDE_HW_CSC),
     MAKE_ENTRY(NV_CTRL_GVO_CAPABILITIES),
     MAKE_ENTRY(NV_CTRL_GVO_COMPOSITE_TERMINATION),
-    MAKE_ENTRY(NV_CTRL_ASSOCIATED_DISPLAY_DEVICES),
-    MAKE_ENTRY(NV_CTRL_FRAMELOCK_SLAVES),
-    MAKE_ENTRY(NV_CTRL_FRAMELOCK_MASTERABLE),
     MAKE_ENTRY(NV_CTRL_PROBE_DISPLAYS),
     MAKE_ENTRY(NV_CTRL_REFRESH_RATE),
     MAKE_ENTRY(NV_CTRL_GVO_FLIP_QUEUE_SIZE),
@@ -190,7 +140,6 @@ static AttrEntry attr_int_table[] = {
     MAKE_ENTRY(NV_CTRL_NUM_GPU_ERRORS_RECOVERED),
     MAKE_ENTRY(NV_CTRL_REFRESH_RATE_3),
     MAKE_ENTRY(NV_CTRL_GPU_POWER_SOURCE),
-    MAKE_ENTRY(NV_CTRL_GPU_CURRENT_PERFORMANCE_MODE),
     MAKE_ENTRY(NV_CTRL_GLYPH_CACHE),
     MAKE_ENTRY(NV_CTRL_GPU_CURRENT_PERFORMANCE_LEVEL),
     MAKE_ENTRY(NV_CTRL_GPU_ADAPTIVE_CLOCK_STATE),
@@ -203,9 +152,6 @@ static AttrEntry attr_int_table[] = {
     MAKE_ENTRY(NV_CTRL_GVO_COMPOSITE_CR_KEY_RANGE),
     MAKE_ENTRY(NV_CTRL_GVO_COMPOSITE_CB_KEY_RANGE),
     MAKE_ENTRY(NV_CTRL_GVO_COMPOSITE_NUM_KEY_RANGES),
-    MAKE_ENTRY(NV_CTRL_SWITCH_TO_DISPLAYS),
-    MAKE_ENTRY(NV_CTRL_NOTEBOOK_DISPLAY_CHANGE_LID_EVENT),
-    MAKE_ENTRY(NV_CTRL_NOTEBOOK_INTERNAL_LCD),
     MAKE_ENTRY(NV_CTRL_DEPTH_30_ALLOWED),
     MAKE_ENTRY(NV_CTRL_MODE_SET_EVENT),
     MAKE_ENTRY(NV_CTRL_OPENGL_AA_LINE_GAMMA_VALUE),
@@ -214,7 +160,6 @@ static AttrEntry attr_int_table[] = {
     MAKE_ENTRY(NV_CTRL_STEREO_EYES_EXCHANGE),
     MAKE_ENTRY(NV_CTRL_NO_SCANOUT),
     MAKE_ENTRY(NV_CTRL_GVO_CSC_CHANGED_EVENT),
-    MAKE_ENTRY(NV_CTRL_FRAMELOCK_SLAVEABLE),
     MAKE_ENTRY(NV_CTRL_GVO_SYNC_TO_DISPLAY),
     MAKE_ENTRY(NV_CTRL_X_SERVER_UNIQUE_ID),
     MAKE_ENTRY(NV_CTRL_PIXMAP_CACHE),
@@ -258,7 +203,6 @@ static AttrEntry attr_int_table[] = {
     MAKE_ENTRY(NV_CTRL_GVI_MAX_CHANNELS_PER_JACK),
     MAKE_ENTRY(NV_CTRL_GVI_MAX_STREAMS),
     MAKE_ENTRY(NV_CTRL_GVI_NUM_CAPTURE_SURFACES),
-    MAKE_ENTRY(NV_CTRL_OVERSCAN_COMPENSATION),
     MAKE_ENTRY(NV_CTRL_GPU_PCIE_GENERATION),
     MAKE_ENTRY(NV_CTRL_GVI_BOUND_GPU),
     MAKE_ENTRY(NV_CTRL_GVIO_REQUESTED_VIDEO_FORMAT3),
@@ -268,9 +212,6 @@ static AttrEntry attr_int_table[] = {
     MAKE_ENTRY(NV_CTRL_GVI_TEST_MODE),
     MAKE_ENTRY(NV_CTRL_COLOR_SPACE),
     MAKE_ENTRY(NV_CTRL_COLOR_RANGE),
-    MAKE_ENTRY(NV_CTRL_SHOW_GSYNC_VISUAL_INDICATOR),
-    MAKE_ENTRY(NV_CTRL_GPU_SCALING_DEFAULT_TARGET),
-    MAKE_ENTRY(NV_CTRL_GPU_SCALING_DEFAULT_METHOD),
     MAKE_ENTRY(NV_CTRL_DITHERING_MODE),
     MAKE_ENTRY(NV_CTRL_CURRENT_DITHERING),
     MAKE_ENTRY(NV_CTRL_CURRENT_DITHERING_MODE),
@@ -300,17 +241,50 @@ static AttrEntry attr_int_table[] = {
     MAKE_ENTRY(NV_CTRL_GVO_ANC_PARITY_COMPUTATION),
     MAKE_ENTRY(NV_CTRL_3D_VISION_PRO_GLASSES_PAIR_EVENT),
     MAKE_ENTRY(NV_CTRL_3D_VISION_PRO_GLASSES_UNPAIR_EVENT),
-    { -1, NULL, NULL }
+    MAKE_ENTRY(NV_CTRL_GPU_PCIE_CURRENT_LINK_WIDTH),
+    MAKE_ENTRY(NV_CTRL_GPU_PCIE_CURRENT_LINK_SPEED),
+    MAKE_ENTRY(NV_CTRL_GVO_AUDIO_BLANKING),
+    MAKE_ENTRY(NV_CTRL_CURRENT_METAMODE_ID),
+    MAKE_ENTRY(NV_CTRL_DISPLAY_ENABLED),
+    MAKE_ENTRY(NV_CTRL_FRAMELOCK_INCOMING_HOUSE_SYNC_RATE),
+    MAKE_ENTRY(NV_CTRL_FXAA),
+    MAKE_ENTRY(NV_CTRL_DISPLAY_RANDR_OUTPUT_ID),
+    MAKE_ENTRY(NV_CTRL_FRAMELOCK_DISPLAY_CONFIG),
+    MAKE_ENTRY(NV_CTRL_TOTAL_DEDICATED_GPU_MEMORY),
+    MAKE_ENTRY(NV_CTRL_USED_DEDICATED_GPU_MEMORY),
+    MAKE_ENTRY(NV_CTRL_GPU_DOUBLE_PRECISION_BOOST_IMMEDIATE),
+    MAKE_ENTRY(NV_CTRL_GPU_DOUBLE_PRECISION_BOOST_REBOOT),
+    MAKE_ENTRY(NV_CTRL_DPY_HDMI_3D),
+    MAKE_ENTRY(NV_CTRL_BASE_MOSAIC),
+    MAKE_ENTRY(NV_CTRL_MULTIGPU_MASTER_POSSIBLE),
+    MAKE_ENTRY(NV_CTRL_GPU_POWER_MIZER_DEFAULT_MODE),
+    MAKE_ENTRY(NV_CTRL_XV_SYNC_TO_DISPLAY_ID),
+    MAKE_ENTRY(NV_CTRL_BACKLIGHT_BRIGHTNESS),
+    MAKE_ENTRY(NV_CTRL_GPU_LOGO_BRIGHTNESS),
+    MAKE_ENTRY(NV_CTRL_GPU_SLI_LOGO_BRIGHTNESS),
+    MAKE_ENTRY(NV_CTRL_THERMAL_COOLER_SPEED),
+    MAKE_ENTRY(NV_CTRL_PALETTE_UPDATE_EVENT),
+    MAKE_ENTRY(NV_CTRL_VIDEO_ENCODER_UTILIZATION),
+    MAKE_ENTRY(NV_CTRL_GSYNC_ALLOWED),
+    MAKE_ENTRY(NV_CTRL_GPU_NVCLOCK_OFFSET),
+    MAKE_ENTRY(NV_CTRL_GPU_MEM_TRANSFER_RATE_OFFSET),
+    MAKE_ENTRY(NV_CTRL_VIDEO_DECODER_UTILIZATION),
+    MAKE_ENTRY(NV_CTRL_GPU_OVER_VOLTAGE_OFFSET),
+    MAKE_ENTRY(NV_CTRL_GPU_CURRENT_CORE_VOLTAGE),
+    MAKE_ENTRY(NV_CTRL_CURRENT_COLOR_SPACE),
+    MAKE_ENTRY(NV_CTRL_CURRENT_COLOR_RANGE),
+    MAKE_ENTRY(NV_CTRL_SHOW_GSYNC_VISUAL_INDICATOR),
+    MAKE_ENTRY(NV_CTRL_THERMAL_COOLER_CURRENT_LEVEL),
+    MAKE_ENTRY(NV_CTRL_STEREO_SWAP_MODE),
 };
 
-static AttrEntry attr_str_table[] = {
+// grep 'define.*\/\*' NVCtrl.h | grep -v NV_CTRL_TARGET_TYPE_ | grep -v "not supported" | grep -v "renamed" | grep -v "deprecated" | grep NV_CTRL_STRING_ | grep -v NV_CTRL_STRING_OPERATION_ | sed 's/.*define \([^ ]*\).*/    MAKE_ENTRY(\1),/'
+static const char *attr_str_table[NV_CTRL_STRING_LAST_ATTRIBUTE + 1] = {
     MAKE_ENTRY(NV_CTRL_STRING_PRODUCT_NAME),
     MAKE_ENTRY(NV_CTRL_STRING_VBIOS_VERSION),
     MAKE_ENTRY(NV_CTRL_STRING_NVIDIA_DRIVER_VERSION),
     MAKE_ENTRY(NV_CTRL_STRING_DISPLAY_DEVICE_NAME),
-    MAKE_ENTRY(NV_CTRL_STRING_TV_ENCODER_NAME),
     MAKE_ENTRY(NV_CTRL_STRING_GVIO_FIRMWARE_VERSION),
-    MAKE_ENTRY(NV_CTRL_STRING_GVO_FIRMWARE_VERSION),
     MAKE_ENTRY(NV_CTRL_STRING_CURRENT_MODELINE),
     MAKE_ENTRY(NV_CTRL_STRING_ADD_MODELINE),
     MAKE_ENTRY(NV_CTRL_STRING_DELETE_MODELINE),
@@ -328,7 +302,7 @@ static AttrEntry attr_str_table[] = {
     MAKE_ENTRY(NV_CTRL_STRING_MOVE_METAMODE),
     MAKE_ENTRY(NV_CTRL_STRING_VALID_HORIZ_SYNC_RANGES),
     MAKE_ENTRY(NV_CTRL_STRING_VALID_VERT_REFRESH_RANGES),
-    MAKE_ENTRY(NV_CTRL_STRING_XINERAMA_SCREEN_INFO),
+    MAKE_ENTRY(NV_CTRL_STRING_SCREEN_RECTANGLE),
     MAKE_ENTRY(NV_CTRL_STRING_NVIDIA_XINERAMA_INFO_ORDER),
     MAKE_ENTRY(NV_CTRL_STRING_SLI_MODE),
     MAKE_ENTRY(NV_CTRL_STRING_PERFORMANCE_MODES),
@@ -336,7 +310,6 @@ static AttrEntry attr_str_table[] = {
     MAKE_ENTRY(NV_CTRL_STRING_VCSC_TEMPERATURES),
     MAKE_ENTRY(NV_CTRL_STRING_VCSC_PSU_INFO),
     MAKE_ENTRY(NV_CTRL_STRING_GVIO_VIDEO_FORMAT_NAME),
-    MAKE_ENTRY(NV_CTRL_STRING_GVO_VIDEO_FORMAT_NAME),
     MAKE_ENTRY(NV_CTRL_STRING_GPU_CURRENT_CLOCK_FREQS),
     MAKE_ENTRY(NV_CTRL_STRING_3D_VISION_PRO_TRANSCEIVER_HARDWARE_REVISION),
     MAKE_ENTRY(NV_CTRL_STRING_3D_VISION_PRO_TRANSCEIVER_FIRMWARE_VERSION_A),
@@ -355,13 +328,16 @@ static AttrEntry attr_str_table[] = {
     MAKE_ENTRY(NV_CTRL_STRING_DISPLAY_NAME_EDID_HASH),
     MAKE_ENTRY(NV_CTRL_STRING_DISPLAY_NAME_TARGET_INDEX),
     MAKE_ENTRY(NV_CTRL_STRING_DISPLAY_NAME_RANDR),
-    { -1, NULL, NULL }
+    MAKE_ENTRY(NV_CTRL_STRING_GPU_UUID),
+    MAKE_ENTRY(NV_CTRL_STRING_GPU_UTILIZATION),
+    MAKE_ENTRY(NV_CTRL_STRING_MULTIGPU_MODE),
 };
 
-static AttrEntry attr_bin_table[] = {
+// grep 'define.*\/\*' NVCtrl.h | grep -v NV_CTRL_TARGET_TYPE_ | grep -v "not supported" | grep -v "renamed" | grep -v "deprecated" | grep NV_CTRL_BINARY_DATA_ | sed 's/.*define \([^ ]*\).*/    MAKE_ENTRY(\1),/'
+static const char *attr_bin_table[NV_CTRL_BINARY_DATA_LAST_ATTRIBUTE + 1] = {
     MAKE_ENTRY(NV_CTRL_BINARY_DATA_EDID),
     MAKE_ENTRY(NV_CTRL_BINARY_DATA_MODELINES),
-    MAKE_ENTRY(NV_CTRL_BINARY_DATA_METAMODES_VERSION_1),
+    MAKE_ENTRY(NV_CTRL_BINARY_DATA_METAMODES),
     MAKE_ENTRY(NV_CTRL_BINARY_DATA_XSCREENS_USING_GPU),
     MAKE_ENTRY(NV_CTRL_BINARY_DATA_GPUS_USED_BY_XSCREEN),
     MAKE_ENTRY(NV_CTRL_BINARY_DATA_GPUS_USING_FRAMELOCK),
@@ -376,17 +352,20 @@ static AttrEntry attr_bin_table[] = {
     MAKE_ENTRY(NV_CTRL_BINARY_DATA_DISPLAY_TARGETS),
     MAKE_ENTRY(NV_CTRL_BINARY_DATA_DISPLAYS_CONNECTED_TO_GPU),
     MAKE_ENTRY(NV_CTRL_BINARY_DATA_METAMODES_VERSION_2),
-    { -1, NULL, NULL }
+    MAKE_ENTRY(NV_CTRL_BINARY_DATA_DISPLAYS_ENABLED_ON_XSCREEN),
+    MAKE_ENTRY(NV_CTRL_BINARY_DATA_DISPLAYS_ASSIGNED_TO_XSCREEN),
+    MAKE_ENTRY(NV_CTRL_BINARY_DATA_GPU_FLAGS),
+    MAKE_ENTRY(NV_CTRL_BINARY_DATA_DISPLAYS_ON_GPU),
 };
 
-
-static AttrEntry attr_strop_table[] = {
+// grep 'define.*\/\*' NVCtrl.h | grep -v NV_CTRL_TARGET_TYPE_ | grep -v "not supported" | grep -v "renamed" | grep -v "deprecated" | grep NV_CTRL_STRING_OPERATION_ | sed 's/.*define \([^ ]*\).*/    MAKE_ENTRY(\1),/'
+static const char *attr_strop_table[NV_CTRL_STRING_OPERATION_LAST_ATTRIBUTE + 1] = {
     MAKE_ENTRY(NV_CTRL_STRING_OPERATION_ADD_METAMODE),
     MAKE_ENTRY(NV_CTRL_STRING_OPERATION_GTF_MODELINE),
     MAKE_ENTRY(NV_CTRL_STRING_OPERATION_CVT_MODELINE),
     MAKE_ENTRY(NV_CTRL_STRING_OPERATION_BUILD_MODEPOOL),
     MAKE_ENTRY(NV_CTRL_STRING_OPERATION_GVI_CONFIGURE_STREAMS),
-    { -1, NULL, NULL }
+    MAKE_ENTRY(NV_CTRL_STRING_OPERATION_PARSE_METAMODE),
 };
 
 
@@ -431,6 +410,33 @@ static const char *GetAttrTypeName(int value)
 }
 
 
+static void print_table_entry(NVCTRLAttributePermissionsRec *perms,
+                              const int index,
+                              const char *name)
+{
+    /*
+     * Don't print the attribute if *both* the permissions are empty
+     * and the attribute table was missing an entry for the attribute.
+     * Either condition by itself is acceptable:
+     *
+     * - Event-only attributes (e.g., NV_CTRL_GVO_CSC_CHANGED_EVENT)
+     *   don't have any permissions.
+     *
+     * - A missing table entry could just mean the table is stale
+     *   relative to NVCtrl.h.
+     */
+    if ((perms->permissions == 0) && (name == NULL)) {
+        return;
+    }
+
+    printf("  (%3d) [Perms: ", index);
+    print_perms(perms);
+    printf("] [ ");
+    printf("%-32s", GetAttrTypeName(perms->type));
+    printf("] - %s\n", name ? name : "Unknown");
+}
+
+
 
 int main(void)
 {
@@ -438,7 +444,8 @@ int main(void)
     Bool ret;
     int event_base, error_base, major, minor, screens, i;
     char *str;
-        
+    NVCTRLAttributePermissionsRec perms;
+
     /*
      * open a connection to the X server indicated by the DISPLAY
      * environment variable
@@ -529,74 +536,34 @@ int main(void)
      */
 
     printf("Attributes (Integers):\n");
-    for (i = 0; i < NV_CTRL_LAST_ATTRIBUTE; i++) {
-        const char *name = attr2str(i, attr_int_table);
-        if (name) {
-            NVCTRLAttributePermissionsRec perms;
-
-            printf("  (%3d) [Perms: ", i);
-
-            memset(&perms, 0, sizeof(NVCTRLAttributePermissionsRec));
-
-            XNVCTRLQueryAttributePermissions(dpy, i, &perms);
-            print_perms(&perms);
-            printf("] [ ");
-            printf("%-32s", GetAttrTypeName(perms.type));
-            printf("] - %s\n", name);
+    for (i = 0; i < ARRAY_LEN(attr_int_table); i++) {
+        memset(&perms, 0, sizeof(NVCTRLAttributePermissionsRec));
+        if (XNVCTRLQueryAttributePermissions(dpy, i, &perms)) {
+            print_table_entry(&perms, i, attr_int_table[i]);
         }
     }
 
     printf("Attributes (Strings):\n");
-    for (i = 0; i < NV_CTRL_STRING_LAST_ATTRIBUTE; i++) {
-        const char *name = attr2str(i, attr_str_table);
-        if (name) {
-            NVCTRLAttributePermissionsRec perms;
-
-            printf("  (%3d) [Perms: ", i);
-
-            memset(&perms, 0, sizeof(NVCTRLAttributePermissionsRec));
-
-            XNVCTRLQueryStringAttributePermissions(dpy, i, &perms);
-            print_perms(&perms);
-            printf("] [ ");
-            printf("%-32s", GetAttrTypeName(perms.type));
-            printf("] - %s\n", name);
+    for (i = 0; i < ARRAY_LEN(attr_str_table); i++) {
+        memset(&perms, 0, sizeof(NVCTRLAttributePermissionsRec));
+        if (XNVCTRLQueryStringAttributePermissions(dpy, i, &perms)) {
+            print_table_entry(&perms, i, attr_str_table[i]);
         }
     }
 
     printf("Attributes (Binary Data):\n");
-    for (i = 0; i < NV_CTRL_BINARY_DATA_LAST_ATTRIBUTE; i++) {
-        const char *name = attr2str(i, attr_bin_table);
-        if (name) {
-            NVCTRLAttributePermissionsRec perms;
-
-            printf("  (%3d) [Perms: ", i);
-
-            memset(&perms, 0, sizeof(NVCTRLAttributePermissionsRec));
-
-            XNVCTRLQueryBinaryDataAttributePermissions(dpy, i, &perms);
-            print_perms(&perms);
-            printf("] [ ");
-            printf("%-32s", GetAttrTypeName(perms.type));
-            printf("] - %s\n", name);
+    for (i = 0; i < ARRAY_LEN(attr_bin_table); i++) {
+        memset(&perms, 0, sizeof(NVCTRLAttributePermissionsRec));
+        if (XNVCTRLQueryBinaryDataAttributePermissions(dpy, i, &perms)) {
+            print_table_entry(&perms, i, attr_bin_table[i]);
         }
     }
 
     printf("Attributes (String Operations):\n");
-    for (i = 0; i < NV_CTRL_STRING_OPERATION_LAST_ATTRIBUTE; i++) {
-        const char *name = attr2str(i, attr_strop_table);
-        if (name) {
-            NVCTRLAttributePermissionsRec perms;
-
-            printf("  (%3d) [Perms: ", i);
-
-            memset(&perms, 0, sizeof(NVCTRLAttributePermissionsRec));
-
-            XNVCTRLQueryStringOperationAttributePermissions(dpy, i, &perms);
-            print_perms(&perms);
-            printf("] [ ");
-            printf("%-32s", GetAttrTypeName(perms.type));
-            printf("] - %s\n", name);
+    for (i = 0; i < ARRAY_LEN(attr_strop_table); i++) {
+        memset(&perms, 0, sizeof(NVCTRLAttributePermissionsRec));
+        if (XNVCTRLQueryStringOperationAttributePermissions(dpy, i, &perms)) {
+            print_table_entry(&perms, i, attr_strop_table[i]);
         }
     }
 

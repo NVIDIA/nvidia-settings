@@ -112,6 +112,7 @@ static GridConfig gridConfigs[] = {
     {2, 2,  FALSE},
     {2, 3,  FALSE},
     {2, 4,  FALSE},
+    {4, 2,  FALSE},
     {3, 1,  FALSE},
     {3, 2,  FALSE},
     {1, 3,  FALSE},

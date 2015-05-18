@@ -58,8 +58,6 @@ static void print_version(void)
     nv_msg(TAB, "For more detail, please see the nvidia-settings(1) "
            "man page.");
     nv_msg(NULL, "");
-    nv_msg(TAB, "Copyright (C) 2004 - 2010 NVIDIA Corporation.");
-    nv_msg(NULL, "");
     
 } /* print_version() */
 

@@ -867,7 +867,7 @@
  *   scanout the pbuffer.  
  * - The desktop is running in with 16 bits per pixel.
  */
-#define NV_CTRL_PBUFFER_SCANOUT_SUPPORTED                       65  /* R-- */
+#define NV_CTRL_PBUFFER_SCANOUT_SUPPORTED                       65  /* not supported */
 #define NV_CTRL_PBUFFER_SCANOUT_FALSE                           0
 #define NV_CTRL_PBUFFER_SCANOUT_TRUE                            1
 
@@ -875,7 +875,7 @@
  * NV_CTRL_PBUFFER_SCANOUT_XID indicates the XID of the pbuffer used for
  * scanout.
  */
-#define NV_CTRL_PBUFFER_SCANOUT_XID                             66  /* RW- */
+#define NV_CTRL_PBUFFER_SCANOUT_XID                             66  /* not supported */
 
 /**************************************************************************/
 /*
@@ -3399,7 +3399,22 @@
 
 #define NV_CTRL_THERMAL_COOLER_CURRENT_LEVEL                    417 /* R--C */
 
+/*
+ * NV_CTRL_STEREO_SWAP_MODE - This attribute controls the swap mode when
+ * Quad-Buffered stereo is used.
+ * NV_CTRL_STEREO_SWAP_MODE_APPLICATION_CONTROL : Stereo swap mode is derived
+ * from the value of swap interval.
+ * If it's odd, the per eye swap mode is used.
+ * If it's even, the per eye pair swap mode is used.
+ * NV_CTRL_STEREO_SWAP_MODE_PER_EYE : The driver swaps each eye as it is ready.
+ * NV_CTRL_STEREO_SWAP_MODE_PER_EYE_PAIR : The driver waits for both eyes to
+ * complete rendering before swapping.
+ */
 
+#define NV_CTRL_STEREO_SWAP_MODE                                418 /* RW-X */
+#define NV_CTRL_STEREO_SWAP_MODE_APPLICATION_CONTROL              0
+#define NV_CTRL_STEREO_SWAP_MODE_PER_EYE                          1
+#define NV_CTRL_STEREO_SWAP_MODE_PER_EYE_PAIR                     2
 
 /*
  * NV_CTRL_CURRENT_XV_SYNC_TO_DISPLAY_ID - When XVideo Sync To VBlank is
@@ -3474,7 +3489,7 @@
  * NV_CTRL_STRING_TV_ENCODER_NAME - not supported
  */
 
-#define NV_CTRL_STRING_TV_ENCODER_NAME                          5  /* R-DG */
+#define NV_CTRL_STRING_TV_ENCODER_NAME                          5  /* not supported */
 
 
 /*
@@ -4111,7 +4126,7 @@
 /*
  * NV_CTRL_STRING_DISPLAY_NAME_TYPE_ID - Returns the type-based name + ID for
  * the display device, e.g. "CRT-0", "DFP-1", "TV-2".  If this device is a
- * DisplayPort 1.2 device, then this name will also be prepended with the
+ * DisplayPort multistream device, then this name will also be prepended with the
  * device's port address like so: "DFP-1.0.1.2.3".  See
  * NV_CTRL_STRING_DISPLAY_NAME_TYPE_BASENAME for more information about the
  * construction of type-based names.
@@ -4660,7 +4675,7 @@
  * XRandR and XF86VidMode.
  */
 
-#define NV_CTRL_STRING_OPERATION_ADD_METAMODE                  0
+#define NV_CTRL_STRING_OPERATION_ADD_METAMODE                  0 /* ---- */
 
 
 /*
@@ -4680,7 +4695,7 @@
  * for generating ModeLines.
  */
 
-#define NV_CTRL_STRING_OPERATION_GTF_MODELINE                  1
+#define NV_CTRL_STRING_OPERATION_GTF_MODELINE                  1 /* --- */
 
 
 /*
@@ -4702,7 +4717,7 @@
  * for generating ModeLines.
  */
 
-#define NV_CTRL_STRING_OPERATION_CVT_MODELINE                  2
+#define NV_CTRL_STRING_OPERATION_CVT_MODELINE                  2 /* --- */
 
 
 /*

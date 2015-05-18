@@ -41,7 +41,7 @@
 
 
 
-static void print_display_device_target_indices(const int *pData)
+static void print_target_indices(const char *prefix, const int *pData)
 {
     int i, first = 1;
 
@@ -50,10 +50,29 @@ static void print_display_device_target_indices(const int *pData)
             printf(", ");
         }
         first = 0;
-        printf("DPY-%d", pData[i]);
+        printf("%s-%d", prefix, pData[i]);
     }
 }
 
+static void print_display_device_target_indices(const int *pData)
+{
+    print_target_indices("DPY", pData);
+}
+
+static void print_cooler_target_indices(const int *pData)
+{
+    print_target_indices("COOLER", pData);
+}
+
+static void print_thermal_sensor_target_indices(const int *pData)
+{
+    print_target_indices("THERMAL-SENSOR", pData);
+}
+
+static void print_framelock_target_indices(const int *pData)
+{
+    print_target_indices("FRAMELOCK", pData);
+}
 
 int main(int argc, char *argv[])
 {
@@ -249,6 +268,44 @@ int main(int argc, char *argv[])
         XFree(str);
         str = NULL;
 
+        /* Coolers on GPU */
+
+        ret = XNVCTRLQueryTargetBinaryData
+            (dpy,
+             NV_CTRL_TARGET_TYPE_GPU,
+             gpu, // target_id
+             0, // display_mask
+             NV_CTRL_BINARY_DATA_COOLERS_USED_BY_GPU,
+             (unsigned char **) &pData,
+             &len);
+        if (!ret) {
+            fprintf(stderr, "Failed to query connected coolers\n");
+            return 1;
+        }
+        printf("   Coolers on GPU                  : ");
+        print_cooler_target_indices(pData);
+        XFree(pData);
+        printf("\n");
+
+        /* Thermal Sensors on GPU */
+
+        ret = XNVCTRLQueryTargetBinaryData
+            (dpy,
+             NV_CTRL_TARGET_TYPE_GPU,
+             gpu, // target_id
+             0, // display_mask
+             NV_CTRL_BINARY_DATA_THERMAL_SENSORS_USED_BY_GPU,
+             (unsigned char **) &pData,
+             &len);
+        if (!ret) {
+            fprintf(stderr, "Failed to query connected thermal sensors\n");
+            return 1;
+        }
+        printf("   Thermal Sensors on GPU          : ");
+        print_thermal_sensor_target_indices(pData);
+        XFree(pData);
+        printf("\n");
+
         /* Connected Display Devices on GPU */
 
         ret = XNVCTRLQueryTargetBinaryData
@@ -266,6 +323,25 @@ int main(int argc, char *argv[])
         printf("   Connected Display Devices       : ");
         print_display_device_target_indices(pDisplayData);
         XFree(pDisplayData);
+        printf("\n");
+
+        /* FrameLock Devices on GPU */
+
+        ret = XNVCTRLQueryTargetBinaryData
+            (dpy,
+             NV_CTRL_TARGET_TYPE_GPU,
+             gpu, // target_id
+             0, // display_mask
+             NV_CTRL_BINARY_DATA_FRAMELOCKS_USED_BY_GPU,
+             (unsigned char **) &pData,
+             &len);
+        if (!ret) {
+            fprintf(stderr, "Failed to query framelock devices\n");
+            return 1;
+        }
+        printf("   Framelock Devices               : ");
+        print_framelock_target_indices(pData);
+        XFree(pData);
         printf("\n");
 
         /* X Screens driven by this GPU */

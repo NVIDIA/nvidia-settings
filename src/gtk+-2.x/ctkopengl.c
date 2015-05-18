@@ -19,9 +19,11 @@
 
 #include <gtk/gtk.h>
 #include <NvCtrlAttributes.h>
+#include <stdlib.h>
 
 #include "ctkbanner.h"
 
+#include "ctkdropdownmenu.h"
 #include "ctkopengl.h"
 #include "ctkscale.h"
 
@@ -102,6 +104,28 @@ static GtkWidget *create_slider(CtkOpenGL *ctk_opengl,
 
 static void slider_changed(GtkAdjustment *adjustment, gpointer user_data);
 
+static GtkWidget *create_stereo_swap_mode_menu(CtkOpenGL *ctk_opengl,
+                                               CtkEvent *ctk_event,
+                                               gint stereo_swap_mode);
+
+static void stereo_swap_mode_menu_changed(GObject *object,
+                                          gpointer user_data);
+
+static void stereo_swap_mode_update_received(GObject *object,
+                                             CtrlEvent *event,
+                                             gpointer user_data);
+
+static void post_stereo_swap_mode_changed(CtkOpenGL *ctk_opengl, gint idx);
+
+static void build_stereo_swap_mode_table(CtkOpenGL *ctk_opengl);
+
+static gint map_nvctrl_value_to_table(CtkOpenGL *ctk_opengl,
+                                      gint val);
+static void
+ctk_opengl_new_class_init(CtkOpenGLClass *ctk_object_class);
+
+static void ctk_opengl_new_finalize(GObject *object);
+
 #define FRAME_PADDING 5
 
 static const char *__sync_to_vblank_help =
@@ -113,6 +137,15 @@ static const char *__sync_to_vblank_help =
 static const char *__aa_line_gamma_checkbox_help =
 "Enable the antialiased lines gamma correction checkbox to make the "
 "gamma correction slider active.";
+
+static const char *__ssm_menu_help =
+"This menu controls the swap mode when Quad-Buffered stereo is used."
+"  Application-controled: Stereo swap mode is derived from the "
+"value of swap interval.  If it's odd, the per eye "
+"swap mode is used.  If it's even, the per eye pair swap mode is used."
+"  Per Eye: The driver swaps each eye as it is ready."
+"  Per Eye-Pair: The driver waits for both eyes to complete rendering "
+"before swapping.";
 
 static const char *__aa_line_gamma_slider_help =
 "This option allows Gamma-corrected "
@@ -180,6 +213,7 @@ static const char *__show_gsync_visual_indicator_help  =
 #define __CONFORMANT_CLAMPING (1 << 12)
 #define __ALLOW_GSYNC         (1 << 13)
 #define __SHOW_GSYNC_VISUAL_INDICATOR       (1 << 14)
+#define __STEREO_SWAP_MODE    (1 << 15)
 
 
 
@@ -194,7 +228,7 @@ GType ctk_opengl_get_type(
             sizeof (CtkOpenGLClass),
             NULL, /* base_init */
             NULL, /* base_finalize */
-            NULL, /* class_init, */
+            (GClassInitFunc) ctk_opengl_new_class_init, /* class_init, */
             NULL, /* class_finalize */
             NULL, /* class_data */
             sizeof (CtkOpenGL),
@@ -208,6 +242,27 @@ GType ctk_opengl_get_type(
     }
 
     return ctk_opengl_type;
+}
+
+
+    static void
+ctk_opengl_new_class_init(CtkOpenGLClass *ctk_object_class)
+{
+    GObjectClass *gobject_class = (GObjectClass *)ctk_object_class;
+    gobject_class->finalize = ctk_opengl_new_finalize;
+}
+
+static void ctk_opengl_new_finalize(GObject *object)
+{
+    CtkOpenGL *ctk_object = CTK_OPENGL(object);
+
+    g_signal_handlers_disconnect_matched(G_OBJECT(ctk_object->ctk_event),
+                                         G_SIGNAL_MATCH_DATA,
+                                         0,
+                                         0,
+                                         NULL,
+                                         NULL,
+                                         (gpointer) ctk_object);
 }
 
 
@@ -226,6 +281,7 @@ GtkWidget* ctk_opengl_new(CtrlTarget *ctrl_target,
     GtkWidget *check_button;
     GtkWidget *scale;
     GtkAdjustment *adjustment;
+    GtkWidget *menu;
 
     gint sync_to_vblank;
     gint flipping_allowed;
@@ -234,6 +290,7 @@ GtkWidget* ctk_opengl_new(CtrlTarget *ctrl_target,
     gint force_stereo;
     gint xinerama_stereo;
     gint stereo_eyes_exchange;
+    gint stereo_swap_mode;
     CtrlAttributeValidValues image_settings_valid;
     gint image_settings_value;
     gint aa_line_gamma;
@@ -248,6 +305,7 @@ GtkWidget* ctk_opengl_new(CtrlTarget *ctrl_target,
     ReturnStatus ret_force_stereo;
     ReturnStatus ret_xinerama_stereo;
     ReturnStatus ret_stereo_eyes_exchange;
+    ReturnStatus ret_stereo_swap_mode;
     ReturnStatus ret_image_settings;
     ReturnStatus ret_aa_line_gamma;
     ReturnStatus ret_use_conformant_clamping;
@@ -291,6 +349,11 @@ GtkWidget* ctk_opengl_new(CtrlTarget *ctrl_target,
                            NV_CTRL_STEREO_EYES_EXCHANGE,
                            &stereo_eyes_exchange);
 
+    ret_stereo_swap_mode =
+        NvCtrlGetAttribute(ctrl_target,
+                           NV_CTRL_STEREO_SWAP_MODE,
+                           &stereo_swap_mode);
+
     ret_image_settings = NvCtrlGetValidAttributeValues(ctrl_target,
                                                        NV_CTRL_IMAGE_SETTINGS,
                                                        &image_settings_valid);
@@ -332,6 +395,7 @@ GtkWidget* ctk_opengl_new(CtrlTarget *ctrl_target,
         (ret_force_stereo != NvCtrlSuccess) &&
         (ret_xinerama_stereo != NvCtrlSuccess) &&
         (ret_stereo_eyes_exchange != NvCtrlSuccess) &&
+        (ret_stereo_swap_mode != NvCtrlSuccess) &&
         (ret_image_settings != NvCtrlSuccess) &&
         (ret_aa_line_gamma != NvCtrlSuccess) &&
         (ret_use_conformant_clamping != NvCtrlSuccess) &&
@@ -591,7 +655,21 @@ GtkWidget* ctk_opengl_new(CtrlTarget *ctrl_target,
     
         ctk_opengl->stereo_eyes_exchange_button = check_button;
     }
+    if (ret_stereo_eyes_exchange == NvCtrlSuccess) {
+        /* Create a menu */
+        label = gtk_label_new("Stereo - swap mode:");
+        ctk_opengl->active_attributes |= __STEREO_SWAP_MODE;
 
+        menu = create_stereo_swap_mode_menu(ctk_opengl, ctk_event,
+                                            stereo_swap_mode);
+
+        ctk_opengl->stereo_swap_mode_menu = menu;
+
+        hbox = gtk_hbox_new(FALSE, 5);
+        gtk_box_pack_start(GTK_BOX(hbox), label, FALSE, FALSE, 5);
+        gtk_box_pack_start(GTK_BOX(hbox), menu, FALSE, FALSE, 5);
+        gtk_box_pack_start(GTK_BOX(vbox), hbox, FALSE, FALSE, 0);
+    }
     /*
      * Image Quality settings.
      */
@@ -1165,6 +1243,232 @@ static void value_changed(GObject *object, CtrlEvent *event, gpointer user_data)
 } /* value_changed() */
 
 
+
+/*
+ * build_stereo_swap_mode_table() - build a table of stereo swap mode, showing
+ * modes supported by the hardware.
+ */
+static void build_stereo_swap_mode_table(CtkOpenGL *ctk_opengl)
+{
+    CtrlTarget *ctrl_target = ctk_opengl->ctrl_target;
+    ReturnStatus ret;
+    CtrlAttributeValidValues valid;
+    gint i = 0, n = 0, num_of_modes = 0, mask;
+
+    if (ctk_opengl->stereo_swap_mode_table_size > 0 &&
+        ctk_opengl->stereo_swap_mode_table != NULL) {
+        ctk_opengl->stereo_swap_mode_table_size = 0;
+        free(ctk_opengl->stereo_swap_mode_table);
+    }
+
+    ret =
+        NvCtrlGetValidAttributeValues(ctrl_target,
+                                      NV_CTRL_STEREO_SWAP_MODE,
+                                      &valid);
+    if ((ret != NvCtrlSuccess) ||
+        (valid.valid_type != CTRL_ATTRIBUTE_VALID_TYPE_INT_BITS)) {
+        /*
+         * We do not have valid information to build a mode table
+         * so we need to create default data for the placeholder menu.
+         */
+        ctk_opengl->stereo_swap_mode_table_size = 1;
+        ctk_opengl->stereo_swap_mode_table =
+            calloc(1, sizeof(ctk_opengl->stereo_swap_mode_table[0]));
+        if (ctk_opengl->stereo_swap_mode_table) {
+            ctk_opengl->stereo_swap_mode_table[0] =
+                NV_CTRL_STEREO_SWAP_MODE_APPLICATION_CONTROL;
+        } else {
+            ctk_opengl->stereo_swap_mode_table_size = 0;
+        }
+        return;
+    }
+
+    /* count no. of supported modes */
+    mask = valid.allowed_ints;
+    while(mask) {
+        mask = mask & (mask - 1);
+        num_of_modes++;
+    }
+
+    ctk_opengl->stereo_swap_mode_table_size = num_of_modes;
+    ctk_opengl->stereo_swap_mode_table =
+        calloc(num_of_modes, sizeof(ctk_opengl->stereo_swap_mode_table[0]));
+    if (!ctk_opengl->stereo_swap_mode_table) {
+        ctk_opengl->stereo_swap_mode_table_size = 0;
+        return;
+    }
+
+    mask = valid.allowed_ints;
+    while (mask) {
+
+        while (!(mask & (1 << i))) {
+            i++;
+        }
+
+        ctk_opengl->stereo_swap_mode_table[n++] = i;
+        mask = mask & (mask - 1);
+    }
+
+    return;
+}
+
+
+
+/*
+ * create_stereo_swap_mode_menu() - Helper function that creates the
+ * Stereo swap mode dropdown menu.
+ */
+
+static GtkWidget *create_stereo_swap_mode_menu(CtkOpenGL *ctk_opengl,
+                                               CtkEvent *ctk_event,
+                                               gint stereo_swap_mode)
+{
+    CtkDropDownMenu *stereo_swap_mode_menu;
+    gint i, idx = 0;
+
+    /* Create the menu */
+
+    stereo_swap_mode_menu = (CtkDropDownMenu *)
+        ctk_drop_down_menu_new(CTK_DROP_DOWN_MENU_FLAG_READONLY);
+
+    /* setup stereo swap mode */
+    build_stereo_swap_mode_table(ctk_opengl);
+
+    /* populate dropdown list for stereo swap mode */
+
+    ctk_drop_down_menu_reset(stereo_swap_mode_menu);
+
+    for (i = 0; i < ctk_opengl->stereo_swap_mode_table_size; i++) {
+        switch (ctk_opengl->stereo_swap_mode_table[i]) {
+        case NV_CTRL_STEREO_SWAP_MODE_PER_EYE:
+            ctk_drop_down_menu_append_item(stereo_swap_mode_menu, "Per Eye", i);
+            break;
+        case NV_CTRL_STEREO_SWAP_MODE_PER_EYE_PAIR:
+            ctk_drop_down_menu_append_item(stereo_swap_mode_menu,
+                                           "Per Eye-Pair", i);
+            break;
+        default:
+        case NV_CTRL_STEREO_SWAP_MODE_APPLICATION_CONTROL:
+            ctk_drop_down_menu_append_item(stereo_swap_mode_menu,
+                                           "Application-controlled", i);
+            break;
+        }
+    }
+
+    /* set the menu item */
+    idx = map_nvctrl_value_to_table(ctk_opengl, stereo_swap_mode);
+    ctk_drop_down_menu_set_current_value(stereo_swap_mode_menu, idx);
+
+    ctk_drop_down_menu_set_tooltip(ctk_opengl->ctk_config, stereo_swap_mode_menu,
+                                   __ssm_menu_help);
+
+    g_signal_connect(G_OBJECT(stereo_swap_mode_menu),
+                     "changed",
+                     G_CALLBACK(stereo_swap_mode_menu_changed),
+                     (gpointer) ctk_opengl);
+
+    g_signal_connect(G_OBJECT(ctk_event),
+                     CTK_EVENT_NAME
+                     (NV_CTRL_STEREO_SWAP_MODE),
+                     G_CALLBACK(stereo_swap_mode_update_received),
+                     (gpointer) ctk_opengl);
+
+    return GTK_WIDGET(stereo_swap_mode_menu);
+}
+
+
+
+static gint map_nvctrl_value_to_table(CtkOpenGL *ctk_opengl,
+                                      gint val)
+{
+    int i;
+    for (i = 0; i < ctk_opengl->stereo_swap_mode_table_size; i++) {
+        if (val == ctk_opengl->stereo_swap_mode_table[i]) {
+            return i;
+        }
+    }
+
+    return 0;
+}
+
+
+
+/*
+ * stereo_swap_mode_menu_changed() - callback function for menu change
+ */
+
+static void stereo_swap_mode_menu_changed(GObject *object, gpointer user_data)
+{
+    CtkOpenGL *ctk_opengl = CTK_OPENGL(user_data);
+    CtrlTarget *ctrl_target = ctk_opengl->ctrl_target;
+    gint idx;
+
+    idx = ctk_drop_down_menu_get_current_value
+        (CTK_DROP_DOWN_MENU(ctk_opengl->stereo_swap_mode_menu));
+
+    NvCtrlSetAttribute(ctrl_target, NV_CTRL_STEREO_SWAP_MODE,
+                       ctk_opengl->stereo_swap_mode_table[idx]);
+
+    post_stereo_swap_mode_changed(ctk_opengl,
+                                  ctk_opengl->stereo_swap_mode_table[idx]);
+}
+
+
+
+/*
+ * post_stereo_swap_mode_changed() - helper function to print status bar message
+ */
+
+static void post_stereo_swap_mode_changed(CtkOpenGL *ctk_opengl, gint idx)
+{
+    static const char *stereo_swap_mode_table[] = {
+        "Application-controlled", /* NV_CTRL_STEREO_SWAP_MODE_APPLICATION_CONTROL */
+        "Per Eye",                /* NV_CTRL_STEREO_SWAP_MODE_PER_EYE */
+        "Per Eye-Pair",           /* NV_CTRL_STEREO_SWAP_MODE_PER_EYE_PAIR */
+    };
+
+    if (idx < NV_CTRL_STEREO_SWAP_MODE_APPLICATION_CONTROL ||
+        idx > NV_CTRL_STEREO_SWAP_MODE_PER_EYE_PAIR) {
+        return;
+    }
+
+    ctk_config_statusbar_message(ctk_opengl->ctk_config,
+                                 "Set %s Stereo swap mode.",
+                                 stereo_swap_mode_table[idx]);
+}
+
+
+
+static void stereo_swap_mode_update_received(GObject *object,
+                                             CtrlEvent *event,
+                                             gpointer user_data)
+{
+    CtkOpenGL *ctk_opengl = CTK_OPENGL(user_data);
+    GtkWidget *menu;
+    gint idx = map_nvctrl_value_to_table(ctk_opengl,
+                                         event->int_attr.value);
+
+    if (event->type != CTRL_EVENT_TYPE_INTEGER_ATTRIBUTE) {
+        return;
+    }
+    /* Update the dropdown menu */
+    menu = GTK_WIDGET(ctk_opengl->stereo_swap_mode_menu);
+
+    g_signal_handlers_block_by_func
+        (G_OBJECT(menu),
+         G_CALLBACK(stereo_swap_mode_menu_changed),
+         (gpointer) ctk_opengl);
+
+    ctk_drop_down_menu_set_current_value
+        (CTK_DROP_DOWN_MENU(ctk_opengl->stereo_swap_mode_menu), idx);
+
+    g_signal_handlers_unblock_by_func
+        (G_OBJECT(menu),
+         G_CALLBACK(stereo_swap_mode_menu_changed),
+         (gpointer) ctk_opengl);
+    post_stereo_swap_mode_changed(ctk_opengl, idx);
+}
+
 /*
  * get_image_settings_string() - translate the NV-CONTROL image settings value
  * to a more comprehensible string.
@@ -1432,6 +1736,15 @@ GtkTextBuffer *ctk_opengl_create_help(GtkTextTagTable *table,
                       "applied to OpenGL applications that are started "
                       "after the option is set.");
 
+        ctk_help_para(b, &i, "When G-SYNC is active and \"Sync to VBlank\" is "
+                      "disabled, applications rendering faster than the "
+                      "maximum refresh rate will tear. This eliminates tearing "
+                      "for frame rates below the monitor's maximum refresh "
+                      "rate while minimizing latency for frame rates above it. "
+                      "When \"Sync to VBlank\" is enabled, the frame rate is "
+                      "limited to the monitor's maximum refresh rate to "
+                      "eliminate tearing completely.");
+
         ctk_help_para(b, &i, "This option can be overridden on a "
                       "per-application basis using the GLGSYNCAllowed "
                       "application profile key.");
@@ -1457,6 +1770,11 @@ GtkTextBuffer *ctk_opengl_create_help(GtkTextTagTable *table,
         ctk_help_para(b, &i, "%s", __stereo_eyes_exchange_help);
     }
     
+    if (ctk_opengl->active_attributes & __STEREO_SWAP_MODE) {
+        ctk_help_term(b, &i, "Stereo - swap mode");
+        ctk_help_para(b, &i, "%s", __ssm_menu_help);
+    }
+
     if (ctk_opengl->active_attributes & __IMAGE_SETTINGS) {
         ctk_help_heading(b, &i, "Image Settings");
         ctk_help_para(b, &i, "This setting gives you full control over the "

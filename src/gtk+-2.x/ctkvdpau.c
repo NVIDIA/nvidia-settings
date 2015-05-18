@@ -185,6 +185,11 @@ static int queryBaseInfo(CtkVDPAU *ctk_vdpau, VdpDevice device,
         {"DIVX5",             VDP_DECODER_PROFILE_DIVX5_MOBILE, 0x40},
         {"DIVX5",       VDP_DECODER_PROFILE_DIVX5_HOME_THEATER, 0x40},
         {"DIVX5",           VDP_DECODER_PROFILE_DIVX5_HD_1080P, 0x40},
+        {"HEVC",                 VDP_DECODER_PROFILE_HEVC_MAIN, 0x80},
+        {"HEVC",              VDP_DECODER_PROFILE_HEVC_MAIN_10, 0x80},
+        {"HEVC",           VDP_DECODER_PROFILE_HEVC_MAIN_STILL, 0x80},
+        {"HEVC",              VDP_DECODER_PROFILE_HEVC_MAIN_12, 0x80},
+        {"HEVC",             VDP_DECODER_PROFILE_HEVC_MAIN_444, 0x80},
     };
     const size_t decoder_list_count = sizeof(decoder_list)/sizeof(Desc);
 
@@ -504,6 +509,11 @@ static int queryDecoderCaps(CtkVDPAU *ctk_vdpau, VdpDevice device,
         {"DIVX5 Mobile",       VDP_DECODER_PROFILE_DIVX5_MOBILE,       0},
         {"DIVX5 Home Theater", VDP_DECODER_PROFILE_DIVX5_HOME_THEATER, 0},
         {"DIVX5 HD 1080P",     VDP_DECODER_PROFILE_DIVX5_HD_1080P,     0},
+        {"HEVC Main",          VDP_DECODER_PROFILE_HEVC_MAIN,          0},
+        {"HEVC Main 10",       VDP_DECODER_PROFILE_HEVC_MAIN_10,       0},
+        {"HEVC Main Still Picture", VDP_DECODER_PROFILE_HEVC_MAIN_STILL, 0},
+        {"HEVC Main 12",       VDP_DECODER_PROFILE_HEVC_MAIN_12,       0},
+        {"HEVC Main 4:4:4",    VDP_DECODER_PROFILE_HEVC_MAIN_444,      0},
     };
     const size_t decoder_profile_count = sizeof(decoder_profiles)/sizeof(Desc);
 

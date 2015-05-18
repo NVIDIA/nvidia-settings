@@ -42,9 +42,17 @@ static const char *__ecc_status_help =
 "Returns the current hardware ECC setting "
 "for the targeted GPU.";
 
+static const char *__sbit_error_help =
+"Returns the number of single-bit ECC errors detected by "
+"the targeted GPU since the last system reboot.";
+
 static const char *__dbit_error_help =
 "Returns the number of double-bit ECC errors detected by "
 "the targeted GPU since the last system reboot.";
+
+static const char *__aggregate_sbit_error_help =
+"Returns the number of single-bit ECC errors detected by the "
+"targeted GPU since the last counter reset.";
 
 static const char *__aggregate_dbit_error_help =
 "Returns the number of double-bit ECC errors detected by the "
@@ -158,27 +166,47 @@ static gboolean update_ecc_info(gpointer user_data)
     int64_t val;
     ReturnStatus ret;
 
-    if ( ctk_ecc->ecc_enabled == FALSE ) {
+    if (ctk_ecc->ecc_enabled == FALSE) {
         return FALSE;
     }
 
     /* Query ECC Errors */
 
-    if ( ctk_ecc->dbit_error ) {
+    if (ctk_ecc->sbit_error) {
+        ret = NvCtrlGetAttribute64(ctrl_target,
+                                   NV_CTRL_GPU_ECC_SINGLE_BIT_ERRORS,
+                                   &val);
+        if (ret != NvCtrlSuccess) {
+            val = 0;
+        }
+        set_label_value(ctk_ecc->sbit_error, val);
+    }
+
+    if (ctk_ecc->dbit_error) {
         ret = NvCtrlGetAttribute64(ctrl_target,
                                    NV_CTRL_GPU_ECC_DOUBLE_BIT_ERRORS,
                                    &val);
-        if ( ret != NvCtrlSuccess ) {
+        if (ret != NvCtrlSuccess) {
             val = 0;
         }
         set_label_value(ctk_ecc->dbit_error, val);
     }
 
-    if ( ctk_ecc->aggregate_dbit_error ) {
+    if (ctk_ecc->aggregate_sbit_error) {
+        ret = NvCtrlGetAttribute64(ctrl_target,
+                                   NV_CTRL_GPU_ECC_AGGREGATE_SINGLE_BIT_ERRORS,
+                                   &val);
+        if (ret != NvCtrlSuccess) {
+            val = 0;
+        }
+        set_label_value(ctk_ecc->aggregate_sbit_error, val);
+    }
+
+    if (ctk_ecc->aggregate_dbit_error) {
         ret = NvCtrlGetAttribute64(ctrl_target,
                                    NV_CTRL_GPU_ECC_AGGREGATE_DOUBLE_BIT_ERRORS,
                                    &val);
-        if ( ret != NvCtrlSuccess ) {
+        if (ret != NvCtrlSuccess) {
             val = 0;
         }
         set_label_value(ctk_ecc->aggregate_dbit_error, val);
@@ -419,10 +447,14 @@ GtkWidget* ctk_ecc_new(CtrlTarget *ctrl_target,
     CtkEcc *ctk_ecc;
     GtkWidget *hbox, *hbox2, *vbox, *hsep, *hseparator, *table;
     GtkWidget *banner, *label, *eventbox;
+    int64_t sbit_error;
+    int64_t aggregate_sbit_error;
     int64_t dbit_error;
     int64_t aggregate_dbit_error;
     gint ecc_config_supported;
     gint val, row = 0;
+    gboolean sbit_error_available;
+    gboolean aggregate_sbit_error_available;
     gboolean dbit_error_available;
     gboolean aggregate_dbit_error_available;
     gboolean ecc_enabled;
@@ -456,10 +488,14 @@ GtkWidget* ctk_ecc_new(CtrlTarget *ctrl_target,
     ctk_ecc->ctk_config = ctk_config;
     ctk_ecc->ecc_toggle_warning_dlg_shown = FALSE;
 
+    sbit_error_available = TRUE;
     dbit_error_available = TRUE;
+    aggregate_sbit_error_available = TRUE;
     aggregate_dbit_error_available = TRUE;
     
+    sbit_error = 0;
     dbit_error = 0;
+    aggregate_sbit_error = 0;
     aggregate_dbit_error = 0;
 
     /* Query ECC Status */
@@ -500,17 +536,31 @@ GtkWidget* ctk_ecc_new(CtrlTarget *ctrl_target,
     /* Query ECC errors */
     
     ret = NvCtrlGetAttribute64(ctrl_target,
+                               NV_CTRL_GPU_ECC_SINGLE_BIT_ERRORS,
+                               &sbit_error);
+    if (ret != NvCtrlSuccess) {
+        sbit_error_available = FALSE;
+    }
+    ret = NvCtrlGetAttribute64(ctrl_target,
                                NV_CTRL_GPU_ECC_DOUBLE_BIT_ERRORS,
                                &dbit_error);
-    if ( ret != NvCtrlSuccess ) {
+    if (ret != NvCtrlSuccess) {
         dbit_error_available = FALSE;
+    }
+    ret = NvCtrlGetAttribute64(ctrl_target,
+                               NV_CTRL_GPU_ECC_AGGREGATE_SINGLE_BIT_ERRORS,
+                               &aggregate_sbit_error);
+    if (ret != NvCtrlSuccess) {
+        aggregate_sbit_error_available = FALSE;
     }
     ret = NvCtrlGetAttribute64(ctrl_target,
                                NV_CTRL_GPU_ECC_AGGREGATE_DOUBLE_BIT_ERRORS,
                                &aggregate_dbit_error);
-    if ( ret != NvCtrlSuccess ) {
+    if (ret != NvCtrlSuccess) {
         aggregate_dbit_error_available = FALSE;
     }
+    ctk_ecc->sbit_error_available = sbit_error_available;
+    ctk_ecc->aggregate_sbit_error_available = aggregate_sbit_error_available;
     ctk_ecc->dbit_error_available = dbit_error_available;
     ctk_ecc->aggregate_dbit_error_available = aggregate_dbit_error_available;
     /* Query ECC configuration supported */
@@ -518,7 +568,7 @@ GtkWidget* ctk_ecc_new(CtrlTarget *ctrl_target,
     ret = NvCtrlGetAttribute(ctrl_target,
                              NV_CTRL_GPU_ECC_CONFIGURATION_SUPPORTED,
                              &ecc_config_supported);
-    if ( ret != NvCtrlSuccess ) {
+    if (ret != NvCtrlSuccess) {
         ecc_config_supported = 0;
     }
 
@@ -572,15 +622,27 @@ GtkWidget* ctk_ecc_new(CtrlTarget *ctrl_target,
     
     /* Add ECC Errors */
 
-    if ( dbit_error_available ) {
+    if (sbit_error_available && dbit_error_available) {
+        ctk_ecc->sbit_error =
+            add_table_int_row(ctk_config, table, __sbit_error_help,
+                              "Single-bit ECC Errors:", sbit_error,
+                              row, ecc_enabled);
+        row += 1; // add vertical padding between rows
+
         ctk_ecc->dbit_error =
             add_table_int_row(ctk_config, table, __dbit_error_help,
                               "Double-bit ECC Errors:", dbit_error,
                               row, ecc_enabled);
         row += 3; // add vertical padding between rows
     }
-    
-    if ( aggregate_dbit_error_available ) {
+
+    if (aggregate_sbit_error_available && aggregate_dbit_error_available) {
+        ctk_ecc->aggregate_sbit_error =
+            add_table_int_row(ctk_config, table, __aggregate_sbit_error_help,
+                              "Aggregate Single-bit ECC Errors:",
+                              aggregate_sbit_error, row, ecc_enabled);
+        row += 1; // add vertical padding between rows
+
         ctk_ecc->aggregate_dbit_error =
             add_table_int_row(ctk_config, table, __aggregate_dbit_error_help,
                               "Aggregate Double-bit ECC Errors:",
@@ -623,7 +685,7 @@ GtkWidget* ctk_ecc_new(CtrlTarget *ctrl_target,
     
     /* Add buttons */
 
-    if ( dbit_error_available ) {
+    if (sbit_error_available && dbit_error_available) {
         ctk_ecc->clear_button = gtk_button_new_with_label("Clear ECC Errors");
         gtk_box_pack_end(GTK_BOX(hbox), ctk_ecc->clear_button, FALSE, FALSE, 0);
         ctk_config_set_tooltip(ctk_config, ctk_ecc->clear_button,
@@ -634,7 +696,7 @@ GtkWidget* ctk_ecc_new(CtrlTarget *ctrl_target,
                          (gpointer) ctk_ecc);
     }
 
-    if ( aggregate_dbit_error_available ) {
+    if (aggregate_sbit_error_available && aggregate_dbit_error_available) {
         ctk_ecc->clear_aggregate_button =
             gtk_button_new_with_label("Clear Aggregate ECC Errors");
         gtk_box_pack_end(GTK_BOX(hbox), ctk_ecc->clear_aggregate_button,
@@ -699,11 +761,16 @@ GtkTextBuffer *ctk_ecc_create_help(GtkTextTagTable *table,
     ctk_help_heading(b, &i, "ECC");
     ctk_help_para(b, &i, "%s", __ecc_status_help);
 
-    if (ctk_ecc->dbit_error_available) {
+    if (ctk_ecc->sbit_error_available && ctk_ecc->dbit_error_available) {
+        ctk_help_heading(b, &i, "Single-bit ECC Errors");
+        ctk_help_para(b, &i, "%s", __sbit_error_help);
         ctk_help_heading(b, &i, "Double-bit ECC Errors");
         ctk_help_para(b, &i, "%s", __dbit_error_help);
     }
-    if (ctk_ecc->aggregate_dbit_error_available) {
+    if (ctk_ecc->aggregate_sbit_error_available &&
+        ctk_ecc->aggregate_dbit_error_available) {
+        ctk_help_heading(b, &i, "Aggregate Single-bit ECC Errors");
+        ctk_help_para(b, &i, "%s", __aggregate_sbit_error_help);
         ctk_help_heading(b, &i, "Aggregate Double-bit ECC Errors");
         ctk_help_para(b, &i, "%s", __aggregate_dbit_error_help);
     }
@@ -713,11 +780,12 @@ GtkTextBuffer *ctk_ecc_create_help(GtkTextTagTable *table,
     ctk_help_heading(b, &i, "Enable ECC");
     ctk_help_para(b, &i, "%s", __ecc_status_help);
 
-    if (ctk_ecc->dbit_error_available) {
+    if (ctk_ecc->sbit_error_available && ctk_ecc->dbit_error_available) {
         ctk_help_heading(b, &i, "Clear ECC Errors");
         ctk_help_para(b, &i, "%s", __clear_button_help);
     }
-    if (ctk_ecc->aggregate_dbit_error_available) {
+    if (ctk_ecc->aggregate_sbit_error_available &&
+        ctk_ecc->aggregate_dbit_error_available) {
         ctk_help_heading(b, &i, "Clear Aggregate ECC Errors");
         ctk_help_para(b, &i, "%s", __clear_aggregate_button_help);
     }
