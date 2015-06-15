@@ -1193,27 +1193,11 @@ GtkWidget* ctk_display_config_new(CtrlTarget *ctrl_target,
 
     gchar *err_str = NULL;
     gchar *layout_str = NULL;
-    gchar *sli_mode = NULL;
     ReturnStatus ret;
 
     const char *stereo_mode_str;
     CtrlAttributeValidValues valid;
     int stereo_mode, stereo_mode_max = NV_CTRL_STEREO_MAX;
-
-    /*
-     * Get SLI Mode.  If SLI Mode is "Mosaic", do not
-     * load this page
-     *
-     */
-    ret = NvCtrlGetStringAttribute(ctrl_target,
-                                   NV_CTRL_STRING_SLI_MODE,
-                                   &sli_mode);
-    if (ret == NvCtrlSuccess && !g_ascii_strcasecmp(sli_mode, "Mosaic")) {
-        free(sli_mode);
-        return NULL;
-    }
-
-    free(sli_mode);
 
     /*
      * Create the ctk object
@@ -5678,6 +5662,14 @@ static void do_enable_mosaic(CtkDisplayConfig *ctk_object)
                 display->screen != mosaic_screen) {
                 do_configure_display_on_xscreen(ctk_object, display,
                                                 mosaic_screen);
+
+                /*
+                 * The display has been added to the rightmost edge of the
+                 * mosaic screen with relative positioning. Update the layout
+                 * to set the absolute position, so the next iteration of this
+                 * loop can add the display to the new rightmost edge.
+                 */
+                ctk_display_layout_update(CTK_DISPLAY_LAYOUT(ctk_object->obj_layout));
             }
         }
     }
@@ -5710,6 +5702,15 @@ static void do_disable_mosaic(CtkDisplayConfig *ctk_object)
                     continue;
                 }
                 do_configure_display_on_new_xscreen(ctk_object, display);
+
+                /*
+                 * The new X screen has been set to the rightmost edge of
+                 * the rightmost X screen with relative positioning. Update
+                 * the layout to set the absolute position, so the next
+                 * iteration of this loop can add the display to the new
+                 * rightmost edge.
+                 */
+                ctk_display_layout_update(CTK_DISPLAY_LAYOUT(ctk_object->obj_layout));
             }
         }
     }
