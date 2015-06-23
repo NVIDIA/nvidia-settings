@@ -337,6 +337,15 @@ static void button_clicked(GtkButton *button, gpointer user_data)
                                    ctk_edid->file_format, data, len);
         }
 
+        /*
+         * Process pending GTK events here before destroying the filechooser
+         * to work around GTK dereferencing a NULL pointer during one of these
+         * events. See GNOME Bug 711321
+         */
+        while (gtk_events_pending()) {
+            gtk_main_iteration();
+        }
+
         gtk_widget_destroy(ctk_edid->file_selector);
 
         ctk_edid->file_selector = NULL;
