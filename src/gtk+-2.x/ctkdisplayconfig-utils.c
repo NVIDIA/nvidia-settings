@@ -3656,6 +3656,7 @@ static Bool layout_add_screenless_modes_to_displays(nvLayoutPtr layout)
 void layout_free(nvLayoutPtr layout)
 {
     if (layout) {
+        layout_remove_screens(layout);
         layout_remove_gpus(layout);
         NvCtrlFreeAllSystems(&layout->systems);
         free(layout);

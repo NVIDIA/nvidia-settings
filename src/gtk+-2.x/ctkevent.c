@@ -339,6 +339,7 @@ static void ctk_event_class_init(CtkEventClass *ctk_event_class)
     MAKE_SIGNAL(NV_CTRL_SHOW_GSYNC_VISUAL_INDICATOR);
     MAKE_SIGNAL(NV_CTRL_THERMAL_COOLER_CURRENT_LEVEL);
     MAKE_SIGNAL(NV_CTRL_STEREO_SWAP_MODE);
+    MAKE_SIGNAL(NV_CTRL_GPU_FRAMELOCK_FIRMWARE_UNSUPPORTED);
 #undef MAKE_SIGNAL
 
     /*
@@ -348,7 +349,7 @@ static void ctk_event_class_init(CtkEventClass *ctk_event_class)
      * knows about.
      */
 
-#if NV_CTRL_LAST_ATTRIBUTE != NV_CTRL_CURRENT_XV_SYNC_TO_DISPLAY_ID
+#if NV_CTRL_LAST_ATTRIBUTE != NV_CTRL_GPU_FRAMELOCK_FIRMWARE_UNSUPPORTED
 #warning "There are attributes that do not emit signals!"
 #endif
 

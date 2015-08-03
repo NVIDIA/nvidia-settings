@@ -4625,7 +4625,45 @@ GtkWidget* ctk_framelock_new(CtrlTarget *ctrl_target,
                                  FRAMELOCK_TARGET,
                                  (int *)&num_framelocks);
     if (ret != NvCtrlSuccess) return NULL;
-    if (!num_framelocks) return NULL;
+    if (!num_framelocks) {
+        ret = NvCtrlGetAttribute(ctrl_target,
+                                 NV_CTRL_GPU_FRAMELOCK_FIRMWARE_UNSUPPORTED,
+                                 &val);
+        if ((ret == NvCtrlSuccess) &&
+            (val == NV_CTRL_GPU_FRAMELOCK_FIRMWARE_UNSUPPORTED_TRUE)) {
+            /* Create blank framelock page to hold popup dialog */
+            object = g_object_new(CTK_TYPE_FRAMELOCK, NULL);
+            ctk_framelock = CTK_FRAMELOCK(object);
+            gtk_box_set_spacing(GTK_BOX(ctk_framelock), 10);
+
+            /* banner */
+            banner = ctk_banner_image_new(BANNER_ARTWORK_FRAMELOCK);
+            gtk_box_pack_start(GTK_BOX(ctk_framelock), banner, FALSE, FALSE, 0);
+
+            string = "The firmware on this Quadro Sync "
+                "card \n is not compatible with the GPUs connected to it.\n\n"
+                "Please visit "
+                "<http://www.nvidia.com/object/quadro-sync.html>\n "
+                "for instructions on installing the correct firmware.";
+
+            ctk_framelock->warn_dialog =
+                gtk_message_dialog_new (GTK_WINDOW(parent_window),
+                                        GTK_DIALOG_MODAL,
+                                        GTK_MESSAGE_WARNING,
+                                        GTK_BUTTONS_OK,
+                                        "%s", string);
+
+            g_signal_connect_swapped(G_OBJECT(ctk_framelock->warn_dialog),
+                                     "response",
+                                     G_CALLBACK(gtk_widget_hide),
+                                     G_OBJECT(ctk_framelock->warn_dialog));
+
+            gtk_widget_show_all(GTK_WIDGET(ctk_framelock));
+
+            return GTK_WIDGET(object);
+        }
+        return NULL;
+    }
 
     /* 1. - Create the frame lock widgets */
 
@@ -5843,6 +5881,10 @@ void ctk_framelock_config_file_attributes(GtkWidget *w,
 {
     CtkFramelock *ctk_framelock = (CtkFramelock *) w;
 
+    if (ctk_framelock->warn_dialog) {
+        return;
+    }
+    
     /* Add attributes from all the list entries */
     add_entries_to_parsed_attributes
         (((nvListTreePtr)(ctk_framelock->tree))->entries, head);
@@ -6059,13 +6101,18 @@ void ctk_framelock_select(GtkWidget *w)
 
     /* Start the frame lock timers */
 
-    ctk_config_start_timer(ctk_framelock->ctk_config,
-                           (GSourceFunc) update_framelock_status,
-                           (gpointer) ctk_framelock);
+    if (ctk_framelock->warn_dialog) {
+        /* Show firmware unsupported dialog */
+        gtk_widget_show_all (ctk_framelock->warn_dialog);
+    } else {
+        ctk_config_start_timer(ctk_framelock->ctk_config,
+                               (GSourceFunc) update_framelock_status,
+                               (gpointer) ctk_framelock);
 
-    ctk_config_start_timer(ctk_framelock->ctk_config,
-                           (GSourceFunc) check_for_ethernet,
-                           (gpointer) ctk_framelock);
+        ctk_config_start_timer(ctk_framelock->ctk_config,
+                               (GSourceFunc) check_for_ethernet,
+                               (gpointer) ctk_framelock);
+    }
 }
 
 
@@ -6082,11 +6129,13 @@ void ctk_framelock_unselect(GtkWidget *w)
 
     /* Stop the frame lock timers */
 
-    ctk_config_stop_timer(ctk_framelock->ctk_config,
-                          (GSourceFunc) update_framelock_status,
-                          (gpointer) ctk_framelock);
+    if (!ctk_framelock->warn_dialog) {
+        ctk_config_stop_timer(ctk_framelock->ctk_config,
+                              (GSourceFunc) update_framelock_status,
+                              (gpointer) ctk_framelock);
 
-    ctk_config_stop_timer(ctk_framelock->ctk_config,
-                          (GSourceFunc) check_for_ethernet,
-                          (gpointer) ctk_framelock);
+        ctk_config_stop_timer(ctk_framelock->ctk_config,
+                              (GSourceFunc) check_for_ethernet,
+                              (gpointer) ctk_framelock);
+    }
 }

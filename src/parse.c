@@ -214,6 +214,7 @@ const AttributeTableEntry attributeTable[] = {
     { "FrameLockHouseStatus",             NV_CTRL_FRAMELOCK_HOUSE_STATUS,               INT_ATTR, {1,1,0,0,1,0}, { .int_flags = {0,0,0,0,0,0,0} }, "Returns whether or not the house sync signal was detected on the BNC connector of the frame lock board." },
     { "FrameLockEnable",                  NV_CTRL_FRAMELOCK_SYNC,                       INT_ATTR, {1,1,0,0,1,0}, { .int_flags = {0,0,0,0,0,0,0} }, "Enable/disable the syncing of display devices to the frame lock pulse as specified by previous calls to FrameLockMaster and FrameLockSlaves." },
     { "FrameLockSyncReady",               NV_CTRL_FRAMELOCK_SYNC_READY,                 INT_ATTR, {1,1,0,0,1,0}, { .int_flags = {0,0,0,0,0,0,0} }, "Reports whether a slave frame lock board is receiving sync, whether or not any display devices are using the signal." },
+    { "FrameLockFirmwareUnsupported",     NV_CTRL_GPU_FRAMELOCK_FIRMWARE_UNSUPPORTED,   INT_ATTR, {1,0,0,0,1,0}, { .int_flags = {0,0,0,0,0,0,0} }, "Returns true if the Quadro Sync card connected to this GPU has a firmware version incompatible with this GPU." },
     { "FrameLockStereoSync",              NV_CTRL_FRAMELOCK_STEREO_SYNC,                INT_ATTR, {1,1,0,0,1,0}, { .int_flags = {0,0,0,0,0,0,0} }, "This indicates that the GPU stereo signal is in sync with the frame lock stereo signal." },
     { "FrameLockTestSignal",              NV_CTRL_FRAMELOCK_TEST_SIGNAL,                INT_ATTR, {1,1,0,0,1,0}, { .int_flags = {0,0,0,0,0,0,0} }, "To test the connections in the sync group, tell the master to enable a test signal, then query port[01] status and sync_ready on all slaves.  When done, tell the master to disable the test signal.  Test signal should only be manipulated while FrameLockEnable is enabled.  The FrameLockTestSignal is also used to reset the Universal Frame Count (as returned by the glXQueryFrameCountNV() function in the GLX_NV_swap_group extension).  Note: for best accuracy of the Universal Frame Count, it is recommended to toggle the FrameLockTestSignal on and off after enabling frame lock." },
     { "FrameLockEthDetected",             NV_CTRL_FRAMELOCK_ETHERNET_DETECTED,          INT_ATTR, {1,1,0,0,1,0}, { .int_flags = {0,0,0,0,0,0,0} }, "The frame lock boards are cabled together using regular cat5 cable, connecting to RJ45 ports on the backplane of the card.  There is some concern that users may think these are Ethernet ports and connect them to a router/hub/etc.  The hardware can detect this and will shut off to prevent damage (either to itself or to the router).  FrameLockEthDetected may be called to find out if Ethernet is connected to one of the RJ45 ports.  An appropriate error message should then be displayed." },
@@ -383,7 +384,7 @@ const int attributeTableLen = ARRAY_LEN(attributeTable);
  * the last attribute that the table knows about.
  */
 
-#if NV_CTRL_LAST_ATTRIBUTE != NV_CTRL_CURRENT_XV_SYNC_TO_DISPLAY_ID
+#if NV_CTRL_LAST_ATTRIBUTE != NV_CTRL_GPU_FRAMELOCK_FIRMWARE_UNSUPPORTED
 #warning "Have you forgotten to add a new integer attribute to attributeTable?"
 #endif
 

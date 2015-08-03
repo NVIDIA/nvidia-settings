@@ -3425,7 +3425,17 @@
 
 #define NV_CTRL_CURRENT_XV_SYNC_TO_DISPLAY_ID                   419 /* R--  */
 
-#define NV_CTRL_LAST_ATTRIBUTE NV_CTRL_CURRENT_XV_SYNC_TO_DISPLAY_ID
+/*
+ * NV_CTRL_GPU_FRAMELOCK_FIRMWARE_UNSUPPORTED - Returns true if the
+ * Quadro Sync card connected to this GPU has a firmware version incompatible
+ * with this GPU.
+ */
+
+#define NV_CTRL_GPU_FRAMELOCK_FIRMWARE_UNSUPPORTED              420 /* R--G */
+#define NV_CTRL_GPU_FRAMELOCK_FIRMWARE_UNSUPPORTED_FALSE          0
+#define NV_CTRL_GPU_FRAMELOCK_FIRMWARE_UNSUPPORTED_TRUE           1
+
+#define NV_CTRL_LAST_ATTRIBUTE NV_CTRL_GPU_FRAMELOCK_FIRMWARE_UNSUPPORTED
 
 /**************************************************************************/
 

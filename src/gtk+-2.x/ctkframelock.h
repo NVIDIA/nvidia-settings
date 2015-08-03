@@ -88,6 +88,7 @@ struct _CtkFramelock
     gboolean               video_mode_read_only;
 
     /* Dialogs */
+    GtkWidget             *warn_dialog;
     GtkWidget             *add_devices_dialog;
     GtkWidget             *add_devices_entry;
 

@@ -205,6 +205,41 @@ int nvgetopt(int argc,
         }
     }
 
+    /*
+     * If we still didn't find a match, maybe this is a short option
+     * with its argument value concatenated (e.g., "-j8").  For now,
+     * limit this to short options with integer argument values.
+     */
+    if (!o && intval) {
+
+        /* Is the string after the first character an integer? */
+        int appendedInteger = NVGETOPT_FALSE;
+        if ((name[0] != '\0') && (name[1] != '\0')) {
+            char *endptr;
+            strtol(name + 1, &endptr, 0);
+            if (*endptr == '\0') {
+                /*
+                 * The only characters after the first character are
+                 * parsable by strtol(3).
+                 */
+                appendedInteger = NVGETOPT_TRUE;
+            }
+        }
+
+        if (appendedInteger) {
+            for (i = 0; options[i].name; i++) {
+                if ((options[i].flags & NVGETOPT_INTEGER_ARGUMENT) == 0) {
+                    continue;
+                }
+                if (options[i].val == name[0]) {
+                    o = &options[i];
+                    argument = name + 1;
+                    break;
+                }
+            }
+        }
+    }
+
     /* if we didn't find an option, return */
 
     if (!o) {
