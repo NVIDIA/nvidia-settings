@@ -1,1 +1,1 @@
-#define NVIDIA_VERSION "352.30"
+#define NVIDIA_VERSION "352.41"
