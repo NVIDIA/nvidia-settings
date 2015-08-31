@@ -200,6 +200,23 @@ char *nvstrtolower(char *s)
 
 
 /*
+ * nvasprintf() - implementation of asprintf() that checks return values; if an
+ * error occurs, an error is printed to stderr and exit is called.
+ * -- this function will only return on success.
+ */
+char *nvasprintf(const char *fmt, ...)
+{
+    char *str;
+
+    NV_VSNPRINTF(str, fmt);
+
+    return str;
+
+} /* nvasprintf() */
+
+
+
+/*
  * nvfree() - frees memory allocated with nvalloc(), provided
  * a non-NULL pointer is provided.
  */

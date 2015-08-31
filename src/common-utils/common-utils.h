@@ -45,6 +45,7 @@ void *nvrealloc(void *ptr, size_t size);
 char *nvstrdup(const char *s);
 char *nvstrndup(const char *s, size_t n);
 char *nvstrtolower(char *s);
+char *nvasprintf(const char *fmt, ...);
 void nvfree(void *s);
 
 char *tilde_expansion(const char *str);
@@ -93,9 +94,9 @@ do {                                                            \
         va_list ap;                                             \
         int len, current_len = NV_FMT_BUF_LEN;                  \
                                                                 \
-        (buf) = malloc(current_len);                            \
-                                                                \
         while (1) {                                             \
+            (buf) = nvalloc(current_len);                       \
+                                                                \
             va_start(ap, fmt);                                  \
             len = vsnprintf((buf), current_len, (fmt), ap);     \
             va_end(ap);                                         \
@@ -107,8 +108,8 @@ do {                                                            \
             } else {                                            \
                 current_len += NV_FMT_BUF_LEN;                  \
             }                                                   \
-            free(buf);                                          \
-            (buf) = malloc(current_len);                        \
+                                                                \
+            nvfree(buf);                                        \
         }                                                       \
     }                                                           \
 } while (0)
