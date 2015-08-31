@@ -1676,6 +1676,10 @@ static void setting_key_renderer_func(GtkTreeViewColumn *tree_column,
     const char *key;
     json_t *setting;
     gtk_tree_model_get(model, iter, SETTING_LIST_STORE_COL_SETTING, &setting, -1);
+    if (setting && setting->refcount == 0) {
+        return;
+    }
+
     key = json_string_value(json_object_get(setting, "key"));
     g_object_set(cell, "text", key, NULL);
 }
@@ -1691,6 +1695,10 @@ static void setting_expected_type_renderer_func(GtkTreeViewColumn *tree_column,
     json_t *setting;
     gtk_tree_model_get(model, iter,
                        SETTING_LIST_STORE_COL_SETTING, &setting, -1);
+    if (setting && setting->refcount == 0) {
+        return;
+    }
+
     expected_type = get_expected_type_string_from_key(key_docs,
                         json_string_value(json_object_get(setting, "key")));
     g_object_set(cell, "text", expected_type, NULL);
@@ -1706,6 +1714,10 @@ static void setting_type_renderer_func(GtkTreeViewColumn *tree_column,
     const char *type = NULL;
     json_t *setting, *value;
     gtk_tree_model_get(model, iter, SETTING_LIST_STORE_COL_SETTING, &setting, -1);
+    if (setting && setting->refcount == 0) {
+        return;
+    }
+
     value = json_object_get(setting, "value");
 
     switch(json_typeof(value)) {
@@ -1738,6 +1750,10 @@ static void setting_value_renderer_func(GtkTreeViewColumn *tree_column,
     json_t *setting;
     char *value;
     gtk_tree_model_get(model, iter, SETTING_LIST_STORE_COL_SETTING, &setting, -1);
+    if (setting && setting->refcount == 0) {
+        return;
+    }
+
     setting_get_key_value(setting, NULL, &value, TRUE);
     g_object_set(cell, "markup", value, NULL);
     free(value);
@@ -2310,6 +2326,9 @@ static gboolean append_setting(GtkTreeModel *model,
     json_t *setting;
 
     gtk_tree_model_get(model, iter, SETTING_LIST_STORE_COL_SETTING, &setting, -1);
+    if (setting && setting->refcount == 0) {
+        setting = NULL;
+    }
     json_array_append(settings, setting);
 
     return FALSE;
@@ -2635,6 +2654,9 @@ static void setting_key_edited(GtkCellRendererText *renderer,
 
     gtk_tree_model_get(GTK_TREE_MODEL(dialog->settings_store), &iter,
                        SETTING_LIST_STORE_COL_SETTING, &setting, -1);
+    if (setting && setting->refcount == 0) {
+        return;
+    }
 
     canonical_key = get_canonical_setting_key(new_text,
                                               ctk_app_profile->key_docs);
@@ -2777,6 +2799,9 @@ static void setting_value_edited(GtkCellRendererText *renderer,
 
     gtk_tree_model_get(GTK_TREE_MODEL(dialog->settings_store), &iter,
                        SETTING_LIST_STORE_COL_SETTING, &setting, -1);
+    if (setting && setting->refcount == 0) {
+        return;
+    }
 
     type_str = json_string_value(json_object_get(setting, "key"));
     expected_type = get_type_from_string(get_expected_type_string_from_key(ctk_app_profile->key_docs, type_str));
@@ -3281,6 +3306,9 @@ static void profile_settings_renderer_func(GtkTreeViewColumn *tree_column,
     json_t *settings;
 
     gtk_tree_model_get(model, iter, CTK_APC_PROFILE_MODEL_COL_SETTINGS, &settings, -1);
+    if (settings && settings->refcount == 0) {
+        return;
+    }
 
     settings_string = serialize_settings(settings, TRUE);
 
@@ -3656,7 +3684,7 @@ static char *get_default_keys_file(const char *driver_version)
                      "This file should have been installed along with this "
                      "driver at %s. The application profiles "
                      "will continue to work, but values cannot be "
-                     "preopulated or validated, and will not be listed in "
+                     "prepopulated or validated, and will not be listed in "
                      "the help text. Please see the README for possible "
                      "values and descriptions.", expected_file_paths);
 
