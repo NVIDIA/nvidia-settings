@@ -1036,9 +1036,9 @@ static gboolean unref_setting_object(GtkTreeModel *model,
     return FALSE;
 }
 
-static void load_settings_from_profile(CtkAppProfile *ctk_app_profile,
-                                       GtkListStore *list_store,
-                                       const char *profile_name)
+static gboolean load_settings_from_profile(CtkAppProfile *ctk_app_profile,
+                                           GtkListStore *list_store,
+                                           const char *profile_name)
 {
     GtkTreeIter iter;
     size_t i, size;
@@ -1052,18 +1052,20 @@ static void load_settings_from_profile(CtkAppProfile *ctk_app_profile,
     profile = ctk_apc_profile_model_get_profile(ctk_app_profile->apc_profile_model,
                                                 profile_name);
     if (!profile) {
-        return;
+        return FALSE;
     }
 
     settings = json_object_get(profile, "settings");
     if (!settings) {
-        return;
+        return FALSE;
     }
     for (i = 0, size = json_array_size(settings); i < size; i++) {
         setting = json_deep_copy(json_array_get(settings, i));
         gtk_list_store_append(list_store, &iter);
         gtk_list_store_set(list_store, &iter, SETTING_LIST_STORE_COL_SETTING, setting, -1);
     }
+
+    return TRUE;
 }
 
 static void edit_rule_dialog_load_profile(EditRuleDialog *dialog,
@@ -1071,6 +1073,7 @@ static void edit_rule_dialog_load_profile(EditRuleDialog *dialog,
 {
     CtkAppProfile *ctk_app_profile = CTK_APP_PROFILE(dialog->parent);
     GtkComboBox *combo_box_entry;
+    gboolean has_settings;
 
     // profile name
     combo_box_entry = GTK_COMBO_BOX(dialog->profile_name_combo);
@@ -1095,9 +1098,15 @@ static void edit_rule_dialog_load_profile(EditRuleDialog *dialog,
     }
 
     // profile settings
-    load_settings_from_profile(CTK_APP_PROFILE(dialog->parent),
-                               dialog->profile_settings_store,
-                               dialog->profile_name->str);
+    has_settings = load_settings_from_profile(CTK_APP_PROFILE(dialog->parent),
+                                              dialog->profile_settings_store,
+                                              dialog->profile_name->str);
+
+    if (!has_settings) {
+        g_string_assign(dialog->profile_name, "");
+        gtk_entry_set_text(GTK_ENTRY(gtk_bin_get_child(GTK_BIN(combo_box_entry))),
+                           dialog->profile_name->str);
+    }
 }
 
 static void edit_rule_dialog_load_values(EditRuleDialog *dialog)

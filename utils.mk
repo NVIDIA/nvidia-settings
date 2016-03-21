@@ -73,6 +73,7 @@ MKDIR                 ?= mkdir -p
 RM                    ?= rm -f
 TOUCH                 ?= touch
 WHOAMI                ?= whoami
+HARDLINK              ?= ln -f
 HOSTNAME_CMD          ?= hostname
 DATE                  ?= date
 GZIP_CMD              ?= gzip
@@ -150,6 +151,13 @@ endif
 
 OUTPUTDIR             ?= _out/$(TARGET_OS)_$(TARGET_ARCH)
 OUTPUTDIR_ABSOLUTE    ?= $(CURDIR)/$(OUTPUTDIR)
+
+NV_SEPARATE_DEBUG_INFO ?=
+NV_KEEP_UNSTRIPPED_BINARIES ?=
+DO_STRIP ?=
+ifneq ($(DEBUG),1)
+  DO_STRIP = 1
+endif
 
 NV_QUIET_COMMAND_REMOVED_TARGET_PREFIX ?=
 
@@ -288,6 +296,7 @@ quiet_LINK         = $(call define_quiet_cmd,LINK        ,$@)
 quiet_HOST_LINK    = $(call define_quiet_cmd,HOST_LINK   ,$@)
 quiet_M4           = $(call define_quiet_cmd,M4          ,$<)
 quiet_STRIP_CMD    = $(call define_quiet_cmd,STRIP       ,$@)
+quiet_HARDLINK     = $(call define_quiet_cmd,HARDLINK    ,$@)
 
 ##############################################################################
 # Tell gmake to delete the target of a rule if it has changed and its
@@ -383,6 +392,32 @@ define DEFINE_OBJECT_RULE
   $$(eval $$(call DEFINE_OBJECT_RULE_WITH_DIR,$(1),$(2),$(OUTPUTDIR)))
 endef
 
+# This is a function that will generate rules to build
+# files with separate debug information, if so requested.
+# 
+# It takes one parameter: (1) Name of unstripped binary
+#
+# When used, the target for linking should be named (1).unstripped
+#
+# If separate debug information is requested, it will
+# generate a rule to build one from the unstripped binary.
+# If requested, it will also retain the unstripped binary.
+define DEBUG_INFO_RULES
+  $(1): $(1).unstripped
+  ifneq ($(or $(DO_STRIP),$(NV_SEPARATE_DEBUG_INFO)),)
+	$$(call quiet_cmd,STRIP_CMD) -o $$@ $$<
+  else
+	$$(call quiet_cmd,HARDLINK) $$^ $$@
+  endif
+  ifeq ($(NV_SEPARATE_DEBUG_INFO),1)
+    $(1).debug: $(1).unstripped
+	$$(call quiet_cmd,STRIP_CMD) --only-keep-debug -o $$@ $$<
+    $(1): $(1).debug
+  endif
+  ifneq ($(NV_KEEP_UNSTRIPPED_BINARIES),1)
+    .INTERMEDIATE: $(1).unstripped
+  endif
+endef
 
 ##############################################################################
 # STAMP_C - this is a source file that is generated during the build

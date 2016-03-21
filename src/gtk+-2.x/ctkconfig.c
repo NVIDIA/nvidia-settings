@@ -748,6 +748,10 @@ static void enabled_renderer_func(GtkTreeViewColumn *tree_column,
     column = GPOINTER_TO_INT(data);
     gtk_tree_model_get(model, iter, column, &timer_config, -1);
 
+    if (timer_config == NULL) {
+        return;
+    }
+
     value = timer_config->user_enabled;
     g_object_set(GTK_CELL_RENDERER(cell), "active", value, NULL);
 }
@@ -765,6 +769,10 @@ static void description_renderer_func(GtkTreeViewColumn *tree_column,
     column = GPOINTER_TO_INT(data);
     gtk_tree_model_get(model, iter, column, &timer_config, -1);
 
+    if (timer_config == NULL) {
+        return;
+    }
+
     value = timer_config->description;
     g_object_set(GTK_CELL_RENDERER(cell), "text", value, NULL);
 }
@@ -781,6 +789,11 @@ static void time_interval_renderer_func(GtkTreeViewColumn *tree_column,
     gchar str[32];
     
     gtk_tree_model_get(model, iter, column, &timer_config, -1);
+
+    if (timer_config == NULL) {
+        return;
+    }
+
     value = timer_config->interval;
 
     snprintf(str, 32, "%d ms", value);

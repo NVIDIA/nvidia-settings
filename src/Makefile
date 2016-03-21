@@ -280,27 +280,27 @@ NVIDIA_SETTINGS_install: $(NVIDIA_SETTINGS)
 	$(MKDIR) $(BINDIR)
 	$(INSTALL) $(INSTALL_BIN_ARGS) $< $(BINDIR)/$(notdir $<)
 
-$(NVIDIA_SETTINGS): $(OBJS) $(XNVCTRL_ARCHIVE)
+$(eval $(call DEBUG_INFO_RULES, $(NVIDIA_SETTINGS)))
+$(NVIDIA_SETTINGS).unstripped: $(OBJS) $(XNVCTRL_ARCHIVE)
 	$(call quiet_cmd,LINK) $(CFLAGS) $(LDFLAGS) $(BIN_LDFLAGS) \
 	    -rdynamic -o $@ $(OBJS) $(XNVCTRL_ARCHIVE) $(LIBS)
-	$(call quiet_cmd,STRIP_CMD) $@
 
-$(GTK2LIB): $(GTK2_OBJS) $(XCP_OBJS) $(VERSION_MK)
+$(eval $(call DEBUG_INFO_RULES, $(GTK2LIB)))
+$(GTK2LIB).unstripped: $(GTK2_OBJS) $(XCP_OBJS) $(VERSION_MK)
 	$(call quiet_cmd,LINK) -shared $(CFLAGS) $(LDFLAGS) $(BIN_LDFLAGS) \
 	    $(XNVCTRL_ARCHIVE) $(LIBS) $(GTK2_LIBS) \
-	    -Wl,--unresolved-symbols=ignore-all -o $(GTK2LIB) \
+	    -Wl,--unresolved-symbols=ignore-all -o $@ \
 	    -Wl,-soname -Wl,$(GTK2LIB_SONAME) \
 	    $(GTK2_OBJS) $(XCP_OBJS)
-	$(call quiet_cmd,STRIP_CMD) $@
 
 ifdef BUILD_GTK3LIB
-$(GTK3LIB): $(GTK3_OBJS) $(XCP_OBJS) $(VERSION_MK)
+$(eval $(call DEBUG_INFO_RULES, $(GTK3LIB)))
+$(GTK3LIB).unstripped: $(GTK3_OBJS) $(XCP_OBJS) $(VERSION_MK)
 	$(call quiet_cmd,LINK) -shared $(CFLAGS) $(LDFLAGS)  $(BIN_LDFLAGS) \
 	    $(XNVCTRL_ARCHIVE) $(LIBS) $(GTK3_LIBS) \
-	    -Wl,--unresolved-symbols=ignore-all -o $(GTK3LIB) \
+	    -Wl,--unresolved-symbols=ignore-all -o $@ \
 	    -Wl,-soname -Wl,$(GTK3LIB_SONAME) \
 	    $(GTK3_OBJS) $(XCP_OBJS)
-	$(call quiet_cmd,STRIP_CMD) $@
 endif
 
 # define the rule to build each object file

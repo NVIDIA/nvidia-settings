@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2010-2012 NVIDIA Corporation
+ * Copyright (C) 2010-2015 NVIDIA Corporation
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the "Software"),
@@ -40,8 +40,12 @@
 
 #define ARRAY_LEN(_arr) (sizeof(_arr) / sizeof(_arr[0]))
 
+#ifndef NV_MIN
 #define NV_MIN(x,y) ((x) < (y) ? (x) : (y))
+#endif
+#ifndef NV_MAX
 #define NV_MAX(x,y) ((x) > (y) ? (x) : (y))
+#endif
 
 #define TAB "  "
 #define BIGTAB "      "
