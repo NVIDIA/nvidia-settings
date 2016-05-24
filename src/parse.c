@@ -108,7 +108,6 @@ const AttributeTableEntry attributeTable[] = {
     { "SyncToVBlank",                     NV_CTRL_SYNC_TO_VBLANK,                       INT_ATTR, {0,0,0,0,0,0}, { .int_flags = {0,0,0,0,0,0,0} }, "Enables sync to vertical blanking for OpenGL clients.  This setting only takes effect on OpenGL clients started after it is set." },
     { "LogAniso",                         NV_CTRL_LOG_ANISO,                            INT_ATTR, {0,0,0,0,0,0}, { .int_flags = {0,0,0,0,0,0,0} }, "Enables anisotropic filtering for OpenGL clients; on some NVIDIA hardware, this can only be enabled or disabled; on other hardware different levels of anisotropic filtering can be specified.  This setting only takes effect on OpenGL clients started after it is set." },
     { "FSAA",                             NV_CTRL_FSAA_MODE,                            INT_ATTR, {0,0,0,0,0,0}, { .int_flags = {0,0,0,0,0,0,0} }, "The full screen antialiasing setting for OpenGL clients.  This setting only takes effect on OpenGL clients started after it is set. Enabling antialiasing will disable FXAA." },
-    { "TextureSharpen",                   NV_CTRL_TEXTURE_SHARPEN,                      INT_ATTR, {0,0,0,0,0,0}, { .int_flags = {0,0,0,0,0,0,0} }, "Enables texture sharpening for OpenGL clients.  This setting only takes effect on OpenGL clients started after it is set." },
     { "ForceGenericCpu",                  NV_CTRL_FORCE_GENERIC_CPU,                    INT_ATTR, {0,0,0,0,1,0}, { .int_flags = {0,0,0,0,0,0,0} }, "NOT SUPPORTED." },
     { "GammaCorrectedAALines",            NV_CTRL_OPENGL_AA_LINE_GAMMA,                 INT_ATTR, {0,0,0,0,0,0}, { .int_flags = {0,0,0,0,0,0,0} }, "For OpenGL clients, allow gamma-corrected antialiased lines to consider variances in the color display capabilities of output devices when rendering smooth lines.  Only available on recent Quadro GPUs.  This setting only takes effect on OpenGL clients started after it is set." },
     { "TextureClamping",                  NV_CTRL_TEXTURE_CLAMPING,                     INT_ATTR, {0,0,0,0,0,0}, { .int_flags = {0,0,0,0,0,0,0} }, "Define the behavior of OpenGL texture clamping for unbordered textures.  If enabled (1), the conformant behavior is used.  If disabled (0), GL_CLAMP is remapped to GL_CLAMP_TO_EDGE to avoid seams in applications that rely on this behavior, which was the only option in some very old hardware." },
@@ -331,6 +330,9 @@ const AttributeTableEntry attributeTable[] = {
     { "CurrentMetaMode",                  NV_CTRL_STRING_CURRENT_METAMODE_VERSION_2,    STR_ATTR, {0,0,0,0,1,0}, {}, "Controls the current MetaMode." },
     { "XineramaInfoOrder",                NV_CTRL_STRING_NVIDIA_XINERAMA_INFO_ORDER,    STR_ATTR, {0,0,0,0,1,0}, {}, "Controls the nvidiaXineramaInfoOrder." },
     { "BuildModepool",                    NV_CTRL_STRING_OPERATION_BUILD_MODEPOOL,      SOP_ATTR, {0,0,0,0,1,1}, {}, "Build the modepool of the display device if it does not already have one." },
+    { "DisplayPortConnectorType",         NV_CTRL_DISPLAYPORT_CONNECTOR_TYPE,           INT_ATTR, {0,0,0,0,1,0}, {}, "Returns the DisplayPort connector type."},
+    { "DisplayPortIsMultiStream",         NV_CTRL_DISPLAYPORT_IS_MULTISTREAM,           INT_ATTR, {0,0,0,0,1,0}, {}, "Returns 1 if the DisplayPort display is a MultiStream device, and 0 otherwise."},
+    { "DisplayPortSinkIsAudioCapable",    NV_CTRL_DISPLAYPORT_SINK_IS_AUDIO_CAPABLE,    INT_ATTR, {0,0,0,0,1,0}, {}, "Returns 1 if the DisplayPort display is capable of playing audio, and 0 otherwise."},
 
     /* TV */
     { "TVOverScan",                       NV_CTRL_TV_OVERSCAN,                          INT_ATTR, {0,0,0,0,0,0}, { .int_flags = {0,0,0,0,0,0,0} }, "Adjusts the amount of overscan on the specified display device." },
@@ -384,7 +386,7 @@ const int attributeTableLen = ARRAY_LEN(attributeTable);
  * the last attribute that the table knows about.
  */
 
-#if NV_CTRL_LAST_ATTRIBUTE != NV_CTRL_GPU_FRAMELOCK_FIRMWARE_UNSUPPORTED
+#if NV_CTRL_LAST_ATTRIBUTE != NV_CTRL_DISPLAYPORT_SINK_IS_AUDIO_CAPABLE
 #warning "Have you forgotten to add a new integer attribute to attributeTable?"
 #endif
 

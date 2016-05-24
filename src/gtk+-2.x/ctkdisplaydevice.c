@@ -60,6 +60,9 @@ static gboolean update_chip_info(InfoEntry *entry);
 static gboolean update_signal_info(InfoEntry *entry);
 static gboolean update_link_info(InfoEntry *entry);
 static gboolean update_refresh_rate(InfoEntry *entry);
+static gboolean update_connector_type_info(InfoEntry *entry);
+static gboolean update_multistream_info(InfoEntry *entry);
+static gboolean update_audio_info(InfoEntry *entry);
 
 static gboolean register_link_events(InfoEntry *entry);
 static gboolean unregister_link_events(InfoEntry *entry);
@@ -101,6 +104,15 @@ static const char *__info_signal_help =
 static const char * __refresh_rate_help =
 "The refresh rate displays the rate at which the screen is currently "
 "refreshing the image.";
+
+static const char * __connector_type_help =
+"Report the connector type that the DisplayPort display is using.";
+
+static const char * __multistream_help =
+"Report whether the configured DisplayPort display supports multistream.";
+
+static const char * __audio_help =
+"Report whether the configured DisplayPort display is capable of playing audio.";
 
 typedef gboolean (*InfoEntryFunc)(InfoEntry *entry);
 
@@ -154,6 +166,27 @@ static InfoEntryData __info_entry_data[] = {
         update_refresh_rate,
         register_refresh_rate_events,
         unregister_refresh_rate_events,
+    },
+    {
+        "DisplayPort Connector Type",
+        &__connector_type_help,
+        update_connector_type_info,
+        NULL,
+        NULL,
+    },
+    {
+        "DisplayPort Multistream Available",
+        &__multistream_help,
+        update_multistream_info,
+        NULL,
+        NULL,
+    },
+    {
+        "DisplayPort Audio Available",
+        &__audio_help,
+        update_audio_info,
+        NULL,
+        NULL,
     },
 };
 
@@ -725,6 +758,85 @@ static gboolean update_link_info(InfoEntry *entry)
 
     return TRUE;
 }
+
+
+static gboolean update_connector_type_info(InfoEntry *entry)
+{
+    CtkDisplayDevice *ctk_object = entry->ctk_object;
+    CtrlTarget *ctrl_target = ctk_object->ctrl_target;
+    ReturnStatus ret;
+    gint val;
+    const char *str;
+
+    ret = NvCtrlGetAttribute(ctrl_target,
+                             NV_CTRL_DISPLAYPORT_CONNECTOR_TYPE, &val);
+    if (ret != NvCtrlSuccess) {
+        return FALSE;
+    }
+
+    switch (val) {
+    case NV_CTRL_DISPLAYPORT_CONNECTOR_TYPE_DISPLAYPORT:
+        str = "DisplayPort";
+        break;
+    case NV_CTRL_DISPLAYPORT_CONNECTOR_TYPE_HDMI:
+        str = "HDMI";
+        break;
+    case NV_CTRL_DISPLAYPORT_CONNECTOR_TYPE_DVI:
+        str = "DVI";
+        break;
+    case NV_CTRL_DISPLAYPORT_CONNECTOR_TYPE_VGA:
+        str = "VGA";
+        break;
+    default:
+    case NV_CTRL_DISPLAYPORT_CONNECTOR_TYPE_UNKNOWN:
+        str = "Unknown";
+        break;
+    }
+
+    gtk_label_set_text(GTK_LABEL(entry->txt), str);
+
+    return TRUE;
+}
+
+
+static gboolean update_multistream_info(InfoEntry *entry)
+{
+    CtkDisplayDevice *ctk_object = entry->ctk_object;
+    CtrlTarget *ctrl_target = ctk_object->ctrl_target;
+    ReturnStatus ret;
+    gint val;
+
+    ret = NvCtrlGetAttribute(ctrl_target, NV_CTRL_DISPLAYPORT_IS_MULTISTREAM,
+                             &val);
+    if (ret != NvCtrlSuccess) {
+        return FALSE;
+    }
+
+    gtk_label_set_text(GTK_LABEL(entry->txt), val ? "Yes": "No");
+
+    return TRUE;
+}
+
+static gboolean update_audio_info(InfoEntry *entry)
+{
+    CtkDisplayDevice *ctk_object = entry->ctk_object;
+    CtrlTarget *ctrl_target = ctk_object->ctrl_target;
+    ReturnStatus ret;
+    gint val;
+
+    ret = NvCtrlGetAttribute(ctrl_target,
+                             NV_CTRL_DISPLAYPORT_SINK_IS_AUDIO_CAPABLE,
+                             &val);
+    if (ret != NvCtrlSuccess) {
+        return FALSE;
+    }
+
+    gtk_label_set_text(GTK_LABEL(entry->txt), val ? "Yes": "No");
+
+    return TRUE;
+}
+
+
 
 
 

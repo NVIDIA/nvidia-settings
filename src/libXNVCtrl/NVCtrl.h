@@ -293,17 +293,6 @@
 
 
 /*
- * NV_CTRL_TEXTURE_SHARPEN - enables texture sharpening for OpenGL
- * clients.  This setting is only applied to OpenGL clients that are
- * started after this setting is applied.
- */
-
-#define NV_CTRL_TEXTURE_SHARPEN                                 12 /* RW-X */
-#define NV_CTRL_TEXTURE_SHARPEN_OFF                             0
-#define NV_CTRL_TEXTURE_SHARPEN_ON                              1
-
-
-/*
  * NV_CTRL_UBB - returns whether UBB is enabled for the specified X
  * screen.
  */
@@ -705,6 +694,7 @@
 #define NV_CTRL_ARCHITECTURE_IA64                                2
 #define NV_CTRL_ARCHITECTURE_ARM                                 3
 #define NV_CTRL_ARCHITECTURE_AARCH64                             4
+#define NV_CTRL_ARCHITECTURE_PPC64LE                             5
 
 
 /*
@@ -3435,7 +3425,32 @@
 #define NV_CTRL_GPU_FRAMELOCK_FIRMWARE_UNSUPPORTED_FALSE          0
 #define NV_CTRL_GPU_FRAMELOCK_FIRMWARE_UNSUPPORTED_TRUE           1
 
-#define NV_CTRL_LAST_ATTRIBUTE NV_CTRL_GPU_FRAMELOCK_FIRMWARE_UNSUPPORTED
+/*
+ * NV_CTRL_DISPLAYPORT_CONNECTOR_TYPE - Returns the connector type used by
+ * a DisplayPort display.
+ */
+
+#define NV_CTRL_DISPLAYPORT_CONNECTOR_TYPE                      421 /* R-DG */
+#define NV_CTRL_DISPLAYPORT_CONNECTOR_TYPE_UNKNOWN                0
+#define NV_CTRL_DISPLAYPORT_CONNECTOR_TYPE_DISPLAYPORT            1
+#define NV_CTRL_DISPLAYPORT_CONNECTOR_TYPE_HDMI                   2
+#define NV_CTRL_DISPLAYPORT_CONNECTOR_TYPE_DVI                    3
+#define NV_CTRL_DISPLAYPORT_CONNECTOR_TYPE_VGA                    4
+
+/*
+ * NV_CTRL_DISPLAYPORT_IS_MULTISTREAM - Returns multi-stream support for
+ * DisplayPort displays.
+ */
+#define NV_CTRL_DISPLAYPORT_IS_MULTISTREAM                      422 /* R-DG */
+
+/*
+ * NV_CTRL_DISPLAYPORT_SINK_IS_AUDIO_CAPABLE - Returns whether a DisplayPort
+ * device supports audio.
+ */
+#define NV_CTRL_DISPLAYPORT_SINK_IS_AUDIO_CAPABLE               423 /* R-DG */
+
+
+#define NV_CTRL_LAST_ATTRIBUTE NV_CTRL_DISPLAYPORT_SINK_IS_AUDIO_CAPABLE
 
 /**************************************************************************/
 

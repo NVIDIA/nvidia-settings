@@ -105,7 +105,8 @@ static const char *__editable_performance_levels_table_help =
 "performance level, the offset applies to both the minimum and maximum.";
 
 static const char *__gpu_clock_offset_help =
-"This is the amount, in MHz, to over- or under-clock the Graphics Clock.";
+"This is the amount, in MHz, to over- or under-clock the Graphics Clock."
+"  The requested offset will be adjusted to the nearest available clock.";
 
 static const char *__memory_transfer_rate_offset_help =
 "This is the amount, in MHz, to over- or under-clock the Memory Transfer Rate.";

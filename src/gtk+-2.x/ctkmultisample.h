@@ -61,7 +61,6 @@ struct _CtkMultisample
     GtkWidget *fxaa_enable_check_button;
     GtkWidget *log_aniso_app_override_check_button;
     GtkWidget *log_aniso_scale;
-    GtkWidget *texture_sharpening_button;
     CtkDropDownMenu *d;
 
     guint active_attributes;

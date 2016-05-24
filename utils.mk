@@ -54,9 +54,11 @@ HOST_CFLAGS           += -Wno-unused-parameter -Wno-format-zero-length
 
 ifeq ($(DEBUG),1)
   STRIP_CMD           ?= true
+  DO_STRIP            ?=
   CFLAGS              += -O0 -g
 else
   STRIP_CMD           ?= strip
+  DO_STRIP            ?= 1
 endif
 
 INSTALL               ?= install
@@ -154,10 +156,6 @@ OUTPUTDIR_ABSOLUTE    ?= $(CURDIR)/$(OUTPUTDIR)
 
 NV_SEPARATE_DEBUG_INFO ?=
 NV_KEEP_UNSTRIPPED_BINARIES ?=
-DO_STRIP ?=
-ifneq ($(DEBUG),1)
-  DO_STRIP = 1
-endif
 
 NV_QUIET_COMMAND_REMOVED_TARGET_PREFIX ?=
 

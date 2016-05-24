@@ -1872,7 +1872,7 @@ NvCtrlEventHandleNextEvent(NvCtrlEventHandle *handle, CtrlEvent *event)
         if (xevt_type == TARGET_BINARY_ATTRIBUTE_CHANGED_EVENT) {
 
             XNVCtrlBinaryAttributeChangedEventTarget *nvctrlevent =
-                (XNVCtrlBinaryAttributeChangedEventTarget *) &event;
+                (XNVCtrlBinaryAttributeChangedEventTarget *) &xevent;
 
             event->type        = CTRL_EVENT_TYPE_BINARY_ATTRIBUTE;
             event->target_type = nvctrlevent->target_type;

@@ -293,11 +293,14 @@ GtkWidget* ctk_server_new(CtrlTarget *ctrl_target,
     ret = NvCtrlGetAttribute(ctrl_target, NV_CTRL_ARCHITECTURE, &tmp);
     arch = NULL;
     if (ret == NvCtrlSuccess) {
-        if      (tmp == NV_CTRL_ARCHITECTURE_X86) arch = "x86";
-        else if (tmp == NV_CTRL_ARCHITECTURE_X86_64) arch = "x86_64";
-        else if (tmp == NV_CTRL_ARCHITECTURE_IA64) arch = "ia64";
-        else if (tmp == NV_CTRL_ARCHITECTURE_ARM) arch = "ARM";
-        else if (tmp == NV_CTRL_ARCHITECTURE_AARCH64) arch = "AArch64";
+        switch (tmp) {
+            case NV_CTRL_ARCHITECTURE_X86: arch = "x86"; break;
+            case NV_CTRL_ARCHITECTURE_X86_64: arch = "x86_64"; break;
+            case NV_CTRL_ARCHITECTURE_IA64: arch = "ia64"; break;
+            case NV_CTRL_ARCHITECTURE_ARM: arch = "ARM"; break;
+            case NV_CTRL_ARCHITECTURE_AARCH64: arch = "AArch64"; break;
+            case NV_CTRL_ARCHITECTURE_PPC64LE: arch = "ppc64le"; break;
+        }
     }
     if (!arch) arch = "Unknown";
     os = g_strdup_printf("%s-%s", os, arch);

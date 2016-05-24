@@ -93,14 +93,6 @@ static void log_aniso_value_changed(GtkRange *range, gpointer user_data);
 static void log_aniso_range_update_received(GObject *object, CtrlEvent *event,
                                             gpointer user_data);
 
-static void post_texture_sharpening_toggled(CtkMultisample *ctk_multisample,
-                                            gboolean enabled);
-
-static void texture_sharpening_toggled(GtkWidget *widget, gpointer user_data);
-
-static void texture_sharpening_update_received(GObject *object, CtrlEvent *event,
-                                               gpointer user_data);
-
 static void update_fxaa_from_fsaa_change(CtkMultisample *ctk_multisample,
                                          int fsaa_value);
 static void update_fsaa_from_fxaa_change(CtkMultisample *ctk_multisample,
@@ -142,11 +134,6 @@ static const char *__fxaa_enable_help =
 "FXAA disables triple buffering, antialiasing, and other antialiasing "
 "setting methods.";
 
-static const char *__texture_sharpening_help =
-"To improve image quality, select this option "
-"to sharpen textures when running OpenGL applications "
-"with antialiasing enabled.";
-
 
 /*
  * bits indicating which attributes require documenting in the online
@@ -173,7 +160,6 @@ static const char *__texture_sharpening_help =
 #define __FSAA_ENHANCE    (1 << (NV_CTRL_FSAA_MODE_MAX + 2))
 #define __FXAA            (1 << (NV_CTRL_FSAA_MODE_MAX + 3))
 #define __LOG_ANISO_RANGE (1 << (NV_CTRL_FSAA_MODE_MAX + 4))
-#define __TEXTURE_SHARPEN (1 << (NV_CTRL_FSAA_MODE_MAX + 5))
 
 
 #define FRAME_PADDING 5
@@ -511,52 +497,6 @@ GtkWidget *ctk_multisample_new(CtrlTarget *ctrl_target,
 
             gtk_widget_set_sensitive(GTK_WIDGET(scale), override);
         }
-    }
-    
-    /*
-     * Texture sharpen
-     *
-     * If one of the supported multisample modes was enabled by the
-     * user, this check button controls texture sharpening.
-     */
-
-    ret = NvCtrlGetAttribute(ctrl_target, NV_CTRL_TEXTURE_SHARPEN, &val);
-
-    if (ret == NvCtrlSuccess) {
-        
-        /* create "TextureSharpening" frame */
-
-        frame = gtk_frame_new("Texture Quality");
-        gtk_box_pack_start(GTK_BOX(object), frame, FALSE, FALSE, 0);
-        
-        /* create the vbox to store the widgets inside the frame */
-
-        vbox = gtk_vbox_new(FALSE, 5);
-        gtk_container_set_border_width(GTK_CONTAINER(vbox), FRAME_PADDING);
-        gtk_container_add(GTK_CONTAINER(frame), vbox);
-        
-        /* "Texture Sharpening" checkbox */
-        
-        check_button = gtk_check_button_new_with_label("Texture Sharpening");
-        
-        gtk_toggle_button_set_active(GTK_TOGGLE_BUTTON(check_button), val);
-        
-        gtk_box_pack_start(GTK_BOX(vbox), check_button, FALSE, FALSE, 0);
-        
-        g_signal_connect(G_OBJECT(check_button), "toggled",
-                         G_CALLBACK(texture_sharpening_toggled),
-                         (gpointer) ctk_multisample);
-        
-        g_signal_connect(G_OBJECT(ctk_event),
-                         CTK_EVENT_NAME(NV_CTRL_TEXTURE_SHARPEN),
-                         G_CALLBACK(texture_sharpening_update_received),
-                         (gpointer) ctk_multisample);
-        
-        ctk_config_set_tooltip(ctk_config, check_button,
-                               __texture_sharpening_help);
-        
-        ctk_multisample->active_attributes |= __TEXTURE_SHARPEN;
-        ctk_multisample->texture_sharpening_button = check_button;
     }
     
     /* if nothing is available, teardown this object and return NULL */
@@ -1435,82 +1375,6 @@ static void log_aniso_range_update_received(GObject *object,
 
 
 /*
- * post_texture_sharpening_toggled() - helper function for
- * texture_sharpening_toggled() and
- * texture_sharpening_update_received(); this does whatever work is
- * necessary after the texture sharpening button has been toggled --
- * currently, just post a statusbar message.
- */
-
-static void post_texture_sharpening_toggled(CtkMultisample *ctk_multisample,
-                                            gboolean enabled)
-{
-    ctk_config_statusbar_message(ctk_multisample->ctk_config,
-                                 "Texture sharpening %s.",
-                                 enabled ? "enabled" : "disabled");
-    
-} /* post_texture_sharpening_toggled() */
-
-
-
-/*
- * texture_sharpening_toggled() - callback for the "toggled" signal
- * from the texture sharpening check button.
- */
-
-static void texture_sharpening_toggled(GtkWidget *widget, gpointer user_data)
-{
-    CtkMultisample *ctk_multisample = CTK_MULTISAMPLE(user_data);
-    CtrlTarget *ctrl_target = ctk_multisample->ctrl_target;
-    gboolean enabled;
-
-    enabled = gtk_toggle_button_get_active(GTK_TOGGLE_BUTTON(widget));
-
-    NvCtrlSetAttribute(ctrl_target, NV_CTRL_TEXTURE_SHARPEN, enabled);
-
-    post_texture_sharpening_toggled(ctk_multisample, enabled);
-
-} /* texture_sharpening_toggled() */
-
-
-
-/*
- * texture_sharpening_update_received() - callback function for when
- * the NV_CTRL_TEXTURE_SHARPEN attribute is changed by another
- * NV-CONTROL client.
- */
-
-static void texture_sharpening_update_received(GObject *object,
-                                               CtrlEvent *event,
-                                               gpointer user_data)
-{
-    CtkMultisample *ctk_multisample;
-    GtkToggleButton *button;
-
-    if (event->type != CTRL_EVENT_TYPE_INTEGER_ATTRIBUTE) {
-        return;
-    }
-    
-    ctk_multisample = CTK_MULTISAMPLE(user_data);
-    button = GTK_TOGGLE_BUTTON(ctk_multisample->texture_sharpening_button);
-
-    g_signal_handlers_block_by_func(G_OBJECT(button),
-                                    G_CALLBACK(texture_sharpening_toggled),
-                                    (gpointer) ctk_multisample);
-
-    gtk_toggle_button_set_active(button, event->int_attr.value);
-    
-    post_texture_sharpening_toggled(ctk_multisample, event->int_attr.value);
-
-    g_signal_handlers_unblock_by_func(G_OBJECT(button), 
-                                      G_CALLBACK(texture_sharpening_toggled),
-                                      (gpointer) ctk_multisample);
-    
-} /* texture_sharpening_update_received() */
-
-
-
-/*
  * ctk_multisample_create_help() - create a GtkTextBuffer describing
  * the available image quality options.
  */
@@ -1701,11 +1565,6 @@ GtkTextBuffer *ctk_multisample_create_help(GtkTextTagTable *table,
         ctk_help_para(b, &i, "%s", __aniso_override_app_help);
         
         ctk_help_para(b, &i, "%s", __aniso_slider_help);
-    }
-
-    if (ctk_multisample->active_attributes & __TEXTURE_SHARPEN) {
-        ctk_help_heading(b, &i, "Texture Sharpening");
-        ctk_help_para(b, &i, "%s", __texture_sharpening_help);
     }
 
     ctk_help_finish(b);
