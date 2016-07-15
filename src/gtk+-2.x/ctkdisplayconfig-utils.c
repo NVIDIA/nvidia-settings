@@ -3240,9 +3240,10 @@ static Bool layout_add_gpu_from_server(nvLayoutPtr layout,
         if ((ret == NvCtrlSuccess) &&
             (valid.valid_type == CTRL_ATTRIBUTE_VALID_TYPE_INT_BITS)) {
 
-            if (valid.allowed_ints & NV_CTRL_BASE_MOSAIC_FULL) {
+            if (valid.allowed_ints & (1 << NV_CTRL_BASE_MOSAIC_FULL)) {
                 gpu->mosaic_type = MOSAIC_TYPE_BASE_MOSAIC;
-            } else if (valid.allowed_ints & NV_CTRL_BASE_MOSAIC_LIMITED) {
+            } else if (valid.allowed_ints &
+                       (1 << NV_CTRL_BASE_MOSAIC_LIMITED)) {
                 gpu->mosaic_type = MOSAIC_TYPE_BASE_MOSAIC_LIMITED;
             }
 
