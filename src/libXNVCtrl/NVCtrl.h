@@ -871,7 +871,7 @@
 /*
  * The NV_CTRL_GVO_* integer attributes are used to configure GVO
  * (Graphics to Video Out).  This functionality is available, for
- * example, on the Quadro FX 4000 SDI graphics board.
+ * example, on the Quadro SDI Output card.
  *
  * The following is a typical usage pattern for the GVO attributes:
  *
@@ -3449,8 +3449,42 @@
  */
 #define NV_CTRL_DISPLAYPORT_SINK_IS_AUDIO_CAPABLE               423 /* R-DG */
 
+/*
+ * NV_CTRL_GPU_NVCLOCK_OFFSET_ALL_PERFORMANCE_LEVELS - This attribute
+ * controls the GPU clock offsets (in MHz) used for overclocking.
+ * The offset is applied to all performance levels.
+ *
+ * Note: To enable overclocking support, set the X configuration
+ * option "Coolbits" to value "8".
+ *
+ * This offset can have any integer value between
+ * NVCTRLAttributeValidValues.u.range.min and
+ * NVCTRLAttributeValidValues.u.range.max (inclusive).
+ *
+ * This attribute is available on GeForce GTX 1000 series and later
+ * Geforce GPUs.
+ */
+#define NV_CTRL_GPU_NVCLOCK_OFFSET_ALL_PERFORMANCE_LEVELS       424 /* RW-G */
 
-#define NV_CTRL_LAST_ATTRIBUTE NV_CTRL_DISPLAYPORT_SINK_IS_AUDIO_CAPABLE
+/*
+ * NV_CTRL_GPU_MEM_TRANSFER_RATE_OFFSET_ALL_PERFORMANCE_LEVELS - This
+ * attribute controls the memory transfer rate offsets (in MHz) used
+ * for overclocking.  The offset is applied to all performance levels.
+ *
+ * Note: To enable overclocking support, set the X configuration
+ * option "Coolbits" to value "8".
+ *
+ * This offset can have any integer value between
+ * NVCTRLAttributeValidValues.u.range.min and
+ * NVCTRLAttributeValidValues.u.range.max (inclusive).
+ *
+ * This attribute is available on GeForce GTX 1000 series and later
+ * Geforce GPUs.
+ */
+#define NV_CTRL_GPU_MEM_TRANSFER_RATE_OFFSET_ALL_PERFORMANCE_LEVELS  425 /* RW-G */
+
+
+#define NV_CTRL_LAST_ATTRIBUTE NV_CTRL_GPU_MEM_TRANSFER_RATE_OFFSET_ALL_PERFORMANCE_LEVELS
 
 /**************************************************************************/
 

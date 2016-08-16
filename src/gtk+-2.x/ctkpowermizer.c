@@ -267,9 +267,11 @@ static void post_set_attribute_offset_value(CtkPowermizer *ctk_powermizer,
     const char *str = NULL;
 
     switch (attribute) {
+    case NV_CTRL_GPU_NVCLOCK_OFFSET_ALL_PERFORMANCE_LEVELS:
     case NV_CTRL_GPU_NVCLOCK_OFFSET:
         str = "Graphics Clock";
         break;
+    case NV_CTRL_GPU_MEM_TRANSFER_RATE_OFFSET_ALL_PERFORMANCE_LEVELS:
     case NV_CTRL_GPU_MEM_TRANSFER_RATE_OFFSET:
         str = "Memory Transfer Rate";
         break;
@@ -347,7 +349,7 @@ static void update_editable_perf_level_info(CtkPowermizer *ctk_powermizer)
 
     table = gtk_table_new(5, 15, FALSE);
     row_idx = row_idx + 3;
-    col_idx = 1;
+    col_idx = 0;
     gtk_table_set_row_spacings(GTK_TABLE(table), 3);
     gtk_table_set_col_spacings(GTK_TABLE(table), 15);
     gtk_container_set_border_width(GTK_CONTAINER(table), 5);
@@ -381,54 +383,55 @@ static void update_editable_perf_level_info(CtkPowermizer *ctk_powermizer)
         vsep = gtk_vseparator_new();
         gtk_table_attach(GTK_TABLE(table), vsep, 1, 2, 0, row_idx,
                          GTK_FILL, GTK_FILL | GTK_EXPAND, 0, 0);
+        col_idx += 2;
     }
     if (ctk_powermizer->gpu_clock) {
         /* Graphics clock */
         label = gtk_label_new("Graphics Clock Offset");
         gtk_misc_set_alignment(GTK_MISC(label), 0.0f, 0.5f);
-        gtk_table_attach(GTK_TABLE(table), label, col_idx+1, col_idx+4, 0, 1,
+        gtk_table_attach(GTK_TABLE(table), label, col_idx+0, col_idx+3, 0, 1,
                          GTK_FILL, GTK_FILL | GTK_EXPAND, 5, 0);
         label = gtk_label_new("Current");
         gtk_misc_set_alignment(GTK_MISC(label), 0.0f, 0.5f);
-        gtk_table_attach(GTK_TABLE(table), label, col_idx+1, col_idx+2, 1, 2,
+        gtk_table_attach(GTK_TABLE(table), label, col_idx+0, col_idx+1, 1, 2,
                          GTK_FILL, GTK_FILL | GTK_EXPAND, 5, 0);
         label = gtk_label_new("Min");
         gtk_misc_set_alignment(GTK_MISC(label), 0.0f, 0.5f);
-        gtk_table_attach(GTK_TABLE(table), label, col_idx+2, col_idx+3, 1, 2,
+        gtk_table_attach(GTK_TABLE(table), label, col_idx+1, col_idx+2, 1, 2,
                          GTK_FILL, GTK_FILL | GTK_EXPAND, 5, 0);
         label = gtk_label_new("Max");
         gtk_misc_set_alignment(GTK_MISC(label), 0.0f, 0.5f);
-        gtk_table_attach(GTK_TABLE(table), label, col_idx+3, col_idx+4, 1, 2,
+        gtk_table_attach(GTK_TABLE(table), label, col_idx+2, col_idx+3, 1, 2,
                          GTK_FILL, GTK_FILL | GTK_EXPAND, 5, 0);
 
         /* Vertical separator */
         vsep = gtk_vseparator_new();
-        gtk_table_attach(GTK_TABLE(table), vsep, col_idx+4, col_idx+5, 0, row_idx,
+        gtk_table_attach(GTK_TABLE(table), vsep, col_idx+3, col_idx+4, 0, row_idx,
                          GTK_FILL, GTK_FILL | GTK_EXPAND, 0, 0);
-        col_idx = 6;
+        col_idx += 4;
     }
     if (ctk_powermizer->memory_transfer_rate) {
         /* Memory transfer rate */
         label = gtk_label_new("Memory Transfer Rate Offset");
         gtk_misc_set_alignment(GTK_MISC(label), 0.0f, 0.5f);
-        gtk_table_attach(GTK_TABLE(table), label, col_idx+1, col_idx+4, 0, 1,
+        gtk_table_attach(GTK_TABLE(table), label, col_idx+0, col_idx+3, 0, 1,
                          GTK_FILL, GTK_FILL | GTK_EXPAND, 5, 0);
         label = gtk_label_new("Current");
         gtk_misc_set_alignment(GTK_MISC(label), 0.0f, 0.5f);
-        gtk_table_attach(GTK_TABLE(table), label, col_idx+1, col_idx+2, 1, 2,
+        gtk_table_attach(GTK_TABLE(table), label, col_idx+0, col_idx+1, 1, 2,
                          GTK_FILL, GTK_FILL | GTK_EXPAND, 5, 0);
         label = gtk_label_new("Min");
         gtk_misc_set_alignment(GTK_MISC(label), 0.0f, 0.5f);
-        gtk_table_attach(GTK_TABLE(table), label, col_idx+2, col_idx+3, 1, 2,
+        gtk_table_attach(GTK_TABLE(table), label, col_idx+1, col_idx+2, 1, 2,
                          GTK_FILL, GTK_FILL | GTK_EXPAND, 5, 0);
         label = gtk_label_new("Max");
         gtk_misc_set_alignment(GTK_MISC(label), 0.0f, 0.5f);
-        gtk_table_attach(GTK_TABLE(table), label, col_idx+3, col_idx+4, 1, 2,
+        gtk_table_attach(GTK_TABLE(table), label, col_idx+2, col_idx+3, 1, 2,
                          GTK_FILL, GTK_FILL | GTK_EXPAND, 5, 0);
 
         /* Vertical separator */
         vsep = gtk_vseparator_new();
-        gtk_table_attach(GTK_TABLE(table), vsep, col_idx+4, col_idx+5,
+        gtk_table_attach(GTK_TABLE(table), vsep, col_idx+3, col_idx+4,
                          0, row_idx,
                          GTK_FILL, GTK_FILL | GTK_EXPAND, 0, 0);
         col_idx += 4;
@@ -450,14 +453,14 @@ static void update_editable_perf_level_info(CtkPowermizer *ctk_powermizer)
         if (ctk_powermizer->gpu_clock) {
             ret = NvCtrlGetValidDisplayAttributeValues(ctrl_target,
                                                        i,
-                                                       NV_CTRL_GPU_NVCLOCK_OFFSET,
+                                                       ctk_powermizer->nvclock_attribute,
                                                        &gpu_clock_valid_val);
             if ((ret == NvCtrlSuccess) &&
                 gpu_clock_valid_val.permissions.write) {
 
                 ret = NvCtrlGetDisplayAttribute(ctrl_target,
                                                 i,
-                                                NV_CTRL_GPU_NVCLOCK_OFFSET,
+                                                ctk_powermizer->nvclock_attribute,
                                                 &gpu_clock_val);
                 if (ret == NvCtrlSuccess) {
                     /* Create input entry field */
@@ -479,7 +482,7 @@ static void update_editable_perf_level_info(CtkPowermizer *ctk_powermizer)
             ret =
                 NvCtrlGetValidDisplayAttributeValues(ctrl_target,
                                                      i,
-                                                     NV_CTRL_GPU_MEM_TRANSFER_RATE_OFFSET,
+                                                     ctk_powermizer->mem_transfer_rate_attribute,
                                                      &mem_transfer_rate_valid_val);
             if ((ret == NvCtrlSuccess) &&
                 mem_transfer_rate_valid_val.permissions.write) {
@@ -487,7 +490,7 @@ static void update_editable_perf_level_info(CtkPowermizer *ctk_powermizer)
                 ret =
                     NvCtrlGetDisplayAttribute(ctrl_target,
                                               i,
-                                              NV_CTRL_GPU_MEM_TRANSFER_RATE_OFFSET,
+                                              ctk_powermizer->mem_transfer_rate_attribute,
                                               &mem_transfer_rate_val);
                 if (ret == NvCtrlSuccess) {
                     /* Create input entry field */
@@ -513,20 +516,24 @@ static void update_editable_perf_level_info(CtkPowermizer *ctk_powermizer)
         }
         /* XXX Assume the perf levels are sorted by the server */
 
-         gtk_table_resize(GTK_TABLE(table), row_idx+1, 10);
+        gtk_table_resize(GTK_TABLE(table), row_idx+1, 10);
 
-         if (ctk_powermizer->performance_level) {
-             g_snprintf(tmp_str, 24, "%d", i);
-             label = gtk_label_new(tmp_str);
+        if (ctk_powermizer->performance_level) {
+            if (ctk_powermizer->editable_performance_levels_unified) {
+                label = gtk_label_new("All");
+            } else {
+                g_snprintf(tmp_str, 24, "%d", i);
+                label = gtk_label_new(tmp_str);
+            }
              gtk_widget_set_sensitive(label, active);
              gtk_misc_set_alignment(GTK_MISC(label), 0.0f, 0.5f);
              gtk_table_attach(GTK_TABLE(table), label, 0, 1, row_idx, row_idx+1,
                               GTK_FILL, GTK_FILL | GTK_EXPAND, 5, 0);
-             col_idx =1;
+             col_idx += 2;
          }
          if (txt_nvclock_offset) {
              g_object_set_data(G_OBJECT(txt_nvclock_offset), "attribute",
-                               GINT_TO_POINTER(NV_CTRL_GPU_NVCLOCK_OFFSET));
+                               GINT_TO_POINTER(ctk_powermizer->nvclock_attribute));
              g_object_set_data(G_OBJECT(txt_nvclock_offset), "perf level",
                                GINT_TO_POINTER(i));
              /* Set current value */
@@ -534,7 +541,7 @@ static void update_editable_perf_level_info(CtkPowermizer *ctk_powermizer)
                                     gpu_clock_val);
 
              gtk_table_attach(GTK_TABLE(table), txt_nvclock_offset,
-                              col_idx+1, col_idx+2, row_idx, row_idx+1,
+                              col_idx+0, col_idx+1, row_idx, row_idx+1,
                               GTK_FILL, GTK_FILL | GTK_EXPAND, 5, 0);
              /* Min */
              g_snprintf(tmp_str, 24, "%jd MHz", gpu_clock_valid_val.range.min);
@@ -542,7 +549,7 @@ static void update_editable_perf_level_info(CtkPowermizer *ctk_powermizer)
              gtk_widget_set_sensitive(label, active);
              gtk_misc_set_alignment(GTK_MISC(label), 0.0f, 0.5f);
              gtk_table_attach(GTK_TABLE(table), label,
-                              col_idx+2, col_idx+3, row_idx, row_idx+1,
+                              col_idx+1, col_idx+2, row_idx, row_idx+1,
                               GTK_FILL, GTK_FILL | GTK_EXPAND, 5, 0);
              /* Max */
              g_snprintf(tmp_str, 24, "%jd MHz", gpu_clock_valid_val.range.max);
@@ -550,14 +557,14 @@ static void update_editable_perf_level_info(CtkPowermizer *ctk_powermizer)
              gtk_widget_set_sensitive(label, active);
              gtk_misc_set_alignment(GTK_MISC(label), 0.0f, 0.5f);
              gtk_table_attach(GTK_TABLE(table), label,
-                              col_idx+3, col_idx+4, row_idx, row_idx+1,
+                              col_idx+2, col_idx+3, row_idx, row_idx+1,
                               GTK_FILL, GTK_FILL | GTK_EXPAND, 5, 0);
-             col_idx +=5;
+             col_idx +=4;
          }
          if (txt_mem_transfer_rate_offset) {
              g_object_set_data(G_OBJECT(GTK_ENTRY(txt_mem_transfer_rate_offset)),
                                "attribute",
-                               GINT_TO_POINTER(NV_CTRL_GPU_MEM_TRANSFER_RATE_OFFSET));
+                               GINT_TO_POINTER(ctk_powermizer->mem_transfer_rate_attribute));
              g_object_set_data(G_OBJECT(GTK_ENTRY(txt_mem_transfer_rate_offset)),
                                "perf level",
                                GINT_TO_POINTER(i));
@@ -566,7 +573,7 @@ static void update_editable_perf_level_info(CtkPowermizer *ctk_powermizer)
                                        txt_mem_transfer_rate_offset,
                                        mem_transfer_rate_val);
              gtk_table_attach(GTK_TABLE(table), txt_mem_transfer_rate_offset,
-                              col_idx+1, col_idx+2, row_idx, row_idx+1,
+                              col_idx+0, col_idx+1, row_idx, row_idx+1,
                               GTK_FILL, GTK_FILL | GTK_EXPAND, 5, 0);
 
              /* Min */
@@ -576,7 +583,7 @@ static void update_editable_perf_level_info(CtkPowermizer *ctk_powermizer)
              gtk_widget_set_sensitive(label, active);
              gtk_misc_set_alignment(GTK_MISC(label), 0.0f, 0.5f);
              gtk_table_attach(GTK_TABLE(table), label,
-                              col_idx+2, col_idx+3, row_idx, row_idx+1,
+                              col_idx+1, col_idx+2, row_idx, row_idx+1,
                               GTK_FILL, GTK_FILL | GTK_EXPAND, 5, 0);
              /* Max */
              g_snprintf(tmp_str, 24, "%jd MHz",
@@ -585,9 +592,14 @@ static void update_editable_perf_level_info(CtkPowermizer *ctk_powermizer)
              gtk_widget_set_sensitive(label, active);
              gtk_misc_set_alignment(GTK_MISC(label), 0.0f, 0.5f);
              gtk_table_attach(GTK_TABLE(table), label,
-                              col_idx+3, col_idx+4, row_idx, row_idx+1,
+                              col_idx+2, col_idx+3, row_idx, row_idx+1,
                               GTK_FILL, GTK_FILL | GTK_EXPAND, 5, 0);
              col_idx +=4;
+             if (ctk_powermizer->editable_performance_levels_unified) {
+                 break;
+             } else {
+                 row_idx +=1;
+             }
          }
     }
 }
@@ -665,7 +677,13 @@ static void update_perf_mode_table(CtkPowermizer *ctk_powermizer,
             if (!ctk_powermizer->hasEditablePerfLevel &&
                 (pEntry[index].nvclockeditable ||
                  pEntry[index].memtransferrateeditable)) {
-                ctk_powermizer->hasEditablePerfLevel = TRUE;
+                /* Set hasEditablePerfLevel flag on if overclocking attributes
+                 * are available
+                 */
+                if (ctk_powermizer->nvclock_attribute &&
+                    ctk_powermizer->mem_transfer_rate_attribute) {
+                    ctk_powermizer->hasEditablePerfLevel = TRUE;
+                }
             }
 
             row_idx++;
@@ -1168,6 +1186,7 @@ GtkWidget* ctk_powermizer_new(CtrlTarget *ctrl_target,
     CtkDropDownMenu *menu;
     ReturnStatus ret, ret1;
     gint attribute;
+    gint nvclock_attribute = 0, mem_transfer_rate_attribute = 0;
     gint val;
     gint row = 0;
     gchar *s = NULL;
@@ -1260,6 +1279,41 @@ GtkWidget* ctk_powermizer_new(CtrlTarget *ctrl_target,
     ctk_powermizer->pcie_gen_queriable = pcie_gen_queriable;
     ctk_powermizer->hasDecoupledClock = FALSE;
     ctk_powermizer->hasEditablePerfLevel = FALSE;
+    ctk_powermizer->editable_performance_levels_unified = FALSE;
+
+    /* assign overclocking attribute based on availability */
+    ret = NvCtrlGetAttribute(ctrl_target,
+                             NV_CTRL_GPU_NVCLOCK_OFFSET_ALL_PERFORMANCE_LEVELS, &val);
+    if (ret == NvCtrlSuccess) {
+        nvclock_attribute = NV_CTRL_GPU_NVCLOCK_OFFSET_ALL_PERFORMANCE_LEVELS;
+    } else {
+        ret = NvCtrlGetAttribute(ctrl_target, NV_CTRL_GPU_NVCLOCK_OFFSET, &val);
+        if (ret == NvCtrlSuccess) {
+            nvclock_attribute = NV_CTRL_GPU_NVCLOCK_OFFSET;
+        }
+    }
+
+    ret = NvCtrlGetAttribute(ctrl_target,
+                             NV_CTRL_GPU_MEM_TRANSFER_RATE_OFFSET_ALL_PERFORMANCE_LEVELS,
+                             &val);
+    if (ret == NvCtrlSuccess) {
+        mem_transfer_rate_attribute =
+            NV_CTRL_GPU_MEM_TRANSFER_RATE_OFFSET_ALL_PERFORMANCE_LEVELS;
+    } else {
+        ret = NvCtrlGetAttribute(ctrl_target,
+                                 NV_CTRL_GPU_MEM_TRANSFER_RATE_OFFSET, &val);
+        if (ret == NvCtrlSuccess) {
+            mem_transfer_rate_attribute = NV_CTRL_GPU_MEM_TRANSFER_RATE_OFFSET;
+        }
+    }
+
+    if ((nvclock_attribute == NV_CTRL_GPU_NVCLOCK_OFFSET_ALL_PERFORMANCE_LEVELS) &&
+        (mem_transfer_rate_attribute ==
+         NV_CTRL_GPU_MEM_TRANSFER_RATE_OFFSET_ALL_PERFORMANCE_LEVELS)) {
+        ctk_powermizer->editable_performance_levels_unified = TRUE;
+    }
+    ctk_powermizer->nvclock_attribute = nvclock_attribute;
+    ctk_powermizer->mem_transfer_rate_attribute = mem_transfer_rate_attribute;
 
     /* set container properties for the CtkPowermizer widget */
 
@@ -1684,15 +1738,29 @@ GtkWidget* ctk_powermizer_new(CtrlTarget *ctrl_target,
                      G_CALLBACK(update_powermizer_menu_event),
                      (gpointer) ctk_powermizer);
 
-    g_signal_connect(G_OBJECT(ctk_event),
-                     CTK_EVENT_NAME(NV_CTRL_GPU_NVCLOCK_OFFSET),
-                     G_CALLBACK(offset_value_changed_event_received),
-                     (gpointer) ctk_powermizer);
+    if (nvclock_attribute == NV_CTRL_GPU_NVCLOCK_OFFSET_ALL_PERFORMANCE_LEVELS) {
+        g_signal_connect(G_OBJECT(ctk_event),
+                         CTK_EVENT_NAME(NV_CTRL_GPU_NVCLOCK_OFFSET_ALL_PERFORMANCE_LEVELS),
+                         G_CALLBACK(offset_value_changed_event_received),
+                         (gpointer) ctk_powermizer);
+    } else if (nvclock_attribute == NV_CTRL_GPU_NVCLOCK_OFFSET) {
+        g_signal_connect(G_OBJECT(ctk_event),
+                         CTK_EVENT_NAME(NV_CTRL_GPU_NVCLOCK_OFFSET),
+                         G_CALLBACK(offset_value_changed_event_received),
+                         (gpointer) ctk_powermizer);
+    }
 
-    g_signal_connect(G_OBJECT(ctk_event),
-                     CTK_EVENT_NAME(NV_CTRL_GPU_MEM_TRANSFER_RATE_OFFSET),
-                     G_CALLBACK(offset_value_changed_event_received),
-                     (gpointer) ctk_powermizer);
+    if (mem_transfer_rate_attribute == NV_CTRL_GPU_MEM_TRANSFER_RATE_OFFSET_ALL_PERFORMANCE_LEVELS) {
+        g_signal_connect(G_OBJECT(ctk_event),
+                         CTK_EVENT_NAME(NV_CTRL_GPU_MEM_TRANSFER_RATE_OFFSET_ALL_PERFORMANCE_LEVELS),
+                         G_CALLBACK(offset_value_changed_event_received),
+                         (gpointer) ctk_powermizer);
+    } else if (mem_transfer_rate_attribute == NV_CTRL_GPU_MEM_TRANSFER_RATE_OFFSET) {
+        g_signal_connect(G_OBJECT(ctk_event),
+                         CTK_EVENT_NAME(NV_CTRL_GPU_MEM_TRANSFER_RATE_OFFSET),
+                         G_CALLBACK(offset_value_changed_event_received),
+                         (gpointer) ctk_powermizer);
+    }
 
     return GTK_WIDGET(ctk_powermizer);
 }

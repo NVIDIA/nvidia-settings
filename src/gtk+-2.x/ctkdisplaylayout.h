@@ -143,6 +143,13 @@ typedef enum {
     MOSAIC_TYPE_BASE_MOSAIC_LIMITED,
 } MosaicType;
 
+typedef enum {
+    PIXELSHIFT_NONE = 0,
+    PIXELSHIFT_4K_TOP_LEFT,
+    PIXELSHIFT_4K_BOTTOM_RIGHT,
+    PIXELSHIFT_8K,
+} PixelShift;
+
 typedef struct nvSizeRec {
     int width;
     int height;
@@ -215,6 +222,7 @@ typedef struct nvModeRec {
 
     Rotation rotation;
     Reflection reflection;
+    PixelShift pixelshift;
 
 } nvMode, *nvModePtr;
 

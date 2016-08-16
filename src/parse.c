@@ -147,6 +147,8 @@ const AttributeTableEntry attributeTable[] = {
     { "GPUAmbientTemp",                   NV_CTRL_AMBIENT_TEMPERATURE,                  INT_ATTR, {0,0,0,0,1,0}, { .int_flags = {0,0,0,0,0,0,0} }, "Reports the current temperature in Celsius of the immediate neighborhood of the GPU driving the X screen." },
     { "GPUGraphicsClockOffset",           NV_CTRL_GPU_NVCLOCK_OFFSET,                   INT_ATTR, {0,0,0,1,1,1}, { .int_flags = {0,0,0,0,0,0,0} }, "This is the offset amount, in MHz, to over- or under-clock the Graphics Clock.  Specify the performance level in square brackets after the attribute name.  E.g., 'GPUGraphicsClockOffset[2]'." },
     { "GPUMemoryTransferRateOffset",      NV_CTRL_GPU_MEM_TRANSFER_RATE_OFFSET,         INT_ATTR, {0,0,0,1,1,1}, { .int_flags = {0,0,0,0,0,0,0} }, "This is the offset amount, in MHz, to over- or under-clock the Memory Transfer Rate.  Specify the performance level in square brackets after the attribute name.  E.g., 'GPUMemoryTransferRateOffset[2]'." },
+    { "GPUGraphicsClockOffsetAllPerformanceLevels",      NV_CTRL_GPU_NVCLOCK_OFFSET_ALL_PERFORMANCE_LEVELS,      INT_ATTR, {0,0,0,1,1,1}, { .int_flags = {0,0,0,0,0,0,0} }, "This is the offset amount, in MHz, to over- or under-clock the Graphics Clock.  The offset is applied to all performance levels.  This attribute is available starting with Pascal GPUs." }, 
+    { "GPUMemoryTransferRateOffsetAllPerformanceLevels", NV_CTRL_GPU_MEM_TRANSFER_RATE_OFFSET_ALL_PERFORMANCE_LEVELS, INT_ATTR, {0,0,0,1,1,1}, { .int_flags = {0,0,0,0,0,0,0} }, "This is the offset amount, in MHz, to over- or under-clock the Memory Transfer Rate.  The offset is applied to all performance levels.  This attribute is available starting with Pascal GPUs." },
     { "GPUCurrentCoreVoltage",            NV_CTRL_GPU_CURRENT_CORE_VOLTAGE,             INT_ATTR, {0,0,0,0,1,0}, { .int_flags = {0,0,0,0,0,0,0} }, "This attribute returns the GPU's current operating voltage, in microvolts (uV)."},
     { "GPUOverVoltageOffset",             NV_CTRL_GPU_OVER_VOLTAGE_OFFSET,              INT_ATTR, {0,0,0,0,1,0}, { .int_flags = {0,0,0,0,0,0,0} }, "This is the offset, in microvolts (uV), to apply to the GPU's operating voltage."},
     { "GPUOverclockingState",             NV_CTRL_GPU_OVERCLOCKING_STATE,               INT_ATTR, {0,0,0,0,1,0}, { .int_flags = {0,0,0,0,0,0,0} }, "NOT SUPPORTED." },
@@ -386,7 +388,7 @@ const int attributeTableLen = ARRAY_LEN(attributeTable);
  * the last attribute that the table knows about.
  */
 
-#if NV_CTRL_LAST_ATTRIBUTE != NV_CTRL_DISPLAYPORT_SINK_IS_AUDIO_CAPABLE
+#if NV_CTRL_LAST_ATTRIBUTE != NV_CTRL_GPU_MEM_TRANSFER_RATE_OFFSET_ALL_PERFORMANCE_LEVELS
 #warning "Have you forgotten to add a new integer attribute to attributeTable?"
 #endif
 

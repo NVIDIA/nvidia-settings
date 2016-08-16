@@ -652,6 +652,16 @@ static void apply_mode_attribute_token(char *token, char *value, void *data)
         } else if (!strcasecmp("xy", value)) {
             mode->reflection = REFLECTION_XY;
         }
+
+    /* Pixelshift */
+    } else if (!strcasecmp("PixelShiftMode", token)) {
+        if (!strcasecmp("4kTopLeft", value)) {
+            mode->pixelshift = PIXELSHIFT_4K_TOP_LEFT;
+        } else if (!strcasecmp("4kBottomRight", value)) {
+            mode->pixelshift = PIXELSHIFT_4K_BOTTOM_RIGHT;
+        } else if (!strcasecmp("8k", value)) {
+            mode->pixelshift = PIXELSHIFT_8K;
+        }
     }
 }
 
@@ -1070,13 +1080,39 @@ static gchar *mode_get_str(nvModePtr mode, int force_target_id_name)
         }
     }
 
+    /* Pixelshift */
+    if (mode->pixelshift != PIXELSHIFT_NONE) {
+        const char *str = NULL;
+
+        switch (mode->pixelshift) {
+        case PIXELSHIFT_4K_TOP_LEFT:
+            str = "4kTopLeft";
+            break;
+        case PIXELSHIFT_4K_BOTTOM_RIGHT:
+            str = "4kBottomRight";
+            break;
+        case PIXELSHIFT_8K:
+            str = "8k";
+            break;
+        default:
+            break;
+        }
+
+        if (str) {
+            tmp = g_strdup_printf("%s, PixelShiftMode=%s",
+                                  (flags_str ? flags_str : ""), str);
+            g_free(flags_str);
+            flags_str = tmp;
+        }
+
     /* ViewPortIn */
-    {
+    } else {
         int width;
         int height;
 
         /* Only write out the ViewPortIn if it is specified and differs from the
-         * ViewPortOut.
+         * ViewPortOut.  Skip writing ViewPortIn if pixelshift mode was
+         * requested, as pixelshift mode overrides any specified ViewPortIn.
          */
         if ((mode->rotation == ROTATION_90) ||
             (mode->rotation == ROTATION_270)) {
