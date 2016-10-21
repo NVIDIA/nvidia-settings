@@ -1745,7 +1745,7 @@
 
 
 /*
- * NV_CTRL_FRAMELOCK_FPGA_REVISION - Querys the FPGA revision of the
+ * NV_CTRL_FRAMELOCK_FPGA_REVISION - Queries the FPGA revision of the
  * Frame Lock device.
  *
  * This attribute must be queried through XNVCTRLQueryTargetAttribute()
@@ -3483,8 +3483,17 @@
  */
 #define NV_CTRL_GPU_MEM_TRANSFER_RATE_OFFSET_ALL_PERFORMANCE_LEVELS  425 /* RW-G */
 
+/*
+ * NV_CTRL_FRAMELOCK_FIRMWARE_VERSION - Queries the firmware version of the
+ * Frame Lock device.
+ *
+ * This attribute must be queried through XNVCTRLQueryTargetAttribute()
+ * using a NV_CTRL_TARGET_TYPE_FRAMELOCK target.
+ */
 
-#define NV_CTRL_LAST_ATTRIBUTE NV_CTRL_GPU_MEM_TRANSFER_RATE_OFFSET_ALL_PERFORMANCE_LEVELS
+#define NV_CTRL_FRAMELOCK_FIRMWARE_VERSION                           426 /* R--F */
+
+#define NV_CTRL_LAST_ATTRIBUTE NV_CTRL_FRAMELOCK_FIRMWARE_VERSION
 
 /**************************************************************************/
 
@@ -3507,14 +3516,17 @@
 
 
 /*
- * NV_CTRL_STRING_PRODUCT_NAME - the GPU product name on which the
- * specified X screen is running.
+ * NV_CTRL_STRING_PRODUCT_NAME - the product name on which the
+ * specified X screen is running, or the product name of the specified
+ * Frame Lock device.
  *
  * This attribute may be queried through XNVCTRLQueryTargetStringAttribute()
- * using a NV_CTRL_TARGET_TYPE_GPU or NV_CTRL_TARGET_TYPE_X_SCREEN target.
+ * using a NV_CTRL_TARGET_TYPE_GPU or NV_CTRL_TARGET_TYPE_X_SCREEN target to
+ * return the product name of the GPU, or a NV_CTRL_TARGET_TYPE_FRAMELOCK to
+ * return the product name of the Frame Lock device.
  */
 
-#define NV_CTRL_STRING_PRODUCT_NAME                             0  /* R--G */
+#define NV_CTRL_STRING_PRODUCT_NAME                             0  /* R--GF */
 
 
 /*
@@ -3651,7 +3663,7 @@
 
 
 /*
- * NV_CTRL_STRING_VCSC_PRODUCT_NAME - Querys the product name of the
+ * NV_CTRL_STRING_VCSC_PRODUCT_NAME - Queries the product name of the
  * VCSC device.
  *
  * This attribute must be queried through XNVCTRLQueryTargetStringAttribute()
@@ -3662,7 +3674,7 @@
 
 
 /*
- * NV_CTRL_STRING_VCSC_PRODUCT_ID - Querys the product ID of the VCSC device.
+ * NV_CTRL_STRING_VCSC_PRODUCT_ID - Queries the product ID of the VCSC device.
  *
  * This attribute must be queried through XNVCTRLQueryTargetStringAttribute()
  * using a NV_CTRL_TARGET_TYPE_VCSC target.
@@ -3672,7 +3684,7 @@
 
 
 /*
- * NV_CTRL_STRING_VCSC_SERIAL_NUMBER - Querys the unique serial number
+ * NV_CTRL_STRING_VCSC_SERIAL_NUMBER - Queries the unique serial number
  * of the VCS device.
  *
  * This attribute must be queried through XNVCTRLQueryTargetStringAttribute()
@@ -3683,7 +3695,7 @@
 
 
 /*
- * NV_CTRL_STRING_VCSC_BUILD_DATE - Querys the date of the VCS device.
+ * NV_CTRL_STRING_VCSC_BUILD_DATE - Queries the date of the VCS device.
  * the returned string is in the following format: "Week.Year"
  *
  * This attribute must be queried through XNVCTRLQueryTargetStringAttribute()
@@ -3694,7 +3706,7 @@
 
 
 /*
- * NV_CTRL_STRING_VCSC_FIRMWARE_VERSION - Querys the firmware version
+ * NV_CTRL_STRING_VCSC_FIRMWARE_VERSION - Queries the firmware version
  * of the VCS device.
  *
  * This attribute must be queried through XNVCTRLQueryTargetStringAttribute()
@@ -3705,7 +3717,7 @@
 
 
 /*
- * NV_CTRL_STRING_VCSC_FIRMWARE_REVISION - Querys the firmware revision
+ * NV_CTRL_STRING_VCSC_FIRMWARE_REVISION - Queries the firmware revision
  * of the VCS device.
  *
  * This attribute must be queried through XNVCTRLQueryTargetStringAttribute()
@@ -3716,7 +3728,7 @@
 
 
 /*
- * NV_CTRL_STRING_VCSC_HARDWARE_VERSION - Querys the hardware version
+ * NV_CTRL_STRING_VCSC_HARDWARE_VERSION - Queries the hardware version
  * of the VCS device.
  *
  * This attribute must be queried through XNVCTRLQueryTargetStringAttribute()
@@ -3727,7 +3739,7 @@
 
 
 /*
- * NV_CTRL_STRING_VCSC_HARDWARE_REVISION - Querys the hardware revision
+ * NV_CTRL_STRING_VCSC_HARDWARE_REVISION - Queries the hardware revision
  * of the VCS device.
  *
  * This attribute must be queried through XNVCTRLQueryTargetStringAttribute()

@@ -93,6 +93,9 @@ typedef struct _CtkDisplayConfig
     GtkWidget *chk_primary_display;
     gboolean primary_display_changed;
 
+    GtkWidget *chk_forcecompositionpipeline_enabled;
+    GtkWidget *chk_forcefullcompositionpipeline_enabled;
+
     GtkWidget *mnu_selected_item;
     SelectableItem *selected_item_table;
     int selected_item_table_len;

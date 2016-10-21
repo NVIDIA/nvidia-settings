@@ -79,15 +79,11 @@
 
 /* Useful macros to deal with target types */
 
-#ifndef NVML_AVAILABLE
-#define TARGET_TYPE_IS_NVML_COMPATIBLE(_TARGET_TYPE) (FALSE)
-#else
 /* XXX Modify to be TRUE only for target types which are NVML-related */
 #define TARGET_TYPE_IS_NVML_COMPATIBLE(_TARGET_TYPE_) \
     (((_TARGET_TYPE_) == GPU_TARGET) ||               \
      ((_TARGET_TYPE_) == THERMAL_SENSOR_TARGET) ||    \
      ((_TARGET_TYPE_) == COOLER_TARGET))
-#endif
 
 #define TARGET_TYPE_NEEDS_NVCONTROL(_TARGET_TYPE_)     \
     (!(TARGET_TYPE_IS_NVML_COMPATIBLE(_TARGET_TYPE_)))

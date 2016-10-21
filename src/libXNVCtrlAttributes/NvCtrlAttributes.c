@@ -610,6 +610,7 @@ ReturnStatus NvCtrlQueryTargetCount(const CtrlTarget *ctrl_target,
                                                               target_type,
                                                               val);
                 if ((ret != NvCtrlMissingExtension) &&
+                    (ret != NvCtrlBadHandle) &&
                     (ret != NvCtrlNotSupported)) {
                     return ret;
                 }
@@ -771,6 +772,7 @@ ReturnStatus NvCtrlGetDisplayAttribute64(const CtrlTarget *ctrl_target,
                                                               attr,
                                                               val);
                     if ((ret != NvCtrlMissingExtension) &&
+                        (ret != NvCtrlBadHandle) &&
                         (ret != NvCtrlNotSupported)) {
                         return ret;
                     }
@@ -833,6 +835,7 @@ ReturnStatus NvCtrlSetDisplayAttribute(CtrlTarget *ctrl_target,
                                                  display_mask,
                                                  val);
                     if ((ret != NvCtrlMissingExtension) &&
+                        (ret != NvCtrlBadHandle) &&
                         (ret != NvCtrlNotSupported)) {
                         return ret;
                     }
@@ -900,6 +903,7 @@ NvCtrlGetValidDisplayAttributeValues(const CtrlTarget *ctrl_target,
                                                             attr,
                                                             val);
                     if ((ret != NvCtrlMissingExtension) &&
+                        (ret != NvCtrlBadHandle) &&
                         (ret != NvCtrlNotSupported)) {
                         return ret;
                     }
@@ -974,6 +978,7 @@ NvCtrlGetValidStringDisplayAttributeValues(const CtrlTarget *ctrl_target,
                                                                   attr,
                                                                   val);
                     if ((ret != NvCtrlMissingExtension) &&
+                        (ret != NvCtrlBadHandle) &&
                         (ret != NvCtrlNotSupported)) {
                         return ret;
                     }
@@ -1058,6 +1063,7 @@ ReturnStatus NvCtrlGetStringDisplayAttribute(const CtrlTarget *ctrl_target,
                                                                 attr,
                                                                 ptr);
                 if ((ret != NvCtrlMissingExtension) &&
+                    (ret != NvCtrlBadHandle) &&
                     (ret != NvCtrlNotSupported)) {
                     return ret;
                 }
@@ -1133,6 +1139,7 @@ ReturnStatus NvCtrlSetStringDisplayAttribute(CtrlTarget *ctrl_target,
                                                                     attr,
                                                                     ptr);
                     if ((ret != NvCtrlMissingExtension) &&
+                        (ret != NvCtrlBadHandle) &&
                         (ret != NvCtrlNotSupported)) {
                         return ret;
                     }
@@ -1176,6 +1183,7 @@ ReturnStatus NvCtrlGetBinaryAttribute(const CtrlTarget *ctrl_target,
                                                                 data,
                                                                 len);
                 if ((ret != NvCtrlMissingExtension) &&
+                    (ret != NvCtrlBadHandle) &&
                     (ret != NvCtrlNotSupported)) {
                     return ret;
                 }

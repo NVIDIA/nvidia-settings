@@ -114,6 +114,8 @@ static void display_config_attribute_changed(GtkWidget *object,
 static void reset_layout(CtkDisplayConfig *ctk_object);
 static gboolean force_layout_reset(gpointer user_data);
 static void user_changed_attributes(CtkDisplayConfig *ctk_object);
+static void update_forcecompositionpipeline_buttons(CtkDisplayConfig
+                                                    *ctk_object);
 
 static XConfigPtr xconfig_generate(XConfigPtr xconfCur,
                                    Bool merge,
@@ -259,6 +261,17 @@ static const char * __dpy_primary_help =
 "displays in a multi-display setup to show information and other "
 "important windows etc; changing this option may require restarting your X "
 "server, depending on your window manager.";
+
+static const char * __dpy_forcecompositionpipeline_help =
+"The NVIDIA X driver can use a composition pipeline to apply X screen "
+"transformations and rotations. \"ForceCompositionPipeline\" can be used to "
+"force the use of this pipeline, even when no transformations or rotations are "
+"applied to the screen. This option is implicitly set by "
+"ForceFullCompositionPipeline.";
+
+static const char * __dpy_forcefullcompositionpipeline_help =
+"This option implicitly enables \"ForceCompositionPipeline\" and additionally "
+"makes use of the composition pipeline to apply ViewPortOut scaling.";
 
 /* Screen tooltips */
 
@@ -1094,6 +1107,109 @@ static void user_changed_attributes(CtkDisplayConfig *ctk_object)
     }
 
 } /* user_changed_attributes() */
+
+
+
+/** display_forcecompositionpipeline_toggled() ************************
+ *
+ * Sets ForceCompositionPipeline for a dpy.
+ *
+ **/
+static void display_forcecompositionpipeline_toggled(GtkWidget *widget,
+                                                     gpointer user_data)
+{
+    CtkDisplayConfig *ctk_object = CTK_DISPLAY_CONFIG(user_data);
+    gint enabled = gtk_toggle_button_get_active(GTK_TOGGLE_BUTTON(widget));
+    nvDisplayPtr display = ctk_display_layout_get_selected_display
+        (CTK_DISPLAY_LAYOUT(ctk_object->obj_layout));
+
+    if (enabled) {
+        display->cur_mode->forceCompositionPipeline = TRUE;
+    } else {
+        display->cur_mode->forceCompositionPipeline = FALSE;
+    }
+
+    update_forcecompositionpipeline_buttons(ctk_object);
+    user_changed_attributes(ctk_object);
+}
+
+
+
+/** display_forcefullcompositionpipeline_toggled() ********************
+ *
+ * Sets ForceFullCompositionPipeline for a dpy.
+ *
+ **/
+static void display_forcefullcompositionpipeline_toggled(GtkWidget *widget,
+                                                         gpointer user_data)
+{
+    CtkDisplayConfig *ctk_object = CTK_DISPLAY_CONFIG(user_data);
+    gint enabled = gtk_toggle_button_get_active(GTK_TOGGLE_BUTTON(widget));
+    nvDisplayPtr display = ctk_display_layout_get_selected_display
+        (CTK_DISPLAY_LAYOUT(ctk_object->obj_layout));
+
+    if (enabled) {
+        display->cur_mode->forceFullCompositionPipeline = TRUE;
+        /* forceFullCompositionPipeline implies forceCompositionPipeline in the
+         * X driver, so we should reflect that within nvidia-settings even
+         * before actually changing the current X MetaMode.
+         */
+        display->cur_mode->forceCompositionPipeline = TRUE;
+    } else {
+        display->cur_mode->forceFullCompositionPipeline = FALSE;
+    }
+
+    update_forcecompositionpipeline_buttons(ctk_object);
+    user_changed_attributes(ctk_object);
+}
+
+
+
+/** update_forcecompositionpipeline_buttons() *************************
+ *
+ * Updates the buttons for Force{Full,}CompositionPipeline to reflect their
+ * state and sensitivity.
+ *
+ **/
+
+static void update_forcecompositionpipeline_buttons(CtkDisplayConfig *ctk_object)
+{
+    nvDisplayPtr display = ctk_display_layout_get_selected_display
+        (CTK_DISPLAY_LAYOUT(ctk_object->obj_layout));
+
+    g_signal_handlers_block_by_func
+        (G_OBJECT(ctk_object->chk_forcecompositionpipeline_enabled),
+        G_CALLBACK(display_forcecompositionpipeline_toggled),
+        (gpointer)ctk_object);
+
+    g_signal_handlers_block_by_func
+        (G_OBJECT(ctk_object->chk_forcefullcompositionpipeline_enabled),
+         G_CALLBACK(display_forcefullcompositionpipeline_toggled),
+         (gpointer)ctk_object);
+
+    gtk_toggle_button_set_active
+        (GTK_TOGGLE_BUTTON(ctk_object->chk_forcecompositionpipeline_enabled),
+         display->cur_mode->forceCompositionPipeline |
+            display->cur_mode->forceFullCompositionPipeline);
+
+    gtk_toggle_button_set_active
+        (GTK_TOGGLE_BUTTON(ctk_object->chk_forcefullcompositionpipeline_enabled),
+         display->cur_mode->forceFullCompositionPipeline);
+
+    gtk_widget_set_sensitive
+        (GTK_WIDGET(ctk_object->chk_forcecompositionpipeline_enabled),
+         !display->cur_mode->forceFullCompositionPipeline);
+
+    g_signal_handlers_unblock_by_func
+        (G_OBJECT(ctk_object->chk_forcecompositionpipeline_enabled),
+         G_CALLBACK(display_forcecompositionpipeline_toggled),
+         (gpointer)ctk_object);
+
+    g_signal_handlers_unblock_by_func
+        (G_OBJECT(ctk_object->chk_forcefullcompositionpipeline_enabled),
+         G_CALLBACK(display_forcefullcompositionpipeline_toggled),
+         (gpointer)ctk_object);
+}
 
 
 
@@ -1955,6 +2071,36 @@ GtkWidget* ctk_display_config_new(CtrlTarget *ctrl_target,
                          G_CALLBACK(screen_primary_display_toggled),
                          (gpointer) ctk_object);
         gtk_box_pack_start(GTK_BOX(hbox), ctk_object->chk_primary_display,
+                           TRUE, TRUE, 0);
+
+        /* checkboxes for Force{Full,}CompositionPipeline */
+        hbox = gtk_hbox_new(FALSE, 5);
+        gtk_box_pack_start(GTK_BOX(vbox), hbox, FALSE, TRUE, 0);
+        ctk_object->chk_forcecompositionpipeline_enabled =
+            gtk_check_button_new_with_label("Force Composition Pipeline");
+        ctk_config_set_tooltip(ctk_config,
+                               ctk_object->chk_forcecompositionpipeline_enabled,
+                               __dpy_forcecompositionpipeline_help);
+        g_signal_connect(G_OBJECT(ctk_object->chk_forcecompositionpipeline_enabled),
+                         "toggled",
+                         G_CALLBACK(display_forcecompositionpipeline_toggled),
+                         (gpointer)ctk_object);
+        gtk_box_pack_start(GTK_BOX(hbox),
+                           ctk_object->chk_forcecompositionpipeline_enabled,
+                           TRUE, TRUE, 0);
+
+        ctk_object->chk_forcefullcompositionpipeline_enabled =
+            gtk_check_button_new_with_label("Force Full Composition Pipeline");
+        ctk_config_set_tooltip(ctk_config,
+                               ctk_object->
+                                chk_forcefullcompositionpipeline_enabled,
+                               __dpy_forcefullcompositionpipeline_help);
+        g_signal_connect(G_OBJECT(ctk_object->chk_forcefullcompositionpipeline_enabled),
+                         "toggled",
+                         G_CALLBACK(display_forcefullcompositionpipeline_toggled),
+                         (gpointer)ctk_object);
+        gtk_box_pack_start(GTK_BOX(hbox),
+                           ctk_object->chk_forcefullcompositionpipeline_enabled,
                            TRUE, TRUE, 0);
 
         /* Up the object ref count to make sure that the page and its widgets
@@ -4106,6 +4252,39 @@ static void setup_display_position(CtkDisplayConfig *ctk_object)
 
 
 
+/** setup_forcecompositionpipeline_buttons() *************************
+ *
+ * Sets up the ForceCompositionPipeline and ForceFullCompositionPipeline
+ * checkboxes to reflect whether or not they are selected in the current
+ * MetaMode.
+ *
+ **/
+
+static void setup_forcecompositionpipeline_buttons(CtkDisplayConfig *ctk_object)
+{
+    nvDisplayPtr display = ctk_display_layout_get_selected_display
+        (CTK_DISPLAY_LAYOUT(ctk_object->obj_layout));
+
+    if (!display || !display->screen || !ctk_object->advanced_mode) {
+        gtk_widget_hide(ctk_object->chk_forcecompositionpipeline_enabled);
+        gtk_widget_hide(ctk_object->chk_forcefullcompositionpipeline_enabled);
+        return;
+    }
+
+    if (!display->cur_mode) {
+        gtk_widget_hide(ctk_object->chk_forcecompositionpipeline_enabled);
+        gtk_widget_hide(ctk_object->chk_forcefullcompositionpipeline_enabled);
+        return;
+    }
+
+    gtk_widget_show(ctk_object->chk_forcecompositionpipeline_enabled);
+    gtk_widget_show(ctk_object->chk_forcefullcompositionpipeline_enabled);
+
+    update_forcecompositionpipeline_buttons(ctk_object);
+}
+
+
+
 /** setup_primary_display() ******************************************
  *
  * Sets up the primary display device for an X screen.
@@ -4231,6 +4410,7 @@ static void setup_display_page(CtkDisplayConfig *ctk_object)
     setup_display_viewport_out(ctk_object);
     setup_display_position(ctk_object);
     setup_display_panning(ctk_object);
+    setup_forcecompositionpipeline_buttons(ctk_object);
     setup_primary_display(ctk_object);
 
 } /* setup_display_page() */

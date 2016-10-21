@@ -856,6 +856,7 @@ static Bool load_system_info(CtrlSystem *system, const char *display)
     for (target_type = 0;
          target_type < MAX_TARGET_TYPES;
          target_type++) {
+        NvCtrlAttributePrivateHandle *h = getPrivateHandle(nvmlQueryTarget);
         targetTypeInfo = NvCtrlGetTargetTypeInfo(target_type);
         target_count = 0;
 
@@ -872,7 +873,7 @@ static Bool load_system_info(CtrlSystem *system, const char *display)
                 target_count = ScreenCount(system->dpy);
             }
         }
-        else if ((nvmlQueryTarget != NULL) &&
+        else if ((h != NULL) && (h->nvml != NULL) &&
                  TARGET_TYPE_IS_NVML_COMPATIBLE(target_type)) {
 
             status = NvCtrlNvmlQueryTargetCount(nvmlQueryTarget,

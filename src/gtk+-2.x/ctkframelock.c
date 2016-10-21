@@ -215,38 +215,39 @@ struct _nvGPUDataRec {
 struct _nvFrameLockDataRec {
 
     CtrlTarget *ctrl_target; /* Frame Lock Target */
-    int        server_id;
+    int         server_id;
 
-    int        sync_delay_resolution;
+    int         sync_delay_resolution;
 
-    GtkWidget *label;
+    GtkWidget  *label;
 
-    GtkWidget *receiving_label;
-    GtkWidget *receiving_hbox; /* LED */
+    GtkWidget  *receiving_label;
+    GtkWidget  *receiving_hbox; /* LED */
 
-    GtkWidget *rate_label;
-    GtkWidget *rate_text;
+    GtkWidget  *rate_label;
+    GtkWidget  *rate_text;
 
-    GtkWidget *delay_label;
-    GtkWidget *delay_text;
+    GtkWidget  *delay_label;
+    GtkWidget  *delay_text;
 
-    GtkWidget *house_label;
-    GtkWidget *house_sync_rate_label;
-    GtkWidget *house_sync_rate_text;
-    GtkWidget *house_hbox; /* LED */
+    GtkWidget  *house_label;
+    GtkWidget  *house_sync_rate_label;
+    GtkWidget  *house_sync_rate_text;
+    GtkWidget  *house_hbox; /* LED */
 
-    GtkWidget *port0_label;
-    GtkWidget *port0_hbox; /* IMAGE */
-    guint      port0_ethernet_error;
+    GtkWidget  *port0_label;
+    GtkWidget  *port0_hbox; /* IMAGE */
+    guint       port0_ethernet_error;
 
-    GtkWidget *port1_label;
-    GtkWidget *port1_hbox; /* IMAGE */
-    guint      port1_ethernet_error;
+    GtkWidget  *port1_label;
+    GtkWidget  *port1_hbox; /* IMAGE */
+    guint       port1_ethernet_error;
 
-    GtkWidget *revision_label;
-    GtkWidget *revision_text;
+    GtkWidget  *revision_label;
+    GtkWidget  *revision_text;
+    const char *board_name;
 
-    GtkWidget *extra_info_hbox;
+    GtkWidget  *extra_info_hbox;
 };
 
 
@@ -935,7 +936,9 @@ static char *get_framelock_name(nvFrameLockDataPtr data, gboolean simple)
      */
     server_name = NvCtrlGetDisplayName(ctrl_target);
 
-    snprintf(tmp, 32, " (Quadro Sync %d)", NvCtrlGetTargetId(ctrl_target));
+    snprintf(tmp, 32, " (%s %d)",
+             data->board_name,
+             NvCtrlGetTargetId(ctrl_target));
     
     name = g_strconcat(server_name?server_name:"Unknown X Server", tmp, NULL);
 
@@ -5487,6 +5490,7 @@ static void add_framelock_devices(CtkFramelock *ctk_framelock,
         nvListEntryPtr     entry;
         ReturnStatus       ret;
         int                val;
+        char               *product_name;
         char               *revision_str = NULL;
         CtrlTarget         *ctrl_target = node->t;
 
@@ -5515,12 +5519,22 @@ static void add_framelock_devices(CtkFramelock *ctk_framelock,
         }
 
         ret = NvCtrlGetAttribute(ctrl_target,
-                                 NV_CTRL_FRAMELOCK_FPGA_REVISION,
+                                 NV_CTRL_FRAMELOCK_FIRMWARE_VERSION,
                                  &val);
         if (ret != NvCtrlSuccess) {
             goto fail;
         }
         revision_str = g_strdup_printf("0x%X", val);
+
+        /* Get the product name for the framelock board */
+        ret = NvCtrlGetStringAttribute(ctrl_target,
+                                       NV_CTRL_STRING_PRODUCT_NAME,
+                                       &product_name);
+        if (ret != NvCtrlSuccess) {
+            goto fail;
+        }
+
+        framelock_data->board_name = product_name;
 
         /* Create the frame lock widgets */
         framelock_data->label = gtk_label_new("");

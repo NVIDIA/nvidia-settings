@@ -207,6 +207,7 @@ static void ctk_event_class_init(CtkEventClass *ctk_event_class)
     MAKE_SIGNAL(NV_CTRL_PCI_DEVICE);
     MAKE_SIGNAL(NV_CTRL_PCI_FUNCTION);
     MAKE_SIGNAL(NV_CTRL_FRAMELOCK_FPGA_REVISION);
+    MAKE_SIGNAL(NV_CTRL_FRAMELOCK_FIRMWARE_VERSION);
     MAKE_SIGNAL(NV_CTRL_MAX_SCREEN_WIDTH);
     MAKE_SIGNAL(NV_CTRL_MAX_SCREEN_HEIGHT);
     MAKE_SIGNAL(NV_CTRL_MAX_DISPLAYS);
@@ -353,7 +354,7 @@ static void ctk_event_class_init(CtkEventClass *ctk_event_class)
      * knows about.
      */
 
-#if NV_CTRL_LAST_ATTRIBUTE != NV_CTRL_GPU_MEM_TRANSFER_RATE_OFFSET_ALL_PERFORMANCE_LEVELS
+#if NV_CTRL_LAST_ATTRIBUTE != NV_CTRL_FRAMELOCK_FIRMWARE_VERSION
 #warning "There are attributes that do not emit signals!"
 #endif
 

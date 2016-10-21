@@ -33,9 +33,7 @@
 
 #include "NVCtrlLib.h"
 
-#ifdef NVML_AVAILABLE
-
-#include <nvml.h>
+#include "nvml.h"
 
 
 #define MAX_NVML_STR_LEN 64
@@ -128,13 +126,11 @@ static void printNvmlError(nvmlReturn_t error)
                          "operating system/cgroups");
             break;
 
-        case NVML_ERROR_UNKNOWN:
+        default:
             nv_error_msg("An internal driver error occurred");
             break;
     }
 }
-
-#endif // NVML_AVAILABLE
 
 
 /*
@@ -143,8 +139,6 @@ static void printNvmlError(nvmlReturn_t error)
 
 ReturnStatus NvCtrlInitNvml(void)
 {
-#ifdef NVML_AVAILABLE
-
     if (!__isNvmlLoaded) {
         nvmlReturn_t ret = nvmlInit();
         if (ret != NVML_SUCCESS) {
@@ -158,10 +152,6 @@ ReturnStatus NvCtrlInitNvml(void)
     __nvmlUsers++;
 
     return NvCtrlSuccess;
-
-#else
-    return NvCtrlMissingExtension;
-#endif
 }
 
 
@@ -172,8 +162,6 @@ ReturnStatus NvCtrlInitNvml(void)
 
 ReturnStatus NvCtrlDestroyNvml(void)
 {
-#ifdef NVML_AVAILABLE
-
     if (__isNvmlLoaded) {
         __nvmlUsers--;
         if (__nvmlUsers == 0) {
@@ -186,10 +174,6 @@ ReturnStatus NvCtrlDestroyNvml(void)
         }
     }
     return NvCtrlSuccess;
-
-#else
-    return NvCtrlMissingExtension;
-#endif
 }
 
 
@@ -200,26 +184,37 @@ ReturnStatus NvCtrlDestroyNvml(void)
  * XXX Needed while using NV-CONTROL as fallback during the migration process
  */
 
-#ifdef NVML_AVAILABLE
-
-static void matchNvCtrlWithNvmlIds(const NvCtrlAttributePrivateHandle *h,
-                                   int deviceCount,
+static Bool matchNvCtrlWithNvmlIds(const NvCtrlAttributePrivateHandle *h,
+                                   int nvmlGpuCount,
                                    unsigned int **idsDictionary)
 {
     char nvmlUUID[MAX_NVML_STR_LEN];
     char *nvctrlUUID = NULL;
     nvmlDevice_t device;
     int i, j;
+    int nvctrlGpuCount = 0;
+    ReturnStatus ret;
 
-    *idsDictionary = nvalloc(deviceCount * sizeof(unsigned int));
+    /* Get the gpu count returned by NV-CONTROL.
+     * If there is mismatch between count returned by NVML and NV-CONTROL
+     * return early.
+     */
+    ret = XNVCTRLQueryTargetCount(h->dpy, NV_CTRL_TARGET_TYPE_GPU,
+                                  &nvctrlGpuCount);
+
+    if ((ret != NvCtrlSuccess) || (nvctrlGpuCount != nvmlGpuCount)) {
+        return FALSE;
+    }
+
+    *idsDictionary = nvalloc(nvmlGpuCount * sizeof(unsigned int));
 
     /* Fallback case is to use same id either for NV-CONTROL and NVML */
-    for (i = 0; i < deviceCount; i++) {
+    for (i = 0; i < nvmlGpuCount; i++) {
         (*idsDictionary)[i] = i;
     }
     
     if (h->nv != NULL) {
-        for (i = 0; i < deviceCount; i++) {
+        for (i = 0; i < nvctrlGpuCount; i++) {
             /* Get GPU UUID through NV-CONTROL */
             if (!XNVCTRLQueryTargetStringAttribute(h->dpy,
                                                    NV_CTRL_TARGET_TYPE_GPU,
@@ -234,7 +229,7 @@ static void matchNvCtrlWithNvmlIds(const NvCtrlAttributePrivateHandle *h,
             }
 
             /* Look for the same UUID through NVML */
-            for (j = 0; j < deviceCount; j++) {
+            for (j = 0; j < nvmlGpuCount; j++) {
                 if (NVML_SUCCESS != nvmlDeviceGetHandleByIndex(j, &device)) {
                     continue;
                 }
@@ -254,9 +249,8 @@ static void matchNvCtrlWithNvmlIds(const NvCtrlAttributePrivateHandle *h,
             XFree(nvctrlUUID);
         }
     }
+    return TRUE;
 }
-
-#endif // NVML_AVAILABLE
 
 
 
@@ -267,8 +261,6 @@ static void matchNvCtrlWithNvmlIds(const NvCtrlAttributePrivateHandle *h,
 
 NvCtrlNvmlAttributes *NvCtrlInitNvmlAttributes(NvCtrlAttributePrivateHandle *h)
 {
-#ifdef NVML_AVAILABLE
-
     NvCtrlNvmlAttributes *nvml = NULL;
     unsigned int count;
     unsigned int *nvctrlToNvmlId;
@@ -300,7 +292,9 @@ NvCtrlNvmlAttributes *NvCtrlInitNvmlAttributes(NvCtrlAttributePrivateHandle *h)
     }
 
     /* Fill the NV-CONTROL to NVML IDs dictionary */
-    matchNvCtrlWithNvmlIds(h, count, &nvctrlToNvmlId);
+    if (!matchNvCtrlWithNvmlIds(h, count, &nvctrlToNvmlId)) {
+        goto fail;
+    }
 
     /*
      * Fill 'sensorCountPerGPU', 'coolerCountPerGPU' and properly set
@@ -366,10 +360,6 @@ NvCtrlNvmlAttributes *NvCtrlInitNvmlAttributes(NvCtrlAttributePrivateHandle *h)
     free(nvml->coolerCountPerGPU);
     free(nvml);
     return NULL;
-
-#else
-    return NULL;
-#endif
 }
 
 
@@ -380,8 +370,6 @@ NvCtrlNvmlAttributes *NvCtrlInitNvmlAttributes(NvCtrlAttributePrivateHandle *h)
 
 void NvCtrlNvmlAttributesClose(NvCtrlAttributePrivateHandle *h)
 {
-#ifdef NVML_AVAILABLE
-
     /* Check parameters */
     if (h == NULL || h->nvml == NULL) {
         return;
@@ -391,8 +379,6 @@ void NvCtrlNvmlAttributesClose(NvCtrlAttributePrivateHandle *h)
     free(h->nvml->coolerCountPerGPU);
     free(h->nvml);
     h->nvml = NULL;
-
-#endif
 }
 
 
@@ -404,8 +390,6 @@ void NvCtrlNvmlAttributesClose(NvCtrlAttributePrivateHandle *h)
 ReturnStatus NvCtrlNvmlQueryTargetCount(const CtrlTarget *ctrl_target,
                                         int target_type, int *val)
 {
-#ifdef NVML_AVAILABLE
-
     const NvCtrlAttributePrivateHandle *h = getPrivateHandleConst(ctrl_target);
 
     if (!__isNvmlLoaded) {
@@ -438,10 +422,6 @@ ReturnStatus NvCtrlNvmlQueryTargetCount(const CtrlTarget *ctrl_target,
     }
 
     return NvCtrlSuccess;
-
-#else
-    return NvCtrlMissingExtension;
-#endif
 }
 
 
@@ -450,7 +430,7 @@ ReturnStatus NvCtrlNvmlQueryTargetCount(const CtrlTarget *ctrl_target,
  * Get NVML String Attribute Values
  */
 
-#ifdef NVML_AVAILABLE
+#ifdef NVML_EXPERIMENTAL
 
 static ReturnStatus NvCtrlNvmlGetGPUStringAttribute(const CtrlTarget *ctrl_target,
                                                     int attr, char **ptr)
@@ -512,17 +492,16 @@ static ReturnStatus NvCtrlNvmlGetGPUStringAttribute(const CtrlTarget *ctrl_targe
     return NvCtrlNotSupported;
 }
 
-#endif // NVML_AVAILABLE
+#endif // NVML_EXPERIMENTAL
 
 ReturnStatus NvCtrlNvmlGetStringAttribute(const CtrlTarget *ctrl_target,
                                           int attr, char **ptr)
 {
-#ifdef NVML_AVAILABLE
-
     if (!__isNvmlLoaded) {
         return NvCtrlMissingExtension;
     }
 
+#ifdef NVML_EXPERIMENTAL
     /*
      * This should't be reached for target types that are not handled through
      * NVML (Keep TARGET_TYPE_IS_NVML_COMPATIBLE in NvCtrlAttributesPrivate.h up
@@ -553,7 +532,7 @@ ReturnStatus NvCtrlNvmlGetStringAttribute(const CtrlTarget *ctrl_target,
     }
 
 #else
-    return NvCtrlMissingExtension;
+    return NvCtrlNotSupported;
 #endif
 }
 
@@ -563,7 +542,7 @@ ReturnStatus NvCtrlNvmlGetStringAttribute(const CtrlTarget *ctrl_target,
  * Set NVML String Attribute Values
  */
 
-#ifdef NVML_AVAILABLE
+#ifdef NVML_EXPERIMENTAL
 
 static ReturnStatus NvCtrlNvmlSetGPUStringAttribute(CtrlTarget *ctrl_target,
                                                     int attr, const char *ptr)
@@ -604,17 +583,16 @@ static ReturnStatus NvCtrlNvmlSetGPUStringAttribute(CtrlTarget *ctrl_target,
     return NvCtrlNotSupported;
 }
 
-#endif // NVML_AVAILABLE
+#endif // NVML_EXPERIMENTAL
 
 ReturnStatus NvCtrlNvmlSetStringAttribute(CtrlTarget *ctrl_target,
                                           int attr, const char *ptr)
 {
-#ifdef NVML_AVAILABLE
-
     if (!__isNvmlLoaded) {
         return NvCtrlMissingExtension;
     }
 
+#ifdef NVML_EXPERIMENTAL
     /*
      * This should't be reached for target types that are not handled through
      * NVML (Keep TARGET_TYPE_IS_NVML_COMPATIBLE in NvCtrlAttributesPrivate.h up
@@ -646,7 +624,7 @@ ReturnStatus NvCtrlNvmlSetStringAttribute(CtrlTarget *ctrl_target,
     }
 
 #else
-    return NvCtrlMissingExtension;
+    return NvCtrlNotSupported;
 #endif
 }
 
@@ -655,8 +633,6 @@ ReturnStatus NvCtrlNvmlSetStringAttribute(CtrlTarget *ctrl_target,
 /*
  * Get NVML Attribute Values
  */
-
-#ifdef NVML_AVAILABLE
 
 static ReturnStatus NvCtrlNvmlGetGPUAttribute(const CtrlTarget *ctrl_target,
                                               int attr, int64_t *val)
@@ -673,6 +649,7 @@ static ReturnStatus NvCtrlNvmlGetGPUAttribute(const CtrlTarget *ctrl_target,
     ret = nvmlDeviceGetHandleByIndex(h->nvml->deviceIdx, &device);
     if (ret == NVML_SUCCESS) {
         switch (attr) {
+#ifdef NVML_EXPERIMENTAL
             case NV_CTRL_TOTAL_DEDICATED_GPU_MEMORY:
             case NV_CTRL_USED_DEDICATED_GPU_MEMORY:
                 {
@@ -737,7 +714,17 @@ static ReturnStatus NvCtrlNvmlGetGPUAttribute(const CtrlTarget *ctrl_target,
             case NV_CTRL_GPU_PCIE_MAX_LINK_WIDTH:
                 ret = nvmlDeviceGetMaxPcieLinkWidth(device, &res);
                 break;
-
+#else
+            case NV_CTRL_TOTAL_DEDICATED_GPU_MEMORY:
+            case NV_CTRL_USED_DEDICATED_GPU_MEMORY:
+            case NV_CTRL_PCI_DOMAIN:
+            case NV_CTRL_PCI_BUS:
+            case NV_CTRL_PCI_DEVICE:
+            case NV_CTRL_PCI_FUNCTION:
+            case NV_CTRL_PCI_ID:
+            case NV_CTRL_GPU_PCIE_GENERATION:
+            case NV_CTRL_GPU_PCIE_MAX_LINK_WIDTH:
+#endif // NVML_EXPERIMENTAL
             case NV_CTRL_VIDEO_RAM:
             case NV_CTRL_GPU_PCIE_CURRENT_LINK_WIDTH:
             case NV_CTRL_GPU_PCIE_MAX_LINK_SPEED:
@@ -803,6 +790,14 @@ static ReturnStatus NvCtrlNvmlGetGPUAttribute(const CtrlTarget *ctrl_target,
                  */
                 return NvCtrlNotSupported;
 
+            case NV_CTRL_ATTR_NVML_GPU_VIRTUALIZATION_MODE:
+                {
+                    nvmlGpuVirtualizationMode_t mode;
+                    ret = nvmlDeviceGetVirtualizationMode(device, &mode);
+                    res = mode;
+                }
+                break;
+
             default:
                 /* Did we forget to handle a GPU integer attribute? */
                 nv_warning_msg("Unhandled integer attribute %s (%d) of GPU "
@@ -821,6 +816,8 @@ static ReturnStatus NvCtrlNvmlGetGPUAttribute(const CtrlTarget *ctrl_target,
     printNvmlError(ret);
     return NvCtrlNotSupported;
 }
+
+#ifdef NVML_EXPERIMENTAL
 
 static int getThermalCoolerId(const NvCtrlAttributePrivateHandle *h,
                               unsigned int thermalCoolerCount,
@@ -956,14 +953,11 @@ static ReturnStatus NvCtrlNvmlGetCoolerAttribute(const CtrlTarget *ctrl_target,
     printNvmlError(ret);
     return NvCtrlNotSupported;
 }
-
-#endif // NVML_AVAILABLE
+#endif // NVML_EXPERIMENTAL
 
 ReturnStatus NvCtrlNvmlGetAttribute(const CtrlTarget *ctrl_target,
                                     int attr, int64_t *val)
 {
-#ifdef NVML_AVAILABLE
-
     if (!__isNvmlLoaded) {
         return NvCtrlMissingExtension;
     }
@@ -978,17 +972,19 @@ ReturnStatus NvCtrlNvmlGetAttribute(const CtrlTarget *ctrl_target,
     switch (NvCtrlGetTargetType(ctrl_target)) {
         case GPU_TARGET:
             return NvCtrlNvmlGetGPUAttribute(ctrl_target, attr, val);
+#ifdef NVML_EXPERIMENTAL
         case THERMAL_SENSOR_TARGET:
             return NvCtrlNvmlGetThermalAttribute(ctrl_target, attr, val);
         case COOLER_TARGET:
             return NvCtrlNvmlGetCoolerAttribute(ctrl_target, attr, val);
+#else
+        case THERMAL_SENSOR_TARGET:
+        case COOLER_TARGET:
+            return NvCtrlNotSupported;
+#endif
         default:
             return NvCtrlBadHandle;
     }
-
-#else
-    return NvCtrlMissingExtension;
-#endif
 }
 
 
@@ -997,7 +993,7 @@ ReturnStatus NvCtrlNvmlGetAttribute(const CtrlTarget *ctrl_target,
  * Set NVML Attribute Values
  */
 
-#ifdef NVML_AVAILABLE
+#ifdef NVML_EXPERIMENTAL
 
 static ReturnStatus NvCtrlNvmlSetGPUAttribute(CtrlTarget *ctrl_target,
                                               int attr, int index, int val)
@@ -1097,17 +1093,16 @@ static ReturnStatus NvCtrlNvmlSetCoolerAttribute(CtrlTarget *ctrl_target,
     return NvCtrlNotSupported;
 }
 
-#endif // NVML_AVAILABLE
+#endif // NVML_EXPERIMENTAL
 
 ReturnStatus NvCtrlNvmlSetAttribute(CtrlTarget *ctrl_target, int attr,
                                     int index, int val)
 {
-#ifdef NVML_AVAILABLE
-
     if (!__isNvmlLoaded) {
         return NvCtrlMissingExtension;
     }
 
+#ifdef NVML_EXPERIMENTAL
     /*
      * This should't be reached for target types that are not handled through
      * NVML (Keep TARGET_TYPE_IS_NVML_COMPATIBLE in NvCtrlAttributesPrivate.h up
@@ -1133,7 +1128,7 @@ ReturnStatus NvCtrlNvmlSetAttribute(CtrlTarget *ctrl_target, int attr,
     }
 
 #else
-    return NvCtrlMissingExtension;
+    return NvCtrlNotSupported;
 #endif
 }
 
@@ -1143,7 +1138,7 @@ ReturnStatus NvCtrlNvmlSetAttribute(CtrlTarget *ctrl_target, int attr,
  * Get NVML Binary Attribute Values
  */
 
-#ifdef NVML_AVAILABLE
+#ifdef NVML_EXPERIMENTAL
 
 static ReturnStatus
 NvCtrlNvmlGetGPUBinaryAttribute(const CtrlTarget *ctrl_target,
@@ -1192,18 +1187,17 @@ NvCtrlNvmlGetGPUBinaryAttribute(const CtrlTarget *ctrl_target,
     return NvCtrlNotSupported;
 }
 
-#endif // NVML_AVAILABLE
+#endif // NVML_EXPERIMENTAL
 
 ReturnStatus
 NvCtrlNvmlGetBinaryAttribute(const CtrlTarget *ctrl_target,
                              int attr, unsigned char **data, int *len)
 {
-#ifdef NVML_AVAILABLE
-
     if (!__isNvmlLoaded) {
         return NvCtrlMissingExtension;
     }
 
+#ifdef NVML_EXPERIMENTAL
     /*
      * This should't be reached for target types that are not handled through
      * NVML (Keep TARGET_TYPE_IS_NVML_COMPATIBLE in NvCtrlAttributesPrivate.h up
@@ -1237,7 +1231,7 @@ NvCtrlNvmlGetBinaryAttribute(const CtrlTarget *ctrl_target,
     }
 
 #else
-    return NvCtrlMissingExtension;
+    return NvCtrlNotSupported;
 #endif
 }
 
@@ -1247,7 +1241,7 @@ NvCtrlNvmlGetBinaryAttribute(const CtrlTarget *ctrl_target,
  * Get NVML Valid String Attribute Values
  */
 
-#ifdef NVML_AVAILABLE
+#ifdef NVML_EXPERIMENTAL
 
 static ReturnStatus
 NvCtrlNvmlGetGPUValidStringAttributeValues(int attr,
@@ -1279,20 +1273,19 @@ NvCtrlNvmlGetGPUValidStringAttributeValues(int attr,
     return NvCtrlSuccess;
 }
 
-#endif // NVML_AVAILABLE
+#endif // NVML_EXPERIMENTAL
 
 ReturnStatus
 NvCtrlNvmlGetValidStringAttributeValues(const CtrlTarget *ctrl_target,
                                         int attr,
                                         CtrlAttributeValidValues *val)
 {
-#ifdef NVML_AVAILABLE
-    ReturnStatus ret;
-
     if (!__isNvmlLoaded) {
         return NvCtrlMissingExtension;
     }
 
+#ifdef NVML_EXPERIMENTAL
+    ReturnStatus ret;
     /*
      * This should't be reached for target types that are not handled through
      * NVML (Keep TARGET_TYPE_IS_NVML_COMPATIBLE in NvCtrlAttributesPrivate.h up
@@ -1339,7 +1332,7 @@ NvCtrlNvmlGetValidStringAttributeValues(const CtrlTarget *ctrl_target,
     return ret;
 
 #else
-    return NvCtrlMissingExtension;
+    return NvCtrlNotSupported;
 #endif
 }
 
@@ -1349,7 +1342,7 @@ NvCtrlNvmlGetValidStringAttributeValues(const CtrlTarget *ctrl_target,
  * Get NVML Valid Attribute Values
  */
 
-#ifdef NVML_AVAILABLE
+#ifdef NVML_EXPERIMENTAL
 
 static ReturnStatus
 NvCtrlNvmlGetGPUValidAttributeValues(const CtrlTarget *ctrl_target, int attr,
@@ -1554,20 +1547,19 @@ NvCtrlNvmlGetCoolerValidAttributeValues(const CtrlTarget *ctrl_target,
     return NvCtrlNotSupported;
 }
 
-#endif // NVML_AVAILABLE
+#endif // NVML_EXPERIMENTAL
 
 ReturnStatus
 NvCtrlNvmlGetValidAttributeValues(const CtrlTarget *ctrl_target,
                                   int attr,
                                   CtrlAttributeValidValues *val)
 {
-#ifdef NVML_AVAILABLE
-    ReturnStatus ret;
-
     if (!__isNvmlLoaded) {
         return NvCtrlMissingExtension;
     }
 
+#ifdef NVML_EXPERIMENTAL
+    ReturnStatus ret;
     /*
      * This should't be reached for target types that are not handled through
      * NVML (Keep TARGET_TYPE_IS_NVML_COMPATIBLE in NvCtrlAttributesPrivate.h up
@@ -1621,7 +1613,7 @@ NvCtrlNvmlGetValidAttributeValues(const CtrlTarget *ctrl_target,
     return ret;
 
 #else
-    return NvCtrlMissingExtension;
+        return NvCtrlNotSupported;
 #endif
 }
 

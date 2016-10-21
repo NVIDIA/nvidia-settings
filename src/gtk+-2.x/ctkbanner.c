@@ -52,6 +52,7 @@
 #include "gvi_pixdata.h"
 #include "sdi_pixdata.h"
 #include "sdi_shared_sync_bnc_pixdata.h"
+#include "server_licensing_pixdata.h"
 #include "slimm_pixdata.h"
 #include "solaris_pixdata.h"
 #include "thermal_pixdata.h"
@@ -427,6 +428,7 @@ static gboolean select_artwork(BannerArtworkType artwork,
         { BANNER_ARTWORK_PENGUIN,        TRUE,  16, &penguin_pixdata        },
         { BANNER_ARTWORK_SDI,            FALSE, 16, &sdi_pixdata            },
         { BANNER_ARTWORK_SDI_SHARED_SYNC_BNC, FALSE, 16, &sdi_shared_sync_bnc_pixdata },
+        { BANNER_ARTWORK_SERVER_LICENSING, FALSE, 16, &server_licensing_pixdata },
         { BANNER_ARTWORK_SLIMM,          FALSE, 16, &slimm_pixdata          },
         { BANNER_ARTWORK_SOLARIS,        TRUE,  16, &solaris_pixdata        },
         { BANNER_ARTWORK_THERMAL,        FALSE, 16, &thermal_pixdata        },

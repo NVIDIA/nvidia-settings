@@ -662,7 +662,20 @@ static void apply_mode_attribute_token(char *token, char *value, void *data)
         } else if (!strcasecmp("8k", value)) {
             mode->pixelshift = PIXELSHIFT_8K;
         }
+
+    /* ForceCompositionPipeline */
+    } else if (!strcasecmp("forcecompositionpipeline", token)) {
+        if (!strcasecmp("on", value)) {
+            mode->forceCompositionPipeline = True;
+        }
+
+    /* ForceFullCompositionPipeline */
+    } else if (!strcasecmp("forcefullcompositionpipeline", token)) {
+        if (!strcasecmp("on", value)) {
+            mode->forceFullCompositionPipeline = True;
+        }
     }
+
 }
 
 
@@ -1145,6 +1158,22 @@ static gchar *mode_get_str(nvModePtr mode, int force_target_id_name)
                               (flags_str ? flags_str : ""),
                               mode->viewPortOut.width, mode->viewPortOut.height,
                               mode->viewPortOut.x, mode->viewPortOut.y);
+        g_free(flags_str);
+        flags_str = tmp;
+    }
+
+    /* ForceCompositionPipeline */
+    if (mode->forceCompositionPipeline) {
+        tmp = g_strdup_printf("%s, ForceCompositionPipeline=On",
+                              (flags_str ? flags_str : ""));
+        g_free(flags_str);
+        flags_str = tmp;
+    }
+
+    /* ForceFullCompositionPipeline */
+    if (mode->forceFullCompositionPipeline) {
+        tmp = g_strdup_printf("%s, ForceFullCompositionPipeline=On",
+                              (flags_str ? flags_str : ""));
         g_free(flags_str);
         flags_str = tmp;
     }

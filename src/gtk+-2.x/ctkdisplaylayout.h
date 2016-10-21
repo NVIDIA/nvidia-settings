@@ -224,6 +224,9 @@ typedef struct nvModeRec {
     Reflection reflection;
     PixelShift pixelshift;
 
+    Bool forceCompositionPipeline;
+    Bool forceFullCompositionPipeline;
+
 } nvMode, *nvModePtr;
 
 
