@@ -801,6 +801,7 @@ static int parse_config_property(const char *file, const char *line, ConfigPrope
     int i;
     unsigned int flag;
     const char *ignoredProperties[] = {
+        "TextureSharpen",
         "ToolTips",
     };
 
