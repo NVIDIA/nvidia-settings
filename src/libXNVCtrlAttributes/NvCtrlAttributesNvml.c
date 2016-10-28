@@ -498,7 +498,7 @@ static ReturnStatus NvCtrlNvmlGetGPUStringAttribute(const CtrlTarget *ctrl_targe
 
     nvml = h->nvml;
 
-    ret = nvml->lib.deviceGetHandleByIndex(h->nvml->deviceIdx, &device);
+    ret = nvml->lib.deviceGetHandleByIndex(nvml->deviceIdx, &device);
     if (ret == NVML_SUCCESS) {
         switch (attr) {
             case NV_CTRL_STRING_PRODUCT_NAME:
@@ -611,7 +611,7 @@ static ReturnStatus NvCtrlNvmlSetGPUStringAttribute(CtrlTarget *ctrl_target,
 
     nvml = h->nvml;
 
-    ret = nvml->lib.deviceGetHandleByIndex(h->nvml->deviceIdx, &device);
+    ret = nvml->lib.deviceGetHandleByIndex(nvml->deviceIdx, &device);
     if (ret == NVML_SUCCESS) {
         switch (attr) {
             case NV_CTRL_STRING_GPU_CURRENT_CLOCK_FREQS:
@@ -705,7 +705,7 @@ static ReturnStatus NvCtrlNvmlGetGPUAttribute(const CtrlTarget *ctrl_target,
 
     nvml = h->nvml;
 
-    ret = nvml->lib.deviceGetHandleByIndex(h->nvml->deviceIdx, &device);
+    ret = nvml->lib.deviceGetHandleByIndex(nvml->deviceIdx, &device);
     if (ret == NVML_SUCCESS) {
         switch (attr) {
 #ifdef NVML_EXPERIMENTAL
@@ -917,14 +917,14 @@ static ReturnStatus NvCtrlNvmlGetThermalAttribute(const CtrlTarget *ctrl_target,
     nvml = h->nvml;
 
     /* Get the proper device according to the sensor ID */
-    sensorId = getThermalCoolerId(h, h->nvml->sensorCount,
-                                  h->nvml->sensorCountPerGPU);
+    sensorId = getThermalCoolerId(h, nvml->sensorCount,
+                                  nvml->sensorCountPerGPU);
     if (sensorId == -1) {
         return NvCtrlBadHandle;
     }
 
 
-    ret = nvml->lib.deviceGetHandleByIndex(h->nvml->deviceIdx, &device);
+    ret = nvml->lib.deviceGetHandleByIndex(nvml->deviceIdx, &device);
     if (ret == NVML_SUCCESS) {
         switch (attr) {
             case NV_CTRL_THERMAL_SENSOR_READING:
@@ -977,14 +977,14 @@ static ReturnStatus NvCtrlNvmlGetCoolerAttribute(const CtrlTarget *ctrl_target,
     nvml = h->nvml;
 
     /* Get the proper device according to the cooler ID */
-    coolerId = getThermalCoolerId(h, h->nvml->coolerCount,
-                                  h->nvml->coolerCountPerGPU);
+    coolerId = getThermalCoolerId(h, nvml->coolerCount,
+                                  nvml->coolerCountPerGPU);
     if (coolerId == -1) {
         return NvCtrlBadHandle;
     }
 
 
-    ret = nvml->lib.deviceGetHandleByIndex(h->nvml->deviceIdx, &device);
+    ret = nvml->lib.deviceGetHandleByIndex(nvml->deviceIdx, &device);
     if (ret == NVML_SUCCESS) {
         switch (attr) {
             case NV_CTRL_THERMAL_COOLER_LEVEL:
@@ -1074,7 +1074,7 @@ static ReturnStatus NvCtrlNvmlSetGPUAttribute(CtrlTarget *ctrl_target,
 
     nvml = h->nvml;
 
-    ret = nvml->lib.deviceGetHandleByIndex(h->nvml->deviceIdx, &device);
+    ret = nvml->lib.deviceGetHandleByIndex(nvml->deviceIdx, &device);
     if (ret == NVML_SUCCESS) {
         switch (attr) {
             case NV_CTRL_GPU_CURRENT_CLOCK_FREQS:
@@ -1128,13 +1128,13 @@ static ReturnStatus NvCtrlNvmlSetCoolerAttribute(CtrlTarget *ctrl_target,
     nvml = h->nvml;
 
     /* Get the proper device according to the cooler ID */
-    coolerId = getThermalCoolerId(h, h->nvml->coolerCount,
-                                  h->nvml->coolerCountPerGPU);
+    coolerId = getThermalCoolerId(h, nvml->coolerCount,
+                                  nvml->coolerCountPerGPU);
     if (coolerId == -1) {
         return NvCtrlBadHandle;
     }
 
-    ret = nvml->lib.deviceGetHandleByIndex(h->nvml->deviceIdx, &device);
+    ret = nvml->lib.deviceGetHandleByIndex(nvml->deviceIdx, &device);
     if (ret == NVML_SUCCESS) {
         switch (attr) {
             case NV_CTRL_THERMAL_COOLER_LEVEL:
@@ -1225,7 +1225,7 @@ NvCtrlNvmlGetGPUBinaryAttribute(const CtrlTarget *ctrl_target,
 
     nvml = h->nvml;
 
-    ret = nvml->lib.deviceGetHandleByIndex(h->nvml->deviceIdx, &device);
+    ret = nvml->lib.deviceGetHandleByIndex(nvml->deviceIdx, &device);
     if (ret == NVML_SUCCESS) {
         switch (attr) {
             case NV_CTRL_BINARY_DATA_FRAMELOCKS_USED_BY_GPU:
@@ -1432,7 +1432,7 @@ NvCtrlNvmlGetGPUValidAttributeValues(const CtrlTarget *ctrl_target, int attr,
 
     nvml = h->nvml;
 
-    ret = nvml->lib.deviceGetHandleByIndex(h->nvml->deviceIdx, &device);
+    ret = nvml->lib.deviceGetHandleByIndex(nvml->deviceIdx, &device);
     if (ret == NVML_SUCCESS) {
         switch (attr) {
             case NV_CTRL_VIDEO_RAM:
@@ -1542,14 +1542,14 @@ NvCtrlNvmlGetThermalValidAttributeValues(const CtrlTarget *ctrl_target,
     nvml = h->nvml;
 
     /* Get the proper device and sensor ID according to the target ID */
-    sensorId = getThermalCoolerId(h, h->nvml->sensorCount,
-                                  h->nvml->sensorCountPerGPU);
+    sensorId = getThermalCoolerId(h, nvml->sensorCount,
+                                  nvml->sensorCountPerGPU);
     if (sensorId == -1) {
         return NvCtrlBadHandle;
     }
 
 
-    ret = nvml->lib.deviceGetHandleByIndex(h->nvml->deviceIdx, &device);
+    ret = nvml->lib.deviceGetHandleByIndex(nvml->deviceIdx, &device);
     if (ret == NVML_SUCCESS) {
         switch (attr) {
             case NV_CTRL_THERMAL_SENSOR_READING:
@@ -1594,14 +1594,14 @@ NvCtrlNvmlGetCoolerValidAttributeValues(const CtrlTarget *ctrl_target,
     nvml = h->nvml;
 
     /* Get the proper device and cooler ID according to the target ID */
-    coolerId = getThermalCoolerId(h, h->nvml->coolerCount,
-                                  h->nvml->coolerCountPerGPU);
+    coolerId = getThermalCoolerId(h, nvml->coolerCount,
+                                  nvml->coolerCountPerGPU);
     if (coolerId == -1) {
         return NvCtrlBadHandle;
     }
 
 
-    ret = nvml->lib.deviceGetHandleByIndex(h->nvml->deviceIdx, &device);
+    ret = nvml->lib.deviceGetHandleByIndex(nvml->deviceIdx, &device);
     if (ret == NVML_SUCCESS) {
         switch (attr) {
             case NV_CTRL_THERMAL_COOLER_LEVEL:
