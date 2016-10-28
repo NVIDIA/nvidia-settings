@@ -798,8 +798,12 @@ static int parse_config_property(const char *file, const char *line, ConfigPrope
     TimerConfigProperty *c = NULL;
     int interval;
     int ret = NV_FALSE;
+    int i;
     unsigned int flag;
-    
+    const char *ignoredProperties[] = {
+        "ToolTips",
+    };
+
     no_spaces = remove_spaces(line);
 
     if (!no_spaces) goto done;
@@ -809,7 +813,14 @@ static int parse_config_property(const char *file, const char *line, ConfigPrope
     if (!s) goto done;
 
     *s = '\0';
-    
+
+    for (i = 0; i < ARRAY_LEN(ignoredProperties); i++) {
+        if (nv_strcasecmp(no_spaces, ignoredProperties[i])) {
+            ret = NV_TRUE;
+            goto done;
+        }
+    }
+
     if (nv_strcasecmp(no_spaces, "RcFileLocale")) {
         locale = ++s;
         if (setlocale(LC_NUMERIC, locale) == NULL) {
