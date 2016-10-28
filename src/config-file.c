@@ -770,7 +770,6 @@ typedef struct {
 } ConfigPropertiesTableEntry;
 
 ConfigPropertiesTableEntry configPropertyTable[] = {
-    { "ToolTips", CONFIG_PROPERTIES_TOOLTIPS },
     { "DisplayStatusBar", CONFIG_PROPERTIES_DISPLAY_STATUS_BAR },
     { "SliderTextEntries", CONFIG_PROPERTIES_SLIDER_TEXT_ENTRIES },
     { "IncludeDisplayNameInConfigFile",
@@ -932,8 +931,7 @@ void init_config_properties(ConfigProperties *conf)
     memset(conf, 0, sizeof(ConfigProperties));
 
     conf->booleans = 
-        (CONFIG_PROPERTIES_TOOLTIPS |
-         CONFIG_PROPERTIES_DISPLAY_STATUS_BAR |
+        (CONFIG_PROPERTIES_DISPLAY_STATUS_BAR |
          CONFIG_PROPERTIES_SLIDER_TEXT_ENTRIES |
          CONFIG_PROPERTIES_SHOW_QUIT_DIALOG |
          CONFIG_PROPERTIES_UPDATE_RULES_ON_PROFILE_NAME_CHANGE);

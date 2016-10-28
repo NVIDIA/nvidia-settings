@@ -34,12 +34,6 @@
 #include <stdio.h>
 #include <string.h>
 
-#ifndef CTK_GTK3
-static const char *__tooltip_help =
-"When ToolTips are enabled, descriptions will be displayed next to options "
-"when the mouse is held over them.";
-#endif
-
 static const char *__status_bar_help =
 "The status bar in the bottom "
 "left of the nvidia-settings GUI displays the most "
@@ -83,9 +77,6 @@ static const char *__update_rules_on_profile_name_change_help =
 static void ctk_config_class_init(CtkConfigClass *ctk_config_class);
 
 static void display_status_bar_toggled(GtkWidget *, gpointer);
-#ifndef CTK_GTK3
-static void tooltips_toggled(GtkWidget *, gpointer);
-#endif
 static void slider_text_entries_toggled(GtkWidget *, gpointer);
 static void display_name_toggled(GtkWidget *widget, gpointer user_data);
 static void show_quit_dialog_toggled(GtkWidget *widget, gpointer user_data);
@@ -175,14 +166,6 @@ GtkWidget* ctk_config_new(ConfigProperties *conf, CtrlSystem *pCtrlSystem)
         const char *help_text;
     } config_check_button_entries[] =
     {
-#ifndef CTK_GTK3
-        { 
-           "Enable ToolTips",
-           CONFIG_PROPERTIES_TOOLTIPS,
-           G_CALLBACK(tooltips_toggled),
-           __tooltip_help
-         },
-#endif
         {
             "Display Status Bar",
             CONFIG_PROPERTIES_DISPLAY_STATUS_BAR,
@@ -266,15 +249,7 @@ GtkWidget* ctk_config_new(ConfigProperties *conf, CtrlSystem *pCtrlSystem)
         gtk_container_add(GTK_CONTAINER(check_button), label);
 
         b = !!(ctk_config->conf->booleans & config_check_button_entries[i].mask);
-#ifndef CTK_GTK3
-        if (config_check_button_entries[i].mask == CONFIG_PROPERTIES_TOOLTIPS) {
-            if (b) {
-                gtk_tooltips_enable(ctk_config->tooltips.object);
-            } else {
-                gtk_tooltips_disable(ctk_config->tooltips.object);
-            }
-        }
-#endif
+
         gtk_toggle_button_set_active(GTK_TOGGLE_BUTTON(check_button), b);
         gtk_box_pack_start(GTK_BOX(vbox), check_button, FALSE, FALSE, 0);
         g_signal_connect(G_OBJECT(check_button), "toggled",
@@ -462,25 +437,6 @@ static void display_status_bar_toggled(
         ctk_config->conf->booleans &= ~CONFIG_PROPERTIES_DISPLAY_STATUS_BAR;
     }
 }
-
-#ifndef CTK_GTK3
-static void tooltips_toggled(GtkWidget *widget, gpointer user_data)
-{
-    CtkConfig *ctk_config = CTK_CONFIG(user_data);
-    gboolean active = gtk_toggle_button_get_active(GTK_TOGGLE_BUTTON(widget));
-
-    if (active) {
-        gtk_tooltips_enable(ctk_config->tooltips.object);
-        ctk_config->conf->booleans |= CONFIG_PROPERTIES_TOOLTIPS;
-    } else {
-        gtk_tooltips_disable(ctk_config->tooltips.object);
-        ctk_config->conf->booleans &= ~CONFIG_PROPERTIES_TOOLTIPS;
-    }
-
-    ctk_config_statusbar_message(ctk_config, "Tooltips %s.", 
-                                 active ? "enabled" : "disabled");
-}
-#endif
 
 
 static void slider_text_entries_toggled(GtkWidget *widget, gpointer user_data)
