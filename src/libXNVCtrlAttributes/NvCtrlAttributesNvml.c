@@ -193,13 +193,10 @@ static Bool matchNvCtrlWithNvmlIds(const NvCtrlAttributePrivateHandle *h,
     nvmlDevice_t device;
     int i, j;
     int nvctrlGpuCount = 0;
-    ReturnStatus ret;
 
     /* Get the gpu count returned by NV-CONTROL. */
-    ret = XNVCTRLQueryTargetCount(h->dpy, NV_CTRL_TARGET_TYPE_GPU,
-                                  &nvctrlGpuCount);
-
-    if (ret != NvCtrlSuccess) {
+    if (!XNVCTRLQueryTargetCount(h->dpy, NV_CTRL_TARGET_TYPE_GPU,
+                                 &nvctrlGpuCount)) {
         return FALSE;
     }
 
