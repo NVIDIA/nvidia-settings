@@ -1667,7 +1667,7 @@ static const char *get_expected_type_string_from_key(json_t *key_docs,
         json_t *json_obj = json_array_get(key_docs, i);
         json_t *json_key = json_object_get(json_obj, "key");
         const char * name = json_string_value(json_key);
-        if (!strcmp(name, key)) {
+        if (name && key && strcmp(name, key) == 0) {
             json_key = json_object_get(json_obj, "type");
             return json_string_value(json_key);
         }
@@ -1685,7 +1685,7 @@ static void setting_key_renderer_func(GtkTreeViewColumn *tree_column,
     const char *key;
     json_t *setting;
     gtk_tree_model_get(model, iter, SETTING_LIST_STORE_COL_SETTING, &setting, -1);
-    if (setting && setting->refcount == 0) {
+    if (!setting || setting->refcount == 0) {
         return;
     }
 
@@ -1704,7 +1704,7 @@ static void setting_expected_type_renderer_func(GtkTreeViewColumn *tree_column,
     json_t *setting;
     gtk_tree_model_get(model, iter,
                        SETTING_LIST_STORE_COL_SETTING, &setting, -1);
-    if (setting && setting->refcount == 0) {
+    if (!setting || setting->refcount == 0) {
         return;
     }
 
@@ -1723,7 +1723,7 @@ static void setting_type_renderer_func(GtkTreeViewColumn *tree_column,
     const char *type = NULL;
     json_t *setting, *value;
     gtk_tree_model_get(model, iter, SETTING_LIST_STORE_COL_SETTING, &setting, -1);
-    if (setting && setting->refcount == 0) {
+    if (!setting || setting->refcount == 0) {
         return;
     }
 
@@ -1759,7 +1759,7 @@ static void setting_value_renderer_func(GtkTreeViewColumn *tree_column,
     json_t *setting;
     char *value;
     gtk_tree_model_get(model, iter, SETTING_LIST_STORE_COL_SETTING, &setting, -1);
-    if (setting && setting->refcount == 0) {
+    if (!setting || setting->refcount == 0) {
         return;
     }
 
@@ -2663,7 +2663,7 @@ static void setting_key_edited(GtkCellRendererText *renderer,
 
     gtk_tree_model_get(GTK_TREE_MODEL(dialog->settings_store), &iter,
                        SETTING_LIST_STORE_COL_SETTING, &setting, -1);
-    if (setting && setting->refcount == 0) {
+    if (!setting || setting->refcount == 0) {
         return;
     }
 
@@ -2808,7 +2808,7 @@ static void setting_value_edited(GtkCellRendererText *renderer,
 
     gtk_tree_model_get(GTK_TREE_MODEL(dialog->settings_store), &iter,
                        SETTING_LIST_STORE_COL_SETTING, &setting, -1);
-    if (setting && setting->refcount == 0) {
+    if (!setting || setting->refcount == 0) {
         return;
     }
 
