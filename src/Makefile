@@ -146,21 +146,8 @@ endif
 
 LDFLAGS += $(X_LDFLAGS)
 
-
-# Link against NVIDIA NVML library if available
-    
-# Set to 1 if NVML is available on the target system
 NVML_EXPERIMENTAL ?=
-
-# Here "gdk" stands for "GPU Developer Kit", rather than gtk's lower-level
-# "GIMP Drawing Kit"
-NVML_CFLAGS  ?= -I /usr/include/nvidia/gdk
-
-NVML_CFLAGS += $(if $(NVML_EXPERIMENTAL),-DNVML_EXPERIMENTAL)
-
-NVML_LDFLAGS ?=
-CFLAGS       += $(NVML_CFLAGS)
-LDFLAGS      += $(NVML_LDFLAGS)
+CFLAGS += $(if $(NVML_EXPERIMENTAL),-DNVML_EXPERIMENTAL)
 
 
 # Some older Linux distributions do not have the dynamic library
