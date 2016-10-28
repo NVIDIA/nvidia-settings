@@ -145,8 +145,6 @@ static void nv_free_ctrl_system(CtrlSystem *system)
     system->display = NULL;
 
     free(system);
-
-    NvCtrlDestroyNvml();
 }
 
 
@@ -837,11 +835,9 @@ static Bool load_system_info(CtrlSystem *system, const char *display)
     system->dpy = XOpenDisplay(system->display);
 
     /* Try to initialize the NVML library */
-    if (NvCtrlInitNvml() == NvCtrlSuccess) {
-        nvmlQueryTarget = nv_alloc_ctrl_target(system, GPU_TARGET, 0,
-                              NV_CTRL_ATTRIBUTES_NV_CONTROL_SUBSYSTEM|
-                              NV_CTRL_ATTRIBUTES_NVML_SUBSYSTEM);
-    }
+    nvmlQueryTarget = nv_alloc_ctrl_target(system, GPU_TARGET, 0,
+                                   NV_CTRL_ATTRIBUTES_NV_CONTROL_SUBSYSTEM |
+                                   NV_CTRL_ATTRIBUTES_NVML_SUBSYSTEM);
 
     if ((system->dpy == NULL) && (nvmlQueryTarget == NULL)) {
         nv_error_msg("Unable to load info from any available system");

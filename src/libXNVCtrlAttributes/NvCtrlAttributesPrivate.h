@@ -24,6 +24,7 @@
 #include "NVCtrl.h"
 #include <GL/glx.h> /* GLX #defines */
 #include <X11/extensions/Xrandr.h> /* Xrandr */
+#include <nvml.h>
 
 /* Make sure we are compiling with XRandR version 1.2 or greater */
 #define MIN_RANDR_MAJOR 1
@@ -159,6 +160,26 @@ struct __NvCtrlXrandrAttributes {
 };
 
 struct __NvCtrlNvmlAttributes {
+    struct {
+        void *handle;
+
+        typeof(nvmlInit)                           (*init);
+        typeof(nvmlShutdown)                       (*shutdown);
+        typeof(nvmlDeviceGetHandleByIndex)         (*deviceGetHandleByIndex);
+        typeof(nvmlDeviceGetUUID)                  (*deviceGetUUID);
+        typeof(nvmlDeviceGetCount)                 (*deviceGetCount);
+        typeof(nvmlDeviceGetTemperature)           (*deviceGetTemperature);
+        typeof(nvmlDeviceGetFanSpeed)              (*deviceGetFanSpeed);
+        typeof(nvmlDeviceGetName)                  (*deviceGetName);
+        typeof(nvmlDeviceGetVbiosVersion)          (*deviceGetVbiosVersion);
+        typeof(nvmlDeviceGetMemoryInfo)            (*deviceGetMemoryInfo);
+        typeof(nvmlDeviceGetPciInfo)               (*deviceGetPciInfo);
+        typeof(nvmlDeviceGetMaxPcieLinkGeneration) (*deviceGetMaxPcieLinkGeneration);
+        typeof(nvmlDeviceGetMaxPcieLinkWidth)      (*deviceGetMaxPcieLinkWidth);
+        typeof(nvmlDeviceGetVirtualizationMode)    (*deviceGetVirtualizationMode);
+
+    } lib;
+
     unsigned int deviceIdx; /* XXX Needed while using NV-CONTROL as fallback */
     unsigned int deviceCount;
     unsigned int sensorCount;
@@ -393,9 +414,6 @@ void NvCtrlAssignGammaInput(NvCtrlGammaInput *pGammaInput,
                             const unsigned int bitmask);
 
 /* NVML backend functions */
-
-ReturnStatus NvCtrlInitNvml(void);
-ReturnStatus NvCtrlDestroyNvml(void);
 
 NvCtrlNvmlAttributes *NvCtrlInitNvmlAttributes(NvCtrlAttributePrivateHandle *);
 void                  NvCtrlNvmlAttributesClose(NvCtrlAttributePrivateHandle *);

@@ -161,7 +161,6 @@ NVML_CFLAGS += $(if $(NVML_EXPERIMENTAL),-DNVML_EXPERIMENTAL)
 NVML_LDFLAGS ?=
 CFLAGS       += $(NVML_CFLAGS)
 LDFLAGS      += $(NVML_LDFLAGS)
-LIBS         += -lnvidia-ml
 
 
 # Some older Linux distributions do not have the dynamic library

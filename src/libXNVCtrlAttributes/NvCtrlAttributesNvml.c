@@ -24,6 +24,7 @@
 #include <stdlib.h> /* 64 bit malloc */
 #include <string.h>
 #include <assert.h>
+#include <dlfcn.h>
 
 #include "NvCtrlAttributes.h"
 #include "NvCtrlAttributesPrivate.h"
@@ -37,10 +38,6 @@
 
 
 #define MAX_NVML_STR_LEN 64
-
-
-static Bool __isNvmlLoaded = FALSE;
-static unsigned int __nvmlUsers = 0;
 
 
 static void printNvmlError(nvmlReturn_t error)
@@ -133,47 +130,91 @@ static void printNvmlError(nvmlReturn_t error)
 }
 
 
-/*
- * Loads and initializes the NVML library
- */
-
-ReturnStatus NvCtrlInitNvml(void)
+static Bool NvmlMissing(const CtrlTarget *ctrl_target)
 {
-    if (!__isNvmlLoaded) {
-        nvmlReturn_t ret = nvmlInit();
-        if (ret != NVML_SUCCESS) {
-            printNvmlError(ret);
-            return NvCtrlMissingExtension;
-        }
+    const NvCtrlAttributePrivateHandle *h = getPrivateHandleConst(ctrl_target);
 
-        __isNvmlLoaded = TRUE;
+    if (h == NULL) {
+        return False;
     }
 
-    __nvmlUsers++;
-
-    return NvCtrlSuccess;
+    return (h->nvml == NULL);
 }
 
 
-
 /*
- * Unloads the NVML library if it was successfully loaded.
+ * Unload the NVML library if it was successfully loaded.
  */
-
-ReturnStatus NvCtrlDestroyNvml(void)
+static void UnloadNvml(NvCtrlNvmlAttributes *nvml)
 {
-    if (__isNvmlLoaded) {
-        __nvmlUsers--;
-        if (__nvmlUsers == 0) {
-            nvmlReturn_t ret = nvmlShutdown();
-            if (ret != NVML_SUCCESS) {
-                printNvmlError(ret);
-                return NvCtrlError;
-            }
-            __isNvmlLoaded = FALSE;
+    if (nvml == NULL) {
+        return;
+    }
+
+    if (nvml->lib.handle == NULL) {
+        return;
+    }
+
+    if (nvml->lib.shutdown != NULL) {
+        nvmlReturn_t ret = nvml->lib.shutdown();
+        if (ret != NVML_SUCCESS) {
+            printNvmlError(ret);
         }
     }
-    return NvCtrlSuccess;
+
+    dlclose(nvml->lib.handle);
+
+    memset(&nvml->lib, 0, sizeof(nvml->lib));
+}
+
+/*
+ * Load and initializes the NVML library.
+ */
+static Bool LoadNvml(NvCtrlNvmlAttributes *nvml)
+{
+    nvmlReturn_t ret;
+
+    nvml->lib.handle = dlopen("libnvidia-ml.so.1", RTLD_LAZY);
+
+    if (nvml->lib.handle == NULL) {
+        goto fail;
+    }
+
+#define GET_SYMBOL(_proc, _name)                      \
+    nvml->lib._proc = dlsym(nvml->lib.handle, _name); \
+    if (nvml->lib._proc == NULL) {                    \
+        goto fail;                                    \
+    }
+
+    GET_SYMBOL(init,                           "nvmlInit");
+    GET_SYMBOL(shutdown,                       "nvmlShutdown");
+    GET_SYMBOL(deviceGetHandleByIndex,         "nvmlDeviceGetHandleByIndex");
+    GET_SYMBOL(deviceGetUUID,                  "nvmlDeviceGetUUID");
+    GET_SYMBOL(deviceGetCount,                 "nvmlDeviceGetCount");
+    GET_SYMBOL(deviceGetTemperature,           "nvmlDeviceGetTemperature");
+    GET_SYMBOL(deviceGetFanSpeed,              "nvmlDeviceGetFanSpeed");
+    GET_SYMBOL(deviceGetName,                  "nvmlDeviceGetName");
+    GET_SYMBOL(deviceGetVbiosVersion,          "nvmlDeviceGetVbiosVersion");
+    GET_SYMBOL(deviceGetMemoryInfo,            "nvmlDeviceGetMemoryInfo");
+    GET_SYMBOL(deviceGetPciInfo,               "nvmlDeviceGetPciInfo");
+    GET_SYMBOL(deviceGetMaxPcieLinkGeneration, "nvmlDeviceGetMaxPcieLinkGeneration");
+    GET_SYMBOL(deviceGetMaxPcieLinkWidth,      "nvmlDeviceGetMaxPcieLinkWidth");
+    GET_SYMBOL(deviceGetVirtualizationMode,    "nvmlDeviceGetVirtualizationMode");
+
+#undef GET_SYMBOL
+
+    ret = nvml->lib.init();
+
+    if (ret != NVML_SUCCESS) {
+        printNvmlError(ret);
+        goto fail;
+    }
+
+    return True;
+
+fail:
+    UnloadNvml(nvml);
+    return False;
 }
 
 
@@ -184,7 +225,8 @@ ReturnStatus NvCtrlDestroyNvml(void)
  * XXX Needed while using NV-CONTROL as fallback during the migration process
  */
 
-static Bool matchNvCtrlWithNvmlIds(const NvCtrlAttributePrivateHandle *h,
+static Bool matchNvCtrlWithNvmlIds(const NvCtrlNvmlAttributes *nvml,
+                                   const NvCtrlAttributePrivateHandle *h,
                                    int nvmlGpuCount,
                                    unsigned int **idsDictionary)
 {
@@ -206,7 +248,7 @@ static Bool matchNvCtrlWithNvmlIds(const NvCtrlAttributePrivateHandle *h,
     for (i = 0; i < nvmlGpuCount; i++) {
         (*idsDictionary)[i] = i;
     }
-    
+
     if (h->nv != NULL) {
         for (i = 0; i < nvctrlGpuCount; i++) {
             Bool gpuUUIDMatchFound = FALSE;
@@ -226,12 +268,12 @@ static Bool matchNvCtrlWithNvmlIds(const NvCtrlAttributePrivateHandle *h,
 
             /* Look for the same UUID through NVML */
             for (j = 0; j < nvmlGpuCount; j++) {
-                if (NVML_SUCCESS != nvmlDeviceGetHandleByIndex(j, &device)) {
+                if (NVML_SUCCESS != nvml->lib.deviceGetHandleByIndex(j, &device)) {
                     continue;
                 }
 
-                if (NVML_SUCCESS != nvmlDeviceGetUUID(device, nvmlUUID,
-                                                      MAX_NVML_STR_LEN)) {
+                if (NVML_SUCCESS != nvml->lib.deviceGetUUID(device, nvmlUUID,
+                                                            MAX_NVML_STR_LEN)) {
                     continue;
                 }
 
@@ -244,7 +286,7 @@ static Bool matchNvCtrlWithNvmlIds(const NvCtrlAttributePrivateHandle *h,
             }
 
             XFree(nvctrlUUID);
-            
+
             /* Fail if mismatch between gpu UUID returned by NV-CONTROL and
              * NVML
              */
@@ -256,7 +298,7 @@ static Bool matchNvCtrlWithNvmlIds(const NvCtrlAttributePrivateHandle *h,
     return TRUE;
 
 fail:
-    free(*idsDictionary);
+    nvfree(*idsDictionary);
     return FALSE;
 }
 
@@ -275,32 +317,30 @@ NvCtrlNvmlAttributes *NvCtrlInitNvmlAttributes(NvCtrlAttributePrivateHandle *h)
     int i;
 
     /* Check parameters */
-    if (!__isNvmlLoaded || h == NULL ||
-        !TARGET_TYPE_IS_NVML_COMPATIBLE(h->target_type)) {
+    if (h == NULL || !TARGET_TYPE_IS_NVML_COMPATIBLE(h->target_type)) {
         goto fail;
     }
 
     /* Create storage for NVML attributes */
     nvml = nvalloc(sizeof(NvCtrlNvmlAttributes));
 
+    if (!LoadNvml(nvml)) {
+        goto fail;
+    }
+
     /* Initialize NVML attributes */
-    if (nvmlDeviceGetCount(&count) != NVML_SUCCESS) {
+    if (nvml->lib.deviceGetCount(&count) != NVML_SUCCESS) {
         goto fail;
     }
     nvml->deviceCount = count;
 
-    nvml->sensorCountPerGPU = calloc(count, sizeof(unsigned int));
+    nvml->sensorCountPerGPU = nvalloc(count * sizeof(unsigned int));
     nvml->sensorCount = 0;
-    nvml->coolerCountPerGPU = calloc(count, sizeof(unsigned int));
+    nvml->coolerCountPerGPU = nvalloc(count * sizeof(unsigned int));
     nvml->coolerCount = 0;
-    if ((nvml->sensorCountPerGPU == NULL) ||
-        (nvml->coolerCountPerGPU == NULL)) {
-
-        goto fail;
-    }
 
     /* Fill the NV-CONTROL to NVML IDs dictionary */
-    if (!matchNvCtrlWithNvmlIds(h, count, &nvctrlToNvmlId)) {
+    if (!matchNvCtrlWithNvmlIds(nvml, h, count, &nvctrlToNvmlId)) {
         goto fail;
     }
 
@@ -317,7 +357,7 @@ NvCtrlNvmlAttributes *NvCtrlInitNvmlAttributes(NvCtrlAttributePrivateHandle *h)
     for (i = 0; i < count; i++) {
         int devIdx = nvctrlToNvmlId[i];
         nvmlDevice_t device;
-        nvmlReturn_t ret = nvmlDeviceGetHandleByIndex(devIdx, &device);
+        nvmlReturn_t ret = nvml->lib.deviceGetHandleByIndex(devIdx, &device);
         if (ret == NVML_SUCCESS) {
             unsigned int temp;
             unsigned int speed;
@@ -327,8 +367,8 @@ NvCtrlNvmlAttributes *NvCtrlInitNvmlAttributes(NvCtrlAttributePrivateHandle *h)
              *     check for nvmlDeviceGetTemperature() success to figure
              *     out if that sensor is available.
              */
-            ret = nvmlDeviceGetTemperature(device, NVML_TEMPERATURE_GPU,
-                                           &temp);
+            ret = nvml->lib.deviceGetTemperature(device, NVML_TEMPERATURE_GPU,
+                                                 &temp);
             if (ret == NVML_SUCCESS) {
                 if ((h->target_type == THERMAL_SENSOR_TARGET) &&
                     (h->target_id == nvml->sensorCount)) {
@@ -345,7 +385,7 @@ NvCtrlNvmlAttributes *NvCtrlInitNvmlAttributes(NvCtrlAttributePrivateHandle *h)
              *     nvmlDeviceGetFanSpeed succes to figure out if that fan is
              *     available.
              */
-            ret = nvmlDeviceGetFanSpeed(device, &speed);
+            ret = nvml->lib.deviceGetFanSpeed(device, &speed);
             if (ret == NVML_SUCCESS) {
                 if ((h->target_type == COOLER_TARGET) &&
                     (h->target_id == nvml->coolerCount)) {
@@ -359,14 +399,15 @@ NvCtrlNvmlAttributes *NvCtrlInitNvmlAttributes(NvCtrlAttributePrivateHandle *h)
         }
     }
 
-    free(nvctrlToNvmlId);
+    nvfree(nvctrlToNvmlId);
 
     return nvml;
 
  fail:
-    free(nvml->sensorCountPerGPU);
-    free(nvml->coolerCountPerGPU);
-    free(nvml);
+    UnloadNvml(nvml);
+    nvfree(nvml->sensorCountPerGPU);
+    nvfree(nvml->coolerCountPerGPU);
+    nvfree(nvml);
     return NULL;
 }
 
@@ -383,9 +424,10 @@ void NvCtrlNvmlAttributesClose(NvCtrlAttributePrivateHandle *h)
         return;
     }
 
-    free(h->nvml->sensorCountPerGPU);
-    free(h->nvml->coolerCountPerGPU);
-    free(h->nvml);
+    UnloadNvml(h->nvml);
+    nvfree(h->nvml->sensorCountPerGPU);
+    nvfree(h->nvml->coolerCountPerGPU);
+    nvfree(h->nvml);
     h->nvml = NULL;
 }
 
@@ -400,7 +442,7 @@ ReturnStatus NvCtrlNvmlQueryTargetCount(const CtrlTarget *ctrl_target,
 {
     const NvCtrlAttributePrivateHandle *h = getPrivateHandleConst(ctrl_target);
 
-    if (!__isNvmlLoaded) {
+    if (NvmlMissing(ctrl_target)) {
         return NvCtrlMissingExtension;
     }
 
@@ -445,6 +487,7 @@ static ReturnStatus NvCtrlNvmlGetGPUStringAttribute(const CtrlTarget *ctrl_targe
 {
     char res[MAX_NVML_STR_LEN];
     const NvCtrlAttributePrivateHandle *h = getPrivateHandleConst(ctrl_target);
+    const NvCtrlNvmlAttributes *nvml;
     nvmlDevice_t device;
     nvmlReturn_t ret;
     *ptr = NULL;
@@ -453,19 +496,21 @@ static ReturnStatus NvCtrlNvmlGetGPUStringAttribute(const CtrlTarget *ctrl_targe
         return NvCtrlBadHandle;
     }
 
-    ret = nvmlDeviceGetHandleByIndex(h->nvml->deviceIdx, &device);
+    nvml = h->nvml;
+
+    ret = nvml->lib.deviceGetHandleByIndex(h->nvml->deviceIdx, &device);
     if (ret == NVML_SUCCESS) {
         switch (attr) {
             case NV_CTRL_STRING_PRODUCT_NAME:
-                ret = nvmlDeviceGetName(device, res, MAX_NVML_STR_LEN);
+                ret = nvml->lib.deviceGetName(device, res, MAX_NVML_STR_LEN);
                 break;
 
             case NV_CTRL_STRING_VBIOS_VERSION:
-                ret = nvmlDeviceGetVbiosVersion(device, res, MAX_NVML_STR_LEN);
+                ret = nvml->lib.deviceGetVbiosVersion(device, res, MAX_NVML_STR_LEN);
                 break;
 
             case NV_CTRL_STRING_GPU_UUID:
-                ret = nvmlDeviceGetUUID(device, res, MAX_NVML_STR_LEN);
+                ret = nvml->lib.deviceGetUUID(device, res, MAX_NVML_STR_LEN);
                 break;
 
             case NV_CTRL_STRING_NVIDIA_DRIVER_VERSION:
@@ -505,7 +550,7 @@ static ReturnStatus NvCtrlNvmlGetGPUStringAttribute(const CtrlTarget *ctrl_targe
 ReturnStatus NvCtrlNvmlGetStringAttribute(const CtrlTarget *ctrl_target,
                                           int attr, char **ptr)
 {
-    if (!__isNvmlLoaded) {
+    if (NvmlMissing(ctrl_target)) {
         return NvCtrlMissingExtension;
     }
 
@@ -556,6 +601,7 @@ static ReturnStatus NvCtrlNvmlSetGPUStringAttribute(CtrlTarget *ctrl_target,
                                                     int attr, const char *ptr)
 {
     const NvCtrlAttributePrivateHandle *h = getPrivateHandleConst(ctrl_target);
+    const NvCtrlNvmlAttributes *nvml;
     nvmlDevice_t device;
     nvmlReturn_t ret;
 
@@ -563,7 +609,9 @@ static ReturnStatus NvCtrlNvmlSetGPUStringAttribute(CtrlTarget *ctrl_target,
         return NvCtrlBadHandle;
     }
 
-    ret = nvmlDeviceGetHandleByIndex(h->nvml->deviceIdx, &device);
+    nvml = h->nvml;
+
+    ret = nvml->lib.deviceGetHandleByIndex(h->nvml->deviceIdx, &device);
     if (ret == NVML_SUCCESS) {
         switch (attr) {
             case NV_CTRL_STRING_GPU_CURRENT_CLOCK_FREQS:
@@ -596,7 +644,7 @@ static ReturnStatus NvCtrlNvmlSetGPUStringAttribute(CtrlTarget *ctrl_target,
 ReturnStatus NvCtrlNvmlSetStringAttribute(CtrlTarget *ctrl_target,
                                           int attr, const char *ptr)
 {
-    if (!__isNvmlLoaded) {
+    if (NvmlMissing(ctrl_target)) {
         return NvCtrlMissingExtension;
     }
 
@@ -647,6 +695,7 @@ static ReturnStatus NvCtrlNvmlGetGPUAttribute(const CtrlTarget *ctrl_target,
 {
     unsigned int res;
     const NvCtrlAttributePrivateHandle *h = getPrivateHandleConst(ctrl_target);
+    const NvCtrlNvmlAttributes *nvml;
     nvmlDevice_t device;
     nvmlReturn_t ret;
 
@@ -654,7 +703,9 @@ static ReturnStatus NvCtrlNvmlGetGPUAttribute(const CtrlTarget *ctrl_target,
         return NvCtrlBadHandle;
     }
 
-    ret = nvmlDeviceGetHandleByIndex(h->nvml->deviceIdx, &device);
+    nvml = h->nvml;
+
+    ret = nvml->lib.deviceGetHandleByIndex(h->nvml->deviceIdx, &device);
     if (ret == NVML_SUCCESS) {
         switch (attr) {
 #ifdef NVML_EXPERIMENTAL
@@ -662,7 +713,7 @@ static ReturnStatus NvCtrlNvmlGetGPUAttribute(const CtrlTarget *ctrl_target,
             case NV_CTRL_USED_DEDICATED_GPU_MEMORY:
                 {
                     nvmlMemory_t memory;
-                    ret = nvmlDeviceGetMemoryInfo(device, &memory);
+                    ret = nvml->lib.deviceGetMemoryInfo(device, &memory);
                     if (ret == NVML_SUCCESS) {
                         switch (attr) {
                             case NV_CTRL_TOTAL_DEDICATED_GPU_MEMORY:
@@ -683,7 +734,7 @@ static ReturnStatus NvCtrlNvmlGetGPUAttribute(const CtrlTarget *ctrl_target,
             case NV_CTRL_PCI_ID:
                 {
                     nvmlPciInfo_t pci;
-                    ret = nvmlDeviceGetPciInfo(device, &pci);
+                    ret = nvml->lib.deviceGetPciInfo(device, &pci);
                     if (ret == NVML_SUCCESS) {
                         switch (attr) {
                             case NV_CTRL_PCI_DOMAIN:
@@ -716,11 +767,11 @@ static ReturnStatus NvCtrlNvmlGetGPUAttribute(const CtrlTarget *ctrl_target,
                 break;
 
             case NV_CTRL_GPU_PCIE_GENERATION:
-                ret = nvmlDeviceGetMaxPcieLinkGeneration(device, &res);
+                ret = nvml->lib.deviceGetMaxPcieLinkGeneration(device, &res);
                 break;
 
             case NV_CTRL_GPU_PCIE_MAX_LINK_WIDTH:
-                ret = nvmlDeviceGetMaxPcieLinkWidth(device, &res);
+                ret = nvml->lib.deviceGetMaxPcieLinkWidth(device, &res);
                 break;
 #else
             case NV_CTRL_TOTAL_DEDICATED_GPU_MEMORY:
@@ -801,7 +852,7 @@ static ReturnStatus NvCtrlNvmlGetGPUAttribute(const CtrlTarget *ctrl_target,
             case NV_CTRL_ATTR_NVML_GPU_VIRTUALIZATION_MODE:
                 {
                     nvmlGpuVirtualizationMode_t mode;
-                    ret = nvmlDeviceGetVirtualizationMode(device, &mode);
+                    ret = nvml->lib.deviceGetVirtualizationMode(device, &mode);
                     res = mode;
                 }
                 break;
@@ -854,6 +905,7 @@ static ReturnStatus NvCtrlNvmlGetThermalAttribute(const CtrlTarget *ctrl_target,
 {
     unsigned int res;
     const NvCtrlAttributePrivateHandle *h = getPrivateHandleConst(ctrl_target);
+    const NvCtrlNvmlAttributes *nvml;
     int sensorId;
     nvmlDevice_t device;
     nvmlReturn_t ret;
@@ -861,6 +913,8 @@ static ReturnStatus NvCtrlNvmlGetThermalAttribute(const CtrlTarget *ctrl_target,
     if ((h == NULL) || (h->nvml == NULL)) {
         return NvCtrlBadHandle;
     }
+
+    nvml = h->nvml;
 
     /* Get the proper device according to the sensor ID */
     sensorId = getThermalCoolerId(h, h->nvml->sensorCount,
@@ -870,13 +924,13 @@ static ReturnStatus NvCtrlNvmlGetThermalAttribute(const CtrlTarget *ctrl_target,
     }
 
 
-    ret = nvmlDeviceGetHandleByIndex(h->nvml->deviceIdx, &device);
+    ret = nvml->lib.deviceGetHandleByIndex(h->nvml->deviceIdx, &device);
     if (ret == NVML_SUCCESS) {
         switch (attr) {
             case NV_CTRL_THERMAL_SENSOR_READING:
-                ret = nvmlDeviceGetTemperature(device,
-                                               NVML_TEMPERATURE_GPU,
-                                               &res);
+                ret = nvml->lib.deviceGetTemperature(device,
+                                                     NVML_TEMPERATURE_GPU,
+                                                     &res);
                 break;
 
             case NV_CTRL_THERMAL_SENSOR_PROVIDER:
@@ -911,6 +965,7 @@ static ReturnStatus NvCtrlNvmlGetCoolerAttribute(const CtrlTarget *ctrl_target,
 {
     unsigned int res;
     const NvCtrlAttributePrivateHandle *h = getPrivateHandleConst(ctrl_target);
+    const NvCtrlNvmlAttributes *nvml;
     int coolerId;
     nvmlDevice_t device;
     nvmlReturn_t ret;
@@ -918,6 +973,8 @@ static ReturnStatus NvCtrlNvmlGetCoolerAttribute(const CtrlTarget *ctrl_target,
     if ((h == NULL) || (h->nvml == NULL)) {
         return NvCtrlBadHandle;
     }
+
+    nvml = h->nvml;
 
     /* Get the proper device according to the cooler ID */
     coolerId = getThermalCoolerId(h, h->nvml->coolerCount,
@@ -927,11 +984,11 @@ static ReturnStatus NvCtrlNvmlGetCoolerAttribute(const CtrlTarget *ctrl_target,
     }
 
 
-    ret = nvmlDeviceGetHandleByIndex(h->nvml->deviceIdx, &device);
+    ret = nvml->lib.deviceGetHandleByIndex(h->nvml->deviceIdx, &device);
     if (ret == NVML_SUCCESS) {
         switch (attr) {
             case NV_CTRL_THERMAL_COOLER_LEVEL:
-                ret = nvmlDeviceGetFanSpeed(device, &res);
+                ret = nvml->lib.deviceGetFanSpeed(device, &res);
                 break;
 
             case NV_CTRL_THERMAL_COOLER_SPEED:
@@ -966,7 +1023,7 @@ static ReturnStatus NvCtrlNvmlGetCoolerAttribute(const CtrlTarget *ctrl_target,
 ReturnStatus NvCtrlNvmlGetAttribute(const CtrlTarget *ctrl_target,
                                     int attr, int64_t *val)
 {
-    if (!__isNvmlLoaded) {
+    if (NvmlMissing(ctrl_target)) {
         return NvCtrlMissingExtension;
     }
 
@@ -1007,6 +1064,7 @@ static ReturnStatus NvCtrlNvmlSetGPUAttribute(CtrlTarget *ctrl_target,
                                               int attr, int index, int val)
 {
     const NvCtrlAttributePrivateHandle *h = getPrivateHandleConst(ctrl_target);
+    const NvCtrlNvmlAttributes *nvml;
     nvmlDevice_t device;
     nvmlReturn_t ret;
 
@@ -1014,7 +1072,9 @@ static ReturnStatus NvCtrlNvmlSetGPUAttribute(CtrlTarget *ctrl_target,
         return NvCtrlBadHandle;
     }
 
-    ret = nvmlDeviceGetHandleByIndex(h->nvml->deviceIdx, &device);
+    nvml = h->nvml;
+
+    ret = nvml->lib.deviceGetHandleByIndex(h->nvml->deviceIdx, &device);
     if (ret == NVML_SUCCESS) {
         switch (attr) {
             case NV_CTRL_GPU_CURRENT_CLOCK_FREQS:
@@ -1056,6 +1116,7 @@ static ReturnStatus NvCtrlNvmlSetCoolerAttribute(CtrlTarget *ctrl_target,
                                                  int attr, int val)
 {
     NvCtrlAttributePrivateHandle *h = getPrivateHandle(ctrl_target);
+    const NvCtrlNvmlAttributes *nvml;
     int coolerId;
     nvmlDevice_t device;
     nvmlReturn_t ret;
@@ -1064,6 +1125,8 @@ static ReturnStatus NvCtrlNvmlSetCoolerAttribute(CtrlTarget *ctrl_target,
         return NvCtrlBadHandle;
     }
 
+    nvml = h->nvml;
+
     /* Get the proper device according to the cooler ID */
     coolerId = getThermalCoolerId(h, h->nvml->coolerCount,
                                   h->nvml->coolerCountPerGPU);
@@ -1071,8 +1134,7 @@ static ReturnStatus NvCtrlNvmlSetCoolerAttribute(CtrlTarget *ctrl_target,
         return NvCtrlBadHandle;
     }
 
-
-    ret = nvmlDeviceGetHandleByIndex(h->nvml->deviceIdx, &device);
+    ret = nvml->lib.deviceGetHandleByIndex(h->nvml->deviceIdx, &device);
     if (ret == NVML_SUCCESS) {
         switch (attr) {
             case NV_CTRL_THERMAL_COOLER_LEVEL:
@@ -1106,7 +1168,7 @@ static ReturnStatus NvCtrlNvmlSetCoolerAttribute(CtrlTarget *ctrl_target,
 ReturnStatus NvCtrlNvmlSetAttribute(CtrlTarget *ctrl_target, int attr,
                                     int index, int val)
 {
-    if (!__isNvmlLoaded) {
+    if (NvmlMissing(ctrl_target)) {
         return NvCtrlMissingExtension;
     }
 
@@ -1153,6 +1215,7 @@ NvCtrlNvmlGetGPUBinaryAttribute(const CtrlTarget *ctrl_target,
                                 int attr, unsigned char **data, int *len)
 {
     const NvCtrlAttributePrivateHandle *h = getPrivateHandleConst(ctrl_target);
+    const NvCtrlNvmlAttributes *nvml;
     nvmlDevice_t device;
     nvmlReturn_t ret;
 
@@ -1160,7 +1223,9 @@ NvCtrlNvmlGetGPUBinaryAttribute(const CtrlTarget *ctrl_target,
         return NvCtrlBadHandle;
     }
 
-    ret = nvmlDeviceGetHandleByIndex(h->nvml->deviceIdx, &device);
+    nvml = h->nvml;
+
+    ret = nvml->lib.deviceGetHandleByIndex(h->nvml->deviceIdx, &device);
     if (ret == NVML_SUCCESS) {
         switch (attr) {
             case NV_CTRL_BINARY_DATA_FRAMELOCKS_USED_BY_GPU:
@@ -1201,7 +1266,7 @@ ReturnStatus
 NvCtrlNvmlGetBinaryAttribute(const CtrlTarget *ctrl_target,
                              int attr, unsigned char **data, int *len)
 {
-    if (!__isNvmlLoaded) {
+    if (NvmlMissing(ctrl_target)) {
         return NvCtrlMissingExtension;
     }
 
@@ -1288,7 +1353,7 @@ NvCtrlNvmlGetValidStringAttributeValues(const CtrlTarget *ctrl_target,
                                         int attr,
                                         CtrlAttributeValidValues *val)
 {
-    if (!__isNvmlLoaded) {
+    if (NvmlMissing(ctrl_target)) {
         return NvCtrlMissingExtension;
     }
 
@@ -1357,6 +1422,7 @@ NvCtrlNvmlGetGPUValidAttributeValues(const CtrlTarget *ctrl_target, int attr,
                                      CtrlAttributeValidValues *val)
 {
     const NvCtrlAttributePrivateHandle *h = getPrivateHandleConst(ctrl_target);
+    const NvCtrlNvmlAttributes *nvml;
     nvmlDevice_t device;
     nvmlReturn_t ret;
 
@@ -1364,7 +1430,9 @@ NvCtrlNvmlGetGPUValidAttributeValues(const CtrlTarget *ctrl_target, int attr,
         return NvCtrlBadHandle;
     }
 
-    ret = nvmlDeviceGetHandleByIndex(h->nvml->deviceIdx, &device);
+    nvml = h->nvml;
+
+    ret = nvml->lib.deviceGetHandleByIndex(h->nvml->deviceIdx, &device);
     if (ret == NVML_SUCCESS) {
         switch (attr) {
             case NV_CTRL_VIDEO_RAM:
@@ -1462,6 +1530,7 @@ NvCtrlNvmlGetThermalValidAttributeValues(const CtrlTarget *ctrl_target,
                                          CtrlAttributeValidValues *val)
 {
     const NvCtrlAttributePrivateHandle *h = getPrivateHandleConst(ctrl_target);
+    const NvCtrlNvmlAttributes *nvml;
     int sensorId;
     nvmlDevice_t device;
     nvmlReturn_t ret;
@@ -1469,6 +1538,8 @@ NvCtrlNvmlGetThermalValidAttributeValues(const CtrlTarget *ctrl_target,
     if ((h == NULL) || (h->nvml == NULL)) {
         return NvCtrlBadHandle;
     }
+
+    nvml = h->nvml;
 
     /* Get the proper device and sensor ID according to the target ID */
     sensorId = getThermalCoolerId(h, h->nvml->sensorCount,
@@ -1478,7 +1549,7 @@ NvCtrlNvmlGetThermalValidAttributeValues(const CtrlTarget *ctrl_target,
     }
 
 
-    ret = nvmlDeviceGetHandleByIndex(h->nvml->deviceIdx, &device);
+    ret = nvml->lib.deviceGetHandleByIndex(h->nvml->deviceIdx, &device);
     if (ret == NVML_SUCCESS) {
         switch (attr) {
             case NV_CTRL_THERMAL_SENSOR_READING:
@@ -1511,6 +1582,7 @@ NvCtrlNvmlGetCoolerValidAttributeValues(const CtrlTarget *ctrl_target,
                                         CtrlAttributeValidValues *val)
 {
     const NvCtrlAttributePrivateHandle *h = getPrivateHandleConst(ctrl_target);
+    const NvCtrlNvmlAttributes *nvml;
     int coolerId;
     nvmlDevice_t device;
     nvmlReturn_t ret;
@@ -1518,6 +1590,8 @@ NvCtrlNvmlGetCoolerValidAttributeValues(const CtrlTarget *ctrl_target,
     if ((h == NULL) || (h->nvml == NULL)) {
         return NvCtrlBadHandle;
     }
+
+    nvml = h->nvml;
 
     /* Get the proper device and cooler ID according to the target ID */
     coolerId = getThermalCoolerId(h, h->nvml->coolerCount,
@@ -1527,7 +1601,7 @@ NvCtrlNvmlGetCoolerValidAttributeValues(const CtrlTarget *ctrl_target,
     }
 
 
-    ret = nvmlDeviceGetHandleByIndex(h->nvml->deviceIdx, &device);
+    ret = nvml->lib.deviceGetHandleByIndex(h->nvml->deviceIdx, &device);
     if (ret == NVML_SUCCESS) {
         switch (attr) {
             case NV_CTRL_THERMAL_COOLER_LEVEL:
@@ -1562,7 +1636,7 @@ NvCtrlNvmlGetValidAttributeValues(const CtrlTarget *ctrl_target,
                                   int attr,
                                   CtrlAttributeValidValues *val)
 {
-    if (!__isNvmlLoaded) {
+    if (NvmlMissing(ctrl_target)) {
         return NvCtrlMissingExtension;
     }
 
