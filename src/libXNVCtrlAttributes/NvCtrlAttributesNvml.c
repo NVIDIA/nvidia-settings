@@ -195,14 +195,11 @@ static Bool matchNvCtrlWithNvmlIds(const NvCtrlAttributePrivateHandle *h,
     int nvctrlGpuCount = 0;
     ReturnStatus ret;
 
-    /* Get the gpu count returned by NV-CONTROL.
-     * If there is mismatch between count returned by NVML and NV-CONTROL
-     * return early.
-     */
+    /* Get the gpu count returned by NV-CONTROL. */
     ret = XNVCTRLQueryTargetCount(h->dpy, NV_CTRL_TARGET_TYPE_GPU,
                                   &nvctrlGpuCount);
 
-    if ((ret != NvCtrlSuccess) || (nvctrlGpuCount != nvmlGpuCount)) {
+    if (ret != NvCtrlSuccess) {
         return FALSE;
     }
 
@@ -215,17 +212,19 @@ static Bool matchNvCtrlWithNvmlIds(const NvCtrlAttributePrivateHandle *h,
     
     if (h->nv != NULL) {
         for (i = 0; i < nvctrlGpuCount; i++) {
+            Bool gpuUUIDMatchFound = FALSE;
+
             /* Get GPU UUID through NV-CONTROL */
             if (!XNVCTRLQueryTargetStringAttribute(h->dpy,
                                                    NV_CTRL_TARGET_TYPE_GPU,
                                                    i, 0,
                                                    NV_CTRL_STRING_GPU_UUID,
                                                    &nvctrlUUID)) {
-                continue;
+                goto fail;
             }
 
             if (nvctrlUUID == NULL) {
-                continue;
+                goto fail;
             }
 
             /* Look for the same UUID through NVML */
@@ -241,15 +240,27 @@ static Bool matchNvCtrlWithNvmlIds(const NvCtrlAttributePrivateHandle *h,
 
                 if (strcmp(nvctrlUUID, nvmlUUID) == 0) {
                     /* We got a match */
+                    gpuUUIDMatchFound = TRUE;
                     (*idsDictionary)[i] = j;
                     break;
                 }
             }
 
             XFree(nvctrlUUID);
+            
+            /* Fail if mismatch between gpu UUID returned by NV-CONTROL and
+             * NVML
+             */
+            if (!gpuUUIDMatchFound) {
+                goto fail;
+            }
         }
     }
     return TRUE;
+
+fail:
+    free(*idsDictionary);
+    return FALSE;
 }
 
 
