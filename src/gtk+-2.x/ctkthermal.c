@@ -1210,7 +1210,7 @@ GtkWidget* ctk_thermal_new(CtrlTarget *ctrl_target,
         
         if (ctk_thermal->sensor_count > 0) {
             ctk_thermal->sensor_info = (SensorInfoPtr)
-                malloc(ctk_thermal->sensor_count * sizeof(SensorInfoRec));
+                nvalloc(ctk_thermal->sensor_count * sizeof(SensorInfoRec));
         }
 
         for (j = 1; j <= ctk_thermal->sensor_count; j++) {
