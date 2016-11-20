@@ -834,12 +834,17 @@ static Bool load_system_info(CtrlSystem *system, const char *display)
     /* Try to open the X display connection */
     system->dpy = XOpenDisplay(system->display);
 
+    if (system->dpy == NULL) {
+        nv_error_msg("Unable to find display on any available system");
+        return FALSE;
+    }
+
     /* Try to initialize the NVML library */
     nvmlQueryTarget = nv_alloc_ctrl_target(system, GPU_TARGET, 0,
                                    NV_CTRL_ATTRIBUTES_NV_CONTROL_SUBSYSTEM |
                                    NV_CTRL_ATTRIBUTES_NVML_SUBSYSTEM);
 
-    if ((system->dpy == NULL) && (nvmlQueryTarget == NULL)) {
+    if (nvmlQueryTarget == NULL) {
         nv_error_msg("Unable to load info from any available system");
         return FALSE;
     }

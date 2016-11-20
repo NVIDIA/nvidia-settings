@@ -302,6 +302,29 @@ typedef enum nvmlGpuLevel_enum
     // there is purposefully no COUNT here because of the need for spacing above
 } nvmlGpuTopologyLevel_t;
 
+/* P2P Capability Index Status*/
+typedef enum nvmlGpuP2PStatus_enum
+{
+    NVML_P2P_STATUS_OK     = 0,
+    NVML_P2P_STATUS_CHIPSET_NOT_SUPPORED,
+    NVML_P2P_STATUS_GPU_NOT_SUPPORTED,
+    NVML_P2P_STATUS_IOH_TOPOLOGY_NOT_SUPPORTED,
+    NVML_P2P_STATUS_DISABLED_BY_REGKEY,
+    NVML_P2P_STATUS_NOT_SUPPORTED,
+    NVML_P2P_STATUS_UNKNOWN
+
+} nvmlGpuP2PStatus_t;
+
+/* P2P Capability Index*/
+typedef enum nvmlGpuP2PCapsIndex_enum
+{
+    NVML_P2P_CAPS_INDEX_READ = 0,
+    NVML_P2P_CAPS_INDEX_WRITE,
+    NVML_P2P_CAPS_INDEX_NVLINK,
+    NVML_P2P_CAPS_INDEX_ATOMICS,
+    NVML_P2P_CAPS_INDEX_PROP,
+    NVML_P2P_CAPS_INDEX_UNKNOWN
+}nvmlGpuP2PCapsIndex_t;
 
 /**
  * Maximum limit on Physical Bridges per Board
@@ -1802,6 +1825,22 @@ nvmlReturn_t DECLDIR nvmlDeviceGetTopologyNearestGpus(nvmlDevice_t device, nvmlG
  *         - \ref NVML_ERROR_UNKNOWN           an error has occurred in underlying topology discovery
  */
 nvmlReturn_t DECLDIR nvmlSystemGetTopologyGpuSet(unsigned int cpuNumber, unsigned int *count, nvmlDevice_t *deviceArray);
+
+/**
+ * Retrieve the status for a given p2p capability index between a given pair of GPU 
+ * 
+ * @param device1                              The first device 
+ * @param device2                              The second device
+ * @param p2pIndex                             p2p Capability Index being looked for between \a device1 and \a device2
+ * @param p2pStatus                            Reference in which to return the status of the \a p2pIndex 
+ *                                             between \a device1 and \a device2
+ * @return 
+ *         - \ref NVML_SUCCESS         if \a p2pStatus has been populated
+ *         - \ref NVML_ERROR_INVALID_ARGUMENT     if \a device1 or \a device2 or \a p2pIndex is invalid or \a p2pStatus is NULL
+ *         - \ref NVML_ERROR_UNKNOWN              on any unexpected error
+ */ 
+nvmlReturn_t DECLDIR nvmlDeviceGetP2PStatus(nvmlDevice_t device1, nvmlDevice_t device2, nvmlGpuP2PCapsIndex_t p2pIndex,nvmlGpuP2PStatus_t *p2pStatus);
+
 
 /**
  * Retrieves the globally unique immutable UUID associated with this device, as a 5 part hexadecimal string,

@@ -74,7 +74,8 @@ struct _CtkFramelock
     /* House sync */
     GtkWidget             *house_sync_frame;
     GtkWidget             *house_sync_vbox;
-    GtkWidget             *use_house_sync;
+    GtkWidget             *house_sync_mode_frame;
+    GtkWidget             *house_sync_mode_combo;
     GtkWidget             *sync_interval_frame;
     GtkWidget             *sync_interval_scale;
     GtkWidget             *sync_edge_frame;
@@ -86,6 +87,8 @@ struct _CtkFramelock
     gint                   current_detect_format;
     guint                  video_mode_detect_timer;
     gboolean               video_mode_read_only;
+    gboolean               house_sync_output_supported;
+    gboolean               house_sync_output_warning_dlg_shown;
 
     /* Dialogs */
     GtkWidget             *warn_dialog;

@@ -415,6 +415,9 @@
  * NV_CTRL_FRAMELOCK_POLARITY - sync either to the rising edge of the
  * frame lock pulse, the falling edge of the frame lock pulse or both.
  *
+ * On Quadro Sync II, this attribute is ignored when
+ * NV_CTRL_USE_HOUSE_SYNC is OUTPUT.
+ *
  * This attribute may be queried through XNVCTRLQueryTargetAttribute()
  * using a NV_CTRL_TARGET_TYPE_FRAMELOCK or NV_CTRL_TARGET_TYPE_X_SCREEN
  * target.
@@ -492,7 +495,7 @@
 
 /*
  * NV_CTRL_FRAMELOCK_HOUSE_STATUS - returns whether or not the house
- * sync signal was detected on the BNC connector of the frame lock
+ * sync input signal was detected on the BNC connector of the frame lock
  * board.
  *
  * This attribute may be queried through XNVCTRLQueryTargetAttribute()
@@ -1433,11 +1436,18 @@
 
 
 /*
- * NV_CTRL_USE_HOUSE_SYNC - when TRUE, the server (master) frame lock
+ * NV_CTRL_USE_HOUSE_SYNC - when INPUT, the server (master) frame lock
  * device will propagate the incoming house sync signal as the outgoing
  * frame lock sync signal.  If the frame lock device cannot detect a
  * frame lock sync signal, it will default to using the internal timings
  * from the GPU connected to the primary connector.
+ *
+ * When set to OUTPUT, the server (master) frame lock device will
+ * generate a house sync signal from its internal timing and output
+ * this signal over the BNC connector on the frame lock device.  This
+ * is only allowed on a Quadro Sync II device.  If an incoming house
+ * sync signal is present on the BNC connector, this setting will
+ * have no effect.
  *
  * This attribute may be queried through XNVCTRLQueryTargetAttribute()
  * using a NV_CTRL_TARGET_TYPE_FRAMELOCK or NV_CTRL_TARGET_TYPE_X_SCREEN
@@ -1445,6 +1455,9 @@
  */
 
 #define NV_CTRL_USE_HOUSE_SYNC                                  218/* RW-F */
+#define NV_CTRL_USE_HOUSE_SYNC_DISABLED                         0 /* aliases with FALSE */
+#define NV_CTRL_USE_HOUSE_SYNC_INPUT                            1 /* aliases with TRUE */
+#define NV_CTRL_USE_HOUSE_SYNC_OUTPUT                           2
 #define NV_CTRL_USE_HOUSE_SYNC_FALSE                            0
 #define NV_CTRL_USE_HOUSE_SYNC_TRUE                             1
 
