@@ -1444,7 +1444,7 @@ static void add_display_devices(CtkWindow *ctk_window, GtkTreeIter *iter,
         int display_id = pData[i+1];
         char *logName;
         char *typeBaseName;
-        char *typeIdName;
+        char *randrName;
         GtkWidget *widget;
         gchar *title;
         CtkEvent *ctk_event;
@@ -1484,19 +1484,19 @@ static void add_display_devices(CtkWindow *ctk_window, GtkTreeIter *iter,
             logName = NULL;
         }
         ret = NvCtrlGetStringAttribute(target,
-                                       NV_CTRL_STRING_DISPLAY_NAME_TYPE_ID,
-                                       &typeIdName);
+                                       NV_CTRL_STRING_DISPLAY_NAME_RANDR,
+                                       &randrName);
         if (ret != NvCtrlSuccess) {
-            typeIdName = NULL;
+            randrName = NULL;
         }
 
-        if (!logName && !typeIdName) {
+        if (!logName && !randrName) {
             title = g_strdup_printf("DPY-%d - (Unknown)", display_id);
         } else {
-            title = g_strdup_printf("%s - (%s)", typeIdName, logName);
+            title = g_strdup_printf("%s - (%s)", randrName, logName);
         }
         free(logName);
-        free(typeIdName);
+        free(randrName);
 
         /* Create the page for the display */
         ctk_event = CTK_EVENT(ctk_event_new(target));

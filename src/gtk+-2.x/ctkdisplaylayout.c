@@ -230,6 +230,7 @@ static void zorder_layout(CtkDisplayLayout *ctk_object)
     nvGpuPtr gpu;
     nvScreenPtr screen;
     nvDisplayPtr display;
+    nvPrimeDisplayPtr prime;
     int z;
 
 
@@ -247,6 +248,8 @@ static void zorder_layout(CtkDisplayLayout *ctk_object)
         ctk_object->Zcount += gpu->num_displays;
     }
 
+    /* Add the number of prime displays available */
+    ctk_object->Zcount += layout->num_prime_displays;
 
     /* If there is nothing Z-orderable, we're done */
     if (!ctk_object->Zcount) {
@@ -275,6 +278,15 @@ static void zorder_layout(CtkDisplayLayout *ctk_object)
             ctk_object->Zorder[z].type = ZNODE_TYPE_DISPLAY;
             ctk_object->Zorder[z].u.display = display;
             z++;
+        }
+
+        /* Add Prime display */
+        for (prime = screen->prime_displays; prime; prime = prime->next_in_layout) {
+            if (prime->screen_num == screen->scrnum) {
+                ctk_object->Zorder[z].type = ZNODE_TYPE_PRIME;
+                ctk_object->Zorder[z].u.prime_display = prime;
+                z++;
+            }
         }
 
         /* Add the screen */
@@ -342,6 +354,62 @@ static nvModePtr get_mode(nvDisplayPtr display, int mode_idx)
 
 
 
+/* adjust_screen_dim_for_prime() ************************************
+ *
+ * Adjust screen dimensions for PRIME displays not contained in
+ * the metamode.
+ *
+ **/
+
+static gboolean adjust_screen_dim_for_prime(nvScreenPtr screen,
+                                            GdkRectangle *source_rect)
+{
+    nvPrimeDisplayPtr prime;
+
+    if (!screen->prime_displays) {
+        return FALSE;
+    }
+
+    for (prime = screen->prime_displays; prime; prime = prime->next_in_screen) {
+        gdk_rectangle_union(&prime->rect, source_rect, source_rect);
+    }
+
+    return TRUE;
+
+} /* adjust_screen_dim_for_prime() */
+
+
+
+/** get_screen_rect_with_prime ***************************************
+ *
+ * Returns the dimension array to use as the screen's dimensions.
+ *
+ **/
+
+static void get_screen_rect_with_prime(nvScreenPtr screen,
+                                       Bool edim,
+                                       GdkRectangle *output_rect)
+{
+    GdkRectangle *rect;
+
+    if (!screen) return;
+
+    if (screen->no_scanout || !screen->cur_metamode) {
+        rect = &(screen->dim);
+    } else if (edim) {
+        rect = &(screen->cur_metamode->edim);
+    } else {
+        rect = &(screen->cur_metamode->dim);
+    }
+
+    memcpy(output_rect, rect, sizeof(*rect));
+
+    adjust_screen_dim_for_prime(screen, output_rect);
+
+} /* get_screen_rect_with_prime() */
+
+
+
 /** get_screen_rect **************************************************
  *
  * Returns the dimension array to use as the screen's dimensions.
@@ -379,6 +447,13 @@ static Bool get_modify_info(CtkDisplayLayout *ctk_object)
     info->screen = ctk_object->selected_screen;
     info->display = ctk_object->selected_display;
 
+
+    /* Don't allow modifying PRIME displays */
+    if (ctk_object->selected_prime_display) {
+        info->screen = NULL;
+        info->display = NULL;
+        return FALSE;
+    }
 
     /* There must be an associated screen to move */
     if (!info->screen) {
@@ -507,7 +582,7 @@ static int point_in_rect(const GdkRectangle *rect, int x, int y)
 
 static int point_in_display(nvDisplayPtr display, int x, int y)
 {
-    if (!display->cur_mode) {
+    if (!display || !display->cur_mode) {
         return 0;
     }
 
@@ -516,9 +591,10 @@ static int point_in_display(nvDisplayPtr display, int x, int y)
 
 static int point_in_screen(nvScreenPtr screen, int x, int y)
 {
-    GdkRectangle *screen_rect = get_screen_rect(screen, 1);
+    GdkRectangle screen_rect;
+    get_screen_rect_with_prime(screen, 1, &screen_rect);
 
-    return point_in_rect(screen_rect, x, y);
+    return point_in_rect(&screen_rect, x, y);
 }
 
 
@@ -1025,6 +1101,7 @@ static void calc_layout(nvLayoutPtr layout)
     nvGpuPtr gpu;
     nvScreenPtr screen;
     nvDisplayPtr display;
+    nvPrimeDisplayPtr prime;
     int init = 1;
     GdkRectangle *dim;
     int x, y;
@@ -1050,6 +1127,16 @@ static void calc_layout(nvLayoutPtr layout)
         }
         gdk_rectangle_union(dim, screen_rect, dim);
     }
+
+    for (prime = layout->prime_displays; prime; prime = prime->next_in_layout) {
+        if (init) {
+            *dim = prime->rect;
+            init = 0;
+            continue;
+        }
+        gdk_rectangle_union(dim, &prime->rect, dim);
+    }
+
 
     /* Position disabled display devices off to the top right */
     x = dim->x + dim->width;
@@ -1088,6 +1175,11 @@ static Bool realign_screen(nvScreenPtr screen)
 
     /* Calculate dimensions of screen and all metamodes */
     calc_screen(screen);
+
+    if (screen->layout->num_prime_displays > 0) {
+        /* Do not move screens if there are PRIME displays */
+        return FALSE;
+    }
 
     /* Offset metamodes back to screen's top left corner */
     for (metamode = screen->metamodes, idx = 0;
@@ -1382,6 +1474,7 @@ static void snap_move(CtkDisplayLayout *ctk_object)
     nvLayoutPtr layout = ctk_object->layout;
     nvScreenPtr screen;
     nvDisplayPtr other;
+    nvPrimeDisplayPtr prime;
     GdkRectangle *screen_rect;
 
 
@@ -1519,6 +1612,18 @@ static void snap_move(CtkDisplayLayout *ctk_object)
         snap_dim_to_dim(&(info->dst_dim),
                         &(info->src_dim),
                         screen_rect,
+                        ctk_object->snap_strength, bv, bh);
+    }
+
+    /* Snap to PRIME displays if available */
+    for (prime = layout->prime_displays; prime; prime = prime->next_in_layout) {
+
+        bv = &info->best_snap_v;
+        bh = &info->best_snap_h;
+
+        snap_dim_to_dim(&(info->dst_dim),
+                        &(info->src_dim),
+                        &prime->rect,
                         ctk_object->snap_strength, bv, bh);
     }
 
@@ -1910,9 +2015,33 @@ static int move_selected(CtkDisplayLayout *ctk_object, int x, int y, int snap)
             x = info->dst_dim.x - info->orig_dim.x;
             y = info->dst_dim.y - info->orig_dim.y;
 
+            /* If PRIME displays are available, do not allow the screen origin
+             * location to be negative.
+             */
+            if (info->screen->layout->num_prime_displays > 0) {
+                if (info->screen->dim.x + x < 0) {
+                    x = -info->screen->dim.x;
+                }
+                if (info->screen->dim.y + y < 0) {
+                    y = -info->screen->dim.y;
+                }
+            }
+
             offset_screen(info->screen, x, y);
 
         } else {
+            /* If PRIME displays are available, do not allow the origin
+             * location to change.
+             */
+            if (ctk_object->layout->num_prime_displays > 0) {
+                if (info->dst_dim.x < 0) {
+                    info->dst_dim.x = 0;
+                }
+                if (info->dst_dim.y < 0) {
+                    info->dst_dim.y = 0;
+                }
+            }
+
             /* Move the display to its destination */
             info->display->cur_mode->pan.x = info->dst_dim.x;
             info->display->cur_mode->pan.y = info->dst_dim.y;
@@ -2126,14 +2255,15 @@ static ZNode *get_screen_zorder_move_data(CtkDisplayLayout *ctk_object,
 
             /* Only move screen if it is not moving to the same location */
             if (move_to != i) {
-
-                tmpzo = malloc((1 + screen->num_displays) * sizeof(ZNode));
+                int num_total_displays = screen->num_displays +
+                                         screen->num_prime_displays;
+                tmpzo = malloc((1 + num_total_displays) * sizeof(ZNode));
                 if (!tmpzo) return NULL;
-                
+
                 memcpy(tmpzo,
-                       ctk_object->Zorder + i - screen->num_displays,
-                       (1 + screen->num_displays)*sizeof(ZNode)); 
-                
+                       ctk_object->Zorder + i - num_total_displays,
+                       (1 + num_total_displays) * sizeof(ZNode));
+
                 if (screen_at) {
                     *screen_at = i;
                 }
@@ -2159,15 +2289,17 @@ static void select_screen(CtkDisplayLayout *ctk_object, nvScreenPtr screen)
 {
     int move_to = 0;
     int screen_at;
+    int num_total_displays;
     ZNode *tmpzo;
 
     if (!screen) {
         goto done;
     }
 
+    num_total_displays = screen->num_displays + screen->num_prime_displays;
 
      /* Move the screen and its displays to the top */
-    move_to = 0 + screen->num_displays;
+    move_to = 0 + num_total_displays;
 
     tmpzo = get_screen_zorder_move_data(ctk_object, screen, move_to,
                                         &screen_at);
@@ -2176,13 +2308,13 @@ static void select_screen(CtkDisplayLayout *ctk_object, nvScreenPtr screen)
     }
 
     /* Move other nodes down to make room at the top */
-    memmove(ctk_object->Zorder + 1 + screen->num_displays,
+    memmove(ctk_object->Zorder + 1 + num_total_displays,
             ctk_object->Zorder,
-            (screen_at - screen->num_displays)*sizeof(ZNode));
+            (screen_at - num_total_displays) * sizeof(ZNode));
 
     /* Copy the screen and its displays to the top */
     memcpy(ctk_object->Zorder, tmpzo,
-           (1 + screen->num_displays)*sizeof(ZNode));
+           (1 + num_total_displays) * sizeof(ZNode));
 
     free(tmpzo);
 
@@ -2238,6 +2370,51 @@ static void select_display(CtkDisplayLayout *ctk_object, nvDisplayPtr display)
 
 
 
+/** select_prime_display() *****************************************************
+ *
+ * Moves the specified PRIME display to the top of the Zorder.
+ *
+ **/
+
+static void select_prime_display(CtkDisplayLayout *ctk_object, nvPrimeDisplayPtr prime)
+{
+    int i;
+
+    if (!prime) {
+        select_display(ctk_object, NULL);
+        goto done;
+    }
+
+    /* Move the screen and its displays to the top of the Z order */
+    select_screen(ctk_object, prime->screen);
+
+    /* Move the display to the top of the Z order */
+    for (i = 0; i < ctk_object->Zcount; i++) {
+
+        /* Find the display */
+        if (ctk_object->Zorder[i].type == ZNODE_TYPE_PRIME &&
+            ctk_object->Zorder[i].u.prime_display == prime) {
+
+            /* Move all nodes above this one down by one location */
+            if (i > 0) {
+                memmove(ctk_object->Zorder + 1, ctk_object->Zorder,
+                        i*sizeof(ZNode));
+
+                /* Place the display at the top */
+                ctk_object->Zorder[0].type = ZNODE_TYPE_PRIME;
+                ctk_object->Zorder[0].u.prime_display = prime;
+            }
+            break;
+        }
+    }
+
+ done:
+    ctk_object->selected_prime_display = prime;
+
+} /* select_prime_display() */
+
+
+
 /** select_default_item() ********************************************
  *
  * Select the top left most element (display/screen).
@@ -2250,8 +2427,10 @@ static void select_default_item(CtkDisplayLayout *ctk_object)
 {
     nvDisplayPtr sel_display = NULL;
     nvScreenPtr sel_screen = NULL;
+    nvPrimeDisplayPtr sel_prime = NULL;
     nvScreenPtr screen;
     nvDisplayPtr display;
+    nvPrimeDisplayPtr prime;
     int i;
     int best_dst = -1; // Distance squared to element.
     int dst;
@@ -2259,6 +2438,7 @@ static void select_default_item(CtkDisplayLayout *ctk_object)
     /* Clear the selection */
     ctk_object->selected_display = NULL;
     ctk_object->selected_screen = NULL;
+    ctk_object->selected_prime_display = NULL;
 
     for (i = 0; i < ctk_object->Zcount; i++) {
 
@@ -2273,6 +2453,7 @@ static void select_default_item(CtkDisplayLayout *ctk_object)
                 best_dst = dst;
                 sel_display = display;
                 sel_screen = NULL;
+                sel_prime = NULL;
             }
 
         } else if (ctk_object->Zorder[i].type == ZNODE_TYPE_SCREEN) {
@@ -2286,6 +2467,17 @@ static void select_default_item(CtkDisplayLayout *ctk_object)
                 best_dst = dst;
                 sel_display = NULL;
                 sel_screen = screen;
+                sel_prime = NULL;
+            }
+        } else if (ctk_object->Zorder[i].type == ZNODE_TYPE_PRIME) {
+            prime = ctk_object->Zorder[i].u.prime_display;
+
+            dst = DIST_SQR(prime->rect);
+            if (best_dst < 0 || dst < best_dst) {
+                best_dst = dst;
+                sel_display = NULL;
+                sel_screen = NULL;
+                sel_prime = prime;
             }
         }
     }
@@ -2294,6 +2486,8 @@ static void select_default_item(CtkDisplayLayout *ctk_object)
         select_display(ctk_object, sel_display);
     } else if (sel_screen) {
         select_screen(ctk_object, sel_screen);
+    } else if (sel_prime) {
+        select_prime_display(ctk_object, sel_prime);
     }
 
 } /* select_default_item() */
@@ -2432,9 +2626,11 @@ static char *get_tooltip_under_mouse(CtkDisplayLayout *ctk_object,
 {
     static nvDisplayPtr last_display = NULL;
     static nvScreenPtr  last_screen = NULL;
+    static nvPrimeDisplayPtr last_prime = NULL;
     int i;
     nvDisplayPtr display = NULL;
     nvScreenPtr screen = NULL;
+    nvPrimeDisplayPtr prime = NULL;
     char *tip = NULL;
 
 
@@ -2450,6 +2646,7 @@ static char *get_tooltip_under_mouse(CtkDisplayLayout *ctk_object,
             display = ctk_object->Zorder[i].u.display;
             if (point_in_display(display, x, y)) {
                 screen = NULL;
+                prime = NULL;
                 if (display == last_display) {
                     goto found;
                 }
@@ -2461,10 +2658,26 @@ static char *get_tooltip_under_mouse(CtkDisplayLayout *ctk_object,
             screen = ctk_object->Zorder[i].u.screen;
             if (point_in_screen(screen, x, y)) {
                 display = NULL;
+                prime = NULL;
                 if (screen == last_screen) {
                     goto found;
                 }
                 tip = get_screen_tooltip(screen);
+                goto found;
+            }
+        } else if (ctk_object->Zorder[i].type == ZNODE_TYPE_PRIME) {
+            prime = ctk_object->Zorder[i].u.prime_display;
+            if (point_in_rect(&prime->rect, x, y)) {
+                display = NULL;
+                screen = NULL;
+                if (prime == last_prime) {
+                    goto found;
+                }
+                if (prime->label) {
+                    tip = g_strdup_printf("PRIME display: %s", prime->label);
+                } else {
+                    tip = g_strdup("PRIME display");
+                }
                 goto found;
             }
         }
@@ -2474,6 +2687,7 @@ static char *get_tooltip_under_mouse(CtkDisplayLayout *ctk_object,
     if (last_display || last_screen) {
         last_display = NULL;
         last_screen = NULL;
+        last_prime = NULL;
         return g_strdup("No Display");
     }
 
@@ -2482,6 +2696,7 @@ static char *get_tooltip_under_mouse(CtkDisplayLayout *ctk_object,
  found:
     last_display = display;
     last_screen = screen;
+    last_prime = prime;
     return tip;
 
 } /* get_tooltip_under_mouse() */
@@ -2500,8 +2715,11 @@ static int click_layout(CtkDisplayLayout *ctk_object,
     int i;
     nvDisplayPtr cur_selected_display = ctk_object->selected_display;
     nvScreenPtr cur_selected_screen = ctk_object->selected_screen;
+    nvPrimeDisplayPtr cur_selected_prime_display =
+        ctk_object->selected_prime_display;
     nvDisplayPtr display;
     nvScreenPtr screen;
+    nvPrimeDisplayPtr prime;
     GdkModifierType state;
 
 
@@ -2509,6 +2727,7 @@ static int click_layout(CtkDisplayLayout *ctk_object,
     ctk_object->clicked_outside = 1;
     ctk_object->selected_display = NULL;
     ctk_object->selected_screen = NULL;
+    ctk_object->selected_prime_display = NULL;
 
 #ifdef CTK_GTK3
     gdk_window_get_device_position
@@ -2537,18 +2756,27 @@ static int click_layout(CtkDisplayLayout *ctk_object,
                 ctk_object->clicked_outside = 0;
                 break;
             }
+        } else if (ctk_object->Zorder[i].type == ZNODE_TYPE_PRIME) {
+            prime = ctk_object->Zorder[i].u.prime_display;
+            if (point_in_rect(&prime->rect, x, y)) {
+                select_prime_display(ctk_object, prime);
+                ctk_object->clicked_outside = 0;
+                break;
+            }
         }
     }
 
     /* Select display's X screen when CTRL is held down on click */
     if (ctk_object->selected_screen && (state & GDK_CONTROL_MASK)) {
         ctk_object->selected_display = NULL;
+        ctk_object->selected_prime_display = NULL;
     }
 
     /* Don't allow clicking outside - reselect what was last selected */
     if (ctk_object->clicked_outside) {
         ctk_object->selected_display = cur_selected_display;
         ctk_object->selected_screen = cur_selected_screen;
+        ctk_object->selected_prime_display = cur_selected_prime_display;
 
     } else {
 
@@ -2849,6 +3077,113 @@ static void draw_rect(CtkDisplayLayout *ctk_object,
 
 
 
+/** draw_line() ******************************************************
+ *
+ * Draw a line.
+ *
+ **/
+
+static void draw_line(CtkDisplayLayout *ctk_object,
+                      void *graphics_context,
+                      double x0, double y0,
+                      double x1, double y1)
+{
+#ifdef CTK_GTK3
+        cairo_t *fg_gc = (cairo_t *) graphics_context;
+        cairo_move_to(fg_gc, x0, y0);
+        cairo_line_to(fg_gc, x1, y1);
+        cairo_stroke(fg_gc);
+#else
+        GdkGC *fg_gc = (GdkGC *) graphics_context;
+        gdk_draw_line(ctk_object->pixmap, fg_gc,
+                      x0, y0, x1, y1);
+#endif
+}
+
+
+
+/** draw_hatching() **************************************************
+ *
+ * Draw linear hatching over a rectangle area.
+ *
+ **/
+
+static void draw_hatching(CtkDisplayLayout *ctk_object,
+                          GdkRectangle *rect,
+                          GdkColor *background_color)
+{
+#ifdef CTK_GTK3
+    cairo_t *fg_gc;
+
+    double line_width;
+#else
+    GdkGC *fg_gc;
+
+    GdkColor c;
+#endif
+
+    double x0 = ctk_object->img_dim.x + ctk_object->scale * rect->x;
+    double y0 = ctk_object->img_dim.y + ctk_object->scale * rect->y;
+    double width  = ctk_object->scale * rect->width;
+    double height  = ctk_object->scale * rect->height;
+
+    double inc = 200 * ctk_object->scale;
+    double xhatch = height / 2.0;  // 1.0 = diag, 0.0 is horizontal
+    double x = x0 + 0.3 * inc;     // start at partial offset from x0
+
+    fg_gc = get_drawing_context(ctk_object);
+
+
+    /* Diagonal hatching */
+
+
+    /* Setup line style and width */
+#ifdef CTK_GTK3
+    line_width = cairo_get_line_width(fg_gc);
+    cairo_set_line_width(fg_gc, line_width * 2.0);
+
+    cairo_set_source_rgb(fg_gc, 0.7, 0.7, 0.7);
+    cairo_set_antialias(fg_gc, CAIRO_ANTIALIAS_DEFAULT);
+#else
+
+    c.red = c.blue = c.green = (int)(0.7 * 65535);
+    set_drawing_color(fg_gc, &c);
+    gdk_gc_set_line_attributes(fg_gc, 2, GDK_LINE_SOLID,
+                               GDK_CAP_NOT_LAST, GDK_JOIN_ROUND);
+#endif
+
+    /* starting lines, clipped on the left edge as they approach bottom */
+    while (x - xhatch <= x0) {
+        double e = ((x - x0) / xhatch) * height + y0;
+        draw_line(ctk_object, fg_gc, x, y0, x0, e);
+        x += inc;
+    }
+
+    /* middle, complete lines */
+    while (x <= x0 + width) {
+        draw_line(ctk_object, fg_gc, x, y0, x - xhatch, y0 + height);
+        x += inc;
+    }
+
+    /* end lines, start clipped on the right where they start at the edge */
+    while (x <= x0 + width + xhatch) {
+        double e = ((x - (x0 + width)) / xhatch) * height + y0;
+        draw_line(ctk_object, fg_gc, x0 + width, e, x - xhatch, y0 + height);
+        x += inc;
+    }
+
+
+    /* restore line style */
+#ifdef CTK_GTK3
+    cairo_set_line_width(fg_gc, line_width);
+#else
+    gdk_gc_set_line_attributes(fg_gc, 1, GDK_LINE_SOLID,
+                               GDK_CAP_NOT_LAST, GDK_JOIN_ROUND);
+#endif
+}
+
+
+
 /** draw_rect_strs() *************************************************
  *
  * Draws possibly 2 rows of text in the middle of a bounding,
@@ -2991,6 +3326,55 @@ static void draw_rect_strs(CtkDisplayLayout *ctk_object,
 
 
 
+/** draw_prime_display() ***************************************************
+ *
+ * Draws a PRIME display to scale within the layout.
+ *
+ **/
+
+static void draw_prime_display(CtkDisplayLayout *ctk_object,
+                       nvPrimeDisplayPtr prime_display)
+{
+    int base_color_idx;
+    int color_idx;
+    char *tmp_str_name;
+    char *tmp_str_data;
+    GdkRectangle *rect;
+
+    if (!prime_display) {
+        return;
+    }
+
+    rect = &prime_display->rect;
+
+    base_color_idx = NUM_COLORS_PER_PALETTE * 0;
+
+    /* Draw ViewPort */
+    color_idx = base_color_idx + BG_SCR_ON;
+    draw_rect(ctk_object, rect, &(ctk_object->color_palettes[color_idx]), 1);
+    draw_hatching(ctk_object, rect, &(ctk_object->color_palettes[color_idx]));
+    draw_rect(ctk_object, rect, &(ctk_object->fg_color), 0);
+
+    /* Draw text information */
+    if (prime_display->label) {
+        tmp_str_name = g_strdup_printf("PRIME: %s", prime_display->label);
+    } else {
+        tmp_str_name = g_strdup("PRIME Display");
+    }
+    tmp_str_data = g_strdup_printf("%dx%d", rect->width,
+                                            rect->height);
+    draw_rect_strs(ctk_object,
+                   rect,
+                   &(ctk_object->fg_color),
+                   tmp_str_name,
+                   tmp_str_data);
+
+    g_free(tmp_str_name);
+    g_free(tmp_str_data);
+
+} /* draw_prime_display() */
+
+
 /** draw_display() ***************************************************
  *
  * Draws a display to scale within the layout.
@@ -3064,7 +3448,7 @@ static void draw_screen(CtkDisplayLayout *ctk_object,
     GdkGC *fg_gc;
 #endif
 
-    GdkRectangle *sdim; /* Screen dimensions */
+    GdkRectangle sdim; /* Screen dimensions */
     GdkColor bg_color; /* Background color */
     GdkColor bd_color; /* Border color */
     char *tmp_str;
@@ -3079,10 +3463,10 @@ static void draw_screen(CtkDisplayLayout *ctk_object,
     gdk_color_parse("#888888", &bg_color);
     gdk_color_parse("#777777", &bd_color);
 
-    sdim = get_screen_rect(screen, 1);
+    get_screen_rect_with_prime(screen, 1, &sdim);
 
     /* Draw the screen background */
-    draw_rect(ctk_object, sdim, &bg_color, 1);
+    draw_rect(ctk_object, &sdim, &bg_color, 1);
 
     /* Draw the screen border with dashed lines */
 
@@ -3096,7 +3480,7 @@ static void draw_screen(CtkDisplayLayout *ctk_object,
                                GDK_CAP_NOT_LAST, GDK_JOIN_ROUND);
 #endif
 
-    draw_rect(ctk_object, sdim, &(ctk_object->fg_color), 0);
+    draw_rect(ctk_object, &sdim, &(ctk_object->fg_color), 0);
 
 #ifdef CTK_GTK3
     cairo_set_dash(fg_gc, NULL, 0, 0);
@@ -3150,12 +3534,16 @@ static void draw_layout(CtkDisplayLayout *ctk_object)
             draw_display(ctk_object, ctk_object->Zorder[i].u.display);
         } else if (ctk_object->Zorder[i].type == ZNODE_TYPE_SCREEN) {
             draw_screen(ctk_object, ctk_object->Zorder[i].u.screen);
+        } else if (ctk_object->Zorder[i].type == ZNODE_TYPE_PRIME) {
+            draw_prime_display(ctk_object,
+                               ctk_object->Zorder[i].u.prime_display);
         }
     }
 
     /* Hilite the selected item */
     if (ctk_object->selected_display ||
-        ctk_object->selected_screen) {
+        ctk_object->selected_screen ||
+        ctk_object->selected_prime_display) {
 
         int w, h;
         int size; /* Hilite line size */
@@ -3167,8 +3555,12 @@ static void draw_layout(CtkDisplayLayout *ctk_object)
             get_viewportin_rect(ctk_object->selected_display->cur_mode,
                                 &vpiRect);
             rect = &vpiRect;
+        } else if (ctk_object->selected_prime_display) {
+            rect = &ctk_object->selected_prime_display->rect;
         } else {
-            rect = get_screen_rect(ctk_object->selected_screen, 0);
+            get_screen_rect_with_prime(ctk_object->selected_screen, 0,
+                                       &vpiRect);
+            rect = &vpiRect;
         }
 
         /* Draw red selection border */
@@ -3178,7 +3570,7 @@ static void draw_layout(CtkDisplayLayout *ctk_object)
         /* Setup color to use */
         set_drawing_color(fg_gc, &(ctk_object->select_color));
 
-        /* If dislay is too small, just color the whole thing */
+        /* If display is too small, just color the whole thing */
         size = 3;
         offset = (size/2) +1;
 
@@ -3386,7 +3778,7 @@ static Bool sync_layout(CtkDisplayLayout *ctk_object)
     calc_layout(layout);
 
     /* Offset layout back to (0,0) */
-    if (layout->dim.x || layout->dim.y) {
+    if ((layout->dim.x || layout->dim.y) && layout->num_prime_displays == 0) {
         offset_layout(layout, -layout->dim.x, -layout->dim.y);
         modified = TRUE;
     }
@@ -3482,6 +3874,21 @@ nvScreenPtr ctk_display_layout_get_selected_screen(CtkDisplayLayout *ctk_object)
     return ctk_object->selected_screen;
 
 } /* ctk_display_layout_get_selected_screen() */
+
+
+
+/** ctk_display_layout_get_selected_prime_display() ************************
+ *
+ * Returns the selected prime display.
+ *
+ **/
+
+nvPrimeDisplayPtr
+    ctk_display_layout_get_selected_prime_display(CtkDisplayLayout *ctk_object)
+{
+    return ctk_object->selected_prime_display;
+
+} /* ctk_display_layout_get_selected_prime_display() */
 
 
 
@@ -3704,7 +4111,7 @@ void ctk_display_layout_disable_display(CtkDisplayLayout *ctk_object,
     screen_remove_display(display);
 
     /* If the screen is empty, remove it */
-    if (!screen->num_displays) {
+    if (!screen->num_displays && !screen->num_prime_displays) {
         layout_remove_and_free_screen(screen);
 
         /* Unselect the screen if it was selected */
@@ -4177,11 +4584,30 @@ void ctk_display_layout_select_screen(CtkDisplayLayout *ctk_object,
 {
     /* Select the new display */
     ctk_object->selected_display = NULL;
+    ctk_object->selected_prime_display = NULL;
     select_screen(ctk_object, screen);
 
     queue_layout_redraw(ctk_object);
 
 } /* ctk_display_layout_select_screen() */
+
+
+
+/** ctk_display_layout_select_prime() *************************
+ *
+ * Sets the given PRIME display as the selected object.
+ *
+ **/
+
+void ctk_display_layout_select_prime(CtkDisplayLayout *ctk_object,
+                                     nvPrimeDisplayPtr prime)
+{
+    /* Select the new PRIME display */
+    select_prime_display(ctk_object, prime);
+
+    queue_layout_redraw(ctk_object);
+
+} /* ctk_display_layout_select_prime() */
 
 
 
@@ -4292,20 +4718,22 @@ void ctk_display_layout_set_screen_position(CtkDisplayLayout *ctk_object,
         {
             int x_offset = x - screen->dim.x;
             int y_offset = y - screen->dim.y;
-            GdkRectangle *sdim;
+            GdkRectangle sdim;
 
             /* Make sure this screen use absolute positioning */
             switch_screen_to_absolute(screen);
 
-            /* Do the move by offsetting */
-            offset_screen(screen, x_offset, y_offset);
+            /* If there are no PRIME Displays, do the move by offsetting */
+            if (screen->num_prime_displays == 0) {
+                offset_screen(screen, x_offset, y_offset);
+            }
 
             /* Recalculate the layout */
             ctk_display_layout_update(ctk_object);
 
             /* Report back result of move */
-            sdim = get_screen_rect(screen, 1);
-            if (x != sdim->x || y != sdim->y) {
+            get_screen_rect_with_prime(screen, 1, &sdim);
+            if (x != sdim.x || y != sdim.y) {
                 modified = 1;
             }
 

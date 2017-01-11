@@ -4294,8 +4294,18 @@
 #define NV_CTRL_STRING_MULTIGPU_MODE                                54 /* R--- */
 
 
+/*
+ * NV_CTRL_STRING_PRIME_OUTPUTS_DATA - returns a semicolon delimited list of
+ * strings that describe all PRIME configured displays.
+ *
+ *   ex. "xpos=1920, ypos=0, width=1280, height=1024, screen=0;xpos=3200,
+ *        ypos=0, width=800, height=600, screen=0;"
+ */
+#define NV_CTRL_STRING_PRIME_OUTPUTS_DATA                           55 /* R--- */
+
+
 #define NV_CTRL_STRING_LAST_ATTRIBUTE \
-    NV_CTRL_STRING_MULTIGPU_MODE
+    NV_CTRL_STRING_PRIME_OUTPUTS_DATA
 
 
 /**************************************************************************/

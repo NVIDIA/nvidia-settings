@@ -103,6 +103,7 @@ const AttributeTableEntry attributeTable[] = {
     { "ScreenPosition",                   NV_CTRL_STRING_SCREEN_RECTANGLE,              STR_ATTR, {0,0,0,0,1,0}, {}, "Returns the physical X Screen's initial position and size (in absolute coordinates) within the desktop as the \"token=value \" string:  \"x=#, y=#, width=#, height=#\"." },
     { "AddMetaMode",                      NV_CTRL_STRING_OPERATION_ADD_METAMODE,        SOP_ATTR, {0,0,0,0,1,1}, {}, "Adds the given MetaMode to the X screen." },
     { "ParseMetaMode",                    NV_CTRL_STRING_OPERATION_ADD_METAMODE,        SOP_ATTR, {0,0,0,0,1,1}, {}, "Parses and validates a given MetaMode." },
+    { "PrimeOutputsData",                 NV_CTRL_STRING_PRIME_OUTPUTS_DATA      ,      STR_ATTR, {0,0,0,0,1,1}, {}, "Lists configured PRIME displays' configuration information." },
 
     /* OpenGL */
     { "SyncToVBlank",                     NV_CTRL_SYNC_TO_VBLANK,                       INT_ATTR, {0,0,0,0,0,0}, { .int_flags = {0,0,0,0,0,0,0} }, "Enables sync to vertical blanking for OpenGL clients.  This setting only takes effect on OpenGL clients started after it is set." },
@@ -393,7 +394,7 @@ const int attributeTableLen = ARRAY_LEN(attributeTable);
 #warning "Have you forgotten to add a new integer attribute to attributeTable?"
 #endif
 
-#if NV_CTRL_STRING_LAST_ATTRIBUTE != NV_CTRL_STRING_MULTIGPU_MODE
+#if NV_CTRL_STRING_LAST_ATTRIBUTE != NV_CTRL_STRING_PRIME_OUTPUTS_DATA
 #warning "Have you forgotten to add a new string attribute to attributeTable?"
 #endif
 

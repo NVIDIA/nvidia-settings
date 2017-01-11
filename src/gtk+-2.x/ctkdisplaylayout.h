@@ -291,6 +291,21 @@ typedef struct nvMetaModeRec {
 
 
 
+/* Prime Display */
+typedef struct nvPrimeDisplayRec {
+    struct nvLayoutRec *layout;
+    struct nvPrimeDisplayRec *next_in_layout;
+
+    struct nvScreenRec *screen;
+    struct nvPrimeDisplayRec *next_in_screen;
+
+    GdkRectangle rect;
+    char *label;
+    int screen_num;
+} nvPrimeDisplay, *nvPrimeDisplayPtr;
+
+
+
 /* X Screen */
 typedef struct nvScreenRec {
     struct nvScreenRec *next_in_layout;
@@ -349,6 +364,9 @@ typedef struct nvScreenRec {
     char *multigpu_mode;
     Bool no_scanout;        /* This screen has no display devices */
     Bool stereo_supported;  /* Can stereo be configured on this screen */
+
+    nvPrimeDisplayPtr prime_displays; /* List of associated PRIME displays */
+    int num_prime_displays;           /* # of associated PRIME displays */
 
 } nvScreen, *nvScreenPtr;
 
@@ -420,6 +438,9 @@ typedef struct nvLayoutRec {
 
     int xinerama_enabled;
 
+    nvPrimeDisplayPtr prime_displays; /* Linked list of all PRIME displays */
+    int num_prime_displays;
+
 } nvLayout, *nvLayoutPtr;
 
 
@@ -468,11 +489,13 @@ typedef struct _ZNode
     enum {
         ZNODE_TYPE_DISPLAY,
         ZNODE_TYPE_SCREEN,
+        ZNODE_TYPE_PRIME,
     } type;
 
     union {
         nvDisplayPtr display;
         nvScreenPtr screen;
+        nvPrimeDisplayPtr prime_display;
     } u;
 
 } ZNode;
@@ -520,6 +543,7 @@ typedef struct _CtkDisplayLayout
 
     nvDisplayPtr  selected_display; /* Currently selected display */
     nvScreenPtr   selected_screen;  /* Selected screen */
+    nvPrimeDisplayPtr selected_prime_display;  /* Selected Prime display */
 
     /* Settings */
     int        snap_strength;
@@ -570,6 +594,8 @@ void ctk_display_layout_update_zorder(CtkDisplayLayout *ctk_object);
 
 nvDisplayPtr ctk_display_layout_get_selected_display (CtkDisplayLayout *);
 nvScreenPtr ctk_display_layout_get_selected_screen (CtkDisplayLayout *);
+nvPrimeDisplayPtr
+    ctk_display_layout_get_selected_prime_display (CtkDisplayLayout *);
 
 
 void ctk_display_layout_set_mode_modeline(CtkDisplayLayout *,
@@ -608,6 +634,8 @@ void ctk_display_layout_select_display (CtkDisplayLayout *ctk_object,
                                         nvDisplayPtr display);
 void ctk_display_layout_select_screen (CtkDisplayLayout *ctk_object,
                                        nvScreenPtr screen);
+void ctk_display_layout_select_prime (CtkDisplayLayout *ctk_object,
+                                      nvPrimeDisplayPtr prime);
 void ctk_display_layout_update_display_count (CtkDisplayLayout *,
                                               nvDisplayPtr);
 

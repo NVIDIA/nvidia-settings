@@ -51,7 +51,8 @@ G_BEGIN_DECLS
 
 typedef enum {
     SELECTABLE_ITEM_SCREEN,
-    SELECTABLE_ITEM_DISPLAY
+    SELECTABLE_ITEM_DISPLAY,
+    SELECTABLE_ITEM_PRIME,
 } SelectableItemType;
 
 
@@ -60,6 +61,7 @@ typedef struct SelectableItemRec {
     union {
         nvDisplayPtr display;
         nvScreenPtr screen;
+        nvPrimeDisplayPtr prime;
     } u;
 } SelectableItem;
 
@@ -190,6 +192,15 @@ typedef struct _CtkDisplayConfig
 
     int *screen_depth_table;
     int screen_depth_table_len;
+
+
+    /* Prime Display - Info */
+    GtkWidget *prime_display_page;
+
+    GtkWidget *lbl_prime_display_view;
+    GtkWidget *lbl_prime_display_name;
+    GtkWidget *box_prime_display_name;
+
 
     /* Dialogs */
     GtkWidget *dlg_display_disable;

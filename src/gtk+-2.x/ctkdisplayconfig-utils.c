@@ -925,7 +925,9 @@ void get_underscan_settings_from_viewportout(const nvSize raster_size,
  * "mode_name @WxH +X+Y"
  *
  **/
-static gchar *mode_get_str(nvModePtr mode, int force_target_id_name)
+static gchar *mode_get_str(nvLayoutPtr layout,
+                           nvModePtr mode,
+                           int force_target_id_name)
 {
     gchar *mode_str;
     gchar *tmp;
@@ -1003,11 +1005,17 @@ static gchar *mode_get_str(nvModePtr mode, int force_target_id_name)
      *     information.
      */
 
-    tmp = g_strdup_printf("%s +%d+%d",
-                          mode_str,
-                          /* Make mode position relative */
-                          mode->pan.x - mode->metamode->edim.x,
-                          mode->pan.y - mode->metamode->edim.y);
+    if (layout->num_prime_displays > 0) {
+        /* Do not reposition the mode if we have PRIME displays */
+        tmp = g_strdup_printf("%s +%d+%d", mode_str, mode->pan.x, mode->pan.y);
+    } else {
+        tmp = g_strdup_printf("%s +%d+%d",
+                              mode_str,
+                              /* Make mode position relative */
+                              mode->pan.x - mode->metamode->edim.x,
+                              mode->pan.y - mode->metamode->edim.y);
+    }
+
     g_free(mode_str);
     mode_str = tmp;
 
@@ -1585,8 +1593,8 @@ Bool display_add_modelines_from_server(nvDisplayPtr display, nvGpuPtr gpu,
  * mode.
  *
  **/
-static gchar *display_get_mode_str(nvDisplayPtr display, int mode_idx,
-                                   int force_target_id_name)
+static gchar *display_get_mode_str(nvLayoutPtr layout, nvDisplayPtr display,
+                                   int mode_idx, int force_target_id_name)
 {
     nvModePtr mode = display->modes;
 
@@ -1596,7 +1604,7 @@ static gchar *display_get_mode_str(nvDisplayPtr display, int mode_idx,
     }
 
     if (mode) {
-        return mode_get_str(mode, force_target_id_name);
+        return mode_get_str(layout, mode, force_target_id_name);
     }
 
     return NULL;
@@ -1997,7 +2005,7 @@ gchar *screen_get_metamode_str(nvScreenPtr screen, int metamode_idx,
          display;
          display = display->next_in_screen) {
 
-        mode_str = display_get_mode_str(display, metamode_idx,
+        mode_str = display_get_mode_str(screen->layout, display, metamode_idx,
                                         force_target_id_name);
         if (!mode_str) continue;
 
@@ -2481,6 +2489,23 @@ static Bool screen_add_metamodes(nvScreenPtr screen, gchar **err_str)
 
 
 
+/** screen_remove_prime_displays() ***********************************
+ *
+ * Removes all prime displays currently associated with this screen.
+ *
+ **/
+static void screen_remove_prime_displays(nvScreenPtr screen)
+{
+    if (!screen) return;
+
+    while (screen->prime_displays) {
+        screen_unlink_prime_display(screen->prime_displays);
+    }
+
+} /* screen_remove_prime_displays() */
+
+
+
 /** screen_free() ****************************************************
  *
  * Frees memory used by a screen structure
@@ -2493,6 +2518,7 @@ static void screen_free(nvScreenPtr screen)
 
         screen_remove_metamodes(screen);
         screen_remove_displays(screen);
+        screen_remove_prime_displays(screen);
 
         nvfree(screen->gpus);
         screen->num_gpus = 0;
@@ -3091,6 +3117,35 @@ void layout_add_screen(nvLayoutPtr layout, nvScreenPtr screen)
 
 
 
+/** layout_add_prime_display() **********************************************
+ *
+ * Adds a prime display to the (end of the) layout's list of prime displays.
+ *
+ **/
+static void layout_add_prime_display(nvLayoutPtr layout,
+                                     nvPrimeDisplayPtr prime)
+{
+    prime->layout = layout;
+    prime->next_in_layout = NULL;
+
+    if (!layout->prime_displays) {
+        layout->prime_displays = prime;
+        layout->num_prime_displays++;
+    } else {
+        nvPrimeDisplayPtr last;
+        for (last = layout->prime_displays; last; last = last->next_in_layout) {
+            if (!last->next_in_layout) {
+                last->next_in_layout = prime;
+                layout->num_prime_displays++;
+                break;
+            }
+        }
+    }
+
+} /* layout_add_prime_display() */
+
+
+
 /** layout_remove_and_free_screen() **********************************
  *
  * Removes a screen from the layout and frees it.
@@ -3140,6 +3195,29 @@ void layout_remove_and_free_screen(nvScreenPtr screen)
 
 
 
+/** layout_remove_prime_displays() ************************************
+ *
+ * Removes all PRIME displays from the layout structure.
+ *
+ **/
+static void layout_remove_prime_displays(nvLayoutPtr layout)
+{
+    nvPrimeDisplayPtr prime;
+
+    if (!layout) return;
+
+    while (layout->prime_displays) {
+        prime = layout->prime_displays;
+        layout->prime_displays = prime->next_in_layout;
+
+        free(prime->label);
+        free(prime);
+    }
+    layout->num_prime_displays = 0;
+}
+
+
+
 /** layout_remove_gpus() *********************************************
  *
  * Removes all GPUs from the layout structure.
@@ -3161,6 +3239,174 @@ static void layout_remove_gpus(nvLayoutPtr layout)
 } /* layout_remove_gpus() */
 
 
+
+
+/** screen_link_prime_display() **************************************
+ *
+ * Makes the given PRIME display part of the screen
+ *
+ **/
+void screen_link_prime_display(nvScreenPtr screen,
+                               nvPrimeDisplayPtr prime)
+{
+
+    if (!prime || !screen || (prime->screen == screen)) return;
+
+    prime->screen = screen;
+    prime->next_in_screen = NULL;
+
+    /* Add the prime display at the end of the screen's prime display list */
+    if (!screen->prime_displays) {
+        screen->prime_displays = prime;
+    } else {
+        nvPrimeDisplayPtr cur;
+        for (cur = screen->prime_displays; cur; cur = cur->next_in_screen) {
+            if (!cur->next_in_screen) {
+                cur->next_in_screen = prime;
+                break;
+            }
+        }
+    }
+    screen->num_prime_displays++;
+
+} /* screen_link_prime_display() */
+
+
+
+/** screen_unlink_prime_display() ************************************
+ *
+ * Removes the PRIME display from the screen's list of PRIME displays
+ *
+ **/
+void screen_unlink_prime_display(nvPrimeDisplayPtr prime)
+{
+    nvScreenPtr screen;
+
+    if (!prime|| !prime->screen) return;
+
+    screen = prime->screen;
+
+    /* Remove the prime display from the screen */
+    if (screen->prime_displays == prime) {
+        screen->prime_displays = prime->next_in_screen;
+    } else {
+        nvPrimeDisplayPtr cur = screen->prime_displays;
+        while (cur) {
+            if (cur->next_in_screen == prime) {
+                cur->next_in_screen = prime->next_in_screen;
+                break;
+            }
+            cur = cur->next_in_screen;
+        }
+    }
+    screen->num_prime_displays--;
+
+    prime->screen = NULL;
+
+}
+
+
+
+
+
+/** add_prime_display_from_server() **************************
+ *
+ *  Adds all PRIME displays associated with a screen to the screen and layout.
+ *
+ **/
+static
+nvPrimeDisplayPtr add_prime_display_from_server(nvScreenPtr screen,
+                                                char* src_info_str)
+{
+    nvLayoutPtr layout = screen->layout;
+    char * tok;
+    nvPrimeDisplayPtr prime;
+    char *info_str = g_strdup(src_info_str);
+
+    prime = (nvPrimeDisplayPtr)calloc(1, sizeof(nvPrimeDisplay));
+    if (!prime) goto fail;
+
+    prime->screen_num = -1;
+
+    tok = strtok(info_str, ",");
+    while (tok) {
+        char *value = strchr(tok, '=');
+        if (value && strlen(value) >= 2 ) {
+            *value = '\0';
+            value++;
+
+            while (*tok == ' ') {
+                tok++;
+            }
+
+            if (!strcmp(tok, "width")) {         // required
+                prime->rect.width = atoi(value);
+            } else if (!strcmp(tok, "height")) { // required
+                prime->rect.height = atoi(value);
+            } else if (!strcmp(tok, "xpos")) {   // required
+                prime->rect.x = atoi(value);
+            } else if (!strcmp(tok, "ypos")) {   // required
+                prime->rect.y = atoi(value);
+            } else if (!strcmp(tok, "screen")) {
+                prime->screen_num = atoi(value);
+            } else if (!strcmp(tok, "name")) {
+                prime->label = g_strdup(value);
+            }
+        }
+        tok = strtok(NULL, ",");
+    }
+
+    layout_add_prime_display(layout, prime);
+    screen_link_prime_display(screen, prime);
+
+    g_free(info_str);
+    return prime;
+
+ fail:
+    free(prime);
+
+    g_free(info_str);
+    return NULL;
+}
+
+
+/** layout_add_prime_displays_from_server() **************************
+ *
+ * Adds PRIME displays to the layout for all screens.
+ *
+ **/
+static void layout_add_prime_displays_from_server(nvLayoutPtr layout)
+{
+    char *prime_outputs_data_str = NULL;
+    nvScreenPtr screen;
+    ReturnStatus ret;
+    char *start;
+    char *end;
+
+    layout_remove_prime_displays(layout);
+
+    for (screen = layout->screens; screen; screen = screen->next_in_layout) {
+
+        ret = NvCtrlGetStringAttribute(screen->ctrl_target,
+                                       NV_CTRL_STRING_PRIME_OUTPUTS_DATA,
+                                       &prime_outputs_data_str);
+
+        if (ret != NvCtrlSuccess) {
+            continue;
+        }
+
+        start = prime_outputs_data_str;
+        end = strchr(start, ';');
+        while (start && *start && end && start < end) {
+            *end = '\0';
+            add_prime_display_from_server(screen, start);
+
+            start = end + 1;
+            end = strchr(start, ';');
+        }
+        free(prime_outputs_data_str);
+    }
+}
 
 /** layout_add_gpu_from_server() *************************************
  *
@@ -3724,6 +3970,7 @@ void layout_free(nvLayoutPtr layout)
     if (layout) {
         layout_remove_screens(layout);
         layout_remove_gpus(layout);
+        layout_remove_prime_displays(layout);
         NvCtrlFreeAllSystems(&layout->systems);
         free(layout);
     }
@@ -3794,6 +4041,8 @@ nvLayoutPtr layout_load_from_server(CtrlTarget *ctrl_target,
                        "display configuration page.");
         goto fail;
     }
+
+    layout_add_prime_displays_from_server(layout);
 
     return layout;
 

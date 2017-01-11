@@ -530,7 +530,7 @@ gchar* create_display_name_list_string(CtrlTarget *ctrl_target,
                 free(tmp_str);
             }
             ret = NvCtrlGetStringAttribute(ctrl_other,
-                                           NV_CTRL_STRING_DISPLAY_NAME_TYPE_ID,
+                                           NV_CTRL_STRING_DISPLAY_NAME_RANDR,
                                            &tmp_str);
             if (ret == NvCtrlSuccess) {
                 typeIdName = g_strdup(tmp_str);

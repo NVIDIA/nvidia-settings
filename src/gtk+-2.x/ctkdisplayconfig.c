@@ -100,6 +100,8 @@ static void screen_metamode_activate(GtkWidget *widget, gpointer user_data);
 static void screen_metamode_add_clicked(GtkWidget *widget, gpointer user_data);
 static void screen_metamode_delete_clicked(GtkWidget *widget, gpointer user_data);
 
+static void setup_prime_display_page(CtkDisplayConfig *ctk_object);
+
 static void xinerama_state_toggled(GtkWidget *widget, gpointer user_data);
 static void apply_clicked(GtkWidget *widget, gpointer user_data);
 static void save_clicked(GtkWidget *widget, gpointer user_data);
@@ -1273,6 +1275,7 @@ static void update_gui(CtkDisplayConfig *ctk_object)
 {
     setup_display_page(ctk_object);
     setup_screen_page(ctk_object);
+    setup_prime_display_page(ctk_object);
     setup_selected_item_dropdown(ctk_object);
     update_selected_page(ctk_object);
     setup_layout_frame(ctk_object);
@@ -2207,6 +2210,50 @@ GtkWidget* ctk_display_config_new(CtrlTarget *ctrl_target,
 
     } /* X screen sub-section */
 
+    { /* Prime Display page */
+        vbox = gtk_vbox_new(FALSE, 5);
+        gtk_box_pack_start(GTK_BOX(ctk_object), vbox, FALSE, FALSE, 0);
+        ctk_object->prime_display_page = vbox;
+
+        /* Disclaimer about inability to control non-nvidia displays */
+        hbox = gtk_hbox_new(FALSE, 5);
+        gtk_box_pack_start(GTK_BOX(vbox), hbox, FALSE, FALSE, 5);
+
+        label = gtk_label_new("PRIME Displays cannot be controlled by "
+            "nvidia-settings and must be configured by an external "
+            "RandR capable tool. The display is shown in the layout "
+            "window above for informational purposes only.");
+        gtk_label_set_line_wrap(GTK_LABEL(label), TRUE);
+        gtk_box_pack_start(GTK_BOX(hbox), label, FALSE, TRUE, 5);
+
+        hbox = gtk_hbox_new(FALSE, 5);
+        gtk_box_pack_start(GTK_BOX(vbox), hbox, FALSE, FALSE, 5);
+
+        label = gtk_label_new("Viewport:");
+        labels = g_slist_append(labels, label);
+        gtk_box_pack_start(GTK_BOX(hbox), label, FALSE, FALSE, 5);
+
+        ctk_object->lbl_prime_display_view = gtk_label_new("");
+        gtk_box_pack_start(GTK_BOX(hbox),
+                           ctk_object->lbl_prime_display_view,
+                           FALSE, FALSE, 5);
+
+        hbox = gtk_hbox_new(FALSE, 5);
+        gtk_box_pack_start(GTK_BOX(vbox), hbox, FALSE, FALSE, 5);
+
+        label = gtk_label_new("Name:");
+        labels = g_slist_append(labels, label);
+        gtk_box_pack_start(GTK_BOX(hbox), label, FALSE, FALSE, 5);
+        ctk_object->lbl_prime_display_name = gtk_label_new("");
+        gtk_box_pack_start(GTK_BOX(hbox),
+                           ctk_object->lbl_prime_display_name,
+                           FALSE, FALSE, 5);
+        ctk_object->box_prime_display_name = hbox;
+
+        g_object_ref(ctk_object->prime_display_page);
+        gtk_widget_show_all(ctk_object->prime_display_page);
+    }
+
 
     /* Align all the configuration labels */
     max_width = 0;
@@ -2602,11 +2649,16 @@ static void update_selected_page(CtkDisplayConfig *ctk_object)
         (CTK_DISPLAY_LAYOUT(ctk_object->obj_layout));
     nvScreenPtr screen = ctk_display_layout_get_selected_screen
         (CTK_DISPLAY_LAYOUT(ctk_object->obj_layout));
+    nvPrimeDisplayPtr prime = ctk_display_layout_get_selected_prime_display
+        (CTK_DISPLAY_LAYOUT(ctk_object->obj_layout));
 
     gtk_widget_hide(ctk_object->display_page);
     gtk_widget_hide(ctk_object->screen_page);
+    gtk_widget_hide(ctk_object->prime_display_page);
     if (display) {
         gtk_widget_show(ctk_object->display_page);
+    } else if (prime) {
+        gtk_widget_show(ctk_object->prime_display_page);
     } else if (screen) {
         gtk_widget_show(ctk_object->screen_page);
     }
@@ -2624,12 +2676,14 @@ static void update_selected_page(CtkDisplayConfig *ctk_object)
 static void generate_selected_item_dropdown(CtkDisplayConfig *ctk_object,
                                             nvDisplayPtr cur_display,
                                             nvScreenPtr cur_screen,
+                                            nvPrimeDisplayPtr cur_prime,
                                             int *cur_idx)
 {
     nvLayoutPtr layout = ctk_object->layout;
     nvGpuPtr gpu;
     nvDisplayPtr display;
     nvScreenPtr screen;
+    nvPrimeDisplayPtr prime;
     int idx;
     char *str;
     char *tmp;
@@ -2645,6 +2699,8 @@ static void generate_selected_item_dropdown(CtkDisplayConfig *ctk_object,
     for (gpu = layout->gpus; gpu; gpu = gpu->next_in_layout) {
         ctk_object->selected_item_table_len += gpu->num_displays;
     }
+
+    ctk_object->selected_item_table_len += layout->num_prime_displays;
 
     ctk_object->selected_item_table =
         calloc(ctk_object->selected_item_table_len,
@@ -2689,7 +2745,7 @@ static void generate_selected_item_dropdown(CtkDisplayConfig *ctk_object,
                 *cur_idx = idx;
             }
             str = g_strdup_printf("%s (%s", display->logName,
-                                  display->typeIdName);
+                                  display->randrName);
             if (show_gpu_info) {
                 tmp = str;
                 str = g_strdup_printf("%s on GPU-%d", tmp,
@@ -2709,6 +2765,28 @@ static void generate_selected_item_dropdown(CtkDisplayConfig *ctk_object,
         }
     }
 
+    /* Add prime displays */
+    for (prime = layout->prime_displays; prime; prime = prime->next_in_layout) {
+
+        if (cur_prime == prime) {
+            *cur_idx = idx;
+        }
+
+        if (prime->label) {
+            str = g_strdup_printf("PRIME Display: %s", prime->label);
+        } else {
+            str = g_strdup("PRIME Display");
+        }
+
+        ctk_combo_box_text_append_text(ctk_object->mnu_selected_item, str);
+        g_free(str);
+
+        ctk_object->selected_item_table[idx].type = SELECTABLE_ITEM_PRIME;
+        ctk_object->selected_item_table[idx].u.prime = prime;
+
+        idx++;
+    }
+
 } /* generate_selected_item_dropdown() */
 
 
@@ -2725,9 +2803,11 @@ static void setup_selected_item_dropdown(CtkDisplayConfig *ctk_object)
         (CTK_DISPLAY_LAYOUT(ctk_object->obj_layout));
     nvScreenPtr screen = ctk_display_layout_get_selected_screen
         (CTK_DISPLAY_LAYOUT(ctk_object->obj_layout));
+    nvPrimeDisplayPtr prime = ctk_display_layout_get_selected_prime_display
+        (CTK_DISPLAY_LAYOUT(ctk_object->obj_layout));
     int cur_idx = 0;
 
-    if (!display && !screen) {
+    if (!display && !screen && !prime) {
         gtk_widget_set_sensitive(ctk_object->mnu_selected_item, False);
         gtk_widget_hide(ctk_object->mnu_selected_item);
         return;
@@ -2741,7 +2821,9 @@ static void setup_selected_item_dropdown(CtkDisplayConfig *ctk_object)
         (G_OBJECT(ctk_object->mnu_selected_item),
          G_CALLBACK(selected_item_changed), (gpointer) ctk_object);
 
-    generate_selected_item_dropdown(ctk_object, display, screen, &cur_idx);
+    generate_selected_item_dropdown(ctk_object,
+                                    display, screen, prime,
+                                    &cur_idx);
 
     gtk_combo_box_set_active
         (GTK_COMBO_BOX(ctk_object->mnu_selected_item), cur_idx);
@@ -4372,6 +4454,39 @@ static void setup_display_panning(CtkDisplayConfig *ctk_object)
 } /* setup_display_panning */
 
 
+/** setup_prime_display_page() *********************************************
+ *
+ *
+ **/
+static void setup_prime_display_page(CtkDisplayConfig *ctk_object)
+{
+    nvPrimeDisplayPtr prime = ctk_display_layout_get_selected_prime_display
+        (CTK_DISPLAY_LAYOUT(ctk_object->obj_layout));
+    char *tmp_str = NULL;
+
+    if (!prime) {
+        return;
+    }
+
+    tmp_str = g_strdup_printf("%dx%d+%d+%d", prime->rect.width,
+                                             prime->rect.height,
+                                             prime->rect.x,
+                                             prime->rect.y);
+    gtk_label_set_text(GTK_LABEL(ctk_object->lbl_prime_display_view), tmp_str);
+    g_free(tmp_str);
+
+    if (prime->label) {
+        gtk_label_set_text(GTK_LABEL(ctk_object->lbl_prime_display_name),
+                           prime->label);
+        gtk_widget_show_all(ctk_object->box_prime_display_name);
+    } else {
+        gtk_label_set_text(GTK_LABEL(ctk_object->lbl_prime_display_name), "");
+        gtk_widget_hide(ctk_object->box_prime_display_name);
+    }
+
+    gtk_widget_set_sensitive(ctk_object->prime_display_page, True);
+}
+
 
 /** setup_display_page() ********************************************
  *
@@ -5380,6 +5495,7 @@ void layout_selected_callback(nvLayoutPtr layout, void *data)
     /* Reconfigure GUI to display information about the selected screen. */
     setup_display_page(ctk_object);
     setup_screen_page(ctk_object);
+    setup_prime_display_page(ctk_object);
     setup_selected_item_dropdown(ctk_object);
     update_selected_page(ctk_object);
 
@@ -5447,10 +5563,15 @@ static void selected_item_changed(GtkWidget *widget, gpointer user_data)
         ctk_display_layout_select_display
             (CTK_DISPLAY_LAYOUT(ctk_object->obj_layout), item->u.display);
         break;
+    case SELECTABLE_ITEM_PRIME:
+        ctk_display_layout_select_prime
+            (CTK_DISPLAY_LAYOUT(ctk_object->obj_layout), item->u.prime);
+        break;
     }
 
     setup_display_page(ctk_object);
     setup_screen_page(ctk_object);
+    setup_prime_display_page(ctk_object);
     update_selected_page(ctk_object);
 
 } /* selected_item_changed() */
@@ -5490,7 +5611,7 @@ static void do_enable_display_on_new_xscreen(CtkDisplayConfig *ctk_object,
 
     /* Make sure we're allowed to enable this display */
     if (gpu->mosaic_enabled ||
-	(num_screens_on_gpu >= gpu->max_displays) ||
+        (num_screens_on_gpu >= gpu->max_displays) ||
         display->screen) {
         return;
     }
@@ -6117,7 +6238,8 @@ static void display_resolution_changed(GtkWidget *widget, gpointer user_data)
     /* In Basic view, we assume the user most likely wants
      * to change which metamode is being used.
      */
-    if (!ctk_object->advanced_mode && (display->screen->num_displays == 1)) {
+    if (!ctk_object->advanced_mode && (display->screen->num_displays == 1) &&
+        display->screen->num_prime_displays == 0) {
         int metamode_idx =
             display_find_closest_mode_matching_modeline(display,
                                                         selected_mode->modeline);
