@@ -703,8 +703,8 @@ typedef enum nvmlReturn_enum
     NVML_ERROR_RESET_REQUIRED = 16,     //!< The GPU requires a reset before it can be used again
     NVML_ERROR_OPERATING_SYSTEM = 17,   //!< The GPU control device has been blocked by the operating system/cgroups
     NVML_ERROR_LIB_RM_VERSION_MISMATCH = 18,   //!< RM detects a driver/library version mismatch
-    NVML_ERROR_IN_USE = 19,             //!< An operation cannot be performed because the GPU is currently in use
-    NVML_ERROR_MEMORY = 20,             //!< Insufficient memory
+    NVML_ERROR_MEMORY = 19,             //!< Insufficient memory
+    NVML_ERROR_NO_DATA = 20,            //!<No data
     NVML_ERROR_UNKNOWN = 999            //!< An internal driver error occurred
 } nvmlReturn_t;
 
@@ -1236,6 +1236,22 @@ nvmlReturn_t DECLDIR nvmlSystemGetDriverVersion(char *version, unsigned int leng
  *         - \ref NVML_ERROR_INSUFFICIENT_SIZE if \a length is too small 
  */
 nvmlReturn_t DECLDIR nvmlSystemGetNVMLVersion(char *version, unsigned int length);
+
+/**
+ * Retrieves the version of the CUDA driver.
+ *
+ * For all products.
+ *
+ * The returned CUDA driver version is the same as the CUDA API
+ * cuDriverGetVersion() would return on the system.
+ *
+ * @param cudaDriverVersion                    Reference in which to return the version identifier
+ *
+ * @return
+ *         - \ref NVML_SUCCESS                 if \a cudaDriverVersion has been set
+ *         - \ref NVML_ERROR_INVALID_ARGUMENT  if \a cudaDriverVersion is NULL
+ */
+nvmlReturn_t DECLDIR nvmlSystemGetCudaDriverVersion(int *cudaDriverVersion);
 
 /**
  * Gets name of the process with provided process id
@@ -2351,7 +2367,7 @@ nvmlReturn_t DECLDIR nvmlDeviceGetClock(nvmlDevice_t device, nvmlClockType_t clo
 /**
  * Retrieves the customer defined maximum boost clock speed specified by the given clock type.
  *
- * For newer than Maxwell &tm; fully supported devices.
+ * For Pascal &tm; or newer fully supported devices.
  *
  * @param device                               The identifier of the target device
  * @param clockType                            Identify which clock domain to query
@@ -2870,6 +2886,30 @@ nvmlReturn_t DECLDIR nvmlDeviceGetMemoryInfo(nvmlDevice_t device, nvmlMemory_t *
  * @see nvmlDeviceSetComputeMode()
  */
 nvmlReturn_t DECLDIR nvmlDeviceGetComputeMode(nvmlDevice_t device, nvmlComputeMode_t *mode);
+
+/**
+ * Retrieves the CUDA compute capability of the device.
+ *
+ * For all products.
+ *
+ * Returns the major and minor compute capability version numbers of the
+ * device.  The major and minor versions are equivalent to the
+ * CU_DEVICE_ATTRIBUTE_COMPUTE_CAPABILITY_MINOR and
+ * CU_DEVICE_ATTRIBUTE_COMPUTE_CAPABILITY_MAJOR attributes that would be
+ * returned by CUDA's cuDeviceGetAttribute().
+ *
+ * @param device                               The identifier of the target device
+ * @param major                                Reference in which to return the major CUDA compute capability
+ * @param minor                                Reference in which to return the minor CUDA compute capability
+ *
+ * @return
+ *         - \ref NVML_SUCCESS                 if \a major and \a minor have been set
+ *         - \ref NVML_ERROR_UNINITIALIZED     if the library has not been successfully initialized
+ *         - \ref NVML_ERROR_INVALID_ARGUMENT  if \a device is invalid or \a major or \a minor are NULL
+ *         - \ref NVML_ERROR_GPU_IS_LOST       if the target GPU has fallen off the bus or is otherwise inaccessible
+ *         - \ref NVML_ERROR_UNKNOWN           on any unexpected error
+ */
+nvmlReturn_t DECLDIR nvmlDeviceGetCudaComputeCapability(nvmlDevice_t device, int *major, int *minor);
 
 /**
  * Retrieves the current and pending ECC modes for the device.
@@ -3978,7 +4018,7 @@ nvmlReturn_t DECLDIR nvmlDeviceClearAccountingPids(nvmlDevice_t device);
 /**
  * Retrieves the state of the device's NvLink for the link specified
  *
- * For newer than Maxwell &tm; fully supported devices.
+ * For Pascal &tm; or newer fully supported devices.
  *
  * @param device                               The identifier of the target device
  * @param link                                 Specifies the NvLink link to be queried
@@ -3998,7 +4038,7 @@ nvmlReturn_t DECLDIR nvmlDeviceGetNvLinkState(nvmlDevice_t device, unsigned int 
 /**
  * Retrieves the version of the device's NvLink for the link specified
  *
- * For newer than Maxwell &tm; fully supported devices.
+ * For Pascal &tm; or newer fully supported devices.
  *
  * @param device                               The identifier of the target device
  * @param link                                 Specifies the NvLink link to be queried
@@ -4018,7 +4058,7 @@ nvmlReturn_t DECLDIR nvmlDeviceGetNvLinkVersion(nvmlDevice_t device, unsigned in
  * Please refer to the \a nvmlNvLinkCapability_t structure for the specific caps that can be queried
  * The return value should be treated as a boolean.
  *
- * For newer than Maxwell &tm; fully supported devices.
+ * For Pascal &tm; or newer fully supported devices.
  *
  * @param device                               The identifier of the target device
  * @param link                                 Specifies the NvLink link to be queried
@@ -4039,7 +4079,7 @@ nvmlReturn_t DECLDIR nvmlDeviceGetNvLinkCapability(nvmlDevice_t device, unsigned
  * Retrieves the PCI information for the remote node on a NvLink link 
  * Note: pciSubSystemId is not filled in this function and is indeterminate
  *
- * For newer than Maxwell &tm; fully supported devices.
+ * For Pascal &tm; or newer fully supported devices.
  *
  * @param device                               The identifier of the target device
  * @param link                                 Specifies the NvLink link to be queried
@@ -4058,7 +4098,7 @@ nvmlReturn_t DECLDIR nvmlDeviceGetNvLinkRemotePciInfo(nvmlDevice_t device, unsig
  * Retrieves the specified error counter value
  * Please refer to \a nvmlNvLinkErrorCounter_t for error counters that are available
  *
- * For newer than Maxwell &tm; fully supported devices.
+ * For Pascal &tm; or newer fully supported devices.
  *
  * @param device                               The identifier of the target device
  * @param link                                 Specifies the NvLink link to be queried
@@ -4079,7 +4119,7 @@ nvmlReturn_t DECLDIR nvmlDeviceGetNvLinkErrorCounter(nvmlDevice_t device, unsign
  * Resets all error counters to zero
  * Please refer to \a nvmlNvLinkErrorCounter_t for the list of error counters that are reset
  *
- * For newer than Maxwell &tm; fully supported devices.
+ * For Pascal &tm; or newer fully supported devices.
  *
  * @param device                               The identifier of the target device
  * @param link                                 Specifies the NvLink link to be queried
@@ -4098,7 +4138,7 @@ nvmlReturn_t DECLDIR nvmlDeviceResetNvLinkErrorCounters(nvmlDevice_t device, uns
  * Please refer to \a nvmlNvLinkUtilizationControl_t for the structure definition.  Performs a reset
  * of the counters if the reset parameter is non-zero.
  *
- * For newer than Maxwell &tm; fully supported devices.
+ * For Pascal &tm; or newer fully supported devices.
  *
  * @param device                               The identifier of the target device
  * @param counter                              Specifies the counter that should be set (0 or 1).
@@ -4120,7 +4160,7 @@ nvmlReturn_t DECLDIR nvmlDeviceSetNvLinkUtilizationControl(nvmlDevice_t device, 
  * Get the NVLINK utilization counter control information for the specified counter, 0 or 1.
  * Please refer to \a nvmlNvLinkUtilizationControl_t for the structure definition
  *
- * For newer than Maxwell &tm; fully supported devices.
+ * For Pascal &tm; or newer fully supported devices.
  *
  * @param device                               The identifier of the target device
  * @param counter                              Specifies the counter that should be set (0 or 1).
@@ -4143,7 +4183,7 @@ nvmlReturn_t DECLDIR nvmlDeviceGetNvLinkUtilizationControl(nvmlDevice_t device, 
  * In general it is good practice to use \a nvmlDeviceSetNvLinkUtilizationControl
  *  before reading the utilization counters as they have no default state
  *
- * For newer than Maxwell &tm; fully supported devices.
+ * For Pascal &tm; or newer fully supported devices.
  *
  * @param device                               The identifier of the target device
  * @param link                                 Specifies the NvLink link to be queried
@@ -4165,7 +4205,7 @@ nvmlReturn_t DECLDIR nvmlDeviceGetNvLinkUtilizationCounter(nvmlDevice_t device, 
  * Freeze the NVLINK utilization counters 
  * Both the receive and transmit counters are operated on by this function
  *
- * For newer than Maxwell &tm; fully supported devices.
+ * For Pascal &tm; or newer fully supported devices.
  *
  * @param device                               The identifier of the target device
  * @param link                                 Specifies the NvLink link to be queried
@@ -4187,7 +4227,7 @@ nvmlReturn_t DECLDIR nvmlDeviceFreezeNvLinkUtilizationCounter (nvmlDevice_t devi
  * Reset the NVLINK utilization counters 
  * Both the receive and transmit counters are operated on by this function
  *
- * For newer than Maxwell &tm; fully supported devices.
+ * For Pascal &tm; or newer fully supported devices.
  *
  * @param device                               The identifier of the target device
  * @param link                                 Specifies the NvLink link to be reset
@@ -4337,120 +4377,6 @@ nvmlReturn_t DECLDIR nvmlEventSetWait(nvmlEventSet_t set, nvmlEventData_t * data
 nvmlReturn_t DECLDIR nvmlEventSetFree(nvmlEventSet_t set);
 
 /** @} */
-
-/***************************************************************************************************/
-/** @defgroup nvmlZPI Drain states 
- * This chapter describes methods that NVML can perform against each device to control their drain state
- * and recognition by NVML and NVIDIA kernel driver. These methods can be used with out-of-band tools to
- * power on/off GPUs, enable robust reset scenarios, etc.
- *  @{
- */
-/***************************************************************************************************/
-
-/**
- * Modify the drain state of a GPU.  This method forces a GPU to no longer accept new incoming requests.
- * Any new NVML process will no longer see this GPU.  Persistence mode for this GPU must be turned off before
- * this call is made.
- * Must be called as administrator.
- * For Linux only.
- * 
- * For newer than Maxwell &tm; fully supported devices.
- * Some Kepler devices supported.
- *
- * @param pciInfo                              The PCI address of the GPU drain state to be modified
- * @param newState                             The drain state that should be entered, see \ref nvmlEnableState_t
- *
- * @return 
- *         - \ref NVML_SUCCESS                 if counters were successfully reset
- *         - \ref NVML_ERROR_UNINITIALIZED     if the library has not been successfully initialized
- *         - \ref NVML_ERROR_INVALID_ARGUMENT  if \a nvmlIndex or \a newState is invalid
- *         - \ref NVML_ERROR_NOT_SUPPORTED     if the device doesn't support this feature
- *         - \ref NVML_ERROR_NO_PERMISSION     if the calling process has insufficient permissions to perform operation
- *         - \ref NVML_ERROR_IN_USE            if the device has persistence mode turned on
- *         - \ref NVML_ERROR_UNKNOWN           on any unexpected error
- */
-nvmlReturn_t DECLDIR nvmlDeviceModifyDrainState (nvmlPciInfo_t *pciInfo, nvmlEnableState_t newState);
-
-/**
- * Query the drain state of a GPU.  This method is used to check if a GPU is in a currently draining
- * state.
- * For Linux only.
- * 
- * For newer than Maxwell &tm; fully supported devices.
- * Some Kepler devices supported.
- *
- * @param pciInfo                              The PCI address of the GPU drain state to be queried
- * @param currentState                         The current drain state for this GPU, see \ref nvmlEnableState_t
- *
- * @return 
- *         - \ref NVML_SUCCESS                 if counters were successfully reset
- *         - \ref NVML_ERROR_UNINITIALIZED     if the library has not been successfully initialized
- *         - \ref NVML_ERROR_INVALID_ARGUMENT  if \a nvmlIndex or \a currentState is invalid
- *         - \ref NVML_ERROR_NOT_SUPPORTED     if the device doesn't support this feature
- *         - \ref NVML_ERROR_UNKNOWN           on any unexpected error
- */
-nvmlReturn_t DECLDIR nvmlDeviceQueryDrainState (nvmlPciInfo_t *pciInfo, nvmlEnableState_t *currentState);
-
-/**
- * This method will remove the specified GPU from the view of both NVML and the NVIDIA kernel driver
- * as long as no other processes are attached. If other processes are attached, this call will return
- * NVML_ERROR_IN_USE and the GPU will be returned to its original "draining" state. Note: the
- * only situation where a process can still be attached after nvmlDeviceModifyDrainState() is called
- * to initiate the draining state is if that process was using, and is still using, a GPU before the 
- * call was made. Also note, persistence mode counts as an attachment to the GPU thus it must be disabled
- * prior to this call.
- *
- * For long-running NVML processes please note that this will change the enumeration of current GPUs.
- * For example, if there are four GPUs present and GPU1 is removed, the new enumeration will be 0-2.
- * Also, device handles after the removed GPU will not be valid and must be re-established.
- * Must be run as administrator. 
- * For Linux only.
- *
- * For newer than Maxwell &tm; fully supported devices.
- * Some Kepler devices supported.
- *
- * @param pciInfo                              The PCI address of the GPU to be removed
- *
- * @return
- *         - \ref NVML_SUCCESS                 if counters were successfully reset
- *         - \ref NVML_ERROR_UNINITIALIZED     if the library has not been successfully initialized
- *         - \ref NVML_ERROR_INVALID_ARGUMENT  if \a nvmlIndex is invalid
- *         - \ref NVML_ERROR_NOT_SUPPORTED     if the device doesn't support this feature
- *         - \ref NVML_ERROR_IN_USE            if the device is still in use and cannot be removed
- */
-nvmlReturn_t DECLDIR nvmlDeviceRemoveGpu (nvmlPciInfo_t *pciInfo);
-
-/**
- * Request the OS and the NVIDIA kernel driver to rediscover a portion of the PCI subsystem looking for GPUs that
- * were previously removed. The portion of the PCI tree can be narrowed by specifying a domain, bus, and device.  
- * If all are zeroes then the entire PCI tree will be searched.  Please note that for long-running NVML processes
- * the enumeration will change based on how many GPUs are discovered and where they are inserted in bus order.
- *
- * In addition, all newly discovered GPUs will be initialized and their ECC scrubbed which may take several seconds
- * per GPU. Also, all device handles are no longer guaranteed to be valid post discovery.
- *
- * Must be run as administrator.
- * For Linux only.
- * 
- * For newer than Maxwell &tm; fully supported devices.
- * Some Kepler devices supported.
- *
- * @param pciInfo                              The PCI tree to be searched.  Only the domain, bus, and device
- *                                             fields are used in this call.
- *
- * @return 
- *         - \ref NVML_SUCCESS                 if counters were successfully reset
- *         - \ref NVML_ERROR_UNINITIALIZED     if the library has not been successfully initialized
- *         - \ref NVML_ERROR_INVALID_ARGUMENT  if \a pciInfo is invalid
- *         - \ref NVML_ERROR_NOT_SUPPORTED     if the operating system does not support this feature
- *         - \ref NVML_ERROR_OPERATING_SYSTEM  if the operating system is denying this feature
- *         - \ref NVML_ERROR_NO_PERMISSION     if the calling process has insufficient permissions to perform operation
- *         - \ref NVML_ERROR_UNKNOWN           on any unexpected error
- */
-nvmlReturn_t DECLDIR nvmlDeviceDiscoverGpus (nvmlPciInfo_t *pciInfo);
-
-/** @} */
-
 
 /***************************************************************************************************/
 /** @defgroup nvmlGridQueries Grid Queries
