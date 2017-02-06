@@ -180,28 +180,34 @@ static Bool LoadNvml(NvCtrlNvmlAttributes *nvml)
         goto fail;
     }
 
-#define GET_SYMBOL(_proc, _name)                      \
+#define GET_SYMBOL_REQUIRED(_proc, _name)             \
     nvml->lib._proc = dlsym(nvml->lib.handle, _name); \
     if (nvml->lib._proc == NULL) {                    \
         goto fail;                                    \
     }
 
-    GET_SYMBOL(init,                           "nvmlInit");
-    GET_SYMBOL(shutdown,                       "nvmlShutdown");
-    GET_SYMBOL(deviceGetHandleByIndex,         "nvmlDeviceGetHandleByIndex");
-    GET_SYMBOL(deviceGetUUID,                  "nvmlDeviceGetUUID");
-    GET_SYMBOL(deviceGetCount,                 "nvmlDeviceGetCount");
-    GET_SYMBOL(deviceGetTemperature,           "nvmlDeviceGetTemperature");
-    GET_SYMBOL(deviceGetFanSpeed,              "nvmlDeviceGetFanSpeed");
-    GET_SYMBOL(deviceGetName,                  "nvmlDeviceGetName");
-    GET_SYMBOL(deviceGetVbiosVersion,          "nvmlDeviceGetVbiosVersion");
-    GET_SYMBOL(deviceGetMemoryInfo,            "nvmlDeviceGetMemoryInfo");
-    GET_SYMBOL(deviceGetPciInfo,               "nvmlDeviceGetPciInfo");
-    GET_SYMBOL(deviceGetMaxPcieLinkGeneration, "nvmlDeviceGetMaxPcieLinkGeneration");
-    GET_SYMBOL(deviceGetMaxPcieLinkWidth,      "nvmlDeviceGetMaxPcieLinkWidth");
-    GET_SYMBOL(deviceGetVirtualizationMode,    "nvmlDeviceGetVirtualizationMode");
-
-#undef GET_SYMBOL
+    GET_SYMBOL_REQUIRED(init,                           "nvmlInit");
+    GET_SYMBOL_REQUIRED(shutdown,                       "nvmlShutdown");
+    GET_SYMBOL_REQUIRED(deviceGetHandleByIndex,         "nvmlDeviceGetHandleByIndex");
+    GET_SYMBOL_REQUIRED(deviceGetUUID,                  "nvmlDeviceGetUUID");
+    GET_SYMBOL_REQUIRED(deviceGetCount,                 "nvmlDeviceGetCount");
+    GET_SYMBOL_REQUIRED(deviceGetTemperature,           "nvmlDeviceGetTemperature");
+    GET_SYMBOL_REQUIRED(deviceGetFanSpeed,              "nvmlDeviceGetFanSpeed");
+    GET_SYMBOL_REQUIRED(deviceGetName,                  "nvmlDeviceGetName");
+    GET_SYMBOL_REQUIRED(deviceGetVbiosVersion,          "nvmlDeviceGetVbiosVersion");
+    GET_SYMBOL_REQUIRED(deviceGetMemoryInfo,            "nvmlDeviceGetMemoryInfo");
+    GET_SYMBOL_REQUIRED(deviceGetPciInfo,               "nvmlDeviceGetPciInfo");
+    GET_SYMBOL_REQUIRED(deviceGetMaxPcieLinkGeneration, "nvmlDeviceGetMaxPcieLinkGeneration");
+    GET_SYMBOL_REQUIRED(deviceGetMaxPcieLinkWidth,      "nvmlDeviceGetMaxPcieLinkWidth");
+    GET_SYMBOL_REQUIRED(deviceGetVirtualizationMode,    "nvmlDeviceGetVirtualizationMode");
+#undef GET_SYMBOL_REQUIRED
+    
+/* Do not fail with older drivers */
+#define GET_SYMBOL_OPTIONAL(_proc, _name)             \
+    nvml->lib._proc = dlsym(nvml->lib.handle, _name); 
+    
+    GET_SYMBOL_OPTIONAL(deviceGetGridLicensableFeatures, "nvmlDeviceGetGridLicensableFeatures");
+#undef GET_SYMBOL_OPTIONAL
 
     ret = nvml->lib.init();
 
@@ -855,6 +861,19 @@ static ReturnStatus NvCtrlNvmlGetGPUAttribute(const CtrlTarget *ctrl_target,
                     ret = nvml->lib.deviceGetVirtualizationMode(device, &mode);
                     res = mode;
                 }
+                break;
+
+            case NV_CTRL_ATTR_NVML_GPU_GRID_LICENSE_SUPPORTED:
+                if (nvml->lib.deviceGetGridLicensableFeatures) {
+                    nvmlGridLicensableFeatures_t gridLicensableFeatures;
+                    ret = nvml->lib.deviceGetGridLicensableFeatures(device,
+                                                          &gridLicensableFeatures);
+                    res = !!(gridLicensableFeatures.isGridLicenseSupported);
+                } else {
+                    /* return NvCtrlNotSupported against older driver */
+                    ret = NVML_ERROR_FUNCTION_NOT_FOUND;
+                }
+
                 break;
 
             default:
