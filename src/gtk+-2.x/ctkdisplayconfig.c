@@ -2468,6 +2468,10 @@ GtkTextBuffer *ctk_display_config_create_help(GtkTextTagTable *table,
                   "view is enabled.", __dpy_panning_help);
     ctk_help_heading(b, &i, "Primary Display");
     ctk_help_para(b, &i, "%s", __dpy_primary_help);
+    ctk_help_heading(b, &i, "Force Composition Pipeline");
+    ctk_help_para(b, &i, "%s", __dpy_forcecompositionpipeline_help);
+    ctk_help_heading(b, &i, "Force Full Composition Pipeline");
+    ctk_help_para(b, &i, "%s", __dpy_forcefullcompositionpipeline_help);
 
 
     ctk_help_para(b, &i, "");
