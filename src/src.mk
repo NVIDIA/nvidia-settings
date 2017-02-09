@@ -221,6 +221,7 @@ GTK_SRC += gtk+-2.x/ctkapcrulemodel.c
 GTK_SRC += gtk+-2.x/ctkcolorcontrols.c
 GTK_SRC += gtk+-2.x/ctk3dvisionpro.c
 GTK_SRC += gtk+-2.x/ctkvdpau.c
+GTK_SRC += gtk+-2.x/ctkgridlicense.c
 
 
 GTK_EXTRA_DIST += gtk+-2.x/ctkxvideo.h
@@ -268,6 +269,7 @@ GTK_EXTRA_DIST += gtk+-2.x/ctkapcrulemodel.h
 GTK_EXTRA_DIST += gtk+-2.x/ctkcolorcontrols.h
 GTK_EXTRA_DIST += gtk+-2.x/ctk3dvisionpro.h
 GTK_EXTRA_DIST += gtk+-2.x/ctkvdpau.h
+GTK_EXTRA_DIST += gtk+-2.x/ctkgridlicense.h
 
 NVIDIA_SETTINGS_EXTRA_DIST += $(GTK_EXTRA_DIST)
 

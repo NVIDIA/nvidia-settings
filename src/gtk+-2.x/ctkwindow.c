@@ -59,6 +59,7 @@
 #include "ctkdisplayconfig.h"
 #include "ctkserver.h"
 #include "ctkecc.h"
+#include "ctkgridlicense.h"
 #include "ctkvdpau.h"
 
 #include "ctkappprofile.h"
@@ -1052,6 +1053,19 @@ GtkWidget *ctk_window_new(ParsedAttribute *p, ConfigProperties *conf,
         add_page(widget, ctk_app_profile_create_help(CTK_APP_PROFILE(widget), tag_table),
                  ctk_window, NULL, NULL, "Application Profiles",
                  NULL, NULL, NULL);
+    }
+
+    /* Manage GRID License Information */
+    for (node = system->targets[GPU_TARGET]; node; node = node->next) {
+        widget = ctk_manage_grid_license_new(node->t, ctk_config);
+        if (widget) {
+            help = ctk_manage_grid_license_create_help(tag_table,
+                                                       CTK_MANAGE_GRID_LICENSE(widget));
+            add_page(widget, help, ctk_window, NULL, NULL, "Manage GRID License",
+                     NULL, ctk_manage_grid_license_start_timer,
+                     ctk_manage_grid_license_stop_timer);
+            break; /* only add the page once */
+        }
     }
 
     /* nvidia-settings configuration */

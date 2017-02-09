@@ -81,6 +81,13 @@ ifndef VDPAU_CFLAGS
   endif
 endif
 
+ifndef DBUS_CFLAGS
+  DBUS_CFLAGS        := $(shell $(PKG_CONFIG) --cflags dbus-1 2> /dev/null)
+  ifeq ($(DBUS_CFLAGS),)
+    DBUS_CFLAGS       = -I /usr/include/dbus-1.0/
+  endif
+endif
+
 # These will be unused if nvidia-settings links dynamically against jansson
 ifndef JANSSON_CFLAGS
   JANSSON_CFLAGS  = -Wno-cast-qual
@@ -228,6 +235,7 @@ CFLAGS     += -I $(COMMON_UTILS_DIR)
 CFLAGS     += -I $(VIRTUAL_RESOLUTIONS_DIR)
 CFLAGS     += -I $(OUTPUTDIR)
 CFLAGS     += $(VDPAU_CFLAGS)
+CFLAGS     += $(DBUS_CFLAGS)
 CFLAGS     += -DPROGRAM_NAME=\"nvidia-settings\"
 
 $(call BUILD_OBJECT_LIST,$(XCP_SRC)): CFLAGS += -fPIC
