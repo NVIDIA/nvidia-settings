@@ -42,7 +42,6 @@
 #define DEFAULT_UPDATE_GRID_LICENSE_STATUS_INFO_TIME_INTERVAL 1000
 #define GRID_CONFIG_FILE            "/etc/nvidia/gridd.conf"
 #define GRID_CONFIG_FILE_TEMPLATE   "/etc/nvidia/gridd.conf.template"
-#define CONFIG_BUFFER_LEN           (1024)
 
 static const char * __manage_grid_licenses_help =
 "Use the Manage GRID Licenses page to obtain a license for GRID vGPU or GRID "
@@ -398,18 +397,11 @@ static void UpdateGriddConfigFromGui(
  * Read the gridd config file specified by configFile, returning the
  * lines in ConfigFileLines.
  */
-static ConfigFileLines *ReadConfigFile(void)
+static ConfigFileLines *ReadConfigFileStream(FILE *configFile)
 {
-    FILE *configFile;
     ConfigFileLines *pLines;
     int eof = FALSE;
     char *line = NULL;
-
-    configFile = fopen(GRID_CONFIG_FILE, "r");
-
-    if (configFile == NULL) {
-        return NULL;
-    }
 
     pLines = AllocConfigFileLines();
 
@@ -417,15 +409,37 @@ static ConfigFileLines *ReadConfigFile(void)
         AddLineToConfigFileLines(pLines, line);
     }
 
+    return pLines;
+}
+
+static ConfigFileLines *ReadConfigFile(void)
+{
+    ConfigFileLines *pLines;
+    FILE *configFile = fopen(GRID_CONFIG_FILE, "r");
+
+    if (configFile == NULL) {
+        return NULL;
+    }
+
+    pLines = ReadConfigFileStream(configFile);
+
     fclose(configFile);
 
     return pLines;
 }
 
+static void WriteConfigFileStream(FILE *configFile, const ConfigFileLines *pLines)
+{
+    int i;
+
+    for (i = 0; i < pLines->nLines; i++) {
+        fprintf(configFile, "%s\n", pLines->lines[i]);
+    }
+}
+
 static gboolean WriteConfigFile(const ConfigFileLines *pLines)
 {
     FILE *configFile;
-    int i;
 
     configFile = fopen(GRID_CONFIG_FILE, "w");
 
@@ -433,9 +447,7 @@ static gboolean WriteConfigFile(const ConfigFileLines *pLines)
         return FALSE;
     }
 
-    for (i = 0; i < pLines->nLines; i++) {
-        fprintf(configFile, "%s\n", pLines->lines[i]);
-    }
+    WriteConfigFileStream(configFile, pLines);
 
     fclose(configFile);
 
@@ -790,45 +802,49 @@ static void license_edition_toggled(GtkWidget *widget, gpointer user_data)
 
 static gboolean checkConfigfile(gboolean *writable)
 {
-    gint fd, template_fd = 0;
     struct stat st;
     gboolean ret = FALSE;
-    
-    /* Check if user can creat gridd.conf file */
-    fd = open(GRID_CONFIG_FILE, O_CREAT | O_RDWR);
-    if (fd >= 0) {
+    FILE *configFile = NULL;
+    FILE *templateFile = NULL;
+
+    /* Check if user can create gridd.conf file */
+    configFile = fopen(GRID_CONFIG_FILE, "r+");
+    if (configFile) {
         *writable = TRUE;
     } else {
-        fd = open(GRID_CONFIG_FILE, O_CREAT, O_RDONLY);
-        if (fd >= 0) {
-            *writable = FALSE;
+        /* check if file is readable */
+        configFile = fopen(GRID_CONFIG_FILE, "r");
+        if (!configFile) {
+            /* file does not exist so create new file */
+            configFile = fopen(GRID_CONFIG_FILE, "w");
+            if (configFile) {
+                *writable = TRUE;
+            } else {
+                goto done;
+            }
         } else {
-            goto done;
+            *writable = FALSE;
         }
     }
 
     /* Check if config file available */
-    if ((fstat(fd, &st) == 0) && (st.st_size == 0)) {
+    if ((fstat(fileno(configFile), &st) == 0) && (st.st_size == 0)) {
         if (*writable) {
-            template_fd = open(GRID_CONFIG_FILE_TEMPLATE, O_RDONLY);
-            if (template_fd >= 0) {
-                char buffer[CONFIG_BUFFER_LEN];
-                ssize_t bytesRead = 0;
-                /* Use template created by gridd daemon during installation */
-                if (!(fstat(template_fd, &st) == 0) || (st.st_size == 0)) {
-                    goto done;
-                }
-                while ((bytesRead = read(template_fd, buffer, CONFIG_BUFFER_LEN))) {
-                    int bytesWritten = 0;
-                    while (bytesWritten < bytesRead) {
-                        int ret = write(fd, &buffer[bytesWritten], bytesRead - bytesWritten);
-                        if (ret <= 0) {
-                            goto done;
-                        }
-                        bytesWritten += ret;
-                    }
-                }
+            ConfigFileLines *pLines;
+
+            templateFile = fopen(GRID_CONFIG_FILE_TEMPLATE, "r");
+
+            if (templateFile == NULL) {
+                nv_error_msg("Config file '%s' had size zero.",
+                             GRID_CONFIG_FILE);
+                goto done;
             }
+
+            pLines = ReadConfigFileStream(templateFile);
+
+            WriteConfigFileStream(configFile, pLines);
+
+            FreeConfigFileLines(pLines);
         } else {
             nv_error_msg("Config file '%s' had size zero.",
                          GRID_CONFIG_FILE);
@@ -837,11 +853,11 @@ static gboolean checkConfigfile(gboolean *writable)
     }
     ret = TRUE;
 done:
-    if (fd) {
-        close(fd);
+    if (templateFile) {
+        fclose(templateFile);
     }
-    if (template_fd) {
-        close(template_fd);
+    if (configFile) {
+        fclose(configFile);
     }
    return ret; 
 }
