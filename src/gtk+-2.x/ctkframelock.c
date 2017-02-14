@@ -243,8 +243,8 @@ struct _nvFrameLockDataRec {
     GtkWidget  *port1_hbox; /* IMAGE */
     guint       port1_ethernet_error;
 
-    GtkWidget  *revision_label;
-    GtkWidget  *revision_text;
+    GtkWidget  *firmware_version_label;
+    GtkWidget  *firmware_version_text;
     const char *board_name;
 
     GtkWidget  *extra_info_hbox;
@@ -2136,10 +2136,10 @@ static nvListEntryPtr list_entry_new_with_framelock(nvFrameLockDataPtr data,
     gtk_box_pack_start(GTK_BOX(data->extra_info_hbox), vseparator,
                        FALSE, FALSE, 0);
 
-    gtk_box_pack_start(GTK_BOX(data->extra_info_hbox), data->revision_label,
-                       FALSE, FALSE, 0);
-    gtk_box_pack_start(GTK_BOX(data->extra_info_hbox), data->revision_text,
-                       FALSE, FALSE, 0);
+    gtk_box_pack_start(GTK_BOX(data->extra_info_hbox),
+                       data->firmware_version_label, FALSE, FALSE, 0);
+    gtk_box_pack_start(GTK_BOX(data->extra_info_hbox),
+                       data->firmware_version_text, FALSE, FALSE, 0);
 
     gtk_box_pack_end(GTK_BOX(hbox), padding, FALSE, FALSE, 0);
 
@@ -5612,7 +5612,7 @@ static void add_framelock_devices(CtkFramelock *ctk_framelock,
         ReturnStatus       ret;
         int                val;
         char               *product_name;
-        char               *revision_str = NULL;
+        char               *firmware_version_str = NULL;
         CtrlTarget         *ctrl_target = node->t;
 
 
@@ -5645,7 +5645,7 @@ static void add_framelock_devices(CtkFramelock *ctk_framelock,
         if (ret != NvCtrlSuccess) {
             goto fail;
         }
-        revision_str = g_strdup_printf("0x%X", val);
+        firmware_version_str = g_strdup_printf("0x%X", val);
 
         /* Get the product name for the framelock board */
         ret = NvCtrlGetStringAttribute(ctrl_target,
@@ -5682,9 +5682,11 @@ static void add_framelock_devices(CtkFramelock *ctk_framelock,
         framelock_data->port1_label = gtk_label_new("Port 1");
         framelock_data->port1_hbox = gtk_hbox_new(FALSE, 0);
 
-        framelock_data->revision_label = gtk_label_new("FPGA Revision:");
-        framelock_data->revision_text = gtk_label_new(revision_str);
-        g_free(revision_str);
+        framelock_data->firmware_version_label =
+            gtk_label_new("Firmware Version:");
+        framelock_data->firmware_version_text =
+            gtk_label_new(firmware_version_str);
+        g_free(firmware_version_str);
 
         framelock_data->extra_info_hbox = gtk_hbox_new(FALSE, 5);
 
