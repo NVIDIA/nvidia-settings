@@ -910,12 +910,21 @@ GtkWidget* ctk_manage_grid_license_new(CtrlTarget *target,
                                  NV_CTRL_ATTR_NVML_GPU_VIRTUALIZATION_MODE,
                                  &mode);
 
-    if ((ret != NvCtrlSuccess) ||
-        ((ret == NvCtrlSuccess) &&
-         mode == NV_CTRL_ATTR_NVML_GPU_VIRTUALIZATION_MODE_NONE)) {
+    if (ret != NvCtrlSuccess) {
         return NULL;
     }
-    
+
+    /* GRID M6 is licensable gpu so we want to allow users to choose
+     * GRID virtual workstation and Unlicensed Tesla mode on baremetal setup.
+     * When virtualization mode is NV_CTRL_ATTR_NVML_GPU_VIRTUALIZATION_MODE_NONE
+     * treat it same way like NV_CTRL_ATTR_NVML_GPU_VIRTUALIZATION_MODE_PASSTHROUGH.
+     * So that it will show the GRID Virtual Workstation interface in case of
+     * baremetal setup.
+     */
+    if (mode == NV_CTRL_ATTR_NVML_GPU_VIRTUALIZATION_MODE_NONE) {
+        mode = NV_CTRL_ATTR_NVML_GPU_VIRTUALIZATION_MODE_PASSTHROUGH;
+    }
+
     /* DBUS calls are used for quering the current license status  */
     dbusData = nvalloc(sizeof(*dbusData));
 

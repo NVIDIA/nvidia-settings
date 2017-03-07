@@ -728,8 +728,9 @@ typedef enum nvmlReturn_enum
     NVML_ERROR_RESET_REQUIRED = 16,     //!< The GPU requires a reset before it can be used again
     NVML_ERROR_OPERATING_SYSTEM = 17,   //!< The GPU control device has been blocked by the operating system/cgroups
     NVML_ERROR_LIB_RM_VERSION_MISMATCH = 18,   //!< RM detects a driver/library version mismatch
-    NVML_ERROR_MEMORY = 19,             //!< Insufficient memory
-    NVML_ERROR_NO_DATA = 20,            //!<No data
+    NVML_ERROR_IN_USE = 19,             //!< An operation cannot be performed because the GPU is currently in use
+    NVML_ERROR_MEMORY = 20,             //!< Insufficient memory
+    NVML_ERROR_NO_DATA = 21,            //!<No data
     NVML_ERROR_UNKNOWN = 999            //!< An internal driver error occurred
 } nvmlReturn_t;
 
@@ -3269,18 +3270,18 @@ nvmlReturn_t DECLDIR nvmlDeviceGetEncoderUtilization(nvmlDevice_t device, unsign
  *
  * @param device                            The identifier of the target device
  * @param encoderQueryType                  Type of encoder to query
- * @param encoderCapacity                   Reference to an unsigned long long for the encoder capacity
+ * @param encoderCapacity                   Reference to an unsigned int for the encoder capacity
  * 
  * @return
  *         - \ref NVML_SUCCESS                  if \a encoderCapacity is fetched
  *         - \ref NVML_ERROR_UNINITIALIZED      if the library has not been successfully initialized
  *         - \ref NVML_ERROR_INVALID_ARGUMENT   if \a encoderCapacity is NULL, or \a device or \a encoderQueryType
- *                                               are invalid
- *         - \ref NVML_ERROR_NOT_SUPPORTED      if device does not support the encoder specified in \encodeQueryType
+ *                                              are invalid
+ *         - \ref NVML_ERROR_NOT_SUPPORTED      if device does not support the encoder specified in \a encodeQueryType
  *         - \ref NVML_ERROR_GPU_IS_LOST        if the target GPU has fallen off the bus or is otherwise inaccessible
  *         - \ref NVML_ERROR_UNKNOWN            on any unexpected error
  */
-nvmlReturn_t DECLDIR nvmlDeviceGetEncoderCapacity (nvmlDevice_t device, nvmlEncoderQueryType_t encoderQueryType, unsigned long long *encoderCapacity);
+nvmlReturn_t DECLDIR nvmlDeviceGetEncoderCapacity (nvmlDevice_t device, nvmlEncoderQueryType_t encoderQueryType, unsigned int *encoderCapacity);
 
 /**
  * Retrieves the current utilization and sampling size in microseconds for the Decoder
@@ -4532,6 +4533,119 @@ nvmlReturn_t DECLDIR nvmlEventSetFree(nvmlEventSet_t set);
 /** @} */
 
 /***************************************************************************************************/
+/** @defgroup nvmlZPI Drain states 
+ * This chapter describes methods that NVML can perform against each device to control their drain state
+ * and recognition by NVML and NVIDIA kernel driver. These methods can be used with out-of-band tools to
+ * power on/off GPUs, enable robust reset scenarios, etc.
+ *  @{
+ */
+/***************************************************************************************************/
+
+/**
+ * Modify the drain state of a GPU.  This method forces a GPU to no longer accept new incoming requests.
+ * Any new NVML process will no longer see this GPU.  Persistence mode for this GPU must be turned off before
+ * this call is made.
+ * Must be called as administrator.
+ * For Linux only.
+ * 
+ * For Pascal &tm; or newer fully supported devices.
+ * Some Kepler devices supported.
+ *
+ * @param pciInfo                              The PCI address of the GPU drain state to be modified
+ * @param newState                             The drain state that should be entered, see \ref nvmlEnableState_t
+ *
+ * @return 
+ *         - \ref NVML_SUCCESS                 if counters were successfully reset
+ *         - \ref NVML_ERROR_UNINITIALIZED     if the library has not been successfully initialized
+ *         - \ref NVML_ERROR_INVALID_ARGUMENT  if \a nvmlIndex or \a newState is invalid
+ *         - \ref NVML_ERROR_NOT_SUPPORTED     if the device doesn't support this feature
+ *         - \ref NVML_ERROR_NO_PERMISSION     if the calling process has insufficient permissions to perform operation
+ *         - \ref NVML_ERROR_IN_USE            if the device has persistence mode turned on
+ *         - \ref NVML_ERROR_UNKNOWN           on any unexpected error
+ */
+nvmlReturn_t DECLDIR nvmlDeviceModifyDrainState (nvmlPciInfo_t *pciInfo, nvmlEnableState_t newState);
+
+/**
+ * Query the drain state of a GPU.  This method is used to check if a GPU is in a currently draining
+ * state.
+ * For Linux only.
+ * 
+ * For Pascal &tm; or newer fully supported devices.
+ * Some Kepler devices supported.
+ *
+ * @param pciInfo                              The PCI address of the GPU drain state to be queried
+ * @param currentState                         The current drain state for this GPU, see \ref nvmlEnableState_t
+ *
+ * @return 
+ *         - \ref NVML_SUCCESS                 if counters were successfully reset
+ *         - \ref NVML_ERROR_UNINITIALIZED     if the library has not been successfully initialized
+ *         - \ref NVML_ERROR_INVALID_ARGUMENT  if \a nvmlIndex or \a currentState is invalid
+ *         - \ref NVML_ERROR_NOT_SUPPORTED     if the device doesn't support this feature
+ *         - \ref NVML_ERROR_UNKNOWN           on any unexpected error
+ */
+nvmlReturn_t DECLDIR nvmlDeviceQueryDrainState (nvmlPciInfo_t *pciInfo, nvmlEnableState_t *currentState);
+
+/**
+ * This method will remove the specified GPU from the view of both NVML and the NVIDIA kernel driver
+ * as long as no other processes are attached. If other processes are attached, this call will return
+ * NVML_ERROR_IN_USE and the GPU will be returned to its original "draining" state. Note: the
+ * only situation where a process can still be attached after nvmlDeviceModifyDrainState() is called
+ * to initiate the draining state is if that process was using, and is still using, a GPU before the 
+ * call was made. Also note, persistence mode counts as an attachment to the GPU thus it must be disabled
+ * prior to this call.
+ *
+ * For long-running NVML processes please note that this will change the enumeration of current GPUs.
+ * For example, if there are four GPUs present and GPU1 is removed, the new enumeration will be 0-2.
+ * Also, device handles after the removed GPU will not be valid and must be re-established.
+ * Must be run as administrator. 
+ * For Linux only.
+ *
+ * For Pascal &tm; or newer fully supported devices.
+ * Some Kepler devices supported.
+ *
+ * @param pciInfo                              The PCI address of the GPU to be removed
+ *
+ * @return
+ *         - \ref NVML_SUCCESS                 if counters were successfully reset
+ *         - \ref NVML_ERROR_UNINITIALIZED     if the library has not been successfully initialized
+ *         - \ref NVML_ERROR_INVALID_ARGUMENT  if \a nvmlIndex is invalid
+ *         - \ref NVML_ERROR_NOT_SUPPORTED     if the device doesn't support this feature
+ *         - \ref NVML_ERROR_IN_USE            if the device is still in use and cannot be removed
+ */
+nvmlReturn_t DECLDIR nvmlDeviceRemoveGpu (nvmlPciInfo_t *pciInfo);
+
+/**
+ * Request the OS and the NVIDIA kernel driver to rediscover a portion of the PCI subsystem looking for GPUs that
+ * were previously removed. The portion of the PCI tree can be narrowed by specifying a domain, bus, and device.  
+ * If all are zeroes then the entire PCI tree will be searched.  Please note that for long-running NVML processes
+ * the enumeration will change based on how many GPUs are discovered and where they are inserted in bus order.
+ *
+ * In addition, all newly discovered GPUs will be initialized and their ECC scrubbed which may take several seconds
+ * per GPU. Also, all device handles are no longer guaranteed to be valid post discovery.
+ *
+ * Must be run as administrator.
+ * For Linux only.
+ * 
+ * For Pascal &tm; or newer fully supported devices.
+ * Some Kepler devices supported.
+ *
+ * @param pciInfo                              The PCI tree to be searched.  Only the domain, bus, and device
+ *                                             fields are used in this call.
+ *
+ * @return 
+ *         - \ref NVML_SUCCESS                 if counters were successfully reset
+ *         - \ref NVML_ERROR_UNINITIALIZED     if the library has not been successfully initialized
+ *         - \ref NVML_ERROR_INVALID_ARGUMENT  if \a pciInfo is invalid
+ *         - \ref NVML_ERROR_NOT_SUPPORTED     if the operating system does not support this feature
+ *         - \ref NVML_ERROR_OPERATING_SYSTEM  if the operating system is denying this feature
+ *         - \ref NVML_ERROR_NO_PERMISSION     if the calling process has insufficient permissions to perform operation
+ *         - \ref NVML_ERROR_UNKNOWN           on any unexpected error
+ */
+nvmlReturn_t DECLDIR nvmlDeviceDiscoverGpus (nvmlPciInfo_t *pciInfo);
+
+/** @} */
+
+/***************************************************************************************************/
 /** @defgroup nvmlGridQueries Grid Queries
  *  This chapter describes NVML operations that are associated with NVIDIA GRID products.
  *  @{
@@ -4787,6 +4901,7 @@ nvmlReturn_t DECLDIR nvmlVgpuTypeGetLicense(nvmlVgpuTypeId_t vgpuTypeId, char *v
  * @param frameRateLimit           Reference to return the frame rate limit value
  * @return
  *         - \ref NVML_SUCCESS                 successful completion
+ *         - \ref NVML_ERROR_NOT_SUPPORTED     if frame rate limiter is turned off for the vGPU type
  *         - \ref NVML_ERROR_UNINITIALIZED     if the library has not been successfully initialized
  *         - \ref NVML_ERROR_INVALID_ARGUMENT  if \a device is invalid, or \a frameRateLimit is NULL
  *         - \ref NVML_ERROR_UNKNOWN           on any unexpected error
@@ -4978,6 +5093,7 @@ nvmlReturn_t DECLDIR nvmlVgpuInstanceGetType(nvmlVgpuInstance_t vgpuInstance, nv
  *
  * @return
  *         - \ref NVML_SUCCESS                 if \a frameRateLimit has been set
+ *         - \ref NVML_ERROR_NOT_SUPPORTED     if frame rate limiter is turned off for the vGPU type
  *         - \ref NVML_ERROR_UNINITIALIZED     if the library has not been successfully initialized
  *         - \ref NVML_ERROR_INVALID_ARGUMENT  if \a vgpuInstance is invalid, or \a frameRateLimit is NULL
  *         - \ref NVML_ERROR_UNKNOWN           on any unexpected error
@@ -4990,7 +5106,7 @@ nvmlReturn_t DECLDIR nvmlVgpuInstanceGetFrameRateLimit(nvmlVgpuInstance_t vgpuIn
  * For Maxwell &tm; or newer fully supported devices.
  *
  * @param vgpuInstance             Identifier of the target vGPU instance
- * @param encoderCapacity          Reference to an unsigned long long for the encoder capacity
+ * @param encoderCapacity          Reference to an unsigned int for the encoder capacity
  *
  * @return
  *         - \ref NVML_SUCCESS                 if \a encoderCapacity has been retrived
@@ -4998,7 +5114,7 @@ nvmlReturn_t DECLDIR nvmlVgpuInstanceGetFrameRateLimit(nvmlVgpuInstance_t vgpuIn
  *         - \ref NVML_ERROR_INVALID_ARGUMENT  if \a vgpuInstance is invalid, or \a encoderQueryType is invalid
  *         - \ref NVML_ERROR_UNKNOWN           on any unexpected error
  */
-nvmlReturn_t DECLDIR nvmlVgpuInstanceGetEncoderCapacity(nvmlVgpuInstance_t vgpuInstance, unsigned long long *encoderCapacity);
+nvmlReturn_t DECLDIR nvmlVgpuInstanceGetEncoderCapacity(nvmlVgpuInstance_t vgpuInstance, unsigned int *encoderCapacity);
 
 /**
  * Set the encoder Capacity of a vGPU instance, in macroblocks per second.
@@ -5006,7 +5122,7 @@ nvmlReturn_t DECLDIR nvmlVgpuInstanceGetEncoderCapacity(nvmlVgpuInstance_t vgpuI
  * For Maxwell &tm; or newer fully supported devices.
  *
  * @param vgpuInstance             Identifier of the target vGPU instance
- * @param encoderCapacity          Unsigned long long for the encoder capacity value
+ * @param encoderCapacity          Unsigned int for the encoder capacity value
  *
  * @return
  *         - \ref NVML_SUCCESS                 if \a encoderCapacity has been set
@@ -5014,7 +5130,7 @@ nvmlReturn_t DECLDIR nvmlVgpuInstanceGetEncoderCapacity(nvmlVgpuInstance_t vgpuI
  *         - \ref NVML_ERROR_INVALID_ARGUMENT  if \a vgpuInstance is invalid
  *         - \ref NVML_ERROR_UNKNOWN           on any unexpected error
  */
-nvmlReturn_t DECLDIR nvmlVgpuInstanceSetEncoderCapacity(nvmlVgpuInstance_t vgpuInstance, unsigned long long encoderCapacity);
+nvmlReturn_t DECLDIR nvmlVgpuInstanceSetEncoderCapacity(nvmlVgpuInstance_t vgpuInstance, unsigned int  encoderCapacity);
 
 
 /**
