@@ -1116,11 +1116,17 @@ GtkWidget* ctk_manage_grid_license_new(CtrlTarget *target,
                      G_CALLBACK(save_clicked),
                      (gpointer) ctk_manage_grid_license);
     
-    /* default Tesla (Unlicensed) */
-    if (button2) {    
-        gtk_toggle_button_set_active(GTK_TOGGLE_BUTTON(button2), TRUE);
+    /* Set license edition toggle button active */
+    if (button2 && button1) {
+        if (strcmp(griddConfig->str[NV_GRIDD_FEATURE_TYPE], "0") == 0) {
+            /* Tesla (Unlicensed) button is active */
+            gtk_toggle_button_set_active(GTK_TOGGLE_BUTTON(button2), TRUE);
+        } else if (strcmp(griddConfig->str[NV_GRIDD_FEATURE_TYPE], "2") == 0) {
+            /* GRID Virtual Workstation button is active */
+            gtk_toggle_button_set_active(GTK_TOGGLE_BUTTON(button1), TRUE);
+        }
     }
- 
+
     /* Register a timer callback to update license status info */
     str = g_strdup_printf("Manage GRID License");
 
