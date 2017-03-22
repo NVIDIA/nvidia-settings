@@ -1373,7 +1373,7 @@ static void print_additional_info(const char *name,
 static int query_all(const Options *op, const char *display_name,
                      CtrlSystemList *systems)
 {
-    int bit, entry, val, i;
+    int bit, entry, val, target_type;
     uint32 mask;
     ReturnStatus status;
     CtrlAttributeValidValues valid;
@@ -1390,12 +1390,13 @@ static int query_all(const Options *op, const char *display_name,
      * Loop through all target types.
      */
 
-    for (i = 0; i < MAX_TARGET_TYPES; i++) {
+    for (target_type = 0; target_type < MAX_TARGET_TYPES; target_type++) {
         CtrlTargetNode *node;
-        const CtrlTargetTypeInfo *targetTypeInfo = NvCtrlGetTargetTypeInfo(i);
+        const CtrlTargetTypeInfo *targetTypeInfo =
+            NvCtrlGetTargetTypeInfo(target_type);
 
 
-        for (node = system->targets[i]; node; node = node->next) {
+        for (node = system->targets[target_type]; node; node = node->next) {
             CtrlTarget *t = node->t;
 
             if (!t->h) continue;
@@ -1523,8 +1524,9 @@ static int query_all(const Options *op, const char *display_name,
                         nv_msg(NULL,"");
                     }
 
-                    if (valid.permissions.valid_targets &
-                        CTRL_TARGET_PERM_BIT(DISPLAY_TARGET)) {
+                    if ((valid.permissions.valid_targets &
+                         CTRL_TARGET_PERM_BIT(DISPLAY_TARGET)) &&
+                        target_type != DISPLAY_TARGET) {
                         continue;
                     }
 
@@ -1540,7 +1542,7 @@ exit_bit_loop:
 
         } /* j (targets) */
 
-    } /* i (target types) */
+    } /* target_type */
 
 #undef INDENT
 
