@@ -9155,6 +9155,36 @@ static int generateXConfig(CtkDisplayConfig *ctk_object, XConfigPtr *pConfig)
 
 
 
+/** preserve_busid() **************************************************
+ *
+ * Copies the BusID value from the source to the destination
+ * configuration for devices with matching identifiers.
+ *
+ **/
+
+static void preserve_busid(XConfigPtr dstConfig, XConfigPtr srcConfig)
+{
+    XConfigDevicePtr dstDevice, srcDevice;
+
+    for (srcDevice = srcConfig->devices;
+         srcDevice;
+         srcDevice = srcDevice->next) {
+
+        if (!srcDevice->busid) {
+            continue;
+        }
+
+        dstDevice =
+            xconfigFindDevice(srcDevice->identifier, dstConfig->devices);
+
+        if (dstDevice) {
+            dstDevice->busid = xconfigStrdup(srcDevice->busid);
+        }
+    }
+}
+
+
+
 /** xconfig_generate() ***********************************************
  *
  * Callback to generate an X config structure based on the current
@@ -9183,6 +9213,11 @@ static XConfigPtr xconfig_generate(XConfigPtr xconfCur,
     if (!xconfCur || !merge) {
         return xconfGen;
     }
+
+    /* The Bus ID of devices may not be set by generateXConfig above so to
+     * preserve this field, we have to copy the Bus IDs over before merging.
+     */
+    preserve_busid(xconfGen, xconfCur);
 
     /* Merge xconfGen into xconfCur */
     result = xconfigMergeConfigs(xconfCur, xconfGen);
