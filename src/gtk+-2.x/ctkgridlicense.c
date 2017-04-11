@@ -57,6 +57,12 @@ static const char * __server_address_help =
 "Shows the local license server address.";
 static const char * __server_port_help =
 "Shows the server port number.  The default port is 7070.";
+static const char * __secondary_server_help =
+"Shows the local backup license server details."
+"It is an optional field.  If license acquisition fails by "
+"primary server, then use this backup server.";
+static const char * __secondary_server_port_help =
+"Shows the secondary server port number.";
 static const char * __apply_button_help =
 "Clicking the Apply button updates values in the gridd.conf file and "
 "restarts the gridd daemon.";
@@ -128,14 +134,18 @@ typedef enum
     NV_GRIDD_SERVER_PORT,
     NV_GRIDD_FEATURE_TYPE,
     NV_GRIDD_ENABLE_UI,
+    NV_GRIDD_BACKUP_SERVER_ADDRESS,
+    NV_GRIDD_BACKUP_SERVER_PORT,
     NV_GRIDD_MAX_TOKENS
 } CfgParams;
 
 static const char *configParamsList[] = {
-    [NV_GRIDD_SERVER_ADDRESS] = "ServerAddress",
-    [NV_GRIDD_SERVER_PORT]    = "ServerPort",
-    [NV_GRIDD_FEATURE_TYPE]   = "FeatureType",
-    [NV_GRIDD_ENABLE_UI]      = "EnableUI",
+    [NV_GRIDD_SERVER_ADDRESS]        = "ServerAddress",
+    [NV_GRIDD_SERVER_PORT]           = "ServerPort",
+    [NV_GRIDD_FEATURE_TYPE]          = "FeatureType",
+    [NV_GRIDD_ENABLE_UI]             = "EnableUI",
+    [NV_GRIDD_BACKUP_SERVER_ADDRESS] = "BackupServerAddress",
+    [NV_GRIDD_BACKUP_SERVER_PORT]    = "BackupServerPort",
 };
 
 typedef struct NvGriddConfigParamsRec
@@ -192,10 +202,12 @@ static NvGriddConfigParams *AllocNvGriddConfigParams(void)
 {
     NvGriddConfigParams *griddConfig = nvalloc(sizeof(*griddConfig));
 
-    griddConfig->str[NV_GRIDD_SERVER_ADDRESS] = nvstrdup("");
-    griddConfig->str[NV_GRIDD_SERVER_PORT]    = nvstrdup("7070");
-    griddConfig->str[NV_GRIDD_FEATURE_TYPE]   = nvstrdup("0");
-    griddConfig->str[NV_GRIDD_ENABLE_UI]      = nvstrdup("TRUE");
+    griddConfig->str[NV_GRIDD_SERVER_ADDRESS]        = nvstrdup("");
+    griddConfig->str[NV_GRIDD_SERVER_PORT]           = nvstrdup("7070");
+    griddConfig->str[NV_GRIDD_FEATURE_TYPE]          = nvstrdup("0");
+    griddConfig->str[NV_GRIDD_ENABLE_UI]             = nvstrdup("TRUE");
+    griddConfig->str[NV_GRIDD_BACKUP_SERVER_ADDRESS] = nvstrdup("");
+    griddConfig->str[NV_GRIDD_BACKUP_SERVER_PORT]    = nvstrdup("");
 
     return griddConfig;
 }
@@ -391,6 +403,20 @@ static void UpdateGriddConfigFromGui(
     griddConfig->str[NV_GRIDD_FEATURE_TYPE] = nvstrdup(tmp);
 
     /* note: nothing in the UI will alter enableUI */
+
+    /* backupServerAddress */
+
+    nvfree(griddConfig->str[NV_GRIDD_BACKUP_SERVER_ADDRESS]);
+    tmp = gtk_entry_get_text(GTK_ENTRY(
+                              ctk_manage_grid_license->txt_secondary_server_address));
+    griddConfig->str[NV_GRIDD_BACKUP_SERVER_ADDRESS] = nvstrdup(tmp ? tmp : "");
+
+    /* backupServerPort */
+
+    nvfree(griddConfig->str[NV_GRIDD_BACKUP_SERVER_PORT]);
+    tmp = gtk_entry_get_text(GTK_ENTRY(
+                              ctk_manage_grid_license->txt_secondary_server_port));
+    griddConfig->str[NV_GRIDD_BACKUP_SERVER_PORT] = nvstrdup(tmp ? tmp : "");
 }
 
 /*
@@ -993,6 +1019,7 @@ GtkWidget* ctk_manage_grid_license_new(CtrlTarget *target,
     gtk_box_pack_start(GTK_BOX(object), vbox, FALSE, FALSE, 0);
 
     vbox1 = gtk_vbox_new(FALSE, 5);
+    vbox2 = gtk_vbox_new(FALSE, 0);
     frame = gtk_frame_new("");
     gtk_box_pack_start(GTK_BOX(vbox), frame, FALSE, FALSE, 0);
     gtk_container_add(GTK_CONTAINER(frame), vbox1);
@@ -1048,19 +1075,33 @@ GtkWidget* ctk_manage_grid_license_new(CtrlTarget *target,
     gtk_box_pack_start(GTK_BOX(hbox), eventbox, FALSE, TRUE, 5);
     gtk_box_pack_start(GTK_BOX(vbox1), hbox, FALSE, FALSE, 5);
     
-    vbox2 = gtk_vbox_new(FALSE, 0);
     frame = gtk_frame_new("");
     gtk_box_pack_start(GTK_BOX(vbox), frame, FALSE, FALSE, 0);
     gtk_container_add(GTK_CONTAINER(frame), vbox2);
     
-    table = gtk_table_new(5, 5, FALSE);
-    gtk_box_pack_start(GTK_BOX(vbox2), table, FALSE, FALSE, 0);
+    /* License Server */
+    label = gtk_label_new("License Server:");
+    hbox = gtk_hbox_new(FALSE, 0);
+    eventbox = gtk_event_box_new();
+    gtk_container_add(GTK_CONTAINER(eventbox), label);
+    ctk_config_set_tooltip(ctk_config, eventbox, __server_address_help);
+    gtk_box_pack_start(GTK_BOX(vbox2), hbox, FALSE, FALSE, 0);
+
+    gtk_box_pack_start(GTK_BOX(hbox), eventbox, FALSE, TRUE, 5);
+    vbox3 = gtk_vbox_new(FALSE, 0);
+    gtk_container_set_border_width(GTK_CONTAINER(vbox3), 5);
+    gtk_box_pack_start(GTK_BOX(vbox2), vbox3, FALSE, FALSE, 5);
+
+    table = gtk_table_new(7, 5, FALSE);
+    gtk_box_pack_start(GTK_BOX(vbox3), table, FALSE, FALSE, 0);
     gtk_table_set_row_spacings(GTK_TABLE(table), 3);
     gtk_table_set_col_spacings(GTK_TABLE(table), 15);
     gtk_container_set_border_width(GTK_CONTAINER(table), 5);
-    
-    /* License Server Address */
-    label = gtk_label_new("License Server:");
+
+
+    /* Primary License Server Address */
+
+    label = gtk_label_new("Primary Server:");
     ctk_manage_grid_license->txt_server_address = gtk_entry_new();
     gtk_entry_set_text(GTK_ENTRY(ctk_manage_grid_license->txt_server_address),
                        griddConfig->str[NV_GRIDD_SERVER_ADDRESS]);
@@ -1074,7 +1115,8 @@ GtkWidget* ctk_manage_grid_license_new(CtrlTarget *target,
 
     /* value */
     hbox = gtk_hbox_new(FALSE, 0);
-    gtk_box_pack_start(GTK_BOX(hbox), ctk_manage_grid_license->txt_server_address,
+    gtk_box_pack_start(GTK_BOX(hbox),
+                       ctk_manage_grid_license->txt_server_address,
                        FALSE, FALSE, 0);
     gtk_table_attach(GTK_TABLE(table), hbox, 1, 2, 1, 2,
                      GTK_FILL, GTK_FILL | GTK_EXPAND, 5, 0);
@@ -1099,6 +1141,50 @@ GtkWidget* ctk_manage_grid_license_new(CtrlTarget *target,
                        ctk_manage_grid_license->txt_server_port,
                        FALSE, FALSE, 0);
     gtk_table_attach(GTK_TABLE(table), hbox, 1, 2, 2, 3,
+                     GTK_FILL, GTK_FILL | GTK_EXPAND, 5, 0);
+    
+    /* Backup Server Address */
+    label = gtk_label_new("Secondary Server:");
+    ctk_manage_grid_license->txt_secondary_server_address = gtk_entry_new();
+    gtk_entry_set_text(GTK_ENTRY(ctk_manage_grid_license->txt_secondary_server_address),
+                       griddConfig->str[NV_GRIDD_BACKUP_SERVER_ADDRESS]);
+    hbox = gtk_hbox_new(FALSE, 0);
+    eventbox = gtk_event_box_new();
+    gtk_container_add(GTK_CONTAINER(eventbox), label);
+    ctk_config_set_tooltip(ctk_config, eventbox,
+                           __secondary_server_help);
+    gtk_box_pack_start(GTK_BOX(hbox), eventbox, FALSE, TRUE, 0);
+    gtk_table_attach(GTK_TABLE(table), hbox, 0, 1, 5, 6,
+                     GTK_FILL, GTK_FILL | GTK_EXPAND, 0, 0);
+
+    /* value */
+    hbox = gtk_hbox_new(FALSE, 0);
+    gtk_box_pack_start(GTK_BOX(hbox),
+                       ctk_manage_grid_license->txt_secondary_server_address,
+                       FALSE, FALSE, 0);
+    gtk_table_attach(GTK_TABLE(table), hbox, 1, 2, 5, 6,
+                     GTK_FILL, GTK_FILL | GTK_EXPAND, 5, 0);
+
+    /* Port Number */
+    label = gtk_label_new("Port Number:");
+
+    hbox = gtk_hbox_new(FALSE, 5);
+    eventbox = gtk_event_box_new();
+    gtk_container_add(GTK_CONTAINER(eventbox), label);
+    ctk_config_set_tooltip(ctk_config, eventbox, __secondary_server_port_help);
+    gtk_box_pack_start(GTK_BOX(hbox), eventbox, FALSE, TRUE, 0);
+    gtk_table_attach(GTK_TABLE(table), hbox, 0, 1, 6, 7,
+                     GTK_FILL, GTK_FILL | GTK_EXPAND, 0, 0);
+
+    /* value */
+    ctk_manage_grid_license->txt_secondary_server_port = gtk_entry_new();
+    gtk_entry_set_text(GTK_ENTRY(ctk_manage_grid_license->txt_secondary_server_port),
+                       griddConfig->str[NV_GRIDD_BACKUP_SERVER_PORT]);
+    hbox = gtk_hbox_new(FALSE, 0);
+    gtk_box_pack_start(GTK_BOX(hbox),
+                       ctk_manage_grid_license->txt_secondary_server_port,
+                       FALSE, FALSE, 0);
+    gtk_table_attach(GTK_TABLE(table), hbox, 1, 2, 6, 7,
                      GTK_FILL, GTK_FILL | GTK_EXPAND, 5, 0);
     ctk_manage_grid_license->box_server_info = vbox2;
     
@@ -1126,6 +1212,8 @@ GtkWidget* ctk_manage_grid_license_new(CtrlTarget *target,
             gtk_toggle_button_set_active(GTK_TOGGLE_BUTTON(button1), TRUE);
         }
     }
+
+    FreeNvGriddConfigParams(griddConfig);
 
     /* Register a timer callback to update license status info */
     str = g_strdup_printf("Manage GRID License");
@@ -1169,8 +1257,17 @@ GtkTextBuffer *ctk_manage_grid_license_create_help(GtkTextTagTable *table,
     ctk_help_heading(b, &i, "License Server");
     ctk_help_para(b, &i, "%s", __server_address_help);
 
+    ctk_help_heading(b, &i, "Primary Server");
+    ctk_help_para(b, &i, "%s", __server_address_help);
+
     ctk_help_heading(b, &i, "Port Number");
     ctk_help_para(b, &i, "%s", __server_port_help);
+
+    ctk_help_heading(b, &i, "Secondary Server");
+    ctk_help_para(b, &i, "%s", __secondary_server_help);
+
+    ctk_help_heading(b, &i, "Port Number");
+    ctk_help_para(b, &i, "%s", __secondary_server_port_help);
 
     ctk_help_heading(b, &i, "Apply");
     ctk_help_para(b, &i, "%s", __apply_button_help);

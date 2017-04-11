@@ -50,6 +50,8 @@ struct _CtkManageGridLicense
 
     CtkConfig *ctk_config;
 
+    GtkWidget* txt_secondary_server_port;
+    GtkWidget* txt_secondary_server_address;
     GtkWidget* txt_server_port;
     GtkWidget* txt_server_address;
     GtkWidget* label_license_state;
