@@ -385,7 +385,10 @@ static void update_editable_perf_level_info(CtkPowermizer *ctk_powermizer)
                          GTK_FILL, GTK_FILL | GTK_EXPAND, 0, 0);
         col_idx += 2;
     }
-    if (ctk_powermizer->gpu_clock) {
+    
+    /* Show if graphics clock offset available */
+    if (ctk_powermizer->gpu_clock &&
+        ctk_powermizer->nvclock_attribute) {
         /* Graphics clock */
         label = gtk_label_new("Graphics Clock Offset");
         gtk_misc_set_alignment(GTK_MISC(label), 0.0f, 0.5f);
@@ -410,7 +413,10 @@ static void update_editable_perf_level_info(CtkPowermizer *ctk_powermizer)
                          GTK_FILL, GTK_FILL | GTK_EXPAND, 0, 0);
         col_idx += 4;
     }
-    if (ctk_powermizer->memory_transfer_rate) {
+    
+    /* Show if memory transfer rate offset available */
+    if (ctk_powermizer->memory_transfer_rate &&
+        ctk_powermizer->mem_transfer_rate_attribute) {
         /* Memory transfer rate */
         label = gtk_label_new("Memory Transfer Rate Offset");
         gtk_misc_set_alignment(GTK_MISC(label), 0.0f, 0.5f);
@@ -680,7 +686,7 @@ static void update_perf_mode_table(CtkPowermizer *ctk_powermizer,
                 /* Set hasEditablePerfLevel flag on if overclocking attributes
                  * are available
                  */
-                if (ctk_powermizer->nvclock_attribute &&
+                if (ctk_powermizer->nvclock_attribute ||
                     ctk_powermizer->mem_transfer_rate_attribute) {
                     ctk_powermizer->hasEditablePerfLevel = TRUE;
                 }
@@ -1307,7 +1313,7 @@ GtkWidget* ctk_powermizer_new(CtrlTarget *ctrl_target,
         }
     }
 
-    if ((nvclock_attribute == NV_CTRL_GPU_NVCLOCK_OFFSET_ALL_PERFORMANCE_LEVELS) &&
+    if ((nvclock_attribute == NV_CTRL_GPU_NVCLOCK_OFFSET_ALL_PERFORMANCE_LEVELS) ||
         (mem_transfer_rate_attribute ==
          NV_CTRL_GPU_MEM_TRANSFER_RATE_OFFSET_ALL_PERFORMANCE_LEVELS)) {
         ctk_powermizer->editable_performance_levels_unified = TRUE;
