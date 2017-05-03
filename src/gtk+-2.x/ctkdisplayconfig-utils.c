@@ -587,10 +587,9 @@ Bool mode_set_rotation(nvModePtr mode, Rotation rotation)
 /** apply_mode_attribute_token() *************************************
  *
  * Modifies the nvMode structure (pointed to by data) with
- * information from the token-value pair given.  Currently accepts
- * stereo (mode) data.
+ * information from the token-value pair given.
  *
- * Unknown token and/or values are silently ignored.
+ * Unknown tokens and/or values are silently ignored.
  *
  **/
 static void apply_mode_attribute_token(char *token, char *value, void *data)
@@ -674,6 +673,12 @@ static void apply_mode_attribute_token(char *token, char *value, void *data)
         if (!strcasecmp("on", value)) {
             mode->forceFullCompositionPipeline = True;
         }
+
+    /* AllowGSYNC */
+    } else if (!strcasecmp("allowgsync", token)) {
+        if (!strcasecmp("off", value)) {
+            mode->allowGSYNC = False;
+        }
     }
 
 }
@@ -714,6 +719,7 @@ nvModePtr mode_parse(nvDisplayPtr display, const char *mode_str)
     mode->reflection = REFLECTION_NONE;
     mode->passive_stereo_eye = PASSIVE_STEREO_EYE_NONE;
     mode->position_type = CONF_ADJ_ABSOLUTE;
+    mode->allowGSYNC = True;
 
 
     /* Read the mode name */
@@ -1181,6 +1187,14 @@ static gchar *mode_get_str(nvLayoutPtr layout,
     /* ForceFullCompositionPipeline */
     if (mode->forceFullCompositionPipeline) {
         tmp = g_strdup_printf("%s, ForceFullCompositionPipeline=On",
+                              (flags_str ? flags_str : ""));
+        g_free(flags_str);
+        flags_str = tmp;
+    }
+
+    /* AllowGSYNC */
+    if (!mode->allowGSYNC) {
+        tmp = g_strdup_printf("%s, AllowGSYNC=Off",
                               (flags_str ? flags_str : ""));
         g_free(flags_str);
         flags_str = tmp;
