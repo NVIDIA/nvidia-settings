@@ -1085,31 +1085,6 @@ typedef struct nvmlAccountingStats_st {
 /** @} */
 
 /***************************************************************************************************/
-/** @defgroup nvmlVgpuStructs Vgpu Structs
- *  @{
- */
-/***************************************************************************************************/
-
-typedef unsigned int nvmlVgpuTypeId_t;
-
-typedef unsigned int nvmlVgpuInstance_t;
-
-/**
- * Structure to store Utilization Value and vgpuInstance
- */
-typedef struct nvmlVgpuInstanceUtilizationSample_st
-{
-    nvmlVgpuInstance_t vgpuInstance;    //!< vGPU Instance
-    unsigned long long timeStamp;       //!< CPU Timestamp in microseconds
-    nvmlValue_t smUtil;                 //!< SM (3D/Compute) Util Value
-    nvmlValue_t memUtil;                //!< Frame Buffer Memory Util Value
-    nvmlValue_t encUtil;                //!< Encoder Util Value
-    nvmlValue_t decUtil;                //!< Decoder Util Value
-} nvmlVgpuInstanceUtilizationSample_t;
-
-/** @} */
-
-/***************************************************************************************************/
 /** @defgroup nvmlVgpuEnum Vgpu Enum
  *  @{
  */
@@ -1148,6 +1123,91 @@ typedef enum nvmlVgpuGuestInfoState_enum
 #define NVML_MAX_VGPU_TYPES_PER_PGPU        17
 
 #define NVML_MAX_VGPU_INSTANCES_PER_PGPU    24
+
+/** @} */
+
+/***************************************************************************************************/
+/** @defgroup nvmlVgpuStructs Vgpu Structs
+ *  @{
+ */
+/***************************************************************************************************/
+
+typedef unsigned int nvmlVgpuTypeId_t;
+
+typedef unsigned int nvmlVgpuInstance_t;
+
+/**
+ * Structure to store Utilization Value and vgpuInstance
+ */
+typedef struct nvmlVgpuInstanceUtilizationSample_st
+{
+    nvmlVgpuInstance_t vgpuInstance;    //!< vGPU Instance
+    unsigned long long timeStamp;       //!< CPU Timestamp in microseconds
+    nvmlValue_t smUtil;                 //!< SM (3D/Compute) Util Value
+    nvmlValue_t memUtil;                //!< Frame Buffer Memory Util Value
+    nvmlValue_t encUtil;                //!< Encoder Util Value
+    nvmlValue_t decUtil;                //!< Decoder Util Value
+} nvmlVgpuInstanceUtilizationSample_t;
+
+/**
+ * Structure to store Utilization Value, vgpuInstance and subprocess information
+ */
+typedef struct nvmlVgpuProcessUtilizationSample_st
+{
+    nvmlVgpuInstance_t vgpuInstance;                //!< vGPU Instance
+    unsigned int pid;                               //!< PID of process running within the vGPU VM
+    char processName[NVML_VGPU_NAME_BUFFER_SIZE];   //!< Name of process running within the vGPU VM
+    unsigned long long timeStamp;                   //!< CPU Timestamp in microseconds
+    unsigned int smUtil;                            //!< SM (3D/Compute) Util Value
+    unsigned int memUtil;                           //!< Frame Buffer Memory Util Value
+    unsigned int encUtil;                           //!< Encoder Util Value
+    unsigned int decUtil;                           //!< Decoder Util Value
+} nvmlVgpuProcessUtilizationSample_t;
+
+/**
+ * Structure to store utilization value and process Id
+ */
+typedef struct nvmlProcessUtilizationSample_st
+{
+    unsigned int pid;                   //!< PID of process
+    unsigned long long timeStamp;       //!< CPU Timestamp in microseconds
+    unsigned int smUtil;                //!< SM (3D/Compute) Util Value
+    unsigned int memUtil;               //!< Frame Buffer Memory Util Value
+    unsigned int encUtil;               //!< Encoder Util Value
+    unsigned int decUtil;               //!< Decoder Util Value
+} nvmlProcessUtilizationSample_t;
+
+/** @} */
+
+/***************************************************************************************************/
+/** @defgroup nvmlEncoderStructs Encoder Structs
+ *  @{
+ */
+/***************************************************************************************************/
+
+/*
+ * Represents type of encoder for capacity can be queried
+ */
+typedef enum nvmlEncoderQueryType_enum
+{
+    NVML_ENCODER_QUERY_H264 = 0,
+    NVML_ENCODER_QUERY_HEVC = 1,
+}nvmlEncoderType_t;
+
+/*
+ * Struct to hold encoder session data
+ */
+typedef struct nvmlEncoderSessionInfo_st
+{
+    unsigned int       sessionId;       //!< Unique session ID
+    unsigned long long pid;             //!< Owning process ID
+    nvmlVgpuInstance_t vgpuInstance;    //!< Owning vGPU instance ID (only valid on vGPU hosts, otherwise zero)
+    nvmlEncoderType_t  codecType;       //!< Video encoder type
+    unsigned int       hResolution;     //!< Current encode horizontal resolution
+    unsigned int       vResolution;     //!< Current encode vertical resolution
+    unsigned int       averageFps;      //!< Moving average encode frames per second
+    unsigned int       averageLatency;   //!< Moving average encode latency in milliseconds
+}nvmlEncoderSessionInfo_t;
 
 /** @} */
 
@@ -3187,6 +3247,75 @@ nvmlReturn_t DECLDIR nvmlDeviceGetUtilizationRates(nvmlDevice_t device, nvmlUtil
 nvmlReturn_t DECLDIR nvmlDeviceGetEncoderUtilization(nvmlDevice_t device, unsigned int *utilization, unsigned int *samplingPeriodUs);
 
 /**
+ * Retrieves the current capacity of the device's encoder, in macroblocks per second.
+ *
+ * For Maxwell &tm; or newer fully supported devices.
+ *
+ * @param device                            The identifier of the target device
+ * @param encoderQueryType                  Type of encoder to query
+ * @param encoderCapacity                   Reference to an unsigned int for the encoder capacity
+ * 
+ * @return
+ *         - \ref NVML_SUCCESS                  if \a encoderCapacity is fetched
+ *         - \ref NVML_ERROR_UNINITIALIZED      if the library has not been successfully initialized
+ *         - \ref NVML_ERROR_INVALID_ARGUMENT   if \a encoderCapacity is NULL, or \a device or \a encoderQueryType
+ *                                               are invalid
+ *         - \ref NVML_ERROR_NOT_SUPPORTED      if device does not support the encoder specified in \a encodeQueryType
+ *         - \ref NVML_ERROR_GPU_IS_LOST        if the target GPU has fallen off the bus or is otherwise inaccessible
+ *         - \ref NVML_ERROR_UNKNOWN            on any unexpected error
+ */
+nvmlReturn_t DECLDIR nvmlDeviceGetEncoderCapacity (nvmlDevice_t device, nvmlEncoderType_t encoderQueryType, unsigned int *encoderCapacity);
+
+/**
+ * Retrieves the current encoder statistics for a given device.
+ *
+ * For Maxwell &tm; or newer fully supported devices.
+ *
+ * @param device                            The identifier of the target device
+ * @param sessionCount                      Reference to an unsigned int for count of active encoder sessions
+ * @param averageFps                        Reference to an unsigned int for trailing average FPS of all active sessions
+ * @param averageLatency                    Reference to an unsigned int for encode latency in milliseconds
+ * 
+ * @return
+ *         - \ref NVML_SUCCESS                  if \a sessionCount, \a averageFps and \a averageLatency is fetched
+ *         - \ref NVML_ERROR_UNINITIALIZED      if the library has not been successfully initialized
+ *         - \ref NVML_ERROR_INVALID_ARGUMENT   if \a sessionCount, or \a device or \a averageFps,
+ *                                              or \a averageLatency is NULL
+ *         - \ref NVML_ERROR_GPU_IS_LOST        if the target GPU has fallen off the bus or is otherwise inaccessible
+ *         - \ref NVML_ERROR_UNKNOWN            on any unexpected error
+ */
+nvmlReturn_t DECLDIR nvmlDeviceGetEncoderStats (nvmlDevice_t device, unsigned int *sessionCount,
+                                                unsigned int *averageFps, unsigned int *averageLatency);
+
+/**
+ * Retrieves information about active encoder sessions on a target device.
+ *
+ * An array of active encoder sessions is returned in the caller-supplied buffer pointed at by \a sessionInfos. The
+ * array elememt count is passed in \a sessionCount, and \a sessionCount is used to return the number of sessions
+ * written to the buffer.
+ *
+ * If the supplied buffer is not large enough to accomodate the active session array, the function returns
+ * NVML_ERROR_INSUFFICIENT_SIZE, with the element count of nvmlEncoderSessionInfo_t array required in \a sessionCount.
+ * To query the number of active encoder sessions, call this function with *sessionCount = 0.  The code will return
+ * NVML_SUCCESS with number of active encoder sessions updated in *sessionCount.
+ *
+ * For Maxwell &tm; or newer fully supported devices.
+ *
+ * @param device                            The identifier of the target device
+ * @param sessionCount                      Reference to caller supplied array size, and returns the number of sessions.
+ * @param sessionInfos                      Reference in which to return the session information
+ * 
+ * @return
+ *         - \ref NVML_SUCCESS                  if \a sessionInfos is fetched
+ *         - \ref NVML_ERROR_UNINITIALIZED      if the library has not been successfully initialized
+ *         - \ref NVML_ERROR_INSUFFICIENT_SIZE  if \a sessionCount is too small, array element count is returned in \a sessionCount
+ *         - \ref NVML_ERROR_INVALID_ARGUMENT   if \a sessionCount is NULL.
+ *         - \ref NVML_ERROR_GPU_IS_LOST        if the target GPU has fallen off the bus or is otherwise inaccessible
+ *         - \ref NVML_ERROR_UNKNOWN            on any unexpected error
+ */
+nvmlReturn_t DECLDIR nvmlDeviceGetEncoderSessions(nvmlDevice_t device, unsigned int *sessionCount, nvmlEncoderSessionInfo_t *sessionInfos);
+
+/**
  * Retrieves the current utilization and sampling size in microseconds for the Decoder
  *
  * For Kepler &tm; or newer fully supported devices.
@@ -4805,6 +4934,7 @@ nvmlReturn_t DECLDIR nvmlVgpuTypeGetLicense(nvmlVgpuTypeId_t vgpuTypeId, char *v
  * @param frameRateLimit           Reference to return the frame rate limit value
  * @return
  *         - \ref NVML_SUCCESS                 successful completion
+ *         - \ref NVML_ERROR_NOT_SUPPORTED     if frame rate limiter is turned off for the vGPU type
  *         - \ref NVML_ERROR_UNINITIALIZED     if the library has not been successfully initialized
  *         - \ref NVML_ERROR_INVALID_ARGUMENT  if \a device is invalid, or \a frameRateLimit is NULL
  *         - \ref NVML_ERROR_UNKNOWN           on any unexpected error
@@ -4996,12 +5126,44 @@ nvmlReturn_t DECLDIR nvmlVgpuInstanceGetType(nvmlVgpuInstance_t vgpuInstance, nv
  *
  * @return
  *         - \ref NVML_SUCCESS                 if \a frameRateLimit has been set
+ *         - \ref NVML_ERROR_NOT_SUPPORTED     if frame rate limiter is turned off for the vGPU type
  *         - \ref NVML_ERROR_UNINITIALIZED     if the library has not been successfully initialized
  *         - \ref NVML_ERROR_INVALID_ARGUMENT  if \a vgpuInstance is invalid, or \a frameRateLimit is NULL
  *         - \ref NVML_ERROR_UNKNOWN           on any unexpected error
  */
 nvmlReturn_t DECLDIR nvmlVgpuInstanceGetFrameRateLimit(nvmlVgpuInstance_t vgpuInstance, unsigned int *frameRateLimit);
 
+/**
+ * Retrieve the encoder Capacity of a vGPU instance, in macroblocks per second.
+ *
+ * For Maxwell &tm; or newer fully supported devices.
+ *
+ * @param vgpuInstance             Identifier of the target vGPU instance
+ * @param encoderCapacity          Reference to an unsigned int for the encoder capacity
+ *
+ * @return
+ *         - \ref NVML_SUCCESS                 if \a encoderCapacity has been retrived
+ *         - \ref NVML_ERROR_UNINITIALIZED     if the library has not been successfully initialized
+ *         - \ref NVML_ERROR_INVALID_ARGUMENT  if \a vgpuInstance is invalid, or \a encoderQueryType is invalid
+ *         - \ref NVML_ERROR_UNKNOWN           on any unexpected error
+ */
+nvmlReturn_t DECLDIR nvmlVgpuInstanceGetEncoderCapacity(nvmlVgpuInstance_t vgpuInstance, unsigned int *encoderCapacity);
+
+/**
+ * Set the encoder Capacity of a vGPU instance, in macroblocks per second.
+ *
+ * For Maxwell &tm; or newer fully supported devices.
+ *
+ * @param vgpuInstance             Identifier of the target vGPU instance
+ * @param encoderCapacity          Unsigned int for the encoder capacity value
+ *
+ * @return
+ *         - \ref NVML_SUCCESS                 if \a encoderCapacity has been set
+ *         - \ref NVML_ERROR_UNINITIALIZED     if the library has not been successfully initialized
+ *         - \ref NVML_ERROR_INVALID_ARGUMENT  if \a vgpuInstance is invalid
+ *         - \ref NVML_ERROR_UNKNOWN           on any unexpected error
+ */
+nvmlReturn_t DECLDIR nvmlVgpuInstanceSetEncoderCapacity(nvmlVgpuInstance_t vgpuInstance, unsigned int  encoderCapacity);
 
 /**
  * Retrieves current utilization for vGPUs on a physical GPU (device).
@@ -5051,6 +5213,143 @@ nvmlReturn_t DECLDIR nvmlVgpuInstanceGetFrameRateLimit(nvmlVgpuInstance_t vgpuIn
 nvmlReturn_t DECLDIR nvmlDeviceGetVgpuUtilization(nvmlDevice_t device, unsigned long long lastSeenTimeStamp,
                                                   nvmlValueType_t *sampleValType, unsigned int *vgpuInstanceSamplesCount,
                                                   nvmlVgpuInstanceUtilizationSample_t *utilizationSamples);
+
+/**
+ * Retrieves current utilization for processes running on vGPUs on a physical GPU (device).
+ *
+ * For Maxwell &tm; or newer fully supported devices.
+ *
+ * Reads recent utilization of GPU SM (3D/Compute), framebuffer, video encoder, and video decoder for processes running on
+ * vGPU instances active on a device. Utilization values are returned as an array of utilization sample structures in the
+ * caller-supplied buffer pointed at by \a utilizationSamples. One utilization sample structure is returned per process running
+ * on vGPU instances, that had some non-zero utilization during the last sample period. It includes the CPU timestamp at which
+ * the samples were recorded. Individual utilization values are returned as "unsigned int" values.
+ *
+ * To read utilization values, first determine the size of buffer required to hold the samples by invoking the function with
+ * \a utilizationSamples set to NULL. The function will return NVML_ERROR_INSUFFICIENT_SIZE, with the current vGPU instance
+ * count in \a vgpuProcessSamplesCount. The caller should allocate a buffer of size
+ * vgpuProcessSamplesCount * sizeof(nvmlVgpuProcessUtilizationSample_t). Invoke the function again with
+ * the allocated buffer passed in \a utilizationSamples, and \a vgpuProcessSamplesCount set to the number of entries the
+ * buffer is sized for.
+ *
+ * On successful return, the function updates \a vgpuSubProcessSampleCount with the number of vGPU sub process utilization sample
+ * structures that were actually written. This may differ from a previously read value depending on the number of processes that are active
+ * in any given sample period.
+ *
+ * lastSeenTimeStamp represents the CPU timestamp in microseconds at which utilization samples were last read. Set it to 0
+ * to read utilization based on all the samples maintained by the driver's internal sample buffer. Set lastSeenTimeStamp
+ * to a timeStamp retrieved from a previous query to read utilization since the previous query.
+ *
+ * @param device                        The identifier for the target device
+ * @param lastSeenTimeStamp             Return only samples with timestamp greater than lastSeenTimeStamp.
+ * @param vgpuProcessSamplesCount       Pointer to caller-supplied array size, and returns number of processes running on vGPU instances
+ * @param utilizationSamples            Pointer to caller-supplied buffer in which vGPU sub process utilization samples are returned
+
+ * @return
+ *         - \ref NVML_SUCCESS                 if utilization samples are successfully retrieved
+ *         - \ref NVML_ERROR_UNINITIALIZED     if the library has not been successfully initialized
+ *         - \ref NVML_ERROR_INVALID_ARGUMENT  if \a device is invalid, \a vgpuProcessSamplesCount or a sample count of 0 is
+ *                                             passed with a non-NULL \a utilizationSamples
+ *         - \ref NVML_ERROR_INSUFFICIENT_SIZE if supplied \a vgpuProcessSamplesCount is too small to return samples for all
+ *                                             vGPU instances currently executing on the device
+ *         - \ref NVML_ERROR_NOT_SUPPORTED     if vGPU is not supported by the device
+ *         - \ref NVML_ERROR_GPU_IS_LOST       if the target GPU has fallen off the bus or is otherwise inaccessible
+ *         - \ref NVML_ERROR_NOT_FOUND         if sample entries are not found
+ *         - \ref NVML_ERROR_UNKNOWN           on any unexpected error
+ */
+nvmlReturn_t DECLDIR nvmlDeviceGetVgpuProcessUtilization(nvmlDevice_t device, unsigned long long lastSeenTimeStamp,
+                                                         unsigned int *vgpuProcessSamplesCount,
+                                                         nvmlVgpuProcessUtilizationSample_t *utilizationSamples);
+
+/**
+ * Retrieves the current encoder statistics of a vGPU Instance
+ *
+ * For Maxwell &tm; or newer fully supported devices.
+ *
+ * @param vgpuInstance                      Identifier of the target vGPU instance
+ * @param sessionCount                      Reference to an unsigned int for count of active encoder sessions
+ * @param averageFps                        Reference to an unsigned int for trailing average FPS of all active sessions
+ * @param averageLatency                    Reference to an unsigned int for encode latency in milliseconds
+ *
+ * @return
+ *         - \ref NVML_SUCCESS                  if \a sessionCount, \a averageFps and \a averageLatency is fetched
+ *         - \ref NVML_ERROR_UNINITIALIZED      if the library has not been successfully initialized
+ *         - \ref NVML_ERROR_INVALID_ARGUMENT   if \a sessionCount , or \a averageFps or \a averageLatency is NULL
+ *                                              or \a vgpuInstance is invalid.
+ *         - \ref NVML_ERROR_UNKNOWN            on any unexpected error
+ */
+nvmlReturn_t DECLDIR nvmlVgpuInstanceGetEncoderStats(nvmlVgpuInstance_t vgpuInstance, unsigned int *sessionCount,
+                                                     unsigned int *averageFps, unsigned int *averageLatency);
+
+/**
+ * Retrieves information about all active encoder sessions on a vGPU Instance.
+ *
+ * An array of active encoder sessions is returned in the caller-supplied buffer pointed at by \a sessionInfo. The
+ * array elememt count is passed in \a sessionCount, and \a sessionCount is used to return the number of sessions
+ * written to the buffer.
+ *
+ * If the supplied buffer is not large enough to accomodate the active session array, the function returns
+ * NVML_ERROR_INSUFFICIENT_SIZE, with the element count of nvmlEncoderSessionInfo_t array required in \a sessionCount.
+ * To query the number of active encoder sessions, call this function with *sessionCount = 0. The code will return
+ * NVML_SUCCESS with number of active encoder sessions updated in *sessionCount.
+ *
+ * For Maxwell &tm; or newer fully supported devices.
+ *
+ * @param vgpuInstance                      Identifier of the target vGPU instance
+ * @param sessionCount                      Reference to caller supplied array size, and returns
+ *                                          the number of sessions.
+ * @param sessionInfo                       Reference to caller supplied array in which the list
+ *                                          of session information us returned.
+ *
+ * @return
+ *         - \ref NVML_SUCCESS                  if \a sessionInfo is fetched
+ *         - \ref NVML_ERROR_UNINITIALIZED      if the library has not been successfully initialized
+ *         - \ref NVML_ERROR_INSUFFICIENT_SIZE  if \a sessionCount is too small, array element count is
+                                                returned in \a sessionCount
+ *         - \ref NVML_ERROR_INVALID_ARGUMENT   if \a sessionCount is NULL or \a vgpuInstance is invalid..
+ *         - \ref NVML_ERROR_UNKNOWN            on any unexpected error
+ */
+nvmlReturn_t DECLDIR nvmlVgpuInstanceGetEncoderSessions(nvmlVgpuInstance_t vgpuInstance, unsigned int *sessionCount, nvmlEncoderSessionInfo_t *sessionInfo);
+
+/**
+ * Retrieves the current utilization and process ID
+ *
+ * For Maxwell &tm; or newer fully supported devices.
+ *
+ * Reads recent utilization of GPU SM (3D/Compute), framebuffer, video encoder, and video decoder for processes running.
+ * Utilization values are returned as an array of utilization sample structures in the caller-supplied buffer pointed at
+ * by \a utilization. One utilization sample structure is returned per process running, that had some non-zero utilization
+ * during the last sample period. It includes the CPU timestamp at which  the samples were recorded. Individual utilization values
+ * are returned as "unsigned int" values.
+ *
+ * To read utilization values, first determine the size of buffer required to hold the samples by invoking the function with
+ * \a utilization set to NULL. The caller should allocate a buffer of size
+ * processSamplesCount * sizeof(nvmlProcessUtilizationSample_t). Invoke the function again with the allocated buffer passed
+ * in \a utilization, and \a processSamplesCount set to the number of entries the buffer is sized for.
+ *
+ * On successful return, the function updates \a processSamplesCount with the number of process utilization sample
+ * structures that were actually written. This may differ from a previously read value as instances are created or
+ * destroyed.
+ *
+ * lastSeenTimeStamp represents the CPU timestamp in microseconds at which utilization samples were last read. Set it to 0
+ * to read utilization based on all the samples maintained by the driver's internal sample buffer. Set lastSeenTimeStamp
+ * to a timeStamp retrieved from a previous query to read utilization since the previous query.
+ *
+ * @param device                    The identifier of the target device
+ * @param utilization               Pointer to caller-supplied buffer in which guest process utilization samples are returned
+ * @param processSamplesCount       Pointer to caller-supplied array size, and returns number of processes running
+ * @param lastSeenTimeStamp         Return only samples with timestamp greater than lastSeenTimeStamp.
+
+ * @return
+ *         - \ref NVML_SUCCESS                 if \a utilization has been populated
+ *         - \ref NVML_ERROR_UNINITIALIZED     if the library has not been successfully initialized
+ *         - \ref NVML_ERROR_INVALID_ARGUMENT  if \a device is invalid, \a utilization is NULL, or \a samplingPeriodUs is NULL
+ *         - \ref NVML_ERROR_NOT_SUPPORTED     if the device does not support this feature
+ *         - \ref NVML_ERROR_GPU_IS_LOST       if the target GPU has fallen off the bus or is otherwise inaccessible
+ *         - \ref NVML_ERROR_UNKNOWN           on any unexpected error
+ */
+nvmlReturn_t DECLDIR nvmlDeviceGetProcessUtilization(nvmlDevice_t device, nvmlProcessUtilizationSample_t *utilization,
+                                              unsigned int *processSamplesCount, unsigned long long lastSeenTimeStamp);
 
 /** @} */
 

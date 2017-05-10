@@ -2421,6 +2421,10 @@ GtkTextBuffer *ctk_display_config_create_help(GtkTextTagTable *table,
                   "view is enabled.", __dpy_panning_help);
     ctk_help_heading(b, &i, "Primary Display");
     ctk_help_para(b, &i, "%s", __dpy_primary_help);
+    ctk_help_heading(b, &i, "Force Composition Pipeline");
+    ctk_help_para(b, &i, "%s", __dpy_forcecompositionpipeline_help);
+    ctk_help_heading(b, &i, "Force Full Composition Pipeline");
+    ctk_help_para(b, &i, "%s", __dpy_forcefullcompositionpipeline_help);
 
 
     ctk_help_para(b, &i, "");
@@ -3041,10 +3045,12 @@ static void setup_display_refresh_dropdown(CtkDisplayConfig *ctk_object)
         }
 
 
-        /* Add "DoubleScan" and "Interlace" information */
+        /* Add "DoubleScan", "Interlace", and "HDMI 3D" information */
         if (g_ascii_strcasecmp(name, "Auto")) {
             gchar *extra = NULL;
             gchar *tmp;
+            ReturnStatus ret;
+            gboolean hdmi3D = FALSE;
 
             if (modeline->data.flags & V_DBLSCAN) {
                 extra = g_strdup_printf("DoubleScan");
@@ -3059,6 +3065,20 @@ static void setup_display_refresh_dropdown(CtkDisplayConfig *ctk_object)
                     extra = g_strdup_printf("Interlace");
                 }
             }
+
+            ret = NvCtrlGetAttribute(display->ctrl_target,
+                                     NV_CTRL_DPY_HDMI_3D,
+                                     &hdmi3D);
+            if (ret == NvCtrlSuccess && hdmi3D) {
+                if (extra) {
+                    tmp = g_strdup_printf("%s, HDMI 3D", extra);
+                    g_free(extra);
+                    extra = tmp;
+                } else {
+                    extra = g_strdup_printf("HDMI 3D");
+                }
+            }
+
 
             if (extra) {
                 tmp = g_strdup_printf("%s (%s)", name, extra);
