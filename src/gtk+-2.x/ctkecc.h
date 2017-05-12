@@ -58,7 +58,6 @@ struct _CtkEcc
     GtkWidget* dbit_error;
     GtkWidget* aggregate_sbit_error;
     GtkWidget* aggregate_dbit_error;
-    GtkWidget* ecc_config_supported;
     GtkWidget* clear_button;
     GtkWidget* clear_aggregate_button;
     GtkWidget* reset_default_config_button;
@@ -71,6 +70,7 @@ struct _CtkEcc
     gboolean dbit_error_available;
     gboolean aggregate_sbit_error_available;
     gboolean aggregate_dbit_error_available;
+    gboolean ecc_config_supported;
 
 };
 

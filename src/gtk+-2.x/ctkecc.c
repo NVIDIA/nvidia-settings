@@ -164,10 +164,38 @@ static gboolean update_ecc_info(gpointer user_data)
     CtkEcc *ctk_ecc = CTK_ECC(user_data);
     CtrlTarget *ctrl_target = ctk_ecc->ctrl_target;
     int64_t val;
+    gboolean status;
     ReturnStatus ret;
 
-    if (ctk_ecc->ecc_enabled == FALSE) {
+
+    if (!ctk_ecc->ecc_config_supported && !ctk_ecc->ecc_enabled ) {
         return FALSE;
+    }
+
+    /*
+     * The ECC Configuration may be changed by non NV-CONTROL clients so we
+     * can't rely on an event to update the configuration state.
+     */
+
+    if (ctk_ecc->ecc_config_supported) {
+
+        ret = NvCtrlGetAttribute(ctrl_target, NV_CTRL_GPU_ECC_CONFIGURATION,
+                                 &status);
+
+        if (ret != NvCtrlSuccess ||
+            status == NV_CTRL_GPU_ECC_CONFIGURATION_DISABLED) {
+                ctk_ecc->ecc_configured = FALSE;
+        } else {
+                ctk_ecc->ecc_configured = TRUE;
+        }
+
+        ecc_set_config_status(ctk_ecc);
+    }
+
+    /* If ECC is not enabled, don't query ECC details but continue updating */
+
+    if (ctk_ecc->ecc_enabled == FALSE) {
+        return TRUE;
     }
 
     /* Query ECC Errors */
@@ -571,6 +599,8 @@ GtkWidget* ctk_ecc_new(CtrlTarget *ctrl_target,
     if (ret != NvCtrlSuccess) {
         ecc_config_supported = 0;
     }
+
+    ctk_ecc->ecc_config_supported = ecc_config_supported;
 
     /* set container properties for the CtkEcc widget */
 
