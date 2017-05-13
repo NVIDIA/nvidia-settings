@@ -9177,7 +9177,18 @@ static void preserve_busid(XConfigPtr dstConfig, XConfigPtr srcConfig)
         dstDevice =
             xconfigFindDevice(srcDevice->identifier, dstConfig->devices);
 
-        if (dstDevice) {
+        /*
+         * Only overwrite the BusID in the destination config if
+         * the destination config has not generated its own
+         * BusID.  If nvidia-settings determines that the new
+         * requested config requires a specific BusID, a merge
+         * shouldn't overwrite that specific BusID just because
+         * the old config happened to have a device with a matching
+         * identifier and a specified BusID, which may be different
+         * and incompatible with the new config.
+         */
+        if (dstDevice &&
+            (dstDevice->busid == NULL)) {
             dstDevice->busid = xconfigStrdup(srcDevice->busid);
         }
     }
