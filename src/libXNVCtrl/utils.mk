@@ -80,6 +80,7 @@ HOSTNAME_CMD          ?= hostname
 DATE                  ?= date
 GZIP_CMD              ?= gzip
 CHMOD                 ?= chmod
+OBJCOPY               ?= objcopy
 
 NV_AUTO_DEPEND        ?= 1
 NV_VERBOSE            ?= 0
@@ -271,10 +272,14 @@ endif
 NV_MODULE_LOGGING_NAME ?=
 
 ifeq ($(NV_VERBOSE),0)
-  quiet_cmd = @$(PRINTF) \
+  at_if_quiet := @
+  quiet_cmd_no_at = $(PRINTF) \
     " $(if $(NV_MODULE_LOGGING_NAME),[ %-17.17s ],%s)  $(quiet_$(1))\n" \
     "$(NV_MODULE_LOGGING_NAME)" && $($(1))
+  quiet_cmd = @$(quiet_cmd_no_at)
 else
+  at_if_quiet :=
+  quiet_cmd_no_at = $($(1))
   quiet_cmd = $($(1))
 endif
 
@@ -295,6 +300,8 @@ quiet_HOST_LINK    = $(call define_quiet_cmd,HOST_LINK   ,$@)
 quiet_M4           = $(call define_quiet_cmd,M4          ,$<)
 quiet_STRIP_CMD    = $(call define_quiet_cmd,STRIP       ,$@)
 quiet_HARDLINK     = $(call define_quiet_cmd,HARDLINK    ,$@)
+quiet_LD           = $(call define_quiet_cmd,LD          ,$@)
+quiet_OBJCOPY      = $(call define_quiet_cmd,OBJCOPY     ,$@)
 
 ##############################################################################
 # Tell gmake to delete the target of a rule if it has changed and its
@@ -446,4 +453,31 @@ define DEFINE_STAMP_C_RULE
 	@ $$(PRINTF) "%s\n" "$$(shell $(DATE))\";"                      >> $$@
 	@ $$(PRINTF) "%s\n" "const char *pNV_ID = NV_ID + 11;"          >> $$@
 
+endef
+
+##############################################################################
+# Define rules that can be used for embedding a file into an ELF object that
+# contains the raw contents of that file and symbols pointing to the embedded
+# data.
+#
+# Note that objcopy will name the symbols in the resulting object file based on
+# the filename specified in $(1).  For example,
+#
+#   $(eval $(call $(READ_ONLY_OBJECT_FROM_FILE_RULE),a/b/c))
+#
+# will create an object named $(OUTPUTDIR)/c.o with the symbols _binary_c_start,
+# _binary_c_end, and _binary_c_size.
+#
+# Arguments:
+#  $(1): Path to the file to convert
+##############################################################################
+
+define READ_ONLY_OBJECT_FROM_FILE_RULE
+  $$(OUTPUTDIR)/$$(notdir $(1)).o: $(1)
+	$(at_if_quiet)cd $$(dir $(1)); \
+	$$(call quiet_cmd_no_at,LD) -r -z noexecstack --format=binary \
+	    $$(notdir $(1)) -o $$(OUTPUTDIR_ABSOLUTE)/$$(notdir $$@)
+	$$(call quiet_cmd,OBJCOPY) \
+	    --rename-section .data=.rodata,contents,alloc,load,data,readonly \
+	    $$@
 endef

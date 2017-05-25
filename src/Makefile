@@ -219,6 +219,8 @@ XCP_OBJS    = $(call BUILD_OBJECT_LIST,$(XCP_SRC))
 
 GTK2_OBJS    = $(call BUILD_OBJECT_LIST_WITH_DIR,$(GTK_SRC),$(GTK2LIB_DIR))
 GTK3_OBJS    = $(call BUILD_OBJECT_LIST_WITH_DIR,$(GTK_SRC),$(GTK3LIB_DIR))
+IMAGE_OBJS    = $(addprefix $(OUTPUTDIR)/,$(addsuffix .o,$(notdir $(IMAGE_FILES))))
+IMAGE_HEADERS = $(addprefix $(OUTPUTDIR)/,$(addsuffix .h,$(notdir $(IMAGE_FILES))))
 
 CFLAGS     += -I .
 CFLAGS     += -I image_data
@@ -252,6 +254,13 @@ ifneq ($(NV_USE_BUNDLED_LIBJANSSON),0)
   $(call BUILD_OBJECT_LIST,$(JANSSON_SRC)): CFLAGS += $(JANSSON_CFLAGS)
 endif
 
+define BINARY_DATA_HEADER_RULE
+  $$(OUTPUTDIR)/$(notdir $(1)).h:
+	$(at_if_quiet){ \
+	  $$(PRINTF) "extern const char _binary_$(subst .,_,$(notdir $(1)))_start[];\n"; \
+	  $$(PRINTF) "extern const char _binary_$(subst .,_,$(notdir $(1)))_end[];\n"; \
+	} > $$@
+endef
 
 ##############################################################################
 # build rules
@@ -282,21 +291,21 @@ $(NVIDIA_SETTINGS).unstripped: $(OBJS) $(XNVCTRL_ARCHIVE)
 	    -rdynamic -o $@ $(OBJS) $(XNVCTRL_ARCHIVE) $(LIBS)
 
 $(eval $(call DEBUG_INFO_RULES, $(GTK2LIB)))
-$(GTK2LIB).unstripped: $(GTK2_OBJS) $(XCP_OBJS) $(VERSION_MK)
+$(GTK2LIB).unstripped: $(GTK2_OBJS) $(XCP_OBJS) $(IMAGE_OBJS) $(VERSION_MK)
 	$(call quiet_cmd,LINK) -shared $(CFLAGS) $(LDFLAGS) $(BIN_LDFLAGS) \
 	    $(XNVCTRL_ARCHIVE) $(LIBS) $(GTK2_LIBS) \
 	    -Wl,--unresolved-symbols=ignore-all -o $@ \
 	    -Wl,-soname -Wl,$(GTK2LIB_SONAME) \
-	    $(GTK2_OBJS) $(XCP_OBJS)
+	    $(GTK2_OBJS) $(IMAGE_OBJS) $(XCP_OBJS)
 
 ifdef BUILD_GTK3LIB
 $(eval $(call DEBUG_INFO_RULES, $(GTK3LIB)))
-$(GTK3LIB).unstripped: $(GTK3_OBJS) $(XCP_OBJS) $(VERSION_MK)
+$(GTK3LIB).unstripped: $(GTK3_OBJS) $(XCP_OBJS) $(IMAGE_OBJS) $(VERSION_MK)
 	$(call quiet_cmd,LINK) -shared $(CFLAGS) $(LDFLAGS)  $(BIN_LDFLAGS) \
 	    $(XNVCTRL_ARCHIVE) $(LIBS) $(GTK3_LIBS) \
 	    -Wl,--unresolved-symbols=ignore-all -o $@ \
 	    -Wl,-soname -Wl,$(GTK3LIB_SONAME) \
-	    $(GTK3_OBJS) $(XCP_OBJS)
+	    $(GTK3_OBJS) $(XCP_OBJS) $(IMAGE_OBJS)
 endif
 
 # define the rule to build each object file
@@ -315,7 +324,8 @@ build-xnvctrl:
 clean clobber:
 	rm -rf $(NVIDIA_SETTINGS) *~ $(STAMP_C) \
 		$(OUTPUTDIR)/*.o $(OUTPUTDIR)/*.d \
-		$(GTK2LIB) $(GTK3LIB) $(GTK2LIB_DIR) $(GTK3LIB_DIR)
+		$(GTK2LIB) $(GTK3LIB) $(GTK2LIB_DIR) $(GTK3LIB_DIR) \
+		$(IMAGE_HEADERS)
 	@$(MAKE) -C $(XNVCTRL_DIR) -f $(XNVCTRL_MAKEFILE) clean
 
 $(foreach src,$(GTK_SRC), \
@@ -326,3 +336,14 @@ $(foreach src,$(GTK_SRC), \
     $(eval $(call DEFINE_OBJECT_RULE_WITH_DIR,TARGET,$(src),$(GTK3LIB_DIR))))
 endif
 
+# Build $(IMAGE_OBJS)
+$(foreach png,$(IMAGE_FILES), \
+  $(eval $(call READ_ONLY_OBJECT_FROM_FILE_RULE,$(png))))
+
+# Build $(IMAGE_HEADERS)
+$(foreach png,$(IMAGE_FILES), \
+  $(eval $(call BINARY_DATA_HEADER_RULE,$(png))))
+$(GTK2_OBJS): $(IMAGE_HEADERS)
+ifdef BUILD_GTK3LIB
+  $(GTK3_OBJS): $(IMAGE_HEADERS)
+endif
