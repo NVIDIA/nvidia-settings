@@ -18,10 +18,10 @@
  */
 
 #include <gtk/gtk.h>
-#include <gdk-pixbuf/gdk-pixdata.h>
 #include "ctkui.h"
 #include "ctkwindow.h"
-#include "nvidia_icon_pixdata.h"
+#include "ctkutils.h"
+#include "nvidia_icon.png.h"
 /*
  * This source file provides thin wrappers over the gtk routines, so
  * that nvidia-settings.c doesn't need to include gtk+
@@ -47,7 +47,7 @@ void ctk_main(ParsedAttribute *p,
     GList *list = NULL;
     GtkWidget *window;
 
-    list = g_list_append (list, gdk_pixbuf_from_pixdata(&nvidia_icon_pixdata, TRUE, NULL));
+    list = g_list_append (list, CTK_LOAD_PIXBUF(nvidia_icon));
     gtk_window_set_default_icon_list(list);
     window = ctk_window_new(p, conf, system);
 

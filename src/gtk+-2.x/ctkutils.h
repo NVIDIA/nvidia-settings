@@ -125,6 +125,8 @@ void ctk_force_text_colors_on_widget(GtkWidget *widget);
 gchar *ctk_get_filename_from_dialog(const gchar* title,
                                     GtkWindow *parent,
                                     const gchar* initial_filename);
+GdkPixbuf *ctk_pixbuf_from_data(const char *start, const char *end);
+#define CTK_LOAD_PIXBUF(art) ctk_pixbuf_from_data(_binary_##art##_png_start, _binary_##art##_png_end)
 
 G_END_DECLS
 

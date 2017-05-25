@@ -21,46 +21,45 @@
  */
 
 #include <gtk/gtk.h>
-#include <gdk-pixbuf/gdk-pixdata.h>
 #include <stdio.h>
 
 #include "ctkbanner.h"
 #include "common-utils.h"
 #include "ctkutils.h"
 
-/* pixdata headers */
+/* PNG headers */
 
-#include "background_pixdata.h"
-#include "background_tall_pixdata.h"
-#include "logo_pixdata.h"
-#include "logo_tall_pixdata.h"
+#include "background.png.h"
+#include "background_tall.png.h"
+#include "logo.png.h"
+#include "logo_tall.png.h"
 
-#include "antialias_pixdata.h"
-#include "bsd_pixdata.h"
-#include "clock_pixdata.h"
-#include "color_pixdata.h"
-#include "config_pixdata.h"
-#include "crt_pixdata.h"
-#include "dfp_pixdata.h"
-#include "display_config_pixdata.h"
-#include "framelock_pixdata.h"
-#include "glx_pixdata.h"
-#include "gpu_pixdata.h"
-#include "help_pixdata.h"
-#include "opengl_pixdata.h"
-#include "penguin_pixdata.h"
-#include "gvi_pixdata.h"
-#include "sdi_pixdata.h"
-#include "sdi_shared_sync_bnc_pixdata.h"
-#include "server_licensing_pixdata.h"
-#include "slimm_pixdata.h"
-#include "solaris_pixdata.h"
-#include "thermal_pixdata.h"
-#include "vcs_pixdata.h"
-#include "vdpau_pixdata.h"
-#include "x_pixdata.h"
-#include "xvideo_pixdata.h"
-#include "svp_3dvp_pixdata.h"
+#include "antialias.png.h"
+#include "bsd.png.h"
+#include "clock.png.h"
+#include "color.png.h"
+#include "config.png.h"
+#include "crt.png.h"
+#include "dfp.png.h"
+#include "display_config.png.h"
+#include "framelock.png.h"
+#include "glx.png.h"
+#include "gpu.png.h"
+#include "help.png.h"
+#include "opengl.png.h"
+#include "penguin.png.h"
+#include "gvi.png.h"
+#include "sdi.png.h"
+#include "sdi_shared_sync_bnc.png.h"
+#include "server_licensing.png.h"
+#include "slimm.png.h"
+#include "solaris.png.h"
+#include "thermal.png.h"
+#include "vcs.png.h"
+#include "vdpau.png.h"
+#include "x.png.h"
+#include "xvideo.png.h"
+#include "svp_3dvp.png.h"
 
 
 static void
@@ -395,49 +394,51 @@ static void ctk_banner_get_preferred_height(
 
 
 /*
- * select_artwork() - given a BannerArtworkType, lookup the pixdata
- * and other related data
+ * select_artwork() - given a BannerArtworkType, lookup the pixbuf and other
+ * related data
  */
 
-static gboolean select_artwork(BannerArtworkType artwork,
-                               gboolean *tall,
-                               int *pad_x,
-                               const GdkPixdata **pixdata)
+static GdkPixbuf* select_artwork(BannerArtworkType artwork,
+                                 gboolean *tall,
+                                 int *pad_x)
 {
     static const struct {
         BannerArtworkType artwork;
         gboolean tall;
         int pad_x;
-        const GdkPixdata *pixdata;
+        const char *png_start;
+        const char *png_end;
     } ArtworkTable[] = {
-        /* artwork                       tall  pad_x pixdata */
-        { BANNER_ARTWORK_ANTIALIAS,      FALSE, 16, &antialias_pixdata      },
-        { BANNER_ARTWORK_BSD,            TRUE,  16, &bsd_pixdata            },
-        { BANNER_ARTWORK_CLOCK,          FALSE, 16, &clock_pixdata          },
-        { BANNER_ARTWORK_COLOR,          FALSE, 16, &color_pixdata          },
-        { BANNER_ARTWORK_CONFIG,         FALSE, 16, &config_pixdata         },
-        { BANNER_ARTWORK_CRT,            FALSE, 16, &crt_pixdata            },
-        { BANNER_ARTWORK_DFP,            FALSE, 16, &dfp_pixdata            },
-        { BANNER_ARTWORK_DISPLAY_CONFIG, FALSE, 16, &display_config_pixdata },
-        { BANNER_ARTWORK_FRAMELOCK,      FALSE, 16, &framelock_pixdata      },
-        { BANNER_ARTWORK_GLX,            FALSE, 16, &glx_pixdata            },
-        { BANNER_ARTWORK_GPU,            FALSE, 16, &gpu_pixdata            },
-        { BANNER_ARTWORK_GVI,            FALSE, 16, &gvi_pixdata            },
-        { BANNER_ARTWORK_HELP,           FALSE, 16, &help_pixdata           },
-        { BANNER_ARTWORK_OPENGL,         FALSE, 16, &opengl_pixdata         },
-        { BANNER_ARTWORK_PENGUIN,        TRUE,  16, &penguin_pixdata        },
-        { BANNER_ARTWORK_SDI,            FALSE, 16, &sdi_pixdata            },
-        { BANNER_ARTWORK_SDI_SHARED_SYNC_BNC, FALSE, 16, &sdi_shared_sync_bnc_pixdata },
-        { BANNER_ARTWORK_SERVER_LICENSING, FALSE, 16, &server_licensing_pixdata },
-        { BANNER_ARTWORK_SLIMM,          FALSE, 16, &slimm_pixdata          },
-        { BANNER_ARTWORK_SOLARIS,        TRUE,  16, &solaris_pixdata        },
-        { BANNER_ARTWORK_THERMAL,        FALSE, 16, &thermal_pixdata        },
-        { BANNER_ARTWORK_VCS,            FALSE, 16, &vcs_pixdata            },
-        { BANNER_ARTWORK_VDPAU,          FALSE, 16, &vdpau_pixdata          },
-        { BANNER_ARTWORK_X,              FALSE, 16, &x_pixdata              },
-        { BANNER_ARTWORK_XVIDEO,         FALSE, 16, &xvideo_pixdata         },
-        { BANNER_ARTWORK_SVP,            FALSE, 16, &svp_3dvp_pixdata       },
-        { BANNER_ARTWORK_INVALID,        FALSE, 16, NULL                    },
+#define PNG(s) _binary_##s##_png_start, _binary_##s##_png_end
+        /* artwork                       tall  pad_x     png_start, png_end       }, */
+        { BANNER_ARTWORK_ANTIALIAS,      FALSE, 16,      PNG(antialias)           },
+        { BANNER_ARTWORK_BSD,            TRUE,  16,      PNG(bsd)                 },
+        { BANNER_ARTWORK_CLOCK,          FALSE, 16,      PNG(clock)               },
+        { BANNER_ARTWORK_COLOR,          FALSE, 16,      PNG(color)               },
+        { BANNER_ARTWORK_CONFIG,         FALSE, 16,      PNG(config)              },
+        { BANNER_ARTWORK_CRT,            FALSE, 16,      PNG(crt)                 },
+        { BANNER_ARTWORK_DFP,            FALSE, 16,      PNG(dfp)                 },
+        { BANNER_ARTWORK_DISPLAY_CONFIG, FALSE, 16,      PNG(display_config)      },
+        { BANNER_ARTWORK_FRAMELOCK,      FALSE, 16,      PNG(framelock)           },
+        { BANNER_ARTWORK_GLX,            FALSE, 16,      PNG(glx)                 },
+        { BANNER_ARTWORK_GPU,            FALSE, 16,      PNG(gpu)                 },
+        { BANNER_ARTWORK_GVI,            FALSE, 16,      PNG(gvi)                 },
+        { BANNER_ARTWORK_HELP,           FALSE, 16,      PNG(help)                },
+        { BANNER_ARTWORK_OPENGL,         FALSE, 16,      PNG(opengl)              },
+        { BANNER_ARTWORK_PENGUIN,        TRUE,  16,      PNG(penguin)             },
+        { BANNER_ARTWORK_SDI,            FALSE, 16,      PNG(sdi)                 },
+        { BANNER_ARTWORK_SDI_SHARED_SYNC_BNC, FALSE, 16, PNG(sdi_shared_sync_bnc) },
+        { BANNER_ARTWORK_SERVER_LICENSING, FALSE, 16,    PNG(server_licensing)    },
+        { BANNER_ARTWORK_SLIMM,          FALSE, 16,      PNG(slimm)               },
+        { BANNER_ARTWORK_SOLARIS,        TRUE,  16,      PNG(solaris)             },
+        { BANNER_ARTWORK_THERMAL,        FALSE, 16,      PNG(thermal)             },
+        { BANNER_ARTWORK_VCS,            FALSE, 16,      PNG(vcs)                 },
+        { BANNER_ARTWORK_VDPAU,          FALSE, 16,      PNG(vdpau)               },
+        { BANNER_ARTWORK_X,              FALSE, 16,      PNG(x)                   },
+        { BANNER_ARTWORK_XVIDEO,         FALSE, 16,      PNG(xvideo)              },
+        { BANNER_ARTWORK_SVP,            FALSE, 16,      PNG(svp_3dvp)            },
+        { BANNER_ARTWORK_INVALID,        FALSE, 16,      NULL, NULL               },
+#undef PNG
     };
 
     int i;
@@ -446,12 +447,13 @@ static gboolean select_artwork(BannerArtworkType artwork,
         if (ArtworkTable[i].artwork == artwork) {
             *tall = ArtworkTable[i].tall;
             *pad_x = ArtworkTable[i].pad_x;
-            *pixdata = ArtworkTable[i].pixdata;
-            return TRUE;
+
+            return ctk_pixbuf_from_data(ArtworkTable[i].png_start,
+                                        ArtworkTable[i].png_end);
         }
     }
-    
-    return FALSE;
+
+    return NULL;
 }
 
 
@@ -465,10 +467,10 @@ GtkWidget* ctk_banner_new(BannerArtworkType artwork)
 {
     GObject *object;
     CtkBanner *ctk_banner;
-    const GdkPixdata *pixdata;
     int tall, pad_x;
+    GdkPixbuf *pixbuf = select_artwork(artwork, &tall, &pad_x);
 
-    if (!select_artwork(artwork, &tall, &pad_x, &pixdata)) {
+    if (!pixbuf) {
         return NULL;
     }
     
@@ -484,31 +486,28 @@ GtkWidget* ctk_banner_new(BannerArtworkType artwork)
     /* load the global images */
 
     if (!Background.pixbuf) {
-        Background.pixbuf =
-            gdk_pixbuf_from_pixdata(&background_pixdata, TRUE, NULL);
+        Background.pixbuf = CTK_LOAD_PIXBUF(background);
         Background.w = gdk_pixbuf_get_width(Background.pixbuf);
         Background.h = gdk_pixbuf_get_height(Background.pixbuf);
     }
     g_object_ref(Background.pixbuf);
 
     if (!TallBackground.pixbuf) {
-        TallBackground.pixbuf =
-            gdk_pixbuf_from_pixdata(&background_tall_pixdata, TRUE, NULL);
+        TallBackground.pixbuf = CTK_LOAD_PIXBUF(background_tall);
         TallBackground.w = gdk_pixbuf_get_width(TallBackground.pixbuf);
         TallBackground.h = gdk_pixbuf_get_height(TallBackground.pixbuf);
     }
     g_object_ref(TallBackground.pixbuf);
     
     if (!Logo.pixbuf) {
-        Logo.pixbuf = gdk_pixbuf_from_pixdata(&logo_pixdata, TRUE, NULL);
+        Logo.pixbuf = CTK_LOAD_PIXBUF(logo);
         Logo.w = gdk_pixbuf_get_width(Logo.pixbuf);
         Logo.h = gdk_pixbuf_get_height(Logo.pixbuf);
     }
     g_object_ref(Logo.pixbuf);
     
     if (!TallLogo.pixbuf) {
-        TallLogo.pixbuf =
-            gdk_pixbuf_from_pixdata(&logo_tall_pixdata, TRUE, NULL);
+        TallLogo.pixbuf = CTK_LOAD_PIXBUF(logo_tall);
         TallLogo.w = gdk_pixbuf_get_width(TallLogo.pixbuf);
         TallLogo.h = gdk_pixbuf_get_height(TallLogo.pixbuf);
     }
@@ -533,13 +532,11 @@ GtkWidget* ctk_banner_new(BannerArtworkType artwork)
     
     
     /* load the artwork pixbuf */
-    
-    ctk_banner->artwork.pixbuf = gdk_pixbuf_from_pixdata(pixdata, TRUE, NULL);
-    ctk_banner->artwork.w =
-        gdk_pixbuf_get_width(ctk_banner->artwork.pixbuf);
-    ctk_banner->artwork.h =
-        gdk_pixbuf_get_height(ctk_banner->artwork.pixbuf);
-    
+
+    ctk_banner->artwork.pixbuf = pixbuf;
+    ctk_banner->artwork.w = gdk_pixbuf_get_width(pixbuf);
+    ctk_banner->artwork.h = gdk_pixbuf_get_height(pixbuf);
+
     return GTK_WIDGET(object);
 }
 

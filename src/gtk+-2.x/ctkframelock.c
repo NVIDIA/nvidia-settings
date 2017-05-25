@@ -18,7 +18,6 @@
  */
 
 #include <gtk/gtk.h>
-#include <gdk-pixbuf/gdk-pixdata.h>
 
 #include "NvCtrlAttributes.h"
 #include "NVCtrlLib.h"
@@ -34,15 +33,15 @@
 #include "ctkhelp.h"
 #include "ctkevent.h"
 
-#include "led_green_pixdata.h"
-#include "led_red_pixdata.h"
-#include "led_grey_pixdata.h"
+#include "led_green.png.h"
+#include "led_red.png.h"
+#include "led_grey.png.h"
 
-#include "rj45_input_pixdata.h"
-#include "rj45_output_pixdata.h"
-#include "rj45_unused_pixdata.h"
+#include "rj45_input.png.h"
+#include "rj45_output.png.h"
+#include "rj45_unused.png.h"
 
-#include "bnc_cable_pixdata.h"
+#include "bnc_cable.png.h"
 
 #include "parse.h"
 #include "msg.h"
@@ -4941,19 +4940,13 @@ GtkWidget* ctk_framelock_new(CtrlTarget *ctrl_target,
 
     /* Cache images */
 
-    ctk_framelock->led_grey_pixbuf =
-        gdk_pixbuf_from_pixdata(&led_grey_pixdata, TRUE, NULL);
-    ctk_framelock->led_green_pixbuf =
-        gdk_pixbuf_from_pixdata(&led_green_pixdata, TRUE, NULL);
-    ctk_framelock->led_red_pixbuf =
-        gdk_pixbuf_from_pixdata(&led_red_pixdata, TRUE, NULL);
+    ctk_framelock->led_grey_pixbuf = CTK_LOAD_PIXBUF(led_grey);
+    ctk_framelock->led_green_pixbuf = CTK_LOAD_PIXBUF(led_green);
+    ctk_framelock->led_red_pixbuf = CTK_LOAD_PIXBUF(led_red);
 
-    ctk_framelock->rj45_input_pixbuf =
-        gdk_pixbuf_from_pixdata(&rj45_input_pixdata, TRUE, NULL);
-    ctk_framelock->rj45_output_pixbuf =
-        gdk_pixbuf_from_pixdata(&rj45_output_pixdata, TRUE, NULL);
-    ctk_framelock->rj45_unused_pixbuf =
-        gdk_pixbuf_from_pixdata(&rj45_unused_pixdata, TRUE, NULL);
+    ctk_framelock->rj45_input_pixbuf = CTK_LOAD_PIXBUF(rj45_input);
+    ctk_framelock->rj45_output_pixbuf = CTK_LOAD_PIXBUF(rj45_output);
+    ctk_framelock->rj45_unused_pixbuf = CTK_LOAD_PIXBUF(rj45_unused);
 
     g_object_ref(ctk_framelock->led_grey_pixbuf);
     g_object_ref(ctk_framelock->led_green_pixbuf);
@@ -5035,8 +5028,7 @@ GtkWidget* ctk_framelock_new(CtrlTarget *ctrl_target,
     gtk_container_add(GTK_CONTAINER(frame), padding);
 
     /* add house sync BNC connector image */
-    image = gtk_image_new_from_pixbuf
-         (gdk_pixbuf_from_pixdata(&bnc_cable_pixdata, TRUE, NULL));
+    image = gtk_image_new_from_pixbuf(CTK_LOAD_PIXBUF(bnc_cable));
     hbox = gtk_hbox_new(FALSE, 0);
     gtk_box_pack_end(GTK_BOX(hbox), image, FALSE, FALSE, 0);
 

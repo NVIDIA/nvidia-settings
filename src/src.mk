@@ -41,7 +41,6 @@ NVIDIA_SETTINGS_EXTRA_DIST += $(SRC_EXTRA_DIST)
 # files in the src/image_data directory of nvidia-settings
 #
 
-IMAGE_DATA_SRC +=
 IMAGE_FILES += image_data/antialias.png
 IMAGE_FILES += image_data/background.png
 IMAGE_FILES += image_data/background_tall.png
@@ -82,49 +81,6 @@ IMAGE_FILES += image_data/x.png
 IMAGE_FILES += image_data/xvideo.png
 
 NVIDIA_SETTINGS_EXTRA_DIST += $(IMAGE_FILES)
-
-IMAGE_DATA_EXTRA_DIST += image_data/HOWTO-ADD-IMAGES
-IMAGE_DATA_EXTRA_DIST += image_data/antialias_pixdata.h
-IMAGE_DATA_EXTRA_DIST += image_data/background_pixdata.h
-IMAGE_DATA_EXTRA_DIST += image_data/background_tall_pixdata.h
-IMAGE_DATA_EXTRA_DIST += image_data/bnc_cable_pixdata.h
-IMAGE_DATA_EXTRA_DIST += image_data/bsd_pixdata.h
-IMAGE_DATA_EXTRA_DIST += image_data/clock_pixdata.h
-IMAGE_DATA_EXTRA_DIST += image_data/color_pixdata.h
-IMAGE_DATA_EXTRA_DIST += image_data/config_pixdata.h
-IMAGE_DATA_EXTRA_DIST += image_data/crt_pixdata.h
-IMAGE_DATA_EXTRA_DIST += image_data/dfp_pixdata.h
-IMAGE_DATA_EXTRA_DIST += image_data/display_config_pixdata.h
-IMAGE_DATA_EXTRA_DIST += image_data/framelock_pixdata.h
-IMAGE_DATA_EXTRA_DIST += image_data/glx_pixdata.h
-IMAGE_DATA_EXTRA_DIST += image_data/gpu_pixdata.h
-IMAGE_DATA_EXTRA_DIST += image_data/gvi_pixdata.h
-IMAGE_DATA_EXTRA_DIST += image_data/help_pixdata.h
-IMAGE_DATA_EXTRA_DIST += image_data/led_green_pixdata.h
-IMAGE_DATA_EXTRA_DIST += image_data/led_grey_pixdata.h
-IMAGE_DATA_EXTRA_DIST += image_data/led_red_pixdata.h
-IMAGE_DATA_EXTRA_DIST += image_data/logo_pixdata.h
-IMAGE_DATA_EXTRA_DIST += image_data/logo_tall_pixdata.h
-IMAGE_DATA_EXTRA_DIST += image_data/nvidia_icon_pixdata.h
-IMAGE_DATA_EXTRA_DIST += image_data/opengl_pixdata.h
-IMAGE_DATA_EXTRA_DIST += image_data/penguin_pixdata.h
-IMAGE_DATA_EXTRA_DIST += image_data/png_to_c_header.sh
-IMAGE_DATA_EXTRA_DIST += image_data/rj45_input_pixdata.h
-IMAGE_DATA_EXTRA_DIST += image_data/rj45_output_pixdata.h
-IMAGE_DATA_EXTRA_DIST += image_data/rj45_unused_pixdata.h
-IMAGE_DATA_EXTRA_DIST += image_data/sdi_pixdata.h
-IMAGE_DATA_EXTRA_DIST += image_data/sdi_shared_sync_bnc_pixdata.h
-IMAGE_DATA_EXTRA_DIST += image_data/server_licensing_pixdata.h
-IMAGE_DATA_EXTRA_DIST += image_data/slimm_pixdata.h
-IMAGE_DATA_EXTRA_DIST += image_data/solaris_pixdata.h
-IMAGE_DATA_EXTRA_DIST += image_data/svp_3dvp_pixdata.h
-IMAGE_DATA_EXTRA_DIST += image_data/thermal_pixdata.h
-IMAGE_DATA_EXTRA_DIST += image_data/vcs_pixdata.h
-IMAGE_DATA_EXTRA_DIST += image_data/vdpau_pixdata.h
-IMAGE_DATA_EXTRA_DIST += image_data/x_pixdata.h
-IMAGE_DATA_EXTRA_DIST += image_data/xvideo_pixdata.h
-
-NVIDIA_SETTINGS_EXTRA_DIST += $(IMAGE_DATA_EXTRA_DIST)
 
 #
 # files in the src/libXNVCtrlAttributes directory of nvidia-settings

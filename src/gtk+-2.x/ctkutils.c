@@ -19,6 +19,9 @@
 
 #include <stdlib.h>
 #include <gtk/gtk.h>
+#ifdef CTK_GTK3
+#include <gio/gio.h>
+#endif
 #include <NvCtrlAttributes.h>
 #include "NVCtrlLib.h"
 #include "ctkutils.h"
@@ -827,4 +830,34 @@ char *ctk_get_filename_from_dialog(const gchar* title,
     return filename;
 }
 
+GdkPixbuf *ctk_pixbuf_from_data(const char *start, const char *end)
+{
+    GdkPixbuf *pixbuf = NULL;
+    size_t size = end - start;
 
+#ifdef CTK_GTK3
+    GInputStream *stream =
+        g_memory_input_stream_new_from_data(start, size, NULL);
+
+    if (stream) {
+        pixbuf = gdk_pixbuf_new_from_stream(stream, NULL, NULL);
+
+        g_object_unref(stream);
+    }
+#else
+    GdkPixbufLoader *loader = gdk_pixbuf_loader_new();
+
+    if (loader) {
+        gdk_pixbuf_loader_write(loader, (const void*)start, size, NULL);
+        gdk_pixbuf_loader_close(loader, NULL);
+
+        pixbuf = gdk_pixbuf_loader_get_pixbuf(loader);
+        if (pixbuf) {
+            g_object_ref(pixbuf);
+        }
+
+        g_object_unref(loader);
+    }
+#endif
+    return pixbuf;
+}
