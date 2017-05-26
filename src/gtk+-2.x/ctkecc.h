@@ -71,6 +71,7 @@ struct _CtkEcc
     gboolean aggregate_sbit_error_available;
     gboolean aggregate_dbit_error_available;
     gboolean ecc_config_supported;
+    gboolean ecc_default_status;
 
 };
 
