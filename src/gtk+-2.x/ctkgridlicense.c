@@ -915,6 +915,7 @@ GtkWidget* ctk_manage_grid_license_new(CtrlTarget *target,
     GtkWidget *button1 = NULL, *button2 = NULL;
     GSList *slist = NULL;
     gint ret;
+    gboolean configFileAvailable;
     DBusError err;
     DBusConnection* conn;
     DbusData *dbusData;
@@ -994,15 +995,12 @@ GtkWidget* ctk_manage_grid_license_new(CtrlTarget *target,
     }
 
     /* Check available config file */
-    ret = checkConfigfile(&writable);
-    if (!ret) {
-        return NULL;
-    }
+    configFileAvailable = checkConfigfile(&writable);
     
     /* Initialize config parameters */
     griddConfig = GetNvGriddConfigParams();
         
-    if (!griddConfig ||
+    if (griddConfig &&
         (strcmp(griddConfig->str[NV_GRIDD_ENABLE_UI], "FALSE") == 0)) {
         return NULL;
     }
@@ -1034,6 +1032,21 @@ GtkWidget* ctk_manage_grid_license_new(CtrlTarget *target,
     frame = gtk_frame_new("");
     gtk_box_pack_start(GTK_BOX(vbox), frame, FALSE, FALSE, 0);
     gtk_container_add(GTK_CONTAINER(frame), vbox1);
+
+    /* Show message if config file not available and user do not have
+     * permissions to create new file.
+     */
+    if (!configFileAvailable && !griddConfig) {
+        str = g_strdup_printf("'%s' file does not exist.\n You do not have "
+                              "permissions to create this file.", GRID_CONFIG_FILE);
+        label = gtk_label_new(str);
+        g_free(str);
+        hbox = gtk_hbox_new(FALSE, 0);
+        gtk_box_pack_start(GTK_BOX(hbox), label, FALSE, TRUE, 5);
+        gtk_box_pack_start(GTK_BOX(vbox1), hbox, FALSE, FALSE, 5);
+
+        goto done;
+    }
 
     if (mode == NV_CTRL_ATTR_NVML_GPU_VIRTUALIZATION_MODE_PASSTHROUGH) {
         label = gtk_label_new("License Edition:");
@@ -1235,10 +1248,11 @@ GtkWidget* ctk_manage_grid_license_new(CtrlTarget *target,
                          (GSourceFunc) update_manage_grid_license_info,
                          (gpointer) ctk_manage_grid_license);
     g_free(str);
-    gtk_widget_show_all(GTK_WIDGET(ctk_manage_grid_license));
-
     update_manage_grid_license_info(ctk_manage_grid_license);
 
+done:
+    gtk_widget_show_all(GTK_WIDGET(ctk_manage_grid_license));
+    
     return GTK_WIDGET(ctk_manage_grid_license);
 }
 
