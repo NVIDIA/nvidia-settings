@@ -65,7 +65,7 @@ static const char * __secondary_server_port_help =
 "Shows the secondary server port number.";
 static const char * __apply_button_help =
 "Clicking the Apply button updates values in the gridd.conf file and "
-"restarts the gridd daemon.";
+"sends update license request to the NVIDIA GRID licensing daemon.";
 
 typedef struct 
 {
@@ -95,7 +95,7 @@ struct _DbusData
     GridDbus       dbus;
 };
 
-static void save_clicked(GtkWidget *widget, gpointer user_data);
+static void apply_clicked(GtkWidget *widget, gpointer user_data);
 static void ctk_manage_grid_license_finalize(GObject *object);
 static void ctk_manage_grid_license_class_init(CtkManageGridLicenseClass *);
 static void dbusClose(DbusData *dbusData);
@@ -203,7 +203,7 @@ static NvGriddConfigParams *AllocNvGriddConfigParams(void)
     NvGriddConfigParams *griddConfig = nvalloc(sizeof(*griddConfig));
 
     griddConfig->str[NV_GRIDD_SERVER_ADDRESS]        = nvstrdup("");
-    griddConfig->str[NV_GRIDD_SERVER_PORT]           = nvstrdup("7070");
+    griddConfig->str[NV_GRIDD_SERVER_PORT]           = nvstrdup("");
     griddConfig->str[NV_GRIDD_FEATURE_TYPE]          = nvstrdup("0");
     griddConfig->str[NV_GRIDD_ENABLE_UI]             = nvstrdup("TRUE");
     griddConfig->str[NV_GRIDD_BACKUP_SERVER_ADDRESS] = nvstrdup("");
@@ -232,8 +232,8 @@ static gboolean LineIsItem(const char *line, const char *item)
 }
 
 /*
- * Update NvGriddConfigParams if the line from gridd describes any
- * gridd configuration parameters.
+ * Update NvGriddConfigParams if the line from gridd.conf describes any
+ * nvidia-gridd configuration parameters.
  */
 static void UpdateGriddConfigFromLine(NvGriddConfigParams *griddConfig,
                                       const char *line)
@@ -296,7 +296,7 @@ static char *AllocConfigLine(const NvGriddConfigParams *griddConfig,
 }
 
 /*
- * Update the line from gridd with information in NvGriddConfigParams.
+ * Update the line from gridd.conf with information in NvGriddConfigParams.
  *
  * The old line is passed as argument, and the new line is returned.
  * If the line has to be reallocated, the old line is freed.  If the
@@ -385,7 +385,8 @@ static void UpdateGriddConfigFromGui(
     nvfree(griddConfig->str[NV_GRIDD_SERVER_PORT]);
     tmp = gtk_entry_get_text(GTK_ENTRY(
                               ctk_manage_grid_license->txt_server_port));
-    griddConfig->str[NV_GRIDD_SERVER_PORT] = nvstrdup(tmp ? tmp : "");
+    griddConfig->str[NV_GRIDD_SERVER_PORT] =
+        nvstrdup((strcmp(tmp, "") != 0) ? tmp : "7070");
 
     /* featureType */
 
@@ -420,7 +421,7 @@ static void UpdateGriddConfigFromGui(
 }
 
 /*
- * Read the gridd config file specified by configFile, returning the
+ * Read the nvidia-gridd config file specified by configFile, returning the
  * lines in ConfigFileLines.
  */
 static ConfigFileLines *ReadConfigFileStream(FILE *configFile)
@@ -482,7 +483,7 @@ static gboolean WriteConfigFile(const ConfigFileLines *pLines)
 
 
 /*
- * Update the gridd config file with the current GUI state.
+ * Update the nvidia-gridd config file with the current GUI state.
  *
  */
 static gboolean UpdateConfigFile(CtkManageGridLicense *ctk_manage_grid_license)
@@ -629,21 +630,24 @@ dbus_end:
 
 
 /*
- * update_manage_grid_license_info() - update manage_grid_license status and configuration
+ * send_message_to_gridd() - This function is for communication between
+ * nvidia-gridd and nvidia-settings using DBus.
+ * Nvidia-settings sends different command messages to either query info
+ * such as license state or to notify nvidia-gridd to update license
+ * info changes.
  */
-
-static gboolean update_manage_grid_license_info(gpointer user_data)
+static gboolean
+send_message_to_gridd(CtkManageGridLicense *ctk_manage_grid_license,
+                      gint param,
+                      gint *status)
 {
-    CtkManageGridLicense *ctk_manage_grid_license = CTK_MANAGE_GRID_LICENSE(user_data);
-    gchar *licenseState;
+    gboolean ret = FALSE;
 
     DBusMessage* msg;
     DBusMessageIter args;
     DBusPendingCall* pending;
     DBusError err;
 
-    int licenseStatus = 15;
-    int param = 1;
     DbusData *dbusData = ctk_manage_grid_license->dbusData;
     DBusConnection* conn = dbusData->conn;
 
@@ -663,19 +667,16 @@ static gboolean update_manage_grid_license_info(gpointer user_data)
     
     if (!dbusData->dbus.dbusMessageIterAppendBasic(&args,
                                                    DBUS_TYPE_INT32, &param)) {
-        dbusData->dbus.dbusMessageUnref(msg);
-        return FALSE;
+        goto done;
     }
 
     /* send message and get a handle for a reply */
     if (!dbusData->dbus.dbusConnectionSendWithReply(conn,
                                       msg, &pending, -1)) { // -1 is default timeout
-        dbusData->dbus.dbusMessageUnref(msg);
-        return FALSE;
+        goto done;
     }
     if (NULL == pending) {
-        dbusData->dbus.dbusMessageUnref(msg);
-        return FALSE;
+        goto done;
     }
     dbusData->dbus.dbusConnectionFlush(conn);
 
@@ -688,8 +689,7 @@ static gboolean update_manage_grid_license_info(gpointer user_data)
     /* get the reply */
     msg = dbusData->dbus.dbusPendingCallStealReply(pending);
     if (NULL == msg) {
-        dbusData->dbus.dbusMessageUnref(msg);
-        return FALSE;
+        goto done;
     }
     
     /* read the parameters */
@@ -699,12 +699,36 @@ static gboolean update_manage_grid_license_info(gpointer user_data)
                dbusData->dbus.dbusMessageIterGetArgType(&args)) {
         nv_error_msg("GRID License dbus communication: Argument is not int!\n");
     } else {
-        dbusData->dbus.dbusMessageIterGetBasic(&args, &licenseStatus);
+        dbusData->dbus.dbusMessageIterGetBasic(&args, &status);
     }
 
+    ret = TRUE;
+done:
     /* free reply */
     dbusData->dbus.dbusMessageUnref(msg);
+
+    return ret;
+}
+
     
+/*
+ * update_manage_grid_license_state_info() - update manage_grid_license state
+ */
+
+static gboolean update_manage_grid_license_state_info(gpointer user_data)
+{
+    CtkManageGridLicense *ctk_manage_grid_license = CTK_MANAGE_GRID_LICENSE(user_data);
+    gchar *licenseState;
+    gboolean ret = TRUE;
+
+    int licenseStatus = NV_GRID_UNLICENSED;
+
+    /* Send license state request */
+    if (!(send_message_to_gridd(ctk_manage_grid_license, LICENSE_STATE_REQUEST,
+                                &licenseStatus))) {
+        ret = FALSE;
+    }
+
     /* Show the message received */
     switch (licenseStatus) {
     case NV_GRID_UNLICENSED_VGPU:
@@ -766,27 +790,46 @@ static gboolean update_manage_grid_license_info(gpointer user_data)
 
     gtk_label_set_text(GTK_LABEL(ctk_manage_grid_license->label_license_state),
                        licenseState);
-    return TRUE;
+    return ret;
 }
 
 
 
 /*
- * save_clicked() - Called when the user clicks on the "Save" button.
+ * apply_clicked() - Called when the user clicks on the "Apply" button.
  */
 
-static void save_clicked(GtkWidget *widget, gpointer user_data)
+static void apply_clicked(GtkWidget *widget, gpointer user_data)
 {
     CtkManageGridLicense *ctk_manage_grid_license = CTK_MANAGE_GRID_LICENSE(user_data);
     gboolean ret;
+    gint status = 0;
 
     /* Add information to gridd.conf file */
     ret = UpdateConfigFile(ctk_manage_grid_license);
     
     if (ret) {
-        /* Restart gridd-daemon */
-        if (system("systemctl restart nvidia-gridd.service") < 0) {
-            nv_error_msg("Unable to start gridd daemon\n");
+        /* Send update request to nvidia-gridd */
+        ret = send_message_to_gridd(ctk_manage_grid_license,
+                                    LICENSE_DETAILS_UPDATE_REQUEST,
+                                    &status);
+        if ((!ret) || (status != LICENSE_DETAILS_UPDATE_SUCCESS)) {
+            GtkWidget *dlg, *parent;
+
+            parent = ctk_get_parent_window(GTK_WIDGET(ctk_manage_grid_license));
+
+            dlg = gtk_message_dialog_new(GTK_WINDOW(parent),
+                                         GTK_DIALOG_MODAL,
+                                         GTK_MESSAGE_WARNING,
+                                         GTK_BUTTONS_OK,
+                                         "Unable to send license information "
+                                         "update request to the NVIDIA GRID "
+                                         "licensing daemon.\n"
+                                         "Please make sure nvidia-gridd "
+                                         "is running and retry applying the "
+                                         "license settings.\n");
+            gtk_dialog_run(GTK_DIALOG(dlg));
+            gtk_widget_destroy(dlg);
         }
     }
 }
@@ -1213,17 +1256,17 @@ GtkWidget* ctk_manage_grid_license_new(CtrlTarget *target,
     ctk_manage_grid_license->box_server_info = vbox2;
     
     /* Apply button */
-    ctk_manage_grid_license->btn_save = gtk_button_new_with_label
+    ctk_manage_grid_license->btn_apply = gtk_button_new_with_label
         (" Apply ");
-    gtk_widget_set_size_request(ctk_manage_grid_license->btn_save, 100, -1);
-    ctk_config_set_tooltip(ctk_config, ctk_manage_grid_license->btn_save,
+    gtk_widget_set_size_request(ctk_manage_grid_license->btn_apply, 100, -1);
+    ctk_config_set_tooltip(ctk_config, ctk_manage_grid_license->btn_apply,
                            __apply_button_help);
     hbox = gtk_hbox_new(FALSE, 5);
     gtk_box_pack_start(GTK_BOX(vbox), hbox, FALSE, FALSE, 0);
-    gtk_box_pack_end(GTK_BOX(hbox), ctk_manage_grid_license->btn_save, FALSE, FALSE, 5);
+    gtk_box_pack_end(GTK_BOX(hbox), ctk_manage_grid_license->btn_apply, FALSE, FALSE, 5);
 
-    g_signal_connect(G_OBJECT(ctk_manage_grid_license->btn_save), "clicked",
-                     G_CALLBACK(save_clicked),
+    g_signal_connect(G_OBJECT(ctk_manage_grid_license->btn_apply), "clicked",
+                     G_CALLBACK(apply_clicked),
                      (gpointer) ctk_manage_grid_license);
     
     /* Set license edition toggle button active */
@@ -1245,10 +1288,10 @@ GtkWidget* ctk_manage_grid_license_new(CtrlTarget *target,
     ctk_config_add_timer(ctk_manage_grid_license->ctk_config,
                          DEFAULT_UPDATE_GRID_LICENSE_STATUS_INFO_TIME_INTERVAL,
                          str,
-                         (GSourceFunc) update_manage_grid_license_info,
+                         (GSourceFunc) update_manage_grid_license_state_info,
                          (gpointer) ctk_manage_grid_license);
     g_free(str);
-    update_manage_grid_license_info(ctk_manage_grid_license);
+    update_manage_grid_license_state_info(ctk_manage_grid_license);
 
 done:
     gtk_widget_show_all(GTK_WIDGET(ctk_manage_grid_license));
@@ -1309,7 +1352,7 @@ void ctk_manage_grid_license_start_timer(GtkWidget *widget)
     /* Start the manage_grid_license timer */
 
     ctk_config_start_timer(ctk_manage_grid_license->ctk_config,
-                           (GSourceFunc) update_manage_grid_license_info,
+                           (GSourceFunc) update_manage_grid_license_state_info,
                            (gpointer) ctk_manage_grid_license);
 }
 
@@ -1320,6 +1363,6 @@ void ctk_manage_grid_license_stop_timer(GtkWidget *widget)
     /* Stop the manage_grid_license timer */
 
     ctk_config_stop_timer(ctk_manage_grid_license->ctk_config,
-                          (GSourceFunc) update_manage_grid_license_info,
+                          (GSourceFunc) update_manage_grid_license_state_info,
                           (gpointer) ctk_manage_grid_license);
 }

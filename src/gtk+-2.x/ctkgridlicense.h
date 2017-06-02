@@ -55,7 +55,7 @@ struct _CtkManageGridLicense
     GtkWidget* txt_server_port;
     GtkWidget* txt_server_address;
     GtkWidget* label_license_state;
-    GtkWidget* btn_save;
+    GtkWidget* btn_apply;
     GtkWidget* box_server_info;
 
     DbusData *dbusData;
