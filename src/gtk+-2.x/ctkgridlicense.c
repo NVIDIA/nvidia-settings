@@ -707,6 +707,18 @@ static gboolean update_manage_grid_license_info(gpointer user_data)
     
     /* Show the message received */
     switch (licenseStatus) {
+    case NV_GRID_UNLICENSED_VGPU:
+          licenseState = "Your system does not have a valid vGPU license.\n"
+              "Enter license server details and apply.";
+          break;
+    case NV_GRID_UNLICENSED_TESLA:
+          licenseState = "Your system is currently running on "
+              "Tesla (unlicensed).";
+          break;
+    case NV_GRID_UNLICENSED_GVW_SELECTED:
+          licenseState = "Your system is currently running on Tesla (unlicensed).\n"
+             "Enter license server details and apply.";
+          break;
     case NV_GRID_LICENSE_ACQUIRED_VGPU:
           licenseState = "Your system is licensed for GRID vGPU.";
           break;
@@ -746,7 +758,6 @@ static gboolean update_manage_grid_license_info(gpointer user_data)
               "Your system is currently running GRID Virtual "
               "Workstation Edition.";
           break;
-    case NV_GRID_UNLICENSED:
     default:
           licenseState = "Your system does not have a valid GPU license.\n"
               "Enter license server details and apply.";
