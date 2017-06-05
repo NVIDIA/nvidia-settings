@@ -229,7 +229,7 @@ typedef enum nvmlBridgeChipType_enum
 /**
  * Maximum number of NvLink links supported 
  */
-#define NVML_NVLINK_MAX_LINKS 4
+#define NVML_NVLINK_MAX_LINKS 6
 
 /**
  * Enum to represent the NvLink utilization counter packet units
@@ -404,6 +404,7 @@ typedef enum nvmlValueType_enum
     NVML_VALUE_TYPE_UNSIGNED_INT = 1,
     NVML_VALUE_TYPE_UNSIGNED_LONG = 2,
     NVML_VALUE_TYPE_UNSIGNED_LONG_LONG = 3,
+    NVML_VALUE_TYPE_SIGNED_LONG_LONG = 4,
 
     // Keep this last
     NVML_VALUE_TYPE_COUNT
@@ -419,6 +420,7 @@ typedef union nvmlValue_st
     unsigned int uiVal;             //!< If the value is unsigned int
     unsigned long ulVal;            //!< If the value is unsigned long
     unsigned long long ullVal;      //!< If the value is unsigned long long
+    signed long long sllVal;        //!< If the value is signed long long
 }nvmlValue_t;
 
 /**
@@ -435,25 +437,19 @@ typedef struct nvmlSample_st
  */
 typedef enum nvmlPerfPolicyType_enum
 {
-    NVML_PERF_POLICY_POWER = 0,
-    NVML_PERF_POLICY_THERMAL = 1,
-    NVML_PERF_POLICY_SYNC_BOOST = 2,
-    NVML_PERF_POLICY_BOARD_LIMIT = 3,
-    NVML_PERF_POLICY_LOW_UTILIZATION = 4,
-    NVML_PERF_POLICY_RELIABILITY = 5,
+    NVML_PERF_POLICY_POWER = 0,              //!< How long did power violations cause the GPU to be below application clocks
+    NVML_PERF_POLICY_THERMAL = 1,            //!< How long did thermal violations cause the GPU to be below application clocks
+    NVML_PERF_POLICY_SYNC_BOOST = 2,         //!< How long did sync boost cause the GPU to be below application clocks
+    NVML_PERF_POLICY_BOARD_LIMIT = 3,        //!< How long did the board limit cause the GPU to be below application clocks
+    NVML_PERF_POLICY_LOW_UTILIZATION = 4,    //!< How long did low utilization cause the GPU to be below application clocks
+    NVML_PERF_POLICY_RELIABILITY = 5,        //!< How long did the board reliability limit cause the GPU to be below application clocks
+
+    NVML_PERF_POLICY_TOTAL_APP_CLOCKS = 10,  //!< Total time the GPU was held below application clocks by any limiter (0 - 5 above)
+    NVML_PERF_POLICY_TOTAL_BASE_CLOCKS = 11, //!< Total time the GPU was held below base clocks
 
     // Keep this last
     NVML_PERF_POLICY_COUNT
 }nvmlPerfPolicyType_t;
-
-/*
- * Represents type of encoder for capacity can be queried
- */
-typedef enum nvmlEncoderQueryType_enum
-{
-    NVML_ENCODER_QUERY_H264 = 0,
-    NVML_ENCODER_QUERY_HEVC = 1,
-}nvmlEncoderQueryType_t;
 
 /**
  * Struct to hold perf policy violation status data
@@ -731,6 +727,7 @@ typedef enum nvmlReturn_enum
     NVML_ERROR_IN_USE = 19,             //!< An operation cannot be performed because the GPU is currently in use
     NVML_ERROR_MEMORY = 20,             //!< Insufficient memory
     NVML_ERROR_NO_DATA = 21,            //!<No data
+    NVML_ERROR_VGPU_ECC_NOT_SUPPORTED = 22,    //!< The requested vgpu operation is not available on target device, becasue ECC is enabled
     NVML_ERROR_UNKNOWN = 999            //!< An internal driver error occurred
 } nvmlReturn_t;
 
@@ -747,6 +744,7 @@ typedef enum nvmlMemoryLocation_enum
     NVML_MEMORY_LOCATION_REGISTER_FILE = 3,  //!< GPU Register File
     NVML_MEMORY_LOCATION_TEXTURE_MEMORY = 4, //!< GPU Texture Memory
     NVML_MEMORY_LOCATION_TEXTURE_SHM    = 5, //!< Shared memory
+    NVML_MEMORY_LOCATION_CBU            = 6, //!< CBU
     
     // Keep this last
     NVML_MEMORY_LOCATION_COUNT              //!< This counts the number of memory locations the driver knows about
@@ -795,6 +793,137 @@ typedef enum nvmlGpuVirtualizationMode {
     NVML_GPU_VIRTUALIZATION_MODE_HOST_VGPU = 3,  //!< Device is associated with VGX hypervisor in vGPU mode
     NVML_GPU_VIRTUALIZATION_MODE_HOST_VSGA = 4,  //!< Device is associated with VGX hypervisor in vSGA mode
 } nvmlGpuVirtualizationMode_t;
+
+/** @} */
+
+/***************************************************************************************************/
+/** @defgroup nvmlFieldValueEnums Field Value Enums
+ *  @{
+ */
+/***************************************************************************************************/
+
+/**
+ * Field Identifiers.
+ *
+ * All Identifiers pertain to a device. Each ID is only used once and is guaranteed never to change.
+ */
+#define NVML_FI_DEV_ECC_CURRENT           1   //!< Current ECC mode. 1=Active. 0=Inactive
+#define NVML_FI_DEV_ECC_PENDING           2   //!< Pending ECC mode. 1=Active. 0=Inactive
+/* ECC Count Totals */
+#define NVML_FI_DEV_ECC_SBE_VOL_TOTAL     3   //!< Total single bit volatile ECC errors
+#define NVML_FI_DEV_ECC_DBE_VOL_TOTAL     4   //!< Total double bit volatile ECC errors
+#define NVML_FI_DEV_ECC_SBE_AGG_TOTAL     5   //!< Total single bit aggregate (persistent) ECC errors
+#define NVML_FI_DEV_ECC_DBE_AGG_TOTAL     6   //!< Total double bit aggregate (persistent) ECC errors
+/* Individual ECC locations */
+#define NVML_FI_DEV_ECC_SBE_VOL_L1        7   //!< L1 cache single bit volatile ECC errors
+#define NVML_FI_DEV_ECC_DBE_VOL_L1        8   //!< L1 cache double bit volatile ECC errors
+#define NVML_FI_DEV_ECC_SBE_VOL_L2        9   //!< L2 cache single bit volatile ECC errors
+#define NVML_FI_DEV_ECC_DBE_VOL_L2        10  //!< L2 cache double bit volatile ECC errors
+#define NVML_FI_DEV_ECC_SBE_VOL_DEV       11  //!< Device memory single bit volatile ECC errors
+#define NVML_FI_DEV_ECC_DBE_VOL_DEV       12  //!< Device memory double bit volatile ECC errors
+#define NVML_FI_DEV_ECC_SBE_VOL_REG       13  //!< Register file single bit volatile ECC errors
+#define NVML_FI_DEV_ECC_DBE_VOL_REG       14  //!< Register file double bit volatile ECC errors
+#define NVML_FI_DEV_ECC_SBE_VOL_TEX       15  //!< Texture memory single bit volatile ECC errors
+#define NVML_FI_DEV_ECC_DBE_VOL_TEX       16  //!< Texture memory double bit volatile ECC errors
+#define NVML_FI_DEV_ECC_DBE_VOL_CBU       17  //!< CBU double bit volatile ECC errors
+#define NVML_FI_DEV_ECC_SBE_AGG_L1        18  //!< L1 cache single bit aggregate (persistent) ECC errors
+#define NVML_FI_DEV_ECC_DBE_AGG_L1        19  //!< L1 cache double bit aggregate (persistent) ECC errors
+#define NVML_FI_DEV_ECC_SBE_AGG_L2        20  //!< L2 cache single bit aggregate (persistent) ECC errors
+#define NVML_FI_DEV_ECC_DBE_AGG_L2        21  //!< L2 cache double bit aggregate (persistent) ECC errors
+#define NVML_FI_DEV_ECC_SBE_AGG_DEV       22  //!< Device memory single bit aggregate (persistent) ECC errors
+#define NVML_FI_DEV_ECC_DBE_AGG_DEV       23  //!< Device memory double bit aggregate (persistent) ECC errors
+#define NVML_FI_DEV_ECC_SBE_AGG_REG       24  //!< Register File single bit aggregate (persistent) ECC errors
+#define NVML_FI_DEV_ECC_DBE_AGG_REG       25  //!< Register File double bit aggregate (persistent) ECC errors
+#define NVML_FI_DEV_ECC_SBE_AGG_TEX       26  //!< Texture memory single bit aggregate (persistent) ECC errors
+#define NVML_FI_DEV_ECC_DBE_AGG_TEX       27  //!< Texture memory double bit aggregate (persistent) ECC errors
+#define NVML_FI_DEV_ECC_DBE_AGG_CBU       28  //!< CBU double bit aggregate ECC errors
+
+/* Page Retirement */
+#define NVML_FI_DEV_RETIRED_SBE           29  //!< Number of retired pages because of single bit errors
+#define NVML_FI_DEV_RETIRED_DBE           30  //!< Number of retired pages because of double bit errors
+#define NVML_FI_DEV_RETIRED_PENDING       31  //!< If any pages are pending retirement. 1=yes. 0=no.
+
+/* NvLink Flit Error Counters */
+#define NVML_FI_DEV_NVLINK_CRC_FLIT_ERROR_COUNT_L0    32 //!< NVLink flow control CRC  Error Counter for Lane 0
+#define NVML_FI_DEV_NVLINK_CRC_FLIT_ERROR_COUNT_L1    33 //!< NVLink flow control CRC  Error Counter for Lane 1
+#define NVML_FI_DEV_NVLINK_CRC_FLIT_ERROR_COUNT_L2    34 //!< NVLink flow control CRC  Error Counter for Lane 2
+#define NVML_FI_DEV_NVLINK_CRC_FLIT_ERROR_COUNT_L3    35 //!< NVLink flow control CRC  Error Counter for Lane 3
+#define NVML_FI_DEV_NVLINK_CRC_FLIT_ERROR_COUNT_L4    36 //!< NVLink flow control CRC  Error Counter for Lane 4
+#define NVML_FI_DEV_NVLINK_CRC_FLIT_ERROR_COUNT_L5    37 //!< NVLink flow control CRC  Error Counter for Lane 5
+#define NVML_FI_DEV_NVLINK_CRC_FLIT_ERROR_COUNT_TOTAL 38 //!< NVLink flow control CRC  Error Counter total for all Lanes
+
+/* NvLink CRC Data Error Counters */
+#define NVML_FI_DEV_NVLINK_CRC_DATA_ERROR_COUNT_L0    39 //!< NVLink data CRC Error Counter for Lane 0
+#define NVML_FI_DEV_NVLINK_CRC_DATA_ERROR_COUNT_L1    40 //!< NVLink data CRC Error Counter for Lane 1
+#define NVML_FI_DEV_NVLINK_CRC_DATA_ERROR_COUNT_L2    41 //!< NVLink data CRC Error Counter for Lane 2
+#define NVML_FI_DEV_NVLINK_CRC_DATA_ERROR_COUNT_L3    42 //!< NVLink data CRC Error Counter for Lane 3
+#define NVML_FI_DEV_NVLINK_CRC_DATA_ERROR_COUNT_L4    43 //!< NVLink data CRC Error Counter for Lane 4
+#define NVML_FI_DEV_NVLINK_CRC_DATA_ERROR_COUNT_L5    44 //!< NVLink data CRC Error Counter for Lane 5
+#define NVML_FI_DEV_NVLINK_CRC_DATA_ERROR_COUNT_TOTAL 45 //!< NvLink data CRC Error Counter total for all Lanes
+
+/* NvLink Replay Error Counters */
+#define NVML_FI_DEV_NVLINK_REPLAY_ERROR_COUNT_L0      46 //!< NVLink Replay Error Counter for Lane 0
+#define NVML_FI_DEV_NVLINK_REPLAY_ERROR_COUNT_L1      47 //!< NVLink Replay Error Counter for Lane 1
+#define NVML_FI_DEV_NVLINK_REPLAY_ERROR_COUNT_L2      48 //!< NVLink Replay Error Counter for Lane 2
+#define NVML_FI_DEV_NVLINK_REPLAY_ERROR_COUNT_L3      49 //!< NVLink Replay Error Counter for Lane 3
+#define NVML_FI_DEV_NVLINK_REPLAY_ERROR_COUNT_L4      50 //!< NVLink Replay Error Counter for Lane 4
+#define NVML_FI_DEV_NVLINK_REPLAY_ERROR_COUNT_L5      51 //!< NVLink Replay Error Counter for Lane 5
+#define NVML_FI_DEV_NVLINK_REPLAY_ERROR_COUNT_TOTAL   52 //!< NVLink Replay Error Counter total for all Lanes
+
+/* NvLink Recovery Error Counters */
+#define NVML_FI_DEV_NVLINK_RECOVERY_ERROR_COUNT_L0    53 //!< NVLink Recovery Error Counter for Lane 0
+#define NVML_FI_DEV_NVLINK_RECOVERY_ERROR_COUNT_L1    54 //!< NVLink Recovery Error Counter for Lane 1
+#define NVML_FI_DEV_NVLINK_RECOVERY_ERROR_COUNT_L2    55 //!< NVLink Recovery Error Counter for Lane 2
+#define NVML_FI_DEV_NVLINK_RECOVERY_ERROR_COUNT_L3    56 //!< NVLink Recovery Error Counter for Lane 3
+#define NVML_FI_DEV_NVLINK_RECOVERY_ERROR_COUNT_L4    57 //!< NVLink Recovery Error Counter for Lane 4
+#define NVML_FI_DEV_NVLINK_RECOVERY_ERROR_COUNT_L5    58 //!< NVLink Recovery Error Counter for Lane 5
+#define NVML_FI_DEV_NVLINK_RECOVERY_ERROR_COUNT_TOTAL 59 //!< NVLink Recovery Error Counter total for all Lanes
+
+/* NvLink Bandwidth Counters */
+#define NVML_FI_DEV_NVLINK_BANDWIDTH_C0_L0     60 //!< NVLink Bandwidth Counter for Counter Set 0, Lane 0
+#define NVML_FI_DEV_NVLINK_BANDWIDTH_C0_L1     61 //!< NVLink Bandwidth Counter for Counter Set 0, Lane 1
+#define NVML_FI_DEV_NVLINK_BANDWIDTH_C0_L2     62 //!< NVLink Bandwidth Counter for Counter Set 0, Lane 2
+#define NVML_FI_DEV_NVLINK_BANDWIDTH_C0_L3     63 //!< NVLink Bandwidth Counter for Counter Set 0, Lane 3
+#define NVML_FI_DEV_NVLINK_BANDWIDTH_C0_L4     64 //!< NVLink Bandwidth Counter for Counter Set 0, Lane 4
+#define NVML_FI_DEV_NVLINK_BANDWIDTH_C0_L5     65 //!< NVLink Bandwidth Counter for Counter Set 0, Lane 5
+#define NVML_FI_DEV_NVLINK_BANDWIDTH_C0_TOTAL  66 //!< NVLink Bandwidth Counter Total for Counter Set 0, All Lanes
+
+/* NvLink Bandwidth Counters */
+#define NVML_FI_DEV_NVLINK_BANDWIDTH_C1_L0     67 //!< NVLink Bandwidth Counter for Counter Set 1, Lane 0
+#define NVML_FI_DEV_NVLINK_BANDWIDTH_C1_L1     68 //!< NVLink Bandwidth Counter for Counter Set 1, Lane 1
+#define NVML_FI_DEV_NVLINK_BANDWIDTH_C1_L2     69 //!< NVLink Bandwidth Counter for Counter Set 1, Lane 2
+#define NVML_FI_DEV_NVLINK_BANDWIDTH_C1_L3     70 //!< NVLink Bandwidth Counter for Counter Set 1, Lane 3
+#define NVML_FI_DEV_NVLINK_BANDWIDTH_C1_L4     71 //!< NVLink Bandwidth Counter for Counter Set 1, Lane 4
+#define NVML_FI_DEV_NVLINK_BANDWIDTH_C1_L5     72 //!< NVLink Bandwidth Counter for Counter Set 1, Lane 5
+#define NVML_FI_DEV_NVLINK_BANDWIDTH_C1_TOTAL  73 //!< NVLink Bandwidth Counter Total for Counter Set 1, All Lanes
+
+/* NVML Perf Policy Counters */
+#define	NVML_FI_DEV_PERF_POLICY_POWER              74   //!< Perf Policy Counter for Power Policy
+#define NVML_FI_DEV_PERF_POLICY_THERMAL            75   //!< Perf Policy Counter for Thermal Policy
+#define NVML_FI_DEV_PERF_POLICY_SYNC_BOOST         76   //!< Perf Policy Counter for Sync boost Policy
+#define NVML_FI_DEV_PERF_POLICY_BOARD_LIMIT        77   //!< Perf Policy Counter for Board Limit
+#define NVML_FI_DEV_PERF_POLICY_LOW_UTILIZATION    78   //!< Perf Policy Counter for Low GPU Utilization Policy
+#define NVML_FI_DEV_PERF_POLICY_RELIABILITY        79   //!< Perf Policy Counter for Reliability Policy
+#define NVML_FI_DEV_PERF_POLICY_TOTAL_APP_CLOCKS   80  	//!< Perf Policy Counter for Total App Clock Policy
+#define NVML_FI_DEV_PERF_POLICY_TOTAL_BASE_CLOCKS  81 	//!< Perf Policy Counter for Total Base Clocks Policy
+
+
+#define NVML_FI_MAX 82 //!< One greater than the largest field ID defined above
+
+/**
+ * Information for a Field Value Sample
+ */
+typedef struct nvmlFieldValue_st
+{
+    unsigned int fieldId;       //!< ID of the NVML field to retrieve. This must be set before any call that uses this struct. See the constants starting with NVML_FI_ above.
+    unsigned int unused;        //!< Currently unused. This should be initialized to 0 by the caller before any API call
+    long long timestamp;        //!< CPU Timestamp of this value in microseconds since 1970
+    long long latencyUsec;      //!< How long this field value took to update (in usec) within NVML. This may be averaged across several fields that are serviced by the same driver call.
+    nvmlValueType_t valueType;  //!< Type of the value stored in value
+    nvmlReturn_t nvmlReturn;    //!< Return code for retrieving this value. This must be checked before looking at value, as value is undefined if nvmlReturn != NVML_SUCCESS
+    nvmlValue_t value;          //!< Value for this field. This is only valid if nvmlReturn == NVML_SUCCESS
+} nvmlFieldValue_t;
+
 
 /** @} */
 
@@ -1170,6 +1299,34 @@ typedef struct nvmlVgpuInstanceUtilizationSample_st
 } nvmlVgpuInstanceUtilizationSample_t;
 
 /**
+ * Structure to store Utilization Value, vgpuInstance and subprocess information
+ */
+typedef struct nvmlVgpuProcessUtilizationSample_st
+{
+    nvmlVgpuInstance_t vgpuInstance;                //!< vGPU Instance
+    unsigned int pid;                               //!< PID of process running within the vGPU VM
+    char processName[NVML_VGPU_NAME_BUFFER_SIZE];   //!< Name of process running within the vGPU VM
+    unsigned long long timeStamp;                   //!< CPU Timestamp in microseconds
+    unsigned int smUtil;                            //!< SM (3D/Compute) Util Value
+    unsigned int memUtil;                           //!< Frame Buffer Memory Util Value
+    unsigned int encUtil;                           //!< Encoder Util Value
+    unsigned int decUtil;                           //!< Decoder Util Value
+} nvmlVgpuProcessUtilizationSample_t;
+
+/**
+ * Structure to store utilization value and process Id
+ */
+typedef struct nvmlProcessUtilizationSample_st
+{
+    unsigned int pid;                   //!< PID of process
+    unsigned long long timeStamp;       //!< CPU Timestamp in microseconds
+    unsigned int smUtil;                //!< SM (3D/Compute) Util Value
+    unsigned int memUtil;               //!< Frame Buffer Memory Util Value
+    unsigned int encUtil;               //!< Encoder Util Value
+    unsigned int decUtil;               //!< Decoder Util Value
+} nvmlProcessUtilizationSample_t;
+
+/**
  * Structure to store GRID licensable features
  */
 typedef struct nvmlGridLicensableFeature_st
@@ -1185,6 +1342,38 @@ typedef struct nvmlGridLicensableFeatures_st
     unsigned int                licensableFeaturesCount;    //<! Entries returned in \a gridLicensableFeatures array
     nvmlGridLicensableFeature_t gridLicensableFeatures[NVML_GRID_LICENSE_FEATURE_MAX_COUNT];
 } nvmlGridLicensableFeatures_t;
+
+/** @} */
+
+/***************************************************************************************************/
+/** @defgroup nvmlEncoderStructs Encoder Structs
+ *  @{
+ */
+/***************************************************************************************************/
+
+/*
+ * Represents type of encoder for capacity can be queried
+ */
+typedef enum nvmlEncoderQueryType_enum
+{
+    NVML_ENCODER_QUERY_H264 = 0,
+    NVML_ENCODER_QUERY_HEVC = 1,
+}nvmlEncoderType_t;
+
+/*
+ * Struct to hold encoder session data
+ */
+typedef struct nvmlEncoderSessionInfo_st
+{
+    unsigned int       sessionId;       //!< Unique session ID
+    unsigned int       pid;             //!< Owning process ID
+    nvmlVgpuInstance_t vgpuInstance;    //!< Owning vGPU instance ID (only valid on vGPU hosts, otherwise zero)
+    nvmlEncoderType_t  codecType;       //!< Video encoder type
+    unsigned int       hResolution;     //!< Current encode horizontal resolution
+    unsigned int       vResolution;     //!< Current encode vertical resolution
+    unsigned int       averageFps;      //!< Moving average encode frames per second
+    unsigned int       averageLatency;   //!< Moving average encode latency in microseconds
+}nvmlEncoderSessionInfo_t;
 
 /** @} */
 
@@ -2930,6 +3119,24 @@ nvmlReturn_t DECLDIR nvmlDeviceGetPowerManagementDefaultLimit(nvmlDevice_t devic
 nvmlReturn_t DECLDIR nvmlDeviceGetPowerUsage(nvmlDevice_t device, unsigned int *power);
 
 /**
+ * Retrieves total energy consumption for this GPU in millijoules (mJ) since the driver was last reloaded
+ *
+ * For newer than Pascal &tm; fully supported devices.
+ *
+ * @param device                               The identifier of the target device
+ * @param energy                               Reference in which to return the energy consumption information
+ *
+ * @return
+ *         - \ref NVML_SUCCESS                 if \a energy has been populated
+ *         - \ref NVML_ERROR_UNINITIALIZED     if the library has not been successfully initialized
+ *         - \ref NVML_ERROR_INVALID_ARGUMENT  if \a device is invalid or \a energy is NULL
+ *         - \ref NVML_ERROR_NOT_SUPPORTED     if the device does not support energy readings
+ *         - \ref NVML_ERROR_GPU_IS_LOST       if the target GPU has fallen off the bus or is otherwise inaccessible
+ *         - \ref NVML_ERROR_UNKNOWN           on any unexpected error
+ */
+nvmlReturn_t DECLDIR nvmlDeviceGetTotalEnergyConsumption(nvmlDevice_t device, unsigned long long *energy);
+
+/**
  * Get the effective power limit that the driver enforces after taking into account all limiters
  *
  * Note: This can be different from the \ref nvmlDeviceGetPowerManagementLimit if other limits are set elsewhere
@@ -3281,7 +3488,56 @@ nvmlReturn_t DECLDIR nvmlDeviceGetEncoderUtilization(nvmlDevice_t device, unsign
  *         - \ref NVML_ERROR_GPU_IS_LOST        if the target GPU has fallen off the bus or is otherwise inaccessible
  *         - \ref NVML_ERROR_UNKNOWN            on any unexpected error
  */
-nvmlReturn_t DECLDIR nvmlDeviceGetEncoderCapacity (nvmlDevice_t device, nvmlEncoderQueryType_t encoderQueryType, unsigned int *encoderCapacity);
+nvmlReturn_t DECLDIR nvmlDeviceGetEncoderCapacity (nvmlDevice_t device, nvmlEncoderType_t encoderQueryType, unsigned int *encoderCapacity);
+
+/**
+ * Retrieves the current encoder statistics for a given device.
+ *
+ * For Maxwell &tm; or newer fully supported devices.
+ *
+ * @param device                            The identifier of the target device
+ * @param sessionCount                      Reference to an unsigned int for count of active encoder sessions
+ * @param averageFps                        Reference to an unsigned int for trailing average FPS of all active sessions
+ * @param averageLatency                    Reference to an unsigned int for encode latency in microseconds
+ * 
+ * @return
+ *         - \ref NVML_SUCCESS                  if \a sessionCount, \a averageFps and \a averageLatency is fetched
+ *         - \ref NVML_ERROR_UNINITIALIZED      if the library has not been successfully initialized
+ *         - \ref NVML_ERROR_INVALID_ARGUMENT   if \a sessionCount, or \a device or \a averageFps,
+ *                                              or \a averageLatency is NULL
+ *         - \ref NVML_ERROR_GPU_IS_LOST        if the target GPU has fallen off the bus or is otherwise inaccessible
+ *         - \ref NVML_ERROR_UNKNOWN            on any unexpected error
+ */
+nvmlReturn_t DECLDIR nvmlDeviceGetEncoderStats (nvmlDevice_t device, unsigned int *sessionCount,
+                                                unsigned int *averageFps, unsigned int *averageLatency);
+
+/**
+ * Retrieves information about active encoder sessions on a target device.
+ *
+ * An array of active encoder sessions is returned in the caller-supplied buffer pointed at by \a sessionInfos. The
+ * array elememt count is passed in \a sessionCount, and \a sessionCount is used to return the number of sessions
+ * written to the buffer.
+ *
+ * If the supplied buffer is not large enough to accomodate the active session array, the function returns
+ * NVML_ERROR_INSUFFICIENT_SIZE, with the element count of nvmlEncoderSessionInfo_t array required in \a sessionCount.
+ * To query the number of active encoder sessions, call this function with *sessionCount = 0.  The code will return
+ * NVML_SUCCESS with number of active encoder sessions updated in *sessionCount.
+ *
+ * For Maxwell &tm; or newer fully supported devices.
+ *
+ * @param device                            The identifier of the target device
+ * @param sessionCount                      Reference to caller supplied array size, and returns the number of sessions.
+ * @param sessionInfos                      Reference in which to return the session information
+ * 
+ * @return
+ *         - \ref NVML_SUCCESS                  if \a sessionInfos is fetched
+ *         - \ref NVML_ERROR_UNINITIALIZED      if the library has not been successfully initialized
+ *         - \ref NVML_ERROR_INSUFFICIENT_SIZE  if \a sessionCount is too small, array element count is returned in \a sessionCount
+ *         - \ref NVML_ERROR_INVALID_ARGUMENT   if \a sessionCount is NULL.
+ *         - \ref NVML_ERROR_GPU_IS_LOST        if the target GPU has fallen off the bus or is otherwise inaccessible
+ *         - \ref NVML_ERROR_UNKNOWN            on any unexpected error
+ */
+nvmlReturn_t DECLDIR nvmlDeviceGetEncoderSessions(nvmlDevice_t device, unsigned int *sessionCount, nvmlEncoderSessionInfo_t *sessionInfos);
 
 /**
  * Retrieves the current utilization and sampling size in microseconds for the Decoder
@@ -4646,6 +4902,34 @@ nvmlReturn_t DECLDIR nvmlDeviceDiscoverGpus (nvmlPciInfo_t *pciInfo);
 /** @} */
 
 /***************************************************************************************************/
+/** @defgroup nvmlFieldValueQueries Field Value Queries
+ *  This chapter describes NVML operations that are associated with retrieving Field Values from NVML
+ *  @{
+ */
+/***************************************************************************************************/
+
+/**
+ * Request values for a list of fields for a device. This API allows multiple fields to be queried at once.
+ * If any of the underlying fieldIds are populated by the same driver call, the results for those field IDs
+ * will be populated from a single call rather than making a driver call for each fieldId.
+ *
+ * @param device                               The device handle of the GPU to request field values for
+ * @param valuesCount                          Number of entries in values that should be retrieved
+ * @param values                               Array of \a valuesCount structures to hold field values.
+ *                                             Each value's fieldId must be populated prior to this call
+ *
+ * @return
+ *         - \ref NVML_SUCCESS                 if any values in \a values were populated. Note that you must
+ *                                             check the nvmlReturn field of each value for each individual
+ *                                             status
+ *         - \ref NVML_ERROR_INVALID_ARGUMENT  if \a device is invalid or \a values is NULL
+ */
+nvmlReturn_t DECLDIR nvmlDeviceGetFieldValues(nvmlDevice_t device, int valuesCount, nvmlFieldValue_t *values);
+
+
+/** @} */
+
+/***************************************************************************************************/
 /** @defgroup nvmlGridQueries Grid Queries
  *  This chapter describes NVML operations that are associated with NVIDIA GRID products.
  *  @{
@@ -4723,10 +5007,11 @@ nvmlReturn_t DECLDIR nvmlDeviceSetVirtualizationMode(nvmlDevice_t device, nvmlGp
  * @param vgpuTypeIds              Pointer to caller-supplied array in which to return list of vGPU types
  *
  * @return
- *         - \ref NVML_SUCCESS                   successful completion
- *         - \ref NVML_ERROR_INSUFFICIENT_SIZE   \a vgpuTypeIds buffer is too small, array element count is returned in \a vgpuCount
- *         - \ref NVML_ERROR_INVALID_ARGUMENT    if \a vgpuCount is NULL or \a device is invalid
- *         - \ref NVML_ERROR_NOT_SUPPORTED       if vGPU is not supported by the device
+ *         - \ref NVML_SUCCESS                      successful completion
+ *         - \ref NVML_ERROR_INSUFFICIENT_SIZE      \a vgpuTypeIds buffer is too small, array element count is returned in \a vgpuCount
+ *         - \ref NVML_ERROR_INVALID_ARGUMENT       if \a vgpuCount is NULL or \a device is invalid
+ *         - \ref NVML_ERROR_NOT_SUPPORTED          if vGPU is not supported by the device
+ *         - \ref NVML_ERROR_VGPU_ECC_NOT_SUPPORTED if ECC is enabled on the device
  *         - \ref NVML_ERROR_UNKNOWN             on any unexpected error
  */
 nvmlReturn_t DECLDIR nvmlDeviceGetSupportedVgpus(nvmlDevice_t device, unsigned int *vgpuCount, nvmlVgpuTypeId_t *vgpuTypeIds);
@@ -4752,11 +5037,12 @@ nvmlReturn_t DECLDIR nvmlDeviceGetSupportedVgpus(nvmlDevice_t device, unsigned i
  * @param vgpuTypeIds              Pointer to caller-supplied array in which to return list of vGPU types
  *
  * @return
- *         - \ref NVML_SUCCESS                   successful completion
- *         - \ref NVML_ERROR_INSUFFICIENT_SIZE   \a vgpuTypeIds buffer is too small, array element count is returned in \a vgpuCount
- *         - \ref NVML_ERROR_INVALID_ARGUMENT    if \a vgpuCount is NULL
- *         - \ref NVML_ERROR_NOT_SUPPORTED       if vGPU is not supported by the device
- *         - \ref NVML_ERROR_UNKNOWN             on any unexpected error
+ *         - \ref NVML_SUCCESS                      successful completion
+ *         - \ref NVML_ERROR_INSUFFICIENT_SIZE      \a vgpuTypeIds buffer is too small, array element count is returned in \a vgpuCount
+ *         - \ref NVML_ERROR_INVALID_ARGUMENT       if \a vgpuCount is NULL
+ *         - \ref NVML_ERROR_NOT_SUPPORTED          if vGPU is not supported by the device
+ *         - \ref NVML_ERROR_VGPU_ECC_NOT_SUPPORTED if ECC is enabled on the device
+ *         - \ref NVML_ERROR_UNKNOWN                on any unexpected error
  */
 nvmlReturn_t DECLDIR nvmlDeviceGetCreatableVgpus(nvmlDevice_t device, unsigned int *vgpuCount, nvmlVgpuTypeId_t *vgpuTypeIds);
 
@@ -5132,7 +5418,6 @@ nvmlReturn_t DECLDIR nvmlVgpuInstanceGetEncoderCapacity(nvmlVgpuInstance_t vgpuI
  */
 nvmlReturn_t DECLDIR nvmlVgpuInstanceSetEncoderCapacity(nvmlVgpuInstance_t vgpuInstance, unsigned int  encoderCapacity);
 
-
 /**
  * Retrieves current utilization for vGPUs on a physical GPU (device).
  *
@@ -5183,6 +5468,52 @@ nvmlReturn_t DECLDIR nvmlDeviceGetVgpuUtilization(nvmlDevice_t device, unsigned 
                                                   nvmlVgpuInstanceUtilizationSample_t *utilizationSamples);
 
 /**
+ * Retrieves current utilization for processes running on vGPUs on a physical GPU (device).
+ *
+ * For Maxwell &tm; or newer fully supported devices.
+ *
+ * Reads recent utilization of GPU SM (3D/Compute), framebuffer, video encoder, and video decoder for processes running on
+ * vGPU instances active on a device. Utilization values are returned as an array of utilization sample structures in the
+ * caller-supplied buffer pointed at by \a utilizationSamples. One utilization sample structure is returned per process running
+ * on vGPU instances, that had some non-zero utilization during the last sample period. It includes the CPU timestamp at which
+ * the samples were recorded. Individual utilization values are returned as "unsigned int" values.
+ *
+ * To read utilization values, first determine the size of buffer required to hold the samples by invoking the function with
+ * \a utilizationSamples set to NULL. The function will return NVML_ERROR_INSUFFICIENT_SIZE, with the current vGPU instance
+ * count in \a vgpuProcessSamplesCount. The caller should allocate a buffer of size
+ * vgpuProcessSamplesCount * sizeof(nvmlVgpuProcessUtilizationSample_t). Invoke the function again with
+ * the allocated buffer passed in \a utilizationSamples, and \a vgpuProcessSamplesCount set to the number of entries the
+ * buffer is sized for.
+ *
+ * On successful return, the function updates \a vgpuSubProcessSampleCount with the number of vGPU sub process utilization sample
+ * structures that were actually written. This may differ from a previously read value depending on the number of processes that are active
+ * in any given sample period.
+ *
+ * lastSeenTimeStamp represents the CPU timestamp in microseconds at which utilization samples were last read. Set it to 0
+ * to read utilization based on all the samples maintained by the driver's internal sample buffer. Set lastSeenTimeStamp
+ * to a timeStamp retrieved from a previous query to read utilization since the previous query.
+ *
+ * @param device                        The identifier for the target device
+ * @param lastSeenTimeStamp             Return only samples with timestamp greater than lastSeenTimeStamp.
+ * @param vgpuProcessSamplesCount       Pointer to caller-supplied array size, and returns number of processes running on vGPU instances
+ * @param utilizationSamples            Pointer to caller-supplied buffer in which vGPU sub process utilization samples are returned
+
+ * @return
+ *         - \ref NVML_SUCCESS                 if utilization samples are successfully retrieved
+ *         - \ref NVML_ERROR_UNINITIALIZED     if the library has not been successfully initialized
+ *         - \ref NVML_ERROR_INVALID_ARGUMENT  if \a device is invalid, \a vgpuProcessSamplesCount or a sample count of 0 is
+ *                                             passed with a non-NULL \a utilizationSamples
+ *         - \ref NVML_ERROR_INSUFFICIENT_SIZE if supplied \a vgpuProcessSamplesCount is too small to return samples for all
+ *                                             vGPU instances currently executing on the device
+ *         - \ref NVML_ERROR_NOT_SUPPORTED     if vGPU is not supported by the device
+ *         - \ref NVML_ERROR_GPU_IS_LOST       if the target GPU has fallen off the bus or is otherwise inaccessible
+ *         - \ref NVML_ERROR_NOT_FOUND         if sample entries are not found
+ *         - \ref NVML_ERROR_UNKNOWN           on any unexpected error
+ */
+nvmlReturn_t DECLDIR nvmlDeviceGetVgpuProcessUtilization(nvmlDevice_t device, unsigned long long lastSeenTimeStamp,
+                                                         unsigned int *vgpuProcessSamplesCount,
+                                                         nvmlVgpuProcessUtilizationSample_t *utilizationSamples);
+/**
  * Retrieve the GRID licensable features.
  *
  * Identifies whether the system supports GRID Software Licensing. If it does, return the list of licensable feature(s)
@@ -5197,6 +5528,96 @@ nvmlReturn_t DECLDIR nvmlDeviceGetVgpuUtilization(nvmlDevice_t device, unsigned 
  *         - \ref NVML_ERROR_UNKNOWN           on any unexpected error
  */
 nvmlReturn_t DECLDIR nvmlDeviceGetGridLicensableFeatures(nvmlDevice_t device, nvmlGridLicensableFeatures_t *pGridLicensableFeatures);
+
+/**
+ * Retrieves the current encoder statistics of a vGPU Instance
+ *
+ * For Maxwell &tm; or newer fully supported devices.
+ *
+ * @param vgpuInstance                      Identifier of the target vGPU instance
+ * @param sessionCount                      Reference to an unsigned int for count of active encoder sessions
+ * @param averageFps                        Reference to an unsigned int for trailing average FPS of all active sessions
+ * @param averageLatency                    Reference to an unsigned int for encode latency in microseconds
+ *
+ * @return
+ *         - \ref NVML_SUCCESS                  if \a sessionCount, \a averageFps and \a averageLatency is fetched
+ *         - \ref NVML_ERROR_UNINITIALIZED      if the library has not been successfully initialized
+ *         - \ref NVML_ERROR_INVALID_ARGUMENT   if \a sessionCount , or \a averageFps or \a averageLatency is NULL
+ *                                              or \a vgpuInstance is invalid.
+ *         - \ref NVML_ERROR_UNKNOWN            on any unexpected error
+ */
+nvmlReturn_t DECLDIR nvmlVgpuInstanceGetEncoderStats(nvmlVgpuInstance_t vgpuInstance, unsigned int *sessionCount,
+                                                     unsigned int *averageFps, unsigned int *averageLatency);
+
+/**
+ * Retrieves information about all active encoder sessions on a vGPU Instance.
+ *
+ * An array of active encoder sessions is returned in the caller-supplied buffer pointed at by \a sessionInfo. The
+ * array elememt count is passed in \a sessionCount, and \a sessionCount is used to return the number of sessions
+ * written to the buffer.
+ *
+ * If the supplied buffer is not large enough to accomodate the active session array, the function returns
+ * NVML_ERROR_INSUFFICIENT_SIZE, with the element count of nvmlEncoderSessionInfo_t array required in \a sessionCount.
+ * To query the number of active encoder sessions, call this function with *sessionCount = 0. The code will return
+ * NVML_SUCCESS with number of active encoder sessions updated in *sessionCount.
+ *
+ * For Maxwell &tm; or newer fully supported devices.
+ *
+ * @param vgpuInstance                      Identifier of the target vGPU instance
+ * @param sessionCount                      Reference to caller supplied array size, and returns
+ *                                          the number of sessions.
+ * @param sessionInfo                       Reference to caller supplied array in which the list
+ *                                          of session information us returned.
+ *
+ * @return
+ *         - \ref NVML_SUCCESS                  if \a sessionInfo is fetched
+ *         - \ref NVML_ERROR_UNINITIALIZED      if the library has not been successfully initialized
+ *         - \ref NVML_ERROR_INSUFFICIENT_SIZE  if \a sessionCount is too small, array element count is
+                                                returned in \a sessionCount
+ *         - \ref NVML_ERROR_INVALID_ARGUMENT   if \a sessionCount is NULL or \a vgpuInstance is invalid..
+ *         - \ref NVML_ERROR_UNKNOWN            on any unexpected error
+ */
+nvmlReturn_t DECLDIR nvmlVgpuInstanceGetEncoderSessions(nvmlVgpuInstance_t vgpuInstance, unsigned int *sessionCount, nvmlEncoderSessionInfo_t *sessionInfo);
+
+/**
+ * Retrieves the current utilization and process ID
+ *
+ * For Maxwell &tm; or newer fully supported devices.
+ *
+ * Reads recent utilization of GPU SM (3D/Compute), framebuffer, video encoder, and video decoder for processes running.
+ * Utilization values are returned as an array of utilization sample structures in the caller-supplied buffer pointed at
+ * by \a utilization. One utilization sample structure is returned per process running, that had some non-zero utilization
+ * during the last sample period. It includes the CPU timestamp at which  the samples were recorded. Individual utilization values
+ * are returned as "unsigned int" values.
+ *
+ * To read utilization values, first determine the size of buffer required to hold the samples by invoking the function with
+ * \a utilization set to NULL. The caller should allocate a buffer of size
+ * processSamplesCount * sizeof(nvmlProcessUtilizationSample_t). Invoke the function again with the allocated buffer passed
+ * in \a utilization, and \a processSamplesCount set to the number of entries the buffer is sized for.
+ *
+ * On successful return, the function updates \a processSamplesCount with the number of process utilization sample
+ * structures that were actually written. This may differ from a previously read value as instances are created or
+ * destroyed.
+ *
+ * lastSeenTimeStamp represents the CPU timestamp in microseconds at which utilization samples were last read. Set it to 0
+ * to read utilization based on all the samples maintained by the driver's internal sample buffer. Set lastSeenTimeStamp
+ * to a timeStamp retrieved from a previous query to read utilization since the previous query.
+ *
+ * @param device                    The identifier of the target device
+ * @param utilization               Pointer to caller-supplied buffer in which guest process utilization samples are returned
+ * @param processSamplesCount       Pointer to caller-supplied array size, and returns number of processes running
+ * @param lastSeenTimeStamp         Return only samples with timestamp greater than lastSeenTimeStamp.
+
+ * @return
+ *         - \ref NVML_SUCCESS                 if \a utilization has been populated
+ *         - \ref NVML_ERROR_UNINITIALIZED     if the library has not been successfully initialized
+ *         - \ref NVML_ERROR_INVALID_ARGUMENT  if \a device is invalid, \a utilization is NULL, or \a samplingPeriodUs is NULL
+ *         - \ref NVML_ERROR_NOT_SUPPORTED     if the device does not support this feature
+ *         - \ref NVML_ERROR_GPU_IS_LOST       if the target GPU has fallen off the bus or is otherwise inaccessible
+ *         - \ref NVML_ERROR_UNKNOWN           on any unexpected error
+ */
+nvmlReturn_t DECLDIR nvmlDeviceGetProcessUtilization(nvmlDevice_t device, nvmlProcessUtilizationSample_t *utilization,
+                                              unsigned int *processSamplesCount, unsigned long long lastSeenTimeStamp);
 
 /** @} */
 
