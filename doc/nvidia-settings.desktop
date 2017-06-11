@@ -28,3 +28,7 @@ Comment[pt_BR]=Definir &configurações de gerenciamento de usuário...
 Comment[zh_CN]=配置 NVIDIA X 服务器设置
 Comment[zh_HK]=配置 NVIDIA X 伺服器設定
 Comment[zh_TW]=配置 NVIDIA X 伺服器設定
+
+# Translation by Marcin Mikołajczak
+Name[pl]=Ustawienia serwera X NVIDIA
+Comment[pl]=Narzędzie konfiguracyjne dla ustawień serwera X NVIDIA
