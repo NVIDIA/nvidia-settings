@@ -60,6 +60,7 @@ struct _CtkManageGridLicense
 
     DbusData *dbusData;
     gint license_edition_state;
+    gboolean license_edition_gvw_selected;
 };
 
 struct _CtkManageGridLicenseClass

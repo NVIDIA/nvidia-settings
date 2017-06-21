@@ -729,6 +729,13 @@ static gboolean update_manage_grid_license_state_info(gpointer user_data)
         ret = FALSE;
     }
 
+    /* Set correct status message when Grid Virtual Workstation
+     * checkbox selected */ 
+    if ((licenseStatus == NV_GRID_UNLICENSED_TESLA) &&
+        (ctk_manage_grid_license->license_edition_gvw_selected == TRUE)) {
+        licenseStatus = NV_GRID_UNLICENSED_GVW_SELECTED;
+    }
+
     /* Show the message received */
     switch (licenseStatus) {
     case NV_GRID_UNLICENSED_VGPU:
@@ -867,12 +874,14 @@ static void license_edition_toggled(GtkWidget *widget, gpointer user_data)
         licenseState = "You selected GRID Virtual Workstation Edition.";
         ctk_manage_grid_license->license_edition_state = 
             NV_CTRL_ATTR_NVML_GPU_VIRTUALIZATION_MODE_PASSTHROUGH;
+        ctk_manage_grid_license->license_edition_gvw_selected = TRUE;
     }  else if (GPOINTER_TO_INT(user_data) == NV_CTRL_ATTR_NVML_GPU_VIRTUALIZATION_MODE_NONE) {
         gtk_widget_set_sensitive(ctk_manage_grid_license->box_server_info, FALSE);
         /* force unlicensed mode */
         ctk_manage_grid_license->license_edition_state = 
             NV_CTRL_ATTR_NVML_GPU_VIRTUALIZATION_MODE_NONE;
         licenseState = "You selected Tesla (Unlicensed) mode.";
+        ctk_manage_grid_license->license_edition_gvw_selected = FALSE;
     }
     /* update status bar message */
     ctk_config_statusbar_message(ctk_manage_grid_license->ctk_config,
@@ -1057,6 +1066,7 @@ GtkWidget* ctk_manage_grid_license_new(CtrlTarget *target,
     ctk_manage_grid_license->ctk_config = ctk_config;
     ctk_manage_grid_license->license_edition_state = mode;
     ctk_manage_grid_license->dbusData = dbusData;
+    ctk_manage_grid_license->license_edition_gvw_selected = FALSE;
 
     /* set container properties for the CtkManageGridLicense widget */
 
