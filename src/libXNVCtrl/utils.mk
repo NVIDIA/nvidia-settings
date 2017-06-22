@@ -441,8 +441,12 @@ STAMP_C = $(OUTPUTDIR)/g_stamp.c
 
 ifdef SOURCE_DATE_EPOCH
     BUILD_DATE ?= $(shell $(DATE) -u -d "@$(SOURCE_DATE_EPOCH)" 2>/dev/null || $(DATE) -u -r "$(SOURCE_DATE_EPOCH)" 2>/dev/null || $(DATE) -u)
+    BUILD_USER ?= build-user
+    BUILD_HOST ?= build-machine
 else
     BUILD_DATE ?= $(shell $(DATE))
+    BUILD_USER ?= $(shell $(WHOAMI))
+    BUILD_HOST ?= $(shell $(HOSTNAME_CMD))
 endif
 
 define DEFINE_STAMP_C_RULE
@@ -454,8 +458,8 @@ define DEFINE_STAMP_C_RULE
 	@ $$(PRINTF) "%s"   "const char NV_ID[] = \"nvidia id: "        >> $$@
 	@ $$(PRINTF) "%s"   "$(2):  "                                   >> $$@
 	@ $$(PRINTF) "%s"   "version $$(NVIDIA_VERSION)  "              >> $$@
-	@ $$(PRINTF) "%s"   "($$(shell $$(WHOAMI))"                     >> $$@
-	@ $$(PRINTF) "%s"   "@$$(shell $$(HOSTNAME_CMD)))  "            >> $$@
+	@ $$(PRINTF) "%s"   "($$(BUILD_USER)"                           >> $$@
+	@ $$(PRINTF) "%s"   "@$$(BUILD_HOST))  "                        >> $$@
 	@ $$(PRINTF) "%s\n" "$$(BUILD_DATE)\";"                         >> $$@
 	@ $$(PRINTF) "%s\n" "const char *pNV_ID = NV_ID + 11;"          >> $$@
 
