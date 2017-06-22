@@ -104,12 +104,19 @@ $(GEN_MANPAGE_OPTS): $(GEN_MANPAGE_OPTS_OBJS)
 $(OPTIONS_1_INC): $(GEN_MANPAGE_OPTS)
 	@$< > $@
 
+DATE_FMT = %F
+ifdef SOURCE_DATE_EPOCH
+    BUILD_DATE ?= $(shell $(DATE) -u -d "@$(SOURCE_DATE_EPOCH)" "+$(DATE_FMT)"  2>/dev/null || $$(DATE) -u -r "$(SOURCE_DATE_EPOCH)" "+$(DATE_FMT)" 2>/dev/null || $(DATE) -u "+$(DATE_FMT)")
+else
+    BUILD_DATE ?= $(shell $(DATE) "+$(DATE_FMT)")
+endif
+
 $(MANPAGE_not_gzipped): nvidia-settings.1.m4 $(OPTIONS_1_INC) $(VERSION_MK)
 	$(call quiet_cmd,M4) \
 	  -D__HEADER__=$(AUTO_TEXT) \
 	  -D__BUILD_OS__=$(TARGET_OS) \
 	  -D__VERSION__=$(NVIDIA_VERSION) \
-	  -D__DATE__="`$(DATE) +%F`" \
+	  -D__DATE__="$(BUILD_DATE)" \
 	  -I $(OUTPUTDIR) \
 	  $< > $@
 
