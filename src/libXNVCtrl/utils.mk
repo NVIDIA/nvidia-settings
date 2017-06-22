@@ -439,6 +439,12 @@ endef
 
 STAMP_C = $(OUTPUTDIR)/g_stamp.c
 
+ifdef SOURCE_DATE_EPOCH
+    BUILD_DATE ?= $(shell $(DATE) -u -d "@$(SOURCE_DATE_EPOCH)" 2>/dev/null || $(DATE) -u -r "$(SOURCE_DATE_EPOCH)" 2>/dev/null || $(DATE) -u)
+else
+    BUILD_DATE ?= $(shell $(DATE))
+endif
+
 define DEFINE_STAMP_C_RULE
 
   $$(STAMP_C): $$(filter-out \
@@ -450,7 +456,7 @@ define DEFINE_STAMP_C_RULE
 	@ $$(PRINTF) "%s"   "version $$(NVIDIA_VERSION)  "              >> $$@
 	@ $$(PRINTF) "%s"   "($$(shell $$(WHOAMI))"                     >> $$@
 	@ $$(PRINTF) "%s"   "@$$(shell $$(HOSTNAME_CMD)))  "            >> $$@
-	@ $$(PRINTF) "%s\n" "$$(shell $(DATE))\";"                      >> $$@
+	@ $$(PRINTF) "%s\n" "$$(BUILD_DATE)\";"                         >> $$@
 	@ $$(PRINTF) "%s\n" "const char *pNV_ID = NV_ID + 11;"          >> $$@
 
 endef
