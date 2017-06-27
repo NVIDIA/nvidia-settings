@@ -639,7 +639,7 @@ dbus_end:
 static gboolean
 send_message_to_gridd(CtkManageGridLicense *ctk_manage_grid_license,
                       gint param,
-                      gint *status)
+                      gint *pStatus)
 {
     gboolean ret = FALSE;
 
@@ -699,7 +699,7 @@ send_message_to_gridd(CtkManageGridLicense *ctk_manage_grid_license,
                dbusData->dbus.dbusMessageIterGetArgType(&args)) {
         nv_error_msg("GRID License dbus communication: Argument is not int!\n");
     } else {
-        dbusData->dbus.dbusMessageIterGetBasic(&args, &status);
+        dbusData->dbus.dbusMessageIterGetBasic(&args, pStatus);
     }
 
     ret = TRUE;
