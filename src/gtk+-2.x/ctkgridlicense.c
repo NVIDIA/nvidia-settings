@@ -100,6 +100,8 @@ static void ctk_manage_grid_license_finalize(GObject *object);
 static void ctk_manage_grid_license_class_init(CtkManageGridLicenseClass *);
 static void dbusClose(DbusData *dbusData);
 static gboolean checkConfigfile(gboolean *writable);
+static gboolean disallow_whitespace(GtkWidget *widget, GdkEvent *event, gpointer user_data);
+static gboolean allow_digits(GtkWidget *widget, GdkEvent *event, gpointer user_data);
 
 GType ctk_manage_grid_license_get_type(void)
 {
@@ -888,6 +890,35 @@ static void license_edition_toggled(GtkWidget *widget, gpointer user_data)
                                  "%s", licenseState);
 }
 
+static gboolean disallow_whitespace(GtkWidget *widget, GdkEvent *event, gpointer user_data)
+{
+    GdkEventKey *key_event;
+
+    if (event->type == GDK_KEY_PRESS) {
+        key_event = (GdkEventKey *) event;
+
+        if (isspace(key_event->keyval)) {
+            return TRUE;
+        }
+    }
+
+    return FALSE;
+}
+
+static gboolean allow_digits(GtkWidget *widget, GdkEvent *event, gpointer user_data)
+{
+    GdkEventKey *key_event;
+
+    if (event->type == GDK_KEY_PRESS) {
+        key_event = (GdkEventKey *) event;
+
+        if (isdigit(key_event->keyval)) {
+            return FALSE;
+        }
+    }
+
+    return TRUE;
+}
 
 static gboolean checkConfigfile(gboolean *writable)
 {
@@ -1189,6 +1220,9 @@ GtkWidget* ctk_manage_grid_license_new(CtrlTarget *target,
     gtk_box_pack_start(GTK_BOX(hbox), eventbox, FALSE, TRUE, 0);
     gtk_table_attach(GTK_TABLE(table), hbox, 0, 1, 1, 2,
                      GTK_FILL, GTK_FILL | GTK_EXPAND, 0, 0);
+    g_signal_connect(GTK_ENTRY(ctk_manage_grid_license->txt_server_address), "key-press-event",
+                     G_CALLBACK(disallow_whitespace),
+                     (gpointer) ctk_manage_grid_license);
 
     /* value */
     hbox = gtk_hbox_new(FALSE, 0);
@@ -1219,6 +1253,9 @@ GtkWidget* ctk_manage_grid_license_new(CtrlTarget *target,
                        FALSE, FALSE, 0);
     gtk_table_attach(GTK_TABLE(table), hbox, 1, 2, 2, 3,
                      GTK_FILL, GTK_FILL | GTK_EXPAND, 5, 0);
+    g_signal_connect(GTK_ENTRY(ctk_manage_grid_license->txt_server_port), "key-press-event",
+                     G_CALLBACK(allow_digits),
+                     (gpointer) ctk_manage_grid_license);
     
     /* Backup Server Address */
     label = gtk_label_new("Secondary Server:");
@@ -1233,6 +1270,9 @@ GtkWidget* ctk_manage_grid_license_new(CtrlTarget *target,
     gtk_box_pack_start(GTK_BOX(hbox), eventbox, FALSE, TRUE, 0);
     gtk_table_attach(GTK_TABLE(table), hbox, 0, 1, 5, 6,
                      GTK_FILL, GTK_FILL | GTK_EXPAND, 0, 0);
+    g_signal_connect(GTK_ENTRY(ctk_manage_grid_license->txt_secondary_server_address), "key-press-event",
+                     G_CALLBACK(disallow_whitespace),
+                     (gpointer) ctk_manage_grid_license);
 
     /* value */
     hbox = gtk_hbox_new(FALSE, 0);
@@ -1263,6 +1303,9 @@ GtkWidget* ctk_manage_grid_license_new(CtrlTarget *target,
                        FALSE, FALSE, 0);
     gtk_table_attach(GTK_TABLE(table), hbox, 1, 2, 6, 7,
                      GTK_FILL, GTK_FILL | GTK_EXPAND, 5, 0);
+    g_signal_connect(GTK_ENTRY(ctk_manage_grid_license->txt_secondary_server_port), "key-press-event",
+                     G_CALLBACK(allow_digits),
+                     (gpointer) ctk_manage_grid_license);
     ctk_manage_grid_license->box_server_info = vbox2;
     
     /* Apply button */
