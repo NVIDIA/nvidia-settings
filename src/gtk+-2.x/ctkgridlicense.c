@@ -53,16 +53,18 @@ static const char * __tesla_unlicensed_help =
 static const char * __license_edition_help =
 "The License Edition section shows if your system has a valid GRID vGPU "
 "license.";
-static const char * __server_address_help =
-"Shows the local license server address.";
-static const char * __server_port_help =
-"Shows the server port number.  The default port is 7070.";
+static const char * __license_server_help =
+"Shows the GRID license server details configured.";
+static const char * __primary_server_address_help =
+"Primary license server address.";
+static const char * __primary_server_port_help =
+"License server port number. The default value is 7070.";
 static const char * __secondary_server_help =
-"Shows the local backup license server details."
-"It is an optional field.  If license acquisition fails by "
-"primary server, then use this backup server.";
+"Backup license server address to fall back to "
+"if the primary license server is not reachable. "
+"This setting is optional.";
 static const char * __secondary_server_port_help =
-"Shows the secondary server port number.";
+"Backup license server port number. The default value is 7070.";
 static const char * __apply_button_help =
 "Clicking the Apply button updates values in the gridd.conf file and "
 "sends update license request to the NVIDIA GRID licensing daemon.";
@@ -1192,7 +1194,7 @@ GtkWidget* ctk_manage_grid_license_new(CtrlTarget *target,
     hbox = gtk_hbox_new(FALSE, 0);
     eventbox = gtk_event_box_new();
     gtk_container_add(GTK_CONTAINER(eventbox), label);
-    ctk_config_set_tooltip(ctk_config, eventbox, __server_address_help);
+    ctk_config_set_tooltip(ctk_config, eventbox, __license_server_help);
     gtk_box_pack_start(GTK_BOX(vbox2), hbox, FALSE, FALSE, 0);
 
     gtk_box_pack_start(GTK_BOX(hbox), eventbox, FALSE, TRUE, 5);
@@ -1216,7 +1218,7 @@ GtkWidget* ctk_manage_grid_license_new(CtrlTarget *target,
     hbox = gtk_hbox_new(FALSE, 0);
     eventbox = gtk_event_box_new();
     gtk_container_add(GTK_CONTAINER(eventbox), label);
-    ctk_config_set_tooltip(ctk_config, eventbox, __server_address_help);
+    ctk_config_set_tooltip(ctk_config, eventbox, __primary_server_address_help);
     gtk_box_pack_start(GTK_BOX(hbox), eventbox, FALSE, TRUE, 0);
     gtk_table_attach(GTK_TABLE(table), hbox, 0, 1, 1, 2,
                      GTK_FILL, GTK_FILL | GTK_EXPAND, 0, 0);
@@ -1238,7 +1240,7 @@ GtkWidget* ctk_manage_grid_license_new(CtrlTarget *target,
     hbox = gtk_hbox_new(FALSE, 5);
     eventbox = gtk_event_box_new();
     gtk_container_add(GTK_CONTAINER(eventbox), label);
-    ctk_config_set_tooltip(ctk_config, eventbox, __server_port_help);
+    ctk_config_set_tooltip(ctk_config, eventbox, __primary_server_port_help);
     gtk_box_pack_start(GTK_BOX(hbox), eventbox, FALSE, TRUE, 0);
     gtk_table_attach(GTK_TABLE(table), hbox, 0, 1, 2, 3,
                      GTK_FILL, GTK_FILL | GTK_EXPAND, 0, 0);
@@ -1376,13 +1378,13 @@ GtkTextBuffer *ctk_manage_grid_license_create_help(GtkTextTagTable *table,
     }
 
     ctk_help_heading(b, &i, "License Server");
-    ctk_help_para(b, &i, "%s", __server_address_help);
+    ctk_help_para(b, &i, "%s", __license_server_help);
 
     ctk_help_heading(b, &i, "Primary Server");
-    ctk_help_para(b, &i, "%s", __server_address_help);
+    ctk_help_para(b, &i, "%s", __primary_server_address_help);
 
     ctk_help_heading(b, &i, "Port Number");
-    ctk_help_para(b, &i, "%s", __server_port_help);
+    ctk_help_para(b, &i, "%s", __primary_server_port_help);
 
     ctk_help_heading(b, &i, "Secondary Server");
     ctk_help_para(b, &i, "%s", __secondary_server_help);
