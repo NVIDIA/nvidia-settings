@@ -395,11 +395,14 @@ static void UpdateGriddConfigFromGui(
     /* featureType */
 
     nvfree(griddConfig->str[NV_GRIDD_FEATURE_TYPE]);
-    switch (ctk_manage_grid_license->license_edition_state) {
-    case NV_CTRL_ATTR_NVML_GPU_VIRTUALIZATION_MODE_VGPU:
+    switch (ctk_manage_grid_license->feature_type) {
+    case GRID_LICENSED_FEATURE_TYPE_TESLA:
+        tmp = "0";
+        break;
+    case GRID_LICENSED_FEATURE_TYPE_VGPU:
         tmp = "1";
         break;
-    case NV_CTRL_ATTR_NVML_GPU_VIRTUALIZATION_MODE_PASSTHROUGH:
+    case GRID_LICENSED_FEATURE_TYPE_GVW:
         tmp = "2";
         break;
     default:
@@ -722,7 +725,7 @@ done:
 static gboolean update_manage_grid_license_state_info(gpointer user_data)
 {
     CtkManageGridLicense *ctk_manage_grid_license = CTK_MANAGE_GRID_LICENSE(user_data);
-    gchar *licenseState;
+    gchar *licenseState = "";
     gboolean ret = TRUE;
 
     int licenseStatus = NV_GRID_UNLICENSED;
@@ -731,6 +734,22 @@ static gboolean update_manage_grid_license_state_info(gpointer user_data)
     if (!(send_message_to_gridd(ctk_manage_grid_license, LICENSE_STATE_REQUEST,
                                 &licenseStatus))) {
         ret = FALSE;
+    }
+
+    /* Set default unlicensed state string if could not communicate with nvidia-gridd */
+    if (licenseStatus == NV_GRID_UNLICENSED)
+    {
+        switch (ctk_manage_grid_license->feature_type) {
+        case GRID_LICENSED_FEATURE_TYPE_VGPU:
+            licenseStatus = NV_GRID_UNLICENSED_VGPU;
+            break;
+        case GRID_LICENSED_FEATURE_TYPE_TESLA:
+        case GRID_LICENSED_FEATURE_TYPE_GVW:
+            licenseStatus = NV_GRID_UNLICENSED_TESLA;
+            break;
+        default:
+            break;
+        }
     }
 
     /* Set correct status message when Grid Virtual Workstation
@@ -743,7 +762,7 @@ static gboolean update_manage_grid_license_state_info(gpointer user_data)
     /* Show the message received */
     switch (licenseStatus) {
     case NV_GRID_UNLICENSED_VGPU:
-          licenseState = "Your system does not have a valid vGPU license.\n"
+          licenseState = "Your system does not have a valid GRID vGPU license.\n"
               "Enter license server details and apply.";
           break;
     case NV_GRID_UNLICENSED_TESLA:
@@ -845,21 +864,6 @@ static void apply_clicked(GtkWidget *widget, gpointer user_data)
     }
 }
 
-
-/* 
- * Mapping table:
- * 
- * name in GUI----------------------------------------------------------+
- * gridd.conf featureType-----------------------------------+           |
- * nvml--------+                                            |           |
- *             |                                            |           |
- *  NV_CTRL_ATTR_NVML_GPU_VIRTUALIZATION_MODE_NONE          0   "Tesla (Unlicensed) mode."
- *  NV_CTRL_ATTR_NVML_GPU_VIRTUALIZATION_MODE_PASSTHROUGH   2   "GRID Virtual Workstation Edition."
- *  NV_CTRL_ATTR_NVML_GPU_VIRTUALIZATION_MODE_VGPU          1           n/a
- *  NV_CTRL_ATTR_NVML_GPU_VIRTUALIZATION_MODE_HOST_VGPU     0           n/a
- *  NV_CTRL_ATTR_NVML_GPU_VIRTUALIZATION_MODE_HOST_VSGA     0           n/a
- */
-
 static void license_edition_toggled(GtkWidget *widget, gpointer user_data)
 {
     CtkManageGridLicense *ctk_manage_grid_license = CTK_MANAGE_GRID_LICENSE(user_data);
@@ -873,17 +877,17 @@ static void license_edition_toggled(GtkWidget *widget, gpointer user_data)
     }
     user_data = g_object_get_data(G_OBJECT(widget), "button_id");
 
-    if (GPOINTER_TO_INT(user_data) == NV_CTRL_ATTR_NVML_GPU_VIRTUALIZATION_MODE_PASSTHROUGH) {
+    if (GPOINTER_TO_INT(user_data) == GRID_LICENSED_FEATURE_TYPE_GVW) {
         gtk_widget_set_sensitive(ctk_manage_grid_license->box_server_info, TRUE);
         licenseState = "You selected GRID Virtual Workstation Edition.";
-        ctk_manage_grid_license->license_edition_state = 
-            NV_CTRL_ATTR_NVML_GPU_VIRTUALIZATION_MODE_PASSTHROUGH;
+        ctk_manage_grid_license->feature_type = 
+            GRID_LICENSED_FEATURE_TYPE_GVW;
         ctk_manage_grid_license->license_edition_gvw_selected = TRUE;
-    }  else if (GPOINTER_TO_INT(user_data) == NV_CTRL_ATTR_NVML_GPU_VIRTUALIZATION_MODE_NONE) {
+    }  else if (GPOINTER_TO_INT(user_data) == GRID_LICENSED_FEATURE_TYPE_TESLA) {
         gtk_widget_set_sensitive(ctk_manage_grid_license->box_server_info, FALSE);
         /* force unlicensed mode */
-        ctk_manage_grid_license->license_edition_state = 
-            NV_CTRL_ATTR_NVML_GPU_VIRTUALIZATION_MODE_NONE;
+        ctk_manage_grid_license->feature_type = 
+            GRID_LICENSED_FEATURE_TYPE_TESLA;
         licenseState = "You selected Tesla (Unlicensed) mode.";
         ctk_manage_grid_license->license_edition_gvw_selected = FALSE;
     }
@@ -1101,6 +1105,30 @@ GtkWidget* ctk_manage_grid_license_new(CtrlTarget *target,
     ctk_manage_grid_license->dbusData = dbusData;
     ctk_manage_grid_license->license_edition_gvw_selected = FALSE;
 
+    /* set default value for feature type based on the user configured parameter or virtualization mode */
+    if (strcmp(griddConfig->str[NV_GRIDD_FEATURE_TYPE], "0"))
+    {
+        ctk_manage_grid_license->feature_type = GRID_LICENSED_FEATURE_TYPE_TESLA;
+    }
+    else if (strcmp(griddConfig->str[NV_GRIDD_FEATURE_TYPE], "1"))
+    {
+        ctk_manage_grid_license->feature_type = GRID_LICENSED_FEATURE_TYPE_VGPU;
+    }
+    else if (strcmp(griddConfig->str[NV_GRIDD_FEATURE_TYPE], "2"))
+    {
+        ctk_manage_grid_license->feature_type = GRID_LICENSED_FEATURE_TYPE_GVW;
+    }
+    else
+    {
+        ctk_manage_grid_license->feature_type = GRID_LICENSED_FEATURE_TYPE_TESLA;
+    }
+
+    /* Overwrite feature type in vGPU case */
+    if (ctk_manage_grid_license->license_edition_state == NV_CTRL_ATTR_NVML_GPU_VIRTUALIZATION_MODE_VGPU)
+    {
+        ctk_manage_grid_license->feature_type = GRID_LICENSED_FEATURE_TYPE_VGPU;
+    }
+
     /* set container properties for the CtkManageGridLicense widget */
 
     gtk_box_set_spacing(GTK_BOX(ctk_manage_grid_license), 5);
@@ -1152,7 +1180,7 @@ GtkWidget* ctk_manage_grid_license_new(CtrlTarget *target,
         slist = gtk_radio_button_get_group(GTK_RADIO_BUTTON(button1));
         gtk_box_pack_start(GTK_BOX(vbox3), button1, FALSE, FALSE, 0);
         g_object_set_data(G_OBJECT(button1), "button_id",
-                GINT_TO_POINTER(NV_CTRL_ATTR_NVML_GPU_VIRTUALIZATION_MODE_PASSTHROUGH));
+                GINT_TO_POINTER(GRID_LICENSED_FEATURE_TYPE_GVW));
         g_signal_connect(G_OBJECT(button1), "toggled",
                          G_CALLBACK(license_edition_toggled),
                          (gpointer) ctk_manage_grid_license);
@@ -1160,7 +1188,7 @@ GtkWidget* ctk_manage_grid_license_new(CtrlTarget *target,
         button2 = gtk_radio_button_new_with_label(slist, "Tesla (Unlicensed)");
         gtk_box_pack_start(GTK_BOX(vbox3), button2, FALSE, FALSE, 0);
         g_object_set_data(G_OBJECT(button2), "button_id",
-                GINT_TO_POINTER(NV_CTRL_ATTR_NVML_GPU_VIRTUALIZATION_MODE_NONE));
+                GINT_TO_POINTER(GRID_LICENSED_FEATURE_TYPE_TESLA));
 
         g_signal_connect(G_OBJECT(button2), "toggled",
                          G_CALLBACK(license_edition_toggled),
