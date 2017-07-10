@@ -34,6 +34,10 @@
 #include "ctkgridlicense.h"
 #include "ctkbanner.h"
 #include "nv_grid_dbus.h"
+#include <gdk/gdkkeysyms.h>
+#ifdef CTK_GTK3
+#include <gdk/gdkkeysyms-compat.h>
+#endif
 
 #include <dbus/dbus.h>
 #include <unistd.h>
@@ -917,9 +921,28 @@ static gboolean allow_digits(GtkWidget *widget, GdkEvent *event, gpointer user_d
 
     if (event->type == GDK_KEY_PRESS) {
         key_event = (GdkEventKey *) event;
-
-        if (isdigit(key_event->keyval)) {
+        switch (key_event->keyval) {
+        case GDK_Left:
+        case GDK_KP_Left:
+        case GDK_Down:
+        case GDK_KP_Down:
+        case GDK_Right:
+        case GDK_KP_Right:
+        case GDK_Up:
+        case GDK_KP_Up:
+        case GDK_Page_Down:
+        case GDK_KP_Page_Down:
+        case GDK_Page_Up:
+        case GDK_KP_Page_Up:
+        case GDK_BackSpace:
+        case GDK_Delete:
+            // Allow all control keys
             return FALSE;
+        default:
+            // Allow digits
+            if (isdigit(key_event->keyval)) {
+                return FALSE;
+            }
         }
     }
 
