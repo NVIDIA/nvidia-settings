@@ -1127,23 +1127,26 @@ GtkWidget* ctk_manage_grid_license_new(CtrlTarget *target,
     ctk_manage_grid_license->license_edition_state = mode;
     ctk_manage_grid_license->dbusData = dbusData;
     ctk_manage_grid_license->license_edition_gvw_selected = FALSE;
+    ctk_manage_grid_license->feature_type = 0;
 
     /* set default value for feature type based on the user configured parameter or virtualization mode */
-    if (strcmp(griddConfig->str[NV_GRIDD_FEATURE_TYPE], "0"))
-    {
-        ctk_manage_grid_license->feature_type = GRID_LICENSED_FEATURE_TYPE_TESLA;
-    }
-    else if (strcmp(griddConfig->str[NV_GRIDD_FEATURE_TYPE], "1"))
-    {
-        ctk_manage_grid_license->feature_type = GRID_LICENSED_FEATURE_TYPE_VGPU;
-    }
-    else if (strcmp(griddConfig->str[NV_GRIDD_FEATURE_TYPE], "2"))
-    {
-        ctk_manage_grid_license->feature_type = GRID_LICENSED_FEATURE_TYPE_GVW;
-    }
-    else
-    {
-        ctk_manage_grid_license->feature_type = GRID_LICENSED_FEATURE_TYPE_TESLA;
+    if (griddConfig) {
+        if (strcmp(griddConfig->str[NV_GRIDD_FEATURE_TYPE], "0"))
+        {
+            ctk_manage_grid_license->feature_type = GRID_LICENSED_FEATURE_TYPE_TESLA;
+        }
+        else if (strcmp(griddConfig->str[NV_GRIDD_FEATURE_TYPE], "1"))
+        {
+            ctk_manage_grid_license->feature_type = GRID_LICENSED_FEATURE_TYPE_VGPU;
+        }
+        else if (strcmp(griddConfig->str[NV_GRIDD_FEATURE_TYPE], "2"))
+        {
+            ctk_manage_grid_license->feature_type = GRID_LICENSED_FEATURE_TYPE_GVW;
+        }
+        else
+        {
+            ctk_manage_grid_license->feature_type = GRID_LICENSED_FEATURE_TYPE_TESLA;
+        }
     }
 
     /* Overwrite feature type in vGPU case */
