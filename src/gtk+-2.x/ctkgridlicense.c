@@ -1096,14 +1096,11 @@ GtkWidget* ctk_manage_grid_license_new(CtrlTarget *target,
     dbusData->conn = conn;
 
     /* request the bus name */
-    ret = dbusData->dbus.dbusRequestName(conn, NV_GRID_DBUS_CLIENT,
-                                         DBUS_NAME_FLAG_REPLACE_EXISTING,
-                                         &err);
+    dbusData->dbus.dbusRequestName(conn, NV_GRID_DBUS_CLIENT,
+                                   DBUS_NAME_FLAG_REPLACE_EXISTING,
+                                   &err);
     if (dbusData->dbus.dbusErrorIsSet(&err)) {
         dbusData->dbus.dbusErrorFree(&err);
-    }
-    if (DBUS_REQUEST_NAME_REPLY_PRIMARY_OWNER != ret) {
-        return NULL;
     }
 
     /* Check available config file */
