@@ -75,24 +75,25 @@ static const char * __apply_button_help =
 
 typedef struct 
 {
-    void                                        *dbusHandle;
-    typeof(dbus_bus_get)                        *getDbus;
-    typeof(dbus_error_init)                     *dbusErrorInit;
-    typeof(dbus_error_is_set)                   *dbusErrorIsSet;
-    typeof(dbus_error_free)                     *dbusErrorFree;
-    typeof(dbus_bus_request_name)               *dbusRequestName;
-    typeof(dbus_message_new_method_call)        *dbusMessageNewMethodCall;
-    typeof(dbus_message_iter_init)              *dbusMessageIterInit;
-    typeof(dbus_message_iter_init_append)       *dbusMessageIterInitAppend;
-    typeof(dbus_message_iter_append_basic)      *dbusMessageIterAppendBasic;
-    typeof(dbus_message_iter_get_arg_type)      *dbusMessageIterGetArgType;
-    typeof(dbus_message_iter_get_basic)         *dbusMessageIterGetBasic;
-    typeof(dbus_message_unref)                  *dbusMessageUnref;
-    typeof(dbus_connection_close)               *dbusConnectionClose;
-    typeof(dbus_connection_flush)               *dbusConnectionFlush;
-    typeof(dbus_connection_send_with_reply)     *dbusConnectionSendWithReply;
-    typeof(dbus_pending_call_block)             *dbusPendingCallBlock;
-    typeof(dbus_pending_call_steal_reply)       *dbusPendingCallStealReply;
+    void                                                *dbusHandle;
+    typeof(dbus_bus_get)                                *getDbus;
+    typeof(dbus_error_init)                             *dbusErrorInit;
+    typeof(dbus_error_is_set)                           *dbusErrorIsSet;
+    typeof(dbus_error_free)                             *dbusErrorFree;
+    typeof(dbus_bus_request_name)                       *dbusRequestName;
+    typeof(dbus_message_new_method_call)                *dbusMessageNewMethodCall;
+    typeof(dbus_message_iter_init)                      *dbusMessageIterInit;
+    typeof(dbus_message_iter_init_append)               *dbusMessageIterInitAppend;
+    typeof(dbus_message_iter_append_basic)              *dbusMessageIterAppendBasic;
+    typeof(dbus_message_iter_get_arg_type)              *dbusMessageIterGetArgType;
+    typeof(dbus_message_iter_get_basic)                 *dbusMessageIterGetBasic;
+    typeof(dbus_message_unref)                          *dbusMessageUnref;
+    typeof(dbus_connection_close)                       *dbusConnectionClose;
+    typeof(dbus_connection_flush)                       *dbusConnectionFlush;
+    typeof(dbus_connection_send_with_reply)             *dbusConnectionSendWithReply;
+    typeof(dbus_connection_send_with_reply_and_block)   *dbusConnectionSendWithReplyAndBlock;
+    typeof(dbus_pending_call_block)                     *dbusPendingCallBlock;
+    typeof(dbus_pending_call_steal_reply)               *dbusPendingCallStealReply;
 } GridDbus;
 
 struct _DbusData
@@ -626,6 +627,7 @@ static gboolean dbusLoadSymbols(DbusData *dbusData)
     LOAD_SYM(dbusConnectionClose, "dbus_connection_close");
     LOAD_SYM(dbusConnectionFlush, "dbus_connection_flush");
     LOAD_SYM(dbusConnectionSendWithReply, "dbus_connection_send_with_reply");
+    LOAD_SYM(dbusConnectionSendWithReplyAndBlock, "dbus_connection_send_with_reply_and_block");
     LOAD_SYM(dbusPendingCallBlock, "dbus_pending_call_block");
     LOAD_SYM(dbusPendingCallStealReply, "dbus_pending_call_steal_reply");
 #undef LOAD_SYM
@@ -654,9 +656,8 @@ send_message_to_gridd(CtkManageGridLicense *ctk_manage_grid_license,
 {
     gboolean ret = FALSE;
 
-    DBusMessage* msg;
+    DBusMessage *msg, *reply;
     DBusMessageIter args;
-    DBusPendingCall* pending;
     DBusError err;
 
     DbusData *dbusData = ctk_manage_grid_license->dbusData;
@@ -675,36 +676,22 @@ send_message_to_gridd(CtkManageGridLicense *ctk_manage_grid_license,
     }
     /* append arguments */
     dbusData->dbus.dbusMessageIterInitAppend(msg, &args);
-    
+
     if (!dbusData->dbus.dbusMessageIterAppendBasic(&args,
                                                    DBUS_TYPE_INT32, &param)) {
         goto done;
     }
 
-    /* send message and get a handle for a reply */
-    if (!dbusData->dbus.dbusConnectionSendWithReply(conn,
-                                      msg, &pending, -1)) { // -1 is default timeout
+    /* send a message and block for a default time period
+       while waiting for a reply and returns NULL on failure with an error code.*/
+    reply = dbusData->dbus.dbusConnectionSendWithReplyAndBlock(conn,
+                                      msg, -1, &err);  // -1 is default timeout
+    if ((reply == NULL) || (dbusData->dbus.dbusErrorIsSet(&err))) {
         goto done;
     }
-    if (NULL == pending) {
-        goto done;
-    }
-    dbusData->dbus.dbusConnectionFlush(conn);
 
-    /* free message */
-    dbusData->dbus.dbusMessageUnref(msg);
-
-    /* block until we receive a reply */
-    dbusData->dbus.dbusPendingCallBlock(pending);
-
-    /* get the reply */
-    msg = dbusData->dbus.dbusPendingCallStealReply(pending);
-    if (NULL == msg) {
-        goto done;
-    }
-    
     /* read the parameters */
-    if (!dbusData->dbus.dbusMessageIterInit(msg, &args)) {
+    if (!dbusData->dbus.dbusMessageIterInit(reply, &args)) {
         nv_error_msg("GRID License dbus communication: Message has no arguments!\n");
     } else if (DBUS_TYPE_INT32 !=
                dbusData->dbus.dbusMessageIterGetArgType(&args)) {
