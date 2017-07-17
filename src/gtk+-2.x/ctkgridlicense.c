@@ -48,29 +48,32 @@
 #define GRID_CONFIG_FILE_TEMPLATE   "/etc/nvidia/gridd.conf.template"
 
 static const char * __manage_grid_licenses_help =
-"Use the Manage GRID Licenses page to obtain a license for GRID vGPU or GRID "
-"Virtual Workstation on supported Tesla products.";
+"Use the Manage GRID License page to obtain licenses "
+"for GRID vGPU or GRID Virtual Workstation on supported Tesla products.";
 static const char * __grid_virtual_workstation_help =
-"Allows to enter license server details like server address and port number.";
+"Select this option to enable GRID Virtual Workstation license.";
 static const char * __tesla_unlicensed_help =
-"Allows to run system in unlicensed mode.";
+"Select this option to disable the GRID Virtual Workstation license.";
 static const char * __license_edition_help =
-"The License Edition section shows if your system has a valid GRID vGPU "
-"license.";
+"This section indicates the status of GRID licensing for the system.";
 static const char * __license_server_help =
-"Shows the GRID license server details configured.";
+"Shows the configured GRID license server details.";
 static const char * __primary_server_address_help =
-"Primary license server address.";
+"Enter the address of your local GRID license server. "
+"The address can be a fully-qualified domain name such as gridlicense.example.com, "
+"or an IP address such as 10.31.20.45.";
 static const char * __primary_server_port_help =
-"License server port number. The default value is 7070.";
+"This field can be left empty, and will default to 7070, "
+"which is the default port number used by the NVIDIA GRID license server.";
 static const char * __secondary_server_help =
-"Backup license server address to fall back to "
-"if the primary license server is not reachable. "
-"This setting is optional.";
+"This field is optional. Enter the address of your backup GRID license server. "
+"The address can be a fully-qualified domain name such as backuplicense.example.com, "
+"or an IP address such as 10.31.20.46.";
 static const char * __secondary_server_port_help =
-"Backup license server port number. The default value is 7070.";
+"This field can be left empty, and will default to 7070, "
+"which is the default port number used by the NVIDIA GRID license server.";
 static const char * __apply_button_help =
-"Clicking the Apply button updates values in the gridd.conf file and "
+"Clicking the Apply button updates license settings in the gridd.conf file and "
 "sends update license request to the NVIDIA GRID licensing daemon.";
 
 typedef struct 
