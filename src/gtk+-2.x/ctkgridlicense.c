@@ -1367,12 +1367,13 @@ GtkWidget* ctk_manage_grid_license_new(CtrlTarget *target,
     
     /* Set license edition toggle button active */
     if (button2 && button1) {
-        if (strcmp(griddConfig->str[NV_GRIDD_FEATURE_TYPE], "0") == 0) {
-            /* Tesla (Unlicensed) button is active */
-            gtk_toggle_button_set_active(GTK_TOGGLE_BUTTON(button2), TRUE);
-        } else if (strcmp(griddConfig->str[NV_GRIDD_FEATURE_TYPE], "2") == 0) {
-            /* GRID Virtual Workstation button is active */
+        if (strcmp(griddConfig->str[NV_GRIDD_FEATURE_TYPE], "2") == 0) {
+            /* Set 'GRID Virtual Workstation' toggle button active */
             gtk_toggle_button_set_active(GTK_TOGGLE_BUTTON(button1), TRUE);
+        }
+        else {
+            /* Set 'Tesla (unlicensed)' toggle button active */
+            gtk_toggle_button_set_active(GTK_TOGGLE_BUTTON(button2), TRUE);
         }
     }
 
