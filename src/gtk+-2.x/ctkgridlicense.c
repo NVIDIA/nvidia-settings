@@ -41,7 +41,7 @@
 
 #include <dbus/dbus.h>
 #include <unistd.h>
-
+#include <errno.h>
 
 #define DEFAULT_UPDATE_GRID_LICENSE_STATUS_INFO_TIME_INTERVAL 1000
 #define GRID_CONFIG_FILE            "/etc/nvidia/gridd.conf"
@@ -175,12 +175,14 @@ static void FreeConfigFileLines(ConfigFileLines *pLines)
 {
     int i;
 
-    for (i = 0; i < pLines->nLines; i++) {
-        nvfree(pLines->lines[i]);
-    }
+    if (pLines != NULL) {
+        for (i = 0; i < pLines->nLines; i++) {
+            nvfree(pLines->lines[i]);
+        }
 
-    nvfree(pLines->lines);
-    nvfree(pLines);
+        nvfree(pLines->lines);
+        nvfree(pLines);
+    }
 }
 
 static ConfigFileLines *AllocConfigFileLines(void)
@@ -203,11 +205,13 @@ static void FreeNvGriddConfigParams(NvGriddConfigParams *griddConfig)
 {
     int i;
 
-    for (i = 0; i < ARRAY_LEN(griddConfig->str); i++) {
-        nvfree(griddConfig->str[i]);
-    }
+    if (griddConfig != NULL) {
+        for (i = 0; i < ARRAY_LEN(griddConfig->str); i++) {
+            nvfree(griddConfig->str[i]);
+        }
 
-    nvfree(griddConfig);
+        nvfree(griddConfig);
+    }
 }
 
 static NvGriddConfigParams *AllocNvGriddConfigParams(void)
@@ -454,20 +458,19 @@ static ConfigFileLines *ReadConfigFileStream(FILE *configFile)
     return pLines;
 }
 
-static ConfigFileLines *ReadConfigFile(void)
+static int ReadConfigFile(ConfigFileLines **ppLines)
 {
-    ConfigFileLines *pLines;
     FILE *configFile = fopen(GRID_CONFIG_FILE, "r");
 
     if (configFile == NULL) {
-        return NULL;
+        return errno;
     }
 
-    pLines = ReadConfigFileStream(configFile);
+    *ppLines = ReadConfigFileStream(configFile);
 
     fclose(configFile);
 
-    return pLines;
+    return 0;
 }
 
 static void WriteConfigFileStream(FILE *configFile, const ConfigFileLines *pLines)
@@ -479,21 +482,21 @@ static void WriteConfigFileStream(FILE *configFile, const ConfigFileLines *pLine
     }
 }
 
-static gboolean WriteConfigFile(const ConfigFileLines *pLines)
+static int WriteConfigFile(const ConfigFileLines *pLines)
 {
     FILE *configFile;
 
     configFile = fopen(GRID_CONFIG_FILE, "w");
 
     if (configFile == NULL) {
-        return FALSE;
+        return errno;
     }
 
     WriteConfigFileStream(configFile, pLines);
 
     fclose(configFile);
 
-    return TRUE;
+    return 0;
 }
 
 
@@ -501,17 +504,17 @@ static gboolean WriteConfigFile(const ConfigFileLines *pLines)
  * Update the nvidia-gridd config file with the current GUI state.
  *
  */
-static gboolean UpdateConfigFile(CtkManageGridLicense *ctk_manage_grid_license)
+static int UpdateConfigFile(CtkManageGridLicense *ctk_manage_grid_license)
 {
-    ConfigFileLines *pLines;
-    NvGriddConfigParams *griddConfig;
-    gboolean ret;
+    ConfigFileLines *pLines = NULL;
+    NvGriddConfigParams *griddConfig = NULL;
+    int retErr;
 
     /* Read gridd.conf */
-    pLines = ReadConfigFile();
+    retErr = ReadConfigFile(&pLines);
 
-    if (pLines == NULL) {
-        return FALSE;
+    if (retErr != 0) {
+        goto done;
     }
 
     /* Create a griddConfig */
@@ -527,12 +530,13 @@ static gboolean UpdateConfigFile(CtkManageGridLicense *ctk_manage_grid_license)
     UpdateConfigFileLinesFromGriddConfig(griddConfig, pLines);
 
     /* Write the lines of gridd.conf to file */
-    ret = WriteConfigFile(pLines);
+    retErr = WriteConfigFile(pLines);
 
+done:
     FreeConfigFileLines(pLines);
     FreeNvGriddConfigParams(griddConfig);
 
-    return ret;
+    return retErr;
 }
 
 /*
@@ -543,14 +547,15 @@ static gboolean UpdateConfigFile(CtkManageGridLicense *ctk_manage_grid_license)
  */
 static NvGriddConfigParams *GetNvGriddConfigParams(void)
 {
-    ConfigFileLines *pLines;
-    NvGriddConfigParams *griddConfig;
+    ConfigFileLines *pLines = NULL;
+    NvGriddConfigParams *griddConfig = NULL;
+    int retErr;
 
     /* Read gridd.conf */
-    pLines = ReadConfigFile();
+    retErr = ReadConfigFile(&pLines);
 
-    if (pLines == NULL) {
-        return NULL;
+    if (retErr != 0) {
+        goto done;
     }
 
     /* Create a griddConfig */
@@ -559,6 +564,7 @@ static NvGriddConfigParams *GetNvGriddConfigParams(void)
     /* Update the griddConfig with the lines from gridd.conf */
     UpdateGriddConfigFromConfigFileLines(griddConfig, pLines);
 
+done:
     FreeConfigFileLines(pLines);
 
     return griddConfig;
@@ -827,12 +833,13 @@ static void apply_clicked(GtkWidget *widget, gpointer user_data)
 {
     CtkManageGridLicense *ctk_manage_grid_license = CTK_MANAGE_GRID_LICENSE(user_data);
     gboolean ret;
+    int err = 0;
     gint status = 0;
 
     /* Add information to gridd.conf file */
-    ret = UpdateConfigFile(ctk_manage_grid_license);
-    
-    if (ret) {
+    err = UpdateConfigFile(ctk_manage_grid_license);
+
+    if (err == 0) {
         /* Send update request to nvidia-gridd */
         ret = send_message_to_gridd(ctk_manage_grid_license,
                                     LICENSE_DETAILS_UPDATE_REQUEST,
@@ -855,6 +862,18 @@ static void apply_clicked(GtkWidget *widget, gpointer user_data)
             gtk_dialog_run(GTK_DIALOG(dlg));
             gtk_widget_destroy(dlg);
         }
+    } else {
+        GtkWidget *dlg, *parent;
+
+        parent = ctk_get_parent_window(GTK_WIDGET(ctk_manage_grid_license));
+        dlg = gtk_message_dialog_new(GTK_WINDOW(parent),
+                                     GTK_DIALOG_MODAL,
+                                     GTK_MESSAGE_ERROR,
+                                     GTK_BUTTONS_OK,
+                                     "Unable to update GRID license configuration "
+                                     "file (%s): %s", GRID_CONFIG_FILE, strerror(err));
+        gtk_dialog_run(GTK_DIALOG(dlg));
+        gtk_widget_destroy(dlg);
     }
 }
 
