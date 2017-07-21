@@ -1965,6 +1965,8 @@ static int move_selected(CtkDisplayLayout *ctk_object, int x, int y, int snap)
         sdim = get_screen_rect(info->screen, 1);
 
         /* Prevent moving out of the max layout bounds */
+
+        /* Restrict movement in the positive direction */
         x = MAX_LAYOUT_WIDTH - dim->width;
         if (info->dst_dim.x > x) {
             info->modify_dim.x += x - info->dst_dim.x;
@@ -1975,12 +1977,18 @@ static int move_selected(CtkDisplayLayout *ctk_object, int x, int y, int snap)
             info->modify_dim.y += y - info->dst_dim.y;
             info->dst_dim.y = y;
         }
-        x = layout->dim.width - MAX_LAYOUT_WIDTH;
+
+        /* Restrict movement in the negative direction. As long as the total
+         * distance does not exceed our maximum value, we can recalculate the
+         * layout origin. We should also make sure that the current origin (0,0)
+         * is accessible to the user.
+         */
+        x = NV_MIN(layout->dim.width - MAX_LAYOUT_WIDTH, 0);
         if (info->dst_dim.x < x) {
             info->modify_dim.x += x - info->dst_dim.x;
             info->dst_dim.x = x;
         }
-        y = layout->dim.height - MAX_LAYOUT_HEIGHT;
+        y = NV_MIN(layout->dim.height - MAX_LAYOUT_HEIGHT, 0);
         if (info->dst_dim.y < y) {
             info->modify_dim.y += y - info->dst_dim.y;
             info->dst_dim.y = y;
