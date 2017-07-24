@@ -907,13 +907,10 @@ typedef enum nvmlGpuVirtualizationMode {
 #define NVML_FI_DEV_PERF_POLICY_TOTAL_APP_CLOCKS   80  	//!< Perf Policy Counter for Total App Clock Policy
 #define NVML_FI_DEV_PERF_POLICY_TOTAL_BASE_CLOCKS  81 	//!< Perf Policy Counter for Total Base Clocks Policy
 
-/* HBM temperature counters */
-#define NVML_FI_DEV_HBM_STACK_0_TEMP 82 //!< HBM Stack Temperature for stack 0
-#define NVML_FI_DEV_HBM_STACK_1_TEMP 83 //!< HBM Stack Temperature for stack 1
-#define NVML_FI_DEV_HBM_STACK_2_TEMP 84 //!< HBM Stack Temperature for stack 2
-#define NVML_FI_DEV_HBM_STACK_3_TEMP 85 //!< HBM Stack Temperature for stack 3
+/* Memory temperatures */
+#define NVML_FI_DEV_MEMORY_TEMP  82 //!< Memory temperature for the device
 
-#define NVML_FI_MAX 86 //!< One greater than the largest field ID defined above
+#define NVML_FI_MAX 83 //!< One greater than the largest field ID defined above
 
 /**
  * Information for a Field Value Sample
