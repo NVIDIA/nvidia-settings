@@ -2541,19 +2541,30 @@ static void setup_mosaic_config(CtkDisplayConfig *ctk_object)
 {
     nvDisplayPtr display = ctk_display_layout_get_selected_display
         (CTK_DISPLAY_LAYOUT(ctk_object->obj_layout));
+    nvScreenPtr screen = ctk_display_layout_get_selected_screen
+        (CTK_DISPLAY_LAYOUT(ctk_object->obj_layout));
     nvGpuPtr gpu;
     const char *tooltip;
     const gchar *label;
+    gboolean display_gpu_support_mosaic = (display && display->gpu &&
+        display->gpu->mosaic_type != MOSAIC_TYPE_UNSUPPORTED);
+    gboolean screen_gpu_support_mosaic = (screen && screen->display_owner_gpu &&
+        screen->display_owner_gpu->mosaic_type != MOSAIC_TYPE_UNSUPPORTED);
 
 
-    if (!display || !display->gpu || !ctk_object->advanced_mode ||
-        display->gpu->mosaic_type == MOSAIC_TYPE_UNSUPPORTED) {
+    if (!ctk_object->advanced_mode ||
+        (!display_gpu_support_mosaic && !screen_gpu_support_mosaic)) {
         gtk_widget_hide(ctk_object->chk_mosaic_enabled);
         return;
     }
+
     gtk_widget_show(ctk_object->chk_mosaic_enabled);
 
-    gpu = display->gpu;
+    if (display_gpu_support_mosaic) {
+        gpu = display->gpu;
+    } else {
+        gpu = screen->display_owner_gpu;
+    }
 
     switch (gpu->mosaic_type) {
     case MOSAIC_TYPE_SLI_MOSAIC:
