@@ -856,8 +856,8 @@ static void apply_clicked(GtkWidget *widget, gpointer user_data)
                                          "Unable to send license information "
                                          "update request to the NVIDIA GRID "
                                          "licensing daemon.\n"
-                                         "Please make sure nvidia-gridd "
-                                         "is running and retry applying the "
+                                         "Please make sure nvidia-gridd and "
+                                         "dbus-daemon are running and retry applying the "
                                          "license settings.\n");
             gtk_dialog_run(GTK_DIALOG(dlg));
             gtk_widget_destroy(dlg);
