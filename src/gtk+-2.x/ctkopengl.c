@@ -283,20 +283,20 @@ GtkWidget* ctk_opengl_new(CtrlTarget *ctrl_target,
     GtkAdjustment *adjustment;
     GtkWidget *menu;
 
-    gint sync_to_vblank;
-    gint flipping_allowed;
-    gint gsync_allowed;
-    gint show_gsync_visual_indicator;
-    gint force_stereo;
-    gint xinerama_stereo;
-    gint stereo_eyes_exchange;
-    gint stereo_swap_mode;
+    gint sync_to_vblank = 0;
+    gint flipping_allowed = 0;
+    gint gsync_allowed = 0;
+    gint show_gsync_visual_indicator = 0;
+    gint force_stereo = 0;
+    gint xinerama_stereo = 0;
+    gint stereo_eyes_exchange = 0;
+    gint stereo_swap_mode = 0;
     CtrlAttributeValidValues image_settings_valid;
-    gint image_settings_value;
-    gint aa_line_gamma;
-    gint use_conformant_clamping;
-    gint show_sli_visual_indicator;
-    gint show_multigpu_visual_indicator;
+    gint image_settings_value = 0;
+    gint aa_line_gamma = 0;
+    gint use_conformant_clamping = 0;
+    gint show_sli_visual_indicator = 0;
+    gint show_multigpu_visual_indicator = 0;
 
     ReturnStatus ret_sync_to_vblank;
     ReturnStatus ret_flipping_allowed;
