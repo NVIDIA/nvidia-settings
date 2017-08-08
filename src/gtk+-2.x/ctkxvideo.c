@@ -229,9 +229,6 @@ static GtkWidget *xv_sync_to_display_radio_button_add(CtkXVideo *ctk_xvideo,
                      G_CALLBACK(xv_sync_to_display_id_toggled),
                      (gpointer) ctk_xvideo);
 
-    ctk_config_set_tooltip(ctk_xvideo->ctk_config, button,
-                           __xv_sync_to_display_help);
-
     return button;
 }
 
@@ -280,6 +277,8 @@ static void xv_sync_to_display_rebuild_buttons(CtkXVideo *ctk_xvideo,
         return;
     }
 
+
+    ctk_xvideo->active_attributes |= __XV_SYNC_TO_DISPLAY;
 
     /* Add a button for No Display Specified */
     last_button = NULL;
@@ -547,6 +546,10 @@ GtkWidget* ctk_xvideo_new(CtrlTarget *ctrl_target,
     gtk_container_set_border_width(GTK_CONTAINER(vbox), FRAME_PADDING);
     gtk_container_add(GTK_CONTAINER(frame), vbox);
     ctk_xvideo->xv_sync_to_display_button_box = vbox;
+
+    ctk_config_set_tooltip(ctk_xvideo->ctk_config,
+                           ctk_xvideo->xv_sync_to_display_button_box,
+                           __xv_sync_to_display_help);
 
     xv_sync_to_display_rebuild_buttons(ctk_xvideo, FALSE);
 

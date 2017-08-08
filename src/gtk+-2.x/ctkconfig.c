@@ -544,6 +544,9 @@ GtkTextBuffer *ctk_config_create_help(CtkConfig *ctk_config, GtkTextTagTable *ta
                   "consecutive polls (in milliseconds).  The Active "
                   "Timers table is only visible when timers are active.");
 
+    ctk_help_heading(b, &i, "Save Current Configuration");
+    ctk_help_para(b, &i, "%s", __save_current_config_help);
+
     ctk_help_finish(b);
 
     return b;
