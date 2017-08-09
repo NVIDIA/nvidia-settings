@@ -945,6 +945,9 @@ static gboolean allow_digits(GtkWidget *widget, GdkEvent *event, gpointer user_d
         case GDK_KP_Page_Up:
         case GDK_BackSpace:
         case GDK_Delete:
+        case GDK_Tab:
+        case GDK_KP_Tab:
+        case GDK_ISO_Left_Tab:
             // Allow all control keys
             return FALSE;
         default:
