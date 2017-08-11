@@ -3497,8 +3497,8 @@
 #define NV_CTRL_GPU_MEM_TRANSFER_RATE_OFFSET_ALL_PERFORMANCE_LEVELS  425 /* RW-G */
 
 /*
- * NV_CTRL_FRAMELOCK_FIRMWARE_VERSION - Queries the firmware version of the
- * Frame Lock device.
+ * NV_CTRL_FRAMELOCK_FIRMWARE_VERSION - Queries the firmware major version of
+ * the Frame Lock device.
  *
  * This attribute must be queried through XNVCTRLQueryTargetAttribute()
  * using a NV_CTRL_TARGET_TYPE_FRAMELOCK target.
@@ -3506,7 +3506,17 @@
 
 #define NV_CTRL_FRAMELOCK_FIRMWARE_VERSION                           426 /* R--F */
 
-#define NV_CTRL_LAST_ATTRIBUTE NV_CTRL_FRAMELOCK_FIRMWARE_VERSION
+/*
+ * NV_CTRL_FRAMELOCK_FIRMWARE_MINOR_VERSION - Queries the firmware minor
+ * version of the Frame Lock device.
+ *
+ * This attribute must be queried through XNVCTRLQueryTargetAttribute()
+ * using a NV_CTRL_TARGET_TYPE_FRAMELOCK target.
+ */
+
+#define NV_CTRL_FRAMELOCK_FIRMWARE_MINOR_VERSION                     427 /* R--F */
+
+#define NV_CTRL_LAST_ATTRIBUTE NV_CTRL_FRAMELOCK_FIRMWARE_MINOR_VERSION
 
 /**************************************************************************/
 
