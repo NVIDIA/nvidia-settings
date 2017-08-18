@@ -49,11 +49,11 @@
 
 static const char * __manage_grid_licenses_help =
 "Use the Manage GRID License page to obtain licenses "
-"for GRID vGPU or GRID Virtual Workstation on supported Tesla products.";
+"for GRID vGPU or Quadro Virtual Datacenter Workstation on supported Tesla products.";
 static const char * __grid_virtual_workstation_help =
-"Select this option to enable GRID Virtual Workstation license.";
+"Select this option to enable Quadro Virtual Datacenter Workstation license.";
 static const char * __tesla_unlicensed_help =
-"Select this option to disable the GRID Virtual Workstation license.";
+"Select this option to disable the Quadro Virtual Datacenter Workstation license.";
 static const char * __license_edition_help =
 "This section indicates the status of GRID licensing for the system.";
 static const char * __license_server_help =
@@ -752,7 +752,7 @@ static gboolean update_manage_grid_license_state_info(gpointer user_data)
         }
     }
 
-    /* Set correct status message when Grid Virtual Workstation
+    /* Set correct status message when Quadro Virtual Datacenter Workstation
      * checkbox selected */ 
     if ((licenseStatus == NV_GRID_UNLICENSED_TESLA) &&
         (ctk_manage_grid_license->license_edition_gvw_selected == TRUE)) {
@@ -777,7 +777,7 @@ static gboolean update_manage_grid_license_state_info(gpointer user_data)
           licenseState = "Your system is licensed for GRID vGPU.";
           break;
     case NV_GRID_LICENSE_ACQUIRED_GVW:
-          licenseState = "Your system is licensed for GRID Virtual "
+          licenseState = "Your system is licensed for Quadro Virtual Datacenter "
               "Workstation Edition.";
           break;
     case NV_GRID_LICENSE_REQUESTING_VGPU:
@@ -785,16 +785,16 @@ static gboolean update_manage_grid_license_state_info(gpointer user_data)
               "Your system does not have a valid GRID vGPU license.";
           break;
     case NV_GRID_LICENSE_REQUESTING_GVW:
-          licenseState = "Acquiring license for GRID Virtual Workstation "
-              "Edition.\n"
-              "Your system does not have a valid GRID Virtual "
+          licenseState = "Acquiring license for Quadro Virtual Datacenter "
+              "Workstation Edition.\n"
+              "Your system does not have a valid Quadro Virtual Datacenter "
               "Workstation license.";
           break;
     case NV_GRID_LICENSE_FAILED_VGPU:
           licenseState = "Failed to acquire NVIDIA vGPU license.";
           break;
     case NV_GRID_LICENSE_FAILED_GVW:
-          licenseState = "Failed to acquire NVIDIA GRID Virtual "
+          licenseState = "Failed to acquire NVIDIA Quadro Virtual Datacenter "
               "Workstation license.";
           break;
     case NV_GRID_LICENSE_EXPIRED_VGPU:
@@ -802,14 +802,14 @@ static gboolean update_manage_grid_license_state_info(gpointer user_data)
               "Your system does not have a valid GRID vGPU license.";
           break;
     case NV_GRID_LICENSE_EXPIRED_GVW:
-          licenseState = "Failed to renew license for GRID Virtual "
-              "Workstation Edition.\n"
-              "Your system is currently running GRID Virtual "
-              "Workstation (unlicensed).";
+          licenseState = "License for Quadro Virtual Datacenter Workstation "
+              "has expired.\n"
+              "Your system does not have a valid Quadro Virtual Datacenter "
+              "Workstation license.";
           break;
     case NV_GRID_LICENSE_RESTART_REQUIRED:
           licenseState = "Restart your system for Tesla Edition.\n"
-              "Your system is currently running GRID Virtual "
+              "Your system is currently running Quadro Virtual Datacenter "
               "Workstation Edition.";
           break;
     default:
@@ -892,8 +892,8 @@ static void license_edition_toggled(GtkWidget *widget, gpointer user_data)
 
     if (GPOINTER_TO_INT(user_data) == GRID_LICENSED_FEATURE_TYPE_GVW) {
         gtk_widget_set_sensitive(ctk_manage_grid_license->box_server_info, TRUE);
-        licenseState = "You selected GRID Virtual Workstation Edition.";
-        ctk_manage_grid_license->feature_type = 
+        licenseState = "You selected Quadro Virtual Datacenter Workstation Edition.";
+        ctk_manage_grid_license->feature_type =
             GRID_LICENSED_FEATURE_TYPE_GVW;
         ctk_manage_grid_license->license_edition_gvw_selected = TRUE;
     }  else if (GPOINTER_TO_INT(user_data) == GRID_LICENSED_FEATURE_TYPE_TESLA) {
@@ -1077,10 +1077,10 @@ GtkWidget* ctk_manage_grid_license_new(CtrlTarget *target,
     }
 
     /* GRID M6 is licensable gpu so we want to allow users to choose
-     * GRID virtual workstation and Unlicensed Tesla mode on baremetal setup.
+     * Quadro Virtual Datacenter Workstation and Unlicensed Tesla mode on baremetal setup.
      * When virtualization mode is NV_CTRL_ATTR_NVML_GPU_VIRTUALIZATION_MODE_NONE
      * treat it same way like NV_CTRL_ATTR_NVML_GPU_VIRTUALIZATION_MODE_PASSTHROUGH.
-     * So that it will show the GRID Virtual Workstation interface in case of
+     * So that it will show the Quadro Virtual Datacenter Workstation interface in case of
      * baremetal setup.
      */
     if (mode == NV_CTRL_ATTR_NVML_GPU_VIRTUALIZATION_MODE_NONE) {
@@ -1209,9 +1209,9 @@ GtkWidget* ctk_manage_grid_license_new(CtrlTarget *target,
         vbox3 = gtk_vbox_new(FALSE, 5);
         gtk_container_add(GTK_CONTAINER(vbox1), vbox3);
         gtk_container_set_border_width(GTK_CONTAINER(vbox3), 5);
-        
+
         button1 = gtk_radio_button_new_with_label(NULL,
-                                                  "GRID Virtual Workstation");
+                                                  "Quadro Virtual Datacenter Workstation");
         slist = gtk_radio_button_get_group(GTK_RADIO_BUTTON(button1));
         gtk_box_pack_start(GTK_BOX(vbox3), button1, FALSE, FALSE, 0);
         g_object_set_data(G_OBJECT(button1), "button_id",
@@ -1386,11 +1386,11 @@ GtkWidget* ctk_manage_grid_license_new(CtrlTarget *target,
     g_signal_connect(G_OBJECT(ctk_manage_grid_license->btn_apply), "clicked",
                      G_CALLBACK(apply_clicked),
                      (gpointer) ctk_manage_grid_license);
-    
+
     /* Set license edition toggle button active */
     if (button2 && button1) {
         if (strcmp(griddConfig->str[NV_GRIDD_FEATURE_TYPE], "2") == 0) {
-            /* Set 'GRID Virtual Workstation' toggle button active */
+            /* Set 'Quadro Virtual Datacenter Workstation' toggle button active */
             gtk_toggle_button_set_active(GTK_TOGGLE_BUTTON(button1), TRUE);
         }
         else {
@@ -1433,8 +1433,8 @@ GtkTextBuffer *ctk_manage_grid_license_create_help(GtkTextTagTable *table,
     ctk_help_para(b, &i, "%s", __manage_grid_licenses_help);
 
     if (ctk_manage_grid_license->license_edition_state ==
-        NV_CTRL_ATTR_NVML_GPU_VIRTUALIZATION_MODE_PASSTHROUGH) { 
-        ctk_help_heading(b, &i, "GRID Virtual Workstation");
+        NV_CTRL_ATTR_NVML_GPU_VIRTUALIZATION_MODE_PASSTHROUGH) {
+        ctk_help_heading(b, &i, "Quadro Virtual Datacenter Workstation");
         ctk_help_para(b, &i, "%s", __grid_virtual_workstation_help);
 
         ctk_help_heading(b, &i, "Tesla (Unlicensed)");
