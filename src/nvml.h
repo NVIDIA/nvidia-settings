@@ -201,23 +201,6 @@ typedef struct nvmlProcessInfo_st
 } nvmlProcessInfo_t;
 
 /**
- * XIDs error attributes for a given device
- */
-typedef struct nvmlXidEntry_st
-{
-    unsigned int xidTimeStamp;     //! Timestamp of the Xid Error occurrence
-    unsigned int xidNumber;        //! Number of Xid currently present on device's Inforom
-}nvmlXidEntry_t;
-
-typedef struct nvmlXidData_st
-{
-    unsigned int xidFirstEntryCount;  //! Number of entries that are populated in xidFirstEntry.
-    nvmlXidEntry_t xidFirstEntry[10]; //! Array of entries of the first Xids encountered since the Inforom was last flashed.
-    unsigned int xidLastEntryCount;   //! Number of entries that are populated in xidLastEntry.
-    nvmlXidEntry_t xidLastEntry[10];  //! Array of entries of the most recent Xid errors that have occurred.
-}nvmlXidData_t;
-
-/**
  * Enum to represent type of bridge chip
  */
 typedef enum nvmlBridgeChipType_enum
@@ -2163,21 +2146,6 @@ nvmlReturn_t DECLDIR nvmlSystemGetTopologyGpuSet(unsigned int cpuNumber, unsigne
  *         - \ref NVML_ERROR_UNKNOWN              on any unexpected error
  */ 
 nvmlReturn_t DECLDIR nvmlDeviceGetP2PStatus(nvmlDevice_t device1, nvmlDevice_t device2, nvmlGpuP2PCapsIndex_t p2pIndex,nvmlGpuP2PStatus_t *p2pStatus);
-
-/**
- * Retrieves the XID Error List reported by RM on a per GPU basis
- * 
- * @param device                               The device being queried
- * @param xidData                              The list of the actual XID Error numbers and timestamps
- *   
- *
- * @return 
- *         - \ref NVML_SUCCESS                 if the xidCount or xidErrorList have been populated
- *         - \ref NVML_ERROR_INVALID_ARGUMENT  if the device is invalid
- *         - \ref NVML_ERROR_UNKNOWN              on any unexpected error
- */ 
-nvmlReturn_t DECLDIR nvmlDeviceGetXidErrors(nvmlDevice_t device, nvmlXidData_t *xidData);
-
 
 /**
  * Retrieves the globally unique immutable UUID associated with this device, as a 5 part hexadecimal string,
