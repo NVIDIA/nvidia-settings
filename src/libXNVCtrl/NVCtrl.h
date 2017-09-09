@@ -332,7 +332,8 @@
 #define NV_CTRL_STEREO_3D_VISION_PRO                            11
 #define NV_CTRL_STEREO_HDMI_3D                                  12
 #define NV_CTRL_STEREO_TRIDELITY_SL                             13
-#define NV_CTRL_STEREO_MAX NV_CTRL_STEREO_TRIDELITY_SL
+#define NV_CTRL_STEREO_INBAND_STEREO_SIGNALING                  14
+#define NV_CTRL_STEREO_MAX NV_CTRL_STEREO_INBAND_STEREO_SIGNALING
 
 /*
  * NV_CTRL_EMULATE - not supported

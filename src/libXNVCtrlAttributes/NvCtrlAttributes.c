@@ -1338,6 +1338,7 @@ const char *NvCtrlGetStereoModeNameIfExists(int stereo_mode)
         [NV_CTRL_STEREO_3D_VISION]                    = "NVIDIA 3D Vision",
         [NV_CTRL_STEREO_3D_VISION_PRO]                = "NVIDIA 3D Vision Pro",
         [NV_CTRL_STEREO_HDMI_3D]                      = "HDMI 3D",
+        [NV_CTRL_STEREO_INBAND_STEREO_SIGNALING]      = "Generic Active Stereo (in-band DP)",
     };
 
 
