@@ -82,7 +82,6 @@ Bool display_has_modeline(nvDisplayPtr display, nvModeLinePtr modeline);
 Bool display_add_modelines_from_server(nvDisplayPtr display, nvGpuPtr gpu,
                                        gchar **err_str);
 void display_remove_modes(nvDisplayPtr display);
-Bool display_set_modes_rotation(nvDisplayPtr display, Rotation rotation);
 
 
 /* Metamode functions */

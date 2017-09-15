@@ -4460,9 +4460,7 @@ void ctk_display_layout_set_display_panning(CtkDisplayLayout *ctk_object,
 /*!
  * Sets the rotation orientation for the display.
  *
- * In basic mode, this function will make all modes on the display have the
- * same rotation.  In advanced mode, only the current mode will have its
- * rotation orientation modified.
+ * Only the current mode will have its rotation orientation modified.
  *
  * If a modification occurs, this function will call the modified_callback
  * handler registered, if any.
@@ -4475,23 +4473,13 @@ void ctk_display_layout_set_display_rotation(CtkDisplayLayout *ctk_object,
                                              nvDisplayPtr display,
                                              Rotation rotation)
 {
-    Bool modified;
-
-
     if (!display->cur_mode ||
         !display->cur_mode->modeline) {
         return;
     }
 
-    if (ctk_object->advanced_mode) {
-        /* In advanced mode, only set the rotation of the current mode */
-        modified = mode_set_rotation(display->cur_mode, rotation);
-    } else {
-        /* In basic mode, make all the modes have the same rotation */
-        modified = display_set_modes_rotation(display, rotation);
-    }
+    if (mode_set_rotation(display->cur_mode, rotation)) {
 
-    if (modified) {
         /* Update the layout */
         ctk_display_layout_update(ctk_object);
 
@@ -4508,9 +4496,7 @@ void ctk_display_layout_set_display_rotation(CtkDisplayLayout *ctk_object,
 /*!
  * Sets the reflection orientation for the display.
  *
- * In basic mode, this function will make all modes on the display have the
- * same reflection.  In advanced mode, only the current mode will have its
- * reflection orientation modified.
+ * Only the current mode will have its reflection orientation modified.
  *
  * If a modification occurs, this function will call the modified_callback
  * handler registered, if any.
@@ -4523,33 +4509,15 @@ void ctk_display_layout_set_display_reflection(CtkDisplayLayout *ctk_object,
                                                nvDisplayPtr display,
                                                Reflection reflection)
 {
-    Bool modified = FALSE;
-
-
     if (!display->cur_mode ||
         !display->cur_mode->modeline) {
         return;
     }
 
-    if (ctk_object->advanced_mode) {
-        /* In advanced mode, only set the reflection of the current mode */
-        if (display->cur_mode->reflection != reflection) {
-            modified = TRUE;
-        }
+    if (display->cur_mode->reflection != reflection) {
+
         display->cur_mode->reflection = reflection;
-    } else {
-        nvModePtr mode;
 
-        /* In basic mode, make all the modes have the same reflection */
-        for (mode = display->modes; mode; mode = mode->next) {
-            if (mode->reflection != reflection) {
-                mode->reflection = reflection;
-                modified = TRUE;
-            }
-        }
-    }
-
-    if (modified) {
         /* Update the layout */
         ctk_display_layout_update(ctk_object);
 

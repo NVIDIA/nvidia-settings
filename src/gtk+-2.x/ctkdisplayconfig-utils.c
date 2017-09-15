@@ -1651,31 +1651,6 @@ void display_remove_modes(nvDisplayPtr display)
 
 
 
-/*!
- * Sets all the modes on the display to the specified rotation
- *
- * \param[in]  mode      The display who's modes are to be modified
- * \param[in]  rotation  The rotation to set
- *
- * \return  TRUE if a new rotation was set for at least one mode, FALSE if all
- *          of the modes on the display were already set to the rotation given.
- */
-Bool display_set_modes_rotation(nvDisplayPtr display, Rotation rotation)
-{
-    nvModePtr mode;
-    Bool modified = FALSE;
-
-    for (mode = display->modes; mode; mode = mode->next) {
-        if (mode_set_rotation(mode, rotation)) {
-            modified = TRUE;
-        }
-    }
-
-    return modified;
-}
-
-
-
 /** display_free() ***************************************************
  *
  * Frees memory used by a display

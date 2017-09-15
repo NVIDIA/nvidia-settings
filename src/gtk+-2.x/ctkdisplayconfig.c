@@ -6193,6 +6193,8 @@ static void display_refresh_changed(GtkWidget *widget, gpointer user_data)
     gint idx;
     nvModeLinePtr modeline;
     nvDisplayPtr display;
+    Rotation old_rotation;
+    Reflection old_reflection;
 
 
     /* Get the modeline and display to set */
@@ -6201,6 +6203,9 @@ static void display_refresh_changed(GtkWidget *widget, gpointer user_data)
     display = ctk_display_layout_get_selected_display
         (CTK_DISPLAY_LAYOUT(ctk_object->obj_layout));
 
+    /* Save the current rotation and reflection settings */
+    old_rotation = display->cur_mode->rotation;
+    old_reflection = display->cur_mode->reflection;
 
     /* In Basic view, we assume the user most likely wants
      * to change which metamode is being used.
@@ -6225,6 +6230,24 @@ static void display_refresh_changed(GtkWidget *widget, gpointer user_data)
          &display->cur_mode->viewPortIn,
          &display->cur_mode->viewPortOut);
 
+    /* If we are in Basic mode, apply the rotation and reflection settings from
+     * the previous mode to the new mode.
+     */
+    if (!ctk_object->advanced_mode) {
+
+        if (display->cur_mode->rotation != old_rotation) {
+            ctk_display_layout_set_display_rotation(
+                CTK_DISPLAY_LAYOUT(ctk_object->obj_layout),
+                display, old_rotation);
+        }
+
+        if (display->cur_mode->reflection != old_reflection) {
+            ctk_display_layout_set_display_reflection(
+                CTK_DISPLAY_LAYOUT(ctk_object->obj_layout),
+                display, old_reflection);
+        }
+    }
+
     /* Update the modename */
     setup_display_modename(ctk_object);
 
@@ -6247,6 +6270,8 @@ static void display_resolution_changed(GtkWidget *widget, gpointer user_data)
     gint last_idx;
     nvSelectedModePtr selected_mode;
     nvDisplayPtr display;
+    Rotation old_rotation;
+    Reflection old_reflection;
 
 
     /* Get the modeline and display to set */
@@ -6265,6 +6290,9 @@ static void display_resolution_changed(GtkWidget *widget, gpointer user_data)
         return;
     }
 
+    /* Save the current rotation and reflection settings */
+    old_rotation = display->cur_mode->rotation;
+    old_reflection = display->cur_mode->reflection;
 
     /* In Basic view, we assume the user most likely wants
      * to change which metamode is being used.
@@ -6298,6 +6326,24 @@ static void display_resolution_changed(GtkWidget *widget, gpointer user_data)
              selected_mode->modeline,
              NULL /* viewPortIn */,
              NULL /* viewPortOut */);
+    }
+
+    /* If we are in Basic mode, apply the rotation and reflection settings from
+     * the previous mode to the new mode.
+     */
+    if (!ctk_object->advanced_mode) {
+
+        if (display->cur_mode->rotation != old_rotation) {
+            ctk_display_layout_set_display_rotation(
+                CTK_DISPLAY_LAYOUT(ctk_object->obj_layout),
+                display, old_rotation);
+        }
+
+        if (display->cur_mode->reflection != old_reflection) {
+            ctk_display_layout_set_display_reflection(
+                CTK_DISPLAY_LAYOUT(ctk_object->obj_layout),
+                display, old_reflection);
+        }
     }
 
     /* Update the UI */
