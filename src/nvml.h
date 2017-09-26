@@ -721,6 +721,7 @@ typedef enum nvmlReturn_enum
     NVML_ERROR_LIB_RM_VERSION_MISMATCH = 18,   //!< RM detects a driver/library version mismatch
     NVML_ERROR_IN_USE = 19,             //!< An operation cannot be performed because the GPU is currently in use
     NVML_ERROR_MEMORY = 20,             //!< Insufficient memory
+    NVML_ERROR_VGPU_ECC_NOT_SUPPORTED = 21,    //!< The requested vgpu operation is not available on target device, becasue ECC is enabled
     NVML_ERROR_UNKNOWN = 999            //!< An internal driver error occurred
 } nvmlReturn_t;
 
@@ -1105,6 +1106,12 @@ typedef enum nvmlVgpuGuestInfoState_enum
     NVML_VGPU_INSTANCE_GUEST_INFO_STATE_INITIALIZED   = 1,  //<! Guest-dependent fields initialized
 } nvmlVgpuGuestInfoState_t;
 
+// GRID license feature code
+typedef enum {
+    NVML_GRID_LICENSE_FEATURE_CODE_VGPU = 1,         // Virtual GPU
+    NVML_GRID_LICENSE_FEATURE_CODE_VWORKSTATION = 2  // Virtual Workstation
+} nvmlGridLicenseFeatureCode_t;
+
 /** @} */
 
 /***************************************************************************************************/
@@ -1123,6 +1130,10 @@ typedef enum nvmlVgpuGuestInfoState_enum
 #define NVML_MAX_VGPU_TYPES_PER_PGPU        17
 
 #define NVML_MAX_VGPU_INSTANCES_PER_PGPU    24
+
+#define NVML_GRID_LICENSE_FEATURE_MAX_COUNT 3
+
+#define NVML_GRID_LICENSE_INFO_MAX_LENGTH   12
 
 /** @} */
 
@@ -1148,6 +1159,23 @@ typedef struct nvmlVgpuInstanceUtilizationSample_st
     nvmlValue_t encUtil;                //!< Encoder Util Value
     nvmlValue_t decUtil;                //!< Decoder Util Value
 } nvmlVgpuInstanceUtilizationSample_t;
+
+/**
+ * Structure to store GRID licensable features
+ */
+typedef struct nvmlGridLicensableFeature_st
+{
+    nvmlGridLicenseFeatureCode_t    featureCode;         //<! Licensed feature code
+    unsigned int                    featureState;        //<! Non-zero if feature is currently licensed, otherwise zero
+    char                            licenseInfo[NVML_GRID_LICENSE_INFO_MAX_LENGTH];
+} nvmlGridLicensableFeature_t;
+
+typedef struct nvmlGridLicensableFeatures_st
+{
+    int                         isGridLicenseSupported;     //<! Non-zero if GRID Software Licensing is supported on the system, otherwise zero
+    unsigned int                licensableFeaturesCount;    //<! Entries returned in \a gridLicensableFeatures array
+    nvmlGridLicensableFeature_t gridLicensableFeatures[NVML_GRID_LICENSE_FEATURE_MAX_COUNT];
+} nvmlGridLicensableFeatures_t;
 
 /**
  * Structure to store Utilization Value, vgpuInstance and subprocess information
@@ -4756,10 +4784,11 @@ nvmlReturn_t DECLDIR nvmlDeviceSetVirtualizationMode(nvmlDevice_t device, nvmlGp
  * @param vgpuTypeIds              Pointer to caller-supplied array in which to return list of vGPU types
  *
  * @return
- *         - \ref NVML_SUCCESS                   successful completion
- *         - \ref NVML_ERROR_INSUFFICIENT_SIZE   \a vgpuTypeIds buffer is too small, array element count is returned in \a vgpuCount
- *         - \ref NVML_ERROR_INVALID_ARGUMENT    if \a vgpuCount is NULL or \a device is invalid
- *         - \ref NVML_ERROR_NOT_SUPPORTED       if vGPU is not supported by the device
+ *         - \ref NVML_SUCCESS                      successful completion
+ *         - \ref NVML_ERROR_INSUFFICIENT_SIZE      \a vgpuTypeIds buffer is too small, array element count is returned in \a vgpuCount
+ *         - \ref NVML_ERROR_INVALID_ARGUMENT       if \a vgpuCount is NULL or \a device is invalid
+ *         - \ref NVML_ERROR_NOT_SUPPORTED          if vGPU is not supported by the device
+ *         - \ref NVML_ERROR_VGPU_ECC_NOT_SUPPORTED if ECC is enabled on the device
  *         - \ref NVML_ERROR_UNKNOWN             on any unexpected error
  */
 nvmlReturn_t DECLDIR nvmlDeviceGetSupportedVgpus(nvmlDevice_t device, unsigned int *vgpuCount, nvmlVgpuTypeId_t *vgpuTypeIds);
@@ -4785,11 +4814,12 @@ nvmlReturn_t DECLDIR nvmlDeviceGetSupportedVgpus(nvmlDevice_t device, unsigned i
  * @param vgpuTypeIds              Pointer to caller-supplied array in which to return list of vGPU types
  *
  * @return
- *         - \ref NVML_SUCCESS                   successful completion
- *         - \ref NVML_ERROR_INSUFFICIENT_SIZE   \a vgpuTypeIds buffer is too small, array element count is returned in \a vgpuCount
- *         - \ref NVML_ERROR_INVALID_ARGUMENT    if \a vgpuCount is NULL
- *         - \ref NVML_ERROR_NOT_SUPPORTED       if vGPU is not supported by the device
- *         - \ref NVML_ERROR_UNKNOWN             on any unexpected error
+ *         - \ref NVML_SUCCESS                      successful completion
+ *         - \ref NVML_ERROR_INSUFFICIENT_SIZE      \a vgpuTypeIds buffer is too small, array element count is returned in \a vgpuCount
+ *         - \ref NVML_ERROR_INVALID_ARGUMENT       if \a vgpuCount is NULL
+ *         - \ref NVML_ERROR_NOT_SUPPORTED          if vGPU is not supported by the device
+ *         - \ref NVML_ERROR_VGPU_ECC_NOT_SUPPORTED if ECC is enabled on the device
+ *         - \ref NVML_ERROR_UNKNOWN                on any unexpected error
  */
 nvmlReturn_t DECLDIR nvmlDeviceGetCreatableVgpus(nvmlDevice_t device, unsigned int *vgpuCount, nvmlVgpuTypeId_t *vgpuTypeIds);
 
@@ -5213,6 +5243,22 @@ nvmlReturn_t DECLDIR nvmlVgpuInstanceSetEncoderCapacity(nvmlVgpuInstance_t vgpuI
 nvmlReturn_t DECLDIR nvmlDeviceGetVgpuUtilization(nvmlDevice_t device, unsigned long long lastSeenTimeStamp,
                                                   nvmlValueType_t *sampleValType, unsigned int *vgpuInstanceSamplesCount,
                                                   nvmlVgpuInstanceUtilizationSample_t *utilizationSamples);
+
+/**
+ * Retrieve the GRID licensable features.
+ *
+ * Identifies whether the system supports GRID Software Licensing. If it does, return the list of licensable feature(s)
+ * and their current license status.
+ *
+ * @param device                    Identifier of the target device
+ * @param pGridLicensableFeatures   Pointer to structure in which GRID licensable features are returned
+ *
+ * @return
+ *         - \ref NVML_SUCCESS                 if licensable features are successfully retrieved
+ *         - \ref NVML_ERROR_INVALID_ARGUMENT  if \a pGridLicensableFeatures is NULL
+ *         - \ref NVML_ERROR_UNKNOWN           on any unexpected error
+ */
+nvmlReturn_t DECLDIR nvmlDeviceGetGridLicensableFeatures(nvmlDevice_t device, nvmlGridLicensableFeatures_t *pGridLicensableFeatures);
 
 /**
  * Retrieves current utilization for processes running on vGPUs on a physical GPU (device).
