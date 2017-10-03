@@ -228,7 +228,8 @@ const AttributeTableEntry attributeTable[] = {
     { "FrameLockMasterable",              NV_CTRL_FRAMELOCK_MASTERABLE,                 INT_ATTR, {1,1,0,0,1,0}, { .int_flags = {0,0,0,1,0,0,0} }, "DEPRECATED: use \"FrameLockDisplayConfig\" instead." },
     { "FrameLockSlaveable",               NV_CTRL_FRAMELOCK_SLAVEABLE,                  INT_ATTR, {1,1,0,0,1,0}, { .int_flags = {0,0,0,1,0,0,0} }, "DEPRECATED: use \"FrameLockDisplayConfig\" instead." },
     { "FrameLockFPGARevision",            NV_CTRL_FRAMELOCK_FPGA_REVISION,              INT_ATTR, {1,1,0,0,1,0}, { .int_flags = {0,0,0,0,0,0,0} }, "Returns the FPGA revision of the Frame Lock device." },
-    { "FrameLockFirmwareVersion",         NV_CTRL_FRAMELOCK_FIRMWARE_VERSION,           INT_ATTR, {1,1,0,0,1,0}, { .int_flags = {0,0,0,0,0,0,0} }, "Returns the firmware version of the Frame Lock device." },
+    { "FrameLockFirmwareVersion",         NV_CTRL_FRAMELOCK_FIRMWARE_VERSION,           INT_ATTR, {1,1,0,0,1,0}, { .int_flags = {0,0,0,0,0,0,0} }, "Returns the firmware major version of the Frame Lock device." },
+    { "FrameLockFirmwareMinorVersion",    NV_CTRL_FRAMELOCK_FIRMWARE_MINOR_VERSION,     INT_ATTR, {1,1,0,0,1,0}, { .int_flags = {0,0,0,0,0,0,0} }, "Returns the firmware minor version of the Frame Lock device." },
     { "FrameLockSyncRate4",               NV_CTRL_FRAMELOCK_SYNC_RATE_4,                INT_ATTR, {1,1,0,0,1,0}, { .int_flags = {0,0,0,0,0,0,0} }, "Returns the refresh rate that the frame lock board is sending to the GPU in 1/10000 Hz (i.e., to get the refresh rate in Hz, divide the returned value by 10000)." },
     { "FrameLockSyncDelayResolution",     NV_CTRL_FRAMELOCK_SYNC_DELAY_RESOLUTION,      INT_ATTR, {1,1,0,0,1,0}, { .int_flags = {0,0,0,0,0,0,0} }, "Returns the number of nanoseconds that one unit of FrameLockSyncDelay corresponds to." },
     { "FrameLockIncomingHouseSyncRate",   NV_CTRL_FRAMELOCK_INCOMING_HOUSE_SYNC_RATE,   INT_ATTR, {1,1,0,0,1,0}, { .int_flags = {0,0,0,0,0,0,0} }, "Returns the rate of the incoming house sync signal to the frame lock board, in mHz (Millihertz) (i.e., to get the house sync rate in Hz, divide the returned value by 1000)." },
@@ -390,7 +391,7 @@ const int attributeTableLen = ARRAY_LEN(attributeTable);
  * the last attribute that the table knows about.
  */
 
-#if NV_CTRL_LAST_ATTRIBUTE != NV_CTRL_FRAMELOCK_FIRMWARE_VERSION
+#if NV_CTRL_LAST_ATTRIBUTE != NV_CTRL_FRAMELOCK_FIRMWARE_MINOR_VERSION
 #warning "Have you forgotten to add a new integer attribute to attributeTable?"
 #endif
 

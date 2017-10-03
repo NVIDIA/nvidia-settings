@@ -41,14 +41,14 @@ typedef enum
     NV_GRID_UNLICENSED_TESLA,               // Your system is currently running on Tesla (unlicensed).
     NV_GRID_UNLICENSED_GVW_SELECTED,        // Your system is currently running on Tesla (unlicensed). Enter license server details and apply.
     NV_GRID_LICENSE_ACQUIRED_VGPU,          // Your system is licensed for GRID vGPU.
-    NV_GRID_LICENSE_ACQUIRED_GVW,           // Your system is licensed for GRID Virtual Workstation Edition.
+    NV_GRID_LICENSE_ACQUIRED_GVW,           // Your system is licensed for Quadro Virtual Datacenter Workstation Edition.
     NV_GRID_LICENSE_REQUESTING_VGPU,        // Acquiring license for GRID vGPU Edition. Your system does not have a valid GRID vGPU license.
-    NV_GRID_LICENSE_REQUESTING_GVW,         // Acquiring license for GRID Virtual Workstation Edition. Your system does not have a valid GRID Virtual Workstation license.
+    NV_GRID_LICENSE_REQUESTING_GVW,         // Acquiring license for Quadro Virtual Datacenter Workstation Edition. Your system does not have a valid Quadro Virtual Datacenter Workstation license.
     NV_GRID_LICENSE_FAILED_VGPU,            // Failed to acquire NVIDIA vGPU license.
-    NV_GRID_LICENSE_FAILED_GVW,             // Failed to acquire NVIDIA GRID Virtual Workstation license.
+    NV_GRID_LICENSE_FAILED_GVW,             // Failed to acquire NVIDIA Quadro Virtual Datacenter Workstation license.
     NV_GRID_LICENSE_EXPIRED_VGPU,           // Failed to renew license for GRID vGPU Edition. Your system does not have a valid GRID vGPU license.
-    NV_GRID_LICENSE_EXPIRED_GVW,            // Failed to renew license for GRID Virtual Workstation Edition. Your system is currently running GRID Virtual Workstation (unlicensed).
-    NV_GRID_LICENSE_RESTART_REQUIRED,       // Restart your system for Tesla Edition. Your system is currently running GRID Virtual Workstation Edition.
+    NV_GRID_LICENSE_EXPIRED_GVW,            // License for Quadro Virtual Datacenter Workstation has expired. Your system does not have a valid Quadro Virtual Datacenter Workstation license.
+    NV_GRID_LICENSE_RESTART_REQUIRED,       // Restart your system for Tesla Edition. Your system is currently running Quadro Virtual Datacenter Workstation Edition.
 } gridLicenseStatus;
 
 #endif // _NVIDIA_NV_GRID_DBUS_H_

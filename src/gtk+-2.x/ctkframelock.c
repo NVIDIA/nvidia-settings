@@ -5603,6 +5603,8 @@ static void add_framelock_devices(CtkFramelock *ctk_framelock,
         nvListEntryPtr     entry;
         ReturnStatus       ret;
         int                val;
+        int                firmwareMajorVersion;
+        int                firmwareMinorVersion;
         char               *product_name;
         char               *firmware_version_str = NULL;
         CtrlTarget         *ctrl_target = node->t;
@@ -5633,11 +5635,31 @@ static void add_framelock_devices(CtkFramelock *ctk_framelock,
 
         ret = NvCtrlGetAttribute(ctrl_target,
                                  NV_CTRL_FRAMELOCK_FIRMWARE_VERSION,
-                                 &val);
+                                 &firmwareMajorVersion);
         if (ret != NvCtrlSuccess) {
             goto fail;
         }
-        firmware_version_str = g_strdup_printf("0x%X", val);
+
+        ret = NvCtrlGetAttribute(ctrl_target,
+                                 NV_CTRL_FRAMELOCK_FIRMWARE_MINOR_VERSION,
+                                 &firmwareMinorVersion);
+
+        if (ret == NvCtrlSuccess) {
+            /*
+             * Firmware minor version is expected to be between 0 and 99, so
+             * we display major.minor version like "2.01"
+             */
+            firmware_version_str = g_strdup_printf("%d.%.2d",
+                                                   firmwareMajorVersion,
+                                                   firmwareMinorVersion);
+        } else {
+            /*
+             * Fall back to displaying major version in old format when working
+             * with an older X server.
+             */
+            firmware_version_str = g_strdup_printf("0x%X",
+                                                   firmwareMajorVersion);
+        }
 
         /* Get the product name for the framelock board */
         ret = NvCtrlGetStringAttribute(ctrl_target,

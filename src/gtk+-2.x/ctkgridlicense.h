@@ -20,6 +20,11 @@
 #ifndef __CTK_MANAGE_GRID_LICENSE_H__
 #define __CTK_MANAGE_GRID_LICENSE_H__
 
+// Licensed feature types
+#define GRID_LICENSED_FEATURE_TYPE_TESLA                                 0
+#define GRID_LICENSED_FEATURE_TYPE_VGPU                                  1
+#define GRID_LICENSED_FEATURE_TYPE_GVW                                   2
+
 G_BEGIN_DECLS
 
 #define CTK_TYPE_MANAGE_GRID_LICENSE (ctk_manage_grid_license_get_type())
@@ -55,11 +60,13 @@ struct _CtkManageGridLicense
     GtkWidget* txt_server_port;
     GtkWidget* txt_server_address;
     GtkWidget* label_license_state;
-    GtkWidget* btn_save;
+    GtkWidget* btn_apply;
     GtkWidget* box_server_info;
 
     DbusData *dbusData;
     gint license_edition_state;
+    gboolean license_edition_gvw_selected;
+    gint feature_type;
 };
 
 struct _CtkManageGridLicenseClass

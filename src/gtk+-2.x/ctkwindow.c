@@ -1061,7 +1061,7 @@ GtkWidget *ctk_window_new(ParsedAttribute *p, ConfigProperties *conf,
         if (widget) {
             help = ctk_manage_grid_license_create_help(tag_table,
                                                        CTK_MANAGE_GRID_LICENSE(widget));
-            add_page(widget, help, ctk_window, NULL, NULL, "Manage GRID License",
+            add_page(widget, help, ctk_window, NULL, NULL, "Manage License",
                      NULL, ctk_manage_grid_license_start_timer,
                      ctk_manage_grid_license_stop_timer);
             break; /* only add the page once */
