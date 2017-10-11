@@ -70,6 +70,7 @@ int main(int ac, char **av)
     Pixmap blendPixmap;
     vertexDataRec warpData[6];
     int nvDpyId;
+    Bool blendAfterWarp = False;
 
     if (!xDpy) {
         fprintf (stderr, "Could not open X Display %s!\n", XDisplayName(NULL));
@@ -78,10 +79,14 @@ int main(int ac, char **av)
 
     screenId = XDefaultScreen(xDpy);
 
-    if (ac != 2) {
-        fprintf (stderr, "Usage: ./nv-control-warpblend nvDpyId\n");
+    if ((ac != 2) && (ac != 3)) {
+        fprintf (stderr, "Usage: ./nv-control-warpblend nvDpyId [--blend-after-warp]\n");
         fprintf (stderr, "See 'nvidia-settings -q CurrentMetaMode' for currently connected DPYs.\n");
         return 1;
+    }
+
+    if (ac == 3) {
+        blendAfterWarp = (strcmp("--blend-after-warp", av[2]) == 0);
     }
 
     nvDpyId = atoi(av[1]);
@@ -166,7 +171,7 @@ int main(int ac, char **av)
                                screenId,
                                nvDpyId,
                                blendPixmap,
-                               False);
+                               blendAfterWarp);
 
     return 0;
 }
