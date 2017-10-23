@@ -75,6 +75,9 @@ static const char * __secondary_server_port_help =
 static const char * __apply_button_help =
 "Clicking the Apply button updates license settings in the gridd.conf file and "
 "sends update license request to the NVIDIA GRID licensing daemon.";
+static const char * __cancel_button_help =
+"Clicking the Cancel button sets the text in all textboxes from the gridd.conf file. "
+"Any changes you have done will be lost.";
 
 typedef struct 
 {
@@ -106,12 +109,14 @@ struct _DbusData
 };
 
 static void apply_clicked(GtkWidget *widget, gpointer user_data);
+static void cancel_clicked(GtkWidget *widget, gpointer user_data);
 static void ctk_manage_grid_license_finalize(GObject *object);
 static void ctk_manage_grid_license_class_init(CtkManageGridLicenseClass *);
 static void dbusClose(DbusData *dbusData);
 static gboolean checkConfigfile(gboolean *writable);
 static gboolean disallow_whitespace(GtkWidget *widget, GdkEvent *event, gpointer user_data);
 static gboolean allow_digits(GtkWidget *widget, GdkEvent *event, gpointer user_data);
+static gboolean enable_disable_ui_controls(GtkWidget *widget, GdkEvent *event, gpointer user_data);
 
 GType ctk_manage_grid_license_get_type(void)
 {
@@ -875,6 +880,58 @@ static void apply_clicked(GtkWidget *widget, gpointer user_data)
         gtk_dialog_run(GTK_DIALOG(dlg));
         gtk_widget_destroy(dlg);
     }
+
+    /* Disable Apply/Cancel button. */
+    gtk_widget_set_sensitive(ctk_manage_grid_license->btn_apply, FALSE);
+    gtk_widget_set_sensitive(ctk_manage_grid_license->btn_cancel, FALSE);
+}
+
+/*
+ * cancel_clicked() - Called when the user clicks on the "Cancel" button.
+ */
+
+static void cancel_clicked(GtkWidget *widget, gpointer user_data)
+{
+    CtkManageGridLicense *ctk_manage_grid_license = CTK_MANAGE_GRID_LICENSE(user_data);
+    NvGriddConfigParams *griddConfig = NULL;
+    const char *textBoxServerStr;
+
+    griddConfig = GetNvGriddConfigParams();
+    if (!griddConfig) {
+        nv_error_msg("Null griddConfig. \n");
+        /* If griddConfig is Null, clear out all the textboxes. */
+        gtk_entry_set_text(GTK_ENTRY(ctk_manage_grid_license->txt_server_address), "");
+        gtk_entry_set_text(GTK_ENTRY(ctk_manage_grid_license->txt_server_port), "");
+        gtk_entry_set_text(GTK_ENTRY(ctk_manage_grid_license->txt_secondary_server_address), "");
+        gtk_entry_set_text(GTK_ENTRY(ctk_manage_grid_license->txt_secondary_server_port), "");
+    } else {
+        /* Set the text in all the textboxes from the griddconfig. */
+        gtk_entry_set_text(GTK_ENTRY(ctk_manage_grid_license->txt_server_address),
+                           griddConfig->str[NV_GRIDD_SERVER_ADDRESS]);
+        gtk_entry_set_text(GTK_ENTRY(ctk_manage_grid_license->txt_server_port),
+                           griddConfig->str[NV_GRIDD_SERVER_PORT]);
+        gtk_entry_set_text(GTK_ENTRY(ctk_manage_grid_license->txt_secondary_server_address),
+                           griddConfig->str[NV_GRIDD_BACKUP_SERVER_ADDRESS]);
+        gtk_entry_set_text(GTK_ENTRY(ctk_manage_grid_license->txt_secondary_server_port),
+                           griddConfig->str[NV_GRIDD_BACKUP_SERVER_PORT]);
+    }
+
+    textBoxServerStr = gtk_entry_get_text(GTK_ENTRY(ctk_manage_grid_license->txt_server_address));
+    /* Enable/Disable Secondary server address/port textboxes if Primary server address textbox string is empty. */
+    if (strcmp(textBoxServerStr, "") == 0) {
+        gtk_widget_set_sensitive(ctk_manage_grid_license->txt_secondary_server_address, FALSE);
+        gtk_widget_set_sensitive(ctk_manage_grid_license->txt_secondary_server_port, FALSE);
+    } else {
+        gtk_widget_set_sensitive(ctk_manage_grid_license->txt_secondary_server_address, TRUE);
+        gtk_widget_set_sensitive(ctk_manage_grid_license->txt_secondary_server_port, TRUE);
+    }
+
+    /* Disable Apply/Cancel button. */
+    gtk_widget_set_sensitive(ctk_manage_grid_license->btn_apply, FALSE);
+    gtk_widget_set_sensitive(ctk_manage_grid_license->btn_cancel, FALSE);
+
+    if(griddConfig)
+        FreeNvGriddConfigParams(griddConfig);
 }
 
 static void license_edition_toggled(GtkWidget *widget, gpointer user_data)
@@ -920,6 +977,54 @@ static gboolean disallow_whitespace(GtkWidget *widget, GdkEvent *event, gpointer
             return TRUE;
         }
     }
+
+    return FALSE;
+}
+
+static gboolean enable_disable_ui_controls(GtkWidget *widget, GdkEvent *event, gpointer user_data)
+{
+    CtkManageGridLicense *ctk_manage_grid_license = CTK_MANAGE_GRID_LICENSE(user_data);
+    NvGriddConfigParams *griddConfig;
+    const char *textBoxServerStr, *textBoxServerPortStr, *textBoxSecondaryServerStr, *textBoxSecondaryServerPortStr;
+
+    griddConfig = GetNvGriddConfigParams();
+    if (!griddConfig)
+        return TRUE;
+
+    if (event->type == GDK_KEY_RELEASE) {
+
+        // Read license strings from textboxes.
+        textBoxServerStr = gtk_entry_get_text(GTK_ENTRY(ctk_manage_grid_license->txt_server_address));
+        textBoxServerPortStr = gtk_entry_get_text(GTK_ENTRY(ctk_manage_grid_license->txt_server_port));
+        textBoxSecondaryServerStr = gtk_entry_get_text(GTK_ENTRY(ctk_manage_grid_license->txt_secondary_server_address));
+        textBoxSecondaryServerPortStr = gtk_entry_get_text(GTK_ENTRY(ctk_manage_grid_license->txt_secondary_server_port));
+
+        /* Enable apply/cancel button if either:
+            Primary server address/port textbox string doesn't match with the Primary server string from the gridd config file or
+            Secondary server address/port textbox string doesn't match with the Secondary server string from the gridd config file. */
+        if ((strcmp(griddConfig->str[NV_GRIDD_SERVER_ADDRESS], textBoxServerStr) != 0) ||
+            ((strcmp(griddConfig->str[NV_GRIDD_BACKUP_SERVER_ADDRESS], textBoxSecondaryServerStr) != 0) ||
+            (strcmp(griddConfig->str[NV_GRIDD_BACKUP_SERVER_PORT], textBoxSecondaryServerPortStr) != 0) ||
+            (strcmp(griddConfig->str[NV_GRIDD_SERVER_PORT], textBoxServerPortStr) != 0))) {
+                gtk_widget_set_sensitive(ctk_manage_grid_license->btn_apply, TRUE);
+                gtk_widget_set_sensitive(ctk_manage_grid_license->btn_cancel, TRUE);
+        } else {
+                gtk_widget_set_sensitive(ctk_manage_grid_license->btn_apply, FALSE);
+                gtk_widget_set_sensitive(ctk_manage_grid_license->btn_cancel, FALSE);
+        }
+
+        /* Disable Secondary server address/port textboxes if Primary server address text box string is empty
+            to notify user that Primary server address is mandatory. */
+        if (strcmp(textBoxServerStr, "") == 0) {
+            gtk_widget_set_sensitive(ctk_manage_grid_license->txt_secondary_server_address, FALSE);
+            gtk_widget_set_sensitive(ctk_manage_grid_license->txt_secondary_server_port, FALSE);
+        } else {
+            gtk_widget_set_sensitive(ctk_manage_grid_license->txt_secondary_server_address, TRUE);
+            gtk_widget_set_sensitive(ctk_manage_grid_license->txt_secondary_server_port, TRUE);
+        }
+    }
+
+    FreeNvGriddConfigParams(griddConfig);
 
     return FALSE;
 }
@@ -1288,6 +1393,9 @@ GtkWidget* ctk_manage_grid_license_new(CtrlTarget *target,
     g_signal_connect(GTK_ENTRY(ctk_manage_grid_license->txt_server_address), "key-press-event",
                      G_CALLBACK(disallow_whitespace),
                      (gpointer) ctk_manage_grid_license);
+    g_signal_connect(GTK_ENTRY(ctk_manage_grid_license->txt_server_address), "key-release-event",
+                     G_CALLBACK(enable_disable_ui_controls),
+                     (gpointer) ctk_manage_grid_license);
 
     /* value */
     hbox = gtk_hbox_new(FALSE, 0);
@@ -1321,12 +1429,21 @@ GtkWidget* ctk_manage_grid_license_new(CtrlTarget *target,
     g_signal_connect(GTK_ENTRY(ctk_manage_grid_license->txt_server_port), "key-press-event",
                      G_CALLBACK(allow_digits),
                      (gpointer) ctk_manage_grid_license);
-    
+    g_signal_connect(GTK_ENTRY(ctk_manage_grid_license->txt_server_port), "key-release-event",
+                     G_CALLBACK(enable_disable_ui_controls),
+                     (gpointer) ctk_manage_grid_license);
+
     /* Backup Server Address */
     label = gtk_label_new("Secondary Server:");
     ctk_manage_grid_license->txt_secondary_server_address = gtk_entry_new();
+
+    /* Disable Secondary server address textbox if Primary server address is empty. */
+    if (strcmp(griddConfig->str[NV_GRIDD_SERVER_ADDRESS], "") == 0) {
+        gtk_widget_set_sensitive(ctk_manage_grid_license->txt_secondary_server_address, FALSE);
+    }
     gtk_entry_set_text(GTK_ENTRY(ctk_manage_grid_license->txt_secondary_server_address),
                        griddConfig->str[NV_GRIDD_BACKUP_SERVER_ADDRESS]);
+
     hbox = gtk_hbox_new(FALSE, 0);
     eventbox = gtk_event_box_new();
     gtk_container_add(GTK_CONTAINER(eventbox), label);
@@ -1337,6 +1454,9 @@ GtkWidget* ctk_manage_grid_license_new(CtrlTarget *target,
                      GTK_FILL, GTK_FILL | GTK_EXPAND, 0, 0);
     g_signal_connect(GTK_ENTRY(ctk_manage_grid_license->txt_secondary_server_address), "key-press-event",
                      G_CALLBACK(disallow_whitespace),
+                     (gpointer) ctk_manage_grid_license);
+    g_signal_connect(GTK_ENTRY(ctk_manage_grid_license->txt_secondary_server_address), "key-release-event",
+                     G_CALLBACK(enable_disable_ui_controls),
                      (gpointer) ctk_manage_grid_license);
 
     /* value */
@@ -1360,8 +1480,14 @@ GtkWidget* ctk_manage_grid_license_new(CtrlTarget *target,
 
     /* value */
     ctk_manage_grid_license->txt_secondary_server_port = gtk_entry_new();
+
+    /* Disable Secondary server port textbox if Primary server address is empty. */
+    if (strcmp(griddConfig->str[NV_GRIDD_SERVER_ADDRESS], "") == 0) {
+        gtk_widget_set_sensitive(ctk_manage_grid_license->txt_secondary_server_port, FALSE);
+    }
     gtk_entry_set_text(GTK_ENTRY(ctk_manage_grid_license->txt_secondary_server_port),
                        griddConfig->str[NV_GRIDD_BACKUP_SERVER_PORT]);
+
     hbox = gtk_hbox_new(FALSE, 0);
     gtk_box_pack_start(GTK_BOX(hbox),
                        ctk_manage_grid_license->txt_secondary_server_port,
@@ -1371,11 +1497,15 @@ GtkWidget* ctk_manage_grid_license_new(CtrlTarget *target,
     g_signal_connect(GTK_ENTRY(ctk_manage_grid_license->txt_secondary_server_port), "key-press-event",
                      G_CALLBACK(allow_digits),
                      (gpointer) ctk_manage_grid_license);
+    g_signal_connect(GTK_ENTRY(ctk_manage_grid_license->txt_secondary_server_port), "key-release-event",
+                     G_CALLBACK(enable_disable_ui_controls),
+                     (gpointer) ctk_manage_grid_license);
     ctk_manage_grid_license->box_server_info = vbox2;
-    
+
     /* Apply button */
     ctk_manage_grid_license->btn_apply = gtk_button_new_with_label
         (" Apply ");
+    gtk_widget_set_sensitive(ctk_manage_grid_license->btn_apply, FALSE);
     gtk_widget_set_size_request(ctk_manage_grid_license->btn_apply, 100, -1);
     ctk_config_set_tooltip(ctk_config, ctk_manage_grid_license->btn_apply,
                            __apply_button_help);
@@ -1385,6 +1515,19 @@ GtkWidget* ctk_manage_grid_license_new(CtrlTarget *target,
 
     g_signal_connect(G_OBJECT(ctk_manage_grid_license->btn_apply), "clicked",
                      G_CALLBACK(apply_clicked),
+                     (gpointer) ctk_manage_grid_license);
+
+    /* Cancel button */
+    ctk_manage_grid_license->btn_cancel = gtk_button_new_with_label
+        (" Cancel ");
+    gtk_widget_set_sensitive(ctk_manage_grid_license->btn_cancel, FALSE);
+    gtk_widget_set_size_request(ctk_manage_grid_license->btn_cancel, 100, -1);
+    ctk_config_set_tooltip(ctk_config, ctk_manage_grid_license->btn_cancel,
+                           __cancel_button_help);
+    gtk_box_pack_end(GTK_BOX(hbox), ctk_manage_grid_license->btn_cancel, FALSE, FALSE, 5);
+
+    g_signal_connect(G_OBJECT(ctk_manage_grid_license->btn_cancel), "clicked",
+                     G_CALLBACK(cancel_clicked),
                      (gpointer) ctk_manage_grid_license);
 
     /* Set license edition toggle button active */
@@ -1458,6 +1601,9 @@ GtkTextBuffer *ctk_manage_grid_license_create_help(GtkTextTagTable *table,
 
     ctk_help_heading(b, &i, "Apply");
     ctk_help_para(b, &i, "%s", __apply_button_help);
+
+    ctk_help_heading(b, &i, "Cancel");
+    ctk_help_para(b, &i, "%s", __cancel_button_help);
 
     ctk_help_finish(b);
 
