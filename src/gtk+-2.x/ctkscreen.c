@@ -34,6 +34,9 @@
 #include "ctkutils.h"
 #include "ctkbanner.h"
 
+#include "ctkglwidget.h"
+#include "ctkglstereo.h"
+
 void ctk_screen_event_handler(GtkWidget *widget,
                               CtrlEvent *event,
                               gpointer data);
@@ -131,6 +134,7 @@ GtkWidget* ctk_screen_new(CtrlTarget *ctrl_target, CtkEvent *ctk_event)
     GtkWidget *banner;
     GtkWidget *hseparator;
     GtkWidget *table;
+    GtkWidget *ctk_glstereo;
 
     ReturnStatus ret;
 
@@ -311,6 +315,16 @@ GtkWidget* ctk_screen_new(CtrlTarget *ctrl_target, CtkEvent *ctk_event)
     if (ctk_screen->stereo_available) {
         add_table_row(table, 20, 0, 0, "Stereo Mode:", 0, 0,
                       NvCtrlGetStereoModeName(stereo_mode));
+
+        if (stereo_mode != NV_CTRL_STEREO_OFF) {
+            ctk_glstereo = ctk_glstereo_new();
+            if (ctk_glstereo) {
+                hbox = gtk_hbox_new(FALSE, 0);
+                gtk_box_pack_start(GTK_BOX(vbox), hbox, FALSE, FALSE, 0);
+                gtk_box_pack_start(GTK_BOX(hbox), ctk_glstereo,
+                                   FALSE, FALSE, 0);
+            }
+        }
     }
 
     g_free(screen_number);

@@ -26,6 +26,7 @@
 
 #include <gtk/gtk.h>
 #include <gdk/gdkkeysyms.h>
+#include <gdk/gdkx.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -72,6 +73,7 @@
 #include "common-utils.h"
 #include "query-assign.h"
 
+#include "opengl_loading.h"
 
 /* column enumeration */
 
@@ -1343,6 +1345,20 @@ static GtkWidget *create_quit_dialog(CtkWindow *ctk_window)
 
 static void save_settings_and_exit(CtkWindow *ctk_window)
 {
+#ifdef CTK_GTK3
+    GdkDisplay *gdk_display;
+    Display *display;
+    GdkScreen *gdk_screen;
+
+    if (dGL.glXMakeContextCurrent) {
+        gdk_screen = gtk_window_get_screen(GTK_WINDOW(ctk_window));
+        gdk_display = gdk_screen_get_display(gdk_screen);
+        display = gdk_x11_display_get_xdisplay(gdk_display);
+        dGL.glXMakeContextCurrent(display, 0, 0, 0);
+    }
+
+#endif
+
     add_special_config_file_attributes(ctk_window);
     gtk_main_quit();
 }

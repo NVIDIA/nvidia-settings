@@ -60,11 +60,14 @@ IMAGE_FILES += image_data/help.png
 IMAGE_FILES += image_data/led_green.png
 IMAGE_FILES += image_data/led_grey.png
 IMAGE_FILES += image_data/led_red.png
+IMAGE_FILES += image_data/left.png
 IMAGE_FILES += image_data/logo.png
 IMAGE_FILES += image_data/logo_tall.png
 IMAGE_FILES += image_data/nvidia_icon.png
+IMAGE_FILES += image_data/nvlogo.png
 IMAGE_FILES += image_data/opengl.png
 IMAGE_FILES += image_data/penguin.png
+IMAGE_FILES += image_data/right.png
 IMAGE_FILES += image_data/rj45_input.png
 IMAGE_FILES += image_data/rj45_output.png
 IMAGE_FILES += image_data/rj45_unused.png
@@ -180,6 +183,11 @@ GTK_SRC += gtk+-2.x/ctkcolorcontrols.c
 GTK_SRC += gtk+-2.x/ctk3dvisionpro.c
 GTK_SRC += gtk+-2.x/ctkvdpau.c
 GTK_SRC += gtk+-2.x/ctkgridlicense.c
+GTK_SRC += gtk+-2.x/ctkglwidget.c
+GTK_SRC += gtk+-2.x/ctkglstereo.c
+GTK_SRC += gtk+-2.x/opengl_loading.c
+GTK_SRC += gtk+-2.x/opengl_wrappers.c
+GTK_SRC += gtk+-2.x/matrix_utils.c
 
 
 GTK_EXTRA_DIST += gtk+-2.x/ctkxvideo.h
@@ -228,6 +236,11 @@ GTK_EXTRA_DIST += gtk+-2.x/ctkcolorcontrols.h
 GTK_EXTRA_DIST += gtk+-2.x/ctk3dvisionpro.h
 GTK_EXTRA_DIST += gtk+-2.x/ctkvdpau.h
 GTK_EXTRA_DIST += gtk+-2.x/ctkgridlicense.h
+GTK_EXTRA_DIST += gtk+-2.x/ctkglwidget.h
+GTK_EXTRA_DIST += gtk+-2.x/ctkglstereo.h
+GTK_EXTRA_DIST += gtk+-2.x/opengl_loading.h
+GTK_EXTRA_DIST += gtk+-2.x/opengl_wrappers.h
+GTK_EXTRA_DIST += gtk+-2.x/matrix_utils.h
 
 NVIDIA_SETTINGS_EXTRA_DIST += $(GTK_EXTRA_DIST)
 
