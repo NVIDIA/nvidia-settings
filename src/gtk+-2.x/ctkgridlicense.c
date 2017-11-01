@@ -226,7 +226,7 @@ static NvGriddConfigParams *AllocNvGriddConfigParams(void)
     griddConfig->str[NV_GRIDD_SERVER_ADDRESS]        = nvstrdup("");
     griddConfig->str[NV_GRIDD_SERVER_PORT]           = nvstrdup("");
     griddConfig->str[NV_GRIDD_FEATURE_TYPE]          = nvstrdup("0");
-    griddConfig->str[NV_GRIDD_ENABLE_UI]             = nvstrdup("TRUE");
+    griddConfig->str[NV_GRIDD_ENABLE_UI]             = nvstrdup("FALSE");
     griddConfig->str[NV_GRIDD_BACKUP_SERVER_ADDRESS] = nvstrdup("");
     griddConfig->str[NV_GRIDD_BACKUP_SERVER_PORT]    = nvstrdup("");
 
@@ -1227,7 +1227,7 @@ GtkWidget* ctk_manage_grid_license_new(CtrlTarget *target,
     griddConfig = GetNvGriddConfigParams();
         
     if (griddConfig &&
-        (strcmp(griddConfig->str[NV_GRIDD_ENABLE_UI], "FALSE") == 0)) {
+        (strcmp(griddConfig->str[NV_GRIDD_ENABLE_UI], "TRUE") != 0)) {
         return NULL;
     }
     
