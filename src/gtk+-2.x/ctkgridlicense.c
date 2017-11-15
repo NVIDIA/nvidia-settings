@@ -1245,20 +1245,11 @@ GtkWidget* ctk_manage_grid_license_new(CtrlTarget *target,
 
     /* set default value for feature type based on the user configured parameter or virtualization mode */
     if (griddConfig) {
-        if (strcmp(griddConfig->str[NV_GRIDD_FEATURE_TYPE], "0"))
-        {
-            ctk_manage_grid_license->feature_type = GRID_LICENSED_FEATURE_TYPE_TESLA;
-        }
-        else if (strcmp(griddConfig->str[NV_GRIDD_FEATURE_TYPE], "1"))
-        {
-            ctk_manage_grid_license->feature_type = GRID_LICENSED_FEATURE_TYPE_VGPU;
-        }
-        else if (strcmp(griddConfig->str[NV_GRIDD_FEATURE_TYPE], "2"))
-        {
+        /* Check Feature type "2" for Quadro Virtual Datacenter Workstation. */
+        if (strcmp(griddConfig->str[NV_GRIDD_FEATURE_TYPE], "2") == 0) {
             ctk_manage_grid_license->feature_type = GRID_LICENSED_FEATURE_TYPE_GVW;
         }
-        else
-        {
+        else {
             ctk_manage_grid_license->feature_type = GRID_LICENSED_FEATURE_TYPE_TESLA;
         }
     }
@@ -1532,7 +1523,7 @@ GtkWidget* ctk_manage_grid_license_new(CtrlTarget *target,
 
     /* Set license edition toggle button active */
     if (button2 && button1) {
-        if (strcmp(griddConfig->str[NV_GRIDD_FEATURE_TYPE], "2") == 0) {
+        if (ctk_manage_grid_license->feature_type == GRID_LICENSED_FEATURE_TYPE_GVW) {
             /* Set 'Quadro Virtual Datacenter Workstation' toggle button active */
             gtk_toggle_button_set_active(GTK_TOGGLE_BUTTON(button1), TRUE);
         }
