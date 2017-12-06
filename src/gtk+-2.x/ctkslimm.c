@@ -120,6 +120,10 @@ static GridConfig gridConfigs[] = {
     {1, 2,  FALSE},
     {4, 1,  FALSE},
     {1, 4,  FALSE},
+    {4, 8,  FALSE},
+    {8, 4,  FALSE},
+    {2, 16, FALSE},
+    {16, 2, FALSE},
 };
 
 GType ctk_slimm_get_type()
