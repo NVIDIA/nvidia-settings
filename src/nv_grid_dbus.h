@@ -27,9 +27,10 @@
 #define NV_GRID_DBUS_OBJECT             "/nvidia/grid/license"
 #define NV_GRID_DBUS_INTERFACE          "nvidia.grid.license"
 #define NV_GRID_DBUS_METHOD             "GridLicenseState"
+#define LICENSE_DETAILS_UPDATE_SUCCESS  0
 #define LICENSE_STATE_REQUEST           1
 #define LICENSE_DETAILS_UPDATE_REQUEST  2
-#define LICENSE_DETAILS_UPDATE_SUCCESS  0
+#define LICENSE_FEATURE_TYPE_REQUEST    3
 
 /*
  * List of grid license states
@@ -50,5 +51,15 @@ typedef enum
     NV_GRID_LICENSE_EXPIRED_GVW,            // License for Quadro Virtual Datacenter Workstation has expired. Your system does not have a valid Quadro Virtual Datacenter Workstation license.
     NV_GRID_LICENSE_RESTART_REQUIRED,       // Restart your system for Tesla Edition. Your system is currently running Quadro Virtual Datacenter Workstation Edition.
 } gridLicenseStatus;
+
+/*
+ * List of grid license feature types
+ */
+typedef enum
+{
+    NV_GRID_LICENSED_FEATURE_TYPE_TESLA = 0,
+    NV_GRID_LICENSED_FEATURE_TYPE_VGPU,
+    NV_GRID_LICENSED_FEATURE_TYPE_GVW,
+} gridLicenseFeatureType;
 
 #endif // _NVIDIA_NV_GRID_DBUS_H_

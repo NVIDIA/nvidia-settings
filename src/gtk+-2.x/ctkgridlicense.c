@@ -734,10 +734,17 @@ static gboolean update_manage_grid_license_state_info(gpointer user_data)
     gboolean ret = TRUE;
 
     int licenseStatus = NV_GRID_UNLICENSED;
+    int licenseFeatureType = GRID_LICENSED_FEATURE_TYPE_TESLA;
 
     /* Send license state request */
     if (!(send_message_to_gridd(ctk_manage_grid_license, LICENSE_STATE_REQUEST,
                                 &licenseStatus))) {
+        ret = FALSE;
+    }
+
+    /* Send license feature type request */
+    if (!(send_message_to_gridd(ctk_manage_grid_license, LICENSE_FEATURE_TYPE_REQUEST,
+                                &licenseFeatureType))) {
         ret = FALSE;
     }
 
@@ -760,8 +767,22 @@ static gboolean update_manage_grid_license_state_info(gpointer user_data)
     /* Set correct status message when Quadro Virtual Datacenter Workstation
      * checkbox selected */ 
     if ((licenseStatus == NV_GRID_UNLICENSED_TESLA) &&
-        (ctk_manage_grid_license->license_edition_gvw_selected == TRUE)) {
+        (ctk_manage_grid_license->feature_type == GRID_LICENSED_FEATURE_TYPE_GVW)) {
         licenseStatus = NV_GRID_UNLICENSED_GVW_SELECTED;
+    }
+
+    /* Set correct status message when Tesla (unlicensed)
+     * checkbox selected */ 
+    if ((licenseStatus == NV_GRID_UNLICENSED_GVW_SELECTED) &&
+        (ctk_manage_grid_license->feature_type == GRID_LICENSED_FEATURE_TYPE_TESLA)) {
+        licenseStatus = NV_GRID_UNLICENSED_TESLA;
+    }
+
+    /* Set correct status message when Quadro Virtual Datacenter Workstation
+     * checkbox selected in licensed state.*/ 
+    if ((licenseStatus == NV_GRID_LICENSE_RESTART_REQUIRED) &&
+        (ctk_manage_grid_license->license_feature_type == GRID_LICENSED_FEATURE_TYPE_GVW)) {
+        licenseStatus = NV_GRID_LICENSE_ACQUIRED_GVW;
     }
 
     /* Show the message received */
@@ -822,6 +843,22 @@ static gboolean update_manage_grid_license_state_info(gpointer user_data)
               "Enter license server details and apply.";
           break;
     }
+
+    ctk_manage_grid_license->license_status = licenseStatus;
+    switch (licenseFeatureType) {
+    case NV_GRID_LICENSED_FEATURE_TYPE_TESLA:
+        licenseFeatureType = GRID_LICENSED_FEATURE_TYPE_TESLA;
+        break;
+    case NV_GRID_LICENSED_FEATURE_TYPE_VGPU:
+        licenseFeatureType = GRID_LICENSED_FEATURE_TYPE_VGPU;
+        break;
+    case NV_GRID_LICENSED_FEATURE_TYPE_GVW:
+        licenseFeatureType = GRID_LICENSED_FEATURE_TYPE_GVW;
+        break;
+    default:
+        break;
+    }
+    ctk_manage_grid_license->license_feature_type = licenseFeatureType;
 
     gtk_label_set_text(GTK_LABEL(ctk_manage_grid_license->label_license_state),
                        licenseState);
@@ -939,6 +976,18 @@ static void license_edition_toggled(GtkWidget *widget, gpointer user_data)
     CtkManageGridLicense *ctk_manage_grid_license = CTK_MANAGE_GRID_LICENSE(user_data);
     gboolean enabled;
     gchar *licenseState = "";
+    NvGriddConfigParams *griddConfig;
+    const char *textBoxServerStr, *textBoxServerPortStr, *textBoxSecondaryServerStr, *textBoxSecondaryServerPortStr;
+
+    griddConfig = GetNvGriddConfigParams();
+    if (!griddConfig) {
+        return;
+    }
+
+    textBoxServerStr = gtk_entry_get_text(GTK_ENTRY(ctk_manage_grid_license->txt_server_address));
+    textBoxServerPortStr = gtk_entry_get_text(GTK_ENTRY(ctk_manage_grid_license->txt_server_port));
+    textBoxSecondaryServerStr = gtk_entry_get_text(GTK_ENTRY(ctk_manage_grid_license->txt_secondary_server_address));
+    textBoxSecondaryServerPortStr = gtk_entry_get_text(GTK_ENTRY(ctk_manage_grid_license->txt_secondary_server_port));
 
     enabled = gtk_toggle_button_get_active(GTK_TOGGLE_BUTTON(widget));
     if (!enabled) {
@@ -952,18 +1001,60 @@ static void license_edition_toggled(GtkWidget *widget, gpointer user_data)
         licenseState = "You selected Quadro Virtual Datacenter Workstation Edition.";
         ctk_manage_grid_license->feature_type =
             GRID_LICENSED_FEATURE_TYPE_GVW;
-        ctk_manage_grid_license->license_edition_gvw_selected = TRUE;
+        /* Enable Apply/Cancel button if the feature type selection has changed*/
+        if (strcmp(griddConfig->str[NV_GRIDD_FEATURE_TYPE], "2") != 0) {
+            /* Disable Apply/Cancel button if Primary server address textbox string is empty. */
+            if (strcmp(textBoxServerStr, "") == 0) {
+                gtk_widget_set_sensitive(ctk_manage_grid_license->btn_apply, FALSE);
+                gtk_widget_set_sensitive(ctk_manage_grid_license->btn_cancel, FALSE);
+            } else {
+                gtk_widget_set_sensitive(ctk_manage_grid_license->btn_apply, TRUE);
+                gtk_widget_set_sensitive(ctk_manage_grid_license->btn_cancel, TRUE);
+            }
+        } else {
+            /* feature type selection has not changed. But Enable Apply/Cancel button when user make changes
+                in any of the textbox entries to retain those changes. */
+            if ((strcmp(griddConfig->str[NV_GRIDD_SERVER_ADDRESS], textBoxServerStr) != 0) ||
+                ((strcmp(griddConfig->str[NV_GRIDD_BACKUP_SERVER_ADDRESS], textBoxSecondaryServerStr) != 0) ||
+                (strcmp(griddConfig->str[NV_GRIDD_BACKUP_SERVER_PORT], textBoxSecondaryServerPortStr) != 0) ||
+                (strcmp(griddConfig->str[NV_GRIDD_SERVER_PORT], textBoxServerPortStr) != 0))) {
+                    gtk_widget_set_sensitive(ctk_manage_grid_license->btn_apply, TRUE);
+                    gtk_widget_set_sensitive(ctk_manage_grid_license->btn_cancel, TRUE);
+            } else {
+                    gtk_widget_set_sensitive(ctk_manage_grid_license->btn_apply, FALSE);
+                    gtk_widget_set_sensitive(ctk_manage_grid_license->btn_cancel, FALSE);
+            }
+        }
+
     }  else if (GPOINTER_TO_INT(user_data) == GRID_LICENSED_FEATURE_TYPE_TESLA) {
         gtk_widget_set_sensitive(ctk_manage_grid_license->box_server_info, FALSE);
         /* force unlicensed mode */
         ctk_manage_grid_license->feature_type = 
             GRID_LICENSED_FEATURE_TYPE_TESLA;
         licenseState = "You selected Tesla (Unlicensed) mode.";
-        ctk_manage_grid_license->license_edition_gvw_selected = FALSE;
+        /* Enable Apply/Cancel button if the feature type selection has changed*/
+        if (strcmp(griddConfig->str[NV_GRIDD_FEATURE_TYPE], "0") != 0) {
+            gtk_widget_set_sensitive(ctk_manage_grid_license->btn_apply, TRUE);
+            gtk_widget_set_sensitive(ctk_manage_grid_license->btn_cancel, TRUE);
+        } else {
+            /* feature type selection has not changed. But Enable Apply/Cancel button when user make changes
+                in any of the textbox entries to retain those changes. */
+            if ((strcmp(griddConfig->str[NV_GRIDD_SERVER_ADDRESS], textBoxServerStr) != 0) ||
+                ((strcmp(griddConfig->str[NV_GRIDD_BACKUP_SERVER_ADDRESS], textBoxSecondaryServerStr) != 0) ||
+                (strcmp(griddConfig->str[NV_GRIDD_BACKUP_SERVER_PORT], textBoxSecondaryServerPortStr) != 0) ||
+                (strcmp(griddConfig->str[NV_GRIDD_SERVER_PORT], textBoxServerPortStr) != 0))) {
+                    gtk_widget_set_sensitive(ctk_manage_grid_license->btn_apply, TRUE);
+                    gtk_widget_set_sensitive(ctk_manage_grid_license->btn_cancel, TRUE);
+            } else {
+                    gtk_widget_set_sensitive(ctk_manage_grid_license->btn_apply, FALSE);
+                    gtk_widget_set_sensitive(ctk_manage_grid_license->btn_cancel, FALSE);
+            }
+        }
     }
     /* update status bar message */
     ctk_config_statusbar_message(ctk_manage_grid_license->ctk_config,
                                  "%s", licenseState);
+    FreeNvGriddConfigParams(griddConfig);
 }
 
 static gboolean disallow_whitespace(GtkWidget *widget, GdkEvent *event, gpointer user_data)
@@ -1240,8 +1331,8 @@ GtkWidget* ctk_manage_grid_license_new(CtrlTarget *target,
     ctk_manage_grid_license->ctk_config = ctk_config;
     ctk_manage_grid_license->license_edition_state = mode;
     ctk_manage_grid_license->dbusData = dbusData;
-    ctk_manage_grid_license->license_edition_gvw_selected = FALSE;
     ctk_manage_grid_license->feature_type = 0;
+    ctk_manage_grid_license->license_status = 0;
 
     /* set default value for feature type based on the user configured parameter or virtualization mode */
     if (griddConfig) {
@@ -1496,7 +1587,6 @@ GtkWidget* ctk_manage_grid_license_new(CtrlTarget *target,
     /* Apply button */
     ctk_manage_grid_license->btn_apply = gtk_button_new_with_label
         (" Apply ");
-    gtk_widget_set_sensitive(ctk_manage_grid_license->btn_apply, FALSE);
     gtk_widget_set_size_request(ctk_manage_grid_license->btn_apply, 100, -1);
     ctk_config_set_tooltip(ctk_config, ctk_manage_grid_license->btn_apply,
                            __apply_button_help);
@@ -1511,7 +1601,6 @@ GtkWidget* ctk_manage_grid_license_new(CtrlTarget *target,
     /* Cancel button */
     ctk_manage_grid_license->btn_cancel = gtk_button_new_with_label
         (" Cancel ");
-    gtk_widget_set_sensitive(ctk_manage_grid_license->btn_cancel, FALSE);
     gtk_widget_set_size_request(ctk_manage_grid_license->btn_cancel, 100, -1);
     ctk_config_set_tooltip(ctk_config, ctk_manage_grid_license->btn_cancel,
                            __cancel_button_help);
@@ -1533,7 +1622,6 @@ GtkWidget* ctk_manage_grid_license_new(CtrlTarget *target,
         }
     }
 
-    FreeNvGriddConfigParams(griddConfig);
 
     /* Register a timer callback to update license status info */
     str = g_strdup_printf("Manage GRID License");
@@ -1543,8 +1631,30 @@ GtkWidget* ctk_manage_grid_license_new(CtrlTarget *target,
                          str,
                          (GSourceFunc) update_manage_grid_license_state_info,
                          (gpointer) ctk_manage_grid_license);
-    g_free(str);
+
     update_manage_grid_license_state_info(ctk_manage_grid_license);
+
+    /* Enable Apply/Cancel button if user edits feature type from nvidia-gridd in all license states except unlicensed state. */
+    if ((ctk_manage_grid_license->license_status != NV_GRID_UNLICENSED_TESLA) || (ctk_manage_grid_license->license_status != NV_GRID_UNLICENSED_GVW_SELECTED ))
+    {
+        int featureType = atoi(griddConfig->str[NV_GRIDD_FEATURE_TYPE]);
+        if (featureType != ctk_manage_grid_license->license_feature_type) {
+            gtk_widget_set_sensitive(ctk_manage_grid_license->btn_apply, TRUE);
+            gtk_widget_set_sensitive(ctk_manage_grid_license->btn_cancel, TRUE);
+        }
+        else {
+            gtk_widget_set_sensitive(ctk_manage_grid_license->btn_apply, FALSE);
+            gtk_widget_set_sensitive(ctk_manage_grid_license->btn_cancel, FALSE);
+        }
+    }
+    else {
+        /* Disable Apply/Cancel button. */
+        gtk_widget_set_sensitive(ctk_manage_grid_license->btn_apply, FALSE);
+        gtk_widget_set_sensitive(ctk_manage_grid_license->btn_cancel, FALSE);
+    }
+
+    g_free(str);
+    FreeNvGriddConfigParams(griddConfig);
 
 done:
     gtk_widget_show_all(GTK_WIDGET(ctk_manage_grid_license));
