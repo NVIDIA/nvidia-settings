@@ -33,33 +33,27 @@
 #define LICENSE_FEATURE_TYPE_REQUEST    3
 
 /*
- * List of grid license states
+ * GRID license states
  */
 typedef enum
 {
-    NV_GRID_UNLICENSED = 0,                 // Your system does not have a valid GPU license. Enter license server details and apply.
-    NV_GRID_UNLICENSED_VGPU,                // Your system does not have a valid vGPU license. Enter license server details and apply.
-    NV_GRID_UNLICENSED_TESLA,               // Your system is currently running on Tesla (unlicensed).
-    NV_GRID_UNLICENSED_GVW_SELECTED,        // Your system is currently running on Tesla (unlicensed). Enter license server details and apply.
-    NV_GRID_LICENSE_ACQUIRED_VGPU,          // Your system is licensed for GRID vGPU.
-    NV_GRID_LICENSE_ACQUIRED_GVW,           // Your system is licensed for Quadro Virtual Datacenter Workstation Edition.
-    NV_GRID_LICENSE_REQUESTING_VGPU,        // Acquiring license for GRID vGPU Edition. Your system does not have a valid GRID vGPU license.
-    NV_GRID_LICENSE_REQUESTING_GVW,         // Acquiring license for Quadro Virtual Datacenter Workstation Edition. Your system does not have a valid Quadro Virtual Datacenter Workstation license.
-    NV_GRID_LICENSE_FAILED_VGPU,            // Failed to acquire NVIDIA vGPU license.
-    NV_GRID_LICENSE_FAILED_GVW,             // Failed to acquire NVIDIA Quadro Virtual Datacenter Workstation license.
-    NV_GRID_LICENSE_EXPIRED_VGPU,           // Failed to renew license for GRID vGPU Edition. Your system does not have a valid GRID vGPU license.
-    NV_GRID_LICENSE_EXPIRED_GVW,            // License for Quadro Virtual Datacenter Workstation has expired. Your system does not have a valid Quadro Virtual Datacenter Workstation license.
-    NV_GRID_LICENSE_RESTART_REQUIRED,       // Restart your system for Tesla Edition. Your system is currently running Quadro Virtual Datacenter Workstation Edition.
-} gridLicenseStatus;
+    NV_GRID_UNLICENSED = 0,
+    NV_GRID_LICENSE_REQUESTING,
+    NV_GRID_LICENSE_FAILED,
+    NV_GRID_LICENSED,
+    NV_GRID_LICENSE_RENEWING,
+    NV_GRID_LICENSE_RENEW_FAILED,
+    NV_GRID_LICENSE_EXPIRED,
+} gridLicenseState;
 
 /*
- * List of grid license feature types
+ * GRID license feature types
  */
 typedef enum
 {
-    NV_GRID_LICENSED_FEATURE_TYPE_TESLA = 0,
-    NV_GRID_LICENSED_FEATURE_TYPE_VGPU,
-    NV_GRID_LICENSED_FEATURE_TYPE_GVW,
+    NV_GRID_LICENSE_FEATURE_TYPE_VAPP = 0,
+    NV_GRID_LICENSE_FEATURE_TYPE_VGPU,
+    NV_GRID_LICENSE_FEATURE_TYPE_QDWS,
 } gridLicenseFeatureType;
 
 #endif // _NVIDIA_NV_GRID_DBUS_H_
