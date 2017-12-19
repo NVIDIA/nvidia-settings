@@ -371,6 +371,9 @@ static void UpdateConfigFileLinesFromGriddConfig(
     /* Update the lines in pLines */
 
     for (i = 0; i < pLines->nLines; i++) {
+        /* TODO: "EnableUI" config parameter will never be
+         * set by the user through UI, so skip updating the
+         * pLines with "EnableUI" parameter */
         pLines->lines[i] = UpdateLineWithGriddConfig(griddConfig,
                                                      pLines->lines[i],
                                                      itemIsPresent);
@@ -396,22 +399,25 @@ static void UpdateGriddConfigFromGui(
 
     /* serverAddress */
 
-    nvfree(griddConfig->str[NV_GRIDD_SERVER_ADDRESS]);
     tmp = gtk_entry_get_text(GTK_ENTRY(
                               ctk_manage_grid_license->txt_server_address));
-    griddConfig->str[NV_GRIDD_SERVER_ADDRESS] = nvstrdup(tmp ? tmp : "");
+    if (strcmp(tmp, griddConfig->str[NV_GRIDD_SERVER_ADDRESS]) != 0) {
+        nvfree(griddConfig->str[NV_GRIDD_SERVER_ADDRESS]);
+        griddConfig->str[NV_GRIDD_SERVER_ADDRESS] = nvstrdup(tmp ? tmp : "");
+    }
 
     /* serverPort */
 
-    nvfree(griddConfig->str[NV_GRIDD_SERVER_PORT]);
     tmp = gtk_entry_get_text(GTK_ENTRY(
                               ctk_manage_grid_license->txt_server_port));
-    griddConfig->str[NV_GRIDD_SERVER_PORT] =
-        nvstrdup((strcmp(tmp, "") != 0) ? tmp : "7070");
+    if (strcmp(tmp, griddConfig->str[NV_GRIDD_SERVER_PORT]) != 0) {
+        nvfree(griddConfig->str[NV_GRIDD_SERVER_PORT]);
+        griddConfig->str[NV_GRIDD_SERVER_PORT] =
+            nvstrdup((strcmp(tmp, "") != 0) ? tmp : "7070");
+    }
 
     /* featureType */
 
-    nvfree(griddConfig->str[NV_GRIDD_FEATURE_TYPE]);
     switch (ctk_manage_grid_license->feature_type) {
         case NV_GRID_LICENSE_FEATURE_TYPE_VAPP:
             tmp = "0";
@@ -425,23 +431,30 @@ static void UpdateGriddConfigFromGui(
         default:
             tmp = "0";
     }
-    griddConfig->str[NV_GRIDD_FEATURE_TYPE] = nvstrdup(tmp);
+    if (strcmp(tmp, griddConfig->str[NV_GRIDD_FEATURE_TYPE]) != 0) {
+        nvfree(griddConfig->str[NV_GRIDD_FEATURE_TYPE]);
+        griddConfig->str[NV_GRIDD_FEATURE_TYPE] = nvstrdup(tmp);
+    }
 
     /* note: nothing in the UI will alter enableUI */
 
     /* backupServerAddress */
 
-    nvfree(griddConfig->str[NV_GRIDD_BACKUP_SERVER_ADDRESS]);
     tmp = gtk_entry_get_text(GTK_ENTRY(
                               ctk_manage_grid_license->txt_secondary_server_address));
-    griddConfig->str[NV_GRIDD_BACKUP_SERVER_ADDRESS] = nvstrdup(tmp ? tmp : "");
+    if (strcmp(tmp, griddConfig->str[NV_GRIDD_BACKUP_SERVER_ADDRESS]) != 0) {
+        nvfree(griddConfig->str[NV_GRIDD_BACKUP_SERVER_ADDRESS]);
+        griddConfig->str[NV_GRIDD_BACKUP_SERVER_ADDRESS] = nvstrdup(tmp ? tmp : "");
+    }
 
     /* backupServerPort */
 
-    nvfree(griddConfig->str[NV_GRIDD_BACKUP_SERVER_PORT]);
     tmp = gtk_entry_get_text(GTK_ENTRY(
                               ctk_manage_grid_license->txt_secondary_server_port));
-    griddConfig->str[NV_GRIDD_BACKUP_SERVER_PORT] = nvstrdup(tmp ? tmp : "");
+    if (strcmp(tmp, griddConfig->str[NV_GRIDD_BACKUP_SERVER_PORT]) != 0) {
+        nvfree(griddConfig->str[NV_GRIDD_BACKUP_SERVER_PORT]);
+        griddConfig->str[NV_GRIDD_BACKUP_SERVER_PORT] = nvstrdup(tmp ? tmp : "");
+    }
 }
 
 /*
@@ -517,7 +530,6 @@ static int UpdateConfigFile(CtkManageGridLicense *ctk_manage_grid_license)
 
     /* Read gridd.conf */
     retErr = ReadConfigFile(&pLines);
-
     if (retErr != 0) {
         goto done;
     }
@@ -556,15 +568,14 @@ static NvGriddConfigParams *GetNvGriddConfigParams(void)
     NvGriddConfigParams *griddConfig = NULL;
     int retErr;
 
+    /* Create a griddConfig */
+    griddConfig = AllocNvGriddConfigParams();
+
     /* Read gridd.conf */
     retErr = ReadConfigFile(&pLines);
-
     if (retErr != 0) {
         goto done;
     }
-
-    /* Create a griddConfig */
-    griddConfig = AllocNvGriddConfigParams();
 
     /* Update the griddConfig with the lines from gridd.conf */
     UpdateGriddConfigFromConfigFileLines(griddConfig, pLines);
@@ -944,33 +955,62 @@ static void apply_clicked(GtkWidget *widget, gpointer user_data)
     gboolean ret;
     int err = 0;
     gint status = 0;
+    gboolean configFileAvailable;
+    gboolean writable = FALSE;
 
-    /* Add information to gridd.conf file */
-    err = UpdateConfigFile(ctk_manage_grid_license);
+    /* Check available config file */
+    configFileAvailable = checkConfigfile(&writable);
+    if (configFileAvailable && writable) {
+        /* Add information to gridd.conf file */
+        err = UpdateConfigFile(ctk_manage_grid_license);
+        if (err == 0) {
+            /* Send update request to nvidia-gridd */
+            ret = send_message_to_gridd(ctk_manage_grid_license,
+                                        LICENSE_DETAILS_UPDATE_REQUEST,
+                                        &status);
+            if ((!ret) || (status != LICENSE_DETAILS_UPDATE_SUCCESS)) {
+                GtkWidget *dlg, *parent;
 
-    if (err == 0) {
-        /* Send update request to nvidia-gridd */
-        ret = send_message_to_gridd(ctk_manage_grid_license,
-                                    LICENSE_DETAILS_UPDATE_REQUEST,
-                                    &status);
-        if ((!ret) || (status != LICENSE_DETAILS_UPDATE_SUCCESS)) {
+                parent = ctk_get_parent_window(GTK_WIDGET(ctk_manage_grid_license));
+
+                dlg = gtk_message_dialog_new(GTK_WINDOW(parent),
+                                             GTK_DIALOG_MODAL,
+                                             GTK_MESSAGE_WARNING,
+                                             GTK_BUTTONS_OK,
+                                             "Unable to send license information "
+                                             "update request to the NVIDIA GRID "
+                                             "licensing daemon.\n"
+                                             "Please make sure nvidia-gridd and "
+                                             "dbus-daemon are running and retry applying the "
+                                             "license settings.\n");
+                gtk_dialog_run(GTK_DIALOG(dlg));
+                gtk_widget_destroy(dlg);
+            }
+        } else {
             GtkWidget *dlg, *parent;
 
             parent = ctk_get_parent_window(GTK_WIDGET(ctk_manage_grid_license));
-
             dlg = gtk_message_dialog_new(GTK_WINDOW(parent),
                                          GTK_DIALOG_MODAL,
-                                         GTK_MESSAGE_WARNING,
+                                         GTK_MESSAGE_ERROR,
                                          GTK_BUTTONS_OK,
-                                         "Unable to send license information "
-                                         "update request to the NVIDIA GRID "
-                                         "licensing daemon.\n"
-                                         "Please make sure nvidia-gridd and "
-                                         "dbus-daemon are running and retry applying the "
-                                         "license settings.\n");
+                                         "Unable to update GRID license configuration "
+                                         "file (%s): %s", GRID_CONFIG_FILE, strerror(err));
             gtk_dialog_run(GTK_DIALOG(dlg));
             gtk_widget_destroy(dlg);
         }
+    } else if (configFileAvailable && !(writable)) {
+        GtkWidget *dlg, *parent;
+
+        parent = ctk_get_parent_window(GTK_WIDGET(ctk_manage_grid_license));
+        dlg = gtk_message_dialog_new(GTK_WINDOW(parent),
+                                     GTK_DIALOG_MODAL,
+                                     GTK_MESSAGE_ERROR,
+                                     GTK_BUTTONS_OK,
+                                     "You do not have enough "
+                                     "permissions to edit '%s' file.", GRID_CONFIG_FILE);
+        gtk_dialog_run(GTK_DIALOG(dlg));
+        gtk_widget_destroy(dlg);
     } else {
         GtkWidget *dlg, *parent;
 
@@ -979,8 +1019,8 @@ static void apply_clicked(GtkWidget *widget, gpointer user_data)
                                      GTK_DIALOG_MODAL,
                                      GTK_MESSAGE_ERROR,
                                      GTK_BUTTONS_OK,
-                                     "Unable to update GRID license configuration "
-                                     "file (%s): %s", GRID_CONFIG_FILE, strerror(err));
+                                     "'%s' file does not exist.\n You do not have "
+                                     "permissions to create this file.", GRID_CONFIG_FILE);
         gtk_dialog_run(GTK_DIALOG(dlg));
         gtk_widget_destroy(dlg);
     }
@@ -1255,24 +1295,21 @@ static gboolean checkConfigfile(gboolean *writable)
     if ((fstat(fileno(configFile), &st) == 0) && (st.st_size == 0)) {
         if (*writable) {
             ConfigFileLines *pLines;
-
             templateFile = fopen(GRID_CONFIG_FILE_TEMPLATE, "r");
 
             if (templateFile == NULL) {
                 nv_error_msg("Config file '%s' had size zero.",
                              GRID_CONFIG_FILE);
-                goto done;
+            } else {
+                pLines = ReadConfigFileStream(templateFile);
+
+                WriteConfigFileStream(configFile, pLines);
+
+                FreeConfigFileLines(pLines);
             }
-
-            pLines = ReadConfigFileStream(templateFile);
-
-            WriteConfigFileStream(configFile, pLines);
-
-            FreeConfigFileLines(pLines);
         } else {
             nv_error_msg("Config file '%s' had size zero.",
                          GRID_CONFIG_FILE);
-            goto done;
         }
     }
     ret = TRUE;
@@ -1302,11 +1339,9 @@ GtkWidget* ctk_manage_grid_license_new(CtrlTarget *target,
     GtkWidget *button1 = NULL, *button2 = NULL;
     GSList *slist = NULL;
     gint ret;
-    gboolean configFileAvailable;
     DBusError err;
     DBusConnection* conn;
     DbusData *dbusData;
-    gboolean writable = FALSE;
     int64_t gridLicenseSupported;
     NvGriddConfigParams *griddConfig;
 
@@ -1378,12 +1413,8 @@ GtkWidget* ctk_manage_grid_license_new(CtrlTarget *target,
         dbusData->dbus.dbusErrorFree(&err);
     }
 
-    /* Check available config file */
-    configFileAvailable = checkConfigfile(&writable);
-    
     /* Initialize config parameters */
     griddConfig = GetNvGriddConfigParams();
-        
     if (griddConfig &&
         (strcmp(griddConfig->str[NV_GRIDD_ENABLE_UI], "TRUE") != 0)) {
         return NULL;
@@ -1437,21 +1468,6 @@ GtkWidget* ctk_manage_grid_license_new(CtrlTarget *target,
     gtk_box_pack_start(GTK_BOX(vbox), frame, FALSE, FALSE, 0);
     gtk_container_add(GTK_CONTAINER(frame), vbox1);
 
-    /* Show message if config file not available and user do not have
-     * permissions to create new file.
-     */
-    if (!configFileAvailable && !griddConfig) {
-        str = g_strdup_printf("'%s' file does not exist.\n You do not have "
-                              "permissions to create this file.", GRID_CONFIG_FILE);
-        label = gtk_label_new(str);
-        g_free(str);
-        hbox = gtk_hbox_new(FALSE, 0);
-        gtk_box_pack_start(GTK_BOX(hbox), label, FALSE, TRUE, 5);
-        gtk_box_pack_start(GTK_BOX(vbox1), hbox, FALSE, FALSE, 5);
-
-        goto done;
-    }
-
     if (mode == NV_CTRL_ATTR_NVML_GPU_VIRTUALIZATION_MODE_PASSTHROUGH) {
         label = gtk_label_new("License Edition:");
         hbox = gtk_hbox_new(FALSE, 0);
@@ -1486,13 +1502,6 @@ GtkWidget* ctk_manage_grid_license_new(CtrlTarget *target,
 
     }
 
-    /* Only users with sufficient privileges can update server address
-     * and port number.
-     */
-    if (!writable) {
-        gtk_widget_set_sensitive(GTK_WIDGET(vbox2), FALSE);
-    }
-    
     /* Show current license status message */
     ctk_manage_grid_license->label_license_state = gtk_label_new("Unknown");
     hbox = gtk_hbox_new(FALSE, 0);
@@ -1716,7 +1725,6 @@ GtkWidget* ctk_manage_grid_license_new(CtrlTarget *target,
     g_free(str);
     FreeNvGriddConfigParams(griddConfig);
 
-done:
     gtk_widget_show_all(GTK_WIDGET(ctk_manage_grid_license));
     
     return GTK_WIDGET(ctk_manage_grid_license);
