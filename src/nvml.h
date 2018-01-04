@@ -1217,7 +1217,7 @@ typedef struct nvmlAccountingStats_st {
 
 #define NVML_VGPU_NAME_BUFFER_SIZE          64
 
-#define NVML_MAX_VGPU_TYPES_PER_PGPU        17
+#define NVML_MAX_VGPU_TYPES_PER_PGPU        18
 
 #define NVML_MAX_VGPU_INSTANCES_PER_PGPU    24
 
