@@ -20,11 +20,6 @@
 #ifndef __CTK_MANAGE_GRID_LICENSE_H__
 #define __CTK_MANAGE_GRID_LICENSE_H__
 
-// Licensed feature types
-#define GRID_LICENSED_FEATURE_TYPE_TESLA                                 0
-#define GRID_LICENSED_FEATURE_TYPE_VGPU                                  1
-#define GRID_LICENSED_FEATURE_TYPE_GVW                                   2
-
 G_BEGIN_DECLS
 
 #define CTK_TYPE_MANAGE_GRID_LICENSE (ctk_manage_grid_license_get_type())
@@ -66,9 +61,28 @@ struct _CtkManageGridLicense
 
     DbusData *dbusData;
     gint license_edition_state;
-    gboolean license_edition_gvw_selected;
-    gint feature_type;
+    gint feature_type;                      // Feature type from UI/gridd.conf.
+    int gridd_feature_type;                 // Feature type fetched from nvidia-gridd.
 };
+
+/*
+ * Status related to GRID licensing
+ */
+typedef enum
+{
+    NV_GRID_UNLICENSED_VGPU = 0,
+    NV_GRID_UNLICENSED_VAPP,
+    NV_GRID_UNLICENSED_QDWS_SELECTED,
+    NV_GRID_LICENSE_ACQUIRED_VGPU,
+    NV_GRID_LICENSE_ACQUIRED_QDWS,
+    NV_GRID_LICENSE_REQUESTING_VGPU,
+    NV_GRID_LICENSE_REQUESTING_QDWS,
+    NV_GRID_LICENSE_FAILED_VGPU,
+    NV_GRID_LICENSE_FAILED_QDWS,
+    NV_GRID_LICENSE_EXPIRED_VGPU,
+    NV_GRID_LICENSE_EXPIRED_QDWS,
+    NV_GRID_LICENSE_RESTART_REQUIRED,
+} licenseStatus;
 
 struct _CtkManageGridLicenseClass
 {

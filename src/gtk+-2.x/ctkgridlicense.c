@@ -52,7 +52,7 @@ static const char * __manage_grid_licenses_help =
 "for GRID vGPU or Quadro Virtual Datacenter Workstation on supported Tesla products.";
 static const char * __grid_virtual_workstation_help =
 "Select this option to enable Quadro Virtual Datacenter Workstation license.";
-static const char * __tesla_unlicensed_help =
+static const char * __grid_vapp_help =
 "Select this option to disable the Quadro Virtual Datacenter Workstation license.";
 static const char * __license_edition_help =
 "This section indicates the status of GRID licensing for the system.";
@@ -226,7 +226,7 @@ static NvGriddConfigParams *AllocNvGriddConfigParams(void)
     griddConfig->str[NV_GRIDD_SERVER_ADDRESS]        = nvstrdup("");
     griddConfig->str[NV_GRIDD_SERVER_PORT]           = nvstrdup("");
     griddConfig->str[NV_GRIDD_FEATURE_TYPE]          = nvstrdup("0");
-    griddConfig->str[NV_GRIDD_ENABLE_UI]             = nvstrdup("TRUE");
+    griddConfig->str[NV_GRIDD_ENABLE_UI]             = nvstrdup("FALSE");
     griddConfig->str[NV_GRIDD_BACKUP_SERVER_ADDRESS] = nvstrdup("");
     griddConfig->str[NV_GRIDD_BACKUP_SERVER_PORT]    = nvstrdup("");
 
@@ -371,6 +371,9 @@ static void UpdateConfigFileLinesFromGriddConfig(
     /* Update the lines in pLines */
 
     for (i = 0; i < pLines->nLines; i++) {
+        /* TODO: "EnableUI" config parameter will never be
+         * set by the user through UI, so skip updating the
+         * pLines with "EnableUI" parameter */
         pLines->lines[i] = UpdateLineWithGriddConfig(griddConfig,
                                                      pLines->lines[i],
                                                      itemIsPresent);
@@ -396,52 +399,62 @@ static void UpdateGriddConfigFromGui(
 
     /* serverAddress */
 
-    nvfree(griddConfig->str[NV_GRIDD_SERVER_ADDRESS]);
     tmp = gtk_entry_get_text(GTK_ENTRY(
                               ctk_manage_grid_license->txt_server_address));
-    griddConfig->str[NV_GRIDD_SERVER_ADDRESS] = nvstrdup(tmp ? tmp : "");
+    if (strcmp(tmp, griddConfig->str[NV_GRIDD_SERVER_ADDRESS]) != 0) {
+        nvfree(griddConfig->str[NV_GRIDD_SERVER_ADDRESS]);
+        griddConfig->str[NV_GRIDD_SERVER_ADDRESS] = nvstrdup(tmp ? tmp : "");
+    }
 
     /* serverPort */
 
-    nvfree(griddConfig->str[NV_GRIDD_SERVER_PORT]);
     tmp = gtk_entry_get_text(GTK_ENTRY(
                               ctk_manage_grid_license->txt_server_port));
-    griddConfig->str[NV_GRIDD_SERVER_PORT] =
-        nvstrdup((strcmp(tmp, "") != 0) ? tmp : "7070");
+    if (strcmp(tmp, griddConfig->str[NV_GRIDD_SERVER_PORT]) != 0) {
+        nvfree(griddConfig->str[NV_GRIDD_SERVER_PORT]);
+        griddConfig->str[NV_GRIDD_SERVER_PORT] =
+            nvstrdup((strcmp(tmp, "") != 0) ? tmp : "7070");
+    }
 
     /* featureType */
 
-    nvfree(griddConfig->str[NV_GRIDD_FEATURE_TYPE]);
     switch (ctk_manage_grid_license->feature_type) {
-    case GRID_LICENSED_FEATURE_TYPE_TESLA:
-        tmp = "0";
-        break;
-    case GRID_LICENSED_FEATURE_TYPE_VGPU:
-        tmp = "1";
-        break;
-    case GRID_LICENSED_FEATURE_TYPE_GVW:
-        tmp = "2";
-        break;
-    default:
-        tmp = "0";
+        case NV_GRID_LICENSE_FEATURE_TYPE_VAPP:
+            tmp = "0";
+            break;
+        case NV_GRID_LICENSE_FEATURE_TYPE_VGPU:
+            tmp = "1";
+            break;
+        case NV_GRID_LICENSE_FEATURE_TYPE_QDWS:
+            tmp = "2";
+            break;
+        default:
+            tmp = "0";
     }
-    griddConfig->str[NV_GRIDD_FEATURE_TYPE] = nvstrdup(tmp);
+    if (strcmp(tmp, griddConfig->str[NV_GRIDD_FEATURE_TYPE]) != 0) {
+        nvfree(griddConfig->str[NV_GRIDD_FEATURE_TYPE]);
+        griddConfig->str[NV_GRIDD_FEATURE_TYPE] = nvstrdup(tmp);
+    }
 
     /* note: nothing in the UI will alter enableUI */
 
     /* backupServerAddress */
 
-    nvfree(griddConfig->str[NV_GRIDD_BACKUP_SERVER_ADDRESS]);
     tmp = gtk_entry_get_text(GTK_ENTRY(
                               ctk_manage_grid_license->txt_secondary_server_address));
-    griddConfig->str[NV_GRIDD_BACKUP_SERVER_ADDRESS] = nvstrdup(tmp ? tmp : "");
+    if (strcmp(tmp, griddConfig->str[NV_GRIDD_BACKUP_SERVER_ADDRESS]) != 0) {
+        nvfree(griddConfig->str[NV_GRIDD_BACKUP_SERVER_ADDRESS]);
+        griddConfig->str[NV_GRIDD_BACKUP_SERVER_ADDRESS] = nvstrdup(tmp ? tmp : "");
+    }
 
     /* backupServerPort */
 
-    nvfree(griddConfig->str[NV_GRIDD_BACKUP_SERVER_PORT]);
     tmp = gtk_entry_get_text(GTK_ENTRY(
                               ctk_manage_grid_license->txt_secondary_server_port));
-    griddConfig->str[NV_GRIDD_BACKUP_SERVER_PORT] = nvstrdup(tmp ? tmp : "");
+    if (strcmp(tmp, griddConfig->str[NV_GRIDD_BACKUP_SERVER_PORT]) != 0) {
+        nvfree(griddConfig->str[NV_GRIDD_BACKUP_SERVER_PORT]);
+        griddConfig->str[NV_GRIDD_BACKUP_SERVER_PORT] = nvstrdup(tmp ? tmp : "");
+    }
 }
 
 /*
@@ -517,7 +530,6 @@ static int UpdateConfigFile(CtkManageGridLicense *ctk_manage_grid_license)
 
     /* Read gridd.conf */
     retErr = ReadConfigFile(&pLines);
-
     if (retErr != 0) {
         goto done;
     }
@@ -556,15 +568,14 @@ static NvGriddConfigParams *GetNvGriddConfigParams(void)
     NvGriddConfigParams *griddConfig = NULL;
     int retErr;
 
+    /* Create a griddConfig */
+    griddConfig = AllocNvGriddConfigParams();
+
     /* Read gridd.conf */
     retErr = ReadConfigFile(&pLines);
-
     if (retErr != 0) {
         goto done;
     }
-
-    /* Create a griddConfig */
-    griddConfig = AllocNvGriddConfigParams();
 
     /* Update the griddConfig with the lines from gridd.conf */
     UpdateGriddConfigFromConfigFileLines(griddConfig, pLines);
@@ -730,101 +741,205 @@ done:
 static gboolean update_manage_grid_license_state_info(gpointer user_data)
 {
     CtkManageGridLicense *ctk_manage_grid_license = CTK_MANAGE_GRID_LICENSE(user_data);
-    gchar *licenseState = "";
+    gchar *licenseStatusMessage = "";
     gboolean ret = TRUE;
 
-    int licenseStatus = NV_GRID_UNLICENSED;
+    int licenseStatus = NV_GRID_UNLICENSED_VGPU;
+    int licenseState = NV_GRID_UNLICENSED;
+    int griddFeatureType = ctk_manage_grid_license->feature_type;
 
     /* Send license state request */
     if (!(send_message_to_gridd(ctk_manage_grid_license, LICENSE_STATE_REQUEST,
-                                &licenseStatus))) {
+                                &licenseState))) {
         ret = FALSE;
     }
 
-    /* Set default unlicensed state string if could not communicate with nvidia-gridd */
-    if (licenseStatus == NV_GRID_UNLICENSED)
-    {
+    if (licenseState == NV_GRID_UNLICENSED) {
         switch (ctk_manage_grid_license->feature_type) {
-        case GRID_LICENSED_FEATURE_TYPE_VGPU:
-            licenseStatus = NV_GRID_UNLICENSED_VGPU;
-            break;
-        case GRID_LICENSED_FEATURE_TYPE_TESLA:
-        case GRID_LICENSED_FEATURE_TYPE_GVW:
-            licenseStatus = NV_GRID_UNLICENSED_TESLA;
-            break;
-        default:
-            break;
+            case NV_GRID_LICENSE_FEATURE_TYPE_VAPP:
+                licenseStatus = NV_GRID_UNLICENSED_VAPP;
+                break;
+            case NV_GRID_LICENSE_FEATURE_TYPE_QDWS:
+                licenseStatus = NV_GRID_UNLICENSED_QDWS_SELECTED;
+                break;
+            case NV_GRID_LICENSE_FEATURE_TYPE_VGPU:
+                licenseStatus = NV_GRID_UNLICENSED_VGPU;
+                break;
+            default:
+                break;
+        }
+    }
+    else {
+        /* Send license feature type request */
+        if (!(send_message_to_gridd(ctk_manage_grid_license, LICENSE_FEATURE_TYPE_REQUEST,
+                                    &griddFeatureType))) {
+            ret = FALSE;
+        }
+        /* Set the license feature type fetched from nvidia-gridd.*/
+        ctk_manage_grid_license->gridd_feature_type = griddFeatureType;
+
+        if ((licenseState == NV_GRID_LICENSED) ||
+            (licenseState == NV_GRID_LICENSE_RENEWING) ||
+            (licenseState == NV_GRID_LICENSE_RENEW_FAILED)) {
+            switch (ctk_manage_grid_license->feature_type) {
+                case NV_GRID_LICENSE_FEATURE_TYPE_VAPP:
+                    licenseStatus = NV_GRID_LICENSE_ACQUIRED_QDWS;  // Default status in licensed state on non-vGPU case
+                    if (ctk_manage_grid_license->feature_type == ctk_manage_grid_license->gridd_feature_type) {
+                        licenseStatus = NV_GRID_LICENSE_RESTART_REQUIRED;
+                    }
+                    break;
+                case NV_GRID_LICENSE_FEATURE_TYPE_QDWS:
+                    licenseStatus = NV_GRID_LICENSE_ACQUIRED_QDWS;
+                    if (ctk_manage_grid_license->feature_type != ctk_manage_grid_license->gridd_feature_type) {
+                        /* On licensed non-vGPU setup, mismatch in feature type fetched from nvidia-gridd service and
+                            the feature type read from gridd.conf/UI controls indicates user has edited the feature type
+                            directly in the gridd.conf file and hence those changes will not be reflected until the system
+                            is rebooted. Set appropriate license status to indicate the same. */
+                        licenseStatus = NV_GRID_LICENSE_RESTART_REQUIRED;
+                    }
+                    break;
+                case NV_GRID_LICENSE_FEATURE_TYPE_VGPU:
+                    licenseStatus = NV_GRID_LICENSE_ACQUIRED_VGPU;
+                    break;
+                default:
+                    break;
+            }
+        }
+        else if (licenseState == NV_GRID_LICENSE_REQUESTING) {
+            switch (ctk_manage_grid_license->feature_type) {
+                case NV_GRID_LICENSE_FEATURE_TYPE_VAPP:
+                    licenseStatus = NV_GRID_LICENSE_REQUESTING_QDWS;    // Default status in license requesting state on non-vGPU case
+                    if (ctk_manage_grid_license->feature_type == ctk_manage_grid_license->gridd_feature_type) {
+                        licenseStatus = NV_GRID_UNLICENSED_VAPP;
+                    }
+                    break;
+                case NV_GRID_LICENSE_FEATURE_TYPE_QDWS:
+                    licenseStatus = NV_GRID_LICENSE_REQUESTING_QDWS;
+                    if (ctk_manage_grid_license->feature_type != ctk_manage_grid_license->gridd_feature_type) {
+                        /* On non-vGPU setup with license requesting state, mismatch in feature type fetched from nvidia-gridd service and
+                            the feature type read from gridd.conf/UI controls indicates user has edited the feature type
+                            directly in the gridd.conf file. So set appropriate license status message. */
+                        licenseStatus = NV_GRID_UNLICENSED_QDWS_SELECTED;
+                    }
+                    break;
+                case NV_GRID_LICENSE_FEATURE_TYPE_VGPU:
+                    licenseStatus = NV_GRID_LICENSE_REQUESTING_VGPU;
+                    break;
+                default:
+                    break;
+            }
+        }
+        else if (licenseState == NV_GRID_LICENSE_FAILED) {
+            switch (ctk_manage_grid_license->feature_type) {
+                case NV_GRID_LICENSE_FEATURE_TYPE_VAPP:
+                    licenseStatus = NV_GRID_LICENSE_FAILED_QDWS;    // Default status in license failed state on non-vGPU case
+                    if (ctk_manage_grid_license->feature_type == ctk_manage_grid_license->gridd_feature_type) {
+                        licenseStatus = NV_GRID_UNLICENSED_VAPP;
+                    }
+                    break;
+                case NV_GRID_LICENSE_FEATURE_TYPE_QDWS:
+                    licenseStatus = NV_GRID_LICENSE_FAILED_QDWS;
+                    if (ctk_manage_grid_license->feature_type != ctk_manage_grid_license->gridd_feature_type) {
+                        /* On non-vGPU setup with license failed state, mismatch in feature type fetched from nvidia-gridd service and
+                            the feature type read from gridd.conf/UI controls indicates user has edited the feature type
+                            directly in the gridd.conf file. So set appropriate license status message. */
+                        licenseStatus = NV_GRID_UNLICENSED_QDWS_SELECTED;
+                    }
+                    break;
+                case NV_GRID_LICENSE_FEATURE_TYPE_VGPU:
+                    licenseStatus = NV_GRID_LICENSE_FAILED_VGPU;
+                    break;
+                default:
+                    break;
+            }
+        }
+        else if (licenseState == NV_GRID_LICENSE_EXPIRED) {
+            switch (ctk_manage_grid_license->feature_type) {
+                case NV_GRID_LICENSE_FEATURE_TYPE_VAPP:
+                    licenseStatus = NV_GRID_LICENSE_EXPIRED_QDWS;    // Default status in license expired state on non-vGPU case
+                    if (ctk_manage_grid_license->feature_type == ctk_manage_grid_license->gridd_feature_type) {
+                        licenseStatus = NV_GRID_LICENSE_RESTART_REQUIRED;
+                    }
+                    break;
+                case NV_GRID_LICENSE_FEATURE_TYPE_QDWS:
+                    licenseStatus = NV_GRID_LICENSE_EXPIRED_QDWS;
+                    if (ctk_manage_grid_license->feature_type != ctk_manage_grid_license->gridd_feature_type) {
+                        /* On non-vGPU setup with expired license, mismatch in feature type fetched from nvidia-gridd service and
+                            the feature type read from gridd.conf/UI controls indicates user has edited the feature type
+                            directly in the gridd.conf file and hence those changes will not be reflected until the system
+                            is rebooted. Set appropriate license status to indicate the same. */
+                        licenseStatus = NV_GRID_LICENSE_RESTART_REQUIRED;
+                    }
+                    break;
+                case NV_GRID_LICENSE_FEATURE_TYPE_VGPU:
+                    licenseStatus = NV_GRID_LICENSE_EXPIRED_VGPU;
+                    break;
+                default:
+                    break;
+            }
         }
     }
 
-    /* Set correct status message when Quadro Virtual Datacenter Workstation
-     * checkbox selected */ 
-    if ((licenseStatus == NV_GRID_UNLICENSED_TESLA) &&
-        (ctk_manage_grid_license->license_edition_gvw_selected == TRUE)) {
-        licenseStatus = NV_GRID_UNLICENSED_GVW_SELECTED;
-    }
-
-    /* Show the message received */
     switch (licenseStatus) {
     case NV_GRID_UNLICENSED_VGPU:
-          licenseState = "Your system does not have a valid GRID vGPU license.\n"
+          licenseStatusMessage = "Your system does not have a valid GRID vGPU license.\n"
               "Enter license server details and apply.";
           break;
-    case NV_GRID_UNLICENSED_TESLA:
-          licenseState = "Your system is currently running on "
-              "Tesla (unlicensed).";
+    case NV_GRID_UNLICENSED_VAPP:
+          licenseStatusMessage = "Your system is currently configured for "
+              "GRID Virtual Apps.";
           break;
-    case NV_GRID_UNLICENSED_GVW_SELECTED:
-          licenseState = "Your system is currently running on Tesla (unlicensed).\n"
+    case NV_GRID_UNLICENSED_QDWS_SELECTED:
+          licenseStatusMessage = "Your system is currently configured for GRID Virtual Apps.\n"
              "Enter license server details and apply.";
           break;
     case NV_GRID_LICENSE_ACQUIRED_VGPU:
-          licenseState = "Your system is licensed for GRID vGPU.";
+          licenseStatusMessage = "Your system is licensed for GRID vGPU.";
           break;
-    case NV_GRID_LICENSE_ACQUIRED_GVW:
-          licenseState = "Your system is licensed for Quadro Virtual Datacenter "
-              "Workstation Edition.";
+    case NV_GRID_LICENSE_ACQUIRED_QDWS:
+          licenseStatusMessage = "Your system is licensed for Quadro Virtual Datacenter "
+              "Workstation.";
           break;
     case NV_GRID_LICENSE_REQUESTING_VGPU:
-          licenseState = "Acquiring license for GRID vGPU Edition.\n"
+          licenseStatusMessage = "Acquiring license for GRID vGPU.\n"
               "Your system does not have a valid GRID vGPU license.";
           break;
-    case NV_GRID_LICENSE_REQUESTING_GVW:
-          licenseState = "Acquiring license for Quadro Virtual Datacenter "
-              "Workstation Edition.\n"
-              "Your system does not have a valid Quadro Virtual Datacenter "
-              "Workstation license.";
+    case NV_GRID_LICENSE_REQUESTING_QDWS:
+          licenseStatusMessage = "Acquiring license for Quadro Virtual Datacenter "
+              "Workstation.\n"
+              " Your system is currently configured for GRID Virtual Apps.";
           break;
     case NV_GRID_LICENSE_FAILED_VGPU:
-          licenseState = "Failed to acquire NVIDIA vGPU license.";
+          licenseStatusMessage = "Failed to acquire GRID vGPU license.";
           break;
-    case NV_GRID_LICENSE_FAILED_GVW:
-          licenseState = "Failed to acquire NVIDIA Quadro Virtual Datacenter "
-              "Workstation license.";
+    case NV_GRID_LICENSE_FAILED_QDWS:
+          licenseStatusMessage = "Failed to acquire Quadro Virtual Datacenter "
+              "Worstation license.\n"
+              " Your system is currently configured for GRID Virtual Apps.";
           break;
     case NV_GRID_LICENSE_EXPIRED_VGPU:
-          licenseState = "Failed to renew license for GRID vGPU Edition.\n"
+          licenseStatusMessage = "GRID vGPU license has expired.\n"
               "Your system does not have a valid GRID vGPU license.";
           break;
-    case NV_GRID_LICENSE_EXPIRED_GVW:
-          licenseState = "License for Quadro Virtual Datacenter Workstation "
+    case NV_GRID_LICENSE_EXPIRED_QDWS:
+          licenseStatusMessage = "License for Quadro Virtual Datacenter Workstation "
               "has expired.\n"
               "Your system does not have a valid Quadro Virtual Datacenter "
               "Workstation license.";
           break;
     case NV_GRID_LICENSE_RESTART_REQUIRED:
-          licenseState = "Restart your system for Tesla Edition.\n"
-              "Your system is currently running Quadro Virtual Datacenter "
-              "Workstation Edition.";
+          licenseStatusMessage = "Restart your system for GRID Virtual Apps.\n"
+              "Your system is currently licensed for Quadro Virtual Datacenter "
+              "Workstation.";
           break;
     default:
-          licenseState = "Your system does not have a valid GPU license.\n"
+          licenseStatusMessage = "Your system does not have a valid GPU license.\n"
               "Enter license server details and apply.";
           break;
     }
 
     gtk_label_set_text(GTK_LABEL(ctk_manage_grid_license->label_license_state),
-                       licenseState);
+                       licenseStatusMessage);
     return ret;
 }
 
@@ -840,33 +955,62 @@ static void apply_clicked(GtkWidget *widget, gpointer user_data)
     gboolean ret;
     int err = 0;
     gint status = 0;
+    gboolean configFileAvailable;
+    gboolean writable = FALSE;
 
-    /* Add information to gridd.conf file */
-    err = UpdateConfigFile(ctk_manage_grid_license);
+    /* Check available config file */
+    configFileAvailable = checkConfigfile(&writable);
+    if (configFileAvailable && writable) {
+        /* Add information to gridd.conf file */
+        err = UpdateConfigFile(ctk_manage_grid_license);
+        if (err == 0) {
+            /* Send update request to nvidia-gridd */
+            ret = send_message_to_gridd(ctk_manage_grid_license,
+                                        LICENSE_DETAILS_UPDATE_REQUEST,
+                                        &status);
+            if ((!ret) || (status != LICENSE_DETAILS_UPDATE_SUCCESS)) {
+                GtkWidget *dlg, *parent;
 
-    if (err == 0) {
-        /* Send update request to nvidia-gridd */
-        ret = send_message_to_gridd(ctk_manage_grid_license,
-                                    LICENSE_DETAILS_UPDATE_REQUEST,
-                                    &status);
-        if ((!ret) || (status != LICENSE_DETAILS_UPDATE_SUCCESS)) {
+                parent = ctk_get_parent_window(GTK_WIDGET(ctk_manage_grid_license));
+
+                dlg = gtk_message_dialog_new(GTK_WINDOW(parent),
+                                             GTK_DIALOG_MODAL,
+                                             GTK_MESSAGE_WARNING,
+                                             GTK_BUTTONS_OK,
+                                             "Unable to send license information "
+                                             "update request to the NVIDIA GRID "
+                                             "licensing daemon.\n"
+                                             "Please make sure nvidia-gridd and "
+                                             "dbus-daemon are running and retry applying the "
+                                             "license settings.\n");
+                gtk_dialog_run(GTK_DIALOG(dlg));
+                gtk_widget_destroy(dlg);
+            }
+        } else {
             GtkWidget *dlg, *parent;
 
             parent = ctk_get_parent_window(GTK_WIDGET(ctk_manage_grid_license));
-
             dlg = gtk_message_dialog_new(GTK_WINDOW(parent),
                                          GTK_DIALOG_MODAL,
-                                         GTK_MESSAGE_WARNING,
+                                         GTK_MESSAGE_ERROR,
                                          GTK_BUTTONS_OK,
-                                         "Unable to send license information "
-                                         "update request to the NVIDIA GRID "
-                                         "licensing daemon.\n"
-                                         "Please make sure nvidia-gridd and "
-                                         "dbus-daemon are running and retry applying the "
-                                         "license settings.\n");
+                                         "Unable to update GRID license configuration "
+                                         "file (%s): %s", GRID_CONFIG_FILE, strerror(err));
             gtk_dialog_run(GTK_DIALOG(dlg));
             gtk_widget_destroy(dlg);
         }
+    } else if (configFileAvailable && !(writable)) {
+        GtkWidget *dlg, *parent;
+
+        parent = ctk_get_parent_window(GTK_WIDGET(ctk_manage_grid_license));
+        dlg = gtk_message_dialog_new(GTK_WINDOW(parent),
+                                     GTK_DIALOG_MODAL,
+                                     GTK_MESSAGE_ERROR,
+                                     GTK_BUTTONS_OK,
+                                     "You do not have enough "
+                                     "permissions to edit '%s' file.", GRID_CONFIG_FILE);
+        gtk_dialog_run(GTK_DIALOG(dlg));
+        gtk_widget_destroy(dlg);
     } else {
         GtkWidget *dlg, *parent;
 
@@ -875,8 +1019,8 @@ static void apply_clicked(GtkWidget *widget, gpointer user_data)
                                      GTK_DIALOG_MODAL,
                                      GTK_MESSAGE_ERROR,
                                      GTK_BUTTONS_OK,
-                                     "Unable to update GRID license configuration "
-                                     "file (%s): %s", GRID_CONFIG_FILE, strerror(err));
+                                     "'%s' file does not exist.\n You do not have "
+                                     "permissions to create this file.", GRID_CONFIG_FILE);
         gtk_dialog_run(GTK_DIALOG(dlg));
         gtk_widget_destroy(dlg);
     }
@@ -938,7 +1082,19 @@ static void license_edition_toggled(GtkWidget *widget, gpointer user_data)
 {
     CtkManageGridLicense *ctk_manage_grid_license = CTK_MANAGE_GRID_LICENSE(user_data);
     gboolean enabled;
-    gchar *licenseState = "";
+    gchar *statusBarMsg = "";
+    NvGriddConfigParams *griddConfig;
+    const char *textBoxServerStr, *textBoxServerPortStr, *textBoxSecondaryServerStr, *textBoxSecondaryServerPortStr;
+
+    griddConfig = GetNvGriddConfigParams();
+    if (!griddConfig) {
+        return;
+    }
+
+    textBoxServerStr = gtk_entry_get_text(GTK_ENTRY(ctk_manage_grid_license->txt_server_address));
+    textBoxServerPortStr = gtk_entry_get_text(GTK_ENTRY(ctk_manage_grid_license->txt_server_port));
+    textBoxSecondaryServerStr = gtk_entry_get_text(GTK_ENTRY(ctk_manage_grid_license->txt_secondary_server_address));
+    textBoxSecondaryServerPortStr = gtk_entry_get_text(GTK_ENTRY(ctk_manage_grid_license->txt_secondary_server_port));
 
     enabled = gtk_toggle_button_get_active(GTK_TOGGLE_BUTTON(widget));
     if (!enabled) {
@@ -947,23 +1103,65 @@ static void license_edition_toggled(GtkWidget *widget, gpointer user_data)
     }
     user_data = g_object_get_data(G_OBJECT(widget), "button_id");
 
-    if (GPOINTER_TO_INT(user_data) == GRID_LICENSED_FEATURE_TYPE_GVW) {
+    if (GPOINTER_TO_INT(user_data) == NV_GRID_LICENSE_FEATURE_TYPE_QDWS) {
         gtk_widget_set_sensitive(ctk_manage_grid_license->box_server_info, TRUE);
-        licenseState = "You selected Quadro Virtual Datacenter Workstation Edition.";
+        statusBarMsg = "You selected Quadro Virtual Datacenter Workstation Edition.";
         ctk_manage_grid_license->feature_type =
-            GRID_LICENSED_FEATURE_TYPE_GVW;
-        ctk_manage_grid_license->license_edition_gvw_selected = TRUE;
-    }  else if (GPOINTER_TO_INT(user_data) == GRID_LICENSED_FEATURE_TYPE_TESLA) {
+            NV_GRID_LICENSE_FEATURE_TYPE_QDWS;
+        /* Enable Apply/Cancel button if the feature type selection has changed*/
+        if (strcmp(griddConfig->str[NV_GRIDD_FEATURE_TYPE], "2") != 0) {
+            /* Disable Apply/Cancel button if Primary server address textbox string is empty. */
+            if (strcmp(textBoxServerStr, "") == 0) {
+                gtk_widget_set_sensitive(ctk_manage_grid_license->btn_apply, FALSE);
+                gtk_widget_set_sensitive(ctk_manage_grid_license->btn_cancel, FALSE);
+            } else {
+                gtk_widget_set_sensitive(ctk_manage_grid_license->btn_apply, TRUE);
+                gtk_widget_set_sensitive(ctk_manage_grid_license->btn_cancel, TRUE);
+            }
+        } else {
+            /* feature type selection has not changed. But Enable Apply/Cancel button when user make changes
+                in any of the textbox entries to retain those changes. */
+            if ((strcmp(griddConfig->str[NV_GRIDD_SERVER_ADDRESS], textBoxServerStr) != 0) ||
+                ((strcmp(griddConfig->str[NV_GRIDD_BACKUP_SERVER_ADDRESS], textBoxSecondaryServerStr) != 0) ||
+                (strcmp(griddConfig->str[NV_GRIDD_BACKUP_SERVER_PORT], textBoxSecondaryServerPortStr) != 0) ||
+                (strcmp(griddConfig->str[NV_GRIDD_SERVER_PORT], textBoxServerPortStr) != 0))) {
+                    gtk_widget_set_sensitive(ctk_manage_grid_license->btn_apply, TRUE);
+                    gtk_widget_set_sensitive(ctk_manage_grid_license->btn_cancel, TRUE);
+            } else {
+                    gtk_widget_set_sensitive(ctk_manage_grid_license->btn_apply, FALSE);
+                    gtk_widget_set_sensitive(ctk_manage_grid_license->btn_cancel, FALSE);
+            }
+        }
+
+    }  else if (GPOINTER_TO_INT(user_data) == NV_GRID_LICENSE_FEATURE_TYPE_VAPP) {
         gtk_widget_set_sensitive(ctk_manage_grid_license->box_server_info, FALSE);
-        /* force unlicensed mode */
         ctk_manage_grid_license->feature_type = 
-            GRID_LICENSED_FEATURE_TYPE_TESLA;
-        licenseState = "You selected Tesla (Unlicensed) mode.";
-        ctk_manage_grid_license->license_edition_gvw_selected = FALSE;
+            NV_GRID_LICENSE_FEATURE_TYPE_VAPP;
+        statusBarMsg = "You selected GRID Virtual Apps Edition.";
+        /* Enable Apply/Cancel button if the feature type selection has changed*/
+        if (strcmp(griddConfig->str[NV_GRIDD_FEATURE_TYPE], "0") != 0) {
+            gtk_widget_set_sensitive(ctk_manage_grid_license->btn_apply, TRUE);
+            gtk_widget_set_sensitive(ctk_manage_grid_license->btn_cancel, TRUE);
+        } else {
+            /* feature type selection has not changed. But Enable Apply/Cancel button when user make changes
+                in any of the textbox entries to retain those changes. */
+            if ((strcmp(griddConfig->str[NV_GRIDD_SERVER_ADDRESS], textBoxServerStr) != 0) ||
+                ((strcmp(griddConfig->str[NV_GRIDD_BACKUP_SERVER_ADDRESS], textBoxSecondaryServerStr) != 0) ||
+                (strcmp(griddConfig->str[NV_GRIDD_BACKUP_SERVER_PORT], textBoxSecondaryServerPortStr) != 0) ||
+                (strcmp(griddConfig->str[NV_GRIDD_SERVER_PORT], textBoxServerPortStr) != 0))) {
+                    gtk_widget_set_sensitive(ctk_manage_grid_license->btn_apply, TRUE);
+                    gtk_widget_set_sensitive(ctk_manage_grid_license->btn_cancel, TRUE);
+            } else {
+                    gtk_widget_set_sensitive(ctk_manage_grid_license->btn_apply, FALSE);
+                    gtk_widget_set_sensitive(ctk_manage_grid_license->btn_cancel, FALSE);
+            }
+        }
     }
     /* update status bar message */
     ctk_config_statusbar_message(ctk_manage_grid_license->ctk_config,
-                                 "%s", licenseState);
+                                 "%s", statusBarMsg);
+    update_manage_grid_license_state_info(ctk_manage_grid_license);
+    FreeNvGriddConfigParams(griddConfig);
 }
 
 static gboolean disallow_whitespace(GtkWidget *widget, GdkEvent *event, gpointer user_data)
@@ -1097,24 +1295,21 @@ static gboolean checkConfigfile(gboolean *writable)
     if ((fstat(fileno(configFile), &st) == 0) && (st.st_size == 0)) {
         if (*writable) {
             ConfigFileLines *pLines;
-
             templateFile = fopen(GRID_CONFIG_FILE_TEMPLATE, "r");
 
             if (templateFile == NULL) {
                 nv_error_msg("Config file '%s' had size zero.",
                              GRID_CONFIG_FILE);
-                goto done;
+            } else {
+                pLines = ReadConfigFileStream(templateFile);
+
+                WriteConfigFileStream(configFile, pLines);
+
+                FreeConfigFileLines(pLines);
             }
-
-            pLines = ReadConfigFileStream(templateFile);
-
-            WriteConfigFileStream(configFile, pLines);
-
-            FreeConfigFileLines(pLines);
         } else {
             nv_error_msg("Config file '%s' had size zero.",
                          GRID_CONFIG_FILE);
-            goto done;
         }
     }
     ret = TRUE;
@@ -1144,11 +1339,9 @@ GtkWidget* ctk_manage_grid_license_new(CtrlTarget *target,
     GtkWidget *button1 = NULL, *button2 = NULL;
     GSList *slist = NULL;
     gint ret;
-    gboolean configFileAvailable;
     DBusError err;
     DBusConnection* conn;
     DbusData *dbusData;
-    gboolean writable = FALSE;
     int64_t gridLicenseSupported;
     NvGriddConfigParams *griddConfig;
 
@@ -1182,7 +1375,7 @@ GtkWidget* ctk_manage_grid_license_new(CtrlTarget *target,
     }
 
     /* GRID M6 is licensable gpu so we want to allow users to choose
-     * Quadro Virtual Datacenter Workstation and Unlicensed Tesla mode on baremetal setup.
+     * Quadro Virtual Datacenter Workstation and GRID Virtual Apps on baremetal setup.
      * When virtualization mode is NV_CTRL_ATTR_NVML_GPU_VIRTUALIZATION_MODE_NONE
      * treat it same way like NV_CTRL_ATTR_NVML_GPU_VIRTUALIZATION_MODE_PASSTHROUGH.
      * So that it will show the Quadro Virtual Datacenter Workstation interface in case of
@@ -1220,14 +1413,10 @@ GtkWidget* ctk_manage_grid_license_new(CtrlTarget *target,
         dbusData->dbus.dbusErrorFree(&err);
     }
 
-    /* Check available config file */
-    configFileAvailable = checkConfigfile(&writable);
-    
     /* Initialize config parameters */
     griddConfig = GetNvGriddConfigParams();
-        
     if (griddConfig &&
-        (strcmp(griddConfig->str[NV_GRIDD_ENABLE_UI], "FALSE") == 0)) {
+        (strcmp(griddConfig->str[NV_GRIDD_ENABLE_UI], "TRUE") != 0)) {
         return NULL;
     }
     
@@ -1240,34 +1429,26 @@ GtkWidget* ctk_manage_grid_license_new(CtrlTarget *target,
     ctk_manage_grid_license->ctk_config = ctk_config;
     ctk_manage_grid_license->license_edition_state = mode;
     ctk_manage_grid_license->dbusData = dbusData;
-    ctk_manage_grid_license->license_edition_gvw_selected = FALSE;
     ctk_manage_grid_license->feature_type = 0;
 
     /* set default value for feature type based on the user configured parameter or virtualization mode */
     if (griddConfig) {
-        if (strcmp(griddConfig->str[NV_GRIDD_FEATURE_TYPE], "0"))
-        {
-            ctk_manage_grid_license->feature_type = GRID_LICENSED_FEATURE_TYPE_TESLA;
+        /* Check Feature type "2" for Quadro Virtual Datacenter Workstation. */
+        if (strcmp(griddConfig->str[NV_GRIDD_FEATURE_TYPE], "2") == 0) {
+            ctk_manage_grid_license->feature_type = NV_GRID_LICENSE_FEATURE_TYPE_QDWS;
         }
-        else if (strcmp(griddConfig->str[NV_GRIDD_FEATURE_TYPE], "1"))
-        {
-            ctk_manage_grid_license->feature_type = GRID_LICENSED_FEATURE_TYPE_VGPU;
-        }
-        else if (strcmp(griddConfig->str[NV_GRIDD_FEATURE_TYPE], "2"))
-        {
-            ctk_manage_grid_license->feature_type = GRID_LICENSED_FEATURE_TYPE_GVW;
-        }
-        else
-        {
-            ctk_manage_grid_license->feature_type = GRID_LICENSED_FEATURE_TYPE_TESLA;
+        else {
+            ctk_manage_grid_license->feature_type = NV_GRID_LICENSE_FEATURE_TYPE_VAPP;
         }
     }
 
     /* Overwrite feature type in vGPU case */
     if (ctk_manage_grid_license->license_edition_state == NV_CTRL_ATTR_NVML_GPU_VIRTUALIZATION_MODE_VGPU)
     {
-        ctk_manage_grid_license->feature_type = GRID_LICENSED_FEATURE_TYPE_VGPU;
+        ctk_manage_grid_license->feature_type = NV_GRID_LICENSE_FEATURE_TYPE_VGPU;
     }
+
+    ctk_manage_grid_license->gridd_feature_type = ctk_manage_grid_license->feature_type;
 
     /* set container properties for the CtkManageGridLicense widget */
 
@@ -1287,21 +1468,6 @@ GtkWidget* ctk_manage_grid_license_new(CtrlTarget *target,
     gtk_box_pack_start(GTK_BOX(vbox), frame, FALSE, FALSE, 0);
     gtk_container_add(GTK_CONTAINER(frame), vbox1);
 
-    /* Show message if config file not available and user do not have
-     * permissions to create new file.
-     */
-    if (!configFileAvailable && !griddConfig) {
-        str = g_strdup_printf("'%s' file does not exist.\n You do not have "
-                              "permissions to create this file.", GRID_CONFIG_FILE);
-        label = gtk_label_new(str);
-        g_free(str);
-        hbox = gtk_hbox_new(FALSE, 0);
-        gtk_box_pack_start(GTK_BOX(hbox), label, FALSE, TRUE, 5);
-        gtk_box_pack_start(GTK_BOX(vbox1), hbox, FALSE, FALSE, 5);
-
-        goto done;
-    }
-
     if (mode == NV_CTRL_ATTR_NVML_GPU_VIRTUALIZATION_MODE_PASSTHROUGH) {
         label = gtk_label_new("License Edition:");
         hbox = gtk_hbox_new(FALSE, 0);
@@ -1320,15 +1486,15 @@ GtkWidget* ctk_manage_grid_license_new(CtrlTarget *target,
         slist = gtk_radio_button_get_group(GTK_RADIO_BUTTON(button1));
         gtk_box_pack_start(GTK_BOX(vbox3), button1, FALSE, FALSE, 0);
         g_object_set_data(G_OBJECT(button1), "button_id",
-                GINT_TO_POINTER(GRID_LICENSED_FEATURE_TYPE_GVW));
+                GINT_TO_POINTER(NV_GRID_LICENSE_FEATURE_TYPE_QDWS));
         g_signal_connect(G_OBJECT(button1), "toggled",
                          G_CALLBACK(license_edition_toggled),
                          (gpointer) ctk_manage_grid_license);
 
-        button2 = gtk_radio_button_new_with_label(slist, "Tesla (Unlicensed)");
+        button2 = gtk_radio_button_new_with_label(slist, "GRID Virtual Apps");
         gtk_box_pack_start(GTK_BOX(vbox3), button2, FALSE, FALSE, 0);
         g_object_set_data(G_OBJECT(button2), "button_id",
-                GINT_TO_POINTER(GRID_LICENSED_FEATURE_TYPE_TESLA));
+                GINT_TO_POINTER(NV_GRID_LICENSE_FEATURE_TYPE_VAPP));
 
         g_signal_connect(G_OBJECT(button2), "toggled",
                          G_CALLBACK(license_edition_toggled),
@@ -1336,13 +1502,6 @@ GtkWidget* ctk_manage_grid_license_new(CtrlTarget *target,
 
     }
 
-    /* Only users with sufficient privileges can update server address
-     * and port number.
-     */
-    if (!writable) {
-        gtk_widget_set_sensitive(GTK_WIDGET(vbox2), FALSE);
-    }
-    
     /* Show current license status message */
     ctk_manage_grid_license->label_license_state = gtk_label_new("Unknown");
     hbox = gtk_hbox_new(FALSE, 0);
@@ -1505,7 +1664,6 @@ GtkWidget* ctk_manage_grid_license_new(CtrlTarget *target,
     /* Apply button */
     ctk_manage_grid_license->btn_apply = gtk_button_new_with_label
         (" Apply ");
-    gtk_widget_set_sensitive(ctk_manage_grid_license->btn_apply, FALSE);
     gtk_widget_set_size_request(ctk_manage_grid_license->btn_apply, 100, -1);
     ctk_config_set_tooltip(ctk_config, ctk_manage_grid_license->btn_apply,
                            __apply_button_help);
@@ -1520,7 +1678,6 @@ GtkWidget* ctk_manage_grid_license_new(CtrlTarget *target,
     /* Cancel button */
     ctk_manage_grid_license->btn_cancel = gtk_button_new_with_label
         (" Cancel ");
-    gtk_widget_set_sensitive(ctk_manage_grid_license->btn_cancel, FALSE);
     gtk_widget_set_size_request(ctk_manage_grid_license->btn_cancel, 100, -1);
     ctk_config_set_tooltip(ctk_config, ctk_manage_grid_license->btn_cancel,
                            __cancel_button_help);
@@ -1532,17 +1689,16 @@ GtkWidget* ctk_manage_grid_license_new(CtrlTarget *target,
 
     /* Set license edition toggle button active */
     if (button2 && button1) {
-        if (strcmp(griddConfig->str[NV_GRIDD_FEATURE_TYPE], "2") == 0) {
+        if (ctk_manage_grid_license->feature_type == NV_GRID_LICENSE_FEATURE_TYPE_QDWS) {
             /* Set 'Quadro Virtual Datacenter Workstation' toggle button active */
             gtk_toggle_button_set_active(GTK_TOGGLE_BUTTON(button1), TRUE);
         }
         else {
-            /* Set 'Tesla (unlicensed)' toggle button active */
+            /* Set 'GRID Virtual Apps' toggle button active */
             gtk_toggle_button_set_active(GTK_TOGGLE_BUTTON(button2), TRUE);
         }
     }
 
-    FreeNvGriddConfigParams(griddConfig);
 
     /* Register a timer callback to update license status info */
     str = g_strdup_printf("Manage GRID License");
@@ -1552,10 +1708,23 @@ GtkWidget* ctk_manage_grid_license_new(CtrlTarget *target,
                          str,
                          (GSourceFunc) update_manage_grid_license_state_info,
                          (gpointer) ctk_manage_grid_license);
-    g_free(str);
+
     update_manage_grid_license_state_info(ctk_manage_grid_license);
 
-done:
+    /* Enable Apply/Cancel button if there is mismatch between feature type fetched from nvidia-gridd
+        and feature type updated from UI/gridd.conf. */
+    if (ctk_manage_grid_license->feature_type != ctk_manage_grid_license->gridd_feature_type) {
+        gtk_widget_set_sensitive(ctk_manage_grid_license->btn_apply, TRUE);
+        gtk_widget_set_sensitive(ctk_manage_grid_license->btn_cancel, TRUE);
+    }
+    else {
+        gtk_widget_set_sensitive(ctk_manage_grid_license->btn_apply, FALSE);
+        gtk_widget_set_sensitive(ctk_manage_grid_license->btn_cancel, FALSE);
+    }
+
+    g_free(str);
+    FreeNvGriddConfigParams(griddConfig);
+
     gtk_widget_show_all(GTK_WIDGET(ctk_manage_grid_license));
     
     return GTK_WIDGET(ctk_manage_grid_license);
@@ -1580,8 +1749,8 @@ GtkTextBuffer *ctk_manage_grid_license_create_help(GtkTextTagTable *table,
         ctk_help_heading(b, &i, "Quadro Virtual Datacenter Workstation");
         ctk_help_para(b, &i, "%s", __grid_virtual_workstation_help);
 
-        ctk_help_heading(b, &i, "Tesla (Unlicensed)");
-        ctk_help_para(b, &i, "%s", __tesla_unlicensed_help);
+        ctk_help_heading(b, &i, "GRID Virtual Apps");
+        ctk_help_para(b, &i, "%s", __grid_vapp_help);
     }
 
     ctk_help_heading(b, &i, "License Server");
