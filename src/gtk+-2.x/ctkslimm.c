@@ -57,13 +57,6 @@ static Bool other_displays_have_modeline(nvLayoutPtr layout,
                                          nvModeLinePtr modeline);
 
 
-typedef struct GridConfigRec {
-    int rows;
-    int columns;
-    Bool valid; // Is this layout valid
-
-} GridConfig;
-
 typedef struct DpyLocRec { // Display Location
     int x;
     int y;
@@ -72,59 +65,6 @@ typedef struct DpyLocRec { // Display Location
 
 
 
-/**
- * The gridConfigs array enumerates the display grid configurations
- * that are presently supported.
- *
- **/
-
-static GridConfig gridConfigs[] = {
-    {4, 4,  FALSE}, // rows, columns, valid
-    {5, 3,  FALSE},
-    {3, 5,  FALSE},
-    {3, 4,  FALSE},
-    {4, 3,  FALSE},
-    {3, 3,  FALSE},
-    {2, 8,  FALSE},
-    {8, 2,  FALSE},
-    {2, 7,  FALSE},
-    {7, 2,  FALSE},
-    {2, 6,  FALSE},
-    {6, 2,  FALSE},
-    {2, 5,  FALSE},
-    {5, 2,  FALSE},
-    {1, 16, FALSE},
-    {16, 1, FALSE},
-    {1, 15, FALSE},
-    {15, 1, FALSE},
-    {1, 14, FALSE},
-    {14, 1, FALSE},
-    {1, 13, FALSE},
-    {13, 1, FALSE},
-    {1, 12, FALSE},
-    {12, 1, FALSE},
-    {1, 11, FALSE},
-    {11, 1, FALSE},
-    {1, 10, FALSE},
-    {10, 1, FALSE},
-    {1, 9,  FALSE},
-    {9, 1,  FALSE},
-    {2, 2,  FALSE},
-    {2, 3,  FALSE},
-    {2, 4,  FALSE},
-    {4, 2,  FALSE},
-    {3, 1,  FALSE},
-    {3, 2,  FALSE},
-    {1, 3,  FALSE},
-    {2, 1,  FALSE},
-    {1, 2,  FALSE},
-    {4, 1,  FALSE},
-    {1, 4,  FALSE},
-    {4, 8,  FALSE},
-    {8, 4,  FALSE},
-    {2, 16, FALSE},
-    {16, 2, FALSE},
-};
 
 GType ctk_slimm_get_type()
 {
@@ -162,24 +102,6 @@ static void remove_slimm_options(XConfigPtr xconf)
     xconfigRemoveNamedOption(&xconf->layouts->adjacencies->screen->options,
                              "MetaModes", NULL);
 }
-
-
-
-/* get_ith_valid_grid_config()
- * Returns valid grid configuration from gridConfig list.
- */
-
-static GridConfig *get_ith_valid_grid_config(int idx)
-{
-    int i, count = 0;
-    for (i = 0; i < ARRAY_LEN(gridConfigs); i++) {
-        if (!gridConfigs[i].valid) continue;
-        if (count == idx) return &gridConfigs[i];
-        count++;
-    }
-    return NULL;
-} /* get_ith_valid_grid_config() */
-
 
 
 static void add_slimm_options(XConfigPtr xconf, gchar *metamode_str)
@@ -251,16 +173,14 @@ static XConfigPtr xconfig_generate(XConfigPtr xconfCur,
 
 
     if (checkbox_state) {
-        GridConfig *grid_config;
         /* SLI MM needs to be enabled */
         idx = ctk_drop_down_menu_get_current_value(menu);
 
         /* Get grid configuration values from index */
 
-        grid_config = get_ith_valid_grid_config(idx);
-        if (grid_config) {
-            x_displays = grid_config->columns;
-            y_displays = grid_config->rows;
+        if (idx < ctk_object->num_grid_configs) {
+            x_displays = ctk_object->grid_configs[idx].columns;
+            y_displays = ctk_object->grid_configs[idx].rows;
         } else {
             x_displays = y_displays = 0;
         }
@@ -302,17 +222,15 @@ static XConfigPtr xconfig_generate(XConfigPtr xconfCur,
 static void set_overlap_controls_status(CtkSLIMM *ctk_object)
 {
     CtkDropDownMenu *menu;
-    GridConfig *grid_config;
     gint config_idx, x_displays, y_displays;
 
     menu = CTK_DROP_DOWN_MENU(ctk_object->mnu_display_config);
     config_idx = ctk_drop_down_menu_get_current_value(menu);
 
     /* Get grid configuration values from index */
-    grid_config = get_ith_valid_grid_config(config_idx);
-    if (grid_config) {
-        x_displays = grid_config->columns;
-        y_displays = grid_config->rows;
+    if (config_idx < ctk_object->num_grid_configs) {
+        x_displays = ctk_object->grid_configs[config_idx].columns;
+        y_displays = ctk_object->grid_configs[config_idx].rows;
     } else {
         x_displays = y_displays = 0;
     }
@@ -329,7 +247,6 @@ static Bool compute_screen_size(CtkSLIMM *ctk_object, gint *width,
                                 gint *height)
 {
     gint config_idx;
-    GridConfig *grid_config;
     gint x_displays,y_displays;
     gint h_overlap, v_overlap;
 
@@ -344,10 +261,9 @@ static Bool compute_screen_size(CtkSLIMM *ctk_object, gint *width,
     config_idx = ctk_drop_down_menu_get_current_value(menu);
 
     /* Get grid configuration values from index */
-    grid_config = get_ith_valid_grid_config(config_idx);
-    if (grid_config) {
-        x_displays = grid_config->columns;
-        y_displays = grid_config->rows;
+    if (config_idx < ctk_object->num_grid_configs) {
+        x_displays = ctk_object->grid_configs[config_idx].columns;
+        y_displays = ctk_object->grid_configs[config_idx].rows;
     } else {
         x_displays = y_displays = 0;
     }
@@ -845,8 +761,7 @@ static Bool add_array_value(int array[][2], int max_len, int *cur_len, int val)
 static Bool parse_slimm_layout(CtkSLIMM *ctk_slimm,
                                nvLayoutPtr layout,
                                int *hoverlap,
-                               int *voverlap,
-                               int *grid_config_id)
+                               int *voverlap)
 {
     CtrlTarget *ctrl_target = ctk_slimm->ctrl_target;
     ReturnStatus ret;
@@ -857,15 +772,16 @@ static Bool parse_slimm_layout(CtkSLIMM *ctk_slimm,
     char *mode_name = NULL;
     gchar *err_msg = NULL;
 
-    static DpyLoc *locs = NULL;  // Location of displays
-    static int max_locs = 0; // Maximum number of supported displays basically
-    static int max_rows = 0;
-    static int max_cols = 0;
+    const int max_locs = ctk_slimm->num_displays;
+    int row_loc[max_locs][2]; // As position, count
+    int col_loc[max_locs][2]; // As position, count
+    DpyLoc locs[max_locs];    // Location of displays
     int loc_idx;
     int num_locs;
     int rows;
     int cols;
 
+    int i;
     int found;
     nvModeLinePtr *cur_modeline; // Used to assign the current modeline
     
@@ -878,30 +794,6 @@ static Bool parse_slimm_layout(CtkSLIMM *ctk_slimm,
     /* Point at the display's current modeline so we can patch it */
     cur_modeline = &(display->cur_mode->modeline);
     *cur_modeline = NULL;
-
-
-    /* Make space for the display location array */
-    if (!locs) {
-        for (loc_idx = 0; loc_idx < ARRAY_LEN(gridConfigs); loc_idx++ ) {
-            if ( max_rows < gridConfigs[loc_idx].rows) {
-                max_rows = gridConfigs[loc_idx].rows;
-            }
-            if ( max_cols < gridConfigs[loc_idx].columns) {
-                max_cols = gridConfigs[loc_idx].columns;
-            }
-            if (max_locs <
-                (gridConfigs[loc_idx].rows * gridConfigs[loc_idx].columns)) {
-                max_locs =
-                    gridConfigs[loc_idx].rows * gridConfigs[loc_idx].columns;
-            }
-        }
-        locs = malloc(max_locs * sizeof(DpyLoc));
-        if (!locs) {
-            err_msg = "Out of memory.";
-            goto fail;
-        }
-    }
-
 
     /* Get the current metamode string */
     ret = NvCtrlGetStringAttribute(ctrl_target,
@@ -1015,105 +907,83 @@ static Bool parse_slimm_layout(CtkSLIMM *ctk_slimm,
 
 
     // Now that we've parsed all the points, count the number of rows/cols.
-    {
-        int row_loc[max_rows][2]; // As position, count
-        int col_loc[max_cols][2]; // As position, count
-        int i;
-        int found;
+    rows = 0;
+    cols = 0;
 
-        rows = 0;
-        cols = 0;
-
-        for (loc_idx = 0; loc_idx < num_locs; loc_idx++) {
-            if (!add_array_value(row_loc, max_rows, &rows,
-                                 locs[loc_idx].y)) {
-                err_msg = "Too many rows.";
-                goto fail;
-            }
-            if (!add_array_value(col_loc, max_cols, &cols,
-                                 locs[loc_idx].x)) {
-                err_msg = "Too many columns.";
-                goto fail;
-            }
+    for (loc_idx = 0; loc_idx < num_locs; loc_idx++) {
+        if (!add_array_value(row_loc, max_locs, &rows, locs[loc_idx].y)) {
+            err_msg = "Too many rows.";
+            goto fail;
         }
-
-        /* Make sure that each row has the same number of columns,
-         *  and that each column has the same number of rows
-         */
-        for (i = 0; i < rows; i++) {
-            if (row_loc[i][1] != cols) {
-                err_msg = "Rows have varying number of columns.";
-                goto fail;
-            }
-        }
-        for (i = 0; i < cols; i++) {
-            if (col_loc[i][1] != rows) {
-                err_msg = "Columns have varying number of rows.";
-                goto fail;
-            }
-        }
-
-        /* Make sure this is a known/supported grid config */
-        found = 0;
-        for (i = 0; i < ARRAY_LEN(gridConfigs); i++) {
-            if ((gridConfigs[i].rows == rows) &&
-                (gridConfigs[i].columns == cols)) {
-                *grid_config_id = i;
-                found = 1;
-                break;
-            }
-        }
-        if (!found) {
-            err_msg = "Unknown grid configuration.";
-            return FALSE;
-        }
-
-
-        /* Calculate row overlap */
-        *voverlap = 0;
-        found = 0;
-        if (rows > 1) {
-            int loc = row_loc[0][0];
-            int best_dist = 0; // Best overlap distance
-            for (i = 1; i < rows; i++) {
-                int overlap = (row_loc[i][0] - loc);
-                int dist = (overlap >= 0) ? overlap : -overlap;
-                if (!found || dist < best_dist) {
-                    best_dist = dist;
-                    *voverlap = overlap;
-                    found = 1;
-                }
-            }
-        }
-        if (*voverlap > 0) {
-            *voverlap = (*cur_modeline)->data.vdisplay - *voverlap;
-        } else if (*voverlap < 0) {
-            *voverlap += (*cur_modeline)->data.vdisplay;
-        }
-
-
-        /* Calculate column overlap */
-        *hoverlap = 0;
-        found = 0;
-        if (cols > 1) {
-            int loc = col_loc[0][0];
-            int best_dist = 0; // Best overlap distance
-            for (i = 1; i < cols; i++) {
-                int overlap = (col_loc[i][0] - loc);
-                int dist = (overlap >= 0) ? overlap : -overlap;
-                if (!found || dist < best_dist) {
-                    best_dist = dist;
-                    *hoverlap = overlap;
-                    found = 1;
-                }
-            }
-        }
-        if (*hoverlap > 0) {
-            *hoverlap = (*cur_modeline)->data.hdisplay - *hoverlap;
-        } else if (*hoverlap < 0) {
-            *hoverlap += (*cur_modeline)->data.hdisplay;
+        if (!add_array_value(col_loc, max_locs, &cols, locs[loc_idx].x)) {
+            err_msg = "Too many columns.";
+            goto fail;
         }
     }
+
+    /* Make sure that each row has the same number of columns,
+     *  and that each column has the same number of rows
+     */
+    for (i = 0; i < rows; i++) {
+        if (row_loc[i][1] != cols) {
+            err_msg = "Rows have varying number of columns.";
+            goto fail;
+        }
+    }
+    for (i = 0; i < cols; i++) {
+        if (col_loc[i][1] != rows) {
+            err_msg = "Columns have varying number of rows.";
+            goto fail;
+        }
+    }
+
+    /* Calculate row overlap */
+    *voverlap = 0;
+    found = 0;
+    if (rows > 1) {
+        int loc = row_loc[0][0];
+        int best_dist = 0; // Best overlap distance
+        for (i = 1; i < rows; i++) {
+            int overlap = (row_loc[i][0] - loc);
+            int dist = (overlap >= 0) ? overlap : -overlap;
+            if (!found || dist < best_dist) {
+                best_dist = dist;
+                *voverlap = overlap;
+                found = 1;
+            }
+        }
+    }
+    if (*voverlap > 0) {
+        *voverlap = (*cur_modeline)->data.vdisplay - *voverlap;
+    } else if (*voverlap < 0) {
+        *voverlap += (*cur_modeline)->data.vdisplay;
+    }
+
+
+    /* Calculate column overlap */
+    *hoverlap = 0;
+    found = 0;
+    if (cols > 1) {
+        int loc = col_loc[0][0];
+        int best_dist = 0; // Best overlap distance
+        for (i = 1; i < cols; i++) {
+            int overlap = (col_loc[i][0] - loc);
+            int dist = (overlap >= 0) ? overlap : -overlap;
+            if (!found || dist < best_dist) {
+                best_dist = dist;
+                *hoverlap = overlap;
+                found = 1;
+            }
+        }
+    }
+    if (*hoverlap > 0) {
+        *hoverlap = (*cur_modeline)->data.hdisplay - *hoverlap;
+    } else if (*hoverlap < 0) {
+        *hoverlap += (*cur_modeline)->data.hdisplay;
+    }
+
+    ctk_slimm->parsed_rows = rows;
+    ctk_slimm->parsed_cols = cols;
 
     free(metamode_str);
     return TRUE;
@@ -1122,7 +992,6 @@ static Bool parse_slimm_layout(CtkSLIMM *ctk_slimm,
  fail:
     *hoverlap = 0;
     *voverlap = 0;
-    *grid_config_id = 0;
 
     if (err_msg) {
         nv_warning_msg("Unable to determine current SLI Mosaic Mode "
@@ -1277,6 +1146,117 @@ static int get_display_stereo_mode(nvDisplayPtr display)
     }
 }
 
+
+
+/*
+ * Return number of configs, and assign 'configs' if non-NULL.
+ */
+static int generate_configs_helper(const int num_displays,
+                                   gboolean only_max,
+                                   GridConfig *configs)
+{
+    int i, j, c = 0;
+
+    for (i = 1; i <= num_displays; i++) {
+        if (only_max) {
+            if (num_displays % i == 0) {
+                if (configs) {
+                    configs[c].rows = i;
+                    configs[c].columns = num_displays / i;
+                }
+                c++;
+            }
+        } else {
+            for (j = 1; j * i <= num_displays; j++) {
+                if (i == 1 && j == 1) {
+                    continue;
+                }
+                if (configs) {
+                    configs[c].rows = i;
+                    configs[c].columns = j;
+                }
+                c++;
+            }
+        }
+    }
+
+    return c;
+}
+
+
+
+static void generate_configs(CtkSLIMM *ctk_slimm, gboolean only_max)
+{
+    int n_configs = generate_configs_helper(ctk_slimm->num_displays, only_max,
+                                            NULL);
+
+    ctk_slimm->grid_configs = calloc(n_configs, sizeof(GridConfig));
+    ctk_slimm->num_grid_configs = n_configs;
+
+    generate_configs_helper(ctk_slimm->num_displays, only_max,
+                            ctk_slimm->grid_configs);
+}
+
+
+
+static void populate_dropdown(CtkSLIMM *ctk_slimm, gboolean only_max)
+{
+    int iter;
+    int rows, cols;
+    int cur_rows, cur_cols;
+    char *tmp;
+
+    CtkDropDownMenu *menu = CTK_DROP_DOWN_MENU(ctk_slimm->mnu_display_config);
+    int grid_config_id = ctk_drop_down_menu_get_current_value(menu);
+
+    if (ctk_slimm->grid_configs && grid_config_id >= 0) {
+        cur_rows = ctk_slimm->grid_configs[grid_config_id].rows;
+        cur_cols = ctk_slimm->grid_configs[grid_config_id].columns;
+    } else {
+        cur_rows = ctk_slimm->parsed_rows;
+        cur_cols = ctk_slimm->parsed_cols;
+    }
+
+    if (ctk_slimm->grid_configs) {
+        free(ctk_slimm->grid_configs);
+        ctk_slimm->num_grid_configs = 0;
+    }
+    ctk_drop_down_menu_reset(menu);
+
+
+    generate_configs(ctk_slimm, only_max);
+
+
+    for (iter = 0; iter < ctk_slimm->num_grid_configs; iter++) {
+        rows = ctk_slimm->grid_configs[iter].rows;
+        cols = ctk_slimm->grid_configs[iter].columns;
+
+        tmp = g_strdup_printf("%d x %d grid", rows, cols);
+
+        ctk_drop_down_menu_append_item(menu, tmp, iter);
+
+        if (cur_rows == rows && cur_cols == cols) {
+            grid_config_id = iter;
+        }
+    }
+
+    ctk_drop_down_menu_set_current_value(menu, grid_config_id);
+}
+
+
+
+static void restrict_display_config_changed(GtkWidget *widget,
+                                            gpointer user_data)
+{
+    CtkSLIMM *ctk_slimm = CTK_SLIMM(user_data);
+
+    populate_dropdown(ctk_slimm,
+                      gtk_toggle_button_get_active(GTK_TOGGLE_BUTTON(widget)));
+}
+
+
+
+
 GtkWidget* ctk_slimm_new(CtrlTarget *ctrl_target,
                          CtkEvent *ctk_event,
                          CtkConfig *ctk_config)
@@ -1308,15 +1288,11 @@ GtkWidget* ctk_slimm_new(CtrlTarget *ctrl_target,
     nvLayoutPtr layout;
     nvDisplayPtr display;
 
-    int iter;
-    int grid_menu_selected_id;
-    int count;
-
     Bool trust_slimm_available = FALSE;
+    Bool only_max;
 
     int hoverlap = 0;
     int voverlap = 0;
-    int grid_config_id = 0;
 
     /* now, create the object */
 
@@ -1383,37 +1359,21 @@ GtkWidget* ctk_slimm_new(CtrlTarget *ctrl_target,
     if (!err_str && layout) {
         nvGpuPtr gpu;
         int num_displays = 0;
-        int min_displays = 0;
-        int i;
-        int num_valid = 0;
 
         for (gpu = layout->gpus; gpu; gpu = gpu->next_in_layout) {
             num_displays += gpu->num_displays;
         }
 
-        /* Mark configs that have enough displays as valid */
-        for (i = 0; i < ARRAY_LEN(gridConfigs); i++) {
-            GridConfig *grid = &(gridConfigs[i]);
+        ctk_slimm->num_displays = num_displays;
 
-            if (!min_displays ||
-                (min_displays > (grid->rows * grid->columns))) {
-                min_displays = grid->rows * grid->columns;
-            }
-            if (num_displays >= (grid->rows * grid->columns)) {
-                grid->valid = TRUE;
-                num_valid++;
-            }
-        }
 
         /* Make sure we have enough displays for the minimum config */
-        if (num_valid <= 0) {
+        if (num_displays < 2) {
             err_str = g_strdup_printf("Not enough display devices to "
                                       "configure SLI Mosaic Mode.\nYou must "
-                                      "have at least %d Display%s connected, "
+                                      "have at least 2 Displays connected, "
                                       "but only %d Display%s detected.",
-                                      min_displays, 
-                                      (min_displays != 1) ? "s" : "",
-                                      num_displays, 
+                                      num_displays,
                                       (num_displays != 1) ? "s were" : " was");
             layout_free(layout);
             layout = NULL;
@@ -1422,11 +1382,10 @@ GtkWidget* ctk_slimm_new(CtrlTarget *ctrl_target,
             parse_slimm_layout(ctk_slimm,
                                layout,
                                &hoverlap,
-                               &voverlap,
-                               &grid_config_id);
+                               &voverlap);
         }
     }
-    
+
 
     /* If we failed to load, tell the user why */
     if (err_str || !layout) {
@@ -1527,12 +1486,12 @@ GtkWidget* ctk_slimm_new(CtrlTarget *ctrl_target,
     checkbutton = gtk_check_button_new_with_label("Use SLI Mosaic Mode");
     gtk_toggle_button_set_active(GTK_TOGGLE_BUTTON(checkbutton), TRUE);
     ctk_slimm->cbtn_slimm_enable = checkbutton;
-    g_signal_connect(G_OBJECT(checkbutton), "toggled", 
+    g_signal_connect(G_OBJECT(checkbutton), "toggled",
                      G_CALLBACK(slimm_checkbox_toggled),
                      (gpointer) ctk_object);
     gtk_box_pack_start(GTK_BOX(hbox), checkbutton, TRUE, TRUE, 0);
-    gtk_box_pack_start(GTK_BOX(vbox), hbox, FALSE, FALSE, 0); 
- 
+    gtk_box_pack_start(GTK_BOX(vbox), hbox, FALSE, FALSE, 0);
+
     hbox = gtk_hbox_new(FALSE, 0);
     label = gtk_label_new("Display Configuration (rows x columns)");
     hseparator = gtk_hseparator_new();
@@ -1549,35 +1508,28 @@ GtkWidget* ctk_slimm_new(CtrlTarget *ctrl_target,
         ctk_drop_down_menu_new(CTK_DROP_DOWN_MENU_FLAG_READONLY);
     ctk_slimm->mnu_display_config = GTK_WIDGET(menu);
 
-    grid_menu_selected_id = 0;
-    count = 0;
-    for (iter = 0; iter < ARRAY_LEN(gridConfigs); iter++) {
-        /* Don't show invalid configs */
-        if (!gridConfigs[iter].valid) continue;
-        tmp = g_strdup_printf("%d x %d grid",
-                              gridConfigs[iter].rows,
-                              gridConfigs[iter].columns);
+    only_max = (ctk_slimm->parsed_rows * ctk_slimm->parsed_cols ==
+                ctk_slimm->num_displays);
 
-        ctk_drop_down_menu_append_item(menu, tmp, count);
-
-        /* Update grid_config_id to set menu history */
-        if (iter == grid_config_id) {
-            grid_menu_selected_id = count;
-        }
-        count++;
-    }
-
-    ctk_drop_down_menu_set_current_value(menu, grid_menu_selected_id);
+    populate_dropdown(ctk_slimm, only_max);
 
     g_signal_connect(G_OBJECT(ctk_object->mnu_display_config), "changed",
                      G_CALLBACK(display_config_changed),
+                     (gpointer) ctk_object);
+
+    checkbutton = gtk_check_button_new_with_label("Only show configurations "
+                                                  "using all displays");
+    gtk_toggle_button_set_active(GTK_TOGGLE_BUTTON(checkbutton), only_max);
+    g_signal_connect(G_OBJECT(checkbutton), "toggled",
+                     G_CALLBACK(restrict_display_config_changed),
                      (gpointer) ctk_object);
 
     label = gtk_label_new("");
     gtk_box_pack_start(GTK_BOX(hbox), label, FALSE, FALSE, 5);
     gtk_box_pack_start(GTK_BOX(hbox), GTK_WIDGET(menu), TRUE, TRUE, 5);
     gtk_box_pack_start(GTK_BOX(vbox), hbox, FALSE, FALSE, 0);
- 
+    gtk_box_pack_start(GTK_BOX(vbox), GTK_WIDGET(checkbutton), FALSE, FALSE, 5);
+
     table = gtk_table_new(20, 2, FALSE);
     gtk_box_pack_start(GTK_BOX(vbox), table, FALSE, FALSE, 0);
     gtk_table_set_row_spacings(GTK_TABLE(table), 3);
@@ -1763,8 +1715,10 @@ GtkWidget* ctk_slimm_new(CtrlTarget *ctrl_target,
 
     if ((ret != NvCtrlSuccess) ||
         (ret == NvCtrlSuccess && g_ascii_strcasecmp(sli_mode, "Mosaic"))) {
-        gtk_toggle_button_set_active(GTK_TOGGLE_BUTTON(checkbutton), FALSE);
-        slimm_checkbox_toggled(ctk_slimm->cbtn_slimm_enable, (gpointer) ctk_slimm);
+        gtk_toggle_button_set_active(
+            GTK_TOGGLE_BUTTON(ctk_slimm->cbtn_slimm_enable), FALSE);
+        slimm_checkbox_toggled(ctk_slimm->cbtn_slimm_enable,
+                               (gpointer) ctk_slimm);
     }
 
     free(sli_mode);

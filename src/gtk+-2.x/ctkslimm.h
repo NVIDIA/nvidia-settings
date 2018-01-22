@@ -51,6 +51,11 @@ G_BEGIN_DECLS
 typedef struct _CtkSLIMM       CtkSLIMM;
 typedef struct _CtkSLIMMClass  CtkSLIMMClass;
 
+typedef struct GridConfigRec {
+    int rows;
+    int columns;
+} GridConfig;
+
 struct _CtkSLIMM
 {
     GtkVBox parent;
@@ -76,9 +81,20 @@ struct _CtkSLIMM
     nvModeLinePtr modelines;
     nvModeLinePtr cur_modeline;
     gint num_modelines;
+    int num_displays;
+    int parsed_rows;
+    int parsed_cols;
 
     int max_screen_width;
     int max_screen_height;
+
+    /**
+     * The grid_configs array enumerates the display grid configurations
+     * that are presently supported.
+     **/
+    GridConfig *grid_configs;
+    int num_grid_configs;
+
 };
 
 struct _CtkSLIMMClass
