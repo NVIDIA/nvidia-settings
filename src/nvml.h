@@ -1144,6 +1144,12 @@ typedef struct nvmlEventData_st
  */
 #define nvmlClocksThrottleReasonSyncBoost                 0x0000000000000010LL
 
+/** GPU clocks are limited by current setting of Display clocks
+ *
+ * @see bug 1997531
+ */
+#define nvmlClocksThrottleReasonDisplayClockSetting       0x0000000000000020LL
+
 /** Bit mask representing no clocks throttling
  *
  * Clocks are as high as possible.
@@ -1159,6 +1165,7 @@ typedef struct nvmlEventData_st
       | nvmlClocksThrottleReasonSwPowerCap                        \
       | nvmlClocksThrottleReasonHwSlowdown                        \
       | nvmlClocksThrottleReasonSyncBoost                         \
+      | nvmlClocksThrottleReasonDisplayClockSetting               \
 )
 /** @} */
 
