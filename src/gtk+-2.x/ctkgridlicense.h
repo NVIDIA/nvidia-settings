@@ -56,6 +56,8 @@ struct _CtkManageGridLicense
     GtkWidget* txt_server_address;
     GtkWidget* label_license_state;
     GtkWidget* btn_apply;
+    GtkWidget* radio_btn_vapp;
+    GtkWidget* radio_btn_qdws;
     GtkWidget* btn_cancel;
     GtkWidget* box_server_info;
 

@@ -117,6 +117,8 @@ static gboolean checkConfigfile(gboolean *writable);
 static gboolean disallow_whitespace(GtkWidget *widget, GdkEvent *event, gpointer user_data);
 static gboolean allow_digits(GtkWidget *widget, GdkEvent *event, gpointer user_data);
 static gboolean enable_disable_ui_controls(GtkWidget *widget, GdkEvent *event, gpointer user_data);
+static void update_gui_from_griddconfig(gpointer user_data);
+static gboolean licenseStateQueryFailed = FALSE;
 
 GType ctk_manage_grid_license_get_type(void)
 {
@@ -751,7 +753,34 @@ static gboolean update_manage_grid_license_state_info(gpointer user_data)
     /* Send license state request */
     if (!(send_message_to_gridd(ctk_manage_grid_license, LICENSE_STATE_REQUEST,
                                 &licenseState))) {
-        ret = FALSE;
+        licenseStatusMessage = "Unable to query license state information "
+                               "from the NVIDIA GRID "
+                               "licensing daemon.\n"
+                               "Please make sure nvidia-gridd and "
+                               "dbus-daemon are running.\n";
+        gtk_label_set_text(GTK_LABEL(ctk_manage_grid_license->label_license_state),
+                           licenseStatusMessage);
+        /* Disable text controls on UI. */
+        gtk_widget_set_sensitive(ctk_manage_grid_license->txt_server_address, FALSE);
+        gtk_widget_set_sensitive(ctk_manage_grid_license->txt_server_port, FALSE);
+        gtk_widget_set_sensitive(ctk_manage_grid_license->txt_secondary_server_address, FALSE);
+        gtk_widget_set_sensitive(ctk_manage_grid_license->txt_secondary_server_port, FALSE);
+        /* Disable Apply/Cancel button. */
+        gtk_widget_set_sensitive(ctk_manage_grid_license->btn_apply, FALSE);
+        gtk_widget_set_sensitive(ctk_manage_grid_license->btn_cancel, FALSE);
+        /* Disable toggle buttons */
+        gtk_widget_set_sensitive(ctk_manage_grid_license->radio_btn_qdws, FALSE);
+        gtk_widget_set_sensitive(ctk_manage_grid_license->radio_btn_vapp, FALSE);
+
+        licenseStateQueryFailed = TRUE;
+        return ret;
+    }
+
+    if (licenseStateQueryFailed == TRUE) {
+        /*Failure to communicate with nvidia-gridd in previous attempt.
+         Refresh UI with parameters from the griddConfig.*/
+        update_gui_from_griddconfig(ctk_manage_grid_license);
+        licenseStateQueryFailed = FALSE;
     }
 
     if (licenseState == NV_GRID_UNLICENSED) {
@@ -1037,6 +1066,15 @@ static void apply_clicked(GtkWidget *widget, gpointer user_data)
 static void cancel_clicked(GtkWidget *widget, gpointer user_data)
 {
     CtkManageGridLicense *ctk_manage_grid_license = CTK_MANAGE_GRID_LICENSE(user_data);
+
+    /* Discard user input and revert back to configuration from the nvidia-gridd config file */
+    update_gui_from_griddconfig(ctk_manage_grid_license);
+
+}
+
+static void update_gui_from_griddconfig(gpointer user_data)
+{
+    CtkManageGridLicense *ctk_manage_grid_license = CTK_MANAGE_GRID_LICENSE(user_data);
     NvGriddConfigParams *griddConfig = NULL;
     const char *textBoxServerStr;
 
@@ -1058,21 +1096,53 @@ static void cancel_clicked(GtkWidget *widget, gpointer user_data)
                            griddConfig->str[NV_GRIDD_BACKUP_SERVER_ADDRESS]);
         gtk_entry_set_text(GTK_ENTRY(ctk_manage_grid_license->txt_secondary_server_port),
                            griddConfig->str[NV_GRIDD_BACKUP_SERVER_PORT]);
-    }
+        /* set default value for feature type based on the user configured parameter or virtualization mode */
+        /* Check Feature type "2" for Quadro Virtual Datacenter Workstation. */
+        if (strcmp(griddConfig->str[NV_GRIDD_FEATURE_TYPE], "2") == 0) {
+            ctk_manage_grid_license->feature_type = NV_GRID_LICENSE_FEATURE_TYPE_QDWS;
+        }
+        else {
+            ctk_manage_grid_license->feature_type = NV_GRID_LICENSE_FEATURE_TYPE_VAPP;
+        }
 
-    textBoxServerStr = gtk_entry_get_text(GTK_ENTRY(ctk_manage_grid_license->txt_server_address));
-    /* Enable/Disable Secondary server address/port textboxes if Primary server address textbox string is empty. */
-    if (strcmp(textBoxServerStr, "") == 0) {
-        gtk_widget_set_sensitive(ctk_manage_grid_license->txt_secondary_server_address, FALSE);
-        gtk_widget_set_sensitive(ctk_manage_grid_license->txt_secondary_server_port, FALSE);
-    } else {
-        gtk_widget_set_sensitive(ctk_manage_grid_license->txt_secondary_server_address, TRUE);
-        gtk_widget_set_sensitive(ctk_manage_grid_license->txt_secondary_server_port, TRUE);
-    }
+        /* Override feature type when on vGPU */
+        if (ctk_manage_grid_license->license_edition_state == NV_CTRL_ATTR_NVML_GPU_VIRTUALIZATION_MODE_VGPU)
+        {
+            ctk_manage_grid_license->feature_type = NV_GRID_LICENSE_FEATURE_TYPE_VGPU;
+        }
 
-    /* Disable Apply/Cancel button. */
-    gtk_widget_set_sensitive(ctk_manage_grid_license->btn_apply, FALSE);
-    gtk_widget_set_sensitive(ctk_manage_grid_license->btn_cancel, FALSE);
+        /* Set license edition toggle button active */
+        if (ctk_manage_grid_license->radio_btn_qdws && ctk_manage_grid_license->radio_btn_vapp) {
+            if (ctk_manage_grid_license->feature_type == NV_GRID_LICENSE_FEATURE_TYPE_QDWS) {
+                /* Set 'Quadro Virtual Datacenter Workstation' toggle button active */
+                gtk_toggle_button_set_active(GTK_TOGGLE_BUTTON(ctk_manage_grid_license->radio_btn_qdws), TRUE);
+            }
+            else {
+                /* Set 'GRID Virtual Apps' toggle button active */
+                gtk_toggle_button_set_active(GTK_TOGGLE_BUTTON(ctk_manage_grid_license->radio_btn_vapp), TRUE);
+            }
+        }
+
+        /* Enable Primary server address/port textboxes. */
+        gtk_widget_set_sensitive(ctk_manage_grid_license->txt_server_address, TRUE);
+        gtk_widget_set_sensitive(ctk_manage_grid_license->txt_server_port, TRUE);
+        /* Enable toggle buttons. */
+        gtk_widget_set_sensitive(ctk_manage_grid_license->radio_btn_qdws, TRUE);
+        gtk_widget_set_sensitive(ctk_manage_grid_license->radio_btn_vapp, TRUE);
+
+        textBoxServerStr = gtk_entry_get_text(GTK_ENTRY(ctk_manage_grid_license->txt_server_address));
+        /* Enable/Disable Secondary server address/port textboxes if Primary server address textbox string is empty. */
+        if (strcmp(textBoxServerStr, "") == 0) {
+            gtk_widget_set_sensitive(ctk_manage_grid_license->txt_secondary_server_address, FALSE);
+            gtk_widget_set_sensitive(ctk_manage_grid_license->txt_secondary_server_port, FALSE);
+        } else {
+            gtk_widget_set_sensitive(ctk_manage_grid_license->txt_secondary_server_address, TRUE);
+            gtk_widget_set_sensitive(ctk_manage_grid_license->txt_secondary_server_port, TRUE);
+        }
+        /* Disable Apply/Cancel button. */
+        gtk_widget_set_sensitive(ctk_manage_grid_license->btn_apply, FALSE);
+        gtk_widget_set_sensitive(ctk_manage_grid_license->btn_cancel, FALSE);
+    }
 
     if(griddConfig)
         FreeNvGriddConfigParams(griddConfig);
@@ -1198,8 +1268,8 @@ static gboolean enable_disable_ui_controls(GtkWidget *widget, GdkEvent *event, g
         textBoxSecondaryServerPortStr = gtk_entry_get_text(GTK_ENTRY(ctk_manage_grid_license->txt_secondary_server_port));
 
         /* Enable apply/cancel button if either:
-            Primary server address/port textbox string doesn't match with the Primary server string from the gridd config file or
-            Secondary server address/port textbox string doesn't match with the Secondary server string from the gridd config file. */
+            Primary server address/port textbox string doesn't match with the Primary server string from the nvidia-gridd config file or
+            Secondary server address/port textbox string doesn't match with the Secondary server string from the nvidia-gridd config file. */
         if ((strcmp(griddConfig->str[NV_GRIDD_SERVER_ADDRESS], textBoxServerStr) != 0) ||
             ((strcmp(griddConfig->str[NV_GRIDD_BACKUP_SERVER_ADDRESS], textBoxSecondaryServerStr) != 0) ||
             (strcmp(griddConfig->str[NV_GRIDD_BACKUP_SERVER_PORT], textBoxSecondaryServerPortStr) != 0) ||
@@ -1336,7 +1406,6 @@ GtkWidget* ctk_manage_grid_license_new(CtrlTarget *target,
     GtkWidget *banner, *label, *frame;
     gchar *str = NULL;
     int64_t mode;
-    GtkWidget *button1 = NULL, *button2 = NULL;
     GSList *slist = NULL;
     gint ret;
     DBusError err;
@@ -1431,25 +1500,6 @@ GtkWidget* ctk_manage_grid_license_new(CtrlTarget *target,
     ctk_manage_grid_license->dbusData = dbusData;
     ctk_manage_grid_license->feature_type = 0;
 
-    /* set default value for feature type based on the user configured parameter or virtualization mode */
-    if (griddConfig) {
-        /* Check Feature type "2" for Quadro Virtual Datacenter Workstation. */
-        if (strcmp(griddConfig->str[NV_GRIDD_FEATURE_TYPE], "2") == 0) {
-            ctk_manage_grid_license->feature_type = NV_GRID_LICENSE_FEATURE_TYPE_QDWS;
-        }
-        else {
-            ctk_manage_grid_license->feature_type = NV_GRID_LICENSE_FEATURE_TYPE_VAPP;
-        }
-    }
-
-    /* Overwrite feature type in vGPU case */
-    if (ctk_manage_grid_license->license_edition_state == NV_CTRL_ATTR_NVML_GPU_VIRTUALIZATION_MODE_VGPU)
-    {
-        ctk_manage_grid_license->feature_type = NV_GRID_LICENSE_FEATURE_TYPE_VGPU;
-    }
-
-    ctk_manage_grid_license->gridd_feature_type = ctk_manage_grid_license->feature_type;
-
     /* set container properties for the CtkManageGridLicense widget */
 
     gtk_box_set_spacing(GTK_BOX(ctk_manage_grid_license), 5);
@@ -1481,22 +1531,22 @@ GtkWidget* ctk_manage_grid_license_new(CtrlTarget *target,
         gtk_container_add(GTK_CONTAINER(vbox1), vbox3);
         gtk_container_set_border_width(GTK_CONTAINER(vbox3), 5);
 
-        button1 = gtk_radio_button_new_with_label(NULL,
+        ctk_manage_grid_license->radio_btn_qdws = gtk_radio_button_new_with_label(NULL,
                                                   "Quadro Virtual Datacenter Workstation");
-        slist = gtk_radio_button_get_group(GTK_RADIO_BUTTON(button1));
-        gtk_box_pack_start(GTK_BOX(vbox3), button1, FALSE, FALSE, 0);
-        g_object_set_data(G_OBJECT(button1), "button_id",
+        slist = gtk_radio_button_get_group(GTK_RADIO_BUTTON(ctk_manage_grid_license->radio_btn_qdws));
+        gtk_box_pack_start(GTK_BOX(vbox3), ctk_manage_grid_license->radio_btn_qdws, FALSE, FALSE, 0);
+        g_object_set_data(G_OBJECT(ctk_manage_grid_license->radio_btn_qdws), "button_id",
                 GINT_TO_POINTER(NV_GRID_LICENSE_FEATURE_TYPE_QDWS));
-        g_signal_connect(G_OBJECT(button1), "toggled",
+        g_signal_connect(G_OBJECT(ctk_manage_grid_license->radio_btn_qdws), "toggled",
                          G_CALLBACK(license_edition_toggled),
                          (gpointer) ctk_manage_grid_license);
 
-        button2 = gtk_radio_button_new_with_label(slist, "GRID Virtual Apps");
-        gtk_box_pack_start(GTK_BOX(vbox3), button2, FALSE, FALSE, 0);
-        g_object_set_data(G_OBJECT(button2), "button_id",
+        ctk_manage_grid_license->radio_btn_vapp = gtk_radio_button_new_with_label(slist, "GRID Virtual Apps");
+        gtk_box_pack_start(GTK_BOX(vbox3), ctk_manage_grid_license->radio_btn_vapp, FALSE, FALSE, 0);
+        g_object_set_data(G_OBJECT(ctk_manage_grid_license->radio_btn_vapp), "button_id",
                 GINT_TO_POINTER(NV_GRID_LICENSE_FEATURE_TYPE_VAPP));
 
-        g_signal_connect(G_OBJECT(button2), "toggled",
+        g_signal_connect(G_OBJECT(ctk_manage_grid_license->radio_btn_vapp), "toggled",
                          G_CALLBACK(license_edition_toggled),
                          (gpointer) ctk_manage_grid_license);
 
@@ -1540,8 +1590,6 @@ GtkWidget* ctk_manage_grid_license_new(CtrlTarget *target,
 
     label = gtk_label_new("Primary Server:");
     ctk_manage_grid_license->txt_server_address = gtk_entry_new();
-    gtk_entry_set_text(GTK_ENTRY(ctk_manage_grid_license->txt_server_address),
-                       griddConfig->str[NV_GRIDD_SERVER_ADDRESS]);
     hbox = gtk_hbox_new(FALSE, 0);
     eventbox = gtk_event_box_new();
     gtk_container_add(GTK_CONTAINER(eventbox), label);
@@ -1577,8 +1625,6 @@ GtkWidget* ctk_manage_grid_license_new(CtrlTarget *target,
 
     /* value */
     ctk_manage_grid_license->txt_server_port = gtk_entry_new();
-    gtk_entry_set_text(GTK_ENTRY(ctk_manage_grid_license->txt_server_port),
-                       griddConfig->str[NV_GRIDD_SERVER_PORT]);
     hbox = gtk_hbox_new(FALSE, 0);
     gtk_box_pack_start(GTK_BOX(hbox),
                        ctk_manage_grid_license->txt_server_port,
@@ -1595,13 +1641,6 @@ GtkWidget* ctk_manage_grid_license_new(CtrlTarget *target,
     /* Backup Server Address */
     label = gtk_label_new("Secondary Server:");
     ctk_manage_grid_license->txt_secondary_server_address = gtk_entry_new();
-
-    /* Disable Secondary server address textbox if Primary server address is empty. */
-    if (strcmp(griddConfig->str[NV_GRIDD_SERVER_ADDRESS], "") == 0) {
-        gtk_widget_set_sensitive(ctk_manage_grid_license->txt_secondary_server_address, FALSE);
-    }
-    gtk_entry_set_text(GTK_ENTRY(ctk_manage_grid_license->txt_secondary_server_address),
-                       griddConfig->str[NV_GRIDD_BACKUP_SERVER_ADDRESS]);
 
     hbox = gtk_hbox_new(FALSE, 0);
     eventbox = gtk_event_box_new();
@@ -1639,13 +1678,6 @@ GtkWidget* ctk_manage_grid_license_new(CtrlTarget *target,
 
     /* value */
     ctk_manage_grid_license->txt_secondary_server_port = gtk_entry_new();
-
-    /* Disable Secondary server port textbox if Primary server address is empty. */
-    if (strcmp(griddConfig->str[NV_GRIDD_SERVER_ADDRESS], "") == 0) {
-        gtk_widget_set_sensitive(ctk_manage_grid_license->txt_secondary_server_port, FALSE);
-    }
-    gtk_entry_set_text(GTK_ENTRY(ctk_manage_grid_license->txt_secondary_server_port),
-                       griddConfig->str[NV_GRIDD_BACKUP_SERVER_PORT]);
 
     hbox = gtk_hbox_new(FALSE, 0);
     gtk_box_pack_start(GTK_BOX(hbox),
@@ -1687,18 +1719,11 @@ GtkWidget* ctk_manage_grid_license_new(CtrlTarget *target,
                      G_CALLBACK(cancel_clicked),
                      (gpointer) ctk_manage_grid_license);
 
-    /* Set license edition toggle button active */
-    if (button2 && button1) {
-        if (ctk_manage_grid_license->feature_type == NV_GRID_LICENSE_FEATURE_TYPE_QDWS) {
-            /* Set 'Quadro Virtual Datacenter Workstation' toggle button active */
-            gtk_toggle_button_set_active(GTK_TOGGLE_BUTTON(button1), TRUE);
-        }
-        else {
-            /* Set 'GRID Virtual Apps' toggle button active */
-            gtk_toggle_button_set_active(GTK_TOGGLE_BUTTON(button2), TRUE);
-        }
-    }
+    /* Update GUI with information from the nvidia-gridd config file */
+    update_gui_from_griddconfig(ctk_manage_grid_license);
 
+    /* Set the license feature type fetched from nvidia-gridd */
+    ctk_manage_grid_license->gridd_feature_type = ctk_manage_grid_license->feature_type;
 
     /* Register a timer callback to update license status info */
     str = g_strdup_printf("Manage GRID License");
