@@ -62,6 +62,7 @@ struct _CtkManageGridLicense
     GtkWidget* box_server_info;
 
     DbusData *dbusData;
+    CtrlTarget *target;
     gint license_edition_state;
     gint feature_type;                      // Feature type from UI/gridd.conf.
     int gridd_feature_type;                 // Feature type fetched from nvidia-gridd.
@@ -84,6 +85,7 @@ typedef enum
     NV_GRID_LICENSE_EXPIRED_VGPU,
     NV_GRID_LICENSE_EXPIRED_QDWS,
     NV_GRID_LICENSE_RESTART_REQUIRED,
+    NV_GRID_LICENSE_RESTART_REQUIRED_VAPP,
 } licenseStatus;
 
 struct _CtkManageGridLicenseClass

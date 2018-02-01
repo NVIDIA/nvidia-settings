@@ -427,6 +427,8 @@ ReturnStatus NvCtrlNvmlSetStringAttribute(CtrlTarget *ctrl_target,
                                           int attr, const char *ptr);
 ReturnStatus NvCtrlNvmlGetAttribute(const CtrlTarget *ctrl_target,
                                     int attr, int64_t *val);
+ReturnStatus NvCtrlNvmlGetGridLicenseAttributes(const CtrlTarget *ctrl_target,
+                                                int attr, nvmlGridLicensableFeatures_t **val);
 ReturnStatus NvCtrlNvmlSetAttribute(CtrlTarget *ctrl_target, int attr,
                                     int index, int val);
 ReturnStatus

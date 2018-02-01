@@ -119,6 +119,10 @@ static gboolean allow_digits(GtkWidget *widget, GdkEvent *event, gpointer user_d
 static gboolean enable_disable_ui_controls(GtkWidget *widget, GdkEvent *event, gpointer user_data);
 static void update_gui_from_griddconfig(gpointer user_data);
 static gboolean licenseStateQueryFailed = FALSE;
+static void get_licensed_feature_code(gpointer user_data);
+static gboolean is_restart_required(gpointer user_data);
+static gboolean isStateLicensed = FALSE;
+int64_t licensedFeatureCode = NV_GRID_LICENSE_FEATURE_TYPE_VAPP;
 
 GType ctk_manage_grid_license_get_type(void)
 {
@@ -750,9 +754,11 @@ static gboolean update_manage_grid_license_state_info(gpointer user_data)
     int licenseState = NV_GRID_UNLICENSED;
     int griddFeatureType = ctk_manage_grid_license->feature_type;
 
-    /* Send license state request */
-    if (!(send_message_to_gridd(ctk_manage_grid_license, LICENSE_STATE_REQUEST,
-                                &licenseState))) {
+    /* Send license state and feature type request */
+    if ((!(send_message_to_gridd(ctk_manage_grid_license, LICENSE_STATE_REQUEST,
+                                 &licenseState))) ||
+        (!(send_message_to_gridd(ctk_manage_grid_license, LICENSE_FEATURE_TYPE_REQUEST,
+                                 &griddFeatureType)))) {
         licenseStatusMessage = "Unable to query license state information "
                                "from the NVIDIA GRID "
                                "licensing daemon.\n"
@@ -769,8 +775,10 @@ static gboolean update_manage_grid_license_state_info(gpointer user_data)
         gtk_widget_set_sensitive(ctk_manage_grid_license->btn_apply, FALSE);
         gtk_widget_set_sensitive(ctk_manage_grid_license->btn_cancel, FALSE);
         /* Disable toggle buttons */
-        gtk_widget_set_sensitive(ctk_manage_grid_license->radio_btn_qdws, FALSE);
-        gtk_widget_set_sensitive(ctk_manage_grid_license->radio_btn_vapp, FALSE);
+        if (ctk_manage_grid_license->radio_btn_qdws && ctk_manage_grid_license->radio_btn_vapp) {
+            gtk_widget_set_sensitive(ctk_manage_grid_license->radio_btn_qdws, FALSE);
+            gtk_widget_set_sensitive(ctk_manage_grid_license->radio_btn_vapp, FALSE);
+        }
 
         licenseStateQueryFailed = TRUE;
         return ret;
@@ -783,10 +791,16 @@ static gboolean update_manage_grid_license_state_info(gpointer user_data)
         licenseStateQueryFailed = FALSE;
     }
 
+    /* Set the license feature type fetched from nvidia-gridd.*/
+    ctk_manage_grid_license->gridd_feature_type = griddFeatureType;
+
     if (licenseState == NV_GRID_UNLICENSED) {
         switch (ctk_manage_grid_license->feature_type) {
             case NV_GRID_LICENSE_FEATURE_TYPE_VAPP:
                 licenseStatus = NV_GRID_UNLICENSED_VAPP;
+                if (is_restart_required(ctk_manage_grid_license)) {
+                    licenseStatus = NV_GRID_LICENSE_RESTART_REQUIRED_VAPP;
+                }
                 break;
             case NV_GRID_LICENSE_FEATURE_TYPE_QDWS:
                 licenseStatus = NV_GRID_UNLICENSED_QDWS_SELECTED;
@@ -797,16 +811,11 @@ static gboolean update_manage_grid_license_state_info(gpointer user_data)
             default:
                 break;
         }
+        if (ctk_manage_grid_license->feature_type != NV_GRID_LICENSE_FEATURE_TYPE_VGPU) {
+            isStateLicensed = FALSE;
+        }
     }
     else {
-        /* Send license feature type request */
-        if (!(send_message_to_gridd(ctk_manage_grid_license, LICENSE_FEATURE_TYPE_REQUEST,
-                                    &griddFeatureType))) {
-            ret = FALSE;
-        }
-        /* Set the license feature type fetched from nvidia-gridd.*/
-        ctk_manage_grid_license->gridd_feature_type = griddFeatureType;
-
         if ((licenseState == NV_GRID_LICENSED) ||
             (licenseState == NV_GRID_LICENSE_RENEWING) ||
             (licenseState == NV_GRID_LICENSE_RENEW_FAILED)) {
@@ -832,6 +841,11 @@ static gboolean update_manage_grid_license_state_info(gpointer user_data)
                     break;
                 default:
                     break;
+            }
+            if ((ctk_manage_grid_license->feature_type != NV_GRID_LICENSE_FEATURE_TYPE_VGPU) &&
+                (isStateLicensed == FALSE)) {
+                get_licensed_feature_code(ctk_manage_grid_license);
+                isStateLicensed = TRUE;
             }
         }
         else if (licenseState == NV_GRID_LICENSE_REQUESTING) {
@@ -961,6 +975,9 @@ static gboolean update_manage_grid_license_state_info(gpointer user_data)
               "Your system is currently licensed for Quadro Virtual Datacenter "
               "Workstation.";
           break;
+    case NV_GRID_LICENSE_RESTART_REQUIRED_VAPP:
+          licenseStatusMessage = "Restart your system for GRID Virtual Apps.";
+          break;
     default:
           licenseStatusMessage = "Your system does not have a valid GPU license.\n"
               "Enter license server details and apply.";
@@ -972,7 +989,22 @@ static gboolean update_manage_grid_license_state_info(gpointer user_data)
     return ret;
 }
 
+/*
+ * is_restart_required() - Check if restart is required for new feature to be enabled.
+ */
+static gboolean is_restart_required(gpointer user_data)
+{
+    CtkManageGridLicense *ctk_manage_grid_license = CTK_MANAGE_GRID_LICENSE(user_data);
+    gboolean ret = FALSE;
 
+    /* Once licensed, system reboot required if there is mismatch between feature type
+        fetched from nvidia-gridd and feature code of the feature that is licensed on this system. */
+    if ((licensedFeatureCode) &&
+        (licensedFeatureCode != ctk_manage_grid_license->gridd_feature_type)) {
+        ret = TRUE;
+    }
+    return ret;
+}
 
 /*
  * apply_clicked() - Called when the user clicks on the "Apply" button.
@@ -1060,6 +1092,33 @@ static void apply_clicked(GtkWidget *widget, gpointer user_data)
 }
 
 /*
+ * get_licensed_feature_code() - Get the feature code of the feature that is licensed on this system.
+ */
+static void get_licensed_feature_code(gpointer user_data)
+{
+    CtkManageGridLicense *ctk_manage_grid_license = CTK_MANAGE_GRID_LICENSE(user_data);
+    nvmlGridLicensableFeatures_t *gridLicensableFeatures;
+    gint ret, i;
+
+    ret = NvCtrlNvmlGetGridLicenseAttributes(ctk_manage_grid_license->target,
+                                             NV_CTRL_ATTR_NVML_GPU_GRID_LICENSABLE_FEATURES,
+                                             &gridLicensableFeatures);
+    if (ret != NvCtrlSuccess) {
+        return;
+    }
+
+    for (i = 0; i < gridLicensableFeatures->licensableFeaturesCount; i++)
+    {
+        if (gridLicensableFeatures->gridLicensableFeatures[i].featureState != 0)
+        {
+            licensedFeatureCode = gridLicensableFeatures->gridLicensableFeatures[i].featureCode;
+            break;
+        }
+    }
+    nvfree(gridLicensableFeatures);
+}
+
+/*
  * cancel_clicked() - Called when the user clicks on the "Cancel" button.
  */
 
@@ -1127,8 +1186,10 @@ static void update_gui_from_griddconfig(gpointer user_data)
         gtk_widget_set_sensitive(ctk_manage_grid_license->txt_server_address, TRUE);
         gtk_widget_set_sensitive(ctk_manage_grid_license->txt_server_port, TRUE);
         /* Enable toggle buttons. */
-        gtk_widget_set_sensitive(ctk_manage_grid_license->radio_btn_qdws, TRUE);
-        gtk_widget_set_sensitive(ctk_manage_grid_license->radio_btn_vapp, TRUE);
+        if (ctk_manage_grid_license->radio_btn_qdws && ctk_manage_grid_license->radio_btn_vapp) {
+            gtk_widget_set_sensitive(ctk_manage_grid_license->radio_btn_qdws, TRUE);
+            gtk_widget_set_sensitive(ctk_manage_grid_license->radio_btn_vapp, TRUE);
+        }
 
         textBoxServerStr = gtk_entry_get_text(GTK_ENTRY(ctk_manage_grid_license->txt_server_address));
         /* Enable/Disable Secondary server address/port textboxes if Primary server address textbox string is empty. */
@@ -1499,6 +1560,7 @@ GtkWidget* ctk_manage_grid_license_new(CtrlTarget *target,
     ctk_manage_grid_license->license_edition_state = mode;
     ctk_manage_grid_license->dbusData = dbusData;
     ctk_manage_grid_license->feature_type = 0;
+    ctk_manage_grid_license->target = target;
 
     /* set container properties for the CtkManageGridLicense widget */
 
@@ -1721,6 +1783,10 @@ GtkWidget* ctk_manage_grid_license_new(CtrlTarget *target,
 
     /* Update GUI with information from the nvidia-gridd config file */
     update_gui_from_griddconfig(ctk_manage_grid_license);
+
+    if (ctk_manage_grid_license->feature_type != NV_GRID_LICENSE_FEATURE_TYPE_VGPU) {
+        get_licensed_feature_code(ctk_manage_grid_license);
+    }
 
     /* Set the license feature type fetched from nvidia-gridd */
     ctk_manage_grid_license->gridd_feature_type = ctk_manage_grid_license->feature_type;

@@ -895,6 +895,54 @@ static ReturnStatus NvCtrlNvmlGetGPUAttribute(const CtrlTarget *ctrl_target,
     return NvCtrlNotSupported;
 }
 
+static ReturnStatus NvCtrlNvmlGetGridLicensableFeatures(const CtrlTarget *ctrl_target,
+                                                    int attr, nvmlGridLicensableFeatures_t **val)
+{
+    const NvCtrlAttributePrivateHandle *h = getPrivateHandleConst(ctrl_target);
+    const NvCtrlNvmlAttributes *nvml;
+    nvmlDevice_t device;
+    nvmlReturn_t ret;
+
+    if ((h == NULL) || (h->nvml == NULL)) {
+        return NvCtrlBadHandle;
+    }
+
+    nvml = h->nvml;
+
+    ret = nvml->lib.deviceGetHandleByIndex(nvml->deviceIdx, &device);
+        if (ret == NVML_SUCCESS) {
+        switch (attr) {
+            case NV_CTRL_ATTR_NVML_GPU_GRID_LICENSABLE_FEATURES:
+                if (nvml->lib.deviceGetGridLicensableFeatures) {
+                    nvmlGridLicensableFeatures_t *gridLicensableFeatures;
+                    gridLicensableFeatures = (nvmlGridLicensableFeatures_t *)nvalloc(sizeof(nvmlGridLicensableFeatures_t));
+                    ret = nvml->lib.deviceGetGridLicensableFeatures(device,
+                                                                    gridLicensableFeatures);
+                    if (ret == NVML_SUCCESS) {
+                        *val = gridLicensableFeatures;
+                        return NvCtrlSuccess;
+                    }
+                } else {
+                    /* return NvCtrlNotSupported against older driver */
+                    ret = NVML_ERROR_FUNCTION_NOT_FOUND;
+                }
+
+                break;
+
+            default:
+                /* Did we forget to handle a GPU integer attribute? */
+                nv_warning_msg("Unhandled integer attribute %s (%d) of GPU "
+                               "(%d)", INT_ATTRIBUTE_NAME(attr), attr,
+                               NvCtrlGetTargetId(ctrl_target));
+                return NvCtrlNotSupported;
+        }
+    }
+
+    /* An NVML error occurred */
+    printNvmlError(ret);
+    return NvCtrlNotSupported;
+}
+
 #ifdef NVML_EXPERIMENTAL
 
 static int getThermalCoolerId(const NvCtrlAttributePrivateHandle *h,
@@ -1071,6 +1119,28 @@ ReturnStatus NvCtrlNvmlGetAttribute(const CtrlTarget *ctrl_target,
     }
 }
 
+
+ReturnStatus NvCtrlNvmlGetGridLicenseAttributes(const CtrlTarget *ctrl_target,
+                                                int attr, nvmlGridLicensableFeatures_t **val)
+{
+    if (NvmlMissing(ctrl_target)) {
+        return NvCtrlMissingExtension;
+    }
+
+    /*
+     * This should't be reached for target types that are not handled through
+     * NVML (Keep TARGET_TYPE_IS_NVML_COMPATIBLE in NvCtrlAttributesPrivate.h up
+     * to date).
+     */
+    assert(TARGET_TYPE_IS_NVML_COMPATIBLE(NvCtrlGetTargetType(ctrl_target)));
+
+    if (NvCtrlGetTargetType(ctrl_target) == GPU_TARGET) {
+        return NvCtrlNvmlGetGridLicensableFeatures(ctrl_target, attr, val);
+    }
+    else {
+            return NvCtrlBadHandle;
+    }
+}
 
 
 /*
