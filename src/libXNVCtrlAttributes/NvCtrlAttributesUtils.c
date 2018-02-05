@@ -491,6 +491,12 @@ static void add_target_relationships(CtrlTarget *target,
     int len;
     int i;
 
+    /* If no targets of this type exist in the system, don't bother querying
+     * the server about relationships. */
+    if (target->system->targets[target_type] == NULL) {
+        return;
+    }
+
     status = NvCtrlGetBinaryAttribute(target, 0, attr,
                                       (unsigned char **)(&pData), &len);
     if ((status != NvCtrlSuccess) || !pData) {
