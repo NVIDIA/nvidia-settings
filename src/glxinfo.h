@@ -32,9 +32,12 @@ const char * transparent_type_abbrev(int trans_type);
 const char * x_visual_type_abbrev(int x_visual_type);
 const char * caveat_abbrev(int caveat);
 #endif
-
+const char * egl_color_buffer_type_abbrev(int type);
+const char * egl_config_caveat_abbrev(int type);
+const char * egl_transparent_type_abbrev(int type);
 
 void print_glxinfo(const char *display_name, CtrlSystemList *systems);
+void print_eglinfo(const char *display_name, CtrlSystemList *systems);
 
 
 #endif /* __GLXINFO_H__ */

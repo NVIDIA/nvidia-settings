@@ -156,6 +156,9 @@ static const NVGetoptOption __options[] = {
     { "glxinfo", 'g', NVGETOPT_HELP_ALWAYS, NULL,
       "Print GLX Information for the X display and exit." },
 
+    { "eglinfo", 'E', NVGETOPT_HELP_ALWAYS, NULL,
+      "Print EGL Information for the X display and exit." },
+
     { "describe", 'e', NVGETOPT_STRING_ARGUMENT | NVGETOPT_HELP_ALWAYS, NULL,
       "Prints information about a particular attribute.  Specify 'all' to "
       "list the descriptions of all attributes.  Specify 'list' to list the "

@@ -237,6 +237,15 @@ NvCtrlAttributeHandle *NvCtrlAttributeInit(CtrlSystem *system,
         if (subsystems & NV_CTRL_ATTRIBUTES_GLX_SUBSYSTEM) {
             h->glx = NvCtrlInitGlxAttributes(h);
         }
+        
+        /*
+         * initialize the EGL extension and attributes; it is OK if
+         * this fails
+         */
+        
+        if (subsystems & NV_CTRL_ATTRIBUTES_EGL_SUBSYSTEM) {
+            h->egl = NvCtrlInitEglAttributes(h);
+        }
     } /* X Screen target type attribute subsystems */
 
     /*
@@ -871,9 +880,17 @@ ReturnStatus NvCtrlGetVoidDisplayAttribute(const CtrlTarget *ctrl_target,
     }
 
     if ( attr >= NV_CTRL_ATTR_GLX_BASE &&
-         attr >= NV_CTRL_ATTR_GLX_LAST_ATTRIBUTE ) {
+         attr <= NV_CTRL_ATTR_GLX_LAST_ATTRIBUTE ) {
         if ( !(h->glx) ) return NvCtrlMissingExtension;
         return NvCtrlGlxGetVoidAttribute(h, display_mask, attr, ptr);
+    }
+
+    if ( attr >= NV_CTRL_ATTR_EGL_BASE &&
+         attr <= NV_CTRL_ATTR_EGL_LAST_ATTRIBUTE ) {
+        if (!(h->egl)) {
+            return NvCtrlMissingExtension;
+        }
+        return NvCtrlEglGetVoidAttribute(h, display_mask, attr, ptr);
     }
 
     return NvCtrlNoAttribute;
@@ -1092,6 +1109,12 @@ ReturnStatus NvCtrlGetStringDisplayAttribute(const CtrlTarget *ctrl_target,
                 return NvCtrlGlxGetStringAttribute(h, display_mask, attr, ptr);
             }
 
+            if ((attr >= NV_CTRL_STRING_EGL_BASE) &&
+                (attr <= NV_CTRL_STRING_EGL_LAST_ATTRIBUTE)) {
+                if (!h->egl) return NvCtrlMissingExtension;
+                return NvCtrlEglGetStringAttribute(h, display_mask, attr, ptr);
+            }
+
             if ((attr >= NV_CTRL_STRING_XRANDR_BASE) &&
                 (attr <= NV_CTRL_STRING_XRANDR_LAST_ATTRIBUTE)) {
                 if (!h->xrandr) return NvCtrlMissingExtension;
@@ -1266,6 +1289,9 @@ void NvCtrlAttributeClose(NvCtrlAttributeHandle *handle)
 
     if ( h->glx ) {
         NvCtrlGlxAttributesClose(h);   
+    }
+    if ( h->egl ) {
+        NvCtrlEglAttributesClose(h);
     }
     if ( h->xrandr ) {
         NvCtrlXrandrAttributesClose(h);   

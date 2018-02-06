@@ -56,7 +56,9 @@ struct _CtkGLX
     GtkWidget *glxinfo_vpane;
     Bool       glxinfo_initialized;
     GtkWidget *show_fbc_button;
+    GtkWidget *show_egl_fbc_button;
     GtkWidget *fbc_window;
+    GtkWidget *egl_fbc_window;
 };
 
 struct _CtkGLXClass

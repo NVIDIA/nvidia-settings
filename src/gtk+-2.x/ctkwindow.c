@@ -730,13 +730,13 @@ GtkWidget *ctk_window_new(ParsedAttribute *p, ConfigProperties *conf,
         }
 
 
-        /* GLX Information */
+        /* Graphics Information */
 
         child = ctk_glx_new(screen_target, ctk_config, ctk_event);
         if (child) {
             help = ctk_glx_create_help(tag_table, CTK_GLX(child));
             add_page(child, help, ctk_window, &iter, NULL,
-                     "OpenGL/GLX Information", NULL, ctk_glx_probe_info, NULL);
+                     "Graphics Information", NULL, ctk_glx_probe_info, NULL);
         }
 
 

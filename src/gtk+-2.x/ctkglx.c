@@ -37,11 +37,14 @@
 
 /* Number of FBConfigs attributes reported in gui */
 #define NUM_FBCONFIG_ATTRIBS  32
+#define NUM_EGL_FBCONFIG_ATTRIBS  32
 
 
 /* FBConfig tooltips */
 static const char * __show_fbc_help =
   "Show the GLX Frame Buffer Configurations table in a new window.";
+static const char * __show_egl_fbc_help =
+  "Show the EGL Frame Buffer Configurations table in a new window.";
 static const char * __fid_help  =
   "fid (Frame buffer ID) - Frame Buffer Configuration ID.";
 static const char * __vid_help  =
@@ -131,6 +134,89 @@ static const char * __tri_help =
   "tri (Transparency index value) - Color index value considered transparent.";
 
 
+static const char * __egl_as_help =
+  "as (Alpha size) - Number of bits of alpha stored in the color buffer.";
+static const char * __egl_ams_help =
+  "ams (Alpha mask size) - Number of bits in the alpha mask buffer.";
+static const char * __egl_bt_help =
+  "bt (Bind to Texture RGB) - 'y' if color buffers can be bound "
+  "to an RGB texture, '.' otherwise.";
+static const char * __egl_bta_help =
+  "bta (Bind to Texture RGBA) - 'y' if color buffers can be bound "
+  "to an RGBA texture, '.' otherwise.";
+static const char * __egl_bs_help =
+  "bs (Blue size) - Number of bits of blue stored in the color buffer.";
+static const char * __egl_bfs_help =
+  "bfs (Buffer size) - Depth of the color buffer. It is the sum of 'rs', 'gs', "
+  "'bs', and 'as'.";
+static const char * __egl_cbt_help =
+  "cbt (Color buffer type) - Type of the color buffer. Possible types are "
+  "'rgb' for RGB color buffer and 'lum' for Luminance.";
+static const char * __egl_cav_help =
+  "cav (Config caveat) - Caveats for the frame buffer configuration. Possible "
+  "caveat values are 'slo' for Slow Config, 'NoC' for a non-conformant "
+  "config, and '.' otherwise.";
+static const char * __egl_id_help =
+  "id (Config ID) - ID of the frame buffer configuration.";
+static const char * __egl_cfm_help =
+  "cfm (Conformant) - Bitmask indicating which client API contexts created "
+  "with respect to this config are conformant.";
+static const char * __egl_dpt_help =
+  "dpt (Depth size) - Number of bits in the depth buffer.";
+static const char * __egl_gs_help =
+  "gs (Green size) - Number of bits of green stored in the color buffer.";
+static const char * __egl_lvl_help =
+  "lvl (Frame buffer level) - Level zero is the default frame buffer. Positive "
+  "levels correspond to frame buffers that overlay the default buffer and "
+  "negative levels correspond to frame buffers that underlay the default "
+  "buffer.";
+static const char * __egl_lum_help =
+  "lum (Luminance size) - Number of bits of luminance stored in the luminance "
+  "buffer.";
+static const char * __egl_pbw_help =
+  "pbw (Pbuffer max width) - Maximum width of a pixel buffer surface in "
+  "pixels.";
+static const char * __egl_pbh_help =
+  "pdh (Pbuffer max height) - Maximum height of a pixel buffer surface in "
+  "pixels.";
+static const char * __egl_pbp_help =
+  "pbp (Pbuffer max pixels) - Maximum size of a pixel buffer surface in "
+  "pixels.";
+static const char * __egl_six_help =
+  "six (Swap interval max) - Maximum value that can be passed to "
+  "eglSwapInterval.";
+static const char * __egl_sin_help =
+  "sin (Swap interval min) - Minimum value that can be passed to "
+  "eglSwapInterval.";
+static const char * __egl_nrd_help =
+  "nrd (Native renderable) - 'y' if native rendering APIs can "
+  "render into the surface, '.' otherwise.";
+static const char * __egl_vid_help =
+  "vid (Native visual ID) - ID of the associated native visual.";
+static const char * __egl_nvt_help =
+  "nvt (Native visual type) - Type of the associated native visual.";
+static const char * __egl_rs_help =
+  "rs (Red size) - Number of bits of red stored in the color buffer.";
+static const char * __egl_rdt_help =
+  "rdt (Renderable type) - Bitmask indicating the types of supported client "
+  "API contexts.";
+static const char * __egl_spb_help =
+  "spb (Sample buffers) - Number of multisample buffers.";
+static const char * __egl_smp_help =
+  "smp (Samples) - Number of samples per pixel.";
+static const char * __egl_stn_help =
+  "stn (Stencil size) - Number of bits in the stencil buffer.";
+static const char * __egl_sur_help =
+  "sur (Surface type) - Bitmask indicating the types of supported EGL "
+  "surfaces.";
+static const char * __egl_tpt_help =
+  "tpt (Transparent type) - Type of supported transparency. Possible "
+  "transparency values are: 'rgb' for Transparent RGB and '.' otherwise.";
+static const char * __egl_trv_help = "trv (Transparent red value)";
+static const char * __egl_tgv_help = "tgv (Transparent green value)";
+static const char * __egl_tbv_help = "tbv (Transparent blue value)";
+
+
 GType ctk_glx_get_type(void)
 {
     static GType ctk_glx_type = 0;
@@ -179,10 +265,39 @@ static void show_fbc_toggled(GtkWidget *widget, gpointer user_data)
     }
 
     ctk_config_statusbar_message(ctk_glx->ctk_config,
-                                 "Show GLX Frame Buffer Configurations button %s.",
+                                 "Show GLX Frame Buffer Configurations "
+                                 "button %s.",
                                  enabled ? "enabled" : "disabled");
 
 } /* show_fbc_toggled() */
+
+
+/*
+ * show_egl_fbc_toggled() - called when the show EGL Frame Buffer Configurations
+ * button has been toggled.
+ */
+
+static void show_egl_fbc_toggled(GtkWidget *widget, gpointer user_data)
+{
+    CtkGLX *ctk_glx = user_data;
+    gboolean enabled;
+
+    /* get the enabled state */
+
+    enabled = gtk_toggle_button_get_active(GTK_TOGGLE_BUTTON(widget));
+
+    if (enabled) {
+        gtk_widget_show_all(ctk_glx->egl_fbc_window);
+    } else {
+        gtk_widget_hide(ctk_glx->egl_fbc_window);
+    }
+
+    ctk_config_statusbar_message(ctk_glx->ctk_config,
+                                 "Show EGL Frame Buffer Configurations "
+                                 "button %s.",
+                                 enabled ? "enabled" : "disabled");
+
+} /* show_egl_fbc_toggled() */
 
 
 /*
@@ -201,6 +316,24 @@ fbc_window_destroy(GtkWidget *widget, GdkEvent *event, gpointer user_data)
     return TRUE;
 
 } /* fbc_window_destroy() */
+
+
+/*
+ * egl_fbc_window_destroy() - called when the window displaying the
+ * EGL Frame Buffer Configurations table is closed.
+ */
+static gboolean
+egl_fbc_window_destroy(GtkWidget *widget, GdkEvent *event, gpointer user_data)
+{
+    CtkGLX *ctk_glx = user_data;
+
+    gtk_toggle_button_set_active
+        (GTK_TOGGLE_BUTTON(ctk_glx->show_egl_fbc_button),
+         FALSE);
+
+    return TRUE;
+
+} /* egl_fbc_window_destroy() */
 
 
 /*
@@ -335,9 +468,128 @@ static GtkTreeModel *create_fbconfig_model(GLXFBConfigAttr *fbconfig_attribs)
     return GTK_TREE_MODEL(model);
 }
 
+
+/*
+ * create_egl_fbconfig_model() - called to create and populate the model for
+ * the EGL Frame Buffer Configurations table.
+ */
+static GtkTreeModel*
+create_egl_fbconfig_model(EGLConfigAttr *egl_fbconfig_attribs)
+{
+    GtkListStore *model;
+    GtkTreeIter iter;
+    int i;
+    GValue v = G_VALUE_INIT;
+
+    if (!egl_fbconfig_attribs) {
+        return NULL;
+    }
+
+    g_value_init(&v, G_TYPE_STRING);
+
+    model = gtk_list_store_new(NUM_EGL_FBCONFIG_ATTRIBS,
+        G_TYPE_STRING, G_TYPE_STRING, G_TYPE_STRING, G_TYPE_STRING,
+        G_TYPE_STRING, G_TYPE_STRING, G_TYPE_STRING, G_TYPE_STRING,
+        G_TYPE_STRING, G_TYPE_STRING, G_TYPE_STRING, G_TYPE_STRING,
+        G_TYPE_STRING, G_TYPE_STRING, G_TYPE_STRING, G_TYPE_STRING,
+        G_TYPE_STRING, G_TYPE_STRING, G_TYPE_STRING, G_TYPE_STRING,
+        G_TYPE_STRING, G_TYPE_STRING, G_TYPE_STRING, G_TYPE_STRING,
+        G_TYPE_STRING, G_TYPE_STRING, G_TYPE_STRING, G_TYPE_STRING,
+        G_TYPE_STRING, G_TYPE_STRING, G_TYPE_STRING, G_TYPE_STRING);
+
+    /* Populate FBConfig table */
+    i = 0;
+    while ( egl_fbconfig_attribs[i].config_id != 0 ) {
+        char str[NUM_EGL_FBCONFIG_ATTRIBS + 1][16];
+        int  cell = 0;
+
+        snprintf((char*) (&(str[cell++])), 16, "0x%02X",
+            egl_fbconfig_attribs[i].config_id);
+        snprintf((char*) (&(str[cell++])), 16, "0x%02X",
+            egl_fbconfig_attribs[i].native_visual_id);
+
+        snprintf((char*) (&(str[cell++])), 16, "0x%X",
+            egl_fbconfig_attribs[i].native_visual_type);
+        snprintf((char*) (&(str[cell++])), 16, "%d",
+            egl_fbconfig_attribs[i].buffer_size);
+        snprintf((char*) (&(str[cell++])), 16, "%d",
+            egl_fbconfig_attribs[i].level);
+        snprintf((char*) (&(str[cell++])), 16, "%s",
+            egl_color_buffer_type_abbrev(
+                egl_fbconfig_attribs[i].color_buffer_type));
+        snprintf((char*) (&(str[cell++])), 16, "%d",
+            egl_fbconfig_attribs[i].red_size);
+        snprintf((char*) (&(str[cell++])), 16, "%d",
+            egl_fbconfig_attribs[i].green_size);
+        snprintf((char*) (&(str[cell++])), 16, "%d",
+            egl_fbconfig_attribs[i].blue_size);
+        snprintf((char*) (&(str[cell++])), 16, "%d",
+            egl_fbconfig_attribs[i].alpha_size);
+        snprintf((char*) (&(str[cell++])), 16, "%d",
+            egl_fbconfig_attribs[i].alpha_mask_size);
+        snprintf((char*) (&(str[cell++])), 16, "%d",
+            egl_fbconfig_attribs[i].luminance_size);
+        snprintf((char*) (&(str[cell++])), 16, "%d",
+            egl_fbconfig_attribs[i].depth_size);
+        snprintf((char*) (&(str[cell++])), 16, "%d",
+            egl_fbconfig_attribs[i].stencil_size);
+        snprintf((char*) (&(str[cell++])), 16, "%c",
+            egl_fbconfig_attribs[i].bind_to_texture_rgb ? 'y' : '.');
+        snprintf((char*) (&(str[cell++])), 16, "%c",
+            egl_fbconfig_attribs[i].bind_to_texture_rgba ? 'y' : '.');
+        snprintf((char*) (&(str[cell++])), 16, "0x%X",
+            egl_fbconfig_attribs[i].conformant);
+        snprintf((char*) (&(str[cell++])), 16, "%d",
+            egl_fbconfig_attribs[i].sample_buffers);
+        snprintf((char*) (&(str[cell++])), 16, "%d",
+            egl_fbconfig_attribs[i].samples);
+        snprintf((char*) (&(str[cell++])), 16, "%s",
+            egl_config_caveat_abbrev(egl_fbconfig_attribs[i].config_caveat));
+        snprintf((char*) (&(str[cell++])), 16, "0x%04X",
+            egl_fbconfig_attribs[i].max_pbuffer_width);
+        snprintf((char*) (&(str[cell++])), 16, "0x%04X",
+            egl_fbconfig_attribs[i].max_pbuffer_height);
+        snprintf((char*) (&(str[cell++])), 16, "0x%07X",
+            egl_fbconfig_attribs[i].max_pbuffer_pixels);
+        snprintf((char*) (&(str[cell++])), 16, "%d",
+            egl_fbconfig_attribs[i].max_swap_interval);
+        snprintf((char*) (&(str[cell++])), 16, "%d",
+            egl_fbconfig_attribs[i].min_swap_interval);
+        snprintf((char*) (&(str[cell++])), 16, "%c",
+            egl_fbconfig_attribs[i].native_renderable ? 'y' : '.');
+        snprintf((char*) (&(str[cell++])), 16, "0x%X",
+            egl_fbconfig_attribs[i].renderable_type);
+        snprintf((char*) (&(str[cell++])), 16, "0x%X",
+            egl_fbconfig_attribs[i].surface_type);
+        snprintf((char*) (&(str[cell++])), 16, "%d",
+            egl_fbconfig_attribs[i].transparent_type);
+        snprintf((char*) (&(str[cell++])), 16, "%d",
+            egl_fbconfig_attribs[i].transparent_red_value);
+        snprintf((char*) (&(str[cell++])), 16, "%d",
+            egl_fbconfig_attribs[i].transparent_green_value);
+        snprintf((char*) (&(str[cell++])), 16, "%d",
+            egl_fbconfig_attribs[i].transparent_blue_value);
+
+
+        str[NUM_EGL_FBCONFIG_ATTRIBS][0] = '\0';
+
+        /* Populate cells for this row */
+        gtk_list_store_append (model, &iter);
+        for (cell=0; cell<NUM_EGL_FBCONFIG_ATTRIBS; cell++) {
+            g_value_set_string(&v, str[cell]);
+            gtk_list_store_set_value(model, &iter, cell, &v);
+        }
+
+        i++;
+
+    } /* Done - Populating FBconfig table */
+
+    return GTK_TREE_MODEL(model);
+}
+
 /* Creates the GLX information widget
  * 
- * NOTE: The GLX information other than the FBConfigs will
+ * NOTE: The Graphics information other than the FBConfigs will
  *       be setup when this page is hooked up and the "parent-set"
  *       signal is thrown.  This will result in calling the
  *       ctk_glx_probe_info() function.
@@ -354,24 +606,30 @@ GtkWidget* ctk_glx_new(CtrlTarget *ctrl_target,
 {
     GObject *object;
     CtkGLX *ctk_glx;
-    GtkWidget *label;
     GtkWidget *banner;
-    GtkWidget *hseparator;
     GtkWidget *hbox;
     GtkWidget *vbox;
-    GtkWidget *scrollWin;
     GtkWidget *event;    /* For setting the background color to white */
+    GtkWidget *window;
+
     GtkWidget *fbc_scroll_win;
     GtkWidget *fbc_view;
     GtkTreeModel *fbc_model;
-    GtkWidget *show_fbc_button, *window;
-    ReturnStatus ret;
+    GtkWidget *show_fbc_button;
 
-    char * glx_info_str = NULL;               /* Test if GLX supported */
-    GLXFBConfigAttr *fbconfig_attribs = NULL; /* FBConfig data */
-    int i;                                    /* Iterator */
+    GtkWidget *egl_fbc_scroll_win;
+    GtkWidget *egl_fbc_view;
+    GtkTreeModel *egl_fbc_model;
+    GtkWidget *show_egl_fbc_button;
+
+    ReturnStatus ret;
+    gboolean glx_fbconfigs_available;
+    gboolean egl_fbconfigs_available;
+
+    GLXFBConfigAttr *fbconfig_attribs = NULL;   /* FBConfig data */
+    EGLConfigAttr *egl_fbconfig_attribs = NULL; /* EGL Configs data */
+    int i;                                      /* Iterator */
     int num_fbconfigs = 0;
-    char *err_str = NULL;
 
     gchar *fbconfig_titles[NUM_FBCONFIG_ATTRIBS] = {
         "fid",  "vid",  "vt", "bfs",  "lvl",
@@ -398,6 +656,32 @@ GtkWidget* ctk_glx_new(CtrlTarget *ctrl_target,
         __trb_help, __tra_help, __tri_help
     };
 
+    gchar *egl_fbconfig_titles[NUM_EGL_FBCONFIG_ATTRIBS] = {
+        "id",  "vid",
+        "nvt", "bfs", "lvl", "cbt",
+        "rs",  "gs",  "bs",  "as",
+        "ams", "lum", "dpt", "stn",
+        "bt",  "bta", "cfm",
+        "spb", "smp", "cav",
+        "pbw", "pbh", "pbp",
+        "six", "sin",
+        "nrd", "rdt", "sur",
+        "tpt", "trv", "tgv", "tbv"
+    };
+
+    const char *egl_fbconfig_tooltips[NUM_EGL_FBCONFIG_ATTRIBS] = {
+        __egl_id_help, __egl_vid_help,
+        __egl_nvt_help, __egl_bfs_help, __egl_lvl_help, __egl_cbt_help,
+        __egl_rs_help, __egl_gs_help, __egl_bs_help, __egl_as_help,
+        __egl_ams_help, __egl_lum_help, __egl_dpt_help, __egl_stn_help,
+        __egl_bt_help, __egl_bta_help, __egl_cfm_help,
+        __egl_spb_help, __egl_smp_help, __egl_cav_help,
+        __egl_pbw_help, __egl_pbh_help, __egl_pbp_help,
+        __egl_six_help, __egl_sin_help,
+        __egl_nrd_help, __egl_rdt_help, __egl_sur_help,
+        __egl_tpt_help, __egl_trv_help, __egl_tgv_help, __egl_tbv_help
+    };
+
 
     /* Create the ctk glx object */
     object = g_object_new(CTK_TYPE_GLX, NULL);
@@ -413,160 +697,218 @@ GtkWidget* ctk_glx_new(CtrlTarget *ctrl_target,
 
     /* Image banner */
 
-    banner = ctk_banner_image_new(BANNER_ARTWORK_GLX);
+    banner = ctk_banner_image_new(BANNER_ARTWORK_GRAPHICS);
     gtk_box_pack_start(GTK_BOX(ctk_glx), banner, FALSE, FALSE, 0);
-
-    /* Determine if GLX is supported */
-    ret = NvCtrlGetStringAttribute(ctrl_target,
-                                   NV_CTRL_STRING_GLX_SERVER_VENDOR,
-                                   &glx_info_str);
-    free(glx_info_str);
-    if ( ret != NvCtrlSuccess ) {
-        err_str = "Failed to query the GLX server vendor.";
-        goto fail;
-    }
 
 
     /* Information Scroll Box */
-    scrollWin = gtk_scrolled_window_new(NULL, NULL);
     hbox = gtk_hbox_new(FALSE, 0);
     vbox = gtk_vbox_new(FALSE, 5);
     event = gtk_event_box_new();
     ctk_force_text_colors_on_widget(event);
-    gtk_scrolled_window_set_policy(GTK_SCROLLED_WINDOW(scrollWin),
-                                   GTK_POLICY_NEVER, GTK_POLICY_ALWAYS);
     gtk_container_add(GTK_CONTAINER(event), hbox);
-    gtk_scrolled_window_add_with_viewport(GTK_SCROLLED_WINDOW(scrollWin),
-                                          event);
     gtk_box_pack_start(GTK_BOX(hbox), vbox, TRUE, TRUE, 5);
     ctk_glx->glxinfo_vpane = vbox;
-    gtk_widget_set_size_request(scrollWin, -1, 50);
 
 
     /* GLX 1.3 supports frame buffer configurations */
 #ifdef GLX_VERSION_1_3
 
+    glx_fbconfigs_available = TRUE;
+
     /* Grab the FBConfigs */
     ret = NvCtrlGetVoidAttribute(ctrl_target,
                                  NV_CTRL_ATTR_GLX_FBCONFIG_ATTRIBS,
                                  (void *)(&fbconfig_attribs));
-    if ( ret != NvCtrlSuccess ) {
-        err_str = "Failed to query list of GLX frame buffer configurations.";
-        goto fail;
+    if (ret != NvCtrlSuccess) {
+        nv_warning_msg("Failed to query list of GLX frame buffer "
+                       "configurations.");
+        glx_fbconfigs_available = FALSE;
+    } else {
+        /* Count the number of fbconfigs */
+        if (fbconfig_attribs) {
+            for (num_fbconfigs = 0;
+                 fbconfig_attribs[num_fbconfigs].fbconfig_id != 0;
+                 num_fbconfigs++);
+        }
+        if (num_fbconfigs == 0) {
+            nv_warning_msg("No frame buffer configurations found.");
+            glx_fbconfigs_available = FALSE;
+        }
     }
 
-    /* Count the number of fbconfigs */
-    if ( fbconfig_attribs ) {
-        for (num_fbconfigs = 0;
-             fbconfig_attribs[num_fbconfigs].fbconfig_id != 0;
-             num_fbconfigs++);
+    if (glx_fbconfigs_available) {
+        show_fbc_button = gtk_toggle_button_new_with_label(
+                              "Show GLX Frame Buffer Configurations");
+        gtk_toggle_button_set_active(GTK_TOGGLE_BUTTON(show_fbc_button), FALSE);
+        ctk_config_set_tooltip(ctk_config, show_fbc_button, __show_fbc_help);
+        g_signal_connect(G_OBJECT(show_fbc_button),
+                         "clicked", G_CALLBACK(show_fbc_toggled),
+                         (gpointer) ctk_glx);
+
+        window = gtk_window_new(GTK_WINDOW_TOPLEVEL);
+        gtk_window_set_title(GTK_WINDOW(window), "GLX Frame Buffer "
+                                                 "Configurations");
+        gtk_container_set_border_width(GTK_CONTAINER(window), CTK_WINDOW_PAD);
+        gtk_window_set_default_size(GTK_WINDOW(window), 400, 200);
+        g_signal_connect(G_OBJECT(window), "destroy-event",
+                         G_CALLBACK(fbc_window_destroy),
+                         (gpointer) ctk_glx);
+        g_signal_connect(G_OBJECT(window), "delete-event",
+                         G_CALLBACK(fbc_window_destroy),
+                         (gpointer) ctk_glx);
+
+        ctk_glx->fbc_window = window;
+        ctk_glx->show_fbc_button = show_fbc_button;
+
+        hbox      = gtk_hbox_new(FALSE, 0);
+        vbox      = gtk_vbox_new(FALSE, 10);
+
+
+        /* Create fbconfig window */
+        fbc_view = gtk_tree_view_new();
+
+        /* Create columns and column headers with tooltips */
+        for ( i = 0; i < NUM_FBCONFIG_ATTRIBS; i++ ) {
+            GtkWidget *label;
+            GtkCellRenderer *renderer;
+            GtkTreeViewColumn *col;
+
+            renderer = gtk_cell_renderer_text_new();
+            ctk_cell_renderer_set_alignment(renderer, 0.5, 0.5);
+
+            col = gtk_tree_view_column_new_with_attributes(fbconfig_titles[i],
+                                                           renderer,
+                                                           "text", i,
+                                                           NULL);
+
+            label = gtk_label_new(fbconfig_titles[i]);
+            ctk_config_set_tooltip(ctk_config, label, fbconfig_tooltips[i]);
+            gtk_widget_show(label);
+
+            gtk_tree_view_column_set_widget(col, label);
+            gtk_tree_view_insert_column(GTK_TREE_VIEW(fbc_view), col, -1);
+        }
+
+        /* Create data model and add view to the window */
+        fbc_model = create_fbconfig_model(fbconfig_attribs);
+        free(fbconfig_attribs);
+
+        gtk_tree_view_set_model(GTK_TREE_VIEW(fbc_view), fbc_model);
+        g_object_unref(fbc_model);
+
+        fbc_scroll_win = gtk_scrolled_window_new(NULL, NULL);
+
+        gtk_container_add (GTK_CONTAINER (fbc_scroll_win), fbc_view);
+        gtk_container_add (GTK_CONTAINER (window), fbc_scroll_win);
+
+    } else {
+        free(fbconfig_attribs);
     }
-    if ( ! num_fbconfigs ) {
-        err_str = "No frame buffer configurations found.";
-
-        goto fail;
-    }
-
-    show_fbc_button = gtk_toggle_button_new_with_label(
-                          "Show GLX Frame Buffer Configurations");
-    gtk_toggle_button_set_active(GTK_TOGGLE_BUTTON(show_fbc_button), FALSE);
-    ctk_config_set_tooltip(ctk_config, show_fbc_button, __show_fbc_help);
-    g_signal_connect(G_OBJECT(show_fbc_button),
-                     "clicked", G_CALLBACK(show_fbc_toggled),
-                     (gpointer) ctk_glx);
-
-    window = gtk_window_new(GTK_WINDOW_TOPLEVEL);
-    gtk_window_set_title(GTK_WINDOW(window), "GLX Frame Buffer Configurations");
-    gtk_container_set_border_width(GTK_CONTAINER(window), CTK_WINDOW_PAD);
-    gtk_window_set_default_size(GTK_WINDOW(window), 400, 200);
-    g_signal_connect(G_OBJECT(window), "destroy-event",
-                     G_CALLBACK(fbc_window_destroy),
-                     (gpointer) ctk_glx);
-    g_signal_connect(G_OBJECT(window), "delete-event",
-                     G_CALLBACK(fbc_window_destroy),
-                     (gpointer) ctk_glx);
-
-    ctk_glx->fbc_window = window;
-    ctk_glx->show_fbc_button = show_fbc_button;
-
-    hbox      = gtk_hbox_new(FALSE, 0);
-    vbox      = gtk_vbox_new(FALSE, 10);
-
-
-    /* Create fbconfig window */
-    fbc_view = gtk_tree_view_new();
-
-    /* Create columns and column headers with tooltips */
-    for ( i = 0; i < NUM_FBCONFIG_ATTRIBS; i++ ) {
-        GtkWidget *label;
-        GtkCellRenderer *renderer;
-        GtkTreeViewColumn *col;
-
-        renderer = gtk_cell_renderer_text_new();
-        ctk_cell_renderer_set_alignment(renderer, 0.5, 0.5);
-
-        col = gtk_tree_view_column_new_with_attributes(fbconfig_titles[i],
-                                                       renderer,
-                                                       "text", i,
-                                                       NULL);
-
-        label = gtk_label_new(fbconfig_titles[i]);
-        ctk_config_set_tooltip(ctk_config, label, fbconfig_tooltips[i]);
-        gtk_widget_show(label);
-
-        gtk_tree_view_column_set_widget(col, label);
-        gtk_tree_view_insert_column(GTK_TREE_VIEW(fbc_view), col, -1);
-    }
-
-    /* Create data model and add view to the window */
-    fbc_model = create_fbconfig_model(fbconfig_attribs);
-    free(fbconfig_attribs);
-
-    gtk_tree_view_set_model(GTK_TREE_VIEW(fbc_view), fbc_model);
-    g_object_unref(fbc_model);
-
-    fbc_scroll_win = gtk_scrolled_window_new(NULL, NULL);
-
-    gtk_container_add (GTK_CONTAINER (fbc_scroll_win), fbc_view);
-    gtk_container_add (GTK_CONTAINER (window), fbc_scroll_win);
-
-
-    /* Create main page layout */
-    vbox = gtk_vbox_new(FALSE, 0);
-    gtk_box_pack_start(GTK_BOX(vbox), show_fbc_button, FALSE, FALSE, 0);
-    hbox = gtk_hbox_new(FALSE, 0);
-    gtk_box_pack_start(GTK_BOX(hbox), vbox, FALSE, FALSE, 0);
-
-    hseparator = gtk_hseparator_new();
-
-    vbox = gtk_vbox_new(FALSE, 5);
-    gtk_box_pack_start(GTK_BOX(vbox), scrollWin, TRUE, TRUE, 0);
-    gtk_box_pack_start(GTK_BOX(vbox), hseparator, FALSE, FALSE, 0);
-    gtk_box_pack_start(GTK_BOX(vbox), hbox, FALSE, FALSE, 0);
-
-    gtk_box_pack_start(GTK_BOX(ctk_glx), vbox, TRUE, TRUE, 0);
-
 
 #endif /* GLX_VERSION_1_3 */
 
 
-    gtk_widget_show_all(GTK_WIDGET(object));
 
-    return GTK_WIDGET(object);
+    /* EGL Configurations */
 
+    egl_fbconfigs_available = TRUE;
+    ret = NvCtrlGetVoidAttribute(ctrl_target,
+                                 NV_CTRL_ATTR_EGL_CONFIG_ATTRIBS,
+                                 (void *)(&egl_fbconfig_attribs));
+    if (ret != NvCtrlSuccess) {
+        nv_warning_msg("Failed to query list of EGL configurations.");
+        egl_fbconfigs_available = FALSE;
+    } else {
+        num_fbconfigs = 0;
+        if (egl_fbconfig_attribs) {
+            while (egl_fbconfig_attribs[num_fbconfigs].config_id != 0) {
+                 num_fbconfigs++;
+            }
+        }
 
-    /* Failure (no GLX) */
- fail:
-    if (err_str) {
-        label = gtk_label_new(err_str);
-        gtk_label_set_selectable(GTK_LABEL(label), TRUE);
-
-        gtk_container_add(GTK_CONTAINER(ctk_glx), label);
+        if (egl_fbconfigs_available && num_fbconfigs == 0) {
+            nv_warning_msg("No EGL frame buffer configurations found.");
+            egl_fbconfigs_available = FALSE;
+        }
     }
 
-    /* Free memory that may have been allocated */
-    free(fbconfig_attribs);
+    if (egl_fbconfigs_available) {
 
+        show_egl_fbc_button = gtk_toggle_button_new_with_label(
+                                  "Show EGL Frame Buffer Configurations");
+        gtk_toggle_button_set_active(GTK_TOGGLE_BUTTON(show_egl_fbc_button),
+                                     FALSE);
+        ctk_config_set_tooltip(ctk_config, show_egl_fbc_button,
+                               __show_egl_fbc_help);
+        g_signal_connect(G_OBJECT(show_egl_fbc_button),
+                         "clicked", G_CALLBACK(show_egl_fbc_toggled),
+                         (gpointer) ctk_glx);
+
+        window = gtk_window_new(GTK_WINDOW_TOPLEVEL);
+        gtk_window_set_title(GTK_WINDOW(window),
+                             "EGL Frame Buffer Configurations");
+        gtk_container_set_border_width(GTK_CONTAINER(window), CTK_WINDOW_PAD);
+        gtk_window_set_default_size(GTK_WINDOW(window), 400, 200);
+        g_signal_connect(G_OBJECT(window), "destroy-event",
+                         G_CALLBACK(egl_fbc_window_destroy),
+                         (gpointer) ctk_glx);
+        g_signal_connect(G_OBJECT(window), "delete-event",
+                         G_CALLBACK(egl_fbc_window_destroy),
+                         (gpointer) ctk_glx);
+
+        ctk_glx->egl_fbc_window = window;
+        ctk_glx->show_egl_fbc_button = show_egl_fbc_button;
+
+        hbox = gtk_hbox_new(FALSE, 0);
+        vbox = gtk_vbox_new(FALSE, 10);
+
+
+        /* Create fbconfig window */
+        egl_fbc_view = gtk_tree_view_new();
+
+        /* Create columns and column headers with tooltips */
+        for ( i = 0; i < NUM_EGL_FBCONFIG_ATTRIBS; i++ ) {
+            GtkWidget *label;
+            GtkCellRenderer *renderer;
+            GtkTreeViewColumn *col;
+
+            renderer = gtk_cell_renderer_text_new();
+            ctk_cell_renderer_set_alignment(renderer, 0.5, 0.5);
+
+            col =
+                gtk_tree_view_column_new_with_attributes(egl_fbconfig_titles[i],
+                                                         renderer,
+                                                         "text", i,
+                                                         NULL);
+
+            label = gtk_label_new(egl_fbconfig_titles[i]);
+            ctk_config_set_tooltip(ctk_config, label, egl_fbconfig_tooltips[i]);
+            gtk_widget_show(label);
+
+            gtk_tree_view_column_set_widget(col, label);
+            gtk_tree_view_insert_column(GTK_TREE_VIEW(egl_fbc_view), col, -1);
+        }
+
+        /* Create data model and add view to the window */
+        egl_fbc_model = create_egl_fbconfig_model(egl_fbconfig_attribs);
+        free(egl_fbconfig_attribs);
+
+        gtk_tree_view_set_model(GTK_TREE_VIEW(egl_fbc_view), egl_fbc_model);
+        g_object_unref(egl_fbc_model);
+
+        egl_fbc_scroll_win = gtk_scrolled_window_new(NULL, NULL);
+
+        gtk_container_add(GTK_CONTAINER(egl_fbc_scroll_win), egl_fbc_view);
+        gtk_container_add(GTK_CONTAINER(window), egl_fbc_scroll_win);
+
+    } else {
+        free(egl_fbconfig_attribs);
+    }
+
+    /* Set main page layout */
+
+    gtk_box_pack_start(GTK_BOX(ctk_glx), event, TRUE, TRUE, 0);
     gtk_widget_show_all(GTK_WIDGET(object));
     return GTK_WIDGET(object);
 
@@ -574,9 +916,8 @@ GtkWidget* ctk_glx_new(CtrlTarget *ctrl_target,
 
 
 
-
-/* Probes for GLX information and sets up the results
- * in the GLX widget.
+/* Probes for Graphics information and sets up the results
+ * in the Graphics notebook widget.
  */
 void ctk_glx_probe_info(GtkWidget *widget)
 {
@@ -597,14 +938,17 @@ void ctk_glx_probe_info(GtkWidget *widget)
     char *opengl_renderer   = NULL;
     char *opengl_version    = NULL;
     char *opengl_extensions = NULL;
+    char *egl_vendor        = NULL;
+    char *egl_version       = NULL;
+    char *egl_extensions    = NULL;
     char *ptr;
 
-    GtkWidget *hseparator;
-    GtkWidget *hbox, *hbox2;
     GtkWidget *vbox, *vbox2;
-    GtkWidget *label;
     GtkWidget *table;
-
+    GtkWidget *notebook = gtk_notebook_new();
+    GtkWidget *notebook_label;
+    GtkWidget *scroll_win;
+    int notebook_padding = 8;
 
     /* Make sure the widget was initialized and that glx information
      * has not yet been initialized.
@@ -675,6 +1019,22 @@ void ctk_glx_probe_info(GtkWidget *widget)
     if ( ret != NvCtrlSuccess ) { goto done; }
 
 
+    /* Get EGL information */
+    ret = NvCtrlGetStringAttribute(ctrl_target,
+                                   NV_CTRL_STRING_EGL_VENDOR,
+                                   &egl_vendor);
+    if ( ret != NvCtrlSuccess ) { goto done; }
+    ret = NvCtrlGetStringAttribute(ctrl_target,
+                                   NV_CTRL_STRING_EGL_VERSION,
+                                   &egl_version);
+    if ( ret != NvCtrlSuccess ) { goto done; }
+    ret = NvCtrlGetStringAttribute(ctrl_target,
+                                   NV_CTRL_STRING_EGL_EXTENSIONS,
+                                   &egl_extensions);
+    if ( ret != NvCtrlSuccess ) { goto done; }
+
+
+
     /* Modify extension lists so they show only one name per line */
     for ( ptr = glx_extensions; ptr != NULL && ptr[0] != '\0'; ptr++ ) {
         if ( ptr[0] == ' ' ) ptr[0] = '\n';
@@ -688,21 +1048,23 @@ void ctk_glx_probe_info(GtkWidget *widget)
     for ( ptr = opengl_extensions; ptr != NULL && ptr[0] != '\0'; ptr++ ) {
         if ( ptr[0] == ' ' ) ptr[0] = '\n';
     }
+    for ( ptr = egl_extensions; ptr != NULL && ptr[0] != '\0'; ptr++ ) {
+        if ( ptr[0] == ' ' ) ptr[0] = '\n';
+    }
 
+
+    vbox = ctk_glx->glxinfo_vpane;
+    gtk_widget_set_size_request(notebook, -1, 50);
+    gtk_box_pack_start(GTK_BOX(vbox), notebook, TRUE, TRUE, 0);
 
     /* Add (Shared) GLX information to widget */
-    vbox       = ctk_glx->glxinfo_vpane;
-    vbox2      = gtk_vbox_new(FALSE, 0);
-    hbox       = gtk_hbox_new(FALSE, 0);
-    label      = gtk_label_new("GLX Information");
-    hseparator = gtk_hseparator_new();
-    gtk_box_pack_start(GTK_BOX(vbox), vbox2, TRUE, TRUE, 2);
-    gtk_box_pack_start(GTK_BOX(vbox), hbox, FALSE, FALSE, 0);
-    gtk_box_pack_start(GTK_BOX(hbox), label, FALSE, FALSE, 0);
-    gtk_box_pack_start(GTK_BOX(hbox), hseparator, TRUE, TRUE, 5);
+    notebook_label = gtk_label_new("GLX");
+    vbox2 = gtk_vbox_new(FALSE, 0);
+    gtk_container_set_border_width(GTK_CONTAINER(vbox2), notebook_padding);
+    scroll_win = gtk_scrolled_window_new(NULL, NULL);
+    gtk_scrolled_window_set_policy(GTK_SCROLLED_WINDOW(scroll_win),
+                                   GTK_POLICY_NEVER, GTK_POLICY_AUTOMATIC);
 
-    hbox  = gtk_hbox_new(FALSE, 0);
-    hbox2 = gtk_hbox_new(FALSE, 0);
     table = gtk_table_new(2, 2, FALSE);
     gtk_table_set_row_spacings(GTK_TABLE(table), 3);
     gtk_table_set_col_spacings(GTK_TABLE(table), 15);
@@ -712,21 +1074,30 @@ void ctk_glx_probe_info(GtkWidget *widget)
     add_table_row(table, 1,
                   0, 0, "GLX Extensions:",
                   0, 0,  glx_extensions);
-    gtk_box_pack_start(GTK_BOX(vbox), hbox, FALSE, FALSE, 0);
-    gtk_box_pack_start(GTK_BOX(hbox), hbox2, FALSE, FALSE, 5);
-    gtk_box_pack_start(GTK_BOX(hbox), table, FALSE, FALSE, 0);
+
+    if (ctk_glx->show_fbc_button) {
+        GtkWidget *button_box = gtk_hbox_new(FALSE, 5);
+        gtk_box_pack_start(GTK_BOX(vbox2), button_box, FALSE, FALSE, 5);
+        gtk_box_pack_start(GTK_BOX(button_box), ctk_glx->show_fbc_button,
+                           FALSE, FALSE, 0);
+    }
+    gtk_box_pack_start(GTK_BOX(vbox2), table, FALSE, FALSE, 0);
+
+    gtk_container_add(GTK_CONTAINER(scroll_win), vbox2);
+
+    gtk_notebook_append_page(GTK_NOTEBOOK(notebook), scroll_win,
+                             notebook_label);
+    gtk_widget_show(GTK_WIDGET(scroll_win));
 
 
-    /* Add server GLX information to widget */   
-    hbox       = gtk_hbox_new(FALSE, 0);
-    label      = gtk_label_new("Server GLX Information");
-    hseparator = gtk_hseparator_new();
-    gtk_box_pack_start(GTK_BOX(vbox), hbox, FALSE, FALSE, 0);
-    gtk_box_pack_start(GTK_BOX(hbox), label, FALSE, FALSE, 0);
-    gtk_box_pack_start(GTK_BOX(hbox), hseparator, TRUE, TRUE, 5);
+    /* Add server GLX information to widget */
+    notebook_label = gtk_label_new("Server GLX");
+    vbox2 = gtk_vbox_new(FALSE, 0);
+    gtk_container_set_border_width(GTK_CONTAINER(vbox2), notebook_padding);
+    scroll_win = gtk_scrolled_window_new(NULL, NULL);
+    gtk_scrolled_window_set_policy(GTK_SCROLLED_WINDOW(scroll_win),
+                                   GTK_POLICY_NEVER, GTK_POLICY_AUTOMATIC);
 
-    hbox  = gtk_hbox_new(FALSE, 0);
-    hbox2 = gtk_hbox_new(FALSE, 0);
     table = gtk_table_new(3, 2, FALSE);
     gtk_table_set_row_spacings(GTK_TABLE(table), 3);
     gtk_table_set_col_spacings(GTK_TABLE(table), 15);
@@ -739,21 +1110,22 @@ void ctk_glx_probe_info(GtkWidget *widget)
     add_table_row(table, 2,
                   0, 0, "Extensions:",
                   0, 0, server_extensions);
-    gtk_box_pack_start(GTK_BOX(vbox), hbox, FALSE, FALSE, 0);
-    gtk_box_pack_start(GTK_BOX(hbox), hbox2, FALSE, FALSE, 5);
-    gtk_box_pack_start(GTK_BOX(hbox), table, FALSE, FALSE, 0);
+
+    gtk_box_pack_start(GTK_BOX(vbox2), table, FALSE, FALSE, 0);
+
+    gtk_container_add(GTK_CONTAINER(scroll_win), vbox2);
+    gtk_notebook_append_page(GTK_NOTEBOOK(notebook), scroll_win,
+                             notebook_label);
 
 
     /* Add client GLX information to widget */
-    hbox       = gtk_hbox_new(FALSE, 0);
-    label      = gtk_label_new("Client GLX Information");
-    hseparator = gtk_hseparator_new();
-    gtk_box_pack_start(GTK_BOX(vbox), hbox, FALSE, FALSE, 0);
-    gtk_box_pack_start(GTK_BOX(hbox), label, FALSE, FALSE, 0);
-    gtk_box_pack_start(GTK_BOX(hbox), hseparator, TRUE, TRUE, 5);
+    notebook_label = gtk_label_new("Client GLX");
+    vbox2 = gtk_vbox_new(FALSE, 0);
+    gtk_container_set_border_width(GTK_CONTAINER(vbox2), notebook_padding);
+    scroll_win = gtk_scrolled_window_new(NULL, NULL);
+    gtk_scrolled_window_set_policy(GTK_SCROLLED_WINDOW(scroll_win),
+                                   GTK_POLICY_NEVER, GTK_POLICY_AUTOMATIC);
 
-    hbox  = gtk_hbox_new(FALSE, 0);
-    hbox2 = gtk_hbox_new(FALSE, 0);
     table = gtk_table_new(3, 2, FALSE);
     gtk_table_set_row_spacings(GTK_TABLE(table), 3);
     gtk_table_set_col_spacings(GTK_TABLE(table), 15);
@@ -766,23 +1138,23 @@ void ctk_glx_probe_info(GtkWidget *widget)
     add_table_row(table, 2,
                   0, 0, "Extensions:",
                   0, 0, client_extensions);
-    gtk_box_pack_start(GTK_BOX(vbox), hbox, FALSE, FALSE, 0);
-    gtk_box_pack_start(GTK_BOX(hbox), hbox2, FALSE, FALSE, 5);
-    gtk_box_pack_start(GTK_BOX(hbox), table, FALSE, FALSE, 0);
+
+    gtk_box_pack_start(GTK_BOX(vbox2), table, FALSE, FALSE, 0);
+
+    gtk_container_add(GTK_CONTAINER(scroll_win), vbox2);
+    gtk_notebook_append_page(GTK_NOTEBOOK(notebook), scroll_win,
+                             notebook_label);
 
 
     /* Add OpenGL information to widget */
-    hbox       = gtk_hbox_new(FALSE, 0);
-    label      = gtk_label_new("OpenGL Information");
-    hseparator = gtk_hseparator_new();
-    gtk_box_pack_start(GTK_BOX(vbox), hbox, FALSE, FALSE, 0);
-    gtk_box_pack_start(GTK_BOX(hbox), label, FALSE, FALSE, 0);
-    gtk_box_pack_start(GTK_BOX(hbox), hseparator, TRUE, TRUE, 5);
-
-    hbox  = gtk_hbox_new(FALSE, 0);
-    hbox2 = gtk_hbox_new(FALSE, 0);
-    table = gtk_table_new(4, 2, FALSE);
+    notebook_label = gtk_label_new("OpenGL");
     vbox2 = gtk_vbox_new(FALSE, 0);
+    gtk_container_set_border_width(GTK_CONTAINER(vbox2), notebook_padding);
+    scroll_win = gtk_scrolled_window_new(NULL, NULL);
+    gtk_scrolled_window_set_policy(GTK_SCROLLED_WINDOW(scroll_win),
+                                   GTK_POLICY_NEVER, GTK_POLICY_AUTOMATIC);
+
+    table = gtk_table_new(4, 2, FALSE);
     gtk_table_set_row_spacings(GTK_TABLE(table), 3);
     gtk_table_set_col_spacings(GTK_TABLE(table), 15);
     add_table_row(table, 0,
@@ -797,10 +1169,46 @@ void ctk_glx_probe_info(GtkWidget *widget)
     add_table_row(table, 3,
                   0, 0, "Extensions:",
                   0, 0, opengl_extensions);
-    gtk_box_pack_start(GTK_BOX(vbox), hbox, FALSE, FALSE, 0);
-    gtk_box_pack_start(GTK_BOX(hbox), hbox2, FALSE, FALSE, 5);
-    gtk_box_pack_start(GTK_BOX(hbox), table, FALSE, FALSE, 0);
-    gtk_box_pack_start(GTK_BOX(vbox), vbox2, TRUE, TRUE, 2);
+
+    gtk_box_pack_start(GTK_BOX(vbox2), table, FALSE, FALSE, 0);
+
+    gtk_container_add(GTK_CONTAINER(scroll_win), vbox2);
+    gtk_notebook_append_page(GTK_NOTEBOOK(notebook), scroll_win,
+                             notebook_label);
+
+
+    /* Add EGL information to widget */
+    notebook_label = gtk_label_new("EGL");
+    vbox2 = gtk_vbox_new(FALSE, 0);
+    gtk_container_set_border_width(GTK_CONTAINER(vbox2), notebook_padding);
+    scroll_win = gtk_scrolled_window_new(NULL, NULL);
+    gtk_scrolled_window_set_policy(GTK_SCROLLED_WINDOW(scroll_win),
+                                   GTK_POLICY_NEVER, GTK_POLICY_AUTOMATIC);
+
+    table = gtk_table_new(3, 2, FALSE);
+    gtk_table_set_row_spacings(GTK_TABLE(table), 3);
+    gtk_table_set_col_spacings(GTK_TABLE(table), 15);
+    add_table_row(table, 0,
+                  0, 0, "Vendor:",
+                  0, 0, egl_vendor);
+    add_table_row(table, 1,
+                  0, 0, "Version:",
+                  0, 0, egl_version);
+    add_table_row(table, 2,
+                  0, 0, "Extensions:",
+                  0, 0, egl_extensions);
+
+    if (ctk_glx->show_egl_fbc_button) {
+        GtkWidget *button_box = gtk_hbox_new(FALSE, 5);
+        gtk_box_pack_start(GTK_BOX(vbox2), button_box, FALSE, FALSE, 5);
+        gtk_box_pack_start(GTK_BOX(button_box), ctk_glx->show_egl_fbc_button,
+                           FALSE, FALSE, 0);
+    }
+    gtk_box_pack_start(GTK_BOX(vbox2), table, FALSE, FALSE, 0);
+
+    gtk_container_add(GTK_CONTAINER(scroll_win), vbox2);
+    gtk_notebook_append_page(GTK_NOTEBOOK(notebook), scroll_win,
+                             notebook_label);
 
 
     /* Show the information */
@@ -824,6 +1232,9 @@ void ctk_glx_probe_info(GtkWidget *widget)
     free(opengl_renderer);
     free(opengl_version);
     free(opengl_extensions);
+    free(egl_vendor);
+    free(egl_version);
+    free(egl_extensions);
 
 } /* ctk_glx_probe_info() */
 
@@ -839,12 +1250,15 @@ GtkTextBuffer *ctk_glx_create_help(GtkTextTagTable *table,
 
     gtk_text_buffer_get_iter_at_offset(b, &i, 0);
 
-    ctk_help_title(b, &i, "GLX Help");
+    ctk_help_title(b, &i, "Graphics Information Help");
     ctk_help_para(b, &i,
                   "This page in the NVIDIA X Server Control Panel describes "
-                  "information about the OpenGL extension to the X Server "
-                  "(GLX)."
+                  "information about graphics libraries available on this X "
+                  "screen."
                   );
+
+    ctk_help_heading(b, &i, "Show GLX Frame Buffer Configurations");
+    ctk_help_para(b, &i, "%s", __show_fbc_help);
 
     ctk_help_heading(b, &i, "Direct Rendering");
     ctk_help_para(b, &i,
@@ -913,11 +1327,12 @@ GtkTextBuffer *ctk_glx_create_help(GtkTextTagTable *table,
                   "by this driver."
                  );
 
-    ctk_help_heading(b, &i, "Show GLX Frame Buffer Configurations");
-    ctk_help_para(b, &i, "%s", __show_fbc_help);
+    ctk_help_heading(b, &i, "Show EGL Frame Buffer Configurations");
+    ctk_help_para(b, &i, "%s", __show_egl_fbc_help);
+
 
     ctk_help_heading(b, &i, "GLX Frame Buffer Configurations");
-    ctk_help_para(b, &i, "This table lists the supported frame buffer "
+    ctk_help_para(b, &i, "This table lists the supported GLX frame buffer "
                   "configurations for the display.");
     ctk_help_para(b, &i,
                   "\t%s\n\n"
@@ -990,8 +1405,84 @@ GtkTextBuffer *ctk_glx_create_help(GtkTextTagTable *table,
                   __tra_help,
                   __tri_help
                  );
+    ctk_help_heading(b, &i, "EGL Frame Buffer Configurations");
+    ctk_help_para(b, &i, "This table lists the supported EGL frame buffer "
+                  "configurations for the display.");
+    ctk_help_para(b, &i,
+                  "\t%s\n\n"
+                  "\t%s\n\n"
+                  "\t%s\n\n"
+                  "\t%s\n\n"
+                  "\t%s\n\n"
+                  "\t%s\n\n"
+                  "\t%s\n\n"
+                  "\t%s\n\n"
 
-    ctk_help_finish(b);
+                  "\t%s\n\n"
+                  "\t%s\n\n"
+                  "\t%s\n\n"
+                  "\t%s\n\n"
+                  "\t%s\n\n"
+                  "\t%s\n\n"
+                  "\t%s\n\n"
+                  "\t%s\n\n"
+
+                  "\t%s\n\n"
+                  "\t%s\n\n"
+                  "\t%s\n\n"
+                  "\t%s\n\n"
+                  "\t%s\n\n"
+                  "\t%s\n\n"
+                  "\t%s\n\n"
+                  "\t%s\n\n"
+
+                  "\t%s\n\n"
+                  "\t%s\n\n"
+                  "\t%s\n\n"
+                  "\t%s\n\n"
+                  "\t%s\n\n"
+                  "\t%s\n\n"
+                  "\t%s\n\n"
+                  "\t%s\n\n",
+
+                  __egl_id_help,
+                  __egl_vid_help,
+                  __egl_nvt_help,
+                  __egl_bfs_help,
+                  __egl_lvl_help,
+                  __egl_cbt_help,
+                  __egl_rs_help,
+                  __egl_gs_help,
+
+                  __egl_bs_help,
+                  __egl_as_help,
+                  __egl_ams_help,
+                  __egl_lum_help,
+                  __egl_dpt_help,
+                  __egl_stn_help,
+                  __egl_bt_help,
+                  __egl_bta_help,
+
+                  __egl_cfm_help,
+                  __egl_spb_help,
+                  __egl_smp_help,
+                  __egl_cav_help,
+                  __egl_pbw_help,
+                  __egl_pbh_help,
+                  __egl_pbp_help,
+                  __egl_six_help,
+
+                  __egl_sin_help,
+                  __egl_nrd_help,
+                  __egl_rdt_help,
+                  __egl_sur_help,
+                  __egl_tpt_help,
+                  __egl_trv_help,
+                  __egl_tgv_help,
+                  __egl_tbv_help
+                 );
+
+  ctk_help_finish(b);
 
     return b;
 

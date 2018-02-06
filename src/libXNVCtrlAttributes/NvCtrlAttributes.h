@@ -246,10 +246,18 @@ typedef enum {
 #define NV_CTRL_ATTR_GLX_LAST_ATTRIBUTE \
        (NV_CTRL_ATTR_GLX_FBCONFIG_ATTRIBS)
 
+/* EGL */
+
+#define NV_CTRL_ATTR_EGL_BASE            (NV_CTRL_ATTR_GLX_LAST_ATTRIBUTE + 1)
+
+#define NV_CTRL_ATTR_EGL_CONFIG_ATTRIBS  (NV_CTRL_ATTR_EGL_BASE +  0)
+
+#define NV_CTRL_ATTR_EGL_LAST_ATTRIBUTE  (NV_CTRL_ATTR_EGL_CONFIG_ATTRIBS)
+
 /* RandR */
 
 #define NV_CTRL_ATTR_RANDR_BASE \
-       (NV_CTRL_ATTR_GLX_LAST_ATTRIBUTE + 1)
+       (NV_CTRL_ATTR_EGL_LAST_ATTRIBUTE + 1)
 
 #define NV_CTRL_ATTR_RANDR_GAMMA_AVAILABLE (NV_CTRL_ATTR_RANDR_BASE +  0)
 
@@ -343,6 +351,44 @@ typedef struct GLXFBConfigAttrRec {
     
 } GLXFBConfigAttr;
 
+
+typedef struct EGLConfigAttrRec {
+
+    int config_id;
+    int native_visual_id;
+
+    int alpha_size;
+    int alpha_mask_size;
+    int bind_to_texture_rgb;
+    int bind_to_texture_rgba;
+    int blue_size;
+    int buffer_size;
+    int color_buffer_type;
+    int config_caveat;
+    int conformant;
+    int depth_size;
+    int green_size;
+    int level;
+    int luminance_size;
+    int max_pbuffer_width;
+    int max_pbuffer_height;
+    int max_pbuffer_pixels;
+    int max_swap_interval;
+    int min_swap_interval;
+    int native_renderable;
+    int native_visual_type;
+    int red_size;
+    int renderable_type;
+    int sample_buffers;
+    int samples;
+    int stencil_size;
+    int surface_type;
+    int transparent_type;
+    int transparent_red_value;
+    int transparent_green_value;
+    int transparent_blue_value;
+
+} EGLConfigAttr;
 
 /*
  * Used to pack CtrlAttributePerms.valid_targets
@@ -481,11 +527,25 @@ typedef struct {
 #define NV_CTRL_STRING_GLX_LAST_ATTRIBUTE \
        (NV_CTRL_STRING_GLX_OPENGL_EXTENSIONS)
 
+
+/*
+ * Additional EGL string attributes for NvCtrlGetStringDisplayAttribute();
+ */
+
+#define NV_CTRL_STRING_EGL_BASE       (NV_CTRL_STRING_GLX_LAST_ATTRIBUTE + 1)
+
+#define NV_CTRL_STRING_EGL_VENDOR     (NV_CTRL_STRING_EGL_BASE + 0)
+#define NV_CTRL_STRING_EGL_VERSION    (NV_CTRL_STRING_EGL_BASE + 1)
+#define NV_CTRL_STRING_EGL_EXTENSIONS (NV_CTRL_STRING_EGL_BASE + 2)
+
+#define NV_CTRL_STRING_EGL_LAST_ATTRIBUTE (NV_CTRL_STRING_EGL_EXTENSIONS)
+
+
 /*
  * Additional XRANDR string attributes for NvCtrlGetStringDisplayAttribute();
  */
 
-#define NV_CTRL_STRING_XRANDR_BASE            (NV_CTRL_STRING_GLX_LAST_ATTRIBUTE + 1)
+#define NV_CTRL_STRING_XRANDR_BASE            (NV_CTRL_STRING_EGL_LAST_ATTRIBUTE + 1)
 
 #define NV_CTRL_STRING_XRANDR_VERSION         (NV_CTRL_STRING_XRANDR_BASE)
 
@@ -521,13 +581,15 @@ typedef struct {
 #define NV_CTRL_ATTRIBUTES_GLX_SUBSYSTEM          0x8
 #define NV_CTRL_ATTRIBUTES_XRANDR_SUBSYSTEM       0x10
 #define NV_CTRL_ATTRIBUTES_NVML_SUBSYSTEM         0x20
+#define NV_CTRL_ATTRIBUTES_EGL_SUBSYSTEM          0x40
 #define NV_CTRL_ATTRIBUTES_ALL_SUBSYSTEMS    \
  (NV_CTRL_ATTRIBUTES_NV_CONTROL_SUBSYSTEM  | \
   NV_CTRL_ATTRIBUTES_XF86VIDMODE_SUBSYSTEM | \
   NV_CTRL_ATTRIBUTES_XVIDEO_SUBSYSTEM      | \
   NV_CTRL_ATTRIBUTES_GLX_SUBSYSTEM         | \
   NV_CTRL_ATTRIBUTES_XRANDR_SUBSYSTEM      | \
-  NV_CTRL_ATTRIBUTES_NVML_SUBSYSTEM)
+  NV_CTRL_ATTRIBUTES_NVML_SUBSYSTEM        | \
+  NV_CTRL_ATTRIBUTES_EGL_SUBSYSTEM)
 
 
 

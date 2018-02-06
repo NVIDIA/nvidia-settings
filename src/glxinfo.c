@@ -28,11 +28,12 @@
 #include "glxinfo.h"
 
 #include <GL/glx.h> /* GLX #defines */
+#include <EGL/egl.h>
 
 
 /*
  * print_extension_list() - Formats OpenGL/GLX extension strings
- * to contain commas and returns a pointer to the formated string.
+ * to contain commas and returns a pointer to the formatted string.
  * The user is responsible for freeing this buffer.
  *
  * If there is an error or there is not enough memory to create
@@ -294,7 +295,7 @@ void print_glxinfo(const char *display_name, CtrlSystemList *systems)
 
     GLXFBConfigAttr *fbconfig_attribs  = NULL;
 
-    char            *formated_ext_str  = NULL;
+    char            *formatted_ext_str = NULL;
 
     system = NvCtrlConnectToSystem(display_name, systems);
     if (system == NULL) {
@@ -323,10 +324,10 @@ void print_glxinfo(const char *display_name, CtrlSystemList *systems)
         if ( status != NvCtrlSuccess &&
              status != NvCtrlNoAttribute ) { goto finish; }
         if ( glx_extensions != NULL ) {
-            formated_ext_str = format_extension_list(glx_extensions);
-            if ( formated_ext_str != NULL ) {
+            formatted_ext_str = format_extension_list(glx_extensions);
+            if ( formatted_ext_str != NULL ) {
                 free(glx_extensions);
-                glx_extensions = formated_ext_str;
+                glx_extensions = formatted_ext_str;
             }
         }
         /* Get server GLX information */
@@ -346,10 +347,10 @@ void print_glxinfo(const char *display_name, CtrlSystemList *systems)
         if ( status != NvCtrlSuccess &&
              status != NvCtrlNoAttribute ) { goto finish; }
         if ( server_extensions != NULL ) {
-            formated_ext_str = format_extension_list(server_extensions);
-            if ( formated_ext_str != NULL ) {
+            formatted_ext_str = format_extension_list(server_extensions);
+            if ( formatted_ext_str != NULL ) {
                 free(server_extensions);
-                server_extensions = formated_ext_str;
+                server_extensions = formatted_ext_str;
             }
         }
         /* Get client GLX information */
@@ -369,10 +370,10 @@ void print_glxinfo(const char *display_name, CtrlSystemList *systems)
         if ( status != NvCtrlSuccess &&
              status != NvCtrlNoAttribute ) { goto finish; }
         if ( client_extensions != NULL ) {
-            formated_ext_str = format_extension_list(client_extensions);
-            if ( formated_ext_str != NULL ) {
+            formatted_ext_str = format_extension_list(client_extensions);
+            if ( formatted_ext_str != NULL ) {
                 free(client_extensions);
-                client_extensions = formated_ext_str;
+                client_extensions = formatted_ext_str;
             }
         }
         /* Get OpenGL information */
@@ -397,10 +398,10 @@ void print_glxinfo(const char *display_name, CtrlSystemList *systems)
         if ( status != NvCtrlSuccess &&
              status != NvCtrlNoAttribute ) { goto finish; }
         if ( opengl_extensions != NULL ) {
-            formated_ext_str = format_extension_list(opengl_extensions);
-            if ( formated_ext_str != NULL ) {
+            formatted_ext_str = format_extension_list(opengl_extensions);
+            if ( formatted_ext_str != NULL ) {
                 free(opengl_extensions);
-                opengl_extensions = formated_ext_str;
+                opengl_extensions = formatted_ext_str;
             }
         }
 
@@ -489,3 +490,229 @@ void print_glxinfo(const char *display_name, CtrlSystemList *systems)
     NvCtrlFreeAllSystems(systems);
 
 } /* print_glxinfo() */
+
+
+
+/*
+ * EGL information
+ *
+ */
+
+const char *egl_color_buffer_type_abbrev(int type)
+{
+    switch (type) {
+    case EGL_RGB_BUFFER:
+        return "rgb";
+    case EGL_LUMINANCE_BUFFER:
+        return "lum";
+    default:
+        return ".";
+    }
+}
+
+const char *egl_config_caveat_abbrev(int type)
+{
+    switch (type) {
+    case EGL_SLOW_CONFIG:
+        return "slo";
+    case EGL_NON_CONFORMANT_CONFIG:
+        return "NoC";
+    case EGL_NONE:
+    default:
+        return ".";
+    }
+}
+
+const char *egl_transparent_type_abbrev(int type)
+{
+    switch (type) {
+    case EGL_TRANSPARENT_RGB:
+        return "rgb";
+    case EGL_NONE:
+    default:
+        return ".";
+    }
+}
+
+static void print_egl_config_attribs(const EGLConfigAttr *fbca)
+{
+    int i;
+
+    if (fbca == NULL) {
+        return;
+    }
+
+    printf("--fc- --vi- --vt-- buf lv rgb colorbuffer am lm dp st "
+           "-bind cfrm sb sm cav -----pbuffer----- swapin nv   rn   su "
+           "-transparent--\n");
+    printf("  id    id         siz l  lum  r  g  b  a sz sz th en "
+           " -  a            eat widt hght max-pxs  mx mn rd   ty   ty "
+           "typ  r  g  b  \n");
+    printf("------------------------------------------------------"
+           "-----------------------------------------------------------"
+           "--------------\n");
+
+    for (i = 0; fbca[i].config_id != 0; i++) {
+
+        printf("0x%03x ", fbca[i].config_id);
+        if (fbca[i].native_visual_id) {
+            printf("0x%03x ", fbca[i].native_visual_id);
+        } else {
+            printf("   .  ");
+        }
+        printf("0x%X %3d %2d %3s ",
+               fbca[i].native_visual_type,
+               fbca[i].buffer_size,
+               fbca[i].level,
+               egl_color_buffer_type_abbrev(fbca[i].color_buffer_type));
+        printf("%2d %2d %2d %2d %2d %2d %2d %2d ",
+               fbca[i].red_size,
+               fbca[i].green_size,
+               fbca[i].blue_size,
+               fbca[i].alpha_size,
+               fbca[i].alpha_mask_size,
+               fbca[i].luminance_size,
+               fbca[i].depth_size,
+               fbca[i].stencil_size);
+        printf("%2c %2c ",
+               fbca[i].bind_to_texture_rgb ? 'y' : '.',
+               fbca[i].bind_to_texture_rgba ? 'y' : '.');
+        printf("0x%02X %2d %2d ",
+               fbca[i].conformant,
+               fbca[i].sample_buffers,
+               fbca[i].samples);
+        printf("%3.3s %4x %4x %7x %2d %2d ",
+               egl_config_caveat_abbrev(fbca[i].config_caveat),
+               fbca[i].max_pbuffer_width,
+               fbca[i].max_pbuffer_height,
+               fbca[i].max_pbuffer_pixels,
+               fbca[i].max_swap_interval,
+               fbca[i].min_swap_interval);
+        printf("%2c %4x %4x ",
+               fbca[i].native_renderable ? 'y' : '.',
+               fbca[i].renderable_type,
+               fbca[i].surface_type);
+        printf("%3s %2d %2d %2d\n",
+               egl_transparent_type_abbrev(fbca[i].transparent_type),
+               fbca[i].transparent_red_value,
+               fbca[i].transparent_green_value,
+               fbca[i].transparent_blue_value);
+    }
+
+} /* print_egl_config_attribs() */
+
+
+/*
+ * print_eglinfo() - prints information about egl
+ *
+ */
+
+void print_eglinfo(const char *display_name, CtrlSystemList *systems)
+{
+    CtrlSystem     *system;
+    CtrlTargetNode *node;
+    ReturnStatus   status = NvCtrlSuccess;
+
+    char *egl_vendor        = NULL;
+    char *egl_version       = NULL;
+    char *egl_extensions    = NULL;
+    char *formatted_ext_str = NULL;
+
+    EGLConfigAttr *egl_config_attribs = NULL;
+
+
+    system = NvCtrlConnectToSystem(display_name, systems);
+    if (system == NULL) {
+        return;
+    }
+
+    /* Print information for each screen */
+    for (node = system->targets[X_SCREEN_TARGET]; node; node = node->next) {
+
+        CtrlTarget *t = node->t;
+
+        /* No screen, move on */
+        if (!t->h) continue;
+
+        nv_msg(NULL, "EGL Information for %s:", t->name);
+
+        /* Get EGL information */
+        status = NvCtrlGetStringAttribute(t,
+                                          NV_CTRL_STRING_EGL_VENDOR,
+                                          &egl_vendor);
+        if (status != NvCtrlSuccess && status != NvCtrlNoAttribute) {
+            goto finish;
+        }
+
+        status = NvCtrlGetStringAttribute(t,
+                                          NV_CTRL_STRING_EGL_VERSION,
+                                          &egl_version);
+        if (status != NvCtrlSuccess && status != NvCtrlNoAttribute) {
+            goto finish;
+        }
+
+        status = NvCtrlGetStringAttribute(t,
+                                          NV_CTRL_STRING_EGL_EXTENSIONS,
+                                          &egl_extensions);
+        if (status != NvCtrlSuccess && status != NvCtrlNoAttribute) {
+            goto finish;
+        }
+
+        if (egl_extensions != NULL) {
+            formatted_ext_str = format_extension_list(egl_extensions);
+            if (formatted_ext_str != NULL) {
+                free(egl_extensions);
+                egl_extensions = formatted_ext_str;
+            }
+        }
+
+        /* Get FBConfig information */
+        status = NvCtrlGetVoidAttribute(t,
+                                        NV_CTRL_ATTR_EGL_CONFIG_ATTRIBS,
+                                        (void *)(&egl_config_attribs));
+        if (status != NvCtrlSuccess && status != NvCtrlNoAttribute) {
+            goto finish;
+        }
+
+
+        /* Print results */
+        nv_msg(TAB, "EGL vendor string: %s", NULL_TO_EMPTY(egl_vendor));
+        nv_msg(TAB, "EGL version string: %s", NULL_TO_EMPTY(egl_version));
+        nv_msg(TAB, "EGL extensions:");
+        nv_msg("    ", "%s", NULL_TO_EMPTY(egl_extensions));
+        nv_msg(" ", "\n");
+
+        if (egl_config_attribs != NULL) {
+            nv_msg(" ", "\n");
+            print_egl_config_attribs(egl_config_attribs);
+        }
+
+        fflush(stdout);
+
+        /* Free memory used */
+        SAFE_FREE(egl_vendor);
+        SAFE_FREE(egl_version);
+        SAFE_FREE(egl_extensions);
+        SAFE_FREE(egl_config_attribs);
+
+    } /* Done looking at all screens */
+
+
+    /* Fall through */
+ finish:
+    if (status == NvCtrlError) {
+        nv_error_msg("Error fetching EGL Information: %s",
+                     NvCtrlAttributesStrError(status) );
+    }
+
+    /* Free any leftover memory used */
+    SAFE_FREE(egl_vendor);
+    SAFE_FREE(egl_version);
+    SAFE_FREE(egl_extensions);
+    SAFE_FREE(egl_config_attribs);
+
+    NvCtrlFreeAllSystems(systems);
+
+} /* print_eglinfo() */
+
+

@@ -43,8 +43,8 @@
 #include "dfp.png.h"
 #include "display_config.png.h"
 #include "framelock.png.h"
-#include "glx.png.h"
 #include "gpu.png.h"
+#include "graphics.png.h"
 #include "help.png.h"
 #include "opengl.png.h"
 #include "penguin.png.h"
@@ -420,8 +420,8 @@ static GdkPixbuf* select_artwork(BannerArtworkType artwork,
         { BANNER_ARTWORK_DFP,            FALSE, 16,      PNG(dfp)                 },
         { BANNER_ARTWORK_DISPLAY_CONFIG, FALSE, 16,      PNG(display_config)      },
         { BANNER_ARTWORK_FRAMELOCK,      FALSE, 16,      PNG(framelock)           },
-        { BANNER_ARTWORK_GLX,            FALSE, 16,      PNG(glx)                 },
         { BANNER_ARTWORK_GPU,            FALSE, 16,      PNG(gpu)                 },
+        { BANNER_ARTWORK_GRAPHICS,       FALSE, 16,      PNG(graphics)            },
         { BANNER_ARTWORK_GVI,            FALSE, 16,      PNG(gvi)                 },
         { BANNER_ARTWORK_HELP,           FALSE, 16,      PNG(help)                },
         { BANNER_ARTWORK_OPENGL,         FALSE, 16,      PNG(opengl)              },

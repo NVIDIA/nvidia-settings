@@ -23,6 +23,7 @@
 #include "NvCtrlAttributes.h"
 #include "NVCtrl.h"
 #include <GL/glx.h> /* GLX #defines */
+#include <EGL/egl.h>
 #include <X11/extensions/Xrandr.h> /* Xrandr */
 #include <nvml.h>
 
@@ -201,6 +202,8 @@ struct __NvCtrlAttributePrivateHandle {
     NvCtrlVidModeAttributes *vm;    /* XF86VidMode extension info */
     NvCtrlXvAttributes *xv;         /* XVideo info */
     Bool glx;                       /* GLX extension available */
+    Bool egl;                       /* EGL extension available */
+    EGLDisplay egl_dpy;
     NvCtrlXrandrAttributes *xrandr; /* XRandR extension info */
 
     /* NVML-specific attributes */
@@ -283,6 +286,17 @@ ReturnStatus NvCtrlGlxGetVoidAttribute(const NvCtrlAttributePrivateHandle *,
 ReturnStatus NvCtrlGlxGetStringAttribute(const NvCtrlAttributePrivateHandle *,
                                          unsigned int, int, char **);
 
+/* EGL extension attribute functions */
+
+Bool NvCtrlInitEglAttributes(NvCtrlAttributePrivateHandle *);
+
+void NvCtrlEglAttributesClose(NvCtrlAttributePrivateHandle *);
+
+ReturnStatus NvCtrlEglGetVoidAttribute(const NvCtrlAttributePrivateHandle *,
+                                       unsigned int, int, void **);
+
+ReturnStatus NvCtrlEglGetStringAttribute(const NvCtrlAttributePrivateHandle *,
+                                         unsigned int, int, char **);
 
 /* XRandR extension attribute functions */
 
