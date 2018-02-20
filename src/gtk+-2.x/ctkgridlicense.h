@@ -86,6 +86,7 @@ typedef enum
     NV_GRID_LICENSE_EXPIRED_QDWS,
     NV_GRID_LICENSE_RESTART_REQUIRED,
     NV_GRID_LICENSE_RESTART_REQUIRED_VAPP,
+    NV_GRID_UNLICENSED_REQUEST_DETAILS,     // Default case
 } licenseStatus;
 
 struct _CtkManageGridLicenseClass
