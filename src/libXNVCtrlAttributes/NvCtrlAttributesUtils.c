@@ -685,6 +685,23 @@ static CtrlTarget *nv_alloc_ctrl_target(CtrlSystem *system,
     t->targetTypeInfo = targetTypeInfo;
 
     /*
+     * detect if the given GPU is visible to the X server and silently fail if
+     * it is not; if there is a discrepency between NVML and NV-CONTROL, such as
+     * an eGPU that is invisible to X due to Option "AllowExternalGpus" "true"
+     * not being specified in xorg.conf, it can cause errors down the line.
+     */
+
+    if (target_type == GPU_TARGET) {
+        /* NV_CTRL_DEPTH_30_ALLOWED expected to succeed for any valid device */
+        status = NvCtrlGetAttribute(t, NV_CTRL_DEPTH_30_ALLOWED, &d);
+        if (status != NvCtrlSuccess) {
+            nvfree(t);
+            NvCtrlAttributeClose(handle);
+            return NULL;
+        }
+    }
+
+    /*
      * get a name for this target; in the case of
      * X_SCREEN_TARGET targets, just use the string returned
      * from NvCtrlGetDisplayName(); for other target types,
