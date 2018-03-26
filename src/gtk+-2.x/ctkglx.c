@@ -926,6 +926,8 @@ void ctk_glx_probe_info(GtkWidget *widget)
 
     ReturnStatus ret;
 
+    gboolean use_egl = TRUE;
+
     char *direct_rendering  = NULL;
     char *glx_extensions    = NULL;
     char *server_vendor     = NULL;
@@ -1023,15 +1025,15 @@ void ctk_glx_probe_info(GtkWidget *widget)
     ret = NvCtrlGetStringAttribute(ctrl_target,
                                    NV_CTRL_STRING_EGL_VENDOR,
                                    &egl_vendor);
-    if ( ret != NvCtrlSuccess ) { goto done; }
+    if ( ret != NvCtrlSuccess ) { use_egl = FALSE; }
     ret = NvCtrlGetStringAttribute(ctrl_target,
                                    NV_CTRL_STRING_EGL_VERSION,
                                    &egl_version);
-    if ( ret != NvCtrlSuccess ) { goto done; }
+    if ( ret != NvCtrlSuccess ) { use_egl = FALSE; }
     ret = NvCtrlGetStringAttribute(ctrl_target,
                                    NV_CTRL_STRING_EGL_EXTENSIONS,
                                    &egl_extensions);
-    if ( ret != NvCtrlSuccess ) { goto done; }
+    if ( ret != NvCtrlSuccess ) { use_egl = FALSE; }
 
 
 
@@ -1178,37 +1180,40 @@ void ctk_glx_probe_info(GtkWidget *widget)
 
 
     /* Add EGL information to widget */
-    notebook_label = gtk_label_new("EGL");
-    vbox2 = gtk_vbox_new(FALSE, 0);
-    gtk_container_set_border_width(GTK_CONTAINER(vbox2), notebook_padding);
-    scroll_win = gtk_scrolled_window_new(NULL, NULL);
-    gtk_scrolled_window_set_policy(GTK_SCROLLED_WINDOW(scroll_win),
-                                   GTK_POLICY_NEVER, GTK_POLICY_AUTOMATIC);
+    if (use_egl) {
+        notebook_label = gtk_label_new("EGL");
+        vbox2 = gtk_vbox_new(FALSE, 0);
+        gtk_container_set_border_width(GTK_CONTAINER(vbox2), notebook_padding);
+        scroll_win = gtk_scrolled_window_new(NULL, NULL);
+        gtk_scrolled_window_set_policy(GTK_SCROLLED_WINDOW(scroll_win),
+                                       GTK_POLICY_NEVER, GTK_POLICY_AUTOMATIC);
 
-    table = gtk_table_new(3, 2, FALSE);
-    gtk_table_set_row_spacings(GTK_TABLE(table), 3);
-    gtk_table_set_col_spacings(GTK_TABLE(table), 15);
-    add_table_row(table, 0,
-                  0, 0, "Vendor:",
-                  0, 0, egl_vendor);
-    add_table_row(table, 1,
-                  0, 0, "Version:",
-                  0, 0, egl_version);
-    add_table_row(table, 2,
-                  0, 0, "Extensions:",
-                  0, 0, egl_extensions);
+        table = gtk_table_new(3, 2, FALSE);
+        gtk_table_set_row_spacings(GTK_TABLE(table), 3);
+        gtk_table_set_col_spacings(GTK_TABLE(table), 15);
+        add_table_row(table, 0,
+                      0, 0, "Vendor:",
+                      0, 0, egl_vendor);
+        add_table_row(table, 1,
+                      0, 0, "Version:",
+                      0, 0, egl_version);
+        add_table_row(table, 2,
+                      0, 0, "Extensions:",
+                      0, 0, egl_extensions);
 
-    if (ctk_glx->show_egl_fbc_button) {
-        GtkWidget *button_box = gtk_hbox_new(FALSE, 5);
-        gtk_box_pack_start(GTK_BOX(vbox2), button_box, FALSE, FALSE, 5);
-        gtk_box_pack_start(GTK_BOX(button_box), ctk_glx->show_egl_fbc_button,
-                           FALSE, FALSE, 0);
+        if (ctk_glx->show_egl_fbc_button) {
+            GtkWidget *button_box = gtk_hbox_new(FALSE, 5);
+            gtk_box_pack_start(GTK_BOX(vbox2), button_box, FALSE, FALSE, 5);
+            gtk_box_pack_start(GTK_BOX(button_box),
+                               ctk_glx->show_egl_fbc_button,
+                               FALSE, FALSE, 0);
+        }
+        gtk_box_pack_start(GTK_BOX(vbox2), table, FALSE, FALSE, 0);
+
+        gtk_container_add(GTK_CONTAINER(scroll_win), vbox2);
+        gtk_notebook_append_page(GTK_NOTEBOOK(notebook), scroll_win,
+                                 notebook_label);
     }
-    gtk_box_pack_start(GTK_BOX(vbox2), table, FALSE, FALSE, 0);
-
-    gtk_container_add(GTK_CONTAINER(scroll_win), vbox2);
-    gtk_notebook_append_page(GTK_NOTEBOOK(notebook), scroll_win,
-                             notebook_label);
 
 
     /* Show the information */
