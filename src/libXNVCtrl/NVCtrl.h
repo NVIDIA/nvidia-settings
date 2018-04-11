@@ -42,7 +42,9 @@
 #define NV_CTRL_TARGET_TYPE_X_SCREEN       0
 #define NV_CTRL_TARGET_TYPE_GPU            1
 #define NV_CTRL_TARGET_TYPE_FRAMELOCK      2
-#define NV_CTRL_TARGET_TYPE_VCSC           3 /* Visual Computing System */
+/* Visual Computing System - deprecated.  To be removed along with all
+ * VCS-specific attributes in a later release. */
+#define NV_CTRL_TARGET_TYPE_VCSC           3
 #define NV_CTRL_TARGET_TYPE_GVI            4
 #define NV_CTRL_TARGET_TYPE_COOLER         5 /* e.g., fan */
 #define NV_CTRL_TARGET_TYPE_THERMAL_SENSOR 6
@@ -2170,9 +2172,10 @@
 
 
 /*
- * NV_CTRL_VCSC_HIGH_PERF_MODE - Is used to both query High Performance Mode
- * status on the Visual Computing System, and also to enable or disable High
- * Performance Mode.
+ * NV_CTRL_VCSC_HIGH_PERF_MODE - deprecated
+ *
+ * Is used to both query High Performance Mode status on the Visual Computing
+ * System, and also to enable or disable High Performance Mode.
  */
 
 #define NV_CTRL_VCSC_HIGH_PERF_MODE                             282 /* RW-V */
@@ -3687,8 +3690,9 @@
 
 
 /*
- * NV_CTRL_STRING_VCSC_PRODUCT_NAME - Queries the product name of the
- * VCSC device.
+ * NV_CTRL_STRING_VCSC_PRODUCT_NAME - deprecated
+ *
+ * Queries the product name of the VCSC device.
  *
  * This attribute must be queried through XNVCTRLQueryTargetStringAttribute()
  * using a NV_CTRL_TARGET_TYPE_VCSC target.
@@ -3698,7 +3702,9 @@
 
 
 /*
- * NV_CTRL_STRING_VCSC_PRODUCT_ID - Queries the product ID of the VCSC device.
+ * NV_CTRL_STRING_VCSC_PRODUCT_ID - deprecated
+ *
+ * Queries the product ID of the VCSC device.
  *
  * This attribute must be queried through XNVCTRLQueryTargetStringAttribute()
  * using a NV_CTRL_TARGET_TYPE_VCSC target.
@@ -3708,8 +3714,9 @@
 
 
 /*
- * NV_CTRL_STRING_VCSC_SERIAL_NUMBER - Queries the unique serial number
- * of the VCS device.
+ * NV_CTRL_STRING_VCSC_SERIAL_NUMBER - deprecated
+ *
+ * Queries the unique serial number of the VCS device.
  *
  * This attribute must be queried through XNVCTRLQueryTargetStringAttribute()
  * using a NV_CTRL_TARGET_TYPE_VCSC target.
@@ -3719,8 +3726,10 @@
 
 
 /*
- * NV_CTRL_STRING_VCSC_BUILD_DATE - Queries the date of the VCS device.
- * the returned string is in the following format: "Week.Year"
+ * NV_CTRL_STRING_VCSC_BUILD_DATE - deprecated
+ *
+ * Queries the date of the VCS device.  the returned string is in the following
+ * format: "Week.Year"
  *
  * This attribute must be queried through XNVCTRLQueryTargetStringAttribute()
  * using a NV_CTRL_TARGET_TYPE_VCSC target.
@@ -3730,8 +3739,9 @@
 
 
 /*
- * NV_CTRL_STRING_VCSC_FIRMWARE_VERSION - Queries the firmware version
- * of the VCS device.
+ * NV_CTRL_STRING_VCSC_FIRMWARE_VERSION - deprecated
+ *
+ * Queries the firmware version of the VCS device.
  *
  * This attribute must be queried through XNVCTRLQueryTargetStringAttribute()
  * using a NV_CTRL_TARGET_TYPE_VCSC target.
@@ -3741,8 +3751,9 @@
 
 
 /*
- * NV_CTRL_STRING_VCSC_FIRMWARE_REVISION - Queries the firmware revision
- * of the VCS device.
+ * NV_CTRL_STRING_VCSC_FIRMWARE_REVISION - deprecated
+ *
+ * Queries the firmware revision of the VCS device.
  *
  * This attribute must be queried through XNVCTRLQueryTargetStringAttribute()
  * using a NV_CTRL_TARGET_TYPE_VCS target.
@@ -3752,8 +3763,9 @@
 
 
 /*
- * NV_CTRL_STRING_VCSC_HARDWARE_VERSION - Queries the hardware version
- * of the VCS device.
+ * NV_CTRL_STRING_VCSC_HARDWARE_VERSION - deprecated
+ *
+ * Queries the hardware version of the VCS device.
  *
  * This attribute must be queried through XNVCTRLQueryTargetStringAttribute()
  * using a NV_CTRL_TARGET_TYPE_VCSC target.
@@ -3763,8 +3775,9 @@
 
 
 /*
- * NV_CTRL_STRING_VCSC_HARDWARE_REVISION - Queries the hardware revision
- * of the VCS device.
+ * NV_CTRL_STRING_VCSC_HARDWARE_REVISION - deprecated
+ *
+ * Queries the hardware revision of the VCS device.
  *
  * This attribute must be queried through XNVCTRLQueryTargetStringAttribute()
  * using a NV_CTRL_TARGET_TYPE_VCSC target.
@@ -3974,10 +3987,12 @@
 
 
 /*
- * NV_CTRL_STRING_VCSC_FAN_STATUS - returns a string with status of all the
- * fans in the Visual Computing System, if such a query is supported.  Fan
- * information is reported along with its tachometer reading (in RPM) and a 
- * flag indicating whether the fan has failed or not.
+ * NV_CTRL_STRING_VCSC_FAN_STATUS - deprecated
+ *
+ * Returns a string with status of all the fans in the Visual Computing System,
+ * if such a query is supported.  Fan information is reported along with its
+ * tachometer reading (in RPM) and a flag indicating whether the fan has failed
+ * or not.
  * 
  * Valid tokens:
  *
@@ -3999,9 +4014,11 @@
 
 
 /*
- * NV_CTRL_STRING_VCSC_TEMPERATURES - returns a string with all Temperature
- * readings in the Visual Computing System, if such a query is supported.  
- * Intake, Exhaust and Board Temperature values are reported in Celcius.
+ * NV_CTRL_STRING_VCSC_TEMPERATURES - Deprecated
+ *
+ * Returns a string with all Temperature readings in the Visual Computing
+ * System, if such a query is supported.  Intake, Exhaust and Board Temperature
+ * values are reported in Celcius.
  * 
  * Valid tokens:
  *
@@ -4023,11 +4040,12 @@
 
 
 /*
- * NV_CTRL_STRING_VCSC_PSU_INFO - returns a string with all Power Supply Unit
- * related readings in the Visual Computing System, if such a query is 
- * supported.  Current in amperes, Power in watts, Voltage in volts and PSU 
- * state may be reported.  Not all PSU types support all of these values, and
- * therefore some readings may be unknown.
+ * NV_CTRL_STRING_VCSC_PSU_INFO - Deprecated
+ *
+ * Returns a string with all Power Supply Unit related readings in the Visual
+ * Computing System, if such a query is supported.  Current in amperes, Power
+ * in watts, Voltage in volts and PSU state may be reported.  Not all PSU types
+ * support all of these values, and therefore some readings may be unknown.
  * 
  * Valid tokens:
  *
@@ -4523,8 +4541,9 @@
 
 
 /*
- * NV_CTRL_BINARY_DATA_GPUS_USING_VCSC - Returns the list of
- * GPU devices connected to the given VCS.
+ * NV_CTRL_BINARY_DATA_GPUS_USING_VCSC - Deprecated
+ *
+ * Returns the list of GPU devices connected to the given VCS.
  *
  * The format of the returned data is:
  *
@@ -4541,8 +4560,9 @@
 
 
 /*
- * NV_CTRL_BINARY_DATA_VCSCS_USED_BY_GPU - Returns the VCSC device
- * that is controlling the given GPU.
+ * NV_CTRL_BINARY_DATA_VCSCS_USED_BY_GPU - Deprecated
+ *
+ * Returns the VCSC device that is controlling the given GPU.
  *
  * The format of the returned data is:
  *
@@ -4993,7 +5013,7 @@
  * ATTRIBUTE_TYPE_XINERAMA  - Attribute will be made consistent for all
  *                            X Screens when the Xinerama extension is enabled.
  * ATTRIBUTE_TYPE_VCSC      - Attribute is valid for Visual Computing System
- *                            target types.
+ *                            target types (deprecated).
  * ATTRIBUTE_TYPE_GVI       - Attribute is valid for Graphics Video In target
  *                            types.
  * ATTRIBUTE_TYPE_COOLER    - Attribute is valid for Cooler target types.

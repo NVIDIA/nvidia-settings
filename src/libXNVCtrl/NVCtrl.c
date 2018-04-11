@@ -31,8 +31,6 @@
 #define XTHREADS
 #endif /* XTHREADS */
 
-#define NEED_EVENTS
-#define NEED_REPLIES
 #include <stdint.h>
 #include <stdlib.h>
 #include <X11/Xlibint.h>
