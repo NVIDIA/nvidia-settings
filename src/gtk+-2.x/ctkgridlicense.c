@@ -1264,7 +1264,6 @@ static void license_edition_toggled(GtkWidget *widget, gpointer user_data)
                     gtk_widget_set_sensitive(ctk_manage_grid_license->btn_cancel, FALSE);
             }
         }
-
     }  else if (GPOINTER_TO_INT(user_data) == NV_GRID_LICENSE_FEATURE_TYPE_VAPP) {
         gtk_widget_set_sensitive(ctk_manage_grid_license->box_server_info, FALSE);
         ctk_manage_grid_license->feature_type = 
@@ -1759,6 +1758,7 @@ GtkWidget* ctk_manage_grid_license_new(CtrlTarget *target,
     /* Apply button */
     ctk_manage_grid_license->btn_apply = gtk_button_new_with_label
         (" Apply ");
+    gtk_widget_set_sensitive(ctk_manage_grid_license->btn_apply, FALSE);
     gtk_widget_set_size_request(ctk_manage_grid_license->btn_apply, 100, -1);
     ctk_config_set_tooltip(ctk_config, ctk_manage_grid_license->btn_apply,
                            __apply_button_help);
@@ -1798,7 +1798,6 @@ GtkWidget* ctk_manage_grid_license_new(CtrlTarget *target,
                          str,
                          (GSourceFunc) update_manage_grid_license_state_info,
                          (gpointer) ctk_manage_grid_license);
-
     update_manage_grid_license_state_info(ctk_manage_grid_license);
 
     /* Enable Apply/Cancel button if there is mismatch between feature type fetched from nvidia-gridd
