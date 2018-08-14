@@ -65,6 +65,7 @@ INSTALL               ?= install
 INSTALL_BIN_ARGS      ?= -m 755
 INSTALL_LIB_ARGS      ?= -m 644
 INSTALL_DOC_ARGS      ?= -m 644
+INSTALL_PO_ARGS       ?= -m 644
 
 M4                    ?= m4
 SED                   ?= sed
@@ -81,6 +82,10 @@ DATE                  ?= date
 GZIP_CMD              ?= gzip
 CHMOD                 ?= chmod
 OBJCOPY               ?= objcopy
+MSGFMT                ?= msgfmt
+MSGMERGE              ?= msgmerge
+XGETTEXT              ?= xgettext
+FIND                  ?= find
 
 NV_AUTO_DEPEND        ?= 1
 NV_VERBOSE            ?= 0
@@ -187,6 +192,7 @@ PREFIX ?= /usr/local
 BINDIR = $(DESTDIR)$(PREFIX)/bin
 LIBDIR = $(DESTDIR)$(PREFIX)/lib
 MANDIR = $(DESTDIR)$(PREFIX)/share/man/man1
+LCDIR = $(DESTDIR)$(PREFIX)/share/locale
 
 
 ##############################################################################

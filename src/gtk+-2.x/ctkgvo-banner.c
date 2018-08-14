@@ -27,6 +27,7 @@
 
 #include <gtk/gtk.h>
 #include <string.h>
+#include <libintl.h>
 
 #include "NvCtrlAttributes.h"
 
@@ -37,7 +38,7 @@
 
 #include "msg.h"
 
-
+#define _(STRING) gettext(STRING)
 
 /* values for controlling LED state */
 
@@ -291,7 +292,7 @@ GtkWidget* ctk_gvo_banner_new(CtrlTarget *ctrl_target,
 
     ctk_config_add_timer(ctk_gvo_banner->ctk_config,
                          DEFAULT_GVO_PROBE_TIME_INTERVAL,
-                         "Graphics To Video Probe",
+                         _("Graphics To Video Probe"),
                          (GSourceFunc) ctk_gvo_banner_probe,
                          (gpointer) ctk_gvo_banner);
 

@@ -19,6 +19,7 @@
 
 #include <stdlib.h>
 #include <string.h>
+#include <libintl.h>
 
 #include <gtk/gtk.h>
 #include <NvCtrlAttributes.h>
@@ -31,7 +32,8 @@
 #include "ctkbanner.h"
 #include "ctkdropdownmenu.h"
 
-
+#define _(STRING) gettext(STRING)
+#define N_(STRING) STRING
 
 #define FRAME_PADDING 10
 #define DEFAULT_UPDATE_POWERMIZER_INFO_TIME_INTERVAL 1000
@@ -64,82 +66,82 @@ static void offset_value_changed_event_received(GObject *object,
 static void update_editable_perf_level_info(CtkPowermizer *ctk_powermizer);
 
 static const char *__adaptive_clock_help =
-"The Adaptive Clocking status describes if this feature "
-"is currently enabled in this GPU.";
+N_("The Adaptive Clocking status describes if this feature "
+"is currently enabled in this GPU.");
 
 static const char *__power_source_help =
-"The Power Source indicates whether the machine "
-"is running on AC or Battery power.";
+N_("The Power Source indicates whether the machine "
+"is running on AC or Battery power.");
 
 static const char *__current_pcie_link_width_help =
-"This is the current PCIe link width of the GPU, in number of lanes.";
+N_("This is the current PCIe link width of the GPU, in number of lanes.");
 
 static const char *__current_pcie_link_speed_help =
-"This is the current PCIe link speed of the GPU, "
-"in gigatransfers per second (GT/s).";
+N_("This is the current PCIe link speed of the GPU, "
+"in gigatransfers per second (GT/s).");
 
 static const char *__performance_level_help =
-"This indicates the current Performance Level of the GPU.";
+N_("This indicates the current Performance Level of the GPU.");
 
 static const char *__gpu_clock_freq_help =
-"This indicates the current Graphics Clock frequency.";
+N_("This indicates the current Graphics Clock frequency.");
 
 static const char *__memory_transfer_rate_freq_help =
-"This indicates the current Memory transfer rate.";
+N_("This indicates the current Memory transfer rate.");
 
 static const char *__processor_clock_freq_help =
-"This indicates the current Processor Clock frequency.";
+N_("This indicates the current Processor Clock frequency.");
 
 static const char *__performance_levels_table_help =
-"This indicates the Performance Levels available for the GPU.  Each "
+N_("This indicates the Performance Levels available for the GPU.  Each "
 "performance level is indicated by a Performance Level number, along with "
 "the Graphics, Memory and Processor clocks for that level.  The currently active "
 "performance level is shown in regular text.  All other performance "
 "levels are shown in gray.  Note that multiple performance levels may share "
-"the same range of available clocks.";
+"the same range of available clocks.");
 
 static const char *__editable_performance_levels_table_help =
-"Each Performance Level that allows clock modifications will allow custom "
+N_("Each Performance Level that allows clock modifications will allow custom "
 "offsets to be applied to the Graphics clock and Memory Transfer Rate."
 "  For clock domains that have a minimum and maximum clock per "
-"performance level, the offset applies to both the minimum and maximum.";
+"performance level, the offset applies to both the minimum and maximum.");
 
 static const char *__gpu_clock_offset_help =
-"This is the amount, in MHz, to over- or under-clock the Graphics Clock."
-"  The requested offset will be adjusted to the nearest available clock.";
+N_("This is the amount, in MHz, to over- or under-clock the Graphics Clock."
+"  The requested offset will be adjusted to the nearest available clock.");
 
 static const char *__memory_transfer_rate_offset_help =
-"This is the amount, in MHz, to over- or under-clock the Memory Transfer Rate.";
+N_("This is the amount, in MHz, to over- or under-clock the Memory Transfer Rate.");
 
 static const char *__powermizer_menu_help =
-"The Preferred Mode menu allows you to choose the preferred Performance "
+N_("The Preferred Mode menu allows you to choose the preferred Performance "
 "State for the GPU, provided the GPU has multiple Performance Levels.  "
 "If a single X server is running, the mode selected in nvidia-settings is what "
 "the system will be using; if two or more X servers are running, the behavior "
 "is undefined.  The value of this setting does not persist across X server or "
-"system restarts.  ";
+"system restarts.  ");
 
 static const char *__powermizer_auto_mode_help =
-"'Auto' mode lets the driver choose the best Performance State for your GPU.  ";
+N_("'Auto' mode lets the driver choose the best Performance State for your GPU.  ");
 
 static const char *__powermizer_adaptive_mode_help =
-"'Adaptive' mode allows the GPU clocks to be adjusted based on GPU "
-"utilization.  ";
+N_("'Adaptive' mode allows the GPU clocks to be adjusted based on GPU "
+"utilization.  ");
 
 static const char *__powermizer_prefer_maximum_performance_help =
-"'Prefer Maximum Performance' hints to the driver to prefer higher GPU clocks, "
-"when possible.  ";
+N_("'Prefer Maximum Performance' hints to the driver to prefer higher GPU clocks, "
+"when possible.  ");
 
 static const char *__powermizer_prefer_consistent_performance_help =
-"'Prefer Consistent Performance' hints to the driver to lock to GPU base clocks, "
-"when possible.  ";
+N_("'Prefer Consistent Performance' hints to the driver to lock to GPU base clocks, "
+"when possible.  ");
 
 static const char *__dp_configuration_button_help =
-"CUDA - Double Precision lets you enable "
+N_("CUDA - Double Precision lets you enable "
 "increased double-precision calculations in CUDA applications.  Available on "
 "GPUs with the capability for increased double-precision performance."
 "  NOTE: Selecting a GPU reduces performance for non-CUDA applications, "
-"including games.  To increase game performance, disable this checkbox.";
+"including games.  To increase game performance, disable this checkbox.");
 
 GType ctk_powermizer_get_type(void)
 {
@@ -269,19 +271,19 @@ static void post_set_attribute_offset_value(CtkPowermizer *ctk_powermizer,
     switch (attribute) {
     case NV_CTRL_GPU_NVCLOCK_OFFSET_ALL_PERFORMANCE_LEVELS:
     case NV_CTRL_GPU_NVCLOCK_OFFSET:
-        str = "Graphics Clock";
+        str = _("Graphics Clock");
         break;
     case NV_CTRL_GPU_MEM_TRANSFER_RATE_OFFSET_ALL_PERFORMANCE_LEVELS:
     case NV_CTRL_GPU_MEM_TRANSFER_RATE_OFFSET:
-        str = "Memory Transfer Rate";
+        str = _("Memory Transfer Rate");
         break;
     default:
-        str = "unknown";
+        str = _("unknown");
         break;
     }
 
     ctk_config_statusbar_message(ctk_powermizer->ctk_config,
-                                 "%s offset set to %d.", str, val);
+                                 _("%s offset set to %d."), str, val);
 }
 
 
@@ -358,7 +360,7 @@ static void update_editable_perf_level_info(CtkPowermizer *ctk_powermizer)
     hbox = gtk_hbox_new(FALSE, 0);
     gtk_box_pack_start(GTK_BOX(vbox), hbox, FALSE, FALSE, 0);
 
-    label = gtk_label_new("Editable Performance Levels");
+    label = gtk_label_new(_("Editable Performance Levels"));
     gtk_box_pack_start(GTK_BOX(hbox), label, FALSE, FALSE, 0);
 
     hsep = gtk_hseparator_new();
@@ -374,7 +376,7 @@ static void update_editable_perf_level_info(CtkPowermizer *ctk_powermizer)
     ctk_powermizer->editable_perf_level_table = table;
 
     if (ctk_powermizer->performance_level) {
-        label = gtk_label_new("Level");
+        label = gtk_label_new(_("Level"));
         gtk_misc_set_alignment(GTK_MISC(label), 0.0f, 0.5f);
         gtk_table_attach(GTK_TABLE(table), label, 0, 1, 1, 2,
                          GTK_FILL, GTK_FILL | GTK_EXPAND, 5, 0);
@@ -390,19 +392,19 @@ static void update_editable_perf_level_info(CtkPowermizer *ctk_powermizer)
     if (ctk_powermizer->gpu_clock &&
         ctk_powermizer->nvclock_attribute) {
         /* Graphics clock */
-        label = gtk_label_new("Graphics Clock Offset");
+        label = gtk_label_new(_("Graphics Clock Offset"));
         gtk_misc_set_alignment(GTK_MISC(label), 0.0f, 0.5f);
         gtk_table_attach(GTK_TABLE(table), label, col_idx+0, col_idx+3, 0, 1,
                          GTK_FILL, GTK_FILL | GTK_EXPAND, 5, 0);
-        label = gtk_label_new("Current");
+        label = gtk_label_new(_("Current"));
         gtk_misc_set_alignment(GTK_MISC(label), 0.0f, 0.5f);
         gtk_table_attach(GTK_TABLE(table), label, col_idx+0, col_idx+1, 1, 2,
                          GTK_FILL, GTK_FILL | GTK_EXPAND, 5, 0);
-        label = gtk_label_new("Min");
+        label = gtk_label_new(_("Min"));
         gtk_misc_set_alignment(GTK_MISC(label), 0.0f, 0.5f);
         gtk_table_attach(GTK_TABLE(table), label, col_idx+1, col_idx+2, 1, 2,
                          GTK_FILL, GTK_FILL | GTK_EXPAND, 5, 0);
-        label = gtk_label_new("Max");
+        label = gtk_label_new(_("Max"));
         gtk_misc_set_alignment(GTK_MISC(label), 0.0f, 0.5f);
         gtk_table_attach(GTK_TABLE(table), label, col_idx+2, col_idx+3, 1, 2,
                          GTK_FILL, GTK_FILL | GTK_EXPAND, 5, 0);
@@ -418,19 +420,19 @@ static void update_editable_perf_level_info(CtkPowermizer *ctk_powermizer)
     if (ctk_powermizer->memory_transfer_rate &&
         ctk_powermizer->mem_transfer_rate_attribute) {
         /* Memory transfer rate */
-        label = gtk_label_new("Memory Transfer Rate Offset");
+        label = gtk_label_new(_("Memory Transfer Rate Offset"));
         gtk_misc_set_alignment(GTK_MISC(label), 0.0f, 0.5f);
         gtk_table_attach(GTK_TABLE(table), label, col_idx+0, col_idx+3, 0, 1,
                          GTK_FILL, GTK_FILL | GTK_EXPAND, 5, 0);
-        label = gtk_label_new("Current");
+        label = gtk_label_new(_("Current"));
         gtk_misc_set_alignment(GTK_MISC(label), 0.0f, 0.5f);
         gtk_table_attach(GTK_TABLE(table), label, col_idx+0, col_idx+1, 1, 2,
                          GTK_FILL, GTK_FILL | GTK_EXPAND, 5, 0);
-        label = gtk_label_new("Min");
+        label = gtk_label_new(_("Min"));
         gtk_misc_set_alignment(GTK_MISC(label), 0.0f, 0.5f);
         gtk_table_attach(GTK_TABLE(table), label, col_idx+1, col_idx+2, 1, 2,
                          GTK_FILL, GTK_FILL | GTK_EXPAND, 5, 0);
-        label = gtk_label_new("Max");
+        label = gtk_label_new(_("Max"));
         gtk_misc_set_alignment(GTK_MISC(label), 0.0f, 0.5f);
         gtk_table_attach(GTK_TABLE(table), label, col_idx+2, col_idx+3, 1, 2,
                          GTK_FILL, GTK_FILL | GTK_EXPAND, 5, 0);
@@ -475,7 +477,7 @@ static void update_editable_perf_level_info(CtkPowermizer *ctk_powermizer)
                     gtk_entry_set_width_chars(GTK_ENTRY(txt_nvclock_offset), 6);
                     ctk_config_set_tooltip(ctk_powermizer->ctk_config,
                                            txt_nvclock_offset,
-                                           __gpu_clock_offset_help);
+                                           _(__gpu_clock_offset_help));
                     g_signal_connect(G_OBJECT(txt_nvclock_offset), "activate",
                                      G_CALLBACK(set_attribute_offset_value),
                                      (gpointer) ctk_powermizer);
@@ -507,7 +509,7 @@ static void update_editable_perf_level_info(CtkPowermizer *ctk_powermizer)
                                               6);
                     ctk_config_set_tooltip(ctk_powermizer->ctk_config,
                                            txt_mem_transfer_rate_offset,
-                                           __memory_transfer_rate_offset_help);
+                                           _(__memory_transfer_rate_offset_help));
                     g_signal_connect(G_OBJECT(txt_mem_transfer_rate_offset),
                                      "activate",
                                      G_CALLBACK(set_attribute_offset_value),
@@ -526,7 +528,7 @@ static void update_editable_perf_level_info(CtkPowermizer *ctk_powermizer)
 
         if (ctk_powermizer->performance_level) {
             if (ctk_powermizer->editable_performance_levels_unified) {
-                label = gtk_label_new("All");
+                label = gtk_label_new(_("All"));
             } else {
                 g_snprintf(tmp_str, 24, "%d", i);
                 label = gtk_label_new(tmp_str);
@@ -722,7 +724,7 @@ static void update_perf_mode_table(CtkPowermizer *ctk_powermizer,
                            table, FALSE, FALSE, 0);
 
         if (ctk_powermizer->performance_level) {
-            label = gtk_label_new("Level");
+            label = gtk_label_new(_("Level"));
             gtk_misc_set_alignment(GTK_MISC(label), 0.0f, 0.5f);
             gtk_table_attach(GTK_TABLE(table), label, 0, 1, 1, 2,
                              GTK_FILL, GTK_FILL | GTK_EXPAND, 5, 0);
@@ -735,15 +737,15 @@ static void update_perf_mode_table(CtkPowermizer *ctk_powermizer,
 
         if (ctk_powermizer->gpu_clock) {
             /* Graphics clock */
-            label = gtk_label_new("Graphics Clock");
+            label = gtk_label_new(_("Graphics Clock"));
             gtk_misc_set_alignment(GTK_MISC(label), 0.0f, 0.5f);
             gtk_table_attach(GTK_TABLE(table), label, col_idx+2, col_idx+4, 0, 1,
                              GTK_FILL, GTK_FILL | GTK_EXPAND, 5, 0);
-            label = gtk_label_new("Min");
+            label = gtk_label_new(_("Min"));
             gtk_misc_set_alignment(GTK_MISC(label), 0.0f, 0.5f);
             gtk_table_attach(GTK_TABLE(table), label, col_idx+2, col_idx+3, 1, 2,
                              GTK_FILL, GTK_FILL | GTK_EXPAND, 5, 0);
-            label = gtk_label_new("Max");
+            label = gtk_label_new(_("Max"));
             gtk_misc_set_alignment(GTK_MISC(label), 0.0f, 0.5f);
             gtk_table_attach(GTK_TABLE(table), label, col_idx+3, col_idx+4, 1, 2,
                              GTK_FILL, GTK_FILL | GTK_EXPAND, 5, 0);
@@ -759,15 +761,15 @@ static void update_perf_mode_table(CtkPowermizer *ctk_powermizer,
         /* Memory transfer rate */
         if (ctk_powermizer->memory_transfer_rate &&
             pEntry[i].memtransferratemin_specified) {
-            label = gtk_label_new("Memory Transfer Rate");
+            label = gtk_label_new(_("Memory Transfer Rate"));
             gtk_misc_set_alignment(GTK_MISC(label), 0.0f, 0.5f);
             gtk_table_attach(GTK_TABLE(table), label, col_idx+1, col_idx+3, 0, 1,
                              GTK_FILL, GTK_FILL | GTK_EXPAND, 5, 0);
-            label = gtk_label_new("Min");
+            label = gtk_label_new(_("Min"));
             gtk_misc_set_alignment(GTK_MISC(label), 0.0f, 0.5f);
             gtk_table_attach(GTK_TABLE(table), label, col_idx+1, col_idx+2, 1, 2,
                              GTK_FILL, GTK_FILL | GTK_EXPAND, 5, 0);
-            label = gtk_label_new("Max");
+            label = gtk_label_new(_("Max"));
             gtk_misc_set_alignment(GTK_MISC(label), 0.0f, 0.5f);
             gtk_table_attach(GTK_TABLE(table), label, col_idx+2, col_idx+3, 1, 2,
                              GTK_FILL, GTK_FILL | GTK_EXPAND, 5, 0);
@@ -782,15 +784,15 @@ static void update_perf_mode_table(CtkPowermizer *ctk_powermizer,
 
         if (ctk_powermizer->processor_clock) {
             /* Processor clock */
-            label = gtk_label_new("Processor Clock");
+            label = gtk_label_new(_("Processor Clock"));
             gtk_misc_set_alignment(GTK_MISC(label), 0.0f, 0.5f);
             gtk_table_attach(GTK_TABLE(table), label, col_idx+1, col_idx+3, 0, 1,
                              GTK_FILL, GTK_FILL | GTK_EXPAND, 5, 0);
-            label = gtk_label_new("Min");
+            label = gtk_label_new(_("Min"));
             gtk_misc_set_alignment(GTK_MISC(label), 0.0f, 0.5f);
             gtk_table_attach(GTK_TABLE(table), label, col_idx+1, col_idx+2, 1, 2,
                              GTK_FILL, GTK_FILL | GTK_EXPAND, 5, 0);
-            label = gtk_label_new("Max");
+            label = gtk_label_new(_("Max"));
             gtk_misc_set_alignment(GTK_MISC(label), 0.0f, 0.5f);
             gtk_table_attach(GTK_TABLE(table), label, col_idx+2, col_idx+3, 1, 2,
                              GTK_FILL, GTK_FILL | GTK_EXPAND, 5, 0);
@@ -813,13 +815,13 @@ static void update_perf_mode_table(CtkPowermizer *ctk_powermizer,
 
         if (ctk_powermizer->performance_level) {
             label = gtk_label_new("Performance Level");
-            gtk_misc_set_alignment(GTK_MISC(label), 0.0f, 0.5f);
+            gtk_misc_set_alignment(GTK_MISC(_(label)), 0.0f, 0.5f);
             gtk_table_attach(GTK_TABLE(table), label, 0, 1, 0, 1,
                              GTK_FILL, GTK_FILL | GTK_EXPAND, 5, 0);
         }
 
         if (ctk_powermizer->gpu_clock) {
-            label = gtk_label_new("Graphics Clock");
+            label = gtk_label_new(_("Graphics Clock"));
             gtk_misc_set_alignment(GTK_MISC(label), 0.0f, 0.5f);
             gtk_table_attach(GTK_TABLE(table), label, 1, 2, 0, 1,
                              GTK_FILL, GTK_FILL | GTK_EXPAND, 5, 0);
@@ -828,7 +830,7 @@ static void update_perf_mode_table(CtkPowermizer *ctk_powermizer,
 
         if (pEntry[i].memtransferrate_specified &&
             ctk_powermizer->memory_transfer_rate) {
-            label = gtk_label_new("Memory Transfer Rate");
+            label = gtk_label_new(_("Memory Transfer Rate"));
             gtk_misc_set_alignment(GTK_MISC(label), 0.0f, 0.5f);
             gtk_table_attach(GTK_TABLE(table), label, col_idx+1, col_idx+2, 0, 1,
                              GTK_FILL, GTK_FILL | GTK_EXPAND, 5, 0);
@@ -836,7 +838,7 @@ static void update_perf_mode_table(CtkPowermizer *ctk_powermizer,
         }
 
         if (ctk_powermizer->processor_clock) {
-            label = gtk_label_new("Processor Clock");
+            label = gtk_label_new(_("Processor Clock"));
             gtk_misc_set_alignment(GTK_MISC(label), 0.0f, 0.5f);
             gtk_table_attach(GTK_TABLE(table), label, col_idx+1, col_idx+2, 0, 1,
                              GTK_FILL, GTK_FILL | GTK_EXPAND, 5, 0);
@@ -1008,13 +1010,13 @@ static gboolean update_powermizer_info(gpointer user_data)
     if (ret == NvCtrlSuccess && ctk_powermizer->adaptive_clock_status) { 
 
         if (adaptive_clock == NV_CTRL_GPU_ADAPTIVE_CLOCK_STATE_ENABLED) {
-            s = g_strdup_printf("Enabled");
+            s = g_strdup_printf(_("Enabled"));
         }
         else if (adaptive_clock == NV_CTRL_GPU_ADAPTIVE_CLOCK_STATE_DISABLED) {
-            s = g_strdup_printf("Disabled");
+            s = g_strdup_printf(_("Disabled"));
         }
         else {
-            s = g_strdup_printf("Error");
+            s = g_strdup_printf(_("Error"));
         }
 
         gtk_label_set_text(GTK_LABEL(ctk_powermizer->adaptive_clock_status), s);
@@ -1064,13 +1066,13 @@ static gboolean update_powermizer_info(gpointer user_data)
     if (ret == NvCtrlSuccess && ctk_powermizer->power_source) {
 
         if (power_source == NV_CTRL_GPU_POWER_SOURCE_AC) {
-            s = g_strdup_printf("AC");
+            s = g_strdup_printf(_("AC"));
         }
         else if (power_source == NV_CTRL_GPU_POWER_SOURCE_BATTERY) {
-            s = g_strdup_printf("Battery");
+            s = g_strdup_printf(_("Battery"));
         }
         else {
-            s = g_strdup_printf("Error");
+            s = g_strdup_printf(_("Error"));
         }
 
         gtk_label_set_text(GTK_LABEL(ctk_powermizer->power_source), s);
@@ -1117,16 +1119,16 @@ static gchar* get_powermizer_menu_label(const unsigned int val)
 
     switch (val) {
     case NV_CTRL_GPU_POWER_MIZER_MODE_AUTO:
-        label = g_strdup_printf("Auto");
+        label = g_strdup_printf(_("Auto"));
         break;
     case NV_CTRL_GPU_POWER_MIZER_MODE_ADAPTIVE:
-        label = g_strdup_printf("Adaptive");
+        label = g_strdup_printf(_("Adaptive"));
         break;
     case NV_CTRL_GPU_POWER_MIZER_MODE_PREFER_MAXIMUM_PERFORMANCE:
-        label = g_strdup_printf("Prefer Maximum Performance");
+        label = g_strdup_printf(_("Prefer Maximum Performance"));
         break;
     case NV_CTRL_GPU_POWER_MIZER_MODE_PREFER_CONSISTENT_PERFORMANCE:
-        label = g_strdup_printf("Prefer Consistent Performance");
+        label = g_strdup_printf(_("Prefer Consistent Performance"));
         break;
     default:
         label = g_strdup_printf("");
@@ -1153,11 +1155,11 @@ static gchar* get_powermizer_help_text(const unsigned int bit_mask)
 
     text =
         g_strdup_printf("%s%s%s%s%s",
-                        __powermizer_menu_help,
-                        bAuto ? __powermizer_auto_mode_help : "",
-                        bAdaptive ? __powermizer_adaptive_mode_help : "",
-                        bMaximum ? __powermizer_prefer_maximum_performance_help : "",
-                        bConsistent ? __powermizer_prefer_consistent_performance_help : "");
+                        _(__powermizer_menu_help),
+                        bAuto ? _(__powermizer_auto_mode_help) : "",
+                        bAdaptive ? _(__powermizer_adaptive_mode_help) : "",
+                        bMaximum ? _(__powermizer_prefer_maximum_performance_help) : "",
+                        bConsistent ? _(__powermizer_prefer_consistent_performance_help) : "");
 
     return text;
 }
@@ -1336,7 +1338,7 @@ GtkWidget* ctk_powermizer_new(CtrlTarget *ctrl_target,
     hbox = gtk_hbox_new(FALSE, 0);
     gtk_box_pack_start(GTK_BOX(vbox), hbox, FALSE, FALSE, 0);
 
-    label = gtk_label_new("PowerMizer Information");
+    label = gtk_label_new(_("PowerMizer Information"));
     gtk_box_pack_start(GTK_BOX(hbox), label, FALSE, FALSE, 0);
 
     hsep = gtk_hseparator_new();
@@ -1352,12 +1354,12 @@ GtkWidget* ctk_powermizer_new(CtrlTarget *ctrl_target,
     if (adaptive_clock_state_available) {
         ctk_powermizer->adaptive_clock_status =
             add_table_row_with_help_text(table, ctk_config,
-                                         __adaptive_clock_help,
+                                         _(__adaptive_clock_help),
                                          row++, //row
                                          0,  // column
                                          0.0f,
                                          0.5,
-                                         "Adaptive Clocking:",
+                                         _("Adaptive Clocking:"),
                                          0.0,
                                          0.5,
                                          NULL);
@@ -1372,12 +1374,12 @@ GtkWidget* ctk_powermizer_new(CtrlTarget *ctrl_target,
         row += 3;
         ctk_powermizer->gpu_clock =
             add_table_row_with_help_text(table, ctk_config,
-                                         __gpu_clock_freq_help,
+                                         _(__gpu_clock_freq_help),
                                          row++, //row
                                          0,  // column
                                          0.0f,
                                          0.5,
-                                         "Graphics Clock:",
+                                         _("Graphics Clock:"),
                                          0.0,
                                          0.5,
                                          NULL);
@@ -1387,12 +1389,12 @@ GtkWidget* ctk_powermizer_new(CtrlTarget *ctrl_target,
     if (mem_transfer_rate_available) {
         ctk_powermizer->memory_transfer_rate =
             add_table_row_with_help_text(table, ctk_config,
-                                         __memory_transfer_rate_freq_help,
+                                         _(__memory_transfer_rate_freq_help),
                                          row++, //row
                                          0,  // column
                                          0.0f,
                                          0.5,
-                                         "Memory Transfer Rate:",
+                                         _("Memory Transfer Rate:"),
                                          0.0,
                                          0.5,
                                          NULL);
@@ -1405,12 +1407,12 @@ GtkWidget* ctk_powermizer_new(CtrlTarget *ctrl_target,
         row += 3;
         ctk_powermizer->processor_clock =
             add_table_row_with_help_text(table, ctk_config,
-                                         __processor_clock_freq_help,
+                                         _(__processor_clock_freq_help),
                                          row++, //row
                                          0,  // column
                                          0.0f,
                                          0.5,
-                                         "Processor Clock:",
+                                         _("Processor Clock:"),
                                          0.0,
                                          0.5,
                                          NULL);
@@ -1423,12 +1425,12 @@ GtkWidget* ctk_powermizer_new(CtrlTarget *ctrl_target,
         row += 3;
         ctk_powermizer->power_source =
             add_table_row_with_help_text(table, ctk_config,
-                                         __power_source_help,
+                                         _(__power_source_help),
                                          row++, //row
                                          0,  // column
                                          0.0f,
                                          0.5,
-                                         "Power Source:",
+                                         _("Power Source:"),
                                          0.0,
                                          0.5,
                                          NULL);
@@ -1441,12 +1443,12 @@ GtkWidget* ctk_powermizer_new(CtrlTarget *ctrl_target,
         row += 3;
         ctk_powermizer->link_width =
             add_table_row_with_help_text(table, ctk_config,
-                                         __current_pcie_link_width_help,
+                                         _(__current_pcie_link_width_help),
                                          row++, //row
                                          0,  // column
                                          0.0f,
                                          0.5,
-                                         "Current PCIe Link Width:",
+                                         _("Current PCIe Link Width:"),
                                          0.0,
                                          0.5,
                                          NULL);
@@ -1454,12 +1456,12 @@ GtkWidget* ctk_powermizer_new(CtrlTarget *ctrl_target,
         /* Current PCIe Link Speed */
         ctk_powermizer->link_speed =
             add_table_row_with_help_text(table, ctk_config,
-                                         __current_pcie_link_speed_help,
+                                         _(__current_pcie_link_speed_help),
                                          row++, //row
                                          0,  // column
                                          0.0f,
                                          0.5,
-                                         "Current PCIe Link Speed:",
+                                         _("Current PCIe Link Speed:"),
                                          0.0,
                                          0.5,
                                          NULL);
@@ -1474,12 +1476,12 @@ GtkWidget* ctk_powermizer_new(CtrlTarget *ctrl_target,
         row += 3;
         ctk_powermizer->performance_level =
             add_table_row_with_help_text(table, ctk_config,
-                                         __performance_level_help,
+                                         _(__performance_level_help),
                                          row++, //row
                                          0,  // column
                                          0.0f,
                                          0.5,
-                                         "Performance Level:",
+                                         _("Performance Level:"),
                                          0.0,
                                          0.5,
                                          NULL);
@@ -1494,7 +1496,7 @@ GtkWidget* ctk_powermizer_new(CtrlTarget *ctrl_target,
         hbox = gtk_hbox_new(FALSE, 0);
         gtk_box_pack_start(GTK_BOX(vbox), hbox, FALSE, FALSE, 0);
 
-        label = gtk_label_new("Performance Levels");
+        label = gtk_label_new(_("Performance Levels"));
         gtk_box_pack_start(GTK_BOX(hbox), label, FALSE, FALSE, 0);
 
         hsep = gtk_hseparator_new();
@@ -1512,7 +1514,7 @@ GtkWidget* ctk_powermizer_new(CtrlTarget *ctrl_target,
 
     /* Register a timer callback to update the temperatures */
 
-    s = g_strdup_printf("PowerMizer Monitor (GPU %d)",
+    s = g_strdup_printf(_("PowerMizer Monitor (GPU %d)"),
                         NvCtrlGetTargetId(ctrl_target));
 
     ctk_config_add_timer(ctk_powermizer->ctk_config,
@@ -1545,7 +1547,7 @@ GtkWidget* ctk_powermizer_new(CtrlTarget *ctrl_target,
         hbox2 = gtk_hbox_new(FALSE, 0);
         gtk_box_pack_start(GTK_BOX(vbox2), hbox2, FALSE, FALSE, 0);
 
-        label = gtk_label_new("PowerMizer Settings");
+        label = gtk_label_new(_("PowerMizer Settings"));
         gtk_box_pack_start(GTK_BOX(hbox2), label, FALSE, FALSE, 0);
 
         hsep = gtk_hseparator_new();
@@ -1593,7 +1595,7 @@ GtkWidget* ctk_powermizer_new(CtrlTarget *ctrl_target,
         hbox2 = gtk_hbox_new(FALSE, 0);
         gtk_table_attach(GTK_TABLE(table), hbox2, 0, 1, 0, 1,
                          GTK_FILL, GTK_FILL | GTK_EXPAND, 5, 0);
-        label = gtk_label_new("Preferred Mode:");
+        label = gtk_label_new(_("Preferred Mode:"));
         gtk_misc_set_alignment(GTK_MISC(label), 0.0f, 0.5f);
         gtk_box_pack_start(GTK_BOX(hbox2), label, FALSE, FALSE, 0);
 
@@ -1607,7 +1609,7 @@ GtkWidget* ctk_powermizer_new(CtrlTarget *ctrl_target,
         hbox2 = gtk_hbox_new(FALSE, 0);
         gtk_table_attach(GTK_TABLE(table), hbox2, 2, 3, 0, 1,
                          GTK_FILL, GTK_FILL | GTK_EXPAND, 5, 0);
-        label = gtk_label_new("Current Mode:");
+        label = gtk_label_new(_("Current Mode:"));
         gtk_misc_set_alignment(GTK_MISC(label), 0.0f, 0.5f);
         gtk_box_pack_start(GTK_BOX(hbox2), label, FALSE, FALSE, 0);
 
@@ -1655,7 +1657,7 @@ GtkWidget* ctk_powermizer_new(CtrlTarget *ctrl_target,
         hbox = gtk_hbox_new(FALSE, 0);
         gtk_box_pack_start(GTK_BOX(vbox), hbox, FALSE, FALSE, 0);
 
-        label = gtk_label_new("CUDA");
+        label = gtk_label_new(_("CUDA"));
         gtk_box_pack_start(GTK_BOX(hbox), label, FALSE, FALSE, 0);
 
         hsep = gtk_hseparator_new();
@@ -1663,7 +1665,7 @@ GtkWidget* ctk_powermizer_new(CtrlTarget *ctrl_target,
 
         hbox2 = gtk_hbox_new(FALSE, 0);
         ctk_powermizer->configuration_button =
-            gtk_check_button_new_with_label("CUDA - Double precision");
+            gtk_check_button_new_with_label(_("CUDA - Double precision"));
         gtk_box_pack_start(GTK_BOX(hbox2),
                            ctk_powermizer->configuration_button,
                            FALSE, FALSE, 0);
@@ -1705,7 +1707,7 @@ GtkWidget* ctk_powermizer_new(CtrlTarget *ctrl_target,
         }
 
         ctk_config_set_tooltip(ctk_config, ctk_powermizer->configuration_button,
-                               __dp_configuration_button_help);
+                               _(__dp_configuration_button_help));
         g_signal_connect(G_OBJECT(ctk_powermizer->configuration_button),
                          "clicked",
                          G_CALLBACK(dp_config_button_toggled),
@@ -1780,7 +1782,7 @@ static void post_powermizer_menu_update(CtkPowermizer *ctk_powermizer)
     const char *label = ctk_drop_down_menu_get_current_name(menu);
 
     ctk_config_statusbar_message(ctk_powermizer->ctk_config,
-                                 "Preferred Mode set to %s.", label);
+                                 _("Preferred Mode set to %s."), label);
 }
 
 
@@ -1879,7 +1881,7 @@ static void powermizer_menu_changed(GtkWidget *widget,
                              powerMizerMode);
     if (ret != NvCtrlSuccess) {
         ctk_config_statusbar_message(ctk_powermizer->ctk_config,
-                                     "Unable to set Preferred Mode to %s.",
+                                     _("Unable to set Preferred Mode to %s."),
                                      label);
         return;
     }
@@ -1906,10 +1908,10 @@ static void show_dp_toggle_warning_dlg(CtkPowermizer *ctk_powermizer)
                                   GTK_DIALOG_MODAL,
                                   GTK_MESSAGE_WARNING,
                                   GTK_BUTTONS_OK,
-                                  "Changes to the CUDA - Double precision "
+                                  _("Changes to the CUDA - Double precision "
                                   "setting "
                                   "require a system reboot before "
-                                  "taking effect.");
+                                  "taking effect."));
     gtk_dialog_run(GTK_DIALOG(dlg));
     gtk_widget_destroy (dlg);
 
@@ -1925,15 +1927,15 @@ static void post_dp_configuration_update(CtkPowermizer *ctk_powermizer)
 {
     gboolean enabled = ctk_powermizer->dp_enabled;
 
-    const char *conf_string = enabled ? "enabled" : "disabled";
+    const char *conf_string = enabled ? _("enabled") : _("disabled");
     char message[128];
 
     if (ctk_powermizer->attribute == NV_CTRL_GPU_DOUBLE_PRECISION_BOOST_REBOOT) {
-        snprintf(message, sizeof(message), "CUDA - Double precision will "
-                 "be %s after reboot.",
+        snprintf(message, sizeof(message), _("CUDA - Double precision will "
+                 "be %s after reboot."),
                  conf_string);
     } else {
-        snprintf(message, sizeof(message), "CUDA - Double precision %s.",
+        snprintf(message, sizeof(message), _("CUDA - Double precision %s."),
                  conf_string);
     }
 
@@ -2036,9 +2038,9 @@ static void dp_config_button_toggled(GtkWidget *widget,
                              enabled);
     if (ret != NvCtrlSuccess) {
         ctk_config_statusbar_message(ctk_powermizer->ctk_config,
-                                     "Failed to set "
+                                     _("Failed to set "
                                      "CUDA - Double precision "
-                                     "configuration!");
+                                     "configuration!"));
         return;
     }
 
@@ -2046,7 +2048,7 @@ static void dp_config_button_toggled(GtkWidget *widget,
     dp_set_config_status(ctk_powermizer);
     if (ctk_powermizer->status) {
         gtk_label_set_text(GTK_LABEL(ctk_powermizer->status),
-                           "pending reboot");
+                           _("pending reboot"));
     }
 
     /* Update status bar message */
@@ -2066,66 +2068,66 @@ GtkTextBuffer *ctk_powermizer_create_help(GtkTextTagTable *table,
     
     gtk_text_buffer_get_iter_at_offset(b, &i, 0);
 
-    ctk_help_title(b, &i, "PowerMizer Monitor Help");
-    ctk_help_para(b, &i, "This page shows powermizer monitor options "
-                  "available on this GPU.");
+    ctk_help_title(b, &i, _("PowerMizer Monitor Help"));
+    ctk_help_para(b, &i, _("This page shows powermizer monitor options "
+                  "available on this GPU."));
 
     if (ctk_powermizer->adaptive_clock_status) {
-        ctk_help_heading(b, &i, "Adaptive Clocking");
-        ctk_help_para(b, &i, "%s", __adaptive_clock_help);
+        ctk_help_heading(b, &i, _("Adaptive Clocking"));
+        ctk_help_para(b, &i, "%s", _(__adaptive_clock_help));
     }
 
     if (ctk_powermizer->gpu_clock) {
-        ctk_help_heading(b, &i, "Clock Frequencies");
+        ctk_help_heading(b, &i, _("Clock Frequencies"));
         if (ctk_powermizer->memory_transfer_rate && 
             ctk_powermizer->processor_clock) {
-            s = "This indicates the GPU's current Graphics Clock, "
-                "Memory transfer rate and Processor Clock frequencies.";
+            s = _("This indicates the GPU's current Graphics Clock, "
+                "Memory transfer rate and Processor Clock frequencies.");
         } else if (ctk_powermizer->memory_transfer_rate) {
-            s = "This indicates the GPU's current Graphics Clock and "
-                "Memory transfer rate.";
+            s = _("This indicates the GPU's current Graphics Clock and "
+                "Memory transfer rate.");
         } else {
-            s = "This indicates the GPU's current Graphics Clock ferquencies.";
+            s = _("This indicates the GPU's current Graphics Clock ferquencies.");
         }
         ctk_help_para(b, &i, "%s", s);
     }
 
     if (ctk_powermizer->power_source) {
-        ctk_help_heading(b, &i, "Power Source");
-        ctk_help_para(b, &i, "%s", __power_source_help);
+        ctk_help_heading(b, &i, _("Power Source"));
+        ctk_help_para(b, &i, "%s", _(__power_source_help));
     }
 
     if (ctk_powermizer->pcie_gen_queriable) {
-        ctk_help_heading(b, &i, "Current PCIe link width");
-        ctk_help_para(b, &i, "%s", __current_pcie_link_width_help);
-        ctk_help_heading(b, &i, "Current PCIe link speed");
-        ctk_help_para(b, &i, "%s", __current_pcie_link_speed_help);
+        ctk_help_heading(b, &i, _("Current PCIe link width"));
+        ctk_help_para(b, &i, "%s", _(__current_pcie_link_width_help));
+        ctk_help_heading(b, &i, _("Current PCIe link speed"));
+        ctk_help_para(b, &i, "%s", _(__current_pcie_link_speed_help));
     }
 
     if (ctk_powermizer->performance_level) {
-        ctk_help_heading(b, &i, "Performance Level");
-        ctk_help_para(b, &i, "%s", __performance_level_help);
-        ctk_help_heading(b, &i, "Performance Levels (Table)");
-        ctk_help_para(b, &i, "%s", __performance_levels_table_help);
+        ctk_help_heading(b, &i, _("Performance Level"));
+        ctk_help_para(b, &i, "%s", _(__performance_level_help));
+        ctk_help_heading(b, &i, _("Performance Levels (Table)"));
+        ctk_help_para(b, &i, "%s", _(__performance_levels_table_help));
     }
 
     if (ctk_powermizer->hasEditablePerfLevel) {
-        ctk_help_heading(b, &i, "Editable Performance Levels (Table)");
-        ctk_help_para(b, &i, "%s", __editable_performance_levels_table_help);
-        ctk_help_heading(b, &i, "Graphics Clock Offset");
-        ctk_help_para(b, &i, "%s", __gpu_clock_offset_help);
-        ctk_help_heading(b, &i, "Memory Transfer Rate Offset");
-        ctk_help_para(b, &i, "%s", __memory_transfer_rate_offset_help);
+        ctk_help_heading(b, &i, _("Editable Performance Levels (Table)"));
+        ctk_help_para(b, &i, "%s", _(__editable_performance_levels_table_help));
+        ctk_help_heading(b, &i, _("Graphics Clock Offset"));
+        ctk_help_para(b, &i, "%s", _(__gpu_clock_offset_help));
+        ctk_help_heading(b, &i, _("Memory Transfer Rate Offset"));
+        ctk_help_para(b, &i, "%s", _(__memory_transfer_rate_offset_help));
     }
 
     if (ctk_powermizer->powermizer_menu) {
-        ctk_help_heading(b, &i, "PowerMizer Settings");
+        ctk_help_heading(b, &i, _("PowerMizer Settings"));
         ctk_help_para(b, &i, "%s", ctk_powermizer->powermizer_menu_help);
     }
 
     if (ctk_powermizer->configuration_button) {
-        ctk_help_heading(b, &i, "CUDA - Double precision");
-        ctk_help_para(b, &i, "%s", __dp_configuration_button_help);
+        ctk_help_heading(b, &i, _("CUDA - Double precision"));
+        ctk_help_para(b, &i, "%s", _(__dp_configuration_button_help));
     }
 
     ctk_help_finish(b);

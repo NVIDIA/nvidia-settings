@@ -33,6 +33,7 @@
 #include <stdlib.h>
 #include <stdio.h>
 #include <assert.h>
+#include <libintl.h>
 
 /*
  * Icons.
@@ -51,6 +52,9 @@
 #include "svp_add_glasses.h"
 
 //-----------------------------------------------------------------------------
+
+#define _(STRING) gettext(STRING)
+#define N_(STRING) STRING
 
 #define HTU(idx)                 (ctk_3d_vision_pro->htu_info[(idx)])
 #define MAX_ATTRIB_LENGTH        128
@@ -108,24 +112,24 @@ static void channel_range_changed(GtkWidget *widget, gpointer user_data);
 
 static guint __signals[LAST_SIGNAL] = { 0 };
 
-const char *__mnu_glasses_name_tooltip = "Select glasses name";
-const char *__goggle_info_tooltip      = "Displays the list of glasses synced "
-    "to the hub and their battery levels";
-const char *__channel_range_tooltip    = "Change the 3D Vision Pro Hub range. "
-    "Click the arrow and then select the hub range that you want.";
-const char *__add_glasses_tooltip      = "Add more glasses to sync to the hub. "
+const char *__mnu_glasses_name_tooltip = N_("Select glasses name");
+const char *__goggle_info_tooltip      = N_("Displays the list of glasses synced "
+    "to the hub and their battery levels");
+const char *__channel_range_tooltip    = N_("Change the 3D Vision Pro Hub range. "
+    "Click the arrow and then select the hub range that you want.");
+const char *__add_glasses_tooltip      = N_("Add more glasses to sync to the hub. "
     "Click this button to open the Add glasses dialog that lets you synchronize "
-    "another pair of stereo glasses with the hub.";
-const char *__refresh_tooltip          = "Updates the list of glasses that are "
-    "synchronized with the hub.";
-const char *__identify_tooltip         = "Identify a pair of glasses. "
-    "Causes the LED on the selected pair of glasses to blink.";
-const char *__rename_tooltip           = "Rename a pair of glasses. "
+    "another pair of stereo glasses with the hub.");
+const char *__refresh_tooltip          = N_("Updates the list of glasses that are "
+    "synchronized with the hub.");
+const char *__identify_tooltip         = N_("Identify a pair of glasses. "
+    "Causes the LED on the selected pair of glasses to blink.");
+const char *__rename_tooltip           = N_("Rename a pair of glasses. "
     "Opens the Rename glasses dialog that lets you assign a different name to "
-    "the selected pair of glasses.";
-const char *__remove_glasses_tooltip   = "Remove a pair of glasses currently "
+    "the selected pair of glasses.");
+const char *__remove_glasses_tooltip   = N_("Remove a pair of glasses currently "
     "synced to the hub. This removes the selected pair of glasses from the "
-    "glasses information table and disconnects the glasses from the hub.";
+    "glasses information table and disconnects the glasses from the hub.");
 
 /******************************************************************************
  *
@@ -289,7 +293,7 @@ static GtkWidget *create_glasses_list_menu(Ctk3DVisionPro *ctk_3d_vision_pro,
 
     ctk_config_set_tooltip(ctk_3d_vision_pro->ctk_config,
                            GTK_WIDGET(mnu_glasses_name),
-                           __mnu_glasses_name_tooltip);
+                           _(__mnu_glasses_name_tooltip));
 
     g_signal_handlers_block_by_func(G_OBJECT(mnu_glasses_name),
                                     G_CALLBACK(glasses_name_changed),
@@ -425,12 +429,12 @@ static void create_glasses_info_table(GlassesInfoTable *table, GlassesInfo** gla
     GtkRequisition req;
     GtkWidget *event;    /* For setting the background color to white */
     gchar *goggle_info_titles[NUM_GLASSES_INFO_ATTRIBS] =
-           {"Glasses Name", "Battery Level (%)"};
+           {_("Glasses Name"), _("Battery Level (%)")};
     int i;
 
     /* Create clist in a scroll box */
     hbox1 = gtk_hbox_new(FALSE, 0);
-    label = gtk_label_new("Glasses Information");
+    label = gtk_label_new(_("Glasses Information"));
     hseparator = gtk_hseparator_new();
     gtk_box_pack_start(GTK_BOX(hbox1), label, FALSE, FALSE, 0);
     gtk_box_pack_start(GTK_BOX(hbox1), hseparator, TRUE, TRUE, 5);
@@ -458,7 +462,7 @@ static void create_glasses_info_table(GlassesInfoTable *table, GlassesInfo** gla
     header_table = gtk_table_new(1, NUM_GLASSES_INFO_ATTRIBS, FALSE);
     for ( i = 0; i < NUM_GLASSES_INFO_ATTRIBS; i++ ) {
         GtkWidget * btn  = gtk_button_new_with_label(goggle_info_titles[i]);
-        ctk_config_set_tooltip(ctk_config, btn, __goggle_info_tooltip);
+        ctk_config_set_tooltip(ctk_config, btn, _(__goggle_info_tooltip));
         gtk_table_attach(GTK_TABLE(header_table), btn, i, i+1, 0, 1,
                          GTK_FILL|GTK_EXPAND, GTK_FILL|GTK_EXPAND, 0, 0);
 
@@ -609,7 +613,7 @@ static void callback_glasses_paired(GObject *object,
     update_glasses_info_data_table(&(ctk_3d_vision_pro->table), HTU(0)->glasses_info);
     gtk_widget_show_all(GTK_WIDGET(ctk_3d_vision_pro->table.data_table));
 
-    snprintf(temp, sizeof(temp), "Glasses Connected: %d", HTU(0)->num_glasses);
+    snprintf(temp, sizeof(temp), _("Glasses Connected: %d"), HTU(0)->num_glasses);
     gtk_label_set_text(ctk_3d_vision_pro->glasses_num_label, temp);
     gtk_widget_show_all(GTK_WIDGET(ctk_3d_vision_pro->glasses_num_label));
 
@@ -661,7 +665,7 @@ static void callback_glasses_unpaired(GObject *object,
     update_glasses_info_data_table(&(ctk_3d_vision_pro->table), HTU(0)->glasses_info);
     gtk_widget_show_all(GTK_WIDGET(ctk_3d_vision_pro->table.data_table));
 
-    snprintf(temp, sizeof(temp), "Glasses Connected: %d", HTU(0)->num_glasses);
+    snprintf(temp, sizeof(temp), _("Glasses Connected: %d"), HTU(0)->num_glasses);
     gtk_label_set_text(ctk_3d_vision_pro->glasses_num_label, temp);
     gtk_widget_show_all(GTK_WIDGET(ctk_3d_vision_pro->glasses_num_label));
 
@@ -873,7 +877,7 @@ static AddGlassesDlg *create_add_glasses_dlg(Ctk3DVisionPro *ctk_3d_vision_pro)
 
     /* Create the dialog */
     dlg->dlg_add_glasses = gtk_dialog_new_with_buttons
-        ("Add glasses",
+        (_("Add glasses"),
          ctk_3d_vision_pro->parent_wnd,
          GTK_DIALOG_MODAL |  GTK_DIALOG_DESTROY_WITH_PARENT,
          GTK_STOCK_SAVE,
@@ -885,8 +889,8 @@ static AddGlassesDlg *create_add_glasses_dlg(Ctk3DVisionPro *ctk_3d_vision_pro)
     gtk_dialog_set_default_response(GTK_DIALOG(dlg->dlg_add_glasses),
                                     GTK_RESPONSE_REJECT);
 
-    label = gtk_label_new("1. Press button on the glasses\n"
-                          "   to initiate the connection.");
+    label = gtk_label_new(_("1. Press button on the glasses\n"
+                          "   to initiate the connection."));
     hbox = gtk_hbox_new(TRUE, 0);
     gtk_box_pack_start(GTK_BOX(hbox), label, FALSE, FALSE, 10);
 
@@ -904,7 +908,7 @@ static AddGlassesDlg *create_add_glasses_dlg(Ctk3DVisionPro *ctk_3d_vision_pro)
     gtk_box_pack_start(GTK_BOX(ctk_dialog_get_content_area(GTK_DIALOG(dlg->dlg_add_glasses))),
                        image, FALSE, FALSE, 0);
 
-    label = gtk_label_new("2. List of glasses connected:");
+    label = gtk_label_new(_("2. List of glasses connected:"));
     hbox = gtk_hbox_new(TRUE, 0);
     gtk_box_pack_start(GTK_BOX(hbox), label, FALSE, FALSE, 5);
     gtk_box_pack_start
@@ -952,7 +956,7 @@ static void add_glasses_button_clicked(GtkButton *button, gpointer user_data)
         gtk_widget_set_sensitive(dlg->table.hscrollbar, FALSE);
     }
  
-    s = g_strdup_printf("NVIDIA 3D VisionPro Pairing");
+    s = g_strdup_printf(_("NVIDIA 3D VisionPro Pairing"));
     ctk_config_add_timer(ctk_3d_vision_pro->ctk_config,
                          POLL_PAIRING_TIMEOUT,
                          s,
@@ -1016,7 +1020,7 @@ static RemoveGlassesDlg *create_remove_glasses_dlg(Ctk3DVisionPro *ctk_3d_vision
 
     /* Create the dialog */
     dlg->dlg_remove_glasses = gtk_dialog_new_with_buttons
-        ("Remove glasses",
+        (_("Remove glasses"),
          ctk_3d_vision_pro->parent_wnd,
          GTK_DIALOG_MODAL |  GTK_DIALOG_DESTROY_WITH_PARENT,
          GTK_STOCK_OK,
@@ -1028,7 +1032,7 @@ static RemoveGlassesDlg *create_remove_glasses_dlg(Ctk3DVisionPro *ctk_3d_vision
     gtk_dialog_set_default_response(GTK_DIALOG(dlg->dlg_remove_glasses),
                                     GTK_RESPONSE_REJECT);
 
-    label = gtk_label_new("Remove glasses synced to this hub:");
+    label = gtk_label_new(_("Remove glasses synced to this hub:"));
     hbox = gtk_hbox_new(TRUE, 0);
     gtk_box_pack_start(GTK_BOX(hbox), label, FALSE, FALSE, 20);
 
@@ -1115,7 +1119,7 @@ static IdentifyGlassesDlg *create_identify_glasses_dlg(Ctk3DVisionPro *ctk_3d_vi
 
     /* Create the dialog */
     dlg->dlg_identify_glasses = gtk_dialog_new_with_buttons
-        ("Identify glasses",
+        (_("Identify glasses"),
          ctk_3d_vision_pro->parent_wnd,
          GTK_DIALOG_MODAL |  GTK_DIALOG_DESTROY_WITH_PARENT,
          GTK_STOCK_OK,
@@ -1127,7 +1131,7 @@ static IdentifyGlassesDlg *create_identify_glasses_dlg(Ctk3DVisionPro *ctk_3d_vi
     gtk_dialog_set_default_response(GTK_DIALOG(dlg->dlg_identify_glasses),
                                     GTK_RESPONSE_REJECT);
 
-    label = gtk_label_new("Identify selected glasses:");
+    label = gtk_label_new(_("Identify selected glasses:"));
     hbox = gtk_hbox_new(TRUE, 0);
     gtk_box_pack_start(GTK_BOX(hbox), label, FALSE, FALSE, 20);
 
@@ -1204,7 +1208,7 @@ static RenameGlassesDlg *create_rename_glasses_dlg(Ctk3DVisionPro *ctk_3d_vision
     GtkWidget *label;
     GtkWidget *hbox;
     GtkWidget *new_glasses_name;
-    const char *__new_glasses_name_tooltip = "Add new glasses name";
+    const char *__new_glasses_name_tooltip = _("Add new glasses name");
 
     GtkWidget *parent = GTK_WIDGET(ctk_3d_vision_pro);
     dlg = (RenameGlassesDlg *)malloc(sizeof(RenameGlassesDlg));
@@ -1216,7 +1220,7 @@ static RenameGlassesDlg *create_rename_glasses_dlg(Ctk3DVisionPro *ctk_3d_vision
 
     /* Create the dialog */
     dlg->dlg_rename_glasses = gtk_dialog_new_with_buttons
-        ("Rename glasses",
+        (_("Rename glasses"),
          ctk_3d_vision_pro->parent_wnd,
          GTK_DIALOG_MODAL |  GTK_DIALOG_DESTROY_WITH_PARENT,
          GTK_STOCK_SAVE,
@@ -1229,7 +1233,7 @@ static RenameGlassesDlg *create_rename_glasses_dlg(Ctk3DVisionPro *ctk_3d_vision
                                     GTK_RESPONSE_REJECT);
 
 
-    label = gtk_label_new("Name:");
+    label = gtk_label_new(_("Name:"));
     hbox = gtk_hbox_new(TRUE, 0);
     gtk_box_pack_start(GTK_BOX(hbox), label, FALSE, FALSE, 20);
 
@@ -1357,7 +1361,7 @@ static ChannelRangeDlg *create_channel_range_change_dlg(Ctk3DVisionPro *ctk_3d_v
 
     /* Create the dialog */
     dlg->dlg_channel_range = gtk_dialog_new_with_buttons
-        ("Modify Hub Range",
+        (_("Modify Hub Range"),
          ctk_3d_vision_pro->parent_wnd,
          GTK_DIALOG_MODAL |  GTK_DIALOG_DESTROY_WITH_PARENT,
          GTK_STOCK_YES,
@@ -1371,18 +1375,18 @@ static ChannelRangeDlg *create_channel_range_change_dlg(Ctk3DVisionPro *ctk_3d_v
 
     switch (range) {
     case SVP_SHORT_RANGE:
-        label = gtk_label_new("You have changed transceiver range to short range (less than 5m.).\n"
+        label = gtk_label_new(_("You have changed transceiver range to short range (less than 5m.).\n"
                               "Only glasses in this range will be available.\n\n"
-                              "Do you want to apply changes?");
+                              "Do you want to apply changes?"));
         break;
     case SVP_MEDIUM_RANGE:
-        label = gtk_label_new("You have changed transceiver range to medium range (less than 15m.).\n"
+        label = gtk_label_new(_("You have changed transceiver range to medium range (less than 15m.).\n"
                               "Only glasses in this range will be available.\n\n"
-                              "Do you want to apply changes?");
+                              "Do you want to apply changes?"));
         break;
     case SVP_LONG_RANGE:
-        label = gtk_label_new("You have changed transceiver range to long range.\n\n"
-                              "Do you want to apply changes?");
+        label = gtk_label_new(_("You have changed transceiver range to long range.\n\n"
+                              "Do you want to apply changes?"));
         break;
     }
 
@@ -1595,7 +1599,7 @@ GtkWidget* ctk_3d_vision_pro_new(CtrlTarget *ctrl_target,
     leftvbox = gtk_vbox_new(FALSE, 5);
     gtk_box_pack_start(GTK_BOX(mainhbox), leftvbox, FALSE, FALSE, 0);
 
-    frame = gtk_frame_new("Glasses");
+    frame = gtk_frame_new(_("Glasses"));
     gtk_box_pack_start(GTK_BOX(leftvbox), frame, FALSE, FALSE, 0);
 
     
@@ -1605,7 +1609,7 @@ GtkWidget* ctk_3d_vision_pro_new(CtrlTarget *ctrl_target,
     alignment = gtk_alignment_new(0, 1, 0, 0);
     gtk_box_pack_start(GTK_BOX(frame_vbox), alignment, TRUE, TRUE, 0);
 
-    snprintf(temp, sizeof(temp), "Glasses Connected: %d", HTU(0)->num_glasses);
+    snprintf(temp, sizeof(temp), _("Glasses Connected: %d"), HTU(0)->num_glasses);
     label = gtk_label_new(temp);
     gtk_container_add(GTK_CONTAINER(alignment), label);
     ctk_3d_vision_pro->glasses_num_label = GTK_LABEL(label);
@@ -1617,20 +1621,20 @@ GtkWidget* ctk_3d_vision_pro_new(CtrlTarget *ctrl_target,
     gtk_box_pack_start(GTK_BOX(frame_vbox), alignment, TRUE, TRUE, 0);
     gtk_container_add(GTK_CONTAINER(alignment), hbox);
 
-    add_button("Add Glasses", add_glasses_button_clicked, ctk_3d_vision_pro,
-               hbox, __add_glasses_tooltip);
+    add_button(_("Add Glasses"), add_glasses_button_clicked, ctk_3d_vision_pro,
+               hbox, _(__add_glasses_tooltip));
     ctk_3d_vision_pro->refresh_button = 
-        add_button("Refresh", refresh_button_clicked, ctk_3d_vision_pro,
-                   hbox, __refresh_tooltip);
+        add_button(_("Refresh"), refresh_button_clicked, ctk_3d_vision_pro,
+                   hbox, _(__refresh_tooltip));
     ctk_3d_vision_pro->identify_button =
-        add_button("Identify", identify_button_clicked, ctk_3d_vision_pro,
-                   hbox, __identify_tooltip);
+        add_button(_("Identify"), identify_button_clicked, ctk_3d_vision_pro,
+                   hbox, _(__identify_tooltip));
     ctk_3d_vision_pro->rename_button = 
-        add_button("Rename", rename_button_clicked, ctk_3d_vision_pro,
-                   hbox, __rename_tooltip);
+        add_button(_("Rename"), rename_button_clicked, ctk_3d_vision_pro,
+                   hbox, _(__rename_tooltip));
     ctk_3d_vision_pro->remove_button =
-        add_button("Remove", remove_button_clicked, ctk_3d_vision_pro,
-                   hbox, __remove_glasses_tooltip);
+        add_button(_("Remove"), remove_button_clicked, ctk_3d_vision_pro,
+                   hbox, _(__remove_glasses_tooltip));
 
     ctk_3d_vision_pro->table.rows = HTU(0)->num_glasses;
     ctk_3d_vision_pro->table.columns =  NUM_GLASSES_INFO_ATTRIBS;
@@ -1643,7 +1647,7 @@ GtkWidget* ctk_3d_vision_pro_new(CtrlTarget *ctrl_target,
     rightvbox = gtk_vbox_new(FALSE, 10);
     gtk_box_pack_start(GTK_BOX(mainhbox), rightvbox, FALSE, FALSE, 0);
 
-    frame = gtk_frame_new("RF Hub");
+    frame = gtk_frame_new(_("RF Hub"));
     gtk_box_pack_start(GTK_BOX(rightvbox), frame, FALSE, FALSE, 0);
 
     vbox = gtk_vbox_new(FALSE, 5);
@@ -1658,11 +1662,11 @@ GtkWidget* ctk_3d_vision_pro_new(CtrlTarget *ctrl_target,
     vbox2 = gtk_vbox_new(FALSE, 5);
     gtk_box_pack_start(GTK_BOX(hbox), vbox2, FALSE, FALSE, 0);
 
-    snprintf(temp, sizeof(temp), "RF Hubs Connected:");
+    snprintf(temp, sizeof(temp), _("RF Hubs Connected:"));
     label = add_label(temp, vbox1);
 
     hbox1 = gtk_hbox_new(FALSE, 5);
-    snprintf(temp, sizeof(temp), "Signal Strength:");
+    snprintf(temp, sizeof(temp), _("Signal Strength:"));
     label = add_label(temp, hbox1);
     gtk_box_pack_start(GTK_BOX(vbox1), hbox1, FALSE, FALSE, 0);
 
@@ -1681,7 +1685,7 @@ GtkWidget* ctk_3d_vision_pro_new(CtrlTarget *ctrl_target,
     ctk_3d_vision_pro->signal_strength_image = image;
     gtk_box_pack_start(GTK_BOX(vbox2), hbox1, FALSE, FALSE, 0);
 
-    snprintf(temp, sizeof(temp), "Current Channel ID:");
+    snprintf(temp, sizeof(temp), _("Current Channel ID:"));
     label = add_label(temp, vbox1);
 
     snprintf(temp, sizeof(temp), "%d", HTU(0)->channel_num);
@@ -1692,15 +1696,15 @@ GtkWidget* ctk_3d_vision_pro_new(CtrlTarget *ctrl_target,
     gtk_box_pack_start(GTK_BOX(vbox), hseparator, FALSE, FALSE, 0);
 
     hbox = gtk_hbox_new(FALSE, 5);
-    label = add_label("Hub Range:", hbox);
+    label = add_label(_("Hub Range:"), hbox);
     gtk_box_pack_start(GTK_BOX(vbox), hbox, FALSE, FALSE, 0);
 
     hbox = gtk_hbox_new(FALSE, 5);
     menu = (CtkDropDownMenu *)
         ctk_drop_down_menu_new(CTK_DROP_DOWN_MENU_FLAG_READONLY);
-    ctk_drop_down_menu_append_item(menu, "Short Range (up to 5 meters)", 0);
-    ctk_drop_down_menu_append_item(menu, "Medium Range (up to 15 meters)", 1);
-    ctk_drop_down_menu_append_item(menu, "Long Range", 2);
+    ctk_drop_down_menu_append_item(menu, _("Short Range (up to 5 meters)"), 0);
+    ctk_drop_down_menu_append_item(menu, _("Medium Range (up to 15 meters)"), 1);
+    ctk_drop_down_menu_append_item(menu, _("Long Range"), 2);
     
     ctk_3d_vision_pro->menu = GTK_WIDGET(menu);
 
@@ -1721,7 +1725,7 @@ GtkWidget* ctk_3d_vision_pro_new(CtrlTarget *ctrl_target,
     enable_widgets(ctk_3d_vision_pro, (HTU(0)->channel_range == SVP_LONG_RANGE ? FALSE : TRUE));
 
     ctk_config_set_tooltip(ctk_config, ctk_3d_vision_pro->menu,
-                           __channel_range_tooltip);
+                           _(__channel_range_tooltip));
 
     ctk_3d_vision_pro->parent_wnd = GTK_WINDOW(gtk_widget_get_parent(GTK_WIDGET(ctk_3d_vision_pro)));
 
@@ -1771,90 +1775,90 @@ GtkTextBuffer *ctk_3d_vision_pro_create_help(GtkTextTagTable *table)
     b = gtk_text_buffer_new(table); 
     gtk_text_buffer_get_iter_at_offset(b, &i, 0);
 
-    ctk_help_title(b, &i, "NVIDIA® 3D VisionPro™ help");
-    ctk_help_para(b, &i, "Use this page to configure the NVIDIA® 3D VisionPro™ hub "
+    ctk_help_title(b, &i, _("NVIDIA® 3D VisionPro™ help"));
+    ctk_help_para(b, &i, _("Use this page to configure the NVIDIA® 3D VisionPro™ hub "
                          "and glasses. You can set up new glasses, change the "
                          "hub's range, view which glasses are synchronized with "
                          "the hub, and select a different channel to improve the "
-                         "hub-to-glasses signal strength.");
+                         "hub-to-glasses signal strength."));
 
-    ctk_help_para(b, &i, "NVIDIA® 3D Vision™ Pro is the professional version "
+    ctk_help_para(b, &i, _("NVIDIA® 3D Vision™ Pro is the professional version "
                          "of the 3D Vision™ stereo glasses and emitter. While "
                          "the 3D Vision kit uses infrared (IR) communication "
                          "from the emitter to the stereo glasses, the 3D Vision "
                          "Pro kit uses radio frequency (RF) bi-directional "
                          "communication between the emitter and the stereo "
                          "glasses. This allows multiple 3D Vision Pro hubs to "
-                         "be used in the same area without conflicts.");
+                         "be used in the same area without conflicts."));
 
-    ctk_help_para(b, &i, "3D Vision Pro does not require line of sight between "
+    ctk_help_para(b, &i, _("3D Vision Pro does not require line of sight between "
                          "the hub and the 3D Vision Pro glasses. This provides "
                          "more flexibility in the location, distance, and "
-                         "position of the glasses with respect to the emitter.");
+                         "position of the glasses with respect to the emitter."));
 
 
-    ctk_help_heading(b, &i, "Glasses Section");
-    ctk_help_para(b, &i, "This section contains various actions/configurations "
+    ctk_help_heading(b, &i, _("Glasses Section"));
+    ctk_help_para(b, &i, _("This section contains various actions/configurations "
                          "that can be performed with the NVIDIA 3D VisionPro RF "
                          "glasses. This section also displays a list of glasses "
-                         "synced to the hub and their battery levels.");
+                         "synced to the hub and their battery levels."));
 
-    ctk_help_heading(b, &i, "Glasses Connected");
-    ctk_help_para(b, &i, "Shows how many glasses are connected and synchronized "
-                         "with the hub.");
+    ctk_help_heading(b, &i, _("Glasses Connected"));
+    ctk_help_para(b, &i, _("Shows how many glasses are connected and synchronized "
+                         "with the hub."));
 
-    ctk_help_heading(b, &i, "Add glasses");
-    ctk_help_para(b, &i, "%s", __add_glasses_tooltip);
-    ctk_help_para(b, &i, "This action is used to set up new 3D Vision Pro Glasses. "
+    ctk_help_heading(b, &i, _("Add glasses"));
+    ctk_help_para(b, &i, "%s", _(__add_glasses_tooltip));
+    ctk_help_para(b, &i, _("This action is used to set up new 3D Vision Pro Glasses. "
                          "On clicking this button the hub enters into pairing mode. "
                          "Follow the instructions on Add Glasses dialog box. "
                          "On pairing the new glasses, they appear in the glasses "
                          "information table. Choose 'Save' to save the newly paired "
-                         " glasses or 'Cancel' if do not wish to store them.");
+                         " glasses or 'Cancel' if do not wish to store them."));
 
-    ctk_help_heading(b, &i, "Refresh Glasses' Information");
-    ctk_help_para(b, &i, "%s", __refresh_tooltip);
-    ctk_help_para(b, &i, "Refresh glasses information is typically required when- \n"
+    ctk_help_heading(b, &i, _("Refresh Glasses' Information"));
+    ctk_help_para(b, &i, "%s", _(__refresh_tooltip));
+    ctk_help_para(b, &i, _("Refresh glasses information is typically required when- \n"
                          "o Glasses move in and out of the range.\n"
-                         "o Get the updated battery level of all the glasses.");
+                         "o Get the updated battery level of all the glasses."));
 
-    ctk_help_heading(b, &i, "Identify glasses");
-    ctk_help_para(b, &i, "Select the glasses from the list of paired glasses that "
+    ctk_help_heading(b, &i, _("Identify glasses"));
+    ctk_help_para(b, &i, _("Select the glasses from the list of paired glasses that "
                          "you want to identify. Hub will communicate with the "
                          "selected glasses and make LED on the glasses blink "
-                         "for a few seconds.");
+                         "for a few seconds."));
 
-    ctk_help_heading(b, &i, "Rename glasses");
-    ctk_help_para(b, &i, "%s", __rename_tooltip);
-    ctk_help_para(b, &i, "Select the glasses from the list of paired glasses "
-                         "that you want to rename and provide an unique new name.");
+    ctk_help_heading(b, &i, _("Rename glasses"));
+    ctk_help_para(b, &i, "%s", _(__rename_tooltip));
+    ctk_help_para(b, &i, _("Select the glasses from the list of paired glasses "
+                         "that you want to rename and provide an unique new name."));
 
-    ctk_help_heading(b, &i, "Remove glasses");
-    ctk_help_para(b, &i, "%s", __remove_glasses_tooltip);
-    ctk_help_para(b, &i, "Select the glasses from the list of paired glasses "
+    ctk_help_heading(b, &i, _("Remove glasses"));
+    ctk_help_para(b, &i, "%s", _(__remove_glasses_tooltip));
+    ctk_help_para(b, &i, _("Select the glasses from the list of paired glasses "
                          "that you want to remove. On removal glasses get "
-                         "unpaired and will not sync to the hub.");
+                         "unpaired and will not sync to the hub."));
 
-    ctk_help_heading(b, &i, "Glasses Information");
-    ctk_help_para(b, &i, "%s", __goggle_info_tooltip);
+    ctk_help_heading(b, &i, _("Glasses Information"));
+    ctk_help_para(b, &i, "%s", _(__goggle_info_tooltip));
 
-    ctk_help_heading(b, &i, "Glasses Name");
-    ctk_help_para(b, &i, "Each pair of glasses has an unique name and the name should "
+    ctk_help_heading(b, &i, _("Glasses Name"));
+    ctk_help_para(b, &i, _("Each pair of glasses has an unique name and the name should "
                          "start and end with an alpha-numeric character. "
-                         "Glasses can be renamed using Rename button.");
+                         "Glasses can be renamed using Rename button."));
 
-    ctk_help_heading(b, &i, "Battery Level");
-    ctk_help_para(b, &i, "Displays battery level icon along with the value in "
-                         "percentage.");
+    ctk_help_heading(b, &i, _("Battery Level"));
+    ctk_help_para(b, &i, _("Displays battery level icon along with the value in "
+                         "percentage."));
 
-    ctk_help_heading(b, &i, "RF Hub section");
-    ctk_help_para(b, &i, "This section contains various actions that can be "
+    ctk_help_heading(b, &i, _("RF Hub section"));
+    ctk_help_para(b, &i, _("This section contains various actions that can be "
                          "performed on the NVIDIA® 3D VisionPro™ hub. This "
                          "section also displays signal strength of the channel "
-                         "currently used and current channel ID.");
+                         "currently used and current channel ID."));
 
-    ctk_help_heading(b, &i, "Signal strength");
-    ctk_help_para(b, &i, "Shows the signal strength of the current hub channel as an icon "
+    ctk_help_heading(b, &i, _("Signal strength"));
+    ctk_help_para(b, &i, _("Shows the signal strength of the current hub channel as an icon "
                          "and also value in percentage. \n"
                          "Signal strength is from one of the six ranges below-\n"
                          "\tExcellent\t\t [100%%]\n"
@@ -1862,32 +1866,32 @@ GtkTextBuffer *ctk_3d_vision_pro_create_help(GtkTextTagTable *table)
                          "\tGood     \t\t [>50%% - <75%%]\n"
                          "\tLow      \t\t [>25%% - <50%%]\n"
                          "\tVery Low \t\t [>0%%  - <25%%]\n"
-                         "\tNo Signal\t\t [0%%]");
+                         "\tNo Signal\t\t [0%%]"));
 
-    ctk_help_heading(b, &i, "Hub Range");
-    ctk_help_para(b, &i, "%s", __channel_range_tooltip);
-    ctk_help_para(b, &i, "The hub range is the farthest distance that the "
+    ctk_help_heading(b, &i, _("Hub Range"));
+    ctk_help_para(b, &i, "%s", _(__channel_range_tooltip));
+    ctk_help_para(b, &i, _("The hub range is the farthest distance that the "
                          "glasses can synchronize with the 3D Vision Pro Hub. "
                          "You can reduce the hub range to limit the experience "
                          "to a small group, or increase the range to include "
                          "everyone in a large room.\n"
                          "Possible values for transceiver range are 'Short "
-                         "Range' 'Medium Range' and 'Long Range'.");
-    ctk_help_para(b, &i, "Short Range: \n"
+                         "Range' 'Medium Range' and 'Long Range'."));
+    ctk_help_para(b, &i, _("Short Range: \n"
                          "Allows glasses within a 5-meter (16.5-foot) range to "
                          "be synced with the hub. This range is typically used "
                          "for sharing 3D simulations and training information "
-                         "on a local workstation.");
-    ctk_help_para(b, &i, "Medium Range: \n"
+                         "on a local workstation."));
+    ctk_help_para(b, &i, _("Medium Range: \n"
                          "Allows glasses within a 15-meter (49-foot) range to "
                          "be synced with the hub. This range is typically used "
                          "for sharing a presentation with a limited audience or "
                          "interacting with 3D CAD models during a collaborative "
-                         "design session.");
-    ctk_help_para(b, &i, "Long Range: \n"
+                         "design session."));
+    ctk_help_para(b, &i, _("Long Range: \n"
                          "All glasses detected within the range and frequency of "
                          "the hub will be synced. This range is typically used "
-                         "in a theater or visualization center.");
+                         "in a theater or visualization center."));
 
     ctk_help_finish(b);
 

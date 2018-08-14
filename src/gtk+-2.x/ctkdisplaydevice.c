@@ -22,6 +22,7 @@
 #include <string.h>
 #include <stdio.h>
 #include <stdlib.h>
+#include <libintl.h>
 
 #include "ctkbanner.h"
 
@@ -35,6 +36,9 @@
 #include "ctkconfig.h"
 #include "ctkhelp.h"
 #include "ctkutils.h"
+
+#define _(STRING) gettext(STRING)
+#define N_(STRING) STRING
 
 static void ctk_display_device_class_init(CtkDisplayDeviceClass *);
 static void ctk_display_device_finalize(GObject *);
@@ -78,41 +82,41 @@ static void add_color_correction_tab(CtkDisplayDevice *ctk_object,
 #define FRAME_PADDING 5
 
 static const char *__info_help =
-"This section describes basic information about the connection to the display "
-"device.";
+N_("This section describes basic information about the connection to the display "
+"device.");
 
 static const char*__guid_help =
-"The Global Unique Identifier for the display port display device.";
+N_("The Global Unique Identifier for the display port display device.");
 
 static const char* __tv_encoder_name_help =
-"The TV Encoder name displays the name of the TV Encoder.";
+N_("The TV Encoder name displays the name of the TV Encoder.");
 
 static const char *__info_chip_location_help =
-"Report whether the display device is driven by the on-chip controller "
+N_("Report whether the display device is driven by the on-chip controller "
 "(internal), or a separate controller chip elsewhere on the graphics "
-"board (external).";
+"board (external).");
 
 static const char *__info_link_help =
-"For DVI connections, reports whether the specified display device is "
+N_("For DVI connections, reports whether the specified display device is "
 "driven by a single link or dual link connection. For DisplayPort "
-"connections, reports the bandwidth of the connection.";
+"connections, reports the bandwidth of the connection.");
 
 static const char *__info_signal_help =
-"Report whether the flat panel is driven by an LVDS, TMDS, or DisplayPort "
-"signal.";
+N_("Report whether the flat panel is driven by an LVDS, TMDS, or DisplayPort "
+"signal.");
 
 static const char * __refresh_rate_help =
-"The refresh rate displays the rate at which the screen is currently "
-"refreshing the image.";
+N_("The refresh rate displays the rate at which the screen is currently "
+"refreshing the image.");
 
 static const char * __connector_type_help =
-"Report the connector type that the DisplayPort display is using.";
+N_("Report the connector type that the DisplayPort display is using.");
 
 static const char * __multistream_help =
-"Report whether the configured DisplayPort display supports multistream.";
+N_("Report whether the configured DisplayPort display supports multistream.");
 
 static const char * __audio_help =
-"Report whether the configured DisplayPort display is capable of playing audio.";
+N_("Report whether the configured DisplayPort display is capable of playing audio.");
 
 typedef gboolean (*InfoEntryFunc)(InfoEntry *entry);
 
@@ -126,63 +130,63 @@ typedef struct {
 
 static InfoEntryData __info_entry_data[] = {
     {
-        "GUID",
+        N_("GUID"),
         &__guid_help,
         update_guid_info,
         NULL,
         NULL,
     },
     {
-        "TV Encoder",
+        N_("TV Encoder"),
         &__tv_encoder_name_help,
         update_tv_encoder_info,
         NULL,
         NULL,
     },
     {
-        "Chip Location",
+        N_("Chip Location"),
         &__info_chip_location_help,
         update_chip_info,
         NULL,
         NULL,
     },
     {
-        "Signal",
+        N_("Signal"),
         &__info_signal_help,
         update_signal_info,
         NULL,
         NULL,
     },
     {
-        "Connection link",
+        N_("Connection link"),
         &__info_link_help,
         update_link_info,
         register_link_events,
         unregister_link_events,
     },
     {
-        "Refresh Rate",
+        N_("Refresh Rate"),
         &__refresh_rate_help,
         update_refresh_rate,
         register_refresh_rate_events,
         unregister_refresh_rate_events,
     },
     {
-        "DisplayPort Connector Type",
+        N_("DisplayPort Connector Type"),
         &__connector_type_help,
         update_connector_type_info,
         NULL,
         NULL,
     },
     {
-        "DisplayPort Multistream Available",
+        N_("DisplayPort Multistream Available"),
         &__multistream_help,
         update_multistream_info,
         NULL,
         NULL,
     },
     {
-        "DisplayPort Audio Available",
+        N_("DisplayPort Audio Available"),
         &__audio_help,
         update_audio_info,
         NULL,
@@ -312,7 +316,7 @@ GtkWidget* ctk_display_device_new(CtrlTarget *ctrl_target,
     nbox = gtk_vbox_new(FALSE, FRAME_PADDING);
     gtk_container_set_border_width(GTK_CONTAINER(nbox), FRAME_PADDING);
     gtk_notebook_append_page(GTK_NOTEBOOK(notebook), nbox,
-                             gtk_label_new("Information"));
+                             gtk_label_new(_("Information")));
 
 
     /* Device info */
@@ -320,7 +324,7 @@ GtkWidget* ctk_display_device_new(CtrlTarget *ctrl_target,
     hbox = gtk_hbox_new(FALSE, 0);
     gtk_box_pack_start(GTK_BOX(nbox), hbox, FALSE, FALSE, 0);
 
-    label = gtk_label_new("Display Device Information");
+    label = gtk_label_new(_("Display Device Information"));
     gtk_box_pack_start(GTK_BOX(hbox), label, FALSE, FALSE, 0);
 
     hseparator = gtk_hseparator_new();
@@ -357,7 +361,7 @@ GtkWidget* ctk_display_device_new(CtrlTarget *ctrl_target,
         gchar *str;
 
         entry->ctk_object = ctk_object;
-        str = g_strconcat(entryData->str, ":", NULL);
+        str = g_strconcat(_(entryData->str), ":", NULL);
         entry->label = gtk_label_new(str);
         g_free(str);
 
@@ -368,10 +372,10 @@ GtkWidget* ctk_display_device_new(CtrlTarget *ctrl_target,
 
         ctk_config_set_tooltip(ctk_config,
                                entry->label,
-                               *(entryData->tooltip));
+                               _(*(entryData->tooltip)));
         ctk_config_set_tooltip(ctk_config,
                                entry->txt,
-                               *(entryData->tooltip));
+                               _(*(entryData->tooltip)));
 
         entry->hbox = gtk_hbox_new(FALSE, FRAME_PADDING);
         gtk_box_pack_start(GTK_BOX(entry->hbox), entry->label,
@@ -405,7 +409,7 @@ GtkWidget* ctk_display_device_new(CtrlTarget *ctrl_target,
 
     /* pack the reset button */
 
-    button = gtk_button_new_with_label("Reset Hardware Defaults");
+    button = gtk_button_new_with_label(_("Reset Hardware Defaults"));
     str = ctk_help_create_reset_hardware_defaults_text(typeBaseName,
                                                        name);
     ctk_config_set_tooltip(ctk_config, button, str);
@@ -453,7 +457,7 @@ GtkWidget* ctk_display_device_new(CtrlTarget *ctrl_target,
         ctk_object->dithering_controls ||
         ctk_object->image_sliders) {
         gtk_notebook_append_page(GTK_NOTEBOOK(notebook), nbox,
-                                 gtk_label_new("Controls"));
+                                 gtk_label_new(_("Controls")));
     }
 
     /*
@@ -518,7 +522,7 @@ static void reset_button_clicked(GtkButton *button, gpointer user_data)
     ctk_image_sliders_reset(CTK_IMAGE_SLIDERS(ctk_object->image_sliders));
 
     ctk_config_statusbar_message(ctk_object->ctk_config,
-                                 "Reset hardware defaults for %s.",
+                                 _("Reset hardware defaults for %s."),
                                  ctk_object->name);
 
 } /* reset_button_clicked() */
@@ -541,18 +545,18 @@ GtkTextBuffer *ctk_display_device_create_help(GtkTextTagTable *table,
 
     gtk_text_buffer_get_iter_at_offset(b, &i, 0);
 
-    ctk_help_title(b, &i, "%s Help", ctk_object->name);
+    ctk_help_title(b, &i, _("%s Help"), ctk_object->name);
 
-    ctk_help_heading(b, &i, "Device Information");
-    ctk_help_para(b, &i, "%s", __info_help);
+    ctk_help_heading(b, &i, _("Device Information"));
+    ctk_help_para(b, &i, "%s", _(__info_help));
 
     for (j = 0; j < ARRAY_LEN(__info_entry_data); j++) {
         InfoEntryData *entryData = __info_entry_data+j;
         InfoEntry *entry = ctk_object->info_entries+j;
 
         if (entry->present) {
-            ctk_help_term(b, &i, "%s", entryData->str);
-            ctk_help_para(b, &i, "%s", *entryData->tooltip);
+            ctk_help_term(b, &i, "%s", _(entryData->str));
+            ctk_help_para(b, &i, "%s", _(*entryData->tooltip));
         }
     }
 
@@ -568,7 +572,7 @@ GtkTextBuffer *ctk_display_device_create_help(GtkTextTagTable *table,
         (CTK_IMAGE_SLIDERS(ctk_object->image_sliders), b, &i);
 
     if (ctk_object->color_correction_available) {
-        ctk_color_correction_tab_help(b, &i, "X Server Color Correction", TRUE);
+        ctk_color_correction_tab_help(b, &i, _("X Server Color Correction"), TRUE);
     }
 
     tip_text = ctk_widget_get_tooltip_text(GTK_WIDGET(ctk_object->reset_button));
@@ -645,13 +649,13 @@ static gboolean update_chip_info(InfoEntry *entry)
 
     switch (val) {
     case NV_CTRL_FLATPANEL_CHIP_LOCATION_INTERNAL:
-        str = "Internal";
+        str = _("Internal");
         break;
     case NV_CTRL_FLATPANEL_CHIP_LOCATION_EXTERNAL:
-        str = "External";
+        str = _("External");
         break;
     default:
-        str = "Unknown";
+        str = _("Unknown");
         break;
     }
 
@@ -677,16 +681,16 @@ static gboolean update_signal_info(InfoEntry *entry)
 
     switch (val) {
     case NV_CTRL_FLATPANEL_SIGNAL_LVDS:
-        str = "LVDS";
+        str = _("LVDS");
         break;
     case NV_CTRL_FLATPANEL_SIGNAL_TMDS:
-        str = "TMDS";
+        str = _("TMDS");
         break;
     case NV_CTRL_FLATPANEL_SIGNAL_DISPLAYPORT:
-        str = "DisplayPort";
+        str = _("DisplayPort");
         break;
     default:
-        str = "Unknown";
+        str = _("Unknown");
         break;
     }
 
@@ -724,18 +728,16 @@ static gboolean update_link_info(InfoEntry *entry)
                                  &val);
         if ((ret == NvCtrlSuccess) &&
             (val == NV_CTRL_DISPLAYPORT_LINK_RATE_DISABLED)) {
-            link = "Disabled";
+            link = _("Disabled");
         } else {
             if (ret != NvCtrlSuccess) {
                 val = 0;
             }
 
             if (val > 0) {
-                snprintf(tmp, 32, "%d lane%s @ %.2f Gbps", lanes, lanes == 1 ? "" : "s",
-                         val * 0.27);
+                snprintf(tmp, 32, ngettext("%d lane @ %.2f Gbps", "%d lanes @ %.2f Gbps", lanes), lanes, val * 0.27);
             } else {
-                snprintf(tmp, 32, "%d lane%s @ unknown bandwidth", lanes,
-                         lanes == 1 ? "" : "s");
+                snprintf(tmp, 32, ngettext("%d lane @ unknown bandwidth", "%d lanes @ unknown bandwidth", lanes), lanes);
             }
             link = tmp;
         }
@@ -743,13 +745,13 @@ static gboolean update_link_info(InfoEntry *entry)
         // LVDS or TMDS
         switch(val) {
         case NV_CTRL_FLATPANEL_LINK_SINGLE:
-            link = "Single";
+            link = _("Single");
             break;
         case NV_CTRL_FLATPANEL_LINK_DUAL:
-            link = "Dual";
+            link = _("Dual");
             break;
         default:
-            link = "Unknown";
+            link = _("Unknown");
             break;
         }
     }
@@ -776,20 +778,20 @@ static gboolean update_connector_type_info(InfoEntry *entry)
 
     switch (val) {
     case NV_CTRL_DISPLAYPORT_CONNECTOR_TYPE_DISPLAYPORT:
-        str = "DisplayPort";
+        str = _("DisplayPort");
         break;
     case NV_CTRL_DISPLAYPORT_CONNECTOR_TYPE_HDMI:
-        str = "HDMI";
+        str = _("HDMI");
         break;
     case NV_CTRL_DISPLAYPORT_CONNECTOR_TYPE_DVI:
-        str = "DVI";
+        str = _("DVI");
         break;
     case NV_CTRL_DISPLAYPORT_CONNECTOR_TYPE_VGA:
-        str = "VGA";
+        str = _("VGA");
         break;
     default:
     case NV_CTRL_DISPLAYPORT_CONNECTOR_TYPE_UNKNOWN:
-        str = "Unknown";
+        str = _("Unknown");
         break;
     }
 
@@ -812,7 +814,7 @@ static gboolean update_multistream_info(InfoEntry *entry)
         return FALSE;
     }
 
-    gtk_label_set_text(GTK_LABEL(entry->txt), val ? "Yes": "No");
+    gtk_label_set_text(GTK_LABEL(entry->txt), val ? _("Yes"): _("No"));
 
     return TRUE;
 }
@@ -831,7 +833,7 @@ static gboolean update_audio_info(InfoEntry *entry)
         return FALSE;
     }
 
-    gtk_label_set_text(GTK_LABEL(entry->txt), val ? "Yes": "No");
+    gtk_label_set_text(GTK_LABEL(entry->txt), val ? _("Yes"): _("No"));
 
     return TRUE;
 }
@@ -866,7 +868,7 @@ static gboolean update_refresh_rate(InfoEntry *entry)
         fvalue /= 2;
     }
 
-    str = g_strdup_printf("%.2f Hz%s", fvalue, hdmi3D ? " (HDMI 3D)" : "");
+    str = g_strdup_printf(_("%.2f Hz%s"), fvalue, hdmi3D ? " (HDMI 3D)" : "");
 
     gtk_label_set_text(GTK_LABEL(entry->txt), str);
     g_free(str);
@@ -1082,6 +1084,6 @@ static void add_color_correction_tab(CtkDisplayDevice *ctk_object,
     gtk_box_pack_start(GTK_BOX(box), ctk_color_correction, TRUE, TRUE, 0);
 
     gtk_notebook_append_page(GTK_NOTEBOOK(notebook), box,
-                             gtk_label_new("Color Correction"));
+                             gtk_label_new(_("Color Correction")));
     gtk_widget_show(box);
 }

@@ -21,6 +21,7 @@
 #include <string.h> /* strlen,  strdup */
 #include <unistd.h> /* lseek, close */
 #include <errno.h>
+#include <libintl.h>
 
 #include <fcntl.h>
 #include <sys/mman.h>
@@ -39,6 +40,7 @@
 #include "ctkutils.h"
 #include "ctkgpu.h"
 
+#define _(STRING) gettext(STRING)
 
 static void xconfig_update_buffer(GtkWidget *widget, gpointer user_data);
 static gchar *display_pick_config_name(nvDisplayPtr display,
@@ -4214,16 +4216,16 @@ static int save_xconfig_file(SaveXConfDlg *dlg,
         /* Verify the file-write permission */
         if ((access(filename, W_OK) != 0)) {
             err_msg =
-              g_strdup_printf("You do not have adequate permission to"
-              " open the existing X configuration file '%s' for writing.",
+              g_strdup_printf(_("You do not have adequate permission to"
+              " open the existing X configuration file '%s' for writing."),
               filename);
 
             /* Verify the user permissions */
             if (stat(filename, &st) == 0) {
                 if ((getuid() != 0) && (st.st_uid == 0) &&
                     !(st.st_mode & (S_IWGRP | S_IWOTH)))
-                    err_msg = g_strconcat(err_msg, " You must be 'root'"
-                    " to modify the file.", NULL);
+                    err_msg = g_strconcat(err_msg, _(" You must be 'root'"
+                    " to modify the file."), NULL);
             }
             goto done;
         }
@@ -4238,8 +4240,8 @@ static int save_xconfig_file(SaveXConfDlg *dlg,
 
             if (unlink(backup_filename) != 0) {
                 err_msg =
-                    g_strdup_printf("Unable to remove old X config backup "
-                                    "file '%s'.",
+                    g_strdup_printf(_("Unable to remove old X config backup "
+                                    "file '%s'."),
                                     backup_filename);
                 goto done;
             }
@@ -4248,8 +4250,8 @@ static int save_xconfig_file(SaveXConfDlg *dlg,
         /* Make the current x config file the backup */
         if (rename(filename, backup_filename)) {
                 err_msg =
-                    g_strdup_printf("Unable to create new X config backup "
-                                    "file '%s'.",
+                    g_strdup_printf(_("Unable to create new X config backup "
+                                    "file '%s'."),
                                     backup_filename);
             goto done;
         }
@@ -4259,7 +4261,7 @@ static int save_xconfig_file(SaveXConfDlg *dlg,
     fp = fopen(filename, "w");
     if (!fp) {
         err_msg =
-            g_strdup_printf("Unable to open X config file '%s' for writing.",
+            g_strdup_printf(_("Unable to open X config file '%s' for writing."),
                             filename);
         goto done;
     }
@@ -4365,8 +4367,8 @@ static void update_xconfig_save_buffer(SaveXConfDlg *dlg)
 
         /* Make sure this is a regular file */
         if (non_regular_file_type_description) {
-            err_msg = g_strdup_printf("Invalid file '%s': File exits but is a "
-                                      "%s!",
+            err_msg = g_strdup_printf(_("Invalid file '%s': File exits but is a "
+                                      "%s!"),
                                       filename,
                                       non_regular_file_type_description);
             gtk_widget_set_sensitive(dlg->btn_xconfig_merge, FALSE);
@@ -4391,8 +4393,8 @@ static void update_xconfig_save_buffer(SaveXConfDlg *dlg)
                 /* If we failed to parse the config file, we should not
                  * allow a merge.
                  */
-                err_msg = g_strdup_printf("Failed to parse existing X "
-                                          "config file '%s'!",
+                err_msg = g_strdup_printf(_("Failed to parse existing X "
+                                          "config file '%s'!"),
                                           filename);
                 ctk_display_warning_msg
                     (ctk_get_parent_window(GTK_WIDGET(dlg->parent)), err_msg);
@@ -4406,8 +4408,8 @@ static void update_xconfig_save_buffer(SaveXConfDlg *dlg)
                 xconfigGetXServerInUse(&gop);
 
                 if (!xconfigSanitizeConfig(xconfCur, NULL, &gop)) {
-                    err_msg = g_strdup_printf("Failed to sanitize existing X "
-                                              "config file '%s'!",
+                    err_msg = g_strdup_printf(_("Failed to sanitize existing X "
+                                              "config file '%s'!"),
                                               filename);
                     ctk_display_warning_msg
                         (ctk_get_parent_window(GTK_WIDGET(dlg->parent)),
@@ -4443,7 +4445,7 @@ static void update_xconfig_save_buffer(SaveXConfDlg *dlg)
     xconfGen = dlg->xconf_gen_func(xconfCur, merge, &merged,
                                    dlg->callback_data);
     if (!xconfGen) {
-        err_msg = g_strdup_printf("Failed to generate X config file!");
+        err_msg = g_strdup_printf(_("Failed to generate X config file!"));
         goto fail;
     }
 
@@ -4483,8 +4485,8 @@ static void update_xconfig_save_buffer(SaveXConfDlg *dlg)
     tmp_filename = g_strdup_printf("/tmp/.xconfig.tmp.XXXXXX");
     tmp_fd = mkstemp(tmp_filename);
     if (!tmp_fd) {
-        err_msg = g_strdup_printf("Failed to create temp X config file '%s' "
-                                  "for preview.",
+        err_msg = g_strdup_printf(_("Failed to create temp X config file '%s' "
+                                  "for preview."),
                                   tmp_filename);
         goto fail;
     }
@@ -4492,21 +4494,21 @@ static void update_xconfig_save_buffer(SaveXConfDlg *dlg)
     xconfigFreeConfig(&xconfGen);
 
     if (lseek(tmp_fd, 0, SEEK_SET) == (off_t)-1) {
-        err_msg = g_strdup_printf("Failed lseek() on temp X config file '%s' "
-                                  "for preview.",
+        err_msg = g_strdup_printf(_("Failed lseek() on temp X config file '%s' "
+                                  "for preview."),
                                   tmp_filename);
         goto fail;
     }
     if (fstat(tmp_fd, &st) == -1) {
-        err_msg = g_strdup_printf("Failed fstat() on temp X config file '%s' "
-                                  "for preview.",
+        err_msg = g_strdup_printf(_("Failed fstat() on temp X config file '%s' "
+                                  "for preview."),
                                   tmp_filename);
         goto fail;
     }
     buf = mmap(0, st.st_size, PROT_READ, MAP_PRIVATE, tmp_fd, 0);
     if (buf == MAP_FAILED) {
-        err_msg = g_strdup_printf("Failed mmap() on temp X config file '%s' "
-                                  "for preview.",
+        err_msg = g_strdup_printf(_("Failed mmap() on temp X config file '%s' "
+                                  "for preview."),
                                   tmp_filename);
         goto fail;
     }
@@ -4579,12 +4581,12 @@ static void xconfig_preview_clicked(GtkWidget *widget, gpointer user_data)
                                  TRUE);
         gtk_widget_set_size_request(dlg->txt_xconfig_save, 450, 350);
         gtk_button_set_label(GTK_BUTTON(dlg->btn_xconfig_preview),
-                             "Hide Preview...");
+                             _("Hide Preview..."));
     } else {
         gtk_widget_hide(dlg->box_xconfig_save);
         gtk_window_set_resizable(GTK_WINDOW(dlg->dlg_xconfig_save), FALSE);
         gtk_button_set_label(GTK_BUTTON(dlg->btn_xconfig_preview),
-                             "Show Preview...");
+                             _("Show Preview..."));
     }
 
 } /* xconfig_preview_clicked() */
@@ -4623,7 +4625,7 @@ static void xconfig_file_clicked(GtkWidget *widget, gpointer user_data)
 
     /* Ask user for a filename */
     selected_filename =
-        ctk_get_filename_from_dialog("Please select the X configuration file",
+        ctk_get_filename_from_dialog(_("Please select the X configuration file"),
              GTK_WINDOW(gtk_widget_get_toplevel(GTK_WIDGET(dlg->parent))),
              filename);
 
@@ -4673,7 +4675,7 @@ void run_save_xconfig_dialog(SaveXConfDlg *dlg)
     gtk_window_set_resizable(GTK_WINDOW(dlg->dlg_xconfig_save),
                              FALSE);
     gtk_button_set_label(GTK_BUTTON(dlg->btn_xconfig_preview),
-                         "Show preview...");
+                         _("Show preview..."));
     gtk_widget_show(dlg->dlg_xconfig_save);
     result = gtk_dialog_run(GTK_DIALOG(dlg->dlg_xconfig_save));
     gtk_widget_hide(dlg->dlg_xconfig_save);
@@ -4777,7 +4779,7 @@ SaveXConfDlg *create_save_xconfig_dialog(GtkWidget *parent,
 
     /* Create the dialog */
     dlg->dlg_xconfig_save = gtk_dialog_new_with_buttons
-        ("Save X Configuration",
+        (_("Save X Configuration"),
          GTK_WINDOW(gtk_widget_get_parent(GTK_WIDGET(parent))),
          GTK_DIALOG_MODAL |  GTK_DIALOG_DESTROY_WITH_PARENT,
          GTK_STOCK_SAVE,
@@ -4817,14 +4819,14 @@ SaveXConfDlg *create_save_xconfig_dialog(GtkWidget *parent,
                      (gpointer) dlg);
 
     /* Create the filename browse button */
-    dlg->btn_xconfig_file = gtk_button_new_with_label("Browse...");
+    dlg->btn_xconfig_file = gtk_button_new_with_label(_("Browse..."));
     g_signal_connect(G_OBJECT(dlg->btn_xconfig_file), "clicked",
                      G_CALLBACK(xconfig_file_clicked),
                      (gpointer) dlg);
 
     /* Create the merge checkbox */
     dlg->btn_xconfig_merge =
-        gtk_check_button_new_with_label("Merge with existing file.");
+        gtk_check_button_new_with_label(_("Merge with existing file."));
     gtk_toggle_button_set_active(GTK_TOGGLE_BUTTON(dlg->btn_xconfig_merge),
                                  TRUE);
     gtk_widget_set_sensitive(dlg->btn_xconfig_merge, merge_toggleable);

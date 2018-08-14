@@ -19,6 +19,7 @@
 
 #include <stdlib.h> /* malloc */
 #include <string.h> /* strlen */
+#include <libintl.h>
 
 #include <gtk/gtk.h>
 #include <gdk/gdkx.h>
@@ -33,7 +34,7 @@
 #include "ctkutils.h"
 
 
-
+#define _(STRING) gettext(STRING)
 
 /* GUI look and feel */
 
@@ -2526,7 +2527,7 @@ static char *get_display_tooltip(nvDisplayPtr display, Bool advanced)
 
     /* Display does not have a screen (not configured) */
     if (!(display->screen)) {
-        tip = g_strdup_printf("%s : Disabled (GPU: %s)",
+        tip = g_strdup_printf(_("%s : Disabled (GPU: %s)"),
                               display->logName, display->gpu->name);
 
 
@@ -2540,13 +2541,13 @@ static char *get_display_tooltip(nvDisplayPtr display, Bool advanced)
             
         /* Display does not have a current modeline (Off) */
         } else if (!(display->cur_mode->modeline)) {
-            tip = g_strdup_printf("%s : Off",
+            tip = g_strdup_printf(_("%s : Off"),
                                   display->logName);
             
         /* Display has mode/modeline */
         } else {
             float ref = display->cur_mode->modeline->refresh_rate;
-            tip = g_strdup_printf("%s : %dx%d @ %.*f Hz",
+            tip = g_strdup_printf(_("%s : %dx%d @ %.*f Hz"),
                                   display->logName,
                                   display->cur_mode->modeline->data.hdisplay,
                                   display->cur_mode->modeline->data.vdisplay,
@@ -2561,14 +2562,14 @@ static char *get_display_tooltip(nvDisplayPtr display, Bool advanced)
 
         /* Display has no mode */
         if (!display->cur_mode) {
-            tip = g_strdup_printf("%s\n(X Screen %d)\n(GPU: %s)",
+            tip = g_strdup_printf(_("%s\n(X Screen %d)\n(GPU: %s)"),
                                   display->logName,
                                   display->screen->scrnum,
                                   display->gpu->name);
             
         /* Display does not have a current modeline (Off) */
         } else if (!(display->cur_mode->modeline)) {
-            tip = g_strdup_printf("%s : Off\n(X Screen %d)\n(GPU: %s)",
+            tip = g_strdup_printf(_("%s : Off\n(X Screen %d)\n(GPU: %s)"),
                                   display->logName,
                                   display->screen->scrnum,
                                   display->gpu->name);
@@ -2576,8 +2577,8 @@ static char *get_display_tooltip(nvDisplayPtr display, Bool advanced)
             /* Display has mode/modeline */
         } else {
             float ref = display->cur_mode->modeline->refresh_rate;
-            tip = g_strdup_printf("%s : %dx%d @ %.*f Hz\n(X Screen %d)\n"
-                                  "(GPU: %s)",
+            tip = g_strdup_printf(_("%s : %dx%d @ %.*f Hz\n(X Screen %d)\n"
+                                  "(GPU: %s)"),
                                   display->logName,
                                   display->cur_mode->modeline->data.hdisplay,
                                   display->cur_mode->modeline->data.vdisplay,
@@ -2611,8 +2612,7 @@ static char *get_screen_tooltip(nvScreenPtr screen)
         return NULL;
     }
 
-    tip = g_strdup_printf("X Screen %d%s", screen->scrnum,
-                          screen->no_scanout ? " : No Scanout" : "");
+    tip = g_strdup_printf(screen->no_scanout ? _("X Screen %d : No Scanout") : _("X Screen %d"), screen->scrnum);
 
     return tip;
 
@@ -2682,9 +2682,9 @@ static char *get_tooltip_under_mouse(CtkDisplayLayout *ctk_object,
                     goto found;
                 }
                 if (prime->label) {
-                    tip = g_strdup_printf("PRIME display: %s", prime->label);
+                    tip = g_strdup_printf(_("PRIME display: %s"), prime->label);
                 } else {
-                    tip = g_strdup("PRIME display");
+                    tip = g_strdup(_("PRIME display"));
                 }
                 goto found;
             }
@@ -2696,7 +2696,7 @@ static char *get_tooltip_under_mouse(CtkDisplayLayout *ctk_object,
         last_display = NULL;
         last_screen = NULL;
         last_prime = NULL;
-        return g_strdup("No Display");
+        return g_strdup(_("No Display"));
     }
 
     return NULL;
@@ -2962,14 +2962,14 @@ GtkWidget* ctk_display_layout_new(CtkConfig *ctk_config,
     ctk_object->tooltip_area  = gtk_event_box_new();
 
 #ifdef CTK_GTK3
-    gtk_widget_set_tooltip_text(ctk_object->tooltip_area, "*** No Display ***");
+    gtk_widget_set_tooltip_text(ctk_object->tooltip_area, _("*** No Display ***"));
 #else
     ctk_object->tooltip_group = gtk_tooltips_new();
 
     gtk_tooltips_enable(ctk_object->tooltip_group);
     gtk_tooltips_set_tip(ctk_object->tooltip_group,
                          ctk_object->tooltip_area,
-                         "*** No Display ***", NULL);
+                         _("*** No Display ***"), NULL);
 #endif
 
     gtk_container_add(GTK_CONTAINER(ctk_object->tooltip_area), tmp);
@@ -3365,9 +3365,9 @@ static void draw_prime_display(CtkDisplayLayout *ctk_object,
 
     /* Draw text information */
     if (prime_display->label) {
-        tmp_str_name = g_strdup_printf("PRIME: %s", prime_display->label);
+        tmp_str_name = g_strdup_printf(_("PRIME: %s"), prime_display->label);
     } else {
-        tmp_str_name = g_strdup("PRIME Display");
+        tmp_str_name = g_strdup(_("PRIME Display"));
     }
     tmp_str_data = g_strdup_printf("%dx%d", rect->width,
                                             rect->height);
@@ -3423,12 +3423,12 @@ static void draw_display(CtkDisplayLayout *ctk_object,
 
     /* Draw text information */
     if (!mode->display->screen) {
-        tmp_str = g_strdup("(Disabled)");
+        tmp_str = g_strdup(_("(Disabled)"));
     } else if (mode->modeline) {
         tmp_str = g_strdup_printf("%dx%d", mode->viewPortIn.width,
                                   mode->viewPortIn.height);
     } else {
-        tmp_str = g_strdup("(Off)");
+        tmp_str = g_strdup(_("(Off)"));
     }
     draw_rect_strs(ctk_object,
                    &rect,
@@ -3499,13 +3499,13 @@ static void draw_screen(CtkDisplayLayout *ctk_object,
 
     /* Show the name of the screen if no-scanout is selected */
     if (screen->no_scanout) {
-        tmp_str = g_strdup_printf("X Screen %d", screen->scrnum);
+        tmp_str = g_strdup_printf(_("X Screen %d"), screen->scrnum);
 
         draw_rect_strs(ctk_object,
                        &(screen->dim),
                        &(ctk_object->fg_color),
                        tmp_str,
-                       "(No Scanout)");
+                       _("(No Scanout)"));
         g_free(tmp_str);
     }
 

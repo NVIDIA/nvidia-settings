@@ -34,7 +34,10 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <errno.h>
+#include <libintl.h>
 
+#define _(STRING) gettext(STRING)
+#define N_(STRING) STRING
 
 #define FRAME_PADDING 5
 
@@ -47,10 +50,10 @@
 #define DEFAULT_EDID_FILENAME_ASCII  "edid.txt"
 
 static const char *__acquire_edid_help =
-"The Acquire EDID button allows you to save the display device's EDID "
+N_("The Acquire EDID button allows you to save the display device's EDID "
 "(Extended Display Identification Data) information to a file.  By "
 "default it saves information in binary format but one can also choose "
-"to save in ASCII format.";
+"to save in ASCII format.");
 
 static void file_format_changed(GtkWidget *widget, gpointer user_data);
 static void normalize_filename(CtkEdid *ctk_edid);
@@ -132,7 +135,7 @@ GtkWidget* ctk_edid_new(CtrlTarget *ctrl_target,
 
     /* create the button and label */
     
-    label = gtk_label_new("Acquire EDID...");
+    label = gtk_label_new(_("Acquire EDID..."));
     hbox = gtk_hbox_new(FALSE, 0);
     ctk_edid->button = gtk_button_new();
     
@@ -145,7 +148,7 @@ GtkWidget* ctk_edid_new(CtrlTarget *ctrl_target,
     gtk_box_pack_end(GTK_BOX(vbox), alignment, TRUE, TRUE, 0);
     
     ctk_config_set_tooltip(ctk_config, ctk_edid->button,
-                           __acquire_edid_help);
+                           _(__acquire_edid_help));
 
     g_signal_connect(G_OBJECT(ctk_edid->button),
                      "clicked",
@@ -266,15 +269,15 @@ static void button_clicked(GtkButton *button, gpointer user_data)
                                    &data, &len);
     if (ret != NvCtrlSuccess) {
         ctk_config_statusbar_message(ctk_edid->ctk_config,
-                                     "No EDID available for %s.",
+                                     _("No EDID available for %s."),
                                      ctk_edid->name);
     } else {
 
         /* Create a dialog and ask user for filename */
         
         ctk_edid->file_selector =
-            ctk_file_chooser_dialog_new("Please select file where "
-                                        "EDID data will be saved.",
+            ctk_file_chooser_dialog_new(_("Please select file where "
+                                        "EDID data will be saved."),
                                         NULL, GTK_FILE_CHOOSER_ACTION_SAVE);
 
         ctk_file_chooser_set_filename(ctk_edid->file_selector,
@@ -288,11 +291,11 @@ static void button_clicked(GtkButton *button, gpointer user_data)
         gtk_container_set_border_width(GTK_CONTAINER(hbox), FRAME_PADDING);
         gtk_container_add(GTK_CONTAINER(file_format_frame), hbox);
 
-        label = gtk_label_new("EDID File Format: ");
+        label = gtk_label_new(_("EDID File Format: "));
         gtk_box_pack_start(GTK_BOX(hbox), label, FALSE, FALSE, 0);
 
         ctk_edid->file_format_binary_radio_button =
-            gtk_radio_button_new_with_label(NULL, "Binary");
+            gtk_radio_button_new_with_label(NULL, _("Binary"));
         gtk_box_pack_start(GTK_BOX(hbox),
                            ctk_edid->file_format_binary_radio_button,
                            FALSE, FALSE, 0);
@@ -371,7 +374,7 @@ static gboolean write_edid_to_file(CtkConfig *ctk_config, const gchar *filename,
     if (format == FILE_FORMAT_ASCII) {
         fp = fopen(filename, "wt");
         if (!fp) {
-            msg = "ASCII Mode: Unable to open file for writing";
+            msg = _("ASCII Mode: Unable to open file for writing");
             goto fail;
         }
         /*
@@ -381,14 +384,14 @@ static gboolean write_edid_to_file(CtkConfig *ctk_config, const gchar *filename,
          */
         tmpbuf = calloc(1, 1 + (len * 3));
         if (!tmpbuf) {
-            msg = "ASCII Mode: Could not allocate enough memory";
+            msg = _("ASCII Mode: Could not allocate enough memory");
             goto fail;
         }
         pbuf = tmpbuf;
 
         for (i = 0; i < len; i++) {
             if (sprintf(pbuf, "%02x ", data[i]) < 0) {
-                msg = "ASCII Mode: Unable to write to buffer";
+                msg = _("ASCII Mode: Unable to write to buffer");
                 goto fail;
             }
             pbuf = pbuf + 3;
@@ -397,7 +400,7 @@ static gboolean write_edid_to_file(CtkConfig *ctk_config, const gchar *filename,
         sprintf(pbuf, "%c", '\0');
 
         if (fprintf(fp, "%s", tmpbuf) < 0) {
-            msg = "ASCII Mode: Unable to write to file";
+            msg = _("ASCII Mode: Unable to write to file");
             goto fail;
         }
 
@@ -407,12 +410,12 @@ static gboolean write_edid_to_file(CtkConfig *ctk_config, const gchar *filename,
     } else {
         fp = fopen(filename, "wb");
         if (!fp) {
-            msg = "Binary Mode: Unable to open file for writing";
+            msg = _("Binary Mode: Unable to open file for writing");
             goto fail;
         }
 
         if (fwrite(data, 1, len, fp) != len) {
-            msg = "Binary Mode: Unable to write to file";
+            msg = _("Binary Mode: Unable to write to file");
             goto fail;
         }
     }
@@ -420,7 +423,7 @@ static gboolean write_edid_to_file(CtkConfig *ctk_config, const gchar *filename,
     fclose(fp);
 
     ctk_config_statusbar_message(ctk_config,
-                                 "EDID written to %s.", filename);
+                                 _("EDID written to %s."), filename);
     return TRUE;
     
  fail:
@@ -433,7 +436,7 @@ static gboolean write_edid_to_file(CtkConfig *ctk_config, const gchar *filename,
     }
 
     ctk_config_statusbar_message(ctk_config,
-                                 "Unable to write EDID to file '%s': %s (%s).",
+                                 _("Unable to write EDID to file '%s': %s (%s)."),
                                  filename, msg, strerror(errno));
     return FALSE;
 
@@ -442,7 +445,7 @@ static gboolean write_edid_to_file(CtkConfig *ctk_config, const gchar *filename,
 
 void add_acquire_edid_help(GtkTextBuffer *b, GtkTextIter *i)
 {
-    ctk_help_heading(b, i, "Acquire EDID");
-    ctk_help_para(b, i, "%s", __acquire_edid_help);
+    ctk_help_heading(b, i, _("Acquire EDID"));
+    ctk_help_para(b, i, "%s", _(__acquire_edid_help));
 
 } /* add_acquire_edid_help() */

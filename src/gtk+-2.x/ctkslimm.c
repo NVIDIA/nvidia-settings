@@ -22,6 +22,7 @@
 
 #include <stdlib.h>
 #include <string.h>
+#include <libintl.h>
 #include <X11/Xlib.h>
 
 #include "msg.h"
@@ -36,6 +37,7 @@
 #include "ctkutils.h"
 #include "ctkdropdownmenu.h"
 
+#define _(STRING) gettext(STRING)
 
 /* Static function declarations */
 static void setup_display_refresh_dropdown(CtkSLIMM *ctk_object);
@@ -293,14 +295,14 @@ static void save_xconfig_button_clicked(GtkWidget *widget, gpointer user_data)
     /* Make sure the screen size is acceptable */
     if (!compute_screen_size(ctk_object, &width, &height)) {
         error = TRUE;
-        err_msg = g_strdup("Unknown screen size!");
+        err_msg = g_strdup(_("Unknown screen size!"));
 
     } else if ((width > ctk_object->max_screen_width) ||
                (height > ctk_object->max_screen_height)) {
         error = TRUE;
-        err_msg = g_strdup_printf("The configured X screen size of %dx%d is \n"
+        err_msg = g_strdup_printf(_("The configured X screen size of %dx%d is \n"
                                   "too large.  The maximum supported size is\n"
-                                  "%dx%d.",
+                                  "%dx%d."),
                                   width, height,
                                   ctk_object->max_screen_width,
                                   ctk_object->max_screen_height);
@@ -523,7 +525,7 @@ static void setup_display_refresh_dropdown(CtkSLIMM *ctk_object)
 
         modeline_rate = modeline->refresh_rate;
 
-        name = g_strdup_printf("%.0f Hz", modeline_rate);
+        name = g_strdup_printf(_("%.0f Hz"), modeline_rate);
 
 
         /* Get a unique number for this modeline */
@@ -531,7 +533,7 @@ static void setup_display_refresh_dropdown(CtkSLIMM *ctk_object)
         num_ref = 0;   /* Modeline # in a group of similar refresh rates */
         for (m = ctk_object->modelines; m; m = m->next) {
             float m_rate = m->refresh_rate;
-            gchar *tmp = g_strdup_printf("%.0f Hz", m_rate);
+            gchar *tmp = g_strdup_printf(_("%.0f Hz"), m_rate);
 
             if (m->data.hdisplay == modeline->data.hdisplay &&
                 m->data.vdisplay == modeline->data.vdisplay &&
@@ -553,16 +555,16 @@ static void setup_display_refresh_dropdown(CtkSLIMM *ctk_object)
         /* Add "DoubleScan" and "Interlace" information */
         
         if (modeline->data.flags & V_DBLSCAN) {
-            extra = g_strdup_printf("DoubleScan");
+            extra = g_strdup_printf(_("DoubleScan"));
         }
 
         if (modeline->data.flags & V_INTERLACE) {
             if (extra) {
-                tmp = g_strdup_printf("%s, Interlace", extra);
+                tmp = g_strdup_printf(_("%s, Interlace"), extra);
                 g_free(extra);
                 extra = tmp;
             } else {
-                extra = g_strdup_printf("Interlace");
+                extra = g_strdup_printf(_("Interlace"));
             }
         }
 
@@ -1369,12 +1371,15 @@ GtkWidget* ctk_slimm_new(CtrlTarget *ctrl_target,
 
         /* Make sure we have enough displays for the minimum config */
         if (num_displays < 2) {
-            err_str = g_strdup_printf("Not enough display devices to "
-                                      "configure SLI Mosaic Mode.\nYou must "
-                                      "have at least 2 Displays connected, "
-                                      "but only %d Display%s detected.",
-                                      num_displays,
-                                      (num_displays != 1) ? "s were" : " was");
+            err_str = g_strdup_printf(ngettext("Not enough display devices to "
+                                               "configure SLI Mosaic Mode.\nYou must "
+                                               "have at least 2 Displays connected, "
+                                               "but only %d Display detected.",
+                                               "Not enough display devices to "
+                                               "configure SLI Mosaic Mode.\nYou must "
+                                               "have at least 2 Displays connected, "
+                                               "but only %d Displays detected.", num_displays),
+                                      num_displays);
             layout_free(layout);
             layout = NULL;
 
@@ -1395,8 +1400,8 @@ GtkWidget* ctk_slimm_new(CtrlTarget *ctrl_target,
     display = intersect_modelines(layout);
 
     if (display == NULL) {
-        err_str = g_strdup("Unable to find active display with "
-                           "intersected modelines.");
+        err_str = g_strdup(_("Unable to find active display with "
+                           "intersected modelines."));
         goto slimm_fail;
     } else if ((display->modelines == NULL) &&
                (display->cur_mode->modeline == NULL)) {
@@ -1430,12 +1435,12 @@ GtkWidget* ctk_slimm_new(CtrlTarget *ctrl_target,
                     (!STEREO_IS_3D_VISION(stereo) &&
                      STEREO_IS_3D_VISION(other_stereo))) {
 
-                    err_str = g_strdup("Unable to find common modelines between\n"
+                    err_str = g_strdup(_("Unable to find common modelines between\n"
                                        "all connected displays due to 3D vision\n"
                                        "being enabled on some displays and not\n"
                                        "others. Please make sure that 3D vision\n"
                                        "is enabled on all connected displays\n"
-                                       "before enabling SLI mosaic mode.");
+                                       "before enabling SLI mosaic mode."));
 
                     goto slimm_fail;
                 }
@@ -1445,8 +1450,8 @@ GtkWidget* ctk_slimm_new(CtrlTarget *ctrl_target,
         /* The intersected modepool was empty, but not because of a mismatch
          * in 3D Vision settings.
          */
-        err_str = g_strdup("Unable to find find common modelines between "
-                           "all connected displays.");
+        err_str = g_strdup(_("Unable to find find common modelines between "
+                           "all connected displays."));
 
         goto slimm_fail;
     }
@@ -1483,7 +1488,7 @@ GtkWidget* ctk_slimm_new(CtrlTarget *ctrl_target,
     gtk_box_pack_start(GTK_BOX(ctk_slimm), vbox, TRUE, TRUE, 0);
 
     hbox = gtk_hbox_new(FALSE, 0);
-    checkbutton = gtk_check_button_new_with_label("Use SLI Mosaic Mode");
+    checkbutton = gtk_check_button_new_with_label(_("Use SLI Mosaic Mode"));
     gtk_toggle_button_set_active(GTK_TOGGLE_BUTTON(checkbutton), TRUE);
     ctk_slimm->cbtn_slimm_enable = checkbutton;
     g_signal_connect(G_OBJECT(checkbutton), "toggled",
@@ -1493,7 +1498,7 @@ GtkWidget* ctk_slimm_new(CtrlTarget *ctrl_target,
     gtk_box_pack_start(GTK_BOX(vbox), hbox, FALSE, FALSE, 0);
 
     hbox = gtk_hbox_new(FALSE, 0);
-    label = gtk_label_new("Display Configuration (rows x columns)");
+    label = gtk_label_new(_("Display Configuration (rows x columns)"));
     hseparator = gtk_hseparator_new();
     gtk_widget_show(hseparator);
     gtk_box_pack_start(GTK_BOX(hbox), label, FALSE, FALSE, 10);
@@ -1517,8 +1522,8 @@ GtkWidget* ctk_slimm_new(CtrlTarget *ctrl_target,
                      G_CALLBACK(display_config_changed),
                      (gpointer) ctk_object);
 
-    checkbutton = gtk_check_button_new_with_label("Only show configurations "
-                                                  "using all displays");
+    checkbutton = gtk_check_button_new_with_label(_("Only show configurations "
+                                                  "using all displays"));
     gtk_toggle_button_set_active(GTK_TOGGLE_BUTTON(checkbutton), only_max);
     g_signal_connect(G_OBJECT(checkbutton), "toggled",
                      G_CALLBACK(restrict_display_config_changed),
@@ -1537,7 +1542,7 @@ GtkWidget* ctk_slimm_new(CtrlTarget *ctrl_target,
     gtk_container_set_border_width(GTK_CONTAINER(table), 5);
 
     hbox = gtk_hbox_new(FALSE, 0);
-    label = gtk_label_new("Resolution (per display)");
+    label = gtk_label_new(_("Resolution (per display)"));
     hseparator = gtk_hseparator_new();
     gtk_widget_show(hseparator);
     gtk_box_pack_start(GTK_BOX(hbox), label, FALSE, FALSE, 5);
@@ -1547,7 +1552,7 @@ GtkWidget* ctk_slimm_new(CtrlTarget *ctrl_target,
                      GTK_EXPAND | GTK_FILL, 0.5, 0.5);
 
     hbox = gtk_hbox_new(FALSE, 0);
-    label = gtk_label_new("Refresh Rate");
+    label = gtk_label_new(_("Refresh Rate"));
     hseparator = gtk_hseparator_new();
     gtk_widget_show(hseparator);
     gtk_box_pack_start(GTK_BOX(hbox), label, FALSE, FALSE, 5);
@@ -1592,7 +1597,7 @@ GtkWidget* ctk_slimm_new(CtrlTarget *ctrl_target,
 
     /* Edge Overlap section */
     hbox = gtk_hbox_new(FALSE, 0);
-    label = gtk_label_new("Edge Overlap");
+    label = gtk_label_new(_("Edge Overlap"));
     hseparator = gtk_hseparator_new();
     gtk_widget_show(hseparator);
     gtk_box_pack_start(GTK_BOX(hbox), label, FALSE, FALSE, 5);
@@ -1602,7 +1607,7 @@ GtkWidget* ctk_slimm_new(CtrlTarget *ctrl_target,
                      GTK_EXPAND | GTK_FILL, 0.5, 0.5);
 
     hbox = gtk_hbox_new(FALSE, 0);
-    label = gtk_label_new("Total Size");
+    label = gtk_label_new(_("Total Size"));
     hseparator = gtk_hseparator_new();
     gtk_widget_show(hseparator);
     gtk_box_pack_start(GTK_BOX(hbox), label, FALSE, FALSE, 5);
@@ -1612,7 +1617,7 @@ GtkWidget* ctk_slimm_new(CtrlTarget *ctrl_target,
 
 
     hbox = gtk_hbox_new(FALSE, 0);
-    label = gtk_label_new("Horizontal:");
+    label = gtk_label_new(_("Horizontal:"));
     gtk_box_pack_start(GTK_BOX(hbox), label, FALSE, FALSE, 10);
 
     spinbutton = gtk_spin_button_new_with_range(-ctk_object->cur_modeline->data.hdisplay, 
@@ -1628,7 +1633,7 @@ GtkWidget* ctk_slimm_new(CtrlTarget *ctrl_target,
 
     gtk_box_pack_start(GTK_BOX(hbox), spinbutton, FALSE, FALSE, 5);
 
-    label = gtk_label_new("pixels");
+    label = gtk_label_new(_("pixels"));
     gtk_box_pack_start(GTK_BOX(hbox), label, FALSE, FALSE, 5);
 
     gtk_table_attach(GTK_TABLE(table), hbox, 0, 1, 9, 10, GTK_EXPAND | GTK_FILL,
@@ -1636,7 +1641,7 @@ GtkWidget* ctk_slimm_new(CtrlTarget *ctrl_target,
 
 
     hbox = gtk_hbox_new(FALSE, 0);
-    label = gtk_label_new("Vertical:    ");
+    label = gtk_label_new(_("Vertical:    "));
     gtk_box_pack_start(GTK_BOX(hbox), label, FALSE, FALSE, 10);
 
     spinbutton = gtk_spin_button_new_with_range(-ctk_object->cur_modeline->data.vdisplay, 
@@ -1651,13 +1656,13 @@ GtkWidget* ctk_slimm_new(CtrlTarget *ctrl_target,
 
     gtk_box_pack_start(GTK_BOX(hbox), spinbutton, FALSE, FALSE, 5);
 
-    label = gtk_label_new("pixels");
+    label = gtk_label_new(_("pixels"));
     gtk_box_pack_start(GTK_BOX(hbox), label, FALSE, FALSE, 5);
 
     gtk_table_attach(GTK_TABLE(table), hbox, 0, 1, 10, 11, GTK_EXPAND | GTK_FILL,
                      GTK_EXPAND | GTK_FILL, 0.5, 0.5);
 
-    label = gtk_label_new("NULL");
+    label = gtk_label_new(_("NULL"));
     ctk_slimm->lbl_total_size = label;
     setup_total_size_label(ctk_slimm);
 
@@ -1668,7 +1673,7 @@ GtkWidget* ctk_slimm_new(CtrlTarget *ctrl_target,
                      GTK_EXPAND | GTK_FILL, 0.5, 0.5);
 
     hbox = gtk_hbox_new(FALSE, 0);
-    label = gtk_label_new("Maximum Size");
+    label = gtk_label_new(_("Maximum Size"));
     hseparator = gtk_hseparator_new();
     gtk_widget_show(hseparator);
     gtk_box_pack_start(GTK_BOX(hbox), label, FALSE, FALSE, 5);
@@ -1686,7 +1691,7 @@ GtkWidget* ctk_slimm_new(CtrlTarget *ctrl_target,
                      GTK_EXPAND | GTK_FILL, 0.5, 0.5);
 
 
-    label = gtk_label_new("Save to X Configuration File");
+    label = gtk_label_new(_("Save to X Configuration File"));
     hbox = gtk_hbox_new(FALSE, 0);
     button = gtk_button_new();
     ctk_slimm->btn_save_config = button; 
@@ -1734,10 +1739,10 @@ slimm_fail:
     }
 
     if (!err_str) {
-        str = g_strdup("Unable to load SLI Mosaic Mode Settings page.");
+        str = g_strdup(_("Unable to load SLI Mosaic Mode Settings page."));
     } else {
-        str = g_strdup_printf("Unable to load SLI Mosaic Mode Settings "
-                              "page:\n\n%s", err_str);
+        str = g_strdup_printf(_("Unable to load SLI Mosaic Mode Settings "
+                              "page:\n\n%s"), err_str);
         g_free(err_str);
     }
 
@@ -1764,54 +1769,54 @@ GtkTextBuffer *ctk_slimm_create_help(GtkTextTagTable *table,
     
     gtk_text_buffer_get_iter_at_offset(b, &i, 0);
 
-    ctk_help_title(b, &i, "SLI Mosaic Mode Settings Help");
+    ctk_help_title(b, &i, _("SLI Mosaic Mode Settings Help"));
 
-    ctk_help_para(b, &i, "This page allows easy configuration "
-                  "of SLI Mosaic Mode.");
+    ctk_help_para(b, &i, _("This page allows easy configuration "
+                  "of SLI Mosaic Mode."));
     
-    ctk_help_heading(b, &i, "Use SLI Mosaic Mode");
-    ctk_help_para(b, &i, "This checkbox controls whether SLI Mosaic Mode is enabled "
-                  "or disabled.");
+    ctk_help_heading(b, &i, _("Use SLI Mosaic Mode"));
+    ctk_help_para(b, &i, _("This checkbox controls whether SLI Mosaic Mode is enabled "
+                  "or disabled."));
     
-    ctk_help_heading(b, &i, "Display Configuration");
-    ctk_help_para(b, &i, "This drop down menu allows selection of the display grid "
+    ctk_help_heading(b, &i, _("Display Configuration"));
+    ctk_help_para(b, &i, _("This drop down menu allows selection of the display grid "
                   "configuration for SLI Mosaic Mode; the possible configurations "
-                  "are described as rows x columns.");
+                  "are described as rows x columns."));
     
-    ctk_help_heading(b, &i, "Resolution");
-    ctk_help_para(b, &i, "This drop down menu allows selection of the resolution to "
+    ctk_help_heading(b, &i, _("Resolution"));
+    ctk_help_para(b, &i, _("This drop down menu allows selection of the resolution to "
                   "use for each of the displays in SLI Mosaic Mode.  Note that only "
                   "the resolutions that are available for each display will be "
-                  "shown here.");
+                  "shown here."));
     
-    ctk_help_heading(b, &i, "Refresh Rate");
-    ctk_help_para(b, &i, "This drop down menu allows selection of the refresh rate "
+    ctk_help_heading(b, &i, _("Refresh Rate"));
+    ctk_help_para(b, &i, _("This drop down menu allows selection of the refresh rate "
                   "to use for each of the displays in SLI Mosaic Mode.  By default "
                   "the highest refresh rate each of the displays can achieve at "
                   "the selected resolution is chosen.  This combo box gets updated "
-                  "when a new resolution is picked.");
+                  "when a new resolution is picked."));
 
-    ctk_help_heading(b, &i, "Edge Overlap");
-    ctk_help_para(b, &i, "These two controls allow the user to specify the "
+    ctk_help_heading(b, &i, _("Edge Overlap"));
+    ctk_help_para(b, &i, _("These two controls allow the user to specify the "
                   "Horizontal and Vertical Edge Overlap values.  The displays "
                   "will overlap by the specified number of pixels when forming "
                   "the grid configuration.  For example, 4 flat panel displays "
                   "forming a 2 x 2 grid in SLI Mosaic Mode with a resolution of "
                   "1600x1200 and a Horizontal and Vertical Edge overlap of 50 "
                   "will generate the following MetaMode: \"1600x1200+0+0,"
-                  "1600x1200+1550+0,1600x1200+0+1150,1600x1200+1550+1150\".");
+                  "1600x1200+1550+0,1600x1200+0+1150,1600x1200+1550+1150\"."));
 
-    ctk_help_heading(b, &i, "Total Size");
-    ctk_help_para(b, &i, "This is the total size of the X screen formed using all "
-                  "displays in SLI Mosaic Mode.");
+    ctk_help_heading(b, &i, _("Total Size"));
+    ctk_help_para(b, &i, _("This is the total size of the X screen formed using all "
+                  "displays in SLI Mosaic Mode."));
 
-    ctk_help_heading(b, &i, "Maximum Size");
-    ctk_help_para(b, &i, "This is the maximum allowable size of the X screen "
-                  "formed using all displays in SLI Mosaic Mode.");
+    ctk_help_heading(b, &i, _("Maximum Size"));
+    ctk_help_para(b, &i, _("This is the maximum allowable size of the X screen "
+                  "formed using all displays in SLI Mosaic Mode."));
 
-    ctk_help_heading(b, &i, "Save to X Configuration File");
-    ctk_help_para(b, &i, "Clicking this button saves the selected SLI Mosaic Mode "
-                  "settings into the X Configuration File.");
+    ctk_help_heading(b, &i, _("Save to X Configuration File"));
+    ctk_help_para(b, &i, _("Clicking this button saves the selected SLI Mosaic Mode "
+                  "settings into the X Configuration File."));
 
     ctk_help_finish(b);
 

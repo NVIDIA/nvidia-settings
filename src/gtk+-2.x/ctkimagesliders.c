@@ -17,6 +17,8 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses>.
  */
 
+#include <libintl.h>
+
 #include <gtk/gtk.h>
 #include <NvCtrlAttributes.h>
 
@@ -27,14 +29,16 @@
 #include "ctkhelp.h"
 #include "ctkutils.h"
 
+#define _(STRING) gettext(STRING)
+#define N_(STRING) STRING
 
 #define FRAME_PADDING 5
 
-static const char *__digital_vibrance_help = "The Digital Vibrance slider "
-"alters the level of Digital Vibrance for this display device.";
+static const char *__digital_vibrance_help = N_("The Digital Vibrance slider "
+"alters the level of Digital Vibrance for this display device.");
 
-static const char *__image_sharpening_help = "The Image Sharpening slider "
-"alters the level of Image Sharpening for this display device.";
+static const char *__image_sharpening_help = N_("The Image Sharpening slider "
+"alters the level of Image Sharpening for this display device.");
 
 
 static void ctk_image_sliders_class_init(CtkImageSliders *ctk_object_class);
@@ -151,8 +155,8 @@ GtkWidget* ctk_image_sliders_new(CtrlTarget *ctrl_target,
 
     ctk_image_sliders->digital_vibrance =
         add_scale(ctk_config,
-                  NV_CTRL_DIGITAL_VIBRANCE, "Digital Vibrance",
-                  __digital_vibrance_help, G_TYPE_INT,
+                  NV_CTRL_DIGITAL_VIBRANCE, _("Digital Vibrance"),
+                  _(__digital_vibrance_help), G_TYPE_INT,
                   0, /* default value */
                   ctk_image_sliders);
 
@@ -175,8 +179,8 @@ GtkWidget* ctk_image_sliders_new(CtrlTarget *ctrl_target,
 
     ctk_image_sliders->image_sharpening =
         add_scale(ctk_config,
-                  NV_CTRL_IMAGE_SHARPENING, "Image Sharpening",
-                  __image_sharpening_help, G_TYPE_INT, val, ctk_image_sliders);
+                  NV_CTRL_IMAGE_SHARPENING, _("Image Sharpening"),
+                  _(__image_sharpening_help), G_TYPE_INT, val, ctk_image_sliders);
 
     g_signal_connect(G_OBJECT(ctk_event),
                      CTK_EVENT_NAME(NV_CTRL_IMAGE_SHARPENING),
@@ -256,7 +260,7 @@ static void post_scale_value_changed(GtkAdjustment *adjustment,
     gtk_widget_set_sensitive(ctk_image_sliders->reset_button, TRUE);
 
     ctk_config_statusbar_message(ctk_image_sliders->ctk_config,
-                                 "%s set to %d.", name, value);
+                                 _("%s set to %d."), name, value);
 
 } /* post_scale_value_changed() */
 
@@ -412,17 +416,17 @@ void add_image_sliders_help(CtkImageSliders *ctk_image_sliders,
                             GtkTextBuffer *b,
                             GtkTextIter *i)
 {
-    ctk_help_heading(b, i, "Digital Vibrance");
-    ctk_help_para(b, i, "Digital Vibrance, a mechanism for "
+    ctk_help_heading(b, i, _("Digital Vibrance"));
+    ctk_help_para(b, i, _("Digital Vibrance, a mechanism for "
                   "controlling color separation and intensity, boosts "
                   "the color saturation of an image so that all images "
                   "including 2D, 3D, and video appear brighter and "
-                  "crisper (even on flat panels) in your applications.");
+                  "crisper (even on flat panels) in your applications."));
 
-    ctk_help_heading(b, i, "Image Sharpening");
-    ctk_help_para(b, i, "Use the Image Sharpening slider to adjust the "
+    ctk_help_heading(b, i, _("Image Sharpening"));
+    ctk_help_para(b, i, _("Use the Image Sharpening slider to adjust the "
                   "sharpness of the image quality by amplifying high "
-                  "frequency content.");
+                  "frequency content."));
     
 } /* add_image_sliders_help() */
 

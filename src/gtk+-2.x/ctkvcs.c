@@ -20,6 +20,7 @@
 #include <stdlib.h> /* malloc */
 #include <stdio.h> /* snprintf */
 #include <string.h>
+#include <libintl.h>
 
 #include <gtk/gtk.h>
 #include <gdk/gdkx.h>
@@ -31,6 +32,8 @@
 #include "ctkevent.h"
 #include "ctkhelp.h"
 #include "ctkutils.h"
+
+#define _(STRING) gettext(STRING)
 
 #define DEFAULT_UPDATE_VCS_INFO_TIME_INTERVAL 5000
 
@@ -187,13 +190,13 @@ static gboolean update_vcs_info(gpointer user_data)
         if (ctk_object->psu_state) {
             switch (psuEntry.psu_state) {
             case VCS_PSU_STATE_NORMAL:
-                g_snprintf(output_str, 16, "Normal");
+                g_snprintf(output_str, 16, _("Normal"));
                 break;
             case VCS_PSU_STATE_ABNORMAL:
-                g_snprintf(output_str, 16, "Abnormal");
+                g_snprintf(output_str, 16, _("Abnormal"));
                 break;
             default:
-                g_snprintf(output_str, 16, "Unknown");
+                g_snprintf(output_str, 16, _("Unknown"));
                 break;
             }
             gtk_label_set_text(GTK_LABEL(ctk_object->psu_state), output_str);
@@ -234,7 +237,7 @@ static GtkWidget * create_error_dialog(CtkVcs *ctk_object)
 
     /* Display validation override confirmation dialog */
     dialog = gtk_dialog_new_with_buttons
-        ("Cannot Apply",
+        (_("Cannot Apply"),
          GTK_WINDOW(gtk_widget_get_parent(GTK_WIDGET(ctk_object))),
          GTK_DIALOG_MODAL |
          GTK_DIALOG_DESTROY_WITH_PARENT,
@@ -262,7 +265,7 @@ static GtkWidget * create_error_dialog(CtkVcs *ctk_object)
     ctk_object->error_dialog_label = label;
 
     /* Action Buttons */
-    gtk_dialog_add_button(GTK_DIALOG(dialog), "OK",
+    gtk_dialog_add_button(GTK_DIALOG(dialog), _("OK"),
                           GTK_RESPONSE_ACCEPT);
 
     gtk_widget_show_all(ctk_dialog_get_content_area(GTK_DIALOG(dialog)));
@@ -286,8 +289,7 @@ static void vcs_perf_checkbox_toggled(GtkWidget *widget, gpointer user_data)
     if (ret != NvCtrlSuccess) {
         if (ctk_object->error_dialog_label) {
             gchar *str;
-            str = g_strdup_printf("Failed to %s High Performance mode!",
-                                  (enabled ? "enable" : "disable"));
+            str = g_strdup_printf(enabled ? _("Failed to enable High Performance mode!") : _("Failed to disable High Performance mode!"));
             gtk_label_set_text(GTK_LABEL(ctk_object->error_dialog_label), str);
             gtk_window_set_resizable(GTK_WINDOW(ctk_object->error_dialog), FALSE);
             gtk_window_set_transient_for
@@ -347,18 +349,18 @@ static gboolean update_fan_status(CtkVcs *ctk_object)
                        table, FALSE, FALSE, 0);
 
 
-    label = gtk_label_new("Fan Number");
+    label = gtk_label_new(_("Fan Number"));
     gtk_misc_set_alignment(GTK_MISC(label), 0.0f, 0.5f);
     gtk_widget_set_size_request(label, ctk_object->req.width, -1);
     gtk_table_attach(GTK_TABLE(table), label, 0, 1, 0, 1,
                      GTK_FILL, GTK_FILL | GTK_EXPAND, 5, 0);
 
-    label = gtk_label_new("Fan Speed");
+    label = gtk_label_new(_("Fan Speed"));
     gtk_misc_set_alignment(GTK_MISC(label), 0.0f, 0.5f);
     gtk_table_attach(GTK_TABLE(table), label, 1, 2, 0, 1,
                      GTK_FILL, GTK_FILL | GTK_EXPAND, 5, 0);
 
-    label = gtk_label_new("Fan Status");
+    label = gtk_label_new(_("Fan Status"));
     gtk_misc_set_alignment(GTK_MISC(label), 0.0f, 0.5f);
     gtk_table_attach(GTK_TABLE(table), label, 2, 3, 0, 1,
                      GTK_FILL, GTK_FILL | GTK_EXPAND, 5, 0);
@@ -399,9 +401,9 @@ static gboolean update_fan_status(CtkVcs *ctk_object)
 
 
             if (!current_fan.fan_failed) {
-                g_snprintf(output_str, 16, "Ok");
+                g_snprintf(output_str, 16, _("Ok"));
             } else {
-                g_snprintf(output_str, 16, "Failed");
+                g_snprintf(output_str, 16, _("Failed"));
             }
             label = gtk_label_new(output_str);
             gtk_misc_set_alignment(GTK_MISC(label), 0.0f, 0.5f);
@@ -469,7 +471,7 @@ GtkWidget* ctk_vcs_new(CtrlTarget *ctrl_target,
                                    NV_CTRL_STRING_VCSC_PRODUCT_NAME,
                                    &product_name);
     if (ret != NvCtrlSuccess) {
-        product_name = g_strdup("Unable to determine");
+        product_name = g_strdup(_("Unable to determine"));
     }
 
     /* Serial Number */
@@ -477,7 +479,7 @@ GtkWidget* ctk_vcs_new(CtrlTarget *ctrl_target,
                                    NV_CTRL_STRING_VCSC_SERIAL_NUMBER,
                                    &serial_number);
     if (ret != NvCtrlSuccess) {
-        serial_number = g_strdup("Unable to determine");
+        serial_number = g_strdup(_("Unable to determine"));
     }
 
     /* Build Date */
@@ -485,7 +487,7 @@ GtkWidget* ctk_vcs_new(CtrlTarget *ctrl_target,
                                    NV_CTRL_STRING_VCSC_BUILD_DATE,
                                    &build_date);
     if (ret != NvCtrlSuccess) {
-        build_date = g_strdup("Unable to determine");
+        build_date = g_strdup(_("Unable to determine"));
     }
 
     /* Product ID */
@@ -493,7 +495,7 @@ GtkWidget* ctk_vcs_new(CtrlTarget *ctrl_target,
                                    NV_CTRL_STRING_VCSC_PRODUCT_ID,
                                    &product_id);
     if (ret != NvCtrlSuccess) {
-        product_id = g_strdup("Unable to determine");
+        product_id = g_strdup(_("Unable to determine"));
     }
 
     /* Firmware Version */
@@ -501,7 +503,7 @@ GtkWidget* ctk_vcs_new(CtrlTarget *ctrl_target,
                                    NV_CTRL_STRING_VCSC_FIRMWARE_VERSION,
                                    &firmware_version);
     if (ret != NvCtrlSuccess) {
-        firmware_version = g_strdup("Unable to determine");
+        firmware_version = g_strdup(_("Unable to determine"));
     }
 
     /* Hardware Version */
@@ -509,7 +511,7 @@ GtkWidget* ctk_vcs_new(CtrlTarget *ctrl_target,
                                    NV_CTRL_STRING_VCSC_HARDWARE_VERSION,
                                    &hardware_version);
     if (ret != NvCtrlSuccess) {
-        hardware_version = g_strdup("Unable to determine");
+        hardware_version = g_strdup(_("Unable to determine"));
     }
 
 
@@ -547,7 +549,7 @@ GtkWidget* ctk_vcs_new(CtrlTarget *ctrl_target,
                             &high_perf_mode) == NvCtrlSuccess) {
 
         hbox = gtk_hbox_new(FALSE, 0);
-        checkbutton = gtk_check_button_new_with_label("Enable High Performance Mode");
+        checkbutton = gtk_check_button_new_with_label(_("Enable High Performance Mode"));
         gtk_toggle_button_set_active(GTK_TOGGLE_BUTTON(checkbutton), high_perf_mode);
         g_signal_connect(G_OBJECT(checkbutton), "toggled", 
                          G_CALLBACK(vcs_perf_checkbox_toggled),
@@ -574,7 +576,7 @@ GtkWidget* ctk_vcs_new(CtrlTarget *ctrl_target,
     hbox = gtk_hbox_new(FALSE, 0);
     gtk_box_pack_start(GTK_BOX(vbox_scroll), hbox, FALSE, FALSE, 0);
 
-    label = gtk_label_new("VCS Information");
+    label = gtk_label_new(_("VCS Information"));
     gtk_box_pack_start(GTK_BOX(hbox), label, FALSE, FALSE, 0);
 
     hseparator = gtk_hseparator_new();
@@ -589,17 +591,17 @@ GtkWidget* ctk_vcs_new(CtrlTarget *ctrl_target,
     gtk_container_set_border_width(GTK_CONTAINER(table), 5);
 
     add_table_row(table, 0,
-                  0, 0.5, "Product Name:", 0, 0.5, product_name);
+                  0, 0.5, _("Product Name:"), 0, 0.5, product_name);
     add_table_row(table, 1,
-                  0, 0.5, "Serial Number:", 0, 0.5, serial_number);
+                  0, 0.5, _("Serial Number:"), 0, 0.5, serial_number);
     add_table_row(table, 2,
-                  0, 0.5, "Build Date:", 0, 0.5, build_date);
+                  0, 0.5, _("Build Date:"), 0, 0.5, build_date);
     add_table_row(table, 3,
-                  0, 0.5, "Product ID:", 0, 0.5, product_id);
+                  0, 0.5, _("Product ID:"), 0, 0.5, product_id);
     add_table_row(table, 4,
-                  0, 0.5, "Firmware version:", 0, 0.5, firmware_version);
+                  0, 0.5, _("Firmware version:"), 0, 0.5, firmware_version);
     add_table_row(table, 5,
-                  0, 0.5, "Hardware version:", 0, 0.5, hardware_version);
+                  0, 0.5, _("Hardware version:"), 0, 0.5, hardware_version);
 
     g_free(product_name);
     g_free(serial_number);
@@ -625,7 +627,7 @@ GtkWidget* ctk_vcs_new(CtrlTarget *ctrl_target,
         hbox = gtk_hbox_new(FALSE, 0);
         gtk_box_pack_start(GTK_BOX(vbox_scroll), vbox_padding, FALSE, FALSE, 1);
         gtk_box_pack_start(GTK_BOX(vbox_scroll), hbox, FALSE, FALSE, 0);
-        label = gtk_label_new("VCS Thermal Information");
+        label = gtk_label_new(_("VCS Thermal Information"));
         gtk_box_pack_start(GTK_BOX(hbox), label, FALSE, FALSE, 0);
         hseparator = gtk_hseparator_new();
         gtk_box_pack_start(GTK_BOX(hbox), hseparator, TRUE, TRUE, 5);
@@ -638,7 +640,7 @@ GtkWidget* ctk_vcs_new(CtrlTarget *ctrl_target,
 
         gtk_container_set_border_width(GTK_CONTAINER(table), 5);
 
-        label = gtk_label_new("Intake Temperature:");
+        label = gtk_label_new(_("Intake Temperature:"));
         gtk_misc_set_alignment(GTK_MISC(label), 0.0f, 0.5f);
         gtk_table_attach(GTK_TABLE(table), label, 0, 1, 0, 1,
                          GTK_FILL, GTK_FILL | GTK_EXPAND, 5, 0);
@@ -649,7 +651,7 @@ GtkWidget* ctk_vcs_new(CtrlTarget *ctrl_target,
                          GTK_FILL, GTK_FILL | GTK_EXPAND, 5, 0);
         ctk_object->intake_temp = label;
 
-        label = gtk_label_new("Exhaust Temperature:");
+        label = gtk_label_new(_("Exhaust Temperature:"));
         /* This is the current largest label.  Get its size */
         ctk_widget_get_preferred_size(label, &ctk_object->req);
 
@@ -663,7 +665,7 @@ GtkWidget* ctk_vcs_new(CtrlTarget *ctrl_target,
                          GTK_FILL, GTK_FILL | GTK_EXPAND, 5, 0);
         ctk_object->exhaust_temp = label;
 
-        label = gtk_label_new("Board Temperature:");
+        label = gtk_label_new(_("Board Temperature:"));
         gtk_misc_set_alignment(GTK_MISC(label), 0.0f, 0.5f);
         gtk_table_attach(GTK_TABLE(table), label, 0, 1, 2, 3,
                          GTK_FILL, GTK_FILL | GTK_EXPAND, 5, 0);
@@ -689,7 +691,7 @@ GtkWidget* ctk_vcs_new(CtrlTarget *ctrl_target,
         hbox = gtk_hbox_new(FALSE, 0);
         gtk_box_pack_start(GTK_BOX(vbox_scroll), vbox_padding, FALSE, FALSE, 1);
         gtk_box_pack_start(GTK_BOX(vbox_scroll), hbox, FALSE, FALSE, 0);
-        label = gtk_label_new("VCS Power Supply Unit Information");
+        label = gtk_label_new(_("VCS Power Supply Unit Information"));
         gtk_box_pack_start(GTK_BOX(hbox), label, FALSE, FALSE, 0);
         hseparator = gtk_hseparator_new();
         gtk_box_pack_start(GTK_BOX(hbox), hseparator, TRUE, TRUE, 5);
@@ -700,7 +702,7 @@ GtkWidget* ctk_vcs_new(CtrlTarget *ctrl_target,
         gtk_table_set_col_spacings(GTK_TABLE(table), 15);
         gtk_container_set_border_width(GTK_CONTAINER(table), 5);
 
-        label = gtk_label_new("PSU State:");
+        label = gtk_label_new(_("PSU State:"));
         gtk_misc_set_alignment(GTK_MISC(label), 0.0f, 0.5f);
         gtk_widget_set_size_request(label, ctk_object->req.width, -1);
         gtk_table_attach(GTK_TABLE(table), label, 0, 1, 0, 1,
@@ -713,7 +715,7 @@ GtkWidget* ctk_vcs_new(CtrlTarget *ctrl_target,
                          GTK_FILL, GTK_FILL | GTK_EXPAND, 5, 0);
         ctk_object->psu_state = label;
 
-        label = gtk_label_new("PSU Current:");
+        label = gtk_label_new(_("PSU Current:"));
         gtk_misc_set_alignment(GTK_MISC(label), 0.0f, 0.5f);
         gtk_widget_set_size_request(label, ctk_object->req.width, -1);
         gtk_table_attach(GTK_TABLE(table), label, 0, 1, 1, 2,
@@ -729,7 +731,7 @@ GtkWidget* ctk_vcs_new(CtrlTarget *ctrl_target,
         current_row = 2;
 
         if (psuEntry.psu_power != -1) {
-            label = gtk_label_new("PSU Power:");
+            label = gtk_label_new(_("PSU Power:"));
             gtk_misc_set_alignment(GTK_MISC(label), 0.0f, 0.5f);
             gtk_widget_set_size_request(label, ctk_object->req.width, -1);
             gtk_table_attach(GTK_TABLE(table), label, 0, 1, 
@@ -746,7 +748,7 @@ GtkWidget* ctk_vcs_new(CtrlTarget *ctrl_target,
         }
 
         if (psuEntry.psu_voltage != -1) {
-            label = gtk_label_new("PSU Voltage:");
+            label = gtk_label_new(_("PSU Voltage:"));
             gtk_misc_set_alignment(GTK_MISC(label), 0.0f, 0.5f);
             gtk_widget_set_size_request(label, ctk_object->req.width, -1);
             gtk_table_attach(GTK_TABLE(table), label, 0, 1, 
@@ -767,7 +769,7 @@ GtkWidget* ctk_vcs_new(CtrlTarget *ctrl_target,
         hbox = gtk_hbox_new(FALSE, 0);
         gtk_box_pack_start(GTK_BOX(vbox_scroll), vbox_padding, FALSE, FALSE, 1);
         gtk_box_pack_start(GTK_BOX(vbox_scroll), hbox, FALSE, FALSE, 0);
-        label = gtk_label_new("VCS Fan Status");
+        label = gtk_label_new(_("VCS Fan Status"));
         gtk_box_pack_start(GTK_BOX(hbox), label, FALSE, FALSE, 0);
         hseparator = gtk_hseparator_new();
         gtk_box_pack_start(GTK_BOX(hbox), hseparator, TRUE, TRUE, 5);
@@ -777,7 +779,7 @@ GtkWidget* ctk_vcs_new(CtrlTarget *ctrl_target,
         ctk_object->fan_status_container = hbox;
 
         /* Register a timer callback to update the dynamic information */
-        s = g_strdup_printf("VCS Monitor (VCS %d)",
+        s = g_strdup_printf(_("VCS Monitor (VCS %d)"),
                             NvCtrlGetTargetId(ctrl_target));
 
         ctk_config_add_timer(ctk_object->ctk_config,
@@ -810,27 +812,27 @@ GtkTextBuffer *ctk_vcs_create_help(GtkTextTagTable *table,
     
     gtk_text_buffer_get_iter_at_offset(b, &i, 0);
 
-    ctk_help_title(b, &i, "VCS (Visual Computing System) Help");
+    ctk_help_title(b, &i, _("VCS (Visual Computing System) Help"));
 
-    ctk_help_heading(b, &i, "Product Name");
-    ctk_help_para(b, &i, "This is the product name of the VCS.");
+    ctk_help_heading(b, &i, _("Product Name"));
+    ctk_help_para(b, &i, _("This is the product name of the VCS."));
     
-    ctk_help_heading(b, &i, "Serial Number");
-    ctk_help_para(b, &i, "This is the unique serial number of the VCS.");
+    ctk_help_heading(b, &i, _("Serial Number"));
+    ctk_help_para(b, &i, _("This is the unique serial number of the VCS."));
 
-    ctk_help_heading(b, &i, "Build Date");
-    ctk_help_para(b, &i, "This is the date the VCS was build, "
-                  "shown in a 'week.year' format");
+    ctk_help_heading(b, &i, _("Build Date"));
+    ctk_help_para(b, &i, _("This is the date the VCS was build, "
+                  "shown in a 'week.year' format"));
 
-    ctk_help_heading(b, &i, "Product ID");
-    ctk_help_para(b, &i, "This identifies the VCS configuration.");
+    ctk_help_heading(b, &i, _("Product ID"));
+    ctk_help_para(b, &i, _("This identifies the VCS configuration."));
 
-    ctk_help_heading(b, &i, "Firmware Version");
-    ctk_help_para(b, &i, "This is the firmware version currently running on "
-                  "the VCS.");
+    ctk_help_heading(b, &i, _("Firmware Version"));
+    ctk_help_para(b, &i, _("This is the firmware version currently running on "
+                  "the VCS."));
 
-    ctk_help_heading(b, &i, "Hardware Version");
-    ctk_help_para(b, &i, "This is the hardware version of the VCS.");
+    ctk_help_heading(b, &i, _("Hardware Version"));
+    ctk_help_para(b, &i, _("This is the hardware version of the VCS."));
 
     ctk_help_finish(b);
 

@@ -19,6 +19,7 @@
 
 #include <gtk/gtk.h>
 #include <string.h>
+#include <libintl.h>
 
 #include <X11/Xlib.h>
 
@@ -38,27 +39,29 @@
 
 #define TABLE_PADDING 5
 
+#define _(STRING) gettext(STRING)
+#define N_(STRING) STRING
 
 /* General information help */
 
 static const char *__general_firmware_version_help =
-"The Firmware Version reports the version of the firmware running on the "
-"SDI device.";
+N_("The Firmware Version reports the version of the firmware running on the "
+"SDI device.");
 
 static const char *__general_current_sdi_resolution_help =
-"The Current SDI Resolution reports the current active resolution that the "
-"SDI device is driving or 'Inactive' if SDI is currently disabled.";
+N_("The Current SDI Resolution reports the current active resolution that the "
+"SDI device is driving or 'Inactive' if SDI is currently disabled.");
 
 static const char *__general_current_sdi_state_help =
-"The Current SDI state reports the current usage of the SDI device.";
+N_("The Current SDI state reports the current usage of the SDI device.");
 
 static const char *__requested_sdi_video_format_help =
-"The Requested SDI Video Format indicates what video format is currently "
-"requested through NV-CONTROL.";
+N_("The Requested SDI Video Format indicates what video format is currently "
+"requested through NV-CONTROL.");
 
 static const char *__requested_sdi_data_format_help =
-"The Requested SDI Data Format indicates what data format is currently "
-"requested through NV-CONTROL.";
+N_("The Requested SDI Data Format indicates what data format is currently "
+"requested through NV-CONTROL.");
 
 
 /* local prototypes */
@@ -268,7 +271,7 @@ const char *ctk_gvio_get_video_format_name(const gint format)
         }
     }
 
-    return "Unknown";
+    return _("Unknown");
     
 } /* ctk_gvio_get_video_format_name() */
 
@@ -310,7 +313,7 @@ const char *ctk_gvo_get_data_format_name(const gint format)
         }
     }
 
-    return "Unknown";
+    return _("Unknown");
 
 } /* ctk_gvo_get_data_format_name() */
 
@@ -413,7 +416,7 @@ GtkWidget* ctk_gvo_new(CtrlTarget *ctrl_target,
      * General information
      */
     
-    frame = gtk_frame_new("General Information");
+    frame = gtk_frame_new(_("General Information"));
     
     gtk_box_pack_start(GTK_BOX(object), frame, FALSE, FALSE, 0);
     
@@ -454,22 +457,22 @@ GtkWidget* ctk_gvo_new(CtrlTarget *ctrl_target,
     }
     
     add_table_row(table, 0,
-                  0, 0.5, "Firmware Version:",
+                  0, 0.5, _("Firmware Version:"),
                   0, 0.5, firmware);
     ctk_gvo->current_resolution_label =
         add_table_row(table, 1,
-                      0, 0.5, "Current SDI Resolution:",
-                      0, 0.5, "Inactive");
+                      0, 0.5, _("Current SDI Resolution:"),
+                      0, 0.5, _("Inactive"));
     ctk_gvo->current_state_label =
         add_table_row(table, 2,
-                      0, 0.5, "Current SDI State:",
-                      0, 0.5, "Inactive");
+                      0, 0.5, _("Current SDI State:"),
+                      0, 0.5, _("Inactive"));
 
     /*
      * Requested SDI Configuration
      */
 
-    frame = gtk_frame_new("Requested SDI Configuration");
+    frame = gtk_frame_new(_("Requested SDI Configuration"));
 
     gtk_box_pack_start(GTK_BOX(object), frame, FALSE, FALSE, 0);
 
@@ -483,12 +486,12 @@ GtkWidget* ctk_gvo_new(CtrlTarget *ctrl_target,
 
     ctk_gvo->current_output_video_format_label =
         add_table_row(table, 3,
-                      0, 0.5, "Requested SDI Video Format:",
-                      0, 0.5, "Inactive");
+                      0, 0.5, _("Requested SDI Video Format:"),
+                      0, 0.5, _("Inactive"));
     ctk_gvo->current_output_data_format_label =
         add_table_row(table, 4,
-                      0, 0.5, "Requested SDI Data Format:",
-                      0, 0.5, "Inactive");
+                      0, 0.5, _("Requested SDI Data Format:"),
+                      0, 0.5, _("Inactive"));
 
     /*
      * Set the initial UI state
@@ -667,20 +670,20 @@ static void update_gvo_current_info(CtkGvo *ctk_gvo)
     switch (lock_owner) {
         
     case NV_CTRL_GVO_LOCK_OWNER_NONE:
-        snprintf(res_string, 64, "Inactive");
-        snprintf(state_string, 64, "Inactive");
+        snprintf(res_string, 64, _("Inactive"));
+        snprintf(state_string, 64, _("Inactive"));
         break;
 
     case NV_CTRL_GVO_LOCK_OWNER_CLONE:
         /* fall through for compatibility */
     case NV_CTRL_GVO_LOCK_OWNER_X_SCREEN:
         snprintf(res_string, 64, "%d x %d", width, height);
-        snprintf(state_string, 64, "In use by X");
+        snprintf(state_string, 64, _("In use by X"));
         break;
 
     case NV_CTRL_GVO_LOCK_OWNER_GLX:
         snprintf(res_string, 64, "%d x %d", width, height);
-        snprintf(state_string, 64, "In use by GLX");
+        snprintf(state_string, 64, _("In use by GLX"));
         break;
 
     default:
@@ -781,24 +784,24 @@ GtkTextBuffer* ctk_gvo_create_help(GtkTextTagTable *table)
 
     gtk_text_buffer_get_iter_at_offset(b, &i, 0);
 
-    ctk_help_title(b, &i, "GVO (Graphics to Video Out) Help");
-    ctk_help_para(b, &i, "This page reports general information about the SDI "
-                  "device.");
+    ctk_help_title(b, &i, _("GVO (Graphics to Video Out) Help"));
+    ctk_help_para(b, &i, _("This page reports general information about the SDI "
+                  "device."));
 
-    ctk_help_heading(b, &i, "General Information");
-    ctk_help_para(b, &i, "This section shows information about the SDI device "
-                  "that is associated with the X screen.");
-    ctk_help_heading(b, &i, "Firmware Version");
-    ctk_help_para(b, &i, "%s", __general_firmware_version_help);
-    ctk_help_heading(b, &i, "Current SDI Resolution");
-    ctk_help_para(b, &i, "%s", __general_current_sdi_resolution_help);
-    ctk_help_heading(b, &i, "Current SDI State");
-    ctk_help_para(b, &i, "%s", __general_current_sdi_state_help);
+    ctk_help_heading(b, &i, _("General Information"));
+    ctk_help_para(b, &i, _("This section shows information about the SDI device "
+                  "that is associated with the X screen."));
+    ctk_help_heading(b, &i, _("Firmware Version"));
+    ctk_help_para(b, &i, "%s", _(__general_firmware_version_help));
+    ctk_help_heading(b, &i, _("Current SDI Resolution"));
+    ctk_help_para(b, &i, "%s", _(__general_current_sdi_resolution_help));
+    ctk_help_heading(b, &i, _("Current SDI State"));
+    ctk_help_para(b, &i, "%s", _(__general_current_sdi_state_help));
 
-    ctk_help_heading(b, &i, "Requested SDI Video Format");
-    ctk_help_para(b, &i, "%s", __requested_sdi_video_format_help);
-    ctk_help_heading(b, &i, "Requested SDI Data Format");
-    ctk_help_para(b, &i, "%s", __requested_sdi_data_format_help);
+    ctk_help_heading(b, &i, _("Requested SDI Video Format"));
+    ctk_help_para(b, &i, "%s", _(__requested_sdi_video_format_help));
+    ctk_help_heading(b, &i, _("Requested SDI Data Format"));
+    ctk_help_para(b, &i, "%s", _(__requested_sdi_data_format_help));
 
     ctk_help_finish(b);
 

@@ -23,4 +23,5 @@ all clean clobber install:
 	@$(MAKE) -C src  $@
 	@$(MAKE) -C samples $@
 	@$(MAKE) -C doc $@
+	@$(MAKE) -C po $@
 
