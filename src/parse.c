@@ -103,7 +103,7 @@ const AttributeTableEntry attributeTable[] = {
     { "ScreenPosition",                   NV_CTRL_STRING_SCREEN_RECTANGLE,              STR_ATTR, {0,0,0,0,1,0}, {}, "Returns the physical X Screen's initial position and size (in absolute coordinates) within the desktop as the \"token=value \" string:  \"x=#, y=#, width=#, height=#\"." },
     { "AddMetaMode",                      NV_CTRL_STRING_OPERATION_ADD_METAMODE,        SOP_ATTR, {0,0,0,0,1,1}, {}, "Adds the given MetaMode to the X screen." },
     { "ParseMetaMode",                    NV_CTRL_STRING_OPERATION_ADD_METAMODE,        SOP_ATTR, {0,0,0,0,1,1}, {}, "Parses and validates a given MetaMode." },
-    { "PrimeOutputsData",                 NV_CTRL_STRING_PRIME_OUTPUTS_DATA      ,      STR_ATTR, {0,0,0,0,1,1}, {}, "Lists configured PRIME displays' configuration information." },
+    { "PrimeOutputsData",                 NV_CTRL_STRING_PRIME_OUTPUTS_DATA      ,      STR_ATTR, {0,0,0,0,1,0}, {}, "Lists configured PRIME displays' configuration information." },
 
     /* OpenGL */
     { "SyncToVBlank",                     NV_CTRL_SYNC_TO_VBLANK,                       INT_ATTR, {0,0,0,0,0,0}, { .int_flags = {0,0,0,0,0,0,0} }, "Enables sync to vertical blanking for OpenGL clients.  This setting only takes effect on OpenGL clients started after it is set." },
@@ -131,6 +131,7 @@ const AttributeTableEntry attributeTable[] = {
     { "AllowGSYNC",                       NV_CTRL_GSYNC_ALLOWED,                        INT_ATTR, {0,0,0,0,0,0}, { .int_flags = {0,0,0,0,0,0,0} }, "Enables or disables the use of G-SYNC when available." },
     { "ShowGSYNCVisualIndicator",         NV_CTRL_SHOW_GSYNC_VISUAL_INDICATOR,          INT_ATTR, {0,0,0,0,0,0}, { .int_flags = {0,0,0,0,0,0,0} }, "If this is enabled (1), the driver will draw an indicator showing whether G-SYNC is in use, when an application is swapping using flipping." },
     { "StereoSwapMode",                   NV_CTRL_STEREO_SWAP_MODE,                     INT_ATTR, {0,0,0,0,0,0}, { .int_flags = {0,0,0,0,0,0,0} }, "Controls the swap mode when Quad-Buffered stereo is used." },
+    { "ShowGraphicsVisualIndicator",      NV_CTRL_SHOW_GRAPHICS_VISUAL_INDICATOR,       INT_ATTR, {0,0,0,0,0,0}, { .int_flags = {0,0,0,0,0,0,0} }, "If this is enabled (1), the driver will draw information about the graphics API in use into a \"visual indicator\" inside application windows.  This setting only takes effect on clients started after it is set." },
 
     /* GPU */
     { "BusType",                          NV_CTRL_BUS_TYPE,                             INT_ATTR, {0,0,0,0,1,0}, { .int_flags = {0,0,0,0,0,0,0} }, "Returns the type of bus connecting the specified device to the computer.  If the target is an X screen, then it uses the GPU driving the X screen as the device." },
@@ -391,7 +392,7 @@ const int attributeTableLen = ARRAY_LEN(attributeTable);
  * the last attribute that the table knows about.
  */
 
-#if NV_CTRL_LAST_ATTRIBUTE != NV_CTRL_FRAMELOCK_FIRMWARE_MINOR_VERSION
+#if NV_CTRL_LAST_ATTRIBUTE != NV_CTRL_SHOW_GRAPHICS_VISUAL_INDICATOR
 #warning "Have you forgotten to add a new integer attribute to attributeTable?"
 #endif
 

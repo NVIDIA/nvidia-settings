@@ -199,6 +199,7 @@ typedef struct _CtkDisplayConfig
 
     GtkWidget *lbl_prime_display_view;
     GtkWidget *lbl_prime_display_name;
+    GtkWidget *lbl_prime_display_sync;
     GtkWidget *box_prime_display_name;
 
 

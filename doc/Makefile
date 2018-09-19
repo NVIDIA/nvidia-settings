@@ -109,7 +109,6 @@ $(MANPAGE_not_gzipped): nvidia-settings.1.m4 $(OPTIONS_1_INC) $(VERSION_MK)
 	  -D__HEADER__=$(AUTO_TEXT) \
 	  -D__BUILD_OS__=$(TARGET_OS) \
 	  -D__VERSION__=$(NVIDIA_VERSION) \
-	  -D__DATE__="`$(DATE) +%F`" \
 	  -I $(OUTPUTDIR) \
 	  $< > $@
 

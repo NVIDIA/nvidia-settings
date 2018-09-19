@@ -10,7 +10,7 @@ __HEADER__
 \\$2 \(la \\$1 \(ra\\$3
 ..
 .if \n[.g] .mso www.tmac
-.TH nvidia\-settings 1 "__DATE__" "nvidia\-settings __VERSION__"
+.TH nvidia\-settings 1 "2018-03-20" "nvidia\-settings __VERSION__"
 .SH NAME
 nvidia\-settings \- configure the NVIDIA graphics driver
 .SH SYNOPSIS

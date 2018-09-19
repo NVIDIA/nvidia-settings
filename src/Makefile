@@ -124,8 +124,6 @@ VIRTUAL_RESOLUTIONS_DIR ?= $(COMMON_UNIX_DIR)/virtual-resolutions
 
 NVIDIA_SETTINGS = $(OUTPUTDIR)/nvidia-settings
 
-NVIDIA_SETTINGS_PROGRAM_NAME = "nvidia-settings"
-
 NVIDIA_SETTINGS_VERSION := $(NVIDIA_VERSION)
 
 GTK2LIB_NAME = libnvidia-gtk2.so
@@ -211,8 +209,6 @@ SRC        += $(addprefix $(COMMON_UTILS_DIR)/,$(COMMON_UTILS_SRC))
 
 include $(VIRTUAL_RESOLUTIONS_DIR)/src.mk
 SRC        += $(addprefix $(VIRTUAL_RESOLUTIONS_DIR)/,$(VIRTUAL_RESOLUTIONS_SRC))
-
-SRC        += $(STAMP_C)
 
 OBJS        = $(call BUILD_OBJECT_LIST,$(SRC))
 XCP_OBJS    = $(call BUILD_OBJECT_LIST,$(XCP_SRC))
@@ -312,9 +308,6 @@ endif
 $(foreach src,$(SRC),$(eval $(call DEFINE_OBJECT_RULE,TARGET,$(src))))
 $(foreach src,$(XCP_SRC),$(eval $(call DEFINE_OBJECT_RULE,TARGET,$(src))))
 
-# define the rule to generate $(STAMP_C)
-$(eval $(call DEFINE_STAMP_C_RULE, $(OBJS),$(NVIDIA_SETTINGS_PROGRAM_NAME)))
-
 # define the rule to build $(XNVCTRL_ARCHIVE)
 $(XNVCTRL_ARCHIVE): build-xnvctrl
 
@@ -322,7 +315,7 @@ build-xnvctrl:
 	@$(MAKE) -C $(XNVCTRL_DIR) -f $(XNVCTRL_MAKEFILE)
 
 clean clobber:
-	rm -rf $(NVIDIA_SETTINGS) *~ $(STAMP_C) \
+	rm -rf $(NVIDIA_SETTINGS) *~ \
 		$(OUTPUTDIR)/*.o $(OUTPUTDIR)/*.d \
 		$(GTK2LIB) $(GTK3LIB) $(GTK2LIB_DIR) $(GTK3LIB_DIR) \
 		$(IMAGE_HEADERS)

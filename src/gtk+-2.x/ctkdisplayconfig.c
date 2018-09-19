@@ -2250,6 +2250,17 @@ GtkWidget* ctk_display_config_new(CtrlTarget *ctrl_target,
                            FALSE, FALSE, 5);
         ctk_object->box_prime_display_name = hbox;
 
+        hbox = gtk_hbox_new(FALSE, 5);
+        gtk_box_pack_start(GTK_BOX(vbox), hbox, FALSE, FALSE, 5);
+
+        label = gtk_label_new("Synchronization:");
+        labels = g_slist_append(labels, label);
+        gtk_box_pack_start(GTK_BOX(hbox), label, FALSE, FALSE, 5);
+        ctk_object->lbl_prime_display_sync = gtk_label_new("");
+        gtk_box_pack_start(GTK_BOX(hbox),
+                           ctk_object->lbl_prime_display_sync,
+                           FALSE, FALSE, 5);
+
         g_object_ref(ctk_object->prime_display_page);
         gtk_widget_show_all(ctk_object->prime_display_page);
     }
@@ -4514,6 +4525,9 @@ static void setup_prime_display_page(CtkDisplayConfig *ctk_object)
         gtk_label_set_text(GTK_LABEL(ctk_object->lbl_prime_display_name), "");
         gtk_widget_hide(ctk_object->box_prime_display_name);
     }
+
+    gtk_label_set_text(GTK_LABEL(ctk_object->lbl_prime_display_sync),
+                       prime->sync ? "On" : "Off");
 
     gtk_widget_set_sensitive(ctk_object->prime_display_page, True);
 }
@@ -9186,9 +9200,12 @@ static int generateXConfig(CtkDisplayConfig *ctk_object, XConfigPtr *pConfig)
             if (!config->extensions) {
                 config->extensions = nvalloc(sizeof(XConfigExtensionsRec));
             }
-            xconfigRemoveNamedOption(&(config->extensions->options), "Composite",
+            xconfigRemoveNamedOption(&(config->extensions->options), 
+                                     go.compositeExtensionName,
                                      NULL);
-            xconfigAddNewOption(&config->extensions->options, "Composite", "Disable");
+            xconfigAddNewOption(&config->extensions->options, 
+                                go.compositeExtensionName, 
+                                "Disable");
             nvfree(composite_disabled_str);
         }
     }

@@ -132,4 +132,6 @@ typedef enum {
     NV_OPTIONAL_BOOL_TRUE    = TRUE
 } NVOptionalBool;
 
+#define NV_ID_STRING PROGRAM_NAME ":  version " NVIDIA_VERSION
+
 #endif /* __COMMON_UTILS_H__ */

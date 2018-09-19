@@ -78,6 +78,8 @@ struct _CtkWindow
 
     GtkTextTagTable        *help_tag_table;
     GtkTextBuffer          *help_text_buffer;
+    
+    GtkWidget              *display_config_widget;
 };
 
 struct _CtkWindowClass
