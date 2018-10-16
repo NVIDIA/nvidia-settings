@@ -323,6 +323,19 @@ static const char * __screen_metamode_delete_button_help =
 "MetaMode for the screen;  This option can be applied to your currently "
 "running X server.";
 
+/* Prime Display tooltips */
+
+static const char *__prime_viewport_help =
+"This shows the width, height, and offset in pixels of the region that "
+"should be displayed from the desktop.";
+
+static const char *__prime_name_help =
+"This is the name of the display.";
+
+static const char *__prime_sync_help =
+"This shows the status of synchronization for the PRIME display. Without "
+"synchronization, applications will not be able to sync to the display's "
+"vblank.";
 
 /* General button tooltips */
 
@@ -2234,6 +2247,8 @@ GtkWidget* ctk_display_config_new(CtrlTarget *ctrl_target,
         gtk_box_pack_start(GTK_BOX(hbox), label, FALSE, FALSE, 5);
 
         ctk_object->lbl_prime_display_view = gtk_label_new("");
+        ctk_config_set_tooltip(ctk_config, ctk_object->lbl_prime_display_view,
+                               __prime_viewport_help);
         gtk_box_pack_start(GTK_BOX(hbox),
                            ctk_object->lbl_prime_display_view,
                            FALSE, FALSE, 5);
@@ -2245,6 +2260,8 @@ GtkWidget* ctk_display_config_new(CtrlTarget *ctrl_target,
         labels = g_slist_append(labels, label);
         gtk_box_pack_start(GTK_BOX(hbox), label, FALSE, FALSE, 5);
         ctk_object->lbl_prime_display_name = gtk_label_new("");
+        ctk_config_set_tooltip(ctk_config, ctk_object->lbl_prime_display_name,
+                               __prime_name_help);
         gtk_box_pack_start(GTK_BOX(hbox),
                            ctk_object->lbl_prime_display_name,
                            FALSE, FALSE, 5);
@@ -2257,6 +2274,8 @@ GtkWidget* ctk_display_config_new(CtrlTarget *ctrl_target,
         labels = g_slist_append(labels, label);
         gtk_box_pack_start(GTK_BOX(hbox), label, FALSE, FALSE, 5);
         ctk_object->lbl_prime_display_sync = gtk_label_new("");
+        ctk_config_set_tooltip(ctk_config, ctk_object->lbl_prime_display_sync,
+                               __prime_sync_help);
         gtk_box_pack_start(GTK_BOX(hbox),
                            ctk_object->lbl_prime_display_sync,
                            FALSE, FALSE, 5);
@@ -2513,6 +2532,21 @@ GtkTextBuffer *ctk_display_config_create_help(GtkTextTagTable *table,
     ctk_help_heading(b, &i, "Delete Metamode");
     ctk_help_para(b, &i, "%s This is only available when advanced view "
                   "is enabled.", __screen_metamode_delete_button_help);
+
+
+    ctk_help_para(b, &i, "");
+    ctk_help_heading(b, &i, "PRIME Display Options");
+    ctk_help_para(b, &i, "The following attributes are available when a "
+                  "configured PRIME display is selected in the Selection "
+                  "drop-down. These attributes cannot be changed within "
+                  "nvidia-settings.");
+    ctk_help_heading(b, &i, "Viewport");
+    ctk_help_para(b, &i, "%s", __prime_viewport_help);
+    ctk_help_heading(b, &i, "Name");
+    ctk_help_para(b, &i, "%s  This attribute may not be available.",
+                  __prime_name_help);
+    ctk_help_heading(b, &i, "Synchronization");
+    ctk_help_para(b, &i, "%s", __prime_sync_help);
 
 
     ctk_help_para(b, &i, "");
