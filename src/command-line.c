@@ -45,12 +45,10 @@ static void print_help(void);
  * print_version() - print version information
  */
 
-extern const char *pNV_ID;
-
 static void print_version(void)
 {
     nv_msg(NULL, "");
-    nv_msg(NULL, "%s", pNV_ID);
+    nv_msg(NULL, NV_ID_STRING);
     nv_msg(TAB, "The NVIDIA X Server Settings tool.");
     nv_msg(NULL, "");
     nv_msg(TAB, "This program is used to configure the "

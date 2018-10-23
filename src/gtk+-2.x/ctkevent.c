@@ -346,6 +346,7 @@ static void ctk_event_class_init(CtkEventClass *ctk_event_class)
     MAKE_SIGNAL(NV_CTRL_DISPLAYPORT_CONNECTOR_TYPE);
     MAKE_SIGNAL(NV_CTRL_DISPLAYPORT_IS_MULTISTREAM);
     MAKE_SIGNAL(NV_CTRL_DISPLAYPORT_SINK_IS_AUDIO_CAPABLE);
+    MAKE_SIGNAL(NV_CTRL_SHOW_GRAPHICS_VISUAL_INDICATOR);
 #undef MAKE_SIGNAL
 
     /*
@@ -355,7 +356,7 @@ static void ctk_event_class_init(CtkEventClass *ctk_event_class)
      * knows about.
      */
 
-#if NV_CTRL_LAST_ATTRIBUTE != NV_CTRL_FRAMELOCK_FIRMWARE_MINOR_VERSION
+#if NV_CTRL_LAST_ATTRIBUTE != NV_CTRL_SHOW_GRAPHICS_VISUAL_INDICATOR
 #warning "There are attributes that do not emit signals!"
 #endif
 

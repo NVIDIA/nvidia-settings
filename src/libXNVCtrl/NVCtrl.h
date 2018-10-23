@@ -3520,7 +3520,17 @@
 
 #define NV_CTRL_FRAMELOCK_FIRMWARE_MINOR_VERSION                     427 /* R--F */
 
-#define NV_CTRL_LAST_ATTRIBUTE NV_CTRL_FRAMELOCK_FIRMWARE_MINOR_VERSION
+/*
+ * NV_CTRL_SHOW_GRAPHICS_VISUAL_INDICATOR - when TRUE, graphics APIs will
+ * indicate various runtime information such as flip/blit, vsync status, API
+ * in use.
+ */
+
+#define NV_CTRL_SHOW_GRAPHICS_VISUAL_INDICATOR                       428 /* RW-X */
+#define NV_CTRL_SHOW_GRAPHICS_VISUAL_INDICATOR_FALSE                   0
+#define NV_CTRL_SHOW_GRAPHICS_VISUAL_INDICATOR_TRUE                    1
+
+#define NV_CTRL_LAST_ATTRIBUTE NV_CTRL_SHOW_GRAPHICS_VISUAL_INDICATOR
 
 /**************************************************************************/
 

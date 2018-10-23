@@ -630,6 +630,7 @@ GtkWidget *ctk_window_new(ParsedAttribute *p, ConfigProperties *conf,
 
             child = ctk_display_config_new(server_target, ctk_config);
             if (child) {
+                ctk_window->display_config_widget = child;
                 add_page(child,
                          ctk_display_config_create_help(tag_table,
                                                         CTK_DISPLAY_CONFIG(child)),
@@ -1362,6 +1363,11 @@ static void save_settings_and_exit(CtkWindow *ctk_window)
     }
 
 #endif
+    if (ctk_window->display_config_widget) {
+        CtkDisplayConfig *display_config =
+            CTK_DISPLAY_CONFIG(ctk_window->display_config_widget);
+        layout_free(display_config->layout);
+    }
 
     add_special_config_file_attributes(ctk_window);
     gtk_main_quit();

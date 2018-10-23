@@ -321,6 +321,7 @@ NvCtrlNvmlAttributes *NvCtrlInitNvmlAttributes(NvCtrlAttributePrivateHandle *h)
     unsigned int count;
     unsigned int *nvctrlToNvmlId;
     int i;
+    int nvctrlCoolerCount;
 
     /* Check parameters */
     if (h == NULL || !TARGET_TYPE_IS_NVML_COMPATIBLE(h->target_type)) {
@@ -403,6 +404,17 @@ NvCtrlNvmlAttributes *NvCtrlInitNvmlAttributes(NvCtrlAttributePrivateHandle *h)
                 nvml->coolerCount++;
             }
         }
+    }
+
+    /*
+     * NVML doesn't have support to handle more than 1 fan per GPU. Make sure
+     * total number of cooler probed by NVML are same as that of reported by
+     * NV-CONTROL, otherwise do not initialize NVML sub-system.
+     */
+    if (!XNVCTRLQueryTargetCount(h->dpy, NV_CTRL_TARGET_TYPE_COOLER,
+                                 &nvctrlCoolerCount) ||
+        (nvctrlCoolerCount != nvml->coolerCount)) {
+        goto fail;
     }
 
     nvfree(nvctrlToNvmlId);

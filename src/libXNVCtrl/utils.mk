@@ -74,9 +74,7 @@ PRINTF                ?= printf
 MKDIR                 ?= mkdir -p
 RM                    ?= rm -f
 TOUCH                 ?= touch
-WHOAMI                ?= whoami
 HARDLINK              ?= ln -f
-HOSTNAME_CMD          ?= hostname
 DATE                  ?= date
 GZIP_CMD              ?= gzip
 CHMOD                 ?= chmod
@@ -213,6 +211,8 @@ include $(VERSION_MK)
 ifndef NVIDIA_VERSION
 $(error NVIDIA_VERSION undefined)
 endif
+
+CFLAGS += -DNVIDIA_VERSION=\"$(NVIDIA_VERSION)\"
 
 
 ##############################################################################
@@ -422,37 +422,6 @@ define DEBUG_INFO_RULES
   ifneq ($(NV_KEEP_UNSTRIPPED_BINARIES),1)
     .INTERMEDIATE: $(1).unstripped
   endif
-endef
-
-##############################################################################
-# STAMP_C - this is a source file that is generated during the build
-# to capture information about the build environment for the utility.
-#
-# The DEFINE_STAMP_C_RULE function is used to define the rule for
-# generating STAMP_C.  First argument is a list of dependencies for
-# STAMP_C (g_stamp.o is filtered out of the list); second argument is
-# the name of the program being built.
-#
-# The includer of utils.mk should add $(STAMP_C) to its list of source
-# files
-##############################################################################
-
-STAMP_C = $(OUTPUTDIR)/g_stamp.c
-
-define DEFINE_STAMP_C_RULE
-
-  $$(STAMP_C): $$(filter-out \
-    $$(call BUILD_OBJECT_LIST,$$(STAMP_C)),$(1)) \
-    $$(VERSION_MK)
-	@ $$(RM) $$@
-	@ $$(PRINTF) "%s"   "const char NV_ID[] = \"nvidia id: "        >> $$@
-	@ $$(PRINTF) "%s"   "$(2):  "                                   >> $$@
-	@ $$(PRINTF) "%s"   "version $$(NVIDIA_VERSION)  "              >> $$@
-	@ $$(PRINTF) "%s"   "($$(shell $$(WHOAMI))"                     >> $$@
-	@ $$(PRINTF) "%s"   "@$$(shell $$(HOSTNAME_CMD)))  "            >> $$@
-	@ $$(PRINTF) "%s\n" "$$(shell $(DATE))\";"                      >> $$@
-	@ $$(PRINTF) "%s\n" "const char *pNV_ID = NV_ID + 11;"          >> $$@
-
 endef
 
 ##############################################################################

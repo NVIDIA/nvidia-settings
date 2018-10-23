@@ -303,6 +303,7 @@ typedef struct nvPrimeDisplayRec {
     GdkRectangle rect;
     char *label;
     int screen_num;
+    Bool sync;
 } nvPrimeDisplay, *nvPrimeDisplayPtr;
 
 

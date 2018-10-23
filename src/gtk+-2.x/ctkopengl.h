@@ -68,6 +68,7 @@ struct _CtkOpenGL
     GtkWidget *aa_line_gamma_scale;
     GtkWidget *show_sli_visual_indicator_button;
     GtkWidget *show_multigpu_visual_indicator_button;
+    GtkWidget *show_graphics_visual_indicator_button;
 
     gint *stereo_swap_mode_table;
     gint stereo_swap_mode_table_size;

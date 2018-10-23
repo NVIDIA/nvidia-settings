@@ -52,6 +52,8 @@ static void post_show_sli_visual_indicator_button_toggled(CtkOpenGL *,
 static void post_show_multigpu_visual_indicator_button_toggled(CtkOpenGL *,
                                                                gboolean);
 
+static void post_show_graphics_visual_indicator_button_toggled(CtkOpenGL *,
+                                                               gboolean);
 static void post_xinerama_stereo_button_toggled(CtkOpenGL *, gboolean);
 
 static void post_stereo_eyes_exchange_button_toggled(CtkOpenGL *, gboolean);
@@ -79,6 +81,8 @@ static void use_conformant_clamping_button_toggled(GtkWidget *, gpointer);
 static void show_sli_visual_indicator_button_toggled (GtkWidget *, gpointer);
 
 static void show_multigpu_visual_indicator_button_toggled (GtkWidget *, gpointer);
+
+static void show_graphics_visual_indicator_button_toggled (GtkWidget *, gpointer);
 
 static void value_changed (GObject *, CtrlEvent *, gpointer);
 
@@ -186,6 +190,14 @@ N_("Enabling this option causes OpenGL to draw "
 "applications that are started after this option is "
 "set.");
 
+static const char *__show_graphics_visual_indicator_help =
+"Enabling this option causes the driver to draw "
+"information about the graphics API in use, such as "
+"instant framerate, vsync status, and whether the "
+"application is blitting or flipping. "
+"This option is applied to applications that are "
+"started after this option is set.";
+
 static const char *__stereo_eyes_exchange_help =
 N_("Enabling this option causes OpenGL to draw the left "
 "eye image in the right eye and vice versa for stereo "
@@ -218,6 +230,7 @@ N_("Enabling this option causes OpenGL to draw an indicator showing whether "
 #define __ALLOW_GSYNC         (1 << 13)
 #define __SHOW_GSYNC_VISUAL_INDICATOR       (1 << 14)
 #define __STEREO_SWAP_MODE    (1 << 15)
+#define __SHOW_GRAPHICS_VISUAL_INDICATOR    (1 << 16)
 
 
 
@@ -301,6 +314,7 @@ GtkWidget* ctk_opengl_new(CtrlTarget *ctrl_target,
     gint use_conformant_clamping = 0;
     gint show_sli_visual_indicator = 0;
     gint show_multigpu_visual_indicator = 0;
+    gint show_graphics_visual_indicator = 0;
 
     ReturnStatus ret_sync_to_vblank;
     ReturnStatus ret_flipping_allowed;
@@ -315,6 +329,7 @@ GtkWidget* ctk_opengl_new(CtrlTarget *ctrl_target,
     ReturnStatus ret_use_conformant_clamping;
     ReturnStatus ret_show_sli_visual_indicator;
     ReturnStatus ret_show_multigpu_visual_indicator;
+    ReturnStatus ret_show_graphics_visual_indicator;
 
     /* Query OpenGL settings */
 
@@ -391,6 +406,11 @@ GtkWidget* ctk_opengl_new(CtrlTarget *ctrl_target,
                            NV_CTRL_SHOW_MULTIGPU_VISUAL_INDICATOR,
                            &show_multigpu_visual_indicator);
 
+    ret_show_graphics_visual_indicator =
+        NvCtrlGetAttribute(ctrl_target,
+                           NV_CTRL_SHOW_GRAPHICS_VISUAL_INDICATOR,
+                           &show_graphics_visual_indicator);
+
     /* There are no OpenGL settings to change (OpenGL disabled?) */
     if ((ret_sync_to_vblank != NvCtrlSuccess) &&
         (ret_flipping_allowed != NvCtrlSuccess) &&
@@ -404,7 +424,8 @@ GtkWidget* ctk_opengl_new(CtrlTarget *ctrl_target,
         (ret_aa_line_gamma != NvCtrlSuccess) &&
         (ret_use_conformant_clamping != NvCtrlSuccess) &&
         (ret_show_sli_visual_indicator != NvCtrlSuccess) &&
-        (ret_show_multigpu_visual_indicator != NvCtrlSuccess)) {
+        (ret_show_multigpu_visual_indicator != NvCtrlSuccess) &&
+        (ret_show_graphics_visual_indicator != NvCtrlSuccess)) {
         return NULL;
     }
 
@@ -871,6 +892,34 @@ GtkWidget* ctk_opengl_new(CtrlTarget *ctrl_target,
         ctk_opengl->show_multigpu_visual_indicator_button = check_button;
     }
 
+    if (ret_show_graphics_visual_indicator == NvCtrlSuccess) {
+
+        label = gtk_label_new("Enable Graphics API Visual Indicator");
+
+        check_button = gtk_check_button_new();
+        gtk_container_add(GTK_CONTAINER(check_button), label);
+
+        gtk_toggle_button_set_active(GTK_TOGGLE_BUTTON(check_button),
+                                     show_graphics_visual_indicator);
+
+        gtk_box_pack_start(GTK_BOX(vbox), check_button, FALSE, FALSE, 0);
+
+        g_signal_connect(G_OBJECT(check_button), "toggled",
+                         G_CALLBACK(show_graphics_visual_indicator_button_toggled),
+                         (gpointer) ctk_opengl);
+
+        g_signal_connect(G_OBJECT(ctk_event),
+                         CTK_EVENT_NAME(NV_CTRL_SHOW_GRAPHICS_VISUAL_INDICATOR),
+                         G_CALLBACK(value_changed), (gpointer) ctk_opengl);
+
+        ctk_config_set_tooltip(ctk_config, check_button,
+                               __show_graphics_visual_indicator_help);
+
+        ctk_opengl->active_attributes |= __SHOW_GRAPHICS_VISUAL_INDICATOR;
+
+        ctk_opengl->show_graphics_visual_indicator_button = check_button;
+    }
+
     gtk_widget_show_all(GTK_WIDGET(object));
 
     /*
@@ -938,6 +987,15 @@ post_show_multigpu_visual_indicator_button_toggled(CtkOpenGL *ctk_opengl,
 {
     ctk_config_statusbar_message(ctk_opengl->ctk_config,
                                  enabled ? _("OpenGL Multi-GPU Visual Indicator enabled.") : _("OpenGL Multi-GPU Visual Indicator disabled."));
+}
+
+static void
+post_show_graphics_visual_indicator_button_toggled(CtkOpenGL *ctk_opengl,
+                                              gboolean enabled)
+{
+    ctk_config_statusbar_message(ctk_opengl->ctk_config,
+                                 "Graphics API Visual Indicator %s.",
+                                 enabled ? "enabled" : "disabled");
 }
 
 static void post_xinerama_stereo_button_toggled(CtkOpenGL *ctk_opengl, 
@@ -1063,6 +1121,20 @@ static void show_multigpu_visual_indicator_button_toggled(GtkWidget *widget,
     NvCtrlSetAttribute(ctrl_target,
                        NV_CTRL_SHOW_MULTIGPU_VISUAL_INDICATOR, enabled);
     post_show_multigpu_visual_indicator_button_toggled(ctk_opengl, enabled);
+}
+
+static void show_graphics_visual_indicator_button_toggled(GtkWidget *widget,
+                                                          gpointer user_data)
+{
+    CtkOpenGL *ctk_opengl = CTK_OPENGL(user_data);
+    CtrlTarget *ctrl_target = ctk_opengl->ctrl_target;
+    gboolean enabled;
+
+    enabled = gtk_toggle_button_get_active(GTK_TOGGLE_BUTTON(widget));
+
+    NvCtrlSetAttribute(ctrl_target,
+                       NV_CTRL_SHOW_GRAPHICS_VISUAL_INDICATOR, enabled);
+    post_show_graphics_visual_indicator_button_toggled(ctk_opengl, enabled);
 }
 
 static void xinerama_stereo_button_toggled(GtkWidget *widget,
@@ -1210,6 +1282,12 @@ static void value_changed(GObject *object, CtrlEvent *event, gpointer user_data)
             GTK_TOGGLE_BUTTON(ctk_opengl->show_multigpu_visual_indicator_button);
         func = G_CALLBACK(show_multigpu_visual_indicator_button_toggled);
         post_show_multigpu_visual_indicator_button_toggled(ctk_opengl, value);
+        break;
+    case NV_CTRL_SHOW_GRAPHICS_VISUAL_INDICATOR:
+        button =
+            GTK_TOGGLE_BUTTON(ctk_opengl->show_graphics_visual_indicator_button);
+        func = G_CALLBACK(show_graphics_visual_indicator_button_toggled);
+        post_show_graphics_visual_indicator_button_toggled(ctk_opengl, value);
         break;
     default:
         return;
@@ -1863,6 +1941,11 @@ GtkTextBuffer *ctk_opengl_create_help(GtkTextTagTable *table,
                       "line, the image from just one GPU is displayed without "
                       "blending.  This allows easy comparison between the "
                       "multi-GPU AA and single-GPU AA modes."));
+    }
+
+    if (ctk_opengl->active_attributes & __SHOW_GRAPHICS_VISUAL_INDICATOR) {
+        ctk_help_heading(b, &i, "Graphics API Visual Indicator");
+        ctk_help_para(b, &i, "%s", __show_graphics_visual_indicator_help);
     }
 
     ctk_help_finish(b);

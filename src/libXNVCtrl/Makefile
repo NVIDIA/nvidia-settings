@@ -46,7 +46,6 @@ CFLAGS += -I $(OUTPUTDIR)
 CFLAGS += -DPROGRAM_NAME=\"$(LIBXNVCTRL_PROGRAM_NAME)\"
 
 SRC += NVCtrl.c
-SRC += $(STAMP_C)
 
 OBJS = $(call BUILD_OBJECT_LIST,$(SRC))
 
@@ -65,9 +64,6 @@ $(LIBXNVCTRL) : $(OBJS)
 # define the rule to build each object file
 $(foreach src,$(SRC),$(eval $(call DEFINE_OBJECT_RULE,TARGET,$(src))))
 
-# define the rule to generate $(STAMP_C)
-$(eval $(call DEFINE_STAMP_C_RULE, $(OBJS),$(LIBXNVCTRL_PROGRAM_NAME)))
-
 clean:
-	rm -rf $(LIBXNVCTRL) *~ $(STAMP_C) \
+	rm -rf $(LIBXNVCTRL) *~ \
 		$(OUTPUTDIR)/*.o $(OUTPUTDIR)/*.d
