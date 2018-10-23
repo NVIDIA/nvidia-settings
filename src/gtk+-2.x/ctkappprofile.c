@@ -1430,7 +1430,12 @@ static void config_create_source_file_entry(CtkConfig *ctk_config,
 
     label = gtk_label_new(_("Source File"));
 
-    g_string_printf(help_string, _("You can specify the source file where the %s is defined in this drop-down box."), name);
+    if(strcmp(name, "rule") == 0) {
+        g_string_printf(help_string, _("You can specify the source file where the rule is defined in this drop-down box."));
+    } else if (strcmp(name, "profile") == 0) {
+        g_string_printf(help_string, _("You can specify the source file where the profile is defined in this drop-down box."));
+    }
+
 
     ctk_config_set_tooltip_and_add_help_data(ctk_config,
                                          label,
@@ -1445,8 +1450,14 @@ static void config_create_source_file_entry(CtkConfig *ctk_config,
     button_set_label_and_stock_icon(GTK_BUTTON(browse_button),
                                     _("Browse..."), GTK_STOCK_OPEN);
 
-    g_string_printf(help_string, _("Clicking this button opens a file selection dialog box which allows you to choose an "
-                                 "appropriate configuration file for the %s."), name);
+
+    if(strcmp(name, "rule") == 0) {
+        g_string_printf(help_string, _("Clicking this button opens a file selection dialog box which allows you to choose an "
+                                       "appropriate configuration file for the rule."));
+    } else if (strcmp(name, "profile") == 0) {
+        g_string_printf(help_string, _("Clicking this button opens a file selection dialog box which allows you to choose an "
+                                       "appropriate configuration file for the profile."));
+    }
 
     ctk_config_set_tooltip_and_add_help_data(ctk_config,
                                          browse_button,
