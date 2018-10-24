@@ -1430,12 +1430,7 @@ static void config_create_source_file_entry(CtkConfig *ctk_config,
 
     label = gtk_label_new(_("Source File"));
 
-    if(strcmp(name, "rule") == 0) {
-        g_string_printf(help_string, _("You can specify the source file where the rule is defined in this drop-down box."));
-    } else if (strcmp(name, "profile") == 0) {
-        g_string_printf(help_string, _("You can specify the source file where the profile is defined in this drop-down box."));
-    }
-
+    g_string_printf(help_string, _("You can specify the source file where the %s is defined in this drop-down box."), _(name));
 
     ctk_config_set_tooltip_and_add_help_data(ctk_config,
                                          label,
@@ -1450,14 +1445,8 @@ static void config_create_source_file_entry(CtkConfig *ctk_config,
     button_set_label_and_stock_icon(GTK_BUTTON(browse_button),
                                     _("Browse..."), GTK_STOCK_OPEN);
 
-
-    if(strcmp(name, "rule") == 0) {
-        g_string_printf(help_string, _("Clicking this button opens a file selection dialog box which allows you to choose an "
-                                       "appropriate configuration file for the rule."));
-    } else if (strcmp(name, "profile") == 0) {
-        g_string_printf(help_string, _("Clicking this button opens a file selection dialog box which allows you to choose an "
-                                       "appropriate configuration file for the profile."));
-    }
+    g_string_printf(help_string, _("Clicking this button opens a file selection dialog box which allows you to choose an "
+                                 "appropriate configuration file for the %s."), _(name));
 
     ctk_config_set_tooltip_and_add_help_data(ctk_config,
                                          browse_button,
@@ -2067,7 +2056,7 @@ static EditRuleDialog* edit_rule_dialog_new(CtkAppProfile *ctk_app_profile)
                                     &container,
                                     &dialog->source_file_combo,
                                     &dialog->help_data,
-                                    "rule",
+                                    N_("rule"),
                                     G_CALLBACK(rule_browse_button_clicked),
                                     (gpointer)dialog);
 
@@ -3068,7 +3057,7 @@ static EditProfileDialog *edit_profile_dialog_new(CtkAppProfile *ctk_app_profile
                                     &container,
                                     &dialog->source_file_combo,
                                     &dialog->top_help_data,
-                                    "profile",
+                                    N_("profile"),
                                     G_CALLBACK(profile_browse_button_clicked),
                                     (gpointer)dialog);
 
