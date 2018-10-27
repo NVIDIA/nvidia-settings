@@ -19,6 +19,7 @@
 
 #include <stdlib.h>
 #include <string.h>
+#include <libintl.h>
 
 #include <gtk/gtk.h>
 #include <NvCtrlAttributes.h>
@@ -32,6 +33,8 @@
 #include "ctkgpu.h"
 #include "ctkbanner.h"
 #include "ctkdropdownmenu.h"
+
+#define _(STRING) gettext(STRING)
 
 #define DEFAULT_UPDATE_VIDEO_FORMAT_INFO_TIME_INTERVAL 1000
 
@@ -107,7 +110,7 @@ static const char *ctk_gvio_get_format_name(const GvioFormatName *formatTable,
             return formatTable[i].name;
         }
     }
-    return "Unknown";
+    return _("Unknown");
 }
 
 
@@ -226,7 +229,7 @@ static void update_sdi_input_info_simple(CtkGvi *ctk_gvi)
             box = gtk_vbox_new(FALSE, 0);
             gtk_box_pack_start(vbox, box, FALSE, FALSE, 0);
 
-            label_str = g_strdup_printf("Jack %d:", jack+1);
+            label_str = g_strdup_printf(_("Jack %d:"), jack+1);
             label = gtk_label_new(label_str);
             g_free(label_str);
             gtk_misc_set_alignment(GTK_MISC(label), 0, 0.5);
@@ -242,14 +245,14 @@ static void update_sdi_input_info_simple(CtkGvi *ctk_gvi)
 
             if (num_active_channels <= 1) {
                 if (channel != show_channel) continue;
-                label_str = g_strdup_printf("Jack %d: %s", jack+1, vidfmt_str);
+                label_str = g_strdup_printf(_("Jack %d: %s"), jack+1, vidfmt_str);
                 label = gtk_label_new(label_str);
                 g_free(label_str);
                 gtk_misc_set_alignment(GTK_MISC(label), 0, 0.5);
                 gtk_box_pack_start(vbox, label, FALSE, FALSE, 0);
 
             } else {
-                label_str = g_strdup_printf("Channel %d: %s",
+                label_str = g_strdup_printf(_("Channel %d: %s"),
                                             channel+1, vidfmt_str);
                 label = gtk_label_new(label_str);
                 g_free(label_str);
@@ -304,7 +307,7 @@ static GtkWidget *create_jack_channel_menu(CtkGvi *ctk_gvi)
             jack_channel |= (jack & 0xFFFF);
 
 
-            label_str = g_strdup_printf("Jack %d, Channel %d",
+            label_str = g_strdup_printf(_("Jack %d, Channel %d"),
                                         jack+1, channel+1);
             ctk_drop_down_menu_append_item(menu, label_str, idx);
             g_free(label_str);
@@ -358,7 +361,7 @@ static void update_sdi_input_info_all(CtkGvi *ctk_gvi)
 
     /* Show channel's information in table format */
 
-    label = gtk_label_new("Video Format:");
+    label = gtk_label_new(_("Video Format:"));
     gtk_misc_set_alignment(GTK_MISC(label), 0, 0.5);
     gtk_table_attach_defaults(GTK_TABLE(table), label, 0, 1, 0, 1);
     
@@ -371,7 +374,7 @@ static void update_sdi_input_info_all(CtkGvi *ctk_gvi)
     g_free(label_str);
 
 
-    label = gtk_label_new("Component Sampling:");
+    label = gtk_label_new(_("Component Sampling:"));
     gtk_misc_set_alignment(GTK_MISC(label), 0, 0.5);
     gtk_table_attach_defaults(GTK_TABLE(table), label, 0, 1, 1, 2);
 
@@ -384,7 +387,7 @@ static void update_sdi_input_info_all(CtkGvi *ctk_gvi)
     g_free(label_str);
 
 
-    label = gtk_label_new("Color Space:");
+    label = gtk_label_new(_("Color Space:"));
     gtk_misc_set_alignment(GTK_MISC(label), 0, 0.5);
     gtk_table_attach_defaults(GTK_TABLE(table), label, 0, 1, 2, 3);
 
@@ -397,7 +400,7 @@ static void update_sdi_input_info_all(CtkGvi *ctk_gvi)
     g_free(label_str);
 
 
-    label = gtk_label_new("Bits Per Component:");
+    label = gtk_label_new(_("Bits Per Component:"));
     gtk_misc_set_alignment(GTK_MISC(label), 0, 0.5);
     gtk_table_attach_defaults(GTK_TABLE(table), label, 0, 1, 3, 4);
 
@@ -410,12 +413,12 @@ static void update_sdi_input_info_all(CtkGvi *ctk_gvi)
     g_free(label_str);
     
     
-    label = gtk_label_new("Link ID:");
+    label = gtk_label_new(_("Link ID:"));
     gtk_misc_set_alignment(GTK_MISC(label), 0, 0.5);
     gtk_table_attach_defaults(GTK_TABLE(table), label, 0, 1, 4, 5);
                                    
     if (channel_info.link_id == NV_CTRL_GVI_LINK_ID_UNKNOWN) {
-        label_str = g_strdup_printf("Unknown");
+        label_str = g_strdup_printf(_("Unknown"));
     } else {
         label_str = g_strdup_printf("%d", channel_info.link_id);
     }
@@ -424,7 +427,7 @@ static void update_sdi_input_info_all(CtkGvi *ctk_gvi)
     gtk_table_attach_defaults(GTK_TABLE(table), label, 1, 2, 4, 5);
     g_free(label_str);
 
-    label = gtk_label_new("SMPTE 352 Payload Identifier:");
+    label = gtk_label_new(_("SMPTE 352 Payload Identifier:"));
     gtk_misc_set_alignment(GTK_MISC(label), 0, 0.5);
     gtk_table_attach_defaults(GTK_TABLE(table), label, 0, 1, 5, 6);
 
@@ -472,9 +475,9 @@ static void show_detailed_info_button_toggled(GtkWidget *button,
     active = gtk_toggle_button_get_active(GTK_TOGGLE_BUTTON(button));
 
     if (active) {
-        gtk_button_set_label(GTK_BUTTON(button), "Show Condensed Input Info");
+        gtk_button_set_label(GTK_BUTTON(button), _("Show Condensed Input Info"));
     } else {
-        gtk_button_set_label(GTK_BUTTON(button), "Show Detailed Input Info");
+        gtk_button_set_label(GTK_BUTTON(button), _("Show Detailed Input Info"));
     }
 
     update_sdi_input_info(ctk_gvi);
@@ -488,7 +491,7 @@ static gchar* gpu_name_string(gint gpu_id, CtrlSystem *system)
     ctrl_target = NvCtrlGetTarget(system, GPU_TARGET, gpu_id);
 
     if (ctrl_target == NULL) {
-        gpu_name = g_strdup_printf("None");
+        gpu_name = g_strdup_printf(_("None"));
     } else {
         gpu_name = create_gpu_name_string(ctrl_target);
     }
@@ -542,7 +545,7 @@ GtkWidget* ctk_gvi_new(CtrlTarget *ctrl_target,
                                    NV_CTRL_STRING_GVIO_FIRMWARE_VERSION,
                                    &firmware_version);
     if (ret != NvCtrlSuccess) {
-        firmware_version = g_strdup("Unable to determine");
+        firmware_version = g_strdup(_("Unable to determine"));
     }
 
     /* Get Bus related information */
@@ -605,7 +608,7 @@ GtkWidget* ctk_gvi_new(CtrlTarget *ctrl_target,
     hbox = gtk_hbox_new(FALSE, 0);
     gtk_box_pack_start(GTK_BOX(vbox), hbox, FALSE, FALSE, 0);
 
-    label = gtk_label_new("GVI Device Information");
+    label = gtk_label_new(_("GVI Device Information"));
     gtk_box_pack_start(GTK_BOX(hbox), label, FALSE, FALSE, 0);
 
     hseparator = gtk_hseparator_new();
@@ -618,21 +621,21 @@ GtkWidget* ctk_gvi_new(CtrlTarget *ctrl_target,
     gtk_container_set_border_width(GTK_CONTAINER(table), 5);
 
     add_table_row(table, 0,
-                  0, 0.5, "Firmware Version:",
+                  0, 0.5, _("Firmware Version:"),
                   0, 0.5, firmware_version);
     /* spacing */
     add_table_row(table, 2,
-                  0, 0.5, "Bus Type:",
+                  0, 0.5, _("Bus Type:"),
                   0, 0.5, bus);
     add_table_row(table, 3,
-                  0, 0.5, "Bus ID:",
+                  0, 0.5, _("Bus ID:"),
                   0, 0.5, pci_bus_id);
     /* spacing */
     add_table_row(table, 5,
-                  0, 0.5, "IRQ:",
+                  0, 0.5, _("IRQ:"),
                   0, 0.5, irq);
     
-    label = gtk_label_new("Bound GPU:");
+    label = gtk_label_new(_("Bound GPU:"));
     gtk_label_set_selectable(GTK_LABEL(label), TRUE);
     gtk_misc_set_alignment(GTK_MISC(label), 0, 0.5);
     gtk_table_attach(GTK_TABLE(table), label, 0, 1, 7, 8,
@@ -655,7 +658,7 @@ GtkWidget* ctk_gvi_new(CtrlTarget *ctrl_target,
     hbox = gtk_hbox_new(FALSE, 0);
     gtk_box_pack_start(GTK_BOX(vbox), hbox, FALSE, FALSE, 0);
 
-    label = gtk_label_new("Input Information");
+    label = gtk_label_new(_("Input Information"));
     gtk_box_pack_start(GTK_BOX(hbox), label, FALSE, FALSE, 0);
 
     hsep = gtk_hseparator_new();
@@ -683,7 +686,7 @@ GtkWidget* ctk_gvi_new(CtrlTarget *ctrl_target,
                        ctk_gvi->input_info_vbox, FALSE, FALSE, 0);
     
     /* Register a timer callback to update the video format info */
-    s = g_strdup_printf("Graphics Video In (GVI %d)",
+    s = g_strdup_printf(_("Graphics Video In (GVI %d)"),
                         NvCtrlGetTargetId(ctrl_target));
 
     ctk_config_add_timer(ctk_gvi->ctk_config,
@@ -695,7 +698,7 @@ GtkWidget* ctk_gvi_new(CtrlTarget *ctrl_target,
 
     /* Condensed/Detailed view toggle button */
 
-    button = gtk_toggle_button_new_with_label("Show Detailed Input Info");
+    button = gtk_toggle_button_new_with_label(_("Show Detailed Input Info"));
     ctk_gvi->show_detailed_info_btn = button;
 
     hbox = gtk_hbox_new(FALSE, 5);
@@ -729,54 +732,54 @@ GtkTextBuffer *ctk_gvi_create_help(GtkTextTagTable *table,
     
     gtk_text_buffer_get_iter_at_offset(b, &i, 0);
 
-    ctk_help_title(b, &i, "GVI Device Information Help");
-    ctk_help_para(b, &i, "This page in the NVIDIA "
+    ctk_help_title(b, &i, _("GVI Device Information Help"));
+    ctk_help_para(b, &i, _("This page in the NVIDIA "
                   "X Server Control Panel describes basic "
                   "information about the Graphics Video In "
-                  "(GVI) device.");
+                  "(GVI) device."));
 
-    ctk_help_heading(b, &i, "Firmware Version");
-    ctk_help_para(b, &i, "The Firmware Version reports the version "
-                  "of the firmware running on the GVI device."); 
+    ctk_help_heading(b, &i, _("Firmware Version"));
+    ctk_help_para(b, &i, _("The Firmware Version reports the version "
+                  "of the firmware running on the GVI device.")); 
 
-    ctk_help_heading(b, &i, "Bus Type");
-    ctk_help_para(b, &i,  "This is the bus type which is "
+    ctk_help_heading(b, &i, _("Bus Type"));
+    ctk_help_para(b, &i,  _("This is the bus type which is "
                   "used to connect the NVIDIA GVI device to the rest of "
                   "your computer; possible values are AGP, PCI, "
-                  "PCI Express and Integrated.");
+                  "PCI Express and Integrated."));
 
-    ctk_help_heading(b, &i, "Bus ID");
-    ctk_help_para(b, &i, "This is the GVI device's PCI identification string, "
+    ctk_help_heading(b, &i, _("Bus ID"));
+    ctk_help_para(b, &i, _("This is the GVI device's PCI identification string, "
                   "reported in the form 'bus:device:function'.  It uniquely "
-                  "identifies the GVI device's location in the host system.");
+                  "identifies the GVI device's location in the host system."));
 
-    ctk_help_heading(b, &i, "IRQ");
-    ctk_help_para(b, &i, "This is the interrupt request line assigned to "
-                  "this GVI device.");
+    ctk_help_heading(b, &i, _("IRQ"));
+    ctk_help_para(b, &i, _("This is the interrupt request line assigned to "
+                  "this GVI device."));
 
-    ctk_help_heading(b, &i, "Bound GPU");
-    ctk_help_para(b, &i, "An OpenGL application can bind a GVI device to a "
+    ctk_help_heading(b, &i, _("Bound GPU"));
+    ctk_help_para(b, &i, _("An OpenGL application can bind a GVI device to a "
                   "GPU using the GL_NV_video_capture OpenGL extension.  The "
                   "Bound GPU field reports if an OpenGL application has "
-                  "currently bound this GVI device to a GPU.");
+                  "currently bound this GVI device to a GPU."));
 
-    ctk_help_heading(b, &i, "Input Information");
-    ctk_help_para(b, &i, "This section shows the detected video format(s) on "
+    ctk_help_heading(b, &i, _("Input Information"));
+    ctk_help_para(b, &i, _("This section shows the detected video format(s) on "
                   "each jack of the GVI device.  When condensed mode is "
                   "selected, the detected video format is shown for each "
                   "jack (and channel).  When detailed mode is selected, "
                   "information pertaining to the selected jack is reported.  "
                   "Note that the GVI device can only detect the following "
                   "information if the incoming signal has a non-zero SMPTE "
-                  "352 payload identifier, which not all SDI devices provide.");
+                  "352 payload identifier, which not all SDI devices provide."));
 
-    ctk_help_para(b, &i, "Video Format:  The detected SMPTE video format.");
-    ctk_help_para(b, &i, "Component Sampling: The detected composition of the "
-                  "channel.");
-    ctk_help_para(b, &i, "Color Space: The detected color space.");
-    ctk_help_para(b, &i, "Bites Per Component: The detected number of bits "
-                  "per component.");
-    ctk_help_para(b, &i, "Link ID: The detected link ID of the channel.");
+    ctk_help_para(b, &i, _("Video Format:  The detected SMPTE video format."));
+    ctk_help_para(b, &i, _("Component Sampling: The detected composition of the "
+                  "channel."));
+    ctk_help_para(b, &i, _("Color Space: The detected color space."));
+    ctk_help_para(b, &i, _("Bites Per Component: The detected number of bits "
+                  "per component."));
+    ctk_help_para(b, &i, _("Link ID: The detected link ID of the channel."));
 
     ctk_help_finish(b);
 

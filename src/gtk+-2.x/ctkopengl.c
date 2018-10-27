@@ -20,6 +20,7 @@
 #include <gtk/gtk.h>
 #include <NvCtrlAttributes.h>
 #include <stdlib.h>
+#include <libintl.h>
 
 #include "ctkbanner.h"
 
@@ -29,6 +30,9 @@
 
 #include "ctkconfig.h"
 #include "ctkhelp.h"
+
+#define _(STRING) gettext(STRING)
+#define N_(STRING) STRING
 
 static void vblank_sync_button_toggled   (GtkWidget *, gpointer);
 
@@ -133,58 +137,58 @@ static void ctk_opengl_new_finalize(GObject *object);
 #define FRAME_PADDING 5
 
 static const char *__sync_to_vblank_help =
-"When enabled, OpenGL applications will swap "
+N_("When enabled, OpenGL applications will swap "
 "buffers during the vertical retrace; this option is "
 "applied to OpenGL applications that are started after "
-"this option is set.";
+"this option is set.");
 
 static const char *__aa_line_gamma_checkbox_help =
-"Enable the antialiased lines gamma correction checkbox to make the "
-"gamma correction slider active.";
+N_("Enable the antialiased lines gamma correction checkbox to make the "
+"gamma correction slider active.");
 
 static const char *__ssm_menu_help =
-"This menu controls the swap mode when Quad-Buffered stereo is used."
+N_("This menu controls the swap mode when Quad-Buffered stereo is used."
 "  Application-controled: Stereo swap mode is derived from the "
 "value of swap interval.  If it's odd, the per eye "
 "swap mode is used.  If it's even, the per eye pair swap mode is used."
 "  Per Eye: The driver swaps each eye as it is ready."
 "  Per Eye-Pair: The driver waits for both eyes to complete rendering "
-"before swapping.";
+"before swapping.");
 
 static const char *__aa_line_gamma_slider_help =
-"This option allows Gamma-corrected "
+N_("This option allows Gamma-corrected "
 "antialiased lines to consider variances in the color "
 "display capabilities of output devices when rendering "
 "smooth lines.  This option is applied to OpenGL applications "
-"that are started after this option is set.";
+"that are started after this option is set.");
 
 static const char *__image_settings_slider_help =
-"The Image Settings slider controls the image quality setting.";
+N_("The Image Settings slider controls the image quality setting.");
 
 static const char *__force_stereo_help =
-"Enabling this option causes OpenGL to force "
+N_("Enabling this option causes OpenGL to force "
 "stereo flipping even if a stereo drawable is "
 "not visible.  This option is applied "
-"immediately.";
+"immediately.");
 
 static const char *__xinerama_stereo_help =
- "Enabling this option causes OpenGL to allow "
+N_("Enabling this option causes OpenGL to allow "
 "stereo flipping on multiple X screens configured "
-"with Xinerama.  This option is applied immediately.";
+"with Xinerama.  This option is applied immediately.");
 
 static const char *__show_sli_visual_indicator_help =
-"Enabling this option causes OpenGL to draw "
+N_("Enabling this option causes OpenGL to draw "
 "information about the current SLI mode on the "
 "screen.  This option is applied to OpenGL "
 "applications that are started after this option is "
-"set.";
+"set.");
 
 static const char *__show_multigpu_visual_indicator_help =
-"Enabling this option causes OpenGL to draw "
+N_("Enabling this option causes OpenGL to draw "
 "information about the current Multi-GPU mode on the "
 "screen.  This option is applied to OpenGL "
 "applications that are started after this option is "
-"set.";
+"set.");
 
 static const char *__show_graphics_visual_indicator_help =
 "Enabling this option causes the driver to draw "
@@ -195,21 +199,21 @@ static const char *__show_graphics_visual_indicator_help =
 "started after this option is set.";
 
 static const char *__stereo_eyes_exchange_help =
-"Enabling this option causes OpenGL to draw the left "
+N_("Enabling this option causes OpenGL to draw the left "
 "eye image in the right eye and vice versa for stereo "
-"drawables.  This option is applied immediately.";
+"drawables.  This option is applied immediately.");
 
 static const char *__use_conformant_clamping_help =
-"Disabling this option causes OpenGL to replace GL_CLAMP with "
+N_("Disabling this option causes OpenGL to replace GL_CLAMP with "
 "GL_CLAMP_TO_EDGE for borderless 2D textures.  This eliminates "
 "seams at the edges of textures in some older games such as "
-"Quake 3.";
+"Quake 3.");
 
 static const char *__show_gsync_visual_indicator_help  =
-"Enabling this option causes OpenGL to draw an indicator showing whether "
+N_("Enabling this option causes OpenGL to draw an indicator showing whether "
 "G-SYNC is in use, when an application is swapping using flipping.  This "
 "option is applied to OpenGL applications that are started after this option "
-"is set.";
+"is set.");
 
 #define __SYNC_TO_VBLANK      (1 << 1)
 #define __ALLOW_FLIPPING      (1 << 2)
@@ -448,7 +452,7 @@ GtkWidget* ctk_opengl_new(CtrlTarget *ctrl_target,
     hbox = gtk_hbox_new(FALSE, 5);
     gtk_box_pack_start(GTK_BOX(object), hbox, FALSE, FALSE, 0);
 
-    label = gtk_label_new("Performance");
+    label = gtk_label_new(_("Performance"));
     gtk_box_pack_start(GTK_BOX(hbox), label, FALSE, FALSE, 0);
 
     hseparator = gtk_hseparator_new();
@@ -468,7 +472,7 @@ GtkWidget* ctk_opengl_new(CtrlTarget *ctrl_target,
 
     if (ret_sync_to_vblank == NvCtrlSuccess) {
 
-        label = gtk_label_new("Sync to VBlank");
+        label = gtk_label_new(_("Sync to VBlank"));
 
         check_button = gtk_check_button_new();
         gtk_container_add(GTK_CONTAINER(check_button), label);
@@ -487,7 +491,7 @@ GtkWidget* ctk_opengl_new(CtrlTarget *ctrl_target,
                          G_CALLBACK(value_changed), (gpointer) ctk_opengl);
 
         ctk_config_set_tooltip(ctk_config, check_button,
-                               __sync_to_vblank_help);
+                               _(__sync_to_vblank_help));
 
         ctk_opengl->active_attributes |= __SYNC_TO_VBLANK;
 
@@ -500,7 +504,7 @@ GtkWidget* ctk_opengl_new(CtrlTarget *ctrl_target,
 
     if (ret_flipping_allowed == NvCtrlSuccess) {
 
-        label = gtk_label_new("Allow Flipping");
+        label = gtk_label_new(_("Allow Flipping"));
         
         check_button = gtk_check_button_new();
         gtk_container_add(GTK_CONTAINER(check_button), label);
@@ -519,9 +523,9 @@ GtkWidget* ctk_opengl_new(CtrlTarget *ctrl_target,
                          G_CALLBACK(value_changed), (gpointer) ctk_opengl);
 
         ctk_config_set_tooltip(ctk_config, check_button,
-                               "Enabling this option allows OpenGL to swap "
+                               _("Enabling this option allows OpenGL to swap "
                                "by flipping when possible.  This option is "
-                               "applied immediately.");
+                               "applied immediately."));
         
         ctk_opengl->active_attributes |= __ALLOW_FLIPPING;
         
@@ -535,7 +539,7 @@ GtkWidget* ctk_opengl_new(CtrlTarget *ctrl_target,
      * available.
      */
 
-    label = gtk_label_new("Allow G-SYNC");
+    label = gtk_label_new(_("Allow G-SYNC"));
 
     check_button = gtk_check_button_new();
     gtk_container_add(GTK_CONTAINER(check_button), label);
@@ -554,9 +558,9 @@ GtkWidget* ctk_opengl_new(CtrlTarget *ctrl_target,
                      G_CALLBACK(value_changed), (gpointer) ctk_opengl);
 
     ctk_config_set_tooltip(ctk_config, check_button,
-                           "Enabling this option allows OpenGL to flip "
+                           _("Enabling this option allows OpenGL to flip "
                            "using G-SYNC when possible.  This option is "
-                           "applied immediately.");
+                           "applied immediately."));
 
     ctk_opengl->active_attributes |= __ALLOW_GSYNC;
 
@@ -569,7 +573,7 @@ GtkWidget* ctk_opengl_new(CtrlTarget *ctrl_target,
      * available.
      */
 
-    label = gtk_label_new("Enable G-SYNC Visual Indicator");
+    label = gtk_label_new(_("Enable G-SYNC Visual Indicator"));
 
     check_button = gtk_check_button_new();
     gtk_container_add(GTK_CONTAINER(check_button), label);
@@ -588,7 +592,7 @@ GtkWidget* ctk_opengl_new(CtrlTarget *ctrl_target,
                      G_CALLBACK(value_changed), (gpointer) ctk_opengl);
 
     ctk_config_set_tooltip(ctk_config, check_button,
-                           __show_gsync_visual_indicator_help);
+                           _(__show_gsync_visual_indicator_help));
 
     ctk_opengl->active_attributes |= __SHOW_GSYNC_VISUAL_INDICATOR;
 
@@ -597,7 +601,7 @@ GtkWidget* ctk_opengl_new(CtrlTarget *ctrl_target,
 
     if (ret_force_stereo == NvCtrlSuccess) {
 
-        label = gtk_label_new("Force Stereo Flipping");
+        label = gtk_label_new(_("Force Stereo Flipping"));
     
         check_button = gtk_check_button_new();
         gtk_container_add(GTK_CONTAINER(check_button), label);
@@ -615,7 +619,7 @@ GtkWidget* ctk_opengl_new(CtrlTarget *ctrl_target,
                      CTK_EVENT_NAME(NV_CTRL_FORCE_STEREO),
                      G_CALLBACK(value_changed), (gpointer) ctk_opengl);
 
-        ctk_config_set_tooltip(ctk_config, check_button, __force_stereo_help);
+        ctk_config_set_tooltip(ctk_config, check_button, _(__force_stereo_help));
     
         ctk_opengl->active_attributes |= __FORCE_STEREO;
     
@@ -624,7 +628,7 @@ GtkWidget* ctk_opengl_new(CtrlTarget *ctrl_target,
         
     if (ret_xinerama_stereo == NvCtrlSuccess) {
 
-        label = gtk_label_new("Allow Xinerama Stereo Flipping");
+        label = gtk_label_new(_("Allow Xinerama Stereo Flipping"));
  
         check_button = gtk_check_button_new();
         gtk_container_add(GTK_CONTAINER(check_button), label);
@@ -642,7 +646,7 @@ GtkWidget* ctk_opengl_new(CtrlTarget *ctrl_target,
                          CTK_EVENT_NAME(NV_CTRL_XINERAMA_STEREO),
                          G_CALLBACK(value_changed), (gpointer) ctk_opengl);
 
-        ctk_config_set_tooltip(ctk_config, check_button, __xinerama_stereo_help);
+        ctk_config_set_tooltip(ctk_config, check_button, _(__xinerama_stereo_help));
  
         ctk_opengl->active_attributes |= __XINERAMA_STEREO;
  
@@ -651,7 +655,7 @@ GtkWidget* ctk_opengl_new(CtrlTarget *ctrl_target,
 
     if (ret_stereo_eyes_exchange == NvCtrlSuccess) {
 
-        label = gtk_label_new("Exchange Stereo Eyes");
+        label = gtk_label_new(_("Exchange Stereo Eyes"));
     
         check_button = gtk_check_button_new();
         gtk_container_add(GTK_CONTAINER(check_button), label);
@@ -670,7 +674,7 @@ GtkWidget* ctk_opengl_new(CtrlTarget *ctrl_target,
                      G_CALLBACK(value_changed), (gpointer) ctk_opengl);
 
         ctk_config_set_tooltip(ctk_config, check_button,
-                               __stereo_eyes_exchange_help);
+                               _(__stereo_eyes_exchange_help));
     
         ctk_opengl->active_attributes |= __STEREO_EYES_EXCHANGE;
     
@@ -678,7 +682,7 @@ GtkWidget* ctk_opengl_new(CtrlTarget *ctrl_target,
     }
     if (ret_stereo_eyes_exchange == NvCtrlSuccess) {
         /* Create a menu */
-        label = gtk_label_new("Stereo - swap mode:");
+        label = gtk_label_new(_("Stereo - swap mode:"));
         ctk_opengl->active_attributes |= __STEREO_SWAP_MODE;
 
         menu = create_stereo_swap_mode_menu(ctk_opengl, ctk_event,
@@ -697,7 +701,7 @@ GtkWidget* ctk_opengl_new(CtrlTarget *ctrl_target,
 
     if (ret_image_settings == NvCtrlSuccess) {
 
-        frame = gtk_frame_new("Image Settings");
+        frame = gtk_frame_new(_("Image Settings"));
         gtk_box_pack_start(GTK_BOX(vbox), frame, FALSE, FALSE, 3);
 
         hbox = gtk_hbox_new(FALSE, 0);
@@ -731,7 +735,7 @@ GtkWidget* ctk_opengl_new(CtrlTarget *ctrl_target,
                          G_CALLBACK(image_settings_update_received),
                          (gpointer) ctk_opengl);
 
-        ctk_config_set_tooltip(ctk_config, scale, __image_settings_slider_help);
+        ctk_config_set_tooltip(ctk_config, scale, _(__image_settings_slider_help));
 
         ctk_opengl->active_attributes |= __IMAGE_SETTINGS;
         ctk_opengl->image_settings_scale = scale;
@@ -744,7 +748,7 @@ GtkWidget* ctk_opengl_new(CtrlTarget *ctrl_target,
     hbox = gtk_hbox_new(FALSE, 5);
     gtk_box_pack_start(GTK_BOX(object), hbox, FALSE, FALSE, 0);
 
-    label = gtk_label_new("Miscellaneous");
+    label = gtk_label_new(_("Miscellaneous"));
     gtk_box_pack_start(GTK_BOX(hbox), label, FALSE, FALSE, 0);
 
     hseparator = gtk_hseparator_new();
@@ -759,7 +763,7 @@ GtkWidget* ctk_opengl_new(CtrlTarget *ctrl_target,
      */
 
     if (ret_aa_line_gamma == NvCtrlSuccess) {
-        label = gtk_label_new("Enable gamma correction for antialiased lines");
+        label = gtk_label_new(_("Enable gamma correction for antialiased lines"));
 
         check_button = gtk_check_button_new();
         gtk_container_add(GTK_CONTAINER(check_button), label);
@@ -779,14 +783,14 @@ GtkWidget* ctk_opengl_new(CtrlTarget *ctrl_target,
                          G_CALLBACK(value_changed), (gpointer) ctk_opengl);
         
         ctk_config_set_tooltip(ctk_opengl->ctk_config,
-                               check_button, __aa_line_gamma_checkbox_help);
+                               check_button, _(__aa_line_gamma_checkbox_help));
         
         ctk_opengl->aa_line_gamma_button = check_button;
         ctk_opengl->active_attributes |= __AA_LINE_GAMMA;
         
         ctk_opengl->aa_line_gamma_scale =
-            create_slider(ctk_opengl, vbox, "Gamma correction",
-                          __aa_line_gamma_slider_help,
+            create_slider(ctk_opengl, vbox, _("Gamma correction"),
+                          _(__aa_line_gamma_slider_help),
                           NV_CTRL_OPENGL_AA_LINE_GAMMA_VALUE,
                           __AA_LINE_GAMMA_VALUE);
         
@@ -806,7 +810,7 @@ GtkWidget* ctk_opengl_new(CtrlTarget *ctrl_target,
      */
 
     if (ret_use_conformant_clamping == NvCtrlSuccess) {
-        label = gtk_label_new("Use Conformant Texture Clamping");
+        label = gtk_label_new(_("Use Conformant Texture Clamping"));
 
         check_button = gtk_check_button_new();
         gtk_container_add(GTK_CONTAINER(check_button), label);
@@ -825,7 +829,7 @@ GtkWidget* ctk_opengl_new(CtrlTarget *ctrl_target,
                          G_CALLBACK(value_changed), (gpointer) ctk_opengl);
 
         ctk_config_set_tooltip(ctk_config, check_button,
-                               __use_conformant_clamping_help);
+                               _(__use_conformant_clamping_help));
 
         ctk_opengl->active_attributes |= __CONFORMANT_CLAMPING;
 
@@ -834,7 +838,7 @@ GtkWidget* ctk_opengl_new(CtrlTarget *ctrl_target,
     
     if (ret_show_sli_visual_indicator == NvCtrlSuccess) {
 
-        label = gtk_label_new("Enable SLI Visual Indicator");
+        label = gtk_label_new(_("Enable SLI Visual Indicator"));
 
         check_button = gtk_check_button_new();
         gtk_container_add(GTK_CONTAINER(check_button), label);
@@ -853,7 +857,7 @@ GtkWidget* ctk_opengl_new(CtrlTarget *ctrl_target,
                      G_CALLBACK(value_changed), (gpointer) ctk_opengl);
 
         ctk_config_set_tooltip(ctk_config,
-                               check_button, __show_sli_visual_indicator_help);
+                               check_button, _(__show_sli_visual_indicator_help));
 
         ctk_opengl->active_attributes |= __SHOW_SLI_VISUAL_INDICATOR;
 
@@ -862,7 +866,7 @@ GtkWidget* ctk_opengl_new(CtrlTarget *ctrl_target,
 
     if (ret_show_multigpu_visual_indicator == NvCtrlSuccess) {
 
-        label = gtk_label_new("Enable Multi-GPU Visual Indicator");
+        label = gtk_label_new(_("Enable Multi-GPU Visual Indicator"));
 
         check_button = gtk_check_button_new();
         gtk_container_add(GTK_CONTAINER(check_button), label);
@@ -881,7 +885,7 @@ GtkWidget* ctk_opengl_new(CtrlTarget *ctrl_target,
                          G_CALLBACK(value_changed), (gpointer) ctk_opengl);
 
         ctk_config_set_tooltip(ctk_config, check_button,
-                               __show_multigpu_visual_indicator_help);
+                               _(__show_multigpu_visual_indicator_help));
 
         ctk_opengl->active_attributes |= __SHOW_MULTIGPU_VISUAL_INDICATOR;
 
@@ -939,48 +943,42 @@ static void post_vblank_sync_button_toggled(CtkOpenGL *ctk_opengl,
                                             gboolean enabled)
 {
     ctk_config_statusbar_message(ctk_opengl->ctk_config,
-                                 "OpenGL Sync to VBlank %s.",
-                                 enabled ? "enabled" : "disabled");
+                                 enabled ? _("OpenGL Sync to VBlank enabled.") : _("OpenGL Sync to VBlank disabled."));
 }
 
 static void post_allow_flipping_button_toggled(CtkOpenGL *ctk_opengl, 
                                                 gboolean enabled) 
 {
     ctk_config_statusbar_message(ctk_opengl->ctk_config,
-                                 "OpenGL Flipping %s.",
-                                 enabled ? "allowed" : "not allowed");
+                                 enabled ? _("OpenGL Flipping allowed.") : _("OpenGL Flipping not allowed."));
 }
 
 static void post_allow_gsync_button_toggled(CtkOpenGL *ctk_opengl,
                                           gboolean enabled)
 {
     ctk_config_statusbar_message(ctk_opengl->ctk_config,
-                                 "G-SYNC %s.",
-                                 enabled ? "allowed" : "not allowed");
+                                 enabled ? _("G-SYNC allowed.") : _("G-SYNC not allowed."));
 }
 
 static void post_show_gsync_visual_indicator_button_toggled(CtkOpenGL *ctk_opengl,
                                                             gboolean enabled)
 {
     ctk_config_statusbar_message(ctk_opengl->ctk_config,
-                                 "G-SYNC visual indicator %s.",
-                                 enabled ? "enabled" : "disabled");
+                                 enabled ? _("G-SYNC visual indicator enabled.") : _("G-SYNC visual indicator disabled."));
 }
 
 static void post_force_stereo_button_toggled(CtkOpenGL *ctk_opengl, 
                                              gboolean enabled)
 {
     ctk_config_statusbar_message(ctk_opengl->ctk_config,
-                                 "OpenGL Stereo Flipping %s.",
-                                 enabled ? "forced" : "not forced");
+                                 enabled ? _("OpenGL Stereo Flipping forced.") : _("OpenGL Stereo Flipping not forced."));
 }
 
 static void post_show_sli_visual_indicator_button_toggled(CtkOpenGL *ctk_opengl, 
                                                           gboolean enabled) 
 {
     ctk_config_statusbar_message(ctk_opengl->ctk_config,
-                                 "OpenGL SLI Visual Indicator %s.",
-                                 enabled ? "enabled" : "disabled");
+                                 enabled ? _("OpenGL SLI Visual Indicator enabled.") : _("OpenGL SLI Visual Indicator disabled."));
 }
 
 static void
@@ -988,8 +986,7 @@ post_show_multigpu_visual_indicator_button_toggled(CtkOpenGL *ctk_opengl,
                                                    gboolean enabled) 
 {
     ctk_config_statusbar_message(ctk_opengl->ctk_config,
-                                 "OpenGL Multi-GPU Visual Indicator %s.",
-                                 enabled ? "enabled" : "disabled");
+                                 enabled ? _("OpenGL Multi-GPU Visual Indicator enabled.") : _("OpenGL Multi-GPU Visual Indicator disabled."));
 }
 
 static void
@@ -1005,25 +1002,21 @@ static void post_xinerama_stereo_button_toggled(CtkOpenGL *ctk_opengl,
                                                 gboolean enabled) 
 {
     ctk_config_statusbar_message(ctk_opengl->ctk_config,
-                                 "OpenGL Xinerama Stereo Flipping %s.",
-                                 enabled ? "allowed" : "not allowed");
+                                 enabled ? _("OpenGL Xinerama Stereo Flipping allowed.") : _("OpenGL Xinerama Stereo Flipping not allowed."));
 }
 
 static void post_stereo_eyes_exchange_button_toggled(CtkOpenGL *ctk_opengl, 
                                                      gboolean enabled)
 {
     ctk_config_statusbar_message(ctk_opengl->ctk_config,
-                                 "OpenGL Stereo Eyes Exchanged %s.",
-                                 enabled ? "enabled" : "disabled");
+                                 enabled ? _("OpenGL Stereo Eyes Exchanged enabled.") : _("OpenGL Stereo Eyes Exchanged disabled."));
 }
 
 static void post_aa_line_gamma_toggled(CtkOpenGL *ctk_opengl, 
                                        gboolean enabled) 
 {
     ctk_config_statusbar_message(ctk_opengl->ctk_config,
-                                 "OpenGL gamma correction for antialiased "
-                                 "lines %s.",
-                                 enabled ? "enabled" : "disabled");
+                                 enabled ? _("OpenGL gamma correction for antialiased lines enabled.") : _("OpenGL gamma correction for antialiased lines disabled."));
 }
 
 static void
@@ -1031,9 +1024,8 @@ post_use_conformant_clamping_button_toggled(CtkOpenGL *ctk_opengl,
                                                int clamping) 
 {
     ctk_config_statusbar_message(ctk_opengl->ctk_config,
-                                 "Use %sConformant OpenGL Texture Clamping",
                                  (clamping == NV_CTRL_TEXTURE_CLAMPING_SPEC) ?
-                                 "" : "Non-");
+                                 _("Use Conformant OpenGL Texture Clamping") : _("Use Non-Conformant OpenGL Texture Clamping"));
 }
 
 static void vblank_sync_button_toggled(GtkWidget *widget,
@@ -1419,16 +1411,16 @@ static GtkWidget *create_stereo_swap_mode_menu(CtkOpenGL *ctk_opengl,
     for (i = 0; i < ctk_opengl->stereo_swap_mode_table_size; i++) {
         switch (ctk_opengl->stereo_swap_mode_table[i]) {
         case NV_CTRL_STEREO_SWAP_MODE_PER_EYE:
-            ctk_drop_down_menu_append_item(stereo_swap_mode_menu, "Per Eye", i);
+            ctk_drop_down_menu_append_item(stereo_swap_mode_menu, _("Per Eye"), i);
             break;
         case NV_CTRL_STEREO_SWAP_MODE_PER_EYE_PAIR:
             ctk_drop_down_menu_append_item(stereo_swap_mode_menu,
-                                           "Per Eye-Pair", i);
+                                           _("Per Eye-Pair"), i);
             break;
         default:
         case NV_CTRL_STEREO_SWAP_MODE_APPLICATION_CONTROL:
             ctk_drop_down_menu_append_item(stereo_swap_mode_menu,
-                                           "Application-controlled", i);
+                                           _("Application-controlled"), i);
             break;
         }
     }
@@ -1438,7 +1430,7 @@ static GtkWidget *create_stereo_swap_mode_menu(CtkOpenGL *ctk_opengl,
     ctk_drop_down_menu_set_current_value(stereo_swap_mode_menu, idx);
 
     ctk_drop_down_menu_set_tooltip(ctk_opengl->ctk_config, stereo_swap_mode_menu,
-                                   __ssm_menu_help);
+                                   _(__ssm_menu_help));
 
     g_signal_connect(G_OBJECT(stereo_swap_mode_menu),
                      "changed",
@@ -1500,9 +1492,9 @@ static void stereo_swap_mode_menu_changed(GObject *object, gpointer user_data)
 static void post_stereo_swap_mode_changed(CtkOpenGL *ctk_opengl, gint idx)
 {
     static const char *stereo_swap_mode_table[] = {
-        "Application-controlled", /* NV_CTRL_STEREO_SWAP_MODE_APPLICATION_CONTROL */
-        "Per Eye",                /* NV_CTRL_STEREO_SWAP_MODE_PER_EYE */
-        "Per Eye-Pair",           /* NV_CTRL_STEREO_SWAP_MODE_PER_EYE_PAIR */
+        N_("Application-controlled"), /* NV_CTRL_STEREO_SWAP_MODE_APPLICATION_CONTROL */
+        N_("Per Eye"),                /* NV_CTRL_STEREO_SWAP_MODE_PER_EYE */
+        N_("Per Eye-Pair"),           /* NV_CTRL_STEREO_SWAP_MODE_PER_EYE_PAIR */
     };
 
     if (idx < NV_CTRL_STEREO_SWAP_MODE_APPLICATION_CONTROL ||
@@ -1511,8 +1503,8 @@ static void post_stereo_swap_mode_changed(CtkOpenGL *ctk_opengl, gint idx)
     }
 
     ctk_config_statusbar_message(ctk_opengl->ctk_config,
-                                 "Set %s Stereo swap mode.",
-                                 stereo_swap_mode_table[idx]);
+                                 _("Set %s Stereo swap mode."),
+                                 _(stereo_swap_mode_table[idx]));
 }
 
 
@@ -1555,11 +1547,11 @@ static void stereo_swap_mode_update_received(GObject *object,
 static const gchar *get_image_settings_string(gint val)
 {
     static const gchar *image_settings_strings[] = {
-        "High Quality", "Quality", "Performance", "High Performance"
+        N_("High Quality"), N_("Quality"), N_("Performance"), N_("High Performance")
     };
 
     if ((val < NV_CTRL_IMAGE_SETTINGS_HIGH_QUALITY) ||
-        (val > NV_CTRL_IMAGE_SETTINGS_HIGH_PERFORMANCE)) return "Unknown";
+        (val > NV_CTRL_IMAGE_SETTINGS_HIGH_PERFORMANCE)) return _("Unknown");
 
     return image_settings_strings[val];
 
@@ -1573,7 +1565,7 @@ static const gchar *get_image_settings_string(gint val)
 static gchar *format_image_settings_value(GtkScale *scale, gdouble arg1,
                                          gpointer user_data)
 {
-    return g_strdup(get_image_settings_string(arg1));
+    return g_strdup(_(get_image_settings_string(arg1)));
 
 } /* format_image_settings_value() */
 
@@ -1586,8 +1578,8 @@ static gchar *format_image_settings_value(GtkScale *scale, gdouble arg1,
 static void post_image_settings_value_changed(CtkOpenGL *ctk_opengl, gint val)
 {
     ctk_config_statusbar_message(ctk_opengl->ctk_config,
-                                 "Image Settings set to %s.",
-                                 get_image_settings_string(val));
+                                 _("Image Settings set to %s."),
+                                 _(get_image_settings_string(val)));
 
 } /* post_image_settings_value_changed() */
 
@@ -1646,8 +1638,8 @@ static void image_settings_update_received(GObject *object,
 static void post_slider_value_changed(CtkOpenGL *ctk_opengl, gint val)
 {
     ctk_config_statusbar_message(ctk_opengl->ctk_config,
-                                 "OpenGL anti-aliased lines edge smoothness "
-                                 "changed to %d%%.",
+                                 _("OpenGL anti-aliased lines edge smoothness "
+                                 "changed to %d%%."),
                                  val);
 
 } /* post_slider_value_changed() */
@@ -1776,179 +1768,179 @@ GtkTextBuffer *ctk_opengl_create_help(GtkTextTagTable *table,
     
     gtk_text_buffer_get_iter_at_offset(b, &i, 0);
 
-    ctk_help_title(b, &i, "OpenGL Help");
+    ctk_help_title(b, &i, _("OpenGL Help"));
 
     if (ctk_opengl->active_attributes & __SYNC_TO_VBLANK) {
-        ctk_help_heading(b, &i, "Sync to VBlank");
-        ctk_help_para(b, &i, "%s", __sync_to_vblank_help);
+        ctk_help_heading(b, &i, _("Sync to VBlank"));
+        ctk_help_para(b, &i, "%s", _(__sync_to_vblank_help));
     }
 
     if (ctk_opengl->active_attributes & __ALLOW_FLIPPING) {
-        ctk_help_heading(b, &i, "Allow Flipping");
-        ctk_help_para(b, &i, "Enabling this option allows OpenGL to swap "
+        ctk_help_heading(b, &i, _("Allow Flipping"));
+        ctk_help_para(b, &i, _("Enabling this option allows OpenGL to swap "
                       "by flipping when possible.  Flipping is a mechanism "
                       "of performing swaps where the OpenGL driver changes "
                       "which buffer is scanned out by the DAC.  The "
                       "alternative swapping mechanism is blitting, where "
                       "buffer contents are copied from the back buffer to "
                       "the front buffer.  It is usually faster to flip than "
-                      "it is to blit.");
+                      "it is to blit."));
 
-        ctk_help_para(b, &i, "Note that this option is applied immediately, "
+        ctk_help_para(b, &i, _("Note that this option is applied immediately, "
                       "unlike most other OpenGL options which are only "
                       "applied to OpenGL applications that are started "
-                      "after the option is set.");
+                      "after the option is set."));
     }
 
     if (ctk_opengl->active_attributes & __ALLOW_GSYNC) {
-        ctk_help_heading(b, &i, "Allow G-SYNC");
-        ctk_help_para(b, &i, "Enabling this option allows OpenGL to use G-SYNC "
+        ctk_help_heading(b, &i, _("Allow G-SYNC"));
+        ctk_help_para(b, &i, _("Enabling this option allows OpenGL to use G-SYNC "
                       "when available.  G-SYNC is a technology that allows a "
                       "monitor to delay updating the screen until the GPU is "
                       "ready to display a new frame.  Without G-SYNC, the GPU "
                       "waits for the display to be ready to accept a new frame "
-                      "instead.");
+                      "instead."));
 
-        ctk_help_para(b, &i, "Note that this option is applied immediately, "
+        ctk_help_para(b, &i, _("Note that this option is applied immediately, "
                       "unlike most other OpenGL options which are only "
                       "applied to OpenGL applications that are started "
-                      "after the option is set.");
+                      "after the option is set."));
 
-        ctk_help_para(b, &i, "When G-SYNC is active and \"Sync to VBlank\" is "
+        ctk_help_para(b, &i, _("When G-SYNC is active and \"Sync to VBlank\" is "
                       "disabled, applications rendering faster than the "
                       "maximum refresh rate will tear. This eliminates tearing "
                       "for frame rates below the monitor's maximum refresh "
                       "rate while minimizing latency for frame rates above it. "
                       "When \"Sync to VBlank\" is enabled, the frame rate is "
                       "limited to the monitor's maximum refresh rate to "
-                      "eliminate tearing completely.");
+                      "eliminate tearing completely."));
 
-        ctk_help_para(b, &i, "This option can be overridden on a "
+        ctk_help_para(b, &i, _("This option can be overridden on a "
                       "per-application basis using the GLGSYNCAllowed "
-                      "application profile key.");
+                      "application profile key."));
     }
 
     if (ctk_opengl->active_attributes & __SHOW_GSYNC_VISUAL_INDICATOR) {
-        ctk_help_heading(b, &i, "G-SYNC Visual Indicator");
-        ctk_help_para(b, &i, "%s", __show_gsync_visual_indicator_help);
+        ctk_help_heading(b, &i, _("G-SYNC Visual Indicator"));
+        ctk_help_para(b, &i, "%s", _(__show_gsync_visual_indicator_help));
     }
 
     if (ctk_opengl->active_attributes & __FORCE_STEREO) {
-        ctk_help_heading(b, &i, "Force Stereo Flipping");
-        ctk_help_para(b, &i, "%s", __force_stereo_help);
+        ctk_help_heading(b, &i, _("Force Stereo Flipping"));
+        ctk_help_para(b, &i, "%s", _(__force_stereo_help));
     }
     
     if (ctk_opengl->active_attributes & __XINERAMA_STEREO) {
-        ctk_help_heading(b, &i, "Allow Xinerama Stereo Flipping");
-        ctk_help_para(b, &i, "%s", __xinerama_stereo_help);
+        ctk_help_heading(b, &i, _("Allow Xinerama Stereo Flipping"));
+        ctk_help_para(b, &i, "%s", _(__xinerama_stereo_help));
     }
     
     if (ctk_opengl->active_attributes & __STEREO_EYES_EXCHANGE) {
-        ctk_help_heading(b, &i, "Exchange Stereo Eyes");
-        ctk_help_para(b, &i, "%s", __stereo_eyes_exchange_help);
+        ctk_help_heading(b, &i, _("Exchange Stereo Eyes"));
+        ctk_help_para(b, &i, "%s", _(__stereo_eyes_exchange_help));
     }
     
     if (ctk_opengl->active_attributes & __STEREO_SWAP_MODE) {
-        ctk_help_term(b, &i, "Stereo - swap mode");
-        ctk_help_para(b, &i, "%s", __ssm_menu_help);
+        ctk_help_term(b, &i, _("Stereo - swap mode"));
+        ctk_help_para(b, &i, "%s", _(__ssm_menu_help));
     }
 
     if (ctk_opengl->active_attributes & __IMAGE_SETTINGS) {
-        ctk_help_heading(b, &i, "Image Settings");
-        ctk_help_para(b, &i, "This setting gives you full control over the "
-                      "image quality in your applications.");
-        ctk_help_para(b, &i, "Several quality settings are available for "
+        ctk_help_heading(b, &i, _("Image Settings"));
+        ctk_help_para(b, &i, _("This setting gives you full control over the "
+                      "image quality in your applications."));
+        ctk_help_para(b, &i, _("Several quality settings are available for "
                       "you to choose from with the Image Settings slider.  "
                       "Note that choosing higher image quality settings may "
-                      "result in decreased performance.");
+                      "result in decreased performance."));
 
-        ctk_help_term(b, &i, "High Quality");
-        ctk_help_para(b, &i, "This setting results in the best image quality "
+        ctk_help_term(b, &i, _("High Quality"));
+        ctk_help_para(b, &i, _("This setting results in the best image quality "
                       "for your applications.  It is not necessary for "
                       "average users who run game applications, and designed "
                       "for more advanced users to generate images that do not "
                       "take advantage of the programming capability of the "
-                      "texture filtering hardware.");
+                      "texture filtering hardware."));
 
-        ctk_help_term(b, &i, "Quality");
-        ctk_help_para(b, &i, "This is the default setting that results in "
-                      "optimal image quality for your applications.");
+        ctk_help_term(b, &i, _("Quality"));
+        ctk_help_para(b, &i, _("This is the default setting that results in "
+                      "optimal image quality for your applications."));
 
-        ctk_help_term(b, &i, "Performance");
-        ctk_help_para(b, &i, "This setting offers an optimal blend of image "
+        ctk_help_term(b, &i, _("Performance"));
+        ctk_help_para(b, &i, _("This setting offers an optimal blend of image "
                       "quality and performance.  The result is optimal "
                       "performance and good image quality for your "
-                      "applications.");
+                      "applications."));
 
-        ctk_help_term(b, &i, "High Performance");
-        ctk_help_para(b, &i, "This setting offers the highest frame rate "
+        ctk_help_term(b, &i, _("High Performance"));
+        ctk_help_para(b, &i, _("This setting offers the highest frame rate "
                       "possible, resulting in the best performance for your "
-                      "applications.");
+                      "applications."));
     }
 
     if (ctk_opengl->active_attributes & __AA_LINE_GAMMA) {
-        ctk_help_heading(b, &i, "Enable gamma correction for "
-                         "antialiased lines");
-        ctk_help_para(b, &i, "%s", __aa_line_gamma_checkbox_help );
+        ctk_help_heading(b, &i, _("Enable gamma correction for "
+                         "antialiased lines"));
+        ctk_help_para(b, &i, "%s", _(__aa_line_gamma_checkbox_help) );
     }
 
     if (ctk_opengl->active_attributes & __AA_LINE_GAMMA_VALUE) {
-        ctk_help_heading(b, &i, "Set gamma correction for "
-                         "antialiased lines");
-        ctk_help_para(b, &i, "%s", __aa_line_gamma_slider_help);
+        ctk_help_heading(b, &i, _("Set gamma correction for "
+                         "antialiased lines"));
+        ctk_help_para(b, &i, "%s", _(__aa_line_gamma_slider_help));
     }
 
     if (ctk_opengl->active_attributes & __CONFORMANT_CLAMPING) {
-        ctk_help_heading(b, &i, "Use Conformant Texture Clamping");
-        ctk_help_para(b, &i, "%s", __use_conformant_clamping_help);
+        ctk_help_heading(b, &i, _("Use Conformant Texture Clamping"));
+        ctk_help_para(b, &i, "%s", _(__use_conformant_clamping_help));
     }
 
     if (ctk_opengl->active_attributes & __SHOW_SLI_VISUAL_INDICATOR) {
-        ctk_help_heading(b, &i, "SLI Visual Indicator");
-        ctk_help_para(b, &i, "This option draws information about the current "
+        ctk_help_heading(b, &i, _("SLI Visual Indicator"));
+        ctk_help_para(b, &i, _("This option draws information about the current "
                       "SLI mode on top of OpenGL windows.  Its behavior "
-                      "depends on which SLI mode is in use:");
-        ctk_help_term(b, &i, "Alternate Frame Rendering");
-        ctk_help_para(b, &i, "In AFR mode, a vertical green bar displays the "
+                      "depends on which SLI mode is in use:"));
+        ctk_help_term(b, &i, _("Alternate Frame Rendering"));
+        ctk_help_para(b, &i, _("In AFR mode, a vertical green bar displays the "
                       "amount of scaling currently being achieved.  A longer "
-                      "bar indicates more scaling.");
-        ctk_help_term(b, &i, "Split-Frame Rendering");
-        ctk_help_para(b, &i, "In this mode, OpenGL draws a horizontal green "
+                      "bar indicates more scaling."));
+        ctk_help_term(b, &i, _("Split-Frame Rendering"));
+        ctk_help_para(b, &i, _("In this mode, OpenGL draws a horizontal green "
                       "line showing where the screen is split.  Everything "
                       "above the line is drawn on one GPU and everything "
-                      "below is drawn on the other.");
-        ctk_help_term(b, &i, "SLI Antialiasing");
-        ctk_help_para(b, &i, "In this mode, OpenGL draws a horizontal green "
+                      "below is drawn on the other."));
+        ctk_help_term(b, &i, _("SLI Antialiasing"));
+        ctk_help_para(b, &i, _("In this mode, OpenGL draws a horizontal green "
                       "line one third of the way across the screen.  Above "
                       "this line, the images from both GPUs are blended to "
                       "produce the currently selected SLIAA mode.  Below the "
                       "line, the image from just one GPU is displayed without "
                       "blending.  This allows easy comparison between the "
-                      "SLIAA and single-GPU AA modes.");
+                      "SLIAA and single-GPU AA modes."));
     }
 
     if (ctk_opengl->active_attributes & __SHOW_MULTIGPU_VISUAL_INDICATOR) {
-        ctk_help_heading(b, &i, "Multi-GPU Visual Indicator");
-        ctk_help_para(b, &i, "This option draws information about the current "
+        ctk_help_heading(b, &i, _("Multi-GPU Visual Indicator"));
+        ctk_help_para(b, &i, _("This option draws information about the current "
                       "Multi-GPU mode on top of OpenGL windows.  Its behavior "
-                      "depends on which Multi-GPU mode is in use:");
-        ctk_help_term(b, &i, "Alternate Frame Rendering");
-        ctk_help_para(b, &i, "In AFR mode, a vertical green bar displays the "
+                      "depends on which Multi-GPU mode is in use:"));
+        ctk_help_term(b, &i, _("Alternate Frame Rendering"));
+        ctk_help_para(b, &i, _("In AFR mode, a vertical green bar displays the "
                       "amount of scaling currently being achieved.  A longer "
-                      "bar indicates more scaling.");
-        ctk_help_term(b, &i, "Split-Frame Rendering");
-        ctk_help_para(b, &i, "In this mode, OpenGL draws a horizontal green "
+                      "bar indicates more scaling."));
+        ctk_help_term(b, &i, _("Split-Frame Rendering"));
+        ctk_help_para(b, &i, _("In this mode, OpenGL draws a horizontal green "
                       "line showing where the screen is split.  Everything "
                       "above the line is drawn on one GPU and everything "
-                      "below is drawn on the other.");
-        ctk_help_term(b, &i, "Multi-GPU Antialiasing");
-        ctk_help_para(b, &i, "In this mode, OpenGL draws a horizontal green "
+                      "below is drawn on the other."));
+        ctk_help_term(b, &i, _("Multi-GPU Antialiasing"));
+        ctk_help_para(b, &i, _("In this mode, OpenGL draws a horizontal green "
                       "line one third of the way across the screen.  Above "
                       "this line, the images from both GPUs are blended to "
                       "produce the currently selected multi-GPU AA mode.  Below the "
                       "line, the image from just one GPU is displayed without "
                       "blending.  This allows easy comparison between the "
-                      "multi-GPU AA and single-GPU AA modes.");
+                      "multi-GPU AA and single-GPU AA modes."));
     }
 
     if (ctk_opengl->active_attributes & __SHOW_GRAPHICS_VISUAL_INDICATOR) {

@@ -235,6 +235,7 @@ CFLAGS     += -I $(OUTPUTDIR)
 CFLAGS     += $(VDPAU_CFLAGS)
 CFLAGS     += $(DBUS_CFLAGS)
 CFLAGS     += -DPROGRAM_NAME=\"nvidia-settings\"
+CFLAGS     += -DLOCALEDIR=\"$(LCDIR)\"
 
 $(call BUILD_OBJECT_LIST,$(XCP_SRC)): CFLAGS += -fPIC
 

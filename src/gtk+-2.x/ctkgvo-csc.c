@@ -21,6 +21,7 @@
 #include <NvCtrlAttributes.h>
 
 #include <string.h>
+#include <libintl.h>
 
 #include "ctkbanner.h"
 #include "ctkconfig.h"
@@ -30,6 +31,9 @@
 #include "ctkgvo-csc.h"
 
 #include "msg.h"
+
+#define _(STRING) gettext(STRING)
+#define N_(STRING) STRING
 
 /*
  * The CtkGvoCsc widget is used to provide a way for configuring
@@ -132,25 +136,25 @@ static GtkWidget *build_opengl_only_msg     (void);
 /* General information help */
 
 static const char * __override_help =
-"The Override default Color Space Conversion checkbox will toggle use of "
-"custom CSC.";
+N_("The Override default Color Space Conversion checkbox will toggle use of "
+"custom CSC.");
 
 static const char * __initialize_help =
-"The Initialize Color Space Conversion drop down menu, when selected, "
+N_("The Initialize Color Space Conversion drop down menu, when selected, "
 "populates the Color Space Conversion Matrix, Offset, and Scale with the "
-"values from the selected standard.";
+"values from the selected standard.");
 
 static const char * __csc_help =
-"The color space conversion matrix defines the parameters used for "
-"converting the color data.";
+N_("The color space conversion matrix defines the parameters used for "
+"converting the color data.");
 
 static const char * __apply_immediately_help =
-"The Apply Changes Immediately checkbox toggles whether or not changes made "
-"to the CSC matrix immediately take effect.";
+N_("The Apply Changes Immediately checkbox toggles whether or not changes made "
+"to the CSC matrix immediately take effect.");
 
 static const char * __apply_help =
-"The Apply button sends the new values of the color space conversion matrix "
-"to the server.";
+N_("The Apply button sends the new values of the color space conversion matrix "
+"to the server.");
 
 
 
@@ -254,10 +258,10 @@ GtkWidget* ctk_gvo_csc_new(CtrlTarget *ctrl_target,
     /* checkbox to enable override of HW CSC */
     
     ctk_gvo_csc->overrideButton = gtk_check_button_new_with_label
-        ("Override default Color Space Conversion");
+        (_("Override default Color Space Conversion"));
 
     ctk_config_set_tooltip(ctk_config, ctk_gvo_csc->overrideButton,
-                           __override_help);
+                           _(__override_help));
     
     g_signal_connect(G_OBJECT(ctk_gvo_csc->overrideButton), "toggled",
                      G_CALLBACK(override_button_toggled), ctk_gvo_csc);
@@ -321,7 +325,7 @@ GtkWidget* ctk_gvo_csc_new(CtrlTarget *ctrl_target,
                        FALSE,                   // fill
                        0);                      // padding    
     
-    label = gtk_label_new("Initialize Color Space Conversion with:");
+    label = gtk_label_new(_("Initialize Color Space Conversion with:"));
 
     gtk_box_pack_start(GTK_BOX(hbox),
                        label,
@@ -336,7 +340,7 @@ GtkWidget* ctk_gvo_csc_new(CtrlTarget *ctrl_target,
     ctk_drop_down_menu_set_tooltip
         (ctk_config,
          CTK_DROP_DOWN_MENU(ctk_gvo_csc->initializeDropDown),
-         __initialize_help);
+         _(__initialize_help));
     
     ctk_drop_down_menu_append_item
         (CTK_DROP_DOWN_MENU(ctk_gvo_csc->initializeDropDown),
@@ -440,7 +444,7 @@ GtkWidget* ctk_gvo_csc_new(CtrlTarget *ctrl_target,
 
             ctk_config_set_tooltip(ctk_config,
                                    ctk_gvo_csc->matrixWidget[row][column],
-                                   __csc_help);
+                                   _(__csc_help));
         }
     }
     
@@ -462,7 +466,7 @@ GtkWidget* ctk_gvo_csc_new(CtrlTarget *ctrl_target,
                       1,                        // columns
                       FALSE);                   // homogeneous
     
-    make_label(ctk_gvo_csc, ctk_gvo_csc->offsetTable, "Offset", 0, 0);
+    make_label(ctk_gvo_csc, ctk_gvo_csc->offsetTable, _("Offset"), 0, 0);
 
     gtk_container_add(GTK_CONTAINER(frame), ctk_gvo_csc->offsetTable);
     
@@ -478,7 +482,7 @@ GtkWidget* ctk_gvo_csc_new(CtrlTarget *ctrl_target,
                    0);
 
         ctk_config_set_tooltip(ctk_config,
-                               ctk_gvo_csc->offsetWidget[row], __csc_help);
+                               ctk_gvo_csc->offsetWidget[row], _(__csc_help));
     }
     
     
@@ -499,7 +503,7 @@ GtkWidget* ctk_gvo_csc_new(CtrlTarget *ctrl_target,
                       1,                        // columns
                       FALSE);                   // homogeneous
     
-    make_label(ctk_gvo_csc, ctk_gvo_csc->scaleTable, "Scale" , 0, 0);
+    make_label(ctk_gvo_csc, ctk_gvo_csc->scaleTable, _("Scale") , 0, 0);
 
     gtk_container_add(GTK_CONTAINER(frame), ctk_gvo_csc->scaleTable);
     
@@ -515,7 +519,7 @@ GtkWidget* ctk_gvo_csc_new(CtrlTarget *ctrl_target,
                    0);
 
         ctk_config_set_tooltip(ctk_config,
-                               ctk_gvo_csc->scaleWidget[row], __csc_help);
+                               ctk_gvo_csc->scaleWidget[row], _(__csc_help));
     }
 
     
@@ -527,11 +531,11 @@ GtkWidget* ctk_gvo_csc_new(CtrlTarget *ctrl_target,
     if (caps & NV_CTRL_GVO_CAPABILITIES_APPLY_CSC_IMMEDIATELY) {
         
         ctk_gvo_csc->applyImmediateButton =
-            gtk_check_button_new_with_label("Apply Changes Immediately");
+            gtk_check_button_new_with_label(_("Apply Changes Immediately"));
 
         ctk_config_set_tooltip(ctk_config,
                                ctk_gvo_csc->applyImmediateButton,
-                               __apply_immediately_help);
+                               _(__apply_immediately_help));
     
         gtk_toggle_button_set_active
             (GTK_TOGGLE_BUTTON(ctk_gvo_csc->applyImmediateButton), FALSE);
@@ -555,7 +559,7 @@ GtkWidget* ctk_gvo_csc_new(CtrlTarget *ctrl_target,
     
     ctk_gvo_csc->applyButton = gtk_button_new_from_stock(GTK_STOCK_APPLY);
     
-    ctk_config_set_tooltip(ctk_config, ctk_gvo_csc->applyButton, __apply_help);
+    ctk_config_set_tooltip(ctk_config, ctk_gvo_csc->applyButton, _(__apply_help));
     
     g_signal_connect(G_OBJECT(ctk_gvo_csc->applyButton),
                      "clicked",
@@ -1147,9 +1151,9 @@ static GtkWidget *build_opengl_only_msg(void)
     
     /* create the label */
 
-    label = gtk_label_new("Note that the overridden Color Space Conversion "
+    label = gtk_label_new(_("Note that the overridden Color Space Conversion "
                           "will only apply to OpenGL applications "
-                          "using the GLX_NV_video_out extension.");
+                          "using the GLX_NV_video_out extension."));
 
     gtk_label_set_line_wrap(GTK_LABEL(label), TRUE);
 
@@ -1158,7 +1162,7 @@ static GtkWidget *build_opengl_only_msg(void)
     pixbuf = gtk_widget_render_icon(label,
                                     GTK_STOCK_DIALOG_INFO,
                                     GTK_ICON_SIZE_DIALOG,
-                                    "CSC information message");
+                                    _("CSC information message"));
 
     /* create a pixmap from the icon */
 
@@ -1250,53 +1254,53 @@ GtkTextBuffer *ctk_gvo_csc_create_help(GtkTextTagTable *table,
     
     gtk_text_buffer_get_iter_at_offset(b, &i, 0);
 
-    ctk_help_title(b, &i, "Color Space Conversion Help");
-    ctk_help_para(b, &i, "This page gives access to configuration of "
-                  "the SDI (GVO) color space conversion.");
+    ctk_help_title(b, &i, _("Color Space Conversion Help"));
+    ctk_help_para(b, &i, _("This page gives access to configuration of "
+                  "the SDI (GVO) color space conversion."));
 
-    ctk_help_heading(b, &i, "Override default Color Space Conversion");
-    ctk_help_para(b, &i, "%s", __override_help);
+    ctk_help_heading(b, &i, _("Override default Color Space Conversion"));
+    ctk_help_para(b, &i, "%s", _(__override_help));
 
-    ctk_help_heading(b, &i, "Initialize Color Space Conversion");
-    ctk_help_para(b, &i, "%s", __initialize_help);
+    ctk_help_heading(b, &i, _("Initialize Color Space Conversion"));
+    ctk_help_para(b, &i, "%s", _(__initialize_help));
 
-    ctk_help_heading(b, &i, "Color Space Conversion Matrix, Offset and Scale");
-    ctk_help_para(b, &i, "%s  RGB color is converted to YCrCb in the "
-                  "following manner:",
-                  __csc_help);
+    ctk_help_heading(b, &i, _("Color Space Conversion Matrix, Offset and Scale"));
+    ctk_help_para(b, &i, _("%s  RGB color is converted to YCrCb in the "
+                  "following manner:"),
+                  _(__csc_help));
     ctk_help_para(b, &i,
                   "Y  = Ky  + Sy  * ( Ry*R  + Gy*G  + By*B  )\n"
                   "Cb = Kcb + Scb * ( Rcb*R + Gcb*G + Bcb*B )\n"
                   "Cr = Kcr + Scr * ( Rcr*R + Gcr*G + Bcr*B )");
     ctk_help_para(b, &i, "Where:");
     ctk_help_para(b, &i,
-                  "Ky  = Y (luma) Offset\n"
+                  _("Ky  = Y (luma) Offset\n"
                   "Kcb = Cr (red chroma) Offset\n"
-                  "Kcr = Cb (blue chroma) Offset");
+                  "Kcr = Cb (blue chroma) Offset"));
     ctk_help_para(b, &i,
-                  "Sy  = Y scaling factor\n"
+                  _("Sy  = Y scaling factor\n"
                   "Scb = Cb Scaling factor\n"
-                  "Scr = Cr Scaling factor");
+                  "Scr = Cr Scaling factor"));
     ctk_help_para(b, &i,
-                  "Ry  = Red coefficient for Y\n"
+                  _("Ry  = Red coefficient for Y\n"
                   "Rcb = Red coefficient for Cb\n"
-                  "Rcr = Red coefficient for Cr");
+                  "Rcr = Red coefficient for Cr"));
     ctk_help_para(b, &i,
-                  "Gy  = Green coefficient for Y\n"
+                  _("Gy  = Green coefficient for Y\n"
                   "Gcb = Green coefficient for Cb\n"
-                  "Gcr = Green coefficient for Cr");
+                  "Gcr = Green coefficient for Cr"));
     ctk_help_para(b, &i,
-                  "By  = Blue coefficient for Y\n"
+                  _("By  = Blue coefficient for Y\n"
                   "Bcb = Blue coefficient for Cb\n"
-                  "Bcr = Blue coefficient for Cr");
+                  "Bcr = Blue coefficient for Cr"));
 
     if (ctk_gvo_csc->caps & NV_CTRL_GVO_CAPABILITIES_APPLY_CSC_IMMEDIATELY) {
-        ctk_help_heading(b, &i, "Apply Changes Immediately");
-        ctk_help_para(b, &i, "%s", __apply_immediately_help);
+        ctk_help_heading(b, &i, _("Apply Changes Immediately"));
+        ctk_help_para(b, &i, "%s", _(__apply_immediately_help));
     }
 
-    ctk_help_heading(b, &i, "Apply");
-    ctk_help_para(b, &i, "%s", __apply_help);
+    ctk_help_heading(b, &i, _("Apply"));
+    ctk_help_para(b, &i, "%s", _(__apply_help));
 
     ctk_help_finish(b);
 

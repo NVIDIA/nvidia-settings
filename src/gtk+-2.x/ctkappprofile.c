@@ -23,6 +23,8 @@
 #include <assert.h>
 #include <unistd.h>
 #include <string.h>
+#include <libintl.h>
+
 #include <gtk/gtk.h>
 #include <gdk/gdk.h>
 #include <gdk/gdkkeysyms.h>
@@ -37,10 +39,13 @@
 #include <gdk/gdkkeysyms-compat.h>
 #endif
 
-#define UPDATE_RULE_LABEL "Update Rule"
-#define UPDATE_PROFILE_LABEL "Update Profile"
+#define _(STRING) gettext(STRING)
+#define N_(STRING) STRING
 
-#define STATUSBAR_UPDATE_WARNING "This will take effect after changes are saved."
+#define UPDATE_RULE_LABEL N_("Update Rule")
+#define UPDATE_PROFILE_LABEL N_("Update Profile")
+
+#define STATUSBAR_UPDATE_WARNING N_("This will take effect after changes are saved.")
 
 enum {
    RULE_FEATURE_PROCNAME,
@@ -50,9 +55,9 @@ enum {
 };
 
 static const char *rule_feature_label_strings[] = {
-    "Process Name (procname)",      // RULE_FEATURE_PROCNAME
-    "Shared Object Name (dso)",     // RULE_FEATURE_DSO
-    "Always Applies (true)"         // RULE_FEATURE_TRUE
+    N_("Process Name (procname)"),      // RULE_FEATURE_PROCNAME
+    N_("Shared Object Name (dso)"),     // RULE_FEATURE_DSO
+    N_("Always Applies (true)")         // RULE_FEATURE_TRUE
 };
 
 static const char *rule_feature_identifiers[] = {
@@ -61,17 +66,16 @@ static const char *rule_feature_identifiers[] = {
     "true"                          // RULE_FEATURE_TRUE
 };
 
-#define MATCHES_INPUT_DESCRIPTION "\"Matches this string...\" text entry box"
 
 static const char *rule_feature_help_text[] = {
-    "Patterns using this feature compare the string provided by the " MATCHES_INPUT_DESCRIPTION " "
+    N_("Patterns using this feature compare the string provided by the \"Matches this string...\" text entry box "
     "against the pathname of the current process with the leading directory components removed, "
-    "and match if they are equal.", // RULE_FEATURE_PROCNAME
-    "Patterns using this feature compare the string provided by the " MATCHES_INPUT_DESCRIPTION " "
+    "and match if they are equal."), // RULE_FEATURE_PROCNAME
+    N_("Patterns using this feature compare the string provided by the \"Matches this string...\" text entry box "
     "against the list of currently loaded libraries in the current process, and match if "
-    "the string matches one of the entries in the list (with leading directory components removed).", // RULE_FEATURE_DSO
-    "Patterns using this feature will always match the process, regardless of the "
-    "contents of the string specified in the " MATCHES_INPUT_DESCRIPTION ".", // RULE_FEATURE_TRUE
+    "the string matches one of the entries in the list (with leading directory components removed)."), // RULE_FEATURE_DSO
+    N_("Patterns using this feature will always match the process, regardless of the "
+    "contents of the string specified in the \"Matches this string...\" text entry box."), // RULE_FEATURE_TRUE
 };
 
 enum {
@@ -934,8 +938,8 @@ static void increase_rule_priority_callback(GtkWidget *widget, gpointer user_dat
                                             -1);
 
     ctk_config_statusbar_message(ctk_app_profile->ctk_config,
-                                 "Priority of rule increased. %s",
-                                 STATUSBAR_UPDATE_WARNING);
+                                 _("Priority of rule increased. %s"),
+                                 _(STATUSBAR_UPDATE_WARNING));
 
     gtk_tree_path_free(path);
     g_value_unset(&id);
@@ -969,8 +973,8 @@ static void decrease_rule_priority_callback(GtkWidget *widget, gpointer user_dat
                                             1);
 
     ctk_config_statusbar_message(ctk_app_profile->ctk_config,
-                                 "Priority of rule decreased. %s",
-                                 STATUSBAR_UPDATE_WARNING);
+                                 _("Priority of rule decreased. %s"),
+                                 _(STATUSBAR_UPDATE_WARNING));
 
     gtk_tree_path_free(path);
     g_value_unset(&id);
@@ -1116,11 +1120,11 @@ static void edit_rule_dialog_load_values(EditRuleDialog *dialog)
 
     // window title
     gtk_window_set_title(GTK_WINDOW(dialog->top_window),
-                         dialog->new_rule ? "Add new rule" : "Edit existing rule");
+                         dialog->new_rule ? _("Add new rule") : _("Edit existing rule"));
 
     // add/edit button
     tool_button_set_label_and_stock_icon(
-        GTK_TOOL_BUTTON(dialog->add_edit_rule_button), "Update Rule",
+        GTK_TOOL_BUTTON(dialog->add_edit_rule_button), _("Update Rule"),
         dialog->new_rule ? GTK_STOCK_ADD : GTK_STOCK_PREFERENCES);
 
     // source file
@@ -1314,8 +1318,8 @@ static void delete_rule_callback_common(CtkAppProfile *ctk_app_profile)
                              path, NULL, FALSE);
 
     ctk_config_statusbar_message(ctk_app_profile->ctk_config,
-                                 "Rule deleted. %s",
-                                 STATUSBAR_UPDATE_WARNING);
+                                 _("Rule deleted. %s"),
+                                 _(STATUSBAR_UPDATE_WARNING));
 
     gtk_tree_path_free(path);
 }
@@ -1350,7 +1354,7 @@ static gboolean rule_browse_button_clicked(GtkWidget *widget, gpointer user_data
     EditRuleDialog *dialog = (EditRuleDialog *)user_data;
     const gchar *filename = dialog->source_file->str;
     gchar *selected_filename =
-        ctk_get_filename_from_dialog("Please select a source file for the rule",
+        ctk_get_filename_from_dialog(_("Please select a source file for the rule"),
                                      GTK_WINDOW(dialog->top_window),
                                      filename);
 
@@ -1368,7 +1372,7 @@ static gboolean profile_browse_button_clicked(GtkWidget *widget, gpointer user_d
     EditProfileDialog *dialog = (EditProfileDialog *)user_data;
     const gchar *filename = dialog->source_file->str;
     gchar *selected_filename =
-        ctk_get_filename_from_dialog("Please select a source file for the profile",
+        ctk_get_filename_from_dialog(_("Please select a source file for the profile"),
                                      GTK_WINDOW(dialog->top_window), filename);
 
     if (selected_filename) {
@@ -1381,28 +1385,28 @@ static gboolean profile_browse_button_clicked(GtkWidget *widget, gpointer user_d
 }
 
 static const char __rule_pattern_help[] =
-    "In this section, you write the pattern that will be used to determine whether "
-    "the settings in this rule will apply to a given application.";
+    N_("In this section, you write the pattern that will be used to determine whether "
+    "the settings in this rule will apply to a given application.");
 
 static const char __rule_pattern_extended_help[] =
-    "A pattern is comprised of two parts: a feature of the "
+    N_("A pattern is comprised of two parts: a feature of the "
     "process which will be retrieved by the driver at runtime, and a string against "
     "which the driver will compare the feature and determine if there is a match. "
     "If the pattern matches, then the settings determined by the rule's associated "
     "profile will be applied to the process, assuming they don't conflict with "
     "settings determined by other matching rules with higher priority.\n\n"
-    "See the \"Supported Features\" help section for a list of supported features.";
+    "See the \"Supported Features\" help section for a list of supported features.");
 
 static const char __rule_profile_help[] =
-    "In this section, you choose the profile that will be applied if the rule's pattern "
-    "matches a given process.";
+    N_("In this section, you choose the profile that will be applied if the rule's pattern "
+    "matches a given process.");
 
 static const char __rule_profile_extended_help[] =
-    "This section contains a drop-down box for choosing a profile name, and convenience "
+    N_("This section contains a drop-down box for choosing a profile name, and convenience "
     "buttons for modifying an existing profile or creating a new profile to be used by "
     "the rule. This section also has a table which lets you preview the settings that "
     "will be applied by the given profile. The table is read-only: to modify individual "
-    "settings, click the \"Edit Profile\" button.";
+    "settings, click the \"Edit Profile\" button.");
 
 static void config_create_source_file_entry(CtkConfig *ctk_config,
                                             GtkWidget **pcontainer,
@@ -1424,14 +1428,14 @@ static void config_create_source_file_entry(CtkConfig *ctk_config,
     hbox = gtk_hbox_new(FALSE, 0);
     gtk_box_set_spacing(GTK_BOX(hbox), 4);
 
-    label = gtk_label_new("Source File");
+    label = gtk_label_new(_("Source File"));
 
-    g_string_printf(help_string, "You can specify the source file where the %s is defined in this drop-down box.", name);
+    g_string_printf(help_string, _("You can specify the source file where the %s is defined in this drop-down box."), _(name));
 
     ctk_config_set_tooltip_and_add_help_data(ctk_config,
                                          label,
                                          help_data_list,
-                                         "Source File",
+                                         _("Source File"),
                                          help_string->str,
                                          NULL);
 
@@ -1439,15 +1443,15 @@ static void config_create_source_file_entry(CtkConfig *ctk_config,
     browse_button = gtk_button_new();
 
     button_set_label_and_stock_icon(GTK_BUTTON(browse_button),
-                                    "Browse...", GTK_STOCK_OPEN);
+                                    _("Browse..."), GTK_STOCK_OPEN);
 
-    g_string_printf(help_string, "Clicking this button opens a file selection dialog box which allows you to choose an "
-                                 "appropriate configuration file for the %s.", name);
+    g_string_printf(help_string, _("Clicking this button opens a file selection dialog box which allows you to choose an "
+                                 "appropriate configuration file for the %s."), _(name));
 
     ctk_config_set_tooltip_and_add_help_data(ctk_config,
                                          browse_button,
                                          help_data_list,
-                                         "Browse...",
+                                         _("Browse..."),
                                          help_string->str,
                                          NULL);
 
@@ -1481,7 +1485,7 @@ static GtkWidget *create_feature_menu(EditRuleDialog *dialog)
 
     for (i = 0; i < NUM_RULE_FEATURES; i++) {
         ctk_drop_down_menu_append_item(CTK_DROP_DOWN_MENU(dialog->feature_menu),
-                                       rule_feature_label_strings[i], i);
+                                       _(rule_feature_label_strings[i]), i);
     }
 
     dialog->feature_changed_signal =
@@ -1591,7 +1595,7 @@ static GtkWidget *create_rule_profile_name_entry(EditRuleDialog *dialog)
 
     hbox = gtk_hbox_new(FALSE, 8);
 
-    label = gtk_label_new("Profile Name");
+    label = gtk_label_new(_("Profile Name"));
     gtk_misc_set_alignment(GTK_MISC(label), 0, 0.5);
     gtk_box_pack_start(GTK_BOX(hbox), label, FALSE, FALSE, 0);
 
@@ -1604,13 +1608,13 @@ static GtkWidget *create_rule_profile_name_entry(EditRuleDialog *dialog)
                          G_CALLBACK(rule_profile_name_changed),
                          (gpointer)dialog);
 
-    button = gtk_button_new_with_label("Edit Profile");
+    button = gtk_button_new_with_label(_("Edit Profile"));
     gtk_box_pack_start(GTK_BOX(hbox), button, FALSE, FALSE, 0);
     g_signal_connect(G_OBJECT(button), "clicked",
                      G_CALLBACK(rule_profile_entry_edit_profile_button_clicked),
                      (gpointer)dialog);
 
-    button = gtk_button_new_with_label("New Profile");
+    button = gtk_button_new_with_label(_("New Profile"));
     gtk_box_pack_start(GTK_BOX(hbox), button, FALSE, FALSE, 0);
     g_signal_connect(G_OBJECT(button), "clicked",
                      G_CALLBACK(rule_profile_entry_new_profile_button_clicked),
@@ -1785,24 +1789,24 @@ static gboolean run_error_dialog(GtkWindow *window,
     error_string = g_string_new("");
     if (fatal_errors->len) {
         g_string_append_printf(error_string,
-                               "nvidia-settings encountered the following configuration errors:\n\n"
-                               "%s\n",
+                               _("nvidia-settings encountered the following configuration errors:\n\n"
+                               "%s\n"),
                                fatal_errors->str);
     }
     if (nonfatal_errors->len) {
         g_string_append_printf(error_string,
-                               "%snvidia-settings encountered the following configuration issues:\n\n"
-                               "%s\n",
-                               fatal_errors->len ? "Also, " : "", nonfatal_errors->str);
+                               _("%snvidia-settings encountered the following configuration issues:\n\n"
+                               "%s\n"),
+                               fatal_errors->len ? _("Also, ") : "", nonfatal_errors->str);
     }
 
     if (fatal_errors->len) {
         g_string_append_printf(error_string,
-                               "Please fix the configuration errors before attempting to %s.\n",
+                               _("Please fix the configuration errors before attempting to %s.\n"),
                                op_string);
     } else {
         g_string_append_printf(error_string,
-                               "Continue to %s anyway?\n", op_string);
+                               _("Continue to %s anyway?\n"), op_string);
     }
 
     error_dialog = gtk_message_dialog_new(window,
@@ -1847,20 +1851,20 @@ static gboolean edit_rule_dialog_validate(EditRuleDialog *dialog)
     nonfatal_errors = g_string_new("");
 
     if (!check_valid_source_file(ctk_app_profile, dialog->source_file->str, &reason)) {
-        g_string_append_printf(fatal_errors, "%s\tThe source filename \"%s\" is not valid in this configuration "
-                                             "because %s\n", get_bullet(), dialog->source_file->str, reason);
+        g_string_append_printf(fatal_errors, _("%s\tThe source filename \"%s\" is not valid in this configuration "
+                                             "because %s\n"), get_bullet(), dialog->source_file->str, reason);
         free(reason);
     }
 
     if (!ctk_apc_profile_model_get_profile(ctk_app_profile->apc_profile_model, dialog->profile_name->str)) {
-        g_string_append_printf(nonfatal_errors, "%s\tThe profile \"%s\" referenced by this rule does not exist.\n",
+        g_string_append_printf(nonfatal_errors, _("%s\tThe profile \"%s\" referenced by this rule does not exist.\n"),
                                get_bullet(), dialog->profile_name->str);
     }
 
     success = run_error_dialog(GTK_WINDOW(dialog->top_window),
                                fatal_errors,
                                nonfatal_errors,
-                               "save this rule");
+                               _("save this rule"));
 
     g_string_free(fatal_errors, TRUE);
     g_string_free(nonfatal_errors, TRUE);
@@ -1910,8 +1914,8 @@ static void edit_rule_dialog_save_changes(GtkWidget *widget, gpointer user_data)
     gtk_widget_hide(dialog->top_window);
 
     ctk_config_statusbar_message(ctk_app_profile->ctk_config,
-                                 "Rule updated. %s",
-                                 STATUSBAR_UPDATE_WARNING);
+                                 _("Rule updated. %s"),
+                                 _(STATUSBAR_UPDATE_WARNING));
 }
 
 static void edit_rule_dialog_cancel(GtkWidget *widget, gpointer user_data)
@@ -1932,16 +1936,16 @@ static ToolbarItemTemplate *get_edit_rule_dialog_toolbar_items(EditRuleDialog *d
             .flags = TOOLBAR_ITEM_USE_SEPARATOR,
         },
         {
-            .text = UPDATE_RULE_LABEL,
-            .help_text = "The Update Rule button allows you to save changes made to the rule definition.",
+            .text = _(UPDATE_RULE_LABEL),
+            .help_text = _("The Update Rule button allows you to save changes made to the rule definition."),
             .icon_id = GTK_STOCK_SAVE,
             .callback = G_CALLBACK(edit_rule_dialog_save_changes),
             .user_data = dialog,
             .flags = 0,
         },
         {
-            .text = "Cancel",
-            .help_text = "The Cancel button allows you to discard any changes made to the rule definition.",
+            .text = _("Cancel"),
+            .help_text = _("The Cancel button allows you to discard any changes made to the rule definition."),
             .icon_id = GTK_STOCK_CANCEL,
             .callback = G_CALLBACK(edit_rule_dialog_cancel),
             .user_data = dialog,
@@ -1987,34 +1991,34 @@ static EditRuleDialog* edit_rule_dialog_new(CtkAppProfile *ctk_app_profile)
 
     const TreeViewColumnTemplate settings_tree_view_columns[] = {
         {
-            .title = "Key",
+            .title = _("Key"),
             .renderer_func = setting_key_renderer_func,
             .func_data = NULL,
             .min_width = 200,
-            .help_text = "Each entry in the \"Key\" column describes a key for a setting."
+            .help_text = _("Each entry in the \"Key\" column describes a key for a setting.")
         },
         {
-            .title = "Expected Type",
+            .title = _("Expected Type"),
             .renderer_func = setting_expected_type_renderer_func,
             .min_width = 80,
             .func_data = ctk_app_profile->key_docs,
-            .help_text = "Each entry in the \"Expected Type\" column describes the type "
+            .help_text = _("Each entry in the \"Expected Type\" column describes the type "
                          "expected for a known setting key. Unrecognized keys may have an "
-                         "unspecified type."
+                         "unspecified type.")
         },
         {
-            .title = "Current Type",
+            .title = _("Current Type"),
             .renderer_func = setting_type_renderer_func,
             .min_width = 80,
             .func_data = NULL,
-            .help_text = "Each entry in the \"Current Type\" column describes the current type for "
-                         "a setting value."
+            .help_text = _("Each entry in the \"Current Type\" column describes the current type for "
+                         "a setting value.")
         },
         {
-            .title = "Value",
+            .title = _("Value"),
             .renderer_func = setting_value_renderer_func,
             .func_data = NULL,
-            .help_text = "Each entry in the \"Value\" column describes the value of a setting."
+            .help_text = _("Each entry in the \"Value\" column describes the value of a setting.")
         }
     };
 
@@ -2052,13 +2056,13 @@ static EditRuleDialog* edit_rule_dialog_new(CtkAppProfile *ctk_app_profile)
                                     &container,
                                     &dialog->source_file_combo,
                                     &dialog->help_data,
-                                    "rule",
+                                    N_("rule"),
                                     G_CALLBACK(rule_browse_button_clicked),
                                     (gpointer)dialog);
 
     gtk_box_pack_start(GTK_BOX(main_vbox), container, FALSE, FALSE, 0);
 
-    frame = gtk_frame_new("Rule Pattern");
+    frame = gtk_frame_new(_("Rule Pattern"));
     gtk_frame_set_shadow_type(GTK_FRAME(frame), GTK_SHADOW_IN);
 
     label = gtk_frame_get_label_widget(GTK_FRAME(frame));
@@ -2066,28 +2070,28 @@ static EditRuleDialog* edit_rule_dialog_new(CtkAppProfile *ctk_app_profile)
     ctk_config_set_tooltip_and_add_help_data(ctk_app_profile->ctk_config,
                                          label,
                                          &dialog->help_data,
-                                         "Rule Pattern",
-                                         __rule_pattern_help,
-                                         __rule_pattern_extended_help);
+                                         _("Rule Pattern"),
+                                         _(__rule_pattern_help),
+                                         _(__rule_pattern_extended_help));
 
     // Add widgets to the "Rule Pattern" section
     vbox = gtk_vbox_new(FALSE, 0);
     gtk_container_set_border_width(GTK_CONTAINER(vbox), 4);
 
-    label = gtk_label_new("The following profile will be used if...");
+    label = gtk_label_new(_("The following profile will be used if..."));
     gtk_misc_set_alignment(GTK_MISC(label), 0, 0.5);
     gtk_box_pack_start(GTK_BOX(vbox), label, FALSE, FALSE, 0);
 
     table = gtk_table_new(2, 2, FALSE);
 
-    label = gtk_label_new("This feature:");
+    label = gtk_label_new(_("This feature:"));
     gtk_misc_set_alignment(GTK_MISC(label), 0, 0.5);
     gtk_table_attach_defaults(GTK_TABLE(table), label, 0, 1, 0, 1);
 
     feature_menu = create_feature_menu(dialog);
     gtk_table_attach_defaults(GTK_TABLE(table), feature_menu, 1, 2, 0, 1);
 
-    label = gtk_label_new("Matches this string:");
+    label = gtk_label_new(_("Matches this string:"));
     gtk_misc_set_alignment(GTK_MISC(label), 0, 0.5);
     gtk_table_attach_defaults(GTK_TABLE(table), label, 0, 1, 1, 2);
 
@@ -2101,7 +2105,7 @@ static EditRuleDialog* edit_rule_dialog_new(CtkAppProfile *ctk_app_profile)
 
     gtk_box_pack_start(GTK_BOX(main_vbox), frame, FALSE, FALSE, 0);
 
-    frame = gtk_frame_new("Rule Profile");
+    frame = gtk_frame_new(_("Rule Profile"));
     gtk_frame_set_shadow_type(GTK_FRAME(frame), GTK_SHADOW_IN);
 
     label = gtk_frame_get_label_widget(GTK_FRAME(frame));
@@ -2109,9 +2113,9 @@ static EditRuleDialog* edit_rule_dialog_new(CtkAppProfile *ctk_app_profile)
     ctk_config_set_tooltip_and_add_help_data(ctk_app_profile->ctk_config,
                                          label,
                                          &dialog->help_data,
-                                         "Rule Profile",
-                                         __rule_profile_help,
-                                         __rule_profile_extended_help);
+                                         _("Rule Profile"),
+                                         _(__rule_profile_help),
+                                         _(__rule_profile_extended_help));
 
     vbox = gtk_vbox_new(FALSE, 8);
     gtk_container_set_border_width(GTK_CONTAINER(vbox), 8);
@@ -2119,7 +2123,7 @@ static EditRuleDialog* edit_rule_dialog_new(CtkAppProfile *ctk_app_profile)
     profile_name_entry = create_rule_profile_name_entry(dialog);
     gtk_box_pack_start(GTK_BOX(vbox), profile_name_entry, FALSE, FALSE, 0);
 
-    label = gtk_label_new("This profile will apply the following settings...");
+    label = gtk_label_new(_("This profile will apply the following settings..."));
     gtk_misc_set_alignment(GTK_MISC(label), 0, 0.5);
     gtk_box_pack_start(GTK_BOX(vbox), label, FALSE, FALSE, 0);
 
@@ -2155,7 +2159,7 @@ static EditRuleDialog* edit_rule_dialog_new(CtkAppProfile *ctk_app_profile)
     dialog->help_data = g_list_concat(dialog->help_data, toolbar_help_items);
 
     // Save off the "Update Rule" button for later use
-    dialog->add_edit_rule_button = find_widget_in_widget_data_list(toolbar_widget_items, UPDATE_RULE_LABEL);
+    dialog->add_edit_rule_button = find_widget_in_widget_data_list(toolbar_widget_items, _(UPDATE_RULE_LABEL));
 
     widget_data_list_free_full(toolbar_widget_items);
 
@@ -2215,11 +2219,11 @@ static void edit_profile_dialog_settings_new_row(GtkTreeView *tree_view,
         s = json_string_value(json_object_get(key_obj, "key"));
 
         expected_type = get_type_from_string(get_expected_type_string_from_key(key_docs, s));
-        column_to_edit = lookup_column_number_by_name(tree_view, "Value");
+        column_to_edit = lookup_column_number_by_name(tree_view, _("Value"));
     } else {
         s = "";
         expected_type = -1;
-        column_to_edit = lookup_column_number_by_name(tree_view, "Key");
+        column_to_edit = lookup_column_number_by_name(tree_view, _("Key"));
     }
 
     json_object_set_new(setting, "key", json_string(s));
@@ -2407,7 +2411,7 @@ static gboolean edit_profile_dialog_validate(EditProfileDialog *dialog)
     nonfatal_errors = g_string_new("");
 
     if (!strcmp(dialog->name->str, "")) {
-        g_string_append_printf(nonfatal_errors, "%s\tThe profile name is empty.\n", get_bullet());
+        g_string_append_printf(nonfatal_errors, _("%s\tThe profile name is empty.\n"), get_bullet());
     }
 
     if ((dialog->new_profile || strcmp(dialog->name->str, dialog->orig_name->str)) &&
@@ -2415,34 +2419,34 @@ static gboolean edit_profile_dialog_validate(EditProfileDialog *dialog)
                                           dialog->name->str)) {
         if (dialog->new_profile) {
             g_string_append_printf(nonfatal_errors,
-                                   "%s\tA profile with the name \"%s\" already exists and will be "
-                                   "overwritten.\n",
+                                   _("%s\tA profile with the name \"%s\" already exists and will be "
+                                   "overwritten.\n"),
                                    get_bullet(), dialog->name->str);
         } else {
             g_string_append_printf(nonfatal_errors,
-                                   "%s\tRenaming this profile from \"%s\" to \"%s\" will "
-                                   "overwrite an existing profile.\n", get_bullet(),
+                                   _("%s\tRenaming this profile from \"%s\" to \"%s\" will "
+                                   "overwrite an existing profile.\n"), get_bullet(),
                                    dialog->orig_name->str,
                                    dialog->name->str);
         }
     }
 
     if (!check_valid_source_file(ctk_app_profile, dialog->source_file->str, &reason)) {
-        g_string_append_printf(fatal_errors, "%s\tThe source filename \"%s\" is not valid in this configuration "
-                                             "because %s\n", get_bullet(), dialog->source_file->str, reason);
+        g_string_append_printf(fatal_errors, _("%s\tThe source filename \"%s\" is not valid in this configuration "
+                                             "because %s\n"), get_bullet(), dialog->source_file->str, reason);
         free(reason);
     }
 
     if (check_unrecognized_setting_keys(dialog->settings, ctk_app_profile->key_docs)) {
-        g_string_append_printf(nonfatal_errors, "%s\tThis profile has settings with keys that may not be recognized "
+        g_string_append_printf(nonfatal_errors, _("%s\tThis profile has settings with keys that may not be recognized "
                                                 "by the NVIDIA graphics driver. Consult the on-line help for a list "
-                                                "of valid keys.\n", get_bullet());
+                                                "of valid keys.\n"), get_bullet());
     }
 
     success = run_error_dialog(GTK_WINDOW(dialog->top_window),
                                fatal_errors,
                                nonfatal_errors,
-                               "save this profile");
+                               _("save this profile"));
 
     g_string_free(fatal_errors, TRUE);
     g_string_free(nonfatal_errors, TRUE);
@@ -2517,12 +2521,12 @@ static void edit_profile_dialog_save_changes(GtkWidget *widget, gpointer user_da
     json_decref(profile_json);
 
     ctk_config_statusbar_message(ctk_app_profile->ctk_config,
-                                 "Profile \"%s\" updated. %s%s",
+                                 _("Profile \"%s\" updated. %s%s"),
                                  profile_dialog->name->str,
                                  rules_fixed_up ?
-                                 "Some rules have been updated to refer "
-                                 "to the new profile name. " : "",
-                                 STATUSBAR_UPDATE_WARNING);
+                                 _("Some rules have been updated to refer "
+                                 "to the new profile name. ") : "",
+                                 _(STATUSBAR_UPDATE_WARNING));
 
     // Close the window, and re-sensitize the caller
     gtk_widget_set_sensitive(profile_dialog->caller, TRUE);
@@ -2546,35 +2550,35 @@ static void get_profile_dialog_toolbar_items(EditProfileDialog *dialog,
 {
     const ToolbarItemTemplate settings_items[] = {
         {
-            .text = "Choose Key Drop Down",
-            .help_text = "The Key Drop Down allows you to select the registry setting key to add.",
+            .text = _("Choose Key Drop Down"),
+            .help_text = _("The Key Drop Down allows you to select the registry setting key to add."),
             .init_callback = populate_registry_key_combo_callback,
             .init_data = dialog,
             .flags = TOOLBAR_ITEM_USE_WIDGET
         },
         {
-            .text = "Add Setting",
-            .help_text = "The Add Setting button allows you to create a new setting in the profile.",
+            .text = _("Add Setting"),
+            .help_text = _("The Add Setting button allows you to create a new setting in the profile."),
             .icon_id = GTK_STOCK_ADD,
             .callback = G_CALLBACK(edit_profile_dialog_add_setting),
             .user_data = dialog,
             .flags = 0,
         },
         {
-            .text = "Delete Setting",
-            .help_text = "The Delete Setting button allows you to delete a highlighted setting from the profile.",
-            .extended_help_text = "A setting can also be deleted from the profile by highlighting it in the list "
-                                  "and hitting the Delete key.",
+            .text = _("Delete Setting"),
+            .help_text = _("The Delete Setting button allows you to delete a highlighted setting from the profile."),
+            .extended_help_text = _("A setting can also be deleted from the profile by highlighting it in the list "
+                                  "and hitting the Delete key."),
             .icon_id = GTK_STOCK_REMOVE,
             .callback = G_CALLBACK(edit_profile_dialog_delete_setting),
             .user_data = dialog,
             .flags = TOOLBAR_ITEM_GHOST_IF_NOTHING_SELECTED
         },
         {
-            .text = "Edit Setting",
-            .help_text = "The Edit Setting button allows you to edit a highlighted setting in the profile.",
-            .extended_help_text = "This will activate an entry box in the setting's key column. To modify the setting's "
-                                  "value, hit the Tab key or Right Arrow key, or double-click on the value.",
+            .text = _("Edit Setting"),
+            .help_text = _("The Edit Setting button allows you to edit a highlighted setting in the profile."),
+            .extended_help_text = _("This will activate an entry box in the setting's key column. To modify the setting's "
+                                  "value, hit the Tab key or Right Arrow key, or double-click on the value."),
             .icon_id = GTK_STOCK_PREFERENCES,
             .callback = G_CALLBACK(edit_profile_dialog_edit_setting),
             .user_data = dialog,
@@ -2588,16 +2592,16 @@ static void get_profile_dialog_toolbar_items(EditProfileDialog *dialog,
             .flags = TOOLBAR_ITEM_USE_SEPARATOR,
         },
         {
-            .text = UPDATE_PROFILE_LABEL,
-            .help_text = "The Update Profile button allows you to save changes made to the profile definition.",
+            .text = _(UPDATE_PROFILE_LABEL),
+            .help_text = _("The Update Profile button allows you to save changes made to the profile definition."),
             .icon_id = GTK_STOCK_SAVE,
             .callback = G_CALLBACK(edit_profile_dialog_save_changes),
             .user_data = dialog,
             .flags = 0,
         },
         {
-            .text = "Cancel",
-            .help_text = "The Cancel button allows you to discard any changes made to the profile definition.",
+            .text = _("Cancel"),
+            .help_text = _("The Cancel button allows you to discard any changes made to the profile definition."),
             .icon_id = GTK_STOCK_CANCEL,
             .callback = G_CALLBACK(edit_profile_dialog_cancel),
             .user_data = dialog,
@@ -2671,9 +2675,9 @@ static void setting_key_edited(GtkCellRendererText *renderer,
                                               ctk_app_profile->key_docs);
     if (!canonical_key) {
         edit_profile_dialog_statusbar_message(dialog,
-            "The key [%s] is not recognized by nvidia-settings. "
+            _("The key [%s] is not recognized by nvidia-settings. "
             "Please check for spelling errors (keys "
-            "are NOT case sensitive).", new_text);
+            "are NOT case sensitive)."), new_text);
     }
 
     if (canonical_key) {
@@ -2820,18 +2824,18 @@ static void setting_value_edited(GtkCellRendererText *renderer,
 
     if (!value) {
         edit_profile_dialog_statusbar_message(dialog,
-            "The value [%s] was not understood by the JSON parser.",
+            _("The value [%s] was not understood by the JSON parser."),
             new_text);
         update_value = FALSE;
     } else if (!is_valid_setting_value(value, &invalid_type_str)) {
         edit_profile_dialog_statusbar_message(dialog,
-            "A value of type \"%s\" is not allowed in the configuration.",
+            _("A value of type \"%s\" is not allowed in the configuration."),
             invalid_type_str);
         update_value = FALSE;
     } else if (!is_expected_setting_value(value, expected_type)) {
         edit_profile_dialog_statusbar_message(dialog,
-            "The parsed type of the value entered does not match the type "
-            "expected.");
+            _("The parsed type of the value entered does not match the type "
+            "expected."));
     }
 
     if (update_value) {
@@ -2851,48 +2855,48 @@ static TreeViewColumnTemplate *get_profile_settings_tree_view_columns(EditProfil
     CtkAppProfile *ctk_app_profile = CTK_APP_PROFILE(dialog->parent);
     const TreeViewColumnTemplate settings_tree_view_columns[] = {
         {
-            .title = "Key",
+            .title = _("Key"),
             .renderer_func = setting_key_renderer_func,
             .func_data = dialog,
             .min_width = 200,
             .editable = TRUE,
             .edit_callback = G_CALLBACK(setting_key_edited),
-            .help_text = "Each entry in the \"Key\" column describes a key for a setting. "
+            .help_text = _("Each entry in the \"Key\" column describes a key for a setting. "
                          "Any string is a valid key in the configuration, but only some strings "
                          "will be understood by the driver at runtime. See the \"Supported Setting Keys\" "
                          "section in the Application Profiles help page for a list of valid "
                          "application profile setting keys. To edit a setting key, double-click "
-                         "on the cell containing the key."
+                         "on the cell containing the key.")
         },
         {
-            .title = "Expected Type",
+            .title = _("Expected Type"),
             .renderer_func = setting_expected_type_renderer_func,
             .min_width = 80,
             .func_data = ctk_app_profile->key_docs,
-            .help_text = "Each entry in the \"Expected Type\" column describes the type "
+            .help_text = _("Each entry in the \"Expected Type\" column describes the type "
                          "expected for a known setting key. Unrecognized keys may have an "
-                         "unspecified type. This column is read-only"
+                         "unspecified type. This column is read-only")
         },
         {
-            .title = "Current Type",
+            .title = _("Current Type"),
             .renderer_func = setting_type_renderer_func,
             .min_width = 80,
             .func_data = NULL,
-            .help_text = "Each entry in the \"Current Type\" column describes the underlying JSON type for "
+            .help_text = _("Each entry in the \"Current Type\" column describes the underlying JSON type for "
                          "a setting value. Supported JSON types are: string, true, false, and number. "
-                         "This column is read-only."
+                         "This column is read-only.")
         },
         {
-            .title = "Value",
+            .title = _("Value"),
             .renderer_func = setting_value_renderer_func,
             .func_data = dialog,
             .editable = TRUE,
             .edit_callback = G_CALLBACK(setting_value_edited),
-            .help_text = "Each entry in the \"Value\" column describes the value of a setting. To "
+            .help_text = _("Each entry in the \"Value\" column describes the value of a setting. To "
                          "edit a setting value, double-click on the cell containing the value. "
                          "Valid input is: an arbitrary string in double-quotes, true, false, or "
                          "an integer or floating-point number. Numbers can optionally be written in "
-                         "hexadecimal or octal."
+                         "hexadecimal or octal.")
         }
     };
 
@@ -2947,12 +2951,12 @@ static gboolean edit_profile_dialog_generate_name_button_clicked(GtkWidget *widg
     return FALSE;
 }
 
-static const char __profile_name_help[] = "This entry box contains the current profile name, which is a unique identifier for "
+static const char __profile_name_help[] = N_("This entry box contains the current profile name, which is a unique identifier for "
                                           "this profile. Renaming the profile to an existing profile will cause the existing "
-                                          "profile to be overwritten with this profile's contents.";
-static const char __generate_name_button_help[] = "This button generates a unique name that is not currently used "
+                                          "profile to be overwritten with this profile's contents.");
+static const char __generate_name_button_help[] = N_("This button generates a unique name that is not currently used "
                                                   "by the configuration. This can be used to quickly add a new profile without "
-                                                  "needing to worry about collisions with existing profile names.";
+                                                  "needing to worry about collisions with existing profile names.");
 
 static EditProfileDialog *edit_profile_dialog_new(CtkAppProfile *ctk_app_profile)
 {
@@ -3018,23 +3022,23 @@ static EditProfileDialog *edit_profile_dialog_new(CtkAppProfile *ctk_app_profile
     hbox = gtk_hbox_new(FALSE, 0);
     gtk_box_set_spacing(GTK_BOX(hbox), 4);
 
-    label = gtk_label_new("Profile Name");
+    label = gtk_label_new(_("Profile Name"));
     dialog->name_entry = entry = gtk_entry_new();
 
     ctk_config_set_tooltip_and_add_help_data(ctk_app_profile->ctk_config,
                                          label,
                                          &dialog->top_help_data,
-                                         "Profile Name",
-                                         __profile_name_help,
+                                         _("Profile Name"),
+                                         _(__profile_name_help),
                                          NULL);
 
-    dialog->generate_name_button = button = gtk_button_new_with_label("Generate Name");
+    dialog->generate_name_button = button = gtk_button_new_with_label(_("Generate Name"));
 
     ctk_config_set_tooltip_and_add_help_data(ctk_app_profile->ctk_config,
                                          button,
                                          &dialog->top_help_data,
-                                         "Generate Name",
-                                         __generate_name_button_help,
+                                         _("Generate Name"),
+                                         _(__generate_name_button_help),
                                          NULL);
 
     dialog->top_help_data = g_list_reverse(dialog->top_help_data);
@@ -3053,7 +3057,7 @@ static EditProfileDialog *edit_profile_dialog_new(CtkAppProfile *ctk_app_profile
                                     &container,
                                     &dialog->source_file_combo,
                                     &dialog->top_help_data,
-                                    "profile",
+                                    N_("profile"),
                                     G_CALLBACK(profile_browse_button_clicked),
                                     (gpointer)dialog);
 
@@ -3108,7 +3112,7 @@ static EditProfileDialog *edit_profile_dialog_new(CtkAppProfile *ctk_app_profile
                      NULL);
 
     // Save off the "Update Profile" button for later use
-    dialog->add_edit_profile_button = find_widget_in_widget_data_list(toolbar_widget_items, UPDATE_PROFILE_LABEL);
+    dialog->add_edit_profile_button = find_widget_in_widget_data_list(toolbar_widget_items, _(UPDATE_PROFILE_LABEL));
 
     widget_data_list_free_full(toolbar_widget_items);
 
@@ -3154,54 +3158,54 @@ static GtkWidget* create_rules_page(CtkAppProfile *ctk_app_profile)
 
     const ToolbarItemTemplate rules_toolbar_items[] = {
         {
-            .text = "Add Rule",
-            .help_text = "The Add Rule button allows you to create a new rule for applying custom settings "
-                         "to applications which match a given pattern.",
-            .extended_help_text = "See the \"Add/Edit Rule Dialog Box\" help section for more "
-                                  "information on adding new rules.",
+            .text = _("Add Rule"),
+            .help_text = _("The Add Rule button allows you to create a new rule for applying custom settings "
+                         "to applications which match a given pattern."),
+            .extended_help_text = _("See the \"Add/Edit Rule Dialog Box\" help section for more "
+                                  "information on adding new rules."),
             .icon_id = GTK_STOCK_ADD,
             .callback = (GCallback)add_rule_callback,
             .user_data = ctk_app_profile,
             .flags = 0,
         },
         {
-            .text = "Delete Rule",
-            .help_text = "The Delete Rule button allows you to remove a highlighted rule from the list.",
+            .text = _("Delete Rule"),
+            .help_text = _("The Delete Rule button allows you to remove a highlighted rule from the list."),
             .icon_id = GTK_STOCK_REMOVE,
             .callback = (GCallback)delete_rule_callback,
             .user_data = ctk_app_profile,
             .flags = TOOLBAR_ITEM_GHOST_IF_NOTHING_SELECTED
         },
         {
-            .text = "Increase Rule Priority",
-            .help_text = "This increases the priority of the highlighted rule in the list. If multiple rules "
+            .text = _("Increase Rule Priority"),
+            .help_text = _("This increases the priority of the highlighted rule in the list. If multiple rules "
                          "with a conflicting driver setting match the same application, the application will "
-                         "take on the setting value of the highest-priority rule (lowest number) in the list.",
-            .extended_help_text = "Note that the priority of a rule is partially determined by the source file "
+                         "take on the setting value of the highest-priority rule (lowest number) in the list."),
+            .extended_help_text = _("Note that the priority of a rule is partially determined by the source file "
                                   "where the rule is defined, since the NVIDIA driver prioritizes rules based "
                                   "on their position along the configuration file search path. Hence, nvidia-settings "
                                   "may move the rule to a different source file if it is necessary for the rule to achieve "
-                                  "a particular priority.",
+                                  "a particular priority."),
             .icon_id = GTK_STOCK_GO_UP,
             .callback = (GCallback)increase_rule_priority_callback,
             .user_data = ctk_app_profile,
             .flags = TOOLBAR_ITEM_GHOST_IF_NOTHING_SELECTED
         },
         {
-            .text = "Decrease Rule Priority",
-            .help_text = "This decreases the priority of the highlighted rule in the list. If multiple rules "
+            .text = _("Decrease Rule Priority"),
+            .help_text = _("This decreases the priority of the highlighted rule in the list. If multiple rules "
                          "with a conflicting driver setting match the same application, the application will "
-                         "take on the setting value of the highest-priority rule (lowest number) in the list.",
+                         "take on the setting value of the highest-priority rule (lowest number) in the list."),
             .icon_id = GTK_STOCK_GO_DOWN,
             .callback = (GCallback)decrease_rule_priority_callback,
             .user_data = ctk_app_profile,
             .flags = TOOLBAR_ITEM_GHOST_IF_NOTHING_SELECTED
         },
         {
-            .text = "Edit Rule",
-            .help_text = "The Edit Rule button allows you to edit a highlighted rule in the list.",
-            .extended_help_text = "See the \"Add/Edit Rule Dialog Box\" help section for more "
-                                  "information on editing rules.",
+            .text = _("Edit Rule"),
+            .help_text = _("The Edit Rule button allows you to edit a highlighted rule in the list."),
+            .extended_help_text = _("See the \"Add/Edit Rule Dialog Box\" help section for more "
+                                  "information on editing rules."),
             // Would be nice to use GTK_STOCK_EDIT here, but unfortunately only
             // available from 2.6 onwards...
             .icon_id = GTK_STOCK_PREFERENCES,
@@ -3214,46 +3218,46 @@ static GtkWidget* create_rules_page(CtkAppProfile *ctk_app_profile)
     const TreeViewColumnTemplate rules_tree_view_columns[] = {
         // TODO asterisk column to denote changes
         {
-            .title = "Priority",
+            .title = _("Priority"),
             .renderer_func = rule_order_renderer_func,
             .func_data = NULL,
-            .help_text = "This column describes the priority of each rule in the configuration. "
+            .help_text = _("This column describes the priority of each rule in the configuration. "
                          "If two rules match the same process and affect settings which overlap, "
                          "the overlapping settings will be set to the values specified by the rule "
-                         "with the lower number (higher priority) in this column."
+                         "with the lower number (higher priority) in this column.")
         },
         {
-            .title = "Pattern",
+            .title = _("Pattern"),
             .renderer_func = rule_pattern_renderer_func,
             .func_data = NULL,
-            .help_text = "This column describes the pattern against which the driver will compare "
-                         "the currently running process to determine if it should apply profile settings. ",
-            .extended_help_text = "See the \"Supported Features\" help section for more information on "
-                                  "supported pattern types."
+            .help_text = _("This column describes the pattern against which the driver will compare "
+                         "the currently running process to determine if it should apply profile settings. "),
+            .extended_help_text = _("See the \"Supported Features\" help section for more information on "
+                                  "supported pattern types.")
         },
         {
-            .title = "Profile Settings",
+            .title = _("Profile Settings"),
             .renderer_func = rule_profile_settings_renderer_func,
             .func_data = (gpointer)ctk_app_profile,
-            .help_text = "This column describes the settings that will be applied to processes "
+            .help_text = _("This column describes the settings that will be applied to processes "
                          "that match the pattern in each rule. Note that profile settings are properties "
-                         "of the profile itself, and not the associated rule."
+                         "of the profile itself, and not the associated rule.")
         },
         {
-            .title = "Profile Name",
+            .title = _("Profile Name"),
             .attribute = "text",
             .attr_col = CTK_APC_RULE_MODEL_COL_PROFILE_NAME,
-            .help_text = "This column describes the name of the profile that will be applied to processes "
-                         "that match the pattern in each rule."
+            .help_text = _("This column describes the name of the profile that will be applied to processes "
+                         "that match the pattern in each rule.")
         },
         {
-            .title = "Source File",
+            .title = _("Source File"),
             .attribute = "text",
             .attr_col = CTK_APC_RULE_MODEL_COL_FILENAME,
-            .help_text = "This column describes the configuration file where the rule is defined. Note that "
+            .help_text = _("This column describes the configuration file where the rule is defined. Note that "
                          "the NVIDIA® Linux Graphics Driver searches for application profiles along a fixed "
                          "search path, and the location of the configuration file in the search path can "
-                         "affect a rule's priority. See the README for more details."
+                         "affect a rule's priority. See the README for more details.")
         },
     };
 
@@ -3361,9 +3365,9 @@ static void delete_profile_callback_common(CtkAppProfile *ctk_app_profile)
                              path, NULL, FALSE);
 
     ctk_config_statusbar_message(ctk_app_profile->ctk_config,
-                                 "Profile \"%s\" deleted. %s",
+                                 _("Profile \"%s\" deleted. %s"),
                                  profile_name,
-                                 STATUSBAR_UPDATE_WARNING);
+                                 _(STATUSBAR_UPDATE_WARNING));
 
     gtk_tree_path_free(path);
     free(profile_name);
@@ -3398,12 +3402,12 @@ static void edit_profile_dialog_load_values(EditProfileDialog *dialog)
 {
     // window title
     gtk_window_set_title(GTK_WINDOW(dialog->top_window),
-                         dialog->new_profile ? "Add new profile" : "Edit existing profile");
+                         dialog->new_profile ? _("Add new profile") : _("Edit existing profile"));
 
     // add/edit button
     tool_button_set_label_and_stock_icon(
         GTK_TOOL_BUTTON(dialog->add_edit_profile_button),
-        "Update Profile",
+        _("Update Profile"),
         dialog->new_profile ? GTK_STOCK_ADD : GTK_STOCK_PREFERENCES);
 
     // profile name
@@ -3545,29 +3549,29 @@ static GtkWidget* create_profiles_page(CtkAppProfile *ctk_app_profile)
 
     const ToolbarItemTemplate profiles_toolbar_items[] = {
         {
-            .text = "Add Profile",
-            .help_text = "The Add Profile button allows you to create a new profile for applying custom settings "
-                            "to applications which match a given pattern.",
-            .extended_help_text = "See the \"Add/Edit Profile Dialog Box\" help section for more "
-                                  "information on adding new profiles.",
+            .text = _("Add Profile"),
+            .help_text = _("The Add Profile button allows you to create a new profile for applying custom settings "
+                            "to applications which match a given pattern."),
+            .extended_help_text = _("See the \"Add/Edit Profile Dialog Box\" help section for more "
+                                  "information on adding new profiles."),
             .icon_id = GTK_STOCK_ADD,
             .callback = (GCallback)add_profile_callback,
             .user_data = ctk_app_profile,
             .flags = 0
         },
         {
-            .text = "Delete Profile",
-            .help_text = "The Delete Profile button allows you to remove a highlighted profile from the list.",
+            .text = _("Delete Profile"),
+            .help_text = _("The Delete Profile button allows you to remove a highlighted profile from the list."),
             .icon_id = GTK_STOCK_REMOVE,
             .callback = (GCallback)delete_profile_callback,
             .user_data = ctk_app_profile,
             .flags = TOOLBAR_ITEM_GHOST_IF_NOTHING_SELECTED
         },
         {
-            .text = "Edit Profile",
-            .help_text = "The Edit Profile button allows you to edit a highlighted profile in the list.",
-            .extended_help_text = "See the \"Add/Edit Profile Dialog Box\" help section for more "
-                                  "information on editing profiles.",
+            .text = _("Edit Profile"),
+            .help_text = _("The Edit Profile button allows you to edit a highlighted profile in the list."),
+            .extended_help_text = _("See the \"Add/Edit Profile Dialog Box\" help section for more "
+                                  "information on editing profiles."),
             // Would be nice to use GTK_STOCK_EDIT here, but unfortunately only
             // available from 2.6 onwards...
             .icon_id = GTK_STOCK_PREFERENCES,
@@ -3580,29 +3584,29 @@ static GtkWidget* create_profiles_page(CtkAppProfile *ctk_app_profile)
     const TreeViewColumnTemplate profiles_tree_view_columns[] = {
         // TODO asterisk column to denote changes
         {
-            .title = "Profile Name",
+            .title = _("Profile Name"),
             .attribute = "text",
             .attr_col = CTK_APC_PROFILE_MODEL_COL_NAME,
             .sortable = TRUE,
             .sort_column_id = CTK_APC_PROFILE_MODEL_COL_NAME,
-            .help_text = "This column describes the name of the profile."
+            .help_text = _("This column describes the name of the profile.")
         },
         {
-            .title = "Profile Settings",
+            .title = _("Profile Settings"),
             .renderer_func = profile_settings_renderer_func,
             .func_data = NULL,
             .sortable = TRUE,
             .sort_column_id = CTK_APC_PROFILE_MODEL_COL_SETTINGS,
-            .help_text = "This column describes the settings that will be applied by rules "
-                         "which use this profile."
+            .help_text = _("This column describes the settings that will be applied by rules "
+                         "which use this profile.")
         },
         {
-            .title = "Source File",
+            .title = _("Source File"),
             .attribute = "text",
             .attr_col = CTK_APC_PROFILE_MODEL_COL_FILENAME,
             .sortable = TRUE,
             .sort_column_id = CTK_APC_PROFILE_MODEL_COL_FILENAME,
-            .help_text = "This column describes the configuration file where the profile is defined."
+            .help_text = _("This column describes the configuration file where the profile is defined.")
         },
     };
 
@@ -3778,33 +3782,33 @@ static void reload_callback(GtkWidget *widget, gpointer user_data)
     GString *nonfatal_errors = g_string_new("");
 
     static const char unsaved_changes_error[] =
-        "There are unsaved changes in the configuration which will be permanently lost if "
-        "the configuration is reloaded from disk.\n";
+        N_("There are unsaved changes in the configuration which will be permanently lost if "
+        "the configuration is reloaded from disk.\n");
     static const char files_altered_error[] =
-        "Some configuration files may have been modified externally since the configuration "
-        "was last loaded from disk.\n";
+        N_("Some configuration files may have been modified externally since the configuration "
+        "was last loaded from disk.\n");
 
     updates = nv_app_profile_config_validate(ctk_app_profile->cur_config,
                                              ctk_app_profile->gold_config);
 
     if (json_array_size(updates) > 0) {
-        g_string_append_printf(nonfatal_errors, "%s\t%s", get_bullet(), unsaved_changes_error);
+        g_string_append_printf(nonfatal_errors, "%s\t%s", get_bullet(), _(unsaved_changes_error));
     }
     if (nv_app_profile_config_check_backing_files(ctk_app_profile->cur_config)) {
-        g_string_append_printf(nonfatal_errors, "%s\t%s", get_bullet(), files_altered_error);
+        g_string_append_printf(nonfatal_errors, "%s\t%s", get_bullet(), _(files_altered_error));
     }
 
     do_reload = run_error_dialog(GTK_WINDOW(gtk_widget_get_toplevel(
                                     GTK_WIDGET(ctk_app_profile))),
                                  fatal_errors,
                                  nonfatal_errors,
-                                 "reload the configuration from disk");
+                                 _("reload the configuration from disk"));
 
 
     if (do_reload) {
         app_profile_reload(ctk_app_profile);
         ctk_config_statusbar_message(ctk_app_profile->ctk_config,
-                                     "Application profile configuration reloaded from disk.");
+                                     _("Application profile configuration reloaded from disk."));
     }
 
     g_string_free(fatal_errors, TRUE);
@@ -3822,23 +3826,23 @@ static ToolbarItemTemplate *get_save_reload_toolbar_items(CtkAppProfile *ctk_app
             .flags = TOOLBAR_ITEM_USE_SEPARATOR,
         },
         {
-            .text = "Save Changes",
-            .help_text = "The Save Changes button allows you to save any changes to application profile "
-                         "configuration files to disk.",
-            .extended_help_text = "This button displays a dialog box which allows you to preview the changes "
+            .text = _("Save Changes"),
+            .help_text = _("The Save Changes button allows you to save any changes to application profile "
+                         "configuration files to disk."),
+            .extended_help_text = _("This button displays a dialog box which allows you to preview the changes "
                                   "that will be made to the JSON configuration files, and toggle whether nvidia-settings "
-                                  "should make backup copies of the original files before overwriting existing files.",
+                                  "should make backup copies of the original files before overwriting existing files."),
             .icon_id = GTK_STOCK_SAVE,
             .callback = (GCallback)save_changes_callback,
             .user_data = ctk_app_profile,
             .flags = 0,
         },
         {
-            .text = "Reload",
-            .help_text = "The Reload button allows you to reload application profile configuration from "
-                         "disk, reverting any unsaved changes.",
-            .extended_help_text = "If nvidia-settings detects unsaved changes in the configuration, this button will "
-                                  "display a dialog box to warn you before attempting to reload.",
+            .text = _("Reload"),
+            .help_text = _("The Reload button allows you to reload application profile configuration from "
+                         "disk, reverting any unsaved changes."),
+            .extended_help_text = _("If nvidia-settings detects unsaved changes in the configuration, this button will "
+                                  "display a dialog box to warn you before attempting to reload."),
             .icon_id = GTK_STOCK_REFRESH,
             .callback = (GCallback)reload_callback,
             .user_data = ctk_app_profile,
@@ -3865,13 +3869,13 @@ static void save_app_profile_changes_dialog_save_changes(GtkWidget *widget, gpoi
     CtkAppProfile *ctk_app_profile = CTK_APP_PROFILE(dialog->parent);
     char *write_errors = NULL;
     static const char config_files_changed_string[] =
-        "nvidia-settings has detected that configuration files have changed "
+        N_("nvidia-settings has detected that configuration files have changed "
         "since the configuration was last loaded. Saving the configuration "
-        "may cause these changes to be permanently lost. Continue anyway?\n";
+        "may cause these changes to be permanently lost. Continue anyway?\n");
     static const char write_errors_occurred_prefix[] =
-        "nvidia-settings encountered errors when writing to the configuration:\n";
+        N_("nvidia-settings encountered errors when writing to the configuration:\n");
     static const char write_errors_occurred_suffix[] =
-        "\nSome changes may not have been saved. Reload the configuration anyway?\n";
+        N_("\nSome changes may not have been saved. Reload the configuration anyway?\n");
 
     // First check for possible conflicts
     if (nv_app_profile_config_check_backing_files(ctk_app_profile->cur_config)) {
@@ -3879,7 +3883,7 @@ static void save_app_profile_changes_dialog_save_changes(GtkWidget *widget, gpoi
                                               GTK_DIALOG_MODAL | GTK_DIALOG_DESTROY_WITH_PARENT,
                                               GTK_MESSAGE_QUESTION,
                                               GTK_BUTTONS_YES_NO,
-                                              "%s", config_files_changed_string);
+                                              "%s", _(config_files_changed_string));
         result = gtk_dialog_run(GTK_DIALOG(error_dialog));
         if (result != GTK_RESPONSE_YES) {
             do_save = FALSE;
@@ -3895,7 +3899,7 @@ static void save_app_profile_changes_dialog_save_changes(GtkWidget *widget, gpoi
                                                  do_backup, &write_errors);
         if (ret < 0) {
             if (!write_errors) {
-                write_errors = strdup("Unknown error.");
+                write_errors = strdup(_("Unknown error."));
             }
             error_dialog =
                 gtk_message_dialog_new(GTK_WINDOW(dialog->top_window),
@@ -3904,9 +3908,9 @@ static void save_app_profile_changes_dialog_save_changes(GtkWidget *widget, gpoi
                                        GTK_MESSAGE_QUESTION,
                                        GTK_BUTTONS_YES_NO,
                                        "%s%s%s",
-                                       write_errors_occurred_prefix,
+                                       _(write_errors_occurred_prefix),
                                        write_errors,
-                                       write_errors_occurred_suffix);
+                                       _(write_errors_occurred_suffix));
             result = gtk_dialog_run(GTK_DIALOG(error_dialog));
             if (result != GTK_RESPONSE_YES) {
                 do_reload = FALSE;
@@ -3921,7 +3925,7 @@ static void save_app_profile_changes_dialog_save_changes(GtkWidget *widget, gpoi
         }
 
         ctk_config_statusbar_message(ctk_app_profile->ctk_config,
-                                     "Application profile configuration saved to disk.");
+                                     _("Application profile configuration saved to disk."));
     }
 
     json_decref(dialog->updates);
@@ -3948,16 +3952,16 @@ static ToolbarItemTemplate *get_save_app_profile_changes_toolbar_items(SaveAppPr
     ToolbarItemTemplate *items_copy;
     const ToolbarItemTemplate items[] = {
         {
-            .text = "Save Changes",
-            .help_text = "Save the changes to disk.",
+            .text = _("Save Changes"),
+            .help_text = _("Save the changes to disk."),
             .icon_id = GTK_STOCK_SAVE,
             .callback = G_CALLBACK(save_app_profile_changes_dialog_save_changes),
             .user_data = dialog,
             .flags = 0,
         },
         {
-            .text = "Cancel",
-            .help_text = "Cancel the save operation.",
+            .text = _("Cancel"),
+            .help_text = _("Cancel the save operation."),
             .icon_id = GTK_STOCK_CANCEL,
             .callback = G_CALLBACK(save_app_profile_changes_dialog_cancel),
             .user_data = dialog,
@@ -3980,11 +3984,11 @@ static void save_app_profile_changes_dialog_set_preview_visibility(SaveAppProfil
         gtk_widget_show(dialog->preview_vbox);
         gtk_window_set_resizable(GTK_WINDOW(dialog->top_window), TRUE);
         gtk_widget_set_size_request(dialog->preview_vbox, -1, 400);
-        gtk_button_set_label(GTK_BUTTON(dialog->preview_button), "Hide Preview");
+        gtk_button_set_label(GTK_BUTTON(dialog->preview_button), _("Hide Preview"));
     } else {
         gtk_widget_hide(dialog->preview_vbox);
         gtk_window_set_resizable(GTK_WINDOW(dialog->top_window), FALSE);
-        gtk_button_set_label(GTK_BUTTON(dialog->preview_button), "Show Preview");
+        gtk_button_set_label(GTK_BUTTON(dialog->preview_button), _("Show Preview"));
     }
 }
 
@@ -4070,7 +4074,7 @@ static SaveAppProfileChangesDialog *save_app_profile_changes_dialog_new(CtkAppPr
 
     dialog->show_preview = FALSE;
 
-    gtk_window_set_title(GTK_WINDOW(dialog->top_window), "Save Changes");
+    gtk_window_set_title(GTK_WINDOW(dialog->top_window), _("Save Changes"));
 
     gtk_window_set_modal(GTK_WINDOW(dialog->top_window), TRUE);
     gtk_container_set_border_width(GTK_CONTAINER(dialog->top_window), 8);
@@ -4086,7 +4090,7 @@ static SaveAppProfileChangesDialog *save_app_profile_changes_dialog_new(CtkAppPr
 
     gtk_container_add(GTK_CONTAINER(dialog->top_window), vbox);
 
-    label = gtk_label_new("The following files will be modified after the configuration is saved.");
+    label = gtk_label_new(_("The following files will be modified after the configuration is saved."));
     gtk_misc_set_alignment(GTK_MISC(label), 0, 0.5);
     gtk_box_pack_start(GTK_BOX(vbox), label, FALSE, FALSE, 0);
 
@@ -4100,15 +4104,15 @@ static SaveAppProfileChangesDialog *save_app_profile_changes_dialog_new(CtkAppPr
                          G_CALLBACK(save_app_profile_changes_dialog_preview_changed),
                          (gpointer)dialog);
 
-    dialog->preview_button = gtk_button_new_with_label("Show Preview");
+    dialog->preview_button = gtk_button_new_with_label(_("Show Preview"));
     gtk_box_pack_start(GTK_BOX(hbox), dialog->preview_button, FALSE, FALSE, 0);
     g_signal_connect(G_OBJECT(dialog->preview_button), "clicked",
                      G_CALLBACK(save_app_profile_changes_show_preview_button_clicked),
                      (gpointer)dialog);
     ctk_config_set_tooltip(ctk_app_profile->ctk_config,
                            dialog->preview_button,
-                           "This button allows you to toggle previewing the new contents of "
-                           "the currently selected configuration file.");
+                           _("This button allows you to toggle previewing the new contents of "
+                           "the currently selected configuration file."));
 
     gtk_box_pack_start(GTK_BOX(vbox), hbox, FALSE, FALSE, 0);
 
@@ -4116,12 +4120,12 @@ static SaveAppProfileChangesDialog *save_app_profile_changes_dialog_new(CtkAppPr
 
     hbox = gtk_hbox_new(FALSE, 8);
 
-    label = gtk_label_new("Backup filename");
+    label = gtk_label_new(_("Backup filename"));
     ctk_config_set_tooltip(ctk_app_profile->ctk_config,
                            label,
-                           "This text field contains the filename that nvidia-settings will use "
+                           _("This text field contains the filename that nvidia-settings will use "
                            "to back up the currently selected configuration file when saving the "
-                           "configuration.");
+                           "configuration."));
 
     gtk_box_pack_start(GTK_BOX(hbox), label, FALSE, FALSE, 0);
     dialog->preview_backup_entry = gtk_entry_new();
@@ -4142,14 +4146,14 @@ static SaveAppProfileChangesDialog *save_app_profile_changes_dialog_new(CtkAppPr
     gtk_box_pack_start(GTK_BOX(vbox), preview_vbox, TRUE, TRUE, 0);
 
     dialog->backup_check_button = check_button =
-        gtk_check_button_new_with_label("Back up original files");
+        gtk_check_button_new_with_label(_("Back up original files"));
     // Enable backups by default
     gtk_toggle_button_set_active(GTK_TOGGLE_BUTTON(check_button), TRUE);
 
     ctk_config_set_tooltip(ctk_app_profile->ctk_config,
                            check_button,
-                           "This checkbox determines whether nvidia-settings will attempt to back up "
-                           "the original configuration files before saving the new configuration.");
+                           _("This checkbox determines whether nvidia-settings will attempt to back up "
+                           "the original configuration files before saving the new configuration."));
 
     gtk_box_pack_start(GTK_BOX(vbox), check_button, FALSE, FALSE, 0);
 
@@ -4250,29 +4254,29 @@ static void save_changes_callback(GtkWidget *widget, gpointer user_data)
 }
 
 static const char __enabling_application_profiles_help[] =
-    "Application profile support can be toggled by clicking on the \"Enable application profiles\" "
+    N_("Application profile support can be toggled by clicking on the \"Enable application profiles\" "
     "checkbox. Note that changes to this setting will not be saved to disk until the \"Save Changes\" "
-    "button is clicked.";
+    "button is clicked.");
 static const char __rules_page_help[] =
-    "The Rules page allows you to specify rules for assigning profiles to applications.";
+    N_("The Rules page allows you to specify rules for assigning profiles to applications.");
 static const char __rules_page_extended_help[] =
-    "Rules are presented in a list sorted by priority; higher-priority items appear farther "
+    N_("Rules are presented in a list sorted by priority; higher-priority items appear farther "
     "up in the list and have a smaller priority number. Dragging and dropping a rule in this list "
     "reorders it (potentially modifying its source file; see below), and double-clicking on a "
     "given rule will open a dialog box which lets the user edit the rule (see the \"Add/Edit Rule "
     "Dialog Box\" help section for more information). A rule can be deleted by highlighting it in "
     "the view and hitting the Delete key.\n\n"
     "Note that changes made to rules in this page are not saved to disk until the \"Save Changes\" "
-    "button is clicked.";
+    "button is clicked.");
 static const char __profiles_page_help[] =
-    "The Profiles page allows you to create and modify profiles in the configuration.";
+    N_("The Profiles page allows you to create and modify profiles in the configuration.");
 static const char __profiles_page_extended_help[] =
-    "Profiles are presented in a list which can be sorted by profile name, profile settings, and "
+    N_("Profiles are presented in a list which can be sorted by profile name, profile settings, and "
     "originating source file. Double-clicking on a profile will open a dialog box which lets the user "
     "edit the rule (see the \"Add/Edit Profile Dialog Box\" help section for more information). A "
     "profile can be deleted by highlighting it in the view and hitting the Delete key.\n\n"
     "Note that changes made to profiles in this page are not saved to disk until the \"Save Changes\" "
-    "button is clicked.";
+    "button is clicked.");
 
 
 GtkTextBuffer *ctk_app_profile_create_help(CtkAppProfile *ctk_app_profile, GtkTextTagTable *table)
@@ -4284,97 +4288,97 @@ GtkTextBuffer *ctk_app_profile_create_help(CtkAppProfile *ctk_app_profile, GtkTe
 
     b = gtk_text_buffer_new(table);
     gtk_text_buffer_get_iter_at_offset(b, &i, 0);
-    ctk_help_title(b, &i, "Application Profiles Help");
+    ctk_help_title(b, &i, _("Application Profiles Help"));
 
-    ctk_help_para(b, &i, "Use this page to configure application profiles for "
+    ctk_help_para(b, &i, _("Use this page to configure application profiles for "
                          "use with the NVIDIA® Linux Graphics Driver. Application profiles "
                          "are collections of settings that are applied on a per-process basis. "
                          "When the driver is loaded into the process, it detects various attributes "
                          "of the running process and determines whether settings should be applied "
                          "based on these attributes. This mechanism allows users to selectively override "
                          "driver settings for a particular application without the need to set environment "
-                         "variables on the command line prior to running the application.");
-    ctk_help_para(b, &i, "Application profile configuration consists of \"rules\" and \"profiles\". A \"profile\" defines "
+                         "variables on the command line prior to running the application."));
+    ctk_help_para(b, &i, _("Application profile configuration consists of \"rules\" and \"profiles\". A \"profile\" defines "
                          "what settings to use, and a \"rule\" identifies an application and defines what profile "
-                         "should be used with that application.");
+                         "should be used with that application."));
 
-    ctk_help_para(b, &i, "A rule identifies an application by describing various features of the application; for example, "
+    ctk_help_para(b, &i, _("A rule identifies an application by describing various features of the application; for example, "
                          "the name of the application binary (e.g. \"glxgears\") or a shared library loaded into the application "
                          "(e.g. \"libpthread.so.0\"). The particular features supported by this NVIDIA® Linux implementation "
-                         "are listed below in the \"Supported Features\" section.");
+                         "are listed below in the \"Supported Features\" section."));
 
-    ctk_help_para(b, &i, "For more information on application profiles, please consult the README.");
+    ctk_help_para(b, &i, _("For more information on application profiles, please consult the README."));
 
-    ctk_help_heading(b, &i, "Global Settings");
-    ctk_help_para(b, &i, "These settings apply to all profiles and rules within the configuration. ");
+    ctk_help_heading(b, &i, _("Global Settings"));
+    ctk_help_para(b, &i, _("These settings apply to all profiles and rules within the configuration. "));
 
     ctk_help_data_list_print_terms(b, &i, ctk_app_profile->global_settings_help_data);
 
-    ctk_help_heading(b, &i, "Rules Page");
-    ctk_help_para(b, &i, __rules_page_help);
-    ctk_help_para(b, &i, __rules_page_extended_help);
+    ctk_help_heading(b, &i, _("Rules Page"));
+    ctk_help_para(b, &i, _(__rules_page_help));
+    ctk_help_para(b, &i, _(__rules_page_extended_help));
 
-    ctk_help_para(b, &i, "There are several buttons above the list of rules "
-                         "which can be used to modify the configuration:");
+    ctk_help_para(b, &i, _("There are several buttons above the list of rules "
+                         "which can be used to modify the configuration:"));
     ctk_help_data_list_print_terms(b, &i, ctk_app_profile->rules_help_data);
 
-    ctk_help_heading(b, &i, "Rule Properties");
-    ctk_help_para(b, &i,  "Each row in the list of rules is divided into several "
-                          "columns which describe different properties of a rule: ");
+    ctk_help_heading(b, &i, _("Rule Properties"));
+    ctk_help_para(b, &i,  _("Each row in the list of rules is divided into several "
+                          "columns which describe different properties of a rule: "));
     ctk_help_data_list_print_terms(b, &i, ctk_app_profile->rules_columns_help_data);
 
-    ctk_help_heading(b, &i, "Add/Edit Rule Dialog Box");
-    ctk_help_para(b, &i, "When adding a new rule or editing an existing rule, nvidia-settings "
-                         "opens a dialog box for you to modify the rule's attributes. ");
+    ctk_help_heading(b, &i, _("Add/Edit Rule Dialog Box"));
+    ctk_help_para(b, &i, _("When adding a new rule or editing an existing rule, nvidia-settings "
+                         "opens a dialog box for you to modify the rule's attributes. "));
     ctk_help_data_list_print_terms(b, &i, ctk_app_profile->edit_rule_dialog->help_data);
 
-    ctk_help_heading(b, &i, "Profiles Page");
-    ctk_help_para(b, &i, __profiles_page_help);
-    ctk_help_para(b, &i, __profiles_page_extended_help);
-    ctk_help_para(b, &i, "There are several buttons above the list of profiles "
-                         "which can be used to modify the configuration:");
+    ctk_help_heading(b, &i, _("Profiles Page"));
+    ctk_help_para(b, &i, _(__profiles_page_help));
+    ctk_help_para(b, &i, _(__profiles_page_extended_help));
+    ctk_help_para(b, &i, _("There are several buttons above the list of profiles "
+                         "which can be used to modify the configuration:"));
     ctk_help_data_list_print_terms(b, &i, ctk_app_profile->profiles_help_data);
 
-    ctk_help_heading(b, &i, "Profile Properties");
-    ctk_help_para(b, &i,  "Each row in the list of profiles is divided into several "
-                          "columns which describe different properties of a profile:");
+    ctk_help_heading(b, &i, _("Profile Properties"));
+    ctk_help_para(b, &i,  _("Each row in the list of profiles is divided into several "
+                          "columns which describe different properties of a profile:"));
     ctk_help_data_list_print_terms(b, &i, ctk_app_profile->profiles_columns_help_data);
 
-    ctk_help_heading(b, &i, "Add/Edit Profile Dialog Box");
-    ctk_help_para(b, &i, "When adding a new profile or editing an existing profile, nvidia-settings "
+    ctk_help_heading(b, &i, _("Add/Edit Profile Dialog Box"));
+    ctk_help_para(b, &i, _("When adding a new profile or editing an existing profile, nvidia-settings "
                          "opens a dialog box for you to modify the profile's attributes. "
-                         "See \"Editing Settings in a Profile\" for information on editing settings.");
+                         "See \"Editing Settings in a Profile\" for information on editing settings."));
     ctk_help_data_list_print_terms(b, &i, ctk_app_profile->edit_profile_dialog->top_help_data);
     ctk_help_data_list_print_terms(b, &i, ctk_app_profile->edit_profile_dialog->bottom_help_data);
 
-    ctk_help_heading(b, &i, "Editing Settings in a Profile");
-    ctk_help_para(b, &i, "Settings in a profile are presented in a list view with the following columns: ");
+    ctk_help_heading(b, &i, _("Editing Settings in a Profile"));
+    ctk_help_para(b, &i, _("Settings in a profile are presented in a list view with the following columns: "));
     ctk_help_data_list_print_terms(b, &i, ctk_app_profile->edit_profile_dialog->setting_column_help_data);
 
-    ctk_help_para(b, &i, "Settings can be modified using the following toolbar buttons: ");
+    ctk_help_para(b, &i, _("Settings can be modified using the following toolbar buttons: "));
     ctk_help_data_list_print_terms(b, &i, ctk_app_profile->edit_profile_dialog->setting_toolbar_help_data);
 
-    ctk_help_heading(b, &i, "Saving and Reverting Changes");
+    ctk_help_heading(b, &i, _("Saving and Reverting Changes"));
 
-    ctk_help_para(b, &i, "Changes made to the application profile configuration will not take effect until "
+    ctk_help_para(b, &i, _("Changes made to the application profile configuration will not take effect until "
                          "they are saved to disk. Buttons to save and restore the configuration "
-                         "are located on the bottom of the Application Profiles page.");
+                         "are located on the bottom of the Application Profiles page."));
     ctk_help_data_list_print_terms(b, &i, ctk_app_profile->save_reload_help_data);
 
-    ctk_help_heading(b, &i, "Supported Features");
+    ctk_help_heading(b, &i, _("Supported Features"));
 
-    ctk_help_para(b, &i, "This NVIDIA® Linux Graphics Driver supports detection of the following features:");
+    ctk_help_para(b, &i, _("This NVIDIA® Linux Graphics Driver supports detection of the following features:"));
 
     for (j = 0; j < NUM_RULE_FEATURES; j++) {
-        ctk_help_term(b, &i, "%s", rule_feature_label_strings[j]);
-        ctk_help_para(b, &i, "%s", rule_feature_help_text[j]);
+        ctk_help_term(b, &i, "%s", _(rule_feature_label_strings[j]));
+        ctk_help_para(b, &i, "%s", _(rule_feature_help_text[j]));
     }
 
-    ctk_help_heading(b, &i, "Supported Setting Keys");
+    ctk_help_heading(b, &i, _("Supported Setting Keys"));
 
     if (json_array_size(key_docs) > 0) {
-        ctk_help_para(b, &i, "This NVIDIA® Linux Graphics Driver supports the following application profile setting "
-                             "keys. For more information on a given key, please consult the README.");
+        ctk_help_para(b, &i, _("This NVIDIA® Linux Graphics Driver supports the following application profile setting "
+                             "keys. For more information on a given key, please consult the README."));
 
         for (j = 0; j < json_array_size(key_docs); j++) {
             json_t *key_obj = json_array_get(key_docs, j);
@@ -4384,9 +4388,9 @@ GtkTextBuffer *ctk_app_profile_create_help(CtkAppProfile *ctk_app_profile, GtkTe
             ctk_help_para(b, &i, "%s", json_string_value(key_desc));
         }
     } else {
-        ctk_help_para(b, &i, "There was an error reading the application profile setting "
+        ctk_help_para(b, &i, _("There was an error reading the application profile setting "
                              "keys resource file. For information on available keys, please "
-                             "consult the README.");
+                             "consult the README."));
     }
 
     ctk_help_finish(b);
@@ -4403,10 +4407,9 @@ static void enabled_check_button_toggled(GtkToggleButton *toggle_button,
                                       gtk_toggle_button_get_active(toggle_button));
 
     ctk_config_statusbar_message(ctk_app_profile->ctk_config,
-                                 "Application profiles are %s. %s",
                                  gtk_toggle_button_get_active(toggle_button) ?
-                                 "enabled" : "disabled",
-                                 STATUSBAR_UPDATE_WARNING);
+                                 _("Application profiles are enabled. %s") : _("Application profiles are disabled. %s"),
+                                 _(STATUSBAR_UPDATE_WARNING));
 }
 
 GtkWidget* ctk_app_profile_new(CtrlTarget *ctrl_target,
@@ -4467,14 +4470,14 @@ GtkWidget* ctk_app_profile_new(CtrlTarget *ctrl_target,
     hbox = gtk_hbox_new(FALSE, 0);
     gtk_box_pack_start(GTK_BOX(ctk_app_profile), hbox, FALSE, FALSE, 0);
 
-    label = gtk_label_new("Application Profiles");
+    label = gtk_label_new(_("Application Profiles"));
     gtk_box_pack_start(GTK_BOX(hbox), label, FALSE, FALSE, 0);
 
     hseparator = gtk_hseparator_new();
     gtk_box_pack_start(GTK_BOX(hbox), hseparator, TRUE, TRUE, 5);
 
     ctk_app_profile->enable_check_button =
-        gtk_check_button_new_with_label("Enable application profiles");
+        gtk_check_button_new_with_label(_("Enable application profiles"));
     gtk_box_pack_start(GTK_BOX(ctk_app_profile),
                        ctk_app_profile->enable_check_button,
                        FALSE, FALSE, 0);
@@ -4487,8 +4490,8 @@ GtkWidget* ctk_app_profile_new(CtrlTarget *ctrl_target,
     ctk_config_set_tooltip_and_add_help_data(ctk_app_profile->ctk_config,
                                              ctk_app_profile->enable_check_button,
                                              &ctk_app_profile->global_settings_help_data,
-                                             "Enabling Application Profiles",
-                                             __enabling_application_profiles_help,
+                                             _("Enabling Application Profiles"),
+                                             _(__enabling_application_profiles_help),
                                              NULL);
 
     app_profile_load_global_settings(ctk_app_profile,
@@ -4501,16 +4504,16 @@ GtkWidget* ctk_app_profile_new(CtrlTarget *ctrl_target,
 
     /* Build the rules page */
     rules_page = create_rules_page(ctk_app_profile);
-    label = gtk_label_new("Rules");
+    label = gtk_label_new(_("Rules"));
 
-    ctk_config_set_tooltip(ctk_app_profile->ctk_config, label, __rules_page_help);
+    ctk_config_set_tooltip(ctk_app_profile->ctk_config, label, _(__rules_page_help));
     gtk_notebook_append_page(GTK_NOTEBOOK(notebook), rules_page, label);
 
     /* Build the profiles page */
     profiles_page = create_profiles_page(ctk_app_profile);
-    label = gtk_label_new("Profiles");
+    label = gtk_label_new(_("Profiles"));
 
-    ctk_config_set_tooltip(ctk_app_profile->ctk_config, label, __profiles_page_help);
+    ctk_config_set_tooltip(ctk_app_profile->ctk_config, label, _(__profiles_page_help));
     gtk_notebook_append_page(GTK_NOTEBOOK(notebook), profiles_page, label);
 
     /* Add the notebook to the main container */

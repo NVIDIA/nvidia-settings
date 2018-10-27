@@ -19,6 +19,7 @@
 
 #include <gtk/gtk.h>
 #include <string.h>
+#include <libintl.h>
 
 #include "NvCtrlAttributes.h"
 
@@ -28,6 +29,8 @@
 #include "ctkhelp.h"
 #include "ctkbanner.h"
 
+#define _(STRING) gettext(STRING)
+#define N_(STRING) STRING
 
 /* local prototypes */
 
@@ -98,41 +101,41 @@ static void update_fxaa_from_fsaa_change(CtkMultisample *ctk_multisample,
 static void update_fsaa_from_fxaa_change(CtkMultisample *ctk_multisample,
                                          gboolean fxaa_enabled);
 static gchar *applicationSettings[] = {
-    "Use Application Settings",
-    "Override Application Settings",
-    "Enhance Application Settings"
+    N_("Use Application Settings"),
+    N_("Override Application Settings"),
+    N_("Enhance Application Settings")
 };
 
 static const char *__aa_override_app_help =
-"Enable the Antialiasing \"Override Application Setting\" "
+N_("Enable the Antialiasing \"Override Application Setting\" "
 "checkbox to make the antialiasing slider active and "
 "override any application antialiasing setting with the "
-"value of the slider.";
+"value of the slider.");
 
 static const char *__aa_menu_help =
-"The Application Antialiasing Settings Menu allows the antialiasing "
+N_("The Application Antialiasing Settings Menu allows the antialiasing "
 "setting of OpenGL applications to be overridden with the value of "
-"the slider.";
+"the slider.");
 
 static const char *__aa_slider_help =
-"The Antialiasing slider controls the level of antialiasing. Using "
-"antialiasing disables FXAA.";
+N_("The Antialiasing slider controls the level of antialiasing. Using "
+"antialiasing disables FXAA.");
 
 static const char *__aniso_override_app_help =
-"Enable the Anisotropic Filtering \"Override Application Setting\" "
+N_("Enable the Anisotropic Filtering \"Override Application Setting\" "
 "checkbox to make the anisotropic filtering slider "
 "active and override any application anisotropic "
-"filtering setting with the value of the slider.";
+"filtering setting with the value of the slider.");
 
 static const char *__aniso_slider_help =
-"The Anisotropic Filtering slider controls the "
-"level of automatic anisotropic texture filtering.";
+N_("The Anisotropic Filtering slider controls the "
+"level of automatic anisotropic texture filtering.");
 
 static const char *__fxaa_enable_help = 
-"Enable Fast Approximate Anti-Aliasing. This option is applied to "
+N_("Enable Fast Approximate Anti-Aliasing. This option is applied to "
 "OpenGL applications that are started after this option is set. Enabling "
 "FXAA disables triple buffering, antialiasing, and other antialiasing "
-"setting methods.";
+"setting methods.");
 
 
 /*
@@ -268,7 +271,7 @@ GtkWidget *ctk_multisample_new(CtrlTarget *ctrl_target,
             
             /* create "Antialiasing Settings" frame */
             
-            frame = gtk_frame_new("Antialiasing Settings");
+            frame = gtk_frame_new(_("Antialiasing Settings"));
             gtk_box_pack_start(GTK_BOX(object), frame, FALSE, FALSE, 0);
             
             /* create the vbox to store the widgets inside the frame */
@@ -301,7 +304,7 @@ GtkWidget *ctk_multisample_new(CtrlTarget *ctrl_target,
                 /* Create a checkbox */
                 
                 check_button = gtk_check_button_new_with_label
-                    ("Override Application Setting");
+                    (_("Override Application Setting"));
                 
                 gtk_toggle_button_set_active(GTK_TOGGLE_BUTTON(check_button),
                                              override);
@@ -311,7 +314,7 @@ GtkWidget *ctk_multisample_new(CtrlTarget *ctrl_target,
                                  (gpointer) ctk_multisample);
                 
                 ctk_config_set_tooltip(ctk_config, check_button,
-                                       __aa_override_app_help);
+                                       _(__aa_override_app_help));
 
                 gtk_box_pack_start(GTK_BOX(vbox), check_button,
                                    FALSE, FALSE, 0);
@@ -354,7 +357,7 @@ GtkWidget *ctk_multisample_new(CtrlTarget *ctrl_target,
                              G_CALLBACK(fsaa_update_received),
                              (gpointer) ctk_multisample);
 
-            ctk_config_set_tooltip(ctk_config, scale, __aa_slider_help);
+            ctk_config_set_tooltip(ctk_config, scale, _(__aa_slider_help));
 
             ctk_multisample->active_attributes |= __FSAA;
             ctk_multisample->fsaa_scale = scale;
@@ -368,7 +371,7 @@ GtkWidget *ctk_multisample_new(CtrlTarget *ctrl_target,
 
             /* FXAA Option button */
 
-            check_button = gtk_check_button_new_with_label("Enable FXAA");
+            check_button = gtk_check_button_new_with_label(_("Enable FXAA"));
 
             if (mode == NV_CTRL_FSAA_MODE_NONE) {
                 ret = NvCtrlGetAttribute(ctrl_target, NV_CTRL_FXAA, &val);
@@ -392,7 +395,7 @@ GtkWidget *ctk_multisample_new(CtrlTarget *ctrl_target,
                              (gpointer) ctk_multisample);
 
             ctk_config_set_tooltip(ctk_config, check_button,
-                                   __fxaa_enable_help);
+                                   _(__fxaa_enable_help));
             gtk_box_pack_start(GTK_BOX(vbox), check_button, FALSE, FALSE, 0);
 
             ctk_multisample->active_attributes |= __FXAA;
@@ -427,7 +430,7 @@ GtkWidget *ctk_multisample_new(CtrlTarget *ctrl_target,
             
             /* create "Anisotropic Filtering" frame */
             
-            frame = gtk_frame_new("Anisotropic Filtering");
+            frame = gtk_frame_new(_("Anisotropic Filtering"));
             gtk_box_pack_start(GTK_BOX(object), frame, FALSE, FALSE, 0);
             
             /* create the vbox to store the widgets inside the frame */
@@ -439,7 +442,7 @@ GtkWidget *ctk_multisample_new(CtrlTarget *ctrl_target,
             /* "Override Application Setting" checkbox */
             
             check_button = gtk_check_button_new_with_label
-                ("Override Application Setting");
+                (_("Override Application Setting"));
             
             gtk_toggle_button_set_active(GTK_TOGGLE_BUTTON(check_button),
                                          override);
@@ -455,7 +458,7 @@ GtkWidget *ctk_multisample_new(CtrlTarget *ctrl_target,
                              (gpointer) ctk_multisample);
 
             ctk_config_set_tooltip(ctk_config, check_button,
-                                   __aniso_override_app_help);
+                                   _(__aniso_override_app_help));
 
             gtk_box_pack_start(GTK_BOX(vbox), check_button, FALSE, FALSE, 0);
 
@@ -490,7 +493,7 @@ GtkWidget *ctk_multisample_new(CtrlTarget *ctrl_target,
                              G_CALLBACK(log_aniso_range_update_received),
                              (gpointer) ctk_multisample);
             
-            ctk_config_set_tooltip(ctk_config, scale, __aniso_slider_help);
+            ctk_config_set_tooltip(ctk_config, scale, _(__aniso_slider_help));
 
             ctk_multisample->active_attributes |= __LOG_ANISO_RANGE;
             ctk_multisample->log_aniso_scale = scale;
@@ -649,7 +652,7 @@ static GtkWidget *create_fsaa_setting_menu(CtkMultisample *ctk_multisample,
         ctk_drop_down_menu_new(CTK_DROP_DOWN_MENU_FLAG_READONLY);
     
     for (i = 0; i < ARRAY_LEN(applicationSettings); i++) {
-        ctk_drop_down_menu_append_item(d, applicationSettings[i], i);
+        ctk_drop_down_menu_append_item(d, _(applicationSettings[i]), i);
     }
 
     if (!override) {
@@ -666,7 +669,7 @@ static GtkWidget *create_fsaa_setting_menu(CtkMultisample *ctk_multisample,
     ctk_drop_down_menu_set_current_value(d, idx);
 
     ctk_drop_down_menu_set_tooltip(ctk_multisample->ctk_config, d,
-                                   __aa_menu_help);
+                                   _(__aa_menu_help));
 
     g_signal_connect(G_OBJECT(d),
                      "changed",
@@ -707,9 +710,9 @@ static void post_fsaa_setting_changed(CtkMultisample *ctk_multisample,
     }
 
     ctk_config_statusbar_message(ctk_multisample->ctk_config,
-                                 "%s Application's Antialiasing Settings.",
-                                 (!override ? "Using" :
-                                  (enhance ? "Enhancing" : "Overriding")));
+                                 (!override ? _("Using Application's Antialiasing Settings.") :
+                                  (enhance ? _("Enhancing Application's Antialiasing Settings.") :
+                                   _("Overriding Application's Antialiasing Settings."))));
 
 } /* post_fsaa_setting_changed() */
 
@@ -928,7 +931,7 @@ static void fsaa_setting_update_received(GObject *object,
 static void post_fsaa_value_changed(CtkMultisample *ctk_multisample, gint val)
 {
     ctk_config_statusbar_message(ctk_multisample->ctk_config,
-                                 "Antialiasing set to %s.",
+                                 _("Antialiasing set to %s."),
                                  NvCtrlGetMultisampleModeName(val));
     
 } /* post_fsaa_value_changed() */
@@ -1111,8 +1114,7 @@ static void
 post_fxaa_toggled(CtkMultisample *ctk_multisample, gboolean enable)
 {
     ctk_config_statusbar_message(ctk_multisample->ctk_config,
-                                 "FXAA "
-                                 "%s.", enable ? "enabled" : "disabled");
+                                 enable ? _("FXAA enabled.") : _("FXAA disabled."));
 
 } /* post_fxaa_toggled() */
 
@@ -1178,8 +1180,7 @@ post_log_aniso_app_override_toggled(CtkMultisample *ctk_multisample,
     }
     
     ctk_config_statusbar_message(ctk_multisample->ctk_config,
-                                 "Application Anisotropic Filtering Override "
-                                 "%s.", override ? "enabled" : "disabled");
+                                 override ? _("Application Anisotropic Filtering Override enabled") : _("Application Anisotropic Filtering Override disabled"));
 
 } /* post_log_aniso_app_override_toggled() */
 
@@ -1272,7 +1273,7 @@ static const gchar *get_log_aniso_name(gint val)
 {
     static const gchar *log_aniso_names[] = { "1x", "2x", "4x", "8x", "16x" };
     
-    if ((val < 0) || (val > 4)) return "Unknown";
+    if ((val < 0) || (val > 4)) return _("Unknown");
 
     return log_aniso_names[val];
 
@@ -1309,7 +1310,7 @@ static void post_log_aniso_value_changed(CtkMultisample *ctk_multisample,
 
     if (override) {
         ctk_config_statusbar_message(ctk_multisample->ctk_config,
-                                     "Anisotropic Filtering set to %s.",
+                                     _("Anisotropic Filtering set to %s."),
                                      get_log_aniso_name(val));
     }
 
@@ -1389,182 +1390,182 @@ GtkTextBuffer *ctk_multisample_create_help(GtkTextTagTable *table,
     
     gtk_text_buffer_get_iter_at_offset(b, &i, 0);
 
-    ctk_help_title(b, &i, "Antialiasing Help");
+    ctk_help_title(b, &i, _("Antialiasing Help"));
 
     if (ctk_multisample->active_attributes & __FSAA) {
-        ctk_help_heading(b, &i, "Antialiasing Settings");
-        ctk_help_para(b, &i, "Antialiasing is a technique used in OpenGL "
+        ctk_help_heading(b, &i, _("Antialiasing Settings"));
+        ctk_help_para(b, &i, _("Antialiasing is a technique used in OpenGL "
                       "to smooth the edges of objects in a scene to reduce "
                       "the jagged 'stairstep' effect that sometimes appears "
                       "along the edges of 3D objects.  This is accomplished "
                       "by rendering an image larger than normal (with "
                       "multiple 'samples' per pixel), and then using a "
                       "filter to average multiple samples into a "
-                      "single pixel.");
+                      "single pixel."));
         
-        ctk_help_para(b, &i, "Several antialiasing "
+        ctk_help_para(b, &i, _("Several antialiasing "
                       "methods are available which you may select between "
                       "with the Antialiasing slider.  Note that increasing "
                       "the number of samples used during Antialiased "
-                      "rendering may decrease performance.");
+                      "rendering may decrease performance."));
 
-        ctk_help_para(b, &i, "You can also configure Antialiasing "
+        ctk_help_para(b, &i, _("You can also configure Antialiasing "
                       "using the __GL_FSAA_MODE environment variable (see "
                       "the README for details).  The __GL_FSAA_MODE "
                       "environment variable overrides the value in "
-                      "nvidia-settings.");
+                      "nvidia-settings."));
         
-        ctk_help_term(b, &i, "Application Antialiasing Settings");
+        ctk_help_term(b, &i, _("Application Antialiasing Settings"));
         
         if (ctk_multisample->active_attributes & __FSAA_ENHANCE) {
-            ctk_help_para(b, &i, "%s", __aa_menu_help);
-            ctk_help_para(b, &i, "Use Application Settings will let applications "
-                          "choose the AA mode.");
-            ctk_help_para(b, &i, "Override Application Settings will override "
+            ctk_help_para(b, &i, "%s", _(__aa_menu_help));
+            ctk_help_para(b, &i, _("Use Application Settings will let applications "
+                          "choose the AA mode."));
+            ctk_help_para(b, &i, _("Override Application Settings will override "
                           "all OpenGL applications to use the mode selected by "
-                          "the slider.");
-            ctk_help_para(b, &i, "Enhance Application Settings will make "
+                          "the slider."));
+            ctk_help_para(b, &i, _("Enhance Application Settings will make "
                           "applications that are requesting some type of "
                           "antialiasing mode use the mode selected by the "
-                          "slider.");
+                          "slider."));
         } else {
-            ctk_help_para(b, &i, "%s", __aa_override_app_help);
+            ctk_help_para(b, &i, "%s", _(__aa_override_app_help));
         }
 
         if (ctk_multisample->active_attributes & __FSAA_NONE) {
-            ctk_help_term(b, &i, "Off");
-            ctk_help_para(b, &i, "Disables antialiasing in OpenGL "
+            ctk_help_term(b, &i, _("Off"));
+            ctk_help_para(b, &i, _("Disables antialiasing in OpenGL "
                           "applications.  "
                           "Select this option if you require maximum "
-                          "performance in your applications.");
+                          "performance in your applications."));
         }
         
         if (ctk_multisample->active_attributes & __FSAA_2x) {
-            ctk_help_term(b, &i, "2x (2xMS)");
-            ctk_help_para(b, &i, "This enables antialiasing using the 2x (2xMS)"
+            ctk_help_term(b, &i, _("2x (2xMS)"));
+            ctk_help_para(b, &i, _("This enables antialiasing using the 2x (2xMS)"
                           "Bilinear mode.  This mode offers improved image "
                           "quality and high performance in OpenGL "
-                          "applications.");
+                          "applications."));
         }
 
         if (ctk_multisample->active_attributes & __FSAA_2x_5t) {
-            ctk_help_term(b, &i, "2x Quincunx");
-            ctk_help_para(b, &i, "This enables the patented Quincunx "
+            ctk_help_term(b, &i, _("2x Quincunx"));
+            ctk_help_para(b, &i, _("This enables the patented Quincunx "
                           "Antialiasing technique available in the GeForce "
                           "GPU family.  "
                           "Quincunx Antialiasing offers the quality of the "
                           "slower, 4x antialiasing mode, but at nearly the "
-                          "performance of the faster, 2x mode.");
+                          "performance of the faster, 2x mode."));
         }
 
         if (ctk_multisample->active_attributes & __FSAA_15x15) {
-            ctk_help_term(b, &i, "1.5 x 1.5");
-            ctk_help_para(b, &i, "This enables antialiasing using the 1.5x1.5 "
+            ctk_help_term(b, &i, _("1.5 x 1.5"));
+            ctk_help_para(b, &i, _("This enables antialiasing using the 1.5x1.5 "
                           "mode.  This mode offers improved image quality and "
-                          "high performance in OpenGL applications.");
+                          "high performance in OpenGL applications."));
         }
 
         if (ctk_multisample->active_attributes & __FSAA_2x2) {
-            ctk_help_term(b, &i, "2 x 2 Supersampling");
-            ctk_help_para(b, &i, "This enables antialiasing using the 2x2 "
+            ctk_help_term(b, &i, _("2 x 2 Supersampling"));
+            ctk_help_para(b, &i, _("This enables antialiasing using the 2x2 "
                           "Supersampling mode.  This mode offers higher image "
                           "quality at the expense of some performance in "
-                          "OpenGL applications.");
+                          "OpenGL applications."));
         }
 
         if (ctk_multisample->active_attributes & __FSAA_4x) {
-            ctk_help_term(b, &i, "4x (4xMS)");
-            ctk_help_para(b, &i, "This enables antialiasing using the 4x (4xMS)"
+            ctk_help_term(b, &i, _("4x (4xMS)"));
+            ctk_help_para(b, &i, _("This enables antialiasing using the 4x (4xMS)"
                           "Bilinear mode.  This mode offers higher image "
                           "quality at the expense of some performance in "
-                          "OpenGL applications.");
+                          "OpenGL applications."));
         }
 
         if (ctk_multisample->active_attributes & __FSAA_4x_9t) {
-            ctk_help_term(b, &i, "4x, 9-tap Gaussian");
-            ctk_help_para(b, &i, "This enables antialiasing using the 4x, "
+            ctk_help_term(b, &i, _("4x, 9-tap Gaussian"));
+            ctk_help_para(b, &i, _("This enables antialiasing using the 4x, "
                           "9-tap (Gaussian) mode.  This mode offers higher "
                           "image quality but at the expense of some "
-                          "performance in OpenGL applications.");
+                          "performance in OpenGL applications."));
         }
 
         if (ctk_multisample->active_attributes & __FSAA_8x) {
-            ctk_help_term(b, &i, "8x (4xMS, 4xCS)");
-            ctk_help_para(b, &i, "This enables antialiasing using the 8x "
+            ctk_help_term(b, &i, _("8x (4xMS, 4xCS)"));
+            ctk_help_para(b, &i, _("This enables antialiasing using the 8x "
                           "(4xMS, 4xCS) mode.  This mode offers better image "
-                          "quality than the 4x mode.");
+                          "quality than the 4x mode."));
         }
 
         if (ctk_multisample->active_attributes & __FSAA_8xS) {
-            ctk_help_term(b, &i, "8x (4xSS, 2xMS)");
-            ctk_help_para(b, &i, "This enables antialiasing using the 8x "
+            ctk_help_term(b, &i, _("8x (4xSS, 2xMS)"));
+            ctk_help_para(b, &i, _("This enables antialiasing using the 8x "
                           "(4xSS, 2xMS) mode.  This mode offers better image "
-                          "quality than the 4x mode.");
+                          "quality than the 4x mode."));
         }
 
         if (ctk_multisample->active_attributes & __FSAA_16x) {
-            ctk_help_term(b, &i, "16x (4xMS, 12xCS)");
-            ctk_help_para(b, &i, "This enables antialiasing using the 16x "
+            ctk_help_term(b, &i, _("16x (4xMS, 12xCS)"));
+            ctk_help_para(b, &i, _("This enables antialiasing using the 16x "
                           "(4xMS, 12xCS) mode.  This mode offers better image "
-                          "quality than the 8x mode.");
+                          "quality than the 8x mode."));
         }
 
         if (ctk_multisample->active_attributes & __FSAA_8xQ) {
-            ctk_help_term(b, &i, "8x (8xMS)");
-            ctk_help_para(b, &i, "This enables antialiasing using the 8x (8xMS) "
+            ctk_help_term(b, &i, _("8x (8xMS)"));
+            ctk_help_para(b, &i, _("This enables antialiasing using the 8x (8xMS) "
                           "mode.  This mode offers better image "
-                          "quality than the 8x mode.");
+                          "quality than the 8x mode."));
         }
 
         if (ctk_multisample->active_attributes & __FSAA_16xS) {
-            ctk_help_term(b, &i, "16x (4xSS, 4xMS)");
-            ctk_help_para(b, &i, "This enables antialiasing using the 16x "
+            ctk_help_term(b, &i, _("16x (4xSS, 4xMS)"));
+            ctk_help_para(b, &i, _("This enables antialiasing using the 16x "
                           "(4xSS, 4xMS) mode.  This mode offers better image "
-                          "quality than the 16x mode.");
+                          "quality than the 16x mode."));
         }
 
         if (ctk_multisample->active_attributes & __FSAA_16xQ) {
-            ctk_help_term(b, &i, "16x (8xMS, 8xCS)");
-            ctk_help_para(b, &i, "This enables antialiasing using the 16x "
+            ctk_help_term(b, &i, _("16x (8xMS, 8xCS)"));
+            ctk_help_para(b, &i, _("This enables antialiasing using the 16x "
                           "(8xMS, 8xCS) mode.  This mode offers better image "
-                          "quality than the 16x mode.");
+                          "quality than the 16x mode."));
         }
 
         if (ctk_multisample->active_attributes & __FSAA_32xS) {
-            ctk_help_term(b, &i, "32x (4xSS, 8xMS)");
-            ctk_help_para(b, &i, "This enables antialiasing using the 32x "
+            ctk_help_term(b, &i, _("32x (4xSS, 8xMS)"));
+            ctk_help_para(b, &i, _("This enables antialiasing using the 32x "
                           "(4xSS, 8xMS) mode.  This mode offers better image "
-                          "quality than the 16x mode.");
+                          "quality than the 16x mode."));
         }
     }
 
     if (ctk_multisample->active_attributes & __FXAA) {
-        ctk_help_term(b, &i, "Enable FXAA");
-        ctk_help_para(b, &i, "%s", __fxaa_enable_help);
+        ctk_help_term(b, &i, _("Enable FXAA"));
+        ctk_help_para(b, &i, "%s", _(__fxaa_enable_help));
     }
 
     if (ctk_multisample->active_attributes & __LOG_ANISO_RANGE) {
-        ctk_help_heading(b, &i, "Anisotropic Filtering");
+        ctk_help_heading(b, &i, _("Anisotropic Filtering"));
         
-        ctk_help_para(b, &i, "Anisotropic filtering is a technique used to "
+        ctk_help_para(b, &i, _("Anisotropic filtering is a technique used to "
                       "improve the quality of textures applied to the "
                       "surfaces of 3D objects when drawn at a sharp angle.  "
                       "Use the Anisotropic filtering slider to set the degree "
                       "of anisotropic filtering for improved image quality.  "
                       "Enabling this option improves image quality at the "
-                      "expense of some performance.");
+                      "expense of some performance."));
 
-        ctk_help_para(b, &i, "You can also configure Anisotropic filtering "
+        ctk_help_para(b, &i, _("You can also configure Anisotropic filtering "
                       "using the __GL_LOG_MAX_ANISO environment variable "
                       "(see the README for details).  The "
                       "__GL_LOG_MAX_ANISO environment variable overrides "
-                      "the value in nvidia-settings.");
+                      "the value in nvidia-settings."));
         
-        ctk_help_term(b, &i, "Override Application Setting");
+        ctk_help_term(b, &i, _("Override Application Setting"));
         
-        ctk_help_para(b, &i, "%s", __aniso_override_app_help);
+        ctk_help_para(b, &i, "%s", _(__aniso_override_app_help));
         
-        ctk_help_para(b, &i, "%s", __aniso_slider_help);
+        ctk_help_para(b, &i, "%s", _(__aniso_slider_help));
     }
 
     ctk_help_finish(b);

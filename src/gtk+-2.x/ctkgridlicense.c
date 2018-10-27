@@ -25,6 +25,7 @@
 #include <sys/types.h>
 #include <fcntl.h>
 #include <dlfcn.h>
+#include <libintl.h>
 
 #include <gtk/gtk.h>
 #include <NvCtrlAttributesPrivate.h>
@@ -43,41 +44,44 @@
 #include <unistd.h>
 #include <errno.h>
 
+#define _(STRING) gettext(STRING)
+#define N_(STRING) STRING
+
 #define DEFAULT_UPDATE_GRID_LICENSE_STATUS_INFO_TIME_INTERVAL 1000
 #define GRID_CONFIG_FILE            "/etc/nvidia/gridd.conf"
 #define GRID_CONFIG_FILE_TEMPLATE   "/etc/nvidia/gridd.conf.template"
 
 static const char * __manage_grid_licenses_help =
-"Use the Manage GRID License page to obtain licenses "
-"for GRID vGPU or Quadro Virtual Datacenter Workstation on supported Tesla products.";
+N_("Use the Manage GRID License page to obtain licenses "
+"for GRID vGPU or Quadro Virtual Datacenter Workstation on supported Tesla products.");
 static const char * __grid_virtual_workstation_help =
-"Select this option to enable Quadro Virtual Datacenter Workstation license.";
+N_("Select this option to enable Quadro Virtual Datacenter Workstation license.");
 static const char * __grid_vapp_help =
-"Select this option to disable the Quadro Virtual Datacenter Workstation license.";
+N_("Select this option to disable the Quadro Virtual Datacenter Workstation license.");
 static const char * __license_edition_help =
-"This section indicates the status of GRID licensing for the system.";
+N_("This section indicates the status of GRID licensing for the system.");
 static const char * __license_server_help =
-"Shows the configured GRID license server details.";
+N_("Shows the configured GRID license server details.");
 static const char * __primary_server_address_help =
-"Enter the address of your local GRID license server. "
+N_("Enter the address of your local GRID license server. "
 "The address can be a fully-qualified domain name such as gridlicense.example.com, "
-"or an IP address such as 10.31.20.45.";
+"or an IP address such as 10.31.20.45.");
 static const char * __primary_server_port_help =
-"This field can be left empty, and will default to 7070, "
-"which is the default port number used by the NVIDIA GRID license server.";
+N_("This field can be left empty, and will default to 7070, "
+"which is the default port number used by the NVIDIA GRID license server.");
 static const char * __secondary_server_help =
-"This field is optional. Enter the address of your backup GRID license server. "
+N_("This field is optional. Enter the address of your backup GRID license server. "
 "The address can be a fully-qualified domain name such as backuplicense.example.com, "
-"or an IP address such as 10.31.20.46.";
+"or an IP address such as 10.31.20.46.");
 static const char * __secondary_server_port_help =
-"This field can be left empty, and will default to 7070, "
-"which is the default port number used by the NVIDIA GRID license server.";
+N_("This field can be left empty, and will default to 7070, "
+"which is the default port number used by the NVIDIA GRID license server.");
 static const char * __apply_button_help =
-"Clicking the Apply button updates license settings in the gridd.conf file and "
-"sends update license request to the NVIDIA GRID licensing daemon.";
+N_("Clicking the Apply button updates license settings in the gridd.conf file and "
+"sends update license request to the NVIDIA GRID licensing daemon.");
 static const char * __cancel_button_help =
-"Clicking the Cancel button sets the text in all textboxes from the gridd.conf file. "
-"Any changes you have done will be lost.";
+N_("Clicking the Cancel button sets the text in all textboxes from the gridd.conf file. "
+"Any changes you have done will be lost.");
 
 typedef struct 
 {
@@ -759,11 +763,11 @@ static gboolean update_manage_grid_license_state_info(gpointer user_data)
                                  &licenseState))) ||
         (!(send_message_to_gridd(ctk_manage_grid_license, LICENSE_FEATURE_TYPE_REQUEST,
                                  &griddFeatureType)))) {
-        licenseStatusMessage = "Unable to query license state information "
+        licenseStatusMessage = _("Unable to query license state information "
                                "from the NVIDIA GRID "
                                "licensing daemon.\n"
                                "Please make sure nvidia-gridd and "
-                               "dbus-daemon are running.\n";
+                               "dbus-daemon are running.\n");
         gtk_label_set_text(GTK_LABEL(ctk_manage_grid_license->label_license_state),
                            licenseStatusMessage);
         /* Disable text controls on UI. */
@@ -925,63 +929,63 @@ static gboolean update_manage_grid_license_state_info(gpointer user_data)
 
     switch (licenseStatus) {
     case NV_GRID_UNLICENSED_VGPU:
-          licenseStatusMessage = "Your system does not have a valid GRID vGPU license.\n"
-              "Enter license server details and apply.";
+          licenseStatusMessage = _("Your system does not have a valid GRID vGPU license.\n"
+              "Enter license server details and apply.");
           break;
     case NV_GRID_UNLICENSED_VAPP:
-          licenseStatusMessage = "Your system is currently configured for "
-              "GRID Virtual Apps.";
+          licenseStatusMessage = _("Your system is currently configured for "
+              "GRID Virtual Apps.");
           break;
     case NV_GRID_UNLICENSED_QDWS_SELECTED:
-          licenseStatusMessage = "Your system is currently configured for GRID Virtual Apps.\n"
-             "Enter license server details and apply.";
+          licenseStatusMessage = _("Your system is currently configured for GRID Virtual Apps.\n"
+             "Enter license server details and apply.");
           break;
     case NV_GRID_LICENSE_ACQUIRED_VGPU:
-          licenseStatusMessage = "Your system is licensed for GRID vGPU.";
+          licenseStatusMessage = _("Your system is licensed for GRID vGPU.");
           break;
     case NV_GRID_LICENSE_ACQUIRED_QDWS:
-          licenseStatusMessage = "Your system is licensed for Quadro Virtual Datacenter "
-              "Workstation.";
+          licenseStatusMessage = _("Your system is licensed for Quadro Virtual Datacenter "
+              "Workstation.");
           break;
     case NV_GRID_LICENSE_REQUESTING_VGPU:
-          licenseStatusMessage = "Acquiring license for GRID vGPU.\n"
-              "Your system does not have a valid GRID vGPU license.";
+          licenseStatusMessage = _("Acquiring license for GRID vGPU.\n"
+              "Your system does not have a valid GRID vGPU license.");
           break;
     case NV_GRID_LICENSE_REQUESTING_QDWS:
-          licenseStatusMessage = "Acquiring license for Quadro Virtual Datacenter "
+          licenseStatusMessage = _("Acquiring license for Quadro Virtual Datacenter "
               "Workstation.\n"
-              " Your system is currently configured for GRID Virtual Apps.";
+              " Your system is currently configured for GRID Virtual Apps.");
           break;
     case NV_GRID_LICENSE_FAILED_VGPU:
-          licenseStatusMessage = "Failed to acquire GRID vGPU license.";
+          licenseStatusMessage = _("Failed to acquire GRID vGPU license.");
           break;
     case NV_GRID_LICENSE_FAILED_QDWS:
-          licenseStatusMessage = "Failed to acquire Quadro Virtual Datacenter "
+          licenseStatusMessage = _("Failed to acquire Quadro Virtual Datacenter "
               "Worstation license.\n"
-              " Your system is currently configured for GRID Virtual Apps.";
+              " Your system is currently configured for GRID Virtual Apps.");
           break;
     case NV_GRID_LICENSE_EXPIRED_VGPU:
-          licenseStatusMessage = "GRID vGPU license has expired.\n"
-              "Your system does not have a valid GRID vGPU license.";
+          licenseStatusMessage = _("GRID vGPU license has expired.\n"
+              "Your system does not have a valid GRID vGPU license.");
           break;
     case NV_GRID_LICENSE_EXPIRED_QDWS:
-          licenseStatusMessage = "License for Quadro Virtual Datacenter Workstation "
+          licenseStatusMessage = _("License for Quadro Virtual Datacenter Workstation "
               "has expired.\n"
               "Your system does not have a valid Quadro Virtual Datacenter "
-              "Workstation license.";
+              "Workstation license.");
           break;
     case NV_GRID_LICENSE_RESTART_REQUIRED:
-          licenseStatusMessage = "Restart your system for GRID Virtual Apps.\n"
+          licenseStatusMessage = _("Restart your system for GRID Virtual Apps.\n"
               "Your system is currently licensed for Quadro Virtual Datacenter "
-              "Workstation.";
+              "Workstation.");
           break;
     case NV_GRID_LICENSE_RESTART_REQUIRED_VAPP:
-          licenseStatusMessage = "Restart your system for GRID Virtual Apps.";
+          licenseStatusMessage = _("Restart your system for GRID Virtual Apps.");
           break;
     case NV_GRID_UNLICENSED_REQUEST_DETAILS:
     default:
-          licenseStatusMessage = "Your system does not have a valid GRID license.\n"
-              "Enter license server details and apply.";
+          licenseStatusMessage = _("Your system does not have a valid GRID license.\n"
+              "Enter license server details and apply.");
           break;
     }
 
@@ -1039,12 +1043,12 @@ static void apply_clicked(GtkWidget *widget, gpointer user_data)
                                              GTK_DIALOG_MODAL,
                                              GTK_MESSAGE_WARNING,
                                              GTK_BUTTONS_OK,
-                                             "Unable to send license information "
+                                             _("Unable to send license information "
                                              "update request to the NVIDIA GRID "
                                              "licensing daemon.\n"
                                              "Please make sure nvidia-gridd and "
                                              "dbus-daemon are running and retry applying the "
-                                             "license settings.\n");
+                                             "license settings.\n"));
                 gtk_dialog_run(GTK_DIALOG(dlg));
                 gtk_widget_destroy(dlg);
             }
@@ -1056,8 +1060,8 @@ static void apply_clicked(GtkWidget *widget, gpointer user_data)
                                          GTK_DIALOG_MODAL,
                                          GTK_MESSAGE_ERROR,
                                          GTK_BUTTONS_OK,
-                                         "Unable to update GRID license configuration "
-                                         "file (%s): %s", GRID_CONFIG_FILE, strerror(err));
+                                         _("Unable to update GRID license configuration "
+                                         "file (%s): %s"), GRID_CONFIG_FILE, strerror(err));
             gtk_dialog_run(GTK_DIALOG(dlg));
             gtk_widget_destroy(dlg);
         }
@@ -1069,8 +1073,8 @@ static void apply_clicked(GtkWidget *widget, gpointer user_data)
                                      GTK_DIALOG_MODAL,
                                      GTK_MESSAGE_ERROR,
                                      GTK_BUTTONS_OK,
-                                     "You do not have enough "
-                                     "permissions to edit '%s' file.", GRID_CONFIG_FILE);
+                                     _("You do not have enough "
+                                     "permissions to edit '%s' file."), GRID_CONFIG_FILE);
         gtk_dialog_run(GTK_DIALOG(dlg));
         gtk_widget_destroy(dlg);
     } else {
@@ -1081,8 +1085,8 @@ static void apply_clicked(GtkWidget *widget, gpointer user_data)
                                      GTK_DIALOG_MODAL,
                                      GTK_MESSAGE_ERROR,
                                      GTK_BUTTONS_OK,
-                                     "'%s' file does not exist.\n You do not have "
-                                     "permissions to create this file.", GRID_CONFIG_FILE);
+                                     _("'%s' file does not exist.\n You do not have "
+                                     "permissions to create this file."), GRID_CONFIG_FILE);
         gtk_dialog_run(GTK_DIALOG(dlg));
         gtk_widget_destroy(dlg);
     }
@@ -1237,7 +1241,7 @@ static void license_edition_toggled(GtkWidget *widget, gpointer user_data)
 
     if (GPOINTER_TO_INT(user_data) == NV_GRID_LICENSE_FEATURE_TYPE_QDWS) {
         gtk_widget_set_sensitive(ctk_manage_grid_license->box_server_info, TRUE);
-        statusBarMsg = "You selected Quadro Virtual Datacenter Workstation Edition.";
+        statusBarMsg = _("You selected Quadro Virtual Datacenter Workstation Edition.");
         ctk_manage_grid_license->feature_type =
             NV_GRID_LICENSE_FEATURE_TYPE_QDWS;
         /* Enable Apply/Cancel button if the feature type selection has changed*/
@@ -1268,7 +1272,7 @@ static void license_edition_toggled(GtkWidget *widget, gpointer user_data)
         gtk_widget_set_sensitive(ctk_manage_grid_license->box_server_info, FALSE);
         ctk_manage_grid_license->feature_type = 
             NV_GRID_LICENSE_FEATURE_TYPE_VAPP;
-        statusBarMsg = "You selected GRID Virtual Apps Edition.";
+        statusBarMsg = _("You selected GRID Virtual Apps Edition.");
         /* Enable Apply/Cancel button if the feature type selection has changed*/
         if (strcmp(griddConfig->str[NV_GRIDD_FEATURE_TYPE], "0") != 0) {
             gtk_widget_set_sensitive(ctk_manage_grid_license->btn_apply, TRUE);
@@ -1581,11 +1585,11 @@ GtkWidget* ctk_manage_grid_license_new(CtrlTarget *target,
     gtk_container_add(GTK_CONTAINER(frame), vbox1);
 
     if (mode == NV_CTRL_ATTR_NVML_GPU_VIRTUALIZATION_MODE_PASSTHROUGH) {
-        label = gtk_label_new("License Edition:");
+        label = gtk_label_new(_("License Edition:"));
         hbox = gtk_hbox_new(FALSE, 0);
         eventbox = gtk_event_box_new();
         gtk_container_add(GTK_CONTAINER(eventbox), label);
-        ctk_config_set_tooltip(ctk_config, eventbox, __license_edition_help);
+        ctk_config_set_tooltip(ctk_config, eventbox, _(__license_edition_help));
 
         gtk_box_pack_start(GTK_BOX(hbox), eventbox, FALSE, TRUE, 5);
         gtk_box_pack_start(GTK_BOX(vbox1), hbox, FALSE, FALSE, 5);
@@ -1594,7 +1598,7 @@ GtkWidget* ctk_manage_grid_license_new(CtrlTarget *target,
         gtk_container_set_border_width(GTK_CONTAINER(vbox3), 5);
 
         ctk_manage_grid_license->radio_btn_qdws = gtk_radio_button_new_with_label(NULL,
-                                                  "Quadro Virtual Datacenter Workstation");
+                                                  _("Quadro Virtual Datacenter Workstation"));
         slist = gtk_radio_button_get_group(GTK_RADIO_BUTTON(ctk_manage_grid_license->radio_btn_qdws));
         gtk_box_pack_start(GTK_BOX(vbox3), ctk_manage_grid_license->radio_btn_qdws, FALSE, FALSE, 0);
         g_object_set_data(G_OBJECT(ctk_manage_grid_license->radio_btn_qdws), "button_id",
@@ -1603,7 +1607,7 @@ GtkWidget* ctk_manage_grid_license_new(CtrlTarget *target,
                          G_CALLBACK(license_edition_toggled),
                          (gpointer) ctk_manage_grid_license);
 
-        ctk_manage_grid_license->radio_btn_vapp = gtk_radio_button_new_with_label(slist, "GRID Virtual Apps");
+        ctk_manage_grid_license->radio_btn_vapp = gtk_radio_button_new_with_label(slist, _("GRID Virtual Apps"));
         gtk_box_pack_start(GTK_BOX(vbox3), ctk_manage_grid_license->radio_btn_vapp, FALSE, FALSE, 0);
         g_object_set_data(G_OBJECT(ctk_manage_grid_license->radio_btn_vapp), "button_id",
                 GINT_TO_POINTER(NV_GRID_LICENSE_FEATURE_TYPE_VAPP));
@@ -1615,12 +1619,12 @@ GtkWidget* ctk_manage_grid_license_new(CtrlTarget *target,
     }
 
     /* Show current license status message */
-    ctk_manage_grid_license->label_license_state = gtk_label_new("Unknown");
+    ctk_manage_grid_license->label_license_state = gtk_label_new(_("Unknown"));
     hbox = gtk_hbox_new(FALSE, 0);
     eventbox = gtk_event_box_new();
     gtk_container_add(GTK_CONTAINER(eventbox),
                       ctk_manage_grid_license->label_license_state);
-    ctk_config_set_tooltip(ctk_config, eventbox, __license_edition_help);
+    ctk_config_set_tooltip(ctk_config, eventbox, _(__license_edition_help));
     gtk_box_pack_start(GTK_BOX(hbox), eventbox, FALSE, TRUE, 5);
     gtk_box_pack_start(GTK_BOX(vbox1), hbox, FALSE, FALSE, 5);
     
@@ -1629,11 +1633,11 @@ GtkWidget* ctk_manage_grid_license_new(CtrlTarget *target,
     gtk_container_add(GTK_CONTAINER(frame), vbox2);
     
     /* License Server */
-    label = gtk_label_new("License Server:");
+    label = gtk_label_new(_("License Server:"));
     hbox = gtk_hbox_new(FALSE, 0);
     eventbox = gtk_event_box_new();
     gtk_container_add(GTK_CONTAINER(eventbox), label);
-    ctk_config_set_tooltip(ctk_config, eventbox, __license_server_help);
+    ctk_config_set_tooltip(ctk_config, eventbox, _(__license_server_help));
     gtk_box_pack_start(GTK_BOX(vbox2), hbox, FALSE, FALSE, 0);
 
     gtk_box_pack_start(GTK_BOX(hbox), eventbox, FALSE, TRUE, 5);
@@ -1650,12 +1654,12 @@ GtkWidget* ctk_manage_grid_license_new(CtrlTarget *target,
 
     /* Primary License Server Address */
 
-    label = gtk_label_new("Primary Server:");
+    label = gtk_label_new(_("Primary Server:"));
     ctk_manage_grid_license->txt_server_address = gtk_entry_new();
     hbox = gtk_hbox_new(FALSE, 0);
     eventbox = gtk_event_box_new();
     gtk_container_add(GTK_CONTAINER(eventbox), label);
-    ctk_config_set_tooltip(ctk_config, eventbox, __primary_server_address_help);
+    ctk_config_set_tooltip(ctk_config, eventbox, _(__primary_server_address_help));
     gtk_box_pack_start(GTK_BOX(hbox), eventbox, FALSE, TRUE, 0);
     gtk_table_attach(GTK_TABLE(table), hbox, 0, 1, 1, 2,
                      GTK_FILL, GTK_FILL | GTK_EXPAND, 0, 0);
@@ -1675,12 +1679,12 @@ GtkWidget* ctk_manage_grid_license_new(CtrlTarget *target,
                      GTK_FILL, GTK_FILL | GTK_EXPAND, 5, 0);
 
     /* Port Number */
-    label = gtk_label_new("Port Number:");
+    label = gtk_label_new(_("Port Number:"));
 
     hbox = gtk_hbox_new(FALSE, 5);
     eventbox = gtk_event_box_new();
     gtk_container_add(GTK_CONTAINER(eventbox), label);
-    ctk_config_set_tooltip(ctk_config, eventbox, __primary_server_port_help);
+    ctk_config_set_tooltip(ctk_config, eventbox, _(__primary_server_port_help));
     gtk_box_pack_start(GTK_BOX(hbox), eventbox, FALSE, TRUE, 0);
     gtk_table_attach(GTK_TABLE(table), hbox, 0, 1, 2, 3,
                      GTK_FILL, GTK_FILL | GTK_EXPAND, 0, 0);
@@ -1701,14 +1705,14 @@ GtkWidget* ctk_manage_grid_license_new(CtrlTarget *target,
                      (gpointer) ctk_manage_grid_license);
 
     /* Backup Server Address */
-    label = gtk_label_new("Secondary Server:");
+    label = gtk_label_new(_("Secondary Server:"));
     ctk_manage_grid_license->txt_secondary_server_address = gtk_entry_new();
 
     hbox = gtk_hbox_new(FALSE, 0);
     eventbox = gtk_event_box_new();
     gtk_container_add(GTK_CONTAINER(eventbox), label);
     ctk_config_set_tooltip(ctk_config, eventbox,
-                           __secondary_server_help);
+                           _(__secondary_server_help));
     gtk_box_pack_start(GTK_BOX(hbox), eventbox, FALSE, TRUE, 0);
     gtk_table_attach(GTK_TABLE(table), hbox, 0, 1, 5, 6,
                      GTK_FILL, GTK_FILL | GTK_EXPAND, 0, 0);
@@ -1728,12 +1732,12 @@ GtkWidget* ctk_manage_grid_license_new(CtrlTarget *target,
                      GTK_FILL, GTK_FILL | GTK_EXPAND, 5, 0);
 
     /* Port Number */
-    label = gtk_label_new("Port Number:");
+    label = gtk_label_new(_("Port Number:"));
 
     hbox = gtk_hbox_new(FALSE, 5);
     eventbox = gtk_event_box_new();
     gtk_container_add(GTK_CONTAINER(eventbox), label);
-    ctk_config_set_tooltip(ctk_config, eventbox, __secondary_server_port_help);
+    ctk_config_set_tooltip(ctk_config, eventbox, _(__secondary_server_port_help));
     gtk_box_pack_start(GTK_BOX(hbox), eventbox, FALSE, TRUE, 0);
     gtk_table_attach(GTK_TABLE(table), hbox, 0, 1, 6, 7,
                      GTK_FILL, GTK_FILL | GTK_EXPAND, 0, 0);
@@ -1761,7 +1765,7 @@ GtkWidget* ctk_manage_grid_license_new(CtrlTarget *target,
     gtk_widget_set_sensitive(ctk_manage_grid_license->btn_apply, FALSE);
     gtk_widget_set_size_request(ctk_manage_grid_license->btn_apply, 100, -1);
     ctk_config_set_tooltip(ctk_config, ctk_manage_grid_license->btn_apply,
-                           __apply_button_help);
+                           _(__apply_button_help));
     hbox = gtk_hbox_new(FALSE, 5);
     gtk_box_pack_start(GTK_BOX(vbox), hbox, FALSE, FALSE, 0);
     gtk_box_pack_end(GTK_BOX(hbox), ctk_manage_grid_license->btn_apply, FALSE, FALSE, 5);
@@ -1772,10 +1776,10 @@ GtkWidget* ctk_manage_grid_license_new(CtrlTarget *target,
 
     /* Cancel button */
     ctk_manage_grid_license->btn_cancel = gtk_button_new_with_label
-        (" Cancel ");
+        (_(" Cancel "));
     gtk_widget_set_size_request(ctk_manage_grid_license->btn_cancel, 100, -1);
     ctk_config_set_tooltip(ctk_config, ctk_manage_grid_license->btn_cancel,
-                           __cancel_button_help);
+                           _(__cancel_button_help));
     gtk_box_pack_end(GTK_BOX(hbox), ctk_manage_grid_license->btn_cancel, FALSE, FALSE, 5);
 
     g_signal_connect(G_OBJECT(ctk_manage_grid_license->btn_cancel), "clicked",
@@ -1791,7 +1795,7 @@ GtkWidget* ctk_manage_grid_license_new(CtrlTarget *target,
     ctk_manage_grid_license->gridd_feature_type = ctk_manage_grid_license->feature_type;
 
     /* Register a timer callback to update license status info */
-    str = g_strdup_printf("Manage GRID License");
+    str = g_strdup_printf(_("Manage GRID License"));
 
     ctk_config_add_timer(ctk_manage_grid_license->ctk_config,
                          DEFAULT_UPDATE_GRID_LICENSE_STATUS_INFO_TIME_INTERVAL,
@@ -1830,38 +1834,38 @@ GtkTextBuffer *ctk_manage_grid_license_create_help(GtkTextTagTable *table,
     
     gtk_text_buffer_get_iter_at_offset(b, &i, 0);
 
-    ctk_help_heading(b, &i, "Manage GRID Licenses Help");
-    ctk_help_para(b, &i, "%s", __manage_grid_licenses_help);
+    ctk_help_heading(b, &i, _("Manage GRID Licenses Help"));
+    ctk_help_para(b, &i, "%s", _(__manage_grid_licenses_help));
 
     if (ctk_manage_grid_license->license_edition_state ==
         NV_CTRL_ATTR_NVML_GPU_VIRTUALIZATION_MODE_PASSTHROUGH) {
-        ctk_help_heading(b, &i, "Quadro Virtual Datacenter Workstation");
-        ctk_help_para(b, &i, "%s", __grid_virtual_workstation_help);
+        ctk_help_heading(b, &i, _("Quadro Virtual Datacenter Workstation"));
+        ctk_help_para(b, &i, "%s", _(__grid_virtual_workstation_help));
 
-        ctk_help_heading(b, &i, "GRID Virtual Apps");
-        ctk_help_para(b, &i, "%s", __grid_vapp_help);
+        ctk_help_heading(b, &i, _("GRID Virtual Apps"));
+        ctk_help_para(b, &i, "%s", _(__grid_vapp_help));
     }
 
-    ctk_help_heading(b, &i, "License Server");
-    ctk_help_para(b, &i, "%s", __license_server_help);
+    ctk_help_heading(b, &i, _("License Server"));
+    ctk_help_para(b, &i, "%s", _(__license_server_help));
 
-    ctk_help_heading(b, &i, "Primary Server");
-    ctk_help_para(b, &i, "%s", __primary_server_address_help);
+    ctk_help_heading(b, &i, _("Primary Server"));
+    ctk_help_para(b, &i, "%s", _(__primary_server_address_help));
 
-    ctk_help_heading(b, &i, "Port Number");
-    ctk_help_para(b, &i, "%s", __primary_server_port_help);
+    ctk_help_heading(b, &i, _("Port Number"));
+    ctk_help_para(b, &i, "%s", _(__primary_server_port_help));
 
-    ctk_help_heading(b, &i, "Secondary Server");
-    ctk_help_para(b, &i, "%s", __secondary_server_help);
+    ctk_help_heading(b, &i, _("Secondary Server"));
+    ctk_help_para(b, &i, "%s", _(__secondary_server_help));
 
-    ctk_help_heading(b, &i, "Port Number");
-    ctk_help_para(b, &i, "%s", __secondary_server_port_help);
+    ctk_help_heading(b, &i, _("Port Number"));
+    ctk_help_para(b, &i, "%s", _(__secondary_server_port_help));
 
-    ctk_help_heading(b, &i, "Apply");
-    ctk_help_para(b, &i, "%s", __apply_button_help);
+    ctk_help_heading(b, &i, _("Apply"));
+    ctk_help_para(b, &i, "%s", _(__apply_button_help));
 
-    ctk_help_heading(b, &i, "Cancel");
-    ctk_help_para(b, &i, "%s", __cancel_button_help);
+    ctk_help_heading(b, &i, _("Cancel"));
+    ctk_help_para(b, &i, "%s", _(__cancel_button_help));
 
     ctk_help_finish(b);
 
