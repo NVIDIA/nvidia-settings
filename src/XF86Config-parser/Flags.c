@@ -107,11 +107,13 @@ xconfigParseFlagsSection (void)
              */
         case DEFAULTLAYOUT:
             strvalue = TRUE;
+            /* fall through */
         case BLANKTIME:
         case STANDBYTIME:
         case SUSPENDTIME:
         case OFFTIME:
             hasvalue = TRUE;
+            /* fall through */
         case NOTRAPSIGNALS:
         case DONTZAP:
         case DONTZOOM:

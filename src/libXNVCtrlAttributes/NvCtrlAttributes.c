@@ -623,8 +623,8 @@ ReturnStatus NvCtrlQueryTargetCount(const CtrlTarget *ctrl_target,
                     (ret != NvCtrlNotSupported)) {
                     return ret;
                 }
-                /* Fall through */
             }
+            /* Fall through */
         case DISPLAY_TARGET:
         case X_SCREEN_TARGET:
         case FRAMELOCK_TARGET:
@@ -785,8 +785,8 @@ ReturnStatus NvCtrlGetDisplayAttribute64(const CtrlTarget *ctrl_target,
                         (ret != NvCtrlNotSupported)) {
                         return ret;
                     }
-                    /* Fall through */
                 }
+                /* Fall through */
             case DISPLAY_TARGET:
             case X_SCREEN_TARGET:
             case FRAMELOCK_TARGET:
@@ -848,8 +848,8 @@ ReturnStatus NvCtrlSetDisplayAttribute(CtrlTarget *ctrl_target,
                         (ret != NvCtrlNotSupported)) {
                         return ret;
                     }
-                    /* Fall through */
                 }
+                /* Fall through */
             case DISPLAY_TARGET:
             case X_SCREEN_TARGET:
             case FRAMELOCK_TARGET:
@@ -924,8 +924,8 @@ NvCtrlGetValidDisplayAttributeValues(const CtrlTarget *ctrl_target,
                         (ret != NvCtrlNotSupported)) {
                         return ret;
                     }
-                    /* Fall through */
                 }
+                /* Fall through */
             case DISPLAY_TARGET:
             case X_SCREEN_TARGET:
             case FRAMELOCK_TARGET:
@@ -999,8 +999,8 @@ NvCtrlGetValidStringDisplayAttributeValues(const CtrlTarget *ctrl_target,
                         (ret != NvCtrlNotSupported)) {
                         return ret;
                     }
-                    /* Fall through */
                 }
+                /* Fall through */
             case DISPLAY_TARGET:
             case X_SCREEN_TARGET:
             case FRAMELOCK_TARGET:
@@ -1084,8 +1084,8 @@ ReturnStatus NvCtrlGetStringDisplayAttribute(const CtrlTarget *ctrl_target,
                     (ret != NvCtrlNotSupported)) {
                     return ret;
                 }
-                /* Fall through */
             }
+            /* Fall through */
         case DISPLAY_TARGET:
         case X_SCREEN_TARGET:
         case FRAMELOCK_TARGET:
@@ -1166,8 +1166,8 @@ ReturnStatus NvCtrlSetStringDisplayAttribute(CtrlTarget *ctrl_target,
                         (ret != NvCtrlNotSupported)) {
                         return ret;
                     }
-                    /* Fall through */
                 }
+                /* Fall through */
             case DISPLAY_TARGET:
             case X_SCREEN_TARGET:
             case FRAMELOCK_TARGET:
@@ -1210,8 +1210,8 @@ ReturnStatus NvCtrlGetBinaryAttribute(const CtrlTarget *ctrl_target,
                     (ret != NvCtrlNotSupported)) {
                     return ret;
                 }
-                /* Fall through */
             }
+            /* Fall through */
         case DISPLAY_TARGET:
         case X_SCREEN_TARGET:
         case FRAMELOCK_TARGET:

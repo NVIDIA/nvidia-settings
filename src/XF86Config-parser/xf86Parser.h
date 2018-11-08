@@ -336,6 +336,7 @@ typedef struct __xconfigconfdevicerec {
     int               chiprev;
     int               irq;
     int               screen;
+    size_t            index_id;
     XConfigOptionPtr  options;
     char             *comment;
 } XConfigDeviceRec, *XConfigDevicePtr;
@@ -612,11 +613,7 @@ typedef struct {
  * config, and when sanitizing an existing config
  */
 
-#define X_IS_XF86 0
-#define X_IS_XORG 1
-
 typedef struct {
-    int   xserver;
     char *x_project_root;
     char *keyboard;
     char *mouse;
@@ -754,7 +751,16 @@ XConfigPtr xconfigGenerate(GenerateOptions *gop);
 
 XConfigScreenPtr xconfigGenerateAddScreen(XConfigPtr config,
                                           int bus, int domain, int slot,
-                                          char *boardname, int count);
+                                          char *boardname, int count,
+                                          const char *driver,
+                                          const char *vendor);
+
+XConfigDevicePtr add_device(XConfigPtr config, int bus, int domain,
+                            int slot, char *boardname, int count,
+                            const char *driver, const char *vendor);
+
+void xconfigAddInactiveDevice(XConfigPtr config, XConfigLayoutPtr layout,
+                              int device_n);
 
 void xconfigGenerateAssignScreenAdjacencies(XConfigLayoutPtr layout);
 

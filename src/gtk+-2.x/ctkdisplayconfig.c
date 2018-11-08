@@ -964,8 +964,8 @@ static GtkWidget * create_validation_dialog(CtkDisplayConfig *ctk_object)
                        hbox, TRUE, TRUE, 5);
 
     /* Pack the information icon */
-    image = gtk_image_new_from_stock(GTK_STOCK_DIALOG_INFO,
-                                     GTK_ICON_SIZE_DIALOG);
+    image = ctk_image_new_from_str(CTK_STOCK_DIALOG_INFO,
+                                   GTK_ICON_SIZE_DIALOG);
     gtk_misc_set_alignment(GTK_MISC(image), 0.0f, 0.0f);
     gtk_box_pack_start(GTK_BOX(hbox), image, FALSE, FALSE, 5);
     
@@ -1066,8 +1066,8 @@ static GtkWidget * create_validation_apply_dialog(CtkDisplayConfig *ctk_object)
                        hbox, TRUE, TRUE, 5);
 
     /* Pack the information icon */
-    image = gtk_image_new_from_stock(GTK_STOCK_DIALOG_INFO,
-                                     GTK_ICON_SIZE_DIALOG);
+    image = ctk_image_new_from_str(CTK_STOCK_DIALOG_INFO,
+                                   GTK_ICON_SIZE_DIALOG);
     gtk_misc_set_alignment(GTK_MISC(image), 0.0f, 0.0f);
     gtk_box_pack_start(GTK_BOX(hbox), image, FALSE, FALSE, 5);
 
@@ -9164,10 +9164,8 @@ static Bool add_layout_to_xconfig(nvLayoutPtr layout, XConfigPtr config)
 static int generateXConfig(CtkDisplayConfig *ctk_object, XConfigPtr *pConfig)
 {
     nvLayoutPtr layout = ctk_object->layout;
-    CtrlTarget *ctrl_target;
     XConfigPtr config = NULL;
     GenerateOptions go;
-    char *server_vendor;
     int ret;
 
 
@@ -9177,16 +9175,6 @@ static int generateXConfig(CtkDisplayConfig *ctk_object, XConfigPtr *pConfig)
     /* XXX Assume we are creating an X config file for the local system */
     xconfigGenerateLoadDefaultOptions(&go);
     xconfigGetXServerInUse(&go);
-
-    /* Query actual server X.Org/XFree86 */
-    ctrl_target = NvCtrlGetDefaultTarget(layout->system);
-    server_vendor = NvCtrlGetServerVendor(ctrl_target);
-    if (server_vendor && g_strrstr(server_vendor, "X.Org")) {
-        go.xserver = X_IS_XORG;
-    } else {
-        go.xserver = X_IS_XF86;
-    }
-
 
     /* Generate the basic layout */
     config = xconfigGenerate(&go);

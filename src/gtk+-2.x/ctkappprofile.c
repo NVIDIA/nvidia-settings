@@ -257,7 +257,7 @@ static void app_profile_finalize(GObject *object)
 static void tool_button_set_label_and_stock_icon(GtkToolButton *button, const gchar *label_text, const gchar *icon_id)
 {
     GtkWidget *icon;
-    icon = gtk_image_new_from_stock(icon_id, GTK_ICON_SIZE_SMALL_TOOLBAR);
+    icon = ctk_image_new_from_str(icon_id, GTK_ICON_SIZE_SMALL_TOOLBAR);
     gtk_tool_button_set_icon_widget(button, icon);
     gtk_tool_button_set_label(button, label_text);
     gtk_widget_show_all(GTK_WIDGET(button));
@@ -270,7 +270,7 @@ static void button_set_label_and_stock_icon(GtkButton *button, const gchar *labe
     GtkWidget *label;
     GtkWidget *button_child;
     hbox = gtk_hbox_new(FALSE, 0);
-    icon = gtk_image_new_from_stock(icon_id, GTK_ICON_SIZE_SMALL_TOOLBAR);
+    icon = ctk_image_new_from_str(icon_id, GTK_ICON_SIZE_SMALL_TOOLBAR);
     label = gtk_label_new(label_text);
     gtk_box_pack_start(GTK_BOX(hbox), icon, FALSE, FALSE, 0);
     gtk_box_pack_start(GTK_BOX(hbox), label, TRUE, TRUE, 0);
@@ -394,7 +394,8 @@ static void populate_toolbar(GtkToolbar *toolbar,
 
     while (num_items--) {
         if (item->icon_id) {
-            icon = gtk_image_new_from_stock(item->icon_id, GTK_ICON_SIZE_SMALL_TOOLBAR);
+            icon = ctk_image_new_from_str(item->icon_id,
+                                          GTK_ICON_SIZE_SMALL_TOOLBAR);
         } else {
             icon = NULL;
         }
@@ -1121,7 +1122,7 @@ static void edit_rule_dialog_load_values(EditRuleDialog *dialog)
     // add/edit button
     tool_button_set_label_and_stock_icon(
         GTK_TOOL_BUTTON(dialog->add_edit_rule_button), "Update Rule",
-        dialog->new_rule ? GTK_STOCK_ADD : GTK_STOCK_PREFERENCES);
+        dialog->new_rule ? CTK_STOCK_ADD : CTK_STOCK_PREFERENCES);
 
     // source file
     combo_box_entry = GTK_COMBO_BOX(dialog->source_file_combo);
@@ -1439,7 +1440,7 @@ static void config_create_source_file_entry(CtkConfig *ctk_config,
     browse_button = gtk_button_new();
 
     button_set_label_and_stock_icon(GTK_BUTTON(browse_button),
-                                    "Browse...", GTK_STOCK_OPEN);
+                                    "Browse...", CTK_STOCK_OPEN);
 
     g_string_printf(help_string, "Clicking this button opens a file selection dialog box which allows you to choose an "
                                  "appropriate configuration file for the %s.", name);
@@ -1934,7 +1935,7 @@ static ToolbarItemTemplate *get_edit_rule_dialog_toolbar_items(EditRuleDialog *d
         {
             .text = UPDATE_RULE_LABEL,
             .help_text = "The Update Rule button allows you to save changes made to the rule definition.",
-            .icon_id = GTK_STOCK_SAVE,
+            .icon_id = CTK_STOCK_SAVE,
             .callback = G_CALLBACK(edit_rule_dialog_save_changes),
             .user_data = dialog,
             .flags = 0,
@@ -1942,7 +1943,7 @@ static ToolbarItemTemplate *get_edit_rule_dialog_toolbar_items(EditRuleDialog *d
         {
             .text = "Cancel",
             .help_text = "The Cancel button allows you to discard any changes made to the rule definition.",
-            .icon_id = GTK_STOCK_CANCEL,
+            .icon_id = CTK_STOCK_CANCEL,
             .callback = G_CALLBACK(edit_rule_dialog_cancel),
             .user_data = dialog,
             .flags = 0,
@@ -2555,7 +2556,7 @@ static void get_profile_dialog_toolbar_items(EditProfileDialog *dialog,
         {
             .text = "Add Setting",
             .help_text = "The Add Setting button allows you to create a new setting in the profile.",
-            .icon_id = GTK_STOCK_ADD,
+            .icon_id = CTK_STOCK_ADD,
             .callback = G_CALLBACK(edit_profile_dialog_add_setting),
             .user_data = dialog,
             .flags = 0,
@@ -2565,7 +2566,7 @@ static void get_profile_dialog_toolbar_items(EditProfileDialog *dialog,
             .help_text = "The Delete Setting button allows you to delete a highlighted setting from the profile.",
             .extended_help_text = "A setting can also be deleted from the profile by highlighting it in the list "
                                   "and hitting the Delete key.",
-            .icon_id = GTK_STOCK_REMOVE,
+            .icon_id = CTK_STOCK_REMOVE,
             .callback = G_CALLBACK(edit_profile_dialog_delete_setting),
             .user_data = dialog,
             .flags = TOOLBAR_ITEM_GHOST_IF_NOTHING_SELECTED
@@ -2575,7 +2576,7 @@ static void get_profile_dialog_toolbar_items(EditProfileDialog *dialog,
             .help_text = "The Edit Setting button allows you to edit a highlighted setting in the profile.",
             .extended_help_text = "This will activate an entry box in the setting's key column. To modify the setting's "
                                   "value, hit the Tab key or Right Arrow key, or double-click on the value.",
-            .icon_id = GTK_STOCK_PREFERENCES,
+            .icon_id = CTK_STOCK_PREFERENCES,
             .callback = G_CALLBACK(edit_profile_dialog_edit_setting),
             .user_data = dialog,
             .flags = TOOLBAR_ITEM_GHOST_IF_NOTHING_SELECTED
@@ -2590,7 +2591,7 @@ static void get_profile_dialog_toolbar_items(EditProfileDialog *dialog,
         {
             .text = UPDATE_PROFILE_LABEL,
             .help_text = "The Update Profile button allows you to save changes made to the profile definition.",
-            .icon_id = GTK_STOCK_SAVE,
+            .icon_id = CTK_STOCK_SAVE,
             .callback = G_CALLBACK(edit_profile_dialog_save_changes),
             .user_data = dialog,
             .flags = 0,
@@ -2598,7 +2599,7 @@ static void get_profile_dialog_toolbar_items(EditProfileDialog *dialog,
         {
             .text = "Cancel",
             .help_text = "The Cancel button allows you to discard any changes made to the profile definition.",
-            .icon_id = GTK_STOCK_CANCEL,
+            .icon_id = CTK_STOCK_CANCEL,
             .callback = G_CALLBACK(edit_profile_dialog_cancel),
             .user_data = dialog,
             .flags = 0,
@@ -3159,7 +3160,7 @@ static GtkWidget* create_rules_page(CtkAppProfile *ctk_app_profile)
                          "to applications which match a given pattern.",
             .extended_help_text = "See the \"Add/Edit Rule Dialog Box\" help section for more "
                                   "information on adding new rules.",
-            .icon_id = GTK_STOCK_ADD,
+            .icon_id = CTK_STOCK_ADD,
             .callback = (GCallback)add_rule_callback,
             .user_data = ctk_app_profile,
             .flags = 0,
@@ -3167,7 +3168,7 @@ static GtkWidget* create_rules_page(CtkAppProfile *ctk_app_profile)
         {
             .text = "Delete Rule",
             .help_text = "The Delete Rule button allows you to remove a highlighted rule from the list.",
-            .icon_id = GTK_STOCK_REMOVE,
+            .icon_id = CTK_STOCK_REMOVE,
             .callback = (GCallback)delete_rule_callback,
             .user_data = ctk_app_profile,
             .flags = TOOLBAR_ITEM_GHOST_IF_NOTHING_SELECTED
@@ -3182,7 +3183,7 @@ static GtkWidget* create_rules_page(CtkAppProfile *ctk_app_profile)
                                   "on their position along the configuration file search path. Hence, nvidia-settings "
                                   "may move the rule to a different source file if it is necessary for the rule to achieve "
                                   "a particular priority.",
-            .icon_id = GTK_STOCK_GO_UP,
+            .icon_id = CTK_STOCK_GO_UP,
             .callback = (GCallback)increase_rule_priority_callback,
             .user_data = ctk_app_profile,
             .flags = TOOLBAR_ITEM_GHOST_IF_NOTHING_SELECTED
@@ -3192,7 +3193,7 @@ static GtkWidget* create_rules_page(CtkAppProfile *ctk_app_profile)
             .help_text = "This decreases the priority of the highlighted rule in the list. If multiple rules "
                          "with a conflicting driver setting match the same application, the application will "
                          "take on the setting value of the highest-priority rule (lowest number) in the list.",
-            .icon_id = GTK_STOCK_GO_DOWN,
+            .icon_id = CTK_STOCK_GO_DOWN,
             .callback = (GCallback)decrease_rule_priority_callback,
             .user_data = ctk_app_profile,
             .flags = TOOLBAR_ITEM_GHOST_IF_NOTHING_SELECTED
@@ -3202,9 +3203,7 @@ static GtkWidget* create_rules_page(CtkAppProfile *ctk_app_profile)
             .help_text = "The Edit Rule button allows you to edit a highlighted rule in the list.",
             .extended_help_text = "See the \"Add/Edit Rule Dialog Box\" help section for more "
                                   "information on editing rules.",
-            // Would be nice to use GTK_STOCK_EDIT here, but unfortunately only
-            // available from 2.6 onwards...
-            .icon_id = GTK_STOCK_PREFERENCES,
+            .icon_id = CTK_STOCK_PREFERENCES,
             .callback = (GCallback)edit_rule_callback,
             .user_data = ctk_app_profile,
             .flags = TOOLBAR_ITEM_GHOST_IF_NOTHING_SELECTED
@@ -3404,7 +3403,7 @@ static void edit_profile_dialog_load_values(EditProfileDialog *dialog)
     tool_button_set_label_and_stock_icon(
         GTK_TOOL_BUTTON(dialog->add_edit_profile_button),
         "Update Profile",
-        dialog->new_profile ? GTK_STOCK_ADD : GTK_STOCK_PREFERENCES);
+        dialog->new_profile ? CTK_STOCK_ADD : CTK_STOCK_PREFERENCES);
 
     // profile name
     gtk_entry_set_text(GTK_ENTRY(dialog->name_entry), dialog->name->str);
@@ -3550,7 +3549,7 @@ static GtkWidget* create_profiles_page(CtkAppProfile *ctk_app_profile)
                             "to applications which match a given pattern.",
             .extended_help_text = "See the \"Add/Edit Profile Dialog Box\" help section for more "
                                   "information on adding new profiles.",
-            .icon_id = GTK_STOCK_ADD,
+            .icon_id = CTK_STOCK_ADD,
             .callback = (GCallback)add_profile_callback,
             .user_data = ctk_app_profile,
             .flags = 0
@@ -3558,7 +3557,7 @@ static GtkWidget* create_profiles_page(CtkAppProfile *ctk_app_profile)
         {
             .text = "Delete Profile",
             .help_text = "The Delete Profile button allows you to remove a highlighted profile from the list.",
-            .icon_id = GTK_STOCK_REMOVE,
+            .icon_id = CTK_STOCK_REMOVE,
             .callback = (GCallback)delete_profile_callback,
             .user_data = ctk_app_profile,
             .flags = TOOLBAR_ITEM_GHOST_IF_NOTHING_SELECTED
@@ -3568,9 +3567,7 @@ static GtkWidget* create_profiles_page(CtkAppProfile *ctk_app_profile)
             .help_text = "The Edit Profile button allows you to edit a highlighted profile in the list.",
             .extended_help_text = "See the \"Add/Edit Profile Dialog Box\" help section for more "
                                   "information on editing profiles.",
-            // Would be nice to use GTK_STOCK_EDIT here, but unfortunately only
-            // available from 2.6 onwards...
-            .icon_id = GTK_STOCK_PREFERENCES,
+            .icon_id = CTK_STOCK_PREFERENCES,
             .callback = (GCallback)edit_profile_callback,
             .user_data = ctk_app_profile,
             .flags = TOOLBAR_ITEM_GHOST_IF_NOTHING_SELECTED
@@ -3828,7 +3825,7 @@ static ToolbarItemTemplate *get_save_reload_toolbar_items(CtkAppProfile *ctk_app
             .extended_help_text = "This button displays a dialog box which allows you to preview the changes "
                                   "that will be made to the JSON configuration files, and toggle whether nvidia-settings "
                                   "should make backup copies of the original files before overwriting existing files.",
-            .icon_id = GTK_STOCK_SAVE,
+            .icon_id = CTK_STOCK_SAVE,
             .callback = (GCallback)save_changes_callback,
             .user_data = ctk_app_profile,
             .flags = 0,
@@ -3839,7 +3836,7 @@ static ToolbarItemTemplate *get_save_reload_toolbar_items(CtkAppProfile *ctk_app
                          "disk, reverting any unsaved changes.",
             .extended_help_text = "If nvidia-settings detects unsaved changes in the configuration, this button will "
                                   "display a dialog box to warn you before attempting to reload.",
-            .icon_id = GTK_STOCK_REFRESH,
+            .icon_id = CTK_STOCK_REFRESH,
             .callback = (GCallback)reload_callback,
             .user_data = ctk_app_profile,
             .flags = 0,
@@ -3950,7 +3947,7 @@ static ToolbarItemTemplate *get_save_app_profile_changes_toolbar_items(SaveAppPr
         {
             .text = "Save Changes",
             .help_text = "Save the changes to disk.",
-            .icon_id = GTK_STOCK_SAVE,
+            .icon_id = CTK_STOCK_SAVE,
             .callback = G_CALLBACK(save_app_profile_changes_dialog_save_changes),
             .user_data = dialog,
             .flags = 0,
@@ -3958,7 +3955,7 @@ static ToolbarItemTemplate *get_save_app_profile_changes_toolbar_items(SaveAppPr
         {
             .text = "Cancel",
             .help_text = "Cancel the save operation.",
-            .icon_id = GTK_STOCK_CANCEL,
+            .icon_id = CTK_STOCK_CANCEL,
             .callback = G_CALLBACK(save_app_profile_changes_dialog_cancel),
             .user_data = dialog,
             .flags = 0,

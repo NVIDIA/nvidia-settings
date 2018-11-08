@@ -33,6 +33,56 @@ G_BEGIN_DECLS
 # define G_VALUE_INIT { 0, { { 0 } } }
 #endif
 
+#ifdef CTK_GTK3
+#define CTK_STOCK_ADD             "list-add"
+#define CTK_STOCK_APPLY           "_Apply"  /* No icon recommended */
+#define CTK_STOCK_CANCEL          "_Cancel" /* No icon recommended */
+#define CTK_STOCK_CLOSE           "window-close"
+#define CTK_STOCK_DIALOG_ERROR    "dialog-error"
+#define CTK_STOCK_DIALOG_INFO     "dialog-information"
+#define CTK_STOCK_DIALOG_QUESTION "dialog-question"
+#define CTK_STOCK_DIALOG_WARNING  "dialog-warning"
+#define CTK_STOCK_EDIT             NULL /* Nothing recommended */
+#define CTK_STOCK_EXECUTE         "system-run"
+#define CTK_STOCK_GO_DOWN         "go-down"
+#define CTK_STOCK_GO_UP           "go-up"
+#define CTK_STOCK_HELP            "help-browser"
+#define CTK_STOCK_NO               NULL /* Nothing recommended */
+#define CTK_STOCK_OK              "_OK" /* No icon recommended */
+#define CTK_STOCK_OPEN            "document-open"
+#define CTK_STOCK_PREFERENCES     "preferences-system"
+#define CTK_STOCK_QUIT            "application-exit"
+#define CTK_STOCK_REFRESH         "view-refresh"
+#define CTK_STOCK_REMOVE          "list-remove"
+#define CTK_STOCK_SAVE            "document-save"
+#define CTK_STOCK_STOP            "process-stop"
+#define CTK_STOCK_YES              NULL /* Nothing recommended */
+#else
+#define CTK_STOCK_ADD             GTK_STOCK_ADD
+#define CTK_STOCK_APPLY           GTK_STOCK_APPLY
+#define CTK_STOCK_CANCEL          GTK_STOCK_CANCEL
+#define CTK_STOCK_CLOSE           GTK_STOCK_CLOSE
+#define CTK_STOCK_DIALOG_ERROR    GTK_STOCK_DIALOG_ERROR
+#define CTK_STOCK_DIALOG_INFO     GTK_STOCK_DIALOG_INFO
+#define CTK_STOCK_DIALOG_QUESTION GTK_STOCK_DIALOG_QUESTION
+#define CTK_STOCK_DIALOG_WARNING  GTK_STOCK_DIALOG_WARNING
+#define CTK_STOCK_EDIT            GTK_STOCK_EDIT
+#define CTK_STOCK_EXECUTE         GTK_STOCK_EXECUTE
+#define CTK_STOCK_GO_DOWN         GTK_STOCK_GO_DOWN
+#define CTK_STOCK_GO_UP           GTK_STOCK_GO_UP
+#define CTK_STOCK_HELP            GTK_STOCK_HELP
+#define CTK_STOCK_NO              GTK_STOCK_NO
+#define CTK_STOCK_OK              GTK_STOCK_OK
+#define CTK_STOCK_OPEN            GTK_STOCK_OPEN
+#define CTK_STOCK_PREFERENCES     GTK_STOCK_PREFERENCES
+#define CTK_STOCK_QUIT            GTK_STOCK_QUIT
+#define CTK_STOCK_REFRESH         GTK_STOCK_REFRESH
+#define CTK_STOCK_REMOVE          GTK_STOCK_REMOVE
+#define CTK_STOCK_SAVE            GTK_STOCK_SAVE
+#define CTK_STOCK_STOP            GTK_STOCK_STOP
+#define CTK_STOCK_YES             GTK_STOCK_YES
+#endif
+
 /*
  * GTK 2/3 util functions
  */
@@ -56,6 +106,7 @@ void ctk_adjustment_set_upper(GtkAdjustment *a, gdouble x);
 void ctk_adjustment_set_lower(GtkAdjustment *a, gdouble x);
 
 GtkWidget *ctk_scrolled_window_get_vscrollbar(GtkScrolledWindow *sw);
+void ctk_scrolled_window_add(GtkScrolledWindow *sw, GtkWidget *child);
 GtkWidget *ctk_statusbar_get_message_area(GtkStatusbar *statusbar);
 void ctk_cell_renderer_set_alignment(GtkCellRenderer *widget,
                                      gfloat x, gfloat y);
@@ -71,6 +122,10 @@ GtkWidget *ctk_combo_box_text_new_with_entry(void);
 void ctk_combo_box_text_append_text(GtkWidget *widget, const gchar *text);
 
 void ctk_g_object_ref_sink(gpointer obj);
+
+GtkWidget *ctk_image_new_from_str(const gchar *str, GtkIconSize size);
+GdkPixbuf *ctk_widget_render_icon(GtkWidget *widget, const gchar *stock_id,
+                                  GtkIconSize size, const gchar *detail);
 
 /* end of GTK 2/3 util functions */
 

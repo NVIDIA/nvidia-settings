@@ -682,7 +682,7 @@
 
 /*
  * NV_CTRL_FLIPPING_ALLOWED - when TRUE, OpenGL will swap by flipping
- * when possible; when FALSE, OpenGL will alway swap by blitting.
+ * when possible; when FALSE, OpenGL will always swap by blitting.
  */
 
 #define NV_CTRL_FLIPPING_ALLOWED                                40 /* RW-X */
@@ -4728,7 +4728,7 @@
 /*
  * NV_CTRL_BINARY_DATA_GPU_FLAGS - Returns a list of flags for the
  * given GPU.  A flag can, for instance, be a capability which enables
- * of disables some features according to the GPU state.
+ * or disables some features according to the GPU state.
  *
  * The format of the returned data is:
  *

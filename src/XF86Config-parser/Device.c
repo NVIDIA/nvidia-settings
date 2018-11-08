@@ -514,3 +514,26 @@ void xconfigFormatPciBusString(char *str, int len,
     }
     str[len - 1] = '\0';
 }
+
+
+/*
+ * xconfigAddInactiveDevice() -  add a device to the inactive section of
+ * the xconfig layout.
+ */
+void xconfigAddInactiveDevice(XConfigPtr config, XConfigLayoutPtr layout,
+                              int device_n)
+{
+    XConfigDevicePtr device;
+    XConfigInactivePtr inac;
+
+    device = add_device(config, -1, -1, -1, NULL, device_n,
+                        "modesetting", "Unknown");
+
+    inac = xconfigAlloc(sizeof (XConfigInactiveRec));
+    inac->next = NULL;
+    inac->device = device;
+    inac->device_name = xconfigStrdup(device->identifier);
+    xconfigAddListItem((GenericListPtr *)(&layout->inactives),
+                       (GenericListPtr) inac);
+} /* xconfigAddInactiveDevice() */
+

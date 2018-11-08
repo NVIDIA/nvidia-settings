@@ -160,16 +160,12 @@ static gboolean ctk_gauge_expose_event(
 )
 #endif
 {
-    gint width, height;
     CtkGauge *ctk_gauge;
     GtkAllocation allocation;
 
     ctk_gauge = CTK_GAUGE(widget);
 
     ctk_widget_get_allocation(widget, &allocation);
-
-    width  = allocation.width  - 2 * gtk_widget_get_style(widget)->xthickness;
-    height = allocation.height - 2 * gtk_widget_get_style(widget)->ythickness;
 
 #ifdef CTK_GTK3
     gtk_render_frame(gtk_widget_get_style_context(widget),
@@ -180,17 +176,22 @@ static gboolean ctk_gauge_expose_event(
     cairo_set_source_surface(cr, ctk_gauge->c_surface, 0, 0);
     cairo_paint(cr);
 #else
-    gtk_paint_shadow(widget->style, widget->window,
-                     GTK_STATE_NORMAL, GTK_SHADOW_IN,
-                     &event->area, widget, "ctk_gauge", 0, 0,
-                     widget->allocation.width, widget->allocation.height);
+    {
+        gint width  = allocation.width  - 2 * gtk_widget_get_style(widget)->xthickness;
+        gint height = allocation.height - 2 * gtk_widget_get_style(widget)->ythickness;
 
-    gdk_gc_set_function(ctk_gauge->gdk_gc, GDK_COPY);
+        gtk_paint_shadow(widget->style, widget->window,
+                         GTK_STATE_NORMAL, GTK_SHADOW_IN,
+                         &event->area, widget, "ctk_gauge", 0, 0,
+                         widget->allocation.width, widget->allocation.height);
 
-    gdk_draw_drawable(widget->window, ctk_gauge->gdk_gc, ctk_gauge->gdk_pixmap,
-                      0, 0, widget->style->xthickness,
-                      widget->style->ythickness,
-                      width, height);
+        gdk_gc_set_function(ctk_gauge->gdk_gc, GDK_COPY);
+
+        gdk_draw_drawable(widget->window, ctk_gauge->gdk_gc, ctk_gauge->gdk_pixmap,
+                          0, 0, widget->style->xthickness,
+                          widget->style->ythickness,
+                          width, height);
+    }
 #endif
     return FALSE;
 }
@@ -358,7 +359,6 @@ static GdkColor *get_foreground_color(CtkGauge *ctk_gauge, gint i)
 
 static void draw(CtkGauge *ctk_gauge)
 {
-    GtkWidget *widget;
     gint x1, x2, y, width, i, percent, pos;
     gint upper, lower, range, current;
 
@@ -366,8 +366,6 @@ static void draw(CtkGauge *ctk_gauge)
     upper = ctk_gauge->upper;
     range = upper - lower;
     current = ctk_gauge->current;
-
-    widget = GTK_WIDGET(ctk_gauge);
 
 #ifdef CTK_GTK3
     /* Fill Curve surface with black background */
@@ -378,10 +376,14 @@ static void draw(CtkGauge *ctk_gauge)
                     ctk_gauge->width, ctk_gauge->height);
     cairo_fill(ctk_gauge->c_context);
 #else
-    gdk_gc_set_function(ctk_gauge->gdk_gc, GDK_COPY);
+    {
+        GtkWidget *widget = GTK_WIDGET(ctk_gauge);;
 
-    gdk_draw_rectangle(ctk_gauge->gdk_pixmap, widget->style->black_gc,
-       TRUE, 0, 0, ctk_gauge->width, ctk_gauge->height);
+        gdk_gc_set_function(ctk_gauge->gdk_gc, GDK_COPY);
+
+        gdk_draw_rectangle(ctk_gauge->gdk_pixmap, widget->style->black_gc,
+           TRUE, 0, 0, ctk_gauge->width, ctk_gauge->height);
+    }
 #endif
 
     width = ctk_gauge->width / 5;

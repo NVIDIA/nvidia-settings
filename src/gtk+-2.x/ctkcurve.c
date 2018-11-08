@@ -159,16 +159,12 @@ static gboolean ctk_curve_expose_event(
 )
 #endif
 {
-    gint width, height;
     CtkCurve *ctk_curve;
     GtkAllocation allocation;
 
     ctk_curve = CTK_CURVE(widget);
 
     ctk_widget_get_allocation(widget, &allocation);
-
-    width  = allocation.width  - 2 * gtk_widget_get_style(widget)->xthickness;
-    height = allocation.height - 2 * gtk_widget_get_style(widget)->ythickness;
 
 #ifdef CTK_GTK3
     gtk_render_frame(gtk_widget_get_style_context(widget),
@@ -178,17 +174,22 @@ static gboolean ctk_curve_expose_event(
     cairo_set_source_surface(cr, ctk_curve->c_surface, 0, 0);
     cairo_paint(cr);
 #else
-    gtk_paint_shadow(widget->style, widget->window,
-                     GTK_STATE_NORMAL, GTK_SHADOW_IN,
-                     &event->area, widget, "ctk_curve", 0, 0,
-                     allocation.width, allocation.height);
+    {
+        gint width  = allocation.width  - 2 * gtk_widget_get_style(widget)->xthickness;
+        gint height = allocation.height - 2 * gtk_widget_get_style(widget)->ythickness;
 
-    gdk_gc_set_function(ctk_curve->gdk_gc, GDK_COPY);
+        gtk_paint_shadow(widget->style, widget->window,
+                         GTK_STATE_NORMAL, GTK_SHADOW_IN,
+                         &event->area, widget, "ctk_curve", 0, 0,
+                         allocation.width, allocation.height);
 
-    gdk_draw_drawable(widget->window, ctk_curve->gdk_gc, ctk_curve->gdk_pixmap,
-                      0, 0, widget->style->xthickness,
-                      widget->style->ythickness,
-                      width, height);
+        gdk_gc_set_function(ctk_curve->gdk_gc, GDK_COPY);
+
+        gdk_draw_drawable(widget->window, ctk_curve->gdk_gc, ctk_curve->gdk_pixmap,
+                          0, 0, widget->style->xthickness,
+                          widget->style->ythickness,
+                          width, height);
+    }
 #endif
     return FALSE;
 }

@@ -46,9 +46,6 @@ static int is_file(const char *filename);
 static void add_font_path(GenerateOptions *gop, XConfigPtr config);
 static void add_modules(GenerateOptions *gop, XConfigPtr config);
 
-static XConfigDevicePtr add_device(XConfigPtr config, int bus, int domain,
-                                   int slot, char *boardname, int count);
-
 static void add_layout(GenerateOptions *gop, XConfigPtr config);
 
 static void add_inputref(XConfigPtr config, XConfigLayoutPtr layout,
@@ -95,14 +92,17 @@ XConfigPtr xconfigGenerate(GenerateOptions *gop)
 
 XConfigScreenPtr xconfigGenerateAddScreen(XConfigPtr config,
                                           int bus, int domain, int slot,
-                                          char *boardname, int count)
+                                          char *boardname, int count,
+                                          const char *driver,
+                                          const char *vendor)
 {
     XConfigScreenPtr screen, s;
     XConfigDevicePtr device;
     XConfigMonitorPtr monitor;
 
     monitor = xconfigAddMonitor(config, count);
-    device = add_device(config, bus, domain, slot, boardname, count);
+    device = add_device(config, bus, domain, slot, boardname, count,
+                        driver, vendor);
 
     screen = xconfigAlloc(sizeof(XConfigScreenRec));
 
@@ -458,8 +458,9 @@ XConfigMonitorPtr xconfigAddMonitor(XConfigPtr config, int count)
  * add_device()
  */
 
-static XConfigDevicePtr add_device(XConfigPtr config, int bus, int domain,
-                                   int slot, char *boardname, int count)
+XConfigDevicePtr add_device(XConfigPtr config, int bus, int domain,
+                            int slot, char *boardname, int count,
+                            const char *driver, const char *vendor)
 {
     XConfigDevicePtr device, d;
 
@@ -467,8 +468,9 @@ static XConfigDevicePtr add_device(XConfigPtr config, int bus, int domain,
 
     device->identifier = xconfigAlloc(32);
     snprintf(device->identifier, 32, DEVICE_IDENTIFIER, count);
-    device->driver = xconfigStrdup("nvidia");
-    device->vendor = xconfigStrdup("NVIDIA Corporation");
+    device->index_id = count;
+    device->driver = xconfigStrdup(driver);
+    device->vendor = xconfigStrdup(vendor);
 
     if (bus != -1 && domain != -1 && slot != -1) {
         device->busid = xconfigAlloc(32);
@@ -527,7 +529,8 @@ static void add_layout(GenerateOptions *gop, XConfigPtr config)
 
     /* assume 1 X screen */
 
-    screen = xconfigGenerateAddScreen(config, -1, -1, -1, NULL, 0);
+    screen = xconfigGenerateAddScreen(config, -1, -1, -1, NULL, 0,
+                                      "nvidia", "NVIDIA Corporation");
 
     /* create layout */
 
@@ -1240,11 +1243,7 @@ int xconfigAddKeyboard(GenerateOptions *gop, XConfigPtr config)
 #if defined(NV_SUNOS) || defined(NV_BSD)
         input->driver = xconfigStrdup("keyboard");
 #else
-        if (gop->xserver == X_IS_XORG) {
-            input->driver = xconfigStrdup("kbd");
-        } else {
-            input->driver = xconfigStrdup("keyboard");
-        }
+        input->driver = xconfigStrdup("kbd");
 #endif
     }
 
@@ -1316,7 +1315,6 @@ static char *xconfigGetDefaultProjectRoot(void)
  */
 
 static int get_xserver_information(const char *versionString,
-                                   int *isXorg,
                                    int *autoloadsGLX,
                                    int *supportsExtensionSection,
                                    int *xineramaPlusCompositeWorks,
@@ -1331,16 +1329,9 @@ static int get_xserver_information(const char *versionString,
     /* check if this is an XFree86 X server */
 
     if (strstr(versionString, "XFree86 Version")) {
-        *isXorg = FALSE;
-        *autoloadsGLX = FALSE;
-        *supportsExtensionSection = FALSE;
-        *xineramaPlusCompositeWorks = FALSE;
-        return TRUE;
+        xconfigErrorMsg(WarnMsg, "XFree86 is not supported.");
+        return FALSE;
     }
-
-    /* this must be an X.Org X server */
-
-    *isXorg = TRUE;
 
     /* attempt to parse the major.minor version out of the string */
 
@@ -1439,8 +1430,6 @@ static int get_xserver_information(const char *versionString,
 void xconfigGetXServerInUse(GenerateOptions *gop)
 {
     FILE *stream = NULL;
-    int xserver = -1;
-    int isXorg;
     int len, found;
     char *cmd, *ptr, *ret;
 
@@ -1474,39 +1463,18 @@ void xconfigGetXServerInUse(GenerateOptions *gop)
          */
 
         found = get_xserver_information(buf,
-                                        &isXorg,
                                         &gop->autoloads_glx,
                                         &gop->supports_extension_section,
                                         &gop->xinerama_plus_composite_works,
                                         &gop->compositeExtensionName);
 
-        if (found) {
-            if (isXorg) {
-                xserver = X_IS_XORG;
-            } else {
-                xserver = X_IS_XF86;
-            }
-        } else {
+        if (!found) {
             xconfigErrorMsg(WarnMsg, "Unable to parse X.Org version string.");
         }
     }
     /* Close the popen()'ed stream. */
     pclose(stream);
     free(cmd);
-
-    if (xserver == -1) {
-        char *xorgpath;
-
-        xorgpath = xconfigStrcat(gop->x_project_root, "/bin/Xorg", NULL);
-        if (access(xorgpath, F_OK)==0) {
-            xserver = X_IS_XORG;
-        } else {
-            xserver = X_IS_XF86;
-        }
-        free(xorgpath);
-    }
-
-    gop->xserver=xserver;
 
 } /* xconfigGetXServerInUse() */
 
@@ -1524,7 +1492,6 @@ void xconfigGenerateLoadDefaultOptions(GenerateOptions *gop)
     gop->x_project_root = xconfigGetDefaultProjectRoot();
 
     /* XXX What to default the following to?
-       gop->xserver
        gop->keyboard
        gop->mouse
        gop->keyboard_driver

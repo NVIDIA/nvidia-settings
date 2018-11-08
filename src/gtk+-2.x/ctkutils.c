@@ -215,6 +215,15 @@ GtkWidget *ctk_scrolled_window_get_vscrollbar(GtkScrolledWindow *sw)
 #endif
 }
 
+void ctk_scrolled_window_add(GtkScrolledWindow *sw, GtkWidget *child)
+{
+#ifdef CTK_GTK3
+    gtk_container_add(GTK_CONTAINER(sw), child);
+#else
+    gtk_scrolled_window_add_with_viewport(sw, child);
+#endif
+}
+
 GtkWidget *ctk_statusbar_get_message_area(GtkStatusbar *statusbar)
 {
 #ifdef CTK_GTK3
@@ -267,6 +276,37 @@ void ctk_combo_box_text_append_text(GtkWidget *widget, const gchar *text)
 #else
     /* added in 2.4, deprecated in 2.24, removed in 3.0 */
     gtk_combo_box_append_text(GTK_COMBO_BOX(widget), text);
+#endif
+}
+
+GtkWidget *ctk_image_new_from_str(const gchar *str, GtkIconSize size)
+{
+    if (!str) {
+        return NULL;
+    }
+
+#ifdef CTK_GTK3
+    /* added in 2.6 */
+    return gtk_image_new_from_icon_name(str, size);
+#else
+    /* deprecated in 3.10 */
+    return gtk_image_new_from_stock(str, size);
+#endif
+}
+
+GdkPixbuf *ctk_widget_render_icon(GtkWidget *widget, const gchar *stock_id,
+                                  GtkIconSize size, const gchar *detail)
+{
+    if (!stock_id) {
+        return NULL;
+    }
+
+#ifdef CTK_GTK3
+    /* added in 3.0 and deprecated in 3.10 */
+    return gtk_widget_render_icon_pixbuf(widget, stock_id, size);
+#else
+    /* deprecated in 3.0 */
+    return gtk_widget_render_icon(widget, stock_id, size, detail);
 #endif
 }
 

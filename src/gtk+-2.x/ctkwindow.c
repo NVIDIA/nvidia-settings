@@ -1314,7 +1314,7 @@ static GtkWidget *create_quit_dialog(CtkWindow *ctk_window)
     gtk_container_set_border_width(GTK_CONTAINER(hbox), 6);
     gtk_container_add(GTK_CONTAINER(ctk_dialog_get_content_area(GTK_DIALOG(dialog))), hbox);
     
-    pixbuf = gtk_widget_render_icon(dialog, GTK_STOCK_DIALOG_QUESTION,
+    pixbuf = ctk_widget_render_icon(dialog, CTK_STOCK_DIALOG_QUESTION,
                                     GTK_ICON_SIZE_DIALOG, NULL);
     image = gtk_image_new_from_pixbuf(pixbuf);
     g_object_unref(pixbuf);

@@ -501,7 +501,7 @@ is released as GPL.
 The most recent official version of the source code is available here:
 .sp
 .ti +5
-.__URL__ ftp://download.nvidia.com/XFree86/nvidia-settings/
+.__URL__ https://download.nvidia.com/XFree86/nvidia-settings/
 .sp
 Note that
 .B nvidia\-settings

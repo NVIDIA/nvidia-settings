@@ -246,8 +246,8 @@ static GtkWidget * create_error_dialog(CtkVcs *ctk_object)
                        hbox, TRUE, TRUE, 5);
 
     /* Pack the information icon */
-    image = gtk_image_new_from_stock(GTK_STOCK_DIALOG_INFO,
-                                     GTK_ICON_SIZE_DIALOG);
+    image = ctk_image_new_from_str(CTK_STOCK_DIALOG_INFO,
+                                   GTK_ICON_SIZE_DIALOG);
     gtk_misc_set_alignment(GTK_MISC(image), 0.0f, 0.0f);
     gtk_box_pack_start(GTK_BOX(hbox), image, FALSE, FALSE, 5);
     

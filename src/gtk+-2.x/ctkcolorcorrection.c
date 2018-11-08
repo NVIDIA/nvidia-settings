@@ -531,8 +531,8 @@ GtkWidget* ctk_color_correction_new(CtrlTarget *ctrl_target,
                           "values may be incorrect.");
     gtk_label_set_line_wrap(GTK_LABEL(label), TRUE);
 
-    image = gtk_image_new_from_stock(GTK_STOCK_DIALOG_WARNING,
-                                     GTK_ICON_SIZE_BUTTON);
+    image = ctk_image_new_from_str(CTK_STOCK_DIALOG_WARNING,
+                                   GTK_ICON_SIZE_BUTTON);
 
     gtk_box_pack_start(GTK_BOX(hbox), image, FALSE, FALSE, 0);
     gtk_box_pack_start(GTK_BOX(hbox), label, FALSE, FALSE, 0);

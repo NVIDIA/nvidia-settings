@@ -448,7 +448,7 @@ static GtkWidget *create_error_msg_dialog(CtkFramelock *ctk_framelock)
     gtk_container_add(GTK_CONTAINER(
         ctk_dialog_get_content_area(GTK_DIALOG(dialog))), hbox);
     
-    pixbuf = gtk_widget_render_icon(dialog, GTK_STOCK_DIALOG_ERROR,
+    pixbuf = ctk_widget_render_icon(dialog, CTK_STOCK_DIALOG_ERROR,
                                     GTK_ICON_SIZE_DIALOG, NULL);
     image = gtk_image_new_from_pixbuf(pixbuf);
     g_object_unref(pixbuf);
@@ -488,8 +488,8 @@ static GtkWidget *create_sync_state_button(CtkFramelock *ctk_framelock)
 
     /* create the enable syncing icon */
 
-    pixbuf = gtk_widget_render_icon(button,
-                                    GTK_STOCK_EXECUTE,
+    pixbuf = ctk_widget_render_icon(button,
+                                    CTK_STOCK_EXECUTE,
                                     GTK_ICON_SIZE_BUTTON,
                                     "enable frame lock");
     if (pixbuf) image = gtk_image_new_from_pixbuf(pixbuf);
@@ -517,8 +517,8 @@ static GtkWidget *create_sync_state_button(CtkFramelock *ctk_framelock)
 
     /* create the disable syncing icon */
     
-    pixbuf = gtk_widget_render_icon(button,
-                                    GTK_STOCK_STOP,
+    pixbuf = ctk_widget_render_icon(button,
+                                    CTK_STOCK_STOP,
                                     GTK_ICON_SIZE_BUTTON,
                                     "disable frame lock");
     if (pixbuf) image = gtk_image_new_from_pixbuf(pixbuf);
@@ -600,7 +600,7 @@ static GtkWidget *create_add_devices_dialog(CtkFramelock *ctk_framelock)
     gtk_container_add(GTK_CONTAINER(ctk_dialog_get_content_area(GTK_DIALOG(dialog))),
                       hbox);
 
-    pixbuf = gtk_widget_render_icon(dialog, GTK_STOCK_DIALOG_QUESTION,
+    pixbuf = ctk_widget_render_icon(dialog, CTK_STOCK_DIALOG_QUESTION,
                                     GTK_ICON_SIZE_DIALOG, NULL);
     image = gtk_image_new_from_pixbuf(pixbuf);
     g_object_unref(pixbuf);
@@ -687,7 +687,7 @@ static GtkWidget *create_remove_devices_dialog(CtkFramelock *ctk_framelock)
     gtk_container_add(GTK_CONTAINER(ctk_dialog_get_content_area(GTK_DIALOG(dialog))),
                       hbox);
     
-    pixbuf = gtk_widget_render_icon(dialog, GTK_STOCK_DIALOG_QUESTION,
+    pixbuf = ctk_widget_render_icon(dialog, CTK_STOCK_DIALOG_QUESTION,
                                     GTK_ICON_SIZE_DIALOG, NULL);
     image = gtk_image_new_from_pixbuf(pixbuf);
     g_object_unref(pixbuf);
@@ -1686,8 +1686,8 @@ static void expander_button_clicked(GtkWidget *widget, gpointer user_data)
         gtk_container_remove(GTK_CONTAINER(entry->expander_button),
                              entry->expander_button_image);
         entry->expander_button_image =
-            gtk_image_new_from_stock(GTK_STOCK_ADD,
-                                     GTK_ICON_SIZE_SMALL_TOOLBAR);
+            ctk_image_new_from_str(CTK_STOCK_ADD,
+                                   GTK_ICON_SIZE_SMALL_TOOLBAR);
         gtk_widget_set_size_request(entry->expander_button, 20, 20);
         
         gtk_container_add(GTK_CONTAINER(entry->expander_button),
@@ -1700,8 +1700,8 @@ static void expander_button_clicked(GtkWidget *widget, gpointer user_data)
         gtk_container_remove(GTK_CONTAINER(entry->expander_button),
                              entry->expander_button_image);
         entry->expander_button_image =
-            gtk_image_new_from_stock(GTK_STOCK_REMOVE,
-                                     GTK_ICON_SIZE_SMALL_TOOLBAR);
+            ctk_image_new_from_str(CTK_STOCK_REMOVE,
+                                   GTK_ICON_SIZE_SMALL_TOOLBAR);
         gtk_widget_set_size_request(entry->expander_button, 20, 20);
 
         gtk_container_add(GTK_CONTAINER(entry->expander_button),
@@ -1733,8 +1733,8 @@ static void list_entry_add_expander_button(nvListEntryPtr entry)
     entry->expander_vbox = gtk_vbox_new(FALSE, 0);
     entry->expander_button = gtk_button_new();
     entry->expander_button_image =
-        gtk_image_new_from_stock(GTK_STOCK_REMOVE,
-                                 GTK_ICON_SIZE_SMALL_TOOLBAR);
+        ctk_image_new_from_str(CTK_STOCK_REMOVE,
+                               GTK_ICON_SIZE_SMALL_TOOLBAR);
     gtk_widget_set_size_request(entry->expander_button, 20, 20);    
     entry->expanded = True;
     
@@ -2713,13 +2713,13 @@ static void list_entry_expand_collapse(nvListEntryPtr entry, gboolean expand)
     if (expand) {
         /* Expand */
         entry->expander_button_image =
-            gtk_image_new_from_stock(GTK_STOCK_REMOVE,
-                                     GTK_ICON_SIZE_SMALL_TOOLBAR);
+            ctk_image_new_from_str(CTK_STOCK_REMOVE,
+                                   GTK_ICON_SIZE_SMALL_TOOLBAR);
     } else {
         /* Collapse */
         entry->expander_button_image =
-            gtk_image_new_from_stock(GTK_STOCK_ADD,
-                                     GTK_ICON_SIZE_SMALL_TOOLBAR);
+            ctk_image_new_from_str(CTK_STOCK_ADD,
+                                   GTK_ICON_SIZE_SMALL_TOOLBAR);
     }
 
     gtk_widget_set_size_request(entry->expander_button, 20, 20);

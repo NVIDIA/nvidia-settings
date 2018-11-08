@@ -1056,7 +1056,7 @@ void ctk_glx_probe_info(GtkWidget *widget)
 
 
     vbox = ctk_glx->glxinfo_vpane;
-    gtk_widget_set_size_request(notebook, -1, 50);
+    gtk_widget_set_size_request(notebook, -1, 250);
     gtk_box_pack_start(GTK_BOX(vbox), notebook, TRUE, TRUE, 0);
 
     /* Add (Shared) GLX information to widget */
@@ -1085,7 +1085,7 @@ void ctk_glx_probe_info(GtkWidget *widget)
     }
     gtk_box_pack_start(GTK_BOX(vbox2), table, FALSE, FALSE, 0);
 
-    gtk_container_add(GTK_CONTAINER(scroll_win), vbox2);
+    ctk_scrolled_window_add(GTK_SCROLLED_WINDOW(scroll_win), vbox2);
 
     gtk_notebook_append_page(GTK_NOTEBOOK(notebook), scroll_win,
                              notebook_label);
@@ -1115,7 +1115,7 @@ void ctk_glx_probe_info(GtkWidget *widget)
 
     gtk_box_pack_start(GTK_BOX(vbox2), table, FALSE, FALSE, 0);
 
-    gtk_container_add(GTK_CONTAINER(scroll_win), vbox2);
+    ctk_scrolled_window_add(GTK_SCROLLED_WINDOW(scroll_win), vbox2);
     gtk_notebook_append_page(GTK_NOTEBOOK(notebook), scroll_win,
                              notebook_label);
 
@@ -1143,7 +1143,7 @@ void ctk_glx_probe_info(GtkWidget *widget)
 
     gtk_box_pack_start(GTK_BOX(vbox2), table, FALSE, FALSE, 0);
 
-    gtk_container_add(GTK_CONTAINER(scroll_win), vbox2);
+    ctk_scrolled_window_add(GTK_SCROLLED_WINDOW(scroll_win), vbox2);
     gtk_notebook_append_page(GTK_NOTEBOOK(notebook), scroll_win,
                              notebook_label);
 
@@ -1174,7 +1174,7 @@ void ctk_glx_probe_info(GtkWidget *widget)
 
     gtk_box_pack_start(GTK_BOX(vbox2), table, FALSE, FALSE, 0);
 
-    gtk_container_add(GTK_CONTAINER(scroll_win), vbox2);
+    ctk_scrolled_window_add(GTK_SCROLLED_WINDOW(scroll_win), vbox2);
     gtk_notebook_append_page(GTK_NOTEBOOK(notebook), scroll_win,
                              notebook_label);
 
@@ -1210,7 +1210,7 @@ void ctk_glx_probe_info(GtkWidget *widget)
         }
         gtk_box_pack_start(GTK_BOX(vbox2), table, FALSE, FALSE, 0);
 
-        gtk_container_add(GTK_CONTAINER(scroll_win), vbox2);
+        ctk_scrolled_window_add(GTK_SCROLLED_WINDOW(scroll_win), vbox2);
         gtk_notebook_append_page(GTK_NOTEBOOK(notebook), scroll_win,
                                  notebook_label);
     }

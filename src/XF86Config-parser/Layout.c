@@ -474,7 +474,6 @@ xconfigValidateLayout (XConfigPtr p)
             adj = adj->next;
         }
 
-        /* I not believe the "inactives" list is used for anything */
         
         iptr = layout->inactives;
         while (iptr)

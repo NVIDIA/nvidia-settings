@@ -26,6 +26,7 @@
 #include "ctkconfig.h"
 #include "ctkhelp.h"
 #include "ctkdropdownmenu.h"
+#include "ctkutils.h"
 
 #include "ctkgvo-csc.h"
 
@@ -1155,8 +1156,8 @@ static GtkWidget *build_opengl_only_msg(void)
 
     /* create the information icon */
 
-    pixbuf = gtk_widget_render_icon(label,
-                                    GTK_STOCK_DIALOG_INFO,
+    pixbuf = ctk_widget_render_icon(label,
+                                    CTK_STOCK_DIALOG_INFO,
                                     GTK_ICON_SIZE_DIALOG,
                                     "CSC information message");
 
