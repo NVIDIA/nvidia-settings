@@ -6348,6 +6348,27 @@ nvmlReturn_t DECLDIR nvmlGetBlacklistDeviceCount(unsigned int *deviceCount);
  */
 nvmlReturn_t DECLDIR nvmlGetBlacklistDeviceInfoByIndex(unsigned int index, nvmlBlacklistDeviceInfo_t *info);
 
+/**
+ * Overrides or restores default CUDA clocks
+ * In override mode, GPU clocks higher frequencies when running CUDA applications
+ * Only on supported devices starting from the Volta series
+ * Requires administrator privileges
+ *
+ * For newer than Pascal &tm; fully supported devices.
+ *
+ * @param device                               The identifier of the target device
+ * @param applyOverride                        The value to set the override to
+ *
+ * @return
+ *         - \ref NVML_SUCCESS                 if override written
+ *         - \ref NVML_ERROR_INVALID_ARGUMENT  if \a device is invalid or override value out of range
+ *         - \ref NVML_ERROR_NO_PERMISSION     if the user doesn't have permission to perform this operation
+ *         - \ref NVML_ERROR_NOT_SUPPORTED     if the device does not support this feature
+ *         - \ref NVML_ERROR_GPU_IS_LOST       if the target GPU has fallen off the bus or is otherwise inaccessible
+ *         - \ref NVML_ERROR_UNKNOWN           on any unexpected error
+ */
+nvmlReturn_t DECLDIR nvmlDeviceCudaClocks(nvmlDevice_t device, unsigned int applyOverride);
+
 /** @} */
 
 /**
