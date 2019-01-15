@@ -54,6 +54,7 @@ XNVCTRL_ARCHIVE       ?= $(XNVCTRL_DIR)/libXNVCtrl.a
 
 CFLAGS                += $(X_CFLAGS)
 CFLAGS                += -I $(XNVCTRL_DIR)
+CFLAGS                += -I $(OUTPUTDIR)
 
 LDFLAGS               += $(X_LDFLAGS)
 LDFLAGS               += -L $(XNVCTRL_DIR)

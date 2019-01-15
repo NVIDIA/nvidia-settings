@@ -17,6 +17,7 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses>.
  */
 
+
 #include <gtk/gtk.h>
 #include <NvCtrlAttributes.h>
 #include <stdlib.h>
@@ -952,7 +953,7 @@ static void post_allow_flipping_button_toggled(CtkOpenGL *ctk_opengl,
 }
 
 static void post_allow_gsync_button_toggled(CtkOpenGL *ctk_opengl,
-                                          gboolean enabled)
+                                            gboolean enabled)
 {
     ctk_config_statusbar_message(ctk_opengl->ctk_config,
                                  "G-SYNC %s.",
@@ -1065,7 +1066,7 @@ static void allow_flipping_button_toggled(GtkWidget *widget,
 }
 
 static void allow_gsync_button_toggled(GtkWidget *widget,
-                                     gpointer user_data)
+                                       gpointer user_data)
 {
     CtkOpenGL *ctk_opengl = CTK_OPENGL(user_data);
     CtrlTarget *ctrl_target = ctk_opengl->ctrl_target;

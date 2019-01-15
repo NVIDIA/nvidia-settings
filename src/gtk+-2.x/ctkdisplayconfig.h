@@ -20,6 +20,7 @@
 #ifndef __CTK_DISPLAYCONFIG_H__
 #define __CTK_DISPLAYCONFIG_H__
 
+
 #include "ctkevent.h"
 #include "ctkconfig.h"
 #include "ctkdisplaylayout.h"
@@ -161,7 +162,6 @@ typedef struct _CtkDisplayConfig
 
     GtkWidget *box_display_panning;
     GtkWidget *txt_display_panning;
-
 
     /* X Screen - Info */
     GtkWidget *screen_page;

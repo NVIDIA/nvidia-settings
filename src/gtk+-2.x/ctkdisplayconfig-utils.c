@@ -17,6 +17,7 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses>.
  */
 
+
 #include <stdlib.h> /* malloc */
 #include <string.h> /* strlen,  strdup */
 #include <unistd.h> /* lseek, close */
@@ -679,6 +680,7 @@ static void apply_mode_attribute_token(char *token, char *value, void *data)
         if (!strcasecmp("off", value)) {
             mode->allowGSYNC = False;
         }
+
     }
 
 }
@@ -720,7 +722,6 @@ nvModePtr mode_parse(nvDisplayPtr display, const char *mode_str)
     mode->passive_stereo_eye = PASSIVE_STEREO_EYE_NONE;
     mode->position_type = CONF_ADJ_ABSOLUTE;
     mode->allowGSYNC = True;
-
 
     /* Read the mode name */
     str = parse_read_name(str, &mode_name, 0);
