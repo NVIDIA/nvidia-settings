@@ -64,6 +64,7 @@ static gboolean update_refresh_rate(InfoEntry *entry);
 static gboolean update_connector_type_info(InfoEntry *entry);
 static gboolean update_multistream_info(InfoEntry *entry);
 static gboolean update_audio_info(InfoEntry *entry);
+static gboolean update_vrr_type_info(InfoEntry *entry);
 
 static gboolean register_link_events(InfoEntry *entry);
 static gboolean unregister_link_events(InfoEntry *entry);
@@ -114,6 +115,10 @@ static const char * __multistream_help =
 
 static const char * __audio_help =
 "Report whether the configured DisplayPort display is capable of playing audio.";
+
+static const char * __vrr_type_help =
+"Report whether the configured display supports G-SYNC, G-SYNC Compatible, or "
+"neither.";
 
 typedef gboolean (*InfoEntryFunc)(InfoEntry *entry);
 
@@ -186,6 +191,13 @@ static InfoEntryData __info_entry_data[] = {
         "DisplayPort Audio Available",
         &__audio_help,
         update_audio_info,
+        NULL,
+        NULL,
+    },
+    {
+        "G-SYNC Mode Available",
+        &__vrr_type_help,
+        update_vrr_type_info,
         NULL,
         NULL,
     },
@@ -833,6 +845,41 @@ static gboolean update_audio_info(InfoEntry *entry)
     }
 
     gtk_label_set_text(GTK_LABEL(entry->txt), val ? "Yes": "No");
+
+    return TRUE;
+}
+
+static gboolean update_vrr_type_info(InfoEntry *entry)
+{
+    CtkDisplayDevice *ctk_object = entry->ctk_object;
+    CtrlTarget *ctrl_target = ctk_object->ctrl_target;
+    ReturnStatus ret;
+    gint val;
+    const char *str;
+
+    ret = NvCtrlGetAttribute(ctrl_target,
+                             NV_CTRL_DISPLAY_VRR_MODE, &val);
+    if (ret != NvCtrlSuccess) {
+        return FALSE;
+    }
+
+    switch (val) {
+    case NV_CTRL_DISPLAY_VRR_MODE_GSYNC:
+        str = "G-SYNC";
+        break;
+    case NV_CTRL_DISPLAY_VRR_MODE_GSYNC_COMPATIBLE:
+        str = "G-SYNC Compatible";
+        break;
+    case NV_CTRL_DISPLAY_VRR_MODE_GSYNC_COMPATIBLE_UNVALIDATED:
+        str = "G-SYNC Unvalidated";
+        break;
+    default:
+    case NV_CTRL_DISPLAY_VRR_MODE_NONE:
+        str = "None";
+        break;
+    }
+
+    gtk_label_set_text(GTK_LABEL(entry->txt), str);
 
     return TRUE;
 }

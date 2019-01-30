@@ -82,6 +82,8 @@ static void display_viewport_out_activate(GtkWidget *widget,
                                           gpointer user_data);
 static void display_panning_activate(GtkWidget *widget, gpointer user_data);
 
+static void update_force_gsync_button(CtkDisplayConfig *ctk_object);
+
 static void setup_screen_page(CtkDisplayConfig *ctk_object);
 
 static void screen_virtual_size_activate(GtkWidget *widget, gpointer user_data);
@@ -275,6 +277,10 @@ static const char * __dpy_forcecompositionpipeline_help =
 static const char * __dpy_forcefullcompositionpipeline_help =
 "This option implicitly enables \"ForceCompositionPipeline\" and additionally "
 "makes use of the composition pipeline to apply ViewPortOut scaling.";
+
+static const char * __dpy_force_allow_gsync_help =
+"This option allows enabling G-SYNC on displays that are not validated as "
+"G-SYNC Compatible.";
 
 /* Screen tooltips */
 
@@ -1181,6 +1187,33 @@ static void display_forcefullcompositionpipeline_toggled(GtkWidget *widget,
 
 
 
+/** display_gsync_compatible_toggled() ********************************
+ *
+ * Sets AllowGSYNCCompatible for a dpy.
+ *
+ **/
+static void display_gsync_compatible_toggled(GtkWidget *widget,
+                                             gpointer user_data)
+{
+    CtkDisplayConfig *ctk_object = CTK_DISPLAY_CONFIG(user_data);
+    gint enabled = gtk_toggle_button_get_active(GTK_TOGGLE_BUTTON(widget));
+    nvDisplayPtr display = ctk_display_layout_get_selected_display
+        (CTK_DISPLAY_LAYOUT(ctk_object->obj_layout));
+
+    if (enabled) {
+        display->cur_mode->allowGSYNCCompatibleSpecified = TRUE;
+        display->cur_mode->allowGSYNCCompatible = TRUE;
+    } else {
+        display->cur_mode->allowGSYNCCompatibleSpecified = FALSE;
+        display->cur_mode->allowGSYNCCompatible = FALSE;
+    }
+
+    update_force_gsync_button(ctk_object);
+    user_changed_attributes(ctk_object);
+}
+
+
+
 /** update_forcecompositionpipeline_buttons() *************************
  *
  * Updates the buttons for Force{Full,}CompositionPipeline to reflect their
@@ -1224,6 +1257,36 @@ static void update_forcecompositionpipeline_buttons(CtkDisplayConfig *ctk_object
     g_signal_handlers_unblock_by_func
         (G_OBJECT(ctk_object->chk_forcefullcompositionpipeline_enabled),
          G_CALLBACK(display_forcefullcompositionpipeline_toggled),
+         (gpointer)ctk_object);
+}
+
+
+
+/** update_force_gsync_button() ***************************************
+ *
+ * Updates the button for AllowGSYNCCompatible to reflect its current
+ * state.
+ *
+ **/
+
+static void update_force_gsync_button(CtkDisplayConfig *ctk_object)
+{
+    nvDisplayPtr display = ctk_display_layout_get_selected_display
+        (CTK_DISPLAY_LAYOUT(ctk_object->obj_layout));
+
+    g_signal_handlers_block_by_func
+        (G_OBJECT(ctk_object->chk_force_allow_gsync),
+         G_CALLBACK(display_gsync_compatible_toggled),
+         (gpointer)ctk_object);
+
+    gtk_toggle_button_set_active
+        (GTK_TOGGLE_BUTTON(ctk_object->chk_force_allow_gsync),
+         display->cur_mode->allowGSYNCCompatibleSpecified &&
+         display->cur_mode->allowGSYNCCompatible);
+
+    g_signal_handlers_unblock_by_func
+        (G_OBJECT(ctk_object->chk_force_allow_gsync),
+         G_CALLBACK(display_gsync_compatible_toggled),
          (gpointer)ctk_object);
 }
 
@@ -2120,6 +2183,21 @@ GtkWidget* ctk_display_config_new(CtrlTarget *ctrl_target,
                            ctk_object->chk_forcefullcompositionpipeline_enabled,
                            TRUE, TRUE, 0);
 
+        /* checkbox for AllowGSYNCCompatible */
+        hbox = gtk_hbox_new(FALSE, 5);
+        gtk_box_pack_start(GTK_BOX(vbox), hbox, FALSE, TRUE, 0);
+        ctk_object->chk_force_allow_gsync =
+            gtk_check_button_new_with_label(
+                "Allow G-SYNC on monitor not validated as G-SYNC Compatible");
+        ctk_config_set_tooltip(ctk_config, ctk_object->chk_force_allow_gsync,
+                               __dpy_force_allow_gsync_help);
+        g_signal_connect(G_OBJECT(ctk_object->chk_force_allow_gsync),
+                         "toggled",
+                         G_CALLBACK(display_gsync_compatible_toggled),
+                         (gpointer) ctk_object);
+        gtk_box_pack_start(GTK_BOX(hbox), ctk_object->chk_force_allow_gsync,
+                           TRUE, TRUE, 0);
+
         /* Up the object ref count to make sure that the page and its widgets
          * do not get freed if/when the page is removed from the notebook.
          */
@@ -2503,6 +2581,8 @@ GtkTextBuffer *ctk_display_config_create_help(GtkTextTagTable *table,
     ctk_help_para(b, &i, "%s", __dpy_forcecompositionpipeline_help);
     ctk_help_heading(b, &i, "Force Full Composition Pipeline");
     ctk_help_para(b, &i, "%s", __dpy_forcefullcompositionpipeline_help);
+    ctk_help_heading(b, &i, "Allow G-SYNC on monitor not validated as G-SYNC Compatible");
+    ctk_help_para(b, &i, "%s", __dpy_force_allow_gsync_help);
 
 
     ctk_help_para(b, &i, "");
@@ -4568,6 +4648,55 @@ static void setup_prime_display_page(CtkDisplayConfig *ctk_object)
 }
 
 
+/** setup_force_gsync() ***********************************************
+ *
+ * Control whether to make visible the checkbox that allows enabling G-SYNC
+ * on displays not validated as G-SYNC compatible.
+ *
+ **/
+
+static void setup_force_gsync(CtkDisplayConfig *ctk_object)
+{
+    nvDisplayPtr display = ctk_display_layout_get_selected_display
+        (CTK_DISPLAY_LAYOUT(ctk_object->obj_layout));
+    ReturnStatus ret;
+    int val;
+
+    if (!display || !display->screen || !display->cur_mode ||
+        !ctk_object->advanced_mode) {
+        goto hide;
+    }
+
+    ret = NvCtrlGetAttribute(display->ctrl_target,
+                             NV_CTRL_DISPLAY_VRR_MODE, &val);
+    if (ret != NvCtrlSuccess) {
+        goto hide;
+    }
+
+    /*
+     * Show the checkbox only in advanced mode, and only if the display is not
+     * validated as G-SYNC Compatible.
+     */
+    switch (val) {
+    case NV_CTRL_DISPLAY_VRR_MODE_GSYNC_COMPATIBLE_UNVALIDATED:
+        gtk_widget_show(ctk_object->chk_force_allow_gsync);
+        break;
+    case NV_CTRL_DISPLAY_VRR_MODE_GSYNC:
+    case NV_CTRL_DISPLAY_VRR_MODE_GSYNC_COMPATIBLE:
+    case NV_CTRL_DISPLAY_VRR_MODE_NONE:
+    default:
+        goto hide;
+        break;
+    }
+
+    update_force_gsync_button(ctk_object);
+    return;
+
+hide:
+    gtk_widget_hide(ctk_object->chk_force_allow_gsync);
+}
+
+
 /** setup_display_page() ********************************************
  *
  * Updates the display frame to reflect the current state of the
@@ -4607,6 +4736,7 @@ static void setup_display_page(CtkDisplayConfig *ctk_object)
     setup_display_panning(ctk_object);
     setup_forcecompositionpipeline_buttons(ctk_object);
     setup_primary_display(ctk_object);
+    setup_force_gsync(ctk_object);
 
 } /* setup_display_page() */
 

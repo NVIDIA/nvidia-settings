@@ -3281,13 +3281,24 @@
 #define NV_CTRL_VIDEO_ENCODER_UTILIZATION                       407 /* R--G */
 
 /*
- * NV_CTRL_GSYNC_ALLOWED - when TRUE, OpenGL will enable G-SYNC when possible;
- * when FALSE, OpenGL will always use a fixed monitor refresh rate.
+ * NV_CTRL_VRR_ALLOWED - when TRUE, OpenGL will enable G-SYNC and Adaptive-Sync
+ * when possible; when FALSE, OpenGL will always use a fixed monitor refresh
+ * rate.
  */
 
-#define NV_CTRL_GSYNC_ALLOWED                                   408 /* RW-X */
-#define NV_CTRL_GSYNC_ALLOWED_FALSE                               0
-#define NV_CTRL_GSYNC_ALLOWED_TRUE                                1
+#define NV_CTRL_VRR_ALLOWED                                     408 /* RW-X */
+#define NV_CTRL_VRR_ALLOWED_FALSE                                 0
+#define NV_CTRL_VRR_ALLOWED_TRUE                                  1
+
+/*
+ * NV_CTRL_GSYNC_ALLOWED - renamed
+ *
+ * NV_CTRL_VRR_ALLOWED should be used instead.
+ */
+
+#define NV_CTRL_GSYNC_ALLOWED         NV_CTRL_VRR_ALLOWED
+#define NV_CTRL_GSYNC_ALLOWED_FALSE   NV_CTRL_VRR_ALLOWED_FALSE
+#define NV_CTRL_GSYNC_ALLOWED_TRUE    NV_CTRL_VRR_ALLOWED_TRUE
 
 /*
  * NV_CTRL_GPU_NVCLOCK_OFFSET - This attribute controls the GPU clock offsets
@@ -3379,13 +3390,26 @@
 #define NV_CTRL_CURRENT_COLOR_RANGE_LIMITED                       1
 
 /*
- * NV_CTRL_SHOW_GSYNC_VISUAL_INDICATOR - when TRUE, OpenGL will indicate when
- * G-SYNC is in use for full-screen applications.
+ * NV_CTRL_SHOW_VRR_VISUAL_INDICATOR - when TRUE, OpenGL will indicate when
+ * G-SYNC or G-SYNC Compatible is in use for full-screen applications.
  */
 
-#define NV_CTRL_SHOW_GSYNC_VISUAL_INDICATOR                     416 /* RW-X */
-#define NV_CTRL_SHOW_GSYNC_VISUAL_INDICATOR_FALSE                 0
-#define NV_CTRL_SHOW_GSYNC_VISUAL_INDICATOR_TRUE                  1
+#define NV_CTRL_SHOW_VRR_VISUAL_INDICATOR                       416 /* RW-X */
+#define NV_CTRL_SHOW_VRR_VISUAL_INDICATOR_FALSE                   0
+#define NV_CTRL_SHOW_VRR_VISUAL_INDICATOR_TRUE                    1
+
+/*
+ * NV_CTRL_SHOW_GSYNC_VISUAL_INDICATOR - renamed
+ *
+ * NV_CTRL_SHOW_VRR_VISUAL_INDICATOR should be used instead.
+ */
+
+#define NV_CTRL_SHOW_GSYNC_VISUAL_INDICATOR \
+    NV_CTRL_SHOW_VRR_VISUAL_INDICATOR
+#define NV_CTRL_SHOW_GSYNC_VISUAL_INDICATOR_FALSE \
+    NV_CTRL_SHOW_VRR_VISUAL_INDICATOR_FALSE
+#define NV_CTRL_SHOW_GSYNC_VISUAL_INDICATOR_TRUE \
+    NV_CTRL_SHOW_VRR_VISUAL_INDICATOR_TRUE
 
 /*
  * NV_CTRL_THERMAL_COOLER_CURRENT_LEVEL - Returns cooler's current
@@ -3522,7 +3546,26 @@
 #define NV_CTRL_SHOW_GRAPHICS_VISUAL_INDICATOR_FALSE                   0
 #define NV_CTRL_SHOW_GRAPHICS_VISUAL_INDICATOR_TRUE                    1
 
-#define NV_CTRL_LAST_ATTRIBUTE NV_CTRL_SHOW_GRAPHICS_VISUAL_INDICATOR
+/*
+ * NV_CTRL_DISPLAY_VRR_MODE - Indicates whether the specified display device
+ * supports G-SYNC, G-SYNC Compatible (validated or unvalidated), or none of
+ * the above.
+ */
+
+#define NV_CTRL_DISPLAY_VRR_MODE                                     429 /* R-D- */
+#define NV_CTRL_DISPLAY_VRR_MODE_NONE                                  0
+#define NV_CTRL_DISPLAY_VRR_MODE_GSYNC                                 1
+#define NV_CTRL_DISPLAY_VRR_MODE_GSYNC_COMPATIBLE                      2
+#define NV_CTRL_DISPLAY_VRR_MODE_GSYNC_COMPATIBLE_UNVALIDATED          3
+
+/*
+ * NV_CTRL_DISPLAY_VRR_MIN_REFRESH_RATE - Indicates the minimum refresh rate for
+ * the specified VRR display device.
+ */
+
+#define NV_CTRL_DISPLAY_VRR_MIN_REFRESH_RATE                         430 /* R-D- */
+
+#define NV_CTRL_LAST_ATTRIBUTE NV_CTRL_DISPLAY_VRR_MIN_REFRESH_RATE
 
 /**************************************************************************/
 

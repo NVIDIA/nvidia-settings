@@ -228,6 +228,9 @@ typedef struct nvModeRec {
     Bool forceCompositionPipeline;
     Bool forceFullCompositionPipeline;
     Bool allowGSYNC;
+    Bool allowGSYNCCompatibleSpecified;
+    Bool allowGSYNCCompatible;
+    int vrrMinRefreshRate;
 
 } nvMode, *nvModePtr;
 

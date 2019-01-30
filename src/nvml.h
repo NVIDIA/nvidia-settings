@@ -715,6 +715,7 @@ typedef enum nvmlInforomObject_enum
  */
 typedef enum nvmlReturn_enum 
 {
+    // cppcheck-suppress *
     NVML_SUCCESS = 0,                   //!< The operation was successful
     NVML_ERROR_UNINITIALIZED = 1,       //!< NVML was not first initialized with nvmlInit()
     NVML_ERROR_INVALID_ARGUMENT = 2,    //!< A supplied argument is invalid
@@ -3059,6 +3060,32 @@ nvmlReturn_t DECLDIR nvmlDeviceSetDefaultAutoBoostedClocksEnabled(nvmlDevice_t d
  */
 nvmlReturn_t DECLDIR nvmlDeviceGetFanSpeed(nvmlDevice_t device, unsigned int *speed);
 
+
+/**
+ * Retrieves the intended operating speed of the device's specified fan.
+ *
+ * Note: The reported speed is the intended fan speed. If the fan is physically blocked and unable to spin, the
+ * output will not match the actual fan speed.
+ *
+ * For all discrete products with dedicated fans.
+ *
+ * The fan speed is expressed as a percentage of the maximum, i.e. full speed is 100%
+ *
+ * @param device                                The identifier of the target device
+ * @param fan                                   The index of the target fan, zero indexed.
+ * @param speed                                 Reference in which to return the fan speed percentage
+ *
+ * @return
+ *        - \ref NVML_SUCCESS                   if \a speed has been set
+ *        - \ref NVML_ERROR_UNINITIALIZED       if the library has not been successfully initialized
+ *        - \ref NVML_ERROR_INVALID_ARGUMENT    if \a device is invalid, \a fan is not an acceptable index, or \a speed is NULL
+ *        - \ref NVML_ERROR_NOT_SUPPORTED       if the device does not have a fan or is newer than Maxwell
+ *        - \ref NVML_ERROR_GPU_IS_LOST         if the target GPU has fallen off the bus or is otherwise inaccessible
+ *        - \ref NVML_ERROR_UNKNOWN             on any unexpected error
+ */
+nvmlReturn_t DECLDIR nvmlDeviceGetFanSpeed_v2(nvmlDevice_t device, unsigned int fan, unsigned int * speed);
+
+
 /**
  * Retrieves the current temperature readings for the device, in degrees C. 
  * 
@@ -4344,6 +4371,12 @@ nvmlReturn_t DECLDIR nvmlUnitSetLedState(nvmlUnit_t unit, nvmlLedColor_t color);
  *
  * See \ref nvmlEnableState_t for available modes.
  *
+ * After calling this API with mode set to NVML_FEATURE_DISABLED on a device that has its own NUMA
+ * memory, the given device handle will no longer be valid, and to continue to interact with this
+ * device, a new handle should be obtained from one of the nvmlDeviceGetHandleBy*() APIs. This
+ * limitation is currently only applicable to devices that have a coherent NVLink connection to
+ * system memory.
+ *
  * @param device                               The identifier of the target device
  * @param mode                                 The target persistence mode
  * 
@@ -5337,7 +5370,7 @@ nvmlReturn_t DECLDIR nvmlDeviceSetVirtualizationMode(nvmlDevice_t device, nvmlGp
  *         - \ref NVML_ERROR_INVALID_ARGUMENT       if \a vgpuCount is NULL or \a device is invalid
  *         - \ref NVML_ERROR_NOT_SUPPORTED          if vGPU is not supported by the device
  *         - \ref NVML_ERROR_VGPU_ECC_NOT_SUPPORTED if ECC is enabled on the device
- *         - \ref NVML_ERROR_UNKNOWN             on any unexpected error
+ *         - \ref NVML_ERROR_UNKNOWN                on any unexpected error
  */
 nvmlReturn_t DECLDIR nvmlDeviceGetSupportedVgpus(nvmlDevice_t device, unsigned int *vgpuCount, nvmlVgpuTypeId_t *vgpuTypeIds);
 
@@ -6191,7 +6224,7 @@ typedef struct nvmlVgpuPgpuCompatibility_st
  *
  * nvmlVgpuInstanceGetMetadata() may be called at any time for a vGPU instance. Some fields in the returned structure are
  * dependent on information obtained from the guest VM, which may not yet have reached a state where that information
- * is available. The current state of these dependent fields is reflected in the info structure's \ref guestInfoState field.
+ * is available. The current state of these dependent fields is reflected in the info structure's \ref nvmlVgpuGuestInfoState_t field.
  *
  * The VMM may choose to read and save the vGPU's VM info as persistent metadata associated with the VM, and provide
  * it to GRID Virtual GPU Manager when creating a vGPU for subsequent instances of the VM.

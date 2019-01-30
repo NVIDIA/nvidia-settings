@@ -99,6 +99,8 @@ typedef struct _CtkDisplayConfig
     GtkWidget *chk_forcecompositionpipeline_enabled;
     GtkWidget *chk_forcefullcompositionpipeline_enabled;
 
+    GtkWidget *chk_force_allow_gsync;
+
     GtkWidget *mnu_selected_item;
     SelectableItem *selected_item_table;
     int selected_item_table_len;
@@ -162,6 +164,7 @@ typedef struct _CtkDisplayConfig
 
     GtkWidget *box_display_panning;
     GtkWidget *txt_display_panning;
+
 
     /* X Screen - Info */
     GtkWidget *screen_page;

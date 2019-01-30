@@ -164,21 +164,21 @@ struct __NvCtrlNvmlAttributes {
     struct {
         void *handle;
 
-        typeof(nvmlInit)                           (*init);
-        typeof(nvmlShutdown)                       (*shutdown);
-        typeof(nvmlDeviceGetHandleByIndex)         (*deviceGetHandleByIndex);
-        typeof(nvmlDeviceGetUUID)                  (*deviceGetUUID);
-        typeof(nvmlDeviceGetCount)                 (*deviceGetCount);
-        typeof(nvmlDeviceGetTemperature)           (*deviceGetTemperature);
-        typeof(nvmlDeviceGetFanSpeed)              (*deviceGetFanSpeed);
-        typeof(nvmlDeviceGetName)                  (*deviceGetName);
-        typeof(nvmlDeviceGetVbiosVersion)          (*deviceGetVbiosVersion);
-        typeof(nvmlDeviceGetMemoryInfo)            (*deviceGetMemoryInfo);
-        typeof(nvmlDeviceGetPciInfo)               (*deviceGetPciInfo);
-        typeof(nvmlDeviceGetMaxPcieLinkGeneration) (*deviceGetMaxPcieLinkGeneration);
-        typeof(nvmlDeviceGetMaxPcieLinkWidth)      (*deviceGetMaxPcieLinkWidth);
-        typeof(nvmlDeviceGetVirtualizationMode)    (*deviceGetVirtualizationMode);
-        typeof(nvmlDeviceGetGridLicensableFeatures) (*deviceGetGridLicensableFeatures);
+        typeof(nvmlInit)                                (*init);
+        typeof(nvmlShutdown)                            (*shutdown);
+        typeof(nvmlDeviceGetHandleByIndex)              (*deviceGetHandleByIndex);
+        typeof(nvmlDeviceGetUUID)                       (*deviceGetUUID);
+        typeof(nvmlDeviceGetCount)                      (*deviceGetCount);
+        typeof(nvmlDeviceGetTemperature)                (*deviceGetTemperature);
+        typeof(nvmlDeviceGetFanSpeed)                   (*deviceGetFanSpeed);
+        typeof(nvmlDeviceGetName)                       (*deviceGetName);
+        typeof(nvmlDeviceGetVbiosVersion)               (*deviceGetVbiosVersion);
+        typeof(nvmlDeviceGetMemoryInfo)                 (*deviceGetMemoryInfo);
+        typeof(nvmlDeviceGetPciInfo)                    (*deviceGetPciInfo);
+        typeof(nvmlDeviceGetMaxPcieLinkGeneration)      (*deviceGetMaxPcieLinkGeneration);
+        typeof(nvmlDeviceGetMaxPcieLinkWidth)           (*deviceGetMaxPcieLinkWidth);
+        typeof(nvmlDeviceGetVirtualizationMode)         (*deviceGetVirtualizationMode);
+        typeof(nvmlDeviceGetGridLicensableFeatures_v2)  (*deviceGetGridLicensableFeatures);
 
     } lib;
 

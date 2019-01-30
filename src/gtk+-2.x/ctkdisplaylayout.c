@@ -2351,6 +2351,9 @@ static void select_display(CtkDisplayLayout *ctk_object, nvDisplayPtr display)
     /* Move the screen and its displays to the top of the Z order */
     select_screen(ctk_object, display->screen);
 
+    /* Clear any previously selected PRIME display */
+    ctk_object->selected_prime_display = NULL;
+
     /* Move the display to the top of the Z order */
     for (i = 0; i < ctk_object->Zcount; i++) {
 
@@ -2395,6 +2398,9 @@ static void select_prime_display(CtkDisplayLayout *ctk_object, nvPrimeDisplayPtr
 
     /* Move the screen and its displays to the top of the Z order */
     select_screen(ctk_object, prime->screen);
+
+    /* Clear any previously selected display */
+    ctk_object->selected_display = NULL;
 
     /* Move the display to the top of the Z order */
     for (i = 0; i < ctk_object->Zcount; i++) {

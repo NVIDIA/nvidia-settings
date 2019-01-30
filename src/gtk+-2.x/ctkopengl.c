@@ -37,9 +37,9 @@ static void post_vblank_sync_button_toggled(CtkOpenGL *, gboolean);
 
 static void post_allow_flipping_button_toggled(CtkOpenGL *, gboolean);
 
-static void post_allow_gsync_button_toggled(CtkOpenGL *, gboolean);
+static void post_allow_vrr_button_toggled(CtkOpenGL *, gboolean);
 
-static void post_show_gsync_visual_indicator_button_toggled(CtkOpenGL *, gboolean);
+static void post_show_vrr_visual_indicator_button_toggled(CtkOpenGL *, gboolean);
 
 static void post_force_stereo_button_toggled(CtkOpenGL *, gboolean);
 
@@ -61,9 +61,9 @@ static void post_use_conformant_clamping_button_toggled(CtkOpenGL *, gint);
 
 static void allow_flipping_button_toggled(GtkWidget *, gpointer);
 
-static void allow_gsync_button_toggled(GtkWidget *, gpointer);
+static void allow_vrr_button_toggled(GtkWidget *, gpointer);
 
-static void show_gsync_visual_indicator_button_toggled(GtkWidget *, gpointer);
+static void show_vrr_visual_indicator_button_toggled(GtkWidget *, gpointer);
 
 static void force_stereo_button_toggled (GtkWidget *, gpointer);
 
@@ -206,11 +206,11 @@ static const char *__use_conformant_clamping_help =
 "seams at the edges of textures in some older games such as "
 "Quake 3.";
 
-static const char *__show_gsync_visual_indicator_help  =
+static const char *__show_vrr_visual_indicator_help  =
 "Enabling this option causes OpenGL to draw an indicator showing whether "
-"G-SYNC is in use, when an application is swapping using flipping.  This "
-"option is applied to OpenGL applications that are started after this option "
-"is set.";
+"G-SYNC/G-SYNC Compatible is in use, when an application is swapping using "
+"flipping.  This option is applied to OpenGL applications that are started "
+"after this option is set.";
 
 #define __SYNC_TO_VBLANK      (1 << 1)
 #define __ALLOW_FLIPPING      (1 << 2)
@@ -224,8 +224,8 @@ static const char *__show_gsync_visual_indicator_help  =
 #define __STEREO_EYES_EXCHANGE (1 << 10)
 #define __SHOW_MULTIGPU_VISUAL_INDICATOR    (1 << 11)
 #define __CONFORMANT_CLAMPING (1 << 12)
-#define __ALLOW_GSYNC         (1 << 13)
-#define __SHOW_GSYNC_VISUAL_INDICATOR       (1 << 14)
+#define __ALLOW_VRR         (1 << 13)
+#define __SHOW_VRR_VISUAL_INDICATOR       (1 << 14)
 #define __STEREO_SWAP_MODE    (1 << 15)
 #define __SHOW_GRAPHICS_VISUAL_INDICATOR    (1 << 16)
 
@@ -299,8 +299,8 @@ GtkWidget* ctk_opengl_new(CtrlTarget *ctrl_target,
 
     gint sync_to_vblank = 0;
     gint flipping_allowed = 0;
-    gint gsync_allowed = 0;
-    gint show_gsync_visual_indicator = 0;
+    gint vrr_allowed = 0;
+    gint show_vrr_visual_indicator = 0;
     gint force_stereo = 0;
     gint xinerama_stereo = 0;
     gint stereo_eyes_exchange = 0;
@@ -315,8 +315,8 @@ GtkWidget* ctk_opengl_new(CtrlTarget *ctrl_target,
 
     ReturnStatus ret_sync_to_vblank;
     ReturnStatus ret_flipping_allowed;
-    ReturnStatus ret_gsync_allowed;
-    ReturnStatus ret_show_gsync_visual_indicator;
+    ReturnStatus ret_vrr_allowed;
+    ReturnStatus ret_show_vrr_visual_indicator;
     ReturnStatus ret_force_stereo;
     ReturnStatus ret_xinerama_stereo;
     ReturnStatus ret_stereo_eyes_exchange;
@@ -340,15 +340,15 @@ GtkWidget* ctk_opengl_new(CtrlTarget *ctrl_target,
                            NV_CTRL_FLIPPING_ALLOWED,
                            &flipping_allowed);
 
-    ret_gsync_allowed =
+    ret_vrr_allowed =
         NvCtrlGetAttribute(ctrl_target,
-                           NV_CTRL_GSYNC_ALLOWED,
-                           &gsync_allowed);
+                           NV_CTRL_VRR_ALLOWED,
+                           &vrr_allowed);
 
-    ret_show_gsync_visual_indicator =
+    ret_show_vrr_visual_indicator =
         NvCtrlGetAttribute(ctrl_target,
-                           NV_CTRL_SHOW_GSYNC_VISUAL_INDICATOR,
-                           &show_gsync_visual_indicator);
+                           NV_CTRL_SHOW_VRR_VISUAL_INDICATOR,
+                           &show_vrr_visual_indicator);
 
     ret_force_stereo =
         NvCtrlGetAttribute(ctrl_target,
@@ -411,8 +411,8 @@ GtkWidget* ctk_opengl_new(CtrlTarget *ctrl_target,
     /* There are no OpenGL settings to change (OpenGL disabled?) */
     if ((ret_sync_to_vblank != NvCtrlSuccess) &&
         (ret_flipping_allowed != NvCtrlSuccess) &&
-        (ret_gsync_allowed != NvCtrlSuccess) &&
-        (ret_show_gsync_visual_indicator != NvCtrlSuccess) &&
+        (ret_vrr_allowed != NvCtrlSuccess) &&
+        (ret_show_vrr_visual_indicator != NvCtrlSuccess) &&
         (ret_force_stereo != NvCtrlSuccess) &&
         (ret_xinerama_stereo != NvCtrlSuccess) &&
         (ret_stereo_eyes_exchange != NvCtrlSuccess) &&
@@ -530,70 +530,70 @@ GtkWidget* ctk_opengl_new(CtrlTarget *ctrl_target,
     }
 
     /*
-     * allow G-SYNC
+     * allow G-SYNC/G-SYNC Compatible
      *
      * Always create the checkbox, but only show it if the attribute starts out
      * available.
      */
 
-    label = gtk_label_new("Allow G-SYNC");
+    label = gtk_label_new("Allow G-SYNC/G-SYNC Compatible");
 
     check_button = gtk_check_button_new();
     gtk_container_add(GTK_CONTAINER(check_button), label);
 
     gtk_toggle_button_set_active(GTK_TOGGLE_BUTTON(check_button),
-                                 gsync_allowed);
+                                 vrr_allowed);
 
     gtk_box_pack_start(GTK_BOX(vbox), check_button, FALSE, FALSE, 0);
 
     g_signal_connect(G_OBJECT(check_button), "toggled",
-                     G_CALLBACK(allow_gsync_button_toggled),
+                     G_CALLBACK(allow_vrr_button_toggled),
                      (gpointer) ctk_opengl);
 
     g_signal_connect(G_OBJECT(ctk_event),
-                     CTK_EVENT_NAME(NV_CTRL_GSYNC_ALLOWED),
+                     CTK_EVENT_NAME(NV_CTRL_VRR_ALLOWED),
                      G_CALLBACK(value_changed), (gpointer) ctk_opengl);
 
     ctk_config_set_tooltip(ctk_config, check_button,
                            "Enabling this option allows OpenGL to flip "
-                           "using G-SYNC when possible.  This option is "
-                           "applied immediately.");
+                           "using G-SYNC/G-SYNC Compatible when possible.  "
+                           "This option is applied immediately.");
 
-    ctk_opengl->active_attributes |= __ALLOW_GSYNC;
+    ctk_opengl->active_attributes |= __ALLOW_VRR;
 
-    ctk_opengl->allow_gsync_button = check_button;
+    ctk_opengl->allow_vrr_button = check_button;
 
     /*
-     * show G-SYNC visual indicator
+     * show G-SYNC/G-SYNC Compatible visual indicator
      *
      * Always create the checkbox, but only show it if the attribute starts out
      * available.
      */
 
-    label = gtk_label_new("Enable G-SYNC Visual Indicator");
+    label = gtk_label_new("Enable G-SYNC/G-SYNC Compatible Visual Indicator");
 
     check_button = gtk_check_button_new();
     gtk_container_add(GTK_CONTAINER(check_button), label);
 
     gtk_toggle_button_set_active(GTK_TOGGLE_BUTTON(check_button),
-                                 show_gsync_visual_indicator);
+                                 show_vrr_visual_indicator);
 
     gtk_box_pack_start(GTK_BOX(vbox), check_button, FALSE, FALSE, 0);
 
     g_signal_connect(G_OBJECT(check_button), "toggled",
-                     G_CALLBACK(show_gsync_visual_indicator_button_toggled),
+                     G_CALLBACK(show_vrr_visual_indicator_button_toggled),
                      (gpointer) ctk_opengl);
 
     g_signal_connect(G_OBJECT(ctk_event),
-                     CTK_EVENT_NAME(NV_CTRL_SHOW_GSYNC_VISUAL_INDICATOR),
+                     CTK_EVENT_NAME(NV_CTRL_SHOW_VRR_VISUAL_INDICATOR),
                      G_CALLBACK(value_changed), (gpointer) ctk_opengl);
 
     ctk_config_set_tooltip(ctk_config, check_button,
-                           __show_gsync_visual_indicator_help);
+                           __show_vrr_visual_indicator_help);
 
-    ctk_opengl->active_attributes |= __SHOW_GSYNC_VISUAL_INDICATOR;
+    ctk_opengl->active_attributes |= __SHOW_VRR_VISUAL_INDICATOR;
 
-    ctk_opengl->show_gsync_visual_indicator_button = check_button;
+    ctk_opengl->show_vrr_visual_indicator_button = check_button;
 
 
     if (ret_force_stereo == NvCtrlSuccess) {
@@ -920,14 +920,14 @@ GtkWidget* ctk_opengl_new(CtrlTarget *ctrl_target,
     gtk_widget_show_all(GTK_WIDGET(object));
 
     /*
-     * If GSYNC is not currently available, start out with the GSYNC button
-     * hidden.
+     * If G-SYNC/G-SYNC Compatible is not currently available, start out with
+     * the button hidden.
      */
-    if (ret_gsync_allowed != NvCtrlSuccess) {
-        gtk_widget_hide(GTK_WIDGET(ctk_opengl->allow_gsync_button));
+    if (ret_vrr_allowed != NvCtrlSuccess) {
+        gtk_widget_hide(GTK_WIDGET(ctk_opengl->allow_vrr_button));
     }
-    if (ret_show_gsync_visual_indicator != NvCtrlSuccess) {
-        gtk_widget_hide(GTK_WIDGET(ctk_opengl->show_gsync_visual_indicator_button));
+    if (ret_show_vrr_visual_indicator != NvCtrlSuccess) {
+        gtk_widget_hide(GTK_WIDGET(ctk_opengl->show_vrr_visual_indicator_button));
     }
 
     return GTK_WIDGET(object);
@@ -952,20 +952,20 @@ static void post_allow_flipping_button_toggled(CtkOpenGL *ctk_opengl,
                                  enabled ? "allowed" : "not allowed");
 }
 
-static void post_allow_gsync_button_toggled(CtkOpenGL *ctk_opengl,
-                                            gboolean enabled)
+static void post_allow_vrr_button_toggled(CtkOpenGL *ctk_opengl,
+                                          gboolean enabled)
 {
     ctk_config_statusbar_message(ctk_opengl->ctk_config,
-                                 "G-SYNC %s.",
+                                 "G-SYNC/G-SYNC Compatible %s.",
                                  enabled ? "allowed" : "not allowed");
 }
 
-static void post_show_gsync_visual_indicator_button_toggled(CtkOpenGL *ctk_opengl,
-                                                            gboolean enabled)
+static void post_show_vrr_visual_indicator_button_toggled(CtkOpenGL *ctk_opengl,
+                                                          gboolean enabled)
 {
     ctk_config_statusbar_message(ctk_opengl->ctk_config,
-                                 "G-SYNC visual indicator %s.",
-                                 enabled ? "enabled" : "disabled");
+                                 "G-SYNC/G-SYNC Compatible visual indicator "
+                                 "%s.", enabled ? "enabled" : "disabled");
 }
 
 static void post_force_stereo_button_toggled(CtkOpenGL *ctk_opengl, 
@@ -1065,8 +1065,8 @@ static void allow_flipping_button_toggled(GtkWidget *widget,
     post_allow_flipping_button_toggled(ctk_opengl, enabled);
 }
 
-static void allow_gsync_button_toggled(GtkWidget *widget,
-                                       gpointer user_data)
+static void allow_vrr_button_toggled(GtkWidget *widget,
+                                     gpointer user_data)
 {
     CtkOpenGL *ctk_opengl = CTK_OPENGL(user_data);
     CtrlTarget *ctrl_target = ctk_opengl->ctrl_target;
@@ -1074,12 +1074,12 @@ static void allow_gsync_button_toggled(GtkWidget *widget,
 
     enabled = gtk_toggle_button_get_active(GTK_TOGGLE_BUTTON(widget));
 
-    NvCtrlSetAttribute(ctrl_target, NV_CTRL_GSYNC_ALLOWED, enabled);
-    post_allow_gsync_button_toggled(ctk_opengl, enabled);
+    NvCtrlSetAttribute(ctrl_target, NV_CTRL_VRR_ALLOWED, enabled);
+    post_allow_vrr_button_toggled(ctk_opengl, enabled);
 }
 
-static void show_gsync_visual_indicator_button_toggled(GtkWidget *widget,
-                                                       gpointer user_data)
+static void show_vrr_visual_indicator_button_toggled(GtkWidget *widget,
+                                                     gpointer user_data)
 {
     CtkOpenGL *ctk_opengl = CTK_OPENGL(user_data);
     CtrlTarget *ctrl_target = ctk_opengl->ctrl_target;
@@ -1087,8 +1087,8 @@ static void show_gsync_visual_indicator_button_toggled(GtkWidget *widget,
 
     enabled = gtk_toggle_button_get_active(GTK_TOGGLE_BUTTON(widget));
 
-    NvCtrlSetAttribute(ctrl_target, NV_CTRL_SHOW_GSYNC_VISUAL_INDICATOR, enabled);
-    post_show_gsync_visual_indicator_button_toggled(ctk_opengl, enabled);
+    NvCtrlSetAttribute(ctrl_target, NV_CTRL_SHOW_VRR_VISUAL_INDICATOR, enabled);
+    post_show_vrr_visual_indicator_button_toggled(ctk_opengl, enabled);
 }
 
 static void force_stereo_button_toggled(GtkWidget *widget,
@@ -1242,16 +1242,16 @@ static void value_changed(GObject *object, CtrlEvent *event, gpointer user_data)
         func = G_CALLBACK(allow_flipping_button_toggled);
         post_allow_flipping_button_toggled(ctk_opengl, value);
         break;
-    case NV_CTRL_GSYNC_ALLOWED:
-        button = GTK_TOGGLE_BUTTON(ctk_opengl->allow_gsync_button);
-        func = G_CALLBACK(allow_gsync_button_toggled);
-        post_allow_gsync_button_toggled(ctk_opengl, value);
+    case NV_CTRL_VRR_ALLOWED:
+        button = GTK_TOGGLE_BUTTON(ctk_opengl->allow_vrr_button);
+        func = G_CALLBACK(allow_vrr_button_toggled);
+        post_allow_vrr_button_toggled(ctk_opengl, value);
         check_available = TRUE;
         break;
-    case NV_CTRL_SHOW_GSYNC_VISUAL_INDICATOR:
-        button = GTK_TOGGLE_BUTTON(ctk_opengl->show_gsync_visual_indicator_button);
-        func = G_CALLBACK(show_gsync_visual_indicator_button_toggled);
-        post_show_gsync_visual_indicator_button_toggled(ctk_opengl, value);
+    case NV_CTRL_SHOW_VRR_VISUAL_INDICATOR:
+        button = GTK_TOGGLE_BUTTON(ctk_opengl->show_vrr_visual_indicator_button);
+        func = G_CALLBACK(show_vrr_visual_indicator_button_toggled);
+        post_show_vrr_visual_indicator_button_toggled(ctk_opengl, value);
         check_available = TRUE;
         break;
     case NV_CTRL_FORCE_STEREO:
@@ -1801,37 +1801,44 @@ GtkTextBuffer *ctk_opengl_create_help(GtkTextTagTable *table,
                       "after the option is set.");
     }
 
-    if (ctk_opengl->active_attributes & __ALLOW_GSYNC) {
-        ctk_help_heading(b, &i, "Allow G-SYNC");
-        ctk_help_para(b, &i, "Enabling this option allows OpenGL to use G-SYNC "
-                      "when available.  G-SYNC is a technology that allows a "
-                      "monitor to delay updating the screen until the GPU is "
-                      "ready to display a new frame.  Without G-SYNC, the GPU "
-                      "waits for the display to be ready to accept a new frame "
-                      "instead.");
+    if (ctk_opengl->active_attributes & __ALLOW_VRR) {
+        ctk_help_heading(b, &i, "Allow G-SYNC/G-SYNC Compatible");
+        ctk_help_para(b, &i, "Enabling this option allows OpenGL to use "
+                      "G-SYNC/G-SYNC Compatible when available.  G-SYNC and "
+                      "G-SYNC Compatible are technologies that allow monitors "
+                      "to delay updating the screen until the GPU is ready to "
+                      "display a new frame.  Without G-SYNC or G-SYNC "
+                      "Compatible, the GPU waits for the display to be ready "
+                      "to accept a new frame instead.");
 
         ctk_help_para(b, &i, "Note that this option is applied immediately, "
                       "unlike most other OpenGL options which are only "
                       "applied to OpenGL applications that are started "
                       "after the option is set.");
 
-        ctk_help_para(b, &i, "When G-SYNC is active and \"Sync to VBlank\" is "
-                      "disabled, applications rendering faster than the "
-                      "maximum refresh rate will tear. This eliminates tearing "
-                      "for frame rates below the monitor's maximum refresh "
-                      "rate while minimizing latency for frame rates above it. "
-                      "When \"Sync to VBlank\" is enabled, the frame rate is "
+        ctk_help_para(b, &i, "When G-SYNC is active on a G-SYNC or G-SYNC "
+                      "Compatible display and \"Sync to VBlank\" is disabled, "
+                      "applications rendering faster than the maximum refresh "
+                      "rate will tear. This eliminates tearing for frame rates "
+                      "below the monitor's maximum refresh rate while "
+                      "minimizing latency for frame rates above it. When "
+                      "\"Sync to VBlank\" is enabled, the frame rate is "
                       "limited to the monitor's maximum refresh rate to "
-                      "eliminate tearing completely.");
+                      "eliminate tearing completely. When a G-SYNC Compatible "
+                      "display is in use, applications rendering slower than "
+                      "the minimum refresh rate may tear when "
+                      "\"Sync to VBlank\" is disabled, and their swaps may "
+                      "not complete until the next vblank when \"Sync to "
+                      "VBlank\" is enabled.");
 
         ctk_help_para(b, &i, "This option can be overridden on a "
-                      "per-application basis using the GLGSYNCAllowed "
+                      "per-application basis using the GLVRRAllowed "
                       "application profile key.");
     }
 
-    if (ctk_opengl->active_attributes & __SHOW_GSYNC_VISUAL_INDICATOR) {
-        ctk_help_heading(b, &i, "G-SYNC Visual Indicator");
-        ctk_help_para(b, &i, "%s", __show_gsync_visual_indicator_help);
+    if (ctk_opengl->active_attributes & __SHOW_VRR_VISUAL_INDICATOR) {
+        ctk_help_heading(b, &i, "G-SYNC/G-SYNC Compatible Visual Indicator");
+        ctk_help_para(b, &i, "%s", __show_vrr_visual_indicator_help);
     }
 
     if (ctk_opengl->active_attributes & __FORCE_STEREO) {

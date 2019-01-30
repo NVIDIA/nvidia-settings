@@ -39,6 +39,10 @@ G_BEGIN_DECLS
 #define CTK_MANAGE_GRID_LICENSE_GET_CLASS(obj) \
     (G_TYPE_INSTANCE_GET_CLASS ((obj), CTK_TYPE_MANAGE_GRID_LICENSE, CtkMANAGE_GRID_LICENSEClass))
 
+#define GRID_LICENSE_INFO_MAX_LENGTH        128
+#define GRID_MESSAGE_MAX_BUFFER_SIZE        512
+#define GRID_VIRTUAL_APPLICATIONS           "GRID Virtual Applications"
+
 typedef struct _CtkManageGridLicense       CtkManageGridLicense;
 typedef struct _CtkManageGridLicenseClass  CtkManageGridLicenseClass;
 
@@ -64,8 +68,9 @@ struct _CtkManageGridLicense
     DbusData *dbusData;
     CtrlTarget *target;
     gint license_edition_state;
-    gint feature_type;                      // Feature type from UI/gridd.conf.
-    int gridd_feature_type;                 // Feature type fetched from nvidia-gridd.
+    gint feature_type;                              // Feature type from UI/gridd.conf.
+    int gridd_feature_type;                         // Feature type fetched from nvidia-gridd.
+    char productName[GRID_LICENSE_INFO_MAX_LENGTH]; // GRID product name fetched from nvml.
 };
 
 /*

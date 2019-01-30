@@ -129,8 +129,10 @@ const AttributeTableEntry attributeTable[] = {
     { "SliMosaicModeAvailable",           NV_CTRL_SLI_MOSAIC_MODE_AVAILABLE,            INT_ATTR, {0,0,0,0,1,0}, { .int_flags = {0,0,0,0,0,0,0} }, "Returns whether or not SLI Mosaic Mode is supported." },
     { "SLIMode",                          NV_CTRL_STRING_SLI_MODE,                      STR_ATTR, {0,0,0,0,1,0}, {}, "Returns a string describing the current SLI mode, if any." },
     { "MultiGpuMode",                     NV_CTRL_STRING_MULTIGPU_MODE,                 STR_ATTR, {0,0,0,0,1,0}, {}, "Returns a string describing the current MultiGPU mode, if any." },
-    { "AllowGSYNC",                       NV_CTRL_GSYNC_ALLOWED,                        INT_ATTR, {0,0,0,0,0,0}, { .int_flags = {0,0,0,0,0,0,0} }, "Enables or disables the use of G-SYNC when available." },
-    { "ShowGSYNCVisualIndicator",         NV_CTRL_SHOW_GSYNC_VISUAL_INDICATOR,          INT_ATTR, {0,0,0,0,0,0}, { .int_flags = {0,0,0,0,0,0,0} }, "If this is enabled (1), the driver will draw an indicator showing whether G-SYNC is in use, when an application is swapping using flipping." },
+    { "AllowGSYNC",                       NV_CTRL_GSYNC_ALLOWED,                        INT_ATTR, {0,0,0,0,0,0}, { .int_flags = {0,0,0,0,0,0,0} }, "DEPRECATED: use \"AllowVRR\" instead." },
+    { "AllowVRR",                         NV_CTRL_VRR_ALLOWED,                          INT_ATTR, {0,0,0,0,0,0}, { .int_flags = {0,0,0,0,0,0,0} }, "Enables or disables the use of G-SYNC and G-SYNC Compatible when available." },
+    { "ShowGSYNCVisualIndicator",         NV_CTRL_SHOW_GSYNC_VISUAL_INDICATOR,          INT_ATTR, {0,0,0,0,0,0}, { .int_flags = {0,0,0,0,0,0,0} }, "DEPRECATED: use \"ShowVRRVisualIndicator\" instead." },
+    { "ShowVRRVisualIndicator",           NV_CTRL_SHOW_VRR_VISUAL_INDICATOR,            INT_ATTR, {0,0,0,0,0,0}, { .int_flags = {0,0,0,0,0,0,0} }, "If this is enabled (1), the driver will draw an indicator showing whether G-SYNC or G-SYNC Compatible is in use, when an application is swapping using flipping." },
     { "StereoSwapMode",                   NV_CTRL_STEREO_SWAP_MODE,                     INT_ATTR, {0,0,0,0,0,0}, { .int_flags = {0,0,0,0,0,0,0} }, "Controls the swap mode when Quad-Buffered stereo is used." },
     { "ShowGraphicsVisualIndicator",      NV_CTRL_SHOW_GRAPHICS_VISUAL_INDICATOR,       INT_ATTR, {0,0,0,0,0,0}, { .int_flags = {0,0,0,0,0,0,0} }, "If this is enabled (1), the driver will draw information about the graphics API in use into a \"visual indicator\" inside application windows.  This setting only takes effect on clients started after it is set." },
 
@@ -340,6 +342,8 @@ const AttributeTableEntry attributeTable[] = {
     { "DisplayPortConnectorType",         NV_CTRL_DISPLAYPORT_CONNECTOR_TYPE,           INT_ATTR, {0,0,0,0,1,0}, {}, "Returns the DisplayPort connector type."},
     { "DisplayPortIsMultiStream",         NV_CTRL_DISPLAYPORT_IS_MULTISTREAM,           INT_ATTR, {0,0,0,0,1,0}, {}, "Returns 1 if the DisplayPort display is a MultiStream device, and 0 otherwise."},
     { "DisplayPortSinkIsAudioCapable",    NV_CTRL_DISPLAYPORT_SINK_IS_AUDIO_CAPABLE,    INT_ATTR, {0,0,0,0,1,0}, {}, "Returns 1 if the DisplayPort display is capable of playing audio, and 0 otherwise."},
+    { "DisplayVRRMode",                   NV_CTRL_DISPLAY_VRR_MODE,                     INT_ATTR, {0,0,0,0,1,0}, { .int_flags = {0,0,0,0,0,0,0} }, "Whether the specified display device is G-SYNC or G-SYNC Compatible." },
+    { "DisplayVRRMinRefreshRate",         NV_CTRL_DISPLAY_VRR_MIN_REFRESH_RATE,         INT_ATTR, {0,0,0,0,1,0}, { .int_flags = {0,0,0,0,0,0,0} }, "The minimum refresh rate for the specified VRR display device." },
 
     /* TV */
     { "TVOverScan",                       NV_CTRL_TV_OVERSCAN,                          INT_ATTR, {0,0,0,0,0,0}, { .int_flags = {0,0,0,0,0,0,0} }, "Adjusts the amount of overscan on the specified display device." },
@@ -393,7 +397,7 @@ const int attributeTableLen = ARRAY_LEN(attributeTable);
  * the last attribute that the table knows about.
  */
 
-#if NV_CTRL_LAST_ATTRIBUTE != NV_CTRL_SHOW_GRAPHICS_VISUAL_INDICATOR
+#if NV_CTRL_LAST_ATTRIBUTE != NV_CTRL_DISPLAY_VRR_MIN_REFRESH_RATE
 #warning "Have you forgotten to add a new integer attribute to attributeTable?"
 #endif
 

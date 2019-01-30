@@ -681,6 +681,18 @@ static void apply_mode_attribute_token(char *token, char *value, void *data)
             mode->allowGSYNC = False;
         }
 
+    /* AllowGSYNCCompatible */
+    } else if (!strcasecmp("allowgsynccompatible", token)) {
+        mode->allowGSYNCCompatibleSpecified = True;
+        if (!strcasecmp("on", value)) {
+            mode->allowGSYNCCompatible = True;
+        } else {
+            mode->allowGSYNCCompatible = False;
+        }
+
+    /* VRRMinRefreshRate */
+    } else if (!strcasecmp("vrrminrefreshrate", token)) {
+        parse_read_integer(value, &(mode->vrrMinRefreshRate));
     }
 
 }
@@ -722,6 +734,9 @@ nvModePtr mode_parse(nvDisplayPtr display, const char *mode_str)
     mode->passive_stereo_eye = PASSIVE_STEREO_EYE_NONE;
     mode->position_type = CONF_ADJ_ABSOLUTE;
     mode->allowGSYNC = True;
+    mode->allowGSYNCCompatibleSpecified = False;
+    mode->allowGSYNCCompatible = True;
+    mode->vrrMinRefreshRate = 0;
 
     /* Read the mode name */
     str = parse_read_name(str, &mode_name, 0);
@@ -1197,6 +1212,24 @@ static gchar *mode_get_str(nvLayoutPtr layout,
     if (!mode->allowGSYNC) {
         tmp = g_strdup_printf("%s, AllowGSYNC=Off",
                               (flags_str ? flags_str : ""));
+        g_free(flags_str);
+        flags_str = tmp;
+    }
+
+    /* AllowGSYNCCompatible */
+    if (mode->allowGSYNCCompatibleSpecified) {
+        tmp = g_strdup_printf("%s, AllowGSYNCCompatible=%s",
+                              (flags_str ? flags_str : ""),
+                              mode->allowGSYNCCompatible ? "On" : "Off");
+        g_free(flags_str);
+        flags_str = tmp;
+    }
+
+    /* VRRMinRefreshRate */
+    if (mode->vrrMinRefreshRate) {
+        tmp = g_strdup_printf("%s, VRRMinRefreshRate=%d",
+                              (flags_str ? flags_str : ""),
+                              mode->vrrMinRefreshRate);
         g_free(flags_str);
         flags_str = tmp;
     }
