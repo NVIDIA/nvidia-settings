@@ -20,6 +20,8 @@
  * DEALINGS IN THE SOFTWARE.
  */
 
+#define _GNU_SOURCE // needed for fileno
+
 #include <stdio.h>
 #include <stdarg.h>
 #include <stdlib.h>
@@ -88,16 +90,21 @@ void reset_current_terminal_width(unsigned short new_val)
 static void format(FILE *stream, const char *prefix, const char *buf,
                    const int whitespace)
 {
-    int i;
-    TextRows *t;
+    if (isatty(fileno(stream))) {
+        int i;
+        TextRows *t;
 
-    if (!__terminal_width) reset_current_terminal_width(0);
+        if (!__terminal_width) reset_current_terminal_width(0);
 
-    t = nv_format_text_rows(prefix, buf, __terminal_width, whitespace);
+        t = nv_format_text_rows(prefix, buf, __terminal_width, whitespace);
 
-    for (i = 0; i < t->n; i++) fprintf(stream, "%s\n", t->t[i]);
+        for (i = 0; i < t->n; i++) fprintf(stream, "%s\n", t->t[i]);
 
-    nv_free_text_rows(t);
+        nv_free_text_rows(t);
+
+    } else {
+        fprintf(stream, "%s%s\n", prefix ? prefix : "", buf);
+    }
 }
 
 
