@@ -65,6 +65,7 @@ static gboolean update_connector_type_info(InfoEntry *entry);
 static gboolean update_multistream_info(InfoEntry *entry);
 static gboolean update_audio_info(InfoEntry *entry);
 static gboolean update_vrr_type_info(InfoEntry *entry);
+static gboolean update_vrr_enabled_info(InfoEntry *entry);
 
 static gboolean register_link_events(InfoEntry *entry);
 static gboolean unregister_link_events(InfoEntry *entry);
@@ -119,6 +120,13 @@ static const char * __audio_help =
 static const char * __vrr_type_help =
 "Report whether the configured display supports G-SYNC, G-SYNC Compatible, or "
 "neither.";
+
+static const char * __vrr_enabled_help =
+"Report whether the configured display enabled variable refresh mode at "
+"modeset time.  On displays capable of variable refresh mode but which are not "
+"validated as G-SYNC compatible, variable refresh mode can be enabled on the X "
+"Server Display Configuration page, or by using the AllowGSYNCCompatible "
+"MetaMode attribute.";
 
 typedef gboolean (*InfoEntryFunc)(InfoEntry *entry);
 
@@ -198,6 +206,13 @@ static InfoEntryData __info_entry_data[] = {
         "G-SYNC Mode Available",
         &__vrr_type_help,
         update_vrr_type_info,
+        NULL,
+        NULL,
+    },
+    {
+        "G-SYNC Mode Enabled",
+        &__vrr_enabled_help,
+        update_vrr_enabled_info,
         NULL,
         NULL,
     },
@@ -880,6 +895,24 @@ static gboolean update_vrr_type_info(InfoEntry *entry)
     }
 
     gtk_label_set_text(GTK_LABEL(entry->txt), str);
+
+    return TRUE;
+}
+
+static gboolean update_vrr_enabled_info(InfoEntry *entry)
+{
+    CtkDisplayDevice *ctk_object = entry->ctk_object;
+    CtrlTarget *ctrl_target = ctk_object->ctrl_target;
+    ReturnStatus ret;
+    gint val;
+
+    ret = NvCtrlGetAttribute(ctrl_target,
+                             NV_CTRL_DISPLAY_VRR_ENABLED, &val);
+    if (ret != NvCtrlSuccess) {
+        return FALSE;
+    }
+
+    gtk_label_set_text(GTK_LABEL(entry->txt), val ? "Yes" : "No");
 
     return TRUE;
 }

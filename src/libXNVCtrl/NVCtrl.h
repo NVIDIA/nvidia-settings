@@ -3565,7 +3565,18 @@
 
 #define NV_CTRL_DISPLAY_VRR_MIN_REFRESH_RATE                         430 /* R-D- */
 
-#define NV_CTRL_LAST_ATTRIBUTE NV_CTRL_DISPLAY_VRR_MIN_REFRESH_RATE
+/*
+ * NV_CTRL_DISPLAY_VRR_ENABLED - Indicates whether the specified display
+ * device enabled VRR at modeset time, and is capable of VRR flipping if
+ * NV_CTRL_VRR_ALLOWED is set.  If this is FALSE, NV_CTRL_VRR_ALLOWED has no
+ * effect.
+ */
+
+#define NV_CTRL_DISPLAY_VRR_ENABLED                                  431 /* R-D- */
+#define NV_CTRL_DISPLAY_VRR_ENABLED_FALSE                              0
+#define NV_CTRL_DISPLAY_VRR_ENABLED_TRUE                               1
+
+#define NV_CTRL_LAST_ATTRIBUTE NV_CTRL_DISPLAY_VRR_ENABLED
 
 /**************************************************************************/
 

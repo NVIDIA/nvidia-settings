@@ -344,6 +344,7 @@ const AttributeTableEntry attributeTable[] = {
     { "DisplayPortSinkIsAudioCapable",    NV_CTRL_DISPLAYPORT_SINK_IS_AUDIO_CAPABLE,    INT_ATTR, {0,0,0,0,1,0}, {}, "Returns 1 if the DisplayPort display is capable of playing audio, and 0 otherwise."},
     { "DisplayVRRMode",                   NV_CTRL_DISPLAY_VRR_MODE,                     INT_ATTR, {0,0,0,0,1,0}, { .int_flags = {0,0,0,0,0,0,0} }, "Whether the specified display device is G-SYNC or G-SYNC Compatible." },
     { "DisplayVRRMinRefreshRate",         NV_CTRL_DISPLAY_VRR_MIN_REFRESH_RATE,         INT_ATTR, {0,0,0,0,1,0}, { .int_flags = {0,0,0,0,0,0,0} }, "The minimum refresh rate for the specified VRR display device." },
+    { "DisplayVRREnabled",                NV_CTRL_DISPLAY_VRR_ENABLED,                  INT_ATTR, {0,0,0,0,1,0}, { .int_flags = {0,0,0,0,0,0,0} }, "If this is enabled (1), then VRR was enabled on this display at modeset time." },
 
     /* TV */
     { "TVOverScan",                       NV_CTRL_TV_OVERSCAN,                          INT_ATTR, {0,0,0,0,0,0}, { .int_flags = {0,0,0,0,0,0,0} }, "Adjusts the amount of overscan on the specified display device." },
@@ -397,7 +398,7 @@ const int attributeTableLen = ARRAY_LEN(attributeTable);
  * the last attribute that the table knows about.
  */
 
-#if NV_CTRL_LAST_ATTRIBUTE != NV_CTRL_DISPLAY_VRR_MIN_REFRESH_RATE
+#if NV_CTRL_LAST_ATTRIBUTE != NV_CTRL_DISPLAY_VRR_ENABLED
 #warning "Have you forgotten to add a new integer attribute to attributeTable?"
 #endif
 

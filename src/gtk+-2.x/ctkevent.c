@@ -350,6 +350,7 @@ static void ctk_event_class_init(CtkEventClass *ctk_event_class)
     MAKE_SIGNAL(NV_CTRL_SHOW_GRAPHICS_VISUAL_INDICATOR);
     MAKE_SIGNAL(NV_CTRL_DISPLAY_VRR_MODE);
     MAKE_SIGNAL(NV_CTRL_DISPLAY_VRR_MIN_REFRESH_RATE);
+    MAKE_SIGNAL(NV_CTRL_DISPLAY_VRR_ENABLED);
 #undef MAKE_SIGNAL
 
     /*
@@ -359,7 +360,7 @@ static void ctk_event_class_init(CtkEventClass *ctk_event_class)
      * knows about.
      */
 
-#if NV_CTRL_LAST_ATTRIBUTE != NV_CTRL_DISPLAY_VRR_MIN_REFRESH_RATE
+#if NV_CTRL_LAST_ATTRIBUTE != NV_CTRL_DISPLAY_VRR_ENABLED
 #warning "There are attributes that do not emit signals!"
 #endif
 
