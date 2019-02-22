@@ -206,7 +206,7 @@ static Bool LoadNvml(NvCtrlNvmlAttributes *nvml)
 #define GET_SYMBOL_OPTIONAL(_proc, _name)             \
     nvml->lib._proc = dlsym(nvml->lib.handle, _name); 
     
-    GET_SYMBOL_OPTIONAL(deviceGetGridLicensableFeatures, "nvmlDeviceGetGridLicensableFeatures");
+    GET_SYMBOL_OPTIONAL(deviceGetGridLicensableFeatures, "nvmlDeviceGetGridLicensableFeatures_v2");
 #undef GET_SYMBOL_OPTIONAL
 
     ret = nvml->lib.init();
