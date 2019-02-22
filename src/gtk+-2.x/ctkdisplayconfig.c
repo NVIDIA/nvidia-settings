@@ -323,6 +323,19 @@ static const char * __screen_metamode_delete_button_help =
 "MetaMode for the screen;  This option can be applied to your currently "
 "running X server.";
 
+/* Prime Display tooltips */
+
+static const char *__prime_viewport_help =
+"This shows the width, height, and offset in pixels of the region that "
+"should be displayed from the desktop.";
+
+static const char *__prime_name_help =
+"This is the name of the display.";
+
+static const char *__prime_sync_help =
+"This shows the status of synchronization for the PRIME display. Without "
+"synchronization, applications will not be able to sync to the display's "
+"vblank.";
 
 /* General button tooltips */
 
@@ -2234,6 +2247,8 @@ GtkWidget* ctk_display_config_new(CtrlTarget *ctrl_target,
         gtk_box_pack_start(GTK_BOX(hbox), label, FALSE, FALSE, 5);
 
         ctk_object->lbl_prime_display_view = gtk_label_new("");
+        ctk_config_set_tooltip(ctk_config, ctk_object->lbl_prime_display_view,
+                               __prime_viewport_help);
         gtk_box_pack_start(GTK_BOX(hbox),
                            ctk_object->lbl_prime_display_view,
                            FALSE, FALSE, 5);
@@ -2245,10 +2260,25 @@ GtkWidget* ctk_display_config_new(CtrlTarget *ctrl_target,
         labels = g_slist_append(labels, label);
         gtk_box_pack_start(GTK_BOX(hbox), label, FALSE, FALSE, 5);
         ctk_object->lbl_prime_display_name = gtk_label_new("");
+        ctk_config_set_tooltip(ctk_config, ctk_object->lbl_prime_display_name,
+                               __prime_name_help);
         gtk_box_pack_start(GTK_BOX(hbox),
                            ctk_object->lbl_prime_display_name,
                            FALSE, FALSE, 5);
         ctk_object->box_prime_display_name = hbox;
+
+        hbox = gtk_hbox_new(FALSE, 5);
+        gtk_box_pack_start(GTK_BOX(vbox), hbox, FALSE, FALSE, 5);
+
+        label = gtk_label_new("Synchronization:");
+        labels = g_slist_append(labels, label);
+        gtk_box_pack_start(GTK_BOX(hbox), label, FALSE, FALSE, 5);
+        ctk_object->lbl_prime_display_sync = gtk_label_new("");
+        ctk_config_set_tooltip(ctk_config, ctk_object->lbl_prime_display_sync,
+                               __prime_sync_help);
+        gtk_box_pack_start(GTK_BOX(hbox),
+                           ctk_object->lbl_prime_display_sync,
+                           FALSE, FALSE, 5);
 
         g_object_ref(ctk_object->prime_display_page);
         gtk_widget_show_all(ctk_object->prime_display_page);
@@ -2502,6 +2532,21 @@ GtkTextBuffer *ctk_display_config_create_help(GtkTextTagTable *table,
     ctk_help_heading(b, &i, "Delete Metamode");
     ctk_help_para(b, &i, "%s This is only available when advanced view "
                   "is enabled.", __screen_metamode_delete_button_help);
+
+
+    ctk_help_para(b, &i, "");
+    ctk_help_heading(b, &i, "PRIME Display Options");
+    ctk_help_para(b, &i, "The following attributes are available when a "
+                  "configured PRIME display is selected in the Selection "
+                  "drop-down. These attributes cannot be changed within "
+                  "nvidia-settings.");
+    ctk_help_heading(b, &i, "Viewport");
+    ctk_help_para(b, &i, "%s", __prime_viewport_help);
+    ctk_help_heading(b, &i, "Name");
+    ctk_help_para(b, &i, "%s  This attribute may not be available.",
+                  __prime_name_help);
+    ctk_help_heading(b, &i, "Synchronization");
+    ctk_help_para(b, &i, "%s", __prime_sync_help);
 
 
     ctk_help_para(b, &i, "");
@@ -4514,6 +4559,9 @@ static void setup_prime_display_page(CtkDisplayConfig *ctk_object)
         gtk_label_set_text(GTK_LABEL(ctk_object->lbl_prime_display_name), "");
         gtk_widget_hide(ctk_object->box_prime_display_name);
     }
+
+    gtk_label_set_text(GTK_LABEL(ctk_object->lbl_prime_display_sync),
+                       prime->sync ? "On" : "Off");
 
     gtk_widget_set_sensitive(ctk_object->prime_display_page, True);
 }
@@ -9186,9 +9234,12 @@ static int generateXConfig(CtkDisplayConfig *ctk_object, XConfigPtr *pConfig)
             if (!config->extensions) {
                 config->extensions = nvalloc(sizeof(XConfigExtensionsRec));
             }
-            xconfigRemoveNamedOption(&(config->extensions->options), "Composite",
+            xconfigRemoveNamedOption(&(config->extensions->options), 
+                                     go.compositeExtensionName,
                                      NULL);
-            xconfigAddNewOption(&config->extensions->options, "Composite", "Disable");
+            xconfigAddNewOption(&config->extensions->options, 
+                                go.compositeExtensionName, 
+                                "Disable");
             nvfree(composite_disabled_str);
         }
     }

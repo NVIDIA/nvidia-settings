@@ -3340,6 +3340,8 @@ nvPrimeDisplayPtr add_prime_display_from_server(nvScreenPtr screen,
                 prime->screen_num = atoi(value);
             } else if (!strcmp(tok, "name")) {
                 prime->label = g_strdup(value);
+            } else if (!strcmp(tok, "sync")) {
+                prime->sync = (0 == strcmp(value, "1"));
             }
         }
         tok = strtok(NULL, ",");
