@@ -101,7 +101,6 @@ static void format(FILE *stream, const char *prefix, const char *buf,
         for (i = 0; i < t->n; i++) fprintf(stream, "%s\n", t->t[i]);
 
         nv_free_text_rows(t);
-
     } else {
         fprintf(stream, "%s%s\n", prefix ? prefix : "", buf);
     }
