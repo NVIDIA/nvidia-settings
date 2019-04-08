@@ -1,0 +1,9 @@
+#Ignore archiver file used by linker
+src/libXNVCtrl/libXNVCtrl.a
+
+#Ignore output directories
+doc/_out/
+samples/_out/
+src/_out/
+src/libXNVCtrl/_out/
+
