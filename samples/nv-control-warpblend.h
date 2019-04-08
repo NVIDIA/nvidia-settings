@@ -114,7 +114,7 @@ XNVCTRLSetScanoutWarping(
  *           The pixmap does not have any size restrictions and will be scaled
  *           to fit the ViewPortIn of the target display with filtering.
  *           If the pixmap has a depth of 8, it will be treated as a single
- *           color component replicated across all channels. 
+ *           color component replicated across all channels.
  * blendAfterWarp: if True, sets BlendOrder to BlendAfterWarp to apply the
  *                 composition in display-space; otherwise, it is applied in
  *                 desktop-space before any warping.
@@ -393,7 +393,7 @@ SetPixmapDataToAttribute(
 {
     Bool ret = False;
     char tempName[256];
-    char newAttributes[256];
+    char newAttributes[512];
 
     // Disable the attribute on that DPY
     if (pixmap == None) {
@@ -464,7 +464,7 @@ XNVCTRLSetScanoutWarping(
     char *paddedBuffer = NULL;
     int error = 1;
     char tempName[256];
-    char newAttributes[256];
+    char newAttributes[512];
 
     // Disable warping on that DPY
     if (warpData == NULL) {
