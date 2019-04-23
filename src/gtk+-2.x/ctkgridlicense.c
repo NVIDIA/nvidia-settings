@@ -119,7 +119,7 @@ static gboolean allow_digits(GtkWidget *widget, GdkEvent *event, gpointer user_d
 static gboolean enable_disable_ui_controls(GtkWidget *widget, GdkEvent *event, gpointer user_data);
 static void update_gui_from_griddconfig(gpointer user_data);
 static gboolean licenseStateQueryFailed = FALSE;
-static void get_licensed_feature_information(gpointer user_data);
+static void get_licensable_feature_information(gpointer user_data);
 static gboolean is_restart_required(gpointer user_data);
 static gboolean queryLicensedFeatureCode = TRUE;
 int64_t licensedFeatureCode = NV_GRID_LICENSE_FEATURE_TYPE_VAPP;
@@ -843,7 +843,7 @@ static gboolean update_manage_grid_license_state_info(gpointer user_data)
                     break;
             }
             if (queryLicensedFeatureCode == TRUE) {
-                get_licensed_feature_information(ctk_manage_grid_license);
+                get_licensable_feature_information(ctk_manage_grid_license);
                 queryLicensedFeatureCode = FALSE;
             }
         }
@@ -1080,9 +1080,9 @@ static void apply_clicked(GtkWidget *widget, gpointer user_data)
 }
 
 /*
- * get_licensed_feature_information() - Get the details of the feature that is licensed on this system.
+ * get_licensable_feature_information() - Get the details of the supported licensable features on the system.
  */
-static void get_licensed_feature_information(gpointer user_data)
+static void get_licensable_feature_information(gpointer user_data)
 {
     CtkManageGridLicense *ctk_manage_grid_license = CTK_MANAGE_GRID_LICENSE(user_data);
     nvmlGridLicensableFeatures_t *gridLicensableFeatures;
@@ -1105,6 +1105,11 @@ static void get_licensed_feature_information(gpointer user_data)
         if (gridLicensableFeatures->gridLicensableFeatures[i].featureState != 0)
         {
             licensedFeatureCode = gridLicensableFeatures->gridLicensableFeatures[i].featureCode;
+            break;
+        }
+        else if (gridLicensableFeatures->gridLicensableFeatures[i].featureState == 0 &&
+                 gridLicensableFeatures->gridLicensableFeatures[i].featureCode == NVML_GRID_LICENSE_FEATURE_CODE_VWORKSTATION)
+        {
             break;
         }
     }
@@ -1558,7 +1563,7 @@ GtkWidget* ctk_manage_grid_license_new(CtrlTarget *target,
 
     gtk_box_set_spacing(GTK_BOX(ctk_manage_grid_license), 5);
 
-    get_licensed_feature_information(ctk_manage_grid_license);
+    get_licensable_feature_information(ctk_manage_grid_license);
 
     /* banner */
 

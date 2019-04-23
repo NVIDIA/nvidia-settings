@@ -426,16 +426,6 @@ XConfigMonitorPtr xconfigAddMonitor(XConfigPtr config, int count)
     monitor->vendor = xconfigStrdup("Unknown");  /* XXX */
     monitor->modelname = xconfigStrdup("Unknown"); /* XXX */
 
-    /* XXX check EDID for freq ranges */
-
-    monitor->n_hsync = 1;
-    monitor->hsync[0].lo = 28.0;
-    monitor->hsync[0].hi = 33.0;
-
-    monitor->n_vrefresh = 1;
-    monitor->vrefresh[0].lo = 43.0;
-    monitor->vrefresh[0].hi = 72.0;
-
     monitor->options = NULL;
     xconfigAddNewOption(&monitor->options, "DPMS", NULL);
 

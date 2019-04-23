@@ -298,7 +298,7 @@ GtkWidget* ctk_scale_new(GtkAdjustment *gtk_adjustment,
 
     gtk_scale_set_draw_value(GTK_SCALE(ctk_scale->gtk_scale), FALSE);
 
-    gtk_scale_set_digits(GTK_SCALE(ctk_scale->gtk_scale), 0);
+    gtk_scale_set_digits(GTK_SCALE(ctk_scale->gtk_scale), 6);
 
 
     gtk_box_pack_start(GTK_BOX(hbox), ctk_scale->gtk_scale, TRUE, TRUE, 3);

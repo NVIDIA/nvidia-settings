@@ -39,19 +39,23 @@
 #  define uint32_t uint32_t
 #endif
 
+#define HAVE_UINT16_T 1
+#ifndef HAVE_UINT16_T
+#  define uint16_t uint16_t
+#endif
+
+#define HAVE_UINT8_T 1
+#ifndef HAVE_UINT8_T
+#  define uint8_t uint8_t
+#endif
+
 #define HAVE_SSIZE_T 1
 
 #ifndef HAVE_SSIZE_T
 #  define ssize_t 
 #endif
 
-#define HAVE_SNPRINTF 1
-
-#ifndef HAVE_SNPRINTF
-#  define snprintf snprintf
-#endif
-
-/* #undef HAVE_VSNPRINTF */
-
 #define USE_URANDOM 1
 #define USE_WINDOWS_CRYPTOAPI 1
+
+#define INITIAL_HASHTABLE_ORDER 3

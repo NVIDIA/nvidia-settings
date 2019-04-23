@@ -4328,7 +4328,7 @@ static void display_state_received(GObject *object,
 
     if (!display_entry ||
         !display_entry->data ||
-        !display_entry->data_type != ENTRY_DATA_DISPLAY) {
+        display_entry->data_type != ENTRY_DATA_DISPLAY) {
         return;
     }
 
@@ -4383,7 +4383,7 @@ static void gpu_state_received(GObject *object,
 
     if (!gpu_entry ||
         !gpu_entry->data ||
-        !gpu_entry->data_type != ENTRY_DATA_GPU) {
+        gpu_entry->data_type != ENTRY_DATA_GPU) {
         return;
     }
 

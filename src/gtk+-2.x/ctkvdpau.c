@@ -284,6 +284,12 @@ static const Desc ycbcr_types[] = {
     {"YUYV", VDP_YCBCR_FORMAT_YUYV, 0},
     {"Y8U8V8A8", VDP_YCBCR_FORMAT_Y8U8V8A8, 0},
     {"V8U8Y8A8", VDP_YCBCR_FORMAT_V8U8Y8A8, 0},
+#ifdef VDP_YCBCR_FORMAT_Y_UV_444
+    {"Y_UV_444",  VDP_YCBCR_FORMAT_Y_UV_444,  0},
+    {"Y_U_V_444", VDP_YCBCR_FORMAT_Y_U_V_444, 0},
+#else
+#warning "Update libvdpau to version 1.2"
+#endif
 };
 static const size_t ycbcr_type_count = sizeof(ycbcr_types)/sizeof(Desc);
 
@@ -644,8 +650,8 @@ static int queryDecoderCaps(CtkVDPAU *ctk_vdpau, VdpDevice device,
             gtk_misc_set_alignment(GTK_MISC(label), 0.0f, 0.5f);
             gtk_table_attach(GTK_TABLE(table), label, 4, 5, count+3, count+4,
                              GTK_FILL, GTK_FILL | GTK_EXPAND, 5, 0);
+            count++;
         }
-        count++;
     }
     return 0;
 } /* queryDecoderCaps() */

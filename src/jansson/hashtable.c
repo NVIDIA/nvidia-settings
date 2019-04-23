@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2009-2014 Petri Lehtinen <petri@digip.org>
+ * Copyright (c) 2009-2016 Petri Lehtinen <petri@digip.org>
  *
  * This library is free software; you can redistribute it and/or modify
  * it under the terms of the MIT license. See LICENSE for details.
@@ -20,6 +20,10 @@
 #include "jansson_private.h"  /* for container_of() */
 #include "hashtable.h"
 
+#ifndef INITIAL_HASHTABLE_ORDER
+#define INITIAL_HASHTABLE_ORDER 3
+#endif
+
 typedef struct hashtable_list list_t;
 typedef struct hashtable_pair pair_t;
 typedef struct hashtable_bucket bucket_t;
@@ -30,6 +34,7 @@ extern volatile uint32_t hashtable_seed;
 #include "lookup3.h"
 
 #define list_to_pair(list_)  container_of(list_, pair_t, list)
+#define ordered_list_to_pair(list_)  container_of(list_, pair_t, ordered_list)
 #define hash_str(key)        ((size_t)hashlittle((key), strlen(key), hashtable_seed))
 
 static JSON_INLINE void list_init(list_t *list)
@@ -122,6 +127,7 @@ static int hashtable_do_del(hashtable_t *hashtable,
         bucket->last = pair->list.prev;
 
     list_remove(&pair->list);
+    list_remove(&pair->ordered_list);
     json_decref(pair->value);
 
     jsonp_free(pair);
@@ -148,16 +154,19 @@ static int hashtable_do_rehash(hashtable_t *hashtable)
 {
     list_t *list, *next;
     pair_t *pair;
-    size_t i, index, new_size;
+    size_t i, index, new_size, new_order;
+    struct hashtable_bucket *new_buckets;
+
+    new_order = hashtable->order + 1;
+    new_size = hashsize(new_order);
+
+    new_buckets = jsonp_malloc(new_size * sizeof(bucket_t));
+    if(!new_buckets)
+        return -1;
 
     jsonp_free(hashtable->buckets);
-
-    hashtable->order++;
-    new_size = hashsize(hashtable->order);
-
-    hashtable->buckets = jsonp_malloc(new_size * sizeof(bucket_t));
-    if(!hashtable->buckets)
-        return -1;
+    hashtable->buckets = new_buckets;
+    hashtable->order = new_order;
 
     for(i = 0; i < hashsize(hashtable->order); i++)
     {
@@ -184,12 +193,13 @@ int hashtable_init(hashtable_t *hashtable)
     size_t i;
 
     hashtable->size = 0;
-    hashtable->order = 3;
+    hashtable->order = INITIAL_HASHTABLE_ORDER;
     hashtable->buckets = jsonp_malloc(hashsize(hashtable->order) * sizeof(bucket_t));
     if(!hashtable->buckets)
         return -1;
 
     list_init(&hashtable->list);
+    list_init(&hashtable->ordered_list);
 
     for(i = 0; i < hashsize(hashtable->order); i++)
     {
@@ -206,9 +216,7 @@ void hashtable_close(hashtable_t *hashtable)
     jsonp_free(hashtable->buckets);
 }
 
-int hashtable_set(hashtable_t *hashtable,
-                  const char *key, size_t serial,
-                  json_t *value)
+int hashtable_set(hashtable_t *hashtable, const char *key, json_t *value)
 {
     pair_t *pair;
     bucket_t *bucket;
@@ -246,12 +254,13 @@ int hashtable_set(hashtable_t *hashtable,
             return -1;
 
         pair->hash = hash;
-        pair->serial = serial;
-        strcpy(pair->key, key);
+        strncpy(pair->key, key, len + 1);
         pair->value = value;
         list_init(&pair->list);
+        list_init(&pair->ordered_list);
 
         insert_to_bucket(hashtable, bucket, &pair->list);
+        list_insert(&hashtable->ordered_list, &pair->ordered_list);
 
         hashtable->size++;
     }
@@ -293,12 +302,13 @@ void hashtable_clear(hashtable_t *hashtable)
     }
 
     list_init(&hashtable->list);
+    list_init(&hashtable->ordered_list);
     hashtable->size = 0;
 }
 
 void *hashtable_iter(hashtable_t *hashtable)
 {
-    return hashtable_iter_next(hashtable, &hashtable->list);
+    return hashtable_iter_next(hashtable, &hashtable->ordered_list);
 }
 
 void *hashtable_iter_at(hashtable_t *hashtable, const char *key)
@@ -314,38 +324,32 @@ void *hashtable_iter_at(hashtable_t *hashtable, const char *key)
     if(!pair)
         return NULL;
 
-    return &pair->list;
+    return &pair->ordered_list;
 }
 
 void *hashtable_iter_next(hashtable_t *hashtable, void *iter)
 {
     list_t *list = (list_t *)iter;
-    if(list->next == &hashtable->list)
+    if(list->next == &hashtable->ordered_list)
         return NULL;
     return list->next;
 }
 
 void *hashtable_iter_key(void *iter)
 {
-    pair_t *pair = list_to_pair((list_t *)iter);
+    pair_t *pair = ordered_list_to_pair((list_t *)iter);
     return pair->key;
-}
-
-size_t hashtable_iter_serial(void *iter)
-{
-    pair_t *pair = list_to_pair((list_t *)iter);
-    return pair->serial;
 }
 
 void *hashtable_iter_value(void *iter)
 {
-    pair_t *pair = list_to_pair((list_t *)iter);
+    pair_t *pair = ordered_list_to_pair((list_t *)iter);
     return pair->value;
 }
 
 void hashtable_iter_set(void *iter, json_t *value)
 {
-    pair_t *pair = list_to_pair((list_t *)iter);
+    pair_t *pair = ordered_list_to_pair((list_t *)iter);
 
     json_decref(pair->value);
     pair->value = value;

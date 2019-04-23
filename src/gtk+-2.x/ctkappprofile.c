@@ -2030,7 +2030,7 @@ static EditRuleDialog* edit_rule_dialog_new(CtkAppProfile *ctk_app_profile)
     dialog->parent = GTK_WIDGET(ctk_app_profile);
     dialog->top_window = gtk_window_new(GTK_WINDOW_TOPLEVEL);
 
-    gtk_window_set_modal(GTK_WINDOW(dialog->top_window), TRUE);
+    gtk_window_set_modal(GTK_WINDOW(dialog->top_window), FALSE);
 
     g_signal_connect(G_OBJECT(dialog->top_window), "delete-event",
                      G_CALLBACK(edit_rule_dialog_handle_delete), dialog);
@@ -2996,7 +2996,7 @@ static EditProfileDialog *edit_profile_dialog_new(CtkAppProfile *ctk_app_profile
     dialog->setting_toolbar_help_data = NULL;
     dialog->bottom_help_data = NULL;
 
-    gtk_window_set_modal(GTK_WINDOW(dialog->top_window), TRUE);
+    gtk_window_set_modal(GTK_WINDOW(dialog->top_window), FALSE);
 
     g_signal_connect(G_OBJECT(dialog->top_window), "delete-event",
                      G_CALLBACK(edit_profile_dialog_handle_delete), dialog);

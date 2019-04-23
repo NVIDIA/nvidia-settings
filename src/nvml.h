@@ -243,7 +243,7 @@ typedef enum nvmlNvLinkUtilizationCountUnits_enum
     NVML_NVLINK_COUNTER_UNIT_CYCLES =  0,     // count by cycles
     NVML_NVLINK_COUNTER_UNIT_PACKETS = 1,     // count by packets
     NVML_NVLINK_COUNTER_UNIT_BYTES   = 2,     // count by bytes
-
+    NVML_NVLINK_COUNTER_UNIT_RESERVED = 3,    // count reserved for internal use
     // this must be last
     NVML_NVLINK_COUNTER_UNIT_COUNT
 } nvmlNvLinkUtilizationCountUnits_t;
@@ -5767,6 +5767,22 @@ nvmlReturn_t DECLDIR nvmlVgpuInstanceGetType(nvmlVgpuInstance_t vgpuInstance, nv
 nvmlReturn_t DECLDIR nvmlVgpuInstanceGetFrameRateLimit(nvmlVgpuInstance_t vgpuInstance, unsigned int *frameRateLimit);
 
 /**
+ * Retrieve the current ECC mode of vGPU instance.
+ *
+ * @param vgpuInstance            The identifier of the target vGPU instance
+ * @param eccMode                 Reference in which to return the current ECC mode
+ *
+ * @return
+ *         - \ref NVML_SUCCESS                 if the vgpuInstance's ECC mode has been successfully retrieved
+ *         - \ref NVML_ERROR_UNINITIALIZED     if the library has not been successfully initialized
+ *         - \ref NVML_ERROR_INVALID_ARGUMENT  if \a vgpuInstance is 0, or \a mode is NULL
+ *         - \ref NVML_ERROR_NOT_FOUND         if \a vgpuInstance does not match a valid active vGPU instance on the system
+ *         - \ref NVML_ERROR_NOT_SUPPORTED     if the vGPU doesn't support this feature
+ *         - \ref NVML_ERROR_UNKNOWN           on any unexpected error
+ */
+nvmlReturn_t DECLDIR nvmlVgpuInstanceGetEccMode(nvmlVgpuInstance_t vgpuInstance, nvmlEnableState_t *eccMode);
+
+/**
  * Retrieve the encoder capacity of a vGPU instance, as a percentage of maximum encoder capacity with valid values in the range 0-100.
  *
  * For Maxwell &tm; or newer fully supported devices.
@@ -6056,11 +6072,11 @@ nvmlReturn_t DECLDIR nvmlDeviceGetProcessUtilization(nvmlDevice_t device, nvmlPr
  *
  * For Maxwell &tm; or newer fully supported devices.
  *
- * @param vgpuInstance            The identifier of the target vGPU VM
+ * @param vgpuInstance            The identifier of the target vGPU instance
  * @param mode                    Reference in which to return the current accounting mode
  *
- * @return 
- *         - \ref NVML_SUCCESS                 if the mode has been successfully retrieved 
+ * @return
+ *         - \ref NVML_SUCCESS                 if the mode has been successfully retrieved
  *         - \ref NVML_ERROR_UNINITIALIZED     if the library has not been successfully initialized
  *         - \ref NVML_ERROR_INVALID_ARGUMENT  if \a vgpuInstance is 0, or \a mode is NULL
  *         - \ref NVML_ERROR_NOT_FOUND         if \a vgpuInstance does not match a valid active vGPU instance on the system
@@ -6070,24 +6086,24 @@ nvmlReturn_t DECLDIR nvmlDeviceGetProcessUtilization(nvmlDevice_t device, nvmlPr
 nvmlReturn_t DECLDIR nvmlVgpuInstanceGetAccountingMode(nvmlVgpuInstance_t vgpuInstance, nvmlEnableState_t *mode);
 
 /**
- * Queries list of processes running on vGPU that can be queried for accounting stats. The list of processes 
+ * Queries list of processes running on vGPU that can be queried for accounting stats. The list of processes
  * returned can be in running or terminated state.
  *
  * For Maxwell &tm; or newer fully supported devices.
- * 
+ *
  * To just query the maximum number of processes that can be queried, call this function with *count = 0 and
  * pids=NULL. The return code will be NVML_ERROR_INSUFFICIENT_SIZE, or NVML_SUCCESS if list is empty.
- * 
+ *
  * For more details see \ref nvmlVgpuInstanceGetAccountingStats.
  *
  * @note In case of PID collision some processes might not be accessible before the circular buffer is full.
  *
- * @param vgpuInstance            The identifier of the target vGPU VM
+ * @param vgpuInstance            The identifier of the target vGPU instance
  * @param count                   Reference in which to provide the \a pids array size, and
  *                                to return the number of elements ready to be queried
  * @param pids                    Reference in which to return list of process ids
- * 
- * @return 
+ *
+ * @return
  *         - \ref NVML_SUCCESS                 if pids were successfully retrieved
  *         - \ref NVML_ERROR_UNINITIALIZED     if the library has not been successfully initialized
  *         - \ref NVML_ERROR_INVALID_ARGUMENT  if \a vgpuInstance is 0, or \a count is NULL
@@ -6104,10 +6120,10 @@ nvmlReturn_t DECLDIR nvmlVgpuInstanceGetAccountingPids(nvmlVgpuInstance_t vgpuIn
  * Queries process's accounting stats.
  *
  * For Maxwell &tm; or newer fully supported devices.
- * 
+ *
  * Accounting stats capture GPU utilization and other statistics across the lifetime of a process, and
  * can be queried during life time of the process or after its termination.
- * The time field in \ref nvmlAccountingStats_t is reported as 0 during the lifetime of the process and 
+ * The time field in \ref nvmlAccountingStats_t is reported as 0 during the lifetime of the process and
  * updated to actual running time after its termination.
  * Accounting stats are kept in a circular buffer, newly created processes overwrite information about old
  * processes.
@@ -6120,11 +6136,11 @@ nvmlReturn_t DECLDIR nvmlVgpuInstanceGetAccountingPids(nvmlVgpuInstance_t vgpuIn
  *         queried since they don't contribute to GPU utilization.
  * @note In case of pid collision stats of only the latest process (that terminated last) will be reported
  *
- * @param vgpuInstance            The identifier of the target vGPU VM
+ * @param vgpuInstance            The identifier of the target vGPU instance
  * @param pid                     Process Id of the target process to query stats for
  * @param stats                   Reference in which to return the process's accounting stats
  *
- * @return 
+ * @return
  *         - \ref NVML_SUCCESS                 if stats have been successfully retrieved
  *         - \ref NVML_ERROR_UNINITIALIZED     if the library has not been successfully initialized
  *         - \ref NVML_ERROR_INVALID_ARGUMENT  if \a vgpuInstance is 0, or \a stats is NULL
@@ -6291,6 +6307,26 @@ nvmlReturn_t DECLDIR nvmlDeviceGetVgpuMetadata(nvmlDevice_t device, nvmlVgpuPgpu
  *         - \ref NVML_ERROR_UNKNOWN             on any unexpected error
  */
 nvmlReturn_t DECLDIR nvmlGetVgpuCompatibility(nvmlVgpuMetadata_t *vgpuMetadata, nvmlVgpuPgpuMetadata_t *pgpuMetadata, nvmlVgpuPgpuCompatibility_t *compatibilityInfo);
+
+/**
+ * Returns the properties of the physical GPU indicated by the device in an ascii-encoded string format.
+ *
+ * The caller passes in a buffer via \a pgpuMetadata, with the size of the buffer in \a bufferSize. If the
+ * string is too large to fit in the supplied buffer, the function returns NVML_ERROR_INSUFFICIENT_SIZE with the size needed
+ * in \a bufferSize.
+ *
+ * @param device                The identifier of the target device
+ * @param pgpuMetadata          Pointer to caller-supplied buffer into which \a pgpuMetadata is written
+ * @param bufferSize            Pointer to size of \a pgpuMetadata buffer
+ *
+ * @return
+ *         - \ref NVML_SUCCESS                   GPU metadata structure was successfully returned
+ *         - \ref NVML_ERROR_INSUFFICIENT_SIZE   \a pgpuMetadata buffer is too small, required size is returned in \a bufferSize
+ *         - \ref NVML_ERROR_INVALID_ARGUMENT    if \a bufferSize is NULL or \a device is invalid; if \a pgpuMetadata is NULL and the value of \a bufferSize is not 0.
+ *         - \ref NVML_ERROR_NOT_SUPPORTED       if vGPU is not supported by the system
+ *         - \ref NVML_ERROR_UNKNOWN             on any unexpected error
+ */
+nvmlReturn_t DECLDIR nvmlDeviceGetPgpuMetadataString(nvmlDevice_t device, char *pgpuMetadata, unsigned int *bufferSize);
 
 /*
  * Virtual GPU (vGPU) version
