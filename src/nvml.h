@@ -243,7 +243,7 @@ typedef enum nvmlNvLinkUtilizationCountUnits_enum
     NVML_NVLINK_COUNTER_UNIT_CYCLES =  0,     // count by cycles
     NVML_NVLINK_COUNTER_UNIT_PACKETS = 1,     // count by packets
     NVML_NVLINK_COUNTER_UNIT_BYTES   = 2,     // count by bytes
-
+    NVML_NVLINK_COUNTER_UNIT_RESERVED = 3,    // count reserved for internal use
     // this must be last
     NVML_NVLINK_COUNTER_UNIT_COUNT
 } nvmlNvLinkUtilizationCountUnits_t;
