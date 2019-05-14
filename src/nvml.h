@@ -5369,7 +5369,6 @@ nvmlReturn_t DECLDIR nvmlDeviceSetVirtualizationMode(nvmlDevice_t device, nvmlGp
  *         - \ref NVML_ERROR_INSUFFICIENT_SIZE      \a vgpuTypeIds buffer is too small, array element count is returned in \a vgpuCount
  *         - \ref NVML_ERROR_INVALID_ARGUMENT       if \a vgpuCount is NULL or \a device is invalid
  *         - \ref NVML_ERROR_NOT_SUPPORTED          if vGPU is not supported by the device
- *         - \ref NVML_ERROR_VGPU_ECC_NOT_SUPPORTED if ECC is enabled on the device
  *         - \ref NVML_ERROR_UNKNOWN                on any unexpected error
  */
 nvmlReturn_t DECLDIR nvmlDeviceGetSupportedVgpus(nvmlDevice_t device, unsigned int *vgpuCount, nvmlVgpuTypeId_t *vgpuTypeIds);
@@ -5399,7 +5398,6 @@ nvmlReturn_t DECLDIR nvmlDeviceGetSupportedVgpus(nvmlDevice_t device, unsigned i
  *         - \ref NVML_ERROR_INSUFFICIENT_SIZE      \a vgpuTypeIds buffer is too small, array element count is returned in \a vgpuCount
  *         - \ref NVML_ERROR_INVALID_ARGUMENT       if \a vgpuCount is NULL
  *         - \ref NVML_ERROR_NOT_SUPPORTED          if vGPU is not supported by the device
- *         - \ref NVML_ERROR_VGPU_ECC_NOT_SUPPORTED if ECC is enabled on the device
  *         - \ref NVML_ERROR_UNKNOWN                on any unexpected error
  */
 nvmlReturn_t DECLDIR nvmlDeviceGetCreatableVgpus(nvmlDevice_t device, unsigned int *vgpuCount, nvmlVgpuTypeId_t *vgpuTypeIds);
