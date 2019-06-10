@@ -34,6 +34,7 @@
 
 CC                    ?= gcc
 LD                    ?= ld
+AR                    ?= ar
 # only set these warnings and optimizations if CFLAGS is unset
 CFLAGS                ?= -Wall -O2
 # always set these -f CFLAGS
@@ -302,6 +303,7 @@ quiet_STRIP_CMD    = $(call define_quiet_cmd,STRIP       ,$@)
 quiet_HARDLINK     = $(call define_quiet_cmd,HARDLINK    ,$@)
 quiet_LD           = $(call define_quiet_cmd,LD          ,$@)
 quiet_OBJCOPY      = $(call define_quiet_cmd,OBJCOPY     ,$@)
+quiet_AR           = $(call define_quiet_cmd,AR          ,$@)
 
 ##############################################################################
 # Tell gmake to delete the target of a rule if it has changed and its

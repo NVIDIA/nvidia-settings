@@ -1,4 +1,4 @@
-# Copyright (c) 2008 NVIDIA, Corporation
+# Copyright (c) 2008-2019 NVIDIA, Corporation
 #
 # Permission is hereby granted, free of charge, to any person obtaining a copy
 # of this software and associated documentation files (the "Software"), to deal
@@ -19,39 +19,31 @@
 # OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 # SOFTWARE.
 
-
 ##############################################################################
-# include common variables and functions
-##############################################################################
-
-UTILS_MK_DIR ?= .
-
-include $(UTILS_MK_DIR)/utils.mk
-
-XNVCTRL_DIR ?= .
-include $(XNVCTRL_DIR)/xnvctrl.mk
-
-
-##############################################################################
-# assign variables
+# makefile fragment to define how to build LIBXNVCTRL
 ##############################################################################
 
-CFLAGS += $(XNVCTRL_CFLAGS)
-CFLAGS += -I .
-CFLAGS += -fPIC
-CFLAGS += -I $(OUTPUTDIR)
-CFLAGS += -I $(XNVCTRL_DIR)
+# The calling Makefile may export any of the following variables; we
+# assign default values if they are not exported by the caller
 
-LDFLAGS += $(XNVCTRL_LDFLAGS)
+ifndef XNVCTRL_LDFLAGS
+  ifeq ($(TARGET_OS)-$(TARGET_ARCH),Linux-x86_64)
+    XNVCTRL_LDFLAGS = -L/usr/X11R6/lib64
+  else
+    XNVCTRL_LDFLAGS = -L/usr/X11R6/lib
+  endif
+endif
 
-##############################################################################
-# build rules
-##############################################################################
+XNVCTRL_CFLAGS ?=
 
-.PHONY: clean
 
-all: $(LIBXNVCTRL)
+LIBXNVCTRL = $(OUTPUTDIR)/libXNVCtrl.a
 
-clean:
-	rm -rf $(LIBXNVCTRL) *~ \
-		$(OUTPUTDIR)/*.o $(OUTPUTDIR)/*.d
+LIBXNVCTRL_SRC = $(XNVCTRL_DIR)/NVCtrl.c
+
+LIBXNVCTRL_OBJ = $(call BUILD_OBJECT_LIST,$(LIBXNVCTRL_SRC))
+
+$(eval $(call DEFINE_OBJECT_RULE,TARGET,$(LIBXNVCTRL_SRC)))
+
+$(LIBXNVCTRL) : $(LIBXNVCTRL_OBJ)
+	$(call quiet_cmd,AR) ru $@ $(LIBXNVCTRL_OBJ)

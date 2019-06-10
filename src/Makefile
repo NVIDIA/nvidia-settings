@@ -26,21 +26,14 @@ UTILS_MK_DIR ?= ..
 
 include $(UTILS_MK_DIR)/utils.mk
 
+XNVCTRL_DIR ?= ../src/libXNVCtrl
+
+include $(XNVCTRL_DIR)/xnvctrl.mk
 
 ##############################################################################
 # The calling Makefile may export any of the following variables; we
 # assign default values if they are not exported by the caller
 ##############################################################################
-
-ifndef X_LDFLAGS
-  ifeq ($(TARGET_OS)-$(TARGET_ARCH),Linux-x86_64)
-    X_LDFLAGS          = -L/usr/X11R6/lib64
-  else
-    X_LDFLAGS          = -L/usr/X11R6/lib
-  endif
-endif
-
-X_CFLAGS              ?=
 
 PKG_CONFIG            ?= pkg-config
 
@@ -111,8 +104,6 @@ endif
 ##############################################################################
 
 XNVCTRL_DIR             ?= libXNVCtrl
-XNVCTRL_MAKEFILE        ?= Makefile
-XNVCTRL_ARCHIVE         ?= $(XNVCTRL_DIR)/libXNVCtrl.a
 XCONFIG_PARSER_DIR      ?= XF86Config-parser
 COMMON_UTILS_DIR        ?= common-utils
 COMMON_UNIX_DIR         ?= common-unix
@@ -142,14 +133,14 @@ else
   GTK3LIB =
 endif
 
-CFLAGS += $(X_CFLAGS)
+CFLAGS += $(XNVCTRL_CFLAGS)
 
 ifeq ($(TARGET_OS),SunOS)
   LDFLAGS += -Wl,-rpath=/usr/X11R6/lib -Wl,--export-dynamic
   LIBS += -lscf
 endif
 
-LDFLAGS += $(X_LDFLAGS)
+LDFLAGS += $(XNVCTRL_LDFLAGS)
 
 NVML_EXPERIMENTAL ?=
 CFLAGS += $(if $(NVML_EXPERIMENTAL),-DNVML_EXPERIMENTAL)
@@ -262,7 +253,7 @@ endef
 # build rules
 ##############################################################################
 
-.PHONY: all install NVIDIA_SETTINGS_install clean clobber build-xnvctrl
+.PHONY: all install NVIDIA_SETTINGS_install clean clobber
 
 all: $(NVIDIA_SETTINGS) $(GTK2LIB) $(GTK3LIB)
 
@@ -282,14 +273,14 @@ NVIDIA_SETTINGS_install: $(NVIDIA_SETTINGS)
 	$(INSTALL) $(INSTALL_BIN_ARGS) $< $(BINDIR)/$(notdir $<)
 
 $(eval $(call DEBUG_INFO_RULES, $(NVIDIA_SETTINGS)))
-$(NVIDIA_SETTINGS).unstripped: $(OBJS) $(XNVCTRL_ARCHIVE)
+$(NVIDIA_SETTINGS).unstripped: $(OBJS) $(LIBXNVCTRL)
 	$(call quiet_cmd,LINK) $(CFLAGS) $(LDFLAGS) $(BIN_LDFLAGS) \
-	    -rdynamic -o $@ $(OBJS) $(XNVCTRL_ARCHIVE) $(LIBS)
+	    -rdynamic -o $@ $(OBJS) $(LIBXNVCTRL) $(LIBS)
 
 $(eval $(call DEBUG_INFO_RULES, $(GTK2LIB)))
 $(GTK2LIB).unstripped: $(GTK2_OBJS) $(XCP_OBJS) $(IMAGE_OBJS) $(VERSION_MK)
 	$(call quiet_cmd,LINK) -shared $(CFLAGS) $(LDFLAGS) $(BIN_LDFLAGS) \
-	    $(XNVCTRL_ARCHIVE) $(LIBS) $(GTK2_LIBS) \
+	    $(LIBXNVCTRL) $(LIBS) $(GTK2_LIBS) \
 	    -Wl,--unresolved-symbols=ignore-all -o $@ \
 	    -Wl,-soname -Wl,$(GTK2LIB_SONAME) \
 	    $(GTK2_OBJS) $(IMAGE_OBJS) $(XCP_OBJS)
@@ -298,7 +289,7 @@ ifdef BUILD_GTK3LIB
 $(eval $(call DEBUG_INFO_RULES, $(GTK3LIB)))
 $(GTK3LIB).unstripped: $(GTK3_OBJS) $(XCP_OBJS) $(IMAGE_OBJS) $(VERSION_MK)
 	$(call quiet_cmd,LINK) -shared $(CFLAGS) $(LDFLAGS)  $(BIN_LDFLAGS) \
-	    $(XNVCTRL_ARCHIVE) $(LIBS) $(GTK3_LIBS) \
+	    $(LIBXNVCTRL) $(LIBS) $(GTK3_LIBS) \
 	    -Wl,--unresolved-symbols=ignore-all -o $@ \
 	    -Wl,-soname -Wl,$(GTK3LIB_SONAME) \
 	    $(GTK3_OBJS) $(XCP_OBJS) $(IMAGE_OBJS)
@@ -308,18 +299,11 @@ endif
 $(foreach src,$(SRC),$(eval $(call DEFINE_OBJECT_RULE,TARGET,$(src))))
 $(foreach src,$(XCP_SRC),$(eval $(call DEFINE_OBJECT_RULE,TARGET,$(src))))
 
-# define the rule to build $(XNVCTRL_ARCHIVE)
-$(XNVCTRL_ARCHIVE): build-xnvctrl
-
-build-xnvctrl:
-	@$(MAKE) -C $(XNVCTRL_DIR) -f $(XNVCTRL_MAKEFILE)
-
 clean clobber:
 	rm -rf $(NVIDIA_SETTINGS) *~ \
 		$(OUTPUTDIR)/*.o $(OUTPUTDIR)/*.d \
 		$(GTK2LIB) $(GTK3LIB) $(GTK2LIB_DIR) $(GTK3LIB_DIR) \
-		$(IMAGE_HEADERS)
-	@$(MAKE) -C $(XNVCTRL_DIR) -f $(XNVCTRL_MAKEFILE) clean
+		$(IMAGE_HEADERS) $(LIBXNVCTRL)
 
 $(foreach src,$(GTK_SRC), \
     $(eval $(call DEFINE_OBJECT_RULE_WITH_DIR,TARGET,$(src),$(GTK2LIB_DIR))))
