@@ -2,7 +2,7 @@
  * nvidia-settings: A tool for configuring the NVIDIA X driver on Unix
  * and Linux systems.
  *
- * Copyright (C) 2017 NVIDIA Corporation.
+ * Copyright (C) 2019 NVIDIA Corporation.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms and conditions of the GNU General Public License,
@@ -62,15 +62,22 @@ struct _CtkManageGridLicense
     GtkWidget* btn_apply;
     GtkWidget* radio_btn_vapp;
     GtkWidget* radio_btn_qdws;
+    GtkWidget* radio_btn_vcompute;
     GtkWidget* btn_cancel;
     GtkWidget* box_server_info;
 
     DbusData *dbusData;
     CtrlTarget *target;
+
     gint license_edition_state;
-    gint feature_type;                              // Feature type from UI/gridd.conf.
-    int gridd_feature_type;                         // Feature type fetched from nvidia-gridd.
-    char productName[GRID_LICENSE_INFO_MAX_LENGTH]; // GRID product name fetched from nvml.
+    gint feature_type;                                              // Feature type from UI/gridd.conf.
+    int gridd_feature_type;                                         // Feature type fetched from nvidia-gridd.
+    char productName[GRID_LICENSE_INFO_MAX_LENGTH];                 // GRID product name fetched from nvml corresponding to the licensed/applied feature
+    char productNameQvDWS[GRID_LICENSE_INFO_MAX_LENGTH];            // GRID product name fetched from nvml corresponding to the feature type '2'
+    char productNamevCompute[GRID_LICENSE_INFO_MAX_LENGTH];         // GRID product name fetched from nvml corresponding to the feature type '4'
+
+    int licenseStatus;                                              // Current license status to be displayed on UI
+    gboolean isvComputeSupported;                                   // Check if 'NVIDIA vComputeServer' feature is supported
 };
 
 /*
@@ -80,19 +87,20 @@ typedef enum
 {
     NV_GRID_UNLICENSED_VGPU = 0,
     NV_GRID_UNLICENSED_VAPP,
-    NV_GRID_UNLICENSED_QDWS_SELECTED,
-    NV_GRID_LICENSE_ACQUIRED_VGPU,
-    NV_GRID_LICENSE_ACQUIRED_QDWS,
-    NV_GRID_LICENSE_REQUESTING_VGPU,
-    NV_GRID_LICENSE_REQUESTING_QDWS,
-    NV_GRID_LICENSE_FAILED_VGPU,
-    NV_GRID_LICENSE_FAILED_QDWS,
-    NV_GRID_LICENSE_EXPIRED_VGPU,
-    NV_GRID_LICENSE_EXPIRED_QDWS,
-    NV_GRID_LICENSE_RESTART_REQUIRED,
+    NV_GRID_UNLICENSED_FEATURE_SELECTED,
+    NV_GRID_LICENSE_STATUS_ACQUIRED,
+    NV_GRID_LICENSE_STATUS_REQUESTING,
+    NV_GRID_LICENSE_STATUS_FAILED,
+    NV_GRID_LICENSE_STATUS_EXPIRED,
     NV_GRID_LICENSE_RESTART_REQUIRED_VAPP,
-    NV_GRID_UNLICENSED_REQUEST_DETAILS,     // Default case
-} licenseStatus;
+    NV_GRID_LICENSE_RESTART_REQUIRED_QDWS,
+    NV_GRID_LICENSE_RESTART_REQUIRED_VCOMPUTE,
+    NV_GRID_LICENSED_RESTART_REQUIRED_VAPP,
+    NV_GRID_LICENSED_RESTART_REQUIRED_QDWS,
+    NV_GRID_LICENSED_RESTART_REQUIRED_VCOMPUTE,
+    NV_GRID_UNLICENSED_REQUEST_DETAILS_QDWS,
+    NV_GRID_UNLICENSED_REQUEST_DETAILS_VCOMPUTE,
+} licenseStatusList;
 
 struct _CtkManageGridLicenseClass
 {

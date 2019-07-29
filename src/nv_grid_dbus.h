@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2017 NVIDIA Corporation.
+ * Copyright (C) 2017-2019 NVIDIA Corporation.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms and conditions of the GNU General Public License,
@@ -54,6 +54,7 @@ typedef enum
     NV_GRID_LICENSE_FEATURE_TYPE_VAPP = 0,
     NV_GRID_LICENSE_FEATURE_TYPE_VGPU,
     NV_GRID_LICENSE_FEATURE_TYPE_QDWS,
+    NV_GRID_LICENSE_FEATURE_TYPE_VCOMPUTE = 4,
 } gridLicenseFeatureType;
 
 #endif // _NVIDIA_NV_GRID_DBUS_H_
