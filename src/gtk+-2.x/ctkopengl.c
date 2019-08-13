@@ -85,9 +85,6 @@ static void value_changed (GObject *, CtrlEvent *, gpointer);
 
 static const gchar *get_image_settings_string(gint val);
 
-static gchar *format_image_settings_value(GtkScale *scale, gdouble arg1,
-                                         gpointer user_data);
-
 static void post_slider_value_changed(CtkOpenGL *ctk_opengl, gint val);
 
 static void aa_line_gamma_update_received(GObject *object, CtrlEvent *event,
@@ -95,7 +92,8 @@ static void aa_line_gamma_update_received(GObject *object, CtrlEvent *event,
 
 static void post_image_settings_value_changed(CtkOpenGL *ctk_opengl, gint val);
 
-static void image_settings_value_changed(GtkRange *range, gpointer user_data);
+static void image_settings_value_changed(CtkDropDownMenu *widget,
+                                         gpointer user_data);
 
 static void image_settings_update_received(GObject *object, CtrlEvent *event,
                                            gpointer user_data);
@@ -159,8 +157,8 @@ static const char *__aa_line_gamma_slider_help =
 "smooth lines.  This option is applied to OpenGL applications "
 "that are started after this option is set.";
 
-static const char *__image_settings_slider_help =
-"The Image Settings slider controls the image quality setting.";
+static const char *__image_settings_dropdown_help =
+"This option adjusts the image quality setting.";
 
 static const char *__force_stereo_help =
 "Enabling this option causes OpenGL to force "
@@ -293,8 +291,7 @@ GtkWidget* ctk_opengl_new(CtrlTarget *ctrl_target,
     GtkWidget *hbox;
     GtkWidget *vbox;
     GtkWidget *check_button;
-    GtkWidget *scale;
-    GtkAdjustment *adjustment;
+    GtkWidget *dropdown;
     GtkWidget *menu;
 
     gint sync_to_vblank = 0;
@@ -696,34 +693,57 @@ GtkWidget* ctk_opengl_new(CtrlTarget *ctrl_target,
      * Image Quality settings.
      */
 
-    if (ret_image_settings == NvCtrlSuccess) {
-
-        frame = gtk_frame_new("Image Settings");
-        gtk_box_pack_start(GTK_BOX(vbox), frame, FALSE, FALSE, 3);
+    if (ret_image_settings == NvCtrlSuccess &&
+            image_settings_valid.range.min == 0) {
 
         hbox = gtk_hbox_new(FALSE, 0);
-        gtk_container_set_border_width(GTK_CONTAINER(hbox), FRAME_PADDING);
-        gtk_container_add(GTK_CONTAINER(frame), hbox);
+        frame = gtk_label_new("Image Settings: ");
+        gtk_box_pack_start(GTK_BOX(hbox), frame, FALSE, FALSE, 3);
 
-        /* create the slider */
-        adjustment = GTK_ADJUSTMENT(
-                         gtk_adjustment_new(image_settings_value,
-                                            image_settings_valid.range.min,
-                                            image_settings_valid.range.max,
-                                            1, 1, 0.0));
-        scale = gtk_hscale_new(GTK_ADJUSTMENT(adjustment));
-        gtk_adjustment_set_value(GTK_ADJUSTMENT(adjustment), image_settings_value);
+        gtk_container_add(GTK_CONTAINER(vbox), hbox);
 
-        gtk_scale_set_draw_value(GTK_SCALE(scale), TRUE);
-        gtk_scale_set_value_pos(GTK_SCALE(scale), GTK_POS_TOP);
+        /* create the dropdown */
 
-        gtk_container_add(GTK_CONTAINER(hbox), scale);
+        dropdown = ctk_drop_down_menu_new(CTK_DROP_DOWN_MENU_FLAG_READONLY);
 
-        g_signal_connect(G_OBJECT(scale), "format-value",
-                         G_CALLBACK(format_image_settings_value),
-                         (gpointer) ctk_opengl);
+        if (image_settings_valid.range.max >=
+                NV_CTRL_IMAGE_SETTINGS_HIGH_QUALITY) {
+            ctk_drop_down_menu_append_item(CTK_DROP_DOWN_MENU(dropdown),
+                get_image_settings_string(
+                    NV_CTRL_IMAGE_SETTINGS_HIGH_QUALITY),
+                NV_CTRL_IMAGE_SETTINGS_HIGH_QUALITY);
+        }
 
-        g_signal_connect(G_OBJECT(scale), "value-changed",
+        if (image_settings_valid.range.max >=
+                NV_CTRL_IMAGE_SETTINGS_QUALITY) {
+            ctk_drop_down_menu_append_item(CTK_DROP_DOWN_MENU(dropdown),
+                get_image_settings_string(
+                    NV_CTRL_IMAGE_SETTINGS_QUALITY),
+                NV_CTRL_IMAGE_SETTINGS_QUALITY);
+        }
+
+        if (image_settings_valid.range.max >=
+                NV_CTRL_IMAGE_SETTINGS_PERFORMANCE) {
+            ctk_drop_down_menu_append_item(CTK_DROP_DOWN_MENU(dropdown),
+                get_image_settings_string(
+                    NV_CTRL_IMAGE_SETTINGS_PERFORMANCE),
+                NV_CTRL_IMAGE_SETTINGS_PERFORMANCE);
+        }
+
+        if (image_settings_valid.range.max >=
+                NV_CTRL_IMAGE_SETTINGS_HIGH_PERFORMANCE) {
+            ctk_drop_down_menu_append_item(CTK_DROP_DOWN_MENU(dropdown),
+                get_image_settings_string(
+                    NV_CTRL_IMAGE_SETTINGS_HIGH_PERFORMANCE),
+                NV_CTRL_IMAGE_SETTINGS_HIGH_PERFORMANCE);
+        }
+
+        ctk_drop_down_menu_set_current_value(CTK_DROP_DOWN_MENU(dropdown),
+                                             image_settings_value);
+
+        gtk_container_add(GTK_CONTAINER(hbox), dropdown);
+
+        g_signal_connect(G_OBJECT(dropdown), "changed",
                          G_CALLBACK(image_settings_value_changed),
                          (gpointer) ctk_opengl);
 
@@ -732,10 +752,11 @@ GtkWidget* ctk_opengl_new(CtrlTarget *ctrl_target,
                          G_CALLBACK(image_settings_update_received),
                          (gpointer) ctk_opengl);
 
-        ctk_config_set_tooltip(ctk_config, scale, __image_settings_slider_help);
+        ctk_config_set_tooltip(ctk_config, dropdown,
+                               __image_settings_dropdown_help);
 
         ctk_opengl->active_attributes |= __IMAGE_SETTINGS;
-        ctk_opengl->image_settings_scale = scale;
+        ctk_opengl->image_settings_dropdown = dropdown;
     }
 
     /*
@@ -1567,18 +1588,6 @@ static const gchar *get_image_settings_string(gint val)
 } /* get_image_settings_string() */
 
 /*
- * format_image_settings_value() - callback for the "format-value" signal
- * from the image settings scale.
- */
-
-static gchar *format_image_settings_value(GtkScale *scale, gdouble arg1,
-                                         gpointer user_data)
-{
-    return g_strdup(get_image_settings_string(arg1));
-
-} /* format_image_settings_value() */
-
-/*
  * post_image_settings_value_changed() - helper function for
  * image_settings_value_changed(); this does whatever work is necessary
  * after the image settings value has changed.
@@ -1593,15 +1602,16 @@ static void post_image_settings_value_changed(CtkOpenGL *ctk_opengl, gint val)
 } /* post_image_settings_value_changed() */
 
 /*
- * image_settings_value_changed() - callback for the "value-changed" signal
- * from the image settings scale.
+ * image_settings_value_changed() - callback for the "changed" signal
+ * from the image settings combobox.
  */
 
-static void image_settings_value_changed(GtkRange *range, gpointer user_data)
+static void image_settings_value_changed(CtkDropDownMenu *widget,
+                                         gpointer user_data)
 {
     CtkOpenGL *ctk_opengl = CTK_OPENGL(user_data);
     CtrlTarget *ctrl_target = ctk_opengl->ctrl_target;
-    gint val = gtk_range_get_value(range);
+    gint val = ctk_drop_down_menu_get_current_value(widget);
 
     NvCtrlSetAttribute(ctrl_target, NV_CTRL_IMAGE_SETTINGS, val);
     post_image_settings_value_changed(ctk_opengl, val);
@@ -1610,7 +1620,7 @@ static void image_settings_value_changed(GtkRange *range, gpointer user_data)
 
 /*
  * image_settings_update_received() - this function is called when the
- * NV_CTRL_IMAGE_SETTINGS atribute is changed by another NV-CONTROL client.
+ * NV_CTRL_IMAGE_SETTINGS attribute is changed by another NV-CONTROL client.
  */
 
 static void image_settings_update_received(GObject *object,
@@ -1618,20 +1628,21 @@ static void image_settings_update_received(GObject *object,
                                            gpointer user_data)
 {
     CtkOpenGL *ctk_opengl = CTK_OPENGL(user_data);
-    GtkRange *range = GTK_RANGE(ctk_opengl->image_settings_scale);
+    CtkDropDownMenu *dropdown = CTK_DROP_DOWN_MENU(
+                                    ctk_opengl->image_settings_dropdown);
 
     if (event->type != CTRL_EVENT_TYPE_INTEGER_ATTRIBUTE) {
         return;
     }
 
-    g_signal_handlers_block_by_func(G_OBJECT(range),
+    g_signal_handlers_block_by_func(G_OBJECT(dropdown),
                                     G_CALLBACK(image_settings_value_changed),
                                     (gpointer) ctk_opengl);
 
-    gtk_range_set_value(range, event->int_attr.value);
+    ctk_drop_down_menu_set_current_value(dropdown, event->int_attr.value);
     post_image_settings_value_changed(ctk_opengl, event->int_attr.value);
 
-    g_signal_handlers_unblock_by_func(G_OBJECT(range),
+    g_signal_handlers_unblock_by_func(G_OBJECT(dropdown),
                                       G_CALLBACK(image_settings_value_changed),
                                       (gpointer) ctk_opengl);
 
@@ -1866,7 +1877,7 @@ GtkTextBuffer *ctk_opengl_create_help(GtkTextTagTable *table,
         ctk_help_para(b, &i, "This setting gives you full control over the "
                       "image quality in your applications.");
         ctk_help_para(b, &i, "Several quality settings are available for "
-                      "you to choose from with the Image Settings slider.  "
+                      "you to choose from with the Image Settings options.  "
                       "Note that choosing higher image quality settings may "
                       "result in decreased performance.");
 
@@ -1883,8 +1894,7 @@ GtkTextBuffer *ctk_opengl_create_help(GtkTextTagTable *table,
                       "optimal image quality for your applications.");
 
         ctk_help_term(b, &i, "Performance");
-        ctk_help_para(b, &i, "This setting offers an optimal blend of image "
-                      "quality and performance.  The result is optimal "
+        ctk_help_para(b, &i, "This setting results in a blend of optimal "
                       "performance and good image quality for your "
                       "applications.");
 

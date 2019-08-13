@@ -42,8 +42,6 @@ void ctk_main(ParsedAttribute *p,
               CtrlSystem *system,
               const char *page)
 {
-    CtrlTargetNode *node;
-    int has_nv_control = FALSE;
     GList *list = NULL;
     GtkWidget *window;
 
@@ -51,14 +49,7 @@ void ctk_main(ParsedAttribute *p,
     gtk_window_set_default_icon_list(list);
     window = ctk_window_new(p, conf, system);
 
-    for (node = system->targets[X_SCREEN_TARGET]; node; node = node->next) {
-        if (node->t->h) {
-            has_nv_control = TRUE;
-            break;
-        }
-    }
-
-    if (!has_nv_control) {
+    if (!system->has_nv_control) {
         GtkWidget *dlg;
         dlg = gtk_message_dialog_new (NULL,
                                       GTK_DIALOG_MODAL,

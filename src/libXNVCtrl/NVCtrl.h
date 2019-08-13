@@ -826,16 +826,16 @@
 
 
 /*
- * NV_CTRL_GPU_CORE_THRESHOLD reports the current GPU core slowdown
- * threshold temperature, NV_CTRL_GPU_DEFAULT_CORE_THRESHOLD and
- * NV_CTRL_GPU_MAX_CORE_THRESHOLD report the default and MAX core
- * slowdown threshold temperatures.
- *
- * NV_CTRL_GPU_CORE_THRESHOLD reflects the temperature at which the
+ * NV_CTRL_GPU_SLOWDOWN_THRESHOLD reflects the temperature at which the
  * GPU is throttled to prevent overheating.
+ *
+ * NV_CTRL_GPU_CORE_THRESHOLD, NV_CTRL_GPU_DEFAULT_CORE_THRESHOLD,
+ * and NV_CTRL_MAX_CORE_THRESHOLD are deprecated but report the
+ * same value as NV_CTRL_GPU_SLOWDOWN_THRESHOLD.
  */
 
-#define NV_CTRL_GPU_CORE_THRESHOLD                              61  /* R--G */
+#define NV_CTRL_GPU_SLOWDOWN_THRESHOLD                          61  /* R--G */
+#define NV_CTRL_GPU_CORE_THRESHOLD  NV_CTRL_GPU_SLOWDOWN_THRESHOLD
 #define NV_CTRL_GPU_DEFAULT_CORE_THRESHOLD                      62  /* R--G */
 #define NV_CTRL_GPU_MAX_CORE_THRESHOLD                          63  /* R--G */
 
@@ -3576,7 +3576,22 @@
 #define NV_CTRL_DISPLAY_VRR_ENABLED_FALSE                              0
 #define NV_CTRL_DISPLAY_VRR_ENABLED_TRUE                               1
 
-#define NV_CTRL_LAST_ATTRIBUTE NV_CTRL_DISPLAY_VRR_ENABLED
+/*
+ * NV_CTRL_GPU_SHUTDOWN_THRESHOLD reflects the temperature at which the
+ * GPU is halted to prevent overheating.
+ */
+
+#define NV_CTRL_GPU_SHUTDOWN_THRESHOLD                          432  /* R--G */
+
+/*
+ * NV_CTRL_GPU_MAX_OPERATING_THRESHOLD reflects the maximum temperature for
+ * normal GPU behavior.
+ */
+
+#define NV_CTRL_GPU_MAX_OPERATING_THRESHOLD                     433  /* R--G */
+
+
+#define NV_CTRL_LAST_ATTRIBUTE NV_CTRL_GPU_MAX_OPERATING_THRESHOLD
 
 /**************************************************************************/
 

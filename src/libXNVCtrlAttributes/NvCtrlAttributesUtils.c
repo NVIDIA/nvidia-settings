@@ -34,6 +34,8 @@
 #include "NvCtrlAttributes.h"
 #include "NvCtrlAttributesPrivate.h"
 
+#include "NVCtrlLib.h"
+
 
 
 /*!
@@ -841,6 +843,7 @@ static Bool load_system_info(CtrlSystem *system, const char *display)
     CtrlTarget *xscreenQueryTarget = NULL;
     CtrlTarget *nvmlQueryTarget = NULL;
     int i, target_type, val, len, target_count;
+    int unused;
     int *pData = NULL;
     const CtrlTargetTypeInfo *targetTypeInfo;
 
@@ -861,6 +864,9 @@ static Bool load_system_info(CtrlSystem *system, const char *display)
         nv_error_msg("Unable to find display on any available system");
         return FALSE;
     }
+
+    system->has_nv_control =
+        XNVCTRLQueryExtension(system->dpy, &unused, &unused);
 
     /* Try to initialize the NVML library */
     nvmlQueryTarget = nv_alloc_ctrl_target(system, GPU_TARGET, 0,

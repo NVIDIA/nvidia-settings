@@ -208,6 +208,9 @@ const AttributeTableEntry attributeTable[] = {
     { "GPUPerfModes",                     NV_CTRL_STRING_PERFORMANCE_MODES,             STR_ATTR, {0,0,0,0,1,0}, {}, "Returns a string with all the performance modes defined for this GPU along with their associated NV Clock and Memory Clock values." },
     { "GpuUUID",                          NV_CTRL_STRING_GPU_UUID,                      STR_ATTR, {0,0,0,0,1,0}, {}, "Returns the global unique identifier of the GPU." },
     { "GPUUtilization",                   NV_CTRL_STRING_GPU_UTILIZATION,               STR_ATTR, {0,0,0,0,1,0}, {}, "Returns the current percentage utilization of the GPU components." },
+    { "GPUSlowdownTempThreshold",         NV_CTRL_GPU_SLOWDOWN_THRESHOLD,               INT_ATTR, {0,0,0,0,1,0}, {}, "Returns the temperature above which the GPU will slowdown for hardware protection." },
+    { "GPUShutdownTempThreshold",         NV_CTRL_GPU_SHUTDOWN_THRESHOLD,               INT_ATTR, {0,0,0,0,1,0}, {}, "Returns the temperature at which the GPU will shutdown for hardware protection." },
+    { "GPUMaxOperatingTempThreshold",     NV_CTRL_GPU_MAX_OPERATING_THRESHOLD,          INT_ATTR, {0,0,0,0,1,0}, {}, "Returns the maximum temperature that will support normal GPU behavior." },
 
     /* Framelock */
     { "FrameLockAvailable",               NV_CTRL_FRAMELOCK,                            INT_ATTR, {1,1,0,0,1,0}, { .int_flags = {0,0,0,0,0,0,0} }, "Returns whether the underlying GPU supports Frame Lock.  All of the other frame lock attributes are only applicable if this attribute is enabled (Supported)." },
@@ -398,7 +401,7 @@ const int attributeTableLen = ARRAY_LEN(attributeTable);
  * the last attribute that the table knows about.
  */
 
-#if NV_CTRL_LAST_ATTRIBUTE != NV_CTRL_DISPLAY_VRR_ENABLED
+#if NV_CTRL_LAST_ATTRIBUTE != NV_CTRL_GPU_MAX_OPERATING_THRESHOLD
 #warning "Have you forgotten to add a new integer attribute to attributeTable?"
 #endif
 

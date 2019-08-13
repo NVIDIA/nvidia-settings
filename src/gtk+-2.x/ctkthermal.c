@@ -47,9 +47,15 @@ static void adjustment_value_changed(GtkAdjustment *adjustment,
 static void draw_sensor_gui(GtkWidget *vbox1, CtkThermal *ctk_thermal,
                             gboolean new_target_type, gint cur_sensor_idx,
                             gint reading, gint lower, gint upper,
-                            gint target, gint provider);
+                            gint target, gint provider, gint slowdown);
 static GtkWidget *pack_gauge(GtkWidget *hbox, gint lower, gint upper,
                              CtkConfig *ctk_config, const char *help);
+
+static const char *__slowdown_threshold_help =
+"The Slowdown Threshold Temperature is the temperature "
+"at which the NVIDIA Accelerated Graphics driver will throttle "
+"the GPU to prevent damage, in \xc2\xb0"
+/* split for g_utf8_validate() */ "C.";
 
 static const char *__core_threshold_help =
 "The Core Slowdown Threshold Temperature is the temperature "
@@ -937,7 +943,7 @@ static GtkWidget *pack_gauge(GtkWidget *hbox, gint lower, gint upper,
 static void draw_sensor_gui(GtkWidget *vbox1, CtkThermal *ctk_thermal,
                             gboolean new_target_type, gint cur_sensor_idx,
                             gint reading, gint lower, gint upper,
-                            gint target, gint provider)
+                            gint target, gint provider, gint slowdown)
 {
     GtkWidget *hbox, *hbox1, *hbox2, *vbox, *vbox2, *table;
     GtkWidget *frame, *label, *hsep;
@@ -998,6 +1004,19 @@ static void draw_sensor_gui(GtkWidget *vbox1, CtkThermal *ctk_thermal,
         ctk_thermal->sensor_info[cur_sensor_idx].provider_type = NULL;
     }
     
+    /* Upper limit, slowdown threshold */
+    if (slowdown > 0) {
+        s = g_strdup_printf("%d\xc2\xb0" /* split for g_utf8_validate() */ "C",
+                             slowdown);
+        add_table_row_with_help_text(table, ctk_thermal->ctk_config,
+                                __slowdown_threshold_help,
+                                2, 0, 0, 0.5,
+                                "Slowdown Temp:", 0, 0.5,
+                                s);
+        ctk_thermal->sensor_info[cur_sensor_idx].provider_type = label;
+        g_free(s);
+    }
+
     /* thermal sensor reading */
     if (reading) {
         hbox2 = gtk_hbox_new(FALSE, 0);
@@ -1076,6 +1095,7 @@ GtkWidget* ctk_thermal_new(CtrlTarget *ctrl_target,
     Bool cooler_control_enabled;
     int cur_cooler_idx = 0;
     int cur_sensor_idx = 0;
+    int slowdown;
     Bool thermal_sensor_target_type_supported = FALSE;
 
     /* make sure we have a handle */
@@ -1208,6 +1228,13 @@ GtkWidget* ctk_thermal_new(CtrlTarget *ctrl_target,
         hsep = gtk_hseparator_new();
         gtk_box_pack_start(GTK_BOX(hbox1), hsep, TRUE, TRUE, 0);
         
+        ret = NvCtrlGetAttribute(ctk_thermal->ctrl_target,
+                                 NV_CTRL_GPU_SLOWDOWN_THRESHOLD,
+                                 &slowdown);
+        if (ret != NvCtrlSuccess) {
+            slowdown = 0;
+        }
+
         if (ctk_thermal->sensor_count > 0) {
             ctk_thermal->sensor_info = (SensorInfoPtr)
                 nvalloc(ctk_thermal->sensor_count * sizeof(SensorInfoRec));
@@ -1260,7 +1287,7 @@ GtkWidget* ctk_thermal_new(CtrlTarget *ctrl_target,
             draw_sensor_gui(vbox, ctk_thermal, thermal_sensor_target_type_supported,
                             cur_sensor_idx,
                             reading, sensor_range.range.min,
-                            sensor_range.range.max, target, provider);
+                            sensor_range.range.max, target, provider, slowdown);
             cur_sensor_idx++;
         }
     } else {

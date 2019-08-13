@@ -64,7 +64,7 @@ struct _CtkOpenGL
     GtkWidget *xinerama_stereo_button;
     GtkWidget *stereo_eyes_exchange_button;
     GtkWidget *stereo_swap_mode_menu;
-    GtkWidget *image_settings_scale;
+    GtkWidget *image_settings_dropdown;
     GtkWidget *aa_line_gamma_button;
     GtkWidget *aa_line_gamma_scale;
     GtkWidget *show_sli_visual_indicator_button;
