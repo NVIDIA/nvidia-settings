@@ -1,5 +1,5 @@
 /*
- * Copyright 1993-2018 NVIDIA Corporation.  All rights reserved.
+ * Copyright 1993-2019 NVIDIA Corporation.  All rights reserved.
  *
  * NOTICE TO USER:   
  *
@@ -803,6 +803,15 @@ typedef enum nvmlGpuVirtualizationMode {
     NVML_GPU_VIRTUALIZATION_MODE_HOST_VGPU = 3,  //!< Device is associated with VGX hypervisor in vGPU mode
     NVML_GPU_VIRTUALIZATION_MODE_HOST_VSGA = 4,  //!< Device is associated with VGX hypervisor in vSGA mode
 } nvmlGpuVirtualizationMode_t;
+
+/**
+ * Host vGPU modes
+ */
+typedef enum nvmlHostVgpuMode_enum
+{
+    NVML_HOST_VGPU_MODE_NON_SRIOV    = 0,     //!< Non SR-IOV mode
+    NVML_HOST_VGPU_MODE_SRIOV        = 1      //!< SR-IOV mode
+} nvmlHostVgpuMode_t;
 
 /** @} */
 
@@ -5310,6 +5319,24 @@ nvmlReturn_t DECLDIR nvmlDeviceGetFieldValues(nvmlDevice_t device, int valuesCou
  *         - \ref NVML_ERROR_UNKNOWN            on any unexpected error
  */
 nvmlReturn_t DECLDIR nvmlDeviceGetVirtualizationMode(nvmlDevice_t device, nvmlGpuVirtualizationMode_t *pVirtualMode);
+
+/**
+ * Queries if SR-IOV host operation is supported on a vGPU supported device.
+ *
+ * Checks whether SR-IOV host capability is supported by the device and the
+ * driver, and indicates device is in SR-IOV mode if both of these conditions
+ * are true.
+ *
+ * @param device                                The identifier of the target device
+ * @param pHostVgpuMode                         Reference in which to return the current vGPU mode
+ *
+ * @return
+ *         - \ref NVML_SUCCESS                  if device's vGPU mode has been successfully retrieved
+ *         - \ref NVML_ERROR_INVALID_ARGUMENT   if \a device handle is 0 or \a pVgpuMode is NULL
+ *         - \ref NVML_ERROR_NOT_SUPPORTED      if \a device doesn't support this feature.
+ *         - \ref NVML_ERROR_UNKNOWN            if any unexpected error occurred
+ */
+nvmlReturn_t DECLDIR nvmlDeviceGetHostVgpuMode(nvmlDevice_t device, nvmlHostVgpuMode_t *pHostVgpuMode);
 
 /** @} */
 

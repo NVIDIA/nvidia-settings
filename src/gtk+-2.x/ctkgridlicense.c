@@ -188,6 +188,34 @@ typedef struct ConfigFileLinesRec
     int nLines;
 } ConfigFileLines;
 
+/*
+ * updateFeatureTypeFromGriddConfig() - Update feature type from gridd.conf or virtualization mode
+ *
+ */
+static void updateFeatureTypeFromGriddConfig(gpointer user_data, NvGriddConfigParams *griddConfig)
+{
+    CtkManageGridLicense *ctk_manage_grid_license = CTK_MANAGE_GRID_LICENSE(user_data);
+
+    if (strcmp(griddConfig->str[NV_GRIDD_FEATURE_TYPE], "4") == 0)
+    {
+        ctk_manage_grid_license->feature_type = NV_GRID_LICENSE_FEATURE_TYPE_VCOMPUTE;
+    }
+    else if (strcmp(griddConfig->str[NV_GRIDD_FEATURE_TYPE], "2") == 0)
+    {
+        ctk_manage_grid_license->feature_type = NV_GRID_LICENSE_FEATURE_TYPE_QDWS;
+    }
+    else
+    {
+        ctk_manage_grid_license->feature_type = NV_GRID_LICENSE_FEATURE_TYPE_VAPP;
+    }
+
+    // Override feature type when on vGPU
+    if (ctk_manage_grid_license->license_edition_state == NV_CTRL_ATTR_NVML_GPU_VIRTUALIZATION_MODE_VGPU)
+    {
+        ctk_manage_grid_license->feature_type = NV_GRID_LICENSE_FEATURE_TYPE_VGPU;
+    }
+}
+
 static void FreeConfigFileLines(ConfigFileLines *pLines)
 {
     int i;
@@ -1225,22 +1253,7 @@ static void update_gui_from_griddconfig(gpointer user_data)
         gtk_entry_set_text(GTK_ENTRY(ctk_manage_grid_license->txt_secondary_server_port),
                            griddConfig->str[NV_GRIDD_BACKUP_SERVER_PORT]);
         /* set default value for feature type based on the user configured parameter or virtualization mode */
-        /* Check Feature type "2" for Quadro Virtual Data Center Workstation. */
-        if (strcmp(griddConfig->str[NV_GRIDD_FEATURE_TYPE], "4") == 0) {
-            ctk_manage_grid_license->feature_type = NV_GRID_LICENSE_FEATURE_TYPE_VCOMPUTE;
-        }
-        else if (strcmp(griddConfig->str[NV_GRIDD_FEATURE_TYPE], "2") == 0) {
-            ctk_manage_grid_license->feature_type = NV_GRID_LICENSE_FEATURE_TYPE_QDWS;
-        }
-        else {
-            ctk_manage_grid_license->feature_type = NV_GRID_LICENSE_FEATURE_TYPE_VAPP;
-        }
-
-        /* Override feature type when on vGPU */
-        if (ctk_manage_grid_license->license_edition_state == NV_CTRL_ATTR_NVML_GPU_VIRTUALIZATION_MODE_VGPU)
-        {
-            ctk_manage_grid_license->feature_type = NV_GRID_LICENSE_FEATURE_TYPE_VGPU;
-        }
+        updateFeatureTypeFromGriddConfig(ctk_manage_grid_license, griddConfig);
 
         /* Set license edition toggle button active */
         if (ctk_manage_grid_license->radio_btn_vcompute && ctk_manage_grid_license->feature_type == NV_GRID_LICENSE_FEATURE_TYPE_VCOMPUTE) {
@@ -1616,6 +1629,12 @@ GtkWidget* ctk_manage_grid_license_new(CtrlTarget *target,
     /* set container properties for the CtkManageGridLicense widget */
 
     gtk_box_set_spacing(GTK_BOX(ctk_manage_grid_license), 5);
+
+    // Set feature type based on user configured parameter or virtualization mode
+    if (griddConfig != NULL)
+    {
+        updateFeatureTypeFromGriddConfig(ctk_manage_grid_license, griddConfig);
+    }
 
     get_licensable_feature_information(ctk_manage_grid_license);
 
