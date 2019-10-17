@@ -601,6 +601,21 @@ static void consolidate_xinerama(CtkDisplayConfig *ctk_object,
 
 static void update_btn_apply(CtkDisplayConfig *ctk_object, Bool sensitive)
 {
+    /*
+     * Both the apply and write quit warnings are sent whenever anything changes
+     * in the display configuration so that the apply button is enabled. The
+     * apply warning is cleared when the config is applied and the button reset
+     * here. The save warning is cleared when the config is successfully saved.
+     */
+    if (sensitive) {
+        ctk_object->ctk_config->pending_config |=
+            CTK_CONFIG_PENDING_APPLY_DISPLAY_CONFIG;
+        ctk_object->ctk_config->pending_config |=
+            CTK_CONFIG_PENDING_WRITE_DISPLAY_CONFIG;
+    } else {
+        ctk_object->ctk_config->pending_config &=
+            ~CTK_CONFIG_PENDING_APPLY_DISPLAY_CONFIG;
+    }
     gtk_widget_set_sensitive(ctk_object->btn_apply, sensitive);
 
 } /* update_btn_apply() */
@@ -6718,7 +6733,7 @@ static void post_display_underscan_value_changed(CtkDisplayConfig *ctk_object,
                                             TRUE /* update_panning_size */);
 
     /* Enable the apply button */
-    gtk_widget_set_sensitive(ctk_object->btn_apply, TRUE);
+    update_btn_apply(ctk_object, TRUE);
 
 }
 
@@ -9503,7 +9518,12 @@ static void save_clicked(GtkWidget *widget, gpointer user_data)
     }
 
     /* Run the save dialog */
-    run_save_xconfig_dialog(ctk_object->save_xconfig_dlg);
+    if (run_save_xconfig_dialog(ctk_object->save_xconfig_dlg)) {
+
+        /* Config file written */
+        ctk_object->ctk_config->pending_config &=
+            ~CTK_CONFIG_PENDING_WRITE_DISPLAY_CONFIG;
+    }
 
 } /* save_clicked() */
 

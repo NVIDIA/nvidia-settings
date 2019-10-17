@@ -1913,6 +1913,9 @@ static void edit_rule_dialog_save_changes(GtkWidget *widget, gpointer user_data)
     ctk_config_statusbar_message(ctk_app_profile->ctk_config,
                                  "Rule updated. %s",
                                  STATUSBAR_UPDATE_WARNING);
+
+    ctk_app_profile->ctk_config->pending_config |=
+        CTK_CONFIG_PENDING_WRITE_APP_PROFILES;
 }
 
 static void edit_rule_dialog_cancel(GtkWidget *widget, gpointer user_data)
@@ -2528,6 +2531,9 @@ static void edit_profile_dialog_save_changes(GtkWidget *widget, gpointer user_da
     // Close the window, and re-sensitize the caller
     gtk_widget_set_sensitive(profile_dialog->caller, TRUE);
     gtk_widget_hide(profile_dialog->top_window);
+
+    ctk_app_profile->ctk_config->pending_config |=
+        CTK_CONFIG_PENDING_WRITE_APP_PROFILES;
 }
 
 static void edit_profile_dialog_cancel(GtkWidget *widget, gpointer user_data)
@@ -3740,6 +3746,9 @@ static void app_profile_load_global_settings(CtkAppProfile *ctk_app_profile,
         GTK_TOGGLE_BUTTON(ctk_app_profile->enable_check_button),
         nv_app_profile_config_get_enabled(config));
     ctk_app_profile->ctk_config->status_bar.enabled = TRUE;
+
+    ctk_app_profile->ctk_config->pending_config &=
+        ~CTK_CONFIG_PENDING_WRITE_APP_PROFILES;
 }
 
 static void app_profile_reload(CtkAppProfile *ctk_app_profile)
@@ -3802,6 +3811,9 @@ static void reload_callback(GtkWidget *widget, gpointer user_data)
         app_profile_reload(ctk_app_profile);
         ctk_config_statusbar_message(ctk_app_profile->ctk_config,
                                      "Application profile configuration reloaded from disk.");
+
+        ctk_app_profile->ctk_config->pending_config &=
+            ~CTK_CONFIG_PENDING_WRITE_APP_PROFILES;
     }
 
     g_string_free(fatal_errors, TRUE);
@@ -3919,6 +3931,9 @@ static void save_app_profile_changes_dialog_save_changes(GtkWidget *widget, gpoi
 
         ctk_config_statusbar_message(ctk_app_profile->ctk_config,
                                      "Application profile configuration saved to disk.");
+
+        ctk_app_profile->ctk_config->pending_config &=
+            ~CTK_CONFIG_PENDING_WRITE_APP_PROFILES;
     }
 
     json_decref(dialog->updates);
@@ -4404,6 +4419,9 @@ static void enabled_check_button_toggled(GtkToggleButton *toggle_button,
                                  gtk_toggle_button_get_active(toggle_button) ?
                                  "enabled" : "disabled",
                                  STATUSBAR_UPDATE_WARNING);
+
+    ctk_app_profile->ctk_config->pending_config |=
+        CTK_CONFIG_PENDING_WRITE_APP_PROFILES;
 }
 
 GtkWidget* ctk_app_profile_new(CtrlTarget *ctrl_target,

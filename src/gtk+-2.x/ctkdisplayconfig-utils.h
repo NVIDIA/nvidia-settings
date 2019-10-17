@@ -163,7 +163,7 @@ SaveXConfDlg *create_save_xconfig_dialog(GtkWidget *parent,
                                          generate_xconfig_callback xconf_gen_func,
                                          gpointer callback_data);
 
-void run_save_xconfig_dialog(SaveXConfDlg *dlg);
+int run_save_xconfig_dialog(SaveXConfDlg *dlg);
 
                    
 G_END_DECLS

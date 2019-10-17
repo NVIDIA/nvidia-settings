@@ -10,7 +10,6 @@ SAMPLES_EXTRA_DIST += nv-control-3dvisionpro.c
 SAMPLES_EXTRA_DIST += nv-control-dpy.c
 SAMPLES_EXTRA_DIST += nv-control-info.c
 SAMPLES_EXTRA_DIST += nv-control-events.c
-SAMPLES_EXTRA_DIST += nv-control-gvi.c
 SAMPLES_EXTRA_DIST += nv-control-targets.c
 SAMPLES_EXTRA_DIST += nv-control-framelock.c
 SAMPLES_EXTRA_DIST += nv-control-warpblend.c

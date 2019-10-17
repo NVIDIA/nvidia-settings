@@ -33,8 +33,3 @@ Sample applications:
     nv-control-framelock: Demonstrates how to query frame lock related
                           attributes.  Also demonstrates how to enable/
                           disable frame lock.
-
-    nv-control-gvi:       Demonstrates how to interact with the Graphics-to-
-                          Video-In (GVI) capabilities of a GVI target via
-                          NV-CONTROL.
-

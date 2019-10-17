@@ -327,7 +327,12 @@ static void save_xconfig_button_clicked(GtkWidget *widget, gpointer user_data)
 
 
     /* Run the save dialog */
-    run_save_xconfig_dialog(ctk_object->save_xconfig_dlg);
+    if (run_save_xconfig_dialog(ctk_object->save_xconfig_dlg)) {
+
+        /* Config file written */
+        ctk_object->ctk_config->pending_config &=
+            ~CTK_CONFIG_PENDING_WRITE_MOSAIC_CONFIG;
+    }
 }
 
 
@@ -337,6 +342,9 @@ static void txt_overlap_activated(GtkWidget *widget, gpointer user_data)
     CtkSLIMM *ctk_object = CTK_SLIMM(user_data);
     /* Update total size label */
     setup_total_size_label(ctk_object);
+
+    ctk_object->ctk_config->pending_config |=
+        CTK_CONFIG_PENDING_WRITE_MOSAIC_CONFIG;
 }
 
 static void display_config_changed(GtkWidget *widget, gpointer user_data)
@@ -361,6 +369,9 @@ static void display_refresh_changed(GtkWidget *widget, gpointer user_data)
 
     /* Select the new modeline as current modeline */
     ctk_object->cur_modeline = ctk_object->refresh_table[idx];
+
+    ctk_object->ctk_config->pending_config |=
+        CTK_CONFIG_PENDING_WRITE_MOSAIC_CONFIG;
 }
 
 
@@ -400,6 +411,9 @@ static void display_resolution_changed(GtkWidget *widget, gpointer user_data)
 
     /* Regenerate the refresh menu */
     setup_display_refresh_dropdown(ctk_object);
+
+    ctk_object->ctk_config->pending_config |=
+        CTK_CONFIG_PENDING_WRITE_MOSAIC_CONFIG;
 }
 
 
@@ -430,6 +444,9 @@ static void slimm_checkbox_toggled(GtkWidget *widget, gpointer user_data)
         gtk_widget_set_sensitive(ctk_object->spbtn_vedge_overlap, False);
         gtk_widget_set_sensitive(ctk_object->box_total_size, False);
     }
+
+    ctk_object->ctk_config->pending_config |=
+        CTK_CONFIG_PENDING_WRITE_MOSAIC_CONFIG;
 }
 
 
@@ -1720,6 +1737,9 @@ GtkWidget* ctk_slimm_new(CtrlTarget *ctrl_target,
         slimm_checkbox_toggled(ctk_slimm->cbtn_slimm_enable,
                                (gpointer) ctk_slimm);
     }
+
+    ctk_object->ctk_config->pending_config &=
+        ~CTK_CONFIG_PENDING_WRITE_MOSAIC_CONFIG;
 
     free(sli_mode);
 

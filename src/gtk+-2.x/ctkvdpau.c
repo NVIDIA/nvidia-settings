@@ -190,6 +190,12 @@ static int queryBaseInfo(CtkVDPAU *ctk_vdpau, VdpDevice device,
         {"HEVC",           VDP_DECODER_PROFILE_HEVC_MAIN_STILL, 0x80},
         {"HEVC",              VDP_DECODER_PROFILE_HEVC_MAIN_12, 0x80},
         {"HEVC",             VDP_DECODER_PROFILE_HEVC_MAIN_444, 0x80},
+#ifdef VDP_DECODER_PROFILE_VP9_PROFILE_0
+        {"VP9",             VDP_DECODER_PROFILE_VP9_PROFILE_0, 0x100},
+        {"VP9",             VDP_DECODER_PROFILE_VP9_PROFILE_1, 0x100},
+        {"VP9",             VDP_DECODER_PROFILE_VP9_PROFILE_2, 0x100},
+        {"VP9",             VDP_DECODER_PROFILE_VP9_PROFILE_3, 0x100},
+#endif
     };
     const size_t decoder_list_count = sizeof(decoder_list)/sizeof(Desc);
 
@@ -520,6 +526,12 @@ static int queryDecoderCaps(CtkVDPAU *ctk_vdpau, VdpDevice device,
         {"HEVC Main Still Picture", VDP_DECODER_PROFILE_HEVC_MAIN_STILL, 0},
         {"HEVC Main 12",       VDP_DECODER_PROFILE_HEVC_MAIN_12,       0},
         {"HEVC Main 4:4:4",    VDP_DECODER_PROFILE_HEVC_MAIN_444,      0},
+#ifdef VDP_DECODER_PROFILE_VP9_PROFILE_0
+        {"VP9 PROFILE 0",      VDP_DECODER_PROFILE_VP9_PROFILE_0,      0},
+        {"VP9 PROFILE 1",      VDP_DECODER_PROFILE_VP9_PROFILE_1,      0},
+        {"VP9 PROFILE 2",      VDP_DECODER_PROFILE_VP9_PROFILE_2,      0},
+        {"VP9 PROFILE 3",      VDP_DECODER_PROFILE_VP9_PROFILE_3,      0},
+#endif
     };
     const size_t decoder_profile_count = sizeof(decoder_profiles)/sizeof(Desc);
 

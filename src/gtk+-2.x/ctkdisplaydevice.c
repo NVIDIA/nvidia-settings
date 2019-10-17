@@ -736,7 +736,7 @@ static gboolean update_link_info(InfoEntry *entry)
     ReturnStatus ret;
     gint val;
     const char *link;
-    char tmp[32];
+    char tmp[64];
 
     ret = NvCtrlGetAttribute(ctrl_target, NV_CTRL_FLATPANEL_LINK, &val);
     if (ret != NvCtrlSuccess) {
@@ -759,11 +759,13 @@ static gboolean update_link_info(InfoEntry *entry)
             }
 
             if (val > 0) {
-                snprintf(tmp, 32, "%d lane%s @ %.2f Gbps", lanes, lanes == 1 ? "" : "s",
+                snprintf(tmp, sizeof(tmp),
+                         "%d lane%s @ %.2f Gbps", lanes, lanes == 1 ? "" : "s",
                          val * 0.27);
             } else {
-                snprintf(tmp, 32, "%d lane%s @ unknown bandwidth", lanes,
-                         lanes == 1 ? "" : "s");
+                snprintf(tmp, sizeof(tmp),
+                         "%d lane%s @ unknown bandwidth",
+                         lanes, lanes == 1 ? "" : "s");
             }
             link = tmp;
         }

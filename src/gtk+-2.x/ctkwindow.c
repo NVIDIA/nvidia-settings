@@ -235,6 +235,66 @@ static void confirm_quit_and_save(CtkWindow *ctk_window)
 
     if (ctk_config->conf->booleans & CONFIG_PROPERTIES_SHOW_QUIT_DIALOG) {
         /* ask for confirmation */
+
+        const char *beg = "You have pending changes on following page(s):\n\n";
+        const char *end = "Do you really want to quit?";
+        const char *prefix;
+        char *pages, *tmp;
+
+        pages = strdup("");
+        if (ctk_config->pending_config) {
+
+            if (ctk_config->pending_config &
+                    CTK_CONFIG_PENDING_APPLY_DISPLAY_CONFIG) {
+                prefix = (strlen(pages) == 0) ? "" : ",\n";
+                tmp = nvstrcat(pages, prefix,
+                               "X Server Display Configuration - Apply", NULL);
+                free(pages);
+                pages = tmp;
+            }
+            if (ctk_config->pending_config &
+                    CTK_CONFIG_PENDING_WRITE_DISPLAY_CONFIG) {
+                prefix = (strlen(pages) == 0) ? "" : ",\n";
+                tmp = nvstrcat(pages, prefix,
+                               "X Server Display Configuration - "
+                               "Save to X Configuration File", NULL);
+                free(pages);
+                pages = tmp;
+            }
+            if (ctk_config->pending_config &
+                    CTK_CONFIG_PENDING_WRITE_MOSAIC_CONFIG) {
+                prefix = (strlen(pages) == 0) ? "" : ",\n";
+                tmp = nvstrcat(pages, prefix,
+                               "SLI Mosaic Mode Settings - "
+                               "Save to X Configuration File", NULL);
+                free(pages);
+                pages = tmp;
+            }
+            if (ctk_config->pending_config &
+                    CTK_CONFIG_PENDING_WRITE_APP_PROFILES) {
+                prefix = (strlen(pages) == 0) ? "" : ",\n";
+                tmp = nvstrcat(pages, prefix,
+                               "Application Profiles - Save Changes", NULL);
+                free(pages);
+                pages = tmp;
+            }
+
+            if (pages[0] != '\0') {
+                tmp = nvstrcat(beg, pages, "\n\n", end, NULL);
+                gtk_label_set_text(
+                    GTK_LABEL(ctk_window->quit_dialog_pending_label),
+                    tmp);
+            } else {
+                gtk_label_set_text(
+                    GTK_LABEL(ctk_window->quit_dialog_pending_label),
+                    "You have pending changes.\n\n"
+                    "Do you really want to quit?");
+            }
+        } else {
+            gtk_label_set_text(GTK_LABEL(ctk_window->quit_dialog_pending_label),
+                               end);
+        }
+
         gtk_widget_show_all(ctk_window->quit_dialog);
     } else {
         /* doesn't return */
@@ -1324,6 +1384,7 @@ static GtkWidget *create_quit_dialog(CtkWindow *ctk_window)
     gtk_box_pack_start(GTK_BOX(hbox), alignment, FALSE, FALSE, 2);
     
     label = gtk_label_new("Do you really want to quit?");
+    ctk_window->quit_dialog_pending_label = label;
     alignment = gtk_alignment_new(0.0, 0.0, 0, 0);
     gtk_container_add(GTK_CONTAINER(alignment), label);
     gtk_box_pack_start(GTK_BOX(hbox), alignment, FALSE, FALSE, 0);

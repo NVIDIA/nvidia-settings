@@ -1,5 +1,5 @@
 /*
- * Copyright 1993-2018 NVIDIA Corporation.  All rights reserved.
+ * Copyright 1993-2019 NVIDIA Corporation.  All rights reserved.
  *
  * NOTICE TO USER:   
  *
@@ -104,7 +104,7 @@ extern "C" {
 #define nvmlDeviceGetHandleByPciBusId nvmlDeviceGetHandleByPciBusId_v2
 #define nvmlDeviceGetNvLinkRemotePciInfo nvmlDeviceGetNvLinkRemotePciInfo_v2
 #define nvmlDeviceRemoveGpu         nvmlDeviceRemoveGpu_v2
-#define nvmlDeviceGetGridLicensableFeatures nvmlDeviceGetGridLicensableFeatures_v2
+#define nvmlDeviceGetGridLicensableFeatures nvmlDeviceGetGridLicensableFeatures_v3
 
 /***************************************************************************************************/
 /** @defgroup nvmlDeviceStructs Device Structs
@@ -788,7 +788,11 @@ typedef enum nvmlRestrictedAPI_enum
 /** @} */
 
 /***************************************************************************************************/
-/** @defgroup nvmlGridEnums GRID Enums
+/** @addtogroup gridVirtual
+ *  @{
+ */
+/***************************************************************************************************/
+/** @defgroup nvmlGridEnums GRID Virtualization Enums
  *  @{
  */
 /***************************************************************************************************/
@@ -804,6 +808,147 @@ typedef enum nvmlGpuVirtualizationMode {
     NVML_GPU_VIRTUALIZATION_MODE_HOST_VSGA = 4,  //!< Device is associated with VGX hypervisor in vSGA mode
 } nvmlGpuVirtualizationMode_t;
 
+/**
+ * Host vGPU modes
+ */
+typedef enum nvmlHostVgpuMode_enum
+{
+    NVML_HOST_VGPU_MODE_NON_SRIOV    = 0,     //!< Non SR-IOV mode
+    NVML_HOST_VGPU_MODE_SRIOV        = 1      //!< SR-IOV mode
+} nvmlHostVgpuMode_t;
+
+/*!
+ * Types of VM identifiers
+ */
+typedef enum nvmlVgpuVmIdType {
+    NVML_VGPU_VM_ID_DOMAIN_ID = 0, //!< VM ID represents DOMAIN ID
+    NVML_VGPU_VM_ID_UUID = 1,      //!< VM ID represents UUID
+} nvmlVgpuVmIdType_t;
+
+/**
+ * vGPU GUEST info state.
+ */
+typedef enum nvmlVgpuGuestInfoState_enum
+{
+    NVML_VGPU_INSTANCE_GUEST_INFO_STATE_UNINITIALIZED = 0,  //!< Guest-dependent fields uninitialized
+    NVML_VGPU_INSTANCE_GUEST_INFO_STATE_INITIALIZED   = 1,  //!< Guest-dependent fields initialized
+} nvmlVgpuGuestInfoState_t;
+
+/**
+ * GRID license feature code
+ */
+typedef enum {
+    NVML_GRID_LICENSE_FEATURE_CODE_VGPU = 1,         //!< Virtual GPU
+    NVML_GRID_LICENSE_FEATURE_CODE_VWORKSTATION = 2  //!< Virtual Workstation
+} nvmlGridLicenseFeatureCode_t;
+
+/** @} */
+
+/***************************************************************************************************/
+/** @defgroup nvmlVgpuConstants GRID Virtualization Constants
+ *  @{
+ */
+/***************************************************************************************************/
+
+/**
+ * Buffer size guaranteed to be large enough for \ref nvmlVgpuTypeGetLicense
+ */
+#define NVML_GRID_LICENSE_BUFFER_SIZE       128
+
+#define NVML_VGPU_NAME_BUFFER_SIZE          64
+
+#define NVML_GRID_LICENSE_FEATURE_MAX_COUNT 3
+
+/*!
+ * Macros for vGPU instance's virtualization capabilities bitfield.
+ */
+#define NVML_VGPU_VIRTUALIZATION_CAP_MIGRATION         0:0
+#define NVML_VGPU_VIRTUALIZATION_CAP_MIGRATION_NO      0x0
+#define NVML_VGPU_VIRTUALIZATION_CAP_MIGRATION_YES     0x1
+
+/*!
+ * Macros for pGPU's virtualization capabilities bitfield.
+ */
+#define NVML_VGPU_PGPU_VIRTUALIZATION_CAP_MIGRATION         0:0
+#define NVML_VGPU_PGPU_VIRTUALIZATION_CAP_MIGRATION_NO      0x0
+#define NVML_VGPU_PGPU_VIRTUALIZATION_CAP_MIGRATION_YES     0x1
+
+/** @} */
+
+/***************************************************************************************************/
+/** @defgroup nvmlVgpuStructs GRID Virtualization Structs
+ *  @{
+ */
+/***************************************************************************************************/
+
+typedef unsigned int nvmlVgpuTypeId_t;
+
+typedef unsigned int nvmlVgpuInstance_t;
+
+/**
+ * Structure to store Utilization Value and vgpuInstance
+ */
+typedef struct nvmlVgpuInstanceUtilizationSample_st
+{
+    nvmlVgpuInstance_t vgpuInstance;    //!< vGPU Instance
+    unsigned long long timeStamp;       //!< CPU Timestamp in microseconds
+    nvmlValue_t smUtil;                 //!< SM (3D/Compute) Util Value
+    nvmlValue_t memUtil;                //!< Frame Buffer Memory Util Value
+    nvmlValue_t encUtil;                //!< Encoder Util Value
+    nvmlValue_t decUtil;                //!< Decoder Util Value
+} nvmlVgpuInstanceUtilizationSample_t;
+
+/**
+ * Structure to store Utilization Value, vgpuInstance and subprocess information
+ */
+typedef struct nvmlVgpuProcessUtilizationSample_st
+{
+    nvmlVgpuInstance_t vgpuInstance;                //!< vGPU Instance
+    unsigned int pid;                               //!< PID of process running within the vGPU VM
+    char processName[NVML_VGPU_NAME_BUFFER_SIZE];   //!< Name of process running within the vGPU VM
+    unsigned long long timeStamp;                   //!< CPU Timestamp in microseconds
+    unsigned int smUtil;                            //!< SM (3D/Compute) Util Value
+    unsigned int memUtil;                           //!< Frame Buffer Memory Util Value
+    unsigned int encUtil;                           //!< Encoder Util Value
+    unsigned int decUtil;                           //!< Decoder Util Value
+} nvmlVgpuProcessUtilizationSample_t;
+
+/**
+ * Structure to store utilization value and process Id
+ */
+typedef struct nvmlProcessUtilizationSample_st
+{
+    unsigned int pid;                   //!< PID of process
+    unsigned long long timeStamp;       //!< CPU Timestamp in microseconds
+    unsigned int smUtil;                //!< SM (3D/Compute) Util Value
+    unsigned int memUtil;               //!< Frame Buffer Memory Util Value
+    unsigned int encUtil;               //!< Encoder Util Value
+    unsigned int decUtil;               //!< Decoder Util Value
+} nvmlProcessUtilizationSample_t;
+
+/**
+ * Structure containing GRID licensable feature information
+ */
+typedef struct nvmlGridLicensableFeature_st
+{
+    nvmlGridLicenseFeatureCode_t    featureCode;                                 //!< Licensed feature code
+    unsigned int                    featureState;                                //!< Non-zero if feature is currently licensed, otherwise zero
+    char                            licenseInfo[NVML_GRID_LICENSE_BUFFER_SIZE];
+    char                            productName[NVML_GRID_LICENSE_BUFFER_SIZE];
+    unsigned int                    featureEnabled;                              //!< Non-zero if feature is enabled, otherwise zero
+} nvmlGridLicensableFeature_t;
+
+/**
+ * Structure to store GRID licensable features
+ */
+typedef struct nvmlGridLicensableFeatures_st
+{
+    int                         isGridLicenseSupported;                                       //!< Non-zero if GRID Software Licensing is supported on the system, otherwise zero
+    unsigned int                licensableFeaturesCount;                                      //!< Entries returned in \a gridLicensableFeatures array
+    nvmlGridLicensableFeature_t gridLicensableFeatures[NVML_GRID_LICENSE_FEATURE_MAX_COUNT];  //!< Array of GRID licensable features.
+} nvmlGridLicensableFeatures_t;
+
+/** @} */
 /** @} */
 
 /***************************************************************************************************/
@@ -1293,135 +1438,6 @@ typedef struct nvmlAccountingStats_st {
 /** @} */
 
 /***************************************************************************************************/
-/** @defgroup nvmlVgpuConstants Vgpu Constants
- *  @{
- */
-/***************************************************************************************************/
-
-/**
- * Buffer size guaranteed to be large enough for \ref nvmlVgpuTypeGetLicense
- */
-#define NVML_GRID_LICENSE_BUFFER_SIZE       128
-
-#define NVML_VGPU_NAME_BUFFER_SIZE          64
-
-#define NVML_GRID_LICENSE_FEATURE_MAX_COUNT 3
-
-/*!
- * Macros for pGPU's virtualization capabilities bitfield.
- */
-#define NVML_VGPU_PGPU_VIRTUALIZATION_CAP_MIGRATION         0:0
-#define NVML_VGPU_PGPU_VIRTUALIZATION_CAP_MIGRATION_NO      0x0
-#define NVML_VGPU_PGPU_VIRTUALIZATION_CAP_MIGRATION_YES     0x1
-
-/** @} */
-
-/***************************************************************************************************/
-/** @defgroup nvmlVgpuEnum Vgpu Enum
- *  @{
- */
-/***************************************************************************************************/
-
-/*!
- * Types of VM identifiers
- */
-typedef enum nvmlVgpuVmIdType {
-    NVML_VGPU_VM_ID_DOMAIN_ID = 0, //!< VM ID represents DOMAIN ID
-    NVML_VGPU_VM_ID_UUID = 1,      //!< VM ID represents UUID
-} nvmlVgpuVmIdType_t;
-
-/**
- * vGPU GUEST info state.
- */
-typedef enum nvmlVgpuGuestInfoState_enum
-{
-    NVML_VGPU_INSTANCE_GUEST_INFO_STATE_UNINITIALIZED = 0,  //!< Guest-dependent fields uninitialized
-    NVML_VGPU_INSTANCE_GUEST_INFO_STATE_INITIALIZED   = 1,  //!< Guest-dependent fields initialized
-} nvmlVgpuGuestInfoState_t;
-
-/**
- * GRID license feature code
- */
-typedef enum {
-    NVML_GRID_LICENSE_FEATURE_CODE_VGPU = 1,         //!< Virtual GPU
-    NVML_GRID_LICENSE_FEATURE_CODE_VWORKSTATION = 2  //!< Virtual Workstation
-} nvmlGridLicenseFeatureCode_t;
-
-/** @} */
-
-/***************************************************************************************************/
-/** @defgroup nvmlVgpuStructs Vgpu Structs
- *  @{
- */
-/***************************************************************************************************/
-
-typedef unsigned int nvmlVgpuTypeId_t;
-
-typedef unsigned int nvmlVgpuInstance_t;
-
-/**
- * Structure to store Utilization Value and vgpuInstance
- */
-typedef struct nvmlVgpuInstanceUtilizationSample_st
-{
-    nvmlVgpuInstance_t vgpuInstance;    //!< vGPU Instance
-    unsigned long long timeStamp;       //!< CPU Timestamp in microseconds
-    nvmlValue_t smUtil;                 //!< SM (3D/Compute) Util Value
-    nvmlValue_t memUtil;                //!< Frame Buffer Memory Util Value
-    nvmlValue_t encUtil;                //!< Encoder Util Value
-    nvmlValue_t decUtil;                //!< Decoder Util Value
-} nvmlVgpuInstanceUtilizationSample_t;
-
-/**
- * Structure to store Utilization Value, vgpuInstance and subprocess information
- */
-typedef struct nvmlVgpuProcessUtilizationSample_st
-{
-    nvmlVgpuInstance_t vgpuInstance;                //!< vGPU Instance
-    unsigned int pid;                               //!< PID of process running within the vGPU VM
-    char processName[NVML_VGPU_NAME_BUFFER_SIZE];   //!< Name of process running within the vGPU VM
-    unsigned long long timeStamp;                   //!< CPU Timestamp in microseconds
-    unsigned int smUtil;                            //!< SM (3D/Compute) Util Value
-    unsigned int memUtil;                           //!< Frame Buffer Memory Util Value
-    unsigned int encUtil;                           //!< Encoder Util Value
-    unsigned int decUtil;                           //!< Decoder Util Value
-} nvmlVgpuProcessUtilizationSample_t;
-
-/**
- * Structure to store utilization value and process Id
- */
-typedef struct nvmlProcessUtilizationSample_st
-{
-    unsigned int pid;                   //!< PID of process
-    unsigned long long timeStamp;       //!< CPU Timestamp in microseconds
-    unsigned int smUtil;                //!< SM (3D/Compute) Util Value
-    unsigned int memUtil;               //!< Frame Buffer Memory Util Value
-    unsigned int encUtil;               //!< Encoder Util Value
-    unsigned int decUtil;               //!< Decoder Util Value
-} nvmlProcessUtilizationSample_t;
-
-/**
- * Structure containing GRID licensable feature information
- */
-typedef struct nvmlGridLicensableFeature_st
-{
-    nvmlGridLicenseFeatureCode_t    featureCode;                                 //!< Licensed feature code
-    unsigned int                    featureState;                                //!< Non-zero if feature is currently licensed, otherwise zero
-    char                            licenseInfo[NVML_GRID_LICENSE_BUFFER_SIZE];
-    char                            productName[NVML_GRID_LICENSE_BUFFER_SIZE];
-} nvmlGridLicensableFeature_t;
-
-/**
- * Structure to store GRID licensable features
- */
-typedef struct nvmlGridLicensableFeatures_st
-{
-    int                         isGridLicenseSupported;                                       //!< Non-zero if GRID Software Licensing is supported on the system, otherwise zero
-    unsigned int                licensableFeaturesCount;                                      //!< Entries returned in \a gridLicensableFeatures array
-    nvmlGridLicensableFeature_t gridLicensableFeatures[NVML_GRID_LICENSE_FEATURE_MAX_COUNT];  //!< Array of GRID licensable features.
-} nvmlGridLicensableFeatures_t;
-
-/** @} */
 
 /***************************************************************************************************/
 /** @defgroup nvmlEncoderStructs Encoder Structs
@@ -5288,8 +5304,15 @@ nvmlReturn_t DECLDIR nvmlDeviceGetFieldValues(nvmlDevice_t device, int valuesCou
 /** @} */
 
 /***************************************************************************************************/
-/** @defgroup nvmlGridQueries Grid Queries
- *  This chapter describes NVML operations that are associated with NVIDIA GRID products.
+/** @defgroup gridVirtual GRID Virtualization Enums, Constants and Structs
+ *  @{
+ */
+/** @} */
+/***************************************************************************************************/
+
+/***************************************************************************************************/
+/** @defgroup nvmlGridQueries GRID Virtualization APIs
+ * This chapter describes operations that are associated with NVIDIA GRID products.
  *  @{
  */
 /***************************************************************************************************/
@@ -5311,14 +5334,23 @@ nvmlReturn_t DECLDIR nvmlDeviceGetFieldValues(nvmlDevice_t device, int valuesCou
  */
 nvmlReturn_t DECLDIR nvmlDeviceGetVirtualizationMode(nvmlDevice_t device, nvmlGpuVirtualizationMode_t *pVirtualMode);
 
-/** @} */
-
-/***************************************************************************************************/
-/** @defgroup nvmlGridCommands Grid Commands
- *  This chapter describes NVML operations that are associated with NVIDIA GRID products.
- *  @{
+/**
+ * Queries if SR-IOV host operation is supported on a vGPU supported device.
+ *
+ * Checks whether SR-IOV host capability is supported by the device and the
+ * driver, and indicates device is in SR-IOV mode if both of these conditions
+ * are true.
+ *
+ * @param device                                The identifier of the target device
+ * @param pHostVgpuMode                         Reference in which to return the current vGPU mode
+ *
+ * @return
+ *         - \ref NVML_SUCCESS                  if device's vGPU mode has been successfully retrieved
+ *         - \ref NVML_ERROR_INVALID_ARGUMENT   if \a device handle is 0 or \a pVgpuMode is NULL
+ *         - \ref NVML_ERROR_NOT_SUPPORTED      if \a device doesn't support this feature.
+ *         - \ref NVML_ERROR_UNKNOWN            if any unexpected error occurred
  */
-/***************************************************************************************************/
+nvmlReturn_t DECLDIR nvmlDeviceGetHostVgpuMode(nvmlDevice_t device, nvmlHostVgpuMode_t *pHostVgpuMode);
 
 /**
  * This method is used to set the virtualization mode corresponding to the GPU.
@@ -5338,13 +5370,69 @@ nvmlReturn_t DECLDIR nvmlDeviceGetVirtualizationMode(nvmlDevice_t device, nvmlGp
  */
 nvmlReturn_t DECLDIR nvmlDeviceSetVirtualizationMode(nvmlDevice_t device, nvmlGpuVirtualizationMode_t virtualMode);
 
+/**
+ * Retrieve the GRID licensable features.
+ *
+ * Identifies whether the system supports GRID Software Licensing. If it does, return the list of licensable feature(s)
+ * and their current license status.
+ *
+ * @param device                    Identifier of the target device
+ * @param pGridLicensableFeatures   Pointer to structure in which GRID licensable features are returned
+ *
+ * @return
+ *         - \ref NVML_SUCCESS                 if licensable features are successfully retrieved
+ *         - \ref NVML_ERROR_INVALID_ARGUMENT  if \a pGridLicensableFeatures is NULL
+ *         - \ref NVML_ERROR_UNKNOWN           on any unexpected error
+ */
+nvmlReturn_t DECLDIR nvmlDeviceGetGridLicensableFeatures(nvmlDevice_t device, nvmlGridLicensableFeatures_t *pGridLicensableFeatures);
+
+/**
+ * Retrieves the current utilization and process ID
+ *
+ * For Maxwell &tm; or newer fully supported devices.
+ *
+ * Reads recent utilization of GPU SM (3D/Compute), framebuffer, video encoder, and video decoder for processes running.
+ * Utilization values are returned as an array of utilization sample structures in the caller-supplied buffer pointed at
+ * by \a utilization. One utilization sample structure is returned per process running, that had some non-zero utilization
+ * during the last sample period. It includes the CPU timestamp at which  the samples were recorded. Individual utilization values
+ * are returned as "unsigned int" values.
+ *
+ * To read utilization values, first determine the size of buffer required to hold the samples by invoking the function with
+ * \a utilization set to NULL. The caller should allocate a buffer of size
+ * processSamplesCount * sizeof(nvmlProcessUtilizationSample_t). Invoke the function again with the allocated buffer passed
+ * in \a utilization, and \a processSamplesCount set to the number of entries the buffer is sized for.
+ *
+ * On successful return, the function updates \a processSamplesCount with the number of process utilization sample
+ * structures that were actually written. This may differ from a previously read value as instances are created or
+ * destroyed.
+ *
+ * lastSeenTimeStamp represents the CPU timestamp in microseconds at which utilization samples were last read. Set it to 0
+ * to read utilization based on all the samples maintained by the driver's internal sample buffer. Set lastSeenTimeStamp
+ * to a timeStamp retrieved from a previous query to read utilization since the previous query.
+ *
+ * @param device                    The identifier of the target device
+ * @param utilization               Pointer to caller-supplied buffer in which guest process utilization samples are returned
+ * @param processSamplesCount       Pointer to caller-supplied array size, and returns number of processes running
+ * @param lastSeenTimeStamp         Return only samples with timestamp greater than lastSeenTimeStamp.
+
+ * @return
+ *         - \ref NVML_SUCCESS                 if \a utilization has been populated
+ *         - \ref NVML_ERROR_UNINITIALIZED     if the library has not been successfully initialized
+ *         - \ref NVML_ERROR_INVALID_ARGUMENT  if \a device is invalid, \a utilization is NULL, or \a samplingPeriodUs is NULL
+ *         - \ref NVML_ERROR_NOT_SUPPORTED     if the device does not support this feature
+ *         - \ref NVML_ERROR_GPU_IS_LOST       if the target GPU has fallen off the bus or is otherwise inaccessible
+ *         - \ref NVML_ERROR_UNKNOWN           on any unexpected error
+ */
+nvmlReturn_t DECLDIR nvmlDeviceGetProcessUtilization(nvmlDevice_t device, nvmlProcessUtilizationSample_t *utilization,
+                                              unsigned int *processSamplesCount, unsigned long long lastSeenTimeStamp);
+
 /** @} */
 
 /***************************************************************************************************/
-/** @defgroup nvmlVgpu vGPU Management
+/** @defgroup nvmlVgpu GRID vGPU Management
  * @{
  *
- * Set of APIs supporting GRID vGPU
+ * This chapter describes APIs supporting NVIDIA GRID vGPU
  */
 /***************************************************************************************************/
 
@@ -5815,117 +5903,6 @@ nvmlReturn_t DECLDIR nvmlVgpuInstanceGetEncoderCapacity(nvmlVgpuInstance_t vgpuI
 nvmlReturn_t DECLDIR nvmlVgpuInstanceSetEncoderCapacity(nvmlVgpuInstance_t vgpuInstance, unsigned int  encoderCapacity);
 
 /**
- * Retrieves current utilization for vGPUs on a physical GPU (device).
- *
- * For Kepler &tm; or newer fully supported devices.
- *
- * Reads recent utilization of GPU SM (3D/Compute), framebuffer, video encoder, and video decoder for vGPU instances running
- * on a device. Utilization values are returned as an array of utilization sample structures in the caller-supplied buffer
- * pointed at by \a utilizationSamples. One utilization sample structure is returned per vGPU instance, and includes the
- * CPU timestamp at which the samples were recorded. Individual utilization values are returned as "unsigned int" values
- * in nvmlValue_t unions. The function sets the caller-supplied \a sampleValType to NVML_VALUE_TYPE_UNSIGNED_INT to
- * indicate the returned value type.
- *
- * To read utilization values, first determine the size of buffer required to hold the samples by invoking the function with
- * \a utilizationSamples set to NULL. The function will return NVML_ERROR_INSUFFICIENT_SIZE, with the current vGPU instance
- * count in \a vgpuInstanceSamplesCount, or NVML_SUCCESS if the current vGPU instance count is zero. The caller should allocate
- * a buffer of size vgpuInstanceSamplesCount * sizeof(nvmlVgpuInstanceUtilizationSample_t). Invoke the function again with
- * the allocated buffer passed in \a utilizationSamples, and \a vgpuInstanceSamplesCount set to the number of entries the
- * buffer is sized for.
- *
- * On successful return, the function updates \a vgpuInstanceSampleCount with the number of vGPU utilization sample
- * structures that were actually written. This may differ from a previously read value as vGPU instances are created or
- * destroyed.
- *
- * lastSeenTimeStamp represents the CPU timestamp in microseconds at which utilization samples were last read. Set it to 0
- * to read utilization based on all the samples maintained by the driver's internal sample buffer. Set lastSeenTimeStamp
- * to a timeStamp retrieved from a previous query to read utilization since the previous query.
- *
- * @param device                        The identifier for the target device
- * @param lastSeenTimeStamp             Return only samples with timestamp greater than lastSeenTimeStamp.
- * @param sampleValType                 Pointer to caller-supplied buffer to hold the type of returned sample values
- * @param vgpuInstanceSamplesCount      Pointer to caller-supplied array size, and returns number of vGPU instances
- * @param utilizationSamples            Pointer to caller-supplied buffer in which vGPU utilization samples are returned
-
- * @return
- *         - \ref NVML_SUCCESS                 if utilization samples are successfully retrieved
- *         - \ref NVML_ERROR_UNINITIALIZED     if the library has not been successfully initialized
- *         - \ref NVML_ERROR_INVALID_ARGUMENT  if \a device is invalid, \a vgpuInstanceSamplesCount or \a sampleValType is
- *                                             NULL, or a sample count of 0 is passed with a non-NULL \a utilizationSamples
- *         - \ref NVML_ERROR_INSUFFICIENT_SIZE if supplied \a vgpuInstanceSamplesCount is too small to return samples for all
- *                                             vGPU instances currently executing on the device
- *         - \ref NVML_ERROR_NOT_SUPPORTED     if vGPU is not supported by the device
- *         - \ref NVML_ERROR_GPU_IS_LOST       if the target GPU has fallen off the bus or is otherwise inaccessible
- *         - \ref NVML_ERROR_NOT_FOUND         if sample entries are not found
- *         - \ref NVML_ERROR_UNKNOWN           on any unexpected error
- */
-nvmlReturn_t DECLDIR nvmlDeviceGetVgpuUtilization(nvmlDevice_t device, unsigned long long lastSeenTimeStamp,
-                                                  nvmlValueType_t *sampleValType, unsigned int *vgpuInstanceSamplesCount,
-                                                  nvmlVgpuInstanceUtilizationSample_t *utilizationSamples);
-
-/**
- * Retrieves current utilization for processes running on vGPUs on a physical GPU (device).
- *
- * For Maxwell &tm; or newer fully supported devices.
- *
- * Reads recent utilization of GPU SM (3D/Compute), framebuffer, video encoder, and video decoder for processes running on
- * vGPU instances active on a device. Utilization values are returned as an array of utilization sample structures in the
- * caller-supplied buffer pointed at by \a utilizationSamples. One utilization sample structure is returned per process running
- * on vGPU instances, that had some non-zero utilization during the last sample period. It includes the CPU timestamp at which
- * the samples were recorded. Individual utilization values are returned as "unsigned int" values.
- *
- * To read utilization values, first determine the size of buffer required to hold the samples by invoking the function with
- * \a utilizationSamples set to NULL. The function will return NVML_ERROR_INSUFFICIENT_SIZE, with the current vGPU instance
- * count in \a vgpuProcessSamplesCount. The caller should allocate a buffer of size
- * vgpuProcessSamplesCount * sizeof(nvmlVgpuProcessUtilizationSample_t). Invoke the function again with
- * the allocated buffer passed in \a utilizationSamples, and \a vgpuProcessSamplesCount set to the number of entries the
- * buffer is sized for.
- *
- * On successful return, the function updates \a vgpuSubProcessSampleCount with the number of vGPU sub process utilization sample
- * structures that were actually written. This may differ from a previously read value depending on the number of processes that are active
- * in any given sample period.
- *
- * lastSeenTimeStamp represents the CPU timestamp in microseconds at which utilization samples were last read. Set it to 0
- * to read utilization based on all the samples maintained by the driver's internal sample buffer. Set lastSeenTimeStamp
- * to a timeStamp retrieved from a previous query to read utilization since the previous query.
- *
- * @param device                        The identifier for the target device
- * @param lastSeenTimeStamp             Return only samples with timestamp greater than lastSeenTimeStamp.
- * @param vgpuProcessSamplesCount       Pointer to caller-supplied array size, and returns number of processes running on vGPU instances
- * @param utilizationSamples            Pointer to caller-supplied buffer in which vGPU sub process utilization samples are returned
-
- * @return
- *         - \ref NVML_SUCCESS                 if utilization samples are successfully retrieved
- *         - \ref NVML_ERROR_UNINITIALIZED     if the library has not been successfully initialized
- *         - \ref NVML_ERROR_INVALID_ARGUMENT  if \a device is invalid, \a vgpuProcessSamplesCount or a sample count of 0 is
- *                                             passed with a non-NULL \a utilizationSamples
- *         - \ref NVML_ERROR_INSUFFICIENT_SIZE if supplied \a vgpuProcessSamplesCount is too small to return samples for all
- *                                             vGPU instances currently executing on the device
- *         - \ref NVML_ERROR_NOT_SUPPORTED     if vGPU is not supported by the device
- *         - \ref NVML_ERROR_GPU_IS_LOST       if the target GPU has fallen off the bus or is otherwise inaccessible
- *         - \ref NVML_ERROR_NOT_FOUND         if sample entries are not found
- *         - \ref NVML_ERROR_UNKNOWN           on any unexpected error
- */
-nvmlReturn_t DECLDIR nvmlDeviceGetVgpuProcessUtilization(nvmlDevice_t device, unsigned long long lastSeenTimeStamp,
-                                                         unsigned int *vgpuProcessSamplesCount,
-                                                         nvmlVgpuProcessUtilizationSample_t *utilizationSamples);
-/**
- * Retrieve the GRID licensable features.
- *
- * Identifies whether the system supports GRID Software Licensing. If it does, return the list of licensable feature(s)
- * and their current license status.
- *
- * @param device                    Identifier of the target device
- * @param pGridLicensableFeatures   Pointer to structure in which GRID licensable features are returned
- *
- * @return
- *         - \ref NVML_SUCCESS                 if licensable features are successfully retrieved
- *         - \ref NVML_ERROR_INVALID_ARGUMENT  if \a pGridLicensableFeatures is NULL
- *         - \ref NVML_ERROR_UNKNOWN           on any unexpected error
- */
-nvmlReturn_t DECLDIR nvmlDeviceGetGridLicensableFeatures(nvmlDevice_t device, nvmlGridLicensableFeatures_t *pGridLicensableFeatures);
-
-/**
  * Retrieves the current encoder statistics of a vGPU Instance
  *
  * For Maxwell &tm; or newer fully supported devices.
@@ -6025,135 +6002,11 @@ nvmlReturn_t DECLDIR nvmlVgpuInstanceGetFBCStats(nvmlVgpuInstance_t vgpuInstance
 */
 nvmlReturn_t DECLDIR nvmlVgpuInstanceGetFBCSessions(nvmlVgpuInstance_t vgpuInstance, unsigned int *sessionCount, nvmlFBCSessionInfo_t *sessionInfo);
 
-/**
- * Retrieves the current utilization and process ID
- *
- * For Maxwell &tm; or newer fully supported devices.
- *
- * Reads recent utilization of GPU SM (3D/Compute), framebuffer, video encoder, and video decoder for processes running.
- * Utilization values are returned as an array of utilization sample structures in the caller-supplied buffer pointed at
- * by \a utilization. One utilization sample structure is returned per process running, that had some non-zero utilization
- * during the last sample period. It includes the CPU timestamp at which  the samples were recorded. Individual utilization values
- * are returned as "unsigned int" values.
- *
- * To read utilization values, first determine the size of buffer required to hold the samples by invoking the function with
- * \a utilization set to NULL. The caller should allocate a buffer of size
- * processSamplesCount * sizeof(nvmlProcessUtilizationSample_t). Invoke the function again with the allocated buffer passed
- * in \a utilization, and \a processSamplesCount set to the number of entries the buffer is sized for.
- *
- * On successful return, the function updates \a processSamplesCount with the number of process utilization sample
- * structures that were actually written. This may differ from a previously read value as instances are created or
- * destroyed.
- *
- * lastSeenTimeStamp represents the CPU timestamp in microseconds at which utilization samples were last read. Set it to 0
- * to read utilization based on all the samples maintained by the driver's internal sample buffer. Set lastSeenTimeStamp
- * to a timeStamp retrieved from a previous query to read utilization since the previous query.
- *
- * @param device                    The identifier of the target device
- * @param utilization               Pointer to caller-supplied buffer in which guest process utilization samples are returned
- * @param processSamplesCount       Pointer to caller-supplied array size, and returns number of processes running
- * @param lastSeenTimeStamp         Return only samples with timestamp greater than lastSeenTimeStamp.
-
- * @return
- *         - \ref NVML_SUCCESS                 if \a utilization has been populated
- *         - \ref NVML_ERROR_UNINITIALIZED     if the library has not been successfully initialized
- *         - \ref NVML_ERROR_INVALID_ARGUMENT  if \a device is invalid, \a utilization is NULL, or \a samplingPeriodUs is NULL
- *         - \ref NVML_ERROR_NOT_SUPPORTED     if the device does not support this feature
- *         - \ref NVML_ERROR_GPU_IS_LOST       if the target GPU has fallen off the bus or is otherwise inaccessible
- *         - \ref NVML_ERROR_UNKNOWN           on any unexpected error
- */
-nvmlReturn_t DECLDIR nvmlDeviceGetProcessUtilization(nvmlDevice_t device, nvmlProcessUtilizationSample_t *utilization,
-                                              unsigned int *processSamplesCount, unsigned long long lastSeenTimeStamp);
-
-/**
- * Queries the state of per process accounting mode on vGPU.
- *
- * For Maxwell &tm; or newer fully supported devices.
- *
- * @param vgpuInstance            The identifier of the target vGPU instance
- * @param mode                    Reference in which to return the current accounting mode
- *
- * @return
- *         - \ref NVML_SUCCESS                 if the mode has been successfully retrieved
- *         - \ref NVML_ERROR_UNINITIALIZED     if the library has not been successfully initialized
- *         - \ref NVML_ERROR_INVALID_ARGUMENT  if \a vgpuInstance is 0, or \a mode is NULL
- *         - \ref NVML_ERROR_NOT_FOUND         if \a vgpuInstance does not match a valid active vGPU instance on the system
- *         - \ref NVML_ERROR_NOT_SUPPORTED     if the vGPU doesn't support this feature
- *         - \ref NVML_ERROR_UNKNOWN           on any unexpected error
- */
-nvmlReturn_t DECLDIR nvmlVgpuInstanceGetAccountingMode(nvmlVgpuInstance_t vgpuInstance, nvmlEnableState_t *mode);
-
-/**
- * Queries list of processes running on vGPU that can be queried for accounting stats. The list of processes
- * returned can be in running or terminated state.
- *
- * For Maxwell &tm; or newer fully supported devices.
- *
- * To just query the maximum number of processes that can be queried, call this function with *count = 0 and
- * pids=NULL. The return code will be NVML_ERROR_INSUFFICIENT_SIZE, or NVML_SUCCESS if list is empty.
- *
- * For more details see \ref nvmlVgpuInstanceGetAccountingStats.
- *
- * @note In case of PID collision some processes might not be accessible before the circular buffer is full.
- *
- * @param vgpuInstance            The identifier of the target vGPU instance
- * @param count                   Reference in which to provide the \a pids array size, and
- *                                to return the number of elements ready to be queried
- * @param pids                    Reference in which to return list of process ids
- *
- * @return
- *         - \ref NVML_SUCCESS                 if pids were successfully retrieved
- *         - \ref NVML_ERROR_UNINITIALIZED     if the library has not been successfully initialized
- *         - \ref NVML_ERROR_INVALID_ARGUMENT  if \a vgpuInstance is 0, or \a count is NULL
- *         - \ref NVML_ERROR_NOT_FOUND         if \a vgpuInstance does not match a valid active vGPU instance on the system
- *         - \ref NVML_ERROR_NOT_SUPPORTED     if the vGPU doesn't support this feature or accounting mode is disabled
- *         - \ref NVML_ERROR_INSUFFICIENT_SIZE if \a count is too small (\a count is set to expected value)
- *         - \ref NVML_ERROR_UNKNOWN           on any unexpected error
- *
- * @see nvmlVgpuInstanceGetAccountingPids
- */
-nvmlReturn_t DECLDIR nvmlVgpuInstanceGetAccountingPids(nvmlVgpuInstance_t vgpuInstance, unsigned int *count, unsigned int *pids);
-
-/**
- * Queries process's accounting stats.
- *
- * For Maxwell &tm; or newer fully supported devices.
- *
- * Accounting stats capture GPU utilization and other statistics across the lifetime of a process, and
- * can be queried during life time of the process or after its termination.
- * The time field in \ref nvmlAccountingStats_t is reported as 0 during the lifetime of the process and
- * updated to actual running time after its termination.
- * Accounting stats are kept in a circular buffer, newly created processes overwrite information about old
- * processes.
- *
- * See \ref nvmlAccountingStats_t for description of each returned metric.
- * List of processes that can be queried can be retrieved from \ref nvmlVgpuInstanceGetAccountingPids.
- *
- * @note Accounting Mode needs to be on. See \ref nvmlVgpuInstanceGetAccountingMode.
- * @note Only compute and graphics applications stats can be queried. Monitoring applications stats can't be
- *         queried since they don't contribute to GPU utilization.
- * @note In case of pid collision stats of only the latest process (that terminated last) will be reported
- *
- * @param vgpuInstance            The identifier of the target vGPU instance
- * @param pid                     Process Id of the target process to query stats for
- * @param stats                   Reference in which to return the process's accounting stats
- *
- * @return
- *         - \ref NVML_SUCCESS                 if stats have been successfully retrieved
- *         - \ref NVML_ERROR_UNINITIALIZED     if the library has not been successfully initialized
- *         - \ref NVML_ERROR_INVALID_ARGUMENT  if \a vgpuInstance is 0, or \a stats is NULL
- *         - \ref NVML_ERROR_NOT_FOUND         if \a vgpuInstance does not match a valid active vGPU instance on the system
- *                                             or \a stats is not found
- *         - \ref NVML_ERROR_NOT_SUPPORTED     if the vGPU doesn't support this feature or accounting mode is disabled
- *         - \ref NVML_ERROR_UNKNOWN           on any unexpected error
- */
-nvmlReturn_t DECLDIR nvmlVgpuInstanceGetAccountingStats(nvmlVgpuInstance_t vgpuInstance, unsigned int pid, nvmlAccountingStats_t *stats);
-
 /** @} */
 
 /***************************************************************************************************/
-/** @defgroup nvml vGPU Migration
- * This chapter describes NVML operations that are associated with vGPU Migration.
+/** @defgroup nvml GRID Virtualization Migration
+ * This chapter describes operations that are associated with vGPU Migration.
  *  @{
  */
 /***************************************************************************************************/
@@ -6177,7 +6030,8 @@ typedef struct nvmlVgpuMetadata_st
     nvmlVgpuGuestInfoState_t guestInfoState;                                             //!< Current state of Guest-dependent fields
     char                     guestDriverVersion[NVML_SYSTEM_DRIVER_VERSION_BUFFER_SIZE]; //!< Version of driver installed in guest
     char                     hostDriverVersion[NVML_SYSTEM_DRIVER_VERSION_BUFFER_SIZE];  //!< Version of driver installed in host
-    unsigned int             reserved[7];                                                //!< Reserved for internal use
+    unsigned int             reserved[6];                                                //!< Reserved for internal use
+    unsigned int             vgpuVirtualizationCaps;                                     //!< vGPU virtualizaion capabilities bitfileld
     unsigned int             guestVgpuVersion;                                           //!< vGPU version of guest driver
     unsigned int             opaqueDataSize;                                             //!< Size of opaque data field in bytes
     char                     opaqueData[4];                                              //!< Opaque data
@@ -6384,6 +6238,195 @@ nvmlReturn_t DECLDIR nvmlGetVgpuVersion(nvmlVgpuVersion_t *supported, nvmlVgpuVe
  * - \ref NVML_ERROR_INVALID_ARGUMENT  The \a vgpuVersion parameter specifies a range that is outside the range supported by the NVIDIA vGPU Manager or if \a vgpuVersion is NULL.
  */
 nvmlReturn_t DECLDIR nvmlSetVgpuVersion(nvmlVgpuVersion_t *vgpuVersion);
+
+/** @} */
+
+/***************************************************************************************************/
+/** @defgroup nvmlUtil GRID Virtualization Utilization and Accounting 
+ * This chapter describes operations that are associated with vGPU Utilization and Accounting.
+ *  @{
+ */
+/***************************************************************************************************/
+
+/**
+ * Retrieves current utilization for vGPUs on a physical GPU (device).
+ *
+ * For Kepler &tm; or newer fully supported devices.
+ *
+ * Reads recent utilization of GPU SM (3D/Compute), framebuffer, video encoder, and video decoder for vGPU instances running
+ * on a device. Utilization values are returned as an array of utilization sample structures in the caller-supplied buffer
+ * pointed at by \a utilizationSamples. One utilization sample structure is returned per vGPU instance, and includes the
+ * CPU timestamp at which the samples were recorded. Individual utilization values are returned as "unsigned int" values
+ * in nvmlValue_t unions. The function sets the caller-supplied \a sampleValType to NVML_VALUE_TYPE_UNSIGNED_INT to
+ * indicate the returned value type.
+ *
+ * To read utilization values, first determine the size of buffer required to hold the samples by invoking the function with
+ * \a utilizationSamples set to NULL. The function will return NVML_ERROR_INSUFFICIENT_SIZE, with the current vGPU instance
+ * count in \a vgpuInstanceSamplesCount, or NVML_SUCCESS if the current vGPU instance count is zero. The caller should allocate
+ * a buffer of size vgpuInstanceSamplesCount * sizeof(nvmlVgpuInstanceUtilizationSample_t). Invoke the function again with
+ * the allocated buffer passed in \a utilizationSamples, and \a vgpuInstanceSamplesCount set to the number of entries the
+ * buffer is sized for.
+ *
+ * On successful return, the function updates \a vgpuInstanceSampleCount with the number of vGPU utilization sample
+ * structures that were actually written. This may differ from a previously read value as vGPU instances are created or
+ * destroyed.
+ *
+ * lastSeenTimeStamp represents the CPU timestamp in microseconds at which utilization samples were last read. Set it to 0
+ * to read utilization based on all the samples maintained by the driver's internal sample buffer. Set lastSeenTimeStamp
+ * to a timeStamp retrieved from a previous query to read utilization since the previous query.
+ *
+ * @param device                        The identifier for the target device
+ * @param lastSeenTimeStamp             Return only samples with timestamp greater than lastSeenTimeStamp.
+ * @param sampleValType                 Pointer to caller-supplied buffer to hold the type of returned sample values
+ * @param vgpuInstanceSamplesCount      Pointer to caller-supplied array size, and returns number of vGPU instances
+ * @param utilizationSamples            Pointer to caller-supplied buffer in which vGPU utilization samples are returned
+
+ * @return
+ *         - \ref NVML_SUCCESS                 if utilization samples are successfully retrieved
+ *         - \ref NVML_ERROR_UNINITIALIZED     if the library has not been successfully initialized
+ *         - \ref NVML_ERROR_INVALID_ARGUMENT  if \a device is invalid, \a vgpuInstanceSamplesCount or \a sampleValType is
+ *                                             NULL, or a sample count of 0 is passed with a non-NULL \a utilizationSamples
+ *         - \ref NVML_ERROR_INSUFFICIENT_SIZE if supplied \a vgpuInstanceSamplesCount is too small to return samples for all
+ *                                             vGPU instances currently executing on the device
+ *         - \ref NVML_ERROR_NOT_SUPPORTED     if vGPU is not supported by the device
+ *         - \ref NVML_ERROR_GPU_IS_LOST       if the target GPU has fallen off the bus or is otherwise inaccessible
+ *         - \ref NVML_ERROR_NOT_FOUND         if sample entries are not found
+ *         - \ref NVML_ERROR_UNKNOWN           on any unexpected error
+ */
+nvmlReturn_t DECLDIR nvmlDeviceGetVgpuUtilization(nvmlDevice_t device, unsigned long long lastSeenTimeStamp,
+                                                  nvmlValueType_t *sampleValType, unsigned int *vgpuInstanceSamplesCount,
+                                                  nvmlVgpuInstanceUtilizationSample_t *utilizationSamples);
+
+/**
+ * Retrieves current utilization for processes running on vGPUs on a physical GPU (device).
+ *
+ * For Maxwell &tm; or newer fully supported devices.
+ *
+ * Reads recent utilization of GPU SM (3D/Compute), framebuffer, video encoder, and video decoder for processes running on
+ * vGPU instances active on a device. Utilization values are returned as an array of utilization sample structures in the
+ * caller-supplied buffer pointed at by \a utilizationSamples. One utilization sample structure is returned per process running
+ * on vGPU instances, that had some non-zero utilization during the last sample period. It includes the CPU timestamp at which
+ * the samples were recorded. Individual utilization values are returned as "unsigned int" values.
+ *
+ * To read utilization values, first determine the size of buffer required to hold the samples by invoking the function with
+ * \a utilizationSamples set to NULL. The function will return NVML_ERROR_INSUFFICIENT_SIZE, with the current vGPU instance
+ * count in \a vgpuProcessSamplesCount. The caller should allocate a buffer of size
+ * vgpuProcessSamplesCount * sizeof(nvmlVgpuProcessUtilizationSample_t). Invoke the function again with
+ * the allocated buffer passed in \a utilizationSamples, and \a vgpuProcessSamplesCount set to the number of entries the
+ * buffer is sized for.
+ *
+ * On successful return, the function updates \a vgpuSubProcessSampleCount with the number of vGPU sub process utilization sample
+ * structures that were actually written. This may differ from a previously read value depending on the number of processes that are active
+ * in any given sample period.
+ *
+ * lastSeenTimeStamp represents the CPU timestamp in microseconds at which utilization samples were last read. Set it to 0
+ * to read utilization based on all the samples maintained by the driver's internal sample buffer. Set lastSeenTimeStamp
+ * to a timeStamp retrieved from a previous query to read utilization since the previous query.
+ *
+ * @param device                        The identifier for the target device
+ * @param lastSeenTimeStamp             Return only samples with timestamp greater than lastSeenTimeStamp.
+ * @param vgpuProcessSamplesCount       Pointer to caller-supplied array size, and returns number of processes running on vGPU instances
+ * @param utilizationSamples            Pointer to caller-supplied buffer in which vGPU sub process utilization samples are returned
+
+ * @return
+ *         - \ref NVML_SUCCESS                 if utilization samples are successfully retrieved
+ *         - \ref NVML_ERROR_UNINITIALIZED     if the library has not been successfully initialized
+ *         - \ref NVML_ERROR_INVALID_ARGUMENT  if \a device is invalid, \a vgpuProcessSamplesCount or a sample count of 0 is
+ *                                             passed with a non-NULL \a utilizationSamples
+ *         - \ref NVML_ERROR_INSUFFICIENT_SIZE if supplied \a vgpuProcessSamplesCount is too small to return samples for all
+ *                                             vGPU instances currently executing on the device
+ *         - \ref NVML_ERROR_NOT_SUPPORTED     if vGPU is not supported by the device
+ *         - \ref NVML_ERROR_GPU_IS_LOST       if the target GPU has fallen off the bus or is otherwise inaccessible
+ *         - \ref NVML_ERROR_NOT_FOUND         if sample entries are not found
+ *         - \ref NVML_ERROR_UNKNOWN           on any unexpected error
+ */
+nvmlReturn_t DECLDIR nvmlDeviceGetVgpuProcessUtilization(nvmlDevice_t device, unsigned long long lastSeenTimeStamp,
+                                                         unsigned int *vgpuProcessSamplesCount,
+                                                         nvmlVgpuProcessUtilizationSample_t *utilizationSamples);
+														 
+/**
+ * Queries the state of per process accounting mode on vGPU.
+ *
+ * For Maxwell &tm; or newer fully supported devices.
+ *
+ * @param vgpuInstance            The identifier of the target vGPU VM
+ * @param mode                    Reference in which to return the current accounting mode
+ *
+ * @return 
+ *         - \ref NVML_SUCCESS                 if the mode has been successfully retrieved 
+ *         - \ref NVML_ERROR_UNINITIALIZED     if the library has not been successfully initialized
+ *         - \ref NVML_ERROR_INVALID_ARGUMENT  if \a vgpuInstance is 0, or \a mode is NULL
+ *         - \ref NVML_ERROR_NOT_FOUND         if \a vgpuInstance does not match a valid active vGPU instance on the system
+ *         - \ref NVML_ERROR_NOT_SUPPORTED     if the vGPU doesn't support this feature
+ *         - \ref NVML_ERROR_UNKNOWN           on any unexpected error
+ */
+nvmlReturn_t DECLDIR nvmlVgpuInstanceGetAccountingMode(nvmlVgpuInstance_t vgpuInstance, nvmlEnableState_t *mode);
+
+/**
+ * Queries list of processes running on vGPU that can be queried for accounting stats. The list of processes 
+ * returned can be in running or terminated state.
+ *
+ * For Maxwell &tm; or newer fully supported devices.
+ * 
+ * To just query the maximum number of processes that can be queried, call this function with *count = 0 and
+ * pids=NULL. The return code will be NVML_ERROR_INSUFFICIENT_SIZE, or NVML_SUCCESS if list is empty.
+ * 
+ * For more details see \ref nvmlVgpuInstanceGetAccountingStats.
+ *
+ * @note In case of PID collision some processes might not be accessible before the circular buffer is full.
+ *
+ * @param vgpuInstance            The identifier of the target vGPU VM
+ * @param count                   Reference in which to provide the \a pids array size, and
+ *                                to return the number of elements ready to be queried
+ * @param pids                    Reference in which to return list of process ids
+ * 
+ * @return 
+ *         - \ref NVML_SUCCESS                 if pids were successfully retrieved
+ *         - \ref NVML_ERROR_UNINITIALIZED     if the library has not been successfully initialized
+ *         - \ref NVML_ERROR_INVALID_ARGUMENT  if \a vgpuInstance is 0, or \a count is NULL
+ *         - \ref NVML_ERROR_NOT_FOUND         if \a vgpuInstance does not match a valid active vGPU instance on the system
+ *         - \ref NVML_ERROR_NOT_SUPPORTED     if the vGPU doesn't support this feature or accounting mode is disabled
+ *         - \ref NVML_ERROR_INSUFFICIENT_SIZE if \a count is too small (\a count is set to expected value)
+ *         - \ref NVML_ERROR_UNKNOWN           on any unexpected error
+ *
+ * @see nvmlVgpuInstanceGetAccountingPids
+ */
+nvmlReturn_t DECLDIR nvmlVgpuInstanceGetAccountingPids(nvmlVgpuInstance_t vgpuInstance, unsigned int *count, unsigned int *pids);
+
+/**
+ * Queries process's accounting stats.
+ *
+ * For Maxwell &tm; or newer fully supported devices.
+ * 
+ * Accounting stats capture GPU utilization and other statistics across the lifetime of a process, and
+ * can be queried during life time of the process or after its termination.
+ * The time field in \ref nvmlAccountingStats_t is reported as 0 during the lifetime of the process and 
+ * updated to actual running time after its termination.
+ * Accounting stats are kept in a circular buffer, newly created processes overwrite information about old
+ * processes.
+ *
+ * See \ref nvmlAccountingStats_t for description of each returned metric.
+ * List of processes that can be queried can be retrieved from \ref nvmlVgpuInstanceGetAccountingPids.
+ *
+ * @note Accounting Mode needs to be on. See \ref nvmlVgpuInstanceGetAccountingMode.
+ * @note Only compute and graphics applications stats can be queried. Monitoring applications stats can't be
+ *         queried since they don't contribute to GPU utilization.
+ * @note In case of pid collision stats of only the latest process (that terminated last) will be reported
+ *
+ * @param vgpuInstance            The identifier of the target vGPU VM
+ * @param pid                     Process Id of the target process to query stats for
+ * @param stats                   Reference in which to return the process's accounting stats
+ *
+ * @return 
+ *         - \ref NVML_SUCCESS                 if stats have been successfully retrieved
+ *         - \ref NVML_ERROR_UNINITIALIZED     if the library has not been successfully initialized
+ *         - \ref NVML_ERROR_INVALID_ARGUMENT  if \a vgpuInstance is 0, or \a stats is NULL
+ *         - \ref NVML_ERROR_NOT_FOUND         if \a vgpuInstance does not match a valid active vGPU instance on the system
+ *                                             or \a stats is not found
+ *         - \ref NVML_ERROR_NOT_SUPPORTED     if the vGPU doesn't support this feature or accounting mode is disabled
+ *         - \ref NVML_ERROR_UNKNOWN           on any unexpected error
+ */
+nvmlReturn_t DECLDIR nvmlVgpuInstanceGetAccountingStats(nvmlVgpuInstance_t vgpuInstance, unsigned int pid, nvmlAccountingStats_t *stats);
 
 /** @} */
 

@@ -4682,13 +4682,14 @@ static void xconfig_file_clicked(GtkWidget *widget, gpointer user_data)
  *
  **/
 
-void run_save_xconfig_dialog(SaveXConfDlg *dlg)
+int run_save_xconfig_dialog(SaveXConfDlg *dlg)
 {
     void *buf;
     GtkTextIter buf_start, buf_end;
     gchar *filename = NULL;
     const gchar *tmp_filename;
     struct stat st;
+    int ret = 0;
 
     gint result;
 
@@ -4754,7 +4755,7 @@ void run_save_xconfig_dialog(SaveXConfDlg *dlg)
 
         /* Save the X config file */
         nv_info_msg("", "Writing X config file '%s'", filename);
-        save_xconfig_file(dlg, filename, (char *)buf, 0644);
+        ret = save_xconfig_file(dlg, filename, (char *)buf, 0644);
         g_free(buf);
         break;
 
@@ -4765,6 +4766,8 @@ void run_save_xconfig_dialog(SaveXConfDlg *dlg)
     }
 
     g_free(filename);
+
+    return ret;
 
 } /* run_save_xconfig_dialog() */
 

@@ -34,6 +34,12 @@
 
 #include "config-file.h"
 
+#define CTK_CONFIG_PENDING_APPLY_DISPLAY_CONFIG    (1 << 0)
+#define CTK_CONFIG_PENDING_WRITE_DISPLAY_CONFIG    (1 << 1)
+#define CTK_CONFIG_PENDING_WRITE_MOSAIC_CONFIG     (1 << 2)
+#define CTK_CONFIG_PENDING_WRITE_APP_PROFILES      (1 << 3)
+#define CTK_CONFIG_PENDING_LAST_VALUE              (1 << 4)
+
 G_BEGIN_DECLS
 
 #define CTK_TYPE_CONFIG (ctk_config_get_type())
@@ -93,6 +99,7 @@ struct _CtkConfig
     gboolean timer_list_visible;
     CtrlSystem *pCtrlSystem;
     GList *help_data;
+    guint pending_config;
 };
 
 struct _CtkConfigClass

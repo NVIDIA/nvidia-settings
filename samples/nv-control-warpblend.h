@@ -392,7 +392,7 @@ SetPixmapDataToAttribute(
     const char* attributeName)
 {
     Bool ret = False;
-    char tempName[256];
+    char tempName[32];
     char newAttributes[256];
 
     // Disable the attribute on that DPY
@@ -463,7 +463,7 @@ XNVCTRLSetScanoutWarping(
     GC pGC = NULL;
     char *paddedBuffer = NULL;
     int error = 1;
-    char tempName[256];
+    char tempName[32];
     char newAttributes[256];
 
     // Disable warping on that DPY

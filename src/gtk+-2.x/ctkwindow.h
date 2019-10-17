@@ -68,8 +68,9 @@ struct _CtkWindow
 
     CtkConfig              *ctk_config;
     GtkWidget              *ctk_help;
-    
+
     GtkWidget              *quit_dialog;
+    GtkWidget              *quit_dialog_pending_label;
 
     ParsedAttribute        *attribute_list;
 
@@ -78,7 +79,7 @@ struct _CtkWindow
 
     GtkTextTagTable        *help_tag_table;
     GtkTextBuffer          *help_text_buffer;
-    
+
     GtkWidget              *display_config_widget;
 };
 
