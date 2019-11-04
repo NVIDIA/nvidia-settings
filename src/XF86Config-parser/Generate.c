@@ -37,7 +37,7 @@
 #define KEYBOARD_IDENTIFER "Keyboard0"
 
 #define SCREEN_IDENTIFIER "Screen%d"
-#define DEVICE_IDENTIFIER "Device%d"
+#define DEVICE_IDENTIFIER "%sDevice%d"
 #define MONITOR_IDENTIFIER "Monitor%d"
 
 
@@ -102,7 +102,7 @@ XConfigScreenPtr xconfigGenerateAddScreen(XConfigPtr config,
 
     monitor = xconfigAddMonitor(config, count);
     device = add_device(config, bus, domain, slot, boardname, count,
-                        driver, vendor);
+                        driver, vendor, TRUE /* active */);
 
     screen = xconfigAlloc(sizeof(XConfigScreenRec));
 
@@ -450,14 +450,15 @@ XConfigMonitorPtr xconfigAddMonitor(XConfigPtr config, int count)
 
 XConfigDevicePtr add_device(XConfigPtr config, int bus, int domain,
                             int slot, char *boardname, int count,
-                            const char *driver, const char *vendor)
+                            const char *driver, const char *vendor, int active)
 {
     XConfigDevicePtr device, d;
 
     device = xconfigAlloc(sizeof(XConfigDeviceRec));
 
     device->identifier = xconfigAlloc(32);
-    snprintf(device->identifier, 32, DEVICE_IDENTIFIER, count);
+    snprintf(device->identifier, 32, DEVICE_IDENTIFIER,
+             active ? "" : "Inactive", count);
     device->index_id = count;
     device->driver = xconfigStrdup(driver);
     device->vendor = xconfigStrdup(vendor);

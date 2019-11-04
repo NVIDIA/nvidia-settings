@@ -757,7 +757,7 @@ XConfigScreenPtr xconfigGenerateAddScreen(XConfigPtr config,
 
 XConfigDevicePtr add_device(XConfigPtr config, int bus, int domain,
                             int slot, char *boardname, int count,
-                            const char *driver, const char *vendor);
+                            const char *driver, const char *vendor, int active);
 
 void xconfigAddInactiveDevice(XConfigPtr config, XConfigLayoutPtr layout,
                               int device_n);

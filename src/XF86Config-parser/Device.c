@@ -527,7 +527,7 @@ void xconfigAddInactiveDevice(XConfigPtr config, XConfigLayoutPtr layout,
     XConfigInactivePtr inac;
 
     device = add_device(config, -1, -1, -1, NULL, device_n,
-                        "modesetting", "Unknown");
+                        "modesetting", "Unknown", FALSE /* active */);
 
     inac = xconfigAlloc(sizeof (XConfigInactiveRec));
     inac->next = NULL;
