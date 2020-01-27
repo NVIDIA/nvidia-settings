@@ -103,6 +103,8 @@ const gchar* __video_mixer_parameter_help =
 const gchar* __video_mixer_attribute_help =
 "This shows the video mixer attributes and any applicable ranges.";
 
+struct VDPAUDeviceImpl VDPAUDeviceFunctions;
+
 static int queryOutputSurface(CtkVDPAU *ctk_vdpau, VdpDevice device,
                               VdpGetProcAddress *getProcAddress);
 

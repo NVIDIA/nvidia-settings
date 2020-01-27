@@ -46,7 +46,7 @@ G_BEGIN_DECLS
     (G_TYPE_INSTANCE_GET_CLASS ((obj), CTK_TYPE_VDPAU, CtkVDPAUClass))
 
 
-struct VDPAUDeviceImpl {
+extern struct VDPAUDeviceImpl {
 
     VdpGetErrorString *GetErrorString;
     VdpGetProcAddress *GetProcAddress;
