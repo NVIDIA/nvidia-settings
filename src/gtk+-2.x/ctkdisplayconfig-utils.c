@@ -4803,7 +4803,7 @@ SaveXConfDlg *create_save_xconfig_dialog(GtkWidget *parent,
     if (tmp_filename) {
         filename = g_strdup(tmp_filename);
     } else {
-        filename = g_strdup("");
+        filename = g_strdup("/etc/X11/xorg.conf");
     }
     xconfigCloseConfigFile();
 

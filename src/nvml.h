@@ -5749,6 +5749,31 @@ nvmlReturn_t DECLDIR nvmlVgpuInstanceGetVmID(nvmlVgpuInstance_t vgpuInstance, ch
 nvmlReturn_t DECLDIR nvmlVgpuInstanceGetUUID(nvmlVgpuInstance_t vgpuInstance, char *uuid, unsigned int size);
 
 /**
+ * Retrieve the MDEV UUID of a vGPU instance.
+ *
+ * The MDEV UUID is a globally unique identifier of the mdev device assigned to the VM, and is returned as a 5-part hexadecimal string,
+ * not exceeding 80 characters in length (including the NULL terminator).
+ * MDEV UUID is displayed only on KVM platform.
+ * See \ref nvmlConstants::NVML_DEVICE_UUID_BUFFER_SIZE.
+ *
+ * For Maxwell &tm; or newer fully supported devices.
+ *
+ * @param vgpuInstance             Identifier of the target vGPU instance
+ * @param mdevUuid                 Pointer to caller-supplied buffer to hold MDEV UUID
+ * @param size                     Size of buffer in bytes
+ *
+ * @return
+ *         - \ref NVML_SUCCESS                 successful completion
+ *         - \ref NVML_ERROR_UNINITIALIZED     if the library has not been successfully initialized
+ *         - \ref NVML_ERROR_NOT_SUPPORTED     on any hypervisor other than KVM
+ *         - \ref NVML_ERROR_INVALID_ARGUMENT  if \a vgpuInstance is 0, or \a mdevUuid is NULL
+ *         - \ref NVML_ERROR_NOT_FOUND         if \a vgpuInstance does not match a valid active vGPU instance on the system
+ *         - \ref NVML_ERROR_INSUFFICIENT_SIZE if \a size is too small
+ *         - \ref NVML_ERROR_UNKNOWN           on any unexpected error
+ */
+nvmlReturn_t DECLDIR nvmlVgpuInstanceGetMdevUUID(nvmlVgpuInstance_t vgpuInstance, char *mdevUuid, unsigned int size);
+
+/**
  * Retrieve the NVIDIA driver version installed in the VM associated with a vGPU.
  *
  * The version is returned as an alphanumeric string in the caller-supplied buffer \a version. The length of the version
