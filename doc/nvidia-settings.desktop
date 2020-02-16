@@ -32,3 +32,7 @@ Comment[zh_TW]=配置 NVIDIA X 伺服器設定
 # Translation by Marcin Mikołajczak
 Name[pl]=Ustawienia serwera X NVIDIA
 Comment[pl]=Narzędzie konfiguracyjne dla ustawień serwera X NVIDIA
+
+# Translation by RDL
+Name[ru]=Параметры NVIDIA X Server
+Comment[ru]=Конфигурирование параметров NVIDIA X Server
