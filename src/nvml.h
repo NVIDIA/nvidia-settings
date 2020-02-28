@@ -4175,7 +4175,8 @@ nvmlReturn_t DECLDIR nvmlDeviceGetAccountingMode(nvmlDevice_t device, nvmlEnable
  *         - \ref NVML_ERROR_UNINITIALIZED     if the library has not been successfully initialized
  *         - \ref NVML_ERROR_INVALID_ARGUMENT  if \a device is invalid or \a stats are NULL
  *         - \ref NVML_ERROR_NOT_FOUND         if process stats were not found
- *         - \ref NVML_ERROR_NOT_SUPPORTED     if the device doesn't support this feature or accounting mode is disabled
+ *         - \ref NVML_ERROR_NOT_SUPPORTED     if \a device doesn't support this feature or accounting mode is disabled
+ *                                              or on vGPU host.
  *         - \ref NVML_ERROR_UNKNOWN           on any unexpected error
  *
  * @see nvmlDeviceGetAccountingBufferSize
@@ -4204,7 +4205,8 @@ nvmlReturn_t DECLDIR nvmlDeviceGetAccountingStats(nvmlDevice_t device, unsigned 
  *         - \ref NVML_SUCCESS                 if pids were successfully retrieved
  *         - \ref NVML_ERROR_UNINITIALIZED     if the library has not been successfully initialized
  *         - \ref NVML_ERROR_INVALID_ARGUMENT  if \a device is invalid or \a count is NULL
- *         - \ref NVML_ERROR_NOT_SUPPORTED     if the device doesn't support this feature or accounting mode is disabled
+ *         - \ref NVML_ERROR_NOT_SUPPORTED     if \a device doesn't support this feature or accounting mode is disabled
+ *                                              or on vGPU host.
  *         - \ref NVML_ERROR_INSUFFICIENT_SIZE if \a count is too small (\a count is set to
  *                                                 expected value)
  *         - \ref NVML_ERROR_UNKNOWN           on any unexpected error
