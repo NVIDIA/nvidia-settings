@@ -8772,9 +8772,12 @@ static int generateXConfig(CtkDisplayConfig *ctk_object, XConfigPtr *pConfig)
             if (!config->extensions) {
                 config->extensions = nvalloc(sizeof(XConfigExtensionsRec));
             }
-            xconfigRemoveNamedOption(&(config->extensions->options), "Composite",
+            xconfigRemoveNamedOption(&(config->extensions->options), 
+                                     go.compositeExtensionName,
                                      NULL);
-            xconfigAddNewOption(&config->extensions->options, "Composite", "Disable");
+            xconfigAddNewOption(&config->extensions->options, 
+                                go.compositeExtensionName, 
+                                "Disable");
             nvfree(composite_disabled_str);
         }
     }

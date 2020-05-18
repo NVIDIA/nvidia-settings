@@ -1322,7 +1322,8 @@ static int get_xserver_information(const char *versionString,
                                    int *isModular,
                                    int *autoloadsGLX,
                                    int *supportsExtensionSection,
-                                   int *xineramaPlusCompositeWorks)
+                                   int *xineramaPlusCompositeWorks,
+                                   const char **compositeExtensionName)
 {
 #define XSERVER_VERSION_FORMAT_1 "X Window System Version"
 #define XSERVER_VERSION_FORMAT_2 "X.Org X Server"
@@ -1412,6 +1413,18 @@ static int get_xserver_information(const char *versionString,
     } else {
         *xineramaPlusCompositeWorks = TRUE;
     }
+    
+    /*
+     * With X.Org xserver version 1.20, the name of the composite
+     * extension was changed from "Composite" to "COMPOSITE". As of
+     * that release extension names are case-sensitive so we must 
+     * ensure the correct case is used.
+     */
+    if (major == 1 && minor >= 20) {
+        *compositeExtensionName = "COMPOSITE";
+    } else {
+        *compositeExtensionName = "Composite";
+    }
 
     return TRUE;
 
@@ -1449,6 +1462,7 @@ void xconfigGetXServerInUse(GenerateOptions *gop)
     gop->supports_extension_section = FALSE;
     gop->autoloads_glx = FALSE;
     gop->xinerama_plus_composite_works = FALSE;
+    gop->compositeExtensionName = NULL;
 
     /* run `X -version` with a PATH that hopefully includes the X binary */
 
@@ -1479,7 +1493,8 @@ void xconfigGetXServerInUse(GenerateOptions *gop)
                                         &dummy, /* isModular */
                                         &gop->autoloads_glx,
                                         &gop->supports_extension_section,
-                                        &gop->xinerama_plus_composite_works);
+                                        &gop->xinerama_plus_composite_works,
+                                        &gop->compositeExtensionName);
 
         if (found) {
             if (isXorg) {
