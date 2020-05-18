@@ -45,30 +45,6 @@ G_BEGIN_DECLS
 #define CTK_VDPAU_GET_CLASS(obj) \
     (G_TYPE_INSTANCE_GET_CLASS ((obj), CTK_TYPE_VDPAU, CtkVDPAUClass))
 
-
-struct VDPAUDeviceImpl {
-
-    VdpGetErrorString *GetErrorString;
-    VdpGetProcAddress *GetProcAddress;
-    VdpGetApiVersion *GetApiVersion;
-    VdpGetInformationString *GetInformationString;
-    VdpVideoSurfaceQueryCapabilities *VideoSurfaceQueryCapabilities;
-    VdpVideoSurfaceQueryGetPutBitsYCbCrCapabilities
-        *VideoSurfaceQueryGetPutBitsYCbCrCapabilities;
-    VdpOutputSurfaceQueryCapabilities *OutputSurfaceQueryCapabilities;
-    VdpOutputSurfaceQueryGetPutBitsNativeCapabilities
-        *OutputSurfaceQueryGetPutBitsNativeCapabilities;
-    VdpOutputSurfaceQueryPutBitsYCbCrCapabilities
-        *OutputSurfaceQueryPutBitsYCbCrCapabilities;
-    VdpBitmapSurfaceQueryCapabilities *BitmapSurfaceQueryCapabilities;
-    VdpDecoderQueryCapabilities *DecoderQueryCapabilities;
-    VdpVideoMixerQueryFeatureSupport *VideoMixerQueryFeatureSupport;
-    VdpVideoMixerQueryParameterSupport *VideoMixerQueryParameterSupport;
-    VdpVideoMixerQueryAttributeSupport *VideoMixerQueryAttributeSupport;
-    VdpVideoMixerQueryParameterValueRange *VideoMixerQueryParameterValueRange;
-    VdpVideoMixerQueryAttributeValueRange *VideoMixerQueryAttributeValueRange;
-} VDPAUDeviceFunctions;
-
 /* Generic description structure */
 typedef struct
 {

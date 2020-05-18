@@ -103,6 +103,29 @@ const gchar* __video_mixer_parameter_help =
 const gchar* __video_mixer_attribute_help =
 "This shows the video mixer attributes and any applicable ranges.";
 
+static struct VDPAUDeviceImpl {
+
+    VdpGetErrorString *GetErrorString;
+    VdpGetProcAddress *GetProcAddress;
+    VdpGetApiVersion *GetApiVersion;
+    VdpGetInformationString *GetInformationString;
+    VdpVideoSurfaceQueryCapabilities *VideoSurfaceQueryCapabilities;
+    VdpVideoSurfaceQueryGetPutBitsYCbCrCapabilities
+        *VideoSurfaceQueryGetPutBitsYCbCrCapabilities;
+    VdpOutputSurfaceQueryCapabilities *OutputSurfaceQueryCapabilities;
+    VdpOutputSurfaceQueryGetPutBitsNativeCapabilities
+        *OutputSurfaceQueryGetPutBitsNativeCapabilities;
+    VdpOutputSurfaceQueryPutBitsYCbCrCapabilities
+        *OutputSurfaceQueryPutBitsYCbCrCapabilities;
+    VdpBitmapSurfaceQueryCapabilities *BitmapSurfaceQueryCapabilities;
+    VdpDecoderQueryCapabilities *DecoderQueryCapabilities;
+    VdpVideoMixerQueryFeatureSupport *VideoMixerQueryFeatureSupport;
+    VdpVideoMixerQueryParameterSupport *VideoMixerQueryParameterSupport;
+    VdpVideoMixerQueryAttributeSupport *VideoMixerQueryAttributeSupport;
+    VdpVideoMixerQueryParameterValueRange *VideoMixerQueryParameterValueRange;
+    VdpVideoMixerQueryAttributeValueRange *VideoMixerQueryAttributeValueRange;
+} VDPAUDeviceFunctions;
+
 static int queryOutputSurface(CtkVDPAU *ctk_vdpau, VdpDevice device,
                               VdpGetProcAddress *getProcAddress);
 
