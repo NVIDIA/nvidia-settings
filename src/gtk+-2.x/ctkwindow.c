@@ -34,10 +34,6 @@
 #include "ctkwindow.h"
 
 #include "ctkframelock.h"
-#include "ctkgvi.h"
-#include "ctkgvo.h"
-#include "ctkgvo-sync.h"
-#include "ctkgvo-csc.h"
 #include "ctkconfig.h"
 #include "ctkutils.h"
 
@@ -52,7 +48,6 @@
 #include "ctkmultisample.h"
 #include "ctkthermal.h"
 #include "ctkpowermizer.h"
-#include "ctkvcs.h"
 #include "ctk3dvisionpro.h"
 
 #include "ctkdisplaydevice.h"
@@ -819,42 +814,6 @@ GtkWidget *ctk_window_new(ParsedAttribute *p, ConfigProperties *conf,
             add_page(child, help, ctk_window, &iter, NULL, "VDPAU Information",
                      NULL, NULL, NULL);
         }
-
-        /* gvo (Graphics To Video Out) */
-
-        child = ctk_gvo_new(screen_target, ctk_config, ctk_event);
-        if (child) {
-            GtkWidget *gvo_parent = child;
-            GtkTreeIter child_iter;
-            help = ctk_gvo_create_help(tag_table);
-            add_page(child, help, ctk_window, &iter, &child_iter,
-                     "Graphics to Video Out", NULL,
-                     ctk_gvo_select, ctk_gvo_unselect);
-
-            /* GVO Sync options */
-
-            child = ctk_gvo_sync_new(screen_target,  GTK_WIDGET(ctk_window),
-                                     ctk_config, ctk_event,
-                                     CTK_GVO(gvo_parent));
-            if (child) {
-                help = ctk_gvo_sync_create_help(tag_table,
-                                                CTK_GVO_SYNC(child));
-                add_page(child, help, ctk_window, &child_iter, NULL,
-                         "Synchronization Options", NULL,
-                         ctk_gvo_sync_select, ctk_gvo_sync_unselect);
-            }
-
-            /* GVO color space conversion */
-
-            child = ctk_gvo_csc_new(screen_target, ctk_config, ctk_event,
-                                    CTK_GVO(gvo_parent));
-            if (child) {
-                help = ctk_gvo_csc_create_help(tag_table, CTK_GVO_CSC(child));
-                add_page(child, help, ctk_window, &child_iter, NULL,
-                         "Color Space Conversion", NULL,
-                         ctk_gvo_csc_select, ctk_gvo_csc_unselect);
-            }
-        }
     }
 
     /* add the per-gpu entries into the tree model */
@@ -951,114 +910,6 @@ GtkWidget *ctk_window_new(ParsedAttribute *p, ConfigProperties *conf,
                             data, ctk_window->attribute_list);
     }
 
-    /* add the per-vcs (e.g. Quadro Plex) entries into the tree model */
-
-    for (node = system->targets[VCS_TARGET]; node; node = node->next) {
-
-        gchar *vcs_product_name;
-        gchar *vcs_name;
-        GtkWidget *child;
-        ReturnStatus ret;
-        CtrlTarget *vcs_target = node->t;
-
-        if (vcs_target == NULL || vcs_target->h == NULL) {
-            continue;
-        }
-
-        /* create the vcs entry name */
-
-        ret = NvCtrlGetStringAttribute(vcs_target,
-                                       NV_CTRL_STRING_VCSC_PRODUCT_NAME,
-                                       &vcs_product_name);
-        if (ret == NvCtrlSuccess && vcs_product_name) {
-            vcs_name = g_strdup_printf("VCS %d - (%s)",
-                                        NvCtrlGetTargetId(vcs_target),
-                                        vcs_product_name);
-            free(vcs_product_name);
-        } else {
-            vcs_name =  g_strdup_printf("VCS %d - (Unknown)",
-                                        NvCtrlGetTargetId(vcs_target));
-        }
-        if (!vcs_name) continue;
-
-        /* create the object for receiving NV-CONTROL events */
-
-        ctk_event = CTK_EVENT(ctk_event_new(vcs_target));
-
-        /* create the vcs entry */
-
-        gtk_tree_store_append(ctk_window->tree_store, &iter, NULL);
-        gtk_tree_store_set(ctk_window->tree_store, &iter,
-                           CTK_WINDOW_LABEL_COLUMN, vcs_name, -1);
-        child = ctk_vcs_new(vcs_target, ctk_config);
-        g_object_ref(G_OBJECT(child));
-        gtk_tree_store_set(ctk_window->tree_store, &iter,
-                           CTK_WINDOW_WIDGET_COLUMN, child, -1);
-        gtk_tree_store_set(ctk_window->tree_store, &iter,
-                           CTK_WINDOW_HELP_COLUMN, 
-                           ctk_vcs_create_help(tag_table, CTK_VCS(child)), -1);
-        gtk_tree_store_set(ctk_window->tree_store, &iter,
-                           CTK_WINDOW_CONFIG_FILE_ATTRIBUTES_FUNC_COLUMN,
-                           NULL, -1);
-        gtk_tree_store_set(ctk_window->tree_store, &iter,
-                           CTK_WINDOW_SELECT_WIDGET_FUNC_COLUMN,
-                           ctk_vcs_start_timer, -1);
-        gtk_tree_store_set(ctk_window->tree_store, &iter,
-                           CTK_WINDOW_UNSELECT_WIDGET_FUNC_COLUMN,
-                           ctk_vcs_stop_timer, -1);
-
-    }
-
-    /* add the per gvi entries into the tree model */
-
-    for (node = system->targets[GVI_TARGET]; node; node = node->next) {
-
-        gchar *gvi_name;
-        GtkWidget *child;
-        CtrlTarget *gvi_target = node->t;
-
-        if (gvi_target == NULL || gvi_target->h == NULL) {
-            continue;
-        }
-
-        /* create the gvi entry name */
-
-        if (node->next) {
-            gvi_name = g_strdup_printf("Graphics to Video In %d",
-                                       NvCtrlGetTargetId(gvi_target));
-        } else {
-            gvi_name =  g_strdup_printf("Graphics to Video In");
-        }
-
-        if (!gvi_name) continue;
-
-        /* create the object for receiving NV-CONTROL events */
-
-        ctk_event = CTK_EVENT(ctk_event_new(gvi_target));
-
-        /* create the gvi entry */
-
-        gtk_tree_store_append(ctk_window->tree_store, &iter, NULL);
-        gtk_tree_store_set(ctk_window->tree_store, &iter,
-                           CTK_WINDOW_LABEL_COLUMN, gvi_name, -1);
-        child = ctk_gvi_new(gvi_target, ctk_config, ctk_event);
-        g_object_ref(G_OBJECT(child));
-        gtk_tree_store_set(ctk_window->tree_store, &iter,
-                           CTK_WINDOW_WIDGET_COLUMN, child, -1);
-        gtk_tree_store_set(ctk_window->tree_store, &iter,
-                           CTK_WINDOW_HELP_COLUMN,
-                           ctk_gvi_create_help(tag_table, CTK_GVI(child)), -1);
-        gtk_tree_store_set(ctk_window->tree_store, &iter,
-                           CTK_WINDOW_CONFIG_FILE_ATTRIBUTES_FUNC_COLUMN,
-                           NULL, -1);
-        gtk_tree_store_set(ctk_window->tree_store, &iter,
-                           CTK_WINDOW_SELECT_WIDGET_FUNC_COLUMN,
-                           ctk_gvi_start_timer, -1);
-        gtk_tree_store_set(ctk_window->tree_store, &iter,
-                           CTK_WINDOW_UNSELECT_WIDGET_FUNC_COLUMN,
-                           ctk_gvi_stop_timer, -1);
-
-    }
     /*
      * add the frame lock page, if any of the X screens support
      * frame lock

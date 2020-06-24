@@ -2552,11 +2552,10 @@ static char *get_display_tooltip(nvDisplayPtr display, Bool advanced)
         /* Display has mode/modeline */
         } else {
             float ref = display->cur_mode->modeline->refresh_rate;
-            tip = g_strdup_printf("%s : %dx%d @ %.*f Hz",
+            tip = g_strdup_printf("%s : %dx%d @ %.0f Hz",
                                   display->logName,
                                   display->cur_mode->modeline->data.hdisplay,
                                   display->cur_mode->modeline->data.vdisplay,
-                                  (display->is_sdi ? 3 : 0),
                                   ref);
         }
         
@@ -2582,12 +2581,11 @@ static char *get_display_tooltip(nvDisplayPtr display, Bool advanced)
             /* Display has mode/modeline */
         } else {
             float ref = display->cur_mode->modeline->refresh_rate;
-            tip = g_strdup_printf("%s : %dx%d @ %.*f Hz\n(X Screen %d)\n"
+            tip = g_strdup_printf("%s : %dx%d @ %.0f Hz\n(X Screen %d)\n"
                                   "(GPU: %s)",
                                   display->logName,
                                   display->cur_mode->modeline->data.hdisplay,
                                   display->cur_mode->modeline->data.vdisplay,
-                                  (display->is_sdi ? 3 : 0),
                                   ref,
                                   display->screen->scrnum,
                                   display->gpu->name);

@@ -752,16 +752,6 @@ static int process_attribute_queries(const Options *op,
             continue;
         }
 
-        if (nv_strcasecmp(queries[query], "vcs")) {
-            query_all_targets(display_name, VCS_TARGET, systems);
-            continue;
-        }
-
-        if (nv_strcasecmp(queries[query], "gvis")) {
-            query_all_targets(display_name, GVI_TARGET, systems);
-            continue;
-        }
-
         if (nv_strcasecmp(queries[query], "fans")) {
             query_all_targets(display_name, COOLER_TARGET, systems);
             continue;
@@ -1553,7 +1543,7 @@ exit_bit_loop:
 
 
 /*
- * get_product_name() Returns the (GPU, X screen, display device or VCS)
+ * get_product_name() Returns the (GPU, X screen, display device)
  * product name of the given target.
  */
 
@@ -1675,12 +1665,6 @@ static int print_target_connections(CtrlTarget *t,
                 is_x_name = NV_TRUE;
                 break;
 
-            case VCS_TARGET:
-                product_name =
-                    get_product_name(other, NV_CTRL_STRING_VCSC_PRODUCT_NAME);
-                is_x_name = NV_TRUE;
-                break;
-
             case DISPLAY_TARGET:
                 product_name = get_display_product_name(other);
                 extra_str = get_display_state_str(other);
@@ -1690,7 +1674,6 @@ static int print_target_connections(CtrlTarget *t,
             case THERMAL_SENSOR_TARGET:
             case COOLER_TARGET:
             case FRAMELOCK_TARGET:
-            case GVI_TARGET:
             case X_SCREEN_TARGET:
             default:
                 break;
@@ -1800,16 +1783,12 @@ static int query_all_targets(const char *display_name, const int target_type,
 
         switch (target_type) {
         case FRAMELOCK_TARGET:
-        case GVI_TARGET:
         case COOLER_TARGET:
         case THERMAL_SENSOR_TARGET:
         case NVIDIA_3D_VISION_PRO_TRANSCEIVER_TARGET:
              snprintf(product_name, PRODUCT_NAME_LEN, "%s %d",
                      targetTypeInfo->name, target_id);
              break;
-        case VCS_TARGET:
-            product_name = get_product_name(t, NV_CTRL_STRING_VCSC_PRODUCT_NAME);
-            break;
         case DISPLAY_TARGET:
             product_name = get_display_product_name(t);
             extra_str = get_display_state_str(t);
@@ -1885,11 +1864,6 @@ static int query_all_targets(const char *display_name, const int target_type,
                     (t,
                      "Is connected to",
                      "Is not connected to",
-                     VCS_TARGET);
-                print_target_connections
-                    (t,
-                     "Is connected to",
-                     "Is not connected to",
                      COOLER_TARGET);
                 print_target_connections
                     (t,
@@ -1912,14 +1886,6 @@ static int query_all_targets(const char *display_name, const int target_type,
                 break;
 
             case FRAMELOCK_TARGET:
-                print_target_connections
-                    (t,
-                     "Is connected to",
-                     "Is not connected to",
-                     GPU_TARGET);
-                break;
-
-            case VCS_TARGET:
                 print_target_connections
                     (t,
                      "Is connected to",
@@ -2496,35 +2462,6 @@ int nv_process_parsed_attribute(const Options *op,
             }
         }
 
-        /*
-         * To properly handle SDI (GVO) attributes, we just need to make
-         * sure that GVO is supported by the handle.
-         */
-
-        if (a->flags.is_sdi_attribute &&
-            target_type != GVI_TARGET) {
-            int available;
-
-            status = NvCtrlGetAttribute(t, NV_CTRL_GVO_SUPPORTED,
-                                        &available);
-            if (status != NvCtrlSuccess) {
-                nv_error_msg("The attribute '%s' specified %s cannot be "
-                             "%s; error querying SDI availability on "
-                             "%s (%s).",
-                             a->name, whence, assign ? "assigned" : "queried",
-                             t->name, NvCtrlAttributesStrError(status));
-                continue;
-            }
-
-            if (available != NV_CTRL_GVO_SUPPORTED_TRUE) {
-                nv_error_msg("The attribute '%s' specified %s cannot be %s; "
-                             "SDI is not supported/available on %s.",
-                             a->name, whence, assign ? "assigned" : "queried",
-                             t->name);
-                continue;
-            }
-        }
-
         /* Handle string operations */
 
         if (a->type == CTRL_ATTRIBUTE_TYPE_STRING_OPERATION) {
@@ -2557,87 +2494,6 @@ int nv_process_parsed_attribute(const Options *op,
             free(ptrOut);
             continue;
         }
-
-
-
-        /* Special case the GVO CSC attribute */
-
-        if (a->type == CTRL_ATTRIBUTE_TYPE_SDI_CSC) {
-            float colorMatrix[3][3];
-            float colorOffset[3];
-            float colorScale[3];
-            int r, c;
-
-            if (assign) {
-
-                /* Make sure the standard is known */
-                if (!p->val.pf) {
-                    nv_error_msg("The attribute '%s' specified %s cannot be "
-                                 "assigned; valid values are \"ITU_601\", "
-                                 "\"ITU_709\", \"ITU_177\", and \"Identity\".",
-                                 a->name, whence);
-                    continue;
-                }
-
-                for (r = 0; r < 3; r++) {
-                    for (c = 0; c < 3; c++) {
-                        colorMatrix[r][c] = p->val.pf[r*5 + c];
-                    }
-                    colorOffset[r] = p->val.pf[r*5 + 3];
-                    colorScale[r] = p->val.pf[r*5 + 4];
-                }
-
-                status = NvCtrlSetGvoColorConversion(t,
-                                                     colorMatrix,
-                                                     colorOffset,
-                                                     colorScale);
-            } else {
-                status = NvCtrlGetGvoColorConversion(t,
-                                                     colorMatrix,
-                                                     colorOffset,
-                                                     colorScale);
-            }
-
-            if (status != NvCtrlSuccess) {
-                nv_error_msg("The attribute '%s' specified %s cannot be "
-                             "%s; error on %s (%s).",
-                             a->name, whence,
-                             assign ? "assigned" : "queried",
-                             t->name, NvCtrlAttributesStrError(status));
-                continue;
-            }
-
-
-            /* Print results */
-            if (!assign) {
-#define INDENT "    "
-
-                nv_msg(INDENT, "   Red       Green     Blue      Offset    Scale");
-                nv_msg(INDENT, "----------------------------------------------------");
-                nv_msg(INDENT, " Y % -.6f % -.6f % -.6f % -.6f % -.6f",
-                       colorMatrix[0][0],
-                       colorMatrix[0][1],
-                       colorMatrix[0][2],
-                       colorOffset[0],
-                       colorScale[0]);
-                nv_msg(INDENT, "Cr % -.6f % -.6f % -.6f % -.6f % -.6f",
-                       colorMatrix[1][0],
-                       colorMatrix[1][1],
-                       colorMatrix[1][2],
-                       colorOffset[1],
-                       colorScale[1]);
-                nv_msg(INDENT, "Cb % -.6f % -.6f % -.6f % -.6f % -.6f",
-                       colorMatrix[2][0],
-                       colorMatrix[2][1],
-                       colorMatrix[2][2],
-                       colorOffset[2],
-                       colorScale[2]);
-#undef INDENT
-            }
-
-            continue;
-        }
-
 
         /*
          * special case the display device mask in the case that it

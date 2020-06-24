@@ -40,8 +40,6 @@ typedef enum {
     X_SCREEN_TARGET = 0,
     GPU_TARGET,
     FRAMELOCK_TARGET,
-    VCS_TARGET,
-    GVI_TARGET,
     COOLER_TARGET,
     THERMAL_SENSOR_TARGET,
     NVIDIA_3D_VISION_PRO_TRANSCEIVER_TARGET,
@@ -87,6 +85,7 @@ enum {
     NV_DPY_PROTO_NAME_EDID_HASH,
     NV_DPY_PROTO_NAME_TARGET_INDEX,
     NV_DPY_PROTO_NAME_RANDR,
+    NV_DPY_PROTO_NAME_CONNECTOR,
     NV_DPY_PROTO_NAME_MAX,
 };
 
@@ -207,7 +206,6 @@ typedef enum {
     CTRL_ATTRIBUTE_TYPE_STRING_OPERATION,
     CTRL_ATTRIBUTE_TYPE_BINARY_DATA,
     CTRL_ATTRIBUTE_TYPE_COLOR,
-    CTRL_ATTRIBUTE_TYPE_SDI_CSC,
 } CtrlAttributeType;
 
 
@@ -804,23 +802,6 @@ ReturnStatus NvCtrlGetBinaryAttribute(const CtrlTarget *ctrl_target,
 ReturnStatus NvCtrlStringOperation(CtrlTarget *ctrl_target,
                                    unsigned int display_mask, int attr,
                                    const char *ptrIn, char **ptrOut);
-
-/*
- * NvCtrl[SG]etGvoColorConversion() - get and set the color conversion
- * matrix and offset used in the Graphics to Video Out (GVO)
- * extension.  These should only be used if the NV_CTRL_GVO_SUPPORTED
- * attribute is TRUE.
- */
-
-ReturnStatus NvCtrlSetGvoColorConversion(CtrlTarget *ctrl_target,
-                                         float colorMatrix[3][3],
-                                         float colorOffset[3],
-                                         float colorScale[3]);
-
-ReturnStatus NvCtrlGetGvoColorConversion(const CtrlTarget *ctrl_target,
-                                         float colorMatrix[3][3],
-                                         float colorOffset[3],
-                                         float colorScale[3]);
 
 const char *NvCtrlGetStereoModeNameIfExists(int stereo_mode);
 const char *NvCtrlGetStereoModeName(int stereo_mode);

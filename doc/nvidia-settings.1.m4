@@ -242,7 +242,7 @@ If no X screen is specified, then the attribute value will be queried for all va
 .PP
 Attributes can be addressed through "target types".
 A target type indicates the object that is queried when you query an attribute.
-The default target type is an X screen, but other possible target types are GPUs, Frame Lock devices, Visual Computing Systems, SDI Input Devices, fans, thermal sensors, 3D Vision Pro Transceivers and display devices.
+The default target type is an X screen, but other possible target types are GPUs, Frame Lock devices, Visual Computing Systems, fans, thermal sensors, 3D Vision Pro Transceivers and display devices.
 .PP
 Target types give you different granularities with which to perform queries and assignments.
 Since X screens can span multiple GPUs (in the case of Xinerama, or SLI), and multiple X screens can exist on the same GPU, it is sometimes useful to address attributes by GPU rather than X screen.
@@ -252,8 +252,6 @@ The target type name can be one of
 .B screen,
 .B gpu,
 .B framelock,
-.B vcs,
-.B gvi,
 .B fan,
 .B thermalsensor,
 .B svp,
@@ -339,7 +337,7 @@ for what targets types can be used with each attribute.
 See the output of
 .nf
 
-        nvidia\-settings \-\-query screens \-\-query gpus \-\-query framelocks \-\-query vcs \-\-query gvis \-\-query fans \-\-query thermalsensors \-\-query svps \-\-query dpys
+        nvidia\-settings \-\-query screens \-\-query gpus \-\-query framelocks \-\-query fans \-\-query thermalsensors \-\-query svps \-\-query dpys
 
 .fi
 for lists of targets for each target type.

@@ -2671,6 +2671,7 @@
 #define NV_CTRL_GPU_PCIE_GENERATION1                            0x00000001
 #define NV_CTRL_GPU_PCIE_GENERATION2                            0x00000002
 #define NV_CTRL_GPU_PCIE_GENERATION3                            0x00000003
+#define NV_CTRL_GPU_PCIE_GENERATION4                            0x00000004
 
 /*
  * NV_CTRL_GVI_BOUND_GPU - Returns the NV_CTRL_TARGET_TYPE_GPU target_id of
@@ -4301,9 +4302,20 @@
  */
 #define NV_CTRL_STRING_PRIME_OUTPUTS_DATA                           55 /* R--- */
 
+/*
+ * NV_CTRL_STRING_DISPLAY_NAME_TYPE_CONNECTOR - Returns a name for the display
+ * device based on the physical connector ("Connector-0", "Connector-1", etc).
+ * Note that multiple display devices may have the same connector-based name:
+ * DisplayPort MultiStream devices on the same connector, or display devices
+ * representing different protocols that can be possibly driven by the same
+ * connector (e.g., DisplayPort versus TMDS protocols driven over a DisplayPort
+ * connector).
+ */
+#define NV_CTRL_STRING_DISPLAY_NAME_CONNECTOR                       56 /* R-D- */
+
 
 #define NV_CTRL_STRING_LAST_ATTRIBUTE \
-    NV_CTRL_STRING_PRIME_OUTPUTS_DATA
+    NV_CTRL_STRING_DISPLAY_NAME_CONNECTOR
 
 
 /**************************************************************************/

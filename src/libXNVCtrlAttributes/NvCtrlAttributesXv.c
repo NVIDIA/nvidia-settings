@@ -235,7 +235,7 @@ ReturnStatus NvCtrlXvGetStringAttribute(const NvCtrlAttributePrivateHandle *h,
 
     /* Get Xv major & minor versions */
     if (attr == NV_CTRL_STRING_XV_VERSION) {
-        char str[16];
+        char str[24];
         sprintf(str, "%d.%d", h->xv->major_version, h->xv->minor_version);
         *ptr = strdup(str);
         return NvCtrlSuccess;

@@ -213,6 +213,10 @@ static int queryBaseInfo(CtkVDPAU *ctk_vdpau, VdpDevice device,
         {"HEVC",           VDP_DECODER_PROFILE_HEVC_MAIN_STILL, 0x80},
         {"HEVC",              VDP_DECODER_PROFILE_HEVC_MAIN_12, 0x80},
         {"HEVC",             VDP_DECODER_PROFILE_HEVC_MAIN_444, 0x80},
+#ifdef VDP_DECODER_PROFILE_HEVC_MAIN_444_10
+        {"HEVC",          VDP_DECODER_PROFILE_HEVC_MAIN_444_10, 0x80},
+        {"HEVC",          VDP_DECODER_PROFILE_HEVC_MAIN_444_12, 0x80},
+#endif
 #ifdef VDP_DECODER_PROFILE_VP9_PROFILE_0
         {"VP9",             VDP_DECODER_PROFILE_VP9_PROFILE_0, 0x100},
         {"VP9",             VDP_DECODER_PROFILE_VP9_PROFILE_1, 0x100},
@@ -319,6 +323,17 @@ static const Desc ycbcr_types[] = {
 #else
 #warning "Update libvdpau to version 1.2"
 #endif
+#ifdef VDP_YCBCR_FORMAT_P010
+    {"P010", VDP_YCBCR_FORMAT_P010, 0},
+    {"P016", VDP_YCBCR_FORMAT_P016, 0},
+    {"Y_U_V_444_16", VDP_YCBCR_FORMAT_Y_U_V_444_16, 0},
+#else
+    /*
+     * TO DO: Update the libvdpau version in place of x.x once new libvdpau
+     * wrapper lib release is made.
+     */
+#warning "Update libvdpau to version x.x"
+#endif
 };
 static const size_t ycbcr_type_count = sizeof(ycbcr_types)/sizeof(Desc);
 
@@ -343,6 +358,11 @@ static int queryVideoSurface(CtkVDPAU *ctk_vdpau, VdpDevice device,
         {"420", VDP_CHROMA_TYPE_420, 0},
         {"422", VDP_CHROMA_TYPE_422, 0},
         {"444", VDP_CHROMA_TYPE_444, 0},
+#ifdef VDP_CHROMA_TYPE_420_16
+        {"420_16", VDP_CHROMA_TYPE_420_16, 0},
+        {"422_16", VDP_CHROMA_TYPE_422_16, 0},
+        {"444_16", VDP_CHROMA_TYPE_444_16, 0},
+#endif
     };
 
     const size_t chroma_type_count = sizeof(chroma_types)/sizeof(Desc);
@@ -549,6 +569,10 @@ static int queryDecoderCaps(CtkVDPAU *ctk_vdpau, VdpDevice device,
         {"HEVC Main Still Picture", VDP_DECODER_PROFILE_HEVC_MAIN_STILL, 0},
         {"HEVC Main 12",       VDP_DECODER_PROFILE_HEVC_MAIN_12,       0},
         {"HEVC Main 4:4:4",    VDP_DECODER_PROFILE_HEVC_MAIN_444,      0},
+#ifdef VDP_DECODER_PROFILE_HEVC_MAIN_444_10
+        {"HEVC Main 4:4:4 10", VDP_DECODER_PROFILE_HEVC_MAIN_444_10,   0},
+        {"HEVC Main 4:4:4 12", VDP_DECODER_PROFILE_HEVC_MAIN_444_12,   0},
+#endif
 #ifdef VDP_DECODER_PROFILE_VP9_PROFILE_0
         {"VP9 PROFILE 0",      VDP_DECODER_PROFILE_VP9_PROFILE_0,      0},
         {"VP9 PROFILE 1",      VDP_DECODER_PROFILE_VP9_PROFILE_1,      0},

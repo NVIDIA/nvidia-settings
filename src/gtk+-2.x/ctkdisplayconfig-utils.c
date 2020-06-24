@@ -339,61 +339,43 @@ static nvModeLinePtr modeline_parse(nvDisplayPtr display,
     }
     free(tmp);
 
-    modeline->refresh_rate = 0;
-    if (display->is_sdi && gpu->num_gvo_modes) {
-        /* Fetch the SDI refresh rate of the mode from the gvo mode table */
-        int i;
-        for (i = 0; i < gpu->num_gvo_modes; i++) {
-            if (gpu->gvo_mode_data[i].id &&
-                gpu->gvo_mode_data[i].name &&
-                !strcmp(gpu->gvo_mode_data[i].name,
-                        modeline->data.identifier)) {
-                modeline->refresh_rate = gpu->gvo_mode_data[i].rate;
-                modeline->refresh_rate /= 1000.0;
-                break;
-            }
-        }
+    /*
+     * Calculate the vertical refresh rate of the modeline in Hz;
+     * divide by two for double scan modes (if the double scan
+     * modeline isn't broken; i.e., already has a correct vtotal), and
+     * multiply by two for interlaced modes (so that we report the
+     * field rate, rather than the frame rate)
+     */
+
+    htotal = (double) modeline->data.htotal;
+    vtotal = (double) modeline->data.vtotal;
+
+    /*
+     * Use g_ascii_strtod(), so that we do not have to change the locale
+     * to "C".
+     */
+    pclk = g_ascii_strtod((const gchar *)modeline->data.clock,
+                          (gchar **)&nptr);
+
+    if ((pclk == 0.0) || !nptr || *nptr != '\0' || ((htotal * vtotal) == 0)) {
+        nv_warning_msg("Failed to compute the refresh rate "
+                       "for the modeline '%s'", str);
+        goto fail;
     }
 
-    if (modeline->refresh_rate == 0) {
-        /*
-         * Calculate the vertical refresh rate of the modeline in Hz;
-         * divide by two for double scan modes (if the double scan
-         * modeline isn't broken; i.e., already has a correct vtotal), and
-         * multiply by two for interlaced modes (so that we report the
-         * field rate, rather than the frame rate)
-         */
+    modeline->refresh_rate = (pclk * 1000000.0) / (htotal * vtotal);
 
-        htotal = (double) modeline->data.htotal;
-        vtotal = (double) modeline->data.vtotal;
+    factor = 1.0;
 
-        /*
-         * Use g_ascii_strtod(), so that we do not have to change the locale
-         * to "C".
-         */
-        pclk = g_ascii_strtod((const gchar *)modeline->data.clock,
-                              (gchar **)&nptr);
-
-        if ((pclk == 0.0) || !nptr || *nptr != '\0' || ((htotal * vtotal) == 0)) {
-            nv_warning_msg("Failed to compute the refresh rate "
-                           "for the modeline '%s'", str);
-            goto fail;
-        }
-
-        modeline->refresh_rate = (pclk * 1000000.0) / (htotal * vtotal);
-
-        factor = 1.0;
-
-        if ((modeline->data.flags & V_DBLSCAN) && !broken_doublescan_modelines) {
-            factor *= 0.5;
-        }
-
-        if (modeline->data.flags & V_INTERLACE) {
-            factor *= 2.0;
-        }
-
-        modeline->refresh_rate *= factor;
+    if ((modeline->data.flags & V_DBLSCAN) && !broken_doublescan_modelines) {
+        factor *= 0.5;
     }
+
+    if (modeline->data.flags & V_INTERLACE) {
+        factor *= 2.0;
+    }
+
+    modeline->refresh_rate *= factor;
 
     return modeline;
 
@@ -2728,49 +2710,6 @@ static void gpu_add_display(nvGpuPtr gpu, nvDisplayPtr display)
 
 
 
-/** gpu_query_gvo_mode_info() ****************************************
- *
- * Adds GVO mode information to the GPU's gvo mode data table at
- * the given table index.
- *
- **/
-static Bool gpu_query_gvo_mode_info(nvGpuPtr gpu, int mode_id, int table_idx)
-{
-    ReturnStatus ret1, ret2;
-    GvoModeData *data;
-    int rate;
-    char *name;
-
-
-    if (!gpu || table_idx >= gpu->num_gvo_modes) {
-        return FALSE;
-    }
-
-    data = &(gpu->gvo_mode_data[table_idx]);
-
-    ret1 = NvCtrlGetDisplayAttribute(gpu->ctrl_target,
-                                     mode_id,
-                                     NV_CTRL_GVIO_VIDEO_FORMAT_REFRESH_RATE,
-                                     &rate);
-
-    ret2 = NvCtrlGetStringDisplayAttribute(gpu->ctrl_target,
-                                           mode_id,
-                                           NV_CTRL_STRING_GVIO_VIDEO_FORMAT_NAME,
-                                           &name);
-
-    if ((ret1 == NvCtrlSuccess) && (ret2 == NvCtrlSuccess)) {
-        data->id = mode_id;
-        data->rate = rate;
-        data->name = name;
-        return TRUE;
-    }
-
-    free(name);
-    return FALSE;
-}
-
-
-
 /** display_add_name_from_server() ***********************************
  *
  *  Queries and adds the NV-CONTROL name to the display device.
@@ -2835,7 +2774,6 @@ static nvDisplayPtr gpu_add_display_from_server(nvGpuPtr gpu,
                                                 CtrlTarget *ctrl_target,
                                                 gchar **err_str)
 {
-    ReturnStatus ret;
     nvDisplayPtr display;
     int i;
 
@@ -2854,103 +2792,6 @@ static nvDisplayPtr gpu_add_display_from_server(nvGpuPtr gpu,
             goto fail;
         }
     }
-
-
-    /* Query if this display is an SDI display */
-    ret = NvCtrlGetAttribute(ctrl_target,
-                             NV_CTRL_IS_GVO_DISPLAY,
-                             &(display->is_sdi));
-    if (ret != NvCtrlSuccess) {
-        nv_warning_msg("Failed to query if display device\n"
-                       "%d connected to GPU-%d '%s' is an\n"
-                       "SDI device.",
-                       NvCtrlGetTargetId(ctrl_target),
-                       NvCtrlGetTargetId(gpu->ctrl_target),
-                       gpu->name);
-        display->is_sdi = FALSE;
-    }
-
-
-    /* Load the SDI mode table so we can report accurate refresh rates. */
-    if (display->is_sdi && !gpu->gvo_mode_data) {
-        unsigned int valid1 = 0;
-        unsigned int valid2 = 0;
-        unsigned int valid3 = 0;
-        CtrlAttributeValidValues valid;
-
-        ret = NvCtrlGetValidAttributeValues(gpu->ctrl_target,
-                                            NV_CTRL_GVIO_REQUESTED_VIDEO_FORMAT,
-                                            &valid);
-        if ((ret != NvCtrlSuccess) ||
-            (valid.valid_type != CTRL_ATTRIBUTE_VALID_TYPE_INT_BITS)) {
-            valid1 = 0;
-        } else {
-            valid1 = valid.allowed_ints;
-        }
-
-        ret = NvCtrlGetValidAttributeValues(gpu->ctrl_target,
-                                            NV_CTRL_GVIO_REQUESTED_VIDEO_FORMAT2,
-                                            &valid);
-        if ((ret != NvCtrlSuccess) ||
-            (valid.valid_type != CTRL_ATTRIBUTE_VALID_TYPE_INT_BITS)) {
-            valid2 = 0;
-        } else {
-            valid2 = valid.allowed_ints;
-        }
-
-        ret = NvCtrlGetValidAttributeValues(gpu->ctrl_target,
-                                            NV_CTRL_GVIO_REQUESTED_VIDEO_FORMAT3,
-                                            &valid);
-        if ((ret != NvCtrlSuccess) ||
-            (valid.valid_type != CTRL_ATTRIBUTE_VALID_TYPE_INT_BITS)) {
-            valid3 = 0;
-        } else {
-            valid3 = valid.allowed_ints;
-        }
-
-        /* Count the number of valid modes there are */
-        gpu->num_gvo_modes = count_number_of_bits(valid1);
-        gpu->num_gvo_modes += count_number_of_bits(valid2);
-        gpu->num_gvo_modes += count_number_of_bits(valid3);
-        if (gpu->num_gvo_modes > 0) {
-            gpu->gvo_mode_data = calloc(gpu->num_gvo_modes, sizeof(GvoModeData));
-        }
-        if (!gpu->gvo_mode_data) {
-            gpu->num_gvo_modes = 0;
-        } else {
-            // Gather all the bits and dump them into the array
-            int idx = 0; // Index into gvo_mode_data.
-            int id = 0;  // Mode ID
-            while (valid1) {
-                if (valid1 & 1) {
-                    if (gpu_query_gvo_mode_info(gpu, id, idx)) {
-                        idx++;
-                    }
-                }
-                valid1 >>= 1;
-                id++;
-            }
-            while (valid2) {
-                if (valid2 & 1) {
-                    if (gpu_query_gvo_mode_info(gpu, id, idx)) {
-                        idx++;
-                    }
-                }
-                valid2 >>= 1;
-                id++;
-            }
-            while (valid3) {
-                if (valid3 & 1) {
-                    if (gpu_query_gvo_mode_info(gpu, id, idx)) {
-                        idx++;
-                    }
-                }
-                valid3 >>= 1;
-                id++;
-            }
-        }
-    }
-
 
     /* Query the modelines for the display device */
     if (!display_add_modelines_from_server(display, gpu, err_str)) {
@@ -3069,7 +2910,6 @@ static void gpu_free(nvGpuPtr gpu)
         free(gpu->uuid);
         free(gpu->flags_memory);
         g_free(gpu->pci_bus_id);
-        free(gpu->gvo_mode_data);
         free(gpu);
     }
 
