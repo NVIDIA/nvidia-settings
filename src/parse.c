@@ -405,7 +405,7 @@ const int attributeTableLen = ARRAY_LEN(attributeTable);
 #warning "Have you forgotten to add a new integer attribute to attributeTable?"
 #endif
 
-#if NV_CTRL_STRING_LAST_ATTRIBUTE != NV_CTRL_STRING_PRIME_OUTPUTS_DATA
+#if NV_CTRL_STRING_LAST_ATTRIBUTE != NV_CTRL_STRING_DISPLAY_NAME_CONNECTOR
 #warning "Have you forgotten to add a new string attribute to attributeTable?"
 #endif
 

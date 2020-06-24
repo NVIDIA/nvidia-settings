@@ -195,6 +195,9 @@ static void load_display_target_proto_names(CtrlTarget *t)
 
     t->protoNames[NV_DPY_PROTO_NAME_RANDR] =
         query_x_name(t, NV_CTRL_STRING_DISPLAY_NAME_RANDR);
+
+    t->protoNames[NV_DPY_PROTO_NAME_CONNECTOR] =
+        query_x_name(t, NV_CTRL_STRING_DISPLAY_NAME_CONNECTOR);
 }
 
 

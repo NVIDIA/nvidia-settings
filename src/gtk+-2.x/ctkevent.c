@@ -419,7 +419,7 @@ static void ctk_event_class_init(CtkEventClass *ctk_event_class)
     MAKE_STRING_SIGNAL(NV_CTRL_STRING_PRIME_OUTPUTS_DATA);
 #undef MAKE_STRING_SIGNAL
 
-#if NV_CTRL_STRING_LAST_ATTRIBUTE != NV_CTRL_STRING_PRIME_OUTPUTS_DATA
+#if NV_CTRL_STRING_LAST_ATTRIBUTE != NV_CTRL_STRING_DISPLAY_NAME_CONNECTOR
 #warning "There are attributes that do not emit signals!"
 #endif
 
