@@ -404,7 +404,7 @@ NvCtrlXrandrGetStringAttribute(const NvCtrlAttributePrivateHandle *h,
 
     /* Get Xrandr major & minor versions */
     if (attr == NV_CTRL_STRING_XRANDR_VERSION) {
-        char str[16];
+        char str[24];
         sprintf(str, "%d.%d", h->xrandr->major_version, h->xrandr->minor_version);
         *ptr = strdup(str);
         return NvCtrlSuccess;

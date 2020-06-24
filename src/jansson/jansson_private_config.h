@@ -3,7 +3,7 @@
 #endif
 
 /* Prevent value.c from overriding Solaris's builtin isnan() */
-#if defined(NV_SUNOS)
+#if defined(NV_SUNOS) && !defined(isnan)
 # define isnan isnan
 #endif
 

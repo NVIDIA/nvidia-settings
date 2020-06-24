@@ -48,14 +48,10 @@
 #include "help.png.h"
 #include "opengl.png.h"
 #include "penguin.png.h"
-#include "gvi.png.h"
-#include "sdi.png.h"
-#include "sdi_shared_sync_bnc.png.h"
 #include "server_licensing.png.h"
 #include "slimm.png.h"
 #include "solaris.png.h"
 #include "thermal.png.h"
-#include "vcs.png.h"
 #include "vdpau.png.h"
 #include "x.png.h"
 #include "xvideo.png.h"
@@ -422,17 +418,13 @@ static GdkPixbuf* select_artwork(BannerArtworkType artwork,
         { BANNER_ARTWORK_FRAMELOCK,      FALSE, 16,      PNG(framelock)           },
         { BANNER_ARTWORK_GPU,            FALSE, 16,      PNG(gpu)                 },
         { BANNER_ARTWORK_GRAPHICS,       FALSE, 16,      PNG(graphics)            },
-        { BANNER_ARTWORK_GVI,            FALSE, 16,      PNG(gvi)                 },
         { BANNER_ARTWORK_HELP,           FALSE, 16,      PNG(help)                },
         { BANNER_ARTWORK_OPENGL,         FALSE, 16,      PNG(opengl)              },
         { BANNER_ARTWORK_PENGUIN,        TRUE,  16,      PNG(penguin)             },
-        { BANNER_ARTWORK_SDI,            FALSE, 16,      PNG(sdi)                 },
-        { BANNER_ARTWORK_SDI_SHARED_SYNC_BNC, FALSE, 16, PNG(sdi_shared_sync_bnc) },
         { BANNER_ARTWORK_SERVER_LICENSING, FALSE, 16,    PNG(server_licensing)    },
         { BANNER_ARTWORK_SLIMM,          FALSE, 16,      PNG(slimm)               },
         { BANNER_ARTWORK_SOLARIS,        TRUE,  16,      PNG(solaris)             },
         { BANNER_ARTWORK_THERMAL,        FALSE, 16,      PNG(thermal)             },
-        { BANNER_ARTWORK_VCS,            FALSE, 16,      PNG(vcs)                 },
         { BANNER_ARTWORK_VDPAU,          FALSE, 16,      PNG(vdpau)               },
         { BANNER_ARTWORK_X,              FALSE, 16,      PNG(x)                   },
         { BANNER_ARTWORK_XVIDEO,         FALSE, 16,      PNG(xvideo)              },

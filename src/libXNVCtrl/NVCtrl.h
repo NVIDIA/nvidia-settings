@@ -2671,6 +2671,7 @@
 #define NV_CTRL_GPU_PCIE_GENERATION1                            0x00000001
 #define NV_CTRL_GPU_PCIE_GENERATION2                            0x00000002
 #define NV_CTRL_GPU_PCIE_GENERATION3                            0x00000003
+#define NV_CTRL_GPU_PCIE_GENERATION4                            0x00000004
 
 /*
  * NV_CTRL_GVI_BOUND_GPU - Returns the NV_CTRL_TARGET_TYPE_GPU target_id of

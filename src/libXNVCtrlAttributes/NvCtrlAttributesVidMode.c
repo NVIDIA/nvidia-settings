@@ -242,7 +242,7 @@ NvCtrlVidModeGetStringAttribute(const NvCtrlAttributePrivateHandle *h,
 
     /* Get Video Mode major & minor versions */
     if (attr == NV_CTRL_STRING_XF86VIDMODE_VERSION) {
-        char str[16];
+        char str[24];
         sprintf(str, "%d.%d", h->vm->major_version, h->vm->minor_version);
         *ptr = strdup(str);
         return NvCtrlSuccess;

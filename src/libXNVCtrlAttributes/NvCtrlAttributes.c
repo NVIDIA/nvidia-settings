@@ -69,22 +69,6 @@ const CtrlTargetTypeInfo targetTypeInfoTable[] = {
       NV_FALSE,                                                      /* uses_display_devices */
       1, 10 },                                                       /* required major,minor protocol rev */
 
-    [VCS_TARGET] =
-    { "VCS",                                                         /* name */
-      "vcs",                                                         /* parsed_name */
-      NV_CTRL_TARGET_TYPE_VCSC,                                      /* nvctrl */
-      CTRL_TARGET_PERM_BIT(VCS_TARGET),                              /* permission_bit */
-      NV_FALSE,                                                      /* uses_display_devices */
-      1, 12 },                                                       /* required major,minor protocol rev */
-
-    [GVI_TARGET] =
-    { "SDI Input Device",                                            /* name */
-      "gvi",                                                         /* parsed_name */
-      NV_CTRL_TARGET_TYPE_GVI,                                       /* nvctrl */
-      CTRL_TARGET_PERM_BIT(GVI_TARGET),                              /* permission_bit */
-      NV_FALSE,                                                      /* uses_display_devices */
-      1, 18 },                                                       /* required major,minor protocol rev */
-
     [COOLER_TARGET] =
     { "Fan",                                                         /* name */
       "fan",                                                         /* parsed_name */
@@ -133,8 +117,6 @@ Bool NvCtrlIsTargetTypeValid(CtrlTargetType target_type)
         case X_SCREEN_TARGET:
         case GPU_TARGET:
         case FRAMELOCK_TARGET:
-        case VCS_TARGET:
-        case GVI_TARGET:
         case COOLER_TARGET:
         case THERMAL_SENSOR_TARGET:
         case NVIDIA_3D_VISION_PRO_TRANSCEIVER_TARGET:
@@ -628,8 +610,6 @@ ReturnStatus NvCtrlQueryTargetCount(const CtrlTarget *ctrl_target,
         case DISPLAY_TARGET:
         case X_SCREEN_TARGET:
         case FRAMELOCK_TARGET:
-        case VCS_TARGET:
-        case GVI_TARGET:
         case NVIDIA_3D_VISION_PRO_TRANSCEIVER_TARGET:
             return NvCtrlNvControlQueryTargetCount(h, target_type, val);
         default:
@@ -701,7 +681,6 @@ ReturnStatus NvCtrlGetAttributePerms(const CtrlTarget *ctrl_target,
             return NvCtrlNvControlGetAttributePerms(h, attr_type, attr, perms);
 
         case CTRL_ATTRIBUTE_TYPE_COLOR:
-        case CTRL_ATTRIBUTE_TYPE_SDI_CSC:
             /*
              * Allow non NV-CONTROL attributes to be read/written on X screen
              * targets
@@ -790,8 +769,6 @@ ReturnStatus NvCtrlGetDisplayAttribute64(const CtrlTarget *ctrl_target,
             case DISPLAY_TARGET:
             case X_SCREEN_TARGET:
             case FRAMELOCK_TARGET:
-            case VCS_TARGET:
-            case GVI_TARGET:
             case NVIDIA_3D_VISION_PRO_TRANSCEIVER_TARGET:
                 if (!h->nv) return NvCtrlMissingExtension;
                 return NvCtrlNvControlGetAttribute(h, display_mask, attr, val);
@@ -853,8 +830,6 @@ ReturnStatus NvCtrlSetDisplayAttribute(CtrlTarget *ctrl_target,
             case DISPLAY_TARGET:
             case X_SCREEN_TARGET:
             case FRAMELOCK_TARGET:
-            case VCS_TARGET:
-            case GVI_TARGET:
             case NVIDIA_3D_VISION_PRO_TRANSCEIVER_TARGET:
                 if (!h->nv) {
                     return NvCtrlMissingExtension;
@@ -929,8 +904,6 @@ NvCtrlGetValidDisplayAttributeValues(const CtrlTarget *ctrl_target,
             case DISPLAY_TARGET:
             case X_SCREEN_TARGET:
             case FRAMELOCK_TARGET:
-            case VCS_TARGET:
-            case GVI_TARGET:
             case NVIDIA_3D_VISION_PRO_TRANSCEIVER_TARGET:
                 if (!h->nv) {
                     return NvCtrlMissingExtension;
@@ -1004,8 +977,6 @@ NvCtrlGetValidStringDisplayAttributeValues(const CtrlTarget *ctrl_target,
             case DISPLAY_TARGET:
             case X_SCREEN_TARGET:
             case FRAMELOCK_TARGET:
-            case VCS_TARGET:
-            case GVI_TARGET:
             case NVIDIA_3D_VISION_PRO_TRANSCEIVER_TARGET:
                 if (!h->nv) {
                     return NvCtrlMissingExtension;
@@ -1089,8 +1060,6 @@ ReturnStatus NvCtrlGetStringDisplayAttribute(const CtrlTarget *ctrl_target,
         case DISPLAY_TARGET:
         case X_SCREEN_TARGET:
         case FRAMELOCK_TARGET:
-        case VCS_TARGET:
-        case GVI_TARGET:
         case NVIDIA_3D_VISION_PRO_TRANSCEIVER_TARGET:
             if ((attr >= 0) && (attr <= NV_CTRL_STRING_LAST_ATTRIBUTE)) {
                 if (!h->nv) return NvCtrlMissingExtension;
@@ -1171,8 +1140,6 @@ ReturnStatus NvCtrlSetStringDisplayAttribute(CtrlTarget *ctrl_target,
             case DISPLAY_TARGET:
             case X_SCREEN_TARGET:
             case FRAMELOCK_TARGET:
-            case VCS_TARGET:
-            case GVI_TARGET:
             case NVIDIA_3D_VISION_PRO_TRANSCEIVER_TARGET:
                 if (!h->nv) return NvCtrlMissingExtension;
                 return NvCtrlNvControlSetStringAttribute(h, display_mask, attr,
@@ -1215,8 +1182,6 @@ ReturnStatus NvCtrlGetBinaryAttribute(const CtrlTarget *ctrl_target,
         case DISPLAY_TARGET:
         case X_SCREEN_TARGET:
         case FRAMELOCK_TARGET:
-        case VCS_TARGET:
-        case GVI_TARGET:
         case NVIDIA_3D_VISION_PRO_TRANSCEIVER_TARGET:
             return NvCtrlNvControlGetBinaryAttribute(h, display_mask, attr, data, len);
         default:

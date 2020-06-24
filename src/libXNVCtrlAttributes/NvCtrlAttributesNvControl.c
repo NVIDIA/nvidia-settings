@@ -277,12 +277,6 @@ static void convertFromNvCtrlPermissions(CtrlAttributePerms *dst,
     if (permissions & ATTRIBUTE_TYPE_FRAMELOCK) {
         dst->valid_targets |= CTRL_TARGET_PERM_BIT(FRAMELOCK_TARGET);
     }
-    if (permissions & ATTRIBUTE_TYPE_VCSC) {
-        dst->valid_targets |= CTRL_TARGET_PERM_BIT(VCS_TARGET);
-    }
-    if (permissions & ATTRIBUTE_TYPE_GVI) {
-        dst->valid_targets |= CTRL_TARGET_PERM_BIT(GVI_TARGET);
-    }
     if (permissions & ATTRIBUTE_TYPE_COOLER) {
         dst->valid_targets |= CTRL_TARGET_PERM_BIT(COOLER_TARGET);
     }
@@ -481,7 +475,7 @@ NvCtrlNvControlGetStringAttribute(const NvCtrlAttributePrivateHandle *h,
     }
 
     if (attr == NV_CTRL_STRING_NV_CONTROL_VERSION) {
-        char str[16];
+        char str[24];
         if (h->target_type != X_SCREEN_TARGET) {
             return NvCtrlBadHandle;
         }
@@ -651,67 +645,3 @@ NvCtrlNvControlStringOperation(NvCtrlAttributePrivateHandle *h,
     return NvCtrlNoAttribute;
 
 } /* NvCtrlNvControlStringOperation() */
-
-
-ReturnStatus NvCtrlSetGvoColorConversion(CtrlTarget *ctrl_target,
-                                         float colorMatrix[3][3],
-                                         float colorOffset[3],
-                                         float colorScale[3])
-{
-    NvCtrlAttributePrivateHandle *h;
-        
-    if (ctrl_target == NULL || ctrl_target->h == NULL) {
-        return NvCtrlBadHandle;
-    }
-
-    h = (NvCtrlAttributePrivateHandle *)(ctrl_target->h);
-
-    if (!h->nv) return NvCtrlMissingExtension;
-    
-    if (h->target_type != X_SCREEN_TARGET) {
-        return NvCtrlBadHandle;
-    }
-    
-    XNVCTRLSetGvoColorConversion(h->dpy,
-                                 h->target_id,
-                                 colorMatrix,
-                                 colorOffset,
-                                 colorScale);
-    
-    return NvCtrlSuccess;
-    
-} /* NvCtrlNvControlSetGvoColorConversion() */
-
-
-ReturnStatus NvCtrlGetGvoColorConversion(const CtrlTarget *ctrl_target,
-                                         float colorMatrix[3][3],
-                                         float colorOffset[3],
-                                         float colorScale[3])
-{
-    const NvCtrlAttributePrivateHandle *h;
-    Bool bRet;
-        
-    if (ctrl_target == NULL || ctrl_target->h == NULL) {
-        return NvCtrlBadHandle;
-    }
-    
-    h = (const NvCtrlAttributePrivateHandle *)(ctrl_target->h);
-
-    if (!h->nv) return NvCtrlMissingExtension;
-    
-    if (h->target_type != X_SCREEN_TARGET) {
-        return NvCtrlBadHandle;
-    }
-
-    bRet = XNVCTRLQueryGvoColorConversion(h->dpy,
-                                          h->target_id,
-                                          colorMatrix,
-                                          colorOffset,
-                                          colorScale);
-    if (!bRet) {
-        return NvCtrlError;
-    } else {
-        return NvCtrlSuccess;
-    }
-
-} /* NvCtrlNvControlGetGvoColorConversion() */

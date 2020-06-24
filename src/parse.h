@@ -71,7 +71,6 @@ typedef unsigned int uint32;
 typedef struct AttributeFlagsRec {
     int is_gui_attribute       : 1;
     int is_framelock_attribute : 1;
-    int is_sdi_attribute       : 1;
     int hijack_display_device  : 1;
     int no_config_write        : 1;
     int no_query_all           : 1;
@@ -169,18 +168,6 @@ extern const AttributeTableEntry attributeTable[];
 extern const int attributeTableLen;
 
 
-
-/* nv_get_sdi_csc_matrxi() - Returns an array of floats that specifies
- * all the color, offset and scale values for specifying one of the
- * Standard CSC. 's' is a string that names the matrix values to return.
- * The values are placed in the float buffer like so:
- *
- * { YR,  YG,  YB,   YOffset,  YScale,
- *   CrR, CrG, CrB,  CrOffset, CrScale,
- *   CbR, CbG, CbB,  CbOffset, CbScale }
- *
- */
-const float * nv_get_sdi_csc_matrix(char *s);
 
 /*
  * nv_parse_attribute_string() - this function parses an attribute

@@ -82,8 +82,6 @@ int main(int argc, char *argv[])
     int major, minor;
 
     int num_gpus, num_screens, num_syncs;
-    int num_vcs;
-    int num_gvis;
     int num_coolers;
     int num_thermal_sensors;
     int gpu, screen;
@@ -177,32 +175,6 @@ int main(int argc, char *argv[])
         return 1;
     }
     printf("  number of Frame Lock Devices: %d\n", num_syncs);
-
-
-    /* Get the number of Visual Computing System devices in
-     * the system
-     */
-
-    ret = XNVCTRLQueryTargetCount(dpy, NV_CTRL_TARGET_TYPE_VCSC,
-                                  &num_vcs);
-    if (!ret) {
-        fprintf(stderr, "Failed to query number of VCS\n");
-        return 1;
-    }
-    printf("  number of Visual Computing System Devices: %d\n",
-           num_vcs);
-
-
-    /* Get the number of GVI devices in the system */
-
-    ret = XNVCTRLQueryTargetCount(dpy, NV_CTRL_TARGET_TYPE_GVI,
-                                  &num_gvis);
-    if (!ret) {
-        fprintf(stderr, "Failed to query number of GVIs\n");
-        return 1;
-    }
-    printf("  number of Graphics Video Input Devices: %d\n",
-           num_gvis);
 
 
     /* Get the number of Cooler devices in the system */

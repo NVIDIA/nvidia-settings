@@ -105,9 +105,6 @@ static void print_attribute_help(const char *attr)
                 case CTRL_ATTRIBUTE_TYPE_COLOR:
                     nv_msg(NULL, "  - Attribute value is a color.");
                     break;
-                case CTRL_ATTRIBUTE_TYPE_SDI_CSC:
-                    nv_msg(NULL, "  - Attribute value is a SDI CSC matrix.");
-                    break;
                 }
 
                 /* Attribute flags (common) */
@@ -117,9 +114,6 @@ static void print_attribute_help(const char *attr)
                 }
                 if (entry->flags.is_framelock_attribute) {
                     nv_msg(NULL, "  - Is Frame Lock attribute.");
-                }
-                if (entry->flags.is_sdi_attribute) {
-                    nv_msg(NULL, "  - Is SDI attribute.");
                 }
                 if (entry->flags.no_config_write) {
                     nv_msg(NULL, "  - Attribute is not written to the rc file.");
@@ -158,7 +152,6 @@ static void print_attribute_help(const char *attr)
                     break;
                 case CTRL_ATTRIBUTE_TYPE_STRING:
                 case CTRL_ATTRIBUTE_TYPE_COLOR:
-                case CTRL_ATTRIBUTE_TYPE_SDI_CSC:
                 case CTRL_ATTRIBUTE_TYPE_STRING_OPERATION:
                 case CTRL_ATTRIBUTE_TYPE_BINARY_DATA:
                     /* Nothing specific to report for these */

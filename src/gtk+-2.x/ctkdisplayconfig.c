@@ -978,7 +978,7 @@ static GtkWidget * create_validation_dialog(CtkDisplayConfig *ctk_object)
     dialog = gtk_dialog_new_with_buttons
         ("Layout Inconsistencie(s)",
          GTK_WINDOW(gtk_widget_get_parent(GTK_WIDGET(ctk_object))),
-         GTK_DIALOG_MODAL | GTK_DIALOG_DESTROY_WITH_PARENT, NULL);
+         GTK_DIALOG_MODAL | GTK_DIALOG_DESTROY_WITH_PARENT, NULL, NULL);
     
     /* Main horizontal box */
     hbox = gtk_hbox_new(FALSE, 5);
@@ -1079,7 +1079,7 @@ static GtkWidget * create_validation_apply_dialog(CtkDisplayConfig *ctk_object)
          GTK_WINDOW(gtk_widget_get_parent(GTK_WIDGET(ctk_object))),
          GTK_DIALOG_MODAL |
          GTK_DIALOG_DESTROY_WITH_PARENT,
-         NULL);
+         NULL, NULL);
     ctk_object->dlg_validation_apply = dialog;
 
     /* Main horizontal box */
@@ -1545,7 +1545,7 @@ GtkWidget* ctk_display_config_new(CtrlTarget *ctrl_target,
     ctk_object->dlg_display_disable = gtk_dialog_new_with_buttons
         ("Disable Display Device",
          GTK_WINDOW(gtk_widget_get_parent(GTK_WIDGET(ctk_object))),
-         GTK_DIALOG_MODAL | GTK_DIALOG_DESTROY_WITH_PARENT, NULL);
+         GTK_DIALOG_MODAL | GTK_DIALOG_DESTROY_WITH_PARENT, NULL, NULL);
     ctk_object->btn_display_disable_off =
         gtk_dialog_add_button(GTK_DIALOG(ctk_object->dlg_display_disable),
                               "Remove",
@@ -3233,7 +3233,7 @@ static void setup_display_refresh_dropdown(CtkDisplayConfig *ctk_object)
             continue;
         }
 
-        name = g_strdup_printf("%0.*f Hz", (display->is_sdi ? 3 : 0),
+        name = g_strdup_printf("%0.0f Hz",
                                modeline->refresh_rate);
 
         /* Get a unique number for this modeline */
@@ -3261,7 +3261,7 @@ static void setup_display_refresh_dropdown(CtkDisplayConfig *ctk_object)
         }
 
         /* Is default refresh rate for resolution */
-        if (!ctk_object->refresh_table_len && !display->is_sdi) {
+        if (!ctk_object->refresh_table_len) {
             auto_modeline = modeline;
             g_free(name);
             name = g_strdup("Auto");

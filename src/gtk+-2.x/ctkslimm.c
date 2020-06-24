@@ -1335,9 +1335,8 @@ GtkWidget* ctk_slimm_new(CtrlTarget *ctrl_target,
         trust_slimm_available = TRUE;
     }
 
-    /* return on old X drivers if target is other than VCS. */
-    if (!ctk_config->pCtrlSystem->targets[VCS_TARGET] &&
-        !trust_slimm_available) {
+    /* return on old X drivers. */
+    if (!trust_slimm_available) {
       return NULL;
     }
 

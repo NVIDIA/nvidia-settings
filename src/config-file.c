@@ -355,7 +355,7 @@ int nv_write_config_file(const char *filename, const CtrlSystem *system,
                 continue;
             }
 
-            /* Only write out integer attributes, string and SDI CSC attributes
+            /* Only write out integer attributes, string attributes
              * aren't written here.
              */
             if (a->type != CTRL_ATTRIBUTE_TYPE_INTEGER) {
@@ -455,7 +455,7 @@ int nv_write_config_file(const char *filename, const CtrlSystem *system,
                 continue;
             }
 
-            /* Only write out integer attributes, string and SDI CSC attributes
+            /* Only write out integer attributes, string attributes
              * aren't written here.
              */
             if (a->type != CTRL_ATTRIBUTE_TYPE_INTEGER) {
