@@ -103,16 +103,18 @@ extern "C" {
  * guard if you need to support older versions of the API
  */
 #ifndef NVML_NO_UNVERSIONED_FUNC_DEFS
-    #define nvmlInit                    nvmlInit_v2
-    #define nvmlDeviceGetPciInfo        nvmlDeviceGetPciInfo_v3
-    #define nvmlDeviceGetCount          nvmlDeviceGetCount_v2
-    #define nvmlDeviceGetHandleByIndex  nvmlDeviceGetHandleByIndex_v2
-    #define nvmlDeviceGetHandleByPciBusId nvmlDeviceGetHandleByPciBusId_v2
-    #define nvmlDeviceGetNvLinkRemotePciInfo nvmlDeviceGetNvLinkRemotePciInfo_v2
-    #define nvmlDeviceRemoveGpu         nvmlDeviceRemoveGpu_v2
-    #define nvmlDeviceGetGridLicensableFeatures nvmlDeviceGetGridLicensableFeatures_v3
-    #define nvmlEventSetWait nvmlEventSetWait_v2
-    #define nvmlDeviceGetAttributes nvmlDeviceGetAttributes_v2
+    #define nvmlInit                                nvmlInit_v2
+    #define nvmlDeviceGetPciInfo                    nvmlDeviceGetPciInfo_v3
+    #define nvmlDeviceGetCount                      nvmlDeviceGetCount_v2
+    #define nvmlDeviceGetHandleByIndex              nvmlDeviceGetHandleByIndex_v2
+    #define nvmlDeviceGetHandleByPciBusId           nvmlDeviceGetHandleByPciBusId_v2
+    #define nvmlDeviceGetNvLinkRemotePciInfo        nvmlDeviceGetNvLinkRemotePciInfo_v2
+    #define nvmlDeviceRemoveGpu                     nvmlDeviceRemoveGpu_v2
+    #define nvmlDeviceGetGridLicensableFeatures     nvmlDeviceGetGridLicensableFeatures_v3
+    #define nvmlEventSetWait                        nvmlEventSetWait_v2
+    #define nvmlDeviceGetAttributes                 nvmlDeviceGetAttributes_v2
+    #define nvmlDeviceGetComputeRunningProcesses    nvmlDeviceGetComputeRunningProcesses_v2
+    #define nvmlDeviceGetGraphicsRunningProcesses   nvmlDeviceGetGraphicsRunningProcesses_v2
 #endif // #ifndef NVML_NO_UNVERSIONED_FUNC_DEFS
 
 /***************************************************************************************************/
@@ -224,10 +226,14 @@ typedef struct nvmlBAR1Memory_st
  */
 typedef struct nvmlProcessInfo_st
 {
-    unsigned int pid;                 //!< Process ID
-    unsigned long long usedGpuMemory; //!< Amount of used GPU memory in bytes.
-                                      //! Under WDDM, \ref NVML_VALUE_NOT_AVAILABLE is always reported
-                                      //! because Windows KMD manages all the memory and not the NVIDIA driver
+    unsigned int        pid;                //!< Process ID
+    unsigned long long  usedGpuMemory;      //!< Amount of used GPU memory in bytes.
+                                            //! Under WDDM, \ref NVML_VALUE_NOT_AVAILABLE is always reported
+                                            //! because Windows KMD manages all the memory and not the NVIDIA driver
+    unsigned int        gpuInstanceId;      //!< If MIG is enabled, stores a valid GPU instance ID. gpuInstanceId is set to
+                                            //  0xFFFFFFFF otherwise.
+    unsigned int        computeInstanceId;  //!< If MIG is enabled, stores a valid compute instance ID. computeInstanceId is set to
+                                            //  0xFFFFFFFF otherwise.
 } nvmlProcessInfo_t;
 
 typedef struct nvmlDeviceAttributes_st
@@ -1229,7 +1235,14 @@ typedef unsigned int nvmlDeviceArchitecture_t;
 #define NVML_FI_DEV_REMAPPED_PENDING    144 //!< If any rows are pending remapping. 1=yes 0=no
 #define NVML_FI_DEV_REMAPPED_FAILURE    145 //!< If any rows failed to be remapped 1=yes 0=no
 
-#define NVML_FI_MAX 146 //!< One greater than the largest field ID defined above
+/**
+ * Remote device NVLink ID
+ *
+ * Link ID needs to be specified in the scopeId field in nvmlFieldValue_t.
+ */
+#define NVML_FI_DEV_NVLINK_REMOTE_NVLINK_ID     146 //!< Remote device NVLink ID
+
+#define NVML_FI_MAX 147 //!< One greater than the largest field ID defined above
 
 /**
  * Information for a Field Value Sample
@@ -4269,7 +4282,7 @@ nvmlReturn_t DECLDIR nvmlDeviceGetBridgeChipInfo(nvmlDevice_t device, nvmlBridge
  *
  * @see \ref nvmlSystemGetProcessName
  */
-nvmlReturn_t DECLDIR nvmlDeviceGetComputeRunningProcesses(nvmlDevice_t device, unsigned int *infoCount, nvmlProcessInfo_t *infos);
+nvmlReturn_t DECLDIR nvmlDeviceGetComputeRunningProcesses_v2(nvmlDevice_t device, unsigned int *infoCount, nvmlProcessInfo_t *infos);
 
 /**
  * Get information about processes with a graphics context on a device
@@ -4312,7 +4325,7 @@ nvmlReturn_t DECLDIR nvmlDeviceGetComputeRunningProcesses(nvmlDevice_t device, u
  *
  * @see \ref nvmlSystemGetProcessName
  */
-nvmlReturn_t DECLDIR nvmlDeviceGetGraphicsRunningProcesses(nvmlDevice_t device, unsigned int *infoCount, nvmlProcessInfo_t *infos);
+nvmlReturn_t DECLDIR nvmlDeviceGetGraphicsRunningProcesses_v2(nvmlDevice_t device, unsigned int *infoCount, nvmlProcessInfo_t *infos);
 
 /**
  * Check if the GPU devices are on the same physical board.
@@ -4410,7 +4423,11 @@ nvmlReturn_t DECLDIR nvmlDeviceGetSamples(nvmlDevice_t device, nvmlSamplingType_
  * 
  * BAR1 is used to map the FB (device memory) so that it can be directly accessed by the CPU or by 3rd party 
  * devices (peer-to-peer on the PCIE bus). 
- * 
+ *
+ * @note In MIG mode, if device handle is provided, the API returns aggregate
+ *       information, only if the caller has appropriate privileges. Per-instance
+ *       information can be queried by using specific MIG device handles.
+ *
  * For Kepler &tm; or newer fully supported devices.
  *
  * @param device                               The identifier of the target device
@@ -4427,7 +4444,6 @@ nvmlReturn_t DECLDIR nvmlDeviceGetSamples(nvmlDevice_t device, nvmlSamplingType_
  *
  */
 nvmlReturn_t DECLDIR nvmlDeviceGetBAR1MemoryInfo(nvmlDevice_t device, nvmlBAR1Memory_t *bar1Memory);
-
 
 /**
  * Gets the duration of time during which the device was throttled (lower than requested clocks) due to power 
@@ -6969,7 +6985,8 @@ nvmlReturn_t DECLDIR nvmlGetBlacklistDeviceInfoByIndex(unsigned int index, nvmlB
 #define NVML_GPU_INSTANCE_PROFILE_3_SLICE 0x2
 #define NVML_GPU_INSTANCE_PROFILE_4_SLICE 0x3
 #define NVML_GPU_INSTANCE_PROFILE_7_SLICE 0x4
-#define NVML_GPU_INSTANCE_PROFILE_COUNT   0x5
+#define NVML_GPU_INSTANCE_PROFILE_8_SLICE 0x5
+#define NVML_GPU_INSTANCE_PROFILE_COUNT   0x6
 
 typedef struct nvmlGpuInstancePlacement_st
 {
@@ -7013,7 +7030,8 @@ typedef struct nvmlGpuInstance_st* nvmlGpuInstance_t;
 #define NVML_COMPUTE_INSTANCE_PROFILE_3_SLICE 0x2
 #define NVML_COMPUTE_INSTANCE_PROFILE_4_SLICE 0x3
 #define NVML_COMPUTE_INSTANCE_PROFILE_7_SLICE 0x4
-#define NVML_COMPUTE_INSTANCE_PROFILE_COUNT   0x5
+#define NVML_COMPUTE_INSTANCE_PROFILE_8_SLICE 0x5
+#define NVML_COMPUTE_INSTANCE_PROFILE_COUNT   0x6
 
 #define NVML_COMPUTE_INSTANCE_ENGINE_PROFILE_SHARED 0x0 //!< All the engines except multiprocessors would be shared
 #define NVML_COMPUTE_INSTANCE_ENGINE_PROFILE_COUNT  0x1
@@ -7582,12 +7600,16 @@ nvmlReturn_t DECLDIR nvmlDeviceGetGridLicensableFeatures_v2(nvmlDevice_t device,
 nvmlReturn_t DECLDIR nvmlDeviceRemoveGpu(nvmlPciInfo_t *pciInfo);
 nvmlReturn_t DECLDIR nvmlEventSetWait(nvmlEventSet_t set, nvmlEventData_t * data, unsigned int timeoutms);
 nvmlReturn_t DECLDIR nvmlDeviceGetAttributes(nvmlDevice_t device, nvmlDeviceAttributes_t *attributes);
+nvmlReturn_t DECLDIR nvmlDeviceGetComputeRunningProcesses(nvmlDevice_t device, unsigned int *infoCount, nvmlProcessInfo_t *infos);
+nvmlReturn_t DECLDIR nvmlDeviceGetGraphicsRunningProcesses(nvmlDevice_t device, unsigned int *infoCount, nvmlProcessInfo_t *infos);
 #endif // #ifdef NVML_NO_UNVERSIONED_FUNC_DEFS
 
 #if defined(NVML_NO_UNVERSIONED_FUNC_DEFS)
 // We don't define APIs to run new versions if this guard is present so there is
 // no need to undef
 #elif defined(__NVML_API_VERSION_INTERNAL)
+#undef nvmlDeviceGetGraphicsRunningProcesses
+#undef nvmlDeviceGetComputeRunningProcesses
 #undef nvmlDeviceGetAttributes
 #undef nvmlEventSetWait
 #undef nvmlDeviceGetGridLicensableFeatures
