@@ -77,7 +77,7 @@ struct _CtkManageGridLicense
     char productNamevCompute[GRID_LICENSE_INFO_MAX_LENGTH];         // GRID product name fetched from nvml corresponding to the feature type '4'
 
     int licenseStatus;                                              // Current license status to be displayed on UI
-    gboolean isvComputeSupported;                                   // Check if 'NVIDIA vComputeServer' feature is supported
+    gboolean isvComputeSupported;                                   // Check if 'NVIDIA Virtual Compute Server' feature is supported
 };
 
 /*

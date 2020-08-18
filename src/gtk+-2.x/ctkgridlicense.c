@@ -52,11 +52,11 @@ static const char * __manage_grid_licenses_help =
 "for GRID vGPU or Quadro Virtual Data Center Workstation on supported Tesla products.";
 static const char * __manage_grid_licenses_vcompute_help =
 "Use the Manage GRID License page to obtain licenses "
-"for GRID vGPU or Quadro Virtual Data Center Workstation or NVIDIA vComputeServer on supported Tesla products.";
+"for GRID vGPU or Quadro Virtual Data Center Workstation or NVIDIA Virtual Compute Server on supported Tesla products.";
 static const char * __grid_virtual_workstation_help =
 "Select this option to enable Quadro Virtual Data Center Workstation license.";
 static const char * __grid_virtual_compute_help =
-"Select this option to enable NVIDIA vComputeServer license.";
+"Select this option to enable NVIDIA Virtual Compute Server license.";
 static const char * __grid_vapp_help =
 "Select this option to disable the Quadro Virtual Data Center Workstation license.";
 static const char * __license_edition_help =
