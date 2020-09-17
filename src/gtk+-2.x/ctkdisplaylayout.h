@@ -363,7 +363,6 @@ typedef struct nvScreenRec {
     int x_offset;                     /* Offsets for relative positioning */
     int y_offset;
 
-    Bool sli;
     char *sli_mode;
     char *multigpu_mode;
     Bool no_scanout;        /* This screen has no display devices */

@@ -1425,7 +1425,8 @@
 
 /*
  * NV_CTRL_FLATPANEL_SIGNAL - for the specified display device, report
- * whether the flat panel is driven by an LVDS, TMDS, or DisplayPort signal.
+ * whether the flat panel is driven by an LVDS, TMDS, DisplayPort, or
+ * HDMI FRL signal.
  * This attribute is only available for flat panels.
  */
 
@@ -1433,6 +1434,7 @@
 #define NV_CTRL_FLATPANEL_SIGNAL_LVDS                             0
 #define NV_CTRL_FLATPANEL_SIGNAL_TMDS                             1
 #define NV_CTRL_FLATPANEL_SIGNAL_DISPLAYPORT                      2
+#define NV_CTRL_FLATPANEL_SIGNAL_HDMI_FRL                         3
 
 
 /*
@@ -1536,9 +1538,7 @@
 #define NV_CTRL_GPU_PCIE_MAX_LINK_WIDTH  NV_CTRL_BUS_RATE
 
 /*
- * NV_CTRL_SHOW_SLI_HUD - when TRUE, OpenGL will draw information about the
- * current SLI mode.
- * Renamed this attribute to NV_CTRL_SHOW_SLI_VISUAL_INDICATOR
+ * NV_CTRL_SHOW_SLI_HUD - not supported
  */
 
 #define NV_CTRL_SHOW_SLI_HUD         NV_CTRL_SHOW_SLI_VISUAL_INDICATOR
@@ -1546,8 +1546,7 @@
 #define NV_CTRL_SHOW_SLI_HUD_TRUE    NV_CTRL_SHOW_SLI_VISUAL_INDICATOR_TRUE
 
 /*
- * NV_CTRL_SHOW_SLI_VISUAL_INDICATOR - when TRUE, OpenGL will draw information
- * about the current SLI mode.
+ * NV_CTRL_SHOW_SLI_VISUAL_INDICATOR - not supported
  */
 
 #define NV_CTRL_SHOW_SLI_VISUAL_INDICATOR                       225  /* RW-X */
@@ -2841,8 +2840,7 @@
 #define NV_CTRL_THERMAL_SENSOR_TARGET_UNKNOWN            0xFFFFFFFF
 
 /*
- * NV_CTRL_SHOW_MULTIGPU_VISUAL_INDICATOR - when TRUE, OpenGL will
- * draw information about the current MULTIGPU mode.
+ * NV_CTRL_SHOW_MULTIGPU_VISUAL_INDICATOR - not supported
  */
 #define NV_CTRL_SHOW_MULTIGPU_VISUAL_INDICATOR                  358  /* RW-X */
 #define NV_CTRL_SHOW_MULTIGPU_VISUAL_INDICATOR_FALSE              0
@@ -3591,8 +3589,26 @@
 
 #define NV_CTRL_GPU_MAX_OPERATING_THRESHOLD                     433  /* R--G */
 
+/*
+ * NV_CTRL_PLATFORM_POWER_MODE - Manage Platform Power modes on systems.
+ * This attribute's setting is applied when AC power is connected.
+ *
+ * Performance            - Allows the notebook to run at higher power and
+ *                          thermal limits that are within the supported limits.
+ * Balanced               - Default experience for best performance and acoustic
+ *                          trade-off.
+ * Quiet                  - Prefers acoustic and thermal instead of performance.
+ */
 
-#define NV_CTRL_LAST_ATTRIBUTE NV_CTRL_GPU_MAX_OPERATING_THRESHOLD
+#define NV_CTRL_PLATFORM_POWER_MODE                             434  /* RW-G */
+#define NV_CTRL_PLATFORM_POWER_MODE_PERFORMANCE                   0
+#define NV_CTRL_PLATFORM_POWER_MODE_BALANCED                      1
+#define NV_CTRL_PLATFORM_POWER_MODE_QUIET                         2
+
+
+#define NV_CTRL_LAST_ATTRIBUTE NV_CTRL_PLATFORM_POWER_MODE
+
+
 
 /**************************************************************************/
 

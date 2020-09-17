@@ -43,12 +43,6 @@ static void post_show_vrr_visual_indicator_button_toggled(CtkOpenGL *, gboolean)
 
 static void post_force_stereo_button_toggled(CtkOpenGL *, gboolean);
 
-static void post_show_sli_visual_indicator_button_toggled(CtkOpenGL *,
-                                                          gboolean);
-
-static void post_show_multigpu_visual_indicator_button_toggled(CtkOpenGL *,
-                                                               gboolean);
-
 static void post_show_graphics_visual_indicator_button_toggled(CtkOpenGL *,
                                                                gboolean);
 static void post_xinerama_stereo_button_toggled(CtkOpenGL *, gboolean);
@@ -74,10 +68,6 @@ static void stereo_eyes_exchange_button_toggled (GtkWidget *, gpointer);
 static void aa_line_gamma_toggled        (GtkWidget *, gpointer);
 
 static void use_conformant_clamping_button_toggled(GtkWidget *, gpointer);
-
-static void show_sli_visual_indicator_button_toggled (GtkWidget *, gpointer);
-
-static void show_multigpu_visual_indicator_button_toggled (GtkWidget *, gpointer);
 
 static void show_graphics_visual_indicator_button_toggled (GtkWidget *, gpointer);
 
@@ -171,20 +161,6 @@ static const char *__xinerama_stereo_help =
 "stereo flipping on multiple X screens configured "
 "with Xinerama.  This option is applied immediately.";
 
-static const char *__show_sli_visual_indicator_help =
-"Enabling this option causes OpenGL to draw "
-"information about the current SLI mode on the "
-"screen.  This option is applied to OpenGL "
-"applications that are started after this option is "
-"set.";
-
-static const char *__show_multigpu_visual_indicator_help =
-"Enabling this option causes OpenGL to draw "
-"information about the current Multi-GPU mode on the "
-"screen.  This option is applied to OpenGL "
-"applications that are started after this option is "
-"set.";
-
 static const char *__show_graphics_visual_indicator_help =
 "Enabling this option causes the driver to draw "
 "information about the graphics API in use, such as "
@@ -218,9 +194,7 @@ static const char *__show_vrr_visual_indicator_help  =
 #define __FORCE_STEREO        (1 << 6)
 #define __IMAGE_SETTINGS      (1 << 7)
 #define __XINERAMA_STEREO     (1 << 8)
-#define __SHOW_SLI_VISUAL_INDICATOR        (1 << 9)
 #define __STEREO_EYES_EXCHANGE (1 << 10)
-#define __SHOW_MULTIGPU_VISUAL_INDICATOR    (1 << 11)
 #define __CONFORMANT_CLAMPING (1 << 12)
 #define __ALLOW_VRR         (1 << 13)
 #define __SHOW_VRR_VISUAL_INDICATOR       (1 << 14)
@@ -306,8 +280,6 @@ GtkWidget* ctk_opengl_new(CtrlTarget *ctrl_target,
     gint image_settings_value = 0;
     gint aa_line_gamma = 0;
     gint use_conformant_clamping = 0;
-    gint show_sli_visual_indicator = 0;
-    gint show_multigpu_visual_indicator = 0;
     gint show_graphics_visual_indicator = 0;
 
     ReturnStatus ret_sync_to_vblank;
@@ -321,8 +293,6 @@ GtkWidget* ctk_opengl_new(CtrlTarget *ctrl_target,
     ReturnStatus ret_image_settings;
     ReturnStatus ret_aa_line_gamma;
     ReturnStatus ret_use_conformant_clamping;
-    ReturnStatus ret_show_sli_visual_indicator;
-    ReturnStatus ret_show_multigpu_visual_indicator;
     ReturnStatus ret_show_graphics_visual_indicator;
 
     /* Query OpenGL settings */
@@ -390,16 +360,6 @@ GtkWidget* ctk_opengl_new(CtrlTarget *ctrl_target,
                            NV_CTRL_TEXTURE_CLAMPING,
                            &use_conformant_clamping);
 
-    ret_show_sli_visual_indicator =
-        NvCtrlGetAttribute(ctrl_target,
-                           NV_CTRL_SHOW_SLI_VISUAL_INDICATOR,
-                           &show_sli_visual_indicator);
-
-    ret_show_multigpu_visual_indicator =
-        NvCtrlGetAttribute(ctrl_target,
-                           NV_CTRL_SHOW_MULTIGPU_VISUAL_INDICATOR,
-                           &show_multigpu_visual_indicator);
-
     ret_show_graphics_visual_indicator =
         NvCtrlGetAttribute(ctrl_target,
                            NV_CTRL_SHOW_GRAPHICS_VISUAL_INDICATOR,
@@ -417,8 +377,6 @@ GtkWidget* ctk_opengl_new(CtrlTarget *ctrl_target,
         (ret_image_settings != NvCtrlSuccess) &&
         (ret_aa_line_gamma != NvCtrlSuccess) &&
         (ret_use_conformant_clamping != NvCtrlSuccess) &&
-        (ret_show_sli_visual_indicator != NvCtrlSuccess) &&
-        (ret_show_multigpu_visual_indicator != NvCtrlSuccess) &&
         (ret_show_graphics_visual_indicator != NvCtrlSuccess)) {
         return NULL;
     }
@@ -853,62 +811,6 @@ GtkWidget* ctk_opengl_new(CtrlTarget *ctrl_target,
 
         ctk_opengl->use_conformant_clamping_button = check_button;
     }
-    
-    if (ret_show_sli_visual_indicator == NvCtrlSuccess) {
-
-        label = gtk_label_new("Enable SLI Visual Indicator");
-
-        check_button = gtk_check_button_new();
-        gtk_container_add(GTK_CONTAINER(check_button), label);
-
-        gtk_toggle_button_set_active(GTK_TOGGLE_BUTTON(check_button),
-                                     show_sli_visual_indicator);
-
-        gtk_box_pack_start(GTK_BOX(vbox), check_button, FALSE, FALSE, 0);
-
-        g_signal_connect(G_OBJECT(check_button), "toggled",
-                         G_CALLBACK(show_sli_visual_indicator_button_toggled),
-                         (gpointer) ctk_opengl);
-
-        g_signal_connect(G_OBJECT(ctk_event),
-                     CTK_EVENT_NAME(NV_CTRL_SHOW_SLI_VISUAL_INDICATOR),
-                     G_CALLBACK(value_changed), (gpointer) ctk_opengl);
-
-        ctk_config_set_tooltip(ctk_config,
-                               check_button, __show_sli_visual_indicator_help);
-
-        ctk_opengl->active_attributes |= __SHOW_SLI_VISUAL_INDICATOR;
-
-        ctk_opengl->show_sli_visual_indicator_button = check_button;
-    }
-
-    if (ret_show_multigpu_visual_indicator == NvCtrlSuccess) {
-
-        label = gtk_label_new("Enable Multi-GPU Visual Indicator");
-
-        check_button = gtk_check_button_new();
-        gtk_container_add(GTK_CONTAINER(check_button), label);
-
-        gtk_toggle_button_set_active(GTK_TOGGLE_BUTTON(check_button),
-                                     show_multigpu_visual_indicator);
-
-        gtk_box_pack_start(GTK_BOX(vbox), check_button, FALSE, FALSE, 0);
-
-        g_signal_connect(G_OBJECT(check_button), "toggled",
-                         G_CALLBACK(show_multigpu_visual_indicator_button_toggled),
-                         (gpointer) ctk_opengl);
-
-        g_signal_connect(G_OBJECT(ctk_event),
-                         CTK_EVENT_NAME(NV_CTRL_SHOW_MULTIGPU_VISUAL_INDICATOR),
-                         G_CALLBACK(value_changed), (gpointer) ctk_opengl);
-
-        ctk_config_set_tooltip(ctk_config, check_button,
-                               __show_multigpu_visual_indicator_help);
-
-        ctk_opengl->active_attributes |= __SHOW_MULTIGPU_VISUAL_INDICATOR;
-
-        ctk_opengl->show_multigpu_visual_indicator_button = check_button;
-    }
 
     if (ret_show_graphics_visual_indicator == NvCtrlSuccess) {
 
@@ -995,23 +897,6 @@ static void post_force_stereo_button_toggled(CtkOpenGL *ctk_opengl,
     ctk_config_statusbar_message(ctk_opengl->ctk_config,
                                  "OpenGL Stereo Flipping %s.",
                                  enabled ? "forced" : "not forced");
-}
-
-static void post_show_sli_visual_indicator_button_toggled(CtkOpenGL *ctk_opengl, 
-                                                          gboolean enabled) 
-{
-    ctk_config_statusbar_message(ctk_opengl->ctk_config,
-                                 "OpenGL SLI Visual Indicator %s.",
-                                 enabled ? "enabled" : "disabled");
-}
-
-static void
-post_show_multigpu_visual_indicator_button_toggled(CtkOpenGL *ctk_opengl, 
-                                                   gboolean enabled) 
-{
-    ctk_config_statusbar_message(ctk_opengl->ctk_config,
-                                 "OpenGL Multi-GPU Visual Indicator %s.",
-                                 enabled ? "enabled" : "disabled");
 }
 
 static void
@@ -1123,34 +1008,6 @@ static void force_stereo_button_toggled(GtkWidget *widget,
 
     NvCtrlSetAttribute(ctrl_target, NV_CTRL_FORCE_STEREO, enabled);
     post_force_stereo_button_toggled(ctk_opengl, enabled);
-}
-
-static void show_sli_visual_indicator_button_toggled(GtkWidget *widget,
-                                           gpointer user_data)
-{
-    CtkOpenGL *ctk_opengl = CTK_OPENGL(user_data);
-    CtrlTarget *ctrl_target = ctk_opengl->ctrl_target;
-    gboolean enabled;
-
-    enabled = gtk_toggle_button_get_active(GTK_TOGGLE_BUTTON(widget));
-
-    NvCtrlSetAttribute(ctrl_target,
-                       NV_CTRL_SHOW_SLI_VISUAL_INDICATOR, enabled);
-    post_show_sli_visual_indicator_button_toggled(ctk_opengl, enabled);
-}
-
-static void show_multigpu_visual_indicator_button_toggled(GtkWidget *widget,
-                                                          gpointer user_data)
-{
-    CtkOpenGL *ctk_opengl = CTK_OPENGL(user_data);
-    CtrlTarget *ctrl_target = ctk_opengl->ctrl_target;
-    gboolean enabled;
-
-    enabled = gtk_toggle_button_get_active(GTK_TOGGLE_BUTTON(widget));
-
-    NvCtrlSetAttribute(ctrl_target,
-                       NV_CTRL_SHOW_MULTIGPU_VISUAL_INDICATOR, enabled);
-    post_show_multigpu_visual_indicator_button_toggled(ctk_opengl, enabled);
 }
 
 static void show_graphics_visual_indicator_button_toggled(GtkWidget *widget,
@@ -1301,17 +1158,6 @@ static void value_changed(GObject *object, CtrlEvent *event, gpointer user_data)
             GTK_TOGGLE_BUTTON(ctk_opengl->use_conformant_clamping_button);
         func = G_CALLBACK(use_conformant_clamping_button_toggled);
         post_use_conformant_clamping_button_toggled(ctk_opengl, value);
-        break;
-    case NV_CTRL_SHOW_SLI_VISUAL_INDICATOR:
-        button = GTK_TOGGLE_BUTTON(ctk_opengl->show_sli_visual_indicator_button);
-        func = G_CALLBACK(show_sli_visual_indicator_button_toggled);
-        post_show_sli_visual_indicator_button_toggled(ctk_opengl, value);
-        break;
-    case NV_CTRL_SHOW_MULTIGPU_VISUAL_INDICATOR:
-        button =
-            GTK_TOGGLE_BUTTON(ctk_opengl->show_multigpu_visual_indicator_button);
-        func = G_CALLBACK(show_multigpu_visual_indicator_button_toggled);
-        post_show_multigpu_visual_indicator_button_toggled(ctk_opengl, value);
         break;
     case NV_CTRL_SHOW_GRAPHICS_VISUAL_INDICATOR:
         button =
@@ -1919,54 +1765,6 @@ GtkTextBuffer *ctk_opengl_create_help(GtkTextTagTable *table,
     if (ctk_opengl->active_attributes & __CONFORMANT_CLAMPING) {
         ctk_help_heading(b, &i, "Use Conformant Texture Clamping");
         ctk_help_para(b, &i, "%s", __use_conformant_clamping_help);
-    }
-
-    if (ctk_opengl->active_attributes & __SHOW_SLI_VISUAL_INDICATOR) {
-        ctk_help_heading(b, &i, "SLI Visual Indicator");
-        ctk_help_para(b, &i, "This option draws information about the current "
-                      "SLI mode on top of OpenGL windows.  Its behavior "
-                      "depends on which SLI mode is in use:");
-        ctk_help_term(b, &i, "Alternate Frame Rendering");
-        ctk_help_para(b, &i, "In AFR mode, a vertical green bar displays the "
-                      "amount of scaling currently being achieved.  A longer "
-                      "bar indicates more scaling.");
-        ctk_help_term(b, &i, "Split-Frame Rendering");
-        ctk_help_para(b, &i, "In this mode, OpenGL draws a horizontal green "
-                      "line showing where the screen is split.  Everything "
-                      "above the line is drawn on one GPU and everything "
-                      "below is drawn on the other.");
-        ctk_help_term(b, &i, "SLI Antialiasing");
-        ctk_help_para(b, &i, "In this mode, OpenGL draws a horizontal green "
-                      "line one third of the way across the screen.  Above "
-                      "this line, the images from both GPUs are blended to "
-                      "produce the currently selected SLIAA mode.  Below the "
-                      "line, the image from just one GPU is displayed without "
-                      "blending.  This allows easy comparison between the "
-                      "SLIAA and single-GPU AA modes.");
-    }
-
-    if (ctk_opengl->active_attributes & __SHOW_MULTIGPU_VISUAL_INDICATOR) {
-        ctk_help_heading(b, &i, "Multi-GPU Visual Indicator");
-        ctk_help_para(b, &i, "This option draws information about the current "
-                      "Multi-GPU mode on top of OpenGL windows.  Its behavior "
-                      "depends on which Multi-GPU mode is in use:");
-        ctk_help_term(b, &i, "Alternate Frame Rendering");
-        ctk_help_para(b, &i, "In AFR mode, a vertical green bar displays the "
-                      "amount of scaling currently being achieved.  A longer "
-                      "bar indicates more scaling.");
-        ctk_help_term(b, &i, "Split-Frame Rendering");
-        ctk_help_para(b, &i, "In this mode, OpenGL draws a horizontal green "
-                      "line showing where the screen is split.  Everything "
-                      "above the line is drawn on one GPU and everything "
-                      "below is drawn on the other.");
-        ctk_help_term(b, &i, "Multi-GPU Antialiasing");
-        ctk_help_para(b, &i, "In this mode, OpenGL draws a horizontal green "
-                      "line one third of the way across the screen.  Above "
-                      "this line, the images from both GPUs are blended to "
-                      "produce the currently selected multi-GPU AA mode.  Below the "
-                      "line, the image from just one GPU is displayed without "
-                      "blending.  This allows easy comparison between the "
-                      "multi-GPU AA and single-GPU AA modes.");
     }
 
     if (ctk_opengl->active_attributes & __SHOW_GRAPHICS_VISUAL_INDICATOR) {

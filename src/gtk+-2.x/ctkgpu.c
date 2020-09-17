@@ -369,6 +369,7 @@ GtkWidget* ctk_gpu_new(CtrlTarget *ctrl_target,
             screens = g_strdup("None");
         } else {
             CtrlTarget *screen_target;
+            char *sli_str = NULL;
 
             if (xinerama_enabled) {
                 screens = g_strdup("Screen 0 (Xinerama)");
@@ -398,13 +399,14 @@ GtkWidget* ctk_gpu_new(CtrlTarget *ctrl_target,
                                                 X_SCREEN_TARGET, pData[1]);
             }
 
-            ret = NvCtrlGetAttribute(screen_target,
-                                     NV_CTRL_SHOW_SLI_VISUAL_INDICATOR,
-                                     &tmp);
+            ret = NvCtrlGetStringAttribute(screen_target,
+                                           NV_CTRL_STRING_SLI_MODE,
+                                           &sli_str);
             if (ret == NvCtrlSuccess) {
                 tmp_str = g_strdup_printf("%s (SLI)", screens);
                 g_free(screens);
                 screens = tmp_str;
+                free(sli_str);
             }
         }
         free(pData);

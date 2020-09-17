@@ -101,8 +101,8 @@ static const char *__info_link_help =
 "connections, reports the bandwidth of the connection.";
 
 static const char *__info_signal_help =
-"Report whether the flat panel is driven by an LVDS, TMDS, or DisplayPort "
-"signal.";
+"Report whether the flat panel is driven by an LVDS, TMDS, DisplayPort, "
+"or HDMI FRL (fixed-rate link) signal.";
 
 static const char * __refresh_rate_help =
 "The refresh rate displays the rate at which the screen is currently "
@@ -712,6 +712,9 @@ static gboolean update_signal_info(InfoEntry *entry)
         break;
     case NV_CTRL_FLATPANEL_SIGNAL_DISPLAYPORT:
         str = "DisplayPort";
+        break;
+    case NV_CTRL_FLATPANEL_SIGNAL_HDMI_FRL:
+        str = "HDMI FRL";
         break;
     default:
         str = "Unknown";

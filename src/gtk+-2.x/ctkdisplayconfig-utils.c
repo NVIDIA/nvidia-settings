@@ -1719,7 +1719,7 @@ void clamp_screen_size_rect(GdkRectangle *rect)
  * Returns the maximum number of allowable enabled displays for the X screen.
  * This is based on the screen's driving GPU's max number of enabled displays,
  * in conjunction with whether or not Mosaic is enabled and which type.
- * Surround (Base Mosaic) only supports up to 3 enabled display devices,
+ * Surround (Base Mosaic) only supports up to 5 enabled display devices,
  * while other modes (Base Mosaic and SLI Mosaic) support unlimited displays.
  *
  **/
@@ -1733,7 +1733,7 @@ int get_screen_max_displays(nvScreenPtr screen)
      */
     if (gpu->mosaic_enabled) {
         if (gpu->mosaic_type == MOSAIC_TYPE_BASE_MOSAIC_LIMITED) {
-            return 3;
+            return 5;
         }
         return -1; /* Not limited */
     }
@@ -3584,7 +3584,7 @@ static Bool layout_add_screen_from_server(nvLayoutPtr layout,
                                           gchar **err_str)
 {
     nvScreenPtr screen;
-    int val, tmp;
+    int val;
     ReturnStatus ret;
     gchar *primary_str = NULL;
     gchar *screen_info = NULL;
@@ -3657,14 +3657,7 @@ static Bool layout_add_screen_from_server(nvLayoutPtr layout,
         goto fail;
     }
 
-    /* Query SLI status */
-    ret = NvCtrlGetAttribute(ctrl_target,
-                             NV_CTRL_SHOW_SLI_VISUAL_INDICATOR,
-                             &tmp);
-
-    screen->sli = (ret == NvCtrlSuccess);
-
-    /* Query SLI mode */
+    /* Query SLI status and mode */
     ret = NvCtrlGetStringAttribute(ctrl_target,
                                    NV_CTRL_STRING_SLI_MODE,
                                    &screen->sli_mode);

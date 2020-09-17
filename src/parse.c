@@ -210,6 +210,7 @@ const AttributeTableEntry attributeTable[] = {
     { "GPUSlowdownTempThreshold",         NV_CTRL_GPU_SLOWDOWN_THRESHOLD,               INT_ATTR, {0,0,0,1,0}, {}, "Returns the temperature above which the GPU will slowdown for hardware protection." },
     { "GPUShutdownTempThreshold",         NV_CTRL_GPU_SHUTDOWN_THRESHOLD,               INT_ATTR, {0,0,0,1,0}, {}, "Returns the temperature at which the GPU will shutdown for hardware protection." },
     { "GPUMaxOperatingTempThreshold",     NV_CTRL_GPU_MAX_OPERATING_THRESHOLD,          INT_ATTR, {0,0,0,1,0}, {}, "Returns the maximum temperature that will support normal GPU behavior." },
+    { "PlatformPowerMode",                NV_CTRL_PLATFORM_POWER_MODE,                  INT_ATTR, {0,0,0,0,0}, { .int_flags = {0,0,0,0,0,0,0} }, "Allows setting different platform power modes." },
 
     /* Framelock */
     { "FrameLockAvailable",               NV_CTRL_FRAMELOCK,                            INT_ATTR, {1,1,0,1,0}, { .int_flags = {0,0,0,0,0,0,0} }, "Returns whether the underlying GPU supports Frame Lock.  All of the other frame lock attributes are only applicable if this attribute is enabled (Supported)." },
@@ -346,7 +347,7 @@ const int attributeTableLen = ARRAY_LEN(attributeTable);
  * the last attribute that the table knows about.
  */
 
-#if NV_CTRL_LAST_ATTRIBUTE != NV_CTRL_GPU_MAX_OPERATING_THRESHOLD
+#if NV_CTRL_LAST_ATTRIBUTE != NV_CTRL_PLATFORM_POWER_MODE
 #warning "Have you forgotten to add a new integer attribute to attributeTable?"
 #endif
 

@@ -103,7 +103,7 @@ const gchar* __video_mixer_parameter_help =
 const gchar* __video_mixer_attribute_help =
 "This shows the video mixer attributes and any applicable ranges.";
 
-static struct VDPAUDeviceImpl {
+struct VDPAUDeviceImpl {
 
     VdpGetErrorString *GetErrorString;
     VdpGetProcAddress *GetProcAddress;
@@ -124,53 +124,59 @@ static struct VDPAUDeviceImpl {
     VdpVideoMixerQueryAttributeSupport *VideoMixerQueryAttributeSupport;
     VdpVideoMixerQueryParameterValueRange *VideoMixerQueryParameterValueRange;
     VdpVideoMixerQueryAttributeValueRange *VideoMixerQueryAttributeValueRange;
-} VDPAUDeviceFunctions;
+};
 
 static int queryOutputSurface(CtkVDPAU *ctk_vdpau, VdpDevice device,
-                              VdpGetProcAddress *getProcAddress);
+                              const struct VDPAUDeviceImpl *vdpau);
 
 static int queryBitmapSurface(CtkVDPAU *ctk_vdpau, VdpDevice device,
-                              VdpGetProcAddress *getProcAddress);
+                              const struct VDPAUDeviceImpl *vdpau);
 
-#define GETADDR(device, function_id, function_pointer) \
-    getProcAddress(device, function_id, function_pointer)
+#define GETADDR(device, function_id, function_pointer) do { \
+    getProcAddress(device, function_id, (void**)(function_pointer)); \
+    if (!*(function_pointer)) { \
+        return FALSE; \
+    } \
+} while (0)
 
-static void getAddressVDPAUDeviceFunctions(VdpDevice device,
-                                           VdpGetProcAddress *getProcAddress)
+static gboolean getAddressVDPAUDeviceFunctions(VdpDevice device,
+                                               VdpGetProcAddress *getProcAddress,
+                                               struct VDPAUDeviceImpl *vdpau)
 {
     GETADDR(device, VDP_FUNC_ID_GET_ERROR_STRING,
-            (void**)&VDPAUDeviceFunctions.GetErrorString);
+            &vdpau->GetErrorString);
     GETADDR(device, VDP_FUNC_ID_GET_PROC_ADDRESS,
-            (void**)&VDPAUDeviceFunctions.GetProcAddress);
+            &vdpau->GetProcAddress);
     GETADDR(device, VDP_FUNC_ID_GET_API_VERSION,
-            (void**)&VDPAUDeviceFunctions.GetApiVersion);
+            &vdpau->GetApiVersion);
     GETADDR(device, VDP_FUNC_ID_GET_INFORMATION_STRING,
-            (void**)&VDPAUDeviceFunctions.GetInformationString);
+            &vdpau->GetInformationString);
     GETADDR(device, VDP_FUNC_ID_VIDEO_SURFACE_QUERY_CAPABILITIES,
-            (void**)&VDPAUDeviceFunctions.VideoSurfaceQueryCapabilities);
+            &vdpau->VideoSurfaceQueryCapabilities);
     GETADDR(device, VDP_FUNC_ID_VIDEO_SURFACE_QUERY_GET_PUT_BITS_Y_CB_CR_CAPABILITIES,
-            (void**)&VDPAUDeviceFunctions.VideoSurfaceQueryGetPutBitsYCbCrCapabilities);
+            &vdpau->VideoSurfaceQueryGetPutBitsYCbCrCapabilities);
     GETADDR(device, VDP_FUNC_ID_OUTPUT_SURFACE_QUERY_CAPABILITIES,
-            (void**)&VDPAUDeviceFunctions.OutputSurfaceQueryCapabilities);
+            &vdpau->OutputSurfaceQueryCapabilities);
     GETADDR(device, VDP_FUNC_ID_OUTPUT_SURFACE_QUERY_GET_PUT_BITS_NATIVE_CAPABILITIES,
-            (void**)&VDPAUDeviceFunctions.OutputSurfaceQueryGetPutBitsNativeCapabilities);
+            &vdpau->OutputSurfaceQueryGetPutBitsNativeCapabilities);
     GETADDR(device, VDP_FUNC_ID_OUTPUT_SURFACE_QUERY_PUT_BITS_Y_CB_CR_CAPABILITIES,
-            (void**)&VDPAUDeviceFunctions.OutputSurfaceQueryPutBitsYCbCrCapabilities);
+            &vdpau->OutputSurfaceQueryPutBitsYCbCrCapabilities);
     GETADDR(device, VDP_FUNC_ID_BITMAP_SURFACE_QUERY_CAPABILITIES,
-            (void**)&VDPAUDeviceFunctions.BitmapSurfaceQueryCapabilities);
+            &vdpau->BitmapSurfaceQueryCapabilities);
     GETADDR(device, VDP_FUNC_ID_DECODER_QUERY_CAPABILITIES,
-            (void**)&VDPAUDeviceFunctions.DecoderQueryCapabilities);
+            &vdpau->DecoderQueryCapabilities);
     GETADDR(device, VDP_FUNC_ID_VIDEO_MIXER_QUERY_FEATURE_SUPPORT,
-            (void**)&VDPAUDeviceFunctions.VideoMixerQueryFeatureSupport);
+            &vdpau->VideoMixerQueryFeatureSupport);
     GETADDR(device, VDP_FUNC_ID_VIDEO_MIXER_QUERY_PARAMETER_SUPPORT,
-            (void**)&VDPAUDeviceFunctions.VideoMixerQueryParameterSupport);
+            &vdpau->VideoMixerQueryParameterSupport);
     GETADDR(device, VDP_FUNC_ID_VIDEO_MIXER_QUERY_ATTRIBUTE_SUPPORT,
-            (void**)&VDPAUDeviceFunctions.VideoMixerQueryAttributeSupport);
+            &vdpau->VideoMixerQueryAttributeSupport);
     GETADDR(device, VDP_FUNC_ID_VIDEO_MIXER_QUERY_PARAMETER_VALUE_RANGE,
-            (void**)&VDPAUDeviceFunctions.VideoMixerQueryParameterValueRange);
+            &vdpau->VideoMixerQueryParameterValueRange);
     GETADDR(device, VDP_FUNC_ID_VIDEO_MIXER_QUERY_ATTRIBUTE_VALUE_RANGE,
-            (void**)&VDPAUDeviceFunctions.VideoMixerQueryAttributeValueRange);
+            &vdpau->VideoMixerQueryAttributeValueRange);
 
+    return TRUE;
 }
 #undef GETADDR
 
@@ -181,7 +187,7 @@ static void getAddressVDPAUDeviceFunctions(VdpDevice device,
  */
 
 static int queryBaseInfo(CtkVDPAU *ctk_vdpau, VdpDevice device,
-                         VdpGetProcAddress *getProcAddress)
+                         const struct VDPAUDeviceImpl *vdpau)
 {
     static const Desc decoder_list[] = {
         {"MPEG1",                    VDP_DECODER_PROFILE_MPEG1, 0x01},
@@ -234,8 +240,7 @@ static int queryBaseInfo(CtkVDPAU *ctk_vdpau, VdpDevice device,
     int x, count = 0;
     uint32_t decoder_mask = 0;
 
-    if (VDPAUDeviceFunctions.GetApiVersion &&
-        (VDPAUDeviceFunctions.GetApiVersion(&api) != VDP_STATUS_OK)) {
+    if (vdpau->GetApiVersion(&api) != VDP_STATUS_OK) {
         return -1;
     }
 
@@ -277,13 +282,13 @@ static int queryBaseInfo(CtkVDPAU *ctk_vdpau, VdpDevice device,
         VdpStatus ret;
         uint32_t max_level, max_macroblocks, max_width, max_height;
 
-        ret = VDPAUDeviceFunctions.DecoderQueryCapabilities(device,
-                                                            decoder_list[x].id,
-                                                            &is_supported,
-                                                            &max_level,
-                                                            &max_macroblocks,
-                                                            &max_width,
-                                                            &max_height);
+        ret = vdpau->DecoderQueryCapabilities(device,
+                                              decoder_list[x].id,
+                                              &is_supported,
+                                              &max_level,
+                                              &max_macroblocks,
+                                              &max_width,
+                                              &max_height);
         if (ret == VDP_STATUS_OK && is_supported) {
             gchar *str;
 
@@ -352,7 +357,7 @@ static const size_t rgb_type_count = sizeof(rgb_types)/sizeof(Desc);
  */
 
 static int queryVideoSurface(CtkVDPAU *ctk_vdpau, VdpDevice device,
-                             VdpGetProcAddress *getProcAddress)
+                             const struct VDPAUDeviceImpl *vdpau)
 {
     static const Desc chroma_types[] = {
         {"420", VDP_CHROMA_TYPE_420, 0},
@@ -375,13 +380,6 @@ static int queryVideoSurface(CtkVDPAU *ctk_vdpau, VdpDevice device,
     GtkWidget *eventbox, *event;
     GString *str1 = g_string_new("");
     int count = 0;
-
-    if ((VDPAUDeviceFunctions.VideoSurfaceQueryGetPutBitsYCbCrCapabilities ==
-         NULL) ||
-        (VDPAUDeviceFunctions.VideoSurfaceQueryGetPutBitsYCbCrCapabilities ==
-         NULL)) {
-        return -1;
-    }
 
     /* Add Video surface limits */
 
@@ -456,10 +454,10 @@ static int queryVideoSurface(CtkVDPAU *ctk_vdpau, VdpDevice device,
         VdpBool is_supported = FALSE;
         uint32_t max_width, max_height;
 
-        ret = VDPAUDeviceFunctions.VideoSurfaceQueryCapabilities(device,
-                                         chroma_types[x].id,
-                                         &is_supported,
-                                         &max_width, &max_height);
+        ret = vdpau->VideoSurfaceQueryCapabilities(device,
+                                                   chroma_types[x].id,
+                                                   &is_supported,
+                                                   &max_width, &max_height);
         if (ret == VDP_STATUS_OK && is_supported) {
             int y;
             gchar *str = NULL;
@@ -496,10 +494,10 @@ static int queryVideoSurface(CtkVDPAU *ctk_vdpau, VdpDevice device,
             for (y = 0; y < ycbcr_type_count; y++) {
                 is_supported = FALSE;
 
-                ret =
-                    VDPAUDeviceFunctions.VideoSurfaceQueryGetPutBitsYCbCrCapabilities
-                    (device, chroma_types[x].id, ycbcr_types[y].id,
-                     &is_supported);
+                ret = vdpau->VideoSurfaceQueryGetPutBitsYCbCrCapabilities(device,
+                                                                          chroma_types[x].id,
+                                                                          ycbcr_types[y].id,
+                                                                          &is_supported);
                 if (ret == VDP_STATUS_OK && is_supported) {
                     const gchar* s = g_strdup_printf("%s ",
                                                      ycbcr_types[y].name);
@@ -516,8 +514,8 @@ static int queryVideoSurface(CtkVDPAU *ctk_vdpau, VdpDevice device,
     }
     g_string_free(str1, TRUE);
 
-    queryOutputSurface(ctk_vdpau, device, getProcAddress);
-    queryBitmapSurface(ctk_vdpau, device, getProcAddress);
+    queryOutputSurface(ctk_vdpau, device, vdpau);
+    queryBitmapSurface(ctk_vdpau, device, vdpau);
 
     return 0;
 } /* queryVideoSurface() */
@@ -531,7 +529,7 @@ static int queryVideoSurface(CtkVDPAU *ctk_vdpau, VdpDevice device,
  */
 
 static int queryDecoderCaps(CtkVDPAU *ctk_vdpau, VdpDevice device,
-                            VdpGetProcAddress *getProcAddress)
+                            const struct VDPAUDeviceImpl *vdpau)
 {
     static const Desc decoder_profiles[] = {
         {"MPEG1",              VDP_DECODER_PROFILE_MPEG1,              0},
@@ -588,10 +586,6 @@ static int queryDecoderCaps(CtkVDPAU *ctk_vdpau, VdpDevice device,
     GtkWidget *table;
     GtkWidget *label, *hseparator;
     GtkWidget *eventbox;
-
-    if (VDPAUDeviceFunctions.DecoderQueryCapabilities == NULL) {
-        return -1;
-    }
 
     /* Add Decoder capabilities */
 
@@ -661,11 +655,11 @@ static int queryDecoderCaps(CtkVDPAU *ctk_vdpau, VdpDevice device,
         VdpBool is_supported = FALSE;
         uint32_t max_level, max_macroblocks, max_width, max_height;
 
-        ret = VDPAUDeviceFunctions.DecoderQueryCapabilities(device,
-                                                decoder_profiles[x].id,
-                                                &is_supported, &max_level,
-                                                &max_macroblocks,
-                                                &max_width, &max_height);
+        ret = vdpau->DecoderQueryCapabilities(device,
+                                              decoder_profiles[x].id,
+                                              &is_supported, &max_level,
+                                              &max_macroblocks,
+                                              &max_width, &max_height);
         if (ret == VDP_STATUS_OK && is_supported) {
             gchar *str = NULL;
 
@@ -722,7 +716,7 @@ static int queryDecoderCaps(CtkVDPAU *ctk_vdpau, VdpDevice device,
  */
 
 static int queryOutputSurface(CtkVDPAU *ctk_vdpau, VdpDevice device,
-                              VdpGetProcAddress *getProcAddress)
+                              const struct VDPAUDeviceImpl *vdpau)
 {
     VdpStatus ret;
     int x, y, count = 0;
@@ -731,12 +725,6 @@ static int queryOutputSurface(CtkVDPAU *ctk_vdpau, VdpDevice device,
     GtkWidget *table;
     GtkWidget *label, *hseparator;
     GtkWidget *eventbox;
-
-    if ((VDPAUDeviceFunctions.OutputSurfaceQueryCapabilities == NULL) ||
-        (VDPAUDeviceFunctions.OutputSurfaceQueryGetPutBitsNativeCapabilities
-         == NULL)) {
-        return -1;
-    }
 
     /* Add Output surface information */
 
@@ -800,12 +788,13 @@ static int queryOutputSurface(CtkVDPAU *ctk_vdpau, VdpDevice device,
         VdpBool is_supported, native=FALSE;
         uint32_t max_width, max_height;
 
-        ret = VDPAUDeviceFunctions.OutputSurfaceQueryCapabilities(device,
-                                                     rgb_types[x].id,
-                                                     &is_supported, &max_width,
-                                                     &max_height);
-        VDPAUDeviceFunctions.OutputSurfaceQueryGetPutBitsNativeCapabilities
-            (device, rgb_types[x].id, &native);
+        ret = vdpau->OutputSurfaceQueryCapabilities(device,
+                                                    rgb_types[x].id,
+                                                    &is_supported, &max_width,
+                                                    &max_height);
+        vdpau->OutputSurfaceQueryGetPutBitsNativeCapabilities(device,
+                                                              rgb_types[x].id,
+                                                              &native);
         if (ret == VDP_STATUS_OK && is_supported) {
             gchar *str = NULL;
 
@@ -850,9 +839,10 @@ static int queryOutputSurface(CtkVDPAU *ctk_vdpau, VdpDevice device,
                 is_supported = FALSE;
 
                 ret =
-                    VDPAUDeviceFunctions.OutputSurfaceQueryPutBitsYCbCrCapabilities
-                    (device, rgb_types[x].id, ycbcr_types[y].id,
-                     &is_supported);
+                    vdpau->OutputSurfaceQueryPutBitsYCbCrCapabilities(device,
+                                                                      rgb_types[x].id,
+                                                                      ycbcr_types[y].id,
+                                                                      &is_supported);
                 if (ret == VDP_STATUS_OK && is_supported) {
                     gchar* s = g_strdup_printf("%s ", ycbcr_types[y].name);
                     str1 = g_string_append(str1, s);
@@ -876,7 +866,7 @@ static int queryOutputSurface(CtkVDPAU *ctk_vdpau, VdpDevice device,
  */
 
 static int queryBitmapSurface(CtkVDPAU *ctk_vdpau, VdpDevice device,
-                              VdpGetProcAddress *getProcAddress)
+                              const struct VDPAUDeviceImpl *vdpau)
 {
     VdpStatus ret;
     int x, count = 0;
@@ -884,10 +874,6 @@ static int queryBitmapSurface(CtkVDPAU *ctk_vdpau, VdpDevice device,
     GtkWidget *table;
     GtkWidget *label, *hseparator;
     GtkWidget *eventbox;
-
-    if (VDPAUDeviceFunctions.BitmapSurfaceQueryCapabilities == NULL) {
-        return -1;
-    }
 
     /* Add Bitmap surface information */
 
@@ -939,11 +925,11 @@ static int queryBitmapSurface(CtkVDPAU *ctk_vdpau, VdpDevice device,
         VdpBool is_supported;
         uint32_t max_width, max_height;
 
-        ret = VDPAUDeviceFunctions.BitmapSurfaceQueryCapabilities(device,
-                                                      rgb_types[x].id,
-                                                      &is_supported,
-                                                      &max_width,
-                                                      &max_height);
+        ret = vdpau->BitmapSurfaceQueryCapabilities(device,
+                                                    rgb_types[x].id,
+                                                    &is_supported,
+                                                    &max_width,
+                                                    &max_height);
         if (ret == VDP_STATUS_OK && is_supported) {
             gchar *str = NULL;
 
@@ -1043,7 +1029,7 @@ static void display_range(GtkTable *table, gint x, uint32_t aux,
  */
 
 static int queryVideoMixer(CtkVDPAU *ctk_vdpau, VdpDevice device,
-                           VdpGetProcAddress *getProcAddress)
+                           const struct VDPAUDeviceImpl *vdpau)
 {
     static const Desc mixer_features[] = {
         {"DEINTERLACE_TEMPORAL",
@@ -1115,10 +1101,6 @@ static int queryVideoMixer(CtkVDPAU *ctk_vdpau, VdpDevice device,
     GtkWidget *label, *hseparator;
     GtkWidget *eventbox;
     GtkWidget *scrollWin, *event;
-
-    if (VDPAUDeviceFunctions.VideoMixerQueryFeatureSupport == NULL) {
-        return -1;
-    }
 
     /* Add Video mixer information */
 
@@ -1194,8 +1176,9 @@ static int queryVideoMixer(CtkVDPAU *ctk_vdpau, VdpDevice device,
          * is_supported is only set if the feature is not supported
          */
         VdpBool is_supported = TRUE;
-        ret = VDPAUDeviceFunctions.VideoMixerQueryFeatureSupport
-            (device, mixer_features[x].id, &is_supported);
+        ret = vdpau->VideoMixerQueryFeatureSupport(device,
+                                                   mixer_features[x].id,
+                                                   &is_supported);
         is_supported = (ret == VDP_STATUS_OK && is_supported);
 
         gtk_table_resize(GTK_TABLE(table), count+4, 5);
@@ -1216,10 +1199,6 @@ static int queryVideoMixer(CtkVDPAU *ctk_vdpau, VdpDevice device,
                          GTK_FILL, GTK_FILL | GTK_EXPAND, 5, 0);
         count++;
 
-    }
-
-    if (VDPAUDeviceFunctions.VideoMixerQueryParameterSupport == NULL) {
-        return -1;
     }
 
     /* Generate a new table */
@@ -1277,8 +1256,9 @@ static int queryVideoMixer(CtkVDPAU *ctk_vdpau, VdpDevice device,
         VdpBool is_supported = FALSE;
         gchar *str = NULL;
 
-        ret = VDPAUDeviceFunctions.VideoMixerQueryParameterSupport
-            (device, mixer_parameters[x].id, &is_supported);
+        ret = vdpau->VideoMixerQueryParameterSupport(device,
+                                                     mixer_parameters[x].id,
+                                                     &is_supported);
         is_supported = (ret == VDP_STATUS_OK && is_supported);
 
         gtk_table_resize(GTK_TABLE(table), count+4, 5);
@@ -1300,17 +1280,14 @@ static int queryVideoMixer(CtkVDPAU *ctk_vdpau, VdpDevice device,
 
         count++;
         if (is_supported && mixer_parameters[x].aux != DT_NONE) {
-            ret = VDPAUDeviceFunctions.VideoMixerQueryParameterValueRange
-                (device, mixer_parameters[x].id, (void*)&minval,
-                 (void*)&maxval);
+            ret = vdpau->VideoMixerQueryParameterValueRange(device,
+                                                            mixer_parameters[x].id,
+                                                            (void*)&minval,
+                                                            (void*)&maxval);
             display_range(GTK_TABLE(table), count-1,
                           mixer_parameters[x].aux,
                           minval, maxval);
         }
-    }
-
-    if (VDPAUDeviceFunctions.VideoMixerQueryAttributeSupport == NULL) {
-        return -1;
     }
 
     /* Generate a new table */
@@ -1369,8 +1346,9 @@ static int queryVideoMixer(CtkVDPAU *ctk_vdpau, VdpDevice device,
         gchar *str = NULL;
         uint32_t minval, maxval;
 
-        ret = VDPAUDeviceFunctions.VideoMixerQueryAttributeSupport
-            (device, mixer_attributes[x].id, &is_supported);
+        ret = vdpau->VideoMixerQueryAttributeSupport(device,
+                                                     mixer_attributes[x].id,
+                                                     &is_supported);
         is_supported = (ret == VDP_STATUS_OK && is_supported);
 
         gtk_table_resize(GTK_TABLE(table), count+4, 5);
@@ -1392,9 +1370,10 @@ static int queryVideoMixer(CtkVDPAU *ctk_vdpau, VdpDevice device,
 
         count++;
         if (is_supported && mixer_attributes[x].aux != DT_NONE) {
-            ret = VDPAUDeviceFunctions.VideoMixerQueryAttributeValueRange
-                (device, mixer_attributes[x].id,
-                 (void*)&minval, (void*)&maxval);
+            ret = vdpau->VideoMixerQueryAttributeValueRange(device,
+                                                            mixer_attributes[x].id,
+                                                            (void*)&minval,
+                                                            (void*)&maxval);
             display_range(GTK_TABLE(table), count-1, mixer_attributes[x].aux,
                           minval, maxval);
         }
@@ -1451,6 +1430,7 @@ GtkWidget* ctk_vdpau_new(CtrlTarget *ctrl_target, CtkConfig *ctk_config,
     VdpGetProcAddress *getProcAddress = NULL;
     VdpStatus ret;
     VdpDeviceCreateX11 *VDPAUDeviceCreateX11 = NULL;
+    struct VDPAUDeviceImpl VDPAUDeviceFunctions;
 
     /* make sure we have a handle */
 
@@ -1490,28 +1470,8 @@ GtkWidget* ctk_vdpau_new(CtrlTarget *ctrl_target, CtkConfig *ctk_config,
         goto fail;
     }
 
-    getAddressVDPAUDeviceFunctions(device, getProcAddress);
-
-    /* Return early if any function is NULL */
-    if (VDPAUDeviceFunctions.GetErrorString == NULL &&
-        VDPAUDeviceFunctions.GetProcAddress == NULL &&
-        VDPAUDeviceFunctions.GetApiVersion == NULL &&
-        VDPAUDeviceFunctions.GetInformationString == NULL &&
-        VDPAUDeviceFunctions.VideoSurfaceQueryCapabilities == NULL &&
-        VDPAUDeviceFunctions.VideoSurfaceQueryGetPutBitsYCbCrCapabilities ==
-        NULL &&
-        VDPAUDeviceFunctions.OutputSurfaceQueryCapabilities == NULL &&
-        VDPAUDeviceFunctions.OutputSurfaceQueryGetPutBitsNativeCapabilities ==
-        NULL &&
-        VDPAUDeviceFunctions.OutputSurfaceQueryPutBitsYCbCrCapabilities ==
-        NULL &&
-        VDPAUDeviceFunctions.BitmapSurfaceQueryCapabilities == NULL &&
-        VDPAUDeviceFunctions.DecoderQueryCapabilities == NULL &&
-        VDPAUDeviceFunctions.VideoMixerQueryFeatureSupport == NULL &&
-        VDPAUDeviceFunctions.VideoMixerQueryParameterSupport == NULL &&
-        VDPAUDeviceFunctions.VideoMixerQueryAttributeSupport == NULL &&
-        VDPAUDeviceFunctions.VideoMixerQueryParameterValueRange == NULL &&
-        VDPAUDeviceFunctions.VideoMixerQueryAttributeValueRange == NULL) {
+    if (!getAddressVDPAUDeviceFunctions(device, getProcAddress,
+                                        &VDPAUDeviceFunctions)) {
         goto fail;
     }
 
@@ -1544,10 +1504,10 @@ GtkWidget* ctk_vdpau_new(CtrlTarget *ctrl_target, CtkConfig *ctk_config,
     ctk_vdpau->notebook = notebook;
 
     /* Query and print VDPAU information */
-    queryBaseInfo(ctk_vdpau, device, getProcAddress);
-    queryVideoSurface(ctk_vdpau, device, getProcAddress);
-    queryDecoderCaps(ctk_vdpau, device, getProcAddress);
-    queryVideoMixer(ctk_vdpau, device, getProcAddress);
+    queryBaseInfo(ctk_vdpau, device, &VDPAUDeviceFunctions);
+    queryVideoSurface(ctk_vdpau, device, &VDPAUDeviceFunctions);
+    queryDecoderCaps(ctk_vdpau, device, &VDPAUDeviceFunctions);
+    queryVideoMixer(ctk_vdpau, device, &VDPAUDeviceFunctions);
 
     gtk_widget_show_all(GTK_WIDGET(object));
 
