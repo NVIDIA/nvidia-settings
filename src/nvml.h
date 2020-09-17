@@ -978,7 +978,7 @@ typedef struct nvmlGridLicensableFeature_st
 {
     nvmlGridLicenseFeatureCode_t    featureCode;                                 //!< Licensed feature code
     unsigned int                    featureState;                                //!< Non-zero if feature is currently licensed, otherwise zero
-    char                            licenseInfo[NVML_GRID_LICENSE_BUFFER_SIZE];
+    char                            licenseInfo[NVML_GRID_LICENSE_BUFFER_SIZE];  //!< Deprecated.
     char                            productName[NVML_GRID_LICENSE_BUFFER_SIZE];
     unsigned int                    featureEnabled;                              //!< Non-zero if feature is enabled, otherwise zero
 } nvmlGridLicensableFeature_t;
@@ -2206,7 +2206,7 @@ nvmlReturn_t DECLDIR nvmlDeviceGetCount_v2(unsigned int *deviceCount);
  *
  * @note This API currently only supports MIG device handles.
  *
- * For newer than Volta &tm; fully supported devices.
+ * For Ampere &tm; or newer fully supported devices.
  * Supported on Linux only.
  *
  * @param device                               NVML device handle
@@ -4689,7 +4689,7 @@ nvmlReturn_t DECLDIR nvmlDeviceGetRetiredPagesPendingStatus(nvmlDevice_t device,
  * @note On MIG-enabled GPUs with active instances, querying the number of
  * remapped rows is not supported
  *
- * For newer than Volta &tm; fully supported devices.
+ * For Ampere &tm; or newer fully supported devices.
  *
  * @param device                               The identifier of the target device
  * @param corrRows                             Reference for number of rows remapped due to correctable errors
@@ -7062,7 +7062,7 @@ typedef struct nvmlComputeInstance_st* nvmlComputeInstance_t;
 /**
  * Set MIG mode for the device.
  *
- * For newer than Volta &tm; fully supported devices.
+ * For Ampere &tm; or newer fully supported devices.
  * Supported on Linux only.
  * Requires root user.
  *
@@ -7095,7 +7095,7 @@ nvmlReturn_t DECLDIR nvmlDeviceSetMigMode(nvmlDevice_t device, unsigned int mode
 /**
  * Get MIG mode for the device.
  *
- * For newer than Volta &tm; fully supported devices.
+ * For Ampere &tm; or newer fully supported devices.
  * Supported on Linux only.
  *
  * Changing MIG modes may require device unbind or reset. The "pending" MIG mode refers to the target mode following the
@@ -7120,7 +7120,7 @@ nvmlReturn_t DECLDIR nvmlDeviceGetMigMode(nvmlDevice_t device, unsigned int *cur
  *
  * Information provided by this API is immutable throughout the lifetime of a MIG mode.
  *
- * For newer than Volta &tm; fully supported devices.
+ * For Ampere &tm; or newer fully supported devices.
  * Supported on Linux only.
  * Requires privileged user.
  *
@@ -7144,7 +7144,7 @@ nvmlReturn_t DECLDIR nvmlDeviceGetGpuInstanceProfileInfo(nvmlDevice_t device, un
  * A placement represents the location of a GPU instance within a device. This API only returns all the possible
  * placements for the given profile.
  *
- * For newer than Volta &tm; fully supported devices.
+ * For Ampere &tm; or newer fully supported devices.
  * Supported on Linux only.
  * Requires privileged user.
  *
@@ -7169,7 +7169,7 @@ nvmlReturn_t DECLDIR nvmlDeviceGetGpuInstancePossiblePlacements(nvmlDevice_t dev
 /**
  * Get GPU instance profile capacity.
  *
- * For newer than Volta &tm; fully supported devices.
+ * For Ampere &tm; or newer fully supported devices.
  * Supported on Linux only.
  * Requires privileged user.
  *
@@ -7190,7 +7190,7 @@ nvmlReturn_t DECLDIR nvmlDeviceGetGpuInstanceRemainingCapacity(nvmlDevice_t devi
 /**
  * Create GPU instance.
  *
- * For newer than Volta &tm; fully supported devices.
+ * For Ampere &tm; or newer fully supported devices.
  * Supported on Linux only.
  * Requires privileged user.
  *
@@ -7205,7 +7205,7 @@ nvmlReturn_t DECLDIR nvmlDeviceGetGpuInstanceRemainingCapacity(nvmlDevice_t devi
  *         - \ref NVML_SUCCESS                       Upon success
  *         - \ref NVML_ERROR_UNINITIALIZED           If library has not been successfully initialized
  *         - \ref NVML_ERROR_INVALID_ARGUMENT        If \a device, \a profile, \a profileId or \a gpuInstance are invalid
- *         - \ref NVML_ERROR_NOT_SUPPORTED           If \a device doesn't have MIG mode enabled
+ *         - \ref NVML_ERROR_NOT_SUPPORTED           If \a device doesn't have MIG mode enabled or in vGPU guest
  *         - \ref NVML_ERROR_NO_PERMISSION           If user doesn't have permission to perform the operation
  *         - \ref NVML_ERROR_INSUFFICIENT_RESOURCES  If the requested GPU instance could not be created
  */
@@ -7215,7 +7215,7 @@ nvmlReturn_t DECLDIR nvmlDeviceCreateGpuInstance(nvmlDevice_t device, unsigned i
 /**
  * Destroy GPU instance.
  *
- * For newer than Volta &tm; fully supported devices.
+ * For Ampere &tm; or newer fully supported devices.
  * Supported on Linux only.
  * Requires privileged user.
  *
@@ -7225,7 +7225,7 @@ nvmlReturn_t DECLDIR nvmlDeviceCreateGpuInstance(nvmlDevice_t device, unsigned i
  *         - \ref NVML_SUCCESS                 Upon success
  *         - \ref NVML_ERROR_UNINITIALIZED     If library has not been successfully initialized
  *         - \ref NVML_ERROR_INVALID_ARGUMENT  If \a gpuInstance is invalid
- *         - \ref NVML_ERROR_NOT_SUPPORTED     If \a device doesn't have MIG mode enabled
+ *         - \ref NVML_ERROR_NOT_SUPPORTED     If \a device doesn't have MIG mode enabled or in vGPU guest
  *         - \ref NVML_ERROR_NO_PERMISSION     If user doesn't have permission to perform the operation
  *         - \ref NVML_ERROR_IN_USE            If the GPU instance is in use. This error would be returned if processes
  *                                             (e.g. CUDA application) or compute instances are active on the
@@ -7236,7 +7236,7 @@ nvmlReturn_t DECLDIR nvmlGpuInstanceDestroy(nvmlGpuInstance_t gpuInstance);
 /**
  * Get GPU instances for given profile ID.
  *
- * For newer than Volta &tm; fully supported devices.
+ * For Ampere &tm; or newer fully supported devices.
  * Supported on Linux only.
  * Requires privileged user.
  *
@@ -7260,7 +7260,7 @@ nvmlReturn_t DECLDIR nvmlDeviceGetGpuInstances(nvmlDevice_t device, unsigned int
 /**
  * Get GPU instances for given instance ID.
  *
- * For newer than Volta &tm; fully supported devices.
+ * For Ampere &tm; or newer fully supported devices.
  * Supported on Linux only.
  * Requires privileged user.
  *
@@ -7281,7 +7281,7 @@ nvmlReturn_t DECLDIR nvmlDeviceGetGpuInstanceById(nvmlDevice_t device, unsigned 
 /**
  * Get GPU instance information.
  *
- * For newer than Volta &tm; fully supported devices.
+ * For Ampere &tm; or newer fully supported devices.
  * Supported on Linux only.
  *
  * @param gpuInstance                          The GPU instance handle
@@ -7300,7 +7300,7 @@ nvmlReturn_t DECLDIR nvmlGpuInstanceGetInfo(nvmlGpuInstance_t gpuInstance, nvmlG
  *
  * Information provided by this API is immutable throughout the lifetime of a MIG mode.
  *
- * For newer than Volta &tm; fully supported devices.
+ * For Ampere &tm; or newer fully supported devices.
  * Supported on Linux only.
  * Requires privileged user.
  *
@@ -7323,7 +7323,7 @@ nvmlReturn_t DECLDIR nvmlGpuInstanceGetComputeInstanceProfileInfo(nvmlGpuInstanc
 /**
  * Get compute instance profile capacity.
  *
- * For newer than Volta &tm; fully supported devices.
+ * For Ampere &tm; or newer fully supported devices.
  * Supported on Linux only.
  * Requires privileged user.
  *
@@ -7345,7 +7345,7 @@ nvmlReturn_t DECLDIR nvmlGpuInstanceGetComputeInstanceRemainingCapacity(nvmlGpuI
 /**
  * Create compute instance.
  *
- * For newer than Volta &tm; fully supported devices.
+ * For Ampere &tm; or newer fully supported devices.
  * Supported on Linux only.
  * Requires privileged user.
  *
@@ -7373,7 +7373,7 @@ nvmlReturn_t DECLDIR nvmlGpuInstanceCreateComputeInstance(nvmlGpuInstance_t gpuI
 /**
  * Destroy compute instance.
  *
- * For newer than Volta &tm; fully supported devices.
+ * For Ampere &tm; or newer fully supported devices.
  * Supported on Linux only.
  * Requires privileged user.
  *
@@ -7392,7 +7392,7 @@ nvmlReturn_t DECLDIR nvmlComputeInstanceDestroy(nvmlComputeInstance_t computeIns
 /**
  * Get compute instances for given profile ID.
  *
- * For newer than Volta &tm; fully supported devices.
+ * For Ampere &tm; or newer fully supported devices.
  * Supported on Linux only.
  * Requires privileged user.
  *
@@ -7418,7 +7418,7 @@ nvmlReturn_t DECLDIR nvmlGpuInstanceGetComputeInstances(nvmlGpuInstance_t gpuIns
 /**
  * Get compute instance for given instance ID.
  *
- * For newer than Volta &tm; fully supported devices.
+ * For Ampere &tm; or newer fully supported devices.
  * Supported on Linux only.
  * Requires privileged user.
  *
@@ -7440,7 +7440,7 @@ nvmlReturn_t DECLDIR nvmlGpuInstanceGetComputeInstanceById(nvmlGpuInstance_t gpu
 /**
  * Get compute instance information.
  *
- * For newer than Volta &tm; fully supported devices.
+ * For Ampere &tm; or newer fully supported devices.
  * Supported on Linux only.
  *
  * @param computeInstance                      The compute instance handle
@@ -7461,7 +7461,7 @@ nvmlReturn_t DECLDIR nvmlComputeInstanceGetInfo(nvmlComputeInstance_t computeIns
  * These overloaded references can be used (with some restrictions) interchangeably
  * with a GPU device handle to execute queries at a per-compute instance granularity.
  *
- * For newer than Volta &tm; fully supported devices.
+ * For Ampere &tm; or newer fully supported devices.
  * Supported on Linux only.
  *
  * @param device                               NVML handle to test
@@ -7481,7 +7481,7 @@ nvmlReturn_t DECLDIR nvmlDeviceIsMigDeviceHandle(nvmlDevice_t device, unsigned i
  *
  * GPU instance IDs are unique per device and remain valid until the GPU instance is destroyed.
  *
- * For newer than Volta &tm; fully supported devices.
+ * For Ampere &tm; or newer fully supported devices.
  * Supported on Linux only.
  *
  * @param device                               Target MIG device handle
@@ -7502,7 +7502,7 @@ nvmlReturn_t DECLDIR nvmlDeviceGetGpuInstanceId(nvmlDevice_t device, unsigned in
  * Compute instance IDs are unique per GPU instance and remain valid until the compute instance
  * is destroyed.
  *
- * For newer than Volta &tm; fully supported devices.
+ * For Ampere &tm; or newer fully supported devices.
  * Supported on Linux only.
  *
  * @param device                               Target MIG device handle
@@ -7522,7 +7522,7 @@ nvmlReturn_t DECLDIR nvmlDeviceGetComputeInstanceId(nvmlDevice_t device, unsigne
  *
  * Returns zero if MIG is not supported or enabled.
  *
- * For newer than Volta &tm; fully supported devices.
+ * For Ampere &tm; or newer fully supported devices.
  * Supported on Linux only.
  *
  * @param device                               Target device handle
@@ -7545,7 +7545,7 @@ nvmlReturn_t DECLDIR nvmlDeviceGetMaxMigDeviceCount(nvmlDevice_t device, unsigne
  * using this API. Handles may be reused and their properties can change in
  * the process.
  *
- * For newer than Volta &tm; fully supported devices.
+ * For Ampere &tm; or newer fully supported devices.
  * Supported on Linux only.
  *
  * @param device                               Reference to the parent GPU device handle
@@ -7566,7 +7566,7 @@ nvmlReturn_t DECLDIR nvmlDeviceGetMigDeviceHandleByIndex(nvmlDevice_t device, un
 /**
  * Get parent device handle from a MIG device handle.
  *
- * For newer than Volta &tm; fully supported devices.
+ * For Ampere &tm; or newer fully supported devices.
  * Supported on Linux only.
  *
  * @param migDevice                            MIG device handle
