@@ -113,6 +113,7 @@ extern "C" {
     #define nvmlDeviceGetGridLicensableFeatures     nvmlDeviceGetGridLicensableFeatures_v3
     #define nvmlEventSetWait                        nvmlEventSetWait_v2
     #define nvmlDeviceGetAttributes                 nvmlDeviceGetAttributes_v2
+    #define nvmlComputeInstanceGetInfo              nvmlComputeInstanceGetInfo_v2
     #define nvmlDeviceGetComputeRunningProcesses    nvmlDeviceGetComputeRunningProcesses_v2
     #define nvmlDeviceGetGraphicsRunningProcesses   nvmlDeviceGetGraphicsRunningProcesses_v2
 #endif // #ifndef NVML_NO_UNVERSIONED_FUNC_DEFS
@@ -904,6 +905,8 @@ typedef enum {
 
 #define NVML_GRID_LICENSE_FEATURE_MAX_COUNT 3
 
+#define INVALID_GPU_INSTANCE_PROFILE_ID     0xFFFFFFFF
+
 /*!
  * Macros for vGPU instance's virtualization capabilities bitfield.
  */
@@ -978,7 +981,7 @@ typedef struct nvmlGridLicensableFeature_st
 {
     nvmlGridLicenseFeatureCode_t    featureCode;                                 //!< Licensed feature code
     unsigned int                    featureState;                                //!< Non-zero if feature is currently licensed, otherwise zero
-    char                            licenseInfo[NVML_GRID_LICENSE_BUFFER_SIZE];
+    char                            licenseInfo[NVML_GRID_LICENSE_BUFFER_SIZE];  //!< Deprecated.
     char                            productName[NVML_GRID_LICENSE_BUFFER_SIZE];
     unsigned int                    featureEnabled;                              //!< Non-zero if feature is enabled, otherwise zero
 } nvmlGridLicensableFeature_t;
@@ -5985,6 +5988,24 @@ nvmlReturn_t DECLDIR nvmlVgpuTypeGetClass(nvmlVgpuTypeId_t vgpuTypeId, char *vgp
 nvmlReturn_t DECLDIR nvmlVgpuTypeGetName(nvmlVgpuTypeId_t vgpuTypeId, char *vgpuTypeName, unsigned int *size);
 
 /**
+ * Retrieve the GPU Instance Profile ID for the given vGPU type ID.
+ * The API will return a valid profile ID for MIG backed vGPU types when GPU is configured in MIG mode, else INVALID_GPU_INSTANCE_PROFILE_ID
+ * is returned.
+ *
+ * For Kepler &tm; or newer fully supported devices.
+ *
+ * @param vgpuTypeId               Handle to vGPU type
+ * @param gpuInstanceProfileId     GPU instance Profile ID
+ *
+ * @return
+ *         - \ref NVML_SUCCESS                 successful completion
+ *         - \ref NVML_ERROR_NOT_SUPPORTED     if \a device is not in vGPU Host virtualization mode
+ *         - \ref NVML_ERROR_INVALID_ARGUMENT  if  \a device is invalid, \a vgpuTypeId is invalid, or \a gpuInstanceProfileId is NULL
+ *         - \ref NVML_ERROR_UNKNOWN           on any unexpected error
+ */
+nvmlReturn_t DECLDIR nvmlVgpuTypeGetGpuInstanceProfileId(nvmlVgpuTypeId_t vgpuTypeId, unsigned int *gpuInstanceProfileId);
+
+/**
  * Retrieve the device ID of a vGPU type.
  *
  * For Kepler &tm; or newer fully supported devices.
@@ -7011,10 +7032,10 @@ typedef struct nvmlGpuInstanceProfileInfo_st
 
 typedef struct nvmlGpuInstanceInfo_st
 {
-    nvmlDevice_t device;                  //!< Parent device
-    unsigned int id;                      //!< Unique instance ID within the device
-    unsigned int profileId;               //!< Unique profile ID within the device
-    nvmlGpuInstancePlacement_t placement; //!< Placement for this instance
+    nvmlDevice_t device;                      //!< Parent device
+    unsigned int id;                          //!< Unique instance ID within the device
+    unsigned int profileId;                   //!< Unique profile ID within the device
+    nvmlGpuInstancePlacement_t placement;     //!< Placement for this instance
 } nvmlGpuInstanceInfo_t;
 
 typedef struct nvmlGpuInstance_st* nvmlGpuInstance_t;
@@ -7036,6 +7057,12 @@ typedef struct nvmlGpuInstance_st* nvmlGpuInstance_t;
 #define NVML_COMPUTE_INSTANCE_ENGINE_PROFILE_SHARED 0x0 //!< All the engines except multiprocessors would be shared
 #define NVML_COMPUTE_INSTANCE_ENGINE_PROFILE_COUNT  0x1
 
+typedef struct nvmlComputeInstancePlacement_st
+{
+    unsigned int start;
+    unsigned int size;
+} nvmlComputeInstancePlacement_t;
+
 typedef struct nvmlComputeInstanceProfileInfo_st
 {
     unsigned int id;                    //!< Unique profile ID within the GPU instance
@@ -7051,10 +7078,11 @@ typedef struct nvmlComputeInstanceProfileInfo_st
 
 typedef struct nvmlComputeInstanceInfo_st
 {
-    nvmlDevice_t device;           //!< Parent device
-    nvmlGpuInstance_t gpuInstance; //!< Parent GPU instance
-    unsigned int id;               //!< Unique instance ID within the GPU instance
-    unsigned int profileId;        //!< Unique profile ID within the GPU instance
+    nvmlDevice_t device;                      //!< Parent device
+    nvmlGpuInstance_t gpuInstance;            //!< Parent GPU instance
+    unsigned int id;                          //!< Unique instance ID within the GPU instance
+    unsigned int profileId;                   //!< Unique profile ID within the GPU instance
+    nvmlComputeInstancePlacement_t placement; //!< Placement for this instance within the GPU instance's slice range {0, sliceCount}
 } nvmlComputeInstanceInfo_t;
 
 typedef struct nvmlComputeInstance_st* nvmlComputeInstance_t;
@@ -7063,7 +7091,6 @@ typedef struct nvmlComputeInstance_st* nvmlComputeInstance_t;
  * Set MIG mode for the device.
  *
  * For newer than Volta &tm; fully supported devices.
- * Supported on Linux only.
  * Requires root user.
  *
  * This mode determines whether a GPU instance can be created.
@@ -7077,6 +7104,9 @@ typedef struct nvmlComputeInstance_st* nvmlComputeInstance_t;
  * \a activationStatus would return the appropriate error code upon unsuccessful activation. For example, if device
  * unbind fails because the device isn't idle, \ref NVML_ERROR_IN_USE would be returned. The caller of this API
  * is expected to idle the device and retry setting the \a mode.
+ *
+ * @note On Windows, only disabling MIG mode is supported. \a activationStatus would return \ref
+ *       NVML_ERROR_NOT_SUPPORTED as GPU reset is not supported on Windows through this API.
  *
  * @param device                               The identifier of the target device
  * @param mode                                 The mode to be set, \ref NVML_DEVICE_MIG_DISABLE or
@@ -7096,7 +7126,6 @@ nvmlReturn_t DECLDIR nvmlDeviceSetMigMode(nvmlDevice_t device, unsigned int mode
  * Get MIG mode for the device.
  *
  * For newer than Volta &tm; fully supported devices.
- * Supported on Linux only.
  *
  * Changing MIG modes may require device unbind or reset. The "pending" MIG mode refers to the target mode following the
  * next activation trigger.
@@ -7205,7 +7234,7 @@ nvmlReturn_t DECLDIR nvmlDeviceGetGpuInstanceRemainingCapacity(nvmlDevice_t devi
  *         - \ref NVML_SUCCESS                       Upon success
  *         - \ref NVML_ERROR_UNINITIALIZED           If library has not been successfully initialized
  *         - \ref NVML_ERROR_INVALID_ARGUMENT        If \a device, \a profile, \a profileId or \a gpuInstance are invalid
- *         - \ref NVML_ERROR_NOT_SUPPORTED           If \a device doesn't have MIG mode enabled
+ *         - \ref NVML_ERROR_NOT_SUPPORTED           If \a device doesn't have MIG mode enabled or in vGPU guest
  *         - \ref NVML_ERROR_NO_PERMISSION           If user doesn't have permission to perform the operation
  *         - \ref NVML_ERROR_INSUFFICIENT_RESOURCES  If the requested GPU instance could not be created
  */
@@ -7225,7 +7254,7 @@ nvmlReturn_t DECLDIR nvmlDeviceCreateGpuInstance(nvmlDevice_t device, unsigned i
  *         - \ref NVML_SUCCESS                 Upon success
  *         - \ref NVML_ERROR_UNINITIALIZED     If library has not been successfully initialized
  *         - \ref NVML_ERROR_INVALID_ARGUMENT  If \a gpuInstance is invalid
- *         - \ref NVML_ERROR_NOT_SUPPORTED     If \a device doesn't have MIG mode enabled
+ *         - \ref NVML_ERROR_NOT_SUPPORTED     If \a device doesn't have MIG mode enabled or in vGPU guest
  *         - \ref NVML_ERROR_NO_PERMISSION     If user doesn't have permission to perform the operation
  *         - \ref NVML_ERROR_IN_USE            If the GPU instance is in use. This error would be returned if processes
  *                                             (e.g. CUDA application) or compute instances are active on the
@@ -7452,7 +7481,7 @@ nvmlReturn_t DECLDIR nvmlGpuInstanceGetComputeInstanceById(nvmlGpuInstance_t gpu
  *         - \ref NVML_ERROR_INVALID_ARGUMENT  If \a computeInstance or \a info are invalid
  *         - \ref NVML_ERROR_NO_PERMISSION     If user doesn't have permission to perform the operation
  */
-nvmlReturn_t DECLDIR nvmlComputeInstanceGetInfo(nvmlComputeInstance_t computeInstance, nvmlComputeInstanceInfo_t *info);
+nvmlReturn_t DECLDIR nvmlComputeInstanceGetInfo_v2(nvmlComputeInstance_t computeInstance, nvmlComputeInstanceInfo_t *info);
 
 /**
  * Test if the given handle refers to a MIG device.
@@ -7600,6 +7629,7 @@ nvmlReturn_t DECLDIR nvmlDeviceGetGridLicensableFeatures_v2(nvmlDevice_t device,
 nvmlReturn_t DECLDIR nvmlDeviceRemoveGpu(nvmlPciInfo_t *pciInfo);
 nvmlReturn_t DECLDIR nvmlEventSetWait(nvmlEventSet_t set, nvmlEventData_t * data, unsigned int timeoutms);
 nvmlReturn_t DECLDIR nvmlDeviceGetAttributes(nvmlDevice_t device, nvmlDeviceAttributes_t *attributes);
+nvmlReturn_t DECLDIR nvmlComputeInstanceGetInfo(nvmlComputeInstance_t computeInstance, nvmlComputeInstanceInfo_t *info);
 nvmlReturn_t DECLDIR nvmlDeviceGetComputeRunningProcesses(nvmlDevice_t device, unsigned int *infoCount, nvmlProcessInfo_t *infos);
 nvmlReturn_t DECLDIR nvmlDeviceGetGraphicsRunningProcesses(nvmlDevice_t device, unsigned int *infoCount, nvmlProcessInfo_t *infos);
 #endif // #ifdef NVML_NO_UNVERSIONED_FUNC_DEFS
@@ -7611,6 +7641,7 @@ nvmlReturn_t DECLDIR nvmlDeviceGetGraphicsRunningProcesses(nvmlDevice_t device, 
 #undef nvmlDeviceGetGraphicsRunningProcesses
 #undef nvmlDeviceGetComputeRunningProcesses
 #undef nvmlDeviceGetAttributes
+#undef nvmlComputeInstanceGetInfo
 #undef nvmlEventSetWait
 #undef nvmlDeviceGetGridLicensableFeatures
 #undef nvmlDeviceRemoveGpu

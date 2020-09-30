@@ -1660,12 +1660,14 @@ GtkWidget* ctk_manage_grid_license_new(CtrlTarget *target,
         gtk_container_set_border_width(GTK_CONTAINER(vbox3), 5);
 
         ctk_manage_grid_license->isvComputeSupported = is_feature_supported(ctk_manage_grid_license, NV_GRID_LICENSE_FEATURE_TYPE_VCOMPUTE);
-        if (ctk_manage_grid_license->isvComputeSupported) {
+        ctk_manage_grid_license->isQuadroSupported = is_feature_supported(ctk_manage_grid_license, NV_GRID_LICENSE_FEATURE_TYPE_QDWS);
+        if (ctk_manage_grid_license->isvComputeSupported && ctk_manage_grid_license->isQuadroSupported) {
             ctk_manage_grid_license->radio_btn_vcompute = gtk_radio_button_new_with_label(NULL, ctk_manage_grid_license->productNamevCompute);
             slist = gtk_radio_button_get_group(GTK_RADIO_BUTTON(ctk_manage_grid_license->radio_btn_vcompute));
+
             gtk_box_pack_start(GTK_BOX(vbox3), ctk_manage_grid_license->radio_btn_vcompute, FALSE, FALSE, 0);
             g_object_set_data(G_OBJECT(ctk_manage_grid_license->radio_btn_vcompute), "button_id",
-                    GINT_TO_POINTER(NV_GRID_LICENSE_FEATURE_TYPE_VCOMPUTE));
+                              GINT_TO_POINTER(NV_GRID_LICENSE_FEATURE_TYPE_VCOMPUTE));
 
             g_signal_connect(G_OBJECT(ctk_manage_grid_license->radio_btn_vcompute), "toggled",
                              G_CALLBACK(license_edition_toggled),
@@ -1674,24 +1676,44 @@ GtkWidget* ctk_manage_grid_license_new(CtrlTarget *target,
             ctk_manage_grid_license->radio_btn_qdws = gtk_radio_button_new_with_label(slist, ctk_manage_grid_license->productNameQvDWS);
             slist = gtk_radio_button_get_group(GTK_RADIO_BUTTON(ctk_manage_grid_license->radio_btn_qdws));
 
+            gtk_box_pack_start(GTK_BOX(vbox3), ctk_manage_grid_license->radio_btn_qdws, FALSE, FALSE, 0);
+            g_object_set_data(G_OBJECT(ctk_manage_grid_license->radio_btn_qdws), "button_id",
+                              GINT_TO_POINTER(NV_GRID_LICENSE_FEATURE_TYPE_QDWS));
+
+            g_signal_connect(G_OBJECT(ctk_manage_grid_license->radio_btn_qdws), "toggled",
+                             G_CALLBACK(license_edition_toggled),
+                             (gpointer) ctk_manage_grid_license);
+
         }
-        else {
+        else if (ctk_manage_grid_license->isvComputeSupported) {
+            ctk_manage_grid_license->radio_btn_vcompute = gtk_radio_button_new_with_label(NULL, ctk_manage_grid_license->productNamevCompute);
+            slist = gtk_radio_button_get_group(GTK_RADIO_BUTTON(ctk_manage_grid_license->radio_btn_vcompute));
+
+            gtk_box_pack_start(GTK_BOX(vbox3), ctk_manage_grid_license->radio_btn_vcompute, FALSE, FALSE, 0);
+            g_object_set_data(G_OBJECT(ctk_manage_grid_license->radio_btn_vcompute), "button_id",
+                              GINT_TO_POINTER(NV_GRID_LICENSE_FEATURE_TYPE_VCOMPUTE));
+
+            g_signal_connect(G_OBJECT(ctk_manage_grid_license->radio_btn_vcompute), "toggled",
+                             G_CALLBACK(license_edition_toggled),
+                             (gpointer) ctk_manage_grid_license);
+        }
+        else if (ctk_manage_grid_license->isQuadroSupported) {
             ctk_manage_grid_license->radio_btn_qdws = gtk_radio_button_new_with_label(NULL, ctk_manage_grid_license->productNameQvDWS);
             slist = gtk_radio_button_get_group(GTK_RADIO_BUTTON(ctk_manage_grid_license->radio_btn_qdws));
+
+            gtk_box_pack_start(GTK_BOX(vbox3), ctk_manage_grid_license->radio_btn_qdws, FALSE, FALSE, 0);
+            g_object_set_data(G_OBJECT(ctk_manage_grid_license->radio_btn_qdws), "button_id",
+                              GINT_TO_POINTER(NV_GRID_LICENSE_FEATURE_TYPE_QDWS));
+
+            g_signal_connect(G_OBJECT(ctk_manage_grid_license->radio_btn_qdws), "toggled",
+                             G_CALLBACK(license_edition_toggled),
+                             (gpointer) ctk_manage_grid_license);
         }
-
-        gtk_box_pack_start(GTK_BOX(vbox3), ctk_manage_grid_license->radio_btn_qdws, FALSE, FALSE, 0);
-        g_object_set_data(G_OBJECT(ctk_manage_grid_license->radio_btn_qdws), "button_id",
-                GINT_TO_POINTER(NV_GRID_LICENSE_FEATURE_TYPE_QDWS));
-
-        g_signal_connect(G_OBJECT(ctk_manage_grid_license->radio_btn_qdws), "toggled",
-                         G_CALLBACK(license_edition_toggled),
-                         (gpointer) ctk_manage_grid_license);
 
         ctk_manage_grid_license->radio_btn_vapp = gtk_radio_button_new_with_label(slist, GRID_VIRTUAL_APPLICATIONS);
         gtk_box_pack_start(GTK_BOX(vbox3), ctk_manage_grid_license->radio_btn_vapp, FALSE, FALSE, 0);
         g_object_set_data(G_OBJECT(ctk_manage_grid_license->radio_btn_vapp), "button_id",
-                GINT_TO_POINTER(NV_GRID_LICENSE_FEATURE_TYPE_VAPP));
+                          GINT_TO_POINTER(NV_GRID_LICENSE_FEATURE_TYPE_VAPP));
 
         g_signal_connect(G_OBJECT(ctk_manage_grid_license->radio_btn_vapp), "toggled",
                          G_CALLBACK(license_edition_toggled),
