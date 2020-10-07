@@ -29,39 +29,26 @@
 
 #include "XF86Config-parser/xf86Parser.h"
 
-G_BEGIN_DECLS
-
-#define CTK_TYPE_SLIMM (ctk_slimm_get_type())
-
-#define CTK_SLIMM(obj) \
-    (G_TYPE_CHECK_INSTANCE_CAST ((obj), CTK_TYPE_SLIMM, CtkSLIMM))
-
-#define CTK_SLIMM_CLASS(klass) \
-    (G_TYPE_CHECK_CLASS_CAST ((klass), CTK_TYPE_SLIMM, CtkSLIMMClass))
-
-#define CTK_IS_SLIMM(obj) \
-    (G_TYPE_CHECK_INSTANCE_TYPE ((obj), CTK_TYPE_SLIMM))
-
-#define CTK_IS_SLIMM_CLASS(class) \
-    (G_TYPE_CHECK_CLASS_TYPE ((klass), CTK_TYPE_SLIMM))
-
-#define CTK_SLIMM_GET_CLASS(obj) \
-    (G_TYPE_INSTANCE_GET_CLASS ((obj), CTK_TYPE_SLIMM, CtkSLIMMClass))
-
-typedef struct _CtkSLIMM       CtkSLIMM;
-typedef struct _CtkSLIMMClass  CtkSLIMMClass;
-
 typedef struct GridConfigRec {
     int rows;
     int columns;
 } GridConfig;
 
-struct _CtkSLIMM
+typedef struct nvModeLineItemRec {
+    nvModeLinePtr modeline;
+    struct nvModeLineItemRec *next;
+} nvModeLineItem, *nvModeLineItemPtr;
+
+typedef struct _CtkMMDialog
 {
-    GtkVBox parent;
+    GtkWidget *parent;
+    nvLayoutPtr layout;
 
     CtrlTarget *ctrl_target;
     CtkConfig *ctk_config;
+
+    GtkWidget *dialog;
+    gboolean is_active;
 
     GtkWidget *mnu_display_config;
     GtkWidget *mnu_display_resolution;
@@ -70,15 +57,15 @@ struct _CtkSLIMM
     GtkWidget *spbtn_vedge_overlap;
     GtkWidget *lbl_total_size;
     GtkWidget *box_total_size;
-    GtkWidget *btn_save_config;
-    SaveXConfDlg *save_xconfig_dlg;
-    GtkWidget *cbtn_slimm_enable;
+    GtkWidget *chk_all_displays;
     nvModeLinePtr *resolution_table;
     nvModeLinePtr *refresh_table;
     int resolution_table_len;
     int refresh_table_len;
+    int cur_resolution_table_idx;
+    gint h_overlap_parsed, v_overlap_parsed;
     gboolean mnu_refresh_disabled;
-    nvModeLinePtr modelines;
+    nvModeLineItemPtr modelines;
     nvModeLinePtr cur_modeline;
     gint num_modelines;
     int num_displays;
@@ -88,6 +75,10 @@ struct _CtkSLIMM
     int max_screen_width;
     int max_screen_height;
 
+    gint x_displays, y_displays;
+    gint resolution_idx, refresh_idx;
+    gint h_overlap, v_overlap;
+
     /**
      * The grid_configs array enumerates the display grid configurations
      * that are presently supported.
@@ -95,20 +86,15 @@ struct _CtkSLIMM
     GridConfig *grid_configs;
     int num_grid_configs;
 
-};
+} CtkMMDialog;
 
-struct _CtkSLIMMClass
-{
-    GtkVBoxClass parent_class;
-};
+CtkMMDialog *create_mosaic_dialog(GtkWidget *parent, CtrlTarget *ctrl_target,
+                                  CtkConfig *ctk_config, nvLayoutPtr layout);
+int run_mosaic_dialog(CtkMMDialog *dialog, GtkWidget *parent,
+                      nvLayoutPtr layout);
 
-GType       ctk_slimm_get_type (void) G_GNUC_CONST;
-GtkWidget*  ctk_slimm_new      (CtrlTarget *ctrl_target,
-                                CtkEvent *ctk_event, CtkConfig *ctk_config);
-
-GtkTextBuffer *ctk_slimm_create_help(GtkTextTagTable *, const gchar *);
-
-G_END_DECLS
+void ctk_mmdialog_insert_help(GtkTextBuffer *b, GtkTextIter *i);
+void update_mosaic_dialog_ui(CtkMMDialog *ctk_mmdialog, nvLayoutPtr layout);
 
 #endif /* __CTK_SLIMM_H__ */
 

@@ -25,6 +25,7 @@
 #include "ctkconfig.h"
 #include "ctkdisplaylayout.h"
 #include "ctkdisplayconfig-utils.h"
+#include "ctkslimm.h"
 
 
 
@@ -231,6 +232,8 @@ typedef struct _CtkDisplayConfig
 
     SaveXConfDlg *save_xconfig_dlg;
 
+    CtkMMDialog *dialog_mosaic;
+
     /* Buttons */
     GtkWidget *btn_apply;
     gboolean apply_possible; /* True if all modifications are applicable */
@@ -242,6 +245,7 @@ typedef struct _CtkDisplayConfig
 
     GdkPoint cur_screen_pos; /* Keep track of the selected X screen's position */
 
+    GtkWidget *btn_mosaic;
     GtkWidget *btn_save;
     GtkWidget *btn_probe;
 
