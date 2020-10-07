@@ -904,6 +904,8 @@ typedef enum {
 
 #define NVML_GRID_LICENSE_FEATURE_MAX_COUNT 3
 
+#define INVALID_GPU_INSTANCE_PROFILE_ID     0xFFFFFFFF
+
 /*!
  * Macros for vGPU instance's virtualization capabilities bitfield.
  */
@@ -5983,6 +5985,24 @@ nvmlReturn_t DECLDIR nvmlVgpuTypeGetClass(nvmlVgpuTypeId_t vgpuTypeId, char *vgp
  *         - \ref NVML_ERROR_UNKNOWN           on any unexpected error
  */
 nvmlReturn_t DECLDIR nvmlVgpuTypeGetName(nvmlVgpuTypeId_t vgpuTypeId, char *vgpuTypeName, unsigned int *size);
+
+/**
+ * Retrieve the GPU Instance Profile ID for the given vGPU type ID.
+ * The API will return a valid profile ID for MIG backed vGPU types when GPU is configured in MIG mode, else INVALID_GPU_INSTANCE_PROFILE_ID
+ * is returned.
+ *
+ * For Kepler &tm; or newer fully supported devices.
+ *
+ * @param vgpuTypeId               Handle to vGPU type
+ * @param gpuInstanceProfileId     GPU instance Profile ID
+ *
+ * @return
+ *         - \ref NVML_SUCCESS                 successful completion
+ *         - \ref NVML_ERROR_NOT_SUPPORTED     if \a device is not in vGPU Host virtualization mode
+ *         - \ref NVML_ERROR_INVALID_ARGUMENT  if  \a device is invalid, \a vgpuTypeId is invalid, or \a gpuInstanceProfileId is NULL
+ *         - \ref NVML_ERROR_UNKNOWN           on any unexpected error
+ */
+nvmlReturn_t DECLDIR nvmlVgpuTypeGetGpuInstanceProfileId(nvmlVgpuTypeId_t vgpuTypeId, unsigned int *gpuInstanceProfileId);
 
 /**
  * Retrieve the device ID of a vGPU type.

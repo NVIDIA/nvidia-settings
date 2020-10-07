@@ -22,6 +22,7 @@
 #include <string.h>
 #include <sys/stat.h>
 #include <assert.h>
+#include <math.h>
 
 #include <gtk/gtk.h>
 #include <gdk/gdkx.h>
@@ -106,6 +107,7 @@ static void screen_metamode_delete_clicked(GtkWidget *widget, gpointer user_data
 static void setup_prime_display_page(CtkDisplayConfig *ctk_object);
 
 static void xinerama_state_toggled(GtkWidget *widget, gpointer user_data);
+static void mosaic_config_clicked(GtkWidget *widget, gpointer user_data);
 static void apply_clicked(GtkWidget *widget, gpointer user_data);
 static void save_clicked(GtkWidget *widget, gpointer user_data);
 static void probe_clicked(GtkWidget *widget, gpointer user_data);
@@ -127,6 +129,7 @@ static XConfigPtr xconfig_generate(XConfigPtr xconfCur,
                                    Bool *merged,
                                    void *callback_data);
 
+static void update_layout(CtkDisplayConfig *ctk_object);
 
 
 
@@ -203,6 +206,10 @@ static const char * __layout_base_mosaic_surround_button_help =
 
 static const char * __layout_base_mosaic_full_button_help =
 "The Enable Base Mosaic checkbox enables Base Mosaic.";
+
+static const char * __layout_mosaic_config_button_help =
+"The Configure SLI Mosaic Displays button will open a dialog to assist in "
+"configuring multiple displays.";
 
 static const char * __dpy_resolution_mnu_help =
 "The Resolution drop-down allows you to select a desired resolution "
@@ -1913,6 +1920,12 @@ GtkWidget* ctk_display_config_new(CtrlTarget *ctrl_target,
                                    xconfig_generate,
                                    (void *)ctk_object);
 
+    ctk_object->dialog_mosaic =
+        create_mosaic_dialog(GTK_WIDGET(ctk_object),
+                             ctk_object->ctrl_target,
+                             ctk_object->ctk_config,
+                             ctk_object->layout);
+
 
     /* Apply button */
     ctk_object->btn_apply = gtk_button_new_with_label("Apply");
@@ -1960,7 +1973,17 @@ GtkWidget* ctk_display_config_new(CtrlTarget *ctrl_target,
                      G_CALLBACK(save_clicked),
                      (gpointer) ctk_object);
 
+    /* Mosaic/Grid Config button */
+    ctk_object->btn_mosaic = gtk_button_new_with_label
+        ("Configure SLI Mosaic Displays");
+    ctk_config_set_tooltip(ctk_config, ctk_object->btn_mosaic,
+                           __layout_mosaic_config_button_help);
+    g_signal_connect(G_OBJECT(ctk_object->btn_mosaic), "clicked",
+                     G_CALLBACK(mosaic_config_clicked),
+                     (gpointer) ctk_object);
+
     { /* Layout section */
+        GtkWidget *vbox2;
 
         frame = gtk_frame_new("Layout"); /* main panel */
         gtk_box_pack_start(GTK_BOX(ctk_object), frame, FALSE, FALSE, 0);
@@ -1973,13 +1996,22 @@ GtkWidget* ctk_display_config_new(CtrlTarget *ctrl_target,
                            TRUE, TRUE, 0);
         gtk_box_pack_start(GTK_BOX(vbox), eventbox, TRUE, TRUE, 0);
 
+        hbox = gtk_hbox_new(FALSE, 5);
+        gtk_container_add(GTK_CONTAINER(vbox), hbox);
+        vbox2 = gtk_vbox_new(FALSE, 5);
+        gtk_container_add(GTK_CONTAINER(hbox), vbox2);
+
         /* Mosaic checkbox */
-        gtk_box_pack_start(GTK_BOX(vbox), ctk_object->chk_mosaic_enabled,
+        gtk_box_pack_start(GTK_BOX(vbox2), ctk_object->chk_mosaic_enabled,
                            FALSE, FALSE, 0);
 
         /* Xinerama checkbox */
-        gtk_box_pack_start(GTK_BOX(vbox), ctk_object->chk_xinerama_enabled,
+        gtk_box_pack_start(GTK_BOX(vbox2), ctk_object->chk_xinerama_enabled,
                            FALSE, FALSE, 0);
+
+        /* Mosaic configuration dialog button */
+        gtk_box_pack_end(GTK_BOX(hbox), ctk_object->btn_mosaic,
+                         FALSE, FALSE, 0);
     }
 
 
@@ -2524,6 +2556,8 @@ GtkTextBuffer *ctk_display_config_create_help(GtkTextTagTable *table,
         case MOSAIC_TYPE_SLI_MOSAIC:
             ctk_help_heading(b, &i, "Enable SLI Mosaic");
             ctk_help_para(b, &i, "%s", __layout_sli_mosaic_button_help);
+            ctk_help_heading(b, &i, "Configure SLI Mosaic");
+            ctk_help_para(b, &i, "%s", __layout_mosaic_config_button_help);
             break;
         case MOSAIC_TYPE_BASE_MOSAIC:
             ctk_help_heading(b, &i, "Enable Base Mosaic");
@@ -2667,6 +2701,12 @@ GtkTextBuffer *ctk_display_config_create_help(GtkTextTagTable *table,
     ctk_help_heading(b, &i, "Save to X Configuration File");
     ctk_help_para(b, &i, "%s", __save_button_help);
 
+
+    ctk_help_para(b, &i, "");
+    ctk_help_heading(b, &i, "Dialogs");
+
+    ctk_mmdialog_insert_help(b, &i);
+
     ctk_help_finish(b);
 
     return b;
@@ -2696,6 +2736,7 @@ static void setup_mosaic_config(CtkDisplayConfig *ctk_object)
     if (!ctk_object->advanced_mode ||
         (!display_gpu_support_mosaic && !screen_gpu_support_mosaic)) {
         gtk_widget_hide(ctk_object->chk_mosaic_enabled);
+        gtk_widget_hide(ctk_object->btn_mosaic);
         return;
     }
 
@@ -2705,6 +2746,14 @@ static void setup_mosaic_config(CtkDisplayConfig *ctk_object)
         gpu = display->gpu;
     } else {
         gpu = screen->display_owner_gpu;
+    }
+
+    /* Only show the Mosaic Config tool with SLI Mosaic and dialog exists */
+    if (gpu->mosaic_type == MOSAIC_TYPE_SLI_MOSAIC &&
+        ctk_object->dialog_mosaic) {
+        gtk_widget_show(ctk_object->btn_mosaic);
+    } else {
+        gtk_widget_hide(ctk_object->btn_mosaic);
     }
 
     switch (gpu->mosaic_type) {
@@ -6156,6 +6205,49 @@ static Bool display_build_modepool(nvDisplayPtr display, Bool *updated)
 
 
 
+static nvModeLinePtr
+display_find_closest_matching_modeline(nvDisplayPtr display,
+                                       nvModeLinePtr input_modeline)
+{
+    const int target_width = input_modeline->data.hdisplay;
+    const int target_height = input_modeline->data.vdisplay;
+    const double target_rr = input_modeline->refresh_rate;
+    const double tolerance = 0.0001;
+
+    nvModeLinePtr modeline, best_modeline = NULL;
+    int modeline_idx;
+    int best_idx = -1;
+
+    modeline_idx = 0;
+    for (modeline = display->modelines; modeline; modeline = modeline->next) {
+        if (modeline->data.hdisplay == target_width &&
+            modeline->data.vdisplay == target_height) {
+            nvModeLinePtr tmp_modeline = modeline;
+            int tmp_idx = modeline_idx;
+
+            /*
+             * We already have a match.  Let's figure out if the currently
+             * considered modeline is the closer to what we want.
+             */
+            if (best_modeline) {
+                if (fabs(best_modeline->refresh_rate - target_rr) < tolerance) {
+                    tmp_modeline = best_modeline;
+                    tmp_idx = best_idx;
+                }
+                /* Fallthrough. */
+            }
+            best_modeline = tmp_modeline;
+            best_idx = tmp_idx;
+        }
+        modeline_idx++;
+    }
+
+    return best_modeline;
+
+} /* display_find_closest_matching_modeline() */
+
+
+
 static void do_enable_mosaic(CtkDisplayConfig *ctk_object)
 {
     nvLayoutPtr layout = ctk_object->layout;
@@ -6198,6 +6290,76 @@ static void do_enable_mosaic(CtkDisplayConfig *ctk_object)
                 ctk_display_layout_update(CTK_DISPLAY_LAYOUT(ctk_object->obj_layout));
             }
         }
+    }
+
+    /* Enable the Mosaic Config dialog if available */
+    gtk_widget_set_sensitive(ctk_object->btn_mosaic, True);
+}
+
+
+
+static void mosaic_config_clicked(GtkWidget *widget, gpointer user_data)
+{
+    CtkDisplayConfig *ctk_object = CTK_DISPLAY_CONFIG(user_data);
+    nvLayoutPtr layout = ctk_object->layout;
+    nvGpuPtr gpu;
+    gboolean enabled = gtk_toggle_button_get_active(
+                           GTK_TOGGLE_BUTTON(ctk_object->chk_mosaic_enabled));
+
+    if (!enabled) {
+        return;
+    }
+
+    // Launch Mosaic Dialog //
+    if (run_mosaic_dialog(ctk_object->dialog_mosaic,
+                          ctk_get_parent_window(GTK_WIDGET(ctk_object)),
+                          ctk_object->layout)) {
+
+        // apply mosaic options and update screen //
+        int idx = ctk_object->dialog_mosaic->refresh_idx;
+        int display_num = 0;
+        nvModeLinePtr ml = ctk_object->dialog_mosaic->refresh_table[idx];
+
+        for(gpu = layout->gpus; gpu; gpu = gpu->next_in_layout) {
+            nvDisplayPtr display;
+
+            for(display = gpu->displays;
+                display;
+                display = display->next_on_gpu) {
+                nvModeLinePtr modeline;
+
+                if (display->num_selected_modes == 0) {
+                    generate_selected_modes(display);
+                }
+
+                modeline = display_find_closest_matching_modeline(display, ml);
+
+                if (modeline) {
+                    int x_loc, y_loc, x_pos, y_pos;
+
+                    x_loc = display_num % ctk_object->dialog_mosaic->x_displays;
+                    y_loc = display_num / ctk_object->dialog_mosaic->x_displays;
+
+                    x_pos = x_loc * ml->data.hdisplay -
+                            x_loc * ctk_object->dialog_mosaic->h_overlap;
+                    y_pos = y_loc * ml->data.vdisplay -
+                            y_loc * ctk_object->dialog_mosaic->v_overlap;
+
+                    display_num++;
+
+                    display->cur_mode->pan.x = x_pos;
+                    display->cur_mode->pan.y = y_pos;
+
+                    ctk_display_layout_set_mode_modeline(
+                        CTK_DISPLAY_LAYOUT(ctk_object->obj_layout),
+                        display->cur_mode, modeline, NULL, NULL);
+
+                }
+            }
+        }
+
+        update_layout(ctk_object);
+
     }
 }
 
@@ -6246,6 +6408,9 @@ static void do_disable_mosaic(CtkDisplayConfig *ctk_object)
      */
     mosaic_screen->num_gpus = 0;
     link_screen_to_gpu(mosaic_screen, mosaic_screen->display_owner_gpu);
+
+    /* Disable the Mosaic Config dialog if available */
+    gtk_widget_set_sensitive(ctk_object->btn_mosaic, False);
 }
 
 
@@ -9016,7 +9181,7 @@ static int add_screen_to_xconfig(CtkDisplayConfig *ctk_object,
                 xconfigAddNewOption(&conf_screen->options, "BaseMosaic", "on");
                 break;
             default:
-                nv_warning_msg("Uknonwn mosaic mode %d",
+                nv_warning_msg("Unknown mosaic mode %d",
                                screen->display_owner_gpu->mosaic_type);
                 xconfigAddNewOption(&conf_screen->options, "SLI",
                                     screen->sli_mode ? screen->sli_mode : "Off");
@@ -9637,6 +9802,39 @@ static gboolean layout_change_is_applyable(const nvLayoutPtr old,
     return False;
 }
 
+
+
+/** update_layout() *************************************************
+ *
+ * Update layout and redraw.
+ *
+ **/
+
+static void update_layout(CtkDisplayConfig *ctk_object)
+{
+    ctk_display_layout_set_layout((CtkDisplayLayout *)(ctk_object->obj_layout),
+                                  ctk_object->layout);
+
+    /* Make sure X screens have some kind of position */
+    assign_screen_positions(ctk_object);
+
+    update_gui(ctk_object);
+
+    /* Get new position */
+    get_cur_screen_pos(ctk_object);
+
+    /* Update the apply button */
+    ctk_object->apply_possible = TRUE;
+    update_btn_apply(ctk_object, TRUE);
+
+    ctk_object->forced_reset_allowed = TRUE; /* OK to reset w/o user input */
+    ctk_object->notify_user_of_reset = TRUE; /* Notify user of new changes */
+    ctk_object->reset_required = FALSE; /* No reset required to apply */
+
+}
+
+
+
 /** reset_layout() *************************************************
  *
  * Load current X server settings.
@@ -9692,6 +9890,8 @@ static void reset_layout(CtkDisplayConfig *ctk_object)
     /* Update the apply button */
     ctk_object->apply_possible = TRUE;
     update_btn_apply(ctk_object, allow_apply);
+
+    update_mosaic_dialog_ui(ctk_object->dialog_mosaic, ctk_object->layout);
 
     ctk_object->forced_reset_allowed = TRUE; /* OK to reset w/o user input */
     ctk_object->notify_user_of_reset = TRUE; /* Notify user of new changes */
@@ -9848,6 +10048,21 @@ static void display_config_attribute_changed(GtkWidget *object,
                                              gpointer user_data)
 {
     CtkDisplayConfig *ctk_object = (CtkDisplayConfig *) user_data;
+
+    if(ctk_object->dialog_mosaic && ctk_object->dialog_mosaic->is_active) {
+        GtkWidget *dlg;
+        GtkWidget *parent = ctk_get_parent_window(GTK_WIDGET(ctk_object));
+        dlg = gtk_message_dialog_new (GTK_WINDOW(parent),
+                                      GTK_DIALOG_MODAL,
+                                      GTK_MESSAGE_WARNING,
+                                      GTK_BUTTONS_OK,
+                                      "A change to the display configuration "
+                                      "has been detected. The information "
+                                      "shown here may no longer be valid. "
+                                      "Please close this dialog.");
+        gtk_dialog_run(GTK_DIALOG(dlg));
+        gtk_widget_destroy (dlg);
+    }
 
     if (ctk_object->ignore_reset_events) return;
 

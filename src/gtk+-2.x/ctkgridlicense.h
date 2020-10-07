@@ -78,6 +78,7 @@ struct _CtkManageGridLicense
 
     int licenseStatus;                                              // Current license status to be displayed on UI
     gboolean isvComputeSupported;                                   // Check if 'NVIDIA Virtual Compute Server' feature is supported
+    gboolean isQuadroSupported;                                     // Check if 'Quadro Virtual Data Center Workstation' feature is supported
 };
 
 /*

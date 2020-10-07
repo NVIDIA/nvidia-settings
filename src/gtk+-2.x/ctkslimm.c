@@ -38,20 +38,18 @@
 
 
 /* Static function declarations */
-static void setup_display_refresh_dropdown(CtkSLIMM *ctk_object);
-static void setup_display_resolution_dropdown(CtkSLIMM *ctk_object);
-static void setup_total_size_label(CtkSLIMM *ctk_object);
+static void setup_display_refresh_dropdown(CtkMMDialog *ctk_object);
+static void setup_display_resolution_dropdown(CtkMMDialog *ctk_object);
+static void setup_total_size_label(CtkMMDialog *ctk_object);
 static void display_refresh_changed(GtkWidget *widget, gpointer user_data);
 static void display_resolution_changed(GtkWidget *widget, gpointer user_data);
 static void display_config_changed(GtkWidget *widget, gpointer user_data);
 static void txt_overlap_activated(GtkWidget *widget, gpointer user_data);
-static void slimm_checkbox_toggled(GtkWidget *widget, gpointer user_data);
-static void save_xconfig_button_clicked(GtkWidget *widget, gpointer user_data);
-static void add_slimm_options(XConfigPtr xconf, gchar *metamode_str);
-static void remove_slimm_options(XConfigPtr xconf);
+static void validate_screen_size(CtkMMDialog *ctk_object);
 static nvDisplayPtr find_active_display(nvLayoutPtr layout);
-static nvDisplayPtr intersect_modelines(nvLayoutPtr layout);
-static void remove_duplicate_modelines(nvDisplayPtr display);
+static nvDisplayPtr intersect_modelines_list(CtkMMDialog *ctk_mmdialog,
+                                             nvLayoutPtr layout);
+static void remove_duplicate_modelines_from_list(CtkMMDialog *ctk_mmdialog);
 static Bool other_displays_have_modeline(nvLayoutPtr layout, 
                                          nvDisplayPtr display,
                                          nvModeLinePtr modeline);
@@ -65,161 +63,7 @@ typedef struct DpyLocRec { // Display Location
 
 
 
-
-GType ctk_slimm_get_type()
-{
-    static GType ctk_slimm_type = 0;
-
-    if (!ctk_slimm_type) {
-        static const GTypeInfo info_ctk_slimm = {
-            sizeof (CtkSLIMMClass),
-            NULL, /* base_init */
-            NULL, /* base_finalize */
-            NULL, /* class_init */
-            NULL, /* class_finalize */
-            NULL, /* class_data */
-            sizeof (CtkSLIMM),
-            0, /* n_preallocs */
-            NULL, /* instance_init */
-            NULL  /* value_table */
-        };
-
-        ctk_slimm_type =
-            g_type_register_static(GTK_TYPE_VBOX,
-                                   "CtkSLIMM", &info_ctk_slimm, 0);
-    }
-    
-    return ctk_slimm_type;
-}
-
-static void remove_slimm_options(XConfigPtr xconf)
-{
-    /* Remove SLI Mosaic Option */
-    xconfigRemoveNamedOption(&xconf->layouts->adjacencies->screen->options,
-                             "SLI", NULL);
-
-    /* Remove MetaMode Option */
-    xconfigRemoveNamedOption(&xconf->layouts->adjacencies->screen->options,
-                             "MetaModes", NULL);
-}
-
-
-static void add_slimm_options(XConfigPtr xconf, gchar *metamode_str)
-{
-    XConfigAdjacencyPtr adj;
-    XConfigScreenPtr screen;
-
-    /* Make sure there is only one screen specified in the main layout */
-    adj = xconf->layouts->adjacencies;
-    while (adj->next) {
-        xconfigRemoveListItem((GenericListPtr *)(&adj),
-                              (GenericListPtr)adj->next);
-    }
-
-    /* 
-     * Now fix up the screen in the Device section (to prevent failure with
-     * separate x screen config
-     *
-     */
-    xconf->layouts->adjacencies->screen->device->screen = -1;
-
-    /* Write out SLI Mosaic Option */
-    xconfigAddNewOption(&(xconf->layouts->adjacencies->screen->options),
-                        "SLI", "Mosaic");
-
-    /* Write out MetaMode Option */
-    xconfigAddNewOption(&(xconf->layouts->adjacencies->screen->options),
-                        "MetaModes", metamode_str);
-
-    /* Remove Virtual size specification */
-    for (screen = xconf->layouts->adjacencies->screen; screen;
-         screen = screen->next) {
-        if ((screen->displays->virtualX) || (screen->displays->virtualY)) {
-            screen->displays->virtualX = 0;
-            screen->displays->virtualY = 0;
-        }
-    }
-}
-
-
-
-static XConfigPtr xconfig_generate(XConfigPtr xconfCur,
-                                   Bool merge,
-                                   Bool *merged,
-                                   void *callback_data)
-{
-    CtkSLIMM *ctk_object = (CtkSLIMM *)callback_data;
-    CtkDropDownMenu *menu = CTK_DROP_DOWN_MENU(ctk_object->mnu_display_config);
-
-    gint idx;
-
-    gint xctr,yctr;
-
-    gint x_displays,y_displays;
-    gint h_overlap, v_overlap;
-
-    gchar *metamode_str = NULL;
-    gchar *tmpstr;
-
-    gint checkbox_state = 
-        gtk_toggle_button_get_active(GTK_TOGGLE_BUTTON(ctk_object->cbtn_slimm_enable));
-
-
-    /* Make sure we're being asked to merge */
-    if (!xconfCur || !merge) {
-        *merged = FALSE;
-        return NULL;
-    }
-
-
-    if (checkbox_state) {
-        /* SLI MM needs to be enabled */
-        idx = ctk_drop_down_menu_get_current_value(menu);
-
-        /* Get grid configuration values from index */
-
-        if (idx < ctk_object->num_grid_configs) {
-            x_displays = ctk_object->grid_configs[idx].columns;
-            y_displays = ctk_object->grid_configs[idx].rows;
-        } else {
-            x_displays = y_displays = 0;
-        }
-
-        h_overlap = gtk_spin_button_get_value_as_int(GTK_SPIN_BUTTON(ctk_object->spbtn_hedge_overlap));
-        v_overlap = gtk_spin_button_get_value_as_int(GTK_SPIN_BUTTON(ctk_object->spbtn_vedge_overlap));
-
-        for (yctr = 0; yctr < y_displays;yctr++) {
-            for (xctr = 0; xctr < x_displays;xctr++) {
-                tmpstr = g_strdup_printf("%s +%d+%d",
-                                         ctk_object->cur_modeline->data.identifier,
-                                         ctk_object->cur_modeline->data.hdisplay * xctr - 
-                                         h_overlap * xctr,
-                                         ctk_object->cur_modeline->data.vdisplay * yctr - 
-                                         v_overlap * yctr);
-                if (metamode_str) {
-                    metamode_str = g_strconcat(metamode_str, ", ", tmpstr, NULL);
-                    g_free(tmpstr);
-                } else {
-                    metamode_str = tmpstr;
-                }
-            }
-        }
-
-        add_slimm_options(xconfCur, metamode_str);
-    } else {
-        /* SLI MM needs to be disabled */
-
-        remove_slimm_options(xconfCur);
-    }
-
-    *merged = TRUE;
-
-    return xconfCur;
-}
-
-
-
-static void set_overlap_controls_status(CtkSLIMM *ctk_object)
+static void set_overlap_controls_status(CtkMMDialog *ctk_object)
 {
     CtkDropDownMenu *menu;
     gint config_idx, x_displays, y_displays;
@@ -243,7 +87,7 @@ static void set_overlap_controls_status(CtkSLIMM *ctk_object)
 
 
 
-static Bool compute_screen_size(CtkSLIMM *ctk_object, gint *width,
+static Bool compute_screen_size(CtkMMDialog *ctk_object, gint *width,
                                 gint *height)
 {
     gint config_idx;
@@ -282,9 +126,8 @@ static Bool compute_screen_size(CtkSLIMM *ctk_object, gint *width,
 
 
 
-static void save_xconfig_button_clicked(GtkWidget *widget, gpointer user_data)
+static void validate_screen_size(CtkMMDialog *ctk_object)
 {
-    CtkSLIMM *ctk_object = CTK_SLIMM(user_data); 
     gint width, height;
     Bool error = FALSE;
     gchar *err_msg = NULL;
@@ -324,22 +167,13 @@ static void save_xconfig_button_clicked(GtkWidget *widget, gpointer user_data)
         g_free(err_msg);
         return;
     }
-
-
-    /* Run the save dialog */
-    if (run_save_xconfig_dialog(ctk_object->save_xconfig_dlg)) {
-
-        /* Config file written */
-        ctk_object->ctk_config->pending_config &=
-            ~CTK_CONFIG_PENDING_WRITE_MOSAIC_CONFIG;
-    }
 }
 
 
 
 static void txt_overlap_activated(GtkWidget *widget, gpointer user_data)
 {
-    CtkSLIMM *ctk_object = CTK_SLIMM(user_data);
+    CtkMMDialog *ctk_object = (CtkMMDialog *)(user_data);
     /* Update total size label */
     setup_total_size_label(ctk_object);
 
@@ -349,7 +183,7 @@ static void txt_overlap_activated(GtkWidget *widget, gpointer user_data)
 
 static void display_config_changed(GtkWidget *widget, gpointer user_data)
 {
-    CtkSLIMM *ctk_object = CTK_SLIMM(user_data);
+    CtkMMDialog *ctk_object = (CtkMMDialog *)(user_data);
     /* Update total size label */
     setup_total_size_label(ctk_object);
 
@@ -360,7 +194,7 @@ static void display_config_changed(GtkWidget *widget, gpointer user_data)
 
 static void display_refresh_changed(GtkWidget *widget, gpointer user_data)
 {
-    CtkSLIMM *ctk_object = CTK_SLIMM(user_data);
+    CtkMMDialog *ctk_object = (CtkMMDialog *)(user_data);
     CtkDropDownMenu *menu = CTK_DROP_DOWN_MENU(widget);
     gint idx;
 
@@ -377,7 +211,7 @@ static void display_refresh_changed(GtkWidget *widget, gpointer user_data)
 
 static void display_resolution_changed(GtkWidget *widget, gpointer user_data)
 {
-    CtkSLIMM *ctk_object = CTK_SLIMM(user_data);
+    CtkMMDialog *ctk_object = (CtkMMDialog *)(user_data);
     CtkDropDownMenu *menu = CTK_DROP_DOWN_MENU(widget);
 
     gint idx;
@@ -418,39 +252,6 @@ static void display_resolution_changed(GtkWidget *widget, gpointer user_data)
 
 
 
-static void slimm_checkbox_toggled(GtkWidget *widget, gpointer user_data)
-{
-    CtkSLIMM *ctk_object = CTK_SLIMM(user_data);
-
-    gint enabled = gtk_toggle_button_get_active(GTK_TOGGLE_BUTTON(widget));
-
-    if (enabled) {
-        if (ctk_object->mnu_refresh_disabled) {
-            ctk_object->mnu_refresh_disabled = False;
-            gtk_widget_set_sensitive(ctk_object->mnu_display_refresh, True);
-        }
-        gtk_widget_set_sensitive(ctk_object->mnu_display_resolution, True);
-        gtk_widget_set_sensitive(ctk_object->mnu_display_config, True);
-        gtk_widget_set_sensitive(ctk_object->box_total_size, True);
-        set_overlap_controls_status(ctk_object);
-    } else {
-        if (ctk_widget_get_sensitive(ctk_object->mnu_display_refresh)) {
-            ctk_object->mnu_refresh_disabled = True;
-            gtk_widget_set_sensitive(ctk_object->mnu_display_refresh, False);
-        }
-        gtk_widget_set_sensitive(ctk_object->mnu_display_resolution, False);
-        gtk_widget_set_sensitive(ctk_object->mnu_display_config, False);
-        gtk_widget_set_sensitive(ctk_object->spbtn_hedge_overlap, False);
-        gtk_widget_set_sensitive(ctk_object->spbtn_vedge_overlap, False);
-        gtk_widget_set_sensitive(ctk_object->box_total_size, False);
-    }
-
-    ctk_object->ctk_config->pending_config |=
-        CTK_CONFIG_PENDING_WRITE_MOSAIC_CONFIG;
-}
-
-
-
 /** setup_total_size_label() *********************************
  *
  * Generates and sets the label showing total X Screen size of all displays
@@ -458,7 +259,7 @@ static void slimm_checkbox_toggled(GtkWidget *widget, gpointer user_data)
  *
  **/
 
-static void setup_total_size_label(CtkSLIMM *ctk_object)
+static void setup_total_size_label(CtkMMDialog *ctk_object)
 {
     gint width, height;
     gchar *xscreen_size;
@@ -471,6 +272,8 @@ static void setup_total_size_label(CtkSLIMM *ctk_object)
     xscreen_size = g_strdup_printf("%d x %d", width, height);
     gtk_label_set_text(GTK_LABEL(ctk_object->lbl_total_size), xscreen_size);
     g_free(xscreen_size);
+
+    validate_screen_size(ctk_object);
 }
 
 
@@ -482,12 +285,15 @@ static void setup_total_size_label(CtkSLIMM *ctk_object)
  *
  **/
 
-static void setup_display_refresh_dropdown(CtkSLIMM *ctk_object)
+static void setup_display_refresh_dropdown(CtkMMDialog *ctk_object)
 {
     CtkDropDownMenu *menu;
-    nvModeLinePtr modeline;
+    nvModeLinePtr modeline, m;
+    nvModeLineItemPtr item, i;
     float cur_rate; /* Refresh Rate */
     int cur_idx = 0; /* Currently selected modeline */
+    int idx;
+    int match_cur_modeline;
 
     gchar *name; /* Modeline's label for the dropdown menu */
 
@@ -521,20 +327,40 @@ static void setup_display_refresh_dropdown(CtkSLIMM *ctk_object)
 
     ctk_drop_down_menu_reset(menu);
 
+    /* Make sure cur_modeline can possibly match resolution table */
+    match_cur_modeline = 0;
+    for (idx = 0; idx < ctk_object->resolution_table_len; idx++) {
+        m = ctk_object->resolution_table[idx];
+        if (m->data.hdisplay == ctk_object->cur_modeline->data.hdisplay &&
+            m->data.vdisplay == ctk_object->cur_modeline->data.vdisplay) {
+            match_cur_modeline = 1;
+            break;
+        }
+    }
+
     /* Generate the refresh rate dropdown from the modelines list */
-    for (modeline = ctk_object->modelines; modeline; modeline = modeline->next) {
+    for (item = ctk_object->modelines; item; item = item->next) {
 
         float modeline_rate;
-        nvModeLinePtr m;
         int count_ref; /* # modelines with similar refresh rates */
         int num_ref;   /* Modeline # in a group of similar refresh rates */
 
         gchar *extra = NULL;
         gchar *tmp;
 
-        /* Ignore modelines of different resolution */
-        if (modeline->data.hdisplay != ctk_object->cur_modeline->data.hdisplay ||
-            modeline->data.vdisplay != ctk_object->cur_modeline->data.vdisplay) {
+        modeline = item->modeline;
+
+        /* Ignore modelines of different resolution than the selected */
+        m = NULL;
+        if (match_cur_modeline) {
+            m = ctk_object->cur_modeline;
+        } else {
+            m = ctk_object->resolution_table[
+                    ctk_object->cur_resolution_table_idx];
+        }
+
+        if (m && (modeline->data.hdisplay != m->data.hdisplay ||
+                  modeline->data.vdisplay != m->data.vdisplay)) {
             continue;
         }
 
@@ -546,7 +372,8 @@ static void setup_display_refresh_dropdown(CtkSLIMM *ctk_object)
         /* Get a unique number for this modeline */
         count_ref = 0; /* # modelines with similar refresh rates */
         num_ref = 0;   /* Modeline # in a group of similar refresh rates */
-        for (m = ctk_object->modelines; m; m = m->next) {
+        for (i = ctk_object->modelines; i; i = i->next) {
+            nvModeLinePtr m = i->modeline;
             float m_rate = m->refresh_rate;
             gchar *tmp = g_strdup_printf("%.0f Hz", m_rate);
 
@@ -629,7 +456,6 @@ static void setup_display_refresh_dropdown(CtkSLIMM *ctk_object)
     }
 
     /* Setup the menu and select the current mode */
-    ctk_object->cur_modeline = ctk_object->refresh_table[cur_idx];
     ctk_drop_down_menu_set_current_value(menu, cur_idx);
     gtk_widget_set_sensitive(ctk_object->mnu_display_refresh, True);
 
@@ -656,10 +482,11 @@ static void setup_display_refresh_dropdown(CtkSLIMM *ctk_object)
  *
  **/
 
-static void setup_display_resolution_dropdown(CtkSLIMM *ctk_object)
+static void setup_display_resolution_dropdown(CtkMMDialog *ctk_object)
 {
     CtkDropDownMenu *menu;
 
+    nvModeLineItemPtr item;
     nvModeLinePtr  modeline;
     nvModeLinePtr  cur_modeline = ctk_object->cur_modeline;
 
@@ -679,26 +506,34 @@ static void setup_display_resolution_dropdown(CtkSLIMM *ctk_object)
     /* Start the menu generation */
     menu = CTK_DROP_DOWN_MENU(ctk_object->mnu_display_resolution);
 
-    modeline = ctk_object->modelines;
+
+    item = ctk_object->modelines;
     cur_idx = 0;
 
     g_signal_handlers_block_by_func
         (G_OBJECT(ctk_object->mnu_display_resolution),
          G_CALLBACK(display_resolution_changed), (gpointer) ctk_object);
-    /* Generate the resolution menu */
 
-    while (modeline) {
+    ctk_drop_down_menu_reset(menu);
+
+    /* Generate the resolution menu */
+    while (item) {
+        nvModeLineItemPtr i;
         nvModeLinePtr m;
         gchar *name;
 
+        modeline = item->modeline;
+
         /* Find the first resolution that matches the current res W & H */
-        m = ctk_object->modelines;
+        i = ctk_object->modelines;
+        m = i->modeline;
         while (m != modeline) {
+            m = i->modeline;
             if (modeline->data.hdisplay == m->data.hdisplay &&
                 modeline->data.vdisplay == m->data.vdisplay) {
                 break;
             }
-            m = m->next;
+            i = i->next;
         }
 
         /* Add resolution if it is the first of its kind */
@@ -721,12 +556,13 @@ static void setup_display_resolution_dropdown(CtkSLIMM *ctk_object)
             ctk_object->resolution_table[ctk_object->resolution_table_len++] =
                 modeline;
         }
-        modeline = modeline->next;
+        item = item->next;
     }
 
     /* Setup the menu and select the current mode */
 
     ctk_drop_down_menu_set_current_value(menu, cur_idx);
+    ctk_object->cur_resolution_table_idx = cur_idx;
 
     /* If dropdown has only one item, disable menu selection */
     if (ctk_object->resolution_table_len > 1) {
@@ -775,12 +611,14 @@ static Bool add_array_value(int array[][2], int max_len, int *cur_len, int val)
     return FALSE;
 }
 
-static Bool parse_slimm_layout(CtkSLIMM *ctk_slimm,
+
+
+static Bool parse_slimm_layout(CtkMMDialog *ctk_mmdialog,
                                nvLayoutPtr layout,
                                int *hoverlap,
                                int *voverlap)
 {
-    CtrlTarget *ctrl_target = ctk_slimm->ctrl_target;
+    CtrlTarget *ctrl_target = ctk_mmdialog->ctrl_target;
     ReturnStatus ret;
     char *metamode_str = NULL;
     char *str;
@@ -789,7 +627,7 @@ static Bool parse_slimm_layout(CtkSLIMM *ctk_slimm,
     char *mode_name = NULL;
     gchar *err_msg = NULL;
 
-    const int max_locs = ctk_slimm->num_displays;
+    const int max_locs = ctk_mmdialog->num_displays;
     int row_loc[max_locs][2]; // As position, count
     int col_loc[max_locs][2]; // As position, count
     DpyLoc locs[max_locs];    // Location of displays
@@ -999,8 +837,8 @@ static Bool parse_slimm_layout(CtkSLIMM *ctk_slimm,
         *hoverlap += (*cur_modeline)->data.hdisplay;
     }
 
-    ctk_slimm->parsed_rows = rows;
-    ctk_slimm->parsed_cols = cols;
+    ctk_mmdialog->parsed_rows = rows;
+    ctk_mmdialog->parsed_cols = cols;
 
     free(metamode_str);
     return TRUE;
@@ -1023,47 +861,42 @@ static Bool parse_slimm_layout(CtkSLIMM *ctk_slimm,
 
 
 
-static void remove_duplicate_modelines(nvDisplayPtr display)
+static void remove_duplicate_modelines_from_list(CtkMMDialog *ctk_mmdialog)
 {
-    nvModeLinePtr m, nextm;
-    m = display->modelines;
-    if (!m) {
+    nvModeLineItemPtr iter = ctk_mmdialog->modelines;
+    nvModeLineItemPtr tmp;
+    if (!iter) {
         return;
     }
 
     /* Remove nvidia-auto-select modeline first */
-    if (IS_NVIDIA_DEFAULT_MODE(m)) {
-        display->modelines = m->next;
-        if (m == display->cur_mode->modeline) {
-            display->cur_mode->modeline = m->next;
-        }
-        modeline_free(m);
-        display->num_modelines--;
+    if (IS_NVIDIA_DEFAULT_MODE(iter->modeline)) {
+        ctk_mmdialog->modelines = iter->next;
+        free(iter);
+        ctk_mmdialog->num_modelines--;
     }
-    
+
     /* Remove duplicate modelines in active display - assuming sorted order*/
-    for (m = display->modelines; m;) {
-        nextm = m->next;
-        if (!nextm) break; 
-            
-        if (modelines_match(m, nextm)) {
-            /* nextm is a duplicate - remove it. */
-            m->next = nextm->next;
-            if (nextm == display->cur_mode->modeline) {
-                display->cur_mode->modeline = m;
-            }
-            modeline_free(nextm);
-            display->num_modelines--;
+    for (iter = ctk_mmdialog->modelines; iter;) {
+        if (!iter->next) break;
+
+        if (modelines_match(iter->modeline, iter->next->modeline)) {
+            /* next is a duplicate - remove it. */
+            tmp = iter->next;
+            iter->next = iter->next->next;
+            free(tmp);
+            ctk_mmdialog->num_modelines--;
         }
         else {
-            m = nextm;
+            iter = iter->next;
         }
     }
 
 }
 
 
-static Bool other_displays_have_modeline(nvLayoutPtr layout, 
+
+static Bool other_displays_have_modeline(nvLayoutPtr layout,
                                          nvDisplayPtr display,
                                          nvModeLinePtr modeline)
 {
@@ -1100,13 +933,61 @@ static nvDisplayPtr find_active_display(nvLayoutPtr layout)
 }
 
 
-static nvDisplayPtr intersect_modelines(nvLayoutPtr layout)
+
+static void add_modeline_to_list(CtkMMDialog *ctk_mmdialog, nvModeLinePtr m)
+{
+    nvModeLineItemPtr item;
+
+    if (!m) return;
+
+    item = calloc(1,sizeof(nvModeLineItem));
+    item->modeline = m;
+
+    if (!ctk_mmdialog->modelines) {
+        ctk_mmdialog->modelines = item;
+        ctk_mmdialog->num_modelines = 1;
+    } else {
+        nvModeLineItemPtr iter = ctk_mmdialog->modelines;
+        while (iter->next) {
+            iter = iter->next;
+        }
+        iter->next = item;
+        ctk_mmdialog->num_modelines++;
+    }
+}
+
+
+
+static void delete_modelines_list(CtkMMDialog *ctk_mmdialog)
+{
+    nvModeLineItemPtr item, next;
+
+    if (ctk_mmdialog->modelines == NULL || ctk_mmdialog->num_modelines == 0) {
+        return;
+    }
+
+    item = ctk_mmdialog->modelines;
+
+    while (item) {
+        next = item->next;
+        free(item);
+        item = next;
+    }
+
+    ctk_mmdialog->num_modelines = 0;
+    ctk_mmdialog->modelines = NULL;
+}
+
+
+
+static nvDisplayPtr intersect_modelines_list(CtkMMDialog *ctk_mmdialog,
+                                             const nvLayoutPtr layout)
 {
     nvDisplayPtr display;
-    nvModeLinePtr m, prev;
+    nvModeLinePtr m;
 
-    /** 
-     * 
+    /**
+     *
      * Only need to go through one active display, and eliminate all modelines
      * in this display that do not exist in other displays (being driven by
      * this or any other GPU)
@@ -1115,36 +996,17 @@ static nvDisplayPtr intersect_modelines(nvLayoutPtr layout)
     display = find_active_display(layout);
     if (display == NULL) return NULL;
 
-    prev = NULL;
+    delete_modelines_list(ctk_mmdialog);
+
     m = display->modelines;
     while (m) {
-        if (!other_displays_have_modeline(layout, display, m)) {
-            if (prev) {
-                /* Remove past beginning */
-                prev->next = m->next;
-            } else {
-                /* Remove first entry */
-                display->modelines = m->next;
-            }
-
-            if (m == display->cur_mode->modeline) {
-                display->cur_mode->modeline = 0;
-            }
-            modeline_free(m);
-            display->num_modelines--;
-
-            if (prev) {
-                m = prev->next;
-            } else {
-                m = display->modelines;
-            }
-        } else {
-            prev = m;
-            m = m->next;
+        if (other_displays_have_modeline(layout, display, m)) {
+            add_modeline_to_list(ctk_mmdialog, m);
         }
+        m = m->next;
     }
 
-    remove_duplicate_modelines(display);
+    remove_duplicate_modelines_from_list(ctk_mmdialog);
 
     return display;
 }
@@ -1202,51 +1064,51 @@ static int generate_configs_helper(const int num_displays,
 
 
 
-static void generate_configs(CtkSLIMM *ctk_slimm, gboolean only_max)
+static void generate_configs(CtkMMDialog *ctk_mmdialog, gboolean only_max)
 {
-    int n_configs = generate_configs_helper(ctk_slimm->num_displays, only_max,
+    int n_configs = generate_configs_helper(ctk_mmdialog->num_displays, only_max,
                                             NULL);
 
-    ctk_slimm->grid_configs = calloc(n_configs, sizeof(GridConfig));
-    ctk_slimm->num_grid_configs = n_configs;
+    ctk_mmdialog->grid_configs = calloc(n_configs, sizeof(GridConfig));
+    ctk_mmdialog->num_grid_configs = n_configs;
 
-    generate_configs_helper(ctk_slimm->num_displays, only_max,
-                            ctk_slimm->grid_configs);
+    generate_configs_helper(ctk_mmdialog->num_displays, only_max,
+                            ctk_mmdialog->grid_configs);
 }
 
 
 
-static void populate_dropdown(CtkSLIMM *ctk_slimm, gboolean only_max)
+static void populate_dropdown(CtkMMDialog *ctk_mmdialog, gboolean only_max)
 {
     int iter;
     int rows, cols;
     int cur_rows, cur_cols;
     char *tmp;
 
-    CtkDropDownMenu *menu = CTK_DROP_DOWN_MENU(ctk_slimm->mnu_display_config);
+    CtkDropDownMenu *menu = CTK_DROP_DOWN_MENU(ctk_mmdialog->mnu_display_config);
     int grid_config_id = ctk_drop_down_menu_get_current_value(menu);
 
-    if (ctk_slimm->grid_configs && grid_config_id >= 0) {
-        cur_rows = ctk_slimm->grid_configs[grid_config_id].rows;
-        cur_cols = ctk_slimm->grid_configs[grid_config_id].columns;
+    if (ctk_mmdialog->grid_configs && grid_config_id >= 0) {
+        cur_rows = ctk_mmdialog->grid_configs[grid_config_id].rows;
+        cur_cols = ctk_mmdialog->grid_configs[grid_config_id].columns;
     } else {
-        cur_rows = ctk_slimm->parsed_rows;
-        cur_cols = ctk_slimm->parsed_cols;
+        cur_rows = ctk_mmdialog->parsed_rows;
+        cur_cols = ctk_mmdialog->parsed_cols;
     }
 
-    if (ctk_slimm->grid_configs) {
-        free(ctk_slimm->grid_configs);
-        ctk_slimm->num_grid_configs = 0;
+    if (ctk_mmdialog->grid_configs) {
+        free(ctk_mmdialog->grid_configs);
+        ctk_mmdialog->num_grid_configs = 0;
     }
     ctk_drop_down_menu_reset(menu);
 
 
-    generate_configs(ctk_slimm, only_max);
+    generate_configs(ctk_mmdialog, only_max);
 
 
-    for (iter = 0; iter < ctk_slimm->num_grid_configs; iter++) {
-        rows = ctk_slimm->grid_configs[iter].rows;
-        cols = ctk_slimm->grid_configs[iter].columns;
+    for (iter = 0; iter < ctk_mmdialog->num_grid_configs; iter++) {
+        rows = ctk_mmdialog->grid_configs[iter].rows;
+        cols = ctk_mmdialog->grid_configs[iter].columns;
 
         tmp = g_strdup_printf("%d x %d grid", rows, cols);
 
@@ -1265,157 +1127,42 @@ static void populate_dropdown(CtkSLIMM *ctk_slimm, gboolean only_max)
 static void restrict_display_config_changed(GtkWidget *widget,
                                             gpointer user_data)
 {
-    CtkSLIMM *ctk_slimm = CTK_SLIMM(user_data);
+    CtkMMDialog *ctk_mmdialog = (CtkMMDialog *)(user_data);
 
-    populate_dropdown(ctk_slimm,
+    populate_dropdown(ctk_mmdialog,
                       gtk_toggle_button_get_active(GTK_TOGGLE_BUTTON(widget)));
+
+    update_mosaic_dialog_ui(ctk_mmdialog, NULL);
 }
 
 
 
-
-GtkWidget* ctk_slimm_new(CtrlTarget *ctrl_target,
-                         CtkEvent *ctk_event,
-                         CtkConfig *ctk_config)
+static void print_error_string(gchar *err_str)
 {
-    GObject *object;
-    CtkSLIMM *ctk_slimm;
-    GtkWidget *label;
-    GtkWidget *vbox;
-    GtkWidget *hbox;
-    GtkWidget *banner;
-    GtkWidget *checkbutton;
-    GtkWidget *hseparator;
-    GtkWidget *table;
-    GtkWidget *button;
+    if (!err_str) {
+        nv_error_msg("Unable to load SLI Mosaic Mode Settings dialog.");
+    } else {
+        nv_error_msg("Unable to load SLI Mosaic Mode Settings "
+                     "dialog:\n\n%s", err_str);
+    }
+}
 
-    GtkWidget *spinbutton;
-    CtkSLIMM *ctk_object;
-    CtkDropDownMenu *menu;
 
-    gchar *err_str = NULL;
-    gchar *str;
-    gchar *tmp;
-    gchar *sli_mode = NULL;
-    ReturnStatus ret;
-    ReturnStatus ret1;
-    int major = 0, minor = 0;
-    gint val;
 
-    nvLayoutPtr layout;
+static nvDisplayPtr setup_display(CtkMMDialog *ctk_mmdialog)
+{
     nvDisplayPtr display;
+    nvLayoutPtr layout = ctk_mmdialog->layout;
 
-    Bool trust_slimm_available = FALSE;
-    Bool only_max;
-
-    int hoverlap = 0;
-    int voverlap = 0;
-
-    /* now, create the object */
-
-    object = g_object_new(CTK_TYPE_SLIMM, NULL);
-    ctk_slimm = CTK_SLIMM(object);
-
-    ctk_slimm->ctrl_target = ctrl_target;
-    ctk_slimm->ctk_config = ctk_config;
-    ctk_object = ctk_slimm;
-
-    /*
-     * Check for NV-CONTROL protocol version.
-     * This is used to not trust old X drivers which always reported
-     * it available (on NV50+).
-     */
-    ret = NvCtrlGetAttribute(ctrl_target,
-                             NV_CTRL_ATTR_NV_MAJOR_VERSION, &major);
-    ret1 = NvCtrlGetAttribute(ctrl_target,
-                              NV_CTRL_ATTR_NV_MINOR_VERSION, &minor);
-
-    if ((ret == NvCtrlSuccess) && (ret1 == NvCtrlSuccess) &&
-        ((major > 1) || ((major == 1) && (minor > 23)))) {
-        trust_slimm_available = TRUE;
-    }
-
-    /* return on old X drivers. */
-    if (!trust_slimm_available) {
-      return NULL;
-    }
-
-    /* Check if this screen supports SLI Mosaic Mode */
-    ret = NvCtrlGetAttribute(ctrl_target,
-                             NV_CTRL_SLI_MOSAIC_MODE_AVAILABLE, &val);
-    if ((ret == NvCtrlSuccess) &&
-        (val == NV_CTRL_SLI_MOSAIC_MODE_AVAILABLE_FALSE)) {
-        /* Mosaic not supported */
-        return NULL;
-    }
-
-    /* Query the maximum screen sizes */
-    ret = NvCtrlGetAttribute(ctrl_target,
-                             NV_CTRL_MAX_SCREEN_WIDTH,
-                             &ctk_slimm->max_screen_width);
-    if (ret != NvCtrlSuccess) {
-        return NULL;
-    }
-
-    ret = NvCtrlGetAttribute(ctrl_target,
-                             NV_CTRL_MAX_SCREEN_HEIGHT,
-                             &ctk_slimm->max_screen_height);
-    if (ret != NvCtrlSuccess) {
-        return NULL;
-    }
-
-    /*
-     * Create the display configuration widgets
-     *
-     */
-
-    /* Load the layout structure from the X server */
-    layout = layout_load_from_server(ctrl_target, &err_str);
-
-    if (!err_str && layout) {
-        nvGpuPtr gpu;
-        int num_displays = 0;
-
-        for (gpu = layout->gpus; gpu; gpu = gpu->next_in_layout) {
-            num_displays += gpu->num_displays;
-        }
-
-        ctk_slimm->num_displays = num_displays;
-
-
-        /* Make sure we have enough displays for the minimum config */
-        if (num_displays < 2) {
-            err_str = g_strdup_printf("Not enough display devices to "
-                                      "configure SLI Mosaic Mode.\nYou must "
-                                      "have at least 2 Displays connected, "
-                                      "but only %d Display%s detected.",
-                                      num_displays,
-                                      (num_displays != 1) ? "s were" : " was");
-            layout_free(layout);
-            layout = NULL;
-
-        } else {
-            parse_slimm_layout(ctk_slimm,
-                               layout,
-                               &hoverlap,
-                               &voverlap);
-        }
-    }
-
-
-    /* If we failed to load, tell the user why */
-    if (err_str || !layout) {
-        goto slimm_fail;
-    }
-
-    display = intersect_modelines(layout);
+    display = intersect_modelines_list(ctk_mmdialog, layout);
 
     if (display == NULL) {
-        err_str = g_strdup("Unable to find active display with "
+        print_error_string("Unable to find active display with "
                            "intersected modelines.");
-        goto slimm_fail;
-    } else if ((display->modelines == NULL) &&
-               (display->cur_mode->modeline == NULL)) {
+        free(ctk_mmdialog);
+        return NULL;
+
+    } else if ((ctk_mmdialog->modelines == NULL)) {
         /* The modepool for the active display did not have any modes in
          * its modepool matching any of the modes on the modepool of any
          * other display in the layout, causing intersect_modelines to
@@ -1446,14 +1193,15 @@ GtkWidget* ctk_slimm_new(CtrlTarget *ctrl_target,
                     (!STEREO_IS_3D_VISION(stereo) &&
                      STEREO_IS_3D_VISION(other_stereo))) {
 
-                    err_str = g_strdup("Unable to find common modelines between\n"
+                    print_error_string("Unable to find common modelines between\n"
                                        "all connected displays due to 3D vision\n"
                                        "being enabled on some displays and not\n"
                                        "others. Please make sure that 3D vision\n"
                                        "is enabled on all connected displays\n"
                                        "before enabling SLI mosaic mode.");
 
-                    goto slimm_fail;
+                    free(ctk_mmdialog);
+                    return NULL;
                 }
             }
         }
@@ -1461,52 +1209,241 @@ GtkWidget* ctk_slimm_new(CtrlTarget *ctrl_target,
         /* The intersected modepool was empty, but not because of a mismatch
          * in 3D Vision settings.
          */
-        err_str = g_strdup("Unable to find find common modelines between "
+        print_error_string("Unable to find find common modelines between "
                            "all connected displays.");
 
-        goto slimm_fail;
+        free(ctk_mmdialog);
+        return NULL;
     }
 
+    if (display) {
 
-    /* Extract modelines and cur_modeline and free layout structure */
-    ctk_object->modelines = display->modelines;
-    if (display->cur_mode->modeline) {
-        ctk_object->cur_modeline = display->cur_mode->modeline; 
-    } else {
-        ctk_object->cur_modeline = ctk_object->modelines;
+        /* Extract modelines and cur_modeline */
+        if (display->cur_mode->modeline) {
+            ctk_mmdialog->cur_modeline = display->cur_mode->modeline;
+        } else if (ctk_mmdialog->num_modelines > 0) {
+            ctk_mmdialog->cur_modeline = ctk_mmdialog->modelines->modeline;
+        }
     }
-    ctk_object->num_modelines = display->num_modelines;
 
-    /* XXX Since we've hijacked the layout's modelines,
-     *     we can stub out the layout's pointer and free it.
+    return display;
+}
+
+
+
+void update_mosaic_dialog_ui(CtkMMDialog *ctk_mmdialog, nvLayoutPtr layout)
+{
+    GtkWidget *btn;
+
+    if (ctk_mmdialog == NULL) {
+        return;
+    }
+
+    btn = ctk_mmdialog->chk_all_displays;
+
+    if (layout) {
+        ctk_mmdialog->layout = layout;
+    }
+
+    parse_slimm_layout(ctk_mmdialog,
+                       ctk_mmdialog->layout,
+                       &ctk_mmdialog->h_overlap_parsed,
+                       &ctk_mmdialog->v_overlap_parsed);
+
+    setup_display(ctk_mmdialog);
+
+    populate_dropdown(ctk_mmdialog,
+                      gtk_toggle_button_get_active(GTK_TOGGLE_BUTTON(btn)));
+
+    setup_display_resolution_dropdown(ctk_mmdialog);
+    setup_display_refresh_dropdown(ctk_mmdialog);
+
+    gtk_spin_button_set_value(GTK_SPIN_BUTTON(ctk_mmdialog->spbtn_hedge_overlap),
+                              ctk_mmdialog->h_overlap_parsed);
+    gtk_spin_button_set_value(GTK_SPIN_BUTTON(ctk_mmdialog->spbtn_vedge_overlap),
+                              ctk_mmdialog->v_overlap_parsed);
+    setup_total_size_label(ctk_mmdialog);
+}
+
+
+
+static gchar *count_displays_and_parse_layout(CtkMMDialog *ctk_mmdialog)
+{
+    nvLayoutPtr layout = ctk_mmdialog->layout;
+    gchar *err_str = NULL;
+
+    if (layout) {
+
+        nvGpuPtr gpu;
+        int num_displays = 0;
+
+        for (gpu = layout->gpus; gpu; gpu = gpu->next_in_layout) {
+            num_displays += gpu->num_displays;
+        }
+
+        ctk_mmdialog->num_displays = num_displays;
+
+
+        /* Make sure we have enough displays for the minimum config */
+        if (num_displays < 2) {
+            err_str = g_strdup_printf("Not enough display devices to "
+                                      "configure SLI Mosaic Mode.\nYou must "
+                                      "have at least 2 Displays connected, "
+                                      "but only %d Display%s detected.",
+                                      num_displays,
+                                      (num_displays != 1) ? "s were" : " was");
+        } else {
+            parse_slimm_layout(ctk_mmdialog,
+                               layout,
+                               &ctk_mmdialog->h_overlap_parsed,
+                               &ctk_mmdialog->v_overlap_parsed);
+        }
+    }
+
+    return err_str;
+}
+
+
+
+CtkMMDialog *create_mosaic_dialog(GtkWidget *parent,
+                                  CtrlTarget *ctrl_target,
+                                  CtkConfig *ctk_config,
+                                  const nvLayoutPtr layout)
+{
+    GtkWidget *dialog_obj;
+    CtkMMDialog *ctk_mmdialog;
+    GtkWidget *content;
+    GtkWidget *label;
+    GtkWidget *vbox;
+    GtkWidget *hbox;
+    GtkWidget *checkbutton;
+    GtkWidget *hseparator;
+    GtkWidget *table;
+
+    GtkWidget *spinbutton;
+    CtkDropDownMenu *menu;
+
+    gchar *err_str = NULL;
+    gchar *tmp;
+    gchar *sli_mode = NULL;
+    ReturnStatus ret;
+    ReturnStatus ret1;
+    int major = 0, minor = 0;
+    gint val;
+
+    nvDisplayPtr display;
+
+    Bool trust_slimm_available = FALSE;
+    Bool only_max;
+
+
+    /* now, create the dialog */
+
+    ctk_mmdialog = calloc(1, sizeof(CtkMMDialog));
+    if (!ctk_mmdialog) {
+        return NULL;
+    }
+
+    ctk_mmdialog->ctrl_target = ctrl_target;
+    ctk_mmdialog->ctk_config = ctk_config;
+
+    ctk_mmdialog->parent = parent;
+    ctk_mmdialog->layout = layout;
+
+    ctk_mmdialog->is_active = FALSE;
+
+    /*
+     * Check for NV-CONTROL protocol version.
+     * This is used to not trust old X drivers which always reported
+     * it available (on NV50+).
      */
-    display->modelines = NULL;
-    display->cur_mode->modeline = NULL;
-    display->num_modelines = 0;
-    layout_free(layout);
-    layout = NULL;
+    ret = NvCtrlGetAttribute(ctrl_target,
+                             NV_CTRL_ATTR_NV_MAJOR_VERSION, &major);
+    ret1 = NvCtrlGetAttribute(ctrl_target,
+                              NV_CTRL_ATTR_NV_MINOR_VERSION, &minor);
+
+    if ((ret == NvCtrlSuccess) && (ret1 == NvCtrlSuccess) &&
+        ((major > 1) || ((major == 1) && (minor > 23)))) {
+        trust_slimm_available = TRUE;
+    }
+
+    /* return on old X drivers. */
+    if (!trust_slimm_available) {
+        free(ctk_mmdialog);
+        return NULL;
+    }
+
+    /* Check if this screen supports SLI Mosaic Mode */
+    ret = NvCtrlGetAttribute(ctrl_target,
+                             NV_CTRL_SLI_MOSAIC_MODE_AVAILABLE, &val);
+    if ((ret == NvCtrlSuccess) &&
+        (val == NV_CTRL_SLI_MOSAIC_MODE_AVAILABLE_FALSE)) {
+        /* Mosaic not supported */
+        free(ctk_mmdialog);
+        return NULL;
+    }
+
+    /* Query the maximum screen sizes */
+    ret = NvCtrlGetAttribute(ctrl_target,
+                             NV_CTRL_MAX_SCREEN_WIDTH,
+                             &ctk_mmdialog->max_screen_width);
+    if (ret != NvCtrlSuccess) {
+        free(ctk_mmdialog);
+        return NULL;
+    }
+
+    ret = NvCtrlGetAttribute(ctrl_target,
+                             NV_CTRL_MAX_SCREEN_HEIGHT,
+                             &ctk_mmdialog->max_screen_height);
+    if (ret != NvCtrlSuccess) {
+        free(ctk_mmdialog);
+        return NULL;
+    }
+
+    /*
+     * Create the display configuration widgets
+     *
+     */
+
+    err_str = count_displays_and_parse_layout(ctk_mmdialog);
+
+
+    /* If we failed to load, tell the user why */
+    if (err_str || !layout) {
+        print_error_string(err_str);
+        g_free(err_str);
+        free(ctk_mmdialog);
+        return NULL;
+    }
+
+    display = setup_display(ctk_mmdialog);
+
+    if (display == NULL) {
+        return NULL;
+    }
+
+    /* Create the dialog */
+    dialog_obj = gtk_dialog_new_with_buttons
+        ("Configure SLI Mosaic Layout",
+         GTK_WINDOW(gtk_widget_get_parent(GTK_WIDGET(parent))),
+         GTK_DIALOG_MODAL | GTK_DIALOG_DESTROY_WITH_PARENT,
+         "_Apply to Layout",
+         GTK_RESPONSE_APPLY,
+         GTK_STOCK_CANCEL,
+         GTK_RESPONSE_CANCEL,
+         NULL);
+    ctk_mmdialog->dialog = dialog_obj;
+
+    gtk_dialog_set_default_response(GTK_DIALOG(dialog_obj),
+                                    GTK_RESPONSE_REJECT);
+
 
     /* set container properties of the object */
 
-    gtk_box_set_spacing(GTK_BOX(ctk_slimm), 10);
-
-    /* banner */
-
-    banner = ctk_banner_image_new(BANNER_ARTWORK_SLIMM);
-    gtk_box_pack_start(GTK_BOX(ctk_slimm), banner, FALSE, FALSE, 0);
-    
+    content = ctk_dialog_get_content_area(GTK_DIALOG(dialog_obj));
+    gtk_box_set_spacing(GTK_BOX(content), 10);
     vbox = gtk_vbox_new(FALSE, 5);
-    gtk_box_pack_start(GTK_BOX(ctk_slimm), vbox, TRUE, TRUE, 0);
-
-    hbox = gtk_hbox_new(FALSE, 0);
-    checkbutton = gtk_check_button_new_with_label("Use SLI Mosaic Mode");
-    gtk_toggle_button_set_active(GTK_TOGGLE_BUTTON(checkbutton), TRUE);
-    ctk_slimm->cbtn_slimm_enable = checkbutton;
-    g_signal_connect(G_OBJECT(checkbutton), "toggled",
-                     G_CALLBACK(slimm_checkbox_toggled),
-                     (gpointer) ctk_object);
-    gtk_box_pack_start(GTK_BOX(hbox), checkbutton, TRUE, TRUE, 0);
-    gtk_box_pack_start(GTK_BOX(vbox), hbox, FALSE, FALSE, 0);
+    gtk_container_add(GTK_CONTAINER(content), vbox);
 
     hbox = gtk_hbox_new(FALSE, 0);
     label = gtk_label_new("Display Configuration (rows x columns)");
@@ -1515,30 +1452,31 @@ GtkWidget* ctk_slimm_new(CtrlTarget *ctrl_target,
     gtk_box_pack_start(GTK_BOX(hbox), label, FALSE, FALSE, 10);
     gtk_box_pack_start(GTK_BOX(hbox), hseparator, TRUE, TRUE, 10);
     gtk_box_pack_start(GTK_BOX(vbox), hbox, FALSE, FALSE, 0);
-    
+
 
     hbox = gtk_hbox_new(FALSE, 0);
 
     /* Option menu for Display Grid Configuration */
     menu = (CtkDropDownMenu *)
         ctk_drop_down_menu_new(CTK_DROP_DOWN_MENU_FLAG_READONLY);
-    ctk_slimm->mnu_display_config = GTK_WIDGET(menu);
+    ctk_mmdialog->mnu_display_config = GTK_WIDGET(menu);
 
-    only_max = (ctk_slimm->parsed_rows * ctk_slimm->parsed_cols ==
-                ctk_slimm->num_displays);
+    only_max = (ctk_mmdialog->parsed_rows * ctk_mmdialog->parsed_cols ==
+                ctk_mmdialog->num_displays);
 
-    populate_dropdown(ctk_slimm, only_max);
+    populate_dropdown(ctk_mmdialog, only_max);
 
-    g_signal_connect(G_OBJECT(ctk_object->mnu_display_config), "changed",
+    g_signal_connect(G_OBJECT(ctk_mmdialog->mnu_display_config), "changed",
                      G_CALLBACK(display_config_changed),
-                     (gpointer) ctk_object);
+                     (gpointer) ctk_mmdialog);
 
     checkbutton = gtk_check_button_new_with_label("Only show configurations "
                                                   "using all displays");
+    ctk_mmdialog->chk_all_displays = checkbutton;
     gtk_toggle_button_set_active(GTK_TOGGLE_BUTTON(checkbutton), only_max);
     g_signal_connect(G_OBJECT(checkbutton), "toggled",
                      G_CALLBACK(restrict_display_config_changed),
-                     (gpointer) ctk_object);
+                     (gpointer) ctk_mmdialog);
 
     label = gtk_label_new("");
     gtk_box_pack_start(GTK_BOX(hbox), label, FALSE, FALSE, 5);
@@ -1574,34 +1512,34 @@ GtkWidget* ctk_slimm_new(CtrlTarget *ctrl_target,
 
     /* Option menu for resolutions */
     hbox = gtk_hbox_new(FALSE, 0);
-    ctk_slimm->mnu_display_resolution =
+    ctk_mmdialog->mnu_display_resolution =
         ctk_drop_down_menu_new(CTK_DROP_DOWN_MENU_FLAG_READONLY);
 
     /* Create a drop down menu */
-    setup_display_resolution_dropdown(ctk_object);
+    setup_display_resolution_dropdown(ctk_mmdialog);
     label = gtk_label_new("");
     gtk_box_pack_start(GTK_BOX(hbox), label, FALSE, FALSE, 5);
-    gtk_box_pack_end(GTK_BOX(hbox), ctk_slimm->mnu_display_resolution, 
+    gtk_box_pack_end(GTK_BOX(hbox), ctk_mmdialog->mnu_display_resolution, 
                      TRUE, TRUE, 0);
     gtk_table_attach(GTK_TABLE(table), hbox, 0, 1, 3, 4, GTK_EXPAND | GTK_FILL,
                      GTK_EXPAND | GTK_FILL, 0.5, 0.5);
-    g_signal_connect(G_OBJECT(ctk_object->mnu_display_resolution), "changed",
+    g_signal_connect(G_OBJECT(ctk_mmdialog->mnu_display_resolution), "changed",
                      G_CALLBACK(display_resolution_changed),
-                     (gpointer) ctk_object);
+                     (gpointer) ctk_mmdialog);
 
 
     /* Option menu for refresh rates */
     hbox = gtk_hbox_new(FALSE, 0);
-    ctk_slimm->mnu_display_refresh =
+    ctk_mmdialog->mnu_display_refresh =
         ctk_drop_down_menu_new(CTK_DROP_DOWN_MENU_FLAG_READONLY);
-    setup_display_refresh_dropdown(ctk_object);
-    g_signal_connect(G_OBJECT(ctk_object->mnu_display_refresh), "changed",
+    setup_display_refresh_dropdown(ctk_mmdialog);
+    g_signal_connect(G_OBJECT(ctk_mmdialog->mnu_display_refresh), "changed",
                      G_CALLBACK(display_refresh_changed),
-                     (gpointer) ctk_object);
+                     (gpointer) ctk_mmdialog);
 
     label = gtk_label_new("");
     gtk_box_pack_start(GTK_BOX(hbox), label, FALSE, FALSE, 5);
-    gtk_box_pack_end(GTK_BOX(hbox), ctk_slimm->mnu_display_refresh, TRUE, TRUE, 0);
+    gtk_box_pack_end(GTK_BOX(hbox), ctk_mmdialog->mnu_display_refresh, TRUE, TRUE, 0);
 
     gtk_table_attach(GTK_TABLE(table), hbox, 1, 2, 3, 4, GTK_EXPAND | GTK_FILL,
                      GTK_EXPAND | GTK_FILL, 0.5, 0.5);
@@ -1631,16 +1569,18 @@ GtkWidget* ctk_slimm_new(CtrlTarget *ctrl_target,
     label = gtk_label_new("Horizontal:");
     gtk_box_pack_start(GTK_BOX(hbox), label, FALSE, FALSE, 10);
 
-    spinbutton = gtk_spin_button_new_with_range(-ctk_object->cur_modeline->data.hdisplay, 
-                                                ctk_object->cur_modeline->data.hdisplay, 
-                                                1);
+    spinbutton = gtk_spin_button_new_with_range(
+                     -ctk_mmdialog->cur_modeline->data.hdisplay,
+                     ctk_mmdialog->cur_modeline->data.hdisplay,
+                     1);
 
-    ctk_slimm->spbtn_hedge_overlap = spinbutton;
-    gtk_spin_button_set_value(GTK_SPIN_BUTTON(spinbutton), hoverlap);
+    ctk_mmdialog->spbtn_hedge_overlap = spinbutton;
+    gtk_spin_button_set_value(GTK_SPIN_BUTTON(spinbutton),
+                              ctk_mmdialog->h_overlap_parsed);
 
-    g_signal_connect(G_OBJECT(ctk_object->spbtn_hedge_overlap), "value-changed",
+    g_signal_connect(G_OBJECT(ctk_mmdialog->spbtn_hedge_overlap), "value-changed",
                      G_CALLBACK(txt_overlap_activated),
-                     (gpointer) ctk_object);
+                     (gpointer) ctk_mmdialog);
 
     gtk_box_pack_start(GTK_BOX(hbox), spinbutton, FALSE, FALSE, 5);
 
@@ -1655,15 +1595,16 @@ GtkWidget* ctk_slimm_new(CtrlTarget *ctrl_target,
     label = gtk_label_new("Vertical:    ");
     gtk_box_pack_start(GTK_BOX(hbox), label, FALSE, FALSE, 10);
 
-    spinbutton = gtk_spin_button_new_with_range(-ctk_object->cur_modeline->data.vdisplay, 
-                                                ctk_object->cur_modeline->data.vdisplay, 
+    spinbutton = gtk_spin_button_new_with_range(-ctk_mmdialog->cur_modeline->data.vdisplay, 
+                                                ctk_mmdialog->cur_modeline->data.vdisplay, 
                                                 1);
-    ctk_slimm->spbtn_vedge_overlap = spinbutton;
-    gtk_spin_button_set_value(GTK_SPIN_BUTTON(spinbutton), voverlap);
+    ctk_mmdialog->spbtn_vedge_overlap = spinbutton;
+    gtk_spin_button_set_value(GTK_SPIN_BUTTON(spinbutton),
+                              ctk_mmdialog->v_overlap_parsed);
 
-    g_signal_connect(G_OBJECT(ctk_object->spbtn_vedge_overlap), "value-changed",
+    g_signal_connect(G_OBJECT(ctk_mmdialog->spbtn_vedge_overlap), "value-changed",
                      G_CALLBACK(txt_overlap_activated),
-                     (gpointer) ctk_object);
+                     (gpointer) ctk_mmdialog);
 
     gtk_box_pack_start(GTK_BOX(hbox), spinbutton, FALSE, FALSE, 5);
 
@@ -1674,11 +1615,11 @@ GtkWidget* ctk_slimm_new(CtrlTarget *ctrl_target,
                      GTK_EXPAND | GTK_FILL, 0.5, 0.5);
 
     label = gtk_label_new("NULL");
-    ctk_slimm->lbl_total_size = label;
-    setup_total_size_label(ctk_slimm);
+    ctk_mmdialog->lbl_total_size = label;
+    setup_total_size_label(ctk_mmdialog);
 
     hbox = gtk_hbox_new(FALSE, 0);
-    ctk_slimm->box_total_size = hbox;
+    ctk_mmdialog->box_total_size = hbox;
     gtk_box_pack_start(GTK_BOX(hbox), label, FALSE, FALSE, 10);
     gtk_table_attach(GTK_TABLE(table), hbox, 1, 2, 9, 10, GTK_EXPAND | GTK_FILL,
                      GTK_EXPAND | GTK_FILL, 0.5, 0.5);
@@ -1692,8 +1633,8 @@ GtkWidget* ctk_slimm_new(CtrlTarget *ctrl_target,
     gtk_table_attach(GTK_TABLE(table), hbox, 1, 2, 10, 11, GTK_EXPAND | GTK_FILL,
                      GTK_EXPAND | GTK_FILL, 0.5, 0.5);
 
-    tmp = g_strdup_printf("%dx%d", ctk_slimm->max_screen_width,
-                          ctk_slimm->max_screen_height);
+    tmp = g_strdup_printf("%dx%d", ctk_mmdialog->max_screen_width,
+                          ctk_mmdialog->max_screen_height);
     label = gtk_label_new(tmp);
     g_free(tmp);
     hbox = gtk_hbox_new(FALSE, 0);
@@ -1702,116 +1643,51 @@ GtkWidget* ctk_slimm_new(CtrlTarget *ctrl_target,
                      GTK_EXPAND | GTK_FILL, 0.5, 0.5);
 
 
-    label = gtk_label_new("Save to X Configuration File");
-    hbox = gtk_hbox_new(FALSE, 0);
-    button = gtk_button_new();
-    ctk_slimm->btn_save_config = button; 
-    g_signal_connect(G_OBJECT(ctk_object->btn_save_config), "clicked",
-                     G_CALLBACK(save_xconfig_button_clicked),
-                     (gpointer) ctk_object);
-
-    ctk_slimm->save_xconfig_dlg =
-        create_save_xconfig_dialog(GTK_WIDGET(ctk_slimm),
-                                   FALSE, // Merge toggleable
-                                   xconfig_generate,
-                                   (void *)ctk_slimm);
-
-    gtk_box_pack_start(GTK_BOX(hbox), label, FALSE, FALSE, 0);
-    gtk_container_add(GTK_CONTAINER(button), hbox);
-
-    gtk_table_attach(GTK_TABLE(table), button, 1, 2, 19, 20, GTK_EXPAND | GTK_FILL,
-                     GTK_EXPAND | GTK_FILL, 0, 0);
-
     /* If current SLI Mode != Mosaic, disable UI elements initially */
     ret = NvCtrlGetStringAttribute(ctrl_target,
                                    NV_CTRL_STRING_SLI_MODE,
                                    &sli_mode);
 
-    set_overlap_controls_status(ctk_slimm);
+    set_overlap_controls_status(ctk_mmdialog);
 
-    if ((ret != NvCtrlSuccess) ||
-        (ret == NvCtrlSuccess && g_ascii_strcasecmp(sli_mode, "Mosaic"))) {
-        gtk_toggle_button_set_active(
-            GTK_TOGGLE_BUTTON(ctk_slimm->cbtn_slimm_enable), FALSE);
-        slimm_checkbox_toggled(ctk_slimm->cbtn_slimm_enable,
-                               (gpointer) ctk_slimm);
-    }
-
-    ctk_object->ctk_config->pending_config &=
+    ctk_mmdialog->ctk_config->pending_config &=
         ~CTK_CONFIG_PENDING_WRITE_MOSAIC_CONFIG;
 
     free(sli_mode);
 
-    gtk_widget_show_all(GTK_WIDGET(object));    
-
-    return GTK_WIDGET(object);
-
-slimm_fail:
-
-    if (layout) {
-        layout_free(layout);
-    }
-
-    if (!err_str) {
-        str = g_strdup("Unable to load SLI Mosaic Mode Settings page.");
-    } else {
-        str = g_strdup_printf("Unable to load SLI Mosaic Mode Settings "
-                              "page:\n\n%s", err_str);
-        g_free(err_str);
-    }
-
-    label = gtk_label_new(str);
-    g_free(str);
-    gtk_label_set_selectable(GTK_LABEL(label), TRUE);
-    gtk_container_add(GTK_CONTAINER(object), label);
-
-    /* Show the GUI */
-    gtk_widget_show_all(GTK_WIDGET(ctk_object));
-
-    return GTK_WIDGET(ctk_object);
+    gtk_widget_show_all(content);
+    return ctk_mmdialog;
 }
 
 
-    
-GtkTextBuffer *ctk_slimm_create_help(GtkTextTagTable *table,
-                                      const gchar *slimm_name)
+
+void ctk_mmdialog_insert_help(GtkTextBuffer *b, GtkTextIter *i)
 {
-    GtkTextIter i;
-    GtkTextBuffer *b;
+    ctk_help_heading(b, i, "Configure SLI Mosaic Layout Dialog");
 
-    b = gtk_text_buffer_new(table);
-    
-    gtk_text_buffer_get_iter_at_offset(b, &i, 0);
-
-    ctk_help_title(b, &i, "SLI Mosaic Mode Settings Help");
-
-    ctk_help_para(b, &i, "This page allows easy configuration "
+    ctk_help_para(b, i, "This dialog allows easy configuration "
                   "of SLI Mosaic Mode.");
     
-    ctk_help_heading(b, &i, "Use SLI Mosaic Mode");
-    ctk_help_para(b, &i, "This checkbox controls whether SLI Mosaic Mode is enabled "
-                  "or disabled.");
-    
-    ctk_help_heading(b, &i, "Display Configuration");
-    ctk_help_para(b, &i, "This drop down menu allows selection of the display grid "
+    ctk_help_heading(b, i, "Display Configuration");
+    ctk_help_para(b, i, "This drop down menu allows selection of the display grid "
                   "configuration for SLI Mosaic Mode; the possible configurations "
                   "are described as rows x columns.");
     
-    ctk_help_heading(b, &i, "Resolution");
-    ctk_help_para(b, &i, "This drop down menu allows selection of the resolution to "
+    ctk_help_heading(b, i, "Resolution");
+    ctk_help_para(b, i, "This drop down menu allows selection of the resolution to "
                   "use for each of the displays in SLI Mosaic Mode.  Note that only "
                   "the resolutions that are available for each display will be "
                   "shown here.");
     
-    ctk_help_heading(b, &i, "Refresh Rate");
-    ctk_help_para(b, &i, "This drop down menu allows selection of the refresh rate "
+    ctk_help_heading(b, i, "Refresh Rate");
+    ctk_help_para(b, i, "This drop down menu allows selection of the refresh rate "
                   "to use for each of the displays in SLI Mosaic Mode.  By default "
                   "the highest refresh rate each of the displays can achieve at "
                   "the selected resolution is chosen.  This combo box gets updated "
                   "when a new resolution is picked.");
 
-    ctk_help_heading(b, &i, "Edge Overlap");
-    ctk_help_para(b, &i, "These two controls allow the user to specify the "
+    ctk_help_heading(b, i, "Edge Overlap");
+    ctk_help_para(b, i, "These two controls allow the user to specify the "
                   "Horizontal and Vertical Edge Overlap values.  The displays "
                   "will overlap by the specified number of pixels when forming "
                   "the grid configuration.  For example, 4 flat panel displays "
@@ -1820,21 +1696,93 @@ GtkTextBuffer *ctk_slimm_create_help(GtkTextTagTable *table,
                   "will generate the following MetaMode: \"1600x1200+0+0,"
                   "1600x1200+1550+0,1600x1200+0+1150,1600x1200+1550+1150\".");
 
-    ctk_help_heading(b, &i, "Total Size");
-    ctk_help_para(b, &i, "This is the total size of the X screen formed using all "
+    ctk_help_heading(b, i, "Total Size");
+    ctk_help_para(b, i, "This is the total size of the X screen formed using all "
                   "displays in SLI Mosaic Mode.");
 
-    ctk_help_heading(b, &i, "Maximum Size");
-    ctk_help_para(b, &i, "This is the maximum allowable size of the X screen "
+    ctk_help_heading(b, i, "Maximum Size");
+    ctk_help_para(b, i, "This is the maximum allowable size of the X screen "
                   "formed using all displays in SLI Mosaic Mode.");
 
-    ctk_help_heading(b, &i, "Save to X Configuration File");
-    ctk_help_para(b, &i, "Clicking this button saves the selected SLI Mosaic Mode "
-                  "settings into the X Configuration File.");
+}
 
-    ctk_help_finish(b);
 
-    return b;
+
+int run_mosaic_dialog(CtkMMDialog *ctk_mmdialog, GtkWidget *parent,
+                      const nvLayoutPtr layout)
+{
+    gint response;
+    gint x_displays, y_displays;
+    CtkDropDownMenu *menu;
+    gint idx;
+    gint h_overlap;
+    gint v_overlap;
+
+
+    ctk_mmdialog->layout = layout;
+
+    /* Show the save dialog */
+    gtk_window_set_transient_for
+        (GTK_WINDOW(ctk_mmdialog->dialog),
+         GTK_WINDOW(gtk_widget_get_toplevel(parent)));
+
+    gtk_window_resize(GTK_WINDOW(ctk_mmdialog->dialog), 350, 1);
+    gtk_window_set_resizable(GTK_WINDOW(ctk_mmdialog->dialog), FALSE);
+    gtk_widget_show(ctk_mmdialog->dialog);
+
+    ctk_mmdialog->is_active = TRUE;
+    response = gtk_dialog_run(GTK_DIALOG(ctk_mmdialog->dialog));
+    ctk_mmdialog->is_active = FALSE;
+
+    gtk_widget_hide(ctk_mmdialog->dialog);
+
+    if (response == GTK_RESPONSE_ACCEPT ||
+        response == GTK_RESPONSE_APPLY) {
+
+
+        /* Grid width && Grid height */
+
+        menu = CTK_DROP_DOWN_MENU(ctk_mmdialog->mnu_display_config);
+        idx = ctk_drop_down_menu_get_current_value(menu);
+
+        if (idx < ctk_mmdialog->num_grid_configs) {
+            x_displays = ctk_mmdialog->grid_configs[idx].columns;
+            y_displays = ctk_mmdialog->grid_configs[idx].rows;
+        } else {
+            x_displays = y_displays = 0;
+        }
+
+        ctk_mmdialog->x_displays = x_displays;
+        ctk_mmdialog->y_displays = y_displays;
+
+
+        /* Resolution */
+
+        menu = CTK_DROP_DOWN_MENU(ctk_mmdialog->mnu_display_resolution);
+        ctk_mmdialog->resolution_idx =
+            ctk_drop_down_menu_get_current_value(menu);
+
+
+        /* Refresh Rate */
+
+        menu = CTK_DROP_DOWN_MENU(ctk_mmdialog->mnu_display_refresh);
+        ctk_mmdialog->refresh_idx = ctk_drop_down_menu_get_current_value(menu);
+
+
+        /* Edge Overlap */
+
+        h_overlap = gtk_spin_button_get_value_as_int(
+                        GTK_SPIN_BUTTON(ctk_mmdialog->spbtn_hedge_overlap));
+        v_overlap = gtk_spin_button_get_value_as_int(
+                        GTK_SPIN_BUTTON(ctk_mmdialog->spbtn_vedge_overlap));
+
+        ctk_mmdialog->h_overlap = h_overlap;
+        ctk_mmdialog->v_overlap = v_overlap;
+
+    }
+
+    return response != GTK_RESPONSE_CANCEL;
+
 }
 
 
