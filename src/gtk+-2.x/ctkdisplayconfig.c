@@ -2789,6 +2789,8 @@ static void setup_mosaic_config(CtkDisplayConfig *ctk_object)
         (GTK_TOGGLE_BUTTON(ctk_object->chk_mosaic_enabled),
          gpu->mosaic_enabled);
 
+    gtk_widget_set_sensitive(ctk_object->btn_mosaic, gpu->mosaic_enabled);
+
     g_signal_handlers_unblock_by_func
         (G_OBJECT(ctk_object->chk_mosaic_enabled),
          G_CALLBACK(mosaic_state_toggled), (gpointer) ctk_object);
@@ -6328,6 +6330,14 @@ static void mosaic_config_clicked(GtkWidget *widget, gpointer user_data)
                 display = display->next_on_gpu) {
                 nvModeLinePtr modeline;
 
+                if (!display->screen) {
+                    /* Enable any displays that are currently disabled and
+                     * assign them to the mosaic screen.
+                     */
+                    do_enable_display_on_xscreen(ctk_object, display,
+                                                 layout->screens);
+                }
+
                 if (display->num_selected_modes == 0) {
                     generate_selected_modes(display);
                 }
@@ -6349,6 +6359,7 @@ static void mosaic_config_clicked(GtkWidget *widget, gpointer user_data)
 
                     display->cur_mode->pan.x = x_pos;
                     display->cur_mode->pan.y = y_pos;
+                    display->cur_mode->position_type = CONF_ADJ_ABSOLUTE;
 
                     ctk_display_layout_set_mode_modeline(
                         CTK_DISPLAY_LAYOUT(ctk_object->obj_layout),
@@ -9824,7 +9835,6 @@ static void update_layout(CtkDisplayConfig *ctk_object)
     get_cur_screen_pos(ctk_object);
 
     /* Update the apply button */
-    ctk_object->apply_possible = TRUE;
     update_btn_apply(ctk_object, TRUE);
 
     ctk_object->forced_reset_allowed = TRUE; /* OK to reset w/o user input */
