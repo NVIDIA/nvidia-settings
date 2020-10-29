@@ -113,6 +113,7 @@ extern "C" {
     #define nvmlDeviceGetGridLicensableFeatures     nvmlDeviceGetGridLicensableFeatures_v3
     #define nvmlEventSetWait                        nvmlEventSetWait_v2
     #define nvmlDeviceGetAttributes                 nvmlDeviceGetAttributes_v2
+    #define nvmlComputeInstanceGetInfo              nvmlComputeInstanceGetInfo_v2
     #define nvmlDeviceGetComputeRunningProcesses    nvmlDeviceGetComputeRunningProcesses_v2
     #define nvmlDeviceGetGraphicsRunningProcesses   nvmlDeviceGetGraphicsRunningProcesses_v2
 #endif // #ifndef NVML_NO_UNVERSIONED_FUNC_DEFS
@@ -7031,10 +7032,10 @@ typedef struct nvmlGpuInstanceProfileInfo_st
 
 typedef struct nvmlGpuInstanceInfo_st
 {
-    nvmlDevice_t device;                  //!< Parent device
-    unsigned int id;                      //!< Unique instance ID within the device
-    unsigned int profileId;               //!< Unique profile ID within the device
-    nvmlGpuInstancePlacement_t placement; //!< Placement for this instance
+    nvmlDevice_t device;                      //!< Parent device
+    unsigned int id;                          //!< Unique instance ID within the device
+    unsigned int profileId;                   //!< Unique profile ID within the device
+    nvmlGpuInstancePlacement_t placement;     //!< Placement for this instance
 } nvmlGpuInstanceInfo_t;
 
 typedef struct nvmlGpuInstance_st* nvmlGpuInstance_t;
@@ -7056,6 +7057,12 @@ typedef struct nvmlGpuInstance_st* nvmlGpuInstance_t;
 #define NVML_COMPUTE_INSTANCE_ENGINE_PROFILE_SHARED 0x0 //!< All the engines except multiprocessors would be shared
 #define NVML_COMPUTE_INSTANCE_ENGINE_PROFILE_COUNT  0x1
 
+typedef struct nvmlComputeInstancePlacement_st
+{
+    unsigned int start;
+    unsigned int size;
+} nvmlComputeInstancePlacement_t;
+
 typedef struct nvmlComputeInstanceProfileInfo_st
 {
     unsigned int id;                    //!< Unique profile ID within the GPU instance
@@ -7071,10 +7078,11 @@ typedef struct nvmlComputeInstanceProfileInfo_st
 
 typedef struct nvmlComputeInstanceInfo_st
 {
-    nvmlDevice_t device;           //!< Parent device
-    nvmlGpuInstance_t gpuInstance; //!< Parent GPU instance
-    unsigned int id;               //!< Unique instance ID within the GPU instance
-    unsigned int profileId;        //!< Unique profile ID within the GPU instance
+    nvmlDevice_t device;                      //!< Parent device
+    nvmlGpuInstance_t gpuInstance;            //!< Parent GPU instance
+    unsigned int id;                          //!< Unique instance ID within the GPU instance
+    unsigned int profileId;                   //!< Unique profile ID within the GPU instance
+    nvmlComputeInstancePlacement_t placement; //!< Placement for this instance within the GPU instance's slice range {0, sliceCount}
 } nvmlComputeInstanceInfo_t;
 
 typedef struct nvmlComputeInstance_st* nvmlComputeInstance_t;
@@ -7083,7 +7091,6 @@ typedef struct nvmlComputeInstance_st* nvmlComputeInstance_t;
  * Set MIG mode for the device.
  *
  * For Ampere &tm; or newer fully supported devices.
- * Supported on Linux only.
  * Requires root user.
  *
  * This mode determines whether a GPU instance can be created.
@@ -7097,6 +7104,9 @@ typedef struct nvmlComputeInstance_st* nvmlComputeInstance_t;
  * \a activationStatus would return the appropriate error code upon unsuccessful activation. For example, if device
  * unbind fails because the device isn't idle, \ref NVML_ERROR_IN_USE would be returned. The caller of this API
  * is expected to idle the device and retry setting the \a mode.
+ *
+ * @note On Windows, only disabling MIG mode is supported. \a activationStatus would return \ref
+ *       NVML_ERROR_NOT_SUPPORTED as GPU reset is not supported on Windows through this API.
  *
  * @param device                               The identifier of the target device
  * @param mode                                 The mode to be set, \ref NVML_DEVICE_MIG_DISABLE or
@@ -7116,7 +7126,6 @@ nvmlReturn_t DECLDIR nvmlDeviceSetMigMode(nvmlDevice_t device, unsigned int mode
  * Get MIG mode for the device.
  *
  * For Ampere &tm; or newer fully supported devices.
- * Supported on Linux only.
  *
  * Changing MIG modes may require device unbind or reset. The "pending" MIG mode refers to the target mode following the
  * next activation trigger.
@@ -7472,7 +7481,7 @@ nvmlReturn_t DECLDIR nvmlGpuInstanceGetComputeInstanceById(nvmlGpuInstance_t gpu
  *         - \ref NVML_ERROR_INVALID_ARGUMENT  If \a computeInstance or \a info are invalid
  *         - \ref NVML_ERROR_NO_PERMISSION     If user doesn't have permission to perform the operation
  */
-nvmlReturn_t DECLDIR nvmlComputeInstanceGetInfo(nvmlComputeInstance_t computeInstance, nvmlComputeInstanceInfo_t *info);
+nvmlReturn_t DECLDIR nvmlComputeInstanceGetInfo_v2(nvmlComputeInstance_t computeInstance, nvmlComputeInstanceInfo_t *info);
 
 /**
  * Test if the given handle refers to a MIG device.
@@ -7620,6 +7629,7 @@ nvmlReturn_t DECLDIR nvmlDeviceGetGridLicensableFeatures_v2(nvmlDevice_t device,
 nvmlReturn_t DECLDIR nvmlDeviceRemoveGpu(nvmlPciInfo_t *pciInfo);
 nvmlReturn_t DECLDIR nvmlEventSetWait(nvmlEventSet_t set, nvmlEventData_t * data, unsigned int timeoutms);
 nvmlReturn_t DECLDIR nvmlDeviceGetAttributes(nvmlDevice_t device, nvmlDeviceAttributes_t *attributes);
+nvmlReturn_t DECLDIR nvmlComputeInstanceGetInfo(nvmlComputeInstance_t computeInstance, nvmlComputeInstanceInfo_t *info);
 nvmlReturn_t DECLDIR nvmlDeviceGetComputeRunningProcesses(nvmlDevice_t device, unsigned int *infoCount, nvmlProcessInfo_t *infos);
 nvmlReturn_t DECLDIR nvmlDeviceGetGraphicsRunningProcesses(nvmlDevice_t device, unsigned int *infoCount, nvmlProcessInfo_t *infos);
 #endif // #ifdef NVML_NO_UNVERSIONED_FUNC_DEFS
@@ -7631,6 +7641,7 @@ nvmlReturn_t DECLDIR nvmlDeviceGetGraphicsRunningProcesses(nvmlDevice_t device, 
 #undef nvmlDeviceGetGraphicsRunningProcesses
 #undef nvmlDeviceGetComputeRunningProcesses
 #undef nvmlDeviceGetAttributes
+#undef nvmlComputeInstanceGetInfo
 #undef nvmlEventSetWait
 #undef nvmlDeviceGetGridLicensableFeatures
 #undef nvmlDeviceRemoveGpu
