@@ -1,90 +1,10 @@
 
 This is a (very) brief summary of some of things that need to be
-done to write a Frame Lock NV-CONTROL client.  
+done to write a Frame Lock NV-CONTROL client.
 
-
--------------------------------------------------------------------------------
-Section 1 - Writing a Frame Lock client for NV-CONTROL 1.8 (and earlier)
-
-
-Please see the sample NV-CONTROL clients in the "samples" directory
-for basic examples of how to set integer attributes.  See the
-file ctkframelock.c for a much more involved example of how the
+Please see samples/nv-control-framelock.c for a basic Frame Lock client.  See
+the file ctkframelock.c for a much more involved example of how the
 nvidia-settings utility programs the Frame Lock attributes.
-
-The constants referenced below are defined in NVCtrl.h.  Please see the
-comments in that file for an explanation of each attribute.  It may
-also be instructive to grep ctkframelock.c to see how each attribute
-is used.
-
-Basic steps:
-
-    - Open a Display connection to each X Screen you want to control
-      in your Frame Lock cluster.  Please make sure you have
-      priviledges to establish the X connection.
-
-    - Query the NV_CTRL_FRAMELOCK attribute to determine if Frame Lock
-      is supported on each X screen.
-
-    - Set NV_CTRL_FRAMELOCK_MASTER to NV_CTRL_FRAMELOCK_MASTER_TRUE on
-      one node in the cluster; set it to NV_CTRL_FRAMELOCK_MASTER_FALSE
-      to every other node in the cluster.
-
-    - Set NV_CTRL_FRAMELOCK_POLARITY for each slave node in the cluster;
-      most likely you want NV_CTRL_FRAMELOCK_POLARITY_RISING_EDGE.
-
-    - Set NV_CTRL_FRAMELOCK_SYNC_DELAY as appropriate for each node.
-      Most likely you want 0.
-
-    - Set NV_CTRL_FRAMELOCK_SYNC_INTERVAL as appropriate if you
-      are using house sync.  Most likely, you just want 0.
-
-    - Set NV_CTRL_FRAMELOCK_SYNC to NV_CTRL_FRAMELOCK_SYNC_ENABLE on
-      each X screen to enable FrameLock.
-
-    - (optional) set NV_CTRL_FRAMELOCK_TEST_SIGNAL to
-      NV_CTRL_FRAMELOCK_TEST_SIGNAL_ENABLE followed immediately by
-      NV_CTRL_FRAMELOCK_TEST_SIGNAL_DISABLE.  This guarantees
-      accuracy of the Universal Frame Count (as returned by
-      glXQueryFrameCountNV()).
-
-    - When you are done, set NV_CTRL_FRAMELOCK_SYNC to
-      NV_CTRL_FRAMELOCK_SYNC_DISABLE on each X screen to disable Frame Lock.
-
-During operation, you can also query any of these on each X screen:
-
-    NV_CTRL_FRAMELOCK_PORT0_STATUS
-    NV_CTRL_FRAMELOCK_PORT1_STATUS
-    NV_CTRL_FRAMELOCK_HOUSE_STATUS
-    NV_CTRL_FRAMELOCK_SYNC_READY
-    NV_CTRL_FRAMELOCK_STEREO_SYNC
-    NV_CTRL_FRAMELOCK_ETHERNET_DETECTED
-    NV_CTRL_FRAMELOCK_SYNC_RATE
-    NV_CTRL_FRAMELOCK_TIMING
-
-(nvidia-settings registers a gtk+ timeout function and queries the
-state of these on each X screen every few seconds).
-
-
-
--------------------------------------------------------------------------------
-Section 2 - Writing a Frame Lock client for NV-CONTROL 1.9 (and later)
-
-Configuration of Frame Lock has changed in NV-CONTROL 1.9.  There are two
-major differences:
-
-    - Display Devices (instead of X Screens) are now selected as the clients &
-      slaves of a Frame Lock group.
-
-    - Frame Lock attributes should now be set/queried on GPUs 
-      (NV_CTRL_TARGET_TYPE_GPU) and Quadro Sync (Frame Lock) devices
-      (NV_CTRL_TARGET_TYPE_FRAMELOCK) using the new NV-CONTROL targeting API.
-
-Please see the sample NV-CONTROL clients in the "samples" directory
-for basic examples of how to use the new targeting API (nv-control-targets.c),
-and a basic Frame Lock client (nv-control-framelock.c).  See the file
-ctkframelock.c for a much more involved example of how the nvidia-settings
-utility programs the Frame Lock attributes.
 
 The constants referenced below are defined in NVCtrl.h.  Please see the
 comments in that file for an explanation of each attribute.  It may
@@ -97,27 +17,32 @@ Querying frame lock capabilities of a system:
       NV_CTRL_TARGET_TYPE_FRAMELOCK to XNVCTRLQueryTargetCount()
 
     - Query the GPUs attached to each Quadro Sync device by querying the
-      NV_CTRL_GPUS_USING_FRAMELOCK attribute for each Quadro Sync device.
+      NV_CTRL_BINARY_DATA_GPUS_USING_FRAMELOCK attribute for each Quadro
+      Sync device.
 
     - Query the enabled (available) display devices on each GPU through
-      the NV_CTRL_ENABLED_DISPLAYS attribute.
+      the NV_CTRL_BINARY_DATA_DISPLAYS_CONNECTED_TO_GPU and
+      NV_CTRL_DISPLAY_ENABLED attributes.
+
+    - Query whether each display may be configured as Frame Lock server or
+      client through the NV_CTRL_FRAMELOCK_DISPLAY_CONFIG attribute.
 
 Configuring the Frame Lock group (This must be done while Frame Lock Sync is
 disabled on the GPU/Quadro Sync Device):
 
-    - Set the Frame Lock Master Display Device on one of the GPUs through the
-      NV_CTRL_FRAMELOCK_MASTER attribute.
+    - Set one display device as Frame Lock server through the
+      NV_CTRL_FRAMELOCK_DISPLAY_CONFIG_SERVER attribute.
 
-    - Set the rest of the display devices as slaves through the
-      NV_CTRL_FRAMELOCK_SLAVES attribute.
+    - Set the rest of the display devices as Frame Lock clients through the
+      NV_CTRL_FRAMELOCK_DISPLAY_CONFIG_CLIENT attribute.
 
     - Set NV_CTRL_USE_HOUSE_SYNC to NV_CTRL_USE_HOUSE_SYNC_TRUE or
-      NV_CTRL_USE_HOUSE_SYNC_FALSE on the master Quadro Sync device (this is
+      NV_CTRL_USE_HOUSE_SYNC_FALSE on the server Quadro Sync device (this is
       the Quadro Sync device that is attached to the GPU that contains the
-      display device currently set as the frame lock master.)  Depending on
+      display device currently set as the Frame Lock server.)  Depending on
       whether or not you will be using a House Sync signal.
 
-    - Set NV_CTRL_FRAMELOCK_POLARITY for each slave Quadro Sync device in the
+    - Set NV_CTRL_FRAMELOCK_POLARITY for each client Quadro Sync device in the
       cluster; most likely you want NV_CTRL_FRAMELOCK_POLARITY_RISING_EDGE.
 
     - Set NV_CTRL_FRAMELOCK_SYNC_DELAY as appropriate for each Quadro Sync
@@ -134,7 +59,7 @@ Enabling/Disabling Frame Lock:
     - (optional) set NV_CTRL_FRAMELOCK_TEST_SIGNAL to
       NV_CTRL_FRAMELOCK_TEST_SIGNAL_ENABLE followed immediately by
       NV_CTRL_FRAMELOCK_TEST_SIGNAL_DISABLE (on the GPU that contains the
-      master Frame Lock display device.)  This guarantees accuracy of the
+      server Frame Lock display device.)  This guarantees accuracy of the
       Universal Frame Count (as returned by glXQueryFrameCountNV()).
 
     - When you are done, set NV_CTRL_FRAMELOCK_SYNC to
@@ -151,3 +76,7 @@ device:
     NV_CTRL_FRAMELOCK_ETHERNET_DETECTED
     NV_CTRL_FRAMELOCK_SYNC_RATE
     NV_CTRL_FRAMELOCK_TIMING
+
+(nvidia-settings registers a gtk+ timeout function and queries the
+state of these on each X screen every few seconds).
+

@@ -319,7 +319,7 @@ Bool XNVCTRLQueryTargetStringAttribute (
 /*
  *  XNVCTRLSetStringAttribute -
  *
- *  Returns True if the operation succeded.  Returns False otherwise.
+ *  Returns True if the operation succeeded.  Returns False otherwise.
  *
  *  Possible X errors:
  *     BadValue - The screen doesn't exist.
@@ -339,7 +339,7 @@ Bool XNVCTRLSetStringAttribute (
 /*
  *  XNVCTRLSetTargetStringAttribute -
  *
- *  Returns True if the operation succeded.  Returns False otherwise.
+ *  Returns True if the operation succeeded.  Returns False otherwise.
  *
  *  Possible X errors:
  *     BadValue - The screen doesn't exist.

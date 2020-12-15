@@ -27,6 +27,7 @@
 #include <stdarg.h>
 #include <sys/types.h>
 #include <stdint.h>
+#include <version.h>
 
 #include "msg.h"
 

@@ -70,6 +70,8 @@
 
 #include "opengl_loading.h"
 
+#include "ctkpowermode.h"
+
 /* column enumeration */
 
 enum {
@@ -498,6 +500,7 @@ GtkWidget *ctk_window_new(ParsedAttribute *p, ConfigProperties *conf,
 
     CtrlTargetNode *node;
     CtrlTarget *server_target = NULL;
+    CtrlTarget *ctrl_target = NULL;
 
     CtkEvent *ctk_event;
     CtkConfig *ctk_config;
@@ -690,9 +693,21 @@ GtkWidget *ctk_window_new(ParsedAttribute *p, ConfigProperties *conf,
                          NULL, ctk_display_config_selected,
                          ctk_display_config_unselected);
             }
+
         }
     }
 
+    /* Platform Power Mode */
+
+    ctrl_target = NvCtrlGetDefaultTargetByType(system, GPU_TARGET);
+    ctk_event = CTK_EVENT(ctk_event_new(ctrl_target));
+    widget = ctk_powermode_new(ctrl_target, ctk_config, ctk_event);
+    if (widget) {
+        help = ctk_powermode_create_help(tag_table, CTK_POWERMODE(widget));
+        add_page(widget, help, ctk_window, NULL, NULL,
+                 "Platform Power Mode",
+                 NULL, ctk_powermode_start_timer, ctk_powermode_stop_timer);
+    }
 
     /* add the per-screen entries into the tree model */
 
@@ -1146,7 +1161,7 @@ static void add_page(GtkWidget *widget, GtkTextBuffer *help,
     /*
      * Add a reference to the object and sink (remove) the floating (gtk)
      * reference.  This sink needs to happen before the page gets packed
-     * to ensure that we become the propper owner of these widgets.  This way,
+     * to ensure that we become the proper owner of these widgets.  This way,
      * page will not be destroyed when they are hidden (removed from the page
      * viewer), and we can properly destroy them when needed (for example, the
      * display device pages are destroyed/recreated on hotplug events.)

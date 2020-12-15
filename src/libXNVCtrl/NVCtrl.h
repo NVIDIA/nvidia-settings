@@ -401,14 +401,14 @@
 
 
 /*
- * NV_CTRL_FRAMELOCK_MASTER - deprecated
+ * NV_CTRL_FRAMELOCK_MASTER - not supported
  *
  * NV_CTRL_FRAMELOCK_DISPLAY_CONFIG should be used instead.
  */
 
-#define NV_CTRL_FRAMELOCK_MASTER                                22 /* deprecated */
-#define NV_CTRL_FRAMELOCK_MASTER_FALSE                           0 /* deprecated */
-#define NV_CTRL_FRAMELOCK_MASTER_TRUE                            1 /* deprecated */
+#define NV_CTRL_FRAMELOCK_MASTER                                22 /* not supported */
+#define NV_CTRL_FRAMELOCK_MASTER_FALSE                           0 /* not supported */
+#define NV_CTRL_FRAMELOCK_MASTER_TRUE                            1 /* not supported */
 
 
 /*
@@ -457,7 +457,7 @@
 /*
  * NV_CTRL_FRAMELOCK_SYNC_INTERVAL - how many house sync pulses
  * between the frame lock sync generation (0 == sync every house sync);
- * this only applies to the master when receiving house sync.
+ * this only applies to the frame lock server when receiving house sync.
  *
  * This attribute may be queried through XNVCTRLQueryTargetAttribute()
  * using a NV_CTRL_TARGET_TYPE_FRAMELOCK or NV_CTRL_TARGET_TYPE_X_SCREEN
@@ -554,10 +554,10 @@
 
 /*
  * NV_CTRL_FRAMELOCK_TEST_SIGNAL - to test the connections in the sync
- * group, tell the master to enable a test signal, then query port[01]
- * status and sync_ready on all slaves.  When done, tell the master to
- * disable the test signal.  Test signal should only be manipulated
- * while NV_CTRL_FRAMELOCK_SYNC is enabled.
+ * group, tell the frame lock server to enable a test signal, then query
+ * port[01] status and sync_ready on all clients.  When done, tell the
+ * server to disable the test signal.  This test signal attribute should
+ * only be manipulated while NV_CTRL_FRAMELOCK_SYNC is enabled.
  *
  * The TEST_SIGNAL is also used to reset the Universal Frame Count (as
  * returned by the glXQueryFrameCountNV() function in the
@@ -599,8 +599,8 @@
 
 /*
  * NV_CTRL_FRAMELOCK_VIDEO_MODE - get/set what video mode is used
- * to interperate the house sync signal.  This should only be set
- * on the master.
+ * to interpret the house sync signal.  This should only be set
+ * on the frame lock server.
  *
  * This attribute may be queried through XNVCTRLQueryTargetAttribute()
  * using a NV_CTRL_TARGET_TYPE_FRAMELOCK or NV_CTRL_TARGET_TYPE_X_SCREEN
@@ -665,9 +665,9 @@
 /*
  * NV_CTRL_FRAMELOCK_TIMING - this is TRUE when the gpu is both receiving
  * and locked to an input timing signal. Timing information may come from
- * the following places: Another frame lock device that is set to master, 
- * the house sync signal, or the GPU's internal timing from a display
- * device.
+ * the following places: Another device that is acting as a frame lock
+ * server, the house sync signal, or the GPU's internal timing from a
+ * display device.
  *
  * This attribute may be queried through XNVCTRLQueryTargetAttribute()
  * using a NV_CTRL_TARGET_TYPE_GPU or NV_CTRL_TARGET_TYPE_X_SCREEN target.
@@ -1142,7 +1142,7 @@
 
 /*
  * NV_CTRL_GVO_DATA_FORMAT - This controls how the data in the source
- * (either the X screen or the GLX pbuffer) is interpretted and
+ * (either the X screen or the GLX pbuffer) is interpreted and
  * displayed.
  *
  * Note: some of the below DATA_FORMATS have been renamed.  For
@@ -1235,7 +1235,7 @@
 
 /*
  * NV_CTRL_GVO_VIDEO_OUTPUTS - indicates which GVO video output
- * connectors are currently outputing data.
+ * connectors are currently outputting data.
  */
 
 #define NV_CTRL_GVO_VIDEO_OUTPUTS                               77  /* R-- */
@@ -1438,18 +1438,17 @@
 
 
 /*
- * NV_CTRL_USE_HOUSE_SYNC - when INPUT, the server (master) frame lock
- * device will propagate the incoming house sync signal as the outgoing
- * frame lock sync signal.  If the frame lock device cannot detect a
- * frame lock sync signal, it will default to using the internal timings
- * from the GPU connected to the primary connector.
+ * NV_CTRL_USE_HOUSE_SYNC - when INPUT, the server frame lock device will
+ * propagate the incoming house sync signal as the outgoing frame lock sync
+ * signal.  If the frame lock device cannot detect a frame lock sync signal, it
+ * will default to using the internal timings from the GPU connected to the
+ * primary connector.
  *
- * When set to OUTPUT, the server (master) frame lock device will
- * generate a house sync signal from its internal timing and output
- * this signal over the BNC connector on the frame lock device.  This
- * is only allowed on a Quadro Sync II device.  If an incoming house
- * sync signal is present on the BNC connector, this setting will
- * have no effect.
+ * When set to OUTPUT, the server frame lock device will generate a house sync
+ * signal from its internal timing and output this signal over the BNC connector
+ * on the frame lock device.  This is only allowed on a Quadro Sync II device.
+ * If an incoming house sync signal is present on the BNC connector, this
+ * setting will have no effect.
  *
  * This attribute may be queried through XNVCTRLQueryTargetAttribute()
  * using a NV_CTRL_TARGET_TYPE_FRAMELOCK or NV_CTRL_TARGET_TYPE_X_SCREEN
@@ -1648,20 +1647,20 @@
 #define NV_CTRL_ASSOCIATED_DISPLAY_DEVICES                       231 /* deprecated */
 
 /*
- * NV_CTRL_FRAMELOCK_SLAVES - deprecated
+ * NV_CTRL_FRAMELOCK_SLAVES - not supported
  *
  * NV_CTRL_FRAMELOCK_DISPLAY_CONFIG should be used instead.
  */
 
-#define NV_CTRL_FRAMELOCK_SLAVES                                 232 /* deprecated */
+#define NV_CTRL_FRAMELOCK_SLAVES                                 232 /* not supported */
 
 /*
- * NV_CTRL_FRAMELOCK_MASTERABLE - deprecated
+ * NV_CTRL_FRAMELOCK_MASTERABLE - not supported
  *
  * NV_CTRL_FRAMELOCK_DISPLAY_CONFIG should be used instead.
  */
 
-#define NV_CTRL_FRAMELOCK_MASTERABLE                             233 /* deprecated */
+#define NV_CTRL_FRAMELOCK_MASTERABLE                             233 /* not supported */
 
 /*
  * NV_CTRL_PROBE_DISPLAYS - re-probes the hardware to detect what
@@ -1933,7 +1932,7 @@
 
 /*
  * NV_CTRL_NUM_GPU_ERRORS_RECOVERED - Returns the number of GPU errors
- * occured. This attribute may be queried through XNVCTRLQueryTargetAttribute()
+ * occurred. This attribute may be queried through XNVCTRLQueryTargetAttribute()
  * using a NV_CTRL_TARGET_TYPE_X_SCREEN target.
  */
 
@@ -2067,7 +2066,7 @@
  *
  * Range # (11 bits), (Enabled 1 bit), min value (10 bits), max value (10 bits)
  *
- * To query the current values, pass the range # throught the display_mask
+ * To query the current values, pass the range # through the display_mask
  * variable.
  */
 
@@ -2093,7 +2092,7 @@
  *
  * Range # (11 bits), (Enabled 1 bit), min value (10 bits), max value (10 bits)
  *
- * To query the current values, pass the range # throught he display_mask
+ * To query the current values, pass the range # through the display_mask
  * variable.
  */
 
@@ -2107,7 +2106,7 @@
  *
  * Range # (11 bits), (Enabled 1 bit), min value (10 bits), max value (10 bits)
  *
- * To query the current values, pass the range # throught he display_mask
+ * To query the current values, pass the range # through the display_mask
  * variable.
  */
 
@@ -2214,12 +2213,12 @@
 #define NV_CTRL_GVO_CSC_CHANGED_EVENT                           294 /* --- */
 
 /*
- * NV_CTRL_FRAMELOCK_SLAVEABLE - deprecated
+ * NV_CTRL_FRAMELOCK_SLAVEABLE - not supported
  *
  * NV_CTRL_FRAMELOCK_DISPLAY_CONFIG should be used instead.
  */
 
-#define NV_CTRL_FRAMELOCK_SLAVEABLE                             295 /* deprecated */
+#define NV_CTRL_FRAMELOCK_SLAVEABLE                             295 /* not supported */
 
 /*
  * NV_CTRL_GVO_SYNC_TO_DISPLAY This attribute controls whether or not
@@ -3107,7 +3106,7 @@
 
 /* 
  * NV_CTRL_FRAMELOCK_INCOMING_HOUSE_SYNC_RATE: this is the rate 
- * of an incomming house sync signal to the frame lock board, in milliHz.
+ * of an incoming house sync signal to the frame lock board, in milliHz.
  *
  * This attribute may be queried through XNVCTRLQueryTargetAttribute()
  * using a NV_CTRL_TARGET_TYPE_FRAMELOCK or NV_CTRL_TARGET_TYPE_X_SCREEN
@@ -3218,14 +3217,25 @@
 #define NV_CTRL_BASE_MOSAIC_LIMITED                             2
 
 /*
- * NV_CTRL_MULTIGPU_MASTER_POSSIBLE - Returns whether the GPU can be configured
- * as the master GPU in a Multi GPU configuration (SLI, SLI Mosaic,
- * Base Mosaic).
+ * NV_CTRL_MULTIGPU_PRIMARY_POSSIBLE - Returns whether the GPU can be configured
+ * as the primary GPU in a Multi GPU configuration (SLI, SLI Mosaic, Base
+ * Mosaic).
  */
 
-#define NV_CTRL_MULTIGPU_MASTER_POSSIBLE                        399 /* R--G */
-#define NV_CTRL_MULTIGPU_MASTER_POSSIBLE_FALSE                  0
-#define NV_CTRL_MULTIGPU_MASTER_POSSIBLE_TRUE                   1
+#define NV_CTRL_MULTIGPU_PRIMARY_POSSIBLE                       399 /* R--G */
+#define NV_CTRL_MULTIGPU_PRIMARY_POSSIBLE_FALSE                 0
+#define NV_CTRL_MULTIGPU_PRIMARY_POSSIBLE_TRUE                  1
+
+/*
+ * These synonyms for the above defines are deprecated and will be removed in a
+ * future release.
+ */
+#define NV_CTRL_MULTIGPU_MASTER_POSSIBLE \
+        NV_CTRL_MULTIGPU_PRIMARY_POSSIBLE
+#define NV_CTRL_MULTIGPU_MASTER_POSSIBLE_FALSE \
+        NV_CTRL_MULTIGPU_PRIMARY_POSSIBLE
+#define NV_CTRL_MULTIGPU_MASTER_POSSIBLE_TRUE \
+        NV_CTRL_MULTIGPU_PRIMARY_POSSIBLE_TRUE
 
 /*
  * NV_CTRL_GPU_POWER_MIZER_DEFAULT_MODE - Returns the default PowerMizer mode
@@ -3605,8 +3615,21 @@
 #define NV_CTRL_PLATFORM_POWER_MODE_BALANCED                      1
 #define NV_CTRL_PLATFORM_POWER_MODE_QUIET                         2
 
+/*
+ * NV_CTRL_PLATFORM_CURRENT_POWER_MODE - Returns the current Platform Power
+ * mode of the system.
+ * NV_CTRL_PLATFORM_POWER_MODE_LIMITED_POWER_POLICY is returned when the
+ * system is powered by battery or an undersized power source (such as power
+ * over USB-C).
+ */
 
-#define NV_CTRL_LAST_ATTRIBUTE NV_CTRL_PLATFORM_POWER_MODE
+#define NV_CTRL_PLATFORM_CURRENT_POWER_MODE                     435  /* R--G */
+#define NV_CTRL_PLATFORM_CURRENT_POWER_MODE_PERFORMANCE           0
+#define NV_CTRL_PLATFORM_CURRENT_POWER_MODE_BALANCED              1
+#define NV_CTRL_PLATFORM_CURRENT_POWER_MODE_QUIET                 2
+#define NV_CTRL_PLATFORM_CURRENT_POWER_MODE_LIMITED_POWER_POLICY  3
+
+#define NV_CTRL_LAST_ATTRIBUTE NV_CTRL_PLATFORM_CURRENT_POWER_MODE
 
 
 
@@ -4196,7 +4219,7 @@
  * NV_CTRL_STRING_3D_VISION_PRO_GLASSES_NAME - Controls the name the
  * glasses should use.
  * Use the display_mask parameter to specify the glasses id.
- * Glasses' name should start and end with an alpha-numeric character.
+ * Glasses' name should start and end with an alphanumeric character.
  */
 #define NV_CTRL_STRING_3D_VISION_PRO_GLASSES_NAME                   44 /* RW-T */
 
@@ -4253,7 +4276,7 @@
  * NV_CTRL_STRING_DISPLAY_NAME_TARGET_INDEX - Returns the current NV-CONTROL
  * target ID (name) of the display device.  e.g. "DPY-1", "DPY-4"
  *
- * This name for the display device is not guarenteed to be the same between
+ * This name for the display device is not guaranteed to be the same between
  * different runs of the X server.
  */
 #define NV_CTRL_STRING_DISPLAY_NAME_TARGET_INDEX                    50 /* R-D- */
@@ -4944,7 +4967,7 @@
  * is no fixed range of valid values.
  *
  * ATTRIBUTE_TYPE_BITMASK : the attribute is an integer value,
- * interpretted as a bitmask.
+ * interpreted as a bitmask.
  *
  * ATTRIBUTE_TYPE_BOOL : the attribute is a boolean, valid values are
  * either 1 (on/true) or 0 (off/false).

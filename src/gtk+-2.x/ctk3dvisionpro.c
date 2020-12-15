@@ -1840,7 +1840,7 @@ GtkTextBuffer *ctk_3d_vision_pro_create_help(GtkTextTagTable *table)
 
     ctk_help_heading(b, &i, "Glasses Name");
     ctk_help_para(b, &i, "Each pair of glasses has an unique name and the name should "
-                         "start and end with an alpha-numeric character. "
+                         "start and end with an alphanumeric character. "
                          "Glasses can be renamed using Rename button.");
 
     ctk_help_heading(b, &i, "Battery Level");

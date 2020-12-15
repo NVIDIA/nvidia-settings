@@ -182,8 +182,6 @@ struct _nvDisplayDataRec {
 
     GtkWidget *server_label;
     GtkWidget *server_checkbox;
-    gboolean   masterable;
-    gboolean   slaveable;
 
     GtkWidget *client_label;
     GtkWidget *client_checkbox;
@@ -289,7 +287,7 @@ static const char * __expand_all_button_help =
 static const char * __house_sync_mode_combo_help =
 "The House Sync Mode drop-down allows you to configure the Quadro Sync device "
 "to use the BNC connector in either input or output mode.  When set to Input, "
-"the server Quadro Sync device will generate the master frame lock signal "
+"the server Quadro Sync device will generate the frame lock signal "
 "from the incoming house sync signal (if a house sync signal is detected) "
 "instead of using internal timing from the server GPU/display device.  When "
 "set to Output, the server will generate a house sync signal from its "
@@ -300,12 +298,12 @@ static const char * __house_sync_mode_combo_help =
 
 static const char * __sync_interval_scale_help =
 "The Sync Interval allows you to set the number of incoming house sync "
-"pulses the master frame lock board receives before generating an outgoing "
+"pulses the server frame lock board receives before generating an outgoing "
 "frame lock sync pulse.  A value of 0 means a frame lock sync pulse is sent "
 "for every house sync pulse.";
 
 static const char * __sync_edge_combo_help =
-"The Sync Edge drop-down allows you to select which edge the master "
+"The Sync Edge drop-down allows you to select which edge the server "
 "frame lock device will use to decode the incoming house sync signal.";
 
 static const char * __video_mode_help =
@@ -319,9 +317,9 @@ static const char * __detect_video_mode_button_help =
 "of the house sync signal by iterating through the list of known video modes.";
 
 static const char * __test_link_button_help =
-"The Test Link button will cause the master frame lock device to output a "
+"The Test Link button will cause the server frame lock device to output a "
 "test signal for a short amount of time.  During this time, the Sync Signal "
-"coming from the master frame lock device will be held high causing the rj45 "
+"coming from the server frame lock device will be held high causing the rj45 "
 "ports throughout the frame lock group to stop blinking.";
 
 static const char * __sync_enable_button_help =
@@ -1940,7 +1938,7 @@ static void list_entry_associate(nvListEntryPtr entry, nvListTreePtr tree)
             entry->tree->selected_entry = NULL;
         }
 
-        /* Remove master entry */
+        /* Remove server entry */
         if (entry == entry->tree->server_entry) {
             entry->tree->server_entry = NULL;
         }
@@ -3102,18 +3100,18 @@ static void toggle_sync_enable(GtkWidget *button, gpointer data)
     if (enabled) val = NV_CTRL_FRAMELOCK_SYNC_ENABLE;
     else         val = NV_CTRL_FRAMELOCK_SYNC_DISABLE;
 
-    /* If we are enabling frame lock, enable the master first */
+    /* If we are enabling frame lock, enable the server first */
     if (enabled) {
         something_enabled = set_enable_sync_server(tree, val);
         framelock_enabled = (framelock_enabled || something_enabled);
         server_enabled = something_enabled;
     }
 
-    /* Enable/Disable slaves */
+    /* Enable/Disable clients */
     something_enabled = set_enable_sync_clients(tree->entries, val);
     framelock_enabled = (framelock_enabled || something_enabled);
 
-    /* If we are disabling frame lock, disable the master last */
+    /* If we are disabling frame lock, disable the server last */
     if (!enabled) {
         something_enabled = set_enable_sync_server(tree, val);
         framelock_enabled = (framelock_enabled || something_enabled);
@@ -3413,7 +3411,7 @@ static gboolean detect_video_mode_timer(gpointer user_data)
     nvFrameLockDataPtr data;
     gint house;
 
-    /* Master gone... oops */
+    /* Server gone... oops */
     if (!entry) {
         goto done;
     }
@@ -3514,7 +3512,7 @@ static gboolean detect_video_mode_timer(gpointer user_data)
  * then update the settings and unpress the button.  If we are not,
  * program the next format in the sequence and try again.
  *
- * XXX what happens if the master gets changed while we are doing
+ * XXX what happens if the server gets changed while we are doing
  * this?
  *
  */
@@ -4023,23 +4021,23 @@ static void update_house_sync_controls(CtkFramelock *ctk_framelock)
         gint sync_edge;
         gint house_format;
 
-        nvFrameLockDataPtr master_data;
-        
+        nvFrameLockDataPtr server_data;
+
         gtk_widget_set_sensitive(ctk_framelock->house_sync_vbox, TRUE);
 
-        master_data = (nvFrameLockDataPtr)(entry->data);
+        server_data = (nvFrameLockDataPtr)(entry->data);
 
-        /* Query current house sync settings from master frame lock device */
-        
-        NvCtrlGetAttribute(master_data->ctrl_target,
+        /* Query current house sync settings from server frame lock device */
+
+        NvCtrlGetAttribute(server_data->ctrl_target,
                            NV_CTRL_FRAMELOCK_SYNC_INTERVAL,
                            &sync_interval);
 
-        NvCtrlGetAttribute(master_data->ctrl_target,
+        NvCtrlGetAttribute(server_data->ctrl_target,
                            NV_CTRL_FRAMELOCK_POLARITY,
                            &sync_edge);
 
-        NvCtrlGetAttribute(master_data->ctrl_target,
+        NvCtrlGetAttribute(server_data->ctrl_target,
                            NV_CTRL_FRAMELOCK_VIDEO_MODE,
                            &house_format);
 
@@ -4070,7 +4068,7 @@ static void update_house_sync_controls(CtkFramelock *ctk_framelock)
         if (ctk_framelock->house_sync_output_supported) {
             if (house_sync_mode == NV_CTRL_USE_HOUSE_SYNC_OUTPUT) {
                 gint rate;
-                NvCtrlGetAttribute(master_data->ctrl_target,
+                NvCtrlGetAttribute(server_data->ctrl_target,
                                    NV_CTRL_FRAMELOCK_INCOMING_HOUSE_SYNC_RATE,
                                    &rate);
                 if (rate != 0) {
@@ -4236,7 +4234,7 @@ static void update_display_config(nvListEntryPtr display_entry, int config)
      *
      * If a client is being enabled:
      * - Disable the server if its refresh rate does not match. (It will be
-     *   up to the client to re-select a propper server.)
+     *   up to the client to re-select a proper server.)
      *
      * If a (new) server is being enabled:
      * - Disable any previous server.
@@ -6023,7 +6021,7 @@ static void add_entries_to_parsed_attributes(nvListEntryPtr entry,
  * in the config file.
  *
  * This includes all the clients/server display configurations for all
- * GPUs and the house sync settings of the selected master frame lock
+ * GPUs and the house sync settings of the selected server frame lock
  * device.
  *
  */

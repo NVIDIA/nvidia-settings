@@ -23,7 +23,7 @@
 #include "common-utils.h"
 
 /*
- * Forward declaration to break circular dependancy with query-assign.h
+ * Forward declaration to break circular dependency with query-assign.h
  */
 struct _CtrlSystemList;
 

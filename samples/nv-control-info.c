@@ -196,7 +196,7 @@ static const char *attr_int_table[NV_CTRL_LAST_ATTRIBUTE + 1] = {
     MAKE_ENTRY(NV_CTRL_GPU_DOUBLE_PRECISION_BOOST_REBOOT),
     MAKE_ENTRY(NV_CTRL_DPY_HDMI_3D),
     MAKE_ENTRY(NV_CTRL_BASE_MOSAIC),
-    MAKE_ENTRY(NV_CTRL_MULTIGPU_MASTER_POSSIBLE),
+    MAKE_ENTRY(NV_CTRL_MULTIGPU_PRIMARY_POSSIBLE),
     MAKE_ENTRY(NV_CTRL_GPU_POWER_MIZER_DEFAULT_MODE),
     MAKE_ENTRY(NV_CTRL_XV_SYNC_TO_DISPLAY_ID),
     MAKE_ENTRY(NV_CTRL_BACKLIGHT_BRIGHTNESS),
@@ -425,7 +425,7 @@ int main(void)
             printf("Screen %d supports the NV-CONTROL X extension\n", i);
 
             ret = XNVCTRLQueryStringAttribute(dpy, i,
-                                              0, /* XXX not curently used */
+                                              0, /* XXX not currently used */
                                               NV_CTRL_STRING_PRODUCT_NAME,
                                               &str);
             if (ret) {
@@ -434,7 +434,7 @@ int main(void)
             }
             
             ret = XNVCTRLQueryStringAttribute(dpy, i,
-                                              0, /* XXX not curently used */
+                                              0, /* XXX not currently used */
                                               NV_CTRL_STRING_VBIOS_VERSION,
                                               &str);
             
@@ -444,7 +444,7 @@ int main(void)
             }
 
             ret = XNVCTRLQueryStringAttribute(dpy, i,
-                                              0, /* XXX not curently used */
+                                              0, /* XXX not currently used */
                                               NV_CTRL_STRING_NVIDIA_DRIVER_VERSION,
                                               &str);
 

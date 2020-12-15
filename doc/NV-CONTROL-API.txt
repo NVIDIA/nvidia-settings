@@ -1,5 +1,5 @@
 
-    NV-CONTROL X Extension - API specificiation v 1.6
+    NV-CONTROL X Extension - API specification v 1.6
 
 
 1.  INTRODUCTION
@@ -11,7 +11,7 @@
 
     Attributes are configurable on a per X screen basis, and some
     attributes are also configurable on a per display device basis.
-    Addtionally, some attributes can only be queried, though most can
+    Additionally, some attributes can only be queried, though most can
     be both queried and modified.  The NV-CONTROL extension provides
     a mechanism to determine what values are valid for an attribute,
     if an attribute is read-only, if it can be read and written, if it
@@ -153,7 +153,7 @@
     value; any integer may be specified when setting this attribute.
 
     ATTRIBUTE_TYPE_BITMASK indicates that the attribute is an integer
-    value, interpretted as a bitmask.  This is the type, for example,
+    value, interpreted as a bitmask.  This is the type, for example,
     of the NV_CTRL_CONNECTED_DISPLAYS attribute.
 
     ATTRIBUTE_TYPE_BOOL indicates that the attribute is a boolean;

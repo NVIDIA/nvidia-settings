@@ -1572,7 +1572,7 @@ GtkWidget* ctk_manage_grid_license_new(CtrlTarget *target,
         mode = NV_CTRL_ATTR_NVML_GPU_VIRTUALIZATION_MODE_PASSTHROUGH;
     }
 
-    /* DBUS calls are used for quering the current license status  */
+    /* DBUS calls are used for querying the current license status  */
     dbusData = nvalloc(sizeof(*dbusData));
 
     ret = dbusLoadSymbols(dbusData);

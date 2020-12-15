@@ -398,7 +398,7 @@ typedef struct nvGpuRec {
 
     gchar *pci_bus_id;
 
-    unsigned int *flags_memory; /* Pointer to memory alloced for flags */
+    unsigned int *flags_memory; /* Pointer to memory allocated for flags */
     unsigned int *flags; /* Array of flags queried from the X server */
     int num_flags;
 

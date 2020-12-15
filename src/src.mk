@@ -179,6 +179,7 @@ GTK_SRC += gtk+-2.x/ctkglstereo.c
 GTK_SRC += gtk+-2.x/opengl_loading.c
 GTK_SRC += gtk+-2.x/opengl_wrappers.c
 GTK_SRC += gtk+-2.x/matrix_utils.c
+GTK_SRC += gtk+-2.x/ctkpowermode.c
 
 
 GTK_EXTRA_DIST += gtk+-2.x/ctkxvideo.h
@@ -226,6 +227,7 @@ GTK_EXTRA_DIST += gtk+-2.x/ctkglstereo.h
 GTK_EXTRA_DIST += gtk+-2.x/opengl_loading.h
 GTK_EXTRA_DIST += gtk+-2.x/opengl_wrappers.h
 GTK_EXTRA_DIST += gtk+-2.x/matrix_utils.h
+GTK_EXTRA_DIST += gtk+-2.x/ctkpowermode.h
 
 NVIDIA_SETTINGS_EXTRA_DIST += $(GTK_EXTRA_DIST)
 

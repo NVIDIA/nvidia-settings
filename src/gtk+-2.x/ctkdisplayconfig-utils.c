@@ -3360,7 +3360,7 @@ static Bool layout_add_gpu_from_server(nvLayoutPtr layout,
         gpu->allow_depth_30 = FALSE;
     }
 
-    ret = NvCtrlGetAttribute(ctrl_target, NV_CTRL_MULTIGPU_MASTER_POSSIBLE,
+    ret = NvCtrlGetAttribute(ctrl_target, NV_CTRL_MULTIGPU_PRIMARY_POSSIBLE,
                              &(gpu->multigpu_master_possible));
     if (ret != NvCtrlSuccess) {
         gpu->multigpu_master_possible = FALSE;
@@ -4224,7 +4224,7 @@ static void update_xconfig_save_buffer(SaveXConfDlg *dlg)
                                       TRUE);
 
 
-    /* Find out if the file is mergable */
+    /* Find out if the file is mergeable */
     if (filename && (stat(filename, &st) == 0)) {
         const char *non_regular_file_type_description =
             get_non_regular_file_type_description(st.st_mode);

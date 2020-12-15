@@ -668,7 +668,7 @@ static CtrlTarget *nv_alloc_ctrl_target(CtrlSystem *system,
 
     /*
      * detect if the given GPU is visible to the X server and silently fail if
-     * it is not; if there is a discrepency between NVML and NV-CONTROL, such as
+     * it is not; if there is a discrepancy between NVML and NV-CONTROL, such as
      * an eGPU that is invisible to X due to Option "AllowExternalGpus" "true"
      * not being specified in xorg.conf, it can cause errors down the line.
      */

@@ -58,6 +58,7 @@ OPTIONS_1_INC           = $(OUTPUTDIR)/options.1.inc
 
 common_cflags += -I $(COMMON_UTILS_DIR)
 common_cflags += -I ../src/libXNVCtrlAttributes
+common_cflags += -I $(OUTPUTDIR)
 
 CFLAGS += $(common_cflags)
 HOST_CFLAGS += $(common_cflags)

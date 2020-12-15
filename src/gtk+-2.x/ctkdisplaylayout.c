@@ -2717,7 +2717,7 @@ static char *get_tooltip_under_mouse(CtkDisplayLayout *ctk_object,
 
 /** click_layout() ***************************************************
  *
- * Preforms a click in the layout, possibly selecting a display.
+ * Performs a click in the layout, possibly selecting a display.
  *
  **/
 
@@ -4118,6 +4118,11 @@ void ctk_display_layout_disable_display(CtkDisplayLayout *ctk_object,
                                         nvDisplayPtr display)
 {
     nvScreenPtr screen = display->screen;
+
+    /* Skip if this display has already been disabled */
+    if (screen == NULL) {
+        return;
+    }
 
     /* Remove display from the X screen */
     screen_remove_display(display);

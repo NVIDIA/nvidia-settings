@@ -301,7 +301,7 @@ The above example could be written as:
 .fi
 The target name may also simply be a target type name, in which case all targets of that type will be queried.
 .PP
-For exmple, querying the BusRate of all GPUs may be done like so:
+For example, querying the BusRate of all GPUs may be done like so:
 .nf
 
 	nvidia\-settings \-\-query [gpu]/BusRate

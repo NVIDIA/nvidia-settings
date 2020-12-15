@@ -84,7 +84,6 @@ endif
 # These will be unused if nvidia-settings links dynamically against jansson
 ifndef JANSSON_CFLAGS
   JANSSON_CFLAGS  = -Wno-cast-qual
-  JANSSON_CFLAGS += -Wno-strict-prototypes
   JANSSON_CFLAGS += -Wno-unused-function
   JANSSON_CFLAGS += -DHAVE_CONFIG_H
   ifeq ($(TARGET_ARCH),armv7l)
@@ -278,7 +277,7 @@ $(NVIDIA_SETTINGS).unstripped: $(OBJS) $(LIBXNVCTRL)
 	    -rdynamic -o $@ $(OBJS) $(LIBXNVCTRL) $(LIBS)
 
 $(eval $(call DEBUG_INFO_RULES, $(GTK2LIB)))
-$(GTK2LIB).unstripped: $(GTK2_OBJS) $(XCP_OBJS) $(IMAGE_OBJS) $(VERSION_MK)
+$(GTK2LIB).unstripped: $(LIBXNVCTRL) $(GTK2_OBJS) $(XCP_OBJS) $(IMAGE_OBJS) $(VERSION_MK)
 	$(call quiet_cmd,LINK) -shared $(CFLAGS) $(LDFLAGS) $(BIN_LDFLAGS) \
 	    $(LIBXNVCTRL) $(LIBS) $(GTK2_LIBS) \
 	    -Wl,--unresolved-symbols=ignore-all -o $@ \
@@ -287,7 +286,7 @@ $(GTK2LIB).unstripped: $(GTK2_OBJS) $(XCP_OBJS) $(IMAGE_OBJS) $(VERSION_MK)
 
 ifdef BUILD_GTK3LIB
 $(eval $(call DEBUG_INFO_RULES, $(GTK3LIB)))
-$(GTK3LIB).unstripped: $(GTK3_OBJS) $(XCP_OBJS) $(IMAGE_OBJS) $(VERSION_MK)
+$(GTK3LIB).unstripped: $(LIBXNVCTRL) $(GTK3_OBJS) $(XCP_OBJS) $(IMAGE_OBJS) $(VERSION_MK)
 	$(call quiet_cmd,LINK) -shared $(CFLAGS) $(LDFLAGS)  $(BIN_LDFLAGS) \
 	    $(LIBXNVCTRL) $(LIBS) $(GTK3_LIBS) \
 	    -Wl,--unresolved-symbols=ignore-all -o $@ \

@@ -279,7 +279,7 @@ int main(int argc, char **argv)
 
     if (!libdata.gui_lib_handle) {
         nv_error_msg("%s", libdata.error_msg);
-        nv_error_msg("A problem occured when loading the GUI library. Please "
+        nv_error_msg("A problem occurred when loading the GUI library. Please "
                      "check your installation and library path. You may need "
                      "to specify this library when calling nvidia-settings. "
                      "Please run `%s --help` for usage information.\n",

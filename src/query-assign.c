@@ -465,7 +465,7 @@ static void include_target_type_targets(ParsedAttribute *p,
 
 /*!
  * Converts the ParsedAttribute 'a''s target list to include the display targets
- * (related to the intial non-display targets in the list) as specified by the
+ * (related to the initial non-display targets in the list) as specified by the
  * display mask string (or all related displays if the mask is not specified.)
  *
  * \param[in/out]  p  ParsedAttribute to resolve.
@@ -1826,7 +1826,7 @@ static int query_all_targets(const char *display_name, const int target_type,
             nvfree(extra_str);
         }
 
-        /* Print the valid protocal names for the target */
+        /* Print the valid protocol names for the target */
         if (t->protoNames[0]) {
             int idx;
 

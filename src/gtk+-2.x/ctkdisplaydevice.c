@@ -281,7 +281,7 @@ static void ctk_display_device_finalize(
 
 
 /*
- * ctk_display_device_new() - constructor for the dissplay device page.
+ * ctk_display_device_new() - constructor for the display device page.
  */
 
 GtkWidget* ctk_display_device_new(CtrlTarget *ctrl_target,

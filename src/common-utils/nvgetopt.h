@@ -166,7 +166,7 @@ int nvgetopt(int argc,
  * Options will only be printed if they have every bit set that
  * include_mask includes.
  *
- * For each option, the provided callback function wil be called with
+ * For each option, the provided callback function will be called with
  * two strings: a name string that lists the option's name, and a
  * description string for the option.  The callback function is
  * responsible for actually printing these strings.  Examples:

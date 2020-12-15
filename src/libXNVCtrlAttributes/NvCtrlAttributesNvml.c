@@ -389,7 +389,7 @@ NvCtrlNvmlAttributes *NvCtrlInitNvmlAttributes(NvCtrlAttributePrivateHandle *h)
 
             /*
              * XXX NVML assumes at most 1 fan per GPU so check for
-             *     nvmlDeviceGetFanSpeed succes to figure out if that fan is
+             *     nvmlDeviceGetFanSpeed success to figure out if that fan is
              *     available.
              */
             ret = nvml->lib.deviceGetFanSpeed(device, &speed);
@@ -465,7 +465,7 @@ ReturnStatus NvCtrlNvmlQueryTargetCount(const CtrlTarget *ctrl_target,
     }
 
     /*
-     * This should't be reached for target types that are not handled through
+     * This shouldn't be reached for target types that are not handled through
      * NVML (Keep TARGET_TYPE_IS_NVML_COMPATIBLE in NvCtrlAttributesPrivate.h up
      * to date).
      */
@@ -573,7 +573,7 @@ ReturnStatus NvCtrlNvmlGetStringAttribute(const CtrlTarget *ctrl_target,
 
 #ifdef NVML_EXPERIMENTAL
     /*
-     * This should't be reached for target types that are not handled through
+     * This shouldn't be reached for target types that are not handled through
      * NVML (Keep TARGET_TYPE_IS_NVML_COMPATIBLE in NvCtrlAttributesPrivate.h up
      * to date).
      */
@@ -667,7 +667,7 @@ ReturnStatus NvCtrlNvmlSetStringAttribute(CtrlTarget *ctrl_target,
 
 #ifdef NVML_EXPERIMENTAL
     /*
-     * This should't be reached for target types that are not handled through
+     * This shouldn't be reached for target types that are not handled through
      * NVML (Keep TARGET_TYPE_IS_NVML_COMPATIBLE in NvCtrlAttributesPrivate.h up
      * to date).
      */
@@ -830,7 +830,7 @@ static ReturnStatus NvCtrlNvmlGetGPUAttribute(const CtrlTarget *ctrl_target,
             case NV_CTRL_MAX_SCREEN_HEIGHT:
             case NV_CTRL_MAX_DISPLAYS:
             case NV_CTRL_DEPTH_30_ALLOWED:
-            case NV_CTRL_MULTIGPU_MASTER_POSSIBLE:
+            case NV_CTRL_MULTIGPU_PRIMARY_POSSIBLE:
             case NV_CTRL_SLI_MOSAIC_MODE_AVAILABLE:
             case NV_CTRL_BASE_MOSAIC:
             case NV_CTRL_XINERAMA:
@@ -1105,7 +1105,7 @@ ReturnStatus NvCtrlNvmlGetAttribute(const CtrlTarget *ctrl_target,
     }
 
     /*
-     * This should't be reached for target types that are not handled through
+     * This shouldn't be reached for target types that are not handled through
      * NVML (Keep TARGET_TYPE_IS_NVML_COMPATIBLE in NvCtrlAttributesPrivate.h up
      * to date).
      */
@@ -1138,7 +1138,7 @@ ReturnStatus NvCtrlNvmlGetGridLicenseAttributes(const CtrlTarget *ctrl_target,
     }
 
     /*
-     * This should't be reached for target types that are not handled through
+     * This shouldn't be reached for target types that are not handled through
      * NVML (Keep TARGET_TYPE_IS_NVML_COMPATIBLE in NvCtrlAttributesPrivate.h up
      * to date).
      */
@@ -1273,7 +1273,7 @@ ReturnStatus NvCtrlNvmlSetAttribute(CtrlTarget *ctrl_target, int attr,
 
 #ifdef NVML_EXPERIMENTAL
     /*
-     * This should't be reached for target types that are not handled through
+     * This shouldn't be reached for target types that are not handled through
      * NVML (Keep TARGET_TYPE_IS_NVML_COMPATIBLE in NvCtrlAttributesPrivate.h up
      * to date).
      */
@@ -1370,7 +1370,7 @@ NvCtrlNvmlGetBinaryAttribute(const CtrlTarget *ctrl_target,
 
 #ifdef NVML_EXPERIMENTAL
     /*
-     * This should't be reached for target types that are not handled through
+     * This shouldn't be reached for target types that are not handled through
      * NVML (Keep TARGET_TYPE_IS_NVML_COMPATIBLE in NvCtrlAttributesPrivate.h up
      * to date).
      */
@@ -1457,7 +1457,7 @@ NvCtrlNvmlGetValidStringAttributeValues(const CtrlTarget *ctrl_target,
 #ifdef NVML_EXPERIMENTAL
     ReturnStatus ret;
     /*
-     * This should't be reached for target types that are not handled through
+     * This shouldn't be reached for target types that are not handled through
      * NVML (Keep TARGET_TYPE_IS_NVML_COMPATIBLE in NvCtrlAttributesPrivate.h up
      * to date).
      */
@@ -1570,7 +1570,7 @@ NvCtrlNvmlGetGPUValidAttributeValues(const CtrlTarget *ctrl_target, int attr,
             case NV_CTRL_MAX_SCREEN_HEIGHT:
             case NV_CTRL_MAX_DISPLAYS:
             case NV_CTRL_DEPTH_30_ALLOWED:
-            case NV_CTRL_MULTIGPU_MASTER_POSSIBLE:
+            case NV_CTRL_MULTIGPU_PRIMARY_POSSIBLE:
             case NV_CTRL_SLI_MOSAIC_MODE_AVAILABLE:
             case NV_CTRL_BASE_MOSAIC:
             case NV_CTRL_XINERAMA:
@@ -1739,7 +1739,7 @@ NvCtrlNvmlGetValidAttributeValues(const CtrlTarget *ctrl_target,
 #ifdef NVML_EXPERIMENTAL
     ReturnStatus ret;
     /*
-     * This should't be reached for target types that are not handled through
+     * This shouldn't be reached for target types that are not handled through
      * NVML (Keep TARGET_TYPE_IS_NVML_COMPATIBLE in NvCtrlAttributesPrivate.h up
      * to date).
      */

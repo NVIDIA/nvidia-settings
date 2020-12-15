@@ -830,7 +830,7 @@ void ctk_force_text_colors_on_widget(GtkWidget *widget)
     GtkStyleContext *context = gtk_widget_get_style_context(widget);
     gtk_style_context_add_class(context, "entry");
 #else
-    /* Set the intial state */
+    /* Set the initial state */
     force_text_colors_handler(widget, NULL, NULL);
 
     /* Ensure state is updated when style changes */

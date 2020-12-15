@@ -922,7 +922,7 @@ NvCtrlGetValidDisplayAttributeValues(const CtrlTarget *ctrl_target,
 
 /*
  * GetValidStringDisplayAttributeValuesExtraAttr() -fill the
- * CtrlAttributeValidValues strucure for extra string atrributes i.e.
+ * CtrlAttributeValidValues strucure for extra string attributes i.e.
  * NvCtrlNvControl*, NvCtrlGlx*, NvCtrlXrandr*, NvCtrlVidMode*, or NvCtrlXv*.
  */
 

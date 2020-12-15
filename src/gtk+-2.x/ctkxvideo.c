@@ -71,7 +71,7 @@ GType ctk_xvideo_get_type(
 
 
 /*
- * Updates the status bar for when a change occured.
+ * Updates the status bar for when a change occurred.
  */
 static void post_xv_sync_to_display_update(CtkXVideo *ctk_xvideo,
                                            GtkWidget *active_button)

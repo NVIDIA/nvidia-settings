@@ -690,42 +690,13 @@ static int generate_xconf_metamode_str(CtkDisplayConfig *ctk_object,
                                        nvScreenPtr screen,
                                        gchar **pMetamode_strs)
 {
-    nvLayoutPtr layout = screen->layout;
-    CtrlTarget *ctrl_target;
     gchar *metamode_strs = NULL;
     gchar *metamode_str;
     gchar *tmp;
     int metamode_idx;
     nvMetaModePtr metamode;
-    int len = 0;
     int start_width;
     int start_height;
-
-    int vendrel;
-    char *vendstr;
-    int xorg_major;
-    int xorg_minor;
-    Bool longStringsOK;
-
-    ctrl_target = NvCtrlGetDefaultTarget(layout->system);
-    if (ctrl_target == NULL) {
-        return XCONFIG_GEN_ABORT;
-    }
-
-    vendrel = NvCtrlGetVendorRelease(ctrl_target);
-    vendstr = NvCtrlGetServerVendor(ctrl_target);
-
-    /* Only X.Org 7.2 or > supports long X config lines */
-    xorg_major = (vendrel / 10000000);
-    xorg_minor = (vendrel / 100000) % 100;
-
-    if (g_strrstr(vendstr, "X.Org") &&
-        ((xorg_major > 7) || ((xorg_major == 7) && (xorg_minor >= 2)))) {
-        longStringsOK = TRUE;
-    } else {
-        longStringsOK = FALSE;
-    }
-
 
     /* In basic view, always specify the currently selected
      * metamode first in the list so the X server starts
@@ -734,7 +705,6 @@ static int generate_xconf_metamode_str(CtkDisplayConfig *ctk_object,
     if (!ctk_object->advanced_mode) {
         metamode_strs = screen_get_metamode_str(screen,
                                                 screen->cur_metamode_idx, 0);
-        len = strlen(metamode_strs);
         start_width = screen->cur_metamode->edim.width;
         start_height = screen->cur_metamode->edim.height;
     } else {
@@ -745,8 +715,6 @@ static int generate_xconf_metamode_str(CtkDisplayConfig *ctk_object,
     for (metamode_idx = 0, metamode = screen->metamodes;
          (metamode_idx < screen->num_metamodes) && metamode;
          metamode_idx++, metamode = metamode->next) {
-
-        int metamode_len;
 
         /* Only write out metamodes that were specified by the user */
         if (!IS_METAMODE_SOURCE_USER(metamode->source)) {
@@ -773,70 +741,13 @@ static int generate_xconf_metamode_str(CtkDisplayConfig *ctk_object,
 
         if (!metamode_str) continue;
 
-        metamode_len = strlen(metamode_str);
-        if (!longStringsOK && (len + metamode_len > 900)) {
-            GtkWidget *dlg;
-            gchar *msg;
-            GtkWidget *parent;
-            gint result;
-
-            msg = g_strdup_printf
-                ("Truncate the MetaMode list?\n"
-                 "\n"
-                 "Long MetaMode strings (greater than 900 characters) are not\n"
-                 "supported by the current X server.  Truncating the MetaMode\n"
-                 "list, so that the MetaMode string fits within 900 characters,\n"
-                 "will cause only the first %d MetaModes to be written to the X\n"
-                 "configuration file.\n"
-                 "\n"
-                 "NOTE: Writing all the MetaModes to the X Configuration\n"
-                 "file may result in parse errors and failing to start the\n"
-                 "X server.",
-                 metamode_idx);
-            
-            parent = ctk_get_parent_window(GTK_WIDGET(ctk_object));
-            if (!parent) {
-                nv_warning_msg("%s", msg);
-                g_free(msg);
-                break;
-            }
-            
-            dlg = gtk_message_dialog_new
-                (GTK_WINDOW(parent),
-                 GTK_DIALOG_DESTROY_WITH_PARENT,
-                 GTK_MESSAGE_WARNING,
-                 GTK_BUTTONS_NONE,
-                 "%s", msg);
-            
-            gtk_dialog_add_buttons(GTK_DIALOG(dlg),
-                                   "Truncate MetaModes",
-                                   GTK_RESPONSE_YES,
-                                   "Write all MetaModes", GTK_RESPONSE_NO,
-                                   "Cancel", GTK_RESPONSE_CANCEL,
-                                   NULL);
-            
-            result = gtk_dialog_run(GTK_DIALOG(dlg));
-            gtk_widget_destroy(dlg);
-            g_free(msg);
-            
-            if (result == GTK_RESPONSE_YES) {
-                break; /* Crop the list of metamodes */
-            } else if (result == GTK_RESPONSE_NO) {
-                longStringsOK = 1; /* Write the full list of metamodes */
-            } else {
-                return XCONFIG_GEN_ABORT; /* Don't save the X config file */
-            }
-        }
-
         if (!metamode_strs) {
             metamode_strs = metamode_str;
-            len += metamode_len;
         } else {
             tmp = g_strconcat(metamode_strs, "; ", metamode_str, NULL);
             g_free(metamode_str);
             g_free(metamode_strs);
             metamode_strs = tmp;
-            len += metamode_len +2;
         }
     }
 
@@ -6321,6 +6232,8 @@ static void mosaic_config_clicked(GtkWidget *widget, gpointer user_data)
         int idx = ctk_object->dialog_mosaic->refresh_idx;
         int display_num = 0;
         nvModeLinePtr ml = ctk_object->dialog_mosaic->refresh_table[idx];
+        int total_displays = ctk_object->dialog_mosaic->x_displays *
+                             ctk_object->dialog_mosaic->y_displays;
 
         for(gpu = layout->gpus; gpu; gpu = gpu->next_in_layout) {
             nvDisplayPtr display;
@@ -6329,6 +6242,18 @@ static void mosaic_config_clicked(GtkWidget *widget, gpointer user_data)
                 display;
                 display = display->next_on_gpu) {
                 nvModeLinePtr modeline;
+
+                if (display_num >= total_displays) {
+                    /* We have more displays available than the requested
+                     * configuration requires. All displays not yet processed
+                     * can be disabled.
+                     */
+                    ctk_display_layout_disable_display(
+                        CTK_DISPLAY_LAYOUT(ctk_object->obj_layout),
+                        display);
+
+                    continue;
+                }
 
                 if (!display->screen) {
                     /* Enable any displays that are currently disabled and
@@ -9789,7 +9714,7 @@ static gboolean layout_change_is_applyable(const nvLayoutPtr old,
 {
     const nvGpu *gpu;
 
-    /* The update should be applyable if any active display devices were
+    /* The update should be applicable if any active display devices were
      * removed. */
     for (gpu = old->gpus; gpu; gpu = gpu->next_in_layout) {
         const nvDisplay *dpy;

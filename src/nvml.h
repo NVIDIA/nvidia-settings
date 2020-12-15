@@ -555,11 +555,20 @@ typedef enum nvmlBrandType_enum
  */
 typedef enum nvmlTemperatureThresholds_enum
 {
-    NVML_TEMPERATURE_THRESHOLD_SHUTDOWN = 0,    // Temperature at which the GPU will shut down
-                                                // for HW protection
-    NVML_TEMPERATURE_THRESHOLD_SLOWDOWN = 1,    // Temperature at which the GPU will begin HW slowdown
-    NVML_TEMPERATURE_THRESHOLD_MEM_MAX  = 2,    // Memory Temperature at which the GPU will begin SW slowdown
-    NVML_TEMPERATURE_THRESHOLD_GPU_MAX  = 3,    // GPU Temperature at which the GPU can be throttled below base clock
+    NVML_TEMPERATURE_THRESHOLD_SHUTDOWN      = 0, // Temperature at which the GPU will
+                                                  // shut down for HW protection
+    NVML_TEMPERATURE_THRESHOLD_SLOWDOWN      = 1, // Temperature at which the GPU will
+                                                  // begin HW slowdown
+    NVML_TEMPERATURE_THRESHOLD_MEM_MAX       = 2, // Memory Temperature at which the GPU will
+                                                  // begin SW slowdown
+    NVML_TEMPERATURE_THRESHOLD_GPU_MAX       = 3, // GPU Temperature at which the GPU
+                                                  // can be throttled below base clock
+    NVML_TEMPERATURE_THRESHOLD_ACOUSTIC_MIN  = 4, // Minimum GPU Temperature that can be
+                                                  // set as acoustic threshold
+    NVML_TEMPERATURE_THRESHOLD_ACOUSTIC_CURR = 5, // Current temperature that is set as
+                                                  // acoustic threshold.
+    NVML_TEMPERATURE_THRESHOLD_ACOUSTIC_MAX  = 6, // Maximum GPU temperature that can be
+                                                  // set as acoustic threshold.
     // Keep this last
     NVML_TEMPERATURE_THRESHOLD_COUNT
 } nvmlTemperatureThresholds_t;
@@ -907,6 +916,8 @@ typedef enum {
 
 #define INVALID_GPU_INSTANCE_PROFILE_ID     0xFFFFFFFF
 
+#define INVALID_GPU_INSTANCE_ID             0xFFFFFFFF
+
 /*!
  * Macros for vGPU instance's virtualization capabilities bitfield.
  */
@@ -1245,7 +1256,12 @@ typedef unsigned int nvmlDeviceArchitecture_t;
  */
 #define NVML_FI_DEV_NVLINK_REMOTE_NVLINK_ID     146 //!< Remote device NVLink ID
 
-#define NVML_FI_MAX 147 //!< One greater than the largest field ID defined above
+/**
+ * NVSwitch: connected NVLink count
+ */
+#define NVML_FI_DEV_NVSWITCH_CONNECTED_LINK_COUNT   147  //!< Number of NVLinks connected to NVSwitch
+
+#define NVML_FI_MAX 148 //!< One greater than the largest field ID defined above
 
 /**
  * Information for a Field Value Sample
@@ -3466,6 +3482,26 @@ nvmlReturn_t DECLDIR nvmlDeviceGetTemperature(nvmlDevice_t device, nvmlTemperatu
 nvmlReturn_t DECLDIR nvmlDeviceGetTemperatureThreshold(nvmlDevice_t device, nvmlTemperatureThresholds_t thresholdType, unsigned int *temp);
 
 /**
+ * Sets the temperature threshold for the GPU with the specified threshold type in degrees C.
+ *
+ * For Maxwell &tm; or newer fully supported devices.
+ *
+ * See \ref nvmlTemperatureThresholds_t for details on available temperature thresholds.
+ *
+ * @param device                               The identifier of the target device
+ * @param thresholdType                        The type of threshold value to be set
+ * @param temp                                 Reference which hold the value to be set
+ * @return
+ *         - \ref NVML_SUCCESS                 if \a temp has been set
+ *         - \ref NVML_ERROR_UNINITIALIZED     if the library has not been successfully initialized
+ *         - \ref NVML_ERROR_INVALID_ARGUMENT  if \a device is invalid, \a thresholdType is invalid or \a temp is NULL
+ *         - \ref NVML_ERROR_NOT_SUPPORTED     if the device does not have a temperature sensor or is unsupported
+ *         - \ref NVML_ERROR_GPU_IS_LOST       if the target GPU has fallen off the bus or is otherwise inaccessible
+ *         - \ref NVML_ERROR_UNKNOWN           on any unexpected error
+ */
+nvmlReturn_t DECLDIR nvmlDeviceSetTemperatureThreshold(nvmlDevice_t device, nvmlTemperatureThresholds_t thresholdType, int *temp);
+
+/**
  * Retrieves the current performance state for the device. 
  *
  * For Fermi &tm; or newer fully supported devices.
@@ -4073,6 +4109,7 @@ nvmlReturn_t DECLDIR nvmlDeviceGetEncoderCapacity (nvmlDevice_t device, nvmlEnco
  *         - \ref NVML_ERROR_INVALID_ARGUMENT   if \a sessionCount, or \a device or \a averageFps,
  *                                              or \a averageLatency is NULL
  *         - \ref NVML_ERROR_GPU_IS_LOST        if the target GPU has fallen off the bus or is otherwise inaccessible
+ *         - \ref NVML_ERROR_NOT_SUPPORTED      if this query is not supported by \a device
  *         - \ref NVML_ERROR_UNKNOWN            on any unexpected error
  */
 nvmlReturn_t DECLDIR nvmlDeviceGetEncoderStats (nvmlDevice_t device, unsigned int *sessionCount,
@@ -4102,6 +4139,7 @@ nvmlReturn_t DECLDIR nvmlDeviceGetEncoderStats (nvmlDevice_t device, unsigned in
  *         - \ref NVML_ERROR_INSUFFICIENT_SIZE  if \a sessionCount is too small, array element count is returned in \a sessionCount
  *         - \ref NVML_ERROR_INVALID_ARGUMENT   if \a sessionCount is NULL.
  *         - \ref NVML_ERROR_GPU_IS_LOST        if the target GPU has fallen off the bus or is otherwise inaccessible
+ *         - \ref NVML_ERROR_NOT_SUPPORTED      if this query is not supported by \a device
  *         - \ref NVML_ERROR_UNKNOWN            on any unexpected error
  */
 nvmlReturn_t DECLDIR nvmlDeviceGetEncoderSessions(nvmlDevice_t device, unsigned int *sessionCount, nvmlEncoderSessionInfo_t *sessionInfos);
@@ -5989,18 +6027,18 @@ nvmlReturn_t DECLDIR nvmlVgpuTypeGetName(nvmlVgpuTypeId_t vgpuTypeId, char *vgpu
 
 /**
  * Retrieve the GPU Instance Profile ID for the given vGPU type ID.
- * The API will return a valid profile ID for MIG backed vGPU types when GPU is configured in MIG mode, else INVALID_GPU_INSTANCE_PROFILE_ID
- * is returned.
+ * The API will return a valid GPU Instance Profile ID for the MIG capable vGPU types, else INVALID_GPU_INSTANCE_PROFILE_ID is
+ * returned.
  *
  * For Kepler &tm; or newer fully supported devices.
  *
  * @param vgpuTypeId               Handle to vGPU type
- * @param gpuInstanceProfileId     GPU instance Profile ID
+ * @param gpuInstanceProfileId     GPU Instance Profile ID
  *
  * @return
  *         - \ref NVML_SUCCESS                 successful completion
  *         - \ref NVML_ERROR_NOT_SUPPORTED     if \a device is not in vGPU Host virtualization mode
- *         - \ref NVML_ERROR_INVALID_ARGUMENT  if  \a device is invalid, \a vgpuTypeId is invalid, or \a gpuInstanceProfileId is NULL
+ *         - \ref NVML_ERROR_INVALID_ARGUMENT  if \a vgpuTypeId is invalid, or \a gpuInstanceProfileId is NULL
  *         - \ref NVML_ERROR_UNKNOWN           on any unexpected error
  */
 nvmlReturn_t DECLDIR nvmlVgpuTypeGetGpuInstanceProfileId(nvmlVgpuTypeId_t vgpuTypeId, unsigned int *gpuInstanceProfileId);
@@ -6477,6 +6515,24 @@ nvmlReturn_t DECLDIR nvmlVgpuInstanceGetFBCStats(nvmlVgpuInstance_t vgpuInstance
 *         - \ref NVML_ERROR_UNKNOWN            on any unexpected error
 */
 nvmlReturn_t DECLDIR nvmlVgpuInstanceGetFBCSessions(nvmlVgpuInstance_t vgpuInstance, unsigned int *sessionCount, nvmlFBCSessionInfo_t *sessionInfo);
+
+/**
+* Retrieve the GPU Instance ID for the given vGPU Instance.
+* The API will return a valid GPU Instance ID for MIG backed vGPU Instance, else INVALID_GPU_INSTANCE_ID is returned.
+*
+* For Kepler &tm; or newer fully supported devices.
+*
+* @param vgpuInstance                      Identifier of the target vGPU instance
+* @param gpuInstanceId                     GPU Instance ID
+*
+* @return
+*         - \ref NVML_SUCCESS                  successful completion
+*         - \ref NVML_ERROR_UNINITIALIZED      if the library has not been successfully initialized
+*         - \ref NVML_ERROR_INVALID_ARGUMENT   if \a vgpuInstance is 0, or \a gpuInstanceId is NULL.
+*         - \ref NVML_ERROR_NOT_FOUND          if \a vgpuInstance does not match a valid active vGPU instance on the system
+*         - \ref NVML_ERROR_UNKNOWN            on any unexpected error
+*/
+nvmlReturn_t DECLDIR nvmlVgpuInstanceGetGpuInstanceId(nvmlVgpuInstance_t vgpuInstance, unsigned int *gpuInstanceId);
 
 /** @} */
 
