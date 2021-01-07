@@ -20,7 +20,7 @@
 #define _NVIDIA_NV_GRID_DBUS_H_
 
 /*
- * Details to communicate with nvidia-gridd using dbus mechanism
+ * Details to communicate with vGPU licensing daemon using dbus mechanism
  */
 #define NV_GRID_DBUS_CLIENT             "nvidia.grid.client"
 #define NV_GRID_DBUS_TARGET             "nvidia.grid.server"
@@ -33,7 +33,7 @@
 #define LICENSE_FEATURE_TYPE_REQUEST    3
 
 /*
- * GRID license states
+ * vGPU software license states
  */
 typedef enum
 {
@@ -47,13 +47,13 @@ typedef enum
 } gridLicenseState;
 
 /*
- * GRID license feature types
+ * vGPU software license feature types
  */
 typedef enum
 {
     NV_GRID_LICENSE_FEATURE_TYPE_VAPP = 0,
     NV_GRID_LICENSE_FEATURE_TYPE_VGPU,
-    NV_GRID_LICENSE_FEATURE_TYPE_QDWS,
+    NV_GRID_LICENSE_FEATURE_TYPE_VWS,
     NV_GRID_LICENSE_FEATURE_TYPE_VCOMPUTE = 4,
 } gridLicenseFeatureType;
 
