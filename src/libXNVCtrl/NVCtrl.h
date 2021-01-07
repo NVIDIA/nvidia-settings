@@ -652,8 +652,8 @@
  * NV_CTRL_OPENGL_AA_LINE_GAMMA - for OpenGL clients, allow
  * Gamma-corrected antialiased lines to consider variances in the
  * color display capabilities of output devices when rendering smooth
- * lines.  Only available on recent Quadro GPUs.  This setting is only
- * applied to OpenGL clients that are started after this setting is
+ * lines.  Only available on recent NVIDIA RTX/Quadro GPUs.  This setting
+ * is only applied to OpenGL clients that are started after this setting is
  * applied.
  */
 

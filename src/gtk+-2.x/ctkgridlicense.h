@@ -41,7 +41,7 @@ G_BEGIN_DECLS
 
 #define GRID_LICENSE_INFO_MAX_LENGTH        128
 #define GRID_MESSAGE_MAX_BUFFER_SIZE        512
-#define GRID_VIRTUAL_APPLICATIONS           "GRID Virtual Applications"
+#define NVIDIA_VIRTUAL_APPLICATIONS         "NVIDIA Virtual Applications"
 
 typedef struct _CtkManageGridLicense       CtkManageGridLicense;
 typedef struct _CtkManageGridLicenseClass  CtkManageGridLicenseClass;
@@ -61,7 +61,7 @@ struct _CtkManageGridLicense
     GtkWidget* label_license_state;
     GtkWidget* btn_apply;
     GtkWidget* radio_btn_vapp;
-    GtkWidget* radio_btn_qdws;
+    GtkWidget* radio_btn_vws;
     GtkWidget* radio_btn_vcompute;
     GtkWidget* btn_cancel;
     GtkWidget* box_server_info;
@@ -70,19 +70,19 @@ struct _CtkManageGridLicense
     CtrlTarget *target;
 
     gint license_edition_state;
-    gint feature_type;                                              // Feature type from UI/gridd.conf.
+    gint feature_type;                                              // Feature type from UI/vGPU license config file.
     int gridd_feature_type;                                         // Feature type fetched from nvidia-gridd.
-    char productName[GRID_LICENSE_INFO_MAX_LENGTH];                 // GRID product name fetched from nvml corresponding to the licensed/applied feature
-    char productNameQvDWS[GRID_LICENSE_INFO_MAX_LENGTH];            // GRID product name fetched from nvml corresponding to the feature type '2'
-    char productNamevCompute[GRID_LICENSE_INFO_MAX_LENGTH];         // GRID product name fetched from nvml corresponding to the feature type '4'
+    char productName[GRID_LICENSE_INFO_MAX_LENGTH];                 // vGPU product name fetched from nvml corresponding to the licensed/applied feature
+    char productNamevWS[GRID_LICENSE_INFO_MAX_LENGTH];              // vGPU product name fetched from nvml corresponding to the feature type '2'
+    char productNamevCompute[GRID_LICENSE_INFO_MAX_LENGTH];         // vGPU product name fetched from nvml corresponding to the feature type '4'
 
     int licenseStatus;                                              // Current license status to be displayed on UI
     gboolean isvComputeSupported;                                   // Check if 'NVIDIA Virtual Compute Server' feature is supported
-    gboolean isQuadroSupported;                                     // Check if 'Quadro Virtual Data Center Workstation' feature is supported
+    gboolean isvWSSupported;                                        // Check if 'NVIDIA RTX Virtual Workstation' feature is supported
 };
 
 /*
- * Status related to GRID licensing
+ * Status related to vGPU licensing
  */
 typedef enum
 {
@@ -93,12 +93,12 @@ typedef enum
     NV_GRID_LICENSE_STATUS_FAILED,
     NV_GRID_LICENSE_STATUS_EXPIRED,
     NV_GRID_LICENSE_RESTART_REQUIRED_VAPP,
-    NV_GRID_LICENSE_RESTART_REQUIRED_QDWS,
+    NV_GRID_LICENSE_RESTART_REQUIRED_VWS,
     NV_GRID_LICENSE_RESTART_REQUIRED_VCOMPUTE,
     NV_GRID_LICENSED_RESTART_REQUIRED_VAPP,
-    NV_GRID_LICENSED_RESTART_REQUIRED_QDWS,
+    NV_GRID_LICENSED_RESTART_REQUIRED_VWS,
     NV_GRID_LICENSED_RESTART_REQUIRED_VCOMPUTE,
-    NV_GRID_UNLICENSED_REQUEST_DETAILS_QDWS,
+    NV_GRID_UNLICENSED_REQUEST_DETAILS_VWS,
     NV_GRID_UNLICENSED_REQUEST_DETAILS_VCOMPUTE,
 } licenseStatusList;
 
