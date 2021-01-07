@@ -5995,12 +5995,12 @@ nvmlReturn_t DECLDIR nvmlVgpuTypeGetName(nvmlVgpuTypeId_t vgpuTypeId, char *vgpu
  * For Kepler &tm; or newer fully supported devices.
  *
  * @param vgpuTypeId               Handle to vGPU type
- * @param gpuInstanceProfileId     GPU instance Profile ID
+ * @param gpuInstanceProfileId     GPU Instance Profile ID
  *
  * @return
  *         - \ref NVML_SUCCESS                 successful completion
  *         - \ref NVML_ERROR_NOT_SUPPORTED     if \a device is not in vGPU Host virtualization mode
- *         - \ref NVML_ERROR_INVALID_ARGUMENT  if  \a device is invalid, \a vgpuTypeId is invalid, or \a gpuInstanceProfileId is NULL
+ *         - \ref NVML_ERROR_INVALID_ARGUMENT  if \a vgpuTypeId is invalid, or \a gpuInstanceProfileId is NULL
  *         - \ref NVML_ERROR_UNKNOWN           on any unexpected error
  */
 nvmlReturn_t DECLDIR nvmlVgpuTypeGetGpuInstanceProfileId(nvmlVgpuTypeId_t vgpuTypeId, unsigned int *gpuInstanceProfileId);
