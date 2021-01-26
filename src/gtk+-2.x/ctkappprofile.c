@@ -3686,19 +3686,23 @@ static char *get_default_keys_file(const char *driver_version)
         return nvstrdup(file_noversion);
     } else {
         char *expected_file_paths;
+        const char *version_missing_error_str;
         if (file) {
             expected_file_paths = nvstrcat("either ", file, " or ", file_noversion, NULL);
+            version_missing_error_str = ".";
         } else {
             expected_file_paths = nvstrdup(file_noversion);
+            version_missing_error_str = " or the X server is not accessible.";
         }
 
-        nv_error_msg("nvidia-settings could not find the registry key file. "
+        nv_error_msg("nvidia-settings could not find the registry key file%s "
                      "This file should have been installed along with this "
                      "driver at %s. The application profiles "
                      "will continue to work, but values cannot be "
                      "prepopulated or validated, and will not be listed in "
                      "the help text. Please see the README for possible "
-                     "values and descriptions.", expected_file_paths);
+                     "values and descriptions.", version_missing_error_str,
+                     expected_file_paths);
 
         free(expected_file_paths);
         free(file);
