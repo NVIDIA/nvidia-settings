@@ -538,18 +538,23 @@ typedef enum nvmlEnableState_enum
  *   */
 typedef enum nvmlBrandType_enum
 {
-    NVML_BRAND_UNKNOWN        = 0, 
-    NVML_BRAND_QUADRO         = 1,
-    NVML_BRAND_TESLA          = 2,
-    NVML_BRAND_NVS            = 3,
-    NVML_BRAND_GRID           = 4,   // Deprecated from API reporting. Keeping definition for backward compatibility.
-    NVML_BRAND_GEFORCE        = 5,
-    NVML_BRAND_TITAN          = 6,
-    NVML_BRAND_NVIDIA_VAPPS   = 7,   // NVIDIA Virtual Applications
-    NVML_BRAND_NVIDIA_VPC     = 8,   // NVIDIA Virtual PC
-    NVML_BRAND_NVIDIA_VCS     = 9,   // NVIDIA Virtual Compute Server
-    NVML_BRAND_NVIDIA_VWS     = 10,  // NVIDIA RTX Virtual Workstation
-    NVML_BRAND_NVIDIA_VGAMING = 11,  // NVIDIA vGaming
+    NVML_BRAND_UNKNOWN          = 0, 
+    NVML_BRAND_QUADRO           = 1,
+    NVML_BRAND_TESLA            = 2,
+    NVML_BRAND_NVS              = 3,
+    NVML_BRAND_GRID             = 4,   // Deprecated from API reporting. Keeping definition for backward compatibility.
+    NVML_BRAND_GEFORCE          = 5,
+    NVML_BRAND_TITAN            = 6,
+    NVML_BRAND_NVIDIA_VAPPS     = 7,   // NVIDIA Virtual Applications
+    NVML_BRAND_NVIDIA_VPC       = 8,   // NVIDIA Virtual PC
+    NVML_BRAND_NVIDIA_VCS       = 9,   // NVIDIA Virtual Compute Server
+    NVML_BRAND_NVIDIA_VWS       = 10,  // NVIDIA RTX Virtual Workstation
+    NVML_BRAND_NVIDIA_VGAMING   = 11,  // NVIDIA vGaming
+    NVML_BRAND_QUADRO_RTX       = 12,
+    NVML_BRAND_NVIDIA_RTX       = 13,
+    NVML_BRAND_NVIDIA           = 14,
+    NVML_BRAND_GEFORCE_RTX      = 15,
+    NVML_BRAND_TITAN_RTX        = 16,
 
     // Keep this last
     NVML_BRAND_COUNT
@@ -7068,7 +7073,8 @@ nvmlReturn_t DECLDIR nvmlGetBlacklistDeviceInfoByIndex(unsigned int index, nvmlB
 #define NVML_GPU_INSTANCE_PROFILE_4_SLICE 0x3
 #define NVML_GPU_INSTANCE_PROFILE_7_SLICE 0x4
 #define NVML_GPU_INSTANCE_PROFILE_8_SLICE 0x5
-#define NVML_GPU_INSTANCE_PROFILE_COUNT   0x6
+#define NVML_GPU_INSTANCE_PROFILE_6_SLICE 0x6
+#define NVML_GPU_INSTANCE_PROFILE_COUNT   0x7
 
 typedef struct nvmlGpuInstancePlacement_st
 {
@@ -7113,7 +7119,8 @@ typedef struct nvmlGpuInstance_st* nvmlGpuInstance_t;
 #define NVML_COMPUTE_INSTANCE_PROFILE_4_SLICE 0x3
 #define NVML_COMPUTE_INSTANCE_PROFILE_7_SLICE 0x4
 #define NVML_COMPUTE_INSTANCE_PROFILE_8_SLICE 0x5
-#define NVML_COMPUTE_INSTANCE_PROFILE_COUNT   0x6
+#define NVML_COMPUTE_INSTANCE_PROFILE_6_SLICE 0x6
+#define NVML_COMPUTE_INSTANCE_PROFILE_COUNT   0x7
 
 #define NVML_COMPUTE_INSTANCE_ENGINE_PROFILE_SHARED 0x0 //!< All the engines except multiprocessors would be shared
 #define NVML_COMPUTE_INSTANCE_ENGINE_PROFILE_COUNT  0x1
