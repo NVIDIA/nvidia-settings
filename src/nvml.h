@@ -553,8 +553,8 @@ typedef enum nvmlBrandType_enum
     NVML_BRAND_QUADRO_RTX       = 12,
     NVML_BRAND_NVIDIA_RTX       = 13,
     NVML_BRAND_NVIDIA           = 14,
-    NVML_BRAND_GEFORCE_RTX      = 15,
-    NVML_BRAND_TITAN_RTX        = 16,
+    NVML_BRAND_GEFORCE_RTX      = 15,  // Unused
+    NVML_BRAND_TITAN_RTX        = 16,  // Unused
 
     // Keep this last
     NVML_BRAND_COUNT
@@ -4119,7 +4119,6 @@ nvmlReturn_t DECLDIR nvmlDeviceGetEncoderCapacity (nvmlDevice_t device, nvmlEnco
  *         - \ref NVML_ERROR_INVALID_ARGUMENT   if \a sessionCount, or \a device or \a averageFps,
  *                                              or \a averageLatency is NULL
  *         - \ref NVML_ERROR_GPU_IS_LOST        if the target GPU has fallen off the bus or is otherwise inaccessible
- *         - \ref NVML_ERROR_NOT_SUPPORTED      if this query is not supported by \a device
  *         - \ref NVML_ERROR_UNKNOWN            on any unexpected error
  */
 nvmlReturn_t DECLDIR nvmlDeviceGetEncoderStats (nvmlDevice_t device, unsigned int *sessionCount,
