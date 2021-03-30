@@ -26,7 +26,6 @@
  * demonstrates how to handle NV-CONTROL events.
  */
 
-
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>

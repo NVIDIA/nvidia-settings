@@ -17,7 +17,6 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses>.
  */
 
-
 #include <stdlib.h>
 #include <string.h>
 #include <sys/stat.h>
@@ -2631,33 +2630,27 @@ GtkTextBuffer *ctk_display_config_create_help(GtkTextTagTable *table,
 
 static void setup_mosaic_config(CtkDisplayConfig *ctk_object)
 {
-    nvDisplayPtr display = ctk_display_layout_get_selected_display
-        (CTK_DISPLAY_LAYOUT(ctk_object->obj_layout));
-    nvScreenPtr screen = ctk_display_layout_get_selected_screen
-        (CTK_DISPLAY_LAYOUT(ctk_object->obj_layout));
     nvGpuPtr gpu;
     const char *tooltip;
     const gchar *label;
-    gboolean display_gpu_support_mosaic = (display && display->gpu &&
-        display->gpu->mosaic_type != MOSAIC_TYPE_UNSUPPORTED);
-    gboolean screen_gpu_support_mosaic = (screen && screen->display_owner_gpu &&
-        screen->display_owner_gpu->mosaic_type != MOSAIC_TYPE_UNSUPPORTED);
+    nvLayoutPtr layout = ctk_object->layout;
+    int any_gpu_support_mosaic = FALSE;
 
+    for (gpu = layout->gpus; gpu; gpu = gpu->next_in_layout) {
+        if (gpu->mosaic_type != MOSAIC_TYPE_UNSUPPORTED) {
+            any_gpu_support_mosaic = TRUE;
+            break;
+        }
+    }
 
     if (!ctk_object->advanced_mode ||
-        (!display_gpu_support_mosaic && !screen_gpu_support_mosaic)) {
+        !any_gpu_support_mosaic) {
         gtk_widget_hide(ctk_object->chk_mosaic_enabled);
         gtk_widget_hide(ctk_object->btn_mosaic);
         return;
     }
 
     gtk_widget_show(ctk_object->chk_mosaic_enabled);
-
-    if (display_gpu_support_mosaic) {
-        gpu = display->gpu;
-    } else {
-        gpu = screen->display_owner_gpu;
-    }
 
     /* Only show the Mosaic Config tool with SLI Mosaic and dialog exists */
     if (gpu->mosaic_type == MOSAIC_TYPE_SLI_MOSAIC &&

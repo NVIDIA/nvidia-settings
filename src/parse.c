@@ -17,7 +17,6 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses>.
  */
 
-
 #include <stdio.h>
 #include <stdlib.h>
 #include <ctype.h>
@@ -128,9 +127,9 @@ const AttributeTableEntry attributeTable[] = {
     { "SliMosaicModeAvailable",           NV_CTRL_SLI_MOSAIC_MODE_AVAILABLE,            INT_ATTR, {0,0,0,1,0}, { .int_flags = {0,0,0,0,0,0,0} }, "Returns whether or not SLI Mosaic Mode is supported." },
     { "SLIMode",                          NV_CTRL_STRING_SLI_MODE,                      STR_ATTR, {0,0,0,1,0}, {}, "Returns a string describing the current SLI mode, if any." },
     { "MultiGpuMode",                     NV_CTRL_STRING_MULTIGPU_MODE,                 STR_ATTR, {0,0,0,1,0}, {}, "Returns a string describing the current MultiGPU mode, if any." },
-    { "AllowGSYNC",                       NV_CTRL_GSYNC_ALLOWED,                        INT_ATTR, {0,0,0,0,0}, { .int_flags = {0,0,0,0,0,0,0} }, "DEPRECATED: use \"AllowVRR\" instead." },
+    { "AllowGSYNC",                       NV_CTRL_VRR_ALLOWED,                          INT_ATTR, {0,0,0,0,0}, { .int_flags = {0,0,0,0,0,0,0} }, "DEPRECATED: use \"AllowVRR\" instead." },
     { "AllowVRR",                         NV_CTRL_VRR_ALLOWED,                          INT_ATTR, {0,0,0,0,0}, { .int_flags = {0,0,0,0,0,0,0} }, "Enables or disables the use of G-SYNC and G-SYNC Compatible when available." },
-    { "ShowGSYNCVisualIndicator",         NV_CTRL_SHOW_GSYNC_VISUAL_INDICATOR,          INT_ATTR, {0,0,0,0,0}, { .int_flags = {0,0,0,0,0,0,0} }, "DEPRECATED: use \"ShowVRRVisualIndicator\" instead." },
+    { "ShowGSYNCVisualIndicator",         NV_CTRL_SHOW_VRR_VISUAL_INDICATOR,            INT_ATTR, {0,0,0,0,0}, { .int_flags = {0,0,0,0,0,0,0} }, "DEPRECATED: use \"ShowVRRVisualIndicator\" instead." },
     { "ShowVRRVisualIndicator",           NV_CTRL_SHOW_VRR_VISUAL_INDICATOR,            INT_ATTR, {0,0,0,0,0}, { .int_flags = {0,0,0,0,0,0,0} }, "If this is enabled (1), the driver will draw an indicator showing whether G-SYNC or G-SYNC Compatible is in use, when an application is swapping using flipping." },
     { "StereoSwapMode",                   NV_CTRL_STEREO_SWAP_MODE,                     INT_ATTR, {0,0,0,0,0}, { .int_flags = {0,0,0,0,0,0,0} }, "Controls the swap mode when Quad-Buffered stereo is used." },
     { "ShowGraphicsVisualIndicator",      NV_CTRL_SHOW_GRAPHICS_VISUAL_INDICATOR,       INT_ATTR, {0,0,0,0,0}, { .int_flags = {0,0,0,0,0,0,0} }, "If this is enabled (1), the driver will draw information about the graphics API in use into a \"visual indicator\" inside application windows.  This setting only takes effect on clients started after it is set." },

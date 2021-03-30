@@ -17,7 +17,6 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses>.
  */
 
-
 #include <gtk/gtk.h>
 #include <NvCtrlAttributes.h>
 #include <string.h>
@@ -921,8 +920,6 @@ static gboolean update_vrr_enabled_info(InfoEntry *entry)
 
     return TRUE;
 }
-
-
 
 
 

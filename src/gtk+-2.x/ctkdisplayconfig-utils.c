@@ -17,7 +17,6 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses>.
  */
 
-
 #include <stdlib.h> /* malloc */
 #include <string.h> /* strlen,  strdup */
 #include <unistd.h> /* lseek, close */

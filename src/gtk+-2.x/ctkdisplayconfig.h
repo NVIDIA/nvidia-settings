@@ -20,7 +20,6 @@
 #ifndef __CTK_DISPLAYCONFIG_H__
 #define __CTK_DISPLAYCONFIG_H__
 
-
 #include "ctkevent.h"
 #include "ctkconfig.h"
 #include "ctkdisplaylayout.h"

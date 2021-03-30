@@ -33,6 +33,7 @@
 ##############################################################################
 
 CC                    ?= gcc
+CXX                   ?= g++
 LD                    ?= ld
 AR                    ?= ar
 # only set these warnings and optimizations if CFLAGS is unset
@@ -58,15 +59,24 @@ CFLAGS                += -Wno-unused-parameter
 HOST_CC_ONLY_CFLAGS   += -Wno-format-zero-length
 HOST_CFLAGS           += -Wno-unused-parameter
 
+DEBUG                 ?=
+DEVELOP               ?=
+
 ifeq ($(DEBUG),1)
   STRIP_CMD           ?= true
   DO_STRIP            ?=
   CFLAGS              += -O0 -g
   CFLAGS              += -DDEBUG=1
-else
-  STRIP_CMD           ?= strip
-  DO_STRIP            ?= 1
 endif
+
+ifeq ($(DEVELOP),1)
+  STRIP_CMD           ?= true
+  DO_STRIP            ?=
+  CFLAGS              += -DDEVELOP=1
+endif
+
+STRIP_CMD             ?= strip
+DO_STRIP              ?= 1
 
 INSTALL               ?= install
 INSTALL_BIN_ARGS      ?= -m 755
@@ -183,6 +193,21 @@ $(eval _eval_available := T)
 ifneq ($(_eval_available),T)
   $(error This Makefile requires a GNU Make that supports 'eval'.  Please upgrade to GNU make 3.80 or later)
 endif
+
+
+##############################################################################
+# Test passing $(1) to $(CC).  If $(CC) succeeds, then echo $(1).
+#
+# Because this uses $(shell), it is best to use this to assign simply expanded
+# variables (e.g., ":=").
+#
+# Example usage:
+#  CONDITIONAL_CFLAGS := $(call TEST_CC_ARG, -ffoo)
+##############################################################################
+
+TEST_CC_ARG = \
+ $(shell $(CC) -c -x c /dev/null $(1) -o /dev/null > /dev/null 2>&1 && \
+   $(ECHO) $(1))
 
 
 ##############################################################################
@@ -486,8 +511,9 @@ endif
 define GENERATE_NVIDSTRING
   # g_nvid_string.c depends on all objects except g_nvid_string.o, and version.mk
   $(NVIDSTRING): $$(filter-out $$(call BUILD_OBJECT_LIST,$$(NVIDSTRING)), $(3)) $$(VERSION_MK)
-	@$$(ECHO) "const char $(1)[] = \"nvidia id: NVIDIA $$(strip $(2)) for $$(TARGET_ARCH)  $$(NVIDIA_VERSION)  $$(NVIDSTRING_BUILD_TYPE_STRING)  (`$$(WHOAMI)`@`$$(HOSTNAME)`)  `$$(DATE)`\";" > $$@
-	@$$(ECHO) "const char *const p$$(strip $(1)) = $(1) + 11;" >> $$@;
+	$(at_if_quiet)$$(MKDIR) $$(dir $$@)
+	$(at_if_quiet)$$(ECHO) "const char $(1)[] = \"nvidia id: NVIDIA $$(strip $(2)) for $$(TARGET_ARCH)  $$(NVIDIA_VERSION)  $$(NVIDSTRING_BUILD_TYPE_STRING)  (`$$(WHOAMI)`@`$$(HOSTNAME)`)  `$$(DATE)`\";" > $$@
+	$(at_if_quiet)$$(ECHO) "const char *const p$$(strip $(1)) = $(1) + 11;" >> $$@;
 endef
 
 
@@ -510,6 +536,7 @@ endef
 
 define READ_ONLY_OBJECT_FROM_FILE_RULE
   $$(OUTPUTDIR)/$$(notdir $(1)).o: $(1)
+	$(at_if_quiet)$$(MKDIR) $$(OUTPUTDIR)
 	$(at_if_quiet)cd $$(dir $(1)); \
 	$$(call quiet_cmd_no_at,LD) -r -z noexecstack --format=binary \
 	    $$(notdir $(1)) -o $$(OUTPUTDIR_ABSOLUTE)/$$(notdir $$@)

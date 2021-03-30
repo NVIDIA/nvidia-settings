@@ -20,7 +20,6 @@
 #ifndef __CTK_OPENGL_H__
 #define __CTK_OPENGL_H__
 
-
 #include "ctkevent.h"
 #include "ctkconfig.h"
 
