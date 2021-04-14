@@ -345,6 +345,7 @@ typedef enum nvmlNvLinkErrorCounter_enum
     NVML_NVLINK_ERROR_DL_RECOVERY = 1,     // Data link transmit recovery error counter
     NVML_NVLINK_ERROR_DL_CRC_FLIT = 2,     // Data link receive flow control digit CRC error counter
     NVML_NVLINK_ERROR_DL_CRC_DATA = 3,     // Data link receive data CRC error counter
+    NVML_NVLINK_ERROR_DL_ECC_DATA = 4,     // Data link receive data ECC error counter
 
     // this must be last
     NVML_NVLINK_ERROR_COUNT
@@ -849,6 +850,20 @@ typedef enum nvmlRestrictedAPI_enum
     NVML_RESTRICTED_API_COUNT
 } nvmlRestrictedAPI_t;
 
+/**
+ * Enum to represent NvLink ECC per-lane error counts
+ */
+typedef enum nvmlNvLinkEccLaneErrorCounter_enum
+{
+    NVML_NVLINK_ERROR_DL_ECC_LANE0 = 0, // Data link receive ECC error counter lane 0
+    NVML_NVLINK_ERROR_DL_ECC_LANE1 = 1, // Data link receive ECC error counter lane 1
+    NVML_NVLINK_ERROR_DL_ECC_LANE2 = 2, // Data link receive ECC error counter lane 2
+    NVML_NVLINK_ERROR_DL_ECC_LANE3 = 3, // Data link receive ECC error counter lane 3
+
+    // this must be last
+    NVML_NVLINK_ERROR_DL_ECC_COUNT
+} nvmlNvLinkEccLaneErrorCounter_t;
+
 /** @} */
 
 /***************************************************************************************************/
@@ -902,8 +917,12 @@ typedef enum nvmlVgpuGuestInfoState_enum
  * vGPU software licensable features
  */
 typedef enum {
-    NVML_GRID_LICENSE_FEATURE_CODE_VGPU = 1,         //!< Virtual GPU
-    NVML_GRID_LICENSE_FEATURE_CODE_VWORKSTATION = 2  //!< Virtual Workstation
+    NVML_GRID_LICENSE_FEATURE_CODE_UNKNOWN      = 0,                                         //!< Unknown
+    NVML_GRID_LICENSE_FEATURE_CODE_VGPU         = 1,                                         //!< Virtual GPU
+    NVML_GRID_LICENSE_FEATURE_CODE_NVIDIA_RTX   = 2,                                         //!< Nvidia RTX
+    NVML_GRID_LICENSE_FEATURE_CODE_VWORKSTATION = NVML_GRID_LICENSE_FEATURE_CODE_NVIDIA_RTX, //!< Deprecated, do not use.
+    NVML_GRID_LICENSE_FEATURE_CODE_GAMING       = 3,                                         //!< Gaming
+    NVML_GRID_LICENSE_FEATURE_CODE_COMPUTE      = 4                                          //!< Compute
 } nvmlGridLicenseFeatureCode_t;
 
 /** @} */
@@ -1271,7 +1290,26 @@ typedef unsigned int nvmlDeviceArchitecture_t;
  */
 #define NVML_FI_DEV_NVSWITCH_CONNECTED_LINK_COUNT   147  //!< Number of NVLinks connected to NVSwitch
 
-#define NVML_FI_MAX 148 //!< One greater than the largest field ID defined above
+/* NvLink ECC Data Error Counters
+ *
+ * Lane ID needs to be specified in the scopeId field in nvmlFieldValue_t.
+ *
+ */
+#define NVML_FI_DEV_NVLINK_ECC_DATA_ERROR_COUNT_L0    148 //!< NVLink data ECC Error Counter for Link 0
+#define NVML_FI_DEV_NVLINK_ECC_DATA_ERROR_COUNT_L1    149 //!< NVLink data ECC Error Counter for Link 1
+#define NVML_FI_DEV_NVLINK_ECC_DATA_ERROR_COUNT_L2    150 //!< NVLink data ECC Error Counter for Link 2
+#define NVML_FI_DEV_NVLINK_ECC_DATA_ERROR_COUNT_L3    151 //!< NVLink data ECC Error Counter for Link 3
+#define NVML_FI_DEV_NVLINK_ECC_DATA_ERROR_COUNT_L4    152 //!< NVLink data ECC Error Counter for Link 4
+#define NVML_FI_DEV_NVLINK_ECC_DATA_ERROR_COUNT_L5    153 //!< NVLink data ECC Error Counter for Link 5
+#define NVML_FI_DEV_NVLINK_ECC_DATA_ERROR_COUNT_L6    154 //!< NVLink data ECC Error Counter for Link 6
+#define NVML_FI_DEV_NVLINK_ECC_DATA_ERROR_COUNT_L7    155 //!< NVLink data ECC Error Counter for Link 7
+#define NVML_FI_DEV_NVLINK_ECC_DATA_ERROR_COUNT_L8    156 //!< NVLink data ECC Error Counter for Link 8
+#define NVML_FI_DEV_NVLINK_ECC_DATA_ERROR_COUNT_L9    157 //!< NVLink data ECC Error Counter for Link 9
+#define NVML_FI_DEV_NVLINK_ECC_DATA_ERROR_COUNT_L10   158 //!< NVLink data ECC Error Counter for Link 10
+#define NVML_FI_DEV_NVLINK_ECC_DATA_ERROR_COUNT_L11   159 //!< NVLink data ECC Error Counter for Link 11
+#define NVML_FI_DEV_NVLINK_ECC_DATA_ERROR_COUNT_TOTAL 160 //!< NvLink data ECC Error Counter total for all Links
+
+#define NVML_FI_MAX 161 //!< One greater than the largest field ID defined above
 
 /**
  * Information for a Field Value Sample
