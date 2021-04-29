@@ -905,8 +905,12 @@ typedef enum nvmlVgpuGuestInfoState_enum
  * vGPU software licensable features
  */
 typedef enum {
-    NVML_GRID_LICENSE_FEATURE_CODE_VGPU = 1,         //!< Virtual GPU
-    NVML_GRID_LICENSE_FEATURE_CODE_VWORKSTATION = 2  //!< Virtual Workstation
+    NVML_GRID_LICENSE_FEATURE_CODE_UNKNOWN      = 0,                                         //!< Unknown
+    NVML_GRID_LICENSE_FEATURE_CODE_VGPU         = 1,                                         //!< Virtual GPU
+    NVML_GRID_LICENSE_FEATURE_CODE_NVIDIA_RTX   = 2,                                         //!< Nvidia RTX
+    NVML_GRID_LICENSE_FEATURE_CODE_VWORKSTATION = NVML_GRID_LICENSE_FEATURE_CODE_NVIDIA_RTX, //!< Deprecated, do not use.
+    NVML_GRID_LICENSE_FEATURE_CODE_GAMING       = 3,                                         //!< Gaming
+    NVML_GRID_LICENSE_FEATURE_CODE_COMPUTE      = 4                                          //!< Compute
 } nvmlGridLicenseFeatureCode_t;
 
 /** @} */
