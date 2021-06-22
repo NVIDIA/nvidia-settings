@@ -92,9 +92,8 @@ static const char *__thermal_sensor_reading_help =
 
 static const char * __enable_button_help =
 "The Enable GPU Fan Settings checkbox enables access to control GPU Fan "
-"Speed.  This option is available after enabling coolbits for GPU Fan control."
-"Note that controlling your GPU Fan Speed is not recommended and "
-"is done at your own risk. You should never have to enable this.";
+"Speed.  Manually configuring the GPU fan speed is not normally required; the "
+"speed should adjust automatically based on current temperature and load.";
 
 static const char * __fan_id_help =
 "This shows the GPU Fan's index.";

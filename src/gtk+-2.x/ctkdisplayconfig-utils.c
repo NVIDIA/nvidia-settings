@@ -2569,6 +2569,11 @@ void link_screen_to_gpu(nvScreenPtr screen, nvGpuPtr gpu)
         screen->max_displays = MIN(screen->max_displays, gpu->max_displays);
     }
 
+    if (gpu->multigpu_master_possible &&
+        !screen->display_owner_gpu->multigpu_master_possible) {
+        screen->display_owner_gpu = gpu;
+    }
+
     /* Set the display owner GPU. */
     if (screen->display_owner_gpu_id >= 0) {
         /* Link to the multi GPU display owner, if it is specified */

@@ -31,7 +31,8 @@
 
 static void print_option(const NVGetoptOption *o)
 {
-    char scratch[64], *s;
+    char scratch[64];
+    const char *s;
     int j, len;
 
     int italics, bold, omitWhiteSpace, firstchar;

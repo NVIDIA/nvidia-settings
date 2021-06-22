@@ -117,8 +117,8 @@ typedef struct {
     const char *name;
     int val;
     unsigned int flags;
-    char *arg_name;     /* not used by nvgetopt() */
-    char *description;  /* not used by nvgetopt() */
+    const char *arg_name;     /* not used by nvgetopt() */
+    const char *description;  /* not used by nvgetopt() */
 } NVGetoptOption;
 
 

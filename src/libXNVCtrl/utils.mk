@@ -36,8 +36,8 @@ CC                    ?= gcc
 CXX                   ?= g++
 LD                    ?= ld
 AR                    ?= ar
-# only set these warnings and optimizations if CFLAGS is unset
-CFLAGS                ?= -Wall -O2
+# only set these warnings if CFLAGS is unset
+CFLAGS                ?= -Wall
 # always set these -f CFLAGS
 CFLAGS                += -fno-strict-aliasing -fno-omit-frame-pointer -Wformat=2
 CC_ONLY_CFLAGS        ?=
@@ -67,6 +67,8 @@ ifeq ($(DEBUG),1)
   DO_STRIP            ?=
   CFLAGS              += -O0 -g
   CFLAGS              += -DDEBUG=1
+else
+  CFLAGS              += -O2
 endif
 
 ifeq ($(DEVELOP),1)
@@ -301,7 +303,7 @@ host_target = $(patsubst HOST,HOST_,$(patsubst TARGET,,$(1)))
 
 ifeq ($(NV_AUTO_DEPEND),1)
   AUTO_DEP_SUFFIX = -MMD -MF $$(@:.o=.d.to_be_processed) -MP -MT $$@ && \
-    $$(SED) -e "1,3s@ $$< @ @" < $$(@:.o=.d.to_be_processed) > $$(@:.o=.d)
+    $$(SED) -e "1,3s| $$< | |" < $$(@:.o=.d.to_be_processed) > $$(@:.o=.d)
 else
   AUTO_DEP_SUFFIX =
 endif
