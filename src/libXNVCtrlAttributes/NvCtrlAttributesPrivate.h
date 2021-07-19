@@ -177,7 +177,7 @@ struct __NvCtrlNvmlAttributes {
         typeof(nvmlDeviceGetMaxPcieLinkGeneration)      (*deviceGetMaxPcieLinkGeneration);
         typeof(nvmlDeviceGetMaxPcieLinkWidth)           (*deviceGetMaxPcieLinkWidth);
         typeof(nvmlDeviceGetVirtualizationMode)         (*deviceGetVirtualizationMode);
-        typeof(nvmlDeviceGetGridLicensableFeatures_v3)  (*deviceGetGridLicensableFeatures);
+        typeof(nvmlDeviceGetGridLicensableFeatures_v4)  (*deviceGetGridLicensableFeatures);
 
     } lib;
 

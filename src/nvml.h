@@ -110,7 +110,7 @@ extern "C" {
     #define nvmlDeviceGetHandleByPciBusId               nvmlDeviceGetHandleByPciBusId_v2
     #define nvmlDeviceGetNvLinkRemotePciInfo            nvmlDeviceGetNvLinkRemotePciInfo_v2
     #define nvmlDeviceRemoveGpu                         nvmlDeviceRemoveGpu_v2
-    #define nvmlDeviceGetGridLicensableFeatures         nvmlDeviceGetGridLicensableFeatures_v3
+    #define nvmlDeviceGetGridLicensableFeatures         nvmlDeviceGetGridLicensableFeatures_v4
     #define nvmlEventSetWait                            nvmlEventSetWait_v2
     #define nvmlDeviceGetAttributes                     nvmlDeviceGetAttributes_v2
     #define nvmlComputeInstanceGetInfo                  nvmlComputeInstanceGetInfo_v2
@@ -994,6 +994,15 @@ typedef enum {
     NVML_GRID_LICENSE_FEATURE_CODE_COMPUTE      = 4                                          //!< Compute
 } nvmlGridLicenseFeatureCode_t;
 
+/**
+ * Status codes for license expiry
+ */
+#define NVML_GRID_LICENSE_EXPIRY_NOT_AVAILABLE   0   //!< Expiry information not available
+#define NVML_GRID_LICENSE_EXPIRY_INVALID         1   //!< Invalid expiry or error fetching expiry
+#define NVML_GRID_LICENSE_EXPIRY_VALID           2   //!< Valid expiry
+#define NVML_GRID_LICENSE_EXPIRY_NOT_APPLICABLE  3   //!< Expiry not applicable
+#define NVML_GRID_LICENSE_EXPIRY_PERMANENT       4   //!< Permanent expiry
+
 /** @} */
 
 /***************************************************************************************************/
@@ -1084,6 +1093,21 @@ typedef struct nvmlProcessUtilizationSample_st
 } nvmlProcessUtilizationSample_t;
 
 /**
+ * Structure to store license expiry date and time values
+ */
+typedef struct nvmlGridLicenseExpiry_st
+{
+    unsigned int   year;        //!< Year value of license expiry
+    unsigned short month;       //!< Month value of license expiry
+    unsigned short day;         //!< Day value of license expiry
+    unsigned short hour;        //!< Hour value of license expiry
+    unsigned short min;         //!< Minutes value of license expiry
+    unsigned short sec;         //!< Seconds value of license expiry
+
+    unsigned char  status;      //!< License expiry status
+} nvmlGridLicenseExpiry_t;
+
+/**
  * Structure containing vGPU software licensable feature information
  */
 typedef struct nvmlGridLicensableFeature_st
@@ -1091,8 +1115,9 @@ typedef struct nvmlGridLicensableFeature_st
     nvmlGridLicenseFeatureCode_t    featureCode;                                 //!< Licensed feature code
     unsigned int                    featureState;                                //!< Non-zero if feature is currently licensed, otherwise zero
     char                            licenseInfo[NVML_GRID_LICENSE_BUFFER_SIZE];  //!< Deprecated.
-    char                            productName[NVML_GRID_LICENSE_BUFFER_SIZE];
+    char                            productName[NVML_GRID_LICENSE_BUFFER_SIZE];  //!< Product name of feature
     unsigned int                    featureEnabled;                              //!< Non-zero if feature is enabled, otherwise zero
+    nvmlGridLicenseExpiry_t         licenseExpiry;                               //!< License expiry structure containing date and time
 } nvmlGridLicensableFeature_t;
 
 /**
@@ -6131,7 +6156,7 @@ nvmlReturn_t DECLDIR nvmlDeviceSetVirtualizationMode(nvmlDevice_t device, nvmlGp
  *         - \ref NVML_ERROR_INVALID_ARGUMENT  if \a pGridLicensableFeatures is NULL
  *         - \ref NVML_ERROR_UNKNOWN           on any unexpected error
  */
-nvmlReturn_t DECLDIR nvmlDeviceGetGridLicensableFeatures_v3(nvmlDevice_t device, nvmlGridLicensableFeatures_t *pGridLicensableFeatures);
+nvmlReturn_t DECLDIR nvmlDeviceGetGridLicensableFeatures_v4(nvmlDevice_t device, nvmlGridLicensableFeatures_t *pGridLicensableFeatures);
 
 /**
  * Retrieves the current utilization and process ID
@@ -7966,6 +7991,7 @@ nvmlReturn_t DECLDIR nvmlDeviceGetPciInfo_v2(nvmlDevice_t device, nvmlPciInfo_t 
 nvmlReturn_t DECLDIR nvmlDeviceGetNvLinkRemotePciInfo(nvmlDevice_t device, unsigned int link, nvmlPciInfo_t *pci);
 nvmlReturn_t DECLDIR nvmlDeviceGetGridLicensableFeatures(nvmlDevice_t device, nvmlGridLicensableFeatures_t *pGridLicensableFeatures);
 nvmlReturn_t DECLDIR nvmlDeviceGetGridLicensableFeatures_v2(nvmlDevice_t device, nvmlGridLicensableFeatures_t *pGridLicensableFeatures);
+nvmlReturn_t DECLDIR nvmlDeviceGetGridLicensableFeatures_v3(nvmlDevice_t device, nvmlGridLicensableFeatures_t *pGridLicensableFeatures);
 nvmlReturn_t DECLDIR nvmlDeviceRemoveGpu(nvmlPciInfo_t *pciInfo);
 nvmlReturn_t DECLDIR nvmlEventSetWait(nvmlEventSet_t set, nvmlEventData_t * data, unsigned int timeoutms);
 nvmlReturn_t DECLDIR nvmlDeviceGetAttributes(nvmlDevice_t device, nvmlDeviceAttributes_t *attributes);

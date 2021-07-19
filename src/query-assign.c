@@ -1957,6 +1957,19 @@ static int process_parsed_attribute_internal(const Options *op,
     if (assign) {
         if (a->type == CTRL_ATTRIBUTE_TYPE_STRING) {
             status = NvCtrlSetStringAttribute(t, a->attr, p->val.str);
+
+            if (status != NvCtrlSuccess) {
+                nv_error_msg("Error assigning value %s to attribute '%s' "
+                             "(%s%s) as specified %s (%s).",
+                             p->val.str, a->name, t->name, str, whence,
+                             NvCtrlAttributesStrError(status));
+                return NV_FALSE;
+            }
+
+            if (verbose) {
+                 nv_msg("  ", "Attribute '%s' (%s%s) assigned value '%s'.",
+                 a->name, t->name, str, p->val.str);
+            }
         } else {
 
             ret = validate_value(op, t, p, d, target_type, whence);
