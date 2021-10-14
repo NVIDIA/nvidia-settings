@@ -36,7 +36,7 @@
 #include "ctkhelp.h"
 #include "ctkutils.h"
 
-static void ctk_display_device_class_init(CtkDisplayDeviceClass *);
+static void ctk_display_device_class_init(CtkDisplayDeviceClass *, gpointer);
 static void ctk_display_device_finalize(GObject *);
 
 static void reset_button_clicked(GtkButton *button, gpointer user_data);
@@ -244,7 +244,8 @@ GType ctk_display_device_get_type(void)
 }
 
 static void ctk_display_device_class_init(
-    CtkDisplayDeviceClass *ctk_object_class
+    CtkDisplayDeviceClass *ctk_object_class,
+    gpointer class_data
 )
 {
     GObjectClass *gobject_class = (GObjectClass *)ctk_object_class;

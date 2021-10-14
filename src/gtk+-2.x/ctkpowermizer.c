@@ -44,12 +44,6 @@ static void powermizer_menu_changed(GtkWidget*, gpointer);
 static void update_powermizer_menu_event(GObject *object,
                                          gpointer arg1,
                                          gpointer user_data);
-static void dp_config_button_toggled(GtkWidget *, gpointer);
-static void dp_set_config_status(CtkPowermizer *);
-static void dp_update_config_status(CtkPowermizer *, gboolean);
-static void dp_configuration_update_received(GObject *, CtrlEvent *, gpointer);
-static void post_dp_configuration_update(CtkPowermizer *);
-static void show_dp_toggle_warning_dlg(CtkPowermizer *ctk_powermizer);
 static void post_set_attribute_offset_value(CtkPowermizer *ctk_powermizer,
                                             gint attribute,
                                             gint val);
@@ -133,13 +127,6 @@ static const char *__powermizer_prefer_maximum_performance_help =
 static const char *__powermizer_prefer_consistent_performance_help =
 "'Prefer Consistent Performance' hints to the driver to lock to GPU base clocks, "
 "when possible.  ";
-
-static const char *__dp_configuration_button_help =
-"CUDA - Double Precision lets you enable "
-"increased double-precision calculations in CUDA applications.  Available on "
-"GPUs with the capability for increased double-precision performance."
-"  NOTE: Selecting a GPU reduces performance for non-CUDA applications, "
-"including games.  To increase game performance, disable this checkbox.";
 
 GType ctk_powermizer_get_type(void)
 {
@@ -1190,8 +1177,7 @@ GtkWidget* ctk_powermizer_new(CtrlTarget *ctrl_target,
     GtkWidget *hbox, *hbox2, *vbox, *vbox2, *hsep, *table;
     GtkWidget *banner, *label;
     CtkDropDownMenu *menu;
-    ReturnStatus ret, ret1;
-    gint attribute;
+    ReturnStatus ret;
     gint nvclock_attribute = 0, mem_transfer_rate_attribute = 0;
     gint val;
     gint row = 0;
@@ -1203,7 +1189,6 @@ GtkWidget* ctk_powermizer_new(CtrlTarget *ctrl_target,
     gboolean gpu_clock_available = FALSE;
     gboolean mem_transfer_rate_available = FALSE;
     gboolean adaptive_clock_state_available = FALSE;
-    gboolean cuda_dp_ui = FALSE;
     gboolean pcie_gen_queriable = FALSE;
     CtrlAttributeValidValues valid_modes;
     char *clock_string = NULL;
@@ -1622,109 +1607,6 @@ GtkWidget* ctk_powermizer_new(CtrlTarget *ctrl_target,
         update_powermizer_menu_info(ctk_powermizer);
     }
 
-    /*
-     * check if CUDA - Double Precision Boost support available.
-     */
-
-    ret = NvCtrlGetAttribute(ctrl_target,
-                             NV_CTRL_GPU_DOUBLE_PRECISION_BOOST_IMMEDIATE,
-                             &val);
-    if (ret == NvCtrlSuccess) {
-        attribute = NV_CTRL_GPU_DOUBLE_PRECISION_BOOST_IMMEDIATE;
-        cuda_dp_ui = TRUE;
-    } else {
-        ret1 = NvCtrlGetAttribute(ctrl_target,
-                                  NV_CTRL_GPU_DOUBLE_PRECISION_BOOST_REBOOT,
-                                  &val);
-        if (ret1 == NvCtrlSuccess) {
-            attribute = NV_CTRL_GPU_DOUBLE_PRECISION_BOOST_REBOOT;
-            cuda_dp_ui = TRUE;
-        }
-    }
-
-    if (cuda_dp_ui) {
-        ctk_powermizer->attribute = attribute;
-        ctk_powermizer->dp_toggle_warning_dlg_shown = FALSE;
-
-        /* Query CUDA - Double Precision Boost Status */
-
-        dp_update_config_status(ctk_powermizer, val);
-
-        /* CUDA - Double Precision Boost configuration settings */
-
-        hbox = gtk_hbox_new(FALSE, 0);
-        gtk_box_pack_start(GTK_BOX(vbox), hbox, FALSE, FALSE, 0);
-
-        label = gtk_label_new("CUDA");
-        gtk_box_pack_start(GTK_BOX(hbox), label, FALSE, FALSE, 0);
-
-        hsep = gtk_hseparator_new();
-        gtk_box_pack_start(GTK_BOX(hbox), hsep, TRUE, TRUE, 5);
-
-        hbox2 = gtk_hbox_new(FALSE, 0);
-        ctk_powermizer->configuration_button =
-            gtk_check_button_new_with_label("CUDA - Double precision");
-        gtk_box_pack_start(GTK_BOX(hbox2),
-                           ctk_powermizer->configuration_button,
-                           FALSE, FALSE, 0);
-        gtk_container_set_border_width(GTK_CONTAINER(hbox2), 0);
-        gtk_toggle_button_set_active
-            (GTK_TOGGLE_BUTTON(ctk_powermizer->configuration_button),
-             ctk_powermizer->dp_enabled);
-
-        /* Packing */
-
-        table = gtk_table_new(1, 1, FALSE);
-        gtk_box_pack_start(GTK_BOX(vbox), table, FALSE, FALSE, 0);
-        gtk_table_set_row_spacings(GTK_TABLE(table), 3);
-        gtk_table_set_col_spacings(GTK_TABLE(table), 15);
-        gtk_container_set_border_width(GTK_CONTAINER(table), 5);
-
-        gtk_table_attach(GTK_TABLE(table), hbox2, 0, 1, 0, 1,
-                         GTK_FILL, GTK_FILL | GTK_EXPAND, 5, 0);
-
-        if (attribute == NV_CTRL_GPU_DOUBLE_PRECISION_BOOST_REBOOT) {
-            GtkWidget *separator;
-
-            gtk_table_resize(GTK_TABLE(table), 1, 3);
-            /* V-bar */
-            hbox2 = gtk_hbox_new(FALSE, 0);
-            separator = gtk_vseparator_new();
-            gtk_box_pack_start(GTK_BOX(hbox2), separator, FALSE, FALSE, 0);
-            gtk_table_attach(GTK_TABLE(table), hbox2, 1, 2, 0, 1,
-                             GTK_FILL, GTK_FILL | GTK_EXPAND, 5, 0);
-
-            ctk_powermizer->status = gtk_label_new("");
-            gtk_misc_set_alignment(GTK_MISC(ctk_powermizer->status), 0.0f, 0.5f);
-            hbox2 = gtk_hbox_new(FALSE, 0);
-            gtk_box_pack_start(GTK_BOX(hbox2),
-                               ctk_powermizer->status, FALSE, FALSE, 0);
-
-            gtk_table_attach(GTK_TABLE(table), hbox2, 2, 3, 0, 1,
-                             GTK_FILL, GTK_FILL | GTK_EXPAND, 5, 0);
-        }
-
-        ctk_config_set_tooltip(ctk_config, ctk_powermizer->configuration_button,
-                               __dp_configuration_button_help);
-        g_signal_connect(G_OBJECT(ctk_powermizer->configuration_button),
-                         "clicked",
-                         G_CALLBACK(dp_config_button_toggled),
-                         (gpointer) ctk_powermizer);
-        if (attribute == NV_CTRL_GPU_DOUBLE_PRECISION_BOOST_IMMEDIATE) {
-            g_signal_connect(G_OBJECT(ctk_event),
-                   CTK_EVENT_NAME(NV_CTRL_GPU_DOUBLE_PRECISION_BOOST_IMMEDIATE),
-                   G_CALLBACK(dp_configuration_update_received),
-                   (gpointer) ctk_powermizer);
-        } else if (attribute == NV_CTRL_GPU_DOUBLE_PRECISION_BOOST_REBOOT) {
-            g_signal_connect(G_OBJECT(ctk_event),
-                   CTK_EVENT_NAME(NV_CTRL_GPU_DOUBLE_PRECISION_BOOST_REBOOT),
-                   G_CALLBACK(dp_configuration_update_received),
-                   (gpointer) ctk_powermizer);
-        }
-    } else {
-        ctk_powermizer->configuration_button = NULL;
-    }
-
     /* Updating the powermizer page */
 
     update_powermizer_info(ctk_powermizer);
@@ -1891,170 +1773,6 @@ static void powermizer_menu_changed(GtkWidget *widget,
 
 
 
-static void show_dp_toggle_warning_dlg(CtkPowermizer *ctk_powermizer)
-{
-    GtkWidget *dlg, *parent;
-
-    /* return early if message dialog already shown */
-    if (ctk_powermizer->dp_toggle_warning_dlg_shown) {
-        return;
-    }
-    ctk_powermizer->dp_toggle_warning_dlg_shown = TRUE;
-    parent = ctk_get_parent_window(GTK_WIDGET(ctk_powermizer));
-
-    dlg = gtk_message_dialog_new (GTK_WINDOW(parent),
-                                  GTK_DIALOG_MODAL,
-                                  GTK_MESSAGE_WARNING,
-                                  GTK_BUTTONS_OK,
-                                  "Changes to the CUDA - Double precision "
-                                  "setting "
-                                  "require a system reboot before "
-                                  "taking effect.");
-    gtk_dialog_run(GTK_DIALOG(dlg));
-    gtk_widget_destroy (dlg);
-
-} /* show_dp_toggle_warning_dlg() */
-
-
-
-/*
- * post_dp_configuration_update() - this function updates status bar string.
- */
-
-static void post_dp_configuration_update(CtkPowermizer *ctk_powermizer)
-{
-    gboolean enabled = ctk_powermizer->dp_enabled;
-
-    const char *conf_string = enabled ? "enabled" : "disabled";
-    char message[128];
-
-    if (ctk_powermizer->attribute == NV_CTRL_GPU_DOUBLE_PRECISION_BOOST_REBOOT) {
-        snprintf(message, sizeof(message), "CUDA - Double precision will "
-                 "be %s after reboot.",
-                 conf_string);
-    } else {
-        snprintf(message, sizeof(message), "CUDA - Double precision %s.",
-                 conf_string);
-    }
-
-    ctk_config_statusbar_message(ctk_powermizer->ctk_config, "%s", message);
-} /* post_dp_configuration_update() */
-
-
-
-/*
- * dp_set_config_status() - set CUDA - Double Precision Boost configuration
- * button status.
- */
-
-static void dp_set_config_status(CtkPowermizer *ctk_powermizer)
-{
-    GtkWidget *configuration_button = ctk_powermizer->configuration_button;
-
-    g_signal_handlers_block_by_func(G_OBJECT(configuration_button),
-                                    G_CALLBACK(dp_config_button_toggled),
-                                    (gpointer) ctk_powermizer);
-    gtk_toggle_button_set_active(GTK_TOGGLE_BUTTON(configuration_button),
-                                 ctk_powermizer->dp_enabled);
-
-    g_signal_handlers_unblock_by_func(G_OBJECT(configuration_button),
-                                      G_CALLBACK(dp_config_button_toggled),
-                                      (gpointer) ctk_powermizer);
-} /* dp_set_config_status() */
-
-
-
-/*
- * dp_update_config_status - get current CUDA - Double Precision Boost status.
- */
-
-static void dp_update_config_status(CtkPowermizer *ctk_powermizer, gboolean val)
-{
-    if ((ctk_powermizer->attribute ==
-         NV_CTRL_GPU_DOUBLE_PRECISION_BOOST_IMMEDIATE &&
-         val == NV_CTRL_GPU_DOUBLE_PRECISION_BOOST_IMMEDIATE_DISABLED) ||
-        (ctk_powermizer->attribute ==
-         NV_CTRL_GPU_DOUBLE_PRECISION_BOOST_REBOOT &&
-         val == NV_CTRL_GPU_DOUBLE_PRECISION_BOOST_REBOOT_DISABLED)) {
-        ctk_powermizer->dp_enabled = FALSE;
-    } else {
-        ctk_powermizer->dp_enabled = TRUE;
-    }
-} /* dp_update_config_status() */
-
-
-
-/*
- * dp_configuration_update_received() - this function is called when the
- * NV_CTRL_GPU_DOUBLE_PRECISION_BOOST_IMMEDIATE attribute is changed by another
- * NV-CONTROL client.
- */
-
-static void dp_configuration_update_received(GObject *object,
-                                             CtrlEvent *event,
-                                             gpointer user_data)
-{
-    CtkPowermizer *ctk_powermizer = CTK_POWERMIZER(user_data);
-
-    if (event->type != CTRL_EVENT_TYPE_INTEGER_ATTRIBUTE) {
-        return;
-    }
-
-    ctk_powermizer->dp_enabled = event->int_attr.value;
-
-    /* set CUDA - Double Precision Boost configuration buttion status */
-    dp_set_config_status(ctk_powermizer);
-
-    /* Update status bar message */
-    post_dp_configuration_update(ctk_powermizer);
-} /* dp_configuration_update_received() */
-
-
-/*
- * dp_config_button_toggled() - callback function for
- * enable CUDA - Double Precision Boost checkbox.
- */
-
-static void dp_config_button_toggled(GtkWidget *widget,
-                                     gpointer user_data)
-{
-    gboolean enabled;
-    CtkPowermizer *ctk_powermizer = CTK_POWERMIZER(user_data);
-    CtrlTarget *ctrl_target = ctk_powermizer->ctrl_target;
-    ReturnStatus ret;
-
-    enabled = gtk_toggle_button_get_active(GTK_TOGGLE_BUTTON(widget));
-
-    /* show popup dialog when user first time click DP config */
-    if (ctk_powermizer->attribute == NV_CTRL_GPU_DOUBLE_PRECISION_BOOST_REBOOT) {
-        show_dp_toggle_warning_dlg(ctk_powermizer);
-    }
-
-    /* set the newly specified CUDA - Double Precision Boost value */
-    ret = NvCtrlSetAttribute(ctrl_target,
-                             ctk_powermizer->attribute,
-                             enabled);
-    if (ret != NvCtrlSuccess) {
-        ctk_config_statusbar_message(ctk_powermizer->ctk_config,
-                                     "Failed to set "
-                                     "CUDA - Double precision "
-                                     "configuration!");
-        return;
-    }
-
-    ctk_powermizer->dp_enabled = enabled;
-    dp_set_config_status(ctk_powermizer);
-    if (ctk_powermizer->status) {
-        gtk_label_set_text(GTK_LABEL(ctk_powermizer->status),
-                           "pending reboot");
-    }
-
-    /* Update status bar message */
-    post_dp_configuration_update(ctk_powermizer);
-} /* dp_config_button_toggled() */
-
-
-
 GtkTextBuffer *ctk_powermizer_create_help(GtkTextTagTable *table,
                                           CtkPowermizer *ctk_powermizer)
 {
@@ -2121,11 +1839,6 @@ GtkTextBuffer *ctk_powermizer_create_help(GtkTextTagTable *table,
     if (ctk_powermizer->powermizer_menu) {
         ctk_help_heading(b, &i, "PowerMizer Settings");
         ctk_help_para(b, &i, "%s", ctk_powermizer->powermizer_menu_help);
-    }
-
-    if (ctk_powermizer->configuration_button) {
-        ctk_help_heading(b, &i, "CUDA - Double precision");
-        ctk_help_para(b, &i, "%s", __dp_configuration_button_help);
     }
 
     ctk_help_finish(b);

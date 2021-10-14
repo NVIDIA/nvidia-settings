@@ -27,7 +27,7 @@
 #define REQUESTED_HEIGHT 86
 
 static void
-ctk_gauge_class_init    (CtkGaugeClass *);
+ctk_gauge_class_init    (CtkGaugeClass *, gpointer);
 
 static void
 ctk_gauge_finalize      (GObject *);
@@ -95,7 +95,8 @@ GType ctk_gauge_get_type(
 }
 
 static void ctk_gauge_class_init(
-    CtkGaugeClass *ctk_gauge_class
+    CtkGaugeClass *ctk_gauge_class,
+    gpointer class_data
 )
 {
     GObjectClass *gobject_class;

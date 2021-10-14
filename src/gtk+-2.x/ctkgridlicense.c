@@ -2,7 +2,7 @@
  * nvidia-settings: A tool for configuring the NVIDIA X driver on Unix
  * and Linux systems.
  *
- * Copyright (C) 2020 NVIDIA Corporation.
+ * Copyright (C) 2021 NVIDIA Corporation.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms and conditions of the GNU General Public License,
@@ -21,7 +21,7 @@
 #include <string.h>
 #include <ctype.h>
 #include <inttypes.h>
-#include <sys/stat.h> 
+#include <sys/stat.h>
 #include <sys/types.h>
 #include <fcntl.h>
 #include <dlfcn.h>
@@ -49,10 +49,12 @@
 
 static const char * __manage_grid_licenses_help =
 "Use the Manage License page to obtain licenses "
-"for NVIDIA vGPU or NVIDIA RTX Virtual Workstation on supported Tesla products.";
+"for NVIDIA vGPU or NVIDIA RTX Virtual Workstation on supported Tesla products. "
+"The current license status is displayed on the page. If licensed, the license expiry information in GMT time zone is shown.";
 static const char * __manage_grid_licenses_vcompute_help =
 "Use the Manage License page to obtain licenses "
-"for NVIDIA vGPU or NVIDIA RTX Virtual Workstation or NVIDIA Virtual Compute Server on supported Tesla products.";
+"for NVIDIA vGPU or NVIDIA RTX Virtual Workstation or NVIDIA Virtual Compute Server on supported Tesla products. "
+"The current license status is displayed on the page. If licensed, the license expiry information in GMT time zone is shown.";
 static const char * __grid_virtual_workstation_help =
 "Select this option to enable NVIDIA RTX Virtual Workstation license.";
 static const char * __grid_virtual_compute_help =
@@ -84,7 +86,7 @@ static const char * __cancel_button_help =
 "Clicking the Cancel button sets the text in all textboxes from the gridd.conf file. "
 "Any changes you have done will be lost.";
 
-typedef struct 
+typedef struct
 {
     void                                                *dbusHandle;
     typeof(dbus_bus_get)                                *getDbus;
@@ -116,7 +118,7 @@ struct _DbusData
 static void apply_clicked(GtkWidget *widget, gpointer user_data);
 static void cancel_clicked(GtkWidget *widget, gpointer user_data);
 static void ctk_manage_grid_license_finalize(GObject *object);
-static void ctk_manage_grid_license_class_init(CtkManageGridLicenseClass *);
+static void ctk_manage_grid_license_class_init(CtkManageGridLicenseClass *, gpointer);
 static void dbusClose(DbusData *dbusData);
 static gboolean checkConfigfile(gboolean *writable);
 static gboolean disallow_whitespace(GtkWidget *widget, GdkEvent *event, gpointer user_data);
@@ -127,7 +129,7 @@ static gboolean licenseStateQueryFailed = FALSE;
 static void get_licensable_feature_information(gpointer user_data);
 static gboolean is_feature_supported(gpointer user_data, int featureType);
 static gboolean is_restart_required(gpointer user_data);
-static gboolean queryEnabledFeatureCode = TRUE;
+static gboolean bQueryGridLicenseInfo = TRUE;
 int64_t enabledFeatureCode = NV_GRID_LICENSE_FEATURE_TYPE_VAPP;
 
 GType ctk_manage_grid_license_get_type(void)
@@ -419,8 +421,7 @@ static void UpdateConfigFileLinesFromGriddConfig(
                                                      itemIsPresent);
     }
 
-    /* Append any items not updated in the above loop. */    
-
+    /* Append any items not updated in the above loop. */
     for (i = 0; i < ARRAY_LEN(configParamsList); i++) {
 
         if (itemIsPresent[i]) {
@@ -630,7 +631,8 @@ done:
 }
 
 
-static void ctk_manage_grid_license_class_init(CtkManageGridLicenseClass *ctk_object_class)
+static void ctk_manage_grid_license_class_init(CtkManageGridLicenseClass *ctk_object_class,
+                                               gpointer class_data)
 {
     GObjectClass *gobject_class = (GObjectClass *)ctk_object_class;
     gobject_class->finalize = ctk_manage_grid_license_finalize;
@@ -786,8 +788,8 @@ static gboolean update_manage_grid_license_state_info(gpointer user_data)
     gboolean ret = TRUE;
     char licenseStatusMsgTmp[GRID_MESSAGE_MAX_BUFFER_SIZE] = {0};
 
-    int licenseState = NV_GRID_UNLICENSED;
-    int griddFeatureType = ctk_manage_grid_license->feature_type;
+    int licenseState            = NV_GRID_UNLICENSED;
+    int griddFeatureType        = ctk_manage_grid_license->feature_type;
 
     /* Send license state and feature type request */
     if ((!(send_message_to_gridd(ctk_manage_grid_license, LICENSE_STATE_REQUEST,
@@ -835,7 +837,7 @@ static gboolean update_manage_grid_license_state_info(gpointer user_data)
     ctk_manage_grid_license->gridd_feature_type = griddFeatureType;
 
     if (licenseState == NV_GRID_UNLICENSED) {
-        queryEnabledFeatureCode = TRUE;
+        bQueryGridLicenseInfo = TRUE;
         switch (ctk_manage_grid_license->feature_type) {
             case NV_GRID_LICENSE_FEATURE_TYPE_VAPP:
                 ctk_manage_grid_license->licenseStatus = NV_GRID_UNLICENSED_VAPP;
@@ -893,9 +895,14 @@ static gboolean update_manage_grid_license_state_info(gpointer user_data)
                 default:
                     break;
             }
-            if (queryEnabledFeatureCode == TRUE) {
+
+            if (ctk_manage_grid_license->prevLicenseState == NV_GRID_LICENSE_RENEWING && licenseState == NV_GRID_LICENSED) {
+                bQueryGridLicenseInfo = TRUE;
+            }
+
+            if (bQueryGridLicenseInfo == TRUE) {
                 get_licensable_feature_information(ctk_manage_grid_license);
-                queryEnabledFeatureCode = FALSE;
+                bQueryGridLicenseInfo = FALSE;
             }
         }
         else if (licenseState == NV_GRID_LICENSE_REQUESTING) {
@@ -961,7 +968,8 @@ static gboolean update_manage_grid_license_state_info(gpointer user_data)
           snprintf(licenseStatusMsgTmp, sizeof(licenseStatusMsgTmp), "Your system is currently configured for %s.", NVIDIA_VIRTUAL_APPLICATIONS);
           break;
     case NV_GRID_LICENSE_STATUS_ACQUIRED:
-          snprintf(licenseStatusMsgTmp, sizeof(licenseStatusMsgTmp), "Your system is licensed for %s.", ctk_manage_grid_license->productName);
+          snprintf(licenseStatusMsgTmp, sizeof(licenseStatusMsgTmp), "Your system is licensed for %s, expiring at %s.",
+                ctk_manage_grid_license->productName, ctk_manage_grid_license->licenseExpiry);
           break;
     case NV_GRID_LICENSE_STATUS_REQUESTING:
           snprintf(licenseStatusMsgTmp, sizeof(licenseStatusMsgTmp), "Acquiring license for %s.", ctk_manage_grid_license->productName);
@@ -1009,6 +1017,8 @@ static gboolean update_manage_grid_license_state_info(gpointer user_data)
 
     gtk_label_set_text(GTK_LABEL(ctk_manage_grid_license->label_license_state),
                       licenseStatusMsgTmp);
+
+    ctk_manage_grid_license->prevLicenseState = licenseState;
 
     return ret;
 }
@@ -1142,12 +1152,19 @@ static void get_licensable_feature_information(gpointer user_data)
     {
         if (gridLicensableFeatures->gridLicensableFeatures[i].featureEnabled != 0) {
             enabledFeatureCode = gridLicensableFeatures->gridLicensableFeatures[i].featureCode;
-
             // Save product name of enabled feature
             strncpy(ctk_manage_grid_license->productName,
-                gridLicensableFeatures->gridLicensableFeatures[i].productName,
-                sizeof(ctk_manage_grid_license->productName) - 1);
+                    gridLicensableFeatures->gridLicensableFeatures[i].productName,
+                    sizeof(ctk_manage_grid_license->productName) - 1);
             ctk_manage_grid_license->productName[sizeof(ctk_manage_grid_license->productName) - 1] = '\0';
+            //Save the license expiry information
+            snprintf(ctk_manage_grid_license->licenseExpiry, sizeof(ctk_manage_grid_license->licenseExpiry), "%d-%d-%d %d:%d:%d GMT",
+                     gridLicensableFeatures->gridLicensableFeatures[i].licenseExpiry.year,
+                     gridLicensableFeatures->gridLicensableFeatures[i].licenseExpiry.month,
+                     gridLicensableFeatures->gridLicensableFeatures[i].licenseExpiry.day,
+                     gridLicensableFeatures->gridLicensableFeatures[i].licenseExpiry.hour,
+                     gridLicensableFeatures->gridLicensableFeatures[i].licenseExpiry.min,
+                     gridLicensableFeatures->gridLicensableFeatures[i].licenseExpiry.sec);
         }
         else if (gridLicensableFeatures->gridLicensableFeatures[i].featureEnabled == 0) {
             if ((ctk_manage_grid_license->feature_type == gridLicensableFeatures->gridLicensableFeatures[i].featureCode) &&
@@ -1606,12 +1623,10 @@ GtkWidget* ctk_manage_grid_license_new(CtrlTarget *target,
         (strcmp(griddConfig->str[NV_GRIDD_ENABLE_UI], "TRUE") != 0)) {
         return NULL;
     }
-    
 
     /* create the CtkManageGridLicense object */
-
     object = g_object_new(CTK_TYPE_MANAGE_GRID_LICENSE, NULL);
-    
+
     ctk_manage_grid_license = CTK_MANAGE_GRID_LICENSE(object);
     ctk_manage_grid_license->ctk_config = ctk_config;
     ctk_manage_grid_license->license_edition_state = mode;
@@ -1621,7 +1636,6 @@ GtkWidget* ctk_manage_grid_license_new(CtrlTarget *target,
     ctk_manage_grid_license->licenseStatus = NV_GRID_UNLICENSED_VGPU;
 
     /* set container properties for the CtkManageGridLicense widget */
-
     gtk_box_set_spacing(GTK_BOX(ctk_manage_grid_license), 5);
 
     // Set feature type based on user configured parameter or virtualization mode
@@ -1633,7 +1647,6 @@ GtkWidget* ctk_manage_grid_license_new(CtrlTarget *target,
     get_licensable_feature_information(ctk_manage_grid_license);
 
     /* banner */
-
     banner = ctk_banner_image_new(BANNER_ARTWORK_SERVER_LICENSING);
     gtk_box_pack_start(GTK_BOX(object), banner, FALSE, FALSE, 0);
 
@@ -1756,7 +1769,6 @@ GtkWidget* ctk_manage_grid_license_new(CtrlTarget *target,
 
 
     /* Primary License Server Address */
-
     label = gtk_label_new("Primary Server:");
     ctk_manage_grid_license->txt_server_address = gtk_entry_new();
     hbox = gtk_hbox_new(FALSE, 0);

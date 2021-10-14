@@ -815,8 +815,6 @@ static ReturnStatus NvCtrlNvmlGetGPUAttribute(const CtrlTarget *ctrl_target,
             case NV_CTRL_GPU_ADAPTIVE_CLOCK_STATE:
             case NV_CTRL_GPU_POWER_MIZER_MODE:
             case NV_CTRL_GPU_POWER_MIZER_DEFAULT_MODE:
-            case NV_CTRL_GPU_DOUBLE_PRECISION_BOOST_IMMEDIATE:
-            case NV_CTRL_GPU_DOUBLE_PRECISION_BOOST_REBOOT:
             case NV_CTRL_GPU_ECC_SUPPORTED:
             case NV_CTRL_GPU_ECC_STATUS:
             case NV_CTRL_GPU_ECC_CONFIGURATION:
@@ -1555,8 +1553,6 @@ NvCtrlNvmlGetGPUValidAttributeValues(const CtrlTarget *ctrl_target, int attr,
             case NV_CTRL_GPU_ADAPTIVE_CLOCK_STATE:
             case NV_CTRL_GPU_POWER_MIZER_MODE:
             case NV_CTRL_GPU_POWER_MIZER_DEFAULT_MODE:
-            case NV_CTRL_GPU_DOUBLE_PRECISION_BOOST_IMMEDIATE:
-            case NV_CTRL_GPU_DOUBLE_PRECISION_BOOST_REBOOT:
             case NV_CTRL_GPU_ECC_SUPPORTED:
             case NV_CTRL_GPU_ECC_STATUS:
             case NV_CTRL_GPU_ECC_CONFIGURATION:

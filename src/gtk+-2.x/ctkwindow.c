@@ -103,7 +103,7 @@ typedef void (*config_file_attributes_func_t)(GtkWidget *, ParsedAttribute *);
 typedef void (*select_widget_func_t)(GtkWidget *);
 typedef void (*unselect_widget_func_t)(GtkWidget *);
 
-static void ctk_window_class_init(CtkWindowClass *);
+static void ctk_window_class_init(CtkWindowClass *, gpointer);
 
 #ifdef CTK_GTK3
 static void ctk_window_real_destroy(GtkWidget *);
@@ -175,7 +175,8 @@ GType ctk_window_get_type(void)
  * class structure
  */
 
-static void ctk_window_class_init(CtkWindowClass *ctk_window_class)
+static void ctk_window_class_init(CtkWindowClass *ctk_window_class,
+                                  gpointer class_data)
 {
 #ifdef CTK_GTK3
     GtkWidgetClass *widget_class;

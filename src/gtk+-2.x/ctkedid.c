@@ -178,7 +178,7 @@ static void normalize_filename(CtkEdid *ctk_edid)
     if (!filename) {
         goto done;
     }
-    strncpy(filename, ctk_edid->filename, len);
+    memcpy(filename, ctk_edid->filename, len + 1);
 
     /*
      * It is possible that filename is entered without any extension,

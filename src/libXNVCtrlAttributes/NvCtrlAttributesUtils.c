@@ -883,6 +883,14 @@ static Bool load_system_info(CtrlSystem *system, const char *display)
                 target_count = ScreenCount(system->dpy);
             }
         }
+        else if (target_type == MUX_TARGET) {
+
+            status = NvCtrlQueryTargetCount(nvmlQueryTarget,
+                                            target_type,
+                                            &val);
+            target_count = val;
+
+        }
         else if ((h != NULL) && (h->nvml != NULL) &&
                  TARGET_TYPE_IS_NVML_COMPATIBLE(target_type)) {
 
@@ -966,6 +974,7 @@ static Bool load_system_info(CtrlSystem *system, const char *display)
             case COOLER_TARGET:
             case THERMAL_SENSOR_TARGET:
             case NVIDIA_3D_VISION_PRO_TRANSCEIVER_TARGET:
+            case MUX_TARGET:
             default:
                 targetId = i;
             }

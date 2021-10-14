@@ -287,6 +287,9 @@ static void convertFromNvCtrlPermissions(CtrlAttributePerms *dst,
         dst->valid_targets |=
             CTRL_TARGET_PERM_BIT(NVIDIA_3D_VISION_PRO_TRANSCEIVER_TARGET);
     }
+    if (permissions & ATTRIBUTE_TYPE_MUX) {
+        dst->valid_targets |= CTRL_TARGET_PERM_BIT(MUX_TARGET);
+    }
 }
 
 

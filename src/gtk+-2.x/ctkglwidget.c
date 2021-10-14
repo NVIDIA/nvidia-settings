@@ -202,7 +202,8 @@ static void ctk_glwidget_finalize(GObject *gobject)
     assert(!"unimplemented");
 }
 
-static void ctk_glwidget_class_init(CtkGLWidgetClass *klass)
+static void ctk_glwidget_class_init(CtkGLWidgetClass *klass,
+                                    gpointer class_data)
 {
     GtkWidgetClass *widget_class;
     GObjectClass *gobject_class = G_OBJECT_CLASS(klass);

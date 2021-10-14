@@ -49,6 +49,7 @@
 #define NV_CTRL_TARGET_TYPE_THERMAL_SENSOR 6
 #define NV_CTRL_TARGET_TYPE_3D_VISION_PRO_TRANSCEIVER 7
 #define NV_CTRL_TARGET_TYPE_DISPLAY        8
+#define NV_CTRL_TARGET_TYPE_MUX            9
 
 /**************************************************************************/
 
@@ -3161,30 +3162,14 @@
 #define NV_CTRL_USED_DEDICATED_GPU_MEMORY                       394 /* R--G */
 
 /*
- * NV_CTRL_GPU_DOUBLE_PRECISION_BOOST_IMMEDIATE
- * Some GPUs can make a tradeoff between double-precision floating-point
- * performance and clock speed.  Enabling double-precision floating point
- * performance may benefit CUDA or OpenGL applications that require high
- * bandwidth double-precision performance.  Disabling this feature may benefit
- * graphics applications that require higher clock speeds.
- *
- * This attribute is only available when toggling double precision boost
- * can be done immediately (without need for a rebooot).
+ * NV_CTRL_GPU_DOUBLE_PRECISION_BOOST_IMMEDIATE - not supported
  */
 #define NV_CTRL_GPU_DOUBLE_PRECISION_BOOST_IMMEDIATE            395 /* RW-G */
 #define NV_CTRL_GPU_DOUBLE_PRECISION_BOOST_IMMEDIATE_DISABLED     0
 #define NV_CTRL_GPU_DOUBLE_PRECISION_BOOST_IMMEDIATE_ENABLED      1
 
 /*
- * NV_CTRL_GPU_DOUBLE_PRECISION_BOOST_REBOOT
- * Some GPUs can make a tradeoff between double-precision floating-point
- * performance and clock speed.  Enabling double-precision floating point
- * performance may benefit CUDA or OpenGL applications that require high
- * bandwidth double-precision performance.  Disabling this feature may benefit
- * graphics applications that require higher clock speeds.
- *
- * This attribute is only available when toggling double precision boost
- * requires a reboot.
+ * NV_CTRL_GPU_DOUBLE_PRECISION_BOOST_REBOOT - not supported
  */
 
 #define NV_CTRL_GPU_DOUBLE_PRECISION_BOOST_REBOOT              396 /* RW-G */
@@ -3628,9 +3613,28 @@
 #define NV_CTRL_PLATFORM_CURRENT_POWER_MODE_QUIET                 2
 #define NV_CTRL_PLATFORM_CURRENT_POWER_MODE_LIMITED_POWER_POLICY  3
 
-#define NV_CTRL_LAST_ATTRIBUTE NV_CTRL_PLATFORM_CURRENT_POWER_MODE
+/*
+ * NV_CTRL_MUX_AUTO_SWITCH - Controls whether the mux specified will
+ * automatically switch when possible.
+ */
+
+#define NV_CTRL_MUX_AUTO_SWITCH                                 436
+#define NV_CTRL_MUX_AUTO_SWITCH_DISABLED                          0
+#define NV_CTRL_MUX_AUTO_SWITCH_ENABLED                           1
+
+/*
+ *  NV_CTRL_MUX_IS_INTERNAL - Returns whether the specified mux is an internal
+ *  mux.
+ */
+#define NV_CTRL_MUX_IS_INTERNAL                                 437
+
+/*
+ * NV_CTRL_RESIZABLE_BAR - Returns whether the system has resizable BAR support.
+ */
+#define NV_CTRL_RESIZABLE_BAR                                   438
 
 
+#define NV_CTRL_LAST_ATTRIBUTE NV_CTRL_RESIZABLE_BAR
 
 /**************************************************************************/
 
@@ -4351,9 +4355,15 @@
  */
 #define NV_CTRL_STRING_DISPLAY_NAME_CONNECTOR                       56 /* R-D- */
 
+/*
+ * NV_CTRL_STRING_MUX_STATE - Controls whether the mux specified is configured to
+ * use the integrated or discrete GPU.
+ */
+#define NV_CTRL_STRING_MUX_STATE                                    57 /* RW--- */
+
 
 #define NV_CTRL_STRING_LAST_ATTRIBUTE \
-    NV_CTRL_STRING_DISPLAY_NAME_CONNECTOR
+    NV_CTRL_STRING_MUX_STATE
 
 
 /**************************************************************************/
@@ -5015,6 +5025,7 @@
  * ATTRIBUTE_TYPE_COOLER    - Attribute is valid for Cooler target types.
  * ATTRIBUTE_TYPE_3D_VISION_PRO_TRANSCEIVER - Attribute is valid for 3D Vision
  *                                            Pro Transceiver target types.
+ * ATTRIBUTE_TYPE_MUX       - Attribute is valid for Multiplexer target types.
  *
  * See 'Key to Integer Attribute "Permissions"' at the top of this
  * file for a description of what these permission bits mean.
@@ -5043,6 +5054,7 @@
 #define ATTRIBUTE_TYPE_COOLER     0x200
 #define ATTRIBUTE_TYPE_THERMAL_SENSOR 0x400
 #define ATTRIBUTE_TYPE_3D_VISION_PRO_TRANSCEIVER 0x800
+#define ATTRIBUTE_TYPE_MUX        0x1000
 
 #define ATTRIBUTE_TYPE_ALL_TARGETS                \
     ((ATTRIBUTE_TYPE_DISPLAY)                   | \
@@ -5053,7 +5065,9 @@
      (ATTRIBUTE_TYPE_GVI)                       | \
      (ATTRIBUTE_TYPE_COOLER)                    | \
      (ATTRIBUTE_TYPE_THERMAL_SENSOR)            | \
-     (ATTRIBUTE_TYPE_3D_VISION_PRO_TRANSCEIVER))
+     (ATTRIBUTE_TYPE_3D_VISION_PRO_TRANSCEIVER) | \
+     (ATTRIBUTE_TYPE_MUX))
+
 
 typedef struct _NVCTRLAttributeValidValues {
     int type;

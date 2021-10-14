@@ -2,7 +2,7 @@
  * nvidia-settings: A tool for configuring the NVIDIA X driver on Unix
  * and Linux systems.
  *
- * Copyright (C) 2020 NVIDIA Corporation.
+ * Copyright (C) 2021 NVIDIA Corporation.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms and conditions of the GNU General Public License,
@@ -43,42 +43,42 @@ G_BEGIN_DECLS
 #define GRID_MESSAGE_MAX_BUFFER_SIZE        512
 #define NVIDIA_VIRTUAL_APPLICATIONS         "NVIDIA Virtual Applications"
 
-typedef struct _CtkManageGridLicense       CtkManageGridLicense;
-typedef struct _CtkManageGridLicenseClass  CtkManageGridLicenseClass;
-
-typedef struct _DbusData DbusData;
+typedef struct _CtkManageGridLicense        CtkManageGridLicense;
+typedef struct _CtkManageGridLicenseClass   CtkManageGridLicenseClass;
+typedef struct _DbusData                    DbusData;
 
 struct _CtkManageGridLicense
 {
-    GtkVBox parent;
+    GtkVBox         parent;
 
-    CtkConfig *ctk_config;
+    CtkConfig       *ctk_config;
 
-    GtkWidget* txt_secondary_server_port;
-    GtkWidget* txt_secondary_server_address;
-    GtkWidget* txt_server_port;
-    GtkWidget* txt_server_address;
-    GtkWidget* label_license_state;
-    GtkWidget* btn_apply;
-    GtkWidget* radio_btn_vapp;
-    GtkWidget* radio_btn_vws;
-    GtkWidget* radio_btn_vcompute;
-    GtkWidget* btn_cancel;
-    GtkWidget* box_server_info;
+    GtkWidget*      txt_secondary_server_port;
+    GtkWidget*      txt_secondary_server_address;
+    GtkWidget*      txt_server_port;
+    GtkWidget*      txt_server_address;
+    GtkWidget*      label_license_state;
+    GtkWidget*      btn_apply;
+    GtkWidget*      radio_btn_vapp;
+    GtkWidget*      radio_btn_vws;
+    GtkWidget*      radio_btn_vcompute;
+    GtkWidget*      btn_cancel;
+    GtkWidget*      box_server_info;
 
-    DbusData *dbusData;
-    CtrlTarget *target;
+    DbusData        *dbusData;
+    CtrlTarget      *target;
 
-    gint license_edition_state;
-    gint feature_type;                                              // Feature type from UI/vGPU license config file.
-    int gridd_feature_type;                                         // Feature type fetched from nvidia-gridd.
-    char productName[GRID_LICENSE_INFO_MAX_LENGTH];                 // vGPU product name fetched from nvml corresponding to the licensed/applied feature
-    char productNamevWS[GRID_LICENSE_INFO_MAX_LENGTH];              // vGPU product name fetched from nvml corresponding to the feature type '2'
-    char productNamevCompute[GRID_LICENSE_INFO_MAX_LENGTH];         // vGPU product name fetched from nvml corresponding to the feature type '4'
-
-    int licenseStatus;                                              // Current license status to be displayed on UI
-    gboolean isvComputeSupported;                                   // Check if 'NVIDIA Virtual Compute Server' feature is supported
-    gboolean isvWSSupported;                                        // Check if 'NVIDIA RTX Virtual Workstation' feature is supported
+    gint            license_edition_state;
+    gint            feature_type;                                       // Feature type from UI/vGPU license config file
+    int             gridd_feature_type;                                 // Feature type fetched from nvidia-gridd
+    char            productName[GRID_LICENSE_INFO_MAX_LENGTH];          // vGPU product name fetched from nvml corresponding to the licensed/applied feature
+    char            productNamevWS[GRID_LICENSE_INFO_MAX_LENGTH];       // vGPU product name fetched from nvml corresponding to the feature type '2'
+    char            productNamevCompute[GRID_LICENSE_INFO_MAX_LENGTH];  // vGPU product name fetched from nvml corresponding to the feature type '4'
+    int             licenseStatus;                                      // Current license status to be displayed on UI
+    int             prevLicenseState;                                   // The previous license state
+    gboolean        isvComputeSupported;                                // Check if 'NVIDIA Virtual Compute Server' feature is supported
+    gboolean        isvWSSupported;                                     // Check if 'NVIDIA RTX Virtual Workstation' feature is supported
+    char            licenseExpiry[GRID_LICENSE_INFO_MAX_LENGTH];        // License expiry timestamp
 };
 
 /*

@@ -67,6 +67,7 @@ struct _CtkGpu
     gint gpu_cores;
     gint gpu_uuid;
     gint memory_interface;
+    gboolean resizable_bar;
     gboolean pcie_gen_queriable;
 };
 

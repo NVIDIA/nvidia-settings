@@ -66,17 +66,12 @@ struct _CtkPowermizer
 
     gchar     *powermizer_menu_help;
 
-    GtkWidget *configuration_button;
-    gboolean  dp_enabled;
-    gboolean  dp_toggle_warning_dlg_shown;
     gboolean  hasDecoupledClock;
     gboolean  hasEditablePerfLevel;
     gboolean  editable_performance_levels_unified;
     gint      nvclock_attribute;
     gint      mem_transfer_rate_attribute;
-    gint      attribute;
     gint      powermizer_default_mode;
-    GtkWidget *status;
 
     GtkWidget *editable_perf_level_table;
     gint      num_perf_levels;

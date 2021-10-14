@@ -774,6 +774,11 @@ static int process_attribute_queries(const Options *op,
             continue;
         }
 
+        if (nv_strcasecmp(queries[query], "muxes")) {
+            query_all_targets(display_name, MUX_TARGET, systems);
+            continue;
+        }
+
         /* call the parser to parse queries[query] */
 
         ret = nv_parse_attribute_string(queries[query], NV_PARSER_QUERY, &a);
@@ -1675,6 +1680,7 @@ static int print_target_connections(CtrlTarget *t,
             case COOLER_TARGET:
             case FRAMELOCK_TARGET:
             case X_SCREEN_TARGET:
+            case MUX_TARGET:
             default:
                 break;
             }
@@ -1786,6 +1792,7 @@ static int query_all_targets(const char *display_name, const int target_type,
         case COOLER_TARGET:
         case THERMAL_SENSOR_TARGET:
         case NVIDIA_3D_VISION_PRO_TRANSCEIVER_TARGET:
+        case MUX_TARGET:
              snprintf(product_name, PRODUCT_NAME_LEN, "%s %d",
                      targetTypeInfo->name, target_id);
              break;
@@ -1907,6 +1914,10 @@ static int query_all_targets(const char *display_name, const int target_type,
                      "Is connected to",
                      "Is not connected to",
                      GPU_TARGET);
+                break;
+
+            case MUX_TARGET:
+                /* Target connections not yet supported. */
                 break;
 
             default:

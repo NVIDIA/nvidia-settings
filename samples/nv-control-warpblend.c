@@ -23,11 +23,11 @@
 
 #include "nv-control-warpblend.h"
 
-typedef struct __attribute__((packed)) {
+typedef struct {
     float x, y;
 } vertex2f;
 
-typedef struct __attribute__((packed)) {
+typedef struct {
     vertex2f pos;
     vertex2f tex;
     vertex2f tex2;

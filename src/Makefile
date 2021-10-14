@@ -86,9 +86,7 @@ ifndef JANSSON_CFLAGS
   JANSSON_CFLAGS  = -Wno-cast-qual
   JANSSON_CFLAGS += -Wno-unused-function
   JANSSON_CFLAGS += -DHAVE_CONFIG_H
-  ifeq ($(TARGET_ARCH),armv7l)
-    JANSSON_CFLAGS += -Wno-unused-but-set-variable
-  endif
+  JANSSON_CFLAGS += -Wno-format-truncation
 endif
 
 ##############################################################################

@@ -245,6 +245,7 @@ GtkWidget* ctk_gpu_new(CtrlTarget *ctrl_target,
     int total_rows = 21;
     int gpu_memory;
     utilizationEntry entry;
+    gboolean resizable_bar;
 
 
     /*
@@ -323,6 +324,14 @@ GtkWidget* ctk_gpu_new(CtrlTarget *ctrl_target,
         gpu_cores = NULL;
     } else {
         gpu_cores = g_strdup_printf("%d", tmp);
+    }
+
+    /* NV_CTRL_RESIZABLE_BAR */
+    ret = NvCtrlGetAttribute(ctrl_target, NV_CTRL_RESIZABLE_BAR, &tmp);
+    if (ret != NvCtrlSuccess) {
+        resizable_bar = FALSE;
+    } else {
+        resizable_bar = tmp;
     }
 
     /* NV_CTRL_GPU_MEMORY_BUS_WIDTH  */
@@ -426,6 +435,7 @@ GtkWidget* ctk_gpu_new(CtrlTarget *ctrl_target,
     ctk_gpu->gpu_cores = (gpu_cores != NULL) ? 1 : 0;
     ctk_gpu->gpu_uuid = (gpu_uuid != NULL) ? 1 : 0;
     ctk_gpu->memory_interface = (memory_interface != NULL) ? 1 : 0;
+    ctk_gpu->resizable_bar = resizable_bar;
     ctk_gpu->ctk_config = ctk_config;
     ctk_gpu->ctk_event = ctk_event;
     ctk_gpu->pcie_gen_queriable = FALSE;
@@ -508,6 +518,12 @@ GtkWidget* ctk_gpu_new(CtrlTarget *ctrl_target,
         add_table_row(table, row++,
                       0, 0.5, "Used Dedicated Memory:",
                       0, 0.5, NULL);
+    if (ctk_gpu->resizable_bar) {
+        gtk_table_resize(GTK_TABLE(table), ++total_rows, 2);
+        add_table_row(table, row++,
+                      0, 0.5, "Resizable BAR:",
+                      0, 0.5, "Yes");
+    }
     if ( ctk_gpu->memory_interface ) {
         gtk_table_resize(GTK_TABLE(table), ++total_rows, 2);
         add_table_row(table, row++,
@@ -679,6 +695,12 @@ GtkTextBuffer *ctk_gpu_create_help(GtkTextTagTable *table,
     ctk_help_heading(b, &i, "Used Dedicated Memory"); 
     ctk_help_para(b, &i, "This is the amount of dedicated memory used "
                   "by your GPU.");
+
+    if (ctk_gpu->resizable_bar) {
+        ctk_help_heading(b, &i, "Resizable BAR");
+        ctk_help_para(b, &i, "This indicates whether Resizable BAR may be "
+                      "available on supported systems.");
+    }
 
     if (ctk_gpu->memory_interface) {
         ctk_help_heading(b, &i, "Memory Interface");

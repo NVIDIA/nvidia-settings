@@ -4618,7 +4618,8 @@ static GObjectClass *parent_class;
  *
  */
 static void ctk_framelock_class_init(
-    CtkFramelockClass *ctk_framelock_class
+    CtkFramelockClass *ctk_framelock_class,
+    gpointer class_data
 )
 {
     parent_class = g_type_class_peek_parent(ctk_framelock_class);

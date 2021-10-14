@@ -28,7 +28,7 @@
 #define REQUESTED_HEIGHT 94
 
 static void
-ctk_curve_class_init    (CtkCurveClass *);
+ctk_curve_class_init    (CtkCurveClass *, gpointer);
 
 static void
 ctk_curve_finalize      (GObject *);
@@ -95,7 +95,8 @@ GType ctk_curve_get_type(
 }
 
 static void ctk_curve_class_init(
-    CtkCurveClass *ctk_curve_class
+    CtkCurveClass *ctk_curve_class,
+    gpointer class_data
 )
 {
     GObjectClass *gobject_class;

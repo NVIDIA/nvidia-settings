@@ -138,7 +138,7 @@ typedef struct _TreeViewColumnTemplate {
 /*
  * Function prototypes
  */
-static void app_profile_class_init(CtkAppProfileClass *ctk_object_class);
+static void app_profile_class_init(CtkAppProfileClass *ctk_object_class, gpointer);
 static void app_profile_finalize(GObject *object);
 static void edit_rule_dialog_destroy(EditRuleDialog *dialog);
 static void edit_profile_dialog_destroy(EditProfileDialog *dialog);
@@ -232,7 +232,8 @@ GType ctk_app_profile_get_type(void)
 
 } /* ctk_app_profile_get_type() */
 
-static void app_profile_class_init(CtkAppProfileClass *ctk_object_class)
+static void app_profile_class_init(CtkAppProfileClass *ctk_object_class,
+                                   gpointer class_data)
 {
     GObjectClass *gobject_class = G_OBJECT_CLASS(ctk_object_class);
     gobject_class->finalize = app_profile_finalize;

@@ -100,6 +100,14 @@ const CtrlTargetTypeInfo targetTypeInfoTable[] = {
       CTRL_TARGET_PERM_BIT(DISPLAY_TARGET),                          /* permission_bit */
       NV_FALSE,                                                      /* uses_display_devices */
       1, 27 },                                                       /* required major,minor protocol rev */
+
+    [MUX_TARGET] =
+    { "Mux Device",                                                  /* name */
+      "mux",                                                         /* parsed_name */
+      NV_CTRL_TARGET_TYPE_MUX,                                       /* nvctrl */
+      CTRL_TARGET_PERM_BIT(MUX_TARGET),                              /* permission_bit */
+      NV_FALSE,                                                      /* uses_display_devices */
+      1, 28 },                                                       /* required major,minor protocol rev */
 };
 
 const int targetTypeInfoTableLen = ARRAY_LEN(targetTypeInfoTable);
@@ -121,6 +129,7 @@ Bool NvCtrlIsTargetTypeValid(CtrlTargetType target_type)
         case THERMAL_SENSOR_TARGET:
         case NVIDIA_3D_VISION_PRO_TRANSCEIVER_TARGET:
         case DISPLAY_TARGET:
+        case MUX_TARGET:
             return TRUE;
         default:
             return FALSE;
@@ -611,6 +620,7 @@ ReturnStatus NvCtrlQueryTargetCount(const CtrlTarget *ctrl_target,
         case X_SCREEN_TARGET:
         case FRAMELOCK_TARGET:
         case NVIDIA_3D_VISION_PRO_TRANSCEIVER_TARGET:
+        case MUX_TARGET:
             return NvCtrlNvControlQueryTargetCount(h, target_type, val);
         default:
             return NvCtrlBadHandle;
@@ -770,6 +780,7 @@ ReturnStatus NvCtrlGetDisplayAttribute64(const CtrlTarget *ctrl_target,
             case X_SCREEN_TARGET:
             case FRAMELOCK_TARGET:
             case NVIDIA_3D_VISION_PRO_TRANSCEIVER_TARGET:
+            case MUX_TARGET:
                 if (!h->nv) return NvCtrlMissingExtension;
                 return NvCtrlNvControlGetAttribute(h, display_mask, attr, val);
             default:
@@ -831,6 +842,7 @@ ReturnStatus NvCtrlSetDisplayAttribute(CtrlTarget *ctrl_target,
             case X_SCREEN_TARGET:
             case FRAMELOCK_TARGET:
             case NVIDIA_3D_VISION_PRO_TRANSCEIVER_TARGET:
+            case MUX_TARGET:
                 if (!h->nv) {
                     return NvCtrlMissingExtension;
                 }
@@ -905,6 +917,7 @@ NvCtrlGetValidDisplayAttributeValues(const CtrlTarget *ctrl_target,
             case X_SCREEN_TARGET:
             case FRAMELOCK_TARGET:
             case NVIDIA_3D_VISION_PRO_TRANSCEIVER_TARGET:
+            case MUX_TARGET:
                 if (!h->nv) {
                     return NvCtrlMissingExtension;
                 }
@@ -978,6 +991,7 @@ NvCtrlGetValidStringDisplayAttributeValues(const CtrlTarget *ctrl_target,
             case X_SCREEN_TARGET:
             case FRAMELOCK_TARGET:
             case NVIDIA_3D_VISION_PRO_TRANSCEIVER_TARGET:
+            case MUX_TARGET:
                 if (!h->nv) {
                     return NvCtrlMissingExtension;
                 }
@@ -1061,6 +1075,7 @@ ReturnStatus NvCtrlGetStringDisplayAttribute(const CtrlTarget *ctrl_target,
         case X_SCREEN_TARGET:
         case FRAMELOCK_TARGET:
         case NVIDIA_3D_VISION_PRO_TRANSCEIVER_TARGET:
+        case MUX_TARGET:
             if ((attr >= 0) && (attr <= NV_CTRL_STRING_LAST_ATTRIBUTE)) {
                 if (!h->nv) return NvCtrlMissingExtension;
                 return NvCtrlNvControlGetStringAttribute(h, display_mask, attr, ptr);
@@ -1141,6 +1156,7 @@ ReturnStatus NvCtrlSetStringDisplayAttribute(CtrlTarget *ctrl_target,
             case X_SCREEN_TARGET:
             case FRAMELOCK_TARGET:
             case NVIDIA_3D_VISION_PRO_TRANSCEIVER_TARGET:
+            case MUX_TARGET:
                 if (!h->nv) return NvCtrlMissingExtension;
                 return NvCtrlNvControlSetStringAttribute(h, display_mask, attr,
                                                          ptr);

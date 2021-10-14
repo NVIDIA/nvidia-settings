@@ -187,7 +187,8 @@ static void ctk_3d_vision_pro_finalize(GObject *object)
 
 
 static void ctk_3d_vision_pro_class_init(Ctk3DVisionProClass
-                                         *ctk_3d_vision_pro_class)
+                                         *ctk_3d_vision_pro_class,
+                                         gpointer class_data)
 {
     GObjectClass *gobject_class = (GObjectClass *)ctk_3d_vision_pro_class;
     gobject_class->finalize = ctk_3d_vision_pro_finalize;
@@ -325,8 +326,11 @@ static const char *new_glasses_name_activate(GtkWidget *widget,
     const gchar *str = gtk_entry_get_text(GTK_ENTRY(widget));
 
     // Store new glasses name in dialog box
-    dlg->glasses_new_name = realloc(dlg->glasses_new_name, strlen(str) + 1);
-    strncpy(dlg->glasses_new_name, str, strlen(str) + 1);
+    char *new_name = strdup(str);
+    if (new_name != NULL) {
+        free(dlg->glasses_new_name);
+        dlg->glasses_new_name = new_name;
+    }
 
     return str;
 }
@@ -1320,7 +1324,7 @@ static void rename_button_clicked(GtkButton *button, gpointer user_data)
                         continue;
                     }
                     strncpy(HTU(0)->glasses_info[dlg->glasses_selected_index]->name, dlg->glasses_new_name,
-                            sizeof(HTU(0)->glasses_info[dlg->glasses_selected_index]->name));
+                            sizeof(HTU(0)->glasses_info[dlg->glasses_selected_index]->name) - 1);
                     HTU(0)->glasses_info[dlg->glasses_selected_index]->name[GLASSES_NAME_MAX_LENGTH - 1] = '\0';
 
                     update_glasses_info_data_table(&(ctk_3d_vision_pro->table), HTU(0)->glasses_info);

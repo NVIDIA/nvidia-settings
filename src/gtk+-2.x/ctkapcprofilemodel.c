@@ -29,9 +29,9 @@
 static GObjectClass *parent_class = NULL;
 
 // Forward declarations
-static void apc_profile_model_init(CtkApcProfileModel *prof_model);
+static void apc_profile_model_init(CtkApcProfileModel *prof_model, gpointer);
 static void apc_profile_model_finalize(GObject *object);
-static void apc_profile_model_tree_model_init(GtkTreeModelIface *iface);
+static void apc_profile_model_tree_model_init(GtkTreeModelIface *iface, gpointer);
 static GtkTreeModelFlags apc_profile_model_get_flags(GtkTreeModel *tree_model);
 static gint apc_profile_model_get_n_columns(GtkTreeModel *tree_model);
 static GType apc_profile_model_get_column_type(GtkTreeModel *tree_model, gint index);
@@ -54,7 +54,7 @@ apc_profile_model_iter_nth_child(GtkTreeModel *tree_model,
 static gboolean apc_profile_model_iter_parent(GtkTreeModel *tree_model,
                                               GtkTreeIter *iter,
                                               GtkTreeIter *child);
-static void apc_profile_model_class_init(CtkApcProfileModelClass *klass);
+static void apc_profile_model_class_init(CtkApcProfileModelClass *klass, gpointer);
 static void apc_profile_model_get_value(GtkTreeModel *tree_model,
                                         GtkTreeIter *iter,
                                         gint column,
@@ -62,7 +62,7 @@ static void apc_profile_model_get_value(GtkTreeModel *tree_model,
 
 
 static void
-apc_profile_model_tree_sortable_init(GtkTreeSortableIface *iface);
+apc_profile_model_tree_sortable_init(GtkTreeSortableIface *iface, gpointer);
 
 static gboolean apc_profile_model_get_sort_column_id(GtkTreeSortable *sortable,
                                                      gint *sort_column_id,
@@ -122,7 +122,7 @@ GType ctk_apc_profile_model_get_type(void)
     return apc_profile_model_type;
 }
 
-static void apc_profile_model_class_init(CtkApcProfileModelClass *klass)
+static void apc_profile_model_class_init(CtkApcProfileModelClass *klass, gpointer class_data)
 {
     GObjectClass *object_class;
 
@@ -182,7 +182,7 @@ static gint apc_profile_model_sort_settings(GtkTreeModel *model,
     return result;
 }
 
-static void apc_profile_model_init(CtkApcProfileModel *prof_model)
+static void apc_profile_model_init(CtkApcProfileModel *prof_model, gpointer g_class)
 {
     prof_model->stamp = g_random_int(); // random int to catch iterator type mismatches
     prof_model->config = NULL;
@@ -222,7 +222,8 @@ static void apc_profile_model_finalize(GObject *object)
 }
 
 static void
-apc_profile_model_tree_model_init(GtkTreeModelIface *iface)
+apc_profile_model_tree_model_init(GtkTreeModelIface *iface,
+                                  gpointer iface_data)
 {
     iface->get_flags       = apc_profile_model_get_flags;
     iface->get_n_columns   = apc_profile_model_get_n_columns;
@@ -239,7 +240,8 @@ apc_profile_model_tree_model_init(GtkTreeModelIface *iface)
 }
 
 static void
-apc_profile_model_tree_sortable_init(GtkTreeSortableIface *iface)
+apc_profile_model_tree_sortable_init(GtkTreeSortableIface *iface,
+                                     gpointer iface_data)
 {
     iface->get_sort_column_id = apc_profile_model_get_sort_column_id;
     iface->set_sort_column_id = apc_profile_model_set_sort_column_id;

@@ -39,7 +39,7 @@
 #include "NVCtrlLib.h"
 #include "msg.h"
 
-static void ctk_event_class_init(CtkEventClass *ctk_event_class);
+static void ctk_event_class_init(CtkEventClass *ctk_event_class, gpointer);
 
 static gboolean ctk_event_prepare(GSource *, gint *);
 static gboolean ctk_event_check(GSource *);
@@ -101,7 +101,8 @@ GType ctk_event_get_type(void)
 } /* ctk_event_get_type() */
 
 
-static void ctk_event_class_init(CtkEventClass *ctk_event_class)
+static void ctk_event_class_init(CtkEventClass *ctk_event_class,
+                                 gpointer class_data)
 {
     gint i;
 
@@ -262,8 +263,6 @@ static void ctk_event_class_init(CtkEventClass *ctk_event_class)
     MAKE_SIGNAL(NV_CTRL_FRAMELOCK_DISPLAY_CONFIG);
     MAKE_SIGNAL(NV_CTRL_TOTAL_DEDICATED_GPU_MEMORY);
     MAKE_SIGNAL(NV_CTRL_USED_DEDICATED_GPU_MEMORY);
-    MAKE_SIGNAL(NV_CTRL_GPU_DOUBLE_PRECISION_BOOST_IMMEDIATE);
-    MAKE_SIGNAL(NV_CTRL_GPU_DOUBLE_PRECISION_BOOST_REBOOT);
     MAKE_SIGNAL(NV_CTRL_DPY_HDMI_3D);
     MAKE_SIGNAL(NV_CTRL_BASE_MOSAIC);
     MAKE_SIGNAL(NV_CTRL_MULTIGPU_PRIMARY_POSSIBLE);
@@ -296,6 +295,7 @@ static void ctk_event_class_init(CtkEventClass *ctk_event_class)
     MAKE_SIGNAL(NV_CTRL_DISPLAY_VRR_MIN_REFRESH_RATE);
     MAKE_SIGNAL(NV_CTRL_DISPLAY_VRR_ENABLED);
     MAKE_SIGNAL(NV_CTRL_PLATFORM_POWER_MODE);
+    MAKE_SIGNAL(NV_CTRL_MUX_AUTO_SWITCH);
 #undef MAKE_SIGNAL
 
     /*
@@ -305,7 +305,7 @@ static void ctk_event_class_init(CtkEventClass *ctk_event_class)
      * knows about.
      */
 
-#if NV_CTRL_LAST_ATTRIBUTE != NV_CTRL_PLATFORM_CURRENT_POWER_MODE
+#if NV_CTRL_LAST_ATTRIBUTE != NV_CTRL_RESIZABLE_BAR
 #warning "There are attributes that do not emit signals!"
 #endif
 
@@ -350,9 +350,10 @@ static void ctk_event_class_init(CtkEventClass *ctk_event_class)
     MAKE_STRING_SIGNAL(NV_CTRL_STRING_GPU_UTILIZATION);
     MAKE_STRING_SIGNAL(NV_CTRL_STRING_MULTIGPU_MODE);
     MAKE_STRING_SIGNAL(NV_CTRL_STRING_PRIME_OUTPUTS_DATA);
+    MAKE_STRING_SIGNAL(NV_CTRL_STRING_MUX_STATE);
 #undef MAKE_STRING_SIGNAL
 
-#if NV_CTRL_STRING_LAST_ATTRIBUTE != NV_CTRL_STRING_DISPLAY_NAME_CONNECTOR
+#if NV_CTRL_STRING_LAST_ATTRIBUTE != NV_CTRL_STRING_MUX_STATE
 #warning "There are attributes that do not emit signals!"
 #endif
 

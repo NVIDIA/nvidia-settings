@@ -59,7 +59,7 @@
 
 
 static void
-ctk_banner_class_init    (CtkBannerClass *);
+ctk_banner_class_init    (CtkBannerClass *, gpointer);
 
 static void
 ctk_banner_finalize      (GObject *);
@@ -122,7 +122,8 @@ GType ctk_banner_get_type(
 }
 
 static void ctk_banner_class_init(
-    CtkBannerClass *ctk_banner_class
+    CtkBannerClass *ctk_banner_class,
+    gpointer class_data
 )
 {
     GObjectClass *gobject_class;
