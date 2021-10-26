@@ -2005,6 +2005,12 @@ void ctk_manage_grid_license_start_timer(GtkWidget *widget)
     ctk_config_start_timer(ctk_manage_grid_license->ctk_config,
                            (GSourceFunc) update_manage_grid_license_state_info,
                            (gpointer) ctk_manage_grid_license);
+
+    /* Query licensable feature info if switched to 'Manage License' page
+       from any other page to update license expiry information */
+    if (ctk_manage_grid_license->licenseStatus == NV_GRID_LICENSE_STATUS_ACQUIRED) {
+        get_licensable_feature_information(ctk_manage_grid_license);
+    }
 }
 
 void ctk_manage_grid_license_stop_timer(GtkWidget *widget)
