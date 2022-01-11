@@ -67,6 +67,20 @@ gboolean ctk_widget_get_visible(GtkWidget *w)
 #endif
 }
 
+void ctk_widget_set_visible(GtkWidget *w, gboolean visible)
+{
+#ifdef CTK_GTK3
+    /* GTK function added in 2.18 */
+    gtk_widget_set_visible(w, visible);
+#else
+    if (visible) {
+        gtk_widget_show(w);
+    } else {
+        gtk_widget_hide(w);
+    }
+#endif
+}
+
 gboolean ctk_widget_is_drawable(GtkWidget *w)
 {
 #ifdef CTK_GTK3
@@ -323,6 +337,15 @@ void ctk_cell_renderer_set_alignment(GtkCellRenderer *renderer,
 #endif
 }
 
+void ctk_widget_set_halign_left(GtkWidget *w)
+{
+#ifdef CTK_GTK3
+    gtk_widget_set_halign(w, GTK_ALIGN_START);
+#else
+    g_object_set(w, "xalign", 0.0, NULL);
+#endif
+}
+
 GtkWidget *ctk_file_chooser_dialog_new(const gchar *title,
                                        GtkWindow *parent,
                                        GtkFileChooserAction action)
@@ -457,9 +480,7 @@ gchar *get_pcie_link_speed_string(CtrlTarget *ctrl_target, int attribute)
     gchar *s = NULL;
 
     ret = NvCtrlGetAttribute(ctrl_target, attribute, &tmp);
-    if (ret != NvCtrlSuccess) {
-        s = g_strdup_printf("Unknown");
-    } else {
+    if (ret == NvCtrlSuccess) {
         s = g_strdup_printf("%.1f GT/s", tmp/1000.0);
     }
 
@@ -551,11 +572,11 @@ gchar* create_display_name_list_string(CtrlTarget *ctrl_target,
     ret = NvCtrlGetBinaryAttribute(ctrl_target, 0,
                                    attr,
                                    (unsigned char **)(&pData), &len);
-    if (ret != NvCtrlSuccess) {
-        goto done;
+    if (ret == NvCtrlNotSupported) {
+        return NULL;
     }
 
-    for (i = 0; i < pData[0]; i++) {
+    for (i = 0; ret == NvCtrlSuccess && i < pData[0]; i++) {
         CtrlTarget *ctrl_other;
         int display_id = pData[i+1];
         gchar *logName = NULL;
@@ -600,8 +621,6 @@ gchar* create_display_name_list_string(CtrlTarget *ctrl_target,
             displays = tmp_str;
         }
     }
-
- done:
 
     if (!displays) {
         displays = g_strdup("None");
@@ -771,6 +790,10 @@ void ctk_empty_container(GtkWidget *container)
 {
     GList *list;
     GList *node;
+
+    if (!container) {
+        return;
+    }
 
     list = gtk_container_get_children(GTK_CONTAINER(container));
     node = list;

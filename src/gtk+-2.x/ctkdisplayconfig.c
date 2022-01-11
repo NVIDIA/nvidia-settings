@@ -499,6 +499,13 @@ static void register_layout_events(CtkDisplayConfig *ctk_object)
                          CTK_EVENT_NAME(NV_CTRL_STRING_DELETE_METAMODE),
                          G_CALLBACK(display_config_attribute_changed),
                          (gpointer) ctk_object);
+
+        if (screen->num_prime_displays > 0) {
+            g_signal_connect(G_OBJECT(screen->ctk_event),
+                             CTK_EVENT_NAME(NV_CTRL_STRING_PRIME_OUTPUTS_DATA),
+                             G_CALLBACK(display_config_attribute_changed),
+                             (gpointer) ctk_object);
+        }
     }
 
 } /* register_layout_events() */

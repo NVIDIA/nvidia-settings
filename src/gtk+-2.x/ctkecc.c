@@ -58,6 +58,22 @@ static const char *__aggregate_dbit_error_help =
 "Returns the number of double-bit ECC errors detected by the "
 "targeted GPU since the last counter reset.";
 
+static const char *__detailed_sbit_error_help =
+"Returns the number of single-bit ECC errors detected for the specified "
+"memory location by the targeted GPU since the last system reboot.";
+
+static const char *__detailed_dbit_error_help =
+"Returns the number of double-bit ECC errors detected for the specified "
+"memory location by the targeted GPU since the last system reboot.";
+
+static const char *__detailed_aggregate_sbit_error_help =
+"Returns the number of single-bit ECC errors detected for the specified "
+"memory location by the targeted GPU since the last counter reset.";
+
+static const char *__detailed_aggregate_dbit_error_help =
+"Returns the number of double-bit ECC errors detected for the specified "
+"memory location by the targeted GPU since the last counter reset.";
+
 static const char *__configuration_status_help =
 "Returns the current ECC configuration setting or specifies new "
 "settings.  Changes to these settings do not take effect until the next "
@@ -157,6 +173,135 @@ static GtkWidget *add_table_int_row(CtkConfig *ctk_config, GtkWidget *table,
 
 
 /*
+ * memory_location_label() - returns the proper name of the memory location
+ * specified.
+ */
+static const char *memory_location_label(const int index, int sram_value)
+{
+    if (index < 0 || index >= NVML_MEMORY_LOCATION_COUNT) {
+        return "Unknown";
+    }
+
+    /*
+     * NVML_MEMORY_LOCATION_DRAM and MNML_MEMORY_LOCATION_DEVICE_MEMORY share
+     * the same index value. _DRAM is only for Turing+ while _DEVICE_MEMORY is
+     * used preTuring. Since NVML_MEMORY_LOCATION_SRAM is also only used for
+     * Turing+, if that value is valid then this is Turing+ and we want the DRAM
+     * label.
+     */
+
+    if (index == NVML_MEMORY_LOCATION_DRAM && sram_value >= 0) {
+        return "DRAM";
+    }
+
+    switch (index) {
+        case NVML_MEMORY_LOCATION_L1_CACHE:
+            return "L1 Cache";
+        case NVML_MEMORY_LOCATION_L2_CACHE:
+            return "L2 Cache";
+        case NVML_MEMORY_LOCATION_DEVICE_MEMORY:
+            // See above for duplicate value NVML_MEMORY_LOCATION_DRAM
+            return "Device Memory";
+        case NVML_MEMORY_LOCATION_REGISTER_FILE:
+            return "Register File";
+        case NVML_MEMORY_LOCATION_TEXTURE_MEMORY:
+            return "Texture Memory";
+        case NVML_MEMORY_LOCATION_TEXTURE_SHM:
+            return "Texture Shared";
+        case NVML_MEMORY_LOCATION_CBU:
+            return "CBU";
+        case NVML_MEMORY_LOCATION_SRAM:
+            return "SRAM";
+    }
+
+    return "Unknown";
+}
+
+
+
+/*
+ * update_detailed_widgets() - fills in or clears out the values for the
+ * detailed ECC information.
+ */
+static void update_detailed_widgets(CtkEccDetailedTableRow errors[],
+                                    gboolean vol, int *counts)
+{
+    int loc;
+    int value;
+    char s[32];
+    GtkLabel *label;
+    for (loc = NVML_MEMORY_LOCATION_L1_CACHE;
+         loc < NVML_MEMORY_LOCATION_COUNT;
+         loc++) {
+
+        if (!counts) {
+            value = -1;
+        } else {
+            value = counts[loc];
+        }
+
+        if (vol) {
+            errors[loc].vol_count_value = value;
+            label = GTK_LABEL(errors[loc].vol_count);
+        } else {
+            errors[loc].agg_count_value = value;
+            label = GTK_LABEL(errors[loc].agg_count);
+        }
+
+        if (value < 0) {
+            gtk_label_set_text(label, "N/A");
+        } else {
+            sprintf(s, "%d", value);
+            gtk_label_set_text(label, s);
+        }
+    }
+}
+
+
+
+/*
+ * hide_unavailable_rows() - Hide a row in the table for a memory location if
+ * both the volatile and aggregate values are less than 0, i.e. not supported.
+ */
+
+static void hide_unavailable_rows(CtkEcc *ctk_ecc)
+{
+    int loc;
+    gboolean show_row;
+    gboolean any_detailed_info = FALSE;
+
+    for (loc = NVML_MEMORY_LOCATION_L1_CACHE;
+         loc < NVML_MEMORY_LOCATION_COUNT;
+         loc++) {
+
+        show_row = (ctk_ecc->single_errors[loc].vol_count_value >= 0 ||
+                    ctk_ecc->single_errors[loc].agg_count_value >= 0);
+        ctk_widget_set_visible(ctk_ecc->single_errors[loc].err_type, show_row);
+        ctk_widget_set_visible(ctk_ecc->single_errors[loc].mem_type, show_row);
+        ctk_widget_set_visible(ctk_ecc->single_errors[loc].vol_count,
+                               show_row);
+        ctk_widget_set_visible(ctk_ecc->single_errors[loc].agg_count,
+                               show_row);
+        any_detailed_info |= show_row;
+
+        show_row = (ctk_ecc->double_errors[loc].vol_count_value >= 0 ||
+                    ctk_ecc->double_errors[loc].agg_count_value >= 0);
+        ctk_widget_set_visible(ctk_ecc->double_errors[loc].err_type, show_row);
+        ctk_widget_set_visible(ctk_ecc->double_errors[loc].mem_type, show_row);
+        ctk_widget_set_visible(ctk_ecc->double_errors[loc].vol_count,
+                               show_row);
+        ctk_widget_set_visible(ctk_ecc->double_errors[loc].agg_count,
+                               show_row);
+        any_detailed_info |= show_row;
+    }
+
+    ctk_widget_set_visible(ctk_ecc->detailed_table, any_detailed_info);
+    ctk_widget_set_visible(ctk_ecc->summary_table, !any_detailed_info);
+}
+
+
+
+/*
  * update_ecc_info() - update ECC status and configuration
  */
 
@@ -167,6 +312,8 @@ static gboolean update_ecc_info(gpointer user_data)
     int64_t val;
     gboolean status;
     ReturnStatus ret;
+    unsigned char *cdata;
+    int *counts, len;
 
 
     if (!ctk_ecc->ecc_config_supported && !ctk_ecc->ecc_enabled ) {
@@ -201,7 +348,18 @@ static gboolean update_ecc_info(gpointer user_data)
 
     /* Query ECC Errors */
 
-    if (ctk_ecc->sbit_error) {
+    /* Detailed Single Bit Volatile */
+    counts = NULL;
+    cdata = NULL;
+    ret = NvCtrlGetBinaryAttribute(ctrl_target, 0,
+              NV_CTRL_BINARY_DATA_GPU_ECC_DETAILED_ERRORS_SINGLE_BIT,
+              &cdata, &len);
+    if (ret == NvCtrlSuccess) {
+        counts = (int *)cdata;
+    }
+    update_detailed_widgets(ctk_ecc->single_errors, 1, counts);
+
+    if (!counts && ctk_ecc->sbit_error) {
         ret = NvCtrlGetAttribute64(ctrl_target,
                                    NV_CTRL_GPU_ECC_SINGLE_BIT_ERRORS,
                                    &val);
@@ -210,8 +368,21 @@ static gboolean update_ecc_info(gpointer user_data)
         }
         set_label_value(ctk_ecc->sbit_error, val);
     }
+    nvfree(cdata);
 
-    if (ctk_ecc->dbit_error) {
+    /* Detailed Double Bit Volatile */
+    counts = NULL;
+    cdata = NULL;
+    ret = NvCtrlGetBinaryAttribute(ctrl_target, 0,
+              NV_CTRL_BINARY_DATA_GPU_ECC_DETAILED_ERRORS_DOUBLE_BIT,
+              &cdata, &len);
+    if (ret == NvCtrlSuccess) {
+        counts = (int *)cdata;
+    }
+
+    update_detailed_widgets(ctk_ecc->double_errors, 1, counts);
+
+    if (!counts && ctk_ecc->dbit_error) {
         ret = NvCtrlGetAttribute64(ctrl_target,
                                    NV_CTRL_GPU_ECC_DOUBLE_BIT_ERRORS,
                                    &val);
@@ -220,8 +391,21 @@ static gboolean update_ecc_info(gpointer user_data)
         }
         set_label_value(ctk_ecc->dbit_error, val);
     }
+    nvfree(cdata);
 
-    if (ctk_ecc->aggregate_sbit_error) {
+    /* Detailed Single Bit Aggregate */
+    counts = NULL;
+    cdata = NULL;
+    ret = NvCtrlGetBinaryAttribute(ctrl_target, 0,
+              NV_CTRL_BINARY_DATA_GPU_ECC_DETAILED_ERRORS_SINGLE_BIT_AGGREGATE,
+              &cdata, &len);
+    if (ret == NvCtrlSuccess) {
+        counts = (int *)cdata;
+    }
+
+    update_detailed_widgets(ctk_ecc->single_errors, 0, counts);
+
+    if (!counts && ctk_ecc->aggregate_sbit_error) {
         ret = NvCtrlGetAttribute64(ctrl_target,
                                    NV_CTRL_GPU_ECC_AGGREGATE_SINGLE_BIT_ERRORS,
                                    &val);
@@ -230,8 +414,21 @@ static gboolean update_ecc_info(gpointer user_data)
         }
         set_label_value(ctk_ecc->aggregate_sbit_error, val);
     }
+    nvfree(cdata);
 
-    if (ctk_ecc->aggregate_dbit_error) {
+    /* Detailed Double Bit Aggregate */
+    counts = NULL;
+    cdata = NULL;
+    ret = NvCtrlGetBinaryAttribute(ctrl_target, 0,
+              NV_CTRL_BINARY_DATA_GPU_ECC_DETAILED_ERRORS_DOUBLE_BIT_AGGREGATE,
+              &cdata, &len);
+    if (ret == NvCtrlSuccess) {
+        counts = (int *)cdata;
+    }
+
+    update_detailed_widgets(ctk_ecc->double_errors, 0, counts);
+
+    if (!counts && ctk_ecc->aggregate_dbit_error) {
         ret = NvCtrlGetAttribute64(ctrl_target,
                                    NV_CTRL_GPU_ECC_AGGREGATE_DOUBLE_BIT_ERRORS,
                                    &val);
@@ -240,6 +437,9 @@ static gboolean update_ecc_info(gpointer user_data)
         }
         set_label_value(ctk_ecc->aggregate_dbit_error, val);
     }
+    nvfree(cdata);
+
+    hide_unavailable_rows(ctk_ecc);
 
     return TRUE;
 } /* update_ecc_info() */
@@ -480,6 +680,99 @@ static void ecc_config_button_toggled(GtkWidget *widget,
 
 
 
+/*
+ * pack_detailed_widgets() - helper function to create a row for detailed ECC
+ * data.
+ */
+
+static void pack_detailed_widgets(CtkEcc *ctk_ecc, gboolean single,
+                                  int row, int loc)
+{
+    CtkConfig *ctk_config = ctk_ecc->ctk_config;
+    GtkWidget *widget_err = NULL;
+    GtkWidget *widget_mem = NULL;
+    int xpad = 12, ypad = 2;
+
+    widget_mem = GTK_WIDGET(gtk_label_new(memory_location_label(loc, 0)));
+    if (single) {
+        widget_err = GTK_WIDGET(gtk_label_new("Single Bit"));
+        ctk_ecc->single_errors[loc].err_type = widget_err;
+        ctk_ecc->single_errors[loc].mem_type = widget_mem;
+    } else {
+        widget_err = GTK_WIDGET(gtk_label_new("Double Bit"));
+        ctk_ecc->double_errors[loc].err_type = widget_err;
+        ctk_ecc->double_errors[loc].mem_type = widget_mem;
+    }
+
+    ctk_widget_set_halign_left(widget_err);
+    ctk_widget_set_halign_left(widget_mem);
+
+    gtk_table_attach(GTK_TABLE(ctk_ecc->detailed_table), widget_err, 0, 1,
+                     row, row + 1, GTK_FILL, GTK_FILL, xpad, ypad);
+
+    gtk_table_attach(GTK_TABLE(ctk_ecc->detailed_table), widget_mem, 1, 2,
+                     row, row + 1, GTK_FILL, GTK_FILL, xpad, ypad);
+
+    if (single) {
+        ctk_config_set_tooltip(ctk_config,
+                               ctk_ecc->single_errors[loc].vol_count,
+                               __detailed_sbit_error_help);
+        ctk_config_set_tooltip(ctk_config,
+                               ctk_ecc->single_errors[loc].agg_count,
+                               __detailed_aggregate_sbit_error_help);
+        gtk_table_attach(GTK_TABLE(ctk_ecc->detailed_table),
+                         ctk_ecc->single_errors[loc].vol_count,
+                         2, 3, row, row + 1, GTK_SHRINK, GTK_SHRINK,
+                         xpad, ypad);
+        gtk_table_attach(GTK_TABLE(ctk_ecc->detailed_table),
+                         ctk_ecc->single_errors[loc].agg_count,
+                         3, 4, row, row + 1, GTK_SHRINK, GTK_SHRINK,
+                         xpad, ypad);
+    } else {
+        ctk_config_set_tooltip(ctk_config,
+                               ctk_ecc->double_errors[loc].vol_count,
+                               __detailed_dbit_error_help);
+        ctk_config_set_tooltip(ctk_config,
+                               ctk_ecc->double_errors[loc].agg_count,
+                               __detailed_aggregate_dbit_error_help);
+        gtk_table_attach(GTK_TABLE(ctk_ecc->detailed_table),
+                         ctk_ecc->double_errors[loc].vol_count,
+                         2, 3, row, row + 1, GTK_SHRINK, GTK_SHRINK,
+                         xpad, ypad);
+        gtk_table_attach(GTK_TABLE(ctk_ecc->detailed_table),
+                         ctk_ecc->double_errors[loc].agg_count,
+                         3, 4, row, row + 1, GTK_SHRINK, GTK_SHRINK,
+                         xpad, ypad);
+    }
+}
+
+
+
+/*
+ * update_detailed_label_for_values() - Sets the label names for the
+ * detailed memory location labels. This need to be run after the first
+ * query for values so that it can propery set the labels for the
+ * memory locations available.
+ */
+static void update_detailed_label_for_values(CtkEcc *ctk_ecc)
+{
+    const char *loc_str;
+
+    loc_str = memory_location_label(NVML_MEMORY_LOCATION_DRAM,
+        ctk_ecc->single_errors[NVML_MEMORY_LOCATION_SRAM].vol_count_value);
+    gtk_label_set_text(
+        GTK_LABEL(ctk_ecc->single_errors[NVML_MEMORY_LOCATION_DRAM].mem_type),
+        loc_str);
+
+    loc_str = memory_location_label(NVML_MEMORY_LOCATION_DRAM,
+        ctk_ecc->double_errors[NVML_MEMORY_LOCATION_SRAM].vol_count_value);
+    gtk_label_set_text(
+        GTK_LABEL(ctk_ecc->double_errors[NVML_MEMORY_LOCATION_DRAM].mem_type),
+        loc_str);
+}
+
+
+
 GtkWidget* ctk_ecc_new(CtrlTarget *ctrl_target,
                        CtkConfig *ctk_config,
                        CtkEvent *ctk_event)
@@ -502,6 +795,8 @@ GtkWidget* ctk_ecc_new(CtrlTarget *ctrl_target,
     ReturnStatus ret;
     gchar *ecc_enabled_string;
     gchar *str = NULL;
+    int loc;
+    gint xpad = 12, ypad = 2;
 
     /* make sure we have a handle */
 
@@ -635,34 +930,41 @@ GtkWidget* ctk_ecc_new(CtrlTarget *ctrl_target,
     hseparator = gtk_hseparator_new();
     gtk_box_pack_start(GTK_BOX(hbox), hseparator, TRUE, TRUE, 5);
 
-    table = gtk_table_new(1, 2, FALSE);
-    gtk_box_pack_start(GTK_BOX(vbox), table, FALSE, FALSE, 0);
-    gtk_table_set_row_spacings(GTK_TABLE(table), 3);
-    gtk_table_set_col_spacings(GTK_TABLE(table), 15);
-    gtk_container_set_border_width(GTK_CONTAINER(table), 5);
-
     /* ECC Status */
     hbox2 = gtk_hbox_new(FALSE, 0);
-    gtk_table_attach(GTK_TABLE(table), hbox2, 0, 1, row, row+1,
-                     GTK_FILL, GTK_FILL | GTK_EXPAND, 5, 0);
+    gtk_box_pack_start(GTK_BOX(vbox), hbox2, FALSE, FALSE, 5);
 
     label = gtk_label_new("ECC:");
     gtk_misc_set_alignment(GTK_MISC(label), 0.0f, 0.5f);
-    gtk_box_pack_start(GTK_BOX(hbox2), label, FALSE, FALSE, 0);
+    gtk_box_pack_start(GTK_BOX(hbox2), label, FALSE, FALSE, 5);
 
     eventbox = gtk_event_box_new();
-    gtk_table_attach(GTK_TABLE(table), eventbox, 1, 2, row, row+1,
-                     GTK_FILL, GTK_FILL | GTK_EXPAND, 5, 0);
+    gtk_box_pack_start(GTK_BOX(hbox2), eventbox, FALSE, FALSE, 5);
 
     label = gtk_label_new(ecc_enabled_string);
     gtk_misc_set_alignment(GTK_MISC(label), 0.0f, 0.5f);
     gtk_container_add(GTK_CONTAINER(eventbox), label);
     ctk_config_set_tooltip(ctk_config, eventbox, __ecc_status_help);
     ctk_ecc->status = label;
-    
-    row += 3;
-    
+
+
     /* Add ECC Errors */
+    hbox = gtk_hbox_new(FALSE, 0);
+    gtk_box_pack_start(GTK_BOX(vbox), hbox, FALSE, FALSE, 0);
+
+    label = gtk_label_new("ECC Errors");
+    gtk_box_pack_start(GTK_BOX(hbox), label, FALSE, FALSE, 0);
+
+    hseparator = gtk_hseparator_new();
+    gtk_box_pack_start(GTK_BOX(hbox), hseparator, TRUE, TRUE, 5);
+
+    row = 0;
+    table = gtk_table_new(1, 2, FALSE);
+    gtk_box_pack_start(GTK_BOX(vbox), table, FALSE, FALSE, 0);
+    gtk_table_set_row_spacings(GTK_TABLE(table), 3);
+    gtk_table_set_col_spacings(GTK_TABLE(table), 15);
+    gtk_container_set_border_width(GTK_CONTAINER(table), 5);
+
 
     if (sbit_error_available && dbit_error_available) {
         ctk_ecc->sbit_error =
@@ -690,7 +992,79 @@ GtkWidget* ctk_ecc_new(CtrlTarget *ctrl_target,
                               "Aggregate Double-bit ECC Errors:",
                               aggregate_dbit_error, row, ecc_enabled);
     }
-    
+
+    ctk_ecc->summary_table = table;
+
+    /*
+     * Create the structures needed for the Detailed ECC information table.
+     */
+
+    /* Initialize the widgets for the Detailed ECC counts */
+    for (loc = NVML_MEMORY_LOCATION_L1_CACHE;
+         loc < NVML_MEMORY_LOCATION_COUNT;
+         loc++) {
+        ctk_ecc->single_errors[loc].vol_count =
+            GTK_WIDGET(gtk_label_new("N/A"));
+        ctk_ecc->single_errors[loc].agg_count =
+            GTK_WIDGET(gtk_label_new("N/A"));
+        ctk_ecc->double_errors[loc].vol_count =
+            GTK_WIDGET(gtk_label_new("N/A"));
+        ctk_ecc->double_errors[loc].agg_count =
+            GTK_WIDGET(gtk_label_new("N/A"));
+    }
+
+    /* Create the detailed ECC table. Headers, labels, and pack the widgets */
+    ctk_ecc->detailed_table = gtk_table_new(5, 4, FALSE);
+
+    /* Header row */
+    row = 0;
+    gtk_table_attach(GTK_TABLE(ctk_ecc->detailed_table),
+                     GTK_WIDGET(gtk_label_new("Error Type")),
+                     0, 1, row, row + 1, GTK_FILL, GTK_FILL, xpad, ypad);
+    gtk_table_attach(GTK_TABLE(ctk_ecc->detailed_table),
+                     GTK_WIDGET(gtk_label_new("Memory Type")),
+                     1, 2, row, row + 1, GTK_FILL, GTK_FILL, xpad, ypad);
+    gtk_table_attach(GTK_TABLE(ctk_ecc->detailed_table),
+                     GTK_WIDGET(gtk_label_new("Volatile")),
+                     2, 3, row, row + 1, GTK_SHRINK, GTK_SHRINK, xpad, ypad);
+    gtk_table_attach(GTK_TABLE(ctk_ecc->detailed_table),
+                     GTK_WIDGET(gtk_label_new("Aggregate")),
+                     3, 4, row, row + 1, GTK_SHRINK, GTK_SHRINK, xpad, ypad);
+
+    /* Start of the data rows, add the single bit error rows first */
+
+    row = 1;
+
+    /* Single Bit */;
+    pack_detailed_widgets(ctk_ecc, TRUE, row++,
+                          NVML_MEMORY_LOCATION_DEVICE_MEMORY);
+    for (loc = NVML_MEMORY_LOCATION_L1_CACHE;
+         loc < NVML_MEMORY_LOCATION_COUNT;
+         loc++, row++) {
+        if (loc == NVML_MEMORY_LOCATION_DEVICE_MEMORY) {
+            continue;
+        }
+        pack_detailed_widgets(ctk_ecc, TRUE, row, loc);
+    }
+
+    /* Double Bit */
+    pack_detailed_widgets(ctk_ecc, FALSE, row++,
+                          NVML_MEMORY_LOCATION_DEVICE_MEMORY);
+    for (loc = NVML_MEMORY_LOCATION_L1_CACHE;
+         loc < NVML_MEMORY_LOCATION_COUNT;
+         loc++, row++) {
+        if (loc == NVML_MEMORY_LOCATION_DEVICE_MEMORY) {
+            continue;
+        }
+        pack_detailed_widgets(ctk_ecc, FALSE, row, loc);
+    }
+
+    gtk_widget_set_sensitive(ctk_ecc->detailed_table, ecc_enabled);
+
+    gtk_box_pack_start(GTK_BOX(vbox), ctk_ecc->detailed_table,
+                       FALSE, FALSE, 0);
+
+
     /* ECC configuration settings */
 
     hbox = gtk_hbox_new(FALSE, 0);
@@ -783,6 +1157,7 @@ GtkWidget* ctk_ecc_new(CtrlTarget *ctrl_target,
     gtk_widget_show_all(GTK_WIDGET(ctk_ecc));
 
     update_ecc_info(ctk_ecc);
+    update_detailed_label_for_values(ctk_ecc);
 
     return GTK_WIDGET(ctk_ecc);
 }

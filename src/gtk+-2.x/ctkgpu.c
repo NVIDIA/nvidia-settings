@@ -96,7 +96,7 @@ void get_bus_type_str(CtrlTarget *ctrl_target, gchar **bus)
     gchar *bus_type_str, *bus_rate, *pcie_gen;
 
     bus_type = 0xffffffff;
-    bus_type_str = "Unknown";
+    bus_type_str = NULL;
     ret = NvCtrlGetAttribute(ctrl_target, NV_CTRL_BUS_TYPE, &bus_type);
     if (ret == NvCtrlSuccess) {
         if      (bus_type == NV_CTRL_BUS_TYPE_AGP)
@@ -107,6 +107,8 @@ void get_bus_type_str(CtrlTarget *ctrl_target, gchar **bus)
             bus_type_str = "PCI Express";
         else if (bus_type == NV_CTRL_BUS_TYPE_INTEGRATED)
             bus_type_str = "Integrated";
+        else
+            bus_type_str = "Unknown";
     }
 
     /* NV_CTRL_GPU_PCIE_MAX_LINK_WIDTH */
@@ -228,8 +230,8 @@ GtkWidget* ctk_gpu_new(CtrlTarget *ctrl_target,
     ReturnStatus ret;
 
     gchar *screens;
-    gchar *displays;
-    gchar *tmp_str;
+    gchar *displays = NULL;
+    gchar *tmp_str = NULL;
     gchar *gpu_cores;
     gchar *memory_interface;
     gchar *bus = NULL;
@@ -508,9 +510,11 @@ GtkWidget* ctk_gpu_new(CtrlTarget *ctrl_target,
                       0, 0.5, "VBIOS Version:",
                       0, 0.5, vbios_version);
     }
-    add_table_row(table, row++,
-                  0, 0.5, "Total Memory:",
-                  0, 0.5, video_ram);
+    if (video_ram) {
+        add_table_row(table, row++,
+                      0, 0.5, "Total Memory:",
+                      0, 0.5, video_ram);
+    }
     add_table_row(table, row++,
                   0, 0.5, "Total Dedicated Memory:",
                   0, 0.5, gpu_memory_text);
@@ -548,9 +552,11 @@ GtkWidget* ctk_gpu_new(CtrlTarget *ctrl_target,
 
     /* spacing */
     row += 3;
-    add_table_row(table, row++,
-                  0, 0.5, "Bus Type:",
-                  0, 0.5, bus);
+    if (bus) {
+        add_table_row(table, row++,
+                      0, 0.5, "Bus Type:",
+                      0, 0.5, bus);
+    }
     if ( pci_bus_id ) {
         add_table_row(table, row++,
                       0, 0.5, "Bus ID:",
@@ -580,13 +586,17 @@ GtkWidget* ctk_gpu_new(CtrlTarget *ctrl_target,
         add_table_row(table, row++,
                       0, 0.5, "Maximum PCIe Link Width:",
                       0, 0.5, link_width_str);
-        add_table_row(table, row++,
-                      0, 0.5, "Maximum PCIe Link Speed:",
-                      0, 0.5, link_speed_str);
-        ctk_gpu->pcie_utilization_label =
+        if (link_speed_str) {
             add_table_row(table, row++,
-                          0, 0.5, "PCIe Bandwidth Utilization:",
-                          0, 0.5, NULL);
+                          0, 0.5, "Maximum PCIe Link Speed:",
+                          0, 0.5, link_speed_str);
+        }
+        if (entry.pcie_specified) {
+            ctk_gpu->pcie_utilization_label =
+                add_table_row(table, row++,
+                              0, 0.5, "PCIe Bandwidth Utilization:",
+                              0, 0.5, NULL);
+        }
 
         g_free(link_speed_str);
         g_free(link_width_str);
@@ -595,19 +605,22 @@ GtkWidget* ctk_gpu_new(CtrlTarget *ctrl_target,
     }
 
     update_gpu_usage(ctk_gpu);
-    /* spacing */
-    row += 3;
-    add_table_row(table, row++,
-                  0, 0, "X Screens:",
-                  0, 0, screens);
-    /* spacing */
-    displays = make_display_device_list(ctrl_target);
 
-    row += 3;
-    ctk_gpu->displays =
-        add_table_row(table, row,
-                      0, 0, "Display Devices:",
-                      0, 0, displays);
+    if (ctrl_target->system->has_nv_control) {
+        /* spacing */
+        row += 3;
+        add_table_row(table, row++,
+                      0, 0, "X Screens:",
+                      0, 0, screens);
+        /* spacing */
+        displays = make_display_device_list(ctrl_target);
+
+        row += 3;
+        ctk_gpu->displays =
+            add_table_row(table, row,
+                          0, 0, "Display Devices:",
+                          0, 0, displays);
+    }
 
     free(product_name);
     free(vbios_version);
@@ -657,7 +670,7 @@ GtkTextBuffer *ctk_gpu_create_help(GtkTextTagTable *table,
     ctk_help_title(b, &i, "Graphics Card Information Help");
 
     ctk_help_para(b, &i, "This page in the NVIDIA "
-                  "X Server Control Panel describes basic "
+                  "Settings Control Panel describes basic "
                   "information about the Graphics Processing Unit "
                   "(GPU).");
     

@@ -367,7 +367,7 @@ GtkTextBuffer *ctk_screen_create_help(GtkTextTagTable *table,
     ctk_help_title(b, &i, "X Screen Information Help");
 
     ctk_help_para(b, &i, "This page in the NVIDIA "
-                  "X Server Control Panel describes basic "
+                  "Settings Control Panel describes basic "
                   "information about the X Screen '%s'.",
                   screen_name);
     

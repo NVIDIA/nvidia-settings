@@ -82,7 +82,7 @@ GtkWidget* ctk_help_new(GtkWidget *toggle_button, GtkTextTagTable *tag_table)
     ctk_help->toggle_button = toggle_button;
 
     gtk_window_set_title(GTK_WINDOW(ctk_help),
-                         "NVIDIA X Server Settings Help");
+                         "NVIDIA Settings Help");
 
     gtk_window_set_default_size(GTK_WINDOW(ctk_help), -1, 400);
 
@@ -203,7 +203,7 @@ static GtkTextBuffer *create_default_help(CtkHelp *ctk_help)
     gtk_text_buffer_get_iter_at_offset(buffer, &iter, 0);
 
     gtk_text_buffer_insert_with_tags_by_name
-        (buffer, &iter, "\nNVIDIA X Server Settings Help", -1,
+        (buffer, &iter, "\nNVIDIA Settings Help", -1,
          CTK_HELP_TITLE_TAG, NULL);
     
     gtk_text_buffer_insert(buffer, &iter, "\n\nThere is no help available "

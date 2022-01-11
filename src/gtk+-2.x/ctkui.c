@@ -49,20 +49,6 @@ void ctk_main(ParsedAttribute *p,
     gtk_window_set_default_icon_list(list);
     window = ctk_window_new(p, conf, system);
 
-    if (!system->has_nv_control) {
-        GtkWidget *dlg;
-        dlg = gtk_message_dialog_new (NULL,
-                                      GTK_DIALOG_MODAL,
-                                      GTK_MESSAGE_WARNING,
-                                      GTK_BUTTONS_OK,
-                                      "You do not appear to be using the NVIDIA "
-                                      "X driver.  Please edit your X configuration "
-                                      "file (just run `nvidia-xconfig` "
-                                      "as root), and restart the X server.");
-        gtk_dialog_run(GTK_DIALOG(dlg));
-        gtk_widget_destroy (dlg);
-    }
-
     ctk_window_set_active_page(CTK_WINDOW(window), page);
 
     gtk_main();

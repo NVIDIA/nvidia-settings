@@ -1257,7 +1257,7 @@ GtkTextBuffer *ctk_glx_create_help(GtkTextTagTable *table,
 
     ctk_help_title(b, &i, "Graphics Information Help");
     ctk_help_para(b, &i,
-                  "This page in the NVIDIA X Server Control Panel describes "
+                  "This page in the NVIDIA Settings Control Panel describes "
                   "information about graphics libraries available on this X "
                   "screen."
                   );

@@ -42,6 +42,10 @@
 
 #define STATUSBAR_UPDATE_WARNING "This will take effect after changes are saved."
 
+#define SHARPEN_ENABLE_DEFAULT FALSE
+#define SHARPEN_VALUE_DEFAULT 50
+#define SHARPEN_FILM_GRAIN_DEFAULT 17
+
 enum {
    RULE_FEATURE_PROCNAME,
    RULE_FEATURE_DSO,
@@ -362,8 +366,13 @@ static GtkWidget *populate_registry_key_combo_callback(gpointer init_data)
     for (i = 0; i < json_array_size(key_docs); i++) {
         json_t *json_key_object = json_array_get(key_docs, i);
         json_t *json_name = json_object_get(json_key_object, "key");
+        const gchar *key_name = json_string_value(json_name);
+        // The GLSharpen* variables have custom UI, so don't add them to the dropdown
+        if (!strncmp(key_name, "GLSharpen", 9)) {
+            continue;
+        }
         ctk_drop_down_menu_append_item(menu,
-                                       json_string_value(json_name),
+                                       key_name,
                                        i);
     }
 
@@ -1382,6 +1391,18 @@ static gboolean profile_browse_button_clicked(GtkWidget *widget, gpointer user_d
     return FALSE;
 }
 
+static void sharpen_enable_checkbox_toggled(GtkWidget *widget,
+                                            gpointer user_data)
+{
+    EditProfileDialog *dialog = (EditProfileDialog *)user_data;
+    gboolean sharpen_enable;
+
+    sharpen_enable = gtk_toggle_button_get_active(GTK_TOGGLE_BUTTON(widget));
+
+    ctk_widget_set_visible(dialog->sharpen_value_box, sharpen_enable);
+    ctk_widget_set_visible(dialog->sharpen_film_grain_box, sharpen_enable);
+}
+
 static const char __rule_pattern_help[] =
     "In this section, you write the pattern that will be used to determine whether "
     "the settings in this rule will apply to a given application.";
@@ -2348,12 +2369,47 @@ static gboolean append_setting(GtkTreeModel *model,
     return FALSE;
 }
 
+static void edit_profile_dialog_update_sharpen_settings(EditProfileDialog *dialog)
+{
+    json_t *sharpen_enable_setting, *sharpen_value_setting, *sharpen_film_setting;
+    gboolean sharpen_enable;
+    int sharpen_value, sharpen_film;
+
+    sharpen_enable = gtk_toggle_button_get_active(GTK_TOGGLE_BUTTON(dialog->sharpen_enable_check_button));
+
+    if (!sharpen_enable) {
+        return;
+    }
+
+    sharpen_enable_setting = json_object();
+    json_object_set_new(sharpen_enable_setting, "key", json_string("GLSharpenEnable"));
+    json_object_set_new(sharpen_enable_setting, "value", json_boolean(sharpen_enable));
+
+    json_array_append(dialog->settings, sharpen_enable_setting);
+
+    sharpen_value_setting = json_object();
+    json_object_set_new(sharpen_value_setting, "key", json_string("GLSharpenValue"));
+    sharpen_value = gtk_adjustment_get_value(GTK_ADJUSTMENT(dialog->sharpen_value_adjustment));
+    json_object_set_new(sharpen_value_setting, "value", json_integer(sharpen_value));
+
+    json_array_append(dialog->settings, sharpen_value_setting);
+
+    sharpen_film_setting = json_object();
+    json_object_set_new(sharpen_film_setting, "key", json_string("GLSharpenIgnoreFilmGrain"));
+    sharpen_film = gtk_adjustment_get_value(GTK_ADJUSTMENT(dialog->sharpen_film_grain_adjustment));
+    json_object_set_new(sharpen_film_setting, "value", json_integer(sharpen_film));
+
+    json_array_append(dialog->settings, sharpen_film_setting);
+}
+
 static void edit_profile_dialog_update_settings(EditProfileDialog *dialog)
 {
     json_array_clear(dialog->settings);
     gtk_tree_model_foreach(GTK_TREE_MODEL(dialog->settings_store),
                            append_setting,
                            (gpointer)dialog->settings);
+
+    edit_profile_dialog_update_sharpen_settings(dialog);
 }
 
 static gboolean widget_get_visible(GtkWidget *widget)
@@ -2974,13 +3030,17 @@ static EditProfileDialog *edit_profile_dialog_new(CtkAppProfile *ctk_app_profile
     GtkWidget *tree_view;
     GtkWidget *scroll_win;
     GtkWidget *button;
+    GtkWidget *sharpen_enable_checkbox;
+    GtkWidget *sharpen_value_slider;
+    GtkWidget *sharpen_film_slider;
+    GtkAdjustment *sharpen_value_adjustment;
+    GtkAdjustment *sharpen_film_adjustment;
     GList *toolbar_widget_items;
 
     ToolbarItemTemplate *edit_profile_settings_toolbar_items, *edit_profile_dialog_toolbar_items;
     size_t num_edit_profile_settings_toolbar_items, num_edit_profile_dialog_toolbar_items;
     TreeViewColumnTemplate *settings_tree_view_columns;
     size_t num_settings_tree_view_columns;
-
 
     dialog = malloc(sizeof(EditProfileDialog));
     if (!dialog) {
@@ -3098,6 +3158,56 @@ static EditProfileDialog *edit_profile_dialog_new(CtkAppProfile *ctk_app_profile
     scroll_win = gtk_scrolled_window_new(NULL, NULL);
     gtk_container_add(GTK_CONTAINER(scroll_win), tree_view);
     gtk_box_pack_start(GTK_BOX(main_vbox), scroll_win, TRUE, TRUE, 0);
+
+    hbox = gtk_hbox_new(FALSE, 5);
+
+    label = gtk_label_new("Enable Sharpening");
+    dialog->sharpen_enable_check_button = sharpen_enable_checkbox
+        = gtk_check_button_new();
+
+    gtk_toggle_button_set_active(GTK_TOGGLE_BUTTON(sharpen_enable_checkbox),
+                                 SHARPEN_ENABLE_DEFAULT);
+
+    g_signal_connect(G_OBJECT(sharpen_enable_checkbox), "toggled",
+                     G_CALLBACK(sharpen_enable_checkbox_toggled),
+                     (gpointer)dialog);
+
+    gtk_box_pack_start(GTK_BOX(hbox), label, FALSE, FALSE, 0);
+    gtk_box_pack_start(GTK_BOX(hbox), sharpen_enable_checkbox, TRUE, TRUE, 0);
+
+    gtk_box_pack_start(GTK_BOX(main_vbox), hbox, FALSE, FALSE, 0);
+
+    dialog->sharpen_value_box = hbox = gtk_hbox_new(FALSE, 5);
+    label = gtk_label_new("Sharpening Amount");
+    dialog->sharpen_value_adjustment = sharpen_value_adjustment
+        = GTK_ADJUSTMENT(gtk_adjustment_new(SHARPEN_VALUE_DEFAULT, 0, 100, 1, 1, 0.0));
+
+    dialog->sharpen_value_slider = sharpen_value_slider =
+        gtk_hscale_new(GTK_ADJUSTMENT(sharpen_value_adjustment));
+    gtk_scale_set_draw_value(GTK_SCALE(sharpen_value_slider), TRUE);
+    gtk_scale_set_value_pos(GTK_SCALE(sharpen_value_slider), GTK_POS_TOP);
+    gtk_scale_set_digits(GTK_SCALE(sharpen_value_slider), 0);
+
+    gtk_box_pack_start(GTK_BOX(hbox), label, FALSE, FALSE, 0);
+    gtk_box_pack_start(GTK_BOX(hbox), sharpen_value_slider, TRUE, TRUE, 0);
+
+    gtk_box_pack_start(GTK_BOX(main_vbox), hbox, FALSE, FALSE, 0);
+
+    dialog->sharpen_film_grain_box = hbox = gtk_hbox_new(FALSE, 5);
+    label = gtk_label_new("Film Grain Reduction");
+    dialog->sharpen_film_grain_adjustment = sharpen_film_adjustment =
+        GTK_ADJUSTMENT(gtk_adjustment_new(SHARPEN_FILM_GRAIN_DEFAULT, 0, 100, 1, 1, 0.0));
+
+    dialog->sharpen_film_grain_slider = sharpen_film_slider =
+        gtk_hscale_new(GTK_ADJUSTMENT(sharpen_film_adjustment));
+    gtk_scale_set_draw_value(GTK_SCALE(sharpen_film_slider), TRUE);
+    gtk_scale_set_value_pos(GTK_SCALE(sharpen_film_slider), GTK_POS_TOP);
+    gtk_scale_set_digits(GTK_SCALE(sharpen_film_slider), 0);
+
+    gtk_box_pack_start(GTK_BOX(hbox), label, FALSE, FALSE, 0);
+    gtk_box_pack_start(GTK_BOX(hbox), sharpen_film_slider, TRUE, TRUE, 0);
+
+    gtk_box_pack_start(GTK_BOX(main_vbox), hbox, FALSE, FALSE, 0);
 
     dialog->setting_update_canceled = FALSE;
 
@@ -3400,6 +3510,50 @@ static gboolean profiles_tree_view_key_press_event(GtkWidget *widget,
     return FALSE;
 }
 
+static gboolean check_sharpening_setting(EditProfileDialog *dialog,
+                                         GtkTreeModel *model,
+                                         GtkTreeIter *iter)
+{
+    json_t *setting;
+    json_t *value;
+    const char *key;
+
+    gtk_tree_model_get(model, iter, SETTING_LIST_STORE_COL_SETTING, &setting, -1);
+    if (setting && setting->refcount == 0) {
+        return FALSE;
+    }
+
+    key = json_string_value(json_object_get(setting, "key"));
+    value = json_object_get(setting, "value");
+
+    if (!strcmp(key, "GLSharpenEnable")) {
+        gtk_toggle_button_set_active(GTK_TOGGLE_BUTTON(dialog->sharpen_enable_check_button),
+                                 json_is_true(value));
+        return TRUE;
+    } else if (!strcmp(key, "GLSharpenValue") && json_is_integer(value)) {
+        gtk_adjustment_set_value(GTK_ADJUSTMENT(dialog->sharpen_value_adjustment), json_integer_value(value));
+        return TRUE;
+    } else if (!strcmp(key, "GLSharpenIgnoreFilmGrain") && json_is_integer(value)) {
+        gtk_adjustment_set_value(GTK_ADJUSTMENT(dialog->sharpen_film_grain_adjustment), json_integer_value(value));
+        return TRUE;
+    }
+
+    return FALSE;
+}
+
+static void edit_profile_dialog_load_sharpening_settings(EditProfileDialog *dialog) {
+    gint i, row_count;
+    GtkTreeModel *model = GTK_TREE_MODEL(dialog->settings_store);
+    GtkTreeIter iter;
+    row_count = gtk_tree_model_iter_n_children(model, NULL);
+    for (i = row_count - 1; i >= 0; i--) {
+        gtk_tree_model_iter_nth_child(model, &iter, NULL, i);
+        if (check_sharpening_setting(dialog, model, &iter)) {
+            gtk_list_store_remove(GTK_LIST_STORE(dialog->settings_store), &iter);
+        }
+    }
+}
+
 static void edit_profile_dialog_load_values(EditProfileDialog *dialog)
 {
     // window title
@@ -3436,6 +3590,7 @@ static void edit_profile_dialog_load_values(EditProfileDialog *dialog)
         load_settings_from_profile(CTK_APP_PROFILE(dialog->parent),
                                    dialog->settings_store,
                                    dialog->name->str);
+        edit_profile_dialog_load_sharpening_settings(dialog);
     } else {
         gtk_list_store_clear(dialog->settings_store);
     }
@@ -3445,6 +3600,7 @@ static void edit_profile_dialog_show(EditProfileDialog *dialog)
 {
     edit_profile_dialog_load_values(dialog);
     gtk_widget_show_all(dialog->top_window);
+    sharpen_enable_checkbox_toggled(dialog->sharpen_enable_check_button, dialog);
 
     // disable focusing to calling window until this window closed
     gtk_window_set_transient_for(GTK_WINDOW(dialog->top_window),

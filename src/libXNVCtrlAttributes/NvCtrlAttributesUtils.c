@@ -505,7 +505,9 @@ static void add_target_relationships(CtrlTarget *target,
     status = NvCtrlGetBinaryAttribute(target, 0, attr,
                                       (unsigned char **)(&pData), &len);
     if ((status != NvCtrlSuccess) || !pData) {
-        nv_error_msg("Error querying target relations");
+        if (status != NvCtrlNotSupported) {
+            nv_error_msg("Error querying target relations");
+        }
         return;
     }
 
@@ -673,7 +675,7 @@ static CtrlTarget *nv_alloc_ctrl_target(CtrlSystem *system,
      * not being specified in xorg.conf, it can cause errors down the line.
      */
 
-    if (target_type == GPU_TARGET) {
+    if (target_type == GPU_TARGET && t->system->has_nv_control) {
         /* NV_CTRL_DEPTH_30_ALLOWED expected to succeed for any valid device */
         status = NvCtrlGetAttribute(t, NV_CTRL_DEPTH_30_ALLOWED, &d);
         if (status != NvCtrlSuccess) {
@@ -733,7 +735,7 @@ static CtrlTarget *nv_alloc_ctrl_target(CtrlSystem *system,
      * (framelock), we just assign this to 0.
      */
 
-    if (targetTypeInfo->uses_display_devices) {
+    if (targetTypeInfo->uses_display_devices && system->has_nv_control) {
 
         status = NvCtrlGetAttribute(t,
                                     NV_CTRL_ENABLED_DISPLAYS, &d);
@@ -817,6 +819,16 @@ static Bool is_nvcontrol_protocol_valid(const CtrlTarget *ctrl_target,
 }
 
 
+static const char *get_display_name(CtrlSystem *system)
+{
+    if (system->has_nv_control) {
+        return XDisplayName(system->display);
+    } else {
+        return system->display;
+    }
+}
+
+
 static Bool load_system_info(CtrlSystem *system, const char *display)
 {
     ReturnStatus status;
@@ -826,6 +838,8 @@ static Bool load_system_info(CtrlSystem *system, const char *display)
     int unused;
     int *pData = NULL;
     const CtrlTargetTypeInfo *targetTypeInfo;
+    int subsystems = NV_CTRL_ATTRIBUTES_NV_CONTROL_SUBSYSTEM |
+                     NV_CTRL_ATTRIBUTES_NVML_SUBSYSTEM;
 
     if (!system) {
         return FALSE;
@@ -841,19 +855,19 @@ static Bool load_system_info(CtrlSystem *system, const char *display)
     system->dpy = XOpenDisplay(system->display);
 
     if (system->dpy == NULL) {
-        nv_error_msg("Unable to find display on any available system");
-        return FALSE;
+        /* If it fails, just use NVML */
+        subsystems = NV_CTRL_ATTRIBUTES_NVML_SUBSYSTEM;
+    } else {
+        system->has_nv_control =
+            XNVCTRLQueryExtension(system->dpy, &unused, &unused);
     }
 
-    system->has_nv_control =
-        XNVCTRLQueryExtension(system->dpy, &unused, &unused);
-
     /* Try to initialize the NVML library */
-    nvmlQueryTarget = nv_alloc_ctrl_target(system, GPU_TARGET, 0,
-                                   NV_CTRL_ATTRIBUTES_NV_CONTROL_SUBSYSTEM |
-                                   NV_CTRL_ATTRIBUTES_NVML_SUBSYSTEM);
+    nvmlQueryTarget = nv_alloc_ctrl_target(system, GPU_TARGET, 0, subsystems);
 
-    if (nvmlQueryTarget == NULL) {
+    system->has_nvml = (nvmlQueryTarget != NULL);
+
+    if (system->has_nvml == FALSE) {
         nv_error_msg("Unable to load info from any available system");
         return FALSE;
     }
@@ -888,7 +902,9 @@ static Bool load_system_info(CtrlSystem *system, const char *display)
             status = NvCtrlQueryTargetCount(nvmlQueryTarget,
                                             target_type,
                                             &val);
-            target_count = val;
+            if (status == NvCtrlSuccess) {
+                target_count = val;
+            }
 
         }
         else if ((h != NULL) && (h->nvml != NULL) &&
@@ -950,7 +966,7 @@ static Bool load_system_info(CtrlSystem *system, const char *display)
                 nv_warning_msg("Unable to determine number of NVIDIA "
                                "%ss on '%s'.",
                                targetTypeInfo->name,
-                               XDisplayName(system->display));
+                               get_display_name(system));
                 val = 0;
             }
 
@@ -1026,7 +1042,7 @@ static Bool load_system_info(CtrlSystem *system, const char *display)
 
     if (status != NvCtrlSuccess) {
         nv_warning_msg("Unable to determine number of NVIDIA %ss on '%s'.",
-                       targetTypeInfo->name, XDisplayName(system->display));
+                       targetTypeInfo->name, get_display_name(system));
         val = 0;
     }
 

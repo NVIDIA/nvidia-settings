@@ -49,7 +49,7 @@ static void print_version(void)
 {
     nv_msg(NULL, "");
     nv_msg(NULL, NV_ID_STRING);
-    nv_msg(TAB, "The NVIDIA X Server Settings tool.");
+    nv_msg(TAB, "The NVIDIA Settings tool.");
     nv_msg(NULL, "");
     nv_msg(TAB, "This program is used to configure the "
            "NVIDIA Linux graphics driver.");

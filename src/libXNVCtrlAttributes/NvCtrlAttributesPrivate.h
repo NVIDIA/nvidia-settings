@@ -170,15 +170,31 @@ struct __NvCtrlNvmlAttributes {
         typeof(nvmlDeviceGetUUID)                       (*deviceGetUUID);
         typeof(nvmlDeviceGetCount)                      (*deviceGetCount);
         typeof(nvmlDeviceGetTemperature)                (*deviceGetTemperature);
-        typeof(nvmlDeviceGetFanSpeed)                   (*deviceGetFanSpeed);
         typeof(nvmlDeviceGetName)                       (*deviceGetName);
         typeof(nvmlDeviceGetVbiosVersion)               (*deviceGetVbiosVersion);
         typeof(nvmlDeviceGetMemoryInfo)                 (*deviceGetMemoryInfo);
+        typeof(nvmlDeviceGetMemoryInfo_v2)              (*deviceGetMemoryInfo_v2);
         typeof(nvmlDeviceGetPciInfo)                    (*deviceGetPciInfo);
+        typeof(nvmlDeviceGetCurrPcieLinkWidth)          (*deviceGetCurrPcieLinkWidth);
         typeof(nvmlDeviceGetMaxPcieLinkGeneration)      (*deviceGetMaxPcieLinkGeneration);
         typeof(nvmlDeviceGetMaxPcieLinkWidth)           (*deviceGetMaxPcieLinkWidth);
         typeof(nvmlDeviceGetVirtualizationMode)         (*deviceGetVirtualizationMode);
         typeof(nvmlDeviceGetGridLicensableFeatures_v4)  (*deviceGetGridLicensableFeatures);
+        typeof(nvmlDeviceGetUtilizationRates)           (*deviceGetUtilizationRates);
+        typeof(nvmlDeviceGetTemperatureThreshold)       (*deviceGetTemperatureThreshold);
+        typeof(nvmlDeviceGetFanSpeed_v2)                (*deviceGetFanSpeed_v2);
+        typeof(nvmlSystemGetDriverVersion)              (*systemGetDriverVersion);
+        typeof(nvmlDeviceGetEccMode)                    (*deviceGetEccMode);
+        typeof(nvmlDeviceSetEccMode)                    (*deviceSetEccMode);
+        typeof(nvmlDeviceGetTotalEccErrors)             (*deviceGetTotalEccErrors);
+        typeof(nvmlDeviceClearEccErrorCounts)           (*deviceClearEccErrorCounts);
+        typeof(nvmlDeviceGetMemoryErrorCounter)         (*deviceGetMemoryErrorCounter);
+        typeof(nvmlSystemGetNVMLVersion)                (*systemGetNVMLVersion);
+        typeof(nvmlDeviceGetNumGpuCores)                (*deviceGetNumGpuCores);
+        typeof(nvmlDeviceGetMemoryBusWidth)             (*deviceGetMemoryBusWidth);
+        typeof(nvmlDeviceGetIrqNum)                     (*deviceGetIrqNum);
+        typeof(nvmlDeviceGetPowerSource)                (*deviceGetPowerSource);
+        typeof(nvmlDeviceGetNumFans)                    (*deviceGetNumFans);
 
     } lib;
 
@@ -456,5 +472,10 @@ ReturnStatus
 NvCtrlNvmlGetValidAttributeValues(const CtrlTarget *ctrl_target,
                                   int attr,
                                   CtrlAttributeValidValues *val);
+
+ReturnStatus
+NvCtrlNvmlGetAttributePerms(const NvCtrlAttributePrivateHandle *,
+                            CtrlAttributeType, int,
+                            CtrlAttributePerms *);
 
 #endif /* __NVCTRL_ATTRIBUTES_PRIVATE__ */

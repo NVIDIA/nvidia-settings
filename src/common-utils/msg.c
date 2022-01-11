@@ -113,7 +113,7 @@ do {                                               \
     NV_VSNPRINTF(buf, fmt);                        \
     format(stream, prefix, buf, whitespace);       \
     free (buf);                                    \
-} while(0)
+} while (0)
 
 
 /*

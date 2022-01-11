@@ -367,7 +367,7 @@ int main(int argc, char **argv)
 
     system = NvCtrlGetSystem(op->ctrl_display, &systems);
 
-    if (!system || !system->dpy) {
+    if (!system) {
         return 1;
     }
 

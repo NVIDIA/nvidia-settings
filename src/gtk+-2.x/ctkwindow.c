@@ -500,8 +500,9 @@ GtkWidget *ctk_window_new(ParsedAttribute *p, ConfigProperties *conf,
     GtkTextBuffer *help;
 
     CtrlTargetNode *node;
-    CtrlTarget *server_target = NULL;
-    CtrlTarget *ctrl_target = NULL;
+    CtrlTarget *default_x_target = NULL;
+    CtrlTarget *default_gpu_target = NULL;
+    CtrlTarget *ctrl_target;
 
     CtkEvent *ctk_event;
     CtkConfig *ctk_config;
@@ -656,53 +657,56 @@ GtkWidget *ctk_window_new(ParsedAttribute *p, ConfigProperties *conf,
     ctk_window->page_viewer = hbox;
     ctk_window->page = NULL;
 
+    /*
+     * Create generic and specific default system targets. X Screen target
+     * will only exist if the X Server is available. In that case, the generic
+     * default target will be the default gpu target instead.
+     */
+    default_x_target = NvCtrlGetDefaultTargetByType(system, X_SCREEN_TARGET);
+    default_gpu_target = NvCtrlGetDefaultTargetByType(system, GPU_TARGET);
 
-    /* X Server info & configuration */
+    ctrl_target = default_x_target;
+    if (!ctrl_target) {
+        ctrl_target = default_gpu_target;
+    }
 
-    if (system->targets[X_SCREEN_TARGET]) {
+    /* System Information */
+
+    if (ctrl_target) {
 
         GtkWidget *child;
 
-        /*
-         * XXX For now, just use the first handle in the list
-         *     to communicate with the X server for these two
-         *     pages and the app profile page below.
-         */
+        child = ctk_server_new(ctrl_target, ctk_config);
+        add_page(child,
+                 ctk_server_create_help(tag_table, CTK_SERVER(child)),
+                 ctk_window, NULL, NULL, "System Information",
+                 NULL, NULL, NULL);
+    }
 
-        server_target = NvCtrlGetDefaultTargetByType(system, X_SCREEN_TARGET);
-        if (server_target) {
+    /* X Server Display Configuration */
 
-            /* X Server information */
+    if (default_x_target) {
 
-            child = ctk_server_new(server_target, ctk_config);
+        GtkWidget *child;
+
+        child = ctk_display_config_new(default_x_target, ctk_config);
+        if (child) {
+            ctk_window->display_config_widget = child;
             add_page(child,
-                     ctk_server_create_help(tag_table,
-                                            CTK_SERVER(child)),
-                     ctk_window, NULL, NULL, "X Server Information",
-                     NULL, NULL, NULL);
-
-            /* X Server Display Configuration */
-
-            child = ctk_display_config_new(server_target, ctk_config);
-            if (child) {
-                ctk_window->display_config_widget = child;
-                add_page(child,
-                         ctk_display_config_create_help(tag_table,
-                                                        CTK_DISPLAY_CONFIG(child)),
-                         ctk_window, NULL, NULL,
-                         "X Server Display Configuration",
-                         NULL, ctk_display_config_selected,
-                         ctk_display_config_unselected);
-            }
+                     ctk_display_config_create_help(tag_table,
+                                                    CTK_DISPLAY_CONFIG(child)),
+                     ctk_window, NULL, NULL,
+                     "X Server Display Configuration",
+                     NULL, ctk_display_config_selected,
+                     ctk_display_config_unselected);
 
         }
     }
 
     /* Platform Power Mode */
 
-    ctrl_target = NvCtrlGetDefaultTargetByType(system, GPU_TARGET);
-    ctk_event = CTK_EVENT(ctk_event_new(ctrl_target));
-    widget = ctk_powermode_new(ctrl_target, ctk_config, ctk_event);
+    ctk_event = CTK_EVENT(ctk_event_new(default_gpu_target));
+    widget = ctk_powermode_new(default_gpu_target, ctk_config, ctk_event);
     if (widget) {
         help = ctk_powermode_create_help(tag_table, CTK_POWERMODE(widget));
         add_page(widget, help, ctk_window, NULL, NULL,
@@ -964,7 +968,7 @@ GtkWidget *ctk_window_new(ParsedAttribute *p, ConfigProperties *conf,
     }
 
     /* app profile configuration */
-    widget = ctk_app_profile_new(server_target, ctk_config);
+    widget = ctk_app_profile_new(ctrl_target, ctk_config);
     if (widget) {
         add_page(widget, ctk_app_profile_create_help(CTK_APP_PROFILE(widget), tag_table),
                  ctk_window, NULL, NULL, "Application Profiles",
@@ -1019,7 +1023,7 @@ GtkWidget *ctk_window_new(ParsedAttribute *p, ConfigProperties *conf,
 
     /* set the window title */
     
-    gtk_window_set_title(GTK_WINDOW(object), "NVIDIA X Server Settings");
+    gtk_window_set_title(GTK_WINDOW(object), "NVIDIA Settings");
     
     gtk_widget_show_all(GTK_WIDGET(object));
 

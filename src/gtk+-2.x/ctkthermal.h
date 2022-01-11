@@ -104,6 +104,7 @@ struct _CtkThermal
     int cooler_count;
     int sensor_count;
     gboolean thermal_sensor_target_type_supported;
+    gboolean thermal_cooler_extra_info_supported;
 };
 
 struct _CtkThermalClass

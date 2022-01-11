@@ -189,7 +189,7 @@ int nvgetopt(int argc,
                     if (a[0] == '-') a++;
                     if (a[0] == '+') a++;
 
-                    while(a[0]) { a[0] = a[1]; a++; }
+                    while (a[0]) { a[0] = a[1]; a++; }
 
                     /*
                      * decrement argv_index so that we process this

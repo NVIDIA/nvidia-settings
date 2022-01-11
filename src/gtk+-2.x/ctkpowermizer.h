@@ -55,7 +55,6 @@ struct _CtkPowermizer
     GtkWidget *adaptive_clock_status;
     GtkWidget *gpu_clock;
     GtkWidget *memory_transfer_rate;
-    GtkWidget *processor_clock;
     GtkWidget *power_source;
     GtkWidget *performance_level;
     GtkWidget *performance_table_hbox;
@@ -78,7 +77,6 @@ struct _CtkPowermizer
 
     GtkWidget *link_width;
     GtkWidget *link_speed;
-    gboolean  pcie_gen_queriable;
 };
 
 struct _CtkPowermizerClass

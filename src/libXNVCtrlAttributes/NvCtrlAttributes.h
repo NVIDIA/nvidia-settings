@@ -139,6 +139,7 @@ struct _CtrlSystem {
     char *display;  /* string for XOpenDisplay */
     Display *dpy;   /* X display connection */
     Bool has_nv_control;
+    Bool has_nvml;
 
     CtrlTargetNode *targets[MAX_TARGET_TYPES]; /* Shadows targetTypeTable */
     CtrlTargetNode *physical_screens;
@@ -572,6 +573,17 @@ typedef struct {
 #define NV_CTRL_STRING_XV_VERSION         (NV_CTRL_STRING_XV_BASE)
 
 #define NV_CTRL_STRING_XV_LAST_ATTRIBUTE  (NV_CTRL_STRING_XV_VERSION)
+
+
+/*
+ * Additional XVideo string attributes for NvCtrlGetStringDisplayAttribute();
+ */
+
+#define NV_CTRL_STRING_NVML_BASE            (NV_CTRL_STRING_XV_LAST_ATTRIBUTE + 1)
+
+#define NV_CTRL_STRING_NVML_VERSION         (NV_CTRL_STRING_NVML_BASE)
+
+#define NV_CTRL_STRING_NVML_LAST_ATTRIBUTE  (NV_CTRL_STRING_NVML_VERSION)
 
 
 

@@ -596,6 +596,7 @@ ReturnStatus NvCtrlQueryTargetCount(const CtrlTarget *ctrl_target,
                                     int *val)
 {
     const NvCtrlAttributePrivateHandle *h = getPrivateHandleConst(ctrl_target);
+    ReturnStatus ret = NvCtrlMissingExtension;
 
     if (h == NULL) {
         return NvCtrlBadHandle;
@@ -606,9 +607,9 @@ ReturnStatus NvCtrlQueryTargetCount(const CtrlTarget *ctrl_target,
         case THERMAL_SENSOR_TARGET:
         case COOLER_TARGET:
             {
-                ReturnStatus ret = NvCtrlNvmlQueryTargetCount(ctrl_target,
-                                                              target_type,
-                                                              val);
+                ret = NvCtrlNvmlQueryTargetCount(ctrl_target,
+                                                 target_type,
+                                                 val);
                 if ((ret != NvCtrlMissingExtension) &&
                     (ret != NvCtrlBadHandle) &&
                     (ret != NvCtrlNotSupported)) {
@@ -621,6 +622,13 @@ ReturnStatus NvCtrlQueryTargetCount(const CtrlTarget *ctrl_target,
         case FRAMELOCK_TARGET:
         case NVIDIA_3D_VISION_PRO_TRANSCEIVER_TARGET:
         case MUX_TARGET:
+            if (!h->nv) {
+                /*
+                 * If there is no connection to the X Driver, return the
+                 * non-success value from the NVML query, if available.
+                 */
+                return ret;
+            }
             return NvCtrlNvControlQueryTargetCount(h, target_type, val);
         default:
             return NvCtrlBadHandle;
@@ -674,6 +682,7 @@ ReturnStatus NvCtrlGetAttributePerms(const CtrlTarget *ctrl_target,
                                      CtrlAttributePerms *perms)
 {
     const NvCtrlAttributePrivateHandle *h = getPrivateHandleConst(ctrl_target);
+    ReturnStatus ret = NvCtrlError;
 
     if (h == NULL) {
         return NvCtrlBadHandle;
@@ -688,6 +697,12 @@ ReturnStatus NvCtrlGetAttributePerms(const CtrlTarget *ctrl_target,
         case CTRL_ATTRIBUTE_TYPE_STRING:
         case CTRL_ATTRIBUTE_TYPE_BINARY_DATA:
         case CTRL_ATTRIBUTE_TYPE_STRING_OPERATION:
+
+            ret = NvCtrlNvmlGetAttributePerms(h, attr_type, attr, perms);
+
+            if (ret == NvCtrlSuccess || h->dpy == NULL) {
+                return ret;
+            }
             return NvCtrlNvControlGetAttributePerms(h, attr_type, attr, perms);
 
         case CTRL_ATTRIBUTE_TYPE_COLOR:
@@ -760,18 +775,17 @@ ReturnStatus NvCtrlGetDisplayAttribute64(const CtrlTarget *ctrl_target,
     if (((attr >= 0) && (attr <= NV_CTRL_LAST_ATTRIBUTE)) ||
         ((attr >= NV_CTRL_ATTR_NV_BASE) &&
          (attr <= NV_CTRL_ATTR_NV_LAST_ATTRIBUTE))) {
+        ReturnStatus ret = NvCtrlMissingExtension;
 
         switch (h->target_type) {
             case GPU_TARGET:
             case THERMAL_SENSOR_TARGET:
             case COOLER_TARGET:
                 {
-                    ReturnStatus ret = NvCtrlNvmlGetAttribute(ctrl_target,
-                                                              attr,
-                                                              val);
-                    if ((ret != NvCtrlMissingExtension) &&
-                        (ret != NvCtrlBadHandle) &&
-                        (ret != NvCtrlNotSupported)) {
+                    ret = NvCtrlNvmlGetAttribute(ctrl_target,
+                                                 attr,
+                                                 val);
+                    if (ret == NvCtrlSuccess) {
                         return ret;
                     }
                 }
@@ -781,7 +795,13 @@ ReturnStatus NvCtrlGetDisplayAttribute64(const CtrlTarget *ctrl_target,
             case FRAMELOCK_TARGET:
             case NVIDIA_3D_VISION_PRO_TRANSCEIVER_TARGET:
             case MUX_TARGET:
-                if (!h->nv) return NvCtrlMissingExtension;
+                if (!h->nv) {
+                    /*
+                     * If there is no connection to the X Driver, return the
+                     * non-success value from the NVML query, if available.
+                     */
+                    return ret;
+                }
                 return NvCtrlNvControlGetAttribute(h, display_mask, attr, val);
             default:
                 return NvCtrlBadHandle;
@@ -815,6 +835,7 @@ ReturnStatus NvCtrlSetDisplayAttribute(CtrlTarget *ctrl_target,
                                        int attr, int val)
 {
     NvCtrlAttributePrivateHandle *h = getPrivateHandle(ctrl_target);
+    ReturnStatus ret = NvCtrlMissingExtension;
 
     if (h == NULL) {
         return NvCtrlBadHandle;
@@ -826,7 +847,6 @@ ReturnStatus NvCtrlSetDisplayAttribute(CtrlTarget *ctrl_target,
             case THERMAL_SENSOR_TARGET:
             case COOLER_TARGET:
                 {
-                    ReturnStatus ret;
                     ret = NvCtrlNvmlSetAttribute(ctrl_target,
                                                  attr,
                                                  display_mask,
@@ -844,7 +864,11 @@ ReturnStatus NvCtrlSetDisplayAttribute(CtrlTarget *ctrl_target,
             case NVIDIA_3D_VISION_PRO_TRANSCEIVER_TARGET:
             case MUX_TARGET:
                 if (!h->nv) {
-                    return NvCtrlMissingExtension;
+                    /*
+                     * If there is no connection to the X Driver, return the
+                     * non-success value from the NVML query, if available.
+                     */
+                    return ret;
                 }
                 return NvCtrlNvControlSetAttribute(h, display_mask, attr, val);
             default:
@@ -891,6 +915,7 @@ NvCtrlGetValidDisplayAttributeValues(const CtrlTarget *ctrl_target,
                                      CtrlAttributeValidValues *val)
 {
     const NvCtrlAttributePrivateHandle *h = getPrivateHandleConst(ctrl_target);
+    ReturnStatus ret = NvCtrlMissingExtension;
 
     if (h == NULL) {
         return NvCtrlBadHandle;
@@ -902,13 +927,10 @@ NvCtrlGetValidDisplayAttributeValues(const CtrlTarget *ctrl_target,
             case THERMAL_SENSOR_TARGET:
             case COOLER_TARGET:
                 {
-                    ReturnStatus ret;
                     ret = NvCtrlNvmlGetValidAttributeValues(ctrl_target,
                                                             attr,
                                                             val);
-                    if ((ret != NvCtrlMissingExtension) &&
-                        (ret != NvCtrlBadHandle) &&
-                        (ret != NvCtrlNotSupported)) {
+                    if (ret == NvCtrlSuccess) {
                         return ret;
                     }
                 }
@@ -919,7 +941,11 @@ NvCtrlGetValidDisplayAttributeValues(const CtrlTarget *ctrl_target,
             case NVIDIA_3D_VISION_PRO_TRANSCEIVER_TARGET:
             case MUX_TARGET:
                 if (!h->nv) {
-                    return NvCtrlMissingExtension;
+                    /*
+                     * If there is no connection to the X Driver, return the
+                     * non-success value from the NVML query, if available.
+                     */
+                    return ret;
                 }
                 return NvCtrlNvControlGetValidAttributeValues(h, display_mask,
                                                               attr, val);
@@ -965,6 +991,7 @@ NvCtrlGetValidStringDisplayAttributeValues(const CtrlTarget *ctrl_target,
                                            CtrlAttributeValidValues *val)
 {
     const NvCtrlAttributePrivateHandle *h = getPrivateHandleConst(ctrl_target);
+    ReturnStatus ret = NvCtrlMissingExtension;
 
     if (h == NULL) {
         return NvCtrlBadHandle;
@@ -976,13 +1003,10 @@ NvCtrlGetValidStringDisplayAttributeValues(const CtrlTarget *ctrl_target,
             case THERMAL_SENSOR_TARGET:
             case COOLER_TARGET:
                 {
-                    ReturnStatus ret;
                     ret = NvCtrlNvmlGetValidStringAttributeValues(ctrl_target,
                                                                   attr,
                                                                   val);
-                    if ((ret != NvCtrlMissingExtension) &&
-                        (ret != NvCtrlBadHandle) &&
-                        (ret != NvCtrlNotSupported)) {
+                    if (ret == NvCtrlSuccess) {
                         return ret;
                     }
                 }
@@ -993,7 +1017,11 @@ NvCtrlGetValidStringDisplayAttributeValues(const CtrlTarget *ctrl_target,
             case NVIDIA_3D_VISION_PRO_TRANSCEIVER_TARGET:
             case MUX_TARGET:
                 if (!h->nv) {
-                    return NvCtrlMissingExtension;
+                    /*
+                     * If there is no connection to the X Driver, return the
+                     * non-success value from the NVML query, if available.
+                     */
+                    return ret;
                 }
                 return NvCtrlNvControlGetValidStringDisplayAttributeValues(
                            h, display_mask, attr, val);
@@ -1174,6 +1202,7 @@ ReturnStatus NvCtrlGetBinaryAttribute(const CtrlTarget *ctrl_target,
                                       unsigned char **data, int *len)
 {
     const NvCtrlAttributePrivateHandle *h = getPrivateHandleConst(ctrl_target);
+    ReturnStatus ret = NvCtrlMissingExtension;
 
     if (h == NULL) {
         return NvCtrlBadHandle;
@@ -1184,10 +1213,10 @@ ReturnStatus NvCtrlGetBinaryAttribute(const CtrlTarget *ctrl_target,
         case THERMAL_SENSOR_TARGET:
         case COOLER_TARGET:
             {
-                ReturnStatus ret = NvCtrlNvmlGetBinaryAttribute(ctrl_target,
-                                                                attr,
-                                                                data,
-                                                                len);
+                ret = NvCtrlNvmlGetBinaryAttribute(ctrl_target,
+                                                   attr,
+                                                   data,
+                                                   len);
                 if ((ret != NvCtrlMissingExtension) &&
                     (ret != NvCtrlBadHandle) &&
                     (ret != NvCtrlNotSupported)) {
@@ -1199,6 +1228,13 @@ ReturnStatus NvCtrlGetBinaryAttribute(const CtrlTarget *ctrl_target,
         case X_SCREEN_TARGET:
         case FRAMELOCK_TARGET:
         case NVIDIA_3D_VISION_PRO_TRANSCEIVER_TARGET:
+            if (!h->nv) {
+                /*
+                 * If there is no connection to the X Driver, return the
+                 * non-success value from the NVML query, if available.
+                 */
+                return ret;
+            }
             return NvCtrlNvControlGetBinaryAttribute(h, display_mask, attr, data, len);
         default:
             return NvCtrlBadHandle;
@@ -1634,6 +1670,11 @@ NvCtrlEventHandle *NvCtrlGetEventHandle(const CtrlTarget *ctrl_target)
     const NvCtrlAttributePrivateHandle *h = getPrivateHandleConst(ctrl_target);
 
     if (h == NULL) {
+        return NULL;
+    }
+
+    if (!h->dpy && !h->nv && h->nvml) {
+        /* We are running with NVML lib only. Events not yet supported.*/
         return NULL;
     }
 

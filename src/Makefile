@@ -139,9 +139,6 @@ endif
 
 LDFLAGS += $(XNVCTRL_LDFLAGS)
 
-NVML_EXPERIMENTAL ?=
-CFLAGS += $(if $(NVML_EXPERIMENTAL),-DNVML_EXPERIMENTAL)
-
 
 # Some older Linux distributions do not have the dynamic library
 # libXxf86vm.so, though some newer Linux distributions do not have the

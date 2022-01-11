@@ -101,8 +101,11 @@ static const char * __fan_id_help =
 static const char * __fan_rpm_help =
 "This shows the current GPU Fan Speed in rotations per minute (RPM).";
 
-static const char * __fan_speed_help =
+static const char * __fan_current_speed_help =
 "This shows the current GPU Fan Speed level as a percentage.";
+
+static const char * __fan_target_speed_help =
+"This shows the target GPU Fan Speed level as a percentage.";
 
 static const char * __fan_control_type_help =
 "Fan Type indicates if and how this fan may be controlled.  Possible "
@@ -163,9 +166,12 @@ static gboolean update_cooler_info(gpointer user_data)
     gchar *tmp_str;
     CtkThermal *ctk_thermal;
     GtkWidget *table, *label, *eventbox;
-    gint ret;
+    gint ret, ret2;
     gint row_idx; /* Where to insert into the cooler info table */
-    
+    gboolean cooler_extra_info = FALSE;
+    int num_cols = 2;
+    int current_speed_attr;
+
     ctk_thermal = CTK_THERMAL(user_data);
 
     /* Since table cell management in GTK lacks, just remove and rebuild
@@ -178,7 +184,17 @@ static gboolean update_cooler_info(gpointer user_data)
 
     /* Generate a new table */
 
-    table = gtk_table_new(1, 5, FALSE);
+    ret = NvCtrlGetAttribute(ctk_thermal->cooler_control[0].ctrl_target,
+                             NV_CTRL_THERMAL_COOLER_CONTROL_TYPE, &cooler_type);
+    ret2 = NvCtrlGetAttribute(ctk_thermal->cooler_control[0].ctrl_target,
+                              NV_CTRL_THERMAL_COOLER_TARGET, &cooler_target);
+    if (ret == NvCtrlSuccess && ret2 == NvCtrlSuccess) {
+        cooler_extra_info = TRUE;
+        ctk_thermal->thermal_cooler_extra_info_supported = cooler_extra_info;
+        num_cols = 5;
+    }
+
+    table = gtk_table_new(1, num_cols, FALSE);
     gtk_table_set_row_spacings(GTK_TABLE(table), 3);
     gtk_table_set_col_spacings(GTK_TABLE(table), 15);
     gtk_container_set_border_width(GTK_CONTAINER(table), 5);
@@ -194,39 +210,51 @@ static gboolean update_cooler_info(gpointer user_data)
     gtk_container_add(GTK_CONTAINER(eventbox), label);
     ctk_config_set_tooltip(ctk_thermal->ctk_config, eventbox, __fan_id_help);
 
-    label = gtk_label_new("Speed (RPM)");
-    gtk_misc_set_alignment(GTK_MISC(label), 0.0f, 0.5f);
     eventbox = gtk_event_box_new();
+    if (cooler_extra_info) {
+        current_speed_attr = NV_CTRL_THERMAL_COOLER_SPEED;
+        label = gtk_label_new("Speed (RPM)");
+        ctk_config_set_tooltip(ctk_thermal->ctk_config, eventbox,
+                               __fan_rpm_help);
+    } else {
+        current_speed_attr = NV_CTRL_THERMAL_COOLER_CURRENT_LEVEL;
+        label = gtk_label_new("Current Speed (%)");
+        ctk_config_set_tooltip(ctk_thermal->ctk_config, eventbox,
+                               __fan_current_speed_help);
+    }
+    gtk_misc_set_alignment(GTK_MISC(label), 0.0f, 0.5f);
     gtk_table_attach(GTK_TABLE(table), eventbox, 1, 2, 0, 1,
                      GTK_FILL, GTK_FILL | GTK_EXPAND, 5, 0);
     gtk_container_add(GTK_CONTAINER(eventbox), label);
-    ctk_config_set_tooltip(ctk_thermal->ctk_config, eventbox, __fan_rpm_help);
 
-    label = gtk_label_new("Speed (%)");
-    gtk_misc_set_alignment(GTK_MISC(label), 0.0f, 0.5f);
-    eventbox = gtk_event_box_new();
-    gtk_table_attach(GTK_TABLE(table), eventbox, 2, 3, 0, 1,
-                     GTK_FILL, GTK_FILL | GTK_EXPAND, 5, 0);
-    gtk_container_add(GTK_CONTAINER(eventbox), label);
-    ctk_config_set_tooltip(ctk_thermal->ctk_config, eventbox, __fan_speed_help);
+    if (cooler_extra_info) {
+        label = gtk_label_new("Target Speed (%)");
+        gtk_misc_set_alignment(GTK_MISC(label), 0.0f, 0.5f);
+        eventbox = gtk_event_box_new();
+        gtk_table_attach(GTK_TABLE(table), eventbox, 2, 3, 0, 1,
+                         GTK_FILL, GTK_FILL | GTK_EXPAND, 5, 0);
+        gtk_container_add(GTK_CONTAINER(eventbox), label);
+        ctk_config_set_tooltip(ctk_thermal->ctk_config, eventbox,
+                              __fan_target_speed_help);
 
-    label = gtk_label_new("Control Type");
-    gtk_misc_set_alignment(GTK_MISC(label), 0.0f, 0.5f);
-    eventbox = gtk_event_box_new();
-    gtk_table_attach(GTK_TABLE(table), eventbox, 3, 4, 0, 1,
-                     GTK_FILL, GTK_FILL | GTK_EXPAND, 5, 0);
-    gtk_container_add(GTK_CONTAINER(eventbox), label);
-    ctk_config_set_tooltip(ctk_thermal->ctk_config, eventbox,
-                           __fan_control_type_help);
+        label = gtk_label_new("Control Type");
+        gtk_misc_set_alignment(GTK_MISC(label), 0.0f, 0.5f);
+        eventbox = gtk_event_box_new();
+        gtk_table_attach(GTK_TABLE(table), eventbox, 3, 4, 0, 1,
+                         GTK_FILL, GTK_FILL | GTK_EXPAND, 5, 0);
+        gtk_container_add(GTK_CONTAINER(eventbox), label);
+        ctk_config_set_tooltip(ctk_thermal->ctk_config, eventbox,
+                               __fan_control_type_help);
 
-    label = gtk_label_new("Cooling Target");
-    gtk_misc_set_alignment(GTK_MISC(label), 0.0f, 0.5f);
-    eventbox = gtk_event_box_new();
-    gtk_table_attach(GTK_TABLE(table), eventbox, 4, 5, 0, 1,
-                     GTK_FILL, GTK_FILL | GTK_EXPAND, 5, 0);
-    gtk_container_add(GTK_CONTAINER(eventbox), label);
-    ctk_config_set_tooltip(ctk_thermal->ctk_config, eventbox,
-                           __fan_cooling_target_help);
+        label = gtk_label_new("Cooling Target");
+        gtk_misc_set_alignment(GTK_MISC(label), 0.0f, 0.5f);
+        eventbox = gtk_event_box_new();
+        gtk_table_attach(GTK_TABLE(table), eventbox, 4, 5, 0, 1,
+                         GTK_FILL, GTK_FILL | GTK_EXPAND, 5, 0);
+        gtk_container_add(GTK_CONTAINER(eventbox), label);
+        ctk_config_set_tooltip(ctk_thermal->ctk_config, eventbox,
+                               __fan_cooling_target_help);
+    }
 
     /* Fill the cooler info */
     for (i = 0; i < ctk_thermal->cooler_count; i++) {
@@ -242,7 +270,7 @@ static gboolean update_cooler_info(gpointer user_data)
         free(tmp_str);
 
         ret = NvCtrlGetAttribute(ctk_thermal->cooler_control[i].ctrl_target,
-                                 NV_CTRL_THERMAL_COOLER_SPEED,
+                                 current_speed_attr,
                                  &speed);
         if (ret == NvCtrlSuccess) {
             tmp_str = g_strdup_printf("%d", speed);
@@ -256,69 +284,79 @@ static gboolean update_cooler_info(gpointer user_data)
                          GTK_FILL, GTK_FILL | GTK_EXPAND, 5, 0);
         free(tmp_str);
 
-        ret = NvCtrlGetAttribute(ctk_thermal->cooler_control[i].ctrl_target,
-                                 NV_CTRL_THERMAL_COOLER_LEVEL,
-                                 &level);
-        if (ret != NvCtrlSuccess) {
-            /* cooler information no longer available */
-            return FALSE;
-        }
-        tmp_str = g_strdup_printf("%d", level);
-        label = gtk_label_new(tmp_str);
-        gtk_misc_set_alignment(GTK_MISC(label), 0.0f, 0.5f);
-        gtk_table_attach(GTK_TABLE(table), label, 2, 3, row_idx, row_idx+1,
-                         GTK_FILL, GTK_FILL | GTK_EXPAND, 5, 0);
-        free(tmp_str);
+        if (cooler_extra_info) {
+            ret = NvCtrlGetAttribute(ctk_thermal->cooler_control[i].ctrl_target,
+                                     NV_CTRL_THERMAL_COOLER_LEVEL,
+                                     &level);
+            if (ret != NvCtrlSuccess) {
+                /* cooler information no longer available */
+                return FALSE;
+            }
+            tmp_str = g_strdup_printf("%d", level);
+            label = gtk_label_new(tmp_str);
+            gtk_misc_set_alignment(GTK_MISC(label), 0.0f, 0.5f);
+            gtk_table_attach(GTK_TABLE(table), label, 2, 3, row_idx, row_idx+1,
+                             GTK_FILL, GTK_FILL | GTK_EXPAND, 5, 0);
+            free(tmp_str);
 
-        ret = NvCtrlGetAttribute(ctk_thermal->cooler_control[i].ctrl_target,
-                                 NV_CTRL_THERMAL_COOLER_CONTROL_TYPE,
-                                 &cooler_type);
-        if (ret != NvCtrlSuccess) {
-            /* cooler information no longer available */
-            return FALSE;
-        }
-        if (cooler_type == NV_CTRL_THERMAL_COOLER_CONTROL_TYPE_VARIABLE) {
-            tmp_str = g_strdup_printf("Variable");
-        } else if (cooler_type == NV_CTRL_THERMAL_COOLER_CONTROL_TYPE_TOGGLE) {
-            tmp_str = g_strdup_printf("Toggle");
-        } else if (cooler_type == NV_CTRL_THERMAL_COOLER_CONTROL_TYPE_NONE) {
-            tmp_str = g_strdup_printf("Restricted");
-        }
-        label = gtk_label_new(tmp_str);
-        gtk_misc_set_alignment(GTK_MISC(label), 0.0f, 0.5f);
-        gtk_table_attach(GTK_TABLE(table), label, 3, 4, row_idx, row_idx+1,
-                         GTK_FILL, GTK_FILL | GTK_EXPAND, 5, 0);
-        free(tmp_str);
+            ret = NvCtrlGetAttribute(ctk_thermal->cooler_control[i].ctrl_target,
+                                     NV_CTRL_THERMAL_COOLER_CONTROL_TYPE,
+                                     &cooler_type);
+            if (ret != NvCtrlSuccess && ret != NvCtrlNotSupported) {
+                return FALSE;
+            }
 
-        ret = NvCtrlGetAttribute(ctk_thermal->cooler_control[i].ctrl_target,
-                                 NV_CTRL_THERMAL_COOLER_TARGET,
-                                 &cooler_target);
-        if (ret != NvCtrlSuccess) {
-            /* cooler information no longer available */
-            return FALSE;
+            if (ret == NvCtrlNotSupported) {
+                tmp_str = g_strdup_printf("Unknown");
+            } else if (cooler_type == NV_CTRL_THERMAL_COOLER_CONTROL_TYPE_VARIABLE) {
+                tmp_str = g_strdup_printf("Variable");
+            } else if (cooler_type == NV_CTRL_THERMAL_COOLER_CONTROL_TYPE_TOGGLE) {
+                tmp_str = g_strdup_printf("Toggle");
+            } else if (cooler_type == NV_CTRL_THERMAL_COOLER_CONTROL_TYPE_NONE) {
+                tmp_str = g_strdup_printf("Restricted");
+            }
+            label = gtk_label_new(tmp_str);
+            gtk_misc_set_alignment(GTK_MISC(label), 0.0f, 0.5f);
+            gtk_table_attach(GTK_TABLE(table), label, 3, 4, row_idx, row_idx+1,
+                             GTK_FILL, GTK_FILL | GTK_EXPAND, 5, 0);
+            free(tmp_str);
+
+            ret = NvCtrlGetAttribute(ctk_thermal->cooler_control[i].ctrl_target,
+                                     NV_CTRL_THERMAL_COOLER_TARGET,
+                                     &cooler_target);
+            if (ret != NvCtrlSuccess && ret != NvCtrlNotSupported) {
+                return FALSE;
+            }
+
+            if (ret == NvCtrlNotSupported) {
+                tmp_str = g_strdup_printf("Unknown");
+            } else {
+
+                switch(cooler_target) {
+                    case NV_CTRL_THERMAL_COOLER_TARGET_GPU:
+                        tmp_str = g_strdup_printf("GPU");
+                        break;
+                    case NV_CTRL_THERMAL_COOLER_TARGET_MEMORY:
+                        tmp_str = g_strdup_printf("Memory");
+                        break;
+                    case NV_CTRL_THERMAL_COOLER_TARGET_POWER_SUPPLY:
+                        tmp_str = g_strdup_printf("Power Supply");
+                        break;
+                    case NV_CTRL_THERMAL_COOLER_TARGET_GPU_RELATED:
+                        tmp_str = g_strdup_printf("GPU, Memory, and Power Supply");
+                        break;
+                    default:
+                        break;
+                }
+            }
+            label = gtk_label_new(tmp_str);
+            gtk_misc_set_alignment(GTK_MISC(label), 0.0f, 0.5f);
+            gtk_table_attach(GTK_TABLE(table), label, 4, 5, row_idx, row_idx+1,
+                             GTK_FILL, GTK_FILL | GTK_EXPAND, 5, 0);
+            free(tmp_str);
         }
-        switch(cooler_target) {
-            case NV_CTRL_THERMAL_COOLER_TARGET_GPU: 
-                tmp_str = g_strdup_printf("GPU");
-                break;
-            case NV_CTRL_THERMAL_COOLER_TARGET_MEMORY:      
-                tmp_str = g_strdup_printf("Memory");
-                break;
-            case NV_CTRL_THERMAL_COOLER_TARGET_POWER_SUPPLY:             
-                tmp_str = g_strdup_printf("Power Supply");
-                break;    
-            case NV_CTRL_THERMAL_COOLER_TARGET_GPU_RELATED:  
-                tmp_str = g_strdup_printf("GPU, Memory, and Power Supply");
-                break;
-            default:
-                break;
-        }
-        label = gtk_label_new(tmp_str);
-        gtk_misc_set_alignment(GTK_MISC(label), 0.0f, 0.5f);
-        gtk_table_attach(GTK_TABLE(table), label, 4, 5, row_idx, row_idx+1,
-                         GTK_FILL, GTK_FILL | GTK_EXPAND, 5, 0);
-        free(tmp_str);
     }
+
     gtk_widget_show_all(table);
      
     /* X driver takes fraction of second to refresh newly set value */
@@ -1079,7 +1117,7 @@ GtkWidget* ctk_thermal_new(CtrlTarget *ctrl_target,
     CtrlTarget *sensor_target;
     CtrlAttributeValidValues cooler_range;
     CtrlAttributeValidValues sensor_range;
-    gint trigger, core, ambient;
+    gint slowdown, core, ambient;
     gint upper;
     gchar *s;
     gint i, j;
@@ -1094,7 +1132,6 @@ GtkWidget* ctk_thermal_new(CtrlTarget *ctrl_target,
     Bool cooler_control_enabled;
     int cur_cooler_idx = 0;
     int cur_sensor_idx = 0;
-    int slowdown;
     Bool thermal_sensor_target_type_supported = FALSE;
 
     /* make sure we have a handle */
@@ -1127,21 +1164,21 @@ GtkWidget* ctk_thermal_new(CtrlTarget *ctrl_target,
             /* thermal information unavailable */
             return NULL;
         }
-
-        ret = NvCtrlGetAttribute(ctrl_target, NV_CTRL_GPU_MAX_CORE_THRESHOLD,
-                                 &upper);
-        if (ret != NvCtrlSuccess) {
-            /* thermal information unavailable */
-            return NULL;
-        }
-
-        ret = NvCtrlGetAttribute(ctrl_target, NV_CTRL_GPU_CORE_THRESHOLD,
-                                 &trigger);
-        if (ret != NvCtrlSuccess) {
-            /* thermal information unavailable */
-            return NULL;
-        }
     }
+
+    ret = NvCtrlGetAttribute(ctrl_target, NV_CTRL_GPU_SLOWDOWN_THRESHOLD,
+                             &slowdown);
+    if (ret != NvCtrlSuccess) {
+        slowdown = 0;
+    }
+
+    ret = NvCtrlGetAttribute(ctrl_target, NV_CTRL_GPU_SHUTDOWN_THRESHOLD,
+                             &upper);
+    if (ret != NvCtrlSuccess) {
+        upper = slowdown;
+    }
+
+
     /* Query the list of sensors attached to this GPU */
 
     ret = NvCtrlGetBinaryAttribute(ctrl_target, 0,
@@ -1227,13 +1264,6 @@ GtkWidget* ctk_thermal_new(CtrlTarget *ctrl_target,
         hsep = gtk_hseparator_new();
         gtk_box_pack_start(GTK_BOX(hbox1), hsep, TRUE, TRUE, 0);
         
-        ret = NvCtrlGetAttribute(ctk_thermal->ctrl_target,
-                                 NV_CTRL_GPU_SLOWDOWN_THRESHOLD,
-                                 &slowdown);
-        if (ret != NvCtrlSuccess) {
-            slowdown = 0;
-        }
-
         if (ctk_thermal->sensor_count > 0) {
             ctk_thermal->sensor_info = (SensorInfoPtr)
                 nvalloc(ctk_thermal->sensor_count * sizeof(SensorInfoRec));
@@ -1294,34 +1324,37 @@ GtkWidget* ctk_thermal_new(CtrlTarget *ctrl_target,
 
         vbox1 = gtk_vbox_new(FALSE, 0);
         hbox1 = gtk_hbox_new(FALSE, 0);
-        frame = gtk_frame_new("Slowdown Threshold");
         gtk_box_pack_start(GTK_BOX(vbox), hbox1, FALSE, FALSE, 0);
         gtk_box_pack_start(GTK_BOX(hbox1), vbox1, FALSE, FALSE, 5);
-        gtk_box_pack_start(GTK_BOX(vbox1), frame, FALSE, FALSE, 0);
 
-        hbox2 = gtk_hbox_new(FALSE, 0);
-        gtk_container_set_border_width(GTK_CONTAINER(hbox2), FRAME_PADDING);
-        gtk_container_add(GTK_CONTAINER(frame), hbox2);
+        if (slowdown > 0) {
+            frame = gtk_frame_new("Slowdown Threshold");
+            gtk_box_pack_start(GTK_BOX(vbox1), frame, FALSE, FALSE, 0);
 
-        label = gtk_label_new("Degrees: ");
-        gtk_box_pack_start(GTK_BOX(hbox2), label, FALSE, FALSE, 0);
+            hbox2 = gtk_hbox_new(FALSE, 0);
+            gtk_container_set_border_width(GTK_CONTAINER(hbox2), FRAME_PADDING);
+            gtk_container_add(GTK_CONTAINER(frame), hbox2);
 
-        eventbox = gtk_event_box_new();
-        gtk_box_pack_start(GTK_BOX(hbox2), eventbox, FALSE, FALSE, 0);
+            label = gtk_label_new("Degrees: ");
+            gtk_box_pack_start(GTK_BOX(hbox2), label, FALSE, FALSE, 0);
 
-        entry = gtk_entry_new();
-        gtk_entry_set_max_length(GTK_ENTRY(entry), 5);
-        gtk_container_add(GTK_CONTAINER(eventbox), entry);
-        gtk_widget_set_sensitive(entry, FALSE);
-        gtk_entry_set_width_chars(GTK_ENTRY(entry), 5);
+            eventbox = gtk_event_box_new();
+            gtk_box_pack_start(GTK_BOX(hbox2), eventbox, FALSE, FALSE, 0);
 
-        s = g_strdup_printf(" %d ", trigger);
-        gtk_entry_set_text(GTK_ENTRY(entry), s);
-        g_free(s);
-        ctk_config_set_tooltip(ctk_config, eventbox, __core_threshold_help);
+            entry = gtk_entry_new();
+            gtk_entry_set_max_length(GTK_ENTRY(entry), 5);
+            gtk_container_add(GTK_CONTAINER(eventbox), entry);
+            gtk_widget_set_sensitive(entry, FALSE);
+            gtk_entry_set_width_chars(GTK_ENTRY(entry), 5);
 
-        label = gtk_label_new(" C");
-        gtk_box_pack_start(GTK_BOX(hbox2), label, FALSE, FALSE, 0);
+            s = g_strdup_printf(" %d ", slowdown);
+            gtk_entry_set_text(GTK_ENTRY(entry), s);
+            g_free(s);
+            ctk_config_set_tooltip(ctk_config, eventbox, __core_threshold_help);
+
+            label = gtk_label_new(" C");
+            gtk_box_pack_start(GTK_BOX(hbox2), label, FALSE, FALSE, 0);
+        }
 
         /* GPU Core Temperature */
 
@@ -1376,7 +1409,7 @@ GtkWidget* ctk_thermal_new(CtrlTarget *ctrl_target,
         }
 
         /* GPU Core Temperature Gauge */
-        
+
         ctk_thermal->core_gauge = pack_gauge(hbox1, 25, upper,
                                              ctk_config, __temp_level_help);
     }
@@ -1679,26 +1712,32 @@ next_help:
     ctk_help_heading(b, &i, "ID");
     ctk_help_para(b, &i, "%s", __fan_id_help);
 
-    ctk_help_heading(b, &i, "Speed (RPM)");
-    ctk_help_para(b, &i,"%s", __fan_rpm_help);
+    if (ctk_thermal->thermal_cooler_extra_info_supported) {
+        ctk_help_heading(b, &i, "Speed (RPM)");
+        ctk_help_para(b, &i,"%s", __fan_rpm_help);
 
-    ctk_help_heading(b, &i, "Speed (%%)");
-    ctk_help_para(b, &i, "%s", __fan_speed_help);
+        ctk_help_heading(b, &i, "Target Speed (%%)");
+        ctk_help_para(b, &i, "%s", __fan_target_speed_help);
 
-    ctk_help_heading(b, &i, "Type");
-    ctk_help_para(b, &i, "%s", __fan_control_type_help);
+        ctk_help_heading(b, &i, "Type");
+        ctk_help_para(b, &i, "%s", __fan_control_type_help);
 
-    ctk_help_heading(b, &i, "Cooling Target");
-    ctk_help_para(b, &i, "%s", __fan_cooling_target_help);
+        ctk_help_heading(b, &i, "Cooling Target");
+        ctk_help_para(b, &i, "%s", __fan_cooling_target_help);
 
-    ctk_help_heading(b, &i, "Enable GPU Fan Settings");
-    ctk_help_para(b, &i, "%s", __enable_button_help);
+    } else {
+        ctk_help_heading(b, &i, "Current Speed (%%)");
+        ctk_help_para(b, &i,"%s", __fan_current_speed_help);
+    }
 
     if ( ctk_thermal->show_fan_control_frame ) {
         ctk_help_heading(b, &i, "Enable GPU Fan Settings");
+        ctk_help_para(b, &i, "%s", __enable_button_help);
+
+        ctk_help_heading(b, &i, "Apply");
         ctk_help_para(b, &i, "%s", __apply_button_help);
 
-        ctk_help_heading(b, &i, "Enable GPU Fan Settings");
+        ctk_help_heading(b, &i, "Reset Hardware Defaults");
         ctk_help_para(b, &i, "%s", __reset_button_help);
     }
 done:

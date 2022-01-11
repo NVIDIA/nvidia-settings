@@ -2846,8 +2846,7 @@
 #define NV_CTRL_SHOW_MULTIGPU_VISUAL_INDICATOR_TRUE               1
 
 /*
- * NV_CTRL_GPU_CURRENT_PROCESSOR_CLOCK_FREQS - Returns GPU's processor
- * clock freqs.
+ * NV_CTRL_GPU_CURRENT_PROCESSOR_CLOCK_FREQS - not supported
  */
 #define NV_CTRL_GPU_CURRENT_PROCESSOR_CLOCK_FREQS               359 /* RW-G */
 
@@ -4000,9 +3999,8 @@
  * NV Clock and Memory Clock values.
  * Not all tokens will be reported on all GPUs, and additional tokens
  * may be added in the future.
- * For backwards compatibility we still provide nvclock, memclock, and
- * processorclock those are the same as nvclockmin, memclockmin and
- * processorclockmin.
+ * For backwards compatibility we still provide nvclock and memclock;
+ * those are the same as nvclockmin and memclockmin.
  *
  * Note: These clock values take into account the offset
  * set by clients through NV_CTRL_GPU_NVCLOCK_OFFSET and
@@ -4032,14 +4030,6 @@
  *                                 for the perf level
  *   "memtransferrateeditable" integer - if the memory transfer rate is editable
  *                                       for the perf level
- *   "processorclock"         integer - the processor clocks (in MHz)
- *                                       for the perf level
- *   "processorclockmin"      integer - the processor clocks min (in MHz)
- *                                       for the perf level
- *   "processorclockmax"      integer - the processor clocks max (in MHz)
- *                                      for the perf level
- *   "processorclockeditable" integer - if the processor clock domain is editable
- *                                      for the perf level
  *
  * Example:
  *
@@ -4105,11 +4095,8 @@
 
 /*
  * NV_CTRL_STRING_GPU_CURRENT_CLOCK_FREQS - returns a string with the
- * associated NV Clock, Memory Clock and Processor Clock values.
+ * associated NV Clock and Memory Clock values.
  *
- * Current valid tokens are "nvclock", "nvclockmin", "nvclockmax",
- * "memclock", "memclockmin", "memclockmax", "processorclock",
- * "processorclockmin" and "processorclockmax".
  * Not all tokens will be reported on all GPUs, and additional tokens
  * may be added in the future.
  *
@@ -4140,14 +4127,6 @@
  *                                 for the perf level
  *   "memtransferrateeditable" integer - if the memory transfer rate is editable
  *                                       for the perf level
- *   "processorclock"     integer  - the processor clocks (in MHz)
- *                                 for the perf level
- *   "processorclockmin"  integer  - the processor clocks min (in MHz)
- *                                 for the perf level
- *   "processorclockmax"  integer  - the processor clocks max (in MHz)
- *                                 for the perf level
- *   "processorclockeditable" integer - if the processor clock domain is editable
- *                                      for the perf level
  *
  * Example:
  *
@@ -4159,7 +4138,7 @@
  * using an NV_CTRL_TARGET_TYPE_GPU or NV_CTRL_TARGET_TYPE_X_SCREEN target.
  */
 
-#define NV_CTRL_STRING_GPU_CURRENT_CLOCK_FREQS                 34  /* RW-G */
+#define NV_CTRL_STRING_GPU_CURRENT_CLOCK_FREQS                 34  /* R--G */
 
 /*
  * NV_CTRL_STRING_3D_VISION_PRO_TRANSCEIVER_HARDWARE_REVISION - Returns the
@@ -4758,8 +4737,24 @@
 
 #define NV_CTRL_BINARY_DATA_DISPLAYS_ON_GPU                  20  /* R--G */
 
+/*
+ * NV_CTRL_BINARY_DATA_GPU_ECC_DETAILED_ERRORS - Returns volatile or aggregate
+ * detailed ECC error information of bit width specified.
+ *
+ * The format of the returned data is:
+ *
+ *     4 * n   int number of ECC errors where n is equal to
+               NVML_MEMORY_LOCATION_COUNT.
+ *
+ * This attribute is queried through NVML.
+ */
+#define NV_CTRL_BINARY_DATA_GPU_ECC_DETAILED_ERRORS_SINGLE_BIT             21  /* R--G */
+#define NV_CTRL_BINARY_DATA_GPU_ECC_DETAILED_ERRORS_DOUBLE_BIT             22  /* R--G */
+#define NV_CTRL_BINARY_DATA_GPU_ECC_DETAILED_ERRORS_SINGLE_BIT_AGGREGATE   23  /* R--G */
+#define NV_CTRL_BINARY_DATA_GPU_ECC_DETAILED_ERRORS_DOUBLE_BIT_AGGREGATE   24  /* R--G */
+
 #define NV_CTRL_BINARY_DATA_LAST_ATTRIBUTE \
-    NV_CTRL_BINARY_DATA_DISPLAYS_ON_GPU
+    NV_CTRL_BINARY_DATA_GPU_ECC_DETAILED_ERRORS_DOUBLE_BIT_AGGREGATE
 
 
 /**************************************************************************/

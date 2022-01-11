@@ -104,6 +104,14 @@ typedef struct _EditProfileDialog {
 
     GtkWidget *source_file_combo;
 
+    GtkWidget *sharpen_enable_check_button;
+    GtkWidget *sharpen_value_box;
+    GtkAdjustment *sharpen_value_adjustment;
+    GtkWidget *sharpen_value_slider;
+    GtkWidget *sharpen_film_grain_box;
+    GtkAdjustment *sharpen_film_grain_adjustment;
+    GtkWidget *sharpen_film_grain_slider;
+
     GtkWidget *add_edit_profile_button;
 
     GtkWidget *registry_key_combo;

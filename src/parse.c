@@ -67,7 +67,7 @@ const AttributeTableEntry attributeTable[] = {
      */
 
     /* Version information */
-    { "OperatingSystem",                  NV_CTRL_OPERATING_SYSTEM,                     INT_ATTR, {0,0,0,1,0}, { .int_flags = {0,0,0,0,0,0,0} }, "The operating system on which the X server is running.  0-Linux, 1-FreeBSD, 2-SunOS." },
+    { "OperatingSystem",                  NV_CTRL_OPERATING_SYSTEM,                     INT_ATTR, {0,0,0,1,0}, { .int_flags = {0,0,0,0,0,0,0} }, "The operating system on which the NVIDIA driver is running.  0-Linux, 1-FreeBSD, 2-SunOS." },
     { "NvidiaDriverVersion",              NV_CTRL_STRING_NVIDIA_DRIVER_VERSION,         STR_ATTR, {0,0,0,1,0}, {}, "The NVIDIA X driver version." },
     { "NvControlVersion",                 NV_CTRL_STRING_NV_CONTROL_VERSION,            STR_ATTR, {0,0,0,1,0}, {}, "The NV-CONTROL X driver extension version." },
     { "GLXServerVersion",                 NV_CTRL_STRING_GLX_SERVER_VERSION,            STR_ATTR, {0,0,0,1,0}, {}, "The GLX X server extension version." },
@@ -161,7 +161,6 @@ const AttributeTableEntry attributeTable[] = {
     { "GPUDefault2DClockFreqs",           NV_CTRL_GPU_DEFAULT_2D_CLOCK_FREQS,           INT_ATTR, {0,0,0,1,0}, { .int_flags = {0,0,1,0,0,0,0} }, "NOT SUPPORTED." },
     { "GPUDefault3DClockFreqs",           NV_CTRL_GPU_DEFAULT_3D_CLOCK_FREQS,           INT_ATTR, {0,0,0,1,0}, { .int_flags = {0,0,1,0,0,0,0} }, "NOT SUPPORTED." },
     { "GPUCurrentClockFreqs",             NV_CTRL_GPU_CURRENT_CLOCK_FREQS,              INT_ATTR, {0,0,0,1,0}, { .int_flags = {0,0,1,0,0,0,0} }, "Returns the current GPU and memory clocks of the graphics device driving the X screen." },
-    { "GPUCurrentProcessorClockFreqs",    NV_CTRL_GPU_CURRENT_PROCESSOR_CLOCK_FREQS,    INT_ATTR, {0,0,0,1,0}, { .int_flags = {0,0,0,0,0,0,0} }, "Returns the current processor clock of the graphics device driving the X screen." },
     { "BusRate",                          NV_CTRL_BUS_RATE,                             INT_ATTR, {0,0,0,1,0}, { .int_flags = {0,0,0,0,0,0,0} }, "If the device is on an AGP bus, then BusRate returns the configured AGP rate.  If the device is on a PCI Express bus, then this attribute returns the width of the physical link." },
     { "PCIDomain",                        NV_CTRL_PCI_DOMAIN,                           INT_ATTR, {0,0,0,1,0}, { .int_flags = {0,0,0,0,0,0,0} }, "Returns the PCI domain number for the specified device." },
     { "PCIBus",                           NV_CTRL_PCI_BUS,                              INT_ATTR, {0,0,0,1,0}, { .int_flags = {0,0,0,0,0,0,0} }, "Returns the PCI bus number for the specified device." },

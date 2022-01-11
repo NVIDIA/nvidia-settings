@@ -90,6 +90,7 @@ G_BEGIN_DECLS
 gboolean ctk_widget_is_sensitive(GtkWidget *w);
 gboolean ctk_widget_get_sensitive(GtkWidget *w);
 gboolean ctk_widget_get_visible(GtkWidget *w);
+void ctk_widget_set_visible(GtkWidget *w, gboolean visible);
 gboolean ctk_widget_is_drawable(GtkWidget *w);
 GdkWindow *ctk_widget_get_window(GtkWidget *w);
 void ctk_widget_get_allocation(GtkWidget *w, GtkAllocation *a);
@@ -110,6 +111,7 @@ void ctk_scrolled_window_add(GtkScrolledWindow *sw, GtkWidget *child);
 GtkWidget *ctk_statusbar_get_message_area(GtkStatusbar *statusbar);
 void ctk_cell_renderer_set_alignment(GtkCellRenderer *widget,
                                      gfloat x, gfloat y);
+void ctk_widget_set_halign_left(GtkWidget *w);
 
 GtkWidget *ctk_file_chooser_dialog_new(const gchar *title, GtkWindow *parent,
                                        GtkFileChooserAction action);
