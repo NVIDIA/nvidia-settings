@@ -39,6 +39,15 @@
 
 #define MAX_NVML_STR_LEN 64
 
+static inline const NvCtrlNvmlAttributes *
+getNvmlHandleConst(const NvCtrlAttributePrivateHandle *h)
+{
+    if ((h == NULL) || (h->nvml == NULL) || (h->target_type != GPU_TARGET)) {
+        return NULL;
+    }
+
+    return h->nvml;
+}
 
 static void printNvmlError(nvmlReturn_t error)
 {
@@ -560,11 +569,10 @@ static ReturnStatus NvCtrlNvmlGetGPUStringAttribute(const CtrlTarget *ctrl_targe
     nvmlReturn_t ret;
     *ptr = NULL;
 
-    if ((h == NULL) || (h->nvml == NULL)) {
+    nvml = getNvmlHandleConst(h);
+    if (nvml == NULL) {
         return NvCtrlBadHandle;
     }
-
-    nvml = h->nvml;
 
     ret = nvml->lib.deviceGetHandleByIndex(nvml->deviceIdx, &device);
     if (ret == NVML_SUCCESS) {
@@ -694,11 +702,10 @@ static ReturnStatus NvCtrlNvmlSetGPUStringAttribute(CtrlTarget *ctrl_target,
     nvmlDevice_t device;
     nvmlReturn_t ret;
 
-    if ((h == NULL) || (h->nvml == NULL)) {
+    nvml = getNvmlHandleConst(h);
+    if (nvml == NULL) {
         return NvCtrlBadHandle;
     }
-
-    nvml = h->nvml;
 
     ret = nvml->lib.deviceGetHandleByIndex(nvml->deviceIdx, &device);
     if (ret == NVML_SUCCESS) {
@@ -783,11 +790,10 @@ static ReturnStatus NvCtrlNvmlGetGPUAttribute(const CtrlTarget *ctrl_target,
     nvmlDevice_t device;
     nvmlReturn_t ret;
 
-    if ((h == NULL) || (h->nvml == NULL)) {
+    nvml = getNvmlHandleConst(h);
+    if (nvml == NULL) {
         return NvCtrlBadHandle;
     }
-
-    nvml = h->nvml;
 
     ret = nvml->lib.deviceGetHandleByIndex(nvml->deviceIdx, &device);
     if (ret == NVML_SUCCESS) {
@@ -905,6 +911,11 @@ static ReturnStatus NvCtrlNvmlGetGPUAttribute(const CtrlTarget *ctrl_target,
                                 NV_CTRL_GPU_ECC_SUPPORTED_TRUE :
                                 NV_CTRL_GPU_ECC_SUPPORTED_FALSE;
                             break;
+                    }
+
+                    // Avoid printing misleading error message
+                    if (ret == NVML_ERROR_NOT_SUPPORTED) { 
+                        ret = NVML_SUCCESS;
                     }
                 }
                 break;
@@ -1079,11 +1090,10 @@ static ReturnStatus NvCtrlNvmlGetGridLicensableFeatures(const CtrlTarget *ctrl_t
     nvmlDevice_t device;
     nvmlReturn_t ret;
 
-    if ((h == NULL) || (h->nvml == NULL)) {
+    nvml = getNvmlHandleConst(h);
+    if (nvml == NULL) {
         return NvCtrlBadHandle;
     }
-
-    nvml = h->nvml;
 
     ret = nvml->lib.deviceGetHandleByIndex(nvml->deviceIdx, &device);
         if (ret == NVML_SUCCESS) {
@@ -1153,11 +1163,10 @@ static ReturnStatus NvCtrlNvmlGetThermalAttribute(const CtrlTarget *ctrl_target,
     nvmlDevice_t device;
     nvmlReturn_t ret;
 
-    if ((h == NULL) || (h->nvml == NULL)) {
+    nvml = getNvmlHandleConst(h);
+    if (nvml == NULL) {
         return NvCtrlBadHandle;
     }
-
-    nvml = h->nvml;
 
     /* Get the proper device according to the sensor ID */
     sensorId = getThermalCoolerId(h, nvml->sensorCount,
@@ -1209,11 +1218,10 @@ static ReturnStatus NvCtrlNvmlGetCoolerAttribute(const CtrlTarget *ctrl_target,
     nvmlDevice_t device;
     nvmlReturn_t ret;
 
-    if ((h == NULL) || (h->nvml == NULL)) {
+    nvml = getNvmlHandleConst(h);
+    if (nvml == NULL) {
         return NvCtrlBadHandle;
     }
-
-    nvml = h->nvml;
 
     /* Get the proper device according to the cooler ID */
     coolerId = getThermalCoolerId(h, nvml->coolerCount,
@@ -1221,7 +1229,6 @@ static ReturnStatus NvCtrlNvmlGetCoolerAttribute(const CtrlTarget *ctrl_target,
     if (coolerId == -1) {
         return NvCtrlBadHandle;
     }
-
 
     ret = nvml->lib.deviceGetHandleByIndex(nvml->deviceIdx, &device);
     if (ret == NVML_SUCCESS) {
@@ -1325,11 +1332,10 @@ static ReturnStatus NvCtrlNvmlSetGPUAttribute(CtrlTarget *ctrl_target,
     nvmlDevice_t device;
     nvmlReturn_t ret;
 
-    if ((h == NULL) || (h->nvml == NULL)) {
+    nvml = getNvmlHandleConst(h);
+    if (nvml == NULL) {
         return NvCtrlBadHandle;
     }
-
-    nvml = h->nvml;
 
     ret = nvml->lib.deviceGetHandleByIndex(nvml->deviceIdx, &device);
     if (ret == NVML_SUCCESS) {
@@ -1397,11 +1403,10 @@ static ReturnStatus NvCtrlNvmlSetCoolerAttribute(CtrlTarget *ctrl_target,
     nvmlDevice_t device;
     nvmlReturn_t ret;
 
-    if ((h == NULL) || (h->nvml == NULL)) {
+    nvml = getNvmlHandleConst(h);
+    if (nvml == NULL) {
         return NvCtrlBadHandle;
     }
-
-    nvml = h->nvml;
 
     /* Get the proper device according to the cooler ID */
     coolerId = getThermalCoolerId(h, nvml->coolerCount,
@@ -1522,11 +1527,10 @@ NvCtrlNvmlGetGPUBinaryAttribute(const CtrlTarget *ctrl_target,
     nvmlDevice_t device;
     nvmlReturn_t ret;
 
-    if ((h == NULL) || (h->nvml == NULL)) {
+    nvml = getNvmlHandleConst(h);
+    if (nvml == NULL) {
         return NvCtrlBadHandle;
     }
-
-    nvml = h->nvml;
 
     ret = nvml->lib.deviceGetHandleByIndex(nvml->deviceIdx, &device);
     if (ret == NVML_SUCCESS) {
@@ -1798,11 +1802,10 @@ NvCtrlNvmlGetGPUValidAttributeValues(const CtrlTarget *ctrl_target, int attr,
     nvmlDevice_t device;
     nvmlReturn_t ret;
 
-    if ((h == NULL) || (h->nvml == NULL)) {
+    nvml = getNvmlHandleConst(h);
+    if (nvml == NULL) {
         return NvCtrlBadHandle;
     }
-
-    nvml = h->nvml;
 
     val->permissions.write = NV_FALSE;
 
@@ -1922,11 +1925,10 @@ NvCtrlNvmlGetThermalValidAttributeValues(const CtrlTarget *ctrl_target,
     nvmlDevice_t device;
     nvmlReturn_t ret;
 
-    if ((h == NULL) || (h->nvml == NULL)) {
+    nvml = getNvmlHandleConst(h);
+    if (nvml == NULL) {
         return NvCtrlBadHandle;
     }
-
-    nvml = h->nvml;
 
     /* Get the proper device and sensor ID according to the target ID */
     sensorId = getThermalCoolerId(h, nvml->sensorCount,
@@ -1974,11 +1976,10 @@ NvCtrlNvmlGetCoolerValidAttributeValues(const CtrlTarget *ctrl_target,
     nvmlDevice_t device;
     nvmlReturn_t ret;
 
-    if ((h == NULL) || (h->nvml == NULL)) {
+    nvml = getNvmlHandleConst(h);
+    if (nvml == NULL) {
         return NvCtrlBadHandle;
     }
-
-    nvml = h->nvml;
 
     /* Get the proper device and cooler ID according to the target ID */
     coolerId = getThermalCoolerId(h, nvml->coolerCount,

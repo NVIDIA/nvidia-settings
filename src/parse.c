@@ -337,7 +337,9 @@ const AttributeTableEntry attributeTable[] = {
     /* Misc */
     { "GTFModeline",                      NV_CTRL_STRING_OPERATION_GTF_MODELINE,        SOP_ATTR, {0,0,0,1,1}, { }, "Builds a modeline using the GTF formula." },
     { "CVTModeline",                      NV_CTRL_STRING_OPERATION_CVT_MODELINE,        SOP_ATTR, {0,0,0,1,1}, { }, "Builds a modeline using the CVT formula." },
- 
+
+    /* Dynamic Boost */
+    { "DynamicBoostSupport",              NV_CTRL_DYNAMIC_BOOST_SUPPORT,                INT_ATTR, {0,0,0,1,0}, {},  "Returns whether the system supports Dynamic Boost." },
 };
 
 const int attributeTableLen = ARRAY_LEN(attributeTable);
@@ -348,7 +350,7 @@ const int attributeTableLen = ARRAY_LEN(attributeTable);
  * the last attribute that the table knows about.
  */
 
-#if NV_CTRL_LAST_ATTRIBUTE != NV_CTRL_RESIZABLE_BAR
+#if NV_CTRL_LAST_ATTRIBUTE != NV_CTRL_DYNAMIC_BOOST_SUPPORT
 #warning "Have you forgotten to add a new integer attribute to attributeTable?"
 #endif
 

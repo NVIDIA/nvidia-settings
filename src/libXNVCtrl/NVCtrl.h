@@ -3632,8 +3632,12 @@
  */
 #define NV_CTRL_RESIZABLE_BAR                                   438
 
+/*
+ * NV_CTRL_DYNAMIC_BOOST_SUPPORT - Returns whether the system has Dynamic Boost support.
+ */
+#define NV_CTRL_DYNAMIC_BOOST_SUPPORT                           439
 
-#define NV_CTRL_LAST_ATTRIBUTE NV_CTRL_RESIZABLE_BAR
+#define NV_CTRL_LAST_ATTRIBUTE NV_CTRL_DYNAMIC_BOOST_SUPPORT
 
 /**************************************************************************/
 

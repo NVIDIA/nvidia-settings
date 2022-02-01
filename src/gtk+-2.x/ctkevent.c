@@ -304,7 +304,7 @@ static void ctk_event_class_init(CtkEventClass *ctk_event_class,
      * knows about.
      */
 
-#if NV_CTRL_LAST_ATTRIBUTE != NV_CTRL_RESIZABLE_BAR
+#if NV_CTRL_LAST_ATTRIBUTE != NV_CTRL_DYNAMIC_BOOST_SUPPORT
 #warning "There are attributes that do not emit signals!"
 #endif
 

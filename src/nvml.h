@@ -1014,7 +1014,7 @@ typedef enum nvmlVgpuVmIdType {
 } nvmlVgpuVmIdType_t;
 
 /**
- * vGPU GUEST info state.
+ * vGPU GUEST info state
  */
 typedef enum nvmlVgpuGuestInfoState_enum
 {
@@ -1042,6 +1042,17 @@ typedef enum {
 #define NVML_GRID_LICENSE_EXPIRY_VALID           2   //!< Valid expiry
 #define NVML_GRID_LICENSE_EXPIRY_NOT_APPLICABLE  3   //!< Expiry not applicable
 #define NVML_GRID_LICENSE_EXPIRY_PERMANENT       4   //!< Permanent expiry
+
+/**
+ * vGPU queryable capabilities
+ */
+typedef enum nvmlVgpuCapability_enum
+{
+    NVML_VGPU_CAP_NVLINK_P2P                    = 0,  //!< P2P over NVLink is supported
+    NVML_VGPU_CAP_GPUDIRECT                     = 1,  //!< GPUDirect capability is supported
+    // Keep this last
+    NVML_VGPU_CAP_COUNT
+} nvmlVgpuCapability_t;
 
 /** @} */
 
@@ -7056,6 +7067,25 @@ nvmlReturn_t DECLDIR nvmlVgpuInstanceGetGpuInstanceId(nvmlVgpuInstance_t vgpuIns
 *         - \ref NVML_ERROR_UNKNOWN           on any unexpected error
 */
 nvmlReturn_t DECLDIR nvmlVgpuInstanceGetGpuPciId(nvmlVgpuInstance_t vgpuInstance, char *vgpuPciId, unsigned int *length);
+
+/**
+* Retrieve the requested capability for a given vGPU type. Refer to the \a nvmlVgpuCapability_t structure
+* for the specific capabilities that can be queried. The return value in \a capResult should be treated as
+* a boolean, with a non-zero value indicating that the capability is supported.
+*
+* For Maxwell &tm; or newer fully supported devices.
+*
+* @param vgpuTypeId                           Handle to vGPU type
+* @param capability                           Specifies the \a nvmlVgpuCapability_t to be queried
+* @param capResult                            A boolean for the queried capability indicating that feature is supported
+*
+* @return
+*         - \ref NVML_SUCCESS                 successful completion
+*         - \ref NVML_ERROR_UNINITIALIZED     if the library has not been successfully initialized
+*         - \ref NVML_ERROR_INVALID_ARGUMENT  if \a vgpuTypeId is invalid, or \a capability is invalid, or \a capResult is NULL
+*         - \ref NVML_ERROR_UNKNOWN           on any unexpected error
+*/
+nvmlReturn_t DECLDIR nvmlVgpuTypeGetCapabilities(nvmlVgpuTypeId_t vgpuTypeId, nvmlVgpuCapability_t capability, unsigned int *capResult);
 
 /** @} */
 
