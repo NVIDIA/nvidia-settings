@@ -42,7 +42,7 @@
 static inline const NvCtrlNvmlAttributes *
 getNvmlHandleConst(const NvCtrlAttributePrivateHandle *h)
 {
-    if ((h == NULL) || (h->nvml == NULL) || (h->target_type != GPU_TARGET)) {
+    if ((h == NULL) || (h->nvml == NULL)) {
         return NULL;
     }
 
@@ -64,8 +64,6 @@ static void printNvmlError(nvmlReturn_t error)
             break;
 
         case NVML_ERROR_NOT_SUPPORTED:
-            nv_error_msg("The requested operation is not available on target "
-                         "device");
             break;
 
         case NVML_ERROR_NO_PERMISSION:
