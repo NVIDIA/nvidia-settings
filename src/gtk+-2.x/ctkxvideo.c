@@ -19,6 +19,7 @@
 
 #include <stdlib.h>
 #include <stdio.h>
+#include <libintl.h>
 #include <gtk/gtk.h>
 #include "NvCtrlAttributes.h"
 #include "NVCtrlLib.h"
@@ -30,10 +31,12 @@
 #include "ctkutils.h"
 #include "ctkhelp.h"
 
+#define _(STRING) gettext(STRING)
+#define N_(STRING) STRING
 
 static const char *__xv_sync_to_display_help =
-"This controls which display device will be synched to when "
-"XVideo Sync To VBlank is enabled.";
+N_("This controls which display device will be synched to when "
+"XVideo Sync To VBlank is enabled.");
 
 
 #define FRAME_PADDING 5
@@ -81,7 +84,7 @@ static void post_xv_sync_to_display_update(CtkXVideo *ctk_xvideo,
     label = gtk_button_get_label(GTK_BUTTON(active_button));
 
     ctk_config_statusbar_message(ctk_xvideo->ctk_config,
-                                     "XVideo application syncing to %s.",
+                                     _("XVideo application syncing to %s."),
                                      label);
 }
 
@@ -182,7 +185,7 @@ static gchar *xv_sync_to_display_radio_button_label(CtkXVideo *ctk_xvideo,
         label = g_strdup_printf("%s (%s)", name, randr);
     } else {
         label = g_strdup_printf("%s",
-                                name ? name : (randr ? randr : "Unknown"));
+                                name ? name : (randr ? randr : _("Unknown")));
     }
 
     free(name);
@@ -204,7 +207,7 @@ static GtkWidget *xv_sync_to_display_radio_button_add(CtkXVideo *ctk_xvideo,
     GSList *slist;
 
     if (display_id == NV_CTRL_XV_SYNC_TO_DISPLAY_ID_AUTO) {
-        label = g_strdup("Auto");
+        label = g_strdup(_("Auto"));
     } else {
         label = xv_sync_to_display_radio_button_label(ctk_xvideo, display_id);
     }
@@ -507,7 +510,7 @@ GtkWidget* ctk_xvideo_new(CtrlTarget *ctrl_target,
     hbox = gtk_hbox_new(FALSE, 5);
     gtk_box_pack_start(GTK_BOX(object), hbox, FALSE, FALSE, 0);
 
-    label = gtk_label_new("Xvideo Settings");
+    label = gtk_label_new(_("Xvideo Settings"));
     gtk_box_pack_start(GTK_BOX(hbox), label, FALSE, FALSE, 0);
 
     hseparator = gtk_hseparator_new();
@@ -522,7 +525,7 @@ GtkWidget* ctk_xvideo_new(CtrlTarget *ctrl_target,
         hbox = gtk_hbox_new(FALSE, 5);
         gtk_box_pack_start(GTK_BOX(object), hbox, FALSE, FALSE, 5);
 
-        label = gtk_label_new("Currently synced to display:");
+        label = gtk_label_new(_("Currently synced to display:"));
         gtk_box_pack_start(GTK_BOX(hbox), label, FALSE, FALSE, 5);
         label = gtk_label_new("");
         gtk_box_pack_start(GTK_BOX(hbox), label, FALSE, FALSE, 5);
@@ -539,7 +542,7 @@ GtkWidget* ctk_xvideo_new(CtrlTarget *ctrl_target,
 
     /* Sync to display selection */
 
-    frame = gtk_frame_new("Sync to this display device");
+    frame = gtk_frame_new(_("Sync to this display device"));
     gtk_box_pack_start(GTK_BOX(object), frame, FALSE, FALSE, 0);
 
     vbox = gtk_vbox_new(FALSE, 5);
@@ -549,7 +552,7 @@ GtkWidget* ctk_xvideo_new(CtrlTarget *ctrl_target,
 
     ctk_config_set_tooltip(ctk_xvideo->ctk_config,
                            ctk_xvideo->xv_sync_to_display_button_box,
-                           __xv_sync_to_display_help);
+                           _(__xv_sync_to_display_help));
 
     xv_sync_to_display_rebuild_buttons(ctk_xvideo, FALSE);
 
@@ -593,14 +596,14 @@ GtkTextBuffer *ctk_xvideo_create_help(GtkTextTagTable *table,
 
     gtk_text_buffer_get_iter_at_offset(b, &i, 0);
 
-    ctk_help_title(b, &i, "X Server XVideo Settings Help");
+    ctk_help_title(b, &i, _("X Server XVideo Settings Help"));
 
-    ctk_help_para(b, &i, "The X Server XVideo Settings page uses the XVideo "
-                  "X extension.");
+    ctk_help_para(b, &i, _("The X Server XVideo Settings page uses the XVideo "
+                  "X extension."));
 
     if (ctk_xvideo->active_attributes & __XV_SYNC_TO_DISPLAY) {
-        ctk_help_heading(b, &i, "Sync to this display device");
-        ctk_help_para(b, &i, "%s", __xv_sync_to_display_help);
+        ctk_help_heading(b, &i, _("Sync to this display device"));
+        ctk_help_para(b, &i, "%s", _(__xv_sync_to_display_help));
     }
 
     ctk_help_finish(b);

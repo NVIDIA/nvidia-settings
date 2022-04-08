@@ -27,6 +27,9 @@
 
 #include <stdlib.h>
 #include <assert.h>
+#include <libintl.h>
+
+#define _(STRING) gettext(STRING)
 
 static GtkTextBuffer *create_default_help(CtkHelp *ctk_help);
 static void close_button_clicked(GtkButton *button, gpointer user_data);
@@ -82,7 +85,7 @@ GtkWidget* ctk_help_new(GtkWidget *toggle_button, GtkTextTagTable *tag_table)
     ctk_help->toggle_button = toggle_button;
 
     gtk_window_set_title(GTK_WINDOW(ctk_help),
-                         "NVIDIA X Server Settings Help");
+                         _("NVIDIA X Server Settings Help"));
 
     gtk_window_set_default_size(GTK_WINDOW(ctk_help), -1, 400);
 
@@ -203,11 +206,11 @@ static GtkTextBuffer *create_default_help(CtkHelp *ctk_help)
     gtk_text_buffer_get_iter_at_offset(buffer, &iter, 0);
 
     gtk_text_buffer_insert_with_tags_by_name
-        (buffer, &iter, "\nNVIDIA X Server Settings Help", -1,
+        (buffer, &iter, _("\nNVIDIA X Server Settings Help"), -1,
          CTK_HELP_TITLE_TAG, NULL);
     
-    gtk_text_buffer_insert(buffer, &iter, "\n\nThere is no help available "
-                           "for this page.", -1);
+    gtk_text_buffer_insert(buffer, &iter, _("\n\nThere is no help available "
+                           "for this page."), -1);
 
     /*
      * Apply CTK_HELP_HEADING_NOT_EDITABLE_TAG and
@@ -406,14 +409,14 @@ void ctk_help_finish(GtkTextBuffer *buffer)
 
 gchar *ctk_help_create_reset_hardware_defaults_text(gchar *type, gchar *name)
 {
-    return g_strconcat("The Reset ", type, " Hardware Defaults button restores ",
-                       "all ", name, " settings to their default values.", NULL);
+    return g_strdup_printf(_("The Reset %s Hardware Defaults button restores "
+                           "all %s settings to their default values."), type, name);
 }
 
 void ctk_help_reset_hardware_defaults(GtkTextBuffer *b, GtkTextIter *i,
                                       gchar *text)
 {
-    ctk_help_heading(b, i, "Reset Hardware Defaults");
+    ctk_help_heading(b, i, _("Reset Hardware Defaults"));
     ctk_help_para(b, i, "%s", text);
 }
 

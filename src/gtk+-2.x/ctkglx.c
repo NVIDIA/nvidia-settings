@@ -20,6 +20,7 @@
 #include <stdlib.h>
 #include <stdio.h>
 #include <unistd.h>
+#include <libintl.h>
 #include <gtk/gtk.h>
 #include <NvCtrlAttributes.h>
 
@@ -34,6 +35,8 @@
 
 #include <GL/glx.h> /* GLX #defines */
 
+#define _(STRING) gettext(STRING)
+#define N_(STRING) STRING
 
 /* Number of FBConfigs attributes reported in gui */
 #define NUM_FBCONFIG_ATTRIBS  32
@@ -42,179 +45,179 @@
 
 /* FBConfig tooltips */
 static const char * __show_fbc_help =
-  "Show the GLX Frame Buffer Configurations table in a new window.";
+  N_("Show the GLX Frame Buffer Configurations table in a new window.");
 static const char * __show_egl_fbc_help =
-  "Show the EGL Frame Buffer Configurations table in a new window.";
+  N_("Show the EGL Frame Buffer Configurations table in a new window.");
 static const char * __fid_help  =
-  "fid (Frame buffer ID) - Frame Buffer Configuration ID.";
+  N_("fid (Frame buffer ID) - Frame Buffer Configuration ID.");
 static const char * __vid_help  =
-  "vid (XVisual ID) -  ID of the associated X Visual.";
+  N_("vid (XVisual ID) -  ID of the associated X Visual.");
 static const char * __vt_help  =
-  "vt (XVisual Type) -  Type of the associated X Visual.  "
+  N_("vt (XVisual Type) -  Type of the associated X Visual.  "
   "Possible X visual types are 'tc', 'dc', 'pc', 'sc', 'gs', 'sg' and '.' "
   "which mean TrueColor, DirectColor, PseudoColor, StaticColor, GrayScale, "
-  "StaticGray and None, respectively.";
+  "StaticGray and None, respectively.");
 static const char * __bfs_help =
-  "bfs (buffer size) - Number of bits per color in the color buffer.";
+  N_("bfs (buffer size) - Number of bits per color in the color buffer.");
 static const char * __lvl_help =
-  "lvl (level) - Frame buffer level.  Level zero is the default frame "
+  N_("lvl (level) - Frame buffer level.  Level zero is the default frame "
   "buffer.  Positive levels are the overlay frame buffers (on top of the "
   "default frame buffer).  Negative levels are the underlay frame buffers "
-  "(under the default frame buffer).";
+  "(under the default frame buffer).");
 static const char * __bf_help =
-  "bf (Buffer format) - Color buffer format.  'rgb' means each element of the "
+  N_("bf (Buffer format) - Color buffer format.  'rgb' means each element of the "
   "pixel buffer holds red, green, blue, and alpha values.  'ci' means each "
   "element of the pixel buffer holds a color index value, where the actual "
-  "color is defined by a color map.";
+  "color is defined by a color map.");
 static const char * __db_help =
-  "db (Double buffer) - 'y' if the configuration has front and back color "
-  "buffers that are swappable.  '-' if this is not supported.";
+  N_("db (Double buffer) - 'y' if the configuration has front and back color "
+  "buffers that are swappable.  '-' if this is not supported.");
 static const char * __st_help =
-  "st (Stereo buffer) - 'y' if the configuration has left and right color "
-  "buffers that are rendered to in stereo.  '-' if this is not supported.";
+  N_("st (Stereo buffer) - 'y' if the configuration has left and right color "
+  "buffers that are rendered to in stereo.  '-' if this is not supported.");
 static const char * __rs_help =
-  "rs (Red size) - Number of bits per color used for red.  "
-  "Undefined for configurations that use color indexing.";
+  N_("rs (Red size) - Number of bits per color used for red.  "
+  "Undefined for configurations that use color indexing.");
 static const char * __gs_help =
-  "gs (Green size) - Number of bits per color used for green.  "
-  "Undefined for configurations that use color indexing.";
+  N_("gs (Green size) - Number of bits per color used for green.  "
+  "Undefined for configurations that use color indexing.");
 static const char * __bs_help =
-  "bs (Blue size) - Number of bits per color used for blue.  "
-  "Undefined for configurations that use color indexing.";
+  N_("bs (Blue size) - Number of bits per color used for blue.  "
+  "Undefined for configurations that use color indexing.");
 static const char * __as_help =
-  "as (Alpha size) - Number of bits per color used for alpha.  "
-  "Undefined for configurations that use color indexing.";
+  N_("as (Alpha size) - Number of bits per color used for alpha.  "
+  "Undefined for configurations that use color indexing.");
 static const char * __aux_help =
-  "aux (Auxiliary buffers) - Number of available auxiliary color buffers.";
+  N_("aux (Auxiliary buffers) - Number of available auxiliary color buffers.");
 static const char * __dpt_help =
-  "dpt (Depth buffer size) - Number of bits per color in the depth buffer.";
+  N_("dpt (Depth buffer size) - Number of bits per color in the depth buffer.");
 static const char * __stn_help =
-  "stn (Stencil size) - Number of bits per element in the stencil buffer.";
+  N_("stn (Stencil size) - Number of bits per element in the stencil buffer.");
 static const char * __acr_help =
-  "acr (Accumulator red size) - Number of bits per color used for red "
-  "in the accumulator buffer.";
+  N_("acr (Accumulator red size) - Number of bits per color used for red "
+  "in the accumulator buffer.");
 static const char * __acg_help =
-  "acg (Accumulator green size) - Number of bits per color used for green "
-  "in the accumulator buffer.";
+  N_("acg (Accumulator green size) - Number of bits per color used for green "
+  "in the accumulator buffer.");
 static const char * __acb_help =
-  "acb (Accumulator blue size) - Number of bits per color used for blue "
-  "in the accumulator buffer.";
+  N_("acb (Accumulator blue size) - Number of bits per color used for blue "
+  "in the accumulator buffer.");
 static const char * __aca_help =
-  "aca (Accumulator alpha size) - Number of bits per color used for alpha "
-  "in the accumulator buffer.";
+  N_("aca (Accumulator alpha size) - Number of bits per color used for alpha "
+  "in the accumulator buffer.");
 static const char * __mvs_help =
-  "mvs (Multisample coverage samples) - Number of coverage samples per multisample.";
+  N_("mvs (Multisample coverage samples) - Number of coverage samples per multisample.");
 static const char * __mcs_help =
-  "mcs (Multisample color samples) - Number of color samples per multisample.";
+  N_("mcs (Multisample color samples) - Number of color samples per multisample.");
 static const char * __mb_help =
-  "mb (Multisample buffer count) - Number of multisample buffers.";
+  N_("mb (Multisample buffer count) - Number of multisample buffers.");
 static const char * __cav_help =
-  "cav (Caveats) - Caveats for this configuration.  A frame buffer "
+  N_("cav (Caveats) - Caveats for this configuration.  A frame buffer "
   "configuration may have the following caveats: 'NonC' if it supports "
   "any non-conformant visual extension.  'Slow' if it has reduced "
-  "performance.  '-' if it has no caveats.";
+  "performance.  '-' if it has no caveats.");
 static const char * __pbw_help =
-  "pbw (Pbuffer width) - Width of pbuffer (in hexadecimal).";
+  N_("pbw (Pbuffer width) - Width of pbuffer (in hexadecimal).");
 static const char * __pbh_help =
-  "pbh (Pbuffer height) - Height of pbuffer (in hexadecimal).";
+  N_("pbh (Pbuffer height) - Height of pbuffer (in hexadecimal).");
 static const char * __pbp_help =
-  "pbp (Pbuffer max pixels) - Max number of pixels in pbuffer (in "
-  "hexadecimal).";
+  N_("pbp (Pbuffer max pixels) - Max number of pixels in pbuffer (in "
+  "hexadecimal).");
 static const char * __trt_help =
-  "trt (Transparency type) - Type of transparency (RGBA or Index).";
+  N_("trt (Transparency type) - Type of transparency (RGBA or Index).");
 static const char * __trr_help =
-  "trr (Transparency red value) - Red value considered transparent.";
+  N_("trr (Transparency red value) - Red value considered transparent.");
 static const char * __trg_help =
-  "trg (Transparency green value) - Green value considered transparent.";
+  N_("trg (Transparency green value) - Green value considered transparent.");
 static const char * __trb_help =
-  "trb (Transparency blue value) - Blue value considered transparent.";
+  N_("trb (Transparency blue value) - Blue value considered transparent.");
 static const char * __tra_help =
-  "tra (Transparency alpha value) - Alpha value considered transparent.";
+  N_("tra (Transparency alpha value) - Alpha value considered transparent.");
 static const char * __tri_help =
-  "tri (Transparency index value) - Color index value considered transparent.";
+  N_("tri (Transparency index value) - Color index value considered transparent.");
 
 
 static const char * __egl_as_help =
-  "as (Alpha size) - Number of bits of alpha stored in the color buffer.";
+  N_("as (Alpha size) - Number of bits of alpha stored in the color buffer.");
 static const char * __egl_ams_help =
-  "ams (Alpha mask size) - Number of bits in the alpha mask buffer.";
+  N_("ams (Alpha mask size) - Number of bits in the alpha mask buffer.");
 static const char * __egl_bt_help =
-  "bt (Bind to Texture RGB) - 'y' if color buffers can be bound "
-  "to an RGB texture, '.' otherwise.";
+  N_("bt (Bind to Texture RGB) - 'y' if color buffers can be bound "
+  "to an RGB texture, '.' otherwise.");
 static const char * __egl_bta_help =
-  "bta (Bind to Texture RGBA) - 'y' if color buffers can be bound "
-  "to an RGBA texture, '.' otherwise.";
+  N_("bta (Bind to Texture RGBA) - 'y' if color buffers can be bound "
+  "to an RGBA texture, '.' otherwise.");
 static const char * __egl_bs_help =
-  "bs (Blue size) - Number of bits of blue stored in the color buffer.";
+  N_("bs (Blue size) - Number of bits of blue stored in the color buffer.");
 static const char * __egl_bfs_help =
-  "bfs (Buffer size) - Depth of the color buffer. It is the sum of 'rs', 'gs', "
-  "'bs', and 'as'.";
+  N_("bfs (Buffer size) - Depth of the color buffer. It is the sum of 'rs', 'gs', "
+  "'bs', and 'as'.");
 static const char * __egl_cbt_help =
-  "cbt (Color buffer type) - Type of the color buffer. Possible types are "
-  "'rgb' for RGB color buffer and 'lum' for Luminance.";
+  N_("cbt (Color buffer type) - Type of the color buffer. Possible types are "
+  "'rgb' for RGB color buffer and 'lum' for Luminance.");
 static const char * __egl_cav_help =
-  "cav (Config caveat) - Caveats for the frame buffer configuration. Possible "
+  N_("cav (Config caveat) - Caveats for the frame buffer configuration. Possible "
   "caveat values are 'slo' for Slow Config, 'NoC' for a non-conformant "
-  "config, and '.' otherwise.";
+  "config, and '.' otherwise.");
 static const char * __egl_id_help =
-  "id (Config ID) - ID of the frame buffer configuration.";
+  N_("id (Config ID) - ID of the frame buffer configuration.");
 static const char * __egl_cfm_help =
-  "cfm (Conformant) - Bitmask indicating which client API contexts created "
-  "with respect to this config are conformant.";
+  N_("cfm (Conformant) - Bitmask indicating which client API contexts created "
+  "with respect to this config are conformant.");
 static const char * __egl_dpt_help =
-  "dpt (Depth size) - Number of bits in the depth buffer.";
+  N_("dpt (Depth size) - Number of bits in the depth buffer.");
 static const char * __egl_gs_help =
-  "gs (Green size) - Number of bits of green stored in the color buffer.";
+  N_("gs (Green size) - Number of bits of green stored in the color buffer.");
 static const char * __egl_lvl_help =
-  "lvl (Frame buffer level) - Level zero is the default frame buffer. Positive "
+  N_("lvl (Frame buffer level) - Level zero is the default frame buffer. Positive "
   "levels correspond to frame buffers that overlay the default buffer and "
   "negative levels correspond to frame buffers that underlay the default "
-  "buffer.";
+  "buffer.");
 static const char * __egl_lum_help =
-  "lum (Luminance size) - Number of bits of luminance stored in the luminance "
-  "buffer.";
+  N_("lum (Luminance size) - Number of bits of luminance stored in the luminance "
+  "buffer.");
 static const char * __egl_pbw_help =
-  "pbw (Pbuffer max width) - Maximum width of a pixel buffer surface in "
-  "pixels.";
+  N_("pbw (Pbuffer max width) - Maximum width of a pixel buffer surface in "
+  "pixels.");
 static const char * __egl_pbh_help =
-  "pdh (Pbuffer max height) - Maximum height of a pixel buffer surface in "
-  "pixels.";
+  N_("pdh (Pbuffer max height) - Maximum height of a pixel buffer surface in "
+  "pixels.");
 static const char * __egl_pbp_help =
-  "pbp (Pbuffer max pixels) - Maximum size of a pixel buffer surface in "
-  "pixels.";
+  N_("pbp (Pbuffer max pixels) - Maximum size of a pixel buffer surface in "
+  "pixels.");
 static const char * __egl_six_help =
-  "six (Swap interval max) - Maximum value that can be passed to "
-  "eglSwapInterval.";
+  N_("six (Swap interval max) - Maximum value that can be passed to "
+  "eglSwapInterval.");
 static const char * __egl_sin_help =
-  "sin (Swap interval min) - Minimum value that can be passed to "
-  "eglSwapInterval.";
+  N_("sin (Swap interval min) - Minimum value that can be passed to "
+  "eglSwapInterval.");
 static const char * __egl_nrd_help =
-  "nrd (Native renderable) - 'y' if native rendering APIs can "
-  "render into the surface, '.' otherwise.";
+  N_("nrd (Native renderable) - 'y' if native rendering APIs can "
+  "render into the surface, '.' otherwise.");
 static const char * __egl_vid_help =
-  "vid (Native visual ID) - ID of the associated native visual.";
+  N_("vid (Native visual ID) - ID of the associated native visual.");
 static const char * __egl_nvt_help =
-  "nvt (Native visual type) - Type of the associated native visual.";
+  N_("nvt (Native visual type) - Type of the associated native visual.");
 static const char * __egl_rs_help =
-  "rs (Red size) - Number of bits of red stored in the color buffer.";
+  N_("rs (Red size) - Number of bits of red stored in the color buffer.");
 static const char * __egl_rdt_help =
-  "rdt (Renderable type) - Bitmask indicating the types of supported client "
-  "API contexts.";
+  N_("rdt (Renderable type) - Bitmask indicating the types of supported client "
+  "API contexts.");
 static const char * __egl_spb_help =
-  "spb (Sample buffers) - Number of multisample buffers.";
+  N_("spb (Sample buffers) - Number of multisample buffers.");
 static const char * __egl_smp_help =
-  "smp (Samples) - Number of samples per pixel.";
+  N_("smp (Samples) - Number of samples per pixel.");
 static const char * __egl_stn_help =
-  "stn (Stencil size) - Number of bits in the stencil buffer.";
+  N_("stn (Stencil size) - Number of bits in the stencil buffer.");
 static const char * __egl_sur_help =
-  "sur (Surface type) - Bitmask indicating the types of supported EGL "
-  "surfaces.";
+  N_("sur (Surface type) - Bitmask indicating the types of supported EGL "
+  "surfaces.");
 static const char * __egl_tpt_help =
-  "tpt (Transparent type) - Type of supported transparency. Possible "
-  "transparency values are: 'rgb' for Transparent RGB and '.' otherwise.";
-static const char * __egl_trv_help = "trv (Transparent red value)";
-static const char * __egl_tgv_help = "tgv (Transparent green value)";
-static const char * __egl_tbv_help = "tbv (Transparent blue value)";
+  N_("tpt (Transparent type) - Type of supported transparency. Possible "
+  "transparency values are: 'rgb' for Transparent RGB and '.' otherwise.");
+static const char * __egl_trv_help = N_("trv (Transparent red value)");
+static const char * __egl_tgv_help = N_("tgv (Transparent green value)");
+static const char * __egl_tbv_help = N_("tbv (Transparent blue value)");
 
 
 GType ctk_glx_get_type(void)
@@ -265,9 +268,7 @@ static void show_fbc_toggled(GtkWidget *widget, gpointer user_data)
     }
 
     ctk_config_statusbar_message(ctk_glx->ctk_config,
-                                 "Show GLX Frame Buffer Configurations "
-                                 "button %s.",
-                                 enabled ? "enabled" : "disabled");
+                                 enabled ? _("Show GLX Frame Buffer Configurations button enabled.") : _("Show GLX Frame Buffer Configurations button disabled."));
 
 } /* show_fbc_toggled() */
 
@@ -293,9 +294,7 @@ static void show_egl_fbc_toggled(GtkWidget *widget, gpointer user_data)
     }
 
     ctk_config_statusbar_message(ctk_glx->ctk_config,
-                                 "Show EGL Frame Buffer Configurations "
-                                 "button %s.",
-                                 enabled ? "enabled" : "disabled");
+                                  enabled ? _("Show EGL Frame Buffer Configurations button enabled.") : _("Show EGL Frame Buffer Configurations button disabled."));
 
 } /* show_egl_fbc_toggled() */
 
@@ -739,16 +738,16 @@ GtkWidget* ctk_glx_new(CtrlTarget *ctrl_target,
 
     if (glx_fbconfigs_available) {
         show_fbc_button = gtk_toggle_button_new_with_label(
-                              "Show GLX Frame Buffer Configurations");
+                              _("Show GLX Frame Buffer Configurations"));
         gtk_toggle_button_set_active(GTK_TOGGLE_BUTTON(show_fbc_button), FALSE);
-        ctk_config_set_tooltip(ctk_config, show_fbc_button, __show_fbc_help);
+        ctk_config_set_tooltip(ctk_config, show_fbc_button, _(__show_fbc_help));
         g_signal_connect(G_OBJECT(show_fbc_button),
                          "clicked", G_CALLBACK(show_fbc_toggled),
                          (gpointer) ctk_glx);
 
         window = gtk_window_new(GTK_WINDOW_TOPLEVEL);
-        gtk_window_set_title(GTK_WINDOW(window), "GLX Frame Buffer "
-                                                 "Configurations");
+        gtk_window_set_title(GTK_WINDOW(window), _("GLX Frame Buffer "
+                                                 "Configurations"));
         gtk_container_set_border_width(GTK_CONTAINER(window), CTK_WINDOW_PAD);
         gtk_window_set_default_size(GTK_WINDOW(window), 400, 200);
         g_signal_connect(G_OBJECT(window), "destroy-event",
@@ -836,18 +835,18 @@ GtkWidget* ctk_glx_new(CtrlTarget *ctrl_target,
     if (egl_fbconfigs_available) {
 
         show_egl_fbc_button = gtk_toggle_button_new_with_label(
-                                  "Show EGL Frame Buffer Configurations");
+                                  _("Show EGL Frame Buffer Configurations"));
         gtk_toggle_button_set_active(GTK_TOGGLE_BUTTON(show_egl_fbc_button),
                                      FALSE);
         ctk_config_set_tooltip(ctk_config, show_egl_fbc_button,
-                               __show_egl_fbc_help);
+                               _(__show_egl_fbc_help));
         g_signal_connect(G_OBJECT(show_egl_fbc_button),
                          "clicked", G_CALLBACK(show_egl_fbc_toggled),
                          (gpointer) ctk_glx);
 
         window = gtk_window_new(GTK_WINDOW_TOPLEVEL);
         gtk_window_set_title(GTK_WINDOW(window),
-                             "EGL Frame Buffer Configurations");
+                             _("EGL Frame Buffer Configurations"));
         gtk_container_set_border_width(GTK_CONTAINER(window), CTK_WINDOW_PAD);
         gtk_window_set_default_size(GTK_WINDOW(window), 400, 200);
         g_signal_connect(G_OBJECT(window), "destroy-event",
@@ -1060,7 +1059,7 @@ void ctk_glx_probe_info(GtkWidget *widget)
     gtk_box_pack_start(GTK_BOX(vbox), notebook, TRUE, TRUE, 0);
 
     /* Add (Shared) GLX information to widget */
-    notebook_label = gtk_label_new("GLX");
+    notebook_label = gtk_label_new(_("GLX"));
     vbox2 = gtk_vbox_new(FALSE, 0);
     gtk_container_set_border_width(GTK_CONTAINER(vbox2), notebook_padding);
     scroll_win = gtk_scrolled_window_new(NULL, NULL);
@@ -1071,10 +1070,10 @@ void ctk_glx_probe_info(GtkWidget *widget)
     gtk_table_set_row_spacings(GTK_TABLE(table), 3);
     gtk_table_set_col_spacings(GTK_TABLE(table), 15);
     add_table_row(table, 0,
-                  0, 0, "Direct Rendering:",
+                  0, 0, _("Direct Rendering:"),
                   0, 0,  direct_rendering);
     add_table_row(table, 1,
-                  0, 0, "GLX Extensions:",
+                  0, 0, _("GLX Extensions:"),
                   0, 0,  glx_extensions);
 
     if (ctk_glx->show_fbc_button) {
@@ -1093,7 +1092,7 @@ void ctk_glx_probe_info(GtkWidget *widget)
 
 
     /* Add server GLX information to widget */
-    notebook_label = gtk_label_new("Server GLX");
+    notebook_label = gtk_label_new(_("Server GLX"));
     vbox2 = gtk_vbox_new(FALSE, 0);
     gtk_container_set_border_width(GTK_CONTAINER(vbox2), notebook_padding);
     scroll_win = gtk_scrolled_window_new(NULL, NULL);
@@ -1104,13 +1103,13 @@ void ctk_glx_probe_info(GtkWidget *widget)
     gtk_table_set_row_spacings(GTK_TABLE(table), 3);
     gtk_table_set_col_spacings(GTK_TABLE(table), 15);
     add_table_row(table, 0,
-                  0, 0, "Vendor:",
+                  0, 0, _("Vendor:"),
                   0, 0, server_vendor);
     add_table_row(table, 1,
-                  0, 0, "Version:",
+                  0, 0, _("Version:"),
                   0, 0, server_version);
     add_table_row(table, 2,
-                  0, 0, "Extensions:",
+                  0, 0, _("Extensions:"),
                   0, 0, server_extensions);
 
     gtk_box_pack_start(GTK_BOX(vbox2), table, FALSE, FALSE, 0);
@@ -1121,7 +1120,7 @@ void ctk_glx_probe_info(GtkWidget *widget)
 
 
     /* Add client GLX information to widget */
-    notebook_label = gtk_label_new("Client GLX");
+    notebook_label = gtk_label_new(_("Client GLX"));
     vbox2 = gtk_vbox_new(FALSE, 0);
     gtk_container_set_border_width(GTK_CONTAINER(vbox2), notebook_padding);
     scroll_win = gtk_scrolled_window_new(NULL, NULL);
@@ -1132,13 +1131,13 @@ void ctk_glx_probe_info(GtkWidget *widget)
     gtk_table_set_row_spacings(GTK_TABLE(table), 3);
     gtk_table_set_col_spacings(GTK_TABLE(table), 15);
     add_table_row(table, 0,
-                  0, 0, "Vendor:",
+                  0, 0, _("Vendor:"),
                   0, 0, client_vendor);
     add_table_row(table, 1,
-                  0, 0, "Version:",
+                  0, 0, _("Version:"),
                   0, 0, client_version);
     add_table_row(table, 2,
-                  0, 0, "Extensions:",
+                  0, 0, _("Extensions:"),
                   0, 0, client_extensions);
 
     gtk_box_pack_start(GTK_BOX(vbox2), table, FALSE, FALSE, 0);
@@ -1149,7 +1148,7 @@ void ctk_glx_probe_info(GtkWidget *widget)
 
 
     /* Add OpenGL information to widget */
-    notebook_label = gtk_label_new("OpenGL");
+    notebook_label = gtk_label_new(_("OpenGL"));
     vbox2 = gtk_vbox_new(FALSE, 0);
     gtk_container_set_border_width(GTK_CONTAINER(vbox2), notebook_padding);
     scroll_win = gtk_scrolled_window_new(NULL, NULL);
@@ -1160,16 +1159,16 @@ void ctk_glx_probe_info(GtkWidget *widget)
     gtk_table_set_row_spacings(GTK_TABLE(table), 3);
     gtk_table_set_col_spacings(GTK_TABLE(table), 15);
     add_table_row(table, 0,
-                  0, 0, "Vendor:",
+                  0, 0, _("Vendor:"),
                   0, 0, opengl_vendor);
     add_table_row(table, 1,
-                  0, 0, "Renderer:",
+                  0, 0, _("Renderer:"),
                   0, 0, opengl_renderer);
     add_table_row(table, 2,
-                  0, 0, "Version:",
+                  0, 0, _("Version:"),
                   0, 0, opengl_version);
     add_table_row(table, 3,
-                  0, 0, "Extensions:",
+                  0, 0, _("Extensions:"),
                   0, 0, opengl_extensions);
 
     gtk_box_pack_start(GTK_BOX(vbox2), table, FALSE, FALSE, 0);
@@ -1181,7 +1180,7 @@ void ctk_glx_probe_info(GtkWidget *widget)
 
     /* Add EGL information to widget */
     if (use_egl) {
-        notebook_label = gtk_label_new("EGL");
+        notebook_label = gtk_label_new(_("EGL"));
         vbox2 = gtk_vbox_new(FALSE, 0);
         gtk_container_set_border_width(GTK_CONTAINER(vbox2), notebook_padding);
         scroll_win = gtk_scrolled_window_new(NULL, NULL);
@@ -1192,13 +1191,13 @@ void ctk_glx_probe_info(GtkWidget *widget)
         gtk_table_set_row_spacings(GTK_TABLE(table), 3);
         gtk_table_set_col_spacings(GTK_TABLE(table), 15);
         add_table_row(table, 0,
-                      0, 0, "Vendor:",
+                      0, 0, _("Vendor:"),
                       0, 0, egl_vendor);
         add_table_row(table, 1,
-                      0, 0, "Version:",
+                      0, 0, _("Version:"),
                       0, 0, egl_version);
         add_table_row(table, 2,
-                      0, 0, "Extensions:",
+                      0, 0, _("Extensions:"),
                       0, 0, egl_extensions);
 
         if (ctk_glx->show_egl_fbc_button) {
@@ -1255,90 +1254,90 @@ GtkTextBuffer *ctk_glx_create_help(GtkTextTagTable *table,
 
     gtk_text_buffer_get_iter_at_offset(b, &i, 0);
 
-    ctk_help_title(b, &i, "Graphics Information Help");
+    ctk_help_title(b, &i, _("Graphics Information Help"));
     ctk_help_para(b, &i,
-                  "This page in the NVIDIA X Server Control Panel describes "
+                  _("This page in the NVIDIA X Server Control Panel describes "
                   "information about graphics libraries available on this X "
-                  "screen."
+                  "screen.")
                   );
 
-    ctk_help_heading(b, &i, "Show GLX Frame Buffer Configurations");
-    ctk_help_para(b, &i, "%s", __show_fbc_help);
+    ctk_help_heading(b, &i, _("Show GLX Frame Buffer Configurations"));
+    ctk_help_para(b, &i, "%s", _(__show_fbc_help));
 
-    ctk_help_heading(b, &i, "Direct Rendering");
+    ctk_help_heading(b, &i, _("Direct Rendering"));
     ctk_help_para(b, &i,
-                  "This will tell you if direct rendering is available.  If "
+                  _("This will tell you if direct rendering is available.  If "
                   "direct rendering is available, then a program running on "
                   "the same computer that the control panel is running on "
                   "will be able to bypass the X Server and take advantage of "
                   "faster rendering.  If direct rendering is not available, "
                   "then indirect rendering will be used and all rendering "
-                  "will happen through the X Server."
+                  "will happen through the X Server.")
                   );
-    ctk_help_heading(b, &i, "GLX Extensions");
+    ctk_help_heading(b, &i, _("GLX Extensions"));
     ctk_help_para(b, &i,
-                  "This is the list of GLX extensions that are supported by "
+                  _("This is the list of GLX extensions that are supported by "
                   "both the client (libraries) and server (GLX extension to "
-                  "the X Server)."
+                  "the X Server).")
                   );
 
-    ctk_help_heading(b, &i, "Server GLX Vendor String");
+    ctk_help_heading(b, &i, _("Server GLX Vendor String"));
     ctk_help_para(b, &i,
-                  "This is the vendor supplying the GLX extension running on "
-                  "the X Server."
+                  _("This is the vendor supplying the GLX extension running on "
+                  "the X Server.")
                   );
-    ctk_help_heading(b, &i, "Server GLX Version String");
+    ctk_help_heading(b, &i, _("Server GLX Version String"));
     ctk_help_para(b, &i,
-                  "This is the version of the GLX extension running on the X "
-                  "Server."
+                  _("This is the version of the GLX extension running on the X "
+                  "Server.")
                   );
-    ctk_help_heading(b, &i, "Server GLX Extensions");
+    ctk_help_heading(b, &i, _("Server GLX Extensions"));
     ctk_help_para(b, &i,
-                  "This is the list of extensions supported by the GLX "
-                  "extension running on the X Server."
-                  );
-
-    ctk_help_heading(b, &i, "Client GLX Vendor String");
-    ctk_help_para(b, &i,
-                  "This is the vendor supplying the GLX libraries."
-                  );
-    ctk_help_heading(b, &i, "Client GLX Version String");
-    ctk_help_para(b, &i,
-                  "This is the version of the GLX libraries."
-                  );
-    ctk_help_heading(b, &i, "Client GLX Extensions");
-    ctk_help_para(b, &i,
-                  "This is the list of extensions supported by the GLX "
-                  "libraries."
+                  _("This is the list of extensions supported by the GLX "
+                  "extension running on the X Server.")
                   );
 
-    ctk_help_heading(b, &i, "OpenGL Vendor String");
+    ctk_help_heading(b, &i, _("Client GLX Vendor String"));
     ctk_help_para(b, &i,
-                  "This is the name of the vendor providing the OpenGL "
-                  "implementation."
+                  _("This is the vendor supplying the GLX libraries.")
+                  );
+    ctk_help_heading(b, &i, _("Client GLX Version String"));
+    ctk_help_para(b, &i,
+                  _("This is the version of the GLX libraries.")
+                  );
+    ctk_help_heading(b, &i, _("Client GLX Extensions"));
+    ctk_help_para(b, &i,
+                  _("This is the list of extensions supported by the GLX "
+                  "libraries.")
+                  );
+
+    ctk_help_heading(b, &i, _("OpenGL Vendor String"));
+    ctk_help_para(b, &i,
+                  _("This is the name of the vendor providing the OpenGL "
+                  "implementation.")
                  );
-    ctk_help_heading(b, &i, "OpenGL Renderer String");
+    ctk_help_heading(b, &i, _("OpenGL Renderer String"));
     ctk_help_para(b, &i,
-                  "This shows the details of the graphics card on which "
-                  "OpenGL is running."
+                  _("This shows the details of the graphics card on which "
+                  "OpenGL is running.")
                  );
-    ctk_help_heading(b, &i, "OpenGL Version String");
+    ctk_help_heading(b, &i, _("OpenGL Version String"));
     ctk_help_para(b, &i,
-                  "This is the version of the OpenGL implementation."
+                  _("This is the version of the OpenGL implementation.")
                  );
-    ctk_help_heading(b, &i, "OpenGL Extensions");
+    ctk_help_heading(b, &i, _("OpenGL Extensions"));
     ctk_help_para(b, &i,
-                  "This is the list of OpenGL extensions that are supported "
-                  "by this driver."
+                  _("This is the list of OpenGL extensions that are supported "
+                  "by this driver.")
                  );
 
-    ctk_help_heading(b, &i, "Show EGL Frame Buffer Configurations");
-    ctk_help_para(b, &i, "%s", __show_egl_fbc_help);
+    ctk_help_heading(b, &i, _("Show EGL Frame Buffer Configurations"));
+    ctk_help_para(b, &i, "%s", _(__show_egl_fbc_help));
 
 
-    ctk_help_heading(b, &i, "GLX Frame Buffer Configurations");
-    ctk_help_para(b, &i, "This table lists the supported GLX frame buffer "
-                  "configurations for the display.");
+    ctk_help_heading(b, &i, _("GLX Frame Buffer Configurations"));
+    ctk_help_para(b, &i, _("This table lists the supported GLX frame buffer "
+                  "configurations for the display."));
     ctk_help_para(b, &i,
                   "\t%s\n\n"
                   "\t%s\n\n"
@@ -1375,44 +1374,44 @@ GtkTextBuffer *ctk_glx_create_help(GtkTextTagTable *table,
                   "\t%s\n\n"
                   "\t%s\n\n",
 
-                  __fid_help,
-                  __vid_help,
-                  __vt_help,
-                  __bfs_help,
-                  __lvl_help,
-                  __bf_help,
-                  __db_help,
-                  __st_help,
-                  __rs_help,
-                  __gs_help,
-                  __bs_help,
+                  _(__fid_help),
+                  _(__vid_help),
+                  _(__vt_help),
+                  _(__bfs_help),
+                  _(__lvl_help),
+                  _(__bf_help),
+                  _(__db_help),
+                  _(__st_help),
+                  _(__rs_help),
+                  _(__gs_help),
+                  _(__bs_help),
 
-                  __as_help,
-                  __aux_help,
-                  __dpt_help,
-                  __stn_help,
-                  __acr_help,
-                  __acg_help,
-                  __acb_help,
-                  __aca_help,
-                  __mvs_help,
-                  __mcs_help,
-                  __mb_help,
+                  _(__as_help),
+                  _(__aux_help),
+                  _(__dpt_help),
+                  _(__stn_help),
+                  _(__acr_help),
+                  _(__acg_help),
+                  _(__acb_help),
+                  _(__aca_help),
+                  _(__mvs_help),
+                  _(__mcs_help),
+                  _(__mb_help),
 
-                  __cav_help,
-                  __pbw_help,
-                  __pbh_help,
-                  __pbp_help,
-                  __trt_help,
-                  __trr_help,
-                  __trg_help,
-                  __trb_help,
-                  __tra_help,
-                  __tri_help
+                  _(__cav_help),
+                  _(__pbw_help),
+                  _(__pbh_help),
+                  _(__pbp_help),
+                  _(__trt_help),
+                  _(__trr_help),
+                  _(__trg_help),
+                  _(__trb_help),
+                  _(__tra_help),
+                  _(__tri_help)
                  );
-    ctk_help_heading(b, &i, "EGL Frame Buffer Configurations");
-    ctk_help_para(b, &i, "This table lists the supported EGL frame buffer "
-                  "configurations for the display.");
+    ctk_help_heading(b, &i, _("EGL Frame Buffer Configurations"));
+    ctk_help_para(b, &i, _("This table lists the supported EGL frame buffer "
+                  "configurations for the display."));
     ctk_help_para(b, &i,
                   "\t%s\n\n"
                   "\t%s\n\n"
@@ -1450,41 +1449,41 @@ GtkTextBuffer *ctk_glx_create_help(GtkTextTagTable *table,
                   "\t%s\n\n"
                   "\t%s\n\n",
 
-                  __egl_id_help,
-                  __egl_vid_help,
-                  __egl_nvt_help,
-                  __egl_bfs_help,
-                  __egl_lvl_help,
-                  __egl_cbt_help,
-                  __egl_rs_help,
-                  __egl_gs_help,
+                  _(__egl_id_help),
+                  _(__egl_vid_help),
+                  _(__egl_nvt_help),
+                  _(__egl_bfs_help),
+                  _(__egl_lvl_help),
+                  _(__egl_cbt_help),
+                  _(__egl_rs_help),
+                  _(__egl_gs_help),
 
-                  __egl_bs_help,
-                  __egl_as_help,
-                  __egl_ams_help,
-                  __egl_lum_help,
-                  __egl_dpt_help,
-                  __egl_stn_help,
-                  __egl_bt_help,
-                  __egl_bta_help,
+                  _(__egl_bs_help),
+                  _(__egl_as_help),
+                  _(__egl_ams_help),
+                  _(__egl_lum_help),
+                  _(__egl_dpt_help),
+                  _(__egl_stn_help),
+                  _(__egl_bt_help),
+                  _(__egl_bta_help),
 
-                  __egl_cfm_help,
-                  __egl_spb_help,
-                  __egl_smp_help,
-                  __egl_cav_help,
-                  __egl_pbw_help,
-                  __egl_pbh_help,
-                  __egl_pbp_help,
-                  __egl_six_help,
+                  _(__egl_cfm_help),
+                  _(__egl_spb_help),
+                  _(__egl_smp_help),
+                  _(__egl_cav_help),
+                  _(__egl_pbw_help),
+                  _(__egl_pbh_help),
+                  _(__egl_pbp_help),
+                  _(__egl_six_help),
 
-                  __egl_sin_help,
-                  __egl_nrd_help,
-                  __egl_rdt_help,
-                  __egl_sur_help,
-                  __egl_tpt_help,
-                  __egl_trv_help,
-                  __egl_tgv_help,
-                  __egl_tbv_help
+                  _(__egl_sin_help),
+                  _(__egl_nrd_help),
+                  _(__egl_rdt_help),
+                  _(__egl_sur_help),
+                  _(__egl_tpt_help),
+                  _(__egl_trv_help),
+                  _(__egl_tgv_help),
+                  _(__egl_tbv_help)
                  );
 
   ctk_help_finish(b);

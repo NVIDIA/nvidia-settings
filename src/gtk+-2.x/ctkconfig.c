@@ -33,22 +33,26 @@
 #include <stdlib.h>
 #include <stdio.h>
 #include <string.h>
+#include <libintl.h>
+
+#define _(STRING) gettext(STRING)
+#define N_(STRING) STRING
 
 static const char *__status_bar_help =
-"The status bar in the bottom "
+N_("The status bar in the bottom "
 "left of the nvidia-settings GUI displays the most "
 "recent change that has been sent to the X "
 "server.  The 'Display Status Bar' check box "
-"controls whether this status bar is displayed.";
+"controls whether this status bar is displayed.");
 
 static const char *__slider_text_entries_help =
-"When the \"Slider Text Entries\" option is enabled, the current "
+N_("When the \"Slider Text Entries\" option is enabled, the current "
 "value of an attribute controlled by a slider is "
 "displayed and can be modified with a text entry "
-"shown next to the slider.";
+"shown next to the slider.");
 
 static const char *__x_display_names_help =
-"When the current settings are saved to the "
+N_("When the current settings are saved to the "
 "configuration file, the attributes can either be "
 "qualified with just the screen to which the attribute "
 "should be applied, or the attribute can be qualified with "
@@ -56,23 +60,23 @@ static const char *__x_display_names_help =
 "use the same configuration file across multiple "
 "computers, be sure to leave this option unchecked.  "
 "It is normally recommended to leave this option "
-"unchecked.";
+"unchecked.");
 
 static const char *__show_quit_dialog_help =
-"When this option is enabled, nvidia-settings will ask if you "
-"really want to quit when the quit button is pressed.";
+N_("When this option is enabled, nvidia-settings will ask if you "
+"really want to quit when the quit button is pressed.");
 
 static const char *__save_current_config_help =
-"When nvidia-settings exits, it saves the current X server "
+N_("When nvidia-settings exits, it saves the current X server "
 "configuration to a configuration file (\"~/.nvidia-settings-rc\", "
 "by default).  Use this button to save the current X server "
-"configuration immediately, optionally to a different file.";
+"configuration immediately, optionally to a different file.");
 
 static const char *__update_rules_on_profile_name_change_help =
-"If this option is enabled, changing the name of a profile in the "
+N_("If this option is enabled, changing the name of a profile in the "
 "Application Profile page of nvidia-settings will cause any rules "
 "that refer to that profile to also be updated to refer to the new "
-"profile name.";
+"profile name.");
 
 static void ctk_config_class_init(CtkConfigClass *ctk_config_class);
 
@@ -167,34 +171,34 @@ GtkWidget* ctk_config_new(ConfigProperties *conf, CtrlSystem *pCtrlSystem)
     } config_check_button_entries[] =
     {
         {
-            "Display Status Bar",
+            _("Display Status Bar"),
             CONFIG_PROPERTIES_DISPLAY_STATUS_BAR,
             G_CALLBACK(display_status_bar_toggled),
-            __status_bar_help
+            _(__status_bar_help)
         },
         {
-            "Slider Text Entries",
+            _("Slider Text Entries"),
             CONFIG_PROPERTIES_SLIDER_TEXT_ENTRIES,
             G_CALLBACK(slider_text_entries_toggled),
-            __slider_text_entries_help
+            _(__slider_text_entries_help)
         },
         {
-            "Include X Display Names in the Config File",
+            _("Include X Display Names in the Config File"),
             CONFIG_PROPERTIES_INCLUDE_DISPLAY_NAME_IN_CONFIG_FILE,
             G_CALLBACK(display_name_toggled),
-            __x_display_names_help
+            _(__x_display_names_help)
         },
         {
-            "Show \"Really Quit?\" Dialog",
+            _("Show \"Really Quit?\" Dialog"),
             CONFIG_PROPERTIES_SHOW_QUIT_DIALOG,
             G_CALLBACK(show_quit_dialog_toggled),
-            __show_quit_dialog_help
+            _(__show_quit_dialog_help)
         },
         {
-            "Update Rules when an Application Profile Name changes",
+            _("Update Rules when an Application Profile Name changes"),
             CONFIG_PROPERTIES_UPDATE_RULES_ON_PROFILE_NAME_CHANGE,
             G_CALLBACK(update_rules_on_profile_name_change_toggled),
-            __update_rules_on_profile_name_change_help
+            _(__update_rules_on_profile_name_change_help)
         },
 
     };
@@ -228,7 +232,7 @@ GtkWidget* ctk_config_new(ConfigProperties *conf, CtrlSystem *pCtrlSystem)
     hbox = gtk_hbox_new (FALSE, 5);
     gtk_box_pack_start(GTK_BOX(ctk_config), hbox, FALSE, FALSE, 0);
 
-    label = gtk_label_new("nvidia-settings Configuration");
+    label = gtk_label_new(_("nvidia-settings Configuration"));
     gtk_box_pack_start(GTK_BOX(hbox), label, FALSE, FALSE, 0);
 
     hseparator = gtk_hseparator_new();
@@ -278,7 +282,7 @@ GtkWidget* ctk_config_new(ConfigProperties *conf, CtrlSystem *pCtrlSystem)
 
     /* "Save Current Configuration" button */
 
-    label = gtk_label_new("Save Current Configuration");
+    label = gtk_label_new(_("Save Current Configuration"));
     hbox  = gtk_hbox_new(FALSE, 0);
     ctk_config->button_save_rc = gtk_button_new();
     alignment = gtk_alignment_new(1, 1, 0, 0);
@@ -294,7 +298,7 @@ GtkWidget* ctk_config_new(ConfigProperties *conf, CtrlSystem *pCtrlSystem)
                      (gpointer) ctk_config);
 
     ctk_config_set_tooltip(ctk_config, ctk_config->button_save_rc,
-                           __save_current_config_help);
+                           _(__save_current_config_help));
 
     ctk_config->rc_filename = NULL;
 
@@ -316,7 +320,7 @@ static void save_rc_clicked(GtkWidget *widget, gpointer user_data)
         CTK_WINDOW(ctk_get_parent_window(GTK_WIDGET(ctk_config)));
 
     filename =
-        ctk_get_filename_from_dialog("Please select a file to save to.",
+        ctk_get_filename_from_dialog(_("Please select a file to save to."),
                                      GTK_WINDOW(ctk_window),
                                      ctk_config->rc_filename ?
                                          ctk_config->rc_filename :
@@ -423,7 +427,7 @@ static void display_status_bar_toggled(
     if (gtk_toggle_button_get_active(GTK_TOGGLE_BUTTON(widget))) {
         gtk_widget_show(ctk_config->status_bar.widget);
         ctk_config->conf->booleans |= CONFIG_PROPERTIES_DISPLAY_STATUS_BAR;
-        ctk_config_statusbar_message(ctk_config, "Status bar enabled.");
+        ctk_config_statusbar_message(ctk_config, _("Status bar enabled."));
     } else {
         gtk_widget_hide(ctk_config->status_bar.widget);
 
@@ -451,8 +455,7 @@ static void slider_text_entries_toggled(GtkWidget *widget, gpointer user_data)
     }
 
     ctk_config_statusbar_message(ctk_config, 
-                                 "Slider text entries %s.",
-                                 active ? "enabled" : "disabled");
+                                 active ? _("Slider text entries enabled.") : _("Slider text entries disabled."));
     
     g_signal_emit(ctk_config, signals[0], 0);
 }
@@ -471,8 +474,7 @@ static void display_name_toggled(GtkWidget *widget, gpointer user_data)
     }
 
     ctk_config_statusbar_message(ctk_config, 
-                                 "Including X Display Names in Config File %s.",
-                                 active ? "enabled" : "disabled");
+                                 active ? _("Including X Display Names in Config File enabled.") : _("Including X Display Names in Config File disabled."));
 }
 
 static void show_quit_dialog_toggled(GtkWidget *widget, gpointer user_data)
@@ -487,8 +489,7 @@ static void show_quit_dialog_toggled(GtkWidget *widget, gpointer user_data)
     }
 
     ctk_config_statusbar_message(ctk_config, 
-                                 "Quit confirmation dialog %s.",
-                                 active ? "enabled" : "disabled");
+                                 active ? _("Quit confirmation dialog enabled.") : _("Quit confirmation dialog disabled."));
 }
 
 static void update_rules_on_profile_name_change_toggled(GtkWidget *widget,
@@ -506,9 +507,9 @@ static void update_rules_on_profile_name_change_toggled(GtkWidget *widget,
     }
 
     ctk_config_statusbar_message(ctk_config,
-                                 "Updating rules when an application profile "
-                                 "name changes is %s.",
-                                 active ? "enabled" : "disabled");
+                                 active ?
+                                 _("Updating rules when an application profile name changes is enabled.") :
+                                 _("Updating rules when an application profile name changes is disabled."));
 }
 
 
@@ -527,12 +528,12 @@ GtkTextBuffer *ctk_config_create_help(CtkConfig *ctk_config, GtkTextTagTable *ta
     
     gtk_text_buffer_get_iter_at_offset(b, &i, 0);
 
-    ctk_help_title(b, &i, "nvidia-settings Configuration Help");
+    ctk_help_title(b, &i, _("nvidia-settings Configuration Help"));
 
     ctk_help_data_list_print_sections(b, &i, ctk_config->help_data);
     
-    ctk_help_heading(b, &i, "Active Timers");
-    ctk_help_para(b, &i, "Some attributes are polled periodically "
+    ctk_help_heading(b, &i, _("Active Timers"));
+    ctk_help_para(b, &i, _("Some attributes are polled periodically "
                   "to ensure the reported values are up-to-date.  "
                   "Each row in the 'Active Timers' table reflects "
                   "the configuration of one of these timers and "
@@ -542,10 +543,10 @@ GtkTextBuffer *ctk_config_create_help(CtkConfig *ctk_config, GtkTextTagTable *ta
                   "field allows enabling/disabling it, the 'Time "
                   "Interval' field controls the delay between two "
                   "consecutive polls (in milliseconds).  The Active "
-                  "Timers table is only visible when timers are active.");
+                  "Timers table is only visible when timers are active."));
 
-    ctk_help_heading(b, &i, "Save Current Configuration");
-    ctk_help_para(b, &i, "%s", __save_current_config_help);
+    ctk_help_heading(b, &i, _("Save Current Configuration"));
+    ctk_help_para(b, &i, "%s", _(__save_current_config_help));
 
     ctk_help_finish(b);
 
@@ -621,7 +622,7 @@ static GtkWidget *create_timer_list(CtkConfig *ctk_config)
     renderer = gtk_cell_renderer_toggle_new();
     g_signal_connect(renderer, "toggled",
                      G_CALLBACK(timer_enable_toggled), ctk_config);
-    column = gtk_tree_view_column_new_with_attributes("Enabled", renderer,
+    column = gtk_tree_view_column_new_with_attributes(_("Enabled"), renderer,
                                                       NULL);
     
     gtk_tree_view_append_column(GTK_TREE_VIEW(treeview), column);
@@ -637,7 +638,7 @@ static GtkWidget *create_timer_list(CtkConfig *ctk_config)
     /* Description */
     
     renderer = gtk_cell_renderer_text_new();
-    column = gtk_tree_view_column_new_with_attributes("Description",
+    column = gtk_tree_view_column_new_with_attributes(_("Description"),
                                                       renderer,
                                                       NULL);
     
@@ -654,7 +655,7 @@ static GtkWidget *create_timer_list(CtkConfig *ctk_config)
     /* Time interval */
 
     renderer = gtk_cell_renderer_text_new();
-    column = gtk_tree_view_column_new_with_attributes("Time Interval",
+    column = gtk_tree_view_column_new_with_attributes(_("Time Interval"),
                                                       renderer,
                                                       NULL);
 
@@ -676,7 +677,7 @@ static GtkWidget *create_timer_list(CtkConfig *ctk_config)
 
     vbox = gtk_vbox_new(FALSE, 5);
     
-    label = gtk_label_new("Active Timers:");
+    label = gtk_label_new(_("Active Timers:"));
     alignment = gtk_alignment_new(0.0, 0.0, 0, 0);
     gtk_container_add(GTK_CONTAINER(alignment), label);
     gtk_box_pack_start(GTK_BOX(vbox), alignment, FALSE, FALSE, 0);
@@ -685,9 +686,9 @@ static GtkWidget *create_timer_list(CtkConfig *ctk_config)
     /* create the tooltip for the treeview (can't do it per column) */
     
     ctk_config_set_tooltip(ctk_config, treeview,
-                           "The Active Timers describe operations that "
+                           _("The Active Timers describe operations that "
                            "nvidia-settings will perform at regular "
-                           "intervals.");
+                           "intervals."));
     
     return vbox;
 
@@ -854,10 +855,9 @@ static void timer_enable_toggled(GtkCellRendererToggle *cell,
         }
     }
 
-    ctk_config_statusbar_message(ctk_config, "Timer \"%s\" %s.",
-                                 timer_config->description,
-                                 timer_config->user_enabled ? 
-                                     "enabled" : "disabled");
+    ctk_config_statusbar_message(ctk_config, timer_config->user_enabled ? 
+                                             _("Timer \"%s\" enabled.") :
+                                             _("Timer \"%s\" disabled."), timer_config->description);
 }
 
 void ctk_config_add_timer(CtkConfig *ctk_config,

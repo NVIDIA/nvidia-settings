@@ -28,12 +28,17 @@
 #include <string.h>
 #include <sys/mman.h>
 #include <errno.h>
+#include <libintl.h>
+
 
 #include "ctkconfig.h"
 #include "ctkhelp.h"
 #include "ctkcolorcontrols.h"
 #include "ctkdropdownmenu.h"
 #include "ctkutils.h"
+
+#define _(STRING) gettext(STRING)
+#define N_(STRING) STRING
 
 /* function prototypes */
 static void
@@ -75,22 +80,22 @@ static void post_color_space_update(CtkColorControls *ctk_color_controls,
 
 /* help text */
 static const char * __color_controls_help =
-"The Color Controls allow changing the preferred color space and color range "
+N_("The Color Controls allow changing the preferred color space and color range "
 "of the display device. These settings may be overridden depending on the "
-"current mode and color space on the display device.";
+"current mode and color space on the display device.");
 
 static const char * __color_space_help =
-"The possible values for Color Space vary depending on the capabilities of "
+N_("The possible values for Color Space vary depending on the capabilities of "
 "the display device and the GPU, but may contain \"RGB\", \"YCbCr422\", "
 "and \"YCbCr444\". If an HDMI 2.0 4K@60Hz mode is in use and the display "
 "device or GPU is incapable of driving the mode in RGB, the preferred color "
-"space is preserved, but the current color space is overridden to YCbCr420.";
+"space is preserved, but the current color space is overridden to YCbCr420.");
 
 static const char * __color_range_help =
-"The possible values for Color Range are \"Limited\" and \"Full\". "
+N_("The possible values for Color Range are \"Limited\" and \"Full\". "
 "If the current color space only allows a limited color range, the "
 "preferred color range is preserved, but the current color range "
-"is overridden to limited range.";
+"is overridden to limited range.");
 
 GType ctk_color_controls_get_type(void)
 {
@@ -215,7 +220,7 @@ GtkWidget* ctk_color_controls_new(CtrlTarget *ctrl_target,
     gtk_box_pack_start(GTK_BOX(object), hbox, FALSE, FALSE, FRAME_PADDING);
     ctk_color_controls->color_controls_box = hbox;
 
-    frame = gtk_frame_new("Color Controls");
+    frame = gtk_frame_new(_("Color Controls"));
     gtk_box_pack_start(GTK_BOX(hbox), frame, FALSE, FALSE, 0);
 
     table = gtk_table_new(3, 4, FALSE);
@@ -245,7 +250,7 @@ GtkWidget* ctk_color_controls_new(CtrlTarget *ctrl_target,
     ctk_color_controls->color_space_menu = GTK_WIDGET(menu);
     ctk_config_set_tooltip(ctk_config,
                            ctk_color_controls->color_space_menu,
-                           __color_space_help);
+                           _(__color_space_help));
 
     /* If dropdown only has one item, disable it */
     if (ctk_color_controls->color_space_table_size > 1) {
@@ -263,7 +268,7 @@ GtkWidget* ctk_color_controls_new(CtrlTarget *ctrl_target,
     hbox = gtk_hbox_new(FALSE, 0);
     gtk_table_attach(GTK_TABLE(table), hbox, 0, 1, 0, 1,
                      GTK_FILL, GTK_FILL | GTK_EXPAND, 5, 0);
-    label = gtk_label_new("Color Space: ");
+    label = gtk_label_new(_("Color Space: "));
     gtk_misc_set_alignment(GTK_MISC(label), 0.0f, 0.5f);
     gtk_box_pack_start(GTK_BOX(hbox), label, FALSE, FALSE, 0);
 
@@ -278,7 +283,7 @@ GtkWidget* ctk_color_controls_new(CtrlTarget *ctrl_target,
     hbox = gtk_hbox_new(FALSE, 0);
     gtk_table_attach(GTK_TABLE(table), hbox, 2, 3, 0, 1,
                      GTK_FILL, GTK_FILL | GTK_EXPAND, 5, 0);
-    label = gtk_label_new("Current Color Space: ");
+    label = gtk_label_new(_("Current Color Space: "));
     gtk_misc_set_alignment(GTK_MISC(label), 0.0f, 0.5f);
     gtk_box_pack_start(GTK_BOX(hbox), label, FALSE, FALSE, 0);
 
@@ -302,13 +307,13 @@ GtkWidget* ctk_color_controls_new(CtrlTarget *ctrl_target,
 
     menu = (CtkDropDownMenu *)
         ctk_drop_down_menu_new(CTK_DROP_DOWN_MENU_FLAG_READONLY);
-    ctk_drop_down_menu_append_item(menu, "Full", 0);
-    ctk_drop_down_menu_append_item(menu, "Limited", 1);
+    ctk_drop_down_menu_append_item(menu, _("Full"), 0);
+    ctk_drop_down_menu_append_item(menu, _("Limited"), 1);
     ctk_color_controls->color_range_menu = GTK_WIDGET(menu);
 
     ctk_config_set_tooltip(ctk_config,
                            ctk_color_controls->color_range_menu,
-                           __color_range_help);
+                           _(__color_range_help));
 
     g_signal_connect(G_OBJECT(ctk_color_controls->color_range_menu),
                      "changed", G_CALLBACK(color_range_menu_changed),
@@ -319,7 +324,7 @@ GtkWidget* ctk_color_controls_new(CtrlTarget *ctrl_target,
     gtk_table_attach(GTK_TABLE(table), hbox, 0, 1, 2, 3,
                      GTK_FILL, GTK_FILL | GTK_EXPAND, 5, 0);
 
-    label = gtk_label_new("Color Range: ");
+    label = gtk_label_new(_("Color Range: "));
     gtk_misc_set_alignment(GTK_MISC(label), 0.0f, 0.5f);
     gtk_box_pack_start(GTK_BOX(hbox), label, FALSE, FALSE, 0);
 
@@ -334,7 +339,7 @@ GtkWidget* ctk_color_controls_new(CtrlTarget *ctrl_target,
     hbox = gtk_hbox_new(FALSE, 0);
     gtk_table_attach(GTK_TABLE(table), hbox, 2, 3, 2, 3,
                      GTK_FILL, GTK_FILL | GTK_EXPAND, 5, 0);
-    label = gtk_label_new("Current Color Range: ");
+    label = gtk_label_new(_("Current Color Range: "));
     gtk_misc_set_alignment(GTK_MISC(label), 0.0f, 0.5f);
     gtk_box_pack_start(GTK_BOX(hbox), label, FALSE, FALSE, 0);
 
@@ -460,15 +465,15 @@ static void update_current_color_range_text(CtkColorControls *ctk_color_controls
     switch(color_range) {
     case NV_CTRL_CURRENT_COLOR_RANGE_FULL:
         gtk_label_set_text(GTK_LABEL(ctk_color_controls->current_color_range_txt),
-                           "Full");
+                           _("Full"));
         break;
     case NV_CTRL_CURRENT_COLOR_RANGE_LIMITED:
         gtk_label_set_text(GTK_LABEL(ctk_color_controls->current_color_range_txt),
-                           "Limited");
+                           _("Limited"));
         break;
     default:
         gtk_label_set_text(GTK_LABEL(ctk_color_controls->current_color_range_txt),
-                           "Unknown");
+                           _("Unknown"));
         break;
     }
 } /* update_current_color_range_text() */
@@ -551,7 +556,7 @@ static void update_current_color_space_text(CtkColorControls *ctk_color_controls
         break;
     default:
         gtk_label_set_text(GTK_LABEL(ctk_color_controls->current_color_space_txt),
-                           "Unknown");
+                           _("Unknown"));
         break;
     }
 } /* update_current_color_space_text() */
@@ -620,13 +625,13 @@ void post_current_color_range_update(CtkColorControls *ctk_color_controls,
                                      gint color_range)
 {
     static const char *color_range_table[] = {
-        "Full",     /* NV_CTRL_CURRENT_COLOR_RANGE_FULL */
-        "Limited",  /* NV_CTRL_CURRENT_COLOR_RANGE_LIMITED */
+        N_("Full"),     /* NV_CTRL_CURRENT_COLOR_RANGE_FULL */
+        N_("Limited"),  /* NV_CTRL_CURRENT_COLOR_RANGE_LIMITED */
     };
 
     ctk_config_statusbar_message(ctk_color_controls->ctk_config,
-                                 "Current Color Range set to %s for %s.",
-                                 color_range_table[color_range],
+                                 _("Current Color Range set to %s for %s."),
+                                 _(color_range_table[color_range]),
                                  ctk_color_controls->name);
 }
 
@@ -635,14 +640,14 @@ void post_color_range_update(CtkColorControls *ctk_color_controls,
                              gint color_range)
 {
     static const char *color_range_table[] = {
-        "Full",     /* NV_CTRL_COLOR_RANGE_FULL */
-        "Limited",  /* NV_CTRL_COLOR_RANGE_LIMITED */
+        N_("Full"),     /* NV_CTRL_COLOR_RANGE_FULL */
+        N_("Limited"),  /* NV_CTRL_COLOR_RANGE_LIMITED */
     };
 
     gtk_widget_set_sensitive(ctk_color_controls->reset_button, TRUE);
     ctk_config_statusbar_message(ctk_color_controls->ctk_config,
-                                 "Color Range set to %s for %s.",
-                                 color_range_table[color_range],
+                                 _("Color Range set to %s for %s."),
+                                 _(color_range_table[color_range]),
                                  ctk_color_controls->name);
 }
 
@@ -658,7 +663,7 @@ void post_current_color_space_update(CtkColorControls *ctk_color_controls,
     };
 
     ctk_config_statusbar_message(ctk_color_controls->ctk_config,
-                                 "Current Color Space set to %s for %s.",
+                                 _("Current Color Space set to %s for %s."),
                                  color_space_table[color_space],
                                  ctk_color_controls->name);
 }
@@ -675,7 +680,7 @@ void post_color_space_update(CtkColorControls *ctk_color_controls,
 
     gtk_widget_set_sensitive(ctk_color_controls->reset_button, TRUE);
     ctk_config_statusbar_message(ctk_color_controls->ctk_config,
-                                 "Color Space set to %s for %s.",
+                                 _("Color Space set to %s for %s."),
                                  color_space_table[ctk_color_controls->color_space_table[color_space]],
                                  ctk_color_controls->name);
 }
@@ -775,14 +780,14 @@ void add_color_controls_help(CtkColorControls *ctk_color_controls,
         return;
     }
 
-    ctk_help_heading(b, i, "Color Controls");
-    ctk_help_para(b, i, "%s", __color_controls_help);
+    ctk_help_heading(b, i, _("Color Controls"));
+    ctk_help_para(b, i, "%s", _(__color_controls_help));
 
-    ctk_help_term(b, i, "Color Space");
-    ctk_help_para(b, i, "%s", __color_space_help);
+    ctk_help_term(b, i, _("Color Space"));
+    ctk_help_para(b, i, "%s", _(__color_space_help));
 
-    ctk_help_term(b, i, "Color Range");
-    ctk_help_para(b, i, "%s", __color_range_help);
+    ctk_help_term(b, i, _("Color Range"));
+    ctk_help_para(b, i, "%s", _(__color_range_help));
 } /* add_color_controls_help() */
 
 

@@ -20,6 +20,7 @@
 #include <stdlib.h>
 #include <string.h>
 #include <inttypes.h>
+#include <libintl.h>
 
 #include <gtk/gtk.h>
 #include <NvCtrlAttributes.h>
@@ -32,45 +33,48 @@
 #include "ctkgpu.h"
 #include "ctkbanner.h"
 
+#define _(STRING) gettext(STRING)
+#define N_(STRING) STRING
+
 #define DEFAULT_UPDATE_ECC_STATUS_INFO_TIME_INTERVAL 1000
 
 static const char *__ecc_settings_help =
-"This page allows you to change the Error Correction Code (ECC) "
-"setting for this GPU.";
+N_("This page allows you to change the Error Correction Code (ECC) "
+"setting for this GPU.");
 
 static const char *__ecc_status_help =
-"Returns the current hardware ECC setting "
-"for the targeted GPU.";
+N_("Returns the current hardware ECC setting "
+"for the targeted GPU.");
 
 static const char *__sbit_error_help =
-"Returns the number of single-bit ECC errors detected by "
-"the targeted GPU since the last system reboot.";
+N_("Returns the number of single-bit ECC errors detected by "
+"the targeted GPU since the last system reboot.");
 
 static const char *__dbit_error_help =
-"Returns the number of double-bit ECC errors detected by "
-"the targeted GPU since the last system reboot.";
+N_("Returns the number of double-bit ECC errors detected by "
+"the targeted GPU since the last system reboot.");
 
 static const char *__aggregate_sbit_error_help =
-"Returns the number of single-bit ECC errors detected by the "
-"targeted GPU since the last counter reset.";
+N_("Returns the number of single-bit ECC errors detected by the "
+"targeted GPU since the last counter reset.");
 
 static const char *__aggregate_dbit_error_help =
-"Returns the number of double-bit ECC errors detected by the "
-"targeted GPU since the last counter reset.";
+N_("Returns the number of double-bit ECC errors detected by the "
+"targeted GPU since the last counter reset.");
 
 static const char *__configuration_status_help =
-"Returns the current ECC configuration setting or specifies new "
+N_("Returns the current ECC configuration setting or specifies new "
 "settings.  Changes to these settings do not take effect until the next "
-"system reboot.";
+"system reboot.");
 
 static const char *__clear_button_help =
-"This button is used to clear the ECC errors detected since the last system reboot.";
+N_("This button is used to clear the ECC errors detected since the last system reboot.");
 
 static const char *__clear_aggregate_button_help =
-"This button is used to reset the aggregate ECC errors counter.";
+N_("This button is used to reset the aggregate ECC errors counter.");
 
 static const char *__reset_default_config_button_help =
-"The button is used to restore the GPU's default ECC configuration setting.";
+N_("The button is used to restore the GPU's default ECC configuration setting.");
 
 static void ecc_config_button_toggled(GtkWidget *, gpointer);
 static void show_ecc_toggle_warning_dlg(CtkEcc *);
@@ -255,11 +259,11 @@ static void post_ecc_configuration_update(CtkEcc *ctk_ecc)
     gboolean configured = ctk_ecc->ecc_configured;
     gboolean enabled = ctk_ecc->ecc_enabled;
 
-    const char *conf_string = configured ? "enabled" : "disabled";
+    const char *conf_string = configured ? _("enabled") : _("disabled");
     char message[128];
 
     if (configured != enabled) {
-        snprintf(message, sizeof(message), "ECC will be %s after reboot.",
+        snprintf(message, sizeof(message), _("ECC will be %s after reboot."),
                  conf_string);
     } else {
         snprintf(message, sizeof(message), "ECC %s.", conf_string);
@@ -349,7 +353,7 @@ static void reset_default_config_button_clicked(GtkWidget *widget,
                               ctk_ecc->ecc_default_status);
     if (ret != NvCtrlSuccess) {
         ctk_config_statusbar_message(ctk_ecc->ctk_config,
-                                     "Failed to set default configuration!");
+                                     _("Failed to set default configuration!"));
         return;
     }
 
@@ -364,7 +368,7 @@ static void reset_default_config_button_clicked(GtkWidget *widget,
     gtk_widget_set_sensitive(ctk_ecc->reset_default_config_button, FALSE);
     
     ctk_config_statusbar_message(ctk_ecc->ctk_config,
-                                 "Set to default configuration.");
+                                 _("Set to default configuration."));
 } /* reset_default_config_button_clicked() */
 
 
@@ -385,7 +389,7 @@ static void clear_ecc_errors_button_clicked(GtkWidget *widget,
                        NV_CTRL_GPU_ECC_RESET_ERROR_STATUS_VOLATILE);
 
     ctk_config_statusbar_message(ctk_ecc->ctk_config,
-                                 "ECC errors cleared.");
+                                 _("ECC errors cleared."));
 } /* clear_ecc_errors_button_clicked() */
 
 
@@ -406,7 +410,7 @@ static void clear_aggregate_ecc_errors_button_clicked(GtkWidget *widget,
                        NV_CTRL_GPU_ECC_RESET_ERROR_STATUS_AGGREGATE);
 
     ctk_config_statusbar_message(ctk_ecc->ctk_config,
-                                 "ECC aggregate errors cleared.");
+                                 _("ECC aggregate errors cleared."));
 } /* clear_aggregate_ecc_errors_button_clicked() */
 
 
@@ -429,9 +433,9 @@ static void show_ecc_toggle_warning_dlg(CtkEcc *ctk_ecc)
                                   GTK_DIALOG_MODAL,
                                   GTK_MESSAGE_WARNING,
                                   GTK_BUTTONS_OK,
-                                  "Changes to the ECC setting "
+                                  _("Changes to the ECC setting "
                                   "require a system reboot before "
-                                  "taking effect.");
+                                  "taking effect."));
     gtk_dialog_run(GTK_DIALOG(dlg));
     gtk_widget_destroy (dlg);
 
@@ -464,7 +468,7 @@ static void ecc_config_button_toggled(GtkWidget *widget,
                              enabled);
     if (ret != NvCtrlSuccess) {
         ctk_config_statusbar_message(ctk_ecc->ctk_config,
-                                     "Failed to set ECC configuration!");
+                                     _("Failed to set ECC configuration!"));
         return;
     }
 
@@ -544,10 +548,10 @@ GtkWidget* ctk_ecc_new(CtrlTarget *ctrl_target,
                              &val);
     if (ret != NvCtrlSuccess || val == NV_CTRL_GPU_ECC_STATUS_DISABLED) {
         ecc_enabled = FALSE;
-        ecc_enabled_string = "Disabled";
+        ecc_enabled_string = _("Disabled");
     } else {
         ecc_enabled = TRUE;
-        ecc_enabled_string = "Enabled";
+        ecc_enabled_string = _("Enabled");
     }
     ctk_ecc->ecc_enabled = ecc_enabled; 
 
@@ -629,7 +633,7 @@ GtkWidget* ctk_ecc_new(CtrlTarget *ctrl_target,
     hbox = gtk_hbox_new(FALSE, 0);
     gtk_box_pack_start(GTK_BOX(vbox), hbox, FALSE, FALSE, 0);
 
-    label = gtk_label_new("ECC Status");
+    label = gtk_label_new(_("ECC Status"));
     gtk_box_pack_start(GTK_BOX(hbox), label, FALSE, FALSE, 0);
 
     hseparator = gtk_hseparator_new();
@@ -646,7 +650,7 @@ GtkWidget* ctk_ecc_new(CtrlTarget *ctrl_target,
     gtk_table_attach(GTK_TABLE(table), hbox2, 0, 1, row, row+1,
                      GTK_FILL, GTK_FILL | GTK_EXPAND, 5, 0);
 
-    label = gtk_label_new("ECC:");
+    label = gtk_label_new(_("ECC:"));
     gtk_misc_set_alignment(GTK_MISC(label), 0.0f, 0.5f);
     gtk_box_pack_start(GTK_BOX(hbox2), label, FALSE, FALSE, 0);
 
@@ -657,7 +661,7 @@ GtkWidget* ctk_ecc_new(CtrlTarget *ctrl_target,
     label = gtk_label_new(ecc_enabled_string);
     gtk_misc_set_alignment(GTK_MISC(label), 0.0f, 0.5f);
     gtk_container_add(GTK_CONTAINER(eventbox), label);
-    ctk_config_set_tooltip(ctk_config, eventbox, __ecc_status_help);
+    ctk_config_set_tooltip(ctk_config, eventbox, _(__ecc_status_help));
     ctk_ecc->status = label;
     
     row += 3;
@@ -666,28 +670,28 @@ GtkWidget* ctk_ecc_new(CtrlTarget *ctrl_target,
 
     if (sbit_error_available && dbit_error_available) {
         ctk_ecc->sbit_error =
-            add_table_int_row(ctk_config, table, __sbit_error_help,
-                              "Single-bit ECC Errors:", sbit_error,
+            add_table_int_row(ctk_config, table, _(__sbit_error_help),
+                              _("Single-bit ECC Errors:"), sbit_error,
                               row, ecc_enabled);
         row += 1; // add vertical padding between rows
 
         ctk_ecc->dbit_error =
-            add_table_int_row(ctk_config, table, __dbit_error_help,
-                              "Double-bit ECC Errors:", dbit_error,
+            add_table_int_row(ctk_config, table, _(__dbit_error_help),
+                              _("Double-bit ECC Errors:"), dbit_error,
                               row, ecc_enabled);
         row += 3; // add vertical padding between rows
     }
 
     if (aggregate_sbit_error_available && aggregate_dbit_error_available) {
         ctk_ecc->aggregate_sbit_error =
-            add_table_int_row(ctk_config, table, __aggregate_sbit_error_help,
-                              "Aggregate Single-bit ECC Errors:",
+            add_table_int_row(ctk_config, table, _(__aggregate_sbit_error_help),
+                              _("Aggregate Single-bit ECC Errors:"),
                               aggregate_sbit_error, row, ecc_enabled);
         row += 1; // add vertical padding between rows
 
         ctk_ecc->aggregate_dbit_error =
-            add_table_int_row(ctk_config, table, __aggregate_dbit_error_help,
-                              "Aggregate Double-bit ECC Errors:",
+            add_table_int_row(ctk_config, table, _(__aggregate_dbit_error_help),
+                              _("Aggregate Double-bit ECC Errors:"),
                               aggregate_dbit_error, row, ecc_enabled);
     }
     
@@ -696,7 +700,7 @@ GtkWidget* ctk_ecc_new(CtrlTarget *ctrl_target,
     hbox = gtk_hbox_new(FALSE, 0);
     gtk_box_pack_start(GTK_BOX(vbox), hbox, FALSE, FALSE, 0);
 
-    label = gtk_label_new("ECC Configuration");
+    label = gtk_label_new(_("ECC Configuration"));
     gtk_box_pack_start(GTK_BOX(hbox), label, FALSE, FALSE, 0);
 
     hsep = gtk_hseparator_new();
@@ -704,7 +708,7 @@ GtkWidget* ctk_ecc_new(CtrlTarget *ctrl_target,
 
     hbox2 = gtk_hbox_new(FALSE, 0);
     ctk_ecc->configuration_status =
-        gtk_check_button_new_with_label("Enable ECC");
+        gtk_check_button_new_with_label(_("Enable ECC"));
     gtk_box_pack_start(GTK_BOX(hbox2),
                        ctk_ecc->configuration_status, FALSE, FALSE, 0);
     gtk_container_set_border_width(GTK_CONTAINER(hbox2), 5);
@@ -712,7 +716,7 @@ GtkWidget* ctk_ecc_new(CtrlTarget *ctrl_target,
     gtk_toggle_button_set_active(GTK_TOGGLE_BUTTON(ctk_ecc->configuration_status),
                                  ctk_ecc->ecc_configured);
     ctk_config_set_tooltip(ctk_config, ctk_ecc->configuration_status,
-                           __configuration_status_help);
+                           _(__configuration_status_help));
     g_signal_connect(G_OBJECT(ctk_ecc->configuration_status), "clicked",
                      G_CALLBACK(ecc_config_button_toggled),
                      (gpointer) ctk_ecc);
@@ -728,10 +732,10 @@ GtkWidget* ctk_ecc_new(CtrlTarget *ctrl_target,
     /* Add buttons */
 
     if (sbit_error_available && dbit_error_available) {
-        ctk_ecc->clear_button = gtk_button_new_with_label("Clear ECC Errors");
+        ctk_ecc->clear_button = gtk_button_new_with_label(_("Clear ECC Errors"));
         gtk_box_pack_end(GTK_BOX(hbox), ctk_ecc->clear_button, FALSE, FALSE, 0);
         ctk_config_set_tooltip(ctk_config, ctk_ecc->clear_button,
-                               __clear_button_help);
+                               _(__clear_button_help));
         gtk_widget_set_sensitive(ctk_ecc->clear_button, ecc_enabled);
         g_signal_connect(G_OBJECT(ctk_ecc->clear_button), "clicked",
                          G_CALLBACK(clear_ecc_errors_button_clicked),
@@ -740,11 +744,11 @@ GtkWidget* ctk_ecc_new(CtrlTarget *ctrl_target,
 
     if (aggregate_sbit_error_available && aggregate_dbit_error_available) {
         ctk_ecc->clear_aggregate_button =
-            gtk_button_new_with_label("Clear Aggregate ECC Errors");
+            gtk_button_new_with_label(_("Clear Aggregate ECC Errors"));
         gtk_box_pack_end(GTK_BOX(hbox), ctk_ecc->clear_aggregate_button,
                          FALSE, FALSE, 0);
         ctk_config_set_tooltip(ctk_config, ctk_ecc->clear_button,
-                               __clear_aggregate_button_help);
+                               _(__clear_aggregate_button_help));
         gtk_widget_set_sensitive(ctk_ecc->clear_aggregate_button, ecc_enabled);
         g_signal_connect(G_OBJECT(ctk_ecc->clear_aggregate_button),
                          "clicked",
@@ -753,13 +757,13 @@ GtkWidget* ctk_ecc_new(CtrlTarget *ctrl_target,
     }
 
     ctk_ecc->reset_default_config_button =
-        gtk_button_new_with_label("Reset Default Configuration");
+        gtk_button_new_with_label(_("Reset Default Configuration"));
     eventbox = gtk_event_box_new();
     gtk_container_add(GTK_CONTAINER(eventbox),
                       ctk_ecc->reset_default_config_button);
     gtk_box_pack_end(GTK_BOX(hbox), eventbox, FALSE, FALSE, 5);
     ctk_config_set_tooltip(ctk_config, ctk_ecc->reset_default_config_button,
-                           __reset_default_config_button_help);
+                           _(__reset_default_config_button_help));
     gtk_widget_set_sensitive(ctk_ecc->reset_default_config_button,
                              ecc_config_supported &&
                              (ecc_enabled != ctk_ecc->ecc_default_status));
@@ -769,7 +773,7 @@ GtkWidget* ctk_ecc_new(CtrlTarget *ctrl_target,
                      (gpointer) ctk_ecc);
 
     /* Register a timer callback to update Ecc status info */
-    str = g_strdup_printf("ECC Settings (GPU %d)",
+    str = g_strdup_printf(_("ECC Settings (GPU %d)"),
                         NvCtrlGetTargetId(ctrl_target));
 
     ctk_config_add_timer(ctk_ecc->ctk_config,
@@ -797,43 +801,43 @@ GtkTextBuffer *ctk_ecc_create_help(GtkTextTagTable *table,
     
     gtk_text_buffer_get_iter_at_offset(b, &i, 0);
 
-    ctk_help_heading(b, &i, "ECC Settings Help");
-    ctk_help_para(b, &i, "%s", __ecc_settings_help);
+    ctk_help_heading(b, &i, _("ECC Settings Help"));
+    ctk_help_para(b, &i, "%s", _(__ecc_settings_help));
     
-    ctk_help_heading(b, &i, "ECC");
-    ctk_help_para(b, &i, "%s", __ecc_status_help);
+    ctk_help_heading(b, &i, _("ECC"));
+    ctk_help_para(b, &i, "%s", _(__ecc_status_help));
 
     if (ctk_ecc->sbit_error_available && ctk_ecc->dbit_error_available) {
-        ctk_help_heading(b, &i, "Single-bit ECC Errors");
-        ctk_help_para(b, &i, "%s", __sbit_error_help);
-        ctk_help_heading(b, &i, "Double-bit ECC Errors");
-        ctk_help_para(b, &i, "%s", __dbit_error_help);
+        ctk_help_heading(b, &i, _("Single-bit ECC Errors"));
+        ctk_help_para(b, &i, "%s", _(__sbit_error_help));
+        ctk_help_heading(b, &i, _("Double-bit ECC Errors"));
+        ctk_help_para(b, &i, "%s", _(__dbit_error_help));
     }
     if (ctk_ecc->aggregate_sbit_error_available &&
         ctk_ecc->aggregate_dbit_error_available) {
-        ctk_help_heading(b, &i, "Aggregate Single-bit ECC Errors");
-        ctk_help_para(b, &i, "%s", __aggregate_sbit_error_help);
-        ctk_help_heading(b, &i, "Aggregate Double-bit ECC Errors");
-        ctk_help_para(b, &i, "%s", __aggregate_dbit_error_help);
+        ctk_help_heading(b, &i, _("Aggregate Single-bit ECC Errors"));
+        ctk_help_para(b, &i, "%s", _(__aggregate_sbit_error_help));
+        ctk_help_heading(b, &i, _("Aggregate Double-bit ECC Errors"));
+        ctk_help_para(b, &i, "%s", _(__aggregate_dbit_error_help));
     }
-    ctk_help_heading(b, &i, "ECC Configuration");
-    ctk_help_para(b, &i, "%s", __configuration_status_help);
+    ctk_help_heading(b, &i, _("ECC Configuration"));
+    ctk_help_para(b, &i, "%s", _(__configuration_status_help));
 
-    ctk_help_heading(b, &i, "Enable ECC");
-    ctk_help_para(b, &i, "%s", __ecc_status_help);
+    ctk_help_heading(b, &i, _("Enable ECC"));
+    ctk_help_para(b, &i, "%s", _(__ecc_status_help));
 
     if (ctk_ecc->sbit_error_available && ctk_ecc->dbit_error_available) {
-        ctk_help_heading(b, &i, "Clear ECC Errors");
-        ctk_help_para(b, &i, "%s", __clear_button_help);
+        ctk_help_heading(b, &i, _("Clear ECC Errors"));
+        ctk_help_para(b, &i, "%s", _(__clear_button_help));
     }
     if (ctk_ecc->aggregate_sbit_error_available &&
         ctk_ecc->aggregate_dbit_error_available) {
-        ctk_help_heading(b, &i, "Clear Aggregate ECC Errors");
-        ctk_help_para(b, &i, "%s", __clear_aggregate_button_help);
+        ctk_help_heading(b, &i, _("Clear Aggregate ECC Errors"));
+        ctk_help_para(b, &i, "%s", _(__clear_aggregate_button_help));
     }
     
-    ctk_help_heading(b, &i, "Reset Default Configuration");
-    ctk_help_para(b, &i, "%s", __reset_default_config_button_help);
+    ctk_help_heading(b, &i, _("Reset Default Configuration"));
+    ctk_help_para(b, &i, "%s", _(__reset_default_config_button_help));
 
     ctk_help_finish(b);
 

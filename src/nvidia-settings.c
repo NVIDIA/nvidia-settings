@@ -30,6 +30,8 @@
 #include <getopt.h>
 #include <string.h>
 #include <stdlib.h>
+#include <libintl.h>
+#include <locale.h>
 
 static const char* library_names[] = {
     "libnvidia-gtk3.so." NVIDIA_VERSION,
@@ -220,6 +222,12 @@ static void *load_ui_library(GtkLibraryData *libdata, Options *op)
 
 int main(int argc, char **argv)
 {
+
+    setlocale (LC_CTYPE, "");
+    setlocale (LC_MESSAGES, "");
+    bindtextdomain(PROGRAM_NAME, LOCALEDIR);
+    textdomain(PROGRAM_NAME);
+
     ConfigProperties conf;
     ParsedAttribute *p;
     CtrlSystem *system;

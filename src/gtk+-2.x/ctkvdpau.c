@@ -52,6 +52,7 @@
 #include <string.h>
 #include <inttypes.h>
 #include <dlfcn.h>
+#include <libintl.h>
 
 #include <gtk/gtk.h>
 
@@ -60,48 +61,51 @@
 #include "ctkvdpau.h"
 #include "ctkbanner.h"
 
+#define _(STRING) gettext(STRING)
+#define N_(STRING) STRING
+
 const gchar* __vdpau_information_label_help =
-"This page shows information about the Video Decode and Presentation API for "
-"Unix-like systems (VDPAU) library.";
+N_("This page shows information about the Video Decode and Presentation API for "
+"Unix-like systems (VDPAU) library.");
 
 const gchar* __base_information_help =
-"This tab shows the VDPAU API version and supported codecs.";
+N_("This tab shows the VDPAU API version and supported codecs.");
 
 const gchar* __vdpau_api_version_help =
-"This shows the VDPAU API version.";
+N_("This shows the VDPAU API version.");
 
 const gchar* __supported_codecs_help =
-"This shows the supported codecs.";
+N_("This shows the supported codecs.");
 
 const gchar* __surface_limits_help =
-"This tab shows the maximum supported resolution and formats for video, "
-"bitmap and output surfaces.";
+N_("This tab shows the maximum supported resolution and formats for video, "
+"bitmap and output surfaces.");
 
 const gchar* __video_surface_help =
-"This shows the maximum supported resolution and formats for video surfaces.";
+N_("This shows the maximum supported resolution and formats for video surfaces.");
 
 const gchar* __bitmap_surface_help =
-"This shows the maximum supported resolution and formats for bitmap surfaces.";
+N_("This shows the maximum supported resolution and formats for bitmap surfaces.");
 
 const gchar* __ouput_surface_help =
-"This shows the maximum supported resolution and formats for output surfaces.";
+N_("This shows the maximum supported resolution and formats for output surfaces.");
 
 const gchar* __decoder_limits_help =
-"This tab shows the maximum level, number of macroblocks and resolution for "
-"each supported VDPAU decoder.";
+N_("This tab shows the maximum level, number of macroblocks and resolution for "
+"each supported VDPAU decoder.");
 
 const gchar* __video_mixer_help =
-"This tab shows the capabilities of the VDPAU video mixer: the features, "
-"parameters, and attributes.";
+N_("This tab shows the capabilities of the VDPAU video mixer: the features, "
+"parameters, and attributes.");
 
 const gchar* __video_mixer_feature_help =
-"This shows the features supported by the video mixer.";
+N_("This shows the features supported by the video mixer.");
 
 const gchar* __video_mixer_parameter_help =
-"This shows the video mixer parameters and any applicable ranges.";
+N_("This shows the video mixer parameters and any applicable ranges.");
 
 const gchar* __video_mixer_attribute_help =
-"This shows the video mixer attributes and any applicable ranges.";
+N_("This shows the video mixer attributes and any applicable ranges.");
 
 struct VDPAUDeviceImpl {
 
@@ -251,7 +255,7 @@ static int queryBaseInfo(CtkVDPAU *ctk_vdpau, VdpDevice device,
     ctk_force_text_colors_on_widget(eventbox);
     gtk_container_add(GTK_CONTAINER(eventbox), vbox);
     gtk_notebook_append_page(GTK_NOTEBOOK(ctk_vdpau->notebook), eventbox,
-                             gtk_label_new("Base Information"));
+                             gtk_label_new(_("Base Information")));
 
     hbox  = gtk_hbox_new(FALSE, 0);
     table = gtk_table_new(2, 2, FALSE);
@@ -260,17 +264,17 @@ static int queryBaseInfo(CtkVDPAU *ctk_vdpau, VdpDevice device,
     gtk_table_set_row_spacings(GTK_TABLE(table), 3);
     gtk_table_set_col_spacings(GTK_TABLE(table), 15);
     add_table_row_with_help_text(table, ctk_vdpau->ctk_config,
-                                 __vdpau_api_version_help,
+                                 _(__vdpau_api_version_help),
                                  0, 0,
-                                 0, 0, "API version:",
+                                 0, 0, _("API version:"),
                                  0, 0,  g_strdup_printf("%i", api));
 
-    label = gtk_label_new("Supported Codecs:");
+    label = gtk_label_new(_("Supported Codecs:"));
     event = gtk_event_box_new();
     ctk_force_text_colors_on_widget(event);
     gtk_container_add(GTK_CONTAINER(event), label);
     ctk_config_set_tooltip(ctk_vdpau->ctk_config, event,
-                           __supported_codecs_help);
+                           _(__supported_codecs_help));
     gtk_label_set_selectable(GTK_LABEL(label), TRUE);
     gtk_misc_set_alignment(GTK_MISC(label), 0.0f, 0.5f);
     gtk_table_attach(GTK_TABLE(table), event, 0, 1, 1, 2,
@@ -385,14 +389,14 @@ static int queryVideoSurface(CtkVDPAU *ctk_vdpau, VdpDevice device,
 
     vbox     = gtk_vbox_new(FALSE, 0);
     hbox     = gtk_hbox_new(FALSE, 0);
-    label    = gtk_label_new("Video Surface:");
+    label    = gtk_label_new(_("Video Surface:"));
     eventbox = gtk_event_box_new();
     ctk_force_text_colors_on_widget(eventbox);
     event = gtk_event_box_new();
     ctk_force_text_colors_on_widget(event);
     gtk_container_add(GTK_CONTAINER(event), label);
     ctk_config_set_tooltip(ctk_vdpau->ctk_config, event,
-                           __video_surface_help);
+                           _(__video_surface_help));
     hseparator = gtk_hseparator_new();
     gtk_box_pack_start(GTK_BOX(vbox), hbox, FALSE, FALSE, 0);
     gtk_box_pack_start(GTK_BOX(hbox), event, FALSE, FALSE, 0);
@@ -409,7 +413,7 @@ static int queryVideoSurface(CtkVDPAU *ctk_vdpau, VdpDevice device,
 
     /* Add tab to notebook */
     gtk_notebook_append_page(GTK_NOTEBOOK(ctk_vdpau->notebook), scrollWin,
-                             gtk_label_new("Surface Limits"));
+                             gtk_label_new(_("Surface Limits")));
 
     ctk_vdpau->surfaceVbox = vbox;
 
@@ -420,25 +424,25 @@ static int queryVideoSurface(CtkVDPAU *ctk_vdpau, VdpDevice device,
     gtk_table_set_col_spacings(GTK_TABLE(table), 15);
     gtk_container_set_border_width(GTK_CONTAINER(table), 5);
 
-    label = gtk_label_new("Name");
+    label = gtk_label_new(_("Name"));
     gtk_label_set_selectable(GTK_LABEL(label), TRUE);
     gtk_misc_set_alignment(GTK_MISC(label), 0.0f, 0.5f);
     gtk_table_attach(GTK_TABLE(table), label, 0, 1, 0, 1,
                      GTK_FILL, GTK_FILL | GTK_EXPAND, 5, 0);
 
-    label = gtk_label_new("Width");
+    label = gtk_label_new(_("Width"));
     gtk_label_set_selectable(GTK_LABEL(label), TRUE);
     gtk_misc_set_alignment(GTK_MISC(label), 0.0f, 0.5f);
     gtk_table_attach(GTK_TABLE(table), label, 1, 2, 0, 1,
                      GTK_FILL, GTK_FILL | GTK_EXPAND, 5, 0);
 
-    label = gtk_label_new("Height");
+    label = gtk_label_new(_("Height"));
     gtk_label_set_selectable(GTK_LABEL(label), TRUE);
     gtk_misc_set_alignment(GTK_MISC(label), 0.0f, 0.5f);
     gtk_table_attach(GTK_TABLE(table), label, 2, 3, 0, 1,
                      GTK_FILL, GTK_FILL | GTK_EXPAND, 5, 0);
 
-    label = gtk_label_new("Types");
+    label = gtk_label_new(_("Types"));
     gtk_label_set_selectable(GTK_LABEL(label), TRUE);
     gtk_misc_set_alignment(GTK_MISC(label), 0.0f, 0.5f);
     gtk_table_attach(GTK_TABLE(table), label, 3, 4, 0, 1,
@@ -597,7 +601,7 @@ static int queryDecoderCaps(CtkVDPAU *ctk_vdpau, VdpDevice device,
     /* Add tab to notebook */
 
     gtk_notebook_append_page(GTK_NOTEBOOK(ctk_vdpau->notebook), eventbox,
-                             gtk_label_new("Decoder Limits"));
+                             gtk_label_new(_("Decoder Limits")));
 
     /* Generate a new table */
 
@@ -607,31 +611,31 @@ static int queryDecoderCaps(CtkVDPAU *ctk_vdpau, VdpDevice device,
     gtk_table_set_col_spacings(GTK_TABLE(table), 15);
     gtk_container_set_border_width(GTK_CONTAINER(table), 5);
 
-    label = gtk_label_new("Name");
+    label = gtk_label_new(_("Name"));
     gtk_label_set_selectable(GTK_LABEL(label), TRUE);
     gtk_misc_set_alignment(GTK_MISC(label), 0.0f, 0.5f);
     gtk_table_attach(GTK_TABLE(table), label, 0, 1, 0, 1,
                      GTK_FILL, GTK_FILL | GTK_EXPAND, 5, 0);
 
-    label = gtk_label_new("Level");
+    label = gtk_label_new(_("Level"));
     gtk_label_set_selectable(GTK_LABEL(label), TRUE);
     gtk_misc_set_alignment(GTK_MISC(label), 0.0f, 0.5f);
     gtk_table_attach(GTK_TABLE(table), label, 1, 2, 0, 1,
                      GTK_FILL, GTK_FILL | GTK_EXPAND, 5, 0);
 
-    label = gtk_label_new("Macroblocks");
+    label = gtk_label_new(_("Macroblocks"));
     gtk_label_set_selectable(GTK_LABEL(label), TRUE);
     gtk_misc_set_alignment(GTK_MISC(label), 0.0f, 0.5f);
     gtk_table_attach(GTK_TABLE(table), label, 2, 3, 0, 1,
                      GTK_FILL, GTK_FILL | GTK_EXPAND, 5, 0);
 
-    label = gtk_label_new("Width");
+    label = gtk_label_new(_("Width"));
     gtk_label_set_selectable(GTK_LABEL(label), TRUE);
     gtk_misc_set_alignment(GTK_MISC(label), 0.0f, 0.5f);
     gtk_table_attach(GTK_TABLE(table), label, 3, 4, 0, 1,
                      GTK_FILL, GTK_FILL | GTK_EXPAND, 5, 0);
 
-    label = gtk_label_new("Height");
+    label = gtk_label_new(_("Height"));
     gtk_label_set_selectable(GTK_LABEL(label), TRUE);
     gtk_misc_set_alignment(GTK_MISC(label), 0.0f, 0.5f);
     gtk_table_attach(GTK_TABLE(table), label, 4, 5, 0, 1,
@@ -730,12 +734,12 @@ static int queryOutputSurface(CtkVDPAU *ctk_vdpau, VdpDevice device,
 
     vbox      = ctk_vdpau->surfaceVbox;
     hbox       = gtk_hbox_new(FALSE, 0);
-    label      = gtk_label_new("Output Surface:");
+    label      = gtk_label_new(_("Output Surface:"));
     eventbox = gtk_event_box_new();
     ctk_force_text_colors_on_widget(eventbox);
     gtk_container_add(GTK_CONTAINER(eventbox), label);
     ctk_config_set_tooltip(ctk_vdpau->ctk_config, eventbox,
-                           __ouput_surface_help);
+                           _(__ouput_surface_help));
     hseparator = gtk_hseparator_new();
     gtk_box_pack_start(GTK_BOX(vbox), hbox, FALSE, FALSE, 0);
     gtk_box_pack_start(GTK_BOX(hbox), eventbox, FALSE, FALSE, 0);
@@ -748,31 +752,31 @@ static int queryOutputSurface(CtkVDPAU *ctk_vdpau, VdpDevice device,
     gtk_table_set_col_spacings(GTK_TABLE(table), 15);
     gtk_container_set_border_width(GTK_CONTAINER(table), 5);
 
-    label = gtk_label_new("Name");
+    label = gtk_label_new(_("Name"));
     gtk_label_set_selectable(GTK_LABEL(label), TRUE);
     gtk_misc_set_alignment(GTK_MISC(label), 0.0f, 0.5f);
     gtk_table_attach(GTK_TABLE(table), label, 0, 1, 0, 1,
                      GTK_FILL, GTK_FILL | GTK_EXPAND, 5, 0);
 
-    label = gtk_label_new("Width");
+    label = gtk_label_new(_("Width"));
     gtk_label_set_selectable(GTK_LABEL(label), TRUE);
     gtk_misc_set_alignment(GTK_MISC(label), 0.0f, 0.5f);
     gtk_table_attach(GTK_TABLE(table), label, 1, 2, 0, 1,
                      GTK_FILL, GTK_FILL | GTK_EXPAND, 5, 0);
 
-    label = gtk_label_new("Height");
+    label = gtk_label_new(_("Height"));
     gtk_label_set_selectable(GTK_LABEL(label), TRUE);
     gtk_misc_set_alignment(GTK_MISC(label), 0.0f, 0.5f);
     gtk_table_attach(GTK_TABLE(table), label, 2, 3, 0, 1,
                      GTK_FILL, GTK_FILL | GTK_EXPAND, 5, 0);
 
-    label = gtk_label_new("Native");
+    label = gtk_label_new(_("Native"));
     gtk_label_set_selectable(GTK_LABEL(label), TRUE);
     gtk_misc_set_alignment(GTK_MISC(label), 0.0f, 0.5f);
     gtk_table_attach(GTK_TABLE(table), label, 3, 4, 0, 1,
                      GTK_FILL, GTK_FILL | GTK_EXPAND, 5, 0);
 
-    label = gtk_label_new("Types");
+    label = gtk_label_new(_("Types"));
     gtk_label_set_selectable(GTK_LABEL(label), TRUE);
     gtk_misc_set_alignment(GTK_MISC(label), 0.0f, 0.5f);
     gtk_table_attach(GTK_TABLE(table), label, 4, 5, 0, 1,
@@ -879,12 +883,12 @@ static int queryBitmapSurface(CtkVDPAU *ctk_vdpau, VdpDevice device,
 
     vbox      = ctk_vdpau->surfaceVbox;
     hbox       = gtk_hbox_new(FALSE, 0);
-    label      = gtk_label_new("Bitmap Surface:");
+    label      = gtk_label_new(_("Bitmap Surface:"));
     eventbox = gtk_event_box_new();
     ctk_force_text_colors_on_widget(eventbox);
     gtk_container_add(GTK_CONTAINER(eventbox), label);
     ctk_config_set_tooltip(ctk_vdpau->ctk_config, eventbox,
-                           __bitmap_surface_help);
+                           _(__bitmap_surface_help));
     hseparator = gtk_hseparator_new();
     gtk_box_pack_start(GTK_BOX(vbox), hbox, FALSE, FALSE, 0);
     gtk_box_pack_start(GTK_BOX(hbox), eventbox, FALSE, FALSE, 0);
@@ -897,19 +901,19 @@ static int queryBitmapSurface(CtkVDPAU *ctk_vdpau, VdpDevice device,
     gtk_table_set_col_spacings(GTK_TABLE(table), 15);
     gtk_container_set_border_width(GTK_CONTAINER(table), 5);
 
-    label = gtk_label_new("Name");
+    label = gtk_label_new(_("Name"));
     gtk_label_set_selectable(GTK_LABEL(label), TRUE);
     gtk_misc_set_alignment(GTK_MISC(label), 0.0f, 0.5f);
     gtk_table_attach(GTK_TABLE(table), label, 0, 1, 0, 1,
                      GTK_FILL, GTK_FILL | GTK_EXPAND, 5, 0);
 
-    label = gtk_label_new("Width");
+    label = gtk_label_new(_("Width"));
     gtk_label_set_selectable(GTK_LABEL(label), TRUE);
     gtk_misc_set_alignment(GTK_MISC(label), 0.0f, 0.5f);
     gtk_table_attach(GTK_TABLE(table), label, 1, 2, 0, 1,
                      GTK_FILL, GTK_FILL | GTK_EXPAND, 5, 0);
 
-    label = gtk_label_new("Height");
+    label = gtk_label_new(_("Height"));
     gtk_label_set_selectable(GTK_LABEL(label), TRUE);
     gtk_misc_set_alignment(GTK_MISC(label), 0.0f, 0.5f);
     gtk_table_attach(GTK_TABLE(table), label, 2, 3, 0, 1,
@@ -1105,12 +1109,12 @@ static int queryVideoMixer(CtkVDPAU *ctk_vdpau, VdpDevice device,
     /* Add Video mixer information */
 
     vbox      = gtk_vbox_new(FALSE, 0);
-    label      = gtk_label_new("Video Mixer:");
+    label      = gtk_label_new(_("Video Mixer:"));
     eventbox = gtk_event_box_new();
     ctk_force_text_colors_on_widget(eventbox);
     gtk_container_add(GTK_CONTAINER(eventbox), label);
     ctk_config_set_tooltip(ctk_vdpau->ctk_config, eventbox,
-                           __video_mixer_help);
+                           _(__video_mixer_help));
 
     scrollWin = gtk_scrolled_window_new(NULL, NULL);
     hbox = gtk_hbox_new(FALSE, 0);
@@ -1127,7 +1131,7 @@ static int queryVideoMixer(CtkVDPAU *ctk_vdpau, VdpDevice device,
     /* Add tab to notebook */
 
     gtk_notebook_append_page(GTK_NOTEBOOK(ctk_vdpau->notebook), scrollWin,
-                             gtk_label_new("Video Mixer"));
+                             gtk_label_new(_("Video Mixer")));
 
     /* Generate a new table */
 
@@ -1137,7 +1141,7 @@ static int queryVideoMixer(CtkVDPAU *ctk_vdpau, VdpDevice device,
     gtk_table_set_col_spacings(GTK_TABLE(table), 15);
     gtk_container_set_border_width(GTK_CONTAINER(table), 5);
 
-    label = gtk_label_new("Feature Name");
+    label = gtk_label_new(_("Feature Name"));
     eventbox = gtk_event_box_new();
     ctk_force_text_colors_on_widget(eventbox);
     gtk_container_add(GTK_CONTAINER(eventbox), label);
@@ -1146,15 +1150,15 @@ static int queryVideoMixer(CtkVDPAU *ctk_vdpau, VdpDevice device,
     gtk_table_attach(GTK_TABLE(table), eventbox, 0, 1, 0, 1,
                      GTK_FILL, GTK_FILL | GTK_EXPAND, 5, 0);
     ctk_config_set_tooltip(ctk_vdpau->ctk_config, eventbox,
-                           __video_mixer_feature_help);
+                           _(__video_mixer_feature_help));
 
-    label = gtk_label_new("Supported");
+    label = gtk_label_new(_("Supported"));
     gtk_label_set_selectable(GTK_LABEL(label), TRUE);
     gtk_misc_set_alignment(GTK_MISC(label), 0.0f, 0.5f);
     gtk_table_attach(GTK_TABLE(table), label, 1, 2, 0, 1,
                      GTK_FILL, GTK_FILL | GTK_EXPAND, 5, 0);
     ctk_config_set_tooltip(ctk_vdpau->ctk_config, eventbox,
-                           __video_mixer_attribute_help);
+                           _(__video_mixer_attribute_help));
 
     /* separator between heading and data */
 
@@ -1209,7 +1213,7 @@ static int queryVideoMixer(CtkVDPAU *ctk_vdpau, VdpDevice device,
     gtk_table_set_col_spacings(GTK_TABLE(table), 15);
     gtk_container_set_border_width(GTK_CONTAINER(table), 5);
 
-    label = gtk_label_new("Parameter Name");
+    label = gtk_label_new(_("Parameter Name"));
     eventbox = gtk_event_box_new();
     ctk_force_text_colors_on_widget(eventbox);
     gtk_container_add(GTK_CONTAINER(eventbox), label);
@@ -1217,21 +1221,21 @@ static int queryVideoMixer(CtkVDPAU *ctk_vdpau, VdpDevice device,
     gtk_table_attach(GTK_TABLE(table), eventbox, 0, 1, 0, 1,
                      GTK_FILL, GTK_FILL | GTK_EXPAND, 5, 0);
     ctk_config_set_tooltip(ctk_vdpau->ctk_config, eventbox,
-                           __video_mixer_parameter_help);
+                           _(__video_mixer_parameter_help));
 
-    label = gtk_label_new("Supported");
+    label = gtk_label_new(_("Supported"));
     gtk_label_set_selectable(GTK_LABEL(label), TRUE);
     gtk_misc_set_alignment(GTK_MISC(label), 0.0f, 0.5f);
     gtk_table_attach(GTK_TABLE(table), label, 1, 2, 0, 1,
                      GTK_FILL, GTK_FILL | GTK_EXPAND, 5, 0);
 
-    label = gtk_label_new("Min");
+    label = gtk_label_new(_("Min"));
     gtk_label_set_selectable(GTK_LABEL(label), TRUE);
     gtk_misc_set_alignment(GTK_MISC(label), 0.0f, 0.5f);
     gtk_table_attach(GTK_TABLE(table), label, 2, 3, 0, 1,
                      GTK_FILL, GTK_FILL | GTK_EXPAND, 5, 0);
 
-    label = gtk_label_new("Max");
+    label = gtk_label_new(_("Max"));
     gtk_label_set_selectable(GTK_LABEL(label), TRUE);
     gtk_misc_set_alignment(GTK_MISC(label), 0.0f, 0.5f);
     gtk_table_attach(GTK_TABLE(table), label, 3, 4, 0, 1,
@@ -1298,7 +1302,7 @@ static int queryVideoMixer(CtkVDPAU *ctk_vdpau, VdpDevice device,
     gtk_table_set_col_spacings(GTK_TABLE(table), 15);
     gtk_container_set_border_width(GTK_CONTAINER(table), 5);
 
-    label = gtk_label_new("Attribute Name");
+    label = gtk_label_new(_("Attribute Name"));
     eventbox = gtk_event_box_new();
     ctk_force_text_colors_on_widget(eventbox);
     gtk_container_add(GTK_CONTAINER(eventbox), label);
@@ -1307,21 +1311,21 @@ static int queryVideoMixer(CtkVDPAU *ctk_vdpau, VdpDevice device,
     gtk_table_attach(GTK_TABLE(table), eventbox, 0, 1, 0, 1,
                      GTK_FILL, GTK_FILL | GTK_EXPAND, 5, 0);
     ctk_config_set_tooltip(ctk_vdpau->ctk_config, eventbox,
-                           __video_mixer_attribute_help);
+                           _(__video_mixer_attribute_help));
 
-    label = gtk_label_new("Supported");
+    label = gtk_label_new(_("Supported"));
     gtk_label_set_selectable(GTK_LABEL(label), TRUE);
     gtk_misc_set_alignment(GTK_MISC(label), 0.0f, 0.5f);
     gtk_table_attach(GTK_TABLE(table), label, 1, 2, 0, 1,
                      GTK_FILL, GTK_FILL | GTK_EXPAND, 5, 0);
 
-    label = gtk_label_new("Min");
+    label = gtk_label_new(_("Min"));
     gtk_label_set_selectable(GTK_LABEL(label), TRUE);
     gtk_misc_set_alignment(GTK_MISC(label), 0.0f, 0.5f);
     gtk_table_attach(GTK_TABLE(table), label, 2, 3, 0, 1,
                      GTK_FILL, GTK_FILL | GTK_EXPAND, 5, 0);
 
-    label = gtk_label_new("Max");
+    label = gtk_label_new(_("Max"));
     gtk_label_set_selectable(GTK_LABEL(label), TRUE);
     gtk_misc_set_alignment(GTK_MISC(label), 0.0f, 0.5f);
     gtk_table_attach(GTK_TABLE(table), label, 3, 4, 0, 1,
@@ -1538,44 +1542,44 @@ GtkTextBuffer *ctk_vdpau_create_help(GtkTextTagTable *table,
 
     gtk_text_buffer_get_iter_at_offset(b, &i, 0);
 
-    ctk_help_title(b, &i, "VDPAU Information Help");
-    ctk_help_para(b, &i, "%s", __vdpau_information_label_help);
+    ctk_help_title(b, &i, _("VDPAU Information Help"));
+    ctk_help_para(b, &i, "%s", _(__vdpau_information_label_help));
 
-    ctk_help_heading(b, &i, "Base Information");
-    ctk_help_para(b, &i, "%s", __base_information_help);
+    ctk_help_heading(b, &i, _("Base Information"));
+    ctk_help_para(b, &i, "%s", _(__base_information_help));
 
-    ctk_help_heading(b, &i, "API Version");
-    ctk_help_para(b, &i, "%s", __vdpau_api_version_help);
+    ctk_help_heading(b, &i, _("API Version"));
+    ctk_help_para(b, &i, "%s", _(__vdpau_api_version_help));
 
-    ctk_help_heading(b, &i, "Supported Codecs");
-    ctk_help_para(b, &i, "%s", __supported_codecs_help);
+    ctk_help_heading(b, &i, _("Supported Codecs"));
+    ctk_help_para(b, &i, "%s", _(__supported_codecs_help));
 
-    ctk_help_heading(b, &i, "Surface Limits");
-    ctk_help_para(b, &i, "%s", __surface_limits_help);
+    ctk_help_heading(b, &i, _("Surface Limits"));
+    ctk_help_para(b, &i, "%s", _(__surface_limits_help));
 
-    ctk_help_heading(b, &i, "Video Surface");
-    ctk_help_para(b, &i, "%s", __video_surface_help);
+    ctk_help_heading(b, &i, _("Video Surface"));
+    ctk_help_para(b, &i, "%s", _(__video_surface_help));
 
-    ctk_help_heading(b, &i, "Output Surface");
-    ctk_help_para(b, &i, "%s", __ouput_surface_help);
+    ctk_help_heading(b, &i, _("Output Surface"));
+    ctk_help_para(b, &i, "%s", _(__ouput_surface_help));
 
-    ctk_help_heading(b, &i, "Bitmap Surface");
-    ctk_help_para(b, &i, "%s", __bitmap_surface_help);
+    ctk_help_heading(b, &i, _("Bitmap Surface"));
+    ctk_help_para(b, &i, "%s", _(__bitmap_surface_help));
 
-    ctk_help_heading(b, &i, "Decoder Limits");
-    ctk_help_para(b, &i, "%s", __decoder_limits_help);
+    ctk_help_heading(b, &i, _("Decoder Limits"));
+    ctk_help_para(b, &i, "%s", _(__decoder_limits_help));
 
-    ctk_help_heading(b, &i, "Video Mixer");
-    ctk_help_para(b, &i, "%s", __video_mixer_help);
+    ctk_help_heading(b, &i, _("Video Mixer"));
+    ctk_help_para(b, &i, "%s", _(__video_mixer_help));
 
-    ctk_help_term(b, &i, "Feature");
-    ctk_help_para(b, &i, "%s", __video_mixer_feature_help);
+    ctk_help_term(b, &i, _("Feature"));
+    ctk_help_para(b, &i, "%s", _(__video_mixer_feature_help));
 
-    ctk_help_term(b, &i, "Parameter");
-    ctk_help_para(b, &i, "%s", __video_mixer_parameter_help);
+    ctk_help_term(b, &i, _("Parameter"));
+    ctk_help_para(b, &i, "%s", _(__video_mixer_parameter_help));
 
-    ctk_help_term(b, &i, "Attribute");
-    ctk_help_para(b, &i, "%s", __video_mixer_attribute_help);
+    ctk_help_term(b, &i, _("Attribute"));
+    ctk_help_para(b, &i, "%s", _(__video_mixer_attribute_help));
 
     ctk_help_finish(b);
     return b;

@@ -16,6 +16,7 @@
  * You should have received a copy of the GNU General Public License
  * along with this program.  If not, see <http://www.gnu.org/licenses>.
  */
+#include <libintl.h>
 
 #include <gtk/gtk.h>
 #include "ctkui.h"
@@ -26,6 +27,8 @@
  * This source file provides thin wrappers over the gtk routines, so
  * that nvidia-settings.c doesn't need to include gtk+
  */
+
+#define _(STRING) gettext(STRING)
 
 int ctk_init_check(int *argc, char **argv[])
 {
@@ -55,10 +58,10 @@ void ctk_main(ParsedAttribute *p,
                                       GTK_DIALOG_MODAL,
                                       GTK_MESSAGE_WARNING,
                                       GTK_BUTTONS_OK,
-                                      "You do not appear to be using the NVIDIA "
+                                      _("You do not appear to be using the NVIDIA "
                                       "X driver.  Please edit your X configuration "
                                       "file (just run `nvidia-xconfig` "
-                                      "as root), and restart the X server.");
+                                      "as root), and restart the X server."));
         gtk_dialog_run(GTK_DIALOG(dlg));
         gtk_widget_destroy (dlg);
     }
