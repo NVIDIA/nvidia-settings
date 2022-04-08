@@ -22,6 +22,7 @@
 
 #include "ctkevent.h"
 #include "ctkconfig.h"
+#include "nvml.h"
 
 G_BEGIN_DECLS
 
@@ -46,6 +47,16 @@ G_BEGIN_DECLS
 typedef struct _CtkEcc       CtkEcc;
 typedef struct _CtkEccClass  CtkEccClass;
 
+typedef struct _CtkEccDetailedTableRow
+{
+    GtkWidget *err_type;
+    GtkWidget *mem_type;
+    GtkWidget *vol_count;
+    GtkWidget *agg_count;
+    int vol_count_value;
+    int agg_count_value;
+} CtkEccDetailedTableRow;
+
 struct _CtkEcc
 {
     GtkVBox parent;
@@ -62,6 +73,7 @@ struct _CtkEcc
     GtkWidget* clear_aggregate_button;
     GtkWidget* reset_default_config_button;
     GtkWidget* configuration_status;
+    GtkWidget* summary_table;
 
     gboolean ecc_enabled;
     gboolean ecc_configured;
@@ -73,6 +85,9 @@ struct _CtkEcc
     gboolean ecc_config_supported;
     gboolean ecc_default_status;
 
+    GtkWidget* detailed_table;
+    CtkEccDetailedTableRow single_errors[NVML_MEMORY_LOCATION_COUNT];
+    CtkEccDetailedTableRow double_errors[NVML_MEMORY_LOCATION_COUNT];
 };
 
 struct _CtkEccClass

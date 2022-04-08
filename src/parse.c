@@ -67,7 +67,7 @@ const AttributeTableEntry attributeTable[] = {
      */
 
     /* Version information */
-    { "OperatingSystem",                  NV_CTRL_OPERATING_SYSTEM,                     INT_ATTR, {0,0,0,1,0}, { .int_flags = {0,0,0,0,0,0,0} }, "The operating system on which the X server is running.  0-Linux, 1-FreeBSD, 2-SunOS." },
+    { "OperatingSystem",                  NV_CTRL_OPERATING_SYSTEM,                     INT_ATTR, {0,0,0,1,0}, { .int_flags = {0,0,0,0,0,0,0} }, "The operating system on which the NVIDIA driver is running.  0-Linux, 1-FreeBSD, 2-SunOS." },
     { "NvidiaDriverVersion",              NV_CTRL_STRING_NVIDIA_DRIVER_VERSION,         STR_ATTR, {0,0,0,1,0}, {}, "The NVIDIA X driver version." },
     { "NvControlVersion",                 NV_CTRL_STRING_NV_CONTROL_VERSION,            STR_ATTR, {0,0,0,1,0}, {}, "The NV-CONTROL X driver extension version." },
     { "GLXServerVersion",                 NV_CTRL_STRING_GLX_SERVER_VERSION,            STR_ATTR, {0,0,0,1,0}, {}, "The GLX X server extension version." },
@@ -142,6 +142,7 @@ const AttributeTableEntry attributeTable[] = {
     { "PCIECurrentLinkWidth",             NV_CTRL_GPU_PCIE_CURRENT_LINK_WIDTH,          INT_ATTR, {0,0,0,1,0}, { .int_flags = {0,0,0,0,0,0,0} }, "Returns the current PCIe link width of the GPU, in number of lanes." },
     { "VideoRam",                         NV_CTRL_VIDEO_RAM,                            INT_ATTR, {0,0,0,1,0}, { .int_flags = {0,0,0,0,0,0,0} }, "Returns the total amount of memory available to the specified GPU (or the GPU driving the specified X screen).  Note: if the GPU supports TurboCache(TM), the value reported may exceed the amount of video memory installed on the GPU.  The value reported for integrated GPUs may likewise exceed the amount of dedicated system memory set aside by the system BIOS for use by the integrated GPU." },
     { "TotalDedicatedGPUMemory",          NV_CTRL_TOTAL_DEDICATED_GPU_MEMORY,           INT_ATTR, {0,0,0,1,0}, { .int_flags = {0,0,0,0,0,0,0} }, "Returns the amount of total dedicated memory on the specified GPU in MB." },
+    { "GPUResizableBAR",                  NV_CTRL_RESIZABLE_BAR,                        INT_ATTR, {0,0,0,1,0}, { .int_flags = {0,0,0,0,0,0,0} }, "Returns whether Resizable BAR is supported." },
     { "UsedDedicatedGPUMemory",           NV_CTRL_USED_DEDICATED_GPU_MEMORY,            INT_ATTR, {0,0,0,1,0}, { .int_flags = {0,0,0,0,0,0,0} }, "Returns the amount of dedicated memory used on the specified GPU in MB." },
     { "Irq",                              NV_CTRL_IRQ,                                  INT_ATTR, {0,0,0,1,0}, { .int_flags = {0,0,0,0,0,0,0} }, "Returns the interrupt request line used by the specified device.  If the target is an X screen, then it uses the GPU driving the X screen as the device." },
     { "CUDACores",                        NV_CTRL_GPU_CORES,                            INT_ATTR, {0,0,0,1,0}, { .int_flags = {0,0,0,0,0,0,0} }, "Returns number of CUDA cores supported by the graphics pipeline." },
@@ -160,7 +161,6 @@ const AttributeTableEntry attributeTable[] = {
     { "GPUDefault2DClockFreqs",           NV_CTRL_GPU_DEFAULT_2D_CLOCK_FREQS,           INT_ATTR, {0,0,0,1,0}, { .int_flags = {0,0,1,0,0,0,0} }, "NOT SUPPORTED." },
     { "GPUDefault3DClockFreqs",           NV_CTRL_GPU_DEFAULT_3D_CLOCK_FREQS,           INT_ATTR, {0,0,0,1,0}, { .int_flags = {0,0,1,0,0,0,0} }, "NOT SUPPORTED." },
     { "GPUCurrentClockFreqs",             NV_CTRL_GPU_CURRENT_CLOCK_FREQS,              INT_ATTR, {0,0,0,1,0}, { .int_flags = {0,0,1,0,0,0,0} }, "Returns the current GPU and memory clocks of the graphics device driving the X screen." },
-    { "GPUCurrentProcessorClockFreqs",    NV_CTRL_GPU_CURRENT_PROCESSOR_CLOCK_FREQS,    INT_ATTR, {0,0,0,1,0}, { .int_flags = {0,0,0,0,0,0,0} }, "Returns the current processor clock of the graphics device driving the X screen." },
     { "BusRate",                          NV_CTRL_BUS_RATE,                             INT_ATTR, {0,0,0,1,0}, { .int_flags = {0,0,0,0,0,0,0} }, "If the device is on an AGP bus, then BusRate returns the configured AGP rate.  If the device is on a PCI Express bus, then this attribute returns the width of the physical link." },
     { "PCIDomain",                        NV_CTRL_PCI_DOMAIN,                           INT_ATTR, {0,0,0,1,0}, { .int_flags = {0,0,0,0,0,0,0} }, "Returns the PCI domain number for the specified device." },
     { "PCIBus",                           NV_CTRL_PCI_BUS,                              INT_ATTR, {0,0,0,1,0}, { .int_flags = {0,0,0,0,0,0,0} }, "Returns the PCI bus number for the specified device." },
@@ -196,8 +196,6 @@ const AttributeTableEntry attributeTable[] = {
     { "ThermalSensorReading",             NV_CTRL_THERMAL_SENSOR_READING,               INT_ATTR, {0,0,0,1,0}, { .int_flags = {0,0,0,0,0,0,0} }, "Returns the thermal sensor's current reading." },
     { "ThermalSensorProvider",            NV_CTRL_THERMAL_SENSOR_PROVIDER,              INT_ATTR, {0,0,0,1,0}, { .int_flags = {0,0,0,0,0,0,0} }, "Returns the hardware device that provides the thermal sensor." },
     { "ThermalSensorTarget",              NV_CTRL_THERMAL_SENSOR_TARGET,                INT_ATTR, {0,0,0,1,0}, { .int_flags = {0,0,0,0,0,0,0} }, "Returns what hardware component the thermal sensor is measuring." },  
-    { "GPUDoublePrecisionBoostImmediate", NV_CTRL_GPU_DOUBLE_PRECISION_BOOST_IMMEDIATE, INT_ATTR, {0,0,0,1,0}, { .int_flags = {0,0,0,0,0,0,0} }, "Toggles GPU double precision; the change is applied immediately.  Only available when the change can be made immediately." },
-    { "GPUDoublePrecisionBoostReboot",    NV_CTRL_GPU_DOUBLE_PRECISION_BOOST_REBOOT,    INT_ATTR, {0,0,0,1,0}, { .int_flags = {0,0,0,0,0,0,0} }, "Toggles GPU double precision; the change is applied on the next reboot.  Only available when the change requires a reboot." },
     { "BaseMosaic",                       NV_CTRL_BASE_MOSAIC,                          INT_ATTR, {0,0,0,1,0}, { .int_flags = {0,0,0,0,0,0,0} }, "Returns the current Base Mosaic configuration." },
     { "MultiGpuPrimaryPossible",          NV_CTRL_MULTIGPU_PRIMARY_POSSIBLE,            INT_ATTR, {0,0,0,1,0}, { .int_flags = {0,0,0,0,0,0,0} }, "Returns whether or not the GPU can be configured as the primary GPU for a Multi GPU configuration (SLI, SLI Mosaic, Base Mosaic, ...)." },
     { "MultiGpuMasterPossible",           NV_CTRL_MULTIGPU_PRIMARY_POSSIBLE,            INT_ATTR, {0,0,0,1,0}, { .int_flags = {0,0,0,0,0,0,0} }, "This attribute is deprecated. Please use 'MultiGpuPrimaryPossible' instead." },
@@ -330,10 +328,18 @@ const AttributeTableEntry attributeTable[] = {
     { "3DVisionProGlassesAddress",                    NV_CTRL_STRING_3D_VISION_PRO_GLASSES_ADDRESS,                STR_ATTR, {0,0,1,1,0}, {}, "Returns the RF address of the glasses."},
     { "3DVisionProGlassesName",                       NV_CTRL_STRING_3D_VISION_PRO_GLASSES_NAME,                   STR_ATTR, {0,0,1,1,0}, {}, "Controls the name the glasses should use."},
 
+    /* Mux Control */
+    { "MuxState",                                     NV_CTRL_STRING_MUX_STATE,         STR_ATTR, {0,0,0,1,0}, {}, "Controls whether the specified mux is configured to use the discrete or integrated GPU."},
+    { "MuxAutoSwitch",                                NV_CTRL_MUX_AUTO_SWITCH,          INT_ATTR, {0,0,0,1,0}, {}, "Controls whether the specified mux switches automatically."},
+    { "MuxIsInternal",                                NV_CTRL_MUX_IS_INTERNAL,          INT_ATTR, {0,0,0,1,0}, {}, "Returns whether the specified mux is internal."},
+
+
     /* Misc */
     { "GTFModeline",                      NV_CTRL_STRING_OPERATION_GTF_MODELINE,        SOP_ATTR, {0,0,0,1,1}, { }, "Builds a modeline using the GTF formula." },
     { "CVTModeline",                      NV_CTRL_STRING_OPERATION_CVT_MODELINE,        SOP_ATTR, {0,0,0,1,1}, { }, "Builds a modeline using the CVT formula." },
 
+    /* Dynamic Boost */
+    { "DynamicBoostSupport",              NV_CTRL_DYNAMIC_BOOST_SUPPORT,                INT_ATTR, {0,0,0,1,0}, {},  "Returns whether the system supports Dynamic Boost." },
 };
 
 const int attributeTableLen = ARRAY_LEN(attributeTable);
@@ -344,11 +350,11 @@ const int attributeTableLen = ARRAY_LEN(attributeTable);
  * the last attribute that the table knows about.
  */
 
-#if NV_CTRL_LAST_ATTRIBUTE != NV_CTRL_PLATFORM_CURRENT_POWER_MODE
+#if NV_CTRL_LAST_ATTRIBUTE != NV_CTRL_DYNAMIC_BOOST_SUPPORT
 #warning "Have you forgotten to add a new integer attribute to attributeTable?"
 #endif
 
-#if NV_CTRL_STRING_LAST_ATTRIBUTE != NV_CTRL_STRING_DISPLAY_NAME_CONNECTOR
+#if NV_CTRL_STRING_LAST_ATTRIBUTE != NV_CTRL_STRING_MUX_STATE
 #warning "Have you forgotten to add a new string attribute to attributeTable?"
 #endif
 

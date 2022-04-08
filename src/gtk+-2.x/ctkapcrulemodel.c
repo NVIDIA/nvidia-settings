@@ -28,12 +28,12 @@ static GObjectClass *parent_class = NULL;
 
 // Forward declarations
 GType ctk_apc_rule_model_get_type(void);
-static void apc_rule_model_class_init(CtkApcRuleModelClass *klass);
-static void apc_rule_model_init(CtkApcRuleModel *rule_model);
+static void apc_rule_model_class_init(CtkApcRuleModelClass *klass, gpointer);
+static void apc_rule_model_init(CtkApcRuleModel *rule_model, gpointer);
 static void apc_rule_model_finalize(GObject *object);
-static void apc_rule_model_tree_model_init(GtkTreeModelIface *iface);
-static void apc_rule_model_drag_source_init(GtkTreeDragSourceIface *iface);
-static void apc_rule_model_drag_dest_init(GtkTreeDragDestIface *iface);
+static void apc_rule_model_tree_model_init(GtkTreeModelIface *iface, gpointer);
+static void apc_rule_model_drag_source_init(GtkTreeDragSourceIface *iface, gpointer);
+static void apc_rule_model_drag_dest_init(GtkTreeDragDestIface *iface, gpointer);
 static GtkTreeModelFlags apc_rule_model_get_flags(GtkTreeModel *tree_model);
 static gint apc_rule_model_get_n_columns(GtkTreeModel *tree_model);
 static GType apc_rule_model_get_column_type(GtkTreeModel *tree_model, gint index);
@@ -132,7 +132,8 @@ GType ctk_apc_rule_model_get_type(void)
     return apc_rule_model_type;
 }
 
-static void apc_rule_model_class_init(CtkApcRuleModelClass *klass)
+static void apc_rule_model_class_init(CtkApcRuleModelClass *klass,
+                                      gpointer class_data)
 {
     GObjectClass *object_class;
 
@@ -142,7 +143,7 @@ static void apc_rule_model_class_init(CtkApcRuleModelClass *klass)
     object_class->finalize = apc_rule_model_finalize;
 }
 
-static void apc_rule_model_init(CtkApcRuleModel *rule_model)
+static void apc_rule_model_init(CtkApcRuleModel *rule_model, gpointer g_class)
 {
     rule_model->stamp = g_random_int(); // random int to catch iterator type mismatches
     rule_model->config = NULL;
@@ -156,7 +157,8 @@ static void apc_rule_model_finalize(GObject *object)
     parent_class->finalize(object);
 }
 
-static void apc_rule_model_tree_model_init(GtkTreeModelIface *iface)
+static void apc_rule_model_tree_model_init(GtkTreeModelIface *iface,
+                                           gpointer iface_data)
 {
     iface->get_flags       = apc_rule_model_get_flags;
     iface->get_n_columns   = apc_rule_model_get_n_columns;
@@ -172,14 +174,16 @@ static void apc_rule_model_tree_model_init(GtkTreeModelIface *iface)
     iface->iter_parent     = apc_rule_model_iter_parent;
 }
 
-static void apc_rule_model_drag_source_init(GtkTreeDragSourceIface *iface)
+static void apc_rule_model_drag_source_init(GtkTreeDragSourceIface *iface,
+                                            gpointer iface_data)
 {
     iface->row_draggable = apc_rule_model_row_draggable;
     iface->drag_data_get = apc_rule_model_drag_data_get;
     iface->drag_data_delete = apc_rule_model_drag_data_delete;
 }
 
-static void apc_rule_model_drag_dest_init(GtkTreeDragDestIface *iface)
+static void apc_rule_model_drag_dest_init(GtkTreeDragDestIface *iface,
+                                          gpointer iface_data)
 {
     iface->drag_data_received = apc_rule_model_drag_data_received;
     iface->row_drop_possible  = apc_rule_model_row_drop_possible;

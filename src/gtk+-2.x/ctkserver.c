@@ -19,7 +19,6 @@
 
 #include <stdlib.h> /* malloc */
 #include <stdio.h> /* snprintf */
-#include <libintl.h>
 
 #include <gtk/gtk.h>
 #include <gdk/gdkx.h>
@@ -32,7 +31,6 @@
 #include "ctkhelp.h"
 #include "ctkutils.h"
 
-#define _(STRING) gettext(STRING)
 
 GType ctk_server_get_type(void)
 {
@@ -249,21 +247,27 @@ GtkWidget* ctk_server_new(CtrlTarget *ctrl_target,
     GtkWidget *hseparator;
     GtkWidget *table;
 
-    gchar *os;
-    gchar *arch;
-    gchar *driver_version;
+    CtrlTarget *gpu_target = NULL;
+
+    gchar *os = NULL;
+    gchar *arch = NULL;
+    gchar *driver_version = NULL;
+    gchar *nvml_version = NULL;
 
     gchar *dname = NvCtrlGetDisplayName(ctrl_target);
-    gchar *display_name;
-    gchar *server_version;
-    gchar *vendor_str;
-    gchar *vendor_ver;
-    gchar *nv_control_server_version;
-    gchar *num_screens;
+    gchar *display_name = NULL;
+    gchar *server_version = NULL;
+    gchar *vendor_str = NULL;
+    gchar *vendor_ver = NULL;
+    gchar *nv_control_server_version = NULL;
+    gchar *num_screens = NULL;
 
     ReturnStatus ret;
     int tmp, os_val;
     int xinerama_enabled;
+    int row;
+
+    gpu_target = NvCtrlGetDefaultTargetByType(ctrl_target->system, GPU_TARGET);
 
     /*
      * get the data that we will display below
@@ -278,72 +282,85 @@ GtkWidget* ctk_server_new(CtrlTarget *ctrl_target,
         xinerama_enabled = FALSE;
     }
 
-    /* NV_CTRL_OPERATING_SYSTEM */
+    if (ctrl_target->system->has_nv_control) {
 
-    os_val = NV_CTRL_OPERATING_SYSTEM_LINUX;
-    ret = NvCtrlGetAttribute(ctrl_target, NV_CTRL_OPERATING_SYSTEM, &os_val);
-    os = NULL;
-    if (ret == NvCtrlSuccess) {
-        if      (os_val == NV_CTRL_OPERATING_SYSTEM_LINUX) os = "Linux";
-        else if (os_val == NV_CTRL_OPERATING_SYSTEM_FREEBSD) os = "FreeBSD";
-        else if (os_val == NV_CTRL_OPERATING_SYSTEM_SUNOS) os = "SunOS";
-    }
-    if (!os) os = _("Unknown");
+        /* NV_CTRL_OPERATING_SYSTEM */
 
-    /* NV_CTRL_ARCHITECTURE */
-
-    ret = NvCtrlGetAttribute(ctrl_target, NV_CTRL_ARCHITECTURE, &tmp);
-    arch = NULL;
-    if (ret == NvCtrlSuccess) {
-        switch (tmp) {
-            case NV_CTRL_ARCHITECTURE_X86: arch = "x86"; break;
-            case NV_CTRL_ARCHITECTURE_X86_64: arch = "x86_64"; break;
-            case NV_CTRL_ARCHITECTURE_IA64: arch = "ia64"; break;
-            case NV_CTRL_ARCHITECTURE_ARM: arch = "ARM"; break;
-            case NV_CTRL_ARCHITECTURE_AARCH64: arch = "AArch64"; break;
-            case NV_CTRL_ARCHITECTURE_PPC64LE: arch = "ppc64le"; break;
+        os_val = NV_CTRL_OPERATING_SYSTEM_LINUX;
+        ret = NvCtrlGetAttribute(ctrl_target, NV_CTRL_OPERATING_SYSTEM, &os_val);
+        os = NULL;
+        if (ret == NvCtrlSuccess) {
+            if      (os_val == NV_CTRL_OPERATING_SYSTEM_LINUX) os = "Linux";
+            else if (os_val == NV_CTRL_OPERATING_SYSTEM_FREEBSD) os = "FreeBSD";
+            else if (os_val == NV_CTRL_OPERATING_SYSTEM_SUNOS) os = "SunOS";
         }
+        if (!os) os = "Unknown";
+
+        /* NV_CTRL_ARCHITECTURE */
+
+        ret = NvCtrlGetAttribute(ctrl_target, NV_CTRL_ARCHITECTURE, &tmp);
+        arch = NULL;
+        if (ret == NvCtrlSuccess) {
+            switch (tmp) {
+                case NV_CTRL_ARCHITECTURE_X86: arch = "x86"; break;
+                case NV_CTRL_ARCHITECTURE_X86_64: arch = "x86_64"; break;
+                case NV_CTRL_ARCHITECTURE_IA64: arch = "ia64"; break;
+                case NV_CTRL_ARCHITECTURE_ARM: arch = "ARM"; break;
+                case NV_CTRL_ARCHITECTURE_AARCH64: arch = "AArch64"; break;
+                case NV_CTRL_ARCHITECTURE_PPC64LE: arch = "ppc64le"; break;
+            }
+        }
+        if (!arch) arch = "Unknown";
+        os = g_strdup_printf("%s-%s", os, arch);
     }
-    if (!arch) arch = _("Unknown");
-    os = g_strdup_printf("%s-%s", os, arch);
 
     /* NV_CTRL_STRING_NVIDIA_DRIVER_VERSION */
 
     driver_version = get_nvidia_driver_version(ctrl_target);
 
-    /* Display Name */
+    /* NV_CTRL_STRING_NVML_VERSION */
 
-    display_name = nv_standardize_screen_name(dname, -2);
+    NvCtrlGetStringAttribute(gpu_target,
+                             NV_CTRL_STRING_NVML_VERSION,
+                             &nvml_version);
 
-    /* X Server Version */
+    if (ctrl_target->system->has_nv_control) {
 
-    server_version = g_strdup_printf("%d.%d",
-                                     NvCtrlGetProtocolVersion(ctrl_target),
-                                     NvCtrlGetProtocolRevision(ctrl_target));
+        /* Display Name */
 
-    /* Server Vendor String */
+        display_name = nv_standardize_screen_name(dname, -2);
 
-    vendor_str = g_strdup(NvCtrlGetServerVendor(ctrl_target));
+        /* X Server Version */
 
-    /* Server Vendor Version */
+        server_version = g_strdup_printf("%d.%d",
+                                         NvCtrlGetProtocolVersion(ctrl_target),
+                                         NvCtrlGetProtocolRevision(ctrl_target));
 
-    vendor_ver = get_server_vendor_version(ctrl_target);
+        /* Server Vendor String */
 
-    /* NV_CTRL_STRING_NV_CONTROL_VERSION */
+        vendor_str = g_strdup(NvCtrlGetServerVendor(ctrl_target));
 
-    ret = NvCtrlGetStringAttribute(ctrl_target,
-                                   NV_CTRL_STRING_NV_CONTROL_VERSION,
-                                   &nv_control_server_version);
-    if (ret != NvCtrlSuccess) nv_control_server_version = NULL;
+        /* Server Vendor Version */
 
-    /* # Logical X Screens */
+        vendor_ver = get_server_vendor_version(ctrl_target);
 
-    if (xinerama_enabled) {
-        num_screens = g_strdup_printf("%d (Xinerama)",
-                                      NvCtrlGetScreenCount(ctrl_target));
-    } else {
-        num_screens = g_strdup_printf("%d",
-                                      NvCtrlGetScreenCount(ctrl_target));
+        /* NV_CTRL_STRING_NV_CONTROL_VERSION */
+
+        ret = NvCtrlGetStringAttribute(ctrl_target,
+                                       NV_CTRL_STRING_NV_CONTROL_VERSION,
+                                       &nv_control_server_version);
+        if (ret != NvCtrlSuccess) nv_control_server_version = NULL;
+
+        /* # Logical X Screens */
+
+        if (xinerama_enabled) {
+            num_screens = g_strdup_printf("%d (Xinerama)",
+                                          NvCtrlGetScreenCount(ctrl_target));
+        } else {
+            num_screens = g_strdup_printf("%d",
+                                          NvCtrlGetScreenCount(ctrl_target));
+        }
+
     }
 
 
@@ -365,7 +382,7 @@ GtkWidget* ctk_server_new(CtrlTarget *ctrl_target,
     } else if (os_val == NV_CTRL_OPERATING_SYSTEM_SUNOS) {
         banner = ctk_banner_image_new(BANNER_ARTWORK_SOLARIS);
     } else {
-        banner = ctk_banner_image_new(BANNER_ARTWORK_PENGUIN);
+        banner = ctk_banner_image_new(BANNER_ARTWORK_BLANK);
     }
     gtk_box_pack_start(GTK_BOX(ctk_object), banner, FALSE, FALSE, 0);
 
@@ -380,13 +397,13 @@ GtkWidget* ctk_server_new(CtrlTarget *ctrl_target,
     hbox = gtk_hbox_new(FALSE, 0);
     gtk_box_pack_start(GTK_BOX(vbox), hbox, FALSE, FALSE, 0);
 
-    label = gtk_label_new(_("System Information"));
+    label = gtk_label_new("System Information");
     gtk_box_pack_start(GTK_BOX(hbox), label, FALSE, FALSE, 0);
 
     hseparator = gtk_hseparator_new();
     gtk_box_pack_start(GTK_BOX(hbox), hseparator, TRUE, TRUE, 5);
 
-    table = gtk_table_new(2, 2, FALSE);
+    table = gtk_table_new(3, 2, FALSE);
     gtk_box_pack_start(GTK_BOX(vbox), table, FALSE, FALSE, 0);
 
     gtk_table_set_row_spacings(GTK_TABLE(table), 3);
@@ -394,47 +411,56 @@ GtkWidget* ctk_server_new(CtrlTarget *ctrl_target,
 
     gtk_container_set_border_width(GTK_CONTAINER(table), 5);
 
-    add_table_row(table, 0,
-                  0, 0.5, _("Operating System:"),      0, 0.5, os);
-    add_table_row(table, 1,
-                  0, 0.5, _("NVIDIA Driver Version:"), 0, 0.5, driver_version);
+    row = 0;
+    if (os) {
+        add_table_row(table, row++,
+                      0, 0.5, "Operating System:",      0, 0.5, os);
+    }
+    add_table_row(table, row++,
+                  0, 0.5, "NVIDIA Driver Version:", 0, 0.5, driver_version);
+    if (nvml_version) {
+        add_table_row(table, row++,
+                      0, 0.5, "NVML Version:", 0, 0.5, nvml_version);
+    }
 
     /*
      * This displays basic X Server information, including
      * version number, vendor information and the number of
      * X Screens.
      */
+    if (ctrl_target->system->has_nv_control) {
 
-    hbox = gtk_hbox_new(FALSE, 0);
-    gtk_box_pack_start(GTK_BOX(vbox), hbox, FALSE, FALSE, 0);
+        hbox = gtk_hbox_new(FALSE, 0);
+        gtk_box_pack_start(GTK_BOX(vbox), hbox, FALSE, FALSE, 0);
 
-    label = gtk_label_new(_("X Server Information"));
-    gtk_box_pack_start(GTK_BOX(hbox), label, FALSE, FALSE, 0);
+        label = gtk_label_new("X Server Information");
+        gtk_box_pack_start(GTK_BOX(hbox), label, FALSE, FALSE, 0);
 
-    hseparator = gtk_hseparator_new();
-    gtk_box_pack_start(GTK_BOX(hbox), hseparator, TRUE, TRUE, 5);
+        hseparator = gtk_hseparator_new();
+        gtk_box_pack_start(GTK_BOX(hbox), hseparator, TRUE, TRUE, 5);
 
-    table = gtk_table_new(15, 2, FALSE);
-    gtk_box_pack_start(GTK_BOX(vbox), table, FALSE, FALSE, 0);
-    gtk_table_set_row_spacings(GTK_TABLE(table), 3);
-    gtk_table_set_col_spacings(GTK_TABLE(table), 15);
-    gtk_container_set_border_width(GTK_CONTAINER(table), 5);
+        table = gtk_table_new(15, 2, FALSE);
+        gtk_box_pack_start(GTK_BOX(vbox), table, FALSE, FALSE, 0);
+        gtk_table_set_row_spacings(GTK_TABLE(table), 3);
+        gtk_table_set_col_spacings(GTK_TABLE(table), 15);
+        gtk_container_set_border_width(GTK_CONTAINER(table), 5);
 
-    add_table_row(table, 0,
-                  0, 0.5, _("Display Name:"),          0, 0.5, display_name);
-    /* separator */
-    add_table_row(table, 4,
-                  0, 0.5, _("Server Version Number:"), 0, 0.5, server_version);
-    add_table_row(table, 5,
-                  0, 0.5, _("Server Vendor String:"),  0, 0.5, vendor_str);
-    add_table_row(table, 6,
-                  0, 0.5, _("Server Vendor Version:"), 0, 0.5, vendor_ver);
-    /* separator */
-    add_table_row(table, 10,
-                  0, 0,   _("NV-CONTROL Version:"),    0, 0, nv_control_server_version);
-    /* separator */
-    add_table_row(table, 14,
-                  0, 0,   _("Screens:"),               0, 0, num_screens);
+        add_table_row(table, 0,
+                      0, 0.5, "Display Name:",          0, 0.5, display_name);
+        /* separator */
+        add_table_row(table, 4,
+                      0, 0.5, "Server Version Number:", 0, 0.5, server_version);
+        add_table_row(table, 5,
+                      0, 0.5, "Server Vendor String:",  0, 0.5, vendor_str);
+        add_table_row(table, 6,
+                      0, 0.5, "Server Vendor Version:", 0, 0.5, vendor_ver);
+        /* separator */
+        add_table_row(table, 10,
+                      0, 0,   "NV-CONTROL Version:",    0, 0, nv_control_server_version);
+        /* separator */
+        add_table_row(table, 14,
+                      0, 0,   "Screens:",               0, 0, num_screens);
+    }
 
 
     /* print special trademark text for FreeBSD */
@@ -447,7 +473,7 @@ GtkWidget* ctk_server_new(CtrlTarget *ctrl_target,
         label = gtk_label_new(NULL);
 
         gtk_label_set_markup(GTK_LABEL(label),
-                             _("<span style=\"italic\" size=\"small\">"
+                             "<span style=\"italic\" size=\"small\">"
                              "\n"
                              "The mark FreeBSD is a registered trademark "
                              "of The FreeBSD Foundation and is used by "
@@ -459,7 +485,7 @@ GtkWidget* ctk_server_new(CtrlTarget *ctrl_target,
                              "with the permission of The FreeBSD "
                              "Foundation."
                              "\n"
-                             "</span>"));
+                             "</span>");
         
         gtk_label_set_selectable(GTK_LABEL(label), TRUE);
         gtk_label_set_line_wrap(GTK_LABEL(label), TRUE);
@@ -474,6 +500,7 @@ GtkWidget* ctk_server_new(CtrlTarget *ctrl_target,
     g_free(display_name);
     g_free(os);
     free(driver_version);
+    free(nvml_version);
 
     g_free(server_version);
     g_free(vendor_str);
@@ -501,41 +528,41 @@ GtkTextBuffer *ctk_server_create_help(GtkTextTagTable *table,
     
     gtk_text_buffer_get_iter_at_offset(b, &i, 0);
 
-    ctk_help_title(b, &i, _("X Server Information Help"));
+    ctk_help_title(b, &i, "System Information Help");
 
-    ctk_help_heading(b, &i, _("Operating System"));
-    ctk_help_para(b, &i, _("This is the operating system on which the NVIDIA "
+    ctk_help_heading(b, &i, "Operating System");
+    ctk_help_para(b, &i, "This is the operating system on which the NVIDIA "
                   "X driver is running; possible values are "
                   "'Linux', 'FreeBSD', and 'SunOS'.  This also specifies the "
                   "platform on which the operating system is running, such "
-                  "as x86, x86_64, or ia64."));
+                  "as x86, x86_64, or ia64.");
     
-    ctk_help_heading(b, &i, _("NVIDIA Driver Version"));
-    ctk_help_para(b, &i, _("This is the version of the NVIDIA Accelerated "
-                  "Graphics Driver currently in use."));
+    ctk_help_heading(b, &i, "NVIDIA Driver Version");
+    ctk_help_para(b, &i, "This is the version of the NVIDIA Accelerated "
+                  "Graphics Driver currently in use.");
 
-    ctk_help_heading(b, &i, _("Display Name"));
-    ctk_help_para(b, &i, _("This is the display connection string used to "
-                  "communicate with the X Server."));
+    ctk_help_heading(b, &i, "Display Name");
+    ctk_help_para(b, &i, "This is the display connection string used to "
+                  "communicate with the X Server.");
 
-    ctk_help_heading(b, &i, _("Server Version"));
-    ctk_help_para(b, &i, _("This is the version number of the X Server."));
+    ctk_help_heading(b, &i, "Server Version");
+    ctk_help_para(b, &i, "This is the version number of the X Server.");
 
-    ctk_help_heading(b, &i, _("Server Vendor String"));
-    ctk_help_para(b, &i, _("This is the X Server vendor information string."));
+    ctk_help_heading(b, &i, "Server Vendor String");
+    ctk_help_para(b, &i, "This is the X Server vendor information string.");
 
-    ctk_help_heading(b, &i, _("Server Vendor Version"));
-    ctk_help_para(b, &i, _("This is the version number of the X Server "
-                  "vendor."));
+    ctk_help_heading(b, &i, "Server Vendor Version");
+    ctk_help_para(b, &i, "This is the version number of the X Server "
+                  "vendor.");
 
-    ctk_help_heading(b, &i, _("NV-CONTROL Version"));
-    ctk_help_para(b, &i, _("This is the version number of the NV-CONTROL X extension, "
+    ctk_help_heading(b, &i, "NV-CONTROL Version");
+    ctk_help_para(b, &i, "This is the version number of the NV-CONTROL X extension, "
                   "used by nvidia-settings to communicate with the "
-                  "NVIDIA X driver."));
+                  "NVIDIA X driver.");
 
-    ctk_help_heading(b, &i, _("Screens"));
-    ctk_help_para(b, &i, _("This is the number of X Screens on the "
-                  "display.  (When Xinerama is enabled this is always 1)."));
+    ctk_help_heading(b, &i, "Screens");
+    ctk_help_para(b, &i, "This is the number of X Screens on the "
+                  "display.  (When Xinerama is enabled this is always 1).");
 
     ctk_help_finish(b);
 

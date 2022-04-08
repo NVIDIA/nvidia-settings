@@ -29,7 +29,7 @@
 #endif
 
 static void ctk_scale_finalize(GObject *object);
-static void ctk_scale_init(CtkScaleClass *ctk_object_class);
+static void ctk_scale_init(CtkScaleClass *ctk_object_class, gpointer);
 
 enum {
     PROP_0,
@@ -65,7 +65,8 @@ GType ctk_scale_get_type(
 }
 
 
-static void ctk_scale_init(CtkScaleClass *ctk_object_class)
+static void ctk_scale_init(CtkScaleClass *ctk_object_class,
+                           gpointer class_data)
 {
     GObjectClass *gobject_class = (GObjectClass *)ctk_object_class;
     gobject_class->finalize = ctk_scale_finalize;

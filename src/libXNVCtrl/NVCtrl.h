@@ -49,6 +49,7 @@
 #define NV_CTRL_TARGET_TYPE_THERMAL_SENSOR 6
 #define NV_CTRL_TARGET_TYPE_3D_VISION_PRO_TRANSCEIVER 7
 #define NV_CTRL_TARGET_TYPE_DISPLAY        8
+#define NV_CTRL_TARGET_TYPE_MUX            9
 
 /**************************************************************************/
 
@@ -2845,8 +2846,7 @@
 #define NV_CTRL_SHOW_MULTIGPU_VISUAL_INDICATOR_TRUE               1
 
 /*
- * NV_CTRL_GPU_CURRENT_PROCESSOR_CLOCK_FREQS - Returns GPU's processor
- * clock freqs.
+ * NV_CTRL_GPU_CURRENT_PROCESSOR_CLOCK_FREQS - not supported
  */
 #define NV_CTRL_GPU_CURRENT_PROCESSOR_CLOCK_FREQS               359 /* RW-G */
 
@@ -3161,30 +3161,14 @@
 #define NV_CTRL_USED_DEDICATED_GPU_MEMORY                       394 /* R--G */
 
 /*
- * NV_CTRL_GPU_DOUBLE_PRECISION_BOOST_IMMEDIATE
- * Some GPUs can make a tradeoff between double-precision floating-point
- * performance and clock speed.  Enabling double-precision floating point
- * performance may benefit CUDA or OpenGL applications that require high
- * bandwidth double-precision performance.  Disabling this feature may benefit
- * graphics applications that require higher clock speeds.
- *
- * This attribute is only available when toggling double precision boost
- * can be done immediately (without need for a rebooot).
+ * NV_CTRL_GPU_DOUBLE_PRECISION_BOOST_IMMEDIATE - not supported
  */
 #define NV_CTRL_GPU_DOUBLE_PRECISION_BOOST_IMMEDIATE            395 /* RW-G */
 #define NV_CTRL_GPU_DOUBLE_PRECISION_BOOST_IMMEDIATE_DISABLED     0
 #define NV_CTRL_GPU_DOUBLE_PRECISION_BOOST_IMMEDIATE_ENABLED      1
 
 /*
- * NV_CTRL_GPU_DOUBLE_PRECISION_BOOST_REBOOT
- * Some GPUs can make a tradeoff between double-precision floating-point
- * performance and clock speed.  Enabling double-precision floating point
- * performance may benefit CUDA or OpenGL applications that require high
- * bandwidth double-precision performance.  Disabling this feature may benefit
- * graphics applications that require higher clock speeds.
- *
- * This attribute is only available when toggling double precision boost
- * requires a reboot.
+ * NV_CTRL_GPU_DOUBLE_PRECISION_BOOST_REBOOT - not supported
  */
 
 #define NV_CTRL_GPU_DOUBLE_PRECISION_BOOST_REBOOT              396 /* RW-G */
@@ -3628,9 +3612,32 @@
 #define NV_CTRL_PLATFORM_CURRENT_POWER_MODE_QUIET                 2
 #define NV_CTRL_PLATFORM_CURRENT_POWER_MODE_LIMITED_POWER_POLICY  3
 
-#define NV_CTRL_LAST_ATTRIBUTE NV_CTRL_PLATFORM_CURRENT_POWER_MODE
+/*
+ * NV_CTRL_MUX_AUTO_SWITCH - Controls whether the mux specified will
+ * automatically switch when possible.
+ */
 
+#define NV_CTRL_MUX_AUTO_SWITCH                                 436
+#define NV_CTRL_MUX_AUTO_SWITCH_DISABLED                          0
+#define NV_CTRL_MUX_AUTO_SWITCH_ENABLED                           1
 
+/*
+ *  NV_CTRL_MUX_IS_INTERNAL - Returns whether the specified mux is an internal
+ *  mux.
+ */
+#define NV_CTRL_MUX_IS_INTERNAL                                 437
+
+/*
+ * NV_CTRL_RESIZABLE_BAR - Returns whether the system has resizable BAR support.
+ */
+#define NV_CTRL_RESIZABLE_BAR                                   438
+
+/*
+ * NV_CTRL_DYNAMIC_BOOST_SUPPORT - Returns whether the system has Dynamic Boost support.
+ */
+#define NV_CTRL_DYNAMIC_BOOST_SUPPORT                           439
+
+#define NV_CTRL_LAST_ATTRIBUTE NV_CTRL_DYNAMIC_BOOST_SUPPORT
 
 /**************************************************************************/
 
@@ -3996,9 +4003,8 @@
  * NV Clock and Memory Clock values.
  * Not all tokens will be reported on all GPUs, and additional tokens
  * may be added in the future.
- * For backwards compatibility we still provide nvclock, memclock, and
- * processorclock those are the same as nvclockmin, memclockmin and
- * processorclockmin.
+ * For backwards compatibility we still provide nvclock and memclock;
+ * those are the same as nvclockmin and memclockmin.
  *
  * Note: These clock values take into account the offset
  * set by clients through NV_CTRL_GPU_NVCLOCK_OFFSET and
@@ -4028,14 +4034,6 @@
  *                                 for the perf level
  *   "memtransferrateeditable" integer - if the memory transfer rate is editable
  *                                       for the perf level
- *   "processorclock"         integer - the processor clocks (in MHz)
- *                                       for the perf level
- *   "processorclockmin"      integer - the processor clocks min (in MHz)
- *                                       for the perf level
- *   "processorclockmax"      integer - the processor clocks max (in MHz)
- *                                      for the perf level
- *   "processorclockeditable" integer - if the processor clock domain is editable
- *                                      for the perf level
  *
  * Example:
  *
@@ -4101,11 +4099,8 @@
 
 /*
  * NV_CTRL_STRING_GPU_CURRENT_CLOCK_FREQS - returns a string with the
- * associated NV Clock, Memory Clock and Processor Clock values.
+ * associated NV Clock and Memory Clock values.
  *
- * Current valid tokens are "nvclock", "nvclockmin", "nvclockmax",
- * "memclock", "memclockmin", "memclockmax", "processorclock",
- * "processorclockmin" and "processorclockmax".
  * Not all tokens will be reported on all GPUs, and additional tokens
  * may be added in the future.
  *
@@ -4136,14 +4131,6 @@
  *                                 for the perf level
  *   "memtransferrateeditable" integer - if the memory transfer rate is editable
  *                                       for the perf level
- *   "processorclock"     integer  - the processor clocks (in MHz)
- *                                 for the perf level
- *   "processorclockmin"  integer  - the processor clocks min (in MHz)
- *                                 for the perf level
- *   "processorclockmax"  integer  - the processor clocks max (in MHz)
- *                                 for the perf level
- *   "processorclockeditable" integer - if the processor clock domain is editable
- *                                      for the perf level
  *
  * Example:
  *
@@ -4155,7 +4142,7 @@
  * using an NV_CTRL_TARGET_TYPE_GPU or NV_CTRL_TARGET_TYPE_X_SCREEN target.
  */
 
-#define NV_CTRL_STRING_GPU_CURRENT_CLOCK_FREQS                 34  /* RW-G */
+#define NV_CTRL_STRING_GPU_CURRENT_CLOCK_FREQS                 34  /* R--G */
 
 /*
  * NV_CTRL_STRING_3D_VISION_PRO_TRANSCEIVER_HARDWARE_REVISION - Returns the
@@ -4351,9 +4338,15 @@
  */
 #define NV_CTRL_STRING_DISPLAY_NAME_CONNECTOR                       56 /* R-D- */
 
+/*
+ * NV_CTRL_STRING_MUX_STATE - Controls whether the mux specified is configured to
+ * use the integrated or discrete GPU.
+ */
+#define NV_CTRL_STRING_MUX_STATE                                    57 /* RW--- */
+
 
 #define NV_CTRL_STRING_LAST_ATTRIBUTE \
-    NV_CTRL_STRING_DISPLAY_NAME_CONNECTOR
+    NV_CTRL_STRING_MUX_STATE
 
 
 /**************************************************************************/
@@ -4748,8 +4741,24 @@
 
 #define NV_CTRL_BINARY_DATA_DISPLAYS_ON_GPU                  20  /* R--G */
 
+/*
+ * NV_CTRL_BINARY_DATA_GPU_ECC_DETAILED_ERRORS - Returns volatile or aggregate
+ * detailed ECC error information of bit width specified.
+ *
+ * The format of the returned data is:
+ *
+ *     4 * n   int number of ECC errors where n is equal to
+               NVML_MEMORY_LOCATION_COUNT.
+ *
+ * This attribute is queried through NVML.
+ */
+#define NV_CTRL_BINARY_DATA_GPU_ECC_DETAILED_ERRORS_SINGLE_BIT             21  /* R--G */
+#define NV_CTRL_BINARY_DATA_GPU_ECC_DETAILED_ERRORS_DOUBLE_BIT             22  /* R--G */
+#define NV_CTRL_BINARY_DATA_GPU_ECC_DETAILED_ERRORS_SINGLE_BIT_AGGREGATE   23  /* R--G */
+#define NV_CTRL_BINARY_DATA_GPU_ECC_DETAILED_ERRORS_DOUBLE_BIT_AGGREGATE   24  /* R--G */
+
 #define NV_CTRL_BINARY_DATA_LAST_ATTRIBUTE \
-    NV_CTRL_BINARY_DATA_DISPLAYS_ON_GPU
+    NV_CTRL_BINARY_DATA_GPU_ECC_DETAILED_ERRORS_DOUBLE_BIT_AGGREGATE
 
 
 /**************************************************************************/
@@ -5015,6 +5024,7 @@
  * ATTRIBUTE_TYPE_COOLER    - Attribute is valid for Cooler target types.
  * ATTRIBUTE_TYPE_3D_VISION_PRO_TRANSCEIVER - Attribute is valid for 3D Vision
  *                                            Pro Transceiver target types.
+ * ATTRIBUTE_TYPE_MUX       - Attribute is valid for Multiplexer target types.
  *
  * See 'Key to Integer Attribute "Permissions"' at the top of this
  * file for a description of what these permission bits mean.
@@ -5043,6 +5053,7 @@
 #define ATTRIBUTE_TYPE_COOLER     0x200
 #define ATTRIBUTE_TYPE_THERMAL_SENSOR 0x400
 #define ATTRIBUTE_TYPE_3D_VISION_PRO_TRANSCEIVER 0x800
+#define ATTRIBUTE_TYPE_MUX        0x1000
 
 #define ATTRIBUTE_TYPE_ALL_TARGETS                \
     ((ATTRIBUTE_TYPE_DISPLAY)                   | \
@@ -5053,7 +5064,9 @@
      (ATTRIBUTE_TYPE_GVI)                       | \
      (ATTRIBUTE_TYPE_COOLER)                    | \
      (ATTRIBUTE_TYPE_THERMAL_SENSOR)            | \
-     (ATTRIBUTE_TYPE_3D_VISION_PRO_TRANSCEIVER))
+     (ATTRIBUTE_TYPE_3D_VISION_PRO_TRANSCEIVER) | \
+     (ATTRIBUTE_TYPE_MUX))
+
 
 typedef struct _NVCTRLAttributeValidValues {
     int type;

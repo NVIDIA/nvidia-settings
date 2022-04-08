@@ -181,7 +181,7 @@ static const NVGetoptOption __options[] = {
       TAB "--page=\"GPU 0 - (Quadro 6000), PowerMizer\"\n"
       "\n"
       "The first page with a name matching the &PAGE& argument will be used.  "
-      "By default, the \"X Server Information\" page is displayed." },
+      "By default, the \"System Information\" page is displayed." },
 
     { "list-targets-only", 'L', NVGETOPT_HELP_ALWAYS, NULL,
       "When performing an attribute query (from the '--query' command line "

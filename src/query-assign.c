@@ -601,7 +601,7 @@ static int resolve_attribute_targets(ParsedAttribute *p, CtrlSystem *system,
                                      const char *whence)
 {
     CtrlAttributePerms perms;
-    CtrlTarget *ctrl_target;
+    CtrlTarget *ctrl_target = NULL;
     ReturnStatus status;
     int ret = NV_PARSER_STATUS_SUCCESS;
     int i;
@@ -614,7 +614,13 @@ static int resolve_attribute_targets(ParsedAttribute *p, CtrlSystem *system,
         return NV_PARSER_STATUS_BAD_ARGUMENT;
     }
 
-    ctrl_target = NvCtrlGetDefaultTarget(system);
+    if (system->has_nvml) {
+        ctrl_target = NvCtrlGetDefaultTargetByType(system, GPU_TARGET);
+    }
+    if (!ctrl_target) {
+        ctrl_target = NvCtrlGetDefaultTarget(system);
+    }
+
     if (ctrl_target == NULL) {
         return NV_PARSER_STATUS_TARGET_SPEC_NO_TARGETS;
     }
@@ -771,6 +777,11 @@ static int process_attribute_queries(const Options *op,
 
         if (nv_strcasecmp(queries[query], "dpys")) {
             query_all_targets(display_name, DISPLAY_TARGET, systems);
+            continue;
+        }
+
+        if (nv_strcasecmp(queries[query], "muxes")) {
+            query_all_targets(display_name, MUX_TARGET, systems);
             continue;
         }
 
@@ -1436,7 +1447,8 @@ static int query_all(const Options *op, const char *display_name,
                             goto exit_bit_loop;
                         }
 
-                        if (status != NvCtrlSuccess) {
+                        if (status != NvCtrlSuccess &&
+                            status != NvCtrlMissingExtension) {
                             nv_error_msg("Error while querying valid values for "
                                          "attribute '%s' on %s (%s).",
                                          a->name, t->name,
@@ -1675,6 +1687,7 @@ static int print_target_connections(CtrlTarget *t,
             case COOLER_TARGET:
             case FRAMELOCK_TARGET:
             case X_SCREEN_TARGET:
+            case MUX_TARGET:
             default:
                 break;
             }
@@ -1743,7 +1756,11 @@ static int query_all_targets(const char *display_name, const int target_type,
 
     /* build the standard X server name */
 
-    str = nv_standardize_screen_name(XDisplayName(system->display), -2);
+    if (system->has_nv_control) {
+        str = nv_standardize_screen_name(XDisplayName(system->display), -2);
+    } else {
+        str = strdup(system->display);
+    }
 
     /* warn if we don't have any of the target type */
 
@@ -1786,6 +1803,7 @@ static int query_all_targets(const char *display_name, const int target_type,
         case COOLER_TARGET:
         case THERMAL_SENSOR_TARGET:
         case NVIDIA_3D_VISION_PRO_TRANSCEIVER_TARGET:
+        case MUX_TARGET:
              snprintf(product_name, PRODUCT_NAME_LEN, "%s %d",
                      targetTypeInfo->name, target_id);
              break;
@@ -1907,6 +1925,10 @@ static int query_all_targets(const char *display_name, const int target_type,
                      "Is connected to",
                      "Is not connected to",
                      GPU_TARGET);
+                break;
+
+            case MUX_TARGET:
+                /* Target connections not yet supported. */
                 break;
 
             default:
@@ -2123,7 +2145,7 @@ int nv_process_parsed_attribute(const Options *op,
 
     /* if we don't have a Display connection, abort now */
 
-    if (system == NULL || system->dpy == NULL) {
+    if (system == NULL) {
         nv_error_msg("Unable to %s attribute %s specified %s (no Display "
                      "connection).", assign ? "assign" : "query",
                      a->name, whence);

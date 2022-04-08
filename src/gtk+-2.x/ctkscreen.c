@@ -23,7 +23,6 @@
 
 #include <stdio.h>
 #include <stdlib.h>
-#include <libintl.h>
 
 #include <X11/Xlib.h>
 #include <X11/extensions/Xrandr.h>
@@ -37,8 +36,6 @@
 
 #include "ctkglwidget.h"
 #include "ctkglstereo.h"
-
-#define _(STRING) gettext(STRING)
 
 void ctk_screen_event_handler(GtkWidget *widget,
                               CtrlEvent *event,
@@ -167,7 +164,7 @@ GtkWidget* ctk_screen_new(CtrlTarget *ctrl_target, CtkEvent *ctk_event)
 
     display_name = NvCtrlGetDisplayName(ctrl_target);
 
-    dimensions = g_strdup_printf(_("%dx%d pixels (%dx%d millimeters)"),
+    dimensions = g_strdup_printf("%dx%d pixels (%dx%d millimeters)",
                                  NvCtrlGetScreenWidth(ctrl_target),
                                  NvCtrlGetScreenHeight(ctrl_target),
                                  NvCtrlGetScreenWidthMM(ctrl_target),
@@ -187,7 +184,7 @@ GtkWidget* ctk_screen_new(CtrlTarget *ctrl_target, CtkEvent *ctk_event)
     yres = (((double) NvCtrlGetScreenHeight(ctrl_target)) * 25.4) / 
         ((double) NvCtrlGetScreenHeightMM(ctrl_target));
 
-    resolution = g_strdup_printf(_("%dx%d dots per inch"), 
+    resolution = g_strdup_printf("%dx%d dots per inch", 
                                  (int) (xres + 0.5),
                                  (int) (yres + 0.5));
     
@@ -217,13 +214,13 @@ GtkWidget* ctk_screen_new(CtrlTarget *ctrl_target, CtkEvent *ctk_event)
                                            NV_CTRL_STRING_PRODUCT_NAME,
                                            &gpu_name);
             if (ret != NvCtrlSuccess) {
-                gpu_name = _("Unknown");
+                gpu_name = "Unknown";
             }
             if (gpus) {
-                tmp_str = g_strdup_printf("%s,_(\n%s) (GPU %d)",
+                tmp_str = g_strdup_printf("%s,\n%s (GPU %d)",
                                           gpus, gpu_name, pData[i]);
             } else {
-                tmp_str = g_strdup_printf(_("%s (GPU %d)"), gpu_name, pData[i]);
+                tmp_str = g_strdup_printf("%s (GPU %d)", gpu_name, pData[i]);
             }
             if (ret == NvCtrlSuccess) {
                 free(gpu_name);
@@ -232,7 +229,7 @@ GtkWidget* ctk_screen_new(CtrlTarget *ctrl_target, CtkEvent *ctk_event)
             gpus = tmp_str;
         }
         if (!gpus) {
-            gpus = g_strdup(_("None"));
+            gpus = g_strdup("None");
         }
         free(pData);
     }
@@ -288,7 +285,7 @@ GtkWidget* ctk_screen_new(CtrlTarget *ctrl_target, CtkEvent *ctk_event)
     hbox = gtk_hbox_new(FALSE, 0);
     gtk_box_pack_start(GTK_BOX(vbox), hbox, FALSE, FALSE, 0);
 
-    label = gtk_label_new(_("X Screen Information"));
+    label = gtk_label_new("X Screen Information");
     gtk_box_pack_start(GTK_BOX(hbox), label, FALSE, FALSE, 0);
 
     hseparator = gtk_hseparator_new();
@@ -300,23 +297,23 @@ GtkWidget* ctk_screen_new(CtrlTarget *ctrl_target, CtkEvent *ctk_event)
     gtk_table_set_col_spacings(GTK_TABLE(table), 15);
     gtk_container_set_border_width(GTK_CONTAINER(table), 5);
 
-    add_table_row(table, 0, 0, 0.5, _("Screen Number:"), 0, 0.5, screen_number);
-    add_table_row(table, 1, 0, 0.5, _("Display Name:"),  0, 0.5, display_name);
+    add_table_row(table, 0, 0, 0.5, "Screen Number:", 0, 0.5, screen_number);
+    add_table_row(table, 1, 0, 0.5, "Display Name:",  0, 0.5, display_name);
     /* spacing */
     ctk_screen->dimensions = 
-        add_table_row(table, 5, 0, 0.5, _("Dimensions:"),    0, 0.5, dimensions);
-    add_table_row(table, 6, 0, 0.5, _("Resolution:"),    0, 0.5, resolution);
-    add_table_row(table, 7, 0, 0.5, _("Depth:"),         0, 0.5, depth);
+        add_table_row(table, 5, 0, 0.5, "Dimensions:",    0, 0.5, dimensions);
+    add_table_row(table, 6, 0, 0.5, "Resolution:",    0, 0.5, resolution);
+    add_table_row(table, 7, 0, 0.5, "Depth:",         0, 0.5, depth);
     /* spacing */
-    add_table_row(table, 11, 0, 0,   _("GPUs:"),          0, 0, gpus);
+    add_table_row(table, 11, 0, 0,   "GPUs:",          0, 0, gpus);
     /* spacing */
     ctk_screen->displays =
-        add_table_row(table, 15, 0, 0,   _("Displays:"),      0, 0, displays);
+        add_table_row(table, 15, 0, 0,   "Displays:",      0, 0, displays);
     /* gpu errors */
     ctk_screen->gpu_errors =
-        add_table_row(table, 19, 0, 0, _("Recovered GPU Errors:"), 0, 0, tmp);
+        add_table_row(table, 19, 0, 0, "Recovered GPU Errors:", 0, 0, tmp);
     if (ctk_screen->stereo_available) {
-        add_table_row(table, 20, 0, 0, _("Stereo Mode:"), 0, 0,
+        add_table_row(table, 20, 0, 0, "Stereo Mode:", 0, 0,
                       NvCtrlGetStereoModeName(stereo_mode));
 
         if (stereo_mode != NV_CTRL_STEREO_OFF) {
@@ -367,52 +364,52 @@ GtkTextBuffer *ctk_screen_create_help(GtkTextTagTable *table,
     
     gtk_text_buffer_get_iter_at_offset(b, &i, 0);
 
-    ctk_help_title(b, &i, _("X Screen Information Help"));
+    ctk_help_title(b, &i, "X Screen Information Help");
 
-    ctk_help_para(b, &i, _("This page in the NVIDIA "
-                  "X Server Control Panel describes basic "
-                  "information about the X Screen '%s'."),
+    ctk_help_para(b, &i, "This page in the NVIDIA "
+                  "Settings Control Panel describes basic "
+                  "information about the X Screen '%s'.",
                   screen_name);
     
-    ctk_help_heading(b, &i, _("Screen Number"));
-    ctk_help_para(b, &i, _("This is the X Screen number."));
+    ctk_help_heading(b, &i, "Screen Number");
+    ctk_help_para(b, &i, "This is the X Screen number.");
     
-    ctk_help_heading(b, &i, _("Display Name"));
-    ctk_help_para(b, &i, _("This is the display connection string used to "
-                  "communicate with the X Screen on the X Server."));
+    ctk_help_heading(b, &i, "Display Name");
+    ctk_help_para(b, &i, "This is the display connection string used to "
+                  "communicate with the X Screen on the X Server.");
     
-    ctk_help_heading(b, &i, _("Dimensions"));
-    ctk_help_para(b, &i, _("This displays the X Screen's horizontal and "
-                  "vertical dimensions in pixels and millimeters."));
+    ctk_help_heading(b, &i, "Dimensions");
+    ctk_help_para(b, &i, "This displays the X Screen's horizontal and "
+                  "vertical dimensions in pixels and millimeters.");
     
-    ctk_help_heading(b, &i, _("Resolution"));
-    ctk_help_para(b, &i, _("This is the resolution (in dots per inch) of the "
-                  "X Screen."));
+    ctk_help_heading(b, &i, "Resolution");
+    ctk_help_para(b, &i, "This is the resolution (in dots per inch) of the "
+                  "X Screen.");
 
-    ctk_help_heading(b, &i, _("Depth"));
-    ctk_help_para(b, &i, _("This is the number of planes (depth) the X Screen "
-                  "has available."));
+    ctk_help_heading(b, &i, "Depth");
+    ctk_help_para(b, &i, "This is the number of planes (depth) the X Screen "
+                  "has available.");
 
-    ctk_help_heading(b, &i, _("GPUs"));
-    ctk_help_para(b, &i, _("This is the list of GPUs that drive this X Screen."));
+    ctk_help_heading(b, &i, "GPUs");
+    ctk_help_para(b, &i, "This is the list of GPUs that drive this X Screen.");
 
-    ctk_help_heading(b, &i, _("Display Devices"));
-    ctk_help_para(b, &i, _("This is the list of Display Devices (CRTs, TVs etc) "
-                  "enabled on this X Screen."));
+    ctk_help_heading(b, &i, "Display Devices");
+    ctk_help_para(b, &i, "This is the list of Display Devices (CRTs, TVs etc) "
+                  "enabled on this X Screen.");
 
-    ctk_help_heading(b, &i, _("Recovered GPU Errors"));
-    ctk_help_para(b, &i, _("The GPU can encounter errors, either due to bugs in "
+    ctk_help_heading(b, &i, "Recovered GPU Errors");
+    ctk_help_para(b, &i, "The GPU can encounter errors, either due to bugs in "
                   "the NVIDIA driver, or due to corruption of the command  "
                   "stream as it is sent from the NVIDIA X driver to the GPU.  "
                   "When the GPU encounters one of these errors, it reports it "
                   "to the NVIDIA X driver and the NVIDIA X driver attempts to "
                   "recover from the error.  This reports how many errors the "
                   "GPU received and the NVIDIA X driver successfully recovered "
-                  "from."));
+                  "from.");
 
     if (ctk_screen->stereo_available) {
-        ctk_help_heading(b, &i, _("Stereo Mode"));
-        ctk_help_para(b, &i, _("This is the stereo mode set for the X screen."));
+        ctk_help_heading(b, &i, "Stereo Mode");
+        ctk_help_para(b, &i, "This is the stereo mode set for the X screen.");
     }
 
     ctk_help_finish(b);
@@ -438,7 +435,7 @@ void ctk_screen_event_handler(GtkWidget *widget,
         return;
     }
 
-    dimensions =  g_strdup_printf(_("%dx%d pixels (%dx%d millimeters)"),
+    dimensions =  g_strdup_printf("%dx%d pixels (%dx%d millimeters)",
                                   event->screen_change.width,
                                   event->screen_change.height,
                                   event->screen_change.mwidth,

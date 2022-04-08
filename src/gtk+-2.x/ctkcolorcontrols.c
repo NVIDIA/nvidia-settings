@@ -42,7 +42,7 @@
 
 /* function prototypes */
 static void
-ctk_color_controls_class_init(CtkColorControlsClass *ctk_object_class);
+ctk_color_controls_class_init(CtkColorControlsClass *ctk_object_class, gpointer);
 
 static void ctk_color_controls_finalize(GObject *object);
 
@@ -127,7 +127,8 @@ GType ctk_color_controls_get_type(void)
 
 
 static void
-ctk_color_controls_class_init(CtkColorControlsClass *ctk_object_class)
+ctk_color_controls_class_init(CtkColorControlsClass *ctk_object_class,
+                              gpointer class_data)
 {
     GObjectClass *gobject_class = (GObjectClass *)ctk_object_class;
     gobject_class->finalize = ctk_color_controls_finalize;

@@ -85,7 +85,7 @@ static void
 flush_attribute_channel_values (CtkColorCorrection *, gint, gint);
 
 static void
-ctk_color_correction_class_init(CtkColorCorrectionClass *);
+ctk_color_correction_class_init(CtkColorCorrectionClass *, gpointer);
 
 static void ctk_color_correction_finalize(GObject *);
 
@@ -166,7 +166,8 @@ GType ctk_color_correction_get_type(
 
 static void
 ctk_color_correction_class_init(CtkColorCorrectionClass
-                                *ctk_color_correction_class)
+                                *ctk_color_correction_class,
+                                gpointer class_data)
 {
     GObjectClass *gobject_class = (GObjectClass *)ctk_color_correction_class;
 

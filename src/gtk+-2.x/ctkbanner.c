@@ -59,7 +59,7 @@
 
 
 static void
-ctk_banner_class_init    (CtkBannerClass *);
+ctk_banner_class_init    (CtkBannerClass *, gpointer);
 
 static void
 ctk_banner_finalize      (GObject *);
@@ -122,7 +122,8 @@ GType ctk_banner_get_type(
 }
 
 static void ctk_banner_class_init(
-    CtkBannerClass *ctk_banner_class
+    CtkBannerClass *ctk_banner_class,
+    gpointer class_data
 )
 {
     GObjectClass *gobject_class;
@@ -311,7 +312,8 @@ static gboolean ctk_banner_configure_event(
     needed_w = ctk_banner->artwork.w + ctk_banner->artwork_pad_x;
     needed_h = ctk_banner->artwork.h;
 
-    if ((ctk_banner->back.w >= needed_w) &&
+    if (ctk_banner->artwork.pixbuf &&
+        (ctk_banner->back.w >= needed_w) &&
         (ctk_banner->back.h >= needed_h)) {
         
         w = ctk_banner->artwork.w;
@@ -429,13 +431,13 @@ static GdkPixbuf* select_artwork(BannerArtworkType artwork,
         { BANNER_ARTWORK_X,              FALSE, 16,      PNG(x)                   },
         { BANNER_ARTWORK_XVIDEO,         FALSE, 16,      PNG(xvideo)              },
         { BANNER_ARTWORK_SVP,            FALSE, 16,      PNG(svp_3dvp)            },
-        { BANNER_ARTWORK_INVALID,        FALSE, 16,      NULL, NULL               },
+        { BANNER_ARTWORK_BLANK,          FALSE, 16,      NULL, NULL               },
 #undef PNG
     };
 
     int i;
 
-    for (i = 0; ArtworkTable[i].artwork != BANNER_ARTWORK_INVALID; i++) {
+    for (i = 0; ArtworkTable[i].artwork <= BANNER_ARTWORK_BLANK; i++) {
         if (ArtworkTable[i].artwork == artwork) {
             *tall = ArtworkTable[i].tall;
             *pad_x = ArtworkTable[i].pad_x;
@@ -459,13 +461,10 @@ GtkWidget* ctk_banner_new(BannerArtworkType artwork)
 {
     GObject *object;
     CtkBanner *ctk_banner;
-    int tall, pad_x;
+
+    int tall = 0, pad_x = 0;
     GdkPixbuf *pixbuf = select_artwork(artwork, &tall, &pad_x);
 
-    if (!pixbuf) {
-        return NULL;
-    }
-    
     object = g_object_new(CTK_TYPE_BANNER, NULL);
     
     ctk_banner = CTK_BANNER(object);
@@ -524,10 +523,11 @@ GtkWidget* ctk_banner_new(BannerArtworkType artwork)
     
     
     /* load the artwork pixbuf */
-
-    ctk_banner->artwork.pixbuf = pixbuf;
-    ctk_banner->artwork.w = gdk_pixbuf_get_width(pixbuf);
-    ctk_banner->artwork.h = gdk_pixbuf_get_height(pixbuf);
+    if (pixbuf) {
+        ctk_banner->artwork.pixbuf = pixbuf;
+        ctk_banner->artwork.w = gdk_pixbuf_get_width(pixbuf);
+        ctk_banner->artwork.h = gdk_pixbuf_get_height(pixbuf);
+    }
 
     return GTK_WIDGET(object);
 }

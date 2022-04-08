@@ -41,7 +41,12 @@ NvCtrlInitNvControlAttributes (NvCtrlAttributePrivateHandle *h)
     NvCtrlNvControlAttributes *nv;
     int ret, major, minor, event, error;
     const CtrlTargetTypeInfo *targetTypeInfo;
-    
+
+    if (!h->dpy) {
+        nv_warning_msg("NV-CONTROL Display not found.");
+        return NULL;
+    }
+
     ret = XNVCTRLQueryExtension (h->dpy, &event, &error);
     if (ret != True) {
         nv_warning_msg("NV-CONTROL extension not found on this Display.");
@@ -160,6 +165,11 @@ NvCtrlNvControlQueryTargetCount(const NvCtrlAttributePrivateHandle *h,
         return NvCtrlBadArgument;
     }
 
+    if (!h->dpy) {
+        nv_warning_msg("NV-CONTROL Display not found.");
+        return NvCtrlError;
+    }
+
     ret = XNVCTRLQueryTargetCount(h->dpy, targetTypeInfo->nvctrl, val);
     return (ret) ? NvCtrlSuccess : NvCtrlError;
 
@@ -173,6 +183,10 @@ ReturnStatus NvCtrlNvControlGetAttribute(const NvCtrlAttributePrivateHandle *h,
     ReturnStatus status;
     int value_32;
     int major, minor;
+
+    if (!h->nv) {
+        return NvCtrlMissingExtension;
+    }
 
     major = h->nv->major_version;
     minor = h->nv->minor_version;
@@ -286,6 +300,9 @@ static void convertFromNvCtrlPermissions(CtrlAttributePerms *dst,
     if (permissions & ATTRIBUTE_TYPE_3D_VISION_PRO_TRANSCEIVER) {
         dst->valid_targets |=
             CTRL_TARGET_PERM_BIT(NVIDIA_3D_VISION_PRO_TRANSCEIVER_TARGET);
+    }
+    if (permissions & ATTRIBUTE_TYPE_MUX) {
+        dst->valid_targets |= CTRL_TARGET_PERM_BIT(MUX_TARGET);
     }
 }
 

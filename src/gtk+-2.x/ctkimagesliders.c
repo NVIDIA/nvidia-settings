@@ -41,7 +41,7 @@ static const char *__image_sharpening_help = N_("The Image Sharpening slider "
 "alters the level of Image Sharpening for this display device.");
 
 
-static void ctk_image_sliders_class_init(CtkImageSliders *ctk_object_class);
+static void ctk_image_sliders_class_init(CtkImageSliders *ctk_object_class, gpointer);
 static void ctk_image_sliders_finalize(GObject *object);
 
 static GtkWidget * add_scale(CtkConfig *ctk_config,
@@ -89,7 +89,8 @@ GType ctk_image_sliders_get_type(void)
 }
 
 static void ctk_image_sliders_class_init(
-    CtkImageSliders *ctk_object_class
+    CtkImageSliders *ctk_object_class,
+    gpointer class_data
 )
 {
     GObjectClass *gobject_class = (GObjectClass *)ctk_object_class;

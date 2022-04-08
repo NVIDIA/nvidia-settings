@@ -78,7 +78,7 @@ N_("If this option is enabled, changing the name of a profile in the "
 "that refer to that profile to also be updated to refer to the new "
 "profile name.");
 
-static void ctk_config_class_init(CtkConfigClass *ctk_config_class);
+static void ctk_config_class_init(CtkConfigClass *ctk_config_class, gpointer);
 
 static void display_status_bar_toggled(GtkWidget *, gpointer);
 static void slider_text_entries_toggled(GtkWidget *, gpointer);
@@ -126,7 +126,8 @@ static void config_finalize(GObject *object)
     ctk_help_data_list_free_full(ctk_config->help_data);
 }
 
-static void ctk_config_class_init(CtkConfigClass *ctk_config_class)
+static void ctk_config_class_init(CtkConfigClass *ctk_config_class,
+                                  gpointer class_data)
 {
     GObjectClass *gobject_class = G_OBJECT_CLASS(ctk_config_class);
     gobject_class->finalize = config_finalize;

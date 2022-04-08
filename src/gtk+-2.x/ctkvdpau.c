@@ -233,6 +233,11 @@ static int queryBaseInfo(CtkVDPAU *ctk_vdpau, VdpDevice device,
         {"VP9",             VDP_DECODER_PROFILE_VP9_PROFILE_2, 0x100},
         {"VP9",             VDP_DECODER_PROFILE_VP9_PROFILE_3, 0x100},
 #endif
+#ifdef VDP_DECODER_PROFILE_AV1_MAIN
+        {"AV1",           VDP_DECODER_PROFILE_AV1_MAIN, 0x200},
+        {"AV1",           VDP_DECODER_PROFILE_AV1_HIGH, 0x200},
+        {"AV1",   VDP_DECODER_PROFILE_AV1_PROFESSIONAL, 0x200},
+#endif
     };
     const size_t decoder_list_count = sizeof(decoder_list)/sizeof(Desc);
 
@@ -580,6 +585,11 @@ static int queryDecoderCaps(CtkVDPAU *ctk_vdpau, VdpDevice device,
         {"VP9 PROFILE 1",      VDP_DECODER_PROFILE_VP9_PROFILE_1,      0},
         {"VP9 PROFILE 2",      VDP_DECODER_PROFILE_VP9_PROFILE_2,      0},
         {"VP9 PROFILE 3",      VDP_DECODER_PROFILE_VP9_PROFILE_3,      0},
+#endif
+#ifdef VDP_DECODER_PROFILE_AV1_MAIN
+        {"AV1 MAIN",           VDP_DECODER_PROFILE_AV1_MAIN,   0},
+        {"AV1 HIGH",           VDP_DECODER_PROFILE_AV1_HIGH,   0},
+        {"AV1 PROFESSIONAL",   VDP_DECODER_PROFILE_AV1_PROFESSIONAL, 0},
 #endif
     };
     const size_t decoder_profile_count = sizeof(decoder_profiles)/sizeof(Desc);

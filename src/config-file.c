@@ -19,7 +19,7 @@
 
 /*
  * config-file.c - this source file contains functions for processing
- * the NVIDIA X Server control panel configuration file.
+ * the NVIDIA Settings control panel configuration file.
  *
  * The configuration file is simply a newline-separated list of
  * attribute strings, where the syntax of an attribute string is
@@ -260,7 +260,7 @@ int nv_write_config_file(const char *filename, const CtrlSystem *system,
     fprintf(stream, "# %s\n", filename);
     fprintf(stream, "#\n");
     fprintf(stream, "# Configuration file for nvidia-settings - the NVIDIA "
-            "X Server Settings utility\n");
+            "Settings utility\n");
 
     /* NOTE: ctime(3) generates a new line */
     

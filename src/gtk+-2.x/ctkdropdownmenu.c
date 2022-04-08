@@ -33,7 +33,7 @@ static guint __signals[LAST_SIGNAL] = { 0 };
 
 
 static void
-ctk_drop_down_menu_class_init(CtkDropDownMenuClass *ctk_drop_down_menu_class);
+ctk_drop_down_menu_class_init(CtkDropDownMenuClass *ctk_drop_down_menu_class, gpointer class_data);
 
 static void ctk_drop_down_menu_free(GObject *object);
 
@@ -69,7 +69,8 @@ GType ctk_drop_down_menu_get_type(
 
 
 static void
-ctk_drop_down_menu_class_init(CtkDropDownMenuClass *ctk_drop_down_menu_class)
+ctk_drop_down_menu_class_init(CtkDropDownMenuClass *ctk_drop_down_menu_class,
+                              gpointer class_data)
 {
     GObjectClass *gobject_class;
     

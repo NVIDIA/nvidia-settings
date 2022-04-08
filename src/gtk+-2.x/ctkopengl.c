@@ -130,7 +130,7 @@ static void build_stereo_swap_mode_table(CtkOpenGL *ctk_opengl);
 static gint map_nvctrl_value_to_table(CtkOpenGL *ctk_opengl,
                                       gint val);
 static void
-ctk_opengl_new_class_init(CtkOpenGLClass *ctk_object_class);
+ctk_opengl_new_class_init(CtkOpenGLClass *ctk_object_class, gpointer);
 
 static void ctk_opengl_new_finalize(GObject *object);
 
@@ -262,8 +262,9 @@ GType ctk_opengl_get_type(
 }
 
 
-    static void
-ctk_opengl_new_class_init(CtkOpenGLClass *ctk_object_class)
+static void
+ctk_opengl_new_class_init(CtkOpenGLClass *ctk_object_class,
+                          gpointer class_data)
 {
     GObjectClass *gobject_class = (GObjectClass *)ctk_object_class;
     gobject_class->finalize = ctk_opengl_new_finalize;

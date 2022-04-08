@@ -41,7 +41,7 @@
 
 /* function prototypes */
 static void
-ctk_dither_controls_class_init(CtkDitheringControlsClass *ctk_object_class);
+ctk_dither_controls_class_init(CtkDitheringControlsClass *ctk_object_class, gpointer);
 
 static void ctk_dither_controls_finalize(GObject *object);
 
@@ -136,7 +136,8 @@ GType ctk_dithering_controls_get_type(void)
 } /* ctk_dithering_controls_get_type() */
 
 static void
-ctk_dither_controls_class_init(CtkDitheringControlsClass *ctk_object_class)
+ctk_dither_controls_class_init(CtkDitheringControlsClass *ctk_object_class,
+                               gpointer class_data)
 {
     GObjectClass *gobject_class = (GObjectClass *)ctk_object_class;
     gobject_class->finalize = ctk_dither_controls_finalize;

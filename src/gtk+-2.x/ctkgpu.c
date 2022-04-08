@@ -23,7 +23,6 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
-#include <libintl.h>
 
 #include "msg.h"
 #include "parse.h"
@@ -35,8 +34,6 @@
 #include "ctkutils.h"
 
 #include "XF86Config-parser/xf86Parser.h"
-
-#define _(STRING) gettext(STRING)
 
 static void probe_displays_received(GObject *object, CtrlEvent *event,
                                     gpointer user_data);
@@ -99,7 +96,7 @@ void get_bus_type_str(CtrlTarget *ctrl_target, gchar **bus)
     gchar *bus_type_str, *bus_rate, *pcie_gen;
 
     bus_type = 0xffffffff;
-    bus_type_str = "Unknown";
+    bus_type_str = NULL;
     ret = NvCtrlGetAttribute(ctrl_target, NV_CTRL_BUS_TYPE, &bus_type);
     if (ret == NvCtrlSuccess) {
         if      (bus_type == NV_CTRL_BUS_TYPE_AGP)
@@ -110,6 +107,8 @@ void get_bus_type_str(CtrlTarget *ctrl_target, gchar **bus)
             bus_type_str = "PCI Express";
         else if (bus_type == NV_CTRL_BUS_TYPE_INTEGRATED)
             bus_type_str = "Integrated";
+        else
+            bus_type_str = "Unknown";
     }
 
     /* NV_CTRL_GPU_PCIE_MAX_LINK_WIDTH */
@@ -231,8 +230,8 @@ GtkWidget* ctk_gpu_new(CtrlTarget *ctrl_target,
     ReturnStatus ret;
 
     gchar *screens;
-    gchar *displays;
-    gchar *tmp_str;
+    gchar *displays = NULL;
+    gchar *tmp_str = NULL;
     gchar *gpu_cores;
     gchar *memory_interface;
     gchar *bus = NULL;
@@ -248,6 +247,7 @@ GtkWidget* ctk_gpu_new(CtrlTarget *ctrl_target,
     int total_rows = 21;
     int gpu_memory;
     utilizationEntry entry;
+    gboolean resizable_bar;
 
 
     /*
@@ -306,7 +306,7 @@ GtkWidget* ctk_gpu_new(CtrlTarget *ctrl_target,
     if (ret != NvCtrlSuccess) {
         video_ram = NULL;
     } else {
-        video_ram = g_strdup_printf(_("%d MB"), tmp >> 10);
+        video_ram = g_strdup_printf("%d MB", tmp >> 10);
     }
 
     /* NV_CTRL_TOTAL_DEDICATED_GPU_MEMORY */
@@ -316,7 +316,7 @@ GtkWidget* ctk_gpu_new(CtrlTarget *ctrl_target,
     if (ret != NvCtrlSuccess) {
         gpu_memory_text = NULL;
     } else {
-        gpu_memory_text = g_strdup_printf(_("%d MB"), gpu_memory);
+        gpu_memory_text = g_strdup_printf("%d MB", gpu_memory);
     }
     
     /* NV_CTRL_GPU_CORES */
@@ -328,13 +328,21 @@ GtkWidget* ctk_gpu_new(CtrlTarget *ctrl_target,
         gpu_cores = g_strdup_printf("%d", tmp);
     }
 
+    /* NV_CTRL_RESIZABLE_BAR */
+    ret = NvCtrlGetAttribute(ctrl_target, NV_CTRL_RESIZABLE_BAR, &tmp);
+    if (ret != NvCtrlSuccess) {
+        resizable_bar = FALSE;
+    } else {
+        resizable_bar = tmp;
+    }
+
     /* NV_CTRL_GPU_MEMORY_BUS_WIDTH  */
 
     ret = NvCtrlGetAttribute(ctrl_target, NV_CTRL_GPU_MEMORY_BUS_WIDTH, &tmp);
     if (ret != NvCtrlSuccess) {
         memory_interface = NULL;
     } else {
-        memory_interface = g_strdup_printf(_("%d-bit"), tmp);
+        memory_interface = g_strdup_printf("%d-bit", tmp);
     }
     
     /* NV_CTRL_IRQ */
@@ -369,13 +377,13 @@ GtkWidget* ctk_gpu_new(CtrlTarget *ctrl_target,
                                    &len);
     if (ret == NvCtrlSuccess) {
         if (pData[0] == 0) {
-            screens = g_strdup(_("None"));
+            screens = g_strdup("None");
         } else {
             CtrlTarget *screen_target;
             char *sli_str = NULL;
 
             if (xinerama_enabled) {
-                screens = g_strdup(_("Screen 0 (Xinerama)"));
+                screens = g_strdup("Screen 0 (Xinerama)");
                 /* XXX Use the only screen handle we have.
                  *     This is currently OK since we only
                  *     query xinerama attributes with this
@@ -390,10 +398,10 @@ GtkWidget* ctk_gpu_new(CtrlTarget *ctrl_target,
             } else {
                 for (i = 1; i <= pData[0]; i++) {
                     if (screens) {
-                        tmp_str = g_strdup_printf(_("%s,\nScreen %d"),
+                        tmp_str = g_strdup_printf("%s,\nScreen %d",
                                                   screens, pData[i]);
                     } else {
-                        tmp_str = g_strdup_printf(_("Screen %d"), pData[i]);
+                        tmp_str = g_strdup_printf("Screen %d", pData[i]);
                     }
                     g_free(screens);
                     screens = tmp_str;
@@ -406,7 +414,7 @@ GtkWidget* ctk_gpu_new(CtrlTarget *ctrl_target,
                                            NV_CTRL_STRING_SLI_MODE,
                                            &sli_str);
             if (ret == NvCtrlSuccess) {
-                tmp_str = g_strdup_printf(_("%s (SLI)"), screens);
+                tmp_str = g_strdup_printf("%s (SLI)", screens);
                 g_free(screens);
                 screens = tmp_str;
                 free(sli_str);
@@ -415,7 +423,7 @@ GtkWidget* ctk_gpu_new(CtrlTarget *ctrl_target,
         free(pData);
     }
     if (!screens) {
-        screens = g_strdup(_("Unknown"));
+        screens = g_strdup("Unknown");
     }
 
     /* now, create the object */
@@ -429,6 +437,7 @@ GtkWidget* ctk_gpu_new(CtrlTarget *ctrl_target,
     ctk_gpu->gpu_cores = (gpu_cores != NULL) ? 1 : 0;
     ctk_gpu->gpu_uuid = (gpu_uuid != NULL) ? 1 : 0;
     ctk_gpu->memory_interface = (memory_interface != NULL) ? 1 : 0;
+    ctk_gpu->resizable_bar = resizable_bar;
     ctk_gpu->ctk_config = ctk_config;
     ctk_gpu->ctk_event = ctk_event;
     ctk_gpu->pcie_gen_queriable = FALSE;
@@ -470,7 +479,7 @@ GtkWidget* ctk_gpu_new(CtrlTarget *ctrl_target,
     hbox = gtk_hbox_new(FALSE, 0);
     gtk_box_pack_start(GTK_BOX(vbox), hbox, FALSE, FALSE, 0);
 
-    label = gtk_label_new(_("Graphics Card Information"));
+    label = gtk_label_new("Graphics Card Information");
     gtk_box_pack_start(GTK_BOX(hbox), label, FALSE, FALSE, 0);
 
     hseparator = gtk_hseparator_new();
@@ -483,38 +492,46 @@ GtkWidget* ctk_gpu_new(CtrlTarget *ctrl_target,
     gtk_container_set_border_width(GTK_CONTAINER(table), 5);
 
     add_table_row(table, row++,
-                  0, 0.5, _("Graphics Processor:"),
+                  0, 0.5, "Graphics Processor:",
                   0, 0.5, product_name);
     if ( ctk_gpu->gpu_uuid ) {
         add_table_row(table, row++,
-                      0, 0.5, _("GPU UUID:"),
+                      0, 0.5, "GPU UUID:",
                       0, 0.5, gpu_uuid);
     }
     if ( ctk_gpu->gpu_cores ) {
         gtk_table_resize(GTK_TABLE(table), ++total_rows, 2);
         add_table_row(table, row++,
-                      0, 0.5, _("CUDA Cores:"),
+                      0, 0.5, "CUDA Cores:",
                       0, 0.5, gpu_cores);
     }
     if ( vbios_version ) {
         add_table_row(table, row++,
-                      0, 0.5, _("VBIOS Version:"),
+                      0, 0.5, "VBIOS Version:",
                       0, 0.5, vbios_version);
     }
+    if (video_ram) {
+        add_table_row(table, row++,
+                      0, 0.5, "Total Memory:",
+                      0, 0.5, video_ram);
+    }
     add_table_row(table, row++,
-                  0, 0.5, _("Total Memory:"),
-                  0, 0.5, video_ram);
-    add_table_row(table, row++,
-                  0, 0.5, _("Total Dedicated Memory:"),
+                  0, 0.5, "Total Dedicated Memory:",
                   0, 0.5, gpu_memory_text);
     ctk_gpu->gpu_memory_used_label = 
         add_table_row(table, row++,
-                      0, 0.5, _("Used Dedicated Memory:"),
+                      0, 0.5, "Used Dedicated Memory:",
                       0, 0.5, NULL);
+    if (ctk_gpu->resizable_bar) {
+        gtk_table_resize(GTK_TABLE(table), ++total_rows, 2);
+        add_table_row(table, row++,
+                      0, 0.5, "Resizable BAR:",
+                      0, 0.5, "Yes");
+    }
     if ( ctk_gpu->memory_interface ) {
         gtk_table_resize(GTK_TABLE(table), ++total_rows, 2);
         add_table_row(table, row++,
-                      0, 0.5, _("Memory Interface:"),
+                      0, 0.5, "Memory Interface:",
                       0, 0.5, memory_interface);
     }
 
@@ -523,57 +540,63 @@ GtkWidget* ctk_gpu_new(CtrlTarget *ctrl_target,
     if (entry.graphics_specified) {
         ctk_gpu->gpu_utilization_label =
             add_table_row(table, row++,
-                          0, 0.5, _("GPU Utilization:"),
+                          0, 0.5, "GPU Utilization:",
                           0, 0.5, NULL);
     }
     if (entry.video_specified) {
         ctk_gpu->video_utilization_label =
             add_table_row(table, row++,
-                          0, 0.5, _("Video Engine Utilization:"),
+                          0, 0.5, "Video Engine Utilization:",
                           0, 0.5, NULL);
     }
 
     /* spacing */
     row += 3;
-    add_table_row(table, row++,
-                  0, 0.5, _("Bus Type:"),
-                  0, 0.5, bus);
+    if (bus) {
+        add_table_row(table, row++,
+                      0, 0.5, "Bus Type:",
+                      0, 0.5, bus);
+    }
     if ( pci_bus_id ) {
         add_table_row(table, row++,
-                      0, 0.5, _("Bus ID:"),
+                      0, 0.5, "Bus ID:",
                       0, 0.5, pci_bus_id);
     }
     if ( pci_device_id[0] ) {
         add_table_row(table, row++,
-                      0, 0.5, _("PCI Device ID:"),
+                      0, 0.5, "PCI Device ID:",
                       0, 0.5, pci_device_id);
     }
     if (pci_vendor_id[0] ) {
         add_table_row(table, row++,
-                      0, 0.5, _("PCI Vendor ID:"),
+                      0, 0.5, "PCI Vendor ID:",
                       0, 0.5, pci_vendor_id);
     }
     if ( irq ) {
         add_table_row(table, row++,
-                      0, 0.5, _("IRQ:"),
+                      0, 0.5, "IRQ:",
                       0, 0.5, irq);
     }
     if (ctk_gpu->pcie_gen_queriable) { 
         /* spacing */
         row += 3;
         add_table_row(table, row++,
-                      0, 0.5, _("PCIe Generation:"),
+                      0, 0.5, "PCIe Generation:",
                       0, 0.5, pcie_gen_str);
         add_table_row(table, row++,
-                      0, 0.5, _("Maximum PCIe Link Width:"),
+                      0, 0.5, "Maximum PCIe Link Width:",
                       0, 0.5, link_width_str);
-        add_table_row(table, row++,
-                      0, 0.5, _("Maximum PCIe Link Speed:"),
-                      0, 0.5, link_speed_str);
-        ctk_gpu->pcie_utilization_label =
+        if (link_speed_str) {
             add_table_row(table, row++,
-                          0, 0.5, _("PCIe Bandwidth Utilization:"),
-                          0, 0.5, NULL);
+                          0, 0.5, "Maximum PCIe Link Speed:",
+                          0, 0.5, link_speed_str);
+        }
+        if (entry.pcie_specified) {
+            ctk_gpu->pcie_utilization_label =
+                add_table_row(table, row++,
+                              0, 0.5, "PCIe Bandwidth Utilization:",
+                              0, 0.5, NULL);
+        }
 
         g_free(link_speed_str);
         g_free(link_width_str);
@@ -582,19 +605,22 @@ GtkWidget* ctk_gpu_new(CtrlTarget *ctrl_target,
     }
 
     update_gpu_usage(ctk_gpu);
-    /* spacing */
-    row += 3;
-    add_table_row(table, row++,
-                  0, 0, _("X Screens:"),
-                  0, 0, screens);
-    /* spacing */
-    displays = make_display_device_list(ctrl_target);
 
-    row += 3;
-    ctk_gpu->displays =
-        add_table_row(table, row,
-                      0, 0, _("Display Devices:"),
-                      0, 0, displays);
+    if (ctrl_target->system->has_nv_control) {
+        /* spacing */
+        row += 3;
+        add_table_row(table, row++,
+                      0, 0, "X Screens:",
+                      0, 0, screens);
+        /* spacing */
+        displays = make_display_device_list(ctrl_target);
+
+        row += 3;
+        ctk_gpu->displays =
+            add_table_row(table, row,
+                          0, 0, "Display Devices:",
+                          0, 0, displays);
+    }
 
     free(product_name);
     free(vbios_version);
@@ -617,7 +643,7 @@ GtkWidget* ctk_gpu_new(CtrlTarget *ctrl_target,
                      G_CALLBACK(probe_displays_received),
                      (gpointer) ctk_gpu);
 
-    tmp_str = g_strdup_printf(_("Memory Used (GPU %d)"),
+    tmp_str = g_strdup_printf("Memory Used (GPU %d)",
                               NvCtrlGetTargetId(ctrl_target));
 
     ctk_config_add_timer(ctk_gpu->ctk_config,
@@ -641,117 +667,123 @@ GtkTextBuffer *ctk_gpu_create_help(GtkTextTagTable *table,
     
     gtk_text_buffer_get_iter_at_offset(b, &i, 0);
 
-    ctk_help_title(b, &i, _("Graphics Card Information Help"));
+    ctk_help_title(b, &i, "Graphics Card Information Help");
 
-    ctk_help_para(b, &i, _("This page in the NVIDIA "
-                  "X Server Control Panel describes basic "
+    ctk_help_para(b, &i, "This page in the NVIDIA "
+                  "Settings Control Panel describes basic "
                   "information about the Graphics Processing Unit "
-                  "(GPU)."));
+                  "(GPU).");
     
-    ctk_help_heading(b, &i, _("Graphics Processor"));
-    ctk_help_para(b, &i, _("This is the product name of the GPU."));
+    ctk_help_heading(b, &i, "Graphics Processor");
+    ctk_help_para(b, &i, "This is the product name of the GPU.");
     
     if (ctk_gpu->gpu_uuid) {
-        ctk_help_heading(b, &i, _("GPU UUID"));
-        ctk_help_para(b, &i, _("This is the global unique identifier "
-                      "of the GPU."));
+        ctk_help_heading(b, &i, "GPU UUID");
+        ctk_help_para(b, &i, "This is the global unique identifier "
+                      "of the GPU.");
     }
     
     if (ctk_gpu->gpu_cores) {
-        ctk_help_heading(b, &i, _("CUDA Cores"));
-        ctk_help_para(b, &i, _("This is the number of CUDA cores supported by "
-                      "the graphics pipeline."));
+        ctk_help_heading(b, &i, "CUDA Cores");
+        ctk_help_para(b, &i, "This is the number of CUDA cores supported by "
+                      "the graphics pipeline.");
     }
     
-    ctk_help_heading(b, &i, _("VBIOS Version"));
-    ctk_help_para(b, &i, _("This is the Video BIOS version."));
+    ctk_help_heading(b, &i, "VBIOS Version");
+    ctk_help_para(b, &i, "This is the Video BIOS version.");
     
-    ctk_help_heading(b, &i, _("Total Memory")); 
-    ctk_help_para(b, &i, _("This is the overall amount of memory "
+    ctk_help_heading(b, &i, "Total Memory"); 
+    ctk_help_para(b, &i, "This is the overall amount of memory "
                   "available to your GPU.  With TurboCache(TM) GPUs, "
                   "this value may exceed the amount of video "
                   "memory installed on the graphics card.  With "
                   "integrated GPUs, the value may exceed the amount of "
                   "dedicated system memory set aside by the system "
-                  "BIOS for use by the integrated GPU."));
+                  "BIOS for use by the integrated GPU.");
 
-    ctk_help_heading(b, &i, _("Total Dedicated Memory")); 
-    ctk_help_para(b, &i, _("This is the amount of memory dedicated "
-                  "exclusively to your GPU."));
+    ctk_help_heading(b, &i, "Total Dedicated Memory"); 
+    ctk_help_para(b, &i, "This is the amount of memory dedicated "
+                  "exclusively to your GPU.");
 
-    ctk_help_heading(b, &i, _("Used Dedicated Memory")); 
-    ctk_help_para(b, &i, _("This is the amount of dedicated memory used "
-                  "by your GPU."));
+    ctk_help_heading(b, &i, "Used Dedicated Memory"); 
+    ctk_help_para(b, &i, "This is the amount of dedicated memory used "
+                  "by your GPU.");
 
-    if (ctk_gpu->memory_interface) {
-        ctk_help_heading(b, &i, _("Memory Interface"));
-        ctk_help_para(b, &i, _("This is the bus bandwidth of the GPU's "
-                      "memory interface."));
+    if (ctk_gpu->resizable_bar) {
+        ctk_help_heading(b, &i, "Resizable BAR");
+        ctk_help_para(b, &i, "This indicates whether Resizable BAR may be "
+                      "available on supported systems.");
     }
 
-    ctk_help_heading(b, &i, _("GPU Utilization"));
-    ctk_help_para(b, &i, _("This is the percentage usage of graphics engine."));
+    if (ctk_gpu->memory_interface) {
+        ctk_help_heading(b, &i, "Memory Interface");
+        ctk_help_para(b, &i, "This is the bus bandwidth of the GPU's "
+                      "memory interface.");
+    }
 
-    ctk_help_heading(b, &i, _("Video Engine Utilization"));
-    ctk_help_para(b, &i, _("This is the percentage usage of video engine"));
+    ctk_help_heading(b, &i, "GPU Utilization");
+    ctk_help_para(b, &i, "This is the percentage usage of graphics engine.");
 
-    ctk_help_heading(b, &i, _("Bus Type"));
-    ctk_help_para(b, &i, _("This is the bus type which is "
+    ctk_help_heading(b, &i, "Video Engine Utilization");
+    ctk_help_para(b, &i, "This is the percentage usage of video engine");
+
+    ctk_help_heading(b, &i, "Bus Type");
+    ctk_help_para(b, &i, "This is the bus type which is "
                   "used to connect the NVIDIA GPU to the rest of "
                   "your computer; possible values are AGP, PCI, "
-                  "PCI Express and Integrated."));
+                  "PCI Express and Integrated.");
     
-    ctk_help_heading(b, &i, _("Bus ID"));
-    ctk_help_para(b, &i, _("This is the GPU's PCI identification string, "
+    ctk_help_heading(b, &i, "Bus ID");
+    ctk_help_para(b, &i, "This is the GPU's PCI identification string, "
                   "in X configuration file 'BusID' format: "
                   "\"bus:device:function\", or, if the PCI domain of the GPU "
                   "is non-zero, \"bus@domain:device:function\".  Note "
                   "that all values are in decimal (as opposed to hexadecimal, "
-                  "which is how `lspci` formats its BusID values)."));
+                  "which is how `lspci` formats its BusID values).");
 
-    ctk_help_heading(b, &i, _("PCI Device ID"));
-    ctk_help_para(b, &i, _("This is the PCI Device ID of the GPU."));
+    ctk_help_heading(b, &i, "PCI Device ID");
+    ctk_help_para(b, &i, "This is the PCI Device ID of the GPU.");
     
-    ctk_help_heading(b, &i, _("PCI Vendor ID"));
-    ctk_help_para(b, &i, _("This is the PCI Vendor ID of the GPU."));
+    ctk_help_heading(b, &i, "PCI Vendor ID");
+    ctk_help_para(b, &i, "This is the PCI Vendor ID of the GPU.");
     
-    ctk_help_heading(b, &i, _("IRQ"));
-    ctk_help_para(b, &i, _("This is the interrupt request line assigned to "
-                  "this GPU."));
+    ctk_help_heading(b, &i, "IRQ");
+    ctk_help_para(b, &i, "This is the interrupt request line assigned to "
+                  "this GPU.");
 
     if (ctk_gpu->pcie_gen_queriable) {
-        ctk_help_heading(b, &i, _("PCIe Generation"));
-        ctk_help_para(b, &i, _("This is the PCIe generation that this GPU, in "
-                      "this system, is compliant with."));
+        ctk_help_heading(b, &i, "PCIe Generation");
+        ctk_help_para(b, &i, "This is the PCIe generation that this GPU, in "
+                      "this system, is compliant with.");
 
-        ctk_help_heading(b, &i, _("Maximum PCIe Link Width"));
-        ctk_help_para(b, &i, _("This is the maximum width that the PCIe link "
+        ctk_help_heading(b, &i, "Maximum PCIe Link Width");
+        ctk_help_para(b, &i, "This is the maximum width that the PCIe link "
                       "between the GPU and the system may be trained to.  This "
                       "is expressed in number of lanes.  The trained link "
                       "width may vary dynamically and possibly be narrower "
                       "based on the GPU's utilization and performance "
-                      "settings."));
+                      "settings.");
 
-        ctk_help_heading(b, &i, _("Maximum PCIe Link Speed"));
-        ctk_help_para(b, &i, _("This is the maximum speed that the PCIe link "
+        ctk_help_heading(b, &i, "Maximum PCIe Link Speed");
+        ctk_help_para(b, &i, "This is the maximum speed that the PCIe link "
                       "between the GPU and the system may be trained to.  "
                       "This is expressed in gigatransfers per second "
                       "(GT/s).  The link may be dynamically trained to a "
                       "slower speed, based on the GPU's utilization and "
-                      "performance settings."));
+                      "performance settings.");
 
-        ctk_help_heading(b, &i, _("PCIe Bandwidth Utilization"));
-        ctk_help_para(b, &i, _("This is the percentage usage of "
-                      "PCIe bandwidth."));
+        ctk_help_heading(b, &i, "PCIe Bandwidth Utilization");
+        ctk_help_para(b, &i, "This is the percentage usage of "
+                      "PCIe bandwidth.");
 
     }
     
-    ctk_help_heading(b, &i, _("X Screens"));
-    ctk_help_para(b, &i, _("This is the list of X Screens driven by this GPU."));
+    ctk_help_heading(b, &i, "X Screens");
+    ctk_help_para(b, &i, "This is the list of X Screens driven by this GPU.");
 
-    ctk_help_heading(b, &i, _("Display Devices"));
-    ctk_help_para(b, &i, _("This is the list of Display Devices (CRTs, TVs etc) "
-                  "enabled on this GPU."));
+    ctk_help_heading(b, &i, "Display Devices");
+    ctk_help_para(b, &i, "This is the list of Display Devices (CRTs, TVs etc) "
+                  "enabled on this GPU.");
 
     ctk_help_finish(b);
 
@@ -793,16 +825,16 @@ static gboolean update_gpu_usage(gpointer user_data)
     ret = NvCtrlGetAttribute(ctrl_target, NV_CTRL_USED_DEDICATED_GPU_MEMORY,
                              &value);
     if (ret != NvCtrlSuccess || value > ctk_gpu->gpu_memory || value < 0) {
-        gtk_label_set_text(GTK_LABEL(ctk_gpu->gpu_memory_used_label), _("Unknown"));
+        gtk_label_set_text(GTK_LABEL(ctk_gpu->gpu_memory_used_label), "Unknown");
         return FALSE;
     } else {
         if (ctk_gpu->gpu_memory > 0) {
-            memory_text = g_strdup_printf(_("%d MB (%.0f%%)"), 
+            memory_text = g_strdup_printf("%d MB (%.0f%%)", 
                                           value, 
                                           100.0 * (double) value / 
                                               (double) ctk_gpu->gpu_memory);
         } else {
-            memory_text = g_strdup_printf(_("%d MB"), value);
+            memory_text = g_strdup_printf("%d MB", value);
         }
 
         gtk_label_set_text(GTK_LABEL(ctk_gpu->gpu_memory_used_label), memory_text);
@@ -816,15 +848,15 @@ static gboolean update_gpu_usage(gpointer user_data)
     if (ret != NvCtrlSuccess) {
         if (ctk_gpu->gpu_utilization_label) {
             gtk_label_set_text(GTK_LABEL(ctk_gpu->gpu_utilization_label),
-                               _("Unknown"));
+                               "Unknown");
         }
         if (ctk_gpu->video_utilization_label) {
             gtk_label_set_text(GTK_LABEL(ctk_gpu->video_utilization_label),
-                               _("Unknown"));
+                               "Unknown");
         }
         if (ctk_gpu->pcie_utilization_label) {
             gtk_label_set_text(GTK_LABEL(ctk_gpu->pcie_utilization_label),
-                               _("Unknown"));
+                               "Unknown");
         }
         return FALSE;
     }

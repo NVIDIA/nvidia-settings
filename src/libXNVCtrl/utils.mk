@@ -59,6 +59,10 @@ CFLAGS                += -Wno-unused-parameter
 HOST_CC_ONLY_CFLAGS   += -Wno-format-zero-length
 HOST_CFLAGS           += -Wno-unused-parameter
 
+# Treat warnings as errors, if requested
+WARNINGS_AS_ERRORS    ?=
+CFLAGS                += $(if $(WARNINGS_AS_ERRORS),-Werror)
+
 DEBUG                 ?=
 DEVELOP               ?=
 
@@ -182,6 +186,8 @@ NV_QUIET_COMMAND_REMOVED_TARGET_PREFIX ?=
 
 NV_GENERATED_HEADERS ?=
 
+PCIACCESS_CFLAGS      ?=
+PCIACCESS_LDFLAGS     ?=
 
 ##############################################################################
 # This makefile uses the $(eval) builtin function, which was added in
@@ -376,6 +382,7 @@ BUILD_OBJECT_LIST_WITH_DIR = \
 BUILD_OBJECT_LIST = \
   $(call BUILD_OBJECT_LIST_WITH_DIR,$(1),$(OUTPUTDIR))
 
+$(call BUILD_OBJECT_LIST,nvpci-utils.c): CFLAGS += $(PCIACCESS_CFLAGS)
 
 ##############################################################################
 # function to generate a list of dependency files from their

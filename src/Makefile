@@ -86,9 +86,7 @@ ifndef JANSSON_CFLAGS
   JANSSON_CFLAGS  = -Wno-cast-qual
   JANSSON_CFLAGS += -Wno-unused-function
   JANSSON_CFLAGS += -DHAVE_CONFIG_H
-  ifeq ($(TARGET_ARCH),armv7l)
-    JANSSON_CFLAGS += -Wno-unused-but-set-variable
-  endif
+  JANSSON_CFLAGS += -Wno-format-truncation
 endif
 
 ##############################################################################
@@ -140,9 +138,6 @@ ifeq ($(TARGET_OS),SunOS)
 endif
 
 LDFLAGS += $(XNVCTRL_LDFLAGS)
-
-NVML_EXPERIMENTAL ?=
-CFLAGS += $(if $(NVML_EXPERIMENTAL),-DNVML_EXPERIMENTAL)
 
 
 # Some older Linux distributions do not have the dynamic library
