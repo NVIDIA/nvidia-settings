@@ -1,24 +1,25 @@
 /*
- * Copyright (c) 2004-2008 NVIDIA, Corporation
+ * nvidia-settings: A tool for configuring the NVIDIA X driver on Unix
+ * and Linux systems.
  *
- * Permission is hereby granted, free of charge, to any person obtaining a copy
- * of this software and associated documentation files (the "Software"), to deal
- * in the Software without restriction, including without limitation the rights
- * to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
- * copies of the Software, and to permit persons to whom the Software is
- * furnished to do so, subject to the following conditions:
+ * Copyright (C) 2004 NVIDIA Corporation.
  *
- * The above copyright notice and this permission notice (including the next
- * paragraph) shall be included in all copies or substantial portions of the
- * Software.
+ * This program is free software; you can redistribute it and/or
+ * modify it under the terms of Version 2 of the GNU General Public
+ * License as published by the Free Software Foundation.
  *
- * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
- * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
- * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.  IN NO EVENT SHALL THE
- * AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
- * LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
- * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
- * SOFTWARE.
+ * This program is distributed in the hope that it will be useful, but
+ * WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See Version 2
+ * of the GNU General Public License for more details.
+ *
+ * You should have received a copy of the GNU General Public License
+ * along with this program; if not, write to the:
+ *
+ *           Free Software Foundation, Inc.
+ *           59 Temple Place - Suite 330
+ *           Boston, MA 02111-1307, USA
+ *
  */
 
 /*
@@ -27,128 +28,34 @@
  */
 
 #include <stdio.h>
-#include <stdlib.h>
-#include <string.h>
-#include <ctype.h>
-#include <unistd.h>
-
 
 #include <X11/Xlib.h>
 
 #include "NVCtrl.h"
 #include "NVCtrlLib.h"
 
-#define EVENT_TYPE_START TARGET_ATTRIBUTE_CHANGED_EVENT
-#define EVENT_TYPE_END TARGET_BINARY_ATTRIBUTE_CHANGED_EVENT
-
-
 static const char *attr2str(int n);
 static const char *target2str(int n);
-static const char *targetTypeAndId2Str(int targetType, int targetId);
 
-struct target_info {
-    int type;
-    int count;
-    unsigned int *pIds; // If Non-NULL, is list of target ids.
-};
-
-static void print_usage(char **argv)
-{
-    printf("Usage:\n");
-    printf("%s [-d <dpy>] [-a] [-c] [-b] [-s]\n", argv[0]);
-    printf("\n");
-    printf("-d <dpy>: X server display to connect to\n");
-    printf("-a: Listen for attribute availability events\n");
-    printf("-c: Listen for attribute changed events\n");
-    printf("-b: Listen for binary attribute changed events\n");
-    printf("-s: Listen for string attribute changed events\n");
-    printf("\n");
-    printf("By default (i.e., if none of -a, -c, -b, or -s are requested),\n"
-           "all event types are enabled.\n");
-}
-
-int main(int argc, char **argv)
+int main(void)
 {
     Display *dpy;
     Bool ret;
     int event_base, error_base;
-    int i, j, k;
-    int sources = 0;
-    struct target_info info[] = {
-        { .type = NV_CTRL_TARGET_TYPE_X_SCREEN },
-        { .type = NV_CTRL_TARGET_TYPE_GPU },
-        { .type = NV_CTRL_TARGET_TYPE_DISPLAY },
-        { .type = NV_CTRL_TARGET_TYPE_FRAMELOCK },
-        { .type = NV_CTRL_TARGET_TYPE_COOLER },
-        { .type = NV_CTRL_TARGET_TYPE_THERMAL_SENSOR },
-        { .type = NV_CTRL_TARGET_TYPE_3D_VISION_PRO_TRANSCEIVER },
-    };
-    static const int num_target_types = sizeof(info) / sizeof(*info);
-
-    int c;
-    char *dpy_name = NULL;
-    Bool anythingEnabled;
-
-#define EVENT_TYPE_ENTRY(_x) [_x] = { False, #_x }
-
-    struct {
-        Bool enabled;
-        char *description;
-    } eventTypes[] = {
-        EVENT_TYPE_ENTRY(TARGET_ATTRIBUTE_CHANGED_EVENT),
-        EVENT_TYPE_ENTRY(TARGET_ATTRIBUTE_AVAILABILITY_CHANGED_EVENT),
-        EVENT_TYPE_ENTRY(TARGET_STRING_ATTRIBUTE_CHANGED_EVENT),
-        EVENT_TYPE_ENTRY(TARGET_BINARY_ATTRIBUTE_CHANGED_EVENT),
-    };
-
-    while ((c = getopt(argc, argv, "d:acbsh")) >= 0) {
-        switch (c) {
-        case 'd':
-            dpy_name = optarg;
-            break;
-        case 'a':
-            eventTypes[TARGET_ATTRIBUTE_AVAILABILITY_CHANGED_EVENT].enabled = True;
-            break;
-        case 'c':
-            eventTypes[TARGET_ATTRIBUTE_CHANGED_EVENT].enabled = True;
-            break;
-        case 'b':
-            eventTypes[TARGET_BINARY_ATTRIBUTE_CHANGED_EVENT].enabled = True;
-            break;
-        case 's':
-            eventTypes[TARGET_STRING_ATTRIBUTE_CHANGED_EVENT].enabled = True;
-            break;
-        case '?':
-            fprintf(stderr, "%s: Unknown argument '%c'\n", argv[0], optopt);
-            /* fallthrough */
-        case 'h':
-            print_usage(argv);
-            return 1;
-        }
-    }
-
-    anythingEnabled = False;
-    for (i = EVENT_TYPE_START; i <= EVENT_TYPE_END; i++) {
-        if (eventTypes[i].enabled) {
-            anythingEnabled = True;
-            break;
-        }
-    }
-
-    if (!anythingEnabled) {
-        for (i = EVENT_TYPE_START; i <= EVENT_TYPE_END; i++) {
-            eventTypes[i].enabled = True;
-        }
-    }
+    int num_screens, num_gpus, num_framelocks, num_vcs, i;
+    int sources;
+    XEvent event;
+    XNVCtrlAttributeChangedEvent *nvevent;
+    XNVCtrlAttributeChangedEventTarget *nveventtarget;
 
     /*
      * Open a display connection, and make sure the NV-CONTROL X
      * extension is present on the screen we want to use.
      */
-
-    dpy = XOpenDisplay(dpy_name);
+    
+    dpy = XOpenDisplay(NULL);
     if (!dpy) {
-        fprintf(stderr, "Cannot open display '%s'.\n", XDisplayName(dpy_name));
+        fprintf(stderr, "Cannot open display '%s'.\n", XDisplayName(NULL));
         return 1;
     }
     
@@ -159,119 +66,185 @@ int main(int argc, char **argv)
     ret = XNVCTRLQueryExtension(dpy, &event_base, &error_base);
     if (ret != True) {
         fprintf(stderr, "The NV-CONTROL X extension does not exist on '%s'.\n",
-                XDisplayName(dpy_name));
+                XDisplayName(NULL));
         return 1;
     }
 
-    /* Query target counts */
-    for (i = 0; i < num_target_types; i++) {
+    /* Query number of X Screens */
 
-        struct target_info *tinfo = &info[i];
-
-
-        if (tinfo->type == NV_CTRL_TARGET_TYPE_DISPLAY) {
-            ret = XNVCTRLQueryTargetBinaryData(dpy, NV_CTRL_TARGET_TYPE_X_SCREEN,
-                                               0, 0,
-                                               NV_CTRL_BINARY_DATA_DISPLAY_TARGETS,
-                                               (unsigned char **)&(tinfo->pIds),
-                                               &(tinfo->count));
-            if (ret != True) {
-                fprintf(stderr, "Failed to query %s target count on '%s'.\n",
-                        target2str(tinfo->type), XDisplayName(dpy_name));
-                return 1;
-            }
-            tinfo->count = tinfo->pIds[0];
-        } else {
-            ret = XNVCTRLQueryTargetCount(dpy, tinfo->type, &tinfo->count);
-            if (ret != True) {
-                fprintf(stderr, "Failed to query %s target count on '%s'.\n",
-                        target2str(tinfo->type), XDisplayName(dpy_name));
-                return 1;
-            }
-        }
+    ret = XNVCTRLQueryTargetCount(dpy, NV_CTRL_TARGET_TYPE_X_SCREEN,
+                                  &num_screens);
+    if (ret != True) {
+        fprintf(stderr, "Failed to query the number of X Screens on '%s'.\n",
+                XDisplayName(NULL));
+        return 1;
     }
 
-    printf("Registering to receive events...\n");
+    /* Query number of GPUs */
+
+    ret = XNVCTRLQueryTargetCount(dpy, NV_CTRL_TARGET_TYPE_GPU,
+                                  &num_gpus);
+    if (ret != True) {
+        fprintf(stderr, "Failed to query the number of GPUs on '%s'.\n",
+                XDisplayName(NULL));
+        return 1;
+    }
+
+    /* Query number of Frame Lock (G-Sync) devices */
+
+    ret = XNVCTRLQueryTargetCount(dpy, NV_CTRL_TARGET_TYPE_FRAMELOCK,
+                                  &num_framelocks);
+    if (ret != True) {
+        fprintf(stderr, "Failed to query the number of G-Sync devices on "
+                "'%s'.\n",
+                XDisplayName(NULL));
+        return 1;
+    }
+
+    /* Query number of VCS (Visual Computing System) devices */
+
+    ret = XNVCTRLQueryTargetCount(dpy, NV_CTRL_TARGET_TYPE_VCSC,
+                                  &num_vcs);
+    if (ret != True) {
+        fprintf(stderr, "Failed to query the number of Visual Computing "
+                "System devices on '%s'.\n",
+                XDisplayName(NULL));
+        return 1;
+    }
+
+    /*
+     * register to receive NV-CONTROL events: whenever any NV-CONTROL
+     * attribute is changed by an NV-CONTROL client, any other client
+     * can receive notification of the change.
+     */
+
+    sources = 0;
+
+    /* 
+     * - Register to receive ATTRIBUTE_CHANGE_EVENT events.  These events
+     *   are specific to attributes set on X Screens.
+     */
+
+    printf("Registering to receive ATTRIBUTE_CHANGED_EVENT events...\n");
     fflush(stdout);
 
-    /* Register to receive events on all targets */
+    for (i = 0; i < num_screens; i++ ) {
 
-    for (i = 0; i < num_target_types; i++) {
-        struct target_info *tinfo = &info[i];
-
-        for (j = 0; j < tinfo->count; j++) {
-            int target_id;
-
-            if (tinfo->pIds) {
-                target_id = tinfo->pIds[1+j];
-            } else {
-                target_id = j;
-            }
-
-            for (k = EVENT_TYPE_START; k <= EVENT_TYPE_END; k++) {
-                if (!eventTypes[k].enabled) {
-                    continue;
-                }
-
-                if ((k == TARGET_ATTRIBUTE_CHANGED_EVENT) &&
-                    (tinfo->type == NV_CTRL_TARGET_TYPE_X_SCREEN)) {
-
-                    /*
-                     * Only register to receive events if this screen is
-                     * controlled by the NVIDIA driver.
-                     */
-                    if (!XNVCTRLIsNvScreen(dpy, target_id)) {
-                        printf("- The NV-CONTROL X not available on X screen "
-                               "%d of '%s'.\n", i, XDisplayName(dpy_name));
-                        continue;
-                    }
-
-                    /*
-                     * - Register to receive ATTRIBUTE_CHANGE_EVENT events.
-                     *   These events are specific to attributes set on X
-                     *   Screens.
-                     */
-
-
-                    ret = XNVCtrlSelectNotify(dpy, target_id, ATTRIBUTE_CHANGED_EVENT,
-                                              True);
-                    if (ret != True) {
-                        printf("- Unable to register to receive NV-CONTROL"
-                               "events on '%s'.\n", XDisplayName(dpy_name));
-                        continue;
-                    }
-
-                    printf("+ Listening on X screen %d for "
-                           "ATTRIBUTE_CHANGED_EVENTs.\n", target_id);
-                    sources++;
-                }
-
-                /*
-                 * - Register to receive TARGET_ATTRIBUTE_CHANGED_EVENT events.
-                 *   These events are specific to attributes set on various
-                 *   devices and structures controlled by the NVIDIA driver.
-                 *   Some possible targets include X Screens, GPUs, and Frame
-                 *   Lock boards.
-                 */
-
-                ret = XNVCtrlSelectTargetNotify(dpy,
-                                                tinfo->type, /* target type */
-                                                target_id,   /* target ID */
-                                                k,           /* eventType */
-                                                True);
-                if (ret != True) {
-                    printf("- Unable to register on %s %d for %ss.\n",
-                           target2str(tinfo->type), target_id,
-                           eventTypes[k].description);
-                    continue;
-                }
-
-                printf("+ Listening on %s %d for %ss.\n",
-                       target2str(tinfo->type), target_id, eventTypes[k].description);
-
-                sources++;
-            }
+        /* Only register to receive events if this screen is controlled by
+         * the NVIDIA driver.
+         */
+        if (!XNVCTRLIsNvScreen(dpy, i)) {
+            printf("- The NV-CONTROL X not available on screen "
+                   "%d of '%s'.\n", i, XDisplayName(NULL));
+            continue;
         }
+        
+        ret = XNVCtrlSelectNotify(dpy, i, ATTRIBUTE_CHANGED_EVENT, True);
+        if (ret != True) {
+            printf("- Unable to register to receive NV-CONTROL events on '%s'."
+                   "\n", XDisplayName(NULL));
+            continue;
+        }
+        
+        printf("+ Listening to ATTRIBUTE_CHANGE_EVENTs on screen %d.\n", i);
+        sources++;
+    }
+    printf("\n");
+
+    /* 
+     * - Register to receive TARGET_ATTRIBUTE_CHANGED_EVENT events.  These
+     *   events are specific to attributes set on various devices and
+     *   structures controlled by the NVIDIA driver.  Some possible targets
+     *   include X Screens, GPUs, and Frame Lock boards.
+     */
+
+    printf("Registering to receive TARGET_ATTRIBUTE_CHANGED_EVENT "
+           "events...\n");
+    fflush(stdout);
+
+    /* Register to receive on all X Screen targets */
+
+    for (i = 0; i < num_screens; i++ ) {
+
+        /* Only register to receive events if this screen is controlled by
+         * the NVIDIA driver.
+         */
+        if (!XNVCTRLIsNvScreen(dpy, i)) {
+            printf("- The NV-CONTROL X not available on screen "
+                   "%d of '%s'.\n", i, XDisplayName(NULL));
+            continue;
+        }
+
+        ret = XNVCtrlSelectTargetNotify(dpy, NV_CTRL_TARGET_TYPE_X_SCREEN,
+                                        i, TARGET_ATTRIBUTE_CHANGED_EVENT,
+                                        True);
+        if (ret != True) {
+            printf("- Unable to register to receive NV-CONTROL X Screen "
+                   "target events for screen %d on '%s'.\n",
+                   i, XDisplayName(NULL));
+            continue;
+        }
+        
+        printf("+ Listening to TARGET_ATTRIBUTE_CHANGE_EVENTs on X Screen "
+               "%d.\n", i);
+        sources++;
+    }
+
+    /* Register to receive on all GPU targets */
+
+    for (i = 0; i < num_gpus; i++ ) {
+
+        ret = XNVCtrlSelectTargetNotify(dpy, NV_CTRL_TARGET_TYPE_GPU,
+                                        i, TARGET_ATTRIBUTE_CHANGED_EVENT,
+                                        True);
+        if (ret != True) {
+            printf("- Unable to register to receive NV-CONTROL GPU "
+                   "target events for GPU %d on '%s'.\n",
+                   i, XDisplayName(NULL));
+            continue;
+        }
+        
+        printf("+ Listening to TARGET_ATTRIBUTE_CHANGE_EVENTs on GPU "
+               "%d.\n", i);
+        sources++;
+    }
+
+    /* Register to receive on all Frame Lock (G-Sync) targets */
+
+    for (i = 0; i < num_framelocks; i++ ) {
+
+        ret = XNVCtrlSelectTargetNotify(dpy, NV_CTRL_TARGET_TYPE_FRAMELOCK,
+                                        i, TARGET_ATTRIBUTE_CHANGED_EVENT,
+                                        True);
+        if (ret != True) {
+            printf("- Unable to register to receive NV-CONTROL GPU "
+                   "target events for Frame Lock %d on '%s'.\n",
+                   i, XDisplayName(NULL));
+            continue;
+        }
+        
+        printf("+ Listening to TARGET_ATTRIBUTE_CHANGE_EVENTs on Frame Lock "
+               "%d.\n", i);
+        sources++;
+    }
+
+    /* Register to receive on all VCS targets */
+
+    for (i = 0; i < num_vcs; i++ ) {
+
+        ret = XNVCtrlSelectTargetNotify(dpy, NV_CTRL_TARGET_TYPE_VCSC,
+                                        i, TARGET_ATTRIBUTE_CHANGED_EVENT,
+                                        True);
+        if (ret != True) {
+            printf("- Unable to register to receive NV-CONTROL VCS "
+                   "target events for VCS %d on '%s'.\n",
+                   i, XDisplayName(NULL));
+            continue;
+        }
+        
+        printf("+ Listening to TARGET_ATTRIBUTE_CHANGE_EVENTs on VCS "
+               "%d.\n", i);
+        sources++;
     }
 
     /* 
@@ -288,117 +261,49 @@ int main(int argc, char **argv)
      */
 
     while (True) {
-        XEvent event;
-        const char *target_str;
 
         /* block for the next event */
 
         XNextEvent(dpy, &event);
 
+        /* if this is not one of our events, then bail out of this iteration */
+
+        if ((event.type != (event_base + ATTRIBUTE_CHANGED_EVENT)) &&
+            (event.type != (event_base + TARGET_ATTRIBUTE_CHANGED_EVENT)))
+            continue;
+        
         /* Handle ATTRIBUTE_CHANGED_EVENTS */
         if (event.type == (event_base + ATTRIBUTE_CHANGED_EVENT)) {
 
             /* cast the X event as an XNVCtrlAttributeChangedEvent */
-            XNVCtrlAttributeChangedEvent *nvevent =
-                (XNVCtrlAttributeChangedEvent *) &event;
-
-            target_str = targetTypeAndId2Str(NV_CTRL_TARGET_TYPE_X_SCREEN,
-                                             nvevent->screen);
-
+            
+            nvevent = (XNVCtrlAttributeChangedEvent *) &event;
+            
             /* print out the event information */
-            printf("ATTRIBUTE_CHANGED_EVENTS:                    Target: %15s  "
-                   "Display Mask: 0x%08x   "
-                   "Attribute: (%3d) %-32s   Value: %d (0x%08x)\n",
-                   target_str,
-                   nvevent->display_mask,
+            
+            printf("received NV-CONTROL event [attribute: %d (%s)  "
+                   "value: %d]\n",
                    nvevent->attribute,
                    attr2str(nvevent->attribute),
-                   nvevent->value,
-                   nvevent->value
-                   );
+                   nvevent->value);
 
         /* Handle TARGET_ATTRIBUTE_CHANGED_EVENTS */
         } else if (event.type ==
                    (event_base + TARGET_ATTRIBUTE_CHANGED_EVENT)) {
-
             /* cast the X event as an XNVCtrlAttributeChangedEventTarget */
-            XNVCtrlAttributeChangedEventTarget *nveventtarget =
-                (XNVCtrlAttributeChangedEventTarget *) &event;
-
-            target_str = targetTypeAndId2Str(nveventtarget->target_type,
-                                             nveventtarget->target_id);
-
+            
+            nveventtarget = (XNVCtrlAttributeChangedEventTarget *) &event;
+            
             /* print out the event information */
-            printf("TARGET_ATTRIBUTE_CHANGED_EVENT:              Target: %15s  "
-                   "Display Mask: 0x%08x   "
-                   "Attribute: (%3d) %-32s   Value: %d (0x%08x)\n",
-                   target_str,
-                   nveventtarget->display_mask,
+            
+            printf("received NV-CONTROL target event [target: %d (%s)  "
+                   "id: %d ] [attribute: %d (%s)  value: %d]\n",
+                   nveventtarget->target_type,
+                   target2str(nveventtarget->target_type),
+                   nveventtarget->target_id,
                    nveventtarget->attribute,
                    attr2str(nveventtarget->attribute),
-                   nveventtarget->value,
-                   nveventtarget->value
-                   );
-
-        /* Handle TARGET_ATTRIBUTE_AVAILABILITY_CHANGED_EVENTS */
-        } else if (event.type ==
-                   (event_base + TARGET_ATTRIBUTE_AVAILABILITY_CHANGED_EVENT)) {
-
-            /* cast the X event as an XNVCtrlAttributeChangedEventTargetAvailability */
-            XNVCtrlAttributeChangedEventTargetAvailability *nveventavail =
-                (XNVCtrlAttributeChangedEventTargetAvailability *) &event;
-
-            target_str = targetTypeAndId2Str(nveventavail->target_type,
-                                             nveventavail->target_id);
-
-            /* print out the event information */
-            printf("TARGET_ATTRIBUTE_AVAILABILITY_CHANGED_EVENT: Target: %15s  "
-                   "Display Mask: 0x%08x   "
-                   "Attribute: (%3d) %-32s   Available: %s\n",
-                   target_str,
-                   nveventavail->display_mask,
-                   nveventavail->attribute,
-                   attr2str(nveventavail->attribute),
-                   nveventavail->availability ? "Yes" : "No"
-                   );
-        } else if (event.type ==
-                   (event_base + TARGET_STRING_ATTRIBUTE_CHANGED_EVENT)) {
-
-            XNVCtrlStringAttributeChangedEventTarget *nveventstring =
-                (XNVCtrlStringAttributeChangedEventTarget*) &event;
-
-            target_str = targetTypeAndId2Str(nveventstring->target_type,
-                                             nveventstring->target_id);
-
-            /* print out the event information */
-            printf("TARGET_STRING_ATTRIBUTE_CHANGED_EVENT:       Target: %15s  "
-                   "Display Mask: 0x%08x   "
-                   "Attribute: %3d\n",
-                   target_str,
-                   nveventstring->display_mask,
-                   nveventstring->attribute
-                   );
-
-        } else if (event.type ==
-                   (event_base + TARGET_BINARY_ATTRIBUTE_CHANGED_EVENT)) {
-
-            XNVCtrlBinaryAttributeChangedEventTarget *nveventbinary =
-                (XNVCtrlBinaryAttributeChangedEventTarget *) &event;
-
-            target_str = targetTypeAndId2Str(nveventbinary->target_type,
-                                             nveventbinary->target_id);
-
-            /* print out the event information */
-            printf("TARGET_BINARY_ATTRIBUTE_CHANGED_EVENT:       Target: %15s  "
-                   "Display Mask: 0x%08x   "
-                   "Attribute: %3d\n",
-                   target_str,
-                   nveventbinary->display_mask,
-                   nveventbinary->attribute
-                   );
-
-        } else {
-            printf("ERROR: unrecognized event type %d\n", event.type);
+                   nveventtarget->value);
         }
     }
 
@@ -412,256 +317,145 @@ int main(int argc, char **argv)
  */
 static const char *target2str(int n)
 {
-    static char unknown[24];
-
     switch (n) {
-    case NV_CTRL_TARGET_TYPE_X_SCREEN:
-        return "X Screen";
-    case NV_CTRL_TARGET_TYPE_GPU:
-        return "GPU";
-    case NV_CTRL_TARGET_TYPE_DISPLAY:
-        return "Display";
-    case NV_CTRL_TARGET_TYPE_FRAMELOCK:
-        return "Frame Lock";
-    case NV_CTRL_TARGET_TYPE_COOLER:
-        return "Cooler";
-    case NV_CTRL_TARGET_TYPE_THERMAL_SENSOR:
-        return "Thermal Sensor";
-    case NV_CTRL_TARGET_TYPE_3D_VISION_PRO_TRANSCEIVER:
-        return "3D Vision Pro Transceiver";
+    case NV_CTRL_TARGET_TYPE_X_SCREEN:  return "X Screen"; break;
+    case NV_CTRL_TARGET_TYPE_GPU:       return "GPU"; break;
+    case NV_CTRL_TARGET_TYPE_FRAMELOCK: return "Frame Lock"; break;
+    case NV_CTRL_TARGET_TYPE_VCSC:      return "VCS"; break;
     default:
-        snprintf(unknown, 24, "Unknown (%d)", n);
-        return unknown;
+        return "Unknown";
     }
 }
 
-static const char *targetTypeAndId2Str(int targetType, int targetId)
-{
-    static char tmp[256];
-
-    snprintf(tmp, sizeof(tmp), "%s-%-3d", target2str(targetType), targetId);
-
-    return tmp;
-}
 
 
-// Used to convert the NV-CONTROL #defines to human readable text.
-#define MAKE_ENTRY(ATTRIBUTE) { ATTRIBUTE, #ATTRIBUTE, NULL }
 
-typedef struct {
-    int num;
-    char *str;
-    char *name;
-} AttrEntry;
-
-static AttrEntry attr_table[];
+/*
+ * attr2str() - translate an attribute integer into a string
+ */
 
 static const char *attr2str(int n)
 {
-    AttrEntry *entry;
+    switch (n) {
+    case NV_CTRL_FLATPANEL_SCALING:                return "flatpanel scaling"; break;
+    case NV_CTRL_FLATPANEL_DITHERING:              return "flatpanel dithering"; break;
+    case NV_CTRL_DIGITAL_VIBRANCE:                 return "digital vibrance"; break;
+    case NV_CTRL_SYNC_TO_VBLANK:                   return "sync to vblank"; break;
+    case NV_CTRL_LOG_ANISO:                        return "log aniso"; break;
+    case NV_CTRL_FSAA_MODE:                        return "fsaa mode"; break;
+    case NV_CTRL_TEXTURE_SHARPEN:                  return "texture sharpen"; break;
+    case NV_CTRL_EMULATE:                          return "OpenGL software emulation"; break;
+    case NV_CTRL_CONNECTED_DISPLAYS:               return "connected displays"; break;
+    case NV_CTRL_ENABLED_DISPLAYS:                 return "enabled displays"; break;
+    case NV_CTRL_FRAMELOCK_MASTER:                 return "frame lock master"; break;
+    case NV_CTRL_FRAMELOCK_POLARITY:               return "frame lock sync edge"; break;
+    case NV_CTRL_FRAMELOCK_SYNC_DELAY:             return "frame lock sync delay"; break;
+    case NV_CTRL_FRAMELOCK_SYNC_INTERVAL:          return "frame lock sync interval"; break;
+    case NV_CTRL_FRAMELOCK_PORT0_STATUS:           return "frame lock port 0 status"; break;
+    case NV_CTRL_FRAMELOCK_PORT1_STATUS:           return "frame lock port 1 status"; break;
+    case NV_CTRL_FRAMELOCK_HOUSE_STATUS:           return "frame lock house status"; break;
+    case NV_CTRL_FRAMELOCK_SYNC:                   return "frame lock sync"; break;
+    case NV_CTRL_FRAMELOCK_SYNC_READY:             return "frame lock sync ready"; break;
+    case NV_CTRL_FRAMELOCK_STEREO_SYNC:            return "frame lock stereo sync"; break;
+    case NV_CTRL_FRAMELOCK_TEST_SIGNAL:            return "frame lock test signal"; break;
+    case NV_CTRL_FRAMELOCK_ETHERNET_DETECTED:      return "frame lock ethernet detected"; break;
+    case NV_CTRL_FRAMELOCK_VIDEO_MODE:             return "frame lock video mode"; break;
+    case NV_CTRL_FORCE_GENERIC_CPU:                return "force generic cpu"; break;
+    case NV_CTRL_OPENGL_AA_LINE_GAMMA:             return "opengl aa line gamma"; break;
+    case NV_CTRL_FLIPPING_ALLOWED:                 return "flipping allowed"; break;
+    case NV_CTRL_TEXTURE_CLAMPING:                 return "texture clamping"; break;
+    case NV_CTRL_CURSOR_SHADOW:                    return "cursor shadow"; break;
+    case NV_CTRL_CURSOR_SHADOW_ALPHA:              return "cursor shadow alpha"; break;
+    case NV_CTRL_CURSOR_SHADOW_RED:                return "cursor shadow red"; break;
+    case NV_CTRL_CURSOR_SHADOW_GREEN:              return "cursor shadow green"; break;
+    case NV_CTRL_CURSOR_SHADOW_BLUE:               return "cursor shadow blue"; break;
+    case NV_CTRL_CURSOR_SHADOW_X_OFFSET:           return "cursor shadow x offset"; break;
+    case NV_CTRL_CURSOR_SHADOW_Y_OFFSET:           return "cursor shadow y offset"; break;
+    case NV_CTRL_FSAA_APPLICATION_CONTROLLED:      return "fsaa application controlled"; break;
+    case NV_CTRL_LOG_ANISO_APPLICATION_CONTROLLED: return "log aniso application controlled"; break;
+    case NV_CTRL_IMAGE_SHARPENING:                 return "image sharpening"; break;
+    case NV_CTRL_TV_OVERSCAN:                      return "tv overscan"; break;
+    case NV_CTRL_TV_FLICKER_FILTER:                return "tv flicker filter"; break;
+    case NV_CTRL_TV_BRIGHTNESS:                    return "tv brightness"; break;
+    case NV_CTRL_TV_HUE:                           return "tv hue"; break;
+    case NV_CTRL_TV_CONTRAST:                      return "tv contrast"; break;
+    case NV_CTRL_TV_SATURATION:                    return "tv saturation"; break;
+    case NV_CTRL_TV_RESET_SETTINGS:                return "tv reset settings"; break;
+    case NV_CTRL_GPU_CORE_TEMPERATURE:             return "gpu core temperature"; break;
+    case NV_CTRL_GPU_CORE_THRESHOLD:               return "gpu core threshold"; break;
+    case NV_CTRL_GPU_DEFAULT_CORE_THRESHOLD:       return "gpu default core threshold"; break;
+    case NV_CTRL_GPU_MAX_CORE_THRESHOLD:           return "gpu max core_threshold"; break;
+    case NV_CTRL_AMBIENT_TEMPERATURE:              return "ambient temperature"; break;
+    case NV_CTRL_PBUFFER_SCANOUT_XID:              return "scanout pbuffer xid"; break;
 
-    entry = attr_table;
-    while (entry->str) {
-        if (entry->num == n) {
-            if (!entry->name) {
-                int len;
-                entry->name = strdup(entry->str + 8);
-                for (len = 0; len < strlen(entry->name); len++) {
-                    entry->name[len] = tolower(entry->name[len]);
-                }
-            }
-            return entry->name;
-        }
-        entry++;
+    case NV_CTRL_GVO_SUPPORTED:                         return "x screen supports gvo"; break;
+    case NV_CTRL_GVO_SYNC_MODE:                         return "gvo sync mode"; break;
+    case NV_CTRL_GVO_SYNC_SOURCE:                       return "gvo sync source"; break;
+    case NV_CTRL_GVO_OUTPUT_VIDEO_FORMAT:               return "gvo output video format"; break;
+    case NV_CTRL_GVO_DISPLAY_X_SCREEN:                  return "gvo clone mode"; break;
+    case NV_CTRL_GVO_COMPOSITE_SYNC_INPUT_DETECTED:     return "gvo composite sync input is detected"; break;
+    case NV_CTRL_GVO_COMPOSITE_SYNC_INPUT_DETECT_MODE:  return "gvo composite sync input detect mode"; break;
+    case NV_CTRL_GVO_SDI_SYNC_INPUT_DETECTED:           return "gvo sync input detected"; break;
+    case NV_CTRL_GVO_VIDEO_OUTPUTS:                     return "gvo video outputs"; break;
+    case NV_CTRL_GVO_FIRMWARE_VERSION:                  return "gvo firmware version"; break;
+    case NV_CTRL_GVO_SYNC_DELAY_PIXELS:                 return "gvo sync delay pixels"; break;
+    case NV_CTRL_GVO_SYNC_DELAY_LINES:                  return "gvo sync delay lines"; break;
+    case NV_CTRL_GVO_INPUT_VIDEO_FORMAT_REACQUIRE:      return "gvo input video format reacquire"; break;
+    case NV_CTRL_GVO_GLX_LOCKED:                        return "gvo glx locked"; break;
+    case NV_CTRL_GVO_X_SCREEN_PAN_X:                    return "gvo x screen pan x"; break;
+    case NV_CTRL_GVO_X_SCREEN_PAN_Y:                    return "gvo x screen pan y"; break;
+    case NV_CTRL_GVO_OVERRIDE_HW_CSC:                   return "gvo override hw csc"; break;
+    case NV_CTRL_GVO_CAPABILITIES:                      return "gvo capabilities"; break;
+    case NV_CTRL_GVO_COMPOSITE_TERMINATION:             return "gvo composite termination"; break;
+    case NV_CTRL_GVO_FLIP_QUEUE_SIZE:                   return "gvo flip queue size"; break;
+    case NV_CTRL_GVO_LOCK_OWNER:                        return "gvo lock owner"; break;
+        
+    case NV_CTRL_GPU_OVERCLOCKING_STATE:           return "overclocking state"; break;
+    case NV_CTRL_GPU_2D_CLOCK_FREQS:               return "gpu 2d clock frequencies"; break;
+    case NV_CTRL_GPU_3D_CLOCK_FREQS:               return "gpu 3d clock frequencies"; break;
+    case NV_CTRL_GPU_OPTIMAL_CLOCK_FREQS:          return "gpu optimal clock frequencies"; break;
+    case NV_CTRL_GPU_OPTIMAL_CLOCK_FREQS_DETECTION: return "gpu optimal clock frequency detection"; break;
+    case NV_CTRL_GPU_OPTIMAL_CLOCK_FREQS_DETECTION_STATE: return "gpu optimal clock frequency detection state"; break;
+        
+        /* XXX DDCCI stuff */
+
+    case NV_CTRL_USE_HOUSE_SYNC:                   return "use house sync"; break;
+    case NV_CTRL_FORCE_STEREO:                     return "force stereo"; break;
+    case NV_CTRL_IMAGE_SETTINGS:                   return "image settings"; break;
+    case NV_CTRL_XINERAMA:                         return "xinerama"; break;
+    case NV_CTRL_XINERAMA_STEREO:                  return "xinerama stereo"; break;
+    case NV_CTRL_SHOW_SLI_HUD:                     return "show sli hud"; break;
+    case NV_CTRL_XV_SYNC_TO_DISPLAY:               return "xv sync to display"; break;
+
+    case NV_CTRL_ASSOCIATED_DISPLAY_DEVICES:       return "associated_display_devices"; break;
+    case NV_CTRL_FRAMELOCK_SLAVES:                 return "frame lock slaves"; break;
+    case NV_CTRL_FRAMELOCK_MASTERABLE:             return "frame lock masterable"; break;
+    case NV_CTRL_PROBE_DISPLAYS:                   return "probed displays"; break;
+
+    case NV_CTRL_REFRESH_RATE:                     return "refresh rate"; break;
+    case NV_CTRL_CURRENT_SCANLINE:                 return "current scanline"; break;
+    case NV_CTRL_INITIAL_PIXMAP_PLACEMENT:         return "initial pixmap placement"; break;
+    case NV_CTRL_GLYPH_CACHE:                      return "glyph cache"; break;
+    case NV_CTRL_PCI_BUS:                          return "pci bus"; break;
+    case NV_CTRL_PCI_DEVICE:                       return "pci device"; break;
+    case NV_CTRL_PCI_FUNCTION:                     return "pci function"; break;
+    case NV_CTRL_FRAMELOCK_FPGA_REVISION:          return "framelock fpga revision"; break;
+    case NV_CTRL_MAX_SCREEN_WIDTH:                 return "max screen width"; break;
+    case NV_CTRL_MAX_SCREEN_HEIGHT:                return "max screen height"; break;
+    case NV_CTRL_MAX_DISPLAYS:                     return "max displays"; break;
+    case NV_CTRL_DYNAMIC_TWINVIEW:                 return "dynamic twinview"; break;
+    case NV_CTRL_MULTIGPU_DISPLAY_OWNER:           return "multigpu display owner"; break;
+    case NV_CTRL_GPU_SCALING:                      return "gpu scaling"; break;
+    case NV_CTRL_FRONTEND_RESOLUTION:              return "frontend resolution"; break;
+    case NV_CTRL_BACKEND_RESOLUTION:               return "backend resolution"; break;
+    case NV_CTRL_FLATPANEL_NATIVE_RESOLUTION:      return "flatpanel native resolution"; break;
+    case NV_CTRL_FLATPANEL_BEST_FIT_RESOLUTION:    return "flatpanel best fit resolution"; break;
+    case NV_CTRL_GPU_SCALING_ACTIVE:               return "gpu scaling active"; break;
+    case NV_CTRL_DFP_SCALING_ACTIVE:               return "dfp scaling active"; break;
+    case NV_CTRL_FSAA_APPLICATION_ENHANCED:        return "fsaa application enhanced"; break;
+    case NV_CTRL_FRAMELOCK_SYNC_RATE_4:            return "framelock sync rate (4)"; break;
+
+    default:
+        return "Unknown";
     }
-
-    return NULL;
-}
-
-// Attribute -> String table, generated using:
-//
-// grep 'define.*\/\*' NVCtrl.h | sed 's/.*define \([^ ]*\).*/    MAKE_ENTRY(\1),/' > DATA | head DATA
-//
-static AttrEntry attr_table[] = {
-    MAKE_ENTRY(NV_CTRL_FLATPANEL_SCALING),
-    MAKE_ENTRY(NV_CTRL_FLATPANEL_DITHERING),
-    MAKE_ENTRY(NV_CTRL_DITHERING),
-    MAKE_ENTRY(NV_CTRL_DIGITAL_VIBRANCE),
-    MAKE_ENTRY(NV_CTRL_BUS_TYPE),
-    MAKE_ENTRY(NV_CTRL_VIDEO_RAM),
-    MAKE_ENTRY(NV_CTRL_IRQ),
-    MAKE_ENTRY(NV_CTRL_OPERATING_SYSTEM),
-    MAKE_ENTRY(NV_CTRL_SYNC_TO_VBLANK),
-    MAKE_ENTRY(NV_CTRL_LOG_ANISO),
-    MAKE_ENTRY(NV_CTRL_FSAA_MODE),
-    MAKE_ENTRY(NV_CTRL_UBB),
-    MAKE_ENTRY(NV_CTRL_OVERLAY),
-    MAKE_ENTRY(NV_CTRL_STEREO),
-    MAKE_ENTRY(NV_CTRL_EMULATE),
-    MAKE_ENTRY(NV_CTRL_TWINVIEW),
-    MAKE_ENTRY(NV_CTRL_CONNECTED_DISPLAYS),
-    MAKE_ENTRY(NV_CTRL_ENABLED_DISPLAYS),
-    MAKE_ENTRY(NV_CTRL_FRAMELOCK),
-    MAKE_ENTRY(NV_CTRL_FRAMELOCK_POLARITY),
-    MAKE_ENTRY(NV_CTRL_FRAMELOCK_SYNC_DELAY),
-    MAKE_ENTRY(NV_CTRL_FRAMELOCK_SYNC_INTERVAL),
-    MAKE_ENTRY(NV_CTRL_FRAMELOCK_PORT0_STATUS),
-    MAKE_ENTRY(NV_CTRL_FRAMELOCK_PORT1_STATUS),
-    MAKE_ENTRY(NV_CTRL_FRAMELOCK_HOUSE_STATUS),
-    MAKE_ENTRY(NV_CTRL_FRAMELOCK_SYNC),
-    MAKE_ENTRY(NV_CTRL_FRAMELOCK_SYNC_READY),
-    MAKE_ENTRY(NV_CTRL_FRAMELOCK_STEREO_SYNC),
-    MAKE_ENTRY(NV_CTRL_FRAMELOCK_TEST_SIGNAL),
-    MAKE_ENTRY(NV_CTRL_FRAMELOCK_ETHERNET_DETECTED),
-    MAKE_ENTRY(NV_CTRL_FRAMELOCK_VIDEO_MODE),
-    MAKE_ENTRY(NV_CTRL_FRAMELOCK_SYNC_RATE),
-    MAKE_ENTRY(NV_CTRL_FORCE_GENERIC_CPU),
-    MAKE_ENTRY(NV_CTRL_OPENGL_AA_LINE_GAMMA),
-    MAKE_ENTRY(NV_CTRL_FRAMELOCK_TIMING),
-    MAKE_ENTRY(NV_CTRL_FLIPPING_ALLOWED),
-    MAKE_ENTRY(NV_CTRL_ARCHITECTURE),
-    MAKE_ENTRY(NV_CTRL_TEXTURE_CLAMPING),
-    MAKE_ENTRY(NV_CTRL_FSAA_APPLICATION_CONTROLLED),
-    MAKE_ENTRY(NV_CTRL_LOG_ANISO_APPLICATION_CONTROLLED),
-    MAKE_ENTRY(NV_CTRL_IMAGE_SHARPENING),
-    MAKE_ENTRY(NV_CTRL_TV_OVERSCAN),
-    MAKE_ENTRY(NV_CTRL_TV_FLICKER_FILTER),
-    MAKE_ENTRY(NV_CTRL_TV_BRIGHTNESS),
-    MAKE_ENTRY(NV_CTRL_TV_HUE),
-    MAKE_ENTRY(NV_CTRL_TV_CONTRAST),
-    MAKE_ENTRY(NV_CTRL_TV_SATURATION),
-    MAKE_ENTRY(NV_CTRL_TV_RESET_SETTINGS),
-    MAKE_ENTRY(NV_CTRL_GPU_CORE_TEMPERATURE),
-    MAKE_ENTRY(NV_CTRL_GPU_CORE_THRESHOLD),
-    MAKE_ENTRY(NV_CTRL_GPU_DEFAULT_CORE_THRESHOLD),
-    MAKE_ENTRY(NV_CTRL_GPU_MAX_CORE_THRESHOLD),
-    MAKE_ENTRY(NV_CTRL_AMBIENT_TEMPERATURE),
-    MAKE_ENTRY(NV_CTRL_PBUFFER_SCANOUT_SUPPORTED),
-    MAKE_ENTRY(NV_CTRL_PBUFFER_SCANOUT_XID),
-    MAKE_ENTRY(NV_CTRL_GPU_CURRENT_CLOCK_FREQS),
-    MAKE_ENTRY(NV_CTRL_FLATPANEL_CHIP_LOCATION),
-    MAKE_ENTRY(NV_CTRL_FLATPANEL_LINK),
-    MAKE_ENTRY(NV_CTRL_FLATPANEL_SIGNAL),
-    MAKE_ENTRY(NV_CTRL_USE_HOUSE_SYNC),
-    MAKE_ENTRY(NV_CTRL_EDID_AVAILABLE),
-    MAKE_ENTRY(NV_CTRL_FORCE_STEREO),
-    MAKE_ENTRY(NV_CTRL_IMAGE_SETTINGS),
-    MAKE_ENTRY(NV_CTRL_XINERAMA),
-    MAKE_ENTRY(NV_CTRL_XINERAMA_STEREO),
-    MAKE_ENTRY(NV_CTRL_BUS_RATE),
-    MAKE_ENTRY(NV_CTRL_XV_SYNC_TO_DISPLAY),
-    MAKE_ENTRY(NV_CTRL_ASSOCIATED_DISPLAY_DEVICES),
-    MAKE_ENTRY(NV_CTRL_PROBE_DISPLAYS),
-    MAKE_ENTRY(NV_CTRL_REFRESH_RATE),
-    MAKE_ENTRY(NV_CTRL_CURRENT_SCANLINE),
-    MAKE_ENTRY(NV_CTRL_INITIAL_PIXMAP_PLACEMENT),
-    MAKE_ENTRY(NV_CTRL_PCI_BUS),
-    MAKE_ENTRY(NV_CTRL_PCI_DEVICE),
-    MAKE_ENTRY(NV_CTRL_PCI_FUNCTION),
-    MAKE_ENTRY(NV_CTRL_FRAMELOCK_FPGA_REVISION),
-    MAKE_ENTRY(NV_CTRL_MAX_SCREEN_WIDTH),
-    MAKE_ENTRY(NV_CTRL_MAX_SCREEN_HEIGHT),
-    MAKE_ENTRY(NV_CTRL_MAX_DISPLAYS),
-    MAKE_ENTRY(NV_CTRL_DYNAMIC_TWINVIEW),
-    MAKE_ENTRY(NV_CTRL_MULTIGPU_DISPLAY_OWNER),
-    MAKE_ENTRY(NV_CTRL_FSAA_APPLICATION_ENHANCED),
-    MAKE_ENTRY(NV_CTRL_FRAMELOCK_SYNC_RATE_4),
-    MAKE_ENTRY(NV_CTRL_HWOVERLAY),
-    MAKE_ENTRY(NV_CTRL_NUM_GPU_ERRORS_RECOVERED),
-    MAKE_ENTRY(NV_CTRL_REFRESH_RATE_3),
-    MAKE_ENTRY(NV_CTRL_GPU_POWER_SOURCE),
-    MAKE_ENTRY(NV_CTRL_GPU_CURRENT_PERFORMANCE_MODE),
-    MAKE_ENTRY(NV_CTRL_GLYPH_CACHE),
-    MAKE_ENTRY(NV_CTRL_GPU_CURRENT_PERFORMANCE_LEVEL),
-    MAKE_ENTRY(NV_CTRL_GPU_ADAPTIVE_CLOCK_STATE),
-    MAKE_ENTRY(NV_CTRL_SWITCH_TO_DISPLAYS),
-    MAKE_ENTRY(NV_CTRL_NOTEBOOK_DISPLAY_CHANGE_LID_EVENT),
-    MAKE_ENTRY(NV_CTRL_NOTEBOOK_INTERNAL_LCD),
-    MAKE_ENTRY(NV_CTRL_DEPTH_30_ALLOWED),
-    MAKE_ENTRY(NV_CTRL_MODE_SET_EVENT),
-    MAKE_ENTRY(NV_CTRL_OPENGL_AA_LINE_GAMMA_VALUE),
-    MAKE_ENTRY(NV_CTRL_DISPLAYPORT_LINK_RATE),
-    MAKE_ENTRY(NV_CTRL_STEREO_EYES_EXCHANGE),
-    MAKE_ENTRY(NV_CTRL_NO_SCANOUT),
-    MAKE_ENTRY(NV_CTRL_X_SERVER_UNIQUE_ID),
-    MAKE_ENTRY(NV_CTRL_PIXMAP_CACHE),
-    MAKE_ENTRY(NV_CTRL_PIXMAP_CACHE_ROUNDING_SIZE_KB),
-    MAKE_ENTRY(NV_CTRL_PCI_ID),
-    MAKE_ENTRY(NV_CTRL_SLI_MOSAIC_MODE_AVAILABLE),
-    MAKE_ENTRY(NV_CTRL_IMAGE_SHARPENING_DEFAULT),
-    MAKE_ENTRY(NV_CTRL_PCI_DOMAIN),
-    MAKE_ENTRY(NV_CTRL_FRAMELOCK_SYNC_DELAY_RESOLUTION),
-    MAKE_ENTRY(NV_CTRL_GPU_COOLER_MANUAL_CONTROL),
-    MAKE_ENTRY(NV_CTRL_THERMAL_COOLER_LEVEL),
-    MAKE_ENTRY(NV_CTRL_THERMAL_COOLER_LEVEL_SET_DEFAULT),
-    MAKE_ENTRY(NV_CTRL_THERMAL_COOLER_CONTROL_TYPE),
-    MAKE_ENTRY(NV_CTRL_THERMAL_COOLER_TARGET),
-    MAKE_ENTRY(NV_CTRL_GPU_ECC_SUPPORTED),
-    MAKE_ENTRY(NV_CTRL_GPU_ECC_STATUS),
-    MAKE_ENTRY(NV_CTRL_GPU_ECC_CONFIGURATION_SUPPORTED),
-    MAKE_ENTRY(NV_CTRL_GPU_ECC_CONFIGURATION),
-    MAKE_ENTRY(NV_CTRL_GPU_ECC_DEFAULT_CONFIGURATION),
-    MAKE_ENTRY(NV_CTRL_GPU_ECC_SINGLE_BIT_ERRORS),
-    MAKE_ENTRY(NV_CTRL_GPU_ECC_DOUBLE_BIT_ERRORS),
-    MAKE_ENTRY(NV_CTRL_GPU_ECC_AGGREGATE_SINGLE_BIT_ERRORS),
-    MAKE_ENTRY(NV_CTRL_GPU_ECC_AGGREGATE_DOUBLE_BIT_ERRORS),
-    MAKE_ENTRY(NV_CTRL_GPU_ECC_RESET_ERROR_STATUS),
-    MAKE_ENTRY(NV_CTRL_GPU_POWER_MIZER_MODE),
-    MAKE_ENTRY(NV_CTRL_OVERSCAN_COMPENSATION),
-    MAKE_ENTRY(NV_CTRL_GPU_PCIE_GENERATION),
-    MAKE_ENTRY(NV_CTRL_ACCELERATE_TRAPEZOIDS),
-    MAKE_ENTRY(NV_CTRL_GPU_CORES),
-    MAKE_ENTRY(NV_CTRL_GPU_MEMORY_BUS_WIDTH),
-    MAKE_ENTRY(NV_CTRL_COLOR_SPACE),
-    MAKE_ENTRY(NV_CTRL_COLOR_RANGE),
-    MAKE_ENTRY(NV_CTRL_SHOW_VRR_VISUAL_INDICATOR),
-    MAKE_ENTRY(NV_CTRL_GPU_SCALING_DEFAULT_TARGET),
-    MAKE_ENTRY(NV_CTRL_GPU_SCALING_DEFAULT_METHOD),
-    MAKE_ENTRY(NV_CTRL_DITHERING_MODE),
-    MAKE_ENTRY(NV_CTRL_CURRENT_DITHERING),
-    MAKE_ENTRY(NV_CTRL_CURRENT_DITHERING_MODE),
-    MAKE_ENTRY(NV_CTRL_THERMAL_SENSOR_READING),
-    MAKE_ENTRY(NV_CTRL_THERMAL_SENSOR_PROVIDER),
-    MAKE_ENTRY(NV_CTRL_THERMAL_SENSOR_TARGET),
-    MAKE_ENTRY(NV_CTRL_GPU_PCIE_MAX_LINK_SPEED),
-    MAKE_ENTRY(NV_CTRL_3D_VISION_PRO_RESET_TRANSCEIVER_TO_FACTORY_SETTINGS),
-    MAKE_ENTRY(NV_CTRL_3D_VISION_PRO_TRANSCEIVER_CHANNEL),
-    MAKE_ENTRY(NV_CTRL_3D_VISION_PRO_TRANSCEIVER_MODE),
-    MAKE_ENTRY(NV_CTRL_SYNCHRONOUS_PALETTE_UPDATES),
-    MAKE_ENTRY(NV_CTRL_DITHERING_DEPTH),
-    MAKE_ENTRY(NV_CTRL_CURRENT_DITHERING_DEPTH),
-    MAKE_ENTRY(NV_CTRL_3D_VISION_PRO_TRANSCEIVER_CHANNEL_FREQUENCY),
-    MAKE_ENTRY(NV_CTRL_3D_VISION_PRO_TRANSCEIVER_CHANNEL_QUALITY),
-    MAKE_ENTRY(NV_CTRL_3D_VISION_PRO_TRANSCEIVER_CHANNEL_COUNT),
-    MAKE_ENTRY(NV_CTRL_3D_VISION_PRO_PAIR_GLASSES),
-    MAKE_ENTRY(NV_CTRL_3D_VISION_PRO_UNPAIR_GLASSES),
-    MAKE_ENTRY(NV_CTRL_3D_VISION_PRO_DISCOVER_GLASSES),
-    MAKE_ENTRY(NV_CTRL_3D_VISION_PRO_IDENTIFY_GLASSES),
-    MAKE_ENTRY(NV_CTRL_3D_VISION_PRO_GLASSES_SYNC_CYCLE),
-    MAKE_ENTRY(NV_CTRL_3D_VISION_PRO_GLASSES_MISSED_SYNC_CYCLES),
-    MAKE_ENTRY(NV_CTRL_3D_VISION_PRO_GLASSES_BATTERY_LEVEL),
-    MAKE_ENTRY(NV_CTRL_3D_VISION_PRO_GLASSES_BATTERY_LEVEL),
-    MAKE_ENTRY(NV_CTRL_3D_VISION_PRO_GLASSES_PAIR_EVENT),
-    MAKE_ENTRY(NV_CTRL_3D_VISION_PRO_GLASSES_UNPAIR_EVENT),
-    MAKE_ENTRY(NV_CTRL_GPU_PCIE_CURRENT_LINK_WIDTH),
-    MAKE_ENTRY(NV_CTRL_GPU_PCIE_CURRENT_LINK_SPEED),
-    MAKE_ENTRY(NV_CTRL_CURRENT_METAMODE_ID),
-    MAKE_ENTRY(NV_CTRL_DISPLAY_ENABLED),
-    MAKE_ENTRY(NV_CTRL_FRAMELOCK_INCOMING_HOUSE_SYNC_RATE),
-    MAKE_ENTRY(NV_CTRL_FXAA),
-    MAKE_ENTRY(NV_CTRL_DISPLAY_RANDR_OUTPUT_ID),
-    MAKE_ENTRY(NV_CTRL_FRAMELOCK_DISPLAY_CONFIG),
-    MAKE_ENTRY(NV_CTRL_TOTAL_DEDICATED_GPU_MEMORY),
-    MAKE_ENTRY(NV_CTRL_USED_DEDICATED_GPU_MEMORY),
-    MAKE_ENTRY(NV_CTRL_DPY_HDMI_3D),
-    MAKE_ENTRY(NV_CTRL_BASE_MOSAIC),
-    MAKE_ENTRY(NV_CTRL_MULTIGPU_PRIMARY_POSSIBLE),
-    MAKE_ENTRY(NV_CTRL_GPU_POWER_MIZER_DEFAULT_MODE),
-    MAKE_ENTRY(NV_CTRL_XV_SYNC_TO_DISPLAY_ID),
-    MAKE_ENTRY(NV_CTRL_CURRENT_XV_SYNC_TO_DISPLAY_ID),
-    MAKE_ENTRY(NV_CTRL_PALETTE_UPDATE_EVENT),
-    MAKE_ENTRY(NV_CTRL_VRR_ALLOWED),
-    MAKE_ENTRY(NV_CTRL_DISPLAY_VRR_MODE),
-    MAKE_ENTRY(NV_CTRL_DISPLAY_VRR_MIN_REFRESH_RATE),
-    { -1, NULL, NULL }
-};
+} /* attr2str() */

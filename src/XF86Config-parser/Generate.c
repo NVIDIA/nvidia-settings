@@ -4,17 +4,22 @@
  *
  * Copyright (C) 2005 NVIDIA Corporation
  *
- * This program is free software; you can redistribute it and/or modify it
- * under the terms and conditions of the GNU General Public License,
- * version 2, as published by the Free Software Foundation.
- *
- * This program is distributed in the hope that it will be useful, but WITHOUT
- * ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or
- * FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License for
- * more details.
- *
+ * This program is free software; you can redistribute it and/or
+ * modify it under the terms of the GNU General Public License as
+ * published by the Free Software Foundation; either version 2 of the
+ * License, or (at your option) any later version.
+ * 
+ * This program is distributed in the hope that it will be useful, but
+ * WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the GNU
+ * General Public License for more details.
+ * 
  * You should have received a copy of the GNU General Public License
- * along with this program; if not, see <http://www.gnu.org/licenses>.
+ * along with this program; if not, write to the:
+ *
+ *      Free Software Foundation, Inc.
+ *      59 Temple Place - Suite 330
+ *      Boston, MA 02111-1307, USA
  *
  *
  * Generate.c
@@ -37,7 +42,7 @@
 #define KEYBOARD_IDENTIFER "Keyboard0"
 
 #define SCREEN_IDENTIFIER "Screen%d"
-#define DEVICE_IDENTIFIER "%sDevice%d"
+#define DEVICE_IDENTIFIER "Device%d"
 #define MONITOR_IDENTIFIER "Monitor%d"
 
 
@@ -45,6 +50,9 @@ static int is_file(const char *filename);
 
 static void add_font_path(GenerateOptions *gop, XConfigPtr config);
 static void add_modules(GenerateOptions *gop, XConfigPtr config);
+
+static XConfigDevicePtr
+add_device(XConfigPtr config, int bus, int slot, char *boardname, int count);
 
 static void add_layout(GenerateOptions *gop, XConfigPtr config);
 
@@ -58,7 +66,7 @@ static void add_inputref(XConfigPtr config, XConfigLayoutPtr layout,
 XConfigPtr xconfigGenerate(GenerateOptions *gop)
 {
     XConfigPtr config;
-
+    
     config = xconfigAlloc(sizeof(XConfigRec));
 
     /* add files, fonts, and modules */
@@ -91,43 +99,41 @@ XConfigPtr xconfigGenerate(GenerateOptions *gop)
  */
 
 XConfigScreenPtr xconfigGenerateAddScreen(XConfigPtr config,
-                                          int bus, int domain, int slot,
-                                          char *boardname, int count,
-                                          const char *driver,
-                                          const char *vendor)
+                                          int bus, int slot,
+                                          char *boardname, int count)
 {
     XConfigScreenPtr screen, s;
     XConfigDevicePtr device;
     XConfigMonitorPtr monitor;
-
+    
     monitor = xconfigAddMonitor(config, count);
-    device = add_device(config, bus, domain, slot, boardname, count,
-                        driver, vendor, TRUE /* active */);
-
+    device = add_device(config, bus, slot, boardname, count);
+    
     screen = xconfigAlloc(sizeof(XConfigScreenRec));
 
     screen->identifier = xconfigAlloc(32);
     snprintf(screen->identifier, 32, SCREEN_IDENTIFIER, count);
-
+    
     screen->device_name = xconfigStrdup(device->identifier);
     screen->device = device;
 
     screen->monitor_name = xconfigStrdup(monitor->identifier);
     screen->monitor = monitor;
-
+        
     screen->defaultdepth = 24;
-
-    xconfigAddDisplay(&screen->displays, screen->defaultdepth);
+    
+    screen->displays = xconfigAddDisplay(screen->displays,
+                                         screen->defaultdepth);
 
     /* append to the end of the screen list */
-
+    
     if (!config->screens) {
         config->screens = screen;
     } else {
         for (s = config->screens; s->next; s = s->next);
         s->next = screen;
     }
-
+    
     return screen;
 
 } /* xconfigGenerateAddScreen() */
@@ -144,16 +150,16 @@ XConfigScreenPtr xconfigGenerateAddScreen(XConfigPtr config,
 void xconfigGenerateAssignScreenAdjacencies(XConfigLayoutPtr layout)
 {
     XConfigAdjacencyPtr adj, prev = NULL;
-
+    
     for (adj = layout->adjacencies; adj; adj = adj->next) {
-
+        
         if (prev) {
             adj->where = CONF_ADJ_RIGHTOF;
             adj->refscreen = xconfigStrdup(prev->screen_name);
         } else {
             adj->x = adj->y = -1;
         }
-
+        
         /* make sure all the obsolete positioning is empty */
 
         adj->top = NULL;
@@ -164,10 +170,10 @@ void xconfigGenerateAssignScreenAdjacencies(XConfigLayoutPtr layout)
         adj->left_name = NULL;
         adj->right = NULL;
         adj->right_name = NULL;
-
+        
         prev = adj;
     }
-
+    
 } /* xconfigGenerateAssignScreenAdjacencies() */
 
 
@@ -183,7 +189,7 @@ void xconfigGenerateAssignScreenAdjacencies(XConfigLayoutPtr layout)
 static int is_file(const char *filename)
 {
     return (access(filename, F_OK) == 0);
-
+    
 } /* is_file() */
 
 
@@ -203,14 +209,14 @@ static char *find_libdir(GenerateOptions *gop)
     struct stat stat_buf;
     FILE *stream = NULL;
     char *s, *libdir = NULL;
-
+    
     /*
      * run the pkg-config command and read the output; if the output
      * is a directory, then return that as the libdir
      */
-
+    
     stream = popen("pkg-config --variable=libdir xorg-server", "r");
-
+    
     if (stream) {
         char buf[256];
 
@@ -218,23 +224,23 @@ static char *find_libdir(GenerateOptions *gop)
 
         while (1) {
             if (fgets(buf, 255, stream) == NULL) break;
-
+            
             if (buf[0] != '\0') {
 
                 /* truncate any newline */
-
+                
                 s = strchr(buf, '\n');
                 if (s) *s = '\0';
 
                 if ((stat(buf, &stat_buf) == 0) &&
                     (S_ISDIR(stat_buf.st_mode))) {
-
+                
                     libdir = xconfigStrdup(buf);
                     break;
                 }
             }
         }
-
+        
         pclose(stream);
 
         if (libdir) return libdir;
@@ -243,7 +249,7 @@ static char *find_libdir(GenerateOptions *gop)
     /* otherwise, just fallback to [X PROJECT ROOT]/lib */
 
     return xconfigStrcat(gop->x_project_root, "/lib", NULL);
-
+    
 } /* find_libdir() */
 
 
@@ -259,12 +265,12 @@ static void add_font_path(GenerateOptions *gop, XConfigPtr config)
 {
     int i, ret;
     char *path, *p, *orig, *fonts_dir, *libdir;
-
+    
     /*
      * The below font path has been constructed from various examples
      * and uses some suggests from the Font De-uglification HOWTO
      */
-
+    
     static const char *__font_paths[] = {
         "LIBDIR/X11/fonts/local/",
         "LIBDIR/X11/fonts/misc/:unscaled",
@@ -287,7 +293,7 @@ static void add_font_path(GenerateOptions *gop, XConfigPtr config)
         "/usr/lib/openoffice/share/fonts/truetype",
         NULL
     };
-
+    
     /*
      * if a font server is running, set the font path to that
      *
@@ -307,7 +313,7 @@ static void add_font_path(GenerateOptions *gop, XConfigPtr config)
         /* get the X server libdir */
 
         libdir = find_libdir(gop);
-
+        
         for (i = 0; __font_paths[i]; i++) {
             path = xconfigStrdup(__font_paths[i]);
 
@@ -318,7 +324,7 @@ static void add_font_path(GenerateOptions *gop, XConfigPtr config)
                 free(path);
                 path = p;
             }
-
+        
             /* temporarily chop off any ":unscaled" appendage */
 
             p = strchr(path, ':');
@@ -334,7 +340,7 @@ static void add_font_path(GenerateOptions *gop, XConfigPtr config)
                 continue;
             }
             free(fonts_dir);
-
+        
             /* add the ":unscaled" back */
 
             if (p) *p = ':';
@@ -380,29 +386,29 @@ static void add_modules(GenerateOptions *gop, XConfigPtr config)
     if (gop->autoloads_glx) return;
 
     config->modules = xconfigAlloc(sizeof(XConfigModuleRec));
-
-    xconfigAddNewLoadDirective(&l, xconfigStrdup("dbe"),
-                               XCONFIG_LOAD_MODULE, NULL, FALSE);
-    xconfigAddNewLoadDirective(&l, xconfigStrdup("extmod"),
-                               XCONFIG_LOAD_MODULE, NULL, FALSE);
-    xconfigAddNewLoadDirective(&l, xconfigStrdup("type1"),
-                               XCONFIG_LOAD_MODULE, NULL, FALSE);
+    
+    l = xconfigAddNewLoadDirective(l, xconfigStrdup("dbe"),
+                                   XCONFIG_LOAD_MODULE, NULL, FALSE);
+    l = xconfigAddNewLoadDirective(l, xconfigStrdup("extmod"),
+                                   XCONFIG_LOAD_MODULE, NULL, FALSE);
+    l = xconfigAddNewLoadDirective(l, xconfigStrdup("type1"),
+                                   XCONFIG_LOAD_MODULE, NULL, FALSE);
 #if defined(NV_SUNOS)
-    xconfigAddNewLoadDirective(&l, xconfigStrdup("IA"),
-                               XCONFIG_LOAD_MODULE, NULL, FALSE);
-    xconfigAddNewLoadDirective(&l, xconfigStrdup("bitstream"),
-                               XCONFIG_LOAD_MODULE, NULL, FALSE);
-    xconfigAddNewLoadDirective(&l, xconfigStrdup("xtsol"),
-                               XCONFIG_LOAD_MODULE, NULL, FALSE);
+    l = xconfigAddNewLoadDirective(l, xconfigStrdup("IA"),
+                                   XCONFIG_LOAD_MODULE, NULL, FALSE);
+    l = xconfigAddNewLoadDirective(l, xconfigStrdup("bitstream"),
+                                   XCONFIG_LOAD_MODULE, NULL, FALSE);
+    l = xconfigAddNewLoadDirective(l, xconfigStrdup("xtsol"),
+                                   XCONFIG_LOAD_MODULE, NULL, FALSE);
 #else
-    xconfigAddNewLoadDirective(&l, xconfigStrdup("freetype"),
-                               XCONFIG_LOAD_MODULE, NULL, FALSE);
+    l = xconfigAddNewLoadDirective(l, xconfigStrdup("freetype"),
+                                   XCONFIG_LOAD_MODULE, NULL, FALSE);
 #endif
-    xconfigAddNewLoadDirective(&l, xconfigStrdup("glx"),
-                               XCONFIG_LOAD_MODULE, NULL, FALSE);
-
+    l = xconfigAddNewLoadDirective(l, xconfigStrdup("glx"),
+                                   XCONFIG_LOAD_MODULE, NULL, FALSE);
+    
     config->modules->loads = l;
-
+    
 } /* add_modules() */
 
 
@@ -416,30 +422,42 @@ static void add_modules(GenerateOptions *gop, XConfigPtr config)
 XConfigMonitorPtr xconfigAddMonitor(XConfigPtr config, int count)
 {
     XConfigMonitorPtr monitor, m;
+    XConfigOptionPtr opt = NULL;
 
     /* XXX need to query resman for the EDID */
 
     monitor = xconfigAlloc(sizeof(XConfigMonitorRec));
-
+    
     monitor->identifier = xconfigAlloc(32);
     snprintf(monitor->identifier, 32, MONITOR_IDENTIFIER, count);
     monitor->vendor = xconfigStrdup("Unknown");  /* XXX */
     monitor->modelname = xconfigStrdup("Unknown"); /* XXX */
+    
+    /* XXX check EDID for freq ranges */
 
-    monitor->options = NULL;
-    xconfigAddNewOption(&monitor->options, "DPMS", NULL);
+    monitor->n_hsync = 1;
+    monitor->hsync[0].lo = 30.0;
+    monitor->hsync[0].hi = 110.0;
+
+    monitor->n_vrefresh = 1;
+    monitor->vrefresh[0].lo = 50.0;
+    monitor->vrefresh[0].hi = 150.0;
+
+    opt = xconfigAddNewOption(opt, "DPMS", NULL);
+
+    monitor->options = opt;
 
     /* append to the end of the monitor list */
-
+    
     if (!config->monitors) {
         config->monitors = monitor;
     } else {
         for (m = config->monitors; m->next; m = m->next);
         m->next = monitor;
     }
-
+    
     return monitor;
-
+   
 } /* xconfigAddMonitor() */
 
 
@@ -448,49 +466,46 @@ XConfigMonitorPtr xconfigAddMonitor(XConfigPtr config, int count)
  * add_device()
  */
 
-XConfigDevicePtr add_device(XConfigPtr config, int bus, int domain,
-                            int slot, char *boardname, int count,
-                            const char *driver, const char *vendor, int active)
+static XConfigDevicePtr
+add_device(XConfigPtr config, int bus, int slot, char *boardname, int count)
 {
     XConfigDevicePtr device, d;
 
     device = xconfigAlloc(sizeof(XConfigDeviceRec));
 
     device->identifier = xconfigAlloc(32);
-    snprintf(device->identifier, 32, DEVICE_IDENTIFIER,
-             active ? "" : "Inactive", count);
-    device->index_id = count;
-    device->driver = xconfigStrdup(driver);
-    device->vendor = xconfigStrdup(vendor);
+    snprintf(device->identifier, 32, DEVICE_IDENTIFIER, count);
+    device->driver = xconfigStrdup("nvidia");
+    device->vendor = xconfigStrdup("NVIDIA Corporation");
 
-    if (bus != -1 && domain != -1 && slot != -1) {
+    if (bus != -1 && slot != -1) {
         device->busid = xconfigAlloc(32);
-        xconfigFormatPciBusString(device->busid, 32, domain, bus, slot, 0);
+        snprintf(device->busid, 32, "PCI:%d:%d:0", bus, slot);
     }
 
     if (boardname) device->board = xconfigStrdup(boardname);
-
+    
     device->chipid = -1;
     device->chiprev = -1;
     device->irq = -1;
     device->screen = -1;
-
+    
     /* append to the end of the device list */
-
+    
     if (!config->devices) {
         config->devices = device;
     } else {
         for (d = config->devices; d->next; d = d->next);
         d->next = device;
     }
-
+    
     return device;
-
+    
 } /* add_device() */
 
 
 
-void xconfigAddDisplay(XConfigDisplayPtr *pHead, const int depth)
+XConfigDisplayPtr xconfigAddDisplay(XConfigDisplayPtr head, const int depth)
 {
     XConfigDisplayPtr display;
 
@@ -502,8 +517,9 @@ void xconfigAddDisplay(XConfigDisplayPtr *pHead, const int depth)
     display->black.red = -1;
     display->white.red = -1;
 
-    display->next = *pHead;
-    *pHead = display;
+    display->next = head;
+    
+    return display;
 }
 
 
@@ -517,34 +533,33 @@ static void add_layout(GenerateOptions *gop, XConfigPtr config)
     XConfigLayoutPtr layout;
     XConfigAdjacencyPtr adj;
     XConfigScreenPtr screen;
-
+    
     /* assume 1 X screen */
 
-    screen = xconfigGenerateAddScreen(config, -1, -1, -1, NULL, 0,
-                                      "nvidia", "NVIDIA Corporation");
-
+    screen = xconfigGenerateAddScreen(config, -1, -1, NULL, 0);
+    
     /* create layout */
 
     layout = xconfigAlloc(sizeof(XConfigLayoutRec));
-
+    
     layout->identifier = xconfigStrdup("Layout0");
-
+    
     adj = xconfigAlloc(sizeof(XConfigAdjacencyRec));
 
     adj->scrnum = 0;
     adj->screen = screen;
     adj->screen_name = xconfigStrdup(screen->identifier);
-
+    
     layout->adjacencies = adj;
-
+    
     xconfigGenerateAssignScreenAdjacencies(layout);
-
+    
     add_inputref(config, layout, MOUSE_IDENTIFER, "CorePointer");
     add_inputref(config, layout, KEYBOARD_IDENTIFER, "CoreKeyboard");
-
+    
     layout->next = config->layouts;
     config->layouts = layout;
-
+    
 } /* add_layout() */
 
 
@@ -561,8 +576,8 @@ static void add_inputref(XConfigPtr config, XConfigLayoutPtr layout,
     inputRef = xconfigAlloc(sizeof(XConfigInputrefRec));
     inputRef->input_name = xconfigStrdup(name);
     inputRef->input = xconfigFindInput(inputRef->input_name, config->inputs);
-    inputRef->options = NULL;
-    xconfigAddNewOption(&inputRef->options, coreKeyword, NULL);
+    inputRef->options =
+        xconfigAddNewOption(NULL, coreKeyword, NULL);
     inputRef->next = layout->inputs;
     layout->inputs = inputRef;
 
@@ -593,9 +608,19 @@ typedef struct {
  * core 1.  That file contains the following copyright:
  *
  *
+ *
  * mouse.py: mouse configuration data
  *
  * Copyright 1999-2002 Red Hat, Inc.
+ *
+ * This software may be freely redistributed under the terms of the GNU
+ * library public license.
+ *
+ * You should have received a copy of the GNU Library Public License
+ * along with this program; if not, write to the Free Software
+ * Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
+ *
+ *
  */
 
 static const MouseEntry __mice[] = {
@@ -731,7 +756,7 @@ static const MouseEntry *find_closest_mouse_entry(const char *device,
 {
     int i;
     int emulate3 = FALSE;
-
+    
     /*
      * translate the emulate3 string into a boolean we can use below
      * for comparison
@@ -747,20 +772,20 @@ static const MouseEntry *find_closest_mouse_entry(const char *device,
     /*
      * skip the "/dev/" part of the device filename
      */
-
+    
     if (device && (strncmp(device, "/dev/", 5) == 0)) {
         device += 5; /* strlen("/dev/") */
     }
-
+    
     for (i = 0; __mice[i].name; i++) {
         if ((device) && (strcmp(device, __mice[i].device) != 0)) continue;
         if ((proto) && (strcasecmp(proto, __mice[i].Xproto)) != 0) continue;
         if ((emulate3_str) && (emulate3 != __mice[i].emulate3)) continue;
         return &__mice[i];
     }
-
+    
     return NULL;
-
+    
 } /* find_closest_mouse_entry() */
 
 
@@ -780,14 +805,14 @@ static char *find_config_entry(const char *filename, const char *keyword)
     char *tmp, *start, *c, *end;
     struct stat stat_buf;
     size_t len;
-
+    
     if ((fd = open(filename, O_RDONLY)) == -1) goto done;
-
+    
     if (fstat(fd, &stat_buf) == -1) goto done;
-
+    
     if ((data = mmap(0, stat_buf.st_size, PROT_READ, MAP_SHARED,
                      fd, 0)) == (void *) -1) goto done;
-
+    
     /*
      * create a sysmem copy of the buffer, so that we can explicitly
      * NULL terminate it
@@ -799,9 +824,9 @@ static char *find_config_entry(const char *filename, const char *keyword)
 
     memcpy(buf, data, stat_buf.st_size);
     buf[stat_buf.st_size] = '\0';
-
+    
     /* search for the keyword */
-
+    
     start = buf;
 
     while (TRUE) {
@@ -816,7 +841,7 @@ static char *find_config_entry(const char *filename, const char *keyword)
 
         c = tmp;
         while ((c >= start) && (*c != '\n') && (*c != '#')) c--;
-
+        
         if (*c == '#') {
             /* keyword was commented out... search again */
             start = tmp+1;
@@ -833,9 +858,9 @@ static char *find_config_entry(const char *filename, const char *keyword)
     /* there must be something between the start and the end */
 
     if (start == end) goto done;
-
+    
     /* take what is between as the value */
-
+    
     len = end - start;
     value = xconfigAlloc(len + 1);
     strncpy(value, start, len);
@@ -850,7 +875,7 @@ static char *find_config_entry(const char *filename, const char *keyword)
         free(value);
         value = tmp;
     }
-
+    
  done:
 
     if (buf) free(buf);
@@ -858,7 +883,7 @@ static char *find_config_entry(const char *filename, const char *keyword)
     if (fd != -1) close(fd);
 
     return value;
-
+    
 } /* find_config_entry() */
 
 
@@ -870,13 +895,13 @@ static char *find_config_entry(const char *filename, const char *keyword)
 void xconfigGeneratePrintPossibleMice(void)
 {
     int i;
-
+    
     printf("%-25s%-35s\n\n", "Short Name", "Name");
-
+    
     for (i = 0; __mice[i].name; i++) {
         printf("%-25s%-35s\n", __mice[i].shortname, __mice[i].name);
     }
-
+    
     printf("\n");
 
 } /* xconfigGeneratePrintPossibleMice() */
@@ -903,10 +928,11 @@ int xconfigAddMouse(GenerateOptions *gop, XConfigPtr config)
 {
     const MouseEntry *entry = NULL;
     XConfigInputPtr input;
+    XConfigOptionPtr opt = NULL;
     char *device_path, *comment = "default";
-
+    
     /* if the user specified on the commandline, use that */
-
+    
     if (gop->mouse) {
         entry = find_mouse_entry(gop->mouse);
         if (entry) {
@@ -916,19 +942,19 @@ int xconfigAddMouse(GenerateOptions *gop, XConfigPtr config)
                             gop->mouse);
         }
     }
-
+    
     /*
      * if /etc/sysconfig/mouse exists, and contains valid data, use
      * that
      */
-
+    
     if (!entry) {
         char *protocol, *device, *emulate3;
-
+        
         device = find_config_entry("/etc/sysconfig/mouse", "DEVICE=");
         protocol = find_config_entry("/etc/sysconfig/mouse", "XMOUSETYPE=");
         emulate3 = find_config_entry("/etc/sysconfig/mouse", "XEMU3=");
-
+        
         if (device || protocol || emulate3) {
             entry = find_closest_mouse_entry(device, protocol, emulate3);
             if (entry) {
@@ -941,10 +967,10 @@ int xconfigAddMouse(GenerateOptions *gop, XConfigPtr config)
 
     if (!entry) {
         char *protocol, *device;
-
+        
         protocol = find_config_entry("/etc/conf.d/gpm", "MOUSE=");
         device = find_config_entry("/etc/conf.d/gpm", "MOUSEDEV=");
-
+        
         if (protocol && device) {
             MouseEntry *e = xconfigAlloc(sizeof(MouseEntry));
             e->shortname = "custom";
@@ -957,7 +983,7 @@ int xconfigAddMouse(GenerateOptions *gop, XConfigPtr config)
             comment = "data in \"/etc/conf.d/gpm\"";
         }
     }
-
+    
     /*
      * XXX we could try to infer the settings from the commandline
      * options gpm is using
@@ -966,9 +992,9 @@ int xconfigAddMouse(GenerateOptions *gop, XConfigPtr config)
     if (!entry) {
         /* XXX implement me */
     }
-
+    
     /* at this point, we must have a mouse entry */
-
+    
     if (!entry) {
         MouseEntry *e = xconfigAlloc(sizeof(MouseEntry));
         e->Xproto = "auto";
@@ -991,7 +1017,7 @@ int xconfigAddMouse(GenerateOptions *gop, XConfigPtr config)
     /* add a new mouse input section */
 
     input = xconfigAlloc(sizeof(XConfigInputRec));
-
+    
     input->comment = xconfigStrcat("    # generated from ",
                                    comment, "\n", NULL);
     input->identifier = xconfigStrdup("Mouse0");
@@ -999,26 +1025,27 @@ int xconfigAddMouse(GenerateOptions *gop, XConfigPtr config)
 
     device_path = xconfigStrcat("/dev/", entry->device, NULL);
 
-    input->options = NULL;
-    xconfigAddNewOption(&input->options, "Protocol", entry->Xproto);
-    xconfigAddNewOption(&input->options, "Device", device_path);
-    xconfigAddNewOption(&input->options, "Emulate3Buttons",
+    opt = xconfigAddNewOption(opt, "Protocol", entry->Xproto);
+    opt = xconfigAddNewOption(opt, "Device", device_path);
+    opt = xconfigAddNewOption(opt, "Emulate3Buttons",
                               (entry->emulate3 ? "yes" : "no"));
     TEST_FREE(device_path);
-
-
+    
+    
     /*
      * This will make wheel mice work, and non-wheel mice should
      * ignore ZAxisMapping
      */
 
-    xconfigAddNewOption(&input->options, "ZAxisMapping", "4 5");
-
+    opt = xconfigAddNewOption(opt, "ZAxisMapping", "4 5");
+    
+    input->options = opt;
+    
     input->next = config->inputs;
     config->inputs = input;
-
+    
     return TRUE;
-
+    
 } /* xconfigAddMouse() */
 
 
@@ -1048,16 +1075,31 @@ typedef struct {
  *
  *
  * keyboard_models.py - keyboard model list
- *
+ * 
  * Brent Fox <bfox@redhat.com>
  * Mike Fulbright <msf@redhat.com>
  * Jeremy Katz <katzj@redhat.com>
- *
+ * 
  * Copyright 2002 Red Hat, Inc.
+ * 
+ * This program is free software; you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License as published by
+ * the Free Software Foundation; either version 2 of the License, or
+ * (at your option) any later version.
+ * 
+ * This program is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * GNU General Public License for more details.
+ * 
+ * You should have received a copy of the GNU General Public License
+ * along with this program; if not, write to the Free Software
+ * Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
+ *
  */
 
 static const KeyboardEntry __keyboards[] = {
-
+    
     /* keytable               name                              layout         model  variant options */
 
     { "be-latin1",            "Belgian (be-latin1)",            "be",          "pc105", NULL, NULL },
@@ -1150,13 +1192,13 @@ static const KeyboardEntry *find_keyboard_entry(char *value)
 void xconfigGeneratePrintPossibleKeyboards(void)
 {
     int i;
-
+    
     printf("%-25s%-35s\n\n", "Short Name", "Name");
 
     for (i = 0; __keyboards[i].name; i++) {
         printf("%-25s%-35s\n", __keyboards[i].keytable, __keyboards[i].name);
     }
-
+    
     printf("\n");
 
 } /* xconfigGeneratePrintPossibleKeyboards() */
@@ -1179,13 +1221,14 @@ int xconfigAddKeyboard(GenerateOptions *gop, XConfigPtr config)
 {
     char *value, *comment = "default";
     const KeyboardEntry *entry = NULL;
-
+    
     XConfigInputPtr input;
-
+    XConfigOptionPtr opt = NULL;
+    
     /*
      * if the user specified on the command line, use that
      */
-
+    
     if (gop->keyboard) {
         entry = find_keyboard_entry(gop->keyboard);
         if (entry) {
@@ -1195,7 +1238,7 @@ int xconfigAddKeyboard(GenerateOptions *gop, XConfigPtr config)
                             gop->keyboard);
         }
     }
-
+    
     /*
      * if /etc/sysconfig/keyboard exists, and contains a valid
      * KEYTABLE entry, use that
@@ -1213,9 +1256,9 @@ int xconfigAddKeyboard(GenerateOptions *gop, XConfigPtr config)
     }
 
     /* add a new keyboard input section */
-
+    
     input = xconfigAlloc(sizeof(XConfigInputRec));
-
+    
     input->comment = xconfigStrcat("    # generated from ",
                                    comment, "\n", NULL);
     input->identifier = xconfigStrdup("Keyboard0");
@@ -1227,40 +1270,42 @@ int xconfigAddKeyboard(GenerateOptions *gop, XConfigPtr config)
      * otherwise, use "keyboard".
      * On Solaris, use the default "keyboard"
      */
-
+    
     if (gop->keyboard_driver) {
         input->driver = gop->keyboard_driver;
     } else {
 #if defined(NV_SUNOS) || defined(NV_BSD)
         input->driver = xconfigStrdup("keyboard");
 #else
-        input->driver = xconfigStrdup("kbd");
+        if (gop->xserver == X_IS_XORG) {
+            input->driver = xconfigStrdup("kbd");
+        } else {
+            input->driver = xconfigStrdup("keyboard");
+        }
 #endif
     }
-
+    
     /*
      * set additional keyboard options, based on the Keyboard table
      * entry we found above
      */
 
-    input->options = NULL;
+    if (entry && entry->layout)
+        opt = xconfigAddNewOption(opt, "XkbLayout", entry->layout);
+    if (entry && entry->model)
+        opt = xconfigAddNewOption(opt, "XkbModel", entry->model);
+    if (entry && entry->variant)
+        opt = xconfigAddNewOption(opt, "XkbVariant", entry->variant);
+    if (entry && entry->options)
+        opt = xconfigAddNewOption(opt, "XkbOptions", entry->options);
 
-    if (entry) {
-        if (entry->layout)
-            xconfigAddNewOption(&input->options, "XkbLayout", entry->layout);
-        if (entry->model)
-            xconfigAddNewOption(&input->options, "XkbModel", entry->model);
-        if (entry->variant)
-            xconfigAddNewOption(&input->options, "XkbVariant", entry->variant);
-        if (entry->options)
-            xconfigAddNewOption(&input->options, "XkbOptions", entry->options);
-    }
-
+    input->options = opt;
+    
     input->next = config->inputs;
     config->inputs = input;
 
     return TRUE;
-
+    
 } /* xconfigAddKeyboard() */
 
 
@@ -1278,18 +1323,18 @@ static char *xconfigGetDefaultProjectRoot(void)
     char *paths[] = { "/usr/X11R6", "/usr/X11", NULL };
     struct stat stat_buf;
     int i;
-
+        
     for (i = 0; paths[i]; i++) {
-
+        
         if (stat(paths[i], &stat_buf) == -1) {
             continue;
         }
-
+    
         if (S_ISDIR(stat_buf.st_mode)) {
             return paths[i];
         }
     }
-
+    
     /* default to "/usr/X11R6", I guess */
 
     return paths[0];
@@ -1303,13 +1348,15 @@ static char *xconfigGetDefaultProjectRoot(void)
  * get_xserver_information() - parse the versionString (from `X
  * -version`) and assign relevant information that we infer from the X
  * server version.
+ *
+ * Note: this implementation should be shared with nvidia-installer
  */
 
 static int get_xserver_information(const char *versionString,
+                                   int *isXorg,
+                                   int *isModular,
                                    int *autoloadsGLX,
-                                   int *supportsExtensionSection,
-                                   int *xineramaPlusCompositeWorks,
-                                   const char **compositeExtensionName)
+                                   int *supportsExtensionSection)
 {
 #define XSERVER_VERSION_FORMAT_1 "X Window System Version"
 #define XSERVER_VERSION_FORMAT_2 "X.Org X Server"
@@ -1320,9 +1367,16 @@ static int get_xserver_information(const char *versionString,
     /* check if this is an XFree86 X server */
 
     if (strstr(versionString, "XFree86 Version")) {
-        xconfigErrorMsg(WarnMsg, "XFree86 is not supported.");
-        return FALSE;
+        *isXorg = FALSE;
+        *isModular = FALSE;
+        *autoloadsGLX = FALSE;
+        *supportsExtensionSection = FALSE;
+        return TRUE;
     }
+
+    /* this must be an X.Org X server */
+
+    *isXorg = TRUE;
 
     /* attempt to parse the major.minor version out of the string */
 
@@ -1342,6 +1396,17 @@ static int get_xserver_information(const char *versionString,
     /* if we can't parse the version, give up */
 
     if (!found) return FALSE;
+
+    /*
+     * isModular: X.Org X11R6.x X servers are monolithic, all others
+     * are modular
+     */
+
+    if (major == 6) {
+        *isModular = FALSE;
+    } else {
+        *isModular = TRUE;
+    }
 
     /*
      * supportsExtensionSection: support for the "Extension" xorg.conf
@@ -1368,29 +1433,6 @@ static int get_xserver_information(const char *versionString,
         *autoloadsGLX = FALSE;
     } else {
         *autoloadsGLX = TRUE;
-    }
-
-    /*
-     * support for Xinerama and Composite at the same time works on X.Org
-     * xserver 1.15.
-     */
-
-    if ((major == 6) || (major == 7) || ((major == 1) && (minor < 15))) {
-        *xineramaPlusCompositeWorks = FALSE;
-    } else {
-        *xineramaPlusCompositeWorks = TRUE;
-    }
-    
-    /*
-     * With X.Org xserver version 1.20, the name of the composite
-     * extension was changed from "Composite" to "COMPOSITE". As of
-     * that release extension names are case-sensitive so we must 
-     * ensure the correct case is used.
-     */
-    if (major == 1 && minor >= 20) {
-        *compositeExtensionName = "COMPOSITE";
-    } else {
-        *compositeExtensionName = "Composite";
     }
 
     return TRUE;
@@ -1421,25 +1463,25 @@ static int get_xserver_information(const char *versionString,
 void xconfigGetXServerInUse(GenerateOptions *gop)
 {
     FILE *stream = NULL;
-    int len, found;
+    int xserver = -1;
+    int isXorg;
+    int dummy, len, found;
     char *cmd, *ptr, *ret;
-
+    
     gop->supports_extension_section = FALSE;
     gop->autoloads_glx = FALSE;
-    gop->xinerama_plus_composite_works = FALSE;
-    gop->compositeExtensionName = NULL;
 
     /* run `X -version` with a PATH that hopefully includes the X binary */
-
+    
     cmd = xconfigStrcat("PATH=", gop->x_project_root, ":",
                         EXTRA_PATH, ":$PATH ", XSERVER_BIN_NAME,
                         " -version 2>&1", NULL);
-
+    
     if ((stream = popen(cmd, "r"))) {
         char buf[NV_LINE_LEN];
-
+        
         /* read in as much of the input as we can fit into the buffer */
-
+        
         ptr = buf;
 
         do {
@@ -1447,25 +1489,45 @@ void xconfigGetXServerInUse(GenerateOptions *gop)
             ret = fgets(ptr, len, stream);
             ptr = strchr(ptr, '\0');
         } while ((ret != NULL) && (len > 1));
-
+        
         /*
          * process the `X -version` output to infer relevant
          * information from this X server
          */
-
+        
         found = get_xserver_information(buf,
+                                        &isXorg,
+                                        &dummy, /* isModular */
                                         &gop->autoloads_glx,
-                                        &gop->supports_extension_section,
-                                        &gop->xinerama_plus_composite_works,
-                                        &gop->compositeExtensionName);
-
-        if (!found) {
+                                        &gop->supports_extension_section);
+                
+        if (found) {
+            if (isXorg) {
+                xserver = X_IS_XORG;
+            } else {
+                xserver = X_IS_XF86;
+            }
+        } else {
             xconfigErrorMsg(WarnMsg, "Unable to parse X.Org version string.");
         }
     }
     /* Close the popen()'ed stream. */
     pclose(stream);
     free(cmd);
+
+    if (xserver == -1) {
+        char *xorgpath;
+
+        xorgpath = xconfigStrcat(gop->x_project_root, "/bin/Xorg", NULL);
+        if (access(xorgpath, F_OK)==0) {
+            xserver = X_IS_XORG;
+        } else {
+            xserver = X_IS_XF86;
+        }
+        free(xorgpath);
+    }
+    
+    gop->xserver=xserver;
 
 } /* xconfigGetXServerInUse() */
 
@@ -1483,6 +1545,7 @@ void xconfigGenerateLoadDefaultOptions(GenerateOptions *gop)
     gop->x_project_root = xconfigGetDefaultProjectRoot();
 
     /* XXX What to default the following to?
+       gop->xserver
        gop->keyboard
        gop->mouse
        gop->keyboard_driver

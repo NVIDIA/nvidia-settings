@@ -4,17 +4,22 @@
  *
  * Copyright (C) 2004 NVIDIA Corporation.
  *
- * This program is free software; you can redistribute it and/or modify it
- * under the terms and conditions of the GNU General Public License,
- * version 2, as published by the Free Software Foundation.
+ * This program is free software; you can redistribute it and/or
+ * modify it under the terms of Version 2 of the GNU General Public
+ * License as published by the Free Software Foundation.
  *
- * This program is distributed in the hope that it will be useful, but WITHOUT
- * ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or
- * FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License for
- * more details.
+ * This program is distributed in the hope that it will be useful, but
+ * WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See Version 2
+ * of the GNU General Public License for more details.
  *
  * You should have received a copy of the GNU General Public License
- * along with this program.  If not, see <http://www.gnu.org/licenses>.
+ * along with this program; if not, write to the:
+ *
+ *           Free Software Foundation, Inc.
+ *           59 Temple Place - Suite 330
+ *           Boston, MA 02111-1307, USA
+ *
  */
 
 /*
@@ -24,8 +29,35 @@
 #ifndef __PARSE_H__
 #define __PARSE_H__
 
-#include "NvCtrlAttributes.h"
 
+/*
+ * Flag values used in the flags field of the ParsedAttribute struct.
+ */
+
+#define NV_PARSER_HAS_X_DISPLAY                (1<<0)
+#define NV_PARSER_HAS_TARGET                   (1<<2)
+#define NV_PARSER_HAS_DISPLAY_DEVICE           (1<<3)
+#define NV_PARSER_HAS_VAL                      (1<<4)
+
+/*
+ * Flag values used in the flags field of the AttributeTableEntry struct.
+ */
+
+#define NV_PARSER_TYPE_FRAMELOCK               (1<<16)
+#define NV_PARSER_TYPE_COLOR_ATTRIBUTE         (1<<17)
+#define NV_PARSER_TYPE_NO_CONFIG_WRITE         (1<<18)
+#define NV_PARSER_TYPE_GUI_ATTRIUBUTE          (1<<19)
+#define NV_PARSER_TYPE_XVIDEO_ATTRIBUTE        (1<<20)
+#define NV_PARSER_TYPE_PACKED_ATTRIBUTE        (1<<21)
+#define NV_PARSER_TYPE_VALUE_IS_DISPLAY        (1<<22)
+#define NV_PARSER_TYPE_NO_QUERY_ALL            (1<<23)
+#define NV_PARSER_TYPE_NO_ZERO_VALUE           (1<<24)
+#define NV_PARSER_TYPE_100Hz                   (1<<25)
+#define NV_PARSER_TYPE_STRING_ATTRIBUTE        (1<<26)
+#define NV_PARSER_TYPE_ASSIGN_ALL_DISPLAYS     (1<<27)
+#define NV_PARSER_TYPE_VALUE_IS_SWITCH_DISPLAY (1<<28)
+#define NV_PARSER_TYPE_1000Hz                  (1<<29)
+#define NV_PARSER_TYPE_SDI                     (1<<30)
 
 #define NV_PARSER_ASSIGNMENT 0
 #define NV_PARSER_QUERY 1
@@ -55,41 +87,13 @@
 #define NV_PARSER_STATUS_TARGET_SPEC_NO_TARGET_ID           13
 #define NV_PARSER_STATUS_TARGET_SPEC_BAD_TARGET_ID          14
 #define NV_PARSER_STATUS_TARGET_SPEC_TRAILING_GARBAGE       15
-#define NV_PARSER_STATUS_TARGET_SPEC_NO_TARGETS             16
+
 
 /*
  * define useful types
  */
 
 typedef unsigned int uint32;
-
-
-/*
- * flags common to all attributes ('flags' in AttributeTableEntry)
- */
-
-typedef struct AttributeFlagsRec {
-    int is_gui_attribute       : 1;
-    int is_framelock_attribute : 1;
-    int hijack_display_device  : 1;
-    int no_config_write        : 1;
-    int no_query_all           : 1;
-} AttributeFlags;
-
-
-/*
- * flags specific to integer attributes ('type_flags' in AttributeTableEntry)
- */
-
-typedef struct AttributeIntFlagsRec {
-    int is_100Hz          : 1;
-    int is_1000Hz         : 1;
-    int is_packed         : 1;
-    int is_display_mask   : 1;
-    int is_display_id     : 1;
-    int no_zero           : 1;
-    int is_switch_display : 1;
-} AttributeIntFlags;
 
 
 /*
@@ -101,14 +105,7 @@ typedef struct AttributeIntFlagsRec {
 typedef struct _AttributeTableEntry {
     char *name;
     int attr;
-
-    CtrlAttributeType type;
-    AttributeFlags flags;
-    union {
-        AttributeIntFlags int_flags;
-    } f;
-
-    char *desc;
+    uint32 flags;
 } AttributeTableEntry;
 
 
@@ -118,44 +115,16 @@ typedef struct _AttributeTableEntry {
  */
 
 typedef struct _ParsedAttribute {
-    struct _ParsedAttribute *next;
-
     char *display;
-    char *target_specification;
-    /*
-     * The target_type and target_id here are mostly set by the GUI to store
-     * target-specific information, as well as the cmd line for handling the
-     * case where an X screen is specified as part of the display (e.g.
-     * "localhost:0.1").  Note that if the target_specification is specified,
-     * the target_type and target_id are ignored when resolving to the list of
-     * targets that should be operated on.
-     */
+    char *name;
     int target_type;
     int target_id;
-    const AttributeTableEntry *attr_entry;
-    union {
-        int i;
-        float f;
-        const float *pf;
-        char *str;
-    } val;
-    char *display_device_specification;
+    int attr;
+    int val;
+    float fval; /* XXX put in a union with val? */
     uint32 display_device_mask;
-
-    struct {
-        int has_x_display       : 1;
-        int has_target          : 1;
-        int has_display_device  : 1;
-        int has_value           : 1;
-        int assign_all_displays : 1;
-    } parser_flags;
-
-    /*
-     * Upon being resolved, the ParsedAttribute's target_type and target_id,
-     * and/or target_specification get converted into a list of targets to
-     * which the attribute should be processed.
-     */
-    struct _CtrlTargetNode *targets;
+    uint32 flags;
+    struct _ParsedAttribute *next;
 } ParsedAttribute;
 
 
@@ -164,10 +133,47 @@ typedef struct _ParsedAttribute {
  * Attribute table; defined in parse.c
  */
 
-extern const AttributeTableEntry attributeTable[];
-extern const int attributeTableLen;
+extern AttributeTableEntry attributeTable[];
 
 
+/*
+ * Indices into CtrlHandles->targets[] array; stored in
+ * TargetTypeEntry.target_index.
+ */
+
+#define X_SCREEN_TARGET  0
+#define GPU_TARGET       1
+#define FRAMELOCK_TARGET 2
+#define VCS_TARGET       3
+#define MAX_TARGET_TYPES 4
+
+
+
+/*
+ * TargetTypeEntry - an array of these structures defines the values
+ * associated with each target type.
+ */
+
+typedef struct {
+    char *name;        /* string describing the TargetType */
+    char *parsed_name; /* name used by parser */
+    int target_index;  /* index into the CtrlHandles->targets[] array */
+    int nvctrl;        /* NV-CONTROL target type value (NV_CTRL_TARGET_TYPE) */
+    
+    /* flag set in NVCTRLAttributeValidValuesRec.permissions */
+    unsigned int permission_bit;
+    
+    /* whether this target type is aware of display devices */
+    int uses_display_devices;
+    
+} TargetTypeEntry;
+
+
+/*
+ * TargetType table; defined in parse.c
+ */
+
+extern TargetTypeEntry targetTypeTable[];
 
 /*
  * nv_parse_attribute_string() - this function parses an attribute
@@ -180,7 +186,7 @@ extern const int attributeTableLen;
  * the default X server is used.  If no X screen is specified, then
  * all X screens on the X server are used.
  *
- * {screen}/ may be specified by itself (i.e.: without the
+ * {screen}/ may be specified by itself (ie: without the
  * "{host}:{display}." part).
  *
  * Additionally, instead of specifying a screen, a target
@@ -203,7 +209,7 @@ extern const int attributeTableLen;
  *
  * The query parameter controls whether the attribute string is parsed
  * for setting or querying.  If query == NV_PARSER_SET, then the
- * attribute string will be interpreted as described above.  If query
+ * attribute string will be interpretted as described above.  If query
  * == NV_PARSER_QUERY, the "={value}" portion of the string should be
  * omitted.
  *
@@ -225,7 +231,7 @@ int nv_parse_attribute_string(const char *, int, ParsedAttribute *);
  * field, if a screen is specified in the display name.
  */
 
-void nv_assign_default_display(ParsedAttribute *p, const char *display);
+void nv_assign_default_display(ParsedAttribute *a, const char *display);
 
 
 /*
@@ -234,7 +240,7 @@ void nv_assign_default_display(ParsedAttribute *p, const char *display);
  * describing the error.
  */
 
-const char *nv_parse_strerror(int);
+char *nv_parse_strerror(int);
 
 int nv_strcasecmp(const char *, const char *);
 
@@ -243,7 +249,7 @@ char *remove_spaces(const char *o);
 char *replace_characters(const char *o, const char c, const char r);
 
 /*
- * display_mask/display_name conversions: the NV-CONTROL X extension
+ * diaplay_mask/display_name conversions: the NV-CONTROL X extension
  * identifies a display device by a bit in a display device mask.  The
  * below functions translate between a display mask, and a string
  * describing the display devices.
@@ -269,18 +275,19 @@ char *replace_characters(const char *o, const char c, const char r);
 
 
 char *display_device_mask_to_display_device_name(const uint32);
+uint32 display_device_name_to_display_device_mask(const char *);
 
-uint32 expand_display_device_mask_wildcards(const uint32);
+uint32 expand_display_device_mask_wildcards(const uint32, const uint32);
 
 ParsedAttribute *nv_parsed_attribute_init(void);
 
-void nv_parsed_attribute_add(ParsedAttribute *head, ParsedAttribute *p);
+void nv_parsed_attribute_add(ParsedAttribute *head, ParsedAttribute *a);
 
 void nv_parsed_attribute_free(ParsedAttribute *p);
 void nv_parsed_attribute_clean(ParsedAttribute *p);
 
-const AttributeTableEntry *nv_get_attribute_entry(const int attr,
-                                                  const CtrlAttributeType type);
+const char *nv_get_attribute_name(const int attr, const int flagsMask,
+                                  const int flags);
 
 char *nv_standardize_screen_name(const char *display_name, int screen);
 
@@ -288,7 +295,6 @@ char *nv_standardize_screen_name(const char *display_name, int screen);
 
 /* General parsing functions */
 
-int nv_parse_numerical(const char *start, const char *end, int *val);
 const char *parse_skip_whitespace(const char *str);
 void parse_chop_whitespace(char *str);
 const char *parse_skip_integer(const char *str);
@@ -297,11 +303,8 @@ const char *parse_read_integer_pair(const char *str,
                                     const char separator, int *a, int *b);
 const char *parse_read_name(const char *str, char **name, char term);
 const char *parse_read_display_name(const char *str, unsigned int *mask);
-const char *parse_read_display_id(const char *str, unsigned int *id);
-int parse_read_float_range(const char *str, float *min, float *max);
-char **nv_strtok(char *s, char c, int *n);
-void nv_free_strtoks(char **s, int n);
-int count_number_of_bits(unsigned int mask);
+int parse_read_float_range(char *str, float *min, float *max);
+
 
 /* Token parsing functions */
 

@@ -4,24 +4,34 @@
  *
  * Copyright (C) 2004 NVIDIA Corporation.
  *
- * This program is free software; you can redistribute it and/or modify it
- * under the terms and conditions of the GNU General Public License,
- * version 2, as published by the Free Software Foundation.
+ * This program is free software; you can redistribute it and/or
+ * modify it under the terms of Version 2 of the GNU General Public
+ * License as published by the Free Software Foundation.
  *
- * This program is distributed in the hope that it will be useful, but WITHOUT
- * ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or
- * FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License for
- * more details.
+ * This program is distributed in the hope that it will be useful, but
+ * WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See Version 2
+ * of the GNU General Public License for more details.
  *
  * You should have received a copy of the GNU General Public License
- * along with this program.  If not, see <http://www.gnu.org/licenses>.
+ * along with this program; if not, write to the:
+ *
+ *           Free Software Foundation, Inc.
+ *           59 Temple Place - Suite 330
+ *           Boston, MA 02111-1307, USA
+ *
  */
 
-#include <stdlib.h>
-#include <string.h>
+#include <stdlib.h> /* malloc */
+#include <unistd.h> /* lseek, close */
+#include <string.h> /* strlen,  strdup */
+#include <errno.h>
+
+#include <fcntl.h>
+#include <sys/mman.h>
+#include <sys/types.h>
 #include <sys/stat.h>
-#include <assert.h>
-#include <math.h>
+#include <pwd.h>
 
 #include <gtk/gtk.h>
 #include <gdk/gdkx.h>
@@ -32,13 +42,10 @@
 
 #include "msg.h"
 #include "parse.h"
-#include "lscf.h"
-
-#include "nvvr.h"
 
 #include "ctkutils.h"
 
-#include "ctkbanner.h"
+#include "ctkimage.h"
 #include "ctkevent.h"
 #include "ctkhelp.h"
 #include "ctkdisplayconfig.h"
@@ -51,48 +58,25 @@ void layout_modified_callback(nvLayoutPtr layout, void *data);
 
 static void setup_layout_frame(CtkDisplayConfig *ctk_object);
 
-static void setup_selected_item_dropdown(CtkDisplayConfig *ctk_object);
-
-static void selected_item_changed(GtkWidget *widget, gpointer user_data);
-
-static void update_selected_page(CtkDisplayConfig *ctk_object);
-
 static void setup_display_page(CtkDisplayConfig *ctk_object);
 
-static void mosaic_state_toggled(GtkWidget *widget, gpointer user_data);
+static void display_config_clicked(GtkWidget *widget, gpointer user_data);
 
-static void display_config_changed(GtkWidget *widget, gpointer user_data);
 static void display_resolution_changed(GtkWidget *widget, gpointer user_data);
 static void display_refresh_changed(GtkWidget *widget, gpointer user_data);
-
-static void display_stereo_changed(GtkWidget *widget, gpointer user_data);
-static void display_rotation_changed(GtkWidget *widget, gpointer user_data);
-static void display_reflection_changed(GtkWidget *widget, gpointer user_data);
-
-static void display_underscan_value_changed(GtkAdjustment *adjustment,
-                                           gpointer user_data);
-static void display_underscan_activate(GtkWidget *widget, gpointer user_data);
+static void display_modelname_changed(GtkWidget *widget, gpointer user_data);
 
 static void display_position_type_changed(GtkWidget *widget, gpointer user_data);
 static void display_position_offset_activate(GtkWidget *widget, gpointer user_data);
 static void display_position_relative_changed(GtkWidget *widget, gpointer user_data);
 
-static void display_viewport_in_activate(GtkWidget *widget, gpointer user_data);
-static void display_viewport_out_activate(GtkWidget *widget,
-                                          gpointer user_data);
 static void display_panning_activate(GtkWidget *widget, gpointer user_data);
-
-static void update_force_gsync_button(CtkDisplayConfig *ctk_object);
+static gboolean display_panning_focus_out(GtkWidget *widget, GdkEvent *event,
+                                          gpointer user_data);
 
 static void setup_screen_page(CtkDisplayConfig *ctk_object);
 
-static void screen_virtual_size_activate(GtkWidget *widget, gpointer user_data);
-static gboolean txt_focus_out(GtkWidget *widget, GdkEvent *event,
-                              gpointer user_data);
-
 static void screen_depth_changed(GtkWidget *widget, gpointer user_data);
-
-static void screen_stereo_changed(GtkWidget *widget, gpointer user_data);
 
 static void screen_position_type_changed(GtkWidget *widget, gpointer user_data);
 static void screen_position_offset_activate(GtkWidget *widget, gpointer user_data);
@@ -103,10 +87,13 @@ static void screen_metamode_activate(GtkWidget *widget, gpointer user_data);
 static void screen_metamode_add_clicked(GtkWidget *widget, gpointer user_data);
 static void screen_metamode_delete_clicked(GtkWidget *widget, gpointer user_data);
 
-static void setup_prime_display_page(CtkDisplayConfig *ctk_object);
+static void xconfig_preview_clicked(GtkWidget *widget, gpointer user_data);
+static void xconfig_file_clicked(GtkWidget *widget, gpointer user_data);
+static void xconfig_merge_toggled(GtkWidget *widget, gpointer user_data);
+static void xconfig_file_activate(GtkWidget *widget, gpointer user_data);
+static gboolean update_xconfig_save_buffer(CtkDisplayConfig *ctk_object);
 
 static void xinerama_state_toggled(GtkWidget *widget, gpointer user_data);
-static void mosaic_config_clicked(GtkWidget *widget, gpointer user_data);
 static void apply_clicked(GtkWidget *widget, gpointer user_data);
 static void save_clicked(GtkWidget *widget, gpointer user_data);
 static void probe_clicked(GtkWidget *widget, gpointer user_data);
@@ -114,21 +101,9 @@ static void advanced_clicked(GtkWidget *widget, gpointer user_data);
 static void reset_clicked(GtkWidget *widget, gpointer user_data);
 static void validation_details_clicked(GtkWidget *widget, gpointer user_data);
 
-static void display_config_attribute_changed(GtkWidget *object,
-                                             CtrlEvent *event,
-                                             gpointer user_data);
-static void reset_layout(CtkDisplayConfig *ctk_object);
-static gboolean force_layout_reset(gpointer user_data);
-static void user_changed_attributes(CtkDisplayConfig *ctk_object);
-static void update_forcecompositionpipeline_buttons(CtkDisplayConfig
-                                                    *ctk_object);
+static int generateXConfig(CtkDisplayConfig *ctk_object, XConfigPtr *pConfig);
+static void update_banner(XConfigPtr config);
 
-static XConfigPtr xconfig_generate(XConfigPtr xconfCur,
-                                   Bool merge,
-                                   Bool *merged,
-                                   void *callback_data);
-
-static void update_layout(CtkDisplayConfig *ctk_object);
 
 
 
@@ -162,9 +137,8 @@ typedef struct SwitchModeCallbackInfoRec {
 #define VALIDATE_APPLY 0
 #define VALIDATE_SAVE  1
 
-/* Underscan range of values */
-#define UNDERSCAN_MIN_PERCENT 0
-#define UNDERSCAN_MAX_PERCENT 35
+#define SCREEN_DEPTH_COUNT 4
+
 
 /*** G L O B A L S ***********************************************************/
 
@@ -179,89 +153,39 @@ static int __position_table[] = { CONF_ADJ_ABSOLUTE,
 /* Layout tooltips */
 
 static const char * __layout_hidden_label_help =
-"To select a display, use the \"Selection\" dropdown menu.";
+"To select a display, use the \"Model\" dropdown menu.";
 
 static const char * __layout_xinerama_button_help =
 "The Enable Xinerama checkbox enables the Xinerama X extension; changing "
-"this option will require restarting your X server.  Note that when Xinerama "
-"is enabled, resolution changes will also require restarting your X server.";
+"this option will require restarting your X server.";
 
-static const char * __selected_item_help =
-"The Selection drop-down allows you to pick which X screen or display device "
-"to configure.";
 
 /* Display tooltips */
 
-static const char * __dpy_configuration_mnu_help =
-"The Configure drop-down allows you to select the desired configuration "
-"for the currently selected display device.";
-
-static const char * __layout_sli_mosaic_button_help =
-"The Enable SLI Mosaic checkbox enables SLI Mosaic for all GPUs";
-
-static const char * __layout_base_mosaic_surround_button_help =
-"The Enable Base Mosaic (Surround) checkbox enables Surround, where up to 3 "
-"displays are supported.";
-
-static const char * __layout_base_mosaic_full_button_help =
-"The Enable Base Mosaic checkbox enables Base Mosaic.";
-
-static const char * __layout_mosaic_config_button_help =
-"The Configure SLI Mosaic Displays button will open a dialog to assist in "
-"configuring multiple displays.";
+static const char * __dpy_model_help =
+"The Display drop-down allows you to select a desired display device.";
 
 static const char * __dpy_resolution_mnu_help =
 "The Resolution drop-down allows you to select a desired resolution "
-"for the currently selected display device.  The 'scaled' qualifier indicates "
-"an aspect-scaled common resolution simulated through a MetaMode ViewPort "
-"configuration.";
+"for the currently selected display device.";
 
 static const char * __dpy_refresh_mnu_help =
 "The Refresh drop-down allows you to select a desired refresh rate "
 "for the currently selected display device.  Note that the selected "
 "resolution may restrict the available refresh rates.";
 
-static const char * __dpy_stereo_help =
-"The Display Passive Stereo Eye drop-down allows you to select a desired "
-"stereo eye the display should output when Passive Stereo (Mode 4) is "
-"enabled.";
-
-static const char * __dpy_rotation_help =
-"The Display Rotation drop-down allows you to select the desired orientation "
-"for the display.";
-
-static const char * __dpy_reflection_help =
-"The Display Reflection drop-down allows you to choose the axes across which "
-"monitor contents should be reflected.";
-
-static const char * __dpy_viewport_in_help =
-"This defines the width and height in pixels of the region that should be "
-"displayed from the desktop.";
-
-static const char * __dpy_viewport_out_help =
-"This defines the width, height, and offset of the output region in raster "
-"space, into which the ViewPortIn is to be displayed (along with any "
-"transform, such as rotation, reflection, etc.)";
-
 static const char * __dpy_position_type_help =
 "The Position Type drop-down allows you to set how the selected display "
-"device is placed within the X screen.  This is only available when "
-"multiple display devices are present.";
+"device is placed within the X screen.";
 
 static const char * __dpy_position_relative_help =
 "The Position Relative drop-down allows you to set which other display "
 "device (within the X screen) the selected display device should be "
-"relative to.  This is only available when multiple display "
-"devices are present.";
-
-static const char * __dpy_underscan_text_help =
-"The Underscan feature allows configuration of an underscan border "
-"(in pixels) around the ViewPortOut.";
+"relative to.";
 
 static const char * __dpy_position_offset_help =
 "The Position Offset identifies the top left of the display device "
-"as an offset from the top left of the X screen position.  This is only "
-"available when multiple display devices are present.";
+"as an offset from the top left of the X screen position.";
 
 static const char * __dpy_panning_help =
 "The Panning Domain sets the total width/height that the display "
@@ -273,51 +197,24 @@ static const char * __dpy_primary_help =
 "important windows etc; changing this option may require restarting your X "
 "server, depending on your window manager.";
 
-static const char * __dpy_forcecompositionpipeline_help =
-"The NVIDIA X driver can use a composition pipeline to apply X screen "
-"transformations and rotations. \"ForceCompositionPipeline\" can be used to "
-"force the use of this pipeline, even when no transformations or rotations are "
-"applied to the screen. This option is implicitly set by "
-"ForceFullCompositionPipeline.";
-
-static const char * __dpy_forcefullcompositionpipeline_help =
-"This option implicitly enables \"ForceCompositionPipeline\" and additionally "
-"makes use of the composition pipeline to apply ViewPortOut scaling.";
-
-static const char * __dpy_force_allow_gsync_help =
-"This option allows enabling G-SYNC on displays that are not validated as "
-"G-SYNC Compatible.";
-
 /* Screen tooltips */
-
-static const char * __screen_virtual_size_help =
-"The Virtual Size allows setting the size of the resulting X screen.  "
-"The virtual size must be at least large enough to hold all the display "
-"devices that are currently enabled for scanout.";
 
 static const char * __screen_depth_help =
 "The Depth drop-down allows setting of the color quality for the selected "
 "screen; changing this option will require restarting your X server.";
 
-static const char * __screen_stereo_help =
-"The Stereo Mode drop-down allows setting of the stereo mode for the selected "
-"screen; changing this option will require restarting your X server.";
-
 static const char * __screen_position_type_help =
-"The Position Type drop-down appears when two or more X screens are active.  "
-"This allows you to set how the selected screen "
+"The Position Type drop-down allows you to set how the selected screen "
 "is placed within the X server layout; changing this option will require "
 "restarting your X server.";
 
 static const char * __screen_position_relative_help =
-"The Position Relative drop-down appears when two or more X screens "
-"are active.  This allows you to set which other Screen "
+"The Position Relative drop-down allows you to set which other Screen "
 "the selected screen should be relative to; changing this option will "
 "require restarting your X server.";
 
 static const char * __screen_position_offset_help =
-"The Position Offset drop-down appears when two or more X screens "
-"are active.  This identifies the top left of the selected Screen as "
+"The Position Offset identifies the top left of the selected Screen as "
 "an offset from the top left of the X server layout in absolute coordinates; "
 "changing this option will require restarting your X server.";
 
@@ -336,19 +233,6 @@ static const char * __screen_metamode_delete_button_help =
 "MetaMode for the screen;  This option can be applied to your currently "
 "running X server.";
 
-/* Prime Display tooltips */
-
-static const char *__prime_viewport_help =
-"This shows the width, height, and offset in pixels of the region that "
-"should be displayed from the desktop.";
-
-static const char *__prime_name_help =
-"This is the name of the display.";
-
-static const char *__prime_sync_help =
-"This shows the status of synchronization for the PRIME display. Without "
-"synchronization, applications will not be able to sync to the display's "
-"vblank.";
 
 /* General button tooltips */
 
@@ -385,13 +269,13 @@ static const char * __save_button_help =
 
 static void get_cur_screen_pos(CtkDisplayConfig *ctk_object)
 {
-    nvScreenPtr screen = ctk_display_layout_get_selected_screen
+    nvDisplayPtr display = ctk_display_layout_get_selected_display
         (CTK_DISPLAY_LAYOUT(ctk_object->obj_layout));
+    
+    if (!display || !display->screen) return;
 
-    if (!screen) return;
-
-    ctk_object->cur_screen_pos.x = screen->dim.x;
-    ctk_object->cur_screen_pos.y = screen->dim.y;
+    ctk_object->cur_screen_pos[X] = display->screen->dim[X];
+    ctk_object->cur_screen_pos[Y] = display->screen->dim[Y];
 
 } /* get_cur_screen_pos() */
 
@@ -406,17 +290,17 @@ static void get_cur_screen_pos(CtkDisplayConfig *ctk_object)
 
 static void check_screen_pos_changed(CtkDisplayConfig *ctk_object)
 {
-    GdkPoint old_pos;
+    int old_dim[2];
 
     /* Cache the old position */
-    old_pos.x = ctk_object->cur_screen_pos.x;
-    old_pos.y = ctk_object->cur_screen_pos.y;
+    old_dim[X] = ctk_object->cur_screen_pos[X];
+    old_dim[Y] = ctk_object->cur_screen_pos[Y];
 
     /* Get the new position */
     get_cur_screen_pos(ctk_object);
 
-    if (old_pos.x != ctk_object->cur_screen_pos.x ||
-        old_pos.y != ctk_object->cur_screen_pos.y) {
+    if (old_dim[X] != ctk_object->cur_screen_pos[X] ||
+        old_dim[Y] != ctk_object->cur_screen_pos[Y]) {
         ctk_object->apply_possible = FALSE;
     }
 
@@ -426,141 +310,23 @@ static void check_screen_pos_changed(CtkDisplayConfig *ctk_object)
 
 /** layout_supports_depth_30() ***************************************
  *
- * Returns TRUE if all the screens in the layout are driven by GPUs
- * that support depth 30.
+ * Returns TRUE if all the GPUs in the layout that have screens
+ * support depth 30.
  *
  **/
 
 static gboolean layout_supports_depth_30(nvLayoutPtr layout)
 {
-    nvScreenPtr screen;
+    nvGpuPtr gpu;
 
-    for (screen = layout->screens; screen; screen = screen->next_in_layout) {
-        if (!screen->allow_depth_30) {
+    for (gpu = layout->gpus; gpu; gpu = gpu->next) {
+        if ((gpu->num_screens) && (!gpu->allow_depth_30)) {
             return FALSE;
         }
     }
     return TRUE;
 
 } /* layout_supports_depth_30() */
-
-
-
-/** register_layout_events() *****************************************
- *
- * Registers to display-configuration related events relating to all
- * parts of the given layout structure.
- *
- **/
-
-static void register_layout_events(CtkDisplayConfig *ctk_object)
-{
-    nvLayoutPtr layout = ctk_object->layout;
-    nvScreenPtr screen;
-    nvGpuPtr gpu;
-
-
-    /* Register for GPU events */
-    for (gpu = layout->gpus; gpu; gpu = gpu->next_in_layout) {
-
-        if (gpu->ctrl_target == NULL) {
-            continue;
-        }
-
-        g_signal_connect(G_OBJECT(gpu->ctk_event),
-                         CTK_EVENT_NAME(NV_CTRL_PROBE_DISPLAYS),
-                         G_CALLBACK(display_config_attribute_changed),
-                         (gpointer) ctk_object);
-
-        g_signal_connect(G_OBJECT(gpu->ctk_event),
-                         CTK_EVENT_NAME(NV_CTRL_MODE_SET_EVENT),
-                         G_CALLBACK(display_config_attribute_changed),
-                         (gpointer) ctk_object);
-    }
-
-    /* Register for X screen events */
-    for (screen = layout->screens; screen; screen = screen->next_in_layout) {
-
-        if (screen->ctrl_target == NULL) {
-            continue;
-        }
-
-        g_signal_connect(G_OBJECT(screen->ctk_event),
-                         CTK_EVENT_NAME(NV_CTRL_STRING_NVIDIA_XINERAMA_INFO_ORDER),
-                         G_CALLBACK(display_config_attribute_changed),
-                         (gpointer) ctk_object);
-
-        g_signal_connect(G_OBJECT(screen->ctk_event),
-                         CTK_EVENT_NAME(NV_CTRL_STRING_MOVE_METAMODE),
-                         G_CALLBACK(display_config_attribute_changed),
-                         (gpointer) ctk_object);
-
-        g_signal_connect(G_OBJECT(screen->ctk_event),
-                         CTK_EVENT_NAME(NV_CTRL_STRING_DELETE_METAMODE),
-                         G_CALLBACK(display_config_attribute_changed),
-                         (gpointer) ctk_object);
-
-        if (screen->num_prime_displays > 0) {
-            g_signal_connect(G_OBJECT(screen->ctk_event),
-                             CTK_EVENT_NAME(NV_CTRL_STRING_PRIME_OUTPUTS_DATA),
-                             G_CALLBACK(display_config_attribute_changed),
-                             (gpointer) ctk_object);
-        }
-    }
-
-} /* register_layout_events() */
-
-
-
-/** unregister_layout_events() *****************************************
- *
- * Unregisters display-configuration related events relating to all
- * parts of the given layout structure as registered by 
-
- * Unregisters all Screen/Gpu events.
- *
- **/
-
-static void unregister_layout_events(CtkDisplayConfig *ctk_object)
-{
-    nvLayoutPtr layout = ctk_object->layout;
-    nvScreenPtr screen;
-    nvGpuPtr gpu;
-
-
-    /* Unregister GPU events */
-    for (gpu = layout->gpus; gpu; gpu = gpu->next_in_layout) {
-
-        if (gpu->ctrl_target == NULL) {
-            continue;
-        }
-
-        g_signal_handlers_disconnect_matched(G_OBJECT(gpu->ctk_event),
-                                             G_SIGNAL_MATCH_FUNC | G_SIGNAL_MATCH_DATA,
-                                             0, // Signal ID
-                                             0, // Signal Detail
-                                             NULL, // Closure
-                                             G_CALLBACK(display_config_attribute_changed),
-                                             (gpointer) ctk_object);
-    }
-
-    /* Unregister X screen events */
-    for (screen = layout->screens; screen; screen = screen->next_in_layout) {
-
-        if (screen->ctrl_target == NULL) {
-            continue;
-        }
-
-        g_signal_handlers_disconnect_matched(G_OBJECT(screen->ctk_event),
-                                             G_SIGNAL_MATCH_FUNC | G_SIGNAL_MATCH_DATA,
-                                             0, // Signal ID
-                                             0, // Signal Detail
-                                             NULL, // Closure
-                                             G_CALLBACK(display_config_attribute_changed),
-                                             (gpointer) ctk_object);
-    }
-
-} /* unregister_layout_events() */
 
 
 
@@ -575,6 +341,7 @@ static void consolidate_xinerama(CtkDisplayConfig *ctk_object,
                                  nvScreenPtr screen)
 {
     nvLayoutPtr layout = ctk_object->layout;
+    nvGpuPtr gpu;
     nvScreenPtr other;
 
     if (!layout->xinerama_enabled) return;
@@ -595,43 +362,14 @@ static void consolidate_xinerama(CtkDisplayConfig *ctk_object,
     }
 
     /* If Xinerama is enabled, all screens must have the same depth. */
-    for (other = layout->screens; other; other = other->next_in_layout) {
-
-        if (other == screen) continue;
-
-        other->depth = screen->depth;
+    for (gpu = screen->gpu->layout->gpus; gpu; gpu = gpu->next) {
+        for (other = gpu->screens; other; other = other->next) {
+            if (other == screen) continue;
+            other->depth = screen->depth;
+        }
     }
 
 } /* consolidate_xinerama() */
-
-
-
-/** update_btn_apply() **************************************************
- *
- * Updates the apply button's sensitivity
- *
- **/
-
-static void update_btn_apply(CtkDisplayConfig *ctk_object, Bool sensitive)
-{
-    /*
-     * Both the apply and write quit warnings are sent whenever anything changes
-     * in the display configuration so that the apply button is enabled. The
-     * apply warning is cleared when the config is applied and the button reset
-     * here. The save warning is cleared when the config is successfully saved.
-     */
-    if (sensitive) {
-        ctk_object->ctk_config->pending_config |=
-            CTK_CONFIG_PENDING_APPLY_DISPLAY_CONFIG;
-        ctk_object->ctk_config->pending_config |=
-            CTK_CONFIG_PENDING_WRITE_DISPLAY_CONFIG;
-    } else {
-        ctk_object->ctk_config->pending_config &=
-            ~CTK_CONFIG_PENDING_APPLY_DISPLAY_CONFIG;
-    }
-    gtk_widget_set_sensitive(ctk_object->btn_apply, sensitive);
-
-} /* update_btn_apply() */
 
 
 
@@ -676,9 +414,9 @@ void xconfigPrint(MsgType t, const char *msg)
         }
     }
     
-    if (newline) fprintf(stream, "\n");
-    fprintf(stream, "%s %s\n", prefix, msg);
-    if (newline) fprintf(stream, "\n");
+    if (newline) printf("\n");
+    printf("%s %s\n", prefix, msg);
+    if (newline) printf("\n");
     
 } /* xconfigPrint */
 
@@ -701,8 +439,28 @@ static int generate_xconf_metamode_str(CtkDisplayConfig *ctk_object,
     gchar *tmp;
     int metamode_idx;
     nvMetaModePtr metamode;
+    int len = 0;
     int start_width;
     int start_height;
+
+    int vendrel = NvCtrlGetVendorRelease(ctk_object->handle);
+    char *vendstr = NvCtrlGetServerVendor(ctk_object->handle);
+    int xorg_major;
+    int xorg_minor;
+    Bool longStringsOK;
+
+
+    /* Only X.Org 7.2 or > supports long X config lines */
+    xorg_major = (vendrel / 10000000);
+    xorg_minor = (vendrel / 100000) % 100;
+
+    if (g_strrstr(vendstr, "X.Org") &&
+        ((xorg_major > 7) || ((xorg_major == 7) && (xorg_minor >= 2)))) {
+        longStringsOK = TRUE;
+    } else {
+        longStringsOK = FALSE;
+    }
+
 
     /* In basic view, always specify the currently selected
      * metamode first in the list so the X server starts
@@ -710,22 +468,23 @@ static int generate_xconf_metamode_str(CtkDisplayConfig *ctk_object,
      */
     if (!ctk_object->advanced_mode) {
         metamode_strs = screen_get_metamode_str(screen,
-                                                screen->cur_metamode_idx, 0);
-        start_width = screen->cur_metamode->edim.width;
-        start_height = screen->cur_metamode->edim.height;
+                                                screen->cur_metamode_idx, 1);
+        len = strlen(metamode_strs);
+        start_width = screen->cur_metamode->edim[W];
+        start_height = screen->cur_metamode->edim[H];
     } else {
-        start_width = screen->metamodes->edim.width;
-        start_height = screen->metamodes->edim.height;
+        start_width = screen->metamodes->edim[W];
+        start_height = screen->metamodes->edim[H];        
     }
 
     for (metamode_idx = 0, metamode = screen->metamodes;
          (metamode_idx < screen->num_metamodes) && metamode;
          metamode_idx++, metamode = metamode->next) {
+        
+        int metamode_len;
 
         /* Only write out metamodes that were specified by the user */
-        if (!IS_METAMODE_SOURCE_USER(metamode->source)) {
-            continue;
-        }
+        if (!(metamode->source & METAMODE_SOURCE_USER)) continue;
 
         /* The current mode was already included */
         if (!ctk_object->advanced_mode &&
@@ -739,21 +498,78 @@ static int generate_xconf_metamode_str(CtkDisplayConfig *ctk_object,
          *     in an unwanted panning domain being setup for the first mode.
          */
         if ((!ctk_object->advanced_mode) &&
-            ((metamode->edim.width > start_width) ||
-             (metamode->edim.height > start_height)))
+            ((metamode->edim[W] > start_width) ||
+             (metamode->edim[H] > start_height)))
             continue;
-
-        metamode_str = screen_get_metamode_str(screen, metamode_idx, 0);
+        
+        metamode_str = screen_get_metamode_str(screen, metamode_idx, 1);
 
         if (!metamode_str) continue;
+        
+        metamode_len = strlen(metamode_str);
+        if (!longStringsOK && (len + metamode_len > 900)) {
+            GtkWidget *dlg;
+            gchar *msg;
+            GtkWidget *parent;
+            gint result;
+            
+            msg = g_strdup_printf
+                ("Truncate the MetaMode list?\n"
+                 "\n"
+                 "Long MetaMode strings (greater than 900 characters) are not\n"
+                 "supported by the current X server.  Truncating the MetaMode\n"
+                 "list, so that the MetaMode string fits within 900 characters,\n"
+                 "will cause only the first %d MetaModes to be written to the X\n"
+                 "configuration file.\n"
+                 "\n"
+                 "NOTE: Writing all the MetaModes to the X Configuration\n"
+                 "file may result in parse errors and failing to start the\n"
+                 "X server.",
+                 metamode_idx);
+            
+            parent = ctk_get_parent_window(GTK_WIDGET(ctk_object));
+            if (!parent) {
+                nv_warning_msg(msg);
+                g_free(msg);
+                break;
+            }
+            
+            dlg = gtk_message_dialog_new
+                (GTK_WINDOW(parent),
+                 GTK_DIALOG_DESTROY_WITH_PARENT,
+                 GTK_MESSAGE_WARNING,
+                 GTK_BUTTONS_NONE,
+                 msg);
+            
+            gtk_dialog_add_buttons(GTK_DIALOG(dlg),
+                                   "Truncate MetaModes",
+                                   GTK_RESPONSE_YES,
+                                   "Write all MetaModes", GTK_RESPONSE_NO,
+                                   "Cancel", GTK_RESPONSE_CANCEL,
+                                   NULL);
+            
+            result = gtk_dialog_run(GTK_DIALOG(dlg));
+            gtk_widget_destroy(dlg);
+            g_free(msg);
+            
+            if (result == GTK_RESPONSE_YES) {
+                break; /* Crop the list of metamodes */
+            } else if (result == GTK_RESPONSE_NO) {
+                longStringsOK = 1; /* Write the full list of metamodes */
+            } else {
+                return XCONFIG_GEN_ABORT; /* Don't save the X config file */
+            }
+        }
 
         if (!metamode_strs) {
             metamode_strs = metamode_str;
+            len += metamode_len;
         } else {
             tmp = g_strconcat(metamode_strs, "; ", metamode_str, NULL);
             g_free(metamode_str);
             g_free(metamode_strs);
             metamode_strs = tmp;
+            len += metamode_len +2;
         }
     }
 
@@ -770,75 +586,86 @@ static int generate_xconf_metamode_str(CtkDisplayConfig *ctk_object,
  *
  * Assign the initial position of the X screens.
  *
- * - If Xinerama is enabled or the X server ABI >= 12,
-     query to the SCREEN_RECTANGLE returns position.
+ * - If Xinerama is enabled, query the XINERAMA_SCREEN_INFO.
  *
- * - Otherwise assume "right-of" orientation.
+ * - If Xinerama is disabled, assume "right-of" orientation. (bleh!)
  *
  **/
 
 static void assign_screen_positions(CtkDisplayConfig *ctk_object)
 {
-    nvLayoutPtr layout = ctk_object->layout;
+    nvGpuPtr gpu;
     nvScreenPtr prev_screen = NULL;
     nvScreenPtr screen;
+    int xinerama;
+    int initialize = 0;
 
     char *screen_info;
-    GdkRectangle screen_parsed_info;
+    ScreenInfo screen_parsed_info;
     ReturnStatus ret;
 
 
+    /* If xinerama is enabled, we can get the screen size! */
+    ret = NvCtrlGetAttribute(ctk_object->handle, NV_CTRL_XINERAMA, &xinerama);
+    if (ret != NvCtrlSuccess) {
+        initialize = 1; /* Fallback to right-of positioning */
+    }
+    
+
     /* Setup screen positions */
-    for (screen = layout->screens; screen; screen = screen->next_in_layout) {
+    for (gpu = ctk_object->layout->gpus; gpu; gpu = gpu->next) {
+        for (screen = gpu->screens; screen; screen = screen->next) {
 
-        screen_info = NULL;
-        if (screen->ctrl_target != NULL) {
-            ret = NvCtrlGetStringAttribute
-                (screen->ctrl_target,
-                 NV_CTRL_STRING_SCREEN_RECTANGLE,
-                 &screen_info);
+            screen_info = NULL;
+            if (screen->handle && !initialize) {
+                ret = NvCtrlGetStringAttribute
+                    (screen->handle,
+                     NV_CTRL_STRING_XINERAMA_SCREEN_INFO,
+                     &screen_info);
 
-            if (ret != NvCtrlSuccess) {
-                screen_info = NULL;
+                if (ret != NvCtrlSuccess) {
+                    screen_info = NULL;
+                }
             }
-        }
 
-        if (screen_info) {
+            if (screen_info) {
 
-            /* Parse the positioning information */
+                /* Parse the positioning information */
 
-            screen_parsed_info.x = -1;
-            screen_parsed_info.y = -1;
-            screen_parsed_info.width = -1;
-            screen_parsed_info.height = -1;
+                screen_parsed_info.x = -1;
+                screen_parsed_info.y = -1;
+                screen_parsed_info.width = -1;
+                screen_parsed_info.height = -1;
 
-            parse_token_value_pairs(screen_info, apply_screen_info_token,
-                                    &screen_parsed_info);
+                parse_token_value_pairs(screen_info, apply_screen_info_token,
+                                        &screen_parsed_info);
 
-            if (screen_parsed_info.x >= 0 &&
-                screen_parsed_info.y >= 0 &&
-                screen_parsed_info.width >= 0 &&
-                screen_parsed_info.height) {
+                if (screen_parsed_info.x >= 0 &&
+                    screen_parsed_info.y >= 0 &&
+                    screen_parsed_info.width >= 0 &&
+                    screen_parsed_info.height) {
 
+                    ctk_display_layout_set_screen_position
+                        (CTK_DISPLAY_LAYOUT(ctk_object->obj_layout),
+                         screen, CONF_ADJ_ABSOLUTE, NULL,
+                         screen_parsed_info.x,
+                         screen_parsed_info.y);
+                }
+                XFree(screen_info);
+                
+            } else if (prev_screen) {
+                /* Set this screen right of the previous */
                 ctk_display_layout_set_screen_position
                     (CTK_DISPLAY_LAYOUT(ctk_object->obj_layout),
-                     screen, CONF_ADJ_ABSOLUTE, NULL,
-                     screen_parsed_info.x,
-                     screen_parsed_info.y);
+                     screen, CONF_ADJ_RIGHTOF, prev_screen, 0, 0);
             }
-            free(screen_info);
 
-        } else if (prev_screen) {
-            /* Set this screen right of the previous */
-            ctk_display_layout_set_screen_position
-                (CTK_DISPLAY_LAYOUT(ctk_object->obj_layout),
-                 screen, CONF_ADJ_RIGHTOF, prev_screen, 0, 0);
+            prev_screen = screen;
         }
-
-        prev_screen = screen;
     }
 
 } /* assign_screen_positions() */
+
 
 
 
@@ -866,7 +693,6 @@ GType ctk_display_config_get_type(void)
             sizeof(CtkDisplayConfig),
             0, /* n_preallocs */
             NULL, /* instance_init */
-            NULL  /* value_table */
         };
 
         ctk_display_config_type = g_type_register_static
@@ -885,7 +711,7 @@ GType ctk_display_config_get_type(void)
  *
  **/
 
-static GtkWidget * create_validation_dialog(CtkDisplayConfig *ctk_object)
+GtkWidget * create_validation_dialog(CtkDisplayConfig *ctk_object)
 {
     GtkWidget *dialog;
     GtkWidget *image;
@@ -902,16 +728,17 @@ static GtkWidget * create_validation_dialog(CtkDisplayConfig *ctk_object)
     dialog = gtk_dialog_new_with_buttons
         ("Layout Inconsistencie(s)",
          GTK_WINDOW(gtk_widget_get_parent(GTK_WIDGET(ctk_object))),
-         GTK_DIALOG_MODAL | GTK_DIALOG_DESTROY_WITH_PARENT, NULL, NULL);
+         GTK_DIALOG_MODAL | GTK_DIALOG_DESTROY_WITH_PARENT,
+         NULL);
     
     /* Main horizontal box */
     hbox = gtk_hbox_new(FALSE, 5);
-    gtk_box_pack_start(GTK_BOX(ctk_dialog_get_content_area(GTK_DIALOG(dialog))),
+    gtk_box_pack_start(GTK_BOX(GTK_DIALOG(dialog)->vbox),
                        hbox, TRUE, TRUE, 5);
 
     /* Pack the information icon */
-    image = ctk_image_new_from_str(CTK_STOCK_DIALOG_INFO,
-                                   GTK_ICON_SIZE_DIALOG);
+    image = gtk_image_new_from_stock(GTK_STOCK_DIALOG_INFO,
+                                     GTK_ICON_SIZE_DIALOG);
     gtk_misc_set_alignment(GTK_MISC(image), 0.0f, 0.0f);
     gtk_box_pack_start(GTK_BOX(hbox), image, FALSE, FALSE, 5);
     
@@ -967,7 +794,7 @@ static GtkWidget * create_validation_dialog(CtkDisplayConfig *ctk_object)
                                    GTK_RESPONSE_REJECT);
     ctk_object->btn_validation_override_cancel = button;
 
-    gtk_widget_show_all(ctk_dialog_get_content_area(GTK_DIALOG(dialog)));
+    gtk_widget_show_all(GTK_DIALOG(dialog)->vbox);
 
     return dialog;
 
@@ -981,7 +808,7 @@ static GtkWidget * create_validation_dialog(CtkDisplayConfig *ctk_object)
  *
  **/
 
-static GtkWidget * create_validation_apply_dialog(CtkDisplayConfig *ctk_object)
+GtkWidget * create_validation_apply_dialog(CtkDisplayConfig *ctk_object)
 {
     GtkWidget *dialog;
     GtkWidget *image;
@@ -1003,24 +830,24 @@ static GtkWidget * create_validation_apply_dialog(CtkDisplayConfig *ctk_object)
          GTK_WINDOW(gtk_widget_get_parent(GTK_WIDGET(ctk_object))),
          GTK_DIALOG_MODAL |
          GTK_DIALOG_DESTROY_WITH_PARENT,
-         NULL, NULL);
+         NULL);
     ctk_object->dlg_validation_apply = dialog;
-
+    
     /* Main horizontal box */
     hbox = gtk_hbox_new(FALSE, 5);
-    gtk_box_pack_start(GTK_BOX(ctk_dialog_get_content_area(GTK_DIALOG(dialog))),
+    gtk_box_pack_start(GTK_BOX(GTK_DIALOG(dialog)->vbox),
                        hbox, TRUE, TRUE, 5);
 
     /* Pack the information icon */
-    image = ctk_image_new_from_str(CTK_STOCK_DIALOG_INFO,
-                                   GTK_ICON_SIZE_DIALOG);
+    image = gtk_image_new_from_stock(GTK_STOCK_DIALOG_INFO,
+                                     GTK_ICON_SIZE_DIALOG);
     gtk_misc_set_alignment(GTK_MISC(image), 0.0f, 0.0f);
     gtk_box_pack_start(GTK_BOX(hbox), image, FALSE, FALSE, 5);
-
+    
     /* Main vertical box */
     vbox = gtk_vbox_new(FALSE, 5);
     gtk_box_pack_start(GTK_BOX(hbox), vbox, TRUE, TRUE, 5);
-
+    
     /* Pack the main message */
     str = g_strdup_printf("The current settings cannot be completely applied\n"
                           "due to one or more of the following reasons:\n"
@@ -1039,203 +866,18 @@ static GtkWidget * create_validation_apply_dialog(CtkDisplayConfig *ctk_object)
     g_free(str);
     gtk_misc_set_alignment(GTK_MISC(label), 0.0f, 0.0f);
     gtk_box_pack_start(GTK_BOX(vbox), label, FALSE, FALSE, 0);
-
+        
     /* Action Buttons */
     gtk_dialog_add_button(GTK_DIALOG(dialog), "Apply What Is Possible",
                           GTK_RESPONSE_ACCEPT);
     gtk_dialog_add_button(GTK_DIALOG(dialog), "Cancel", GTK_RESPONSE_REJECT);
 
-    gtk_widget_show_all(ctk_dialog_get_content_area(GTK_DIALOG(dialog)));
+    gtk_widget_show_all(GTK_DIALOG(dialog)->vbox);
 
     return dialog;
 
 } /* create_validation_apply_dialog() */
 
-
-
-/** user_changed_attributes() *************************************
- *
- * Turns off forced reset (of the layout config when the current
- * X server configuration changes).
- *
- **/
-
-static void user_changed_attributes(CtkDisplayConfig *ctk_object)
-{
-    if (ctk_object->forced_reset_allowed) {
-        update_btn_apply(ctk_object, TRUE);
-        ctk_object->forced_reset_allowed = FALSE;
-    }
-
-} /* user_changed_attributes() */
-
-
-
-/** display_forcecompositionpipeline_toggled() ************************
- *
- * Sets ForceCompositionPipeline for a dpy.
- *
- **/
-static void display_forcecompositionpipeline_toggled(GtkWidget *widget,
-                                                     gpointer user_data)
-{
-    CtkDisplayConfig *ctk_object = CTK_DISPLAY_CONFIG(user_data);
-    gint enabled = gtk_toggle_button_get_active(GTK_TOGGLE_BUTTON(widget));
-    nvDisplayPtr display = ctk_display_layout_get_selected_display
-        (CTK_DISPLAY_LAYOUT(ctk_object->obj_layout));
-
-    if (enabled) {
-        display->cur_mode->forceCompositionPipeline = TRUE;
-    } else {
-        display->cur_mode->forceCompositionPipeline = FALSE;
-    }
-
-    update_forcecompositionpipeline_buttons(ctk_object);
-    user_changed_attributes(ctk_object);
-}
-
-
-
-/** display_forcefullcompositionpipeline_toggled() ********************
- *
- * Sets ForceFullCompositionPipeline for a dpy.
- *
- **/
-static void display_forcefullcompositionpipeline_toggled(GtkWidget *widget,
-                                                         gpointer user_data)
-{
-    CtkDisplayConfig *ctk_object = CTK_DISPLAY_CONFIG(user_data);
-    gint enabled = gtk_toggle_button_get_active(GTK_TOGGLE_BUTTON(widget));
-    nvDisplayPtr display = ctk_display_layout_get_selected_display
-        (CTK_DISPLAY_LAYOUT(ctk_object->obj_layout));
-
-    if (enabled) {
-        display->cur_mode->forceFullCompositionPipeline = TRUE;
-        /* forceFullCompositionPipeline implies forceCompositionPipeline in the
-         * X driver, so we should reflect that within nvidia-settings even
-         * before actually changing the current X MetaMode.
-         */
-        display->cur_mode->forceCompositionPipeline = TRUE;
-    } else {
-        display->cur_mode->forceFullCompositionPipeline = FALSE;
-    }
-
-    update_forcecompositionpipeline_buttons(ctk_object);
-    user_changed_attributes(ctk_object);
-}
-
-
-
-/** display_gsync_compatible_toggled() ********************************
- *
- * Sets AllowGSYNCCompatible for a dpy.
- *
- **/
-static void display_gsync_compatible_toggled(GtkWidget *widget,
-                                             gpointer user_data)
-{
-    CtkDisplayConfig *ctk_object = CTK_DISPLAY_CONFIG(user_data);
-    gint enabled = gtk_toggle_button_get_active(GTK_TOGGLE_BUTTON(widget));
-    nvDisplayPtr display = ctk_display_layout_get_selected_display
-        (CTK_DISPLAY_LAYOUT(ctk_object->obj_layout));
-
-    if (enabled) {
-        display->cur_mode->allowGSYNCCompatibleSpecified = TRUE;
-        display->cur_mode->allowGSYNCCompatible = TRUE;
-    } else {
-        display->cur_mode->allowGSYNCCompatibleSpecified = FALSE;
-        display->cur_mode->allowGSYNCCompatible = FALSE;
-    }
-
-    update_force_gsync_button(ctk_object);
-    user_changed_attributes(ctk_object);
-}
-
-
-
-/** update_forcecompositionpipeline_buttons() *************************
- *
- * Updates the buttons for Force{Full,}CompositionPipeline to reflect their
- * state and sensitivity.
- *
- **/
-
-static void update_forcecompositionpipeline_buttons(CtkDisplayConfig *ctk_object)
-{
-    nvDisplayPtr display = ctk_display_layout_get_selected_display
-        (CTK_DISPLAY_LAYOUT(ctk_object->obj_layout));
-
-    g_signal_handlers_block_by_func
-        (G_OBJECT(ctk_object->chk_forcecompositionpipeline_enabled),
-        G_CALLBACK(display_forcecompositionpipeline_toggled),
-        (gpointer)ctk_object);
-
-    g_signal_handlers_block_by_func
-        (G_OBJECT(ctk_object->chk_forcefullcompositionpipeline_enabled),
-         G_CALLBACK(display_forcefullcompositionpipeline_toggled),
-         (gpointer)ctk_object);
-
-    gtk_toggle_button_set_active
-        (GTK_TOGGLE_BUTTON(ctk_object->chk_forcecompositionpipeline_enabled),
-         display->cur_mode->forceCompositionPipeline |
-            display->cur_mode->forceFullCompositionPipeline);
-
-    gtk_toggle_button_set_active
-        (GTK_TOGGLE_BUTTON(ctk_object->chk_forcefullcompositionpipeline_enabled),
-         display->cur_mode->forceFullCompositionPipeline);
-
-    gtk_widget_set_sensitive
-        (GTK_WIDGET(ctk_object->chk_forcecompositionpipeline_enabled),
-         !display->cur_mode->forceFullCompositionPipeline);
-
-    g_signal_handlers_unblock_by_func
-        (G_OBJECT(ctk_object->chk_forcecompositionpipeline_enabled),
-         G_CALLBACK(display_forcecompositionpipeline_toggled),
-         (gpointer)ctk_object);
-
-    g_signal_handlers_unblock_by_func
-        (G_OBJECT(ctk_object->chk_forcefullcompositionpipeline_enabled),
-         G_CALLBACK(display_forcefullcompositionpipeline_toggled),
-         (gpointer)ctk_object);
-}
-
-
-
-/** update_force_gsync_button() ***************************************
- *
- * Updates the button for AllowGSYNCCompatible to reflect its current
- * state.
- *
- **/
-
-static void update_force_gsync_button(CtkDisplayConfig *ctk_object)
-{
-    nvDisplayPtr display = ctk_display_layout_get_selected_display
-        (CTK_DISPLAY_LAYOUT(ctk_object->obj_layout));
-
-    g_signal_handlers_block_by_func
-        (G_OBJECT(ctk_object->chk_force_allow_gsync),
-         G_CALLBACK(display_gsync_compatible_toggled),
-         (gpointer)ctk_object);
-
-    gtk_toggle_button_set_active
-        (GTK_TOGGLE_BUTTON(ctk_object->chk_force_allow_gsync),
-         display->cur_mode->allowGSYNCCompatibleSpecified &&
-         display->cur_mode->allowGSYNCCompatible);
-
-    g_signal_handlers_unblock_by_func
-        (G_OBJECT(ctk_object->chk_force_allow_gsync),
-         G_CALLBACK(display_gsync_compatible_toggled),
-         (gpointer)ctk_object);
-}
-
-
-
-/** screen_primary_display_toggled() ******************************
- *
- * Sets the primary display for a screen.
- *
- **/
 
 static void screen_primary_display_toggled(GtkWidget *widget,
                                            gpointer user_data)
@@ -1248,10 +890,10 @@ static void screen_primary_display_toggled(GtkWidget *widget,
     
     if (enabled) {
         screen->primaryDisplay = display;
-        ctk_object->primary_display_changed = TRUE;
     }
 
-    user_changed_attributes(ctk_object);
+    /* Make the apply button sensitive to user input */
+    gtk_widget_set_sensitive(ctk_object->btn_apply, True);
 
 } /* screen_primary_display_toggled() */
 
@@ -1270,7 +912,7 @@ static void screen_size_changed(GdkScreen *screen,
     gint h = gdk_screen_get_height(screen);
 
     if ( h < MIN_LAYOUT_SCREENSIZE ) {
-        gtk_widget_hide(ctk_object->obj_layout);
+        gtk_widget_hide_all(ctk_object->obj_layout);
         gtk_widget_show(ctk_object->label_layout);
         return;
     }
@@ -1281,32 +923,13 @@ static void screen_size_changed(GdkScreen *screen,
 
 
 
-/** update_gui() *****************************************************
- *
- * Sync state of all widgets to reflect current configuration
- *
- **/
-
-static void update_gui(CtkDisplayConfig *ctk_object)
-{
-    setup_display_page(ctk_object);
-    setup_screen_page(ctk_object);
-    setup_prime_display_page(ctk_object);
-    setup_selected_item_dropdown(ctk_object);
-    update_selected_page(ctk_object);
-    setup_layout_frame(ctk_object);
-
-} /* update_gui() */
-
-
-
 /** ctk_display_config_new() *****************************************
  *
  * Display Configuration widget creation.
  *
  **/
 
-GtkWidget* ctk_display_config_new(CtrlTarget *ctrl_target,
+GtkWidget* ctk_display_config_new(NvCtrlAttributeHandle *handle,
                                   CtkConfig *ctk_config)
 {
     GObject *object;
@@ -1314,25 +937,21 @@ GtkWidget* ctk_display_config_new(CtrlTarget *ctrl_target,
 
     GtkWidget *banner;
     GtkWidget *frame;
+    GtkWidget *notebook;
     GtkWidget *hbox;
+    GtkWidget *hbox2;
     GtkWidget *vbox;
     GdkScreen *screen;
     GtkWidget *label;
     GtkWidget *eventbox;
-    GtkWidget *hseparator;
     GtkRequisition req;
 
-    GSList *labels = NULL;
-    GSList *slitem;
-    gint max_width;
+
+    GtkWidget *menu;
+    GtkWidget *menu_item;
 
     gchar *err_str = NULL;
     gchar *layout_str = NULL;
-    ReturnStatus ret;
-
-    const char *stereo_mode_str;
-    CtrlAttributeValidValues valid;
-    int stereo_mode, stereo_mode_max = NV_CTRL_STEREO_MAX;
 
     /*
      * Create the ctk object
@@ -1342,18 +961,11 @@ GtkWidget* ctk_display_config_new(CtrlTarget *ctrl_target,
     object = g_object_new(CTK_TYPE_DISPLAY_CONFIG, NULL);
     ctk_object = CTK_DISPLAY_CONFIG(object);
 
-    ctk_object->ctrl_target = ctrl_target;
+    ctk_object->handle = handle;
     ctk_object->ctk_config = ctk_config;
 
     ctk_object->apply_possible = TRUE;
-
-    ctk_object->reset_required = FALSE;
-    ctk_object->forced_reset_allowed = TRUE;
-    ctk_object->notify_user_of_reset = TRUE;
-    ctk_object->ignore_reset_events = FALSE;
-    ctk_object->primary_display_changed = FALSE;
-
-    ctk_object->last_resolution_idx = -1;
+    ctk_object->advanced_mode = FALSE;
 
     /* Set container properties of the object & pack the banner */
     gtk_box_set_spacing(GTK_BOX(ctk_object), 5);
@@ -1367,9 +979,9 @@ GtkWidget* ctk_display_config_new(CtrlTarget *ctrl_target,
      * Create the display configuration widgets
      *
      */
-
+    
     /* Load the layout structure from the X server */
-    ctk_object->layout = layout_load_from_server(ctrl_target, &err_str);
+    ctk_object->layout = layout_load_from_server(handle, &err_str);
 
     /* If we failed to load, tell the user why */
     if (err_str || !ctk_object->layout) {
@@ -1395,14 +1007,15 @@ GtkWidget* ctk_display_config_new(CtrlTarget *ctrl_target,
         return GTK_WIDGET(ctk_object);
     }
 
-    /* Register all Screen/Gpu events. */
-    register_layout_events(ctk_object);
-
     /* Create the layout widget */
-    ctk_object->obj_layout = ctk_display_layout_new(ctk_config,
+    ctk_object->obj_layout = ctk_display_layout_new(handle, ctk_config,
                                                     ctk_object->layout,
                                                     300, /* min width */
-                                                    225); /* min height */
+                                                    225, /* min height */
+                                                    layout_selected_callback,
+                                                    (void *)ctk_object,
+                                                    layout_modified_callback,
+                                                    (void *)ctk_object);
 
     /* Make sure all X screens have the same depth if Xinerama is enabled */
     consolidate_xinerama(ctk_object, NULL);
@@ -1432,14 +1045,8 @@ GtkWidget* ctk_display_config_new(CtrlTarget *ctrl_target,
                      G_CALLBACK(screen_size_changed),
                      (gpointer) ctk_object);
 
-    /* Mosaic button */
-    ctk_object->chk_mosaic_enabled =
-        gtk_check_button_new_with_label("");
-    g_signal_connect(G_OBJECT(ctk_object->chk_mosaic_enabled), "toggled",
-                     G_CALLBACK(mosaic_state_toggled),
-                     (gpointer) ctk_object);
-
     /* Xinerama button */
+
     ctk_object->chk_xinerama_enabled =
         gtk_check_button_new_with_label("Enable Xinerama");
     ctk_config_set_tooltip(ctk_config, ctk_object->chk_xinerama_enabled,
@@ -1448,28 +1055,59 @@ GtkWidget* ctk_display_config_new(CtrlTarget *ctrl_target,
                      G_CALLBACK(xinerama_state_toggled),
                      (gpointer) ctk_object);
 
-    /* Selected display/X screen dropdown */
-    ctk_object->mnu_selected_item = ctk_combo_box_text_new();
-    ctk_config_set_tooltip(ctk_config, ctk_object->mnu_selected_item,
-                           __selected_item_help);
-    g_signal_connect(G_OBJECT(ctk_object->mnu_selected_item), "changed",
-                     G_CALLBACK(selected_item_changed),
+
+    /* Display model name */
+    ctk_object->mnu_display_model = gtk_option_menu_new();
+    ctk_config_set_tooltip(ctk_config, ctk_object->mnu_display_model,
+                           __dpy_model_help);
+    g_signal_connect(G_OBJECT(ctk_object->mnu_display_model), "changed",
+                     G_CALLBACK(display_modelname_changed),
                      (gpointer) ctk_object);
 
-    /* Display configuration (Disabled, TwinView, Separate X screen) */
-    ctk_object->mnu_display_config = ctk_combo_box_text_new();
-    ctk_config_set_tooltip(ctk_config, ctk_object->mnu_display_config,
-                           __dpy_configuration_mnu_help);
-    g_signal_connect(G_OBJECT(ctk_object->mnu_display_config), "changed",
-                     G_CALLBACK(display_config_changed),
+    /* Display configuration (Disabled, TwinView, Separate X screen */
+    ctk_object->btn_display_config =
+        gtk_button_new_with_label("Configure...");
+    g_signal_connect(G_OBJECT(ctk_object->btn_display_config), "clicked",
+                     G_CALLBACK(display_config_clicked),
                      (gpointer) ctk_object);
+    ctk_object->txt_display_config = gtk_label_new("Disabled");
+    gtk_misc_set_alignment(GTK_MISC(ctk_object->txt_display_config), 0.0f, 0.5f);
+
+
+    /* Display configuration dialog */
+    ctk_object->dlg_display_config = gtk_dialog_new_with_buttons
+        ("Configure Display Device",
+         GTK_WINDOW(gtk_widget_get_parent(GTK_WIDGET(ctk_object))),
+         GTK_DIALOG_MODAL | GTK_DIALOG_DESTROY_WITH_PARENT
+         | GTK_DIALOG_NO_SEPARATOR,
+         GTK_STOCK_OK,
+         GTK_RESPONSE_ACCEPT,
+         NULL);
+    ctk_object->btn_display_config_cancel =
+        gtk_dialog_add_button(GTK_DIALOG(ctk_object->dlg_display_config),
+                              GTK_STOCK_CANCEL,
+                              GTK_RESPONSE_CANCEL);
+    ctk_object->rad_display_config_disabled =
+        gtk_radio_button_new_with_label(NULL, "Disabled");
+    ctk_object->rad_display_config_xscreen =
+        gtk_radio_button_new_with_label_from_widget
+        (GTK_RADIO_BUTTON(ctk_object->rad_display_config_disabled),
+         "Separate X screen");
+    ctk_object->rad_display_config_twinview =
+        gtk_radio_button_new_with_label_from_widget
+        (GTK_RADIO_BUTTON(ctk_object->rad_display_config_disabled),
+         "TwinView");
+    gtk_window_set_resizable(GTK_WINDOW(ctk_object->dlg_display_config),
+                             FALSE);
 
     /* Display disable dialog */
     ctk_object->txt_display_disable = gtk_label_new("");
     ctk_object->dlg_display_disable = gtk_dialog_new_with_buttons
         ("Disable Display Device",
          GTK_WINDOW(gtk_widget_get_parent(GTK_WIDGET(ctk_object))),
-         GTK_DIALOG_MODAL | GTK_DIALOG_DESTROY_WITH_PARENT, NULL, NULL);
+         GTK_DIALOG_MODAL | GTK_DIALOG_DESTROY_WITH_PARENT
+         | GTK_DIALOG_NO_SEPARATOR,
+         NULL);
     ctk_object->btn_display_disable_off =
         gtk_dialog_add_button(GTK_DIALOG(ctk_object->dlg_display_disable),
                               "Remove",
@@ -1483,7 +1121,7 @@ GtkWidget* ctk_display_config_new(CtrlTarget *ctrl_target,
 
 
     /* Display resolution */
-    ctk_object->mnu_display_resolution = ctk_combo_box_text_new();
+    ctk_object->mnu_display_resolution = gtk_option_menu_new();
     ctk_config_set_tooltip(ctk_config, ctk_object->mnu_display_resolution,
                            __dpy_resolution_mnu_help);
     g_signal_connect(G_OBJECT(ctk_object->mnu_display_resolution), "changed",
@@ -1492,7 +1130,7 @@ GtkWidget* ctk_display_config_new(CtrlTarget *ctrl_target,
 
 
     /* Display refresh */
-    ctk_object->mnu_display_refresh = ctk_combo_box_text_new();
+    ctk_object->mnu_display_refresh = gtk_option_menu_new();
     ctk_config_set_tooltip(ctk_config, ctk_object->mnu_display_refresh,
                             __dpy_refresh_mnu_help);
     g_signal_connect(G_OBJECT(ctk_object->mnu_display_refresh), "changed",
@@ -1503,92 +1141,23 @@ GtkWidget* ctk_display_config_new(CtrlTarget *ctrl_target,
     ctk_object->txt_display_modename = gtk_label_new("");
     gtk_label_set_selectable(GTK_LABEL(ctk_object->txt_display_modename), TRUE);
 
-    /* Display passive stereo eye dropdown */
-    ctk_object->mnu_display_stereo = ctk_combo_box_text_new();
-    ctk_combo_box_text_append_text(ctk_object->mnu_display_stereo,
-                                   "None");
-    ctk_combo_box_text_append_text(ctk_object->mnu_display_stereo,
-                                   "Left");
-    ctk_combo_box_text_append_text(ctk_object->mnu_display_stereo,
-                                   "Right");
-    ctk_config_set_tooltip(ctk_config, ctk_object->mnu_display_stereo,
-                           __dpy_stereo_help);
-    g_signal_connect(G_OBJECT(ctk_object->mnu_display_stereo),
-                     "changed", G_CALLBACK(display_stereo_changed),
-                     (gpointer) ctk_object);
-
-    /* Display rotation dropdown */
-    ctk_object->mnu_display_rotation = ctk_combo_box_text_new();
-    ctk_combo_box_text_append_text(ctk_object->mnu_display_rotation,
-                                   "No Rotation");
-    ctk_combo_box_text_append_text(ctk_object->mnu_display_rotation,
-                                   "Rotate Left");
-    ctk_combo_box_text_append_text(ctk_object->mnu_display_rotation,
-                                   "Invert");
-    ctk_combo_box_text_append_text(ctk_object->mnu_display_rotation,
-                                   "Rotate Right");
-    ctk_config_set_tooltip(ctk_config, ctk_object->mnu_display_rotation,
-                           __dpy_rotation_help);
-    g_signal_connect(G_OBJECT(ctk_object->mnu_display_rotation),
-                     "changed", G_CALLBACK(display_rotation_changed),
-                     (gpointer) ctk_object);
-
-    /* Display reflection dropdown */
-    ctk_object->mnu_display_reflection = ctk_combo_box_text_new();
-    ctk_combo_box_text_append_text(ctk_object->mnu_display_reflection,
-                                   "No Reflection");
-    ctk_combo_box_text_append_text(ctk_object->mnu_display_reflection,
-                                   "Reflect along X");
-    ctk_combo_box_text_append_text(ctk_object->mnu_display_reflection,
-                                   "Reflect along Y");
-    ctk_combo_box_text_append_text(ctk_object->mnu_display_reflection,
-                                   "Reflect along XY");
-    ctk_config_set_tooltip(ctk_config, ctk_object->mnu_display_reflection,
-                           __dpy_reflection_help);
-    g_signal_connect(G_OBJECT(ctk_object->mnu_display_reflection),
-                     "changed", G_CALLBACK(display_reflection_changed),
-                     (gpointer) ctk_object);
-
-    /* Display Underscan text box and slider */
-    ctk_object->txt_display_underscan = gtk_entry_new();
-    gtk_entry_set_max_length(GTK_ENTRY(ctk_object->txt_display_underscan), 6);
-    gtk_entry_set_width_chars(GTK_ENTRY(ctk_object->txt_display_underscan), 6);
-    gtk_entry_set_text(GTK_ENTRY(ctk_object->txt_display_underscan), "0");
-    ctk_config_set_tooltip(ctk_config, ctk_object->txt_display_underscan,
-                           __dpy_underscan_text_help);
-    g_signal_connect(G_OBJECT(ctk_object->txt_display_underscan), "activate",
-                              G_CALLBACK(display_underscan_activate),
-                              (gpointer) ctk_object);
-
-    ctk_object->adj_display_underscan =
-        GTK_ADJUSTMENT(gtk_adjustment_new(0,
-                                          UNDERSCAN_MIN_PERCENT,
-                                          UNDERSCAN_MAX_PERCENT,
-                                          1, 1, 0.0));
-    ctk_object->sld_display_underscan =
-        gtk_hscale_new(GTK_ADJUSTMENT(ctk_object->adj_display_underscan));
-    gtk_scale_set_draw_value(GTK_SCALE(ctk_object->sld_display_underscan),
-                             FALSE);
-    ctk_config_set_tooltip(ctk_config, ctk_object->sld_display_underscan,
-                           __dpy_underscan_text_help);
-    g_signal_connect(G_OBJECT(ctk_object->adj_display_underscan), "value_changed",
-                              G_CALLBACK(display_underscan_value_changed),
-                              (gpointer) ctk_object);
-
     /* Display Position Type (Absolute/Relative Menu) */
-    ctk_object->mnu_display_position_type = ctk_combo_box_text_new();
-    ctk_combo_box_text_append_text(ctk_object->mnu_display_position_type,
-                                   "Absolute");
-    ctk_combo_box_text_append_text(ctk_object->mnu_display_position_type,
-                                   "Right of");
-    ctk_combo_box_text_append_text(ctk_object->mnu_display_position_type,
-                                   "Left of");
-    ctk_combo_box_text_append_text(ctk_object->mnu_display_position_type,
-                                   "Above");
-    ctk_combo_box_text_append_text(ctk_object->mnu_display_position_type,
-                                   "Below");
-    ctk_combo_box_text_append_text(ctk_object->mnu_display_position_type,
-                                   "Same as");
+    ctk_object->mnu_display_position_type = gtk_option_menu_new();
+    menu = gtk_menu_new();
+    menu_item = gtk_menu_item_new_with_label("Absolute");
+    gtk_menu_shell_append(GTK_MENU_SHELL(menu), menu_item);
+    menu_item = gtk_menu_item_new_with_label("Right of");
+    gtk_menu_shell_append(GTK_MENU_SHELL(menu), menu_item);
+    menu_item = gtk_menu_item_new_with_label("Left of");
+    gtk_menu_shell_append(GTK_MENU_SHELL(menu), menu_item);
+    menu_item = gtk_menu_item_new_with_label("Above");
+    gtk_menu_shell_append(GTK_MENU_SHELL(menu), menu_item);
+    menu_item = gtk_menu_item_new_with_label("Below");
+    gtk_menu_shell_append(GTK_MENU_SHELL(menu), menu_item);
+    menu_item = gtk_menu_item_new_with_label("Clones");
+    gtk_menu_shell_append(GTK_MENU_SHELL(menu), menu_item);
+    gtk_option_menu_set_menu
+        (GTK_OPTION_MENU(ctk_object->mnu_display_position_type), menu);
     ctk_config_set_tooltip(ctk_config, ctk_object->mnu_display_position_type,
                            __dpy_position_type_help);
     g_signal_connect(G_OBJECT(ctk_object->mnu_display_position_type),
@@ -1596,7 +1165,7 @@ GtkWidget* ctk_display_config_new(CtrlTarget *ctrl_target,
                      (gpointer) ctk_object);
 
     /* Display Position Relative (Display device to be relative to) */
-    ctk_object->mnu_display_position_relative = ctk_combo_box_text_new();
+    ctk_object->mnu_display_position_relative = gtk_option_menu_new();
     ctk_config_set_tooltip(ctk_config,
                            ctk_object->mnu_display_position_relative,
                            __dpy_position_relative_help);
@@ -1613,28 +1182,6 @@ GtkWidget* ctk_display_config_new(CtrlTarget *ctrl_target,
                      "activate", G_CALLBACK(display_position_offset_activate),
                      (gpointer) ctk_object);
 
-    /* Display ViewPortIn */
-    ctk_object->txt_display_viewport_in = gtk_entry_new();
-    ctk_config_set_tooltip(ctk_config, ctk_object->txt_display_viewport_in,
-                           __dpy_viewport_in_help);
-    g_signal_connect(G_OBJECT(ctk_object->txt_display_viewport_in), "activate",
-                     G_CALLBACK(display_viewport_in_activate),
-                     (gpointer) ctk_object);
-    g_signal_connect(G_OBJECT(ctk_object->txt_display_viewport_in), "focus-out-event",
-                     G_CALLBACK(txt_focus_out),
-                     (gpointer) ctk_object);
-
-    /* Display ViewPortOut */
-    ctk_object->txt_display_viewport_out = gtk_entry_new();
-    ctk_config_set_tooltip(ctk_config, ctk_object->txt_display_viewport_out,
-                           __dpy_viewport_out_help);
-    g_signal_connect(G_OBJECT(ctk_object->txt_display_viewport_out), "activate",
-                     G_CALLBACK(display_viewport_out_activate),
-                     (gpointer) ctk_object);
-    g_signal_connect(G_OBJECT(ctk_object->txt_display_viewport_out), "focus-out-event",
-                     G_CALLBACK(txt_focus_out),
-                     (gpointer) ctk_object);
-
     /* Display Panning */
     ctk_object->txt_display_panning = gtk_entry_new();
     ctk_config_set_tooltip(ctk_config, ctk_object->txt_display_panning,
@@ -1643,97 +1190,40 @@ GtkWidget* ctk_display_config_new(CtrlTarget *ctrl_target,
                      G_CALLBACK(display_panning_activate),
                      (gpointer) ctk_object);
     g_signal_connect(G_OBJECT(ctk_object->txt_display_panning), "focus-out-event",
-                     G_CALLBACK(txt_focus_out),
+                     G_CALLBACK(display_panning_focus_out),
                      (gpointer) ctk_object);
 
-    /* X screen virtual size */
-    ctk_object->txt_screen_virtual_size = gtk_entry_new();
-    ctk_config_set_tooltip(ctk_config, ctk_object->txt_screen_virtual_size,
-                           __screen_virtual_size_help);
-    g_signal_connect(G_OBJECT(ctk_object->txt_screen_virtual_size), "activate",
-                     G_CALLBACK(screen_virtual_size_activate),
-                     (gpointer) ctk_object);
-    g_signal_connect(G_OBJECT(ctk_object->txt_screen_virtual_size),
-                     "focus-out-event",
-                     G_CALLBACK(txt_focus_out),
-                     (gpointer) ctk_object);
+    /* X screen number */
+    ctk_object->txt_screen_num = gtk_label_new("");
+    gtk_label_set_selectable(GTK_LABEL(ctk_object->txt_screen_num), TRUE);
+    gtk_misc_set_alignment(GTK_MISC(ctk_object->txt_screen_num), 0.0f, 0.5f);
 
     /* X screen depth */
-    ctk_object->mnu_screen_depth = ctk_combo_box_text_new();
+    ctk_object->mnu_screen_depth = gtk_option_menu_new();
     ctk_config_set_tooltip(ctk_config, ctk_object->mnu_screen_depth,
                            __screen_depth_help);
     g_signal_connect(G_OBJECT(ctk_object->mnu_screen_depth), "changed",
                      G_CALLBACK(screen_depth_changed),
                      (gpointer) ctk_object);
 
-    /* Screen Stereo Mode */
-    ret = NvCtrlGetValidAttributeValues(ctrl_target, NV_CTRL_STEREO, &valid);
-
-    if (ret == NvCtrlSuccess) {
-
-        ctk_object->mnu_screen_stereo = ctk_combo_box_text_new();
-
-        ctk_object->stereo_table_size = 0;
-        memset(ctk_object->stereo_table, 0,
-               sizeof(int) * ARRAY_LEN(ctk_object->stereo_table));
-
-        /*
-         * The current driver will return type _INT_BITS that we can use to
-         * list the available stereo modes. Older drivers will return the type
-         * _INTEGER that we can use as a flag to list all possible stereo modes
-         * before the change was made. The newest at that time was HDMI_3D.
-         */
-
-        if (valid.valid_type == CTRL_ATTRIBUTE_VALID_TYPE_INTEGER) {
-            stereo_mode_max = NV_CTRL_STEREO_HDMI_3D;
-        }
-
-        for (stereo_mode = NV_CTRL_STEREO_OFF;
-             stereo_mode <= stereo_mode_max;
-             stereo_mode++) {
-            stereo_mode_str = NvCtrlGetStereoModeNameIfExists(stereo_mode);
-
-            if (stereo_mode_str == (const char *) -1) {
-                break;
-            }
-
-            if (stereo_mode_str &&
-                ((valid.valid_type == CTRL_ATTRIBUTE_VALID_TYPE_INTEGER) ||
-                 (((valid.valid_type == CTRL_ATTRIBUTE_VALID_TYPE_INT_BITS) &&
-                   (valid.allowed_ints & (1 << stereo_mode)))))) {
-
-                ctk_object->stereo_table[ctk_object->stereo_table_size++] =
-                    stereo_mode;
-                ctk_combo_box_text_append_text(
-                    ctk_object->mnu_screen_stereo,
-                    stereo_mode_str);
-            }
-        }
-
-        ctk_config_set_tooltip(ctk_config, ctk_object->mnu_screen_stereo,
-                               __screen_stereo_help);
-        g_signal_connect(G_OBJECT(ctk_object->mnu_screen_stereo),
-                         "changed", G_CALLBACK(screen_stereo_changed),
-                         (gpointer) ctk_object);
-    } else {
-        ctk_object->mnu_screen_stereo = NULL;
-    }
-
     /* Screen Position Type (Absolute/Relative Menu) */
-    ctk_object->mnu_screen_position_type = ctk_combo_box_text_new();
-    ctk_combo_box_text_append_text(ctk_object->mnu_screen_position_type,
-                                   "Absolute");
-    ctk_combo_box_text_append_text(ctk_object->mnu_screen_position_type,
-                                   "Right of");
-    ctk_combo_box_text_append_text(ctk_object->mnu_screen_position_type,
-                                   "Left of");
-    ctk_combo_box_text_append_text(ctk_object->mnu_screen_position_type,
-                                   "Above");
-    ctk_combo_box_text_append_text(ctk_object->mnu_screen_position_type,
-                                   "Below");
+    ctk_object->mnu_screen_position_type = gtk_option_menu_new();
+    menu = gtk_menu_new();
+    menu_item = gtk_menu_item_new_with_label("Absolute");
+    gtk_menu_shell_append(GTK_MENU_SHELL(menu), menu_item);
+    menu_item = gtk_menu_item_new_with_label("Right of");
+    gtk_menu_shell_append(GTK_MENU_SHELL(menu), menu_item);
+    menu_item = gtk_menu_item_new_with_label("Left of");
+    gtk_menu_shell_append(GTK_MENU_SHELL(menu), menu_item);
+    menu_item = gtk_menu_item_new_with_label("Above");
+    gtk_menu_shell_append(GTK_MENU_SHELL(menu), menu_item);
+    menu_item = gtk_menu_item_new_with_label("Below");
+    gtk_menu_shell_append(GTK_MENU_SHELL(menu), menu_item);
     // XXX Add better support for this later.
-    //ctk_combo_box_text_append_text(ctk_object->mnu_screen_position_type,
-    //                               "Relative to");
+    //menu_item = gtk_menu_item_new_with_label("Relative to");
+    //gtk_menu_shell_append(GTK_MENU_SHELL(menu), menu_item);
+    gtk_option_menu_set_menu
+        (GTK_OPTION_MENU(ctk_object->mnu_screen_position_type), menu);
     ctk_config_set_tooltip(ctk_config, ctk_object->mnu_screen_position_type,
                            __screen_position_type_help);
     g_signal_connect(G_OBJECT(ctk_object->mnu_screen_position_type),
@@ -1741,7 +1231,7 @@ GtkWidget* ctk_display_config_new(CtrlTarget *ctrl_target,
                      (gpointer) ctk_object);
 
     /* Screen Position Relative (Screen to be relative to) */
-    ctk_object->mnu_screen_position_relative = ctk_combo_box_text_new();
+    ctk_object->mnu_screen_position_relative = gtk_option_menu_new();
     ctk_config_set_tooltip(ctk_config,
                            ctk_object->mnu_screen_position_relative,
                            __screen_position_relative_help);
@@ -1798,7 +1288,8 @@ GtkWidget* ctk_display_config_new(CtrlTarget *ctrl_target,
     ctk_object->dlg_reset_confirm = gtk_dialog_new_with_buttons
         ("Confirm Reset",
          GTK_WINDOW(gtk_widget_get_parent(GTK_WIDGET(ctk_object))),
-         GTK_DIALOG_MODAL | GTK_DIALOG_DESTROY_WITH_PARENT,
+         GTK_DIALOG_MODAL | GTK_DIALOG_DESTROY_WITH_PARENT
+         | GTK_DIALOG_NO_SEPARATOR,
          GTK_STOCK_OK,
          GTK_RESPONSE_ACCEPT,
          NULL);
@@ -1814,7 +1305,8 @@ GtkWidget* ctk_display_config_new(CtrlTarget *ctrl_target,
     ctk_object->dlg_display_confirm = gtk_dialog_new_with_buttons
         ("Confirm ModeSwitch",
          GTK_WINDOW(gtk_widget_get_parent(GTK_WIDGET(ctk_object))),
-         GTK_DIALOG_MODAL | GTK_DIALOG_DESTROY_WITH_PARENT,
+         GTK_DIALOG_MODAL | GTK_DIALOG_DESTROY_WITH_PARENT
+         | GTK_DIALOG_NO_SEPARATOR,
          GTK_STOCK_OK,
          GTK_RESPONSE_ACCEPT,
          NULL);
@@ -1831,22 +1323,61 @@ GtkWidget* ctk_display_config_new(CtrlTarget *ctrl_target,
 
 
     /* X config save dialog */
-    ctk_object->save_xconfig_dlg =
-        create_save_xconfig_dialog(GTK_WIDGET(ctk_object),
-                                   TRUE, // Merge toggleable
-                                   xconfig_generate,
-                                   (void *)ctk_object);
+    ctk_object->dlg_xconfig_save = gtk_dialog_new_with_buttons
+        ("Save X Configuration",
+         GTK_WINDOW(gtk_widget_get_parent(GTK_WIDGET(ctk_object))),
+         GTK_DIALOG_MODAL |  GTK_DIALOG_DESTROY_WITH_PARENT |
+         GTK_DIALOG_NO_SEPARATOR,
+         GTK_STOCK_SAVE,
+         GTK_RESPONSE_ACCEPT,
+         GTK_STOCK_CANCEL,
+         GTK_RESPONSE_REJECT,
+         NULL);
+    gtk_dialog_set_default_response(GTK_DIALOG(ctk_object->dlg_xconfig_save),
+                                    GTK_RESPONSE_REJECT);
 
-    ctk_object->dialog_mosaic =
-        create_mosaic_dialog(GTK_WIDGET(ctk_object),
-                             ctk_object->ctrl_target,
-                             ctk_object->ctk_config,
-                             ctk_object->layout);
+    ctk_object->btn_xconfig_preview = gtk_button_new();
+    g_signal_connect(G_OBJECT(ctk_object->btn_xconfig_preview), "clicked",
+                     G_CALLBACK(xconfig_preview_clicked),
+                     (gpointer) ctk_object);
+
+    ctk_object->txt_xconfig_save = gtk_text_view_new();
+    gtk_text_view_set_left_margin
+        (GTK_TEXT_VIEW(ctk_object->txt_xconfig_save), 5);
+
+    ctk_object->buf_xconfig_save = gtk_text_buffer_new(NULL);
+    gtk_text_view_set_buffer(GTK_TEXT_VIEW(ctk_object->txt_xconfig_save),
+                             GTK_TEXT_BUFFER(ctk_object->buf_xconfig_save));
+
+    ctk_object->scr_xconfig_save = gtk_scrolled_window_new(NULL, NULL);
+    gtk_scrolled_window_set_shadow_type
+        (GTK_SCROLLED_WINDOW(ctk_object->scr_xconfig_save), GTK_SHADOW_IN);
+
+    ctk_object->txt_xconfig_file = gtk_entry_new();
+    gtk_widget_set_size_request(ctk_object->txt_xconfig_file, 300, -1);
+    g_signal_connect(G_OBJECT(ctk_object->txt_xconfig_file), "activate",
+                     G_CALLBACK(xconfig_file_activate),
+                     (gpointer) ctk_object);
+
+    ctk_object->btn_xconfig_file = gtk_button_new_with_label("Browse...");
+    g_signal_connect(G_OBJECT(ctk_object->btn_xconfig_file), "clicked",
+                     G_CALLBACK(xconfig_file_clicked),
+                     (gpointer) ctk_object);
+    ctk_object->dlg_xconfig_file = gtk_file_selection_new
+        ("Please select the X configuration file");
+    
+    ctk_object->btn_xconfig_merge =
+        gtk_check_button_new_with_label("Merge with existing file.");
+    gtk_toggle_button_set_active
+        (GTK_TOGGLE_BUTTON(ctk_object->btn_xconfig_merge), TRUE);
+    g_signal_connect(G_OBJECT(ctk_object->btn_xconfig_merge), "toggled",
+                     G_CALLBACK(xconfig_merge_toggled),
+                     (gpointer) ctk_object);
 
 
     /* Apply button */
     ctk_object->btn_apply = gtk_button_new_with_label("Apply");
-    update_btn_apply(ctk_object, FALSE);
+    gtk_widget_set_sensitive(ctk_object->btn_apply, False);
     ctk_config_set_tooltip(ctk_config, ctk_object->btn_apply,
                            __apply_button_help);
     g_signal_connect(G_OBJECT(ctk_object->btn_apply), "clicked",
@@ -1890,17 +1421,15 @@ GtkWidget* ctk_display_config_new(CtrlTarget *ctrl_target,
                      G_CALLBACK(save_clicked),
                      (gpointer) ctk_object);
 
-    /* Mosaic/Grid Config button */
-    ctk_object->btn_mosaic = gtk_button_new_with_label
-        ("Configure SLI Mosaic Displays");
-    ctk_config_set_tooltip(ctk_config, ctk_object->btn_mosaic,
-                           __layout_mosaic_config_button_help);
-    g_signal_connect(G_OBJECT(ctk_object->btn_mosaic), "clicked",
-                     G_CALLBACK(mosaic_config_clicked),
-                     (gpointer) ctk_object);
+
+
+    /****
+     *
+     * Pack the widgets
+     *
+     ***/
 
     { /* Layout section */
-        GtkWidget *vbox2;
 
         frame = gtk_frame_new("Layout"); /* main panel */
         gtk_box_pack_start(GTK_BOX(ctk_object), frame, FALSE, FALSE, 0);
@@ -1913,71 +1442,58 @@ GtkWidget* ctk_display_config_new(CtrlTarget *ctrl_target,
                            TRUE, TRUE, 0);
         gtk_box_pack_start(GTK_BOX(vbox), eventbox, TRUE, TRUE, 0);
 
-        hbox = gtk_hbox_new(FALSE, 5);
-        gtk_container_add(GTK_CONTAINER(vbox), hbox);
-        vbox2 = gtk_vbox_new(FALSE, 5);
-        gtk_container_add(GTK_CONTAINER(hbox), vbox2);
-
-        /* Mosaic checkbox */
-        gtk_box_pack_start(GTK_BOX(vbox2), ctk_object->chk_mosaic_enabled,
-                           FALSE, FALSE, 0);
-
         /* Xinerama checkbox */
-        gtk_box_pack_start(GTK_BOX(vbox2), ctk_object->chk_xinerama_enabled,
+        gtk_box_pack_start(GTK_BOX(vbox), ctk_object->chk_xinerama_enabled,
                            FALSE, FALSE, 0);
-
-        /* Mosaic configuration dialog button */
-        gtk_box_pack_end(GTK_BOX(hbox), ctk_object->btn_mosaic,
-                         FALSE, FALSE, 0);
     }
+    
 
-
-    /* Selection */
-    label = gtk_label_new("Selection:");
-    labels = g_slist_append(labels, label);
-
-    hbox = gtk_hbox_new(FALSE, 5);
-    gtk_box_pack_start(GTK_BOX(ctk_object), hbox, FALSE, FALSE, 5);
-    gtk_box_pack_start(GTK_BOX(hbox), label, FALSE, TRUE, 5);
-    gtk_box_pack_start(GTK_BOX(hbox), ctk_object->mnu_selected_item,
-                       TRUE, TRUE, 0);
-
+    /* Panel for the notebook sections */
+    notebook = gtk_notebook_new();
+    ctk_object->notebook = notebook;
+    gtk_box_pack_start(GTK_BOX(ctk_object), notebook, FALSE, FALSE, 0);
 
 
     { /* Display page */
+        GtkWidget *longest_hbox;
+        
+        /* Generate the major vbox for the display section */
         vbox = gtk_vbox_new(FALSE, 5);
-        gtk_box_pack_start(GTK_BOX(ctk_object), vbox, FALSE, FALSE, 0);
         ctk_object->display_page = vbox;
-
-        /* Info on how to drag X screens around */
-        hbox = gtk_hbox_new(FALSE, 5);
-        gtk_box_pack_start(GTK_BOX(vbox), hbox, FALSE, FALSE, 5);
-
-        label = gtk_label_new("");
-        labels = g_slist_append(labels, label);
-        gtk_box_pack_start(GTK_BOX(hbox), label, FALSE, TRUE, 5);
-
-        label = gtk_label_new("(CTRL-Click + Drag to move X screens)");
-        gtk_box_pack_start(GTK_BOX(hbox), label, FALSE, TRUE, 5);
-        ctk_object->box_screen_drag_info_display = hbox;
+        gtk_container_set_border_width(GTK_CONTAINER(vbox), 5);
 
         /* Display Configuration */
-        label = gtk_label_new("Configuration:");
-        labels = g_slist_append(labels, label);
-
         hbox = gtk_hbox_new(FALSE, 5);
-        gtk_box_pack_start(GTK_BOX(vbox), hbox, FALSE, TRUE, 0);
+        /* XXX Pack widget later.  Create it here so we can get its size */
+        longest_hbox = hbox;
+        label = gtk_label_new("Configuration:");
+        gtk_misc_set_alignment(GTK_MISC(label), 0.0f, 0.5f);
+        gtk_widget_size_request(label, &req);
         gtk_box_pack_start(GTK_BOX(hbox), label, FALSE, TRUE, 5);
-        gtk_box_pack_start(GTK_BOX(hbox), ctk_object->mnu_display_config,
+        gtk_box_pack_start(GTK_BOX(hbox), ctk_object->txt_display_config,
+                           FALSE, FALSE, 0);
+        gtk_box_pack_end(GTK_BOX(hbox), ctk_object->btn_display_config,
+                         FALSE, FALSE, 0);
+
+        /* Display model name */
+        hbox = gtk_hbox_new(FALSE, 5);
+        gtk_box_pack_start(GTK_BOX(vbox), hbox, FALSE, FALSE, 5);
+        label = gtk_label_new("Model:");
+        gtk_misc_set_alignment(GTK_MISC(label), 0.0f, 0.5f);
+        gtk_widget_set_size_request(label, req.width, -1);
+        gtk_box_pack_start(GTK_BOX(hbox), label, FALSE, TRUE, 5);
+        gtk_box_pack_start(GTK_BOX(hbox), ctk_object->mnu_display_model,
                            TRUE, TRUE, 0);
-        ctk_object->box_display_config = hbox;
+
+        /* Pack the display configuration line */
+        gtk_box_pack_start(GTK_BOX(vbox), longest_hbox, FALSE, TRUE, 0);
 
         /* Display resolution and refresh dropdowns */
-        label = gtk_label_new("Resolution:");
-        labels = g_slist_append(labels, label);
-
         hbox = gtk_hbox_new(FALSE, 5);
         gtk_box_pack_start(GTK_BOX(vbox), hbox, FALSE, TRUE, 0);
+        label = gtk_label_new("Resolution:");
+        gtk_misc_set_alignment(GTK_MISC(label), 0.0f, 0.5f);
+        gtk_widget_set_size_request(label, req.width, -1);
         gtk_box_pack_start(GTK_BOX(hbox), label, FALSE, TRUE, 5);
         gtk_box_pack_start(GTK_BOX(hbox), ctk_object->mnu_display_resolution,
                            TRUE, TRUE, 0);
@@ -1986,75 +1502,23 @@ GtkWidget* ctk_display_config_new(CtrlTarget *ctrl_target,
         ctk_object->box_display_resolution = hbox;
 
         /* Modeline modename info */
-        label = gtk_label_new("Mode Name:");
-        labels = g_slist_append(labels, label);
-
         hbox = gtk_hbox_new(FALSE, 5);
         gtk_box_pack_start(GTK_BOX(vbox), hbox, FALSE, FALSE, 0);
+        label = gtk_label_new("Mode Name:");
+        gtk_misc_set_alignment(GTK_MISC(label), 0.0f, 0.5f);
+        gtk_widget_set_size_request(label, req.width, -1);
         gtk_box_pack_start(GTK_BOX(hbox), label, FALSE, TRUE, 5);
         gtk_box_pack_start(GTK_BOX(hbox), ctk_object->txt_display_modename,
                            FALSE, FALSE, 0);
         ctk_object->box_display_modename = hbox;
 
-        /* Display passive stereo eye dropdown */
-        label = gtk_label_new("Stereo Eye:");
-        labels = g_slist_append(labels, label);
-
-        hbox = gtk_hbox_new(FALSE, 5);
-        gtk_box_pack_start(GTK_BOX(vbox), hbox, FALSE, TRUE, 0);
-        gtk_box_pack_start(GTK_BOX(hbox), label, FALSE, TRUE, 5);
-        gtk_box_pack_start(GTK_BOX(hbox), ctk_object->mnu_display_stereo,
-                           TRUE, TRUE, 0);
-        ctk_object->box_display_stereo = hbox;
-
-        /* Display rotation & reflection dropdowns */
-        {
-            GtkWidget *hbox2 = gtk_hbox_new(TRUE, 5);
-
-            label = gtk_label_new("Orientation:");
-            labels = g_slist_append(labels, label);
-
-            hbox = gtk_hbox_new(FALSE, 5);
-            gtk_box_pack_start(GTK_BOX(hbox2), hbox, FALSE, TRUE, 0);
-            gtk_box_pack_start(GTK_BOX(hbox), label, FALSE, TRUE, 5);
-            gtk_box_pack_start(GTK_BOX(hbox), ctk_object->mnu_display_rotation,
-                               TRUE, TRUE, 0);
-
-            hbox = gtk_hbox_new(FALSE, 5);
-            gtk_box_pack_end(GTK_BOX(hbox2), hbox, FALSE, TRUE, 0);
-            gtk_box_pack_start(GTK_BOX(hbox), ctk_object->mnu_display_reflection,
-                               TRUE, TRUE, 0);
-
-            gtk_box_pack_start(GTK_BOX(vbox), hbox2, FALSE, TRUE, 0);
-            ctk_object->box_display_orientation = hbox2;
-        }
-
-        /* Display underscan */
-        {
-            GtkWidget *hbox2 = gtk_hbox_new(TRUE, 0);
-            label = gtk_label_new("Underscan:");
-            labels = g_slist_append(labels, label);
-
-            hbox = gtk_hbox_new(FALSE, 5);
-            gtk_box_pack_start(GTK_BOX(hbox2), hbox, FALSE, TRUE, 0);
-            gtk_box_pack_start(GTK_BOX(hbox), label, FALSE, TRUE, 5);
-            gtk_box_pack_start(GTK_BOX(hbox),
-                               ctk_object->txt_display_underscan,
-                               FALSE, FALSE, 0);
-
-            gtk_box_pack_start(GTK_BOX(hbox),
-                               ctk_object->sld_display_underscan,
-                               TRUE, TRUE, 3);
-
-            gtk_box_pack_start(GTK_BOX(vbox), hbox2, FALSE, TRUE, 0);
-            ctk_object->box_display_underscan = hbox2;
-        }
-
         /* Display positioning */
         label = gtk_label_new("Position:");
-        labels = g_slist_append(labels, label);
-
         hbox = gtk_hbox_new(FALSE, 5);
+
+        gtk_misc_set_alignment(GTK_MISC(label), 0.0f, 0.5f);
+        gtk_widget_set_size_request(label, req.width, -1);
+
         gtk_box_pack_start(GTK_BOX(vbox), hbox, FALSE, FALSE, 0);
         gtk_box_pack_start(GTK_BOX(hbox), label, FALSE, TRUE, 5);
         gtk_box_pack_start(GTK_BOX(hbox),
@@ -2068,35 +1532,13 @@ GtkWidget* ctk_display_config_new(CtrlTarget *ctrl_target,
                            TRUE, TRUE, 0);
         ctk_object->box_display_position = hbox;
 
-        /* Display ViewPortIn */
-        label = gtk_label_new("ViewPortIn:");
-        labels = g_slist_append(labels, label);
-
-        hbox = gtk_hbox_new(FALSE, 5);
-        gtk_box_pack_start(GTK_BOX(vbox), hbox, FALSE, FALSE, 0);
-        gtk_box_pack_start(GTK_BOX(hbox), label, FALSE, TRUE, 5);
-        gtk_box_pack_start(GTK_BOX(hbox),
-                           ctk_object->txt_display_viewport_in,
-                           TRUE, TRUE, 0);
-        ctk_object->box_display_viewport_in = hbox;
-
-        /* Display ViewPortOut */
-        label = gtk_label_new("ViewPortOut:");
-        labels = g_slist_append(labels, label);
-
-        hbox = gtk_hbox_new(FALSE, 5);
-        gtk_box_pack_start(GTK_BOX(vbox), hbox, FALSE, FALSE, 0);
-        gtk_box_pack_start(GTK_BOX(hbox), label, FALSE, TRUE, 5);
-        gtk_box_pack_start(GTK_BOX(hbox),
-                           ctk_object->txt_display_viewport_out,
-                           TRUE, TRUE, 0);
-        ctk_object->box_display_viewport_out = hbox;
-
         /* Display panning text entry */
         label = gtk_label_new("Panning:");
-        labels = g_slist_append(labels, label);
-
         hbox = gtk_hbox_new(FALSE, 5);
+
+        gtk_misc_set_alignment(GTK_MISC(label), 0.0f, 0.5f);
+        gtk_widget_set_size_request(label, req.width, -1);
+
         gtk_box_pack_start(GTK_BOX(vbox), hbox, FALSE, FALSE, 0);
         gtk_box_pack_start(GTK_BOX(hbox), label, FALSE, TRUE, 5);
         gtk_box_pack_start(GTK_BOX(hbox), ctk_object->txt_display_panning,
@@ -2114,52 +1556,10 @@ GtkWidget* ctk_display_config_new(CtrlTarget *ctrl_target,
         g_signal_connect(G_OBJECT(ctk_object->chk_primary_display), "toggled",
                          G_CALLBACK(screen_primary_display_toggled),
                          (gpointer) ctk_object);
+
+        gtk_misc_set_alignment(GTK_MISC(label), 0.0f, 0.5f);
+        gtk_widget_set_size_request(label, req.width, -1);
         gtk_box_pack_start(GTK_BOX(hbox), ctk_object->chk_primary_display,
-                           TRUE, TRUE, 0);
-
-        /* checkboxes for Force{Full,}CompositionPipeline */
-        hbox = gtk_hbox_new(FALSE, 5);
-        gtk_box_pack_start(GTK_BOX(vbox), hbox, FALSE, TRUE, 0);
-        ctk_object->chk_forcecompositionpipeline_enabled =
-            gtk_check_button_new_with_label("Force Composition Pipeline");
-        ctk_config_set_tooltip(ctk_config,
-                               ctk_object->chk_forcecompositionpipeline_enabled,
-                               __dpy_forcecompositionpipeline_help);
-        g_signal_connect(G_OBJECT(ctk_object->chk_forcecompositionpipeline_enabled),
-                         "toggled",
-                         G_CALLBACK(display_forcecompositionpipeline_toggled),
-                         (gpointer)ctk_object);
-        gtk_box_pack_start(GTK_BOX(hbox),
-                           ctk_object->chk_forcecompositionpipeline_enabled,
-                           TRUE, TRUE, 0);
-
-        ctk_object->chk_forcefullcompositionpipeline_enabled =
-            gtk_check_button_new_with_label("Force Full Composition Pipeline");
-        ctk_config_set_tooltip(ctk_config,
-                               ctk_object->
-                                chk_forcefullcompositionpipeline_enabled,
-                               __dpy_forcefullcompositionpipeline_help);
-        g_signal_connect(G_OBJECT(ctk_object->chk_forcefullcompositionpipeline_enabled),
-                         "toggled",
-                         G_CALLBACK(display_forcefullcompositionpipeline_toggled),
-                         (gpointer)ctk_object);
-        gtk_box_pack_start(GTK_BOX(hbox),
-                           ctk_object->chk_forcefullcompositionpipeline_enabled,
-                           TRUE, TRUE, 0);
-
-        /* checkbox for AllowGSYNCCompatible */
-        hbox = gtk_hbox_new(FALSE, 5);
-        gtk_box_pack_start(GTK_BOX(vbox), hbox, FALSE, TRUE, 0);
-        ctk_object->chk_force_allow_gsync =
-            gtk_check_button_new_with_label(
-                "Allow G-SYNC on monitor not validated as G-SYNC Compatible");
-        ctk_config_set_tooltip(ctk_config, ctk_object->chk_force_allow_gsync,
-                               __dpy_force_allow_gsync_help);
-        g_signal_connect(G_OBJECT(ctk_object->chk_force_allow_gsync),
-                         "toggled",
-                         G_CALLBACK(display_gsync_compatible_toggled),
-                         (gpointer) ctk_object);
-        gtk_box_pack_start(GTK_BOX(hbox), ctk_object->chk_force_allow_gsync,
                            TRUE, TRUE, 0);
 
         /* Up the object ref count to make sure that the page and its widgets
@@ -2169,68 +1569,42 @@ GtkWidget* ctk_display_config_new(CtrlTarget *ctrl_target,
         gtk_widget_show_all(ctk_object->display_page);
 
     } /* Display sub-section */
-
+    
 
     { /* X screen page */
-        vbox = gtk_vbox_new(FALSE, 5);
-        gtk_box_pack_start(GTK_BOX(ctk_object), vbox, FALSE, FALSE, 0);
-        ctk_object->screen_page = vbox;
 
-        /* Info on how to drag X screens around */
+        /* Generate the major vbox for the display section */
+        vbox = gtk_vbox_new(FALSE, 5);
+        ctk_object->screen_page = vbox;
+        gtk_container_set_border_width(GTK_CONTAINER(vbox), 5);
+
+        /* X screen number */      
         hbox = gtk_hbox_new(FALSE, 5);
         gtk_box_pack_start(GTK_BOX(vbox), hbox, FALSE, FALSE, 5);
-
-        label = gtk_label_new("");
-        labels = g_slist_append(labels, label);
+        label = gtk_label_new("Screen Number:");
+        gtk_misc_set_alignment(GTK_MISC(label), 0.0f, 0.5f);
+        gtk_widget_size_request(label, &req);
         gtk_box_pack_start(GTK_BOX(hbox), label, FALSE, TRUE, 5);
-
-        label = gtk_label_new("(CTRL-Click + Drag to move X screens)");
-        gtk_box_pack_start(GTK_BOX(hbox), label, FALSE, TRUE, 5);
-        ctk_object->box_screen_drag_info_screen = hbox;
-
-        /* X screen virtual size */
-        label = gtk_label_new("Virtual Size:");
-        labels = g_slist_append(labels, label);
-
-        hbox = gtk_hbox_new(FALSE, 5);
-        gtk_box_pack_start(GTK_BOX(vbox), hbox, FALSE, FALSE, 0);
-        gtk_box_pack_start(GTK_BOX(hbox), label, FALSE, TRUE, 5); 
-        gtk_box_pack_start(GTK_BOX(hbox), ctk_object->txt_screen_virtual_size,
+        gtk_box_pack_start(GTK_BOX(hbox), ctk_object->txt_screen_num,
                            TRUE, TRUE, 0);
-        ctk_object->box_screen_virtual_size = hbox;
 
         /* X screen depth dropdown */
-        label = gtk_label_new("Color Depth:");
-        labels = g_slist_append(labels, label);
-
         hbox = gtk_hbox_new(FALSE, 5);
         gtk_box_pack_start(GTK_BOX(vbox), hbox, FALSE, FALSE, 0);
+        label = gtk_label_new("Color Depth:");
+        gtk_misc_set_alignment(GTK_MISC(label), 0.0f, 0.5f);
+        gtk_widget_set_size_request(label, req.width, -1);
         gtk_box_pack_start(GTK_BOX(hbox), label, FALSE, TRUE, 5); 
         gtk_box_pack_start(GTK_BOX(hbox), ctk_object->mnu_screen_depth,
                            TRUE, TRUE, 0);
         ctk_object->box_screen_depth = hbox;
 
-        /* X screen stereo dropdown */
-        if (ctk_object->mnu_screen_stereo) {
-            label = gtk_label_new("Stereo Mode:");
-            labels = g_slist_append(labels, label);
-
-            hbox = gtk_hbox_new(FALSE, 5);
-            gtk_box_pack_start(GTK_BOX(vbox), hbox, FALSE, FALSE, 0);
-            gtk_box_pack_start(GTK_BOX(hbox), label, FALSE, TRUE, 5);
-            gtk_box_pack_start(GTK_BOX(hbox), ctk_object->mnu_screen_stereo,
-                               TRUE, TRUE, 0);
-            ctk_object->box_screen_stereo = hbox;
-        } else {
-            ctk_object->box_screen_stereo = NULL;
-        }
-
         /* X screen positioning */
-        label = gtk_label_new("Position:");
-        labels = g_slist_append(labels, label);
-
         hbox = gtk_hbox_new(FALSE, 5);
         gtk_box_pack_start(GTK_BOX(vbox), hbox, FALSE, FALSE, 0);
+        label = gtk_label_new("Position:");
+        gtk_misc_set_alignment(GTK_MISC(label), 0.0f, 0.5f);
+        gtk_widget_set_size_request(label, req.width, -1);
         gtk_box_pack_start(GTK_BOX(hbox), label, FALSE, TRUE, 5);
         gtk_box_pack_start(GTK_BOX(hbox),
                            ctk_object->mnu_screen_position_type,
@@ -2244,11 +1618,11 @@ GtkWidget* ctk_display_config_new(CtrlTarget *ctrl_target,
         ctk_object->box_screen_position = hbox;
 
         /* X screen metamode drop down & buttons */
-        label = gtk_label_new("MetaMode:");
-        labels = g_slist_append(labels, label);
-
         hbox  = gtk_hbox_new(FALSE, 5);
         gtk_box_pack_start(GTK_BOX(vbox), hbox, FALSE, FALSE, 0);
+        label = gtk_label_new("MetaMode:");
+        gtk_misc_set_alignment(GTK_MISC(label), 0.0f, 0.5f);
+        gtk_widget_set_size_request(label, req.width, -1);
         gtk_box_pack_start(GTK_BOX(hbox), label, FALSE, TRUE, 5);
         gtk_box_pack_start(GTK_BOX(hbox), ctk_object->btn_screen_metamode,
                            TRUE, TRUE, 0);
@@ -2265,95 +1639,11 @@ GtkWidget* ctk_display_config_new(CtrlTarget *ctrl_target,
         gtk_widget_show_all(ctk_object->screen_page);
 
     } /* X screen sub-section */
-
-    { /* Prime Display page */
-        vbox = gtk_vbox_new(FALSE, 5);
-        gtk_box_pack_start(GTK_BOX(ctk_object), vbox, FALSE, FALSE, 0);
-        ctk_object->prime_display_page = vbox;
-
-        /* Disclaimer about inability to control non-nvidia displays */
-        hbox = gtk_hbox_new(FALSE, 5);
-        gtk_box_pack_start(GTK_BOX(vbox), hbox, FALSE, FALSE, 5);
-
-        label = gtk_label_new("PRIME Displays cannot be controlled by "
-            "nvidia-settings and must be configured by an external "
-            "RandR capable tool. The display is shown in the layout "
-            "window above for informational purposes only.");
-        gtk_label_set_line_wrap(GTK_LABEL(label), TRUE);
-        gtk_box_pack_start(GTK_BOX(hbox), label, FALSE, TRUE, 5);
-
-        hbox = gtk_hbox_new(FALSE, 5);
-        gtk_box_pack_start(GTK_BOX(vbox), hbox, FALSE, FALSE, 5);
-
-        label = gtk_label_new("Viewport:");
-        labels = g_slist_append(labels, label);
-        gtk_box_pack_start(GTK_BOX(hbox), label, FALSE, FALSE, 5);
-
-        ctk_object->lbl_prime_display_view = gtk_label_new("");
-        ctk_config_set_tooltip(ctk_config, ctk_object->lbl_prime_display_view,
-                               __prime_viewport_help);
-        gtk_box_pack_start(GTK_BOX(hbox),
-                           ctk_object->lbl_prime_display_view,
-                           FALSE, FALSE, 5);
-
-        hbox = gtk_hbox_new(FALSE, 5);
-        gtk_box_pack_start(GTK_BOX(vbox), hbox, FALSE, FALSE, 5);
-
-        label = gtk_label_new("Name:");
-        labels = g_slist_append(labels, label);
-        gtk_box_pack_start(GTK_BOX(hbox), label, FALSE, FALSE, 5);
-        ctk_object->lbl_prime_display_name = gtk_label_new("");
-        ctk_config_set_tooltip(ctk_config, ctk_object->lbl_prime_display_name,
-                               __prime_name_help);
-        gtk_box_pack_start(GTK_BOX(hbox),
-                           ctk_object->lbl_prime_display_name,
-                           FALSE, FALSE, 5);
-        ctk_object->box_prime_display_name = hbox;
-
-        hbox = gtk_hbox_new(FALSE, 5);
-        gtk_box_pack_start(GTK_BOX(vbox), hbox, FALSE, FALSE, 5);
-
-        label = gtk_label_new("Synchronization:");
-        labels = g_slist_append(labels, label);
-        gtk_box_pack_start(GTK_BOX(hbox), label, FALSE, FALSE, 5);
-        ctk_object->lbl_prime_display_sync = gtk_label_new("");
-        ctk_config_set_tooltip(ctk_config, ctk_object->lbl_prime_display_sync,
-                               __prime_sync_help);
-        gtk_box_pack_start(GTK_BOX(hbox),
-                           ctk_object->lbl_prime_display_sync,
-                           FALSE, FALSE, 5);
-
-        g_object_ref(ctk_object->prime_display_page);
-        gtk_widget_show_all(ctk_object->prime_display_page);
-    }
-
-
-    /* Align all the configuration labels */
-    max_width = 0;
-    for (slitem = labels; slitem; slitem = slitem->next) {
-        label = slitem->data;
-        gtk_misc_set_alignment(GTK_MISC(label), 0.0f, 0.5f);
-        ctk_widget_get_preferred_size(label, &req);
-        if (req.width > max_width) {
-            max_width = req.width;
-        }
-    }
-    for (slitem = labels; slitem; slitem = slitem->next) {
-        label = slitem->data;
-        gtk_widget_set_size_request(label, max_width, -1);
-    }
-    g_slist_free(labels);
-
-
+    
+ 
     { /* Buttons */
         hbox = gtk_hbox_new(FALSE, 5);
-        gtk_box_pack_end(GTK_BOX(ctk_object), hbox, FALSE, FALSE, 0);
-
-        gtk_box_pack_end(GTK_BOX(hbox), ctk_object->btn_save,
-                         FALSE, FALSE, 0);
-
-        hbox = gtk_hbox_new(FALSE, 5);
-        gtk_box_pack_end(GTK_BOX(ctk_object), hbox, FALSE, FALSE, 0);
+        gtk_box_pack_start(GTK_BOX(ctk_object), hbox, FALSE, FALSE, 0);
 
         gtk_box_pack_end(GTK_BOX(hbox), ctk_object->btn_reset,
                          FALSE, FALSE, 0);
@@ -2364,21 +1654,42 @@ GtkWidget* ctk_display_config_new(CtrlTarget *ctrl_target,
         gtk_box_pack_end(GTK_BOX(hbox), ctk_object->btn_apply,
                          FALSE, FALSE, 0);
 
-        hseparator = gtk_hseparator_new();
-        gtk_box_pack_end(GTK_BOX(ctk_object), hseparator, FALSE, TRUE, 5);
+        hbox = gtk_hbox_new(FALSE, 5);
+        gtk_box_pack_start(GTK_BOX(ctk_object), hbox, FALSE, FALSE, 0);
+
+        gtk_box_pack_end(GTK_BOX(hbox), ctk_object->btn_save,
+                         FALSE, FALSE, 0);
     }
 
 
     { /* Dialogs */
+
+        /* Display Configuration Dialog */
+        label = gtk_label_new("How should this display device be configured?");
+        hbox = gtk_hbox_new(TRUE, 0);
+        gtk_box_pack_start(GTK_BOX(hbox), label, FALSE, FALSE, 20);
+        gtk_box_pack_start
+            (GTK_BOX(GTK_DIALOG(ctk_object->dlg_display_config)->vbox),
+             hbox, TRUE, TRUE, 20);
+        gtk_box_pack_start
+            (GTK_BOX(GTK_DIALOG(ctk_object->dlg_display_config)->vbox),
+             ctk_object->rad_display_config_disabled, FALSE, FALSE, 0);
+        gtk_box_pack_start
+            (GTK_BOX(GTK_DIALOG(ctk_object->dlg_display_config)->vbox),
+             ctk_object->rad_display_config_xscreen, FALSE, FALSE, 0);
+        gtk_box_pack_start
+            (GTK_BOX(GTK_DIALOG(ctk_object->dlg_display_config)->vbox),
+             ctk_object->rad_display_config_twinview, FALSE, FALSE, 0);
+        gtk_widget_show_all(GTK_DIALOG(ctk_object->dlg_display_config)->vbox);
 
         /* Display Disable Dialog */
         hbox = gtk_hbox_new(TRUE, 0);
         gtk_box_pack_start(GTK_BOX(hbox), ctk_object->txt_display_disable,
                            FALSE, FALSE, 20);
         gtk_box_pack_start
-            (GTK_BOX(ctk_dialog_get_content_area(GTK_DIALOG(ctk_object->dlg_display_disable))),
+            (GTK_BOX(GTK_DIALOG(ctk_object->dlg_display_disable)->vbox),
              hbox, TRUE, TRUE, 20);
-        gtk_widget_show_all(ctk_dialog_get_content_area(GTK_DIALOG(ctk_object->dlg_display_disable)));
+        gtk_widget_show_all(GTK_DIALOG(ctk_object->dlg_display_disable)->vbox);
 
         /* Reset Confirm Dialog */
         label = gtk_label_new("Do you really want to reset the "
@@ -2386,40 +1697,81 @@ GtkWidget* ctk_display_config_new(CtrlTarget *ctrl_target,
         hbox = gtk_hbox_new(TRUE, 0);
         gtk_box_pack_start(GTK_BOX(hbox), label, FALSE, FALSE, 20);
         gtk_box_pack_start
-            (GTK_BOX(ctk_dialog_get_content_area(GTK_DIALOG(ctk_object->dlg_reset_confirm))),
+            (GTK_BOX(GTK_DIALOG(ctk_object->dlg_reset_confirm)->vbox),
              hbox, TRUE, TRUE, 20);
-        gtk_widget_show_all(ctk_dialog_get_content_area(GTK_DIALOG(ctk_object->dlg_reset_confirm)));
+        gtk_widget_show_all(GTK_DIALOG(ctk_object->dlg_reset_confirm)->vbox);
 
         /* Apply Confirm Dialog */
         hbox = gtk_hbox_new(TRUE, 0);
         gtk_box_pack_start(GTK_BOX(hbox), ctk_object->txt_display_confirm,
                            TRUE, TRUE, 20);
         gtk_box_pack_start
-            (GTK_BOX(ctk_dialog_get_content_area(GTK_DIALOG(ctk_object->dlg_display_confirm))),
+            (GTK_BOX(GTK_DIALOG(ctk_object->dlg_display_confirm)->vbox),
              hbox, TRUE, TRUE, 20);
-        gtk_widget_show_all(ctk_dialog_get_content_area(GTK_DIALOG(ctk_object->dlg_display_confirm)));
-    }
+        gtk_widget_show_all(GTK_DIALOG(ctk_object->dlg_display_confirm)->vbox);
 
+        /* X Config Save Dialog */
+        gtk_dialog_set_has_separator(GTK_DIALOG(ctk_object->dlg_xconfig_save),
+                                     TRUE);
 
-    /* If mosaic mode is enabled, start in advanced mode */
-    if (ctk_object->layout &&
-        ctk_object->layout->gpus &&
-        ctk_object->layout->gpus->mosaic_enabled) {
-        advanced_clicked(ctk_object->btn_advanced, ctk_object);
+        /* Preview button */
+        hbox = gtk_hbox_new(FALSE, 0);
+        hbox2 = gtk_hbox_new(FALSE, 0);
+
+        gtk_box_pack_start(GTK_BOX(hbox), ctk_object->btn_xconfig_preview,
+                           FALSE, FALSE, 5);
+        gtk_box_pack_start
+            (GTK_BOX(GTK_DIALOG(ctk_object->dlg_xconfig_save)->vbox),
+             hbox, FALSE, FALSE, 5);
+
+        /* Preview window */
+        hbox = gtk_hbox_new(TRUE, 0);
+
+        gtk_container_add(GTK_CONTAINER(ctk_object->scr_xconfig_save),
+                          ctk_object->txt_xconfig_save);
+        gtk_box_pack_start(GTK_BOX(hbox),
+                           ctk_object->scr_xconfig_save,
+                           TRUE, TRUE, 5);
+        gtk_box_pack_start
+            (GTK_BOX(GTK_DIALOG(ctk_object->dlg_xconfig_save)->vbox),
+             hbox,
+             TRUE, TRUE, 0);
+        ctk_object->box_xconfig_save = hbox;
+
+        /* Filename */
+        hbox = gtk_hbox_new(FALSE, 0);
+        hbox2 = gtk_hbox_new(FALSE, 5);
+
+        gtk_box_pack_end(GTK_BOX(hbox2), ctk_object->btn_xconfig_file,
+                           FALSE, FALSE, 0);
+        gtk_box_pack_end(GTK_BOX(hbox2), ctk_object->txt_xconfig_file,
+                           TRUE, TRUE, 0);
+        gtk_box_pack_end(GTK_BOX(hbox), hbox2,
+                           TRUE, TRUE, 5);
+        gtk_box_pack_start
+            (GTK_BOX(GTK_DIALOG(ctk_object->dlg_xconfig_save)->vbox),
+             hbox,
+             FALSE, FALSE, 5);
+
+        /* Merge checkbox */
+        gtk_box_pack_start
+            (GTK_BOX(GTK_DIALOG(ctk_object->dlg_xconfig_save)->vbox),
+             ctk_object->btn_xconfig_merge,
+             FALSE, FALSE, 5);
+
+        gtk_widget_show_all(GTK_DIALOG(ctk_object->dlg_xconfig_save)->vbox);
     }
 
 
     /* Show the GUI */
     gtk_widget_show_all(GTK_WIDGET(ctk_object));
 
-    update_gui(ctk_object);
 
-    /* Register to receive updates when layout changed */
-    ctk_display_layout_register_callbacks(CTK_DISPLAY_LAYOUT(ctk_object->obj_layout),
-                                          layout_selected_callback,
-                                          (void *)ctk_object,
-                                          layout_modified_callback,
-                                          (void *)ctk_object);
+    /* Setup the GUI */
+    setup_layout_frame(ctk_object);
+    setup_display_page(ctk_object);
+    setup_screen_page(ctk_object);
+
 
     return GTK_WIDGET(ctk_object);
 
@@ -2438,14 +1790,10 @@ GtkTextBuffer *ctk_display_config_create_help(GtkTextTagTable *table,
 {
     GtkTextIter i;
     GtkTextBuffer *b;
-    nvGpuPtr gpu = NULL;
 
-    if (ctk_object->layout) {
-        gpu = ctk_object->layout->gpus;
-    }
-
+    
     b = gtk_text_buffer_new(table);
-
+    
     gtk_text_buffer_get_iter_at_offset(b, &i, 0);
 
     ctk_help_title(b, &i, "Display Configuration Help");
@@ -2457,172 +1805,89 @@ GtkTextBuffer *ctk_display_config_create_help(GtkTextTagTable *table,
     ctk_help_para(b, &i, "This section shows information and configuration "
                   "settings for the X server layout.");
     ctk_help_heading(b, &i, "Layout Image");
-    ctk_help_para(b, &i, "The layout image shows the geometric relationship "
+    ctk_help_para(b, &i, "The layout image shows the geomertic relationship "
                   "that display devices and X screens have to each other.  "
                   "You may drag display devices around to reposition them.  "
                   "When in advanced view, the display's panning domain may "
-                  "be resized by holding SHIFT while dragging.  Also, The "
-                  "X screen a display belongs to may be selected by holding "
-                  "down the CONTROL key while clicking on the display, and can "
-                  "be moved by holding CONTROL-Click and dragging.");
+                  "be resized by holding shift while dragging.");
     ctk_help_heading(b, &i, "Layout Hidden Label");
-    ctk_help_para(b, &i, "%s", __layout_hidden_label_help);
-
-    if (gpu) {
-        switch (gpu->mosaic_type) {
-        case MOSAIC_TYPE_SLI_MOSAIC:
-            ctk_help_heading(b, &i, "Enable SLI Mosaic");
-            ctk_help_para(b, &i, "%s", __layout_sli_mosaic_button_help);
-            ctk_help_heading(b, &i, "Configure SLI Mosaic");
-            ctk_help_para(b, &i, "%s", __layout_mosaic_config_button_help);
-            break;
-        case MOSAIC_TYPE_BASE_MOSAIC:
-            ctk_help_heading(b, &i, "Enable Base Mosaic");
-            ctk_help_para(b, &i, "%s", __layout_base_mosaic_full_button_help);
-            break;
-        case MOSAIC_TYPE_BASE_MOSAIC_LIMITED:
-            ctk_help_heading(b, &i, "Enable Base Mosaic (Surround)");
-            ctk_help_para(b, &i, "%s", __layout_base_mosaic_surround_button_help);
-            break;
-        default:
-            break;
-        }
-    }
-
+    ctk_help_para(b, &i, __layout_hidden_label_help);
     ctk_help_heading(b, &i, "Enable Xinerama");
-    ctk_help_para(b, &i, "%s  This setting is only available when multiple "
+    ctk_help_para(b, &i, "%s.  This setting is only available when multiple "
                   "X screens are present.", __layout_xinerama_button_help);
-    ctk_help_heading(b, &i, "Selection");
-    ctk_help_para(b, &i, "%s", __selected_item_help);
+
 
     ctk_help_para(b, &i, "");
-    ctk_help_heading(b, &i, "Display Options");
-    ctk_help_para(b, &i, "The following options are available when a display "
-                  "device is selected in the Selection drop-down to configure "
-                  "the settings for that display device.");
-    ctk_help_heading(b, &i, "Configuration");
-    ctk_help_para(b, &i, "%s  \"Disabled\" disables the selected display "
-                  "device. \"X screen <number>\" associates the selected "
-                  "display device with the specified X Screen. \"New X screen "
-                  "(requires X restart)\" creates a new X Screen and "
-                  "associates the selected display device with it.",
-                  __dpy_configuration_mnu_help);
+    ctk_help_heading(b, &i, "Display Section");
+    ctk_help_para(b, &i, "This section shows information and configuration "
+                  "settings for the currently selected display device.");
+    ctk_help_heading(b, &i, "Model");
+    ctk_help_para(b, &i, "The Model name is the name of the display device.");
+    ctk_help_heading(b, &i, "Select Display");
+    ctk_help_para(b, &i, __dpy_model_help);
     ctk_help_heading(b, &i, "Resolution");
-    ctk_help_para(b, &i, "%s", __dpy_resolution_mnu_help);
+    ctk_help_para(b, &i, __dpy_resolution_mnu_help);
     ctk_help_heading(b, &i, "Refresh");
     ctk_help_para(b, &i, "The Refresh drop-down is to the right of the "
                   "Resolution drop-down.  %s", __dpy_refresh_mnu_help);
     ctk_help_heading(b, &i, "Mode Name");
     ctk_help_para(b, &i, "The Mode name is the name of the modeline that is "
                   "currently chosen for the selected display device.  "
-                  "This is only available when advanced view is enabled.");
-    ctk_help_heading(b, &i, "Stereo Eye");
-    ctk_help_para(b, &i, "%s", __dpy_stereo_help);
-    ctk_help_heading(b, &i, "Orientation");
-    ctk_help_para(b, &i, "The Orientation drop-downs control how the desktop "
-                  "image is rotated and/or reflected.  %s  %s  Note that "
-                  "reflection is applied before rotation.",
-                  __dpy_rotation_help, __dpy_reflection_help);
-    ctk_help_heading(b, &i, "Underscan");
-    ctk_help_para(b, &i, "%s  The aspect ratio of the ViewPortOut is preserved "
-                  " and the ViewPortIn is updated to exactly match this new "
-                  "size.  This feature is formerly known as Overscan "
-                  "Compensation.", __dpy_underscan_text_help);
+                  "(Advanced view only)");
     ctk_help_heading(b, &i, "Position Type");
-    ctk_help_para(b, &i, "%s", __dpy_position_type_help);
+    ctk_help_para(b, &i, __dpy_position_type_help);
     ctk_help_heading(b, &i, "Position Relative");
-    ctk_help_para(b, &i, "%s", __dpy_position_relative_help);
+    ctk_help_para(b, &i, __dpy_position_relative_help);
     ctk_help_heading(b, &i, "Position Offset");
-    ctk_help_para(b, &i, "%s", __dpy_position_offset_help);
-    ctk_help_heading(b, &i, "ViewPortIn");
-    ctk_help_para(b, &i, "%s", __dpy_viewport_in_help);
-    ctk_help_heading(b, &i, "ViewPortOut");
-    ctk_help_para(b, &i, "%s", __dpy_viewport_out_help);
+    ctk_help_para(b, &i, __dpy_position_offset_help);
     ctk_help_heading(b, &i, "Panning");
-    ctk_help_para(b, &i, "%s  This is only available when advanced "
-                  "view is enabled.", __dpy_panning_help);
+    ctk_help_para(b, &i, "%s.  (Advanced view only)", __dpy_panning_help);
     ctk_help_heading(b, &i, "Primary Display");
-    ctk_help_para(b, &i, "%s", __dpy_primary_help);
-    ctk_help_heading(b, &i, "Force Composition Pipeline");
-    ctk_help_para(b, &i, "%s", __dpy_forcecompositionpipeline_help);
-    ctk_help_heading(b, &i, "Force Full Composition Pipeline");
-    ctk_help_para(b, &i, "%s", __dpy_forcefullcompositionpipeline_help);
-    ctk_help_heading(b, &i, "Allow G-SYNC on monitor not validated as G-SYNC Compatible");
-    ctk_help_para(b, &i, "%s", __dpy_force_allow_gsync_help);
+    ctk_help_para(b, &i, __dpy_primary_help);
 
 
     ctk_help_para(b, &i, "");
-    ctk_help_heading(b, &i, "X Screen Options");
-    ctk_help_para(b, &i, "The following options are available when an X "
-                  "screen is selected in the Selection drop-down to configure "
-                  "the settings for that X screen.");
-    ctk_help_heading(b, &i, "Virtual Size");
-    ctk_help_para(b, &i, "%s  The Virtual screen size must be at least "
-                  "304x200, and the width must be a multiple of 8.",
-                  __screen_virtual_size_help);
-    ctk_help_heading(b, &i, "Color Depth");
-    ctk_help_para(b, &i, "%s", __screen_depth_help);
-    ctk_help_heading(b, &i, "Stereo Mode");
-    ctk_help_para(b, &i, "%s", __screen_stereo_help);
+    ctk_help_heading(b, &i, "Screen Section");
+    ctk_help_para(b, &i, "This section shows information and configuration "
+                  "settings for the currently selected X screen.");
+    ctk_help_heading(b, &i, "Screen Depth");
+    ctk_help_para(b, &i, __screen_depth_help);
     ctk_help_heading(b, &i, "Position Type");
-    ctk_help_para(b, &i, "%s", __screen_position_type_help);
+    ctk_help_para(b, &i, __screen_position_type_help);
     ctk_help_heading(b, &i, "Position Relative");
-    ctk_help_para(b, &i, "%s", __screen_position_relative_help);
+    ctk_help_para(b, &i, __screen_position_relative_help);
     ctk_help_heading(b, &i, "Position Offset");
-    ctk_help_para(b, &i, "%s", __screen_position_offset_help);
+    ctk_help_para(b, &i, __screen_position_offset_help);
     ctk_help_heading(b, &i, "MetaMode Selection");
-    ctk_help_para(b, &i, "%s  This is only available when advanced view "
-                  "is enabled.", __screen_metamode_help);
+    ctk_help_para(b, &i, "%s.  (Advanced view only)", __screen_metamode_help);
     ctk_help_heading(b, &i, "Add Metamode");
-    ctk_help_para(b, &i, "%s  This is only available when advanced view "
-                  "is enabled.", __screen_metamode_add_button_help);
+    ctk_help_para(b, &i, "%s.  (Advanced view only)",
+                  __screen_metamode_add_button_help);
     ctk_help_heading(b, &i, "Delete Metamode");
-    ctk_help_para(b, &i, "%s This is only available when advanced view "
-                  "is enabled.", __screen_metamode_delete_button_help);
-
-
+    ctk_help_para(b, &i, "%s.  (Advanced view only)",
+                  __screen_metamode_delete_button_help);
+    
+    
     ctk_help_para(b, &i, "");
-    ctk_help_heading(b, &i, "PRIME Display Options");
-    ctk_help_para(b, &i, "The following attributes are available when a "
-                  "configured PRIME display is selected in the Selection "
-                  "drop-down. These attributes cannot be changed within "
-                  "nvidia-settings.");
-    ctk_help_heading(b, &i, "Viewport");
-    ctk_help_para(b, &i, "%s", __prime_viewport_help);
-    ctk_help_heading(b, &i, "Name");
-    ctk_help_para(b, &i, "%s  This attribute may not be available.",
-                  __prime_name_help);
-    ctk_help_heading(b, &i, "Synchronization");
-    ctk_help_para(b, &i, "%s", __prime_sync_help);
-
-
-    ctk_help_para(b, &i, "");
-    ctk_help_heading(b, &i, "Buttons");
+     ctk_help_heading(b, &i, "Buttons");
     ctk_help_heading(b, &i, "Apply");
     ctk_help_para(b, &i, "%s  Note that not all settings can be applied to an "
-                  "active X server; "
-                  "these require restarting the X server after saving the "
-                  "desired settings to the X configuration file.  Examples "
-                  "of such settings include changing the position of any X "
-                  "screen, adding/removing an X screen, and changing the X "
-                  "screen color depth.", __apply_button_help);
+                  "active X server; these require restarting the X server "
+                  "after saving the desired settings to the X configuration "
+                  "file.  Examples of such settings include changing the "
+                  "position of any X screen, adding/removing an X screen, and "
+                  "changing the X screen color depth.", __apply_button_help);
     ctk_help_heading(b, &i, "Detect Displays");
-    ctk_help_para(b, &i, "%s", __detect_displays_button_help);
+    ctk_help_para(b, &i, __detect_displays_button_help);
     ctk_help_heading(b, &i, "Advanced/Basic...");
-    ctk_help_para(b, &i, "%s  The Basic view modifies the currently active "
-                  "MetaMode for an X screen, while the advanced view exposes "
+    ctk_help_para(b, &i, "%s.  The Basic view modifies the currently active "
+                  "MetaMode for an X screen, while the Advanced view exposes "
                   "all the MetaModes available on an X screen, and lets you "
-                  "modify each of them.", __advanced_button_help);
+                  "modify each of them", __advanced_button_help);
     ctk_help_heading(b, &i, "Reset");
-    ctk_help_para(b, &i, "%s", __reset_button_help);
+    ctk_help_para(b, &i, __reset_button_help);
     ctk_help_heading(b, &i, "Save to X Configuration File");
-    ctk_help_para(b, &i, "%s", __save_button_help);
-
-
-    ctk_help_para(b, &i, "");
-    ctk_help_heading(b, &i, "Dialogs");
-
-    ctk_mmdialog_insert_help(b, &i);
+    ctk_help_para(b, &i, __save_button_help);
 
     ctk_help_finish(b);
 
@@ -2635,80 +1900,6 @@ GtkTextBuffer *ctk_display_config_create_help(GtkTextTagTable *table,
 /* Widget setup & helper functions ***********************************/
 
 
-static void setup_mosaic_config(CtkDisplayConfig *ctk_object)
-{
-    nvGpuPtr gpu;
-    const char *tooltip;
-    const gchar *label;
-    nvLayoutPtr layout = ctk_object->layout;
-    int any_gpu_support_mosaic = FALSE;
-
-    for (gpu = layout->gpus; gpu; gpu = gpu->next_in_layout) {
-        if (gpu->mosaic_type != MOSAIC_TYPE_UNSUPPORTED) {
-            any_gpu_support_mosaic = TRUE;
-            break;
-        }
-    }
-
-    if (!ctk_object->advanced_mode ||
-        !any_gpu_support_mosaic) {
-        gtk_widget_hide(ctk_object->chk_mosaic_enabled);
-        gtk_widget_hide(ctk_object->btn_mosaic);
-        return;
-    }
-
-    gtk_widget_show(ctk_object->chk_mosaic_enabled);
-
-    /* Only show the Mosaic Config tool with SLI Mosaic and dialog exists */
-    if (gpu->mosaic_type == MOSAIC_TYPE_SLI_MOSAIC &&
-        ctk_object->dialog_mosaic) {
-        gtk_widget_show(ctk_object->btn_mosaic);
-    } else {
-        gtk_widget_hide(ctk_object->btn_mosaic);
-    }
-
-    switch (gpu->mosaic_type) {
-    case MOSAIC_TYPE_SLI_MOSAIC:
-        tooltip = __layout_sli_mosaic_button_help;
-        label = "Enable SLI Mosaic";
-        break;
-    case MOSAIC_TYPE_BASE_MOSAIC:
-        tooltip = __layout_base_mosaic_full_button_help;
-        label = "Enable Base Mosaic";
-        break;
-    case MOSAIC_TYPE_BASE_MOSAIC_LIMITED:
-        tooltip = __layout_base_mosaic_surround_button_help;
-        label = "Enable Base Mosaic (Surround)";
-        break;
-    default:
-        gtk_widget_hide(ctk_object->chk_mosaic_enabled);
-        return;
-    }
-
-    g_signal_handlers_block_by_func
-        (G_OBJECT(ctk_object->chk_mosaic_enabled),
-         G_CALLBACK(mosaic_state_toggled), (gpointer) ctk_object);
-
-    gtk_button_set_label(GTK_BUTTON(ctk_object->chk_mosaic_enabled),
-                         label);
-
-    ctk_config_set_tooltip(ctk_object->ctk_config,
-                           ctk_object->chk_mosaic_enabled,
-                           tooltip);
-
-    gtk_toggle_button_set_active
-        (GTK_TOGGLE_BUTTON(ctk_object->chk_mosaic_enabled),
-         gpu->mosaic_enabled);
-
-    gtk_widget_set_sensitive(ctk_object->btn_mosaic, gpu->mosaic_enabled);
-
-    g_signal_handlers_unblock_by_func
-        (G_OBJECT(ctk_object->chk_mosaic_enabled),
-         G_CALLBACK(mosaic_state_toggled), (gpointer) ctk_object);
-}
-
-
-
 /** setup_layout_frame() *********************************************
  *
  * Sets up the layout frame to reflect the currently selected layout.
@@ -2718,6 +1909,8 @@ static void setup_mosaic_config(CtkDisplayConfig *ctk_object)
 static void setup_layout_frame(CtkDisplayConfig *ctk_object)
 {
     nvLayoutPtr layout = ctk_object->layout;
+    nvGpuPtr gpu;
+    int num_screens;
     GdkScreen *s;
 
     /*
@@ -2728,10 +1921,14 @@ static void setup_layout_frame(CtkDisplayConfig *ctk_object)
     s = gtk_widget_get_screen(GTK_WIDGET(ctk_object));
     screen_size_changed(s, ctk_object);
 
-    setup_mosaic_config(ctk_object);
+    /* Only allow Xinerama when there are multiple X screens */
+    num_screens = 0;
+    for (gpu = layout->gpus; gpu; gpu = gpu->next) {
+        num_screens += gpu->num_screens;
+    }
 
-    /* Xinerama requires 2 or more X screens */
-    if (layout->num_screens < 2) {
+    /* Unselect Xinerama if only one (or no) X screen */
+    if (num_screens <= 1) {
         layout->xinerama_enabled = 0;
         gtk_widget_hide(ctk_object->chk_xinerama_enabled);
         return;
@@ -2751,206 +1948,6 @@ static void setup_layout_frame(CtkDisplayConfig *ctk_object)
          G_CALLBACK(xinerama_state_toggled), (gpointer) ctk_object);
 
 } /* setup_layout_frame() */
-
-
-
-/** update_selected_page() ***********************************************
- *
- * Makes sure the correct page (Display or X Screen) is selected based on
- * the currently selected items.
- *
- **/
-
-static void update_selected_page(CtkDisplayConfig *ctk_object)
-{
-    nvDisplayPtr display = ctk_display_layout_get_selected_display
-        (CTK_DISPLAY_LAYOUT(ctk_object->obj_layout));
-    nvScreenPtr screen = ctk_display_layout_get_selected_screen
-        (CTK_DISPLAY_LAYOUT(ctk_object->obj_layout));
-    nvPrimeDisplayPtr prime = ctk_display_layout_get_selected_prime_display
-        (CTK_DISPLAY_LAYOUT(ctk_object->obj_layout));
-
-    gtk_widget_hide(ctk_object->display_page);
-    gtk_widget_hide(ctk_object->screen_page);
-    gtk_widget_hide(ctk_object->prime_display_page);
-    if (display) {
-        gtk_widget_show(ctk_object->display_page);
-    } else if (prime) {
-        gtk_widget_show(ctk_object->prime_display_page);
-    } else if (screen) {
-        gtk_widget_show(ctk_object->screen_page);
-    }
-
-} /* update_selected_page() */
-
-
-
-/** generate_selected_item_dropdown() ************************************
- *
- * Drop down menu for selecting current display/X screen.
- *
- **/
-
-static void generate_selected_item_dropdown(CtkDisplayConfig *ctk_object,
-                                            nvDisplayPtr cur_display,
-                                            nvScreenPtr cur_screen,
-                                            nvPrimeDisplayPtr cur_prime,
-                                            int *cur_idx)
-{
-    nvLayoutPtr layout = ctk_object->layout;
-    nvGpuPtr gpu;
-    nvDisplayPtr display;
-    nvScreenPtr screen;
-    nvPrimeDisplayPtr prime;
-    int idx;
-    char *str;
-    char *tmp;
-    gboolean show_gpu_info;
-
-    /* (Re)allocate the lookup table */
-
-    if (ctk_object->selected_item_table) {
-        free(ctk_object->selected_item_table);
-    }
-
-    ctk_object->selected_item_table_len = layout->num_screens;
-    for (gpu = layout->gpus; gpu; gpu = gpu->next_in_layout) {
-        ctk_object->selected_item_table_len += gpu->num_displays;
-    }
-
-    ctk_object->selected_item_table_len += layout->num_prime_displays;
-
-    ctk_object->selected_item_table =
-        calloc(ctk_object->selected_item_table_len,
-               sizeof(SelectableItem));
-
-    gtk_list_store_clear(GTK_LIST_STORE(gtk_combo_box_get_model(
-        GTK_COMBO_BOX(ctk_object->mnu_selected_item))));
-
-    if (!ctk_object->selected_item_table) {
-        ctk_object->selected_item_table_len = 0;
-        gtk_widget_set_sensitive(ctk_object->mnu_selected_item, False);
-        return;
-    }
-
-    /* Create the dropdown menu and fill the lookup table */
-
-    idx = 0;
-    show_gpu_info = ((layout->num_gpus > 1) || ctk_object->advanced_mode) ? True : False;
-
-    /* Add X screens */
-    for (screen = layout->screens; screen; screen = screen->next_in_layout) {
-        if (!cur_display && (cur_screen == screen)) {
-            *cur_idx = idx;
-        }
-
-        str = g_strdup_printf("X screen %d", screen->scrnum);
-
-        ctk_combo_box_text_append_text(ctk_object->mnu_selected_item, str);
-        g_free(str);
-
-        ctk_object->selected_item_table[idx].type = SELECTABLE_ITEM_SCREEN;
-        ctk_object->selected_item_table[idx].u.screen = screen;
-        idx++;
-    }
-
-    /* Add displays */
-    for (gpu = layout->gpus; gpu; gpu = gpu->next_in_layout) {
-        for (display = gpu->displays;
-             display;
-             display = display->next_on_gpu) {
-            if (cur_display == display) {
-                *cur_idx = idx;
-            }
-            str = g_strdup_printf("%s (%s", display->logName,
-                                  display->randrName);
-            if (show_gpu_info) {
-                tmp = str;
-                str = g_strdup_printf("%s on GPU-%d", tmp,
-                                      NvCtrlGetTargetId(gpu->ctrl_target));
-                g_free(tmp);
-            }
-            tmp = str;
-            str = g_strdup_printf("%s)", tmp);
-            g_free(tmp);
-
-            ctk_combo_box_text_append_text(ctk_object->mnu_selected_item, str);
-            g_free(str);
-
-            ctk_object->selected_item_table[idx].type = SELECTABLE_ITEM_DISPLAY;
-            ctk_object->selected_item_table[idx].u.display = display;
-            idx++;
-        }
-    }
-
-    /* Add prime displays */
-    for (prime = layout->prime_displays; prime; prime = prime->next_in_layout) {
-
-        if (cur_prime == prime) {
-            *cur_idx = idx;
-        }
-
-        if (prime->label) {
-            str = g_strdup_printf("PRIME Display: %s", prime->label);
-        } else {
-            str = g_strdup("PRIME Display");
-        }
-
-        ctk_combo_box_text_append_text(ctk_object->mnu_selected_item, str);
-        g_free(str);
-
-        ctk_object->selected_item_table[idx].type = SELECTABLE_ITEM_PRIME;
-        ctk_object->selected_item_table[idx].u.prime = prime;
-
-        idx++;
-    }
-
-} /* generate_selected_item_dropdown() */
-
-
-
-/** setup_selected_item_dropdown() ******************************
- *
- * Setup display modelname dropdown menu.
- *
- **/
-
-static void setup_selected_item_dropdown(CtkDisplayConfig *ctk_object)
-{
-    nvDisplayPtr display = ctk_display_layout_get_selected_display
-        (CTK_DISPLAY_LAYOUT(ctk_object->obj_layout));
-    nvScreenPtr screen = ctk_display_layout_get_selected_screen
-        (CTK_DISPLAY_LAYOUT(ctk_object->obj_layout));
-    nvPrimeDisplayPtr prime = ctk_display_layout_get_selected_prime_display
-        (CTK_DISPLAY_LAYOUT(ctk_object->obj_layout));
-    int cur_idx = 0;
-
-    if (!display && !screen && !prime) {
-        gtk_widget_set_sensitive(ctk_object->mnu_selected_item, False);
-        gtk_widget_hide(ctk_object->mnu_selected_item);
-        return;
-    }
-
-    gtk_widget_set_sensitive(ctk_object->mnu_selected_item, True);
-    gtk_widget_show(ctk_object->mnu_selected_item);
-
-    /* Setup the menu and select the current model */
-    g_signal_handlers_block_by_func
-        (G_OBJECT(ctk_object->mnu_selected_item),
-         G_CALLBACK(selected_item_changed), (gpointer) ctk_object);
-
-    generate_selected_item_dropdown(ctk_object,
-                                    display, screen, prime,
-                                    &cur_idx);
-
-    gtk_combo_box_set_active
-        (GTK_COMBO_BOX(ctk_object->mnu_selected_item), cur_idx);
-
-    g_signal_handlers_unblock_by_func
-        (G_OBJECT(ctk_object->mnu_selected_item),
-         G_CALLBACK(selected_item_changed), (gpointer) ctk_object);
-
-} /* setup_selected_item_dropdown() */
 
 
 
@@ -2974,14 +1971,14 @@ static void setup_display_modename(CtkDisplayConfig *ctk_object)
 
 
     if (!display->cur_mode || !display->cur_mode->modeline) {
-        gtk_label_set_text(GTK_LABEL(ctk_object->txt_display_modename), "");
+        gtk_label_set(GTK_LABEL(ctk_object->txt_display_modename), "");
         gtk_widget_set_sensitive(ctk_object->box_display_modename, FALSE);
         return;
     }
     gtk_widget_set_sensitive(ctk_object->box_display_modename, TRUE);
 
 
-    gtk_label_set_text(GTK_LABEL(ctk_object->txt_display_modename),
+    gtk_label_set(GTK_LABEL(ctk_object->txt_display_modename),
                   display->cur_mode->modeline->data.identifier);
 
 } /* setup_display_modename() */
@@ -2990,8 +1987,8 @@ static void setup_display_modename(CtkDisplayConfig *ctk_object)
 
 /** setup_display_config() *******************************************
  *
- * Updates the "Configure" dropdown menu to list the currently
- * available configurations of the selected display.
+ * Updates the text of the configure button to reflect the current
+ * setting of the selected display.
  *
  **/
 
@@ -2999,116 +1996,20 @@ static void setup_display_config(CtkDisplayConfig *ctk_object)
 {
     nvDisplayPtr display = ctk_display_layout_get_selected_display
         (CTK_DISPLAY_LAYOUT(ctk_object->obj_layout));
-    nvLayoutPtr layout = ctk_object->layout;
-    nvScreenPtr screen = NULL;
-    int num_screens_on_gpu = 0;
 
-    DisplayConfigOption *options;
-    int max_options;
-    int cur_option = -1;
-    int num_options = 0;
+    if (!display) return;
 
-
-    /* Allocate the max space we'll need for the lookup table (list all the
-     * X screens + disable + new)
-     */
-    max_options = layout->num_screens + 2;
-    options = nvalloc(max_options * sizeof(DisplayConfigOption));
-
-    /* Don't allow disabling the last display device */
-    if (layout->num_screens > 1 ||
-        !display->screen ||
-        display->screen->num_displays >= 1) {
-        if (!display->screen) {
-            cur_option = num_options;
-        }
-        options[num_options].config = DPY_CFG_DISABLED;
-        num_options++;
+    if (!display->screen) {
+        gtk_label_set_text(GTK_LABEL(ctk_object->txt_display_config),
+                          "Disabled");
+    } else if (display->screen->num_displays == 1) {
+        gtk_label_set_text(GTK_LABEL(ctk_object->txt_display_config),
+                           "Separate X screen");
+    } else {
+        gtk_label_set_text(GTK_LABEL(ctk_object->txt_display_config),
+                           "TwinView");
     }
-
-    /* Include the possible X screen(s) that this display can be part of */
-    for (screen = layout->screens;
-         screen;
-         screen = screen->next_in_layout) {
-        if (screen_has_gpu(screen, display->gpu) ||
-            display->gpu->mosaic_enabled) {
-            int max_displays = get_screen_max_displays(screen);
-
-
-            num_screens_on_gpu++;
-            if (display->screen == screen) {
-                cur_option = num_options;
-            } else if (max_displays >= 0 &&
-                       screen->num_displays > max_displays) {
-                /* Skip screens that are full */
-                continue;
-            }
-            options[num_options].config = DPY_CFG_X_SCREEN;
-            options[num_options].screen = screen;
-            num_options++;
-        }
-    }
-
-    /* Only allow creation of a new X screen if Mosaic mode is disabled, the GPU
-     * can support another X screen, and the display is not already the only
-     * display in the X screen.
-     */
-
-    if (!display->gpu->mosaic_enabled &&
-	(num_screens_on_gpu < display->gpu->max_displays) &&
-        (!display->screen || (display->screen->num_displays > 1))) {
-        options[num_options].config = DPY_CFG_NEW_X_SCREEN;
-        num_options++;
-    }
-
-
-    /* Apply the new options */
-    nvfree(ctk_object->display_config_table);
-    ctk_object->display_config_table = options;
-    ctk_object->display_config_table_len = num_options;
-
-    {
-        int i;
-        gchar *label;
-
-        g_signal_handlers_block_by_func(G_OBJECT(ctk_object->mnu_display_config),
-                                        G_CALLBACK(display_config_changed),
-                                        (gpointer) ctk_object);
-
-        gtk_list_store_clear(GTK_LIST_STORE(gtk_combo_box_get_model
-            (GTK_COMBO_BOX(ctk_object->mnu_display_config))));
-
-        for (i = 0; i < num_options; i++) {
-
-            switch (options[i].config) {
-            case DPY_CFG_DISABLED:
-                ctk_combo_box_text_append_text(ctk_object->mnu_display_config,
-                                               "Disabled");
-                break;
-            case DPY_CFG_NEW_X_SCREEN:
-                ctk_combo_box_text_append_text(
-                    ctk_object->mnu_display_config,
-                    "New X screen (requires X restart)");
-                break;
-            case DPY_CFG_X_SCREEN:
-                label = g_strdup_printf("X screen %d",
-                                        options[i].screen->scrnum);
-                ctk_combo_box_text_append_text(ctk_object->mnu_display_config,
-                                               label);
-                g_free(label);
-                break;
-            }
-        }
-
-        gtk_combo_box_set_active(GTK_COMBO_BOX(ctk_object->mnu_display_config),
-                                 cur_option);
-        gtk_widget_set_sensitive(ctk_object->mnu_display_config, TRUE);
-
-        g_signal_handlers_unblock_by_func(G_OBJECT(ctk_object->mnu_display_config),
-                                          G_CALLBACK(display_config_changed),
-                                          (gpointer) ctk_object);
-    }
-
+    
 } /* setup_display_config() */
 
 
@@ -3122,7 +2023,8 @@ static void setup_display_config(CtkDisplayConfig *ctk_object)
 
 static void setup_display_refresh_dropdown(CtkDisplayConfig *ctk_object)
 {
-    GtkWidget *combo_box = ctk_object->mnu_display_refresh;
+    GtkWidget *menu;
+    GtkWidget *menu_item;
     nvModeLinePtr modeline;
     nvModeLinePtr auto_modeline;
     nvModeLinePtr modelines;
@@ -3154,23 +2056,22 @@ static void setup_display_refresh_dropdown(CtkDisplayConfig *ctk_object)
         ctk_object->refresh_table_len = 0;
     }
     ctk_object->refresh_table =
-        calloc(display->num_modelines, sizeof(nvModeLinePtr));
+        (nvModeLinePtr *)calloc(1, display->num_modelines
+                                * sizeof(nvModeLinePtr));
     if (!ctk_object->refresh_table) {
         goto fail;
     }
 
 
     /* Generate the refresh dropdown */
-    g_signal_handlers_block_by_func(G_OBJECT(ctk_object->mnu_display_refresh),
-                                    G_CALLBACK(display_refresh_changed),
-                                    (gpointer) ctk_object);
+    menu = gtk_menu_new();
 
-    gtk_list_store_clear(GTK_LIST_STORE(gtk_combo_box_get_model
-        (GTK_COMBO_BOX(ctk_object->mnu_display_refresh))));
 
     /* Special case the 'nvidia-auto-select' mode. */
     if (IS_NVIDIA_DEFAULT_MODE(cur_modeline)) {
-        ctk_combo_box_text_append_text(combo_box, "Auto");
+        menu_item = gtk_menu_item_new_with_label("Auto");
+        gtk_menu_shell_append(GTK_MENU_SHELL(menu), menu_item);
+        gtk_widget_show(menu_item);
         ctk_object->refresh_table[ctk_object->refresh_table_len++] =
             cur_modeline;
         modelines = NULL; /* Skip building rest of refresh dropdown */
@@ -3180,9 +2081,13 @@ static void setup_display_refresh_dropdown(CtkDisplayConfig *ctk_object)
     auto_modeline = NULL;
     for (modeline = modelines; modeline; modeline = modeline->next) {
 
+        float modeline_rate;
         nvModeLinePtr m;
         int count_ref; /* # modelines with similar refresh rates */ 
         int num_ref;   /* Modeline # in a group of similar refresh rates */
+        int is_doublescan;
+        int is_interlaced;
+        
 
         /* Ignore modelines of different resolution */
         if (modeline->data.hdisplay != cur_modeline->data.hdisplay ||
@@ -3195,8 +2100,12 @@ static void setup_display_refresh_dropdown(CtkDisplayConfig *ctk_object)
             continue;
         }
 
-        name = g_strdup_printf("%0.0f Hz",
-                               modeline->refresh_rate);
+        modeline_rate = modeline->refresh_rate;
+        is_doublescan = (modeline->data.flags & V_DBLSCAN);
+        is_interlaced = (modeline->data.flags & V_INTERLACE);
+
+        name = g_strdup_printf("%.0f Hz", modeline_rate);
+
 
         /* Get a unique number for this modeline */
         count_ref = 0; /* # modelines with similar refresh rates */
@@ -3212,9 +2121,7 @@ static void setup_display_refresh_dropdown(CtkDisplayConfig *ctk_object)
                 m != auto_modeline) {
 
                 count_ref++;
-                /* Modelines with similar refresh rates get a
-                 * unique # (num_ref)
-                 */
+                /* Modelines with similar refresh rates get a unique # (num_ref) */
                 if (m == modeline) {
                     num_ref = count_ref; /* This modeline's # */
                 }
@@ -3241,12 +2148,10 @@ static void setup_display_refresh_dropdown(CtkDisplayConfig *ctk_object)
         }
 
 
-        /* Add "DoubleScan", "Interlace", and "HDMI 3D" information */
+        /* Add "DoubleScan" and "Interlace" information */
         if (g_ascii_strcasecmp(name, "Auto")) {
             gchar *extra = NULL;
             gchar *tmp;
-            ReturnStatus ret;
-            gboolean hdmi3D = FALSE;
 
             if (modeline->data.flags & V_DBLSCAN) {
                 extra = g_strdup_printf("DoubleScan");
@@ -3261,20 +2166,6 @@ static void setup_display_refresh_dropdown(CtkDisplayConfig *ctk_object)
                     extra = g_strdup_printf("Interlace");
                 }
             }
-
-            ret = NvCtrlGetAttribute(display->ctrl_target,
-                                     NV_CTRL_DPY_HDMI_3D,
-                                     &hdmi3D);
-            if (ret == NvCtrlSuccess && hdmi3D) {
-                if (extra) {
-                    tmp = g_strdup_printf("%s, HDMI 3D", extra);
-                    g_free(extra);
-                    extra = tmp;
-                } else {
-                    extra = g_strdup_printf("HDMI 3D");
-                }
-            }
-
 
             if (extra) {
                 tmp = g_strdup_printf("%s (%s)", name, extra);
@@ -3298,7 +2189,7 @@ static void setup_display_refresh_dropdown(CtkDisplayConfig *ctk_object)
                 modeline->data.vdisplay == cur_modeline->data.vdisplay) {
                 
                 float prev_rate = ctk_object->refresh_table[cur_idx]->refresh_rate;
-                float rate = modeline->refresh_rate;
+                float rate      = modeline->refresh_rate;
                 
                 if (ctk_object->refresh_table[cur_idx]->data.hdisplay != cur_modeline->data.hdisplay ||
                     ctk_object->refresh_table[cur_idx]->data.vdisplay != cur_modeline->data.vdisplay) {
@@ -3314,17 +2205,23 @@ static void setup_display_refresh_dropdown(CtkDisplayConfig *ctk_object)
 
         
         /* Add the modeline entry to the dropdown */
-        ctk_combo_box_text_append_text(combo_box, name);
+        menu_item = gtk_menu_item_new_with_label(name);
         g_free(name);
+        gtk_menu_shell_append(GTK_MENU_SHELL(menu), menu_item);
+        gtk_widget_show(menu_item);
         ctk_object->refresh_table[ctk_object->refresh_table_len++] = modeline;
     }
 
     
 
 
-    /* Select the current modeline */
-    gtk_combo_box_set_active(GTK_COMBO_BOX(ctk_object->mnu_display_refresh),
-                             cur_idx);
+    /* Setup the menu and select the current modeline */
+    g_signal_handlers_block_by_func(G_OBJECT(ctk_object->mnu_display_refresh),
+                                    G_CALLBACK(display_refresh_changed),
+                                    (gpointer) ctk_object);
+    gtk_option_menu_set_menu
+        (GTK_OPTION_MENU(ctk_object->mnu_display_refresh), menu);
+    gtk_option_menu_set_history(GTK_OPTION_MENU(ctk_object->mnu_display_refresh), cur_idx);
     gtk_widget_set_sensitive(ctk_object->mnu_display_refresh, True);
 
     g_signal_handlers_unblock_by_func(G_OBJECT(ctk_object->mnu_display_refresh),
@@ -3340,7 +2237,7 @@ static void setup_display_refresh_dropdown(CtkDisplayConfig *ctk_object)
     }
 
 
-    /* Update the modename label */
+    /* Update the nodename label */
     setup_display_modename(ctk_object);
     return;
 
@@ -3355,376 +2252,6 @@ static void setup_display_refresh_dropdown(CtkDisplayConfig *ctk_object)
 
 
 
-/** get_default_modeline() *******************************************
- *
- * Finds the default modeline in the list of modelines.
- *
- * Returns the default modeline if found, NULL otherwise.
- *
- */
-
-static nvModeLinePtr get_default_modeline(const nvDisplayPtr display)
-{
-    nvModeLinePtr modeline = display->modelines;
-
-    while (modeline) {
-        if (IS_NVIDIA_DEFAULT_MODE(modeline)) {
-            return modeline;
-        }
-
-        modeline = modeline->next;
-    }
-
-    return NULL;
-}
-
-
-
-/** allocate_selected_mode() *****************************************
- *
- * Allocates, fills and returns a nvSelectedModePtr.
- *
- */
-
-static nvSelectedModePtr
-allocate_selected_mode(char *name,
-                       nvModeLinePtr modeline,
-                       Bool isSpecial,
-                       NVVRSize *viewPortIn,
-                       NVVRBoxRecXYWH *viewPortOut)
-{
-    nvSelectedModePtr selected_mode;
-
-    selected_mode = (nvSelectedModePtr)nvalloc(sizeof(nvSelectedMode));
-
-    selected_mode->text = g_strdup(name);
-
-    selected_mode->modeline = modeline;
-    selected_mode->isSpecial = isSpecial;
-    selected_mode->isScaled = (viewPortIn || viewPortOut);
-
-    if (viewPortIn) {
-        selected_mode->viewPortIn.width = viewPortIn->w;
-        selected_mode->viewPortIn.height = viewPortIn->h;
-    }
-
-    if (viewPortOut) {
-        selected_mode->viewPortOut.x = viewPortOut->x;
-        selected_mode->viewPortOut.y = viewPortOut->y;
-        selected_mode->viewPortOut.width = viewPortOut->w;
-        selected_mode->viewPortOut.height = viewPortOut->h;
-    }
-
-    return selected_mode;
-}
-
-
-
-/** free_selected_modes() ********************************************
- *
- * Recursively frees each item of a list of selected modes.
- *
- */
-
-static void
-free_selected_modes(nvSelectedModePtr selected_mode)
-{
-    if (selected_mode) {
-        free_selected_modes(selected_mode->next);
-        g_free(selected_mode->text);
-        free(selected_mode);
-    }
-}
-
-
-
-/** append_unique_selected_mode() ************************************
- *
- * Appends a selected mode to the given list only if it doesn't already exist.
- * Special modes ("Auto", "Off") are not checked.  Two selected modes are unique
- * if their [hv]display differ in the case of regular modes, or if the
- * ViewPortIn of the given mode doesn't match any existing [hv]display.
- * Returns TRUE if the selected mode has been added, FALSE otherwise.
- *
- */
-
-static Bool
-append_unique_selected_mode(nvSelectedModePtr head,
-                            const nvSelectedModePtr mode)
-{
-    int targetWidth, targetHeight;
-    nvSelectedModePtr iter, prev = NULL;
-
-    if (mode->isScaled) {
-        targetWidth = mode->viewPortIn.width;
-        targetHeight = mode->viewPortIn.height;
-    } else {
-        targetWidth = mode->modeline->data.hdisplay;
-        targetHeight = mode->modeline->data.vdisplay;
-    }
-
-    /* Keep the list sorted by targeted resolution */
-    iter = head;
-    while (iter) {
-        int currentWidth, currentHeight;
-        nvModeLinePtr ml = iter->modeline;
-
-        if (!ml || iter->isSpecial) {
-            goto next;
-        }
-
-        if (iter->isScaled) {
-            currentWidth = iter->viewPortIn.width;
-            currentHeight = iter->viewPortIn.height;
-        } else {
-            currentWidth = ml->data.hdisplay;
-            currentHeight = ml->data.vdisplay;
-        }
-
-        /* If we are past the sort order, stop looping */
-        if ((targetWidth > currentWidth) ||
-            ((targetWidth == currentWidth) && (targetHeight > currentHeight))) {
-            break;
-        }
-
-        if (ml && !mode->isSpecial &&
-            (targetWidth == currentWidth) && (targetHeight == currentHeight)) {
-            return FALSE;
-        }
-
-next:
-        prev = iter;
-        iter = iter->next;
-    }
-
-    if (prev == NULL) {
-        return FALSE;
-    }
-
-    /* Insert the selected mode */
-    mode->next = prev->next;
-    prev->next = mode;
-
-    return TRUE;
-}
-
-
-
-/** matches_current_selected_mode() **********************************
- *
- * Checks whether the provided selected mode matches the current mode.
- *
- * We need to distinguish between custom modes and scaled modes.
- *
- * Custom modes are modes with custom ViewPort settings, such as an
- * Underscan configuration.  These modes don't have an entry in the
- * resolution dropdown menu.  Instead, the corresponding modeline must be
- * selected.
- *
- * Scaled modes are generated by the CPL, have a fixed ViewPort{In,Out}
- * configuration and are displayed in the dropdown menu in basic mode.
- *
- * Therefore, we compare the raster size and the ViewPorts first, then only
- * the raster size.  This works because the list of selected_modes is
- * generated before the scaled ones.  The latter can then overwrite the
- * cur_selected_mode if we find a better match.
- *
- * Returns TRUE if the provided selected mode matches the current mode, FALSE
- * otherwise.
- *
- */
-
-static Bool matches_current_selected_mode(const nvDisplayPtr display,
-                                          const nvSelectedModePtr selected_mode,
-                                          const Bool compare_viewports)
-{
-    nvModeLinePtr ml1, ml2;
-    nvModePtr cur_mode;
-    Bool mode_match;
-
-    if (!display || !display->cur_mode || !selected_mode) {
-        return FALSE;
-    }
-
-    cur_mode = display->cur_mode;
-    ml1 = cur_mode->modeline;
-    ml2 = selected_mode->modeline;
-
-    if (!ml1 || !ml2) {
-        return FALSE;
-    }
-
-    mode_match = ((ml1->data.hdisplay == ml2->data.hdisplay) &&
-                  (ml1->data.vdisplay == ml2->data.vdisplay));
-
-    if (compare_viewports) {
-        nvSize rotatedViewPortIn;
-
-        memcpy(&rotatedViewPortIn, &selected_mode->viewPortIn, sizeof(nvSize));
-
-        if (cur_mode->rotation == ROTATION_90 ||
-            cur_mode->rotation == ROTATION_270) {
-            int temp = rotatedViewPortIn.width;
-            rotatedViewPortIn.width = rotatedViewPortIn.height;
-            rotatedViewPortIn.height = temp;
-        }
-
-        return (mode_match &&
-                viewports_in_match(cur_mode->viewPortIn,
-                                   rotatedViewPortIn) &&
-                viewports_out_match(cur_mode->viewPortOut,
-                                    selected_mode->viewPortOut));
-    } else {
-        return (!IS_NVIDIA_DEFAULT_MODE(ml1) && mode_match);
-    }
-}
-
-
-
-/** generate_selected_modes() ****************************************
- *
- * Generates a list of selected modes.  The list is generated by parsing
- * modelines.  This function makes sure that each item of the list is unique
- * and sorted.
- *
- */
-
-static void generate_selected_modes(const nvDisplayPtr display)
-{
-    nvSelectedModePtr selected_mode = NULL;
-    nvModeLinePtr modeline;
-
-    display->num_selected_modes = 0;
-    display->selected_modes = NULL;
-
-    /* Add the off item if we have more than one display */
-    if (display->screen->num_displays > 1) {
-        selected_mode = allocate_selected_mode("Off",
-                                               NULL /* modeline */,
-                                               TRUE /* isSpecial */,
-                                               NULL /* viewPortIn */,
-                                               NULL /* viewPortOut */);
-
-        display->num_selected_modes = 1;
-        display->selected_modes = selected_mode;
-    }
-
-    modeline = display->modelines;
-    while (modeline) {
-        gchar *name;
-        Bool isSpecial;
-        Bool mode_added;
-
-        if (IS_NVIDIA_DEFAULT_MODE(modeline)) {
-            name = g_strdup_printf("Auto");
-            isSpecial = TRUE;
-        } else {
-            name = g_strdup_printf("%dx%d",
-                                   modeline->data.hdisplay,
-                                   modeline->data.vdisplay);
-            isSpecial = FALSE;
-        }
-
-        selected_mode = allocate_selected_mode(name, modeline, isSpecial,
-                                               NULL /* viewPortIn */,
-                                               NULL /* viewPortOut */);
-        g_free(name);
-
-        if (!display->selected_modes) {
-            display->selected_modes = selected_mode;
-            mode_added = TRUE;
-        } else {
-            mode_added = append_unique_selected_mode(display->selected_modes,
-                                                     selected_mode);
-        }
-
-        if (mode_added) {
-            display->num_selected_modes++;
-
-            if (matches_current_selected_mode(display, selected_mode,
-                                              FALSE /* compare_viewports */)) {
-                display->cur_selected_mode = selected_mode;
-            }
-        } else {
-            free(selected_mode);
-        }
-
-        modeline = modeline->next;
-    }
-}
-
-
-
-/** generate_scaled_selected_modes() *********************************
- *
- * Appends a list of scaled selected modes.  The list is generated by parsing
- * an array of common resolutions.  This function makes sure that each item
- * of the list is unique and sorted.  The generated items are appended to the
- * list of selected modes returned by generate_selected_modes().
- *
- */
-
-static void generate_scaled_selected_modes(const nvDisplayPtr display)
-{
-    int resIndex;
-    nvModeLinePtr default_modeline;
-    nvSelectedModePtr selected_mode = NULL;
-    const NVVRSize *commonResolutions;
-    NVVRSize raster;
-    gchar *name;
-
-    if (!display || !display->modelines) {
-        return;
-    }
-
-    default_modeline = get_default_modeline(display);
-    if (default_modeline == NULL) {
-        return;
-    }
-
-    raster.w = default_modeline->data.hdisplay;
-    raster.h = default_modeline->data.vdisplay;
-
-    commonResolutions = NVVRGetCommonResolutions();
-
-    resIndex = 0;
-    while ((commonResolutions[resIndex].w != -1) &&
-           (commonResolutions[resIndex].h != -1)) {
-        NVVRBoxRecXYWH viewPortOut;
-        NVVRSize viewPortIn = commonResolutions[resIndex];
-
-        resIndex++;
-
-        /* Skip resolutions that are bigger than the maximum raster size */
-        if ((viewPortIn.w > raster.w) || (viewPortIn.h > raster.h)) {
-            continue;
-        }
-
-        viewPortOut = NVVRGetScaledViewPortOut(&raster, &viewPortIn,
-                                               NVVR_SCALING_ASPECT_SCALED);
-
-        name = g_strdup_printf("%dx%d (scaled)", viewPortIn.w, viewPortIn.h);
-        selected_mode = allocate_selected_mode(name, default_modeline,
-                                               FALSE /* isSpecial */,
-                                               &viewPortIn, &viewPortOut);
-        g_free(name);
-
-        if (append_unique_selected_mode(display->selected_modes,
-                                        selected_mode)) {
-            display->num_selected_modes++;
-
-            if (matches_current_selected_mode(display, selected_mode,
-                                              TRUE /* compare_viewports */)) {
-                display->cur_selected_mode = selected_mode;
-            }
-        } else {
-            free(selected_mode);
-        }
-    }
-}
-
-
-
 /** setup_display_resolution_dropdown() ******************************
  *
  * Generates the resolution dropdown based on the currently selected
@@ -3734,93 +2261,135 @@ static void generate_scaled_selected_modes(const nvDisplayPtr display)
 
 static void setup_display_resolution_dropdown(CtkDisplayConfig *ctk_object)
 {
+    GtkWidget *menu;
+    GtkWidget *menu_item;
+
     nvDisplayPtr display = ctk_display_layout_get_selected_display
         (CTK_DISPLAY_LAYOUT(ctk_object->obj_layout));
 
-    nvSelectedModePtr selected_mode;
+    nvModeLinePtr  modeline;
+    nvModeLinePtr  modelines;
+    nvModeLinePtr  cur_modeline;
 
     int cur_idx = 0;  /* Currently selected modeline (resolution) */
 
+
+
     /* Get selection information */
-    if (!display->screen || !display->cur_mode) {
+    if (!display || !display->screen || !display->cur_mode) {
         gtk_widget_hide(ctk_object->box_display_resolution);
         return;
     }
     gtk_widget_show(ctk_object->box_display_resolution);
     gtk_widget_set_sensitive(ctk_object->box_display_resolution, TRUE);
 
-    /* Generate dropdown content */
-    free_selected_modes(display->selected_modes);
+    
+    cur_modeline = display->cur_mode->modeline;
 
-    /* Create the selected modes lookup table for the dropdown */
-    display->cur_selected_mode = NULL;
-    generate_selected_modes(display);
 
-    if (!ctk_object->advanced_mode) {
-        generate_scaled_selected_modes(display);
-    }
-
+    /* Create the modeline lookup table for the dropdown */
     if (ctk_object->resolution_table) {
         free(ctk_object->resolution_table);
         ctk_object->resolution_table_len = 0;
     }
     ctk_object->resolution_table =
-        calloc(display->num_selected_modes, sizeof(nvSelectedModePtr));
+        (nvModeLinePtr *)calloc(1, (display->num_modelines +1)
+                                *sizeof(nvModeLinePtr));
     if (!ctk_object->resolution_table) {
         goto fail;
     }
 
 
-    if (display->cur_mode->modeline && display->screen->num_displays > 1) {
-        /*
-         * Modeline is set and we have more than 1 display, start off as
-         * 'nvidia-auto-select'
-         */
-        cur_idx = 1;
-    } else {
-        /*
-         * Modeline not set, start off as 'off'. If we do not have more than
-         * 1 display, 'auto' will be at index 0.
-         */
-        cur_idx = 0;
+    /* Start the menu generation */
+    menu = gtk_menu_new();
+
+
+    /* Add the off mode */
+    menu_item = gtk_menu_item_new_with_label("Off");
+    if (display->screen->num_displays <= 1) {
+        gtk_widget_set_sensitive(menu_item, False);
+    }
+    gtk_menu_shell_append(GTK_MENU_SHELL(menu), menu_item);
+    gtk_widget_show(menu_item);
+    ctk_object->resolution_table[ctk_object->resolution_table_len++] = NULL;
+
+
+    /* Add the 'nvidia-auto-select' modeline */
+    modelines = display->modelines;
+    if (IS_NVIDIA_DEFAULT_MODE(modelines)) {
+        menu_item = gtk_menu_item_new_with_label("Auto");
+        gtk_menu_shell_append(GTK_MENU_SHELL(menu), menu_item);
+        gtk_widget_show(menu_item);
+        ctk_object->resolution_table[ctk_object->resolution_table_len++] =
+            modelines;
+        modelines = modelines->next;
     }
 
-    /* Setup the menu */
+    /* Set the selected modeline index */
+    if (cur_modeline) {
+        cur_idx = 1; /* Modeline is set, start off as 'nvidia-auto-select' */
+    } else {
+        cur_idx = 0; /* Modeline not set, start off as 'off'. */
+    }
+    
+
+    /* Generate the resolution menu */
+    modeline = modelines;
+    while (modeline) {
+        nvModeLinePtr m;
+        gchar *name;
+        
+        /* Find the first resolution that matches the current res W & H */
+        m = modelines;
+        while (m != modeline) {
+            if (modeline->data.hdisplay == m->data.hdisplay &&
+                modeline->data.vdisplay == m->data.vdisplay) {
+                break;
+            }
+            m = m->next;
+        }
+
+        /* Add resolution if it is the first of its kind */
+        if (m == modeline) {
+
+            /* Set the current modeline idx if not already set by default */
+            if (cur_modeline) {
+                if (!IS_NVIDIA_DEFAULT_MODE(cur_modeline) &&
+                    cur_modeline->data.hdisplay == modeline->data.hdisplay &&
+                    cur_modeline->data.vdisplay == modeline->data.vdisplay) {
+                    cur_idx = ctk_object->resolution_table_len;
+                }
+            }
+
+            name = g_strdup_printf("%dx%d", modeline->data.hdisplay,
+                                   modeline->data.vdisplay);
+            menu_item = gtk_menu_item_new_with_label(name);
+            g_free(name);
+            gtk_menu_shell_append(GTK_MENU_SHELL(menu), menu_item);
+            gtk_widget_show(menu_item);
+            ctk_object->resolution_table[ctk_object->resolution_table_len++] =
+                modeline;
+        }
+        modeline = modeline->next;
+    }
+    
+
+    /* Setup the menu and select the current mode */
     g_signal_handlers_block_by_func
         (G_OBJECT(ctk_object->mnu_display_resolution),
          G_CALLBACK(display_resolution_changed), (gpointer) ctk_object);
 
-    gtk_list_store_clear(GTK_LIST_STORE(gtk_combo_box_get_model
-        (GTK_COMBO_BOX(ctk_object->mnu_display_resolution))));
+    gtk_option_menu_set_menu
+        (GTK_OPTION_MENU(ctk_object->mnu_display_resolution), menu);
 
-    /* Fill dropdown menu */
-    selected_mode = display->selected_modes;
-    while (selected_mode) {
-
-        ctk_combo_box_text_append_text(ctk_object->mnu_display_resolution,
-                                       selected_mode->text);
-
-        ctk_object->resolution_table[ctk_object->resolution_table_len] =
-            selected_mode;
-
-        if (selected_mode == display->cur_selected_mode) {
-            cur_idx = ctk_object->resolution_table_len;
-        }
-
-        ctk_object->resolution_table_len++;
-        selected_mode = selected_mode->next;
-    }
-
-    /* Select the current mode */
-    gtk_combo_box_set_active
-        (GTK_COMBO_BOX(ctk_object->mnu_display_resolution), cur_idx);
-    ctk_object->last_resolution_idx = cur_idx;
+    gtk_option_menu_set_history
+        (GTK_OPTION_MENU(ctk_object->mnu_display_resolution), cur_idx);
 
     /* If dropdown has only one item, disable menu selection */
     if (ctk_object->resolution_table_len > 1) {
-        gtk_widget_set_sensitive(ctk_object->mnu_display_resolution, TRUE);
+        gtk_widget_set_sensitive(ctk_object->mnu_display_resolution, True);
     } else {
-        gtk_widget_set_sensitive(ctk_object->mnu_display_resolution, FALSE);
+        gtk_widget_set_sensitive(ctk_object->mnu_display_resolution, False);
     }
 
     g_signal_handlers_unblock_by_func
@@ -3832,411 +2401,122 @@ static void setup_display_resolution_dropdown(CtkDisplayConfig *ctk_object)
     return;
 
 
+
     /* Handle failures */
  fail:
-    gtk_list_store_clear(GTK_LIST_STORE(gtk_combo_box_get_model(
-        GTK_COMBO_BOX(ctk_object->mnu_display_resolution))));
 
-    gtk_widget_set_sensitive(ctk_object->mnu_display_resolution, FALSE);
+    gtk_option_menu_remove_menu
+        (GTK_OPTION_MENU(ctk_object->mnu_display_resolution));
+
+    gtk_widget_set_sensitive(ctk_object->mnu_display_resolution, False);
 
     setup_display_refresh_dropdown(ctk_object);
 
 } /* setup_display_resolution_dropdown() */
 
-
-
-/** setup_display_stereo_dropdown() **********************************
+/** generate_display_modelname_dropdown() ********************************
  *
- * Configures the display stereo mode dropdown to reflect the
- * stereo eye for the currently selected display.
+ * Generate display modelname dropdown menu.
  *
  **/
-
-static void setup_display_stereo_dropdown(CtkDisplayConfig *ctk_object)
+static GtkWidget* generate_display_modelname_dropdown
+              (CtkDisplayConfig *ctk_object, int *cur_idx)
 {
-    nvScreenPtr screen = ctk_display_layout_get_selected_screen
+    GtkWidget *menu;
+    GtkWidget *menu_item;
+    nvGpuPtr gpu;
+    nvDisplayPtr display;
+    int display_count = 0;
+    nvDisplayPtr d = ctk_display_layout_get_selected_display
         (CTK_DISPLAY_LAYOUT(ctk_object->obj_layout));
-    nvDisplayPtr display = ctk_display_layout_get_selected_display
-        (CTK_DISPLAY_LAYOUT(ctk_object->obj_layout));
-    nvModePtr mode;
-    int idx;
-
-    if (!display->cur_mode || !screen ||
-        !screen->stereo_supported ||
-        (screen->stereo != NV_CTRL_STEREO_PASSIVE_EYE_PER_DPY)) {
-        gtk_widget_hide(ctk_object->box_display_stereo);
-        return;
+    /* Create the display modelname lookup table for the dropdown */
+    if (ctk_object->display_model_table) {
+        free(ctk_object->display_model_table);
+    }
+    ctk_object->display_model_table_len = 0;
+    for (gpu = ctk_object->layout->gpus; gpu; gpu = gpu->next) {
+        display_count += gpu->num_displays;
     }
 
-    mode = display->cur_mode;
+    ctk_object->display_model_table =
+        (nvDisplayPtr *)calloc(1, display_count * sizeof(nvDisplayPtr));
 
-
-    /* Set the selected passive stereo eye */
-    g_signal_handlers_block_by_func
-        (G_OBJECT(ctk_object->mnu_display_stereo),
-         G_CALLBACK(display_stereo_changed), (gpointer) ctk_object);
-
-    switch (mode->passive_stereo_eye) {
-    default:
-        /* Oops */
-    case PASSIVE_STEREO_EYE_NONE:
-        idx = 0;
-        break;
-    case PASSIVE_STEREO_EYE_LEFT:
-        idx = 1;
-        break;
-    case PASSIVE_STEREO_EYE_RIGHT:
-        idx = 2;
-        break;
+    if (!ctk_object->display_model_table) {
+        gtk_option_menu_remove_menu
+            (GTK_OPTION_MENU(ctk_object->mnu_display_model));
+        gtk_widget_set_sensitive(ctk_object->mnu_display_model, False);
+        return NULL;
     }
 
-    gtk_combo_box_set_active
-        (GTK_COMBO_BOX(ctk_object->mnu_display_stereo), idx);
-
-    g_signal_handlers_unblock_by_func
-        (G_OBJECT(ctk_object->mnu_display_stereo),
-         G_CALLBACK(display_stereo_changed), (gpointer) ctk_object);
-
-    gtk_widget_show(ctk_object->box_display_stereo);
-
-} /* setup_display_stereo_dropdown() */
-
-
-
-/** are_display_composition_transformations_allowed() ****************
- *
- * Checks whether display composition transformations are allowed
- * given the list of GPU flags.
- *
- **/
-
-static Bool are_display_composition_transformations_allowed(nvScreenPtr screen)
-{
-    int i, j;
-    Bool ret = TRUE;
-
-    if (!screen) {
-        return FALSE;
-    }
-
-    for (i = 0; i < screen->num_gpus; i++) {
-        nvGpuPtr gpu = screen->gpus[i];
-
-        for (j = 0; j < gpu->num_flags; j++) {
-            switch (gpu->flags[j]) {
-            case NV_CTRL_BINARY_DATA_GPU_FLAGS_STEREO_DISPLAY_TRANSFORM_EXCLUSIVE:
-                if (screen->stereo != NV_CTRL_STEREO_OFF) {
-                    ret = FALSE;
-                }
-                break;
-            case NV_CTRL_BINARY_DATA_GPU_FLAGS_OVERLAY_DISPLAY_TRANSFORM_EXCLUSIVE:
-                if (screen->overlay != NV_CTRL_OVERLAY_OFF) {
-                    ret = FALSE;
-                }
-                break;
-            default:
-                /* We don't care about other flags */
-                break;
+    /* Generate the popup menu */
+    menu = gtk_menu_new();
+    for (gpu = ctk_object->layout->gpus; gpu; gpu = gpu->next) {
+        for (display = gpu->displays; display; display = display->next) {
+            gchar *str, *type;
+            if (d == display) {
+                *cur_idx = ctk_object->display_model_table_len;
             }
+            /* Setup the menu item text */
+            type = display_get_type_str(display->device_mask, 0);
+            str = g_strdup_printf("%s (%s on GPU-%d)",
+                                  display->name, type,
+                                  NvCtrlGetTargetId(gpu->handle));
+            menu_item = gtk_menu_item_new_with_label(str);
+            g_free(str);
+            g_free(type);
+            gtk_menu_shell_append(GTK_MENU_SHELL(menu), menu_item);
+            gtk_widget_show(menu_item);
+            ctk_object->display_model_table
+                [ctk_object->display_model_table_len++] = display;
         }
     }
+    return menu;
+} /* generate_display_modelname_dropdown() */
 
-    return ret;
-}
-
-
-
-/** setup_display_rotation_dropdown() ********************************
+/** setup_display_modelname_dropdown() **************************
  *
- * Configures the display rotation dropdown to reflect the current
- * rotation configuration.
+ * Setup display modelname dropdown menu.
  *
  **/
-
-static void setup_display_rotation_dropdown(CtkDisplayConfig *ctk_object)
+static void setup_display_modelname_dropdown(CtkDisplayConfig *ctk_object)
 {
+    GtkWidget *menu;
+    int cur_idx = 0;  /* Currently selected display */
     nvDisplayPtr display = ctk_display_layout_get_selected_display
         (CTK_DISPLAY_LAYOUT(ctk_object->obj_layout));
-    int idx;
 
-    /* Set the selected rotation */
-    g_signal_handlers_block_by_func
-        (G_OBJECT(ctk_object->mnu_display_rotation),
-         G_CALLBACK(display_rotation_changed), (gpointer) ctk_object);
-
-    switch (display->cur_mode->rotation) {
-    default:
-        /* Oops */
-    case ROTATION_0:
-        idx = 0;
-        break;
-    case ROTATION_90: // Rotate left
-        idx = 1;
-        break;
-    case ROTATION_180: // Invert
-        idx = 2;
-        break;
-    case ROTATION_270: // Rotate right
-        idx = 3;
-        break;
+    /* If no display is selected or there is no screen, hide the frame */
+    if (!display) {
+        gtk_widget_set_sensitive(ctk_object->mnu_display_model, False);
+        gtk_widget_hide(ctk_object->mnu_display_model);
+        return;
     }
 
-    gtk_combo_box_set_active
-        (GTK_COMBO_BOX(ctk_object->mnu_display_rotation), idx);
+    /* Enable display widgets and setup widget information */
+    gtk_widget_set_sensitive(ctk_object->mnu_display_model, True);
+
+    menu = generate_display_modelname_dropdown(ctk_object, &cur_idx);
+
+    /* If menu not generated return */
+    if (!menu) {
+        return;
+    }
+    /* Setup the menu and select the current model */
+    g_signal_handlers_block_by_func
+        (G_OBJECT(ctk_object->mnu_display_model),
+         G_CALLBACK(display_modelname_changed), (gpointer) ctk_object);
+
+    gtk_option_menu_set_menu
+        (GTK_OPTION_MENU(ctk_object->mnu_display_model), menu);
+
+    gtk_option_menu_set_history
+        (GTK_OPTION_MENU(ctk_object->mnu_display_model), cur_idx);
+
 
     g_signal_handlers_unblock_by_func
-        (G_OBJECT(ctk_object->mnu_display_rotation),
-         G_CALLBACK(display_rotation_changed), (gpointer) ctk_object);
-
-} /* setup_display_rotation_dropdown() */
-
-
-
-/** setup_display_reflection_dropdown() ******************************
- *
- * Configures the display reflection dropdown to reflect the current
- * reflection configuration.
- *
- **/
-
-static void setup_display_reflection_dropdown(CtkDisplayConfig *ctk_object)
-{
-    nvDisplayPtr display = ctk_display_layout_get_selected_display
-        (CTK_DISPLAY_LAYOUT(ctk_object->obj_layout));
-    int idx;
-
-    /* Set the selected reflection */
-    g_signal_handlers_block_by_func
-        (G_OBJECT(ctk_object->mnu_display_reflection),
-         G_CALLBACK(display_reflection_changed), (gpointer) ctk_object);
-
-    switch (display->cur_mode->reflection) {
-    default:
-        /* Oops */
-    case REFLECTION_NONE:
-        idx = 0;
-        break;
-    case REFLECTION_X:
-        idx = 1;
-        break;
-    case REFLECTION_Y:
-        idx = 2;
-        break;
-    case REFLECTION_XY:
-        idx = 3;
-        break;
-    }
-
-    gtk_combo_box_set_active
-        (GTK_COMBO_BOX(ctk_object->mnu_display_reflection), idx);
-
-    g_signal_handlers_unblock_by_func
-        (G_OBJECT(ctk_object->mnu_display_reflection),
-         G_CALLBACK(display_reflection_changed), (gpointer) ctk_object);
-
-} /* setup_display_reflection_dropdown() */
-
-
-
-/** setup_display_orientation() **************************************
- *
- * Sets up the display orientation section to reflect the rotation
- * and reflection settings for the currently selected display.
- *
- **/
-
-static void setup_display_orientation(CtkDisplayConfig *ctk_object)
-{
-    nvDisplayPtr display = ctk_display_layout_get_selected_display
-        (CTK_DISPLAY_LAYOUT(ctk_object->obj_layout));
-
-
-    /* Display needs to be included in an X screen to show widgets */
-    if (!display || !display->screen) {
-        gtk_widget_hide(ctk_object->box_display_orientation);
-        return;
-    }
-    gtk_widget_show(ctk_object->box_display_orientation);
-
-    /* If the display is off, disable the orientation widgets */
-    if (!display->cur_mode || !display->cur_mode->modeline ||
-        !are_display_composition_transformations_allowed(display->screen)) {
-        gtk_widget_set_sensitive(ctk_object->box_display_orientation, FALSE);
-        return;
-    }
-    gtk_widget_set_sensitive(ctk_object->box_display_orientation, TRUE);
-
-    /* Setup the display orientation widgets */
-    setup_display_rotation_dropdown(ctk_object);
-    setup_display_reflection_dropdown(ctk_object);
-}
-
-
-
-/** setup_display_underscan() *****************************************
- *
- * Sets up the display underscan to reflect the ViewPortOut settings
- * for the currently selected display.
- *
- * Tries to detect whether the current ViewPortOut configuration
- * corresponds to a border; then sets the underscan text entry and
- * slider accordingly.  Defaults to 0.
- **/
-
-static void setup_display_underscan(CtkDisplayConfig *ctk_object)
-{
-    nvDisplayPtr display = ctk_display_layout_get_selected_display
-        (CTK_DISPLAY_LAYOUT(ctk_object->obj_layout));
-    nvModePtr cur_mode;
-    nvSize raster_size;
-    gfloat adj_value;
-    gint hpixel_value;
-    gchar *txt_entry;
-
-    if (!display || !display->screen || ctk_object->advanced_mode) {
-        gtk_widget_hide(ctk_object->box_display_underscan);
-        return;
-    }
-    gtk_widget_show(ctk_object->box_display_underscan);
-
-    cur_mode = display->cur_mode;
-
-    /*
-     * If the display is off or a scaled mode is selected, disable the
-     * underscan widget.
-     */
-    if (!cur_mode || !cur_mode->modeline ||
-        (display->cur_selected_mode && display->cur_selected_mode->isScaled)) {
-        gtk_widget_set_sensitive(ctk_object->box_display_underscan, FALSE);
-        return;
-    }
-    gtk_widget_set_sensitive(ctk_object->box_display_underscan, TRUE);
-
-    raster_size.height = cur_mode->modeline->data.vdisplay;
-    raster_size.width = cur_mode->modeline->data.hdisplay;
-
-    get_underscan_settings_from_viewportout(raster_size, cur_mode->viewPortOut,
-                                            &adj_value, &hpixel_value);
-
-    /* Setup the slider */
-    g_signal_handlers_block_by_func
-        (G_OBJECT(ctk_object->adj_display_underscan),
-         G_CALLBACK(display_underscan_value_changed), (gpointer) ctk_object);
-
-    gtk_adjustment_set_value(GTK_ADJUSTMENT(ctk_object->adj_display_underscan),
-                             (adj_value < 0) ? 0 : adj_value);
-
-    g_signal_handlers_unblock_by_func
-        (G_OBJECT(ctk_object-> adj_display_underscan),
-         G_CALLBACK(display_underscan_value_changed), (gpointer) ctk_object);
-
-
-    /* Setup the text entry */
-    g_signal_handlers_block_by_func
-        (G_OBJECT(ctk_object->txt_display_underscan),
-         G_CALLBACK(display_underscan_activate), (gpointer) ctk_object);
-
-    if (hpixel_value < 0) {
-        txt_entry = g_strdup_printf("n/a");
-    } else {
-        txt_entry = g_strdup_printf("%d", hpixel_value);
-    }
-    gtk_entry_set_text(GTK_ENTRY(ctk_object->txt_display_underscan), txt_entry);
-    g_free(txt_entry);
-
-    g_signal_handlers_unblock_by_func
-        (G_OBJECT(ctk_object-> txt_display_underscan),
-         G_CALLBACK(display_underscan_activate), (gpointer) ctk_object);
-
-} /* setup_display_underscan() */
-
-
-
-/** setup_display_viewport_in() **************************************
- *
- * Sets up the display ViewPortIn text entry to reflect the currently
- * selected display device/mode.
- *
- **/
-
-static void setup_display_viewport_in(CtkDisplayConfig *ctk_object)
-{
-    char *tmp_str;
-    nvDisplayPtr display = ctk_display_layout_get_selected_display
-        (CTK_DISPLAY_LAYOUT(ctk_object->obj_layout));
-    nvModePtr mode;
-
-    if (!display || !display->screen || !ctk_object->advanced_mode) {
-        gtk_widget_hide(ctk_object->box_display_viewport_in);
-        return;
-    }
-    gtk_widget_show(ctk_object->box_display_viewport_in);
-
-    if (!display->cur_mode || !display->cur_mode->modeline) {
-        gtk_widget_set_sensitive(ctk_object->box_display_viewport_in, FALSE);
-        return;
-    }
-    gtk_widget_set_sensitive(ctk_object->box_display_viewport_in, TRUE);
-
-    /* Update the text */
-    mode = display->cur_mode;
-
-    tmp_str = g_strdup_printf("%dx%d",
-                              mode->viewPortIn.width,
-                              mode->viewPortIn.height);
-
-    gtk_entry_set_text(GTK_ENTRY(ctk_object->txt_display_viewport_in),
-                       tmp_str);
-
-    g_free(tmp_str);
-
-} /* setup_display_viewport_in() */
-
-
-
-/** setup_display_viewport_out() *************************************
- *
- * Sets up the display ViewPortOut text entry to reflect the currently
- * selected display device/mode.
- *
- **/
-
-static void setup_display_viewport_out(CtkDisplayConfig *ctk_object)
-{
-    char *tmp_str;
-    nvDisplayPtr display = ctk_display_layout_get_selected_display
-        (CTK_DISPLAY_LAYOUT(ctk_object->obj_layout));
-    nvModePtr mode;
-
-    if (!display || !display->screen || !ctk_object->advanced_mode) {
-        gtk_widget_hide(ctk_object->box_display_viewport_out);
-        return;
-    }
-    gtk_widget_show(ctk_object->box_display_viewport_out);
-
-    if (!display->cur_mode || !display->cur_mode->modeline) {
-        gtk_widget_set_sensitive(ctk_object->box_display_viewport_out, FALSE);
-        return;
-    }
-    gtk_widget_set_sensitive(ctk_object->box_display_viewport_out, TRUE);
-
-
-    /* Update the text */
-    mode = display->cur_mode;
-
-    tmp_str = g_strdup_printf("%dx%d%+d%+d",
-                              mode->viewPortOut.width,
-                              mode->viewPortOut.height,
-                              mode->viewPortOut.x,
-                              mode->viewPortOut.y);
-
-    gtk_entry_set_text(GTK_ENTRY(ctk_object->txt_display_viewport_out),
-                       tmp_str);
-
-    g_free(tmp_str);
-
-} /* setup_display_viewport_out() */
-
+        (G_OBJECT(ctk_object->mnu_display_model),
+         G_CALLBACK(display_modelname_changed), (gpointer) ctk_object);
+} /* setup_display_modelname_dropdown() */
 
 
 /** setup_display_position_type() ************************************
@@ -4266,8 +2546,8 @@ static void setup_display_position_type(CtkDisplayConfig *ctk_object)
         (G_OBJECT(ctk_object->mnu_display_position_type),
          G_CALLBACK(display_position_type_changed), (gpointer) ctk_object);
 
-    gtk_combo_box_set_active
-        (GTK_COMBO_BOX(ctk_object->mnu_display_position_type),
+    gtk_option_menu_set_history
+        (GTK_OPTION_MENU(ctk_object->mnu_display_position_type),
          display->cur_mode->position_type);
 
     g_signal_handlers_unblock_by_func
@@ -4290,14 +2570,14 @@ static void setup_display_position_relative(CtkDisplayConfig *ctk_object)
     nvDisplayPtr relative_to;
     int idx;
     int selected_idx;
+    GtkWidget *menu;
+    GtkWidget *menu_item;
 
     display = ctk_display_layout_get_selected_display
         (CTK_DISPLAY_LAYOUT(ctk_object->obj_layout));
 
-
-    /* No need to show dropdown if display position is absolute */
     if (!display || !display->screen || !display->cur_mode || !display->gpu) {
-        goto fail;
+        return;
     }
 
 
@@ -4310,45 +2590,51 @@ static void setup_display_position_relative(CtkDisplayConfig *ctk_object)
         display->screen->num_displays -1;
 
     ctk_object->display_position_table =
-        calloc(ctk_object->display_position_table_len, sizeof(nvDisplayPtr));
-
+        (nvDisplayPtr *)calloc(1, ctk_object->display_position_table_len *
+                               sizeof(nvDisplayPtr));
+    
     if (!ctk_object->display_position_table) {
-        goto fail;
+        ctk_object->display_position_table_len = 0;
+        gtk_widget_hide(ctk_object->mnu_display_position_relative);
+        return;
     }
 
 
     /* Generate the lookup table and display dropdown */
-    g_signal_handlers_block_by_func
-        (G_OBJECT(ctk_object->mnu_display_position_relative),
-         G_CALLBACK(display_position_relative_changed), (gpointer) ctk_object);
-
-    gtk_list_store_clear(GTK_LIST_STORE(gtk_combo_box_get_model
-        (GTK_COMBO_BOX(ctk_object->mnu_display_position_relative))));
-
     idx = 0;
     selected_idx = 0;
-    for (relative_to = display->screen->displays;
+    menu = gtk_menu_new();
+    for (relative_to = display->gpu->displays;
          relative_to;
-         relative_to = relative_to->next_in_screen) {
+         relative_to = relative_to->next) {
 
-        if (relative_to == display) continue;
+        if (relative_to == display || relative_to->screen != display->screen) {
+            continue;
+        }
 
         if (relative_to == display->cur_mode->relative_to) {
             selected_idx = idx;
         }
 
         ctk_object->display_position_table[idx] = relative_to;
-
-        ctk_combo_box_text_append_text(
-            ctk_object->mnu_display_position_relative,
-            relative_to->logName);
+       
+        menu_item = gtk_menu_item_new_with_label(relative_to->name);
+        gtk_menu_shell_append(GTK_MENU_SHELL(menu), menu_item);
+        gtk_widget_show(menu_item);
         idx++;
     }
 
 
     /* Set the menu and the selected display */
-    gtk_combo_box_set_active
-        (GTK_COMBO_BOX(ctk_object->mnu_display_position_relative),
+    g_signal_handlers_block_by_func
+        (G_OBJECT(ctk_object->mnu_display_position_relative),
+         G_CALLBACK(display_position_relative_changed), (gpointer) ctk_object);
+
+    gtk_option_menu_set_menu
+        (GTK_OPTION_MENU(ctk_object->mnu_display_position_relative), menu);
+
+    gtk_option_menu_set_history
+        (GTK_OPTION_MENU(ctk_object->mnu_display_position_relative),
          selected_idx);
 
     g_signal_handlers_unblock_by_func
@@ -4362,24 +2648,13 @@ static void setup_display_position_relative(CtkDisplayConfig *ctk_object)
          (idx > 1));
 
 
-    /* Hide the dropdown if the display position is absolute */
+    /* Handle cases where the position relative dropdown should be hidden */
     if (display->cur_mode->position_type == CONF_ADJ_ABSOLUTE) {
         gtk_widget_hide(ctk_object->mnu_display_position_relative);
         return;
     }
-
     gtk_widget_show(ctk_object->mnu_display_position_relative);
-    return;
 
-
- fail:
-    if (ctk_object->display_position_table) {
-        free(ctk_object->display_position_table);
-        ctk_object->display_position_table = NULL;
-    }
-    ctk_object->display_position_table_len = 0;
-    gtk_widget_hide(ctk_object->mnu_display_position_relative);
-    
 } /* setup_display_position_relative() */
 
 
@@ -4415,8 +2690,8 @@ static void setup_display_position_offset(CtkDisplayConfig *ctk_object)
     mode = display->cur_mode;
 
     tmp_str = g_strdup_printf("%+d%+d",
-                              mode->pan.x - mode->metamode->edim.x,
-                              mode->pan.y - mode->metamode->edim.y);
+                              mode->dim[X] - mode->metamode->edim[X],
+                              mode->dim[Y] - mode->metamode->edim[Y]);
 
     gtk_entry_set_text(GTK_ENTRY(ctk_object->txt_display_position_offset),
                        tmp_str);
@@ -4441,8 +2716,8 @@ static void setup_display_position(CtkDisplayConfig *ctk_object)
         (CTK_DISPLAY_LAYOUT(ctk_object->obj_layout));
 
 
-    /* Need at least 2 displays in the X screen to configure position */
-    if (!display || !display->screen || (display->screen->num_displays < 2)) {
+    /* Hide the position box if this screen only has one display */
+    if (!display || !display->screen || display->screen->num_displays <= 1) {
         gtk_widget_hide(ctk_object->box_display_position);
         return;
     }
@@ -4467,57 +2742,17 @@ static void setup_display_position(CtkDisplayConfig *ctk_object)
 } /* setup_display_position */
 
 
-
-/** setup_forcecompositionpipeline_buttons() *************************
- *
- * Sets up the ForceCompositionPipeline and ForceFullCompositionPipeline
- * checkboxes to reflect whether or not they are selected in the current
- * MetaMode.
- *
- **/
-
-static void setup_forcecompositionpipeline_buttons(CtkDisplayConfig *ctk_object)
-{
-    nvDisplayPtr display = ctk_display_layout_get_selected_display
-        (CTK_DISPLAY_LAYOUT(ctk_object->obj_layout));
-
-    if (!display || !display->screen || !ctk_object->advanced_mode) {
-        gtk_widget_hide(ctk_object->chk_forcecompositionpipeline_enabled);
-        gtk_widget_hide(ctk_object->chk_forcefullcompositionpipeline_enabled);
-        return;
-    }
-
-    if (!display->cur_mode) {
-        gtk_widget_hide(ctk_object->chk_forcecompositionpipeline_enabled);
-        gtk_widget_hide(ctk_object->chk_forcefullcompositionpipeline_enabled);
-        return;
-    }
-
-    gtk_widget_show(ctk_object->chk_forcecompositionpipeline_enabled);
-    gtk_widget_show(ctk_object->chk_forcefullcompositionpipeline_enabled);
-
-    update_forcecompositionpipeline_buttons(ctk_object);
-}
-
-
-
-/** setup_primary_display() ******************************************
- *
- * Sets up the primary display device for an X screen.
- *
- **/
-
 static void setup_primary_display(CtkDisplayConfig *ctk_object)
 {
     nvDisplayPtr display = ctk_display_layout_get_selected_display
         (CTK_DISPLAY_LAYOUT(ctk_object->obj_layout));
-
+    
     /* Hide the checkbox if this screen only has one display */
-    if (!display->screen || display->screen->num_displays <= 1) {
+    if (!display || !display->screen || display->screen->num_displays <= 1) {
         gtk_widget_hide(ctk_object->chk_primary_display);
         return;
     }
-
+    
     gtk_widget_show(ctk_object->chk_primary_display);
 
     g_signal_handlers_block_by_func
@@ -4541,10 +2776,7 @@ static void setup_primary_display(CtkDisplayConfig *ctk_object)
         (G_OBJECT(ctk_object->chk_primary_display),
          G_CALLBACK(screen_primary_display_toggled),
          (gpointer) ctk_object);
-
 }  /* setup_primary_display() */
-
-
 
 /** setup_display_panning() ******************************************
  *
@@ -4579,7 +2811,7 @@ static void setup_display_panning(CtkDisplayConfig *ctk_object)
 
     /* Update the panning text */
     mode    = display->cur_mode;
-    tmp_str = g_strdup_printf("%dx%d", mode->pan.width, mode->pan.height);
+    tmp_str = g_strdup_printf("%dx%d", mode->pan[W], mode->pan[H]);
 
     gtk_entry_set_text(GTK_ENTRY(ctk_object->txt_display_panning),
                        tmp_str);
@@ -4588,96 +2820,11 @@ static void setup_display_panning(CtkDisplayConfig *ctk_object)
 } /* setup_display_panning */
 
 
-/** setup_prime_display_page() *********************************************
- *
- *
- **/
-static void setup_prime_display_page(CtkDisplayConfig *ctk_object)
-{
-    nvPrimeDisplayPtr prime = ctk_display_layout_get_selected_prime_display
-        (CTK_DISPLAY_LAYOUT(ctk_object->obj_layout));
-    char *tmp_str = NULL;
-
-    if (!prime) {
-        return;
-    }
-
-    tmp_str = g_strdup_printf("%dx%d+%d+%d", prime->rect.width,
-                                             prime->rect.height,
-                                             prime->rect.x,
-                                             prime->rect.y);
-    gtk_label_set_text(GTK_LABEL(ctk_object->lbl_prime_display_view), tmp_str);
-    g_free(tmp_str);
-
-    if (prime->label) {
-        gtk_label_set_text(GTK_LABEL(ctk_object->lbl_prime_display_name),
-                           prime->label);
-        gtk_widget_show_all(ctk_object->box_prime_display_name);
-    } else {
-        gtk_label_set_text(GTK_LABEL(ctk_object->lbl_prime_display_name), "");
-        gtk_widget_hide(ctk_object->box_prime_display_name);
-    }
-
-    gtk_label_set_text(GTK_LABEL(ctk_object->lbl_prime_display_sync),
-                       prime->sync ? "On" : "Off");
-
-    gtk_widget_set_sensitive(ctk_object->prime_display_page, True);
-}
-
-
-/** setup_force_gsync() ***********************************************
- *
- * Control whether to make visible the checkbox that allows enabling G-SYNC
- * on displays not validated as G-SYNC compatible.
- *
- **/
-
-static void setup_force_gsync(CtkDisplayConfig *ctk_object)
-{
-    nvDisplayPtr display = ctk_display_layout_get_selected_display
-        (CTK_DISPLAY_LAYOUT(ctk_object->obj_layout));
-    ReturnStatus ret;
-    int val;
-
-    if (!display || !display->screen || !display->cur_mode ||
-        !ctk_object->advanced_mode) {
-        goto hide;
-    }
-
-    ret = NvCtrlGetAttribute(display->ctrl_target,
-                             NV_CTRL_DISPLAY_VRR_MODE, &val);
-    if (ret != NvCtrlSuccess) {
-        goto hide;
-    }
-
-    /*
-     * Show the checkbox only in advanced mode, and only if the display is not
-     * validated as G-SYNC Compatible.
-     */
-    switch (val) {
-    case NV_CTRL_DISPLAY_VRR_MODE_GSYNC_COMPATIBLE_UNVALIDATED:
-        gtk_widget_show(ctk_object->chk_force_allow_gsync);
-        break;
-    case NV_CTRL_DISPLAY_VRR_MODE_GSYNC:
-    case NV_CTRL_DISPLAY_VRR_MODE_GSYNC_COMPATIBLE:
-    case NV_CTRL_DISPLAY_VRR_MODE_NONE:
-    default:
-        goto hide;
-        break;
-    }
-
-    update_force_gsync_button(ctk_object);
-    return;
-
-hide:
-    gtk_widget_hide(ctk_object->chk_force_allow_gsync);
-}
-
 
 /** setup_display_page() ********************************************
  *
- * Updates the display frame to reflect the current state of the
- * currently selected display.
+ * Sets up the display frame to reflect the currently selected
+ * display. 
  *
  **/
 
@@ -4685,96 +2832,64 @@ static void setup_display_page(CtkDisplayConfig *ctk_object)
 {
     nvDisplayPtr display = ctk_display_layout_get_selected_display
         (CTK_DISPLAY_LAYOUT(ctk_object->obj_layout));
+    gint page_num;
+    GtkWidget *tab_label;
 
 
+    page_num = gtk_notebook_page_num(GTK_NOTEBOOK(ctk_object->notebook),
+                                     ctk_object->display_page);
+
+    /* If no display is selected, remove the display page */
     if (!display) {
+        gtk_widget_set_sensitive(ctk_object->display_page, False);
+        if (page_num >= 0) {
+            gtk_notebook_remove_page(GTK_NOTEBOOK(ctk_object->notebook),
+                                     page_num);
+        }
         return;
     }
 
 
     /* Enable display widgets and setup widget information */
     gtk_widget_set_sensitive(ctk_object->display_page, True);
+    
 
-    if (display->gpu->layout->num_screens > 1) {
-        gtk_widget_show(ctk_object->box_screen_drag_info_display);
-    } else {
-        gtk_widget_hide(ctk_object->box_screen_drag_info_display);
-    }
+    /* Setup the display modelname dropdown */
+    setup_display_modelname_dropdown(ctk_object);
 
+
+    /* Setup the seleted mode modename */
     setup_display_config(ctk_object);
+
+
+    /* Setup the seleted mode modename */
     setup_display_modename(ctk_object);
+
+
+    /* Setup display resolution menu */
     setup_display_resolution_dropdown(ctk_object);
-    setup_display_stereo_dropdown(ctk_object);
-    setup_display_orientation(ctk_object);
-    setup_display_underscan(ctk_object);
-    setup_display_viewport_in(ctk_object);
-    setup_display_viewport_out(ctk_object);
+    
+
+    /* Setup position */
     setup_display_position(ctk_object);
+
+
+    /* Setup panning */
     setup_display_panning(ctk_object);
-    setup_forcecompositionpipeline_buttons(ctk_object);
+
+
+    /* Setup first display */
     setup_primary_display(ctk_object);
-    setup_force_gsync(ctk_object);
+
+
+    /* Make sure the page has been added to the notebook */
+    if (page_num < 0) {
+        tab_label = gtk_label_new("Display");
+        gtk_notebook_prepend_page(GTK_NOTEBOOK(ctk_object->notebook),
+                                  ctk_object->display_page, tab_label);
+    }
 
 } /* setup_display_page() */
-
-
-
-/** setup_screen_virtual_size() **************************************
- *
- * Sets up the UI for configuring the virtual width/height of the
- * currently selected X screen.
- *
- **/
-
-static void setup_screen_virtual_size(CtkDisplayConfig *ctk_object)
-{
-    char *tmp_str;
-    nvScreenPtr screen;
-
-    screen = ctk_display_layout_get_selected_screen
-        (CTK_DISPLAY_LAYOUT(ctk_object->obj_layout));
-
-
-    /* Only show this box for no-scanout screens */
-    if (!screen || !screen->no_scanout) {
-        gtk_widget_hide(ctk_object->box_screen_virtual_size);
-        return;
-    }
-    gtk_widget_show(ctk_object->box_screen_virtual_size);
-
-
-    /* Update the virtual size text */
-    tmp_str = g_strdup_printf("%dx%d", screen->dim.width, screen->dim.height);
-
-    gtk_entry_set_text(GTK_ENTRY(ctk_object->txt_screen_virtual_size),
-                       tmp_str);
-    g_free(tmp_str);
-
-} /* setup_screen_virtual_size() */
-
-
-
-/** grow_screen_depth_table() **************************************
- *
- * realloc the screen_depth_table, if possible.
- *
- **/
-
-static gboolean grow_screen_depth_table(CtkDisplayConfig *ctk_object)
-{
-    int *tmp = realloc(ctk_object->screen_depth_table,
-                       sizeof(int) *
-                       (ctk_object->screen_depth_table_len + 1));
-    if (!tmp) {
-        return False;
-    }
-
-    ctk_object->screen_depth_table = tmp;
-    ctk_object->screen_depth_table_len++;
-
-    return True;
-
-} /* grow_screen_depth_table() */
 
 
 
@@ -4787,78 +2902,68 @@ static gboolean grow_screen_depth_table(CtkDisplayConfig *ctk_object)
 
 static void setup_screen_depth_dropdown(CtkDisplayConfig *ctk_object)
 {
+    GtkWidget *menu;
+    GtkWidget *menu_item;
     int cur_idx;
+    int screen_depth_table_len = 0;
     gboolean add_depth_30_option;
-    nvScreenPtr screen = ctk_display_layout_get_selected_screen
+    nvDisplayPtr display = ctk_display_layout_get_selected_display
         (CTK_DISPLAY_LAYOUT(ctk_object->obj_layout));
-
-    if (!screen) {
+    
+    if (!display || !display->screen) {
         gtk_widget_hide(ctk_object->box_screen_depth);
         return;
     }
     if (ctk_object->screen_depth_table) {
         free(ctk_object->screen_depth_table);
     }
-    ctk_object->screen_depth_table = NULL;
-    ctk_object->screen_depth_table_len = 0;
+    ctk_object->screen_depth_table =
+        (char *) malloc(sizeof(char) * SCREEN_DEPTH_COUNT);
 
-    g_signal_handlers_block_by_func(G_OBJECT(ctk_object->mnu_screen_depth),
-                                    G_CALLBACK(screen_depth_changed),
-                                    (gpointer) ctk_object);
-
-    gtk_list_store_clear(GTK_LIST_STORE(gtk_combo_box_get_model
-        (GTK_COMBO_BOX(ctk_object->mnu_screen_depth))));
-
+    menu  = gtk_menu_new();
 
     /* If Xinerama is enabled, only allow depth 30 if all
      * gpu/screens have support for depth 30.
      */
 
     if (ctk_object->layout->xinerama_enabled) {
-        add_depth_30_option = layout_supports_depth_30(screen->layout);
+        add_depth_30_option = layout_supports_depth_30(display->gpu->layout);
     } else {
-        add_depth_30_option = screen->allow_depth_30;
+        add_depth_30_option = display->gpu->allow_depth_30;
     }
 
     if (add_depth_30_option) {
-
-        if (grow_screen_depth_table(ctk_object)) {
-            ctk_combo_box_text_append_text
-                (ctk_object->mnu_screen_depth,
-                 "1.1 Billion Colors (Depth 30) - Experimental");
-            ctk_object->screen_depth_table[ctk_object->screen_depth_table_len-1] = 30;
-        }
+        menu_item = gtk_menu_item_new_with_label
+            ("1.1 Billion Colors (Depth 30) - Experimental");
+        gtk_menu_shell_append(GTK_MENU_SHELL(menu), menu_item);
+        gtk_widget_show(menu_item);
+        ctk_object->screen_depth_table[screen_depth_table_len++] = 30;
     }
+    menu_item = gtk_menu_item_new_with_label("16.7 Million Colors (Depth 24)");
+    gtk_menu_shell_append(GTK_MENU_SHELL(menu), menu_item);
+    gtk_widget_show(menu_item);
+    ctk_object->screen_depth_table[screen_depth_table_len++] = 24;
 
-    if (grow_screen_depth_table(ctk_object)) {
-        ctk_combo_box_text_append_text(ctk_object->mnu_screen_depth,
-                                       "16.7 Million Colors (Depth 24)");
-        ctk_object->screen_depth_table[ctk_object->screen_depth_table_len-1] = 24;
-    }
+    menu_item = gtk_menu_item_new_with_label("65,536 Colors (Depth 16)");
+    gtk_menu_shell_append(GTK_MENU_SHELL(menu), menu_item);
+    gtk_widget_show(menu_item);
+    ctk_object->screen_depth_table[screen_depth_table_len++] = 16;
+    menu_item = gtk_menu_item_new_with_label("256 Colors (Depth 8)");
+    gtk_menu_shell_append(GTK_MENU_SHELL(menu), menu_item);
+    gtk_widget_show(menu_item);
+    ctk_object->screen_depth_table[screen_depth_table_len++] = 8;
 
-    if (grow_screen_depth_table(ctk_object)) {
-        ctk_combo_box_text_append_text(ctk_object->mnu_screen_depth,
-                                       "65,536 Colors (Depth 16)");
-        ctk_object->screen_depth_table[ctk_object->screen_depth_table_len-1] = 16;
-    }
+    g_signal_handlers_block_by_func(G_OBJECT(ctk_object->mnu_screen_depth),
+                                    G_CALLBACK(screen_depth_changed),
+                                    (gpointer) ctk_object);
 
-    if (grow_screen_depth_table(ctk_object)) {
-        ctk_combo_box_text_append_text(ctk_object->mnu_screen_depth,
-                                       "32,768 Colors (Depth 15)");
-        ctk_object->screen_depth_table[ctk_object->screen_depth_table_len-1] = 15;
-    }
-
-    if (grow_screen_depth_table(ctk_object)) {
-        ctk_combo_box_text_append_text(ctk_object->mnu_screen_depth,
-                                       "256 Colors (Depth 8)");
-        ctk_object->screen_depth_table[ctk_object->screen_depth_table_len-1] = 8;
-    }
-
+    gtk_option_menu_set_menu
+        (GTK_OPTION_MENU(ctk_object->mnu_screen_depth), menu);
     
-    for (cur_idx = 0; cur_idx < ctk_object->screen_depth_table_len; cur_idx++) {
-        if (screen->depth == ctk_object->screen_depth_table[cur_idx]) {
-            gtk_combo_box_set_active
-                (GTK_COMBO_BOX(ctk_object->mnu_screen_depth), cur_idx);
+    for (cur_idx = 0; cur_idx < SCREEN_DEPTH_COUNT; cur_idx++) {
+        if (display->screen->depth == ctk_object->screen_depth_table[cur_idx]) {
+            gtk_option_menu_set_history
+                (GTK_OPTION_MENU(ctk_object->mnu_screen_depth), cur_idx);
         }
     }
 
@@ -4874,54 +2979,6 @@ static void setup_screen_depth_dropdown(CtkDisplayConfig *ctk_object)
 
 
 
-/** setup_screen_stereo_dropdown() ***********************************
- *
- * Configures the screen stereo mode dropdown to reflect the
- * stereo mode for the currently selected screen.
- *
- **/
-
-static void setup_screen_stereo_dropdown(CtkDisplayConfig *ctk_object)
-{
-    nvScreenPtr screen = ctk_display_layout_get_selected_screen
-        (CTK_DISPLAY_LAYOUT(ctk_object->obj_layout));
-    int i, index = screen->stereo;
-
-    if (!ctk_object->box_screen_stereo) return;
-
-    /* Handle cases where the position type should be hidden */
-    if (!screen || !screen->stereo_supported) {
-        gtk_widget_hide(ctk_object->box_screen_stereo);
-        return;
-    }
-
-    /* translation from stereo mode to dropdown index */
-    for (i = 0; i < ctk_object->stereo_table_size; i++) {
-        if (ctk_object->stereo_table[i] == screen->stereo) {
-            index = i;
-            break;
-        }
-    }
-
-    /* Set the selected positioning type */
-    g_signal_handlers_block_by_func
-        (G_OBJECT(ctk_object->mnu_screen_stereo),
-         G_CALLBACK(screen_stereo_changed), (gpointer) ctk_object);
-
-    gtk_combo_box_set_active
-        (GTK_COMBO_BOX(ctk_object->mnu_screen_stereo),
-         index);
-
-    g_signal_handlers_unblock_by_func
-        (G_OBJECT(ctk_object->mnu_screen_stereo),
-         G_CALLBACK(screen_stereo_changed), (gpointer) ctk_object);
-
-    gtk_widget_show(ctk_object->box_screen_stereo);
-
-} /* setup_screen_stereo_dropdown() */
-
-
-
 /** setup_screen_position_type() *************************************
  *
  * Configures the screen position type dropdown to reflect the
@@ -4931,12 +2988,12 @@ static void setup_screen_stereo_dropdown(CtkDisplayConfig *ctk_object)
 
 static void setup_screen_position_type(CtkDisplayConfig *ctk_object)
 {
-    nvScreenPtr screen = ctk_display_layout_get_selected_screen
+    nvDisplayPtr display = ctk_display_layout_get_selected_display
         (CTK_DISPLAY_LAYOUT(ctk_object->obj_layout));
 
     
     /* Handle cases where the position type should be hidden */
-    if (!screen) {
+    if (!display || !display->screen) {
         gtk_widget_hide(ctk_object->mnu_screen_position_type);
         return;
     }
@@ -4948,9 +3005,9 @@ static void setup_screen_position_type(CtkDisplayConfig *ctk_object)
         (G_OBJECT(ctk_object->mnu_screen_position_type),
          G_CALLBACK(screen_position_type_changed), (gpointer) ctk_object);
 
-    gtk_combo_box_set_active
-        (GTK_COMBO_BOX(ctk_object->mnu_screen_position_type),
-         screen->position_type);
+    gtk_option_menu_set_history
+        (GTK_OPTION_MENU(ctk_object->mnu_screen_position_type),
+         display->screen->position_type);
 
     g_signal_handlers_unblock_by_func
         (G_OBJECT(ctk_object->mnu_screen_position_type),
@@ -4968,76 +3025,92 @@ static void setup_screen_position_type(CtkDisplayConfig *ctk_object)
 
 static void setup_screen_position_relative(CtkDisplayConfig *ctk_object)
 {
-    nvLayoutPtr layout = ctk_object->layout;
+    nvDisplayPtr display;
     nvScreenPtr screen;
     nvScreenPtr relative_to;
+    nvGpuPtr gpu;
     int idx;
     int selected_idx;
+    GtkWidget *menu;
+    GtkWidget *menu_item;
 
-    screen = ctk_display_layout_get_selected_screen
+    display = ctk_display_layout_get_selected_display
         (CTK_DISPLAY_LAYOUT(ctk_object->obj_layout));
 
-
-    if (!screen) {
-        goto fail;
+    if (!display || !display->cur_mode || !display->gpu || !display->screen) {
+        return;
     }
 
+    screen = display->screen;
 
-    /* Count the number of screens, not including the current one */
-    ctk_object->screen_position_table_len = layout->num_screens;
-    if (ctk_object->screen_position_table_len > 0) {
-        ctk_object->screen_position_table_len--;
-    }
 
     /* Allocate the screen lookup table for the dropdown */
     if (ctk_object->screen_position_table) {
         free(ctk_object->screen_position_table);
     }
-    ctk_object->screen_position_table =
-        calloc(ctk_object->screen_position_table_len, sizeof(nvScreenPtr));
 
+    /* Count the number of screens */
+    ctk_object->screen_position_table_len = 0;
+    for (gpu = ctk_object->layout->gpus; gpu; gpu = gpu->next) {
+        ctk_object->screen_position_table_len += gpu->num_screens;
+    }
+
+    /* Don't count the current screen */
+    if (ctk_object->screen_position_table_len >= 1) {
+        ctk_object->screen_position_table_len--;
+    }
+
+    ctk_object->screen_position_table =
+        (nvScreenPtr *)calloc(1, ctk_object->screen_position_table_len *
+                              sizeof(nvScreenPtr));
+    
     if (!ctk_object->screen_position_table) {
-        goto fail;
+        ctk_object->screen_position_table_len = 0;
+        gtk_widget_hide(ctk_object->mnu_screen_position_relative);
+        return;
     }
 
 
     /* Generate the lookup table and screen dropdown */
-    g_signal_handlers_block_by_func
-        (G_OBJECT(ctk_object->mnu_screen_position_relative),
-         G_CALLBACK(screen_position_relative_changed), (gpointer) ctk_object);
-
-    gtk_list_store_clear(GTK_LIST_STORE(gtk_combo_box_get_model
-        (GTK_COMBO_BOX(ctk_object->mnu_screen_position_relative))));
-
     idx = 0;
     selected_idx = 0;
+    menu = gtk_menu_new();
+    for (gpu = ctk_object->layout->gpus; gpu; gpu = gpu->next) {
+        for (relative_to = gpu->screens;
+             relative_to;
+             relative_to = relative_to->next) {
 
-    for (relative_to = layout->screens;
-         relative_to;
-         relative_to = relative_to->next_in_layout) {
+            gchar *tmp_str;
 
-        gchar *tmp_str;
+            if (relative_to == screen) continue;
 
-        if (relative_to == screen) continue;
+            if (relative_to == screen->relative_to) {
+                selected_idx = idx;
+            }
+            
+            ctk_object->screen_position_table[idx] = relative_to;
 
-        if (relative_to == screen->relative_to) {
-            selected_idx = idx;
+            tmp_str = g_strdup_printf("X screen %d",
+                                      relative_to->scrnum);
+            menu_item = gtk_menu_item_new_with_label(tmp_str);
+            g_free(tmp_str);
+            gtk_menu_shell_append(GTK_MENU_SHELL(menu), menu_item);
+            gtk_widget_show(menu_item);
+            idx++;
         }
-
-        ctk_object->screen_position_table[idx] = relative_to;
-
-        tmp_str = g_strdup_printf("X screen %d",
-                                  relative_to->scrnum);
-        ctk_combo_box_text_append_text(ctk_object->mnu_screen_position_relative,
-                                       tmp_str);
-        g_free(tmp_str);
-        idx++;
     }
 
 
     /* Set the menu and the selected display */
-    gtk_combo_box_set_active
-        (GTK_COMBO_BOX(ctk_object->mnu_screen_position_relative),
+    g_signal_handlers_block_by_func
+        (G_OBJECT(ctk_object->mnu_screen_position_relative),
+         G_CALLBACK(screen_position_relative_changed), (gpointer) ctk_object);
+
+    gtk_option_menu_set_menu
+        (GTK_OPTION_MENU(ctk_object->mnu_screen_position_relative), menu);
+
+    gtk_option_menu_set_history
+        (GTK_OPTION_MENU(ctk_object->mnu_screen_position_relative),
          selected_idx);
 
     g_signal_handlers_unblock_by_func
@@ -5051,23 +3124,12 @@ static void setup_screen_position_relative(CtkDisplayConfig *ctk_object)
          (idx > 1));
 
 
-    /* Hide the dropdown if the screen position is absolute */
-    if (screen->position_type == CONF_ADJ_ABSOLUTE) {
+    /* Handle cases where the position relative dropdown should be hidden */
+    if (display->screen->position_type == CONF_ADJ_ABSOLUTE) {
         gtk_widget_hide(ctk_object->mnu_screen_position_relative);
         return;
     }
-
     gtk_widget_show(ctk_object->mnu_screen_position_relative);
-    return;
-
-
- fail:
-    if (ctk_object->screen_position_table) {
-        free(ctk_object->screen_position_table);
-        ctk_object->screen_position_table = NULL;
-    }
-    ctk_object->screen_position_table_len = 0;
-    gtk_widget_hide(ctk_object->mnu_screen_position_relative);
 
 } /* setup_screen_position_relative() */
 
@@ -5083,16 +3145,17 @@ static void setup_screen_position_relative(CtkDisplayConfig *ctk_object)
 static void setup_screen_position_offset(CtkDisplayConfig *ctk_object)
 {
     char *tmp_str;
+    nvDisplayPtr display;
     nvScreenPtr screen;
 
-    screen = ctk_display_layout_get_selected_screen
+    display = ctk_display_layout_get_selected_display
         (CTK_DISPLAY_LAYOUT(ctk_object->obj_layout));
 
 
     /* Handle cases where the position offset should be hidden */
-    if (!screen ||
-        (screen->position_type != CONF_ADJ_ABSOLUTE && 
-         screen->position_type != CONF_ADJ_RELATIVE)) {
+    if (!display || !display->screen ||
+        (display->screen->position_type != CONF_ADJ_ABSOLUTE && 
+         display->screen->position_type != CONF_ADJ_RELATIVE)) {
         gtk_widget_hide(ctk_object->txt_screen_position_offset);
         return;
     }
@@ -5100,7 +3163,9 @@ static void setup_screen_position_offset(CtkDisplayConfig *ctk_object)
 
 
     /* Update the position text */
-    tmp_str = g_strdup_printf("%+d%+d", screen->dim.x, screen->dim.y);
+    screen = display->screen;
+
+    tmp_str = g_strdup_printf("%+d%+d", screen->dim[X], screen->dim[Y]);
 
     gtk_entry_set_text(GTK_ENTRY(ctk_object->txt_screen_position_offset),
                        tmp_str);
@@ -5113,20 +3178,28 @@ static void setup_screen_position_offset(CtkDisplayConfig *ctk_object)
 
 /** setup_screen_position() ******************************************
  *
- * Sets up the screen position section to reflect the position
+ * Sets up the the screen position section to reflect the position
  * settings for the currently selected screen.
  *
  **/
 
 static void setup_screen_position(CtkDisplayConfig *ctk_object)
 {
-    nvLayoutPtr layout = ctk_object->layout;
-    nvScreenPtr screen = ctk_display_layout_get_selected_screen
+    nvGpuPtr gpu;
+    nvDisplayPtr display = ctk_display_layout_get_selected_display
         (CTK_DISPLAY_LAYOUT(ctk_object->obj_layout));
+    int num_screens;
 
 
-    /* Need at least 2 X screens to configure position */
-    if (!screen || (layout->num_screens < 2)) {
+    /* Count the number of screens */
+    num_screens = 0;
+    for (gpu = ctk_object->layout->gpus; gpu; gpu = gpu->next) {
+        num_screens += gpu->num_screens;
+    }
+
+
+    /* Hide the position box if there is only one screen */
+    if (!display || !display->screen || num_screens <= 1) {
         gtk_widget_hide(ctk_object->box_screen_position);
         return;
     }
@@ -5157,10 +3230,7 @@ static void setup_screen_metamode(CtkDisplayConfig *ctk_object)
     gchar *str;
 
 
-    /* Only show the metamodes in advanced mode for screens
-     * that support scanout.
-     */
-    if (!screen || screen->no_scanout || !ctk_object->advanced_mode) {
+    if (!screen || !ctk_object->advanced_mode) {
         gtk_widget_hide(ctk_object->box_screen_metamode);
         return;
     }
@@ -5189,11 +3259,24 @@ static void setup_screen_metamode(CtkDisplayConfig *ctk_object)
 
 static void setup_screen_page(CtkDisplayConfig *ctk_object)
 {
-    nvScreenPtr screen = ctk_display_layout_get_selected_screen
+    nvDisplayPtr display = ctk_display_layout_get_selected_display
         (CTK_DISPLAY_LAYOUT(ctk_object->obj_layout));
+    gchar *tmp;
+    gint page_num;
+    GtkWidget *tab_label;
 
 
-    if (!screen) {
+    page_num = gtk_notebook_page_num(GTK_NOTEBOOK(ctk_object->notebook),
+                                     ctk_object->screen_page);
+
+
+    /* If there is no display or no screen selected, remove the screen page */
+    if (!display || !display->screen) {
+        gtk_widget_set_sensitive(ctk_object->screen_page, False);
+        if (page_num >= 0) {
+            gtk_notebook_remove_page(GTK_NOTEBOOK(ctk_object->notebook),
+                                     page_num);
+        }
         return;
     }
 
@@ -5201,18 +3284,32 @@ static void setup_screen_page(CtkDisplayConfig *ctk_object)
     /* Enable display widgets and setup widget information */
     gtk_widget_set_sensitive(ctk_object->screen_page, True);
 
-    if (screen->layout->num_screens > 1) {
-        gtk_widget_show(ctk_object->box_screen_drag_info_screen);
-    } else {
-        gtk_widget_hide(ctk_object->box_screen_drag_info_screen);
-    }
 
-    setup_screen_virtual_size(ctk_object);
+    /* Setup the screen number */
+    tmp = g_strdup_printf("%d", display->screen->scrnum);
+    gtk_label_set_text(GTK_LABEL(ctk_object->txt_screen_num), tmp);
+    g_free(tmp);
+    
+
+    /* Setup depth menu */
     setup_screen_depth_dropdown(ctk_object);
-    setup_screen_stereo_dropdown(ctk_object);
+
+
+    /* Setup position */
     setup_screen_position(ctk_object);
+
+
+    /* Setup metamode menu */
     setup_screen_metamode(ctk_object);
 
+
+    /* Make sure the page has been added to the notebook */
+    if (page_num < 0) {
+        tab_label = gtk_label_new("X Screen");
+        gtk_notebook_append_page(GTK_NOTEBOOK(ctk_object->notebook),
+                                 ctk_object->screen_page, tab_label);
+    }
+    
 } /* setup_screen_page() */
 
 
@@ -5220,26 +3317,25 @@ static void setup_screen_page(CtkDisplayConfig *ctk_object)
 /** validation_fix_crowded_metamodes() *******************************
  *
  * Goes through each screen's metamodes and ensures that at most
- * (max supported) display devices are active (have a modeline set) per
- * metamode.  This function also checks to make sure that there is at least
+ * two display devices are active (have a modeline set) per metamode.
+ * This function also checks to make sure that there is at least
  * one display device active for each metamode.
  *
  **/
 
 static gint validation_fix_crowded_metamodes(CtkDisplayConfig *ctk_object,
-                                             nvScreenPtr screen)
+                                            nvScreenPtr screen)
 {
     nvDisplayPtr display;
     nvModePtr first_mode = NULL;
     nvModePtr mode;
     int num;
     int i, j;
-    int max_displays = get_screen_max_displays(screen);
 
 
     /* Verify each metamode with the metamodes that come before it */
     for (i = 0; i < screen->num_metamodes; i++) {
-
+        
         /* Keep track of the first mode in case we need to assign
          * a default resolution
          */
@@ -5247,20 +3343,22 @@ static gint validation_fix_crowded_metamodes(CtkDisplayConfig *ctk_object,
 
         /* Count the number of display devices that have a mode
          * set for this metamode.  NULL out the modes of extra
-         * display devices once we've counted max supported display devices
+         * display devices once we've counted 2 display devices
          * that have a (non NULL) mode set.
          */
         num = 0;
-        for (display = screen->displays;
+        for (display = screen->gpu->displays;
              display;
-             display = display->next_in_screen) {
+             display = display->next) {
+
+            if (display->screen != screen) continue;
 
             /* Check the mode that corresponds with the metamode */
             mode = display->modes;
             for (j = 0; j < i; j++) {
                 mode = mode->next;
             }
-
+            
             if (!first_mode) {
                 first_mode = mode;
             }
@@ -5270,19 +3368,15 @@ static gint validation_fix_crowded_metamodes(CtkDisplayConfig *ctk_object,
             }
 
             /* Disable extra modes */
-            if (max_displays >= 0 && num > max_displays) {
+            if (num > 2) {
                 ctk_display_layout_set_mode_modeline
                     (CTK_DISPLAY_LAYOUT(ctk_object->obj_layout),
-                     mode,
-                     NULL /* modeline */,
-                     NULL /* viewPortIn */,
-                     NULL /* viewPortOut */);
+                     mode, NULL);
 
                 nv_info_msg(TAB, "Setting display device '%s' as Off "
                             "for MetaMode %d on Screen %d.  (There are "
-                            "already %d active display devices for this "
-                            "MetaMode.", display->logName, i, screen->scrnum,
-                            max_displays);
+                            "already two active display devices for this "
+                            "MetaMode.", display->name, i, screen->scrnum);
             }
         }
 
@@ -5294,8 +3388,7 @@ static gint validation_fix_crowded_metamodes(CtkDisplayConfig *ctk_object,
 
                 /* Delete the metamode */
                 ctk_display_layout_delete_screen_metamode
-                    (CTK_DISPLAY_LAYOUT(ctk_object->obj_layout), screen, i,
-                     TRUE);
+                    (CTK_DISPLAY_LAYOUT(ctk_object->obj_layout), screen, i);
 
                 nv_info_msg(TAB, "Removed MetaMode %d on Screen %d (No "
                             "active display devices)\n", i,
@@ -5314,15 +3407,13 @@ static gint validation_fix_crowded_metamodes(CtkDisplayConfig *ctk_object,
                 ctk_display_layout_set_mode_modeline
                     (CTK_DISPLAY_LAYOUT(ctk_object->obj_layout),
                      first_mode,
-                     first_mode->display->modelines,
-                     NULL /* viewPortIn */,
-                     NULL /* viewPortOut */);
+                     first_mode->display->modelines);
 
                 nv_info_msg(TAB, "Activating display device '%s' for MetaMode "
                             "%d on Screen %d.  (Minimally, a Screen must have "
                             "one MetaMode with at least one active display "
                             "device.)",
-                            first_mode->display->logName, i, screen->scrnum);
+                            first_mode->display->name, i, screen->scrnum);
             }
         }
     }
@@ -5330,6 +3421,53 @@ static gint validation_fix_crowded_metamodes(CtkDisplayConfig *ctk_object,
     return 1;
 
 } /* validation_fix_crowded_metamodes() */
+
+
+
+/** validation_fix_crowded_metamodes() *******************************
+ *
+ * Goes through each screen's metamodes and ensures that each
+ * metamode string is unique.  If a metamode string is not unique,
+ * the duplicate metamode is removed.
+ *
+ **/
+
+static gint validation_remove_dupe_metamodes(CtkDisplayConfig *ctk_object,
+                                            nvScreenPtr screen)
+{
+    int i, j;
+    char *metamode_str;
+
+    /* Verify each metamode with the metamodes that come before it */
+    for (i = 1; i < screen->num_metamodes; i++) {
+
+        metamode_str = screen_get_metamode_str(screen, i, 0);
+        for (j = 0; j < i; j++) {
+            char *tmp;
+            tmp = screen_get_metamode_str(screen, j, 0);
+            
+            /* Remove duplicates */
+            if (!strcmp(metamode_str, tmp)) {
+                
+                /* Delete the metamode */
+                ctk_display_layout_delete_screen_metamode
+                    (CTK_DISPLAY_LAYOUT(ctk_object->obj_layout), screen, i);
+                
+                nv_info_msg(TAB, "Removed MetaMode %d on Screen %d (Is "
+                            "Duplicate of MetaMode %d)\n", i+1, screen->scrnum,
+                            j+1);
+                g_free(tmp);
+                i--; /* Check the new metamode in i'th position */
+                break;
+            }
+            g_free(tmp);
+        }
+        g_free(metamode_str);
+    }
+
+    return 1;
+
+} /* validation_remove_dupe_metamodes() */
 
 
 
@@ -5345,6 +3483,7 @@ static gint validation_auto_fix_screen(CtkDisplayConfig *ctk_object,
     gint status = 1;
 
     status &= validation_fix_crowded_metamodes(ctk_object, screen);
+    status &= validation_remove_dupe_metamodes(ctk_object, screen);
 
     return status;
 
@@ -5364,18 +3503,18 @@ static gint validation_auto_fix_screen(CtkDisplayConfig *ctk_object,
 static gint validation_auto_fix(CtkDisplayConfig *ctk_object)
 {
     nvLayoutPtr layout = ctk_object->layout;
+    nvGpuPtr gpu;
     nvScreenPtr screen;
     gint success = 1;
 
 
     /* Auto fix each screen */
-    for (screen = layout->screens;
-         screen;
-         screen = screen->next_in_layout) {
-
-        if (!validation_auto_fix_screen(ctk_object, screen)) {
-            success = 0;
-            break;
+    for (gpu = layout->gpus; gpu; gpu = gpu->next) {
+        for (screen = gpu->screens; screen; screen = screen->next) {
+            if (!validation_auto_fix_screen(ctk_object, screen)) {
+                success = 0;
+                break;
+            }
         }
     }
 
@@ -5396,12 +3535,13 @@ static gint validation_auto_fix(CtkDisplayConfig *ctk_object)
  *
  * This function returns NULL if the screen is found to be in a
  * valid state.  To be in a valid state the screen's metamodes must
- * adhere to the following:
+ * adhear to the following:
  *
  * - Have at least 1 display device activated for all metamodes.
  *
- * - Have at most (max supported) display devices activated for all
- *   metamodes.
+ * - Have at most 2 display devices activated for all metamodes.
+ *
+ * - All metamodes must be unique.
  *
  * - All metamodes must have a coherent offset (The top left corner
  *   of the bounding box of all the metamodes must be the same.)
@@ -5412,21 +3552,19 @@ static gint validation_auto_fix(CtkDisplayConfig *ctk_object)
  *
  **/
 
-static gchar * validate_screen(nvScreenPtr screen,
-                               gboolean *can_ignore_error)
+static gchar * validate_screen(nvScreenPtr screen)
 {
     nvDisplayPtr display;
     nvModePtr mode;
     int i, j;
-    int max_displays = get_screen_max_displays(screen);
     int num_displays;
+    char *metamode_str;
     gchar *err_str = NULL;
     gchar *tmp;
     gchar *tmp2;
 
     gchar bullet[8]; // UTF8 Bullet string
     int len;
-    gboolean is_implicit;
 
 
 
@@ -5439,22 +3577,18 @@ static gchar * validate_screen(nvScreenPtr screen,
 
         /* Count the number of display devices used in the metamode */
         num_displays = 0;
-        is_implicit = TRUE;
-        for (display = screen->displays;
+        for (display = screen->gpu->displays;
              display;
-             display = display->next_in_screen) {
+             display = display->next) {
 
+            if (display->screen != screen) continue;
+            
             mode = display->modes;
             for (j = 0; j < i; j++) {
                 mode = mode->next;
             }
             if (mode->modeline) {
                 num_displays++;
-            } else if (mode->metamode) {
-                is_implicit = is_implicit &&
-                    (mode->metamode->source == METAMODE_SOURCE_IMPLICIT);
-            } else {
-                is_implicit = FALSE;
             }
         }
 
@@ -5462,28 +3596,48 @@ static gchar * validate_screen(nvScreenPtr screen,
         /* There must be at least one display active in the metamode. */
         if (!num_displays) {
             tmp = g_strdup_printf("%s MetaMode %d of Screen %d  does not have "
-                                  "an active display device.\n\n",
+                                  "an active display devices.\n\n",
                                   bullet, i+1, screen->scrnum);
             tmp2 = g_strconcat((err_str ? err_str : ""), tmp, NULL);
             g_free(err_str);
             g_free(tmp);
             err_str = tmp2;
-            *can_ignore_error = *can_ignore_error && is_implicit;
         }
 
 
-        /* There can be at most max supported displays active in the metamode. */
-        if (max_displays >= 0 && num_displays > max_displays) {
+        /* There can be at most two displays active in the metamode. */
+        if (num_displays > 2) {
             tmp = g_strdup_printf("%s MetaMode %d of Screen %d has more than "
-                                  "%d active display devices.\n\n",
-                                  bullet, i+1, screen->scrnum,
-                                  max_displays);
+                                  "two active display devices.\n\n",
+                                  bullet, i+1, screen->scrnum);
             tmp2 = g_strconcat((err_str ? err_str : ""), tmp, NULL);
             g_free(err_str);
             g_free(tmp);
             err_str = tmp2;
-            *can_ignore_error = FALSE;
         }
+        
+
+        /* Verify that the metamode is unique */
+        metamode_str = screen_get_metamode_str(screen, i, 0);
+        for (j = 0; j < i; j++) {
+            char *tmp = screen_get_metamode_str(screen, j, 0);
+
+            /* Make sure the metamode is unique */
+            if (!strcmp(metamode_str, tmp)) {
+                g_free(tmp);
+                tmp = g_strdup_printf("%s MetaMode %d of Screen %d is the "
+                                      "same as MetaMode %d.  All MetaModes "
+                                      "must be unique.\n\n",
+                                      bullet, i+1, screen->scrnum, j+1);
+                tmp2 = g_strconcat((err_str ? err_str : ""), tmp, NULL);
+                g_free(err_str);
+                err_str = tmp2;
+                g_free(tmp);
+                break;
+            }
+            g_free(tmp);
+        }
+        g_free(metamode_str);
     }
 
     return err_str;
@@ -5505,26 +3659,28 @@ static gchar * validate_screen(nvScreenPtr screen,
 static int validate_layout(CtkDisplayConfig *ctk_object, int validation_type)
 {
     nvLayoutPtr layout = ctk_object->layout;
+    nvGpuPtr gpu;
     nvScreenPtr screen;
     gchar *err_strs = NULL;
     gchar *err_str;
     gchar *tmp;
     gint result;
     int num_absolute = 0;
-    gboolean can_ignore_error = TRUE;
 
 
     /* Validate each screen and count the number of screens using abs. pos. */
-    for (screen = layout->screens; screen; screen = screen->next_in_layout) {
-        err_str = validate_screen(screen, &can_ignore_error);
-        if (err_str) {
-            tmp = g_strconcat((err_strs ? err_strs : ""), err_str, NULL);
-            g_free(err_strs);
-            g_free(err_str);
-            err_strs = tmp;
-        }
-        if (screen->position_type == CONF_ADJ_ABSOLUTE) {
-            num_absolute++;
+    for (gpu = layout->gpus; gpu; gpu = gpu->next) {
+        for (screen = gpu->screens; screen; screen = screen->next) {
+            err_str = validate_screen(screen);
+            if (err_str) {
+                tmp = g_strconcat((err_strs ? err_strs : ""), err_str, NULL);
+                g_free(err_strs);
+                g_free(err_str);
+                err_strs = tmp;
+            }
+            if (screen->position_type == CONF_ADJ_ABSOLUTE) {
+                num_absolute++;
+            }
         }
     }
 
@@ -5546,7 +3702,7 @@ static int validate_layout(CtkDisplayConfig *ctk_object, int validation_type)
                      "Multiple X screens are set to use absolute "
                      "positioning.  Though it is valid to do so, one or more "
                      "X screens may be (or may become) unreachable due to "
-                     "overlapping and/or dead space.  It is recommended to "
+                     "overlapping and/or deadspace.  It is recommended to "
                      "only use absolute positioning for the first X screen, "
                      "and relative positioning for all subsequent X screens.");
                 gtk_dialog_run(GTK_DIALOG(dlg));
@@ -5557,14 +3713,6 @@ static int validate_layout(CtkDisplayConfig *ctk_object, int validation_type)
 
     /* Layout is valid */
     if (!err_strs) {
-        return 1;
-    }
-
-    /* Layout is not valid but inconsistencies are only due to implicit
-     * metamodes not having valid displays so we will ignore them.
-     */
-    if (err_strs && can_ignore_error) {
-        g_free(err_strs);
         return 1;
     }
 
@@ -5599,11 +3747,12 @@ static int validate_layout(CtkDisplayConfig *ctk_object, int validation_type)
     case GTK_RESPONSE_APPLY:
         /* User wants to auto fix the warnings */
         result = validation_auto_fix(ctk_object);
-
+        
         /* Update the GUI to reflect any updates made by auto fix */
-        update_gui(ctk_object);
+        setup_display_page(ctk_object);
+        setup_screen_page(ctk_object);
         return result;
-
+        
     case GTK_RESPONSE_REJECT:
     default:
         /* User wants to heed the validation warnings */
@@ -5669,8 +3818,8 @@ static gboolean validate_apply(CtkDisplayConfig *ctk_object)
 
 /** layout_selected_callback() ***************************************
  *
- * Called every time the user selects a new display or screen from
- * the layout image.
+ * Called every time the user selects a new display from the layout
+ * image.
  *
  **/
 
@@ -5682,9 +3831,6 @@ void layout_selected_callback(nvLayoutPtr layout, void *data)
     /* Reconfigure GUI to display information about the selected screen. */
     setup_display_page(ctk_object);
     setup_screen_page(ctk_object);
-    setup_prime_display_page(ctk_object);
-    setup_selected_item_dropdown(ctk_object);
-    update_selected_page(ctk_object);
 
     get_cur_screen_pos(ctk_object);
 
@@ -5707,18 +3853,20 @@ void layout_modified_callback(nvLayoutPtr layout, void *data)
     /* Sync the information displayed by the GUI to match the settings
      * of the currently selected display device.
      */
-    setup_display_viewport_in(ctk_object);
-    setup_display_viewport_out(ctk_object);
+    
+    /* Setup position */
     setup_display_position(ctk_object);
+
+
+    /* Setup panning */
     setup_display_panning(ctk_object);
 
     setup_screen_position(ctk_object);
-    setup_screen_virtual_size(ctk_object);
 
     /* If the positioning of the X screen changes, we cannot apply */
     check_screen_pos_changed(ctk_object);
 
-    user_changed_attributes(ctk_object);
+    gtk_widget_set_sensitive(ctk_object->btn_apply, True);
 
 } /* layout_modified_callback()  */
 
@@ -5727,80 +3875,76 @@ void layout_modified_callback(nvLayoutPtr layout, void *data)
 /* Widget signal handlers ********************************************/
 
 
-/** selected_item_changed() *********************************
+/** renumber_xscreens() **********************************************
  *
- * Called when user selects a new display or X screen.
+ * Ensures that the screens are numbered from 0 to (n-1).
  *
  **/
-static void selected_item_changed(GtkWidget *widget, gpointer user_data)
+
+static void renumber_xscreens(nvLayoutPtr layout)
 {
-    CtkDisplayConfig *ctk_object = CTK_DISPLAY_CONFIG(user_data);
-    gint idx;
-    SelectableItem *item;
+    nvGpuPtr gpu;
+    nvScreenPtr screen;
+    nvScreenPtr lowest;
+    int scrnum;
 
-    idx = gtk_combo_box_get_active(GTK_COMBO_BOX(widget));
-    item = &(ctk_object->selected_item_table[idx]);
+    scrnum = 0;
+    do {
 
-    switch (item->type) {
-    case SELECTABLE_ITEM_SCREEN:
-        ctk_display_layout_select_screen
-            (CTK_DISPLAY_LAYOUT(ctk_object->obj_layout), item->u.screen);
-        break;
-    case SELECTABLE_ITEM_DISPLAY:
-        ctk_display_layout_select_display
-            (CTK_DISPLAY_LAYOUT(ctk_object->obj_layout), item->u.display);
-        break;
-    case SELECTABLE_ITEM_PRIME:
-        ctk_display_layout_select_prime
-            (CTK_DISPLAY_LAYOUT(ctk_object->obj_layout), item->u.prime);
-        break;
-    }
+        /* Find screen w/ lowest # >= current screen index being assigned */
+        lowest = NULL;
+        for (gpu = layout->gpus; gpu; gpu = gpu->next) {
+            for (screen = gpu->screens; screen; screen = screen->next) {
+                if ((screen->scrnum >= scrnum) &&
+                    (!lowest || (lowest->scrnum > screen->scrnum))) {
+                    lowest = screen;
+                }
+            }
+        }
 
-    setup_display_page(ctk_object);
-    setup_screen_page(ctk_object);
-    setup_prime_display_page(ctk_object);
-    update_selected_page(ctk_object);
+        if (lowest) {
+            lowest->scrnum = scrnum;
+        }
 
-} /* selected_item_changed() */
+        /* Assign next screen number */ 
+        scrnum++;
+    } while (lowest);
 
+} /* renumber_xscreens() */
 
 
-/** do_enable_display_on_new_xscreen() *******************************
+
+/** do_enable_display_for_xscreen() **********************************
  *
- * Adds the display device to a new X screen in the layout.
- *
- * This handles the "Disabled -> New X screen" transition.
+ * Adds the display device to a separate X screen in the layout.
  *
  **/
 
-static void do_enable_display_on_new_xscreen(CtkDisplayConfig *ctk_object,
-                                             nvDisplayPtr display)
+void do_enable_display_for_xscreen(CtkDisplayConfig *ctk_object,
+                                   nvDisplayPtr display)
 {
     nvLayoutPtr layout = ctk_object->layout;
-    nvScreenPtr screen;
     nvGpuPtr gpu;
+    nvScreenPtr screen;
     nvScreenPtr rightmost = NULL;
     nvScreenPtr other;
     nvMetaModePtr metamode;
     nvModePtr mode;
-    int num_screens_on_gpu = 0;
+    int scrnum = 0;
 
 
-    gpu = display->gpu;
+    /* Get the next available screen number and the right-most screen */
+    for (gpu = layout->gpus; gpu; gpu = gpu->next) {
+        for (screen = gpu->screens; screen; screen = screen->next) {
+            scrnum++;
 
-    for (screen = layout->screens;
-         screen;
-         screen = screen->next_in_layout) {
-        if (screen_has_gpu(screen, gpu)) {
-            num_screens_on_gpu++;
+            /* Compute the right-most screen */
+            if (!rightmost ||
+                ((screen->dim[X] + screen->dim[W]) >
+                 (rightmost->dim[X] + rightmost->dim[W]))) {
+                rightmost = screen;
+            }
         }
-    }
-
-    /* Make sure we're allowed to enable this display */
-    if (gpu->mosaic_enabled ||
-        (num_screens_on_gpu >= gpu->max_displays) ||
-        display->screen) {
-        return;
     }
 
 
@@ -5815,17 +3959,20 @@ static void do_enable_display_on_new_xscreen(CtkDisplayConfig *ctk_object,
 
 
     /* Setup the display */
-    screen_link_display(screen, display);
+    display->screen = screen;
 
 
     /* Setup the mode */
     mode = display->modes;
+
+    mode->modeline = display->modelines;
     mode->metamode = metamode;
 
-    mode_set_modeline(mode, display->modelines,
-                      NULL /* viewPortIn */,
-                      NULL /* viewPortOut */);
-
+    /* XXX Hopefully display->modelines is 'nvidia-auto-select' */
+    mode->dim[W] = display->modelines->data.hdisplay;
+    mode->dim[H] = display->modelines->data.vdisplay;
+    mode->pan[W] = mode->dim[W];
+    mode->pan[H] = mode->dim[H];
     mode->position_type = CONF_ADJ_ABSOLUTE;
 
 
@@ -5836,95 +3983,212 @@ static void do_enable_display_on_new_xscreen(CtkDisplayConfig *ctk_object,
 
 
     /* Setup the screen */
-    screen->scrnum = layout->num_screens;
-    screen->display_owner_gpu_id = -1;
-    link_screen_to_gpu(screen, gpu);
-
-    other = layout_get_a_screen(layout, gpu);
+    screen->scrnum = scrnum;
+    screen->gpu = display->gpu;
+    
+    other = layout_get_a_screen(layout, display->gpu);
     screen->depth = other ? other->depth : 24;
 
+    screen->displays_mask = display->device_mask;
+    screen->num_displays = 1;
     screen->metamodes = metamode;
     screen->num_metamodes = 1;
     screen->cur_metamode = metamode;
     screen->cur_metamode_idx = 0;
 
-    /* Compute the right-most screen */
-    for (other = layout->screens; other; other = other->next_in_layout) {
-        if (!rightmost ||
-            ((other->dim.x + other->dim.width) >
-             (rightmost->dim.x + rightmost->dim.width))) {
-            rightmost = other;
-        }
-    }
 
     /* Make the screen right-of the right-most screen */
     if (rightmost) {
         screen->position_type = CONF_ADJ_RIGHTOF;
         screen->relative_to = rightmost;
-        screen->dim.x = mode->pan.x = rightmost->dim.x;
-        screen->dim.y = mode->pan.y = rightmost->dim.y;
+        screen->dim[X] = mode->dim[X] = rightmost->dim[X];
+        screen->dim[Y] = mode->dim[Y] = rightmost->dim[Y];
 
     } else {
         screen->position_type = CONF_ADJ_ABSOLUTE;
-        screen->relative_to = NULL;
-        screen->dim.x = mode->pan.x;
-        screen->dim.y = mode->pan.y;
-    }
+        screen->dim[X] = mode->dim[X];
+        screen->dim[Y] = mode->dim[Y];
+    }        
 
 
-    /* Add the screen at the end of the layout's screen list */
-    layout_add_screen(layout, screen);
+    /* Add the screen at the end of the gpu's screen list */
+    gpu = display->gpu;
+    gpu->screens =
+        (nvScreenPtr)xconfigAddListItem((GenericListPtr)gpu->screens,
+                                        (GenericListPtr)screen);
+    gpu->num_screens++;
+
 
     /* We can't dynamically add new X screens */
     ctk_object->apply_possible = FALSE;
-}
+
+} /* do_enable_display_for_xscreen() */
 
 
 
-/** do_enable_display_on_xscreen() ***********************************
+/** prepare_gpu_for_twinview() ***************************************
  *
- * Adds the display device to an existing X screen.
+ * Prepares a GPU for having TwinView enabled.
  *
- * Handles the "Disabled -> Existing X screen" transition.
+ * Currently, this means:
+ *
+ * - Deleting all the implicit metamodes from the X screens that the
+ *   GPU is driving.
+ *
+ * - Making all X screens that are relative to displays on this GPU
+ *   relative to the first X screen instead. XXX This assumes we are
+ *   using the first X screen as the X screen to use for TwinView.
  *
  **/
 
-static void do_enable_display_on_xscreen(CtkDisplayConfig *ctk_object,
-                                         nvDisplayPtr display,
-                                         nvScreenPtr screen)
+static void prepare_gpu_for_twinview(CtkDisplayConfig *ctk_object,
+                                     nvGpuPtr gpu)
 {
     nvMetaModePtr metamode;
-    nvModePtr mode;
-    int max_displays = get_screen_max_displays(screen);
+    nvScreenPtr screen;
+    nvGpuPtr other;
+    int m;
 
+    if (!gpu) return;
 
-    /* Make sure we're allowed to enable this display */
-    if (max_displays >= 0 && screen->num_displays > max_displays) {
-        return;
+    /* Delete implicit metamodes from all screens involved */
+    for (screen = gpu->screens; screen; screen = screen->next) {
+        nvMetaModePtr next;
+
+        m = 0;
+        metamode = screen->metamodes;
+        while (metamode) {
+            next = metamode->next;
+
+            if ((metamode->source == METAMODE_SOURCE_IMPLICIT) &&
+                (metamode != screen->cur_metamode)) {
+
+                ctk_display_layout_delete_screen_metamode
+                    (CTK_DISPLAY_LAYOUT(ctk_object->obj_layout), screen, m);
+            } else {
+                m++;
+            }
+            metamode = next;
+        }
     }
 
-    /* Inject the display (create modes) into all the existing metamodes */
-    display_remove_modes(display);
+    /* Make all other X screens in the layout relative to the GPU's
+     * first X screen if they are relative to any display driven
+     * by the GPU.
+     */
+    for (other = ctk_object->layout->gpus; other; other = other->next) {
 
+        if (other == gpu) continue;
+
+        for (screen = other->screens; screen; screen = screen->next) {
+            if (screen->relative_to &&
+                screen->relative_to->gpu == gpu) {
+                screen->relative_to = gpu->screens;
+            }
+        }
+    }
+
+} /* prepare_gpu_for_twinview() */
+
+
+
+/** do_enable_display_for_twinview() *********************************
+ *
+ * Adds the display device to the TwinView setup that already exists
+ * on the GPU.
+ *
+ **/
+
+static void do_enable_display_for_twinview(CtkDisplayConfig *ctk_object,
+                                           nvDisplayPtr display)
+{
+    nvGpuPtr gpu;
+    nvScreenPtr screen;
+    nvMetaModePtr metamode;
+    nvModePtr mode;
+    guint new_mask;
+    char *msg;
+    GtkWidget *dlg, *parent;
+
+
+    /* Make sure a screen exists */
+    gpu = display->gpu;
+    screen = gpu->screens;
+
+    if (!screen) return;
+
+    /* attempt to associate the display device with the screen */
+    new_mask = screen->displays_mask | display->device_mask;
+    if (screen->handle) {
+        ReturnStatus ret;
+        
+        ret = NvCtrlSetDisplayAttributeWithReply
+            (screen->handle, 0,
+             NV_CTRL_ASSOCIATED_DISPLAY_DEVICES,
+             new_mask);
+        
+        if (ret != NvCtrlSuccess) {
+            
+            msg = g_strdup_printf("Failed to associate display device "
+                                  "'%s' with X screen %d.  TwinView cannot "
+                                  "be enabled with this combination of "
+                                  "display devices.",
+                                  display->name, screen->scrnum);
+            
+            parent = ctk_get_parent_window(GTK_WIDGET(ctk_object));
+            
+            if (parent) {
+                dlg = gtk_message_dialog_new
+                    (GTK_WINDOW(parent),
+                     GTK_DIALOG_DESTROY_WITH_PARENT,
+                     GTK_MESSAGE_WARNING,
+                     GTK_BUTTONS_OK,
+                     msg);
+                
+                gtk_dialog_run(GTK_DIALOG(dlg));
+                gtk_widget_destroy(dlg);
+                
+            } else {
+                nv_error_msg(msg);
+            }
+            
+            g_free(msg);
+            
+            return;
+            
+        } else {
+            /* Make sure other parts of nvidia-settings get updated */
+            ctk_event_emit(screen->ctk_event, 0,
+                           NV_CTRL_ASSOCIATED_DISPLAY_DEVICES, new_mask);
+        }
+    }
+    
+    /* Delete implicit metamodes on all X Screens driven by the GPU */
+    prepare_gpu_for_twinview(ctk_object, gpu);
+
+    /* Fix up the display's metamode list */
+    display_remove_modes(display);
+    
     for (metamode = screen->metamodes; metamode; metamode = metamode->next) {
 
         nvDisplayPtr other;
         nvModePtr rightmost = NULL;
 
-
+        
         /* Get the right-most mode of the metamode */
-        for (other = screen->displays; other; other = other->next_in_screen) {
+        for (other = screen->gpu->displays; other; other = other->next) {
+            if (other->screen != screen) continue;
             for (mode = other->modes; mode; mode = mode->next) {
                 if (!rightmost ||
-                    ((mode->pan.x + mode->pan.width) >
-                     (rightmost->pan.x + rightmost->pan.width))) {
+                    ((mode->dim[X] + mode->dim[W]) >
+                     (rightmost->dim[X] + rightmost->dim[W]))) {
                     rightmost = mode;
                 }
             }
         }
 
 
-        /* Create the nvidia-auto-select mode for the display */
+        /* Create the nvidia-auto-select mode fo the display */
         mode = mode_parse(display, "nvidia-auto-select");
         mode->metamode = metamode;
 
@@ -5939,68 +4203,353 @@ static void do_enable_display_on_xscreen(CtkDisplayConfig *ctk_object,
         if (rightmost) {
             mode->position_type = CONF_ADJ_RIGHTOF;
             mode->relative_to = rightmost->display;
-            mode->pan.x = rightmost->display->cur_mode->pan.x;
-            mode->pan.y = rightmost->display->cur_mode->pan.y;
+            mode->dim[X] = rightmost->display->cur_mode->dim[X];
+            mode->dim[Y] = rightmost->display->cur_mode->dim[Y];
+            mode->pan[X] = mode->dim[X];
+            mode->pan[Y] = mode->dim[Y];
         } else {
             mode->position_type = CONF_ADJ_ABSOLUTE;
-            mode->relative_to = NULL;
-            mode->pan.x = metamode->dim.x + metamode->dim.width;
-            mode->pan.y = metamode->dim.y;
+            mode->dim[X] = metamode->dim[X] + metamode->dim[W];
+            mode->dim[Y] = metamode->dim[Y];
+            mode->pan[X] = mode->dim[X];
+            mode->pan[Y] = mode->dim[Y];
         }
 
 
         /* Add the mode at the end of the display's mode list */
-        xconfigAddListItem((GenericListPtr *)(&display->modes),
-                           (GenericListPtr)mode);
+        display->modes =
+            (nvModePtr)xconfigAddListItem((GenericListPtr)display->modes,
+                                          (GenericListPtr)mode);
         display->num_modes++;
     }
 
 
     /* Link the screen and display together */
-    screen_link_display(screen, display);
-}
+    screen->displays_mask = new_mask;
+    screen->num_displays++;
+    display->screen = screen;
+
+} /* do_enable_display_for_twinview() */
 
 
 
-/** do_configure_display_on_new_xscreen() ****************************
+/** do_configure_display_for_xscreen() *******************************
  *
- * Configures the display's GPU for Multiple X screens.
- *
- * Handles the "X screen -> New X screen" transition.
- *
- **/
-
-static void do_configure_display_on_new_xscreen(CtkDisplayConfig *ctk_object,
-                                                nvDisplayPtr display)
-{
-    ctk_display_layout_disable_display(CTK_DISPLAY_LAYOUT(ctk_object->obj_layout),
-                                       display);
-
-    do_enable_display_on_new_xscreen(ctk_object, display);
-}
-
-
-
-/** do_configure_display_on_xscreen() ********************************
- *
- * Moves the display from it's current screen to the new given X
- * screen.
+ * Configures the display's GPU for Multiple X screens
  *
  **/
 
-static void do_configure_display_on_xscreen(CtkDisplayConfig *ctk_object,
-                                            nvDisplayPtr display,
-                                            nvScreenPtr use_screen)
+static void do_configure_display_for_xscreen(CtkDisplayConfig *ctk_object,
+                                             nvDisplayPtr display)
 {
-    if (display->screen == use_screen) {
-        return;
+    nvLayoutPtr layout = ctk_object->layout;
+    nvGpuPtr gpu;
+    nvScreenPtr screen;
+    nvMetaModePtr metamode;
+    nvModePtr mode;
+    int scrnum = 0;
+
+    
+    if (!display || !display->gpu) return;
+
+
+    /* Get the next available screen number */
+    scrnum = 0;
+    for (gpu = layout->gpus; gpu; gpu = gpu->next) {
+        for (screen = gpu->screens; screen; screen = screen->next) {
+            scrnum++;
+        }
     }
 
-    ctk_display_layout_disable_display(CTK_DISPLAY_LAYOUT(ctk_object->obj_layout),
-                                       display);
+    gpu = display->gpu;
 
-    do_enable_display_on_xscreen(ctk_object, display, use_screen);
-}
+
+    /* Make sure there is just one display device per X screen */
+    for (display = gpu->displays; display; display = display->next) {
+
+        nvScreenPtr new_screen;
+
+        screen = display->screen;
+        if (!screen || screen->num_displays == 1) continue;
+        
+        /* Create a new X screen for this display */
+        new_screen = (nvScreenPtr)calloc(1, sizeof(nvScreen));
+        if (!new_screen) continue; /* XXX Fail */
+
+        new_screen->gpu = gpu;
+        new_screen->scrnum = scrnum++;
+
+        new_screen->depth = screen->depth;
+
+        new_screen->displays_mask = display->device_mask;
+        new_screen->num_displays = 1;
+
+        /* Create a metamode for each mode on the display */
+        new_screen->num_metamodes = 0;
+        for (mode = display->modes; mode; mode = mode->next) {
+
+            /* Create the metamode */
+            metamode = (nvMetaModePtr)calloc(1, sizeof(nvMetaMode));
+            if (!metamode) continue; /* XXX Fail ! */
+
+            metamode->source = METAMODE_SOURCE_NVCONTROL;
+
+            /* Make the mode point to the new metamode */
+            mode->metamode = metamode;
+
+            /* Set the current metamode if this is the current mode */
+            if (display->cur_mode == mode) {
+                new_screen->cur_metamode = metamode;
+                new_screen->cur_metamode_idx = new_screen->num_metamodes;
+            }
+
+            /* Append the metamode */
+            new_screen->metamodes =
+                (nvMetaModePtr)xconfigAddListItem((GenericListPtr)new_screen->metamodes,
+                                                  (GenericListPtr)metamode);
+            new_screen->num_metamodes++;
+        }
+
+        /* Move the display to the new screen */
+        screen->num_displays--;
+        screen->displays_mask &= ~(display->device_mask);
+
+        display->screen = new_screen;
+
+        if (display == screen->primaryDisplay) {
+            new_screen->primaryDisplay = display;
+            screen->primaryDisplay = NULL;
+        }
+        
+        /* Append the screen to the gpu */
+        gpu->screens =
+            (nvScreenPtr)xconfigAddListItem((GenericListPtr)gpu->screens,
+                                            (GenericListPtr)new_screen);
+        gpu->num_screens++;
+
+        /* Earlier display devices get first dibs on low screen numbers */
+        new_screen->handle = screen->handle;
+        new_screen->ctk_event = screen->ctk_event;
+        new_screen->scrnum = screen->scrnum;
+        screen->handle = NULL;
+        screen->ctk_event = NULL;
+        screen->scrnum = scrnum -1;
+
+        /* Can't apply creation of new screens */
+        ctk_object->apply_possible = FALSE;
+    }
+
+
+    /* Translate mode positional relationships to screen relationships */
+    for (display = gpu->displays; display; display = display->next) {
+        
+        if (!display->screen) continue;
+
+        for (mode = display->modes; mode; mode = mode->next) {
+            if (mode->relative_to &&
+                (mode->relative_to->gpu == mode->display->gpu)) {
+                display->screen->position_type = mode->position_type;
+                display->screen->relative_to = mode->relative_to->screen;
+            }
+            mode->position_type = CONF_ADJ_ABSOLUTE;
+            mode->relative_to = NULL;
+        }
+    }
+
+} /* do_configure_display_for_xscreen() */
+
+
+
+/** do_configure_display_for_twinview() ******************************
+ *
+ * Configures the display's GPU for TwinView
+ *
+ **/
+
+static void do_configure_display_for_twinview(CtkDisplayConfig *ctk_object,
+                                              nvDisplayPtr display)
+{
+    nvScreenPtr screen;
+    nvMetaModePtr metamode;
+    nvModePtr mode;
+    nvModePtr last_mode;
+    nvGpuPtr gpu = display->gpu;
+    int m;
+
+
+    /* We need at least one screen to activate TwinView */
+    if (!gpu || !gpu->screens) return;
+
+
+    /* Delete implicit metamodes on all X Screens driven by the GPU */
+    prepare_gpu_for_twinview(ctk_object, gpu);
+
+
+    /* Make sure the screen has enough metamodes */
+    screen = gpu->screens;
+    for (display = gpu->displays; display; display = display->next) {
+
+        /* Only add enabled displays to TwinView setup */
+        if (!display->screen) continue;
+
+        /* Make sure the screen has enough metamodes */
+        for (m = display->num_modes - screen->num_metamodes; m > 0; m--) {
+
+            metamode = (nvMetaModePtr)calloc(1, sizeof(nvMetaMode));
+            if (!metamode) break; // XXX Sigh.
+            
+            metamode->source = METAMODE_SOURCE_NVCONTROL;
+            
+            /* Add the metamode at the end of the screen's metamode list */
+            screen->metamodes =
+                (nvMetaModePtr)xconfigAddListItem((GenericListPtr)screen->metamodes,
+                                                  (GenericListPtr)metamode);
+            screen->num_metamodes++;
+        }
+    }
+
+
+    /* Make sure each display has the right number of modes and that
+     * the modes point to the right metamode in the screen.
+     */
+    for (display = gpu->displays; display; display = display->next) {
+
+        /* Only add enabled displays to TwinView setup */
+        if (!display->screen) continue;
+
+        /* Make the display mode point to the right metamode */
+        metamode = screen->metamodes;
+        mode = display->modes;
+        last_mode = NULL;
+        while (metamode && mode) {
+
+            if (metamode == screen->cur_metamode) {
+                display->cur_mode = mode;
+            }
+
+            /* Keep the relationship between displays if possible. If
+             * this display's screen is relative to another screen
+             * on the same gpu, translate the relationship to the
+             * display's mode.
+             */
+            if (display->screen->relative_to &&
+                (display->screen->relative_to->gpu == gpu)) {
+
+                nvDisplayPtr other;
+
+                /* Make the display relative to the other display */
+                for (other = gpu->displays; other; other = other->next) {
+                    if (other->screen == display->screen->relative_to) {
+                        mode->position_type = display->screen->position_type;
+                        mode->relative_to = other;
+                        break;
+                    }
+                }
+            }
+            mode->metamode = metamode;
+
+            if (mode && !mode->next) {
+                last_mode = mode;
+            }
+            metamode = metamode->next;
+            mode = mode->next;
+        }
+
+        /* Add dummy modes */
+        while (metamode) {
+
+            mode = mode_parse(display, "NULL");
+            mode->dummy = 1;
+            mode->metamode = metamode;
+
+            if (metamode == screen->cur_metamode) {
+                display->cur_mode = mode;
+            }
+            
+            /* Duplicate position information of the last mode */
+            if (last_mode) {
+                mode->dim[X] = last_mode->dim[X];
+                mode->dim[Y] = last_mode->dim[Y];
+                mode->pan[X] = last_mode->pan[X];
+                mode->pan[Y] = last_mode->pan[Y];
+                mode->position_type = last_mode->position_type;
+                mode->relative_to = last_mode->relative_to;
+            }
+            
+            /* Add the mode at the end of display's mode list */
+            display->modes =
+                (nvModePtr)xconfigAddListItem((GenericListPtr)display->modes,
+                                              (GenericListPtr)mode);
+            display->num_modes++;
+            metamode = metamode->next;
+        }
+    }
+
+
+    /* Make the displays part of the screen */
+    for (display = gpu->displays; display; display = display->next) {
+
+        /* Only add enabled displays to TwinView setup */
+        if (!display->screen) continue;
+
+        if (display->screen != screen) {
+            display->screen = screen;
+            screen->displays_mask |= display->device_mask;
+            screen->num_displays++;
+        }
+    }
+
+
+    /* Delete extra screens on the GPU */
+    while (gpu->screens->next) {
+        nvScreenPtr other;
+
+        /* Delete screens that come before 'screen' */
+        if (gpu->screens != screen) {
+            other = gpu->screens;
+            gpu->screens = other->next;
+
+        /* Delete screens that comes after 'screen' */
+        } else {
+            other = gpu->screens->next;
+            gpu->screens->next = other->next;
+        }
+
+        /* Handle positional relationships going away */
+        if (screen->relative_to == other) {
+            screen->position_type = CONF_ADJ_ABSOLUTE;
+            screen->relative_to = NULL;
+        }
+
+        /* Clean up memory used by the screen */
+        while (other->metamodes) {
+            nvMetaModePtr metamode = other->metamodes;
+            other->metamodes = metamode->next;
+            free(metamode);
+        }
+
+        /* Keep the lowest screen number */
+        if (other->scrnum < screen->scrnum) {
+            if (screen->handle) {
+                NvCtrlAttributeClose(screen->handle);
+            }
+            screen->scrnum = other->scrnum;
+            screen->handle = other->handle;
+            screen->ctk_event = other->ctk_event;
+        } else {
+            if (other->handle) {
+                NvCtrlAttributeClose(other->handle);
+            }
+        }
+
+        free(other);
+        gpu->num_screens--;
+    }
+
+    /* Make sure screen numbering is consistent */
+    renumber_xscreens(ctk_object->layout);
+
+} /* do_configure_display_for_twinview() */
 
 
 
@@ -6048,431 +4597,278 @@ static gboolean do_query_remove_display(CtkDisplayConfig *ctk_object,
  *
  **/
 
-static void do_disable_display(CtkDisplayConfig *ctk_object,
-                               nvDisplayPtr display)
+void do_disable_display(CtkDisplayConfig *ctk_object, nvDisplayPtr display)
 {
     nvGpuPtr gpu = display->gpu;
+    nvScreenPtr screen = display->screen;
     gchar *str;
+    gchar *type = display_get_type_str(display->device_mask, 0);
 
 
     /* Setup the remove display dialog */
     if (ctk_object->advanced_mode) {
         str = g_strdup_printf("Disable the display device %s (%s) "
                               "on GPU-%d (%s)?",
-                              display->logName, display->typeIdName,
-                              NvCtrlGetTargetId(gpu->ctrl_target),
-                              gpu->name);
+                              display->name, type,
+                              NvCtrlGetTargetId(gpu->handle), gpu->name);
     } else {
         str = g_strdup_printf("Disable the display device %s (%s)?",
-                              display->logName, display->typeIdName);
+                              display->name, type);
     }
+    g_free(type);
 
     gtk_label_set_text
         (GTK_LABEL(ctk_object->txt_display_disable), str);
     g_free(str);
-
+        
     gtk_button_set_label(GTK_BUTTON(ctk_object->btn_display_disable_off),
                          "Disable");
     gtk_button_set_label(GTK_BUTTON(ctk_object->btn_display_disable_cancel),
                          "Cancel");
 
-    /* Confirm with user before disabling */
+     
+    /* Ask user what to do */
     if (do_query_remove_display(ctk_object, display)) {
-        gboolean screen_disabled =
-            (display->screen->num_displays == 1) ? TRUE : FALSE;
-        ctk_display_layout_disable_display(CTK_DISPLAY_LAYOUT(ctk_object->obj_layout),
-                                           display);
-        /* If the display was the last one on the X screen, make note that we
-         * can't actually remove the X screen without a restart.
-         */
-        if (screen_disabled) {
-            ctk_object->apply_possible = FALSE;
+
+        /* Remove display from the X screen */
+        screen_remove_display(display);
+        
+        /* If the screen is empty, remove it */
+        if (!screen->num_displays) {
+            gpu_remove_and_free_screen(screen);
+
+            /* Make sure screen numbers are consistent */
+            renumber_xscreens(ctk_object->layout);
         }
+
+        /* Add the fake mode to the display */
+        gpu_add_screenless_modes_to_displays(display->gpu);
     }
 
 } /* do_disable_display() */
 
 
 
-static Bool display_build_modepool(nvDisplayPtr display, Bool *updated)
-{
-    if (!display->modelines) {
-        char *tokens = NULL;
-        gchar *err_str = NULL;
-
-        NvCtrlStringOperation(display->ctrl_target, 0,
-                              NV_CTRL_STRING_OPERATION_BUILD_MODEPOOL,
-                              "", &tokens);
-        free(tokens);
-        *updated = TRUE;
-        if (!display_add_modelines_from_server(display, display->gpu,
-                                               &err_str)) {
-            nv_warning_msg("%s", err_str);
-            g_free(err_str);
-            return FALSE;
-        }
-    }
-
-    return display->modelines ? TRUE : FALSE;
-}
-
-
-
-static nvModeLinePtr
-display_find_closest_matching_modeline(nvDisplayPtr display,
-                                       nvModeLinePtr input_modeline)
-{
-    const int target_width = input_modeline->data.hdisplay;
-    const int target_height = input_modeline->data.vdisplay;
-    const double target_rr = input_modeline->refresh_rate;
-    const double tolerance = 0.0001;
-
-    nvModeLinePtr modeline, best_modeline = NULL;
-    int modeline_idx;
-    int best_idx = -1;
-
-    modeline_idx = 0;
-    for (modeline = display->modelines; modeline; modeline = modeline->next) {
-        if (modeline->data.hdisplay == target_width &&
-            modeline->data.vdisplay == target_height) {
-            nvModeLinePtr tmp_modeline = modeline;
-            int tmp_idx = modeline_idx;
-
-            /*
-             * We already have a match.  Let's figure out if the currently
-             * considered modeline is the closer to what we want.
-             */
-            if (best_modeline) {
-                if (fabs(best_modeline->refresh_rate - target_rr) < tolerance) {
-                    tmp_modeline = best_modeline;
-                    tmp_idx = best_idx;
-                }
-                /* Fallthrough. */
-            }
-            best_modeline = tmp_modeline;
-            best_idx = tmp_idx;
-        }
-        modeline_idx++;
-    }
-
-    return best_modeline;
-
-} /* display_find_closest_matching_modeline() */
-
-
-
-static void do_enable_mosaic(CtkDisplayConfig *ctk_object)
-{
-    nvLayoutPtr layout = ctk_object->layout;
-    nvGpuPtr gpu;
-    nvScreenPtr mosaic_screen;
-
-    /* Pick first X screen as mosaic X screen */
-
-    mosaic_screen = layout->screens;
-
-    /* Consolidate all GPUs */
-
-    for (gpu = layout->gpus; gpu; gpu = gpu->next_in_layout) {
-        if (!screen_has_gpu(mosaic_screen, gpu)) {
-            link_screen_to_gpu(mosaic_screen, gpu);
-        }
-
-        gpu->mosaic_enabled = TRUE;
-    }
-
-    /* Consolidate all enabled displays */
-
-    for (gpu = layout->gpus; gpu; gpu = gpu->next_in_layout) {
-        nvDisplayPtr display;
-
-        for (display = gpu->displays;
-             display;
-             display = display->next_on_gpu) {
-            if (display->screen &&
-                display->screen != mosaic_screen) {
-                do_configure_display_on_xscreen(ctk_object, display,
-                                                mosaic_screen);
-
-                /*
-                 * The display has been added to the rightmost edge of the
-                 * mosaic screen with relative positioning. Update the layout
-                 * to set the absolute position, so the next iteration of this
-                 * loop can add the display to the new rightmost edge.
-                 */
-                ctk_display_layout_update(CTK_DISPLAY_LAYOUT(ctk_object->obj_layout));
-            }
-        }
-    }
-
-    /* Enable the Mosaic Config dialog if available */
-    gtk_widget_set_sensitive(ctk_object->btn_mosaic, True);
-}
-
-
-
-static void mosaic_config_clicked(GtkWidget *widget, gpointer user_data)
-{
-    CtkDisplayConfig *ctk_object = CTK_DISPLAY_CONFIG(user_data);
-    nvLayoutPtr layout = ctk_object->layout;
-    nvGpuPtr gpu;
-    gboolean enabled = gtk_toggle_button_get_active(
-                           GTK_TOGGLE_BUTTON(ctk_object->chk_mosaic_enabled));
-
-    if (!enabled) {
-        return;
-    }
-
-    // Launch Mosaic Dialog //
-    if (run_mosaic_dialog(ctk_object->dialog_mosaic,
-                          ctk_get_parent_window(GTK_WIDGET(ctk_object)),
-                          ctk_object->layout)) {
-
-        // apply mosaic options and update screen //
-        int idx = ctk_object->dialog_mosaic->refresh_idx;
-        int display_num = 0;
-        nvModeLinePtr ml = ctk_object->dialog_mosaic->refresh_table[idx];
-        int total_displays = ctk_object->dialog_mosaic->x_displays *
-                             ctk_object->dialog_mosaic->y_displays;
-
-        for(gpu = layout->gpus; gpu; gpu = gpu->next_in_layout) {
-            nvDisplayPtr display;
-
-            for(display = gpu->displays;
-                display;
-                display = display->next_on_gpu) {
-                nvModeLinePtr modeline;
-
-                if (display_num >= total_displays) {
-                    /* We have more displays available than the requested
-                     * configuration requires. All displays not yet processed
-                     * can be disabled.
-                     */
-                    ctk_display_layout_disable_display(
-                        CTK_DISPLAY_LAYOUT(ctk_object->obj_layout),
-                        display);
-
-                    continue;
-                }
-
-                if (!display->screen) {
-                    /* Enable any displays that are currently disabled and
-                     * assign them to the mosaic screen.
-                     */
-                    do_enable_display_on_xscreen(ctk_object, display,
-                                                 layout->screens);
-                }
-
-                if (display->num_selected_modes == 0) {
-                    generate_selected_modes(display);
-                }
-
-                modeline = display_find_closest_matching_modeline(display, ml);
-
-                if (modeline) {
-                    int x_loc, y_loc, x_pos, y_pos;
-
-                    x_loc = display_num % ctk_object->dialog_mosaic->x_displays;
-                    y_loc = display_num / ctk_object->dialog_mosaic->x_displays;
-
-                    x_pos = x_loc * ml->data.hdisplay -
-                            x_loc * ctk_object->dialog_mosaic->h_overlap;
-                    y_pos = y_loc * ml->data.vdisplay -
-                            y_loc * ctk_object->dialog_mosaic->v_overlap;
-
-                    display_num++;
-
-                    display->cur_mode->pan.x = x_pos;
-                    display->cur_mode->pan.y = y_pos;
-                    display->cur_mode->position_type = CONF_ADJ_ABSOLUTE;
-
-                    ctk_display_layout_set_mode_modeline(
-                        CTK_DISPLAY_LAYOUT(ctk_object->obj_layout),
-                        display->cur_mode, modeline, NULL, NULL);
-
-                }
-            }
-        }
-
-        update_layout(ctk_object);
-
-    }
-}
-
-
-
-static void do_disable_mosaic(CtkDisplayConfig *ctk_object)
-{
-    nvLayoutPtr layout = ctk_object->layout;
-    nvGpuPtr gpu;
-    nvScreenPtr mosaic_screen;
-
-    /* Track the original Mosaic X screen */
-    mosaic_screen = layout->screens;
-
-    /* Disable Mosaic on all GPUs, and move the enabled displays that are not
-     * on the display owner GPU to their own X screen
-     */
-    for (gpu = layout->gpus; gpu; gpu = gpu->next_in_layout) {
-
-        gpu->mosaic_enabled = FALSE;
-
-        if (gpu != mosaic_screen->display_owner_gpu) {
-            nvDisplayPtr display;
-            for (display = gpu->displays;
-                 display;
-                 display = display->next_on_gpu) {
-                if (!display->screen) {
-                    continue;
-                }
-                do_configure_display_on_new_xscreen(ctk_object, display);
-
-                /*
-                 * The new X screen has been set to the rightmost edge of
-                 * the rightmost X screen with relative positioning. Update
-                 * the layout to set the absolute position, so the next
-                 * iteration of this loop can add the display to the new
-                 * rightmost edge.
-                 */
-                ctk_display_layout_update(CTK_DISPLAY_LAYOUT(ctk_object->obj_layout));
-            }
-        }
-    }
-
-    /* Re-link the original screen to the GPU (unlinks all other gpus from the
-     * screen.)
-     */
-    mosaic_screen->num_gpus = 0;
-    link_screen_to_gpu(mosaic_screen, mosaic_screen->display_owner_gpu);
-
-    /* Disable the Mosaic Config dialog if available */
-    gtk_widget_set_sensitive(ctk_object->btn_mosaic, False);
-}
-
-
-
-static void mosaic_state_toggled(GtkWidget *widget, gpointer user_data)
-{
-    CtkDisplayConfig *ctk_object = CTK_DISPLAY_CONFIG(user_data);
-    gboolean enabled;
-
-
-    enabled = gtk_toggle_button_get_active(GTK_TOGGLE_BUTTON(widget));
-
-    /* Can't dynamically toggle Mosaic */
-    ctk_object->apply_possible = FALSE;
-
-    if (enabled) {
-        do_enable_mosaic(ctk_object);
-    } else {
-        do_disable_mosaic(ctk_object);
-    }
-
-    /* Update the GUI */
-    ctk_display_layout_update_zorder(CTK_DISPLAY_LAYOUT(ctk_object->obj_layout));
-
-    ctk_display_layout_update(CTK_DISPLAY_LAYOUT(ctk_object->obj_layout));
-
-    update_gui(ctk_object);
-
-    user_changed_attributes(ctk_object);
-}
-
-
-
-/** display_config_changed() *****************************************
+/** display_config_clicked() *****************************************
  *
- * Called when user selects an option in the display configuration menu.
+ * Called when user clicks on the display configuration button.
  *
  **/
 
-static void display_config_changed(GtkWidget *widget, gpointer user_data)
+static void display_config_clicked(GtkWidget *widget, gpointer user_data)
 {
     CtkDisplayConfig *ctk_object = CTK_DISPLAY_CONFIG(user_data);
-    nvLayoutPtr layout = ctk_object->layout;
     nvDisplayPtr display = ctk_display_layout_get_selected_display
-                            (CTK_DISPLAY_LAYOUT(ctk_object->obj_layout));
+        (CTK_DISPLAY_LAYOUT(ctk_object->obj_layout));
+    gint result;
     gboolean update = FALSE;
-    nvScreenPtr screen;
+    nvGpuPtr gpu;
+    int num_screens;
 
-    gint table_idx;
-    DisplayConfigOption *option;
 
-    if (!display) {
+    if (!display) return;
+
+
+    /* Don't allow disabling the last display device */
+    num_screens = 0;
+    for (gpu = ctk_object->layout->gpus; gpu; gpu = gpu->next) {
+        num_screens += gpu->num_screens;
+    }
+    if (num_screens == 1 && display->screen &&
+        display->screen->num_displays == 1) {
+        gtk_widget_set_sensitive(ctk_object->rad_display_config_disabled,
+                                 FALSE);
+    } else {
+        gtk_widget_set_sensitive(ctk_object->rad_display_config_disabled,
+                                 TRUE);
+    }
+
+
+    /* We can only enable as many X screens as the GPU supports */
+    if (!display->screen &&
+        (display->gpu->num_screens >= display->gpu->max_displays)) {
+        gtk_widget_set_sensitive(ctk_object->rad_display_config_xscreen,
+                                 FALSE);
+    } else {
+        gtk_widget_set_sensitive(ctk_object->rad_display_config_xscreen,
+                                 TRUE);
+    }
+
+
+    /* We can't setup TwinView if there is only one display connected,
+     * there are no existing X screens on the GPU, or this display is
+     * the only enabled device on the GPU, or when SLI is enabled.
+     */
+    if (display->gpu->num_displays == 1 || !display->gpu->num_screens ||
+        display->gpu->screens->sli ||
+        (display->gpu->num_screens == 1 &&
+         display->gpu->screens->num_displays == 1 &&
+         display->screen == display->gpu->screens)) {
+        gtk_widget_set_sensitive(ctk_object->rad_display_config_twinview,
+                                 FALSE);
+    } else {
+        gtk_widget_set_sensitive(ctk_object->rad_display_config_twinview,
+                                 TRUE);
+    }
+
+
+    /* Setup the button state */
+    if (!display->screen) {
+        gtk_toggle_button_set_active
+            (GTK_TOGGLE_BUTTON(ctk_object->rad_display_config_disabled),
+             TRUE);
+        gtk_button_set_label
+            (GTK_BUTTON(ctk_object->rad_display_config_disabled),
+             "Disabled");
+        gtk_button_set_label
+            (GTK_BUTTON(ctk_object->rad_display_config_xscreen),
+             "Separate X screen (requires X restart)");
+        gtk_button_set_label
+            (GTK_BUTTON(ctk_object->rad_display_config_twinview),
+             "TwinView");
+
+    } else if (display->screen->num_displays > 1) {
+        gtk_toggle_button_set_active
+            (GTK_TOGGLE_BUTTON(ctk_object->rad_display_config_twinview),
+             TRUE);
+        gtk_button_set_label
+            (GTK_BUTTON(ctk_object->rad_display_config_disabled),
+             "Disabled");
+        gtk_button_set_label
+            (GTK_BUTTON(ctk_object->rad_display_config_xscreen),
+             "Separate X screen (requires X restart)");  
+        gtk_button_set_label
+            (GTK_BUTTON(ctk_object->rad_display_config_twinview),
+             "TwinView");
+
+    } else {
+        gtk_toggle_button_set_active
+            (GTK_TOGGLE_BUTTON(ctk_object->rad_display_config_xscreen),
+             TRUE);
+        gtk_button_set_label
+            (GTK_BUTTON(ctk_object->rad_display_config_disabled),
+             "Disabled (requires X restart)");
+        gtk_button_set_label
+            (GTK_BUTTON(ctk_object->rad_display_config_xscreen),
+             "Separate X screen");  
+        gtk_button_set_label
+            (GTK_BUTTON(ctk_object->rad_display_config_twinview),
+             "TwinView (requires X restart)");
+    }
+
+
+    /* Show the display config dialog */
+    gtk_window_set_transient_for
+        (GTK_WINDOW(ctk_object->dlg_display_config),
+         GTK_WINDOW(gtk_widget_get_toplevel(GTK_WIDGET(ctk_object))));
+    gtk_widget_show_all(ctk_object->dlg_display_config);
+    gtk_widget_grab_focus(ctk_object->btn_display_config_cancel);
+    result = gtk_dialog_run(GTK_DIALOG(ctk_object->dlg_display_config));
+    gtk_widget_hide(ctk_object->dlg_display_config);
+    
+    switch (result)
+    {
+    case GTK_RESPONSE_ACCEPT:
+        /* OK */
+        break;
+        
+    case GTK_RESPONSE_CANCEL:
+    default:
+        /* Cancel */
         return;
     }
 
-    table_idx =
-        gtk_combo_box_get_active(GTK_COMBO_BOX(ctk_object->mnu_display_config));
-    option = &(ctk_object->display_config_table[table_idx]);
 
-    switch (option->config) {
 
-    case DPY_CFG_DISABLED:
+    if (gtk_toggle_button_get_active
+        (GTK_TOGGLE_BUTTON(ctk_object->rad_display_config_disabled))) {
         if (display->screen) {
             do_disable_display(ctk_object, display);
             update = TRUE;
         }
-        break;
+    } else {
 
-    case DPY_CFG_NEW_X_SCREEN:
-        if (!display_build_modepool(display, &update)) {
-            return;
+        /* Make sure the display has modelines */
+        if (!display->modelines) {
+            char *tokens;
+            gchar *err_str = NULL;
+            NvCtrlStringOperation(display->gpu->handle, display->device_mask,
+                                  NV_CTRL_STRING_OPERATION_BUILD_MODEPOOL,
+                                  "", &tokens);
+            update = TRUE;
+            if (!display_add_modelines_from_server(display, &err_str)) {
+                nv_warning_msg(err_str);
+                g_free(err_str);
+                return;
+            }
         }
-        if (!display->screen) {
-            do_enable_display_on_new_xscreen(ctk_object, display);
-        } else {
-            do_configure_display_on_new_xscreen(ctk_object, display);
-        }
-        update = TRUE;
-        break;
+        if (!display->modelines) return;
 
-    case DPY_CFG_X_SCREEN:
-        if (display->screen == option->screen) {
-            return;
-        }
-        if (!display_build_modepool(display, &update)) {
-            return;
-        }
         if (!display->screen) {
-            do_enable_display_on_xscreen(ctk_object, display, option->screen);
+
+            /* Enable display as a separate X screen */
+            if (gtk_toggle_button_get_active
+                (GTK_TOGGLE_BUTTON(ctk_object->rad_display_config_xscreen))) {
+                do_enable_display_for_xscreen(ctk_object, display);
+                update = TRUE;
+            }
+            
+            /* Enable display in TwinView with an existing screen */
+            if (gtk_toggle_button_get_active
+                (GTK_TOGGLE_BUTTON(ctk_object->rad_display_config_twinview))) {
+                do_enable_display_for_twinview(ctk_object, display);
+                update = TRUE;
+            }
+
         } else {
-            do_configure_display_on_xscreen(ctk_object, display,
-                                            option->screen);
+
+            /* Move display to a new X screen */
+            if (display->screen->num_displays > 1 &&
+                gtk_toggle_button_get_active
+                (GTK_TOGGLE_BUTTON(ctk_object->rad_display_config_xscreen))) {
+                do_configure_display_for_xscreen(ctk_object, display);
+                update = TRUE;
+            }
+            
+            /* Setup TwinView on the first X screen */
+            if (display->screen->num_displays == 1 &&
+                gtk_toggle_button_get_active
+                (GTK_TOGGLE_BUTTON(ctk_object->rad_display_config_twinview))) {
+                do_configure_display_for_twinview(ctk_object, display);
+                update = TRUE;
+            }
         }
-        update = TRUE;
-        break;
     }
 
 
     /* Sync the GUI */
     if (update) {
 
-        /* Update the z-order */
-        ctk_display_layout_update_zorder(CTK_DISPLAY_LAYOUT(ctk_object->obj_layout));
-
-        /* Recalculate */
-        ctk_display_layout_update(CTK_DISPLAY_LAYOUT(ctk_object->obj_layout));
+        /* Recaltulate */
+        ctk_display_layout_redraw(CTK_DISPLAY_LAYOUT(ctk_object->obj_layout));
 
         /* Auto fix all screens on the gpu */
-        for (screen = layout->screens;
-             screen;
-             screen = screen->next_in_layout) {
-            if (!screen_has_gpu(screen, display->gpu)) {
-                continue;
+        {
+            nvGpuPtr gpu = display->gpu;
+            nvScreenPtr screen;
+
+            for (screen = gpu->screens; screen; screen = screen->next) {
+                validation_auto_fix_screen(ctk_object, screen);
             }
-            validation_auto_fix_screen(ctk_object, screen);
         }
 
-        /* Final update */
-        ctk_display_layout_update(CTK_DISPLAY_LAYOUT(ctk_object->obj_layout));
-
-        update_gui(ctk_object);
-
-        user_changed_attributes(ctk_object);
+        /* Redraw */
+        ctk_display_layout_redraw(CTK_DISPLAY_LAYOUT(ctk_object->obj_layout));
+        
+        /* Update GUI */
+        setup_layout_frame(ctk_object);
+        setup_display_page(ctk_object);
+        setup_screen_page(ctk_object);
+        
+        gtk_widget_set_sensitive(ctk_object->btn_apply, True);
     }
 
-} /* display_config_changed() */
+} /* display_config_clicked() */
 
 
 
@@ -6488,19 +4884,14 @@ static void display_refresh_changed(GtkWidget *widget, gpointer user_data)
     gint idx;
     nvModeLinePtr modeline;
     nvDisplayPtr display;
-    Rotation old_rotation;
-    Reflection old_reflection;
 
 
     /* Get the modeline and display to set */
-    idx = gtk_combo_box_get_active(GTK_COMBO_BOX(widget));
+    idx = gtk_option_menu_get_history(GTK_OPTION_MENU(widget));
     modeline = ctk_object->refresh_table[idx];
     display = ctk_display_layout_get_selected_display
         (CTK_DISPLAY_LAYOUT(ctk_object->obj_layout));
 
-    /* Save the current rotation and reflection settings */
-    old_rotation = display->cur_mode->rotation;
-    old_reflection = display->cur_mode->reflection;
 
     /* In Basic view, we assume the user most likely wants
      * to change which metamode is being used.
@@ -6521,32 +4912,13 @@ static void display_refresh_changed(GtkWidget *widget, gpointer user_data)
     /* Update the display's currently selected mode */
     ctk_display_layout_set_mode_modeline
         (CTK_DISPLAY_LAYOUT(ctk_object->obj_layout),
-         display->cur_mode, modeline,
-         &display->cur_mode->viewPortIn,
-         &display->cur_mode->viewPortOut);
+         display->cur_mode, modeline);
 
-    /* If we are in Basic mode, apply the rotation and reflection settings from
-     * the previous mode to the new mode.
-     */
-    if (!ctk_object->advanced_mode) {
-
-        if (display->cur_mode->rotation != old_rotation) {
-            ctk_display_layout_set_display_rotation(
-                CTK_DISPLAY_LAYOUT(ctk_object->obj_layout),
-                display, old_rotation);
-        }
-
-        if (display->cur_mode->reflection != old_reflection) {
-            ctk_display_layout_set_display_reflection(
-                CTK_DISPLAY_LAYOUT(ctk_object->obj_layout),
-                display, old_reflection);
-        }
-    }
 
     /* Update the modename */
     setup_display_modename(ctk_object);
 
-    user_changed_attributes(ctk_object);
+    gtk_widget_set_sensitive(ctk_object->btn_apply, True);
 
 } /* display_refresh_changed() */
 
@@ -6562,41 +4934,29 @@ static void display_resolution_changed(GtkWidget *widget, gpointer user_data)
 {
     CtkDisplayConfig *ctk_object = CTK_DISPLAY_CONFIG(user_data);
     gint idx;
-    gint last_idx;
-    nvSelectedModePtr selected_mode;
+    nvModeLinePtr modeline;
     nvDisplayPtr display;
-    Rotation old_rotation;
-    Reflection old_reflection;
 
 
     /* Get the modeline and display to set */
-    idx = gtk_combo_box_get_active(GTK_COMBO_BOX(widget));
-    selected_mode = ctk_object->resolution_table[idx];
+    idx = gtk_option_menu_get_history(GTK_OPTION_MENU(widget));
+    modeline = ctk_object->resolution_table[idx];
     display = ctk_display_layout_get_selected_display
         (CTK_DISPLAY_LAYOUT(ctk_object->obj_layout));
 
 
-    /* cache the selected index */
-    last_idx = ctk_object->last_resolution_idx;
-    ctk_object->last_resolution_idx = idx;
-
     /* Ignore selecting same resolution */
-    if (idx == last_idx) {
+    if (display->cur_mode->modeline == modeline) {
         return;
     }
 
-    /* Save the current rotation and reflection settings */
-    old_rotation = display->cur_mode->rotation;
-    old_reflection = display->cur_mode->reflection;
 
     /* In Basic view, we assume the user most likely wants
      * to change which metamode is being used.
      */
-    if (!ctk_object->advanced_mode && (display->screen->num_displays == 1) &&
-        display->screen->num_prime_displays == 0) {
+    if (!ctk_object->advanced_mode && (display->screen->num_displays == 1)) {
         int metamode_idx =
-            display_find_closest_mode_matching_modeline(display,
-                                                        selected_mode->modeline);
+            display_find_closest_mode_matching_modeline(display, modeline);
 
         /* Select the new metamode */
         if (metamode_idx >= 0) {
@@ -6605,326 +4965,55 @@ static void display_resolution_changed(GtkWidget *widget, gpointer user_data)
                  display->screen, metamode_idx);
         }
     }
+    
 
     /* Select the new modeline for its resolution */
-    if (selected_mode->isScaled) {
-        ctk_display_layout_set_mode_modeline
-            (CTK_DISPLAY_LAYOUT(ctk_object->obj_layout),
-             display->cur_mode,
-             selected_mode->modeline,
-             &selected_mode->viewPortIn,
-             &selected_mode->viewPortOut);
-    } else {
-        ctk_display_layout_set_mode_modeline
-            (CTK_DISPLAY_LAYOUT(ctk_object->obj_layout),
-             display->cur_mode,
-             selected_mode->modeline,
-             NULL /* viewPortIn */,
-             NULL /* viewPortOut */);
-    }
+    ctk_display_layout_set_mode_modeline
+        (CTK_DISPLAY_LAYOUT(ctk_object->obj_layout),
+         display->cur_mode, modeline);
 
-    /* If we are in Basic mode, apply the rotation and reflection settings from
-     * the previous mode to the new mode.
-     */
-    if (!ctk_object->advanced_mode) {
 
-        if (display->cur_mode->rotation != old_rotation) {
-            ctk_display_layout_set_display_rotation(
-                CTK_DISPLAY_LAYOUT(ctk_object->obj_layout),
-                display, old_rotation);
-        }
+    /* Regenerate the refresh menu */
+    setup_display_refresh_dropdown(ctk_object);
 
-        if (display->cur_mode->reflection != old_reflection) {
-            ctk_display_layout_set_display_reflection(
-                CTK_DISPLAY_LAYOUT(ctk_object->obj_layout),
-                display, old_reflection);
-        }
-    }
 
-    /* Update the UI */
-    setup_display_page(ctk_object);
+    /* Sync the display position */
+    setup_display_position(ctk_object);
 
-    user_changed_attributes(ctk_object);
+
+    /* Sync the panning domain */
+    setup_display_panning(ctk_object);
+
+
+    gtk_widget_set_sensitive(ctk_object->btn_apply, True);
 
 } /* display_resolution_changed() */
 
 
 
-/** display_stereo_changed() *****************************
+/** display_modelname_changed() *****************************
  *
- * Called when user selects a new passive stereo eye
- * configuration.
- *
- **/
-static void display_stereo_changed(GtkWidget *widget, gpointer user_data)
-{
-    CtkDisplayConfig *ctk_object = CTK_DISPLAY_CONFIG(user_data);
-    nvDisplayPtr display;
-    nvModePtr mode;
-    gint idx;
-
-    /* Update the current mode on the selected display */
-    display = ctk_display_layout_get_selected_display
-        (CTK_DISPLAY_LAYOUT(ctk_object->obj_layout));
-
-    if (display && display->cur_mode) {
-        mode = display->cur_mode;
-
-        idx = gtk_combo_box_get_active(GTK_COMBO_BOX(widget));
-        switch (idx) {
-        case 1:
-            mode->passive_stereo_eye = PASSIVE_STEREO_EYE_LEFT;
-            break;
-        case 2:
-            mode->passive_stereo_eye = PASSIVE_STEREO_EYE_RIGHT;
-            break;
-        default:
-        case 0:
-            mode->passive_stereo_eye = PASSIVE_STEREO_EYE_NONE;
-            break;
-        }
-    }
-
-    user_changed_attributes(ctk_object);
-
-} /* display_stereo_changed() */
-
-
-
-/** display_rotation_changed() ***************************************
- *
- * Called when user selects a new rotation orientation.
+ * Called when user selectes a new display from display modelname dropdown.
  *
  **/
-static void display_rotation_changed(GtkWidget *widget, gpointer user_data)
+static void display_modelname_changed(GtkWidget *widget, gpointer user_data)
 {
     CtkDisplayConfig *ctk_object = CTK_DISPLAY_CONFIG(user_data);
     nvDisplayPtr display;
     gint idx;
-    Rotation rotation;
 
+    /* Get the modeline and display to set */
+    idx = gtk_option_menu_get_history(GTK_OPTION_MENU(widget));
+    display = ctk_object->display_model_table[idx];
+    ctk_display_layout_select_display
+        (CTK_DISPLAY_LAYOUT(ctk_object->obj_layout), display);
+    ctk_display_layout_redraw(CTK_DISPLAY_LAYOUT(ctk_object->obj_layout));
 
-    /* Update the current mode on the selected display */
-    display = ctk_display_layout_get_selected_display
-        (CTK_DISPLAY_LAYOUT(ctk_object->obj_layout));
+    /* Reconfigure GUI to display information about the selected display. */
+    setup_display_page(ctk_object);
+    setup_screen_page(ctk_object);
 
-    if (!display ||
-        !display->cur_mode ||
-        !display->cur_mode->modeline) {
-        return;
-    }
-
-    idx = gtk_combo_box_get_active(GTK_COMBO_BOX(widget));
-    switch (idx) {
-    case 1:
-        rotation = ROTATION_90;
-        break;
-    case 2:
-        rotation = ROTATION_180;
-        break;
-    case 3:
-        rotation = ROTATION_270;
-        break;
-    default:
-    case 0:
-        rotation = ROTATION_0;
-        break;
-    }
-
-    ctk_display_layout_set_display_rotation
-        (CTK_DISPLAY_LAYOUT(ctk_object->obj_layout),
-         display, rotation);
-
-} /* display_rotation_changed() */
-
-
-
-/** display_reflection_changed() *************************************
- *
- * Called when user selects a new reflection axis.
- *
- **/
-static void display_reflection_changed(GtkWidget *widget, gpointer user_data)
-{
-    CtkDisplayConfig *ctk_object = CTK_DISPLAY_CONFIG(user_data);
-    nvDisplayPtr display;
-    gint idx;
-    Reflection reflection;
-
-    /* Update the current mode on the selected display */
-    display = ctk_display_layout_get_selected_display
-        (CTK_DISPLAY_LAYOUT(ctk_object->obj_layout));
-
-    if (!display ||
-        !display->cur_mode ||
-        !display->cur_mode->modeline) {
-        return;
-    }
-
-    idx = gtk_combo_box_get_active(GTK_COMBO_BOX(widget));
-    switch (idx) {
-    case 1:
-        reflection = REFLECTION_X;
-        break;
-    case 2:
-        reflection = REFLECTION_Y;
-        break;
-    case 3:
-        reflection = REFLECTION_XY;
-        break;
-    default:
-    case 0:
-        reflection = REFLECTION_NONE;
-        break;
-    }
-
-    ctk_display_layout_set_display_reflection
-        (CTK_DISPLAY_LAYOUT(ctk_object->obj_layout),
-         display, reflection);
-
-} /* display_reflection_changed() */
-
-
-
-/** post_display_underscan_value_changed() ****************************
- *
- * Modifies the ViewPortOut of the current mode according to the value
- * of the Underscan slider.
- *
- **/
-static void post_display_underscan_value_changed(CtkDisplayConfig *ctk_object,
-                                                 const int hpixel_value)
-{
-    CtkDisplayLayout *ctk_display;
-    nvDisplayPtr display;
-    nvModePtr cur_mode;
-    nvSize raster_size;
-    GdkRectangle rotatedViewPortIn;
-
-    ctk_display = CTK_DISPLAY_LAYOUT(ctk_object->obj_layout);
-    display = ctk_display_layout_get_selected_display(ctk_display);
-
-    cur_mode = display->cur_mode;
-
-    if (!cur_mode || !cur_mode->modeline) {
-        return;
-    }
-
-    raster_size.height = cur_mode->modeline->data.vdisplay;
-    raster_size.width = cur_mode->modeline->data.hdisplay;
-
-    /* Update ViewPortOut, ViewPortIn and panning. Erase previous data */
-    apply_underscan_to_viewportout(raster_size, hpixel_value,
-                                   &cur_mode->viewPortOut);
-
-    if (cur_mode->rotation == ROTATION_90 ||
-        cur_mode->rotation == ROTATION_270)
-    {
-        rotatedViewPortIn.width = cur_mode->viewPortOut.height;
-        rotatedViewPortIn.height = cur_mode->viewPortOut.width;
-    } else {
-        rotatedViewPortIn.width = cur_mode->viewPortOut.width;
-        rotatedViewPortIn.height = cur_mode->viewPortOut.height;
-    }
-
-    ctk_display_layout_set_mode_viewport_in(ctk_display,
-                                            cur_mode,
-                                            rotatedViewPortIn.width,
-                                            rotatedViewPortIn.height,
-                                            TRUE /* update_panning_size */);
-
-    /* Enable the apply button */
-    update_btn_apply(ctk_object, TRUE);
-
-}
-
-
-
-/** display_underscan_value_changed() *********************************
- *
- * Called when user modifies the value of the Underscan slider.
- *
- **/
-static void display_underscan_value_changed(GtkAdjustment *adjustment,
-                                           gpointer user_data)
-{
-    CtkDisplayConfig *ctk_object = CTK_DISPLAY_CONFIG(user_data);
-    nvDisplayPtr display;
-    nvModePtr cur_mode;
-    int hpixel_value;
-    gfloat value;
-    gchar *txt_entry;
-
-    display = ctk_display_layout_get_selected_display
-        (CTK_DISPLAY_LAYOUT(ctk_object->obj_layout));
-
-    if (!display) {
-        return;
-    }
-
-    cur_mode = display->cur_mode;
-
-    if (!cur_mode || !cur_mode->modeline) {
-        return;
-    }
-
-    value = (gfloat) gtk_adjustment_get_value(adjustment);
-    hpixel_value = cur_mode->modeline->data.hdisplay * (value / 100);
-
-    txt_entry = g_strdup_printf("%d", hpixel_value);
-    gtk_entry_set_text(GTK_ENTRY(ctk_object->txt_display_underscan), txt_entry);
-    g_free(txt_entry);
-
-    post_display_underscan_value_changed(ctk_object, hpixel_value);
-
-}
-
-
-
-/** display_underscan_activate() **************************************
- *
- * Called when user modifies the display Underscan text entry.
- *
- * This then calls display_underscan_value_changed() by
- * modifying the value of the Underscan slider.
- *
- **/
-static void display_underscan_activate(GtkWidget *widget,
-                                       gpointer user_data)
-{
-    CtkDisplayConfig *ctk_object = CTK_DISPLAY_CONFIG(user_data);
-    const gchar *txt_entry = gtk_entry_get_text(GTK_ENTRY(widget));
-    nvDisplayPtr display;
-    nvModePtr cur_mode;
-    int hdisplay, hpixel_value;
-    gfloat adj_value;
-
-    display = ctk_display_layout_get_selected_display
-        (CTK_DISPLAY_LAYOUT(ctk_object->obj_layout));
-
-    if (!display) {
-        return;
-    }
-
-    cur_mode = display->cur_mode;
-
-    if (!cur_mode || !cur_mode->modeline) {
-        return;
-    }
-
-    parse_read_integer(txt_entry, &hpixel_value);
-
-    hdisplay = cur_mode->modeline->data.hdisplay;
-    adj_value = ((gfloat) hpixel_value / hdisplay) * 100;
-
-    /* Sanitize adjustment value */
-    adj_value = NV_MIN(adj_value, UNDERSCAN_MAX_PERCENT);
-    adj_value = NV_MAX(adj_value, UNDERSCAN_MIN_PERCENT);
-
-    /* This sends a value_changed signal to the adjustment object */
-    gtk_adjustment_set_value(GTK_ADJUSTMENT(ctk_object->adj_display_underscan),
-                             adj_value);
-}
+} /* display_modelname_changed() */
 
 
 
@@ -6951,27 +5040,27 @@ static void display_position_type_changed(GtkWidget *widget,
 
     /* Get the new position type */
     position_idx =
-        gtk_combo_box_get_active
-        (GTK_COMBO_BOX(ctk_object->mnu_display_position_type));
+        gtk_option_menu_get_history
+        (GTK_OPTION_MENU(ctk_object->mnu_display_position_type));
 
     position_type = __position_table[position_idx];
 
     relative_to_idx =
-        gtk_combo_box_get_active
-        (GTK_COMBO_BOX(ctk_object->mnu_display_position_relative));
+        gtk_option_menu_get_history
+        (GTK_OPTION_MENU(ctk_object->mnu_display_position_relative));
 
     if (relative_to_idx >= 0 &&
         relative_to_idx < ctk_object->display_position_table_len) {
 
         relative_to =
             ctk_object->display_position_table[relative_to_idx];
-
+        
         /* Update the layout */
         ctk_display_layout_set_display_position
             (CTK_DISPLAY_LAYOUT(ctk_object->obj_layout),
              display, position_type, relative_to,
-             display->cur_mode->pan.x,
-             display->cur_mode->pan.y);
+             display->cur_mode->dim[X],
+             display->cur_mode->dim[Y]);
     }
 
 
@@ -6984,7 +5073,7 @@ static void display_position_type_changed(GtkWidget *widget,
 
     setup_display_position_offset(ctk_object);
 
-    user_changed_attributes(ctk_object);
+    gtk_widget_set_sensitive(ctk_object->btn_apply, True);
 
 } /* display_position_type_changed() */
 
@@ -7011,13 +5100,13 @@ static void display_position_relative_changed(GtkWidget *widget,
         (CTK_DISPLAY_LAYOUT(ctk_object->obj_layout));
 
     /* Get the new display to be relative to */
-    position_idx = gtk_combo_box_get_active
-                    (GTK_COMBO_BOX(ctk_object->mnu_display_position_type));
+    position_idx = gtk_option_menu_get_history
+        (GTK_OPTION_MENU(ctk_object->mnu_display_position_type));
 
     position_type = __position_table[position_idx];
 
-    relative_to_idx = gtk_combo_box_get_active
-        (GTK_COMBO_BOX(ctk_object->mnu_display_position_relative));
+    relative_to_idx = gtk_option_menu_get_history
+        (GTK_OPTION_MENU(ctk_object->mnu_display_position_relative));
 
     if (relative_to_idx >= 0 &&
         relative_to_idx < ctk_object->display_position_table_len) {
@@ -7038,7 +5127,7 @@ static void display_position_relative_changed(GtkWidget *widget,
     /* Update the GUI */
     setup_display_position_offset(ctk_object);
 
-    user_changed_attributes(ctk_object);
+    gtk_widget_set_sensitive(ctk_object->btn_apply, True);
 
 } /* display_position_relative_changed() */
 
@@ -7071,8 +5160,8 @@ static void display_position_offset_activate(GtkWidget *widget,
     }
 
     /* Make coordinates relative to top left of Screen */
-    x += display->cur_mode->metamode->edim.x;
-    y += display->cur_mode->metamode->edim.y;
+    x += display->cur_mode->metamode->edim[X];
+    y += display->cur_mode->metamode->edim[Y];
 
 
     /* Update the absolute position */
@@ -7080,83 +5169,9 @@ static void display_position_offset_activate(GtkWidget *widget,
         (CTK_DISPLAY_LAYOUT(ctk_object->obj_layout),
          display, CONF_ADJ_ABSOLUTE, NULL, x, y);
 
-    user_changed_attributes(ctk_object);
+    gtk_widget_set_sensitive(ctk_object->btn_apply, True);
 
 } /* display_position_offset_activate() */
-
-
-
-/** display_viewport_in_activate() ***********************************
- *
- * Called when user modifies the display ViewPortIn text entry.
- *
- **/
-
-static void display_viewport_in_activate(GtkWidget *widget, gpointer user_data)
-{
-    CtkDisplayConfig *ctk_object = CTK_DISPLAY_CONFIG(user_data);
-    const gchar *str = gtk_entry_get_text(GTK_ENTRY(widget));
-    int w, h;
-    nvDisplayPtr display = ctk_display_layout_get_selected_display
-        (CTK_DISPLAY_LAYOUT(ctk_object->obj_layout));
-
-
-    if (!display || !display->cur_mode) {
-        return;
-    }
-
-    str = parse_read_integer_pair(str, 'x', &w, &h);
-    if (!str) {
-        /* Reset the mode's ViewPortIn */
-        setup_display_viewport_in(ctk_object);
-        return;
-    }
-
-    ctk_display_layout_set_mode_viewport_in
-        (CTK_DISPLAY_LAYOUT(ctk_object->obj_layout), display->cur_mode, w, h,
-         FALSE /* update_panning_size */);
-
-} /* display_viewport_in_activate() */
-
-
-
-/** display_viewport_out_activate() **********************************
- *
- * Called when user modifies the display ViewPortOut text entry.
- *
- **/
-
-static void display_viewport_out_activate(GtkWidget *widget, gpointer user_data)
-{
-    CtkDisplayConfig *ctk_object = CTK_DISPLAY_CONFIG(user_data);
-    const gchar *str = gtk_entry_get_text(GTK_ENTRY(widget));
-    int w, h, x, y;
-    nvDisplayPtr display = ctk_display_layout_get_selected_display
-        (CTK_DISPLAY_LAYOUT(ctk_object->obj_layout));
-
-
-    if (!display || !display->cur_mode) {
-        return;
-    }
-
-    str = parse_read_integer_pair(str, 'x', &w, &h);
-    if (!str) {
-        /* Reset the mode's ViewPortOut */
-        setup_display_viewport_out(ctk_object);
-        return;
-    }
-    str = parse_read_integer_pair(str, 0, &x, &y);
-    if (!str) {
-        /* Reset the mode's ViewPortOut */
-        setup_display_viewport_out(ctk_object);
-        return;
-    }
-
-    ctk_display_layout_set_mode_viewport_out
-        (CTK_DISPLAY_LAYOUT(ctk_object->obj_layout), display->cur_mode,
-         x, y, w, h);
-
-} /* display_viewport_out_activate() */
 
 
 
@@ -7178,7 +5193,7 @@ static void display_panning_activate(GtkWidget *widget, gpointer user_data)
     if (!display) {
         return;
     }
-
+    
     str = parse_read_integer_pair(str, 'x', &x, &y);
     if (!str) {
         /* Reset the display panning */
@@ -7193,65 +5208,21 @@ static void display_panning_activate(GtkWidget *widget, gpointer user_data)
 
 
 
-/** screen_virtual_size_activate() ***********************************
+/** display_panning_focus_out() **************************************
  *
- * Called when user modifies the screen virtual size text entry.
- *
- **/
-
-static void screen_virtual_size_activate(GtkWidget *widget, gpointer user_data)
-{
-    CtkDisplayConfig *ctk_object = CTK_DISPLAY_CONFIG(user_data);
-    const gchar *str = gtk_entry_get_text(GTK_ENTRY(widget));
-    int x, y;
-    nvScreenPtr screen = ctk_display_layout_get_selected_screen
-        (CTK_DISPLAY_LAYOUT(ctk_object->obj_layout));
-
-
-    if (!screen || !screen->no_scanout) {
-        return;
-    }
-    
-    str = parse_read_integer_pair(str, 'x', &x, &y);
-    if (!str) {
-        /* Reset the display panning */
-        setup_screen_virtual_size(ctk_object);
-        return;
-    }
-
-    ctk_display_layout_set_screen_virtual_size
-        (CTK_DISPLAY_LAYOUT(ctk_object->obj_layout), screen, x, y);
-
-    setup_screen_virtual_size(ctk_object);
-
-} /* screen_virtual_size_activate() */
-
-
-
-/** txt_focus_out() **************************************************
- *
- * Called when user leaves a txt entry
+ * Called when user leaves the panning entry
  *
  **/
 
-static gboolean txt_focus_out(GtkWidget *widget, GdkEvent *event,
-                              gpointer user_data)
+static gboolean display_panning_focus_out(GtkWidget *widget, GdkEvent *event,
+                                          gpointer user_data)
 {
-    CtkDisplayConfig *ctk_object = CTK_DISPLAY_CONFIG(user_data);
-
-    if (widget == ctk_object->txt_display_viewport_in) {
-        display_viewport_in_activate(widget, user_data);
-    } else if (widget == ctk_object->txt_display_viewport_out) {
-        display_viewport_out_activate(widget, user_data);
-    } else if (widget == ctk_object->txt_display_panning) {
-        display_panning_activate(widget, user_data);
-    } else if (widget == ctk_object->txt_screen_virtual_size) {
-        screen_virtual_size_activate(widget, user_data);
-    }
+    display_panning_activate(widget, user_data);
 
     return FALSE;
 
-} /* txt_focus_out() */
+} /* display_panning_focus_out() */
+
 
 
 
@@ -7264,14 +5235,12 @@ static gboolean txt_focus_out(GtkWidget *widget, GdkEvent *event,
 static void screen_depth_changed(GtkWidget *widget, gpointer user_data)
 {
     CtkDisplayConfig *ctk_object = CTK_DISPLAY_CONFIG(user_data);
-    gint idx = gtk_combo_box_get_active(GTK_COMBO_BOX(widget));
+    gint idx = gtk_option_menu_get_history(GTK_OPTION_MENU(widget));
     int depth;
     nvScreenPtr screen = ctk_display_layout_get_selected_screen
         (CTK_DISPLAY_LAYOUT(ctk_object->obj_layout));
 
     if (!screen) return;
-
-    if (idx >= ctk_object->screen_depth_table_len) return;
 
     depth = ctk_object->screen_depth_table[idx];
 
@@ -7295,53 +5264,15 @@ static void screen_depth_changed(GtkWidget *widget, gpointer user_data)
     }
     ctk_display_layout_set_screen_depth
         (CTK_DISPLAY_LAYOUT(ctk_object->obj_layout), screen, depth);
-    /* Update default screen depth in SMF using libscf functions */
-    update_scf_depth(depth);
 
     consolidate_xinerama(ctk_object, screen);
 
     /* Can't apply screen depth changes */
     ctk_object->apply_possible = FALSE;
 
-    user_changed_attributes(ctk_object);
+    gtk_widget_set_sensitive(ctk_object->btn_apply, True);
 
 } /* screen_depth_changed() */
-
-
-
-/** screen_stereo_changed() ******************************************
- *
- * Called when user selects a new stereo mode for a screen.
- *
- **/
-
-static void screen_stereo_changed(GtkWidget *widget, gpointer user_data)
-{
-    CtkDisplayConfig *ctk_object = CTK_DISPLAY_CONFIG(user_data);
-    gint idx = gtk_combo_box_get_active(GTK_COMBO_BOX(widget));
-    nvScreenPtr screen = ctk_display_layout_get_selected_screen
-        (CTK_DISPLAY_LAYOUT(ctk_object->obj_layout));
-
-    if (!screen) return;
-
-    screen->stereo = idx;
-
-    if (idx >= 0 && idx < ctk_object->stereo_table_size) {
-
-        /* translation from dropdown index to stereo mode */
-        screen->stereo = ctk_object->stereo_table[idx];
-    }
-
-    /* Can't apply screen stereo changes */
-    ctk_object->apply_possible = FALSE;
-
-    user_changed_attributes(ctk_object);
-
-
-    /* Changing this can modify how the display page looks */
-    setup_display_page(ctk_object);
-
-} /* screen_stereo_changed() */
 
 
 
@@ -7367,14 +5298,14 @@ static void screen_position_type_changed(GtkWidget *widget,
 
     /* Get the new position type */
     position_idx =
-        gtk_combo_box_get_active
-        (GTK_COMBO_BOX(ctk_object->mnu_screen_position_type));
+        gtk_option_menu_get_history
+        (GTK_OPTION_MENU(ctk_object->mnu_screen_position_type));
 
     position_type = __position_table[position_idx];
 
     relative_to_idx =
-        gtk_combo_box_get_active
-        (GTK_COMBO_BOX(ctk_object->mnu_screen_position_relative));
+        gtk_option_menu_get_history
+        (GTK_OPTION_MENU(ctk_object->mnu_screen_position_relative));
 
     if (relative_to_idx >= 0 &&
         relative_to_idx < ctk_object->screen_position_table_len) {
@@ -7386,8 +5317,8 @@ static void screen_position_type_changed(GtkWidget *widget,
         ctk_display_layout_set_screen_position
             (CTK_DISPLAY_LAYOUT(ctk_object->obj_layout),
              screen, position_type, relative_to,
-             screen->dim.x,
-             screen->dim.y);
+             screen->dim[X],
+             screen->dim[Y]);
     }
 
 
@@ -7400,7 +5331,7 @@ static void screen_position_type_changed(GtkWidget *widget,
 
     setup_screen_position_offset(ctk_object);
 
-    user_changed_attributes(ctk_object);
+    gtk_widget_set_sensitive(ctk_object->btn_apply, True);
 
 } /* screen_position_type_changed() */
 
@@ -7427,13 +5358,13 @@ static void screen_position_relative_changed(GtkWidget *widget,
     if (!screen) return;
 
     /* Get the new X screen to be relative to */
-    position_idx = gtk_combo_box_get_active
-        (GTK_COMBO_BOX(ctk_object->mnu_screen_position_type));
+    position_idx = gtk_option_menu_get_history
+        (GTK_OPTION_MENU(ctk_object->mnu_screen_position_type));
 
     position_type = __position_table[position_idx];
 
-    relative_to_idx = gtk_combo_box_get_active
-        (GTK_COMBO_BOX(ctk_object->mnu_screen_position_relative));
+    relative_to_idx = gtk_option_menu_get_history
+        (GTK_OPTION_MENU(ctk_object->mnu_screen_position_relative));
 
     if (relative_to_idx >= 0 &&
         relative_to_idx < ctk_object->screen_position_table_len) {
@@ -7454,7 +5385,7 @@ static void screen_position_relative_changed(GtkWidget *widget,
     /* Update the GUI */
     setup_screen_position_offset(ctk_object);
 
-    user_changed_attributes(ctk_object);
+    gtk_widget_set_sensitive(ctk_object->btn_apply, True);
 
 } /* screen_position_relative_changed() */
 
@@ -7496,7 +5427,7 @@ static void screen_position_offset_activate(GtkWidget *widget,
         (CTK_DISPLAY_LAYOUT(ctk_object->obj_layout),
          screen, screen->position_type, screen->relative_to, x, y);
 
-    user_changed_attributes(ctk_object);
+    gtk_widget_set_sensitive(ctk_object->btn_apply, True);
 
 } /* screen_position_offset_activate() */
 
@@ -7526,7 +5457,7 @@ static void screen_metamode_clicked(GtkWidget *widget, gpointer user_data)
     for (i = 0; i < screen->num_metamodes; i++) {
         
         /* Setup the menu item text */
-        tmp = screen_get_metamode_str(screen, i, 0);
+        tmp = screen_get_metamode_str(screen, i, 1);
         str = g_strdup_printf("%d - \"%s\"", i+1, tmp);
         menu_item = gtk_menu_item_new_with_label(str);
         g_free(str);
@@ -7583,7 +5514,7 @@ static void screen_metamode_activate(GtkWidget *widget, gpointer user_data)
     /* Sync the display frame */
     setup_display_page(ctk_object);
 
-    user_changed_attributes(ctk_object);
+    gtk_widget_set_sensitive(ctk_object->btn_apply, True);
 
 } /* screen_metamode_activate() */
 
@@ -7613,7 +5544,7 @@ static void screen_metamode_add_clicked(GtkWidget *widget, gpointer user_data)
     setup_display_page(ctk_object);
     setup_screen_page(ctk_object);
 
-    user_changed_attributes(ctk_object);
+    gtk_widget_set_sensitive(ctk_object->btn_apply, True);
 
 } /* screen_metamode_add_clicked() */
 
@@ -7637,13 +5568,13 @@ static void screen_metamode_delete_clicked(GtkWidget *widget,
     
     ctk_display_layout_delete_screen_metamode
         (CTK_DISPLAY_LAYOUT(ctk_object->obj_layout),
-         screen, screen->cur_metamode_idx, TRUE);
+         screen, screen->cur_metamode_idx);
 
     /* Update the GUI */
     setup_display_page(ctk_object);
     setup_screen_page(ctk_object);
 
-    user_changed_attributes(ctk_object);
+    gtk_widget_set_sensitive(ctk_object->btn_apply, True);
 
 } /* screen_metamode_delete_clicked() */
 
@@ -7670,8 +5601,9 @@ static void xinerama_state_toggled(GtkWidget *widget, gpointer user_data)
     consolidate_xinerama(ctk_object, NULL);
     setup_screen_page(ctk_object);
 
-    user_changed_attributes(ctk_object);
-    
+    /* Make the apply button sensitive to user input */
+    gtk_widget_set_sensitive(ctk_object->btn_apply, True);
+
 } /* xinerama_state_toggled() */
 
 
@@ -7727,13 +5659,12 @@ static gboolean do_display_confirm_countdown(gpointer data)
 
 /** switch_to_current_metamode() *************************************
  *
- * Switches to the current screen metamode using NV_CTRL_CURRENT_METAMODE_ID
+ * Switches to the current screen metamode using XRandR
  *
  **/
 
 static Bool switch_to_current_metamode(CtkDisplayConfig *ctk_object,
-                                       nvScreenPtr screen,
-                                       const char *cur_metamode_str)
+                                       nvScreenPtr screen)
 {
     ReturnStatus ret;
     gint result;
@@ -7741,108 +5672,107 @@ static Bool switch_to_current_metamode(CtkDisplayConfig *ctk_object,
     int new_width;
     int new_height;
     int new_rate;
+    int old_width;
+    int old_height;
     int old_rate;
     static SwitchModeCallbackInfo info;
     GtkWidget *dlg;
     GtkWidget *parent;
     gchar *msg;
-    Bool modified_current_metamode;
 
 
-    if (screen->ctrl_target == NULL ||
-        screen->cur_metamode == NULL) {
-        goto fail;
-    }
+    if (!screen->handle || !screen->cur_metamode) goto fail;
 
     metamode = screen->cur_metamode;
 
-    new_width = metamode->edim.width;
-    new_height = metamode->edim.height;
+    new_width = metamode->edim[W];
+    new_height = metamode->edim[H];
     new_rate = metamode->id;
-
-
+    
+    
     /* Find the parent window for displaying dialogs */
 
     parent = ctk_get_parent_window(GTK_WIDGET(ctk_object));
     if (!parent) goto fail;
 
 
+    /* XRandR must be available to do mode switching */
+
+    if (!NvCtrlGetXrandrEventBase(screen->handle)) {
+        dlg = gtk_message_dialog_new
+            (GTK_WINDOW(parent),
+             GTK_DIALOG_DESTROY_WITH_PARENT,
+             GTK_MESSAGE_INFO,
+             GTK_BUTTONS_CLOSE,
+             "The XRandR X extension was not found.  This extension must "
+             "be supported by the X server and enabled for display "
+             "configuration settings to be dynamically applicable.");
+
+        gtk_dialog_run(GTK_DIALOG(dlg));
+        gtk_widget_destroy(dlg);
+
+        nv_warning_msg("XRandR X extension not enabled, "
+                       "cannot apply settings!");
+        goto fail;
+    }
+
+
     /* Get the current mode so we can fall back on that if the
      * mode switch fails, or the user does not confirm.
      */
 
-    ret = NvCtrlGetAttribute(screen->ctrl_target,
-                             NV_CTRL_CURRENT_METAMODE_ID,
-                             (int *)&old_rate);
+    ret = NvCtrlXrandrGetScreenMode(screen->handle, &old_width, &old_height,
+                                    &old_rate);
     if (ret != NvCtrlSuccess) {
         nv_warning_msg("Failed to get current (fallback) mode for "
                        "display device!");
         goto fail;
     }
 
-    nv_info_msg(TAB, "Current mode (id: %d)", old_rate);
-    nv_info_msg(TAB, "Current mode string: %s", cur_metamode_str);
-
+    nv_info_msg(TAB, "Current mode: %dx%d (id: %d)",
+                old_width, old_height, old_rate);
+    
 
     /* Switch to the new mode */
 
-    if (new_rate > 0 ) {
-        nv_info_msg(TAB, "Switching to mode: %dx%d (id: %d)...",
-                    new_width, new_height, new_rate);
+    nv_info_msg(TAB, "Switching to mode: %dx%d (id: %d)...",
+                new_width, new_height, new_rate);
 
-        ret = NvCtrlSetAttribute(screen->ctrl_target,
-                                 NV_CTRL_CURRENT_METAMODE_ID,
-                                 new_rate);
-        modified_current_metamode = FALSE;
-    } else {
-        nv_info_msg(TAB, "Modifying current MetaMode to: %s...",
-                    metamode->cpl_str);
-
-        ret = NvCtrlSetStringAttribute(screen->ctrl_target,
-                                       NV_CTRL_STRING_CURRENT_METAMODE,
-                                       metamode->cpl_str);
-        if (ret == NvCtrlSuccess) {
-            metamode->id = old_rate;
-        }
-        modified_current_metamode = TRUE;
-    }
-
+    ret = NvCtrlXrandrSetScreenMode(screen->handle, new_width, new_height,
+                                    new_rate);
     if (ret != NvCtrlSuccess) {
 
         nv_warning_msg("Failed to set MetaMode (%d) '%s' "
                        "(Mode: %dx%d, id: %d) on X screen %d!",
-                       screen->cur_metamode_idx+1, metamode->cpl_str,
-                       new_width,
+                       screen->cur_metamode_idx+1, metamode->string, new_width,
                        new_height, new_rate,
-                       NvCtrlGetTargetId(screen->ctrl_target));
+                       NvCtrlGetTargetId(screen->handle));
 
         if (screen->num_metamodes > 1) {
             msg = g_strdup_printf("Failed to set MetaMode (%d) '%s' "
                                   "(Mode %dx%d, id: %d) on X screen %d\n\n"
                                   "Would you like to remove this MetaMode?",
-                                  screen->cur_metamode_idx+1,
-                                  metamode->cpl_str,
+                                  screen->cur_metamode_idx+1, metamode->string,
                                   new_width, new_height, new_rate,
-                                  NvCtrlGetTargetId(screen->ctrl_target));
+                                  NvCtrlGetTargetId(screen->handle));
             dlg = gtk_message_dialog_new
                 (GTK_WINDOW(parent),
                  GTK_DIALOG_DESTROY_WITH_PARENT,
                  GTK_MESSAGE_WARNING,
                  GTK_BUTTONS_YES_NO,
-                 "%s", msg);
+                 msg);
         } else {
             msg = g_strdup_printf("Failed to set MetaMode (%d) '%s' "
                                   "(Mode %dx%d, id: %d) on X screen %d.",
-                                  screen->cur_metamode_idx+1,
-                                  metamode->cpl_str,
+                                  screen->cur_metamode_idx+1, metamode->string,
                                   new_width, new_height, new_rate,
-                                  NvCtrlGetTargetId(screen->ctrl_target));
+                                  NvCtrlGetTargetId(screen->handle));
             dlg = gtk_message_dialog_new
                 (GTK_WINDOW(parent),
                  GTK_DIALOG_DESTROY_WITH_PARENT,
                  GTK_MESSAGE_WARNING,
                  GTK_BUTTONS_OK,
-                 "%s", msg);
+                 msg);
         }
 
         result = gtk_dialog_run(GTK_DIALOG(dlg));
@@ -7851,11 +5781,11 @@ static Bool switch_to_current_metamode(CtkDisplayConfig *ctk_object,
         case GTK_RESPONSE_YES:
             ctk_display_layout_delete_screen_metamode
                 (CTK_DISPLAY_LAYOUT(ctk_object->obj_layout),
-                 screen, screen->cur_metamode_idx, TRUE);
+                 screen, screen->cur_metamode_idx);
 
             nv_info_msg(TAB, "Removed MetaMode %d on Screen %d.\n",
                         screen->cur_metamode_idx+1,
-                        NvCtrlGetTargetId(screen->ctrl_target));
+                        NvCtrlGetTargetId(screen));
 
             /* Update the GUI */
             setup_display_page(ctk_object);
@@ -7876,7 +5806,7 @@ static Bool switch_to_current_metamode(CtkDisplayConfig *ctk_object,
 
     /* Setup the counter callback data */
     info.ctk_object = ctk_object;
-    info.screen = NvCtrlGetTargetId(screen->ctrl_target);
+    info.screen = NvCtrlGetTargetId(screen->handle);
 
     /* Start the countdown timer */
     ctk_object->display_confirm_countdown = DEFAULT_SWITCH_MODE_TIMEOUT;
@@ -7894,7 +5824,7 @@ static Bool switch_to_current_metamode(CtkDisplayConfig *ctk_object,
     gtk_widget_grab_focus(ctk_object->btn_display_apply_cancel);
     result = gtk_dialog_run(GTK_DIALOG(ctk_object->dlg_display_confirm));
     gtk_widget_hide(ctk_object->dlg_display_confirm);
-
+    
     /* Kill the timer */
     g_source_remove(ctk_object->display_confirm_timer);
 
@@ -7902,31 +5832,16 @@ static Bool switch_to_current_metamode(CtkDisplayConfig *ctk_object,
     {
     case GTK_RESPONSE_ACCEPT:
         break;
-
+        
     case GTK_RESPONSE_REJECT:
     default:
         /* Fall back to previous settings */
-        if (!modified_current_metamode) {
-            nv_info_msg(TAB, "Switching back to mode (id: %d)...", old_rate);
+        nv_info_msg(TAB, "Switching back to mode: %dx%d (id: %d)...",
+                    old_width, old_height, old_rate);
 
-            ret = NvCtrlSetAttribute(screen->ctrl_target,
-                                     NV_CTRL_CURRENT_METAMODE_ID,
-                                     old_rate);
-        } else {
-            nv_info_msg(TAB, "Re-writing previous current MetaMode to: %s...",
-                        cur_metamode_str);
-
-            ret = NvCtrlSetStringAttribute(screen->ctrl_target,
-                                           NV_CTRL_STRING_CURRENT_METAMODE,
-                                           cur_metamode_str);
-            if (ret != NvCtrlSuccess) {
-                nv_warning_msg("Failed to re-write current MetaMode (%d) to "
-                               "'%s' on X screen %d!",
-                               old_rate,
-                               cur_metamode_str,
-                               NvCtrlGetTargetId(screen->ctrl_target));
-            }
-        }
+        NvCtrlXrandrSetScreenMode(screen->handle, old_width, old_height,
+                                  old_rate);
+        /* Good luck! */
         goto fail;
     }
 
@@ -7939,231 +5854,39 @@ static Bool switch_to_current_metamode(CtkDisplayConfig *ctk_object,
 
 
 
-/** link_metamode_string_by_id() *************************************
+/** find_metamode_string() *******************************************
  *
- * Looks in the list of strings (metamode_strs) for a metamode with
- * the given id (defined by string 'id_str').  If found, sets the metamode
- * id and x_id appropriately.
+ * Finds "metamode_str" in the list of strings in metamode_strs.
+ * If metamode_str is found, a pointer to the full metamode string
+ * is returned (including tokens, if any.)
+ *
+ * if "metamode_str" is not found in "metamode_strs", NULL is
+ * returned.
  *
  **/
 
-static void link_metamode_string_by_id(char *metamode_strs, int match_id,
-                                       nvMetaModePtr metamode)
+static char *find_metamode_string(char *metamode_str, char *metamode_strs)
 {
-    int x_idx = 0;
     char *m;
+    char *str;
 
     for (m = metamode_strs; m && strlen(m); m += strlen(m) +1) {
-        char *str = strstr(m, "id=");
+
+        /* Skip tokens if any */
+        str = strstr(m, "::");
         if (str) {
-            int id = atoi(str+3);
-            if (id && (id == match_id)) {
-                metamode->id = id;
-                metamode->x_idx = x_idx;
-                metamode->x_str_entry = m;
-                return;
-            }
+            str = (char *)parse_skip_whitespace(str +2);
+        } else {
+            str = m;
         }
-        x_idx++;
-    }
-}
 
-
-
-/** add_cpl_metamode_to_X() ******************************************
- *
- * Adds the given metamode to the given X screen.
- *
- **/
-
-static Bool add_cpl_metamode_to_X(nvScreenPtr screen, nvMetaModePtr metamode,
-                                  int metamode_idx)
-{
-    ReturnStatus ret;
-    char *tokens;
-
-    ret = NvCtrlStringOperation(screen->ctrl_target, 0,
-                                NV_CTRL_STRING_OPERATION_ADD_METAMODE,
-                                metamode->cpl_str, &tokens);
-
-    /* Grab the metamode ID from the returned tokens */
-    if ((ret != NvCtrlSuccess) || !tokens) {
-        nv_error_msg("Failed to add MetaMode '%s' to X for "
-                     "screen %d",
-                     metamode->cpl_str, screen->scrnum);
-        return FALSE;
+        /* See if metamode strings match */
+        if (!strcmp(str, metamode_str)) return m;
     }
 
-    parse_token_value_pairs(tokens, apply_metamode_token,
-                            metamode);
-    free(tokens);
+    return NULL;
 
-    metamode->x_idx = metamode_idx;
-
-    nv_info_msg(TAB, "Added MetaMode   (# %d,  ID: %d) > [%s]",
-                metamode_idx,
-                metamode->id,
-                metamode->cpl_str);
-
-    return TRUE;
-}
-
-
-
-/** stub_metamode_str() **********************************************
- *
- * Stubs out a metamode string.
- *
- **/
-
-static void stub_metamode_str(char *str)
-{
-    if (str) {
-        while (*str) {
-            *str = ' ';
-            str++;
-        }
-    }
-}
-
-
-/** setup_metamodes_for_apply() **************************************
- *
- * Prepares the list of CPL metamodes to be applied to the X server.
- *
- **/
-
-static void setup_metamodes_for_apply(nvScreenPtr screen,
-                                      char *metamode_strs)
-{
-    nvMetaModePtr metamode;
-    ReturnStatus ret;
-    char *tmp;
-    int metamode_idx;
-
-
-    for (metamode = screen->metamodes, metamode_idx = 0;
-         metamode;
-         metamode = metamode->next, metamode_idx++) {
-
-        metamode->id = -1;
-        metamode->x_idx = -1;
-
-        /* Get metamode string from CPL */
-        metamode->cpl_str = screen_get_metamode_str(screen, metamode_idx, 1);
-        if (!metamode->cpl_str) {
-            continue;
-        }
-
-        /* Parse CPL string into X metamode string */
-        ret = NvCtrlStringOperation(screen->ctrl_target, 0,
-                                    NV_CTRL_STRING_OPERATION_PARSE_METAMODE,
-                                    metamode->cpl_str, &metamode->x_str);
-        if ((ret != NvCtrlSuccess) ||
-            !metamode->x_str) {
-            continue;
-        }
-
-        /* Identify metamode id and position in X */
-       tmp = strstr(metamode->x_str, "id=");
-        if (tmp) {
-            int id = atoi(tmp+3);
-            link_metamode_string_by_id(metamode_strs, id, metamode);
-        }
-    }
-}
-
-
-
-/** cleanup_metamodes_for_apply() ************************************
- *
- * Releases memory used for applying metamodes to X.
- *
- **/
-
-static void cleanup_metamodes_for_apply(nvScreenPtr screen)
-{
-    nvMetaModePtr metamode;
-
-    for (metamode = screen->metamodes;
-         metamode;
-         metamode = metamode->next) {
-
-        cleanup_metamode(metamode);
-    }
-}
-
-
-
-/** remove_duplicate_cpl_metamodes() *********************************
- *
- * Removes duplicate metamodes in the CPL
- *
- **/
-
-static void remove_duplicate_cpl_metamodes(CtkDisplayConfig *ctk_object,
-                                           nvScreenPtr screen)
-{
-    nvMetaModePtr m1;
-    nvMetaModePtr m2;
-    int m1_idx;
-    int m1_old_idx;
-    int m2_idx;
-
-    m1 = screen->metamodes;
-    m1_idx = 0;
-    m1_old_idx = 0;
-    while (m1) {
-        Bool found = FALSE;
-
-        if (!m1->x_str) {
-            m1 = m1->next;
-            m1_idx++;
-            m1_old_idx++;
-            continue;
-        }
-
-        for (m2 = screen->metamodes, m2_idx = 0;
-             m2 != m1;
-             m2 = m2->next, m2_idx++) {
-
-            if (!m2->x_str) {
-                continue;
-            }
-
-            if (strcmp(m1->x_str, m2->x_str)) {
-                continue;
-            }
-
-            /* m1 and m2 are the same, delete m1 (since it comes after) */
-            if (m1 == screen->cur_metamode) {
-                ctk_display_layout_set_screen_metamode
-                    (CTK_DISPLAY_LAYOUT(ctk_object->obj_layout),
-                     screen, m2_idx);
-            }
-
-            m1 = m1->next;
-
-            ctk_display_layout_delete_screen_metamode
-                (CTK_DISPLAY_LAYOUT(ctk_object->obj_layout),
-                 screen, m1_idx, FALSE);
-
-            nv_info_msg(TAB, "Removed MetaMode %d on Screen %d (is "
-                        "duplicate of MetaMode %d)\n", m1_old_idx+1,
-                        screen->scrnum,
-                        m2_idx+1);
-
-            found = TRUE;
-            break;
-        }
-
-        if (!found) {
-            m1 = m1->next;
-            m1_idx++;
-        }
-        m1_old_idx++;
-    }
-}
+} /* find_metamode_string() */
 
 
 
@@ -8175,156 +5898,76 @@ static void remove_duplicate_cpl_metamodes(CtkDisplayConfig *ctk_object,
  *   that will be used for creating the metamode list on the X
  *   Server.
  *
- * - Stubs out each string in the metamode_strs list that should
+ * - Whites out each string in the metamode_strs list that should
  *   not be deleted (it has a matching metamode in "screen".)
  *
  * - Adds new metamodes to the X server screen that are specified
- *   in "screen" but not found in metamode_strs.
+ *   in "screen".
  *
  **/
 
-static void preprocess_metamodes(CtkDisplayConfig *ctk_object,
-                                 nvScreenPtr screen,
-                                 char *x_metamode_strs,
-                                 char *cur_x_metamode_str,
-                                 int num_x_metamodes,
-                                 int cur_x_metamode_idx)
+static void preprocess_metamodes(nvScreenPtr screen, char *metamode_strs)
 {
     nvMetaModePtr metamode;
-    Bool cur_x_metamode_matched = FALSE;
+    ReturnStatus ret;
+    char *str = NULL;
+    char *tokens;
+    int metamode_idx;
 
 
-    /* Generate metamode strings and match CPL metamodes to X */
-    setup_metamodes_for_apply(screen, x_metamode_strs);
-
-    /* Remove duplicate metamodes in CPL based on parsed string */
-    remove_duplicate_cpl_metamodes(ctk_object, screen);
-
-    /* Add metamodes from the CPL that aren't in X */
-    for (metamode = screen->metamodes;
+    for (metamode = screen->metamodes, metamode_idx = 0;
          metamode;
-         metamode = metamode->next) {
+         metamode = metamode->next, metamode_idx++) {
 
-        /* CPL metamode was found in X, stub out the string entry in the X
-         * metamodes list so we don't delete it later.
-         */
-        if (metamode->x_str_entry) {
-            stub_metamode_str(metamode->x_str_entry);
-            /* Track if the current X metamode matched a CPL metamode */
-            if (metamode->x_str_entry == cur_x_metamode_str) {
-                cur_x_metamode_matched = TRUE;
+        /* Generate the metamode's string */
+        free(metamode->string);
+        metamode->string = screen_get_metamode_str(screen, metamode_idx, 0);
+        if (!metamode->string) continue;
+        
+        /* Look for the metamode string in metamode_strs */
+        str = find_metamode_string(metamode->string, metamode_strs);
+        if (str) {
+
+            /* Grab the metamode id from the tokens */
+            tokens = strdup(str);
+            if (tokens) {
+                char *tmp = strstr(tokens, "::");
+                if (tmp) {
+                    *tmp = '\0';
+                    parse_token_value_pairs(tokens, apply_metamode_token,
+                                            metamode);
+                }
+                free(tokens);
             }
-            continue;
-        }
 
-        /* CPL metamode was not found in X, so we should add it. */
-
-        /* Don't add the current metamode (yet).  If the current X metamode
-         * string does not get stubbed out (i.e. it does not match to another
-         * CPL metamode), then it can be modify via
-         * NV_CTRL_STRING_CURRENT_METAMODE instead of adding a new metamode,
-         * switching to it and deleting the old one.
-         */
-        if (metamode == screen->cur_metamode) {
-            continue;
-        }
-
-        if (add_cpl_metamode_to_X(screen, metamode, num_x_metamodes)) {
-            num_x_metamodes++;
-        }
-    }
-
-    /* If the currently selected CPL metamode did not match any X metamode, and
-     * the current active X metamode matched to another CPL metamode, then the
-     * currently selected CPL metamode will need to be added and switched to.
-     */
-    if (screen->cur_metamode->id < 0) {
-        if (cur_x_metamode_matched) {
-            if (add_cpl_metamode_to_X(screen, screen->cur_metamode,
-                                      num_x_metamodes)) {
-                num_x_metamodes++;
-            }
-        } else {
-            /* Current metamode will be overridden, so stub it here so that it
-             * does not get deleted later.
+            /* The metamode was found, white out the metamode string
+             * so it does not get deleted and continue.
              */
-            stub_metamode_str(cur_x_metamode_str);
-            screen->cur_metamode->x_idx = cur_x_metamode_idx;
+            while (*str) {
+                *str = ' ';
+                str++;
+            }
+            continue;
+        }
+        
+        /* The metamode was not found, so add it to the X screen's list */
+        tokens = NULL;
+        ret = NvCtrlStringOperation(screen->handle, 0,
+                                    NV_CTRL_STRING_OPERATION_ADD_METAMODE,
+                                    metamode->string, &tokens);
+
+        /* Grab the metamode ID from the returned tokens */
+        if (ret == NvCtrlSuccess) {
+            if (tokens) {
+                parse_token_value_pairs(tokens, apply_metamode_token,
+                                        metamode);
+                free(tokens);
+            }
+            nv_info_msg(TAB, "Added   > %s", metamode->string);
         }
     }
 
 } /* preprocess_metamodes() */
-
-
-
-/** screen_move_metamode() *******************************************
- *
- * Updates the X ordering of the given metamode so that it appears at
- * 'metamode_idx'.
- *
- **/
-
-static Bool screen_move_metamode(nvScreenPtr screen, nvMetaModePtr metamode,
-                                 int metamode_idx)
-{
-    char *update_str;
-    int len;
-    ReturnStatus ret;
-
-    if (!metamode->cpl_str) {
-        goto fail;
-    }
-
-    /* Append the index we want */
-    len = 24 + strlen(metamode->cpl_str);
-    update_str = malloc(len);
-    snprintf(update_str, len, "index=%d :: %s", metamode_idx,
-             metamode->cpl_str);
-
-    ret = NvCtrlSetStringAttribute(screen->ctrl_target,
-                                   NV_CTRL_STRING_MOVE_METAMODE,
-                                   update_str);
-    if (ret != NvCtrlSuccess) {
-        goto fail;
-    }
-
-    nv_info_msg(TAB, "Moved MetaMode (id:%d from idx: %d to idx %d) > %s",
-                metamode->id,
-                metamode->x_idx,
-                metamode_idx,
-                metamode->cpl_str);
-
-    /* We moved the metamode to position metamode_idx, so bump the
-     * index of all metamodes from the new position to the old one.
-     * This assumes that metamodes are always moved forward in the
-     * the list and not backwards.
-     */
-    {
-        int from_idx = metamode_idx;  // New position
-        int to_idx = metamode->x_idx; // Old position
-        nvMetaModePtr m;
-
-        for (m = screen->metamodes;
-             m;
-             m = m->next) {
-            if ((m->x_idx >= from_idx) &&
-                (m->x_idx < to_idx)) {
-                m->x_idx++;
-            }
-        }
-        /* Note the new location of the metamode */
-        metamode->x_idx = metamode_idx;
-    }
-    return TRUE;
-
- fail:
-    nv_error_msg("Failed to move MetaMode (id:%d from idx: %d to idx %d) > %s",
-                 metamode->id,
-                 metamode->x_idx,
-                 metamode_idx,
-                 metamode->cpl_str ? metamode->cpl_str : "NULL");
-    return FALSE;
-}
 
 
 
@@ -8339,18 +5982,33 @@ static void order_metamodes(nvScreenPtr screen)
 {
     nvMetaModePtr metamode;
     int metamode_idx;
+    char *metamode_str;
+    char *update_str;
+    int len;
+    ReturnStatus ret;
 
 
     for (metamode = screen->metamodes, metamode_idx = 0;
          metamode;
          metamode = metamode->next, metamode_idx++) {
 
-        /* MetaMode is already in correct spot */
-        if (metamode_idx == metamode->x_idx) {
-            continue;
+        metamode_str = screen_get_metamode_str(screen, metamode_idx,
+                                               0);
+        if (!metamode_str) continue;
+        
+        /* Append the index we want */
+        len = 24 + strlen(metamode_str);
+        update_str = malloc(len);
+        snprintf(update_str, len, "index=%d :: %s", metamode_idx,
+                 metamode_str);
+        
+        ret = NvCtrlSetStringAttribute(screen->handle,
+                                       NV_CTRL_STRING_MOVE_METAMODE,
+                                       update_str, NULL);
+        if (ret == NvCtrlSuccess) {
+            nv_info_msg(TAB, "Moved   > %s", metamode_str);
         }
-
-        screen_move_metamode(screen, metamode, metamode_idx);
+        free(metamode_str);
     }
 
 } /* order_metamodes() */
@@ -8367,55 +6025,36 @@ static void order_metamodes(nvScreenPtr screen)
 
 static void postprocess_metamodes(nvScreenPtr screen, char *metamode_strs)
 {
-    char *metamode_str, *tmp;
-    const char *str;
+    char *metamode_str;
+    char *str;
     ReturnStatus ret;
-    int idx;
 
 
     /* Delete metamodes that were not cleared out from the metamode_strs */
-    for (metamode_str = metamode_strs, idx = 0;
+    for (metamode_str = metamode_strs;
          metamode_str && strlen(metamode_str);
-         metamode_str += strlen(metamode_str) +1, idx++) {
+         metamode_str += strlen(metamode_str) +1) {
 
         /* Skip tokens */
         str = strstr(metamode_str, "::");
         if (!str) continue;
 
-        str = parse_skip_whitespace(str +2);
-        tmp = strdup(str);
-        if (!tmp) continue;
+        str = (char *)parse_skip_whitespace(str +2);
+
 
         /* Delete the metamode */
-        ret = NvCtrlSetStringAttribute(screen->ctrl_target,
+        ret = NvCtrlSetStringAttribute(screen->handle,
                                        NV_CTRL_STRING_DELETE_METAMODE,
-                                       tmp);
+                                       str, NULL);
         if (ret == NvCtrlSuccess) {
-            nvMetaModePtr metamode;
-
-            nv_info_msg(TAB, "Removed MetaMode > %s", str);
-
-            /* MetaModes after the one that was deleted will have
-             * moved up an index, so update the book keeping here.
-             */
-            for (metamode = screen->metamodes;
-                 metamode;
-                 metamode = metamode->next) {
-                if (metamode->x_idx >= idx) {
-                    metamode->x_idx--;
-                }
-            }
+            nv_info_msg(TAB, "Removed > %s", str);
         }
-
-        free(tmp);
     }
 
     /* Reorder the list of metamodes */
     order_metamodes(screen);
 
-    /* Cleanup */
-    cleanup_metamodes_for_apply(screen);
-}
+} /* postprocess_metamodes() */
 
 
 
@@ -8429,26 +6068,21 @@ static int update_screen_metamodes(CtkDisplayConfig *ctk_object,
                                    nvScreenPtr screen)
 {
     char *metamode_strs = NULL;
-    char *cur_full_metamode_str = NULL;
-    char *cur_metamode_ptr = NULL; /* Pointer into metamode_strs */
-    int cur_metamode_id; /* ID of current MetaMode on X screen */
-    int cur_metamode_idx;
-    int num_metamodes_in_X;
-    char *str;
-    const char *cur_metamode_str;
+    char *cur_metamode_str = NULL;
+    char *metamode_str;
     int len;
 
     int clear_apply = 0; /* Set if we should clear the apply button */
     ReturnStatus ret;
 
 
-    /* Make sure the screen has a valid target to make the updates */
-    if (screen->ctrl_target == NULL) {
+    /* Make sure the screen has a valid handle to make the updates */
+    if (!screen->handle) {
         return 1;
     }
 
     nv_info_msg("", "Updating Screen %d's MetaModes:",
-                NvCtrlGetTargetId(screen->ctrl_target));
+                NvCtrlGetTargetId(screen->handle));
 
     /* To update the metamode list of the screen:
      *
@@ -8462,116 +6096,49 @@ static int update_screen_metamodes(CtkDisplayConfig *ctk_object,
      * (postprocess)
      *  - Delete any unused mode
      *  - Move metamodes to the correct location
-     */
-
+     **/
+  
     /* Get the list of the current metamodes */
 
-    ret = NvCtrlGetBinaryAttribute(screen->ctrl_target,
+    ret = NvCtrlGetBinaryAttribute(screen->handle,
                                    0,
-                                   NV_CTRL_BINARY_DATA_METAMODES_VERSION_2,
+                                   NV_CTRL_BINARY_DATA_METAMODES,
                                    (unsigned char **)&metamode_strs,
                                    &len);
     if (ret != NvCtrlSuccess) goto done;
 
     /* Get the current metamode for the screen */
 
-    ret = NvCtrlGetStringAttribute(screen->ctrl_target,
-                                   NV_CTRL_STRING_CURRENT_METAMODE_VERSION_2,
-                                   &cur_full_metamode_str);
-    if (ret != NvCtrlSuccess) goto done;
-
-    /* Get the current metamode index for the screen */
-
-    ret = NvCtrlGetAttribute(screen->ctrl_target,
-                             NV_CTRL_CURRENT_METAMODE_ID,
-                             &cur_metamode_id);
+    ret = NvCtrlGetStringAttribute(screen->handle,
+                                   NV_CTRL_STRING_CURRENT_METAMODE,
+                                   &cur_metamode_str);
     if (ret != NvCtrlSuccess) goto done;
 
     /* Skip tokens */
-    cur_metamode_str = strstr(cur_full_metamode_str, "::");
-    if (cur_metamode_str) {
-        cur_metamode_str = parse_skip_whitespace(cur_metamode_str +2);
+    metamode_str = strstr(cur_metamode_str, "::");
+    if (metamode_str) {
+        metamode_str = (char *)parse_skip_whitespace(metamode_str +2);
     } else {
-        cur_metamode_str = cur_full_metamode_str;
+        metamode_str = cur_metamode_str;
     }
 
-    /* Count the number of metamodes in X */
-    num_metamodes_in_X = 0;
-    for (str = metamode_strs;
-         str && strlen(str);
-         str += strlen(str) +1) {
-        num_metamodes_in_X++;
-    }
+    /* Preprocess the new metamodes list */
 
-    /* Find cur_metamode_str inside metamode_strs */
-    cur_metamode_ptr = NULL;
-    cur_metamode_idx = 0;
-    for (str = metamode_strs;
-         str && strlen(str);
-         str += strlen(str) +1) {
-        const char *tmp;
+    preprocess_metamodes(screen, metamode_strs);
+    
+    /* If we need to switch metamodes, do so now */
 
-        tmp = strstr(str, "::");
-        if (!tmp) continue;
-        tmp = parse_skip_whitespace(tmp +2);
-        if (!tmp) continue;
-
-        if (!strcasecmp(tmp, cur_metamode_str)) {
-            cur_metamode_ptr = str;
-            break;
-        }
-        cur_metamode_idx++;
-    }
-
-    if (!cur_metamode_ptr) {
-        nv_error_msg("Failed to identify current MetaMode in X list of "
-                     "MetaModes for screen %d", screen->scrnum);
-        return 1;
-    }
-
-    /* Add new metamodes and relate MetaModes from CPL to X */
-
-    preprocess_metamodes(ctk_object, screen, metamode_strs, cur_metamode_ptr,
-                         num_metamodes_in_X,
-                         cur_metamode_idx);
-
-    /* Update the current metamode.
-     *
-     * At this point, the metamode we want to set as the current metamode should
-     * exist in the X server, or we will need to clobber the current X
-     * metamode with new data.
-     *
-     * - If the current CPL MetaMode is the same as the current X MetaMode,
-     *   do nothing.
-     *
-     * - If the current CPL MetaMode is a different X MetaMode, switch to it.
-     *
-     * - If the current CPL MetaMode is not the same as the current X MetaMode.
-     *   and both the CPL MetaMode is not some other X MetaMode, and the current
-     *   X MetaMode is not some other CPL MetaMode, then we can modify the
-     *   current X MetaMode to be the CPL MetaMode.
-     *
-     * - If the current CPL MetaMode is not the same as the current X MetaMode,
-     *   and we matched the current X MetaMode to some other CPL MetaMode, then
-     *   we should add the current CPL MetaMode to X and switch to it.
-     */
-
-    if (screen->cur_metamode->id != cur_metamode_id) {
-
-        if (switch_to_current_metamode(ctk_object, screen,
-                                       cur_metamode_str)) {
-
+    if (strcmp(screen->cur_metamode->string, metamode_str)) {
+        if (switch_to_current_metamode(ctk_object, screen)) {
             ctk_config_statusbar_message(ctk_object->ctk_config,
                                          "Switched to MetaMode %dx%d.",
-                                         screen->cur_metamode->edim.width,
-                                         screen->cur_metamode->edim.height);
-
-            nv_info_msg(TAB, "Using   > %s", screen->cur_metamode->cpl_str);
+                                         screen->cur_metamode->edim[W],
+                                         screen->cur_metamode->edim[H]);
+            
+            nv_info_msg(TAB, "Using   > %s", screen->cur_metamode->string);
 
             clear_apply = 1;
         }
-    } else {
-        clear_apply = 1;
     }
 
     /* Post process the metamodes list */
@@ -8580,8 +6147,8 @@ static int update_screen_metamodes(CtkDisplayConfig *ctk_object,
 
  done:
 
-    free(metamode_strs);
-    free(cur_full_metamode_str);
+    XFree(metamode_strs);
+    XFree(cur_metamode_str);
 
     return clear_apply;
 
@@ -8598,9 +6165,9 @@ static int update_screen_metamodes(CtkDisplayConfig *ctk_object,
 static void apply_clicked(GtkWidget *widget, gpointer user_data)
 {
     CtkDisplayConfig *ctk_object = CTK_DISPLAY_CONFIG(user_data);
-    nvScreenPtr screen;
+    nvGpuPtr gpu;
     ReturnStatus ret;
-    gboolean clear_apply = TRUE;
+    int clear_apply = 1;
 
 
     /* Make sure we can apply */
@@ -8613,63 +6180,369 @@ static void apply_clicked(GtkWidget *widget, gpointer user_data)
         return;
     }
 
-    /* Temporarily unregister events */
-    unregister_layout_events(ctk_object);
+    /* Update all GPUs */
+    for (gpu = ctk_object->layout->gpus; gpu; gpu = gpu->next) {
+        nvScreenPtr screen;
 
-    /* Update all X screens */
-    for (screen = ctk_object->layout->screens;
-         screen;
-         screen = screen->next_in_layout) {
+        /* Update all X screens */
+        for (screen = gpu->screens; screen; screen = screen->next) {
 
-        if (screen->ctrl_target == NULL) {
-            continue;
-        }
-        if (screen->no_scanout) continue;
+            if (!screen->handle) continue;
 
-        if (screen->primaryDisplay && ctk_object->primary_display_changed) {
-            ret = NvCtrlSetStringAttribute(screen->ctrl_target,
-                                           NV_CTRL_STRING_NVIDIA_XINERAMA_INFO_ORDER,
-                                           screen->primaryDisplay->typeIdName);
-            if (ret != NvCtrlSuccess) {
-                nv_error_msg("Failed to set primary display for screen %d",
-                             screen->scrnum);
+            if (!update_screen_metamodes(ctk_object, screen)) {
+                clear_apply = FALSE;
             } else {
-                /* Make sure other parts of nvidia-settings get updated */
-                ctk_event_emit_string(screen->ctk_event, 0,
-                                      NV_CTRL_STRING_NVIDIA_XINERAMA_INFO_ORDER);
-                ctk_object->primary_display_changed = FALSE;
+                ReturnStatus ret;
+
+                ret = NvCtrlSetDisplayAttributeWithReply
+                    (screen->handle, 0,
+                     NV_CTRL_ASSOCIATED_DISPLAY_DEVICES,
+                     screen->displays_mask);
+                
+                if (ret != NvCtrlSuccess) {
+                    nv_error_msg("Failed to set screen %d's association mask "
+                                 "to: 0x%08x",
+                                 screen->scrnum, screen->displays_mask);
+                } else {
+                    /* Make sure other parts of nvidia-settings get updated */
+                    ctk_event_emit(screen->ctk_event, 0,
+                                   NV_CTRL_ASSOCIATED_DISPLAY_DEVICES,
+                                   screen->displays_mask);
+                }
+            }
+            
+            if (screen->primaryDisplay) {
+                gchar *primary_str =
+                   display_get_type_str(screen->primaryDisplay->device_mask, 0);
+
+                ret = NvCtrlSetStringAttribute(screen->handle,
+                                 NV_CTRL_STRING_TWINVIEW_XINERAMA_INFO_ORDER,
+                                 primary_str, NULL);
+                g_free(primary_str);
+
+                if (ret != NvCtrlSuccess) {
+                    nv_error_msg("Failed to set primary display"
+                                 "for screen %d (GPU:%s)", screen->scrnum,
+                                 screen->gpu->name);
+                } else {
+                    /* Make sure other parts of nvidia-settings get updated */
+                    ctk_event_emit_string(screen->ctk_event, 0,
+                                   NV_CTRL_STRING_TWINVIEW_XINERAMA_INFO_ORDER);
+                }
             }
         }
-        
-        if (!update_screen_metamodes(ctk_object, screen)) {
-            clear_apply = FALSE;
-        }
-
     }
 
-    /* Clear the apply button if all went well, and we were able to apply
-     * everything.
-     */
-    if (ctk_object->apply_possible && clear_apply) {
+    /* Clear the apply button if all went well */
+    if (clear_apply) {
         gtk_widget_set_sensitive(widget, False);
-        ctk_object->forced_reset_allowed = TRUE;
     }
-
-    /* XXX Run the GTK main loop to flush any pending layout events
-     * that should be ignored.  This is done because the GTK main loop
-     * seems to only ignore the first blocked event received when it
-     * finally runs.
-     */
-    while (gtk_events_pending()) {
-        gtk_main_iteration_do(FALSE);
-    }
-
-    /* re-register to receive events */
-    register_layout_events(ctk_object);
-
-    update_gui(ctk_object);
 
 } /* apply_clicked() */
+
+
+
+/** xconfig_file_clicked() *******************************************
+ *
+ * Called when the user clicks on the "Browse..." button of the
+ * X config save dialog.
+ *
+ **/
+
+static void xconfig_file_clicked(GtkWidget *widget, gpointer user_data)
+{
+    CtkDisplayConfig *ctk_object = CTK_DISPLAY_CONFIG(user_data);
+    const gchar *filename =
+        gtk_entry_get_text(GTK_ENTRY(ctk_object->txt_xconfig_file));
+    gint result;
+
+
+    /* Ask user for a filename */
+    gtk_window_set_transient_for
+        (GTK_WINDOW(ctk_object->dlg_xconfig_file),
+         GTK_WINDOW(gtk_widget_get_toplevel(GTK_WIDGET(ctk_object))));
+
+    gtk_file_selection_set_filename
+        (GTK_FILE_SELECTION(ctk_object->dlg_xconfig_file), filename);
+    
+    result = gtk_dialog_run(GTK_DIALOG(ctk_object->dlg_xconfig_file));
+    gtk_widget_hide(ctk_object->dlg_xconfig_file);
+    
+    switch (result) {
+    case GTK_RESPONSE_ACCEPT:
+    case GTK_RESPONSE_OK:
+        
+        filename = gtk_file_selection_get_filename
+            (GTK_FILE_SELECTION(ctk_object->dlg_xconfig_file));
+
+        gtk_entry_set_text(GTK_ENTRY(ctk_object->txt_xconfig_file),
+                           filename);
+
+        update_xconfig_save_buffer(ctk_object);
+        break;
+    default:
+        return;
+    }
+
+} /* xconfig_file_clicked() */
+
+
+
+/** xconfig_file_activate() ******************************************
+ *
+ * Called when the user selects a new X config filename.
+ *
+ **/
+
+static void xconfig_file_activate(GtkWidget *widget, gpointer user_data)
+{
+    CtkDisplayConfig *ctk_object = CTK_DISPLAY_CONFIG(user_data);
+
+    update_xconfig_save_buffer(ctk_object);
+
+} /* xconfig_file_activate() */
+
+
+
+/** xconfig_preview_clicked() ****************************************
+ *
+ * Called when the user clicks on the "Preview" button of the
+ * X config save dialog.
+ *
+ **/
+
+static void xconfig_preview_clicked(GtkWidget *widget, gpointer user_data)
+{
+    CtkDisplayConfig *ctk_object = CTK_DISPLAY_CONFIG(user_data);
+    gboolean show = !GTK_WIDGET_VISIBLE(ctk_object->box_xconfig_save);
+
+    if (show) {
+        gtk_widget_show_all(ctk_object->box_xconfig_save);
+        gtk_window_set_resizable(GTK_WINDOW(ctk_object->dlg_xconfig_save),
+                                 TRUE);
+        gtk_widget_set_size_request(ctk_object->txt_xconfig_save, 450, 350);
+        gtk_button_set_label(GTK_BUTTON(ctk_object->btn_xconfig_preview),
+                             "Hide Preview...");
+    } else {
+        gtk_widget_hide(ctk_object->box_xconfig_save);
+        gtk_window_set_resizable(GTK_WINDOW(ctk_object->dlg_xconfig_save),
+                                 FALSE);
+        gtk_button_set_label(GTK_BUTTON(ctk_object->btn_xconfig_preview),
+                             "Show Preview...");
+    }
+
+} /* xconfig_preview_clicked() */
+
+
+
+/**  update_xconfig_save_buffer() ************************************
+ *
+ * Updates the "preview" buffer to hold the right contents based on
+ * how the user wants the X config file to be generated (and what is
+ * possible.)
+ *
+ * Also updates the state of the "Merge" checkbox in the case where
+ * the named file can/cannot be parsed as a valid X config file.
+ *
+ */
+static gboolean update_xconfig_save_buffer(CtkDisplayConfig *ctk_object)
+{
+    gchar *filename;
+    XConfigPtr config = NULL;
+    XConfigPtr mergeConfig = NULL;
+    XConfigError error;
+    gint result;
+
+    char *tmp_filename;
+    int tmp_fd;
+    struct stat st;
+    void *buf;
+    GtkTextIter buf_start, buf_end;
+
+    gboolean merge;
+    gboolean mergable = TRUE;
+
+    gchar *err_msg = NULL;
+
+
+    /* Get how the user wants to generate the X config file */
+    merge = gtk_toggle_button_get_active
+        (GTK_TOGGLE_BUTTON(ctk_object->btn_xconfig_merge));
+
+    filename = (gchar *)gtk_entry_get_text
+        (GTK_ENTRY(ctk_object->txt_xconfig_file));
+
+
+    /* Find out if the file is mergable */
+    if (!filename) {
+        mergable = FALSE;
+    } else {
+        /* Must be able to open the file */
+        tmp_filename = (char *)xconfigOpenConfigFile(filename, NULL);
+        if (!tmp_filename || strcmp(tmp_filename, filename)) {
+            gchar *msg =
+                g_strdup_printf("Failed to open existing X config file '%s'!",
+                                filename);
+            ctk_display_warning_msg
+                (ctk_get_parent_window(GTK_WIDGET(ctk_object)),
+                 msg);
+            g_free(msg);
+
+            xconfigCloseConfigFile();
+            mergable = FALSE;
+
+        } else {
+            GenerateOptions gop;
+
+        /* Must be able to parse the file as an X config file */
+            error = xconfigReadConfigFile(&mergeConfig);
+            if (error) {
+                /* If we failed to parse the config file, we should not
+                 * allow a merge.
+                 */
+                gchar *msg =
+                    g_strdup_printf("Failed to parse existing X config file "
+                                    "'%s'!", filename);
+                ctk_display_warning_msg
+                    (ctk_get_parent_window(GTK_WIDGET(ctk_object)),
+                     msg);
+                g_free(msg);
+
+                xconfigCloseConfigFile();
+                mergeConfig = NULL;
+                mergable = FALSE;
+            }
+
+            /* Sanitize the X config file */
+            xconfigGenerateLoadDefaultOptions(&gop);
+            xconfigGetXServerInUse(&gop);
+
+            if (!xconfigSanitizeConfig(mergeConfig, NULL, &gop)) {
+                gchar *msg = g_strdup_printf("Failed to sanitize existing X "
+                                             "config file '%s'!",
+                                             filename);
+                ctk_display_warning_msg
+                    (ctk_get_parent_window(GTK_WIDGET(ctk_object)), msg);
+                g_free(msg);
+
+                xconfigFreeConfig(&mergeConfig);
+                mergable = FALSE;
+            }
+        }
+
+        /* If we're not actualy doing a merge, close the file */
+        if (!merge && mergeConfig) {
+            xconfigFreeConfig(mergeConfig);
+            xconfigCloseConfigFile();
+            mergeConfig = NULL;
+        }
+    }
+
+    merge = (merge && mergable);
+
+
+    /* Report merge problems */
+    g_signal_handlers_block_by_func
+        (G_OBJECT(ctk_object->btn_xconfig_merge),
+         G_CALLBACK(xconfig_merge_toggled), (gpointer) ctk_object);
+    
+    gtk_toggle_button_set_active
+        (GTK_TOGGLE_BUTTON(ctk_object->btn_xconfig_merge), merge);
+    
+    g_signal_handlers_unblock_by_func
+        (G_OBJECT(ctk_object->btn_xconfig_merge),
+         G_CALLBACK(xconfig_merge_toggled), (gpointer) ctk_object);
+    
+    gtk_widget_set_sensitive(ctk_object->btn_xconfig_merge, mergable);
+
+
+    /* Generate an X config structure from our layout */
+    result = generateXConfig(ctk_object, &config);
+    if ((result != XCONFIG_GEN_OK) || !config) {
+        err_msg = g_strdup("Failed to generate an X config file!");
+        goto fail;
+    }
+
+
+    /* Merge the two X config structures */
+    if (mergeConfig) {
+        result = xconfigMergeConfigs(mergeConfig, config);
+        xconfigFreeConfig(config);
+        xconfigCloseConfigFile();
+        config = mergeConfig;
+        if (!result) {
+            xconfigFreeConfig(mergeConfig);
+            err_msg = g_strdup_printf("Failed to merge current configuration "
+                                      "with existing X config file '%s'!",
+                                      filename);
+            goto fail;
+        }
+    }
+
+
+    /* Update the X config banner */
+    update_banner(config);
+
+
+    /* Setup the X config file preview buffer by writing to a temp file */
+    tmp_filename = g_strdup_printf("/tmp/.xconfig.tmp.XXXXXX");
+    tmp_fd = mkstemp(tmp_filename);
+    if (!tmp_fd) {
+        err_msg = g_strdup_printf("Failed to create temp X config file '%s' "
+                                  "for display.",
+                                  tmp_filename);
+        g_free(tmp_filename);
+        goto fail;
+    }
+    xconfigWriteConfigFile(tmp_filename, config);
+    xconfigFreeConfig(config);
+
+    lseek(tmp_fd, 0, SEEK_SET);
+    fstat(tmp_fd, &st);
+    buf = mmap(0, st.st_size, PROT_READ, MAP_PRIVATE, tmp_fd, 0);
+
+    /* Clear the GTK buffer */
+    gtk_text_buffer_get_bounds
+        (GTK_TEXT_BUFFER(ctk_object->buf_xconfig_save), &buf_start,
+         &buf_end);
+    gtk_text_buffer_delete
+        (GTK_TEXT_BUFFER(ctk_object->buf_xconfig_save), &buf_start,
+         &buf_end);
+
+    /* Set the new GTK buffer contents */
+    gtk_text_buffer_set_text(GTK_TEXT_BUFFER(ctk_object->buf_xconfig_save),
+                             buf, st.st_size);
+    munmap(buf, st.st_size);
+    close(tmp_fd);
+    remove(tmp_filename);
+    g_free(tmp_filename);
+
+    return TRUE;
+
+ fail:
+    if (err_msg) {
+        ctk_display_error_msg(ctk_get_parent_window(GTK_WIDGET(ctk_object)),
+                              err_msg);
+        g_free(err_msg);
+    }
+    return FALSE;
+
+} /* update_xconfig_save_buffer() */
+
+
+
+/** xconfig_merge_toggled() ******************************************
+ *
+ * Called when the user clicks on the "Merge" button of the X config
+ * save dialog.
+ *
+ **/
+
+static void xconfig_merge_toggled(GtkWidget *widget, gpointer user_data)
+{
+    update_xconfig_save_buffer((CtkDisplayConfig *)user_data);
+
+} /* xconfig_merge_toggled() */
 
 
 
@@ -8747,8 +6620,9 @@ static Bool add_modelines_to_monitor(XConfigMonitorPtr monitor,
         if (!modeline) continue;
 
         /* Append to the end of the modeline list */
-        xconfigAddListItem((GenericListPtr *)(&monitor->modelines),
-                           (GenericListPtr)modeline);
+        monitor->modelines =
+            (XConfigModeLinePtr)xconfigAddListItem((GenericListPtr)monitor->modelines,
+                                                   (GenericListPtr)modeline);
     }
 
     return TRUE;
@@ -8778,32 +6652,34 @@ static Bool add_monitor_to_xconfig(nvDisplayPtr display, XConfigPtr config,
     monitor = (XConfigMonitorPtr)calloc(1, sizeof(XConfigMonitorRec));
     if (!monitor) goto fail;
     
-    monitor->identifier = malloc(32);
+    monitor->identifier = (char *)malloc(32);
     snprintf(monitor->identifier, 32, "Monitor%d", monitor_id);
     monitor->vendor = xconfigStrdup("Unknown");  /* XXX */
 
     /* Copy the model name string, stripping any '"' characters */
 
-    len = strlen(display->logName);
-    monitor->modelname = malloc(len + 1);
+    len = strlen(display->name);
+    monitor->modelname = (char *)malloc(len + 1);
     for (i = 0, j = 0; i < len; i++, j++) {
-        if (display->logName[i] == '\"') {
+        if (display->name[i] == '\"') {
             if (++i >= len)
                 break;
         }
-        monitor->modelname[j] = display->logName[i];
+        monitor->modelname[j] = display->name[i];
     }
     monitor->modelname[j] = '\0';
 
     /* Get the Horizontal Sync ranges from nv-control */
 
-    ret = NvCtrlGetStringAttribute(display->ctrl_target,
-                                   NV_CTRL_STRING_VALID_HORIZ_SYNC_RANGES,
-                                   &range_str);
+    ret = NvCtrlGetStringDisplayAttribute
+        (display->gpu->handle,
+         display->device_mask,
+         NV_CTRL_STRING_VALID_HORIZ_SYNC_RANGES,
+         &range_str);
     if (ret != NvCtrlSuccess) {
         nv_error_msg("Unable to determine valid horizontal sync ranges "
                      "for display device '%s' (GPU: %s)!",
-                     display->logName, display->gpu->name);
+                     display->name, display->gpu->name);
         goto fail;
     }
     
@@ -8817,7 +6693,7 @@ static Bool add_monitor_to_xconfig(nvDisplayPtr display, XConfigPtr config,
     if (!parse_read_float_range(tmp, &min, &max)) {
         nv_error_msg("Unable to determine valid horizontal sync ranges "
                      "for display device '%s' (GPU: %s)!",
-                     display->logName, display->gpu->name);
+                     display->name, display->gpu->name);
         goto fail;
     }
 
@@ -8832,13 +6708,15 @@ static Bool add_monitor_to_xconfig(nvDisplayPtr display, XConfigPtr config,
 
     /* Get the Horizontal Sync ranges from nv-control */
 
-    ret = NvCtrlGetStringAttribute(display->ctrl_target,
-                                   NV_CTRL_STRING_VALID_VERT_REFRESH_RANGES,
-                                   &range_str);
+    ret = NvCtrlGetStringDisplayAttribute
+        (display->gpu->handle,
+         display->device_mask,
+         NV_CTRL_STRING_VALID_VERT_REFRESH_RANGES,
+         &range_str);
     if (ret != NvCtrlSuccess) {
         nv_error_msg("Unable to determine valid vertical refresh ranges "
                      "for display device '%s' (GPU: %s)!",
-                     display->logName, display->gpu->name);
+                     display->name, display->gpu->name);
         goto fail;
     }
     
@@ -8852,7 +6730,7 @@ static Bool add_monitor_to_xconfig(nvDisplayPtr display, XConfigPtr config,
     if (!parse_read_float_range(tmp, &min, &max)) {
         nv_error_msg("Unable to determine valid vertical refresh ranges "
                      "for display device '%s' (GPU: %s)!",
-                     display->logName, display->gpu->name);
+                     display->name, display->gpu->name);
         goto fail;
     }
 
@@ -8876,7 +6754,7 @@ static Bool add_monitor_to_xconfig(nvDisplayPtr display, XConfigPtr config,
 
     /* Add other options */
 
-    xconfigAddNewOption(&opt, "DPMS", NULL);
+    opt = xconfigAddNewOption(opt, "DPMS", NULL);
     monitor->options = opt;
 
     /* Add modelines used by this display */
@@ -8885,8 +6763,9 @@ static Bool add_monitor_to_xconfig(nvDisplayPtr display, XConfigPtr config,
 
     /* Append the monitor to the end of the monitor list */
 
-    xconfigAddListItem((GenericListPtr *)(&config->monitors),
-                       (GenericListPtr)monitor);
+    config->monitors =
+        (XConfigMonitorPtr)xconfigAddListItem((GenericListPtr)config->monitors,
+                                              (GenericListPtr)monitor);
 
     display->conf_monitor = monitor;
     return TRUE;
@@ -8897,7 +6776,7 @@ static Bool add_monitor_to_xconfig(nvDisplayPtr display, XConfigPtr config,
     free(h_source);
     free(v_source);
     if (monitor) {
-        xconfigFreeMonitorList(&monitor);
+        xconfigFreeMonitorList(monitor);
     }
     return FALSE;
 
@@ -8923,15 +6802,17 @@ static XConfigDevicePtr add_device_to_xconfig(nvGpuPtr gpu, XConfigPtr config,
 
 
     /* Fill out the device information */
-    device->identifier = malloc(32);
-    snprintf(device->identifier, 32, "Device%d", device_id);
+    device->identifier = (char *)malloc(32);
+    snprintf(device->identifier, 32, "Videocard%d", device_id);
 
     device->driver = xconfigStrdup("nvidia");
     device->vendor = xconfigStrdup("NVIDIA Corporation");
     device->board = xconfigStrdup(gpu->name);
 
-    if (print_bus_id && gpu->pci_bus_id) {
-        device->busid = strdup(gpu->pci_bus_id);
+    if (print_bus_id) {
+        device->busid = (char *)malloc(32);
+        snprintf(device->busid, 32, "PCI:%d:%d:0",
+                 gpu->pci_bus, gpu->pci_device);
     }
 
     device->chipid = -1;
@@ -8941,14 +6822,15 @@ static XConfigDevicePtr add_device_to_xconfig(nvGpuPtr gpu, XConfigPtr config,
     
 
     /* Append to the end of the device list */
-    xconfigAddListItem((GenericListPtr *)(&config->devices),
-                       (GenericListPtr)device);
+    config->devices =
+        (XConfigDevicePtr)xconfigAddListItem((GenericListPtr)config->devices,
+                                             (GenericListPtr)device);
 
     return device;
 
  fail:
     if (device) {
-        xconfigFreeDeviceList(&device);
+        xconfigFreeDeviceList(device);
     }
     return NULL;
 
@@ -8965,37 +6847,30 @@ static XConfigDevicePtr add_device_to_xconfig(nvGpuPtr gpu, XConfigPtr config,
 static Bool add_display_to_screen(nvScreenPtr screen,
                                   XConfigScreenPtr conf_screen)
 {
-    XConfigDisplayPtr conf_display;
-
     /* Clear the display list */
-    xconfigFreeDisplayList(&conf_screen->displays);
+    xconfigFreeDisplayList(conf_screen->displays);
+    conf_screen->displays = NULL;
 
 
     /* Add a single display subsection for the default depth */
-    xconfigAddDisplay(&conf_screen->displays, conf_screen->defaultdepth);
+    conf_screen->displays = xconfigAddDisplay(NULL, conf_screen->defaultdepth);
     if (!conf_screen->displays) goto fail;
 
-    /* Configure the virtual screen size */
-    if (screen->no_scanout) {
-        conf_display = conf_screen->displays;
-
-        conf_display->virtualX = screen->dim.width;
-        conf_display->virtualY = screen->dim.height;
-    }
 
     /* XXX Don't do any further tweaking to the display subsection.
      *     All mode configuration should be done through the 'MetaModes"
      *     X Option.  The modes generated by xconfigAddDisplay() will
-     *     be used as a fallback.
+     *     be used as a fallack.
      */
 
     return TRUE;
 
  fail:
-    xconfigFreeDisplayList(&conf_screen->displays);
+    xconfigFreeDisplayList(conf_screen->displays);
+    conf_screen->displays = NULL;
 
     return FALSE;
-
+    
 } /* add_display_to_screen() */
 
 
@@ -9019,7 +6894,7 @@ static int add_screen_to_xconfig(CtkDisplayConfig *ctk_object,
 
 
     /* Fill out the screen information */
-    conf_screen->identifier = malloc(32);
+    conf_screen->identifier = (char *)malloc(32);
     snprintf(conf_screen->identifier, 32, "Screen%d", screen->scrnum);
 
     
@@ -9029,120 +6904,81 @@ static int add_screen_to_xconfig(CtkDisplayConfig *ctk_object,
     conf_screen->device = screen->conf_device;
 
     
-    if (screen->no_scanout) {
-        /* Configure screen for no scanout */
-
-        /* Set the UseDisplayDevice option to "none" */
-        xconfigAddNewOption(&conf_screen->options, "UseDisplayDevice", "none");
-
-    } else {
-        /* Configure screen for scanout */
-
-        /* Find the first display on the screen */
-        display = screen->displays;;
-
-        if (!display) {
-            nv_error_msg("Unable to find a display device for screen %d!",
-                         screen->scrnum);
-            goto fail;
+    /* Find the first display on the screen */
+    for (display = screen->gpu->displays; display; display = display->next) {
+        if (display->screen == screen) {
+            break;
         }
-
-
-        /* Create the screen's only Monitor section from the first display */
-        if (!add_monitor_to_xconfig(display, config, screen->scrnum)) {
-            nv_error_msg("Failed to add display device '%s' to screen %d!",
-                         display->logName, screen->scrnum);
-            goto fail;
-        }
-
-
-        /* Tie the screen to the monitor section */
-        conf_screen->monitor_name =
-            xconfigStrdup(display->conf_monitor->identifier);
-        conf_screen->monitor = display->conf_monitor;
-
-
-        /* Add the modelines of all other connected displays to the monitor */
-        for (other = display->next_in_screen;
-             other;
-             other = other->next_in_screen) {
-            add_modelines_to_monitor(display->conf_monitor, other->modes);
-        }
-
-        /* Set the Stereo option */
-        {
-            char buf[32];
-            snprintf(buf, 32, "%d", screen->stereo);
-            xconfigAddNewOption(&conf_screen->options, "Stereo", buf);
-        }
-
-        /* Set the nvidiaXineramaInfoOrder option */
-        if (screen->primaryDisplay) {
-            xconfigAddNewOption(&conf_screen->options,
-                                "nvidiaXineramaInfoOrder",
-                                screen->primaryDisplay->typeIdName);
-        }
-
-        /* Create the "metamode" option string. */
-        ret = generate_xconf_metamode_str(ctk_object, screen, &metamode_strs);
-        if (ret != XCONFIG_GEN_OK) goto bail;
-
-        /* If no user specified metamodes were found, add
-         * whatever the currently selected metamode is
-         */
-        if (!metamode_strs) {
-            metamode_strs = screen_get_metamode_str(screen,
-                                                    screen->cur_metamode_idx,
-                                                    0);
-        }
-
-        if (metamode_strs) {
-            xconfigAddNewOption(&conf_screen->options, "metamodes",
-                                metamode_strs);
-            free(metamode_strs);
-        }
-
-        /* Set Mosaic configuration */
-        if (screen->display_owner_gpu->mosaic_enabled) {
-            xconfigAddNewOption(&conf_screen->options, "MultiGPU", "Off");
-
-            switch (screen->display_owner_gpu->mosaic_type) {
-            case MOSAIC_TYPE_SLI_MOSAIC:
-                xconfigAddNewOption(&conf_screen->options, "SLI", "Mosaic");
-                xconfigAddNewOption(&conf_screen->options, "BaseMosaic", "off");
-                break;
-            case MOSAIC_TYPE_BASE_MOSAIC:
-            case MOSAIC_TYPE_BASE_MOSAIC_LIMITED:
-                xconfigAddNewOption(&conf_screen->options, "SLI", "off");
-                xconfigAddNewOption(&conf_screen->options, "BaseMosaic", "on");
-                break;
-            default:
-                nv_warning_msg("Unknown mosaic mode %d",
-                               screen->display_owner_gpu->mosaic_type);
-                xconfigAddNewOption(&conf_screen->options, "SLI",
-                                    screen->sli_mode ? screen->sli_mode : "Off");
-                xconfigAddNewOption(&conf_screen->options, "BaseMosaic", "off");
-                break;
-            }
-        } else {
-            /* Set SLI configuration */
-            if (screen->sli_mode &&
-                !g_ascii_strcasecmp(screen->sli_mode, "Mosaic")) {
-                xconfigAddNewOption(&conf_screen->options, "SLI", "Off");
-            } else {
-                xconfigAddNewOption(&conf_screen->options, "SLI",
-                                    screen->sli_mode ? screen->sli_mode : "Off");
-            }
-
-            xconfigAddNewOption(&conf_screen->options, "MultiGPU",
-                                screen->multigpu_mode ? screen->multigpu_mode : "Off");
-
-            xconfigAddNewOption(&conf_screen->options, "BaseMosaic", "off");
-
-        }
+    }
+    if (!display) {
+        nv_error_msg("Unable to find a display device for screen %d!",
+                     screen->scrnum);
+        goto fail;
     }
 
 
+    /* Create the screen's only Monitor section from the first display */
+    if (!add_monitor_to_xconfig(display, config, screen->scrnum)) {
+        nv_error_msg("Failed to add display device '%s' to screen %d!",
+                     display->name, screen->scrnum);
+        goto fail;
+    }
+
+
+    /* Tie the screen to the monitor section */
+    conf_screen->monitor_name =
+        xconfigStrdup(display->conf_monitor->identifier);
+    conf_screen->monitor = display->conf_monitor;
+
+
+    /* Add the modelines of all other connected displays to the monitor */
+    for (other = screen->gpu->displays; other; other = other->next) {
+        if (other->screen != screen) continue;
+        if (other == display) continue;
+
+        /* Add modelines used by this display */
+        add_modelines_to_monitor(display->conf_monitor, other->modes);
+    }
+
+    /* Set the TwinView option */
+    conf_screen->options = xconfigAddNewOption(conf_screen->options,
+                                               "TwinView",
+                                               ((screen->num_displays > 1) ?
+                                                "1" : "0" ));
+
+
+    /* Set the TwinviewXineramaInfoOrder option */
+
+    if (screen->primaryDisplay) {
+        gchar *primary_str =
+           display_get_type_str(screen->primaryDisplay->device_mask, 0);
+
+        conf_screen->options = xconfigAddNewOption(conf_screen->options,
+                                                   "TwinViewXineramaInfoOrder",
+                                                   primary_str);
+        g_free(primary_str);
+    }
+
+    /* Create the "metamode" option string. */
+    ret = generate_xconf_metamode_str(ctk_object, screen, &metamode_strs);
+    if (ret != XCONFIG_GEN_OK) goto bail;
+
+    /* If no user specified metamodes were found, add
+     * whatever the currently selected metamode is
+     */
+    if (!metamode_strs) {
+        metamode_strs = screen_get_metamode_str(screen,
+                                                screen->cur_metamode_idx, 1);
+    }
+
+    if (metamode_strs) {
+        conf_screen->options =
+            xconfigAddNewOption(conf_screen->options, "metamodes",
+                                metamode_strs);
+        free(metamode_strs);
+    }
+    
+    
     /* Setup the display section */
     conf_screen->defaultdepth = screen->depth;
 
@@ -9156,8 +6992,9 @@ static int add_screen_to_xconfig(CtkDisplayConfig *ctk_object,
 
 
     /* Append to the end of the screen list */
-    xconfigAddListItem((GenericListPtr *)(&config->screens),
-                       (GenericListPtr)conf_screen);
+    config->screens =
+        (XConfigScreenPtr)xconfigAddListItem((GenericListPtr)config->screens,
+                                             (GenericListPtr)conf_screen);
     
     screen->conf_screen = conf_screen;
 
@@ -9170,60 +7007,11 @@ static int add_screen_to_xconfig(CtkDisplayConfig *ctk_object,
     ret = XCONFIG_GEN_ERROR;
  bail:
     if (conf_screen) {
-        xconfigFreeScreenList(&conf_screen);
+        xconfigFreeScreenList(conf_screen);
     }
     return ret;
 
 } /* add_screen_to_xconfig() */
-
-
-
-/*
- * get_device_screen_id() - Returns the screen number that should be
- * used in the device section that maps to the given screen's screen
- * section.
- */
-static int get_device_screen_id(nvGpuPtr gpu, nvScreenPtr screen)
-{
-    nvLayoutPtr layout = gpu->layout;
-    nvScreenPtr other;
-    int device_screen_id;
-    int num_screens_on_gpu;
-
-    /* Go through the GPU's screens and figure out what the
-     * GPU-relative screen number should be for the given
-     * screen's device section.
-     *
-     * This is done by counting the number of screens that
-     * have a screen number that is lower than the given
-     * screen, and that's the relative position of this
-     * screen wrt the GPU.
-     */
-
-    device_screen_id = 0;
-    num_screens_on_gpu = 0;
-    for (other = layout->screens; other; other = other->next_in_layout) {
-        if (!screen_has_gpu(other, gpu)) {
-            continue;
-        }
-
-        num_screens_on_gpu++;
-
-        if (other == screen) continue;
-
-        if (screen->scrnum > other->scrnum) {
-            device_screen_id++;
-        }
-    }
-
-    /* If there is only one screen on the GPU, the device
-     * section shouldn't specify a "Screen #"
-     */
-    if (num_screens_on_gpu < 2) return -1;
-
-    return device_screen_id;
-
-} /* get_device_screen_id() */
 
 
 
@@ -9235,22 +7023,26 @@ static int get_device_screen_id(nvGpuPtr gpu, nvScreenPtr screen)
 static int add_screens_to_xconfig(CtkDisplayConfig *ctk_object,
                                   nvLayoutPtr layout, XConfigPtr config)
 {
+    nvGpuPtr gpu;
     nvScreenPtr screen;
-    int device_screen_id;
+    int device_id;
     int print_bus_ids;
     int ret;
 
 
     /* Clear the screen list */
-    xconfigFreeMonitorList(&config->monitors);
-    xconfigFreeDeviceList(&config->devices);
-    xconfigFreeScreenList(&config->screens);
+    xconfigFreeMonitorList(config->monitors);
+    config->monitors = NULL;
+    xconfigFreeDeviceList(config->devices);
+    config->devices = NULL;
+    xconfigFreeScreenList(config->screens);
+    config->screens = NULL;
 
     /* Don't print the bus ID in the case where we have a single
      * GPU driving a single X screen
      */
-    if ((layout->num_gpus == 1) &&
-        (layout->num_screens == 1)) {
+    if (layout->num_gpus == 1 &&
+        layout->gpus->num_screens == 1) {
         print_bus_ids = 0;
     } else {
         print_bus_ids = 1;
@@ -9258,35 +7050,38 @@ static int add_screens_to_xconfig(CtkDisplayConfig *ctk_object,
 
     /* Generate the Device sections and Screen sections */
 
-    for (screen = layout->screens; screen; screen = screen->next_in_layout) {
-        nvGpuPtr gpu = screen->display_owner_gpu;
+    device_id = 0;
 
-        /* Figure out what screen number to use for the device section. */
-        device_screen_id = get_device_screen_id(gpu, screen);
+    for (gpu = layout->gpus; gpu; gpu = gpu->next) {
+        int device_screen_id = -1;
 
-        /* Each screen needs a unique device section
-         *
-         * Note that the device id used to name the
-         * device section is the same as the screen
-         * number such that the name of the two sections
-         * match.
-         */
-        screen->conf_device = add_device_to_xconfig(gpu, config,
-                                                    screen->scrnum,
-                                                    device_screen_id,
-                                                    print_bus_ids);
-        if (!screen->conf_device) {
-            nv_error_msg("Failed to add device '%s' to X config.",
-                         gpu->name);
-            goto fail;
+        for (screen = gpu->screens; screen; screen = screen->next) {
+
+            /* Only print a screen number if more than 1 screen on gpu */
+            if (gpu->num_screens > 1) {
+                device_screen_id++;
+            }
+
+            /* Each screen needs a unique device section */
+            screen->conf_device = add_device_to_xconfig(gpu, config,
+                                                        device_id,
+                                                        device_screen_id,
+                                                        print_bus_ids);
+            if (!screen->conf_device) {
+                nv_error_msg("Failed to add device '%s' to X config.",
+                             gpu->name);
+                goto fail;
+            }
+
+            ret = add_screen_to_xconfig(ctk_object, screen, config);
+            if (ret == XCONFIG_GEN_ERROR) {
+                nv_error_msg("Failed to add X screen %d to X config.",
+                             screen->scrnum);
+            }
+            if (ret != XCONFIG_GEN_OK) goto bail;
+
+            device_id++;
         }
-
-        ret = add_screen_to_xconfig(ctk_object, screen, config);
-        if (ret == XCONFIG_GEN_ERROR) {
-            nv_error_msg("Failed to add X screen %d to X config.",
-                         screen->scrnum);
-        }
-        if (ret != XCONFIG_GEN_OK) goto bail;
     }
 
     return XCONFIG_GEN_OK;
@@ -9297,9 +7092,12 @@ static int add_screens_to_xconfig(CtkDisplayConfig *ctk_object,
  fail:
     ret = XCONFIG_GEN_ERROR;
  bail:
-    xconfigFreeMonitorList(&config->monitors);
-    xconfigFreeDeviceList(&config->devices);
-    xconfigFreeScreenList(&config->screens);
+    xconfigFreeMonitorList(config->monitors);
+    config->monitors = NULL;
+    xconfigFreeDeviceList(config->devices);
+    config->devices = NULL;
+    xconfigFreeScreenList(config->screens);
+    config->screens = NULL;    
     return ret;
 
 } /* add_screens_to_xconfig() */
@@ -9323,11 +7121,11 @@ static Bool add_adjacency_to_xconfig(nvScreenPtr screen, XConfigPtr config)
     adj->scrnum = screen->scrnum;
     adj->screen = screen->conf_screen;
     adj->screen_name = xconfigStrdup(screen->conf_screen->identifier);
-
+    
     /* Position the X screen */
     if (screen->position_type == CONF_ADJ_ABSOLUTE) {
-        adj->x = screen->dim.x;
-        adj->y = screen->dim.y;
+        adj->x = screen->dim[X];
+        adj->y = screen->dim[Y];
     } else {
         adj->where = screen->position_type;
         adj->refscreen =
@@ -9337,8 +7135,9 @@ static Bool add_adjacency_to_xconfig(nvScreenPtr screen, XConfigPtr config)
     }
 
     /* Append to the end of the screen list */
-    xconfigAddListItem((GenericListPtr *)(&conf_layout->adjacencies),
-                       (GenericListPtr)adj);
+    conf_layout->adjacencies =
+        (XConfigAdjacencyPtr)xconfigAddListItem((GenericListPtr)conf_layout->adjacencies,
+                                                (GenericListPtr)adj);
 
     return TRUE;
 
@@ -9355,6 +7154,7 @@ static Bool add_adjacency_to_xconfig(nvScreenPtr screen, XConfigPtr config)
 static Bool add_layout_to_xconfig(nvLayoutPtr layout, XConfigPtr config)
 {
     XConfigLayoutPtr conf_layout;
+    nvGpuPtr gpu;
     nvScreenPtr screen;
     int scrnum;
 
@@ -9368,30 +7168,36 @@ static Bool add_layout_to_xconfig(nvLayoutPtr layout, XConfigPtr config)
 
 
     /* Clean up the adjacencies */
-    xconfigFreeAdjacencyList(&conf_layout->adjacencies);
+    xconfigFreeAdjacencyList(conf_layout->adjacencies);
+    conf_layout->adjacencies = NULL;
 
-
+    
     /* Assign the adjacencies (in order) */
     scrnum = 0;
     do {
-        /* Find the next screen to write */
         screen = NULL;
-        for (screen = layout->screens;
-             screen;
-             screen = screen->next_in_layout) {
-            if (screen->scrnum == scrnum) break;
+        for (gpu = layout->gpus; gpu; gpu = gpu->next) {
+            for (screen = gpu->screens; screen; screen = screen->next) {
+                if (screen->scrnum == scrnum) break;
+            }
+            if (screen) {
+                if (!add_adjacency_to_xconfig(screen, config)) goto fail;
+                break;
+            }
         }
-        if (screen) {
-            if (!add_adjacency_to_xconfig(screen, config)) goto fail;
-        }
-
         scrnum++;
     } while (screen);
 
 
     /* Setup for Xinerama */
-    xconfigAddNewOption(&conf_layout->options, "Xinerama",
-                        (layout->xinerama_enabled ? "1" : "0"));
+    if (!config->flags) {
+        config->flags = (XConfigFlagsPtr) calloc(1, sizeof(XConfigFlagsRec));
+        if (!config->flags) goto fail;
+    }
+    config->flags->options =
+        xconfigAddNewOption(config->flags->options,
+                            "Xinerama",
+                            (layout->xinerama_enabled ? "1" : "0"));
 
     layout->conf_layout = conf_layout;
     return TRUE;
@@ -9400,6 +7206,39 @@ static Bool add_layout_to_xconfig(nvLayoutPtr layout, XConfigPtr config)
     return FALSE;
 
 } /* add_layout_to_xconfig() */
+
+
+
+/*
+ * get_default_project_root() - scan some common directories for the X
+ * project root
+ *
+ * Users of this information should be careful to account for the
+ * modular layout.
+ */
+
+char *get_default_project_root(void)
+{
+    char *paths[] = { "/usr/X11R6", "/usr/X11", NULL };
+    struct stat stat_buf;
+    int i;
+        
+    for (i = 0; paths[i]; i++) {
+        
+        if (stat(paths[i], &stat_buf) == -1) {
+            continue;
+        }
+    
+        if (S_ISDIR(stat_buf.st_mode)) {
+            return paths[i];
+        }
+    }
+    
+    /* default to "/usr/X11R6", I guess */
+
+    return paths[0];
+
+} /* get_default_project_root() */
 
 
 
@@ -9413,15 +7252,28 @@ static int generateXConfig(CtkDisplayConfig *ctk_object, XConfigPtr *pConfig)
     nvLayoutPtr layout = ctk_object->layout;
     XConfigPtr config = NULL;
     GenerateOptions go;
+    char *server_vendor;
     int ret;
 
 
     if (!pConfig) goto fail;
 
 
+    /* Query server X.Org/XFree86 */
+    server_vendor = NvCtrlGetServerVendor(layout->handle);
+    if (server_vendor && g_strrstr(server_vendor, "X.Org")) {
+        go.xserver = X_IS_XORG;
+    } else {
+        go.xserver = X_IS_XF86;
+    }
+
+
     /* XXX Assume we are creating an X config file for the local system */
-    xconfigGenerateLoadDefaultOptions(&go);
-    xconfigGetXServerInUse(&go);
+    go.x_project_root = get_default_project_root();
+    go.keyboard = NULL;
+    go.mouse = NULL;
+    go.keyboard_driver = NULL;
+
 
     /* Generate the basic layout */
     config = xconfigGenerate(&go);
@@ -9439,45 +7291,6 @@ static int generateXConfig(CtkDisplayConfig *ctk_object, XConfigPtr *pConfig)
         goto fail;
     }
 
-    /* Check if composite should be disabled */
-    {
-        char *composite_disabled_str = NULL;
-        nvScreenPtr screen;
-
-        /* See if any X screens have overlay, cioverlay, ubb or stereo enabled,
-         * or depth 8.
-         */
-        for (screen = layout->screens; screen; screen = screen->next_in_layout) {
-
-            composite_disabled_str =
-                xconfigValidateComposite(config,
-                                         &go,
-                                         1, // composite_specified
-                                         layout->xinerama_enabled,
-                                         screen->depth,
-                                         screen->overlay && screen->hw_overlay,
-                                         screen->overlay && !screen->hw_overlay,
-                                         screen->ubb,
-                                         screen->stereo
-                                         );
-            if (composite_disabled_str) {
-                break;
-            }
-        }
-
-        if (composite_disabled_str) {
-            if (!config->extensions) {
-                config->extensions = nvalloc(sizeof(XConfigExtensionsRec));
-            }
-            xconfigRemoveNamedOption(&(config->extensions->options), 
-                                     go.compositeExtensionName,
-                                     NULL);
-            xconfigAddNewOption(&config->extensions->options, 
-                                go.compositeExtensionName, 
-                                "Disable");
-            nvfree(composite_disabled_str);
-        }
-    }
 
     *pConfig = config;
 
@@ -9490,7 +7303,7 @@ static int generateXConfig(CtkDisplayConfig *ctk_object, XConfigPtr *pConfig)
     ret = XCONFIG_GEN_ERROR;
  bail:
     if (config) {
-        xconfigFreeConfig(&config);
+        xconfigFreeConfig(config);
     }
     return ret;
 
@@ -9498,107 +7311,207 @@ static int generateXConfig(CtkDisplayConfig *ctk_object, XConfigPtr *pConfig)
 
 
 
-/** preserve_busid() **************************************************
+/*
+ * tilde_expansion() - do tilde expansion on the given path name;
+ * based loosely on code snippets found in the comp.unix.programmer
+ * FAQ.  The tilde expansion rule is: if a tilde ('~') is alone or
+ * followed by a '/', then substitute the current user's home
+ * directory; if followed by the name of a user, then substitute that
+ * user's home directory.
  *
- * Copies the BusID value from the source to the destination
- * configuration for devices with matching identifiers.
+ * Code adapted from nvidia-xconfig
+ */
+
+char *tilde_expansion(char *str)
+{
+    char *prefix = NULL;
+    char *replace, *user, *ret;
+    struct passwd *pw;
+    int len;
+
+    if ((!str) || (str[0] != '~')) return str;
+    
+    if ((str[1] == '/') || (str[1] == '\0')) {
+
+        /* expand to the current user's home directory */
+
+        prefix = getenv("HOME");
+        if (!prefix) {
+            
+            /* $HOME isn't set; get the home directory from /etc/passwd */
+            
+            pw = getpwuid(getuid());
+            if (pw) prefix = pw->pw_dir;
+        }
+        
+        replace = str + 1;
+        
+    } else {
+    
+        /* expand to the specified user's home directory */
+
+        replace = strchr(str, '/');
+        if (!replace) replace = str + strlen(str);
+
+        len = replace - str;
+        user = malloc(len + 1);
+        strncpy(user, str+1, len-1);
+        user[len] = '\0';
+        pw = getpwnam(user);
+        if (pw) prefix = pw->pw_dir;
+        free (user);
+    }
+
+    if (!prefix) return str;
+    
+    ret = malloc(strlen(prefix) + strlen(replace) + 1);
+    strcpy(ret, prefix);
+    strcat(ret, replace);
+    
+    return ret;
+
+} /* tilde_expansion() */
+
+
+
+/*
+ * update_banner() - add our banner at the top of the config, but
+ * first we need to remove any lines that already include our prefix
+ * (because presumably they are a banner from an earlier run of
+ * nvidia-settings)
+ *
+ * Code adapted from nvidia-xconfig
+ */
+
+extern const char *pNV_ID;
+
+static void update_banner(XConfigPtr config)
+{
+    static const char *banner =
+        "X configuration file generated by nvidia-settings\n";
+    static const char *prefix =
+        "# nvidia-settings: ";
+
+    char *s = config->comment;
+    char *line, *eol, *tmp;
+    
+    /* remove all lines that begin with the prefix */
+    
+    while (s && (line = strstr(s, prefix))) {
+        
+        eol = strchr(line, '\n'); /* find the end of the line */
+        
+        if (eol) {
+            eol++;
+            if (*eol == '\0') eol = NULL;
+        }
+        
+        if (line == s) { /* the line with the prefix is at the start */
+            if (eol) {   /* there is more after the prefix line */
+                tmp = g_strdup(eol);
+                g_free(s);
+                s = tmp;
+            } else {     /* the prefix line is the only line */
+                g_free(s);
+                s = NULL;
+            }
+        } else {         /* prefix line is in the middle or end */
+            *line = '\0';
+            tmp = g_strconcat(s, eol, NULL);
+            g_free(s);
+            s = tmp;
+        }
+    }
+    
+    /* add our prefix lines at the start of the comment */
+    config->comment = g_strconcat(prefix, banner,
+                                  "# ", pNV_ID, "\n",
+                                  (s ? s : ""),
+                                  NULL);
+    if (s) g_free(s);
+    
+} /* update_banner() */
+
+
+
+/** save_xconfig_file() **********************************************
+ *
+ * Saves the X config file text from buf into a file called
+ * filename.  If filename already exists, a backup file named
+ * 'filename.backup' is created.
  *
  **/
 
-static void preserve_busid(XConfigPtr dstConfig, XConfigPtr srcConfig)
+static int save_xconfig_file(CtkDisplayConfig *ctk_object,
+                             gchar *filename, char *buf, mode_t mode)
 {
-    XConfigDevicePtr dstDevice, srcDevice;
+    gchar *backup_filename = NULL;
+    FILE *fp = NULL;
+    size_t size;
+    gchar *err_msg = NULL;
 
-    for (srcDevice = srcConfig->devices;
-         srcDevice;
-         srcDevice = srcDevice->next) {
+    int ret = 0;
 
-        if (!srcDevice->busid) {
-            continue;
+
+    if (!buf || !filename) goto done;
+
+    size = strlen(buf) ;
+
+    /* Backup any existing file */
+    if ((access(filename, F_OK) == 0)) {
+
+        backup_filename = g_strdup_printf("%s.backup", filename);
+        nv_info_msg("", "X configuration file '%s' already exists, "
+                    "backing up file as '%s'", filename,
+                    backup_filename);
+        
+        /* Delete any existing backup file */
+        if (access(backup_filename, F_OK) == 0) {
+
+            if (unlink(backup_filename) != 0) {
+                err_msg =
+                    g_strdup_printf("Unable to remove old X config backup "
+                                    "file '%s'.",
+                                    backup_filename);
+                goto done;
+            }
         }
 
-        dstDevice =
-            xconfigFindDevice(srcDevice->identifier, dstConfig->devices);
-
-        /*
-         * Only overwrite the BusID in the destination config if
-         * the destination config has not generated its own
-         * BusID.  If nvidia-settings determines that the new
-         * requested config requires a specific BusID, a merge
-         * shouldn't overwrite that specific BusID just because
-         * the old config happened to have a device with a matching
-         * identifier and a specified BusID, which may be different
-         * and incompatible with the new config.
-         */
-        if (dstDevice &&
-            (dstDevice->busid == NULL)) {
-            dstDevice->busid = xconfigStrdup(srcDevice->busid);
+        /* Make the current x config file the backup */
+        if (rename(filename, backup_filename)) {
+                err_msg =
+                    g_strdup_printf("Unable to create new X config backup "
+                                    "file '%s'.",
+                                    backup_filename);
+            goto done;            
         }
     }
-}
 
-
-
-/** xconfig_generate() ***********************************************
- *
- * Callback to generate an X config structure based on the current
- * display configuration.
- *
- **/
-static XConfigPtr xconfig_generate(XConfigPtr xconfCur,
-                                   Bool merge,
-                                   Bool *merged,
-                                   void *callback_data)
-{
-    CtkDisplayConfig *ctk_object = (CtkDisplayConfig *)callback_data;
-    XConfigPtr xconfGen = NULL;
-    gint result;
-
-
-    *merged = FALSE;
-
-    /* Generate an X config structure from our layout */
-    result = generateXConfig(ctk_object, &xconfGen);
-    if ((result != XCONFIG_GEN_OK) || !xconfGen) {
-        goto fail;
+    /* Write out the X config file */
+    fp = fopen(filename, "w");
+    if (!fp) {
+        err_msg =
+            g_strdup_printf("Unable to open X config file '%s' for writing.",
+                            filename);
+        goto done;
     }
+    fprintf(fp, "%s", buf);
 
-    /* If we're not merging, we're done */
-    if (!xconfCur || !merge) {
-        return xconfGen;
-    }
-
-    /* The Bus ID of devices may not be set by generateXConfig above so to
-     * preserve this field, we have to copy the Bus IDs over before merging.
-     */
-    preserve_busid(xconfGen, xconfCur);
-
-    /* Merge xconfGen into xconfCur */
-    result = xconfigMergeConfigs(xconfCur, xconfGen);
-    if (!result) {
-        gchar *err_msg = g_strdup_printf("Failed to merge generated "
-                                         "configuration with existing "
-                                         "X config file!");
-        ctk_display_warning_msg(ctk_get_parent_window(GTK_WIDGET(ctk_object)),
-                                err_msg);
+    ret = 1;
+    
+ done:
+    /* Display any errors that might have occured */
+    if (err_msg) {
+        ctk_display_error_msg(ctk_get_parent_window(GTK_WIDGET(ctk_object)),
+                              err_msg);
         g_free(err_msg);
-        return xconfGen;
     }
 
-    /* Merge worked */
-    xconfigFreeConfig(&xconfGen);
-    *merged = TRUE;
-    return xconfCur;
-
-
- fail:
-    if (xconfGen) {
-        xconfigFreeConfig(&xconfGen);
-    }
-
-    return NULL;
-
-} /* xconfig_generate() */
+    if (fp) fclose(fp);
+    g_free(backup_filename);
+    return ret;
+    
+} /* save_xconfig_file() */
 
 
 
@@ -9611,6 +7524,13 @@ static XConfigPtr xconfig_generate(XConfigPtr xconfCur,
 static void save_clicked(GtkWidget *widget, gpointer user_data)
 {
     CtkDisplayConfig *ctk_object = CTK_DISPLAY_CONFIG(user_data);
+    gint result;
+    gboolean created;
+
+    gchar *filename;
+
+    void *buf;
+    GtkTextIter buf_start, buf_end;
 
 
     /* Make sure the layout is ready to be saved */
@@ -9618,12 +7538,83 @@ static void save_clicked(GtkWidget *widget, gpointer user_data)
         return;
     }
 
-    /* Run the save dialog */
-    if (run_save_xconfig_dialog(ctk_object->save_xconfig_dlg)) {
 
-        /* Config file written */
-        ctk_object->ctk_config->pending_config &=
-            ~CTK_CONFIG_PENDING_WRITE_DISPLAY_CONFIG;
+    /* Setup the default X config filename */
+    if (!ctk_object->layout->filename) {
+        filename = (gchar *) xconfigOpenConfigFile(NULL, NULL);
+        if (filename) {
+            ctk_object->layout->filename = g_strdup(filename);
+            xconfigCloseConfigFile();
+            filename = NULL;
+        } else {
+            ctk_object->layout->filename = g_strdup("");
+        }
+    }
+    gtk_entry_set_text(GTK_ENTRY(ctk_object->txt_xconfig_file),
+                       ctk_object->layout->filename);
+
+
+    /* Generate the X config file save buffer */
+    created = update_xconfig_save_buffer(ctk_object);
+    if (!created) {
+        return;
+    }
+
+
+    /* Confirm the save */
+    gtk_window_set_transient_for
+        (GTK_WINDOW(ctk_object->dlg_xconfig_save),
+         GTK_WINDOW(gtk_widget_get_toplevel(GTK_WIDGET(ctk_object))));
+    gtk_widget_hide(ctk_object->box_xconfig_save);
+    gtk_window_resize(GTK_WINDOW(ctk_object->dlg_xconfig_save), 350, 1);
+    gtk_window_set_resizable(GTK_WINDOW(ctk_object->dlg_xconfig_save),
+                             FALSE);
+    gtk_button_set_label(GTK_BUTTON(ctk_object->btn_xconfig_preview),
+                         "Show preview...");
+    gtk_widget_show(ctk_object->dlg_xconfig_save);
+    result = gtk_dialog_run(GTK_DIALOG(ctk_object->dlg_xconfig_save));
+    gtk_widget_hide(ctk_object->dlg_xconfig_save);
+    
+    
+    /* Handle user's response */
+    switch (result)
+    {
+    case GTK_RESPONSE_ACCEPT:
+
+        /* Get the filename to write to */
+        filename =
+            (gchar *) gtk_entry_get_text(GTK_ENTRY(ctk_object->txt_xconfig_file));
+
+        g_free(ctk_object->layout->filename);
+        ctk_object->layout->filename = tilde_expansion(filename);
+        if (ctk_object->layout->filename == filename) {
+            ctk_object->layout->filename = g_strdup(filename);
+        }
+        filename = ctk_object->layout->filename;
+
+
+        /* Get the buffer to write */
+        gtk_text_buffer_get_bounds
+            (GTK_TEXT_BUFFER(ctk_object->buf_xconfig_save), &buf_start,
+             &buf_end);
+        buf = (void *) gtk_text_buffer_get_text
+            (GTK_TEXT_BUFFER(ctk_object->buf_xconfig_save), &buf_start,
+             &buf_end, FALSE);
+        if (!buf) {
+            nv_error_msg("Failed to read X configuration buffer!");
+            break;
+        }
+
+        /* Save the X config file */
+        nv_info_msg("", "Writing X config file '%s'", filename);
+        save_xconfig_file(ctk_object, filename, (char *)buf, 0644);
+        g_free(buf);
+        break;
+        
+    case GTK_RESPONSE_REJECT:
+    default:
+        /* do nothing. */
+        break;
     }
 
 } /* save_clicked() */
@@ -9639,7 +7630,7 @@ static void save_clicked(GtkWidget *widget, gpointer user_data)
 static void advanced_clicked(GtkWidget *widget, gpointer user_data)
 {
     CtkDisplayConfig *ctk_object = CTK_DISPLAY_CONFIG(user_data);
-
+    
 
     /* Toggle advanced options for the display */
     ctk_object->advanced_mode = !(ctk_object->advanced_mode);
@@ -9648,18 +7639,20 @@ static void advanced_clicked(GtkWidget *widget, gpointer user_data)
     /* Show advanced display options */
     if (ctk_object->advanced_mode) {
         gtk_button_set_label(GTK_BUTTON(widget), "Basic...");
-        ctk_display_layout_set_advanced_mode
-            (CTK_DISPLAY_LAYOUT(ctk_object->obj_layout), 1);
+        ctk_display_layout_set_advanced_mode(CTK_DISPLAY_LAYOUT(ctk_object->obj_layout),
+                                             1);
 
     /* Show basic display options */
     } else {
         gtk_button_set_label(GTK_BUTTON(widget), "Advanced...");
-        ctk_display_layout_set_advanced_mode
-            (CTK_DISPLAY_LAYOUT(ctk_object->obj_layout), 0);
+        ctk_display_layout_set_advanced_mode(CTK_DISPLAY_LAYOUT(ctk_object->obj_layout),
+                                             0);
     }
 
+    
     /* Update the GUI to show the right widgets */
-    update_gui(ctk_object);
+    setup_display_page(ctk_object);
+    setup_screen_page(ctk_object);
 
 } /* advanced_clicked() */
 
@@ -9675,164 +7668,111 @@ static void probe_clicked(GtkWidget *widget, gpointer user_data)
 {
     CtkDisplayConfig *ctk_object = CTK_DISPLAY_CONFIG(user_data);
     unsigned int probed_displays;
-    nvLayoutPtr layout = ctk_object->layout;
+    unsigned int mask;
     nvGpuPtr gpu;
+    nvDisplayPtr display;
+    nvDisplayPtr selected_display = ctk_display_layout_get_selected_display
+        (CTK_DISPLAY_LAYOUT(ctk_object->obj_layout));
     ReturnStatus ret;
+    gchar *type;
+    gchar *str;
+
 
     /* Probe each GPU for display changes */
-    for (gpu = layout->gpus; gpu; gpu = gpu->next_in_layout) {
+    for (gpu = ctk_object->layout->gpus; gpu; gpu = gpu->next) {
+        if (!gpu->handle) continue;
+        
 
-        if (gpu->ctrl_target == NULL) {
-            continue;
-        }
-
-        ret = NvCtrlGetAttribute(gpu->ctrl_target, NV_CTRL_PROBE_DISPLAYS,
+        /* Do the probe */
+        ret = NvCtrlGetAttribute(gpu->handle, NV_CTRL_PROBE_DISPLAYS,
                                  (int *)&probed_displays);
         if (ret != NvCtrlSuccess) {
             nv_error_msg("Failed to probe for display devices on GPU-%d '%s'.",
-                         NvCtrlGetTargetId(gpu->ctrl_target), gpu->name);
+                         NvCtrlGetTargetId(gpu->handle), gpu->name);
             continue;
         }
 
-        /* Emit the probe event to ourself so changes are handled
-         * consistently.
-         */
+        /* Make sure other parts of nvidia-settings get updated */
         ctk_event_emit(gpu->ctk_event, 0,
                        NV_CTRL_PROBE_DISPLAYS, probed_displays);
+        
+        /* Go through the probed displays */
+        for (mask = 1; mask; mask <<= 1) {
+
+            /* Ask users about removing old displays */
+            if ((gpu->connected_displays & mask) &&
+                !(probed_displays & mask)) {
+
+                display = gpu_get_display(gpu, mask);
+                if (!display) continue; /* XXX ack. */
+
+                /* The selected display is being removed */
+                if (display == selected_display) {
+                    selected_display = NULL;
+                }
+                    
+                /* Setup the remove display dialog */
+                type = display_get_type_str(display->device_mask, 0);
+                str = g_strdup_printf("The display device %s (%s) on GPU-%d "
+                                      "(%s) has been\nunplugged.  Would you "
+                                      "like to remove this display from the "
+                                      "layout?",
+                                      display->name, type,
+                                      NvCtrlGetTargetId(gpu->handle),
+                                      gpu->name);
+                g_free(type);
+                gtk_label_set_text(GTK_LABEL(ctk_object->txt_display_disable),
+                                   str);
+                g_free(str);
+                
+                gtk_button_set_label
+                    (GTK_BUTTON(ctk_object->btn_display_disable_off),
+                     "Remove");
+
+                gtk_button_set_label
+                    (GTK_BUTTON(ctk_object->btn_display_disable_cancel),
+                     "Ignore");
+                 
+                /* Ask the user if they want to remove the display */
+                if (do_query_remove_display(ctk_object, display)) {
+                    
+                    /* Remove display from the GPU */
+                    gpu_remove_and_free_display(display);
+                    
+                    /* Let display layout widget know about change */
+                    ctk_display_layout_update_display_count
+                        (CTK_DISPLAY_LAYOUT(ctk_object->obj_layout), NULL);
+
+                    /* Activate the apply button */
+                    gtk_widget_set_sensitive(ctk_object->btn_apply, True);
+                }
+
+            /* Add new displays as 'disabled' */
+            } else if (!(gpu->connected_displays & mask) &&
+                       (probed_displays & mask)) {
+                gchar *err_str = NULL;
+                display = gpu_add_display_from_server(gpu, mask, &err_str);
+                if (err_str) {
+                    nv_warning_msg(err_str);
+                    g_free(err_str);
+                }
+                gpu_add_screenless_modes_to_displays(gpu);
+                ctk_display_layout_update_display_count
+                    (CTK_DISPLAY_LAYOUT(ctk_object->obj_layout),
+                     selected_display);
+            }
+        }
     }
+
+
+    /* Sync the GUI */
+    ctk_display_layout_redraw(CTK_DISPLAY_LAYOUT(ctk_object->obj_layout));
+    
+    setup_display_page(ctk_object);
+    
+    setup_screen_page(ctk_object);
 
 } /* probe_clicked() */
-
-/** layout_change_is_applyable() ***********************************
- *
- * Determine whether an updated layout should let the user press the Apply
- * button.
- *
- **/
-static gboolean layout_change_is_applyable(const nvLayoutPtr old,
-                                           const nvLayoutPtr new)
-{
-    const nvGpu *gpu;
-
-    /* The update should be applicable if any active display devices were
-     * removed. */
-    for (gpu = old->gpus; gpu; gpu = gpu->next_in_layout) {
-        const nvDisplay *dpy;
-
-        for (dpy = gpu->displays; dpy; dpy = dpy->next_on_gpu) {
-
-            /* See if the display was active in the old layout. */
-            if (!dpy->cur_mode || !dpy->cur_mode->modeline) {
-                continue;
-            }
-
-            /* This display device had an active mode in the old layout.  See if
-             * it's still connected in the new layout. */
-            if (!layout_get_display(new,
-                                    NvCtrlGetTargetId(dpy->ctrl_target))) {
-                return True;
-            }
-        }
-    }
-
-    return False;
-}
-
-
-
-/** update_layout() *************************************************
- *
- * Update layout and redraw.
- *
- **/
-
-static void update_layout(CtkDisplayConfig *ctk_object)
-{
-    ctk_display_layout_set_layout((CtkDisplayLayout *)(ctk_object->obj_layout),
-                                  ctk_object->layout);
-
-    /* Make sure X screens have some kind of position */
-    assign_screen_positions(ctk_object);
-
-    update_gui(ctk_object);
-
-    /* Get new position */
-    get_cur_screen_pos(ctk_object);
-
-    /* Update the apply button */
-    update_btn_apply(ctk_object, TRUE);
-
-    ctk_object->forced_reset_allowed = TRUE; /* OK to reset w/o user input */
-    ctk_object->notify_user_of_reset = TRUE; /* Notify user of new changes */
-    ctk_object->reset_required = FALSE; /* No reset required to apply */
-
-}
-
-
-
-/** reset_layout() *************************************************
- *
- * Load current X server settings.
- *
- **/
-
-static void reset_layout(CtkDisplayConfig *ctk_object)
-{
-    gchar *err_str = NULL;
-    nvLayoutPtr layout;
-    gboolean allow_apply;
-
-    /* Load the current layout */
-    layout = layout_load_from_server(ctk_object->ctrl_target, &err_str);
-
-    /* Handle errors loading the new layout */
-    if (!layout || err_str) {
-        if (err_str) {
-            nv_error_msg("%s", err_str);
-            g_free(err_str);
-        }
-        return;
-    }
-
-    /* See if we should allow the user to press the Apply button to make the new
-     * layout take effect, e.g. if an active display device disappeared. */
-    allow_apply = layout_change_is_applyable(ctk_object->layout, layout);
-
-    /* Free existing layout */
-    unregister_layout_events(ctk_object);
-    layout_free(ctk_object->layout);
-
-
-    /* Setup the new layout */
-    ctk_object->layout = layout;
-    ctk_display_layout_set_layout((CtkDisplayLayout *)(ctk_object->obj_layout),
-                                  ctk_object->layout);
-
-    register_layout_events(ctk_object);
-
-
-    /* Make sure all X screens have the same depth if Xinerama is enabled */
-    consolidate_xinerama(ctk_object, NULL);
-
-    /* Make sure X screens have some kind of position */
-    assign_screen_positions(ctk_object);
-
-    update_gui(ctk_object);
-
-    /* Get new position */
-    get_cur_screen_pos(ctk_object);
-
-    /* Update the apply button */
-    ctk_object->apply_possible = TRUE;
-    update_btn_apply(ctk_object, allow_apply);
-
-    update_mosaic_dialog_ui(ctk_object->dialog_mosaic, ctk_object->layout);
-
-    ctk_object->forced_reset_allowed = TRUE; /* OK to reset w/o user input */
-    ctk_object->notify_user_of_reset = TRUE; /* Notify user of new changes */
-    ctk_object->reset_required = FALSE; /* No reset required to apply */
-
-} /* reset_layout() */
 
 
 
@@ -9845,7 +7785,9 @@ static void reset_layout(CtkDisplayConfig *ctk_object)
 static void reset_clicked(GtkWidget *widget, gpointer user_data)
 {
     CtkDisplayConfig *ctk_object = CTK_DISPLAY_CONFIG(user_data);
+    nvLayoutPtr layout;
     gint result;
+    gchar *err_str = NULL;
 
 
     /* Show the confirm dialog */
@@ -9869,184 +7811,48 @@ static void reset_clicked(GtkWidget *widget, gpointer user_data)
         return;
     }
 
-    reset_layout(ctk_object);
+
+    /* Load the current layout */
+    layout = layout_load_from_server(ctk_object->handle, &err_str);
+
+
+    /* Handle errors loading the new layout */
+    if (!layout || err_str) {
+        nv_error_msg(err_str);
+        g_free(err_str);
+        return;
+    }   
+
+
+    /* Free the existing layout */
+    layout_free(ctk_object->layout);
+
+
+    /* Setup the new layout */
+    ctk_object->layout = layout;
+    ctk_display_layout_set_layout((CtkDisplayLayout *)(ctk_object->obj_layout),
+                                  ctk_object->layout);
+
+    /* Make sure all X screens have the same depth if Xinerama is enabled */
+    consolidate_xinerama(ctk_object, NULL);
+
+    /* Make sure X screens have some kind of position */
+    assign_screen_positions(ctk_object);
+
+
+    /* Setup the GUI */
+    setup_layout_frame(ctk_object);
+    setup_display_page(ctk_object);
+    setup_screen_page(ctk_object);
+
+    /* Get new position */
+    get_cur_screen_pos(ctk_object);
+
+    /* Clear the apply button */
+    ctk_object->apply_possible = TRUE;
+    gtk_widget_set_sensitive(ctk_object->btn_apply, FALSE);
 
 } /* reset_clicked() */
-
-
-
-/** force_layout_reset() ******************************************
- *
- * Pop up dialog box to user when the layout needs to be reloaded
- * due to changes made to the server layout by another client.
- *
- **/
-
-static gboolean force_layout_reset(gpointer user_data)
-{
-    gint result;
-    GtkWidget *parent;
-    GtkWidget *dlg;
-    CtkDisplayConfig *ctk_object = (CtkDisplayConfig *) user_data;
-
-    if ((ctk_object->forced_reset_allowed) ) {
-        /* It is OK to force a reset of the layout since no
-         * changes have been made.
-         */
-        reset_layout(ctk_object);
-        goto done;
-    }
-
-    /* It is not OK to force a reset of the layout since the user
-     * may have changed some settings.  The user will need to
-     * reset the layout manually.
-     */
-
-    ctk_object->reset_required = TRUE;
-
-    /* If the X server display configuration page is not currently
-     * selected, we will need to notify the user once they get
-     * back to it.
-     */
-    if (!ctk_object->page_selected) goto done;
-
-    /* Notify the user of the required reset if they haven't
-     * already been notified.
-     */
-    if (!ctk_object->notify_user_of_reset) goto done;
-
-    parent = ctk_get_parent_window(GTK_WIDGET(ctk_object));
-
-    dlg = gtk_message_dialog_new 
-        (GTK_WINDOW(parent),
-         GTK_DIALOG_DESTROY_WITH_PARENT,
-         GTK_MESSAGE_WARNING,
-         GTK_BUTTONS_NONE,
-         "Your current changes to the X server display configuration may no "
-         "longer be applied due to changes made to the running X server.\n\n"
-         "You may either reload the current X server settings and lose any "
-         "configuration setup in this page, or select \"Cancel\" and save "
-         "your changes to the X configuration file (requires restarting X "
-         "to take effect.)\n\n"
-         "If you select \"Cancel\", you will only be allowed to apply "
-         "settings once you have reset the configuration.");
-
-    gtk_dialog_add_buttons(GTK_DIALOG(dlg),
-                           "Reload current X server settings",
-                           GTK_RESPONSE_YES,
-                           "Cancel", GTK_RESPONSE_CANCEL,
-                           NULL);
-
-    result = gtk_dialog_run(GTK_DIALOG(dlg));
-    switch (result) {
-    case GTK_RESPONSE_YES:
-        reset_layout(ctk_object);
-        break;
-    case GTK_RESPONSE_CANCEL:
-        /* Fall through */
-    default:
-        /* User does not want to reset the layout, don't allow them
-         * to apply their changes (but allow them to save their changes)
-         * until they have reloaded the layout manually.
-         */
-        ctk_object->notify_user_of_reset = FALSE;
-        update_btn_apply(ctk_object, FALSE);
-        break;
-    }
-    gtk_widget_destroy(dlg);
-
-done:
-    ctk_object->ignore_reset_events = FALSE;
-    return FALSE;
-
-} /* force_layout_reset() */
-
-
-
-/** display_config_attribute_changed() *******************************
- *
- * Callback function for all display config page related events
- * change.
- *
- * Display configuration changes usually involve multiple related
- * events in succession.  To avoid reloading the layout for every
- * event, we register the force_layout_reset() function (once per
- * block of events) to be called when the app becomes idle (which
- * will happen once there are no more pending events) using
- * g_idle_add().  Once force_layout_reset() is called, it will
- * unregister itself by returning FALSE.
- *
- **/
-
-static void display_config_attribute_changed(GtkWidget *object,
-                                             CtrlEvent *event,
-                                             gpointer user_data)
-{
-    CtkDisplayConfig *ctk_object = (CtkDisplayConfig *) user_data;
-
-    if(ctk_object->dialog_mosaic && ctk_object->dialog_mosaic->is_active) {
-        GtkWidget *dlg;
-        GtkWidget *parent = ctk_get_parent_window(GTK_WIDGET(ctk_object));
-        dlg = gtk_message_dialog_new (GTK_WINDOW(parent),
-                                      GTK_DIALOG_MODAL,
-                                      GTK_MESSAGE_WARNING,
-                                      GTK_BUTTONS_OK,
-                                      "A change to the display configuration "
-                                      "has been detected. The information "
-                                      "shown here may no longer be valid. "
-                                      "Please close this dialog.");
-        gtk_dialog_run(GTK_DIALOG(dlg));
-        gtk_widget_destroy (dlg);
-    }
-
-    if (ctk_object->ignore_reset_events) return;
-
-    ctk_object->ignore_reset_events = TRUE;
-
-    /* queue force_layout_reset() to be called once all other pending
-     * events are consumed.
-     */
-    g_idle_add(force_layout_reset, (gpointer)ctk_object);
-
-} /* display_config_attribute_changed() */
-
-
-
-/** ctk_display_config_unselected() **********************************
- *
- * Called when display config page is unselected.
- *
- **/
-
-void  ctk_display_config_unselected(GtkWidget *widget) {
-    CtkDisplayConfig *ctk_object = CTK_DISPLAY_CONFIG(widget);
-
-    ctk_object->page_selected = FALSE;
-
-} /* ctk_display_config_unselected() */
-
-
-
-/** ctk_display_config_selected() ***********************************
- *
- * Called when display config page is selected.
- *
- **/
-
-void ctk_display_config_selected(GtkWidget *widget) {
-    CtkDisplayConfig *ctk_object=CTK_DISPLAY_CONFIG(widget);
-
-    ctk_object->page_selected = TRUE;
-
-    /* Handle case where a layout reset is required but we could
-     * not notify the user since the X server display configuration
-     * page was not selected
-     */
-    if (ctk_object->reset_required) {
-        force_layout_reset(ctk_object);
-    }
-
-} /* ctk_display_config_selected() */
 
 
 
@@ -10061,7 +7867,7 @@ static void validation_details_clicked(GtkWidget *widget, gpointer user_data)
 {
     CtkDisplayConfig *ctk_object = CTK_DISPLAY_CONFIG(user_data);
     gboolean show =
-        !(ctk_widget_get_visible(ctk_object->box_validation_override_details));
+        !(GTK_WIDGET_VISIBLE(ctk_object->box_validation_override_details));
 
     if (show) {
         gtk_widget_show_all(ctk_object->box_validation_override_details);

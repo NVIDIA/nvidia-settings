@@ -172,8 +172,9 @@ xconfigParseDisplaySubSection (void)
                     mptr = calloc (1, sizeof (XConfigModeRec));
                     mptr->mode_name = val.str;
                     mptr->next = NULL;
-                    xconfigAddListItem((GenericListPtr *)(&ptr->modes),
-                                       (GenericListPtr) mptr);
+                    ptr->modes = (XConfigModePtr)
+                        xconfigAddListItem ((GenericListPtr) ptr->modes,
+                                         (GenericListPtr) mptr);
                 }
                 xconfigUnGetToken (token);
             }
@@ -290,8 +291,9 @@ xconfigParseScreenSection (void)
                     aptr = calloc (1, sizeof (XConfigAdaptorLinkRec));
                     aptr->next = NULL;
                     aptr->adaptor_name = val.str;
-                    xconfigAddListItem ((GenericListPtr *)(&ptr->adaptors),
-                                        (GenericListPtr) aptr);
+                    ptr->adaptors = (XConfigAdaptorLinkPtr)
+                        xconfigAddListItem ((GenericListPtr) ptr->adaptors,
+                                         (GenericListPtr) aptr);
                 }
             }
             break;
@@ -420,76 +422,64 @@ xconfigPrintScreenSection (FILE * cf, XConfigScreenPtr ptr)
 }
 
 void
-xconfigFreeScreenList (XConfigScreenPtr *ptr)
+xconfigFreeScreenList (XConfigScreenPtr ptr)
 {
     XConfigScreenPtr prev;
 
-    if (ptr == NULL || *ptr == NULL)
-        return;
-
-    while (*ptr)
+    while (ptr)
     {
-        TEST_FREE ((*ptr)->identifier);
-        TEST_FREE ((*ptr)->monitor_name);
-        TEST_FREE ((*ptr)->device_name);
-        TEST_FREE ((*ptr)->comment);
-        xconfigFreeOptionList (&((*ptr)->options));
-        xconfigFreeAdaptorLinkList (&((*ptr)->adaptors));
-        xconfigFreeDisplayList (&((*ptr)->displays));
-        prev = *ptr;
-        *ptr = (*ptr)->next;
+        TEST_FREE (ptr->identifier);
+        TEST_FREE (ptr->monitor_name);
+        TEST_FREE (ptr->device_name);
+        TEST_FREE (ptr->comment);
+        xconfigOptionListFree (ptr->options);
+        xconfigFreeAdaptorLinkList (ptr->adaptors);
+        xconfigFreeDisplayList (ptr->displays);
+        prev = ptr;
+        ptr = ptr->next;
         free (prev);
     }
 }
 
 void
-xconfigFreeAdaptorLinkList (XConfigAdaptorLinkPtr *ptr)
+xconfigFreeAdaptorLinkList (XConfigAdaptorLinkPtr ptr)
 {
     XConfigAdaptorLinkPtr prev;
 
-    if (ptr == NULL || *ptr == NULL)
-        return;
-
-    while (*ptr)
+    while (ptr)
     {
-        TEST_FREE ((*ptr)->adaptor_name);
-        prev = *ptr;
-        *ptr = (*ptr)->next;
+        TEST_FREE (ptr->adaptor_name);
+        prev = ptr;
+        ptr = ptr->next;
         free (prev);
     }
 }
 
 void
-xconfigFreeDisplayList (XConfigDisplayPtr *ptr)
+xconfigFreeDisplayList (XConfigDisplayPtr ptr)
 {
     XConfigDisplayPtr prev;
 
-    if (ptr == NULL || *ptr == NULL)
-        return;
-
-    while (*ptr)
+    while (ptr)
     {
-        xconfigFreeModeList (&((*ptr)->modes));
-        xconfigFreeOptionList (&((*ptr)->options));
-        prev = *ptr;
-        *ptr = (*ptr)->next;
+        xconfigFreeModeList (ptr->modes);
+        xconfigOptionListFree (ptr->options);
+        prev = ptr;
+        ptr = ptr->next;
         free (prev);
     }
 }
 
 void
-xconfigFreeModeList (XConfigModePtr *ptr)
+xconfigFreeModeList (XConfigModePtr ptr)
 {
     XConfigModePtr prev;
 
-    if (ptr == NULL || *ptr == NULL)
-        return;
-
-    while (*ptr)
+    while (ptr)
     {
-        TEST_FREE ((*ptr)->mode_name);
-        prev = *ptr;
-        *ptr = (*ptr)->next;
+        TEST_FREE (ptr->mode_name);
+        prev = ptr;
+        ptr = ptr->next;
         free (prev);
     }
 }
@@ -656,39 +646,40 @@ xconfigFindMode (const char *name, XConfigModePtr p)
     return (NULL);
 }
 
-void
-xconfigAddMode(XConfigModePtr *pHead, const char *name)
+XConfigModePtr
+xconfigAddMode(XConfigModePtr head, const char *name)
 {
     XConfigModePtr mode;
     
     mode = xconfigAlloc(sizeof(XConfigModeRec));
     mode->mode_name = xconfigStrdup(name);
 
-    mode->next = *pHead;
-    *pHead = mode;
+    mode->next = head;
+
+    return mode;
+
 }
 
 
-void
-xconfigRemoveMode(XConfigModePtr *pHead, const char *name)
+XConfigModePtr
+xconfigRemoveMode(XConfigModePtr head, const char *name)
 {
-    XConfigModePtr p = *pHead;
-    XConfigModePtr last = NULL;
+    XConfigModePtr prev = NULL;
+    XConfigModePtr m = head;
 
-    while (p) {
-        if (xconfigNameCompare(p->mode_name, name) == 0) {
-            if (last) {
-                last->next = p->next;
-            } else {
-                *pHead = p->next;
-            }
-            free(p->mode_name);
-            free(p);
-            return;
+    while (m) {
+        if (xconfigNameCompare(m->mode_name, name) == 0) {
+            if (prev) prev->next = m->next;
+            if (head == m) head = m->next;
+            free(m->mode_name);
+            free(m);
+            break;
         }
-        last = p;
-        p = p->next;
+        prev = m;
+        m = m->next;
     }
+
+    return head;
 }
 
 

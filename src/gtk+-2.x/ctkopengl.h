@@ -4,17 +4,22 @@
  *
  * Copyright (C) 2004 NVIDIA Corporation.
  *
- * This program is free software; you can redistribute it and/or modify it
- * under the terms and conditions of the GNU General Public License,
- * version 2, as published by the Free Software Foundation.
+ * This program is free software; you can redistribute it and/or
+ * modify it under the terms of Version 2 of the GNU General Public
+ * License as published by the Free Software Foundation.
  *
- * This program is distributed in the hope that it will be useful, but WITHOUT
- * ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or
- * FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License for
- * more details.
+ * This program is distributed in the hope that it will be useful, but
+ * WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See Version 2
+ * of the GNU General Public License for more details.
  *
  * You should have received a copy of the GNU General Public License
- * along with this program.  If not, see <http://www.gnu.org/licenses>.
+ * along with this program; if not, write to the:
+ *
+ *           Free Software Foundation, Inc.
+ *           59 Temple Place - Suite 330
+ *           Boston, MA 02111-1307, USA
+ *
  */
 
 #ifndef __CTK_OPENGL_H__
@@ -50,29 +55,18 @@ struct _CtkOpenGL
 {
     GtkVBox parent;
 
-    CtrlTarget *ctrl_target;
+    NvCtrlAttributeHandle *handle;
     CtkConfig *ctk_config;
-    CtrlEvent *ctk_event;
 
     GtkWidget *sync_to_vblank_button;
     GtkWidget *allow_flipping_button;
-    GtkWidget *allow_vrr_button;
-    GtkWidget *show_vrr_visual_indicator_button;
-    GtkWidget *use_conformant_clamping_button;
     GtkWidget *force_stereo_button;
     GtkWidget *xinerama_stereo_button;
-    GtkWidget *stereo_eyes_exchange_button;
-    GtkWidget *stereo_swap_mode_menu;
-    GtkWidget *image_settings_dropdown;
+    GtkWidget *image_settings_scale;
     GtkWidget *aa_line_gamma_button;
-    GtkWidget *aa_line_gamma_scale;
-    GtkWidget *show_sli_visual_indicator_button;
-    GtkWidget *show_multigpu_visual_indicator_button;
-    GtkWidget *show_graphics_visual_indicator_button;
-
-    gint *stereo_swap_mode_table;
-    gint stereo_swap_mode_table_size;
-
+    GtkWidget *force_generic_cpu_button;
+    GtkWidget *show_sli_hud_button;
+    
     unsigned int active_attributes;
 };
 
@@ -82,7 +76,8 @@ struct _CtkOpenGLClass
 };
 
 GType       ctk_opengl_get_type  (void) G_GNUC_CONST;
-GtkWidget*  ctk_opengl_new       (CtrlTarget *, CtkConfig *, CtkEvent *);
+GtkWidget*  ctk_opengl_new       (NvCtrlAttributeHandle *,
+                                  CtkConfig *, CtkEvent *);
 
 GtkTextBuffer *ctk_opengl_create_help(GtkTextTagTable *, CtkOpenGL *);
 

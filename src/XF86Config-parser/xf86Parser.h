@@ -79,7 +79,7 @@
 #endif  // defined(__linux__)
 
 // Unix variations:  SunOS
-#if !defined(NV_SUNOS) && (defined(__sun__) || defined(__sun))
+#if !defined(NV_SUNOS) && defined(__sun__) || defined(__sun)
 #   define NV_SUNOS
 #endif // defined(__sun__)
 
@@ -169,7 +169,7 @@ typedef struct {
 /* Values for load_type */
 #define XCONFIG_LOAD_MODULE    0
 #define XCONFIG_LOAD_DRIVER    1
-#define XCONFIG_DISABLE_MODULE 2
+
 
 
 /*
@@ -186,7 +186,6 @@ typedef struct __xconfigloadrec {
 
 typedef struct {
     XConfigLoadPtr  loads;
-    XConfigLoadPtr  disables;
     char           *comment;
 } XConfigModuleRec, *XConfigModulePtr;
 
@@ -336,7 +335,6 @@ typedef struct __xconfigconfdevicerec {
     int               chiprev;
     int               irq;
     int               screen;
-    size_t            index_id;
     XConfigOptionPtr  options;
     char             *comment;
 } XConfigDeviceRec, *XConfigDevicePtr;
@@ -405,34 +403,6 @@ typedef struct __xconfigconfinputrec {
     XConfigOptionPtr   options;
     char              *comment;
 } XConfigInputRec, *XConfigInputPtr;
-
-
-
-/*
- * Input Class Section
- */
-
-typedef struct __xconfigconfinputclassrec {
-    struct __xconfigconfinputclassrec *next;
-    char              *identifier;
-    char              *driver;
-    char              *match_is_pointer;
-    char              *match_is_touchpad;
-    char              *match_is_touchscreen;
-    char              *match_is_keyboard;
-    char              *match_is_joystick;
-    char              *match_is_tablet;
-    char              *match_tag;
-    char              *match_device_path;
-    char              *match_os;
-    char              *match_usb_id;
-    char              *match_pnp_id;
-    char              *match_product;
-    char              *match_driver;
-    char              *match_vendor;
-    XConfigOptionPtr   options;
-    char              *comment;
-} XConfigInputClassRec, *XConfigInputClassPtr;
 
 
 
@@ -593,7 +563,6 @@ typedef struct {
     XConfigDevicePtr       devices;
     XConfigScreenPtr       screens;
     XConfigInputPtr        inputs;
-    XConfigInputClassPtr   inputclasses;
     XConfigLayoutPtr       layouts;
     XConfigVendorPtr       vendors;
     XConfigDRIPtr          dri;
@@ -613,7 +582,11 @@ typedef struct {
  * config, and when sanitizing an existing config
  */
 
+#define X_IS_XF86 0
+#define X_IS_XORG 1
+
 typedef struct {
+    int   xserver;
     char *x_project_root;
     char *keyboard;
     char *mouse;
@@ -621,8 +594,6 @@ typedef struct {
 
     int supports_extension_section;
     int autoloads_glx;
-    int xinerama_plus_composite_works;
-    const char *compositeExtensionName;
 
 } GenerateOptions;
 
@@ -637,7 +608,7 @@ int xconfigSanitizeConfig(XConfigPtr p, const char *screenName,
 void xconfigCloseConfigFile(void);
 int xconfigWriteConfigFile(const char *, XConfigPtr);
 
-void xconfigFreeConfig(XConfigPtr *p);
+void xconfigFreeConfig(XConfigPtr p);
 
 /*
  * Functions for searching for entries in lists
@@ -662,31 +633,29 @@ XConfigVideoAdaptorPtr xconfigFindVideoAdaptor(const char *ident,
  * Functions for freeing lists
  */
 
-void xconfigFreeDeviceList(XConfigDevicePtr *ptr);
-void xconfigFreeFiles(XConfigFilesPtr *p);
-void xconfigFreeFlags(XConfigFlagsPtr *flags);
-void xconfigFreeInputList(XConfigInputPtr *ptr);
-void xconfigFreeInputClassList(XConfigInputClassPtr *ptr);
-void xconfigFreeLayoutList(XConfigLayoutPtr *ptr);
-void xconfigFreeAdjacencyList(XConfigAdjacencyPtr *ptr);
-void xconfigFreeInputrefList(XConfigInputrefPtr *ptr);
-void xconfigFreeModules(XConfigModulePtr *ptr);
-void xconfigFreeMonitorList(XConfigMonitorPtr *ptr);
-void xconfigFreeModesList(XConfigModesPtr *ptr);
-void xconfigFreeModeLineList(XConfigModeLinePtr *ptr);
-void xconfigFreeOptionList(XConfigOptionPtr *opt);
-void xconfigFreeScreenList(XConfigScreenPtr *ptr);
-void xconfigFreeAdaptorLinkList(XConfigAdaptorLinkPtr *ptr);
-void xconfigFreeDisplayList(XConfigDisplayPtr *ptr);
-void xconfigFreeModeList(XConfigModePtr *ptr);
-void xconfigFreeVendorList(XConfigVendorPtr *p);
-void xconfigFreeVendorSubList(XConfigVendSubPtr *ptr);
-void xconfigFreeVideoAdaptorList(XConfigVideoAdaptorPtr *ptr);
-void xconfigFreeVideoPortList(XConfigVideoPortPtr *ptr);
-void xconfigFreeBuffersList (XConfigBuffersPtr *ptr);
-void xconfigFreeDRI(XConfigDRIPtr *ptr);
-void xconfigFreeExtensions(XConfigExtensionsPtr *ptr);
-void xconfigFreeModesLinkList(XConfigModesLinkPtr *ptr);
+void xconfigFreeDeviceList(XConfigDevicePtr ptr);
+void xconfigFreeFiles(XConfigFilesPtr p);
+void xconfigFreeFlags(XConfigFlagsPtr flags);
+void xconfigFreeInputList(XConfigInputPtr ptr);
+void xconfigFreeLayoutList(XConfigLayoutPtr ptr);
+void xconfigFreeAdjacencyList(XConfigAdjacencyPtr ptr);
+void xconfigFreeInputrefList(XConfigInputrefPtr ptr);
+void xconfigFreeModules(XConfigModulePtr ptr);
+void xconfigFreeMonitorList(XConfigMonitorPtr ptr);
+void xconfigFreeModesList(XConfigModesPtr ptr);
+void xconfigFreeModeLineList(XConfigModeLinePtr ptr);
+void xconfigFreeScreenList(XConfigScreenPtr ptr);
+void xconfigFreeAdaptorLinkList(XConfigAdaptorLinkPtr ptr);
+void xconfigFreeDisplayList(XConfigDisplayPtr ptr);
+void xconfigFreeModeList(XConfigModePtr ptr);
+void xconfigFreeVendorList(XConfigVendorPtr p);
+void xconfigFreeVendorSubList(XConfigVendSubPtr ptr);
+void xconfigFreeVideoAdaptorList(XConfigVideoAdaptorPtr ptr);
+void xconfigFreeVideoPortList(XConfigVideoPortPtr ptr);
+void xconfigFreeBuffersList (XConfigBuffersPtr ptr);
+void xconfigFreeDRI(XConfigDRIPtr ptr);
+void xconfigFreeExtensions(XConfigExtensionsPtr ptr);
+void xconfigFreeModesLinkList(XConfigModesLinkPtr ptr);
 
 
 
@@ -694,26 +663,26 @@ void xconfigFreeModesLinkList(XConfigModesLinkPtr *ptr);
  * item/list manipulation
  */
 
-void xconfigAddListItem(GenericListPtr *pHead, GenericListPtr c_new);
-void xconfigRemoveListItem(GenericListPtr *pHead, GenericListPtr item);
+GenericListPtr xconfigAddListItem(GenericListPtr head, GenericListPtr c_new);
+GenericListPtr xconfigRemoveListItem(GenericListPtr list, GenericListPtr item);
 int xconfigItemNotSublist(GenericListPtr list_1, GenericListPtr list_2);
 char *xconfigAddComment(char *cur, char *add);
-void xconfigAddNewLoadDirective(XConfigLoadPtr *pHead,
-                                char *name, int type,
-                                XConfigOptionPtr opts, int do_token);
-void xconfigRemoveLoadDirective(XConfigLoadPtr *pHead, XConfigLoadPtr load);
+XConfigLoadPtr xconfigAddNewLoadDirective(XConfigLoadPtr head,
+                                          char *name, int type,
+                                          XConfigOptionPtr opts, int do_token);
+XConfigLoadPtr xconfigRemoveLoadDirective(XConfigLoadPtr head,
+                                          XConfigLoadPtr load);
 
 /*
  * Functions for manipulating Options
  */
 
-void xconfigAddNewOption(XConfigOptionPtr *pHead,
-                         const char *name, const char *val);
-void xconfigRemoveOption(XConfigOptionPtr *pHead, XConfigOptionPtr opt);
-void xconfigRemoveNamedOption(XConfigOptionPtr *head, const char *name,
-                              char **comments);
-
+XConfigOptionPtr xconfigAddNewOption(XConfigOptionPtr head,
+                                     const char *name, const char *val);
+XConfigOptionPtr xconfigRemoveOption(XConfigOptionPtr list,
+                                     XConfigOptionPtr opt);
 XConfigOptionPtr xconfigOptionListDup(XConfigOptionPtr opt);
+void             xconfigOptionListFree(XConfigOptionPtr opt);
 char            *xconfigOptionName(XConfigOptionPtr opt);
 char            *xconfigOptionValue(XConfigOptionPtr opt);
 XConfigOptionPtr xconfigNewOption(const char *name, const char *value);
@@ -739,28 +708,21 @@ XConfigOptionPtr xconfigParseOption(XConfigOptionPtr head);
 void xconfigPrintOptionList(FILE *fp, XConfigOptionPtr list, int tabs);
 int xconfigParsePciBusString(const char *busID,
                              int *bus, int *device, int *func);
-void xconfigFormatPciBusString(char *str, int len,
-                               int domain, int bus, int device, int func);
 
-void xconfigAddDisplay(XConfigDisplayPtr *pHead, const int depth);
+XConfigDisplayPtr
+xconfigAddDisplay(XConfigDisplayPtr head, const int depth);
 
-void xconfigAddMode(XConfigModePtr *pHead, const char *name);
-void xconfigRemoveMode(XConfigModePtr *pHead, const char *name);
+XConfigModePtr
+xconfigAddMode(XConfigModePtr head, const char *name);
+
+XConfigModePtr
+xconfigRemoveMode(XConfigModePtr head, const char *name);
+
 
 XConfigPtr xconfigGenerate(GenerateOptions *gop);
 
-XConfigScreenPtr xconfigGenerateAddScreen(XConfigPtr config,
-                                          int bus, int domain, int slot,
-                                          char *boardname, int count,
-                                          const char *driver,
-                                          const char *vendor);
-
-XConfigDevicePtr add_device(XConfigPtr config, int bus, int domain,
-                            int slot, char *boardname, int count,
-                            const char *driver, const char *vendor, int active);
-
-void xconfigAddInactiveDevice(XConfigPtr config, XConfigLayoutPtr layout,
-                              int device_n);
+XConfigScreenPtr xconfigGenerateAddScreen(XConfigPtr config, int bus, int slot,
+                                          char *boardname, int count);
 
 void xconfigGenerateAssignScreenAdjacencies(XConfigLayoutPtr layout);
 
@@ -770,15 +732,6 @@ void xconfigGenerateLoadDefaultOptions(GenerateOptions *gop);
 
 void xconfigGetXServerInUse(GenerateOptions *gop);
 
-char *xconfigValidateComposite(XConfigPtr config,
-                               GenerateOptions *gop,
-                               int composite_enabled,
-                               int xinerama_enabled,
-                               int depth,
-                               int overlay_enabled,
-                               int cioverlay_enabled,
-                               int ubb_enabled,
-                               int stereo);
 
 /*
  * check (and update, if necessary) the inputs in the specified layout
