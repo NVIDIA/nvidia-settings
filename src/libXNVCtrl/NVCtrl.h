@@ -1,6 +1,30 @@
+/*
+ * Copyright (c) 2010 NVIDIA, Corporation
+ *
+ * Permission is hereby granted, free of charge, to any person obtaining a copy
+ * of this software and associated documentation files (the "Software"), to deal
+ * in the Software without restriction, including without limitation the rights
+ * to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+ * copies of the Software, and to permit persons to whom the Software is
+ * furnished to do so, subject to the following conditions:
+ *
+ * The above copyright notice and this permission notice (including the next
+ * paragraph) shall be included in all copies or substantial portions of the
+ * Software.
+ *
+ * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+ * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+ * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.  IN NO EVENT SHALL THE
+ * AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+ * LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+ * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+ * SOFTWARE.
+ */
+
 #ifndef __NVCTRL_H
 #define __NVCTRL_H
 
+#include <stdint.h>
 
 /**************************************************************************/
 
@@ -15,11 +39,15 @@
  * Here are the supported target types:
  */
 
-#define NV_CTRL_TARGET_TYPE_X_SCREEN   0
-#define NV_CTRL_TARGET_TYPE_GPU        1
-#define NV_CTRL_TARGET_TYPE_FRAMELOCK  2
-#define NV_CTRL_TARGET_TYPE_VCSC       3 /* Visual Computing System */
-
+#define NV_CTRL_TARGET_TYPE_X_SCREEN       0
+#define NV_CTRL_TARGET_TYPE_GPU            1
+#define NV_CTRL_TARGET_TYPE_FRAMELOCK      2
+#define NV_CTRL_TARGET_TYPE_VCSC           3 /* Visual Computing System */
+#define NV_CTRL_TARGET_TYPE_GVI            4
+#define NV_CTRL_TARGET_TYPE_COOLER         5 /* e.g., fan */
+#define NV_CTRL_TARGET_TYPE_THERMAL_SENSOR 6
+#define NV_CTRL_TARGET_TYPE_3D_VISION_PRO_TRANSCEIVER 7
+#define NV_CTRL_TARGET_TYPE_DISPLAY        8
 
 /**************************************************************************/
 
@@ -51,6 +79,10 @@
  *    designated with "D" below.  For attributes that do not require the
  *    display mask, the argument is ignored.
  *
+ *    Alternatively, NV-CONTROL versions 1.27 and greater allow these
+ *    attributes to be accessed via display target types, in which case
+ *    the display_mask is ignored.
+ *
  * G: The attribute may be queried using an NV_CTRL_TARGET_TYPE_GPU
  *    target type via XNVCTRLQueryTargetAttribute().
  *
@@ -58,14 +90,30 @@
  *    target type via XNVCTRLQueryTargetAttribute().
  *
  * X: When Xinerama is enabled, this attribute is kept consistent across
- *    all Physical X Screens;  Assignment of this attribute will be
+ *    all Physical X Screens;  assignment of this attribute will be
  *    broadcast by the NVIDIA X Driver to all X Screens.
  *
  * V: The attribute may be queried using an NV_CTRL_TARGET_TYPE_VCSC
- *    target type via XNVCTRLQueryTargetXXXAttribute().
- * 
+ *    target type via XNVCTRLQueryTargetAttribute().
+ *
+ * I: The attribute may be queried using an NV_CTRL_TARGET_TYPE_GVI target type
+ *    via XNVCTRLQueryTargetAttribute().
+ *
+ * Q: The attribute is a 64-bit integer attribute;  use the 64-bit versions
+ *    of the appropriate query interfaces.
+ *
+ * C: The attribute may be queried using an NV_CTRL_TARGET_TYPE_COOLER target
+ *    type via XNVCTRLQueryTargetAttribute().
+ *
+ * S: The attribute may be queried using an NV_CTRL_TARGET_TYPE_THERMAL_SENSOR
+ *    target type via XNVCTRLQueryTargetAttribute().
+ *
+ * T: The attribute may be queried using an
+ *    NV_CTRL_TARGET_TYPE_3D_VISION_PRO_TRANSCEIVER target type
+ *    via XNVCTRLQueryTargetAttribute().
+ *
  * NOTE: Unless mentioned otherwise, all attributes may be queried using
- *       an NV_CTRL_TARGET_TYPE_X_SCREEN target type via 
+ *       an NV_CTRL_TARGET_TYPE_X_SCREEN target type via
  *       XNVCTRLQueryTargetAttribute().
  */
 
@@ -90,18 +138,7 @@
 
 
 /*
- * NV_CTRL_FLATPANEL_SCALING - the current flat panel scaling state;
- * possible values are:
- *
- * 0: default (the driver will use whatever state is current)
- * 1: native (the driver will use the panel's scaler, if possible)
- * 2: scaled (the driver will use the GPU's scaler, if possible)
- * 3: centered (the driver will center the image)
- * 4: aspect scaled (scale with the GPU's scaler, but keep the aspect
- *    ratio correct)
- *
- * USAGE NOTE: This attribute has been deprecated in favor of the new
- *             NV_CTRL_FLATPANEL_GPU_SCALING attribute.
+ * NV_CTRL_FLATPANEL_SCALING - not supported
  */
 
 #define NV_CTRL_FLATPANEL_SCALING                               2  /* RWDG */
@@ -113,20 +150,28 @@
 
 
 /*
- * NV_CTRL_FLATPANEL_DITHERING - the current flat panel dithering
- * state; possible values are:
- *
- * 0: default  (the driver will decide when to dither)
- * 1: enabled  (the driver will always dither when possible)
- * 2: disabled (the driver will never dither)
- *
- * USAGE NOTE: This attribute had been deprecated.
+ * NV_CTRL_FLATPANEL_DITHERING is deprecated; NV_CTRL_DITHERING should
+ * be used instead.
  */
 
 #define NV_CTRL_FLATPANEL_DITHERING                             3  /* RWDG */
 #define NV_CTRL_FLATPANEL_DITHERING_DEFAULT                     0
 #define NV_CTRL_FLATPANEL_DITHERING_ENABLED                     1
 #define NV_CTRL_FLATPANEL_DITHERING_DISABLED                    2
+
+/*
+ * NV_CTRL_DITHERING - the requested dithering configuration;
+ * possible values are:
+ *
+ * 0: auto     (the driver will decide when to dither)
+ * 1: enabled  (the driver will always dither when possible)
+ * 2: disabled (the driver will never dither)
+ */
+
+#define NV_CTRL_DITHERING                                       3  /* RWDG */
+#define NV_CTRL_DITHERING_AUTO                                  0
+#define NV_CTRL_DITHERING_ENABLED                               1
+#define NV_CTRL_DITHERING_DISABLED                              2
 
 
 /*
@@ -138,11 +183,13 @@
 
 
 /*
- * NV_CTRL_BUS_TYPE - returns the Bus type through which the GPU
- * driving the specified X screen is connected to the computer.
+ * NV_CTRL_BUS_TYPE - returns the bus type through which the specified device
+ * is connected to the computer.
+ * When this attribute is queried on an X screen target, the bus type of the
+ * GPU driving the X screen is returned.
  */
 
-#define NV_CTRL_BUS_TYPE                                        5  /* R--G */
+#define NV_CTRL_BUS_TYPE                                        5  /* R--GI */
 #define NV_CTRL_BUS_TYPE_AGP                                    0
 #define NV_CTRL_BUS_TYPE_PCI                                    1
 #define NV_CTRL_BUS_TYPE_PCI_EXPRESS                            2
@@ -150,7 +197,7 @@
 
 
 /*
- * NV_CTRL_VIDEO_RAM - returns the total amount of memory available
+ * NV_CTRL_TOTAL_GPU_MEMORY - returns the total amount of memory available
  * to the specified GPU (or the GPU driving the specified X
  * screen).  Note: if the GPU supports TurboCache(TM), the value
  * reported may exceed the amount of video memory installed on the
@@ -159,15 +206,18 @@
  * BIOS for use by the integrated GPU.
  */
 
-#define NV_CTRL_VIDEO_RAM                                       6  /* R--G */
+#define NV_CTRL_TOTAL_GPU_MEMORY                                6  /* R--G */
+#define NV_CTRL_VIDEO_RAM                NV_CTRL_TOTAL_GPU_MEMORY 
 
 
 /*
- * NV_CTRL_IRQ - returns the interrupt request line used by the GPU
- * driving the specified X screen.
+ * NV_CTRL_IRQ - returns the interrupt request line used by the specified
+ * device.
+ * When this attribute is queried on an X screen target, the IRQ of the GPU
+ * driving the X screen is returned.
  */
 
-#define NV_CTRL_IRQ                                             7  /* R--G */
+#define NV_CTRL_IRQ                                             7  /* R--GI */
 
 
 /*
@@ -236,7 +286,9 @@
 #define NV_CTRL_FSAA_MODE_16xS                                 11
 #define NV_CTRL_FSAA_MODE_16xQ                                 12
 #define NV_CTRL_FSAA_MODE_32xS                                 13
-#define NV_CTRL_FSAA_MODE_MAX NV_CTRL_FSAA_MODE_32xS
+#define NV_CTRL_FSAA_MODE_32x                                  14
+#define NV_CTRL_FSAA_MODE_64xS                                 15
+#define NV_CTRL_FSAA_MODE_MAX NV_CTRL_FSAA_MODE_64xS
 
 
 /*
@@ -280,8 +332,14 @@
 #define NV_CTRL_STEREO_DDC                                      1
 #define NV_CTRL_STEREO_BLUELINE                                 2
 #define NV_CTRL_STEREO_DIN                                      3
-#define NV_CTRL_STEREO_TWINVIEW                                 4
-
+#define NV_CTRL_STEREO_PASSIVE_EYE_PER_DPY                      4
+#define NV_CTRL_STEREO_VERTICAL_INTERLACED                      5
+#define NV_CTRL_STEREO_COLOR_INTERLACED                         6
+#define NV_CTRL_STEREO_HORIZONTAL_INTERLACED                    7
+#define NV_CTRL_STEREO_CHECKERBOARD_PATTERN                     8
+#define NV_CTRL_STEREO_INVERSE_CHECKERBOARD_PATTERN             9
+#define NV_CTRL_STEREO_3D_VISION                                10
+#define NV_CTRL_STEREO_3D_VISION_PRO                            11
 
 /*
  * NV_CTRL_EMULATE - controls OpenGL software emulation of future
@@ -381,17 +439,27 @@
 
 /*
  * NV_CTRL_FRAMELOCK_SYNC_DELAY - delay between the frame lock pulse
- * and the GPU sync.  This is an 11 bit value which is multipled by
- * 7.81 to determine the sync delay in microseconds.
+ * and the GPU sync.  This value must be multiplied by 
+ * NV_CTRL_FRAMELOCK_SYNC_DELAY_RESOLUTION to determine the sync delay in
+ * nanoseconds.
  *
  * This attribute may be queried through XNVCTRLQueryTargetAttribute()
  * using a NV_CTRL_TARGET_TYPE_FRAMELOCK or NV_CTRL_TARGET_TYPE_X_SCREEN
  * target.
+ *
+ * USAGE NODE: NV_CTRL_FRAMELOCK_SYNC_DELAY_MAX and
+ *             NV_CTRL_FRAMELOCK_SYNC_DELAY_FACTOR are deprecated.
+ *             The Sync Delay _MAX and _FACTOR are different for different
+ *             Quadro Sync products and so, to be correct, the valid values for
+ *             NV_CTRL_FRAMELOCK_SYNC_DELAY must be queried to get the range
+ *             of acceptable sync delay values, and 
+ *             NV_CTRL_FRAMELOCK_SYNC_DELAY_RESOLUTION must be queried to
+ *             obtain the correct factor.
  */
 
 #define NV_CTRL_FRAMELOCK_SYNC_DELAY                            24 /* RW-F */
-#define NV_CTRL_FRAMELOCK_SYNC_DELAY_MAX                        2047
-#define NV_CTRL_FRAMELOCK_SYNC_DELAY_FACTOR                     7.81
+#define NV_CTRL_FRAMELOCK_SYNC_DELAY_MAX                        2047 // deprecated
+#define NV_CTRL_FRAMELOCK_SYNC_DELAY_FACTOR                     7.81 // deprecated
 
 
 /*
@@ -464,7 +532,7 @@
 
 
 /*
- * NV_CTRL_FRAMELOCK_SYNC_READY - reports whether a slave frame lock
+ * NV_CTRL_FRAMELOCK_SYNC_READY - reports whether a frame lock
  * board is receiving sync (regardless of whether or not any display
  * devices are using the sync).
  *
@@ -586,6 +654,9 @@
  * conjunction with software such as the Valgrind memory debugger.
  * This setting is only applied to OpenGL clients that are started
  * after this setting is applied.
+ *
+ * USAGE NOTE: This attribute is deprecated. CPU compatibility is now
+ *             checked each time during initialization.
  */
 
 #define NV_CTRL_FORCE_GENERIC_CPU                               37 /* RW-X */
@@ -624,8 +695,7 @@
 
 /*
  * NV_CTRL_FLIPPING_ALLOWED - when TRUE, OpenGL will swap by flipping
- * when possible; when FALSE, OpenGL will alway swap by blitting.  XXX
- * can this be enabled dynamically?
+ * when possible; when FALSE, OpenGL will alway swap by blitting.
  */
 
 #define NV_CTRL_FLIPPING_ALLOWED                                40 /* RW-X */
@@ -645,12 +715,11 @@
 
 /*
  * NV_CTRL_TEXTURE_CLAMPING - texture clamping mode in OpenGL.  By
- * default, NVIDIA's OpenGL implementation uses CLAMP_TO_EDGE, which
- * is not strictly conformant, but some applications rely on the
- * non-conformant behavior, and not all GPUs support conformant
- * texture clamping in hardware.  _SPEC forces OpenGL texture clamping
- * to be conformant, but may introduce slower performance on older
- * GPUS, or incorrect texture clamping in certain applications.
+ * default, _SPEC is used, which forces OpenGL texture clamping to
+ * conform with the OpenGL specification.  _EDGE forces NVIDIA's
+ * OpenGL implementation to remap GL_CLAMP to GL_CLAMP_TO_EDGE,
+ * which is not strictly conformant, but some applications rely on
+ * the non-conformant behavior.
  */
 
 #define NV_CTRL_TEXTURE_CLAMPING                                42  /* RW-X */
@@ -836,16 +905,16 @@
  * NV_CTRL_GVO_SDI_SYNC_INPUT_DETECTED to detect what input syncs are
  * present.
  * 
- * (If no analog sync is detected but it is known that a valid
+ * (If no analog sync is detected but it is known that a valid
  * bi-level or tri-level sync is connected set
- * NV_CTRL_GVO_COMPOSITE_SYNC_INPUT_DETECT_MODE appropriately and
+ * NV_CTRL_GVO_COMPOSITE_SYNC_INPUT_DETECT_MODE appropriately and
  * retest with NV_CTRL_GVO_COMPOSITE_SYNC_INPUT_DETECTED).
  *
  * - if syncing to input sync, query the
- * NV_CTRL_GVO_INPUT_VIDEO_FORMAT attribute; note that Input video
+ * NV_CTRL_GVIO_DETECTED_VIDEO_FORMAT attribute; note that Input video
  * format can only be queried after SYNC_SOURCE is specified.
  *
- * - specify the NV_CTRL_GVO_OUTPUT_VIDEO_FORMAT
+ * - specify the NV_CTRL_GVIO_REQUESTED_VIDEO_FORMAT
  *
  * - specify the NV_CTRL_GVO_DATA_FORMAT
  *
@@ -859,22 +928,24 @@
  * glXSendPbufferToVideoNV(); see the GLX_NV_video_out spec for more
  * details.
  *
- * - if, rather than using the GLX_NV_video_out extension to display
- * GLX pbuffers on the GVO output, you wish display the X screen on
- * the GVO output, set NV_CTRL_GVO_DISPLAY_X_SCREEN to
- * NV_CTRL_GVO_DISPLAY_X_SCREEN_ENABLE.
+ * - if using the GLX_NV_present_video extension, call
+ * glXBindVideoDeviceNV() to bind the GVO video device to current
+ * OpenGL context.
  *
  * Note that setting most GVO attributes only causes the value to be
  * cached in the X server.  The values will be flushed to the hardware
- * either when NV_CTRL_GVO_DISPLAY_X_SCREEN is enabled, or when a GLX
- * pbuffer is bound to the GVO output (with glXBindVideoImageNV()).
+ * either when the next MetaMode is set that uses the GVO display
+ * device, or when a GLX pbuffer is bound to the GVO output (with
+ * glXBindVideoImageNV()).
  *
- * Note that GLX_NV_video_out and NV_CTRL_GVO_DISPLAY_X_SCREEN are
- * mutually exclusive.  If NV_CTRL_GVO_DISPLAY_X_SCREEN is enabled,
- * then glXGetVideoDeviceNV will fail.  Similarly, if a GLX client has
- * locked the GVO output (via glXGetVideoDeviceNV), then
- * NV_CTRL_GVO_DISPLAY_X_SCREEN will fail.  The NV_CTRL_GVO_GLX_LOCKED
- * event will be sent when a GLX client locks the GVO output.
+ * Note that GLX_NV_video_out/GLX_NV_present_video and X screen use
+ * are mutually exclusive.  If a MetaMode is currently using the GVO
+ * device, then glXGetVideoDeviceNV and glXBindVideoImageNV() will
+ * fail.  Similarly, if a GLX client has locked the GVO output (via
+ * glXGetVideoDeviceNV or glXBindVideoImageNV), then setting a
+ * MetaMode that uses the GVO device will fail.  The
+ * NV_CTRL_GVO_GLX_LOCKED event will be sent when a GLX client locks
+ * the GVO output.
  *
  */
 
@@ -926,8 +997,10 @@
 
 
 /*
- * NV_CTRL_GVO_OUTPUT_VIDEO_FORMAT - specifies the output video
- * format.  Note that the valid video formats will vary depending on
+ * NV_CTRL_GVIO_REQUESTED_VIDEO_FORMAT - specifies the desired output video
+ * format for GVO devices or the desired input video format for GVI devices.
+ *
+ * Note that for GVO, the valid video formats may vary depending on
  * the NV_CTRL_GVO_SYNC_MODE and the incoming sync video format.  See
  * the definition of NV_CTRL_GVO_SYNC_MODE.
  *
@@ -935,16 +1008,96 @@
  * values are reported as bits within a bitmask
  * (ATTRIBUTE_TYPE_INT_BITS); unfortunately, there are more valid
  * value bits than will fit in a single 32-bit value.  To solve this,
- * query the ValidValues for NV_CTRL_GVO_OUTPUT_VIDEO_FORMAT to check
- * which of the first 31 VIDEO_FORMATS are valid, then query the
- * ValidValues for NV_CTRL_GVO_OUTPUT_VIDEO_FORMAT2 to check which of
- * the VIDEO_FORMATS with value 32 and higher are valid.
+ * query the ValidValues for NV_CTRL_GVIO_REQUESTED_VIDEO_FORMAT to
+ * check which of the first 31 VIDEO_FORMATS are valid, query the
+ * ValidValues for NV_CTRL_GVIO_REQUESTED_VIDEO_FORMAT2 to check which
+ * of the 32-63 VIDEO_FORMATS are valid, and query the ValidValues of
+ * NV_CTRL_GVIO_REQUESTED_VIDEO_FORMAT3 to check which of the 64-95
+ * VIDEO_FORMATS are valid.
+ *
+ * Note: Setting this attribute on a GVI device may also result in the
+ *       following NV-CONTROL attributes being reset on that device (to
+ *       ensure the configuration remains valid):
+ *           NV_CTRL_GVI_REQUESTED_STREAM_BITS_PER_COMPONENT
+ *           NV_CTRL_GVI_REQUESTED_STREAM_COMPONENT_SAMPLING
  */
 
+#define NV_CTRL_GVIO_REQUESTED_VIDEO_FORMAT                     70  /* RW--I */
+
+#define NV_CTRL_GVIO_VIDEO_FORMAT_NONE                          0
+#define NV_CTRL_GVIO_VIDEO_FORMAT_487I_59_94_SMPTE259_NTSC      1
+#define NV_CTRL_GVIO_VIDEO_FORMAT_576I_50_00_SMPTE259_PAL       2
+#define NV_CTRL_GVIO_VIDEO_FORMAT_720P_59_94_SMPTE296           3
+#define NV_CTRL_GVIO_VIDEO_FORMAT_720P_60_00_SMPTE296           4
+#define NV_CTRL_GVIO_VIDEO_FORMAT_1035I_59_94_SMPTE260          5
+#define NV_CTRL_GVIO_VIDEO_FORMAT_1035I_60_00_SMPTE260          6
+#define NV_CTRL_GVIO_VIDEO_FORMAT_1080I_50_00_SMPTE295          7
+#define NV_CTRL_GVIO_VIDEO_FORMAT_1080I_50_00_SMPTE274          8
+#define NV_CTRL_GVIO_VIDEO_FORMAT_1080I_59_94_SMPTE274          9
+#define NV_CTRL_GVIO_VIDEO_FORMAT_1080I_60_00_SMPTE274          10
+#define NV_CTRL_GVIO_VIDEO_FORMAT_1080P_23_976_SMPTE274         11
+#define NV_CTRL_GVIO_VIDEO_FORMAT_1080P_24_00_SMPTE274          12
+#define NV_CTRL_GVIO_VIDEO_FORMAT_1080P_25_00_SMPTE274          13
+#define NV_CTRL_GVIO_VIDEO_FORMAT_1080P_29_97_SMPTE274          14
+#define NV_CTRL_GVIO_VIDEO_FORMAT_1080P_30_00_SMPTE274          15
+#define NV_CTRL_GVIO_VIDEO_FORMAT_720P_50_00_SMPTE296           16
+#define NV_CTRL_GVIO_VIDEO_FORMAT_1080I_48_00_SMPTE274          17
+#define NV_CTRL_GVIO_VIDEO_FORMAT_1080I_47_96_SMPTE274          18
+#define NV_CTRL_GVIO_VIDEO_FORMAT_720P_30_00_SMPTE296           19 
+#define NV_CTRL_GVIO_VIDEO_FORMAT_720P_29_97_SMPTE296           20  
+#define NV_CTRL_GVIO_VIDEO_FORMAT_720P_25_00_SMPTE296           21 
+#define NV_CTRL_GVIO_VIDEO_FORMAT_720P_24_00_SMPTE296           22 
+#define NV_CTRL_GVIO_VIDEO_FORMAT_720P_23_98_SMPTE296           23  
+#define NV_CTRL_GVIO_VIDEO_FORMAT_1080PSF_25_00_SMPTE274        24
+#define NV_CTRL_GVIO_VIDEO_FORMAT_1080PSF_29_97_SMPTE274        25
+#define NV_CTRL_GVIO_VIDEO_FORMAT_1080PSF_30_00_SMPTE274        26
+#define NV_CTRL_GVIO_VIDEO_FORMAT_1080PSF_24_00_SMPTE274        27
+#define NV_CTRL_GVIO_VIDEO_FORMAT_1080PSF_23_98_SMPTE274        28
+#define NV_CTRL_GVIO_VIDEO_FORMAT_2048P_30_00_SMPTE372          29
+#define NV_CTRL_GVIO_VIDEO_FORMAT_2048P_29_97_SMPTE372          30
+#define NV_CTRL_GVIO_VIDEO_FORMAT_2048I_60_00_SMPTE372          31
+#define NV_CTRL_GVIO_VIDEO_FORMAT_2048I_59_94_SMPTE372          32
+#define NV_CTRL_GVIO_VIDEO_FORMAT_2048P_25_00_SMPTE372          33
+#define NV_CTRL_GVIO_VIDEO_FORMAT_2048I_50_00_SMPTE372          34
+#define NV_CTRL_GVIO_VIDEO_FORMAT_2048P_24_00_SMPTE372          35
+#define NV_CTRL_GVIO_VIDEO_FORMAT_2048P_23_98_SMPTE372          36
+#define NV_CTRL_GVIO_VIDEO_FORMAT_2048I_48_00_SMPTE372          37
+#define NV_CTRL_GVIO_VIDEO_FORMAT_2048I_47_96_SMPTE372          38
+#define NV_CTRL_GVIO_VIDEO_FORMAT_1080P_50_00_3G_LEVEL_A_SMPTE274  39
+#define NV_CTRL_GVIO_VIDEO_FORMAT_1080P_59_94_3G_LEVEL_A_SMPTE274  40
+#define NV_CTRL_GVIO_VIDEO_FORMAT_1080P_60_00_3G_LEVEL_A_SMPTE274  41
+#define NV_CTRL_GVIO_VIDEO_FORMAT_1080P_60_00_3G_LEVEL_B_SMPTE274  42
+#define NV_CTRL_GVIO_VIDEO_FORMAT_1080I_60_00_3G_LEVEL_B_SMPTE274  43
+#define NV_CTRL_GVIO_VIDEO_FORMAT_2048I_60_00_3G_LEVEL_B_SMPTE372  44
+#define NV_CTRL_GVIO_VIDEO_FORMAT_1080P_50_00_3G_LEVEL_B_SMPTE274  45
+#define NV_CTRL_GVIO_VIDEO_FORMAT_1080I_50_00_3G_LEVEL_B_SMPTE274  46
+#define NV_CTRL_GVIO_VIDEO_FORMAT_2048I_50_00_3G_LEVEL_B_SMPTE372  47
+#define NV_CTRL_GVIO_VIDEO_FORMAT_1080P_30_00_3G_LEVEL_B_SMPTE274  48
+#define NV_CTRL_GVIO_VIDEO_FORMAT_2048P_30_00_3G_LEVEL_B_SMPTE372  49
+#define NV_CTRL_GVIO_VIDEO_FORMAT_1080P_25_00_3G_LEVEL_B_SMPTE274  50
+#define NV_CTRL_GVIO_VIDEO_FORMAT_2048P_25_00_3G_LEVEL_B_SMPTE372  51
+#define NV_CTRL_GVIO_VIDEO_FORMAT_1080P_24_00_3G_LEVEL_B_SMPTE274  52
+#define NV_CTRL_GVIO_VIDEO_FORMAT_2048P_24_00_3G_LEVEL_B_SMPTE372  53
+#define NV_CTRL_GVIO_VIDEO_FORMAT_1080I_48_00_3G_LEVEL_B_SMPTE274  54
+#define NV_CTRL_GVIO_VIDEO_FORMAT_2048I_48_00_3G_LEVEL_B_SMPTE372  55
+#define NV_CTRL_GVIO_VIDEO_FORMAT_1080P_59_94_3G_LEVEL_B_SMPTE274  56
+#define NV_CTRL_GVIO_VIDEO_FORMAT_1080I_59_94_3G_LEVEL_B_SMPTE274  57
+#define NV_CTRL_GVIO_VIDEO_FORMAT_2048I_59_94_3G_LEVEL_B_SMPTE372  58
+#define NV_CTRL_GVIO_VIDEO_FORMAT_1080P_29_97_3G_LEVEL_B_SMPTE274  59
+#define NV_CTRL_GVIO_VIDEO_FORMAT_2048P_29_97_3G_LEVEL_B_SMPTE372  60
+#define NV_CTRL_GVIO_VIDEO_FORMAT_1080P_23_98_3G_LEVEL_B_SMPTE274  61
+#define NV_CTRL_GVIO_VIDEO_FORMAT_2048P_23_98_3G_LEVEL_B_SMPTE372  62
+#define NV_CTRL_GVIO_VIDEO_FORMAT_1080I_47_96_3G_LEVEL_B_SMPTE274  63
+#define NV_CTRL_GVIO_VIDEO_FORMAT_2048I_47_96_3G_LEVEL_B_SMPTE372  64
+
+
+/* 
+ * The following are deprecated; NV_CTRL_GVIO_REQUESTED_VIDEO_FORMAT and the
+ * corresponding NV_CTRL_GVIO_* formats should be used instead.
+ */
 #define NV_CTRL_GVO_OUTPUT_VIDEO_FORMAT                         70  /* RW- */
 
 #define NV_CTRL_GVO_VIDEO_FORMAT_NONE                           0
-#define NV_CTRL_GVO_VIDEO_FORMAT_480I_59_94_SMPTE259_NTSC       1 //deprecated
 #define NV_CTRL_GVO_VIDEO_FORMAT_487I_59_94_SMPTE259_NTSC       1
 #define NV_CTRL_GVO_VIDEO_FORMAT_576I_50_00_SMPTE259_PAL        2
 #define NV_CTRL_GVO_VIDEO_FORMAT_720P_59_94_SMPTE296            3
@@ -961,9 +1114,7 @@
 #define NV_CTRL_GVO_VIDEO_FORMAT_1080P_29_97_SMPTE274           14
 #define NV_CTRL_GVO_VIDEO_FORMAT_1080P_30_00_SMPTE274           15
 #define NV_CTRL_GVO_VIDEO_FORMAT_720P_50_00_SMPTE296            16
-#define NV_CTRL_GVO_VIDEO_FORMAT_1080I_24_00_SMPTE274           17 //deprecated
 #define NV_CTRL_GVO_VIDEO_FORMAT_1080I_48_00_SMPTE274           17
-#define NV_CTRL_GVO_VIDEO_FORMAT_1080I_23_98_SMPTE274           18 //deprecated
 #define NV_CTRL_GVO_VIDEO_FORMAT_1080I_47_96_SMPTE274           18
 #define NV_CTRL_GVO_VIDEO_FORMAT_720P_30_00_SMPTE296            19 
 #define NV_CTRL_GVO_VIDEO_FORMAT_720P_29_97_SMPTE296            20  
@@ -987,13 +1138,22 @@
 #define NV_CTRL_GVO_VIDEO_FORMAT_2048I_47_96_SMPTE372           38
 
 /*
- * NV_CTRL_GVO_INPUT_VIDEO_FORMAT - indicates the input video format
- * detected; the possible values are the NV_CTRL_GVO_VIDEO_FORMAT
- * constants.
+ * NV_CTRL_GVIO_DETECTED_VIDEO_FORMAT - indicates the input video format
+ * detected for GVO or GVI devices; the possible values are the
+ * NV_CTRL_GVIO_VIDEO_FORMAT constants.
+ *
+ * For GVI devices, the jack number should be specified in the lower
+ * 16 bits of the "display_mask" parameter, while the channel number should be
+ * specified in the upper 16 bits.
  */
 
-#define NV_CTRL_GVO_INPUT_VIDEO_FORMAT                          71  /* R-- */
+#define NV_CTRL_GVIO_DETECTED_VIDEO_FORMAT                      71  /* R--I */
 
+/*
+ * The following is deprecated.  Use NV_CTRL_GVIO_DETECTED_VIDEO_FORMAT,
+ * instead.
+ */
+#define NV_CTRL_GVO_INPUT_VIDEO_FORMAT                          71  /* R-- */
 
 /*
  * NV_CTRL_GVO_DATA_FORMAT - This controls how the data in the source
@@ -1048,21 +1208,7 @@
 #define NV_CTRL_GVO_DATA_FORMAT_R12G12B12_TO_YCRCB422           27
 
 /*
- * NV_CTRL_GVO_DISPLAY_X_SCREEN - enable/disable GVO output of the X
- * screen (in Clone mode).  At this point, all the GVO attributes that
- * have been cached in the X server are flushed to the hardware and GVO is
- * enabled.  Note that this attribute can fail to be set if a GLX
- * client has locked the GVO output (via glXGetVideoDeviceNV).  Note
- * that due to the inherit race conditions in this locking strategy,
- * NV_CTRL_GVO_DISPLAY_X_SCREEN can fail unexpectantly.  In the
- * failing situation, X will not return an X error.  Instead, you
- * should query the value of NV_CTRL_GVO_DISPLAY_X_SCREEN after
- * setting it to confirm that the setting was applied.
- *
- * NOTE: This attribute is related to the NV_CTRL_GVO_LOCK_OWNER
- *       attribute.  When NV_CTRL_GVO_DISPLAY_X_SCREEN is enabled,
- *       the GVO device will be locked by NV_CTRL_GVO_LOCK_OWNER_CLONE.
- *       see NV_CTRL_GVO_LOCK_OWNER for detais.
+ * NV_CTRL_GVO_DISPLAY_X_SCREEN - no longer supported
  */
 
 #define NV_CTRL_GVO_DISPLAY_X_SCREEN                            73  /* RW- */
@@ -1117,7 +1263,7 @@
 /*
  * NV_CTRL_GVO_FPGA_VERSION - indicates the version of the Firmware on
  * the GVO device.  Deprecated; use
- * NV_CTRL_STRING_GVO_FIRMWARE_VERSION instead.
+ * NV_CTRL_STRING_GVIO_FIRMWARE_VERSION instead.
  */
 
 #define NV_CTRL_GVO_FIRMWARE_VERSION                            78  /* R-- */
@@ -1150,7 +1296,7 @@
 /*
  * NV_CTRL_GVO_INPUT_VIDEO_FORMAT_REACQUIRE - must be set for a period
  * of about 2 seconds for the new InputVideoFormat to be properly
- * locked to.  In nvidia-settings, we do a reacquire whenever genlock
+ * locked to.  In nvidia-settings, we do a reacquire whenever genlock
  * or frame lock mode is entered into, when the user clicks the
  * "detect" button.  This value can be written, but always reads back
  * _FALSE.
@@ -1162,21 +1308,23 @@
 
 
 /*
- * NV_CTRL_GVO_GLX_LOCKED - indicates that GVO configurability is locked by
- * GLX;  this occurs when the GLX_NV_video_out function calls
- * glXGetVideoDeviceNV().  All GVO output resources are locked until
- * either glXReleaseVideoDeviceNV() is called or the X Display used
- * when calling glXGetVideoDeviceNV() is closed.
+ * NV_CTRL_GVO_GLX_LOCKED - indicates that GVO configurability is
+ * locked by GLX; this occurs when either glXGetVideoDeviceNV (part of
+ * GLX_NV_video_out) or glXBindVideoDeviceNV (part of
+ * GLX_NV_present_video) is called.  All GVO output resources are
+ * locked until released by the GLX_NV_video_out/GLX_NV_present_video
+ * client.
  *
  * When GVO is locked, setting of the following GVO NV-CONTROL attributes will
  * not happen immediately and will instead be cached.  The GVO resource will
  * need to be disabled/released and re-enabled/claimed for the values to be
  * flushed. These attributes are:
- *    NV_CTRL_GVO_OUTPUT_VIDEO_FORMAT
+ *    NV_CTRL_GVIO_REQUESTED_VIDEO_FORMAT
  *    NV_CTRL_GVO_DATA_FORMAT
  *    NV_CTRL_GVO_FLIP_QUEUE_SIZE
  *
- * XXX This is deprecated, please see NV_CTRL_GVO_LOCK_OWNER
+ * This attribute is deprecated and may be removed in a future release.  Its
+ * functionality has been replaced by NV_CTRL_GVO_LOCK_OWNER.
  */
 
 #define NV_CTRL_GVO_GLX_LOCKED                                  82  /* R-- */
@@ -1185,33 +1333,33 @@
 
 
 /*
- * NV_CTRL_GVO_VIDEO_FORMAT_{WIDTH,HEIGHT,REFRESH_RATE} - query the
+ * NV_CTRL_GVIO_VIDEO_FORMAT_{WIDTH,HEIGHT,REFRESH_RATE} - query the
  * width, height, and refresh rate for the specified
- * NV_CTRL_GVO_VIDEO_FORMAT_*.  So that this can be queried with
+ * NV_CTRL_GVIO_VIDEO_FORMAT_*.  So that this can be queried with
  * existing interfaces, XNVCTRLQueryAttribute() should be used, and
  * the video format specified in the display_mask field; eg:
  *
  * XNVCTRLQueryAttribute (dpy,
  *                        screen, 
- *                        NV_CTRL_GVO_VIDEO_FORMAT_487I_59_94_SMPTE259_NTSC,
- *                        NV_CTRL_GVO_VIDEO_FORMAT_WIDTH,
+ *                        NV_CTRL_GVIO_VIDEO_FORMAT_487I_59_94_SMPTE259_NTSC,
+ *                        NV_CTRL_GVIO_VIDEO_FORMAT_WIDTH,
  *                        &value);
  *
- * Note that Refresh Rate is in 1/1000 Hertz values
+ * Note that Refresh Rate is in milliHertz values
  */
 
+#define NV_CTRL_GVIO_VIDEO_FORMAT_WIDTH                         83  /* R--I */
+#define NV_CTRL_GVIO_VIDEO_FORMAT_HEIGHT                        84  /* R--I */
+#define NV_CTRL_GVIO_VIDEO_FORMAT_REFRESH_RATE                  85  /* R--I */
+
+/* The following are deprecated; use the NV_CTRL_GVIO_* versions, instead */
 #define NV_CTRL_GVO_VIDEO_FORMAT_WIDTH                          83  /* R-- */
 #define NV_CTRL_GVO_VIDEO_FORMAT_HEIGHT                         84  /* R-- */
 #define NV_CTRL_GVO_VIDEO_FORMAT_REFRESH_RATE                   85  /* R-- */
 
 
 /*
- * NV_CTRL_GVO_X_SCREEN_PAN_[XY] - when GVO output of the X screen is
- * enabled, the pan x/y attributes control which portion of the X
- * screen is displayed by GVO.  These attributes can be updated while
- * GVO output is enabled, or before enabling GVO output.  The pan
- * values will be clamped so that GVO output is not panned beyond the
- * end of the X screen.
+ * NV_CTRL_GVO_X_SCREEN_PAN_[XY] - no longer supported
  */
 
 #define NV_CTRL_GVO_X_SCREEN_PAN_X                              86  /* RW- */
@@ -1331,1205 +1479,6 @@
 #define NV_CTRL_GPU_OPTIMAL_CLOCK_FREQS_DETECTION_STATE_BUSY     1
 
 
-
-/*************************************************************************
- * DDC/CI VCP codes                                                      *
- * From the VESA Monitor Control Command Set (MCCS) Standard - Version 2 *
- *************************************************************************/
- 
-#define NV_CTRL_DDCCI_ON                                        1
-#define NV_CTRL_DDCCI_OFF                                       0
-
-/*************************************
- * DDC/CI VCP CODES: GEOMETRY ADJUST *
- *************************************/
- 
-/* Increasing (decreasing) this value moves the image toward the right
- * (left) side of the screen.
- * Type: Range
- */
-#define NV_CTRL_DDCCI_GEOMETRY_HORIZONTAL_POSITION              97 /* RWD */
-
-/* Increasing (decreasing) this value will increase (decrease) the width
- * of the image.
- * Type: Range
- */
-#define NV_CTRL_DDCCI_GEOMETRY_HORIZONTAL_SIZE                  98 /* RWD */
-
-/* Increasing (decreasing) this value will cause the right and left sides
- * of the image to become more (less) convex.
- * Type: Range
- */  
-#define NV_CTRL_DDCCI_GEOMETRY_HORIZONTAL_PINCUSHION            99 /* RWD */
-
-/* Increasing (decreasing) this value will move the center section of the
- * image towards the right(left) side of the display.
- * Type: Range
- */  
-#define NV_CTRL_DDCCI_GEOMETRY_HORIZONTAL_PINCUSHION_BALANCE    100/* RWD */
-
-/* Increasing (decreasing) this value will shift the red pixels to the right
- * (left) across the image and the blue pixels left (right) across the image
- * with respect to the green pixels.
- * Type: Range
- */  
-#define NV_CTRL_DDCCI_GEOMETRY_HORIZONTAL_CONVERGENCE           101/* RWD */
-
-/* Increasing (decreasing) this value will increase (decrease) the
- * density of pixels in the image center.
- * Type: Range
- */
-#define NV_CTRL_DDCCI_GEOMETRY_HORIZONTAL_LINEARITY             102/* RWD */
-
-/* Increasing (decreasing) this value shifts the density of pixels from
- * the left (right) side to the right (left) side of the image.
- * Type: Range
- */
-#define NV_CTRL_DDCCI_GEOMETRY_HORIZONTAL_LINEARITY_BALANCE     103/* RWD */
-
-/* Increasing (decreasing) this value moves the image toward the
- * top (bottom) edge of the display.
- * Type: Range
- */
-#define NV_CTRL_DDCCI_GEOMETRY_VERTICAL_POSITION                104/* RWD */
-
-/* Increasing (decreasing) this value will increase (decrease) the
- * height of the image
- * Type: Range
- */
-#define NV_CTRL_DDCCI_GEOMETRY_VERTICAL_SIZE                    105/* RWD */
-
-/* Increasing (decreasing) this value will cause the top and bottom
- * edges of the image to become more (less) convex.
- * Type: Range
- */
-#define NV_CTRL_DDCCI_GEOMETRY_VERTICAL_PINCUSHION              106/* RWD */
-
-/* Increasing (decreasing) this value will move the center section of
- * the image toward the top (bottom) edge of the display.
- * Type: Range
- */
-#define NV_CTRL_DDCCI_GEOMETRY_VERTICAL_PINCUSHION_BALANCE      107/* RWD */
-
-/* Increasing (decreasing) this value shifts the red pixels up (down)
- * across the image and the blue pixels down (up) across the image
- * with respect to the green pixels.
- * Type: Range
- */
-#define NV_CTRL_DDCCI_GEOMETRY_VERTICAL_CONVERGENCE             108/* RWD */
-
-/* Increasing (decreasing) this value will increase (decrease) the
- * density of scan lines in the image center.
- * Type: Range
- */
-#define NV_CTRL_DDCCI_GEOMETRY_VERTICAL_LINEARITY               109/* RWD */
-
-/* Increasing (decreasing) this value shifts the density of scan lines
- * from the top (bottom) end to the bottom (top) end of the image.
- * Type: Range
- */
-#define NV_CTRL_DDCCI_GEOMETRY_VERTICAL_LINEARITY_BALANCE       110/* RWD */
-
-/* Increasing (decreasing) this value will increase (decrease) the
- * degree of keystone distortion in the image.
- * Type: Range
- */
-#define NV_CTRL_DDCCI_GEOMETRY_KEYSTONE                         111/* RWD */
-
-/* Increasing (decreasing) this value shifts the top section of the
- * image to the right (left) with respect to the bottom section of the
- * image.
- * Type: Range
- */
-#define NV_CTRL_DDCCI_GEOMETRY_KEY_BALANCE                      112/* RWD */
-
-/* Increasing (decreasing) this value will increase (decrease) the
- * degree of trapezoid distortion in the image.
- * Type: Range
- */
-#define NV_CTRL_DDCCI_GEOMETRY_TRAPEZOID                        113/* RWD */
-
-/* Increasing (decreasing) this value will increase (decrease) the
- * ratio between the horizontal size at the top of the image and the
- * horizontal size at the bottom of the image.
- * Type: Range
- */
-#define NV_CTRL_DDCCI_GEOMETRY_HORIZONTAL_TRAPEZOID             114/* RWD */
-
-/* Increasing (decreasing) this value will increase (decrease) the
- * ratio between the vertical size at the left of the image and the
- * vertical size at the right of the image.
- * Type: Range
- */
-#define NV_CTRL_DDCCI_GEOMETRY_VERTICAL_TRAPEZOID               115/* RWD */
-
-/* Increasing (decreasing) this value rotates the image (counter)
-  clockwise about the center point of the image.
- * Type: Range
- */
-#define NV_CTRL_DDCCI_GEOMETRY_TILT                             116/* RWD */
-
-/* Increasing (decreasing) this value will increase (decrease) the
- * distance between the left and right sides at the top of the image.
- * Type: Range
- */
-#define NV_CTRL_DDCCI_GEOMETRY_TOP_CORNER                       117/* RWD */
-
-/* Increasing (decreasing) this value moves the top end of the
- * image to the right (left).
- * Type: Range
- */
-#define NV_CTRL_DDCCI_GEOMETRY_TOP_CORNER_BALANCE               118/* RWD */
-
-/* Increasing (decreasing) this value will increase (decrease) the
- * distance between the left and right sides at the bottom of the
- * image.
- * Type: Range
- */
-#define NV_CTRL_DDCCI_GEOMETRY_BOTTOM_CORNER                    119/* RWD */
-
-/* Increasing (decreasing) this value moves the bottom end of the
- * image to the right (left).
- * Type: Range
- */
-#define NV_CTRL_DDCCI_GEOMETRY_BOTTOM_CORNER_BALANCE            120/* RWD */
-
-
-/**************************************
- * DDC/CI VCP CODES: PRESET SELECTION *
- **************************************/
-
-/* Restore all factory presets including brightness / contrast,
- * geometry, color and TV defaults.
- * NV__CTRL_DDCCI_ON causes defaults to be restored 
- * A value of NV_CTRL_DDCCI_OFF shall be ignored 
- * Type: Boolean
- */
-#define NV_CTRL_DDCCI_PRESET_RESTORE_DEFAULTS                   121/* -WD */
-
-/* Restores factory defaults for brightness and contrast adjustments.
- * NV_CTRL_DDCCI_ON causes defaults to be restored 
- * A value of NV_CTRL_DDCCI_OFF shall be ignored 
- * Type: Boolean
- */
-#define NV_CTRL_DDCCI_PRESET_RESTORE_DEFAULTS_BRIGHTNESS_CONTRAST 122/* -WD */
-
-/* Restore factory defaults for geometry adjustments.
- * NV_CTRL_DDCCI_ON causes defaults to be restored 
- * A value of NV_CTRL_DDCCI_OFF shall be ignored 
- * Type: Boolean
- */
-#define NV_CTRL_DDCCI_PRESET_RESTORE_DEFAULTS_GEOMETRY          123/* -WD */
-
-/* Restore factory defaults for color settings.
- * NV_CTRL_DDCCI_ON causes defaults to be restored 
- * A value of NV_CTRL_DDCCI_OFF shall be ignored 
- * Type: Boolean
- */
-#define NV_CTRL_DDCCI_PRESET_RESTORE_DEFAULTS_COLOR             124/* -WD */
-
-/* Restore factory defaults for TV functions.
- * NV_CTRL_DDCCI_ON causes defaults to be restored 
- * A value of NV_CTRL_DDCCI_OFF shall be ignored 
- * Type: Boolean
- */
-#define NV_CTRL_DDCCI_PRESET_RESTORE_DEFAULTS_TV                125/* -WD */
-
-/* Store / Restore the user saved values for current mode.
- * - NV_CTRL_DDCCI_PRESET_SETTINGS_STORE_CURRENT:
- *   Store current settings in the monitor.
- * - NV_CTRL_DDCCI_PRESET_SETTINGS_RESTORE_FACTORY_DEFAULTS:
- *  Restore factory defaults for current mode. If no factory
- *  defaults then restore user values for current mode.
- * - All other values are reserved and shall be ignored.
- * Type: Integer
- */
-#define NV_CTRL_DDCCI_PRESET_SETTINGS                           126/* -WD */
-#define NV_CTRL_DDCCI_PRESET_SETTINGS_STORE_CURRENT             1
-#define NV_CTRL_DDCCI_PRESET_SETTINGS_RESTORE_FACTORY_DEFAULTS  2
-
-
-/***************************************
- * DDC/CI VCP CODES: IMAGE ADJUSTMENTS *
- ***************************************/
-
-/* 
- * Increasing (decreasing) this value will increase (decrease) the
- * Brightness of the image.
- * Type: Range
- */
-#define NV_CTRL_DDCCI_IMAGE_BRIGHTNESS                          127/* RWD */
-
-/* 
- * Increasing (decreasing) this value will increase (decrease) the
- * Contrast of the image.
- * Type: Range
- */
-#define NV_CTRL_DDCCI_IMAGE_CONTRAST                            128/* RWD */  
-
-/* 
- * Turn on / off an auto setup function (periodic or event driven)
- * 0 and  3 : Shall be ignored
- * NV_CTRL_DDCCI_IMAGE_AUTO_SETUP_TOGGLE_OFF : Turn auto setup off
- * NV_CTRL_DDCCI_IMAGE_AUTO_SETUP_TOGGLE_ON : Turn auto setup on
- * Type: Integer
- */         
-#define NV_CTRL_DDCCI_IMAGE_AUTO_SETUP_TOGGLE                   129/* -WD */
-#define NV_CTRL_DDCCI_IMAGE_AUTO_SETUP_TOGGLE_OFF               1
-#define NV_CTRL_DDCCI_IMAGE_AUTO_SETUP_TOGGLE_ON                2
-
-/* 
- * Perform autosetup function (H/V position, clock, clock phase, A/D
- * converter, etc)
- * NV_CTRL_OFF : Indicates that auto-setup is not active
- * NV_CTRL_ON : Perform autosetup
- * >=2 : Shall be ignored
- * Type: Integer
- */         
-#define NV_CTRL_DDCCI_IMAGE_AUTO_SETUP                          130/* RWD */
-
-/* Increasing (decreasing) this value will increase (decrease) the
- * sampling clock frequency 
- * Type: Range
- */
-#define NV_CTRL_DDCCI_IMAGE_CLOCK                               131/* RWD */
-
-/* Increasing (decreasing) this value will increase (decrease) the
- * phase shift of the sampling clock
- * Type: Range
- */
-#define NV_CTRL_DDCCI_IMAGE_CLOCK_PHASE                         132/* RWD */
-
-/* Allows the display to specify the minimum increment in which it
- * can adjust the color temperature.
- * This will be used in conjunction with 
- * NV_CTRL_DDCCI_IMAGE_COLOR_TEMPERATURE_REQUEST, Color temperature request.
- * Values of 0 and > 5000 are invalid and shall be ignored.
- * Type: Integer
- */
-#define NV_CTRL_DDCCI_IMAGE_COLOR_TEMPERATURE_INCREMENT         133/* R-D */
-
-/* Allows a specified color temperature (in °K) to be requested. If
- * display is unable to achieve requested color temperature, then it
- * should move to the closest possible temperature.
- * A value of 0 shall be treated as a request for a color temperature
- * of 3000°K. Values greater than 0 shall be used as a multiplier of
- * the color temperature increment (read using 
- * NV_CTRL_DDCCI_IMAGE_COLOR_TEMPERATURE_INCREMENT) and the
- * result added to the base value of 3000°K
- * Example:
- * If NV_CTRL_DDCCI_IMAGE_COLOR_TEMPERATURE_INCREMENT returns a value of 
- * 50°K and NV_CTRL_DDCCI_IMAGE_COLOR_TEMPERATURE_INCREMENT sends a
- * value of 50 (decimal) then the display shall interpret this as a
- * request to adjust the color temperature to 5500°K
- * (3000 + (50 * 50))°K = 5500°K
- * Notes:
- * 1) Applications using this function are recommended to read the
- * actual color temperature after using this command and taking
- * appropriate action.
- * 2) This control is only recommended if the display can produce a
- * continuously (at defined increment, see VCP code 0Bh) variable
- * color temperature.
- * Type: Range
- */
-#define NV_CTRL_DDCCI_IMAGE_COLOR_TEMPERATURE_REQUEST           134/* RWD */
-
-/* Select a specified color temperature.
- * NV_CTRL_DDCCI_IMAGE_SELECT_COLOR_PRESET_SRGB : sRGB
- * NV_CTRL_DDCCI_IMAGE_SELECT_COLOR_PRESET_NATIVE : Display native
- * NV_CTRL_DDCCI_IMAGE_SELECT_COLOR_PRESET_4000K :  4000 K
- * NV_CTRL_DDCCI_IMAGE_SELECT_COLOR_PRESET_5000K :  5000 K
- * NV_CTRL_DDCCI_IMAGE_SELECT_COLOR_PRESET_6500K :  6500 K
- * NV_CTRL_DDCCI_IMAGE_SELECT_COLOR_PRESET_7500K :  7500 K
- * NV_CTRL_DDCCI_IMAGE_SELECT_COLOR_PRESET_8200K :  8200 K
- * NV_CTRL_DDCCI_IMAGE_SELECT_COLOR_PRESET_9300K :  9300 K
- * NV_CTRL_DDCCI_IMAGE_SELECT_COLOR_PRESET_10000K : 10000 K
- * NV_CTRL_DDCCI_IMAGE_SELECT_COLOR_PRESET_USER1 :  11500 K
- * NV_CTRL_DDCCI_IMAGE_SELECT_COLOR_PRESET_USER1 :  User 1
- * NV_CTRL_DDCCI_IMAGE_SELECT_COLOR_PRESET_USER2 :  User 2
- * NV_CTRL_DDCCI_IMAGE_SELECT_COLOR_PRESET_USER3 :  User 3
- * 00 and >=0E shall be ignored
- * Type: Integer
- */
-#define NV_CTRL_DDCCI_IMAGE_SELECT_COLOR_PRESET                 135/* RWD */
-#define NV_CTRL_DDCCI_IMAGE_SELECT_COLOR_PRESET_SRGB            0x01
-#define NV_CTRL_DDCCI_IMAGE_SELECT_COLOR_PRESET_NATIVE          0x02
-#define NV_CTRL_DDCCI_IMAGE_SELECT_COLOR_PRESET_4000K           0x03
-#define NV_CTRL_DDCCI_IMAGE_SELECT_COLOR_PRESET_5000K           0x04
-#define NV_CTRL_DDCCI_IMAGE_SELECT_COLOR_PRESET_6500K           0x05
-#define NV_CTRL_DDCCI_IMAGE_SELECT_COLOR_PRESET_7500K           0x06
-#define NV_CTRL_DDCCI_IMAGE_SELECT_COLOR_PRESET_8200K           0x07
-#define NV_CTRL_DDCCI_IMAGE_SELECT_COLOR_PRESET_9300K           0x08
-#define NV_CTRL_DDCCI_IMAGE_SELECT_COLOR_PRESET_10000K          0x09
-#define NV_CTRL_DDCCI_IMAGE_SELECT_COLOR_PRESET_11500K          0x0A
-#define NV_CTRL_DDCCI_IMAGE_SELECT_COLOR_PRESET_USER1           0x0B
-#define NV_CTRL_DDCCI_IMAGE_SELECT_COLOR_PRESET_USER2           0x0C
-#define NV_CTRL_DDCCI_IMAGE_SELECT_COLOR_PRESET_USER3           0x0D
-
-/*
- * Increasing (decreasing) this value will increase (decrease) the
- * luminance of red pixels.
- * The value returned shall be an indication of the actual red gain at
- * the current color temperature and not be normalized.
- * Type: Range
- */
-#define NV_CTRL_DDCCI_IMAGE_RED_VIDEO_GAIN                      136/* RWD */
-
-/*
- * Increasing (decreasing) this value will increase (decrease) the
- * luminance of green pixels.
- * The value returned shall be an indication of the actual green gain at
- * the current color temperature and not be normalized.
- * Type: Range
- */
-#define NV_CTRL_DDCCI_IMAGE_GREEN_VIDEO_GAIN                    137/* RWD */
-
-/*
- * Increasing (decreasing) this value will increase (decrease) the
- * luminance of blue pixels.
- * The value returned shall be an indication of the actual blue gain at
- * the current color temperature and not be normalized.
- * Type: Range
- */
-#define NV_CTRL_DDCCI_IMAGE_BLUE_VIDEO_GAIN                     138/* RWD */
-
-/* Increasing (decreasing) this value will increase (decrease) the
- * black level of red pixels.
- * Type: Range
- */
-#define NV_CTRL_DDCCI_IMAGE_RED_VIDEO_BLACK_LEVEL               139/* RWD */
-
-/* Increasing (decreasing) this value will increase (decrease) the
- * black level of green pixels.
- * Type: Range
- */
-#define NV_CTRL_DDCCI_IMAGE_GREEN_VIDEO_BLACK_LEVEL             140/* RWD */
-
-/* Increasing (decreasing) this value will increase (decrease) the
- * black level of blue pixels.
- * Type: Range
- */
-#define NV_CTRL_DDCCI_IMAGE_BLUE_VIDEO_BLACK_LEVEL              141/* RWD */
-
-/* Increasing (decreasing) this value will adjust the focus of the image.
- * Type: Range
- */
-#define NV_CTRL_DDCCI_IMAGE_FOCUS                               142/* RWD */
-
-/* Increasing (decreasing) this value controls the horizontal picture
- * moiré cancellation.
- * Type: Range
- */
-#define NV_CTRL_DDCCI_IMAGE_HORIZONTAL_MOIRE                    143/* RWD */
-
-/* Increasing (decreasing) this value controls the vertical picture
- * moiré cancellation.
- * Type: Range
- */
-#define NV_CTRL_DDCCI_IMAGE_VERTICAL_MOIRE                      144/* RWD */
-
-/* Increasing (decreasing) this value will increase (decrease) the
- * distance to the focal plane of the image.
- * Type: Range
- */
-#define NV_CTRL_DDCCI_IMAGE_ADJUST_FOCAL_PLANE                  145/* RWD */
-
-/* Increasing (decreasing) this value will increase (decrease) the
- * zoom function of the optics
- * Type: Range
- */
-#define NV_CTRL_DDCCI_IMAGE_ADJUST_ZOOM                         146/* RWD */
-
-/* This value will cause the picture to flip horizontally.
- * NV_CTRL_DDCCI_ON : flip horizontally
- * NV_CTRL_DDCCI_OFF : Shall be ignored
- * Type: Boolean
- */
-#define NV_CTRL_DDCCI_IMAGE_HOR_FLIP                            147/* -WD */
-
-/* This value will cause the picture to flip vertically.
- * NV_CTRL_DDCCI_ON : flip vertically
- * NV_CTRL_DDCCI_OFF : Shall be ignored
- * Type: Boolean
- */
-#define NV_CTRL_DDCCI_IMAGE_VER_FLIP                            148/* -WD */
-
-/* Changing this value will affect the scaling (input versus output)
- * function of the display.
- * NV_CTRL_DDCCI_IMAGE_DISPLAY_SCALING_NO_SCALING : No scaling, 1:1 relationship
- * NV_CTRL_DDCCI_IMAGE_DISPLAY_SCALING_MAX_NO_DISTORT2 : Scale to maximum 
- *   without AR distortion
- * NV_CTRL_DDCCI_IMAGE_DISPLAY_SCALING_MAX_VERTICAL : Scale to maximum vertical 
-     size
- * NV_CTRL_DDCCI_IMAGE_DISPLAY_SCALING_MAX_HORIZONTAL ; Scale to maximum 
-     horizontal size
- * 0 and >=5 : Shall be ignored
- * Type: Integer
- */
-#define NV_CTRL_DDCCI_IMAGE_DISPLAY_SCALING                     149/* RWD */
-#define NV_CTRL_DDCCI_IMAGE_DISPLAY_SCALING_NO_SCALING          1
-#define NV_CTRL_DDCCI_IMAGE_DISPLAY_SCALING_MAX_NO_DISTORT      2
-#define NV_CTRL_DDCCI_IMAGE_DISPLAY_SCALING_MAX_VERTICAL        3
-#define NV_CTRL_DDCCI_IMAGE_DISPLAY_SCALING_MAX_HORIZONTAL      4
-
-/* Allows one of several image expansion algorithms to be selecte
- * to suit different types of image and/or different personal
- * preference.
- * NV_CTRL_DDCCI_IMAGE_SHARPNESS_FILTER_FUNC(1) : Filter function 1
- * NV_CTRL_DDCCI_IMAGE_SHARPNESS_FILTER_FUNC(2) : Filter function 2
- * NV_CTRL_DDCCI_IMAGE_SHARPNESS_FILTER_FUNC(3) : Filter function 3
- * NV_CTRL_DDCCI_IMAGE_SHARPNESS_FILTER_FUNC(4) : Filter function 4
- * 0 and  5 shall be ignored
- * Type: Integer
- */
-#define NV_CTRL_DDCCI_IMAGE_SHARPNESS                           150/* RWD */
-#define NV_CTRL_DDCCI_IMAGE_SHARPNESS_FILTER_FUNC(n)            n
-
-/* Indicates the orientation of the screen.
- * NV_CTRL_DDCCI_IMAGE_SCREEN_ORIENTATION_0        
- *      The normal landscape mode.
- * NV_CTRL_DDCCI_IMAGE_SCREEN_ORIENTATION_90   
- *      Portrait mode achieved by clockwise rotation of the display 90 degrees.
- * NV_CTRL_DDCCI_IMAGE_SCREEN_ORIENTATION_180
- *      Landscape mode achieved by rotation of the display 180 degrees.
- * NV_CTRL_DDCCI_IMAGE_SCREEN_ORIENTATION_270
- *      Portrait mode achieved by clockwise rotation of the display 270 degrees.
- * NV_CTRL_DDCCI_IMAGE_SCREEN_ORIENTATION_NA 
- *      Indicates that the display cannot supply the current orientation
- * Type: Integer
- */
-#define NV_CTRL_DDCCI_IMAGE_SCREEN_ORIENTATION                  151/* R-D */
-#define NV_CTRL_DDCCI_IMAGE_SCREEN_ORIENTATION_0                0x01
-#define NV_CTRL_DDCCI_IMAGE_SCREEN_ORIENTATION_90               0x02
-#define NV_CTRL_DDCCI_IMAGE_SCREEN_ORIENTATION_180              0x03
-#define NV_CTRL_DDCCI_IMAGE_SCREEN_ORIENTATION_270              0x04
-#define NV_CTRL_DDCCI_IMAGE_SCREEN_ORIENTATION_NA               0xFF
-
-/* Selects a scan format.
- * NV_CTRL_DDCCI_IMAGE_SCAN_FORMAT_UNDERSCAN: Underscan
- * NV_CTRL_DDCCI_IMAGE_SCAN_FORMAT_OVERSCAN: Overscan
- * NV_CTRL_DDCCI_IMAGE_SCAN_FORMAT_WIDESCREEN: Widescreen
- * Type: Integer
- */
-#define NV_CTRL_DDCCI_IMAGE_SCAN_FORMAT                         152/* RWD */
-#define NV_CTRL_DDCCI_IMAGE_SCAN_FORMAT_UNDERSCAN               1
-#define NV_CTRL_DDCCI_IMAGE_SCAN_FORMAT_OVERSCAN                2
-#define NV_CTRL_DDCCI_IMAGE_SCAN_FORMAT_WIDESCREEN              3
-#define NV_CTRL_DDCCI_IMAGE_DISPLAY_MODE                        153/* RWD */
-
-/* Display mode:
- * NV_CTRL_DDCCI_IMAGE_DISPLAY_MODE_PRODUCTIVITY : 
- *      Productivity (e.g. office applications)
- * NV_CTRL_DDCCI_IMAGE_DISPLAY_MODE_MIXED : Mixed (e.g. internet)
- * NV_CTRL_DDCCI_IMAGE_DISPLAY_MODE_ENTERTAINMENT : 
-        Entertainment (e.g. TV / movie)
- * NV_CTRL_DDCCI_IMAGE_DISPLAY_MODE_USERDEFINED : User defined
- * Note:
- * The condition(s) associated with options 1, 2 and 3 are defined
- * by the display manufacturer
- * Type: Integer
- */
-#define NV_CTRL_DDCCI_IMAGE_DISPLAY_MODE_PRODUCTIVITY           1
-#define NV_CTRL_DDCCI_IMAGE_DISPLAY_MODE_MIXED                  2
-#define NV_CTRL_DDCCI_IMAGE_DISPLAY_MODE_ENTERTAINMENT          3
-#define NV_CTRL_DDCCI_IMAGE_DISPLAY_MODE_USERDEFINED            4
-
-/***********************************************
- * DDC/CI VCP CODES: WINDOWED IMAGE OPERATIONS *
- ***********************************************/
-
-/* Defines the top left X pixel of an area of the image. Specified in
- * co-ordinates of incoming image before any scaling etc in the display.
- * Type: Range
- */
-#define NV_CTRL_DDCCI_WINDOWEDIMAGE_POSITION_TOP_LEFT_X         154/* RWD */ 
-
-/* Defines the top left Y pixel of an area of the image. Specified in
- * co-ordinates of incoming image before any scaling etc in the display.
- * Type: Range
- */
-#define NV_CTRL_DDCCI_WINDOWEDIMAGE_POSITION_TOP_LEFT_Y         155/* RWD */
-
-/* Defines the bottom right X pixel of an area of the image.
- * Specified in co-ordinates of incoming image before any scaling
- * in the display.
- * Type: Range
- */
-#define NV_CTRL_DDCCI_WINDOWEDIMAGE_POSITION_BOTTOM_RIGHT_X     156/* RWD */
-
-/* Defines the bottom right Y pixel of an area of the image.
- * Specified in co-ordinates of incoming image before any scaling
- * in the display.
- * Type: Range
- */
-#define NV_CTRL_DDCCI_WINDOWEDIMAGE_POSITION_BOTTOM_LEFT_X      157/* RWD */
-
-/* Window control, enables the brightness and color within a
- * window to be different from the desktop.
- * NV_CTRL_DDCCI_WINDOWEDIMAGE_OLD_CONTROL_TOGGLE_OFF : Off
- * NV_CTRL_DDCCI_WINDOWEDIMAGE_OLD_CONTROL_TOGGLE_ON: On
- * All other values are reserved.
- * Notes:
- * 1. This control should be used in conjunction with
- *      NV_CTRL_DDCCI_WINDOWEDIMAGE_BACKGROUND
- * 2. This command structure is not recommended for new designs,
- * see NV_CTRL_DDCCI_WINDOWEDIMAGE_CONTROL_TOGGLE for alternate.
- * Type: Integer
- */
-#define NV_CTRL_DDCCI_WINDOWEDIMAGE_OLD_CONTROL_TOGGLE          158/* RWD */
-#define NV_CTRL_DDCCI_WINDOWEDIMAGE_OLD_CONTROL_TOGGLE_OFF      1
-#define NV_CTRL_DDCCI_WINDOWEDIMAGE_OLD_CONTROL_TOGGLE_ON       2
-
-/* Changes the contrast ratio between the area of the window and
- * the rest of the desktop
- * Lower (higher) values will cause the desktop brightness to
- * decrease (increase)
- * Notes:
- * 1. This contropl should be used in conjunction with 
- *  NV_CTRL_DDCCI_WINDOWEDIMAGE_OLD_CONTROL_TOGGLE
- * 2. This command structure is not recommended for new designs,
- * see NV_CTRL_DDCCI_WINDOWEDIMAGE_WINDOW_SELECT for alternate.
- * Type: Range
- */
-#define NV_CTRL_DDCCI_WINDOWEDIMAGE_BACKGROUND                  159/* RWD */
-
-/* A value of 127 shall have no effect.
- * A value > 127 shall cause the color to shift towards yellow
- * A value < 127 shall cause the color to shift towards magenta
- * Type: Range 
- */
-#define NV_CTRL_DDCCI_WINDOWEDIMAGE_6AXIS_COLOR_CONTROL_RED     160/* RWD */
-
-/* A value of 127 shall have no effect.
- * A value > 127 shall cause the color to shift towards green
- * A value < 127 shall cause the color to shift towards red
- * Type: Range 
- */
-#define NV_CTRL_DDCCI_WINDOWEDIMAGE_6AXIS_COLOR_CONTROL_YELLOW  161/* RWD */
-
-/* A value of 127 shall have no effect.
- * A value > 127 shall cause the color to shift towards cyan
- * A value < 127 shall cause the color to shift towards yellow
- * Type: Range 
- */
-#define NV_CTRL_DDCCI_WINDOWEDIMAGE_6AXIS_COLOR_CONTROL_GREEN   162/* RWD */
-
-/* A value of 127 shall have no effect.
- * A value > 127 shall cause the color to shift towards blue
- * A value < 127 shall cause the color to shift towards green
- * Type: Range 
- */
-#define NV_CTRL_DDCCI_WINDOWEDIMAGE_6AXIS_COLOR_CONTROL_CYAN    163/* RWD */
-
-/* A value of 127 shall have no effect.
- * A value > 127 shall cause the color to shift towards magenta
- * A value < 127 shall cause the color to shift towards cyan
- * Type: Range 
- */
-#define NV_CTRL_DDCCI_WINDOWEDIMAGE_6AXIS_COLOR_CONTROL_BLUE    164/* RWD */
-
-/* A value of 127 shall have no effect.
- * A value > 127 shall cause the color to shift towards red
- * A value < 127 shall cause the color to shift towards blue
- * Type: Range 
- */
-#define NV_CTRL_DDCCI_WINDOWEDIMAGE_6AXIS_COLOR_CONTROL_MAGENTA 165/* RWD */
-
-/* Turn the selected window operation on / off.
- * Bit: NV_CTRL_DDCCI_WINDOWEDIMAGE_CONTROL_TOGGLE_DPY_IMAGE
- *         0      Window controls have no effect on the
- *                displayed image
- *         1      Window controls effect the displayed image
- *                (full image area)
- *  Bit: NV_CTRL_DDCCI_WINDOWEDIMAGE_CONTROL_TOGGLE_WINDOW(n)
- *         0      Window controls have no effect on the
- *                displayed image (window n)
- *         1      Window controls effect the displayed image
- *                (window n)
- *  n is between 1 and 7
- * Note: This command structure is recommend, in conjunction with
- * NV_CTRL_DDCCI_WINDOWEDIMAGE_WINDOW_SELECT, for all new designs.
- * Type: Bitmask
- */ 
-#define NV_CTRL_DDCCI_WINDOWEDIMAGE_CONTROL_TOGGLE              166/* RWD */
-#define NV_CTRL_DDCCI_WINDOWEDIMAGE_CONTROL_TOGGLE_DPY_IMAGE    1
-#define NV_CTRL_DDCCI_WINDOWEDIMAGE_CONTROL_TOGGLE_WINDOW(n)    (1<<n)
-
-/* Change the selected window as defined with 
- * NV_CTRL_DDCCI_WINDOWEDIMAGE_CONTROL_TOGGLE
- * When a window is selected then all commands that the display
- * controller supports for window operations are valid, this may
- * include but is not limited to: brightness, contrast, R/G/B gain, 6-
- * axis color, sharpness, etc.
- * meaning of value NV_CTRL_DDCCI_WINDOWEDIMAGE_WINDOW_SELECT_DPY_IMAGE:
- *           Full display image area is selected except for
- *           area(s) of active windows
- * meaning of value NV_CTRL_DDCCI_WINDOWEDIMAGE_WINDOW_SELECT_WINDOW(n)
- *           Window n is selected
- * If this command is not supported then the `full image area' shall
- * be the default.
- * This command structure is recommend, in conjunction with 
- * NV_CTRL_DDCCI_WINDOWEDIMAGE_CONTROL_TOGGLE, for all new designs.
- * Type: Integer
- */
-#define NV_CTRL_DDCCI_WINDOWEDIMAGE_WINDOW_SELECT               167/* RWD */
-#define NV_CTRL_DDCCI_WINDOWEDIMAGE_WINDOW_SELECT_DPY_IMAGE     0
-#define NV_CTRL_DDCCI_WINDOWEDIMAGE_WINDOW_SELECT_WINDOW(n)     (1<<n)
-
-
-/*************************************/
-/* DDC/CI VCP CODES: AUDIO FUNCTIONS */
-/*************************************/
-
-/* Increasing (decreasing) this value will increase (decrease) the
- * audio volume.
- * Type: Range
- */
-#define NV_CTRL_DDCCI_AUDIO_SPEAKER_VOLUME                      168/* RWD */
-
-/* Increasing (decreasing) this value will increase (decrease) the
- * microphone gain.
- * Type: Range
- */
-#define NV_CTRL_DDCCI_AUDIO_MICROPHONE_VOLUME                   169/* RWD */
-
-/* Increasing (decreasing) this control will cause high frequency
- * audio to be emphasized (de-emphasised).
- * Type: Range
- */
-#define NV_CTRL_DDCCI_AUDIO_TV_AUDIO_TREBLE                     170/* RWD */
-
-/* Increasing (decreasing) this control will cause low frequency
- * audio to be emphasized (de-emphasised).
- * Type: Range
- */
-#define NV_CTRL_DDCCI_AUDIO_TV_AUDIO_BASS                       171/* RWD */
-
-/* This control affects the left ­ right balance of audio output.
- * Increasing (decreasing) the value will cause the balance to move
- * to the right (left).
- * Type: Range
- */
-#define NV_CTRL_DDCCI_AUDIO_TV_AUDIO_BALANCE                    172/* RWD */
-
-/* This control allows one of several audio modes to be selected.
- * NV_CTRL_DDCCI_AUDIO_TV_STEREO_MODE_SPEAKER_OFF: Display audio is disabled,
- * NV_CTRL_DDCCI_AUDIO_TV_STEREO_MODE_SPEAKER_MONO: Both display audio channels,
- *  use the left audio channel
- * NV_CTRL_DDCCI_AUDIO_TV_STEREO_MODE_SPEAKER_STEREO: Incoming left and right 
- *  audio. Channels feed separate display output audio channels.
- * NV_CTRL_DDCCI_AUDIO_TV_STEREO_MODE_SPEAKER_STEREO_EXPANDED: As defined 
- *  by the manufacturer.
- * Type: Integer
- */
-#define NV_CTRL_DDCCI_AUDIO_TV_STEREO_MODE                      173/* RWD */
-#define NV_CTRL_DDCCI_AUDIO_TV_STEREO_MODE_SPEAKER_OFF          0
-#define NV_CTRL_DDCCI_AUDIO_TV_STEREO_MODE_SPEAKER_MONO         1
-#define NV_CTRL_DDCCI_AUDIO_TV_STEREO_MODE_SPEAKER_STEREO       2
-#define NV_CTRL_DDCCI_AUDIO_TV_STEREO_MODE_SPEAKER_STEREO_EXPANDED 3
-
-
-/************************************/
-/* DDC/CI VCP CODES: DPVL Functions */
-/************************************/
-
-/* Video mode and status of a DPVL capable monitor
- * Bit   Value                          Meaning
- *  0      0      Raster scan mode
- *         1      DPVL mode
- *  1      0      Monitor is able to receive the next packet
- *         1      Monitor is unable to accept another packet
- *  2      0      No error detected in the last header received
- *         1      Error detected in the last header received
- * Other bits are reserved and shall be set to '0'.
- * Type: Bitmask
- */
-#define NV_CTRL_DDCCI_DPVL_MONITOR_STATUS                       174/* R-D */ 
-#define NV_CTRL_DDCCI_DPVL_MONITOR_STATUS_DPVL_MODE                     (1<<0)
-#define NV_CTRL_DDCCI_DPVL_MONITOR_STATUS_UNABLE_TO_RECEIVE_NEXT_PACKET (1<<1)
-#define NV_CTRL_DDCCI_DPVL_MONITOR_STATUS_ERROR_DETECTED_IN_LAST_HEADER (1<<2)
-
-/* Counter for the DPVL packets received (valid and invalid ones).
- * This value counts from 0000h to FFFFh and then rolls over to 0000h.
- * The host can reset the value to 0000h.
- * Type: Range
- */
-#define NV_CTRL_DDCCI_DPVL_PACKET_COUNT                         175/* RWD */
-
-/* The X origin of the monitor in the virtual screen. The support of
- * this command indicates the multi-display support of the display. If
- * a display supports this command, the monitor must also support
- * Monitor Y Origin command.
- * Type: Range; "0000h" to "FFFFh" or 0 to 65535
- */
-#define NV_CTRL_DDCCI_DPVL_MONITOR_X_ORIGIN                     176/* RWD */
-
-/* The Y origin of the display in the virtual screen. The support of
- * this command indicates the multi-display support of the display. If
- * a display supports this command, the monitor must also support
- * Monitor X Origin command.
- * Type: Range; "0000h" to "FFFFh" or 0 to 65535
- */
-#define NV_CTRL_DDCCI_DPVL_MONITOR_Y_ORIGIN                     177/* RWD */
-
-/* Error Counter for the DPVL header. The counter value saturates
- * at FFFFh. Host can reset to 0000h.
- * Type: Range
- */
-#define NV_CTRL_DDCCI_DPVL_HEADER_ERROR_COUNT                   178/* RWD */
-
-/* CRC error Counter for the DPVL body (containing video data).
- * The counter value saturates at FFFFh. The Host can reset to 0000h
- * Type: Range
- */
-#define NV_CTRL_DDCCI_DPVL_BODY_CRC_ERROR_COUNT                 179/* RWD */
-
-/* Assigned identification number for the monitor.
- * Type: Valid range is 0000h to FFFEh, FFFFh is reserved for broadcast.
- */
-#define NV_CTRL_DDCCI_DPVL_CLIENT_ID                            180/* RWD */
-
-/* Indicates the status of the DVI link
- * NV_CTRL_DDCCI_DPVL_LINK_CONTROL_DISABLED: Link shutdown is disabled
- * NV_CTRL_DDCCI_DPVL_LINK_CONTROL_ENABLED: Link shutdown is enabled
- * Type: Boolean
- */
-#define NV_CTRL_DDCCI_DPVL_LINK_CONTROL                         181/* RWD */
-#define NV_CTRL_DDCCI_DPVL_LINK_CONTROL_DISABLED                0
-#define NV_CTRL_DDCCI_DPVL_LINK_CONTROL_ENABLED                 1
-
-/**********************************************/
-/* DDC/CI VCP CODES:  Miscellaneous Functions */
-/**********************************************/
-
-/* Causes a CRT display to perform a degauss cycle with
- * NV_CTRL_DDCCI_ON
- * Type: Boolean
- */
-#define NV_CTRL_DDCCI_MISC_DEGAUSS                              182/* -WD */
-
-/* Used to indicate that a display user control (excluding power
- * controls) has been used to change and save (or autosave) a new value.
- * NV_CTRL_DDCCI_MISC_NEW_CONTROL_VALUE_NO_NEW : No new control value
- * NV_CTRL_DDCCI_MISC_NEW_CONTROL_VALUE_NO_USER_CONTROLS : A new control value 
- *  has been saved
- * NV_CTRL_DDCCI_MISC_NEW_CONTROL_VALUE_NO_USER_CONTROLS : No user controls are present
- * Note:
- * A value = NV_CTRL_DDCCI_MISC_NEW_CONTROL_VALUE_NEW should only be reset to 
- * a value = NV_CTRL_DDCCI_MISC_NEW_CONTROL_VALUE_NO_NEW by a host write
- * operation and not by the display
- * Type: Integer
- */
-#define NV_CTRL_DDCCI_MISC_NEW_CONTROL_VALUE                    183/* RWD */
-#define NV_CTRL_DDCCI_MISC_NEW_CONTROL_VALUE_NO_NEW             0x01
-#define NV_CTRL_DDCCI_MISC_NEW_CONTROL_VALUE_NEW                0x02
-#define NV_CTRL_DDCCI_MISC_NEW_CONTROL_VALUE_NO_USER_CONTROLS   0xFF
-
-/* Allows display controls to be used as soft keys
- * NV_CTRL_DDCCI_MISC_SOFT_CONTROLS_NO_BUTTON_ACTIVE : No button active
- * NV_CTRL_DDCCI_MISC_SOFT_CONTROLS_BUTTON(n): Button n active
- * n is between 1 and 7.
- * NV_CTRL_DDCCI_MISC_SOFT_CONTROLS_NONE : No controls present
- * Note:
- * A `button active' value should only be reset to a value = 0 by
- * host write operation and not by the display
- * Type: Integer
- */
-#define NV_CTRL_DDCCI_MISC_SOFT_CONTROLS                        184/* RWD */
-#define NV_CTRL_DDCCI_MISC_SOFT_CONTROLS_NO_BUTTON_ACTIVE       0
-#define NV_CTRL_DDCCI_MISC_SOFT_CONTROLS_BUTTON(n)              n
-#define NV_CTRL_DDCCI_MISC_SOFT_CONTROLS_NONE                   0xFF
-
-/* When read this control returns the VCP code associated with
- * the new control value reported using 02H
- * Examples:
- * If brightness has been changed then return value of 10h
- * If red gain has been changed then return value of 16h.
- * Type: Range
- */
-#define NV_CTRL_DDCCI_MISC_ACTIVE_CONTROL                       185/* R-D */
-
-/* Used to select the active video source
- * NV_CTRL_DDCCI_MISC_INPUT_SOURCE_ANALOG_1: Analog video (R/G/B) 1
- * NV_CTRL_DDCCI_MISC_INPUT_SOURCE_ANALOG_2: Analog video (R/G/B) 2
- * NV_CTRL_DDCCI_MISC_INPUT_SOURCE_DIGITAL_1: Digital video (TMDS) 1
- * NV_CTRL_DDCCI_MISC_INPUT_SOURCE_DIGITAL_2: Digital video (TMDS) 2
- * NV_CTRL_DDCCI_MISC_INPUT_SOURCE_COMPOSITE_1: Composite video 1
- * NV_CTRL_DDCCI_MISC_INPUT_SOURCE_COMPOSITE_2: Composite video 2
- * NV_CTRL_DDCCI_MISC_INPUT_SOURCE_SVIDEO_1: S-video 1
- * NV_CTRL_DDCCI_MISC_INPUT_SOURCE_SVIDEO_2: S-video 2
- * NV_CTRL_DDCCI_MISC_INPUT_SOURCE_TUNER_1: Tuner 1
- * NV_CTRL_DDCCI_MISC_INPUT_SOURCE_TUNER_2: Tuner 2
- * NV_CTRL_DDCCI_MISC_INPUT_SOURCE_TUNER_3: Tuner 3
- * NV_CTRL_DDCCI_MISC_INPUT_SOURCE_COMPONENT_1: Component video (YPrPb/YCrCb) 1
- * NV_CTRL_DDCCI_MISC_INPUT_SOURCE_COMPONENT_2: Component video (YPrPb/YCrCb) 2
- * NV_CTRL_DDCCI_MISC_INPUT_SOURCE_COMPONENT_3: Component video (YPrPb/YCrCb) 3
- * Type: Integer
- */
-#define NV_CTRL_DDCCI_MISC_INPUT_SOURCE                         186/* RWD */
-#define NV_CTRL_DDCCI_MISC_INPUT_SOURCE_ANALOG_1                1
-#define NV_CTRL_DDCCI_MISC_INPUT_SOURCE_ANALOG_2                2
-#define NV_CTRL_DDCCI_MISC_INPUT_SOURCE_DIGITAL_1               3
-#define NV_CTRL_DDCCI_MISC_INPUT_SOURCE_DIGITAL_2               4
-#define NV_CTRL_DDCCI_MISC_INPUT_SOURCE_COMPOSITE_1             5
-#define NV_CTRL_DDCCI_MISC_INPUT_SOURCE_COMPOSITE_2             6
-#define NV_CTRL_DDCCI_MISC_INPUT_SOURCE_SVIDEO_1                7
-#define NV_CTRL_DDCCI_MISC_INPUT_SOURCE_SVIDEO_2                8
-#define NV_CTRL_DDCCI_MISC_INPUT_SOURCE_TUNER_1                 9
-#define NV_CTRL_DDCCI_MISC_INPUT_SOURCE_TUNER_2                 10
-#define NV_CTRL_DDCCI_MISC_INPUT_SOURCE_TUNER_3                 11
-#define NV_CTRL_DDCCI_MISC_INPUT_SOURCE_COMPONENT_1             12
-#define NV_CTRL_DDCCI_MISC_INPUT_SOURCE_COMPONENT_2             13
-#define NV_CTRL_DDCCI_MISC_INPUT_SOURCE_COMPONENT_3             14
-
-/* ncreasing (decreasing) this value will increase (decrease) the
- * velocity modulation of the horizontal scan as a function of a
- * change in the luminance level.
- * Type: Range
- */
-#define NV_CTRL_DDCCI_MISC_VELOCITY_SCAN_MODULATION             187/* RWD */
-
-/* Increasing this control increases the amplitude of the color
- * difference components of the video signal.
- * The result is an increase in the amount of pure color relative to
- * white in the video. This control does not affect the RGB input,
- * only the TV video inputs.
- * Type: Range
- */
-#define NV_CTRL_DDCCI_MISC_TV_COLOR_SATURATION                  188/* RWD */
-
-/* Used to increment / decrement between TV-channels, the exact
- * behavior is implementation specific (e.g. increment / decrement
- * to next numeric channel or increment / decrement to next
- * channel with a signal)
- * NV_CTRL_DDCCI_MISC_TV_CHANNEL_UP_DOWN_INCREMENT: Increment channel
- * NV_CTRL_DDCCI_MISC_TV_CHANNEL_UP_DOWN_DECREMENT: Decrement channel
- * Type: Integer
- */
-#define NV_CTRL_DDCCI_MISC_TV_CHANNEL_UP_DOWN                   189/* -WD */
-#define NV_CTRL_DDCCI_MISC_TV_CHANNEL_UP_DOWN_INCREMENT         1
-#define NV_CTRL_DDCCI_MISC_TV_CHANNEL_UP_DOWN_DECREMENT         2
-
-/* Increasing this control increases the amplitude of the high
- * frequency components of the video signal.
- * This allows fine details to be accentuated. This control does not
- * affect the RGB input, only the TV video inputs.
- * Type: Range
- */
-#define NV_CTRL_DDCCI_MISC_TV_SHARPNESS                         190/* RWD */
-
-/* Provides for the TV-audio to be muted or unmated.
- * NV_CTRL_DDCCI_MISC_TV_AUDIO_MUTE_ON: Mute the audio
- * NV_CTRL_DDCCI_MISC_TV_AUDIO_MUTE_OFF: Unmute the audio
- * Type: Range
- */
-#define NV_CTRL_DDCCI_MISC_TV_AUDIO_MUTE                        191/* RWD */
-#define NV_CTRL_DDCCI_MISC_TV_AUDIO_MUTE_ON                     1
-#define NV_CTRL_DDCCI_MISC_TV_AUDIO_MUTE_OFF                    2
-
-/* Increasing (decreasing) this control increases (decreases) the
- * ratio between whites and blacks in the video.
- * This control does not affect the RGB input, only the TV video
- * inputs.
- * Type: Range
- */
-#define NV_CTRL_DDCCI_MISC_TV_CONTRAST                          192/* RWD */
-
-/* Also known as `tint'
- * Increasing (decreasing) this control increases (decreases) the
- * wavelength of the color component of the video signal.
- * The result is a shift towards red (blue) in the hue of all colors.
- * This control does not affect the RGB input, only the TV video
- * inputs.
- * Type: Range
- */
-#define NV_CTRL_DDCCI_MISC_TV_HUE                               193/* RWD */
-
-/* Increasing this control increases the black level of the video,
- * resulting in an increase of the luminance level of the video.
- * A value of zero represents the darkest level possible.
- * This control does not affect the RGB input, only the TV video
- * inputs.
- * Type: Range
- */
-#define NV_CTRL_DDCCI_MISC_TV_BLACK_LEVEL_SHARPNESS             194/* RWD */
-
-/* Horizontal synchronization signal frequency in Hz as determined
- * by the display.
- * FFh: Indicates that the display cannot supply this information
- * Type: Range
- */
-#define NV_CTRL_DDCCI_MISC_HORIZONTAL_FREQUENCY                 195/* R-D */
-
-/* Vertical synchronization signal frequency in 0.01Hz as
- * determined by the display.
- * FFh: Indicates that the display cannot supply this information
- * Type: Range
- */
-#define NV_CTRL_DDCCI_MISC_VERTICAL_FREQUENCY                   196/* R-D */
-
-/* Select a type of LCD sub-pixel structure
- * NV_CTRL_DDCCI_MISC_FLATPANEL_SUBPIXEL_LAYOUT_UNDEFINED:
- *      Sub-pixel layout is not defined
- * NV_CTRL_DDCCI_MISC_FLATPANEL_SUBPIXEL_LAYOUT_RGB_V:
- *      Red / Green / Blue vertical stripe
- * NV_CTRL_DDCCI_MISC_FLATPANEL_SUBPIXEL_LAYOUT_RGB_H:
- *      Red / Green / Blue horizontal stripe
- * NV_CTRL_DDCCI_MISC_FLATPANEL_SUBPIXEL_LAYOUT_BGR_V:
- *      Blue / Green / Red vertical stripe
- * NV_CTRL_DDCCI_MISC_FLATPANEL_SUBPIXEL_LAYOUT_BGR_H:
- *      Blue/ Green / Red horizontal stripe
- * NV_CTRL_DDCCI_MISC_FLATPANEL_SUBPIXEL_LAYOUT_QUAD_1:
- *      Quad-pixel, a 2 x 2 sub-pixel structure with red at top
- *      left, blue at bottom right and green at top right and
- *      bottom left
- * NV_CTRL_DDCCI_MISC_FLATPANEL_SUBPIXEL_LAYOUT_QUAD_2:
- *      Quad-pixel, a 2 x 2 sub-pixel structure with red at
- *      bottom left, blue at top right and green at top left and
- *      bottom right
- * NV_CTRL_DDCCI_MISC_FLATPANEL_SUBPIXEL_LAYOUT_DELTA:
- *      Delta (triad)
- * NV_CTRL_DDCCI_MISC_FLATPANEL_SUBPIXEL_LAYOUT_MOSAIC:
- *      Mosaic with red, green and blue fields overlayed 
- *      (field sequential color)
- * Type: Integer
- */
-#define NV_CTRL_DDCCI_MISC_FLATPANEL_SUBPIXEL_LAYOUT            197/* R-D */
-#define NV_CTRL_DDCCI_MISC_FLATPANEL_SUBPIXEL_LAYOUT_UNDEFINED  0
-#define NV_CTRL_DDCCI_MISC_FLATPANEL_SUBPIXEL_LAYOUT_RGB_V      1
-#define NV_CTRL_DDCCI_MISC_FLATPANEL_SUBPIXEL_LAYOUT_RGB_H      2
-#define NV_CTRL_DDCCI_MISC_FLATPANEL_SUBPIXEL_LAYOUT_BGR_V      3
-#define NV_CTRL_DDCCI_MISC_FLATPANEL_SUBPIXEL_LAYOUT_BGR_H      4
-#define NV_CTRL_DDCCI_MISC_FLATPANEL_SUBPIXEL_LAYOUT_QUAD_1     5
-#define NV_CTRL_DDCCI_MISC_FLATPANEL_SUBPIXEL_LAYOUT_QUAD_2     6
-#define NV_CTRL_DDCCI_MISC_FLATPANEL_SUBPIXEL_LAYOUT_DELTA      7
-#define NV_CTRL_DDCCI_MISC_FLATPANEL_SUBPIXEL_LAYOUT_MOSAIC     8
-
-/* Select the base technology type
- * NV_CTRL_DDCCI_MISC_DISPLAY_TECHNOLOGY_TYPE_CRT_SHADOWMASK: CRT (shadowmask)
- * NV_CTRL_DDCCI_MISC_DISPLAY_TECHNOLOGY_TYPE_CRT_APERTURE_GRILL: CRT (aperture
- *      grill)
- * NV_CTRL_DDCCI_MISC_DISPLAY_TECHNOLOGY_TYPE_TFT: TFT
- * NV_CTRL_DDCCI_MISC_DISPLAY_TECHNOLOGY_TYPE_LCOS: LCoS
- * NV_CTRL_DDCCI_MISC_DISPLAY_TECHNOLOGY_TYPE_PLASMA: Plasma
- * NV_CTRL_DDCCI_MISC_DISPLAY_TECHNOLOGY_TYPE_OLED: OLED
- * NV_CTRL_DDCCI_MISC_DISPLAY_TECHNOLOGY_TYPE_EL: EL
- * NV_CTRL_DDCCI_MISC_DISPLAY_TECHNOLOGY_TYPE_MEM: MEM
- * Type: integer
- */
-#define NV_CTRL_DDCCI_MISC_DISPLAY_TECHNOLOGY_TYPE              198/* R-D */
-#define NV_CTRL_DDCCI_MISC_DISPLAY_TECHNOLOGY_TYPE_CRT_SHADOWMASK       1
-#define NV_CTRL_DDCCI_MISC_DISPLAY_TECHNOLOGY_TYPE_CRT_APERTURE_GRILL   2
-#define NV_CTRL_DDCCI_MISC_DISPLAY_TECHNOLOGY_TYPE_TFT                  3
-#define NV_CTRL_DDCCI_MISC_DISPLAY_TECHNOLOGY_TYPE_LCOS                 4
-#define NV_CTRL_DDCCI_MISC_DISPLAY_TECHNOLOGY_TYPE_PLASMA               5
-#define NV_CTRL_DDCCI_MISC_DISPLAY_TECHNOLOGY_TYPE_OLED                 6
-#define NV_CTRL_DDCCI_MISC_DISPLAY_TECHNOLOGY_TYPE_EL                   7
-#define NV_CTRL_DDCCI_MISC_DISPLAY_TECHNOLOGY_TYPE_MEM                  8
-
-/* Returns the current value (in hours) of `active power on' time
- * accumulated by the display ­ a 2 byte value.
- * "Active power on" time is defined as the period when the
- * emissive elements(s) of the display ­ cathodes for a CRT,
- * fluorescent lamps for a LCD, etc ­ are active.
- * Type: Range
- */
-#define NV_CTRL_DDCCI_MISC_DISPLAY_USAGE_TIME                   199/* R-D */
-
-/* Returns the length (in bytes) of non-volatile storage in the display
- * available for writing a display descriptor ­ the maximum
- * descriptor length is 256 bytes
- * See 
- * Type: Range
- */
-#define NV_CTRL_DDCCI_MISC_DISPLAY_DESCRIPTOR_LENGTH            200/* R-D */
-
-/* If enabled (NV_CTRL_DDCCI_ON), the display descriptor written to the 
- * display using XNVCTRLSetDDCCIDisplayDescriptor() shall be displayed when 
- * no video is being received.
- * The duration for which it is displayed is left to individual manufacturers.
- * NV_CTRL_DDCCI_ON: Display is enabled
- * NV_CTRL_DDCCI_OFF: The display descriptor shall not be displayed.
- * Type: Boolean
- */
-#define NV_CTRL_DDCCI_MISC_ENABLE_DISPLAY_OF_DISPLAY_DESCRIPTOR 201/* RWD */
-
-/* A 2 byte value used to allow an application to only operate with
- * known products. The display manufacturer and application author
- * agree to a code such that application will only run when a valid
- * code is present in the display.
- * Type: Integer
- */
-#define NV_CTRL_DDCCI_MISC_APPLICATION_ENABLE_KEY               202/* R-D */
-
-/* This VCP code provides allows a 2 byte value identifying the
- * firmware level installed in the display to be determined.
- * Type: Range
- */
-#define NV_CTRL_DDCCI_MISC_DISPLAY_FIRMWARE_LEVEL               203/* R-D */
-
-/* Indicates the current state of the display OSD
- * NV_CTRL_DDCCI_MISC_OSD_DISABLED: OSD is disabled
- * NV_CTRL_DDCCI_MISC_OSD_ENABLED: OSD is enabled
- * NV_CTRL_DDCCI_MISC_OSD_CANNOT_SUPPLY: Indicates that the display cannot 
- *  supply this information.
- * Type: Integer
- */
-#define NV_CTRL_DDCCI_MISC_OSD                                  204/* RWD */
-#define NV_CTRL_DDCCI_MISC_OSD_DISABLED                         1
-#define NV_CTRL_DDCCI_MISC_OSD_ENABLED                          2
-#define NV_CTRL_DDCCI_MISC_OSD_CANNOT_SUPPLY                    0xFF
-
-/* Allows the displayed OSD language to be selected.
- * Type: Integer */
-#define NV_CTRL_DDCCI_MISC_OSD_LANGUAGE                         205/* RWD */
-#define NV_CTRL_DDCCI_MISC_OSD_LANGUAGE_CHINESE                 1
-#define NV_CTRL_DDCCI_MISC_OSD_LANGUAGE_ENGLISH                 2
-#define NV_CTRL_DDCCI_MISC_OSD_LANGUAGE_FRENCH                  3
-#define NV_CTRL_DDCCI_MISC_OSD_LANGUAGE_GERMAN                  4
-#define NV_CTRL_DDCCI_MISC_OSD_LANGUAGE_ITALIAN                 5
-#define NV_CTRL_DDCCI_MISC_OSD_LANGUAGE_JAPANESE                6
-#define NV_CTRL_DDCCI_MISC_OSD_LANGUAGE_KOREAN                  7
-#define NV_CTRL_DDCCI_MISC_OSD_LANGUAGE_PORTUGESE               8
-#define NV_CTRL_DDCCI_MISC_OSD_LANGUAGE_RUSSIAN                 9
-#define NV_CTRL_DDCCI_MISC_OSD_LANGUAGE_SPANISH                 10
-
-/* An `auxiliary display' is a small alpha-numeric display associated
- * with the primary display and able to be accessed via the primary
- * display.
- * This command returns a 1 byte value that defines the number of
- * characters and the number of rows available. The format is:
- * Bits 0 to 5 : The number of characters / row
- * Bits 6 to 7 : The number of rows
- * I.e. The maximum auxiliary display size is 4 rows each with 64 characters
- * Type: Bitmask
- */
-#define NV_CTRL_DDCCI_MISC_AUXILIARY_DISPLAY_SIZE               206/* R-D */
-#define NV_CTRL_DDCCI_MISC_AUXILIARY_DISPLAY_SIZE_COLUMNS_MASK  0x1F
-#define NV_CTRL_DDCCI_MISC_AUXILIARY_DISPLAY_SIZE_ROWS_MASK     0x60
-
-#define NV_CTRL_DDCCI_MISC_OUTPUT_SELECT                        207/* RWD */
-
-/* Used to selects the active output.
- * NV_CTRL_DDCCI_MISC_OUTPUT_SELECT_ANALOG_1: Analog video (R/G/B) 1
- * NV_CTRL_DDCCI_MISC_OUTPUT_SELECT_ANALOG_2: Analog video (R/G/B) 2
- * NV_CTRL_DDCCI_MISC_OUTPUT_SELECT_DIGITAL_1: Digital video (TMDS) 1
- * NV_CTRL_DDCCI_MISC_OUTPUT_SELECT_DIGITAL_2: Digital video (TMDS) 2
- * NV_CTRL_DDCCI_MISC_OUTPUT_SELECT_COMPOSITE_1: Composite video 1
- * NV_CTRL_DDCCI_MISC_OUTPUT_SELECT_COMPOSITE_2: Composite video 2
- * NV_CTRL_DDCCI_MISC_OUTPUT_SELECT_SVIDEO_1: S-video 1
- * NV_CTRL_DDCCI_MISC_OUTPUT_SELECT_SVIDEO_2: S-video 2
- * NV_CTRL_DDCCI_MISC_OUTPUT_SELECT_TUNER_1: Tuner 1
- * NV_CTRL_DDCCI_MISC_OUTPUT_SELECT_TUNER_2: Tuner 2
- * NV_CTRL_DDCCI_MISC_OUTPUT_SELECT_TUNER_3: Tuner 3
- * NV_CTRL_DDCCI_MISC_OUTPUT_SELECT_COMPONENT_1: Component video (YPrPb/YCrCb) 1
- * NV_CTRL_DDCCI_MISC_OUTPUT_SELECT_COMPONENT_2: Component video (YPrPb/YCrCb) 2
- * NV_CTRL_DDCCI_MISC_OUTPUT_SELECT_COMPONENT_3: Component video (YPrPb/YCrCb) 3
- * Type: Integer
- */
-#define NV_CTRL_DDCCI_MISC_OUTPUT_SELECT_ANALOG_1               1
-#define NV_CTRL_DDCCI_MISC_OUTPUT_SELECT_ANALOG_2               2
-#define NV_CTRL_DDCCI_MISC_OUTPUT_SELECT_DIGITAL_1              3
-#define NV_CTRL_DDCCI_MISC_OUTPUT_SELECT_DIGITAL_2              4
-#define NV_CTRL_DDCCI_MISC_OUTPUT_SELECT_COMPOSITE_1            5
-#define NV_CTRL_DDCCI_MISC_OUTPUT_SELECT_COMPOSITE_2            6
-#define NV_CTRL_DDCCI_MISC_OUTPUT_SELECT_SVIDEO_1               7
-#define NV_CTRL_DDCCI_MISC_OUTPUT_SELECT_SVIDEO_2               8
-#define NV_CTRL_DDCCI_MISC_OUTPUT_SELECT_TUNER_1                9
-#define NV_CTRL_DDCCI_MISC_OUTPUT_SELECT_TUNER_2                10
-#define NV_CTRL_DDCCI_MISC_OUTPUT_SELECT_TUNER_3                11
-#define NV_CTRL_DDCCI_MISC_OUTPUT_SELECT_COMPONENT_1            12
-#define NV_CTRL_DDCCI_MISC_OUTPUT_SELECT_COMPONENT_2            13
-#define NV_CTRL_DDCCI_MISC_OUTPUT_SELECT_COMPONENT_3            14
-
-/* Used to select the video mode with respect to 2D or 3D video.
- * Here is the meaning of the bitmask:
- * NV_CTRL_DDCCI_MISC_STEREO_VIDEO_MODE_FIELD_SEQUENTIAL_RIGHT_FIRST:
- *  Enable Field-Sequential Right Eye First
- * NV_CTRL_DDCCI_MISC_STEREO_VIDEO_MODE_FIELD_SEQUENTIAL_LEFT_FIRST:
- *  Enable Field-Sequential Left Eye First
- * NV_CTRL_DDCCI_MISC_STEREO_VIDEO_MODE_2WAY_INTERLEAVED_RIGHT_FIRST:
- *  Enable 2-Way Interleaved Right Eye First
- * NV_CTRL_DDCCI_MISC_STEREO_VIDEO_MODE_2WAY_INTERLEAVED_LEFT_FIRST:
- *  Enable 2-Way Interleaved Left Eye First
- * NV_CTRL_DDCCI_MISC_STEREO_VIDEO_MODE_4WAY_INTERLEAVED_ODD_LINES:
- *  Enable 4-Way Interleaved, Display Stereo Buffer 0 (even scan lines)
- * NV_CTRL_DDCCI_MISC_STEREO_VIDEO_MODE_4WAY_INTERLEAVED_ODD_LINES:
- *  Enable 4-Way Interleaved, Display Stereo Buffer 1 (odd scan lines)
- * NV_CTRL_DDCCI_MISC_STEREO_VIDEO_MODE_SIDE_BY_SIDE_INTERLEAVED:
- * Enable Side-by-Side Interleaved
- * Note: It is permissible, during a read operation, for a display to indicate
- * support for 2 or more stereo modes
- * Type: Bitmask
- */
-#define NV_CTRL_DDCCI_MISC_STEREO_VIDEO_MODE                    208/* RWD */
-#define NV_CTRL_DDCCI_MISC_STEREO_VIDEO_MODE_FIELD_SEQUENTIAL_RIGHT_FIRST (1<<6)
-#define NV_CTRL_DDCCI_MISC_STEREO_VIDEO_MODE_FIELD_SEQUENTIAL_LEFT_FIRST  (1<<5)
-#define NV_CTRL_DDCCI_MISC_STEREO_VIDEO_MODE_2WAY_INTERLEAVED_RIGHT_FIRST (1<<4)
-#define NV_CTRL_DDCCI_MISC_STEREO_VIDEO_MODE_2WAY_INTERLEAVED_LEFT_FIRST  (1<<3)
-#define NV_CTRL_DDCCI_MISC_STEREO_VIDEO_MODE_4WAY_INTERLEAVED_EVEN_LINES  (1<<2)
-#define NV_CTRL_DDCCI_MISC_STEREO_VIDEO_MODE_4WAY_INTERLEAVED_ODD_LINES   (1<<1)
-#define NV_CTRL_DDCCI_MISC_STEREO_VIDEO_MODE_SIDE_BY_SIDE_INTERLEAVED     (1<<0)
-
-/* Power Mode ­ DPMS and DPM standards are supported.
- * Value                                    DPMS        DPM
- * NV_CTRL_DDCCI_MISC_POWER_MODE_ON         On          On
- * NV_CTRL_DDCCI_MISC_POWER_MODE_STANDBY    Standby     Off
- * NV_CTRL_DDCCI_MISC_POWER_MODE_SUSPEND    Suspend     Off
- * NV_CTRL_DDCCI_MISC_POWER_MODE_OFF        Off         Off
- * Type: Integer
- */
-#define NV_CTRL_DDCCI_MISC_POWER_MODE                           209/* RWD */
-#define NV_CTRL_DDCCI_MISC_POWER_MODE_ON                        1
-#define NV_CTRL_DDCCI_MISC_POWER_MODE_STANDBY                   2
-#define NV_CTRL_DDCCI_MISC_POWER_MODE_SUSPEND                   3
-#define NV_CTRL_DDCCI_MISC_POWER_MODE_OFF                       4
-
-/* Controls output of an auxiliary power output from a display to a host device.
- * NV_CTRL_DDCCI_MISC_AUXILIARY_POWER_OUTPUT_DISABLE: 
- *  Disable auxiliary output power
- * NV_CTRL_DDCCI_MISC_AUXILIARY_POWER_OUTPUT_ENABLE: 
- * Enable auxiliary output power
- * Type: Integer
- */
-#define NV_CTRL_DDCCI_MISC_AUXILIARY_POWER_OUTPUT               210/* RWD */
-#define NV_CTRL_DDCCI_MISC_AUXILIARY_POWER_OUTPUT_DISABLE       1
-#define NV_CTRL_DDCCI_MISC_AUXILIARY_POWER_OUTPUT_ENABLE        2
-
-/* Operation mode
- * NV_CTRL_DDCCI_MISC_OPERATION_MODE_STANDALONE: Stand alone
- * NV_CTRL_DDCCI_MISC_OPERATION_MODE_SLAVE: Slave (full PC control)
- * Type: Integer
- */
-#define NV_CTRL_DDCCI_MISC_OPERATION_MODE                       211/* -WD */
-#define NV_CTRL_DDCCI_MISC_OPERATION_MODE_STANDALONE            1
-#define NV_CTRL_DDCCI_MISC_OPERATION_MODE_SLAVE                 2
-
-/* Define the version number of VCP list recognized by the display.
- * This is a 2 byte value, byte 1 defines the version number and
- * byte 2 defines the revision number
- * e.g 02 00 (hex) defines Version 2, Revision 0
- * Type: Integer
- */
-#define NV_CTRL_DDCCI_MISC_VCP_VERSION                          212/* R-D */
-
-/* Save the current adjustment data to EEPROM or other 
- * non-volatile storage inside the display
- * Returns TRUE on success
- * Type: Boolean
- */
-#define NV_CTRL_DDCCI_SAVE_CURRENT_SETTINGS                     213/* -WD */
-
-/* Detects if the display is DDC/CI capable
- * Returns TRUE on success
- * Type: Boolean
- */ 
-#define NV_CTRL_DDCCI_CAPABLE                                   214/* R-D*/
-
-#define NV_CTRL_DDCCI_FIRST_VCP NV_CTRL_DDCCI_GEOMETRY_HORIZONTAL_POSITION
-#define NV_CTRL_DDCCI_LAST_VCP NV_CTRL_DDCCI_CAPABLE
-/**************************************************************************/
-
 /*
  * NV_CTRL_FLATPANEL_CHIP_LOCATION - for the specified display device,
  * report whether the flat panel is driven by the on-chip controller,
@@ -2542,24 +1491,26 @@
 #define NV_CTRL_FLATPANEL_CHIP_LOCATION_EXTERNAL                  1
 
 /*
- * NV_CTRL_FLATPANEL_LINK - report whether the specified display
- * device is driven by a single link or dual link DVI connection.
+ * NV_CTRL_FLATPANEL_LINK - report the number of links for a DVI connection, or
+ * the main link's active lane count for DisplayPort.
  * This attribute is only available for flat panels.
  */
 
 #define NV_CTRL_FLATPANEL_LINK                                  216/* R-DG */
 #define NV_CTRL_FLATPANEL_LINK_SINGLE                             0
 #define NV_CTRL_FLATPANEL_LINK_DUAL                               1
+#define NV_CTRL_FLATPANEL_LINK_QUAD                               3
 
 /*
  * NV_CTRL_FLATPANEL_SIGNAL - for the specified display device, report
- * whether the flat panel is driven by an LVDS or TMDS signal.  This
- * attribute is only available for flat panels.
+ * whether the flat panel is driven by an LVDS, TMDS, or DisplayPort signal.
+ * This attribute is only available for flat panels.
  */
 
 #define NV_CTRL_FLATPANEL_SIGNAL                                217/* R-DG */
 #define NV_CTRL_FLATPANEL_SIGNAL_LVDS                             0
 #define NV_CTRL_FLATPANEL_SIGNAL_TMDS                             1
+#define NV_CTRL_FLATPANEL_SIGNAL_DISPLAYPORT                      2
 
 
 /*
@@ -2637,22 +1588,39 @@
 #define NV_CTRL_XINERAMA_STEREO_TRUE                             1
 
 /*
- * NV_CTRL_BUS_RATE - if the bus type of the GPU driving the specified
- * screen is AGP, then NV_CTRL_BUS_RATE returns the configured AGP
- * transfer rate.  If the bus type is PCI Express, then this attribute
- * returns the width of the physical link.
+ * NV_CTRL_BUS_RATE - if the bus type of the specified device is AGP, then
+ * NV_CTRL_BUS_RATE returns the configured AGP transfer rate.  If the bus type
+ * is PCI Express, then this attribute returns the maximum link width.
+ * When this attribute is queried on an X screen target, the bus rate of the
+ * GPU driving the X screen is returned.
  */
 
-#define NV_CTRL_BUS_RATE                                         224  /* R--G */
+#define NV_CTRL_BUS_RATE                                        224  /* R--GI */
+
+/*
+ * NV_CTRL_GPU_PCIE_MAX_LINK_WIDTH - returns the maximum
+ * PCIe link width, in number of lanes.
+ */
+#define NV_CTRL_GPU_PCIE_MAX_LINK_WIDTH  NV_CTRL_BUS_RATE
 
 /*
  * NV_CTRL_SHOW_SLI_HUD - when TRUE, OpenGL will draw information about the
  * current SLI mode.
+ * Renamed this attribute to NV_CTRL_SHOW_SLI_VISUAL_INDICATOR
  */
 
-#define NV_CTRL_SHOW_SLI_HUD                                     225  /* RW-X */
-#define NV_CTRL_SHOW_SLI_HUD_FALSE                               0
-#define NV_CTRL_SHOW_SLI_HUD_TRUE                                1
+#define NV_CTRL_SHOW_SLI_HUD         NV_CTRL_SHOW_SLI_VISUAL_INDICATOR
+#define NV_CTRL_SHOW_SLI_HUD_FALSE   NV_CTRL_SHOW_SLI_VISUAL_INDICATOR_FALSE
+#define NV_CTRL_SHOW_SLI_HUD_TRUE    NV_CTRL_SHOW_SLI_VISUAL_INDICATOR_TRUE
+
+/*
+ * NV_CTRL_SHOW_SLI_VISUAL_INDICATOR - when TRUE, OpenGL will draw information
+ * about the current SLI mode.
+ */
+
+#define NV_CTRL_SHOW_SLI_VISUAL_INDICATOR                       225  /* RW-X */
+#define NV_CTRL_SHOW_SLI_VISUAL_INDICATOR_FALSE                   0
+#define NV_CTRL_SHOW_SLI_VISUAL_INDICATOR_TRUE                    1
 
 /*
  * NV_CTRL_XV_SYNC_TO_DISPLAY - this control is valid when TwinView and 
@@ -2663,20 +1631,27 @@
 #define NV_CTRL_XV_SYNC_TO_DISPLAY                               226  /* RW- */
 
 /*
- * NV_CTRL_GVO_OUTPUT_VIDEO_FORMAT2 - this attribute is only intended
- * to be used to query the ValidValues for
- * NV_CTRL_GVO_OUTPUT_VIDEO_FORMAT above the first 31 VIDEO_FORMATS.
- * See NV_CTRL_GVO_OUTPUT_VIDEO_FORMAT for details.
+ * NV_CTRL_GVIO_REQUESTED_VIDEO_FORMAT2 - this attribute is only
+ * intended to be used to query the ValidValues for
+ * NV_CTRL_GVIO_REQUESTED_VIDEO_FORMAT for VIDEO_FORMAT values between
+ * 31 and 63.  See NV_CTRL_GVIO_REQUESTED_VIDEO_FORMAT for details.
  */
 
+#define NV_CTRL_GVIO_REQUESTED_VIDEO_FORMAT2                    227  /* ---GI */
+
+/* 
+ * The following is deprecated; use NV_CTRL_GVIO_REQUESTED_VIDEO_FORMAT2,
+ * instead
+ */
 #define NV_CTRL_GVO_OUTPUT_VIDEO_FORMAT2                         227  /* --- */
 
+
 /*
- * Override the SDI hardware's Color Space Conversion with the values
- * controlled through XNVCTRLSetGvoColorConversion() and
- * XNVCTRLGetGvoColorConversion().  If this attribute is FALSE, then
- * the values specified through XNVCTRLSetGvoColorConversion() are
- * ignored.
+ * NV_CTRL_GVO_OVERRIDE_HW_CSC - Override the SDI hardware's Color Space
+ * Conversion with the values controlled through
+ * XNVCTRLSetGvoColorConversion() and XNVCTRLGetGvoColorConversion().  If
+ * this attribute is FALSE, then the values specified through
+ * XNVCTRLSetGvoColorConversion() are ignored.
  */
 
 #define NV_CTRL_GVO_OVERRIDE_HW_CSC                              228  /* RW- */
@@ -2752,10 +1727,9 @@
 #define NV_CTRL_FRAMELOCK_SLAVES                                 232 /* RW-G */
 
 /*
- * NV_CTRL_FRAMELOCK_MASTERABLE - Can this Display Device be set
- * as the master of the frame lock group.  Returns MASTERABLE_TRUE if
- * the GPU driving the display device is connected to the "primary"
- * connector on the frame lock board.
+ * NV_CTRL_FRAMELOCK_MASTERABLE - Can any of the given display devices
+ * be set as master of the frame lock group.  Returns a bitmask of the
+ * corresponding display devices that can be set as master.
  *
  * This attribute can only be queried through XNVCTRLQueryTargetAttribute()
  * using a NV_CTRL_TARGET_TYPE_GPU target.  This attribute cannot be
@@ -2763,9 +1737,6 @@
  */
 
 #define NV_CTRL_FRAMELOCK_MASTERABLE                             233 /* R-DG */
-#define NV_CTRL_FRAMELOCK_MASTERABLE_FALSE                       0
-#define NV_CTRL_FRAMELOCK_MASTERABLE_TRUE                        1
-
 
 /*
  * NV_CTRL_PROBE_DISPLAYS - re-probes the hardware to detect what
@@ -2816,12 +1787,15 @@
  * NV_CTRL_INITIAL_PIXMAP_PLACEMENT - Controls where X pixmaps are initially
  * created.
  *
- * NV_CTRL_INITIAL_PIXMAP_PLACEMENT_FORCE_SYSMEM causes to pixmaps to stay in
- * system memory.
+ * NV_CTRL_INITIAL_PIXMAP_PLACEMENT_FORCE_SYSMEM causes pixmaps to stay in
+ * system memory. These pixmaps can't be accelerated by the NVIDIA driver; this
+ * will cause blank windows if used with an OpenGL compositing manager.
  * NV_CTRL_INITIAL_PIXMAP_PLACEMENT_SYSMEM creates pixmaps in system memory
  * initially, but allows them to migrate to video memory.
  * NV_CTRL_INITIAL_PIXMAP_PLACEMENT_VIDMEM creates pixmaps in video memory
  * when enough resources are available.
+ * NV_CTRL_INITIAL_PIXMAP_PLACEMENT_RESERVED is currently reserved for future
+ * use.  Behavior is undefined.
  * NV_CTRL_INITIAL_PIXMAP_PLACEMENT_GPU_SYSMEM creates pixmaps in GPU accessible
  * system memory when enough resources are available.
  */
@@ -2830,28 +1804,31 @@
 #define NV_CTRL_INITIAL_PIXMAP_PLACEMENT_FORCE_SYSMEM            0
 #define NV_CTRL_INITIAL_PIXMAP_PLACEMENT_SYSMEM                  1
 #define NV_CTRL_INITIAL_PIXMAP_PLACEMENT_VIDMEM                  2
+#define NV_CTRL_INITIAL_PIXMAP_PLACEMENT_RESERVED                3
 #define NV_CTRL_INITIAL_PIXMAP_PLACEMENT_GPU_SYSMEM              4
 
 
 /*
- * NV_CTRL_PCI_BUS - Returns the PCI bus number the GPU is using.
+ * NV_CTRL_PCI_BUS - Returns the PCI bus number the specified device is using.
  */
 
-#define NV_CTRL_PCI_BUS                                          239 /* R--G */
+#define NV_CTRL_PCI_BUS                                          239 /* R--GI */
 
 
 /*
- * NV_CTRL_PCI_DEVICE - Returns the PCI device number the GPU is using.
+ * NV_CTRL_PCI_DEVICE - Returns the PCI device number the specified device is
+ * using.
  */
 
-#define NV_CTRL_PCI_DEVICE                                       240 /* R--G */
+#define NV_CTRL_PCI_DEVICE                                       240 /* R--GI */
 
 
 /*
- * NV_CTRL_PCI_FUNCTION - Returns the PCI function number the GPU is using.
+ * NV_CTRL_PCI_FUNCTION - Returns the PCI function number the specified device
+ * is using.
  */
 
-#define NV_CTRL_PCI_FUNCTION                                     241 /* R--G */
+#define NV_CTRL_PCI_FUNCTION                                     241 /* R--GI */
 
 
 /*
@@ -2896,26 +1873,15 @@
 
 
 /*
- * NV_CTRL_MULTIGPU_DISPLAY_OWNER - Returns the GPU ID of the GPU
- * that has the display device(s) used for showing the X Screen.
+ * NV_CTRL_MULTIGPU_DISPLAY_OWNER - Returns the (NV-CONTROL) GPU ID of
+ * the GPU that has the display device(s) used for showing the X Screen.
  */
 
 #define NV_CTRL_MULTIGPU_DISPLAY_OWNER                           247 /* R-- */
 
 
-/* 
- * NV_CTRL_GPU_SCALING - Controls what the GPU scales to and how.
- * This attribute is a packed integer; the scaling target (native/best fit)
- * is packed in the upper 16-bits and the scaling method is packed in the
- * lower 16-bits.
- *
- * 'Best fit' scaling will make the GPU scale the frontend (current) mode to
- * the closest larger resolution in the flat panel's EDID and allow the
- * flat panel to do its own scaling to the native resolution.
- *
- * 'Native' scaling will make the GPU scale the frontend (current) mode to
- * the flat panel's native resolution, thus disabling any internal scaling
- * the flat panel might have.
+/*
+ * NV_CTRL_GPU_SCALING - not supported
  */
 
 #define NV_CTRL_GPU_SCALING                                      248 /* RWDG */
@@ -2931,26 +1897,14 @@
 
 
 /*
- * NV_CTRL_FRONTEND_RESOLUTION - Returns the dimensions of the frontend
- * (current) resolution as determined by the NVIDIA X Driver.
- *
- * This attribute is a packed integer; the width is packed in the upper
- * 16-bits and the height is packed in the lower 16-bits.
+ * NV_CTRL_FRONTEND_RESOLUTION - not supported
  */
 
 #define NV_CTRL_FRONTEND_RESOLUTION                              249 /* R-DG */
 
 
 /*
- * NV_CTRL_BACKEND_RESOLUTION - Returns the dimensions of the
- * backend resolution as determined by the NVIDIA X Driver.  
- *
- * The backend resolution is the resolution (supported by the display
- * device) the GPU is set to scale to.  If this resolution matches the
- * frontend resolution, GPU scaling will not be needed/used.
- *
- * This attribute is a packed integer; the width is packed in the upper
- * 16-bits and the height is packed in the lower 16-bits.
+ * NV_CTRL_BACKEND_RESOLUTION - not supported
  */
 
 #define NV_CTRL_BACKEND_RESOLUTION                               250 /* R-DG */
@@ -2976,43 +1930,21 @@
 
 
 /*
- * NV_CTRL_FLATPANEL_BEST_FIT_RESOLUTION - Returns the dimensions of the
- * resolution, selected by the X driver, from the DFP's EDID that most
- * closely matches the frontend resolution of the current mode.  The best
- * fit resolution is selected on a per-mode basis.
- * NV_CTRL_GPU_SCALING_TARGET is used to select between
- * NV_CTRL_FLATPANEL_BEST_FIT_RESOLUTION and NV_CTRL_NATIVE_RESOLUTION.
- *
- * This attribute is only valid for flat panel (DFP) display devices.
- *
- * This attribute is a packed integer; the width is packed in the upper
- * 16-bits and the height is packed in the lower 16-bits.
+ * NV_CTRL_FLATPANEL_BEST_FIT_RESOLUTION - not supported
  */
 
 #define NV_CTRL_FLATPANEL_BEST_FIT_RESOLUTION                    252 /* R-DG */
 
 
 /*
- * NV_CTRL_GPU_SCALING_ACTIVE - Returns the current state of
- * GPU scaling.  GPU scaling is mode-specific (meaning it may vary
- * depending on which mode is currently set).  GPU scaling is active if
- * the frontend timing (current resolution) is different than the target
- * resolution.  The target resolution is either the native resolution of
- * the flat panel or the best fit resolution supported by the flat panel.
- * What (and how) the GPU should scale to is controlled through the
- * NV_CTRL_GPU_SCALING attribute.
+ * NV_CTRL_GPU_SCALING_ACTIVE - not supported
  */
 
 #define NV_CTRL_GPU_SCALING_ACTIVE                               253 /* R-DG */
 
 
 /*
- * NV_CTRL_DFP_SCALING_ACTIVE - Returns the current state of
- * DFP scaling.  DFP scaling is mode-specific (meaning it may vary
- * depending on which mode is currently set).  DFP scaling is active if
- * the GPU is set to scale to the best fit resolution (NV_CTRL_GPU_SCALING
- * is set to NV_CTRL_GPU_SCALING_TARGET_FLATPANEL_BEST_FIT) and the best fit
- * and native resolutions are different.
+ * NV_CTRL_DFP_SCALING_ACTIVE - not supported
  */
 
 #define NV_CTRL_DFP_SCALING_ACTIVE                               254 /* R-DG */
@@ -3049,26 +1981,23 @@
 
 /*
  * NV_CTRL_GVO_LOCK_OWNER - indicates that the GVO device is available
- * or in use (by GLX, Clone Mode, TwinView etc).
+ * or in use (by GLX or an X screen).
  *
- * The GVO device is locked by GLX when the GLX_NV_video_out function
- * calls glXGetVideoDeviceNV().  The GVO device is then unlocked when
- * glXReleaseVideoDeviceNV() is called, or the X Display used when calling
- * glXGetVideoDeviceNV() is closed.
+ * The GVO device is locked by GLX when either glXGetVideoDeviceNV
+ * (part of GLX_NV_video_out) or glXBindVideoDeviceNV (part of
+ * GLX_NV_present_video) is called.  All GVO output resources are
+ * locked until released by the GLX_NV_video_out/GLX_NV_present_video
+ * client.
  *
- * The GVO device is locked/unlocked for Clone mode use when the
- * attribute NV_CTRL_GVO_DISPLAY_X_SCREEN is enabled/disabled.
- *
- * The GVO device is locked/unlocked by TwinView mode, when the GVO device is
- * associated/unassociated to/from an X screen through the
- * NV_CTRL_ASSOCIATED_DISPLAY_DEVICES attribute directly.
+ * The GVO device is locked/unlocked by an X screen, when the GVO device is
+ * used in a MetaMode on an X screen.
  *
  * When the GVO device is locked, setting of the following GVO NV-CONTROL
  * attributes will not happen immediately and will instead be cached.  The
  * GVO resource will need to be disabled/released and re-enabled/claimed for
  * the values to be flushed. These attributes are:
  *
- *    NV_CTRL_GVO_OUTPUT_VIDEO_FORMAT
+ *    NV_CTRL_GVIO_REQUESTED_VIDEO_FORMAT
  *    NV_CTRL_GVO_DATA_FORMAT
  *    NV_CTRL_GVO_FLIP_QUEUE_SIZE
  */
@@ -3076,7 +2005,7 @@
 #define NV_CTRL_GVO_LOCK_OWNER                                  257 /* R-- */
 #define NV_CTRL_GVO_LOCK_OWNER_NONE                               0
 #define NV_CTRL_GVO_LOCK_OWNER_GLX                                1
-#define NV_CTRL_GVO_LOCK_OWNER_CLONE                              2
+#define NV_CTRL_GVO_LOCK_OWNER_CLONE /* no longer supported */    2
 #define NV_CTRL_GVO_LOCK_OWNER_X_SCREEN                           3
 
 
@@ -3090,7 +2019,7 @@
 #define NV_CTRL_HWOVERLAY_TRUE                                    1
 
 /*
- * NV_CTRL_NUM_GPU_ERRORS_RECOVERED - Returns the number of gpu errors
+ * NV_CTRL_NUM_GPU_ERRORS_RECOVERED - Returns the number of GPU errors
  * occured. This attribute may be queried through XNVCTRLQueryTargetAttribute()
  * using a NV_CTRL_TARGET_TYPE_X_SCREEN target.
  */
@@ -3133,10 +2062,7 @@
 
 
 /*
- * NV_CTRL_GPU_CURRENT_PERFORMANCE_MODE reports the current
- * Performance mode of the GPU driving the X screen.  Running
- * a 3D app for example, will change this performance mode,
- * if Adaptive Clocking is enabled.
+ * NV_CTRL_GPU_CURRENT_PERFORMANCE_MODE is deprecated
  */
 
 #define NV_CTRL_GPU_CURRENT_PERFORMANCE_MODE                    263 /* R--G */
@@ -3231,7 +2157,7 @@
  *
  * Range # (11 bits), (Enabled 1 bit), min value (10 bits), max value (10 bits)
  *
- * To query the current values, pass the range # throught he display_mask
+ * To query the current values, pass the range # throught the display_mask
  * variable.
  */
 
@@ -3287,15 +2213,18 @@
 
 
 /*
- * NV_CTRL_SWITCH_TO_DISPLAYS takes display to which
- * user wants to switch.
+ * NV_CTRL_SWITCH_TO_DISPLAYS - Can be used to select which displays
+ * to switch to (as a hotkey event).
  */
 
 #define NV_CTRL_SWITCH_TO_DISPLAYS                              276 /* -W- */
 
+
 /*
- * NV_CTRL_NOTEBOOK_DISPLAY_CHANGE_LID_EVENT can be used to send event
- * to notify open/closure of the lid.
+ * NV_CTRL_NOTEBOOK_DISPLAY_CHANGE_LID_EVENT - Event that notifies
+ * when a notebook lid change occurs (i.e. when the lid is opened or
+ * closed.)  This attribute can be queried to retrieve the current
+ * notebook lid status (opened/closed.)
  */
 
 #define NV_CTRL_NOTEBOOK_DISPLAY_CHANGE_LID_EVENT               277 /* RW- */
@@ -3303,8 +2232,8 @@
 #define NV_CTRL_NOTEBOOK_DISPLAY_CHANGE_LID_EVENT_OPEN            1
 
 /*
- * NV_CTRL_NOTEBOOK_INTERNAL_LCD returns intenal LCD
- * of Notebook.
+ * NV_CTRL_NOTEBOOK_INTERNAL_LCD - Returns the display device mask of
+ * the intenal LCD of a notebook.
  */
 
 #define NV_CTRL_NOTEBOOK_INTERNAL_LCD                           278 /* R-- */
@@ -3316,7 +2245,989 @@
 
 #define NV_CTRL_DEPTH_30_ALLOWED                                279 /* R--G */
 
-#define NV_CTRL_LAST_ATTRIBUTE NV_CTRL_DEPTH_30_ALLOWED
+
+/*
+ * NV_CTRL_MODE_SET_EVENT This attribute is sent as an event
+ * when hotkey, ctrl-alt-+/- or randr event occurs.  Note that
+ * This attribute cannot be set or queried and is meant to
+ * be received by clients that wish to be notified of when
+ * mode set events occur.
+ */
+
+#define NV_CTRL_MODE_SET_EVENT                                  280 /* --- */
+
+
+/*
+ * NV_CTRL_OPENGL_AA_LINE_GAMMA_VALUE - the gamma value used by
+ * OpenGL when NV_CTRL_OPENGL_AA_LINE_GAMMA is enabled
+ */
+
+#define NV_CTRL_OPENGL_AA_LINE_GAMMA_VALUE                      281 /* RW-X */
+
+
+/*
+ * NV_CTRL_VCSC_HIGH_PERF_MODE - Is used to both query High Performance Mode
+ * status on the Visual Computing System, and also to enable or disable High
+ * Performance Mode.
+ */
+
+#define NV_CTRL_VCSC_HIGH_PERF_MODE                             282 /* RW-V */
+#define NV_CTRL_VCSC_HIGH_PERF_MODE_DISABLE                       0
+#define NV_CTRL_VCSC_HIGH_PERF_MODE_ENABLE                        1
+
+/*
+ * NV_CTRL_DISPLAYPORT_LINK_RATE - returns the negotiated lane bandwidth of the
+ * DisplayPort main link.  The numerical value of this attribute is the link
+ * rate in bps divided by 27000000.
+ * This attribute is only available for DisplayPort flat panels.
+ */
+
+#define NV_CTRL_DISPLAYPORT_LINK_RATE                           291 /* R-DG */
+#define NV_CTRL_DISPLAYPORT_LINK_RATE_DISABLED                  0x0
+#define NV_CTRL_DISPLAYPORT_LINK_RATE_1_62GBPS                  0x6 /* deprecated */
+#define NV_CTRL_DISPLAYPORT_LINK_RATE_2_70GBPS                  0xA /* deprecated */
+
+/*
+ * NV_CTRL_STEREO_EYES_EXCHANGE - Controls whether or not the left and right
+ * eyes of a stereo image are flipped.
+ */
+
+#define NV_CTRL_STEREO_EYES_EXCHANGE                            292  /* RW-X */
+#define NV_CTRL_STEREO_EYES_EXCHANGE_OFF                          0
+#define NV_CTRL_STEREO_EYES_EXCHANGE_ON                           1
+
+/*
+ * NV_CTRL_NO_SCANOUT - returns whether the special "NoScanout" mode is
+ * enabled on the specified X screen or GPU; for details on this mode,
+ * see the description of the "none" value for the "UseDisplayDevice"
+ * X configuration option in the NVIDIA driver README.
+ */
+
+#define NV_CTRL_NO_SCANOUT                                      293 /* R--G */
+#define NV_CTRL_NO_SCANOUT_DISABLED                             0
+#define NV_CTRL_NO_SCANOUT_ENABLED                              1
+
+/*
+ * NV_CTRL_GVO_CSC_CHANGED_EVENT This attribute is sent as an event
+ * when the color space conversion matrix has been altered by another
+ * client.
+ */
+
+#define NV_CTRL_GVO_CSC_CHANGED_EVENT                           294 /* --- */
+
+/* 
+ * NV_CTRL_FRAMELOCK_SLAVEABLE - Returns a bitmask of the display devices
+ * that are (currently) allowed to be selected as slave devices for the
+ * given GPU
+ */
+
+#define NV_CTRL_FRAMELOCK_SLAVEABLE                             295 /* R-DG */
+
+/*
+ * NV_CTRL_GVO_SYNC_TO_DISPLAY This attribute controls whether or not
+ * the non-SDI display device will be sync'ed to the SDI display device
+ * (when configured in TwinView, Clone Mode or when using the SDI device
+ * with OpenGL).
+ */
+
+#define NV_CTRL_GVO_SYNC_TO_DISPLAY                             296 /* --- */
+#define NV_CTRL_GVO_SYNC_TO_DISPLAY_DISABLE                     0
+#define NV_CTRL_GVO_SYNC_TO_DISPLAY_ENABLE                      1
+
+/*
+ * NV_CTRL_X_SERVER_UNIQUE_ID - returns a pseudo-unique identifier for this
+ * X server. Intended for use in cases where an NV-CONTROL client communicates
+ * with multiple X servers, and wants some level of confidence that two
+ * X Display connections correspond to the same or different X servers.
+ */
+
+#define NV_CTRL_X_SERVER_UNIQUE_ID                              297 /* R--- */
+
+/*
+ * NV_CTRL_PIXMAP_CACHE - This attribute controls whether the driver attempts to
+ * store video memory pixmaps in a cache.  The cache speeds up allocation and
+ * deallocation of pixmaps, but could use more memory than when the cache is
+ * disabled.
+ */
+
+#define NV_CTRL_PIXMAP_CACHE                                    298 /* RW-X */
+#define NV_CTRL_PIXMAP_CACHE_DISABLE                              0
+#define NV_CTRL_PIXMAP_CACHE_ENABLE                               1
+
+/*
+ * NV_CTRL_PIXMAP_CACHE_ROUNDING_SIZE_KB - When the pixmap cache is enabled and
+ * there is not enough free space in the cache to fit a new pixmap, the driver
+ * will round up to the next multiple of this number of kilobytes when
+ * allocating more memory for the cache.
+ */
+
+#define NV_CTRL_PIXMAP_CACHE_ROUNDING_SIZE_KB                   299 /* RW-X */
+
+/*
+ * NV_CTRL_IS_GVO_DISPLAY - returns whether or not a given display is an
+ * SDI device.
+ */
+
+#define NV_CTRL_IS_GVO_DISPLAY                                  300 /* R-D */
+#define NV_CTRL_IS_GVO_DISPLAY_FALSE                              0
+#define NV_CTRL_IS_GVO_DISPLAY_TRUE                               1
+
+/*
+ * NV_CTRL_PCI_ID - Returns the PCI vendor and device ID of the specified
+ * device.
+ *
+ * NV_CTRL_PCI_ID is a "packed" integer attribute; the PCI vendor ID is stored
+ * in the upper 16 bits of the integer, and the PCI device ID is stored in the
+ * lower 16 bits of the integer.
+ */
+
+#define NV_CTRL_PCI_ID                                          301 /* R--GI */
+
+/*
+ * NV_CTRL_GVO_FULL_RANGE_COLOR - Allow full range color data [4-1019]
+ * without clamping to [64-940].
+ */
+
+#define NV_CTRL_GVO_FULL_RANGE_COLOR                            302 /* RW- */
+#define NV_CTRL_GVO_FULL_RANGE_COLOR_DISABLED                     0
+#define NV_CTRL_GVO_FULL_RANGE_COLOR_ENABLED                      1
+
+/*
+ * NV_CTRL_SLI_MOSAIC_MODE_AVAILABLE - Returns whether or not
+ * SLI Mosaic Mode supported.
+ */
+
+#define NV_CTRL_SLI_MOSAIC_MODE_AVAILABLE                       303 /* R-- */
+#define NV_CTRL_SLI_MOSAIC_MODE_AVAILABLE_FALSE                   0
+#define NV_CTRL_SLI_MOSAIC_MODE_AVAILABLE_TRUE                    1
+
+/*
+ * NV_CTRL_GVO_ENABLE_RGB_DATA - Allows clients to specify when
+ * the GVO board should process colors as RGB when the output data
+ * format is one of the NV_CTRL_GVO_DATA_FORMAT_???_PASSTRHU modes.
+ */
+
+#define NV_CTRL_GVO_ENABLE_RGB_DATA                             304 /* RW- */
+#define NV_CTRL_GVO_ENABLE_RGB_DATA_DISABLE                       0
+#define NV_CTRL_GVO_ENABLE_RGB_DATA_ENABLE                        1
+
+/*
+ * NV_CTRL_IMAGE_SHARPENING_DEFAULT - Returns default value of
+ * Image Sharpening.
+ */
+
+#define NV_CTRL_IMAGE_SHARPENING_DEFAULT                        305 /* R-- */
+
+/*
+ * NV_CTRL_PCI_DOMAIN - Returns the PCI domain number the specified device is
+ * using.
+ */
+
+#define NV_CTRL_PCI_DOMAIN                                      306 /* R--GI */
+
+/*
+ * NV_CTRL_GVI_NUM_JACKS - Returns the number of input BNC jacks available
+ * on a GVI device.
+ */
+
+#define NV_CTRL_GVI_NUM_JACKS                                   307 /* R--I */
+
+/* 
+ * NV_CTRL_GVI_MAX_LINKS_PER_STREAM - Returns the maximum supported number of
+ * links that can be tied to one stream.
+ */
+
+#define NV_CTRL_GVI_MAX_LINKS_PER_STREAM                        308 /* R--I */
+
+/*
+ * NV_CTRL_GVI_DETECTED_CHANNEL_BITS_PER_COMPONENT - Returns the detected
+ * number of bits per component (BPC) of data on the given input jack+
+ * channel.
+ *
+ * The jack number should be specified in the lower 16 bits of the
+ * "display_mask" parameter, while the channel number should be specified in
+ * the upper 16 bits.
+ */
+
+#define NV_CTRL_GVI_DETECTED_CHANNEL_BITS_PER_COMPONENT         309 /* R--I */
+#define NV_CTRL_GVI_BITS_PER_COMPONENT_UNKNOWN                    0
+#define NV_CTRL_GVI_BITS_PER_COMPONENT_8                          1
+#define NV_CTRL_GVI_BITS_PER_COMPONENT_10                         2
+#define NV_CTRL_GVI_BITS_PER_COMPONENT_12                         3
+
+/*
+ * NV_CTRL_GVI_REQUESTED_STREAM_BITS_PER_COMPONENT - Specify the number of
+ * bits per component (BPC) of data for the captured stream.
+ * The stream number should be specified in the "display_mask" parameter.
+ *
+ * Note: Setting this attribute may also result in the following
+ *       NV-CONTROL attributes being reset on the GVI device (to ensure
+ *       the configuration remains valid):
+ *           NV_CTRL_GVI_REQUESTED_STREAM_COMPONENT_SAMPLING
+ */
+
+#define NV_CTRL_GVI_REQUESTED_STREAM_BITS_PER_COMPONENT         310 /* RW-I */
+
+/*
+ * NV_CTRL_GVI_DETECTED_CHANNEL_COMPONENT_SAMPLING - Returns the detected
+ * sampling format for the input jack+channel.
+ *
+ * The jack number should be specified in the lower 16 bits of the
+ * "display_mask" parameter, while the channel number should be specified in
+ * the upper 16 bits.
+ */
+
+#define NV_CTRL_GVI_DETECTED_CHANNEL_COMPONENT_SAMPLING         311 /* R--I */
+#define NV_CTRL_GVI_COMPONENT_SAMPLING_UNKNOWN                    0
+#define NV_CTRL_GVI_COMPONENT_SAMPLING_4444                       1
+#define NV_CTRL_GVI_COMPONENT_SAMPLING_4224                       2
+#define NV_CTRL_GVI_COMPONENT_SAMPLING_444                        3
+#define NV_CTRL_GVI_COMPONENT_SAMPLING_422                        4
+#define NV_CTRL_GVI_COMPONENT_SAMPLING_420                        5
+
+/*
+ * NV_CTRL_GVI_REQUESTED_COMPONENT_SAMPLING - Specify the sampling format for
+ * the captured stream.
+ * The possible values are the NV_CTRL_GVI_DETECTED_COMPONENT_SAMPLING
+ * constants.
+ * The stream number should be specified in the "display_mask" parameter.
+ */
+
+#define NV_CTRL_GVI_REQUESTED_STREAM_COMPONENT_SAMPLING         312 /* RW-I */
+
+/*
+ * NV_CTRL_GVI_CHROMA_EXPAND - Enable or disable 4:2:2 -> 4:4:4 chroma
+ * expansion for the captured stream.  This value is ignored when a
+ * COMPONENT_SAMPLING format is selected that does not use chroma subsampling,
+ * or if a BITS_PER_COMPONENT value is selected that is not supported.
+ * The stream number should be specified in the "display_mask" parameter.
+ */
+
+#define NV_CTRL_GVI_REQUESTED_STREAM_CHROMA_EXPAND              313 /* RW-I */
+#define NV_CTRL_GVI_CHROMA_EXPAND_FALSE                           0
+#define NV_CTRL_GVI_CHROMA_EXPAND_TRUE                            1
+
+/*
+ * NV_CTRL_GVI_DETECTED_CHANNEL_COLOR_SPACE - Returns the detected color space
+ * of the input jack+channel.
+ *
+ * The jack number should be specified in the lower 16 bits of the
+ * "display_mask" parameter, while the channel number should be specified in
+ * the upper 16 bits.
+ */
+
+#define NV_CTRL_GVI_DETECTED_CHANNEL_COLOR_SPACE                314 /* R--I */
+#define NV_CTRL_GVI_COLOR_SPACE_UNKNOWN                           0
+#define NV_CTRL_GVI_COLOR_SPACE_GBR                               1
+#define NV_CTRL_GVI_COLOR_SPACE_GBRA                              2
+#define NV_CTRL_GVI_COLOR_SPACE_GBRD                              3
+#define NV_CTRL_GVI_COLOR_SPACE_YCBCR                             4
+#define NV_CTRL_GVI_COLOR_SPACE_YCBCRA                            5
+#define NV_CTRL_GVI_COLOR_SPACE_YCBCRD                            6
+
+/*
+ * NV_CTRL_GVI_DETECTED_CHANNEL_LINK_ID - Returns the detected link identifier
+ * for the given input jack+channel.
+ *
+ * The jack number should be specified in the lower 16 bits of the
+ * "display_mask" parameter, while the channel number should be specified in
+ * the upper 16 bits.
+ */
+
+#define NV_CTRL_GVI_DETECTED_CHANNEL_LINK_ID                    315 /* R--I */
+#define NV_CTRL_GVI_LINK_ID_UNKNOWN                          0xFFFF
+
+/*
+ * NV_CTRL_GVI_DETECTED_CHANNEL_SMPTE352_IDENTIFIER - Returns the 4-byte
+ * SMPTE 352 identifier from the given input jack+channel.
+ *
+ * The jack number should be specified in the lower 16 bits of the
+ * "display_mask" parameter, while the channel number should be specified in
+ * the upper 16 bits.
+ */
+
+#define NV_CTRL_GVI_DETECTED_CHANNEL_SMPTE352_IDENTIFIER        316 /* R--I */
+
+/*
+ * NV_CTRL_GVI_GLOBAL_IDENTIFIER - Returns a global identifier for the
+ * GVI device.  This identifier can be used to relate GVI devices named
+ * in NV-CONTROL with those enumerated in OpenGL.
+ */
+
+#define NV_CTRL_GVI_GLOBAL_IDENTIFIER                           317 /* R--I */
+
+/*
+ * NV_CTRL_FRAMELOCK_SYNC_DELAY_RESOLUTION - Returns the number of nanoseconds
+ * that one unit of NV_CTRL_FRAMELOCK_SYNC_DELAY corresponds to.
+ */
+#define NV_CTRL_FRAMELOCK_SYNC_DELAY_RESOLUTION                 318 /* R-- */
+
+/*
+ * NV_CTRL_GPU_COOLER_MANUAL_CONTROL - Query the current or set a new
+ * cooler control state; the value of this attribute controls the
+ * availability of additional cooler control attributes (see below).
+ *
+ * Note: this attribute is unavailable unless cooler control support
+ * has been enabled in the X server (by the user).
+ */
+
+#define NV_CTRL_GPU_COOLER_MANUAL_CONTROL                       319 /* RW-G */
+#define NV_CTRL_GPU_COOLER_MANUAL_CONTROL_FALSE                   0
+#define NV_CTRL_GPU_COOLER_MANUAL_CONTROL_TRUE                    1
+
+/* 
+ * NV_CTRL_THERMAL_COOLER_LEVEL - Returns cooler's current operating 
+ * level.
+ */
+
+#define NV_CTRL_THERMAL_COOLER_LEVEL                            320 /* RW-C */
+
+/* NV_CTRL_THERMAL_COOLER_LEVEL_SET_DEFAULT - Sets default values of  
+ * cooler.
+ */
+
+#define NV_CTRL_THERMAL_COOLER_LEVEL_SET_DEFAULT                321 /* -W-C */
+
+/* 
+ * NV_CTRL_THERMAL_COOLER_CONTROL_TYPE - 
+ * Returns a cooler's control signal characteristics.
+ * The possible types are restricted, Variable and Toggle.
+ */
+
+#define NV_CTRL_THERMAL_COOLER_CONTROL_TYPE                     322 /* R--C */
+#define NV_CTRL_THERMAL_COOLER_CONTROL_TYPE_NONE                  0
+#define NV_CTRL_THERMAL_COOLER_CONTROL_TYPE_TOGGLE                1 
+#define NV_CTRL_THERMAL_COOLER_CONTROL_TYPE_VARIABLE              2
+
+/* 
+ * NV_CTRL_THERMAL_COOLER_TARGET - Returns objects that cooler cools.
+ * Targets may be GPU, Memory, Power Supply or All of these.
+ * GPU_RELATED = GPU | MEMORY | POWER_SUPPLY
+ * 
+ */
+
+#define NV_CTRL_THERMAL_COOLER_TARGET                           323 /* R--C */
+#define NV_CTRL_THERMAL_COOLER_TARGET_NONE                        0
+#define NV_CTRL_THERMAL_COOLER_TARGET_GPU                         1
+#define NV_CTRL_THERMAL_COOLER_TARGET_MEMORY                      2
+#define NV_CTRL_THERMAL_COOLER_TARGET_POWER_SUPPLY                4
+#define NV_CTRL_THERMAL_COOLER_TARGET_GPU_RELATED   \
+        (NV_CTRL_THERMAL_COOLER_TARGET_GPU |        \
+         NV_CTRL_THERMAL_COOLER_TARGET_MEMORY |     \
+         NV_CTRL_THERMAL_COOLER_TARGET_POWER_SUPPLY) 
+
+/*
+ * NV_CTRL_GPU_ECC_SUPPORTED - Reports whether ECC is supported by the
+ * targeted GPU.
+ */
+#define NV_CTRL_GPU_ECC_SUPPORTED                               324 /* R--G */
+#define NV_CTRL_GPU_ECC_SUPPORTED_FALSE                           0
+#define NV_CTRL_GPU_ECC_SUPPORTED_TRUE                            1
+
+/*
+ * NV_CTRL_GPU_ECC_STATUS - Returns the current hardware ECC setting
+ * for the targeted GPU.
+ */
+#define NV_CTRL_GPU_ECC_STATUS                                  325 /* R--G */
+#define NV_CTRL_GPU_ECC_STATUS_DISABLED                           0
+#define NV_CTRL_GPU_ECC_STATUS_ENABLED                            1
+
+/*
+ * NV_CTRL_GPU_ECC_CONFIGURATION - Reports whether ECC can be configured
+ * dynamically for the GPU in question.
+ */
+#define NV_CTRL_GPU_ECC_CONFIGURATION_SUPPORTED                 326 /* R--G */
+#define NV_CTRL_GPU_ECC_CONFIGURATION_SUPPORTED_FALSE             0
+#define NV_CTRL_GPU_ECC_CONFIGURATION_SUPPORTED_TRUE              1
+
+/*
+ * NV_CTRL_GPU_ECC_CONFIGURATION_SETTING - Returns the current ECC
+ * configuration setting or specifies new settings.  New settings do not
+ * take effect until the next POST.
+ */
+#define NV_CTRL_GPU_ECC_CONFIGURATION                           327 /* RW-G */
+#define NV_CTRL_GPU_ECC_CONFIGURATION_DISABLED                    0
+#define NV_CTRL_GPU_ECC_CONFIGURATION_ENABLED                     1
+
+/*
+ * NV_CTRL_GPU_ECC_DEFAULT_CONFIGURATION_SETTING - Returns the default
+ * ECC configuration setting.
+ */
+#define NV_CTRL_GPU_ECC_DEFAULT_CONFIGURATION                   328 /* R--G */
+#define NV_CTRL_GPU_ECC_DEFAULT_CONFIGURATION_DISABLED            0
+#define NV_CTRL_GPU_ECC_DEFAULT_CONFIGURATION_ENABLED             1
+
+/*
+ * NV_CTRL_GPU_ECC_SINGLE_BIT_ERRORS - Returns the number of single-bit
+ * ECC errors detected by the targeted GPU since the last POST.
+ * Note: this attribute is a 64-bit integer attribute.
+ */
+#define NV_CTRL_GPU_ECC_SINGLE_BIT_ERRORS                       329 /* R--GQ */
+
+/*
+ * NV_CTRL_GPU_ECC_DOUBLE_BIT_ERRORS - Returns the number of double-bit
+ * ECC errors detected by the targeted GPU since the last POST.
+ * Note: this attribute is a 64-bit integer attribute.
+ */
+#define NV_CTRL_GPU_ECC_DOUBLE_BIT_ERRORS                       330 /* R--GQ */
+
+/*
+ * NV_CTRL_GPU_ECC_AGGREGATE_SINGLE_BIT_ERRORS - Returns the number of
+ * single-bit ECC errors detected by the targeted GPU since the
+ * last counter reset.
+ * Note: this attribute is a 64-bit integer attribute.
+ */
+#define NV_CTRL_GPU_ECC_AGGREGATE_SINGLE_BIT_ERRORS             331 /* R--GQ */
+
+/*
+ * NV_CTRL_GPU_ECC_AGGREGATE_DOUBLE_BIT_ERRORS - Returns the number of
+ * double-bit ECC errors detected by the targeted GPU since the
+ * last counter reset.
+ * Note: this attribute is a 64-bit integer attribute.
+ */
+#define NV_CTRL_GPU_ECC_AGGREGATE_DOUBLE_BIT_ERRORS             332 /* R--GQ */
+
+/*
+ * NV_CTRL_GPU_ECC_RESET_ERROR_STATUS - Resets the volatile/aggregate
+ * single-bit and double-bit error counters.  This attribute is a
+ * bitmask attribute.
+ */
+#define NV_CTRL_GPU_ECC_RESET_ERROR_STATUS                      333 /* -W-G */
+#define NV_CTRL_GPU_ECC_RESET_ERROR_STATUS_VOLATILE             0x00000001
+#define NV_CTRL_GPU_ECC_RESET_ERROR_STATUS_AGGREGATE            0x00000002
+
+/*
+ * NV_CTRL_GPU_POWER_MIZER_MODE - Provides a hint to the driver
+ * as to how to manage the performance of the GPU.
+ *
+ * ADAPTIVE                     - adjust GPU clocks based on GPU
+ *                                utilization
+ * PREFER_MAXIMUM_PERFORMANCE   - raise GPU clocks to favor
+ *                                maximum performance, to the extent
+ *                                that thermal and other constraints
+ *                                allow
+ */
+#define NV_CTRL_GPU_POWER_MIZER_MODE                            334 /* RW-G */
+#define NV_CTRL_GPU_POWER_MIZER_MODE_ADAPTIVE                     0
+#define NV_CTRL_GPU_POWER_MIZER_MODE_PREFER_MAXIMUM_PERFORMANCE   1
+
+/*
+ * NV_CTRL_GVI_SYNC_OUTPUT_FORMAT - Returns the output sync signal
+ * from the GVI device.
+ */
+
+#define NV_CTRL_GVI_SYNC_OUTPUT_FORMAT                          335 /* R--I */
+
+/*
+ * NV_CTRL_GVI_MAX_CHANNELS_PER_JACK  - Returns the maximum
+ * supported number of (logical) channels within a single physical jack of
+ * a GVI device.  For most SDI video formats, there is only one channel
+ * (channel 0).  But for 3G video formats (as specified in SMPTE 425),
+ * as an example, there are two channels (channel 0 and channel 1) per
+ * physical jack.
+ */
+
+#define NV_CTRL_GVI_MAX_CHANNELS_PER_JACK                       336 /* R--I */
+
+/*
+ * NV_CTRL_GVI_MAX_STREAMS  - Returns the maximum number of streams
+ * that can be configured on the GVI device.
+ */
+
+#define NV_CTRL_GVI_MAX_STREAMS                                 337 /* R--I */
+
+/*
+ * NV_CTRL_GVI_NUM_CAPTURE_SURFACES - The GVI interface exposed through
+ * NV-CONTROL and the GLX_NV_video_input extension uses internal capture
+ * surfaces when frames are read from the GVI device.  The
+ * NV_CTRL_GVI_NUM_CAPTURE_SURFACES can be used to query and assign the
+ * number of capture surfaces.  This attribute is applied when
+ * glXBindVideoCaptureDeviceNV() is called by the application.
+ *
+ * A lower number of capture surfaces will mean less video memory is used,
+ * but can result in frames being dropped if the application cannot keep up
+ * with the capture device.  A higher number will prevent frames from being
+ * dropped, making capture more reliable but will consume move video memory.
+ */
+#define NV_CTRL_GVI_NUM_CAPTURE_SURFACES                        338 /* RW-I */
+
+/*
+ * NV_CTRL_OVERSCAN_COMPENSATION - not supported
+ */
+#define NV_CTRL_OVERSCAN_COMPENSATION                           339 /* RWDG */
+
+/*
+ * NV_CTRL_GPU_PCIE_GENERATION - Reports the current PCIe generation.
+ */
+#define NV_CTRL_GPU_PCIE_GENERATION                             341 /* R--GI */
+#define NV_CTRL_GPU_PCIE_GENERATION1                            0x00000001
+#define NV_CTRL_GPU_PCIE_GENERATION2                            0x00000002
+#define NV_CTRL_GPU_PCIE_GENERATION3                            0x00000003
+
+/*
+ * NV_CTRL_GVI_BOUND_GPU - Returns the NV_CTRL_TARGET_TYPE_GPU target_id of
+ * the GPU currently bound to the GVI device.  Returns -1 if no GPU is
+ * currently bound to the GVI device.
+ */
+#define NV_CTRL_GVI_BOUND_GPU                                   342 /* R--I */
+
+/*
+ * NV_CTRL_GVIO_REQUESTED_VIDEO_FORMAT3 - this attribute is only
+ * intended to be used to query the ValidValues for
+ * NV_CTRL_GVIO_REQUESTED_VIDEO_FORMAT for VIDEO_FORMAT values between
+ * 64 and 95.  See NV_CTRL_GVIO_REQUESTED_VIDEO_FORMAT for details.
+ */
+
+#define NV_CTRL_GVIO_REQUESTED_VIDEO_FORMAT3                    343 /* ---GI */
+
+/*
+ * NV_CTRL_ACCELERATE_TRAPEZOIDS - Toggles RENDER Trapezoid acceleration
+ */
+
+#define NV_CTRL_ACCELERATE_TRAPEZOIDS                           344 /* RW- */
+#define NV_CTRL_ACCELERATE_TRAPEZOIDS_DISABLE                   0
+#define NV_CTRL_ACCELERATE_TRAPEZOIDS_ENABLE                    1
+
+/*
+ * NV_CTRL_GPU_CORES - Returns number of GPU cores supported by the graphics
+ * pipeline.
+ */
+
+#define NV_CTRL_GPU_CORES                                       345 /* R--G */
+
+/*
+ * NV_CTRL_GPU_MEMORY_BUS_WIDTH - Returns memory bus bandwidth on the associated
+ * subdevice.
+ */
+
+#define NV_CTRL_GPU_MEMORY_BUS_WIDTH                            346 /* R--G */
+
+/*
+ * NV_CTRL_GVI_TEST_MODE - This attribute controls the GVI test mode.  When
+ * enabled, the GVI device will generate fake data as quickly as possible.  All
+ * GVI settings are still valid when this is enabled (e.g., the requested video
+ * format is honored and sets the video size).
+ * This may be used to test the pipeline.
+ */
+
+#define NV_CTRL_GVI_TEST_MODE                                   347 /* R--I */
+#define NV_CTRL_GVI_TEST_MODE_DISABLE                             0
+#define NV_CTRL_GVI_TEST_MODE_ENABLE                              1
+
+/*
+ * NV_CTRL_COLOR_SPACE - This option sets color space of the video
+ * signal.
+ */
+#define NV_CTRL_COLOR_SPACE                                     348 /* RWDG */
+#define NV_CTRL_COLOR_SPACE_RGB                                   0
+#define NV_CTRL_COLOR_SPACE_YCbCr422                              1
+#define NV_CTRL_COLOR_SPACE_YCbCr444                              2
+
+/*
+ * NV_CTRL_COLOR_RANGE - This option sets color range of the video
+ * signal.
+ */
+#define NV_CTRL_COLOR_RANGE                                     349 /* RWDG */
+#define NV_CTRL_COLOR_RANGE_FULL                                  0
+#define NV_CTRL_COLOR_RANGE_LIMITED                               1
+
+/*
+ * NV_CTRL_GPU_SCALING_DEFAULT_TARGET - not supported
+ *
+ * NV_CTRL_GPU_SCALING_DEFAULT_METHOD - not supported
+ */
+#define NV_CTRL_GPU_SCALING_DEFAULT_TARGET                      350 /* R-DG */
+#define NV_CTRL_GPU_SCALING_DEFAULT_METHOD                      351 /* R-DG */
+
+/*
+ * NV_CTRL_DITHERING_MODE - Controls the dithering mode, when
+ * NV_CTRL_CURRENT_DITHERING is Enabled.
+ *
+ * AUTO: allow the driver to choose the dithering mode automatically.
+ *
+ * DYNAMIC_2X2: use a 2x2 matrix to dither from the GPU's pixel
+ * pipeline to the bit depth of the flat panel.  The matrix values
+ * are changed from frame to frame.
+ *
+ * STATIC_2X2: use a 2x2 matrix to dither from the GPU's pixel
+ * pipeline to the bit depth of the flat panel.  The matrix values
+ * do not change from frame to frame.
+ *
+ * TEMPORAL: use a pseudorandom value from a uniform distribution calculated at
+ * every pixel to achieve stochastic dithering.  This method produces a better
+ * visual result than 2x2 matrix approaches.
+ */
+#define NV_CTRL_DITHERING_MODE                                  352 /* RWDG */
+#define NV_CTRL_DITHERING_MODE_AUTO                               0
+#define NV_CTRL_DITHERING_MODE_DYNAMIC_2X2                        1
+#define NV_CTRL_DITHERING_MODE_STATIC_2X2                         2
+#define NV_CTRL_DITHERING_MODE_TEMPORAL                           3
+
+/*
+ * NV_CTRL_CURRENT_DITHERING - Returns the current dithering state.
+ */
+#define NV_CTRL_CURRENT_DITHERING                               353 /* R-DG */
+#define NV_CTRL_CURRENT_DITHERING_DISABLED                        0
+#define NV_CTRL_CURRENT_DITHERING_ENABLED                         1
+
+/*
+ * NV_CTRL_CURRENT_DITHERING_MODE - Returns the current dithering
+ * mode.
+ */
+#define NV_CTRL_CURRENT_DITHERING_MODE                          354 /* R-DG */
+#define NV_CTRL_CURRENT_DITHERING_MODE_NONE                       0
+#define NV_CTRL_CURRENT_DITHERING_MODE_DYNAMIC_2X2                1
+#define NV_CTRL_CURRENT_DITHERING_MODE_STATIC_2X2                 2
+#define NV_CTRL_CURRENT_DITHERING_MODE_TEMPORAL                   3
+
+/* 
+ * NV_CTRL_THERMAL_SENSOR_READING - Returns the thermal sensor's current
+ * reading.
+ */
+#define NV_CTRL_THERMAL_SENSOR_READING                          355 /* R--S */
+
+/* 
+ * NV_CTRL_THERMAL_SENSOR_PROVIDER - Returns the hardware device that
+ * provides the thermal sensor.
+ */
+#define NV_CTRL_THERMAL_SENSOR_PROVIDER                         356 /* R--S */
+#define NV_CTRL_THERMAL_SENSOR_PROVIDER_NONE                      0
+#define NV_CTRL_THERMAL_SENSOR_PROVIDER_GPU_INTERNAL              1
+#define NV_CTRL_THERMAL_SENSOR_PROVIDER_ADM1032                   2
+#define NV_CTRL_THERMAL_SENSOR_PROVIDER_ADT7461                   3
+#define NV_CTRL_THERMAL_SENSOR_PROVIDER_MAX6649                   4
+#define NV_CTRL_THERMAL_SENSOR_PROVIDER_MAX1617                   5
+#define NV_CTRL_THERMAL_SENSOR_PROVIDER_LM99                      6
+#define NV_CTRL_THERMAL_SENSOR_PROVIDER_LM89                      7
+#define NV_CTRL_THERMAL_SENSOR_PROVIDER_LM64                      8
+#define NV_CTRL_THERMAL_SENSOR_PROVIDER_G781                      9
+#define NV_CTRL_THERMAL_SENSOR_PROVIDER_ADT7473                  10
+#define NV_CTRL_THERMAL_SENSOR_PROVIDER_SBMAX6649                11
+#define NV_CTRL_THERMAL_SENSOR_PROVIDER_VBIOSEVT                 12
+#define NV_CTRL_THERMAL_SENSOR_PROVIDER_OS                       13
+#define NV_CTRL_THERMAL_SENSOR_PROVIDER_UNKNOWN          0xFFFFFFFF
+
+/* 
+ * NV_CTRL_THERMAL_SENSOR_TARGET - Returns what hardware component
+ * the thermal sensor is measuring.
+ */
+#define NV_CTRL_THERMAL_SENSOR_TARGET                           357 /* R--S */
+#define NV_CTRL_THERMAL_SENSOR_TARGET_NONE                        0
+#define NV_CTRL_THERMAL_SENSOR_TARGET_GPU                         1
+#define NV_CTRL_THERMAL_SENSOR_TARGET_MEMORY                      2
+#define NV_CTRL_THERMAL_SENSOR_TARGET_POWER_SUPPLY                4
+#define NV_CTRL_THERMAL_SENSOR_TARGET_BOARD                       8
+#define NV_CTRL_THERMAL_SENSOR_TARGET_UNKNOWN            0xFFFFFFFF
+
+/*
+ * NV_CTRL_SHOW_MULTIGPU_VISUAL_INDICATOR - when TRUE, OpenGL will
+ * draw information about the current MULTIGPU mode.
+ */
+#define NV_CTRL_SHOW_MULTIGPU_VISUAL_INDICATOR                  358  /* RW-X */
+#define NV_CTRL_SHOW_MULTIGPU_VISUAL_INDICATOR_FALSE              0
+#define NV_CTRL_SHOW_MULTIGPU_VISUAL_INDICATOR_TRUE               1
+
+/*
+ * NV_CTRL_GPU_CURRENT_PROCESSOR_CLOCK_FREQS - Returns GPU's processor
+ * clock freqs.
+ */
+#define NV_CTRL_GPU_CURRENT_PROCESSOR_CLOCK_FREQS               359 /* RW-G */
+
+/*
+ * NV_CTRL_GVIO_VIDEO_FORMAT_FLAGS - query the flags (various information
+ * for the specified NV_CTRL_GVIO_VIDEO_FORMAT_*.  So that this can be
+ * queried with existing interfaces, the video format should be specified
+ * in the display_mask field; eg:
+ *
+ * XNVCTRLQueryTargetAttribute(dpy,
+ *                             NV_CTRL_TARGET_TYPE_GVI,
+ *                             gvi,
+ *                             NV_CTRL_GVIO_VIDEO_FORMAT_720P_60_00_SMPTE296,
+ *                             NV_CTRL_GVIO_VIDEO_FORMAT_FLAGS,
+ *                             &flags);
+ *
+ * Note: The NV_CTRL_GVIO_VIDEO_FORMAT_FLAGS_3G_1080P_NO_12BPC flag is set
+ *       for those 1080P 3G modes (level A and B) that do not support
+ *       12 bits per component (when configuring a GVI stream.)
+ */
+
+#define NV_CTRL_GVIO_VIDEO_FORMAT_FLAGS                         360  /* R--I */
+#define NV_CTRL_GVIO_VIDEO_FORMAT_FLAGS_NONE              0x00000000
+#define NV_CTRL_GVIO_VIDEO_FORMAT_FLAGS_INTERLACED        0x00000001
+#define NV_CTRL_GVIO_VIDEO_FORMAT_FLAGS_PROGRESSIVE       0x00000002
+#define NV_CTRL_GVIO_VIDEO_FORMAT_FLAGS_PSF               0x00000004
+#define NV_CTRL_GVIO_VIDEO_FORMAT_FLAGS_3G_LEVEL_A        0x00000008
+#define NV_CTRL_GVIO_VIDEO_FORMAT_FLAGS_3G_LEVEL_B        0x00000010
+#define NV_CTRL_GVIO_VIDEO_FORMAT_FLAGS_3G          \
+    ((NV_CTRL_GVIO_VIDEO_FORMAT_FLAGS_3G_LEVEL_A) | \
+     (NV_CTRL_GVIO_VIDEO_FORMAT_FLAGS_3G_LEVEL_B))
+#define NV_CTRL_GVIO_VIDEO_FORMAT_FLAGS_3G_1080P_NO_12BPC 0x00000020
+
+/*
+ * NV_CTRL_GPU_PCIE_MAX_LINK_SPEED - returns maximum PCIe link speed,
+ * in gigatransfers per second (GT/s).
+ */
+
+#define NV_CTRL_GPU_PCIE_MAX_LINK_SPEED                         361 /* R--GI */
+
+/*
+ * NV_CTRL_3D_VISION_PRO_RESET_TRANSCEIVER_TO_FACTORY_SETTINGS - Resets the
+ * 3D Vision Pro transceiver to its factory settings.
+ */
+#define NV_CTRL_3D_VISION_PRO_RESET_TRANSCEIVER_TO_FACTORY_SETTINGS 363 /* -W-T */
+
+/*
+ * NV_CTRL_3D_VISION_PRO_TRANSCEIVER_CHANNEL - Controls the channel that is
+ * currently used by the 3D Vision Pro transceiver.
+ */
+#define NV_CTRL_3D_VISION_PRO_TRANSCEIVER_CHANNEL                   364 /* RW-T */
+
+/*
+ * NV_CTRL_3D_VISION_PRO_TRANSCEIVER_MODE - Controls the mode in which the
+ * 3D Vision Pro transceiver operates.
+ * NV_CTRL_3D_VISION_PRO_TM_LOW_RANGE is bidirectional
+ * NV_CTRL_3D_VISION_PRO_TM_MEDIUM_RANGE is bidirectional
+ * NV_CTRL_3D_VISION_PRO_TM_HIGH_RANGE may be bidirectional just up to a
+ *     given range, and unidirectional beyond it
+ * NV_CTRL_3D_VISION_PRO_TM_COUNT is the total number of
+ *     3D Vision Pro transceiver modes
+ */
+#define NV_CTRL_3D_VISION_PRO_TRANSCEIVER_MODE                      365 /* RW-T */
+#define NV_CTRL_3D_VISION_PRO_TRANSCEIVER_MODE_INVALID              0
+#define NV_CTRL_3D_VISION_PRO_TRANSCEIVER_MODE_LOW_RANGE            1
+#define NV_CTRL_3D_VISION_PRO_TRANSCEIVER_MODE_MEDIUM_RANGE         2
+#define NV_CTRL_3D_VISION_PRO_TRANSCEIVER_MODE_HIGH_RANGE           3
+#define NV_CTRL_3D_VISION_PRO_TRANSCEIVER_MODE_COUNT                4
+
+/*
+ * NV_CTRL_SYNCHRONOUS_PALETTE_UPDATES - controls whether updates to the color
+ * lookup table (LUT) are synchronous with respect to X rendering.  For example,
+ * if an X client sends XStoreColors followed by XFillRectangle, the driver will
+ * guarantee that the FillRectangle request is not processed until after the
+ * updated LUT colors are actually visible on the screen if
+ * NV_CTRL_SYNCHRONOUS_PALETTE_UPDATES is enabled.  Otherwise, the rendering may
+ * occur first.
+ *
+ * This makes a difference for applications that use the LUT to animate, such as
+ * XPilot.  If you experience flickering in applications that use LUT
+ * animations, try enabling this attribute.
+ *
+ * When synchronous updates are enabled, XStoreColors requests will be processed
+ * at your screen's refresh rate.
+ */
+
+#define NV_CTRL_SYNCHRONOUS_PALETTE_UPDATES                     367  /* RWDG */
+#define NV_CTRL_SYNCHRONOUS_PALETTE_UPDATES_DISABLE             0
+#define NV_CTRL_SYNCHRONOUS_PALETTE_UPDATES_ENABLE              1
+
+/*
+ * NV_CTRL_DITHERING_DEPTH - Controls the dithering depth when
+ * NV_CTRL_CURRENT_DITHERING is ENABLED.  Some displays connected
+ * to the GPU via the DVI or LVDS interfaces cannot display the
+ * full color range of ten bits per channel, so the GPU will
+ * dither to either 6 or 8 bits per channel.
+ */
+#define NV_CTRL_DITHERING_DEPTH                                 368 /* RWDG */
+#define NV_CTRL_DITHERING_DEPTH_AUTO                            0
+#define NV_CTRL_DITHERING_DEPTH_6_BITS                          1
+#define NV_CTRL_DITHERING_DEPTH_8_BITS                          2
+
+/*
+ * NV_CTRL_CURRENT_DITHERING_DEPTH - Returns the current dithering
+ * depth value.
+ */
+#define NV_CTRL_CURRENT_DITHERING_DEPTH                         369 /* R-DG */
+#define NV_CTRL_CURRENT_DITHERING_DEPTH_NONE                    0
+#define NV_CTRL_CURRENT_DITHERING_DEPTH_6_BITS                  1
+#define NV_CTRL_CURRENT_DITHERING_DEPTH_8_BITS                  2
+
+/*
+ * NV_CTRL_3D_VISION_PRO_TRANSCEIVER_CHANNEL_FREQUENCY - Returns the
+ * frequency of the channel(in kHz) of the 3D Vision Pro transceiver.
+ * Use the display_mask parameter to specify the channel number.
+ */
+#define NV_CTRL_3D_VISION_PRO_TRANSCEIVER_CHANNEL_FREQUENCY     370 /* R--T */
+
+/*
+ * NV_CTRL_3D_VISION_PRO_TRANSCEIVER_CHANNEL_QUALITY - Returns the
+ * quality of the channel(in percentage) of the 3D Vision Pro transceiver.
+ * Use the display_mask parameter to specify the channel number.
+ */
+#define NV_CTRL_3D_VISION_PRO_TRANSCEIVER_CHANNEL_QUALITY       371 /* R--T */
+
+/*
+ * NV_CTRL_3D_VISION_PRO_TRANSCEIVER_CHANNEL_COUNT - Returns the number of
+ * channels on the 3D Vision Pro transceiver.
+ */
+#define NV_CTRL_3D_VISION_PRO_TRANSCEIVER_CHANNEL_COUNT         372 /* R--T */
+
+/*
+ * NV_CTRL_3D_VISION_PRO_PAIR_GLASSES - Puts the 3D Vision Pro
+ * transceiver into pairing mode to gather additional glasses.
+ * NV_CTRL_3D_VISION_PRO_PAIR_GLASSES_STOP - stops any pairing
+ * NV_CTRL_3D_VISION_PRO_PAIR_GLASSES_BEACON - starts continuous
+ *     pairing via beacon mode
+ * Any other value, N - Puts the 3D Vision Pro transceiver into
+ *     authenticated pairing mode for N seconds.
+ */
+#define NV_CTRL_3D_VISION_PRO_PAIR_GLASSES                      373 /* -W-T */
+#define NV_CTRL_3D_VISION_PRO_PAIR_GLASSES_STOP                 0
+#define NV_CTRL_3D_VISION_PRO_PAIR_GLASSES_BEACON               0xFFFFFFFF
+
+/*
+ * NV_CTRL_3D_VISION_PRO_UNPAIR_GLASSES - Tells a specific pair
+ * of glasses to unpair. The glasses will "forget" the address
+ * of the 3D Vision Pro transceiver to which they have been paired.
+ * To unpair all the currently paired glasses, specify
+ * the glasses id as 0.
+ */
+#define NV_CTRL_3D_VISION_PRO_UNPAIR_GLASSES                    374 /* -W-T */
+
+/*
+ * NV_CTRL_3D_VISION_PRO_DISCOVER_GLASSES - Tells the 3D Vision Pro
+ * transceiver about the glasses that have been paired using
+ * NV_CTRL_3D_VISION_PRO_PAIR_GLASSES_BEACON. Unless this is done,
+ * the 3D Vision Pro transceiver will not know about glasses paired in
+ * beacon mode.
+ */
+#define NV_CTRL_3D_VISION_PRO_DISCOVER_GLASSES                  375 /* -W-T */
+
+/*
+ * NV_CTRL_3D_VISION_PRO_IDENTIFY_GLASSES - Causes glasses LEDs to
+ * flash for a short period of time.
+ */
+#define NV_CTRL_3D_VISION_PRO_IDENTIFY_GLASSES                  376 /* -W-T */
+
+/*
+ * NV_CTRL_3D_VISION_PRO_GLASSES_SYNC_CYCLE - Controls the
+ * sync cycle duration(in milliseconds) of the glasses.
+ * Use the display_mask parameter to specify the glasses id.
+ */
+#define NV_CTRL_3D_VISION_PRO_GLASSES_SYNC_CYCLE                378 /* RW-T */
+
+/*
+ * NV_CTRL_3D_VISION_PRO_GLASSES_MISSED_SYNC_CYCLES - Returns the
+ * number of state sync cycles recently missed by the glasses.
+ * Use the display_mask parameter to specify the glasses id.
+ */
+#define NV_CTRL_3D_VISION_PRO_GLASSES_MISSED_SYNC_CYCLES        379 /* R--T */
+
+/*
+ * NV_CTRL_3D_VISION_PRO_GLASSES_BATTERY_LEVEL - Returns the
+ * battery level(in percentage) of the glasses.
+ * Use the display_mask parameter to specify the glasses id.
+ */
+#define NV_CTRL_3D_VISION_PRO_GLASSES_BATTERY_LEVEL             380 /* R--T */
+
+
+/*
+ * NV_CTRL_GVO_ANC_PARITY_COMPUTATION - Controls the SDI device's computation
+ * of the parity bit (bit 8) for ANC data words.
+ */
+
+#define NV_CTRL_GVO_ANC_PARITY_COMPUTATION                      381 /* RW--- */
+#define NV_CTRL_GVO_ANC_PARITY_COMPUTATION_AUTO                   0
+#define NV_CTRL_GVO_ANC_PARITY_COMPUTATION_ON                     1
+#define NV_CTRL_GVO_ANC_PARITY_COMPUTATION_OFF                    2
+
+/*
+ * NV_CTRL_3D_VISION_PRO_GLASSES_PAIR_EVENT - This attribute is sent
+ * as an event when glasses get paired in response to pair command 
+ * from any of the clients.
+ */
+#define NV_CTRL_3D_VISION_PRO_GLASSES_PAIR_EVENT                382 /* ---T */
+
+/*
+ * NV_CTRL_3D_VISION_PRO_GLASSES_UNPAIR_EVENT - This attribute is sent
+ * as an event when glasses get unpaired in response to unpair command
+ * from any of the clients.
+ */
+#define NV_CTRL_3D_VISION_PRO_GLASSES_UNPAIR_EVENT              383 /* ---T */
+
+/* 
+ * NV_CTRL_GPU_PCIE_CURRENT_LINK_WIDTH - returns the current
+ * PCIe link width, in number of lanes.
+ */
+#define NV_CTRL_GPU_PCIE_CURRENT_LINK_WIDTH                     384 /* R--GI */
+
+/* 
+ * NV_CTRL_GPU_PCIE_CURRENT_LINK_SPEED - returns the current
+ * PCIe link speed, in megatransfers per second (GT/s).
+ */
+#define NV_CTRL_GPU_PCIE_CURRENT_LINK_SPEED                     385 /* R--GI */
+
+/*
+ * NV_CTRL_GVO_AUDIO_BLANKING - specifies whether the GVO device should delete
+ * audio ancillary data packets when frames are repeated.
+ *
+ * When a new frame is not ready in time, the current frame, including all
+ * ancillary data packets, is repeated.  When this data includes audio packets,
+ * this can result in stutters or clicks.  When this option is enabled, the GVO
+ * device will detect when frames are repeated, identify audio ancillary data
+ * packets, and mark them for deletion.
+ *
+ * This option is applied when the GVO device is bound.
+ */
+#define NV_CTRL_GVO_AUDIO_BLANKING                              386 /* RW- */
+#define NV_CTRL_GVO_AUDIO_BLANKING_DISABLE                        0
+#define NV_CTRL_GVO_AUDIO_BLANKING_ENABLE                         1
+
+/*
+ * NV_CTRL_CURRENT_METAMODE_ID - switch modes to the MetaMode with
+ * the specified ID.
+ */
+#define NV_CTRL_CURRENT_METAMODE_ID                             387 /* RW- */
+
+/*
+ * NV_CTRL_DISPLAY_ENABLED - Returns whether or not the display device
+ * is currently enabled.
+ */
+#define NV_CTRL_DISPLAY_ENABLED                                 388 /* R-D */
+#define NV_CTRL_DISPLAY_ENABLED_TRUE                              1
+#define NV_CTRL_DISPLAY_ENABLED_FALSE                             0
+
+/* 
+ * NV_CTRL_FRAMELOCK_INCOMING_HOUSE_SYNC_RATE: this is the rate 
+ * of an incomming house sync signal to the frame lock board, in milliHz.
+ *
+ * This attribute may be queried through XNVCTRLQueryTargetAttribute()
+ * using a NV_CTRL_TARGET_TYPE_FRAMELOCK or NV_CTRL_TARGET_TYPE_X_SCREEN
+ * target.
+ */
+#define NV_CTRL_FRAMELOCK_INCOMING_HOUSE_SYNC_RATE              389 /* R--F */
+
+/*
+ * NV_CTRL_FXAA - enables FXAA. A pixel shader based anti-  
+ * aliasing method.
+ */
+#define NV_CTRL_FXAA                                            390 /* RW-X */
+#define NV_CTRL_FXAA_DISABLE                                    0
+#define NV_CTRL_FXAA_ENABLE                                     1
+  
+/*
+ * NV_CTRL_DISPLAY_RANDR_OUTPUT_ID - the RandR Output ID (type RROutput)
+ * that corresponds to the specified Display Device target.  If a new
+ * enough version of RandR is not available in the X server,
+ * DISPLAY_RANDR_OUTPUT_ID will be 0.
+ */
+#define NV_CTRL_DISPLAY_RANDR_OUTPUT_ID                         391 /* R-D- */
+
+/*
+ * NV_CTRL_TOTAL_DEDICATED_GPU_MEMORY - Returns the total amount of dedicated
+ * GPU video memory, in MB, on the specified GPU. This excludes any TurboCache
+ * padding included in the value returned by NV_CTRL_TOTAL_GPU_MEMORY.
+ */
+#define NV_CTRL_TOTAL_DEDICATED_GPU_MEMORY                      393 /* R--G */
+
+/*
+ * NV_CTRL_USED_DEDICATED_GPU_MEMORY- Returns the amount of video memory 
+ * currently used on the graphics card in MB.
+ */
+#define NV_CTRL_USED_DEDICATED_GPU_MEMORY                       394 /* R--G */
+
+
+
+#define NV_CTRL_LAST_ATTRIBUTE NV_CTRL_USED_DEDICATED_GPU_MEMORY
 
 /**************************************************************************/
 
@@ -3384,38 +3295,17 @@
 #define NV_CTRL_STRING_TV_ENCODER_NAME                          5  /* R-DG */
 
 
-/* NV_CTRL_STRING_DDCCI_MISC_TRANSMIT_DISPLAY_DESCRIPTOR -
- * Allows a display descriptor (up to maximum length defined by the
- * display (see NV_CTRL_DDCCI_MISC_DISPLAY_DESCRIPTOR_LENGTHC2h) to be written 
- * (read) to (from) non-volatile storage in the display.
- * If an attempt is made to write beyond the maximum storage
- * length, the descriptor shall be truncated with the excess bytes
- * being discarded.
+/*
+ * NV_CTRL_STRING_GVIO_FIRMWARE_VERSION - indicates the version of the
+ * Firmware on the GVIO device.
  */
 
-#define NV_CTRL_STRING_DDCCI_MISC_TRANSMIT_DISPLAY_DESCRIPTOR   6  /* RWD */
-
-
-/* NV_CTRL_STRING_DDCCI_MISC_AUXILIARY_DISPLAY_DATA -
- * An `auxiliary display' is a small alpha-numeric display associated
- * with the primary display and able to be accessed via the primary
- * display.
- * This command transmits a number of bytes of alpha-numeric
- * data to be displayed on the auxiliary display. The data shall
- * conform to ISO 8859-2 (Latin 1) code set.
- * The auxiliary display will be written from the top left position,
- * moving to right along each line and then starting at left end of the
- * next line.
- */
-
-#define NV_CTRL_STRING_DDCCI_MISC_AUXILIARY_DISPLAY_DATA        7  /* -WD */
-
+#define NV_CTRL_STRING_GVIO_FIRMWARE_VERSION                    8  /* R--I */
 
 /*
- * NV_CTRL_STRING_GVO_FIRMWARE_VERSION - indicates the version of the
- * Firmware on the GVO device.
+ * The following is deprecated; use NV_CTRL_STRING_GVIO_FIRMWARE_VERSION,
+ * instead
  */
-
 #define NV_CTRL_STRING_GVO_FIRMWARE_VERSION                     8  /* R-- */
 
 
@@ -3475,7 +3365,10 @@
  * NV_CTRL_BINARY_DATA_METAMODES.
  */
 
-#define NV_CTRL_STRING_CURRENT_METAMODE                        12   /* R--- */
+#define NV_CTRL_STRING_CURRENT_METAMODE                        12   /* RW-- */
+#define NV_CTRL_STRING_CURRENT_METAMODE_VERSION_1 \
+    NV_CTRL_STRING_CURRENT_METAMODE
+
 
 
 /* 
@@ -3632,8 +3525,6 @@
  *                          the Monitor section of the X config file
  *             "option"   - HorizSync is from the "HorizSync" NVIDIA X
  *                          config option
- *             "twinview" - HorizSync is from the "SecondMonitorHorizSync"
- *                          NVIDIA X config option
  *             "builtin"  - HorizSync is from NVIDIA X driver builtin
  *                          default values
  *
@@ -3667,8 +3558,6 @@
  *                          the Monitor section of the X config file
  *             "option"   - VertRefresh is from the "VertRefresh" NVIDIA X
  *                          config option
- *             "twinview" - VertRefresh is from the "SecondMonitorVertRefresh"
- *                          NVIDIA X config option
  *             "builtin"  - VertRefresh is from NVIDIA X driver builtin
  *                          default values
  *
@@ -3695,12 +3584,14 @@
 /*
  * NV_CTRL_STRING_TWINVIEW_XINERAMA_INFO_ORDER - used to specify the
  * order that display devices will be returned via Xinerama when
- * TwinViewXineramaInfo is enabled.  Follows the same syntax as the
- * TwinViewXineramaInfoOrder X config option.
+ * nvidiaXineramaInfo is enabled.  Follows the same syntax as the
+ * nvidiaXineramaInfoOrder X config option.
  */
 
-#define NV_CTRL_STRING_TWINVIEW_XINERAMA_INFO_ORDER            27   /* RW-- */
+#define NV_CTRL_STRING_NVIDIA_XINERAMA_INFO_ORDER              27   /* RW-- */
 
+#define NV_CTRL_STRING_TWINVIEW_XINERAMA_INFO_ORDER \
+    NV_CTRL_STRING_NVIDIA_XINERAMA_INFO_ORDER /* for backwards compatibility: */
 
 /*
  * NV_CTRL_STRING_SLI_MODE - returns a string describing the current
@@ -3727,8 +3618,8 @@
  *
  *    Token      Value
  *   "perf"      integer   - the Performance level
- *   "nvClock"   integer   - the GPU clocks (in MHz) for the perf level
- *   "memClock"  integer   - the memory clocks (in MHz) for the perf level
+ *   "nvclock"   integer   - the GPU clocks (in MHz) for the perf level
+ *   "memclock"  integer   - the memory clocks (in MHz) for the perf level
  *
  *
  * Example:
@@ -3741,8 +3632,270 @@
 
 #define NV_CTRL_STRING_PERFORMANCE_MODES                      29   /* R--G */
 
+
+/*
+ * NV_CTRL_STRING_VCSC_FAN_STATUS - returns a string with status of all the
+ * fans in the Visual Computing System, if such a query is supported.  Fan
+ * information is reported along with its tachometer reading (in RPM) and a 
+ * flag indicating whether the fan has failed or not.
+ * 
+ * Valid tokens:
+ *
+ *    Token      Value
+ *   "fan"       integer   - the Fan index
+ *   "speed"     integer   - the tachometer reading of the fan in rpm
+ *   "fail"      integer   - flag to indicate whether the fan has failed
+ *
+ * Example:
+ *
+ *   fan=0, speed=694, fail=0 ; fan=1, speed=693, fail=0
+ *
+ * This attribute must be queried through XNVCTRLQueryTargetStringAttribute()
+ * using a NV_CTRL_TARGET_TYPE_VCSC target.
+ *
+ */
+
+#define NV_CTRL_STRING_VCSC_FAN_STATUS                         30   /* R---V */
+
+
+/*
+ * NV_CTRL_STRING_VCSC_TEMPERATURES - returns a string with all Temperature
+ * readings in the Visual Computing System, if such a query is supported.  
+ * Intake, Exhaust and Board Temperature values are reported in Celcius.
+ * 
+ * Valid tokens:
+ *
+ *    Token      Value
+ *   "intake"    integer   - the intake temperature for the VCS
+ *   "exhaust"   integer   - the exhaust temperature for the VCS
+ *   "board"     integer   - the board temperature of the VCS
+ *
+ * Example:
+ *
+ *   intake=29, exhaust=46, board=41
+ *
+ * This attribute must be queried through XNVCTRLQueryTargetStringAttribute()
+ * using a NV_CTRL_TARGET_TYPE_VCSC target.
+ *
+ */
+
+#define NV_CTRL_STRING_VCSC_TEMPERATURES                       31   /* R---V */
+
+
+/*
+ * NV_CTRL_STRING_VCSC_PSU_INFO - returns a string with all Power Supply Unit
+ * related readings in the Visual Computing System, if such a query is 
+ * supported.  Current in amperes, Power in watts, Voltage in volts and PSU 
+ * state may be reported.  Not all PSU types support all of these values, and
+ * therefore some readings may be unknown.
+ * 
+ * Valid tokens:
+ *
+ *    Token      Value
+ *   "current"   integer   - the current drawn in amperes by the VCS
+ *   "power"     integer   - the power drawn in watts by the VCS
+ *   "voltage"   integer   - the voltage reading of the VCS
+ *   "state"     integer   - flag to indicate whether PSU is operating normally
+ *
+ * Example:
+ *
+ *   current=10, power=15, voltage=unknown, state=normal
+ *
+ * This attribute must be queried through XNVCTRLQueryTargetStringAttribute()
+ * using a NV_CTRL_TARGET_TYPE_VCSC target.
+ *
+ */
+
+
+#define NV_CTRL_STRING_VCSC_PSU_INFO                           32   /* R---V */
+
+
+/*
+ * NV_CTRL_STRING_GVIO_VIDEO_FORMAT_NAME - query the name for the specified
+ * NV_CTRL_GVIO_VIDEO_FORMAT_*.  So that this can be queried with existing
+ * interfaces, XNVCTRLQueryStringAttribute() should be used, and the video
+ * format specified in the display_mask field; eg:
+ *
+ * XNVCTRLQueryStringAttribute(dpy,
+ *                             screen, 
+ *                             NV_CTRL_GVIO_VIDEO_FORMAT_720P_60_00_SMPTE296,
+ *                             NV_CTRL_GVIO_VIDEO_FORMAT_NAME,
+ *                             &name);
+ */
+
+#define NV_CTRL_STRING_GVIO_VIDEO_FORMAT_NAME                  33  /* R--GI */
+
+/*
+ * The following is deprecated; use NV_CTRL_STRING_GVIO_VIDEO_FORMAT_NAME,
+ * instead
+ */
+#define NV_CTRL_STRING_GVO_VIDEO_FORMAT_NAME                   33  /* R--- */
+
+
+/*
+ * NV_CTRL_STRING_GPU_CURRENT_CLOCK_FREQS - returns a string with the
+ * associated NV Clock, Memory Clock and Processor Clock values.
+ * 
+ * Current valid tokens are "nvclock", "memclock", and "processorclock".
+ * Not all tokens will be reported on all GPUs, and additional tokens
+ * may be added in the future.
+ *
+ * Clock values are returned as a comma-separated list of
+ * "token=value" pairs.
+ * Valid tokens:
+ *
+ *    Token           Value
+ *   "nvclock"        integer - the GPU clocks (in MHz) for the current
+ *                              perf level
+ *   "memclock"       integer - the memory clocks (in MHz) for the current
+ *                              perf level
+ *   "processorclock" integer - the processor clocks (in MHz) for the perf level
+ *
+ *
+ * Example:
+ *
+ *    nvclock=459, memclock=400, processorclock=918
+ *
+ * This attribute may be queried through XNVCTRLQueryTargetStringAttribute()
+ * using an NV_CTRL_TARGET_TYPE_GPU or NV_CTRL_TARGET_TYPE_X_SCREEN target.
+ */
+
+#define NV_CTRL_STRING_GPU_CURRENT_CLOCK_FREQS                 34  /* RW-G */
+
+/*
+ * NV_CTRL_STRING_3D_VISION_PRO_TRANSCEIVER_HARDWARE_REVISION - Returns the
+ * hardware revision of the 3D Vision Pro transceiver.
+ */
+#define NV_CTRL_STRING_3D_VISION_PRO_TRANSCEIVER_HARDWARE_REVISION  35 /* R--T */
+
+/*
+ * NV_CTRL_STRING_3D_VISION_PRO_TRANSCEIVER_FIRMWARE_VERSION_A - Returns the
+ * firmware version of chip A of the 3D Vision Pro transceiver.
+ */
+#define NV_CTRL_STRING_3D_VISION_PRO_TRANSCEIVER_FIRMWARE_VERSION_A 36 /* R--T */
+
+/*
+ * NV_CTRL_STRING_3D_VISION_PRO_TRANSCEIVER_FIRMWARE_DATE_A - Returns the
+ * date of the firmware of chip A of the 3D Vision Pro transceiver.
+ */
+#define NV_CTRL_STRING_3D_VISION_PRO_TRANSCEIVER_FIRMWARE_DATE_A    37 /* R--T */
+
+/*
+ * NV_CTRL_STRING_3D_VISION_PRO_TRANSCEIVER_FIRMWARE_VERSION_B - Returns the
+ * firmware version of chip B of the 3D Vision Pro transceiver.
+ */
+#define NV_CTRL_STRING_3D_VISION_PRO_TRANSCEIVER_FIRMWARE_VERSION_B 38 /* R--T */
+
+/*
+ * NV_CTRL_STRING_3D_VISION_PRO_TRANSCEIVER_FIRMWARE_DATE_B - Returns the
+ * date of the firmware of chip B of the 3D Vision Pro transceiver.
+ */
+#define NV_CTRL_STRING_3D_VISION_PRO_TRANSCEIVER_FIRMWARE_DATE_B    39 /* R--T */
+
+/*
+ * NV_CTRL_STRING_3D_VISION_PRO_TRANSCEIVER_ADDRESS - Returns the RF address
+ * of the 3D Vision Pro transceiver.
+ */
+#define NV_CTRL_STRING_3D_VISION_PRO_TRANSCEIVER_ADDRESS            40 /* R--T */
+
+/*
+ * NV_CTRL_STRING_3D_VISION_PRO_GLASSES_FIRMWARE_VERSION_A - Returns the
+ * firmware version of chip A of the glasses.
+ * Use the display_mask parameter to specify the glasses id.
+ */
+#define NV_CTRL_STRING_3D_VISION_PRO_GLASSES_FIRMWARE_VERSION_A     41 /* R--T */
+
+/*
+ * NV_CTRL_STRING_3D_VISION_PRO_GLASSES_FIRMWARE_DATE_A - Returns the
+ * date of the firmware of chip A of the glasses.
+ * Use the display_mask parameter to specify the glasses id.
+ */
+#define NV_CTRL_STRING_3D_VISION_PRO_GLASSES_FIRMWARE_DATE_A        42 /* R--T */
+
+/*
+ * NV_CTRL_STRING_3D_VISION_PRO_GLASSES_ADDRESS - Returns the RF address
+ * of the glasses.
+ * Use the display_mask parameter to specify the glasses id.
+ */
+#define NV_CTRL_STRING_3D_VISION_PRO_GLASSES_ADDRESS                43 /* R--T */
+
+/*
+ * NV_CTRL_STRING_3D_VISION_PRO_GLASSES_NAME - Controls the name the
+ * glasses should use.
+ * Use the display_mask parameter to specify the glasses id.
+ * Glasses' name should start and end with an alpha-numeric character.
+ */
+#define NV_CTRL_STRING_3D_VISION_PRO_GLASSES_NAME                   44 /* RW-T */
+
+/*
+ * NV_CTRL_STRING_CURRENT_METAMODE_VERSION_2 - Returns the metamode currently
+ * being used by the specified X screen.  The MetaMode string has the same
+ * syntax as the MetaMode X configuration option, as documented in the NVIDIA
+ * driver README.  Also, see NV_CTRL_BINARY_DATA_METAMODES_VERSION_2 for more
+ * details on the base syntax.
+ *
+ * The returned string may also be prepended with a comma-separated list of
+ * "token=value" pairs, separated from the MetaMode string by "::".
+ */
+#define NV_CTRL_STRING_CURRENT_METAMODE_VERSION_2                   45 /* RW-- */
+
+/*
+ * NV_CTRL_STRING_DISPLAY_NAME_TYPE_BASENAME - Returns a type name for the
+ * display device ("CRT", "DFP", or "TV").  However, note that the determination
+ * of the name is based on the protocol through which the X driver communicates
+ * to the display device.  E.g., if the driver communicates using VGA ,then the
+ * basename is "CRT"; if the driver communicates using TMDS, LVDS, or DP, then
+ * the name is "DFP".
+ */
+#define NV_CTRL_STRING_DISPLAY_NAME_TYPE_BASENAME                   46 /* R-D- */
+
+/*
+ * NV_CTRL_STRING_DISPLAY_NAME_TYPE_ID - Returns the type-based name + ID for
+ * the display device, e.g. "CRT-0", "DFP-1", "TV-2".  If this device is a
+ * DisplayPort 1.2 device, then this name will also be prepended with the
+ * device's port address like so: "DFP-1.0.1.2.3".  See
+ * NV_CTRL_STRING_DISPLAY_NAME_TYPE_BASENAME for more information about the
+ * construction of type-based names.
+ */
+#define NV_CTRL_STRING_DISPLAY_NAME_TYPE_ID                         47 /* R-D- */
+
+/*
+ * NV_CTRL_STRING_DISPLAY_NAME_DP_GUID - Returns the GUID of the DisplayPort
+ * display device.  e.g. "DP-GUID-f16a5bde-79f3-11e1-b2ae-8b5a8969ba9c"
+ *
+ * The display device must be a DisplayPort 1.2 device.
+ */
+#define NV_CTRL_STRING_DISPLAY_NAME_DP_GUID                         48 /* R-D- */
+
+/*
+ * NV_CTRL_STRING_DISPLAY_NAME_EDID_HASH - Returns the SHA-1 hash of the
+ * display device's EDID in 8-4-4-4-12 UID format. e.g.
+ * "DPY-EDID-f16a5bde-79f3-11e1-b2ae-8b5a8969ba9c"
+ *
+ * The display device must have a valid EDID.
+ */
+#define NV_CTRL_STRING_DISPLAY_NAME_EDID_HASH                       49 /* R-D- */
+
+/*
+ * NV_CTRL_STRING_DISPLAY_NAME_TARGET_INDEX - Returns the current NV-CONTROL
+ * target ID (name) of the display device.  e.g. "DPY-1", "DPY-4"
+ *
+ * This name for the display device is not guarenteed to be the same between
+ * different runs of the X server.
+ */
+#define NV_CTRL_STRING_DISPLAY_NAME_TARGET_INDEX                    50 /* R-D- */
+
+/*
+ * NV_CTRL_STRING_DISPLAY_NAME_RANDR - Returns the RandR output name for the
+ * display device.  e.g.  "VGA-1", "DVI-I-0", "DVI-D-3", "LVDS-1", "DP-2",
+ * "HDMI-3", "eDP-6".  This name should match  If this device is a DisplayPort
+ * 1.2 device, then this name will also be prepended with the device's port
+ * address like so: "DVI-I-3.0.1.2.3"
+ */
+#define NV_CTRL_STRING_DISPLAY_NAME_RANDR                           51 /* R-D- */
+
 #define NV_CTRL_STRING_LAST_ATTRIBUTE \
-        NV_CTRL_STRING_PERFORMANCE_MODES
+    NV_CTRL_STRING_DISPLAY_NAME_RANDR
 
 
 /**************************************************************************/
@@ -3851,6 +4004,8 @@
  *                               for details.
  *                "nv-control" - the MetaMode was added via the NV-CONTROL X
  *                               extension to the currently running X server.
+ *                "RandR"      - the MetaMode was modified in response to an
+ *                               RandR RRSetCrtcConfig request.
  *
  * Additional tokens may be added in the future, so it is recommended
  * that any token parser processing the returned string from
@@ -3863,6 +4018,8 @@
  */
 
 #define NV_CTRL_BINARY_DATA_METAMODES                           2   /* R-D- */
+#define NV_CTRL_BINARY_DATA_METAMODES_VERSION_1 \
+    NV_CTRL_BINARY_DATA_METAMODES
 
 
 /*
@@ -3978,8 +4135,133 @@
 
 #define NV_CTRL_BINARY_DATA_VCSCS_USED_BY_GPU                  9   /* R-DG */
 
+
+/*
+ * NV_CTRL_BINARY_DATA_COOLERS_USED_BY_GPU - Returns the coolers that
+ * are cooling the given GPU.
+ *
+ * The format of the returned data is:
+ *
+ *     4       CARD32 number of COOLER
+ *     4 * n   CARD32 COOLER indices
+ *
+ * This attribute can only be queried through XNVCTRLQueryTargetBinaryData()
+ * using a NV_CTRL_TARGET_TYPE_GPU target.  This attribute cannot be
+ * queried using a NV_CTRL_TARGET_TYPE_X_SCREEN
+ */
+
+#define NV_CTRL_BINARY_DATA_COOLERS_USED_BY_GPU                10  /* R-DG */
+
+
+/*
+ * NV_CTRL_BINARY_DATA_GPUS_USED_BY_LOGICAL_XSCREEN - Returns the list of
+ * GPUs currently driving the given X screen.  If Xinerama is enabled, this
+ * will return all GPUs that are driving any X screen.
+ *
+ * The format of the returned data is:
+ *
+ *     4       CARD32 number of GPUs
+ *     4 * n   CARD32 GPU indices
+ */
+
+#define NV_CTRL_BINARY_DATA_GPUS_USED_BY_LOGICAL_XSCREEN     11   /* R--- */
+
+/*
+ * NV_CTRL_BINARY_DATA_THERMAL_SENSORS_USED_BY_GPU - Returns the sensors that
+ * are attached to the given GPU.
+ *
+ * The format of the returned data is:
+ *
+ *     4       CARD32 number of SENSOR
+ *     4 * n   CARD32 SENSOR indices
+ *
+ * This attribute can only be queried through XNVCTRLQueryTargetBinaryData()
+ * using a NV_CTRL_TARGET_TYPE_GPU target.  This attribute cannot be
+ * queried using a NV_CTRL_TARGET_TYPE_X_SCREEN
+ */
+
+#define NV_CTRL_BINARY_DATA_THERMAL_SENSORS_USED_BY_GPU      12  /* R--G */
+
+/*
+ * NV_CTRL_BINARY_DATA_GLASSES_PAIRED_TO_3D_VISION_PRO_TRANSCEIVER - Returns
+ * the id of the glasses that are currently paired to the given
+ * 3D Vision Pro transceiver.
+ *
+ * The format of the returned data is:
+ *
+ *     4       CARD32 number of glasses
+ *     4 * n   CARD32 id of glasses
+ *
+ * This attribute can only be queried through XNVCTRLQueryTargetBinaryData()
+ * using a NV_CTRL_TARGET_TYPE_3D_VISION_PRO_TRANSCEIVER target.
+ */
+#define NV_CTRL_BINARY_DATA_GLASSES_PAIRED_TO_3D_VISION_PRO_TRANSCEIVER 13 /* R--T */
+
+/*
+ * NV_CTRL_BINARY_DATA_DISPLAY_TARGETS - Returns all the display devices
+ * currently connected to any GPU on the X server.
+ *
+ * The format of the returned data is:
+ *
+ *     4       CARD32 number of display devices
+ *     4 * n   CARD32 display device indices
+ *
+ * This attribute can only be queried through XNVCTRLQueryTargetBinaryData().
+ */
+
+#define NV_CTRL_BINARY_DATA_DISPLAY_TARGETS                  14  /* R--- */
+
+/*
+ * NV_CTRL_BINARY_DATA_DISPLAYS_CONNECTED_TO_GPU - Returns the list of
+ * display devices that are connected to the GPU target.
+ *
+ * The format of the returned data is:
+ *
+ *     4       CARD32 number of display devices
+ *     4 * n   CARD32 display device indices
+ *
+ * This attribute can only be queried through XNVCTRLQueryTargetBinaryData()
+ * using a NV_CTRL_TARGET_TYPE_GPU target.
+ */
+
+#define NV_CTRL_BINARY_DATA_DISPLAYS_CONNECTED_TO_GPU        15  /* R--G */
+
+/*
+ * NV_CTRL_BINARY_DATA_METAMODES_VERSION_2  - Returns values similar to
+ * NV_CTRL_BINARY_DATA_METAMODES(_VERSION_1) but also returns extended syntax
+ * information to indicate a specific display device, as well as other per-
+ * display deviceflags as "token=value" pairs.  For example:
+ *
+ *   "DPY-1: 1280x1024 {Stereo=PassiveLeft},
+ *    DPY-2: 1280x1024 {Stereo=PassiveRight},"
+ *
+ * The display device names have the form "DPY-%d", where the integer
+ * part of the name is the NV-CONTROL target ID for that display device
+ * for this instance of the X server.  Note that display device NV-CONTROL
+ * target IDs are not guaranteed to be the same from one run of the X
+ * server to the next.
+ */
+
+#define NV_CTRL_BINARY_DATA_METAMODES_VERSION_2              16  /* R-D- */
+
+/*
+ * NV_CTRL_BINARY_DATA_DISPLAYS_ENABLED_ON_XSCREEN - Returns the list of
+ * display devices that are currently scanning out the X screen target.
+ *
+ * The format of the returned data is:
+ *
+ *     4       CARD32 number of display devices
+ *     4 * n   CARD32 display device indices
+ *
+ * This attribute can only be queried through XNVCTRLQueryTargetBinaryData()
+ * using a NV_CTRL_TARGET_TYPE_X_SCREEN target.
+ */
+
+#define NV_CTRL_BINARY_DATA_DISPLAYS_ENABLED_ON_XSCREEN      17  /* R--- */
+
+
 #define NV_CTRL_BINARY_DATA_LAST_ATTRIBUTE \
-        NV_CTRL_BINARY_DATA_VCSCS_USED_BY_GPU
+        NV_CTRL_BINARY_DATA_DISPLAYS_ENABLED_ON_XSCREEN
 
 
 /**************************************************************************/
@@ -4083,7 +4365,7 @@
  * a ModePool.
  *
  * The string input to BUILD_MODEPOOL may be NULL.  If it is not NULL,
- * then it is interpreted as a double-semicolon ("::") separated list
+ * then it is interpreted as a double-colon ("::") separated list
  * of "option=value" pairs, where the options and the syntax of their
  * values are the X configuration options that impact the behavior of
  * modePool construction; namely:
@@ -4106,8 +4388,73 @@
 #define NV_CTRL_STRING_OPERATION_BUILD_MODEPOOL                3 /* DG */
 
 
+/*
+ * NV_CTRL_STRING_OPERATION_GVI_CONFIGURE_STREAMS - Configure the streams-
+ * to-jack+channel topology for a GVI (Graphics capture board).
+ *
+ * The string input to GVI_CONFIGURE_STREAMS may be NULL.  If this is the
+ * case, then the current topology is returned.
+ *
+ * If the input string to GVI_CONFIGURE_STREAMS is not NULL, the string
+ * is interpreted as a semicolon (";") separated list of comma-separated
+ * lists of "option=value" pairs that define a stream's composition.  The
+ * available options and their values are:
+ *
+ *   "stream": Defines which stream this comma-separated list describes.
+ *             Valid values are the integers between 0 and
+ *             NV_CTRL_GVI_NUM_STREAMS-1 (inclusive).
+ *
+ *   "linkN":  Defines a jack+channel pair to use for the given link N.
+ *             Valid options are the string "linkN", where N is an integer
+ *             between 0 and NV_CTRL_GVI_MAX_LINKS_PER_STREAM-1 (inclusive).
+ *             Valid values for these options are strings of the form
+ *             "jackX" and/or "jackX.Y", where X is an integer between 0 and
+ *             NV_CTRL_GVI_NUM_JACKS-1 (inclusive), and Y (optional) is an
+ *             integer between 0 and NV_CTRL_GVI_MAX_CHANNELS_PER_JACK-1
+ *             (inclusive).
+ *
+ * An example input string might look like:
+ *
+ *   "stream=0, link0=jack0, link1=jack1; stream=1, link0=jack2.1"
+ * 
+ *   This example specifies two streams, stream 0 and stream 1.  Stream 0
+ *   is defined to capture link0 data from the first channel (channel 0) of
+ *   BNC jack 0 and link1 data from the first channel of BNC jack 1.  The
+ *   second stream (Stream 1) is defined to capture link0 data from channel 1
+ *   (second channel) of BNC jack 2.
+ *
+ * This example shows a possible configuration for capturing 3G input:
+ *
+ *   "stream=0, link0=jack0.0, link1=jack0.1"
+ *
+ * Applications should query the following attributes to determine
+ * possible combinations:
+ * 
+ *   NV_CTRL_GVI_MAX_STREAMS
+ *   NV_CTRL_GVI_MAX_LINKS_PER_STREAM
+ *   NV_CTRL_GVI_NUM_JACKS
+ *   NV_CTRL_GVI_MAX_CHANNELS_PER_JACK
+ *
+ * Note: A jack+channel pair can only be tied to one link/stream.
+ *
+ * Upon successful configuration or querying of this attribute, a string
+ * representing the current topology for all known streams on the device
+ * will be returned.  On failure, NULL is returned.
+ *
+ * Note: Setting this attribute may also result in the following
+ *       NV-CONTROL attributes being reset on the GVI device (to ensure
+ *       the configuration remains valid):
+ *           NV_CTRL_GVIO_REQUESTED_VIDEO_FORMAT
+ *           NV_CTRL_GVI_REQUESTED_STREAM_BITS_PER_COMPONENT
+ *           NV_CTRL_GVI_REQUESTED_STREAM_COMPONENT_SAMPLING
+ */
+
+#define NV_CTRL_STRING_OPERATION_GVI_CONFIGURE_STREAMS         4 /* RW-I */
+
+
 #define NV_CTRL_STRING_OPERATION_LAST_ATTRIBUTE \
-        NV_CTRL_STRING_OPERATION_BUILD_MODEPOOL
+        NV_CTRL_STRING_OPERATION_GVI_CONFIGURE_STREAMS
+
 
 
 
@@ -4140,46 +4487,85 @@
  * value, etc).  This is useful for attributes like NV_CTRL_FSAA_MODE,
  * which can only have certain values, depending on GPU.
  *
+ * ATTRIBUTE_TYPE_64BIT_INTEGER : the attribute is a 64 bit integer value;
+ * there is no fixed range of valid values.
+ *
+ * ATTRIBUTE_TYPE_STRING : the attribute is a string value; there is no fixed
+ * range of valid values.
+ *
+ * ATTRIBUTE_TYPE_BINARY_DATA : the attribute is binary data; there is
+ * no fixed range of valid values.
+ *
+ * ATTRIBUTE_TYPE_STRING_OPERATION : the attribute is a string; there is
+ * no fixed range of valid values.
+ *
  *
  * The permissions field of NVCTRLAttributeValidValuesRec is a bitmask
  * that may contain:
  *
  * ATTRIBUTE_TYPE_READ      - Attribute may be read (queried.)
  * ATTRIBUTE_TYPE_WRITE     - Attribute may be written to (set.)
- * ATTRIBUTE_TYPE_DISPLAY   - Attribute requires a display mask.
+ * ATTRIBUTE_TYPE_DISPLAY   - Attribute is valid for display target types
+ *                            (requires a display_mask if queried via
+ *                            a GPU or X screen.)
  * ATTRIBUTE_TYPE_GPU       - Attribute is valid for GPU target types.
  * ATTRIBUTE_TYPE_FRAMELOCK - Attribute is valid for Frame Lock target types.
  * ATTRIBUTE_TYPE_X_SCREEN  - Attribute is valid for X Screen target types.
  * ATTRIBUTE_TYPE_XINERAMA  - Attribute will be made consistent for all
  *                            X Screens when the Xinerama extension is enabled.
- *
+ * ATTRIBUTE_TYPE_VCSC      - Attribute is valid for Visual Computing System
+ *                            target types.
+ * ATTRIBUTE_TYPE_GVI       - Attribute is valid for Graphics Video In target
+ *                            types.
+ * ATTRIBUTE_TYPE_COOLER    - Attribute is valid for Cooler target types.
+ * ATTRIBUTE_TYPE_3D_VISION_PRO_TRANSCEIVER - Attribute is valid for 3D Vision
+ *                                            Pro Transceiver target types.
  *
  * See 'Key to Integer Attribute "Permissions"' at the top of this
  * file for a description of what these permission bits mean.
  */
 
-#define ATTRIBUTE_TYPE_UNKNOWN   0
-#define ATTRIBUTE_TYPE_INTEGER   1
-#define ATTRIBUTE_TYPE_BITMASK   2
-#define ATTRIBUTE_TYPE_BOOL      3
-#define ATTRIBUTE_TYPE_RANGE     4
-#define ATTRIBUTE_TYPE_INT_BITS  5
+#define ATTRIBUTE_TYPE_UNKNOWN           0
+#define ATTRIBUTE_TYPE_INTEGER           1
+#define ATTRIBUTE_TYPE_BITMASK           2
+#define ATTRIBUTE_TYPE_BOOL              3
+#define ATTRIBUTE_TYPE_RANGE             4
+#define ATTRIBUTE_TYPE_INT_BITS          5
+#define ATTRIBUTE_TYPE_64BIT_INTEGER     6
+#define ATTRIBUTE_TYPE_STRING            7
+#define ATTRIBUTE_TYPE_BINARY_DATA       8
+#define ATTRIBUTE_TYPE_STRING_OPERATION  9
 
-#define ATTRIBUTE_TYPE_READ       0x01
-#define ATTRIBUTE_TYPE_WRITE      0x02
-#define ATTRIBUTE_TYPE_DISPLAY    0x04
-#define ATTRIBUTE_TYPE_GPU        0x08
-#define ATTRIBUTE_TYPE_FRAMELOCK  0x10
-#define ATTRIBUTE_TYPE_X_SCREEN   0x20
-#define ATTRIBUTE_TYPE_XINERAMA   0x40
-#define ATTRIBUTE_TYPE_VCSC       0x80
+#define ATTRIBUTE_TYPE_READ       0x001
+#define ATTRIBUTE_TYPE_WRITE      0x002
+#define ATTRIBUTE_TYPE_DISPLAY    0x004
+#define ATTRIBUTE_TYPE_GPU        0x008
+#define ATTRIBUTE_TYPE_FRAMELOCK  0x010
+#define ATTRIBUTE_TYPE_X_SCREEN   0x020
+#define ATTRIBUTE_TYPE_XINERAMA   0x040
+#define ATTRIBUTE_TYPE_VCSC       0x080
+#define ATTRIBUTE_TYPE_GVI        0x100
+#define ATTRIBUTE_TYPE_COOLER     0x200
+#define ATTRIBUTE_TYPE_THERMAL_SENSOR 0x400
+#define ATTRIBUTE_TYPE_3D_VISION_PRO_TRANSCEIVER 0x800
+
+#define ATTRIBUTE_TYPE_ALL_TARGETS                \
+    ((ATTRIBUTE_TYPE_DISPLAY)                   | \
+     (ATTRIBUTE_TYPE_GPU)                       | \
+     (ATTRIBUTE_TYPE_FRAMELOCK)                 | \
+     (ATTRIBUTE_TYPE_X_SCREEN)                  | \
+     (ATTRIBUTE_TYPE_VCSC)                      | \
+     (ATTRIBUTE_TYPE_GVI)                       | \
+     (ATTRIBUTE_TYPE_COOLER)                    | \
+     (ATTRIBUTE_TYPE_THERMAL_SENSOR)            | \
+     (ATTRIBUTE_TYPE_3D_VISION_PRO_TRANSCEIVER))
 
 typedef struct _NVCTRLAttributeValidValues {
     int type;
     union {
         struct {
-            int min;
-            int max;
+            int64_t min;
+            int64_t max;
         } range;
         struct {
             unsigned int ints;
@@ -4187,6 +4573,11 @@ typedef struct _NVCTRLAttributeValidValues {
     } u;
     unsigned int permissions;
 } NVCTRLAttributeValidValuesRec;
+
+typedef struct _NVCTRLAttributePermissions {
+    int type;
+    unsigned int permissions;
+} NVCTRLAttributePermissionsRec;
 
 
 /**************************************************************************/
@@ -4203,6 +4594,7 @@ typedef struct _NVCTRLAttributeValidValues {
 #define TARGET_ATTRIBUTE_CHANGED_EVENT              1
 #define TARGET_ATTRIBUTE_AVAILABILITY_CHANGED_EVENT 2
 #define TARGET_STRING_ATTRIBUTE_CHANGED_EVENT       3
+#define TARGET_BINARY_ATTRIBUTE_CHANGED_EVENT       4
 
 
 #endif /* __NVCTRL_H */

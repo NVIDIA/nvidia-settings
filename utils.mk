@@ -1,23 +1,17 @@
 #
 # Copyright (C) 2008 NVIDIA Corporation
 #
-# Permission is hereby granted, free of charge, to any person obtaining a
-# copy of this software and associated documentation files (the "Software"),
-# to deal in the Software without restriction, including without limitation
-# the rights to use, copy, modify, merge, publish, distribute, sublicense,
-# and/or sell copies of the Software, and to permit persons to whom the
-# Software is furnished to do so, subject to the following conditions:
+# This program is free software; you can redistribute it and/or modify it
+# under the terms and conditions of the GNU General Public License,
+# version 2, as published by the Free Software Foundation.
 #
-# The above copyright notice and this permission notice shall be included in
-# all copies or substantial portions of the Software.
+# This program is distributed in the hope that it will be useful, but WITHOUT
+# ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or
+# FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License for
+# more details.
 #
-# THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
-# IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
-# FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.  IN NO EVENT SHALL
-# THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
-# LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING
-# FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
-# DEALINGS IN THE SOFTWARE.
+# You should have received a copy of the GNU General Public License
+# along with this program; if not, see <http://www.gnu.org/licenses>.
 #
 #
 # utils.mk: common Makefile fragment used by nvidia-xconfig,
@@ -33,60 +27,30 @@
 ##############################################################################
 
 CC                    ?= gcc
-CXX                   ?= g++
 LD                    ?= ld
-AR                    ?= ar
-# only set these warnings if CFLAGS is unset
-CFLAGS                ?= -Wall
+# only set these warnings and optimizations if CFLAGS is unset
+CFLAGS                ?= -Wall -Wno-unused-parameter -O2
 # always set these -f CFLAGS
-CFLAGS                += -fno-strict-aliasing -fno-omit-frame-pointer -Wformat=2
+CFLAGS                += -fno-strict-aliasing -fno-omit-frame-pointer
 CC_ONLY_CFLAGS        ?=
-CXX_ONLY_CFLAGS       ?=
 LDFLAGS               ?=
 BIN_LDFLAGS           ?=
 
 HOST_CC               ?= $(CC)
 HOST_LD               ?= $(LD)
 HOST_CFLAGS           ?= $(CFLAGS)
-HOST_CC_ONLY_CFLAGS   ?=
-HOST_CXX_ONLY_CFLAGS  ?=
 HOST_LDFLAGS          ?= $(LDFLAGS)
 HOST_BIN_LDFLAGS      ?=
 
-# always disable warnings that will break the build
-CC_ONLY_CFLAGS        += -Wno-format-zero-length
-CFLAGS                += -Wno-unused-parameter
-HOST_CC_ONLY_CFLAGS   += -Wno-format-zero-length
-HOST_CFLAGS           += -Wno-unused-parameter
-
-# Treat warnings as errors, if requested
-WARNINGS_AS_ERRORS    ?=
-CFLAGS                += $(if $(WARNINGS_AS_ERRORS),-Werror)
-
-DEBUG                 ?=
-DEVELOP               ?=
-
 ifeq ($(DEBUG),1)
   STRIP_CMD           ?= true
-  DO_STRIP            ?=
   CFLAGS              += -O0 -g
-  CFLAGS              += -DDEBUG=1
 else
-  CFLAGS              += -O2
+  STRIP_CMD           ?= strip
 endif
-
-ifeq ($(DEVELOP),1)
-  STRIP_CMD           ?= true
-  DO_STRIP            ?=
-  CFLAGS              += -DDEVELOP=1
-endif
-
-STRIP_CMD             ?= strip
-DO_STRIP              ?= 1
 
 INSTALL               ?= install
 INSTALL_BIN_ARGS      ?= -m 755
-INSTALL_LIB_ARGS      ?= -m 644
 INSTALL_DOC_ARGS      ?= -m 644
 
 M4                    ?= m4
@@ -97,14 +61,11 @@ PRINTF                ?= printf
 MKDIR                 ?= mkdir -p
 RM                    ?= rm -f
 TOUCH                 ?= touch
-HARDLINK              ?= ln -f
+WHOAMI                ?= whoami
+HOSTNAME_CMD          ?= hostname
 DATE                  ?= date
 GZIP_CMD              ?= gzip
 CHMOD                 ?= chmod
-OBJCOPY               ?= objcopy
-XZ                    ?= xz
-WHOAMI                ?= whoami
-HOSTNAME              ?= hostname
 
 NV_AUTO_DEPEND        ?= 1
 NV_VERBOSE            ?= 0
@@ -133,26 +94,6 @@ ifndef TARGET_ARCH
   TARGET_ARCH         := $(subst i686,x86,$(TARGET_ARCH))
 endif
 
-ifeq ($(TARGET_ARCH),x86)
-  CFLAGS += -DNV_X86 -DNV_ARCH_BITS=32
-endif
-
-ifeq ($(TARGET_ARCH),x86_64)
-  CFLAGS += -DNV_X86_64 -DNV_ARCH_BITS=64
-endif
-
-ifeq ($(TARGET_ARCH),armv7l)
-  CFLAGS += -DNV_ARMV7 -DNV_ARCH_BITS=32
-endif
-
-ifeq ($(TARGET_ARCH),aarch64)
-  CFLAGS += -DNV_AARCH64 -DNV_ARCH_BITS=64
-endif
-
-ifeq ($(TARGET_ARCH),ppc64le)
-  CFLAGS += -DNV_PPC64LE -DNV_ARCH_BITS=64
-endif
-
 ifeq ($(TARGET_OS),Linux)
   LIBDL_LIBS = -ldl
 else
@@ -168,26 +109,12 @@ ifeq ($(TARGET_ARCH),armv7l)
 endif
 TARGET_ARCH_ABI       ?=
 
-ifeq ($(TARGET_ARCH_ABI),gnueabi)
-  CFLAGS += -DNV_GNUEABI
-endif
-
-ifeq ($(TARGET_ARCH_ABI),gnueabihf)
-  CFLAGS += -DNV_GNUEABIHF
-endif
-
 OUTPUTDIR             ?= _out/$(TARGET_OS)_$(TARGET_ARCH)
-OUTPUTDIR_ABSOLUTE    ?= $(CURDIR)/$(OUTPUTDIR)
-
-NV_SEPARATE_DEBUG_INFO ?=
-NV_KEEP_UNSTRIPPED_BINARIES ?=
 
 NV_QUIET_COMMAND_REMOVED_TARGET_PREFIX ?=
 
-NV_GENERATED_HEADERS ?=
+CFLAGS += $(CC_ONLY_CFLAGS)
 
-PCIACCESS_CFLAGS      ?=
-PCIACCESS_LDFLAGS     ?=
 
 ##############################################################################
 # This makefile uses the $(eval) builtin function, which was added in
@@ -204,21 +131,6 @@ endif
 
 
 ##############################################################################
-# Test passing $(1) to $(CC).  If $(CC) succeeds, then echo $(1).
-#
-# Because this uses $(shell), it is best to use this to assign simply expanded
-# variables (e.g., ":=").
-#
-# Example usage:
-#  CONDITIONAL_CFLAGS := $(call TEST_CC_ARG, -ffoo)
-##############################################################################
-
-TEST_CC_ARG = \
- $(shell $(CC) -c -x c /dev/null $(1) -o /dev/null > /dev/null 2>&1 && \
-   $(ECHO) $(1))
-
-
-##############################################################################
 # define variables used when installing the open source utilities from
 # the source tarball
 ##############################################################################
@@ -226,7 +138,6 @@ TEST_CC_ARG = \
 PREFIX ?= /usr/local
 
 BINDIR = $(DESTDIR)$(PREFIX)/bin
-LIBDIR = $(DESTDIR)$(PREFIX)/lib
 MANDIR = $(DESTDIR)$(PREFIX)/share/man/man1
 
 
@@ -248,24 +159,12 @@ default build: all
 # Throw an error if one of these two places did not define NVIDIA_VERSION.
 ##############################################################################
 
-VERSION_MK_DIR ?= .
-VERSION_MK := $(wildcard $(OUTPUTDIR)/version.mk $(VERSION_MK_DIR)/version.mk )
+VERSION_MK := $(wildcard $(OUTPUTDIR)/version.mk version.mk)
 include $(VERSION_MK)
 
 ifndef NVIDIA_VERSION
 $(error NVIDIA_VERSION undefined)
 endif
-
-##############################################################################
-# NV_GET_SOURCE_TYPE: if the source file $(1) should be compiled as C, this
-# evalutes to "CC"; if the source file $(1) should be compiled as C++, this
-# evalutes to "CXX".
-##############################################################################
-
-NV_GET_SOURCE_TYPE = $(strip \
-                     $(if $(filter %.c, $(1)),CC, \
-                     $(if $(filter %.cpp, $(1)),CXX, \
-                     $(error Unrecognized source $(1)))))
 
 
 ##############################################################################
@@ -277,41 +176,41 @@ NV_GET_SOURCE_TYPE = $(strip \
 #
 # "HOST" -> "HOST_"
 # "TARGET" -> ""
+#
+# and prepended to "CC" or "CFLAGS"
 ##############################################################################
 
 host_target = $(patsubst HOST,HOST_,$(patsubst TARGET,,$(1)))
+host_target_cc = $(call host_target,$(1))CC
+host_target_cflags = $(call host_target,$(1))CFLAGS
 
 
 ##############################################################################
-# To generate the dependency files:
+# to generate the dependency files, use the compiler's "-MM" option to
+# generate output of the form "foo.o : foo.c foo.h"; then, use sed to
+# wrap the prerequisites with $(wildcard ...); the wildcard function
+# serves as an existence filter, so that files that are later removed
+# from the build do not cause stale references.  Also, "-MM" will
+# cause the compiler to name the target as if it were in the current
+# directory ("foo.o: "); use sed to rename the target in the output
+# directory ("_out/Linux_x86/foo.o: ") so that the target actually
+# applies to the object files produced in the build.
 #
-# - Use the compiler's "-MMD" option to generate output of the form
-#     "foo.o : foo.c foo.h bar.h".
-#
-# - Also, "-MMD" will cause the compiler to name the target as if it were in the
-#   current directory ("foo.o: "); use -MT to rename the target in the output
-#   directory ("_out/Linux_x86/foo.o: ") so that the target actually applies to
-#   the object files produced in the build.
-#
-# - Use -MP to generate a phony target for each of those prerequisites (except
-#   the source file being compiled).  E.g.,
-#     "foo.o : foo.c foo.h bar.h
-#      foo.h:
-#      bar.h:"
-#   so that the makefile can handle incremental builds after a prerequisite has
-#   been deleted from source control.
-#
-# - Use sed to remove the source file from the list of prerequisties in the
-#   above, so that the makefile can handle increment builds after the source has
-#   moved from one directory to another.  The DEFINE_OBJECT_RULE macro spells
-#   out the obj: src dependency, so we don't require it here.
+# Arguments:
+# $(1): whether for host or target platform ("HOST" or "TARGET")
+# $(2): source filename
+# $(3): object filename
 ##############################################################################
 
 ifeq ($(NV_AUTO_DEPEND),1)
-  AUTO_DEP_SUFFIX = -MMD -MF $$(@:.o=.d.to_be_processed) -MP -MT $$@ && \
-    $$(SED) -e "1,3s| $$< | |" < $$(@:.o=.d.to_be_processed) > $$(@:.o=.d)
+  AUTO_DEP_CMD = && $($(call host_target_cc,$(1))) \
+    -MM $$($(call host_target_cflags,$(1))) $$< | $$(SED) \
+    -e "s,: ,: $$$$\(wildcard ," \
+    -e "s,\([^\\]\)$$$$,\1)," \
+    -e "s;^$$(addsuffix .o,$$(notdir $$(basename $(2)))): ;$(3): ;" \
+    > $$(@:.o=.d)
 else
-  AUTO_DEP_SUFFIX =
+  AUTO_DEP_CMD =
 endif
 
 
@@ -325,14 +224,10 @@ endif
 NV_MODULE_LOGGING_NAME ?=
 
 ifeq ($(NV_VERBOSE),0)
-  at_if_quiet := @
-  quiet_cmd_no_at = $(PRINTF) \
-    " $(if $(NV_MODULE_LOGGING_NAME),[ %-17.17s ],%s)  $(quiet_$(1))\n" \
+  quiet_cmd = @$(PRINTF) \
+    " $(if $(NV_MODULE_LOGGING_NAME),[ %-17.17s ])  $(quiet_$(1))\n" \
     "$(NV_MODULE_LOGGING_NAME)" && $($(1))
-  quiet_cmd = @$(quiet_cmd_no_at)
 else
-  at_if_quiet :=
-  quiet_cmd_no_at = $($(1))
   quiet_cmd = $($(1))
 endif
 
@@ -347,18 +242,11 @@ define_quiet_cmd = $(1) $(patsubst $(NV_QUIET_COMMAND_REMOVED_TARGET_PREFIX)/%,%
 
 # define the quiet commands:
 quiet_CC           = $(call define_quiet_cmd,CC          ,$<)
-quiet_CXX          = $(call define_quiet_cmd,CXX         ,$<)
 quiet_HOST_CC      = $(call define_quiet_cmd,HOST_CC     ,$<)
-quiet_HOST_CXX     = $(call define_quiet_cmd,HOST_CXX    ,$<)
 quiet_LINK         = $(call define_quiet_cmd,LINK        ,$@)
 quiet_HOST_LINK    = $(call define_quiet_cmd,HOST_LINK   ,$@)
 quiet_M4           = $(call define_quiet_cmd,M4          ,$<)
 quiet_STRIP_CMD    = $(call define_quiet_cmd,STRIP       ,$@)
-quiet_HARDLINK     = $(call define_quiet_cmd,HARDLINK    ,$@)
-quiet_LD           = $(call define_quiet_cmd,LD          ,$@)
-quiet_OBJCOPY      = $(call define_quiet_cmd,OBJCOPY     ,$@)
-quiet_AR           = $(call define_quiet_cmd,AR          ,$@)
-quiet_XZ           = $(call define_quiet_cmd,XZ          ,$@)
 
 ##############################################################################
 # Tell gmake to delete the target of a rule if it has changed and its
@@ -369,56 +257,32 @@ quiet_XZ           = $(call define_quiet_cmd,XZ          ,$@)
 
 ##############################################################################
 # function to generate a list of object files from their corresponding
-# source files using the specified path. The _WITH_DIR variant takes an
-# output path as the second argument while the BUILD_OBJECT_LIST defaults
-# to using the value of OUTPUTDIR as the output path. example usage:
+# source files; example usage:
 #
-# OBJS = $(call BUILD_OBJECT_LIST_WITH_DIR,$(SRC),$(DIR))
+# OBJS = $(call BUILD_OBJECT_LIST,$(SRC))
 ##############################################################################
 
-BUILD_OBJECT_LIST_WITH_DIR = \
-  $(addprefix $(2)/,$(notdir $(addsuffix .o,$(basename $(1)))))
-
 BUILD_OBJECT_LIST = \
-  $(call BUILD_OBJECT_LIST_WITH_DIR,$(1),$(OUTPUTDIR))
+  $(addprefix $(OUTPUTDIR)/,$(notdir $(addsuffix .o,$(basename $(1)))))
 
-$(call BUILD_OBJECT_LIST,nvpci-utils.c): CFLAGS += $(PCIACCESS_CFLAGS)
 
 ##############################################################################
 # function to generate a list of dependency files from their
-# corresponding source files using the specified path. The _WITH_DIR
-# variant takes an output path as the second argument while the
-# BUILD_DEPENDENCY_LIST default to using the value of OUTPUTDIR as the
-# output path. example usage:
+# corresponding source files; example usage:
 #
-# DEPS = $(call BUILD_DEPENDENCY_LIST_WITH_DIR,$(SRC),$(DIR))
+# DEPS = $(call BUILD_DEPENDENCY_LIST,$(SRC))
 ##############################################################################
 
-BUILD_DEPENDENCY_LIST_WITH_DIR = \
-  $(addprefix $(2)/,$(notdir $(addsuffix .d,$(basename $(1)))))
-
 BUILD_DEPENDENCY_LIST = \
-  $(call BUILD_DEPENDENCY_LIST_WITH_DIR,$(1),$(OUTPUTDIR))
+  $(addprefix $(OUTPUTDIR)/,$(notdir $(addsuffix .d,$(basename $(1)))))
 
 
 ##############################################################################
 # functions to define a rule to build an object file; the first
-# argument for all functions is whether the rule is for the target or
-# host platform ("HOST" or "TARGET"), the second argument for all
-# functions is the source file to compile.
-#
-# An order-only dependency is added on any generated header files listed in
-# $(NV_GENERATED_HEADERS), to ensure they're present before invoking the
-# compiler.  For incremental builds where the object file already exists, a
-# real (not order-only) dependency will be created by automatic dependency
-# tracking if needed.
-#
-# The _WITH_OBJECT_NAME and _WITH_DIR function name suffixes describe
-# the third and possibly fourth arguments based on order. The
-# _WITH_OBJECT_NAME argument is the object filename to produce while
-# the _WITH_DIR argument is the destination path for the object file.
-#
-# Example usage:
+# argument whether the rule is for the target or host platform ("HOST"
+# or "TARGET"), the second argument is the source file to compile, and
+# the third argument (_WITH_OBJECT_NAME-only) is the object filename
+# to produce.  Example usage:
 #
 #  $(eval $(call DEFINE_OBJECT_RULE,TARGET,foo.c))
 #
@@ -428,128 +292,57 @@ BUILD_DEPENDENCY_LIST = \
 # The DEFINE_OBJECT_RULE is functionally equivalent to
 # DEFINE_OBJECT_RULE_WITH_OBJECT_NAME, but infers the object file name
 # from the source file name (this is normally what you want).
-#
-# Arguments:
-# $(1) : HOST or TARGET
-# $(2) : source file
-# $(3) : object file
-# $(4) : directory
 ##############################################################################
 
-define DEFINE_OBJECT_RULE_WITH_OBJECT_NAME_WITH_DIR
-  $(3): NV_SOURCE_TYPE = $$(call NV_GET_SOURCE_TYPE,$(2))
+define DEFINE_OBJECT_RULE_WITH_OBJECT_NAME
+  $(3): $(2)
+	@$(MKDIR) $(OUTPUTDIR)
+	$$(call quiet_cmd,$(call host_target_cc,$(1))) \
+	  $$($(call host_target_cflags,$(1))) -c $$< -o $$@ \
+	  $(call AUTO_DEP_CMD,$(1),$(2),$(3))
 
-  # obj: {HOST_,}CFLAGS += $$({HOST_,}{CC,CXX}_ONLY_CFLAGS)
-  $(3): $$(call host_target,$(1))CFLAGS += \
-    $$($(call host_target,$(1))$$(NV_SOURCE_TYPE)_ONLY_CFLAGS)
-
-  $(3): $(2) | $$(NV_GENERATED_HEADERS)
-	@$(MKDIR) $(4)
-	$$(call quiet_cmd,$(call host_target,$(1))$$(NV_SOURCE_TYPE)) \
-	  $$($(call host_target,$(1))CFLAGS) -c $$< -o $$@ \
-	  $(AUTO_DEP_SUFFIX)
-
-  -include $$(call BUILD_DEPENDENCY_LIST_WITH_DIR,$(3),$(4))
+  -include $$(call BUILD_DEPENDENCY_LIST,$(3))
 
   # declare empty rule for generating dependency file; we generate the
   # dependency files implicitly when compiling the source file (see
-  # AUTO_DEP_SUFFIX above), so we don't want gmake to spend time searching
+  # AUTO_DEP_CMD above), so we don't want gmake to spend time searching
   # for an explicit rule to generate the dependency file
-  $$(call BUILD_DEPENDENCY_LIST_WITH_DIR,$(3),$(4)): ;
+  $$(call BUILD_DEPENDENCY_LIST,$(3)): ;
 
-endef
-
-define DEFINE_OBJECT_RULE_WITH_OBJECT_NAME
-  $$(eval $$(call DEFINE_OBJECT_RULE_WITH_OBJECT_NAME_WITH_DIR,$(1),$(2),\
-    $(3),$(OUTPUTDIR)))
-endef
-
-define DEFINE_OBJECT_RULE_WITH_DIR
-  $$(eval $$(call DEFINE_OBJECT_RULE_WITH_OBJECT_NAME_WITH_DIR,$(1),$(2),\
-    $$(call BUILD_OBJECT_LIST_WITH_DIR,$(2),$(3)),$(3)))
 endef
 
 define DEFINE_OBJECT_RULE
-  $$(eval $$(call DEFINE_OBJECT_RULE_WITH_DIR,$(1),$(2),$(OUTPUTDIR)))
-endef
-
-# This is a function that will generate rules to build
-# files with separate debug information, if so requested.
-# 
-# It takes one parameter: (1) Name of unstripped binary
-#
-# When used, the target for linking should be named (1).unstripped
-#
-# If separate debug information is requested, it will
-# generate a rule to build one from the unstripped binary.
-# If requested, it will also retain the unstripped binary.
-define DEBUG_INFO_RULES
-  $(1): $(1).unstripped
-  ifneq ($(or $(DO_STRIP),$(NV_SEPARATE_DEBUG_INFO)),)
-	$$(call quiet_cmd,STRIP_CMD) -o $$@ $$<
-  else
-	$$(call quiet_cmd,HARDLINK) $$^ $$@
-  endif
-  ifeq ($(NV_SEPARATE_DEBUG_INFO),1)
-    $(1).debug: $(1).unstripped
-	$$(call quiet_cmd,STRIP_CMD) --only-keep-debug -o $$@ $$<
-    $(1): $(1).debug
-  endif
-  ifneq ($(NV_KEEP_UNSTRIPPED_BINARIES),1)
-    .INTERMEDIATE: $(1).unstripped
-  endif
-endef
-
-##############################################################################
-# Define rule for generating a source file containing identification information
-# for the build.
-#
-# $(1) string name
-# $(2) module name
-# $(3) prerequisite object files
-##############################################################################
-
-NVIDSTRING = $(OUTPUTDIR)/g_nvid_string.c
-
-ifeq ($(DEBUG),1)
-  NVIDSTRING_BUILD_TYPE_STRING = Debug Build
-else
-  NVIDSTRING_BUILD_TYPE_STRING = Release Build
-endif
-
-define GENERATE_NVIDSTRING
-  # g_nvid_string.c depends on all objects except g_nvid_string.o, and version.mk
-  $(NVIDSTRING): $$(filter-out $$(call BUILD_OBJECT_LIST,$$(NVIDSTRING)), $(3)) $$(VERSION_MK)
-	$(at_if_quiet)$$(MKDIR) $$(dir $$@)
-	$(at_if_quiet)$$(ECHO) "const char $(1)[] = \"nvidia id: NVIDIA $$(strip $(2)) for $$(TARGET_ARCH)  $$(NVIDIA_VERSION)  $$(NVIDSTRING_BUILD_TYPE_STRING)  (`$$(WHOAMI)`@`$$(HOSTNAME)`)  `$$(DATE)`\";" > $$@
-	$(at_if_quiet)$$(ECHO) "const char *const p$$(strip $(1)) = $(1) + 11;" >> $$@;
+  $$(eval $$(call DEFINE_OBJECT_RULE_WITH_OBJECT_NAME,$(1),$(2),\
+    $$(call BUILD_OBJECT_LIST,$(2))))
 endef
 
 
 ##############################################################################
-# Define rules that can be used for embedding a file into an ELF object that
-# contains the raw contents of that file and symbols pointing to the embedded
-# data.
+# STAMP_C - this is a source file that is generated during the build
+# to capture information about the build environment for the utility.
 #
-# Note that objcopy will name the symbols in the resulting object file based on
-# the filename specified in $(1).  For example,
+# The DEFINE_STAMP_C_RULE function is used to define the rule for
+# generating STAMP_C.  First argument is a list of dependencies for
+# STAMP_C (g_stamp.o is filtered out of the list); second argument is
+# the name of the program being built.
 #
-#   $(eval $(call $(READ_ONLY_OBJECT_FROM_FILE_RULE),a/b/c))
-#
-# will create an object named $(OUTPUTDIR)/c.o with the symbols _binary_c_start,
-# _binary_c_end, and _binary_c_size.
-#
-# Arguments:
-#  $(1): Path to the file to convert
+# The includer of utils.mk should add $(STAMP_C) to its list of source
+# files
 ##############################################################################
 
-define READ_ONLY_OBJECT_FROM_FILE_RULE
-  $$(OUTPUTDIR)/$$(notdir $(1)).o: $(1)
-	$(at_if_quiet)$$(MKDIR) $$(OUTPUTDIR)
-	$(at_if_quiet)cd $$(dir $(1)); \
-	$$(call quiet_cmd_no_at,LD) -r -z noexecstack --format=binary \
-	    $$(notdir $(1)) -o $$(OUTPUTDIR_ABSOLUTE)/$$(notdir $$@)
-	$$(call quiet_cmd,OBJCOPY) \
-	    --rename-section .data=.rodata,contents,alloc,load,data,readonly \
-	    $$@
+STAMP_C = $(OUTPUTDIR)/g_stamp.c
+
+define DEFINE_STAMP_C_RULE
+
+  $$(STAMP_C): $$(filter-out \
+    $$(call BUILD_OBJECT_LIST,$$(STAMP_C)),$(1)) \
+    $$(VERSION_MK)
+	@ $$(RM) $$@
+	@ $$(PRINTF) "const char NV_ID[] = \"nvidia id: "                  >> $$@
+	@ $$(PRINTF) "$(2):  "                                             >> $$@
+	@ $$(PRINTF) "version $$(NVIDIA_VERSION)  "                        >> $$@
+	@ $$(PRINTF) "($$(shell $$(WHOAMI))@$$(shell $$(HOSTNAME_CMD)))  " >> $$@
+	@ $$(PRINTF) "$$(shell $(DATE))\";\n"                              >> $$@
+	@ $$(PRINTF) "const char *pNV_ID = NV_ID + 11;\n"                  >> $$@
+
 endef

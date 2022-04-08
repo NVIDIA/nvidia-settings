@@ -26,7 +26,6 @@
 
 #include <gtk/gtk.h>
 #include <gdk/gdkkeysyms.h>
-#include <gdk/gdkx.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -34,6 +33,10 @@
 #include "ctkwindow.h"
 
 #include "ctkframelock.h"
+#include "ctkgvi.h"
+#include "ctkgvo.h"
+#include "ctkgvo-sync.h"
+#include "ctkgvo-csc.h"
 #include "ctkconfig.h"
 #include "ctkutils.h"
 
@@ -43,22 +46,23 @@
 #include "ctkcolorcorrection.h"
 #include "ctkcolorcorrectionpage.h"
 #include "ctkxvideo.h"
+#include "ctkcursorshadow.h"
 #include "ctkopengl.h"
 #include "ctkglx.h"
 #include "ctkmultisample.h"
 #include "ctkthermal.h"
 #include "ctkpowermizer.h"
+#include "ctkclocks.h"
+#include "ctkvcs.h"
+#include "ctkpowersavings.h"
 #include "ctk3dvisionpro.h"
 
+#include "ctkdisplaydevice-tv.h"
 #include "ctkdisplaydevice.h"
 
 #include "ctkdisplayconfig.h"
 #include "ctkserver.h"
 #include "ctkecc.h"
-#include "ctkgridlicense.h"
-#include "ctkvdpau.h"
-
-#include "ctkappprofile.h"
 
 #include "ctkhelp.h"
 #include "ctkevent.h"
@@ -66,11 +70,7 @@
 
 #include "msg.h"
 #include "common-utils.h"
-#include "query-assign.h"
 
-#include "opengl_loading.h"
-
-#include "ctkpowermode.h"
 
 /* column enumeration */
 
@@ -87,13 +87,13 @@ enum {
 
 typedef struct {
     CtkWindow *window;
-    CtrlTarget *gpu_target;
+    CtkEvent *event;
+    NvCtrlAttributeHandle *gpu_handle;
     GtkTextTagTable *tag_table;
 
     GtkTreeIter parent_iter;
 
     GtkTreeIter *display_iters;
-    CtkEvent **display_events;
     int num_displays;
 
 } UpdateDisplaysData;
@@ -103,13 +103,9 @@ typedef void (*config_file_attributes_func_t)(GtkWidget *, ParsedAttribute *);
 typedef void (*select_widget_func_t)(GtkWidget *);
 typedef void (*unselect_widget_func_t)(GtkWidget *);
 
-static void ctk_window_class_init(CtkWindowClass *, gpointer);
+static void ctk_window_class_init(CtkWindowClass *);
 
-#ifdef CTK_GTK3
-static void ctk_window_real_destroy(GtkWidget *);
-#else
 static void ctk_window_real_destroy(GtkObject *);
-#endif
 
 static void add_page(GtkWidget *, GtkTextBuffer *, CtkWindow *,
                      GtkTreeIter *, GtkTreeIter *, const gchar *,
@@ -123,14 +119,17 @@ static void quit_response(GtkWidget *, gint, gpointer);
 static void save_settings_and_exit(CtkWindow *);
 
 static void add_display_devices(CtkWindow *ctk_window, GtkTreeIter *iter,
-                                CtrlTarget *gpu_target,
+                                NvCtrlAttributeHandle *handle,
                                 CtkEvent *ctk_event,
                                 GtkTextTagTable *tag_table,
                                 UpdateDisplaysData *data,
                                 ParsedAttribute *p);
 
-static void update_display_devices(GtkWidget *object, CtrlEvent *event,
+static void update_display_devices(GtkObject *object, gpointer arg1,
                                    gpointer user_data);
+
+static void ctk_window_destroyed(GtkObject *object, gpointer arg1,
+                                 gpointer user_data);
 
 
 static GObjectClass *parent_class;
@@ -175,18 +174,8 @@ GType ctk_window_get_type(void)
  * class structure
  */
 
-static void ctk_window_class_init(CtkWindowClass *ctk_window_class,
-                                  gpointer class_data)
+static void ctk_window_class_init(CtkWindowClass *ctk_window_class)
 {
-#ifdef CTK_GTK3
-    GtkWidgetClass *widget_class;
-
-    widget_class = (GtkWidgetClass *) ctk_window_class;
-
-    parent_class = g_type_class_peek_parent(ctk_window_class);
-
-    widget_class->destroy = ctk_window_real_destroy;
-#else
     GtkObjectClass *object_class;
 
     object_class = (GtkObjectClass *) ctk_window_class;
@@ -194,7 +183,7 @@ static void ctk_window_class_init(CtkWindowClass *ctk_window_class,
     parent_class = g_type_class_peek_parent(ctk_window_class);
 
     object_class->destroy = ctk_window_real_destroy;
-#endif
+
 } /* ctk_window_class_init() */
 
 
@@ -204,101 +193,25 @@ static void ctk_window_class_init(CtkWindowClass *ctk_window_class,
  * the configuration file here?
  */
 
-#ifdef CTK_GTK3
-static void ctk_window_real_destroy(GtkWidget *object)
-{
-    GTK_WIDGET_CLASS(parent_class)->destroy(object);
-    gtk_main_quit();
-
-} /* ctk_window_real_destroy() */
-#else
 static void ctk_window_real_destroy(GtkObject *object)
 {
     GTK_OBJECT_CLASS(parent_class)->destroy(object);
     gtk_main_quit();
 
 } /* ctk_window_real_destroy() */
-#endif
 
 
 
-/*
- * confirm_quit_and_save() - Shows the user the quit dialog and
- * saves configuration information before exiting.
+/* 
+ * ctk_window_destroyed() - called when ctk_window destroyed.
  */
 
-static void confirm_quit_and_save(CtkWindow *ctk_window)
+static void ctk_window_destroyed(GtkObject *object, gpointer arg1,
+                                 gpointer user_data)
 {
-    CtkConfig *ctk_config = ctk_window->ctk_config;
-
-    if (ctk_config->conf->booleans & CONFIG_PROPERTIES_SHOW_QUIT_DIALOG) {
-        /* ask for confirmation */
-
-        const char *beg = "You have pending changes on following page(s):\n\n";
-        const char *end = "Do you really want to quit?";
-        const char *prefix;
-        char *pages, *tmp;
-
-        pages = strdup("");
-        if (ctk_config->pending_config) {
-
-            if (ctk_config->pending_config &
-                    CTK_CONFIG_PENDING_APPLY_DISPLAY_CONFIG) {
-                prefix = (strlen(pages) == 0) ? "" : ",\n";
-                tmp = nvstrcat(pages, prefix,
-                               "X Server Display Configuration - Apply", NULL);
-                free(pages);
-                pages = tmp;
-            }
-            if (ctk_config->pending_config &
-                    CTK_CONFIG_PENDING_WRITE_DISPLAY_CONFIG) {
-                prefix = (strlen(pages) == 0) ? "" : ",\n";
-                tmp = nvstrcat(pages, prefix,
-                               "X Server Display Configuration - "
-                               "Save to X Configuration File", NULL);
-                free(pages);
-                pages = tmp;
-            }
-            if (ctk_config->pending_config &
-                    CTK_CONFIG_PENDING_WRITE_MOSAIC_CONFIG) {
-                prefix = (strlen(pages) == 0) ? "" : ",\n";
-                tmp = nvstrcat(pages, prefix,
-                               "SLI Mosaic Mode Settings - "
-                               "Save to X Configuration File", NULL);
-                free(pages);
-                pages = tmp;
-            }
-            if (ctk_config->pending_config &
-                    CTK_CONFIG_PENDING_WRITE_APP_PROFILES) {
-                prefix = (strlen(pages) == 0) ? "" : ",\n";
-                tmp = nvstrcat(pages, prefix,
-                               "Application Profiles - Save Changes", NULL);
-                free(pages);
-                pages = tmp;
-            }
-
-            if (pages[0] != '\0') {
-                tmp = nvstrcat(beg, pages, "\n\n", end, NULL);
-                gtk_label_set_text(
-                    GTK_LABEL(ctk_window->quit_dialog_pending_label),
-                    tmp);
-            } else {
-                gtk_label_set_text(
-                    GTK_LABEL(ctk_window->quit_dialog_pending_label),
-                    "You have pending changes.\n\n"
-                    "Do you really want to quit?");
-            }
-        } else {
-            gtk_label_set_text(GTK_LABEL(ctk_window->quit_dialog_pending_label),
-                               end);
-        }
-
-        gtk_widget_show_all(ctk_window->quit_dialog);
-    } else {
-        /* doesn't return */
-        save_settings_and_exit(ctk_window);
-    }
-}
+    CtkWindow *ctk_window = CTK_WINDOW(object);
+    save_settings_and_exit(ctk_window);
+} /* ctk_window_destroyed() */
 
 
 
@@ -309,24 +222,16 @@ static void confirm_quit_and_save(CtkWindow *ctk_window)
 static void close_button_clicked(GtkButton *button, gpointer user_data)
 {
     CtkWindow *ctk_window = CTK_WINDOW(user_data);
+    CtkConfig *ctk_config = ctk_window->ctk_config;
 
-    confirm_quit_and_save(ctk_window);
-}
-
-
-
-static gboolean ctk_window_delete_event(GObject *object)
-{
-    CtkWindow *ctk_window = CTK_WINDOW(object);
-
-    confirm_quit_and_save(ctk_window);
-
-    /* gtk_main_quit() will be called above if the user really wants to quit,
-     * so halt the progress of the delete-event here so we don't exit
-     * prematurely.
-     */
-    return TRUE;
-}
+    if (ctk_config->conf->booleans & CONFIG_PROPERTIES_SHOW_QUIT_DIALOG) {
+        /* ask for confirmation */
+        gtk_widget_show_all(ctk_window->quit_dialog);
+    } else {
+        /* doesn't return */
+        save_settings_and_exit(ctk_window);
+    }
+} /* close_button_clicked() */
 
 
 
@@ -353,7 +258,7 @@ static void help_button_toggled(GtkToggleButton *button, gpointer user_data)
         }
         gtk_widget_show_all(ctk_window->ctk_help);
     } else {
-        gtk_widget_hide(ctk_window->ctk_help);
+        gtk_widget_hide_all(ctk_window->ctk_help);
     }
 
 } /* help_button_toggled() */
@@ -434,36 +339,55 @@ static void tree_selection_changed(GtkTreeSelection *selection,
 
 
 
-/* 
- * row_activated_event() - callback for row-activated event
- * - handles key presses automatically
- * - allows the mouse to collapse/expand the menu even when the
- *   expand button/triangle is not working.
+/*
+ * tree_view_key_event() - callback for additional keyboard events we
+ * want to track (space and Return) to expand and collapse collapsable
+ * categories in the treeview.
  */
 
-static void row_activated_event(GtkTreeView        *view,
-                                GtkTreePath        *path,
-                                GtkTreeViewColumn  *col,
-                                gpointer            user_data)
+static gboolean tree_view_key_event(GtkWidget *tree_view, GdkEvent *event, 
+                                    gpointer user_data)
 {
+    GdkEventKey *key_event = (GdkEventKey *) event;
     CtkWindow *ctk_window = CTK_WINDOW(user_data);
-    
-    if (gtk_tree_view_row_expanded(ctk_window->treeview, path)) {
-        gtk_tree_view_collapse_row(ctk_window->treeview, path);
-    } else {
-        gtk_tree_view_expand_row(ctk_window->treeview, path, FALSE);
+
+    if ((key_event->keyval == GDK_space) ||
+        (key_event->keyval == GDK_Return)) {
+        
+        GtkTreeSelection* selection;
+        GtkTreeModel *model;
+        GtkTreeIter iter;
+        GtkTreePath* path;
+
+        selection = gtk_tree_view_get_selection(ctk_window->treeview);
+        
+        if (!gtk_tree_selection_get_selected(selection, &model, &iter))
+            return FALSE;
+        
+        path = gtk_tree_model_get_path(model, &iter);
+
+        if (gtk_tree_view_row_expanded(ctk_window->treeview, path)) {
+            gtk_tree_view_collapse_row(ctk_window->treeview, path);
+        } else {
+            gtk_tree_view_expand_row(ctk_window->treeview, path, FALSE);
+        }
+
+        gtk_tree_path_free(path);
+
+        return TRUE;
     }
-}
+    
+    return FALSE;
+    
+} /* tree_view_key_event() */
 
 
-
-static gboolean has_randr_gamma(CtrlTarget *target)
+static gboolean has_randr_gamma(NvCtrlAttributeHandle *handle)
 {
     ReturnStatus ret;
     int val;
 
-    ret = NvCtrlGetAttribute(target, NV_CTRL_ATTR_RANDR_GAMMA_AVAILABLE,
-                             &val);
+    ret = NvCtrlGetAttribute(handle, NV_CTRL_ATTR_RANDR_GAMMA_AVAILABLE, &val);
 
     return ((ret == NvCtrlSuccess) && (val == 1));
 }
@@ -473,7 +397,7 @@ static gboolean has_randr_gamma(CtrlTarget *target)
  */
 
 GtkWidget *ctk_window_new(ParsedAttribute *p, ConfigProperties *conf,
-                          CtrlSystem *system)
+                          CtrlHandles *h)
 {
     GObject *object;
     CtkWindow *ctk_window;
@@ -498,17 +422,13 @@ GtkWidget *ctk_window_new(ParsedAttribute *p, ConfigProperties *conf,
     GtkTextTagTable *tag_table;
 
     GtkTextBuffer *help;
-
-    CtrlTargetNode *node;
-    CtrlTarget *default_x_target = NULL;
-    CtrlTarget *default_gpu_target = NULL;
-    CtrlTarget *ctrl_target;
-
+        
     CtkEvent *ctk_event;
     CtkConfig *ctk_config;
-
-    gint column_offset;
-
+    
+    gint column_offset, i;
+    gboolean slimm_page_added; /* XXX Kludge to only show one SLIMM page */
+    
     /* create the new object */
 
     object = g_object_new(CTK_TYPE_WINDOW, NULL);
@@ -520,7 +440,7 @@ GtkWidget *ctk_window_new(ParsedAttribute *p, ConfigProperties *conf,
     
     /* create the config object */
 
-    ctk_window->ctk_config = CTK_CONFIG(ctk_config_new(conf, system));
+    ctk_window->ctk_config = CTK_CONFIG(ctk_config_new(conf, h));
     ctk_config = ctk_window->ctk_config;
     
     /* create the quit dialog */
@@ -622,10 +542,10 @@ GtkWidget *ctk_window_new(ParsedAttribute *p, ConfigProperties *conf,
     ctk_window->treeview = GTK_TREE_VIEW(gtk_tree_view_new_with_model(model));
     g_object_unref(ctk_window->tree_store);
 
-    /* Added row activated event to the tree view */
+    /* catch keyboard events to the tree view */
 
-    g_signal_connect(ctk_window->treeview, "row_activated",
-                     G_CALLBACK(row_activated_event), GTK_WIDGET(ctk_window));
+    g_signal_connect(ctk_window->treeview, "key_press_event",
+                     G_CALLBACK(tree_view_key_event), GTK_OBJECT(ctk_window));
 
     selection = gtk_tree_view_get_selection(ctk_window->treeview);
 
@@ -657,81 +577,71 @@ GtkWidget *ctk_window_new(ParsedAttribute *p, ConfigProperties *conf,
     ctk_window->page_viewer = hbox;
     ctk_window->page = NULL;
 
-    /*
-     * Create generic and specific default system targets. X Screen target
-     * will only exist if the X Server is available. In that case, the generic
-     * default target will be the default gpu target instead.
-     */
-    default_x_target = NvCtrlGetDefaultTargetByType(system, X_SCREEN_TARGET);
-    default_gpu_target = NvCtrlGetDefaultTargetByType(system, GPU_TARGET);
 
-    ctrl_target = default_x_target;
-    if (!ctrl_target) {
-        ctrl_target = default_gpu_target;
-    }
+    /* X Server info & configuration */
 
-    /* System Information */
+    if (h->targets[X_SCREEN_TARGET].n) {
 
-    if (ctrl_target) {
-
+        NvCtrlAttributeHandle *screen_handle = NULL;
         GtkWidget *child;
+        int i;
 
-        child = ctk_server_new(ctrl_target, ctk_config);
-        add_page(child,
-                 ctk_server_create_help(tag_table, CTK_SERVER(child)),
-                 ctk_window, NULL, NULL, "System Information",
-                 NULL, NULL, NULL);
-    }
+        /*
+         * XXX For now, just use the first handle in the list
+         *     to communicate with the X server for these two
+         *     pages.
+         */
 
-    /* X Server Display Configuration */
+        for (i = 0 ; i < h->targets[X_SCREEN_TARGET].n; i++) {
+            if (h->targets[X_SCREEN_TARGET].t[i].h) {
+                screen_handle = h->targets[X_SCREEN_TARGET].t[i].h;
+                break;
+            }
+        }
+        if (screen_handle) {
 
-    if (default_x_target) {
-
-        GtkWidget *child;
-
-        child = ctk_display_config_new(default_x_target, ctk_config);
-        if (child) {
-            ctk_window->display_config_widget = child;
+            /* X Server information */
+            
+            child = ctk_server_new(screen_handle, ctk_config);
             add_page(child,
-                     ctk_display_config_create_help(tag_table,
-                                                    CTK_DISPLAY_CONFIG(child)),
-                     ctk_window, NULL, NULL,
-                     "X Server Display Configuration",
-                     NULL, ctk_display_config_selected,
-                     ctk_display_config_unselected);
+                     ctk_server_create_help(tag_table,
+                                            CTK_SERVER(child)),
+                     ctk_window, NULL, NULL, "X Server Information",
+                     NULL, NULL, NULL);
 
+            /* X Server Display Configuration */
+
+            child = ctk_display_config_new(screen_handle, ctk_config);
+            if (child) {
+                add_page(child,
+                         ctk_display_config_create_help(tag_table,
+                                                        CTK_DISPLAY_CONFIG(child)),
+                         ctk_window, NULL, NULL,
+                         "X Server Display Configuration",
+                         NULL, ctk_display_config_selected,
+                         ctk_display_config_unselected);
+            }
         }
     }
 
-    /* Platform Power Mode */
-
-    ctk_event = CTK_EVENT(ctk_event_new(default_gpu_target));
-    widget = ctk_powermode_new(default_gpu_target, ctk_config, ctk_event);
-    if (widget) {
-        help = ctk_powermode_create_help(tag_table, CTK_POWERMODE(widget));
-        add_page(widget, help, ctk_window, NULL, NULL,
-                 "Platform Power Mode",
-                 NULL, ctk_powermode_start_timer, ctk_powermode_stop_timer);
-    }
 
     /* add the per-screen entries into the tree model */
 
-    for (node = system->targets[X_SCREEN_TARGET]; node; node = node->next) {
+    slimm_page_added = FALSE;
+    for (i = 0; i < h->targets[X_SCREEN_TARGET].n; i++) {
 
         gchar *screen_name;
         GtkWidget *child;
-        CtrlTarget *screen_target = node->t;
+        NvCtrlAttributeHandle *screen_handle = h->targets[X_SCREEN_TARGET].t[i].h;
 
-        if (screen_target == NULL || screen_target->h == NULL) {
-            continue;
-        }
+        if (!screen_handle) continue;
 
         /* create the object for receiving NV-CONTROL events */
 
-        ctk_event = CTK_EVENT(ctk_event_new(screen_target));
-
+        ctk_event = CTK_EVENT(ctk_event_new(screen_handle));
+        
         screen_name = g_strdup_printf("X Screen %d",
-                                      NvCtrlGetTargetId(screen_target));
+                                      NvCtrlGetTargetId(screen_handle));
 
         /* create the screen entry */
 
@@ -741,29 +651,39 @@ GtkWidget *ctk_window_new(ParsedAttribute *p, ConfigProperties *conf,
 
         /* Screen information */
 
-        screen_name = NvCtrlGetDisplayName(screen_target);
+        screen_name = NvCtrlGetDisplayName(screen_handle);
 
-        child = ctk_screen_new(screen_target, ctk_event);
-        g_object_ref(G_OBJECT(child));
+        child = ctk_screen_new(screen_handle, ctk_event);
+        gtk_object_ref(GTK_OBJECT(child));
         gtk_tree_store_set(ctk_window->tree_store, &iter,
                            CTK_WINDOW_WIDGET_COLUMN, child, -1);
         gtk_tree_store_set(ctk_window->tree_store, &iter,
-                           CTK_WINDOW_HELP_COLUMN,
-                           ctk_screen_create_help(tag_table, CTK_SCREEN(child),
-                                                  screen_name),
-                           -1);
+                           CTK_WINDOW_HELP_COLUMN, 
+                           ctk_screen_create_help(tag_table, screen_name), -1);
         gtk_tree_store_set(ctk_window->tree_store, &iter,
                            CTK_WINDOW_CONFIG_FILE_ATTRIBUTES_FUNC_COLUMN,
                            NULL, -1);
+
+        if (!slimm_page_added) {
+            /* SLI Mosaic Mode information */
+
+            child = ctk_slimm_new(screen_handle, ctk_event, ctk_config);
+            if (child) {
+                slimm_page_added = TRUE;
+                help = ctk_slimm_create_help(tag_table, "SLI Mosaic Mode Settings");
+                add_page(child, help, ctk_window, &iter, NULL,
+                         "SLI Mosaic Mode Settings", NULL, NULL, NULL);
+            }
+        }
 
         /*
          * color correction, if RandR per-CRTC color correction is not
          * available
          */
 
-        if (!has_randr_gamma(screen_target)) {
+        if (!has_randr_gamma(screen_handle)) {
 
-            child = ctk_color_correction_page_new(screen_target, ctk_config,
+            child = ctk_color_correction_page_new(screen_handle, ctk_config,
                                                   ctk_window->attribute_list,
                                                   ctk_event);
             if (child) {
@@ -775,16 +695,26 @@ GtkWidget *ctk_window_new(ParsedAttribute *p, ConfigProperties *conf,
 
         /* xvideo settings  */
 
-        child = ctk_xvideo_new(screen_target, ctk_config, ctk_event);
+        child = ctk_xvideo_new(screen_handle, ctk_config, ctk_event);
         if (child) {
             help = ctk_xvideo_create_help(tag_table, CTK_XVIDEO(child));
             add_page(child, help, ctk_window, &iter, NULL,
                      "X Server XVideo Settings", NULL, NULL, NULL);
         }
 
+        /* cursor shadow */
+
+        child = ctk_cursor_shadow_new(screen_handle, ctk_config, ctk_event);
+        if (child) {
+            help = ctk_cursor_shadow_create_help(tag_table,
+                                                 CTK_CURSOR_SHADOW(child));
+            add_page(child, help, ctk_window, &iter, NULL, "Cursor Shadow",
+                     NULL, NULL, NULL);
+        }
+
         /* opengl settings */
 
-        child = ctk_opengl_new(screen_target, ctk_config, ctk_event);
+        child = ctk_opengl_new(screen_handle, ctk_config, ctk_event);
         if (child) {
             help = ctk_opengl_create_help(tag_table, CTK_OPENGL(child));
             add_page(child, help, ctk_window, &iter, NULL, "OpenGL Settings",
@@ -792,19 +722,19 @@ GtkWidget *ctk_window_new(ParsedAttribute *p, ConfigProperties *conf,
         }
 
 
-        /* Graphics Information */
+        /* GLX Information */
 
-        child = ctk_glx_new(screen_target, ctk_config, ctk_event);
+        child = ctk_glx_new(screen_handle, ctk_config, ctk_event);
         if (child) {
             help = ctk_glx_create_help(tag_table, CTK_GLX(child));
             add_page(child, help, ctk_window, &iter, NULL,
-                     "Graphics Information", NULL, ctk_glx_probe_info, NULL);
+                     "OpenGL/GLX Information", NULL, ctk_glx_probe_info, NULL);
         }
 
 
         /* multisample settings */
 
-        child = ctk_multisample_new(screen_target, ctk_config, ctk_event);
+        child = ctk_multisample_new(screen_handle, ctk_config, ctk_event);
         if (child) {
             help = ctk_multisample_create_help(tag_table,
                                                CTK_MULTISAMPLE(child));
@@ -813,47 +743,74 @@ GtkWidget *ctk_window_new(ParsedAttribute *p, ConfigProperties *conf,
         }
 
 
-        /* VDPAU Information */
-        child = ctk_vdpau_new(screen_target, ctk_config, ctk_event);
+        /* gvo (Graphics To Video Out) */
+        
+        child = ctk_gvo_new(screen_handle, ctk_config, ctk_event);
         if (child) {
-            help = ctk_vdpau_create_help(tag_table, CTK_VDPAU(child));
-            add_page(child, help, ctk_window, &iter, NULL, "VDPAU Information",
-                     NULL, NULL, NULL);
+            GtkWidget *gvo_parent = child;
+            GtkTreeIter child_iter;
+            help = ctk_gvo_create_help(tag_table);
+            add_page(child, help, ctk_window, &iter, &child_iter,
+                     "Graphics to Video Out", NULL,
+                     ctk_gvo_select, ctk_gvo_unselect);
+
+            /* GVO Sync options */
+
+            child = ctk_gvo_sync_new(screen_handle,  GTK_WIDGET(ctk_window),
+                                     ctk_config, ctk_event,
+                                     CTK_GVO(gvo_parent));
+            if (child) {
+                help = ctk_gvo_sync_create_help(tag_table,
+                                                CTK_GVO_SYNC(child));
+                add_page(child, help, ctk_window, &child_iter, NULL,
+                         "Synchronization Options", NULL,
+                         ctk_gvo_sync_select, ctk_gvo_sync_unselect);
+            }
+
+            /* GVO color space conversion */
+
+            child = ctk_gvo_csc_new(screen_handle, ctk_config, ctk_event,
+                                    CTK_GVO(gvo_parent));
+            if (child) {
+                help = ctk_gvo_csc_create_help(tag_table, CTK_GVO_CSC(child));
+                add_page(child, help, ctk_window, &child_iter, NULL,
+                         "Color Space Conversion", NULL,
+                         ctk_gvo_csc_select, ctk_gvo_csc_unselect);
+            }
         }
     }
 
     /* add the per-gpu entries into the tree model */
 
-    for (node = system->targets[GPU_TARGET]; node; node = node->next) {
-
+    for (i = 0; i < h->targets[GPU_TARGET].n; i++) {
+        
         gchar *gpu_name;
         GtkWidget *child;
-        CtrlTarget *gpu_target = node->t;
+        NvCtrlAttributeHandle *gpu_handle = h->targets[GPU_TARGET].t[i].h;
         UpdateDisplaysData *data;
 
 
-        if (gpu_target == NULL || gpu_target->h == NULL) {
-            continue;
-        }
+        if (!gpu_handle) continue;
 
         /* create the gpu entry name */
 
-        gpu_name = create_gpu_name_string(gpu_target);
+        gpu_name = create_gpu_name_string(gpu_handle);
         if (!gpu_name) continue;
 
         /* create the object for receiving NV-CONTROL events */
 
-        ctk_event = CTK_EVENT(ctk_event_new(gpu_target));
-
+        ctk_event = CTK_EVENT(ctk_event_new(gpu_handle));
+       
         /* create the gpu entry */
 
         gtk_tree_store_append(ctk_window->tree_store, &iter, NULL);
         gtk_tree_store_set(ctk_window->tree_store, &iter,
                            CTK_WINDOW_LABEL_COLUMN, gpu_name, -1);
 
-        child = ctk_gpu_new(gpu_target, ctk_event, ctk_config);
+        child = ctk_gpu_new(gpu_handle, h->targets[X_SCREEN_TARGET].t, ctk_event,
+                            ctk_config);
 
-        g_object_ref(G_OBJECT(child));
+        gtk_object_ref(GTK_OBJECT(child));
         gtk_tree_store_set(ctk_window->tree_store, &iter,
                            CTK_WINDOW_WIDGET_COLUMN, child, -1);
         gtk_tree_store_set(ctk_window->tree_store, &iter,
@@ -869,9 +826,18 @@ GtkWidget *ctk_window_new(ParsedAttribute *p, ConfigProperties *conf,
                            CTK_WINDOW_UNSELECT_WIDGET_FUNC_COLUMN,
                            ctk_gpu_page_unselect, -1);
 
+        /* power savings */
+
+        child = ctk_power_savings_new(gpu_handle, ctk_config, ctk_event);
+        if (child) {
+            help = ctk_power_savings_create_help(tag_table, CTK_POWER_SAVINGS(child));
+            add_page(child, help, ctk_window, &iter, NULL,
+                     "Power Savings Settings", NULL, NULL, NULL);
+        }
+
         /* thermal information */
 
-        child = ctk_thermal_new(gpu_target, ctk_config, ctk_event);
+        child = ctk_thermal_new(gpu_handle, ctk_config, ctk_event);
         if (child) {
             help = ctk_thermal_create_help(tag_table, CTK_THERMAL(child));
             add_page(child, help, ctk_window, &iter, NULL, "Thermal Settings",
@@ -879,26 +845,34 @@ GtkWidget *ctk_window_new(ParsedAttribute *p, ConfigProperties *conf,
         }
 
         /* Powermizer information */
-        child = ctk_powermizer_new(gpu_target, ctk_config, ctk_event);
+        child = ctk_powermizer_new(gpu_handle, ctk_config, ctk_event);
         if (child) {
             help = ctk_powermizer_create_help(tag_table, CTK_POWERMIZER(child));
             add_page(child, help, ctk_window, &iter, NULL, "PowerMizer",
                      NULL, ctk_powermizer_start_timer, 
                      ctk_powermizer_stop_timer);
         }
+ 
+        /* clocks (GPU overclocking) */
 
+        child = ctk_clocks_new(gpu_handle, ctk_config, ctk_event);
+        if (child) {
+            help = ctk_clocks_create_help(tag_table, CTK_CLOCKS(child));
+            add_page(child, help, ctk_window, &iter, NULL, "Clock Frequencies",
+                     NULL, ctk_clocks_select, NULL);
+        }
         /* ECC Information */
-        child = ctk_ecc_new(gpu_target, ctk_config, ctk_event);
+        child = ctk_ecc_new(gpu_handle, ctk_config, ctk_event);
         if (child) {
             help = ctk_ecc_create_help(tag_table, CTK_ECC(child));
             add_page(child, help, ctk_window, &iter, NULL, "ECC Settings",
                      NULL, ctk_ecc_start_timer, ctk_ecc_stop_timer);
         }
-
         /* display devices */
-        data = calloc(1, sizeof(*data));
+        data = calloc(1, sizeof(UpdateDisplaysData));
         data->window = ctk_window;
-        data->gpu_target = gpu_target;
+        data->event = ctk_event;
+        data->gpu_handle = gpu_handle;
         data->parent_iter = iter;
         data->tag_table = tag_table;
 
@@ -907,29 +881,125 @@ GtkWidget *ctk_window_new(ParsedAttribute *p, ConfigProperties *conf,
                          G_CALLBACK(update_display_devices),
                          (gpointer) data);
 
-        g_signal_connect(G_OBJECT(ctk_event),
-                         CTK_EVENT_NAME(NV_CTRL_MODE_SET_EVENT),
-                         G_CALLBACK(update_display_devices),
-                         (gpointer) data);
-
-        add_display_devices(ctk_window, &iter, gpu_target, ctk_event, tag_table,
+        add_display_devices(ctk_window, &iter, gpu_handle, ctk_event, tag_table,
                             data, ctk_window->attribute_list);
     }
 
+    /* add the per-vcs (e.g. Quadro Plex) entries into the tree model */
+
+    for (i = 0; i < h->targets[VCS_TARGET].n; i++) {
+        
+        gchar *vcs_product_name;
+        gchar *vcs_name;
+        GtkWidget *child;
+        ReturnStatus ret;
+        NvCtrlAttributeHandle *vcs_handle = h->targets[VCS_TARGET].t[i].h;
+
+        if (!vcs_handle) continue;
+
+        /* create the vcs entry name */
+
+        ret = NvCtrlGetStringAttribute(vcs_handle,
+                                       NV_CTRL_STRING_VCSC_PRODUCT_NAME,
+                                       &vcs_product_name);
+        if (ret == NvCtrlSuccess && vcs_product_name) {
+            vcs_name = g_strdup_printf("VCS %d - (%s)",
+                                        NvCtrlGetTargetId(vcs_handle),
+                                        vcs_product_name);
+        } else {
+            vcs_name =  g_strdup_printf("VCS %d - (Unknown)",
+                                        NvCtrlGetTargetId(vcs_handle));
+        }
+        if (!vcs_name) continue;
+        
+        /* create the object for receiving NV-CONTROL events */
+        
+        ctk_event = CTK_EVENT(ctk_event_new(vcs_handle));
+        
+        /* create the vcs entry */
+
+        gtk_tree_store_append(ctk_window->tree_store, &iter, NULL);
+        gtk_tree_store_set(ctk_window->tree_store, &iter,
+                           CTK_WINDOW_LABEL_COLUMN, vcs_name, -1);
+        child = ctk_vcs_new(vcs_handle, ctk_config);
+        gtk_object_ref(GTK_OBJECT(child));
+        gtk_tree_store_set(ctk_window->tree_store, &iter,
+                           CTK_WINDOW_WIDGET_COLUMN, child, -1);
+        gtk_tree_store_set(ctk_window->tree_store, &iter,
+                           CTK_WINDOW_HELP_COLUMN, 
+                           ctk_vcs_create_help(tag_table, CTK_VCS(child)), -1);
+        gtk_tree_store_set(ctk_window->tree_store, &iter,
+                           CTK_WINDOW_CONFIG_FILE_ATTRIBUTES_FUNC_COLUMN,
+                           NULL, -1);
+        gtk_tree_store_set(ctk_window->tree_store, &iter,
+                           CTK_WINDOW_SELECT_WIDGET_FUNC_COLUMN,
+                           ctk_vcs_start_timer, -1);
+        gtk_tree_store_set(ctk_window->tree_store, &iter,
+                           CTK_WINDOW_UNSELECT_WIDGET_FUNC_COLUMN,
+                           ctk_vcs_stop_timer, -1);
+
+    }
+
+    /* add the per gvi entries into the tree model */
+
+    for (i = 0; i < h->targets[GVI_TARGET].n; i++) {
+
+        gchar *gvi_name;
+        GtkWidget *child;
+        NvCtrlAttributeHandle *gvi_handle = h->targets[GVI_TARGET].t[i].h;
+
+        if (!gvi_handle) continue;
+
+        /* create the gvi entry name */
+
+        if (h->targets[GVI_TARGET].n > 1) {
+            gvi_name = g_strdup_printf("Graphics to Video In %d",
+                                       NvCtrlGetTargetId(gvi_handle));
+        } else {
+            gvi_name =  g_strdup_printf("Graphics to Video In");
+        }
+        
+        if (!gvi_name) continue;
+
+        /* create the object for receiving NV-CONTROL events */
+
+        ctk_event = CTK_EVENT(ctk_event_new(gvi_handle));
+
+        /* create the gvi entry */
+
+        gtk_tree_store_append(ctk_window->tree_store, &iter, NULL);
+        gtk_tree_store_set(ctk_window->tree_store, &iter,
+                           CTK_WINDOW_LABEL_COLUMN, gvi_name, -1);
+        child = ctk_gvi_new(gvi_handle, ctk_config, ctk_event);
+        gtk_object_ref(GTK_OBJECT(child));
+        gtk_tree_store_set(ctk_window->tree_store, &iter,
+                           CTK_WINDOW_WIDGET_COLUMN, child, -1);
+        gtk_tree_store_set(ctk_window->tree_store, &iter,
+                           CTK_WINDOW_HELP_COLUMN,
+                           ctk_gvi_create_help(tag_table, CTK_GVI(child)), -1);
+        gtk_tree_store_set(ctk_window->tree_store, &iter,
+                           CTK_WINDOW_CONFIG_FILE_ATTRIBUTES_FUNC_COLUMN,
+                           NULL, -1);
+        gtk_tree_store_set(ctk_window->tree_store, &iter,
+                           CTK_WINDOW_SELECT_WIDGET_FUNC_COLUMN,
+                           ctk_gvi_start_timer, -1);
+        gtk_tree_store_set(ctk_window->tree_store, &iter,
+                           CTK_WINDOW_UNSELECT_WIDGET_FUNC_COLUMN,
+                           ctk_gvi_stop_timer, -1);
+
+    }
     /*
      * add the frame lock page, if any of the X screens support
      * frame lock
      */
 
-    for (node = system->targets[X_SCREEN_TARGET]; node; node = node->next) {
+    for (i = 0; i < h->targets[X_SCREEN_TARGET].n; i++) {
 
-        CtrlTarget *screen_target = node->t;
+        NvCtrlAttributeHandle *screen_handle = h->targets[X_SCREEN_TARGET].t[i].h;
 
-        if (screen_target == NULL || screen_target->h == NULL) {
-            continue;
-        }
-
-        widget = ctk_framelock_new(screen_target, GTK_WIDGET(ctk_window),
+        if (!screen_handle) continue;
+        
+        widget = ctk_framelock_new(screen_handle, GTK_WIDGET(ctk_window),
                                    ctk_config, ctk_window->attribute_list);
         if (!widget) continue;
 
@@ -943,20 +1013,16 @@ GtkWidget *ctk_window_new(ParsedAttribute *p, ConfigProperties *conf,
 
     /* add NVIDIA 3D VisionPro dongle configuration page */
 
-    for (node = system->targets[NVIDIA_3D_VISION_PRO_TRANSCEIVER_TARGET];
-         node;
-         node = node->next) {
-        CtrlTarget *svp_target = node->t;
+    for (i = 0; i < h->targets[NVIDIA_3D_VISION_PRO_TRANSCEIVER_TARGET].n; i++) {
+        NvCtrlAttributeHandle *svp_handle = h->targets[NVIDIA_3D_VISION_PRO_TRANSCEIVER_TARGET].t[i].h;
 
-        if (svp_target == NULL || svp_target->h == NULL) {
-            continue;
-        }
+        if (!svp_handle) continue;
 
         /* create the object for receiving NV-CONTROL events */
 
-        ctk_event = CTK_EVENT(ctk_event_new(svp_target));
+        ctk_event = CTK_EVENT(ctk_event_new(svp_handle));
 
-        widget = ctk_3d_vision_pro_new(svp_target, ctk_config,
+        widget = ctk_3d_vision_pro_new(svp_handle, ctk_config,
                                        ctk_window->attribute_list,
                                        ctk_event);
         if (!widget) continue;
@@ -967,31 +1033,11 @@ GtkWidget *ctk_window_new(ParsedAttribute *p, ConfigProperties *conf,
                  ctk_3d_vision_pro_select, ctk_3d_vision_pro_unselect);
     }
 
-    /* app profile configuration */
-    widget = ctk_app_profile_new(ctrl_target, ctk_config);
-    if (widget) {
-        add_page(widget, ctk_app_profile_create_help(CTK_APP_PROFILE(widget), tag_table),
-                 ctk_window, NULL, NULL, "Application Profiles",
-                 NULL, NULL, NULL);
-    }
-
-    /* Manage GRID License Information */
-    for (node = system->targets[GPU_TARGET]; node; node = node->next) {
-        widget = ctk_manage_grid_license_new(node->t, ctk_config);
-        if (widget) {
-            help = ctk_manage_grid_license_create_help(tag_table,
-                                                       CTK_MANAGE_GRID_LICENSE(widget));
-            add_page(widget, help, ctk_window, NULL, NULL, "Manage License",
-                     NULL, ctk_manage_grid_license_start_timer,
-                     ctk_manage_grid_license_stop_timer);
-            break; /* only add the page once */
-        }
-    }
 
     /* nvidia-settings configuration */
 
     add_page(GTK_WIDGET(ctk_window->ctk_config),
-             ctk_config_create_help(ctk_config, tag_table),
+             ctk_config_create_help(tag_table),
              ctk_window, NULL, NULL, "nvidia-settings Configuration",
              NULL, NULL, NULL);
 
@@ -1009,7 +1055,7 @@ GtkWidget *ctk_window_new(ParsedAttribute *p, ConfigProperties *conf,
      */
 
     g_signal_connect(selection, "changed", G_CALLBACK(tree_selection_changed),
-                     GTK_WIDGET(ctk_window));
+                     GTK_OBJECT(ctk_window));
 
     gtk_widget_show_all(GTK_WIDGET(ctk_window->treeview));
     gtk_tree_view_expand_all(ctk_window->treeview);
@@ -1023,7 +1069,7 @@ GtkWidget *ctk_window_new(ParsedAttribute *p, ConfigProperties *conf,
 
     /* set the window title */
     
-    gtk_window_set_title(GTK_WINDOW(object), "NVIDIA Settings");
+    gtk_window_set_title(GTK_WINDOW(object), "NVIDIA X Server Settings");
     
     gtk_widget_show_all(GTK_WIDGET(object));
 
@@ -1035,18 +1081,17 @@ GtkWidget *ctk_window_new(ParsedAttribute *p, ConfigProperties *conf,
      */
 
     label = gtk_label_new("XXXXXX Server Display ConfigurationXXXX");
-    gtk_widget_show(label);
-    ctk_widget_get_preferred_size(label, &req);
+    gtk_widget_size_request(label, &req);
     width = req.width;
     gtk_widget_destroy(label);
 
     /* Get the width of the tree view scroll window */
-    ctk_widget_get_preferred_size(sw, &req);
+    gtk_widget_size_request(sw, &req);
 
     /* If the scroll window is too wide, make it slimmer and
      * allow users to scroll horizontally (also allow resizing).
      */
-    if (width < req.width && width > 0) {
+    if ( width < req.width ) {
         gtk_widget_set_size_request(sw, width, -1);
         gtk_scrolled_window_set_policy(GTK_SCROLLED_WINDOW(sw),
                                        GTK_POLICY_AUTOMATIC,
@@ -1055,8 +1100,8 @@ GtkWidget *ctk_window_new(ParsedAttribute *p, ConfigProperties *conf,
 
     /* Add callback when window destroyed */
 
-    g_signal_connect(G_OBJECT(ctk_window), "delete-event",
-                     G_CALLBACK(ctk_window_delete_event), (gpointer) ctk_window);
+    g_signal_connect(G_OBJECT(ctk_window), "destroy",
+                     G_CALLBACK(ctk_window_destroyed), (gpointer) ctk_window);
     
     return GTK_WIDGET(object);
 
@@ -1164,19 +1209,15 @@ static void add_page(GtkWidget *widget, GtkTextBuffer *help,
     if (!child_iter) child_iter = &tmp_child_iter;
 
     /*
-     * Add a reference to the object and sink (remove) the floating (gtk)
-     * reference.  This sink needs to happen before the page gets packed
-     * to ensure that we become the proper owner of these widgets.  This way,
-     * page will not be destroyed when they are hidden (removed from the page
-     * viewer), and we can properly destroy them when needed (for example, the
-     * display device pages are destroyed/recreated on hotplug events.)
+     * add another reference to the widget, so that it doesn't get
+     * destroyed the next time it gets hidden (removed from the page
+     * viewer).
      */
-
-    g_object_ref(G_OBJECT(widget));
-    ctk_g_object_ref_sink(G_OBJECT(widget));
-
+    
+    gtk_object_ref(GTK_OBJECT(widget));
+    
     gtk_tree_store_append(ctk_window->tree_store, child_iter, iter);
-
+    
     gtk_tree_store_set(ctk_window->tree_store, child_iter,
                        CTK_WINDOW_LABEL_COLUMN, label, -1);
     gtk_tree_store_set(ctk_window->tree_store, child_iter,
@@ -1213,25 +1254,26 @@ static GtkWidget *create_quit_dialog(CtkWindow *ctk_window)
     dialog = gtk_dialog_new_with_buttons("Really quit?",
                                          GTK_WINDOW(ctk_window),
                                          GTK_DIALOG_MODAL |
-                                         GTK_DIALOG_DESTROY_WITH_PARENT,
+                                         GTK_DIALOG_DESTROY_WITH_PARENT |
+                                         GTK_DIALOG_NO_SEPARATOR,
                                          GTK_STOCK_CANCEL,
                                          GTK_RESPONSE_CANCEL,
                                          GTK_STOCK_QUIT,
                                          GTK_RESPONSE_OK,
                                          NULL);
 
-    g_signal_connect(GTK_WIDGET(dialog), "response",
+    g_signal_connect(GTK_OBJECT(dialog), "response",
                      G_CALLBACK(quit_response),
-                     GTK_WIDGET(ctk_window));
+                     GTK_OBJECT(ctk_window));
 
     gtk_container_set_border_width(GTK_CONTAINER(dialog), 6);
     gtk_window_set_resizable(GTK_WINDOW(dialog), FALSE);
     
     hbox = gtk_hbox_new(FALSE, 5);
     gtk_container_set_border_width(GTK_CONTAINER(hbox), 6);
-    gtk_container_add(GTK_CONTAINER(ctk_dialog_get_content_area(GTK_DIALOG(dialog))), hbox);
+    gtk_container_add(GTK_CONTAINER(GTK_DIALOG(dialog)->vbox), hbox);
     
-    pixbuf = ctk_widget_render_icon(dialog, CTK_STOCK_DIALOG_QUESTION,
+    pixbuf = gtk_widget_render_icon(dialog, GTK_STOCK_DIALOG_QUESTION,
                                     GTK_ICON_SIZE_DIALOG, NULL);
     image = gtk_image_new_from_pixbuf(pixbuf);
     g_object_unref(pixbuf);
@@ -1241,7 +1283,6 @@ static GtkWidget *create_quit_dialog(CtkWindow *ctk_window)
     gtk_box_pack_start(GTK_BOX(hbox), alignment, FALSE, FALSE, 2);
     
     label = gtk_label_new("Do you really want to quit?");
-    ctk_window->quit_dialog_pending_label = label;
     alignment = gtk_alignment_new(0.0, 0.0, 0, 0);
     gtk_container_add(GTK_CONTAINER(alignment), label);
     gtk_box_pack_start(GTK_BOX(hbox), alignment, FALSE, FALSE, 0);
@@ -1264,25 +1305,6 @@ static GtkWidget *create_quit_dialog(CtkWindow *ctk_window)
 
 static void save_settings_and_exit(CtkWindow *ctk_window)
 {
-#ifdef CTK_GTK3
-    GdkDisplay *gdk_display;
-    Display *display;
-    GdkScreen *gdk_screen;
-
-    if (dGL.glXMakeContextCurrent) {
-        gdk_screen = gtk_window_get_screen(GTK_WINDOW(ctk_window));
-        gdk_display = gdk_screen_get_display(gdk_screen);
-        display = gdk_x11_display_get_xdisplay(gdk_display);
-        dGL.glXMakeContextCurrent(display, 0, 0, 0);
-    }
-
-#endif
-    if (ctk_window->display_config_widget) {
-        CtkDisplayConfig *display_config =
-            CTK_DISPLAY_CONFIG(ctk_window->display_config_widget);
-        layout_free(display_config->layout);
-    }
-
     add_special_config_file_attributes(ctk_window);
     gtk_main_quit();
 }
@@ -1302,7 +1324,7 @@ static void quit_response(GtkWidget *button, gint response, gpointer user_data)
         save_settings_and_exit(ctk_window);
     }
 
-    gtk_widget_hide(ctk_window->quit_dialog);
+    gtk_widget_hide_all(ctk_window->quit_dialog);
 
 } /* quit_response() */
 
@@ -1350,7 +1372,7 @@ void add_special_config_file_attributes(CtkWindow *ctk_window)
  */
 
 static void add_display_devices(CtkWindow *ctk_window, GtkTreeIter *iter,
-                                CtrlTarget *gpu_target,
+                                NvCtrlAttributeHandle *gpu_handle,
                                 CtkEvent *ctk_event_gpu,
                                 GtkTextTagTable *tag_table,
                                 UpdateDisplaysData *data,
@@ -1358,35 +1380,25 @@ static void add_display_devices(CtkWindow *ctk_window, GtkTreeIter *iter,
 {
     GtkTextBuffer *help;
     ReturnStatus ret;
-    int *pData = NULL;
+    int *pData;
     int len;
     int i;
+    NvCtrlAttributeHandle *display_handle;
 
 
     /* retrieve the list of connected display devices */
 
-    ret = NvCtrlGetBinaryAttribute(gpu_target, 0,
+    ret = NvCtrlGetBinaryAttribute(gpu_handle, 0,
                                    NV_CTRL_BINARY_DATA_DISPLAYS_CONNECTED_TO_GPU,
                                    (unsigned char **)(&pData), &len);
     if ((ret != NvCtrlSuccess) || (pData[0] <= 0)) {
-        goto done;
+        return;
     }
 
     nvfree(data->display_iters);
-    nvfree(data->display_events);
-
     data->display_iters = calloc(pData[0], sizeof(GtkTreeIter));
-    if (!data->display_iters) {
-        goto done;
-    }
-
-    data->display_events = calloc(pData[0], sizeof(CtkEvent*));
-    if (!data->display_events) {
-        nvfree(data->display_iters);
-        goto done;
-    }
-
     data->num_displays = 0;
+    if (!data->display_iters) return;
 
 
     /*
@@ -1398,118 +1410,93 @@ static void add_display_devices(CtkWindow *ctk_window, GtkTreeIter *iter,
         int display_id = pData[i+1];
         char *logName;
         char *typeBaseName;
-        char *randrName;
+        char *typeIdName;
         GtkWidget *widget;
         gchar *title;
         CtkEvent *ctk_event;
-        CtrlSystem *system = ctk_window->ctk_config->pCtrlSystem;
-        CtrlTarget *target;
+        CtrlHandles *handles = ctk_window->ctk_config->pCtrlHandles;
 
-        /*
+        /* 
          * Get the ctrl handle that was passed into ctk_main so that updated
-         * backend color slider values, cached in the handle itself, can be
+         * backend color slider values, cached in the handle itself, can be 
          * saved to the RC file when the UI is closed.
          */
 
-        target = NvCtrlGetTarget(system, DISPLAY_TARGET, display_id);
-        if (!target) {
-            target = nv_add_target(system, DISPLAY_TARGET, display_id);
-            if (!target) {
-                continue;
-            }
+        if (handles) {
+            display_handle = 
+                handles->targets[NV_CTRL_TARGET_TYPE_DISPLAY].t[display_id].h;
+        } else {
+            display_handle = NULL;
         }
 
-        /*
-         * Rebuild Sub-systems of display handle
-         */
-        NvCtrlRebuildSubsystems(target, NV_CTRL_ATTRIBUTES_ALL_SUBSYSTEMS);
+        if (!display_handle) {
+            continue;
+        }
+
+        ctk_event = CTK_EVENT(ctk_event_new(display_handle));
 
         /* Query display's names */
-        ret = NvCtrlGetStringAttribute(target,
+        ret = NvCtrlGetStringAttribute(display_handle,
                                        NV_CTRL_STRING_DISPLAY_NAME_TYPE_BASENAME,
                                        &typeBaseName);
         if (ret != NvCtrlSuccess) {
+            NvCtrlAttributeClose(display_handle);
             continue;
         }
-        ret = NvCtrlGetStringAttribute(target,
+        ret = NvCtrlGetStringAttribute(display_handle,
                                        NV_CTRL_STRING_DISPLAY_DEVICE_NAME,
                                        &logName);
         if (ret != NvCtrlSuccess) {
             logName = NULL;
         }
-        ret = NvCtrlGetStringAttribute(target,
-                                       NV_CTRL_STRING_DISPLAY_NAME_RANDR,
-                                       &randrName);
+        ret = NvCtrlGetStringAttribute(display_handle,
+                                       NV_CTRL_STRING_DISPLAY_NAME_TYPE_ID,
+                                       &typeIdName);
         if (ret != NvCtrlSuccess) {
-            randrName = NULL;
+            typeIdName = NULL;
         }
 
-        if (!logName && !randrName) {
+        if (!logName && !typeIdName) {
             title = g_strdup_printf("DPY-%d - (Unknown)", display_id);
         } else {
-            title = g_strdup_printf("%s - (%s)", randrName, logName);
+            title = g_strdup_printf("%s - (%s)", typeIdName, logName);
         }
-        free(logName);
-        free(randrName);
+        XFree(logName);
+        XFree(typeIdName);
 
-        /* Create the page for the display */
-        ctk_event = CTK_EVENT(ctk_event_new(target));
-        widget = ctk_display_device_new(target,
-                                        ctk_window->ctk_config, ctk_event,
-                                        ctk_event_gpu,
-                                        title, typeBaseName, p);
-        if (widget != NULL) {
+        /* Create the appropriate page for the display */
+        if (strcmp(typeBaseName, "TV") == 0) {
+            widget = ctk_display_device_tv_new
+                (display_handle, ctk_window->ctk_config, ctk_event, title);
+            help = ctk_display_device_tv_create_help
+                (tag_table, CTK_DISPLAY_DEVICE_TV(widget));
+        } else if ((strcmp(typeBaseName, "DFP") == 0) ||
+                   (strcmp(typeBaseName, "CRT") == 0)) {
+            widget = ctk_display_device_new(display_handle,
+                                            ctk_window->ctk_config, ctk_event,
+                                            ctk_event_gpu,
+                                            title, typeBaseName, p);
             help = ctk_display_device_create_help(tag_table,
                                                   CTK_DISPLAY_DEVICE(widget));
+        } else {
+            widget = NULL;
+        }
+
+        if (!widget) {
+            NvCtrlAttributeClose(display_handle);
+        } else {
             add_page(widget, help, ctk_window, iter,
                      &(data->display_iters[data->num_displays]), title,
                      NULL, NULL, NULL);
-            data->display_events[data->num_displays] = ctk_event;
             data->num_displays++;
         }
-        else {
-            ctk_event_destroy(G_OBJECT(ctk_event));
-        }
 
-        free(typeBaseName);
+        XFree(typeBaseName);
         g_free(title);
     }
-
- done:
-    free(pData);
-
 } /* add_display_devices() */
 
 
-/*
- * Select display page whose name is passed through 'name' parameter
- */
-static void select_display_page(UpdateDisplaysData *data, gchar *name)
-{
-    CtkWindow *ctk_window = data->window;
-    GtkTreeSelection *tree_selection =
-        gtk_tree_view_get_selection(ctk_window->treeview);
-    gint num_displays = data->num_displays;
-
-    while (num_displays) {
-        GtkTreeIter *iter = &(data->display_iters[num_displays -1]);
-        CtkDisplayDevice *ctk_obj = NULL;
-        GtkWidget *widget = NULL;
-
-        gtk_tree_model_get(GTK_TREE_MODEL(ctk_window->tree_store), iter,
-                           CTK_WINDOW_WIDGET_COLUMN, &widget, -1);
-
-        ctk_obj = CTK_DISPLAY_DEVICE(widget);
-
-        if (strcmp(name, ctk_obj->name) == 0) {
-            gtk_tree_selection_select_iter(tree_selection, iter);
-            break;
-        }
-
-        num_displays--;
-    }
-
-}
 
 /*
  * update_display_devices() - Callback handler for the NV_CTRL_PROBE_DISPLAYS
@@ -1518,14 +1505,13 @@ static void select_display_page(UpdateDisplaysData *data, gchar *name)
  *
  */
 
-static void update_display_devices(GtkWidget *object,
-                                   CtrlEvent *event,
+static void update_display_devices(GtkObject *object, gpointer arg1,
                                    gpointer user_data)
 {
     UpdateDisplaysData *data = (UpdateDisplaysData *) user_data;
 
     CtkWindow *ctk_window = data->window;
-    CtrlTarget *gpu_target = data->gpu_target;
+    NvCtrlAttributeHandle *gpu_handle = data->gpu_handle;
     GtkTreeIter parent_iter = data->parent_iter;
     GtkTextTagTable *tag_table = data->tag_table;
     GtkTreePath* parent_path;
@@ -1533,7 +1519,6 @@ static void update_display_devices(GtkWidget *object,
     GtkTreeSelection *tree_selection =
         gtk_tree_view_get_selection(ctk_window->treeview);
     GtkWidget *widget;
-    gchar *selected_display_name = NULL;
 
 
     /* Keep track if the parent row is expanded */
@@ -1548,31 +1533,20 @@ static void update_display_devices(GtkWidget *object,
     while (data->num_displays) {
 
         GtkTreeIter *iter = &(data->display_iters[data->num_displays -1]);
-        gboolean is_selected = FALSE;
 
         /* Select the parent (GPU) iter if we're removing the selected page */
         if (gtk_tree_selection_iter_is_selected(tree_selection, iter)) {
-            is_selected = TRUE;
             gtk_tree_selection_select_iter(tree_selection, &parent_iter);
         }
 
         /* Remove the entry */
         gtk_tree_model_get(GTK_TREE_MODEL(ctk_window->tree_store), iter,
                            CTK_WINDOW_WIDGET_COLUMN, &widget, -1);
-
-        if (is_selected) {
-            CtkDisplayDevice *ctk_obj = CTK_DISPLAY_DEVICE(widget);
-            selected_display_name = g_strdup(ctk_obj->name);
-        }
-
+       
         gtk_tree_store_remove(ctk_window->tree_store, iter);
 
         /* unref the page so we don't leak memory */
-        g_object_unref(G_OBJECT(widget));
-
-        /* Destroy the display CtkEvent */
-        ctk_event_destroy(G_OBJECT(
-                            data->display_events[data->num_displays - 1]));
+        g_object_unref(GTK_OBJECT(widget)); 
 
         data->num_displays--;
     }
@@ -1582,18 +1556,13 @@ static void update_display_devices(GtkWidget *object,
     gtk_tree_model_get(GTK_TREE_MODEL(ctk_window->tree_store), &parent_iter,
                        CTK_WINDOW_WIDGET_COLUMN, &widget, -1);
 
-    add_display_devices(ctk_window, &parent_iter, gpu_target,
+    add_display_devices(ctk_window, &parent_iter, gpu_handle,
                         CTK_GPU(widget)->ctk_event,
                         tag_table, data, ctk_window->attribute_list);
 
     /* Expand the GPU entry if it used to be */
     if (parent_expanded) {
         gtk_tree_view_expand_row(ctk_window->treeview, parent_path, TRUE);
-    }
-
-    if (selected_display_name) {
-        select_display_page(data, selected_display_name);
-        g_free(selected_display_name);
     }
 
 } /* update_display_devices() */

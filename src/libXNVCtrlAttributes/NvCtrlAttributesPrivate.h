@@ -34,6 +34,13 @@
 #error XRandR version 1.2 or greater is required.
 #endif
 
+/* Make sure we are compiling with XRandR version 1.2 or greater */
+#define MIN_RANDR_MAJOR 1
+#define MIN_RANDR_MINOR 2
+#if (RANDR_MAJOR < MIN_RANDR_MAJOR) || ((RANDR_MAJOR == MIN_RANDR_MAJOR) && (RANDR_MINOR < MIN_RANDR_MINOR))
+#error XRandR version 1.2 or greater is required.
+#endif
+
 
 #define EXTENSION_NV_CONTROL  0x1
 #define EXTENSION_XF86VIDMODE 0x2

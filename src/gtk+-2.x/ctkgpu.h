@@ -26,6 +26,8 @@
 #include "ctkevent.h"
 #include "ctkconfig.h"
 
+#include "NvCtrlAttributes.h"
+
 G_BEGIN_DECLS
 
 #define CTK_TYPE_GPU (ctk_gpu_get_type())
@@ -53,21 +55,15 @@ struct _CtkGpu
 {
     GtkVBox parent;
 
-    CtrlTarget *ctrl_target;
+    NvCtrlAttributeHandle *handle;
     CtkConfig *ctk_config;
     CtkEvent *ctk_event;
 
     GtkWidget *displays;
     GtkWidget *gpu_memory_used_label;
-    GtkWidget *gpu_utilization_label;
-    GtkWidget *video_utilization_label;
-    GtkWidget *pcie_utilization_label;
     gint gpu_memory;
-    gint gpu_utilization;
     gint gpu_cores;
-    gint gpu_uuid;
     gint memory_interface;
-    gboolean resizable_bar;
     gboolean pcie_gen_queriable;
 };
 
@@ -77,12 +73,15 @@ struct _CtkGpuClass
 };
 
 GType       ctk_gpu_get_type (void) G_GNUC_CONST;
-GtkWidget*  ctk_gpu_new      (CtrlTarget *ctrl_target,
+GtkWidget*  ctk_gpu_new      (NvCtrlAttributeHandle *handle,
+                              CtrlHandleTarget *t,
                               CtkEvent *ctk_event,
                               CtkConfig *ctk_config);
 
-void get_bus_type_str(CtrlTarget *ctrl_target, gchar **bus);
-gchar *get_bus_id_str(CtrlTarget *ctrl_target);
+void get_bus_type_str(NvCtrlAttributeHandle *handle,
+                      gchar **bus);
+void get_bus_id_str(NvCtrlAttributeHandle *handle,
+                    gchar **pci_bus_id);
 
 GtkTextBuffer *ctk_gpu_create_help(GtkTextTagTable *,
                                    CtkGpu *);

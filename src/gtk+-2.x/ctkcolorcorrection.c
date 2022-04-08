@@ -32,36 +32,32 @@
 
 #include "ctkconfig.h"
 #include "ctkhelp.h"
-#include "ctkutils.h"
 
 #include <string.h>
 #include <stdlib.h>
-#include <libintl.h>
 
-#define _(STRING) gettext(STRING)
-#define N_(STRING) STRING
 
-static const char *__active_color_help = N_("The Active Color Channel drop-down "
+static const char *__active_color_help = "The Active Color Channel drop-down "
 "menu allows you to select the color channel controlled by the Brightness, "
 "Contrast and Gamma sliders.  You can adjust the red, green or blue channels "
-"individually or all three channels at once.");
+"individually or all three channels at once.";
 
-static const char *__resest_button_help = N_("The Reset Hardware Defaults "
-"button restores the color correction settings to their default values.");
+static const char *__resest_button_help = "The Reset Hardware Defaults "
+"button restores the color correction settings to their default values.";
 
-static const char *__confirm_button_help = N_("Some color correction settings "
+static const char *__confirm_button_help = "Some color correction settings "
 "can yield an unusable display "
 "(e.g., making the display unreadably dark or light).  When you "
 "change the color correction values, the '10 Seconds to Confirm' "
 "button will count down to zero.  If you have not clicked the "
-"button by then to accept the changes, it will restore your previous values.");
+"button by then to accept the changes, it will restore your previous values.";
 
-static const char *__color_curve_help = N_("The color curve graph changes to "
-"reflect your adjustments made with the Brightness, Contrast, and Gamma "
-"sliders.");
+static const char *__color_curve_help = "The color curve graph changes to "
+"reflect your adjustments made with the Brightness, Constrast, and Gamma "
+"sliders.";
 
 static void
-color_channel_changed         (GtkComboBox *, gpointer);
+option_menu_changed         (GtkOptionMenu *, gpointer);
 
 static void
 set_button_sensitive        (GtkButton *);
@@ -85,18 +81,13 @@ static void
 flush_attribute_channel_values (CtkColorCorrection *, gint, gint);
 
 static void
-ctk_color_correction_class_init(CtkColorCorrectionClass *, gpointer);
-
-static void ctk_color_correction_finalize(GObject *);
+ctk_color_correction_class_init(CtkColorCorrectionClass *);
 
 static void
 apply_parsed_attribute_list(CtkColorCorrection *, ParsedAttribute *);
 
 static gboolean
 do_confirm_countdown (gpointer);
-
-static void callback_palette_update(GObject *object, CtrlEvent *event,
-                                    gpointer user_data);
 
 static void
 update_confirm_text  (CtkColorCorrection *);
@@ -120,18 +111,18 @@ static guint signals[LAST_SIGNAL] = { 0 };
 
 #define DEFAULT_CONFIRM_COLORCORRECTION_TIMEOUT 10
 
-#define CREATE_COLOR_ADJUSTMENT(adj, attr, min, max)                         \
-{                                                                            \
-    gdouble _step_incr, _page_incr, _def;                                    \
-                                                                             \
-    _step_incr = ((gdouble)((max) - (min)))/250.0;                           \
-    _page_incr = ((gdouble)((max) - (min)))/25.0;                            \
-                                                                             \
-    _def = get_attribute_channel_value(ctk_color_correction,                 \
-                                       (attr), ALL_CHANNELS);                \
-                                                                             \
-    (adj) = GTK_ADJUSTMENT(gtk_adjustment_new(_def, (min), (max),            \
-                                              _step_incr, _page_incr, 0.0)); \
+#define CREATE_COLOR_ADJUSTMENT(adj, attr, min, max)          \
+{                                                             \
+    gdouble _step_incr, _page_incr, _def;                     \
+                                                              \
+    _step_incr = ((gdouble)((max) - (min)))/250.0;            \
+    _page_incr = ((gdouble)((max) - (min)))/25.0;             \
+                                                              \
+    _def = get_attribute_channel_value(ctk_color_correction,  \
+                                       (attr), ALL_CHANNELS); \
+                                                              \
+    (adj) = gtk_adjustment_new(_def, (min), (max),            \
+                               _step_incr, _page_incr, 0.0);  \
 }
 
 GType ctk_color_correction_get_type(
@@ -163,14 +154,10 @@ GType ctk_color_correction_get_type(
 }
 
 
-
 static void
 ctk_color_correction_class_init(CtkColorCorrectionClass
-                                *ctk_color_correction_class,
-                                gpointer class_data)
+                                *ctk_color_correction_class)
 {
-    GObjectClass *gobject_class = (GObjectClass *)ctk_color_correction_class;
-
     signals[CHANGED] =
         g_signal_new("changed",
                      G_OBJECT_CLASS_TYPE(ctk_color_correction_class),
@@ -179,79 +166,23 @@ ctk_color_correction_class_init(CtkColorCorrectionClass
                      NULL, NULL,
                      g_cclosure_marshal_VOID__VOID,
                      G_TYPE_NONE, 0);
-    gobject_class->finalize = ctk_color_correction_finalize;
 }
 
 
-
-static void ctk_color_correction_finalize(GObject *object)
-{
-    CtkColorCorrection *ctk_color_correction = CTK_COLOR_CORRECTION(object);
-    CtrlTarget *ctrl_target = ctk_color_correction->ctrl_target;
-
-    if (ctk_color_correction->confirm_timer) {
-        /*
-         * This situation comes, if user perform VT-switching
-         * without confirmation of color-correction settings.
-         */
-        gint attr, ch;
-        unsigned int channels = 0;
-        unsigned int attributes = 0;
-
-        /* kill the timer */
-        g_source_remove(ctk_color_correction->confirm_timer);
-        ctk_color_correction->confirm_timer = 0;
-
-        /*
-         * Reset color settings to previous state,
-         * since user did not confirm settings yet.
-         */
-        for (attr = CONTRAST_INDEX; attr <= GAMMA_INDEX; attr++) {
-            for (ch = RED; ch <= ALL_CHANNELS_INDEX; ch++) {
-                    /* Check for attribute channel value change. */
-                    int index = attr - CONTRAST_INDEX;
-
-                    ctk_color_correction->cur_slider_val[index][ch] =
-                        ctk_color_correction->prev_slider_val[index][ch];
-
-                    attributes |= (1 << attr);
-                    channels |= (1 << ch);
-            }
-        }
-
-        NvCtrlSetColorAttributes(ctrl_target,
-                                 ctk_color_correction->cur_slider_val[CONTRAST],
-                                 ctk_color_correction->cur_slider_val[BRIGHTNESS],
-                                 ctk_color_correction->cur_slider_val[GAMMA],
-                                 attributes | channels);
-    }
-
-    g_signal_handlers_disconnect_matched(G_OBJECT(ctk_color_correction->ctk_event),
-                                         G_SIGNAL_MATCH_DATA,
-                                         0,
-                                         0,
-                                         NULL,
-                                         NULL,
-                                         (gpointer) ctk_color_correction);
-
-
-}
-
-
-
-GtkWidget* ctk_color_correction_new(CtrlTarget *ctrl_target,
-                                    CtkConfig *ctk_config,
-                                    ParsedAttribute *p,
+GtkWidget* ctk_color_correction_new(NvCtrlAttributeHandle *handle,
+                                    CtkConfig *ctk_config, ParsedAttribute *p,
                                     CtkEvent *ctk_event)
 {
     GObject *object;
     CtkColorCorrection *ctk_color_correction;
     GtkRequisition requisition;
 
+    GtkWidget *menu;
     GtkWidget *image;
     GtkWidget *label;
     GtkWidget *scale;
     GtkWidget *curve;
+    GtkWidget *menu_item;
     GtkWidget *alignment;
     GtkWidget *mainhbox;
     GtkWidget *leftvbox;
@@ -261,19 +192,13 @@ GtkWidget* ctk_color_correction_new(CtrlTarget *ctrl_target,
     GtkWidget *button, *confirm_button, *confirm_label;
     GtkWidget *widget;
     GtkWidget *hsep;
-    GtkWidget *center_alignment;
     GtkWidget *eventbox;
-    GtkWidget *combo_box;
-    GtkListStore *store;
-    GtkTreeIter iter;
-    GtkCellRenderer *renderer;
 
     object = g_object_new(CTK_TYPE_COLOR_CORRECTION, NULL);
 
     ctk_color_correction = CTK_COLOR_CORRECTION(object);
-    ctk_color_correction->ctrl_target = ctrl_target;
+    ctk_color_correction->handle = handle;
     ctk_color_correction->ctk_config = ctk_config;
-    ctk_color_correction->ctk_event = ctk_event;
     ctk_color_correction->confirm_timer = 0;
     ctk_color_correction->confirm_countdown =
         DEFAULT_CONFIRM_COLORCORRECTION_TIMEOUT;
@@ -306,58 +231,81 @@ GtkWidget* ctk_color_correction_new(CtrlTarget *ctrl_target,
     gtk_box_pack_start(GTK_BOX(leftvbox), alignment, TRUE, TRUE, 0);
 
     vbox = gtk_vbox_new(FALSE, 5);
-    label = gtk_label_new(_("Active Color Channel:"));
+    label = gtk_label_new("Active Color Channel:");
     gtk_box_pack_start(GTK_BOX(vbox), label, FALSE, FALSE, 0);
     gtk_container_add(GTK_CONTAINER(alignment), vbox);
 
-    store = gtk_list_store_new(2, GDK_TYPE_PIXBUF, G_TYPE_STRING);
+    menu = gtk_menu_new();
+    
+    menu_item = gtk_menu_item_new();
+    gtk_menu_shell_append(GTK_MENU_SHELL(menu), menu_item);
 
-    gtk_list_store_append(store, &iter);
-    gtk_list_store_set(store, &iter,
-                       0, gdk_pixbuf_new_from_xpm_data(rgb_xpm),
-                       1, _("All Channels"), -1);
-    gtk_list_store_append(store, &iter);
-    gtk_list_store_set(store, &iter,
-                       0, gdk_pixbuf_new_from_xpm_data(red_xpm),
-                       1, _("Red"), -1);
-    gtk_list_store_append(store, &iter);
-    gtk_list_store_set(store, &iter,
-                       0, gdk_pixbuf_new_from_xpm_data(green_xpm),
-                       1, _("Green"), -1);
-    gtk_list_store_append(store, &iter);
-    gtk_list_store_set(store, &iter,
-                       0, gdk_pixbuf_new_from_xpm_data(blue_xpm),
-                       1, _("Blue"), -1);
+    hbox = gtk_hbox_new(FALSE, 0);
+    gtk_container_add(GTK_CONTAINER(menu_item), hbox);
 
-    combo_box = gtk_combo_box_new_with_model(GTK_TREE_MODEL(store));
+    label = gtk_label_new("All Channels");
+    image = gtk_image_new_from_pixbuf(gdk_pixbuf_new_from_xpm_data(rgb_xpm));
 
-    renderer = gtk_cell_renderer_pixbuf_new();
-    gtk_cell_layout_pack_start(GTK_CELL_LAYOUT(combo_box), renderer, FALSE);
-    gtk_cell_layout_set_attributes(GTK_CELL_LAYOUT(combo_box), renderer,
-                                   "pixbuf", 0, NULL);
+    gtk_box_pack_start(GTK_BOX(hbox), image, FALSE, FALSE, 0);
+    gtk_box_pack_start(GTK_BOX(hbox), label, FALSE, FALSE, 10);
 
-    renderer = gtk_cell_renderer_text_new();
-    gtk_cell_layout_pack_start(GTK_CELL_LAYOUT(combo_box), renderer, FALSE);
-    gtk_cell_layout_set_attributes(GTK_CELL_LAYOUT(combo_box), renderer,
-                                   "text", 1, NULL);
 
-    gtk_combo_box_set_active(GTK_COMBO_BOX(combo_box), 0);
+    menu_item = gtk_menu_item_new();
+    gtk_menu_shell_append(GTK_MENU_SHELL(menu), menu_item);
 
-    ctk_color_correction->color_channel = combo_box;
+    hbox = gtk_hbox_new(FALSE, 0);
+    gtk_container_add(GTK_CONTAINER(menu_item), hbox);
+
+    label = gtk_label_new ("Red");
+    image = gtk_image_new_from_pixbuf(gdk_pixbuf_new_from_xpm_data(red_xpm));
+
+    gtk_box_pack_start(GTK_BOX(hbox), image, FALSE, FALSE, 0);
+    gtk_box_pack_start(GTK_BOX(hbox), label, FALSE, FALSE, 10);
+
+
+    menu_item = gtk_menu_item_new();
+    gtk_menu_shell_append(GTK_MENU_SHELL(menu), menu_item);
+
+    hbox = gtk_hbox_new(FALSE, 0);
+    gtk_container_add(GTK_CONTAINER(menu_item), hbox);
+
+    label = gtk_label_new("Green");
+    image = gtk_image_new_from_pixbuf(gdk_pixbuf_new_from_xpm_data(green_xpm));
+
+    gtk_box_pack_start(GTK_BOX(hbox), image, FALSE, FALSE, 0);
+    gtk_box_pack_start(GTK_BOX(hbox), label, FALSE, FALSE, 10);
+
+
+    menu_item = gtk_menu_item_new();
+    gtk_menu_shell_append(GTK_MENU_SHELL(menu), menu_item);
+
+    hbox = gtk_hbox_new(FALSE, 0);
+    gtk_container_add(GTK_CONTAINER(menu_item), hbox);
+
+    label = gtk_label_new("Blue");
+    image = gtk_image_new_from_pixbuf(gdk_pixbuf_new_from_xpm_data(blue_xpm));
+
+    gtk_box_pack_start(GTK_BOX(hbox), image, FALSE, FALSE, 0);
+    gtk_box_pack_start(GTK_BOX(hbox), label, FALSE, FALSE, 10);
+
+
+    ctk_color_correction->option_menu = gtk_option_menu_new ();
+    gtk_option_menu_set_menu
+        (GTK_OPTION_MENU(ctk_color_correction->option_menu), menu);
 
     gtk_box_pack_start(GTK_BOX(vbox),
-                       ctk_color_correction->color_channel,
+                       ctk_color_correction->option_menu,
                        FALSE, FALSE, 0); 
 
-    g_object_set_data(G_OBJECT(ctk_color_correction->color_channel),
+    g_object_set_data(G_OBJECT(ctk_color_correction->option_menu),
                       "color_channel", GINT_TO_POINTER(ALL_CHANNELS));
-
-    g_signal_connect(G_OBJECT(ctk_color_correction->color_channel), "changed",
-                     G_CALLBACK(color_channel_changed),
+    
+    g_signal_connect(G_OBJECT(ctk_color_correction->option_menu), "changed",
+                     G_CALLBACK(option_menu_changed),
                      (gpointer) ctk_color_correction);
 
-    ctk_config_set_tooltip(ctk_config, ctk_color_correction->color_channel,
-                           _(__active_color_help));
+    ctk_config_set_tooltip(ctk_config, ctk_color_correction->option_menu,
+                           __active_color_help);
     /*
      * Gamma curve: BOTTOM - LEFT
      *
@@ -368,13 +316,12 @@ GtkWidget* ctk_color_correction_new(CtrlTarget *ctrl_target,
     alignment = gtk_alignment_new(0, 0, 1.0, 1.0);
     gtk_box_pack_start(GTK_BOX(leftvbox), alignment, TRUE, TRUE, 0);
 
-    curve = ctk_curve_new(ctrl_target, GTK_WIDGET(ctk_color_correction));
+    curve = ctk_curve_new(handle, GTK_WIDGET(ctk_color_correction));
     eventbox = gtk_event_box_new();
     gtk_container_add(GTK_CONTAINER(eventbox), curve);
     gtk_container_add(GTK_CONTAINER(alignment), eventbox);
 
-    ctk_config_set_tooltip(ctk_config, eventbox, _(__color_curve_help));
-    ctk_color_correction->curve = curve;
+    ctk_config_set_tooltip(ctk_config, eventbox, __color_curve_help);
 
     /*
      * Reset button: BOTTOM - RIGHT (see below)
@@ -384,11 +331,11 @@ GtkWidget* ctk_color_correction_new(CtrlTarget *ctrl_target,
      */
 
     hbox = gtk_hbox_new(FALSE, 0);
-    button = gtk_button_new_with_label(_("Reset Hardware Defaults"));
+    button = gtk_button_new_with_label("Reset Hardware Defaults");
     gtk_box_pack_end(GTK_BOX(hbox), button, FALSE, FALSE, 0);
     
     confirm_button = gtk_button_new();
-    confirm_label = gtk_label_new(_("Confirm Current Changes"));
+    confirm_label = gtk_label_new("Confirm Current Changes");
     gtk_container_add(GTK_CONTAINER(confirm_button), confirm_label);
     eventbox = gtk_event_box_new();
     gtk_container_add(GTK_CONTAINER(eventbox), confirm_button);
@@ -404,9 +351,8 @@ GtkWidget* ctk_color_correction_new(CtrlTarget *ctrl_target,
 
     ctk_color_correction->confirm_label = confirm_label;
     ctk_color_correction->confirm_button = confirm_button;
-    ctk_color_correction->reset_button = button;
-    ctk_config_set_tooltip(ctk_config, eventbox, _(__confirm_button_help));
-    ctk_config_set_tooltip(ctk_config, button, _(__resest_button_help));
+    ctk_config_set_tooltip(ctk_config, eventbox, __confirm_button_help);
+    ctk_config_set_tooltip(ctk_config, button, __resest_button_help);
 
     /*
      * Control sliders: MIDDLE - CENTER->RIGHT
@@ -441,9 +387,9 @@ GtkWidget* ctk_color_correction_new(CtrlTarget *ctrl_target,
     
     widget = CTK_SCALE(scale)->gtk_scale;
 
-    ctk_config_set_tooltip(ctk_config, widget, _("The Brightness slider alters "
+    ctk_config_set_tooltip(ctk_config, widget, "The Brightness slider alters "
                            "the amount of brightness for the selected color "
-                           "channel(s)."));
+                           "channel(s).");
 
     /* contrast slider */
 
@@ -470,9 +416,9 @@ GtkWidget* ctk_color_correction_new(CtrlTarget *ctrl_target,
     
     widget = CTK_SCALE(scale)->gtk_scale;
 
-    ctk_config_set_tooltip(ctk_config, widget, _("The Contrast slider alters "
+    ctk_config_set_tooltip(ctk_config, widget, "The Contrast slider alters "
                            "the amount of contrast for the selected color "
-                           "channel(s)."));
+                           "channel(s).");
 
     /* gamma slider */
     
@@ -492,15 +438,15 @@ GtkWidget* ctk_color_correction_new(CtrlTarget *ctrl_target,
 
     scale = ctk_scale_new
         (GTK_ADJUSTMENT(ctk_color_correction->gamma_adjustment),
-         _("Gamma"), ctk_config, G_TYPE_DOUBLE);
+         "Gamma", ctk_config, G_TYPE_DOUBLE);
 
     gtk_box_pack_start(GTK_BOX(rightvbox), scale, TRUE, TRUE, 0);
 
     widget = CTK_SCALE(scale)->gtk_scale;
  
-    ctk_config_set_tooltip(ctk_config, widget, _("The Gamma slider alters "
+    ctk_config_set_tooltip(ctk_config, widget, "The Gamma slider alters "
                            "the amount of gamma for the selected color "
-                           "channel(s)."));
+                           "channel(s).");
 
     /* horizontal separator */
     
@@ -522,35 +468,9 @@ GtkWidget* ctk_color_correction_new(CtrlTarget *ctrl_target,
     gtk_container_add(GTK_CONTAINER(alignment), hbox);
     gtk_box_pack_start(GTK_BOX(object), alignment, TRUE, TRUE, 0);
 
-    /* external update notification label */
-
-    center_alignment = gtk_alignment_new(0.5, 0.5, 0, 0);
-    gtk_box_pack_start(GTK_BOX(vbox), center_alignment, TRUE, TRUE, 0);
-
-    hbox = gtk_hbox_new(FALSE, 10);
-    gtk_container_add(GTK_CONTAINER(center_alignment), hbox);
-
-    label = gtk_label_new(_("Warning: The color settings have been changed "
-                          "outside of nvidia-settings so the current slider "
-                          "values may be incorrect."));
-    gtk_label_set_line_wrap(GTK_LABEL(label), TRUE);
-
-    image = ctk_image_new_from_str(CTK_STOCK_DIALOG_WARNING,
-                                   GTK_ICON_SIZE_BUTTON);
-
-    gtk_box_pack_start(GTK_BOX(hbox), image, FALSE, FALSE, 0);
-    gtk_box_pack_start(GTK_BOX(hbox), label, FALSE, FALSE, 0);
-
-    ctk_color_correction->warning_container = hbox;
-
-
     /* finally, show the widget */
 
     gtk_widget_show_all(GTK_WIDGET(object));
-
-    /* except the external color change update warning */
-
-    gtk_widget_hide(ctk_color_correction->warning_container);
 
     /*
      * lock the size of the confirm button, so that it is not resized
@@ -564,26 +484,21 @@ GtkWidget* ctk_color_correction_new(CtrlTarget *ctrl_target,
      *  "%d Seconds to Confirm"
      */
 
-    ctk_widget_get_preferred_size(ctk_color_correction->confirm_label,
-                                  &requisition);
+    gtk_widget_size_request(ctk_color_correction->confirm_label,
+                            &requisition);
     gtk_widget_set_size_request(ctk_color_correction->confirm_label,
                                 requisition.width, -1);
-
-    g_signal_connect(G_OBJECT(ctk_event),
-                     CTK_EVENT_NAME(NV_CTRL_PALETTE_UPDATE_EVENT),
-                     G_CALLBACK(callback_palette_update),
-                     (gpointer) ctk_color_correction);
 
     return GTK_WIDGET(object);
 }
 
 
-static void color_channel_changed(
-    GtkComboBox *combo_box,
+static void option_menu_changed(
+    GtkOptionMenu *option_menu,
     gpointer user_data
 )
 {
-    GtkAdjustment *adjustment;
+    GtkObject *adjustment;
     gint history, attribute, channel;
     CtkColorCorrection *ctk_color_correction;
     gfloat value;
@@ -591,7 +506,7 @@ static void color_channel_changed(
 
     ctk_color_correction = CTK_COLOR_CORRECTION(user_data);
 
-    history = gtk_combo_box_get_active(combo_box);
+    history = gtk_option_menu_get_history(option_menu);
 
     switch (history) {
         default:
@@ -615,7 +530,7 @@ static void color_channel_changed(
      * response to slider changes
      */
 
-    g_object_set_data(G_OBJECT(combo_box), "color_channel",
+    g_object_set_data(G_OBJECT(option_menu), "color_channel",
                       GINT_TO_POINTER(channel));
 
     for (i = 0; i < 3; i++) {
@@ -728,7 +643,7 @@ static void confirm_button_clicked(
     
     /* Reset confirm button text */
     gtk_label_set_text(GTK_LABEL(ctk_color_correction->confirm_label),
-                       _("Confirm Current Changes"));
+                       "Confirm Current Changes");
     
     gtk_widget_set_sensitive(ctk_color_correction->confirm_button, FALSE);
 } /* confirm_button_clicked() */
@@ -741,7 +656,7 @@ static void reset_button_clicked(
 )
 {
     CtkColorCorrection *ctk_color_correction;
-    GtkComboBox *combo_box;
+    GtkOptionMenu *option_menu;
     ctk_color_correction = CTK_COLOR_CORRECTION(user_data);
     /* Set default values */
     set_color_state(ctk_color_correction, CONTRAST, ALL_CHANNELS,
@@ -751,27 +666,25 @@ static void reset_button_clicked(
     set_color_state(ctk_color_correction, GAMMA, ALL_CHANNELS,
                     GAMMA_DEFAULT, TRUE);
 
-    ctk_color_correction->num_expected_updates++;
-    
     flush_attribute_channel_values(ctk_color_correction,
                                    ALL_VALUES, ALL_CHANNELS);
 
-    combo_box = GTK_COMBO_BOX(ctk_color_correction->color_channel);
+    option_menu = GTK_OPTION_MENU(ctk_color_correction->option_menu);
     
-    if (gtk_combo_box_get_active(combo_box) == 0) {
+    if (gtk_option_menu_get_history(option_menu) == 0) {
         /*
-         * We use the color_channel_changed function to reload color information
-         * from the server. If we are already on the correct channel, we cannot
-         * rely on the "changed" signal to be triggered so we will just call it
-         * directly here.
+         * gtk_option_menu_set_history will not emit the "changed" signal
+         * unless the new index differs from the old one; reasonable, but
+         * we need to cope with it here.
          */
-        color_channel_changed(combo_box, user_data);
+        gtk_option_menu_set_history(option_menu, 1);
+        gtk_option_menu_set_history(option_menu, 0);
     } else {
-        gtk_combo_box_set_active(combo_box, 0);
+        gtk_option_menu_set_history(option_menu, 0);
     }
 
     ctk_config_statusbar_message(ctk_color_correction->ctk_config,
-                                 _("Reset color correction hardware defaults."));
+                                 "Reset color correction hardware defaults.");
 
     gtk_widget_set_sensitive(GTK_WIDGET(ctk_color_correction->confirm_button),
                              FALSE);
@@ -784,7 +697,7 @@ static void reset_button_clicked(
     
     /* Reset confirm button text */
     gtk_label_set_text(GTK_LABEL(ctk_color_correction->confirm_label),
-                       _("Confirm Current Changes"));
+                       "Confirm Current Changes");
 }
 
 static void adjustment_value_changed(
@@ -804,13 +717,11 @@ static void adjustment_value_changed(
     attribute = GPOINTER_TO_INT(user_data);
 
     user_data = g_object_get_data
-        (G_OBJECT(ctk_color_correction->color_channel), "color_channel");
+        (G_OBJECT(ctk_color_correction->option_menu), "color_channel");
     channel = GPOINTER_TO_INT(user_data);
 
     value = gtk_adjustment_get_value(adjustment);
     
-    ctk_color_correction->num_expected_updates++;
-
     /* start timer for confirming changes */
     ctk_color_correction->confirm_countdown =
         DEFAULT_CONFIRM_COLORCORRECTION_TIMEOUT;
@@ -863,7 +774,7 @@ static void adjustment_value_changed(
     flush_attribute_channel_values(ctk_color_correction, attribute, channel);
     
     ctk_config_statusbar_message(ctk_color_correction->ctk_config,
-                                 _("Set %s%s to %f."),
+                                 "Set %s%s to %f.",
                                  channel_str, attribute_str, value);
     gtk_widget_set_sensitive(ctk_color_correction->confirm_button, TRUE);
 }
@@ -915,16 +826,14 @@ static void flush_attribute_channel_values(
     gint channel
 )
 {
-    CtrlTarget *ctrl_target = ctk_color_correction->ctrl_target;
-
-    NvCtrlSetColorAttributes(ctrl_target,
+    NvCtrlAttributeHandle *handle = ctk_color_correction->handle;
+    
+    NvCtrlSetColorAttributes(handle,
                              ctk_color_correction->cur_slider_val[CONTRAST],
                              ctk_color_correction->cur_slider_val[BRIGHTNESS],
                              ctk_color_correction->cur_slider_val[GAMMA],
                              attribute | channel);
-
-    gtk_widget_hide(ctk_color_correction->warning_container);
-
+    
     g_signal_emit(ctk_color_correction, signals[CHANGED], 0);
 }
 
@@ -934,12 +843,9 @@ static void apply_parsed_attribute_list(
     ParsedAttribute *p
 )
 {
-    CtrlTarget *ctrl_target = ctk_color_correction->ctrl_target;
     int target_type, target_id;
     unsigned int attr = 0;
-
-    ctk_color_correction->num_expected_updates = 0;
-
+    
     set_color_state(ctk_color_correction, CONTRAST, ALL_CHANNELS,
                     CONTRAST_DEFAULT, TRUE);
     set_color_state(ctk_color_correction, BRIGHTNESS, ALL_CHANNELS,
@@ -947,125 +853,76 @@ static void apply_parsed_attribute_list(
     set_color_state(ctk_color_correction, GAMMA, ALL_CHANNELS,
                     GAMMA_DEFAULT, TRUE);
 
-    target_type = NvCtrlGetTargetType(ctrl_target);
-    target_id = NvCtrlGetTargetId(ctrl_target);
+    target_type = NvCtrlGetTargetType(ctk_color_correction->handle);
+    target_id = NvCtrlGetTargetId(ctk_color_correction->handle);
 
     while (p) {
-        CtrlTargetNode *node;
-        const AttributeTableEntry *a = p->attr_entry;
 
         if (!p->next) goto next_attribute;
+        
+        if (!(p->flags & NV_PARSER_TYPE_COLOR_ATTRIBUTE)) goto next_attribute;
+        
+        /*
+         * if this parsed attribute's target_type, target_id does not match the
+         * current target_type and target_id then ignore
+         */
+        
+        if ((p->target_type != target_type) ||
+            (p->target_id != target_id)) goto next_attribute;
+        
+        switch (p->attr & (ALL_VALUES | ALL_CHANNELS)) {
+        case (CONTRAST_VALUE | RED_CHANNEL):
+            set_color_state(ctk_color_correction, CONTRAST,
+                            RED_CHANNEL, p->val.f, TRUE); break;
+        case (CONTRAST_VALUE | GREEN_CHANNEL):
+            set_color_state(ctk_color_correction, CONTRAST,
+                            GREEN_CHANNEL, p->val.f, TRUE); break;
+        case (CONTRAST_VALUE | BLUE_CHANNEL):
+            set_color_state(ctk_color_correction, CONTRAST,
+                            BLUE_CHANNEL, p->val.f, TRUE); break;
+        case (CONTRAST_VALUE | ALL_CHANNELS):
+            set_color_state(ctk_color_correction, CONTRAST,
+                            ALL_CHANNELS, p->val.f, TRUE); break;
 
-        if (a->type != CTRL_ATTRIBUTE_TYPE_COLOR) {
-            if (a->attr == NV_CTRL_COLOR_SPACE ||
-                a->attr == NV_CTRL_COLOR_RANGE) {
-                for (node = p->targets; node ; node = node->next) {
-                    int attr_target_type = NvCtrlGetTargetType(node->t);
-                    int attr_target_id = NvCtrlGetTargetId(node->t);
+        case (BRIGHTNESS_VALUE | RED_CHANNEL):
+            set_color_state(ctk_color_correction, BRIGHTNESS,
+                            RED_CHANNEL, p->val.f, TRUE); break;
+        case (BRIGHTNESS_VALUE | GREEN_CHANNEL):
+            set_color_state(ctk_color_correction, BRIGHTNESS,
+                            GREEN_CHANNEL, p->val.f, TRUE); break;
+        case (BRIGHTNESS_VALUE | BLUE_CHANNEL):
+            set_color_state(ctk_color_correction, BRIGHTNESS,
+                            BLUE_CHANNEL, p->val.f, TRUE); break;
+        case (BRIGHTNESS_VALUE | ALL_CHANNELS):
+            set_color_state(ctk_color_correction, BRIGHTNESS,
+                            ALL_CHANNELS, p->val.f, TRUE); break;
 
-                    if ((attr_target_type == target_type) &&
-                        (attr_target_id == target_id)) {
-                        ctk_color_correction->num_expected_updates++;
-                    }
-                }
-            }
+        case (GAMMA_VALUE | RED_CHANNEL):
+            set_color_state(ctk_color_correction, GAMMA,
+                            RED_CHANNEL, p->val.f, TRUE); break;
+        case (GAMMA_VALUE | GREEN_CHANNEL):
+            set_color_state(ctk_color_correction, GAMMA,
+                            GREEN_CHANNEL, p->val.f, TRUE); break;
+        case (GAMMA_VALUE | BLUE_CHANNEL):
+            set_color_state(ctk_color_correction, GAMMA,
+                            BLUE_CHANNEL, p->val.f, TRUE); break;
+        case (GAMMA_VALUE | ALL_CHANNELS):
+            set_color_state(ctk_color_correction, GAMMA,
+                            ALL_CHANNELS, p->val.f, TRUE); break;
+
+        default:
             goto next_attribute;
         }
-
-        /*
-         * Apply the parsed attribute's settings only if the color 
-         * correction's target matches one of the (parse attribute's)
-         * specification targets.
-         */
-
-        for (node = p->targets; node; node = node->next) {
-
-            int attr_target_type = NvCtrlGetTargetType(node->t);
-            int attr_target_id = NvCtrlGetTargetId(node->t);
-
-            if ((attr_target_type != target_type) ||
-                (attr_target_id != target_id)) {
-                continue;
-            }
-
-            switch (a->attr & (ALL_VALUES | ALL_CHANNELS)) {
-            case (CONTRAST_VALUE | RED_CHANNEL):
-                set_color_state(ctk_color_correction, CONTRAST,
-                                RED_CHANNEL, p->val.f, TRUE); break;
-            case (CONTRAST_VALUE | GREEN_CHANNEL):
-                set_color_state(ctk_color_correction, CONTRAST,
-                                GREEN_CHANNEL, p->val.f, TRUE); break;
-            case (CONTRAST_VALUE | BLUE_CHANNEL):
-                set_color_state(ctk_color_correction, CONTRAST,
-                                BLUE_CHANNEL, p->val.f, TRUE); break;
-            case (CONTRAST_VALUE | ALL_CHANNELS):
-                set_color_state(ctk_color_correction, CONTRAST,
-                                ALL_CHANNELS, p->val.f, TRUE); break;
-
-            case (BRIGHTNESS_VALUE | RED_CHANNEL):
-                set_color_state(ctk_color_correction, BRIGHTNESS,
-                                RED_CHANNEL, p->val.f, TRUE); break;
-            case (BRIGHTNESS_VALUE | GREEN_CHANNEL):
-                set_color_state(ctk_color_correction, BRIGHTNESS,
-                                GREEN_CHANNEL, p->val.f, TRUE); break;
-            case (BRIGHTNESS_VALUE | BLUE_CHANNEL):
-                set_color_state(ctk_color_correction, BRIGHTNESS,
-                                BLUE_CHANNEL, p->val.f, TRUE); break;
-            case (BRIGHTNESS_VALUE | ALL_CHANNELS):
-                set_color_state(ctk_color_correction, BRIGHTNESS,
-                                ALL_CHANNELS, p->val.f, TRUE); break;
-
-            case (GAMMA_VALUE | RED_CHANNEL):
-                set_color_state(ctk_color_correction, GAMMA,
-                                RED_CHANNEL, p->val.f, TRUE); break;
-            case (GAMMA_VALUE | GREEN_CHANNEL):
-                set_color_state(ctk_color_correction, GAMMA,
-                                GREEN_CHANNEL, p->val.f, TRUE); break;
-            case (GAMMA_VALUE | BLUE_CHANNEL):
-                set_color_state(ctk_color_correction, GAMMA,
-                                BLUE_CHANNEL, p->val.f, TRUE); break;
-            case (GAMMA_VALUE | ALL_CHANNELS):
-                set_color_state(ctk_color_correction, GAMMA,
-                                ALL_CHANNELS, p->val.f, TRUE); break;
-
-            default:
-                continue;
-            }
-
-            ctk_color_correction->num_expected_updates++;
-
-            attr |= (a->attr & (ALL_VALUES | ALL_CHANNELS));
-
-        }
-
+        
+        attr |= (p->attr & (ALL_VALUES | ALL_CHANNELS));
+        
     next_attribute:
-
+        
         p = p->next;
     }
 
     if (attr) {
-
-        int i;
-
-        /*
-         * if all the separate color channels are the same for an
-         * attribute, propagate the value to ALL_CHANNELS for that
-         * attribute
-         */
-        for (i = CONTRAST; i <= GAMMA; i++) {
-            float val = ctk_color_correction->cur_slider_val[i][RED];
-
-            if ((ctk_color_correction->cur_slider_val[i][GREEN] == val) &&
-                (ctk_color_correction->cur_slider_val[i][BLUE] == val)) {
-                set_color_state(ctk_color_correction, i,
-                                ALL_CHANNELS, val, TRUE);
-                attr |= ALL_CHANNELS;
-            }
-        }
-
-        ctk_color_correction->num_expected_updates++;
-
-        NvCtrlSetColorAttributes(ctrl_target,
+        NvCtrlSetColorAttributes(ctk_color_correction->handle,
                                  ctk_color_correction->cur_slider_val[CONTRAST],
                                  ctk_color_correction->cur_slider_val[BRIGHTNESS],
                                  ctk_color_correction->cur_slider_val[GAMMA],
@@ -1076,16 +933,14 @@ static void apply_parsed_attribute_list(
 
 /** update_confirm_text() ************************************
  *
- * Generates the text used to label confirmation button.
+ * Generates the text used to lable confirmation button.
  *
  **/
 
 static void update_confirm_text(CtkColorCorrection *ctk_color_correction)
 {
     gchar *str;
-    str = g_strdup_printf(ngettext("%d Second to Confirm",
-                                   "%d Seconds to Confirm",
-                                   ctk_color_correction->confirm_countdown),
+    str = g_strdup_printf("%d Seconds to Confirm",
                           ctk_color_correction->confirm_countdown);
     gtk_label_set_text(GTK_LABEL(ctk_color_correction->confirm_label),
                        str);
@@ -1105,16 +960,14 @@ static gboolean do_confirm_countdown(gpointer data)
     CtkColorCorrection *ctk_color_correction = (CtkColorCorrection *)(data);
     unsigned int channels = 0;
     unsigned int attributes = 0;
-    GtkComboBox *combo_box =
-        GTK_COMBO_BOX(ctk_color_correction->color_channel);
+    GtkOptionMenu *option_menu =
+        GTK_OPTION_MENU(ctk_color_correction->option_menu);
 
     ctk_color_correction->confirm_countdown--;
     if (ctk_color_correction->confirm_countdown > 0) {
         update_confirm_text(ctk_color_correction);
         return True;
     }
-
-    ctk_color_correction->num_expected_updates++;
 
     /* Countdown timed out, reset color settings to previous state */
     for (attr = CONTRAST_INDEX; attr <= GAMMA_INDEX; attr++) {
@@ -1136,16 +989,16 @@ static gboolean do_confirm_countdown(gpointer data)
     }
     
     /* Refresh color correction page for current selected channel. */
-    color_channel_changed(combo_box, (gpointer)(ctk_color_correction));
+    option_menu_changed(option_menu, (gpointer)(ctk_color_correction));
     
     /* Reset confirm button text */
     gtk_label_set_text(GTK_LABEL(ctk_color_correction->confirm_label),
-                       _("Confirm Current Changes"));
+                       "Confirm Current Changes");
     
     /* Update status bar message */
     ctk_config_statusbar_message(ctk_color_correction->ctk_config,
-                                 _("Reverted color correction changes, due to "
-                                 "confirmation timeout."));
+                                 "Reverted color correction changes, due to "
+                                 "confirmation timeout.");
                                 
     
     ctk_color_correction->confirm_timer = 0;
@@ -1159,18 +1012,18 @@ GtkTextBuffer *ctk_color_correction_create_help(GtkTextTagTable *table)
 {
     GtkTextIter i;
     GtkTextBuffer *b;
-    const gchar *title = _("X Server Color Correction");
+    const gchar *title = "X Server Color Correction";
     
     b = gtk_text_buffer_new(table);
     
     gtk_text_buffer_get_iter_at_offset(b, &i, 0);
     
-    ctk_help_title(b, &i, _("%s Help"), title);
+    ctk_help_title(b, &i, "%s Help", title);
 
     ctk_color_correction_tab_help(b, &i, title, FALSE /* randr */);
     
-    ctk_help_heading(b, &i, _("Reset Hardware Defaults"));
-    ctk_help_para(b, &i, "%s", _(__resest_button_help));
+    ctk_help_heading(b, &i, "Reset Hardware Defaults");
+    ctk_help_para(b, &i, __resest_button_help);
 
     ctk_help_finish(b);
 
@@ -1182,13 +1035,13 @@ void ctk_color_correction_tab_help(GtkTextBuffer *b, GtkTextIter *i,
                                    const gchar *title,
                                    gboolean randr)
 {
-    ctk_help_heading(b, i, _("Color Correction"));
+    ctk_help_heading(b, i, "Color Correction");
 
-    ctk_help_term(b, i, _("Active Color Channel"));
-    ctk_help_para(b, i, "%s", _(__active_color_help));
+    ctk_help_term(b, i, "Active Color Channel");
+    ctk_help_para(b, i, __active_color_help);
 
-    ctk_help_term(b, i, _("Brightness, Contrast and Gamma"));
-    ctk_help_para(b, i, _("The Brightness, Contrast and Gamma sliders "
+    ctk_help_term(b, i, "Brightness, Contrast and Gamma");
+    ctk_help_para(b, i, "The Brightness, Contrast and Gamma sliders "
                   "allow you to adjust the brightness, contrast, "
                   "or gamma values for the selected color channel(s).  This "
                   "helps you to compensate "
@@ -1197,51 +1050,23 @@ void ctk_color_correction_tab_help(GtkTextBuffer *b, GtkTextIter *i,
                   "working with image processing applications to help "
                   "provide more accurate color reproduction of images (such "
                   "as photographs) when they are displayed on your "
-                  "monitor."));
+                  "monitor.");
 
-    ctk_help_para(b, i, _("Also, many 3D-accelerated games may appear too "
+    ctk_help_para(b, i, "Also, many 3D-accelerated games may appear too "
                   "dark to play.  Increasing the brightness and/or gamma "
                   "value equally across all channels will make these games "
-                  "appear brighter, making them more playable."));
+                  "appear brighter, making them more playable.");
 
-    ctk_help_para(b, i, "%s", _(__color_curve_help));
+    ctk_help_para(b, i, __color_curve_help);
 
     if (randr) {
-        ctk_help_para(b, i, _("The %s tab uses the RandR extension to "
-                      "manipulate an RandR CRTC's gamma ramp."), title);
+        ctk_help_para(b, i, "The %s tab uses the RandR extension to "
+                      "manipulate an RandR CRTC's gamma ramp.", title);
     } else {
-        ctk_help_para(b, i, _("The %s page uses the XF86VidMode extension "
-                      "to manipulate the X screen's gamma ramps"), title);
+        ctk_help_para(b, i, "The %s page uses the XF86VidMode extension "
+                      "to manipulate the X screen's gamma ramps", title);
     }
 
-    ctk_help_term(b, i, _("Confirm Current Changes"));
-    ctk_help_para(b, i, "%s", _(__confirm_button_help));
+    ctk_help_term(b, i, "Confirm Current Changes");
+    ctk_help_para(b, i, __confirm_button_help);
 }
-
-
-static void callback_palette_update(GObject *object,
-                                    CtrlEvent *event,
-                                    gpointer user_data)
-{
-    gboolean reload_needed;
-    CtkColorCorrection *ctk_color_correction = (CtkColorCorrection *)user_data;
-    CtrlTarget *ctrl_target = ctk_color_correction->ctrl_target;
-
-    reload_needed = (ctk_color_correction->num_expected_updates <= 0);
-
-    if (ctk_color_correction->num_expected_updates > 0) {
-        ctk_color_correction->num_expected_updates--;
-    }
-
-    if (reload_needed) {
-        NvCtrlReloadColorRamp(ctrl_target);
-
-        ctk_curve_color_changed(ctk_color_correction->curve);
-        gtk_widget_set_sensitive(ctk_color_correction->reset_button, TRUE);
-
-        gtk_widget_show(ctk_color_correction->warning_container);
-    } else {
-        gtk_widget_hide(ctk_color_correction->warning_container);
-    }
-}
-

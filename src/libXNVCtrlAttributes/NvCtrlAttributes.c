@@ -22,7 +22,6 @@
 
 #include "NVCtrlLib.h"
 
-#include "common-utils.h"
 #include "msg.h"
 
 #include "parse.h"
@@ -36,163 +35,33 @@
 
 
 
-
 /*
- * This table stores the associated values for each target type.  The
- * CtrlSystem->targets[] array shadows this table where the XXX_TARGET #defines
- * can be used to index into both arrays.
+ * NvCtrlAttributeInit() - XXX not sure how to handle errors
  */
 
-const CtrlTargetTypeInfo targetTypeInfoTable[] = {
-
-    [X_SCREEN_TARGET] =
-    { "X Screen",                                                    /* name */
-      "screen",                                                      /* parsed_name */
-      NV_CTRL_TARGET_TYPE_X_SCREEN,                                  /* nvctrl */
-      CTRL_TARGET_PERM_BIT(X_SCREEN_TARGET),                         /* permission_bit */
-      NV_TRUE,                                                       /* uses_display_devices */
-      1, 6 },                                                        /* required major,minor protocol rev */
-
-    [GPU_TARGET] =
-    { "GPU",                                                         /* name */
-      "gpu",                                                         /* parsed_name */
-      NV_CTRL_TARGET_TYPE_GPU,                                       /* nvctrl */
-      CTRL_TARGET_PERM_BIT(GPU_TARGET),                              /* permission_bit */
-      NV_TRUE,                                                       /* uses_display_devices */
-      1, 10 },                                                       /* required major,minor protocol rev */
-
-    [FRAMELOCK_TARGET] =
-    { "Frame Lock Device",                                           /* name */
-      "framelock",                                                   /* parsed_name */
-      NV_CTRL_TARGET_TYPE_FRAMELOCK,                                 /* nvctrl */
-      CTRL_TARGET_PERM_BIT(FRAMELOCK_TARGET),                        /* permission_bit */
-      NV_FALSE,                                                      /* uses_display_devices */
-      1, 10 },                                                       /* required major,minor protocol rev */
-
-    [COOLER_TARGET] =
-    { "Fan",                                                         /* name */
-      "fan",                                                         /* parsed_name */
-      NV_CTRL_TARGET_TYPE_COOLER,                                    /* nvctrl */
-      CTRL_TARGET_PERM_BIT(COOLER_TARGET),                           /* permission_bit */
-      NV_FALSE,                                                      /* uses_display_devices */
-      1, 20 },                                                       /* required major,minor protocol rev */
-
-    [THERMAL_SENSOR_TARGET] =
-    { "Thermal Sensor",                                              /* name */
-      "thermalsensor",                                               /* parsed_name */
-      NV_CTRL_TARGET_TYPE_THERMAL_SENSOR,                            /* nvctrl */
-      CTRL_TARGET_PERM_BIT(THERMAL_SENSOR_TARGET),                   /* permission_bit */
-      NV_FALSE,                                                      /* uses_display_devices */
-      1, 23 },                                                       /* required major,minor protocol rev */
-
-    [NVIDIA_3D_VISION_PRO_TRANSCEIVER_TARGET] =
-    { "3D Vision Pro Transceiver",                                   /* name */
-      "svp",                                                         /* parsed_name */
-      NV_CTRL_TARGET_TYPE_3D_VISION_PRO_TRANSCEIVER,                 /* nvctrl */
-      CTRL_TARGET_PERM_BIT(NVIDIA_3D_VISION_PRO_TRANSCEIVER_TARGET), /* permission_bit */
-      NV_FALSE,                                                      /* uses_display_devices */
-      1, 25 },                                                       /* required major,minor protocol rev */
-
-    [DISPLAY_TARGET] =
-    { "Display Device",                                              /* name */
-      "dpy",                                                         /* parsed_name */
-      NV_CTRL_TARGET_TYPE_DISPLAY,                                   /* nvctrl */
-      CTRL_TARGET_PERM_BIT(DISPLAY_TARGET),                          /* permission_bit */
-      NV_FALSE,                                                      /* uses_display_devices */
-      1, 27 },                                                       /* required major,minor protocol rev */
-
-    [MUX_TARGET] =
-    { "Mux Device",                                                  /* name */
-      "mux",                                                         /* parsed_name */
-      NV_CTRL_TARGET_TYPE_MUX,                                       /* nvctrl */
-      CTRL_TARGET_PERM_BIT(MUX_TARGET),                              /* permission_bit */
-      NV_FALSE,                                                      /* uses_display_devices */
-      1, 28 },                                                       /* required major,minor protocol rev */
-};
-
-const int targetTypeInfoTableLen = ARRAY_LEN(targetTypeInfoTable);
-
-
-/*
- * List of unique event handles to track
- */
-static NvCtrlEventPrivateHandleNode *__event_handles = NULL;
-
-
-Bool NvCtrlIsTargetTypeValid(CtrlTargetType target_type)
-{
-    switch (target_type) {
-        case X_SCREEN_TARGET:
-        case GPU_TARGET:
-        case FRAMELOCK_TARGET:
-        case COOLER_TARGET:
-        case THERMAL_SENSOR_TARGET:
-        case NVIDIA_3D_VISION_PRO_TRANSCEIVER_TARGET:
-        case DISPLAY_TARGET:
-        case MUX_TARGET:
-            return TRUE;
-        default:
-            return FALSE;
-    }
-}
-
-
-const CtrlTargetTypeInfo *NvCtrlGetTargetTypeInfo(CtrlTargetType target_type)
-{
-    if (!NvCtrlIsTargetTypeValid(target_type)) {
-        return NULL;
-    }
-
-    return &(targetTypeInfoTable[target_type]);
-}
-
-
-const CtrlTargetTypeInfo *NvCtrlGetTargetTypeInfoByName(const char *name)
-{
-    int i;
-
-    for (i = 0; i < targetTypeInfoTableLen; i++) {
-        if (nv_strcasecmp(targetTypeInfoTable[i].parsed_name, name)) {
-            return &targetTypeInfoTable[i];
-        }
-    }
-
-    return NULL;
-}
-
-
-
-/*
- * Initializes the control panel backend; this includes probing for the
- * various extensions, downloading the initial state of attributes, etc.
- * Takes a System pointer and target info, and returns an opaque handle
- * on success; returns NULL if the backend cannot use this handle.
- */
-
-NvCtrlAttributeHandle *NvCtrlAttributeInit(CtrlSystem *system,
-                                           CtrlTargetType target_type,
+NvCtrlAttributeHandle *NvCtrlAttributeInit(Display *dpy, int target_type,
                                            int target_id,
                                            unsigned int subsystems)
 {
     NvCtrlAttributePrivateHandle *h = NULL;
 
-    h = nvalloc(sizeof (NvCtrlAttributePrivateHandle));
+    h = calloc(1, sizeof (NvCtrlAttributePrivateHandle));
+    if (!h) {
+        nv_error_msg("Memory allocation failure!");
+        goto failed;
+    }
 
     /* initialize the display and screen to the parameter values */
 
-    h->dpy = system->dpy;
+    h->dpy = dpy;
     h->target_type = target_type;
     h->target_id = target_id;
 
-    /* initialize the NV-CONTROL attributes */
+    /* initialize the NV-CONTROL attributes; give up if this fails */
 
     if (subsystems & NV_CTRL_ATTRIBUTES_NV_CONTROL_SUBSYSTEM) {
         h->nv = NvCtrlInitNvControlAttributes(h);
-
-        /* Give up if it failed and target needs NV-CONTROL */
-        if (!h->nv && TARGET_TYPE_NEEDS_NVCONTROL(target_type)) {
-            goto failed;
-        }
+        if (!h->nv) goto failed;
     }
 
     /*
@@ -200,7 +69,7 @@ NvCtrlAttributeHandle *NvCtrlAttributeInit(CtrlSystem *system,
      * target types.
      */
 
-    if (target_type == X_SCREEN_TARGET) {
+    if (target_type == NV_CTRL_TARGET_TYPE_X_SCREEN) {
 
         /*
          * initialize the XF86VidMode attributes; it is OK if this
@@ -228,15 +97,6 @@ NvCtrlAttributeHandle *NvCtrlAttributeInit(CtrlSystem *system,
         if (subsystems & NV_CTRL_ATTRIBUTES_GLX_SUBSYSTEM) {
             h->glx = NvCtrlInitGlxAttributes(h);
         }
-        
-        /*
-         * initialize the EGL extension and attributes; it is OK if
-         * this fails
-         */
-        
-        if (subsystems & NV_CTRL_ATTRIBUTES_EGL_SUBSYSTEM) {
-            h->egl = NvCtrlInitEglAttributes(h);
-        }
     } /* X Screen target type attribute subsystems */
 
     /*
@@ -247,16 +107,6 @@ NvCtrlAttributeHandle *NvCtrlAttributeInit(CtrlSystem *system,
         h->xrandr = NvCtrlInitXrandrAttributes(h);
     }
 
-    /*
-     * initialize NVML-specific attributes for NVML-related target types.
-     */
-
-    if ((subsystems & NV_CTRL_ATTRIBUTES_NVML_SUBSYSTEM) &&
-        TARGET_TYPE_IS_NVML_COMPATIBLE(target_type)) {
-
-        h->nvml = NvCtrlInitNvmlAttributes(h);
-    }
-
     return (NvCtrlAttributeHandle *) h;
 
  failed:
@@ -265,54 +115,35 @@ NvCtrlAttributeHandle *NvCtrlAttributeInit(CtrlSystem *system,
 
 } /* NvCtrlAttributeInit() */
 
-/*
- * Rebuild specified private subsystem handles
- */
-void NvCtrlRebuildSubsystems(CtrlTarget *ctrl_target, unsigned int subsystem)
-{
-    NvCtrlAttributePrivateHandle *h = getPrivateHandle(ctrl_target);
-
-    if (h == NULL) {
-        return;
-    }
-
-    if (subsystem & NV_CTRL_ATTRIBUTES_XRANDR_SUBSYSTEM) {
-        NvCtrlXrandrAttributesClose(h);
-        h->xrandr = NvCtrlInitXrandrAttributes(h);
-    }
-
-}
-
-
 
 /*
  * NvCtrlGetDisplayName() - return a string of the form:
  * 
  * [host]:[display].[screen]
  *
- * that describes the X screen associated with this CtrlTarget.  This
- * is done by getting the string that describes the display connection,
- * and then substituting the correct screen number.  If no hostname is
- * present in the display string, uname.nodename is prepended.  Returns NULL if
- * any error occurs.
+ * that describes the X screen associated with this
+ * NvCtrlAttributeHandle.  This is done by getting the string that
+ * describes the display connection, and then substituting the correct
+ * screen number.  If no hostname is present in the display string,
+ * uname.nodename is prepended.  Returns NULL if any error occors.
  */
 
-char *NvCtrlGetDisplayName(const CtrlTarget *ctrl_target)
+char *NvCtrlGetDisplayName(NvCtrlAttributeHandle *handle)
 {
-    const NvCtrlAttributePrivateHandle *h = getPrivateHandleConst(ctrl_target);
+    NvCtrlAttributePrivateHandle *h;
     char *display_name;
-
-    if (h == NULL || h->dpy == NULL) {
-        return NULL;
-    }
-
+        
+    if (!handle) return NULL;
+    
+    h = (NvCtrlAttributePrivateHandle *) handle;
+    
     display_name = DisplayString(h->dpy);
 
-    if (h->target_type != X_SCREEN_TARGET) {
+    if (h->target_type != NV_CTRL_TARGET_TYPE_X_SCREEN) {
         /* Return the display name and # without a screen number */
         return nv_standardize_screen_name(display_name, -2);
     }
-
+    
     return nv_standardize_screen_name(display_name, h->target_id);
     
 } /* NvCtrlGetDisplayName() */
@@ -323,13 +154,13 @@ char *NvCtrlGetDisplayName(const CtrlTarget *ctrl_target)
  * this NvCtrlAttributeHandle.
  */
   
-Display *NvCtrlGetDisplayPtr(CtrlTarget *ctrl_target)
+Display *NvCtrlGetDisplayPtr(NvCtrlAttributeHandle *handle)
 {
-    NvCtrlAttributePrivateHandle *h = getPrivateHandle(ctrl_target);
-        
-    if (h == NULL) {
-        return NULL;
-    }
+    NvCtrlAttributePrivateHandle *h;
+
+    if (!handle) return NULL;
+
+    h = (NvCtrlAttributePrivateHandle *) handle;
     
     return h->dpy;
 
@@ -338,16 +169,18 @@ Display *NvCtrlGetDisplayPtr(CtrlTarget *ctrl_target)
 
 /*
  * NvCtrlGetScreen() - returns the screen number associated with this
- * CtrlTarget.
+ * NvCtrlAttributeHandle.
  */
 
-int NvCtrlGetScreen(const CtrlTarget *ctrl_target)
+int NvCtrlGetScreen(NvCtrlAttributeHandle *handle)
 {
-    const NvCtrlAttributePrivateHandle *h = getPrivateHandleConst(ctrl_target);
+    NvCtrlAttributePrivateHandle *h;
 
-    if (h == NULL || h->target_type != X_SCREEN_TARGET) {
-        return -1;
-    }
+    if (!handle) return -1;
+
+    h = (NvCtrlAttributePrivateHandle *) handle;
+
+    if (h->target_type != NV_CTRL_TARGET_TYPE_X_SCREEN) return -1;
     
     return h->target_id;
 
@@ -356,16 +189,16 @@ int NvCtrlGetScreen(const CtrlTarget *ctrl_target)
 
 /*
  * NvCtrlGetTargetType() - returns the target type associated with this
- * CtrlTarget.
+ * NvCtrlAttributeHandle.
  */
 
-int NvCtrlGetTargetType(const CtrlTarget *ctrl_target)
+int NvCtrlGetTargetType(NvCtrlAttributeHandle *handle)
 {
-    const NvCtrlAttributePrivateHandle *h = getPrivateHandleConst(ctrl_target);
+    NvCtrlAttributePrivateHandle *h;
 
-    if (h == NULL) {
-        return -1;
-    }
+    if (!handle) return -1;
+
+    h = (NvCtrlAttributePrivateHandle *) handle;
 
     return h->target_type;
 
@@ -374,16 +207,16 @@ int NvCtrlGetTargetType(const CtrlTarget *ctrl_target)
 
 /*
  * NvCtrlGetTargetId() - returns the target id number associated with this
- * CtrlTarget.
+ * NvCtrlAttributeHandle.
  */
 
-int NvCtrlGetTargetId(const CtrlTarget *ctrl_target)
+int NvCtrlGetTargetId(NvCtrlAttributeHandle *handle)
 {
-    const NvCtrlAttributePrivateHandle *h = getPrivateHandleConst(ctrl_target);
+    NvCtrlAttributePrivateHandle *h;
 
-    if (h == NULL) {
-        return -1;
-    }
+    if (!handle) return -1;
+
+    h = (NvCtrlAttributePrivateHandle *) handle;
 
     return h->target_id;
 
@@ -392,61 +225,87 @@ int NvCtrlGetTargetId(const CtrlTarget *ctrl_target)
 
 /*
  * NvCtrlGetScreenWidth() - return the width of the screen associated
- * with this CtrlTarget.
+ * with this NvCtrlAttributeHandle.
  */
 
-int NvCtrlGetScreenWidth(const CtrlTarget *ctrl_target)
+int NvCtrlGetScreenWidth(NvCtrlAttributeHandle *handle)
 {
-    const NvCtrlAttributePrivateHandle *h = getPrivateHandleConst(ctrl_target);
+    NvCtrlAttributePrivateHandle *h;
 
-    if (h == NULL || h->target_type != X_SCREEN_TARGET) {
-        return -1;
-    }
+    if (!handle) return -1;
 
-    if (h->target_id >= NvCtrlGetScreenCount(ctrl_target)) {
-        return -1;
-    }
+    h = (NvCtrlAttributePrivateHandle *) handle;
+
+    if (h->target_type != NV_CTRL_TARGET_TYPE_X_SCREEN) return -1;
 
     return DisplayWidth(h->dpy, h->target_id);
-
+    
 } /* NvCtrlGetScreenWidth() */
 
 
 /*
  * NvCtrlGetScreenHeight() - return the height of the screen
- * associated with this CtrlTarget.
+ * associated with this NvCtrlAttributeHandle.
  */
 
-int NvCtrlGetScreenHeight(const CtrlTarget *ctrl_target)
+int NvCtrlGetScreenHeight(NvCtrlAttributeHandle *handle)
 {
-    const NvCtrlAttributePrivateHandle *h = getPrivateHandleConst(ctrl_target);
+    NvCtrlAttributePrivateHandle *h;
 
-    if (h == NULL || h->target_type != X_SCREEN_TARGET) {
-        return -1;
-    }
+    if (!handle) return -1;
 
-    if (h->target_id >= NvCtrlGetScreenCount(ctrl_target)) {
-        return -1;
-    }
+    h = (NvCtrlAttributePrivateHandle *) handle;
+
+    if (h->target_type != NV_CTRL_TARGET_TYPE_X_SCREEN) return -1;
 
     return DisplayHeight(h->dpy, h->target_id);
-
+    
 } /* NvCtrlGetScreenHeight() */
+
+
+int NvCtrlGetEventBase(NvCtrlAttributeHandle *handle)
+{
+    NvCtrlAttributePrivateHandle *h;
+
+    if (!handle) return -1;
+
+    h = (NvCtrlAttributePrivateHandle *) handle;
+
+    if (!h->nv) return -1;
+    return (h->nv->event_base);
+    
+} /* NvCtrlGetEventBase() */
+
+
+int NvCtrlGetXrandrEventBase(NvCtrlAttributeHandle *handle)
+{
+    NvCtrlAttributePrivateHandle *h;
+
+    if (!handle) return -1;
+
+    h = (NvCtrlAttributePrivateHandle *) handle;
+
+    if (!h->xrandr) return -1;
+    return (h->xrandr->event_base);
+    
+} /* NvCtrlGetXrandrEventBase() */
 
 
 /*
  * NvCtrlGetServerVendor() - return the server vendor
- * information string associated with this CtrlTarget.
+ * information string associated with this
+ * NvCtrlAttributeHandle.
  */
 
-char *NvCtrlGetServerVendor(const CtrlTarget *ctrl_target)
+char *NvCtrlGetServerVendor(NvCtrlAttributeHandle *handle)
 {
-    const NvCtrlAttributePrivateHandle *h = getPrivateHandleConst(ctrl_target);
+    NvCtrlAttributePrivateHandle *h;
 
-    if (h == NULL || h->dpy == NULL) {
-        return NULL;
-    }
+    if (!handle) return NULL;
 
+    h = (NvCtrlAttributePrivateHandle *) handle;
+
+    if (!h->dpy) return NULL;
     return ServerVendor(h->dpy);
 
 } /* NvCtrlGetServerVendor() */
@@ -454,17 +313,18 @@ char *NvCtrlGetServerVendor(const CtrlTarget *ctrl_target)
 
 /*
  * NvCtrlGetVendorRelease() - return the server vendor
- * release number associated with this CtrlTarget.
+ * release number associated with this NvCtrlAttributeHandle.
  */
 
-int NvCtrlGetVendorRelease(const CtrlTarget *ctrl_target)
+int NvCtrlGetVendorRelease(NvCtrlAttributeHandle *handle)
 {
-    const NvCtrlAttributePrivateHandle *h = getPrivateHandleConst(ctrl_target);
+    NvCtrlAttributePrivateHandle *h;
 
-    if (h == NULL || h->dpy == NULL) {
-        return -1;
-    }
+    if (!handle) return -1;
 
+    h = (NvCtrlAttributePrivateHandle *) handle;
+
+    if (!h->dpy) return -1;
     return VendorRelease(h->dpy);
 
 } /* NvCtrlGetVendorRelease() */
@@ -472,17 +332,18 @@ int NvCtrlGetVendorRelease(const CtrlTarget *ctrl_target)
 
 /*
  * NvCtrlGetScreenCount() - return the number of (logical)
- * X Screens associated with this CtrlTarget.
+ * X Screens associated with this NvCtrlAttributeHandle.
  */
 
-int NvCtrlGetScreenCount(const CtrlTarget *ctrl_target)
+int NvCtrlGetScreenCount(NvCtrlAttributeHandle *handle)
 {
-    const NvCtrlAttributePrivateHandle *h = getPrivateHandleConst(ctrl_target);
+    NvCtrlAttributePrivateHandle *h;
 
-    if (h == NULL || h->dpy == NULL) {
-        return -1;
-    }
+    if (!handle) return -1;
 
+    h = (NvCtrlAttributePrivateHandle *) handle;
+
+    if (!h->dpy) return -1;
     return ScreenCount(h->dpy);
 
 } /* NvCtrlGetScreenCount() */
@@ -493,14 +354,15 @@ int NvCtrlGetScreenCount(const CtrlTarget *ctrl_target)
  * number of the X protocol (server).
  */
 
-int NvCtrlGetProtocolVersion(const CtrlTarget *ctrl_target)
+int NvCtrlGetProtocolVersion(NvCtrlAttributeHandle *handle)
 {
-    const NvCtrlAttributePrivateHandle *h = getPrivateHandleConst(ctrl_target);
+    NvCtrlAttributePrivateHandle *h;
 
-    if (h == NULL || h->dpy == NULL) {
-        return -1;
-    }
+    if (!handle) return -1;
 
+    h = (NvCtrlAttributePrivateHandle *) handle;
+
+    if (!h->dpy) return -1;
     return ProtocolVersion(h->dpy);
 
 } /* NvCtrlGetProtocolVersion() */
@@ -511,14 +373,15 @@ int NvCtrlGetProtocolVersion(const CtrlTarget *ctrl_target)
  * of the X protocol (server).
  */
 
-int NvCtrlGetProtocolRevision(const CtrlTarget *ctrl_target)
+int NvCtrlGetProtocolRevision(NvCtrlAttributeHandle *handle)
 {
-    const NvCtrlAttributePrivateHandle *h = getPrivateHandleConst(ctrl_target);
+    NvCtrlAttributePrivateHandle *h;
 
-    if (h == NULL || h->dpy == NULL) {
-        return -1;
-    }
+    if (!handle) return -1;
 
+    h = (NvCtrlAttributePrivateHandle *) handle;
+
+    if (!h->dpy) return -1;
     return ProtocolRevision(h->dpy);
 
 } /* NvCtrlGetProtocolRevision() */
@@ -526,227 +389,148 @@ int NvCtrlGetProtocolRevision(const CtrlTarget *ctrl_target)
 
 /*
  * NvCtrlGetScreenWidthMM() - return the width (in Millimeters) of the
- * screen associated with this CtrlTarget.
+ * screen associated with this NvCtrlAttributeHandle.
  */
 
-int NvCtrlGetScreenWidthMM(const CtrlTarget *ctrl_target)
+int NvCtrlGetScreenWidthMM(NvCtrlAttributeHandle *handle)
 {
-    const NvCtrlAttributePrivateHandle *h = getPrivateHandleConst(ctrl_target);
+    NvCtrlAttributePrivateHandle *h;
 
-    if (h == NULL || h->target_type != X_SCREEN_TARGET) {
-        return -1;
-    }
+    if (!handle) return -1;
 
-    if (h->target_id >= NvCtrlGetScreenCount(ctrl_target)) {
-        return -1;
-    }
+    h = (NvCtrlAttributePrivateHandle *) handle;
+
+    if (h->target_type != NV_CTRL_TARGET_TYPE_X_SCREEN) return -1;
 
     return DisplayWidthMM(h->dpy, h->target_id);
-
+    
 } /* NvCtrlGetScreenWidthMM() */
 
 
 /*
  * NvCtrlGetScreenHeightMM() - return the height (in Millimeters) of the
- * screen associated with this CtrlTarget.
+ * screen associated with this NvCtrlAttributeHandle.
  */
 
-int NvCtrlGetScreenHeightMM(const CtrlTarget *ctrl_target)
+int NvCtrlGetScreenHeightMM(NvCtrlAttributeHandle *handle)
 {
-    const NvCtrlAttributePrivateHandle *h = getPrivateHandleConst(ctrl_target);
+    NvCtrlAttributePrivateHandle *h;
 
-    if (h == NULL || h->target_type != X_SCREEN_TARGET) {
-        return -1;
-    }
+    if (!handle) return -1;
 
-    if (h->target_id >= NvCtrlGetScreenCount(ctrl_target)) {
-        return -1;
-    }
+    h = (NvCtrlAttributePrivateHandle *) handle;
+
+    if (h->target_type != NV_CTRL_TARGET_TYPE_X_SCREEN) return -1;
 
     return DisplayHeightMM(h->dpy, h->target_id);
-
+    
 } /* NvCtrlGetScreenHeightMM() */
 
 
 /*
  * NvCtrlGetScreenPlanes() - return the number of planes (the depth)
- * of the screen associated with this CtrlTarget.
+ * of the screen associated with this NvCtrlAttributeHandle.
  */
 
-int NvCtrlGetScreenPlanes(const CtrlTarget *ctrl_target)
+int NvCtrlGetScreenPlanes(NvCtrlAttributeHandle *handle)
 {
-    const NvCtrlAttributePrivateHandle *h = getPrivateHandleConst(ctrl_target);
+    NvCtrlAttributePrivateHandle *h;
 
-    if (h == NULL || h->target_type != X_SCREEN_TARGET) {
-        return -1;
-    }
+    if (!handle) return -1;
 
-    if (h->target_id >= NvCtrlGetScreenCount(ctrl_target)) {
-        return -1;
-    }
+    h = (NvCtrlAttributePrivateHandle *) handle;
+
+    if (h->target_type != NV_CTRL_TARGET_TYPE_X_SCREEN) return -1;
 
     return DisplayPlanes(h->dpy, h->target_id);
-
+    
 } /* NvCtrlGetScreenPlanes() */
 
 
 
-ReturnStatus NvCtrlQueryTargetCount(const CtrlTarget *ctrl_target,
-                                    CtrlTargetType target_type,
+ReturnStatus NvCtrlQueryTargetCount(NvCtrlAttributeHandle *handle,
+                                    int target_type,
                                     int *val)
 {
-    const NvCtrlAttributePrivateHandle *h = getPrivateHandleConst(ctrl_target);
-    ReturnStatus ret = NvCtrlMissingExtension;
+    NvCtrlAttributePrivateHandle *h;
 
-    if (h == NULL) {
-        return NvCtrlBadHandle;
-    }
+    h = (NvCtrlAttributePrivateHandle *) handle;
+    if (!h) return NvCtrlBadArgument;
+    return NvCtrlNvControlQueryTargetCount(handle, target_type, val);
 
-    switch (target_type) {
-        case GPU_TARGET:
-        case THERMAL_SENSOR_TARGET:
-        case COOLER_TARGET:
-            {
-                ret = NvCtrlNvmlQueryTargetCount(ctrl_target,
-                                                 target_type,
-                                                 val);
-                if ((ret != NvCtrlMissingExtension) &&
-                    (ret != NvCtrlBadHandle) &&
-                    (ret != NvCtrlNotSupported)) {
-                    return ret;
-                }
-            }
-            /* Fall through */
-        case DISPLAY_TARGET:
-        case X_SCREEN_TARGET:
-        case FRAMELOCK_TARGET:
-        case NVIDIA_3D_VISION_PRO_TRANSCEIVER_TARGET:
-        case MUX_TARGET:
-            if (!h->nv) {
-                /*
-                 * If there is no connection to the X Driver, return the
-                 * non-success value from the NVML query, if available.
-                 */
-                return ret;
-            }
-            return NvCtrlNvControlQueryTargetCount(h, target_type, val);
-        default:
-            return NvCtrlBadHandle;
-    }
 } /* NvCtrlQueryTargetCount() */
 
-ReturnStatus NvCtrlGetAttribute(const CtrlTarget *ctrl_target,
+ReturnStatus NvCtrlGetAttribute(NvCtrlAttributeHandle *handle,
                                 int attr, int *val)
 {
-    return NvCtrlGetDisplayAttribute(ctrl_target, 0, attr, val);
+    if (!handle) return NvCtrlBadArgument;
+    return NvCtrlGetDisplayAttribute(handle, 0, attr, val);
     
 } /* NvCtrlGetAttribute() */
 
 
-ReturnStatus NvCtrlSetAttribute(CtrlTarget *ctrl_target,
+ReturnStatus NvCtrlSetAttribute(NvCtrlAttributeHandle *handle,
                                 int attr, int val)
 {
-    return NvCtrlSetDisplayAttribute(ctrl_target, 0, attr, val);
+    if (!handle) return NvCtrlBadArgument;
+    return NvCtrlSetDisplayAttribute(handle, 0, attr, val);
 
 } /* NvCtrlSetAttribute() */
 
 
-ReturnStatus NvCtrlGetAttribute64(const CtrlTarget *ctrl_target,
+ReturnStatus NvCtrlGetAttribute64(NvCtrlAttributeHandle *handle,
                                   int attr, int64_t *val)
 {
-    return NvCtrlGetDisplayAttribute64(ctrl_target, 0, attr, val);
+    if (!handle) return NvCtrlBadArgument;
+    return NvCtrlGetDisplayAttribute64(handle, 0, attr, val);
 
 } /* NvCtrlGetAttribute64() */
 
 
-ReturnStatus NvCtrlGetVoidAttribute(const CtrlTarget *ctrl_target,
+ReturnStatus NvCtrlGetVoidAttribute(NvCtrlAttributeHandle *handle,
                                     int attr, void **ptr)
 {
-    return NvCtrlGetVoidDisplayAttribute(ctrl_target, 0, attr, ptr);
+    if (!handle) return NvCtrlBadArgument;
+    return NvCtrlGetVoidDisplayAttribute(handle, 0, attr, ptr);
     
 } /* NvCtrlGetVoidAttribute() */
 
 
-ReturnStatus NvCtrlGetValidAttributeValues(const CtrlTarget *ctrl_target,
+ReturnStatus NvCtrlGetValidAttributeValues(NvCtrlAttributeHandle *handle,
                                            int attr,
-                                           CtrlAttributeValidValues *val)
+                                           NVCTRLAttributeValidValuesRec *val)
 {
-    return NvCtrlGetValidDisplayAttributeValues(ctrl_target, 0, attr, val);
+    if (!handle) return NvCtrlBadArgument;
+    return NvCtrlGetValidDisplayAttributeValues(handle, 0, attr, val);
     
 } /* NvCtrlGetValidAttributeValues() */
 
 
-ReturnStatus NvCtrlGetAttributePerms(const CtrlTarget *ctrl_target,
-                                     CtrlAttributeType attr_type,
-                                     int attr,
-                                     CtrlAttributePerms *perms)
-{
-    const NvCtrlAttributePrivateHandle *h = getPrivateHandleConst(ctrl_target);
-    ReturnStatus ret = NvCtrlError;
-
-    if (h == NULL) {
-        return NvCtrlBadHandle;
-    }
-
-    if (perms == NULL) {
-        return NvCtrlBadArgument;
-    }
-
-    switch (attr_type) {
-        case CTRL_ATTRIBUTE_TYPE_INTEGER:
-        case CTRL_ATTRIBUTE_TYPE_STRING:
-        case CTRL_ATTRIBUTE_TYPE_BINARY_DATA:
-        case CTRL_ATTRIBUTE_TYPE_STRING_OPERATION:
-
-            ret = NvCtrlNvmlGetAttributePerms(h, attr_type, attr, perms);
-
-            if (ret == NvCtrlSuccess || h->dpy == NULL) {
-                return ret;
-            }
-            return NvCtrlNvControlGetAttributePerms(h, attr_type, attr, perms);
-
-        case CTRL_ATTRIBUTE_TYPE_COLOR:
-            /*
-             * Allow non NV-CONTROL attributes to be read/written on X screen
-             * targets
-             */
-            perms->read = NV_TRUE;
-            perms->write = NV_TRUE;
-            perms->valid_targets = CTRL_TARGET_PERM_BIT(X_SCREEN_TARGET);
-            return NvCtrlSuccess;
-
-        default:
-            return NvCtrlBadArgument;
-    }
-}
-
-
-
-ReturnStatus NvCtrlGetStringAttribute(const CtrlTarget *ctrl_target,
+ReturnStatus NvCtrlGetStringAttribute(NvCtrlAttributeHandle *handle,
                                       int attr, char **ptr)
 {
-    return NvCtrlGetStringDisplayAttribute(ctrl_target, 0, attr, ptr);
+    if (!handle) return NvCtrlBadArgument;
+    return NvCtrlGetStringDisplayAttribute(handle, 0, attr, ptr);
 
 } /* NvCtrlGetStringAttribute() */
 
 
-ReturnStatus NvCtrlSetStringAttribute(CtrlTarget *ctrl_target,
-                                      int attr, const char *ptr)
+ReturnStatus NvCtrlSetStringAttribute(NvCtrlAttributeHandle *handle,
+                                      int attr, char *ptr, int *ret)
 {
-    return NvCtrlSetStringDisplayAttribute(ctrl_target, 0, attr, ptr);
+    if (!handle) return NvCtrlBadArgument;
+    return NvCtrlSetStringDisplayAttribute(handle, 0, attr, ptr, ret);
 
 } /* NvCtrlSetStringAttribute() */
 
 
-ReturnStatus NvCtrlGetDisplayAttribute64(const CtrlTarget *ctrl_target,
-                                         unsigned int display_mask,
-                                         int attr, int64_t *val)
+ReturnStatus
+NvCtrlGetDisplayAttribute64(NvCtrlAttributeHandle *handle,
+                            unsigned int display_mask, int attr, int64_t *val)
 {
-    const NvCtrlAttributePrivateHandle *h = getPrivateHandleConst(ctrl_target);
+    NvCtrlAttributePrivateHandle *h;
 
-    if (h == NULL) {
-        return NvCtrlBadHandle;
-    }
+    h = (NvCtrlAttributePrivateHandle *) handle;
 
     if ((attr >= NV_CTRL_ATTR_EXT_BASE) &&
         (attr <= NV_CTRL_ATTR_EXT_LAST_ATTRIBUTE)) {
@@ -775,133 +559,78 @@ ReturnStatus NvCtrlGetDisplayAttribute64(const CtrlTarget *ctrl_target,
     if (((attr >= 0) && (attr <= NV_CTRL_LAST_ATTRIBUTE)) ||
         ((attr >= NV_CTRL_ATTR_NV_BASE) &&
          (attr <= NV_CTRL_ATTR_NV_LAST_ATTRIBUTE))) {
-        ReturnStatus ret = NvCtrlMissingExtension;
-
-        switch (h->target_type) {
-            case GPU_TARGET:
-            case THERMAL_SENSOR_TARGET:
-            case COOLER_TARGET:
-                {
-                    ret = NvCtrlNvmlGetAttribute(ctrl_target,
-                                                 attr,
-                                                 val);
-                    if (ret == NvCtrlSuccess) {
-                        return ret;
-                    }
-                }
-                /* Fall through */
-            case DISPLAY_TARGET:
-            case X_SCREEN_TARGET:
-            case FRAMELOCK_TARGET:
-            case NVIDIA_3D_VISION_PRO_TRANSCEIVER_TARGET:
-            case MUX_TARGET:
-                if (!h->nv) {
-                    /*
-                     * If there is no connection to the X Driver, return the
-                     * non-success value from the NVML query, if available.
-                     */
-                    return ret;
-                }
-                return NvCtrlNvControlGetAttribute(h, display_mask, attr, val);
-            default:
-                return NvCtrlBadHandle;
-        }
+        if (!h->nv) return NvCtrlMissingExtension;
+        return NvCtrlNvControlGetAttribute(h, display_mask, attr, val);
     }
 
     return NvCtrlNoAttribute;
     
 } /* NvCtrlGetDisplayAttribute64() */
 
-ReturnStatus NvCtrlGetDisplayAttribute(const CtrlTarget *ctrl_target,
-                                       unsigned int display_mask,
-                                       int attr, int *val)
+ReturnStatus
+NvCtrlGetDisplayAttribute(NvCtrlAttributeHandle *handle,
+                          unsigned int display_mask, int attr, int *val)
 {
     ReturnStatus status;
     int64_t value_64;
 
-    status = NvCtrlGetDisplayAttribute64(ctrl_target, display_mask, attr,
-                                         &value_64);
-    if (status == NvCtrlSuccess) {
-        *val = value_64;
-    }
+    status = NvCtrlGetDisplayAttribute64(handle, display_mask, attr, &value_64);
+    *val = value_64;
 
     return status;
 
 } /* NvCtrlGetDisplayAttribute() */
 
 
-ReturnStatus NvCtrlSetDisplayAttribute(CtrlTarget *ctrl_target,
-                                       unsigned int display_mask,
-                                       int attr, int val)
+ReturnStatus
+NvCtrlSetDisplayAttribute(NvCtrlAttributeHandle *handle,
+                          unsigned int display_mask, int attr, int val)
 {
-    NvCtrlAttributePrivateHandle *h = getPrivateHandle(ctrl_target);
-    ReturnStatus ret = NvCtrlMissingExtension;
+    NvCtrlAttributePrivateHandle *h;
 
-    if (h == NULL) {
-        return NvCtrlBadHandle;
-    }
-
+    h = (NvCtrlAttributePrivateHandle *) handle;
+    
     if ((attr >= 0) && (attr <= NV_CTRL_LAST_ATTRIBUTE)) {
-        switch (h->target_type) {
-            case GPU_TARGET:
-            case THERMAL_SENSOR_TARGET:
-            case COOLER_TARGET:
-                {
-                    ret = NvCtrlNvmlSetAttribute(ctrl_target,
-                                                 attr,
-                                                 display_mask,
-                                                 val);
-                    if ((ret != NvCtrlMissingExtension) &&
-                        (ret != NvCtrlBadHandle) &&
-                        (ret != NvCtrlNotSupported)) {
-                        return ret;
-                    }
-                }
-                /* Fall through */
-            case DISPLAY_TARGET:
-            case X_SCREEN_TARGET:
-            case FRAMELOCK_TARGET:
-            case NVIDIA_3D_VISION_PRO_TRANSCEIVER_TARGET:
-            case MUX_TARGET:
-                if (!h->nv) {
-                    /*
-                     * If there is no connection to the X Driver, return the
-                     * non-success value from the NVML query, if available.
-                     */
-                    return ret;
-                }
-                return NvCtrlNvControlSetAttribute(h, display_mask, attr, val);
-            default:
-                return NvCtrlBadHandle;
-        }
+        if (!h->nv) return NvCtrlMissingExtension;
+        return NvCtrlNvControlSetAttribute(h, display_mask, attr, val);
     }
 
+    return NvCtrlNoAttribute;
+
+} /* NvCtrlSetDisplayAttribute() */
+
+
+ReturnStatus
+NvCtrlSetDisplayAttributeWithReply(NvCtrlAttributeHandle *handle,
+                                   unsigned int display_mask,
+                                   int attr, int val)
+{
+    NvCtrlAttributePrivateHandle *h;
+    
+    h = (NvCtrlAttributePrivateHandle *) handle;
+    
+    if ((attr >= 0) && (attr <= NV_CTRL_LAST_ATTRIBUTE)) {
+        if (!h->nv) return NvCtrlMissingExtension;
+        return NvCtrlNvControlSetAttributeWithReply(h, display_mask,
+                                                    attr, val);
+    }
+    
     return NvCtrlNoAttribute;
 }
 
 
-ReturnStatus NvCtrlGetVoidDisplayAttribute(const CtrlTarget *ctrl_target,
-                                           unsigned int display_mask,
-                                           int attr, void **ptr)
+ReturnStatus
+NvCtrlGetVoidDisplayAttribute(NvCtrlAttributeHandle *handle,
+                              unsigned int display_mask, int attr, void **ptr)
 {
-    const NvCtrlAttributePrivateHandle *h = getPrivateHandleConst(ctrl_target);
+    NvCtrlAttributePrivateHandle *h;
 
-    if (h == NULL) {
-        return NvCtrlBadHandle;
-    }
+    h = (NvCtrlAttributePrivateHandle *) handle;
 
     if ( attr >= NV_CTRL_ATTR_GLX_BASE &&
-         attr <= NV_CTRL_ATTR_GLX_LAST_ATTRIBUTE ) {
+         attr >= NV_CTRL_ATTR_GLX_LAST_ATTRIBUTE ) {
         if ( !(h->glx) ) return NvCtrlMissingExtension;
         return NvCtrlGlxGetVoidAttribute(h, display_mask, attr, ptr);
-    }
-
-    if ( attr >= NV_CTRL_ATTR_EGL_BASE &&
-         attr <= NV_CTRL_ATTR_EGL_LAST_ATTRIBUTE ) {
-        if (!(h->egl)) {
-            return NvCtrlMissingExtension;
-        }
-        return NvCtrlEglGetVoidAttribute(h, display_mask, attr, ptr);
     }
 
     return NvCtrlNoAttribute;
@@ -910,48 +639,18 @@ ReturnStatus NvCtrlGetVoidDisplayAttribute(const CtrlTarget *ctrl_target,
 
 
 ReturnStatus
-NvCtrlGetValidDisplayAttributeValues(const CtrlTarget *ctrl_target,
+NvCtrlGetValidDisplayAttributeValues(NvCtrlAttributeHandle *handle,
                                      unsigned int display_mask, int attr,
-                                     CtrlAttributeValidValues *val)
+                                     NVCTRLAttributeValidValuesRec *val)
 {
-    const NvCtrlAttributePrivateHandle *h = getPrivateHandleConst(ctrl_target);
-    ReturnStatus ret = NvCtrlMissingExtension;
-
-    if (h == NULL) {
-        return NvCtrlBadHandle;
-    }
+    NvCtrlAttributePrivateHandle *h;
+    
+    h = (NvCtrlAttributePrivateHandle *) handle;
     
     if ((attr >= 0) && (attr <= NV_CTRL_LAST_ATTRIBUTE)) {
-        switch (h->target_type) {
-            case GPU_TARGET:
-            case THERMAL_SENSOR_TARGET:
-            case COOLER_TARGET:
-                {
-                    ret = NvCtrlNvmlGetValidAttributeValues(ctrl_target,
-                                                            attr,
-                                                            val);
-                    if (ret == NvCtrlSuccess) {
-                        return ret;
-                    }
-                }
-                /* Fall through */
-            case DISPLAY_TARGET:
-            case X_SCREEN_TARGET:
-            case FRAMELOCK_TARGET:
-            case NVIDIA_3D_VISION_PRO_TRANSCEIVER_TARGET:
-            case MUX_TARGET:
-                if (!h->nv) {
-                    /*
-                     * If there is no connection to the X Driver, return the
-                     * non-success value from the NVML query, if available.
-                     */
-                    return ret;
-                }
-                return NvCtrlNvControlGetValidAttributeValues(h, display_mask,
-                                                              attr, val);
-            default:
-                return NvCtrlBadHandle;
-        }
+        if (!h->nv) return NvCtrlMissingExtension;
+        return NvCtrlNvControlGetValidAttributeValues(h, display_mask,
+                                                      attr, val);
     }
 
     return NvCtrlNoAttribute;
@@ -961,18 +660,18 @@ NvCtrlGetValidDisplayAttributeValues(const CtrlTarget *ctrl_target,
 
 /*
  * GetValidStringDisplayAttributeValuesExtraAttr() -fill the
- * CtrlAttributeValidValues strucure for extra string attributes i.e.
+ * NVCTRLAttributeValidValuesRec strucure for extra string atrributes i.e.
  * NvCtrlNvControl*, NvCtrlGlx*, NvCtrlXrandr*, NvCtrlVidMode*, or NvCtrlXv*.
  */
 
 static ReturnStatus
-GetValidStringDisplayAttributeValuesExtraAttr(CtrlAttributeValidValues *val)
+GetValidStringDisplayAttributeValuesExtraAttr(NVCTRLAttributeValidValuesRec
+                                                    *val)
 {
     if (val) {
-        memset(val, 0, sizeof(*val));
-        val->valid_type = CTRL_ATTRIBUTE_VALID_TYPE_STRING;
-        val->permissions.read = NV_TRUE;
-        val->permissions.valid_targets = CTRL_TARGET_PERM_BIT(X_SCREEN_TARGET);
+        memset(val, 0, sizeof(NVCTRLAttributeValidValuesRec));
+        val->type = ATTRIBUTE_TYPE_STRING;
+        val->permissions = ATTRIBUTE_TYPE_READ | ATTRIBUTE_TYPE_X_SCREEN;
         return NvCtrlSuccess;
     } else {
         return NvCtrlBadArgument;
@@ -982,52 +681,22 @@ GetValidStringDisplayAttributeValuesExtraAttr(CtrlAttributeValidValues *val)
 
 /*
  * NvCtrlGetValidStringDisplayAttributeValues() -fill the
- * CtrlAttributeValidValues structure for String attributes
+ * NVCTRLAttributeValidValuesRec strucure for String atrributes
  */
 
 ReturnStatus
-NvCtrlGetValidStringDisplayAttributeValues(const CtrlTarget *ctrl_target,
+NvCtrlGetValidStringDisplayAttributeValues(NvCtrlAttributeHandle *handle,
                                            unsigned int display_mask, int attr,
-                                           CtrlAttributeValidValues *val)
+                                           NVCTRLAttributeValidValuesRec *val)
 {
-    const NvCtrlAttributePrivateHandle *h = getPrivateHandleConst(ctrl_target);
-    ReturnStatus ret = NvCtrlMissingExtension;
-
-    if (h == NULL) {
-        return NvCtrlBadHandle;
-    }
+    NvCtrlAttributePrivateHandle *h;
+    h = (NvCtrlAttributePrivateHandle *) handle;
 
     if ((attr >= 0) && (attr <= NV_CTRL_STRING_LAST_ATTRIBUTE)) {
-        switch (h->target_type) {
-            case GPU_TARGET:
-            case THERMAL_SENSOR_TARGET:
-            case COOLER_TARGET:
-                {
-                    ret = NvCtrlNvmlGetValidStringAttributeValues(ctrl_target,
-                                                                  attr,
-                                                                  val);
-                    if (ret == NvCtrlSuccess) {
-                        return ret;
-                    }
-                }
-                /* Fall through */
-            case DISPLAY_TARGET:
-            case X_SCREEN_TARGET:
-            case FRAMELOCK_TARGET:
-            case NVIDIA_3D_VISION_PRO_TRANSCEIVER_TARGET:
-            case MUX_TARGET:
-                if (!h->nv) {
-                    /*
-                     * If there is no connection to the X Driver, return the
-                     * non-success value from the NVML query, if available.
-                     */
-                    return ret;
-                }
-                return NvCtrlNvControlGetValidStringDisplayAttributeValues(
-                           h, display_mask, attr, val);
-            default:
-                return NvCtrlBadHandle;
-        }
+        if (!h->nv) return NvCtrlMissingExtension;
+        return NvCtrlNvControlGetValidStringDisplayAttributeValues(h,
+                                                                   display_mask,
+                                                                   attr, val);
     }
 
     /*
@@ -1035,7 +704,7 @@ NvCtrlGetValidStringDisplayAttributeValues(const CtrlTarget *ctrl_target,
      * types
      */
 
-    if (h->target_type != X_SCREEN_TARGET) {
+    if (h->target_type != NV_CTRL_TARGET_TYPE_X_SCREEN) {
         return NvCtrlAttributeNotAvailable;
     }
     
@@ -1074,185 +743,98 @@ NvCtrlGetValidStringDisplayAttributeValues(const CtrlTarget *ctrl_target,
 } /* NvCtrlGetValidStringDisplayAttributeValues() */
 
 
-ReturnStatus NvCtrlGetStringDisplayAttribute(const CtrlTarget *ctrl_target,
-                                             unsigned int display_mask,
-                                             int attr, char **ptr)
+ReturnStatus
+NvCtrlGetStringDisplayAttribute(NvCtrlAttributeHandle *handle,
+                                unsigned int display_mask,
+                                int attr, char **ptr)
 {
-    const NvCtrlAttributePrivateHandle *h = getPrivateHandleConst(ctrl_target);
+    NvCtrlAttributePrivateHandle *h;
 
-    if (h == NULL) {
-        return NvCtrlBadHandle;
+    h = (NvCtrlAttributePrivateHandle *) handle;
+
+    if ((attr >= 0) && (attr <= NV_CTRL_STRING_LAST_ATTRIBUTE)) {
+        if (!h->nv) return NvCtrlMissingExtension;
+        return NvCtrlNvControlGetStringAttribute(h, display_mask, attr, ptr);
     }
 
-    switch (h->target_type) {
-        case GPU_TARGET:
-        case THERMAL_SENSOR_TARGET:
-        case COOLER_TARGET:
-            {
-                ReturnStatus ret = NvCtrlNvmlGetStringAttribute(ctrl_target,
-                                                                attr,
-                                                                ptr);
-                if ((ret != NvCtrlMissingExtension) &&
-                    (ret != NvCtrlBadHandle) &&
-                    (ret != NvCtrlNotSupported)) {
-                    return ret;
-                }
-            }
-            /* Fall through */
-        case DISPLAY_TARGET:
-        case X_SCREEN_TARGET:
-        case FRAMELOCK_TARGET:
-        case NVIDIA_3D_VISION_PRO_TRANSCEIVER_TARGET:
-        case MUX_TARGET:
-            if ((attr >= 0) && (attr <= NV_CTRL_STRING_LAST_ATTRIBUTE)) {
-                if (!h->nv) return NvCtrlMissingExtension;
-                return NvCtrlNvControlGetStringAttribute(h, display_mask, attr, ptr);
-            }
-
-            if ((attr >= NV_CTRL_STRING_NV_CONTROL_BASE) &&
-                (attr <= NV_CTRL_STRING_NV_CONTROL_LAST_ATTRIBUTE)) {
-                if (!h->nv) return NvCtrlMissingExtension;
-                return NvCtrlNvControlGetStringAttribute(h, display_mask, attr, ptr);
-            }
-
-            if ((attr >= NV_CTRL_STRING_GLX_BASE) &&
-                (attr <= NV_CTRL_STRING_GLX_LAST_ATTRIBUTE)) {
-                if (!h->glx) return NvCtrlMissingExtension;
-                return NvCtrlGlxGetStringAttribute(h, display_mask, attr, ptr);
-            }
-
-            if ((attr >= NV_CTRL_STRING_EGL_BASE) &&
-                (attr <= NV_CTRL_STRING_EGL_LAST_ATTRIBUTE)) {
-                if (!h->egl) return NvCtrlMissingExtension;
-                return NvCtrlEglGetStringAttribute(h, display_mask, attr, ptr);
-            }
-
-            if ((attr >= NV_CTRL_STRING_XRANDR_BASE) &&
-                (attr <= NV_CTRL_STRING_XRANDR_LAST_ATTRIBUTE)) {
-                if (!h->xrandr) return NvCtrlMissingExtension;
-                return NvCtrlXrandrGetStringAttribute(h, display_mask, attr, ptr);
-            }
-
-            if ((attr >= NV_CTRL_STRING_XF86VIDMODE_BASE) &&
-                (attr <= NV_CTRL_STRING_XF86VIDMODE_LAST_ATTRIBUTE)) {
-                if (!h->vm) return NvCtrlMissingExtension;
-                return NvCtrlVidModeGetStringAttribute(h, display_mask, attr, ptr);
-            }
-
-            if ((attr >= NV_CTRL_STRING_XV_BASE) &&
-                (attr <= NV_CTRL_STRING_XV_LAST_ATTRIBUTE)) {
-                if (!h->xv) return NvCtrlMissingExtension;
-                return NvCtrlXvGetStringAttribute(h, display_mask, attr, ptr);
-            }
-
-            return NvCtrlNoAttribute;
-
-        default:
-            return NvCtrlBadHandle;
+    if ((attr >= NV_CTRL_STRING_NV_CONTROL_BASE) &&
+        (attr <= NV_CTRL_STRING_NV_CONTROL_LAST_ATTRIBUTE)) {
+        if (!h->nv) return NvCtrlMissingExtension;
+        return NvCtrlNvControlGetStringAttribute(h, display_mask, attr, ptr);
     }
+
+    if ((attr >= NV_CTRL_STRING_GLX_BASE) &&
+        (attr <= NV_CTRL_STRING_GLX_LAST_ATTRIBUTE)) {
+        if (!h->glx) return NvCtrlMissingExtension;
+        return NvCtrlGlxGetStringAttribute(h, display_mask, attr, ptr);
+    }
+
+    if ((attr >= NV_CTRL_STRING_XRANDR_BASE) &&
+        (attr <= NV_CTRL_STRING_XRANDR_LAST_ATTRIBUTE)) {
+        if (!h->xrandr) return NvCtrlMissingExtension;
+        return NvCtrlXrandrGetStringAttribute(h, display_mask, attr, ptr);
+    }
+
+    if ((attr >= NV_CTRL_STRING_XF86VIDMODE_BASE) &&
+        (attr <= NV_CTRL_STRING_XF86VIDMODE_LAST_ATTRIBUTE)) {
+        if (!h->vm) return NvCtrlMissingExtension;
+        return NvCtrlVidModeGetStringAttribute(h, display_mask, attr, ptr);
+    }
+
+    if ((attr >= NV_CTRL_STRING_XV_BASE) &&
+        (attr <= NV_CTRL_STRING_XV_LAST_ATTRIBUTE)) {
+        if (!h->xv) return NvCtrlMissingExtension;
+        return NvCtrlXvGetStringAttribute(h, display_mask, attr, ptr);
+    }
+
+    return NvCtrlNoAttribute;
 
 } /* NvCtrlGetStringDisplayAttribute() */
 
 
-ReturnStatus NvCtrlSetStringDisplayAttribute(CtrlTarget *ctrl_target,
-                                             unsigned int display_mask,
-                                             int attr, const char *ptr)
+ReturnStatus
+NvCtrlSetStringDisplayAttribute(NvCtrlAttributeHandle *handle,
+                                unsigned int display_mask,
+                                int attr, char *ptr, int *ret)
 {
-    NvCtrlAttributePrivateHandle *h = getPrivateHandle(ctrl_target);
+    NvCtrlAttributePrivateHandle *h;
 
-    if (h == NULL) {
-        return NvCtrlBadHandle;
-    }
+    h = (NvCtrlAttributePrivateHandle *) handle;
 
     if ((attr >= 0) && (attr <= NV_CTRL_STRING_LAST_ATTRIBUTE)) {
-        switch (h->target_type) {
-            case GPU_TARGET:
-            case THERMAL_SENSOR_TARGET:
-            case COOLER_TARGET:
-                {
-                    ReturnStatus ret = NvCtrlNvmlSetStringAttribute(ctrl_target,
-                                                                    attr,
-                                                                    ptr);
-                    if ((ret != NvCtrlMissingExtension) &&
-                        (ret != NvCtrlBadHandle) &&
-                        (ret != NvCtrlNotSupported)) {
-                        return ret;
-                    }
-                }
-                /* Fall through */
-            case DISPLAY_TARGET:
-            case X_SCREEN_TARGET:
-            case FRAMELOCK_TARGET:
-            case NVIDIA_3D_VISION_PRO_TRANSCEIVER_TARGET:
-            case MUX_TARGET:
-                if (!h->nv) return NvCtrlMissingExtension;
-                return NvCtrlNvControlSetStringAttribute(h, display_mask, attr,
-                                                         ptr);
-            default:
-                return NvCtrlBadHandle;
-        }
+        if (!h->nv) return NvCtrlMissingExtension;
+        return NvCtrlNvControlSetStringAttribute(h, display_mask, attr,
+                                                 ptr, ret);
     }
 
     return NvCtrlNoAttribute;
-}
+
+} /* NvCtrlSetStringDisplayAttribute() */
 
 
-ReturnStatus NvCtrlGetBinaryAttribute(const CtrlTarget *ctrl_target,
-                                      unsigned int display_mask, int attr,
-                                      unsigned char **data, int *len)
+ReturnStatus
+NvCtrlGetBinaryAttribute(NvCtrlAttributeHandle *handle,
+                         unsigned int display_mask, int attr,
+                         unsigned char **data, int *len)
 {
-    const NvCtrlAttributePrivateHandle *h = getPrivateHandleConst(ctrl_target);
-    ReturnStatus ret = NvCtrlMissingExtension;
+    NvCtrlAttributePrivateHandle *h;
+    
+    h = (NvCtrlAttributePrivateHandle *) handle;
 
-    if (h == NULL) {
-        return NvCtrlBadHandle;
-    }
-
-    switch (h->target_type) {
-        case GPU_TARGET:
-        case THERMAL_SENSOR_TARGET:
-        case COOLER_TARGET:
-            {
-                ret = NvCtrlNvmlGetBinaryAttribute(ctrl_target,
-                                                   attr,
-                                                   data,
-                                                   len);
-                if ((ret != NvCtrlMissingExtension) &&
-                    (ret != NvCtrlBadHandle) &&
-                    (ret != NvCtrlNotSupported)) {
-                    return ret;
-                }
-            }
-            /* Fall through */
-        case DISPLAY_TARGET:
-        case X_SCREEN_TARGET:
-        case FRAMELOCK_TARGET:
-        case NVIDIA_3D_VISION_PRO_TRANSCEIVER_TARGET:
-            if (!h->nv) {
-                /*
-                 * If there is no connection to the X Driver, return the
-                 * non-success value from the NVML query, if available.
-                 */
-                return ret;
-            }
-            return NvCtrlNvControlGetBinaryAttribute(h, display_mask, attr, data, len);
-        default:
-            return NvCtrlBadHandle;
-    }
+    return NvCtrlNvControlGetBinaryAttribute(h, display_mask, attr, data, len);
 
 } /* NvCtrlGetBinaryAttribute() */
 
 
-ReturnStatus NvCtrlStringOperation(CtrlTarget *ctrl_target,
-                                   unsigned int display_mask, int attr,
-                                   const char *ptrIn, char **ptrOut)
+ReturnStatus
+NvCtrlStringOperation(NvCtrlAttributeHandle *handle,
+                      unsigned int display_mask, int attr,
+                      char *ptrIn, char **ptrOut)
 {
-    NvCtrlAttributePrivateHandle *h = getPrivateHandle(ctrl_target);
-
-    if (h == NULL) {
-        return NvCtrlBadHandle;
-    }
-
+    NvCtrlAttributePrivateHandle *h;
+    
+    h = (NvCtrlAttributePrivateHandle *) handle;
+    
     if ((attr >= 0) && (attr <= NV_CTRL_STRING_OPERATION_LAST_ATTRIBUTE)) {
         if (!h->nv) return NvCtrlMissingExtension;
         return NvCtrlNvControlStringOperation(h, display_mask, attr, ptrIn,
@@ -1260,7 +842,8 @@ ReturnStatus NvCtrlStringOperation(CtrlTarget *ctrl_target,
     }
 
     return NvCtrlNoAttribute;
-}
+
+} /* NvCtrlStringOperation() */
 
 
 char *NvCtrlAttributesStrError(ReturnStatus status)
@@ -1282,8 +865,6 @@ char *NvCtrlAttributesStrError(ReturnStatus status)
           return "Write only attribute"; break;
       case NvCtrlAttributeNotAvailable:
           return "Attribute not available"; break;
-      case NvCtrlNotSupported:
-          return "Operation not supported"; break;
       case NvCtrlError: /* fall through to default */
       default:
         return "Unknown Error"; break;
@@ -1293,11 +874,11 @@ char *NvCtrlAttributesStrError(ReturnStatus status)
 
 void NvCtrlAttributeClose(NvCtrlAttributeHandle *handle)
 {
-    NvCtrlAttributePrivateHandle *h = (NvCtrlAttributePrivateHandle *)handle;
+    NvCtrlAttributePrivateHandle *h;
     
-    if (h == NULL) {
-        return;
-    }
+    if (!handle) return;
+    
+    h = (NvCtrlAttributePrivateHandle *) handle;
 
     /*
      * XXX should free any additional resources allocated by each
@@ -1307,17 +888,11 @@ void NvCtrlAttributeClose(NvCtrlAttributeHandle *handle)
     if ( h->glx ) {
         NvCtrlGlxAttributesClose(h);   
     }
-    if ( h->egl ) {
-        NvCtrlEglAttributesClose(h);
-    }
     if ( h->xrandr ) {
         NvCtrlXrandrAttributesClose(h);   
     }
     if ( h->xv ) {
         NvCtrlXvAttributesClose(h);
-    }
-    if ( h->nvml ) {
-        NvCtrlNvmlAttributesClose(h);
     }
 
     free(h);
@@ -1325,7 +900,7 @@ void NvCtrlAttributeClose(NvCtrlAttributeHandle *handle)
 
 
 /*
- * NvCtrlGetMultisampleModeName() - lookup a string describing the
+ * NvCtrlGetMultisampleModeName() - lookup a string desribing the
  * NV-CONTROL constant.
 */
 
@@ -1360,78 +935,24 @@ const char *NvCtrlGetMultisampleModeName(int multisample_mode)
 
 } /* NvCtrlGetMultisampleModeName  */
 
-/*
- * NvCtrlGetStereoModeNameIfExists() - lookup string describing the STEREO
- * Mode. If is doesn't exist, return NULL.
- */
 
-const char *NvCtrlGetStereoModeNameIfExists(int stereo_mode)
-{
-    static const char *stereo_modes[] = {
-        [NV_CTRL_STEREO_OFF]                          = "Disabled",
-        [NV_CTRL_STEREO_DDC]                          = "DDC",
-        [NV_CTRL_STEREO_BLUELINE]                     = "Blueline",
-        [NV_CTRL_STEREO_DIN]                          = "Onboard DIN",
-        [NV_CTRL_STEREO_PASSIVE_EYE_PER_DPY]          = "Passive One-Eye-per-Display",
-        [NV_CTRL_STEREO_VERTICAL_INTERLACED]          = "Vertical Interlaced",
-        [NV_CTRL_STEREO_COLOR_INTERLACED]             = "Color Interleaved",
-        [NV_CTRL_STEREO_HORIZONTAL_INTERLACED]        = "Horizontal Interlaced",
-        [NV_CTRL_STEREO_CHECKERBOARD_PATTERN]         = "Checkerboard Pattern",
-        [NV_CTRL_STEREO_INVERSE_CHECKERBOARD_PATTERN] = "Inverse Checkerboard",
-        [NV_CTRL_STEREO_3D_VISION]                    = "NVIDIA 3D Vision",
-        [NV_CTRL_STEREO_3D_VISION_PRO]                = "NVIDIA 3D Vision Pro",
-        [NV_CTRL_STEREO_HDMI_3D]                      = "HDMI 3D",
-        [NV_CTRL_STEREO_INBAND_STEREO_SIGNALING]      = "Generic Active Stereo (in-band DP)",
-    };
-
-
-    if ((stereo_mode < 0) || (stereo_mode >= ARRAY_LEN(stereo_modes))) {
-        return (const char *) -1;
-    }
-
-    return stereo_modes[stereo_mode];
-}
-
-/*
- * NvCtrlGetStereoModeName() - lookup string describing the STEREO
- * Mode. If is doesn't exist, return descriptive text that the mode
- * was not found.
- */
-
-const char *NvCtrlGetStereoModeName(int stereo_mode)
-{
-    const char *c = NvCtrlGetStereoModeNameIfExists(stereo_mode);
-
-    if (!c || (c == (const char *) -1)) {
-        c = "Unknown Mode";
-    }
-
-    return c;
-}
-
-
-ReturnStatus NvCtrlGetColorAttributes(const CtrlTarget *ctrl_target,
+ReturnStatus NvCtrlGetColorAttributes(NvCtrlAttributeHandle *handle,
                                       float contrast[3],
                                       float brightness[3],
                                       float gamma[3])
 {
-    const NvCtrlAttributePrivateHandle *h = getPrivateHandleConst(ctrl_target);
+    NvCtrlAttributePrivateHandle *h = (NvCtrlAttributePrivateHandle *) handle;
 
-    if (h == NULL) {
-        return NvCtrlBadHandle;
-    }
-
-    switch (h->target_type) {
-    case X_SCREEN_TARGET:
+    if (h->target_type == NV_CTRL_TARGET_TYPE_X_SCREEN) {
         return NvCtrlVidModeGetColorAttributes(h, contrast, brightness, gamma);
-    case DISPLAY_TARGET:
+    } else if (h->target_type == NV_CTRL_TARGET_TYPE_DISPLAY) {
         return NvCtrlXrandrGetColorAttributes(h, contrast, brightness, gamma);
-    default:
-        return NvCtrlBadHandle;
     }
+
+    return NvCtrlBadHandle;
 }
 
-ReturnStatus NvCtrlSetColorAttributes(CtrlTarget *ctrl_target,
+ReturnStatus NvCtrlSetColorAttributes(NvCtrlAttributeHandle *handle,
                                       float c[3],
                                       float b[3],
                                       float g[3],
@@ -1440,72 +961,36 @@ ReturnStatus NvCtrlSetColorAttributes(CtrlTarget *ctrl_target,
     ReturnStatus status;
     int val = 0;
 
-    NvCtrlAttributePrivateHandle *h = getPrivateHandle(ctrl_target);
+    NvCtrlAttributePrivateHandle *h = (NvCtrlAttributePrivateHandle *) handle;
 
-    if (h == NULL) {
-        return NvCtrlBadHandle;
-    }
+    status = NvCtrlGetAttribute(h, NV_CTRL_ATTR_RANDR_GAMMA_AVAILABLE, &val);
 
-    status = NvCtrlGetAttribute(ctrl_target,
-                                NV_CTRL_ATTR_RANDR_GAMMA_AVAILABLE,
-                                &val);
-
-    if (status == NvCtrlSuccess && val) {
-        switch (h->target_type) {
-        case X_SCREEN_TARGET:
-            return NvCtrlVidModeSetColorAttributes(h, c, b, g, bitmask);
-        case DISPLAY_TARGET:
-            return NvCtrlXrandrSetColorAttributes(h, c, b, g, bitmask);
-        default:
-            return NvCtrlBadHandle;
-        }
-    } else if ((status != NvCtrlSuccess || !val) &&
-               h->target_type == NV_CTRL_TARGET_TYPE_X_SCREEN) {
+    if ((status != NvCtrlSuccess || !val) && 
+        h->target_type == NV_CTRL_TARGET_TYPE_X_SCREEN) {
         return NvCtrlVidModeSetColorAttributes(h, c, b, g, bitmask);
+    } else if (status == NvCtrlSuccess && val &&
+               h->target_type == NV_CTRL_TARGET_TYPE_DISPLAY) {
+        return NvCtrlXrandrSetColorAttributes(h, c, b, g, bitmask);
     }
 
-    return NvCtrlError;
+    return NvCtrlBadHandle;
 }
 
 
-ReturnStatus NvCtrlGetColorRamp(const CtrlTarget *ctrl_target,
+ReturnStatus NvCtrlGetColorRamp(NvCtrlAttributeHandle *handle,
                                 unsigned int channel,
                                 uint16_t **lut,
                                 int *n)
 {
-    const NvCtrlAttributePrivateHandle *h = getPrivateHandleConst(ctrl_target);
+    NvCtrlAttributePrivateHandle *h = (NvCtrlAttributePrivateHandle *) handle;
 
-    if (h == NULL) {
-        return NvCtrlBadHandle;
-    }
-
-    switch (h->target_type) {
-    case X_SCREEN_TARGET:
+    if (h->target_type == NV_CTRL_TARGET_TYPE_X_SCREEN) {
         return NvCtrlVidModeGetColorRamp(h, channel, lut, n);
-    case DISPLAY_TARGET:
+    } else if (h->target_type == NV_CTRL_TARGET_TYPE_DISPLAY) {
         return NvCtrlXrandrGetColorRamp(h, channel, lut, n);
-    default:
-        return NvCtrlBadHandle;
-    }
-}
-
-
-ReturnStatus NvCtrlReloadColorRamp(CtrlTarget *ctrl_target)
-{
-    NvCtrlAttributePrivateHandle *h = getPrivateHandle(ctrl_target);
-
-    if (h == NULL) {
-        return NvCtrlBadHandle;
     }
 
-    switch (h->target_type) {
-    case X_SCREEN_TARGET:
-        return NvCtrlVidModeReloadColorRamp(h);
-    case DISPLAY_TARGET:
-        return NvCtrlXrandrReloadColorRamp(h);
-    default:
-        return NvCtrlBadHandle;
-    }
+    return NvCtrlBadHandle;
 }
 
 
@@ -1558,17 +1043,7 @@ static unsigned short ComputeGammaRampVal(int gammaRampSize,
         j += half;
     }
 
-    /* brightness */
-
-    brightness *= scale;
-
-    j += brightness;
-    if (j > (double)num) {
-        j = (double)num;
-    }
-    if (j < 0.0) {
-        j = 0.0;
-    }
+    if (j < 0.0) j = 0.0;
 
     /* gamma */
 
@@ -1579,6 +1054,14 @@ static unsigned short ComputeGammaRampVal(int gammaRampSize,
     } else {
         val = (int) (pow (j / (double)num, gamma) * (double)num + 0.5);
     }
+
+    /* brightness */
+
+    brightness *= scale;
+
+    val += (int)brightness;
+    if (val > num) val = num;
+    if (val < 0) val = 0;
 
     val <<= shift;
     return (unsigned short) val;
@@ -1661,323 +1144,3 @@ void NvCtrlAssignGammaInput(NvCtrlGammaInput *pGammaInput,
         }
     }
 }
-
-
-NvCtrlEventHandle *NvCtrlGetEventHandle(const CtrlTarget *ctrl_target)
-{
-    NvCtrlEventPrivateHandle *evt_h;
-    NvCtrlEventPrivateHandleNode *evt_hnode;
-    const NvCtrlAttributePrivateHandle *h = getPrivateHandleConst(ctrl_target);
-
-    if (h == NULL) {
-        return NULL;
-    }
-
-    if (!h->dpy && !h->nv && h->nvml) {
-        /* We are running with NVML lib only. Events not yet supported.*/
-        return NULL;
-    }
-
-    /* Look for the event handle */
-    evt_h = NULL;
-    for (evt_hnode = __event_handles;
-         evt_hnode;
-         evt_hnode = evt_hnode->next) {
-
-        if (evt_hnode->handle->dpy == h->dpy) {
-            evt_h = evt_hnode->handle;
-            break;
-        }
-    }
-
-    /* If not found, create a new one */
-    if (!evt_h) {
-        evt_h = nvalloc(sizeof(*evt_h));
-        evt_h->dpy = h->dpy;
-        evt_h->fd = ConnectionNumber(h->dpy);
-        evt_h->nvctrl_event_base = (h->nv) ? h->nv->event_base : -1;
-        evt_h->xrandr_event_base = (h->xrandr) ? h->xrandr->event_base : -1;
-
-        /* Add it to the list of event handles */
-        evt_hnode = nvalloc(sizeof(*evt_hnode));
-        evt_hnode->handle = evt_h;
-        evt_hnode->next = __event_handles;
-        __event_handles = evt_hnode;
-    }
-
-    /*
-     * This next bit of code is to make sure that the xrandr_event_base
-     * for this event handle is valid in the case where a NON X Screen
-     * target type handle is used to create the initial event handle
-     * (Resulting in xrandr_event_base being == -1), followed by an
-     * X Screen target type handle registering itself to receive
-     * XRandR events on the existing dpy/event handle.
-     */
-    if (evt_h->xrandr_event_base == -1 &&
-        h->target_type == X_SCREEN_TARGET &&
-        h->xrandr) {
-
-        evt_h->xrandr_event_base = h->xrandr->event_base;
-    }
-
-    return (NvCtrlEventHandle *)evt_h;
-}
-
-ReturnStatus
-NvCtrlCloseEventHandle(NvCtrlEventHandle *handle)
-{
-    NvCtrlEventPrivateHandleNode *evt_hnode;
-
-    if (!handle) {
-        return NvCtrlBadArgument;
-    }
-
-    /* Look for the event handle */
-    if (__event_handles) {
-        NvCtrlEventPrivateHandleNode *prev;
-
-        if (__event_handles->handle == handle) {
-            evt_hnode = __event_handles;
-            __event_handles = __event_handles->next;
-            goto free_handle;
-        }
-
-        prev = __event_handles;
-        for (evt_hnode = __event_handles->next;
-             evt_hnode;
-             evt_hnode = evt_hnode->next) {
-
-            if (evt_hnode->handle == handle) {
-                prev->next = evt_hnode->next;
-                goto free_handle;
-            }
-
-            prev = evt_hnode;
-        }
-    }
-
-    return NvCtrlBadHandle;
-
-free_handle:
-    free(handle);
-    free(evt_hnode);
-
-    return NvCtrlSuccess;
-}
-
-ReturnStatus
-NvCtrlEventHandleGetFD(NvCtrlEventHandle *handle, int *fd)
-{
-    NvCtrlEventPrivateHandle *evt_h;
-
-    if (!handle) {
-        return NvCtrlBadArgument;
-    }
-
-    evt_h = (NvCtrlEventPrivateHandle*)handle;
-
-    *fd = evt_h->fd;
-
-    return NvCtrlSuccess;
-}
-
-ReturnStatus
-NvCtrlEventHandlePending(NvCtrlEventHandle *handle, Bool *pending)
-{
-    NvCtrlEventPrivateHandle *evt_h;
-
-    if (!handle) {
-        return NvCtrlBadArgument;
-    }
-
-    evt_h = (NvCtrlEventPrivateHandle*)handle;
-
-    if (XPending(evt_h->dpy)) {
-        *pending = TRUE;
-    } else {
-        *pending = FALSE;
-    }
-
-    return NvCtrlSuccess;
-}
-
-static int get_screen_of_root(Display *dpy, Window root)
-{
-    int screen = -1;
-
-    /* Find the screen the window belongs to */
-    screen = XScreenCount(dpy);
-
-    while (screen > 0) {
-        screen--;
-        if (root == RootWindow(dpy, screen)) {
-            break;
-        }
-    }
-    
-    return screen;
-}
-
-ReturnStatus
-NvCtrlEventHandleNextEvent(NvCtrlEventHandle *handle, CtrlEvent *event)
-{
-    NvCtrlEventPrivateHandle *evt_h;
-    XEvent xevent;
-
-    if (!handle) {
-        return NvCtrlBadArgument;
-    }
-
-    evt_h = (NvCtrlEventPrivateHandle*)handle;
-
-    memset(event, 0, sizeof(CtrlEvent));
-
-
-    /*
-     * if NvCtrlEventHandleNextEvent() is called, then
-     * NvCtrlEventHandlePending() returned TRUE, so we
-     * know there is an event pending
-     */
-    XNextEvent(evt_h->dpy, &xevent);
-
-
-    /*
-     * Handle NV-CONTROL events
-     */
-    if (evt_h->nvctrl_event_base != -1) {
-
-        int xevt_type = xevent.type - evt_h->nvctrl_event_base;
-
-        /* 
-         * Handle the ATTRIBUTE_CHANGED_EVENT event
-         */
-        if (xevt_type == ATTRIBUTE_CHANGED_EVENT) {
-
-            XNVCtrlAttributeChangedEvent *nvctrlevent =
-                (XNVCtrlAttributeChangedEvent *) &xevent;
-
-            event->type        = CTRL_EVENT_TYPE_INTEGER_ATTRIBUTE;
-            event->target_type = X_SCREEN_TARGET;
-            event->target_id   = nvctrlevent->screen;
-
-            event->int_attr.attribute               = nvctrlevent->attribute;
-            event->int_attr.value                   = nvctrlevent->value;
-            event->int_attr.is_availability_changed = FALSE;
-
-            return NvCtrlSuccess;
-        }
-
-        /* 
-         * Handle the TARGET_ATTRIBUTE_CHANGED_EVENT event
-         */
-        if (xevt_type == TARGET_ATTRIBUTE_CHANGED_EVENT) {
-
-            XNVCtrlAttributeChangedEventTarget *nvctrlevent =
-                (XNVCtrlAttributeChangedEventTarget *) &xevent;
-
-            event->type        = CTRL_EVENT_TYPE_INTEGER_ATTRIBUTE;
-            event->target_type = nvctrlevent->target_type;
-            event->target_id   = nvctrlevent->target_id;
-
-            event->int_attr.attribute               = nvctrlevent->attribute;
-            event->int_attr.value                   = nvctrlevent->value;
-            event->int_attr.is_availability_changed = FALSE;
-
-            return NvCtrlSuccess;
-        }
-
-        /*
-         * Handle the TARGET_ATTRIBUTE_AVAILABILITY_CHANGED_EVENT event
-         */
-        if (xevt_type == TARGET_ATTRIBUTE_AVAILABILITY_CHANGED_EVENT) {
-
-            XNVCtrlAttributeChangedEventTargetAvailability *nvctrlevent =
-                (XNVCtrlAttributeChangedEventTargetAvailability *) &xevent;
-
-            event->type        = CTRL_EVENT_TYPE_INTEGER_ATTRIBUTE;
-            event->target_type = nvctrlevent->target_type;
-            event->target_id   = nvctrlevent->target_id;
-
-            event->int_attr.attribute               = nvctrlevent->attribute;
-            event->int_attr.value                   = nvctrlevent->value;
-            event->int_attr.is_availability_changed = TRUE;
-            event->int_attr.availability            = nvctrlevent->availability;
-
-            return NvCtrlSuccess;
-        }
-
-        /*
-         * Handle the TARGET_STRING_ATTRIBUTE_CHANGED_EVENT event
-         */
-        if (xevt_type == TARGET_STRING_ATTRIBUTE_CHANGED_EVENT) {
-
-            XNVCtrlStringAttributeChangedEventTarget *nvctrlevent =
-                (XNVCtrlStringAttributeChangedEventTarget *) &xevent;
-
-            event->type        = CTRL_EVENT_TYPE_STRING_ATTRIBUTE;
-            event->target_type = nvctrlevent->target_type;
-            event->target_id   = nvctrlevent->target_id;
-
-            event->str_attr.attribute = nvctrlevent->attribute;
-
-            return NvCtrlSuccess;
-        }
-
-        /*
-         * Handle the TARGET_BINARY_ATTRIBUTE_CHANGED_EVENT event
-         */
-        if (xevt_type == TARGET_BINARY_ATTRIBUTE_CHANGED_EVENT) {
-
-            XNVCtrlBinaryAttributeChangedEventTarget *nvctrlevent =
-                (XNVCtrlBinaryAttributeChangedEventTarget *) &xevent;
-
-            event->type        = CTRL_EVENT_TYPE_BINARY_ATTRIBUTE;
-            event->target_type = nvctrlevent->target_type;
-            event->target_id   = nvctrlevent->target_id;
-
-            event->bin_attr.attribute = nvctrlevent->attribute;
-
-            return NvCtrlSuccess;
-        }
-    }
-
-
-    /*
-     * Handle XRandR events
-     */
-    if (evt_h->xrandr_event_base != -1) {
-
-        int rrevt_type = xevent.type - evt_h->xrandr_event_base;
-
-        /*
-         * Handle the RRScreenChangeNotify event
-         */
-        if (rrevt_type == RRScreenChangeNotify) {
-
-            XRRScreenChangeNotifyEvent *xrandrevent =
-                (XRRScreenChangeNotifyEvent *)&xevent;
-
-            event->type        = CTRL_EVENT_TYPE_SCREEN_CHANGE;
-            event->target_type = X_SCREEN_TARGET;
-            event->target_id   = get_screen_of_root(xrandrevent->display,
-                                                    xrandrevent->root);
-
-            event->screen_change.width   = xrandrevent->width;
-            event->screen_change.height  = xrandrevent->height;
-            event->screen_change.mwidth  = xrandrevent->mwidth;
-            event->screen_change.mheight = xrandrevent->mheight;
-
-            return NvCtrlSuccess;
-        }
-    }
-
-
-    /*
-     * Trap events that get registered but are not handled
-     * properly.
-     */
-    nv_warning_msg("Unknown event type %d.", xevent.type);
-    
-    return NvCtrlSuccess;
-}
-

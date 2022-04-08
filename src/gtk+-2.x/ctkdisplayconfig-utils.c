@@ -4,24 +4,19 @@
  *
  * Copyright (C) 2006 NVIDIA Corporation.
  *
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of Version 2 of the GNU General Public
- * License as published by the Free Software Foundation.
+ * This program is free software; you can redistribute it and/or modify it
+ * under the terms and conditions of the GNU General Public License,
+ * version 2, as published by the Free Software Foundation.
  *
- * This program is distributed in the hope that it will be useful, but
- * WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See Version 2
- * of the GNU General Public License for more details.
+ * This program is distributed in the hope that it will be useful, but WITHOUT
+ * ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or
+ * FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License for
+ * more details.
  *
  * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the:
- *
- *           Free Software Foundation, Inc.
- *           59 Temple Place - Suite 330
- *           Boston, MA 02111-1307, USA
- *
+ * along with this program.  If not, see <http://www.gnu.org/licenses>.
  */
- 
+
 #include <stdlib.h> /* malloc */
 #include <string.h> /* strlen,  strdup */
 #include <unistd.h> /* lseek, close */
@@ -46,7 +41,8 @@
 
 
 static void xconfig_update_buffer(GtkWidget *widget, gpointer user_data);
-
+static gchar *display_pick_config_name(nvDisplayPtr display, int be_generic);
+static Bool screen_check_metamodes(nvScreenPtr screen);
 
 
 
@@ -119,7 +115,7 @@ void apply_modeline_token(char *token, char *value, void *data)
 void apply_metamode_token(char *token, char *value, void *data)
 {
     nvMetaModePtr metamode = (nvMetaModePtr) data;
-    
+
     if (!metamode || !token || !strlen(token)) {
         return;
     }
@@ -176,7 +172,7 @@ void apply_metamode_token(char *token, char *value, void *data)
 void apply_monitor_token(char *token, char *value, void *data)
 {
     char **source = (char **)data;
-    
+
     if (!source || !token || !strlen(token)) {
         return;
     }
@@ -206,7 +202,7 @@ void apply_monitor_token(char *token, char *value, void *data)
 void apply_screen_info_token(char *token, char *value, void *data)
 {
     ScreenInfo *screen_info = (ScreenInfo *)data;
-    
+
     if (!screen_info || !token || !strlen(token)) {
         return;
     }
@@ -254,6 +250,7 @@ void apply_screen_info_token(char *token, char *value, void *data)
  *
  **/
 static nvModeLinePtr modeline_parse(nvDisplayPtr display,
+                                    nvGpuPtr gpu,
                                     const char *modeline_str,
                                     const int broken_doublescan_modelines)
 {
@@ -304,7 +301,7 @@ static nvModeLinePtr modeline_parse(nvDisplayPtr display,
 
     /* Parse modeline flags */
     while ((str = parse_read_name(str, &tmp, 0)) && strlen(tmp)) {
-        
+
         if (!xconfigNameCompare(tmp, "+hsync")) {
             modeline->data.flags |= XCONFIG_MODE_PHSYNC;
         }
@@ -363,15 +360,15 @@ static nvModeLinePtr modeline_parse(nvDisplayPtr display,
     }
 
     modeline->refresh_rate = 0;
-    if (display->is_sdi && display->gpu->num_gvo_modes) {
+    if (display->is_sdi && gpu->num_gvo_modes) {
         /* Fetch the SDI refresh rate of the mode from the gvo mode table */
         int i;
-        for (i = 0; i < display->gpu->num_gvo_modes; i++) {
-            if (display->gpu->gvo_mode_data[i].id &&
-                display->gpu->gvo_mode_data[i].name &&
-                !strcmp(display->gpu->gvo_mode_data[i].name,
+        for (i = 0; i < gpu->num_gvo_modes; i++) {
+            if (gpu->gvo_mode_data[i].id &&
+                gpu->gvo_mode_data[i].name &&
+                !strcmp(gpu->gvo_mode_data[i].name,
                         modeline->data.identifier)) {
-                modeline->refresh_rate = display->gpu->gvo_mode_data[i].rate;
+                modeline->refresh_rate = gpu->gvo_mode_data[i].rate;
                 modeline->refresh_rate /= 1000.0;
                 break;
             }
@@ -437,6 +434,37 @@ static nvModeLinePtr modeline_parse(nvDisplayPtr display,
 /*****************************************************************************/
 
 
+/** apply_mode_attribute_token() *************************************
+ *
+ * Modifies the nvMode structure (pointed to by data) with
+ * information from the token-value pair given.  Currently accepts
+ * stereo (mode) data.
+ *
+ * Unknown token and/or values are silently ignored.
+ *
+ **/
+static void apply_mode_attribute_token(char *token, char *value, void *data)
+{
+    nvModePtr mode = (nvModePtr)data;
+
+    if (!mode || !token || !strlen(token)) {
+        return;
+    }
+
+    /* stereo */
+    if (!strcasecmp("stereo", token)) {
+        if (!strcasecmp("PassiveLeft", value)) {
+            mode->passive_stereo_eye = PASSIVE_STEREO_EYE_LEFT;
+        } else if (!strcasecmp("PassiveRight", value)) {
+            mode->passive_stereo_eye = PASSIVE_STEREO_EYE_RIGHT;
+        }
+        return;
+    }
+
+} /* apply_mode_attribute_token() */
+
+
+
 /** mode_parse() *****************************************************
  *
  * Converts a mode string (dpy specific part of a metamode) to a
@@ -444,9 +472,10 @@ static nvModeLinePtr modeline_parse(nvDisplayPtr display,
  *
  * Mode strings have the following format:
  *
- *   "mode_name +X+Y @WxH"
+ *   "mode_name +X+Y @WxH {token=value, ...}"
  *
  **/
+
 nvModePtr mode_parse(nvDisplayPtr display, const char *mode_str)
 {
     nvModePtr   mode;
@@ -489,7 +518,7 @@ nvModePtr mode_parse(nvDisplayPtr display, const char *mode_str)
         if (strcmp(mode_str, "NULL")) {
             nv_warning_msg("Mode name '%s' does not match any modelines for "
                            "display device '%s' in modeline '%s'.",
-                           mode_name, display->name, mode_str);
+                           mode_name, display->logName, mode_str);
         }
         mode->dim[W] = display->modelines->data.hdisplay;
         mode->dim[H] = display->modelines->data.vdisplay;
@@ -522,17 +551,38 @@ nvModePtr mode_parse(nvDisplayPtr display, const char *mode_str)
             str = parse_read_integer_pair(str, 0,
                                           &(mode->dim[X]), &(mode->dim[Y]));
         }
-        
+
+        /* Read extra params */
+        else if (*str == '{') {
+            const char *end;
+            char *tmp;
+            str++;
+
+            end = strchr(str, '}');
+            if (!end) goto fail;
+
+            /* Dupe the string so we can parse it properly */
+            tmp = nvstrndup(str, (size_t)(end-str));
+            if (!tmp) goto fail;
+
+            parse_token_value_pairs(tmp, apply_mode_attribute_token, mode);
+            free(tmp);
+            if (end && (*end == '}')) {
+                str = ++end;
+            }
+        }
+
         /* Mode parse error - Ack! */
         else {
+            nv_error_msg("Unknown mode token: %s", str);
             str = NULL;
         }
 
         /* Catch errors */
         if (!str) goto fail;
     }
-    
-        
+
+
     /* These are the same for now */
     mode->pan[X] = mode->dim[X];
     mode->pan[Y] = mode->dim[Y];
@@ -554,7 +604,7 @@ nvModePtr mode_parse(nvDisplayPtr display, const char *mode_str)
     if (mode) {
         free(mode);
     }
-    
+
     return NULL;
 
 } /* mode_parse() */
@@ -572,46 +622,31 @@ static gchar *mode_get_str(nvModePtr mode, int be_generic)
 {
     gchar *mode_str;
     gchar *tmp;
+    gchar *flags_str;
+    nvDisplayPtr display = mode->display;
+    nvScreenPtr screen;
+    nvGpuPtr gpu;
 
-    
     /* Make sure the mode has everything it needs to be displayed */
-    if (!mode || !mode->display || !mode->display->gpu || !mode->metamode) {
+    if (!mode || !mode->metamode || !display) {
         return NULL;
     }
-
 
     /* Don't display dummy modes */
     if (be_generic && mode->dummy && !mode->modeline) {
         return NULL;
     }
 
+    screen = display->screen;
+    gpu = display->gpu;
+    if (!screen || !gpu) {
+        return NULL;
+    }
 
-    /* Only one display, be very generic (no 'CRT:' in metamode) */
-    if (be_generic && mode->display->gpu->num_displays == 1) {
-        mode_str = g_strdup("");
-
-    /* If there's more than one CRT/DFP/TV, we can't be generic. */
-    } else {
-        int generic = be_generic;
-
-        if ((mode->display->device_mask & 0x000000FF) &&
-            (mode->display->device_mask !=
-             (mode->display->gpu->connected_displays & 0x000000FF))) {
-            generic = 0;
-        }
-        if ((mode->display->device_mask & 0x0000FF00) &&
-            (mode->display->device_mask !=
-             (mode->display->gpu->connected_displays & 0x0000FF00))) {
-            generic = 0;
-        }
-        if ((mode->display->device_mask & 0x00FF0000) &&
-            (mode->display->device_mask !=
-             (mode->display->gpu->connected_displays & 0x00FF0000))) {
-            generic = 0;
-        }
-
-        /* Get the display type */
-        tmp = display_get_type_str(mode->display->device_mask, generic);
+    /* Pick a suitable display name qualifier */
+    mode_str = display_pick_config_name(display, be_generic);
+    if (mode_str[0] != '\0') {
+        tmp = mode_str;
         mode_str = g_strconcat(tmp, ": ", NULL);
         g_free(tmp);
     }
@@ -646,7 +681,7 @@ static gchar *mode_get_str(nvModePtr mode, int be_generic)
     /*
      * XXX Later, we'll want to allow the user to select how
      *     the metamodes are generated:
-     * 
+     *
      *   Programability:
      *     make mode->dim relative to screen->dim
      *
@@ -668,6 +703,42 @@ static gchar *mode_get_str(nvModePtr mode, int be_generic)
     mode_str = tmp;
 
 
+    /* Mode Flags */
+    flags_str = NULL;
+
+    /* Passive Stereo Eye */
+    if (screen->stereo_supported && screen->stereo == 4) {
+        const char *eye;
+
+        switch (mode->passive_stereo_eye) {
+        case PASSIVE_STEREO_EYE_LEFT:
+            eye = "PassiveLeft";
+            break;
+        case PASSIVE_STEREO_EYE_RIGHT:
+            eye = "PassiveRight";
+            break;
+        case 0:
+        default:
+            eye = NULL;
+            break;
+        }
+
+        if (eye) {
+            tmp = g_strdup_printf("%s, stereo=%s", (flags_str ? flags_str : ""), eye);
+            g_free(flags_str);
+            flags_str = tmp;
+        }
+    }
+
+    if (flags_str) {
+        tmp = g_strdup_printf("%s {%s}",
+                              mode_str,
+                              flags_str+2 // Skip the first comma and whitespace
+                              );
+        g_free(mode_str);
+        mode_str = tmp;
+    }
+
     return mode_str;
 
 } /* mode_get_str() */
@@ -680,56 +751,67 @@ static gchar *mode_get_str(nvModePtr mode, int be_generic)
 /*****************************************************************************/
 
 
-/** display_get_type_str() *******************************************
+/** display_names_match() ********************************************
  *
- * Returns the type name of a display (CRT, CRT-1, DFP ..)
- *
- * If 'generic' is set to 1, then a generic version of the name is
- * returned.
+ * Determines if two (display) names are the same.  Returns FALSE if
+ * either name is NULL.
  *
  **/
-gchar *display_get_type_str(unsigned int device_mask, int be_generic)
+
+static Bool display_names_match(const char *name1, const char *name2)
 {
-    unsigned int  bit = 0;
-    int           num;
-    gchar        *name = NULL;
-    gchar        *type_name;
-
-
-    /* Get the generic type name of the display */
-    if (device_mask & 0x000000FF) {
-        name = g_strdup("CRT");
-        bit  = (device_mask & 0x000000FF);
-
-    } else if (device_mask & 0x0000FF00) {
-        name = g_strdup("TV");
-        bit  = (device_mask & 0x0000FF00) >> 8;
-
-    } else if (device_mask & 0x00FF0000) {
-        name = g_strdup("DFP");
-        bit  = (device_mask & 0x00FF0000) >> 16;
+    if (!name1 || !name2) {
+        return FALSE;
     }
 
-    if (be_generic || !name) {
-        return name;
+    return (strcasecmp(name1, name2) == 0) ? TRUE : FALSE;
+}
+
+
+
+/** display_pick_config_name() ***************************************
+ *
+ * Returns one of the display's names to be used for writing
+ * configuration.
+ *
+ * If 'generic' is TRUE, then the most generic name possible is
+ * returned.  This depends on the current existence of other display
+ * devices, and the name returned here will not collide with the name
+ * of other display devices.
+ *
+ **/
+static gchar *display_pick_config_name(nvDisplayPtr display, int be_generic)
+{
+    nvDisplayPtr other;
+
+    /* Be specific */
+    if (!be_generic) {
+        goto return_specific;
     }
 
-    /* Add the specific display number to the name */
-    num = 0;
-    while (bit) {
-        num++;
-        bit >>= 1;
-    }
-    if (num) {
-        num--;
+    /* Only one display, so no need for a qualifier */
+    if (display->gpu->num_displays == 1) {
+        return g_strdup("");
     }
 
-    type_name = g_strdup_printf("%s-%d", name, num);
-    g_free(name);
+    /* Find the best generic name possible.  If any display connected to the
+     * GPU has the same typeBaseName, then return the typeIdName instead
+     */
+    for (other = display->gpu->displays; other; other = other->next_on_gpu) {
+        if (other == display) continue;
+        if (strcmp(other->typeBaseName, display->typeBaseName) == 0) {
+            goto return_specific;
+        }
+    }
 
-    return type_name;
+    /* No other display device on the GPU shares the same type basename,
+     * so we can use it
+     */
+    return g_strdup(display->typeBaseName);
 
-} /* display_get_type_str() */
+ return_specific:
+    return g_strdup(display->typeIdName);
+}
 
 
 
@@ -740,28 +822,65 @@ gchar *display_get_type_str(unsigned int device_mask, int be_generic)
  *
  * A best match is:
  *
- * - The modelines are the same.
  * - The modelines match in width & height.
+ * - Then, the modelines match the ViewPortIn.
  *
  **/
 int display_find_closest_mode_matching_modeline(nvDisplayPtr display,
                                                 nvModeLinePtr modeline)
 {
-    nvModePtr mode;
+    const int targetWidth = modeline->data.hdisplay;
+    const int targetHeight = modeline->data.vdisplay;
+
+    nvModePtr mode, best_mode = NULL;
     int mode_idx;
-    int match_idx = -1;
-    
+    int best_idx = -1;
+
     mode_idx = 0;
     for (mode = display->modes; mode; mode = mode->next) {
-        if (mode->modeline->data.vdisplay == modeline->data.vdisplay &&
-            mode->modeline->data.hdisplay == modeline->data.hdisplay) {
-            match_idx = mode_idx;
+        if (!mode->modeline) {
+            continue;
         }
-        if (mode->modeline == modeline) break;
+        
+        if (mode->modeline->data.hdisplay == targetWidth &&
+            mode->modeline->data.vdisplay == targetHeight) {
+            nvModePtr tmp_mode = mode;
+            int tmp_idx = mode_idx;
+
+            /* We already have a match.  Let's figure out if the
+             * currently considered mode is the closer to what we
+             * want.
+             */
+            if (best_mode) {
+                Bool current_match_vpin =
+                    (mode->dim[W] == targetWidth &&
+                     mode->dim[H] == targetHeight);
+                Bool best_match_vpin =
+                    (best_mode->dim[W] == targetWidth &&
+                     best_mode->dim[H] == targetHeight);
+
+                /* Try to find reasons why we should prefer the
+                 * previous match over the currently considered
+                 * mode by checking which one has a matching
+                 * ViewPortIn.
+                 *
+                 * If both are equally close, we keep our previous
+                 * match.
+                 */
+                if ((!current_match_vpin && best_match_vpin) ||
+                    (current_match_vpin && best_match_vpin)) {
+                    tmp_mode = best_mode;
+                    tmp_idx = best_idx;
+                }
+                /* Fallthrough. */
+            }
+            best_mode = tmp_mode;
+            best_idx = tmp_idx;
+        }
         mode_idx++;
     }
 
-    return match_idx;
+    return best_idx;
 
 } /* display_find_closest_mode_matching_modeline() */
 
@@ -821,7 +940,7 @@ Bool modelines_match(nvModeLinePtr modeline1,
         modeline1->data.vscan == modeline2->data.vscan &&
         modeline1->data.flags == modeline2->data.flags &&
         modeline1->data.hskew == modeline2->data.hskew &&
-        !g_ascii_strcasecmp(modeline1->data.identifier, 
+        !g_ascii_strcasecmp(modeline1->data.identifier,
                             modeline2->data.identifier)) {
             return TRUE;
     } else {
@@ -862,7 +981,7 @@ Bool display_has_modeline(nvDisplayPtr display,
 static void display_remove_modelines(nvDisplayPtr display)
 {
     nvModeLinePtr modeline;
-    
+
     if (display) {
         while (display->modelines) {
             modeline = display->modelines;
@@ -881,7 +1000,8 @@ static void display_remove_modelines(nvDisplayPtr display)
  * Queries the display's current modepool (modelines list).
  *
  **/
-Bool display_add_modelines_from_server(nvDisplayPtr display, gchar **err_str)
+Bool display_add_modelines_from_server(nvDisplayPtr display, nvGpuPtr gpu,
+                                       gchar **err_str)
 {
     nvModeLinePtr modeline;
     char *modeline_strs = NULL;
@@ -901,9 +1021,9 @@ Bool display_add_modelines_from_server(nvDisplayPtr display, gchar **err_str)
      */
     broken_doublescan_modelines = 1;
 
-    ret = NvCtrlGetAttribute(display->gpu->handle,
+    ret = NvCtrlGetAttribute(display->handle,
                              NV_CTRL_ATTR_NV_MAJOR_VERSION, &major);
-    ret1 = NvCtrlGetAttribute(display->gpu->handle,
+    ret1 = NvCtrlGetAttribute(display->handle,
                               NV_CTRL_ATTR_NV_MINOR_VERSION, &minor);
 
     if ((ret == NvCtrlSuccess) && (ret1 == NvCtrlSuccess) &&
@@ -917,17 +1037,14 @@ Bool display_add_modelines_from_server(nvDisplayPtr display, gchar **err_str)
 
 
     /* Get the validated modelines for the display */
-    ret = NvCtrlGetBinaryAttribute(display->gpu->handle,
-                                   display->device_mask,
+    ret = NvCtrlGetBinaryAttribute(display->handle, 0,
                                    NV_CTRL_BINARY_DATA_MODELINES,
                                    (unsigned char **)&modeline_strs, &len);
     if (ret != NvCtrlSuccess) {
         *err_str = g_strdup_printf("Failed to query modelines of display "
-                                   "device 0x%08x '%s'\nconnected to "
-                                   "GPU-%d '%s'.",
-                                   display->device_mask, display->name,
-                                   NvCtrlGetTargetId(display->gpu->handle),
-                                   display->gpu->name);
+                                  "device %d '%s'.",
+                                   NvCtrlGetTargetId(display->handle),
+                                   display->logName);
         nv_error_msg(*err_str);
         goto fail;
     }
@@ -937,16 +1054,14 @@ Bool display_add_modelines_from_server(nvDisplayPtr display, gchar **err_str)
     str = modeline_strs;
     while (strlen(str)) {
 
-        modeline = modeline_parse(display, str, broken_doublescan_modelines);
+        modeline = modeline_parse(display, gpu, str,
+                                  broken_doublescan_modelines);
         if (!modeline) {
             *err_str = g_strdup_printf("Failed to parse the following "
                                        "modeline of display device\n"
-                                       "0x%08x '%s' connected to GPU-%d "
-                                       "'%s':\n\n%s",
-                                       display->device_mask,
-                                       display->name,
-                                       NvCtrlGetTargetId(display->gpu->handle),
-                                       display->gpu->name,
+                                      "%d '%s' :\n\n%s",
+                                       NvCtrlGetTargetId(display->handle),
+                                       display->logName,
                                        str);
             nv_error_msg(*err_str);
             goto fail;
@@ -990,7 +1105,7 @@ static gchar *display_get_mode_str(nvDisplayPtr display, int mode_idx,
         mode = mode->next;
         mode_idx--;
     }
-    
+
     if (mode) {
         return mode_get_str(mode, be_generic);
     }
@@ -1035,7 +1150,13 @@ static void display_free(nvDisplayPtr display)
     if (display) {
         display_remove_modes(display);
         display_remove_modelines(display);
-        XFree(display->name);
+        XFree(display->logName);
+        XFree(display->typeBaseName);
+        XFree(display->typeIdName);
+        XFree(display->dpGuidName);
+        XFree(display->edidHashName);
+        XFree(display->targetIdName);
+        XFree(display->randrName);
         free(display);
     }
 
@@ -1045,15 +1166,62 @@ static void display_free(nvDisplayPtr display)
 
 
 /*****************************************************************************/
-/** METAMODE FUNCTIONS *******************************************************/
-/*****************************************************************************/
-
-
-
-
-/*****************************************************************************/
 /** SCREEN FUNCTIONS *********************************************************/
 /*****************************************************************************/
+
+
+/** screen_find_named_display() **************************************
+ *
+ * Finds a display named 'display_name' in the list of displays on the
+ * given screen, or NULL if no display matched 'display_name'.
+ *
+ **/
+
+static nvDisplayPtr screen_find_named_display(nvScreenPtr screen,
+                                              char *display_name)
+{
+    nvDisplayPtr display;
+    nvDisplayPtr possible_display = NULL;
+
+    if (!display_name) {
+        return NULL;
+    }
+
+    /* Look for exact matches */
+    for (display = screen->displays;
+         display;
+         display = display->next_in_screen) {
+
+        /* Look for an exact match */
+        if (display_names_match(display->typeIdName, display_name)) {
+            return display;
+        }
+        if (display_names_match(display->dpGuidName, display_name)) {
+            return display;
+        }
+        if (display_names_match(display->targetIdName, display_name)) {
+            return display;
+        }
+        if (display_names_match(display->randrName, display_name)) {
+            return display;
+        }
+
+        /* Allow matching to generic names, but only return these
+         * if no other name matched
+         */
+        if (!possible_display) {
+            if (display_names_match(display->typeBaseName, display_name)) {
+                possible_display = display;
+            }
+            if (display_names_match(display->edidHashName, display_name)) {
+                possible_display = display;
+            }
+        }
+    }
+
+    return possible_display;
+}
+
 
 
 /** renumber_xscreens() **********************************************
@@ -1087,7 +1255,7 @@ void renumber_xscreens(nvLayoutPtr layout)
             lowest->scrnum = scrnum;
         }
 
-        /* Assign next screen number */ 
+        /* Assign next screen number */
         scrnum++;
     } while (lowest);
 
@@ -1111,15 +1279,14 @@ void screen_link_display(nvScreenPtr screen, nvDisplayPtr display)
     if (!screen->displays) {
         screen->displays = display;
     } else {
-        nvDisplayPtr last = screen->displays;
-        while (last) {
+        nvDisplayPtr last;
+        for (last = screen->displays; last; last = last->next_in_screen) {
             if (!last->next_in_screen) {
                 last->next_in_screen = display;
                 break;
             }
         }
     }
-    screen->displays_mask |= display->device_mask;
     screen->num_displays++;
 
 } /* screen_link_display() */
@@ -1152,7 +1319,6 @@ void screen_unlink_display(nvDisplayPtr display)
             cur = cur->next_in_screen;
         }
     }
-    screen->displays_mask &= ~(display->device_mask);
     screen->num_displays--;
 
     display->screen = NULL;
@@ -1297,9 +1463,50 @@ static void screen_remove_metamodes(nvScreenPtr screen)
 
 
 
+ /** mode_strtok() ***************************************************
+ *
+ * Special strtok function for parsing modes.  This function ignores
+ * anything between curly braces, including commas when parsing tokens
+ * deliminated by commas.
+ *
+ **/
+static char *mode_strtok(char *str)
+{
+    static char *intStr = NULL;
+    char *start;
+
+    if (str) {
+        intStr = str;
+    }
+
+    if (!intStr || *intStr == '\0') {
+        return NULL;
+    }
+
+    /* Mark off the next token value */
+    start = intStr;
+    while (*intStr != '\0') {
+        if (*intStr == '{') {
+            while (*intStr != '}' && *intStr != '\0') {
+                intStr++;
+            }
+        }
+        if (*intStr == ',') {
+            *intStr = '\0';
+            intStr++;
+            break;
+        }
+        intStr++;
+    }
+
+    return start;
+}
+
+
+
 /** screen_add_metamode() ********************************************
  *
- * Parses a metamode string and adds the appropreate modes to the
+ * Parses a metamode string and adds the appropriate modes to the
  * screen's display devices (at the end of the list)
  *
  **/
@@ -1307,12 +1514,11 @@ static Bool screen_add_metamode(nvScreenPtr screen, const char *metamode_str,
                                 gchar **err_str)
 {
     char *mode_str_itr;
-    char *str = NULL;
-    const char *tmp;
-    char *tokens;
-    char *metamode_copy;
-    nvMetaModePtr metamode;
-    int str_offset = 0;
+    const char *tokens_end;
+    const char *metamode_modes;
+    char *metamode_copy = NULL;
+    nvMetaModePtr metamode = NULL;
+    int mode_count = 0;
 
 
     if (!screen || !screen->gpu || !metamode_str) goto fail;
@@ -1322,126 +1528,125 @@ static Bool screen_add_metamode(nvScreenPtr screen, const char *metamode_str,
     if (!metamode) goto fail;
 
 
-    /* Read the MetaMode ID */
-    tmp = strstr(metamode_str, "::");
-    if (tmp) {
+    /* Read the MetaMode ID (along with any metamode tokens) */
+    tokens_end = strstr(metamode_str, "::");
+    if (tokens_end) {
+        char *tokens = strdup(metamode_str);
 
-        tokens = strdup(metamode_str);
         if (!tokens) goto fail;
 
-        tokens[ tmp-metamode_str ] = '\0';
-        tmp += 2;
-        parse_token_value_pairs(tokens, apply_metamode_token,
-                                (void *)metamode);
+        tokens[tokens_end-metamode_str] = '\0';
+        parse_token_value_pairs(tokens, apply_metamode_token, (void *)metamode);
+
         free(tokens);
-        str_offset = tmp - metamode_str;
+        metamode_modes = tokens_end + 2;
     } else {
         /* No tokens?  Try the old "ID: METAMODE_STR" syntax */
-        const char *read_offset;
-        read_offset = parse_read_integer(metamode_str, &(metamode->id));
+        metamode_modes = parse_read_integer(metamode_str, &(metamode->id));
         metamode->source = METAMODE_SOURCE_NVCONTROL;
-        if (*read_offset == ':') {
-            read_offset++;
-            str_offset = read_offset - metamode_str;
+        if (*metamode_modes == ':') {
+            metamode_modes++;
+
         }
     }
 
-    /* Copy the string so we can split it up */
-    metamode_copy = strdup(metamode_str + str_offset);
+    /* Process each mode in the metamode string */
+    metamode_copy = strdup(metamode_modes);
     if (!metamode_copy) goto fail;
 
-    /* Add the metamode at the end of the screen's metamode list */
-    xconfigAddListItem((GenericListPtr *)(&screen->metamodes),
-                       (GenericListPtr)metamode);
-
-
-    /* Split up the metamode into separate modes */
-    for (mode_str_itr = strtok(metamode_copy, ",");
+    for (mode_str_itr = mode_strtok(metamode_copy);
          mode_str_itr;
-         mode_str_itr = strtok(NULL, ",")) {
-        
+         mode_str_itr = mode_strtok(NULL)) {
+
         nvModePtr     mode;
-        unsigned int  device_mask;
         nvDisplayPtr  display;
+        unsigned int  display_id;
         const char *orig_mode_str = parse_skip_whitespace(mode_str_itr);
         const char *mode_str;
 
-        /* Parse the display device bitmask from the name */
-        mode_str = parse_read_display_name(mode_str_itr, &device_mask);
+        /* Parse the display device (NV-CONTROL target) id from the name */
+        mode_str = parse_read_display_id(mode_str_itr, &display_id);
         if (!mode_str) {
-            *err_str = g_strdup_printf("Failed to read a display device name "
-                                       "on screen %d (on GPU-%d)\nwhile "
-                                       "parsing metamode:\n\n'%s'",
-                                       screen->scrnum,
-                                       NvCtrlGetTargetId(screen->gpu->handle),
-                                       orig_mode_str);
-            nv_error_msg(*err_str);
-            goto fail;
+            nv_warning_msg("Failed to read a display device name on screen %d "
+                           "while parsing metamode:\n\n'%s'",
+                           screen->scrnum,
+
+                           orig_mode_str);
+            continue;
         }
 
-
-        /* Match device bitmask to an existing display */
-        display = gpu_get_display(screen->gpu, device_mask);
+        /* Match device id to an existing display */
+        display = layout_get_display(screen->layout, display_id);
         if (!display) {
-            *err_str = g_strdup_printf("Failed to find display device 0x%08x "
-                                       "on screen %d (on GPU-%d)\nwhile "
-                                       "parsing metamode:\n\n'%s'",
-                                       device_mask,
-                                       screen->scrnum,
-                                       NvCtrlGetTargetId(screen->gpu->handle),
-                                       orig_mode_str);
-            nv_error_msg(*err_str);
-            goto fail;
-        }
+            nv_warning_msg("Failed to find display device %d on screen %d "
+                           "while parsing metamode:\n\n'%s'",
+                           display_id,
+                           screen->scrnum,
 
+                           orig_mode_str);
+            continue;
+        }
 
         /* Parse the mode */
         mode = mode_parse(display, mode_str);
         if (!mode) {
-            *err_str = g_strdup_printf("Failed to parse mode '%s'\non "
-                                       "screen %d (on GPU-%d)\nfrom "
-                                       "metamode:\n\n'%s'",
-                                       mode_str, screen->scrnum,
-                                       NvCtrlGetTargetId(screen->gpu->handle),
-                                       orig_mode_str);
-            nv_error_msg(*err_str);
-            goto fail;
+            nv_warning_msg("Failed to parse mode '%s'\non screen %d\n"
+                           "from metamode:\n\n'%s'",
+                           mode_str,
+                           screen->scrnum,
+                           orig_mode_str);
+            continue;
         }
-
 
         /* Make the mode part of the metamode */
         mode->metamode = metamode;
 
-
-        /* Make the display part of the screen */
+        /* Make the display part of the screen, and make sure it has the
+         * right number of modes.
+         */
         screen_link_display(screen, display);
-
+        screen_check_metamodes(screen);
 
         /* Set the panning offset */
         mode->pan[X] = mode->dim[X];
         mode->pan[Y] = mode->dim[Y];
-        
 
         /* Add the mode at the end of the display's mode list */
         xconfigAddListItem((GenericListPtr *)(&display->modes),
                            (GenericListPtr)mode);
         display->num_modes++;
-        
-    } /* Done parsing a single metamode */
+        mode_count++;
+    }
 
-    free(str);
+    free(metamode_copy);
+    metamode_copy = NULL;
+
+    /* Make sure something was added */
+    if (mode_count == 0) {
+        nv_warning_msg("Failed to find any display on screen %d (on GPU-%d)\n"
+                       "while parsing metamode:\n\n'%s'",
+                       screen->scrnum,
+                       NvCtrlGetTargetId(screen->gpu->handle),
+                       metamode_str);
+        goto fail;
+    }
+
+    /* Add the metamode to the end of the screen's metamode list */
+    xconfigAddListItem((GenericListPtr *)(&screen->metamodes),
+                       (GenericListPtr)metamode);
+
     return TRUE;
 
-
-    /* Failure case */
  fail:
-    
-    /* XXX We should probably track which modes were added and remove
-     *     them at this point.  For now, just assume the caller will
-     *     remove all the modes and bail.
-     */
 
-    free(str);
+    /* Cleanup */
+    if (metamode) {
+        free(metamode);
+    }
+    if (metamode_copy) {
+        free(metamode_copy);
+    }
+
     return FALSE;
 
 } /* screen_add_metamode() */
@@ -1522,7 +1727,7 @@ static Bool screen_check_metamodes(nvScreenPtr screen)
  * match the top left of the first non-dummy mode
  *
  **/
-void screen_assign_dummy_metamode_positions(nvScreenPtr screen)
+static void screen_assign_dummy_metamode_positions(nvScreenPtr screen)
 {
     nvDisplayPtr display;
     nvModePtr ok_mode;
@@ -1555,7 +1760,7 @@ void screen_assign_dummy_metamode_positions(nvScreenPtr screen)
 
 /** screen_add_metamodes() *******************************************
  *
- * Adds all the appropreate modes on all display devices of this
+ * Adds all the appropriate modes on all display devices of this
  * screen by parsing all the metamode strings.
  *
  **/
@@ -1575,7 +1780,7 @@ static Bool screen_add_metamodes(nvScreenPtr screen, gchar **err_str)
 
     /* Get the list of metamodes for the screen */
     ret = NvCtrlGetBinaryAttribute(screen->handle, 0,
-                                   NV_CTRL_BINARY_DATA_METAMODES,
+                                   NV_CTRL_BINARY_DATA_METAMODES_VERSION_2,
                                    (unsigned char **)&metamode_strs,
                                    &len);
     if (ret != NvCtrlSuccess) {
@@ -1590,7 +1795,7 @@ static Bool screen_add_metamodes(nvScreenPtr screen, gchar **err_str)
 
     /* Get the current metamode for the screen */
     ret = NvCtrlGetStringAttribute(screen->handle,
-                                   NV_CTRL_STRING_CURRENT_METAMODE,
+                                   NV_CTRL_STRING_CURRENT_METAMODE_VERSION_2,
                                    &cur_metamode_str);
     if (ret != NvCtrlSuccess) {
         *err_str = g_strdup_printf("Failed to query current metamode of\n"
@@ -1607,8 +1812,9 @@ static Bool screen_add_metamodes(nvScreenPtr screen, gchar **err_str)
 
 
     /* Parse each mode in the metamode strings */
-    str = metamode_strs;
-    while (str && strlen(str)) {
+    for (str = metamode_strs;
+         (str && strlen(str));
+          str += strlen(str) +1) {
 
         /* Add the individual metamodes to the screen,
          * This populates the display device's mode list.
@@ -1618,9 +1824,9 @@ static Bool screen_add_metamodes(nvScreenPtr screen, gchar **err_str)
                            "GPU-%d).",
                            str, screen->scrnum,
                            NvCtrlGetTargetId(screen->gpu->handle));
-            goto fail;
+            continue;
         }
-        
+
         /* Keep track of the current metamode */
         if (!strcmp(str, cur_metamode_str)) {
             screen->cur_metamode_idx = screen->num_metamodes;
@@ -1631,12 +1837,16 @@ static Bool screen_add_metamodes(nvScreenPtr screen, gchar **err_str)
 
         /* Make sure each display device gets a mode */
         screen_check_metamodes(screen);
-
-        /* Go to the next metamode */
-        str += strlen(str) +1;
     }
     XFree(metamode_strs);
+    metamode_strs = NULL;
 
+    if (!screen->metamodes) {
+        nv_warning_msg("Failed to add any metamode to screen %d (on GPU-%d).",
+                       screen->scrnum,
+                       NvCtrlGetTargetId(screen->gpu->handle));
+        goto fail;
+    }
 
     /* Assign the top left position of dummy modes */
     screen_assign_dummy_metamode_positions(screen);
@@ -1705,26 +1915,6 @@ static void screen_free(nvScreenPtr screen)
 /*****************************************************************************/
 
 
-/** gpu_get_display() ************************************************
- *
- * Returns the display with the matching device_mask or NULL if not
- * found.
- *
- **/
-nvDisplayPtr gpu_get_display(nvGpuPtr gpu, unsigned int device_mask)
-{
-    nvDisplayPtr display;
-
-    for (display = gpu->displays; display; display = display->next_on_gpu) {
-        if (display->device_mask == device_mask) return display;
-    }
-    
-    return NULL;
-
-} /* gpu_get_display() */
-
-
-
 /** gpu_remove_and_free_display() ************************************
  *
  * Removes a display from the GPU and frees it.
@@ -1761,7 +1951,6 @@ void gpu_remove_and_free_display(nvDisplayPtr display)
             }
         }
     }
-    gpu->connected_displays &= ~(display->device_mask);
     gpu->num_displays--;
 
     display_free(display);
@@ -1782,7 +1971,6 @@ static void gpu_remove_displays(nvGpuPtr gpu)
     while (gpu->displays) {
         gpu_remove_and_free_display(gpu->displays);
     }
-    gpu->connected_displays = 0;
 
 } /* gpu_remove_displays() */
 
@@ -1813,7 +2001,6 @@ static void gpu_add_display(nvGpuPtr gpu, nvDisplayPtr display)
             }
         }
     }
-    gpu->connected_displays |= display->device_mask;
     gpu->num_displays++;
 
 } /* gpu_add_display() */
@@ -1844,7 +2031,7 @@ static Bool gpu_query_gvo_mode_info(nvGpuPtr gpu, int mode_id, int table_idx)
                                      mode_id,
                                      NV_CTRL_GVIO_VIDEO_FORMAT_REFRESH_RATE,
                                      &(rate));
-    
+
     ret2 = NvCtrlGetStringDisplayAttribute(gpu->handle,
                                            mode_id,
                                            NV_CTRL_STRING_GVIO_VIDEO_FORMAT_NAME,
@@ -1862,17 +2049,74 @@ static Bool gpu_query_gvo_mode_info(nvGpuPtr gpu, int mode_id, int table_idx)
 }
 
 
+
+/** display_add_name_from_server() ***********************************
+ *
+ *  Queries and adds the NV-CONTROL name to the display device.
+ *
+ **/
+
+static const struct DisplayNameInfoRec {
+    int attr;
+    Bool canBeNull;
+    const char *nameDescription;
+    size_t offset;
+} DisplayNamesTable[] = {
+    { NV_CTRL_STRING_DISPLAY_DEVICE_NAME,        FALSE, "Log Name",
+      offsetof(nvDisplay, logName) },
+    { NV_CTRL_STRING_DISPLAY_NAME_TYPE_BASENAME, FALSE, "Type Base Name",
+      offsetof(nvDisplay, typeBaseName) },
+    { NV_CTRL_STRING_DISPLAY_NAME_TYPE_ID,       FALSE, "Type ID",
+      offsetof(nvDisplay, typeIdName) },
+    { NV_CTRL_STRING_DISPLAY_NAME_DP_GUID,       TRUE,  "DP GUID Name",
+      offsetof(nvDisplay, dpGuidName) },
+    { NV_CTRL_STRING_DISPLAY_NAME_EDID_HASH,     TRUE,  "EDID Hash Name",
+      offsetof(nvDisplay, edidHashName) },
+    { NV_CTRL_STRING_DISPLAY_NAME_TARGET_INDEX,  FALSE, "Target Index Name",
+      offsetof(nvDisplay, targetIdName) },
+    { NV_CTRL_STRING_DISPLAY_NAME_RANDR,         FALSE, "RandR Name",
+      offsetof(nvDisplay, randrName) },
+};
+
+static Bool display_add_name_from_server(nvDisplayPtr display,
+                                         const struct DisplayNameInfoRec *displayNameInfo,
+                                         gchar **err_str)
+{
+    ReturnStatus ret;
+    char *str;
+
+    ret = NvCtrlGetStringAttribute(display->handle,
+                                   displayNameInfo->attr,
+                                   &str);
+    if (ret == NvCtrlSuccess) {
+        *((char **)(((char *)display) + displayNameInfo->offset)) = str;
+
+    } else if (!displayNameInfo->canBeNull) {
+        *err_str = g_strdup_printf("Failed to query name '%s' of display "
+                                   "device DPY-%d.",
+                                   displayNameInfo->nameDescription,
+                                   NvCtrlGetTargetId(display->handle));
+        nv_error_msg(*err_str);
+        return FALSE;
+    }
+
+    return TRUE;
+}
+
+
+
 /** gpu_add_display_from_server() ************************************
  *
- *  Adds the display with the device mask given to the GPU structure.
+ *  Adds the display with the device id given to the GPU structure.
  *
  **/
 nvDisplayPtr gpu_add_display_from_server(nvGpuPtr gpu,
-                                         unsigned int device_mask,
+                                         unsigned int display_id,
                                          gchar **err_str)
 {
     ReturnStatus ret;
     nvDisplayPtr display;
+    int i;
 
 
     /* Create the display structure */
@@ -1880,34 +2124,40 @@ nvDisplayPtr gpu_add_display_from_server(nvGpuPtr gpu,
     if (!display) goto fail;
 
 
-    /* Init the display structure */
-    display->device_mask = device_mask;
-
-
-    /* Query the display information */
-    ret = NvCtrlGetStringDisplayAttribute(gpu->handle,
-                                          device_mask,
-                                          NV_CTRL_STRING_DISPLAY_DEVICE_NAME,
-                                          &(display->name));
-    if (ret != NvCtrlSuccess) {
-        *err_str = g_strdup_printf("Failed to query name of display device\n"
-                                   "0x%08x connected to GPU-%d '%s'.",
-                                   device_mask, NvCtrlGetTargetId(gpu->handle),
-                                   gpu->name);
+    /* Make an NV-CONTROL handle to talk to the display */
+    display->handle =
+        NvCtrlAttributeInit(NvCtrlGetDisplayPtr(gpu->handle),
+                            NV_CTRL_TARGET_TYPE_DISPLAY,
+                            display_id,
+                            NV_CTRL_ATTRIBUTES_NV_CONTROL_SUBSYSTEM);
+    if (!display->handle) {
+        *err_str = g_strdup_printf("Failed to create NV-CONTROL handle for\n"
+                                   "display %d (on GPU-%d).",
+                                   display_id,
+                                   NvCtrlGetTargetId(gpu->handle));
         nv_error_msg(*err_str);
         goto fail;
     }
 
 
+    /* Query the display information */
+    for (i = 0; i < ARRAY_LEN(DisplayNamesTable); i++) {
+        if (!display_add_name_from_server(display,
+                                          DisplayNamesTable + i, err_str)) {
+            goto fail;
+        }
+    }
+
+
     /* Query if this display is an SDI display */
-    ret = NvCtrlGetDisplayAttribute(gpu->handle, device_mask,
-                                    NV_CTRL_IS_GVO_DISPLAY,
-                                    &(display->is_sdi));
+    ret = NvCtrlGetAttribute(display->handle,
+                             NV_CTRL_IS_GVO_DISPLAY,
+                             &(display->is_sdi));
     if (ret != NvCtrlSuccess) {
         nv_warning_msg("Failed to query if display device\n"
-                       "0x%08x connected to GPU-%d '%s' is an\n"
+                       "%d connected to GPU-%d '%s' is an\n"
                        "SDI device.",
-                       device_mask, NvCtrlGetTargetId(gpu->handle),
+                       display_id, NvCtrlGetTargetId(gpu->handle),
                        gpu->name);
         display->is_sdi = FALSE;
     }
@@ -1929,7 +2179,7 @@ nvDisplayPtr gpu_add_display_from_server(nvGpuPtr gpu,
         } else {
             valid1 = valid.u.bits.ints;
         }
-        
+
         ret = NvCtrlGetValidAttributeValues(gpu->handle,
                                             NV_CTRL_GVIO_REQUESTED_VIDEO_FORMAT2,
                                             &valid);
@@ -1994,19 +2244,17 @@ nvDisplayPtr gpu_add_display_from_server(nvGpuPtr gpu,
     }
 
 
-    /* Add the display at the end of gpu's display list */
-    gpu_add_display(gpu, display);
-
-
     /* Query the modelines for the display device */
-    if (!display_add_modelines_from_server(display, err_str)) {
-        nv_warning_msg("Failed to add modelines to display device 0x%08x "
+    if (!display_add_modelines_from_server(display, gpu, err_str)) {
+        nv_warning_msg("Failed to add modelines to display device %d "
                        "'%s'\nconnected to GPU-%d '%s'.",
-                       device_mask, display->name,
+                       display_id, display->logName,
                        NvCtrlGetTargetId(gpu->handle), gpu->name);
         goto fail;
     }
 
+    /* Add the display at the end of gpu's display list */
+    gpu_add_display(gpu, display);
 
     return display;
 
@@ -2028,38 +2276,44 @@ nvDisplayPtr gpu_add_display_from_server(nvGpuPtr gpu,
 static Bool gpu_add_displays_from_server(nvGpuPtr gpu, gchar **err_str)
 {
     ReturnStatus ret;
-    unsigned int mask;
+    int *pData;
+    int len;
+    int i;
 
 
     /* Clean up the GPU list */
     gpu_remove_displays(gpu);
 
-
-    /* Get the list of connected displays */
-    ret = NvCtrlGetAttribute(gpu->handle, NV_CTRL_CONNECTED_DISPLAYS,
-                             (int *)&(gpu->connected_displays));
+    /* Get list of displays connected to this GPU */
+    ret = NvCtrlGetBinaryAttribute(gpu->handle, 0,
+                                   NV_CTRL_BINARY_DATA_DISPLAYS_CONNECTED_TO_GPU,
+                                   (unsigned char **)(&pData), &len);
     if (ret != NvCtrlSuccess) {
-        *err_str = g_strdup_printf("Failed to query connected display "
-                                   "devices on GPU-%d '%s'.",
-                                   NvCtrlGetTargetId(gpu), gpu->name);
+        *err_str = g_strdup_printf("Failed to query list of displays \n"
+                                   "connected to GPU-%d '%s'.",
+                                   NvCtrlGetTargetId(gpu->handle), gpu->name);
         nv_error_msg(*err_str);
         goto fail;
     }
 
-
     /* Add each connected display */
-    for (mask = 1; mask; mask <<= 1) {
+    for (i = 0; i < pData[0]; i++) {
+        if (!gpu_add_display_from_server(gpu, pData[i+1], err_str)) {
+            nv_warning_msg("Failed to add display device %d to GPU-%d "
 
-        if (!(mask & (gpu->connected_displays))) continue;
 
-        if (!gpu_add_display_from_server(gpu, mask, err_str)) {
-            nv_warning_msg("Failed to add display device 0x%08x to GPU-%d "
+
+
+
                            "'%s'.",
-                           mask, NvCtrlGetTargetId(gpu->handle), gpu->name);
+                           pData[i+1], NvCtrlGetTargetId(gpu->handle),
+                           gpu->name);
+            XFree(pData);
             goto fail;
         }
     }
 
+    XFree(pData);
     return TRUE;
 
  fail:
@@ -2277,12 +2531,12 @@ static Bool layout_add_gpu_from_server(nvLayoutPtr layout, unsigned int gpu_id,
     Display *dpy;
     nvGpuPtr gpu = NULL;
 
-    
+
     /* Create the GPU structure */
     gpu = (nvGpuPtr)calloc(1, sizeof(nvGpu));
     if (!gpu) goto fail;
 
-    
+
     /* Make an NV-CONTROL handle to talk to the GPU */
     dpy = NvCtrlGetDisplayPtr(layout->handle);
     gpu->layout = layout;
@@ -2430,6 +2684,59 @@ static void layout_remove_screens(nvLayoutPtr layout)
 
 
 
+/** link_screen_to_gpu() *********************************************
+ *
+ * Finds the GPU driving the screen and links the two.
+ *
+ **/
+
+static Bool link_screen_to_gpu(nvLayoutPtr layout, nvScreenPtr screen)
+{
+    int val;
+    ReturnStatus ret;
+    nvGpuPtr gpu;
+
+    /* Link the screen to the display owner GPU.  If there is no display owner,
+     * which is the case when SLI Mosaic Mode is configured, link screen
+     * to the first GPU we find.
+     */
+    ret = NvCtrlGetAttribute(screen->handle, NV_CTRL_MULTIGPU_DISPLAY_OWNER,
+                             &val);
+    if (ret != NvCtrlSuccess) {
+        int *pData = NULL;
+        int len;
+
+        ret = NvCtrlGetBinaryAttribute(screen->handle,
+                                       0,
+                                       NV_CTRL_BINARY_DATA_GPUS_USED_BY_XSCREEN,
+                                       (unsigned char **)(&pData),
+                                       &len);
+        if (ret != NvCtrlSuccess || !pData) {
+            return FALSE;
+        }
+        if (pData[0] < 1) {
+            XFree(pData);
+            return FALSE;
+        }
+
+        /* Pick the first GPU */
+        val = pData[1];
+        XFree(pData);
+    }
+
+    for (gpu = layout->gpus; gpu; gpu = gpu->next_in_layout) {
+        if (val == NvCtrlGetTargetId(gpu->handle)) {
+            screen->gpu = gpu;
+            return TRUE;
+        }
+    }
+
+    return FALSE;
+
+} /* link_screen_to_gpu() */
+
+
+
 /** layout_add_screen_from_server() **********************************
  *
  * Adds an X screen to the layout structure.
@@ -2444,7 +2751,6 @@ static Bool layout_add_screen_from_server(nvLayoutPtr layout,
     int val, tmp;
     ReturnStatus ret;
     gchar *primary_str = NULL;
-    nvGpuPtr gpu;
 
 
     screen = (nvScreenPtr)calloc(1, sizeof(nvScreen));
@@ -2461,8 +2767,8 @@ static Bool layout_add_screen_from_server(nvLayoutPtr layout,
         NvCtrlAttributeInit(display,
                             NV_CTRL_TARGET_TYPE_X_SCREEN,
                             screen_id,
-                            NV_CTRL_ATTRIBUTES_NV_CONTROL_SUBSYSTEM |
-                            NV_CTRL_ATTRIBUTES_XRANDR_SUBSYSTEM);
+                            NV_CTRL_ATTRIBUTES_NV_CONTROL_SUBSYSTEM);
+
     if (!screen->handle) {
         *err_str = g_strdup_printf("Failed to create NV-CONTROL handle for\n"
                                    "screen %d.",
@@ -2471,6 +2777,15 @@ static Bool layout_add_screen_from_server(nvLayoutPtr layout,
         goto fail;
     }
 
+
+    /* Query the current stereo mode */
+    ret = NvCtrlGetAttribute(screen->handle, NV_CTRL_STEREO, &val);
+    if (ret == NvCtrlSuccess) {
+        screen->stereo_supported = TRUE;
+        screen->stereo = val;
+    } else {
+        screen->stereo_supported = FALSE;
+    }
 
     /* See if the screen supports dynamic twinview */
     ret = NvCtrlGetAttribute(screen->handle, NV_CTRL_DYNAMIC_TWINVIEW, &val);
@@ -2508,21 +2823,8 @@ static Bool layout_add_screen_from_server(nvLayoutPtr layout,
         goto fail;
     }
 
-
-    /* The display owner GPU gets the screen(s) */
-    ret = NvCtrlGetAttribute(screen->handle, NV_CTRL_MULTIGPU_DISPLAY_OWNER,
-                             &val);
-    if (ret != NvCtrlSuccess) {
-        screen_free(screen);
-        return TRUE;
-    }
-
-    for (gpu = layout->gpus; gpu; gpu = gpu->next_in_layout) {
-        if (val == NvCtrlGetTargetId(gpu->handle)) {
-            screen->gpu = gpu;
-        }
-    }
-    if (!screen->gpu) {
+    /* Link screen to the GPU driving it */
+    if (!link_screen_to_gpu(layout, screen)) {
         *err_str = g_strdup_printf("Failed to find GPU that drives screen %d.",
                                    screen_id);
         nv_warning_msg(*err_str);
@@ -2561,20 +2863,27 @@ static Bool layout_add_screen_from_server(nvLayoutPtr layout,
 
         /* Query & parse the screen's primary display */
         screen->primaryDisplay = NULL;
-        ret = NvCtrlGetStringDisplayAttribute
-            (screen->handle,
-             0,
-             NV_CTRL_STRING_TWINVIEW_XINERAMA_INFO_ORDER,
-             &primary_str);
+        ret = NvCtrlGetStringAttribute(screen->handle,
+                                       NV_CTRL_STRING_NVIDIA_XINERAMA_INFO_ORDER,
+                                       &primary_str);
 
-        if (ret == NvCtrlSuccess) {
-            unsigned int  device_mask;
+        if (ret == NvCtrlSuccess && primary_str) {
+            char *str;
 
-            /* Parse the device mask */
-            parse_read_display_name(primary_str, &device_mask);
+            /* The TwinView Xinerana Info Order string may be a comma-separated
+             * list of display device names, though we could add full support
+             * for ordering these, just keep track of a single display here.
+             */
+            str = strchr(primary_str, ',');
+            if (!str) {
+                str = nvstrdup(primary_str);
+            } else {
+                str = nvstrndup(primary_str, str-primary_str);
+            }
+            XFree(primary_str);
 
-            /* Find the matching primary display */
-            screen->primaryDisplay = gpu_get_display(screen->gpu, device_mask);
+            screen->primaryDisplay = screen_find_named_display(screen, str);
+            nvfree(str);
         }
     }
 
@@ -2622,7 +2931,8 @@ static int layout_add_screens_from_server(nvLayoutPtr layout, gchar **err_str)
     for (i = 0; i < nscreens; i++) {
         if (!layout_add_screen_from_server(layout, i, err_str)) {
             nv_warning_msg("Failed to add X screen %d to layout.", i);
-            goto fail;
+            g_free(*err_str);
+            *err_str = NULL;
         }
     }
 
@@ -2689,7 +2999,7 @@ nvLayoutPtr layout_load_from_server(NvCtrlAttributeHandle *handle,
 {
     nvLayoutPtr layout = NULL;
     ReturnStatus ret;
-
+    int tmp;
 
     /* Allocate the layout structure */
     layout = (nvLayoutPtr)calloc(1, sizeof(nvLayout));
@@ -2709,6 +3019,19 @@ nvLayoutPtr layout_load_from_server(NvCtrlAttributeHandle *handle,
         goto fail;
     }
 
+    /* does the driver know about NV_CTRL_CURRENT_METAMODE_ID? */
+    ret = NvCtrlGetAttribute(handle, NV_CTRL_CURRENT_METAMODE_ID, &tmp);
+    if (ret != NvCtrlSuccess) {
+        char *displayName = NvCtrlGetDisplayName(handle);
+        *err_str = g_strdup_printf("The NVIDIA X driver on %s is not new\n"
+                                   "enough to support the nvidia-settings "
+                                   "Display Configuration page.",
+                                   displayName ? displayName : "this X server");
+        free(displayName);
+        nv_warning_msg(*err_str);
+        goto fail;
+    }
+
     if (!layout_add_gpus_from_server(layout, err_str)) {
         nv_warning_msg("Failed to add GPU(s) to layout for display "
                        "configuration page.");
@@ -2716,13 +3039,13 @@ nvLayoutPtr layout_load_from_server(NvCtrlAttributeHandle *handle,
     }
 
     if (!layout_add_screens_from_server(layout, err_str)) {
-        nv_warning_msg("Failed to add Screens(s) to layout for display "
+        nv_warning_msg("Failed to add screens(s) to layout for display "
                        "configuration page.");
         goto fail;
     }
 
     if (!layout_add_screenless_modes_to_displays(layout)) {
-        nv_warning_msg("Failed to add Screenless modes to layout for "
+        nv_warning_msg("Failed to add screenless modes to layout for "
                        "display configuration page.");
         goto fail;
     }
@@ -2772,6 +3095,35 @@ nvScreenPtr layout_get_a_screen(nvLayoutPtr layout, nvGpuPtr preferred_gpu)
 
 
 
+/** layout_get_display() *********************************************
+ *
+ * Returns the display with the matching display id or NULL if not
+ * found.
+ *
+ **/
+nvDisplayPtr layout_get_display(const nvLayoutPtr layout,
+                                const unsigned int display_id)
+{
+    nvGpuPtr gpu;
+    nvDisplayPtr display;
+
+    for (gpu = layout->gpus; gpu; gpu = gpu->next_in_layout) {
+        for (display = gpu->displays;
+             display;
+             display = display->next_on_gpu) {
+
+            if (NvCtrlGetTargetId(display->handle) == display_id) {
+                return display;
+            }
+        }
+    }
+
+    return NULL;
+
+} /* layout_get_display() */
+
+
+
 
 /*****************************************************************************/
 /** XCONFIG FUNCTIONS ********************************************************/
@@ -2798,18 +3150,18 @@ static void update_banner(XConfigPtr config)
 
     char *s = config->comment;
     char *line, *eol, *tmp;
-    
+
     /* remove all lines that begin with the prefix */
-    
+
     while (s && (line = strstr(s, prefix))) {
-        
+
         eol = strchr(line, '\n'); /* find the end of the line */
-        
+
         if (eol) {
             eol++;
             if (*eol == '\0') eol = NULL;
         }
-        
+
         if (line == s) { /* the line with the prefix is at the start */
             if (eol) {   /* there is more after the prefix line */
                 tmp = g_strdup(eol);
@@ -2826,14 +3178,14 @@ static void update_banner(XConfigPtr config)
             s = tmp;
         }
     }
-    
+
     /* add our prefix lines at the start of the comment */
     config->comment = g_strconcat(prefix, banner,
                                   "# ", pNV_ID, "\n",
                                   (s ? s : ""),
                                   NULL);
     if (s) g_free(s);
-    
+
 } /* update_banner() */
 
 
@@ -2851,7 +3203,6 @@ static int save_xconfig_file(SaveXConfDlg *dlg,
 {
     gchar *backup_filename = NULL;
     FILE *fp = NULL;
-    size_t size;
     gchar *err_msg = NULL;
     struct stat st;
 
@@ -2859,8 +3210,6 @@ static int save_xconfig_file(SaveXConfDlg *dlg,
 
 
     if (!buf || !filename) goto done;
-
-    size = strlen(buf) ;
 
     /* Backup any existing file */
     if ((access(filename, F_OK) == 0)) {
@@ -2886,7 +3235,7 @@ static int save_xconfig_file(SaveXConfDlg *dlg,
         nv_info_msg("", "X configuration file '%s' already exists, "
                     "backing up file as '%s'", filename,
                     backup_filename);
-        
+
         /* Delete any existing backup file */
         if (access(backup_filename, F_OK) == 0) {
 
@@ -2905,7 +3254,7 @@ static int save_xconfig_file(SaveXConfDlg *dlg,
                     g_strdup_printf("Unable to create new X config backup "
                                     "file '%s'.",
                                     backup_filename);
-            goto done;            
+            goto done;
         }
     }
 
@@ -2920,7 +3269,7 @@ static int save_xconfig_file(SaveXConfDlg *dlg,
     fprintf(fp, "%s", buf);
 
     ret = 1;
-    
+
  done:
     /* Display any errors that might have occured */
     if (err_msg) {
@@ -2932,7 +3281,7 @@ static int save_xconfig_file(SaveXConfDlg *dlg,
     if (fp) fclose(fp);
     g_free(backup_filename);
     return ret;
-    
+
 } /* save_xconfig_file() */
 
 
@@ -3058,7 +3407,7 @@ static void update_xconfig_save_buffer(SaveXConfDlg *dlg)
                 /* Sanitize the X config file */
                 xconfigGenerateLoadDefaultOptions(&gop);
                 xconfigGetXServerInUse(&gop);
-                
+
                 if (!xconfigSanitizeConfig(xconfCur, NULL, &gop)) {
                     err_msg = g_strdup_printf("Failed to sanitize existing X "
                                               "config file '%s'!",
@@ -3066,7 +3415,7 @@ static void update_xconfig_save_buffer(SaveXConfDlg *dlg)
                     ctk_display_warning_msg
                         (ctk_get_parent_window(GTK_WIDGET(dlg->parent)),
                          err_msg);
-                    
+
                     xconfigFreeConfig(&xconfCur);
                     xconfCur = NULL;
                 } else {
@@ -3105,14 +3454,14 @@ static void update_xconfig_save_buffer(SaveXConfDlg *dlg)
     g_signal_handlers_block_by_func
         (G_OBJECT(dlg->btn_xconfig_merge),
          G_CALLBACK(xconfig_update_buffer), (gpointer) dlg);
-    
+
     gtk_toggle_button_set_active
         (GTK_TOGGLE_BUTTON(dlg->btn_xconfig_merge), merged);
-    
+
     g_signal_handlers_unblock_by_func
         (G_OBJECT(dlg->btn_xconfig_merge),
          G_CALLBACK(xconfig_update_buffer), (gpointer) dlg);
-    
+
     gtk_widget_set_sensitive(dlg->btn_xconfig_merge,
                              dlg->merge_toggleable && mergeable);
 
@@ -3266,10 +3615,10 @@ static void xconfig_file_clicked(GtkWidget *widget, gpointer user_data)
 
     gtk_file_selection_set_filename
         (GTK_FILE_SELECTION(dlg->dlg_xconfig_file), filename);
-    
+
     result = gtk_dialog_run(GTK_DIALOG(dlg->dlg_xconfig_file));
     gtk_widget_hide(dlg->dlg_xconfig_file);
-    
+
     switch (result) {
     case GTK_RESPONSE_ACCEPT:
     case GTK_RESPONSE_OK:
@@ -3326,8 +3675,8 @@ void run_save_xconfig_dialog(SaveXConfDlg *dlg)
     gtk_widget_show(dlg->dlg_xconfig_save);
     result = gtk_dialog_run(GTK_DIALOG(dlg->dlg_xconfig_save));
     gtk_widget_hide(dlg->dlg_xconfig_save);
-    
-    
+
+
     /* Handle user's response */
     switch (result)
     {
@@ -3373,7 +3722,7 @@ void run_save_xconfig_dialog(SaveXConfDlg *dlg)
         g_free(buf);
         g_free(filename);
         break;
-        
+
     case GTK_RESPONSE_REJECT:
     default:
         /* do nothing. */
@@ -3506,25 +3855,25 @@ SaveXConfDlg *create_save_xconfig_dialog(GtkWidget *parent,
          hbox,
          TRUE, TRUE, 0);
     dlg->box_xconfig_save = hbox;
-    
+
     /* Pack the filename text entry and browse button */
     hbox = gtk_hbox_new(FALSE, 0);
     hbox2 = gtk_hbox_new(FALSE, 5);
-    
+
     gtk_box_pack_end(GTK_BOX(hbox2), dlg->btn_xconfig_file, FALSE, FALSE, 0);
     gtk_box_pack_end(GTK_BOX(hbox2), dlg->txt_xconfig_file, TRUE, TRUE, 0);
     gtk_box_pack_end(GTK_BOX(hbox), hbox2, TRUE, TRUE, 5);
     gtk_box_pack_start(GTK_BOX(GTK_DIALOG(dlg->dlg_xconfig_save)->vbox),
                        hbox,
                        FALSE, FALSE, 5);
-    
+
     /* Pack the merge checkbox */
     gtk_box_pack_start(GTK_BOX(GTK_DIALOG(dlg->dlg_xconfig_save)->vbox),
                        dlg->btn_xconfig_merge,
                        FALSE, FALSE, 5);
-    
+
     gtk_widget_show_all(GTK_DIALOG(dlg->dlg_xconfig_save)->vbox);
-    
+
     return dlg;
 
 } /* create_save_xconfig_button() */

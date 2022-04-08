@@ -19,7 +19,6 @@
 
 #include <gtk/gtk.h>
 #include <string.h>
-#include <libintl.h>
 
 #include "NvCtrlAttributes.h"
 
@@ -29,13 +28,11 @@
 #include "ctkhelp.h"
 #include "ctkbanner.h"
 
-#define _(STRING) gettext(STRING)
-#define N_(STRING) STRING
 
 /* local prototypes */
 
 static void build_fsaa_translation_table(CtkMultisample *ctk_multisample,
-                                         CtrlAttributeValidValues valid);
+                                         NVCTRLAttributeValidValuesRec valid);
 
 static int map_nv_ctrl_fsaa_value_to_slider(CtkMultisample *ctk_multisample,
                                             int value);
@@ -52,23 +49,24 @@ static GtkWidget *create_fsaa_setting_menu(CtkMultisample *ctk_multisample,
 static void fsaa_setting_checkbox_toggled(GtkWidget *widget,
                                           gpointer user_data);
 
-static void fsaa_setting_menu_changed(GObject *object, gpointer user_data);
+static void fsaa_setting_menu_changed(GtkWidget *widget, gpointer user_data);
 
-static void fsaa_setting_update_received(GObject *object, CtrlEvent *event,
+static void fsaa_setting_update_received(GtkObject *object,
+                                         gpointer arg1,
                                          gpointer user_data);
 
 static void post_fsaa_value_changed(CtkMultisample *ctk_multisample, gint val);
 
 static void fsaa_value_changed(GtkRange *range, gpointer user_data);
 
-static void fsaa_update_received(GObject *object, CtrlEvent *event,
-                                 gpointer user_data);
+static void fsaa_update_received(GtkObject *object,
+                                 gpointer arg1, gpointer user_data);
 
 static void fxaa_checkbox_toggled(GtkWidget *widget,
                                   gpointer user_data);
 
-static void fxaa_update_received(GObject *object, CtrlEvent *event,
-                                 gpointer user_data);
+static void fxaa_update_received(GtkObject *object,
+                                 gpointer arg1, gpointer user_data);
 
 static void post_fxaa_toggled(CtkMultisample *ctk_multisample, 
                               gboolean enable);
@@ -80,7 +78,8 @@ post_log_aniso_app_override_toggled(CtkMultisample *ctk_multisample,
 static void log_aniso_app_override_toggled(GtkWidget *widget,
                                            gpointer user_data);
 
-static void log_app_override_update_received(GObject *object, CtrlEvent *event,
+static void log_app_override_update_received(GtkObject *object,
+                                             gpointer arg1,
                                              gpointer user_data);
 
 static const gchar *get_log_aniso_name(gint val);
@@ -93,49 +92,58 @@ static void post_log_aniso_value_changed(CtkMultisample *ctk_multisample,
 
 static void log_aniso_value_changed(GtkRange *range, gpointer user_data);
 
-static void log_aniso_range_update_received(GObject *object, CtrlEvent *event,
+static void log_aniso_range_update_received(GtkObject *object,
+                                            gpointer arg1,
                                             gpointer user_data);
+
+static void post_texture_sharpening_toggled(CtkMultisample *ctk_multisample,
+                                            gboolean enabled);
+
+static void texture_sharpening_toggled(GtkWidget *widget, gpointer user_data);
+
+static void texture_sharpening_update_received(GtkObject *object,
+                                               gpointer arg1,
+                                               gpointer user_data);
 
 static void update_fxaa_from_fsaa_change(CtkMultisample *ctk_multisample,
                                          int fsaa_value);
 static void update_fsaa_from_fxaa_change(CtkMultisample *ctk_multisample,
                                          gboolean fxaa_enabled);
-static gchar *applicationSettings[] = {
-    N_("Use Application Settings"),
-    N_("Override Application Settings"),
-    N_("Enhance Application Settings")
-};
 
 static const char *__aa_override_app_help =
-N_("Enable the Antialiasing \"Override Application Setting\" "
+"Enable the Antialiasing \"Override Application Setting\" "
 "checkbox to make the antialiasing slider active and "
-"override any application antialiasing setting with the "
-"value of the slider.");
+"override any appliation antialiasing setting with the "
+"value of the slider.";
 
 static const char *__aa_menu_help =
-N_("The Application Antialiasing Settings Menu allows the antialiasing "
-"setting of OpenGL applications to be overridden with the value of "
-"the slider.");
+"The Application Antialiasing Settings Menu allows the antialiasing "
+"setting of OpenGL applications to be overriden with the value of "
+"the slider.";
 
 static const char *__aa_slider_help =
-N_("The Antialiasing slider controls the level of antialiasing. Using "
-"antialiasing disables FXAA.");
+"The Antialiasing slider controls the level of antialiasing. Using "
+"antialiasing disables FXAA.";
 
 static const char *__aniso_override_app_help =
-N_("Enable the Anisotropic Filtering \"Override Application Setting\" "
+"Enable the Anisotropic Filtering \"Override Application Setting\" "
 "checkbox to make the anisotropic filtering slider "
-"active and override any application anisotropic "
-"filtering setting with the value of the slider.");
+"active and override any appliation anisotropic "
+"filtering setting with the value of the slider.";
 
 static const char *__aniso_slider_help =
-N_("The Anisotropic Filtering slider controls the "
-"level of automatic anisotropic texture filtering.");
+"The Anisotropic Filtering slider controls the "
+"level of automatic anisotropic texture filtering.";
 
 static const char *__fxaa_enable_help = 
-N_("Enable Fast Approximate Anti-Aliasing. This option is applied to "
+"Enable Fast Approximate Anti-Aliasing. This option is applied to "
 "OpenGL applications that are started after this option is set. Enabling "
-"FXAA disables triple buffering, antialiasing, and other antialiasing "
-"setting methods.");
+"FXAA disables antialiasing and other antialiasing setting methods.";
+
+static const char *__texture_sharpening_help =
+"To improve image quality, select this option "
+"to sharpen textures when running OpenGL applications "
+"with antialiasing enabled.";
 
 
 /*
@@ -143,27 +151,27 @@ N_("Enable Fast Approximate Anti-Aliasing. This option is applied to "
  * help
  */
 
-#define __FSAA_NONE       (1 << NV_CTRL_FSAA_MODE_NONE)
-#define __FSAA_2x         (1 << NV_CTRL_FSAA_MODE_2x)
-#define __FSAA_2x_5t      (1 << NV_CTRL_FSAA_MODE_2x_5t)
-#define __FSAA_15x15      (1 << NV_CTRL_FSAA_MODE_15x15)
-#define __FSAA_2x2        (1 << NV_CTRL_FSAA_MODE_2x2)
-#define __FSAA_4x         (1 << NV_CTRL_FSAA_MODE_4x)
-#define __FSAA_4x_9t      (1 << NV_CTRL_FSAA_MODE_4x_9t)
-#define __FSAA_8x         (1 << NV_CTRL_FSAA_MODE_8x)
-#define __FSAA_16x        (1 << NV_CTRL_FSAA_MODE_16x)
-#define __FSAA_8xS        (1 << NV_CTRL_FSAA_MODE_8xS)
-#define __FSAA_8xQ        (1 << NV_CTRL_FSAA_MODE_8xQ)
-#define __FSAA_16xS       (1 << NV_CTRL_FSAA_MODE_16xS)
-#define __FSAA_16xQ       (1 << NV_CTRL_FSAA_MODE_16xQ)
-#define __FSAA_32xS       (1 << NV_CTRL_FSAA_MODE_32xS)
-#define __FSAA_32x        (1 << NV_CTRL_FSAA_MODE_32x)
-#define __FSAA_64xS       (1 << NV_CTRL_FSAA_MODE_64xS)
-#define __FSAA            (1 << (NV_CTRL_FSAA_MODE_MAX + 1))
-#define __FSAA_ENHANCE    (1 << (NV_CTRL_FSAA_MODE_MAX + 2))
-#define __FXAA            (1 << (NV_CTRL_FSAA_MODE_MAX + 3))
-#define __LOG_ANISO_RANGE (1 << (NV_CTRL_FSAA_MODE_MAX + 4))
-
+#define __LOG_ANISO_RANGE (1 << 2)
+#define __TEXTURE_SHARPEN (1 << 3)
+#define __FSAA            (1 << 4)
+#define __FSAA_NONE       (__FSAA << NV_CTRL_FSAA_MODE_NONE)
+#define __FSAA_2x         (__FSAA << NV_CTRL_FSAA_MODE_2x)
+#define __FSAA_2x_5t      (__FSAA << NV_CTRL_FSAA_MODE_2x_5t)
+#define __FSAA_15x15      (__FSAA << NV_CTRL_FSAA_MODE_15x15)
+#define __FSAA_2x2        (__FSAA << NV_CTRL_FSAA_MODE_2x2)
+#define __FSAA_4x         (__FSAA << NV_CTRL_FSAA_MODE_4x)
+#define __FSAA_4x_9t      (__FSAA << NV_CTRL_FSAA_MODE_4x_9t)
+#define __FSAA_8x         (__FSAA << NV_CTRL_FSAA_MODE_8x)
+#define __FSAA_16x        (__FSAA << NV_CTRL_FSAA_MODE_16x)
+#define __FSAA_8xS        (__FSAA << NV_CTRL_FSAA_MODE_8xS)
+#define __FSAA_8xQ        (__FSAA << NV_CTRL_FSAA_MODE_8xQ)
+#define __FSAA_16xS       (__FSAA << NV_CTRL_FSAA_MODE_16xS)
+#define __FSAA_16xQ       (__FSAA << NV_CTRL_FSAA_MODE_16xQ)
+#define __FSAA_32xS       (__FSAA << NV_CTRL_FSAA_MODE_32xS)
+#define __FSAA_32x        (__FSAA << NV_CTRL_FSAA_MODE_32x)
+#define __FSAA_64xS       (__FSAA << NV_CTRL_FSAA_MODE_64xS)
+#define __FSAA_ENHANCE    (__FSAA << (NV_CTRL_FSAA_MODE_MAX + 1))
+#define __FXAA            (__FSAA << (NV_CTRL_FSAA_MODE_MAX + 2))
 
 #define FRAME_PADDING 5
 
@@ -201,9 +209,8 @@ GType ctk_multisample_get_type(
  * ctk_multisample_new() - constructor for the Multisample widget
  */
 
-GtkWidget *ctk_multisample_new(CtrlTarget *ctrl_target,
-                               CtkConfig *ctk_config,
-                               CtkEvent *ctk_event)
+GtkWidget *ctk_multisample_new(NvCtrlAttributeHandle *handle,
+                               CtkConfig *ctk_config, CtkEvent *ctk_event)
 {
     GObject *object;
     CtkMultisample *ctk_multisample;
@@ -213,28 +220,28 @@ GtkWidget *ctk_multisample_new(CtrlTarget *ctrl_target,
     GtkWidget *check_button;
     GtkWidget *menu;
     GtkWidget *scale;
-    GtkAdjustment *adjustment;
+    GtkObject *adjustment;
     gint min, max;
-
+    
     gint val, app_control, override, enhance, mode, i;
-
-    CtrlAttributeValidValues valid;
+    
+    NVCTRLAttributeValidValuesRec valid;
 
     ReturnStatus ret, ret0;
 
     /* create the new object */
-
+    
     object = g_object_new(CTK_TYPE_MULTISAMPLE, NULL);
 
     ctk_multisample = CTK_MULTISAMPLE(object);
-    ctk_multisample->ctrl_target = ctrl_target;
+    ctk_multisample->handle = handle;
     ctk_multisample->ctk_config = ctk_config;
     ctk_multisample->active_attributes = 0;
 
     gtk_box_set_spacing(GTK_BOX(object), 10);
 
     /* banner */
-
+    
     hbox = gtk_hbox_new(FALSE, 0);
     gtk_box_pack_start(GTK_BOX(object), hbox, FALSE, FALSE, 0);
 
@@ -243,18 +250,17 @@ GtkWidget *ctk_multisample_new(CtrlTarget *ctrl_target,
 
     /* FSAA slider */
 
-    ret = NvCtrlGetValidAttributeValues(ctrl_target, NV_CTRL_FSAA_MODE,
-                                        &valid);
-
+    ret = NvCtrlGetValidAttributeValues(handle, NV_CTRL_FSAA_MODE, &valid);
+    
     if (ret == NvCtrlSuccess) {
-
+        
         build_fsaa_translation_table(ctk_multisample, valid);
-
-        ret = NvCtrlGetAttribute(ctrl_target, NV_CTRL_FSAA_MODE, &mode);
-
+        
+        ret = NvCtrlGetAttribute(handle, NV_CTRL_FSAA_MODE, &mode);
+        
         val = map_nv_ctrl_fsaa_value_to_slider(ctk_multisample, mode);
 
-        ret0 = NvCtrlGetAttribute(ctrl_target,
+        ret0 = NvCtrlGetAttribute(handle,
                                   NV_CTRL_FSAA_APPLICATION_CONTROLLED,
                                   &app_control);
         /*
@@ -271,7 +277,7 @@ GtkWidget *ctk_multisample_new(CtrlTarget *ctrl_target,
             
             /* create "Antialiasing Settings" frame */
             
-            frame = gtk_frame_new(_("Antialiasing Settings"));
+            frame = gtk_frame_new("Antialiasing Settings");
             gtk_box_pack_start(GTK_BOX(object), frame, FALSE, FALSE, 0);
             
             /* create the vbox to store the widgets inside the frame */
@@ -279,10 +285,10 @@ GtkWidget *ctk_multisample_new(CtrlTarget *ctrl_target,
             vbox = gtk_vbox_new(FALSE, 5);
             gtk_container_set_border_width(GTK_CONTAINER(vbox), FRAME_PADDING);
             gtk_container_add(GTK_CONTAINER(frame), vbox);
-
+            
             /* "Application Setting" widget */
-
-            ret = NvCtrlGetAttribute(ctrl_target,
+            
+            ret = NvCtrlGetAttribute(ctk_multisample->handle,
                                      NV_CTRL_FSAA_APPLICATION_ENHANCED,
                                      &enhance);
 
@@ -304,7 +310,7 @@ GtkWidget *ctk_multisample_new(CtrlTarget *ctrl_target,
                 /* Create a checkbox */
                 
                 check_button = gtk_check_button_new_with_label
-                    (_("Override Application Setting"));
+                    ("Override Application Setting");
                 
                 gtk_toggle_button_set_active(GTK_TOGGLE_BUTTON(check_button),
                                              override);
@@ -314,7 +320,7 @@ GtkWidget *ctk_multisample_new(CtrlTarget *ctrl_target,
                                  (gpointer) ctk_multisample);
                 
                 ctk_config_set_tooltip(ctk_config, check_button,
-                                       _(__aa_override_app_help));
+                                       __aa_override_app_help);
 
                 gtk_box_pack_start(GTK_BOX(vbox), check_button,
                                    FALSE, FALSE, 0);
@@ -334,8 +340,7 @@ GtkWidget *ctk_multisample_new(CtrlTarget *ctrl_target,
             max = ctk_multisample->fsaa_translation_table_size - 1;
 
             /* create the slider */
-            adjustment = GTK_ADJUSTMENT(gtk_adjustment_new(val, min, max,
-                                                           1, 1, 0.0));
+            adjustment = gtk_adjustment_new(val, min, max, 1, 1, 0.0);
             scale = gtk_hscale_new(GTK_ADJUSTMENT(adjustment));
             gtk_adjustment_set_value(GTK_ADJUSTMENT(adjustment), val);
             
@@ -357,7 +362,7 @@ GtkWidget *ctk_multisample_new(CtrlTarget *ctrl_target,
                              G_CALLBACK(fsaa_update_received),
                              (gpointer) ctk_multisample);
 
-            ctk_config_set_tooltip(ctk_config, scale, _(__aa_slider_help));
+            ctk_config_set_tooltip(ctk_config, scale, __aa_slider_help);
 
             ctk_multisample->active_attributes |= __FSAA;
             ctk_multisample->fsaa_scale = scale;
@@ -367,14 +372,14 @@ GtkWidget *ctk_multisample_new(CtrlTarget *ctrl_target,
 
             for (i = 0; i < ctk_multisample->fsaa_translation_table_size; i++)
                 ctk_multisample->active_attributes |=
-                    (1 << ctk_multisample->fsaa_translation_table[i]);
+                    (__FSAA << ctk_multisample->fsaa_translation_table[i]);
 
             /* FXAA Option button */
 
-            check_button = gtk_check_button_new_with_label(_("Enable FXAA"));
+            check_button = gtk_check_button_new_with_label("Enable FXAA");
 
             if (mode == NV_CTRL_FSAA_MODE_NONE) {
-                ret = NvCtrlGetAttribute(ctrl_target, NV_CTRL_FXAA, &val);
+                ret = NvCtrlGetAttribute(handle, NV_CTRL_FXAA, &val);
                 if (val == NV_CTRL_FXAA_ENABLE) {
                     gtk_widget_set_sensitive(GTK_WIDGET(scale), FALSE);
                 }
@@ -395,25 +400,25 @@ GtkWidget *ctk_multisample_new(CtrlTarget *ctrl_target,
                              (gpointer) ctk_multisample);
 
             ctk_config_set_tooltip(ctk_config, check_button,
-                                   _(__fxaa_enable_help));
+                                   __fxaa_enable_help);
             gtk_box_pack_start(GTK_BOX(vbox), check_button, FALSE, FALSE, 0);
 
             ctk_multisample->active_attributes |= __FXAA;
             ctk_multisample->fxaa_enable_check_button = check_button;
         }
     }
-
+    
     /* Anisotropic filtering slider */
 
-    ret = NvCtrlGetValidAttributeValues(ctrl_target, NV_CTRL_LOG_ANISO, &valid);
-
+    ret = NvCtrlGetValidAttributeValues(handle, NV_CTRL_LOG_ANISO, &valid);
+    
     ctk_multisample->log_aniso_scale = NULL;
 
     if (ret == NvCtrlSuccess) {
+        
+        ret = NvCtrlGetAttribute(handle, NV_CTRL_LOG_ANISO, &val);
 
-        ret = NvCtrlGetAttribute(ctrl_target, NV_CTRL_LOG_ANISO, &val);
-
-        ret0 = NvCtrlGetAttribute(ctrl_target,
+        ret0 = NvCtrlGetAttribute(handle,
                                   NV_CTRL_LOG_ANISO_APPLICATION_CONTROLLED,
                                   &app_control);
         /*
@@ -426,11 +431,11 @@ GtkWidget *ctk_multisample_new(CtrlTarget *ctrl_target,
         override = !app_control;
         
         if ((ret == NvCtrlSuccess) && (ret0 == NvCtrlSuccess) &&
-            (valid.valid_type == CTRL_ATTRIBUTE_VALID_TYPE_RANGE)) {
+            (valid.type == ATTRIBUTE_TYPE_RANGE)) {
             
             /* create "Anisotropic Filtering" frame */
             
-            frame = gtk_frame_new(_("Anisotropic Filtering"));
+            frame = gtk_frame_new("Anisotropic Filtering");
             gtk_box_pack_start(GTK_BOX(object), frame, FALSE, FALSE, 0);
             
             /* create the vbox to store the widgets inside the frame */
@@ -442,7 +447,7 @@ GtkWidget *ctk_multisample_new(CtrlTarget *ctrl_target,
             /* "Override Application Setting" checkbox */
             
             check_button = gtk_check_button_new_with_label
-                (_("Override Application Setting"));
+                ("Override Application Setting");
             
             gtk_toggle_button_set_active(GTK_TOGGLE_BUTTON(check_button),
                                          override);
@@ -458,7 +463,7 @@ GtkWidget *ctk_multisample_new(CtrlTarget *ctrl_target,
                              (gpointer) ctk_multisample);
 
             ctk_config_set_tooltip(ctk_config, check_button,
-                                   _(__aniso_override_app_help));
+                                   __aniso_override_app_help);
 
             gtk_box_pack_start(GTK_BOX(vbox), check_button, FALSE, FALSE, 0);
 
@@ -466,12 +471,11 @@ GtkWidget *ctk_multisample_new(CtrlTarget *ctrl_target,
             
             /* Aniso scale */
 
-            min = valid.range.min;
-            max = valid.range.max;
+            min = valid.u.range.min;
+            max = valid.u.range.max;
 
             /* create the slider */
-            adjustment = GTK_ADJUSTMENT(gtk_adjustment_new(val, min, max,
-                                                           1, 1, 0.0));
+            adjustment = gtk_adjustment_new(val, min, max, 1, 1, 0.0);
             scale = gtk_hscale_new(GTK_ADJUSTMENT(adjustment));
             gtk_adjustment_set_value(GTK_ADJUSTMENT(adjustment), val);
 
@@ -493,13 +497,59 @@ GtkWidget *ctk_multisample_new(CtrlTarget *ctrl_target,
                              G_CALLBACK(log_aniso_range_update_received),
                              (gpointer) ctk_multisample);
             
-            ctk_config_set_tooltip(ctk_config, scale, _(__aniso_slider_help));
+            ctk_config_set_tooltip(ctk_config, scale, __aniso_slider_help);
 
             ctk_multisample->active_attributes |= __LOG_ANISO_RANGE;
             ctk_multisample->log_aniso_scale = scale;
 
             gtk_widget_set_sensitive(GTK_WIDGET(scale), override);
         }
+    }
+    
+    /*
+     * Texture sharpen
+     *
+     * If one of the supported multisample modes was enabled by the
+     * user, this check button controls texture sharpening.
+     */
+    
+    ret = NvCtrlGetAttribute(handle, NV_CTRL_TEXTURE_SHARPEN, &val);
+
+    if (ret == NvCtrlSuccess) {
+        
+        /* create "TextureSharpening" frame */
+
+        frame = gtk_frame_new("Texture Quality");
+        gtk_box_pack_start(GTK_BOX(object), frame, FALSE, FALSE, 0);
+        
+        /* create the vbox to store the widgets inside the frame */
+
+        vbox = gtk_vbox_new(FALSE, 5);
+        gtk_container_set_border_width(GTK_CONTAINER(vbox), FRAME_PADDING);
+        gtk_container_add(GTK_CONTAINER(frame), vbox);
+        
+        /* "Texture Sharpening" checkbox */
+        
+        check_button = gtk_check_button_new_with_label("Texture Sharpening");
+        
+        gtk_toggle_button_set_active(GTK_TOGGLE_BUTTON(check_button), val);
+        
+        gtk_box_pack_start(GTK_BOX(vbox), check_button, FALSE, FALSE, 0);
+        
+        g_signal_connect(G_OBJECT(check_button), "toggled",
+                         G_CALLBACK(texture_sharpening_toggled),
+                         (gpointer) ctk_multisample);
+        
+        g_signal_connect(G_OBJECT(ctk_event),
+                         CTK_EVENT_NAME(NV_CTRL_TEXTURE_SHARPEN),
+                         G_CALLBACK(texture_sharpening_update_received),
+                         (gpointer) ctk_multisample);
+        
+        ctk_config_set_tooltip(ctk_config, check_button,
+                               __texture_sharpening_help);
+        
+        ctk_multisample->active_attributes |= __TEXTURE_SHARPEN;
+        ctk_multisample->texture_sharpening_button = check_button;
     }
     
     /* if nothing is available, teardown this object and return NULL */
@@ -527,23 +577,21 @@ GtkWidget *ctk_multisample_new(CtrlTarget *ctrl_target,
  */
 
 static void build_fsaa_translation_table(CtkMultisample *ctk_multisample,
-                                         CtrlAttributeValidValues valid)
+                                         NVCTRLAttributeValidValuesRec valid)
 {
     gint i, n = 0;
     gint index_8xs = -1;
     gint index_16x = -1;
     gint index_32x = -1;
     gint index_32xs = -1;
-    gint mask = valid.allowed_ints;
+    gint mask = valid.u.bits.ints;
 
     ctk_multisample->fsaa_translation_table_size = 0;
 
     memset(ctk_multisample->fsaa_translation_table, 0,
            sizeof(gint) * (NV_CTRL_FSAA_MODE_MAX + 1));
 
-    if (valid.valid_type != CTRL_ATTRIBUTE_VALID_TYPE_INT_BITS) {
-        return;
-    }
+    if (valid.type != ATTRIBUTE_TYPE_INT_BITS) return;
     
     for (i = 0; i <= NV_CTRL_FSAA_MODE_MAX; i++) {
         if (mask & (1 << i)) {
@@ -642,18 +690,30 @@ static GtkWidget *create_fsaa_setting_menu(CtkMultisample *ctk_multisample,
                                            CtkEvent *ctk_event,
                                            gboolean override, gboolean enhance)
 {
-    CtkDropDownMenu *d;
-
-    gint idx, i;
+    GtkWidget *omenu;
+    GtkWidget *menu;
+    GtkWidget *menu_item;
+    gint idx;
 
     /* Create the menu */
 
-    d = (CtkDropDownMenu *)
-        ctk_drop_down_menu_new(CTK_DROP_DOWN_MENU_FLAG_READONLY);
+    omenu = gtk_option_menu_new();
+
+    menu = gtk_menu_new();
     
-    for (i = 0; i < ARRAY_LEN(applicationSettings); i++) {
-        ctk_drop_down_menu_append_item(d, _(applicationSettings[i]), i);
-    }
+    menu_item = gtk_menu_item_new_with_label("Use Application Settings");
+    gtk_menu_shell_append(GTK_MENU_SHELL(menu), menu_item);
+    gtk_widget_show(menu_item);
+
+    menu_item = gtk_menu_item_new_with_label("Override Application Settings");
+    gtk_menu_shell_append(GTK_MENU_SHELL(menu), menu_item);
+    gtk_widget_show(menu_item);
+
+    menu_item = gtk_menu_item_new_with_label("Enhance Application Settings");
+    gtk_menu_shell_append(GTK_MENU_SHELL(menu), menu_item);
+    gtk_widget_show(menu_item);
+
+    /* Set the state of the menu */
 
     if (!override) {
         idx = 0;
@@ -665,14 +725,14 @@ static GtkWidget *create_fsaa_setting_menu(CtkMultisample *ctk_multisample,
         }
     }
 
-    /* set the menu item */
-    ctk_drop_down_menu_set_current_value(d, idx);
+    gtk_option_menu_set_menu(GTK_OPTION_MENU(omenu), menu);
 
-    ctk_drop_down_menu_set_tooltip(ctk_multisample->ctk_config, d,
-                                   _(__aa_menu_help));
+    gtk_option_menu_set_history(GTK_OPTION_MENU(omenu), idx);
 
-    g_signal_connect(G_OBJECT(d),
-                     "changed",
+    ctk_config_set_tooltip(ctk_multisample->ctk_config, omenu,
+                           __aa_menu_help);
+
+    g_signal_connect(G_OBJECT(omenu), "changed",
                      G_CALLBACK(fsaa_setting_menu_changed),
                      (gpointer) ctk_multisample);
 
@@ -682,7 +742,7 @@ static GtkWidget *create_fsaa_setting_menu(CtkMultisample *ctk_multisample,
                      G_CALLBACK(fsaa_setting_update_received),
                      (gpointer) ctk_multisample);
 
-    return GTK_WIDGET(d);
+    return omenu;
 
 } /* create_fsaa_setting_menu() */
 
@@ -710,9 +770,9 @@ static void post_fsaa_setting_changed(CtkMultisample *ctk_multisample,
     }
 
     ctk_config_statusbar_message(ctk_multisample->ctk_config,
-                                 (!override ? _("Using Application's Antialiasing Settings.") :
-                                  (enhance ? _("Enhancing Application's Antialiasing Settings.") :
-                                   _("Overriding Application's Antialiasing Settings."))));
+                                 "%s Application's Antialiasing Settings.",
+                                 (!override ? "Using" :
+                                  (enhance ? "Enhancing" : "Overriding")));
 
 } /* post_fsaa_setting_changed() */
 
@@ -727,19 +787,18 @@ static void post_fsaa_setting_changed(CtkMultisample *ctk_multisample,
 static void update_fsaa_setting(CtkMultisample *ctk_multisample,
                                 gboolean override, gboolean enhance)
 {
-    CtrlTarget *ctrl_target = ctk_multisample->ctrl_target;
     GtkRange *range = GTK_RANGE(ctk_multisample->fsaa_scale);
 
-    NvCtrlSetAttribute(ctrl_target,
+    NvCtrlSetAttribute(ctk_multisample->handle,
                        NV_CTRL_FSAA_APPLICATION_CONTROLLED, !override);
-
+    
     if (ctk_multisample->active_attributes & __FSAA_ENHANCE) {
-        NvCtrlSetAttribute(ctrl_target,
+        NvCtrlSetAttribute(ctk_multisample->handle,
                            NV_CTRL_FSAA_APPLICATION_ENHANCED, enhance);
     }
 
     if (!override) {
-        NvCtrlSetAttribute(ctrl_target,
+        NvCtrlSetAttribute(ctk_multisample->handle,
                            NV_CTRL_FSAA_MODE, NV_CTRL_FSAA_MODE_NONE);
 
         g_signal_handlers_block_by_func(G_OBJECT(range),
@@ -788,15 +847,14 @@ static void fsaa_setting_checkbox_toggled(GtkWidget *widget,
  * the fsaa slider.
  */
 
-static void fsaa_setting_menu_changed(GObject *object, gpointer user_data)
+static void fsaa_setting_menu_changed(GtkWidget *widget, gpointer user_data)
 {
     CtkMultisample *ctk_multisample = CTK_MULTISAMPLE(user_data);
     gint idx;
     gboolean override;
     gboolean enhance;
 
-    idx = ctk_drop_down_menu_get_current_value
-        (CTK_DROP_DOWN_MENU(ctk_multisample->fsaa_menu));
+    idx = gtk_option_menu_get_history(GTK_OPTION_MENU(widget));
 
     /* The FSAA dropdown menu is setup this way:
      *
@@ -820,12 +878,12 @@ static void fsaa_setting_menu_changed(GObject *object, gpointer user_data)
  * NV-CONTROL client.
  */
 
-static void fsaa_setting_update_received(GObject *object,
-                                         CtrlEvent *event,
+static void fsaa_setting_update_received(GtkObject *object,
+                                         gpointer arg1,
                                          gpointer user_data)
 {
+    CtkEventStruct *event_struct = (CtkEventStruct *) arg1;
     CtkMultisample *ctk_multisample = CTK_MULTISAMPLE(user_data);
-    CtrlTarget *ctrl_target = ctk_multisample->ctrl_target;
     gint idx;
     gboolean override;
     gboolean enhance = FALSE;
@@ -833,18 +891,15 @@ static void fsaa_setting_update_received(GObject *object,
     gint val;
     ReturnStatus ret;
 
-    if (event->type != CTRL_EVENT_TYPE_INTEGER_ATTRIBUTE) {
-        return;
-    }
 
-    switch (event->int_attr.attribute) {
+    switch (event_struct->attribute) {
     case NV_CTRL_FSAA_APPLICATION_CONTROLLED:
-        override = !event->int_attr.value;
+        override = !event_struct->value;
 
         if (!override) {
             idx = 0;
         } else if (ctk_multisample->active_attributes & __FSAA_ENHANCE) {
-            ret = NvCtrlGetAttribute(ctrl_target,
+            ret = NvCtrlGetAttribute(ctk_multisample->handle,
                                      NV_CTRL_FSAA_APPLICATION_ENHANCED,
                                      &val);
             if (ret == NvCtrlSuccess) {
@@ -860,9 +915,9 @@ static void fsaa_setting_update_received(GObject *object,
         break;
 
     case NV_CTRL_FSAA_APPLICATION_ENHANCED:
-        enhance = event->int_attr.value;
+        enhance = event_struct->value;
 
-        ret = NvCtrlGetAttribute(ctrl_target,
+        ret = NvCtrlGetAttribute(ctk_multisample->handle,
                                  NV_CTRL_FSAA_APPLICATION_CONTROLLED,
                                  &val);
         if (ret == NvCtrlSuccess) {
@@ -888,16 +943,13 @@ static void fsaa_setting_update_received(GObject *object,
         GtkWidget *menu = ctk_multisample->fsaa_menu;
 
         g_signal_handlers_block_by_func
-            (G_OBJECT(menu),
-             G_CALLBACK(fsaa_setting_menu_changed),
+            (G_OBJECT(menu), G_CALLBACK(fsaa_setting_menu_changed),
              (gpointer) ctk_multisample);
-
-        ctk_drop_down_menu_set_current_value
-            (CTK_DROP_DOWN_MENU(ctk_multisample->fsaa_menu), idx);
+        
+        gtk_option_menu_set_history(GTK_OPTION_MENU(menu), idx);
         
         g_signal_handlers_unblock_by_func
-            (G_OBJECT(menu),
-             G_CALLBACK(fsaa_setting_menu_changed),
+            (G_OBJECT(menu), G_CALLBACK(fsaa_setting_menu_changed),
              (gpointer) ctk_multisample);
     } else {
         /* Update the checkbox */
@@ -931,7 +983,7 @@ static void fsaa_setting_update_received(GObject *object,
 static void post_fsaa_value_changed(CtkMultisample *ctk_multisample, gint val)
 {
     ctk_config_statusbar_message(ctk_multisample->ctk_config,
-                                 _("Antialiasing set to %s."),
+                                 "Antialiasing set to %s.",
                                  NvCtrlGetMultisampleModeName(val));
     
 } /* post_fsaa_value_changed() */
@@ -952,8 +1004,7 @@ static void update_fxaa_from_fsaa_change(CtkMultisample *ctk_multisample,
     gboolean fxaa_value;
 
     /* The FSAA dropdown menu is: 0 == app, 1 == override, 2 == enhance */
-    gint fsaa_idx =
-        ctk_drop_down_menu_get_current_value(CTK_DROP_DOWN_MENU(fsaa_menu));
+    gint fsaa_idx = gtk_option_menu_get_history(GTK_OPTION_MENU(fsaa_menu)) ;
     
     if (fsaa_value != NV_CTRL_FSAA_MODE_NONE) {
         g_signal_handlers_block_by_func(G_OBJECT(fxaa_checkbox),
@@ -991,8 +1042,7 @@ static void update_fsaa_from_fxaa_change (CtkMultisample *ctk_multisample,
     GtkWidget *fsaa_menu = ctk_multisample->fsaa_menu;
 
     /* The FSAA dropdown menu is: 0 == app, 1 == override, 2 == enhance */
-    gint fsaa_idx =
-        ctk_drop_down_menu_get_current_value(CTK_DROP_DOWN_MENU(fsaa_menu));
+    gint fsaa_idx = gtk_option_menu_get_history(GTK_OPTION_MENU(fsaa_menu)) ;
     
     gint fsaa_val;
 
@@ -1028,19 +1078,20 @@ static void update_fsaa_from_fxaa_change (CtkMultisample *ctk_multisample,
 
 static void fsaa_value_changed(GtkRange *range, gpointer user_data)
 {
-    CtkMultisample *ctk_multisample = CTK_MULTISAMPLE(user_data); 
-    CtrlTarget *ctrl_target = ctk_multisample->ctrl_target;
+    CtkMultisample *ctk_multisample;
     gint val;
+
+    ctk_multisample = CTK_MULTISAMPLE(user_data); 
 
     val = gtk_range_get_value(range);
     if (val > NV_CTRL_FSAA_MODE_MAX) val = NV_CTRL_FSAA_MODE_MAX;
     if (val < 0) val = 0;
     val = ctk_multisample->fsaa_translation_table[val];
 
-    NvCtrlSetAttribute(ctrl_target, NV_CTRL_FSAA_MODE, val);
+    NvCtrlSetAttribute(ctk_multisample->handle, NV_CTRL_FSAA_MODE, val);
 
     update_fxaa_from_fsaa_change(ctk_multisample, val);
-
+    
     post_fsaa_value_changed(ctk_multisample, val);
 
 } /* fsaa_value_changed() */
@@ -1054,12 +1105,11 @@ static void fxaa_checkbox_toggled(GtkWidget *widget,
                                   gpointer user_data)
 {
     CtkMultisample *ctk_multisample = CTK_MULTISAMPLE(user_data);
-    CtrlTarget *ctrl_target = ctk_multisample->ctrl_target;
     gboolean enabled;
 
     enabled = gtk_toggle_button_get_active(GTK_TOGGLE_BUTTON(widget));
 
-    NvCtrlSetAttribute(ctrl_target, NV_CTRL_FXAA, enabled);
+    NvCtrlSetAttribute(ctk_multisample->handle, NV_CTRL_FXAA, enabled);
 
     update_fsaa_from_fxaa_change(ctk_multisample, enabled);
 
@@ -1074,19 +1124,13 @@ static void fxaa_checkbox_toggled(GtkWidget *widget,
  * client.
  */
 
-static void fxaa_update_received(GObject *object,
-                                 CtrlEvent *event,
-                                 gpointer user_data)
+static void fxaa_update_received(GtkObject *object,
+                                 gpointer arg1, gpointer user_data)
 {
+    CtkEventStruct *event_struct = (CtkEventStruct *) arg1;
     CtkMultisample *ctk_multisample = CTK_MULTISAMPLE(user_data);
-    gboolean fxaa_value;
+    gboolean fxaa_value = event_struct->value;
     GtkWidget *check_button = ctk_multisample->fxaa_enable_check_button;
-
-    if (event->type != CTRL_EVENT_TYPE_INTEGER_ATTRIBUTE) {
-        return;
-    }
-
-    fxaa_value = event->int_attr.value;
 
     g_signal_handlers_block_by_func(G_OBJECT(check_button),
                                     G_CALLBACK(fxaa_checkbox_toggled),
@@ -1114,7 +1158,8 @@ static void
 post_fxaa_toggled(CtkMultisample *ctk_multisample, gboolean enable)
 {
     ctk_config_statusbar_message(ctk_multisample->ctk_config,
-                                 enable ? _("FXAA enabled.") : _("FXAA disabled."));
+                                 "FXAA "
+                                 "%s.", enable ? "enabled" : "disabled");
 
 } /* post_fxaa_toggled() */
 
@@ -1126,23 +1171,20 @@ post_fxaa_toggled(CtkMultisample *ctk_multisample, gboolean enable)
  * client.
  */
 
-static void fsaa_update_received(GObject *object,
-                                 CtrlEvent *event,
-                                 gpointer user_data)
+static void fsaa_update_received(GtkObject *object,
+                                 gpointer arg1, gpointer user_data)
 {
+    CtkEventStruct *event_struct;
     CtkMultisample *ctk_multisample;
     GtkRange *range;
     gint val;
 
-    if (event->type != CTRL_EVENT_TYPE_INTEGER_ATTRIBUTE) {
-        return;
-    }
-
+    event_struct = (CtkEventStruct *) arg1;
     ctk_multisample = CTK_MULTISAMPLE(user_data);
     range = GTK_RANGE(ctk_multisample->fsaa_scale);
 
     val = map_nv_ctrl_fsaa_value_to_slider(ctk_multisample,
-                                           event->int_attr.value);
+                                           event_struct->value);
 
     g_signal_handlers_block_by_func(G_OBJECT(range),
                                     G_CALLBACK(fsaa_value_changed),
@@ -1150,13 +1192,13 @@ static void fsaa_update_received(GObject *object,
     
     gtk_range_set_value(range, val);
 
-    update_fxaa_from_fsaa_change(ctk_multisample, event->int_attr.value);
+    update_fxaa_from_fsaa_change(ctk_multisample, event_struct->value);
     
     g_signal_handlers_unblock_by_func(G_OBJECT(range),
                                       G_CALLBACK(fsaa_value_changed),
                                       (gpointer) ctk_multisample);
 
-    post_fsaa_value_changed(ctk_multisample, event->int_attr.value);
+    post_fsaa_value_changed(ctk_multisample, event_struct->value);
 
 } /* fsaa_update_received() */
 
@@ -1180,7 +1222,8 @@ post_log_aniso_app_override_toggled(CtkMultisample *ctk_multisample,
     }
     
     ctk_config_statusbar_message(ctk_multisample->ctk_config,
-                                 override ? _("Application Anisotropic Filtering Override enabled") : _("Application Anisotropic Filtering Override disabled"));
+                                 "Application Anisotropic Filtering Override "
+                                 "%s.", override ? "enabled" : "disabled");
 
 } /* post_log_aniso_app_override_toggled() */
 
@@ -1196,16 +1239,15 @@ static void log_aniso_app_override_toggled(GtkWidget *widget,
                                            gpointer user_data)
 {
     CtkMultisample *ctk_multisample = CTK_MULTISAMPLE(user_data);
-    CtrlTarget *ctrl_target = ctk_multisample->ctrl_target;
     GtkRange *range = GTK_RANGE(ctk_multisample->log_aniso_scale);
     gboolean override;
 
     override = gtk_toggle_button_get_active(GTK_TOGGLE_BUTTON(widget));
 
-    NvCtrlSetAttribute(ctrl_target,
+    NvCtrlSetAttribute(ctk_multisample->handle,
                        NV_CTRL_LOG_ANISO_APPLICATION_CONTROLLED, !override);
     if (!override) {
-        NvCtrlSetAttribute(ctrl_target,
+        NvCtrlSetAttribute(ctk_multisample->handle,
                            NV_CTRL_LOG_ANISO, 0 /* default(?) */);
 
         g_signal_handlers_block_by_func(G_OBJECT(range),
@@ -1231,19 +1273,13 @@ static void log_aniso_app_override_toggled(GtkWidget *widget,
  * another NV-CONTROL client.
  */
 
-static void log_app_override_update_received(GObject *object,
-                                             CtrlEvent *event,
-                                             gpointer user_data)
+static void log_app_override_update_received(GtkObject *object,
+                                             gpointer arg1, gpointer user_data)
 {
+    CtkEventStruct *event_struct = (CtkEventStruct *) arg1;
     CtkMultisample *ctk_multisample = CTK_MULTISAMPLE(user_data);
-    gboolean override;
+    gboolean override = !event_struct->value;
     GtkWidget *check_button;
-
-    if (event->type != CTRL_EVENT_TYPE_INTEGER_ATTRIBUTE) {
-        return;
-    }
-
-    override = !event->int_attr.value;
 
     check_button = ctk_multisample->log_aniso_app_override_check_button;
 
@@ -1273,7 +1309,7 @@ static const gchar *get_log_aniso_name(gint val)
 {
     static const gchar *log_aniso_names[] = { "1x", "2x", "4x", "8x", "16x" };
     
-    if ((val < 0) || (val > 4)) return _("Unknown");
+    if ((val < 0) || (val > 4)) return "Unknown";
 
     return log_aniso_names[val];
 
@@ -1305,15 +1341,10 @@ static gchar *format_log_aniso_value(GtkScale *scale, gdouble arg1,
 static void post_log_aniso_value_changed(CtkMultisample *ctk_multisample,
                                          gint val)
 {
-    gboolean override = gtk_toggle_button_get_active(
-        GTK_TOGGLE_BUTTON(ctk_multisample->log_aniso_app_override_check_button));
-
-    if (override) {
-        ctk_config_statusbar_message(ctk_multisample->ctk_config,
-                                     _("Anisotropic Filtering set to %s."),
-                                     get_log_aniso_name(val));
-    }
-
+    ctk_config_statusbar_message(ctk_multisample->ctk_config,
+                                 "Anisotropic Filtering set to %s.",
+                                 get_log_aniso_name(val));
+    
 } /* post_log_aniso_value_changed() */
 
 
@@ -1325,14 +1356,15 @@ static void post_log_aniso_value_changed(CtkMultisample *ctk_multisample,
 
 static void log_aniso_value_changed(GtkRange *range, gpointer user_data)
 {
-    CtkMultisample *ctk_multisample = CTK_MULTISAMPLE(user_data);
-    CtrlTarget *ctrl_target = ctk_multisample->ctrl_target;
+    CtkMultisample *ctk_multisample;
     gint val;
+
+    ctk_multisample = CTK_MULTISAMPLE(user_data);
 
     val = gtk_range_get_value(range);
 
-    NvCtrlSetAttribute(ctrl_target, NV_CTRL_LOG_ANISO, val);
-
+    NvCtrlSetAttribute(ctk_multisample->handle, NV_CTRL_LOG_ANISO, val);
+    
     post_log_aniso_value_changed(ctk_multisample, val);
 
 } /* log_aniso_value_changed() */
@@ -1345,17 +1377,14 @@ static void log_aniso_value_changed(GtkRange *range, gpointer user_data)
  * client.
  */
 
-static void log_aniso_range_update_received(GObject *object,
-                                            CtrlEvent *event,
-                                            gpointer user_data)
+static void log_aniso_range_update_received(GtkObject *object,
+                                            gpointer arg1, gpointer user_data)
 {
+    CtkEventStruct *event_struct;
     CtkMultisample *ctk_multisample;
     GtkRange *range;
 
-    if (event->type != CTRL_EVENT_TYPE_INTEGER_ATTRIBUTE) {
-        return;
-    }
-
+    event_struct = (CtkEventStruct *) arg1;
     ctk_multisample = CTK_MULTISAMPLE(user_data);
     range = GTK_RANGE(ctk_multisample->log_aniso_scale);
 
@@ -1363,15 +1392,91 @@ static void log_aniso_range_update_received(GObject *object,
                                     G_CALLBACK(log_aniso_value_changed),
                                     (gpointer) ctk_multisample);
     
-    gtk_range_set_value(range, event->int_attr.value);
+    gtk_range_set_value(range, event_struct->value);
     
-    post_log_aniso_value_changed(ctk_multisample, event->int_attr.value);
+    post_log_aniso_value_changed(ctk_multisample, event_struct->value);
 
     g_signal_handlers_unblock_by_func(G_OBJECT(range),
                                       G_CALLBACK(log_aniso_value_changed),
                                       (gpointer) ctk_multisample);
     
 } /* log_aniso_range_update_received() */
+
+
+
+/*
+ * post_texture_sharpening_toggled() - helper function for
+ * texture_sharpening_toggled() and
+ * texture_sharpening_update_received(); this does whatever work is
+ * necessary after the texture sharpening button has been toggled --
+ * currently, just post a statusbar message.
+ */
+
+static void post_texture_sharpening_toggled(CtkMultisample *ctk_multisample,
+                                            gboolean enabled)
+{
+    ctk_config_statusbar_message(ctk_multisample->ctk_config,
+                                 "Texture sharpening %s.",
+                                 enabled ? "enabled" : "disabled");
+    
+} /* post_texture_sharpening_toggled() */
+
+
+
+/*
+ * texture_sharpening_toggled() - callback for the "toggled" signal
+ * from the texture sharpening check button.
+ */
+
+static void texture_sharpening_toggled(GtkWidget *widget, gpointer user_data)
+{
+    CtkMultisample *ctk_multisample;
+    gboolean enabled;
+
+    ctk_multisample = CTK_MULTISAMPLE(user_data);
+
+    enabled = gtk_toggle_button_get_active(GTK_TOGGLE_BUTTON(widget));
+
+    NvCtrlSetAttribute(ctk_multisample->handle, NV_CTRL_TEXTURE_SHARPEN,
+                       enabled);
+
+    post_texture_sharpening_toggled(ctk_multisample, enabled);
+    
+} /* texture_sharpening_toggled() */
+
+
+
+/*
+ * texture_sharpening_update_received() - callback function for when
+ * the NV_CTRL_TEXTURE_SHARPEN attribute is changed by another
+ * NV-CONTROL client.
+ */
+
+static void texture_sharpening_update_received(GtkObject *object,
+                                               gpointer arg1,
+                                               gpointer user_data)
+{
+    CtkEventStruct *event_struct;
+    CtkMultisample *ctk_multisample;
+    GtkToggleButton *button;
+    
+    event_struct = (CtkEventStruct *) arg1;
+    ctk_multisample = CTK_MULTISAMPLE(user_data);
+    button = GTK_TOGGLE_BUTTON(ctk_multisample->texture_sharpening_button);
+
+    g_signal_handlers_block_by_func(G_OBJECT(button),
+                                    G_CALLBACK(texture_sharpening_toggled),
+                                    (gpointer) ctk_multisample);
+
+    gtk_toggle_button_set_active(button, event_struct->value);
+    
+    post_texture_sharpening_toggled(ctk_multisample, event_struct->value);
+
+    g_signal_handlers_unblock_by_func(G_OBJECT(button), 
+                                      G_CALLBACK(texture_sharpening_toggled),
+                                      (gpointer) ctk_multisample);
+    
+} /* texture_sharpening_update_received() */
 
 
 
@@ -1390,182 +1495,187 @@ GtkTextBuffer *ctk_multisample_create_help(GtkTextTagTable *table,
     
     gtk_text_buffer_get_iter_at_offset(b, &i, 0);
 
-    ctk_help_title(b, &i, _("Antialiasing Help"));
+    ctk_help_title(b, &i, "Antialiasing Help");
 
     if (ctk_multisample->active_attributes & __FSAA) {
-        ctk_help_heading(b, &i, _("Antialiasing Settings"));
-        ctk_help_para(b, &i, _("Antialiasing is a technique used in OpenGL "
+        ctk_help_heading(b, &i, "Antialiasing Settings");
+        ctk_help_para(b, &i, "Antialiasing is a technique used in OpenGL "
                       "to smooth the edges of objects in a scene to reduce "
                       "the jagged 'stairstep' effect that sometimes appears "
                       "along the edges of 3D objects.  This is accomplished "
                       "by rendering an image larger than normal (with "
                       "multiple 'samples' per pixel), and then using a "
                       "filter to average multiple samples into a "
-                      "single pixel."));
+                      "single pixel.");
         
-        ctk_help_para(b, &i, _("Several antialiasing "
+        ctk_help_para(b, &i, "Several antialiasing "
                       "methods are available which you may select between "
                       "with the Antialiasing slider.  Note that increasing "
                       "the number of samples used during Antialiased "
-                      "rendering may decrease performance."));
+                      "rendering may decrease performance.");
 
-        ctk_help_para(b, &i, _("You can also configure Antialiasing "
-                      "using the __GL_FSAA_MODE environment variable (see "
+        ctk_help_para(b, &i, "You can also configure Antialiasing "
+                      "using the __GL_FSAA_MODE environment varible (see "
                       "the README for details).  The __GL_FSAA_MODE "
                       "environment variable overrides the value in "
-                      "nvidia-settings."));
+                      "nvidia-settings.");
         
-        ctk_help_term(b, &i, _("Application Antialiasing Settings"));
+        ctk_help_term(b, &i, "Application Antialiasing Settings");
         
         if (ctk_multisample->active_attributes & __FSAA_ENHANCE) {
-            ctk_help_para(b, &i, "%s", _(__aa_menu_help));
-            ctk_help_para(b, &i, _("Use Application Settings will let applications "
-                          "choose the AA mode."));
-            ctk_help_para(b, &i, _("Override Application Settings will override "
+            ctk_help_para(b, &i, __aa_menu_help);
+            ctk_help_para(b, &i, "Use Application Settings will let applications "
+                          "choose the AA mode.");
+            ctk_help_para(b, &i, "Override Application Settings will override "
                           "all OpenGL applications to use the mode selected by "
-                          "the slider."));
-            ctk_help_para(b, &i, _("Enhance Application Settings will make "
+                          "the slider.");
+            ctk_help_para(b, &i, "Enhance Application Settings will make "
                           "applications that are requesting some type of "
                           "antialiasing mode use the mode selected by the "
-                          "slider."));
+                          "slider.");
         } else {
-            ctk_help_para(b, &i, "%s", _(__aa_override_app_help));
+            ctk_help_para(b, &i, __aa_override_app_help);
         }
 
         if (ctk_multisample->active_attributes & __FSAA_NONE) {
-            ctk_help_term(b, &i, _("Off"));
-            ctk_help_para(b, &i, _("Disables antialiasing in OpenGL "
+            ctk_help_term(b, &i, "Off");
+            ctk_help_para(b, &i, "Disables antialiasing in OpenGL "
                           "applications.  "
                           "Select this option if you require maximum "
-                          "performance in your applications."));
+                          "performance in your applications.");
         }
         
         if (ctk_multisample->active_attributes & __FSAA_2x) {
-            ctk_help_term(b, &i, _("2x (2xMS)"));
-            ctk_help_para(b, &i, _("This enables antialiasing using the 2x (2xMS)"
+            ctk_help_term(b, &i, "2x (2xMS)");
+            ctk_help_para(b, &i, "This enables antialiasing using the 2x (2xMS)"
                           "Bilinear mode.  This mode offers improved image "
                           "quality and high performance in OpenGL "
-                          "applications."));
+                          "applications.");
         }
 
         if (ctk_multisample->active_attributes & __FSAA_2x_5t) {
-            ctk_help_term(b, &i, _("2x Quincunx"));
-            ctk_help_para(b, &i, _("This enables the patented Quincunx "
+            ctk_help_term(b, &i, "2x Quincunx");
+            ctk_help_para(b, &i, "This enables the patented Quincunx "
                           "Antialiasing technique available in the GeForce "
                           "GPU family.  "
                           "Quincunx Antialiasing offers the quality of the "
                           "slower, 4x antialiasing mode, but at nearly the "
-                          "performance of the faster, 2x mode."));
+                          "performance of the faster, 2x mode.");
         }
 
         if (ctk_multisample->active_attributes & __FSAA_15x15) {
-            ctk_help_term(b, &i, _("1.5 x 1.5"));
-            ctk_help_para(b, &i, _("This enables antialiasing using the 1.5x1.5 "
+            ctk_help_term(b, &i, "1.5 x 1.5");
+            ctk_help_para(b, &i, "This enables antialiasing using the 1.5x1.5 "
                           "mode.  This mode offers improved image quality and "
-                          "high performance in OpenGL applications."));
+                          "high performance in OpenGL applications.");
         }
 
         if (ctk_multisample->active_attributes & __FSAA_2x2) {
-            ctk_help_term(b, &i, _("2 x 2 Supersampling"));
-            ctk_help_para(b, &i, _("This enables antialiasing using the 2x2 "
+            ctk_help_term(b, &i, "2 x 2 Supersampling");
+            ctk_help_para(b, &i, "This enables antialiasing using the 2x2 "
                           "Supersampling mode.  This mode offers higher image "
                           "quality at the expense of some performance in "
-                          "OpenGL applications."));
+                          "OpenGL applications.");
         }
 
         if (ctk_multisample->active_attributes & __FSAA_4x) {
-            ctk_help_term(b, &i, _("4x (4xMS)"));
-            ctk_help_para(b, &i, _("This enables antialiasing using the 4x (4xMS)"
+            ctk_help_term(b, &i, "4x (4xMS)");
+            ctk_help_para(b, &i, "This enables antialiasing using the 4x (4xMS)"
                           "Bilinear mode.  This mode offers higher image "
                           "quality at the expense of some performance in "
-                          "OpenGL applications."));
+                          "OpenGL applications.");
         }
 
         if (ctk_multisample->active_attributes & __FSAA_4x_9t) {
-            ctk_help_term(b, &i, _("4x, 9-tap Gaussian"));
-            ctk_help_para(b, &i, _("This enables antialiasing using the 4x, "
+            ctk_help_term(b, &i, "4x, 9-tap Gaussian");
+            ctk_help_para(b, &i, "This enables antialiasing using the 4x, "
                           "9-tap (Gaussian) mode.  This mode offers higher "
                           "image quality but at the expense of some "
-                          "performance in OpenGL applications."));
+                          "performance in OpenGL applications.");
         }
 
         if (ctk_multisample->active_attributes & __FSAA_8x) {
-            ctk_help_term(b, &i, _("8x (4xMS, 4xCS)"));
-            ctk_help_para(b, &i, _("This enables antialiasing using the 8x "
+            ctk_help_term(b, &i, "8x (4xMS, 4xCS)");
+            ctk_help_para(b, &i, "This enables antialiasing using the 8x "
                           "(4xMS, 4xCS) mode.  This mode offers better image "
-                          "quality than the 4x mode."));
+                          "quality than the 4x mode.");
         }
 
         if (ctk_multisample->active_attributes & __FSAA_8xS) {
-            ctk_help_term(b, &i, _("8x (4xSS, 2xMS)"));
-            ctk_help_para(b, &i, _("This enables antialiasing using the 8x "
+            ctk_help_term(b, &i, "8x (4xSS, 2xMS)");
+            ctk_help_para(b, &i, "This enables antialiasing using the 8x "
                           "(4xSS, 2xMS) mode.  This mode offers better image "
-                          "quality than the 4x mode."));
+                          "quality than the 4x mode.");
         }
 
         if (ctk_multisample->active_attributes & __FSAA_16x) {
-            ctk_help_term(b, &i, _("16x (4xMS, 12xCS)"));
-            ctk_help_para(b, &i, _("This enables antialiasing using the 16x "
+            ctk_help_term(b, &i, "16x (4xMS, 12xCS)");
+            ctk_help_para(b, &i, "This enables antialiasing using the 16x "
                           "(4xMS, 12xCS) mode.  This mode offers better image "
-                          "quality than the 8x mode."));
+                          "quality than the 8x mode.");
         }
 
         if (ctk_multisample->active_attributes & __FSAA_8xQ) {
-            ctk_help_term(b, &i, _("8x (8xMS)"));
-            ctk_help_para(b, &i, _("This enables antialiasing using the 8x (8xMS) "
+            ctk_help_term(b, &i, "8x (8xMS)");
+            ctk_help_para(b, &i, "This enables antialiasing using the 8x (8xMS) "
                           "mode.  This mode offers better image "
-                          "quality than the 8x mode."));
+                          "quality than the 8x mode.");
         }
 
         if (ctk_multisample->active_attributes & __FSAA_16xS) {
-            ctk_help_term(b, &i, _("16x (4xSS, 4xMS)"));
-            ctk_help_para(b, &i, _("This enables antialiasing using the 16x "
+            ctk_help_term(b, &i, "16x (4xSS, 4xMS)");
+            ctk_help_para(b, &i, "This enables antialiasing using the 16x "
                           "(4xSS, 4xMS) mode.  This mode offers better image "
-                          "quality than the 16x mode."));
+                          "quality than the 16x mode.");
         }
 
         if (ctk_multisample->active_attributes & __FSAA_16xQ) {
-            ctk_help_term(b, &i, _("16x (8xMS, 8xCS)"));
-            ctk_help_para(b, &i, _("This enables antialiasing using the 16x "
+            ctk_help_term(b, &i, "16x (8xMS, 8xCS)");
+            ctk_help_para(b, &i, "This enables antialiasing using the 16x "
                           "(8xMS, 8xCS) mode.  This mode offers better image "
-                          "quality than the 16x mode."));
+                          "quality than the 16x mode.");
         }
 
         if (ctk_multisample->active_attributes & __FSAA_32xS) {
-            ctk_help_term(b, &i, _("32x (4xSS, 8xMS)"));
-            ctk_help_para(b, &i, _("This enables antialiasing using the 32x "
+            ctk_help_term(b, &i, "32x (4xSS, 8xMS)");
+            ctk_help_para(b, &i, "This enables antialiasing using the 32x "
                           "(4xSS, 8xMS) mode.  This mode offers better image "
-                          "quality than the 16x mode."));
+                          "quality than the 16x mode.");
         }
     }
 
     if (ctk_multisample->active_attributes & __FXAA) {
-        ctk_help_term(b, &i, _("Enable FXAA"));
-        ctk_help_para(b, &i, "%s", _(__fxaa_enable_help));
+        ctk_help_term(b, &i, "Enable FXAA");
+        ctk_help_para(b, &i, __fxaa_enable_help);
     }
 
     if (ctk_multisample->active_attributes & __LOG_ANISO_RANGE) {
-        ctk_help_heading(b, &i, _("Anisotropic Filtering"));
+        ctk_help_heading(b, &i, "Anisotropic Filtering");
         
-        ctk_help_para(b, &i, _("Anisotropic filtering is a technique used to "
+        ctk_help_para(b, &i, "Anisotropic filtering is a technique used to "
                       "improve the quality of textures applied to the "
                       "surfaces of 3D objects when drawn at a sharp angle.  "
                       "Use the Anisotropic filtering slider to set the degree "
                       "of anisotropic filtering for improved image quality.  "
                       "Enabling this option improves image quality at the "
-                      "expense of some performance."));
+                      "expense of some performance.");
 
-        ctk_help_para(b, &i, _("You can also configure Anisotropic filtering "
-                      "using the __GL_LOG_MAX_ANISO environment variable "
+        ctk_help_para(b, &i, "You can also configure Anisotropic filtering "
+                      "using the __GL_LOG_MAX_ANISO environment varible "
                       "(see the README for details).  The "
                       "__GL_LOG_MAX_ANISO environment variable overrides "
-                      "the value in nvidia-settings."));
+                      "the value in nvidia-settings.");
         
-        ctk_help_term(b, &i, _("Override Application Setting"));
+        ctk_help_term(b, &i, "Override Application Setting");
         
-        ctk_help_para(b, &i, "%s", _(__aniso_override_app_help));
+        ctk_help_para(b, &i, __aniso_override_app_help);
         
-        ctk_help_para(b, &i, "%s", _(__aniso_slider_help));
+        ctk_help_para(b, &i, __aniso_slider_help);
+    }
+
+    if (ctk_multisample->active_attributes & __TEXTURE_SHARPEN) {
+        ctk_help_heading(b, &i, "Texture Sharpening");
+        ctk_help_para(b, &i, __texture_sharpening_help);
     }
 
     ctk_help_finish(b);

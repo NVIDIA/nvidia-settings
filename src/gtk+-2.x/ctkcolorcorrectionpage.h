@@ -53,11 +53,12 @@ typedef struct _CtkColorCorrectionPageClass  CtkColorCorrectionPageClass;
 struct _CtkColorCorrectionPage
 {
     GtkVBox parent;
+    NvCtrlAttributeHandle *handle;
     CtkConfig *ctk_config;
     GtkWidget *option_menu;
-    GtkAdjustment *brightness_adjustment;
-    GtkAdjustment *contrast_adjustment;
-    GtkAdjustment *gamma_adjustment;
+    GtkObject *brightness_adjustment;
+    GtkObject *contrast_adjustment;
+    GtkObject *gamma_adjustment;
     GtkWidget *confirm_button;
     GtkWidget *confirm_label;
     gint confirm_countdown;
@@ -75,8 +76,9 @@ struct _CtkColorCorrectionPageClass
 };
 
 GType       ctk_color_correction_page_get_type  (void) G_GNUC_CONST;
-GtkWidget*  ctk_color_correction_page_new       (CtrlTarget *, CtkConfig *,
-                                                 ParsedAttribute *, CtkEvent *);
+GtkWidget*  ctk_color_correction_page_new       (NvCtrlAttributeHandle *,
+                                                 CtkConfig *, ParsedAttribute *,
+                                                 CtkEvent *);
 GtkTextBuffer *ctk_color_correction_page_create_help(GtkTextTagTable *);
 
 G_END_DECLS

@@ -206,7 +206,7 @@ int nv_read_config_file(const char *file, const char *display_name,
 int nv_write_config_file(const char *filename, CtrlHandles *h,
                          ParsedAttribute *p, ConfigProperties *conf)
 {
-    int screen, ret, entry, bit, val;
+    int screen, ret, entry, bit, val, display, randr_gamma_available;
     FILE *stream;
     time_t now;
     AttributeTableEntry *a;
@@ -262,8 +262,8 @@ int nv_write_config_file(const char *filename, CtrlHandles *h,
     fprintf(stream, "\n");
 
     /*
-     * Note: we only save writable attributes addressable by X screen
-     * (i.e., we don't look at other target types, yet).
+     * Note: we only save writable attributes addressable by X screen here
+     * followed by attributes for display target types.
      */
     
     for (screen = 0; screen < h->targets[X_SCREEN_TARGET].n; screen++) {
@@ -363,6 +363,69 @@ int nv_write_config_file(const char *filename, CtrlHandles *h,
         } /* entry */
         
     } /* screen */
+
+    /*
+     * Write attributes addresssable to display targets
+     */
+
+    for (display = 0; display < h->targets[DISPLAY_TARGET].n; display++) {
+
+        t = &h->targets[DISPLAY_TARGET].t[display];
+
+        /* skip it if we don't have a handle for this display */
+
+        if (!t->h) continue;
+
+        /* 
+         * check to see if we have RANDR gamma available. We may
+         * skip writing attributes if it is missing. 
+         */
+
+        status = NvCtrlGetAttribute(t->h, 
+                                    NV_CTRL_ATTR_RANDR_GAMMA_AVAILABLE,
+                                    &randr_gamma_available);
+        if (status != NvCtrlSuccess) {
+            randr_gamma_available = 0;
+        }
+
+        /*
+         * use the full display name as the prefix for display targets
+         * until we can parse other display target names
+         */
+
+        prefix = t->name;
+
+        /* loop over all the entries in the table */
+
+        for (entry = 0; attributeTable[entry].name; entry++) {
+
+            a = &attributeTable[entry];
+            
+            /* 
+             * skip all attributes that are not supposed to be written
+             * to the config file
+             */
+
+            if (a->flags & NV_PARSER_TYPE_NO_CONFIG_WRITE) continue;
+
+            /* 
+             * for the display target we only write color attributes for now
+             */
+
+            if (a->flags & NV_PARSER_TYPE_COLOR_ATTRIBUTE) {
+                float c[3], b[3], g[3];
+
+                if (!randr_gamma_available) continue;
+
+                status = NvCtrlGetColorAttributes(t->h, c, b, g);
+                if (status != NvCtrlSuccess) continue;
+
+                fprintf(stream, "%s%c%s=%f\n",
+                        prefix, DISPLAY_NAME_SEPARATOR, a->name,
+                        get_color_value(a->attr, c, b, g));
+            } 
+        }
+    }
     
     /*
      * loop the ParsedAttribute list, writing the attributes to file.

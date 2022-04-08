@@ -50,7 +50,6 @@ typedef struct _CtkDisplayDevice       CtkDisplayDevice;
 typedef struct _CtkDisplayDeviceClass  CtkDisplayDeviceClass;
 
 typedef struct InfoEntryRec {
-    gboolean present;
     GtkWidget *hbox;
     GtkWidget *label;
     GtkWidget *txt;
@@ -63,7 +62,7 @@ struct _CtkDisplayDevice
 {
     GtkVBox parent;
 
-    CtrlTarget *ctrl_target;
+    NvCtrlAttributeHandle *handle;
     CtkConfig *ctk_config;
     CtkEvent *ctk_event;
     CtkEvent *ctk_event_gpu;
@@ -91,7 +90,8 @@ struct _CtkDisplayDeviceClass
 };
 
 GType       ctk_display_device_get_type  (void) G_GNUC_CONST;
-GtkWidget*  ctk_display_device_new       (CtrlTarget *, CtkConfig *, CtkEvent *,
+GtkWidget*  ctk_display_device_new       (NvCtrlAttributeHandle *,
+                                          CtkConfig *, CtkEvent *,
                                           CtkEvent *, char *, char *,
                                           ParsedAttribute *);
 
