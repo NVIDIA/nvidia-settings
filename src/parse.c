@@ -67,7 +67,7 @@ const AttributeTableEntry attributeTable[] = {
      */
 
     /* Version information */
-    { "OperatingSystem",                  NV_CTRL_OPERATING_SYSTEM,                     INT_ATTR, {0,0,0,1,0}, { .int_flags = {0,0,0,0,0,0,0} }, "The operating system on which the NVIDIA driver is running.  0-Linux, 1-FreeBSD, 2-SunOS." },
+    { "OperatingSystem",                  NV_CTRL_OPERATING_SYSTEM,                     INT_ATTR, {0,0,0,1,0}, { .int_flags = {0,0,0,0,0,0,0} }, "The operating system on which the NVIDIA driver is running.  0-Linux, 1-FreeBSD, 2-SunOS, 3-Generic." },
     { "NvidiaDriverVersion",              NV_CTRL_STRING_NVIDIA_DRIVER_VERSION,         STR_ATTR, {0,0,0,1,0}, {}, "The NVIDIA X driver version." },
     { "NvControlVersion",                 NV_CTRL_STRING_NV_CONTROL_VERSION,            STR_ATTR, {0,0,0,1,0}, {}, "The NV-CONTROL X driver extension version." },
     { "GLXServerVersion",                 NV_CTRL_STRING_GLX_SERVER_VERSION,            STR_ATTR, {0,0,0,1,0}, {}, "The GLX X server extension version." },
@@ -151,7 +151,7 @@ const AttributeTableEntry attributeTable[] = {
     { "GPUAmbientTemp",                   NV_CTRL_AMBIENT_TEMPERATURE,                  INT_ATTR, {0,0,0,1,0}, { .int_flags = {0,0,0,0,0,0,0} }, "Reports the current temperature in Celsius of the immediate neighborhood of the GPU driving the X screen." },
     { "GPUGraphicsClockOffset",           NV_CTRL_GPU_NVCLOCK_OFFSET,                   INT_ATTR, {0,0,1,1,1}, { .int_flags = {0,0,0,0,0,0,0} }, "This is the offset amount, in MHz, to over- or under-clock the Graphics Clock.  Specify the performance level in square brackets after the attribute name.  E.g., 'GPUGraphicsClockOffset[2]'." },
     { "GPUMemoryTransferRateOffset",      NV_CTRL_GPU_MEM_TRANSFER_RATE_OFFSET,         INT_ATTR, {0,0,1,1,1}, { .int_flags = {0,0,0,0,0,0,0} }, "This is the offset amount, in MHz, to over- or under-clock the Memory Transfer Rate.  Specify the performance level in square brackets after the attribute name.  E.g., 'GPUMemoryTransferRateOffset[2]'." },
-    { "GPUGraphicsClockOffsetAllPerformanceLevels",      NV_CTRL_GPU_NVCLOCK_OFFSET_ALL_PERFORMANCE_LEVELS,      INT_ATTR, {0,0,1,1,1}, { .int_flags = {0,0,0,0,0,0,0} }, "This is the offset amount, in MHz, to over- or under-clock the Graphics Clock.  The offset is applied to all performance levels.  This attribute is available starting with Pascal GPUs." }, 
+    { "GPUGraphicsClockOffsetAllPerformanceLevels",      NV_CTRL_GPU_NVCLOCK_OFFSET_ALL_PERFORMANCE_LEVELS,      INT_ATTR, {0,0,1,1,1}, { .int_flags = {0,0,0,0,0,0,0} }, "This is the offset amount, in MHz, to over- or under-clock the Graphics Clock.  The offset is applied to all performance levels.  This attribute is available starting with Pascal GPUs." },
     { "GPUMemoryTransferRateOffsetAllPerformanceLevels", NV_CTRL_GPU_MEM_TRANSFER_RATE_OFFSET_ALL_PERFORMANCE_LEVELS, INT_ATTR, {0,0,1,1,1}, { .int_flags = {0,0,0,0,0,0,0} }, "This is the offset amount, in MHz, to over- or under-clock the Memory Transfer Rate.  The offset is applied to all performance levels.  This attribute is available starting with Pascal GPUs." },
     { "GPUCurrentCoreVoltage",            NV_CTRL_GPU_CURRENT_CORE_VOLTAGE,             INT_ATTR, {0,0,0,1,0}, { .int_flags = {0,0,0,0,0,0,0} }, "This attribute returns the GPU's current operating voltage, in microvolts (uV)."},
     { "GPUOverVoltageOffset",             NV_CTRL_GPU_OVER_VOLTAGE_OFFSET,              INT_ATTR, {0,0,0,1,0}, { .int_flags = {0,0,0,0,0,0,0} }, "This is the offset, in microvolts (uV), to apply to the GPU's operating voltage."},
@@ -195,7 +195,7 @@ const AttributeTableEntry attributeTable[] = {
     { "GPUFanTarget",                     NV_CTRL_THERMAL_COOLER_TARGET,                INT_ATTR, {0,0,0,1,0}, { .int_flags = {0,0,0,0,0,0,0} }, "Returns the objects the fan cools.  '1' means the GPU, '2' means video memory, '4' means the power supply, and '7' means all of the above." },
     { "ThermalSensorReading",             NV_CTRL_THERMAL_SENSOR_READING,               INT_ATTR, {0,0,0,1,0}, { .int_flags = {0,0,0,0,0,0,0} }, "Returns the thermal sensor's current reading." },
     { "ThermalSensorProvider",            NV_CTRL_THERMAL_SENSOR_PROVIDER,              INT_ATTR, {0,0,0,1,0}, { .int_flags = {0,0,0,0,0,0,0} }, "Returns the hardware device that provides the thermal sensor." },
-    { "ThermalSensorTarget",              NV_CTRL_THERMAL_SENSOR_TARGET,                INT_ATTR, {0,0,0,1,0}, { .int_flags = {0,0,0,0,0,0,0} }, "Returns what hardware component the thermal sensor is measuring." },  
+    { "ThermalSensorTarget",              NV_CTRL_THERMAL_SENSOR_TARGET,                INT_ATTR, {0,0,0,1,0}, { .int_flags = {0,0,0,0,0,0,0} }, "Returns what hardware component the thermal sensor is measuring." },
     { "BaseMosaic",                       NV_CTRL_BASE_MOSAIC,                          INT_ATTR, {0,0,0,1,0}, { .int_flags = {0,0,0,0,0,0,0} }, "Returns the current Base Mosaic configuration." },
     { "MultiGpuPrimaryPossible",          NV_CTRL_MULTIGPU_PRIMARY_POSSIBLE,            INT_ATTR, {0,0,0,1,0}, { .int_flags = {0,0,0,0,0,0,0} }, "Returns whether or not the GPU can be configured as the primary GPU for a Multi GPU configuration (SLI, SLI Mosaic, Base Mosaic, ...)." },
     { "MultiGpuMasterPossible",           NV_CTRL_MULTIGPU_PRIMARY_POSSIBLE,            INT_ATTR, {0,0,0,1,0}, { .int_flags = {0,0,0,0,0,0,0} }, "This attribute is deprecated. Please use 'MultiGpuPrimaryPossible' instead." },
@@ -656,16 +656,16 @@ int nv_parse_attribute_string(const char *str, int query, ParsedAttribute *p)
     }
 
     /* move past the DISPLAY_NAME_SEPARATOR */
-    
+
     if (s) s++;
     else s = no_spaces;
-    
+
     /* read the attribute name */
 
     name = s;
     len = 0;
     while (*s && isalnum(*s)) { s++; len++; }
-    
+
     if (len == 0) stop(NV_PARSER_STATUS_ATTR_NAME_MISSING);
     if (len >= NV_PARSER_MAX_NAME_LEN)
         stop(NV_PARSER_STATUS_ATTR_NAME_TOO_LONG);
@@ -895,7 +895,7 @@ int nv_strcasecmp(const char *a, const char *b)
  *
  * If a parse error occurs, INVALID_DISPLAY_DEVICE_MASK is returned,
  * otherwise the display mask is returned.
- 
+
  */
 
 static uint32 display_device_name_to_display_device_mask(const char *str)
@@ -941,7 +941,7 @@ static uint32 display_device_name_to_display_device_mask(const char *str)
     /* match each token, updating mask as appropriate */
 
     for (i = 0; i < n; i++) {
-        
+
         if      (nv_strcasecmp(toks[i], "CRT-0")) mask |= ((1 << 0) << 0);
         else if (nv_strcasecmp(toks[i], "CRT-1")) mask |= ((1 << 1) << 0);
         else if (nv_strcasecmp(toks[i], "CRT-2")) mask |= ((1 << 2) << 0);
@@ -968,13 +968,13 @@ static uint32 display_device_name_to_display_device_mask(const char *str)
         else if (nv_strcasecmp(toks[i], "DFP-5")) mask |= ((1 << 5) << 16);
         else if (nv_strcasecmp(toks[i], "DFP-6")) mask |= ((1 << 6) << 16);
         else if (nv_strcasecmp(toks[i], "DFP-7")) mask |= ((1 << 7) << 16);
-        
+
         else if (nv_strcasecmp(toks[i], "CRT"))
             mask |= DISPLAY_DEVICES_WILDCARD_CRT;
-        
+
         else if (nv_strcasecmp(toks[i], "TV"))
             mask |= DISPLAY_DEVICES_WILDCARD_TV;
-                
+
         else if (nv_strcasecmp(toks[i], "DFP"))
             mask |= DISPLAY_DEVICES_WILDCARD_DFP;
 
@@ -983,13 +983,13 @@ static uint32 display_device_name_to_display_device_mask(const char *str)
             break;
         }
     }
-    
+
     nv_free_strtoks(toks, n);
-    
+
     free(s);
 
     return mask;
-    
+
 } /* display_name_to_display_device_mask() */
 
 
@@ -1037,7 +1037,7 @@ char *display_device_mask_to_display_device_name(const uint32 mask)
         devmask <<= 1;
         devcnt++;
     }
-    
+
     devmask = 1 << BITSHIFT_TV;
     devcnt = 0;
     while (devmask & BITMASK_ALL_TV) {
@@ -1049,7 +1049,7 @@ char *display_device_mask_to_display_device_name(const uint32 mask)
         devmask <<= 1;
         devcnt++;
     }
-    
+
     if (mask & DISPLAY_DEVICES_WILDCARD_CRT) {
         if (first) first = NV_FALSE;
         else s += sprintf(s, ", ");
@@ -1067,9 +1067,9 @@ char *display_device_mask_to_display_device_name(const uint32 mask)
         else s += sprintf(s, ", ");
         s += sprintf(s, "DFP");
     }
-    
+
     *s = '\0';
-    
+
     return (display_device_name_string);
 
 } /* display_device_mask_to_display_name() */
@@ -1220,23 +1220,23 @@ char *nv_standardize_screen_name(const char *orig, int screen)
     char *display_name, *screen_name, *colon, *dot, *tmp;
     struct utsname uname_buf;
     int len;
-    
+
     /* get the string describing this display connection */
-    
+
     if (!orig) return NULL;
-    
+
     /* create a working copy */
-    
+
     display_name = strdup(orig);
     if (!display_name) return NULL;
-    
+
     /* skip past the host */
-    
+
     colon = strchr(display_name, ':');
     if (!colon) return NULL;
-    
+
     /* if no host is specified, prepend the local hostname */
-    
+
     /* XXX should we try to catch "localhost"? */
 
     if (display_name == colon) {
@@ -1253,12 +1253,12 @@ char *nv_standardize_screen_name(const char *orig, int screen)
             }
         }
     }
-    
+
     /*
      * if the screen parameter is -1, then extract the screen number,
      * either from the string or default to 0
      */
-    
+
     if (screen == -1) {
         dot = strchr(colon, '.');
         if (dot) {
@@ -1267,13 +1267,13 @@ char *nv_standardize_screen_name(const char *orig, int screen)
             screen = 0;
         }
     }
-    
+
     /*
      * find the separation between the display and the screen; if we
      * find it, then truncate the string before the screen, so that we
      * can append the correct screen number.
      */
-    
+
     dot = strchr(colon, '.');
     if (dot) *dot = '\0';
 
@@ -1281,7 +1281,7 @@ char *nv_standardize_screen_name(const char *orig, int screen)
      * if the screen parameter is -2, then do not write out a screen
      * number.
      */
-    
+
     if (screen == -2) {
         screen_name = display_name;
     } else {
@@ -1290,7 +1290,7 @@ char *nv_standardize_screen_name(const char *orig, int screen)
         snprintf(screen_name, len, "%s.%d", display_name, screen);
         free(display_name);
     }
-    
+
     return (screen_name);
 
 } /* nv_standardize_screen_name() */
@@ -1306,11 +1306,11 @@ char *remove_spaces(const char *o)
 {
     int len;
     char *m, *no_spaces;
-   
+
     if (!o) return (NULL);
-    
+
     len = strlen (o);
-    
+
     no_spaces = nvalloc(len + 1);
 
     m = no_spaces;
@@ -1319,7 +1319,7 @@ char *remove_spaces(const char *o)
         o++;
     }
     *m = '\0';
-    
+
     len = m - no_spaces + 1;
     no_spaces = realloc (no_spaces, len);
 
@@ -1380,14 +1380,14 @@ char **nv_strtok(char *s, char c, int *n)
 {
     int count, i, len;
     char **delims, **tokens, *m;
-    
+
     count = count_number_of_chars(s, c);
-    
+
     /*
      * allocate and set pointers to each division (each instance of the
      * dividing character, and the terminating NULL of the string)
      */
-    
+
     delims = nvalloc((count + 1) * sizeof(char *));
     m = s;
     for (i = 0; i < count; i++) {
@@ -1396,26 +1396,26 @@ char **nv_strtok(char *s, char c, int *n)
         m++;
     }
     delims[count] = (char *) strchr(s, '\0');
-    
+
     /*
      * so now, we have pointers to each delimiter; copy what's in between
      * the divisions (the tokens) into the dynamic array of strings
      */
-    
+
     tokens = nvalloc((count + 1) * sizeof(char *));
     len = delims[0] - s;
     tokens[0] = nvstrndup(s, len);
-    
+
     for (i = 1; i < count+1; i++) {
         len = delims[i] - delims[i-1];
         tokens[i] = nvstrndup(delims[i-1]+1, len-1);
     }
-    
+
     free(delims);
-    
+
     *n = count+1;
     return (tokens);
-    
+
 } /* nv_strtok() */
 
 
@@ -1430,7 +1430,7 @@ void nv_free_strtoks(char **s, int n)
     int i;
     for (i = 0; i < n; i++) free(s[i]);
     free(s);
-    
+
 } /* nv_free_strtoks() */
 
 
@@ -1460,7 +1460,7 @@ static int count_number_of_chars(char *o, char d)
         o++;
     }
     return (c);
-    
+
 } /* count_number_of_chars() */
 
 
@@ -1511,7 +1511,7 @@ const char *parse_skip_whitespace(const char *str)
 void parse_chop_whitespace(char *str)
 {
     char *tmp = str + strlen(str) -1;
-    
+
     while (tmp >= str &&
            (*tmp == ' '  || *tmp == '\t' ||
             *tmp == '\n' || *tmp == '\r')) {
@@ -1717,7 +1717,7 @@ int parse_read_float_range(const char *str, float *min, float *max)
     }
     str++;
     *max = atof(str);
-    
+
     return 1;
 
 } /* parse_read_float_range() */

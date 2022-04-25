@@ -50,7 +50,7 @@ static nvDisplayPtr find_active_display(nvLayoutPtr layout);
 static nvDisplayPtr intersect_modelines_list(CtkMMDialog *ctk_mmdialog,
                                              nvLayoutPtr layout);
 static void remove_duplicate_modelines_from_list(CtkMMDialog *ctk_mmdialog);
-static Bool other_displays_have_modeline(nvLayoutPtr layout, 
+static Bool other_displays_have_modeline(nvLayoutPtr layout,
                                          nvDisplayPtr display,
                                          nvModeLinePtr modeline);
 
@@ -116,9 +116,9 @@ static Bool compute_screen_size(CtkMMDialog *ctk_object, gint *width,
     v_overlap = gtk_spin_button_get_value_as_int(GTK_SPIN_BUTTON(ctk_object->spbtn_vedge_overlap));
 
     /* Total X Screen Size Calculation */
-    *width = x_displays * ctk_object->cur_modeline->data.hdisplay - 
+    *width = x_displays * ctk_object->cur_modeline->data.hdisplay -
         (x_displays - 1) * h_overlap;
-    *height = y_displays * ctk_object->cur_modeline->data.vdisplay - 
+    *height = y_displays * ctk_object->cur_modeline->data.vdisplay -
         (y_displays - 1) * v_overlap;
 
     return TRUE;
@@ -161,7 +161,7 @@ static void validate_screen_size(CtkMMDialog *ctk_object)
              GTK_MESSAGE_WARNING,
              GTK_BUTTONS_OK,
              "%s", err_msg);
-            
+
         gtk_dialog_run(GTK_DIALOG(dlg));
         gtk_widget_destroy(dlg);
         g_free(err_msg);
@@ -320,7 +320,7 @@ static void setup_display_refresh_dropdown(CtkMMDialog *ctk_object)
 
     /* Generate the refresh dropdown */
     menu = CTK_DROP_DOWN_MENU(ctk_object->mnu_display_refresh);
-    
+
     g_signal_handlers_block_by_func
         (G_OBJECT(ctk_object->mnu_display_refresh),
          G_CALLBACK(display_refresh_changed), (gpointer) ctk_object);
@@ -395,7 +395,7 @@ static void setup_display_refresh_dropdown(CtkMMDialog *ctk_object)
         }
 
         /* Add "DoubleScan" and "Interlace" information */
-        
+
         if (modeline->data.flags & V_DBLSCAN) {
             extra = g_strdup_printf("DoubleScan");
         }
@@ -416,7 +416,7 @@ static void setup_display_refresh_dropdown(CtkMMDialog *ctk_object)
             g_free(name);
             name = tmp;
         }
-        
+
 
         /* Keep track of the selected modeline */
         if (ctk_object->cur_modeline == modeline) {
@@ -434,9 +434,9 @@ static void setup_display_refresh_dropdown(CtkMMDialog *ctk_object)
                 float rate = modeline->refresh_rate;
 
                 /* Found better resolution */
-                if (ctk_object->refresh_table[cur_idx]->data.hdisplay != 
+                if (ctk_object->refresh_table[cur_idx]->data.hdisplay !=
                     ctk_object->cur_modeline->data.hdisplay ||
-                    ctk_object->refresh_table[cur_idx]->data.vdisplay != 
+                    ctk_object->refresh_table[cur_idx]->data.vdisplay !=
                     ctk_object->cur_modeline->data.vdisplay) {
                     cur_idx = ctk_object->refresh_table_len;
                 }
@@ -639,7 +639,7 @@ static Bool parse_slimm_layout(CtkMMDialog *ctk_mmdialog,
     int i;
     int found;
     nvModeLinePtr *cur_modeline; // Used to assign the current modeline
-    
+
     nvDisplayPtr display = find_active_display(layout);
     if (display == NULL) {
         err_msg = "Active display not found.";
@@ -748,7 +748,7 @@ static Bool parse_slimm_layout(CtkMMDialog *ctk_mmdialog,
                                           &(locs[num_locs].y));
             num_locs++;
         }
- 
+
         /* Parse next mode */
         mode_str = strtok(NULL, ",");
     }
@@ -1162,7 +1162,7 @@ static nvDisplayPtr setup_display(CtkMMDialog *ctk_mmdialog)
         free(ctk_mmdialog);
         return NULL;
 
-    } else if ((ctk_mmdialog->modelines == NULL)) {
+    } else if (ctk_mmdialog->modelines == NULL) {
         /* The modepool for the active display did not have any modes in
          * its modepool matching any of the modes on the modepool of any
          * other display in the layout, causing intersect_modelines to
@@ -1498,7 +1498,7 @@ CtkMMDialog *create_mosaic_dialog(GtkWidget *parent,
     gtk_box_pack_start(GTK_BOX(hbox), hseparator, TRUE, TRUE, 5);
 
     gtk_table_attach(GTK_TABLE(table), hbox, 0, 1, 2, 3, GTK_EXPAND | GTK_FILL,
-                     GTK_EXPAND | GTK_FILL, 0.5, 0.5);
+                     GTK_EXPAND | GTK_FILL, 0, 0);
 
     hbox = gtk_hbox_new(FALSE, 0);
     label = gtk_label_new("Refresh Rate");
@@ -1507,7 +1507,7 @@ CtkMMDialog *create_mosaic_dialog(GtkWidget *parent,
     gtk_box_pack_start(GTK_BOX(hbox), label, FALSE, FALSE, 5);
     gtk_box_pack_start(GTK_BOX(hbox), hseparator, TRUE, TRUE, 5);
     gtk_table_attach(GTK_TABLE(table), hbox, 1, 2, 2, 3, GTK_EXPAND | GTK_FILL,
-                     GTK_EXPAND | GTK_FILL, 0.5, 0.5);
+                     GTK_EXPAND | GTK_FILL, 0, 0);
 
 
     /* Option menu for resolutions */
@@ -1519,10 +1519,10 @@ CtkMMDialog *create_mosaic_dialog(GtkWidget *parent,
     setup_display_resolution_dropdown(ctk_mmdialog);
     label = gtk_label_new("");
     gtk_box_pack_start(GTK_BOX(hbox), label, FALSE, FALSE, 5);
-    gtk_box_pack_end(GTK_BOX(hbox), ctk_mmdialog->mnu_display_resolution, 
+    gtk_box_pack_end(GTK_BOX(hbox), ctk_mmdialog->mnu_display_resolution,
                      TRUE, TRUE, 0);
     gtk_table_attach(GTK_TABLE(table), hbox, 0, 1, 3, 4, GTK_EXPAND | GTK_FILL,
-                     GTK_EXPAND | GTK_FILL, 0.5, 0.5);
+                     GTK_EXPAND | GTK_FILL, 0, 0);
     g_signal_connect(G_OBJECT(ctk_mmdialog->mnu_display_resolution), "changed",
                      G_CALLBACK(display_resolution_changed),
                      (gpointer) ctk_mmdialog);
@@ -1542,7 +1542,7 @@ CtkMMDialog *create_mosaic_dialog(GtkWidget *parent,
     gtk_box_pack_end(GTK_BOX(hbox), ctk_mmdialog->mnu_display_refresh, TRUE, TRUE, 0);
 
     gtk_table_attach(GTK_TABLE(table), hbox, 1, 2, 3, 4, GTK_EXPAND | GTK_FILL,
-                     GTK_EXPAND | GTK_FILL, 0.5, 0.5);
+                     GTK_EXPAND | GTK_FILL, 0, 0);
 
     /* Edge Overlap section */
     hbox = gtk_hbox_new(FALSE, 0);
@@ -1553,7 +1553,7 @@ CtkMMDialog *create_mosaic_dialog(GtkWidget *parent,
     gtk_box_pack_start(GTK_BOX(hbox), hseparator, TRUE, TRUE, 5);
 
     gtk_table_attach(GTK_TABLE(table), hbox, 0, 1, 8, 9, GTK_EXPAND | GTK_FILL,
-                     GTK_EXPAND | GTK_FILL, 0.5, 0.5);
+                     GTK_EXPAND | GTK_FILL, 0, 0);
 
     hbox = gtk_hbox_new(FALSE, 0);
     label = gtk_label_new("Total Size");
@@ -1562,7 +1562,7 @@ CtkMMDialog *create_mosaic_dialog(GtkWidget *parent,
     gtk_box_pack_start(GTK_BOX(hbox), label, FALSE, FALSE, 5);
     gtk_box_pack_start(GTK_BOX(hbox), hseparator, TRUE, TRUE, 5);
     gtk_table_attach(GTK_TABLE(table), hbox, 1, 2, 8, 9, GTK_EXPAND | GTK_FILL,
-                     GTK_EXPAND | GTK_FILL, 0.5, 0.5);
+                     GTK_EXPAND | GTK_FILL, 0, 0);
 
 
     hbox = gtk_hbox_new(FALSE, 0);
@@ -1588,15 +1588,15 @@ CtkMMDialog *create_mosaic_dialog(GtkWidget *parent,
     gtk_box_pack_start(GTK_BOX(hbox), label, FALSE, FALSE, 5);
 
     gtk_table_attach(GTK_TABLE(table), hbox, 0, 1, 9, 10, GTK_EXPAND | GTK_FILL,
-                     GTK_EXPAND | GTK_FILL, 0.5, 0.5);
+                     GTK_EXPAND | GTK_FILL, 0, 0);
 
 
     hbox = gtk_hbox_new(FALSE, 0);
     label = gtk_label_new("Vertical:    ");
     gtk_box_pack_start(GTK_BOX(hbox), label, FALSE, FALSE, 10);
 
-    spinbutton = gtk_spin_button_new_with_range(-ctk_mmdialog->cur_modeline->data.vdisplay, 
-                                                ctk_mmdialog->cur_modeline->data.vdisplay, 
+    spinbutton = gtk_spin_button_new_with_range(-ctk_mmdialog->cur_modeline->data.vdisplay,
+                                                ctk_mmdialog->cur_modeline->data.vdisplay,
                                                 1);
     ctk_mmdialog->spbtn_vedge_overlap = spinbutton;
     gtk_spin_button_set_value(GTK_SPIN_BUTTON(spinbutton),
@@ -1612,7 +1612,7 @@ CtkMMDialog *create_mosaic_dialog(GtkWidget *parent,
     gtk_box_pack_start(GTK_BOX(hbox), label, FALSE, FALSE, 5);
 
     gtk_table_attach(GTK_TABLE(table), hbox, 0, 1, 10, 11, GTK_EXPAND | GTK_FILL,
-                     GTK_EXPAND | GTK_FILL, 0.5, 0.5);
+                     GTK_EXPAND | GTK_FILL, 0, 0);
 
     label = gtk_label_new("NULL");
     ctk_mmdialog->lbl_total_size = label;
@@ -1622,7 +1622,7 @@ CtkMMDialog *create_mosaic_dialog(GtkWidget *parent,
     ctk_mmdialog->box_total_size = hbox;
     gtk_box_pack_start(GTK_BOX(hbox), label, FALSE, FALSE, 10);
     gtk_table_attach(GTK_TABLE(table), hbox, 1, 2, 9, 10, GTK_EXPAND | GTK_FILL,
-                     GTK_EXPAND | GTK_FILL, 0.5, 0.5);
+                     GTK_EXPAND | GTK_FILL, 0, 0);
 
     hbox = gtk_hbox_new(FALSE, 0);
     label = gtk_label_new("Maximum Size");
@@ -1631,7 +1631,7 @@ CtkMMDialog *create_mosaic_dialog(GtkWidget *parent,
     gtk_box_pack_start(GTK_BOX(hbox), label, FALSE, FALSE, 5);
     gtk_box_pack_start(GTK_BOX(hbox), hseparator, TRUE, TRUE, 5);
     gtk_table_attach(GTK_TABLE(table), hbox, 1, 2, 10, 11, GTK_EXPAND | GTK_FILL,
-                     GTK_EXPAND | GTK_FILL, 0.5, 0.5);
+                     GTK_EXPAND | GTK_FILL, 0, 0);
 
     tmp = g_strdup_printf("%dx%d", ctk_mmdialog->max_screen_width,
                           ctk_mmdialog->max_screen_height);
@@ -1640,7 +1640,7 @@ CtkMMDialog *create_mosaic_dialog(GtkWidget *parent,
     hbox = gtk_hbox_new(FALSE, 0);
     gtk_box_pack_start(GTK_BOX(hbox), label, FALSE, FALSE, 10);
     gtk_table_attach(GTK_TABLE(table), hbox, 1, 2, 11, 12, GTK_EXPAND | GTK_FILL,
-                     GTK_EXPAND | GTK_FILL, 0.5, 0.5);
+                     GTK_EXPAND | GTK_FILL, 0, 0);
 
 
     /* If current SLI Mode != Mosaic, disable UI elements initially */
@@ -1667,18 +1667,18 @@ void ctk_mmdialog_insert_help(GtkTextBuffer *b, GtkTextIter *i)
 
     ctk_help_para(b, i, "This dialog allows easy configuration "
                   "of SLI Mosaic Mode.");
-    
+
     ctk_help_heading(b, i, "Display Configuration");
     ctk_help_para(b, i, "This drop down menu allows selection of the display grid "
                   "configuration for SLI Mosaic Mode; the possible configurations "
                   "are described as rows x columns.");
-    
+
     ctk_help_heading(b, i, "Resolution");
     ctk_help_para(b, i, "This drop down menu allows selection of the resolution to "
                   "use for each of the displays in SLI Mosaic Mode.  Note that only "
                   "the resolutions that are available for each display will be "
                   "shown here.");
-    
+
     ctk_help_heading(b, i, "Refresh Rate");
     ctk_help_para(b, i, "This drop down menu allows selection of the refresh rate "
                   "to use for each of the displays in SLI Mosaic Mode.  By default "

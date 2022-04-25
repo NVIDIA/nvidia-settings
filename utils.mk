@@ -56,6 +56,8 @@ HOST_BIN_LDFLAGS      ?=
 # always disable warnings that will break the build
 CC_ONLY_CFLAGS        += -Wno-format-zero-length
 CFLAGS                += -Wno-unused-parameter
+CFLAGS                += -Wno-deprecated-declarations
+CFLAGS                += -Wno-unknown-warning-option
 HOST_CC_ONLY_CFLAGS   += -Wno-format-zero-length
 HOST_CFLAGS           += -Wno-unused-parameter
 
