@@ -19,6 +19,10 @@ Comment[ru]=Конфигурирование параметров NVIDIA X Serve
 Name[ro]=Setări NVIDIA X Server
 Comment[ro]=Configurează setările NVIDIA X Server
 
+# Translation by Obiwac
+Name[nl]=NVIDIA X-Server-Instellingen
+Comment[nl]=Configuratie van NVIDIA X-Server-Instellingen
+
 # Translations provided by Sun Microsystems
 Name[de]=NVIDIA X-Server-Einstellungen
 Name[es]=Valores de configuración del servidor NVIDIA X
