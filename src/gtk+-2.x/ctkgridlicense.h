@@ -2,7 +2,7 @@
  * nvidia-settings: A tool for configuring the NVIDIA X driver on Unix
  * and Linux systems.
  *
- * Copyright (C) 2021 NVIDIA Corporation.
+ * Copyright (C) 2022 NVIDIA Corporation.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms and conditions of the GNU General Public License,
@@ -79,6 +79,8 @@ struct _CtkManageGridLicense
     gboolean        isvComputeSupported;                                // Check if 'NVIDIA Virtual Compute Server' feature is supported
     gboolean        isvWSSupported;                                     // Check if 'NVIDIA RTX Virtual Workstation' feature is supported
     char            licenseExpiry[GRID_LICENSE_INFO_MAX_LENGTH];        // License expiry timestamp
+    gint            isGspEnabled;                                       // Check if GSP firmware is enabled
+    gint            gspDefaultMode;                                     // Check if GSP firmware is supported by default on GPU
 };
 
 /*
@@ -100,6 +102,8 @@ typedef enum
     NV_GRID_LICENSED_RESTART_REQUIRED_VCOMPUTE,
     NV_GRID_UNLICENSED_REQUEST_DETAILS_VWS,
     NV_GRID_UNLICENSED_REQUEST_DETAILS_VCOMPUTE,
+    NV_GRID_LICENSE_GSP_REQUIRED_VCS,                   // Indicates that GSP firmware is supported by device and needs to be enabled to apply 'NVIDIA Virtual Compute Server'
+    NV_GRID_LICENSE_GSP_NOT_SUPPORTED_VWS,              // Indicates that 'NVIDIA RTX Virtual Workstation' is not supported on GSP enabled system
 } licenseStatusList;
 
 struct _CtkManageGridLicenseClass

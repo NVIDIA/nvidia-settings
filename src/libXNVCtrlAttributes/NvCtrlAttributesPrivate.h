@@ -180,6 +180,7 @@ struct __NvCtrlNvmlAttributes {
         typeof(nvmlDeviceGetMaxPcieLinkWidth)           (*deviceGetMaxPcieLinkWidth);
         typeof(nvmlDeviceGetVirtualizationMode)         (*deviceGetVirtualizationMode);
         typeof(nvmlDeviceGetGridLicensableFeatures_v4)  (*deviceGetGridLicensableFeatures);
+        typeof(nvmlDeviceGetGspFirmwareMode)            (*deviceGetGspFirmwareMode);
         typeof(nvmlDeviceGetUtilizationRates)           (*deviceGetUtilizationRates);
         typeof(nvmlDeviceGetTemperatureThreshold)       (*deviceGetTemperatureThreshold);
         typeof(nvmlDeviceGetFanSpeed_v2)                (*deviceGetFanSpeed_v2);
@@ -459,6 +460,8 @@ ReturnStatus NvCtrlNvmlGetAttribute(const CtrlTarget *ctrl_target,
                                     int attr, int64_t *val);
 ReturnStatus NvCtrlNvmlGetGridLicenseAttributes(const CtrlTarget *ctrl_target,
                                                 int attr, nvmlGridLicensableFeatures_t **val);
+ReturnStatus NvCtrlNvmlDeviceGetGspAttributes(const CtrlTarget *ctrl_target, int attr,
+                                              unsigned int *isEnabled, unsigned int *defaultMode);
 ReturnStatus NvCtrlNvmlSetAttribute(CtrlTarget *ctrl_target, int attr,
                                     int index, int val);
 ReturnStatus

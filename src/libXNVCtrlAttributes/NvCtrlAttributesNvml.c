@@ -229,6 +229,7 @@ static Bool LoadNvml(NvCtrlNvmlAttributes *nvml)
     nvml->lib._proc = dlsym(nvml->lib.handle, _name); 
     
     GET_SYMBOL_OPTIONAL(deviceGetGridLicensableFeatures, "nvmlDeviceGetGridLicensableFeatures_v4");
+    GET_SYMBOL_OPTIONAL(deviceGetGspFirmwareMode,        "nvmlDeviceGetGspFirmwareMode");
     GET_SYMBOL_OPTIONAL(deviceGetMemoryInfo_v2,          "nvmlDeviceGetMemoryInfo_v2");
 #undef GET_SYMBOL_OPTIONAL
 
@@ -1127,6 +1128,53 @@ static ReturnStatus NvCtrlNvmlGetGridLicensableFeatures(const CtrlTarget *ctrl_t
     return NvCtrlNotSupported;
 }
 
+static ReturnStatus NvCtrlNvmlDeviceGetGspFeatures(const CtrlTarget *ctrl_target, int attr,
+                                                       unsigned int *isEnabled, unsigned int *defaultMode)
+{
+    const NvCtrlAttributePrivateHandle *h = getPrivateHandleConst(ctrl_target);
+    const NvCtrlNvmlAttributes *nvml;
+    nvmlDevice_t device;
+    nvmlReturn_t ret;
+
+    nvml = getNvmlHandleConst(h);
+    if (nvml == NULL) {
+        return NvCtrlBadHandle;
+    }
+
+    ret = nvml->lib.deviceGetHandleByIndex(nvml->deviceIdx, &device);
+    if (ret == NVML_SUCCESS) {
+    switch (attr) {
+        case NV_CTRL_ATTR_NVML_GSP_FIRMWARE_MODE:
+            if (nvml->lib.deviceGetGspFirmwareMode) {
+                unsigned int isEnabled_t = 0;
+                unsigned int defaultMode_t = 0;
+                ret = nvml->lib.deviceGetGspFirmwareMode(device,
+                                                         &isEnabled_t, &defaultMode_t);
+                if (ret == NVML_SUCCESS) {
+                    *isEnabled = isEnabled_t;
+                    *defaultMode = defaultMode_t;
+                    return NvCtrlSuccess;
+                }
+            } else {
+                /* return NvCtrlNotSupported against older driver */
+                ret = NVML_ERROR_FUNCTION_NOT_FOUND;
+            }
+
+            break;
+
+        default:
+            /* Did we forget to handle a GPU integer attribute? */
+            nv_warning_msg("Unhandled integer attribute %s (%d) of GPU "
+                           "(%d)", INT_ATTRIBUTE_NAME(attr), attr,
+                           NvCtrlGetTargetId(ctrl_target));
+            return NvCtrlNotSupported;
+        }
+    }
+
+    /* An NVML error occurred */
+    printNvmlError(ret);
+    return NvCtrlNotSupported;
+}
 
 static void getDeviceAndTargetIndex(const NvCtrlAttributePrivateHandle *h,
                                     unsigned int targetCount,
@@ -1313,6 +1361,29 @@ ReturnStatus NvCtrlNvmlGetGridLicenseAttributes(const CtrlTarget *ctrl_target,
 
     if (NvCtrlGetTargetType(ctrl_target) == GPU_TARGET) {
         return NvCtrlNvmlGetGridLicensableFeatures(ctrl_target, attr, val);
+    }
+    else {
+            return NvCtrlBadHandle;
+    }
+}
+
+
+ReturnStatus NvCtrlNvmlDeviceGetGspAttributes(const CtrlTarget *ctrl_target, int attr,
+                                              unsigned int *isEnabled, unsigned int *defaultMode)
+{
+    if (NvmlMissing(ctrl_target)) {
+        return NvCtrlMissingExtension;
+    }
+
+    /*
+     * This shouldn't be reached for target types that are not handled through
+     * NVML (Keep TARGET_TYPE_IS_NVML_COMPATIBLE in NvCtrlAttributesPrivate.h up
+     * to date).
+     */
+    assert(TARGET_TYPE_IS_NVML_COMPATIBLE(NvCtrlGetTargetType(ctrl_target)));
+
+    if (NvCtrlGetTargetType(ctrl_target) == GPU_TARGET) {
+        return NvCtrlNvmlDeviceGetGspFeatures(ctrl_target, attr, isEnabled, defaultMode);
     }
     else {
             return NvCtrlBadHandle;

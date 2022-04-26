@@ -1,5 +1,5 @@
 /*
- * Copyright 1993-2021 NVIDIA Corporation.  All rights reserved.
+ * Copyright 1993-2022 NVIDIA Corporation.  All rights reserved.
  *
  * NOTICE TO USER:
  *
@@ -1210,6 +1210,11 @@ typedef struct nvmlGridLicensableFeatures_st
     unsigned int                licensableFeaturesCount;                                      //!< Entries returned in \a gridLicensableFeatures array
     nvmlGridLicensableFeature_t gridLicensableFeatures[NVML_GRID_LICENSE_FEATURE_MAX_COUNT];  //!< Array of vGPU software licensable features.
 } nvmlGridLicensableFeatures_t;
+
+/**
+ * GSP firmware
+ */
+#define NVML_GSP_FIRMWARE_VERSION_BUF_SIZE 0x40
 
 /**
  * Simplified chip architecture
@@ -6433,6 +6438,40 @@ nvmlReturn_t DECLDIR nvmlDeviceGetGridLicensableFeatures_v4(nvmlDevice_t device,
  */
 nvmlReturn_t DECLDIR nvmlDeviceGetProcessUtilization(nvmlDevice_t device, nvmlProcessUtilizationSample_t *utilization,
                                               unsigned int *processSamplesCount, unsigned long long lastSeenTimeStamp);
+
+/**
+ * Retrieve GSP firmware version.
+ *
+ * The caller passes in buffer via \a version and corresponding GSP firmware numbered version
+ * is returned with the same parameter in string format.
+ *
+ * @param device                               Device handle
+ * @param version                              The retrieved GSP firmware version
+ *
+ * @return
+ *         - \ref NVML_SUCCESS                 if GSP firmware version is sucessfully retrieved
+ *         - \ref NVML_ERROR_INVALID_ARGUMENT  if \a device is invalid or GSP \a version pointer is NULL
+ *         - \ref NVML_ERROR_NOT_SUPPORTED     if GSP firmware is not enabled for GPU
+ *         - \ref NVML_ERROR_UNKNOWN           on any unexpected error
+ */
+nvmlReturn_t DECLDIR nvmlDeviceGetGspFirmwareVersion(nvmlDevice_t device, char *version);
+
+/**
+ * Retrieve GSP firmware mode.
+ *
+ * The caller passes in integer pointers. GSP firmware enablement and default mode information is returned with
+ * corresponding parameters. The return value in \a isEnabled and \a defaultMode should be treated as boolean.
+ *
+ * @param device                               Device handle
+ * @param isEnabled                            Pointer to specify if GSP firmware is enabled
+ * @param defaultMode                          Pointer to specify if GSP firmware is supported by default on \a device
+ *
+ * @return
+ *         - \ref NVML_SUCCESS                 if GSP firmware mode is sucessfully retrieved
+ *         - \ref NVML_ERROR_INVALID_ARGUMENT  if \a device is invalid or any of \a isEnabled or \a defaultMode is NULL
+ *         - \ref NVML_ERROR_UNKNOWN           on any unexpected error
+ */
+nvmlReturn_t DECLDIR nvmlDeviceGetGspFirmwareMode(nvmlDevice_t device, unsigned int *isEnabled, unsigned int *defaultMode);
 
 /** @} */
 

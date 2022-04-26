@@ -2,7 +2,7 @@
  * nvidia-settings: A tool for configuring the NVIDIA X driver on Unix
  * and Linux systems.
  *
- * Copyright (C) 2021 NVIDIA Corporation.
+ * Copyright (C) 2022 NVIDIA Corporation.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms and conditions of the GNU General Public License,
@@ -836,6 +836,21 @@ static gboolean update_manage_grid_license_state_info(gpointer user_data)
     /* Set the license feature type fetched from vGPU licensing daemon.*/
     ctk_manage_grid_license->gridd_feature_type = griddFeatureType;
 
+    /* Validate GSP firmware support.
+       As per current POR, GSP should be enabled only for vCS */
+    switch (ctk_manage_grid_license->feature_type) {
+        case NV_GRID_LICENSE_FEATURE_TYPE_VWS:
+            if (ctk_manage_grid_license->gspDefaultMode && ctk_manage_grid_license->isGspEnabled) {
+                ctk_manage_grid_license->licenseStatus = NV_GRID_LICENSE_GSP_NOT_SUPPORTED_VWS;
+            }
+            break;
+        case NV_GRID_LICENSE_FEATURE_TYPE_VCOMPUTE:
+            if (ctk_manage_grid_license->gspDefaultMode && !ctk_manage_grid_license->isGspEnabled) {
+                ctk_manage_grid_license->licenseStatus = NV_GRID_LICENSE_GSP_REQUIRED_VCS;
+            }
+            break;
+    }
+
     if (licenseState == NV_GRID_UNLICENSED) {
         bQueryGridLicenseInfo = TRUE;
         switch (ctk_manage_grid_license->feature_type) {
@@ -846,12 +861,18 @@ static gboolean update_manage_grid_license_state_info(gpointer user_data)
                 }
                 break;
             case NV_GRID_LICENSE_FEATURE_TYPE_VWS:
+                if (ctk_manage_grid_license->licenseStatus == NV_GRID_LICENSE_GSP_NOT_SUPPORTED_VWS) {
+                    break;
+                }
                 ctk_manage_grid_license->licenseStatus = NV_GRID_UNLICENSED_REQUEST_DETAILS_VWS;
                 if (is_restart_required(ctk_manage_grid_license)) {
                     ctk_manage_grid_license->licenseStatus = NV_GRID_LICENSE_RESTART_REQUIRED_VWS;
                 }
                 break;
             case NV_GRID_LICENSE_FEATURE_TYPE_VCOMPUTE:
+                if (ctk_manage_grid_license->licenseStatus == NV_GRID_LICENSE_GSP_REQUIRED_VCS) {
+                    break;
+                }
                 ctk_manage_grid_license->licenseStatus = NV_GRID_UNLICENSED_REQUEST_DETAILS_VCOMPUTE;
                 if (is_restart_required(ctk_manage_grid_license)) {
                     ctk_manage_grid_license->licenseStatus = NV_GRID_LICENSE_RESTART_REQUIRED_VCOMPUTE;
@@ -1008,6 +1029,12 @@ static gboolean update_manage_grid_license_state_info(gpointer user_data)
     case NV_GRID_UNLICENSED_REQUEST_DETAILS_VCOMPUTE:
           snprintf(licenseStatusMsgTmp, sizeof(licenseStatusMsgTmp), "Your system does not have a valid %s license.\n"
               "Enter license server details and apply.", ctk_manage_grid_license->productNamevCompute);
+          break;
+    case NV_GRID_LICENSE_GSP_REQUIRED_VCS:
+          snprintf(licenseStatusMsgTmp, sizeof(licenseStatusMsgTmp), "Enable GSP firmware for %s.", ctk_manage_grid_license->productNamevCompute);
+          break;
+    case NV_GRID_LICENSE_GSP_NOT_SUPPORTED_VWS:
+          snprintf(licenseStatusMsgTmp, sizeof(licenseStatusMsgTmp), "Disable GSP firmware for %s.", ctk_manage_grid_license->productNamevWS);
           break;
     default:
           snprintf(licenseStatusMsgTmp, sizeof(licenseStatusMsgTmp), "Your system does not have a valid GRID license.\n"
@@ -1548,6 +1575,8 @@ GtkWidget* ctk_manage_grid_license_new(CtrlTarget *target,
     DbusData *dbusData;
     int64_t gridLicenseSupported;
     NvGriddConfigParams *griddConfig;
+    gint isGspEnabled = 0;
+    gint gspDefaultMode = 0;
 
     /* make sure we have a handle */
 
@@ -1576,6 +1605,14 @@ GtkWidget* ctk_manage_grid_license_new(CtrlTarget *target,
 
     if (ret != NvCtrlSuccess) {
         return NULL;
+    }
+
+    /* Query GSP firmware attributes */
+    ret = NvCtrlNvmlDeviceGetGspAttributes(target,
+                                           NV_CTRL_ATTR_NVML_GSP_FIRMWARE_MODE,
+                                           (unsigned int*)&isGspEnabled, (unsigned int*)&gspDefaultMode);
+    if (ret != NvCtrlSuccess) {
+        return FALSE;
     }
 
     /* GRID M6 is licensable gpu so we want to allow users to choose
@@ -1634,6 +1671,8 @@ GtkWidget* ctk_manage_grid_license_new(CtrlTarget *target,
     ctk_manage_grid_license->feature_type = 0;
     ctk_manage_grid_license->target = target;
     ctk_manage_grid_license->licenseStatus = NV_GRID_UNLICENSED_VGPU;
+    ctk_manage_grid_license->isGspEnabled = isGspEnabled;
+    ctk_manage_grid_license->gspDefaultMode = gspDefaultMode;
 
     /* set container properties for the CtkManageGridLicense widget */
     gtk_box_set_spacing(GTK_BOX(ctk_manage_grid_license), 5);
